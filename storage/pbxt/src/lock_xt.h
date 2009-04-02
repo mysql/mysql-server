@@ -640,6 +640,7 @@ struct XTLockWait;
 typedef struct XTRowLocks {
 	XTLockGroupRec			rl_groups[XT_ROW_LOCK_GROUP_COUNT];
 
+	void	xt_cancel_temp_lock(XTLockWaitPtr lw);
 	xtBool	xt_set_temp_lock(struct XTOpenTable *ot, XTLockWaitPtr lw, XTRowLockListPtr lock_list);
 	void	xt_remove_temp_lock(struct XTOpenTable *ot, xtBool updated);
 	xtBool	xt_make_lock_permanent(struct XTOpenTable *ot, XTRowLockListPtr lock_list);

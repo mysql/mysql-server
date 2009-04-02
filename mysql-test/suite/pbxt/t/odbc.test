@@ -1,0 +1,37 @@
+# Initialise
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+#
+# Test some ODBC compatibility
+#
+
+select {fn length("hello")}, { date "1997-10-20" };
+
+#
+# Test retreiving row with last insert_id value.
+#
+
+create table t1 (a int not null auto_increment,b int not null,primary key (a,b));
+insert into t1 SET A=NULL,B=1;
+insert into t1 SET a=null,b=2;
+select * from t1 where a is null and b=2;
+select * from t1 where a is null;
+explain select * from t1 where b is null;
+drop table t1;
+
+#
+# Bug #14553: NULL in WHERE resets LAST_INSERT_ID
+#
+CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY);
+INSERT INTO t1 VALUES (NULL);
+SELECT sql_no_cache a, last_insert_id() FROM t1 WHERE a IS NULL;
+SELECT sql_no_cache a, last_insert_id() FROM t1 WHERE a IS NULL;
+SELECT sql_no_cache a, last_insert_id() FROM t1;
+DROP TABLE t1;
+
+--disable_query_log
+drop database pbxt;
+--enable_query_log
+# End of 4.1 tests

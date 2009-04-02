@@ -1,24 +1,533 @@
-set GLOBAL query_cache_size=1355776;
-drop database if exists MySQLtesT;
-create database MySQLtesT;
-create table MySQLtesT.t1 (a int);
-select * from MySQLtesT.t1;
-a
-show status like "Qcache_queries_in_cache";
-Variable_name	Value
-Qcache_queries_in_cache	1
-drop database mysqltest;
-show status like "Qcache_queries_in_cache";
-Variable_name	Value
-Qcache_queries_in_cache	0
-use MySQL;
-select * from db;
-show status like "Qcache_queries_in_cache";
-Variable_name	Value
-Qcache_queries_in_cache	0
-use test;
-select * from MySQL.db;
-show status like "Qcache_queries_in_cache";
-Variable_name	Value
-Qcache_queries_in_cache	0
-set GLOBAL query_cache_size=0;
+VARIABLE_NAME	VARIABLE_VALUE
+AUTOCOMMIT	ON
+AUTOMATIC_SP_PRIVILEGES	ON
+AUTO_INCREMENT_INCREMENT	1
+AUTO_INCREMENT_OFFSET	1
+BACK_LOG	50
+BASEDIR	/Users/build/Development/Repositories/maria/maria-pbxt/
+BIG_TABLES	OFF
+BINLOG_CACHE_SIZE	32768
+BINLOG_FORMAT	STATEMENT
+BULK_INSERT_BUFFER_SIZE	8388608
+CHARACTER_SETS_DIR	/Users/build/Development/Repositories/maria/maria-pbxt/sql/share/charsets/
+CHARACTER_SET_CLIENT	latin1
+CHARACTER_SET_CONNECTION	latin1
+CHARACTER_SET_DATABASE	latin1
+CHARACTER_SET_FILESYSTEM	binary
+CHARACTER_SET_RESULTS	latin1
+CHARACTER_SET_SERVER	latin1
+CHARACTER_SET_SYSTEM	utf8
+COLLATION_CONNECTION	latin1_swedish_ci
+COLLATION_DATABASE	latin1_swedish_ci
+COLLATION_SERVER	latin1_swedish_ci
+COMPLETION_TYPE	0
+CONCURRENT_INSERT	1
+CONNECT_TIMEOUT	60
+DATADIR	/Users/build/Development/Repositories/maria/maria-pbxt/mysql-test/var/mysqld.1/data/
+DATETIME_FORMAT	%Y-%m-%d %H:%i:%s
+DATE_FORMAT	%Y-%m-%d
+DEADLOCK_SEARCH_DEPTH_LONG	15
+DEADLOCK_SEARCH_DEPTH_SHORT	4
+DEADLOCK_TIMEOUT_LONG	50000000
+DEADLOCK_TIMEOUT_SHORT	10000
+DEFAULT_WEEK_FORMAT	0
+DELAYED_INSERT_LIMIT	100
+DELAYED_INSERT_TIMEOUT	300
+DELAYED_QUEUE_SIZE	1000
+DELAY_KEY_WRITE	ON
+DIV_PRECISION_INCREMENT	4
+ENGINE_CONDITION_PUSHDOWN	ON
+ERROR_COUNT	0
+EVENT_SCHEDULER	OFF
+EXPIRE_LOGS_DAYS	0
+EXTRA_MAX_CONNECTIONS	1
+EXTRA_PORT	0
+FLUSH	OFF
+FLUSH_TIME	0
+FOREIGN_KEY_CHECKS	ON
+FT_BOOLEAN_SYNTAX	+ -><()~*:""&|
+FT_MAX_WORD_LEN	84
+FT_MIN_WORD_LEN	4
+FT_QUERY_EXPANSION_LIMIT	20
+FT_STOPWORD_FILE	(built-in)
+GENERAL_LOG	ON
+GENERAL_LOG_FILE	/Users/build/Development/Repositories/maria/maria-pbxt/mysql-test/var/mysqld.1/mysqld.log
+GROUP_CONCAT_MAX_LEN	1024
+HAVE_COMMUNITY_FEATURES	YES
+HAVE_COMPRESS	YES
+HAVE_CRYPT	YES
+HAVE_CSV	YES
+HAVE_DYNAMIC_LOADING	YES
+HAVE_GEOMETRY	YES
+HAVE_INNODB	DISABLED
+HAVE_NDBCLUSTER	NO
+HAVE_OPENSSL	DISABLED
+HAVE_PARTITIONING	YES
+HAVE_QUERY_CACHE	YES
+HAVE_RTREE_KEYS	YES
+HAVE_SSL	DISABLED
+HAVE_SYMLINK	YES
+HOSTNAME	pmc-2.local
+IDENTITY	0
+INIT_CONNECT	
+INIT_FILE	
+INIT_SLAVE	
+INSERT_ID	0
+INTERACTIVE_TIMEOUT	28800
+JOIN_BUFFER_SIZE	131072
+KEEP_FILES_ON_CREATE	OFF
+KEY_BUFFER_SIZE	1048576
+KEY_CACHE_AGE_THRESHOLD	300
+KEY_CACHE_BLOCK_SIZE	1024
+KEY_CACHE_DIVISION_LIMIT	100
+LANGUAGE	/Users/build/Development/Repositories/maria/maria-pbxt/sql/share/english/
+LARGE_FILES_SUPPORT	ON
+LARGE_PAGES	OFF
+LARGE_PAGE_SIZE	0
+LAST_INSERT_ID	0
+LC_TIME_NAMES	en_US
+LICENSE	GPL
+LOCAL_INFILE	ON
+LOCKED_IN_MEMORY	OFF
+LOG	ON
+LOG_BIN	OFF
+LOG_BIN_TRUST_FUNCTION_CREATORS	ON
+LOG_BIN_TRUST_ROUTINE_CREATORS	ON
+LOG_ERROR	/Users/build/Development/Repositories/maria/maria-pbxt/mysql-test/var/mysqld.1/mysqld.err
+LOG_OUTPUT	FILE,TABLE
+LOG_QUERIES_NOT_USING_INDEXES	OFF
+LOG_SLAVE_UPDATES	OFF
+LOG_SLOW_QUERIES	ON
+LOG_WARNINGS	1
+LONG_QUERY_TIME	10.000000
+LOWER_CASE_FILE_SYSTEM	ON
+LOWER_CASE_TABLE_NAMES	2
+LOW_PRIORITY_UPDATES	OFF
+MARIA_BLOCK_SIZE	8192
+MARIA_CHECKPOINT_INTERVAL	30
+MARIA_FORCE_START_AFTER_RECOVERY_FAILURES	0
+MARIA_LOG_FILE_SIZE	1073741824
+MARIA_LOG_PURGE_TYPE	immediate
+MARIA_MAX_SORT_FILE_SIZE	9223372036853727232
+MARIA_PAGECACHE_AGE_THRESHOLD	300
+MARIA_PAGECACHE_BUFFER_SIZE	8384512
+MARIA_PAGECACHE_DIVISION_LIMIT	100
+MARIA_PAGE_CHECKSUM	ON
+MARIA_RECOVER	OFF
+MARIA_REPAIR_THREADS	1
+MARIA_SORT_BUFFER_SIZE	8388608
+MARIA_STATS_METHOD	nulls_unequal
+MARIA_SYNC_LOG_DIR	NEWFILE
+MAX_ALLOWED_PACKET	1048576
+MAX_BINLOG_CACHE_SIZE	4294963200
+MAX_BINLOG_SIZE	1073741824
+MAX_CONNECTIONS	151
+MAX_CONNECT_ERRORS	10
+MAX_DELAYED_THREADS	20
+MAX_ERROR_COUNT	64
+MAX_HEAP_TABLE_SIZE	1048576
+MAX_INSERT_DELAYED_THREADS	20
+MAX_JOIN_SIZE	18446744073709551615
+MAX_LENGTH_FOR_SORT_DATA	1024
+MAX_PREPARED_STMT_COUNT	16382
+MAX_RELAY_LOG_SIZE	0
+MAX_SEEKS_FOR_KEY	4294967295
+MAX_SORT_LENGTH	1024
+MAX_SP_RECURSION_DEPTH	0
+MAX_TMP_TABLES	32
+MAX_USER_CONNECTIONS	0
+MAX_WRITE_LOCK_COUNT	4294967295
+MIN_EXAMINED_ROW_LIMIT	0
+MULTI_RANGE_COUNT	256
+MYISAM_DATA_POINTER_SIZE	6
+MYISAM_MAX_SORT_FILE_SIZE	2146435072
+MYISAM_RECOVER_OPTIONS	OFF
+MYISAM_REPAIR_THREADS	1
+MYISAM_SORT_BUFFER_SIZE	8388608
+MYISAM_STATS_METHOD	nulls_unequal
+MYISAM_USE_MMAP	OFF
+NET_BUFFER_LENGTH	16384
+NET_READ_TIMEOUT	30
+NET_RETRY_COUNT	10
+NET_WRITE_TIMEOUT	60
+NEW	OFF
+OLD	OFF
+OLD_ALTER_TABLE	OFF
+OLD_PASSWORDS	OFF
+OPEN_FILES_LIMIT	8192
+OPTIMIZER_PRUNE_LEVEL	1
+OPTIMIZER_SEARCH_DEPTH	62
+PBXT_AUTO_INCREMENT_MODE	0
+PBXT_CHECKPOINT_FREQUENCY	28MB
+PBXT_DATA_FILE_GROW_SIZE	2MB
+PBXT_DATA_LOG_THRESHOLD	64MB
+PBXT_GARBAGE_THRESHOLD	50
+PBXT_INDEX_CACHE_SIZE	32MB
+PBXT_LOG_BUFFER_SIZE	256K
+PBXT_LOG_CACHE_SIZE	16MB
+PBXT_LOG_FILE_COUNT	3
+PBXT_LOG_FILE_THRESHOLD	32MB
+PBXT_OFFLINE_LOG_FUNCTION	1
+PBXT_RECORD_CACHE_SIZE	32MB
+PBXT_ROW_FILE_GROW_SIZE	256K
+PBXT_SWEEPER_PRIORITY	0
+PBXT_TRANSACTION_BUFFER_SIZE	1MB
+PID_FILE	/Users/build/Development/Repositories/maria/maria-pbxt/mysql-test/var/run/mysqld.1.pid
+PLUGIN_DIR	/Users/build/Development/Repositories/maria/maria-pbxt/lib/mysql/plugin
+PORT	12500
+PRELOAD_BUFFER_SIZE	32768
+PROFILING	OFF
+PROFILING_HISTORY_SIZE	15
+PROTOCOL_VERSION	10
+PSEUDO_THREAD_ID	0
+QUERY_ALLOC_BLOCK_SIZE	8192
+QUERY_CACHE_LIMIT	1048576
+QUERY_CACHE_MIN_RES_UNIT	4096
+QUERY_CACHE_SIZE	0
+QUERY_CACHE_TYPE	ON
+QUERY_CACHE_WLOCK_INVALIDATE	OFF
+QUERY_PREALLOC_SIZE	8192
+RAND_SEED1	
+RAND_SEED2	
+RANGE_ALLOC_BLOCK_SIZE	4096
+READ_BUFFER_SIZE	131072
+READ_ONLY	OFF
+READ_RND_BUFFER_SIZE	262144
+RELAY_LOG	
+RELAY_LOG_INDEX	
+RELAY_LOG_INFO_FILE	relay-log.info
+RELAY_LOG_PURGE	ON
+RELAY_LOG_SPACE_LIMIT	0
+REPORT_HOST	
+REPORT_PASSWORD	
+REPORT_PORT	3306
+REPORT_USER	
+RPL_RECOVERY_RANK	0
+SECURE_AUTH	OFF
+SECURE_FILE_PRIV	/Users/build/Development/Repositories/maria/maria-pbxt/mysql-test/var/
+SERVER_ID	1
+SKIP_EXTERNAL_LOCKING	ON
+SKIP_NETWORKING	OFF
+SKIP_SHOW_DATABASE	OFF
+SLAVE_COMPRESSED_PROTOCOL	OFF
+SLAVE_EXEC_MODE	STRICT
+SLAVE_LOAD_TMPDIR	/Users/build/Development/Repositories/maria/maria-pbxt/mysql-test/var/tmp/mysqld.1
+SLAVE_NET_TIMEOUT	120
+SLAVE_SKIP_ERRORS	
+SLAVE_TRANSACTION_RETRIES	10
+SLOW_LAUNCH_TIME	2
+SLOW_QUERY_LOG	ON
+SLOW_QUERY_LOG_FILE	/Users/build/Development/Repositories/maria/maria-pbxt/mysql-test/var/mysqld.1/mysqld-slow.log
+SOCKET	/Users/build/Development/Repositories/maria/maria-pbxt/mysql-test/var/tmp/mysqld.1.sock
+SORT_BUFFER_SIZE	262144
+SQL_AUTO_IS_NULL	ON
+SQL_BIG_SELECTS	ON
+SQL_BIG_TABLES	OFF
+SQL_BUFFER_RESULT	OFF
+SQL_LOG_BIN	ON
+SQL_LOG_OFF	ON
+SQL_LOG_UPDATE	ON
+SQL_LOW_PRIORITY_UPDATES	OFF
+SQL_MAX_JOIN_SIZE	18446744073709551615
+SQL_MODE	
+SQL_NOTES	ON
+SQL_QUOTE_SHOW_CREATE	ON
+SQL_SAFE_UPDATES	OFF
+SQL_SELECT_LIMIT	18446744073709551615
+SQL_SLAVE_SKIP_COUNTER	
+SQL_WARNINGS	OFF
+SSL_CA	
+SSL_CAPATH	
+SSL_CERT	
+SSL_CIPHER	
+SSL_KEY	
+STORAGE_ENGINE	PBXT
+SYNC_BINLOG	0
+SYNC_FRM	OFF
+SYSTEM_TIME_ZONE	GMT
+TABLE_DEFINITION_CACHE	256
+TABLE_LOCK_WAIT_TIMEOUT	50
+TABLE_OPEN_CACHE	64
+TABLE_TYPE	PBXT
+THREAD_CACHE_SIZE	0
+THREAD_HANDLING	one-thread-per-connection
+THREAD_POOL_SIZE	20
+THREAD_STACK	196608
+TIMED_MUTEXES	OFF
+TIME_FORMAT	%H:%i:%s
+TIME_ZONE	SYSTEM
+TMPDIR	/Users/build/Development/Repositories/maria/maria-pbxt/mysql-test/var/tmp/mysqld.1
+TMP_TABLE_SIZE	16777216
+TRANSACTION_ALLOC_BLOCK_SIZE	8192
+TRANSACTION_PREALLOC_SIZE	4096
+TX_ISOLATION	REPEATABLE-READ
+UNIQUE_CHECKS	ON
+UPDATABLE_VIEWS_WITH_LIMIT	YES
+VERSION	5.1.32-maria-beta-debug-log
+VERSION_COMMENT	Source distribution
+VERSION_COMPILE_MACHINE	i386
+VERSION_COMPILE_OS	apple-darwin9.6.2
+WAIT_TIMEOUT	28800
+WARNING_COUNT	0
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
+NULL	information_schema	utf8	utf8_general_ci	NULL
+NULL	mtr	latin1	latin1_swedish_ci	NULL
+NULL	mysql	latin1	latin1_swedish_ci	NULL
+NULL	pbxt	latin1	latin1_swedish_ci	NULL
+NULL	test	latin1	latin1_swedish_ci	NULL
+tables_in_test
+tables_in_mysql
+mysql.columns_priv
+mysql.db
+mysql.event
+mysql.func
+mysql.general_log
+mysql.help_category
+mysql.help_keyword
+mysql.help_relation
+mysql.help_topic
+mysql.host
+mysql.ndb_binlog_index
+mysql.plugin
+mysql.proc
+mysql.procs_priv
+mysql.servers
+mysql.slow_log
+mysql.tables_priv
+mysql.time_zone
+mysql.time_zone_leap_second
+mysql.time_zone_name
+mysql.time_zone_transition
+mysql.time_zone_transition_type
+mysql.user
+columns_in_mysql	column_name	ordinal_position	column_default	is_nullable	data_type	character_maximum_length	character_octet_length	numeric_precision	numeric_scale	character_set_name	collation_name	column_type	column_key	extra	column_comment
+mysql.columns_priv	Host	1		NO	char	60	180	NULL	NULL	utf8	utf8_bin	char(60)	PRI		
+mysql.columns_priv	Db	2		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)	PRI		
+mysql.columns_priv	User	3		NO	char	16	48	NULL	NULL	utf8	utf8_bin	char(16)	PRI		
+mysql.columns_priv	Table_name	4		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)	PRI		
+mysql.columns_priv	Column_name	5		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)	PRI		
+mysql.columns_priv	Timestamp	6	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	
+mysql.columns_priv	Column_priv	7		NO	set	31	93	NULL	NULL	utf8	utf8_general_ci	set('Select','Insert','Update','References')			
+mysql.db	Host	1		NO	char	60	180	NULL	NULL	utf8	utf8_bin	char(60)	PRI		
+mysql.db	Db	2		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)	PRI		
+mysql.db	User	3		NO	char	16	48	NULL	NULL	utf8	utf8_bin	char(16)	PRI		
+mysql.db	Select_priv	4	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.db	Insert_priv	5	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.db	Update_priv	6	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.db	Delete_priv	7	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.db	Create_priv	8	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.db	Drop_priv	9	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.db	Grant_priv	10	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.db	References_priv	11	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.db	Index_priv	12	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.db	Alter_priv	13	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.db	Create_tmp_table_priv	14	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.db	Lock_tables_priv	15	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.db	Create_view_priv	16	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.db	Show_view_priv	17	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.db	Create_routine_priv	18	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.db	Alter_routine_priv	19	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.db	Execute_priv	20	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.db	Event_priv	21	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.db	Trigger_priv	22	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.event	db	1		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)	PRI		
+mysql.event	name	2		NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)	PRI		
+mysql.event	body	3	NULL	NO	longblob	4294967295	4294967295	NULL	NULL	NULL	NULL	longblob			
+mysql.event	definer	4		NO	char	77	231	NULL	NULL	utf8	utf8_bin	char(77)			
+mysql.event	execute_at	5	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			
+mysql.event	interval_value	6	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			
+mysql.event	interval_field	7	NULL	YES	enum	18	54	NULL	NULL	utf8	utf8_general_ci	enum('YEAR','QUARTER','MONTH','DAY','HOUR','MINUTE','WEEK','SECOND','MICROSECOND','YEAR_MONTH','DAY_HOUR','DAY_MINUTE','DAY_SECOND','HOUR_MINUTE','HOUR_SECOND','MINUTE_SECOND','DAY_MICROSECOND','HOUR_MICROSECOND','MINUTE_MICROSECOND','SECOND_MICROSECOND')			
+mysql.event	created	8	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	
+mysql.event	modified	9	0000-00-00 00:00:00	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp			
+mysql.event	last_executed	10	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			
+mysql.event	starts	11	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			
+mysql.event	ends	12	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			
+mysql.event	status	13	ENABLED	NO	enum	18	54	NULL	NULL	utf8	utf8_general_ci	enum('ENABLED','DISABLED','SLAVESIDE_DISABLED')			
+mysql.event	on_completion	14	DROP	NO	enum	8	24	NULL	NULL	utf8	utf8_general_ci	enum('DROP','PRESERVE')			
+mysql.event	sql_mode	15		NO	set	478	1434	NULL	NULL	utf8	utf8_general_ci	set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB','NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH')			
+mysql.event	comment	16		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)			
+mysql.event	originator	17	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10)			
+mysql.event	time_zone	18	SYSTEM	NO	char	64	64	NULL	NULL	latin1	latin1_swedish_ci	char(64)			
+mysql.event	character_set_client	19	NULL	YES	char	32	96	NULL	NULL	utf8	utf8_bin	char(32)			
+mysql.event	collation_connection	20	NULL	YES	char	32	96	NULL	NULL	utf8	utf8_bin	char(32)			
+mysql.event	db_collation	21	NULL	YES	char	32	96	NULL	NULL	utf8	utf8_bin	char(32)			
+mysql.event	body_utf8	22	NULL	YES	longblob	4294967295	4294967295	NULL	NULL	NULL	NULL	longblob			
+mysql.func	name	1		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)	PRI		
+mysql.func	ret	2	0	NO	tinyint	NULL	NULL	3	0	NULL	NULL	tinyint(1)			
+mysql.func	dl	3		NO	char	128	384	NULL	NULL	utf8	utf8_bin	char(128)			
+mysql.func	type	4	NULL	NO	enum	9	27	NULL	NULL	utf8	utf8_general_ci	enum('function','aggregate')			
+mysql.general_log	event_time	1	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	
+mysql.general_log	user_host	2	NULL	NO	mediumtext	16777215	16777215	NULL	NULL	utf8	utf8_general_ci	mediumtext			
+mysql.general_log	thread_id	3	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)			
+mysql.general_log	server_id	4	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)			
+mysql.general_log	command_type	5	NULL	NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			
+mysql.general_log	argument	6	NULL	NO	mediumtext	16777215	16777215	NULL	NULL	utf8	utf8_general_ci	mediumtext			
+mysql.help_category	help_category_id	1	NULL	NO	smallint	NULL	NULL	5	0	NULL	NULL	smallint(5) unsigned	PRI		
+mysql.help_category	name	2	NULL	NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)	UNI		
+mysql.help_category	parent_category_id	3	NULL	YES	smallint	NULL	NULL	5	0	NULL	NULL	smallint(5) unsigned			
+mysql.help_category	url	4	NULL	NO	char	128	384	NULL	NULL	utf8	utf8_general_ci	char(128)			
+mysql.help_keyword	help_keyword_id	1	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned	PRI		
+mysql.help_keyword	name	2	NULL	NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)	UNI		
+mysql.help_relation	help_topic_id	1	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned	PRI		
+mysql.help_relation	help_keyword_id	2	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned	PRI		
+mysql.help_topic	help_topic_id	1	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned	PRI		
+mysql.help_topic	name	2	NULL	NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)	UNI		
+mysql.help_topic	help_category_id	3	NULL	NO	smallint	NULL	NULL	5	0	NULL	NULL	smallint(5) unsigned			
+mysql.help_topic	description	4	NULL	NO	text	65535	65535	NULL	NULL	utf8	utf8_general_ci	text			
+mysql.help_topic	example	5	NULL	NO	text	65535	65535	NULL	NULL	utf8	utf8_general_ci	text			
+mysql.help_topic	url	6	NULL	NO	char	128	384	NULL	NULL	utf8	utf8_general_ci	char(128)			
+mysql.host	Host	1		NO	char	60	180	NULL	NULL	utf8	utf8_bin	char(60)	PRI		
+mysql.host	Db	2		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)	PRI		
+mysql.host	Select_priv	3	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.host	Insert_priv	4	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.host	Update_priv	5	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.host	Delete_priv	6	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.host	Create_priv	7	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.host	Drop_priv	8	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.host	Grant_priv	9	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.host	References_priv	10	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.host	Index_priv	11	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.host	Alter_priv	12	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.host	Create_tmp_table_priv	13	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.host	Lock_tables_priv	14	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.host	Create_view_priv	15	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.host	Show_view_priv	16	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.host	Create_routine_priv	17	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.host	Alter_routine_priv	18	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.host	Execute_priv	19	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.host	Trigger_priv	20	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.ndb_binlog_index	Position	1	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(20) unsigned			
+mysql.ndb_binlog_index	File	2	NULL	NO	varchar	255	255	NULL	NULL	latin1	latin1_swedish_ci	varchar(255)			
+mysql.ndb_binlog_index	epoch	3	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(20) unsigned	PRI		
+mysql.ndb_binlog_index	inserts	4	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(20) unsigned			
+mysql.ndb_binlog_index	updates	5	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(20) unsigned			
+mysql.ndb_binlog_index	deletes	6	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(20) unsigned			
+mysql.ndb_binlog_index	schemaops	7	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(20) unsigned			
+mysql.plugin	name	1		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)	PRI		
+mysql.plugin	dl	2		NO	char	128	384	NULL	NULL	utf8	utf8_bin	char(128)			
+mysql.proc	db	1		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)	PRI		
+mysql.proc	name	2		NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)	PRI		
+mysql.proc	type	3	NULL	NO	enum	9	27	NULL	NULL	utf8	utf8_general_ci	enum('FUNCTION','PROCEDURE')	PRI		
+mysql.proc	specific_name	4		NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)			
+mysql.proc	language	5	SQL	NO	enum	3	9	NULL	NULL	utf8	utf8_general_ci	enum('SQL')			
+mysql.proc	sql_data_access	6	CONTAINS_SQL	NO	enum	17	51	NULL	NULL	utf8	utf8_general_ci	enum('CONTAINS_SQL','NO_SQL','READS_SQL_DATA','MODIFIES_SQL_DATA')			
+mysql.proc	is_deterministic	7	NO	NO	enum	3	9	NULL	NULL	utf8	utf8_general_ci	enum('YES','NO')			
+mysql.proc	security_type	8	DEFINER	NO	enum	7	21	NULL	NULL	utf8	utf8_general_ci	enum('INVOKER','DEFINER')			
+mysql.proc	param_list	9	NULL	NO	blob	65535	65535	NULL	NULL	NULL	NULL	blob			
+mysql.proc	returns	10	NULL	NO	longblob	4294967295	4294967295	NULL	NULL	NULL	NULL	longblob			
+mysql.proc	body	11	NULL	NO	longblob	4294967295	4294967295	NULL	NULL	NULL	NULL	longblob			
+mysql.proc	definer	12		NO	char	77	231	NULL	NULL	utf8	utf8_bin	char(77)			
+mysql.proc	created	13	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	
+mysql.proc	modified	14	0000-00-00 00:00:00	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp			
+mysql.proc	sql_mode	15		NO	set	478	1434	NULL	NULL	utf8	utf8_general_ci	set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB','NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH')			
+mysql.proc	comment	16		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)			
+mysql.proc	character_set_client	17	NULL	YES	char	32	96	NULL	NULL	utf8	utf8_bin	char(32)			
+mysql.proc	collation_connection	18	NULL	YES	char	32	96	NULL	NULL	utf8	utf8_bin	char(32)			
+mysql.proc	db_collation	19	NULL	YES	char	32	96	NULL	NULL	utf8	utf8_bin	char(32)			
+mysql.proc	body_utf8	20	NULL	YES	longblob	4294967295	4294967295	NULL	NULL	NULL	NULL	longblob			
+mysql.procs_priv	Host	1		NO	char	60	180	NULL	NULL	utf8	utf8_bin	char(60)	PRI		
+mysql.procs_priv	Db	2		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)	PRI		
+mysql.procs_priv	User	3		NO	char	16	48	NULL	NULL	utf8	utf8_bin	char(16)	PRI		
+mysql.procs_priv	Routine_name	4		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)	PRI		
+mysql.procs_priv	Routine_type	5	NULL	NO	enum	9	27	NULL	NULL	utf8	utf8_bin	enum('FUNCTION','PROCEDURE')	PRI		
+mysql.procs_priv	Grantor	6		NO	char	77	231	NULL	NULL	utf8	utf8_bin	char(77)	MUL		
+mysql.procs_priv	Proc_priv	7		NO	set	27	81	NULL	NULL	utf8	utf8_general_ci	set('Execute','Alter Routine','Grant')			
+mysql.procs_priv	Timestamp	8	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	
+mysql.servers	Server_name	1		NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)	PRI		
+mysql.servers	Host	2		NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)			
+mysql.servers	Db	3		NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)			
+mysql.servers	Username	4		NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)			
+mysql.servers	Password	5		NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)			
+mysql.servers	Port	6	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(4)			
+mysql.servers	Socket	7		NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)			
+mysql.servers	Wrapper	8		NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)			
+mysql.servers	Owner	9		NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)			
+mysql.slow_log	start_time	1	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	
+mysql.slow_log	user_host	2	NULL	NO	mediumtext	16777215	16777215	NULL	NULL	utf8	utf8_general_ci	mediumtext			
+mysql.slow_log	query_time	3	NULL	NO	time	NULL	NULL	NULL	NULL	NULL	NULL	time			
+mysql.slow_log	lock_time	4	NULL	NO	time	NULL	NULL	NULL	NULL	NULL	NULL	time			
+mysql.slow_log	rows_sent	5	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)			
+mysql.slow_log	rows_examined	6	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)			
+mysql.slow_log	db	7	NULL	NO	varchar	512	1536	NULL	NULL	utf8	utf8_general_ci	varchar(512)			
+mysql.slow_log	last_insert_id	8	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)			
+mysql.slow_log	insert_id	9	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)			
+mysql.slow_log	server_id	10	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)			
+mysql.slow_log	sql_text	11	NULL	NO	mediumtext	16777215	16777215	NULL	NULL	utf8	utf8_general_ci	mediumtext			
+mysql.tables_priv	Host	1		NO	char	60	180	NULL	NULL	utf8	utf8_bin	char(60)	PRI		
+mysql.tables_priv	Db	2		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)	PRI		
+mysql.tables_priv	User	3		NO	char	16	48	NULL	NULL	utf8	utf8_bin	char(16)	PRI		
+mysql.tables_priv	Table_name	4		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)	PRI		
+mysql.tables_priv	Grantor	5		NO	char	77	231	NULL	NULL	utf8	utf8_bin	char(77)	MUL		
+mysql.tables_priv	Timestamp	6	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	
+mysql.tables_priv	Table_priv	7		NO	set	98	294	NULL	NULL	utf8	utf8_general_ci	set('Select','Insert','Update','Delete','Create','Drop','Grant','References','Index','Alter','Create View','Show view','Trigger')			
+mysql.tables_priv	Column_priv	8		NO	set	31	93	NULL	NULL	utf8	utf8_general_ci	set('Select','Insert','Update','References')			
+mysql.time_zone	Time_zone_id	1	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned	PRI	auto_increment	
+mysql.time_zone	Use_leap_seconds	2	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('Y','N')			
+mysql.time_zone_leap_second	Transition_time	1	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(20)	PRI		
+mysql.time_zone_leap_second	Correction	2	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)			
+mysql.time_zone_name	Name	1	NULL	NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)	PRI		
+mysql.time_zone_name	Time_zone_id	2	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned			
+mysql.time_zone_transition	Time_zone_id	1	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned	PRI		
+mysql.time_zone_transition	Transition_time	2	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(20)	PRI		
+mysql.time_zone_transition	Transition_type_id	3	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned			
+mysql.time_zone_transition_type	Time_zone_id	1	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned	PRI		
+mysql.time_zone_transition_type	Transition_type_id	2	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned	PRI		
+mysql.time_zone_transition_type	Offset	3	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)			
+mysql.time_zone_transition_type	Is_DST	4	0	NO	tinyint	NULL	NULL	3	0	NULL	NULL	tinyint(3) unsigned			
+mysql.time_zone_transition_type	Abbreviation	5		NO	char	8	24	NULL	NULL	utf8	utf8_general_ci	char(8)			
+mysql.user	Host	1		NO	char	60	180	NULL	NULL	utf8	utf8_bin	char(60)	PRI		
+mysql.user	User	2		NO	char	16	48	NULL	NULL	utf8	utf8_bin	char(16)	PRI		
+mysql.user	Password	3		NO	char	41	41	NULL	NULL	latin1	latin1_bin	char(41)			
+mysql.user	Select_priv	4	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	Insert_priv	5	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	Update_priv	6	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	Delete_priv	7	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	Create_priv	8	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	Drop_priv	9	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	Reload_priv	10	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	Shutdown_priv	11	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	Process_priv	12	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	File_priv	13	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	Grant_priv	14	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	References_priv	15	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	Index_priv	16	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	Alter_priv	17	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	Show_db_priv	18	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	Super_priv	19	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	Create_tmp_table_priv	20	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	Lock_tables_priv	21	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	Execute_priv	22	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	Repl_slave_priv	23	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	Repl_client_priv	24	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	Create_view_priv	25	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	Show_view_priv	26	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	Create_routine_priv	27	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	Alter_routine_priv	28	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	Create_user_priv	29	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	Event_priv	30	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	Trigger_priv	31	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			
+mysql.user	ssl_type	32		NO	enum	9	27	NULL	NULL	utf8	utf8_general_ci	enum('','ANY','X509','SPECIFIED')			
+mysql.user	ssl_cipher	33	NULL	NO	blob	65535	65535	NULL	NULL	NULL	NULL	blob			
+mysql.user	x509_issuer	34	NULL	NO	blob	65535	65535	NULL	NULL	NULL	NULL	blob			
+mysql.user	x509_subject	35	NULL	NO	blob	65535	65535	NULL	NULL	NULL	NULL	blob			
+mysql.user	max_questions	36	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(11) unsigned			
+mysql.user	max_updates	37	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(11) unsigned			
+mysql.user	max_connections	38	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(11) unsigned			
+mysql.user	max_user_connections	39	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(11) unsigned			
+Table	Checksum
+mysql.columns_priv	0
+mysql.db	4197331717
+mysql.func	0
+mysql.help_category	0
+mysql.help_keyword	0
+mysql.help_relation	0
+mysql.host	0
+mysql.proc	1580535860
+mysql.procs_priv	0
+mysql.tables_priv	0
+mysql.time_zone	2420313365
+mysql.time_zone_leap_second	3799112081
+mysql.time_zone_name	2268956709
+mysql.time_zone_transition	3895294076
+mysql.time_zone_transition_type	168184411
+mysql.user	3862315823

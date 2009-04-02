@@ -561,7 +561,7 @@ static xtWord1 *xres_load_record(XTThreadPtr self, XTOpenTablePtr ot, xtRecordID
 	if (XT_REC_IS_FIXED(rec_data[0]))
 		rec_data = ot->ot_row_rbuffer + XT_REC_FIX_HEADER_SIZE;
 	else {
-		if (!xt_ib_alloc(NULL, rec_buf, tab->tab_dic.dic_buf_size))
+		if (!xt_ib_alloc(NULL, rec_buf, tab->tab_dic.dic_mysql_buf_size))
 			goto failed;
 		if (XT_REC_IS_VARIABLE(rec_data[0])) {
 			if (!myxt_load_row(ot, rec_data + XT_REC_FIX_HEADER_SIZE, rec_buf->ib_db.db_data, cols_req))

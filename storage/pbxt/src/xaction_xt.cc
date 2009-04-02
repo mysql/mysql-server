@@ -317,7 +317,6 @@ inline void xn_remove_from_wait_for(XTDatabaseHPtr db, XNWaitForPtr wf, XTThread
 	xt_spinlock_unlock(&db->db_xn_wait_spinlock);
 }
 
-//*BUG*/u_int spin_high;
 /* Wait for a transation to terminate or a lock to be granted.
  *
  * If term_req is TRUE, then the termination of the transaction is required
@@ -346,13 +345,18 @@ xtPublic xtBool xt_xn_wait_for_xact(XTThreadPtr thread, XTXactWaitPtr xw, XTLock
 	wf.wf_waiting_xn_id = thread->st_xact_data->xd_start_xn_id;
 
 	if (lw) {
+		/* If we are here, then the lw structure is on the wait
+		 * queue for the given lock.
+		 */
 		xtXactID locking_xn_id;
 		
 		wait_for_locker:
 		locking_xn_id = lw->lw_xn_id;
 		wf.wf_for_me_xn_id = lw->lw_xn_id;
-		if (!xn_add_to_wait_for(db, &wf, thread))
+		if (!xn_add_to_wait_for(db, &wf, thread)) {
+			lw->lw_ot->ot_table->tab_locks.xt_cancel_temp_lock(lw);
 			return FAILED;
+		}
 
 		while (loop_count < WAIT_SPIN_COUNT) {
 			loop_count++;
@@ -381,7 +385,6 @@ xtPublic xtBool xt_xn_wait_for_xact(XTThreadPtr thread, XTXactWaitPtr xw, XTLock
 						goto wait_for_xact;
 					}
 					xn_remove_from_wait_for(db, &wf, thread);
-//*BUG*/if (loop_count > spin_high) { spin_high = loop_count; printf("spin high = %d\n", spin_high); }
 					return OK;
 				case XT_TEMP_LOCK:
 				case XT_PERM_LOCK:
@@ -422,7 +425,6 @@ xtPublic xtBool xt_xn_wait_for_xact(XTThreadPtr thread, XTXactWaitPtr xw, XTLock
 						goto wait_for_xact;
 					}
 					xn_remove_from_wait_for(db, &wf, thread);
-//*BUG*/if (loop_count > spin_high) { spin_high = loop_count; printf("spin high = %d\n", spin_high); }
 					return OK;
 				case XT_TEMP_LOCK:
 				case XT_PERM_LOCK:
@@ -432,8 +434,10 @@ xtPublic xtBool xt_xn_wait_for_xact(XTThreadPtr thread, XTXactWaitPtr xw, XTLock
 						xn_remove_from_wait_for(db, &wf, thread);
 						locking_xn_id = lw->lw_xn_id;
 						wf.wf_for_me_xn_id = lw->lw_xn_id;
-						if (!xn_add_to_wait_for(db, &wf, thread))
+						if (!xn_add_to_wait_for(db, &wf, thread)) {
+							lw->lw_ot->ot_table->tab_locks.xt_cancel_temp_lock(lw);
 							return FAILED;
+						}
 						goto wait_for_locker_no_spin;
 					}
 					break;
@@ -541,7 +545,6 @@ xtPublic xtBool xt_xn_wait_for_xact(XTThreadPtr thread, XTXactWaitPtr xw, XTLock
 			xn_remove_from_wait_for(db, &wf, thread);
 	}
 
-//*BUG*/if (loop_count > spin_high) { spin_high = loop_count; printf("spin high = %d\n", spin_high); }
 	return OK;
 }
 
@@ -1925,7 +1928,7 @@ static xtBool xn_sw_cleanup_variation(XTThreadPtr self, XNSweeperStatePtr ss, XT
 	tab = ot->ot_table;
 
 	/* Make sure the buffer is large enough! */
-	xt_db_set_size(self, &ss->ss_databuf, (size_t) tab->tab_dic.dic_buf_size);
+	xt_db_set_size(self, &ss->ss_databuf, (size_t) tab->tab_dic.dic_mysql_buf_size);
 
 	xn_id = xact->xd_start_xn_id;
 	if (xact->xd_flags & XT_XN_XAC_COMMITTED) {

@@ -58,8 +58,6 @@ extern pthread_key_t THR_Session;
 #include "cache_xt.h"
 #include "datalog_xt.h"
 
-#define SLAP_DEBUG
-
 #ifdef DRIZZLED
 #define swap_variables(TYPE, a, b) \
   do {                             \
@@ -2291,31 +2289,55 @@ static XTIndexPtr my_create_index(XTThreadPtr self, TABLE *table_arg, u_int idx,
 	return_(ind);
 }
 
+/* We estimate the size of BLOBs depending on the number
+ * of BLOBs in the table.
+ */
+static u_int mx_blob_field_size_total[] = {
+	500,	// 1
+	400,	// 2
+	350,	// 3
+	320,	// 4
+	300,	// 5
+	280,	// 6
+	260,	// 7
+	240,	// 8
+	220,	// 9
+	210		// 10
+};
+
+static u_int mxvarchar_field_min_ave[] = {
+	120,	// 1
+	105,	// 2
+	90,		// 3
+	65,		// 4
+	50,		// 5
+	40,		// 6
+	40,		// 7
+	40,		// 8
+	40,		// 9
+	40		// 10
+};
+
 xtPublic void myxt_setup_dictionary(XTThreadPtr self, XTDictionaryPtr dic)
 {
 	TABLE	*my_tab = dic->dic_my_table;
 	u_int	field_count;
 	u_int	var_field_count = 0;
-	xtBool	blob_field_count = 0;
+	u_int	varchar_field_count = 0;
+	u_int	blob_field_count = 0;
+	u_int	large_blob_field_count = 0;
 	xtWord8 min_data_size = 0;
 	xtWord8 max_data_size = 0;
 	xtWord8 ave_data_size = 0;
 	xtWord8 min_row_size = 0;
 	xtWord8 max_row_size = 0;
 	xtWord8 ave_row_size = 0;
+	xtWord8 min_ave_row_size = 0;
 	xtWord8 max_ave_row_size = 0;
 	u_int	dic_rec_size;
 	xtBool	dic_rec_fixed;
 	Field	*curr_field;
 	Field	**field;
-
-#ifdef SLAP_DEBUG
-	xtBool	slap_debug = FALSE;
-	
-	/* DBG, checks optimized average row size of mysqlslap: */
-	if (strcmp(my_tab->s->db.str, "mysqlslap") == 0 && strcmp(my_tab->s->table_name.str, "t1") == 0)
-		slap_debug = TRUE;
-#endif
 
 	/* How many columns are required for all indexes. */
 	KEY				*index;
@@ -2344,27 +2366,36 @@ xtPublic void myxt_setup_dictionary(XTThreadPtr self, XTDictionaryPtr dic)
  		max_data_size = curr_field->key_length();
 		enum_field_types tno = curr_field->type();
 
+		min_ave_row_size = 40;
 		max_ave_row_size = 128;
  		if (tno == MYSQL_TYPE_BLOB) {
 			blob_field_count++;
 			min_data_size = 0;
 			max_data_size = ((Field_blob *) curr_field)->max_data_length();
 			/* Set the average length higher for BLOBs: */
-			if (max_data_size == 0xFFFF)
-				max_ave_row_size = 192;
-			else if (max_data_size == 0xFFFFFF)
-				max_ave_row_size = 256;
+			if (max_data_size == 0xFFFF ||
+				max_data_size == 0xFFFFFF) {
+				if (large_blob_field_count < 10)
+					max_ave_row_size = mx_blob_field_size_total[large_blob_field_count];
+				else
+					max_ave_row_size = 200;
+				large_blob_field_count++;
+			}
 			else if (max_data_size == 0xFFFFFFFF) {
-				max_ave_row_size = 384;
+				/* Scale the estimated size of the blob depending on how many BLOBs
+				 * are in the table!
+				 */
+				if (large_blob_field_count < 10)
+					max_ave_row_size = mx_blob_field_size_total[large_blob_field_count];
+				else
+					max_ave_row_size = 200;
+				large_blob_field_count++;
 				if ((u_int) curr_field->field_index+1 > dic->dic_blob_cols_req)
 					dic->dic_blob_cols_req = curr_field->field_index+1;
 				dic->dic_blob_count++;
 				xt_realloc(self, (void **) &dic->dic_blob_cols, sizeof(Field *) * dic->dic_blob_count);
 				dic->dic_blob_cols[dic->dic_blob_count-1] = curr_field;
 			}
-			/*DBG*//* Hack for test! */
-			if (strcmp(curr_field->field_name, "c_data") == 0)
-				max_ave_row_size = 500;
 		}
 		else if (tno == MYSQL_TYPE_VARCHAR
 #ifndef DRIZZLED
@@ -2376,10 +2407,11 @@ xtPublic void myxt_setup_dictionary(XTThreadPtr self, XTDictionaryPtr dic)
 			 * VARCHAR()
 			 */
 			min_data_size = 0;
-#ifdef SLAP_DEBUG
-			if (slap_debug)
-				min_data_size = 128;
-#endif
+			if (varchar_field_count < 10)
+				min_ave_row_size = mxvarchar_field_min_ave[varchar_field_count];
+			else
+				min_ave_row_size = 40;
+			varchar_field_count++;
 		}
 
  		if (max_data_size == min_data_size)
@@ -2388,10 +2420,13 @@ xtPublic void myxt_setup_dictionary(XTThreadPtr self, XTDictionaryPtr dic)
  			var_field_count++;
 			/* Take the average a 25% of the maximum: */
  			ave_data_size = max_data_size / 4;
- 			if (ave_data_size < 40)
- 				ave_data_size = 40;
+
+			/* Set the average based on min and max parameters: */
+ 			if (ave_data_size < min_ave_row_size)
+ 				ave_data_size = min_ave_row_size;
  			else if (ave_data_size > max_ave_row_size)
  				ave_data_size = max_ave_row_size;
+
  			if (ave_data_size > max_data_size)
  				ave_data_size = max_data_size;
 		}
@@ -2434,10 +2469,9 @@ xtPublic void myxt_setup_dictionary(XTThreadPtr self, XTDictionaryPtr dic)
 		/* The average row size has been set: */
 		dic_rec_size = offsetof(XTTabRecFix, rf_data) + TS(my_tab)->reclength;
 
+		/* The conditions for a fixed record are: */
 		if (dic->dic_def_ave_row_size >= (xtWord8) TS(my_tab)->reclength &&
 			dic_rec_size <= XT_TAB_MAX_FIX_REC_LENGTH &&
-			(ave_row_size + ave_row_size / 10 >= max_row_size ||
-			dic_rec_size < XT_TAB_MIN_VAR_REC_LENGTH) &&
 			!blob_field_count) {
 			dic_rec_fixed = TRUE;
 		}
@@ -2464,12 +2498,12 @@ xtPublic void myxt_setup_dictionary(XTThreadPtr self, XTDictionaryPtr dic)
 		 */
 		dic_rec_size = offsetof(XTTabRecFix, rf_data) + TS(my_tab)->reclength;
 		/* Fixed length records must be less than 16K in size,
-		 * have an average size which is very close to the maximum size or
+		 * have an average size which is very close (20%) to the maximum size or
 		 * be less than a minimum size,
 		 * and not contain any BLOBs:
 		 */
 		if (dic_rec_size <= XT_TAB_MAX_FIX_REC_LENGTH &&
-			(ave_row_size + ave_row_size / 10 >= max_row_size ||
+			(ave_row_size + ave_row_size / 4 >= max_row_size ||
 			dic_rec_size < XT_TAB_MIN_VAR_REC_LENGTH) &&
 			!blob_field_count) {
 			dic_rec_fixed = TRUE;
@@ -2564,7 +2598,8 @@ xtPublic void myxt_setup_dictionary(XTThreadPtr self, XTDictionaryPtr dic)
 	}
 
  	dic->dic_key_count = TS(my_tab)->keys;
-	dic->dic_buf_size = TS(my_tab)->rec_buff_length;
+	dic->dic_mysql_buf_size = TS(my_tab)->rec_buff_length;
+	dic->dic_mysql_rec_size = TS(my_tab)->reclength;
 }
 
 static u_int my_get_best_superset(XTThreadPtr self __attribute__((unused)), XTDictionaryPtr dic, XTIndexPtr ind)
@@ -2671,7 +2706,8 @@ xtPublic void myxt_move_dictionary(XTDictionaryPtr dic, XTDictionaryPtr source_d
 	dic->dic_blob_cols = source_dic->dic_blob_cols;
 	source_dic->dic_blob_cols = NULL;
 
-	dic->dic_buf_size = source_dic->dic_buf_size;
+	dic->dic_mysql_buf_size = source_dic->dic_mysql_buf_size;
+	dic->dic_mysql_rec_size = source_dic->dic_mysql_rec_size;
  	dic->dic_key_count = source_dic->dic_key_count;
 	dic->dic_keys = source_dic->dic_keys;
 

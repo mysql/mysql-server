@@ -227,7 +227,7 @@ XTOpenTablePtr		xt_db_open_pool_table(XTThreadPtr self, XTDatabaseHPtr db, xtTab
 XTOpenTablePtr		xt_db_open_table_using_tab(XTTableHPtr tab, XTThreadPtr thread);
 xtBool				xt_db_open_pool_table_ns(XTOpenTablePtr *ret_ot, XTDatabaseHPtr db, xtTableID tab_id);
 void				xt_db_return_table_to_pool(XTThreadPtr self, XTOpenTablePtr ot);
-xtBool				xt_db_return_table_to_pool_ns(XTOpenTablePtr ot);
+void				xt_db_return_table_to_pool_ns(XTOpenTablePtr ot);
 void				xt_db_free_unused_open_tables(XTThreadPtr self, XTDatabaseHPtr db);
 
 #define XT_LONG_RUNNING_TIME	2

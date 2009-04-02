@@ -323,7 +323,8 @@ typedef struct XTDictionary {
 	XTDDTable			*dic_table;					/* XT table information. */
 
 	/* Table binary information. */
-	u_int				dic_buf_size;				/* This is the size of the MySQL row. */
+	u_int				dic_mysql_buf_size;			/* This is the size of the MySQL buffer (row size + null bytes). */
+	u_int				dic_mysql_rec_size;			/* This is the size of the fixed length MySQL row. */
 	u_int				dic_rec_size;				/* This is the size of the handle data file record. */
 	xtBool				dic_rec_fixed;				/* TRUE if the record has a fixed length size. */
 	u_int				dic_tab_flags;				/* Table flags XT_TAB_FLAGS_* */

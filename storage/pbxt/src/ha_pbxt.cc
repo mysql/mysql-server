@@ -1989,7 +1989,7 @@ int ha_pbxt::close(void)
 void ha_pbxt::init_auto_increment(xtWord8 min_auto_inc)
 {
 	XTTableHPtr	tab;
-	xtWord8		nr = 1;
+	xtWord8		nr = 0;
 	int			err;
 
 	/* Get the value of the auto-increment value by
@@ -2043,7 +2043,8 @@ void ha_pbxt::init_auto_increment(xtWord8 min_auto_inc)
 			// Autoincrement at key-start
 			err = index_last(table->record[1]);
 			if (!err)
-				nr = (xtWord8) table->next_number_field->val_int_offset(TS(table)->rec_buff_length)+1;
+				/* {PRE-INC} */
+				nr = (xtWord8) table->next_number_field->val_int_offset(TS(table)->rec_buff_length);
 		}
 		else {
 			/* Do an index scan to find the largest value! */
@@ -2054,7 +2055,8 @@ void ha_pbxt::init_auto_increment(xtWord8 min_auto_inc)
 
 			err = index_first(table->record[1]);
 			while (!err) {
-				val = (xtWord8) table->next_number_field->val_int_offset(TS(table)->rec_buff_length)+1;
+				/* {PRE-INC} */
+				val = (xtWord8) table->next_number_field->val_int_offset(TS(table)->rec_buff_length);
 				if (val > nr)
 					nr = val;
 				err = index_next(table->record[1]);
@@ -2064,11 +2066,32 @@ void ha_pbxt::init_auto_increment(xtWord8 min_auto_inc)
 		index_end();
 		extra(HA_EXTRA_NO_KEYREAD);
 
+		/* {PRE-INC}
+		 * I have changed this from post increment to pre-increment!
+		 * The reason is:
+		 * When using post increment we are not able to return
+		 * the last valid value in the range.
+		 *
+		 * Here the test example:
+		 *
+		 * drop table if exists t1;
+		 * create table t1 (i tinyint unsigned not null auto_increment primary key) engine=pbxt;
+		 * insert into t1 set i = 254;
+		 * insert into t1 set i = null;
+		 *
+		 * With post-increment, this last insert fails because on post increment
+		 * the value overflows!
+		 *
+		 * Pre-increment means we store the current max, and increment
+		 * before returning the next value.
+		 *
+		 * This will work in this situation.
+		 */
 		tab->tab_auto_inc = nr;
 		if (tab->tab_auto_inc < tab->tab_dic.dic_min_auto_inc)
-			tab->tab_auto_inc = tab->tab_dic.dic_min_auto_inc;
+			tab->tab_auto_inc = tab->tab_dic.dic_min_auto_inc-1;
 		if (tab->tab_auto_inc < min_auto_inc)
-			tab->tab_auto_inc = min_auto_inc;
+			tab->tab_auto_inc = min_auto_inc-1;
 
 		/* Restore the changed values: */
 		table->next_number_field = tmp_fie;
@@ -2086,21 +2109,27 @@ void ha_pbxt::get_auto_increment(MX_ULONGLONG_T offset, MX_ULONGLONG_T increment
                                  MX_ULONGLONG_T *nb_reserved_values __attribute__((unused)))
 {
 	register XTTableHPtr	tab;
-	MX_ULONGLONG_T			nr, nr_plus_inc;
+	MX_ULONGLONG_T			nr, nr_less_inc;
 
 	ASSERT_NS(pb_ex_in_use);
 
 	tab = pb_open_tab->ot_table;
 
+	/* {PRE-INC}
+	 * Assume that nr contains the last value returned!
+	 * We will increment and then return the value.
+	 */
 	xt_spinlock_lock(&tab->tab_ainc_lock);
 	nr = (MX_ULONGLONG_T) tab->tab_auto_inc;
+	nr_less_inc = nr;
 	if (nr < offset)
 		nr = offset;
 	else if (increment > 1 && ((nr - offset) % increment) != 0)
 		nr += increment - ((nr - offset) % increment);
-	nr_plus_inc = nr + increment;
-	if (table->next_number_field->cmp((const unsigned char *)&nr, (const unsigned char *)&nr_plus_inc) < 0)
-		tab->tab_auto_inc = (xtWord8) (nr_plus_inc);
+	else
+		nr += increment;
+	if (table->next_number_field->cmp((const unsigned char *)&nr_less_inc, (const unsigned char *)&nr) < 0)
+		tab->tab_auto_inc = (xtWord8) (nr);
 	else
 		nr = ~0;	/* indicate error to the caller */
 	xt_spinlock_unlock(&tab->tab_ainc_lock);
@@ -2128,11 +2157,14 @@ void ha_pbxt::set_auto_increment(Field *nr)
 		xt_spinlock_lock(&tab->tab_ainc_lock);
 
 		if (nr->cmp((const unsigned char *)&tab->tab_auto_inc) > 0) {
+			/* {PRE-INC}
+			 * We increment later, so just set the value!
 			MX_ULONGLONG_T nr_int_val_plus_one = nr_int_val + 1;
 			if (nr->cmp((const unsigned char *)&nr_int_val_plus_one) < 0)
 				tab->tab_auto_inc = nr_int_val_plus_one;
 			else
-				tab->tab_auto_inc = nr_int_val;
+			 */
+			tab->tab_auto_inc = nr_int_val;
 		}
 		xt_spinlock_unlock(&tab->tab_ainc_lock);
 	}
@@ -3446,8 +3478,22 @@ int ha_pbxt::info(uint flag)
  		if (flag & HA_STATUS_ERRKEY)
 	 		errkey = ot->ot_err_index_no;
 
+		/* {PRE-INC}
+		 * We assume they want the next value to be returned!
+		 *
+		 * At least, this is what works for the following code:
+		 *
+		 * create table t1 (a int auto_increment primary key)
+		 * auto_increment=100
+		 * engine=pbxt
+		 * partition by list (a)
+		 * (partition p0 values in (1, 98,99, 100, 101));
+		 * create index inx on t1 (a);
+		 * insert into t1 values (null);
+		 * select * from t1;
+		 */
 		if (flag & HA_STATUS_AUTO)
-			stats.auto_increment_value = (ulonglong) ot->ot_table->tab_auto_inc;
+			stats.auto_increment_value = (ulonglong) ot->ot_table->tab_auto_inc+1;
 	}
 	else
 		errkey = (uint) -1;

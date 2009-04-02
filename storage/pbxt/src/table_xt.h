@@ -273,13 +273,19 @@ typedef struct XTTabRowHead {
 
 /* ------- TABLE & OPEN TABLES & TABLE LISTING ------- */
 
+/* {TEMP-TABLES}
+ * Temporary tables do not need to be flused,
+ * and they also do not need to be recovered!
+ * Currently this is determined by the name of the
+ * table!
+ */
 typedef struct XTTable : public XTHeap {
 	struct XTDatabase		*tab_db;			/* Heap pointer */
 	XTPathStrPtr			tab_name;
 	xtBool					tab_free_locks;
 	xtTableID				tab_id;
 
-	xtWord8					tab_auto_inc;							/* The next value to be issued as an auto-increment value. */
+	xtWord8					tab_auto_inc;							/* The last value returned as an auto-increment value {PRE-INC}. */
 	XTSpinLockRec			tab_ainc_lock;							/* Lock for the auto-increment counter. */
 
 	size_t					tab_index_format_offset;
@@ -300,9 +306,11 @@ typedef struct XTTable : public XTHeap {
 
 	/* Used to apply operations to the database in order. */
 	XTSortedListPtr			tab_op_list;							/* The operation list. Operations to be applied. */
+
 	/* Values that belong in the header when flushed! */
 	xtBool					tab_flush_pending;						/* TRUE if the table needs to be flushed */
 	xtBool					tab_recovery_done;						/* TRUE if the table has been recovered */
+	xtBool					tab_temporary;							/* TRUE if this is a temporary table {TEMP-TABLES}. */
 	off_t					tab_bytes_to_flush;						/* Number of bytes of the record/row files to flush. */
 
 	xtOpSeqNo				tab_head_op_seq;						/* The number of the operation last applied to the database. */

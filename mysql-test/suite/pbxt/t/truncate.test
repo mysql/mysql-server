@@ -1,0 +1,57 @@
+#
+# Test of truncate
+#
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+create table t1 (a integer, b integer,c1 CHAR(10));
+insert into t1 (a) values (1),(2);
+truncate table t1;
+select count(*) from t1;
+insert into t1 values(1,2,"test");
+select count(*) from t1;
+delete from t1;
+select * from t1;
+drop table t1;
+# The following should fail
+--error 1146
+select count(*) from t1;
+create temporary table t1 (n int);
+insert into t1 values (1),(2),(3);
+truncate table t1;
+select * from t1;
+drop table t1;
+--error 1146
+truncate non_existing_table;
+
+#
+# test autoincrement with TRUNCATE; verifying difference with DELETE
+#
+
+create table t1 (a integer auto_increment primary key);
+insert into t1 (a) values (NULL),(NULL);
+truncate table t1;
+insert into t1 (a) values (NULL),(NULL);
+SELECT * from t1;
+delete from t1;
+insert into t1 (a) values (NULL),(NULL);
+SELECT * from t1;
+drop table t1;
+
+# Verifying that temp tables are handled the same way
+
+create temporary table t1 (a integer auto_increment primary key);
+insert into t1 (a) values (NULL),(NULL);
+truncate table t1;
+insert into t1 (a) values (NULL),(NULL);
+SELECT * from t1;
+delete from t1;
+insert into t1 (a) values (NULL),(NULL);
+SELECT * from t1;
+drop table t1;
+
+--disable_query_log
+drop database pbxt;
+--enable_query_log
+# End of 4.1 tests

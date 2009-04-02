@@ -1,0 +1,100 @@
+drop table if exists t1;
+create table t1 (s1 char(64),s2 char(64));
+insert into t1 values('aaa','aaa');
+insert into t1 values('aaa|qqq','qqq');
+insert into t1 values('gheis','^[^a-dXYZ]+$');
+insert into t1 values('aab','^aa?b');
+insert into t1 values('Baaan','^Ba*n');
+insert into t1 values('aaa','qqq|aaa');
+insert into t1 values('qqq','qqq|aaa');
+insert into t1 values('bbb','qqq|aaa');
+insert into t1 values('bbb','qqq');
+insert into t1 values('aaa','aba');
+insert into t1 values(null,'abc');
+insert into t1 values('def',null);
+insert into t1 values(null,null);
+insert into t1 values('ghi','ghi[');
+select HIGH_PRIORITY s1 regexp s2 from t1;
+s1 regexp s2
+1
+1
+1
+1
+1
+1
+1
+0
+0
+0
+NULL
+NULL
+NULL
+NULL
+drop table t1;
+create table t1 (xxx char(128));
+insert into t1 (xxx) values('this is a test of some long text to see what happens');
+select * from t1 where xxx regexp('is a test of some long text to');
+xxx
+this is a test of some long text to see what happens
+explain extended select * from t1 where xxx regexp('is a test of some long text to');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+Warnings:
+Note	1003	select `test`.`t1`.`xxx` AS `xxx` from `test`.`t1` where (`test`.`t1`.`xxx` regexp 'is a test of some long text to')
+select * from t1 where xxx regexp('is a test of some long text to ');
+xxx
+this is a test of some long text to see what happens
+select * from t1 where xxx regexp('is a test of some long text to s');
+xxx
+this is a test of some long text to see what happens
+select * from t1 where xxx regexp('is a test of some long text to se');
+xxx
+this is a test of some long text to see what happens
+drop table t1;
+create table t1 (xxx char(128));
+insert into t1 (xxx) values('this is some text: to test - out.reg exp (22/45)');
+select * from t1 where xxx REGEXP '^this is some text: to test - out\\.reg exp [[(][0-9]+[/\\][0-9]+[])][ ]*$';
+xxx
+this is some text: to test - out.reg exp (22/45)
+drop table t1;
+select _latin1 0xFF regexp _latin1 '[[:lower:]]' COLLATE latin1_bin;
+_latin1 0xFF regexp _latin1 '[[:lower:]]' COLLATE latin1_bin
+1
+select _koi8r  0xFF regexp _koi8r  '[[:lower:]]' COLLATE koi8r_bin;
+_koi8r  0xFF regexp _koi8r  '[[:lower:]]' COLLATE koi8r_bin
+0
+select _latin1 0xFF regexp _latin1 '[[:upper:]]' COLLATE latin1_bin;
+_latin1 0xFF regexp _latin1 '[[:upper:]]' COLLATE latin1_bin
+0
+select _koi8r  0xFF regexp _koi8r  '[[:upper:]]' COLLATE koi8r_bin;
+_koi8r  0xFF regexp _koi8r  '[[:upper:]]' COLLATE koi8r_bin
+1
+select _latin1 0xF7 regexp _latin1 '[[:alpha:]]';
+_latin1 0xF7 regexp _latin1 '[[:alpha:]]'
+0
+select _koi8r  0xF7 regexp _koi8r  '[[:alpha:]]';
+_koi8r  0xF7 regexp _koi8r  '[[:alpha:]]'
+1
+select _latin1'a' regexp _latin1'A' collate latin1_general_ci;
+_latin1'a' regexp _latin1'A' collate latin1_general_ci
+1
+select _latin1'a' regexp _latin1'A' collate latin1_bin;
+_latin1'a' regexp _latin1'A' collate latin1_bin
+0
+create table t1 (a varchar(40));
+insert into t1 values ('C1'),('C2'),('R1'),('C3'),('R2'),('R3');
+prepare stmt1 from 'select a from t1 where a rlike ? order by a';
+set @a="^C.*";
+execute stmt1 using @a;
+a
+C1
+C2
+C3
+set @a="^R.*";
+execute stmt1 using @a;
+a
+R1
+R2
+R3
+deallocate prepare stmt1;
+drop table t1;

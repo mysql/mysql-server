@@ -205,7 +205,7 @@ static int pbxt_open_table(void *thread, const char *table_url, void **open_tabl
 static void pbxt_close_table(void *thread, void *open_table_ptr)
 {
 	THD						*thd = (THD *) thread;
-	volatile XTThreadPtr	self;
+	volatile XTThreadPtr	self, new_self = NULL;
 	XTOpenTablePtr			ot = (XTOpenTablePtr) open_table_ptr;
 	XTExceptionRec			e;
 
@@ -215,11 +215,12 @@ static void pbxt_close_table(void *thread, void *open_table_ptr)
 			return;
 		}
 	}
-	else {
-		if (!(self = xt_create_thread("TempForClose", FALSE, TRUE, &e))) {
+	else if (!(self = xt_get_self())) {
+		if (!(new_self = xt_create_thread("TempForClose", FALSE, TRUE, &e))) {
 			xt_log_exception(NULL, &e, XT_LOG_DEFAULT);
 			return;
 		}
+		self = new_self;
 	}
 
 	ot->ot_thread = self;
@@ -230,7 +231,7 @@ static void pbxt_close_table(void *thread, void *open_table_ptr)
 		xt_log_and_clear_exception(self);
 	}
 	cont_(a);
-	if (!thd)
+	if (new_self)
 		xt_free_thread(self);
 }
 
@@ -316,9 +317,9 @@ static int pbxt_send_blob(void *thread, void *open_table, const char *blob_colum
 
 	ot->ot_thread = self;
 	try_(a) {
-		if (ot->ot_row_wbuf_size < ot->ot_table->tab_dic.dic_buf_size) {
-			xt_realloc(self, (void **) &ot->ot_row_wbuffer, ot->ot_table->tab_dic.dic_buf_size);
-			ot->ot_row_wbuf_size = ot->ot_table->tab_dic.dic_buf_size;
+		if (ot->ot_row_wbuf_size < ot->ot_table->tab_dic.dic_mysql_buf_size) {
+			xt_realloc(self, (void **) &ot->ot_row_wbuffer, ot->ot_table->tab_dic.dic_mysql_buf_size);
+			ot->ot_row_wbuf_size = ot->ot_table->tab_dic.dic_mysql_buf_size;
 		}
 
 		xt_strcpy_url(XT_IDENTIFIER_NAME_SIZE, col_name, blob_column);
@@ -432,9 +433,9 @@ int pbxt_lookup_ref(void *thread, void *open_table, unsigned short col_index, PB
 	XTIndexPtr		ind = NULL;
 
 	ot->ot_thread = self;
-	if (ot->ot_row_wbuf_size < ot->ot_table->tab_dic.dic_buf_size) {
-		xt_realloc(self, (void **) &ot->ot_row_wbuffer, ot->ot_table->tab_dic.dic_buf_size);
-		ot->ot_row_wbuf_size = ot->ot_table->tab_dic.dic_buf_size;
+	if (ot->ot_row_wbuf_size < ot->ot_table->tab_dic.dic_mysql_buf_size) {
+		xt_realloc(self, (void **) &ot->ot_row_wbuffer, ot->ot_table->tab_dic.dic_mysql_buf_size);
+		ot->ot_row_wbuf_size = ot->ot_table->tab_dic.dic_mysql_buf_size;
 	}
 
 	ot->ot_curr_rec_id = (xtRecordID) XT_GET_DISK_8(eng_ref->er_data);

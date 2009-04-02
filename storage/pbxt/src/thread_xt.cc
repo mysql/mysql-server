@@ -1433,7 +1433,16 @@ void xt_free_thread(XTThreadPtr self)
 	/* Note, if I move this before thr_exit() then self = xt_get_self(); will fail in 
 	 * xt_close_file_ns() which is called by xt_unuse_database()!
 	 */
-	if (thr_key) {
+
+	 /*
+	  * Do not clear the pthread's key value unless it is the same as the thread just released.
+	  * This can happen during shutdown when the engine is deregistered with the PBMS engine.
+	  *
+	  * What happens is that during deregistration the PBMS engine calls close to close all
+	  * PBXT resources on all MySQL THDs created by PBMS for it's own pthreads. So the 'self' 
+	  * being freed is not the same 'self' associated with the PBXT 'thr_key'.
+	  */
+	if (thr_key && (self == ((XTThreadPtr) xt_get_key(thr_key)))) {
 		xt_set_key(thr_key, NULL, NULL);
 	}
 	xt_free_ns(self);

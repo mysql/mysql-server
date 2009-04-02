@@ -1,0 +1,63 @@
+#
+# this is a test for error 1032 in count(distinct) + group by, introduced in 
+# mysql-4.1
+#
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+--enable_warnings
+
+CREATE TABLE t1 (id INTEGER, grp TINYINT, id_rev INTEGER);
+
+--disable_query_log
+SET @rnd_max= 2147483647;
+let $1 = 1000;
+while ($1)
+{
+  SET @rnd= RAND();
+  SET @id = CAST(@rnd * @rnd_max AS UNSIGNED);
+  SET @id_rev= @rnd_max - @id;
+  SET @grp= CAST(127.0 * @rnd AS UNSIGNED); 
+  INSERT INTO t1 (id, grp, id_rev) VALUES (@id, @grp, @id_rev); 
+  dec $1;
+}
+set @@read_buffer_size=2*1024*1024;
+CREATE TABLE t2 SELECT * FROM t1;
+INSERT INTO t1 (id, grp, id_rev) SELECT id, grp, id_rev FROM t2;
+INSERT INTO t2 (id, grp, id_rev) SELECT id, grp, id_rev FROM t1;
+INSERT INTO t1 (id, grp, id_rev) SELECT id, grp, id_rev FROM t2;
+INSERT INTO t2 (id, grp, id_rev) SELECT id, grp, id_rev FROM t1;
+INSERT INTO t1 (id, grp, id_rev) SELECT id, grp, id_rev FROM t2;
+INSERT INTO t2 (id, grp, id_rev) SELECT id, grp, id_rev FROM t1;
+INSERT INTO t1 (id, grp, id_rev) SELECT id, grp, id_rev FROM t2;
+INSERT INTO t2 (id, grp, id_rev) SELECT id, grp, id_rev FROM t1;
+INSERT INTO t1 (id, grp, id_rev) SELECT id, grp, id_rev FROM t2;
+INSERT INTO t2 (id, grp, id_rev) SELECT id, grp, id_rev FROM t1;
+INSERT INTO t1 (id, grp, id_rev) SELECT id, grp, id_rev FROM t2;
+INSERT INTO t2 (id, grp, id_rev) SELECT id, grp, id_rev FROM t1;
+INSERT INTO t1 (id, grp, id_rev) SELECT id, grp, id_rev FROM t2;
+INSERT INTO t2 (id, grp, id_rev) SELECT id, grp, id_rev FROM t1;
+INSERT INTO t1 (id, grp, id_rev) SELECT id, grp, id_rev FROM t2;
+INSERT INTO t2 (id, grp, id_rev) SELECT id, grp, id_rev FROM t1;
+INSERT INTO t1 (id, grp, id_rev) SELECT id, grp, id_rev FROM t2;
+INSERT INTO t2 (id, grp, id_rev) SELECT id, grp, id_rev FROM t1;
+DROP TABLE t2;
+--enable_query_log
+
+SELECT COUNT(*) FROM t1;
+
+# As t1 contains random numbers, results are different from test to test. 
+# That's okay, because we test only that select doesn't yield an
+# error. Note, that --disable_result_log doesn't suppress error output.
+
+--disable_result_log
+SELECT COUNT(DISTINCT id) FROM t1 GROUP BY grp;
+--enable_result_log
+DROP TABLE t1;
+
+set @@read_buffer_size=default;
+
+--disable_query_log
+drop database pbxt;
+--enable_query_log
+# End of 4.1 tests

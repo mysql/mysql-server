@@ -1,0 +1,91 @@
+drop table if exists t1;
+drop database if exists mysqltest;
+drop database if exists client_test_db;
+drop table t1;
+ERROR 42S02: Unknown table 't1'
+create table t1(n int);
+insert into t1 values(1);
+create temporary table t1( n int);
+insert into t1 values(2);
+create table t1(n int);
+ERROR 42S01: Table 't1' already exists
+drop table t1;
+select * from t1;
+n
+1
+create database mysqltest;
+drop database if exists mysqltest;
+create database mysqltest;
+create table mysqltest.mysqltest (n int);
+insert into mysqltest.mysqltest values (4);
+select * from mysqltest.mysqltest;
+n
+4
+drop database if exists mysqltest;
+affected rows: 1
+create database mysqltest;
+use mysqltest;
+drop table table1, table2, table3, table4, table5, table6,
+table7, table8, table9, table10, table11, table12, table13,
+table14, table15, table16, table17, table18, table19, table20,
+table21, table22, table23, table24, table25, table26, table27,
+table28;
+ERROR 42S02: Unknown table 'table1,table2,table3,table4,table5,table6,table7,table8,table9,table10,table11,table12,table13,table'
+drop table table1, table2, table3, table4, table5, table6,
+table7, table8, table9, table10, table11, table12, table13,
+table14, table15, table16, table17, table18, table19, table20,
+table21, table22, table23, table24, table25, table26, table27,
+table28, table29, table30;
+ERROR 42S02: Unknown table 'table1,table2,table3,table4,table5,table6,table7,table8,table9,table10,table11,table12,table13,table'
+use test;
+drop database mysqltest;
+flush tables with read lock;
+create database mysqltest;
+Got one of the listed errors
+unlock tables;
+create database mysqltest;
+show databases;
+Database
+information_schema
+mtr
+mysql
+mysqltest
+pbxt
+test
+flush tables with read lock;
+drop database mysqltest;
+Got one of the listed errors
+unlock tables;
+drop database mysqltest;
+show databases;
+Database
+information_schema
+mtr
+mysql
+pbxt
+test
+drop database mysqltest;
+ERROR HY000: Can't drop database 'mysqltest'; database doesn't exist
+drop table t1;
+flush tables with read lock;
+create table t1(n int);
+ERROR HY000: Can't execute the query because you have a conflicting read lock
+unlock tables;
+create table t1(n int);
+show tables;
+Tables_in_test
+t1
+drop table t1;
+drop database if exists mysqltest;
+drop table if exists t1;
+create table t1 (i int);
+lock tables t1 read;
+create database mysqltest;
+drop table t1;
+show open tables;
+drop database mysqltest;
+select 1;
+1
+1
+unlock tables;
+End of 5.0 tests

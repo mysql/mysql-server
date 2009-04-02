@@ -339,6 +339,34 @@ void XTRowLocks::rl_grant_locks(XTLockGroupPtr group, XTThreadPtr thread)
 	}
 }
 
+void XTRowLocks::xt_cancel_temp_lock(XTLockWaitPtr lw)
+{
+	XTLockGroupPtr	group;
+
+	group = &rl_groups[lw->lw_row_id % XT_ROW_LOCK_GROUP_COUNT];
+	xt_spinlock_lock(&group->lg_lock);
+	if (lw->lw_curr_lock == XT_TEMP_LOCK || lw->lw_curr_lock == XT_PERM_LOCK) {
+		/* In case of XT_LOCK_ERR or XT_NO_LOCK, the lw structure will
+		 * no longer be on the wait queue.
+		 */
+		XTLockWaitPtr	lw_next, lw_prev;
+
+		lw_next = lw->lw_next;
+		lw_prev = lw->lw_prev;
+
+		/* Remove from the wait queue: */
+		if (lw_next)
+			lw_next->lw_prev = lw_prev;
+		if (lw_prev)
+			lw_prev->lw_next = lw_next;
+		if (group->lg_wait_queue == lw)
+			group->lg_wait_queue = lw_next;
+		if (group->lg_wait_queue_end == lw)
+			group->lg_wait_queue_end = lw_prev;
+	}
+	xt_spinlock_unlock(&group->lg_lock);
+}
+
 //#define QUEUE_ORDER_FIFO
 
 /* Try to lock a row.

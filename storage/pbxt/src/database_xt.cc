@@ -1106,13 +1106,12 @@ xtPublic XTOpenTablePtr xt_db_open_pool_table(XTThreadPtr self, XTDatabaseHPtr d
 	return ot;
 }
 
-xtPublic void xt_db_return_table_to_pool(XTThreadPtr self, XTOpenTablePtr ot)
+xtPublic void xt_db_return_table_to_pool(XTThreadPtr XT_UNUSED(self), XTOpenTablePtr ot)
 {
-	if (!xt_db_return_table_to_pool_ns(ot))
-		xt_throw(self);
+	xt_db_return_table_to_pool_ns(ot);
 }
 
-xtPublic xtBool xt_db_return_table_to_pool_ns(XTOpenTablePtr ot)
+xtPublic void xt_db_return_table_to_pool_ns(XTOpenTablePtr ot)
 {
 	XTOpenTablePoolPtr	table_pool;
 	XTDatabaseHPtr		db = ot->ot_table->tab_db;
@@ -1160,13 +1159,13 @@ xtPublic xtBool xt_db_return_table_to_pool_ns(XTOpenTablePtr ot)
 	if (ot)
 		xt_close_table(ot, flush_table, FALSE);
 
-	return OK;
+	return;
 
 	failed:
 	xt_unlock_mutex_ns(&db->db_ot_pool.opt_lock);
 	if (ot)
 		xt_close_table(ot, TRUE, FALSE);
-	return FAILED;
+	xt_log_and_clear_exception_ns();
 }
 
 //#define TEST_FREE_OPEN_TABLES

@@ -1,0 +1,202 @@
+drop table if exists t1,t2;
+select CASE "b" when "a" then 1 when "b" then 2 END;
+CASE "b" when "a" then 1 when "b" then 2 END
+2
+select CASE "c" when "a" then 1 when "b" then 2 END;
+CASE "c" when "a" then 1 when "b" then 2 END
+NULL
+select CASE "c" when "a" then 1 when "b" then 2 ELSE 3 END;
+CASE "c" when "a" then 1 when "b" then 2 ELSE 3 END
+3
+select CASE BINARY "b" when "a" then 1 when "B" then 2 WHEN "b" then "ok" END;
+CASE BINARY "b" when "a" then 1 when "B" then 2 WHEN "b" then "ok" END
+ok
+select CASE "b" when "a" then 1 when binary "B" then 2 WHEN "b" then "ok" END;
+CASE "b" when "a" then 1 when binary "B" then 2 WHEN "b" then "ok" END
+ok
+select CASE concat("a","b") when concat("ab","") then "a" when "b" then "b" end;
+CASE concat("a","b") when concat("ab","") then "a" when "b" then "b" end
+a
+select CASE when 1=0 then "true" else "false" END;
+CASE when 1=0 then "true" else "false" END
+false
+select CASE 1 when 1 then "one" WHEN 2 then "two" ELSE "more" END;
+CASE 1 when 1 then "one" WHEN 2 then "two" ELSE "more" END
+one
+explain extended select CASE 1 when 1 then "one" WHEN 2 then "two" ELSE "more" END;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	select (case 1 when 1 then 'one' when 2 then 'two' else 'more' end) AS `CASE 1 when 1 then "one" WHEN 2 then "two" ELSE "more" END`
+select CASE 2.0 when 1 then "one" WHEN 2.0 then "two" ELSE "more" END;
+CASE 2.0 when 1 then "one" WHEN 2.0 then "two" ELSE "more" END
+two
+select (CASE "two" when "one" then "1" WHEN "two" then "2" END) | 0;
+(CASE "two" when "one" then "1" WHEN "two" then "2" END) | 0
+2
+select (CASE "two" when "one" then 1.00 WHEN "two" then 2.00 END) +0.0;
+(CASE "two" when "one" then 1.00 WHEN "two" then 2.00 END) +0.0
+2.00
+select case 1/0 when "a" then "true" else "false" END;
+case 1/0 when "a" then "true" else "false" END
+false
+select case 1/0 when "a" then "true" END;
+case 1/0 when "a" then "true" END
+NULL
+select (case 1/0 when "a" then "true" END) | 0;
+(case 1/0 when "a" then "true" END) | 0
+NULL
+select (case 1/0 when "a" then "true" END) + 0.0;
+(case 1/0 when "a" then "true" END) + 0.0
+NULL
+select case when 1>0 then "TRUE" else "FALSE" END;
+case when 1>0 then "TRUE" else "FALSE" END
+TRUE
+select case when 1<0 then "TRUE" else "FALSE" END;
+case when 1<0 then "TRUE" else "FALSE" END
+FALSE
+create table t1 (a int);
+insert into t1 values(1),(2),(3),(4);
+select case a when 1 then 2 when 2 then 3 else 0 end as fcase, count(*) from t1 group by fcase;
+fcase	count(*)
+0	2
+2	1
+3	1
+explain extended select case a when 1 then 2 when 2 then 3 else 0 end as fcase, count(*) from t1 group by fcase;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	100.00	Using temporary; Using filesort
+Warnings:
+Note	1003	select (case `test`.`t1`.`a` when 1 then 2 when 2 then 3 else 0 end) AS `fcase`,count(0) AS `count(*)` from `test`.`t1` group by (case `test`.`t1`.`a` when 1 then 2 when 2 then 3 else 0 end)
+select case a when 1 then "one" when 2 then "two" else "nothing" end as fcase, count(*) from t1 group by fcase;
+fcase	count(*)
+nothing	2
+one	1
+two	1
+drop table t1;
+create table t1 (row int not null, col int not null, val varchar(255) not null);
+insert into t1 values (1,1,'orange'),(1,2,'large'),(2,1,'yellow'),(2,2,'medium'),(3,1,'green'),(3,2,'small');
+select max(case col when 1 then val else null end) as color from t1 group by row;
+color
+orange
+yellow
+green
+drop table t1;
+SET NAMES latin1;
+CREATE TABLE t1 SELECT 
+CASE WHEN 1 THEN _latin1'a' COLLATE latin1_danish_ci ELSE _latin1'a' END AS c1,
+CASE WHEN 1 THEN _latin1'a' ELSE _latin1'a' COLLATE latin1_danish_ci END AS c2,
+CASE WHEN 1 THEN 'a' ELSE  1  END AS c3,
+CASE WHEN 1 THEN  1  ELSE 'a' END AS c4,
+CASE WHEN 1 THEN 'a' ELSE 1.0 END AS c5,
+CASE WHEN 1 THEN 1.0 ELSE 'a' END AS c6,
+CASE WHEN 1 THEN  1  ELSE 1.0 END AS c7,
+CASE WHEN 1 THEN 1.0 ELSE  1  END AS c8,
+CASE WHEN 1 THEN 1.0 END AS c9,
+CASE WHEN 1 THEN 0.1e1 else 0.1 END AS c10,
+CASE WHEN 1 THEN 0.1e1 else 1 END AS c11,
+CASE WHEN 1 THEN 0.1e1 else '1' END AS c12
+;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` varchar(1) CHARACTER SET latin1 COLLATE latin1_danish_ci NOT NULL DEFAULT '',
+  `c2` varchar(1) CHARACTER SET latin1 COLLATE latin1_danish_ci NOT NULL DEFAULT '',
+  `c3` varbinary(1) NOT NULL DEFAULT '',
+  `c4` varbinary(1) NOT NULL DEFAULT '',
+  `c5` varbinary(4) NOT NULL DEFAULT '',
+  `c6` varbinary(4) NOT NULL DEFAULT '',
+  `c7` decimal(2,1) NOT NULL DEFAULT '0.0',
+  `c8` decimal(2,1) NOT NULL DEFAULT '0.0',
+  `c9` decimal(2,1) DEFAULT NULL,
+  `c10` double NOT NULL DEFAULT '0',
+  `c11` double NOT NULL DEFAULT '0',
+  `c12` varbinary(5) NOT NULL DEFAULT ''
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+DROP TABLE t1;
+SELECT CASE 
+WHEN 1 
+THEN _latin1'a' COLLATE latin1_danish_ci 
+ELSE _latin1'a' COLLATE latin1_swedish_ci
+END;
+ERROR HY000: Illegal mix of collations (latin1_danish_ci,EXPLICIT) and (latin1_swedish_ci,EXPLICIT) for operation 'case'
+SELECT CASE _latin1'a' COLLATE latin1_general_ci
+WHEN _latin1'a' COLLATE latin1_danish_ci  THEN 1
+WHEN _latin1'a' COLLATE latin1_swedish_ci THEN 2
+END;
+ERROR HY000: Illegal mix of collations (latin1_general_ci,EXPLICIT), (latin1_danish_ci,EXPLICIT), (latin1_swedish_ci,EXPLICIT) for operation 'case'
+SELECT 
+CASE _latin1'a' COLLATE latin1_general_ci  WHEN _latin1'A' THEN '1' ELSE 2 END,
+CASE _latin1'a' COLLATE latin1_bin         WHEN _latin1'A' THEN '1' ELSE 2 END,
+CASE _latin1'a' WHEN _latin1'A' COLLATE latin1_swedish_ci THEN '1' ELSE 2 END,
+CASE _latin1'a' WHEN _latin1'A' COLLATE latin1_bin        THEN '1' ELSE 2 END
+;
+CASE _latin1'a' COLLATE latin1_general_ci  WHEN _latin1'A' THEN '1' ELSE 2 END	CASE _latin1'a' COLLATE latin1_bin         WHEN _latin1'A' THEN '1' ELSE 2 END	CASE _latin1'a' WHEN _latin1'A' COLLATE latin1_swedish_ci THEN '1' ELSE 2 END	CASE _latin1'a' WHEN _latin1'A' COLLATE latin1_bin        THEN '1' ELSE 2 END
+1	2	1	2
+CREATE TABLE t1 SELECT COALESCE(_latin1'a',_latin2'a');
+ERROR HY000: Illegal mix of collations (latin1_swedish_ci,COERCIBLE) and (latin2_general_ci,COERCIBLE) for operation 'coalesce'
+CREATE TABLE t1 SELECT COALESCE('a' COLLATE latin1_swedish_ci,'b' COLLATE latin1_bin);
+ERROR HY000: Illegal mix of collations (latin1_swedish_ci,EXPLICIT) and (latin1_bin,EXPLICIT) for operation 'coalesce'
+CREATE TABLE t1 SELECT 
+COALESCE(1), COALESCE(1.0),COALESCE('a'),
+COALESCE(1,1.0), COALESCE(1,'1'),COALESCE(1.1,'1'),
+COALESCE('a' COLLATE latin1_bin,'b');
+explain extended SELECT 
+COALESCE(1), COALESCE(1.0),COALESCE('a'),
+COALESCE(1,1.0), COALESCE(1,'1'),COALESCE(1.1,'1'),
+COALESCE('a' COLLATE latin1_bin,'b');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	select coalesce(1) AS `COALESCE(1)`,coalesce(1.0) AS `COALESCE(1.0)`,coalesce('a') AS `COALESCE('a')`,coalesce(1,1.0) AS `COALESCE(1,1.0)`,coalesce(1,'1') AS `COALESCE(1,'1')`,coalesce(1.1,'1') AS `COALESCE(1.1,'1')`,coalesce(('a' collate latin1_bin),'b') AS `COALESCE('a' COLLATE latin1_bin,'b')`
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `COALESCE(1)` int(1) NOT NULL DEFAULT '0',
+  `COALESCE(1.0)` decimal(2,1) NOT NULL DEFAULT '0.0',
+  `COALESCE('a')` varchar(1) NOT NULL DEFAULT '',
+  `COALESCE(1,1.0)` decimal(2,1) NOT NULL DEFAULT '0.0',
+  `COALESCE(1,'1')` varbinary(1) NOT NULL DEFAULT '',
+  `COALESCE(1.1,'1')` varbinary(4) NOT NULL DEFAULT '',
+  `COALESCE('a' COLLATE latin1_bin,'b')` varchar(1) CHARACTER SET latin1 COLLATE latin1_bin NOT NULL DEFAULT ''
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+DROP TABLE t1;
+SELECT 'case+union+test'
+UNION 
+SELECT CASE LOWER('1') WHEN LOWER('2') THEN 'BUG' ELSE 'nobug' END;
+case+union+test
+case+union+test
+nobug
+SELECT CASE LOWER('1') WHEN LOWER('2') THEN 'BUG' ELSE 'nobug' END;
+CASE LOWER('1') WHEN LOWER('2') THEN 'BUG' ELSE 'nobug' END
+nobug
+SELECT 'case+union+test'
+UNION 
+SELECT CASE '1' WHEN '2' THEN 'BUG' ELSE 'nobug' END;
+case+union+test
+case+union+test
+nobug
+create table t1(a float, b int default 3);
+insert into t1 (a) values (2), (11), (8);
+select min(a), min(case when 1=1 then a else NULL end),
+min(case when 1!=1 then NULL else a end) 
+from t1 where b=3 group by b;
+min(a)	min(case when 1=1 then a else NULL end)	min(case when 1!=1 then NULL else a end)
+2	2	2
+drop table t1;
+CREATE TABLE t1 (EMPNUM INT);
+INSERT INTO t1 VALUES (0), (2);
+CREATE TABLE t2 (EMPNUM DECIMAL (4, 2));
+INSERT INTO t2 VALUES (0.0), (9.0);
+SELECT COALESCE(t2.EMPNUM,t1.EMPNUM) AS CEMPNUM,
+t1.EMPNUM AS EMPMUM1, t2.EMPNUM AS EMPNUM2
+FROM t1 LEFT JOIN t2 ON t1.EMPNUM=t2.EMPNUM;
+CEMPNUM	EMPMUM1	EMPNUM2
+0.00	0	0.00
+2.00	2	NULL
+SELECT IFNULL(t2.EMPNUM,t1.EMPNUM) AS CEMPNUM,
+t1.EMPNUM AS EMPMUM1, t2.EMPNUM AS EMPNUM2
+FROM t1 LEFT JOIN t2 ON t1.EMPNUM=t2.EMPNUM;
+CEMPNUM	EMPMUM1	EMPNUM2
+0.00	0	0.00
+2.00	2	NULL
+DROP TABLE t1,t2;

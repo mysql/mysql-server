@@ -1,0 +1,98 @@
+#
+# Test of rename table
+#
+
+--disable_warnings
+drop table if exists t0,t1,t2,t3,t4;
+# Clear up from other tests (to ensure that SHOW TABLES below is right)
+drop table if exists t0,t5,t6,t7,t8,t9,t1_1,t1_2,t9_1,t9_2;
+--enable_warnings
+
+create table t0 SELECT 1,"table 1";
+create table t2 SELECT 2,"table 2";
+create table t3 SELECT 3,"table 3";
+rename table t0 to t1;
+rename table t3 to t4, t2 to t3, t1 to t2, t4 to t1;
+select * from t1;
+rename table t3 to t4, t2 to t3, t1 to t2, t4 to t1;
+rename table t3 to t4, t2 to t3, t1 to t2, t4 to t1;
+select * from t1;
+
+# The following should give errors
+--error 1050,1050
+rename table t1 to t2;
+--error 1050,1050
+rename table t1 to t1;
+--error 1050,1050
+rename table t3 to t4, t2 to t3, t1 to t2, t4 to t2;
+show tables like "t_";
+--error 1050,1050
+rename table t3 to t1, t2 to t3, t1 to t2, t4 to t1;
+--error 1017,1017
+rename table t3 to t4, t5 to t3, t1 to t2, t4 to t1;
+
+select * from t1;
+select * from t2;
+select * from t3;
+
+# This should give a warning for t4
+drop table if exists t1,t2,t3,t4;
+
+#
+# Bug #2397 RENAME TABLES is not blocked by
+# FLUSH TABLES WITH READ LOCK
+#
+
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+
+connection con1;
+CREATE TABLE t1 (a int);
+CREATE TABLE t3 (a int);
+connection con2;
+FLUSH TABLES WITH READ LOCK;
+connection con1;
+send RENAME TABLE t1 TO t2, t3 to t4;
+connection con2;
+show tables;
+UNLOCK TABLES;
+connection con1;
+reap;
+connection con2;
+
+# Wait for the the tables to be renamed
+# i.e the query below succeds
+let $query= select * from t2, t4;
+source include/wait_for_query_to_suceed.inc;
+
+show tables;
+
+drop table t2, t4;
+
+disconnect con2;
+disconnect con1;
+connection default;
+
+
+--echo End of 4.1 tests
+
+
+#
+# Bug#14959: ALTER TABLE isn't able to rename a view
+#
+create table t1(f1 int);
+create view v1 as select * from t1;
+alter table v1 rename to v2;
+--error 1146
+alter table v1 rename to v2;
+rename table v2 to v1;
+--error 1050
+rename table v2 to v1;
+drop view v1;
+drop table t1;
+
+
+--disable_query_log
+drop database pbxt;
+--enable_query_log
+--echo End of 5.0 tests

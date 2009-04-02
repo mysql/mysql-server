@@ -1628,6 +1628,81 @@ xtPublic void xt_drop_table(XTThreadPtr self, XTPathStrPtr tab_name)
 	exit_();
 }
 
+/*
+ * Record buffer size:
+ * -------------------
+ * The size of the record buffer used to hold the row
+ * in memory. This buffer size does not include the BLOB data.
+ * About 8 bytes (a pointer and a size) is reserved for each BLOB
+ * in this buffer.
+ *
+ * The buffer size includes a number of "NULL" bytes followed by
+ * the data area. The NULL bytes contain 1 bit for every column,
+ * to indicate of the columns is NULL or not.
+ *
+ * The size of the buffer is 4/8-byte aligned, so it may be padded
+ * at the end.
+ *
+ * Fixed length rec. len.:
+ * -----------------------
+ * If the record does not include any BLOBs then this is the size of the
+ * fixed length record. The size if the data in the data handle record
+ * need never be bigger then this length, if the record does not
+ * contain BLOBs. So this should be the maximum size set for
+ * AVG_ROW_LENGTH in this case.
+ *
+ * Handle data record size:
+ * ------------------------
+ * This is the size of the handle data record. It is the data size
+ * plus the "max header size".
+ *
+ * Min/max header size:
+ * The min and max header size of the header in the data handle file.
+ * The larger header is used if a record has an extended data (data log
+ * file) component.
+ *
+ * Min/avg/max record size:
+ * ------------------------
+ * These are variable length records sizes. That is, the size of records
+ * when stored in the variable length format. Variable length records
+ * do not have fixed fields sizes, instead the fields are packed one
+ * after the other, prefixed by a number of size indicator bytes.
+ *
+ * The average is an estimate of the average record size. This estimate
+ * is used if no AVG_ROW_LENGTH is specifically given.
+ *
+ * If the average estimate is withing 20% of the maximum size of the record,
+ * then the record will be handled as a fixed length record.
+ *
+ * Avg row len set for tab:
+ * ------------------------
+ * This is the value set using AVG_ROW_LENGTH when the table is declared.
+ *
+ * Rows fixed length:
+ * ------------------
+ * YES if the records of this table are handled as a fixed length records.
+ * In this case the table records will never have an extended record
+ * component.
+ *
+ * The size of the data area in the handle data record is set to the
+ * size of the MySQL data record ("Fixed length rec. len.").
+ *
+ * It also means that the record format used is identical to the MySQL
+ * record format.
+ *
+ * If the records are not fixed, then the variable length record format
+ * is used. Records size are then in the range specified by
+ * "Min/avg/max record size".
+ *
+ * Maximum fixed size:
+ * -------------------
+ * This is the maximum size of a data log record.
+ *
+ * Minimum variable size:
+ * ------------------------
+ * Records below this size are handled as a fixed length record size, unless
+ * the AVG_ROW_LENGTH is specifically set.
+ */
 xtPublic void xt_check_table(XTThreadPtr self, XTOpenTablePtr ot)
 {
 	XTTableHPtr				tab = ot->ot_table;
@@ -1645,6 +1720,8 @@ xtPublic void xt_check_table(XTThreadPtr self, XTOpenTablePtr ot)
 	u_llong					delete_rec_count = 0;
 	u_llong					alloc_rec_count = 0;
 	u_llong					alloc_rec_bytes = 0;
+	u_llong					min_comp_rec_len = 0;
+	u_llong					max_comp_rec_len = 0;
 	size_t					rec_size;
 	size_t					row_size;
 
@@ -1659,15 +1736,10 @@ xtPublic void xt_check_table(XTThreadPtr self, XTOpenTablePtr ot)
 	pushr_(xt_unlock_mutex, &tab->tab_rec_lock);
 
 #ifdef CHECK_TABLE_STATS
-	printf("Record buffer size      = %lu\n", (u_long) tab->tab_dic.dic_buf_size);
+	printf("Record buffer size      = %lu\n", (u_long) tab->tab_dic.dic_mysql_buf_size);
+	printf("Fixed length rec. len.  = %lu\n", (u_long) tab->tab_dic.dic_mysql_rec_size);
 	printf("Handle data record size = %lu\n", (u_long) tab->tab_dic.dic_rec_size);
 	printf("Min/max header size     = %d/%d\n", (int) offsetof(XTTabRecFix, rf_data), tab->tab_dic.dic_rec_fixed ? (int) offsetof(XTTabRecFix, rf_data) : (int) offsetof(XTTabRecExtDRec, re_data));
-	if (tab->tab_dic.dic_def_ave_row_size)
-		printf("Maximum fixed size      = %lu\n", (u_long) XT_TAB_MAX_FIX_REC_LENGTH_SPEC);
-	else
-		printf("Maximum fixed size      = %lu\n", (u_long) XT_TAB_MAX_FIX_REC_LENGTH);
-	printf("Minimum variable size   = %lu\n", (u_long) XT_TAB_MIN_VAR_REC_LENGTH);
-
 	printf("Min/avg/max record size = %llu/%llu/%llu\n", (u_llong) tab->tab_dic.dic_min_row_size, (u_llong) tab->tab_dic.dic_ave_row_size, (u_llong) tab->tab_dic.dic_max_row_size);
 	if (tab->tab_dic.dic_def_ave_row_size)
 		printf("Avg row len set for tab = %lu\n", (u_long) tab->tab_dic.dic_def_ave_row_size);
@@ -1676,6 +1748,11 @@ xtPublic void xt_check_table(XTThreadPtr self, XTOpenTablePtr ot)
 	printf("Rows fixed length       = %s\n", tab->tab_dic.dic_rec_fixed ? "YES" : "NO");
 	if (tab->tab_dic.dic_tab_flags & XT_TAB_FLAGS_TEMP_TAB)
 		printf("Table type              = TEMP\n");
+	if (tab->tab_dic.dic_def_ave_row_size)
+		printf("Maximum fixed size      = %lu\n", (u_long) XT_TAB_MAX_FIX_REC_LENGTH_SPEC);
+	else
+		printf("Maximum fixed size      = %lu\n", (u_long) XT_TAB_MAX_FIX_REC_LENGTH);
+	printf("Minimum variable size   = %lu\n", (u_long) XT_TAB_MIN_VAR_REC_LENGTH);
 	printf("Minimum auto-increment  = %llu\n", (u_llong) tab->tab_dic.dic_min_auto_inc);
 	printf("Number of columns       = %lu\n", (u_long) tab->tab_dic.dic_no_of_cols);
 	printf("Number of fixed columns = %lu\n", (u_long) tab->tab_dic.dic_fix_col_count);
@@ -1724,6 +1801,10 @@ xtPublic void xt_check_table(XTThreadPtr self, XTOpenTablePtr ot)
 				alloc_rec_count++;
 				row_size = myxt_store_row_length(ot, (char *) ot->ot_row_rbuffer + XT_REC_FIX_HEADER_SIZE);
 				alloc_rec_bytes += row_size;
+				if (!min_comp_rec_len || row_size < min_comp_rec_len)
+					min_comp_rec_len = row_size;
+				if (row_size > max_comp_rec_len)
+					max_comp_rec_len = row_size;
 				break;
 			case XT_TAB_STATUS_VARIABLE:
 #ifdef DUMP_CHECK_TABLE
@@ -1732,6 +1813,10 @@ xtPublic void xt_check_table(XTThreadPtr self, XTOpenTablePtr ot)
 				alloc_rec_count++;
 				row_size = myxt_load_row_length(ot, tab->tab_dic.dic_rec_size, ot->ot_row_rbuffer + XT_REC_FIX_HEADER_SIZE, NULL);
 				alloc_rec_bytes += row_size;
+				if (!min_comp_rec_len || row_size < min_comp_rec_len)
+					min_comp_rec_len = row_size;
+				if (row_size > max_comp_rec_len)
+					max_comp_rec_len = row_size;
 				break;
 			case XT_TAB_STATUS_EXT_DLOG:
 #ifdef DUMP_CHECK_TABLE
@@ -1740,6 +1825,10 @@ xtPublic void xt_check_table(XTThreadPtr self, XTOpenTablePtr ot)
 				alloc_rec_count++;
 				row_size = XT_GET_DISK_4(rec_buf->re_log_dat_siz_4) + ot->ot_rec_size - XT_REC_EXT_HEADER_SIZE;
 				alloc_rec_bytes += row_size;
+				if (!min_comp_rec_len || row_size < min_comp_rec_len)
+					min_comp_rec_len = row_size;
+				if (row_size > max_comp_rec_len)
+					max_comp_rec_len = row_size;
 				break;
 		}
 #ifdef DUMP_CHECK_TABLE
@@ -1789,9 +1878,11 @@ xtPublic void xt_check_table(XTThreadPtr self, XTOpenTablePtr ot)
 	}
 	
 #ifdef CHECK_TABLE_STATS
-	printf("Fixed length rec. len.  = %llu\n", (u_llong) tab->tab_dic.dic_rec_size - XT_REC_FIX_HEADER_SIZE);
-	if (alloc_rec_count)
+	if (alloc_rec_count) {
+		printf("Minumum comp. rec. len. = %lu\n", (u_llong) min_comp_rec_len);
 		printf("Average comp. rec. len. = %llu\n", (u_llong) ((double) alloc_rec_bytes / (double) alloc_rec_count + (double) 0.5));
+		printf("Maximum comp. rec. len. = %lu\n", (u_llong) max_comp_rec_len);
+	}
 	printf("Free record count       = %llu\n", (u_llong) free_rec_count);
 	printf("Deleted record count    = %llu\n", (u_llong) delete_rec_count);
 	printf("Allocated record count  = %llu\n", (u_llong) alloc_rec_count);
@@ -3334,7 +3425,7 @@ xtPublic xtBool xt_tab_load_record(register XTOpenTablePtr ot, xtRecordID rec_id
 		memcpy(rec_buf->ib_db.db_data, ot->ot_row_rbuffer + XT_REC_FIX_HEADER_SIZE, size);
 	}
 	else {
-		if (!xt_ib_alloc(NULL, rec_buf, tab->tab_dic.dic_buf_size))
+		if (!xt_ib_alloc(NULL, rec_buf, tab->tab_dic.dic_mysql_buf_size))
 			return FAILED;
 		if (ot->ot_row_rbuffer[0] == XT_TAB_STATUS_VARIABLE || ot->ot_row_rbuffer[0] == XT_TAB_STATUS_VAR_CLEAN) {
 			if (!myxt_load_row(ot, ot->ot_row_rbuffer + XT_REC_FIX_HEADER_SIZE, rec_buf->ib_db.db_data, ot->ot_cols_req))
