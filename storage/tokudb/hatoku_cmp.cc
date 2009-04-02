@@ -584,6 +584,106 @@ inline int cmp_toku_varstring(
 inline int compare_toku_field(
     uchar* a_buf, 
     uchar* b_buf, 
+    uchar* row_desc,
+    u_int32_t* a_bytes_read, 
+    u_int32_t* b_bytes_read,
+    u_int32_t* row_desc_bytes_read
+    )
+{
+    int ret_val = 0;
+    uchar* row_desc_pos = row_desc;
+    u_int32_t num_bytes = 0;
+    u_int32_t length_bytes = 0;
+    u_int32_t charset_num = 0;
+    bool is_unsigned = false;
+
+
+    TOKU_TYPE toku_type = (TOKU_TYPE)row_desc_pos[0];
+    row_desc_pos++;
+    
+    switch (toku_type) {
+    case (toku_type_hpk):
+        ret_val = tokudb_compare_two_hidden_keys(
+            a_buf, 
+            TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH,
+            b_buf,
+            TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH
+            );
+        *a_bytes_read = TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH;
+        *b_bytes_read = TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH;
+        break;
+    case (toku_type_int):
+        num_bytes = row_desc_pos[0];
+        is_unsigned = row_desc_pos[1];
+        ret_val = cmp_toku_int(
+            a_buf,
+            b_buf,
+            is_unsigned,
+            num_bytes
+            );
+        *a_bytes_read = num_bytes;
+        *b_bytes_read = num_bytes;
+        row_desc_pos += 2;
+        break;
+    case (toku_type_double):
+        ret_val = cmp_toku_double(a_buf, b_buf);
+        *a_bytes_read = sizeof(double);
+        *b_bytes_read = sizeof(double);
+        break;
+    case (toku_type_float):
+        ret_val = cmp_toku_float(a_buf, b_buf);
+        *a_bytes_read = sizeof(float);
+        *b_bytes_read = sizeof(float);
+        break;
+    case (toku_type_fixbinary):
+        num_bytes = row_desc_pos[0];
+        ret_val = cmp_toku_binary(a_buf, num_bytes, b_buf,num_bytes);
+        *a_bytes_read = num_bytes;
+        *b_bytes_read = num_bytes;
+        row_desc_pos++;
+        break;
+    case (toku_type_varbinary):
+        length_bytes = row_desc_pos[0];
+        ret_val = cmp_toku_varbinary(
+            a_buf,
+            b_buf,
+            length_bytes,
+            a_bytes_read,
+            b_bytes_read
+            );
+        row_desc_pos++;
+        break;
+    case (toku_type_fixstring):
+    case (toku_type_varstring):
+    case (toku_type_blob):
+        length_bytes = row_desc_pos[0];
+        row_desc_pos++;
+        //
+        // not sure we want to read charset_num like this
+        //
+        charset_num = *(u_int32_t *)row_desc_pos;
+        row_desc_pos += sizeof(u_int32_t);
+        ret_val = cmp_toku_varstring(
+            a_buf,
+            b_buf,
+            length_bytes,
+            charset_num,
+            a_bytes_read,
+            b_bytes_read
+            );
+        break;
+    default:
+        assert(false);
+        break;
+    }
+    
+    *row_desc_bytes_read = row_desc_pos - row_desc;
+    return ret_val;
+}
+
+inline int compare_toku_field(
+    uchar* a_buf, 
+    uchar* b_buf, 
     Field* field,
     u_int32_t key_part_length, //I really hope this is temporary as I phase out the pack_cmp stuff
     u_int32_t* a_bytes_read, 
