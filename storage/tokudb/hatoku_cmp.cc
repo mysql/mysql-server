@@ -1180,14 +1180,14 @@ int create_toku_key_descriptor(KEY* key, uchar* buf) {
         case (toku_type_float):
             break;
         //
-        // two bytes follow stating the length of the field
+        // one byte follow stating the length of the field
         //
         case (toku_type_fixbinary):
             num_bytes_in_field = field->pack_length();
             set_if_smaller(num_bytes_in_field, key->key_part[i].length);
+            assert(num_bytes_in_field < 256);
             pos[0] = (uchar)(num_bytes_in_field & 255);
-            pos[1] = (uchar) (num_bytes_in_field >> 8);
-            pos += 2;
+            pos++;
             break;
         //
         // one byte follows: the number of bytes used to encode the length
