@@ -3,6 +3,8 @@ PBXT Release Notes
 
 ------- 1.0.08 RC - Not yet released
 
+RN233: Fixed bugs which occur when PBXT is used together with PBMS (BLOB Streaming engine).
+
 RN232: Merged Drizzle-specific changes into the main tree.
 
 RN231: Fixed a bug that caused bad performance as the number of threads increased. This occurred when the number of open table handles exceeded 'table_open_cache', and MySQL started closing open table handlers. PBXT was flushing a table when all table handlers were closed. PBXT will now only do this when the FLUSH TABLES statement is used.

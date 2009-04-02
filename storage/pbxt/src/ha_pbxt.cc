@@ -4884,6 +4884,7 @@ int ha_pbxt::create(const char *table_path, TABLE *table_arg, HA_CREATE_INFO *cr
 	catch_(a) {
 		if (tab_def)
 			tab_def->finalize(self);
+		dic.dic_table = NULL;
 		err = xt_ha_pbxt_thread_error_for_mysql(thd, self, pb_ignore_dup_key);
 	}
 	cont_(a);

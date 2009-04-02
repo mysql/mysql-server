@@ -1496,6 +1496,7 @@ xtPublic void xt_create_table(XTThreadPtr self, XTPathStrPtr name, XTDictionaryP
 		/* Creation failed, delete the table files: */
 		if (*path)
 			tab_delete_table_files(self, name, tab_id);
+		tab_remove_table_path(self, db, te_tab.te_tab_path);
 		xt_sb_set_size(self, &tab_def, 0);
 		throw_();
 	}
@@ -1879,9 +1880,9 @@ xtPublic void xt_check_table(XTThreadPtr self, XTOpenTablePtr ot)
 	
 #ifdef CHECK_TABLE_STATS
 	if (alloc_rec_count) {
-		printf("Minumum comp. rec. len. = %lu\n", (u_llong) min_comp_rec_len);
+		printf("Minumum comp. rec. len. = %llu\n", (u_llong) min_comp_rec_len);
 		printf("Average comp. rec. len. = %llu\n", (u_llong) ((double) alloc_rec_bytes / (double) alloc_rec_count + (double) 0.5));
-		printf("Maximum comp. rec. len. = %lu\n", (u_llong) max_comp_rec_len);
+		printf("Maximum comp. rec. len. = %llu\n", (u_llong) max_comp_rec_len);
 	}
 	printf("Free record count       = %llu\n", (u_llong) free_rec_count);
 	printf("Deleted record count    = %llu\n", (u_llong) delete_rec_count);
