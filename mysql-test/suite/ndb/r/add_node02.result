@@ -45,6 +45,8 @@ id=255 (not connected, accepting connect from localhost)
 
 
 ## Initial start of "new" data nodes
+YYYY-MM-DD HH:MM:SS [ndbd] INFO     -- Configuration fetched from 'localhost', generation: X
+YYYY-MM-DD HH:MM:SS [ndbd] INFO     -- Configuration fetched from 'localhost', generation: X
 ## Wait for added nodes started
 ## Create nodegroup for "new" nodes
 ## Cluster running after adding two ndbd nodes:

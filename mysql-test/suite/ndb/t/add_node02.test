@@ -41,7 +41,9 @@ let $mysqld_name= mysqld.2.1;
 connection default;
 
 ## Initial start of "new" data nodes
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/YYYY-MM-DD HH:MM:SS/ /localhost:[0-9]*/localhost/ /generation: [0-9]*/generation: X/
 --exec $NDB_NDBD --ndb-nodeid=40 --initial
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/YYYY-MM-DD HH:MM:SS/ /localhost:[0-9]*/localhost/ /generation: [0-9]*/generation: X/
 --exec $NDB_NDBD --ndb-nodeid=41 --initial
 
 ## Wait for added nodes started
