@@ -561,10 +561,8 @@ dict_build_index_def_step(
 
 	ins_node_set_new_row(node->ind_def, row);
 
-#ifdef ROW_MERGE_IS_INDEX_USABLE
 	/* Note that the index was created by this transaction. */
-	index->trx_id = trx->id;
-#endif /* ROW_MERGE_IS_INDEX_USABLE */
+	index->trx_id = (ib_uint64_t) ut_conv_dulint_to_longlong(trx->id);
 
 	return(DB_SUCCESS);
 }

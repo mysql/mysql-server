@@ -720,6 +720,9 @@ convert_error_code_to_mysql(
 	case DB_FOREIGN_DUPLICATE_KEY:
 		return(HA_ERR_FOREIGN_DUPLICATE_KEY);
 
+	case DB_MISSING_HISTORY:
+		return(HA_ERR_TABLE_DEF_CHANGED);
+
 	case DB_RECORD_NOT_FOUND:
 		return(HA_ERR_NO_ACTIVE_RECORD);
 
@@ -4689,38 +4692,6 @@ ha_innobase::try_semi_consistent_read(bool yes)
 	}
 }
 
-#ifdef ROW_MERGE_IS_INDEX_USABLE
-/**********************************************************************
-Check if an index can be used by the optimizer. */
-UNIV_INTERN
-bool
-ha_innobase::is_index_available(
-/*============================*/
-					/* out: true if available else false*/
-	uint		keynr)		/* in: index number to check */
-{
-	DBUG_ENTER("ha_innobase::is_index_available");
-
-	if (table && keynr != MAX_KEY && table->s->keys > 0) {
-		const dict_index_t*	index;
-		const KEY*		key = table->key_info + keynr;
-
-		ut_ad(user_thd == ha_thd());
-		ut_a(prebuilt->trx == thd_to_trx(user_thd));
-
-		index = dict_table_get_index_on_name(
-			prebuilt->table, key->name);
-
-		if (!row_merge_is_index_usable(prebuilt->trx, index)) {
-
-			DBUG_RETURN(false);
-		}
-	}
-
-	DBUG_RETURN(true);
-}
-#endif /* ROW_MERGE_IS_INDEX_USABLE */
-
 /**********************************************************************
 Initializes a handle to use an index. */
 UNIV_INTERN
@@ -5053,6 +5024,17 @@ ha_innobase::change_active_index(
 		sql_print_warning("InnoDB: change_active_index(%u) failed",
 				  keynr);
 		DBUG_RETURN(1);
+	}
+
+	prebuilt->index_usable = row_merge_is_index_usable(prebuilt->trx,
+							   prebuilt->index);
+
+	if (UNIV_UNLIKELY(!prebuilt->index_usable)) {
+		sql_print_warning("InnoDB: insufficient history for index %u",
+				  keynr);
+		/* The caller seems to ignore this.  Thus, we must check
+		this again in row_search_for_mysql(). */
+		DBUG_RETURN(2);
 	}
 
 	ut_a(prebuilt->search_tuple != 0);
