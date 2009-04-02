@@ -406,7 +406,7 @@ insert into t2 values (1);
 --error 1451
 truncate table t1;
 # this caused a crash
-alter table t1 engine maria;
+alter table t1 engine myisam;
 show create table t1;
 
 # BUG: Foreign Keys: missing row in table_constraints

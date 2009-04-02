@@ -1246,7 +1246,7 @@ xtPublic void xt_create_table(XTThreadPtr self, XTPathStrPtr name, XTDictionaryP
 	XTDatabaseHPtr		db = self->st_database;
 	XTOpenTablePoolPtr	table_pool;
 	XTTableHPtr			tab;
-	XTTableHPtr			old_tab = 0;
+	XTTableHPtr			old_tab = NULL;
 	xtTableID			old_tab_id = 0;
 	xtTableID			tab_id = 0;
 	XTTabRowHeadDRec	row_head;
@@ -1271,6 +1271,7 @@ xtPublic void xt_create_table(XTThreadPtr self, XTPathStrPtr name, XTDictionaryP
 	pushr_(xt_db_unlock_table_pool, table_pool);
 	xt_ht_lock(self, db->db_tables);
 	pushr_(xt_ht_unlock, db->db_tables);
+	pushr_(xt_heap_release, old_tab);
 
 	/* This must be done before we remove the old table
 	 * from the directory, or we will not be able
@@ -1285,7 +1286,7 @@ xtPublic void xt_create_table(XTThreadPtr self, XTPathStrPtr name, XTDictionaryP
 	if (old_tab) {
 		old_tab_id = old_tab->tab_id;		
 		xt_dl_delete_ext_data(self, old_tab, FALSE, TRUE);
-		xt_heap_release(self, old_tab);
+		freer_(); // xt_heap_release(self, old_tab)
 
 		/* For the Windows version this must be done before we
 		 * start to delete the underlying files!
@@ -1304,6 +1305,9 @@ xtPublic void xt_create_table(XTThreadPtr self, XTPathStrPtr name, XTDictionaryP
 		 * ID so the handle in the directory will no longer be valid.
 		 */
 		xt_ht_del(self, db->db_tables, name);
+	}
+	else {
+		freer_(); // xt_heap_release(self, old_tab)
 	}
 
 	/* Add the table to the directory, well remove on error! */
@@ -1572,7 +1576,7 @@ xtPublic void xt_drop_table(XTThreadPtr self, XTPathStrPtr tab_name)
 {
 	XTDatabaseHPtr		db = self->st_database;
 	XTOpenTablePoolPtr	table_pool;
-	XTTableHPtr			tab;
+	XTTableHPtr			tab = NULL;
 	xtTableID			tab_id = 0;
 	xtBool				can_drop = TRUE;
 
@@ -1586,6 +1590,7 @@ xtPublic void xt_drop_table(XTThreadPtr self, XTPathStrPtr tab_name)
 	pushr_(xt_db_unlock_table_pool, table_pool);
 	xt_ht_lock(self, db->db_tables);
 	pushr_(xt_ht_unlock, db->db_tables);
+	pushr_(xt_heap_release, tab);
 
 	if (table_pool) {
 		tab_id = tab->tab_id;	/* tab is not null if returned table_pool is not null */
@@ -1599,7 +1604,7 @@ xtPublic void xt_drop_table(XTThreadPtr self, XTPathStrPtr tab_name)
 			XTTableEntryPtr	te_ptr;
 
 			xt_dl_delete_ext_data(self, tab, FALSE, TRUE);
-			xt_heap_release(self, tab);
+			freer_(); // xt_heap_release(self, tab)
 
 			/* For the Windows version this must be done before we
 			 * start to delete the underlying files!
@@ -1616,6 +1621,9 @@ xtPublic void xt_drop_table(XTThreadPtr self, XTPathStrPtr tab_name)
 				tab_remove_table_path(self, db, te_ptr->te_tab_path);
 				xt_sl_delete(self, db->db_table_by_id, &tab_id);
 			}
+		}
+		else {
+			freer_(); // xt_heap_release(self, tab)
 		}
 
 		xt_ht_del(self, db->db_tables, tab_name);
@@ -1957,7 +1965,7 @@ xtPublic void xt_rename_table(XTThreadPtr self, XTPathStrPtr old_name, XTPathStr
 {
 	XTDatabaseHPtr		db = self->st_database;
 	XTOpenTablePoolPtr	table_pool;
-	XTTableHPtr			tab;
+	XTTableHPtr			tab = NULL;
 	char				table_name[XT_MAX_TABLE_FILE_NAME_SIZE];
 	char				*postfix;
 	XTFilesOfTableRec	ft;
@@ -2004,6 +2012,7 @@ xtPublic void xt_rename_table(XTThreadPtr self, XTPathStrPtr old_name, XTPathStr
 	tab_id = tab->tab_id;
 	myxt_move_dictionary(&dic, &tab->tab_dic);
 	pushr_(myxt_free_dictionary, &dic);
+	pushr_(xt_heap_release, tab);
 
 	/* Unmap the memory mapped table files: 
 	 * For windows this must be done before we
@@ -2011,7 +2020,7 @@ xtPublic void xt_rename_table(XTThreadPtr self, XTPathStrPtr old_name, XTPathStr
 	 */
 	tab_close_mapped_files(self, tab);
 
-	xt_heap_release(self, tab);
+	freer_(); // xt_heap_release(self, old_tab)
 
 	/* Create the new name and path: */
 	te_new_name = xt_dup_string(self, xt_last_name_of_path(new_name->ps_path));

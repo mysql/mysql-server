@@ -88,10 +88,6 @@ INSERT INTO t1 (d) values (null),(null);
 select * from t1;
 drop table t1;
 
---disable_query_log
-drop database pbxt;
---enable_query_log
-
 #
 # Test to check elimination of IS NULL predicate for a non-nullable attribute
 # (bug #1990)  

@@ -79,11 +79,11 @@ xtPublic void xt_heap_reference(XTThreadPtr, XTHeapPtr hp)
 #endif
 {
 	xt_spinlock_lock(&hp->h_lock);
-	hp->h_ref_count++;
 #ifdef DEBUG
 	if (hp->h_track)
-		printf("HEAP: +1 %2d %s:%d\n", (int) hp->h_ref_count, file, (int) line);
+		printf("HEAP: +1 %d->%d %s:%d\n", (int) hp->h_ref_count, (int) hp->h_ref_count+1, file, (int) line);
 #endif
+	hp->h_ref_count++;
 	xt_spinlock_unlock(&hp->h_lock);
 }
 
@@ -102,7 +102,7 @@ xtPublic void xt_heap_release(XTThreadPtr self, XTHeapPtr hp)
 	if (hp->h_ref_count > 0) {
 #ifdef DEBUG
 	if (hp->h_track)
-		printf("HEAP: -1 %2d\n", (int) hp->h_ref_count);
+		printf("HEAP: -1 %d->%d\n", (int) hp->h_ref_count, (int) hp->h_ref_count-1);
 #endif
 		hp->h_ref_count--;
 		if (hp->h_ref_count == 0) {

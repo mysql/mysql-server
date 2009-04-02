@@ -185,10 +185,10 @@ my $opt_mark_progress;
 
 my $opt_sleep;
 
-my $opt_testcase_timeout=     15; # 15 minutes
-my $opt_suite_timeout   =    360; # 6 hours
-my $opt_shutdown_timeout=     10; # 10 seconds
-my $opt_start_timeout   =    180; # 180 seconds
+my $opt_testcase_timeout=     15000; # 15 minutes
+my $opt_suite_timeout   =    3600; # 6 hours
+my $opt_shutdown_timeout=     10000; # 10 seconds
+my $opt_start_timeout   =    18000; # 180 seconds
 
 sub testcase_timeout { return $opt_testcase_timeout * 60; };
 sub suite_timeout { return $opt_suite_timeout * 60; };

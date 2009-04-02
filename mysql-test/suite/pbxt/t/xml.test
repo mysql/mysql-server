@@ -406,4 +406,3 @@ select ExtractValue(@xml, "/entry[(50>pt)]/id");
 select ExtractValue(@xml, "/entry[(50>=pt)]/id");
 select ExtractValue(@xml, "/entry[(50<pt)]/id");
 select ExtractValue(@xml, "/entry[(50<=pt)]/id");
-
