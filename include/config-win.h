@@ -63,9 +63,6 @@ functions */
 #endif
 #ifndef __WIN32__
 #define __WIN32__
-#define _INTEGRAL_MAX_BITS 32
-#else
-#define _INTEGRAL_MAX_BITS 64
 #endif
 #endif /* _WIN64 */
 #ifndef __WIN__
