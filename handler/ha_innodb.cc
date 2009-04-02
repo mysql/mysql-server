@@ -9640,6 +9640,11 @@ static MYSQL_SYSVAR_ULONG(sync_spin_loops, srv_n_spin_wait_rounds,
   "Count of spin-loop rounds in InnoDB mutexes",
   NULL, NULL, 20L, 0L, ~0L, 0);
 
+static MYSQL_SYSVAR_ULONG(spin_wait_delay, srv_spin_wait_delay,
+  PLUGIN_VAR_OPCMDARG,
+  "Maximum delay between polling for a spin lock (5 by default)",
+  NULL, NULL, 5L, 0L, ~0L, 0);
+
 static MYSQL_SYSVAR_ULONG(thread_concurrency, srv_thread_concurrency,
   PLUGIN_VAR_RQCMDARG,
   "Helps in performance tuning in heavily concurrent environments. Sets the maximum number of threads allowed inside InnoDB. Value 0 will disable the thread throttling.",
@@ -9724,6 +9729,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(strict_mode),
   MYSQL_SYSVAR(support_xa),
   MYSQL_SYSVAR(sync_spin_loops),
+  MYSQL_SYSVAR(spin_wait_delay),
   MYSQL_SYSVAR(table_locks),
   MYSQL_SYSVAR(thread_concurrency),
   MYSQL_SYSVAR(thread_sleep_delay),
