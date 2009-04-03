@@ -36,6 +36,8 @@ SELECT @@global.sync_binlog;
 65536
 '#--------------------FN_DYNVARS_168_04-------------------------#'
 SET @@global.sync_binlog = -1;
+Warnings:
+Warning	1292	Truncated incorrect sync_binlog value: '-1'
 SELECT @@global.sync_binlog;
 @@global.sync_binlog
 0
@@ -53,6 +55,8 @@ SELECT @@global.sync_binlog;
 @@global.sync_binlog
 10240022115
 SET @@global.sync_binlog = -1024;
+Warnings:
+Warning	1292	Truncated incorrect sync_binlog value: '-1024'
 SELECT @@global.sync_binlog;
 @@global.sync_binlog
 0

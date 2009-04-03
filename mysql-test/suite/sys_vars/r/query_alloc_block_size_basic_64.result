@@ -78,7 +78,7 @@ SELECT @@global.query_alloc_block_size;
 1024
 SET @@global.query_alloc_block_size = -1;
 Warnings:
-Warning	1292	Truncated incorrect query_alloc_block_size value: '0'
+Warning	1292	Truncated incorrect query_alloc_block_size value: '-1'
 SELECT @@global.query_alloc_block_size;
 @@global.query_alloc_block_size
 1024
@@ -110,7 +110,7 @@ SELECT @@session.query_alloc_block_size;
 1024
 SET @@session.query_alloc_block_size = -2;
 Warnings:
-Warning	1292	Truncated incorrect query_alloc_block_size value: '0'
+Warning	1292	Truncated incorrect query_alloc_block_size value: '-2'
 SELECT @@session.query_alloc_block_size;
 @@session.query_alloc_block_size
 1024
