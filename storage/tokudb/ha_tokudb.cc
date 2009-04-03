@@ -1628,18 +1628,6 @@ ha_rows ha_tokudb::estimate_rows_upper_bound() {
 //
 int ha_tokudb::cmp_ref(const uchar * ref1, const uchar * ref2) {
     int ret_val = 0;
-    KEY *key_info = NULL;
-
-    if (hidden_primary_key) {
-        ret_val =  tokudb_compare_two_hidden_keys(
-            (void *)ref1, 
-            TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH, 
-            (void *)ref2, 
-            TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH
-            );
-        goto exit;
-    }    
-    key_info = &table->key_info[table_share->primary_key];
     ret_val = tokudb_compare_two_keys(
         ref1 + sizeof(u_int32_t),
         *(u_int32_t *)ref1,
@@ -1649,7 +1637,6 @@ int ha_tokudb::cmp_ref(const uchar * ref1, const uchar * ref2) {
         *(u_int32_t *)share->file->descriptor.data,
         false
         );
-exit:
     return ret_val;
 }
 
