@@ -7629,19 +7629,21 @@ int
 NdbDictionaryImpl::beginSchemaTrans()
 {
   DBUG_ENTER("beginSchemaTrans");
-  if (m_tx.m_transOn) {
+  if (m_tx.m_state == NdbDictInterface::Tx::Started) {
     m_error.code = 4410;
     DBUG_RETURN(-1);
   }
   // TODO real transId
   m_tx.m_transId = rand();
+  m_tx.m_state = NdbDictInterface::Tx::Started;
+  m_tx.m_error.code = 0;
   if (m_tx.m_transId == 0)
     m_tx.m_transId = 1;
   int ret = m_receiver.beginSchemaTrans();
   if (ret == -1) {
+    m_tx.m_state = NdbDictInterface::Tx::NotStarted;
     DBUG_RETURN(-1);
   }
-  m_tx.m_transOn = true;
   DBUG_PRINT("info", ("transId: %x transKey: %x",
                       m_tx.m_transId, m_tx.m_transKey));
   DBUG_RETURN(0);
@@ -7651,40 +7653,46 @@ int
 NdbDictionaryImpl::endSchemaTrans(Uint32 flags)
 {
   DBUG_ENTER("endSchemaTrans");
-  if (! m_tx.m_transOn) {
+  if (m_tx.m_state == NdbDictInterface::Tx::NotStarted) {
     DBUG_RETURN(0);
   }
   /*
     Check if schema transaction has been aborted
     already, for example because of master node failure.
    */
-  if (m_error.code == 787)
+  if (m_tx.m_state != NdbDictInterface::Tx::Started)
   {
     m_tx.m_op.clear();
-    if (flags & NdbDictionary::Dictionary::SchemaTransAbort)
+    DBUG_PRINT("info", ("endSchemaTrans: state %u, flags 0x%x\n", m_tx.m_state, flags));
+    if (m_tx.m_state == NdbDictInterface::Tx::Aborted && // rollback at master takeover
+        flags & NdbDictionary::Dictionary::SchemaTransAbort)
     {
-      m_error.code = 0;
+      m_tx.m_error.code = 0;
       DBUG_RETURN(0);
     }
+    m_error.code = m_tx.m_error.code;
     DBUG_RETURN(-1);
   }
   DBUG_PRINT("info", ("transId: %x transKey: %x",
                       m_tx.m_transId, m_tx.m_transKey));
   int ret = m_receiver.endSchemaTrans(flags);
-  m_tx.m_transOn = false;
-  if (ret == -1) {
+  if (ret == -1 || m_tx.m_error.code != 0) {
+    DBUG_PRINT("info", ("endSchemaTrans: state %u, flags 0x%x\n", m_tx.m_state, flags));
+    if (m_tx.m_state == NdbDictInterface::Tx::Committed && // rollforward at master takeover
+        !(flags & NdbDictionary::Dictionary::SchemaTransAbort))
+      goto committed;
     m_tx.m_op.clear();
-    if (m_error.code == 787)
+    if (m_tx.m_state == NdbDictInterface::Tx::Aborted && // rollback at master takeover
+        flags & NdbDictionary::Dictionary::SchemaTransAbort)
     {
-      if (flags & NdbDictionary::Dictionary::SchemaTransAbort)
-      {
-        m_error.code = 0;
-        DBUG_RETURN(0);
-      }
+      m_tx.m_error.code = 0;
+      DBUG_RETURN(0);
     }
+    if (m_tx.m_error.code != 0)
+      m_error.code = m_tx.m_error.code;
     DBUG_RETURN(-1);
   }
-
+committed:
   // invalidate old version of altered table
   uint i;
   for (i = 0; i < m_tx.m_op.size(); i++) {
@@ -7699,6 +7707,7 @@ NdbDictionaryImpl::endSchemaTrans(Uint32 flags)
         abort();
     }
   }
+  m_tx.m_state = NdbDictInterface::Tx::NotStarted;
   m_tx.m_op.clear();
   DBUG_RETURN(0);
 }
@@ -7813,6 +7822,7 @@ NdbDictInterface::execSCHEMA_TRANS_END_REF(NdbApiSignal * signal,
   const SchemaTransEndRef* ref =
     CAST_CONSTPTR(SchemaTransEndRef, signal->getDataPtr());
   m_error.code = ref->errorCode;
+  m_tx.m_error.code = ref->errorCode;
   m_masterNodeId = ref->masterNodeId;
   m_waiter.signal(NO_WAIT);
 }
@@ -7823,7 +7833,11 @@ NdbDictInterface::execSCHEMA_TRANS_END_REP(NdbApiSignal * signal,
 {
   const SchemaTransEndRep* rep =
     CAST_CONSTPTR(SchemaTransEndRep, signal->getDataPtr());
-  m_error.code = rep->errorCode;
+  (rep->errorCode == 0) ?
+    m_tx.m_state = Tx::Committed
+    :
+    m_tx.m_state = Tx::Aborted;
+  m_tx.m_error.code = rep->errorCode;
   m_masterNodeId = rep->masterNodeId;
   m_waiter.signal(NO_WAIT);
 }
