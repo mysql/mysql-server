@@ -4721,8 +4721,15 @@ void Dblqh::execTUP_DEALLOCREQ(Signal* signal)
   {
     jam();
     Local_key tmp;
+
     tmp.m_page_no = signal->theData[2];
     tmp.m_page_idx = signal->theData[3];
+
+    if (ERROR_INSERTED(5712))
+    {
+      ndbout << "TUP_DEALLOC: " << tmp << endl;
+    }
+
     EXECUTE_DIRECT(DBTUP, GSN_TUP_DEALLOCREQ, signal, signal->getLength());
     return;
   }
@@ -4732,6 +4739,8 @@ void Dblqh::execTUP_DEALLOCREQ(Signal* signal)
     ptrCheckGuard(regTcPtr, ctcConnectrecFileSize, tcConnectionrec);
     regTcPtr.p->m_row_id.m_page_no = signal->theData[2];
     regTcPtr.p->m_row_id.m_page_idx = signal->theData[3];
+
+    TRACE_OP(regTcPtr.p, "DEALLOC");
     
     ndbrequire(regTcPtr.p->m_dealloc == 0);
     regTcPtr.p->m_dealloc = 1;
@@ -4978,10 +4987,10 @@ void Dblqh::tupkeyConfLab(Signal* signal)
   Uint32 readLen = tupKeyConf->readLength;
   Uint32 writeLen = tupKeyConf->writeLength;
   
+  TRACE_OP(regTcPtr, "TUPKEYCONF");
+
   Uint32 accOp = regTcPtr->accConnectrec;
   c_acc->execACCKEY_ORD(signal, accOp);
-
-  TRACE_OP(regTcPtr, "TUPKEYCONF");
 
   if (readLen != 0) 
   {
