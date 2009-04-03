@@ -4522,6 +4522,7 @@ select_lock_type:
 	    LEX *lex=Lex;
 	    lex->current_select->set_lock_for_tables(TL_WRITE);
 	    lex->safe_to_cache_query=0;
+            lex->protect_against_global_read_lock= TRUE;
 	  }
 	| LOCK_SYM IN_SYM SHARE_SYM MODE_SYM
 	  {
@@ -10058,8 +10059,12 @@ table_lock_list:
 table_lock:
 	table_ident opt_table_alias lock_option
 	{
-	  if (!Select->add_table_to_list(YYTHD, $1, $2, 0, (thr_lock_type) $3))
+          thr_lock_type lock_type= (thr_lock_type) $3;
+	  if (!Select->add_table_to_list(YYTHD, $1, $2, 0, lock_type))
 	   MYSQL_YYABORT;
+          /* If table is to be write locked, protect from a impending GRL. */
+          if (lock_type >= TL_WRITE_ALLOW_WRITE)
+            Lex->protect_against_global_read_lock= TRUE;
 	}
         ;
 
