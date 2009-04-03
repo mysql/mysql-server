@@ -65,78 +65,36 @@ void Dbtup::execTUP_ABORTREQ(Signal* signal)
   do_tup_abortreq(signal, 0);
 }
 
-void Dbtup::do_tup_abortreq(Signal* signal, Uint32 flags)
+bool
+Dbtup::do_tup_abort_operation(Signal* signal,
+                              Tuple_header *tuple_ptr,
+                              Operationrec* opPtrP,
+                              Fragrecord* fragPtrP,
+                              Tablerec* tablePtrP,
+                              Uint32 flags)
 {
-  OperationrecPtr regOperPtr;
-  FragrecordPtr regFragPtr;
-  TablerecPtr regTabPtr;
-
-  regOperPtr.i = signal->theData[0];
-  c_operation_pool.getPtr(regOperPtr);
-  TransState trans_state= get_trans_state(regOperPtr.p);
-  ndbrequire((trans_state == TRANS_STARTED) ||
-             (trans_state == TRANS_TOO_MUCH_AI) ||
-             (trans_state == TRANS_ERROR_WAIT_TUPKEYREQ) ||
-             (trans_state == TRANS_IDLE));
-  if (regOperPtr.p->op_struct.op_type == ZREAD) {
-    jam();
-    freeAllAttrBuffers(regOperPtr.p);
-    initOpConnection(regOperPtr.p);
-    return;
-  }//if
-
-  regFragPtr.i = regOperPtr.p->fragmentPtr;
-  ptrCheckGuard(regFragPtr, cnoOfFragrec, fragrecord);
-
-  regTabPtr.i = regFragPtr.p->fragTableId;
-  ptrCheckGuard(regTabPtr, cnoOfTablerec, tablerec);
-
-  if (get_tuple_state(regOperPtr.p) == TUPLE_PREPARED)
+  bool change = true;
+  if (!tablePtrP->tuxCustomTriggers.isEmpty() && 
+      ! (flags & ZSKIP_TUX_TRIGGERS))
   {
-    jam();
-    if (!regTabPtr.p->tuxCustomTriggers.isEmpty() &&
-        (flags & ZSKIP_TUX_TRIGGERS) == 0)
-      executeTuxAbortTriggers(signal,
-			      regOperPtr.p,
-			      regFragPtr.p,
-			      regTabPtr.p);
-    
-    OperationrecPtr loopOpPtr;
-    loopOpPtr.i = regOperPtr.p->nextActiveOp;
-    while (loopOpPtr.i != RNIL) {
-      jam();
-      c_operation_pool.getPtr(loopOpPtr);
-      if (get_tuple_state(loopOpPtr.p) != TUPLE_ALREADY_ABORTED &&
-	  !regTabPtr.p->tuxCustomTriggers.isEmpty() &&
-          (flags & ZSKIP_TUX_TRIGGERS) == 0) {
-        jam();
-        executeTuxAbortTriggers(signal,
-                                loopOpPtr.p,
-                                regFragPtr.p,
-                                regTabPtr.p);
-      }
-      set_tuple_state(loopOpPtr.p, TUPLE_ALREADY_ABORTED);      
-      loopOpPtr.i = loopOpPtr.p->nextActiveOp;
-    }
+    executeTuxAbortTriggers(signal,
+                            opPtrP,
+                            fragPtrP,
+                            tablePtrP);
   }
 
-  PagePtr page;
-  Tuple_header *tuple_ptr= (Tuple_header*)
-    get_ptr(&page, &regOperPtr.p->m_tuple_location, regTabPtr.p);
-
-  bool change = false;
   Uint32 bits= tuple_ptr->m_header_bits;  
-  if(regOperPtr.p->op_struct.op_type != ZDELETE)
+  if (opPtrP->op_struct.op_type != ZDELETE)
   {
     Tuple_header *copy=
-      get_copy_tuple(regTabPtr.p, &regOperPtr.p->m_copy_tuple_location);
+      get_copy_tuple(tablePtrP, &opPtrP->m_copy_tuple_location);
     
-    if(regOperPtr.p->op_struct.m_disk_preallocated)
+    if (opPtrP->op_struct.m_disk_preallocated)
     {
       jam();
       Local_key key;
-      memcpy(&key, copy->get_disk_ref_ptr(regTabPtr.p), sizeof(key));
-      disk_page_abort_prealloc(signal, regFragPtr.p, &key, key.m_page_idx);
+      memcpy(&key, copy->get_disk_ref_ptr(tablePtrP), sizeof(key));
+      disk_page_abort_prealloc(signal, fragPtrP, &key, key.m_page_idx);
     }
 
     if(! (bits & Tuple_header::ALLOC))
@@ -145,13 +103,13 @@ void Dbtup::do_tup_abortreq(Signal* signal, Uint32 flags)
       {
 	if (0) ndbout_c("abort grow");
 	Ptr<Page> vpage;
-	Uint32 idx= regOperPtr.p->m_tuple_location.m_page_idx;
+	Uint32 idx= opPtrP->m_tuple_location.m_page_idx;
         Uint32 *var_part;
-
+        
 	ndbassert(! (tuple_ptr->m_header_bits & Tuple_header::COPY_TUPLE));
 	
-	Var_part_ref *ref = tuple_ptr->get_var_part_ref_ptr(regTabPtr.p);
-
+	Var_part_ref *ref = tuple_ptr->get_var_part_ref_ptr(tablePtrP);
+        
         Local_key tmp; 
         ref->copyout(&tmp);
 	
@@ -179,7 +137,7 @@ void Dbtup::do_tup_abortreq(Signal* signal, Uint32 flags)
           ref->assign(&tmp);
           bits &= ~(Uint32)Tuple_header::VAR_PART;
         }
-        update_free_page_list(regFragPtr.p, vpage);
+        update_free_page_list(fragPtrP, vpage);
         tuple_ptr->m_header_bits= bits & ~Tuple_header::MM_GROWN;
         change = true;
       } 
@@ -188,8 +146,7 @@ void Dbtup::do_tup_abortreq(Signal* signal, Uint32 flags)
 	if (0) ndbout_c("abort shrink");
       }
     }
-    else if (regOperPtr.p->is_first_operation() && 
-	     regOperPtr.p->is_last_operation())
+    else if (opPtrP->is_first_operation())
     {
       /**
        * Aborting last operation that performed ALLOC
@@ -199,8 +156,7 @@ void Dbtup::do_tup_abortreq(Signal* signal, Uint32 flags)
       tuple_ptr->m_header_bits |= Tuple_header::FREED;
     }
   }
-  else if (regOperPtr.p->is_first_operation() && 
-	   regOperPtr.p->is_last_operation())
+  else if (opPtrP->is_first_operation())
   {
     if (bits & Tuple_header::ALLOC)
     {
@@ -209,11 +165,78 @@ void Dbtup::do_tup_abortreq(Signal* signal, Uint32 flags)
       tuple_ptr->m_header_bits |= Tuple_header::FREED;
     }
   }
-  
-  if (change && (regTabPtr.p->m_bits & Tablerec::TR_Checksum)) 
+  return change;
+}
+
+void Dbtup::do_tup_abortreq(Signal* signal, Uint32 flags)
+{
+  OperationrecPtr regOperPtr;
+  FragrecordPtr regFragPtr;
+  TablerecPtr regTabPtr;
+
+  regOperPtr.i = signal->theData[0];
+  c_operation_pool.getPtr(regOperPtr);
+  TransState trans_state= get_trans_state(regOperPtr.p);
+  ndbrequire((trans_state == TRANS_STARTED) ||
+             (trans_state == TRANS_TOO_MUCH_AI) ||
+             (trans_state == TRANS_ERROR_WAIT_TUPKEYREQ) ||
+             (trans_state == TRANS_IDLE));
+  if (regOperPtr.p->op_struct.op_type == ZREAD) {
+    jam();
+    freeAllAttrBuffers(regOperPtr.p);
+    initOpConnection(regOperPtr.p);
+    return;
+  }//if
+
+  regFragPtr.i = regOperPtr.p->fragmentPtr;
+  ptrCheckGuard(regFragPtr, cnoOfFragrec, fragrecord);
+
+  regTabPtr.i = regFragPtr.p->fragTableId;
+  ptrCheckGuard(regTabPtr, cnoOfTablerec, tablerec);
+
+  PagePtr page;
+  Tuple_header *tuple_ptr= (Tuple_header*)
+    get_ptr(&page, &regOperPtr.p->m_tuple_location, regTabPtr.p);
+
+  if (get_tuple_state(regOperPtr.p) == TUPLE_PREPARED)
   {
     jam();
-    setChecksum(tuple_ptr, regTabPtr.p);
+
+    bool change = false;
+
+    change = do_tup_abort_operation(signal, 
+                                    tuple_ptr,
+                                    regOperPtr.p,
+                                    regFragPtr.p,
+                                    regTabPtr.p,
+                                    flags);
+    
+    OperationrecPtr loopOpPtr;
+    loopOpPtr.i = regOperPtr.p->nextActiveOp;
+    while (loopOpPtr.i != RNIL) 
+    {
+      jam();
+      c_operation_pool.getPtr(loopOpPtr);
+      if (get_tuple_state(loopOpPtr.p) != TUPLE_ALREADY_ABORTED)
+      {
+        jam();
+        change |= do_tup_abort_operation(signal,
+                                         tuple_ptr,
+                                         loopOpPtr.p,
+                                         regFragPtr.p,
+                                         regTabPtr.p,
+                                         flags);
+        set_tuple_state(loopOpPtr.p, TUPLE_ALREADY_ABORTED);      
+        
+      }
+      loopOpPtr.i = loopOpPtr.p->nextActiveOp;
+    }
+    
+    if (change && (regTabPtr.p->m_bits & Tablerec::TR_Checksum)) 
+    {
+      jam();
+      setChecksum(tuple_ptr, regTabPtr.p);
+    }
   }
   
   if(regOperPtr.p->is_first_operation() && regOperPtr.p->is_last_operation())
