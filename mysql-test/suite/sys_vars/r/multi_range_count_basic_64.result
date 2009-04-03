@@ -81,7 +81,7 @@ SELECT @@global.multi_range_count;
 4294967296
 SET @@global.multi_range_count = -1024;
 Warnings:
-Warning	1292	Truncated incorrect multi_range_count value: '0'
+Warning	1292	Truncated incorrect multi_range_count value: '-1024'
 SELECT @@global.multi_range_count;
 @@global.multi_range_count
 1
@@ -111,7 +111,7 @@ SELECT @@session.multi_range_count;
 4294967296
 SET @@session.multi_range_count = -1;
 Warnings:
-Warning	1292	Truncated incorrect multi_range_count value: '0'
+Warning	1292	Truncated incorrect multi_range_count value: '-1'
 SELECT @@session.multi_range_count;
 @@session.multi_range_count
 1

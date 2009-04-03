@@ -1,7 +1,7 @@
 SET @start_global_value = @@global.myisam_max_sort_file_size;
 SELECT @start_global_value;
 @start_global_value
-9223372036854775807
+9223372036853727232
 '#--------------------FN_DYNVARS_094_01-------------------------#'
 SET @@global.myisam_max_sort_file_size = 500000;
 SET @@global.myisam_max_sort_file_size = DEFAULT;
@@ -48,14 +48,20 @@ SET @@local.myisam_max_sort_file_size = 4;
 ERROR HY000: Variable 'myisam_max_sort_file_size' is a GLOBAL variable and should be set with SET GLOBAL
 '#------------------FN_DYNVARS_094_05-----------------------#'
 SET @@global.myisam_max_sort_file_size = -1;
+Warnings:
+Warning	1292	Truncated incorrect myisam_max_sort_file_size value: '-1'
 SELECT @@global.myisam_max_sort_file_size;
 @@global.myisam_max_sort_file_size
 0
 SET @@global.myisam_max_sort_file_size = -2147483648;
+Warnings:
+Warning	1292	Truncated incorrect myisam_max_sort_file_size value: '-2147483648'
 SELECT @@global.myisam_max_sort_file_size;
 @@global.myisam_max_sort_file_size
 0
 SET @@global.myisam_max_sort_file_size = -2147483649;
+Warnings:
+Warning	1292	Truncated incorrect myisam_max_sort_file_size value: '-2147483649'
 SELECT @@global.myisam_max_sort_file_size;
 @@global.myisam_max_sort_file_size
 0

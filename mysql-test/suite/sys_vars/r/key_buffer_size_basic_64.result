@@ -17,8 +17,6 @@ SELECT @@global.key_buffer_size BETWEEN 8 AND 36;
 @@global.key_buffer_size BETWEEN 8 AND 36
 1
 SET @@global.key_buffer_size = 1800;
-Warnings:
-Warning	1292	Truncated incorrect key_buffer_size value: '1800'
 SELECT @@global.key_buffer_size BETWEEN 8 AND 36;
 @@global.key_buffer_size BETWEEN 8 AND 36
 1
