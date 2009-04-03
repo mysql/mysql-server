@@ -434,7 +434,6 @@ select count(*) from t1 where x = 18446744073709551601;
 
 drop table t1;
 
-#create table fuuu (c1 int);
 #
 # Bug #11185 incorrect comparison of unsigned int to signed constant
 #
@@ -451,9 +450,6 @@ explain select * from t1 where a > -1;
 select * from t1 where a > -1;
 explain select * from t1 where a < -1;
 select * from t1 where a < -1;
-
-#create table fuuu2 (c1 int);
-#check table fuuu2;
 
 drop table t1;
 
