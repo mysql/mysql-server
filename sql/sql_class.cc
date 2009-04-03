@@ -3676,7 +3676,11 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
   if (sql_log_bin_toplevel && lex->is_stmt_unsafe() &&
       variables.binlog_format == BINLOG_FORMAT_STMT)
   {
-    push_warning(this, MYSQL_ERROR::WARN_LEVEL_WARN,
+   /*
+     A warning can be elevated a error when STRICT sql mode.
+     But we don't want to elevate binlog warning to error here.
+   */
+    push_warning(this, MYSQL_ERROR::WARN_LEVEL_NOTE,
                  ER_BINLOG_UNSAFE_STATEMENT,
                  ER(ER_BINLOG_UNSAFE_STATEMENT));
     if (!(binlog_flags & BINLOG_FLAG_UNSAFE_STMT_PRINTED))
