@@ -66,7 +66,7 @@ SELECT @@global.transaction_prealloc_size;
 1024
 SET @@global.transaction_prealloc_size = -1024;
 Warnings:
-Warning	1292	Truncated incorrect transaction_prealloc_size value: '0'
+Warning	1292	Truncated incorrect transaction_prealloc_size value: '-1024'
 SELECT @@global.transaction_prealloc_size;
 @@global.transaction_prealloc_size
 1024
