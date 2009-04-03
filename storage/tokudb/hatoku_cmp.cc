@@ -593,6 +593,39 @@ inline int tokudb_compare_two_hidden_keys(
     return a < b ? -1 : (a > b ? 1 : 0);
 }
 
+//
+// returns number of bytes to jump over
+//
+u_int32_t skip_field_in_descriptor(uchar* row_desc) {
+    uchar* row_desc_pos = row_desc;
+    TOKU_TYPE toku_type = (TOKU_TYPE)row_desc_pos[0];
+    row_desc_pos++;
+    
+    switch (toku_type) {
+    case (toku_type_hpk):
+    case (toku_type_double):
+    case (toku_type_float):
+        break;
+    case (toku_type_int):
+        row_desc_pos += 2;
+        break;
+    case (toku_type_fixbinary):
+    case (toku_type_varbinary):
+        row_desc_pos++;
+        break;
+    case (toku_type_fixstring):
+    case (toku_type_varstring):
+    case (toku_type_blob):
+        row_desc_pos++;
+        row_desc_pos += sizeof(u_int32_t);
+        break;
+    default:
+        assert(false);
+        break;
+    }
+    return (u_int32_t)(row_desc_pos - row_desc);
+}
+    
 inline int compare_toku_field(
     uchar* a_buf, 
     uchar* b_buf, 
@@ -955,8 +988,22 @@ int tokudb_compare_two_keys(
                 ret_val = ((int) *new_key_ptr - (int) *saved_key_ptr);
                 goto exit;
             }
-            new_key_ptr++;
             saved_key_ptr++;
+            //
+            // in case we just read the fact that new_key_ptr and saved_key_ptr
+            // have NULL as their next field
+            //
+            if (!*new_key_ptr++) {
+                //
+                // skip row_desc_ptr[0] read in if clause
+                //
+                row_desc_ptr++;
+                //
+                // skip data that describes rest of field
+                //
+                row_desc_ptr += skip_field_in_descriptor(row_desc_ptr);
+                continue; 
+            }         
         }
         row_desc_ptr++;
 
