@@ -18,7 +18,7 @@ CREATE DATABASE `ﾆﾎﾝｺﾞ`;
 CREATE DATABASE `日本語`;
 CREATE DATABASE `龔龖龗`;
 
-SHOW DATABASES;
+SELECT schema_name from information_schema.schemata where schema_name <> 'mtr';
 
 USE `ﾆﾎﾝｺﾞ`;
 USE `日本語`;

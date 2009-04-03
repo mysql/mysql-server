@@ -18,6 +18,7 @@
 *****************************************************************************/
 
 /* SAFE_MUTEX will not work until the thread structure is up to date */
+#include <my_global.h>
 #undef SAFE_MUTEX
 
 #include "mysys_priv.h"

@@ -483,3 +483,14 @@ func2: info: s=ko
 | | <func3
 | <func2
 <main
+# repeated keyword
+% ./tests d:-d,info,info
+=> execute
+=> evaluate: ON
+=> evaluate_if: OFF
+main: explain: dbug explained: d:-d,info
+% ./tests d:-d,info/,info
+=> execute
+=> evaluate: ON
+=> evaluate_if: OFF
+main: explain: dbug explained: d:-d,info/

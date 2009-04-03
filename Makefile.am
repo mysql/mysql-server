@@ -1,4 +1,4 @@
-# Copyright (C) 2000-2006 MySQL AB
+# Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,7 +19,9 @@ AUTOMAKE_OPTIONS =	foreign
 
 # These are built from source in the Docs directory
 EXTRA_DIST =		INSTALL-SOURCE INSTALL-WIN-SOURCE \
-			README COPYING EXCEPTIONS-CLIENT CMakeLists.txt
+			README COPYING EXCEPTIONS-CLIENT \
+			CMakeLists.txt \
+			config/ac-macros/libevent_configure.m4
 
 SUBDIRS =		. include @docs_dirs@ @zlib_dir@ \
 			@readline_topdir@ sql-common scripts \
@@ -51,7 +53,6 @@ bin-dist:		all
 # Remove BK's "SCCS" subdirectories from source distribution
 # Create initial database files for Windows installations and check them.
 dist-hook:
-	rm -rf `find $(distdir) -type d -name SCCS -print`
 	mkdir -p $(distdir)/win
 	scripts/mysql_install_db --no-defaults --cross-bootstrap \
 		--builddir=$(top_builddir) \
@@ -97,7 +98,7 @@ test-nr:
 
 test-pr:
 	cd mysql-test ; \
-	    @PERL@ ./mysql-test-run.pl $(force) $(mem) --ps-protocol --mysqld=--binlog-format=row
+	    @PERL@ ./mysql-test-run.pl $(force) $(mem) --ps-protocol --mysqld=--binlog-format=row #@libevent_test_option@
 
 test-ns:
 	cd mysql-test ; \
@@ -123,6 +124,10 @@ test-reprepare:
 		--mysqld=--debug=+d,reprepare_each_statement
 
 test: test-ns test-pr
+
+smoke:
+	cd mysql-test ; \
+	    @PERL@ ./mysql-test-run.pl --do-test=s
 
 test-full:	test test-nr test-ps
 
@@ -162,6 +167,8 @@ test-bt:
 	    @PERL@ ./mysql-test-run.pl --force --comment=partitions --suite=parts
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
 	    @PERL@ ./mysql-test-run.pl --force --comment=stress --suite=stress
+	-cd mysql-test ; MTR_BUILD_THREAD=auto \
+	    @PERL@ ./mysql-test-run.pl --force --comment=jp --suite=jp
 	-if [ -d mysql-test/suite/nist ] ; then \
 	  cd mysql-test ; MTR_BUILD_THREAD=auto \
 	      @PERL@ ./mysql-test-run.pl --comment=nist --force --suite=nist ; \
@@ -178,14 +185,27 @@ test-bt:
 	  echo "no program found for 'embedded' tests - skipped testing" ; \
 	fi
 
-# Re-enable the "jp" suite when bug#28563 is fixed
-#	-cd mysql-test ; MTR_BUILD_THREAD=auto \
-#	    @PERL@ ./mysql-test-run.pl --force --comment=jp --suite=jp
+test-bt-fast:
+	-cd mysql-test ; MTR_BUILD_THREAD=auto \
+	    @PERL@ ./mysql-test-run.pl  --comment=ps    --force --timer \
+	        --skip-ndbcluster --ps-protocol --report-features
+	-if [ -e bin/ndbd -o -e storage/ndb/src/kernel/ndbd ] ; then \
+	  cd mysql-test ; \
+	    MTR_BUILD_THREAD=auto \
+	      @PERL@ ./mysql-test-run.pl --comment=ndb --force --timer \
+	          --with-ndbcluster-only ; \
+	else \
+	  echo "no program found for 'ndbcluster' tests - skipped testing" ; \
+	fi
+	-cd mysql-test ; MTR_BUILD_THREAD=auto \
+	    @PERL@ ./mysql-test-run.pl --force --comment=stress --suite=stress
 
 test-bt-debug:
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
 	    @PERL@ ./mysql-test-run.pl --comment=debug  --force --timer \
 	        --skip-ndbcluster --skip-rpl --report-features
+
+test-bt-debug-fast:
 
 # Keep these for a while
 test-pl:	test

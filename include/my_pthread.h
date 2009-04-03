@@ -671,6 +671,7 @@ extern pthread_mutexattr_t my_errorcheck_mutexattr;
 
 typedef ulong my_thread_id;
 
+extern void my_threadattr_global_init(void);
 extern my_bool my_thread_global_init(void);
 extern void my_thread_global_end(void);
 extern my_bool my_thread_init(void);
@@ -679,6 +680,8 @@ extern const char *my_thread_name(void);
 extern my_thread_id my_thread_dbug_id(void);
 extern int pthread_no_free(void *);
 extern int pthread_dummy(int);
+extern void my_mutex_init();
+extern void my_mutex_end();
 
 /* All thread specific variables are in the following struct */
 

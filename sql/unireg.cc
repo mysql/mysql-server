@@ -92,8 +92,8 @@ handle_error(uint sql_errno,
     db_file		Handler to use. May be zero, in which case we use
 			create_info->db_type
   RETURN
-    0  ok
-    1  error
+    false  ok
+    true   error
 */
 
 bool mysql_create_frm(THD *thd, const char *file_name,
@@ -204,6 +204,24 @@ bool mysql_create_frm(THD *thd, const char *file_name,
 			     (create_info->min_rows == 1) && (keys == 0));
   int2store(fileinfo+28,key_info_length);
 
+  /*
+    This gives us the byte-position of the character at
+    (character-position, not byte-position) TABLE_COMMENT_MAXLEN.
+    The trick here is that character-positions start at 0, so the last
+    character in a maximum-allowed length string would be at char-pos
+    MAXLEN-1; charpos MAXLEN will be the position of the terminator.
+    Consequently, bytepos(charpos(MAXLEN)) should be equal to
+    comment[length] (which should also be the terminator, or at least
+    the first byte after the payload in the strict sense). If this is
+    not so (bytepos(charpos(MAXLEN)) comes /before/ the end of the
+    string), the string is too long.
+
+    For additional credit, realise that UTF-8 has 1-3 bytes before 6.0,
+    and 1-4 bytes in 6.0 (6.0 also has UTF-32). This means that the
+    inlined COMMENT supposedly does not exceed 60 character plus
+    terminator, vulgo, 181 bytes.
+  */
+
   tmp_len= system_charset_info->cset->charpos(system_charset_info,
                                               create_info->comment.str,
                                               create_info->comment.str +
@@ -226,14 +244,6 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   strmake((char*) forminfo+47, create_info->comment.str ?
           create_info->comment.str : "", create_info->comment.length);
   forminfo[46]=(uchar) create_info->comment.length;
-#ifdef EXTRA_DEBUG
-  /*
-    EXTRA_DEBUG causes strmake() to initialize its buffer behind the
-    payload with a magic value to detect wrong buffer-sizes. We
-    explicitly zero that segment again.
-  */
-  memset((char*) forminfo+47 + forminfo[46], 0, 61 - forminfo[46]);
-#endif
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   if (part_info)
   {

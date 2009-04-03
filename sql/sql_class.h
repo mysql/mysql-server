@@ -462,8 +462,15 @@ typedef struct system_status_var
   ulong com_stmt_fetch;
   ulong com_stmt_reset;
   ulong com_stmt_close;
-
   /*
+    Number of statements sent from the client
+  */
+  ulong questions;
+  /*
+    IMPORTANT!
+    SEE last_system_status_var DEFINITION BELOW.
+    Below 'last_system_status_var' are all variables which doesn't make any
+    sense to add to the /global/ status variable counter.
     Status variables which it does not make sense to add to
     global status variable counter
   */
@@ -476,7 +483,7 @@ typedef struct system_status_var
   counter
 */
 
-#define last_system_status_var com_stmt_close
+#define last_system_status_var questions
 
 void mark_transaction_to_rollback(THD *thd, bool all);
 
@@ -1009,6 +1016,7 @@ show_system_thread(enum_thread_type thread)
 {
 #define RETURN_NAME_AS_STRING(NAME) case (NAME): return #NAME
   switch (thread) {
+    static char buf[64];
     RETURN_NAME_AS_STRING(NON_SYSTEM_THREAD);
     RETURN_NAME_AS_STRING(SYSTEM_THREAD_DELAYED_INSERT);
     RETURN_NAME_AS_STRING(SYSTEM_THREAD_SLAVE_IO);
@@ -1016,9 +1024,11 @@ show_system_thread(enum_thread_type thread)
     RETURN_NAME_AS_STRING(SYSTEM_THREAD_NDBCLUSTER_BINLOG);
     RETURN_NAME_AS_STRING(SYSTEM_THREAD_EVENT_SCHEDULER);
     RETURN_NAME_AS_STRING(SYSTEM_THREAD_EVENT_WORKER);
+  default:
+    sprintf(buf, "<UNKNOWN SYSTEM THREAD: %d>", thread);
+    return buf;
   }
 #undef RETURN_NAME_AS_STRING
-  return "UNKNOWN"; /* keep gcc happy */
 }
 
 /**
@@ -1250,6 +1260,7 @@ public:
   struct st_mysql_stmt *current_stmt;
 #endif
   NET	  net;				// client connection descriptor
+  scheduler_functions *scheduler;       // Scheduler for this connection
   MEM_ROOT warn_root;			// For warnings and errors
   Protocol *protocol;			// Current protocol
   Protocol_text   protocol_text;	// Normal protocol
@@ -1336,7 +1347,7 @@ public:
   uint32     server_id;
   uint32     file_id;			// for LOAD DATA INFILE
   /* remote (peer) port */
-  uint16 peer_port;
+  uint16     peer_port;
   time_t     start_time, user_time;
   ulonglong  connect_utime, thr_create_utime; // track down slow pthread_create
   ulonglong  start_utime, utime_after_lock;
@@ -1712,6 +1723,8 @@ public:
   bool	     locked, some_tables_deleted;
   bool       last_cuted_field;
   bool	     no_errors, password;
+  bool       extra_port;                        /* If extra connection */
+
   /**
     Set to TRUE if execution of the current compound statement
     can not continue. In particular, disables activation of
@@ -2118,8 +2131,8 @@ public:
       Don't reset binlog format for NDB binlog injector thread.
     */
     DBUG_PRINT("debug",
-               ("temporary_tables: %p, in_sub_stmt: %d, system_thread: %s",
-                temporary_tables, in_sub_stmt,
+               ("temporary_tables: %s, in_sub_stmt: %s, system_thread: %s",
+                YESNO(temporary_tables), YESNO(in_sub_stmt),
                 show_system_thread(system_thread)));
     if ((temporary_tables == NULL) && (in_sub_stmt == 0) &&
         (system_thread != SYSTEM_THREAD_NDBCLUSTER_BINLOG))
@@ -2196,7 +2209,7 @@ public:
     *p_db_length= db_length;
     return FALSE;
   }
-  thd_scheduler scheduler;
+  thd_scheduler event_scheduler;
 
 public:
   /**

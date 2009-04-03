@@ -283,13 +283,16 @@ ulong	srv_commit_concurrency	= 0;
 
 os_fast_mutex_t	srv_conc_mutex;		/* this mutex protects srv_conc data
 					structures */
-lint	srv_conc_n_threads	= 0;	/* number of OS threads currently
-					inside InnoDB; it is not an error
-					if this drops temporarily below zero
-					because we do not demand that every
-					thread increments this, but a thread
-					waiting for a lock decrements this
-					temporarily */
+lint	srv_conc_n_threads	= 0;	/* number of transactions that
+					have declared_to_be_inside_innodb
+					set. It used to be a non-error
+					for this value to drop below
+					zero temporarily. This is no
+					longer true. We'll, however,
+					keep the lint datatype to add
+					assertions to catch any corner
+					cases that we may have
+					missed. */
 ulint	srv_conc_n_waiting_threads = 0;	/* number of OS threads waiting in the
 					FIFO for a permission to enter InnoDB
 					*/
@@ -327,8 +330,6 @@ ulint	srv_fast_shutdown	= 0;
 
 /* Generate a innodb_status.<pid> file */
 ibool	srv_innodb_status	= FALSE;
-
-ibool	srv_stats_on_metadata	= TRUE;
 
 ibool	srv_use_doublewrite_buf	= TRUE;
 ibool	srv_use_checksums = TRUE;
@@ -1022,6 +1023,8 @@ retry:
 		return;
 	}
 
+	ut_ad(srv_conc_n_threads >= 0);
+
 	if (srv_conc_n_threads < (lint)srv_thread_concurrency) {
 
 		srv_conc_n_threads++;
@@ -1148,6 +1151,8 @@ srv_conc_force_enter_innodb(
 		return;
 	}
 
+	ut_ad(srv_conc_n_threads >= 0);
+
 	os_fast_mutex_lock(&srv_conc_mutex);
 
 	srv_conc_n_threads++;
@@ -1169,11 +1174,6 @@ srv_conc_force_exit_innodb(
 {
 	srv_conc_slot_t*	slot	= NULL;
 
-	if (UNIV_LIKELY(!srv_thread_concurrency)) {
-
-		return;
-	}
-
 	if (trx->mysql_thd != NULL
 	    && thd_is_replication_slave_thread(trx->mysql_thd)) {
 
@@ -1187,6 +1187,7 @@ srv_conc_force_exit_innodb(
 
 	os_fast_mutex_lock(&srv_conc_mutex);
 
+	ut_ad(srv_conc_n_threads > 0);
 	srv_conc_n_threads--;
 	trx->declared_to_be_inside_innodb = FALSE;
 	trx->n_tickets_to_enter_innodb = 0;
@@ -1453,8 +1454,11 @@ srv_suspend_mysql_thread(
 		srv_n_lock_wait_count++;
 		srv_n_lock_wait_current_count++;
 
-		ut_usectime(&sec, &ms);
-		start_time = (ib_longlong)sec * 1000000 + ms;
+		if (ut_usectime(&sec, &ms) == -1) {
+			start_time = -1;
+		} else {
+			start_time = (ib_longlong)sec * 1000000 + ms;
+		}
 	}
 	/* Wake the lock timeout monitor thread, if it is suspended */
 
@@ -1508,14 +1512,20 @@ srv_suspend_mysql_thread(
 	wait_time = ut_difftime(ut_time(), slot->suspend_time);
 
 	if (thr->lock_state == QUE_THR_LOCK_ROW) {
-		ut_usectime(&sec, &ms);
-		finish_time = (ib_longlong)sec * 1000000 + ms;
+		if (ut_usectime(&sec, &ms) == -1) {
+			finish_time = -1;
+		} else {
+			finish_time = (ib_longlong)sec * 1000000 + ms;
+		}
 
 		diff_time = (ulint) (finish_time - start_time);
 
 		srv_n_lock_wait_current_count--;
 		srv_n_lock_wait_time = srv_n_lock_wait_time + diff_time;
-		if (diff_time > srv_n_lock_max_wait_time) {
+		if (diff_time > srv_n_lock_max_wait_time &&
+		    /* only update the variable if we successfully
+		    retrieved the start and finish times. See Bug#36819. */
+		    start_time != -1 && finish_time != -1) {
 			srv_n_lock_max_wait_time = diff_time;
 		}
 	}

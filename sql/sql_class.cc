@@ -572,6 +572,8 @@ THD::THD()
   init_sql_alloc(&main_mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
   stmt_arena= this;
   thread_stack= 0;
+  scheduler= &thread_scheduler;                 // Will be fixed later
+  extra_port= 0;
   catalog= (char*)"std"; // the only catalog we have for now
   main_security_ctx.init();
   security_ctx= &main_security_ctx;
@@ -3590,7 +3592,6 @@ show_query_type(THD::enum_binlog_query_type qtype)
   default:
     DBUG_ASSERT(0 <= qtype && qtype < THD::QUERY_TYPE_COUNT);
   }
-
   static char buf[64];
   sprintf(buf, "UNKNOWN#%d", qtype);
   return buf;

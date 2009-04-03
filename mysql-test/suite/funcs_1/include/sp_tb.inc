@@ -22,19 +22,19 @@ CREATE TABLE t11 (f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int)
 ENGINE = $engine_type;
 --replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
 eval
-LOAD DATA INFILE '$MYSQLTEST_VARDIR/std_data_ln/funcs_1/t4.txt' INTO TABLE t1;
+LOAD DATA INFILE '$MYSQLTEST_VARDIR/std_data/funcs_1/t4.txt' INTO TABLE t1;
 --replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
 eval
-LOAD DATA INFILE '$MYSQLTEST_VARDIR/std_data_ln/funcs_1/t4.txt' INTO TABLE t2;
+LOAD DATA INFILE '$MYSQLTEST_VARDIR/std_data/funcs_1/t4.txt' INTO TABLE t2;
 --replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
 eval
-LOAD DATA INFILE '$MYSQLTEST_VARDIR/std_data_ln/funcs_1/t4.txt' INTO TABLE t4;
+LOAD DATA INFILE '$MYSQLTEST_VARDIR/std_data/funcs_1/t4.txt' INTO TABLE t4;
 --replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
 eval
-LOAD DATA INFILE '$MYSQLTEST_VARDIR/std_data_ln/funcs_1/t4.txt' INTO TABLE t10;
+LOAD DATA INFILE '$MYSQLTEST_VARDIR/std_data/funcs_1/t4.txt' INTO TABLE t10;
 --replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
 eval
-LOAD DATA INFILE '$MYSQLTEST_VARDIR/std_data_ln/funcs_1/t4.txt' INTO TABLE t11;
+LOAD DATA INFILE '$MYSQLTEST_VARDIR/std_data/funcs_1/t4.txt' INTO TABLE t11;
 
 
 --disable_warnings
@@ -44,7 +44,7 @@ eval
 CREATE TABLE t3 (f1 char(20), f2 char(20), f3 integer) ENGINE = $engine_type;
 --replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
 eval
-LOAD DATA INFILE '$MYSQLTEST_VARDIR/std_data_ln/funcs_1/t3.txt' INTO TABLE t3;
+LOAD DATA INFILE '$MYSQLTEST_VARDIR/std_data/funcs_1/t3.txt' INTO TABLE t3;
 
 #---------------------------
 
@@ -59,7 +59,7 @@ CREATE TABLE t6 (f1 char(20), f2 char(25), f3 date, f4 int, f5 char(25), f6 int)
 ENGINE = $engine_type;
 --replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
 eval
-LOAD DATA INFILE '$MYSQLTEST_VARDIR/std_data_ln/funcs_1/t4.txt' INTO TABLE t6;
+LOAD DATA INFILE '$MYSQLTEST_VARDIR/std_data/funcs_1/t4.txt' INTO TABLE t6;
 #---------------------------
 
 use test;
@@ -73,10 +73,10 @@ eval
 CREATE TABLE t8 (f1 char(20),f2 char(25),f3 date,f4 int) ENGINE = $engine_type;
 --replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
 eval
-LOAD DATA INFILE '$MYSQLTEST_VARDIR/std_data_ln/funcs_1/t7.txt' INTO TABLE t7;
+LOAD DATA INFILE '$MYSQLTEST_VARDIR/std_data/funcs_1/t7.txt' INTO TABLE t7;
 --replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
 eval
-LOAD DATA INFILE '$MYSQLTEST_VARDIR/std_data_ln/funcs_1/t7.txt' INTO TABLE t8;
+LOAD DATA INFILE '$MYSQLTEST_VARDIR/std_data/funcs_1/t7.txt' INTO TABLE t8;
 
 
 --disable_warnings
@@ -85,5 +85,5 @@ drop TABLE if exists t9;
 eval CREATE TABLE t9 (f1 int, f2 char(25), f3 int) ENGINE = $engine_type;
 --replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
 eval
-LOAD DATA INFILE '$MYSQLTEST_VARDIR/std_data_ln/funcs_1/t9.txt' INTO TABLE t9;
+LOAD DATA INFILE '$MYSQLTEST_VARDIR/std_data/funcs_1/t9.txt' INTO TABLE t9;
 

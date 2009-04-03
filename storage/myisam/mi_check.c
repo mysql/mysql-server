@@ -2398,7 +2398,7 @@ int mi_repair_by_sort(HA_CHECK *param, register MI_INFO *info,
 
         Note, built-in parser is always nr. 0 - see ftparser_call_initializer()
       */
-      if (sort_param.keyinfo->ftparser_nr == 0)
+      if (sort_param.keyinfo->ftkey_nr == 0)
       {
         /*
           for built-in parser the number of generated index entries
@@ -2895,6 +2895,9 @@ int mi_repair_parallel(HA_CHECK *param, register MI_INFO *info,
   sort_param[0].master= 1;
   sort_param[0].fix_datafile= (my_bool)(! rep_quick);
   sort_param[0].calc_checksum= test(param->testflag & T_CALC_CHECKSUM);
+
+  if (!ftparser_alloc_param(info))
+    goto err;
 
   sort_info.got_error=0;
   pthread_mutex_lock(&sort_info.mutex);

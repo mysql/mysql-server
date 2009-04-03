@@ -147,6 +147,7 @@ void maria_ft_boolean_close_search(FT_INFO *);
 float maria_ft_boolean_get_relevance(FT_INFO *);
 my_off_t maria_ft_boolean_get_docid(FT_INFO *);
 void maria_ft_boolean_reinit_search(FT_INFO *);
+MYSQL_FTPARSER_PARAM* maria_ftparser_alloc_param(MARIA_HA *info);
 extern MYSQL_FTPARSER_PARAM *maria_ftparser_call_initializer(MARIA_HA *info,
                                                              uint keynr,
                                                              uint paramnr);

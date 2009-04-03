@@ -858,12 +858,12 @@ err:
   pagecache->blocks=  0;
   if (pagecache->block_mem)
   {
-    my_large_free((uchar*) pagecache->block_mem, MYF(0));
+    my_large_free(pagecache->block_mem, MYF(0));
     pagecache->block_mem= NULL;
   }
   if (pagecache->block_root)
   {
-    my_free((uchar*) pagecache->block_root, MYF(0));
+    my_free(pagecache->block_root, MYF(0));
     pagecache->block_root= NULL;
   }
   my_errno= error;
@@ -1108,9 +1108,9 @@ void end_pagecache(PAGECACHE *pagecache, my_bool cleanup)
   {
     if (pagecache->block_mem)
     {
-      my_large_free((uchar*) pagecache->block_mem, MYF(0));
+      my_large_free(pagecache->block_mem, MYF(0));
       pagecache->block_mem= NULL;
-      my_free((uchar*) pagecache->block_root, MYF(0));
+      my_free(pagecache->block_root, MYF(0));
       pagecache->block_root= NULL;
     }
     pagecache->disk_blocks= -1;
@@ -2175,7 +2175,7 @@ static void remove_pin(PAGECACHE_BLOCK_LINK *block, my_bool any
     PAGECACHE_PIN_INFO *info= info_find(block->pin_list, my_thread_var, any);
     DBUG_ASSERT(info != 0);
     info_unlink(info);
-    my_free((uchar*) info, MYF(0));
+    my_free(info, MYF(0));
   }
 #endif
   DBUG_VOID_RETURN;
@@ -2197,7 +2197,7 @@ static void info_remove_lock(PAGECACHE_BLOCK_LINK *block)
                                      my_thread_var, FALSE);
   DBUG_ASSERT(info != 0);
   info_unlink((PAGECACHE_PIN_INFO *)info);
-  my_free((uchar*)info, MYF(0));
+  my_free(info, MYF(0));
 }
 static void info_change_lock(PAGECACHE_BLOCK_LINK *block, my_bool wl)
 {
@@ -3424,7 +3424,7 @@ no_key_cache:					/* Key cache is not used */
   /* We can't use mutex here as the key cache may not be initialized */
   pagecache->global_cache_r_requests++;
   pagecache->global_cache_read++;
-  if (pagecache_fread(pagecache, file, (uchar*) buff, pageno,
+  if (pagecache_fread(pagecache, file, buff, pageno,
                       pagecache->readwrite_flags))
     error= 1;
   DBUG_RETURN(error ? (uchar*) 0 : buff);
@@ -4056,7 +4056,7 @@ no_key_cache:
       memcpy((char *)page_buffer + offset, buff, size);
       buff= page_buffer;
     }
-    if (pagecache_fwrite(pagecache, file, (uchar*) buff, pageno, type,
+    if (pagecache_fwrite(pagecache, file, buff, pageno, type,
                          pagecache->readwrite_flags))
       error= 1;
   }
@@ -4227,11 +4227,11 @@ static int flush_cached_blocks(PAGECACHE *pagecache,
        @todo IO If page is contiguous with next page to flush, group flushes
        in one single my_pwrite().
     */
-    /*
+    /**
       It is important to use block->hash_link->file below and not 'file', as
-      the first one is right and the second may have different content (and
-      this matters for callbacks, bitmap pages and data pages have different
-      ones).
+      the first one is right and the second may have different out-of-date
+      content (see StaleFilePointersInFlush in ma_checkpoint.c).
+      @todo change argument of functions to be File.
     */
     error= pagecache_fwrite(pagecache, &block->hash_link->file,
                             block->buffer,
@@ -4601,7 +4601,7 @@ restart:
                test_key_cache(pagecache, "end of flush_pagecache_blocks", 0););
 #endif
   if (cache != cache_buff)
-    my_free((uchar*) cache, MYF(0));
+    my_free(cache, MYF(0));
   if (rc != 0)
   {
     if (last_errno)

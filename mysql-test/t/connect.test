@@ -288,6 +288,33 @@ let $wait_condition =
 --echo # -- End of Bug#35074.
 --echo
 
+# Test connections to the extra port.
+
+connect(extracon,127.0.0.1,root,,test,$MASTER_EXTRA_PORT,);
+connection extracon;
+SELECT 'Connection on extra port ok';
+
+connect(extracon2,127.0.0.1,root,,test,$MASTER_EXTRA_PORT,);
+connection extracon2;
+SELECT 'Connection on extra port 2 ok';
+
+--disable_abort_on_error
+--disable_result_log
+--disable_query_log
+connect(extracon3,127.0.0.1,root,,test,$MASTER_EXTRA_PORT,);
+--enable_query_log
+--enable_result_log
+--enable_abort_on_error
+let $error = $mysql_errno;
+if (!$error)
+{
+  --echo # -- Error: managed to establish more than --extra-max-connections + 1 connections
+}
+if ($error)
+{
+  --echo # -- Success: more than --extra-max-connections + 1 normal connections not possible
+}
+
 --echo # ------------------------------------------------------------------
 --echo # -- End of 5.1 tests
 --echo # ------------------------------------------------------------------

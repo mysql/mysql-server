@@ -798,6 +798,9 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #define ulonglong2double(A) ((double) (ulonglong) (A))
 #define my_off_t2double(A)  ((double) (my_off_t) (A))
 #endif
+#ifndef double2ulonglong
+#define double2ulonglong(A) ((ulonglong) (double) (A))
+#endif
 #endif
 
 #ifndef offsetof
@@ -1137,6 +1140,9 @@ typedef char		bool;	/* Ordinary boolean values 0 1 */
 #else
 #define dbug_volatile
 #endif
+
+/* Some helper macros */
+#define YESNO(X) ((X) ? "yes" : "no")
 
 /* Defines for time function */
 #define SCALE_SEC	100

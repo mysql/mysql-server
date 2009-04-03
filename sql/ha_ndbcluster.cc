@@ -1293,10 +1293,12 @@ int ha_ndbcluster::open_indexes(Ndb *ndb, TABLE *tab, bool ignore_error)
   for (i= 0; i < tab->s->keys; i++, key_info++, key_name++)
   {
     if ((error= add_index_handle(thd, dict, key_info, *key_name, i)))
+    {
       if (ignore_error)
         m_index[i].index= m_index[i].unique_index= NULL;
       else
         break;
+    }
     m_index[i].null_in_unique_index= FALSE;
     if (check_index_fields_not_null(key_info))
       m_index[i].null_in_unique_index= TRUE;
@@ -5209,6 +5211,7 @@ int ha_ndbcluster::create(const char *name,
           strcmp(m_tabname, NDB_SCHEMA_TABLE) == 0))
     {
       DBUG_PRINT("info", ("Schema distribution table not setup"));
+      DBUG_ASSERT(ndb_schema_share);
       DBUG_RETURN(HA_ERR_NO_CONNECTION);
     }
     single_user_mode = NdbDictionary::Table::SingleUserModeReadWrite;
@@ -6036,6 +6039,7 @@ ha_ndbcluster::delete_table(ha_ndbcluster *h, Ndb *ndb,
   if (!ndb_schema_share)
   {
     DBUG_PRINT("info", ("Schema distribution table not setup"));
+    DBUG_ASSERT(ndb_schema_share);
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
   }
   /* ndb_share reference temporary */
@@ -6217,6 +6221,7 @@ int ha_ndbcluster::delete_table(const char *name)
   if (!ndb_schema_share)
   {
     DBUG_PRINT("info", ("Schema distribution table not setup"));
+    DBUG_ASSERT(ndb_schema_share);
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
   }
 #endif
@@ -6261,9 +6266,10 @@ void ha_ndbcluster::get_auto_increment(ulonglong offset, ulonglong increment,
   for (;;)
   {
     Ndb_tuple_id_range_guard g(m_share);
-    if (m_skip_auto_increment &&
-        ndb->readAutoIncrementValue(m_table, g.range, auto_value) ||
-        ndb->getAutoIncrementValue(m_table, g.range, auto_value, cache_size, increment, offset))
+    if ((m_skip_auto_increment &&
+         ndb->readAutoIncrementValue(m_table, g.range, auto_value)) ||
+        ndb->getAutoIncrementValue(m_table, g.range, auto_value, cache_size,
+                                    increment, offset))
     {
       if (--retries &&
           ndb->getNdbError().status == NdbError::TemporaryError)
@@ -6503,8 +6509,11 @@ int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked)
     DBUG_RETURN(res);
   }
 #ifdef HAVE_NDB_BINLOG
-  if (!ndb_binlog_tables_inited && ndb_binlog_running)
+  if (!ndb_binlog_tables_inited)
+  {
     table->db_stat|= HA_READ_ONLY;
+    sql_print_information("table '%s' opened read only", name);
+  }
 #endif
   DBUG_RETURN(0);
 }
@@ -6868,8 +6877,8 @@ static void ndbcluster_drop_database(handlerton *hton, char *path)
   if (!ndb_schema_share)
   {
     DBUG_PRINT("info", ("Schema distribution table not setup"));
+    DBUG_ASSERT(ndb_schema_share);
     DBUG_VOID_RETURN;
-    //DBUG_RETURN(HA_ERR_NO_CONNECTION);
   }
 #endif
   ndbcluster_drop_database_impl(path);
@@ -9914,8 +9923,10 @@ bool ha_ndbcluster::check_if_incompatible_data(HA_CREATE_INFO *create_info,
   {
     Field *field= table->field[i];
     const NDBCOL *col= tab->getColumn(i);
-    if (col->getStorageType() == NDB_STORAGETYPE_MEMORY && create_info->storage_media != HA_SM_MEMORY ||
-        col->getStorageType() == NDB_STORAGETYPE_DISK && create_info->storage_media != HA_SM_DISK)
+    if ((col->getStorageType() == NDB_STORAGETYPE_MEMORY &&
+         create_info->storage_media != HA_SM_MEMORY) ||
+        (col->getStorageType() == NDB_STORAGETYPE_DISK &&
+         create_info->storage_media != HA_SM_DISK))
     {
       DBUG_PRINT("info", ("Column storage media is changed"));
       DBUG_RETURN(COMPATIBLE_DATA_NO);

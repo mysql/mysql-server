@@ -17,6 +17,7 @@
 ** The following is a simple implementation of posix conditions
 *****************************************************************************/
 
+#include <my_global.h>
 #undef SAFE_MUTEX			/* Avoid safe_mutex redefinitions */
 #include "mysys_priv.h"
 #if defined(THREAD) && defined(__WIN__)

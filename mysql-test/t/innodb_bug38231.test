@@ -1,0 +1,75 @@
+#
+# Bug#38231 Innodb crash in lock_reset_all_on_table() on TRUNCATE + LOCK / UNLOCK
+# http://bugs.mysql.com/38231
+#
+
+-- source include/have_innodb.inc
+
+SET storage_engine=InnoDB;
+
+# we care only that the following SQL commands do not crash the server
+-- disable_query_log
+-- disable_result_log
+
+DROP TABLE IF EXISTS bug38231;
+CREATE TABLE bug38231 (a INT);
+
+-- connect (con1,localhost,root,,)
+-- connect (con2,localhost,root,,)
+
+-- connection con1
+SET autocommit=0;
+LOCK TABLE bug38231 WRITE;
+
+-- connection con2
+SET autocommit=0;
+-- send
+LOCK TABLE bug38231 WRITE;
+
+-- connection default
+-- send
+TRUNCATE TABLE bug38231;
+
+-- connection con1
+# give time to TRUNCATE and others to be executed; without sleep, sometimes
+# UNLOCK executes before TRUNCATE
+# TODO: Replace with wait_condition once possible under embedded server.
+-- sleep 0.2
+# this crashes the server if the bug is present
+UNLOCK TABLES;
+
+# clean up
+
+-- connection con2
+-- reap
+UNLOCK TABLES;
+
+-- connection default
+-- reap
+-- disconnect con1
+-- disconnect con2
+
+# test that TRUNCATE works with with row-level locks
+
+-- enable_query_log
+-- enable_result_log
+
+INSERT INTO bug38231 VALUES (1), (10), (300);
+
+-- connect (con4,localhost,root,,)
+
+-- connection con4
+SET autocommit=0;
+SELECT * FROM bug38231 FOR UPDATE;
+
+-- connection default
+TRUNCATE TABLE bug38231;
+
+-- connection con4
+COMMIT;
+
+-- connection default
+
+-- disconnect con4
+
+DROP TABLE bug38231;

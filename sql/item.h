@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -729,6 +729,7 @@ public:
   virtual my_decimal *val_decimal_result(my_decimal *val)
   { return val_decimal(val); }
   virtual bool val_bool_result() { return val_bool(); }
+  virtual bool is_null_result() { return is_null(); }
 
   /* bit map of tables used by item */
   virtual table_map used_tables() const { return (table_map) 0L; }
@@ -1437,6 +1438,7 @@ public:
   String *str_result(String* tmp);
   my_decimal *val_decimal_result(my_decimal *);
   bool val_bool_result();
+  bool is_null_result();
   bool send(Protocol *protocol, String *str_arg);
   void reset_field(Field *f);
   bool fix_fields(THD *, Item **);
@@ -2179,6 +2181,7 @@ public:
   String *str_result(String* tmp);
   my_decimal *val_decimal_result(my_decimal *);
   bool val_bool_result();
+  bool is_null_result();
   bool send(Protocol *prot, String *tmp);
   void make_field(Send_field *field);
   bool fix_fields(THD *, Item **);

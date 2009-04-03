@@ -75,7 +75,7 @@
  *        (the logic is - think of a call stack as of a path.
  *        "function" means only this function, "function/" means the hierarchy.
  *        in the future, filters like function1/function2 could be supported.
- *        wildcards are a natural extension too: * and ?)
+ *        following this logic glob(7) wildcards are supported.)
  *
  */
 
@@ -84,10 +84,17 @@
   in pthread_mutex_lock
 */
 
-#undef SAFE_MUTEX
 #include <my_global.h>
+#undef SAFE_MUTEX
 #include <m_string.h>
 #include <errno.h>
+
+#ifdef HAVE_FNMATCH_H
+#include <fnmatch.h>
+#else
+#define fnmatch(A,B,C) strcmp(A,B)
+#endif
+
 #if defined(MSDOS) || defined(__WIN__)
 #include <process.h>
 #endif
@@ -871,6 +878,18 @@ void _db_push_(const char *control)
     FixTraceFlags(old_fflags, cs);
 }
 
+/**
+  Returns TRUE if session-local settings have been set.
+*/
+
+int _db_is_pushed_()
+{
+  CODE_STATE *cs= NULL;
+  get_code_state_or_return FALSE;
+  return (cs->stack != &init_settings);
+}
+
+
 /*
  *  FUNCTION
  *
@@ -1451,7 +1470,9 @@ next:
     {
       if (!strncmp((*cur)->str, start, len))
       {
-        if (todo == EXCLUDE)
+        if ((*cur)->flags & todo)  /* same action ? */
+          (*cur)->flags|= subdir;  /* just merge the SUBDIR flag */
+        else if (todo == EXCLUDE)
         {
           struct link *delme=*cur;
           *cur=(*cur)->next_link;
@@ -1545,7 +1566,7 @@ static int InList(struct link *linkp, const char *cp)
 
   for (result=MATCHED; linkp != NULL; linkp= linkp->next_link)
   {
-    if (!strcmp(linkp->str, cp))
+    if (!fnmatch(linkp->str, cp, 0))
       return linkp->flags;
     if (!(linkp->flags & EXCLUDE))
       result=NOT_MATCHED;

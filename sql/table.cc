@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -400,6 +400,8 @@ void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
 void free_table_share(TABLE_SHARE *share)
 {
   MEM_ROOT mem_root;
+  uint idx;
+  KEY *key_info;
   DBUG_ENTER("free_table_share");
   DBUG_PRINT("enter", ("table: %s.%s", share->db.str, share->table_name.str));
   DBUG_ASSERT(share->ref_count == 0);
@@ -426,6 +428,16 @@ void free_table_share(TABLE_SHARE *share)
   plugin_unlock(NULL, share->db_plugin);
   share->db_plugin= NULL;
 
+  /* Release fulltext parsers */
+  key_info= share->key_info;
+  for (idx= share->keys; idx; idx--, key_info++)
+  {
+    if (key_info->flags & HA_USES_PARSER)
+    {
+      plugin_unlock(NULL, key_info->parser);
+      key_info->flags= 0;
+    }
+  }
   /* We must copy mem_root from share because share is allocated through it */
   memcpy((char*) &mem_root, (char*) &share->mem_root, sizeof(mem_root));
   free_root(&mem_root, MYF(0));                 // Free's share
@@ -453,33 +465,34 @@ inline bool is_system_table_name(const char *name, uint length)
 
   return (
           /* mysql.proc table */
-          length == 4 &&
-          my_tolower(ci, name[0]) == 'p' && 
-          my_tolower(ci, name[1]) == 'r' &&
-          my_tolower(ci, name[2]) == 'o' &&
-          my_tolower(ci, name[3]) == 'c' ||
+          (length == 4 &&
+           my_tolower(ci, name[0]) == 'p' && 
+           my_tolower(ci, name[1]) == 'r' &&
+           my_tolower(ci, name[2]) == 'o' &&
+           my_tolower(ci, name[3]) == 'c') ||
 
-          length > 4 &&
-          (
-           /* one of mysql.help* tables */
-           my_tolower(ci, name[0]) == 'h' &&
-           my_tolower(ci, name[1]) == 'e' &&
-           my_tolower(ci, name[2]) == 'l' &&
-           my_tolower(ci, name[3]) == 'p' ||
+          (length > 4 &&
+           (
+            /* one of mysql.help* tables */
+            (my_tolower(ci, name[0]) == 'h' &&
+             my_tolower(ci, name[1]) == 'e' &&
+             my_tolower(ci, name[2]) == 'l' &&
+             my_tolower(ci, name[3]) == 'p') ||
 
-           /* one of mysql.time_zone* tables */
-           my_tolower(ci, name[0]) == 't' &&
-           my_tolower(ci, name[1]) == 'i' &&
-           my_tolower(ci, name[2]) == 'm' &&
-           my_tolower(ci, name[3]) == 'e' ||
+            /* one of mysql.time_zone* tables */
+            (my_tolower(ci, name[0]) == 't' &&
+             my_tolower(ci, name[1]) == 'i' &&
+             my_tolower(ci, name[2]) == 'm' &&
+             my_tolower(ci, name[3]) == 'e') ||
 
-           /* mysql.event table */
-           my_tolower(ci, name[0]) == 'e' &&
-           my_tolower(ci, name[1]) == 'v' &&
-           my_tolower(ci, name[2]) == 'e' &&
-           my_tolower(ci, name[3]) == 'n' &&
-           my_tolower(ci, name[4]) == 't'
-          )
+            /* mysql.event table */
+            (my_tolower(ci, name[0]) == 'e' &&
+             my_tolower(ci, name[1]) == 'v' &&
+             my_tolower(ci, name[2]) == 'e' &&
+             my_tolower(ci, name[3]) == 'n' &&
+             my_tolower(ci, name[4]) == 't')
+            )
+           )
          );
 }
 
@@ -1415,7 +1428,9 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
           */
           if (ha_option & HA_PRIMARY_KEY_IN_READ_INDEX)
           {
-            field->part_of_key= share->keys_in_use;
+            if (field->key_length() == key_part->length &&
+                !(field->flags & BLOB_FLAG))
+              field->part_of_key= share->keys_in_use;
             if (field->part_of_sortkey.is_set(key))
               field->part_of_sortkey= share->keys_in_use;
           }
@@ -1940,22 +1955,11 @@ partititon_err:
 int closefrm(register TABLE *table, bool free_share)
 {
   int error=0;
-  uint idx;
-  KEY *key_info;
   DBUG_ENTER("closefrm");
   DBUG_PRINT("enter", ("table: 0x%lx", (long) table));
 
   if (table->db_stat)
     error=table->file->close();
-  key_info= table->key_info;
-  for (idx= table->s->keys; idx; idx--, key_info++)
-  {
-    if (key_info->flags & HA_USES_PARSER)
-    {
-      plugin_unlock(NULL, key_info->parser);
-      key_info->flags= 0;
-    }
-  }
   my_free((char*) table->alias, MYF(MY_ALLOW_ZERO_PTR));
   table->alias= 0;
   if (table->field)
@@ -3314,8 +3318,8 @@ bool TABLE_LIST::prep_check_option(THD *thd, uint8 check_opt_type)
   {
     const char *save_where= thd->where;
     thd->where= "check option";
-    if (!check_option->fixed &&
-        check_option->fix_fields(thd, &check_option) ||
+    if ((!check_option->fixed &&
+         check_option->fix_fields(thd, &check_option)) ||
         check_option->check_cols(1))
     {
       DBUG_RETURN(TRUE);
@@ -4030,16 +4034,16 @@ void Field_iterator_table_ref::set_field_iterator()
     /* Necesary, but insufficient conditions. */
     DBUG_ASSERT(table_ref->is_natural_join ||
                 table_ref->nested_join ||
-                table_ref->join_columns &&
-                /* This is a merge view. */
-                ((table_ref->field_translation &&
-                  table_ref->join_columns->elements ==
-                  (ulong)(table_ref->field_translation_end -
-                          table_ref->field_translation)) ||
-                 /* This is stored table or a tmptable view. */
-                 (!table_ref->field_translation &&
-                  table_ref->join_columns->elements ==
-                  table_ref->table->s->fields)));
+                (table_ref->join_columns &&
+                 /* This is a merge view. */
+                 ((table_ref->field_translation &&
+                   table_ref->join_columns->elements ==
+                   (ulong)(table_ref->field_translation_end -
+                           table_ref->field_translation)) ||
+                  /* This is stored table or a tmptable view. */
+                  (!table_ref->field_translation &&
+                   table_ref->join_columns->elements ==
+                   table_ref->table->s->fields))));
     field_it= &natural_join_it;
     DBUG_PRINT("info",("field_it for '%s' is Field_iterator_natural_join",
                        table_ref->alias));

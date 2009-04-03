@@ -578,7 +578,7 @@ static my_bool delete_dynamic_record(MARIA_HA *info, MARIA_RECORD_POS filepos,
       bfill(block_info.header+12,8,255);
     else
       mi_sizestore(block_info.header+12,block_info.next_filepos);
-    if (info->s->file_write(info,(uchar*) block_info.header,20,filepos,
+    if (info->s->file_write(info, block_info.header, 20, filepos,
 		  MYF(MY_NABP)))
       DBUG_RETURN(1);
     info->s->state.dellink = filepos;
@@ -650,7 +650,7 @@ int _ma_write_part_record(MARIA_HA *info,
 	temp[0]=13;
 	mi_int4store(temp+1,*reclength);
 	mi_int3store(temp+5,length-head_length);
-	mi_sizestore((uchar*) temp+8,next_filepos);
+	mi_sizestore(temp+8,next_filepos);
       }
       else
       {
@@ -660,13 +660,13 @@ int _ma_write_part_record(MARIA_HA *info,
 	{
 	  mi_int3store(temp+1,*reclength);
 	  mi_int3store(temp+4,length-head_length);
-	  mi_sizestore((uchar*) temp+7,next_filepos);
+	  mi_sizestore(temp+7,next_filepos);
 	}
 	else
 	{
 	  mi_int2store(temp+1,*reclength);
 	  mi_int2store(temp+3,length-head_length);
-	  mi_sizestore((uchar*) temp+5,next_filepos);
+	  mi_sizestore(temp+5,next_filepos);
 	}
       }
     }
@@ -677,12 +677,12 @@ int _ma_write_part_record(MARIA_HA *info,
       if (long_block)
       {
 	mi_int3store(temp+1,length-head_length);
-	mi_sizestore((uchar*) temp+4,next_filepos);
+	mi_sizestore(temp+4,next_filepos);
       }
       else
       {
 	mi_int2store(temp+1,length-head_length);
-	mi_sizestore((uchar*) temp+3,next_filepos);
+	mi_sizestore(temp+3,next_filepos);
       }
     }
   }
@@ -701,16 +701,16 @@ int _ma_write_part_record(MARIA_HA *info,
       mi_int2store(temp+1,*reclength);
       temp[3]= (uchar) (extra_length);
     }
-    length=	  *reclength+head_length;	/* Write only what is needed */
+    length= *reclength+head_length;	/* Write only what is needed */
   }
-  DBUG_DUMP("header",(uchar*) temp,head_length);
+  DBUG_DUMP("header", temp, head_length);
 
 	/* Make a long block for one write */
   record_end= *record+length-head_length;
   del_length=(res_length ? MARIA_DYN_DELETE_BLOCK_HEADER : 0);
-  bmove((uchar*) (*record-head_length),(uchar*) temp,head_length);
+  bmove((*record-head_length), temp, head_length);
   memcpy(temp,record_end,(size_t) (extra_length+del_length));
-  bzero((uchar*) record_end,extra_length);
+  bzero(record_end, extra_length);
 
   if (res_length)
   {
@@ -750,18 +750,18 @@ int _ma_write_part_record(MARIA_HA *info,
     if (info->update & HA_STATE_EXTEND_BLOCK)
     {
       info->update&= ~HA_STATE_EXTEND_BLOCK;
-      if (my_block_write(&info->rec_cache,(uchar*) *record-head_length,
+      if (my_block_write(&info->rec_cache, *record-head_length,
 			 length+extra_length+del_length,filepos))
       goto err;
     }
-    else if (my_b_write(&info->rec_cache,(uchar*) *record-head_length,
+    else if (my_b_write(&info->rec_cache, *record-head_length,
 			length+extra_length+del_length))
       goto err;
   }
   else
   {
     info->rec_cache.seek_not_done=1;
-    if (info->s->file_write(info,(uchar*) *record-head_length,
+    if (info->s->file_write(info, *record-head_length,
                             length+extra_length+
                             del_length,filepos,info->s->write_flag))
       goto err;
@@ -903,7 +903,7 @@ static my_bool update_dynamic_record(MARIA_HA *info, MARIA_RECORD_POS filepos,
 	      mi_int3store(del_block.header+1, rest_length);
 	      mi_sizestore(del_block.header+4,info->s->state.dellink);
 	      bfill(del_block.header+12,8,255);
-	      if (info->s->file_write(info,(uchar*) del_block.header, 20,
+	      if (info->s->file_write(info, del_block.header, 20,
                                       next_pos, MYF(MY_NABP)))
 		DBUG_RETURN(1);
 	      info->s->state.dellink= next_pos;
@@ -980,7 +980,7 @@ uint _ma_rec_pack(MARIA_HA *info, register uchar *to,
 	{
 	  char *temp_pos;
 	  size_t tmp_length=length-portable_sizeof_char_ptr;
-	  memcpy((uchar*) to,from,tmp_length);
+	  memcpy(to,from,tmp_length);
 	  memcpy_fixed(&temp_pos,from+tmp_length,sizeof(char*));
 	  memcpy(to+tmp_length,temp_pos,(size_t) blob->length);
 	  to+=tmp_length+blob->length;
@@ -993,7 +993,7 @@ uint _ma_rec_pack(MARIA_HA *info, register uchar *to,
 	  flag|=bit;
 	else
 	{
-          memcpy((uchar*) to,from,(size_t) length);
+          memcpy(to, from, (size_t) length);
           to+=length;
 	}
       }
@@ -1023,7 +1023,7 @@ uint _ma_rec_pack(MARIA_HA *info, register uchar *to,
 	  }
 	  else
 	    *to++= (uchar) new_length;
-	  memcpy((uchar*) to,pos,(size_t) new_length); to+=new_length;
+	  memcpy(to, pos, (size_t) new_length); to+=new_length;
 	  flag|=bit;
 	}
 	else
@@ -1271,7 +1271,7 @@ ulong _ma_rec_unpack(register MARIA_HA *info, register uchar *to, uchar *from,
       if (flag & bit)
       {
 	if (type == FIELD_BLOB || type == FIELD_SKIP_ZERO)
-	  bzero((uchar*) to,column_length);
+	  bzero(to, column_length);
 	else if (type == FIELD_SKIP_ENDSPACE ||
 		 type == FIELD_SKIP_PRESPACE)
 	{
@@ -1293,13 +1293,13 @@ ulong _ma_rec_unpack(register MARIA_HA *info, register uchar *to, uchar *from,
 	    goto err;
 	  if (type == FIELD_SKIP_ENDSPACE)
 	  {
-	    memcpy(to,(uchar*) from,(size_t) length);
-	    bfill((uchar*) to+length,column_length-length,' ');
+	    memcpy(to, from, (size_t) length);
+	    bfill(to+length, column_length-length, ' ');
 	  }
 	  else
 	  {
-	    bfill((uchar*) to,column_length-length,' ');
-	    memcpy(to+column_length-length,(uchar*) from,(size_t) length);
+	    bfill(to, column_length-length, ' ');
+	    memcpy(to+column_length-length, from, (size_t) length);
 	  }
 	  from+=length;
 	}
@@ -1313,9 +1313,9 @@ ulong _ma_rec_unpack(register MARIA_HA *info, register uchar *to, uchar *from,
             from_left - size_length < blob_length ||
             from_left - size_length - blob_length < min_pack_length)
 	  goto err;
-	memcpy((uchar*) to,(uchar*) from,(size_t) size_length);
+	memcpy(to, from, (size_t) size_length);
 	from+=size_length;
-	memcpy_fixed((uchar*) to+size_length,(uchar*) &from,sizeof(char*));
+	memcpy_fixed(to+size_length,(uchar*) &from,sizeof(char*));
 	from+=blob_length;
       }
       else
@@ -1324,7 +1324,7 @@ ulong _ma_rec_unpack(register MARIA_HA *info, register uchar *to, uchar *from,
 	  min_pack_length--;
 	if (min_pack_length + column_length > (uint) (from_end - from))
 	  goto err;
-	memcpy(to,(uchar*) from,(size_t) column_length); from+=column_length;
+	memcpy(to, from, (size_t) column_length); from+=column_length;
       }
       if ((bit= bit << 1) >= 256)
       {
@@ -1336,7 +1336,7 @@ ulong _ma_rec_unpack(register MARIA_HA *info, register uchar *to, uchar *from,
       if (min_pack_length > (uint) (from_end - from))
 	goto err;
       min_pack_length-=column_length;
-      memcpy(to, (uchar*) from, (size_t) column_length);
+      memcpy(to, from, (size_t) column_length);
       from+=column_length;
     }
   }
@@ -1349,7 +1349,7 @@ err:
   my_errno= HA_ERR_WRONG_IN_RECORD;
   DBUG_PRINT("error",("to_end: 0x%lx -> 0x%lx  from_end: 0x%lx -> 0x%lx",
 		      (long) to, (long) to_end, (long) from, (long) from_end));
-  DBUG_DUMP("from",(uchar*) info->rec_buff,info->s->base.min_pack_length);
+  DBUG_DUMP("from", info->rec_buff, info->s->base.min_pack_length);
   DBUG_RETURN(MY_FILE_ERROR);
 } /* _ma_rec_unpack */
 
@@ -1508,7 +1508,7 @@ int _ma_read_dynamic_record(MARIA_HA *info, uchar *buf,
         prefetch_len= block_info.data_len;
       if (prefetch_len)
       {
-        memcpy((uchar*) to, block_info.header + offset, prefetch_len);
+        memcpy(to, block_info.header + offset, prefetch_len);
         block_info.data_len-= prefetch_len;
         left_length-= prefetch_len;
         to+= prefetch_len;
@@ -1526,7 +1526,7 @@ int _ma_read_dynamic_record(MARIA_HA *info, uchar *buf,
         there is no equivalent without seeking. We are at the right
         position already. :(
       */
-      if (info->s->file_read(info, (uchar*) to, block_info.data_len,
+      if (info->s->file_read(info, to, block_info.data_len,
                              filepos, MYF(MY_NABP)))
         goto panic;
       left_length-=block_info.data_len;
@@ -1668,7 +1668,7 @@ my_bool _ma_cmp_dynamic_record(register MARIA_HA *info,
   error= 0;
 err:
   if (buffer != info->rec_buff)
-    my_afree((uchar*) buffer);
+    my_afree(buffer);
   DBUG_PRINT("exit", ("result: %d", error));
   DBUG_RETURN(error);
 }
@@ -1779,7 +1779,7 @@ int _ma_read_rnd_dynamic_record(MARIA_HA *info,
     }
     if (info->opt_flag & READ_CACHE_USED)
     {
-      if (_ma_read_cache(&info->rec_cache,(uchar*) block_info.header,filepos,
+      if (_ma_read_cache(&info->rec_cache, block_info.header, filepos,
 			 sizeof(block_info.header),
 			 (!block_of_record && skip_deleted_blocks ?
                           READING_NEXT : 0) | READING_HEADER))
@@ -1843,7 +1843,7 @@ int _ma_read_rnd_dynamic_record(MARIA_HA *info,
 	tmp_length= block_info.data_len;
       if (tmp_length)
       {
-	memcpy((uchar*) to, block_info.header+offset,tmp_length);
+	memcpy(to, block_info.header+offset, tmp_length);
 	block_info.data_len-=tmp_length;
 	left_len-=tmp_length;
 	to+=tmp_length;
@@ -1855,7 +1855,7 @@ int _ma_read_rnd_dynamic_record(MARIA_HA *info,
     {
       if (info->opt_flag & READ_CACHE_USED)
       {
-	if (_ma_read_cache(&info->rec_cache,(uchar*) to,filepos,
+	if (_ma_read_cache(&info->rec_cache, to,filepos,
 			   block_info.data_len,
 			   (!block_of_record && skip_deleted_blocks) ?
                            READING_NEXT : 0))
@@ -1869,8 +1869,7 @@ int _ma_read_rnd_dynamic_record(MARIA_HA *info,
             flush_io_cache(&info->rec_cache))
           goto err;
 	/* VOID(my_seek(info->dfile.file, filepos, MY_SEEK_SET, MYF(0))); */
-	if (my_read(info->dfile.file, (uchar*)to, block_info.data_len,
-                    MYF(MY_NABP)))
+	if (my_read(info->dfile.file, to, block_info.data_len, MYF(MY_NABP)))
 	{
 	  if (my_errno == HA_ERR_FILE_TOO_SHORT)
 	    my_errno= HA_ERR_WRONG_IN_RECORD;	/* Unexpected end of file */

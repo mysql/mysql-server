@@ -1436,7 +1436,8 @@ static bool mysql_test_set_fields(Prepared_statement *stmt,
   THD *thd= stmt->thd;
   set_var_base *var;
 
-  if (tables && check_table_access(thd, SELECT_ACL, tables, UINT_MAX, FALSE) ||
+  if ((tables &&
+       check_table_access(thd, SELECT_ACL, tables, UINT_MAX, FALSE)) ||
       open_normal_and_derived_tables(thd, tables, 0))
     goto error;
 
@@ -1472,13 +1473,14 @@ static bool mysql_test_call_fields(Prepared_statement *stmt,
   THD *thd= stmt->thd;
   Item *item;
 
-  if (tables && check_table_access(thd, SELECT_ACL, tables, UINT_MAX, FALSE) ||
+  if ((tables &&
+       check_table_access(thd, SELECT_ACL, tables, UINT_MAX, FALSE)) ||
       open_normal_and_derived_tables(thd, tables, 0))
     goto err;
 
   while ((item= it++))
   {
-    if (!item->fixed && item->fix_fields(thd, it.ref()) ||
+    if ((!item->fixed && item->fix_fields(thd, it.ref())) ||
         item->check_cols(1))
       goto err;
   }
@@ -2844,7 +2846,7 @@ void Prepared_statement::setup_set_params()
     Decide if we have to expand the query (because we must write it to logs or
     because we want to look it up in the query cache) or not.
   */
-  if (mysql_bin_log.is_open() && is_update_query(lex->sql_command) ||
+  if ((mysql_bin_log.is_open() && is_update_query(lex->sql_command)) ||
       opt_log || opt_slow_log ||
       query_cache_is_cacheable_query(lex))
   {
@@ -3295,7 +3297,7 @@ Prepared_statement::reprepare()
                           &cur_db_changed))
     return TRUE;
 
-  error= (name.str && copy.set_name(&name) ||
+  error= ((name.str && copy.set_name(&name)) ||
           copy.prepare(query, query_length) ||
           validate_metadata(&copy));
 

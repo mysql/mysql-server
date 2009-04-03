@@ -1,4 +1,4 @@
-# Copyright (C) 2000-2006 MySQL AB
+# Copyright (C) 2000-2006 MySQL AB, 2009 Monty Program AB
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -24,8 +24,8 @@ BUILT_SOURCES=		$(top_builddir)/include/mysqld_error.h \
 pkginclude_HEADERS=	$(BUILT_SOURCES)
 EXTRA_PROGRAMS =	comp_err
 DISTCLEANFILES =	$(BUILT_SOURCES) $(EXTRA_PROGRAMS)
-SUBDIRS =		@yassl_dir@
-DIST_SUBDIRS =		yassl
+SUBDIRS =		@yassl_dir@ @libevent_dir@
+DIST_SUBDIRS =		yassl libevent
 
 # This will build mysqld_error.h, mysqld_ername.h and sql_state.h
 # NOTE Built files should depend on their sources to avoid

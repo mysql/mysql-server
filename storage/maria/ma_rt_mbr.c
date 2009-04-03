@@ -743,16 +743,17 @@ double maria_rtree_perimeter_increase(HA_KEYSEG *keyseg, uchar* a, uchar* b,
   Calculates key page total MBR= MBR(key1) + MBR(key2) + ...
   Stores into *to.
 */
-int maria_rtree_page_mbr(const MARIA_HA *info, const HA_KEYSEG *keyseg,
-                         const uchar *page_buf,
+int maria_rtree_page_mbr(const HA_KEYSEG *keyseg,
+                         MARIA_PAGE *page,
                          uchar *to, uint key_length)
 {
+  MARIA_HA *info= page->info;
   MARIA_SHARE *share= info->s;
   uint inc= 0;
   uint k_len= key_length;
-  uint nod_flag= _ma_test_if_nod(share, page_buf);
+  uint nod_flag= page->node;
   const uchar *k;
-  const uchar *last= rt_PAGE_END(share, page_buf);
+  const uchar *last= rt_PAGE_END(page);
 
   for (; (int)key_length > 0; keyseg += 2)
   {
@@ -764,7 +765,7 @@ int maria_rtree_page_mbr(const MARIA_HA *info, const HA_KEYSEG *keyseg,
       return 1;
     }
 
-    k= rt_PAGE_FIRST_KEY(share, page_buf, nod_flag);
+    k= rt_PAGE_FIRST_KEY(share, page->buff, nod_flag);
 
     switch ((enum ha_base_keytype) keyseg->type) {
     case HA_KEYTYPE_INT8:

@@ -402,11 +402,15 @@ check_user(THD *thd, enum enum_server_command command,
 
       if (check_count)
       {
-        pthread_mutex_lock(&LOCK_connection_count);
-        bool count_ok= connection_count <= max_connections ||
-                       (thd->main_security_ctx.master_access & SUPER_ACL);
-        VOID(pthread_mutex_unlock(&LOCK_connection_count));
-
+        bool count_ok= 1;
+        
+        if (!(thd->main_security_ctx.master_access & SUPER_ACL))
+        {
+          pthread_mutex_lock(&LOCK_connection_count);
+          count_ok= (*thd->scheduler->connection_count <=
+                     *thd->scheduler->max_connections);
+          VOID(pthread_mutex_unlock(&LOCK_connection_count));
+        }
         if (!count_ok)
         {                                         // too many connections
           my_error(ER_CON_COUNT_ERROR, MYF(0));
@@ -917,7 +921,7 @@ bool setup_connection_thread_globals(THD *thd)
   {
     close_connection(thd, ER_OUT_OF_RESOURCES, 1);
     statistic_increment(aborted_connects,&LOCK_status);
-    thread_scheduler.end_thread(thd, 0);
+    thd->scheduler->end_thread(thd, 0);
     return 1;                                   // Error
   }
   return 0;
@@ -939,8 +943,7 @@ bool setup_connection_thread_globals(THD *thd)
     1    error
 */
 
-
-static bool login_connection(THD *thd)
+bool login_connection(THD *thd)
 {
   NET *net= &thd->net;
   int error;
@@ -978,14 +981,14 @@ static bool login_connection(THD *thd)
     This mainly updates status variables
 */
 
-static void end_connection(THD *thd)
+void end_connection(THD *thd)
 {
   NET *net= &thd->net;
   plugin_thdvar_cleanup(thd);
   if (thd->user_connect)
     decrease_user_connections(thd->user_connect);
 
-  if (thd->killed || net->error && net->vio != 0)
+  if (thd->killed || (net->error && net->vio != 0))
   {
     statistic_increment(aborted_threads,&LOCK_status);
   }
@@ -1011,7 +1014,7 @@ static void end_connection(THD *thd)
   Initialize THD to handle queries
 */
 
-static void prepare_new_connection_state(THD* thd)
+void prepare_new_connection_state(THD* thd)
 {
   Security_context *sctx= thd->security_ctx;
 
@@ -1081,7 +1084,7 @@ pthread_handler_t handle_one_connection(void *arg)
   {
     close_connection(thd, ER_OUT_OF_RESOURCES, 1);
     statistic_increment(aborted_connects,&LOCK_status);
-    thread_scheduler.end_thread(thd,0);
+    thd->scheduler->end_thread(thd,0);
     return 0;
   }
   if (launch_time >= slow_launch_time*1000000L)
@@ -1119,7 +1122,7 @@ pthread_handler_t handle_one_connection(void *arg)
    
 end_thread:
     close_connection(thd, 0, 1);
-    if (thread_scheduler.end_thread(thd,1))
+    if (thd->scheduler->end_thread(thd,1))
       return 0;                                 // Probably no-threads
 
     /*

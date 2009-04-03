@@ -99,7 +99,7 @@ static void do_field_to_null_str(Copy_field *copy)
 static void do_outer_field_to_null_str(Copy_field *copy)
 {
   if (*copy->null_row ||
-      copy->from_null_ptr && (*copy->from_null_ptr & copy->from_bit))
+      (copy->from_null_ptr && (*copy->from_null_ptr & copy->from_bit)))
   {
     bzero(copy->to_ptr,copy->from_length);
     copy->to_null_ptr[0]=1;			// Always bit 1
@@ -212,7 +212,7 @@ static void do_copy_null(Copy_field *copy)
 static void do_outer_field_null(Copy_field *copy)
 {
   if (*copy->null_row ||
-      copy->from_null_ptr && (*copy->from_null_ptr & copy->from_bit))
+      (copy->from_null_ptr && (*copy->from_null_ptr & copy->from_bit)))
   {
     *copy->to_null_ptr|=copy->to_bit;
     copy->to_field->reset();
@@ -667,8 +667,8 @@ Copy_field::get_copy_func(Field *to,Field *from)
           !compatible_db_low_byte_first ||
           ((to->table->in_use->variables.sql_mode &
             (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE | MODE_INVALID_DATES)) &&
-           to->type() == MYSQL_TYPE_DATE ||
-           to->type() == MYSQL_TYPE_DATETIME))
+           (to->type() == MYSQL_TYPE_DATE ||
+            to->type() == MYSQL_TYPE_DATETIME)))
       {
 	if (from->real_type() == MYSQL_TYPE_ENUM ||
 	    from->real_type() == MYSQL_TYPE_SET)
@@ -684,8 +684,7 @@ Copy_field::get_copy_func(Field *to,Field *from)
           if (from->real_type() == MYSQL_TYPE_ENUM &&
               to->real_type() == MYSQL_TYPE_ENUM)
             return do_field_enum;
-          else
-            return do_field_string;
+          return do_field_string;
         }
       }
       else if (to->charset() != from->charset())
@@ -709,10 +708,8 @@ Copy_field::get_copy_func(Field *to,Field *from)
       {
         if (to->charset() == &my_charset_bin)
           return do_expand_binary;
-        else
-          return do_expand_string;
+        return do_expand_string;
       }
-
     }
     else if (to->real_type() != from->real_type() ||
 	     to_length != from_length ||
@@ -738,7 +735,7 @@ Copy_field::get_copy_func(Field *to,Field *from)
       }
     }
   }
-    /* Eq fields */
+  /* Identical field types */
   switch (to_length) {
   case 1: return do_field_1;
   case 2: return do_field_2;
@@ -764,14 +761,14 @@ int field_conv(Field *to,Field *from)
 	to->real_type() != MYSQL_TYPE_SET &&
         to->real_type() != MYSQL_TYPE_BIT &&
         (to->real_type() != MYSQL_TYPE_NEWDECIMAL ||
-         (to->field_length == from->field_length &&
-          (((Field_num*)to)->dec == ((Field_num*)from)->dec))) &&
+         ((to->field_length == from->field_length &&
+           (((Field_num*)to)->dec == ((Field_num*)from)->dec)))) &&
         from->charset() == to->charset() &&
 	to->table->s->db_low_byte_first == from->table->s->db_low_byte_first &&
         (!(to->table->in_use->variables.sql_mode &
            (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE | MODE_INVALID_DATES)) ||
-         to->type() != MYSQL_TYPE_DATE &&
-         to->type() != MYSQL_TYPE_DATETIME) &&
+         (to->type() != MYSQL_TYPE_DATE &&
+          to->type() != MYSQL_TYPE_DATETIME)) &&
         (from->real_type() != MYSQL_TYPE_VARCHAR ||
          ((Field_varstring*)from)->length_bytes ==
           ((Field_varstring*)to)->length_bytes))

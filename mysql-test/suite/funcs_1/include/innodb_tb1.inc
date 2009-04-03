@@ -66,5 +66,5 @@ f58 numeric (64) not null DEFAULT 99
 
 --replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
 eval
-load data infile '$MYSQLTEST_VARDIR/std_data_ln/funcs_1/innodb_tb1.txt'
+load data infile '$MYSQLTEST_VARDIR/std_data/funcs_1/innodb_tb1.txt'
 into table tb1;

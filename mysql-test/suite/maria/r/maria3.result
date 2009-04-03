@@ -266,10 +266,10 @@ maria_checkpoint_interval	30
 maria_force_start_after_recovery_failures	0
 maria_log_file_size	4294959104
 maria_log_purge_type	immediate
-maria_max_sort_file_size	9223372036854775807
+maria_max_sort_file_size	9223372036853727232
 maria_page_checksum	OFF
 maria_pagecache_age_threshold	300
-maria_pagecache_buffer_size	8388600
+maria_pagecache_buffer_size	8384512
 maria_pagecache_division_limit	100
 maria_recover	OFF
 maria_repair_threads	1

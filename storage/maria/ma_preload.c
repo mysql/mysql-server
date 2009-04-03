@@ -42,7 +42,7 @@
 int maria_preload(MARIA_HA *info, ulonglong key_map, my_bool ignore_leaves)
 {
   ulong block_length= 0;
-  uchar *buff= NULL;
+  uchar *buff;
   MARIA_SHARE* share= info->s;
   uint keynr;
   my_off_t key_file_length= share->state.state.key_file_length;
@@ -84,7 +84,7 @@ int maria_preload(MARIA_HA *info, ulonglong key_map, my_bool ignore_leaves)
       consecutive pages (like the my_pread() in mi_preload()).
     */
     if (pagecache_read(share->pagecache, &share->kfile, page_no,
-                       DFLT_INIT_HITS, (uchar*) buff, share->page_type,
+                       DFLT_INIT_HITS, buff, share->page_type,
                        PAGECACHE_LOCK_WRITE, &page_link) == NULL)
       goto err;
     keynr= _ma_get_keynr(share, buff);

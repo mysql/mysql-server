@@ -49,8 +49,8 @@ my_bool _ma_write_clr(MARIA_HA *info, LSN undo_lsn,
 int _ma_write_undo_key_insert(MARIA_HA *info, const MARIA_KEY *key,
                               my_off_t *root, my_off_t new_root,
                               LSN *res_lsn);
-int _ma_write_undo_key_delete(MARIA_HA *info, const MARIA_KEY *key,
-                              my_off_t new_root, LSN *res_lsn);
+my_bool _ma_write_undo_key_delete(MARIA_HA *info, const MARIA_KEY *key,
+                                  my_off_t new_root, LSN *res_lsn);
 my_bool write_hook_for_clr_end(enum translog_record_type type,
                                TRN *trn, MARIA_HA *tbl_info, LSN *lsn,
                                void *hook_arg);
@@ -65,23 +65,16 @@ extern my_bool write_hook_for_undo_key_delete(enum translog_record_type type,
                                               LSN *lsn, void *hook_arg);
 void _ma_unpin_all_pages(MARIA_HA *info, LSN undo_lsn);
 
-my_bool _ma_log_prefix(MARIA_HA *info, my_off_t page,
-                       uchar *buff, uint changed_length,
-                       int move_length);
-my_bool _ma_log_suffix(MARIA_HA *info, my_off_t page,
-                       uchar *buff, uint org_length,
+my_bool _ma_log_prefix(MARIA_PAGE *page, uint changed_length, int move_length);
+my_bool _ma_log_suffix(MARIA_PAGE *page, uint org_length,
                        uint new_length);
-my_bool _ma_log_add(MARIA_HA *info, my_off_t page, uchar *buff,
-                    uint buff_length, uchar *key_pos,
+my_bool _ma_log_add(MARIA_PAGE *page, uint buff_length, uchar *key_pos,
                     uint changed_length, int move_length,
                     my_bool handle_overflow);
-my_bool _ma_log_delete(MARIA_HA *info, my_off_t page, const uchar *buff,
-                       const uchar *key_pos, uint changed_length,
-                       uint move_length);
-my_bool _ma_log_change(MARIA_HA *info, my_off_t page, const uchar *buff,
-                       const uchar *key_pos, uint length);
-my_bool _ma_log_new(MARIA_HA *info, my_off_t page, const uchar *buff,
-                    uint page_length, uint key_nr, my_bool root_page);
+my_bool _ma_log_delete(MARIA_PAGE *page, const uchar *key_pos,
+                       uint changed_length, uint move_length);
+my_bool _ma_log_change(MARIA_PAGE *page, const uchar *key_pos, uint length);
+my_bool _ma_log_new(MARIA_PAGE *page, my_bool root_page);
 
 uint _ma_apply_redo_index_new_page(MARIA_HA *info, LSN lsn,
                                    const uchar *header, uint length);

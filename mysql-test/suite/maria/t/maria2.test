@@ -103,8 +103,8 @@ drop table t1;
 # test LOAD DATA INFILE REPLACE
 create table t1 (pk int primary key, apk int unique, data int) engine=maria;
 insert into t1 values (1, 1, 1), (4, 4, 4), (6, 6, 6);
-load data concurrent infile '../std_data_ln/loaddata5.dat' replace into table t1 fields terminated by '' enclosed by '' ignore 1 lines (pk, apk);
+load data concurrent infile '../../std_data/loaddata5.dat' replace into table t1 fields terminated by '' enclosed by '' ignore 1 lines (pk, apk);
 select * from t1 order by pk;
-load data infile '../std_data_ln/loaddata5.dat' replace into table t1 fields terminated by '' enclosed by '' ignore 1 lines (pk, apk);
+load data infile '../../std_data/loaddata5.dat' replace into table t1 fields terminated by '' enclosed by '' ignore 1 lines (pk, apk);
 select * from t1 order by pk;
 drop table t1;

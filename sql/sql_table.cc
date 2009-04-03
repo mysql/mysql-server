@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2004 MySQL AB
+/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -114,6 +114,30 @@ uint filename_to_tablename(const char *from, char *to, uint to_length)
 }
 
 
+/**
+  Check if given string begins with "#mysql50#" prefix, cut it if so.
+  
+  @param   from          string to check and cut 
+  @param   to[out]       buffer for result string
+  @param   to_length     its size
+  
+  @retval
+    0      no prefix found
+  @retval
+    non-0  result string length
+*/
+
+uint check_n_cut_mysql50_prefix(const char *from, char *to, uint to_length)
+{
+  if (from[0] == '#' && 
+      !strncmp(from, MYSQL50_TABLE_NAME_PREFIX,
+               MYSQL50_TABLE_NAME_PREFIX_LENGTH))
+    return (uint) (strmake(to, from + MYSQL50_TABLE_NAME_PREFIX_LENGTH,
+                           to_length - 1) - to);
+  return 0;
+}
+
+
 /*
   Translate a table name to a file name (WL #1324).
 
@@ -133,11 +157,8 @@ uint tablename_to_filename(const char *from, char *to, uint to_length)
   DBUG_ENTER("tablename_to_filename");
   DBUG_PRINT("enter", ("from '%s'", from));
 
-  if (from[0] == '#' && !strncmp(from, MYSQL50_TABLE_NAME_PREFIX,
-                                 MYSQL50_TABLE_NAME_PREFIX_LENGTH))
-    DBUG_RETURN((uint) (strmake(to, from+MYSQL50_TABLE_NAME_PREFIX_LENGTH,
-                                to_length-1) -
-                        (from + MYSQL50_TABLE_NAME_PREFIX_LENGTH)));
+  if ((length= check_n_cut_mysql50_prefix(from, to, to_length)))
+    DBUG_RETURN(length);
   length= strconvert(system_charset_info, from,
                      &my_charset_filename, to, to_length, &errors);
   if (check_if_legal_tablename(to) &&
@@ -1675,13 +1696,13 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
                                         FN_IS_TMP : 0);
     }
     if (drop_temporary ||
-        (table_type == NULL &&        
-         (access(path, F_OK) &&
-          ha_create_table_from_engine(thd, db, alias)) ||
+        ((table_type == NULL &&        
+          (access(path, F_OK) &&
+           ha_create_table_from_engine(thd, db, alias))) ||
          (!drop_view &&
           mysql_frm_type(thd, path, &frm_db_type) != FRMTYPE_TABLE)))
     {
-      // Table was not found on disk and table can't be created from engine
+      /* Table was not found on disk and table can't be created from engine */
       if (if_exists)
 	push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 			    ER_BAD_TABLE_ERROR, ER(ER_BAD_TABLE_ERROR),
@@ -1758,7 +1779,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     if (!dont_log_query)
     {
       if (!thd->current_stmt_binlog_row_based ||
-          non_temp_tables_count > 0 && !tmp_table_deleted)
+          (non_temp_tables_count > 0 && !tmp_table_deleted))
       {
         /*
           In this case, we are either using statement-based
@@ -2467,8 +2488,8 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     }
     /* Don't pack rows in old tables if the user has requested this */
     if ((sql_field->flags & BLOB_FLAG) ||
-	sql_field->sql_type == MYSQL_TYPE_VARCHAR &&
-	create_info->row_type != ROW_TYPE_FIXED)
+	(sql_field->sql_type == MYSQL_TYPE_VARCHAR &&
+         create_info->row_type != ROW_TYPE_FIXED))
       (*db_options)|= HA_OPTION_PACK_RECORD;
     it2.rewind();
   }
@@ -2937,7 +2958,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	    sql_field->sql_type == MYSQL_TYPE_VARCHAR ||
 	    sql_field->pack_flag & FIELDFLAG_BLOB)))
       {
-	if (column_nr == 0 && (sql_field->pack_flag & FIELDFLAG_BLOB) ||
+	if ((column_nr == 0 && (sql_field->pack_flag & FIELDFLAG_BLOB)) ||
             sql_field->sql_type == MYSQL_TYPE_VARCHAR)
 	  key_info->flags|= HA_BINARY_PACK_KEY | HA_VAR_LENGTH_KEY;
 	else
@@ -3111,10 +3132,12 @@ static bool prepare_blob_field(THD *thd, Create_field *sql_field)
     push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE, ER_AUTO_CONVERT,
                  warn_buff);
   }
-    
+
   if ((sql_field->flags & BLOB_FLAG) && sql_field->length)
   {
-    if (sql_field->sql_type == MYSQL_TYPE_BLOB)
+    if (sql_field->sql_type == FIELD_TYPE_BLOB ||
+        sql_field->sql_type == FIELD_TYPE_TINY_BLOB ||
+        sql_field->sql_type == FIELD_TYPE_MEDIUM_BLOB)
     {
       /* The user has given a length to the blob column */
       sql_field->sql_type= get_blob_type_from_length(sql_field->length);
@@ -3426,14 +3449,6 @@ bool mysql_create_table_no_lock(THD *thd,
   }
   else  
   {
- #ifdef FN_DEVCHAR
-    /* check if the table name contains FN_DEVCHAR when defined */
-    if (strchr(alias, FN_DEVCHAR))
-    {
-      my_error(ER_WRONG_TABLE_NAME, MYF(0), alias);
-      DBUG_RETURN(TRUE);
-    }
-#endif
     path_length= build_table_filename(path, sizeof(path), db, alias, reg_ext,
                                       internal_tmp_table ? FN_IS_TMP : 0);
   }
@@ -4328,6 +4343,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       table->table=0;				// For query cache
       if (protocol->write())
 	goto err;
+      thd->main_da.reset_diagnostics_area();
       continue;
       /* purecov: end */
     }
@@ -4976,6 +4992,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
 				dst_path); /* purecov: inspected */
       goto err;     /* purecov: inspected */
     }
+    thd->thread_specific_used= TRUE;
   }
   else if (err)
   {
@@ -5342,9 +5359,9 @@ compare_tables(TABLE *table,
 
     /* Don't pack rows in old tables if the user has requested this. */
       if (create_info->row_type == ROW_TYPE_DYNAMIC ||
-	(tmp_new_field->flags & BLOB_FLAG) ||
-	tmp_new_field->sql_type == MYSQL_TYPE_VARCHAR &&
-  	create_info->row_type != ROW_TYPE_FIXED)
+          (tmp_new_field->flags & BLOB_FLAG) ||
+          (tmp_new_field->sql_type == MYSQL_TYPE_VARCHAR &&
+           create_info->row_type != ROW_TYPE_FIXED))
         create_info->table_options|= HA_OPTION_PACK_RECORD;
 
     /* Check if field was renamed */
@@ -5881,7 +5898,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
       if (key_info->flags & HA_USES_BLOCK_SIZE)
         key_create_info.block_size= key_info->block_size;
       if (key_info->flags & HA_USES_PARSER)
-        key_create_info.parser_name= *key_info->parser_name;
+        key_create_info.parser_name= *plugin_name(key_info->parser);
 
       if (key_info->flags & HA_SPATIAL)
         key_type= Key::SPATIAL;
@@ -6958,12 +6975,12 @@ view_err:
   }
   else if (mysql_rename_table(new_db_type, new_db, tmp_name, new_db,
                               new_alias, FN_FROM_IS_TMP) ||
-           (new_name != table_name || new_db != db) && // we also do rename
-           (need_copy_table != ALTER_TABLE_METADATA_ONLY ||
-            mysql_rename_table(save_old_db_type, db, table_name, new_db,
-                               new_alias, NO_FRM_RENAME)) &&
-           Table_triggers_list::change_table_name(thd, db, table_name,
-                                                  new_db, new_alias))
+           ((new_name != table_name || new_db != db) && // we also do rename
+            (need_copy_table != ALTER_TABLE_METADATA_ONLY ||
+             mysql_rename_table(save_old_db_type, db, table_name, new_db,
+                                new_alias, NO_FRM_RENAME)) &&
+            Table_triggers_list::change_table_name(thd, db, table_name,
+                                                   new_db, new_alias)))
   {
     /* Try to get everything back. */
     error=1;
@@ -7158,7 +7175,9 @@ err_with_placeholders:
   VOID(pthread_mutex_unlock(&LOCK_open));
   DBUG_RETURN(TRUE);
 }
-/* mysql_alter_table */
+
+
+/* Copy all rows from one table to another */
 
 static int
 copy_data_between_tables(TABLE *from,TABLE *to,
@@ -7172,7 +7191,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
 {
   int error= 1, errpos= 0;
   Copy_field *copy= NULL, *copy_end;
-  ulong found_count= 0, delete_count= 0;
+  ha_rows found_count= 0, delete_count= 0;
   THD *thd= current_thd;
   uint length= 0;
   SORT_FIELD *sortorder;

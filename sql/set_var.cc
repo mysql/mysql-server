@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -265,6 +265,13 @@ static sys_var_long_ptr	sys_delayed_queue_size(&vars, "delayed_queue_size",
 static sys_var_event_scheduler sys_event_scheduler(&vars, "event_scheduler");
 #endif
 
+static sys_var_const    sys_extra_port(&vars, "extra_port",
+                                       OPT_GLOBAL, SHOW_INT,
+                                       (uchar*) &mysqld_extra_port);
+static sys_var_long_ptr	sys_extra_max_connections(&vars,
+                                                  "extra_max_connections",
+                                                  &extra_max_connections,
+                                                  fix_max_connections);
 static sys_var_long_ptr	sys_expire_logs_days(&vars, "expire_logs_days",
 					     &expire_logs_days);
 static sys_var_bool_ptr	sys_flush(&vars, "flush", &myisam_flush);
@@ -1162,12 +1169,23 @@ extern void fix_delay_key_write(THD *thd, enum_var_type type)
   switch ((enum_delay_key_write) delay_key_write_options) {
   case DELAY_KEY_WRITE_NONE:
     myisam_delay_key_write=0;
+#ifdef WITH_MARIA_STORAGE_ENGINE
+    maria_delay_key_write= 0;
+#endif
+    ha_open_options&= ~HA_OPEN_DELAY_KEY_WRITE;
     break;
   case DELAY_KEY_WRITE_ON:
     myisam_delay_key_write=1;
+#ifdef WITH_MARIA_STORAGE_ENGINE
+    maria_delay_key_write= 1;
+#endif
+    ha_open_options&= ~HA_OPEN_DELAY_KEY_WRITE;
     break;
   case DELAY_KEY_WRITE_ALL:
     myisam_delay_key_write=1;
+#ifdef WITH_MARIA_STORAGE_ENGINE
+    maria_delay_key_write= 1;
+#endif
     ha_open_options|= HA_OPEN_DELAY_KEY_WRITE;
     break;
   }
@@ -1346,7 +1364,7 @@ static int check_max_delayed_threads(THD *thd, set_var *var)
 static void fix_max_connections(THD *thd, enum_var_type type)
 {
 #ifndef EMBEDDED_LIBRARY
-  resize_thr_alarm(max_connections + 
+  resize_thr_alarm(max_connections + extra_max_connections +
 		   global_system_variables.max_insert_delayed_threads + 10);
 #endif
 }
@@ -1540,14 +1558,14 @@ bool sys_var_thd_ulong::update(THD *thd, set_var *var)
   ulonglong tmp= var->save_result.ulonglong_value;
 
   /* Don't use bigger value than given with --maximum-variable-name=.. */
-  if ((ulong) tmp > max_system_variables.*offset)
+  if (tmp > max_system_variables.*offset)
   {
     throw_bounds_warning(thd, TRUE, TRUE, name, (longlong) tmp);
     tmp= max_system_variables.*offset;
   }
 
   if (option_limits)
-    tmp= (ulong) fix_unsigned(thd, tmp, option_limits);
+    tmp= fix_unsigned(thd, tmp, option_limits);
 #if SIZEOF_LONG < SIZEOF_LONG_LONG
   else if (tmp > ULONG_MAX)
   {
@@ -1556,6 +1574,7 @@ bool sys_var_thd_ulong::update(THD *thd, set_var *var)
   }
 #endif
 
+  DBUG_ASSERT(tmp <= ULONG_MAX);
   if (var->type == OPT_GLOBAL)
     global_system_variables.*offset= (ulong) tmp;
   else
@@ -3263,7 +3282,8 @@ int set_var_init()
   uint count= 0;
   DBUG_ENTER("set_var_init");
   
-  for (sys_var *var=vars.first; var; var= var->next, count++);
+  for (sys_var *var=vars.first; var; var= var->next, count++)
+    ;
 
   if (hash_init(&system_variable_hash, system_charset_info, count, 0,
                 0, (hash_get_key) get_sys_var_length, 0, HASH_UNIQUE))
@@ -3553,6 +3573,7 @@ int set_var_password::check(THD *thd)
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (!user->host.str)
   {
+    DBUG_ASSERT(thd->security_ctx->priv_host);
     if (*thd->security_ctx->priv_host != 0)
     {
       user->host.str= (char *) thd->security_ctx->priv_host;
@@ -3563,6 +3584,12 @@ int set_var_password::check(THD *thd)
       user->host.str= (char *)"%";
       user->host.length= 1;
     }
+  }
+  if (!user->user.str)
+  {
+    DBUG_ASSERT(thd->security_ctx->priv_user);
+    user->user.str= (char *) thd->security_ctx->priv_user;
+    user->user.length= strlen(thd->security_ctx->priv_user);
   }
   /* Returns 1 as the function sends error to client */
   return check_change_password(thd, user->host.str, user->user.str,
@@ -4000,10 +4027,10 @@ bool sys_var_opt_readonly::update(THD *thd, set_var *var)
     can cause to wait on a read lock, it's required for the client application
     to unlock everything, and acceptable for the server to wait on all locks.
   */
-  if (result= close_cached_tables(thd, NULL, FALSE, TRUE, TRUE))
+  if ((result= close_cached_tables(thd, NULL, FALSE, TRUE, TRUE)))
     goto end_with_read_lock;
 
-  if (result= make_global_read_lock_block_commit(thd))
+  if ((result= make_global_read_lock_block_commit(thd)))
     goto end_with_read_lock;
 
   /* Change the opt_readonly system variable, safe because the lock is held */

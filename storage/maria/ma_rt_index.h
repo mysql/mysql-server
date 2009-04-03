@@ -22,15 +22,16 @@
 #define rt_PAGE_FIRST_KEY(share, page, nod_flag) (page + share->keypage_header + nod_flag)
 #define rt_PAGE_NEXT_KEY(share, key, key_length, nod_flag) (key + key_length +\
               (nod_flag ? nod_flag : share->base.rec_reflength))
-#define rt_PAGE_END(share, page) (page + _ma_get_page_used(share, page))
+#define rt_PAGE_END(page) ((page)->buff + (page)->size)
 
 #define rt_PAGE_MIN_SIZE(block_length) ((uint)(block_length - KEYPAGE_CHECKSUM_SIZE) / 3)
 
 my_bool maria_rtree_insert(MARIA_HA *info, MARIA_KEY *key);
-int maria_rtree_delete(MARIA_HA *info, MARIA_KEY *key);
+my_bool maria_rtree_delete(MARIA_HA *info, MARIA_KEY *key);
 int maria_rtree_insert_level(MARIA_HA *info, MARIA_KEY *key,
                              int ins_level, my_off_t *root);
-int maria_rtree_real_delete(MARIA_HA *info, MARIA_KEY *key, my_off_t *root);
+my_bool maria_rtree_real_delete(MARIA_HA *info, MARIA_KEY *key,
+                                my_off_t *root);
 int maria_rtree_find_first(MARIA_HA *info, MARIA_KEY *key, uint search_flag);
 int maria_rtree_find_next(MARIA_HA *info, uint keynr, uint32 search_flag);
 
@@ -39,21 +40,7 @@ int maria_rtree_get_next(MARIA_HA *info, uint keynr, uint key_length);
 
 ha_rows maria_rtree_estimate(MARIA_HA *info, MARIA_KEY *key, uint32 flag);
 
-int maria_rtree_split_page(MARIA_HA *info, const MARIA_KEY *key,
-                           my_off_t page_offs, uchar *page,
+int maria_rtree_split_page(const MARIA_KEY *key, MARIA_PAGE *page,
                            my_off_t *new_page_offs);
-/**
-  When you obtain a MARIA_PINNED_PAGE* link (by calling
-  _ma_fetch_keypage()/_ma_new()/etc), it is valid only until the next call to
-  those functions on this MARIA_HA*, because that next call may cause a
-  realloc of the pinned_pages DYNAMIC_ARRAY, causing the first link to become
-  wrong. The _index_ in the array is however invariant, so in these situations
-  you should save the index immediately and use it to later obtain an
-  up-to-date link.
-*/
-#define page_link_to_idx(INFO) ((INFO)->pinned_pages.elements - 1)
-#define page_link_from_idx(INFO, IDX) \
-  dynamic_element(&(INFO)->pinned_pages, (IDX), MARIA_PINNED_PAGE *)
-
 #endif /*HAVE_RTREE_KEYS*/
 #endif /* _rt_index_h */

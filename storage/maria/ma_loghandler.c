@@ -333,6 +333,8 @@ struct st_translog_descriptor
   my_bool is_everything_flushed;
   /* True when flush pass is in progress */
   my_bool flush_in_progress;
+  /* The flush number (used to distinguish two flushes goes one by one) */
+  volatile int flush_no;
   /* Next flush pass variables */
   TRANSLOG_ADDRESS next_pass_max_lsn;
   pthread_t max_lsn_requester;
@@ -3053,7 +3055,7 @@ restart:
               This IF should be true because we use in-memory data which
               supposed to be correct.
             */
-            if (translog_page_validator((uchar*) buffer,
+            if (translog_page_validator(buffer,
                                         LSN_OFFSET(addr) / TRANSLOG_PAGE_SIZE,
                                         (uchar*) &file_copy))
             {
@@ -3076,15 +3078,14 @@ restart:
   }
   file= get_logfile_by_number(file_no);
   DBUG_ASSERT(file != NULL);
-  buffer=
-    (uchar*) pagecache_read(log_descriptor.pagecache, &file->handler,
-                            LSN_OFFSET(addr) / TRANSLOG_PAGE_SIZE,
-                            3, (direct_link ? NULL : buffer),
-                            PAGECACHE_PLAIN_PAGE,
-                            (direct_link ?
-                             PAGECACHE_LOCK_READ :
-                             PAGECACHE_LOCK_LEFT_UNLOCKED),
-                            direct_link);
+  buffer= pagecache_read(log_descriptor.pagecache, &file->handler,
+                         LSN_OFFSET(addr) / TRANSLOG_PAGE_SIZE,
+                         3, (direct_link ? NULL : buffer),
+                         PAGECACHE_PLAIN_PAGE,
+                         (direct_link ?
+                          PAGECACHE_LOCK_READ :
+                          PAGECACHE_LOCK_LEFT_UNLOCKED),
+                         direct_link);
   DBUG_PRINT("info", ("Direct link is assigned to : 0x%lx * 0x%lx",
                       (ulong) direct_link,
                       (ulong)(direct_link ? *direct_link : NULL)));
@@ -3485,6 +3486,8 @@ my_bool translog_init_with_table(const char *directory,
   id_to_share= NULL;
   log_descriptor.directory_fd= -1;
   log_descriptor.is_everything_flushed= 1;
+  log_descriptor.flush_in_progress= 0;
+  log_descriptor.flush_no= 0;
   log_descriptor.next_pass_max_lsn= LSN_IMPOSSIBLE;
 
   (*init_table_func)();
@@ -4162,7 +4165,7 @@ void translog_destroy()
     my_close(log_descriptor.directory_fd, MYF(MY_WME));
   my_atomic_rwlock_destroy(&LOCK_id_to_share);
   if (id_to_share != NULL)
-    my_free((uchar*)(id_to_share + 1), MYF(MY_WME));
+    my_free((id_to_share + 1), MYF(MY_WME));
   DBUG_VOID_RETURN;
 }
 
@@ -6328,7 +6331,7 @@ void translog_free_record_header(TRANSLOG_HEADER_BUFFER *buff)
   DBUG_ENTER("translog_free_record_header");
   if (buff->groups_no != 0)
   {
-    my_free((uchar*) buff->groups, MYF(0));
+    my_free(buff->groups, MYF(0));
     buff->groups_no= 0;
   }
   DBUG_VOID_RETURN;
@@ -7425,6 +7428,10 @@ static void translog_force_current_buffer_to_finish()
   log_descriptor.bc.buffer->offset= new_buff_beginning;
   log_descriptor.bc.write_counter= write_counter;
   log_descriptor.bc.previous_offset= previous_offset;
+  new_buffer->prev_last_lsn= BUFFER_MAX_LSN(old_buffer);
+  DBUG_PRINT("info", ("prev_last_lsn set to (%lu,0x%lx)  buffer: 0x%lx",
+                      LSN_IN_PARTS(new_buffer->prev_last_lsn),
+                      (ulong) new_buffer));
 
   /*
     Advances this log pointer, increases writers and let other threads to
@@ -7545,6 +7552,7 @@ void  translog_flush_wait_for_end(LSN lsn)
 
 void translog_flush_set_new_goal_and_wait(TRANSLOG_ADDRESS lsn)
 {
+  int flush_no= log_descriptor.flush_no;
   DBUG_ENTER("translog_flush_set_new_goal_and_wait");
   DBUG_PRINT("enter", ("LSN: (%lu,0x%lx)", LSN_IN_PARTS(lsn)));
   safe_mutex_assert_owner(&log_descriptor.log_flush_lock);
@@ -7553,7 +7561,7 @@ void translog_flush_set_new_goal_and_wait(TRANSLOG_ADDRESS lsn)
     log_descriptor.next_pass_max_lsn= lsn;
     log_descriptor.max_lsn_requester= pthread_self();
   }
-  while (log_descriptor.flush_in_progress)
+  while (flush_no == log_descriptor.flush_no)
   {
     pthread_cond_wait(&log_descriptor.log_flush_cond,
                       &log_descriptor.log_flush_lock);
@@ -7732,6 +7740,7 @@ out:
   if (sent_to_disk != LSN_IMPOSSIBLE)
     log_descriptor.flushed= sent_to_disk;
   log_descriptor.flush_in_progress= 0;
+  log_descriptor.flush_no++;
   DBUG_PRINT("info", ("flush_in_progress is dropped"));
   pthread_mutex_unlock(&log_descriptor.log_flush_lock);\
   pthread_cond_broadcast(&log_descriptor.log_flush_cond);

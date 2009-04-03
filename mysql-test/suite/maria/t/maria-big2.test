@@ -3968,8 +3968,6 @@ check table t2 extended;
 insert into t2(a,b) values ('khtlbejbtbtllowhmyhjyuyrioqcobsdzehdydiosshlsxmcazvggwvfdbsljoslaqbdmqunazcsmlvslxzkzwgihyfqmurpvhnxfdnqkzbegwboqymsxnfcespljoutxnfsomfamunmxklsklxxugokmhfoeetuxaqvrdmtpkpivjygmnpevzxodicjlwnloxizngjkwmfs','oa')
 ;
 check table t2 extended;
-if (0)
-{
 insert into t2(a,b) values ('jaiaxujiqrrozh','oieurlfbbwwlkguvnloqsslsvhwuscyczrabztoaplqxfkxfxzbheiiqaxxdlkouwsdokanmrybgumlkwndavk')
 ;
 insert into t2(a,b) values ('omjfobinorjjzunhhvttazeyaqsyzkmxaglnrvloidfvbcmtnzljwhrlsmfgcdxfxbrpvkgkpubwpxbnrdchqvkclttixvjaedmnmpsnvajjmboqcnammkydqdajqcdemkiwrxvhtrkygviuhoewderwszmxvgruofwqk','lqdgwouzhktfrlxbbezsxgzponchhognwjkqgovqxzgbgsmuilvhipqeyxttiyhbuvbhwjdtnttlneqhmxsbggejridrzniyadovgquxlgpgjpsrdeemjikkhe')
@@ -4072,5 +4070,6 @@ insert into t2(a,b) values ('vdypigdzycrldcfovmctkgeplggrowiuhybmwcwfna','vrgast
 ;
 insert into t2(a,b) values ('mozkakabudlebgqdozmskoznveytfekierfwfretwuirnxwdbhxfrembjguuizghjbgsiykzuenzgnrwpitpkbzdlaoofyzgkjisfsmgzaeqefothgxtxfnetuooyasqpmlfuoumztxryckfferfigfhlwjthlupgyrfbeneqsdnhftrhuldhgdkkpryrgazwergqxlhnboydjepgphierwwwcdreo','odaetcnblobbncllnwikkemfggnqwdmasluatsjltlrnkjxbtwofsxwtxjksejcmcihtbisgplpzjfmlldwporhoexdfaakpsziliengmjhkinoedmtfesewdtpjhksehtezhbujkbgtwxpyqzkwzaywyiocnplccfxuznlrbkligsazzng')
 ;
-}
 enable_query_log;
+check table t2 extended;
+drop table t2;

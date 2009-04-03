@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1773,7 +1773,7 @@ void multi_update::abort()
 {
   /* the error was handled or nothing deleted and no side effects return */
   if (error_handled ||
-      !thd->transaction.stmt.modified_non_trans_table && !updated)
+      (!thd->transaction.stmt.modified_non_trans_table && !updated))
     return;
 
   /* Something already updated so we have to invalidate cache */

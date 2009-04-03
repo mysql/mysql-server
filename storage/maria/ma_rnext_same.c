@@ -69,8 +69,8 @@ int maria_rnext_same(MARIA_HA *info, uchar *buf)
                                     SEARCH_BIGGER,
                                     info->s->state.key_root[inx])))
           break;
-        if (ha_key_cmp(keyinfo->seg, (uchar*) info->last_key.data,
-                       (uchar*) info->lastkey_buff2,
+        if (ha_key_cmp(keyinfo->seg, info->last_key.data,
+                       info->lastkey_buff2,
                        info->last_rkey_length, SEARCH_FIND,
                        not_used))
         {

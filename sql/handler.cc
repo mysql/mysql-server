@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -377,8 +377,7 @@ int ha_finalize_handlerton(st_plugin_int *plugin)
   if (!hton)
     goto end;
 
-  switch (hton->state)
-  {
+  switch (hton->state) {
   case SHOW_OPTION_NO:
   case SHOW_OPTION_DISABLED:
     break;
@@ -435,6 +434,9 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
     {
       sql_print_error("Plugin '%s' init function returned error.",
                       plugin->name.str);
+      /* Free data, so that we don't refer to it in ha_finalize_handlerton */
+      my_free(hton, MYF(0));
+      plugin->data= 0;
       goto err;
     }
   }
@@ -463,6 +465,8 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
         if (idx == (int) DB_TYPE_DEFAULT)
         {
           sql_print_warning("Too many storage engines!");
+          my_free(hton, MYF(0));
+          plugin->data= 0;
           DBUG_RETURN(1);
         }
         if (hton->db_type != DB_TYPE_UNKNOWN)
@@ -2266,8 +2270,8 @@ int handler::update_auto_increment()
   DBUG_ASSERT(next_insert_id >= auto_inc_interval_for_cur_row.minimum());
 
   if ((nr= table->next_number_field->val_int()) != 0 ||
-      table->auto_increment_field_not_null &&
-      thd->variables.sql_mode & MODE_NO_AUTO_VALUE_ON_ZERO)
+      (table->auto_increment_field_not_null &&
+       thd->variables.sql_mode & MODE_NO_AUTO_VALUE_ON_ZERO))
   {
     /*
       Update next_insert_id if we had already generated a value in this
@@ -2658,8 +2662,12 @@ void handler::print_error(int error, myf errflag)
     break;
   case HA_ERR_RECORD_FILE_FULL:
   case HA_ERR_INDEX_FILE_FULL:
+  {
     textno=ER_RECORD_FILE_FULL;
+    /* Write the error message to error log */
+    errflag|= ME_NOREFRESH;
     break;
+  }
   case HA_ERR_LOCK_WAIT_TIMEOUT:
     textno=ER_LOCK_WAIT_TIMEOUT;
     break;
