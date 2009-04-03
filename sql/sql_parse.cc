@@ -2800,6 +2800,10 @@ mysql_execute_command(THD *thd)
     if (res)
       goto error;
 
+    if (!thd->locked_tables && lex->protect_against_global_read_lock &&
+        !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
+      goto error;
+
     if (!(res= open_and_lock_tables(thd, all_tables)))
     {
       if (lex->describe)
@@ -3660,6 +3664,9 @@ end_with_restore_list:
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     if (update_precheck(thd, all_tables))
       break;
+    if (!thd->locked_tables &&
+        !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
+      goto error;
     DBUG_ASSERT(select_lex->offset_limit == 0);
     unit->set_limit(select_lex);
     res= (up_result= mysql_update(thd, all_tables,
@@ -3685,6 +3692,15 @@ end_with_restore_list:
     }
     else
       res= 0;
+
+    /*
+      Protection might have already been risen if its a fall through
+      from the SQLCOM_UPDATE case above.
+    */
+    if (!thd->locked_tables &&
+        lex->sql_command == SQLCOM_UPDATE_MULTI &&
+        !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
+      goto error;
 
     res= mysql_multi_update_prepare(thd);
 
@@ -3853,7 +3869,8 @@ end_with_restore_list:
                  ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
       goto error;
     }
-
+    if (!(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
+      goto error;
     res= mysql_truncate(thd, first_table, 0);
     break;
   case SQLCOM_DELETE:
@@ -4027,6 +4044,10 @@ end_with_restore_list:
     if (check_one_table_access(thd, privilege, all_tables))
       goto error;
 
+    if (!thd->locked_tables &&
+        !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
+      goto error;
+
     res= mysql_load(thd, lex->exchange, first_table, lex->field_list,
                     lex->update_list, lex->value_list, lex->duplicates,
                     lex->ignore, (bool) lex->local_file);
@@ -4081,6 +4102,9 @@ end_with_restore_list:
     if (check_db_used(thd, all_tables))
       goto error;
     if (check_table_access(thd, LOCK_TABLES_ACL | SELECT_ACL, all_tables, 0))
+      goto error;
+    if (lex->protect_against_global_read_lock &&
+        !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
       goto error;
     thd->in_lock_tables=1;
     thd->options|= OPTION_TABLE_LOCK;
