@@ -27,8 +27,7 @@ pkginclude_HEADERS =	$(HEADERS_ABI) my_dbug.h m_string.h my_sys.h \
 			my_getopt.h sslopt-longopts.h my_dir.h \
 			sslopt-vars.h sslopt-case.h sql_common.h keycache.h \
 			m_ctype.h my_attribute.h $(HEADERS_GEN_CONFIGURE) \
-			$(HEADERS_GEN_MAKE) probes_mysql.h \
-			probes_mysql_nodtrace.h
+			$(HEADERS_GEN_MAKE) probes_mysql.h probes_mysql_nodtrace.h
 
 noinst_HEADERS =	config-win.h config-netware.h my_bit.h \
 			heap.h my_bitmap.h my_uctype.h \
@@ -44,10 +43,10 @@ noinst_HEADERS =	config-win.h config-netware.h my_bit.h \
 			atomic/gcc_builtins.h my_libwrap.h my_stacktrace.h \
 			probes_mysql.h probes_mysql_nodtrace.h
 
-EXTRA_DIST =        mysql.h.pp mysql/plugin.h.pp probes_mysql.d.base
+EXTRA_DIST =        mysql.h.pp mysql/plugin.h.pp probes_mysql.d.base 
 
 # Remove built files and the symlinked directories
-CLEANFILES =            $(BUILT_SOURCES) readline openssl
+CLEANFILES =            $(BUILT_SOURCES) readline openssl probes_mysql.d probes_mysql_nodtrace.h
 
 
 # Some include files that may be moved and patched by configure
