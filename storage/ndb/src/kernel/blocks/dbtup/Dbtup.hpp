@@ -2613,6 +2613,11 @@ private:
 //------------------------------------------------------------------
   void tupkeyErrorLab(Signal* signal);
   void do_tup_abortreq(Signal*, Uint32 flags);
+  bool do_tup_abort_operation(Signal*, Tuple_header *,
+                              Operationrec*,
+                              Fragrecord*,
+                              Tablerec*,
+                              Uint32);
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
