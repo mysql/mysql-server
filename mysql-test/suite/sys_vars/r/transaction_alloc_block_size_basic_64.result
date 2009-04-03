@@ -67,7 +67,7 @@ SELECT @@global.transaction_alloc_block_size;
 1024
 SET @@global.transaction_alloc_block_size = -1024;
 Warnings:
-Warning	1292	Truncated incorrect transaction_alloc_block_size value: '0'
+Warning	1292	Truncated incorrect transaction_alloc_block_size value: '-1024'
 SELECT @@global.transaction_alloc_block_size;
 @@global.transaction_alloc_block_size
 1024
