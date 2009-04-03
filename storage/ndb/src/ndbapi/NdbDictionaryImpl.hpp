@@ -553,20 +553,29 @@ public:
       Uint32 m_gsn;
       NdbTableImpl* m_impl;
     };
-    bool m_transOn;
+    enum State {
+      NotStarted,
+      Started,
+      Committed,
+      Aborted
+    };
+    State m_state;
+    NdbError m_error;
     Uint32 m_transId;   // API
     Uint32 m_transKey;  // DICT
     Vector<Op> m_op;
     Tx() :
-      m_transOn(false),
+      m_state(NotStarted),
       m_transId(0),
       m_transKey(0)
-    {}
+    {
+      m_error.code = 0;
+    }
     Uint32 transId() const {
-      return m_transOn ? m_transId : 0;
+      return (m_state == Started) ? m_transId : 0;
     }
     Uint32 transKey() const {
-      return m_transOn ? m_transKey : 0;
+      return (m_state == Started) ? m_transKey : 0;
     }
     Uint32 requestFlags() const {
       Uint32 flags = 0;
@@ -851,7 +860,8 @@ public:
 
   int beginSchemaTrans();
   int endSchemaTrans(Uint32 flags);
-  bool hasSchemaTrans() const { return m_tx.m_transOn; }
+  bool hasSchemaTrans() const
+    { return (m_tx.m_state == NdbDictInterface::Tx::Started); }
   NdbDictInterface::Tx m_tx;
 
   const NdbError & getNdbError() const;
