@@ -34,18 +34,9 @@ Dbtup::do_tup_abort_operation(Signal* signal,
                               Tuple_header *tuple_ptr,
                               Operationrec* opPtrP,
                               Fragrecord* fragPtrP,
-                              Tablerec* tablePtrP,
-                              Uint32 flags)
+                              Tablerec* tablePtrP)
 {
   bool change = true;
-  if (!tablePtrP->tuxCustomTriggers.isEmpty() && 
-      ! (flags & ZSKIP_TUX_TRIGGERS))
-  {
-    executeTuxAbortTriggers(signal,
-                            opPtrP,
-                            fragPtrP,
-                            tablePtrP);
-  }
 
   Uint32 bits= tuple_ptr->m_header_bits;  
   if (opPtrP->op_struct.op_type != ZDELETE)
@@ -165,40 +156,70 @@ void Dbtup::do_tup_abortreq(Signal* signal, Uint32 flags)
   {
     jam();
 
-    bool change = false;
-
-    change = do_tup_abort_operation(signal, 
-                                    tuple_ptr,
-                                    regOperPtr.p,
-                                    regFragPtr.p,
-                                    regTabPtr.p,
-                                    flags);
-    
-    OperationrecPtr loopOpPtr;
-    loopOpPtr.i = regOperPtr.p->nextActiveOp;
-    while (loopOpPtr.i != RNIL) 
+    /**
+     * abort all TUX entries first...if present
+     */
+    if (!regTabPtr.p->tuxCustomTriggers.isEmpty() && 
+        ! (flags & ZSKIP_TUX_TRIGGERS))
     {
       jam();
-      c_operation_pool.getPtr(loopOpPtr);
-      if (get_tuple_state(loopOpPtr.p) != TUPLE_ALREADY_ABORTED)
+      executeTuxAbortTriggers(signal,
+                              regOperPtr.p,
+                              regFragPtr.p,
+                              regTabPtr.p);
+
+      OperationrecPtr loopOpPtr;
+      loopOpPtr.i = regOperPtr.p->nextActiveOp;
+      while (loopOpPtr.i != RNIL) 
       {
         jam();
-        change |= do_tup_abort_operation(signal,
-                                         tuple_ptr,
-                                         loopOpPtr.p,
-                                         regFragPtr.p,
-                                         regTabPtr.p,
-                                         flags);
-        set_tuple_state(loopOpPtr.p, TUPLE_ALREADY_ABORTED);      
-        
+        c_operation_pool.getPtr(loopOpPtr);
+        if (get_tuple_state(loopOpPtr.p) != TUPLE_ALREADY_ABORTED)
+        {
+          jam();
+          executeTuxAbortTriggers(signal,
+                                  loopOpPtr.p,
+                                  regFragPtr.p,
+                                  regTabPtr.p);
+        }
+        loopOpPtr.i = loopOpPtr.p->nextActiveOp;
       }
-      loopOpPtr.i = loopOpPtr.p->nextActiveOp;
     }
-    
-    if (change && (regTabPtr.p->m_bits & Tablerec::TR_Checksum)) 
+
+    /**
+     * Then abort all data changes
+     */
     {
-      jam();
-      setChecksum(tuple_ptr, regTabPtr.p);
+      bool change = do_tup_abort_operation(signal, 
+                                           tuple_ptr,
+                                           regOperPtr.p,
+                                           regFragPtr.p,
+                                           regTabPtr.p);
+      
+      OperationrecPtr loopOpPtr;
+      loopOpPtr.i = regOperPtr.p->nextActiveOp;
+      while (loopOpPtr.i != RNIL) 
+      {
+        jam();
+        c_operation_pool.getPtr(loopOpPtr);
+        if (get_tuple_state(loopOpPtr.p) != TUPLE_ALREADY_ABORTED)
+        {
+          jam();
+          change |= do_tup_abort_operation(signal,
+                                           tuple_ptr,
+                                           loopOpPtr.p,
+                                           regFragPtr.p,
+                                           regTabPtr.p);
+          set_tuple_state(loopOpPtr.p, TUPLE_ALREADY_ABORTED);      
+        }
+        loopOpPtr.i = loopOpPtr.p->nextActiveOp;
+      }
+    
+      if (change && (regTabPtr.p->m_bits & Tablerec::TR_Checksum)) 
+      {
+        jam();
+        setChecksum(tuple_ptr, regTabPtr.p);
+      }
     }
   }
   
