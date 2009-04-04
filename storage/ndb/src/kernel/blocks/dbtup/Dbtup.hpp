@@ -2616,8 +2616,7 @@ private:
   bool do_tup_abort_operation(Signal*, Tuple_header *,
                               Operationrec*,
                               Fragrecord*,
-                              Tablerec*,
-                              Uint32);
+                              Tablerec*);
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
