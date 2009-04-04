@@ -3709,7 +3709,7 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
 
 
     bzero(&row_descriptor, sizeof(row_descriptor));
-    row_desc_buff = (uchar *)my_malloc((table_share->fields * 6)+4 ,MYF(MY_WME));
+    row_desc_buff = (uchar *)my_malloc((table_share->fields * 6)+10 ,MYF(MY_WME));
     if (row_desc_buff == NULL){ error = ENOMEM; goto cleanup;}
 
     dirname = (char *)my_malloc(get_name_length(name) + NAME_CHAR_LEN,MYF(MY_WME));
@@ -4305,7 +4305,7 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
     tmp_prim_key_buff = (uchar *)my_malloc(2*table_arg->s->rec_buff_length, MYF(MY_WME));
     tmp_record = (uchar *)my_malloc(table_arg->s->rec_buff_length,MYF(MY_WME));
     tmp_record2 = (uchar *)my_malloc(2*table_arg->s->rec_buff_length,MYF(MY_WME));
-    row_desc_buff = (uchar *)my_malloc((table_share->fields * 6)+4 ,MYF(MY_WME));
+    row_desc_buff = (uchar *)my_malloc((table_share->fields * 6)+10 ,MYF(MY_WME));
     if (newname == NULL || 
         tmp_key_buff == NULL ||
         tmp_prim_key_buff == NULL ||
