@@ -229,6 +229,7 @@ mysqld_LDADD += probes_all.o
 mysqld_DEPENDENCIES += dtrace_files dtrace_providers probes_all.o
 CLEANFILES += dtrace_files dtrace_providers probes_all.o
 DTRACEPROVIDER = probes_mysql.d
+CLEANFILES += $(DTRACEPROVIDER)
 
 dtrace_files:
 	echo $(DTRACEFILES) > $@

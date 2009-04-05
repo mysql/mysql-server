@@ -48,6 +48,7 @@ libcsv_a_DEPENDENCIES = probes_mysql.o dtrace_files dtrace_providers
 CLEANFILES = probes_mysql.o dtrace_files dtrace_providers
 DTRACEFILES = libcsv_a-ha_tina.o
 DTRACEPROVIDER = probes_mysql.d
+CLEANFILES += $(DTRACEPROVIDER) dtrace_sources
 
 dtrace_files:
 	echo $(DTRACEFILES) > $@
