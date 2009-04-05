@@ -83,10 +83,6 @@ void Dbacc::execCONTINUEB(Signal* signal)
     initialiseRecordsLab(signal, signal->theData[3], signal->theData[4]);
     return;
     break;
-  case ZSEND_SCAN_HBREP:
-    jam();
-    sendScanHbRep(signal, tdata0);
-    break;
   case ZREL_ROOT_FRAG:
     {
       jam();
@@ -519,8 +515,6 @@ void Dbacc::initialiseScanRec(Signal* signal)
     ptrAss(scanPtr, scanRec);
     scanPtr.p->scanNextfreerec = scanPtr.i + 1;
     scanPtr.p->scanState = ScanRec::SCAN_DISCONNECT;
-    scanPtr.p->scanTimer = 0;
-    scanPtr.p->scanContinuebCounter = 0;
   }//for
   scanPtr.i = cscanRecSize - 1;
   ptrAss(scanPtr, scanRec);
@@ -6277,18 +6271,6 @@ void Dbacc::execACC_SCANREQ(Signal* signal)
   scanPtr.p->scanState = ScanRec::WAIT_NEXT;
   initScanFragmentPart(signal);
 
-  /*------------------------------------------------------*/
-  /* We start the timeout loop for the scan process here. */
-  /*------------------------------------------------------*/
-  ndbrequire(scanPtr.p->scanTimer == 0);
-  if (scanPtr.p->scanContinuebCounter == 0) {
-    jam();
-    scanPtr.p->scanContinuebCounter = 1;
-    signal->theData[0] = ZSEND_SCAN_HBREP;
-    signal->theData[1] = scanPtr.i;
-    sendSignalWithDelay(cownBlockref, GSN_CONTINUEB, signal, 100, 2);
-  }//if
-  scanPtr.p->scanTimer = scanPtr.p->scanContinuebCounter;
   /* ************************ */
   /*  ACC_SCANCONF            */
   /* ************************ */
@@ -6327,7 +6309,6 @@ void Dbacc::execNEXT_SCANREQ(Signal* signal)
   ptrCheckGuard(scanPtr, cscanRecSize, scanRec);
   ndbrequire(scanPtr.p->scanState == ScanRec::WAIT_NEXT);
 
-  scanPtr.p->scanTimer = scanPtr.p->scanContinuebCounter;
   switch (tscanNextFlag) {
   case NextScanReq::ZSCAN_NEXT:
     jam();
@@ -6663,7 +6644,6 @@ void Dbacc::releaseScanLab(Signal* signal)
     }//if
   }//for
   // Stops the heartbeat.
-  scanPtr.p->scanTimer = 0;
   signal->theData[0] = scanPtr.p->scanUserptr;
   signal->theData[1] = RNIL;
   signal->theData[2] = RNIL;
@@ -6853,8 +6833,6 @@ void Dbacc::execACC_CHECK_SCAN(Signal* signal)
     execACC_CHECK_SCAN(signal);
     return;
   }//if
-
-  scanPtr.p->scanTimer = scanPtr.p->scanContinuebCounter;
 
   fragrecptr.i = scanPtr.p->activeLocalFrag;
   ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
@@ -7351,7 +7329,6 @@ bool Dbacc::searchScanContainer(Signal* signal)
 /* --------------------------------------------------------------------------------- */
 void Dbacc::sendNextScanConf(Signal* signal) 
 {
-  scanPtr.p->scanTimer = scanPtr.p->scanContinuebCounter;
   Uint32 blockNo = refToBlock(scanPtr.p->scanUserblockref);
   jam();
   /** ---------------------------------------------------------------------
@@ -7367,41 +7344,6 @@ void Dbacc::sendNextScanConf(Signal* signal)
   EXECUTE_DIRECT(blockNo, GSN_NEXT_SCANCONF, signal, 6);
   return;
 }//Dbacc::sendNextScanConf()
-
-/*---------------------------------------------------------------------------
- * sendScanHbRep     	      	             	      	             	       
- * Description: Using Dispatcher::execute() to send a heartbeat to DBTC
- *     	from DBLQH telling the scan is alive. We use the sendScanHbRep()
- *     	in DBLQH, this needs to be done here in DBACC since it can take
- *	a while before LQH receives an answer the normal way from ACC. 
- *--------------------------------------------------------------------------*/
-void Dbacc::sendScanHbRep(Signal* signal, Uint32 scanPtrIndex)
-{
-  scanPtr.i = scanPtrIndex;
-  ptrCheckGuard(scanPtr, cscanRecSize, scanRec);
- 
-  // If the timer status is on we continue with a new heartbeat in one second,
-  // else the loop stops and we will not send a new CONTINUEB
-  if (scanPtr.p->scanTimer != 0){
-    if (scanPtr.p->scanTimer == scanPtr.p->scanContinuebCounter){
-      jam();
-      ndbrequire(scanPtr.p->scanState != ScanRec::SCAN_DISCONNECT);
-
-      signal->theData[0] = scanPtr.p->scanUserptr;
-      signal->theData[1] = scanPtr.p->scanTrid1;
-      signal->theData[2] = scanPtr.p->scanTrid2;
-      EXECUTE_DIRECT(DBLQH, GSN_SCAN_HBREP, signal, 3);
-      jamEntry();
-    }//if
-    scanPtr.p->scanContinuebCounter++;
-    signal->theData[0] = ZSEND_SCAN_HBREP;
-    signal->theData[1] = scanPtr.i;
-    sendSignalWithDelay(cownBlockref, GSN_CONTINUEB, signal, 100, 2);
-  } else {
-    jam();
-    scanPtr.p->scanContinuebCounter = 0;
-  }//if
-}//Dbacc::sendScanHbRep()			
 
 /* --------------------------------------------------------------------------------- */
 /* SETLOCK                                                                           */
@@ -8263,10 +8205,7 @@ Dbacc::execDUMP_STATE_ORD(Signal* signal)
     infoEvent("Dbacc::ScanRec[%d]: state=%d, transid(0x%x, 0x%x)",
 	      scanPtr.i, scanPtr.p->scanState,scanPtr.p->scanTrid1,
 	      scanPtr.p->scanTrid2);
-    infoEvent(" timer=%d, continueBCount=%d, "
-	      "activeLocalFrag=%d, nextBucketIndex=%d",
-	      scanPtr.p->scanTimer,
-	      scanPtr.p->scanContinuebCounter,
+    infoEvent(" activeLocalFrag=%d, nextBucketIndex=%d",
 	      scanPtr.p->activeLocalFrag,
 	      scanPtr.p->nextBucketIndex);
     infoEvent(" scanNextfreerec=%d firstActOp=%d firstLockedOp=%d, "
