@@ -361,6 +361,7 @@ void init_slave_skip_errors(const char* arg)
   if (!my_strnncoll(system_charset_info,(uchar*)arg,4,(const uchar*)"all",4))
   {
     bitmap_set_all(&slave_error_mask);
+    print_slave_skip_errors();
     DBUG_VOID_RETURN;
   }
   for (p= arg ; *p; )
