@@ -1175,6 +1175,9 @@ void Dblqh::execREAD_CONFIG_REQ(Signal* signal)
   {
     ndbrequire(cmaxLogFilesInPageZero);
   }
+
+  ndb_mgm_get_int_parameter(p, CFG_DB_TRANSACTION_DEADLOCK_TIMEOUT, 
+                            &cTransactionDeadlockDetectionTimeout);
   
   initRecords();
   initialiseRecordsLab(signal, 0, ref, senderData);
@@ -2298,7 +2301,7 @@ void Dblqh::execTIME_SIGNAL(Signal* signal)
   jamEntry();
   cLqhTimeOutCount++;
   cLqhTimeOutCheckCount++;
-  if (cLqhTimeOutCheckCount < 10) {
+  if (cLqhTimeOutCheckCount < 1000) {
     jam();
     return;
   }//if
@@ -2311,12 +2314,12 @@ void Dblqh::execTIME_SIGNAL(Signal* signal)
     jam();
     ptrAss(tTcConptr, tcConnectionrec);
     if ((tTcConptr.p->tcTimer != 0) &&
-	((tTcConptr.p->tcTimer + 120) < cLqhTimeOutCount)) {
+	((tTcConptr.p->tcTimer + 12000) < cLqhTimeOutCount)) {
       ndbout << "Dblqh::execTIME_SIGNAL"<<endl
 	     << "Timeout found in tcConnectRecord " <<tTcConptr.i<<endl
 	     << " cLqhTimeOutCount = " << cLqhTimeOutCount << endl
 	     << " tcTimer="<<tTcConptr.p->tcTimer<<endl
-	     << " tcTimer+120="<<tTcConptr.p->tcTimer + 120<<endl;
+	     << " tcTimer+12000="<<tTcConptr.p->tcTimer + 12000<<endl;
 
       signal->theData[0] = 2307;
       signal->theData[1] = tTcConptr.i;
@@ -2331,7 +2334,7 @@ void Dblqh::execTIME_SIGNAL(Signal* signal)
   for (lfoPtr.i = 0; lfoPtr.i < clfoFileSize; lfoPtr.i++) {
     ptrAss(lfoPtr, logFileOperationRecord);
     if ((lfoPtr.p->lfoTimer != 0) &&
-        ((lfoPtr.p->lfoTimer + 120) < cLqhTimeOutCount)) {
+        ((lfoPtr.p->lfoTimer + 12000) < cLqhTimeOutCount)) {
       ndbout << "We have lost LFO record" << endl;
       ndbout << "index = " << lfoPtr.i;
       ndbout << "State = " << lfoPtr.p->lfoState;
@@ -8265,7 +8268,7 @@ void Dblqh::execSCAN_NEXTREQ(Signal* signal)
   scanptr.i = tcConnectptr.p->tcScanRec;
   ndbrequire(scanptr.i != RNIL);
   c_scanRecordPool.getPtr(scanptr);
-  scanptr.p->scanTcWaiting = ZTRUE;
+  scanptr.p->scanTcWaiting = cLqhTimeOutCount;
 
   /* ------------------------------------------------------------------
    * If close flag is set this scan should be closed
@@ -8536,6 +8539,8 @@ void Dblqh::scanLockReleasedLab(Signal* signal)
 {
   tcConnectptr.i = scanptr.p->scanTcrec;
   ptrCheckGuard(tcConnectptr, ctcConnectrecFileSize, tcConnectionrec);  
+
+  check_send_scan_hb_rep(signal, scanptr.p, tcConnectptr.p);
 
   if (scanptr.p->scanReleaseCounter == scanptr.p->m_curr_batch_size_rows) {
     if ((scanptr.p->scanErrorCounter > 0) ||
@@ -8929,44 +8934,58 @@ void Dblqh::abort_scan(Signal* signal, Uint32 scan_ptr_i, Uint32 errcode){
 /* We include the scanPtr.i that comes from ACC in signalData[1], this */
 /* tells TC which fragment record to check for a timeout.              */
 /*---------------------------------------------------------------------*/
-void Dblqh::execSCAN_HBREP(Signal* signal)
+void
+Dblqh::check_send_scan_hb_rep(Signal* signal, 
+                              ScanRecord* scanPtrP,
+                              TcConnectionrec* tcPtrP)
 {
-  jamEntry();
-  scanptr.i = signal->theData[0];
-  c_scanRecordPool.getPtr(scanptr);
-  switch(scanptr.p->scanType){
+  switch(scanPtrP->scanType){
   case ScanRecord::SCAN:
-    if (scanptr.p->scanTcWaiting == ZTRUE) {
-      jam();
-      tcConnectptr.i = scanptr.p->scanTcrec;  
-      ptrCheckGuard(tcConnectptr, ctcConnectrecFileSize, tcConnectionrec);
-
-      ptrCheckGuard(tcConnectptr, ctcConnectrecFileSize, tcConnectionrec);
-      const Uint32 transid1  = signal->theData[1];
-      const Uint32 transid2  = signal->theData[2];
-      ndbrequire(transid1 == tcConnectptr.p->transid[0] && 
-		 transid2 == tcConnectptr.p->transid[1]);
-
-      // Update counter on tcConnectPtr
-      if (tcConnectptr.p->tcTimer != 0){
-	tcConnectptr.p->tcTimer = cLqhTimeOutCount;
-      } else {
-        jam();
-	//ndbout << "SCAN_HBREP when tcTimer was off" << endl;	
-      }
-      
-      signal->theData[0] = tcConnectptr.p->clientConnectrec;
-      signal->theData[1] = tcConnectptr.p->transid[0];
-      signal->theData[2] = tcConnectptr.p->transid[1];
-      sendSignal(tcConnectptr.p->clientBlockref,
-                 GSN_SCAN_HBREP, signal, 3, JBB);
-    }//if
     break;
   case ScanRecord::COPY:
-    //    ndbout << "Dblqh::execSCAN_HBREP Dropping SCAN_HBREP" << endl;
-    break;
+    return;
+#ifdef NDEBUG
+  case ScanRecord::ST_IDLE:
   default:
+    return;
+#else
+  case ScanRecord::ST_IDLE:
     ndbrequire(false);
+#endif
+  }
+
+  Uint64 now = cLqhTimeOutCount;         // measure in 10ms
+  Uint64 last = scanPtrP->scanTcWaiting; // last time we reported to TC (10ms)
+  Uint64 timeout = cTransactionDeadlockDetectionTimeout; // (ms)
+  Uint64 limit = (3*timeout) / 4;
+
+  bool alarm = 
+    now >= ((10 * last + limit) / 10) || now < last; // wrap
+    
+  if (alarm)
+  {
+    jam();
+
+    scanPtrP->scanTcWaiting = Uint32(now);
+    if (tcPtrP->tcTimer != 0)
+    {
+      tcPtrP->tcTimer = Uint32(now);
+    }      
+
+    Uint32 save[3];
+    save[0] = signal->theData[0];
+    save[1] = signal->theData[1];
+    save[2] = signal->theData[2];
+
+    signal->theData[0] = tcPtrP->clientConnectrec;
+    signal->theData[1] = tcPtrP->transid[0];
+    signal->theData[2] = tcPtrP->transid[1];
+    sendSignal(tcPtrP->clientBlockref,
+               GSN_SCAN_HBREP, signal, 3, JBB);
+
+    signal->theData[0] = save[0];
+    signal->theData[1] = save[1];
+    signal->theData[2] = save[2];
   }
 }
 
@@ -8975,6 +8994,7 @@ void Dblqh::accScanConfScanLab(Signal* signal)
   AccScanConf * const accScanConf = (AccScanConf *)&signal->theData[0];
   tcConnectptr.i = scanptr.p->scanTcrec;
   ptrCheckGuard(tcConnectptr, ctcConnectrecFileSize, tcConnectionrec);
+
   /* -----------------------------------------------------------------------
    *       PRECONDITION: SCAN_STATE = WAIT_ACC_SCAN
    * ----------------------------------------------------------------------- */
@@ -8987,6 +9007,9 @@ void Dblqh::accScanConfScanLab(Signal* signal)
     tupScanCloseConfLab(signal);
     return;
   }//if
+
+  check_send_scan_hb_rep(signal, scanptr.p, tcConnectptr.p);
+
   scanptr.p->scanAccPtr = accScanConf->accPtr;
   if (scanptr.p->rangeScan) {
     jam();
@@ -9249,6 +9272,7 @@ void Dblqh::execCHECK_LCP_STOP(Signal* signal)
   tcConnectptr.i = scanptr.p->scanTcrec;
   ptrCheckGuard(tcConnectptr, ctcConnectrecFileSize, tcConnectionrec);
   fragptr.i = tcConnectptr.p->fragmentptr;
+
   c_fragment_pool.getPtr(fragptr);
   if (signal->theData[1] == ZTRUE) {
     jam();
@@ -9314,6 +9338,7 @@ void Dblqh::nextScanConfScanLab(Signal* signal)
   NextScanConf * const nextScanConf = (NextScanConf *)&signal->theData[0];
   tcConnectptr.i = scanptr.p->scanTcrec;
   ptrCheckGuard(tcConnectptr, ctcConnectrecFileSize, tcConnectionrec);
+
   if (nextScanConf->fragId == RNIL) {
     jam();
     /* ---------------------------------------------------------------------
@@ -9394,7 +9419,9 @@ void Dblqh::nextScanConfScanLab(Signal* signal)
                GSN_ACC_CHECK_SCAN, signal, 2, JBB);
     return;
   }//if
+
   jam();
+  check_send_scan_hb_rep(signal, scanptr.p, tcConnectptr.p);
   set_acc_ptr_in_scan_record(scanptr.p,
                              scanptr.p->m_curr_batch_size_rows,
                              accOpPtr);
@@ -9777,8 +9804,10 @@ void Dblqh::scanTupkeyRefLab(Signal* signal)
     return;
   }//if
   Uint32 time_passed= tcConnectptr.p->tcTimer - cLqhTimeOutCount;
-  if (rows) {
-    if (time_passed > 1) {
+  if (rows) 
+  {
+    if (time_passed > 1) 
+    {
   /* -----------------------------------------------------------------------
    *  WE NEED TO ENSURE THAT WE DO NOT SEARCH FOR THE NEXT TUPLE FOR A 
    *  LONG TIME WHILE WE KEEP A LOCK ON A FOUND TUPLE. WE RATHER REPORT 
@@ -9789,15 +9818,8 @@ void Dblqh::scanTupkeyRefLab(Signal* signal)
       scanReleaseLocksLab(signal);
       return;
     }
-  } else {
-    if (time_passed > 10) {
-      jam();
-      signal->theData[0]= scanptr.i;
-      signal->theData[1]= tcConnectptr.p->transid[0];
-      signal->theData[2]= tcConnectptr.p->transid[1];
-      execSCAN_HBREP(signal);
-    }
   }
+
   scanptr.p->scanFlag = NextScanReq::ZSCAN_NEXT_ABORT;
   scanNextLoopLab(signal);
 }//Dblqh::scanTupkeyRefLab()
@@ -9966,7 +9988,7 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq)
   scanptr.p->scanState = ScanRecord::SCAN_FREE;
   scanptr.p->scanFlag = ZFALSE;
   scanptr.p->m_row_id.setNull();
-  scanptr.p->scanTcWaiting = ZTRUE;
+  scanptr.p->scanTcWaiting = cLqhTimeOutCount;
   scanptr.p->scanNumber = ~0;
   scanptr.p->scanApiOpPtr = scanFragReq->clientOpPtr;
   scanptr.p->m_last_row = 0;
@@ -10204,7 +10226,7 @@ void Dblqh::releaseScanrec(Signal* signal)
 {
   scanptr.p->scanState = ScanRecord::SCAN_FREE;
   scanptr.p->scanType = ScanRecord::ST_IDLE;
-  scanptr.p->scanTcWaiting = ZFALSE;
+  scanptr.p->scanTcWaiting = 0;
   cbookedAccOps -= scanptr.p->m_max_batch_size_rows;
   cscanNoFreeRec++;
 }//Dblqh::releaseScanrec()
@@ -10326,7 +10348,7 @@ void Dblqh::sendScanFragConf(Signal* signal, Uint32 scanCompleted)
 {
   Uint32 completed_ops= scanptr.p->m_curr_batch_size_rows;
   Uint32 total_len= scanptr.p->m_curr_batch_size_bytes;
-  scanptr.p->scanTcWaiting = ZFALSE;
+  scanptr.p->scanTcWaiting = 0;
 
   if(ERROR_INSERTED(5037)){
     CLEAR_ERROR_INSERT_VALUE;
@@ -17624,7 +17646,7 @@ void Dblqh::initialiseScanrec(Signal* signal)
     refresh_watch_dog();
     scanptr.p->scanType = ScanRecord::ST_IDLE;
     scanptr.p->scanState = ScanRecord::SCAN_FREE;
-    scanptr.p->scanTcWaiting = ZFALSE;
+    scanptr.p->scanTcWaiting = 0;
     scanptr.p->nextHash = RNIL;
     scanptr.p->prevHash = RNIL;
     scanptr.p->scan_acc_index= 0;
