@@ -2248,8 +2248,6 @@ void Qmgr::initData(Signal* signal)
   interface_check_timer.reset();
   clatestTransactionCheck = 0;
 
-  cLqhTimeSignalCount = 0;
-
   // catch-all for missing initializations
   memset(&arbitRec, 0, sizeof(arbitRec));
 
@@ -2388,11 +2386,7 @@ void Qmgr::timerHandlingLab(Signal* signal)
       jam();
       clatestTransactionCheck += (NDB_TICKS)10;
       sendSignal(DBTC_REF, GSN_TIME_SIGNAL, signal, 1, JBB);
-      cLqhTimeSignalCount++;
-      if (cLqhTimeSignalCount >= 100) {
-	cLqhTimeSignalCount = 0;
-	sendSignal(DBLQH_REF, GSN_TIME_SIGNAL, signal, 1, JBB);          
-      }//if
+      sendSignal(DBLQH_REF, GSN_TIME_SIGNAL, signal, 1, JBB);          
       counter++;
       if (counter > 1) {
 	jam();

@@ -548,6 +548,7 @@ public:
     UintR scanAiLength;
     UintR scanErrorCounter;
     UintR scanSchemaVersion;
+    Uint32 scanTcWaiting; // When the request came from TC, 0 is no request
 
     /**
      * This is _always_ main table, even in range scan
@@ -575,7 +576,6 @@ public:
     Uint8 descending;
     Uint8 tupScan;
     Uint8 lcpScan;
-    Uint8 scanTcWaiting;
     Uint8 scanKeyinfoFlag;
     Uint8 m_last_row;
   }; // Size 272 bytes
@@ -2163,7 +2163,6 @@ private:
   void execFSREADCONF(Signal* signal);
   void execFSREADREF(Signal* signal);
   void execFSWRITEREQ(Signal*);
-  void execSCAN_HBREP(Signal* signal);
   void execTIME_SIGNAL(Signal* signal);
   void execFSSYNCCONF(Signal* signal);
 
@@ -2559,6 +2558,8 @@ private:
   void send_restore_lcp(Signal * signal);
   void execRESTORE_LCP_REF(Signal* signal);
   void execRESTORE_LCP_CONF(Signal* signal);
+
+  void check_send_scan_hb_rep(Signal* signal, ScanRecord*, TcConnectionrec*);
   
   Dbtup* c_tup;
   Dbacc* c_acc;
@@ -2870,6 +2871,7 @@ private:
   BlockReference ctupBlockref;
   BlockReference ctuxBlockref;
   BlockReference cownref;
+  Uint32 cTransactionDeadlockDetectionTimeout;
   UintR cLqhTimeOutCount;
   UintR cLqhTimeOutCheckCount;
   UintR cnoOfLogPages;

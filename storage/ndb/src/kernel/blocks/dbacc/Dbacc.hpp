@@ -148,7 +148,6 @@ ndbout << "Ptr: " << ptr.p->word32 << " \tIndex: " << tmp_string << " \tValue: "
 /* CONTINUEB CODES                                                                   */
 /* --------------------------------------------------------------------------------- */
 #define ZINITIALISE_RECORDS 1
-#define ZSEND_SCAN_HBREP 4
 #define ZREL_ROOT_FRAG 5
 #define ZREL_FRAG 6
 #define ZREL_DIR 7
@@ -605,8 +604,6 @@ struct ScanRec {
   Uint32 scanUserblockref;
   Uint32 scanMask;
   Uint8 scanLockMode;
-  Uint8 scanTimer;
-  Uint8 scanContinuebCounter;
   Uint8 scanReadCommittedFlag;
 }; 
 
@@ -817,7 +814,6 @@ private:
   void sendSystemerror(Signal* signal, int line);
   void takeRecOutOfFreeOverdir(Signal* signal);
   void takeRecOutOfFreeOverpage(Signal* signal);
-  void sendScanHbRep(Signal* signal, Uint32);
 
   void addFragRefuse(Signal* signal, Uint32 errorCode);
   void ndbsttorryLab(Signal* signal);
