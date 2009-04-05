@@ -18,7 +18,7 @@ toku_pthread_rwlock_destroy(toku_pthread_rwlock_t *rwlock) {
     rwlock->initialized = FALSE;
     //Windows does not have a cleanup function for SRWLocks.
     //You just stop using them.
-    //return 0;
+    return 0;
 }
 
 int

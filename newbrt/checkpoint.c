@@ -53,8 +53,8 @@
 
 #include <stdio.h>
 
-#include "brttypes.h"
 #include "toku_portability.h"
+#include "brttypes.h"
 #include "cachetable.h"
 #include "checkpoint.h"
 

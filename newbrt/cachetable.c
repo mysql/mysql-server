@@ -91,14 +91,26 @@ struct ctpair {
     struct rwlock rwlock; // multiple get's, single writer
     struct workqueue *cq;        // writers sometimes return ctpair's using this queue
     struct workitem asyncwork;   // work item for the worker threads
+    u_int32_t refs;  //References that prevent descruction
+    int already_removed;  //If a pair is removed from the cachetable, but cannot be freed because refs>0, this is set.
 };
 
 static void * const zero_value = 0;
 static int const zero_size = 0;
 
+static inline void
+ctpair_add_ref(PAIR p) {
+    assert(!p->already_removed);
+    p->refs++;
+}
+
 static inline void ctpair_destroy(PAIR p) {
-    rwlock_destroy(&p->rwlock);
-    toku_free(p);
+    assert(p->refs>0);
+    p->refs--;
+    if (p->refs==0) {
+        rwlock_destroy(&p->rwlock);
+        toku_free(p);
+    }
 }
 
 // The cachetable is as close to an ENV as we get.
@@ -519,6 +531,7 @@ static void cachetable_remove_pair (CACHETABLE ct, PAIR p) {
 	ct->table[h] = remove_from_hash_chain (p, ct->table[h]);
     }
     ct->size_current -= p->size; assert(ct->size_current >= 0);
+    p->already_removed = TRUE;
 }
 
 // Maybe remove a pair from the cachetable and free it, depending on whether
@@ -756,6 +769,7 @@ static PAIR cachetable_insert_at(CACHETABLE ct,
     TAGMALLOC(PAIR, p);
     assert(p);
     memset(p, 0, sizeof *p);
+    ctpair_add_ref(p);
     p->cachefile = cachefile;
     p->key = key;
     p->value = value;
@@ -854,7 +868,12 @@ write_pair_for_checkpoint (CACHETABLE ct, PAIR p)
         // this is essentially a flush_and_maybe_remove except that
         // we already have p->rwlock and we just do the write in our own thread.
         assert(p->dirty); // it must be dirty if its pending.
-        p->cq = 0; // I don't want any delay, just do it.
+#if 0
+        // TODO: Determine if this is legal, and/or required. Commented out for now
+        // I believe if it has a queue, removing it it will break whatever's waiting for it.
+        // p->cq = 0; // I don't want any delay, just do it.
+#endif
+         
         p->state = CTPAIR_WRITING; //most of this code should run only if NOT ALREADY CTPAIR_WRITING
         assert(ct->size_writing>=0);
         ct->size_writing += p->size;
@@ -1168,17 +1187,48 @@ static int cachetable_flush_cachefile(CACHETABLE ct, CACHEFILE cf) {
     unsigned i;
 
     //THIS LOOP IS NOT THREAD SAFE!  Has race condition since flush_and_maybe_remove releases cachetable lock
+
+    unsigned num_pairs = 0;
+    unsigned list_size = 16;
+    PAIR *list = NULL;
+    XMALLOC_N(list_size, list);
+    //It is not safe to loop through the table (and hash chains) if you can
+    //release the cachetable lock at any point within.
+
+    //Make a list of pairs that belong to this cachefile.
+    //Add a reference to them.
     for (i=0; i < ct->table_size; i++) {
 	PAIR p;
 	for (p = ct->table[i]; p; p = p->hash_chain) {
  	    if (cf == 0 || p->cachefile==cf) {
-                nfound++;
-                p->cq = &cq;
-                if (p->state == CTPAIR_IDLE)
-                    flush_and_maybe_remove(ct, p, TRUE);
-	    }
+                ctpair_add_ref(p);
+                list[num_pairs] = p;
+                num_pairs++;
+                if (num_pairs == list_size) {
+                    list_size *= 2;
+                    XREALLOC_N(list_size, list);
+                }
+            }
 	}
     }
+    //Loop through the list.
+    //It is safe to access the memory (will not have been freed).
+    //If 'already_removed' is set, then we should release our reference
+    //and go to the next entry.
+    for (i=0; i < num_pairs; i++) {
+	PAIR p = list[i];
+        if (p->already_removed) {
+            ctpair_destroy(p); //Release our reference
+            continue;
+        }
+        assert(cf == 0 || p->cachefile==cf);
+        nfound++;
+        p->cq = &cq;
+        if (p->state == CTPAIR_IDLE)
+            flush_and_maybe_remove(ct, p, TRUE);
+        ctpair_destroy(p);     //Release our reference
+    }
+    toku_free(list);
 
     // wait for all of the pairs in the work queue to complete
     for (i=0; i<nfound; i++) {

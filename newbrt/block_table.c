@@ -128,9 +128,7 @@ toku_block_translation_note_start_checkpoint_unlocked (BLOCK_TABLE bt) {
     // Copy current translation to inprogress translation.
     assert(bt->inprogress.block_translation == NULL);
     copy_translation(&bt->inprogress, &bt->current, TRANSLATION_INPROGRESS);
-    // don't yet have a block allocated for the inprogress btt.
-    bt->inprogress.block_translation[RESERVED_BLOCKNUM_TRANSLATION].size    = 0;              
-    bt->inprogress.block_translation[RESERVED_BLOCKNUM_TRANSLATION].u.diskoff = diskoff_unused; 
+
     bt->checkpoint_skipped = FALSE;
     bt->checkpoint_failed  = FALSE;
 }
@@ -477,8 +475,8 @@ maybe_expand_translation (struct translation *t) {
 }
 
 void
-toku_allocate_blocknum(BLOCK_TABLE bt, BLOCKNUM *res, struct brt_header * h) {
-    lock_for_blocktable(bt);
+toku_allocate_blocknum_unlocked(BLOCK_TABLE bt, BLOCKNUM *res, struct brt_header * h) {
+    assert(bt->is_locked);
     BLOCKNUM result;
     struct translation * t = &bt->current;
     if (t->blocknum_freelist_head.b == freelist_null.b) {
@@ -501,14 +499,20 @@ toku_allocate_blocknum(BLOCK_TABLE bt, BLOCKNUM *res, struct brt_header * h) {
     verify_valid_freeable_blocknum(t, result);
     *res = result;
     brtheader_set_dirty(h, FALSE);
-    unlock_for_blocktable(bt);
 }
 
 void
-toku_free_blocknum(BLOCK_TABLE bt, BLOCKNUM *bp, struct brt_header * h) {
+toku_allocate_blocknum(BLOCK_TABLE bt, BLOCKNUM *res, struct brt_header * h) {
+    lock_for_blocktable(bt);
+    toku_allocate_blocknum_unlocked(bt, res, h);
+    unlock_for_blocktable(bt);
+}
+
+static void
+free_blocknum_unlocked(BLOCK_TABLE bt, BLOCKNUM *bp, struct brt_header * h) {
 // Effect: Free a blocknum.
 // If the blocknum holds the only reference to a block on disk, free that block
-    lock_for_blocktable(bt);
+    assert(bt->is_locked);
     BLOCKNUM b = *bp;
     bp->b = 0; //Remove caller's reference.
     struct translation *t = &bt->current;
@@ -533,7 +537,28 @@ PRNTF("free_blocknum_free", b.b, old_pair.size, old_pair.u.diskoff, bt);
     }
     else assert(old_pair.size==0 && old_pair.u.diskoff == diskoff_unused);
     brtheader_set_dirty(h, FALSE);
+}
+
+void
+toku_free_blocknum(BLOCK_TABLE bt, BLOCKNUM *bp, struct brt_header * h) {
+    lock_for_blocktable(bt);
+    free_blocknum_unlocked(bt, bp, h);
     unlock_for_blocktable(bt);
+}
+    
+void
+toku_block_translation_truncate_unlocked(BLOCK_TABLE bt, struct brt_header *h) {
+    assert(bt->is_locked);
+    brtheader_set_dirty(h, FALSE);
+    //Free all used blocks except descriptor
+    BLOCKNUM keep_only = h->descriptor.b;
+    struct translation *t = &bt->current;
+    int64_t i;
+    for (i=RESERVED_BLOCKNUMS; i<t->smallest_never_used_blocknum.b; i++) {
+        if (i==keep_only.b) continue;
+        BLOCKNUM b = make_blocknum(i);
+        if (t->block_translation[i].size > 0) free_blocknum_unlocked(bt, &b, h);
+    }
 }
 
 //Verify there are no free blocks.
