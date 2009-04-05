@@ -445,7 +445,6 @@ private:
   UintR cfailureNr;
 
   QmgrState ctoStatus;
-  UintR cLqhTimeSignalCount;
   bool cHbSent;
   NDB_TICKS clatestTransactionCheck;
 
