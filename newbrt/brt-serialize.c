@@ -915,7 +915,7 @@ void toku_verify_counts (BRTNODE node) {
     }
 }
 
-int toku_serialize_brt_header_size (struct brt_header *h) {
+int toku_serialize_brt_header_size (struct brt_header *UU(h)) {
     unsigned int size = (+8 // "tokudata"
 			 +4 // size
 			 +4 // version
@@ -925,25 +925,12 @@ int toku_serialize_brt_header_size (struct brt_header *h) {
 			 +4 // tree's nodesize
 			 +8 // translation_size_on_disk
 			 +8 // translation_address_on_disk
-			 +4 // n_named_roots
                          +4 // checksum
 			 );
-    if (h->n_named_roots<0) {
-	size+=(+8 // diskoff
-	       +4 // flags
-               +8 // blocknum of descriptor
-	       );
-    } else {
-	int i;
-	for (i=0; i<h->n_named_roots; i++) {
-	    size+=(+8 // root diskoff
-		   +4 // flags
-		   +4 // length of null terminated string (including null)
-		   +1 + strlen(h->names[i]) // null-terminated string
-                   +8 // blocknum of descriptor
-		   );
-	}
-    }
+    size+=(+8 // diskoff
+           +4 // flags
+           +8 // blocknum of descriptor
+           );
     assert(size <= BLOCK_ALLOCATOR_HEADER_RESERVE);
     return size;
 }
@@ -964,26 +951,12 @@ int toku_serialize_brt_header_to_wbuf (struct wbuf *wbuf, struct brt_header *h, 
     wbuf_LSN    (wbuf, h->checkpoint_lsn);
     wbuf_int    (wbuf, h->nodesize);
 
-    wbuf_int    (wbuf, h->n_named_roots);
     //printf("%s:%d bta=%lu size=%lu\n", __FILE__, __LINE__, h->block_translation_address_on_disk, 4 + 16*h->translated_blocknum_limit);
     wbuf_DISKOFF(wbuf, translation_location_on_disk);
     wbuf_DISKOFF(wbuf, translation_size_on_disk);
-    if (h->n_named_roots>=0) {
-	int i;
-	for (i=0; i<h->n_named_roots; i++) {
-	    char *s = h->names[i];
-	    unsigned int l = 1+strlen(s);
-	    wbuf_BLOCKNUM(wbuf, h->roots[i]);
-	    wbuf_int    (wbuf, h->flags_array[i]);
-	    wbuf_bytes  (wbuf,  s, l);
-	    assert(l>0 && s[l-1]==0);
-            serialize_descriptor_to_wbuf(wbuf, &h->descriptors[i]);
-	}
-    } else {
-	wbuf_BLOCKNUM(wbuf, h->roots[0]);
-	wbuf_int    (wbuf, h->flags_array[0]);
-        serialize_descriptor_to_wbuf(wbuf, &h->descriptors[0]);
-    }
+    wbuf_BLOCKNUM(wbuf, h->root);
+    wbuf_int    (wbuf, h->flags);
+    serialize_descriptor_to_wbuf(wbuf, &h->descriptor);
     u_int32_t checksum = x1764_finish(&wbuf->checksum);
     wbuf_int(wbuf, checksum);
     assert(wbuf->ndone<=wbuf->size);
@@ -1147,7 +1120,6 @@ deserialize_brtheader (int fd, struct rbuf *rb, struct brt_header **brth) {
     h->checkpoint_count = rbuf_ulonglong(&rc);
     h->checkpoint_lsn   = rbuf_lsn(&rc);
     h->nodesize      = rbuf_int(&rc);
-    h->n_named_roots = rbuf_int(&rc);
     DISKOFF translation_address_on_disk = rbuf_diskoff(&rc);
     DISKOFF translation_size_on_disk    = rbuf_diskoff(&rc);
     assert(translation_address_on_disk>0);
@@ -1172,41 +1144,14 @@ deserialize_brtheader (int fd, struct rbuf *rb, struct brt_header **brth) {
         toku_free(tbuf);
     }
 
-    if (h->n_named_roots>=0) {
-	int i;
-	int n_to_malloc = (h->n_named_roots == 0) ? 1 : h->n_named_roots;
-	MALLOC_N(n_to_malloc, h->flags_array); if (h->flags_array==0) { ret=errno; if (0) { died2: toku_free(h->flags_array); }                    goto died1; }
-	MALLOC_N(n_to_malloc, h->roots);       if (h->roots==0)       { ret=errno; if (0) { died3: if (h->roots)       toku_free(h->roots); } goto died2; }
-	MALLOC_N(n_to_malloc, h->root_hashes); if (h->root_hashes==0) { ret=errno; if (0) { died4: if (h->root_hashes) toku_free(h->root_hashes); } goto died3; }
-	MALLOC_N(n_to_malloc, h->descriptors); if (h->descriptors==0) { ret=errno; if (0) { died5: if (h->descriptors) toku_free(h->descriptors); } goto died4; }
-	MALLOC_N(n_to_malloc, h->names);       if (h->names==0)       { ret=errno; if (0) { died6: if (h->names)       toku_free(h->names); } goto died5; }
-	for (i=0; i<h->n_named_roots; i++) {
-	    h->root_hashes[i].valid = FALSE;
-	    h->roots[i]       = rbuf_blocknum(&rc);
-	    h->flags_array[i] = rbuf_int(&rc);
-	    bytevec nameptr;
-	    unsigned int len;
-	    rbuf_bytes(&rc, &nameptr, &len);
-	    assert(strlen(nameptr)+1==len);
-	    h->names[i] = toku_memdup(nameptr, len);
-	    assert(len == 0 || h->names[i] != NULL); // make sure the malloc worked.  Give up if this malloc failed...
-            deserialize_descriptor_from(fd, &rc, h, &h->descriptors[i]);
-	}
-    } else {
-	int n_to_malloc = 1;
-	MALLOC_N(n_to_malloc, h->flags_array); if (h->flags_array==0) { ret=errno; goto died1; }
-	MALLOC_N(n_to_malloc, h->roots);       if (h->roots==0) { ret=errno; goto died2; }
-	MALLOC_N(n_to_malloc, h->root_hashes); if (h->root_hashes==0) { ret=errno; goto died3; }
-	MALLOC_N(n_to_malloc, h->descriptors); if (h->descriptors==0) { ret=errno; goto died4; }
-	h->names = 0;
-	h->roots[0] = rbuf_blocknum(&rc);
-	h->root_hashes[0].valid = FALSE;
-	h->flags_array[0] = rbuf_int(&rc);
-        deserialize_descriptor_from(fd, &rc, h, &h->descriptors[0]);
-    }
+    h->root = rbuf_blocknum(&rc);
+    h->root_hash.valid = FALSE;
+    h->flags = rbuf_int(&rc);
+    deserialize_descriptor_from(fd, &rc, h, &h->descriptor);
     (void)rbuf_int(&rc); //Read in checksum and ignore (already verified).
-    if (rc.ndone!=rc.size) {ret = EINVAL; goto died6;}
+    if (rc.ndone!=rc.size) {ret = EINVAL; goto died1;}
     toku_free(rc.buf);
+    rc.buf = NULL;
     {
 	int r;
         DISKOFF offset;
@@ -1304,6 +1249,8 @@ int toku_deserialize_brtheader_from (int fd, struct brt_header **brth) {
     }
 
     if (r==0) r = deserialize_brtheader(fd, rb, brth);
+    if (r0==0 && rb_0.buf) toku_free(rb_0.buf);
+    if (r1==0 && rb_1.buf) toku_free(rb_1.buf);
     return r;
 }
 

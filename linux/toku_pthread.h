@@ -1,3 +1,6 @@
+/* -*- mode: C; c-basic-offset: 4 -*- */
+#ident "$Id: brt.c 10921 2009-04-01 16:54:40Z yfogel $"
+#ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 #ifndef _TOKU_PTHREAD_H
 #define _TOKU_PTHREAD_H
 
@@ -13,6 +16,38 @@ typedef pthread_mutexattr_t toku_pthread_mutexattr_t;
 typedef pthread_mutex_t toku_pthread_mutex_t;
 typedef pthread_condattr_t toku_pthread_condattr_t;
 typedef pthread_cond_t toku_pthread_cond_t;
+typedef pthread_rwlock_t toku_pthread_rwlock_t;
+typedef pthread_rwlockattr_t  toku_pthread_rwlockattr_t;
+
+static inline int
+toku_pthread_rwlock_init(toku_pthread_rwlock_t *restrict rwlock, const toku_pthread_rwlockattr_t *restrict attr) {
+    return pthread_rwlock_init(rwlock, attr);
+}
+
+static inline int
+toku_pthread_rwlock_destroy(toku_pthread_rwlock_t *rwlock) {
+    return pthread_rwlock_destroy(rwlock);
+}
+
+static inline int
+toku_pthread_rwlock_rdlock(toku_pthread_rwlock_t *rwlock) {
+    return pthread_rwlock_rdlock(rwlock);
+}
+
+static inline int
+toku_pthread_rwlock_rdunlock(toku_pthread_rwlock_t *rwlock) {
+    return pthread_rwlock_unlock(rwlock);
+}
+
+static inline int
+toku_pthread_rwlock_wrlock(toku_pthread_rwlock_t *rwlock) {
+    return pthread_rwlock_wrlock(rwlock);
+}
+
+static inline int
+toku_pthread_rwlock_wrunlock(toku_pthread_rwlock_t *rwlock) {
+    return pthread_rwlock_unlock(rwlock);
+}
 
 int toku_pthread_yield(void);
 

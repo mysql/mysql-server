@@ -86,9 +86,11 @@ default_parse_args (int argc, const char *argv[]) {
 
 int test_main(int argc, const char *argv[]);
 
+static void dummy(void) {}
+
 int
 main(int argc, const char *argv[]) {
-    toku_brt_init();
+    toku_brt_init(dummy, dummy);
     int r = test_main(argc, argv);
     toku_brt_destroy();
     return r;

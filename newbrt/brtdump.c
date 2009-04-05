@@ -30,19 +30,8 @@ dump_header (int f, struct brt_header **header) {
     else printf(" layout_version=%d\n", h->layout_version);
     printf(" dirty=%d\n", h->dirty);
     printf(" nodesize=%u\n", h->nodesize);
-    if (h->n_named_roots==-1) {
-	printf(" unnamed_root=%" PRId64 "\n", h->roots[0].b);
-	printf(" flags=%u\n", h->flags_array[0]);
-    } else {
-	printf(" n_named_roots=%d\n", h->n_named_roots);
-	if (h->n_named_roots>=0) {
-	    int i;
-	    for (i=0; i<h->n_named_roots; i++) {
-		printf("  %s -> %" PRId64 "\n", h->names[i], h->roots[i].b);
-		printf(" flags=%u\n", h->flags_array[i]);
-	    }
-	}
-    }
+    printf(" unnamed_root=%" PRId64 "\n", h->root.b);
+    printf(" flags=%u\n", h->flags);
     *header = h;
     printf("Fifo:\n");
     printf(" fifo has %d entries\n", toku_fifo_n_entries(h->fifo));

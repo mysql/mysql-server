@@ -9,8 +9,6 @@ flush (CACHEFILE cf     __attribute__((__unused__)),
        long size        __attribute__((__unused__)),
        BOOL write_me    __attribute__((__unused__)),
        BOOL keep_me     __attribute__((__unused__)),
-       LSN lsn          __attribute__((__unused__)),
-       BOOL rename_p    __attribute__((__unused__)),
        BOOL for_checkpoint    __attribute__((__unused__))
        ) {
     assert((long) key.b == size);

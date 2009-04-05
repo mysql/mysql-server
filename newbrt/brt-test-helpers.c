@@ -43,8 +43,8 @@ int toku_testsetup_nonleaf (BRT brt, int height, BLOCKNUM *blocknum, int n_child
 int toku_testsetup_root(BRT brt, BLOCKNUM blocknum) {
     int r = toku_read_brt_header_and_store_in_cachefile(brt->cf, &brt->h);
     if (r!=0) return r;
-    brt->h->roots[0] = blocknum;
-    brt->h->root_hashes[0].valid = FALSE;
+    brt->h->root = blocknum;
+    brt->h->root_hash.valid = FALSE;
     return 0;
 }
 

@@ -179,6 +179,7 @@ message are not gorged.  (But they may be hungry or too fat or too thin.)
 //
 #include "includes.h"
 #include "leaflock.h"
+#include "checkpoint.h"
 
 // We invalidate all the OMTCURSORS any time we push into the root of the BRT for that OMT.
 // We keep a counter on each brt header, but if the brt header is evicted from the cachetable
@@ -421,7 +422,7 @@ int toku_unpin_brtnode (BRT brt, BRTNODE node) {
     return toku_cachetable_unpin(brt->cf, node->thisnodename, node->fullhash, (enum cachetable_dirty) node->dirty, brtnode_memory_size(node));
 }
 
-void toku_brtnode_flush_callback (CACHEFILE cachefile, BLOCKNUM nodename, void *brtnode_v, void *extraargs, long size __attribute__((unused)), BOOL write_me, BOOL keep_me, LSN modified_lsn __attribute__((__unused__)) , BOOL rename_p __attribute__((__unused__)), BOOL for_checkpoint) {
+void toku_brtnode_flush_callback (CACHEFILE cachefile, BLOCKNUM nodename, void *brtnode_v, void *extraargs, long size __attribute__((unused)), BOOL write_me, BOOL keep_me, BOOL for_checkpoint) {
     struct brt_header *h = extraargs;
     BRTNODE brtnode = brtnode_v;
 //    if ((write_me || keep_me) && (brtnode->height==0)) {
@@ -618,20 +619,7 @@ brtheader_destroy(struct brt_header *h) {
     if (!h->panic) assert(!h->checkpoint_header);
 
     brtheader_partial_destroy(h);
-    if (h->n_named_roots>0) {
-        int i;
-        for (i=0; i<h->n_named_roots; i++) {
-            toku_free(h->names[i]);
-            if (h->type == BRTHEADER_CURRENT && h->descriptors[i].sdbt.data)
-                toku_free(h->descriptors[i].sdbt.data);
-        }
-        toku_free(h->names);
-    }
-    else if (h->type == BRTHEADER_CURRENT && h->descriptors[0].sdbt.data) toku_free(h->descriptors[0].sdbt.data);
-    toku_free(h->roots);
-    toku_free(h->root_hashes);
-    toku_free(h->flags_array);
-    toku_free(h->descriptors);
+    if (h->type == BRTHEADER_CURRENT && h->descriptor.sdbt.data) toku_free(h->descriptor.sdbt.data);
 }
 
 static int
@@ -659,27 +647,6 @@ brtheader_copy_for_checkpoint(struct brt_header *h, LSN checkpoint_lsn) {
     ch->type = BRTHEADER_CHECKPOINT_INPROGRESS; //Different type
     ch->checkpoint_lsn = checkpoint_lsn;
     ch->panic_string = NULL;
-    //Names must be copied deep.
-    if (ch->n_named_roots>0) {
-        XMALLOC_N(ch->n_named_roots, ch->names);
-        int i;
-        for (i=0; i<ch->n_named_roots; i++) {
-            ch->names[i] = toku_strdup(h->names[i]);
-            assert(ch->names[i]);
-        }
-    }
-    //root information must be copied deep.
-    {
-        int num_roots = ch->n_named_roots == -1 ? 1 : ch->n_named_roots;
-        ch->roots = toku_memdup(h->roots, num_roots*sizeof(*ch->roots));
-        assert(ch->roots);
-        ch->root_hashes = toku_memdup(h->root_hashes, num_roots*sizeof(*ch->root_hashes));
-        assert(ch->root_hashes);
-        ch->flags_array = toku_memdup(h->flags_array, num_roots*sizeof(*ch->flags_array));
-        assert(ch->flags_array);
-        ch->descriptors = toku_memdup(h->descriptors, num_roots*sizeof(*ch->descriptors));
-        assert(ch->descriptors);
-    }
     
     //ch->blocktable is SHARED between the two headers
     h->checkpoint_header = ch;
@@ -757,14 +724,7 @@ brt_init_new_root(BRT brt, BRTNODE nodea, BRTNODE nodeb, DBT splitk, CACHEKEY *r
     toku_allocate_blocknum(brt->h->blocktable, &newroot_diskoff, brt->h);
     assert(newroot);
     newroot->ever_been_written = 0;
-    if (brt->database_name==0) {
-        toku_log_changeunnamedroot(logger, (LSN*)0, 0, toku_cachefile_filenum(brt->cf), *rootp, newroot_diskoff);
-    } else {
-        BYTESTRING bs;
-        bs.len = 1+strlen(brt->database_name);
-        bs.data = brt->database_name;
-        toku_log_changenamedroot(logger, (LSN*)0, 0, toku_cachefile_filenum(brt->cf), bs, *rootp, newroot_diskoff);
-    }
+    toku_log_changeunnamedroot(logger, (LSN*)0, 0, toku_cachefile_filenum(brt->cf), *rootp, newroot_diskoff);
     *rootp=newroot_diskoff;
     initialize_empty_brtnode (brt, newroot, newroot_diskoff, new_height);
     //printf("new_root %lld %d %lld %lld\n", newroot_diskoff, newroot->height, nodea->thisnodename, nodeb->thisnodename);
@@ -2629,18 +2589,18 @@ static int push_something_at_root (BRT brt, BRTNODE *nodep, CACHEKEY *rootp, BRT
     }
 }
 
-static void compute_and_fill_remembered_hash (BRT brt, int rootnum) {
-    struct remembered_hash *rh = &brt->h->root_hashes[rootnum];
+static void compute_and_fill_remembered_hash (BRT brt) {
+    struct remembered_hash *rh = &brt->h->root_hash;
     assert(brt->cf); // if cf is null, we'll be hosed.
     rh->valid = TRUE;
     rh->fnum=toku_cachefile_filenum(brt->cf);
-    rh->root=brt->h->roots[rootnum];
+    rh->root=brt->h->root;
     rh->fullhash = toku_cachetable_hash(brt->cf, rh->root);
 }
 
-static u_int32_t get_roothash (BRT brt, int rootnum) {
-    struct remembered_hash *rh = &brt->h->root_hashes[rootnum];
-    BLOCKNUM root = brt->h->roots[rootnum];
+static u_int32_t get_roothash (BRT brt) {
+    struct remembered_hash *rh = &brt->h->root_hash;
+    BLOCKNUM root = brt->h->root;
     // compare cf first, since cf is NULL for invalid entries.
     assert(rh);
     //printf("v=%d\n", rh->valid);
@@ -2651,25 +2611,13 @@ static u_int32_t get_roothash (BRT brt, int rootnum) {
             if (rh->root.b == root.b)
                 return rh->fullhash;
     }
-    compute_and_fill_remembered_hash(brt, rootnum);
+    compute_and_fill_remembered_hash(brt);
     return rh->fullhash;
 }
 
 CACHEKEY* toku_calculate_root_offset_pointer (BRT brt, u_int32_t *roothash) {
-    if (brt->database_name==0) {
-        assert(brt->h->n_named_roots==-1);
-        *roothash = get_roothash(brt, 0);
-        return &brt->h->roots[0];
-    } else {
-        int i;
-        for (i=0; i<brt->h->n_named_roots; i++) {
-            if (strcmp(brt->database_name, brt->h->names[i])==0) {
-                *roothash = get_roothash(brt, i);
-                return &brt->h->roots[i];
-            }
-        }
-    }
-    abort(); return 0;
+    *roothash = get_roothash(brt);
+    return &brt->h->root;
 }
 
 int toku_brt_root_put_cmd(BRT brt, BRT_CMD cmd, TOKULOGGER logger)
@@ -2835,7 +2783,7 @@ mempool_malloc_from_omt(OMT omt, struct mempool *mp, size_t size, void **maybe_f
 /* ******************** open,close and create  ********************** */
 
 // This one has no env
-int toku_open_brt (const char *fname, const char *dbname, int is_create, BRT *newbrt, int nodesize, CACHETABLE cachetable, TOKUTXN txn,
+int toku_open_brt (const char *fname, int is_create, BRT *newbrt, int nodesize, CACHETABLE cachetable, TOKUTXN txn,
                    int (*compare_fun)(DB*,const DBT*,const DBT*), DB *db) {
     BRT brt;
     int r;
@@ -2847,7 +2795,7 @@ int toku_open_brt (const char *fname, const char *dbname, int is_create, BRT *ne
     toku_brt_set_nodesize(brt, nodesize);
     toku_brt_set_bt_compare(brt, compare_fun);
 
-    r = toku_brt_open(brt, fname, fname, dbname, is_create, only_create, cachetable, txn, db);
+    r = toku_brt_open(brt, fname, fname, is_create, only_create, cachetable, txn, db);
     if (r != 0) {
         return r;
     }
@@ -2918,15 +2866,15 @@ brt_init_header (BRT t) {
     int r;
     t->h->type = BRTHEADER_CURRENT;
     t->h->checkpoint_header = NULL;
-    t->h->flags_array[0] = t->flags;
+    t->h->flags = t->flags;
     t->h->nodesize=t->nodesize;
     toku_blocktable_create_new(&t->h->blocktable);
     BLOCKNUM root;
     //Assign blocknum for root block, also dirty the header
     toku_allocate_blocknum(t->h->blocktable, &root, t->h);
 
-    t->h->roots[0] = root;
-    compute_and_fill_remembered_hash(t, 0);
+    t->h->root = root;
+    compute_and_fill_remembered_hash(t);
 
     toku_fifo_create(&t->h->fifo);
     t->h->root_put_counter = global_root_put_counter++; 
@@ -2964,7 +2912,7 @@ brt_init_header (BRT t) {
 
 // allocate and initialize a brt header.
 // t->cf is not set to anything.
-int toku_brt_alloc_init_header(BRT t, const char *dbname) {
+int toku_brt_alloc_init_header(BRT t) {
     int r;
 
     r = brtheader_alloc(&t->h);
@@ -2976,26 +2924,10 @@ int toku_brt_alloc_init_header(BRT t, const char *dbname) {
 
     t->h->layout_version = BRT_LAYOUT_VERSION;
 
-    if ((MALLOC_N(1, t->h->flags_array))==0)  { r = errno; if (0) { died3: toku_free(t->h->flags_array); } goto died2; }
-
-    if (dbname) {
-        t->h->n_named_roots = 1;
-        if ((MALLOC_N(1, t->h->names))==0)             { assert(errno==ENOMEM); r=ENOMEM; if (0) { died4: if (dbname) toku_free(t->h->names); } goto died3; }
-        if ((MALLOC_N(1, t->h->roots))==0)             { assert(errno==ENOMEM); r=ENOMEM; if (0) { died5: if (dbname) toku_free(t->h->roots); } goto died4; }
-        if ((MALLOC_N(1, t->h->root_hashes))==0)       { assert(errno==ENOMEM); r=ENOMEM; if (0) { died6: if (dbname) toku_free(t->h->root_hashes); } goto died5; }
-        if ((t->h->names[0] = toku_strdup(dbname))==0) { assert(errno==ENOMEM); r=ENOMEM; if (0) { died7: if (dbname) toku_free(t->h->names[0]); } goto died6; }
-        if ((MALLOC_N(1, t->h->descriptors))==0)       { assert(errno==ENOMEM); r=ENOMEM; if (0) { died8: if (dbname) toku_free(t->h->descriptors); } goto died7; }
-    } else {
-        MALLOC_N(1, t->h->roots); assert(t->h->roots);
-        MALLOC_N(1, t->h->root_hashes); assert(t->h->root_hashes);
-        MALLOC_N(1, t->h->descriptors); assert(t->h->descriptors);
-        t->h->n_named_roots = -1;
-        t->h->names=0;
-    }
-    memset(t->h->descriptors, 0, sizeof(*t->h->descriptors));
+    memset(&t->h->descriptor, 0, sizeof(t->h->descriptor));
 
     r = brt_init_header(t);
-    if (r != 0) goto died8;
+    if (r != 0) goto died2;
     return r;
 }
 
@@ -3019,12 +2951,9 @@ int toku_read_brt_header_and_store_in_cachefile (CACHEFILE cf, struct brt_header
     return 0;
 }
 
-int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, const char *dbname, int is_create, int only_create, CACHETABLE cachetable, TOKUTXN txn, DB *db) {
+int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, int is_create, int only_create, CACHETABLE cachetable, TOKUTXN txn, DB *db) {
 
-    /* If dbname is NULL then we setup to hold a single tree.  Otherwise we setup an array. */
     int r;
-    char *malloced_name=0;
-    int db_index;
 
     //printf("%s:%d %d alloced\n", __FILE__, __LINE__, get_n_items_malloced()); toku_print_malloced_items();
     WHEN_BRTTRACE(fprintf(stderr, "BRTTRACE: %s:%d toku_brt_open(%s, \"%s\", %d, %p, %d, %p)\n",
@@ -3038,26 +2967,15 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, const char
         if (0) { died00: if (t->fname) toku_free(t->fname); t->fname=0; }
         goto died0;
     }
-    if (dbname) {
-        malloced_name = toku_strdup(dbname);
-        if (malloced_name==0) {
-            r = ENOMEM;
-            if (0) { died0a: if(malloced_name) toku_free(malloced_name); }
-            goto died00;
-        }
-    }
-    t->database_name = malloced_name;
     t->db = db;
     t->txnid_that_created_or_locked_when_empty = 0; // Uses 0 for no transaction.
     {
         int fd = -1;
         BOOL did_create = FALSE;
         r = brt_open_file(t, fname, is_create, &fd, &did_create);
-        if (r != 0) {
-            t->database_name = 0; goto died0a;
-        }
+        if (r != 0) goto died00;
         r=toku_cachetable_openfd(&t->cf, cachetable, fd, fname);
-        if (r != 0) goto died0a;
+        if (r != 0) goto died00;
         if (did_create) {
             mode_t mode = S_IRWXU|S_IRWXG|S_IRWXO;
             r = toku_logger_log_fcreate(txn, fname_in_env, toku_cachefile_filenum(t->cf), mode);
@@ -3070,8 +2988,7 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, const char
     if (r!=0) {
         died_after_open: 
         toku_cachefile_close(&t->cf, toku_txn_logger(txn), 0);
-        t->database_name = 0;
-        goto died0a;
+        goto died00;
     }
     assert(t->nodesize>0);
     //printf("%s:%d %d alloced\n", __FILE__, __LINE__, get_n_items_malloced()); toku_print_malloced_items();
@@ -3082,141 +2999,52 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, const char
     if (is_create) {
         r = toku_read_brt_header_and_store_in_cachefile(t->cf, &t->h);
         if (r==-1) {
-            r = toku_brt_alloc_init_header(t, dbname);
+            r = toku_brt_alloc_init_header(t);
             if (r != 0) goto died_after_read_and_pin;
-            db_index = 0;
         }
         else if (r!=0) {
             goto died_after_read_and_pin;
         }
-        else {
-            int i;
+        else if (only_create) {
             assert(r==0);
-            assert(dbname);
-            if (t->h->n_named_roots<0) { r=EINVAL; goto died_after_read_and_pin; } // Cannot create a subdb in a file that is not enabled for subdbs
-            assert(t->h->n_named_roots>=0);
-            for (i=0; i<t->h->n_named_roots; i++) {
-                if (strcmp(t->h->names[i], dbname)==0) {
-                    if (only_create) {
-                        r = EEXIST;
-                        goto died_after_read_and_pin;
-                    }
-                    else {
-                        db_index = i;
-                        goto found_it;
-                    }
-                }
-            }
-            if ((t->h->names = toku_realloc(t->h->names, (1+t->h->n_named_roots)*sizeof(*t->h->names))) == 0)   { assert(errno==ENOMEM); r=ENOMEM; goto died_after_read_and_pin; }
-            if ((t->h->roots = toku_realloc(t->h->roots, (1+t->h->n_named_roots)*sizeof(*t->h->roots))) == 0)   { assert(errno==ENOMEM); r=ENOMEM; goto died_after_read_and_pin; }
-            if ((t->h->root_hashes = toku_realloc(t->h->root_hashes, (1+t->h->n_named_roots)*sizeof(*t->h->root_hashes))) == 0)   { assert(errno==ENOMEM); r=ENOMEM; goto died_after_read_and_pin; }
-            if ((t->h->flags_array = toku_realloc(t->h->flags_array, (1+t->h->n_named_roots)*sizeof(*t->h->flags_array))) == 0) { assert(errno==ENOMEM); r=ENOMEM; goto died_after_read_and_pin; }
-            if ((t->h->descriptors = toku_realloc(t->h->descriptors, (1+t->h->n_named_roots)*sizeof(*t->h->descriptors))) == 0) { assert(errno==ENOMEM); r=ENOMEM; goto died_after_read_and_pin; }
-            memset(&t->h->descriptors[t->h->n_named_roots], 0, sizeof(t->h->descriptors[t->h->n_named_roots]));
-            t->h->flags_array[t->h->n_named_roots] = t->flags;
-            db_index = t->h->n_named_roots;
-            t->h->n_named_roots++;
-            if ((t->h->names[t->h->n_named_roots-1] = toku_strdup(dbname)) == 0)                                { assert(errno==ENOMEM); r=ENOMEM; goto died_after_read_and_pin; }
-            //printf("%s:%d t=%p\n", __FILE__, __LINE__, t);
-            toku_allocate_blocknum(t->h->blocktable, &t->h->roots[t->h->n_named_roots-1], t->h);
-            compute_and_fill_remembered_hash(t, t->h->n_named_roots-1);
-            if ((r=setup_initial_brt_root_node(t, t->h->roots[t->h->n_named_roots-1]))!=0) goto died_after_read_and_pin;
-        }
-    } else {
-        if ((r = toku_read_brt_header_and_store_in_cachefile(t->cf, &t->h))!=0) goto died_after_open;
-        if (!dbname) {
-            if (t->h->n_named_roots!=-1) { r = EINVAL; goto died_after_read_and_pin; } // requires a subdb
-            db_index=0;
-        } else {
-            int i;
-            if (t->h->n_named_roots==-1) { r = EINVAL; goto died_after_read_and_pin; } // no suddbs in the db
-            // printf("%s:%d n_roots=%d\n", __FILE__, __LINE__, t->h->n_named_roots);
-            for (i=0; i<t->h->n_named_roots; i++) {
-                if (strcmp(t->h->names[i], dbname)==0) {
-                    db_index=i;
-                    goto found_it;
-                }
-
-            }
-            r=ENOENT; /* the database doesn't exist */
+            r = EEXIST;
             goto died_after_read_and_pin;
         }
-    found_it:
+        else goto found_it;
+    } else {
+        if ((r = toku_read_brt_header_and_store_in_cachefile(t->cf, &t->h))!=0) goto died_after_open;
+        found_it:
         t->nodesize = t->h->nodesize;                 /* inherit the pagesize from the file */
         if (!t->did_set_flags) {
-            t->flags = t->h->flags_array[db_index];
+            t->flags = t->h->flags;
         } else {
-            if (t->flags != t->h->flags_array[db_index]) {                /* if flags have been set then flags must match */
+            if (t->flags != t->h->flags) {                /* if flags have been set then flags must match */
                 r = EINVAL; goto died_after_read_and_pin;
             }
         }
     }
     if (t->did_set_descriptor) {
-        if (t->h->descriptors[db_index].sdbt.len!=t->temp_descriptor.size ||
-            memcmp(t->h->descriptors[db_index].sdbt.data, t->temp_descriptor.data, t->temp_descriptor.size)) {
-            if (t->h->descriptors[db_index].b.b <= 0) toku_allocate_blocknum(t->h->blocktable, &t->h->descriptors[db_index].b, t->h);
+        if (t->h->descriptor.sdbt.len!=t->temp_descriptor.size ||
+            memcmp(t->h->descriptor.sdbt.data, t->temp_descriptor.data, t->temp_descriptor.size)) {
+            if (t->h->descriptor.b.b <= 0) toku_allocate_blocknum(t->h->blocktable, &t->h->descriptor.b, t->h);
             DISKOFF offset;
             //4 for checksum
-            toku_blocknum_realloc_on_disk(t->h->blocktable, t->h->descriptors[db_index].b, t->temp_descriptor.size+4, &offset, t->h, FALSE);
+            toku_blocknum_realloc_on_disk(t->h->blocktable, t->h->descriptor.b, t->temp_descriptor.size+4, &offset, t->h, FALSE);
             r = toku_serialize_descriptor_contents_to_fd(toku_cachefile_fd(t->cf), &t->temp_descriptor, offset);
             if (r!=0) goto died_after_read_and_pin;
-            if (t->h->descriptors[db_index].sdbt.data) toku_free(t->h->descriptors[db_index].sdbt.data);
-            t->h->descriptors[db_index].sdbt.data = t->temp_descriptor.data;
-            t->h->descriptors[db_index].sdbt.len = t->temp_descriptor.size;
+            if (t->h->descriptor.sdbt.data) toku_free(t->h->descriptor.sdbt.data);
+            t->h->descriptor.sdbt.data = t->temp_descriptor.data;
+            t->h->descriptor.sdbt.len = t->temp_descriptor.size;
             t->temp_descriptor.data = NULL;
         }
         t->did_set_descriptor = 0;
     }
     if (t->db) {
-        toku_fill_dbt(&t->db->descriptor, t->h->descriptors[db_index].sdbt.data, t->h->descriptors[db_index].sdbt.len);
+        toku_fill_dbt(&t->db->descriptor, t->h->descriptor.sdbt.data, t->h->descriptor.sdbt.len);
     }
     assert(t->h);
     WHEN_BRTTRACE(fprintf(stderr, "BRTTRACE -> %p\n", t));
     return 0;
-}
-
-int toku_brt_remove_subdb(BRT brt, const char *dbname, u_int32_t flags) {
-    int i;
-    int found = -1;
-
-    assert(flags == 0);
-    assert(brt->h);
-
-    assert(brt->h->n_named_roots>=0);
-    for (i = 0; i < brt->h->n_named_roots; i++) {
-        if (strcmp(brt->h->names[i], dbname) == 0) {
-            found = i;
-            break;
-        }
-    }
-    if (found == -1) {
-        //Should not be possible.
-        return ENOENT;
-    }
-    //Free old db name
-    toku_free(brt->h->names[found]);
-    //Free old descriptor
-    if (brt->h->descriptors[found].sdbt.data) toku_free(brt->h->descriptors[found].sdbt.data);
-    if (brt->h->descriptors[found].b.b > 0)   toku_free_blocknum(brt->h->blocktable, &brt->h->descriptors[found].b, brt->h);
-    //TODO: Free Diskblocks including root
-
-    for (i = found + 1; i < brt->h->n_named_roots; i++) {
-        brt->h->names[i - 1]       = brt->h->names[i];
-        brt->h->roots[i - 1]       = brt->h->roots[i];
-        brt->h->root_hashes[i - 1] = brt->h->root_hashes[i];
-        brt->h->flags_array[i - 1] = brt->h->flags_array[i];
-        brt->h->descriptors[i - 1] = brt->h->descriptors[i];
-    }
-    brt->h->n_named_roots--;
-    brt->h->dirty = 1;
-    // Q: What if n_named_roots becomes 0?  A:  Don't do anything.  an empty list of named roots is OK.
-    XREALLOC_N(brt->h->n_named_roots, brt->h->names);
-    XREALLOC_N(brt->h->n_named_roots, brt->h->roots);
-    XREALLOC_N(brt->h->n_named_roots, brt->h->root_hashes);
-    XREALLOC_N(brt->h->n_named_roots, brt->h->flags_array);
-    XREALLOC_N(brt->h->n_named_roots, brt->h->descriptors);
-    return 0;
-
 }
 
 int toku_brt_get_fd(BRT brt, int *fdp) {
@@ -3261,7 +3089,7 @@ int toku_brt_create_cachetable(CACHETABLE *ct, long cachesize, LSN initial_lsn, 
     return toku_create_cachetable(ct, cachesize, initial_lsn, logger);
 }
 
-
+// Create checkpoint-in-progress versions of header and translation (btt) (and fifo for now...).
 int
 toku_brtheader_begin_checkpoint (CACHEFILE UU(cachefile), LSN checkpoint_lsn, void *header_v) {
     struct brt_header *h = header_v;
@@ -3291,7 +3119,7 @@ toku_brtheader_begin_checkpoint (CACHEFILE UU(cachefile), LSN checkpoint_lsn, vo
     return r;
 }
 
-
+// Write checkpoint-in-progress versions of header and translation to disk (really to OS internal buffer).
 int
 toku_brtheader_checkpoint (CACHEFILE cachefile, void *header_v)
 {
@@ -3329,7 +3157,8 @@ handle_error:
 
 }
 
-
+// Really write everything to disk (fsync dictionary), then free unused disk space 
+// (i.e. tell BlockAllocator to liberate blocks used by previous checkpoint).
 int
 toku_brtheader_end_checkpoint (CACHEFILE cachefile, void *header_v) {
     struct brt_header *h = header_v;
@@ -3406,7 +3235,6 @@ int toku_close_brt (BRT brt, TOKULOGGER logger, char **error_string) {
         r = toku_cachefile_close(&brt->cf, logger, error_string);
 	if (r==0 && error_string) assert(*error_string == 0);
     }
-    if (brt->database_name) toku_free(brt->database_name);
     if (brt->fname) toku_free(brt->fname);
     if (brt->temp_descriptor.data) toku_free(brt->temp_descriptor.data);
     toku_free(brt);
@@ -4861,6 +4689,15 @@ int toku_dump_brt (FILE *f, BRT brt) {
 
 int toku_brt_truncate (BRT brt) {
     int r;
+    //save information about the descriptor.
+    DISKOFF descriptor_size;
+    DISKOFF descriptor_location_ignore;
+    BLOCKNUM b = brt->h->descriptor.b;
+    if (b.b > 0) {
+        toku_translate_blocknum_to_offset_size(brt->h->blocktable, b,
+                                               &descriptor_location_ignore,
+                                               &descriptor_size);
+    }
 
     // flush the cached tree blocks
     r = toku_brt_flush(brt);
@@ -4878,6 +4715,22 @@ int toku_brt_truncate (BRT brt) {
     brtheader_partial_destroy(brt->h);
     r = brt_init_header(brt);
 
+    brt->h->descriptor.b.b = 0;
+    if (b.b > 0) { //There was a descriptor.
+        //Write the db descriptor to file
+        toku_allocate_blocknum(brt->h->blocktable, &brt->h->descriptor.b, brt->h);
+        DISKOFF offset;
+        //4 for checksum
+        toku_blocknum_realloc_on_disk(brt->h->blocktable, brt->h->descriptor.b,
+                                      descriptor_size, &offset,
+                                      brt->h, FALSE);
+        DBT dbt_descriptor;
+        toku_fill_dbt(&dbt_descriptor, brt->h->descriptor.sdbt.data, brt->h->descriptor.sdbt.len);
+        r = toku_serialize_descriptor_contents_to_fd(toku_cachefile_fd(brt->cf),
+                                                     &dbt_descriptor, offset);
+        assert(r==0);
+    }
+
     return r;
 }
 
@@ -4893,8 +4746,9 @@ static void toku_brt_lock_destroy(void) {
     toku_leaflock_destroy();
 }
 
-void toku_brt_init(void) {
+void toku_brt_init(void (*ydb_lock_callback)(void), void (*ydb_unlock_callback)(void)) {
     toku_brt_lock_init();
+    toku_checkpoint_init(ydb_lock_callback, ydb_unlock_callback);
 }
 
 void toku_brt_destroy(void) {

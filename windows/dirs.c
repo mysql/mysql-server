@@ -98,6 +98,7 @@ closedir(DIR *dir) {
 #define SUPPORT_CYGWIN_STYLE_STAT 0
 #define CYGWIN_ROOT_DIR_PREFIX "c:/cygwin"
 #define CYGDRIVE_PREFIX        "/cygdrive/"
+
 int
 toku_stat(const char *name, toku_struct_stat *statbuf) {
     char new_name[strlen(name) + sizeof(CYGWIN_ROOT_DIR_PREFIX)];

@@ -28,6 +28,7 @@ const char *toku_copyright_string = "Copyright (c) 2007, 2008 Tokutek Inc.  All 
 #include "log.h"
 #include "memory.h"
 #include "dlmalloc.h"
+#include "checkpoint.h"
 
 #ifdef TOKUTRACE
  #define DB_ENV_CREATE_FUN db_env_create_toku10
@@ -67,7 +68,7 @@ toku_ydb_init_malloc(void) {
 
 void toku_ydb_init(void) {
     toku_ydb_init_malloc();
-    toku_brt_init();
+    toku_brt_init(toku_ydb_lock, toku_ydb_unlock);
     toku_ydb_lock_init();
 }
 
@@ -690,7 +691,19 @@ static int toku_env_set_verbose(DB_ENV * env, u_int32_t which, int onoff) {
 }
 
 static int toku_env_txn_checkpoint(DB_ENV * env, u_int32_t kbyte __attribute__((__unused__)), u_int32_t min __attribute__((__unused__)), u_int32_t flags __attribute__((__unused__))) {
-    return toku_cachetable_checkpoint(env->i->cachetable, env->i->logger);
+    char *error_string = NULL;
+    int r = toku_checkpoint(env->i->cachetable, env->i->logger, &error_string);
+    if (r) {
+	env->i->is_panicked = r; // Panicking the whole environment may be overkill, but I'm not sure what else to do.
+	env->i->panic_string = error_string;
+	if (error_string) {
+	    toku_ydb_do_error(env, r, "%s\n", error_string);
+	} else {
+	    toku_ydb_do_error(env, r, "Checkpoint\n");
+	}
+	error_string=NULL;
+    }
+    return r;
 }
 
 static int toku_env_txn_stat(DB_ENV * env, DB_TXN_STAT ** statp, u_int32_t flags) {
@@ -768,10 +781,6 @@ static int locked_env_set_verbose(DB_ENV * env, u_int32_t which, int onoff) {
     toku_ydb_lock(); int r = toku_env_set_verbose(env, which, onoff); toku_ydb_unlock(); return r;
 }
 
-static int locked_env_txn_checkpoint(DB_ENV * env, u_int32_t kbyte, u_int32_t min, u_int32_t flags) {
-    toku_ydb_lock(); int r = toku_env_txn_checkpoint(env, kbyte, min, flags); toku_ydb_unlock(); return r;
-}
-
 static int locked_env_txn_stat(DB_ENV * env, DB_TXN_STAT ** statp, u_int32_t flags) {
     toku_ydb_lock(); int r = toku_env_txn_stat(env, statp, flags); toku_ydb_unlock(); return r;
 }
@@ -795,7 +804,7 @@ static int toku_env_create(DB_ENV ** envp, u_int32_t flags) {
     result->err = (void (*)(const DB_ENV * env, int error, const char *fmt, ...)) toku_locked_env_err;
     result->open = locked_env_open;
     result->close = locked_env_close;
-    result->txn_checkpoint = locked_env_txn_checkpoint;
+    result->txn_checkpoint = toku_env_txn_checkpoint;
     result->log_flush = locked_env_log_flush;
     result->set_errcall = toku_env_set_errcall;
     result->set_errfile = toku_env_set_errfile;
@@ -1126,7 +1135,6 @@ static int toku_db_close(DB * db, u_int32_t UU(flags)) {
     // Even if panicked, let's close as much as we can.
     int is_panicked = toku_env_is_panicked(db->dbenv); 
     env_unref(db->dbenv);
-    toku_free(db->i->database_name);
     toku_free(db->i->fname);
     toku_free(db->i->full_fname);
     toku_sdbt_cleanup(&db->i->skey);
@@ -2780,8 +2788,59 @@ static int toku_db_fd(DB *db, int *fdp) {
     return toku_brt_get_fd(db->i->brt, fdp);
 }
 
+static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYPE dbtype, u_int32_t flags, int mode);
+
+static int multiple_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYPE dbtype, u_int32_t flags, int mode) {
+    //Only flag we look at is create.  If create is there, we create directory if necessary.
+    //If create is not set and directory not exists, we quit out with errors.
+    int is_db_create  = flags & DB_CREATE;
+
+    char *directory_name = NULL;
+    BOOL created_directory = FALSE;
+    int r = find_db_file(db->dbenv, fname, &directory_name);
+    if (r!=0) goto cleanup;
+    toku_struct_stat statbuf;
+    r = toku_stat(directory_name, &statbuf);
+    if (r!=0) { r = errno; assert(r!=0); }
+    if (r==0 && !S_ISDIR(statbuf.st_mode)) { r = ENOTDIR; goto cleanup; } //File exists, but is not a directory.
+    if (r!=0 && r!=ENOENT) goto cleanup;
+    if (r==ENOENT && is_db_create) {
+        //Try to create the directory.
+        r = toku_os_mkdir(directory_name, S_IRWXU|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH);
+        if (r==0) created_directory = TRUE;
+        else { r = errno; assert(r!=0); }
+    }
+    if (r!=0) goto cleanup;
+    {
+        char subdb_full_name[strlen(fname) + sizeof("/") + strlen(dbname)];
+        int bytes = snprintf(subdb_full_name, sizeof(subdb_full_name), "%s/%s", fname, dbname);
+        assert(bytes==(int)sizeof(subdb_full_name)-1);
+        const char *null_subdbname = NULL;
+        r = toku_db_open(db, txn, subdb_full_name, null_subdbname, dbtype, flags, mode);
+    }
+
+cleanup:
+    if (r!=0) {
+        if (created_directory) {
+            //Failure on create, and directory did not previously exist.
+            //Lets delete the directory.
+            //TODO: Since we failed the db create, perhaps we should delete
+            //the directory (it was only made for this).
+            //Possible race conditions could exist if we do this.
+            //Files may still be there.
+        }
+    }
+    if (directory_name) toku_free(directory_name);
+    return r;
+}
+
 static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYPE dbtype, u_int32_t flags, int mode) {
     HANDLE_PANICKED_DB(db);
+    if (dbname!=NULL) 
+        return multiple_db_open(db, txn, fname, dbname, dbtype, flags, mode);
+
+    //This code ONLY supports single-db files.
+    assert(dbname==NULL);
     // Warning.  Should check arguments.  Should check return codes on malloc and open and so forth.
     BOOL need_locktree = (BOOL)((db->dbenv->i->open_flags & DB_INIT_LOCK) &&
                                 (db->dbenv->i->open_flags & DB_INIT_TXN));
@@ -2819,11 +2878,6 @@ static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *db
     if (db->i->fname == 0) { 
         r = ENOMEM; goto error_cleanup;
     }
-    assert(db->i->database_name == 0);
-    db->i->database_name = toku_strdup(dbname ? dbname : "");
-    if (db->i->database_name == 0) {
-        r = ENOMEM; goto error_cleanup;
-    }
     if (is_db_rdonly)
         openflags |= O_RDONLY;
     else
@@ -2853,7 +2907,7 @@ static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *db
     db->i->open_mode = mode;
 
 
-    r = toku_brt_open(db->i->brt, db->i->full_fname, fname, dbname,
+    r = toku_brt_open(db->i->brt, db->i->full_fname, fname,
 		      is_db_create, is_db_excl,
 		      db->dbenv->i->cachetable,
 		      txn ? txn->i->tokutxn : NULL_TXN,
@@ -2871,7 +2925,7 @@ static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *db
         r = toku_db_fd(db, &db_fd);
         if (r!=0) goto error_cleanup;
         assert(db_fd>=0);
-        r = toku_db_id_create(&db->i->db_id, db_fd, db->i->database_name);
+        r = toku_db_id_create(&db->i->db_id, db_fd);
         if (r!=0) { goto error_cleanup; }
         r = toku_ltm_get_lt(db->dbenv->i->ltm, &db->i->lt, dups, db->i->db_id);
         if (r!=0) { goto error_cleanup; }
@@ -2883,10 +2937,6 @@ error_cleanup:
     if (db->i->db_id) {
         toku_db_id_remove_ref(&db->i->db_id);
         db->i->db_id = NULL;
-    }
-    if (db->i->database_name) {
-        toku_free(db->i->database_name);
-        db->i->database_name = NULL;
     }
     if (db->i->full_fname) {
         toku_free(db->i->full_fname);
@@ -3010,8 +3060,35 @@ toku_db_put(DB *db, DB_TXN *txn, DBT *key, DBT *val, u_int32_t flags) {
     return r;
 }
 
+static int toku_db_remove(DB * db, const char *fname, const char *dbname, u_int32_t flags);
+
+static int
+toku_db_remove_subdb(DB * db, const char *fname, const char *dbname, u_int32_t flags) {
+    char *directory_name = NULL;
+    int r = find_db_file(db->dbenv, fname, &directory_name);
+    if (r!=0) goto cleanup;
+    toku_struct_stat statbuf;
+    r = toku_stat(directory_name, &statbuf);
+    if (r==0 && !S_ISDIR(statbuf.st_mode)) { r = ENOTDIR; goto cleanup; } //File exists, but is not a directory.
+    if (r!=0) { r = errno; assert(r!=0); goto cleanup; }
+    {
+        char subdb_full_name[strlen(fname) + sizeof("/") + strlen(dbname)];
+        int bytes = snprintf(subdb_full_name, sizeof(subdb_full_name), "%s/%s", fname, dbname);
+        assert(bytes==(int)sizeof(subdb_full_name)-1);
+        const char *null_subdbname = NULL;
+        r = toku_db_remove(db, subdb_full_name, null_subdbname, flags);
+    }
+
+cleanup:
+    if (directory_name) toku_free(directory_name);
+    return r;
+}
+
+//TODO: Maybe delete directory when last 'subdb' is deleted.
 static int toku_db_remove(DB * db, const char *fname, const char *dbname, u_int32_t flags) {
     HANDLE_PANICKED_DB(db);
+    if (dbname)
+        return toku_db_remove_subdb(db, fname, dbname, flags);
     int r = ENOSYS;
     int r2 = 0;
     toku_db_id* db_id = NULL;
@@ -3022,7 +3099,7 @@ static int toku_db_remove(DB * db, const char *fname, const char *dbname, u_int3
     //TODO: Verify DB* db not yet opened
     //TODO: Verify db file not in use. (all dbs in the file must be unused)
     r = toku_db_open(db, NULL, fname, dbname, DB_UNKNOWN, 0, S_IRWXU|S_IRWXG|S_IRWXO);
-    if (r==TOKUDB_DICTIONARY_TOO_OLD && !dbname) {
+    if (r==TOKUDB_DICTIONARY_TOO_OLD) {
         need_close = FALSE;
         goto delete_db_file;
     }
@@ -3039,26 +3116,14 @@ static int toku_db_remove(DB * db, const char *fname, const char *dbname, u_int3
         if (db->dbenv->i->ltm) { ltm = db->dbenv->i->ltm; }
     }
     
-    if (dbname) {
-        //TODO: Verify the target db is not open
-        //TODO: Use master database (instead of manual edit) when implemented.
-        r = toku_brt_remove_subdb(db->i->brt, dbname, flags);
-        if (r!=0) { goto cleanup; }
-    }
-    if (!dbname) {
 delete_db_file:
-        r = find_db_file(db->dbenv, fname, &full_name);
-        if (r!=0) { goto cleanup; }
-        assert(full_name);
-	r = toku_db_close(db, 0);
-	need_close = FALSE;
-	if (r!=0) { goto cleanup; }
-        if (unlink(full_name) != 0) { r = errno; goto cleanup; }
-    } else {
-	r = toku_db_close(db, 0);
-	need_close = FALSE;
-	if (r!=0) { goto cleanup; }
-    }
+    r = find_db_file(db->dbenv, fname, &full_name);
+    if (r!=0) { goto cleanup; }
+    assert(full_name);
+    r = toku_db_close(db, 0);
+    need_close = FALSE;
+    if (r!=0) { goto cleanup; }
+    if (unlink(full_name) != 0) { r = errno; goto cleanup; }
 
     if (ltm && db_id) { toku_ltm_invalidate_lt(ltm, db_id); }
 
@@ -3078,14 +3143,17 @@ cleanup:
      have the correct unique ids.
    TODO: Verify the DB file is not in use (either a single db file or
          a file with multi-databases).
+   TODO: Check the other directories in the environment for the file
 */
 static int toku_db_rename(DB * db, const char *namea, const char *nameb, const char *namec, u_int32_t flags) {
     HANDLE_PANICKED_DB(db);
     if (flags!=0) return EINVAL;
     char afull[PATH_MAX], cfull[PATH_MAX];
     int r;
-    assert(nameb == 0);
-    r = snprintf(afull, PATH_MAX, "%s%s", db->dbenv->i->dir, namea);
+    if (nameb)
+        r = snprintf(afull, PATH_MAX, "%s%s/%s", db->dbenv->i->dir, namea, nameb);
+    else
+        r = snprintf(afull, PATH_MAX, "%s%s", db->dbenv->i->dir, namea);
     assert(r < PATH_MAX);
     r = snprintf(cfull, PATH_MAX, "%s%s", db->dbenv->i->dir, namec);
     assert(r < PATH_MAX);
@@ -3328,9 +3396,6 @@ static int toku_db_truncate(DB *db, DB_TXN *txn, u_int32_t *row_count, u_int32_t
     // dont support cursors 
     if (toku_brt_get_cursor_count(db->i->brt) > 0)
         return EINVAL;
-    // dont support sub databases (yet)
-    if (db->i->database_name != 0 && strcmp(db->i->database_name, "") != 0)
-        return EINVAL;
 
     // acquire a table lock
     if (txn) {
@@ -3502,7 +3567,6 @@ static int toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     result->i->header = 0;
     result->i->database_number = 0;
     result->i->full_fname = 0;
-    result->i->database_name = 0;
     result->i->open_flags = 0;
     result->i->open_mode = 0;
     result->i->brt = 0;

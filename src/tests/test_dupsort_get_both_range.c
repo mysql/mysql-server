@@ -89,7 +89,8 @@ test_icdi_search (int n, int dup_mode) {
     const char * const fname = ENVDIR "/" "test_icdi_search.brt";
     int r;
 
-    unlink(fname);
+    r = system("rm -rf " ENVDIR); CKERR(r);
+    r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
 
     /* create the dup database file */
     r = db_create(&db, null_env, 0); assert(r == 0);

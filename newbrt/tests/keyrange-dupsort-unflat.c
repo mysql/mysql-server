@@ -21,7 +21,7 @@ static void test_flat (void) {
     r = toku_brt_create(&t); assert(r==0);
     r = toku_brt_set_flags(t, TOKU_DB_DUP + TOKU_DB_DUPSORT); assert(r == 0);
     r = toku_brt_set_nodesize(t, 4096); assert(r == 0);
-    r = toku_brt_open(t, fname, fname, 0, 1, 1, ct, null_txn, (DB*)0);
+    r = toku_brt_open(t, fname, fname, 1, 1, ct, null_txn, (DB*)0);
     u_int64_t i;
     for (i=0; i<limit; i++) {
 	u_int64_t j;

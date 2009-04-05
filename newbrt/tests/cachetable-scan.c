@@ -18,8 +18,6 @@ static void f_flush (CACHEFILE f,
 		     long size,
 		     BOOL write_me,
 		     BOOL keep_me,
-		     LSN  modified_lsn __attribute__((__unused__)),
-		     BOOL rename_p     __attribute__((__unused__)),
 		     BOOL for_checkpoint     __attribute__((__unused__))) {
     assert(size==BLOCKSIZE);
     if (write_me) {

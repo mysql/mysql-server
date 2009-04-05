@@ -54,7 +54,8 @@ test_insert (int n, int dup_mode) {
     int r;
     int i;
 
-    unlink(fname);
+    r = system("rm -rf " ENVDIR); CKERR(r);
+    r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
 
     /* create the dup database file */
     r = db_create(&db, null_env, 0);
@@ -151,7 +152,8 @@ test_nonleaf_insert (int n, int dup_mode) {
     int r;
     int i;
 
-    unlink(fname);
+    r = system("rm -rf " ENVDIR); CKERR(r);
+    r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
 
     /* create the dup database file */
     r = db_create(&db, null_env, 0);

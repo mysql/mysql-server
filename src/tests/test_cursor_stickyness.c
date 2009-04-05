@@ -43,7 +43,8 @@ test_cursor_sticky (int n, int dup_mode) {
     const char * const fname = ENVDIR "/" "test_cursor_sticky.brt";
     int r;
 
-    unlink(fname);
+    r = system("rm -rf " ENVDIR); assert(r == 0);
+    r = toku_os_mkdir(ENVDIR, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
 
     /* create the dup database file */
     r = db_create(&db, null_env, 0); assert(r == 0);
@@ -77,15 +78,11 @@ test_cursor_sticky (int n, int dup_mode) {
 
 int
 test_main(int argc, const char *argv[]) {
-    int r;
     int i;
 
     // setvbuf(stdout, NULL, _IONBF, 0);
     parse_args(argc, argv);
   
-    r = system("rm -rf " ENVDIR); assert(r == 0);
-    r = toku_os_mkdir(ENVDIR, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
-
     for (i=1; i<65537; i *= 2) {
         test_cursor_sticky(i, 0);
     }

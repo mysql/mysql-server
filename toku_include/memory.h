@@ -25,6 +25,7 @@ enum typ_tag { TYP_BRTNODE = 0xdead0001,
 
 /* Everything should call toku_malloc() instead of malloc(), and toku_calloc() instead of calloc() */
 void *toku_calloc(size_t nmemb, size_t size)  __attribute__((__visibility__("default")));
+void *toku_xcalloc(size_t nmemb, size_t size)  __attribute__((__visibility__("default")));
 void *toku_malloc(size_t size)  __attribute__((__visibility__("default")));
 
 // xmalloc aborts instead of return NULL if we run out of memory
@@ -54,17 +55,25 @@ void *toku_realloc(void *, size_t size)  __attribute__((__visibility__("default"
  * and you cannot go wrong.
  */
 #define MALLOC(v) v = toku_malloc(sizeof(*v))
-/* MALLOC_N is like calloc:  It makes an array.  Write
+/* MALLOC_N is like calloc(Except no 0ing of data):  It makes an array.  Write
  *   int *MALLOC_N(5,x);
  * to make an array of 5 integers.
  */
 #define MALLOC_N(n,v) v = toku_malloc((n)*sizeof(*v))
+
+//CALLOC_N is like calloc with auto-figuring out size of members
+#define CALLOC_N(n,v) v = toku_calloc((n), sizeof(*v)) 
+
+#define CALLOC(v) CALLOC_N(1,v)
 
 #define REALLOC_N(n,v) v = toku_realloc(v, (n)*sizeof(*v))
 
 // XMALLOC macros are like MALLOC except they abort if the operation fails
 #define XMALLOC(v) v = toku_xmalloc(sizeof(*v))
 #define XMALLOC_N(n,v) v = toku_xmalloc((n)*sizeof(*v))
+#define XCALLOC_N(n,v) v = toku_xcalloc((n), (sizeof(*v)))
+
+#define XCALLOC(v) XCALLOC_N(1,(v))
 #define XREALLOC_N(n,v) v = toku_xrealloc(v, (n)*sizeof(*v))
 
 /* If you have a type such as 

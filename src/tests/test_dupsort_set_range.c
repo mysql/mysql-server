@@ -89,15 +89,17 @@ expect_cursor_get_current (DBC *cursor, int k, int v) {
 /* insert, close, delete, insert, search */
 static void
 test_icdi_search (int n, int dup_mode) {
+    int r;
+
     if (verbose) printf("test_icdi_search:%d %d\n", n, dup_mode);
 
     DB_ENV * const null_env = 0;
     DB *db;
     DB_TXN * const null_txn = 0;
     const char * const fname = ENVDIR "/" "test_icdi_search.brt";
-    int r;
 
-    unlink(fname);
+    r = system("rm -rf " ENVDIR); CKERR(r);
+    r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
 
     /* create the dup database file */
     r = db_create(&db, null_env, 0); assert(r == 0);
@@ -156,9 +158,6 @@ test_main(int argc, const char *argv[]) {
 
     parse_args(argc, argv);
   
-    system("rm -rf " ENVDIR);
-    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
-
     int limit = 1<<13;
     if (verbose > 1)
         limit = 1<<16;

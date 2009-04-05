@@ -37,7 +37,7 @@
 #include "brt.h"
 #include "brt-internal.h"
 #include "cachetable.h"
-#include "cachetable-rwlock.h"
+#include "rwlock.h"
 #include "fifo.h"
 #include "list.h"
 #include "key.h"

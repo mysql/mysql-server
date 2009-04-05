@@ -22,6 +22,15 @@ void *toku_malloc(size_t size) {
 }
 
 void *
+toku_xcalloc(size_t nmemb, size_t size)
+{
+    size_t newsize = nmemb * size;
+    void *vp = toku_xmalloc(newsize);
+    if (vp) memset(vp, 0, newsize);
+    return vp;
+}
+
+void *
 toku_calloc(size_t nmemb, size_t size)
 {
     size_t newsize = nmemb * size;

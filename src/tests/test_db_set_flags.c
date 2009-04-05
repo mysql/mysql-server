@@ -22,7 +22,8 @@ test_db_set_flags (int flags, int expectr, int flags2, int expectr2) {
     const char * const fname = ENVDIR "/" "test.db.set.flags.brt";
     int r;
 
-    unlink(fname);
+    r = system("rm -rf " ENVDIR); CKERR(r);
+    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
 
     r = db_create(&db, null_env, 0); assert(r == 0);
     db->set_errfile(db,0); // Turn off those annoying errors
@@ -37,9 +38,6 @@ test_main(int argc, const char *argv[]) {
 
     parse_args(argc, argv);
   
-    system("rm -rf " ENVDIR);
-    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
-    
     test_db_set_flags(0, 0, 0, 0);
     test_db_set_flags(0, 0, DB_DUP, EINVAL);
     test_db_set_flags(DB_DUP+DB_DUPSORT, 0, DB_DUP+DB_DUPSORT, EINVAL);

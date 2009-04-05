@@ -49,7 +49,8 @@ test_dup_delete (int n, int dup_mode) {
     const char * const fname = ENVDIR "/" "test_dup_delete.brt";
     int r;
 
-    unlink(fname);
+    r = system("rm -rf " ENVDIR); CKERR(r);
+    r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
 
     /* create the dup database file */
     r = db_create(&db, null_env, 0);
@@ -144,8 +145,6 @@ test_dup_delete_delete (int n) {
     const char * const fname = ENVDIR "/" "test_dup_delete_delete.brt";
     int r;
 
-    unlink(fname);
-
     /* create the dup database file */
     r = db_create(&db, null_env, 0);
     assert(r == 0);
@@ -224,8 +223,6 @@ test_dup_delete_insert (int n, int dup_mode) {
     DB_TXN * const null_txn = 0;
     const char * const fname = ENVDIR "/" "test_dup_delete_insert.brt";
     int r;
-
-    unlink(fname);
 
     /* create the dup database file */
     r = db_create(&db, null_env, 0);
@@ -332,8 +329,6 @@ test_all_dup_delete_insert (int n) {
     const char * const fname = ENVDIR "/" "test_all_dup_delete_insert.brt";
     int r;
 
-    unlink(fname);
-
     /* create the dup database file */
     r = db_create(&db, null_env, 0);
     assert(r == 0);
@@ -408,8 +403,6 @@ test_walk_empty (int n, int dup_mode) {
     const char * const fname = ENVDIR "/" "test_walk_empty.brt";
     int r;
 
-    unlink(fname);
-
     /* create the dup database file */
     r = db_create(&db, null_env, 0);
     assert(r == 0);
@@ -481,8 +474,6 @@ test_icdi_search (int n, int dup_mode) {
     DB_TXN * const null_txn = 0;
     const char * const fname = ENVDIR "/" "test_icdi_search.brt";
     int r;
-
-    unlink(fname);
 
     /* create the dup database file */
     r = db_create(&db, null_env, 0);
@@ -572,8 +563,6 @@ test_ici_search (int n, int dup_mode) {
     DB_TXN * const null_txn = 0;
     const char * const fname = ENVDIR "/" "test_ici_search.brt";
     int r;
-
-    unlink(fname);
 
     /* create the dup database file */
     r = db_create(&db, null_env, 0);
@@ -670,8 +659,6 @@ test_i0i1ci0_search (int n, int dup_mode) {
     const char * const fname = ENVDIR "/" "test_i0i1ci0.brt";
     int r;
 
-    unlink(fname);
-
     /* create the dup database file */
     r = db_create(&db, null_env, 0);
     assert(r == 0);
@@ -719,15 +706,15 @@ test_i0i1ci0_search (int n, int dup_mode) {
 int
 test_main(int argc, const char *argv[]) {
     int i;
+    int r;
 
     parse_args(argc, argv);
   
-    system("rm -rf " ENVDIR);
-    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
-
 #ifdef USE_BDB
     /* dup tests */
     for (i = 1; i <= (1<<16); i *= 2) {
+        r = system("rm -rf " ENVDIR); CKERR(r);
+        r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
         test_dup_delete(i, DB_DUP);
         test_dup_delete_insert(i, DB_DUP);
         test_all_dup_delete_insert(i);
@@ -737,6 +724,8 @@ test_main(int argc, const char *argv[]) {
 
     /* dupsort tests */
     for (i = 1; i <= (1<<16); i *= 2) {
+        r = system("rm -rf " ENVDIR); CKERR(r);
+        r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
         test_dup_delete(i, DB_DUP + DB_DUPSORT);
         test_dup_delete_insert(i, DB_DUP + DB_DUPSORT);
         test_walk_empty(i, DB_DUP + DB_DUPSORT);

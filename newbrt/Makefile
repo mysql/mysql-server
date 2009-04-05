@@ -44,6 +44,7 @@ BRT_SOURCES = \
   brt \
   brt-test-helpers \
   cachetable \
+  checkpoint \
   fifo \
   fingerprint \
   key \

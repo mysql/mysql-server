@@ -112,7 +112,6 @@ internal_toku_recover_fopen_or_fcreate (int flags, int mode, char *fixedfname, F
     int r = toku_brt_create(&brt);
     assert(r==0);
     brt->fname = fixedfname;
-    brt->database_name = 0;
     brt->h=0;
     brt->compare_fun = toku_default_compare_fun; // we'll need to set these to the right comparison function, or do without them.
     brt->dup_compare = toku_default_compare_fun;
@@ -122,7 +121,7 @@ internal_toku_recover_fopen_or_fcreate (int flags, int mode, char *fixedfname, F
     brt->cf=cf;
     r = toku_read_brt_header_and_store_in_cachefile(brt->cf, &brt->h);
     if (r==-1) {
-	r = toku_brt_alloc_init_header(brt, 0);
+	r = toku_brt_alloc_init_header(brt);
     }
     toku_recover_note_cachefile(filenum, cf, brt);
 }
@@ -163,23 +162,15 @@ static void toku_recover_fheader (LSN UU(lsn), TXNID UU(txnid),FILENUM filenum, 
     h->dirty=0;
     h->panic=0;
     h->panic_string=0;
-    XMALLOC(h->flags_array);
-    h->flags_array[0] = header.flags;
+    h->flags = header.flags;
     h->nodesize = header.nodesize;
     //toku_blocktable_create_from_loggedheader(&h->blocktable, header);
     assert(0); //create from loggedheader disabled for now. //TODO: #1605
     assert(h->blocktable);
-    h->n_named_roots = header.n_named_roots;
     r=toku_fifo_create(&h->fifo);
     assert(r==0);
-    if ((signed)header.n_named_roots==-1) {
-	MALLOC_N(1, h->roots);       assert(h->roots);
-	MALLOC_N(1, h->root_hashes); assert(h->root_hashes);
-	h->roots[0] = header.u.one.root;
-	h->root_hashes[0].valid= FALSE;
-    } else {
-	assert(0);
-    }
+    h->root = header.root;
+    h->root_hash.valid= FALSE;
     //toku_cachetable_put(pair->cf, header_blocknum, fullhash, h, 0, toku_brtheader_flush_callback, toku_brtheader_fetch_callback, 0);
     if (pair->brt) {
 	toku_free(pair->brt->h);
@@ -187,7 +178,6 @@ static void toku_recover_fheader (LSN UU(lsn), TXNID UU(txnid),FILENUM filenum, 
 	r = toku_brt_create(&pair->brt);
 	assert(r==0);
 	pair->brt->cf = pair->cf;
-	pair->brt->database_name = 0; // Special case, we don't know or care what the database name is for recovery.
 	list_init(&pair->brt->cursors);
 	pair->brt->compare_fun = 0;
 	pair->brt->dup_compare = 0;
@@ -270,8 +260,8 @@ toku_recover_changeunnamedroot (LSN UU(lsn), FILENUM filenum, BLOCKNUM UU(oldroo
     assert(r==0);
     assert(pair->brt);
     assert(pair->brt->h);
-    pair->brt->h->roots[0] = newroot;
-    pair->brt->h->root_hashes[0].valid = FALSE;
+    pair->brt->h->root = newroot;
+    pair->brt->h->root_hash.valid = FALSE;
 }
 static void
 toku_recover_changenamedroot (LSN UU(lsn), FILENUM UU(filenum), BYTESTRING UU(name), BLOCKNUM UU(oldroot), BLOCKNUM UU(newroot)) { assert(0); }

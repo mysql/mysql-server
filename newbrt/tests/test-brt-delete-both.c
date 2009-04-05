@@ -21,7 +21,7 @@ doit (void) {
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER); assert(r==0);
     unlink(fname);
     r = toku_brt_create(&t); assert(r==0);
-    r = toku_brt_open(t, fname, fname, 0, 1, 1, ct, null_txn, (DB*)0); assert(r==0);
+    r = toku_brt_open(t, fname, fname, 1, 1, ct, null_txn, (DB*)0); assert(r==0);
 
     r = toku_brt_insert(t, toku_fill_dbt(&k, "a", 2), toku_fill_dbt(&v, "x", 2), null_txn);
     assert(r==0);

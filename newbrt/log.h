@@ -135,33 +135,10 @@ static inline void toku_free_BYTESTRING(BYTESTRING val) {
 
 static inline int toku_copy_LOGGEDBRTHEADER(LOGGEDBRTHEADER *target, LOGGEDBRTHEADER val) {
     *target = val;
-    if ((int32_t)val.n_named_roots!=-1) {
-	int r;
-	target->u.many.names = toku_memdup(target->u.many.names, val.n_named_roots*sizeof(target->u.many.names[0]));
-	if (target->u.many.names==0) { r=errno; if (0) { died0: toku_free(target->u.many.names); } return r; }
-	target->u.many.roots = toku_memdup(target->u.many.roots, val.n_named_roots*sizeof(target->u.many.roots[0]));
-	if (target->u.many.roots==0) { r=errno; if (0) { died1: toku_free(target->u.many.names); } goto died0; }
-	int32_t i;
-	for (i=0; i<val.n_named_roots; i++) {
-	    target->u.many.names[i] = toku_strdup(target->u.many.names[i]);
-	    if (target->u.many.names[i]==0) {
-		int32_t j;
-		r=errno;
-		for (j=0; j<i; j++) toku_free(target->u.many.names[j]);
-		goto died1;
-	    }
-	}
-    }
     return 0;
 }
-static inline void toku_free_LOGGEDBRTHEADER(LOGGEDBRTHEADER val) {
-    if ((int32_t)val.n_named_roots==-1) return;
-    int32_t i;
-    for (i=0; i<val.n_named_roots; i++) {
-	toku_free(val.u.many.names[i]);
-    }
-    toku_free(val.u.many.names);
-    toku_free(val.u.many.roots);
+static inline void toku_free_LOGGEDBRTHEADER(LOGGEDBRTHEADER UU(val)) {
+    return;
 }
 
 int toku_recover_init(void);

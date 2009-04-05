@@ -72,7 +72,8 @@ test_icdi_search (int n, int dup_mode) {
     const char * const fname = ENVDIR "/" "test_icdi_search.brt";
     int r;
 
-    unlink(fname);
+    r = system("rm -rf " ENVDIR); CKERR(r);
+    r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
 
     /* create the dup database file */
     r = db_create(&db, null_env, 0);
@@ -143,7 +144,8 @@ test_ici_search (int n, int dup_mode) {
     const char * const fname = ENVDIR "/" "test_ici_search.brt";
     int r;
 
-    unlink(fname);
+    r = system("rm -rf " ENVDIR); CKERR(r);
+    r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
 
     /* create the dup database file */
     r = db_create(&db, null_env, 0);
@@ -212,8 +214,6 @@ test_i0i1ci0_search (int n, int dup_mode) {
     const char * const fname = ENVDIR "/" "test_i0i1ci0.brt";
     int r;
 
-    unlink(fname);
-
     /* create the dup database file */
     r = db_create(&db, null_env, 0);
     assert(r == 0);
@@ -269,7 +269,8 @@ test_reverse_search (int n, int dup_mode) {
     const char * const fname = ENVDIR "/" "test_reverse_search.brt";
     int r;
 
-    unlink(fname);
+    r = system("rm -rf " ENVDIR); CKERR(r);
+    r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
 
     /* create the dup database file */
     r = db_create(&db, null_env, 0);
@@ -332,11 +333,14 @@ test_main(int argc, const char *argv[]) {
     if (verbose > 1)
         limit = 1<<16;
 
+    int r;
     /* dup search */
     if (IS_TDB) {
 	if (verbose) printf("%s:%d:WARNING:tokudb does not support DB_DUP\n", __FILE__, __LINE__);
     } else {
 	for (i = 1; i <= limit; i *= 2) {
+            r = system("rm -rf " ENVDIR); CKERR(r);
+            r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
 	    test_ici_search(i, DB_DUP);
 	    test_icdi_search(i, DB_DUP);
 	    test_i0i1ci0_search(i, DB_DUP);
@@ -345,6 +349,8 @@ test_main(int argc, const char *argv[]) {
 
     /* dupsort search */
     for (i = 1; i <= limit; i *= 2) {
+        r = system("rm -rf " ENVDIR); CKERR(r);
+        r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
          test_ici_search(i, DB_DUP + DB_DUPSORT);
          test_icdi_search(i, DB_DUP + DB_DUPSORT);
          test_i0i1ci0_search(i, DB_DUP + DB_DUPSORT);

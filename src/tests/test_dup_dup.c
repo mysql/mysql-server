@@ -65,7 +65,8 @@ test_dup_key (int dup_mode, u_int32_t put_flags, int rexpect, int rexpectdupdup)
     const char * const fname = ENVDIR "/" "test_insert.brt";
     int r;
  
-    unlink(fname);
+    r = system("rm -rf " ENVDIR); CKERR(r);
+    r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
 
     /* create the dup database file */
     r = db_create(&db, null_env, 0); assert(r == 0);
@@ -117,7 +118,8 @@ test_dup_dup (int dup_mode, u_int32_t put_flags, int rexpect, int rexpectdupdup)
     const char * const fname = ENVDIR "/" "test_insert.brt";
     int r;
  
-    unlink(fname);
+    r = system("rm -rf " ENVDIR); CKERR(r);
+    r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
 
     /* create the dup database file */
     r = db_create(&db, null_env, 0); assert(r == 0);
@@ -169,7 +171,8 @@ test_put_00_01_01 (int dup_mode, u_int32_t put_flags) {
     const char * const fname = ENVDIR "/" "test_insert.brt";
     int r, expectr;
  
-    unlink(fname);
+    r = system("rm -rf " ENVDIR); CKERR(r);
+    r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
 
     /* create the dup database file */
     r = db_create(&db, null_env, 0); assert(r == 0);

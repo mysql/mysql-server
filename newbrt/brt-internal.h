@@ -169,12 +169,10 @@ struct brt_header {
     char *panic_string; // A malloced string that can indicate what went wrong.
     int layout_version;
     unsigned int nodesize;
-    int n_named_roots; /* -1 if the only one is unnamed */
-    char  **names;              // an array of names.  NULL if subdatabases are not allowed.
-    BLOCKNUM *roots;            // An array of the roots of the various dictionaries.  Element 0 holds the element if no subdatabases allowed.
-    struct remembered_hash *root_hashes;     // an array of hashes of the root offsets.
-    unsigned int *flags_array;  // an array of flags.  Element 0 holds the element if no subdatabases allowed.
-    struct descriptor *descriptors;  // an array of descriptors.  Element 0 holds the element if no subdatabases allowed.
+    BLOCKNUM root;            // roots of the dictionary
+    struct remembered_hash root_hash;     // hash of the root offset.
+    unsigned int flags;
+    struct descriptor descriptor;
 
     FIFO fifo; // all the abort and commit commands.  If the header gets flushed to disk, we write the fifo contents beyond the unused_memory.
 
@@ -186,7 +184,6 @@ struct brt_header {
 struct brt {
     CACHEFILE cf;
     char *fname; // the filename
-    char *database_name;
     // The header is shared.  It is also ephemeral.
     struct brt_header *h;
 
@@ -238,12 +235,11 @@ struct brtenv {
     CACHETABLE ct;
     TOKULOGGER logger;
     long long checksum_number;
-//    SPINLOCK  checkpointing;
 };
 
-extern void toku_brtnode_flush_callback (CACHEFILE cachefile, BLOCKNUM nodename, void *brtnode_v, void *extraargs, long size, BOOL write_me, BOOL keep_me, LSN modified_lsn, BOOL rename_p, BOOL for_checkpoint);
+extern void toku_brtnode_flush_callback (CACHEFILE cachefile, BLOCKNUM nodename, void *brtnode_v, void *extraargs, long size, BOOL write_me, BOOL keep_me, BOOL for_checkpoint);
 extern int toku_brtnode_fetch_callback (CACHEFILE cachefile, BLOCKNUM nodename, u_int32_t fullhash, void **brtnode_pv, long *sizep, void*extraargs, LSN *written_lsn);
-extern int toku_brt_alloc_init_header(BRT t, const char *dbname);
+extern int toku_brt_alloc_init_header(BRT t);
 extern int toku_read_brt_header_and_store_in_cachefile (CACHEFILE cf, struct brt_header **header);
 extern CACHEKEY* toku_calculate_root_offset_pointer (BRT brt, u_int32_t *root_hash);
 
@@ -327,7 +323,7 @@ enum brt_layout_version_e {
     BRT_LAYOUT_VERSION_7 = 7,   // Diff from 6 to 7:  Add exact-bit to leafentry_estimate #818, add magic to header #22, add per-subdatase flags #333
     BRT_LAYOUT_VERSION_8 = 8,   // Diff from 7 to 8:  Use murmur instead of crc32.  We are going to make a simplification and stop supporting version 7 and before.  Current As of Beta 1.0.6
     BRT_LAYOUT_VERSION_9 = 9,   // Diff from 8 to 9:  Variable-sized blocks and compression.
-    BRT_LAYOUT_VERSION_10 = 10, // Diff from 9 to 10: Variable number of compressed sub-blocks per block, disk byte order == intel byte order, Subtree estimates instead of just leafentry estimates, translation table, dictionary descriptors, checksum in header
+    BRT_LAYOUT_VERSION_10 = 10, // Diff from 9 to 10: Variable number of compressed sub-blocks per block, disk byte order == intel byte order, Subtree estimates instead of just leafentry estimates, translation table, dictionary descriptors, checksum in header, subdb support removed from brt layer
     BRT_ANTEULTIMATE_VERSION,   // the version after the most recent version
     BRT_LAYOUT_VERSION   = BRT_ANTEULTIMATE_VERSION-1 // A hack so I don't have to change this line.
 };

@@ -13,15 +13,17 @@
 
 static void
 test_insert_delete_insert (int dup_mode) {
+    int r;
+    r = system("rm -rf " ENVDIR);
+    CKERR(r);
+    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
+
     if (verbose) printf("test_insert_delete_insert:%d\n", dup_mode);
 
     DB_ENV * const null_env = 0;
     DB *db;
     DB_TXN * const null_txn = 0;
     const char * const fname = ENVDIR "/" "test.cursor.insert.delete.insert.brt";
-    int r;
-
-    unlink(fname);
 
     /* create the dup database file */
     r = db_create(&db, null_env, 0); assert(r == 0);
@@ -67,9 +69,6 @@ test_main(int argc, const char *argv[]) {
 
     parse_args(argc, argv);
   
-    system("rm -rf " ENVDIR);
-    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
-
     test_insert_delete_insert(0);
     test_insert_delete_insert(DB_DUP + DB_DUPSORT);
 

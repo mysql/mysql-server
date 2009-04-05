@@ -35,9 +35,9 @@ int toku_create_cachetable(CACHETABLE */*result*/, long size_limit, LSN initial_
 // During a transaction, we cannot reuse a filenum.
 int toku_cachefile_of_filenum (CACHETABLE t, FILENUM filenum, CACHEFILE *cf);
 
-// Checkpoint the cachetable.
-// Effects: ?
-int toku_cachetable_checkpoint (CACHETABLE ct, TOKULOGGER);
+// TODO: #1510  Add comments on how these behave
+int toku_cachetable_begin_checkpoint (CACHETABLE ct, TOKULOGGER);
+int toku_cachetable_end_checkpoint(CACHETABLE ct, TOKULOGGER logger, char **error_string);
 
 // Does an fsync of a cachefile.
 // Handles the case where cf points to /dev/null
@@ -65,7 +65,7 @@ void toku_cachefile_get_workqueue_load (CACHEFILE, int *n_in_queue, int *n_threa
 // When keep_me is false, the value should be freed.
 // When for_checkpoint is true, this was a 'pending' write
 // Returns: 0 if success, otherwise an error number.
-typedef void (*CACHETABLE_FLUSH_CALLBACK)(CACHEFILE, CACHEKEY key, void *value, void *extraargs, long size, BOOL write_me, BOOL keep_me, LSN modified_lsn, BOOL rename_p, BOOL for_checkpoint);
+typedef void (*CACHETABLE_FLUSH_CALLBACK)(CACHEFILE, CACHEKEY key, void *value, void *extraargs, long size, BOOL write_me, BOOL keep_me, BOOL for_checkpoint);
 
 // The fetch callback is called when a thread is attempting to get and pin a memory
 // object and it is not in the cachetable.
