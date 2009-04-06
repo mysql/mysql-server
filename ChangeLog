@@ -1,5 +1,12 @@
 2009-04-06	The InnoDB Team
 
+	* handler/ha_innodb.cc:
+	Make the parameter innodb_change_buffering settable by the
+	configuration file or mysqld command line options.  Before this
+	fix, the initial value specified for this parameter was ignored.
+
+2009-04-06	The InnoDB Team
+
 	* sync/sync0rw.c:
 	Avoid a bogus failure in UNIV_SYNC_DEBUG diagnostics.
 
