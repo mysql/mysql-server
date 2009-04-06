@@ -19,6 +19,7 @@
 #include <UtilTransactions.hpp>
 #include <NdbBackup.hpp>
 
+int runDropTable(NDBT_Context* ctx, NDBT_Step* step);
 
 #define CHECK(b) if (!(b)) { \
   g_err << "ERR: "<< step->getName() \
@@ -217,10 +218,8 @@ runDDL(NDBT_Context* ctx, NDBT_Step* step){
 int runDropTablesRestart(NDBT_Context* ctx, NDBT_Step* step){
   NdbRestarter restarter;
 
-  Ndb* pNdb = GETNDB(step);
-
-  const NdbDictionary::Table *tab = ctx->getTab();
-  pNdb->getDictionary()->dropTable(tab->getName());
+  if (runDropTable(ctx, step) != 0)
+    return NDBT_FAILED;
 
   if (restarter.restartAll(false) != 0)
     return NDBT_FAILED;
@@ -241,7 +240,17 @@ int runRestoreOne(NDBT_Context* ctx, NDBT_Step* step){
     return NDBT_FAILED;
   }
 
-  return NDBT_OK;
+  Ndb* pNdb = GETNDB(step);
+  pNdb->getDictionary()->invalidateTable(tabname);
+  const NdbDictionary::Table* tab = pNdb->getDictionary()->getTable(tabname);
+  
+  if (tab)
+  {
+    ctx->setTab(tab);
+    return NDBT_OK;
+  }
+
+  return NDBT_FAILED;
 }
 
 int runVerifyOne(NDBT_Context* ctx, NDBT_Step* step){
@@ -250,8 +259,7 @@ int runVerifyOne(NDBT_Context* ctx, NDBT_Step* step){
   int result = NDBT_OK;
   int count = 0;
 
-  const NdbDictionary::Table* tab = 
-    GETNDB(step)->getDictionary()->getTable(ctx->getTab()->getName());
+  const NdbDictionary::Table* tab = ctx->getTab();
   if(tab == 0)
     return NDBT_FAILED;
   
@@ -287,8 +295,12 @@ int runClearTable(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
-int runDropTable(NDBT_Context* ctx, NDBT_Step* step){
-  GETNDB(step)->getDictionary()->dropTable(ctx->getTab()->getName());
+int runDropTable(NDBT_Context* ctx, NDBT_Step* step)
+{
+  
+  const NdbDictionary::Table *tab = ctx->getTab();
+  GETNDB(step)->getDictionary()->dropTable(tab->getName());
+  
   return NDBT_OK;
 }
 
