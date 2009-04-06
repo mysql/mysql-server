@@ -23,17 +23,14 @@ typedef struct toku_pthread {
 
 typedef struct toku_pthread_rwlockattr *toku_pthread_rwlockattr_t;
 
-typedef struct toku_pthread_rwlock {
-    SRWLOCK rwlock;
-    BOOL    initialized;
-} toku_pthread_rwlock_t;
-
 typedef struct toku_pthread_mutexattr *toku_pthread_mutexattr_t;
 
 typedef struct toku_pthread_mutex {
     CRITICAL_SECTION section;
     BOOL initialized;
 } toku_pthread_mutex_t;
+
+typedef struct toku_pthread_rwlock toku_pthread_rwlock_t;
 
 #define TOKU_PTHREAD_MUTEX_INITIALIZER { 0, 0 }
 
@@ -93,6 +90,15 @@ int toku_pthread_cond_wait(toku_pthread_cond_t *cond, toku_pthread_mutex_t *mute
 int toku_pthread_cond_signal(toku_pthread_cond_t *cond);
 
 int toku_pthread_cond_broadcast(toku_pthread_cond_t *cond);
+
+#include <toku_assert.h>
+#include "rwlock.h"
+struct toku_pthread_rwlock {
+    struct rwlock        rwlock;
+    toku_pthread_mutex_t mutex;
+    BOOL                 initialized;
+};
+
 
 #if defined(__cplusplus)
 };

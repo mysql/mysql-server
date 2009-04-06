@@ -1,5 +1,8 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
+
+#ifndef TOKU_RWLOCK_H
+#define TOKU_RWLOCK_H
 //Use case:
 // A read lock is acquired by threads that get and pin an entry in the
 // cachetable. A write lock is acquired by the writer thread when an entry
@@ -120,3 +123,6 @@ static inline int rwlock_writers(RWLOCK rwlock) {
 static inline int rwlock_users(RWLOCK rwlock) {
     return rwlock->reader + rwlock->want_read + rwlock->writer + rwlock->want_write;
 }
+
+#endif
+
