@@ -2334,6 +2334,8 @@ Suma::execSUB_START_REQ(Signal* signal){
 
   SubscriptionPtr subPtr;
 
+  CRASH_INSERTION2(13042, getNodeState().startLevel == NodeState::SL_STARTING);
+  
   if (c_startup.m_restart_server_node_id == RNIL)
   {
     jam();
@@ -2346,8 +2348,6 @@ Suma::execSUB_START_REQ(Signal* signal){
     return;
   }
 
-  CRASH_INSERTION2(13042, getNodeState().startLevel == NodeState::SL_STARTING);
-  
   bool found = c_subscriptions.find(subPtr, key);
   if (!found)
   {
