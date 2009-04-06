@@ -2059,6 +2059,27 @@ mem_free_and_error:
 		}
 	}
 
+	if (innobase_change_buffering) {
+		ulint	use;
+
+		for (use = 0;
+		     use < UT_ARR_SIZE(innobase_change_buffering_values);
+		     use++) {
+			if (!innobase_strcasecmp(
+				    innobase_change_buffering,
+				    innobase_change_buffering_values[use])) {
+				ibuf_use = (ibuf_use_t) use;
+				goto innobase_change_buffering_inited_ok;
+			}
+		}
+
+		sql_print_error("InnoDB: invalid value "
+				"innodb_file_format_check=%s",
+				innobase_change_buffering);
+		goto mem_free_and_error;
+	}
+
+innobase_change_buffering_inited_ok:
 	ut_a((ulint) ibuf_use < UT_ARR_SIZE(innobase_change_buffering_values));
 	innobase_change_buffering = (char*)
 		innobase_change_buffering_values[ibuf_use];
