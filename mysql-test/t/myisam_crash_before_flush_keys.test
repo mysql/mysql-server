@@ -1,0 +1,49 @@
+--echo #
+--echo # BUG#41330 - Myisam table open count set to zero before index blocks are written.
+--echo #
+--source include/not_embedded.inc
+--echo # Don't test this under valgrind, memory leaks will occur
+--source include/not_valgrind.inc
+
+--echo # Binary must be compiled with debug for crash to occur
+--source include/have_debug.inc
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+SET GLOBAL delay_key_write=ALL;
+CREATE TABLE t1(a INT, 
+                b INT, 
+                PRIMARY KEY(a , b), 
+                KEY(b)) ENGINE=MyISAM DELAY_KEY_WRITE = 1;
+INSERT INTO t1 VALUES (1,2),(2,3),(3,4),(4,5),(5,6);
+
+--echo # Setup the mysqld to crash at certain point
+SET SESSION debug="d,crash_before_flush_keys";
+
+--echo # Write file to make mysql-test-run.pl expect crash
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+--echo # Run the crashing query
+--error 2013
+FLUSH TABLE t1;
+
+--echo # Run MYISAMCHK tool to check the table t1 and repair
+--replace_result $MYISAMCHK MYISAMCHK  $MYSQLD_DATADIR  MYSQLD_DATADIR
+--error 255
+--exec $MYISAMCHK -cs $MYSQLD_DATADIR/test/t1 2>&1
+--exec $MYISAMCHK -rs $MYSQLD_DATADIR/test/t1
+
+--echo # Write file to make mysql-test-run.pl start the server 
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+--echo # Turn on reconnect
+--enable_reconnect
+
+--echo # Call script that will poll the server waiting for
+--echo # it to be back online again
+--source include/wait_until_connected_again.inc
+
+SHOW CREATE TABLE t1;
+
+SELECT * FROM t1 FORCE INDEX (PRIMARY);
+
+DROP TABLE t1;
