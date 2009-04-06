@@ -7,9 +7,9 @@
 2009-04-02	The InnoDB Team
 
 	* dict/dict0crea.c, handler/ha_innodb.cc, handler/ha_innodb.h,
-	* include/dict0mem.h, include/row0merge.h, include/row0mysql.h,
-	* mysql-test/innodb-index.result, mysql-test/innodb-index.test,
-	* row/row0merge.c, row/row0sel.c:
+	include/dict0mem.h, include/row0merge.h, include/row0mysql.h,
+	mysql-test/innodb-index.result, mysql-test/innodb-index.test,
+	row/row0merge.c, row/row0sel.c:
 	In consistent reads, refuse to use newly created indexes that may
 	lack history.
 
