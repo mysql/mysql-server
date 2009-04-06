@@ -26,5 +26,3 @@ EOF
 
 # Turn off reconnect again
 --disable_reconnect
-
-
