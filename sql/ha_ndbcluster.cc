@@ -5879,6 +5879,8 @@ ha_ndbcluster::start_transaction_row(const NdbRecord *ndb_record,
   DBUG_ASSERT(m_thd_ndb);
   DBUG_ASSERT(m_thd_ndb->trans == NULL);
 
+  transaction_checks(table->in_use, m_thd_ndb);
+
   Ndb *ndb= m_thd_ndb->ndb;
 
   Uint64 tmp[(MAX_KEY_SIZE_IN_WORDS*MAX_XFRM_MULTIPLY) >> 1];
@@ -5907,6 +5909,8 @@ ha_ndbcluster::start_transaction_key(uint inx_no,
   DBUG_ENTER("ha_ndbcluster::start_transaction_key");
   DBUG_ASSERT(m_thd_ndb);
   DBUG_ASSERT(m_thd_ndb->trans == NULL);
+
+  transaction_checks(table->in_use, m_thd_ndb);
 
   Ndb *ndb= m_thd_ndb->ndb;
   const NdbRecord *key_rec= m_index[inx_no].ndb_unique_record_key;
