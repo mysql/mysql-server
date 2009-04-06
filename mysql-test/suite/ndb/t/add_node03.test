@@ -34,15 +34,15 @@ let $mysqld_name= mysqld.2.1;
 connection default;
 
 ## Initial start of "new" data nodes
---exec $NDB_NDBD --ndb-nodeid=40 --initial >> $NDB_TOOLS_OUTPUT
---exec $NDB_NDBD --ndb-nodeid=41 --initial >> $NDB_TOOLS_OUTPUT
---exec $NDB_NDBD --ndb-nodeid=42 --initial >> $NDB_TOOLS_OUTPUT
---exec $NDB_NDBD --ndb-nodeid=43 --initial >> $NDB_TOOLS_OUTPUT
---exec $NDB_NDBD --ndb-nodeid=44 --initial >> $NDB_TOOLS_OUTPUT 
---exec $NDB_NDBD --ndb-nodeid=45 --initial >> $NDB_TOOLS_OUTPUT
+--exec $NDB_NDBD --ndb-nodeid=40 --initial
+--exec $NDB_NDBD --ndb-nodeid=41 --initial
+--exec $NDB_NDBD --ndb-nodeid=42 --initial
+--exec $NDB_NDBD --ndb-nodeid=43 --initial
+--exec $NDB_NDBD --ndb-nodeid=44 --initial
+--exec $NDB_NDBD --ndb-nodeid=45 --initial
 
 ## Wait for added nodes started
---exec $NDB_WAITER --timeout=300 >> $NDB_TOOLS_OUTPUT 
+--exec $NDB_WAITER --timeout=300 >> $NDB_TOOLS_OUTPUT
 
 ## Create nodegroup for "new" nodes
 --exec $NDB_MGM -e "create nodegroup 40,41" >> $NDB_TOOLS_OUTPUT
