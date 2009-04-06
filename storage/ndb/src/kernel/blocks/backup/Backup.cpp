@@ -3510,10 +3510,6 @@ Backup::execGET_TABINFOREF(Signal* signal)
   BackupRecordPtr ptr LINT_SET_PTR;
   c_backupPool.getPtr(ptr, senderData);
 
-  BackupFilePtr filePtr LINT_SET_PTR;
-  ptr.p->files.getPtr(filePtr, ptr.p->ctlFilePtr);
-  filePtr.p->m_flags &= ~(Uint32)BackupFile::BF_FILE_THREAD;
-  
   defineBackupRef(signal, ptr, ref->errorCode);
 }
 
