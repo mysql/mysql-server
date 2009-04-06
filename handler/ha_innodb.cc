@@ -115,19 +115,6 @@ undefined.  Map it to NULL. */
 #ifdef MYSQL_DYNAMIC_PLUGIN
 /* These must be weak global variables in the dynamic plugin. */
 struct handlerton* innodb_hton_ptr;
-#ifdef __WIN__
-struct st_mysql_plugin*	builtin_innobase_plugin_ptr;
-#else
-int builtin_innobase_plugin;
-#endif /* __WIN__ */
-/********************************************************************
-Copy InnoDB system variables from the static InnoDB to the dynamic
-plugin. */
-static
-bool
-innodb_plugin_init(void);
-/*====================*/
-		/* out: TRUE if the dynamic InnoDB plugin should start */
 #else /* MYSQL_DYNAMIC_PLUGIN */
 /* This must be a global variable in the statically linked InnoDB. */
 struct handlerton* innodb_hton_ptr = NULL;
@@ -736,6 +723,9 @@ convert_error_code_to_mysql(
 
 	case DB_FOREIGN_DUPLICATE_KEY:
 		return(HA_ERR_FOREIGN_DUPLICATE_KEY);
+
+	case DB_MISSING_HISTORY:
+		return(HA_ERR_TABLE_DEF_CHANGED);
 
 	case DB_RECORD_NOT_FOUND:
 		return(HA_ERR_NO_ACTIVE_RECORD);
@@ -1587,20 +1577,20 @@ innobase_query_caching_of_table_permitted(
 }
 
 /*********************************************************************
-Invalidates the MySQL query cache for the table.
-NOTE that the exact prototype of this function has to be in
-/innobase/row/row0ins.c! */
+Invalidates the MySQL query cache for the table. */
 extern "C" UNIV_INTERN
 void
 innobase_invalidate_query_cache(
 /*============================*/
-	trx_t*	trx,		/* in: transaction which modifies the table */
-	char*	full_name,	/* in: concatenation of database name, null
-				char '\0', table name, null char'\0';
-				NOTE that in Windows this is always
-				in LOWER CASE! */
-	ulint	full_name_len)	/* in: full name length where also the null
-				chars count */
+	trx_t*		trx,		/* in: transaction which
+					modifies the table */
+	const char*	full_name,	/* in: concatenation of
+					database name, null char '\0',
+					table name, null char '\0';
+					NOTE that in Windows this is
+					always in LOWER CASE! */
+	ulint		full_name_len)	/* in: full name length where
+					also the null chars count */
 {
 	/* Note that the sync0sync.h rank of the query cache mutex is just
 	above the InnoDB kernel mutex. The caller of this function must not
@@ -1609,7 +1599,7 @@ innobase_invalidate_query_cache(
 	/* Argument TRUE below means we are using transactions */
 #ifdef HAVE_QUERY_CACHE
 	mysql_query_cache_invalidate4((THD*) trx->mysql_thd,
-				      (const char*) full_name,
+				      full_name,
 				      (uint32) full_name_len,
 				      TRUE);
 #endif
@@ -1861,19 +1851,6 @@ innobase_init(
 
 	DBUG_ENTER("innobase_init");
         handlerton *innobase_hton= (handlerton *)p;
-
-#ifdef MYSQL_DYNAMIC_PLUGIN
-	if (!innodb_plugin_init()) {
-		sql_print_error("InnoDB plugin init failed.");
-		DBUG_RETURN(-1);
-	}
-
-	if (innodb_hton_ptr) {
-		/* Patch the statically linked handlerton and variables */
-		innobase_hton = innodb_hton_ptr;
-	}
-#endif /* MYSQL_DYNAMIC_PLUGIN */
-
         innodb_hton_ptr = innobase_hton;
 
         innobase_hton->state = SHOW_OPTION_YES;
@@ -4726,38 +4703,6 @@ ha_innobase::try_semi_consistent_read(bool yes)
 	}
 }
 
-#ifdef ROW_MERGE_IS_INDEX_USABLE
-/**********************************************************************
-Check if an index can be used by the optimizer. */
-UNIV_INTERN
-bool
-ha_innobase::is_index_available(
-/*============================*/
-					/* out: true if available else false*/
-	uint		keynr)		/* in: index number to check */
-{
-	DBUG_ENTER("ha_innobase::is_index_available");
-
-	if (table && keynr != MAX_KEY && table->s->keys > 0) {
-		const dict_index_t*	index;
-		const KEY*		key = table->key_info + keynr;
-
-		ut_ad(user_thd == ha_thd());
-		ut_a(prebuilt->trx == thd_to_trx(user_thd));
-
-		index = dict_table_get_index_on_name(
-			prebuilt->table, key->name);
-
-		if (!row_merge_is_index_usable(prebuilt->trx, index)) {
-
-			DBUG_RETURN(false);
-		}
-	}
-
-	DBUG_RETURN(true);
-}
-#endif /* ROW_MERGE_IS_INDEX_USABLE */
-
 /**********************************************************************
 Initializes a handle to use an index. */
 UNIV_INTERN
@@ -5090,6 +5035,17 @@ ha_innobase::change_active_index(
 		sql_print_warning("InnoDB: change_active_index(%u) failed",
 				  keynr);
 		DBUG_RETURN(1);
+	}
+
+	prebuilt->index_usable = row_merge_is_index_usable(prebuilt->trx,
+							   prebuilt->index);
+
+	if (UNIV_UNLIKELY(!prebuilt->index_usable)) {
+		sql_print_warning("InnoDB: insufficient history for index %u",
+				  keynr);
+		/* The caller seems to ignore this.  Thus, we must check
+		this again in row_search_for_mysql(). */
+		DBUG_RETURN(2);
 	}
 
 	ut_a(prebuilt->search_tuple != 0);
@@ -8080,6 +8036,10 @@ innodb_mutex_show_status(
 	mutex = UT_LIST_GET_FIRST(mutex_list);
 
 	while (mutex != NULL) {
+		if (mutex->count_os_wait == 0
+		    || buf_pool_is_block_mutex(mutex)) {
+			goto next_mutex;
+		}
 #ifdef UNIV_DEBUG
 		if (mutex->mutex_type != 1) {
 			if (mutex->count_using > 0) {
@@ -8128,6 +8088,7 @@ innodb_mutex_show_status(
 		}
 #endif /* UNIV_DEBUG */
 
+next_mutex:
 		mutex = UT_LIST_GET_NEXT(list, mutex);
 	}
 
@@ -8138,7 +8099,8 @@ innodb_mutex_show_status(
 	lock = UT_LIST_GET_FIRST(rw_lock_list);
 
 	while (lock != NULL) {
-		if (lock->count_os_wait) {
+		if (lock->count_os_wait
+		    && !buf_pool_is_block_lock(lock)) {
 			buf1len= my_snprintf(buf1, sizeof(buf1), "%s:%lu",
                                     lock->cfile_name, (ulong) lock->cline);
 			buf2len= my_snprintf(buf2, sizeof(buf2),
@@ -9671,6 +9633,11 @@ static MYSQL_SYSVAR_ULONG(sync_spin_loops, srv_n_spin_wait_rounds,
   "Count of spin-loop rounds in InnoDB mutexes",
   NULL, NULL, 20L, 0L, ~0L, 0);
 
+static MYSQL_SYSVAR_ULONG(spin_wait_delay, srv_spin_wait_delay,
+  PLUGIN_VAR_OPCMDARG,
+  "Maximum delay between polling for a spin lock (5 by default)",
+  NULL, NULL, 5L, 0L, ~0L, 0);
+
 static MYSQL_SYSVAR_ULONG(thread_concurrency, srv_thread_concurrency,
   PLUGIN_VAR_RQCMDARG,
   "Helps in performance tuning in heavily concurrent environments. Sets the maximum number of threads allowed inside InnoDB. Value 0 will disable the thread throttling.",
@@ -9760,6 +9727,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(strict_mode),
   MYSQL_SYSVAR(support_xa),
   MYSQL_SYSVAR(sync_spin_loops),
+  MYSQL_SYSVAR(spin_wait_delay),
   MYSQL_SYSVAR(table_locks),
   MYSQL_SYSVAR(thread_concurrency),
   MYSQL_SYSVAR(thread_sleep_delay),
@@ -9770,168 +9738,6 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(change_buffering),
   NULL
 };
-
-#ifdef MYSQL_DYNAMIC_PLUGIN
-struct st_mysql_sys_var
-{
-	MYSQL_PLUGIN_VAR_HEADER;
-	void* value;
-};
-
-struct param_mapping
-{
-	const char*	server;		/* Parameter name in the server. */
-	const char*	plugin;		/* Paramater name in the plugin. */
-};
-
-/********************************************************************
-Match the parameters from the static and dynamic versions. */
-static
-bool
-innobase_match_parameter(
-/*=====================*/
-					/* out: true if names match */
-	const char*	from_server,	/* in: variable name from server */
-	const char*	from_plugin)	/* in: variable name from plugin */
-{
-	static const param_mapping param_map[] = {
-		{"use_adaptive_hash_indexes", "adaptive_hash_index"}
-	};
-
-	if (strcmp(from_server, from_plugin) == 0) {
-		return(true);
-	}
-
-	const param_mapping*	param = param_map;
-	int	n_elems = sizeof(param_map) / sizeof(param_map[0]);
-
-	for (int i = 0; i < n_elems; ++i, ++param) {
-
-		if (strcmp(param->server, from_server) == 0
-		    && strcmp(param->plugin, from_plugin) == 0) {
-
-			return(true);
-		}
-	}
-
-	return(false);
-}
-
-/********************************************************************
-Copy InnoDB system variables from the static InnoDB to the dynamic
-plugin. */
-static
-bool
-innodb_plugin_init(void)
-/*====================*/
-		/* out: TRUE if the dynamic InnoDB plugin should start */
-{
-#if !MYSQL_STORAGE_ENGINE_PLUGIN
-#error "MYSQL_STORAGE_ENGINE_PLUGIN must be nonzero."
-#endif
-
-	/* Copy the system variables. */
-
-	struct st_mysql_plugin*		builtin;
-	struct st_mysql_sys_var**	sta; /* static parameters */
-	struct st_mysql_sys_var**	dyn; /* dynamic parameters */
-
-#ifdef __WIN__
-	if (!builtin_innobase_plugin_ptr) {
-
-		return(true);
-	}
-
-	builtin = builtin_innobase_plugin_ptr;
-#else
-	switch (builtin_innobase_plugin) {
-	case 0:
-		return(true);
-	case MYSQL_STORAGE_ENGINE_PLUGIN:
-		break;
-	default:
-		return(false);
-	}
-
-	builtin = (struct st_mysql_plugin*) &builtin_innobase_plugin;
-#endif
-
-	for (sta = builtin->system_vars; *sta != NULL; sta++) {
-
-		for (dyn = innobase_system_variables; *dyn != NULL; dyn++) {
-
-			/* do not copy session variables */
-			if (((*sta)->flags | (*dyn)->flags)
-			    & PLUGIN_VAR_THDLOCAL) {
-				continue;
-			}
-
-			if (innobase_match_parameter((*sta)->name,
-						     (*dyn)->name)) {
-
-				/* found the corresponding parameter */
-
-				/* check if the flags are the same,
-				ignoring differences in the READONLY or
-				NOSYSVAR flags;
-				e.g. we are not copying string variable to
-				an integer one, but we do not care if it is
-				readonly in the static and not in the
-				dynamic */
-				if (((*sta)->flags ^ (*dyn)->flags)
-				    & ~(PLUGIN_VAR_READONLY
-					| PLUGIN_VAR_NOSYSVAR)) {
-
-					fprintf(stderr,
-						"InnoDB: %s in static InnoDB "
-						"(flags=0x%x) differs from "
-						"%s in dynamic InnoDB "
-						"(flags=0x%x)\n",
-						(*sta)->name, (*sta)->flags,
-						(*dyn)->name, (*dyn)->flags);
-
-					/* we could break; here leaving this
-					parameter uncopied */
-					return(false);
-				}
-
-				/* assign the value of the static parameter
-				to the dynamic one, according to their type */
-
-#define COPY_VAR(label, type)					\
-	case label:						\
-		*(type*)(*dyn)->value = *(type*)(*sta)->value;	\
-		break;
-
-				switch ((*sta)->flags
-					& ~(PLUGIN_VAR_MASK
-					    | PLUGIN_VAR_UNSIGNED)) {
-
-				COPY_VAR(PLUGIN_VAR_BOOL, char);
-				COPY_VAR(PLUGIN_VAR_INT, int);
-				COPY_VAR(PLUGIN_VAR_LONG, long);
-				COPY_VAR(PLUGIN_VAR_LONGLONG, long long);
-				COPY_VAR(PLUGIN_VAR_STR, char*);
-
-				default:
-					fprintf(stderr,
-						"InnoDB: unknown flags "
-						"0x%x for %s\n",
-						(*sta)->flags, (*sta)->name);
-				}
-
-				/* Make the static InnoDB variable point to
-				the dynamic one */
-				(*sta)->value = (*dyn)->value;
-
-				break;
-			}
-		}
-	}
-
-	return(true);
-}
-#endif /* MYSQL_DYNAMIC_PLUGIN */
 
 mysql_declare_plugin(innobase)
 {

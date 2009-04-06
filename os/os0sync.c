@@ -161,12 +161,8 @@ os_event_create(
 
 	os_fast_mutex_init(&(event->os_mutex));
 
-#if defined(UNIV_HOTBACKUP) && defined(UNIV_HPUX10)
-	ut_a(0 == pthread_cond_init(&(event->cond_var),
-				    pthread_condattr_default));
-#else
 	ut_a(0 == pthread_cond_init(&(event->cond_var), NULL));
-#endif
+
 	event->is_set = FALSE;
 
 	/* We return this value in os_event_reset(), which can then be
@@ -675,11 +671,7 @@ os_fast_mutex_init(
 
 	InitializeCriticalSection((LPCRITICAL_SECTION) fast_mutex);
 #else
-#if defined(UNIV_HOTBACKUP) && defined(UNIV_HPUX10)
-	ut_a(0 == pthread_mutex_init(fast_mutex, pthread_mutexattr_default));
-#else
 	ut_a(0 == pthread_mutex_init(fast_mutex, MY_MUTEX_INIT_FAST));
-#endif
 #endif
 	if (UNIV_LIKELY(os_sync_mutex_inited)) {
 		/* When creating os_sync_mutex itself (in Unix) we cannot

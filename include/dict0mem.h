@@ -279,11 +279,9 @@ struct dict_index_struct{
 				index tree */
 	rw_lock_t	lock;	/* read-write lock protecting the upper levels
 				of the index tree */
-#ifdef ROW_MERGE_IS_INDEX_USABLE
-	dulint		trx_id; /* id of the transaction that created this
-				index, or ut_dulint_zero if the index existed
+	ib_uint64_t	trx_id; /* id of the transaction that created this
+				index, or 0 if the index existed
 				when InnoDB was started up */
-#endif /* ROW_MERGE_IS_INDEX_USABLE */
 #endif /* !UNIV_HOTBACKUP */
 #ifdef UNIV_DEBUG
 	ulint		magic_n;/* magic number */

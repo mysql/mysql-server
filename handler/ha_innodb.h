@@ -119,14 +119,6 @@ class ha_innobase: public handler
 	void try_semi_consistent_read(bool yes);
 	void unlock_row();
 
-#ifdef ROW_MERGE_IS_INDEX_USABLE
-	/** Check if an index can be used by this transaction.
-	* @param keynr	key number to check
-	* @return	true if available, false if the index
-	*		does not contain old records that exist
-	*		in the read view of this transaction */
-	bool is_index_available(uint keynr);
-#endif /* ROW_MERGE_IS_INDEX_USABLE */
 	int index_init(uint index, bool sorted);
 	int index_end();
 	int index_read(uchar * buf, const uchar * key,
