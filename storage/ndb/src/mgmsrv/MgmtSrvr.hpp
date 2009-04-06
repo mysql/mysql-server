@@ -534,7 +534,7 @@ private:
   void logLevelThreadRun();
   void report_unknown_signal(SimpleSignal *signal);
 
-
+  void make_sync_req(SignalSender& ss, Uint32 nodeId);
 public:
   /* Get copy of configuration packed with base64 */
   bool get_packed_config(ndb_mgm_node_type nodetype,

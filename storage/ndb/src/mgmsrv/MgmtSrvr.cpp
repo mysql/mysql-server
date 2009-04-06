@@ -1986,7 +1986,18 @@ MgmtSrvr::insertError(int nodeId, int errorNo)
   TamperOrd* const tamperOrd = CAST_PTR(TamperOrd, ssig.getDataPtrSend());
   tamperOrd->errorNo = errorNo;
 
-  return ss.sendSignal(nodeId, &ssig) == SEND_OK ? 0 : SEND_OR_RECEIVE_FAILED;
+  int res = ss.sendSignal(nodeId, &ssig) == SEND_OK ? 0 :SEND_OR_RECEIVE_FAILED;
+
+  if (res == 0)
+  {
+    /**
+     * In order to make NDB_TAMPER (almost) syncronous,
+     *   make a syncronous request *after* the NDB_TAMPER
+     */
+    make_sync_req(ss, Uint32(nodeId));
+  }
+
+  return res;
 }
 
 
@@ -2480,7 +2491,19 @@ MgmtSrvr::dumpState(int nodeId, const Uint32 args[], Uint32 no)
       dumpOrd->args[i] = 0;
   }
   
-  return ss.sendSignal(nodeId, &ssig) == SEND_OK ? 0 : SEND_OR_RECEIVE_FAILED;
+  int res = ss.sendSignal(nodeId, &ssig) == SEND_OK ? 0 :SEND_OR_RECEIVE_FAILED;
+
+  if (res == 0)
+  {
+    /**
+     * In order to make DUMP (almost) syncronous,
+     *   make a syncronous request *after* the NDB_TAMPER
+     */
+    make_sync_req(ss, Uint32(nodeId));
+  }
+
+  return res;
+
 }
 
 
@@ -4174,6 +4197,106 @@ MgmtSrvr::show_variables(NdbOut& out)
   out << "is_stop_thread: " << _isStopThread << endl;
   out << "log_level_thread_sleep: " << _logLevelThreadSleep << endl;
   out << "master_node: " << m_master_node << endl;
+}
+
+void
+MgmtSrvr::make_sync_req(SignalSender& ss, Uint32 nodeId)
+{
+  /**
+   * This subroutine is used to make a async request(error insert/dump)
+   *   "more" syncronous, i.e increasing the likelyhood that
+   *   the async request has really reached the destination
+   *   before returning to the api
+   *
+   * I.e it's a work-around...
+   *
+   */
+  SimpleSignal ssig;
+  EventSubscribeReq* req = CAST_PTR(EventSubscribeReq, ssig.getDataPtrSend());
+
+  req->blockRef = ss.getOwnRef();
+  req->noOfEntries = 1;
+  req->theData[0] = 0;
+  ssig.set(ss,TestOrd::TraceAPI, CMVMI, GSN_EVENT_SUBSCRIBE_REQ, 
+           EventSubscribeReq::SignalLength);
+  
+  if (ss.sendSignal(nodeId, &ssig) != SEND_OK)
+  {
+    return;
+  }
+
+  while (true)
+  {
+    SimpleSignal *signal = ss.waitFor();
+    
+    int gsn = signal->readSignalNumber();
+    switch (gsn) {
+    case GSN_EVENT_SUBSCRIBE_CONF:
+      goto release;
+      
+    case GSN_NF_COMPLETEREP:{
+      const NFCompleteRep * const rep =
+        CAST_CONSTPTR(NFCompleteRep, signal->getDataPtr());
+      if (rep->failedNodeId == nodeId)
+        return;
+      break;
+    }
+      
+    case GSN_NODE_FAILREP:{
+      const NodeFailRep * const rep =
+	CAST_CONSTPTR(NodeFailRep, signal->getDataPtr());
+      if (NdbNodeBitmask::get(rep->theNodes,nodeId))
+	return;
+      break;
+    }
+      
+    case GSN_API_REGCONF:
+    case GSN_TAKE_OVERTCCONF:
+      break;
+    default:
+      return;
+    }
+  }
+
+release:
+  req->noOfEntries = 0;
+
+  if (ss.sendSignal(nodeId, &ssig) != SEND_OK)
+  {
+    return;
+  }
+
+  while (true)
+  {
+    SimpleSignal *signal = ss.waitFor();
+    
+    int gsn = signal->readSignalNumber();
+    switch (gsn) {
+    case GSN_EVENT_SUBSCRIBE_CONF:
+      return;
+      
+    case GSN_NF_COMPLETEREP:{
+      const NFCompleteRep * const rep =
+        CAST_CONSTPTR(NFCompleteRep, signal->getDataPtr());
+      if (rep->failedNodeId == nodeId)
+        return;
+      break;
+    }
+      
+    case GSN_NODE_FAILREP:{
+      const NodeFailRep * const rep =
+	CAST_CONSTPTR(NodeFailRep, signal->getDataPtr());
+      if (NdbNodeBitmask::get(rep->theNodes,nodeId))
+	return;
+      break;
+    }
+    case GSN_API_REGCONF:
+    case GSN_TAKE_OVERTCCONF:
+      break;
+    default:
+      return;
+    }
+  }
 }
 
 template class MutexVector<NodeId>;
