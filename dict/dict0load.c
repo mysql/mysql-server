@@ -24,9 +24,7 @@ Created 4/24/1996 Heikki Tuuri
 *******************************************************/
 
 #include "dict0load.h"
-#ifndef UNIV_HOTBACKUP
 #include "mysql_version.h"
-#endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_NONINL
 #include "dict0load.ic"
@@ -960,7 +958,7 @@ err_exit:
 	mem_heap_empty(heap);
 
 	err = dict_load_indexes(table, heap);
-#ifndef UNIV_HOTBACKUP
+
 	/* If the force recovery flag is set, we open the table irrespective
 	of the error condition, since the user may want to dump data from the
 	clustered index. However we load the foreign key information only if
@@ -971,7 +969,7 @@ err_exit:
 		dict_table_remove_from_cache(table);
 		table = NULL;
 	}
-# if 0
+#if 0
 	if (err != DB_SUCCESS && table != NULL) {
 
 		mutex_enter(&dict_foreign_err_mutex);
@@ -994,8 +992,7 @@ err_exit:
 
 		mutex_exit(&dict_foreign_err_mutex);
 	}
-# endif /* 0 */
-#endif /* !UNIV_HOTBACKUP */
+#endif /* 0 */
 	mem_heap_free(heap);
 
 	return(table);
@@ -1113,7 +1110,6 @@ dict_load_sys_table(
 	mem_heap_free(heap);
 }
 
-#ifndef UNIV_HOTBACKUP
 /************************************************************************
 Loads foreign key constraint col names (also for the referenced table). */
 static
@@ -1457,4 +1453,3 @@ load_next_index:
 
 	return(DB_SUCCESS);
 }
-#endif /* !UNIV_HOTBACKUP */

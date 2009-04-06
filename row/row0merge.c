@@ -2229,12 +2229,11 @@ row_merge_create_index(
 
 		ut_a(index);
 
-#ifdef ROW_MERGE_IS_INDEX_USABLE
 		/* Note the id of the transaction that created this
 		index, we use it to restrict readers from accessing
 		this index, to ensure read consistency. */
-		index->trx_id = trx->id;
-#endif /* ROW_MERGE_IS_INDEX_USABLE */
+		index->trx_id = (ib_uint64_t)
+			ut_conv_dulint_to_longlong(trx->id);
 	} else {
 		index = NULL;
 	}
@@ -2242,7 +2241,6 @@ row_merge_create_index(
 	return(index);
 }
 
-#ifdef ROW_MERGE_IS_INDEX_USABLE
 /*************************************************************************
 Check if a transaction can use an index. */
 UNIV_INTERN
@@ -2252,13 +2250,11 @@ row_merge_is_index_usable(
 	const trx_t*		trx,	/* in: transaction */
 	const dict_index_t*	index)	/* in: index to check */
 {
-	if (!trx->read_view) {
-		return(TRUE);
-	}
-
-	return(ut_dulint_cmp(index->trx_id, trx->read_view->low_limit_id) < 0);
+	return(!trx->read_view || read_view_sees_trx_id(
+		       trx->read_view,
+		       ut_dulint_create((ulint) (index->trx_id >> 32),
+					(ulint) index->trx_id & 0xFFFFFFFF)));
 }
-#endif /* ROW_MERGE_IS_INDEX_USABLE */
 
 /*************************************************************************
 Drop the old table. */

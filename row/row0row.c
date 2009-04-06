@@ -849,8 +849,6 @@ row_search_index_entry(
 	return(ROW_FOUND);
 }
 
-#ifndef UNIV_HOTBACKUP
-
 #include <my_sys.h>
 
 /***********************************************************************
@@ -1044,8 +1042,6 @@ row_raw_format(
 
 	return(ret);
 }
-
-#endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_COMPILE_TEST_FUNCS
 

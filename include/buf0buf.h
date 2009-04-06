@@ -912,6 +912,22 @@ buf_block_align(
 /*============*/
 				/* out: pointer to block, never NULL */
 	const byte*	ptr);	/* in: pointer to a frame */
+/************************************************************************
+Find out if a pointer belongs to a buf_block_t. It can be a pointer to
+the buf_block_t itself or a member of it */
+UNIV_INTERN
+ibool
+buf_pointer_is_block_field(
+/*=======================*/
+					/* out: TRUE if ptr belongs
+					to a buf_block_t struct */
+	const void*		ptr);	/* in: pointer not
+					dereferenced */
+#define buf_pool_is_block_mutex(m)	\
+		buf_pointer_is_block_field((void *)(m))
+#define buf_pool_is_block_lock(l)	\
+		buf_pointer_is_block_field((void *)(l))
+
 #if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
 /*************************************************************************
 Gets the compressed page descriptor corresponding to an uncompressed page
@@ -1086,9 +1102,10 @@ struct buf_page_struct{
 	/* 2. Page flushing fields; protected by buf_pool_mutex */
 
 	UT_LIST_NODE_T(buf_page_t) list;
-					/* based on state, this is a list
-					node in one of the following lists
-					in buf_pool:
+					/* based on state, this is a
+					list node, protected only by
+					buf_pool_mutex, in one of the
+					following lists in buf_pool:
 
 					BUF_BLOCK_NOT_USED:	free
 					BUF_BLOCK_FILE_PAGE:	flush_list

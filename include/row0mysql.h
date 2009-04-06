@@ -351,7 +351,6 @@ void
 row_mysql_unfreeze_data_dictionary(
 /*===============================*/
 	trx_t*	trx);	/* in/out: transaction */
-#ifndef UNIV_HOTBACKUP
 /*************************************************************************
 Creates a table for MySQL. If the name of the table ends in
 one of "innodb_monitor", "innodb_lock_monitor", "innodb_tablespace_monitor",
@@ -502,7 +501,6 @@ row_check_table_for_mysql(
 					/* out: DB_ERROR or DB_SUCCESS */
 	row_prebuilt_t*	prebuilt);	/* in: prebuilt struct in MySQL
 					handle */
-#endif /* !UNIV_HOTBACKUP */
 
 /*************************************************************************
 Determines if a table is a magic monitor table. */
@@ -573,52 +571,54 @@ struct row_prebuilt_struct {
 					or ROW_PREBUILT_FREED when the
 					struct has been freed */
 	dict_table_t*	table;		/* Innobase table handle */
+	dict_index_t*	index;		/* current index for a search, if
+					any */
 	trx_t*		trx;		/* current transaction handle */
-	ibool		sql_stat_start;	/* TRUE when we start processing of
+	unsigned	sql_stat_start:1;/* TRUE when we start processing of
 					an SQL statement: we may have to set
 					an intention lock on the table,
 					create a consistent read view etc. */
-	ibool		mysql_has_locked; /* this is set TRUE when MySQL
+	unsigned	mysql_has_locked:1; /* this is set TRUE when MySQL
 					calls external_lock on this handle
 					with a lock flag, and set FALSE when
 					with the F_UNLOCK flag */
-	ibool		clust_index_was_generated;
+	unsigned	clust_index_was_generated:1;
 					/* if the user did not define a
 					primary key in MySQL, then Innobase
 					automatically generated a clustered
 					index where the ordering column is
 					the row id: in this case this flag
 					is set to TRUE */
-	dict_index_t*	index;		/* current index for a search, if
-					any */
-	ulint		read_just_key;	/* set to 1 when MySQL calls
+	unsigned	index_usable:1;	/* caches the value of
+					row_merge_is_index_usable(trx,index) */
+	unsigned	read_just_key:1;/* set to 1 when MySQL calls
 					ha_innobase::extra with the
 					argument HA_EXTRA_KEYREAD; it is enough
 					to read just columns defined in
 					the index (i.e., no read of the
 					clustered index record necessary) */
-	ibool		used_in_HANDLER;/* TRUE if we have been using this
+	unsigned	used_in_HANDLER:1;/* TRUE if we have been using this
 					handle in a MySQL HANDLER low level
 					index cursor command: then we must
 					store the pcur position even in a
 					unique search from a clustered index,
 					because HANDLER allows NEXT and PREV
 					in such a situation */
-	ulint		template_type;	/* ROW_MYSQL_WHOLE_ROW,
+	unsigned	template_type:2;/* ROW_MYSQL_WHOLE_ROW,
 					ROW_MYSQL_REC_FIELDS,
 					ROW_MYSQL_DUMMY_TEMPLATE, or
 					ROW_MYSQL_NO_TEMPLATE */
-	ulint		n_template;	/* number of elements in the
+	unsigned	n_template:10;	/* number of elements in the
 					template */
-	ulint		null_bitmap_len;/* number of bytes in the SQL NULL
+	unsigned	null_bitmap_len:10;/* number of bytes in the SQL NULL
 					bitmap at the start of a row in the
 					MySQL format */
-	ibool		need_to_access_clustered; /* if we are fetching
+	unsigned	need_to_access_clustered:1; /* if we are fetching
 					columns through a secondary index
 					and at least one column is not in
 					the secondary index, then this is
 					set to TRUE */
-	ibool		templ_contains_blob;/* TRUE if the template contains
+	unsigned	templ_contains_blob:1;/* TRUE if the template contains
 					BLOB column(s) */
 	mysql_row_templ_t* mysql_template;/* template used to transform
 					rows fast between MySQL and Innobase

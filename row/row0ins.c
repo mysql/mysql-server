@@ -28,6 +28,7 @@ Created 4/20/1996 Heikki Tuuri
 #include "row0ins.ic"
 #endif
 
+#include "ha_prototypes.h"
 #include "dict0dict.h"
 #include "dict0boot.h"
 #include "trx0undo.h"
@@ -49,23 +50,6 @@ Created 4/20/1996 Heikki Tuuri
 #define	ROW_INS_PREV	1
 #define	ROW_INS_NEXT	2
 
-
-/*********************************************************************
-This prototype is copied from /mysql/sql/ha_innodb.cc.
-Invalidates the MySQL query cache for the table.
-NOTE that the exact prototype of this function has to be in
-/innobase/row/row0ins.c! */
-extern
-void
-innobase_invalidate_query_cache(
-/*============================*/
-	trx_t*	trx,		/* in: transaction which modifies the table */
-	char*	full_name,	/* in: concatenation of database name, null
-				char '\0', table name, null char'\0';
-				NOTE that in Windows this is always
-				in LOWER CASE! */
-	ulint	full_name_len);	/* in: full name length where also the null
-				chars count */
 
 /*************************************************************************
 Creates an insert node struct. */
@@ -767,10 +751,7 @@ row_ins_invalidate_query_cache(
 	ut_a(ptr);
 	*ptr = '\0';
 
-	/* We call a function in ha_innodb.cc */
-#ifndef UNIV_HOTBACKUP
 	innobase_invalidate_query_cache(thr_get_trx(thr), buf, len);
-#endif
 	mem_free(buf);
 }
 
@@ -1172,7 +1153,6 @@ row_ins_set_shared_rec_lock(
 	return(err);
 }
 
-#ifndef UNIV_HOTBACKUP
 /*************************************************************************
 Sets a exclusive lock on a record. Used in locking possible duplicate key
 records */
@@ -1203,7 +1183,6 @@ row_ins_set_exclusive_rec_lock(
 
 	return(err);
 }
-#endif /* !UNIV_HOTBACKUP */
 
 /*******************************************************************
 Checks if foreign key constraint fails for an index entry. Sets shared locks
@@ -1611,7 +1590,6 @@ row_ins_check_foreign_constraints(
 	return(DB_SUCCESS);
 }
 
-#ifndef UNIV_HOTBACKUP
 /*******************************************************************
 Checks if a unique key violation to rec would occur at the index entry
 insert. */
@@ -1663,7 +1641,6 @@ row_ins_dupl_error_with_rec(
 
 	return(!rec_get_deleted_flag(rec, rec_offs_comp(offsets)));
 }
-#endif /* !UNIV_HOTBACKUP */
 
 /*******************************************************************
 Scans a unique non-clustered index at a given index entry to determine
@@ -1679,7 +1656,6 @@ row_ins_scan_sec_index_for_duplicate(
 	dtuple_t*	entry,	/* in: index entry */
 	que_thr_t*	thr)	/* in: query thread */
 {
-#ifndef UNIV_HOTBACKUP
 	ulint		n_unique;
 	ulint		i;
 	int		cmp;
@@ -1789,13 +1765,6 @@ row_ins_scan_sec_index_for_duplicate(
 	dtuple_set_n_fields_cmp(entry, n_fields_cmp);
 
 	return(err);
-#else /* UNIV_HOTBACKUP */
-	/* This function depends on MySQL code that is not included in
-	InnoDB Hot Backup builds.  Besides, this function should never
-	be called in InnoDB Hot Backup. */
-	ut_error;
-	return(DB_FAIL);
-#endif /* UNIV_HOTBACKUP */
 }
 
 /*******************************************************************
@@ -1815,7 +1784,6 @@ row_ins_duplicate_error_in_clust(
 	que_thr_t*	thr,	/* in: query thread */
 	mtr_t*		mtr)	/* in: mtr */
 {
-#ifndef UNIV_HOTBACKUP
 	ulint	err;
 	rec_t*	rec;
 	ulint	n_unique;
@@ -1939,13 +1907,6 @@ func_exit:
 		mem_heap_free(heap);
 	}
 	return(err);
-#else /* UNIV_HOTBACKUP */
-	/* This function depends on MySQL code that is not included in
-	InnoDB Hot Backup builds.  Besides, this function should never
-	be called in InnoDB Hot Backup. */
-	ut_error;
-	return(DB_FAIL);
-#endif /* UNIV_HOTBACKUP */
 }
 
 /*******************************************************************
