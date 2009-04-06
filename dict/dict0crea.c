@@ -561,10 +561,8 @@ dict_build_index_def_step(
 
 	ins_node_set_new_row(node->ind_def, row);
 
-#ifdef ROW_MERGE_IS_INDEX_USABLE
 	/* Note that the index was created by this transaction. */
-	index->trx_id = trx->id;
-#endif /* ROW_MERGE_IS_INDEX_USABLE */
+	index->trx_id = (ib_uint64_t) ut_conv_dulint_to_longlong(trx->id);
 
 	return(DB_SUCCESS);
 }
@@ -1156,7 +1154,6 @@ function_exit:
 	return(thr);
 }
 
-#ifndef UNIV_HOTBACKUP
 /********************************************************************
 Creates the foreign key constraints system tables inside InnoDB
 at database creation or database start if they are not found or are
@@ -1500,4 +1497,3 @@ dict_create_add_foreigns_to_dictionary(
 
 	return(DB_SUCCESS);
 }
-#endif /* !UNIV_HOTBACKUP */

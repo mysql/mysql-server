@@ -87,7 +87,6 @@ void
 dict_load_sys_table(
 /*================*/
 	dict_table_t*	table);	/* in: system table */
-#ifndef UNIV_HOTBACKUP
 /***************************************************************************
 Loads foreign key constraints where the table is either the foreign key
 holder or where the table is referenced by a foreign key. Adds these
@@ -102,7 +101,6 @@ dict_load_foreigns(
 	const char*	table_name,	/* in: table name */
 	ibool		check_charsets);/* in: TRUE=check charsets
 					compatibility */
-#endif /* !UNIV_HOTBACKUP */
 /************************************************************************
 Prints to the standard output information on all tables found in the data
 dictionary system table. */

@@ -19,9 +19,7 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 #ifndef HA_INNODB_PROTOTYPES_H
 #define HA_INNODB_PROTOTYPES_H
 
-#ifndef UNIV_HOTBACKUP
-
-#include "univ.i" /* ulint, uint */
+#include "trx0types.h"
 #include "m_ctype.h" /* CHARSET_INFO */
 
 /* Prototypes for global functions in ha_innodb.cc that are called by
@@ -63,6 +61,22 @@ innobase_raw_format(
 	char*		buf,		/* out: output buffer */
 	ulint		buf_size);	/* in: output buffer size
 					in bytes */
+
+/*********************************************************************
+Invalidates the MySQL query cache for the table. */
+UNIV_INTERN
+void
+innobase_invalidate_query_cache(
+/*============================*/
+	trx_t*		trx,		/* in: transaction which
+					modifies the table */
+	const char*	full_name,	/* in: concatenation of
+					database name, null char '\0',
+					table name, null char '\0';
+					NOTE that in Windows this is
+					always in LOWER CASE! */
+	ulint		full_name_len);	/* in: full name length where
+					also the null chars count */
 
 /*********************************************************************
 Convert a table or index name to the MySQL system_charset_info (UTF-8)
@@ -263,5 +277,4 @@ thd_lock_wait_timeout(
 	void*	thd);	/* in: thread handle (THD*), or NULL to query
 			the global innodb_lock_wait_timeout */
 
-#endif
 #endif
