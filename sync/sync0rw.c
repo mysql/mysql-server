@@ -950,7 +950,12 @@ rw_lock_print(
 		"RW-LATCH: %p ", (void*) lock);
 
 #ifndef INNODB_RW_LOCKS_USE_ATOMICS
-	mutex_enter(&(lock->mutex));
+	/* We used to acquire lock->mutex here, but it would cause a
+	recursive call to sync_thread_add_level() if UNIV_SYNC_DEBUG
+	is defined.  Since this function is only invoked from
+	sync_thread_levels_g(), let us choose the smaller evil:
+	performing dirty reads instead of causing bogus deadlocks or
+	assertion failures. */
 #endif
 	if (lock->lock_word != X_LOCK_DECR) {
 
@@ -966,9 +971,6 @@ rw_lock_print(
 			info = UT_LIST_GET_NEXT(list, info);
 		}
 	}
-#ifndef INNODB_RW_LOCKS_USE_ATOMICS
-	mutex_exit(&(lock->mutex));
-#endif
 }
 
 /*************************************************************************
