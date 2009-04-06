@@ -1,3 +1,8 @@
+2009-04-06	The InnoDB Team
+
+	* sync/sync0rw.c:
+	Avoid a bogus failure in UNIV_SYNC_DEBUG diagnostics.
+
 2009-04-02	The InnoDB Team
 
 	* handler/ha_innodb.cc, include/srv0srv.h, srv/srv0srv.c:
