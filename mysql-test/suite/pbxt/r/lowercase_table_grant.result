@@ -1,0 +1,23 @@
+use mysql;
+create database MYSQLtest;
+grant all on MySQLtest.* to mysqltest_1@localhost;
+show grants for mysqltest_1@localhost;
+Grants for mysqltest_1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost'
+GRANT ALL PRIVILEGES ON `mysqltest`.* TO 'mysqltest_1'@'localhost'
+select * from db where user = 'mysqltest_1';
+Host	Db	User	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	Drop_priv	Grant_priv	References_priv	Index_priv	Alter_priv	Create_tmp_table_priv	Lock_tables_priv	Create_view_priv	Show_view_priv	Create_routine_priv	Alter_routine_priv	Execute_priv	Event_priv	Trigger_priv
+localhost	mysqltest	mysqltest_1	Y	Y	Y	Y	Y	Y	N	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y
+update db set db = 'MYSQLtest' where db = 'mysqltest' and user = 'mysqltest_1' and host = 'localhost';
+flush privileges;
+show grants for mysqltest_1@localhost;
+Grants for mysqltest_1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost'
+GRANT ALL PRIVILEGES ON `mysqltest`.* TO 'mysqltest_1'@'localhost'
+select * from db where user = 'mysqltest_1';
+Host	Db	User	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	Drop_priv	Grant_priv	References_priv	Index_priv	Alter_priv	Create_tmp_table_priv	Lock_tables_priv	Create_view_priv	Show_view_priv	Create_routine_priv	Alter_routine_priv	Execute_priv	Event_priv	Trigger_priv
+localhost	MYSQLtest	mysqltest_1	Y	Y	Y	Y	Y	Y	N	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y
+delete from db where db = 'MYSQLtest' and user = 'mysqltest_1' and host = 'localhost';
+flush privileges;
+drop user mysqltest_1@localhost;
+drop database MYSQLtest;

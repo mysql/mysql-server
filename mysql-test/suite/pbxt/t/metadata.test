@@ -1,0 +1,86 @@
+#
+# Test metadata
+#
+
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
+--enable_metadata
+# PS protocol gives slightly different metadata
+--disable_ps_protocol
+
+#
+# First some simple tests
+#
+
+select 1, 1.0, -1, "hello", NULL;
+
+create table t1 (a tinyint, b smallint, c mediumint, d int, e bigint, f float(3,2), g double(4,3), h decimal(5,4), i year, j date, k timestamp, l datetime, m enum('a','b'), n set('a','b'), o char(10));
+select * from t1;
+select a b, b c from t1 as t2;
+drop table t1;
+
+#
+# Test metadata from ORDER BY (Bug #2654)
+#
+
+CREATE TABLE t1 (id tinyint(3) default NULL, data varchar(255) default NULL);
+INSERT INTO t1 VALUES (1,'male'),(2,'female');
+CREATE TABLE t2 (id tinyint(3) unsigned default NULL, data char(3) default '0');
+INSERT INTO t2 VALUES (1,'yes'),(2,'no');
+
+select t1.id, t1.data, t2.data from t1, t2 where t1.id = t2.id;
+select t1.id, t1.data, t2.data from t1, t2 where t1.id = t2.id order by t1.id;
+select t1.id from t1 union select t2.id from t2;
+drop table t1,t2;
+
+#
+# variables union and derived tables metadata test
+#
+create table t1 ( a int, b varchar(30), primary key(a));
+insert into t1 values (1,'one');
+insert into t1 values (2,'two');
+set @arg00=1 ;
+select @arg00 FROM t1 where a=1 union distinct select 1 FROM t1 where a=1;
+select * from (select @arg00) aaa;
+select 1 union select 1;
+select * from (select 1 union select 1) aaa;
+drop table t1;
+
+--disable_metadata
+
+#
+# Bug #11688: Bad mysql_info() results in multi-results
+#
+--enable_info
+delimiter //;
+create table t1 (i int);
+insert into t1 values (1),(2),(3);
+select * from t1 where i = 2;
+drop table t1;//
+delimiter ;//
+--disable_info
+
+#
+# Bug #20191: getTableName gives wrong or inconsistent result when using VIEWs
+#
+--enable_metadata
+create table t1 (id int(10));
+insert into t1 values (1);
+CREATE  VIEW v1 AS select t1.id as id from t1;
+CREATE  VIEW v2 AS select t1.id as renamed from t1;
+CREATE  VIEW v3 AS select t1.id + 12 as renamed from t1;
+select * from v1 group by id limit 1;
+select * from v1 group by id limit 0;
+select * from v1 where id=1000 group by id;
+select * from v1 where id=1 group by id;
+select * from v2 where renamed=1 group by renamed;
+select * from v3 where renamed=1 group by renamed;
+drop table t1;
+drop view v1,v2,v3;
+--disable_metadata
+
+--disable_query_log
+drop database pbxt;
+--enable_query_log
+# End of 4.1 tests

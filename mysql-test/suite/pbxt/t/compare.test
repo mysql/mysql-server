@@ -1,0 +1,52 @@
+#
+# Bug when using comparions of strings and integers.
+#
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+CREATE TABLE t1 (id CHAR(12) not null, PRIMARY KEY (id));
+insert into t1 values ('000000000001'),('000000000002');
+explain select * from t1 where id=000000000001;
+select * from t1 where id=000000000001;
+delete from t1 where id=000000000002;
+select * from t1;
+drop table t1;
+
+#
+# Check the following:
+# "a"  == "a "
+# "a\0" < "a"
+# "a\0" < "a "
+
+SELECT 'a' = 'a ';
+SELECT 'a\0' < 'a';
+SELECT 'a\0' < 'a ';
+SELECT 'a\t' < 'a';
+SELECT 'a\t' < 'a ';
+
+CREATE TABLE t1 (a char(10) not null);
+INSERT INTO t1 VALUES ('a'),('a\0'),('a\t'),('a ');
+SELECT hex(a),STRCMP(a,'a'), STRCMP(a,'a ') FROM t1;
+DROP TABLE t1;
+
+# Bug #8134: Comparison against CHAR(31) at end of string
+SELECT CHAR(31) = '', '' = CHAR(31);
+# Extra test
+SELECT CHAR(30) = '', '' = CHAR(30);
+
+# End of 4.1 tests
+
+#
+#Bug #21159: Optimizer: wrong result after AND with different data types
+#
+create table t1 (a tinyint(1),b binary(1));
+insert into t1 values (0x01,0x01);
+select * from t1 where a=b;
+select * from t1 where a=b and b=0x01;
+drop table if exists t1;
+
+--disable_query_log
+drop database pbxt;
+--enable_query_log

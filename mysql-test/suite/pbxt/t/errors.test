@@ -1,0 +1,47 @@
+#
+# Test some error conditions
+#
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+--error 1146
+insert into t1 values(1);
+--error 1146
+delete from t1;
+--error 1146
+update t1 set a=1;
+create table t1 (a int);
+--error 1054
+select count(test.t1.b) from t1;
+--error 1054
+select count(not_existing_database.t1) from t1;
+--error 1054
+select count(not_existing_database.t1.a) from t1;
+--error 1044,1146
+select count(not_existing_database.t1.a) from not_existing_database.t1;
+--error 1054
+select 1 from t1 order by 2;
+--error 1054
+select 1 from t1 group by 2;
+--error 1054
+select 1 from t1 order by t1.b;
+--error 1054
+select count(*),b from t1;
+drop table t1;
+
+# End of 4.1 tests
+
+#
+# Bug #6080: Error message for a field with a display width that is too long
+#
+--error 1439
+create table t1 (a int(256));
+set sql_mode='traditional';
+--error 1074
+create table t1 (a varchar(66000));
+
+--disable_query_log
+drop database pbxt;
+--enable_query_log
+# End of 5.0 tests

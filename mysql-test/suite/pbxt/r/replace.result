@@ -1,0 +1,32 @@
+drop table if exists t1;
+CREATE TABLE t1 (
+gesuchnr int(11) DEFAULT '0' NOT NULL,
+benutzer_id int(11) DEFAULT '0' NOT NULL,
+PRIMARY KEY (gesuchnr,benutzer_id)
+);
+replace into t1 (gesuchnr,benutzer_id) values (2,1);
+replace into t1 (gesuchnr,benutzer_id) values (1,1);
+replace into t1 (gesuchnr,benutzer_id) values (1,1);
+alter table t1 engine=heap;
+replace into t1 (gesuchnr,benutzer_id) values (1,1);
+drop table t1;
+create table t1 (a tinyint not null auto_increment primary key, b char(20) default "default_value");
+insert into t1 values (126,"first"),(63, "middle"),(0,"last");
+insert into t1 values (0,"error");
+ERROR HY000: Failed to read auto-increment value from storage engine
+replace into t1 values (0,"error");
+ERROR HY000: Failed to read auto-increment value from storage engine
+replace into t1 values (126,"first updated");
+replace into t1 values (63,default);
+select * from t1 order by a;
+a	b
+63	default_value
+126	first updated
+127	last
+drop table t1;
+CREATE TABLE t1 (f1 INT);
+CREATE VIEW v1 AS SELECT f1 FROM t1 WHERE f1 = 0 WITH CHECK OPTION;
+REPLACE INTO v1 (f1) VALUES (1);
+ERROR HY000: CHECK OPTION failed 'test.v1'
+DROP TABLE t1;
+DROP VIEW v1;

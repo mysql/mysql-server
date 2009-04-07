@@ -1,0 +1,929 @@
+###################### ps_general.test #######################
+#                                                            #
+#   basic and miscellaneous tests for prepared statements    #
+#                                                            #
+##############################################################
+
+#    
+# NOTE: PLEASE SEE THE DETAILED DESCRIPTION AT THE BOTTOM OF THIS FILE
+#       BEFORE ADDING NEW TEST CASES HERE !!!
+
+--disable_warnings
+drop table if exists t5, t6, t7, t8;
+drop database if exists mysqltest ;
+
+# Cleanup from other tests
+drop database if exists client_test_db;
+drop database if exists testtets;
+drop table if exists t1Aa,t2Aa,v1Aa,v2Aa;
+drop view if exists t1Aa,t2Aa,v1Aa,v2Aa;
+--enable_warnings
+
+--disable_query_log
+select '------ basic tests ------' as test_sequence ;
+--enable_query_log
+
+let $type= 'MYISAM' ;
+# create the tables (t1 and t9) used in many tests
+--source include/ps_create.inc
+# insert data into these tables
+--source include/ps_renew.inc
+
+
+################ The basic functions ################
+
+# 1. PREPARE stmt_name FROM <preparable statement>;
+#    <preparable statement> ::=
+#     'literal_stmt' |
+#     @variable_ref_stmt.
+#    The statement may contain question marks as placeholders for parameters.
+#
+#    Bind a statement name to a string containing a SQL statement and
+#    send it to the server. The server will parse the statement and
+#    reply with "Query Ok" or an error message.
+#
+PREPARE stmt FROM ' select * from t1 where a = ? ' ;
+
+# 2. EXECUTE stmt_name [USING @var [, @var ]];
+#    Current values of supplied variables are used as parameters.
+#
+#    Send the server the order to execute the statement and supply values
+#    for the input parameters needed.
+#    If no error occurs the server reply will be identical to the reply for
+#    the query used in PREPARE with question marks replaced with values of
+#    the input variables.
+#
+SET @var= 2 ;
+EXECUTE stmt USING @var ;
+#    The non prepared statement with the same server reply would be:
+select * from t1 where a = @var ;
+
+# 3. DEALLOCATE PREPARE stmt_name;
+#
+#    Send the server the order to drop the parse informations.
+#    The server will reply with "Query Ok" or an error message.
+DEALLOCATE PREPARE stmt ;
+
+################ PREPARE ################
+# prepare without parameter
+prepare stmt1 from ' select 1 as my_col ' ;
+# prepare with parameter
+prepare stmt1 from ' select ? as my_col ' ;
+# prepare must fail (incomplete statements/wrong syntax)
+--error 1064
+prepare ;
+--error 1064
+prepare stmt1 ;
+--error 1064
+prepare stmt1 from ;
+--error 1064
+prepare_garbage stmt1 from ' select 1 ' ;
+--error 1064
+prepare stmt1 from_garbage ' select 1 ' ;
+--error 1064
+prepare stmt1 from ' select_garbage 1 ' ;
+--error 1064
+prepare from ' select 1 ' ;
+--error 1064
+prepare stmt1 ' select 1 ' ;
+--error 1064
+prepare ? from ' select ? as my_col ' ;
+# statement in variable
+set @arg00='select 1 as my_col';
+prepare stmt1 from @arg00;
+# prepare must fail (query variable is empty)
+set @arg00='';
+--error 1065
+prepare stmt1 from @arg00;
+set @arg00=NULL;
+# prepare must fail (query variable is NULL)
+--error 1064
+prepare stmt1 from @arg01;
+
+prepare stmt1 from ' select * from t1 where a <= 2 ' ;
+# prepare must fail (column x does not exist)
+--error 1054
+prepare stmt1 from ' select * from t1 where x <= 2 ' ;
+# cases derived from client_test.c: test_null()
+# prepare must fail (column x does not exist)
+--error 1054
+prepare stmt1 from ' insert into t1(a,x) values(?,?) ' ;
+--error 1054
+prepare stmt1 from ' insert into t1(x,a) values(?,?) ' ;
+--disable_warnings
+drop table if exists not_exist ;
+--enable_warnings
+# prepare must fail (table does not exist)
+--error 1146
+prepare stmt1 from ' select * from not_exist where a <= 2 ' ;
+
+# case derived from client_test.c: test_prepare_syntax()
+# prepare must fail (incomplete statement)
+--error 1064
+prepare stmt1 from ' insert into t1 values(? ' ;
+--error 1064
+prepare stmt1 from ' select a, b from t1
+                     where a=? and where ' ;
+
+################ EXECUTE ################
+# execute must fail (statement never_prepared never prepared)
+--error 1243
+execute never_prepared ;
+# execute must fail (prepare stmt1 just failed,
+#         but there was a successful prepare of stmt1 before)
+prepare stmt1 from ' select * from t1 where a <= 2 ' ;
+--error 1146
+prepare stmt1 from ' select * from not_exist where a <= 2 ' ;
+--error 1243
+execute stmt1 ;
+
+# drop the table between prepare and execute
+create table t5
+(
+  a int primary key,
+  b char(30),
+  c int
+);
+insert into t5( a, b, c) values( 1, 'original table', 1);
+prepare stmt2 from ' select * from t5 ' ;
+execute stmt2 ;
+drop table t5 ;
+# execute must fail (table was dropped after prepare)
+--error 1146
+execute stmt2 ;
+# cases derived from client_test.c: test_select_prepare()
+# 1. drop + create table (same column names/types/order) 
+# between prepare and execute
+create table t5
+(
+  a int primary key,
+  b char(30),
+  c int
+);
+insert into t5( a, b, c) values( 9, 'recreated table', 9);
+execute stmt2 ;
+drop table t5 ;
+# 2. drop + create table (same column names/types but different order)
+# between prepare and execute
+create table t5
+(
+  a int primary key,
+  c int,
+  b char(30)
+);
+insert into t5( a, b, c) values( 9, 'recreated table', 9);
+execute stmt2 ;
+drop table t5 ;
+# 3. drop + create table (same column names/types/order+extra column) 
+# between prepare and execute
+create table t5
+(
+  a int primary key,
+  b char(30),
+  c int,
+  d timestamp default '2008-02-23 09:23:45'
+);
+insert into t5( a, b, c) values( 9, 'recreated table', 9);
+execute stmt2 ;
+drop table t5 ;
+# 4. drop + create table (same column names/types, different order +
+# additional column) between prepare and execute
+create table t5
+(
+  a int primary key,
+  d timestamp default '2008-02-23 09:23:45',
+  b char(30),
+  c int
+);
+insert into t5( a, b, c) values( 9, 'recreated table', 9);
+execute stmt2 ;
+drop table t5 ;
+# 5. drop + create table (same column names/order, different types)
+# between prepare and execute
+create table t5
+(
+  a timestamp default '2004-02-29 18:01:59',
+  b char(30),
+  c int
+);
+insert into t5( b, c) values( 'recreated table', 9);
+execute stmt2 ;
+drop table t5 ;
+# 6. drop + create table (same column types/order, different names) 
+# between prepare and execute
+create table t5
+(
+  f1 int primary key,
+  f2 char(30),
+  f3 int
+);
+insert into t5( f1, f2, f3) values( 9, 'recreated table', 9);
+execute stmt2 ;
+drop table t5 ;
+
+# execute without parameter
+prepare stmt1 from ' select * from t1 where a <= 2 ' ;
+execute stmt1 ;
+# execute with parameter
+set @arg00=1 ;
+set @arg01='two' ;
+prepare stmt1 from ' select * from t1 where a <= ? ' ;
+execute stmt1 using @arg00;
+# execute must fail (too small number of parameters)
+--error 1210
+execute stmt1 ;
+# execute must fail (too big number of parameters)
+--error 1210
+execute stmt1 using @arg00, @arg01;
+# execute must fail (parameter is not set)
+execute stmt1 using @not_set;
+
+################ DEALLOCATE ################
+# deallocate must fail (the statement 'never_prepared' was never prepared)
+--error 1243
+deallocate prepare never_prepared ;
+# deallocate must fail (prepare stmt1 just failed,
+#         but there was a successful prepare before)
+prepare stmt1 from ' select * from t1 where a <= 2 ' ;
+--error 1146
+prepare stmt1 from ' select * from not_exist where a <= 2 ' ;
+--error 1243
+deallocate prepare stmt1;
+create table t5
+(
+  a int primary key,
+  b char(10)
+);
+prepare stmt2 from ' select a,b from t5 where a <= 2 ' ;
+drop table t5 ;
+# deallocate prepared statement where the table was dropped after prepare
+deallocate prepare stmt2;
+
+## parallel use of more than one prepared statement handlers
+# switch between different queries
+prepare stmt1 from ' select a from t1 where a <= 2 ' ;
+prepare stmt2 from ' select b from t1 where a <= 2 ' ;
+execute stmt2 ;
+execute stmt1 ;
+# switch between statement handlers of the same query
+prepare stmt1 from ' select a from t1 where a <= 2 ' ;
+prepare stmt2 from ' select a from t1 where a <= 2 ' ;
+execute stmt2 ;
+execute stmt1 ;
+deallocate prepare stmt1 ;
+# Will the deallocate of stmt1 with the same query affect stmt2 ?
+execute stmt2 ;
+
+--disable_query_log
+select '------ show and misc tests ------' as test_sequence ;
+--enable_query_log
+
+--disable_warnings
+drop table if exists t2;
+--enable_warnings
+create table t2 
+(
+  a int primary key, b char(10)
+);
+
+################ SHOW COMMANDS ################
+prepare stmt4 from ' show databases ';
+execute stmt4;
+prepare stmt4 from ' show tables from test like ''t2%'' ';
+execute stmt4;
+prepare stmt4 from ' show columns from t2 where field in (select ?) ';
+SET @arg00="a";
+execute stmt4 using @arg00;
+SET @arg00="b";
+execute stmt4 using @arg00;
+SET @arg00=1;
+execute stmt4 using @arg00;
+
+prepare stmt4 from ' show columns from t2 from test like ''a%'' ';
+execute stmt4;
+create index t2_idx on t2(b);
+prepare stmt4 from ' show index from t2 from test ';
+execute stmt4;
+prepare stmt4 from ' show table status from test like ''t2%'' ';
+# egalize date and time values
+--replace_column 8 # 12 # 13 # 14 #
+# Bug#4288 : prepared statement 'show table status ..', wrong output on execute
+execute stmt4;
+# try the same with the big table
+prepare stmt4 from ' show table status from test like ''t9%'' ';
+# egalize date and time values
+--replace_column 8 # 12 # 13 # 14 #
+# Bug#4288
+execute stmt4;
+prepare stmt4 from ' show status like ''Threads_running'' ';
+--replace_column 2 #
+execute stmt4;
+prepare stmt4 from ' show variables like ''sql_mode'' ';
+execute stmt4;
+# The output depends on the bdb being enabled and on the history
+# history (actions of the bdb engine).
+# That is the reason why, we switch the output here off.
+#   (The real output will be tested in ps_6bdb.test)
+--disable_result_log
+prepare stmt4 from ' show engine pbxt logs '; # PBXT: changed from bdb to pbxt
+execute stmt4;
+--enable_result_log
+prepare stmt4 from ' show grants for user ';
+prepare stmt4 from ' show create table t2 ';
+prepare stmt4 from ' show master status ';
+prepare stmt4 from ' show master logs ';
+prepare stmt4 from ' show slave status ';
+prepare stmt4 from ' show warnings limit 20 ';
+prepare stmt4 from ' show errors limit 20 ';
+prepare stmt4 from ' show storage engines ';
+# The output depends upon the precise order in which
+# storage engines are registered, so we switch off the output.
+--disable_result_log
+execute stmt4;
+--enable_result_log
+
+################ MISC STUFF ################
+## get a warning and an error
+# cases derived from client_test.c: test_warnings(), test_errors()
+--disable_warnings
+drop table if exists t5;
+--enable_warnings
+prepare stmt1 from ' drop table if exists t5 ' ;
+execute stmt1 ;
+prepare stmt1 from ' drop table t5 ' ;
+--error 1051
+execute stmt1 ;
+
+## SELECT @@version
+# cases derived from client_test.c: test_select_version()
+#
+# TODO: Metadata check is temporary disabled here, because metadata of 
+# this statement also depends on @@version contents and you can't apply
+# replace_column and replace_result to it. It will be enabled again when 
+# support of replace_column and replace_result on metadata will be
+# implemented.
+#
+#--enable_metadata
+prepare stmt1 from ' SELECT @@version ' ;
+# egalize the version
+--replace_column 1 <version>
+execute stmt1 ;
+#--disable_metadata
+
+## do @var:= and set @var=
+# cases derived from client_test.c: test_do_set()
+prepare stmt_do from ' do @var:=  (1 in (select a from t1)) ' ;
+prepare stmt_set from ' set @var= (1 in (select a from t1)) ' ;
+let $1= 3 ;
+while ($1)
+{
+  execute stmt_do ;
+  --disable_query_log
+  select @var as 'content of @var is:' ;
+  --enable_query_log
+  execute stmt_set ;
+  --disable_query_log
+  select @var as 'content of @var is:' ;
+  --enable_query_log
+  dec $1 ;
+}
+# the same test with a table containing one column and 'select *'
+--disable_warnings
+drop table if exists t5 ;
+--enable_warnings
+create table t5 (a int) ;
+prepare stmt_do from ' do @var:=  (1 in (select a from t5)) ' ;
+prepare stmt_set from ' set @var= (1 in (select a from t5)) ' ;
+let $1= 3 ;
+while ($1)
+{
+  execute stmt_do ;
+  --disable_query_log
+  select @var as 'content of @var is:' ;
+  --enable_query_log
+  execute stmt_set ;
+  --disable_query_log
+  select @var as 'content of @var is:' ;
+  --enable_query_log
+  dec $1 ;
+}
+drop table t5 ;
+deallocate prepare stmt_do ;
+deallocate prepare stmt_set ;
+
+## nonsense like prepare of prepare,execute or deallocate
+--error ER_UNSUPPORTED_PS 
+prepare stmt1 from ' prepare stmt2 from '' select 1 ''  ' ;
+--error ER_UNSUPPORTED_PS 
+prepare stmt1 from ' execute stmt2 ' ;
+--error ER_UNSUPPORTED_PS 
+prepare stmt1 from ' deallocate prepare never_prepared ' ;
+
+## We don't support alter view as prepared statements
+--error ER_UNSUPPORTED_PS
+prepare stmt1 from 'alter view v1 as select 2';
+
+## switch the database connection
+--error ER_UNSUPPORTED_PS
+prepare stmt4 from ' use test ' ;
+
+## create/drop database
+prepare stmt3 from ' create database mysqltest ';
+create database mysqltest ;
+prepare stmt3 from ' drop database mysqltest ';
+drop database mysqltest ;
+
+#### table related commands
+## describe
+prepare stmt3 from ' describe t2 ';
+execute stmt3;
+drop table t2 ;
+--error 1146
+execute stmt3;
+## lock/unlock
+--error ER_UNSUPPORTED_PS
+prepare stmt3 from ' lock tables t1 read ' ;
+--error ER_UNSUPPORTED_PS
+prepare stmt3 from ' unlock tables ' ;
+## Load/Unload table contents
+--error ER_UNSUPPORTED_PS
+prepare stmt1 from ' load data infile ''data.txt''
+into table t1 fields terminated by ''\t'' ';
+prepare stmt1 from ' select * into outfile ''data.txt'' from t1 ';
+execute stmt1 ;
+## 
+prepare stmt1 from ' optimize table t1 ' ;
+prepare stmt1 from ' analyze table t1 ' ;
+prepare stmt1 from ' checksum table t1 ' ;
+prepare stmt1 from ' repair table t1 ' ;
+--error ER_UNSUPPORTED_PS
+prepare stmt1 from ' restore table t1 from ''data.txt'' ' ;
+## handler
+--error ER_UNSUPPORTED_PS
+prepare stmt1 from ' handler t1 open ';
+
+
+## commit/rollback
+prepare stmt3 from ' commit ' ;
+prepare stmt3 from ' rollback ' ;
+
+
+## switch the sql_mode
+prepare stmt4 from ' SET sql_mode=ansi ';
+execute stmt4;
+# check if the sql_mode is now ansi
+select 'a' || 'b' ;
+prepare stmt4 from ' SET sql_mode="" ';
+execute stmt4;
+# check if the sql_mode is not ansi
+select '2' || '3' ;
+# Will a switch of the sqlmode affect the execution of already prepared 
+# statements ?
+prepare stmt5 from ' select ''2'' || ''3'' ' ;
+execute stmt5;
+SET sql_mode=ansi;
+execute stmt5;
+SET sql_mode="";
+
+prepare stmt1 from ' flush local privileges ' ;
+prepare stmt1 from ' reset query cache ' ;
+prepare stmt1 from ' KILL 0 ';
+
+## simple explain
+# cases derived from client_test.c: test_explain_bug()
+prepare stmt1 from ' explain select a from t1 order by b ';
+# PS protocol gives slightly different metadata
+--disable_ps_protocol
+--enable_metadata
+execute stmt1;
+--disable_metadata
+SET @arg00=1 ;
+prepare stmt1 from ' explain select a from t1 where a > ? order by b ';
+--enable_metadata
+execute stmt1 using @arg00;
+--disable_metadata
+--enable_ps_protocol
+
+## parameters with probably problematic characters (quote, double  quote)
+# cases derived from client_test.c: test_logs()
+# try if 
+--disable_warnings
+drop table if exists t2;
+--enable_warnings
+create table t2 (id smallint, name varchar(20)) ;
+prepare stmt1 from ' insert into t2 values(?, ?) ' ;
+set @id= 9876 ;
+set @arg00= 'MySQL - Open Source Database' ;
+set @arg01= "'" ;
+set @arg02= '"' ;
+set @arg03= "my'sql'" ;
+set @arg04= 'my"sql"' ;
+insert into t2 values ( @id , @arg00 );
+insert into t2 values ( @id , @arg01 );
+insert into t2 values ( @id , @arg02 );
+insert into t2 values ( @id , @arg03 );
+insert into t2 values ( @id , @arg04 );
+prepare stmt1 from ' select * from t2 where id= ? and name= ? ';
+execute stmt1 using @id, @arg00 ;
+execute stmt1 using @id, @arg01 ;
+execute stmt1 using @id, @arg02 ;
+execute stmt1 using @id, @arg03 ;
+execute stmt1 using @id, @arg04 ;
+drop table t2;
+
+################ CREATE/DROP/ALTER/RENAME TESTS ################
+--disable_query_log
+select '------ create/drop/alter/rename tests ------' as test_sequence ;
+--enable_query_log
+
+--disable_warnings
+drop table if exists t2, t3;
+--enable_warnings
+
+## DROP TABLE
+prepare stmt_drop from ' drop table if exists t2 ' ;
+--disable_warnings
+execute stmt_drop;
+--enable_warnings
+
+## CREATE TABLE
+prepare stmt_create from ' create table t2 (
+                             a int primary key, b char(10)) ';
+execute stmt_create;
+prepare stmt3 from ' create table t3 like t2 ';
+execute stmt3;
+drop table t3;
+
+## CREATE TABLE .. SELECT
+set @arg00=1;
+prepare stmt3 from ' create table t3 (m int) select ? as m ' ;
+# Bug#4280 server hangs, prepared "create table .. as select ? .."
+execute stmt3 using @arg00;
+select m from t3;
+drop table t3;
+
+prepare stmt3 from ' create index t2_idx on t2(b) ';
+prepare stmt3 from ' drop index t2_idx on t2 ' ; 
+prepare stmt3 from ' alter table t2 drop primary key ';
+
+## RENAME TABLE
+--disable_warnings
+drop table if exists new_t2;
+--enable_warnings
+prepare stmt3 from ' rename table t2 to new_t2 ';
+execute stmt3;
+--error 1050
+execute stmt3;
+rename table new_t2 to t2;
+drop table t2;
+## RENAME more than on TABLE within one statement
+# cases derived from client_test.c: test_rename()
+prepare stmt1 from ' rename table t5 to t6, t7 to t8 ' ;
+create table t5 (a int) ;
+# rename must fail, t7 does not exist
+# Clean up the filename here because embedded server reports whole path
+--replace_result $MYSQLTEST_VARDIR . master-data/ '' t7.frm t7
+--error 1017
+execute stmt1 ;
+create table t7 (a int) ;
+# rename, t5 -> t6 and t7 -> t8
+execute stmt1 ;
+# rename must fail, t5 and t7 does not exist t6 and t8 already exist
+--error 1050
+execute stmt1 ;
+rename table t6 to t5, t8 to t7 ;
+# rename, t5 -> t6 and t7 -> t8
+execute stmt1 ;
+drop table t6, t8 ;
+
+
+################ BIG STATEMENT TESTS ################
+--disable_query_log
+select '------ big statement tests ------' as test_sequence ;
+--enable_query_log
+# The following tests use huge numbers of lines, characters or parameters
+# per prepared statement.
+# I assume the server and also the client (mysqltest) are stressed.
+#
+# Attention: The limits used are NOT derived from the manual
+#            or other sources.
+
+## many lines ( 50 )
+let $my_stmt= select 'ABC' as my_const_col from t1 where
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 ;
+eval ($my_stmt) ;
+eval prepare stmt1 from "$my_stmt" ;
+execute stmt1 ;
+execute stmt1 ;
+
+## many characters ( about 1400 )
+
+let $my_stmt= select 'ABC' as my_const_col FROM t1 WHERE
+'1234567890123456789012345678901234567890123456789012345678901234567890'
+= '1234567890123456789012345678901234567890123456789012345678901234567890' AND
+'1234567890123456789012345678901234567890123456789012345678901234567890'
+= '1234567890123456789012345678901234567890123456789012345678901234567890' AND
+'1234567890123456789012345678901234567890123456789012345678901234567890'
+= '1234567890123456789012345678901234567890123456789012345678901234567890' AND
+'1234567890123456789012345678901234567890123456789012345678901234567890'
+= '1234567890123456789012345678901234567890123456789012345678901234567890' AND
+'1234567890123456789012345678901234567890123456789012345678901234567890'
+= '1234567890123456789012345678901234567890123456789012345678901234567890' AND
+'1234567890123456789012345678901234567890123456789012345678901234567890'
+= '1234567890123456789012345678901234567890123456789012345678901234567890' AND
+'1234567890123456789012345678901234567890123456789012345678901234567890'
+= '1234567890123456789012345678901234567890123456789012345678901234567890' AND
+'1234567890123456789012345678901234567890123456789012345678901234567890'
+= '1234567890123456789012345678901234567890123456789012345678901234567890' AND
+'1234567890123456789012345678901234567890123456789012345678901234567890'
+= '1234567890123456789012345678901234567890123456789012345678901234567890' ;
+eval ($my_stmt) ;
+eval prepare stmt1 from "$my_stmt" ;
+execute stmt1 ;
+execute stmt1 ;
+
+
+## many parameters ( 50 )
+--disable_query_log
+set @arg00= 1;
+set @arg01= 1; 
+set @arg02= 1;
+set @arg03= 1; 
+set @arg04= 1;
+set @arg05= 1; 
+set @arg06= 1;
+set @arg07= 1;
+set @arg10= 1;
+set @arg11= 1; 
+set @arg12= 1;
+set @arg13= 1; 
+set @arg14= 1;
+set @arg15= 1; 
+set @arg16= 1;
+set @arg17= 1; 
+set @arg20= 1;
+set @arg21= 1; 
+set @arg22= 1;
+set @arg23= 1; 
+set @arg24= 1;
+set @arg25= 1; 
+set @arg26= 1;
+set @arg27= 1; 
+set @arg30= 1;
+set @arg31= 1; 
+set @arg32= 1;
+set @arg33= 1; 
+set @arg34= 1;
+set @arg35= 1; 
+set @arg36= 1;
+set @arg37= 1; 
+set @arg40= 1;
+set @arg41= 1; 
+set @arg42= 1;
+set @arg43= 1; 
+set @arg44= 1;
+set @arg45= 1; 
+set @arg46= 1;
+set @arg47= 1; 
+set @arg50= 1;
+set @arg51= 1; 
+set @arg52= 1;
+set @arg53= 1; 
+set @arg54= 1;
+set @arg55= 1; 
+set @arg56= 1;
+set @arg57= 1; 
+set @arg60= 1;
+set @arg61= 1;
+--enable_query_log
+
+select 'ABC' as my_const_col FROM t1 WHERE
+@arg00=@arg00 and @arg00=@arg00 and @arg00=@arg00 and @arg00=@arg00 and
+@arg00=@arg00 and @arg00=@arg00 and @arg00=@arg00 and @arg00=@arg00 and
+@arg00=@arg00 and @arg00=@arg00 and @arg00=@arg00 and @arg00=@arg00 and
+@arg00=@arg00 and @arg00=@arg00 and @arg00=@arg00 and @arg00=@arg00 and
+@arg00=@arg00 and @arg00=@arg00 and @arg00=@arg00 and @arg00=@arg00 and
+@arg00=@arg00 and @arg00=@arg00 and @arg00=@arg00 and @arg00=@arg00 and
+@arg00=@arg00 ;
+prepare stmt1 from ' select ''ABC'' as my_const_col FROM t1 WHERE
+ ? = ?  and  ? = ?  and  ? = ?  and  ? = ?  and
+ ? = ?  and  ? = ?  and  ? = ?  and  ? = ?  and
+ ? = ?  and  ? = ?  and  ? = ?  and  ? = ?  and
+ ? = ?  and  ? = ?  and  ? = ?  and  ? = ?  and
+ ? = ?  and  ? = ?  and  ? = ?  and  ? = ?  and
+ ? = ?  and  ? = ?  and  ? = ?  and  ? = ?  and
+ ? = ?  ' ;
+execute stmt1 using 
+@arg00, @arg00, @arg00, @arg00, @arg00, @arg00, @arg00, @arg00, 
+@arg00, @arg00, @arg00, @arg00, @arg00, @arg00, @arg00, @arg00,
+@arg00, @arg00, @arg00, @arg00, @arg00, @arg00, @arg00, @arg00, 
+@arg00, @arg00, @arg00, @arg00, @arg00, @arg00, @arg00, @arg00, 
+@arg00, @arg00, @arg00, @arg00, @arg00, @arg00, @arg00, @arg00, 
+@arg00, @arg00, @arg00, @arg00, @arg00, @arg00, @arg00, @arg00, 
+@arg00, @arg00;
+execute stmt1 using 
+@arg00, @arg01, @arg02, @arg03, @arg04, @arg05, @arg06, @arg07, 
+@arg10, @arg11, @arg12, @arg13, @arg14, @arg15, @arg16, @arg17,
+@arg20, @arg21, @arg22, @arg23, @arg24, @arg25, @arg26, @arg27, 
+@arg30, @arg31, @arg32, @arg33, @arg34, @arg35, @arg36, @arg37, 
+@arg40, @arg41, @arg42, @arg43, @arg44, @arg45, @arg46, @arg47, 
+@arg50, @arg51, @arg52, @arg53, @arg54, @arg55, @arg56, @arg57, 
+@arg60, @arg61 ;
+
+# cases derived from client_test.c: test_mem_overun()
+--disable_warnings
+drop table if exists t5 ;
+--enable_warnings
+
+set @col_num= 1000 ;
+
+--disable_query_log
+set @string= 'create table t5( ' ;
+let $1=`select @col_num - 1` ;
+while ($1)
+{
+  eval set @string= concat(@string, 'c$1 int,') ;
+  dec $1 ;
+}
+set @string= concat(@string, 'c0 int)' );
+--enable_query_log
+select @string as "" ;
+prepare stmt1 from @string ;
+execute stmt1 ;
+
+--disable_query_log
+set @string= 'insert into t5 values(' ;
+let $1=`select @col_num - 1` ;
+while ($1)
+{
+  eval set @string= concat(@string, '1 ,') ;
+  dec $1 ;
+}
+eval set @string= concat(@string, '1 )') ;
+--enable_query_log
+select @string as "" ;
+prepare stmt1 from @string ;
+execute stmt1 ;
+
+prepare stmt1 from ' select * from t5 ' ;
+--enable_metadata
+# prevent too long lines
+--vertical_results
+--disable_result_log
+execute stmt1 ;
+--enable_result_log
+--disable_metadata
+--horizontal_results
+
+drop table t1, t5, t9;
+
+##### RULES OF THUMB TO PRESERVE THE SYSTEMATICS OF THE PS TEST CASES #####
+#
+# 0. You  don't have the time to 
+#    - read and pay attention to these rules of thumb
+#    - accept that QA may move your test case to a different place
+#      (I will not change your code!!) .
+#    Please append your test case to
+#        t/ps.test
+#
+# 1. You have more time and want to get as much value from you test case as
+#    possible. Please try to make the following decisions:
+#
+#    Will the execution or result of the sub test case depend on the
+#    properties of a storage engine ?
+#
+#      NO   --> alter t/ps_1general.test (Example: Command with syntax error)
+#               If you need a table, please try to use
+#               t1               - very simple table
+#               t9 - table with nearly all available column types
+#               whenever possible.
+#
+#               The structure and the content of these tables can be found in
+#               include/ps_create.inc  CREATE TABLE ...
+#               include/ps_renew.inc   DELETE all rows and INSERT some rows
+#
+#               Both tables are managed by the same storage engine.
+#               The type of the storage engine is stored in the variable 
+#               '$type' .  In ps_1general.test $type is set to 'MYISAM'.
+#    
+#               Please feel free to source ps_create.inc or ps_renew.inc
+#               whenever you think it helps. But please restore the original
+#               state of these tables after your tests, because the following
+#               statements may depend on it.
+#
+#      YES
+#       |
+#       |
+#    Is it possible to apply the sub test case to all table types ?
+#      YES  --> alter include/ps_query.inc   (for SELECTs)
+#                     include/ps_modify.inc  (for INSERT/UPDATE/DELETE)
+#                     include/ps_modify1.inc (also for INSERT/UPDATE/DELETE,
+#                                but t/ps_5merge.test will not source that file)
+#               Please try to find an appropriate place within the file.
+#               It would be nice if we have some systematics in the
+#               order of the sub test cases (if possible).
+#
+#               Please be aware, that
+#                  include: ps_query.inc, ps_modify.inc, ps_modify1.inc
+#               will be sourced by several test case files stored within the 
+#               subdirectory 't'. So every change here will affect several test
+#               cases.
+#
+#      NO
+#       |
+#       |
+#    Append the sub test case to the appropriate 
+#                  ps_<number><table type>.test  .
+#
+# 2. The current structure of the PS tests
+#
+#    t/ps_1general.test     Check of basic PS features, SHOW commands and DDL
+#                           The tests should not depend on the table type.
+#
+#    t/ps_2myisam           Check of PS on tables of type MYISAM .
+#    t/ps_3innodb           Check of PS on tables of type InnoDB .
+#    ...
+#    t/ps_6bdb              Check of PS on tables of type BDB .
+#         All storage engine related tests use the variable $type to hold the
+#         name of the storage engine.        
+#
+#    include/ps_query.inc   test cases with SELECT/... 
+#                           These test cases should not modify the content or
+#                           the structure (DROP/ALTER..) of the tables
+#                           't1' and 't9'.
+#    include/ps_modify.inc  test cases with INSERT/UPDATE/... 
+#                           These test cases should not modify the structure 
+#                           (DROP/ALTER..) of the tables
+#                           't1' and 't9'.
+#         These two test sequences will be applied to all table types .
+#
+#    include/ps_modify1.inc test cases with INSERT/UPDATE/...
+#         This test sequences will be applied to all table types 
+#         except MERGE tables.
+#
+#    include/ps_create.inc  DROP and CREATE of the tables 
+#                             't1' and 't9' .
+#    include/ps_renew.inc   DELETE all rows and INSERT some rows, that means
+#                           recreate the original content of these tables.
+#         Please do not alter the commands concerning these two tables.
+#
+#  Please feel free and encouraged to exploit the current code sharing
+#  mechanism of the 'ps_<number><table type>' test cases. It is an convenient
+#  way to check all storage engines.
+#
+#  Thank you for reading these rules of thumb.
+#
+#     Matthias
+
+--disable_query_log
+drop database pbxt;
+--enable_query_log
+# End of 4.1 tests

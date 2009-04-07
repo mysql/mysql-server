@@ -1,0 +1,837 @@
+drop table if exists t1,t2,t3,t4,t5;
+drop database if exists mysqltest;
+create table t1 (b char(0));
+insert into t1 values (""),(null);
+select * from t1;
+b
+
+NULL
+drop table if exists t1;
+create table t1 (b char(0) not null);
+create table if not exists t1 (b char(0) not null);
+Warnings:
+Note	1050	Table 't1' already exists
+insert into t1 values (""),(null);
+Warnings:
+Warning	1048	Column 'b' cannot be null
+select * from t1;
+b
+
+
+drop table t1;
+create table t1 (a int not null auto_increment,primary key (a)) engine=heap;
+drop table t1;
+create table t2 engine=heap select * from t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+create table t2 select auto+1 from t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+drop table if exists t1,t2;
+Warnings:
+Note	1051	Unknown table 't1'
+Note	1051	Unknown table 't2'
+create table t1 (b char(0) not null, index(b));
+ERROR 42000: The used storage engine can't index column 'b'
+create table t1 (a int not null,b text) engine=heap;
+ERROR 42000: The used table type doesn't support BLOB/TEXT columns
+drop table if exists t1;
+Warnings:
+Note	1051	Unknown table 't1'
+create table t1 (ordid int(8) not null auto_increment, ord  varchar(50) not null, primary key (ord,ordid)) engine=heap;
+ERROR 42000: Incorrect table definition; there can be only one auto column and it must be defined as a key
+create table not_existing_database.test (a int);
+ERROR 42000: Unknown database 'not_existing_database'
+create table `a/a` (a int);
+show create table `a/a`;
+Table	Create Table
+a/a	CREATE TABLE `a/a` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+create table t1 like `a/a`;
+drop table `a/a`;
+drop table `t1`;
+create table `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` (aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa int);
+ERROR 42000: Incorrect table name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+create table a (`aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` int);
+ERROR 42000: Identifier name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' is too long
+create table t1 (a datetime default now());
+ERROR 42000: Invalid default value for 'a'
+create table t1 (a datetime on update now());
+ERROR HY000: Invalid ON UPDATE clause for 'a' column
+create table t1 (a int default 100 auto_increment);
+ERROR 42000: Invalid default value for 'a'
+create table t1 (a tinyint default 1000);
+ERROR 42000: Invalid default value for 'a'
+create table t1 (a varchar(5) default 'abcdef');
+ERROR 42000: Invalid default value for 'a'
+create table t1 (a varchar(5) default 'abcde');
+insert into t1 values();
+select * from t1;
+a
+abcde
+alter table t1 alter column a set default 'abcdef';
+ERROR 42000: Invalid default value for 'a'
+drop table t1;
+create table 1ea10 (1a20 int,1e int);
+insert into 1ea10 values(1,1);
+select 1ea10.1a20,1e+ 1e+10 from 1ea10;
+1a20	1e+ 1e+10
+1	10000000001
+drop table 1ea10;
+create table t1 (t1.index int);
+drop table t1;
+drop database if exists mysqltest;
+Warnings:
+Note	1008	Can't drop database 'mysqltest'; database doesn't exist
+create database mysqltest;
+create table mysqltest.$test1 (a$1 int, $b int, c$ int);
+insert into mysqltest.$test1 values (1,2,3);
+select a$1, $b, c$ from mysqltest.$test1;
+a$1	$b	c$
+1	2	3
+create table mysqltest.test2$ (a int);
+drop table mysqltest.test2$;
+drop database mysqltest;
+create table `` (a int);
+ERROR 42000: Incorrect table name ''
+drop table if exists ``;
+ERROR 42000: Incorrect table name ''
+create table t1 (`` int);
+ERROR 42000: Incorrect column name ''
+create table t1 (i int, index `` (i));
+ERROR 42000: Incorrect index name ''
+create table t1 (a int auto_increment not null primary key, B CHAR(20));
+insert into t1 (b) values ("hello"),("my"),("world");
+create table t2 (key (b)) select * from t1;
+explain select * from t2 where b="world";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ref	B	B	21	const	1	Using where
+select * from t2 where b="world";
+a	B
+3	world
+drop table t1,t2;
+create table t1(x varchar(50) );
+create table t2 select x from t1 where 1=2;
+describe t1;
+Field	Type	Null	Key	Default	Extra
+x	varchar(50)	YES		NULL	
+describe t2;
+Field	Type	Null	Key	Default	Extra
+x	varchar(50)	YES		NULL	
+drop table t2;
+create table t2 select now() as a , curtime() as b, curdate() as c , 1+1 as d , 1.0 + 1 as e , 33333333333333333 + 3 as f;
+describe t2;
+Field	Type	Null	Key	Default	Extra
+a	datetime	NO		0000-00-00 00:00:00	
+b	time	NO		00:00:00	
+c	date	NO		0000-00-00	
+d	int(3)	NO		0	
+e	decimal(3,1)	NO		0.0	
+f	bigint(19)	NO		0	
+drop table t2;
+create table t2 select CAST("2001-12-29" AS DATE) as d, CAST("20:45:11" AS TIME) as t, CAST("2001-12-29  20:45:11" AS DATETIME) as dt;
+describe t2;
+Field	Type	Null	Key	Default	Extra
+d	date	YES		NULL	
+t	time	YES		NULL	
+dt	datetime	YES		NULL	
+drop table t1,t2;
+create table t1 (a tinyint);
+create table t2 (a int) select * from t1;
+describe t1;
+Field	Type	Null	Key	Default	Extra
+a	tinyint(4)	YES		NULL	
+describe t2;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+drop table if exists t2;
+create table t2 (a int, a float) select * from t1;
+ERROR 42S21: Duplicate column name 'a'
+drop table if exists t2;
+Warnings:
+Note	1051	Unknown table 't2'
+create table t2 (a int) select a as b, a+1 as b from t1;
+ERROR 42S21: Duplicate column name 'b'
+drop table if exists t2;
+Warnings:
+Note	1051	Unknown table 't2'
+create table t2 (b int) select a as b, a+1 as b from t1;
+ERROR 42S21: Duplicate column name 'b'
+drop table if exists t1,t2;
+Warnings:
+Note	1051	Unknown table 't2'
+CREATE TABLE t1 (a int not null);
+INSERT INTO t1 values (1),(2),(1);
+CREATE TABLE t2 (primary key(a)) SELECT * FROM t1;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+SELECT * from t2;
+ERROR 42S02: Table 'test.t2' doesn't exist
+DROP TABLE t1;
+DROP TABLE IF EXISTS t2;
+Warnings:
+Note	1051	Unknown table 't2'
+create table t1 (a int not null, b int, primary key(a), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `b` (`b`),
+  KEY `b_2` (`b`),
+  KEY `b_3` (`b`),
+  KEY `b_4` (`b`),
+  KEY `b_5` (`b`),
+  KEY `b_6` (`b`),
+  KEY `b_7` (`b`),
+  KEY `b_8` (`b`),
+  KEY `b_9` (`b`),
+  KEY `b_10` (`b`),
+  KEY `b_11` (`b`),
+  KEY `b_12` (`b`),
+  KEY `b_13` (`b`),
+  KEY `b_14` (`b`),
+  KEY `b_15` (`b`),
+  KEY `b_16` (`b`),
+  KEY `b_17` (`b`),
+  KEY `b_18` (`b`),
+  KEY `b_19` (`b`),
+  KEY `b_20` (`b`),
+  KEY `b_21` (`b`),
+  KEY `b_22` (`b`),
+  KEY `b_23` (`b`),
+  KEY `b_24` (`b`),
+  KEY `b_25` (`b`),
+  KEY `b_26` (`b`),
+  KEY `b_27` (`b`),
+  KEY `b_28` (`b`),
+  KEY `b_29` (`b`),
+  KEY `b_30` (`b`),
+  KEY `b_31` (`b`)
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 select if(1,'1','0'), month("2002-08-02");
+drop table t1;
+create table t1 select if('2002'='2002','Y','N');
+select * from t1;
+if('2002'='2002','Y','N')
+Y
+drop table if exists t1;
+SET SESSION storage_engine="heap";
+SELECT @@storage_engine;
+@@storage_engine
+MEMORY
+CREATE TABLE t1 (a int not null);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL
+) ENGINE=MEMORY DEFAULT CHARSET=latin1
+drop table t1;
+SET SESSION storage_engine="gemini";
+ERROR 42000: Unknown table engine 'gemini'
+SELECT @@storage_engine;
+@@storage_engine
+MEMORY
+CREATE TABLE t1 (a int not null);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL
+) ENGINE=MEMORY DEFAULT CHARSET=latin1
+SET SESSION storage_engine=default;
+drop table t1;
+create table t1 ( k1 varchar(2), k2 int, primary key(k1,k2));
+insert into t1 values ("a", 1), ("b", 2);
+insert into t1 values ("c", NULL);
+ERROR 23000: Column 'k2' cannot be null
+insert into t1 values (NULL, 3);
+ERROR 23000: Column 'k1' cannot be null
+insert into t1 values (NULL, NULL);
+ERROR 23000: Column 'k1' cannot be null
+drop table t1;
+create table t1 select x'4132';
+drop table t1;
+create table t1 select 1,2,3;
+create table if not exists t1 select 1,2;
+Warnings:
+Note	1050	Table 't1' already exists
+create table if not exists t1 select 1,2,3,4;
+ERROR 21S01: Column count doesn't match value count at row 1
+create table if not exists t1 select 1;
+Warnings:
+Note	1050	Table 't1' already exists
+select * from t1;
+1	2	3
+1	2	3
+0	1	2
+0	0	1
+drop table t1;
+flush status;
+create table t1 (a int not null, b int, primary key (a));
+insert into t1 values (1,1);
+create table if not exists t1 select 2;
+Warnings:
+Note	1050	Table 't1' already exists
+Warning	1364	Field 'a' doesn't have a default value
+select * from t1;
+a	b
+1	1
+0	2
+create table if not exists t1 select 3 as 'a',4 as 'b';
+Warnings:
+Note	1050	Table 't1' already exists
+create table if not exists t1 select 3 as 'a',3 as 'b';
+ERROR 23000: Duplicate entry '3' for key 'PRIMARY'
+show warnings;
+Level	Code	Message
+Note	1050	Table 't1' already exists
+Error	1062	Duplicate entry '3' for key 'PRIMARY'
+show status like "Opened_tables";
+Variable_name	Value
+Opened_tables	3
+select * from t1;
+a	b
+1	1
+0	2
+3	4
+drop table t1;
+create table `t1 `(a int);
+ERROR 42000: Incorrect table name 't1 '
+create database `db1 `;
+ERROR 42000: Incorrect database name 'db1 '
+create table t1(`a ` int);
+ERROR 42000: Incorrect column name 'a '
+create table t1 (a int,);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
+create table t1 (a int,,b int);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'b int)' at line 1
+create table t1 (,b int);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'b int)' at line 1
+create table t1 (a int, key(a));
+create table t2 (b int, foreign key(b) references t1(a), key(b));
+drop table if exists t2,t1;
+create table t1(id int not null, name char(20));
+insert into t1 values(10,'mysql'),(20,'monty- the creator');
+create table t2(id int not null);
+insert into t2 values(10),(20);
+create table t3 like t1;
+show create table t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `id` int(11) NOT NULL,
+  `name` char(20) DEFAULT NULL
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+select * from t3;
+id	name
+create table if not exists t3 like t1;
+Warnings:
+Note	1050	Table 't3' already exists
+select @@warning_count;
+@@warning_count
+1
+create temporary table t3 like t2;
+show create table t3;
+Table	Create Table
+t3	CREATE TEMPORARY TABLE `t3` (
+  `id` int(11) NOT NULL
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+select * from t3;
+id
+drop table t3;
+show create table t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `id` int(11) NOT NULL,
+  `name` char(20) DEFAULT NULL
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+select * from t3;
+id	name
+drop table t2, t3;
+create database mysqltest;
+alter table t1;
+create table mysqltest.t3 like t1;
+create temporary table t3 like mysqltest.t3;
+show create table t3;
+Table	Create Table
+t3	CREATE TEMPORARY TABLE `t3` (
+  `id` int(11) NOT NULL,
+  `name` char(20) DEFAULT NULL
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+create table t2 like t3;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` int(11) NOT NULL,
+  `name` char(20) DEFAULT NULL
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+select * from t2;
+id	name
+create table t3 like t1;
+create table t3 like mysqltest.t3;
+ERROR 42S01: Table 't3' already exists
+create table non_existing_database.t1 like t1;
+ERROR 42000: Unknown database 'non_existing_database'
+create table t3 like non_existing_table;
+ERROR 42S02: Table 'test.non_existing_table' doesn't exist
+create temporary table t3 like t1;
+ERROR 42S01: Table 't3' already exists
+drop table t1, t2, t3;
+drop table t3;
+drop database mysqltest;
+SET SESSION storage_engine="heap";
+SELECT @@storage_engine;
+@@storage_engine
+MEMORY
+CREATE TABLE t1 (a int not null);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL
+) ENGINE=MEMORY DEFAULT CHARSET=latin1
+drop table t1;
+SET SESSION storage_engine="gemini";
+ERROR 42000: Unknown table engine 'gemini'
+SELECT @@storage_engine;
+@@storage_engine
+MEMORY
+CREATE TABLE t1 (a int not null);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL
+) ENGINE=MEMORY DEFAULT CHARSET=latin1
+SET SESSION storage_engine=default;
+drop table t1;
+create table t1(a int,b int,c int unsigned,d date,e char,f datetime,g time,h blob);
+insert into t1(a)values(1);
+insert into t1(a,b,c,d,e,f,g,h)
+values(2,-2,2,'1825-12-14','a','2003-1-1 3:2:1','4:3:2','binary data');
+select * from t1;
+a	b	c	d	e	f	g	h
+1	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+2	-2	2	1825-12-14	a	2003-01-01 03:02:01	04:03:02	binary data
+select a, 
+ifnull(b,cast(-7 as signed)) as b, 
+ifnull(c,cast(7 as unsigned)) as c, 
+ifnull(d,cast('2000-01-01' as date)) as d, 
+ifnull(e,cast('b' as char)) as e,
+ifnull(f,cast('2000-01-01' as datetime)) as f, 
+ifnull(g,cast('5:4:3' as time)) as g,
+ifnull(h,cast('yet another binary data' as binary)) as h,
+addtime(cast('1:0:0' as time),cast('1:0:0' as time)) as dd 
+from t1;
+a	b	c	d	e	f	g	h	dd
+1	-7	7	2000-01-01	b	2000-01-01 00:00:00	05:04:03	yet another binary data	02:00:00
+2	-2	2	1825-12-14	a	2003-01-01 03:02:01	04:03:02	binary data	02:00:00
+create table t2
+select
+a, 
+ifnull(b,cast(-7                        as signed))   as b,
+ifnull(c,cast(7                         as unsigned)) as c,
+ifnull(d,cast('2000-01-01'              as date))     as d,
+ifnull(e,cast('b'                       as char))     as e,
+ifnull(f,cast('2000-01-01'              as datetime)) as f,
+ifnull(g,cast('5:4:3'                   as time))     as g,
+ifnull(h,cast('yet another binary data' as binary))   as h,
+addtime(cast('1:0:0' as time),cast('1:0:0' as time))  as dd
+from t1;
+explain t2;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+b	bigint(11)	NO		0	
+c	bigint(11) unsigned	NO		0	
+d	date	YES		NULL	
+e	varchar(1)	NO			
+f	datetime	YES		NULL	
+g	time	YES		NULL	
+h	longblob	NO		NULL	
+dd	time	YES		NULL	
+select * from t2;
+a	b	c	d	e	f	g	h	dd
+1	-7	7	2000-01-01	b	2000-01-01 00:00:00	05:04:03	yet another binary data	02:00:00
+2	-2	2	1825-12-14	a	2003-01-01 03:02:01	04:03:02	binary data	02:00:00
+drop table t1, t2;
+create table t1 (a tinyint, b smallint, c mediumint, d int, e bigint, f float(3,2), g double(4,3), h decimal(5,4), i year, j date, k timestamp, l datetime, m enum('a','b'), n set('a','b'), o char(10));
+create table t2 select ifnull(a,a), ifnull(b,b), ifnull(c,c), ifnull(d,d), ifnull(e,e), ifnull(f,f), ifnull(g,g), ifnull(h,h), ifnull(i,i), ifnull(j,j), ifnull(k,k), ifnull(l,l), ifnull(m,m), ifnull(n,n), ifnull(o,o) from t1;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `ifnull(a,a)` tinyint(4) DEFAULT NULL,
+  `ifnull(b,b)` smallint(6) DEFAULT NULL,
+  `ifnull(c,c)` mediumint(8) DEFAULT NULL,
+  `ifnull(d,d)` int(11) DEFAULT NULL,
+  `ifnull(e,e)` bigint(20) DEFAULT NULL,
+  `ifnull(f,f)` float(3,2) DEFAULT NULL,
+  `ifnull(g,g)` double(4,3) DEFAULT NULL,
+  `ifnull(h,h)` decimal(5,4) DEFAULT NULL,
+  `ifnull(i,i)` year(4) DEFAULT NULL,
+  `ifnull(j,j)` date DEFAULT NULL,
+  `ifnull(k,k)` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `ifnull(l,l)` datetime DEFAULT NULL,
+  `ifnull(m,m)` varchar(1) DEFAULT NULL,
+  `ifnull(n,n)` varchar(3) DEFAULT NULL,
+  `ifnull(o,o)` varchar(10) DEFAULT NULL
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+drop table t1,t2;
+create table t1(str varchar(10) default 'def',strnull varchar(10),intg int default '10',rel double default '3.14');
+insert into t1 values ('','',0,0.0);
+describe t1;
+Field	Type	Null	Key	Default	Extra
+str	varchar(10)	YES		def	
+strnull	varchar(10)	YES		NULL	
+intg	int(11)	YES		10	
+rel	double	YES		3.14	
+create table t2 select default(str) as str, default(strnull) as strnull, default(intg) as intg, default(rel) as rel from t1;
+describe t2;
+Field	Type	Null	Key	Default	Extra
+str	varchar(10)	YES		NULL	
+strnull	varchar(10)	YES		NULL	
+intg	int(11)	YES		NULL	
+rel	double	YES		NULL	
+drop table t1, t2;
+create table t1(name varchar(10), age smallint default -1);
+describe t1;
+Field	Type	Null	Key	Default	Extra
+name	varchar(10)	YES		NULL	
+age	smallint(6)	YES		-1	
+create table t2(name varchar(10), age smallint default - 1);
+describe t2;
+Field	Type	Null	Key	Default	Extra
+name	varchar(10)	YES		NULL	
+age	smallint(6)	YES		-1	
+drop table t1, t2;
+create table t1(cenum enum('a'), cset set('b'));
+create table t2(cenum enum('a','a'), cset set('b','b'));
+Warnings:
+Note	1291	Column 'cenum' has duplicated value 'a' in ENUM
+Note	1291	Column 'cset' has duplicated value 'b' in SET
+create table t3(cenum enum('a','A','a','c','c'), cset set('b','B','b','d','d'));
+Warnings:
+Note	1291	Column 'cenum' has duplicated value 'a' in ENUM
+Note	1291	Column 'cenum' has duplicated value 'A' in ENUM
+Note	1291	Column 'cenum' has duplicated value 'c' in ENUM
+Note	1291	Column 'cset' has duplicated value 'b' in SET
+Note	1291	Column 'cset' has duplicated value 'B' in SET
+Note	1291	Column 'cset' has duplicated value 'd' in SET
+drop table t1, t2, t3;
+create database mysqltest;
+use mysqltest;
+select database();
+database()
+mysqltest
+drop database mysqltest;
+select database();
+database()
+NULL
+create user mysqltest_1;
+select database(), user();
+database()	user()
+NULL	mysqltest_1@localhost
+drop user mysqltest_1;
+use test;
+create table t1 (a int, index `primary` (a));
+ERROR 42000: Incorrect index name 'primary'
+create table t1 (a int, index `PRIMARY` (a));
+ERROR 42000: Incorrect index name 'PRIMARY'
+create table t1 (`primary` int, index(`primary`));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `primary` int(11) DEFAULT NULL,
+  KEY `primary_2` (`primary`)
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+create table t2 (`PRIMARY` int, index(`PRIMARY`));
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `PRIMARY` int(11) DEFAULT NULL,
+  KEY `PRIMARY_2` (`PRIMARY`)
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+create table t3 (a int);
+alter table t3 add index `primary` (a);
+ERROR 42000: Incorrect index name 'primary'
+alter table t3 add index `PRIMARY` (a);
+ERROR 42000: Incorrect index name 'PRIMARY'
+create table t4 (`primary` int);
+alter table t4 add index(`primary`);
+show create table t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `primary` int(11) DEFAULT NULL,
+  KEY `primary_2` (`primary`)
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+create table t5 (`PRIMARY` int);
+alter table t5 add index(`PRIMARY`);
+show create table t5;
+Table	Create Table
+t5	CREATE TABLE `t5` (
+  `PRIMARY` int(11) DEFAULT NULL,
+  KEY `PRIMARY_2` (`PRIMARY`)
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+drop table t1, t2, t3, t4, t5;
+CREATE TABLE t1(id varchar(10) NOT NULL PRIMARY KEY, dsc longtext);
+INSERT INTO t1 VALUES ('5000000001', NULL),('5000000003', 'Test'),('5000000004', NULL);
+CREATE TABLE t2(id varchar(15) NOT NULL, proc varchar(100) NOT NULL, runID varchar(16) NOT NULL, start datetime NOT NULL, PRIMARY KEY  (id,proc,runID,start));
+INSERT INTO t2 VALUES ('5000000001', 'proc01', '20031029090650', '2003-10-29 13:38:40'),('5000000001', 'proc02', '20031029090650', '2003-10-29 13:38:51'),('5000000001', 'proc03', '20031029090650', '2003-10-29 13:38:11'),('5000000002', 'proc09', '20031024013310', '2003-10-24 01:33:11'),('5000000002', 'proc09', '20031024153537', '2003-10-24 15:36:04'),('5000000004', 'proc01', '20031024013641', '2003-10-24 01:37:29'),('5000000004', 'proc02', '20031024013641', '2003-10-24 01:37:39');
+CREATE TABLE t3  SELECT t1.dsc,COUNT(DISTINCT t2.id) AS countOfRuns  FROM t1 LEFT JOIN t2 ON (t1.id=t2.id) GROUP BY t1.id;
+SELECT * FROM t3;
+dsc	countOfRuns
+NULL	1
+Test	0
+NULL	1
+drop table t1, t2, t3;
+create table t1 (b bool not null default false);
+create table t2 (b bool not null default true);
+insert into t1 values ();
+insert into t2 values ();
+select * from t1;
+b
+0
+select * from t2;
+b
+1
+drop table t1,t2;
+create table t1 (a int);
+create table t1 select * from t1;
+ERROR HY000: You can't specify target table 't1' for update in FROM clause
+create table t2 union = (t1) select * from t1;
+ERROR HY000: 'test.t2' is not BASE TABLE
+flush tables with read lock;
+unlock tables;
+drop table t1;
+create table t1(column.name int);
+ERROR 42000: Incorrect table name 'column'
+create table t1(test.column.name int);
+ERROR 42000: Incorrect table name 'column'
+create table t1(xyz.t1.name int);
+ERROR 42000: Incorrect database name 'xyz'
+create table t1(t1.name int);
+create table t2(test.t2.name int);
+drop table t1,t2;
+CREATE TABLE t1 (f1 VARCHAR(255) CHARACTER SET utf8);
+CREATE TABLE t2 AS SELECT LEFT(f1,171) AS f2 FROM t1 UNION SELECT LEFT(f1,171) AS f2 FROM t1;
+DESC t2;
+Field	Type	Null	Key	Default	Extra
+f2	varchar(171)	YES		NULL	
+DROP TABLE t1,t2;
+CREATE TABLE t12913 (f1 ENUM ('a','b')) AS SELECT 'a' AS f1;
+SELECT * FROM t12913;
+f1
+a
+DROP TABLE t12913;
+create database mysqltest;
+use mysqltest;
+drop database mysqltest;
+create table test.t1 like x;
+ERROR 3D000: No database selected
+drop table if exists test.t1;
+create database mysqltest;
+use mysqltest;
+create view v1 as select 'foo' from dual;
+create table t1 like v1;
+ERROR HY000: 'mysqltest.v1' is not BASE TABLE
+drop view v1;
+drop database mysqltest;
+create database mysqltest;
+create database if not exists mysqltest character set latin2;
+Warnings:
+Note	1007	Can't create database 'mysqltest'; database exists
+show create database mysqltest;
+Database	Create Database
+mysqltest	CREATE DATABASE `mysqltest` /*!40100 DEFAULT CHARACTER SET latin1 */
+drop database mysqltest;
+use test;
+create table t1 (a int);
+create table if not exists t1 (a int);
+Warnings:
+Note	1050	Table 't1' already exists
+drop table t1;
+create table t1 (
+a varchar(112) charset utf8 collate utf8_bin not null,
+primary key (a)
+) select 'test' as a ;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` varchar(112) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+drop table t1;
+CREATE TABLE t2 (
+a int(11) default NULL
+);
+insert into t2 values(111);
+create table t1 ( 
+a varchar(12) charset utf8 collate utf8_bin not null, 
+b int not null, primary key (a)
+) select a, 1 as b from t2 ;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` varchar(12) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
+  `b` int(11) NOT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 ( 
+a varchar(12) charset utf8 collate utf8_bin not null, 
+b int not null, primary key (a)
+) select a, 1 as c from t2 ;
+Warnings:
+Warning	1364	Field 'b' doesn't have a default value
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `b` int(11) NOT NULL,
+  `a` varchar(12) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
+  `c` int(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`a`)
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 ( 
+a varchar(12) charset utf8 collate utf8_bin not null, 
+b int null, primary key (a)
+) select a, 1 as c from t2 ;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `b` int(11) DEFAULT NULL,
+  `a` varchar(12) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
+  `c` int(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`a`)
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 ( 
+a varchar(12) charset utf8 collate utf8_bin not null,
+b int not null, primary key (a)
+) select 'a' as a , 1 as b from t2 ;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` varchar(12) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
+  `b` int(11) NOT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 ( 
+a varchar(12) charset utf8 collate utf8_bin,
+b int not null, primary key (a)
+) select 'a' as a , 1 as b from t2 ;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` varchar(12) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
+  `b` int(11) NOT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+drop table t1, t2;
+create table t1 ( 
+a1 int not null,
+a2 int, a3 int, a4 int, a5 int, a6 int, a7 int, a8 int, a9 int
+);
+insert into t1 values (1,1,1, 1,1,1, 1,1,1);
+create table t2 ( 
+a1 varchar(12) charset utf8 collate utf8_bin not null,
+a2 int, a3 int, a4 int, a5 int, a6 int, a7 int, a8 int, a9 int,
+primary key (a1)
+) select a1,a2,a3,a4,a5,a6,a7,a8,a9 from t1 ;
+drop table t2;
+create table t2 ( 
+a1 varchar(12) charset utf8 collate utf8_bin,
+a2 int, a3 int, a4 int, a5 int, a6 int, a7 int, a8 int, a9 int
+) select a1,a2,a3,a4,a5,a6,a7,a8,a9 from t1;
+drop table t1, t2;
+create table t1 ( 
+a1 int, a2 int, a3 int, a4 int, a5 int, a6 int, a7 int, a8 int, a9 int
+);
+insert into t1 values (1,1,1, 1,1,1, 1,1,1);
+create table t2 ( 
+a1 varchar(12) charset utf8 collate utf8_bin not null,
+a2 int, a3 int, a4 int, a5 int, a6 int, a7 int, a8 int, a9 int,
+primary key (a1)
+) select a1,a2,a3,a4,a5,a6,a7,a8,a9 from t1 ;
+drop table t2;
+create table t2 ( a int default 3, b int default 3)
+select a1,a2 from t1;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) DEFAULT '3',
+  `b` int(11) DEFAULT '3',
+  `a1` int(11) DEFAULT NULL,
+  `a2` int(11) DEFAULT NULL
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+drop table t1, t2;
+create table t1(a set("a,b","c,d") not null);
+ERROR 22007: Illegal set 'a,b' value found during parsing
+create table t1 (i int) engine=myisam max_rows=100000000000;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 MAX_ROWS=4294967295
+alter table t1 max_rows=100;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 MAX_ROWS=100
+alter table t1 max_rows=100000000000;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 MAX_ROWS=4294967295
+drop table t1;
+create table t1 (upgrade int);
+drop table t1;
+CREATE TABLE t1 (a int, b int);
+insert into t1 values (1,1),(1,2);
+CREATE TABLE t2 (primary key (a)) select * from t1;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+drop table if exists t2;
+Warnings:
+Note	1051	Unknown table 't2'
+CREATE TEMPORARY TABLE t2 (primary key (a)) select * from t1;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+drop table if exists t2;
+Warnings:
+Note	1051	Unknown table 't2'
+CREATE TABLE t2 (a int, b int, primary key (a));
+CREATE TABLE IF NOT EXISTS t2 (primary key (a)) select * from t1;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+SELECT * from t2;
+a	b
+TRUNCATE table t2;
+INSERT INTO t2 select * from t1;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+SELECT * from t2;
+a	b
+drop table t2;
+CREATE TEMPORARY TABLE t2 (a int, b int, primary key (a));
+CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) select * from t1;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+SELECT * from t2;
+a	b
+TRUNCATE table t2;
+INSERT INTO t2 select * from t1;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+SELECT * from t2;
+a	b
+drop table t1,t2;
+CREATE DATABASE aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;
+ERROR 42000: Incorrect database name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+DROP DATABASE aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;
+ERROR 42000: Incorrect database name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+RENAME DATABASE aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa TO a;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DATABASE aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' at line 1
+RENAME DATABASE mysqltest TO aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DATABASE mysqltest TO aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' at line 1
+create database mysqltest;
+RENAME DATABASE mysqltest TO aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DATABASE mysqltest TO aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' at line 1
+drop database mysqltest;
+USE aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;
+ERROR 42000: Incorrect database name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+SHOW CREATE DATABASE aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;
+ERROR 42000: Incorrect database name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'

@@ -1,0 +1,36 @@
+drop table if exists t1;
+create table t1 (y year,y2 year(2));
+insert into t1 values (0,0),(1999,1999),(2000,2000),(2001,2001),(70,70),(69,69);
+select * from t1;
+y	y2
+0000	00
+1999	99
+2000	00
+2001	01
+1970	70
+2069	69
+select * from t1 order by y;
+y	y2
+0000	00
+1970	70
+1999	99
+2000	00
+2001	01
+2069	69
+select * from t1 order by y2;
+y	y2
+1970	70
+1999	99
+0000	00
+2000	00
+2001	01
+2069	69
+drop table t1;
+create table t1 (y year);
+insert into t1 values (now());
+Warnings:
+Warning	1265	Data truncated for column 'y' at row 1
+select if(y = now(), 1, 0) from t1;
+if(y = now(), 1, 0)
+1
+drop table t1;

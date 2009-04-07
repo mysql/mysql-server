@@ -1,0 +1,127 @@
+# Initialise
+--disable_warnings
+drop table if exists t1;
+drop database if exists mysqltest;
+# If earlier test failed
+drop database if exists client_test_db;
+--enable_warnings
+
+--error 1051
+drop table t1;
+create table t1(n int);
+insert into t1 values(1);
+create temporary table t1( n int);
+insert into t1 values(2);
+--error 1050
+create table t1(n int);
+drop table t1;
+select * from t1;
+
+# now test for a bug in drop database - it is important that the name
+# of the table is the same as the name of the database - in the original
+# code this triggered a bug
+create database mysqltest;
+drop database if exists mysqltest;
+create database mysqltest;
+create table mysqltest.mysqltest (n int);
+insert into mysqltest.mysqltest values (4);
+select * from mysqltest.mysqltest;
+--enable_info
+drop database if exists mysqltest;
+--disable_info
+create database mysqltest;
+
+#
+# drop many tables - bug#3891
+# we'll do it in mysqltest db, to be able to use longer table names
+# (tableN instead on tN)
+#
+use mysqltest;
+--error 1051
+drop table table1, table2, table3, table4, table5, table6,
+table7, table8, table9, table10, table11, table12, table13,
+table14, table15, table16, table17, table18, table19, table20,
+table21, table22, table23, table24, table25, table26, table27,
+table28;
+
+--error 1051
+drop table table1, table2, table3, table4, table5, table6,
+table7, table8, table9, table10, table11, table12, table13,
+table14, table15, table16, table17, table18, table19, table20,
+table21, table22, table23, table24, table25, table26, table27,
+table28, table29, table30;
+
+use test;
+drop database mysqltest;
+
+# test drop/create database and FLUSH TABLES WITH READ LOCK
+flush tables with read lock;
+--error 1209,1223
+create database mysqltest;
+unlock tables;
+create database mysqltest;
+show databases;
+flush tables with read lock;
+--error 1208,1223
+drop database mysqltest;
+unlock tables;
+drop database mysqltest;
+show databases;
+--error 1008
+drop database mysqltest;
+
+# test create table and FLUSH TABLES WITH READ LOCK
+drop table t1;
+flush tables with read lock;
+--error 1223
+create table t1(n int);
+unlock tables;
+create table t1(n int);
+show tables;
+drop table t1;
+
+# End of 4.1 tests
+
+
+#
+# Test for bug#21216 "Simultaneous DROP TABLE and SHOW OPEN TABLES causes
+# server to crash". Crash (caused by failed assertion in 5.0 or by null
+# pointer dereference in 5.1) happened when one ran SHOW OPEN TABLES
+# while concurrently doing DROP TABLE (or RENAME TABLE, CREATE TABLE LIKE
+# or any other command that takes name-lock) in other connection.
+# 
+# Also includes test for similar bug#12212 "Crash that happens during
+# removing of database name from cache" reappeared in 5.1 as bug#19403
+# In its case crash happened when one concurrently executed DROP DATABASE
+# and one of name-locking command.
+# 
+--disable_warnings
+drop database if exists mysqltest;
+drop table if exists t1;
+--enable_warnings
+create table t1 (i int);
+lock tables t1 read;
+create database mysqltest;
+connect (addconroot1, localhost, root,,);
+--send drop table t1
+connect (addconroot2, localhost, root,,);
+# Server should not crash in any of the following statements
+--disable_result_log
+show open tables;
+--enable_result_log
+--send drop database mysqltest
+connection default;
+select 1;
+unlock tables;
+connection addconroot1;
+--reap
+connection addconroot2;
+--reap
+disconnect addconroot1;
+disconnect addconroot2;
+connection default;
+
+--disable_query_log
+drop database pbxt;
+--enable_query_log
+--echo End of 5.0 tests

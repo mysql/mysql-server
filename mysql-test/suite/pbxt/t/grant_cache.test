@@ -1,0 +1,160 @@
+# Grant tests not performed with embedded server
+-- source include/not_embedded.inc
+-- source include/have_query_cache.inc
+
+--source include/add_anonymous_users.inc
+
+#
+# Test grants with query cache
+#
+--disable_warnings
+drop table if exists test.t1,mysqltest.t1,mysqltest.t2;
+drop database if exists mysqltest;
+--enable_warnings
+
+set GLOBAL query_cache_size=1355776;
+
+reset query cache;
+flush status;
+connect (root,localhost,root,,test,$MASTER_MYPORT,$MASTER_MYSOCK);
+connection root;
+show grants for current_user;
+show grants;
+--disable_warnings
+create database if not exists mysqltest;
+--enable_warnings
+
+create table mysqltest.t1 (a int,b int,c int);
+create table mysqltest.t2 (a int,b int,c int);
+insert into mysqltest.t1 values (1,1,1),(2,2,2);
+insert into mysqltest.t2 values (3,3,3);
+create table test.t1 (a char (10)) engine=myisam;
+insert into test.t1 values ("test.t1");
+select * from t1;
+connect (root2,localhost,root,,mysqltest,$MASTER_MYPORT,$MASTER_MYSOCK);
+connection root2;
+# put queries in cache
+select * from t1;
+select a from t1;
+select c from t1;
+select * from t2;
+select * from mysqltest.t1,test.t1;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_hits%";
+
+# Create the test users
+grant SELECT on mysqltest.* to mysqltest_1@localhost;
+grant SELECT on mysqltest.t1 to mysqltest_2@localhost;
+grant SELECT on test.t1 to mysqltest_2@localhost;
+grant SELECT(a) on mysqltest.t1 to mysqltest_3@localhost;
+
+# The following queries should be fetched from cache
+connect (user1,localhost,mysqltest_1,,mysqltest,$MASTER_MYPORT,$MASTER_MYSOCK);
+connection user1;
+show grants for current_user();
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_hits";
+show status like "Qcache_not_cached";
+select "user1";
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_hits";
+show status like "Qcache_not_cached";
+select * from t1;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_hits";
+show status like "Qcache_not_cached";
+# The pre and end space are intentional
+ select a from t1 ;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_hits";
+show status like "Qcache_not_cached";
+select c from t1;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_hits";
+show status like "Qcache_not_cached";
+
+# Don't use '' as user because it will pick Unix login
+connect (unkuser,localhost,unkuser,,,$MASTER_MYPORT,$MASTER_MYSOCK);
+connection unkuser;
+show grants for current_user();
+
+# The following queries should be fetched from cache
+connect (user2,localhost,mysqltest_2,,mysqltest,$MASTER_MYPORT,$MASTER_MYSOCK);
+connection user2;
+select "user2";
+select * from t1;
+select a from t1;
+select c from t1;
+select * from mysqltest.t1,test.t1;
+--replace_result 127.0.0.1 localhost
+--error 1142
+select * from t2;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_hits";
+show status like "Qcache_not_cached";
+
+# The following queries should not be fetched from cache
+connect (user3,localhost,mysqltest_3,,mysqltest,$MASTER_MYPORT,$MASTER_MYSOCK);
+connection user3;
+select "user3";
+--replace_result 127.0.0.1 localhost
+--error 1142
+select * from t1;
+select a from t1;
+--replace_result 127.0.0.1 localhost
+--error 1143
+select c from t1;
+--replace_result 127.0.0.1 localhost
+--error 1142
+select * from t2;
+--replace_result 127.0.0.1 localhost
+--error 1143
+select mysqltest.t1.c from test.t1,mysqltest.t1;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_hits";
+show status like "Qcache_not_cached";
+
+# Connect without a database
+connect (user4,localhost,mysqltest_1,,*NO-ONE*,$MASTER_MYPORT,$MASTER_MYSOCK);
+connection user4;
+select "user4";
+show grants;
+--error 1046
+select a from t1;
+# The following query is not cached before (different database)
+select * from mysqltest.t1,test.t1;
+# Cache a query with 'no database'
+select a from mysqltest.t1;
+select a from mysqltest.t1;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_hits";
+show status like "Qcache_not_cached";
+
+# Cleanup
+
+connection root;
+#
+# A temporary 4.1 workaround to make this test pass if
+# mysql was compiled with other than latin1 --with-charset=XXX.
+# Without "set names binary" the below queries fail with
+# "Illegal mix of collations" error.
+# In 5.0 we will change grant tables to use NCHAR(N) instead
+# of "CHAR(N) BINARY", and use cast-to-nchar:  N'mysqltest_1'.
+#
+set names binary;
+delete from mysql.user where user in ("mysqltest_1","mysqltest_2","mysqltest_3");
+delete from mysql.db where user in ("mysqltest_1","mysqltest_2","mysqltest_3");
+delete from mysql.tables_priv where user in ("mysqltest_1","mysqltest_2","mysqltest_3");
+delete from mysql.columns_priv where user in ("mysqltest_1","mysqltest_2","mysqltest_3");
+flush privileges;
+drop table test.t1,mysqltest.t1,mysqltest.t2;
+drop database mysqltest;
+
+set GLOBAL query_cache_size=default;
+
+--source include/delete_anonymous_users.inc
+
+--disable_query_log
+drop database pbxt;
+--enable_query_log
+# End of 4.1 tests
