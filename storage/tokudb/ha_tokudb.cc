@@ -516,7 +516,6 @@ int ha_tokudb::open_secondary_table(DB** ptr, KEY* key_info, const char* name, i
     make_name(newname, name, part);
     fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
     *key_type = key_info->flags & HA_NOSAME ? DB_NOOVERWRITE : DB_YESOVERWRITE;
-    (*ptr)->app_private = (void *) (key_info);
     (*ptr)->set_bt_compare(*ptr, tokudb_cmp_dbt_key);    
     
     DBUG_PRINT("info", ("Setting DB_DUP+DB_DUPSORT for key %s\n", key_info->name));
@@ -527,7 +526,6 @@ int ha_tokudb::open_secondary_table(DB** ptr, KEY* key_info, const char* name, i
         (*ptr)->set_flags(*ptr, DB_DUP + DB_DUPSORT);
         (*ptr)->set_dup_compare(*ptr, tokudb_cmp_dbt_data);
     }
-    (*ptr)->api_internal = share->file->app_private;
 
     if ((error = (*ptr)->open(*ptr, 0, name_buff, NULL, DB_BTREE, open_flags, 0))) {
         my_errno = error;
@@ -670,12 +668,6 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
             TOKUDB_DBUG_RETURN(1);
         }
 
-        if (!hidden_primary_key) {
-            share->file->app_private = (void *) (table_share->key_info + table_share->primary_key);
-        }
-        else {
-            share->file->app_private = NULL;
-        }
         share->file->set_bt_compare(share->file, tokudb_cmp_dbt_key);
         
         make_name(newname, name, "main");
