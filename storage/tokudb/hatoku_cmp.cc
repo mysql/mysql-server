@@ -1053,7 +1053,8 @@ inline int compare_toku_field(
 }
 
 //
-// at the moment, this returns new position in buffer
+// packs a field from a  MySQL buffer into a tokudb buffer.
+// Used for inserts/updates
 //
 uchar* pack_toku_key_field(
     uchar* to_tokudb,
@@ -1142,6 +1143,13 @@ exit:
     return new_pos;
 }
 
+//
+// packs a field from a  MySQL buffer into a tokudb buffer.
+// Used for queries. The only difference between this function
+// and pack_toku_key_field is that all variable sized columns
+// use 2 bytes to encode the length, regardless of the field
+// So varchar(4) will still use 2 bytes to encode the field
+//
 uchar* pack_key_toku_key_field(
     uchar* to_tokudb,
     uchar* from_mysql,
