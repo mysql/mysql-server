@@ -285,21 +285,68 @@ os_fast_mutex_free(
 /*===============*/
 	os_fast_mutex_t*	fast_mutex);	/* in: mutex to free */
 
+/**************************************************************
+Atomic compare-and-swap and increment for InnoDB. */
+
 #ifdef HAVE_GCC_ATOMIC_BUILTINS
 /**************************************************************
-Atomic compare-and-swap for InnoDB. Currently requires GCC atomic builtins.
 Returns true if swapped, ptr is pointer to target, old_val is value to
 compare to, new_val is the value to swap in. */
-#define os_compare_and_swap(ptr, old_val, new_val) \
+# define os_compare_and_swap(ptr, old_val, new_val) \
 	__sync_bool_compare_and_swap(ptr, old_val, new_val)
-
+# define os_compare_and_swap_ulint(ptr, old_val, new_val) \
+	os_compare_and_swap(ptr, old_val, new_val)
+# define os_compare_and_swap_lint(ptr, old_val, new_val) \
+	os_compare_and_swap(ptr, old_val, new_val)
+# define os_compare_and_swap_thread_id(ptr, old_val, new_val) \
+	os_compare_and_swap(ptr, old_val, new_val)
 /**************************************************************
-Atomic increment for InnoDB. Currently requires GCC atomic builtins.
 Returns the resulting value, ptr is pointer to target, amount is the
 amount of increment. */
-#define os_atomic_increment(ptr, amount) \
+# define os_atomic_increment(ptr, amount) \
 	__sync_add_and_fetch(ptr, amount)
+# define os_atomic_increment_lint(ptr, amount) \
+	os_atomic_increment(ptr, amount)
+# define os_atomic_increment_ulint(ptr, amount) \
+	os_atomic_increment(ptr, amount)
+/**************************************************************
+Returns the old value of *ptr, atomically sets *ptr to new_val */
+# define os_atomic_test_and_set_byte(ptr, new_val) \
+	__sync_lock_test_and_set(ptr, new_val)
+/* If not compiling with GCC or GCC doesn't support the atomic
+intrinsics and running on Solaris >= 10 use Solaris atomics */
+#elif defined(HAVE_SOLARIS_ATOMICS)
+#include <atomic.h>
+/**************************************************************
+Returns true if swapped, ptr is pointer to target, old_val is value to
+compare to, new_val is the value to swap in. */
+# define os_compare_and_swap_ulint(ptr, old_val, new_val) \
+	(atomic_cas_ulong(ptr, old_val, new_val) == old_val)
+# define os_compare_and_swap_lint(ptr, old_val, new_val) \
+	((lint)atomic_cas_ulong((ulong_t*) ptr, old_val, new_val) == old_val)
+# ifdef INNODB_RW_LOCKS_USE_ATOMICS
+#  if   SIZEOF_PTHREAD_T == 4
+#   define os_compare_and_swap_thread_id(ptr, old_val, new_val) \
+	((pthread_t)atomic_cas_32(ptr, old_val, new_val) == old_val)
+#  elif SIZEOF_PTHREAD_T == 8
+#   define os_compare_and_swap_thread_id(ptr, old_val, new_val) \
+	((pthread_t)atomic_cas_64(ptr, old_val, new_val) == old_val)
+#  else
+#   error "SIZEOF_PTHREAD_T != 4 or 8"
+#  endif /* SIZEOF_PTHREAD_T CHECK */
+# endif /* INNODB_RW_LOCKS_USE_ATOMICS */
 
+/**************************************************************
+Returns the resulting value, ptr is pointer to target, amount is the
+amount of increment. */
+# define os_atomic_increment_lint(ptr, amount) \
+	atomic_add_long_nv((ulong_t*) ptr, amount)
+# define os_atomic_increment_ulint(ptr, amount) \
+	atomic_add_long_nv(ptr, amount)
+/**************************************************************
+Returns the old value of *ptr, atomically sets *ptr to new_val */
+# define os_atomic_test_and_set_byte(ptr, new_val) \
+	atomic_swap_uchar(ptr, new_val)
 #endif /* HAVE_GCC_ATOMIC_BUILTINS */
 
 #ifndef UNIV_NONINL

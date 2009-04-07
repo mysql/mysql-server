@@ -111,8 +111,8 @@ mutex_test_and_set(
 		/* mutex_fence(); */
 
 		return(res);
-#elif defined(HAVE_GCC_ATOMIC_BUILTINS)
-	return __sync_lock_test_and_set(&(mutex->lock_word), 1);
+#elif defined(HAVE_ATOMIC_BUILTINS)
+	return(os_atomic_test_and_set_byte(&mutex->lock_word, 1));
 #else
 	ibool	ret;
 
@@ -149,11 +149,11 @@ mutex_reset_lock_word(
 	__asm	MOV	EDX, 0
 		__asm	MOV	ECX, lw
 		__asm	XCHG	DL, BYTE PTR [ECX]
-#elif defined(HAVE_GCC_ATOMIC_BUILTINS)
+#elif defined(HAVE_ATOMIC_BUILTINS)
 	/* In theory __sync_lock_release should be used to release the lock.
 	Unfortunately, it does not work properly alone. The workaround is
 	that more conservative __sync_lock_test_and_set is used instead. */
-	__sync_lock_test_and_set(&(mutex->lock_word), 0);
+	os_atomic_test_and_set_byte(&mutex->lock_word, 0);
 #else
 	mutex->lock_word = 0;
 

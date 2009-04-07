@@ -113,10 +113,15 @@ of the 32-bit x86 assembler in mutex operations. */
 #  define UNIV_CAN_USE_X86_ASSEMBLER
 # endif
 
+# if defined(HAVE_GCC_ATOMIC_BUILTINS) || defined(HAVE_SOLARIS_ATOMICS)
+/* If atomics are defined we use them in InnoDB mutex implementation */
+#  define HAVE_ATOMIC_BUILTINS
+# endif /* (HAVE_GCC_ATOMIC_BUILTINS) || (HAVE_SOLARIS_ATOMICS) */
+
 /* For InnoDB rw_locks to work with atomics we need the thread_id
 to be no more than machine word wide. The following enables using
 atomics for InnoDB rw_locks where these conditions are met. */
-#ifdef HAVE_GCC_ATOMIC_BUILTINS
+#ifdef HAVE_ATOMIC_BUILTINS
 /* if HAVE_ATOMIC_PTHREAD_T is defined at this point that means that
 the code from plug.in has defined it and we do not need to include
 ut0auxconf.h which would either define HAVE_ATOMIC_PTHREAD_T or will
@@ -129,7 +134,7 @@ from Makefile.in->ut0auxconf.h */
 # ifdef HAVE_ATOMIC_PTHREAD_T
 #  define INNODB_RW_LOCKS_USE_ATOMICS
 # endif /* HAVE_ATOMIC_PTHREAD_T */
-#endif /* HAVE_GCC_ATOMIC_BUILTINS */
+#endif /* HAVE_ATOMIC_BUILTINS */
 
 /* We only try to do explicit inlining of functions with gcc and
 Microsoft Visual C++ */

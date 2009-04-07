@@ -1805,7 +1805,7 @@ srv_export_innodb_status(void)
 	export_vars.innodb_buffer_pool_pages_misc = buf_pool->curr_size
 		- UT_LIST_GET_LEN(buf_pool->LRU)
 		- UT_LIST_GET_LEN(buf_pool->free);
-#ifdef HAVE_GCC_ATOMIC_BUILTINS
+#ifdef HAVE_ATOMIC_BUILTINS
 	export_vars.innodb_have_atomic_builtins = 1;
 #else
 	export_vars.innodb_have_atomic_builtins = 0;
