@@ -486,9 +486,10 @@ struct mutex_struct {
 	os_event_t	event;	/* Used by sync0arr.c for the wait queue */
 	byte	lock_word;	/* This byte is the target of the atomic
 				test-and-set instruction in Win32 and
-				x86 32/64 with GCC 4.1.0 or later version */
+				when atomic operations are enabled on other
+				platforms. */
 #if defined(_WIN32) && defined(UNIV_CAN_USE_X86_ASSEMBLER)
-#elif defined(HAVE_GCC_ATOMIC_BUILTINS)
+#elif defined(HAVE_ATOMIC_BUILTINS)
 #else
 	os_fast_mutex_t
 		os_fast_mutex;	/* In other systems we use this OS mutex
