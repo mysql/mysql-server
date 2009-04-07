@@ -23,35 +23,6 @@ static inline u_int64_t alignup (u_int64_t a, u_int64_t b) {
     return ((a+b-1)/b)*b;
 }
 
-int
-maybe_preallocate_in_file (int fd, u_int64_t size)
-// Effect: If file size is less than SIZE, make it bigger by either doubling it or growing by 16MB whichever is less.
-// Return 0 on success, otherwise an error number.
-{
-    int64_t file_size;
-    {
-        int r = toku_os_get_file_size(fd, &file_size);
-        assert(r==0);
-    }
-    assert(file_size >= 0);
-    if ((u_int64_t)file_size < size) {
-	const int N = umin64(size, 16<<20); // Double the size of the file, or add 16MB, whichever is less.
-	char *MALLOC_N(N, wbuf);
-	memset(wbuf, 0, N);
-	toku_off_t start_write = alignup(file_size, 4096);
-	assert(start_write >= file_size);
-	ssize_t r = toku_os_pwrite(fd, wbuf, N, start_write);
-	if (r==-1) {
-	    int e=errno; // must save errno before calling toku_free.
-	    toku_free(wbuf);
-	    return e;
-	}
-	toku_free(wbuf);
-	assert(r==N);  // We don't handle short writes properly, which is the case where 0<= r < N.
-    }
-    return 0;
-}
-
 // This mutex protects pwrite from running in parallel, and also protects modifications to the block allocator.
 static toku_pthread_mutex_t pwrite_mutex = TOKU_PTHREAD_MUTEX_INITIALIZER;
 static int pwrite_is_locked=0;
@@ -77,6 +48,76 @@ unlock_for_pwrite (void) {
     pwrite_is_locked = 0;
     int r = toku_pthread_mutex_unlock(&pwrite_mutex);
     assert(r==0);
+}
+
+
+enum {FILE_CHANGE_INCREMENT = (16<<20)};
+
+void
+toku_maybe_truncate_cachefile (CACHEFILE cf, u_int64_t size_used)
+// Effect: If file size >= SIZE+32MiB, reduce file size.
+// (32 instead of 16.. hysteresis).
+// Return 0 on success, otherwise an error number.
+{
+    //Check file size before taking pwrite lock to reduce likelihood of taking
+    //the lock needlessly.
+    //Check file size after taking lock to avoid race conditions.
+    int64_t file_size;
+    {
+        int r = toku_os_get_file_size(toku_cachefile_fd(cf), &file_size);
+        if (r!=0 && toku_cachefile_is_dev_null(cf)) goto done;
+        assert(r==0);
+        assert(file_size >= 0);
+    }
+    // If file space is overallocated by at least 32M
+    if ((u_int64_t)file_size >= size_used + (2*FILE_CHANGE_INCREMENT)) {
+        lock_for_pwrite();
+        {
+            int r = toku_os_get_file_size(toku_cachefile_fd(cf), &file_size);
+            if (r!=0 && toku_cachefile_is_dev_null(cf)) goto cleanup;
+            assert(r==0);
+            assert(file_size >= 0);
+        }
+        if ((u_int64_t)file_size >= size_used + (2*FILE_CHANGE_INCREMENT)) {
+            toku_off_t new_size = alignup(file_size, (2*FILE_CHANGE_INCREMENT)); //Truncate to new size_used.
+            assert(new_size < file_size);
+            int r = toku_cachefile_truncate(cf, new_size);
+            assert(r==0);
+        }
+cleanup:
+        unlock_for_pwrite();
+    }
+done:
+    return;
+}
+
+int
+maybe_preallocate_in_file (int fd, u_int64_t size)
+// Effect: If file size is less than SIZE, make it bigger by either doubling it or growing by 16MiB whichever is less.
+// Return 0 on success, otherwise an error number.
+{
+    int64_t file_size;
+    {
+        int r = toku_os_get_file_size(fd, &file_size);
+        assert(r==0);
+    }
+    assert(file_size >= 0);
+    if ((u_int64_t)file_size < size) {
+	const int N = umin64(size, FILE_CHANGE_INCREMENT); // Double the size of the file, or add 16MiB, whichever is less.
+	char *MALLOC_N(N, wbuf);
+	memset(wbuf, 0, N);
+	toku_off_t start_write = alignup(file_size, 4096);
+	assert(start_write >= file_size);
+	ssize_t r = toku_os_pwrite(fd, wbuf, N, start_write);
+	if (r==-1) {
+	    int e=errno; // must save errno before calling toku_free.
+	    toku_free(wbuf);
+	    return e;
+	}
+	toku_free(wbuf);
+	assert(r==N);  // We don't handle short writes properly, which is the case where 0<= r < N.
+    }
+    return 0;
 }
 
 static int
@@ -476,8 +517,6 @@ int toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct b
     //write_now: printf("%s:%d Writing %d bytes\n", __FILE__, __LINE__, w.ndone);
     int r;
     {
-	lock_for_pwrite();
-//TODO: #1463 START (might not be the entire range
 	// If the node has never been written, then write the whole buffer, including the zeros
 	assert(blocknum.b>=0);
 	//printf("%s:%d h=%p\n", __FILE__, __LINE__, h);
@@ -491,13 +530,13 @@ int toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct b
         toku_blocknum_realloc_on_disk(h->blocktable, blocknum, n_to_write, &offset,
                                       h, for_checkpoint);
 	ssize_t n_wrote;
+	lock_for_pwrite();
 	r=toku_pwrite_extend(fd, compressed_buf, n_to_write, offset, &n_wrote);
 	if (r) {
 	    // fprintf(stderr, "%s:%d: Error writing data to file.  errno=%d (%s)\n", __FILE__, __LINE__, r, strerror(r));
 	} else {
 	    r=0;
 	}
-//TODO: #1463 END
 	unlock_for_pwrite();
     }
 
@@ -929,16 +968,9 @@ int toku_serialize_brt_header_size (struct brt_header *UU(h)) {
 			 );
     size+=(+8 // diskoff
            +4 // flags
-           +8 // blocknum of descriptor
            );
     assert(size <= BLOCK_ALLOCATOR_HEADER_RESERVE);
     return size;
-}
-
-static void
-serialize_descriptor_to_wbuf(struct wbuf *wb, struct descriptor *desc) {
-    wbuf_BLOCKNUM (wb, desc->b);
-    //descriptor contents are written to disk on opening brt
 }
 
 int toku_serialize_brt_header_to_wbuf (struct wbuf *wbuf, struct brt_header *h, DISKOFF translation_location_on_disk, DISKOFF translation_size_on_disk) {
@@ -956,7 +988,6 @@ int toku_serialize_brt_header_to_wbuf (struct wbuf *wbuf, struct brt_header *h, 
     wbuf_DISKOFF(wbuf, translation_size_on_disk);
     wbuf_BLOCKNUM(wbuf, h->root);
     wbuf_int    (wbuf, h->flags);
-    serialize_descriptor_to_wbuf(wbuf, &h->descriptor);
     u_int32_t checksum = x1764_finish(&wbuf->checksum);
     wbuf_int(wbuf, checksum);
     assert(wbuf->ndone<=wbuf->size);
@@ -967,7 +998,6 @@ int toku_serialize_brt_header_to (int fd, struct brt_header *h) {
     int rr = 0;
     if (h->panic) return h->panic;
     assert(h->type==BRTHEADER_CHECKPOINT_INPROGRESS);
-    lock_for_pwrite();
     toku_block_lock_for_multiple_operations(h->blocktable);
     struct wbuf w_translation;
     int64_t size_translation;
@@ -991,6 +1021,7 @@ int toku_serialize_brt_header_to (int fd, struct brt_header *h) {
     }
     toku_block_unlock_for_multiple_operations(h->blocktable);
     char *writing_what;
+    lock_for_pwrite();
     {
         //Actual Write translation table
 	ssize_t nwrote;
@@ -1033,6 +1064,9 @@ int toku_serialize_brt_header_to (int fd, struct brt_header *h) {
     return rr;
 }
 
+//Descriptor is written to disk during toku_brt_open iff we have a new (or changed)
+//descriptor.
+//Descriptors are NOT written during the header checkpoint process.
 int
 toku_serialize_descriptor_contents_to_fd(int fd, DBT *desc, DISKOFF offset) {
     int r;
@@ -1057,17 +1091,14 @@ toku_serialize_descriptor_contents_to_fd(int fd, DBT *desc, DISKOFF offset) {
 }
 
 static void
-deserialize_descriptor_from(int fd, struct rbuf *rb, struct brt_header *h, struct descriptor *desc) {
+deserialize_descriptor_from(int fd, struct brt_header *h, struct simple_dbt *desc) {
+    DISKOFF offset;
+    DISKOFF size;
+    toku_get_descriptor_offset_size(h->blocktable, &offset, &size);
     memset(desc, 0, sizeof(*desc));
-    desc->b = rbuf_blocknum(rb);
-    if (desc->b.b > 0) {
-        DISKOFF offset;
-        DISKOFF size;
-        toku_translate_blocknum_to_offset_size(h->blocktable, desc->b, &offset, &size);
+    if (size > 0) {
         assert(size>=4); //4 for checksum
         {
-
-            
             unsigned char *XMALLOC_N(size, dbuf);
             {
                 lock_for_pwrite();
@@ -1082,8 +1113,8 @@ deserialize_descriptor_from(int fd, struct rbuf *rb, struct brt_header *h, struc
                 u_int32_t stored_x1764 = toku_dtoh32(*(int*)(dbuf + size-4));
                 assert(x1764 == stored_x1764);
             }
-            desc->sdbt.len  = size-4;
-            desc->sdbt.data = dbuf; //Uses 4 extra bytes, but fast.
+            desc->len  = size-4;
+            desc->data = dbuf; //Uses 4 extra bytes, but fast.
         }
     }
 }
@@ -1099,7 +1130,7 @@ deserialize_brtheader (int fd, struct rbuf *rb, struct brt_header **brth) {
     struct rbuf rc = *rb;
     memset(rb, 0, sizeof(*rb));
 
-    struct brt_header *MALLOC(h);
+    struct brt_header *CALLOC(h);
     if (h==0) return errno;
     int ret=-1;
     if (0) { died1: toku_free(h); return ret; }
@@ -1135,19 +1166,19 @@ deserialize_brtheader (int fd, struct rbuf *rb, struct brt_header **brth) {
             ssize_t r = pread(fd, tbuf, translation_size_on_disk, translation_address_on_disk);
             assert(r==translation_size_on_disk);
         }
+        unlock_for_pwrite();
         // Create table and read in data.
         toku_blocktable_create_from_buffer(&h->blocktable,
                                            translation_address_on_disk,
                                            translation_size_on_disk,
                                            tbuf);
-        unlock_for_pwrite();
         toku_free(tbuf);
     }
 
     h->root = rbuf_blocknum(&rc);
     h->root_hash.valid = FALSE;
     h->flags = rbuf_int(&rc);
-    deserialize_descriptor_from(fd, &rc, h, &h->descriptor);
+    deserialize_descriptor_from(fd, h, &h->descriptor);
     (void)rbuf_int(&rc); //Read in checksum and ignore (already verified).
     if (rc.ndone!=rc.size) {ret = EINVAL; goto died1;}
     toku_free(rc.buf);

@@ -177,8 +177,10 @@ int toku_cachefile_set_fd (CACHEFILE cf, int fd, const char *fname);
 int toku_cachefile_redirect_nullfd (CACHEFILE cf);
 
 // Truncate a cachefile
-// Effect: set the cachefile size to 0
-int toku_cachefile_truncate0 (CACHEFILE cf);
+int toku_cachefile_truncate (CACHEFILE cf, toku_off_t new_size);
+
+//has it been redirected to dev null?
+BOOL toku_cachefile_is_dev_null (CACHEFILE cf);
 
 // Return the logger associated with the cachefile
 TOKULOGGER toku_cachefile_logger (CACHEFILE);

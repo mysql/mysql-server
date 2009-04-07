@@ -151,14 +151,10 @@ struct remembered_hash {
 
 enum brtheader_type {BRTHEADER_CURRENT=1, BRTHEADER_CHECKPOINT_INPROGRESS};
 
-struct descriptor {
-    struct simple_dbt sdbt;
-    BLOCKNUM          b;
-};
-
 struct brt_header {
     enum brtheader_type type;
     struct brt_header * checkpoint_header;
+    CACHEFILE cf;
     u_int64_t checkpoint_count; // Free-running counter incremented once per checkpoint (toggling LSB).
                                 // LSB indicates which header location is used on disk so this
                                 // counter is effectively a boolean which alternates with each checkpoint.
@@ -172,7 +168,7 @@ struct brt_header {
     BLOCKNUM root;            // roots of the dictionary
     struct remembered_hash root_hash;     // hash of the root offset.
     unsigned int flags;
-    struct descriptor descriptor;
+    struct simple_dbt descriptor;
 
     FIFO fifo; // all the abort and commit commands.  If the header gets flushed to disk, we write the fifo contents beyond the unused_memory.
 

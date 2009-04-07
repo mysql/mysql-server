@@ -4,14 +4,13 @@
 /* rollback and rollforward routines. */
 
 #include "includes.h"
+#include "checkpoint.h"
 
 // these flags control whether or not we send commit messages for
 // various operations
 #define TOKU_DO_COMMIT_CMD_INSERT 0
 #define TOKU_DO_COMMIT_CMD_DELETE 1
 #define TOKU_DO_COMMIT_CMD_DELETE_BOTH 1
-
-typedef void (*YIELDF)(void*);
 
 int
 toku_commit_fcreate (TXNID UU(xid),
@@ -29,9 +28,10 @@ toku_rollback_fcreate (TXNID      UU(xid),
                        FILENUM    filenum,
 		       BYTESTRING bs_fname,
 		       TOKUTXN    txn,
-		       YIELDF     UU(yield),
-		       void*      UU(yield_v))
+		       YIELDF     yield,
+		       void*      yield_v)
 {
+    yield(toku_checkpoint_safe_client_lock, yield_v);
     char *fname = fixup_fname(&bs_fname);
     char *directory = txn->logger->directory;
     int  full_len=strlen(fname)+strlen(directory)+2;
@@ -48,6 +48,7 @@ toku_rollback_fcreate (TXNID      UU(xid),
     r = unlink(full_fname);
     assert(r==0);
     toku_free(fname);
+    toku_checkpoint_safe_client_unlock();
     return 0;
 }
 
@@ -218,7 +219,7 @@ toku_commit_fileentries (int        fd,
         if (r!=0) goto finish;
 	memarena_clear(ma);
 	count++;
-	if (count%2==0) yield(yieldv); 
+	if (count%2==0) yield(NULL, yieldv); 
     }
  finish:
     { int r2 = close_bread_without_closing_fd(f); assert(r2==0); }
@@ -245,7 +246,7 @@ toku_rollback_fileentries (int        fd,
         if (r!=0) goto finish;
 	memarena_clear(ma);
 	count++;
-	if (count%2==0) yield(yieldv); 
+	if (count%2==0) yield(NULL, yieldv); 
     }
  finish:
     { int r2 = close_bread_without_closing_fd(f); assert(r2==0); }

@@ -6,13 +6,10 @@
 #ident "$Id$"
 
 
-// TODO: $1510  Need callback mechanism so newbrt layer can get/release ydb lock.
-
-
 /******
  *
- * NOTE: atomic operation lock is highest level lock
- *       checkpoint_safe lock is next level lock
+ * NOTE: multi_operation_lock is highest level lock
+ *       checkpoint_safe_lock is next level lock
  *       ydb_big_lock is next level lock
  *
  *       Locks must always be taken in this sequence (highest level first).
@@ -20,13 +17,12 @@
  */
 
 
-/****** TODO: ydb layer should be taking this lock
+/****** 
  * Client code must hold the checkpoint_safe lock during the following operations:
- *       - delete a dictionary
- *       - truncate a dictionary
- *       - rename a dictionary
- *       - abort a transaction that created a dictionary (abort causes dictionary delete)
- *       - abort a transaction that had a table lock on an empty table (abort causes dictionary truncate)
+ *       - delete a dictionary via DB->remove
+ *       - delete a dictionary via DB_TXN->abort(txn) (where txn created a dictionary)
+ *       - rename a dictionary //TODO: Handlerton rename needs to take this
+ *                             //TODO: Handlerton rename needs to be recoded for transaction recovery
  *****/
 
 void toku_checkpoint_safe_client_lock(void);
@@ -35,9 +31,8 @@ void toku_checkpoint_safe_client_unlock(void);
 
 
 
-/****** TODO: rename these functions as something like begin_atomic_operation and end_atomic_operation
- *            these may need ydb wrappers
- * These functions are called from the handlerton level.
+/****** 
+ * These functions are called from the ydb level.
  * Client code must hold the multi_operation lock during the following operations:
  *       - insertion into multiple indexes
  *       - replace into (simultaneous delete/insert on a single key)

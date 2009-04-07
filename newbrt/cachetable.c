@@ -58,6 +58,13 @@ enum ctpair_state {
     CTPAIR_WRITING = 3, // being written from memory
 };
 
+
+/* The workqueue pointer cq is set in:
+ *   cachetable_complete_write_pair()      cq is cleared, called from many paths, cachetable lock is held during this function
+ *   cachetable_flush_cachefile()          called during close and truncate, cachetable lock is held during this function
+ *   toku_cachetable_unpin_and_remove()    called during node merge, cachetable lock is held during this function
+ *
+ */
 typedef struct ctpair *PAIR;
 struct ctpair {
     enum typ_tag tag;
@@ -315,11 +322,20 @@ int toku_cachefile_fd (CACHEFILE cf) {
     return cf->fd;
 }
 
-int toku_cachefile_truncate0 (CACHEFILE cf) {
+BOOL
+toku_cachefile_is_dev_null (CACHEFILE cf) {
+    return cf->fname==NULL;
+}
+
+int
+toku_cachefile_truncate (CACHEFILE cf, toku_off_t new_size) {
     int r;
-    r = ftruncate(cf->fd, 0);
-    if (r != 0)
-        r = errno;
+    if (cf->fname==NULL) r = 0; //Don't truncate /dev/null
+    else {
+        r = ftruncate(cf->fd, new_size);
+        if (r != 0)
+            r = errno;
+    }
     return r;
 }
 
@@ -868,12 +884,6 @@ write_pair_for_checkpoint (CACHETABLE ct, PAIR p)
         // this is essentially a flush_and_maybe_remove except that
         // we already have p->rwlock and we just do the write in our own thread.
         assert(p->dirty); // it must be dirty if its pending.
-#if 0
-        // TODO: Determine if this is legal, and/or required. Commented out for now
-        // I believe if it has a queue, removing it it will break whatever's waiting for it.
-        // p->cq = 0; // I don't want any delay, just do it.
-#endif
-         
         p->state = CTPAIR_WRITING; //most of this code should run only if NOT ALREADY CTPAIR_WRITING
         assert(ct->size_writing>=0);
         ct->size_writing += p->size;
@@ -1186,8 +1196,6 @@ static int cachetable_flush_cachefile(CACHETABLE ct, CACHEFILE cf) {
     // work queue.
     unsigned i;
 
-    //THIS LOOP IS NOT THREAD SAFE!  Has race condition since flush_and_maybe_remove releases cachetable lock
-
     unsigned num_pairs = 0;
     unsigned list_size = 16;
     PAIR *list = NULL;
@@ -1335,7 +1343,7 @@ log_open_txn (TOKULOGGER logger, TOKUTXN txn, void *UU(v))
 
 int 
 toku_cachetable_begin_checkpoint (CACHETABLE ct, TOKULOGGER logger) {
-    // Requires:   All three checkpoint-relevant locks must be held (see src/checkpoint.c).
+    // Requires:   All three checkpoint-relevant locks must be held (see checkpoint.c).
     // Algorithm:  Write a checkpoint record to the log, noting the LSN of that record.
     //             Use the begin_checkpoint callback to take necessary snapshots (header, btt)
     //             Mark every dirty node as "pending."  ("Pending" means that the node must be
@@ -1431,7 +1439,7 @@ toku_cachetable_begin_checkpoint (CACHETABLE ct, TOKULOGGER logger) {
 
 int
 toku_cachetable_end_checkpoint(CACHETABLE ct, TOKULOGGER logger, char **error_string) {
-    // Requires:   The big checkpoint lock must be held (see src/checkpoint.c).
+    // Requires:   The big checkpoint lock must be held (see checkpoint.c).
     // Algorithm:  Write all pending nodes to disk
     //             Use checkpoint callback to write snapshot information to disk (header, btt)
     //             Use end_checkpoint callback to fsync dictionary and log, and to free unused blocks
@@ -1670,7 +1678,7 @@ int
 toku_cachefile_fsync(CACHEFILE cf) {
     int r;
 
-    if (cf->fname==0) r = 0; //Don't fsync /dev/null
+    if (cf->fname==NULL) r = 0; //Don't fsync /dev/null
     else r = fsync(cf->fd);
     return r;
 }

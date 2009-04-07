@@ -29,6 +29,7 @@ const char *toku_copyright_string = "Copyright (c) 2007, 2008 Tokutek Inc.  All 
 #include "memory.h"
 #include "dlmalloc.h"
 #include "checkpoint.h"
+#include "key.h"
 
 #ifdef TOKUTRACE
  #define DB_ENV_CREATE_FUN db_env_create_toku10
@@ -785,6 +786,80 @@ static int locked_env_txn_stat(DB_ENV * env, DB_TXN_STAT ** statp, u_int32_t fla
     toku_ydb_lock(); int r = toku_env_txn_stat(env, statp, flags); toku_ydb_unlock(); return r;
 }
 
+static int
+env_checkpointing_postpone(DB_ENV * env) {
+    HANDLE_PANICKED_ENV(env);
+    int r = 0;
+    if (!env_opened(env)) r = EINVAL;
+    else toku_checkpoint_safe_client_lock();
+    return r;
+}
+
+static int
+env_checkpointing_resume(DB_ENV * env) {
+    HANDLE_PANICKED_ENV(env);
+    int r = 0;
+    if (!env_opened(env)) r = EINVAL;
+    else toku_checkpoint_safe_client_unlock();
+    return r;
+}
+
+static int
+env_checkpointing_begin_atomic_operation(DB_ENV * env) {
+    HANDLE_PANICKED_ENV(env);
+    int r = 0;
+    if (!env_opened(env)) r = EINVAL;
+    else toku_multi_operation_client_lock();
+    return r;
+}
+
+static int
+env_checkpointing_end_atomic_operation(DB_ENV * env) {
+    HANDLE_PANICKED_ENV(env);
+    int r = 0;
+    if (!env_opened(env)) r = EINVAL;
+    else toku_multi_operation_client_unlock();
+    return r;
+}
+
+static int
+env_set_default_dup_compare(DB_ENV * env, int (*dup_compare) (DB *, const DBT *, const DBT *)) {
+    HANDLE_PANICKED_ENV(env);
+    int r = 0;
+    if (env_opened(env)) r = EINVAL;
+    else {
+        env->i->dup_compare = dup_compare;
+    }
+    return r;
+}
+
+static int
+locked_env_set_default_dup_compare(DB_ENV * env, int (*dup_compare) (DB *, const DBT *, const DBT *)) {
+    toku_ydb_lock();
+    int r = env_set_default_dup_compare(env, dup_compare);
+    toku_ydb_unlock();
+    return r;
+}
+
+static int
+env_set_default_bt_compare(DB_ENV * env, int (*bt_compare) (DB *, const DBT *, const DBT *)) {
+    HANDLE_PANICKED_ENV(env);
+    int r = 0;
+    if (env_opened(env)) r = EINVAL;
+    else {
+        env->i->bt_compare = bt_compare;
+    }
+    return r;
+}
+
+static int
+locked_env_set_default_bt_compare(DB_ENV * env, int (*bt_compare) (DB *, const DBT *, const DBT *)) {
+    toku_ydb_lock();
+    int r = env_set_default_bt_compare(env, bt_compare);
+    toku_ydb_unlock();
+    return r;
+}
+
 static int locked_txn_begin(DB_ENV * env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags);
 
 static int toku_db_lt_panic(DB* db, int r);
@@ -802,6 +877,12 @@ static int toku_env_create(DB_ENV ** envp, u_int32_t flags) {
     if (result == 0) { r = ENOMEM; goto cleanup; }
     memset(result, 0, sizeof *result);
     result->err = (void (*)(const DB_ENV * env, int error, const char *fmt, ...)) toku_locked_env_err;
+    result->set_default_bt_compare = locked_env_set_default_bt_compare;
+    result->set_default_dup_compare = locked_env_set_default_dup_compare;
+    result->checkpointing_postpone = env_checkpointing_postpone;
+    result->checkpointing_resume = env_checkpointing_resume;
+    result->checkpointing_begin_atomic_operation = env_checkpointing_begin_atomic_operation;
+    result->checkpointing_end_atomic_operation = env_checkpointing_end_atomic_operation;
     result->open = locked_env_open;
     result->close = locked_env_close;
     result->txn_checkpoint = toku_env_txn_checkpoint;
@@ -835,6 +916,8 @@ static int toku_env_create(DB_ENV ** envp, u_int32_t flags) {
     MALLOC(result->i);
     if (result->i == 0) { r = ENOMEM; goto cleanup; }
     memset(result->i, 0, sizeof *result->i);
+    result->i->bt_compare  = toku_default_compare_fun;
+    result->i->dup_compare = toku_default_compare_fun;
     result->i->is_panicked=0;
     result->i->panic_string = 0;
     result->i->ref_count = 1;
@@ -904,8 +987,9 @@ static int toku_txn_release_locks(DB_TXN* txn) {
 
 // Yield the lock so someone else can work, and then reacquire the lock.
 // Useful while processing commit or rollback logs, to allow others to access the system.
-static void ydb_yield (void *UU(v)) {
+static void ydb_yield (voidfp f, void *UU(v)) {
     toku_ydb_unlock(); 
+    if (f) f();
     toku_ydb_lock();
 }
 
@@ -3064,6 +3148,7 @@ static int toku_db_remove(DB * db, const char *fname, const char *dbname, u_int3
 
 static int
 toku_db_remove_subdb(DB * db, const char *fname, const char *dbname, u_int32_t flags) {
+    BOOL need_close = TRUE;
     char *directory_name = NULL;
     int r = find_db_file(db->dbenv, fname, &directory_name);
     if (r!=0) goto cleanup;
@@ -3076,10 +3161,15 @@ toku_db_remove_subdb(DB * db, const char *fname, const char *dbname, u_int32_t f
         int bytes = snprintf(subdb_full_name, sizeof(subdb_full_name), "%s/%s", fname, dbname);
         assert(bytes==(int)sizeof(subdb_full_name)-1);
         const char *null_subdbname = NULL;
+        need_close = FALSE;
         r = toku_db_remove(db, subdb_full_name, null_subdbname, flags);
     }
 
 cleanup:
+    if (need_close) {
+        int r2 = toku_db_close(db, 0);
+        if (r==0) r = r2;
+    }
     if (directory_name) toku_free(directory_name);
     return r;
 }
@@ -3144,6 +3234,7 @@ cleanup:
    TODO: Verify the DB file is not in use (either a single db file or
          a file with multi-databases).
    TODO: Check the other directories in the environment for the file
+TODO: Alert the BRT layer (for logging/recovery purposes)
 */
 static int toku_db_rename(DB * db, const char *namea, const char *nameb, const char *namec, u_int32_t flags) {
     HANDLE_PANICKED_DB(db);
@@ -3438,11 +3529,21 @@ static int locked_db_put(DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t
 }
 
 static int locked_db_remove(DB * db, const char *fname, const char *dbname, u_int32_t flags) {
-    toku_ydb_lock(); int r = toku_db_remove(db, fname, dbname, flags); toku_ydb_unlock(); return r;
+    toku_checkpoint_safe_client_lock();
+    toku_ydb_lock();
+    int r = toku_db_remove(db, fname, dbname, flags);
+    toku_ydb_unlock();
+    toku_checkpoint_safe_client_unlock();
+    return r;
 }
 
 static int locked_db_rename(DB * db, const char *namea, const char *nameb, const char *namec, u_int32_t flags) {
-    toku_ydb_lock(); int r = toku_db_rename(db, namea, nameb, namec, flags); toku_ydb_unlock(); return r;
+    toku_checkpoint_safe_client_lock();
+    toku_ydb_lock();
+    int r = toku_db_rename(db, namea, nameb, namec, flags);
+    toku_ydb_unlock();
+    toku_checkpoint_safe_client_unlock();
+    return r;
 }
 
 static int locked_db_set_bt_compare(DB * db, int (*bt_compare) (DB *, const DBT *, const DBT *)) {
@@ -3493,8 +3594,7 @@ static const DBT* toku_db_dbt_neg_infty(void) {
 }
 
 static int locked_db_truncate(DB *db, DB_TXN *txn, u_int32_t *row_count, u_int32_t flags) {
-    toku_ydb_lock(); int r = toku_db_truncate(db, txn, row_count, flags); toku_ydb_unlock(); return r\
-                                                                                                 ;
+    toku_ydb_lock(); int r = toku_db_truncate(db, txn, row_count, flags); toku_ydb_unlock(); return r;
 }
 
 static int toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
@@ -3577,6 +3677,10 @@ static int toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
         env_unref(env);
         return ENOMEM;
     }
+    r = toku_brt_set_bt_compare(result->i->brt, env->i->bt_compare);
+    assert(r==0);
+    r = toku_brt_set_dup_compare(result->i->brt, env->i->dup_compare);
+    assert(r==0);
     ydb_add_ref();
     *db = result;
     return 0;

@@ -10,7 +10,7 @@
  * The purpose of this file is to implement the high-level logic for 
  * taking a checkpoint.
  *
- * There are three locks used for taking a checkpoint.  They are:
+ * There are three locks used for taking a checkpoint.  They are listed below.
  *
  * NOTE: The reader-writer locks may be held by either multiple clients 
  *       or the checkpoint function.  (The checkpoint function has the role
@@ -32,11 +32,10 @@
  *    (the checkpoint function is non-re-entrant), and to prevent certain operations
  *    that should not happen during a checkpoint.  
  *    The following operations must take the checkpoint_safe lock:
- *       - open a dictionary
- *       - close a dictionary
  *       - delete a dictionary
- *       - truncate a dictionary
  *       - rename a dictionary
+ *    The application can use this lock to disable checkpointing during other sensitive
+ *    operations, such as making a backup copy of the database.
  *
  *  - ydb_big_lock
  *    This is the existing lock used to serialize all access to tokudb.
@@ -44,14 +43,12 @@
  *    to set all the "pending" bits and to create the checkpoint-in-progress versions
  *    of the header and translation table (btt).
  *    
- * Once the "pending" bits are set and the snapshots are take of the header and btt,
+ * Once the "pending" bits are set and the snapshots are taken of the header and btt,
  * most normal database operations are permitted to resume.
  *
  *
  *
  *****/
-
-#include <stdio.h>
 
 #include "toku_portability.h"
 #include "brttypes.h"
@@ -169,8 +166,6 @@ void toku_checkpoint_destroy(void) {
 int 
 toku_checkpoint(CACHETABLE ct, TOKULOGGER logger, char **error_string) {
     int r;
-
-    printf("Yipes, checkpoint is being tested\n");
 
     assert(initialized);
     multi_operation_checkpoint_lock();
