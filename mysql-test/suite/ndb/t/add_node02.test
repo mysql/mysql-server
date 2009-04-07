@@ -1,5 +1,7 @@
 -- source include/have_ndb.inc
 -- source include/not_embedded.inc
+# angel does not currently work on windoze
+-- source include/not_windows.inc
 --result_format 2
 
 ## Make mtr.pl restart all servers after this test
@@ -76,7 +78,11 @@ let $mysqld_name= mysqld.2.1;
 connection default;
 
 ## Initial start of "new" data nodes
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/YYYY-MM-DD HH:MM:SS/
+/localhost:[0-9]*/localhost/ /generation: [0-9]*/generation: X/
 --exec $NDB_NDBD --ndb-nodeid=40 --initial
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/YYYY-MM-DD HH:MM:SS/
+/localhost:[0-9]*/localhost/ /generation: [0-9]*/generation: X/
 --exec $NDB_NDBD --ndb-nodeid=41 --initial
 
 ## Wait for added nodes started
