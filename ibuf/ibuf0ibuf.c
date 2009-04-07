@@ -1320,6 +1320,7 @@ ibuf_rec_get_volume(
 	const byte*	data;
 	ulint		len;
 	ulint		i;
+	ulint		comp;
 
 	ut_ad(ibuf_inside());
 	ut_ad(rec_get_n_fields_old(ibuf_rec) > 2);
@@ -1337,6 +1338,7 @@ ibuf_rec_get_volume(
 		types = rec_get_nth_field_old(ibuf_rec, 1, &len);
 
 		ut_ad(len == n_fields * DATA_ORDER_NULL_TYPE_BUF_SIZE);
+		comp = FALSE;
 	} else {
 		/* >= 4.1.x format record */
 
@@ -1345,8 +1347,10 @@ ibuf_rec_get_volume(
 
 		types = rec_get_nth_field_old(ibuf_rec, 3, &len);
 
-		ut_a(len % DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE <= 1);
-		if (len % DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE) {
+		comp = len % DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE;
+
+		ut_a(comp <= 1);
+		if (comp) {
 			/* compact record format */
 			ulint		volume;
 			dict_index_t*	dummy_index;
@@ -1380,7 +1384,7 @@ ibuf_rec_get_volume(
 		}
 
 		if (len == UNIV_SQL_NULL) {
-			data_size += dtype_get_sql_null_size(&dtype);
+			data_size += dtype_get_sql_null_size(&dtype, comp);
 		} else {
 			data_size += len;
 		}

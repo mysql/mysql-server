@@ -1,4 +1,14 @@
 2009-04-07	The InnoDB Team
+	* btr/btr0btr.c, dict/dict0dict.c, ibuf/ibuf0ibuf.c,
+	include/data0data.h, include/data0data.ic, include/data0type.h,
+	include/data0type.ic, include/dict0dict.h,
+	include/dict0dict.ic, include/rem0rec.ic,
+	mysql-test/innodb.result, mysql-test/innodb.test,
+	pars/pars0pars.c, rem/rem0rec.c, row/row0upd.c:
+	Fix Bug#44032 In ROW_FORMAT=REDUNDANT, update UTF-8 CHAR
+	to/from NULL is not in-place
+
+2009-04-07	The InnoDB Team
 
 	* page/page0cur.c:
 	Fix Bug#43660 SHOW INDEXES/ANALYZE does NOT update cardinality for

@@ -1252,7 +1252,8 @@ dict_index_too_big_for_undo(
 		ulint			max_size
 			= dict_col_get_max_size(col);
 		ulint			fixed_size
-			= dict_col_get_fixed_size(col);
+			= dict_col_get_fixed_size(col,
+						  dict_table_is_comp(table));
 
 		if (fixed_size) {
 			/* Fixed-size columns are stored locally. */
@@ -1382,7 +1383,7 @@ dict_index_too_big_for_tree(
 		case in rec_get_converted_size_comp() for
 		REC_STATUS_ORDINARY records. */
 
-		field_max_size = dict_col_get_fixed_size(col);
+		field_max_size = dict_col_get_fixed_size(col, comp);
 		if (field_max_size) {
 			/* dict_index_add_col() should guarantee this */
 			ut_ad(!field->prefix_len
@@ -1542,7 +1543,7 @@ too_big:
 
 		if (field->prefix_len /* prefix index */
 		    && !col->ord_part /* not yet ordering column */
-		    && !dict_col_get_fixed_size(col) /* variable-length */
+		    && !dict_col_get_fixed_size(col, TRUE) /* variable-length */
 		    && dict_col_get_max_size(col)
 		    > BTR_EXTERN_FIELD_REF_SIZE * 2 /* long enough */) {
 
@@ -1737,7 +1738,8 @@ dict_index_add_col(
 	field = dict_index_get_nth_field(index, index->n_def - 1);
 
 	field->col = col;
-	field->fixed_len = (unsigned int) dict_col_get_fixed_size(col);
+	field->fixed_len = (unsigned int) dict_col_get_fixed_size(
+		col, dict_table_is_comp(table));
 
 	if (prefix_len && field->fixed_len > prefix_len) {
 		field->fixed_len = (unsigned int) prefix_len;
@@ -1934,7 +1936,8 @@ dict_index_build_internal_clust(
 		for (i = 0; i < trx_id_pos; i++) {
 
 			fixed_size = dict_col_get_fixed_size(
-				dict_index_get_nth_col(new_index, i));
+				dict_index_get_nth_col(new_index, i),
+				dict_table_is_comp(table));
 
 			if (fixed_size == 0) {
 				new_index->trx_id_offset = 0;
@@ -4070,14 +4073,15 @@ dict_index_calc_min_rec_len(
 {
 	ulint	sum	= 0;
 	ulint	i;
+	ulint	comp	= dict_table_is_comp(index->table);
 
-	if (dict_table_is_comp(index->table)) {
+	if (comp) {
 		ulint nullable = 0;
 		sum = REC_N_NEW_EXTRA_BYTES;
 		for (i = 0; i < dict_index_get_n_fields(index); i++) {
 			const dict_col_t*	col
 				= dict_index_get_nth_col(index, i);
-			ulint	size = dict_col_get_fixed_size(col);
+			ulint	size = dict_col_get_fixed_size(col, comp);
 			sum += size;
 			if (!size) {
 				size = col->len;
@@ -4096,7 +4100,7 @@ dict_index_calc_min_rec_len(
 
 	for (i = 0; i < dict_index_get_n_fields(index); i++) {
 		sum += dict_col_get_fixed_size(
-			dict_index_get_nth_col(index, i));
+			dict_index_get_nth_col(index, i), comp);
 	}
 
 	if (sum > 127) {

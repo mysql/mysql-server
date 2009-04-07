@@ -144,7 +144,8 @@ ulint
 dict_col_get_fixed_size(
 /*====================*/
 					/* out: fixed size, or 0 */
-	const dict_col_t*	col);	/* in: column */
+	const dict_col_t*	col,	/* in: column */
+	ulint			comp);	/* in: nonzero=ROW_FORMAT=COMPACT  */
 /***************************************************************************
 Returns the ROW_FORMAT=REDUNDANT stored SQL NULL size of a column.
 For fixed length types it is the fixed length of the type, otherwise 0. */
@@ -154,7 +155,8 @@ dict_col_get_sql_null_size(
 /*=======================*/
 					/* out: SQL null storage size
 					in ROW_FORMAT=REDUNDANT */
-	const dict_col_t*	col);	/* in: column */
+	const dict_col_t*	col,	/* in: column */
+	ulint			comp);	/* in: nonzero=ROW_FORMAT=COMPACT  */
 
 /*************************************************************************
 Gets the column number. */
