@@ -993,7 +993,12 @@ ulong ha_tokudb::max_row_length(const uchar * buf) {
 //      [in]    record - row in MySQL format
 //
 
-int ha_tokudb::pack_row(DBT * row, const uchar * record, bool strip_pk) {
+int ha_tokudb::pack_row(
+    DBT * row, 
+    const uchar* record, 
+    bool strip_pk
+    ) 
+{
     uchar *ptr;
     int r = ENOSYS;
     bzero((void *) row, sizeof(*row));
@@ -1117,7 +1122,13 @@ cleanup:
 //      [out]   record - row in MySQL format
 //      [in]    row - row stored in DBT to be converted
 //
-void ha_tokudb::unpack_row(uchar * record, DBT const *row, DBT const *key, bool pk_stripped) {
+void ha_tokudb::unpack_row(
+    uchar* record, 
+    DBT const *row, 
+    DBT const *key, 
+    bool pk_stripped
+    ) 
+{
     //
     // two cases, fixed length row, and variable length row
     // fixed length row is first below
@@ -1207,7 +1218,12 @@ void ha_tokudb::unpack_row(uchar * record, DBT const *row, DBT const *key, bool 
     }
 }
 
-u_int32_t ha_tokudb::place_key_into_mysql_buff(KEY* key_info, uchar * record, uchar* data) {
+u_int32_t ha_tokudb::place_key_into_mysql_buff(
+    KEY* key_info, 
+    uchar * record, 
+    uchar* data
+    ) 
+{
     KEY_PART_INFO *key_part = key_info->key_part, *end = key_part + key_info->key_parts;
     uchar *pos = data;
 
@@ -1265,7 +1281,14 @@ void ha_tokudb::unpack_key(uchar * record, DBT const *key, uint index) {
     }
 }
 
-u_int32_t ha_tokudb::place_key_into_dbt_buff(KEY* key_info, uchar * buff, const uchar * record, bool* has_null, int key_length) {
+u_int32_t ha_tokudb::place_key_into_dbt_buff(
+    KEY* key_info, 
+    uchar * buff, 
+    const uchar * record, 
+    bool* has_null, 
+    int key_length
+    ) 
+{
     KEY_PART_INFO *key_part = key_info->key_part;
     KEY_PART_INFO *end = key_part + key_info->key_parts;
     uchar* curr_buff = buff;
@@ -1322,7 +1345,15 @@ u_int32_t ha_tokudb::place_key_into_dbt_buff(KEY* key_info, uchar * buff, const 
 //      the parameter key
 //
 
-DBT* ha_tokudb::create_dbt_key_from_key(DBT * key, KEY* key_info, uchar * buff, const uchar * record, bool* has_null, int key_length) {
+DBT* ha_tokudb::create_dbt_key_from_key(
+    DBT * key, 
+    KEY* key_info, 
+    uchar * buff, 
+    const uchar * record, 
+    bool* has_null, 
+    int key_length
+    ) 
+{
     u_int32_t size = 0;
     uchar* tmp_buff = buff;
     my_bitmap_map *old_map = dbug_tmp_use_all_columns(table, table->write_set);
@@ -1337,7 +1368,13 @@ DBT* ha_tokudb::create_dbt_key_from_key(DBT * key, KEY* key_info, uchar * buff, 
     //
     *tmp_buff++ = COL_NEG_INF;
     size++;
-    size += place_key_into_dbt_buff(key_info, tmp_buff, record, has_null, key_length);
+    size += place_key_into_dbt_buff(
+        key_info, 
+        tmp_buff, 
+        record, 
+        has_null, 
+        key_length
+        );
     if (key_info->flags & HA_CLUSTERING) {
         tmp_buff = buff + size;
         if (hidden_primary_key) {
@@ -1377,7 +1414,15 @@ DBT* ha_tokudb::create_dbt_key_from_key(DBT * key, KEY* key_info, uchar * buff, 
 // Returns:
 //      the parameter key
 //
-DBT *ha_tokudb::create_dbt_key_from_table(DBT * key, uint keynr, uchar * buff, const uchar * record, bool* has_null, int key_length) {
+DBT *ha_tokudb::create_dbt_key_from_table(
+    DBT * key, 
+    uint keynr, 
+    uchar * buff, 
+    const uchar * record, 
+    bool* has_null, 
+    int key_length
+    ) 
+{
     TOKUDB_DBUG_ENTER("ha_tokudb::create_dbt_key_from_table");
     bzero((void *) key, sizeof(*key));
     if (hidden_primary_key && keynr == primary_key) {
@@ -1402,7 +1447,15 @@ DBT *ha_tokudb::create_dbt_key_from_table(DBT * key, uint keynr, uchar * buff, c
 // Returns:
 //      the parameter key
 //
-DBT *ha_tokudb::pack_key(DBT * key, uint keynr, uchar * buff, const uchar * key_ptr, uint key_length, uchar inf_byte) {
+DBT *ha_tokudb::pack_key(
+    DBT * key, 
+    uint keynr, 
+    uchar * buff, 
+    const uchar * key_ptr, 
+    uint key_length, 
+    uchar inf_byte
+    ) 
+{
     TOKUDB_DBUG_ENTER("ha_tokudb::pack_key");
     KEY *key_info = &table->key_info[keynr];
     KEY_PART_INFO *key_part = key_info->key_part;
