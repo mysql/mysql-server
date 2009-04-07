@@ -725,6 +725,192 @@ u_int32_t skip_field_in_descriptor(uchar* row_desc) {
     }
     return (u_int32_t)(row_desc_pos - row_desc);
 }
+
+//
+// outputs a descriptor for key into buf. num_bytes returns number of bytes used in buf
+// to store the descriptor
+//
+int create_toku_key_descriptor(KEY* key, uchar* buf) {
+    int ret_val = 0;
+    uchar* pos = buf;
+    u_int32_t num_bytes_in_field = 0;
+    u_int32_t charset_num = 0;
+    for (uint i = 0; i < key->key_parts; i++){
+        Field* field = key->key_part[i].field;
+        //
+        // The first byte states if there is a null byte
+        //
+        *pos = field->null_bit;
+        pos++;
+
+        //
+        // The second byte for each field is the type
+        //
+        TOKU_TYPE type = mysql_to_toku_type(field);
+        assert (type < 256);
+        *pos = (uchar)(type & 255);
+        pos++;
+
+        //
+        // based on the type, extra data follows afterwards
+        // doubles and floats have no extra information
+        // after it
+        //
+        switch (type) {
+        //
+        // two bytes follow for ints, first one states how many
+        // bytes the int is (1 , 2, 3, 4 or 8)
+        // next one states if it is signed or not
+        //
+        case (toku_type_int):
+            num_bytes_in_field = field->pack_length();
+            assert (num_bytes_in_field < 256);
+            *pos = (uchar)(num_bytes_in_field & 255);
+            pos++;
+            *pos = (field->flags & UNSIGNED_FLAG) ? 1 : 0;
+            pos++;
+            break;
+        //
+        // nothing follows floats and doubles
+        //
+        case (toku_type_double):
+        case (toku_type_float):
+            break;
+        //
+        // one byte follow stating the length of the field
+        //
+        case (toku_type_fixbinary):
+            num_bytes_in_field = field->pack_length();
+            set_if_smaller(num_bytes_in_field, key->key_part[i].length);
+            assert(num_bytes_in_field < 256);
+            pos[0] = (uchar)(num_bytes_in_field & 255);
+            pos++;
+            break;
+        //
+        // one byte follows: the number of bytes used to encode the length
+        //
+        case (toku_type_varbinary):
+            *pos = (uchar)(get_length_bytes_from_max(key->key_part[i].length) & 255);
+            pos++;
+            break;
+        //
+        // five bytes follow: one for the number of bytes to encode the length,
+        //                           four for the charset number 
+        //
+        case (toku_type_fixstring):
+        case (toku_type_varstring):
+        case (toku_type_blob):
+            *pos = (uchar)(get_length_bytes_from_max(key->key_part[i].length) & 255);
+            pos++;
+            charset_num = field->charset()->number;
+            pos[0] = (uchar)(charset_num & 255);
+            pos[1] = (uchar)((charset_num >> 8) & 255);
+            pos[2] = (uchar)((charset_num >> 16) & 255);
+            pos[3] = (uchar)((charset_num >> 24) & 255);
+            pos += 4;
+            break;
+        default:
+            assert(false);
+            
+        }
+    }
+    return pos - buf;
+}
+
+int create_toku_descriptor(
+    uchar* buf, 
+    bool is_first_hpk, 
+    bool is_clustering_key, 
+    KEY* first_key, 
+    bool is_second_hpk, 
+    KEY* second_key
+    ) 
+{
+    uchar* pos = buf + 4;
+    u_int32_t num_bytes = 0;
+    u_int32_t offset = 0;
+
+    //
+    // assert that if the first key is a hpk, then it is not a clustering key
+    //
+    assert(!(is_first_hpk && is_clustering_key));
+    //
+    // assert that if it is a clustering key, then a second key exists
+    //
+    assert(!(is_clustering_key && !is_second_hpk && second_key == NULL));
+
+    if (is_first_hpk) {
+        pos[0] = 0; //say there is NO infinity byte
+        pos[1] = 0; //field cannot be NULL, stating it
+        pos[2] = toku_type_hpk;
+        pos += 3;
+    }
+    else {
+        //
+        // first key is NOT a hidden primary key, so we now pack first_key
+        //
+        pos[0] = 1; //say there is an infinity byte
+        pos++;
+        num_bytes = create_toku_key_descriptor(first_key, pos);
+        pos += num_bytes;
+    }
+
+    //
+    // at this point, write the amount of data that has been written for the first 
+    // key, iff it is NOT a clustering key. If it is a clustering key, we will need to write it
+    // after we have written the second key.
+    //
+    if (!is_clustering_key) {
+        offset = pos - buf;
+        buf[0] = (uchar)(offset & 255);
+        buf[1] = (uchar)((offset >> 8) & 255);
+        buf[2] = (uchar)((offset >> 16) & 255);
+        buf[3] = (uchar)((offset >> 24) & 255);
+    }
+
+    //
+    // if we do not have a second key, we can jump to exit right now
+    // we do not have a second key if it is not a hidden primary key
+    // and if second_key is NULL
+    //
+    if (is_first_hpk || (!is_second_hpk && (second_key == NULL)) ) {
+        goto exit;
+    }
+
+    if (!is_clustering_key) {
+        pos[0] = (is_second_hpk) ? 0 : 1; //we place an infinity byte iff it is NOT a clustering key and NOT a hpk
+        pos++;
+    }
+
+    //
+    // if we have a second key, and it is an hpk, we need to pack it, and
+    // write in the offset to this position in the first four bytes
+    //
+    if (is_second_hpk) {
+        pos[0] = 0; //field cannot be NULL, stating it
+        pos[1] = toku_type_hpk;
+        pos += 2;
+    }
+    else {
+        //
+        // second key is NOT a hidden primary key, so we now pack second_key
+        //
+        num_bytes = create_toku_key_descriptor(second_key, pos);
+        pos += num_bytes;
+    }
+    
+    if (is_clustering_key) {
+        offset = pos - buf;
+        buf[0] = (uchar)(offset & 255);
+        buf[1] = (uchar)((offset >> 8) & 255);
+        buf[2] = (uchar)((offset >> 16) & 255);
+        buf[3] = (uchar)((offset >> 24) & 255);
+    }
+    
+exit:
+    return pos - buf;
+}
+
     
 inline int compare_toku_field(
     uchar* a_buf, 
@@ -1190,187 +1376,3 @@ int tokudb_prefix_cmp_dbt_key(DB *file, const DBT *keya, const DBT *keyb) {
 }
 
 
-//
-// outputs a descriptor for key into buf. num_bytes returns number of bytes used in buf
-// to store the descriptor
-//
-int create_toku_key_descriptor(KEY* key, uchar* buf) {
-    int ret_val = 0;
-    uchar* pos = buf;
-    u_int32_t num_bytes_in_field = 0;
-    u_int32_t charset_num = 0;
-    for (uint i = 0; i < key->key_parts; i++){
-        Field* field = key->key_part[i].field;
-        //
-        // The first byte states if there is a null byte
-        //
-        *pos = field->null_bit;
-        pos++;
-
-        //
-        // The second byte for each field is the type
-        //
-        TOKU_TYPE type = mysql_to_toku_type(field);
-        assert (type < 256);
-        *pos = (uchar)(type & 255);
-        pos++;
-
-        //
-        // based on the type, extra data follows afterwards
-        // doubles and floats have no extra information
-        // after it
-        //
-        switch (type) {
-        //
-        // two bytes follow for ints, first one states how many
-        // bytes the int is (1 , 2, 3, 4 or 8)
-        // next one states if it is signed or not
-        //
-        case (toku_type_int):
-            num_bytes_in_field = field->pack_length();
-            assert (num_bytes_in_field < 256);
-            *pos = (uchar)(num_bytes_in_field & 255);
-            pos++;
-            *pos = (field->flags & UNSIGNED_FLAG) ? 1 : 0;
-            pos++;
-            break;
-        //
-        // nothing follows floats and doubles
-        //
-        case (toku_type_double):
-        case (toku_type_float):
-            break;
-        //
-        // one byte follow stating the length of the field
-        //
-        case (toku_type_fixbinary):
-            num_bytes_in_field = field->pack_length();
-            set_if_smaller(num_bytes_in_field, key->key_part[i].length);
-            assert(num_bytes_in_field < 256);
-            pos[0] = (uchar)(num_bytes_in_field & 255);
-            pos++;
-            break;
-        //
-        // one byte follows: the number of bytes used to encode the length
-        //
-        case (toku_type_varbinary):
-            *pos = (uchar)(get_length_bytes_from_max(key->key_part[i].length) & 255);
-            pos++;
-            break;
-        //
-        // five bytes follow: one for the number of bytes to encode the length,
-        //                           four for the charset number 
-        //
-        case (toku_type_fixstring):
-        case (toku_type_varstring):
-        case (toku_type_blob):
-            *pos = (uchar)(get_length_bytes_from_max(key->key_part[i].length) & 255);
-            pos++;
-            charset_num = field->charset()->number;
-            pos[0] = (uchar)(charset_num & 255);
-            pos[1] = (uchar)((charset_num >> 8) & 255);
-            pos[2] = (uchar)((charset_num >> 16) & 255);
-            pos[3] = (uchar)((charset_num >> 24) & 255);
-            pos += 4;
-            break;
-        default:
-            assert(false);
-            
-        }
-    }
-    return pos - buf;
-}
-
-int create_toku_descriptor(
-    uchar* buf, 
-    bool is_first_hpk, 
-    bool is_clustering_key, 
-    KEY* first_key, 
-    bool is_second_hpk, 
-    KEY* second_key
-    ) 
-{
-    uchar* pos = buf + 4;
-    u_int32_t num_bytes = 0;
-    u_int32_t offset = 0;
-
-    //
-    // assert that if the first key is a hpk, then it is not a clustering key
-    //
-    assert(!(is_first_hpk && is_clustering_key));
-    //
-    // assert that if it is a clustering key, then a second key exists
-    //
-    assert(!(is_clustering_key && !is_second_hpk && second_key == NULL));
-
-    if (is_first_hpk) {
-        pos[0] = 0; //say there is NO infinity byte
-        pos[1] = 0; //field cannot be NULL, stating it
-        pos[2] = toku_type_hpk;
-        pos += 3;
-    }
-    else {
-        //
-        // first key is NOT a hidden primary key, so we now pack first_key
-        //
-        pos[0] = 1; //say there is an infinity byte
-        pos++;
-        num_bytes = create_toku_key_descriptor(first_key, pos);
-        pos += num_bytes;
-    }
-
-    //
-    // at this point, write the amount of data that has been written for the first 
-    // key, iff it is NOT a clustering key. If it is a clustering key, we will need to write it
-    // after we have written the second key.
-    //
-    if (!is_clustering_key) {
-        offset = pos - buf;
-        buf[0] = (uchar)(offset & 255);
-        buf[1] = (uchar)((offset >> 8) & 255);
-        buf[2] = (uchar)((offset >> 16) & 255);
-        buf[3] = (uchar)((offset >> 24) & 255);
-    }
-
-    //
-    // if we do not have a second key, we can jump to exit right now
-    // we do not have a second key if it is not a hidden primary key
-    // and if second_key is NULL
-    //
-    if (is_first_hpk || (!is_second_hpk && (second_key == NULL)) ) {
-        goto exit;
-    }
-
-    if (!is_clustering_key) {
-        pos[0] = (is_second_hpk) ? 0 : 1; //we place an infinity byte iff it is NOT a clustering key and NOT a hpk
-        pos++;
-    }
-
-    //
-    // if we have a second key, and it is an hpk, we need to pack it, and
-    // write in the offset to this position in the first four bytes
-    //
-    if (is_second_hpk) {
-        pos[0] = 0; //field cannot be NULL, stating it
-        pos[1] = toku_type_hpk;
-        pos += 2;
-    }
-    else {
-        //
-        // second key is NOT a hidden primary key, so we now pack second_key
-        //
-        num_bytes = create_toku_key_descriptor(second_key, pos);
-        pos += num_bytes;
-    }
-    
-    if (is_clustering_key) {
-        offset = pos - buf;
-        buf[0] = (uchar)(offset & 255);
-        buf[1] = (uchar)((offset >> 8) & 255);
-        buf[2] = (uchar)((offset >> 16) & 255);
-        buf[3] = (uchar)((offset >> 24) & 255);
-    }
-    
-exit:
-    return pos - buf;
-}
