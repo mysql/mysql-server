@@ -291,7 +291,7 @@ buf_page_get_LRU_position(
 	const buf_page_t*	bpage)	/* in: control block */
 {
 	ut_ad(buf_page_in_file(bpage));
-	ut_ad(buf_pool_mutex_own());
+	//ut_ad(buf_pool_mutex_own()); /* This is used in optimistic */
 
 	return(bpage->LRU_position);
 }
@@ -461,7 +461,7 @@ buf_page_is_old(
 	const buf_page_t*	bpage)	/* in: control block */
 {
 	ut_ad(buf_page_in_file(bpage));
-	ut_ad(buf_pool_mutex_own());
+	//ut_ad(buf_pool_mutex_own()); /* This is used in optimistic */
 
 	return(bpage->old);
 }

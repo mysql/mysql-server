@@ -681,7 +681,9 @@ buf_flush_write_block_low(
 	io_fixed and oldest_modification != 0.  Thus, it cannot be
 	relocated in the buffer pool or removed from flush_list or
 	LRU_list. */
-	ut_ad(!buf_pool_mutex_own());
+	//ut_ad(!buf_pool_mutex_own());
+	ut_ad(!mutex_own(&LRU_list_mutex));
+	ut_ad(!mutex_own(&flush_list_mutex));
 	ut_ad(!mutex_own(buf_page_get_mutex(bpage)));
 	ut_ad(buf_page_get_io_fix(bpage) == BUF_IO_WRITE);
 	ut_ad(bpage->oldest_modification != 0);
