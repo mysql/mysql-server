@@ -2894,7 +2894,6 @@ brt_init_header_partial (BRT t) {
     BLOCKNUM root = t->h->root;
     if ((r=setup_initial_brt_root_node(t, root))!=0) { return r; }
     //printf("%s:%d putting %p (%d)\n", __FILE__, __LINE__, t->h, 0);
-    toku_block_verify_no_free_blocknums(t->h->blocktable);
     toku_cachefile_set_userdata(t->cf, t->h, toku_brtheader_close, toku_brtheader_checkpoint, toku_brtheader_begin_checkpoint, toku_brtheader_end_checkpoint);
 
     return r;
@@ -2911,6 +2910,7 @@ brt_init_header (BRT t) {
     t->h->root = root;
 
     int r = brt_init_header_partial(t);
+    if (r==0) toku_block_verify_no_free_blocknums(t->h->blocktable);
     return r;
 }
 
