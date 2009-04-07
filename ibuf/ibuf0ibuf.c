@@ -1338,7 +1338,7 @@ ibuf_rec_get_volume(
 		types = rec_get_nth_field_old(ibuf_rec, 1, &len);
 
 		ut_ad(len == n_fields * DATA_ORDER_NULL_TYPE_BUF_SIZE);
-		comp = FALSE;
+		comp = 0;
 	} else {
 		/* >= 4.1.x format record */
 
