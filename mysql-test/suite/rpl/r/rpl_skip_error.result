@@ -76,7 +76,7 @@ create table t1(a int primary key);
 insert into t1 values (1),(2);
 delete from t1 where @@server_id=1;
 Warnings:
-Warning	1592	Statement is not safe to log in statement format.
+Note	1592	Statement is not safe to log in statement format.
 set sql_mode=strict_trans_tables;
 insert into t1 values (7), (8), (9);
 [on slave]

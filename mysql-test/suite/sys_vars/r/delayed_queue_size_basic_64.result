@@ -35,7 +35,7 @@ SELECT @@global.delayed_queue_size;
 1
 SET @@global.delayed_queue_size = -1024;
 Warnings:
-Warning	1292	Truncated incorrect delayed_queue_size value: '0'
+Warning	1292	Truncated incorrect delayed_queue_size value: '-1024'
 SELECT @@global.delayed_queue_size;
 @@global.delayed_queue_size
 1

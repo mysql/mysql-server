@@ -42,6 +42,8 @@ SELECT @@global.query_cache_min_res_unit;
 1048576
 '#--------------------FN_DYNVARS_132_04-------------------------#'
 SET @@global.query_cache_min_res_unit = -1;
+Warnings:
+Warning	1292	Truncated incorrect query_cache_min_res_unit value: '-1'
 SELECT @@global.query_cache_min_res_unit;
 @@global.query_cache_min_res_unit
 512
@@ -59,6 +61,8 @@ SELECT @@global.query_cache_min_res_unit;
 @@global.query_cache_min_res_unit
 512
 SET @@global.query_cache_min_res_unit = -1024;
+Warnings:
+Warning	1292	Truncated incorrect query_cache_min_res_unit value: '-1024'
 SELECT @@global.query_cache_min_res_unit;
 @@global.query_cache_min_res_unit
 512
