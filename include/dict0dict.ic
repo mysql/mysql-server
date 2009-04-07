@@ -104,10 +104,11 @@ ulint
 dict_col_get_fixed_size(
 /*====================*/
 					/* out: fixed size, or 0 */
-	const dict_col_t*	col)	/* in: column */
+	const dict_col_t*	col,	/* in: column */
+	ulint			comp)	/* in: nonzero=ROW_FORMAT=COMPACT  */
 {
 	return(dtype_get_fixed_size_low(col->mtype, col->prtype, col->len,
-					col->mbminlen, col->mbmaxlen));
+					col->mbminlen, col->mbmaxlen, comp));
 }
 /***************************************************************************
 Returns the ROW_FORMAT=REDUNDANT stored SQL NULL size of a column.
@@ -118,9 +119,10 @@ dict_col_get_sql_null_size(
 /*=======================*/
 					/* out: SQL null storage size
 					in ROW_FORMAT=REDUNDANT */
-	const dict_col_t*	col)	/* in: column */
+	const dict_col_t*	col,	/* in: column */
+	ulint			comp)	/* in: nonzero=ROW_FORMAT=COMPACT  */
 {
-	return(dict_col_get_fixed_size(col));
+	return(dict_col_get_fixed_size(col, comp));
 }
 
 /*************************************************************************

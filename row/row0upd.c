@@ -422,7 +422,8 @@ row_upd_changes_field_size_or_external(
 
 			new_len = dict_col_get_sql_null_size(
 				dict_index_get_nth_col(index,
-						       upd_field->field_no));
+						       upd_field->field_no),
+				FALSE);
 		}
 
 		old_len = rec_offs_nth_size(offsets, upd_field->field_no);

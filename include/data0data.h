@@ -277,7 +277,8 @@ ulint
 dtuple_get_data_size(
 /*=================*/
 				/* out: sum of data lens */
-	const dtuple_t*	tuple);	/* in: typed data tuple */
+	const dtuple_t*	tuple,	/* in: typed data tuple */
+	ulint		comp);	/* in: nonzero=ROW_FORMAT=COMPACT  */
 /*************************************************************************
 Computes the number of externally stored fields in a data tuple. */
 UNIV_INLINE
