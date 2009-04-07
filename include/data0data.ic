@@ -433,7 +433,8 @@ ulint
 dtuple_get_data_size(
 /*=================*/
 				/* out: sum of data lengths */
-	const dtuple_t*	tuple)	/* in: typed data tuple */
+	const dtuple_t*	tuple,	/* in: typed data tuple */
+	ulint		comp)	/* in: nonzero=ROW_FORMAT=COMPACT  */
 {
 	const dfield_t*	field;
 	ulint		n_fields;
@@ -452,7 +453,8 @@ dtuple_get_data_size(
 		len = dfield_get_len(field);
 
 		if (len == UNIV_SQL_NULL) {
-			len = dtype_get_sql_null_size(dfield_get_type(field));
+			len = dtype_get_sql_null_size(dfield_get_type(field),
+						      comp);
 		}
 
 		sum += len;
