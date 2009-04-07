@@ -1227,7 +1227,7 @@ u_int32_t ha_tokudb::place_key_into_mysql_buff(KEY* key_info, uchar * record, uc
         // HOPEFULLY TEMPORARY
         //
         assert(table->s->db_low_byte_first);
-        pos = unpack_toku_field(
+        pos = unpack_toku_key_field(
             record + field_offset(key_part->field, table),
             pos,
             key_part->field,
@@ -1282,11 +1282,6 @@ u_int32_t ha_tokudb::place_key_into_dbt_buff(KEY* key_info, uchar * buff, const 
             if (record[null_offset] & key_part->field->null_bit) {
                 *curr_buff++ = NULL_COL_VAL;
                 *has_null = true;
-                //
-                // fractal tree does not handle this falg at the moment
-                // so commenting out for now
-                //
-                //key->flags |= DB_DBT_DUPOK;
                 continue;
             }
             *curr_buff++ = NONNULL_COL_VAL;        // Store NOT NULL marker
@@ -1300,7 +1295,7 @@ u_int32_t ha_tokudb::place_key_into_dbt_buff(KEY* key_info, uchar * buff, const 
         // because key_part->offset is SET INCORRECTLY in add_index
         // filed ticket 862 to look into this
         //
-        curr_buff = pack_toku_field(
+        curr_buff = pack_toku_key_field(
             curr_buff,
             (uchar *) (record + field_offset(key_part->field, table)),
             key_part->field,
@@ -1437,7 +1432,7 @@ DBT *ha_tokudb::pack_key(DBT * key, uint keynr, uchar * buff, const uchar * key_
         }
         assert(table->s->db_low_byte_first);
 
-        buff = pack_key_toku_field(
+        buff = pack_key_toku_key_field(
             buff,
             (uchar *) key_ptr + offset,
             key_part->field,
