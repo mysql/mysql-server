@@ -20,6 +20,9 @@
 #include <NdbBlob.hpp>
 #include "NdbDictionaryImpl.hpp"
 #include <NdbTCP.h>
+C_MODE_START
+#include <decimal.h>
+C_MODE_END
 
 NdbRecAttr::NdbRecAttr(Ndb*)
 {
@@ -240,6 +243,23 @@ ndbrecattr_print_string(NdbOut& out, const NdbRecordPrintFormat &f,
   }
 }
 
+/* Three MySQL defs duplicated here : */ 
+static const int MaxMySQLDecimalPrecision= 65;
+static const int MaxMySQLDecimalScale= 30;
+static const int DigitsPerDigit_t= 9; // (Decimal digits in 2^32)
+
+/* Implications */
+/* Space for -, . and \0 */
+static const int MaxDecimalStrLen= MaxMySQLDecimalPrecision + 3;
+static const int IntPartDigit_ts= 
+  ((MaxMySQLDecimalPrecision - 
+    MaxMySQLDecimalScale) +
+   DigitsPerDigit_t -1) / DigitsPerDigit_t;
+static const int FracPartDigit_ts= 
+  (MaxMySQLDecimalScale + 
+   DigitsPerDigit_t - 1) / DigitsPerDigit_t;
+static const int DigitArraySize= IntPartDigit_ts + FracPartDigit_ts;
+
 NdbOut&
 ndbrecattr_print_formatted(NdbOut& out, const NdbRecAttr &r,
                            const NdbRecordPrintFormat &f)
@@ -363,8 +383,46 @@ ndbrecattr_print_formatted(NdbOut& out, const NdbRecAttr &r,
     break;
     case NdbDictionary::Column::Decimal:
     case NdbDictionary::Column::Decimalunsigned:
-      goto unknown;   // TODO
+    { 
+      int precision= c->getPrecision();
+      int scale= c->getScale();
+      
+      assert(precision <= MaxMySQLDecimalPrecision);
+      assert(scale <= MaxMySQLDecimalScale);
+      assert(decimal_size(precision, scale) <= DigitArraySize );
+      decimal_digit_t buff[ DigitArraySize ];
+      decimal_t tmpDec;
+      tmpDec.buf= buff;
+      decimal_make_zero(&tmpDec);
+      int rc;
+
+      const uchar* data= (const uchar*) r.aRef();
+      if ((rc= bin2decimal(data, &tmpDec, precision, scale)))
+      {
+        out.print("***Error : Bad bin2decimal conversion %d ***",
+                  rc);
+        break;
+      }
+      
+      /* Get null terminated var-length string representation */
+      char decStr[MaxDecimalStrLen];
+      assert(decimal_string_size(&tmpDec) <= MaxDecimalStrLen);
+      int len= MaxDecimalStrLen;
+      if ((rc= decimal2string(&tmpDec, decStr, 
+                              &len,
+                              0,   // 0 = Var length output length
+                              0,   // 0 = Var length fractional part
+                              0))) // Filler char for fixed length
+      {
+        out.print("***Error : bad decimal2string conversion %d ***",
+                  rc);
+        break;
+      }
+
+      out.print("%s", decStr);
+      
       break;
+    }
       // for dates cut-and-paste from field.cc
     case NdbDictionary::Column::Datetime:
     {
@@ -487,14 +545,13 @@ ndbrecattr_print_formatted(NdbOut& out, const NdbRecAttr &r,
     }
     break;
 
-    case NdbDictionary::Column::Undefined:
-    unknown:
-    //default: /* no print functions for the rest, just print type */
-    out << (int) r.getType();
-    j = length;
-    if (j > 1)
-      out << " " << j << " times";
-    break;
+    default: /* no print functions for the rest, just print type */
+      out << "Unable to format type (" 
+          << (int) r.getType()
+          << ")";
+      if (length > 1)
+        out << " " << length << " times";
+      break;
     }
     out << f.fields_enclosed_by;
   }
