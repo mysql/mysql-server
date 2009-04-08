@@ -192,6 +192,8 @@ struct st_ndb_status {
   long number_of_ready_data_nodes;
   long connect_count;
   long execute_count;
+  long scan_count;
+  long pruned_scan_count;
   long transaction_no_hint_count[MAX_NDB_NODES];
   long transaction_hint_count[MAX_NDB_NODES];
 };
@@ -224,6 +226,8 @@ static int update_status_variables(Thd_ndb *thd_ndb,
   if (thd_ndb)
   {
     ns->execute_count= thd_ndb->m_execute_count;
+    ns->scan_count= thd_ndb->m_scan_count;
+    ns->pruned_scan_count= thd_ndb->m_pruned_scan_count;
     for (int i= 0; i < MAX_NDB_NODES; i++)
     {
       ns->transaction_no_hint_count[i]= thd_ndb->m_transaction_no_hint_count[i];
@@ -243,6 +247,8 @@ SHOW_VAR ndb_status_variables_dynamic[]= {
    (char*) &g_ndb_status.number_of_ready_data_nodes,                  SHOW_LONG},
   {"connect_count",      (char*) &g_ndb_status.connect_count,         SHOW_LONG},
   {"execute_count",      (char*) &g_ndb_status.execute_count,         SHOW_LONG},
+  {"scan_count",         (char*) &g_ndb_status.scan_count,            SHOW_LONG},
+  {"pruned_scan_count",  (char*) &g_ndb_status.pruned_scan_count,     SHOW_LONG},
   {NullS, NullS, SHOW_LONG}
 };
 
@@ -655,6 +661,8 @@ Thd_ndb::Thd_ndb()
                    (hash_get_key)thd_ndb_share_get_key, 0, 0);
   m_unsent_bytes= 0;
   m_execute_count= 0;
+  m_scan_count= 0;
+  m_pruned_scan_count= 0;
   m_max_violation_count= 0;
   m_old_violation_count= 0;
   m_conflict_fn_usage_count= 0;
@@ -2955,6 +2963,8 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
     ERR_RETURN(trans->getNdbError());
 
   DBUG_PRINT("info", ("Is scan pruned to 1 partition? : %u", op->getPruned()));
+  m_thd_ndb->m_scan_count++;
+  m_thd_ndb->m_pruned_scan_count += (op->getPruned()? 1 : 0);
 
   if (uses_blob_value(table->read_set) &&
       get_blob_values(op, NULL, table->read_set) != 0)
@@ -3096,6 +3106,9 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
                                (uchar *)(table->read_set->bitmap),
                                &options, sizeof(NdbScanOperation::ScanOptions))))
       ERR_RETURN(trans->getNdbError());
+
+    m_thd_ndb->m_scan_count++;
+    m_thd_ndb->m_pruned_scan_count += (op->getPruned()? 1 : 0);
   }
   
   m_active_cursor= op;
@@ -10541,6 +10554,8 @@ ndb_get_table_statistics(THD *thd, ha_ndbcluster* file, bool report_error, Ndb* 
       error= pTrans->getNdbError();
       goto retry;
     }
+    thd_ndb->m_scan_count++;
+    thd_ndb->m_pruned_scan_count += (pOp->getPruned()? 1 : 0);
     
     thd_ndb->m_execute_count++;
     DBUG_PRINT("info", ("execute_count: %u", thd_ndb->m_execute_count));
@@ -11054,6 +11069,8 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
   {
     DBUG_PRINT("info", ("Is MRR scan pruned to 1 partition? :%u",
                         m_multi_cursor->getPruned()));
+    m_thd_ndb->m_scan_count++;
+    m_thd_ndb->m_pruned_scan_count += (m_multi_cursor->getPruned()? 1 : 0);
   };
 
   if (any_real_read)
