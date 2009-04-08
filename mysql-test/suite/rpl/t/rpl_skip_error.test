@@ -122,13 +122,8 @@ sync_slave_with_master;
 let $error= query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1);
 echo $error;
 
-connection slave;
-
-SELECT *, "INNODB SET SLAVE DATA" FROM t1 ORDER BY id;
-
-connection master;
-
-SELECT *, "INNODB SET MASTER DATA" FROM t1 ORDER BY id;
+--echo **** We cannot execute a select as there are differences in the 
+--echo **** behavior between STMT and RBR.
 
 --echo ==== Using MyIsam ====
 
@@ -161,13 +156,8 @@ sync_slave_with_master;
 let $error= query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1);
 echo $error;
 
-connection slave;
-
-SELECT *, "MYISAM SET SLAVE DATA" FROM t2 ORDER BY id;
-
-connection master;
-
-SELECT *, "MYISAM SET MASTER DATA" FROM t2 ORDER BY id;
+--echo **** We cannot execute a select as there are differences in the 
+--echo **** behavior between STMT and RBR.
 
 --echo ==== Clean Up ====
 
