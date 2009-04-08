@@ -13,11 +13,9 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-#SUBDIRS = signal-sender
+noinst_PROGRAMS = ndberror_check-t
 
-noinst_PROGRAMS = ndberror_check
-
-ndberror_check_SOURCES = ndberror_check.c
+ndberror_check_t_SOURCES = ndberror_check.cpp
 
 noinst_LTLIBRARIES = libndbapi.la
 
@@ -66,12 +64,6 @@ NDB_CXXFLAGS_RELEASE_LOC = -O2
 
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/type_ndbapi.mk.am
-
-ndberror_check_LDFLAGS = \
-         $(top_builddir)/dbug/libdbuglt.la \
-         $(top_builddir)/mysys/libmysyslt.la \
-         $(top_builddir)/strings/libmystringslt.la \
-         $(top_builddir)/zlib/libzlt.la
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
