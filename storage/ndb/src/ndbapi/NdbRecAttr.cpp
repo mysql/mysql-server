@@ -415,6 +415,7 @@ ndbrecattr_print_formatted(NdbOut& out, const NdbRecAttr &r,
       decimal_digit_t buff[ DigitArraySize ];
       decimal_t tmpDec;
       tmpDec.buf= buff;
+      tmpDec.len= DigitArraySize;
       decimal_make_zero(&tmpDec);
       int rc;
 
