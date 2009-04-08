@@ -1,0 +1,352 @@
+# ==== Purpose ====
+#
+# This test check if DDL statements are correctly binlogged when the
+# thread is killed
+#
+# ==== Method ====
+#
+# Start a DDL query and kill it, check if the error code of the binlog
+# event is correct.
+#
+# DDL statements tested:
+# CREATE/ALTER/RENAME/DROP DATABASE
+# CREATE/ALTER/DROP        EVENT
+# CREATE/ALTER/DROP        FUNCTION
+# CREATE/ALTER/DROP 	   PROCEDURE
+# CREATE/ALTER/DROP        SERVER
+# CREATE/ALTER/RENAME/DROP TABLE
+# CREATE/DROP       	   TRIGGER
+# CREATE/ALTER/DROP 	   VIEW
+#
+# ==== Bugs =====
+#
+# BUG#37145
+#
+# ==== TODO ====
+#
+# There are some part of the test are temporarily disabled because of
+# the following bugs, please enable then once they get fixed:
+#  - BUG#44041
+#  - BUG#43353
+#  - BUG#25705
+#  - BUG#44171
+
+source include/have_debug.inc;
+source include/master-slave.inc;
+
+# Use the DBUG_SYNC_POINT to make sure the thread running the DDL is
+# waiting before creating the query log event
+
+let $debug_lock= "debug_lock.before_query_log_event";
+
+######## INITIALIZATION ########
+
+disable_warnings;
+DROP DATABASE IF EXISTS d1;
+DROP DATABASE IF EXISTS d2;
+DROP DATABASE IF EXISTS d3;
+DROP DATABASE IF EXISTS d4;
+DROP EVENT IF EXISTS e1;
+DROP EVENT IF EXISTS e2;
+DROP EVENT IF EXISTS e3;
+DROP EVENT IF EXISTS e4;
+DROP FUNCTION IF EXISTS f1;
+DROP FUNCTION IF EXISTS f2;
+DROP FUNCTION IF EXISTS f3;
+DROP FUNCTION IF EXISTS f4;
+DROP SERVER IF EXISTS s1;
+DROP SERVER IF EXISTS s2;
+DROP SERVER IF EXISTS s3;
+DROP SERVER IF EXISTS s4;
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+DROP TABLE IF EXISTS t3;
+DROP TABLE IF EXISTS t4;
+DROP PROCEDURE IF EXISTS p1;
+DROP PROCEDURE IF EXISTS p2;
+DROP PROCEDURE IF EXISTS p3;
+DROP PROCEDURE IF EXISTS p4;
+DROP TRIGGER IF EXISTS tr1;
+DROP TRIGGER IF EXISTS tr2;
+DROP TRIGGER IF EXISTS tr3;
+DROP TRIGGER IF EXISTS tr4;
+enable_warnings;
+
+CREATE DATABASE d1;
+
+CREATE EVENT e1
+  ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 DAY
+  DO INSERT INTO test.t1 VALUES (1);
+
+CREATE FUNCTION f1 () RETURNS INT DETERMINISTIC
+    RETURN 1;
+
+DELIMITER //;
+CREATE PROCEDURE p1 (OUT rows INT)
+    BEGIN
+        SELECT COUNT(*) INTO rows FROM t1;
+    END;
+    //
+DELIMITER ;//
+
+CREATE SERVER s1
+FOREIGN DATA WRAPPER mysql
+OPTIONS (USER 'user1', HOST '192.168.1.106', DATABASE 'test');
+
+CREATE TABLE t1 (a int);
+CREATE TABLE t3 (a int);
+
+DELIMITER //;
+CREATE TRIGGER tr1 BEFORE INSERT ON t1
+    FOR EACH ROW BEGIN
+        DELETE FROM t4 WHERE a=NEW.a;
+    END;
+    //
+DELIMITER ;//
+
+CREATE INDEX i1 ON t1 (a);
+
+CREATE VIEW v1 AS SELECT a FROM t1 WHERE a < 100;
+
+sync_slave_with_master;
+
+connection master1;
+let $connection_name= master1;
+let $connection_id= `SELECT CONNECTION_ID()`;
+
+connection master;
+echo [on master];
+
+# This will block the execution of a statement at the DBUG_SYNC_POINT
+# with given lock name
+if (`SELECT '$debug_lock' != ''`)
+{
+  disable_query_log;
+  disable_result_log;
+  eval SELECT IS_FREE_LOCK($debug_lock);
+  eval SELECT GET_LOCK($debug_lock, 10);
+  eval SELECT IS_FREE_LOCK($debug_lock);
+  enable_query_log;
+  enable_result_log;
+}
+
+######## START TEST ########
+
+connection master1;
+echo [on master1];
+
+disable_warnings;
+
+######## DATABASE ########
+
+let $diff_statement= SHOW DATABASES LIKE 'd%';
+
+send CREATE DATABASE d2;
+source include/kill_query_and_diff_master_slave.inc;
+
+# Temporarily disabled, see BUG#44041, the ALTER DATABASE can affect the
+# collation of other database on slave
+#send ALTER DATABASE d1
+#       DEFAULT CHARACTER SET = 'utf8';
+#source include/kill_query_and_diff_master_slave.inc;
+
+send DROP DATABASE d1;
+source include/kill_query_and_diff_master_slave.inc;
+
+send DROP DATABASE d2;
+source include/kill_query_and_diff_master_slave.inc;
+
+######## EVENT ########
+
+let $diff_statement= SELECT event_name, event_body, execute_at
+                     FROM information_schema.events where event_name like 'e%';
+
+send CREATE EVENT e2
+  ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 DAY
+  DO INSERT INTO test.t1 VALUES (2);
+source include/kill_query_and_diff_master_slave.inc;
+
+# Temporarily disabled because of BUG#44171, killing ALTER EVENT can
+# crash the server
+#send ALTER EVENT e1
+#  ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 2 DAY;
+#source include/kill_query_and_diff_master_slave.inc;
+
+send DROP EVENT e1;
+source include/kill_query_and_diff_master_slave.inc;
+
+send DROP EVENT IF EXISTS e2;
+source include/kill_query_and_diff_master_slave.inc;
+
+######## FUNCTION ########
+
+let $diff_statement= SHOW FUNCTION STATUS LIKE 'f%';
+
+send CREATE FUNCTION f2 () RETURNS INT DETERMINISTIC
+     RETURN 1;
+source include/kill_query_and_diff_master_slave.inc;
+
+send ALTER FUNCTION f1 SQL SECURITY INVOKER;
+source include/kill_query_and_diff_master_slave.inc;
+
+# function f1 probably does not exist because the ALTER query was
+# killed
+send DROP FUNCTION f1;
+source include/kill_query_and_diff_master_slave.inc;
+
+# function f2 probably does not exist because the CREATE query was
+# killed
+#
+# Temporarily disabled. Because of BUG#43353, KILL the query may
+# result in function not found, and for 5.1, DROP statements will be
+# logged if the function is not found on master, so the following DROP
+# FUNCTION statement may be interrupted and not drop the function on
+# master, but still get logged and executed on slave and cause
+# inconsistence. Also disable the following DROP PROCEDURE IF EXITS
+# below.
+#send DROP FUNCTION IF EXISTS f2;
+#source include/kill_query_and_diff_master_slave.inc;
+
+######## PROCEDURE ########
+
+let $diff_statement= SHOW PROCEDURE STATUS LIKE 'p%';
+
+DELIMITER //;
+send CREATE PROCEDURE p2 (OUT rows INT)
+     BEGIN
+       SELECT COUNT(*) INTO rows FROM t2;
+     END;
+     //
+DELIMITER ;//
+source include/kill_query_and_diff_master_slave.inc;
+
+send ALTER PROCEDURE p1 SQL SECURITY INVOKER COMMENT 'return rows of table t1';
+source include/kill_query_and_diff_master_slave.inc;
+
+send DROP PROCEDURE p1;
+source include/kill_query_and_diff_master_slave.inc;
+
+# Temporarily disabled, see comment above for DROP FUNCTION IF EXISTS
+#send DROP PROCEDURE IF EXISTS p2;
+#source include/kill_query_and_diff_master_slave.inc;
+
+######## TABLE ########
+
+let $diff_statement= SHOW TABLES LIKE 't%';
+
+send CREATE TABLE t2 (b int);
+source include/kill_query_and_diff_master_slave.inc;
+
+send ALTER TABLE t1 ADD (d int);
+source include/kill_query_and_diff_master_slave.inc;
+
+send RENAME TABLE t3 TO t4;
+source include/kill_query_and_diff_master_slave.inc;
+
+######## INDEX ########
+
+let $diff_statement= SHOW INDEX FROM t1;
+
+send CREATE INDEX i2 on t1 (a);
+source include/kill_query_and_diff_master_slave.inc;
+
+send DROP INDEX i1 on t1;
+source include/kill_query_and_diff_master_slave.inc;
+
+
+######## SERVER ########
+
+# Tempoarily disabled, see bug#25705
+
+# let $diff_statement= SELECT * FROM mysql.server WHERE name like 's%';
+
+# send CREATE SERVER s2
+#     FOREIGN DATA WRAPPER mysql
+#     OPTIONS (USER 'user2', HOST '192.168.1.108', DATABASE 'test');
+# source include/kill_query_and_diff_master_slave.inc;
+    
+# send ALTER SERVER s1
+#     OPTIONS (DATABASE 'test1');
+# source include/kill_query_and_diff_master_slave.inc;
+
+# send DROP SERVER s1;
+# source include/kill_query_and_diff_master_slave.inc;
+
+# send DROP SERVER IF EXIST s1;
+# source include/kill_query_and_diff_master_slave.inc;
+
+######## TRIGGER ########
+
+let $diff_statement= SHOW TRIGGERS LIKE 'v%';
+
+DELIMITER //;
+send CREATE TRIGGER tr2 BEFORE INSERT ON t4
+       FOR EACH ROW BEGIN
+         DELETE FROM t1 WHERE a=NEW.a;
+       END;
+       //
+DELIMITER ;//
+source include/kill_query_and_diff_master_slave.inc;
+
+send DROP TRIGGER tr1;
+source include/kill_query_and_diff_master_slave.inc;
+
+send DROP TRIGGER IF EXISTS tr2;
+source include/kill_query_and_diff_master_slave.inc;
+
+######## VIEW ########
+
+let $diff_statement= SHOW TABLES LIKE 'v%';
+
+send CREATE VIEW v2 AS SELECT a FROM t1 WHERE a > 100;
+source include/kill_query_and_diff_master_slave.inc;
+
+send DROP VIEW v1;
+source include/kill_query_and_diff_master_slave.inc;
+
+send DROP VIEW IF EXISTS v2;
+source include/kill_query_and_diff_master_slave.inc;
+
+######## DROP TABLE ########
+
+let $diff_statement= SHOW TABLES LIKE 't%';
+
+send DROP TABLE t1;
+source include/kill_query_and_diff_master_slave.inc;
+
+send DROP TABLE IF EXISTS t2;
+source include/kill_query_and_diff_master_slave.inc;
+
+######## CLEAN UP ########
+
+connection master;
+
+# The DROP statements above are killed during the process, so they
+# does not make sure the objects are dropped.
+
+disable_warnings;
+DROP DATABASE IF EXISTS d1;
+DROP DATABASE IF EXISTS d2;
+DROP DATABASE IF EXISTS d3;
+DROP DATABASE IF EXISTS d4;
+DROP EVENT IF EXISTS e1;
+DROP EVENT IF EXISTS e2;
+DROP EVENT IF EXISTS e3;
+DROP EVENT IF EXISTS e4;
+DROP FUNCTION IF EXISTS f1;
+DROP FUNCTION IF EXISTS f2;
+DROP FUNCTION IF EXISTS f3;
+DROP FUNCTION IF EXISTS f4;
+DROP SERVER IF EXISTS s1;
+DROP SERVER IF EXISTS s2;
+DROP SERVER IF EXISTS s3;
+DROP SERVER IF EXISTS s4;
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+DROP TABLE IF EXISTS t3;
+DROP TABLE IF EXISTS t4;
+DROP PROCEDURE IF EXISTS p1;
+DROP PROCEDURE IF EXISTS p2;
+DROP PROCEDURE IF EXISTS p3;
+DROP PROCEDURE IF EXISTS p4;
+enable_warnings;
