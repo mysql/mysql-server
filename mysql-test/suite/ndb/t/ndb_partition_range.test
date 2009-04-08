@@ -274,3 +274,48 @@ select * from t1 order by f1;
 UPDATE t1 SET f1 = f1 + 4 WHERE f1 = 1;
 select * from t1 order by f1;
 drop table t1;
+
+
+# Check partitioning at NdbApi level for range partitioned table
+#
+create table t1 ( a int, b int, c int, primary key (a,b)) engine=ndb 
+partition by range (a)
+(partition part0 values less than (3),
+ partition part1 values less than (6));
+
+insert into t1 values (0, 0, 0);
+insert into t1 values (0, 1, 1);
+insert into t1 values (0, 2, 2);
+insert into t1 values (1, 0, 3);
+insert into t1 values (1, 1, 4);
+insert into t1 values (1, 2, 5);
+insert into t1 values (4, 0, 6);
+insert into t1 values (4, 1, 7);
+insert into t1 values (4, 2, 8);
+
+--echo All partitions scan
+--source include/ndb_init_scan_counts.inc
+select * from t1 order by c;
+--source include/ndb_scan_counts.inc
+
+--echo Single partition scan
+--source include/ndb_init_scan_counts.inc
+select * from t1 where a=0 order by c;
+--source include/ndb_scan_counts.inc
+
+--echo Single partition scan
+--source include/ndb_init_scan_counts.inc
+select * from t1 where a=4 order by c;
+--source include/ndb_scan_counts.inc
+
+--echo Single partition scan
+--source include/ndb_init_scan_counts.inc
+select * from t1 where a<3 order by c;
+--source include/ndb_scan_counts.inc
+
+--echo MRR single partition scan
+--source include/ndb_init_scan_counts.inc
+select * from t1 where a in (0, 2) order by c;
+--source include/ndb_scan_counts.inc
+
+drop table t1;
