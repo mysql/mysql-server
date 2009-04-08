@@ -1,4 +1,4 @@
-# Copyright (C) 2000-2007 MySQL AB
+# Copyright (C) 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -87,7 +87,7 @@ is intended for mission-critical, heavy-load production systems as well
 as for embedding into mass-deployed software. MySQL is a trademark of
 MySQL AB.
 
-Copyright (C) 2000-2007 MySQL AB
+Copyright (C) 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 This software comes with ABSOLUTELY NO WARRANTY. This is free software,
 and you are welcome to modify and redistribute it under the GPL license.
 
@@ -109,7 +109,7 @@ is intended for mission-critical, heavy-load production systems as well
 as for embedding into mass-deployed software. MySQL is a trademark of
 MySQL AB.
 
-Copyright (C) 2000-2007 MySQL AB
+Copyright (C) 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 This software comes with ABSOLUTELY NO WARRANTY. This is free software,
 and you are welcome to modify and redistribute it under the GPL license.
 
@@ -320,8 +320,12 @@ do
   # We are in a subshell, so we can modify variables just for one run.
   if test "$servertype" != ' '
   then
-	CFLAGS=`echo $CFLAGS | sed -e 's/-O[0-9]* //' -e 's/-unroll2 //' -e 's/-ip //'`
-	CXXFLAGS=`echo $CXXFLAGS | sed -e 's/-O[0-9]* //' -e 's/-unroll2 //' -e 's/-ip //'`
+	CFLAGS=`echo   " $CFLAGS "   | \
+	    sed -e 's/ -O[0-9]* / /' -e 's/ -unroll2 / /' -e 's/ -ip / /' \
+	        -e 's/^ //' -e 's/ $//'`
+	CXXFLAGS=`echo " $CXXFLAGS " | \
+	    sed -e 's/ -O[0-9]* / /' -e 's/ -unroll2 / /' -e 's/ -ip / /' \
+	        -e 's/^ //' -e 's/ $//'`
   fi
 
   BuildMySQL "\
@@ -807,6 +811,10 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog
+* Fri Nov 07 2008 Joerg Bruehe <joerg@mysql.com>
+
+- Correct yesterday's fix, so that it also works for the last flag.
+
 * Thu Nov 06 2008 Joerg Bruehe <joerg@mysql.com>
 
 - Modify CFLAGS and CXXFLAGS such that a debug build is not optimized.

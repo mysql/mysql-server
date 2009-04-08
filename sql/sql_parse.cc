@@ -2800,6 +2800,10 @@ mysql_execute_command(THD *thd)
     if (res)
       goto error;
 
+    if (!thd->locked_tables && lex->protect_against_global_read_lock &&
+        !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
+      goto error;
+
     if (!(res= open_and_lock_tables(thd, all_tables)))
     {
       if (lex->describe)
@@ -3211,6 +3215,42 @@ mysql_execute_command(THD *thd)
     }
     if (select_lex->item_list.elements)		// With select
     {
+      /*
+        If:
+        a) we inside an SP and there was NAME_CONST substitution,
+        b) binlogging is on,
+        c) we log the SP as separate statements
+        raise a warning, as it may cause problems
+        (see 'NAME_CONST issues' in 'Binary Logging of Stored Programs')
+       */
+      if (thd->query_name_consts && 
+          mysql_bin_log.is_open() &&
+          !mysql_bin_log.is_query_in_union(thd, thd->query_id))
+      {
+        List_iterator_fast<Item> it(select_lex->item_list);
+        Item *item;
+        uint splocal_refs= 0;
+        /* Count SP local vars in the top-level SELECT list */
+        while ((item= it++))
+        {
+          if (item->is_splocal())
+            splocal_refs++;
+        }
+        /*
+          If it differs from number of NAME_CONST substitution applied,
+          we may have a SOME_FUNC(NAME_CONST()) in the SELECT list,
+          that may cause a problem with binary log (see BUG#35383),
+          raise a warning. 
+        */
+        if (splocal_refs != thd->query_name_consts)
+          push_warning(thd, 
+                       MYSQL_ERROR::WARN_LEVEL_WARN,
+                       ER_UNKNOWN_ERROR,
+"Invoked routine ran a statement that may cause problems with "
+"binary log, see 'NAME_CONST issues' in 'Binary Logging of Stored Programs' "
+"section of the manual.");
+      }
+      
       select_result *sel_result;
 
       select_lex->options|= SELECT_NO_UNLOCK;
@@ -3627,6 +3667,9 @@ end_with_restore_list:
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     if (update_precheck(thd, all_tables))
       break;
+    if (!thd->locked_tables &&
+        !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
+      goto error;
     DBUG_ASSERT(select_lex->offset_limit == 0);
     unit->set_limit(select_lex);
     res= (up_result= mysql_update(thd, all_tables,
@@ -3652,6 +3695,15 @@ end_with_restore_list:
     }
     else
       res= 0;
+
+    /*
+      Protection might have already been risen if its a fall through
+      from the SQLCOM_UPDATE case above.
+    */
+    if (!thd->locked_tables &&
+        lex->sql_command == SQLCOM_UPDATE_MULTI &&
+        !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
+      goto error;
 
     res= mysql_multi_update_prepare(thd);
 
@@ -3820,7 +3872,8 @@ end_with_restore_list:
                  ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
       goto error;
     }
-
+    if (!(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
+      goto error;
     res= mysql_truncate(thd, first_table, 0);
     break;
   case SQLCOM_DELETE:
@@ -3994,6 +4047,10 @@ end_with_restore_list:
     if (check_one_table_access(thd, privilege, all_tables))
       goto error;
 
+    if (!thd->locked_tables &&
+        !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
+      goto error;
+
     res= mysql_load(thd, lex->exchange, first_table, lex->field_list,
                     lex->update_list, lex->value_list, lex->duplicates,
                     lex->ignore, (bool) lex->local_file);
@@ -4048,6 +4105,9 @@ end_with_restore_list:
     if (check_db_used(thd, all_tables))
       goto error;
     if (check_table_access(thd, LOCK_TABLES_ACL | SELECT_ACL, all_tables, 0))
+      goto error;
+    if (lex->protect_against_global_read_lock &&
+        !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
       goto error;
     thd->in_lock_tables=1;
     thd->options|= OPTION_TABLE_LOCK;
@@ -7390,8 +7450,26 @@ void kill_one_thread(THD *thd, ulong id, bool only_kill_query)
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
   if (tmp)
   {
+
+    /*
+      If we're SUPER, we can KILL anything, including system-threads.
+      No further checks.
+
+      KILLer: thd->security_ctx->user could in theory be NULL while
+      we're still in "unauthenticated" state. This is a theoretical
+      case (the code suggests this could happen, so we play it safe).
+
+      KILLee: tmp->security_ctx->user will be NULL for system threads.
+      We need to check so Jane Random User doesn't crash the server
+      when trying to kill a) system threads or b) unauthenticated users'
+      threads (Bug#43748).
+
+      If user of both killer and killee are non-NULL, proceed with
+      slayage if both are string-equal.
+    */
+
     if ((thd->security_ctx->master_access & SUPER_ACL) ||
-	!strcmp(thd->security_ctx->user, tmp->security_ctx->user))
+        thd->security_ctx->user_matches(tmp->security_ctx))
     {
       tmp->awake(only_kill_query ? THD::KILL_QUERY : THD::KILL_CONNECTION);
       error=0;
