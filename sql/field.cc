@@ -8587,16 +8587,16 @@ bool create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
       else if (tmp_length > PRECISION_FOR_FLOAT)
       {
         sql_type= FIELD_TYPE_DOUBLE;
-        length= DBL_DIG+7; /* -[digits].E+### */
+        length= MAX_DOUBLE_STR_LENGTH; 
       }
       else
-        length= FLT_DIG+6; /* -[digits].E+## */
+        length= MAX_FLOAT_STR_LENGTH; 
       decimals= NOT_FIXED_DEC;
       break;
     }
     if (!fld_length && !fld_decimals)
     {
-      length=  FLT_DIG+6;
+      length=  MAX_FLOAT_STR_LENGTH;
       decimals= NOT_FIXED_DEC;
     }
     if (length < decimals &&

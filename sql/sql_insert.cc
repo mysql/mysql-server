@@ -1609,7 +1609,9 @@ public:
   uint query_length;
 
   delayed_row(enum_duplicates dup_arg, bool ignore_arg, bool log_query_arg)
-    :record(0), query(0), time_zone(0), dup(dup_arg), ignore(ignore_arg), log_query(log_query_arg) {}
+    :record(0), query(0), dup(dup_arg), ignore(ignore_arg), 
+    log_query(log_query_arg), time_zone(0) 
+    {}
   ~delayed_row()
   {
     x_free(record);
