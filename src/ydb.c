@@ -3664,8 +3664,6 @@ static int toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     memset(result->i, 0, sizeof *result->i);
     result->i->db = result;
     result->i->freed = 0;
-    result->i->header = 0;
-    result->i->database_number = 0;
     result->i->full_fname = 0;
     result->i->open_flags = 0;
     result->i->open_mode = 0;
