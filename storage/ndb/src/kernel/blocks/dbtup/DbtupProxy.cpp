@@ -313,13 +313,37 @@ DbtupProxy::disk_restart_undo(Signal* signal, Uint64 lsn,
       undo.m_actions |= Proxy_undo::GetInstance;
     }
     break;
+
   case File_formats::Undofile::UNDO_TUP_CREATE:
-  case File_formats::Undofile::UNDO_TUP_DROP:
+  {
+    jam();
+    Dbtup::Disk_undo::Create* rec= (Dbtup::Disk_undo::Create*)ptr;
+    Uint32 tableId = rec->m_table;
+    if (tableId < c_tableRecSize)
     {
-      undo.m_actions |= Proxy_undo::SendToAll;
-      undo.m_actions |= Proxy_undo::SendUndoNext;
+      jam();
+      c_tableRec[tableId] = 0;
     }
+    
+    undo.m_actions |= Proxy_undo::SendToAll;
+    undo.m_actions |= Proxy_undo::SendUndoNext;
     break;
+  }
+  case File_formats::Undofile::UNDO_TUP_DROP:
+  {
+    jam();
+    Dbtup::Disk_undo::Drop* rec= (Dbtup::Disk_undo::Drop*)ptr;
+    Uint32 tableId = rec->m_table;
+    if (tableId < c_tableRecSize)
+    {
+      jam();
+      c_tableRec[tableId] = 0;
+    }
+    
+    undo.m_actions |= Proxy_undo::SendToAll;
+    undo.m_actions |= Proxy_undo::SendUndoNext;
+    break;
+  }
 #if NOT_YET_UNDO_ALLOC_EXTENT
   case File_formats::Undofile::UNDO_TUP_ALLOC_EXTENT:
     ndbrequire(false);
