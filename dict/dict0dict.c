@@ -29,9 +29,9 @@ Created 1/8/1996 Heikki Tuuri
 #endif
 
 /* dummy index for ROW_FORMAT=REDUNDANT supremum and infimum records */
-dict_index_t*	dict_ind_redundant;
+UNIV_INTERN dict_index_t*	dict_ind_redundant;
 /* dummy index for ROW_FORMAT=COMPACT supremum and infimum records */
-dict_index_t*	dict_ind_compact;
+UNIV_INTERN dict_index_t*	dict_ind_compact;
 
 #ifndef UNIV_HOTBACKUP
 #include "buf0buf.h"

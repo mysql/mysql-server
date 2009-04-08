@@ -278,7 +278,7 @@ trx_roll_savepoint_free(
 /***********************************************************************
 Frees savepoint structs starting from savep, if savep == NULL then
 free all savepoints. */
-
+UNIV_INTERN
 void
 trx_roll_savepoints_free(
 /*=====================*/
