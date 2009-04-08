@@ -2874,7 +2874,7 @@ static my_bool write_block_record(MARIA_HA *info,
         if (cur_block->used & BLOCKUSED_TAIL)
         {
           DBUG_ASSERT(data_length < MAX_TAIL_SIZE(block_size));
-          /* tail written to full tail page */
+          /* tail written to tail page */
           cur_block->used|= BLOCKUSED_USED;
           head_tail_block= cur_block;
         }
