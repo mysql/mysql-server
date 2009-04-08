@@ -1,0 +1,125 @@
+# This test covers various aspects of PBXT locking mechanism, including
+# internal permanent/temporary row locking and MySQL locking
+
+# TEST: select for update test
+ 
+drop table if exists t1;
+create table t1 (id int, index (id)) engine = pbxt; 
+insert into t1 values (1), (2), (3), (4), (5);
+begin;
+select * from t1 where id < 5 for update;
+
+connect (con1,localhost,root,,);
+
+connection con1;
+
+# this shouldn't lock
+# note this implies usage of the index, table scan will block
+update t1 set id = 8 where id = 5;
+
+# this should block
+send update t1 set id = 8 where id = 4;
+
+connection default;
+sleep 1;
+replace_column 1 x 3 x 6 x;
+show processlist;
+commit;
+
+connection con1;
+reap;
+select * from t1;
+
+# TEST: make sure no unneeded temporary locks are set
+
+connection default;
+
+drop table if exists t1;
+# notice absence of index
+create table t1 (id int) engine = pbxt; 
+insert into t1 values (1), (2), (3), (4), (5);
+
+begin;
+# after this statement all rows should be unlocked
+select * from t1 where id > 10 for update;
+
+connection con1;
+# this shouldn't block
+update t1 set id = 8;
+
+connection default;
+commit;
+select * from t1;
+
+# TEST: last row temp->perm locking
+
+connection default;
+
+drop table if exists t1;
+create table t1 (id int, index (id)) engine = pbxt; 
+insert into t1 values (1), (2), (3), (4), (5);
+
+begin;
+select * from t1 where id = 5 for update;
+
+connection con1;
+
+update t1 set id = 8 where id < 4;
+# this should block
+send update t1 set id = 8 where id = 5;
+
+connection default;
+sleep 1;
+replace_column 1 x 3 x 6 x;
+show processlist;
+commit;
+
+connection con1;
+reap;
+
+connection default;
+select * from t1;
+
+# TEST: select for update in auto-commit mode
+# although this is not a widely used case in practice, make sure it operates correctly
+
+connection default;
+
+drop table if exists t1;
+create table t1 (id int, index (id)) engine = pbxt; 
+insert into t1 values (1), (2), (3), (4), (5);
+
+# auto-commit mode - should unlock immediately
+select * from t1 for update;
+
+connection con1;
+# this shouldn't block
+update t1 set id = 8;
+
+# TEST: same as before but from a stored routine
+
+connection default;
+
+drop table if exists t1;
+create table t1 (id int, index (id)) engine = pbxt; 
+insert into t1 values (1), (2), (3), (4), (5);
+
+delimiter |;
+create procedure p1 ()
+begin
+  select * from t1 for update;
+end|
+
+delimiter ;|
+call p1 ();
+
+connection con1;
+
+# this shouldn't block
+update t1 set id = 8;
+
+--disable_query_log
+drop procedure p1;
+drop table t1;
+drop database pbxt;
+--enable_query_log

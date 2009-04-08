@@ -1,0 +1,944 @@
+drop table if exists t1,t2,t3;
+SELECT 1 FROM (SELECT 1) as a  GROUP BY SUM(1);
+ERROR HY000: Invalid use of group function
+CREATE TABLE t1 (
+spID int(10) unsigned,
+userID int(10) unsigned,
+score smallint(5) unsigned,
+lsg char(40),
+date date
+);
+INSERT INTO t1 VALUES (1,1,1,'','0000-00-00');
+INSERT INTO t1 VALUES (2,2,2,'','0000-00-00');
+INSERT INTO t1 VALUES (2,1,1,'','0000-00-00');
+INSERT INTO t1 VALUES (3,3,3,'','0000-00-00');
+CREATE TABLE t2 (
+userID int(10) unsigned NOT NULL auto_increment,
+niName char(15),
+passwd char(8),
+mail char(50),
+isAukt enum('N','Y') DEFAULT 'N',
+vName char(30),
+nName char(40),
+adr char(60),
+plz char(5),
+ort char(35),
+land char(20),
+PRIMARY KEY (userID)
+);
+INSERT INTO t2 VALUES (1,'name','pass','mail','Y','v','n','adr','1','1','1');
+INSERT INTO t2 VALUES (2,'name','pass','mail','Y','v','n','adr','1','1','1');
+INSERT INTO t2 VALUES (3,'name','pass','mail','Y','v','n','adr','1','1','1');
+INSERT INTO t2 VALUES (4,'name','pass','mail','Y','v','n','adr','1','1','1');
+INSERT INTO t2 VALUES (5,'name','pass','mail','Y','v','n','adr','1','1','1');
+SELECT t2.userid, MIN(t1.score) FROM t1, t2 WHERE t1.userID=t2.userID GROUP BY t2.userid;
+userid	MIN(t1.score)
+1	1
+2	2
+3	3
+SELECT t2.userid, MIN(t1.score) FROM t1, t2 WHERE t1.userID=t2.userID GROUP BY t2.userid ORDER BY NULL;
+userid	MIN(t1.score)
+1	1
+2	2
+3	3
+SELECT t2.userid, MIN(t1.score) FROM t1, t2 WHERE t1.userID=t2.userID AND t1.spID=2  GROUP BY t2.userid;
+userid	MIN(t1.score)
+1	1
+2	2
+SELECT t2.userid, MIN(t1.score+0.0) FROM t1, t2 WHERE t1.userID=t2.userID AND t1.spID=2  GROUP BY t2.userid;
+userid	MIN(t1.score+0.0)
+1	1.0
+2	2.0
+SELECT t2.userid, MIN(t1.score+0.0) FROM t1, t2 WHERE t1.userID=t2.userID AND t1.spID=2  GROUP BY t2.userid ORDER BY NULL;
+userid	MIN(t1.score+0.0)
+2	2.0
+1	1.0
+EXPLAIN SELECT t2.userid, MIN(t1.score+0.0) FROM t1, t2 WHERE t1.userID=t2.userID AND t1.spID=2  GROUP BY t2.userid ORDER BY NULL;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	Using where; Using temporary
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.userID	1	Using index
+drop table t1,t2;
+CREATE TABLE t1 (
+PID int(10) unsigned NOT NULL auto_increment,
+payDate date DEFAULT '0000-00-00' NOT NULL,
+recDate datetime DEFAULT '0000-00-00 00:00:00' NOT NULL,
+URID int(10) unsigned DEFAULT '0' NOT NULL,
+CRID int(10) unsigned DEFAULT '0' NOT NULL,
+amount int(10) unsigned DEFAULT '0' NOT NULL,
+operator int(10) unsigned,
+method enum('unknown','cash','dealer','check','card','lazy','delayed','test') DEFAULT 'unknown' NOT NULL,
+DIID int(10) unsigned,
+reason char(1) binary DEFAULT '' NOT NULL,
+code_id int(10) unsigned,
+qty mediumint(8) unsigned DEFAULT '0' NOT NULL,
+PRIMARY KEY (PID),
+KEY URID (URID),
+KEY reason (reason),
+KEY method (method),
+KEY payDate (payDate)
+);
+INSERT INTO t1 VALUES (1,'1970-01-01','1997-10-17 00:00:00',2529,1,21000,11886,'check',0,'F',16200,6);
+SELECT COUNT(P.URID),SUM(P.amount),P.method, MIN(PP.recdate+0) > 19980501000000   AS IsNew FROM t1 AS P JOIN t1 as PP WHERE P.URID = PP.URID GROUP BY method,IsNew;
+ERROR 42000: Can't group on 'IsNew'
+drop table t1;
+CREATE TABLE t1 (
+cid mediumint(9) NOT NULL auto_increment,
+firstname varchar(32) DEFAULT '' NOT NULL,
+surname varchar(32) DEFAULT '' NOT NULL,
+PRIMARY KEY (cid)
+);
+INSERT INTO t1 VALUES (1,'That','Guy');
+INSERT INTO t1 VALUES (2,'Another','Gent');
+CREATE TABLE t2 (
+call_id mediumint(8) NOT NULL auto_increment,
+contact_id mediumint(8) DEFAULT '0' NOT NULL,
+PRIMARY KEY (call_id),
+KEY contact_id (contact_id)
+);
+lock tables t1 read,t2 write;
+INSERT INTO t2 VALUES (10,2);
+INSERT INTO t2 VALUES (18,2);
+INSERT INTO t2 VALUES (62,2);
+INSERT INTO t2 VALUES (91,2);
+INSERT INTO t2 VALUES (92,2);
+SELECT cid, CONCAT(firstname, ' ', surname), COUNT(call_id) FROM t1 LEFT JOIN t2 ON cid=contact_id WHERE firstname like '%foo%' GROUP BY cid;
+cid	CONCAT(firstname, ' ', surname)	COUNT(call_id)
+SELECT cid, CONCAT(firstname, ' ', surname), COUNT(call_id) FROM t1 LEFT JOIN t2 ON cid=contact_id WHERE firstname like '%foo%' GROUP BY cid ORDER BY NULL;
+cid	CONCAT(firstname, ' ', surname)	COUNT(call_id)
+SELECT HIGH_PRIORITY cid, CONCAT(firstname, ' ', surname), COUNT(call_id) FROM t1 LEFT JOIN t2 ON cid=contact_id WHERE firstname like '%foo%' GROUP BY cid ORDER BY surname, firstname;
+cid	CONCAT(firstname, ' ', surname)	COUNT(call_id)
+drop table t1,t2;
+unlock tables;
+CREATE TABLE t1 (
+bug_id mediumint(9) NOT NULL auto_increment,
+groupset bigint(20) DEFAULT '0' NOT NULL,
+assigned_to mediumint(9) DEFAULT '0' NOT NULL,
+bug_file_loc text,
+bug_severity enum('blocker','critical','major','normal','minor','trivial','enhancement') DEFAULT 'blocker' NOT NULL,
+bug_status enum('','NEW','ASSIGNED','REOPENED','RESOLVED','VERIFIED','CLOSED') DEFAULT 'NEW' NOT NULL,
+creation_ts datetime DEFAULT '0000-00-00 00:00:00' NOT NULL,
+delta_ts timestamp,
+short_desc mediumtext,
+long_desc mediumtext,
+op_sys enum('All','Windows 3.1','Windows 95','Windows 98','Windows NT','Windows 2000','Linux','other') DEFAULT 'All' NOT NULL,
+priority enum('P1','P2','P3','P4','P5') DEFAULT 'P1' NOT NULL,
+product varchar(64) DEFAULT '' NOT NULL,
+rep_platform enum('All','PC','VTD-8','Other'),
+reporter mediumint(9) DEFAULT '0' NOT NULL,
+version varchar(16) DEFAULT '' NOT NULL,
+component varchar(50) DEFAULT '' NOT NULL,
+resolution enum('','FIXED','INVALID','WONTFIX','LATER','REMIND','DUPLICATE','WORKSFORME') DEFAULT '' NOT NULL,
+target_milestone varchar(20) DEFAULT '' NOT NULL,
+qa_contact mediumint(9) DEFAULT '0' NOT NULL,
+status_whiteboard mediumtext NOT NULL,
+votes mediumint(9) DEFAULT '0' NOT NULL,
+PRIMARY KEY (bug_id),
+KEY assigned_to (assigned_to),
+KEY creation_ts (creation_ts),
+KEY delta_ts (delta_ts),
+KEY bug_severity (bug_severity),
+KEY bug_status (bug_status),
+KEY op_sys (op_sys),
+KEY priority (priority),
+KEY product (product),
+KEY reporter (reporter),
+KEY version (version),
+KEY component (component),
+KEY resolution (resolution),
+KEY target_milestone (target_milestone),
+KEY qa_contact (qa_contact),
+KEY votes (votes)
+);
+INSERT INTO t1 VALUES (1,0,0,'','normal','','2000-02-10 09:25:12',20000321114747,'','','Linux','P1','TestProduct','PC',3,'other','TestComponent','','M1',0,'',0);
+INSERT INTO t1 VALUES (9,0,0,'','enhancement','','2000-03-10 11:49:36',20000321114747,'','','All','P5','AAAAA','PC',3,'2.00 CD - Pre','BBBBBBBBBBBBB - conversion','','',0,'',0);
+INSERT INTO t1 VALUES (10,0,0,'','enhancement','','2000-03-10 18:10:16',20000321114747,'','','All','P4','AAAAA','PC',3,'2.00 CD - Pre','BBBBBBBBBBBBB - conversion','','',0,'',0);
+INSERT INTO t1 VALUES (7,0,0,'','critical','','2000-03-09 10:50:21',20000321114747,'','','All','P1','AAAAA','PC',3,'2.00 CD - Pre','BBBBBBBBBBBBB - generic','','',0,'',0);
+INSERT INTO t1 VALUES (6,0,0,'','normal','','2000-03-09 10:42:44',20000321114747,'','','All','P2','AAAAA','PC',3,'2.00 CD - Pre','kkkkkkkkkkk lllllllllll','','',0,'',0);
+INSERT INTO t1 VALUES (8,0,0,'','major','','2000-03-09 11:32:14',20000321114747,'','','All','P3','AAAAA','PC',3,'2.00 CD - Pre','kkkkkkkkkkk lllllllllll','','',0,'',0);
+INSERT INTO t1 VALUES (5,0,0,'','enhancement','','2000-03-09 10:38:59',20000321114747,'','','All','P5','CCC/CCCCCC','PC',5,'7.00','Administration','','',0,'',0);
+INSERT INTO t1 VALUES (4,0,0,'','normal','','2000-03-08 18:32:14',20000321114747,'','','other','P2','TestProduct','Other',3,'other','TestComponent2','','',0,'',0);
+INSERT INTO t1 VALUES (3,0,0,'','normal','','2000-03-08 18:30:52',20000321114747,'','','other','P2','TestProduct','Other',3,'other','TestComponent','','',0,'',0);
+INSERT INTO t1 VALUES (2,0,0,'','enhancement','','2000-03-08 18:24:51',20000321114747,'','','All','P2','TestProduct','Other',4,'other','TestComponent2','','',0,'',0);
+INSERT INTO t1 VALUES (11,0,0,'','blocker','','2000-03-13 09:43:41',20000321114747,'','','All','P2','CCC/CCCCCC','PC',5,'7.00','DDDDDDDDD','','',0,'',0);
+INSERT INTO t1 VALUES (12,0,0,'','normal','','2000-03-13 16:14:31',20000321114747,'','','All','P2','AAAAA','PC',3,'2.00 CD - Pre','kkkkkkkkkkk lllllllllll','','',0,'',0);
+INSERT INTO t1 VALUES (13,0,0,'','normal','','2000-03-15 16:20:44',20000321114747,'','','other','P2','TestProduct','Other',3,'other','TestComponent','','',0,'',0);
+INSERT INTO t1 VALUES (14,0,0,'','blocker','','2000-03-15 18:13:47',20000321114747,'','','All','P1','AAAAA','PC',3,'2.00 CD - Pre','BBBBBBBBBBBBB - generic','','',0,'',0);
+INSERT INTO t1 VALUES (15,0,0,'','minor','','2000-03-16 18:03:28',20000321114747,'','','All','P2','CCC/CCCCCC','Other',5,'7.00','DDDDDDDDD','','',0,'',0);
+INSERT INTO t1 VALUES (16,0,0,'','normal','','2000-03-16 18:33:41',20000321114747,'','','All','P2','CCC/CCCCCC','Other',5,'7.00','Administration','','',0,'',0);
+INSERT INTO t1 VALUES (17,0,0,'','normal','','2000-03-16 18:34:18',20000321114747,'','','All','P2','CCC/CCCCCC','Other',5,'7.00','Administration','','',0,'',0);
+INSERT INTO t1 VALUES (18,0,0,'','normal','','2000-03-16 18:34:56',20000321114747,'','','All','P2','CCC/CCCCCC','Other',5,'7.00','Administration','','',0,'',0);
+INSERT INTO t1 VALUES (19,0,0,'','enhancement','','2000-03-16 18:35:34',20000321114747,'','','All','P2','CCC/CCCCCC','Other',5,'7.00','Administration','','',0,'',0);
+INSERT INTO t1 VALUES (20,0,0,'','enhancement','','2000-03-16 18:36:23',20000321114747,'','','All','P2','CCC/CCCCCC','Other',5,'7.00','Administration','','',0,'',0);
+INSERT INTO t1 VALUES (21,0,0,'','enhancement','','2000-03-16 18:37:23',20000321114747,'','','All','P2','CCC/CCCCCC','Other',5,'7.00','Administration','','',0,'',0);
+INSERT INTO t1 VALUES (22,0,0,'','enhancement','','2000-03-16 18:38:16',20000321114747,'','','All','P2','CCC/CCCCCC','Other',5,'7.00','Administration','','',0,'',0);
+INSERT INTO t1 VALUES (23,0,0,'','normal','','2000-03-16 18:58:12',20000321114747,'','','All','P2','CCC/CCCCCC','Other',5,'7.00','DDDDDDDDD','','',0,'',0);
+INSERT INTO t1 VALUES (24,0,0,'','normal','','2000-03-17 11:08:10',20000321114747,'','','All','P2','AAAAAAAA-AAA','PC',3,'2.8','Web Interface','','',0,'',0);
+INSERT INTO t1 VALUES (25,0,0,'','normal','','2000-03-17 11:10:45',20000321114747,'','','All','P2','AAAAAAAA-AAA','PC',3,'2.8','Web Interface','','',0,'',0);
+INSERT INTO t1 VALUES (26,0,0,'','normal','','2000-03-17 11:15:47',20000321114747,'','','All','P2','AAAAAAAA-AAA','PC',3,'2.8','Web Interface','','',0,'',0);
+INSERT INTO t1 VALUES (27,0,0,'','normal','','2000-03-17 17:45:41',20000321114747,'','','All','P2','CCC/CCCCCC','PC',5,'7.00','DDDDDDDDD','','',0,'',0);
+INSERT INTO t1 VALUES (28,0,0,'','normal','','2000-03-20 09:51:45',20000321114747,'','','Windows NT','P2','TestProduct','PC',8,'other','TestComponent','','',0,'',0);
+INSERT INTO t1 VALUES (29,0,0,'','normal','','2000-03-20 11:15:09',20000321114747,'','','All','P5','AAAAAAAA-AAA','PC',3,'2.8','Web Interface','','',0,'',0);
+CREATE TABLE t2 (
+value tinytext,
+program varchar(64),
+initialowner tinytext NOT NULL,
+initialqacontact tinytext NOT NULL,
+description mediumtext NOT NULL
+);
+INSERT INTO t2 VALUES ('TestComponent','TestProduct','id0001','','');
+INSERT INTO t2 VALUES ('BBBBBBBBBBBBB - conversion','AAAAA','id0001','','');
+INSERT INTO t2 VALUES ('BBBBBBBBBBBBB - generic','AAAAA','id0001','','');
+INSERT INTO t2 VALUES ('TestComponent2','TestProduct','id0001','','');
+INSERT INTO t2 VALUES ('BBBBBBBBBBBBB - eeeeeeeee','AAAAA','id0001','','');
+INSERT INTO t2 VALUES ('kkkkkkkkkkk lllllllllll','AAAAA','id0001','','');
+INSERT INTO t2 VALUES ('Test Procedures','AAAAA','id0001','','');
+INSERT INTO t2 VALUES ('Documentation','AAAAA','id0003','','');
+INSERT INTO t2 VALUES ('DDDDDDDDD','CCC/CCCCCC','id0002','','');
+INSERT INTO t2 VALUES ('Eeeeeeee Lite','CCC/CCCCCC','id0002','','');
+INSERT INTO t2 VALUES ('Eeeeeeee Full','CCC/CCCCCC','id0002','','');
+INSERT INTO t2 VALUES ('Administration','CCC/CCCCCC','id0002','','');
+INSERT INTO t2 VALUES ('Distribution','CCC/CCCCCC','id0002','','');
+INSERT INTO t2 VALUES ('Setup','CCC/CCCCCC','id0002','','');
+INSERT INTO t2 VALUES ('Unspecified','CCC/CCCCCC','id0002','','');
+INSERT INTO t2 VALUES ('Web Interface','AAAAAAAA-AAA','id0001','','');
+INSERT INTO t2 VALUES ('Host communication','AAAAA','id0001','','');
+select value,description,bug_id from t2 left join t1 on t2.program=t1.product and t2.value=t1.component where program="AAAAA";
+value	description	bug_id
+BBBBBBBBBBBBB - conversion		9
+BBBBBBBBBBBBB - conversion		10
+BBBBBBBBBBBBB - generic		7
+BBBBBBBBBBBBB - generic		14
+BBBBBBBBBBBBB - eeeeeeeee		NULL
+kkkkkkkkkkk lllllllllll		6
+kkkkkkkkkkk lllllllllll		8
+kkkkkkkkkkk lllllllllll		12
+Test Procedures		NULL
+Documentation		NULL
+Host communication		NULL
+select value,description,COUNT(bug_id) from t2 left join t1 on t2.program=t1.product and t2.value=t1.component where program="AAAAA" group by value;
+value	description	COUNT(bug_id)
+BBBBBBBBBBBBB - conversion		2
+BBBBBBBBBBBBB - eeeeeeeee		0
+BBBBBBBBBBBBB - generic		2
+Documentation		0
+Host communication		0
+kkkkkkkkkkk lllllllllll		3
+Test Procedures		0
+select value,description,COUNT(bug_id) from t2 left join t1 on t2.program=t1.product and t2.value=t1.component where program="AAAAA" group by value having COUNT(bug_id) IN (0,2);
+value	description	COUNT(bug_id)
+BBBBBBBBBBBBB - conversion		2
+BBBBBBBBBBBBB - eeeeeeeee		0
+BBBBBBBBBBBBB - generic		2
+Documentation		0
+Host communication		0
+Test Procedures		0
+drop table t1,t2;
+create table t1 (foo int);
+insert into t1 values (1);
+select 1+1, "a",count(*) from t1 where foo in (2);
+1+1	a	count(*)
+2	a	0
+insert into t1 values (1);
+select 1+1,"a",count(*) from t1 where foo in (2);
+1+1	a	count(*)
+2	a	0
+drop table t1;
+CREATE TABLE t1 (
+spID int(10) unsigned,
+userID int(10) unsigned,
+score smallint(5) unsigned,
+key (spid),
+key (score)
+);
+INSERT INTO t1 VALUES (1,1,1),(2,2,2),(2,1,1),(3,3,3),(4,3,3),(5,3,3),(6,3,3),(7,3,3);
+explain select userid,count(*) from t1 group by userid desc;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	8	Using temporary; Using filesort
+explain select userid,count(*) from t1 group by userid desc order by null;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	8	Using temporary
+select userid,count(*) from t1 group by userid desc;
+userid	count(*)
+3	5
+2	1
+1	2
+select userid,count(*) from t1 group by userid desc having (count(*)+1) IN (4,3);
+userid	count(*)
+1	2
+select userid,count(*) from t1 group by userid desc having 3  IN (1,COUNT(*));
+userid	count(*)
+explain select spid,count(*) from t1 where spid between 1 and 2 group by spid desc;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	spID	spID	5	NULL	1	Using where; Using index
+explain select spid,count(*) from t1 where spid between 1 and 2 group by spid;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	spID	spID	5	NULL	1	Using where; Using index
+explain select spid,count(*) from t1 where spid between 1 and 2 group by spid order by null;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	spID	spID	5	NULL	1	Using where; Using index
+select spid,count(*) from t1 where spid between 1 and 2 group by spid;
+spid	count(*)
+1	1
+2	2
+select spid,count(*) from t1 where spid between 1 and 2 group by spid desc;
+spid	count(*)
+2	2
+1	1
+explain extended select sql_big_result spid,sum(userid) from t1 group by spid desc;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	8	100.00	Using filesort
+Warnings:
+Note	1003	select sql_big_result `test`.`t1`.`spID` AS `spid`,sum(`test`.`t1`.`userID`) AS `sum(userid)` from `test`.`t1` group by `test`.`t1`.`spID` desc
+explain select sql_big_result spid,sum(userid) from t1 group by spid desc order by null;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	8	Using filesort
+select sql_big_result spid,sum(userid) from t1 group by spid desc;
+spid	sum(userid)
+7	3
+6	3
+5	3
+4	3
+3	3
+2	3
+1	1
+explain select sql_big_result score,count(*) from t1 group by score desc;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	score	3	NULL	8	Using index; Using filesort
+explain select sql_big_result score,count(*) from t1 group by score desc order by null;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	score	3	NULL	8	Using index; Using filesort
+select sql_big_result score,count(*) from t1 group by score desc;
+score	count(*)
+3	5
+2	1
+1	2
+drop table t1;
+create table t1 (a date default null, b date default null);
+insert t1 values ('1999-10-01','2000-01-10'), ('1997-01-01','1998-10-01');
+select a,min(b) c,count(distinct rand()) from t1 group by a having c<a + interval 1 day;
+a	c	count(distinct rand())
+drop table t1;
+CREATE TABLE t1 (a char(1));
+INSERT INTO t1 VALUES ('A'),('B'),('A'),('B'),('A'),('B'),(NULL),('a'),('b'),(NULL),('A'),('B'),(NULL);
+SELECT a FROM t1 GROUP BY a;
+a
+NULL
+A
+B
+SELECT a,count(*) FROM t1 GROUP BY a;
+a	count(*)
+NULL	3
+A	5
+B	5
+SELECT a FROM t1 GROUP BY binary a;
+a
+NULL
+A
+B
+a
+b
+SELECT a,count(*) FROM t1 GROUP BY binary a;
+a	count(*)
+NULL	3
+A	4
+B	4
+a	1
+b	1
+SELECT binary a FROM t1 GROUP BY 1;
+binary a
+NULL
+A
+B
+a
+b
+SELECT binary a,count(*) FROM t1 GROUP BY 1;
+binary a	count(*)
+NULL	3
+A	4
+B	4
+a	1
+b	1
+SET SQL_BIG_TABLES=1;
+SELECT a FROM t1 GROUP BY a;
+a
+NULL
+A
+B
+SELECT a,count(*) FROM t1 GROUP BY a;
+a	count(*)
+NULL	3
+A	5
+B	5
+SELECT a FROM t1 GROUP BY binary a;
+a
+NULL
+A
+B
+a
+b
+SELECT a,count(*) FROM t1 GROUP BY binary a;
+a	count(*)
+NULL	3
+A	4
+B	4
+a	1
+b	1
+SELECT binary a FROM t1 GROUP BY 1;
+binary a
+NULL
+A
+B
+a
+b
+SELECT binary a,count(*) FROM t1 GROUP BY 1;
+binary a	count(*)
+NULL	3
+A	4
+B	4
+a	1
+b	1
+SET SQL_BIG_TABLES=0;
+drop table t1;
+CREATE TABLE t1 (
+`a` char(193) default NULL,
+`b` char(63) default NULL
+);
+INSERT INTO t1 VALUES ('abc','def'),('hij','klm');
+SELECT CONCAT(a, b) FROM t1 GROUP BY 1;
+CONCAT(a, b)
+abcdef
+hijklm
+SELECT CONCAT(a, b),count(*) FROM t1 GROUP BY 1;
+CONCAT(a, b)	count(*)
+abcdef	1
+hijklm	1
+SELECT CONCAT(a, b),count(distinct a) FROM t1 GROUP BY 1;
+CONCAT(a, b)	count(distinct a)
+abcdef	1
+hijklm	1
+SELECT 1 FROM t1 GROUP BY CONCAT(a, b);
+1
+1
+1
+INSERT INTO t1 values ('hij','klm');
+SELECT CONCAT(a, b),count(*) FROM t1 GROUP BY 1;
+CONCAT(a, b)	count(*)
+abcdef	1
+hijklm	2
+DROP TABLE t1;
+create table t1 (One int unsigned, Two int unsigned, Three int unsigned, Four int unsigned);
+insert into t1 values (1,2,1,4),(1,2,2,4),(1,2,3,4),(1,2,4,4),(1,1,1,4),(1,1,2,4),(1,1,3,4),(1,1,4,4),(1,3,1,4),(1,3,2,4),(1,3,3,4),(1,3,4,4);
+select One, Two, sum(Four) from t1 group by One,Two;
+One	Two	sum(Four)
+1	1	16
+1	2	16
+1	3	16
+drop table t1;
+create table t1 (id integer primary key not null auto_increment, gender char(1));
+insert into t1 values (NULL, 'M'), (NULL, 'F'),(NULL, 'F'),(NULL, 'F'),(NULL, 'M');
+create table t2 (user_id integer not null, date date);
+insert into t2 values (1, '2002-06-09'),(2, '2002-06-09'),(1, '2002-06-09'),(3, '2002-06-09'),(4, '2002-06-09'),(4, '2002-06-09');
+select u.gender as gender, count(distinct  u.id) as dist_count, (count(distinct u.id)/5*100) as percentage from t1 u, t2 l where l.user_id = u.id group by u.gender;
+gender	dist_count	percentage
+F	3	60.0000
+M	1	20.0000
+select u.gender as  gender, count(distinct  u.id) as dist_count, (count(distinct u.id)/5*100) as percentage from t1 u, t2 l where l.user_id = u.id group by u.gender  order by percentage;
+gender	dist_count	percentage
+M	1	20.0000
+F	3	60.0000
+drop table t1,t2;
+CREATE TABLE t1 (ID1 int, ID2 int, ID int NOT NULL AUTO_INCREMENT,PRIMARY KEY(ID
+));
+insert into t1 values (1,244,NULL),(2,243,NULL),(134,223,NULL),(185,186,NULL);
+select S.ID as xID, S.ID1 as xID1 from t1 as S left join t1 as yS  on S.ID1 between yS.ID1 and yS.ID2;
+xID	xID1
+1	1
+2	2
+2	2
+3	134
+3	134
+3	134
+4	185
+4	185
+4	185
+4	185
+select S.ID as xID, S.ID1 as xID1, repeat('*',count(distinct yS.ID)) as Level from t1 as S left join t1 as yS  on S.ID1 between yS.ID1 and yS.ID2 group by xID order by xID1;
+xID	xID1	Level
+1	1	*
+2	2	**
+3	134	***
+4	185	****
+drop table t1;
+CREATE TABLE t1 (
+pid int(11) unsigned NOT NULL default '0',
+c1id int(11) unsigned default NULL,
+c2id int(11) unsigned default NULL,
+value int(11) unsigned NOT NULL default '0',
+UNIQUE KEY pid2 (pid,c1id,c2id),
+UNIQUE KEY pid (pid,value)
+) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1, 1, NULL, 1),(1, 2, NULL, 2),(1, NULL, 3, 3),(1, 4, NULL, 4),(1, 5, NULL, 5);
+CREATE TABLE t2 (
+id int(11) unsigned NOT NULL default '0',
+active enum('Yes','No') NOT NULL default 'Yes',
+PRIMARY KEY  (id)
+) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (1, 'Yes'),(2, 'No'),(4, 'Yes'),(5, 'No');
+CREATE TABLE t3 (
+id int(11) unsigned NOT NULL default '0',
+active enum('Yes','No') NOT NULL default 'Yes',
+PRIMARY KEY  (id)
+);
+INSERT INTO t3 VALUES (3, 'Yes');
+select * from t1 AS m LEFT JOIN t2 AS c1 ON m.c1id = 
+c1.id AND c1.active = 'Yes' LEFT JOIN t3 AS c2 ON m.c2id = c2.id AND 
+c2.active = 'Yes' WHERE m.pid=1  AND (c1.id IS NOT NULL OR c2.id IS NOT NULL);
+pid	c1id	c2id	value	id	active	id	active
+1	1	NULL	1	1	Yes	NULL	NULL
+1	NULL	3	3	NULL	NULL	3	Yes
+1	4	NULL	4	4	Yes	NULL	NULL
+select max(value) from t1 AS m LEFT JOIN t2 AS c1 ON 
+m.c1id = c1.id AND c1.active = 'Yes' LEFT JOIN t3 AS c2 ON m.c2id = 
+c2.id AND c2.active = 'Yes' WHERE m.pid=1  AND (c1.id IS NOT NULL OR c2.id IS 
+NOT NULL);
+max(value)
+4
+drop table t1,t2,t3;
+create table t1 (a blob null);
+insert into t1 values (NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(""),(""),(""),("b");
+select a,count(*) from t1 group by a;
+a	count(*)
+NULL	9
+	3
+b	1
+set option sql_big_tables=1;
+select a,count(*) from t1 group by a;
+a	count(*)
+NULL	9
+	3
+b	1
+drop table t1;
+create table t1 (a int not null, b int not null);
+insert into t1 values (1,1),(1,2),(3,1),(3,2),(2,2),(2,1);
+create table t2 (a int not null, b int not null, key(a));
+insert into t2 values (1,3),(3,1),(2,2),(1,1);
+select t1.a,t2.b from t1,t2 where t1.a=t2.a group by t1.a,t2.b;
+a	b
+1	1
+1	3
+2	2
+3	1
+select t1.a,t2.b from t1,t2 where t1.a=t2.a group by t1.a,t2.b ORDER BY NULL;
+a	b
+1	3
+3	1
+2	2
+1	1
+explain select t1.a,t2.b from t1,t2 where t1.a=t2.a group by t1.a,t2.b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	6	Using temporary; Using filesort
+1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	4	Using where; Using join buffer
+explain select t1.a,t2.b from t1,t2 where t1.a=t2.a group by t1.a,t2.b ORDER BY NULL;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	6	Using temporary
+1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	4	Using where; Using join buffer
+drop table t1,t2;
+create table t1 (a int, b int);
+insert into t1 values (1, 4),(10, 40),(1, 4),(10, 43),(1, 4),(10, 41),(1, 4),(10, 43),(1, 4);
+select a, MAX(b), INTERVAL (MAX(b), 1,3,10,30,39,40,50,60,100,1000) from t1 group by a;
+a	MAX(b)	INTERVAL (MAX(b), 1,3,10,30,39,40,50,60,100,1000)
+1	4	2
+10	43	6
+select a, MAX(b), CASE MAX(b) when 4 then 4 when 43 then 43 else 0 end from t1 group by a;
+a	MAX(b)	CASE MAX(b) when 4 then 4 when 43 then 43 else 0 end
+1	4	4
+10	43	43
+select a, MAX(b), FIELD(MAX(b), '43', '4', '5') from t1 group by a;
+a	MAX(b)	FIELD(MAX(b), '43', '4', '5')
+1	4	2
+10	43	1
+select a, MAX(b), CONCAT_WS(MAX(b), '43', '4', '5') from t1 group by a;
+a	MAX(b)	CONCAT_WS(MAX(b), '43', '4', '5')
+1	4	434445
+10	43	43434435
+select a, MAX(b), ELT(MAX(b), 'a', 'b', 'c', 'd', 'e', 'f') from t1 group by a;
+a	MAX(b)	ELT(MAX(b), 'a', 'b', 'c', 'd', 'e', 'f')
+1	4	d
+10	43	NULL
+select a, MAX(b), MAKE_SET(MAX(b), 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h') from t1 group by a;
+a	MAX(b)	MAKE_SET(MAX(b), 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h')
+1	4	c
+10	43	a,b,d,f
+drop table t1;
+create table t1 (id int not null, qty int not null);
+insert into t1 values (1,2),(1,3),(2,4),(2,5);
+select id, sum(qty) as sqty, count(qty) as cqty from t1 group by id having sum(qty)>2 and cqty>1;
+id	sqty	cqty
+1	5	2
+2	9	2
+select id, sum(qty) as sqty from t1 group by id having sqty>2 and count(qty)>1;
+id	sqty
+1	5
+2	9
+select id, sum(qty) as sqty, count(qty) as cqty from t1 group by id having sqty>2 and cqty>1;
+id	sqty	cqty
+1	5	2
+2	9	2
+select id, sum(qty) as sqty, count(qty) as cqty from t1 group by id having sum(qty)>2 and count(qty)>1;
+id	sqty	cqty
+1	5	2
+2	9	2
+select count(*), case interval(qty,2,3,4,5,6,7,8) when -1 then NULL when 0 then "zero" when 1 then "one" when 2 then "two" end as category from t1 group by category;
+count(*)	category
+2	NULL
+1	one
+1	two
+select count(*), interval(qty,2,3,4,5,6,7,8) as category from t1 group by category;
+count(*)	category
+1	1
+1	2
+1	3
+1	4
+drop table t1;
+CREATE TABLE t1 (
+userid int(10) unsigned,
+score smallint(5) unsigned,
+key (score)
+);
+INSERT INTO t1 VALUES (1,1),(2,2),(1,1),(3,3),(3,3),(3,3),(3,3),(3,3);
+SELECT userid,count(*) FROM t1 GROUP BY userid DESC;
+userid	count(*)
+3	5
+2	1
+1	2
+EXPLAIN SELECT userid,count(*) FROM t1 GROUP BY userid DESC;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	8	Using temporary; Using filesort
+DROP TABLE t1;
+CREATE TABLE t1 (
+i int(11) default NULL,
+j int(11) default NULL
+);
+INSERT INTO t1 VALUES (1,2),(2,3),(4,5),(3,5),(1,5),(23,5);
+SELECT i, COUNT(DISTINCT(i)) FROM t1 GROUP BY j ORDER BY NULL;
+i	COUNT(DISTINCT(i))
+1	1
+2	1
+4	4
+explain SELECT i, COUNT(DISTINCT(i)) FROM t1 GROUP BY j ORDER BY NULL;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	6	Using filesort
+DROP TABLE t1;
+create table t1 (a int);
+insert into t1 values(null);
+select min(a) is null from t1;
+min(a) is null
+1
+select min(a) is null or null from t1;
+min(a) is null or null
+1
+select 1 and min(a) is null from t1;
+1 and min(a) is null
+1
+drop table t1;
+create table t1 ( col1 int, col2 int );
+insert into t1 values (1,1),(1,2),(1,3),(2,1),(2,2);
+select group_concat( distinct col1 ) as alias from t1
+group by col2 having alias like '%';
+alias
+1,2
+1,2
+1
+drop table t1;
+create table t1 (a integer, b integer, c integer);
+insert into t1 (a,b) values (1,2),(1,3),(2,5);
+select a, 0.1*0+1 r2, sum(1) r1 from t1 where a = 1 group  by a having r1>1 and r2=1;
+a	r2	r1
+1	1.0	2
+select a, round(rand(100)*10) r2, sum(1) r1 from t1 where a = 1 group  by a having r1>1 and r2<=2;
+a	r2	r1
+1	2	2
+select a,sum(b) from t1 where a=1 group by c;
+a	sum(b)
+1	5
+select a*sum(b) from t1 where a=1 group by c;
+a*sum(b)
+5
+select sum(a)*sum(b) from t1 where a=1 group by c;
+sum(a)*sum(b)
+10
+select a,sum(b) from t1 where a=1 group by c having a=1;
+a	sum(b)
+1	5
+select a as d,sum(b) from t1 where a=1 group by c having d=1;
+d	sum(b)
+1	5
+select sum(a)*sum(b) as d from t1 where a=1 group by c having d > 0;
+d
+10
+drop table t1;
+create table t1(a int);
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(8),(9);
+create table t2 (
+a int,
+b varchar(200) NOT NULL,
+c varchar(50) NOT NULL,
+d varchar(100) NOT NULL,
+primary key (a,b(132),c,d),
+key a (a,b)
+) charset=utf8;
+insert into t2 select 
+x3.a,  -- 3
+concat('val-', x3.a + 3*x4.a), -- 12
+concat('val-', @a:=x3.a + 3*x4.a + 12*C.a), -- 120
+concat('val-', @a + 120*D.a)
+from t1 x3, t1 x4, t1 C, t1 D where x3.a < 3 and x4.a < 4 and D.a < 4;
+delete from t2  where a = 2 and b = 'val-2' order by a,b,c,d limit 30;
+explain select c from t2 where a = 2 and b = 'val-2' group by c;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ref	PRIMARY,a	PRIMARY	402	const,const	#	Using where
+select c from t2 where a = 2 and b = 'val-2' group by c;
+c
+val-74
+val-98
+drop table t1,t2;
+create table t1 (b int4 unsigned not null);
+insert into t1 values(3000000000);
+select * from t1;
+b
+3000000000
+select min(b) from t1;
+min(b)
+3000000000
+drop table t1;
+CREATE TABLE t1 (id int PRIMARY KEY, user_id int, hostname longtext);
+INSERT INTO t1 VALUES
+(1, 7, 'cache-dtc-af05.proxy.aol.com'),
+(2, 3, 'what.ever.com'),
+(3, 7, 'cache-dtc-af05.proxy.aol.com'),
+(4, 7, 'cache-dtc-af05.proxy.aol.com');
+SELECT hostname, COUNT(DISTINCT user_id) as no FROM t1
+WHERE hostname LIKE '%aol%'
+    GROUP BY hostname;
+hostname	no
+cache-dtc-af05.proxy.aol.com	1
+DROP TABLE t1;
+CREATE TABLE t1 (a  int, b int);
+INSERT INTO t1 VALUES (1,2), (1,3);
+SELECT a, b FROM t1 GROUP BY 'const';
+a	b
+1	2
+SELECT DISTINCT a, b FROM t1 GROUP BY 'const';
+a	b
+1	2
+DROP TABLE t1;
+CREATE TABLE t1 (id INT, dt DATETIME);
+INSERT INTO t1 VALUES ( 1, '2005-05-01 12:30:00' );
+INSERT INTO t1 VALUES ( 1, '2005-05-01 12:30:00' );
+INSERT INTO t1 VALUES ( 1, '2005-05-01 12:30:00' );
+INSERT INTO t1 VALUES ( 1, '2005-05-01 12:30:00' );
+SELECT dt DIV 1 AS f, id FROM t1 GROUP BY f;
+f	id
+20050501123000	1
+DROP TABLE t1;
+CREATE TABLE t1 (id varchar(20) NOT NULL);
+INSERT INTO t1 VALUES ('trans1'), ('trans2');
+CREATE TABLE t2 (id varchar(20) NOT NULL, err_comment blob NOT NULL);
+INSERT INTO t2 VALUES ('trans1', 'a problem');
+SELECT COUNT(DISTINCT(t1.id)), LEFT(err_comment, 256) AS comment
+FROM t1 LEFT JOIN t2 ON t1.id=t2.id GROUP BY comment;
+COUNT(DISTINCT(t1.id))	comment
+1	NULL
+1	a problem
+DROP TABLE t1, t2;
+create table t1 (f1 date);
+insert into t1 values('2005-06-06');
+insert into t1 values('2005-06-06');
+select date(left(f1+0,8)) from t1 group by 1;
+date(left(f1+0,8))
+2005-06-06
+drop table t1;
+CREATE TABLE t1 (n int);
+INSERT INTO t1 VALUES (1);
+SELECT n+1 AS n FROM t1 GROUP BY n;
+n
+2
+Warnings:
+Warning	1052	Column 'n' in group statement is ambiguous
+DROP TABLE t1;
+create table t1(f1 varchar(5) key);
+insert into t1 values (1),(2);
+select sql_buffer_result max(f1) is null from t1;
+max(f1) is null
+0
+select sql_buffer_result max(f1)+1 from t1;
+max(f1)+1
+3
+drop table t1;
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (1),(2);
+SELECT a FROM t1 GROUP BY 'a';
+a
+1
+SELECT a FROM t1 GROUP BY "a";
+a
+1
+SELECT a FROM t1 GROUP BY `a`;
+a
+1
+2
+set sql_mode=ANSI_QUOTES;
+SELECT a FROM t1 GROUP BY "a";
+a
+1
+2
+SELECT a FROM t1 GROUP BY 'a';
+a
+1
+SELECT a FROM t1 GROUP BY `a`;
+a
+1
+2
+set sql_mode='';
+SELECT a FROM t1 HAVING 'a' > 1;
+a
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'a'
+SELECT a FROM t1 HAVING "a" > 1;
+a
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'a'
+SELECT a FROM t1 HAVING `a` > 1;
+a
+2
+SELECT a FROM t1 ORDER BY 'a' DESC;
+a
+1
+2
+SELECT a FROM t1 ORDER BY "a" DESC;
+a
+1
+2
+SELECT a FROM t1 ORDER BY `a` DESC;
+a
+2
+1
+DROP TABLE t1;
+create table t1 (c1 char(3), c2 char(3));
+create table t2 (c3 char(3), c4 char(3));
+insert into t1 values ('aaa', 'bb1'), ('aaa', 'bb2');
+insert into t2 values ('aaa', 'bb1'), ('aaa', 'bb2');
+select t1.c1 as c2 from t1, t2 where t1.c2 = t2.c4
+group by c2;
+c2
+aaa
+aaa
+Warnings:
+Warning	1052	Column 'c2' in group statement is ambiguous
+show warnings;
+Level	Code	Message
+Warning	1052	Column 'c2' in group statement is ambiguous
+select t1.c1 as c2 from t1, t2 where t1.c2 = t2.c4
+group by t1.c1;
+c2
+aaa
+show warnings;
+Level	Code	Message
+drop table t1, t2;
+CREATE TABLE t1 (a tinyint(3), b varchar(255), PRIMARY KEY  (a));
+INSERT INTO t1 VALUES (1,'-----'), (6,'Allemagne'), (17,'Autriche'), 
+(25,'Belgique'), (54,'Danemark'), (62,'Espagne'), (68,'France');
+CREATE TABLE t2 (a tinyint(3), b tinyint(3), PRIMARY KEY  (a), KEY b (b));
+INSERT INTO t2 VALUES (1,1), (2,1), (6,6), (18,17), (15,25), (16,25),
+(17,25), (10,54), (5,62),(3,68);
+CREATE VIEW v1 AS select t1.a, concat(t1.b,'') AS b, t1.b as real_b from t1;
+explain 
+SELECT straight_join sql_no_cache v1.a, v1.b, v1.real_b from t2, v1
+where t2.b=v1.a GROUP BY t2.b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	index	b	b	2	NULL	10	Using index
+1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	1	test.t2.b	1	
+SELECT straight_join sql_no_cache v1.a, v1.b, v1.real_b from t2, v1
+where t2.b=v1.a GROUP BY t2.b;
+a	b	real_b
+1	-----	-----
+6	Allemagne	Allemagne
+17	Autriche	Autriche
+25	Belgique	Belgique
+54	Danemark	Danemark
+62	Espagne	Espagne
+68	France	France
+DROP VIEW v1;
+DROP TABLE t1,t2;
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT, key (b));
+INSERT INTO t1 VALUES (1,      1);
+INSERT INTO t1 SELECT  a + 1 , MOD(a + 1 , 20) FROM t1;
+INSERT INTO t1 SELECT  a + 2 , MOD(a + 2 , 20) FROM t1;
+INSERT INTO t1 SELECT  a + 4 , MOD(a + 4 , 20) FROM t1;
+INSERT INTO t1 SELECT  a + 8 , MOD(a + 8 , 20) FROM t1;
+INSERT INTO t1 SELECT  a + 16, MOD(a + 16, 20) FROM t1;
+INSERT INTO t1 SELECT  a + 32, MOD(a + 32, 20) FROM t1;
+INSERT INTO t1 SELECT  a + 64, MOD(a + 64, 20) FROM t1;
+SELECT MIN(b), MAX(b) from t1;
+MIN(b)	MAX(b)
+0	19
+EXPLAIN SELECT b, sum(1) FROM t1 GROUP BY b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	b	5	NULL	128	Using index
+EXPLAIN SELECT SQL_BIG_RESULT b, sum(1) FROM t1 GROUP BY b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	b	5	NULL	128	Using index; Using filesort
+SELECT b, sum(1) FROM t1 GROUP BY b;
+b	sum(1)
+0	6
+1	7
+2	7
+3	7
+4	7
+5	7
+6	7
+7	7
+8	7
+9	6
+10	6
+11	6
+12	6
+13	6
+14	6
+15	6
+16	6
+17	6
+18	6
+19	6
+SELECT SQL_BIG_RESULT b, sum(1) FROM t1 GROUP BY b;
+b	sum(1)
+0	6
+1	7
+2	7
+3	7
+4	7
+5	7
+6	7
+7	7
+8	7
+9	6
+10	6
+11	6
+12	6
+13	6
+14	6
+15	6
+16	6
+17	6
+18	6
+19	6
+DROP TABLE t1;
+CREATE TABLE t1 (a INT, b INT, KEY(a));
+INSERT INTO t1 VALUES (1, 1), (2, 2), (3,3), (4,4);
+EXPLAIN SELECT a, SUM(b) FROM t1 GROUP BY a LIMIT 2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	a	5	NULL	2	
+EXPLAIN SELECT a, SUM(b) FROM t1 IGNORE INDEX (a) GROUP BY a LIMIT 2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	Using temporary; Using filesort
+DROP TABLE t1;

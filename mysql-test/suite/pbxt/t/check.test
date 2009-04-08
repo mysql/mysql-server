@@ -1,0 +1,42 @@
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+connection con1;
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+# Add a lot of keys to slow down check
+create table t1(n int not null, key(n), key(n), key(n), key(n));
+let $1=10000;
+disable_query_log;
+while ($1)
+{
+ eval insert into t1 values ($1);
+ dec $1;
+}
+enable_query_log;
+send check table t1 extended;
+connection con2;
+insert into t1 values (200000);
+connection con1;
+reap;
+drop table t1;
+
+# End of 4.1 tests
+
+#
+# Bug #9897  Views: 'Check Table' crashes MySQL, with a view and a table 
+# in the statement
+#
+
+connection default;
+Create table t1(f1 int);
+Create table t2(f1 int);
+Create view v1 as Select * from t1;
+Check Table v1,t2;
+drop view v1;
+drop table t1, t2;
+
+--disable_query_log
+drop database pbxt;
+--enable_query_log

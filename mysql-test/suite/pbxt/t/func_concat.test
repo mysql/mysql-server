@@ -1,0 +1,74 @@
+#
+# Test of problem with CONCAT_WS() and long separators.
+#
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 ( number INT NOT NULL, alpha CHAR(6) NOT NULL );
+INSERT INTO t1 VALUES (1413006,'idlfmv'),
+(1413065,'smpsfz'),(1413127,'sljrhx'),(1413304,'qerfnd');
+
+SELECT number, alpha, CONCAT_WS('<---->',number,alpha) AS new
+FROM t1 GROUP BY number;
+
+SELECT CONCAT_WS('<---->',number,alpha) AS new
+FROM t1 GROUP BY new LIMIT 1;
+
+SELECT number, alpha, CONCAT_WS('<->',number,alpha) AS new
+FROM t1 GROUP BY new LIMIT 1;
+
+SELECT number, alpha, CONCAT_WS('-',number,alpha,alpha,alpha,alpha,alpha,alpha,alpha) AS new
+FROM t1 GROUP BY new LIMIT 1;
+
+SELECT number, alpha, CONCAT_WS('<------------------>',number,alpha) AS new
+FROM t1 GROUP BY new LIMIT 1;
+drop table t1;
+
+#
+# Bug #5540: a problem with double type
+#
+
+create table t1 (a char(4), b double, c date, d tinyint(4));
+insert into t1 values ('AAAA', 105, '2003-03-01', 1);
+select * from t1 where concat(A,C,B,D) = 'AAAA2003-03-011051';
+drop table t1;
+
+# BUG#6825 
+select 'a' union select concat('a', -4);
+select 'a' union select concat('a', -4.5);
+
+select 'a' union select concat('a', -(4 + 1));
+select 'a' union select concat('a', 4 - 5);
+
+select 'a' union select concat('a', -'3');
+select 'a' union select concat('a', -concat('3',4));
+
+select 'a' union select concat('a', -0);
+--replace_result a-0.0 a0.0
+select 'a' union select concat('a', -0.0);
+
+--replace_result a-0.0000 a0.0000
+select 'a' union select concat('a', -0.0000);
+
+#
+# Bug#16716: subselect in concat() may lead to a wrong result
+#
+select concat((select x from (select 'a' as x) as t1 ),
+  (select y from (select 'b' as y) as t2 )) from (select 1 union select 2 )
+  as t3;
+
+# End of 4.1 tests
+
+#
+# Bug#15962: CONCAT() in UNION may lead to a data trucation.
+#
+create table t1(f1 varchar(6)) charset=utf8;
+insert into t1 values ("123456");
+select concat(f1, 2) a from t1 union select 'x' a from t1;
+drop table t1;
+
+--disable_query_log
+drop database pbxt;
+--enable_query_log

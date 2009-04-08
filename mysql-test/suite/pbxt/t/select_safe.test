@@ -1,0 +1,94 @@
+#
+# test of safe selects
+#
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+SET SQL_SAFE_UPDATES=1,SQL_SELECT_LIMIT=4, SQL_MAX_JOIN_SIZE=9;
+create table t1 (a int auto_increment primary key, b char(20));
+insert into t1 values(1,"test");
+SELECT SQL_BUFFER_RESULT * from t1;
+update t1 set b="a" where a=1;
+delete from t1 where a=1;
+insert into t1 values(1,"test"),(2,"test2");
+SELECT SQL_BUFFER_RESULT * from t1 order by a; # PBXT required for consistent result
+update t1 set b="a" where a=1;
+analyze table t1; # PBXT: required to get the correct COUNT(*)
+select 1 from t1,t1 as t2,t1 as t3;
+
+# The following should give errors:
+--error 1175
+update t1 set b="a";
+--error 1175
+update t1 set b="a" where b="test";
+--error 1175
+delete from t1;
+--error 1175
+delete from t1 where b="test";
+--error 1175
+delete from t1 where a+0=1;
+--error 1104
+select 1 from t1,t1 as t2,t1 as t3,t1 as t4,t1 as t5;
+
+# The following should be ok:
+update t1 set b="a" order by a limit 1; # PBXT required for consistent result
+update t1 set b="a" where b="b" order by a limit 2;  # PBXT required for consistent result
+delete from t1 where b="test" order by a limit 1; # PBXT required for consistent result
+delete from t1 where a+0=1 order by a limit 2; # PBXT required for consistent result
+
+# Test SQL_BIG_SELECTS
+
+alter table t1 add key b (b);
+SET MAX_JOIN_SIZE=2;
+SELECT @@MAX_JOIN_SIZE, @@SQL_BIG_SELECTS;
+insert into t1 values (null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a");
+--error 1104
+SELECT * from t1 order by a;
+SET SQL_BIG_SELECTS=1;
+SELECT * from t1 order by a;
+SET MAX_JOIN_SIZE=2;
+--error 1104
+SELECT * from t1;
+SET MAX_JOIN_SIZE=DEFAULT;
+SELECT * from t1;
+
+#
+# Test MAX_SEEKS_FOR_KEY
+#
+analyze table t1;
+insert into t1 values (null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a");
+explain select STRAIGHT_JOIN * from t1,t1 as t2 where t1.b=t2.b;
+set MAX_SEEKS_FOR_KEY=1;
+explain select STRAIGHT_JOIN * from t1,t1 as t2 where t1.b=t2.b;
+SET MAX_SEEKS_FOR_KEY=DEFAULT;
+
+drop table t1;
+
+# BUG#8726
+create table t1 (a int);
+insert into t1 values (1),(2),(3),(4),(5);
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+
+set local  max_join_size=8;
+--error 1104
+select * from (select * from t1) x;
+
+set local  max_join_size=1;
+--error 1104
+select * from (select a.a as aa, b.a as ba from t1 a, t1 b) x;
+
+set local  max_join_size=1;
+--error 1104
+select * from (select 1 union select 2 union select 3) x;
+drop table t1;
+
+SET SQL_SAFE_UPDATES=0,SQL_SELECT_LIMIT=DEFAULT, SQL_MAX_JOIN_SIZE=DEFAULT;
+
+--disable_query_log
+drop database pbxt;
+--enable_query_log
+# End of 4.1 tests

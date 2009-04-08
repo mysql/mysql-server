@@ -1,0 +1,139 @@
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+connection con1;
+
+--disable_warnings
+drop table if exists t1,t2;
+drop database if exists mysqltest;
+--enable_warnings
+
+create temporary table t1(n int not null primary key);
+create table t2(n int);
+insert into t2 values(3);
+let $1=100;
+disable_query_log;
+while ($1)
+{
+ connection con1;
+ send replace into t1 select n from t2;
+ connection con2;
+ send flush tables;
+ connection con1;
+ reap;
+ connection con2;
+ reap;
+ dec $1;
+}
+enable_query_log;
+connection con1;
+select * from t1;
+connection con2;
+flush tables with read lock;
+--error 1223
+drop table t2;
+connection con1;
+send drop table t2;
+connection con2;
+unlock tables;
+connection con1;
+reap;
+
+#test if drop database will wait until we release the global read lock
+connection con1;
+create database mysqltest;
+create table mysqltest.t1(n int);
+insert into mysqltest.t1 values (23);
+flush tables with read lock;
+connection con2;
+send drop database mysqltest;
+connection con1;
+select * from mysqltest.t1;
+unlock tables;
+connection con2;
+reap;
+
+# test if dirty close releases global read lock
+connection con1;
+create table t1 (n int);
+flush tables with read lock;
+dirty_close con1;
+connection con2;
+insert into t1 values (345);
+select * from t1;
+drop table t1;
+
+#
+# Bug#9459 - deadlock with flush with lock, and lock table write
+#
+create table t1 (c1 int);
+lock table t1 write;
+# Cannot get the global read lock with write locked tables.
+--error 1192
+flush tables with read lock;
+lock table t1 read;
+# Can get the global read lock with read locked tables.
+flush tables with read lock;
+--error 1223
+lock table t1 write;
+lock table t1 read;
+--error 1223
+lock table t1 write;
+# Release all table locks and the global read lock.
+unlock tables;
+create table t2 (c1 int);
+create table t3 (c1 int);
+lock table t1 read, t2 read, t3 write;
+# Cannot get the global read lock with write locked tables.
+--error 1192
+flush tables with read lock;
+lock table t1 read, t2 read, t3 read;
+# Can get the global read lock with read locked tables.
+flush tables with read lock;
+# Release all table locks and the global read lock.
+unlock tables;
+drop table t1, t2, t3;
+
+# End of 4.1 tests
+
+#
+# Test of deadlock problem when doing FLUSH TABLE with read lock
+# (Bug was in NTPL threads in Linux when using different mutex while
+#  waiting for a condtion variable)
+
+create table t1 (c1 int);
+create table t2 (c1 int);
+
+connect (con1,localhost,root,,);
+connect (con3,localhost,root,,);
+
+connection con1;
+lock table t1 write;
+
+connection con2;
+send flush tables with read lock;
+--sleep 1
+
+connection con3;
+send insert into t2 values(1);
+--sleep 1
+
+connection con1;
+unlock tables;
+disconnect con1;
+
+connection con2;
+reap;
+disconnect con2;
+
+connection con3;
+# It hangs here (insert into t2 does not end).
+reap;
+disconnect con3;
+
+connection default;
+drop table t1, t2;
+
+--disable_query_log
+drop database pbxt;
+--enable_query_log
+# End of 5.0 tests
