@@ -112,13 +112,7 @@ undefined.  Map it to NULL. */
 # define EQ_CURRENT_THD(thd) ((thd) == current_thd)
 #endif /* MYSQL_DYNAMIC_PLUGIN && __WIN__ */
 
-#ifdef MYSQL_DYNAMIC_PLUGIN
-/* These must be weak global variables in the dynamic plugin. */
-struct handlerton* innodb_hton_ptr;
-#else /* MYSQL_DYNAMIC_PLUGIN */
-/* This must be a global variable in the statically linked InnoDB. */
-struct handlerton* innodb_hton_ptr = NULL;
-#endif /* MYSQL_DYNAMIC_PLUGIN */
+static struct handlerton* innodb_hton_ptr;
 
 static const long AUTOINC_OLD_STYLE_LOCKING = 0;
 static const long AUTOINC_NEW_STYLE_LOCKING = 1;
