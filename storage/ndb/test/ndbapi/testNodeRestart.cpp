@@ -2234,8 +2234,9 @@ runCreateBigTable(NDBT_Context* ctx, NDBT_Step* step)
   do {
     hugoTrans.loadTableStartFrom(GETNDB(step), cnt, 10000);
     cnt += 10000;
-  } while (cnt < rows && (NdbTick_CurrentMillisecond() - now) < 60000); //1min
-  ndbout_c("Loaded %u rows", cnt);
+  } while (cnt < rows && (NdbTick_CurrentMillisecond() - now) < 30000); //30s
+  ndbout_c("Loaded %u rows in %llums", cnt, 
+           NdbTick_CurrentMillisecond() - now);
 
   return NDBT_OK;
 }
