@@ -1,0 +1,1148 @@
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+#
+# constant IN function test
+#
+select 1.1 IN (1.0, 1.2);
+select 1.1 IN (1.0, 1.2, 1.1, 1.4, 0.5);
+select 1.1 IN (1.0, 1.2, NULL, 1.4, 0.5);
+select 0.5 IN (1.0, 1.2, NULL, 1.4, 0.5);
+select 1 IN (1.11, 1.2, 1.1, 1.4, 1, 0.5);
+select 1 IN (1.11, 1.2, 1.1, 1.4, NULL, 0.5);
+
+#
+# case function test
+#
+select case 1.0 when 0.1 then "a" when 1.0 then "b" else "c" END;
+select case 0.1 when 0.1 then "a" when 1.0 then "b" else "c" END;
+select case 1 when 0.1 then "a" when 1.0 then "b" else "c" END;
+select case 1.0 when 0.1 then "a" when 1 then "b" else "c" END;
+select case 1.001 when 0.1 then "a" when 1 then "b" else "c" END;
+
+#
+# non constant IN test
+#
+create table t1 (a decimal(6,3));
+insert into t1 values (1.0), (NULL), (0.1);
+select * from t1;
+select 0.1 in (1.0, 1.2, 1.1, a, 1.4, 0.5) from t1;
+drop table t1;
+
+#
+# if function test
+#
+create table t1 select if(1, 1.1, 1.2), if(0, 1.1, 1.2), if(0.1, 1.1, 1.2), if(0, 1, 1.1), if(0, NULL, 1.2), if(1, 0.22e1, 1.1), if(1E0, 1.1, 1.2);
+select * from t1;
+show create table t1;
+drop table t1;
+
+#
+# NULLIF
+#
+create table t1 select nullif(1.1, 1.1), nullif(1.1, 1.2), nullif(1.1, 0.11e1), nullif(1.0, 1), nullif(1, 1.0), nullif(1, 1.1);
+select * from t1;
+show create table t1;
+drop table t1;
+
+#
+# saving in decimal field with overflow
+#
+
+create table t1 (a decimal(4,2));
+insert into t1 value (10000), (1.1e10), ("11111"), (100000.1);
+insert into t1 value (-10000), (-1.1e10), ("-11111"), (-100000.1);
+select a from t1;
+drop table t1;
+create table t1 (a decimal(4,2) unsigned);
+insert into t1 value (10000), (1.1e10), ("11111"), (100000.1);
+insert into t1 value (-10000), (-1.1e10), ("-11111"), (-100000.1);
+select a from t1;
+drop table t1;
+
+
+#
+# saving in field with overflow from decimal
+#
+create table t1 (a bigint);
+insert into t1 values (18446744073709551615.0);
+insert into t1 values (9223372036854775808.0);
+insert into t1 values (-18446744073709551615.0);
+select * from t1;
+drop table t1;
+create table t1 (a bigint unsigned);
+insert into t1 values (18446744073709551615.0);
+insert into t1 values (9223372036854775808.0);
+insert into t1 values (9999999999999999999999999.000);
+insert into t1 values (-1.0);
+select * from t1;
+drop table t1;
+create table t1 (a tinyint);
+insert into t1 values (18446744073709551615.0);
+insert into t1 values (9223372036854775808.0);
+select * from t1;
+drop table t1;
+
+#
+# test that functions create decimal fields
+#
+create table t1 select round(15.4,-1), truncate(-5678.123451,-3), abs(-1.1), -(-1.1);
+show create table t1;
+drop table t1;
+
+#
+# Trydy's tests
+#
+set session sql_mode='traditional';
+select 1e10/0e0;
+create table wl1612 (col1 int, col2 decimal(38,10), col3 numeric(38,10));
+insert into wl1612 values(1,12345678901234567890.1234567890,12345678901234567890.1234567890);
+select * from wl1612;
+insert into wl1612 values(2,01234567890123456789.0123456789,01234567890123456789.0123456789);
+select * from wl1612 where col1=2;
+insert into wl1612 values(3,1234567890123456789012345678.0123456789,1234567890123456789012345678.0123456789);
+select * from wl1612 where col1=3;
+
+select col1/0 from wl1612;
+select col2/0 from wl1612;
+select col3/0 from wl1612;
+
+insert into wl1612 values(5,5000.0005,5000.0005);
+insert into wl1612 values(6,5000.0005,5000.0005);
+select sum(col2),sum(col3) from wl1612;
+#select avg(col2),avg(col3) from wl1612;
+
+insert into wl1612 values(7,500000.000005,500000.000005);
+insert into wl1612 values(8,500000.000005,500000.000005);
+select sum(col2),sum(col3) from wl1612 where col1>4;
+#select avg(col2),avg(col3) from wl1612 where col1>4;
+
+#insert into wl1612 (col1,col2) values(9,123456789012345678901234567890);
+#insert into wl1612 (col1,col3) values(9,123456789012345678901234567890);
+
+insert into wl1612 (col1, col2) values(9,1.01234567891);
+insert into wl1612 (col1, col2) values(10,1.01234567894);
+insert into wl1612 (col1, col2) values(11,1.01234567895);
+insert into wl1612 (col1, col2) values(12,1.01234567896);
+select col1,col2 from wl1612 where col1>8;
+
+insert into wl1612 (col1, col3) values(13,1.01234567891);
+insert into wl1612 (col1, col3) values(14,1.01234567894);
+insert into wl1612 (col1, col3) values(15,1.01234567895);
+insert into wl1612 (col1, col3) values(16,1.01234567896);
+select col1,col3 from wl1612 where col1>12;
+
+select col1 from wl1612 where col1>4 and col2=1.01234567891;
+#-- should return 0 rows
+#
+select col1 from wl1612 where col1>4 and col2=1.0123456789;
+#-- should return col1 values 9 & 10
+#
+select col1 from wl1612 where col1>4 and col2<>1.0123456789;
+#-- should return col1 values 5,6,7,8,11,12
+#
+select col1 from wl1612 where col1>4 and col2<1.0123456789;
+#-- should return 0 rows
+#
+select col1 from wl1612 where col1>4 and col2<=1.0123456789;
+#-- should return col1 values 9 & 10
+#
+select col1 from wl1612 where col1>4 and col2>1.0123456789;
+#-- should return col1 values 5,6,7,8,11,12
+#
+select col1 from wl1612 where col1>4 and col2>=1.0123456789;
+#-- should return col1 values 5,6,7,8,910,11,12
+#
+#select col1, col2 from wl1612 where col1=11 or col1=12;
+select col1 from wl1612 where col1>4 and col2=1.012345679;
+#-- should return col1 values 11,12
+#
+select col1 from wl1612 where col1>4 and col2<>1.012345679;
+#-- should return col1 values 5,6,7,8,9,10
+#
+select col1 from wl1612 where col1>4 and col3=1.01234567891;
+#-- should return 0 rows
+#
+select col1 from wl1612 where col1>4 and col3=1.0123456789;
+#-- should return col1 values 13,14
+#
+select col1 from wl1612 where col1>4 and col3<>1.0123456789;
+#-- should return col1 values 5,6,7,8,15,16
+#
+select col1 from wl1612 where col1>4 and col3<1.0123456789;
+#-- should return 0 rows
+#
+select col1 from wl1612 where col1>4 and col3<=1.0123456789;
+#-- should return col1 values 13,14
+#
+select col1 from wl1612 where col1>4 and col3>1.0123456789;
+#-- should return col1 values 5,6,7,8,15,16
+#
+select col1 from wl1612 where col1>4 and col3>=1.0123456789;
+#-- should return col1 values 5,6,7,8,13,14,15,16
+#
+select col1 from wl1612 where col1>4 and col3=1.012345679;
+#-- should return col1 values 15,16
+#
+select col1 from wl1612 where col1>4 and col3<>1.012345679;
+#-- should return col1 values 5,6,7,8,13,14
+#
+drop table wl1612;
+#
+select 1/3;
+#
+select 0.8=0.7+0.1;
+#-- should return 1 (true)
+#
+select 0.7+0.1;
+#
+create table wl1612_1 (col1 int);
+insert into wl1612_1 values(10);
+#
+select * from wl1612_1 where 0.8=0.7+0.1;
+#--should return 1 row (col1=10)
+#
+select 0.07+0.07 from wl1612_1;
+#
+select 0.07-0.07 from wl1612_1;
+#
+select 0.07*0.07 from wl1612_1;
+#
+select 0.07/0.07 from wl1612_1;
+#
+drop table wl1612_1;
+#
+create table wl1612_2 (col1 decimal(10,2), col2 numeric(10,2));
+insert into wl1612_2 values(1,1);
+insert into wl1612_2 values(+1,+1);
+insert into wl1612_2 values(+01,+01);
+insert into wl1612_2 values(+001,+001);
+#
+select col1,count(*) from wl1612_2 group by col1;
+#
+select col2,count(*) from wl1612_2 group by col2;
+#
+drop table wl1612_2;
+#
+create table wl1612_3 (col1 decimal(10,2), col2 numeric(10,2));
+insert into wl1612_3 values('1','1');
+insert into wl1612_3 values('+1','+1');
+#
+insert into wl1612_3 values('+01','+01');
+insert into wl1612_3 values('+001','+001');
+#
+select col1,count(*) from wl1612_3 group by col1;
+#
+select col2,count(*) from wl1612_3 group by col2;
+#
+drop table wl1612_3;
+#
+select mod(234,10) ;
+#-- should return 4
+#
+select mod(234.567,10.555);
+#-- should return 2.357
+#
+select mod(-234.567,10.555);
+#-- should return -2.357
+#
+select mod(234.567,-10.555);
+#-- should return 2.357
+#
+select round(15.1);
+#-- should return 15
+#
+select round(15.4);
+#-- should return 15
+#
+select round(15.5);
+#-- should return 16
+#
+select round(15.6);
+#-- should return 16
+#
+select round(15.9);
+#-- should return 16
+#
+select round(-15.1);
+#-- should return -15
+#
+select round(-15.4);
+#-- should return -15
+#
+select round(-15.5);
+#-- should return -16
+#
+select round(-15.6);
+#-- should return -16
+#
+select round(-15.9);
+#-- should return -16
+#
+select round(15.1,1);
+#-- should return 15.1
+#
+select round(15.4,1);
+#-- should return 15.4
+#
+select round(15.5,1);
+#-- should return 15.5
+#
+select round(15.6,1);
+#-- should return 15.6
+#
+select round(15.9,1);
+#-- should return 15.9
+#
+select round(-15.1,1);
+#-- should return -15.1
+#
+select round(-15.4,1);
+#-- should return -15.4
+#
+select round(-15.5,1);
+#-- should return -15.5
+#
+select round(-15.6,1);
+#-- should return -15.6
+#
+select round(-15.9,1);
+#-- should return -15.9
+#
+select round(15.1,0);
+#-- should return 15
+#
+select round(15.4,0);
+#-- should return 15
+#
+select round(15.5,0);
+#-- should return 16
+#
+select round(15.6,0);
+#-- should return 16
+#
+select round(15.9,0);
+#-- should return 16
+#
+select round(-15.1,0);
+#-- should return -15
+#
+select round(-15.4,0);
+#-- should return -15
+#
+select round(-15.5,0);
+#-- should return -16
+#
+select round(-15.6,0);
+#-- should return -16
+#
+select round(-15.9,0);
+#-- should return -16
+#
+select round(15.1,-1);
+#-- should return 20
+#
+select round(15.4,-1);
+#-- should return 20
+#
+select round(15.5,-1);
+#-- should return 20
+#
+select round(15.6,-1);
+#-- should return 20
+#
+select round(15.9,-1);
+#-- should return 20
+#
+select round(-15.1,-1);
+#-- should return -20
+#
+select round(-15.4,-1);
+#-- should return -20
+#
+select round(-15.5,-1);
+#-- should return -20
+#
+select round(-15.6,-1);
+#-- should return -20
+#
+select round(-15.91,-1);
+#-- should return -20
+#
+select truncate(5678.123451,0);
+#-- should return 5678
+#
+select truncate(5678.123451,1);
+#-- should return 5678.1
+#
+select truncate(5678.123451,2);
+#-- should return 5678.12
+#
+select truncate(5678.123451,3);
+#-- should return 5678.123
+#
+select truncate(5678.123451,4);
+#-- should return 5678.1234
+#
+select truncate(5678.123451,5);
+#-- should return 5678.12345
+#
+select truncate(5678.123451,6);
+#-- should return 5678.123451
+#
+select truncate(5678.123451,-1);
+#-- should return 5670
+#
+select truncate(5678.123451,-2);
+#-- should return 5600
+#
+select truncate(5678.123451,-3);
+#-- should return 5000
+#
+select truncate(5678.123451,-4);
+#-- should return 0
+#
+select truncate(-5678.123451,0);
+#-- should return -5678
+#
+select truncate(-5678.123451,1);
+#-- should return -5678.1
+#
+select truncate(-5678.123451,2);
+#-- should return -5678.12
+#
+select truncate(-5678.123451,3);
+#-- should return -5678.123
+#
+select truncate(-5678.123451,4);
+#-- should return -5678.1234
+#
+select truncate(-5678.123451,5);
+#-- should return -5678.12345
+#
+select truncate(-5678.123451,6);
+#-- should return -5678.123451
+#
+select truncate(-5678.123451,-1);
+#-- should return -5670
+#
+select truncate(-5678.123451,-2);
+#-- should return -5600
+#
+select truncate(-5678.123451,-3);
+#-- should return -5000
+#
+select truncate(-5678.123451,-4);
+#-- should return 0
+#
+#drop table if exists wl1612_4;
+create table wl1612_4 (col1 int, col2 decimal(30,25), col3 numeric(30,25));
+#
+insert into wl1612_4 values(1,0.0123456789012345678912345,0.0123456789012345678912345);
+#
+select col2/9999999999 from wl1612_4 where col1=1;
+#
+select col3/9999999999 from wl1612_4 where col1=1;
+#
+select 9999999999/col2 from wl1612_4 where col1=1;
+#
+select 9999999999/col3 from wl1612_4 where col1=1;
+#
+select col2*9999999999 from wl1612_4 where col1=1;
+#
+select col3*9999999999 from wl1612_4 where col1=1;
+#
+insert into wl1612_4 values(2,55555.0123456789012345678912345,55555.0123456789012345678912345);
+#
+select col2/9999999999 from wl1612_4 where col1=2;
+#
+select col3/9999999999 from wl1612_4 where col1=2;
+#
+select 9999999999/col2 from wl1612_4 where col1=2;
+#
+select 9999999999/col3 from wl1612_4 where col1=2;
+#
+select col2*9999999999 from wl1612_4 where col1=2;
+#
+select col3*9999999999 from wl1612_4 where col1=2;
+#
+drop table wl1612_4;
+#
+#
+#
+#
+#-- Additional tests for WL#1612 Precision math
+#
+#-- Comparisons should show that a number is
+#-- exactly equal to its value as displayed.
+#
+set sql_mode='';
+#
+select 23.4 + (-41.7), 23.4 - (41.7) = -18.3;
+#
+select -18.3=-18.3;
+#
+select 18.3=18.3;
+#
+select -18.3=18.3;
+#
+select 0.8 = 0.7 + 0.1;
+
+#
+#-- It should be possible to define a column
+#-- with up to 38 digits precision either before
+#-- or after the decimal point. Any number which
+#-- is inserted, if it's within the range, should
+#-- be exactly the same as the number that gets
+#-- selected.
+#
+drop table if exists t1;
+#
+create table t1 (col1 decimal(38));
+#
+insert into t1 values (12345678901234567890123456789012345678);
+#
+select * from t1;
+#-- should return:
+#+----------------------------------------+
+#| col1                                   |
+#+----------------------------------------+
+#| 12345678901234567890123456789012345678 |
+#+----------------------------------------+
+#
+#drop table t1;
+#
+#create table t1 (col1 decimal(38,38));
+#
+#insert into t1 values (.12345678901234567890123456789012345678);
+#
+#select * from t1;
+#-- should return:
+#+------------------------------------------+
+#| col1                                     |
+#+------------------------------------------+
+#| 0.12345678901234567890123456789012345678 |
+#+------------------------------------------+
+#
+drop table t1;
+#
+create table t1 (col1 decimal(31,30));
+#
+insert into t1 values (0.00000000001);
+#
+select * from t1;
+#-- should return:
+#+---------------+
+#|col1           |
+#+---------------+
+#| 0.00000000001 |
+#+---------------+
+#
+drop table t1;
+#
+#-- The usual arithmetic operators / * + - should work.
+#
+#select 77777777777777777777777777777777777777 / 7777777777777777777777777777777777777 = 10;
+#-- should return 0 (false).
+#
+select 7777777777777777777777777777777777777 * 10;
+#-- should return 77777777777777777777777777777777777770
+#
+select .7777777777777777777777777777777777777 *
+       1000000000000000000;
+#-- should return 777777777777777777.7777777777777777777 
+#
+select .7777777777777777777777777777777777777 - 0.1;
+#-- should return .6777777777777777777777777777777777777 
+#
+select .343434343434343434 + .343434343434343434;
+#-- should return .686868686868686868 
+#
+#-- 5. All arithmetic functions mentioned in the
+#MySQL Reference Manual should work.
+#
+select abs(9999999999999999999999);
+#-- should return 9999999999999999999999
+#
+select abs(-9999999999999999999999);
+#-- should return 9999999999999999999999
+#
+select ceiling(999999999999999999);
+select ceiling(99999999999999999999);
+#-- should return 99999999999999999999
+#
+select ceiling(9.9999999999999999999);
+#-- should return 10
+#
+select ceiling(-9.9999999999999999999);
+#-- should return 9
+#
+select floor(999999999999999999);
+select floor(9999999999999999999999);
+#-- should return 9999999999999999999999
+#
+select floor(9.999999999999999999999);
+#-- should return 9
+#
+select floor(-9.999999999999999999999);
+#-- should return -10
+#
+select floor(-999999999999999999999.999);
+select ceiling(999999999999999999999.999);
+#
+#
+select 99999999999999999999999999999999999999 mod 3;
+#-- should return 0
+#
+select round(99999999999999999.999);
+#-- should return 100000000000000000
+#
+select round(-99999999999999999.999);
+#-- should return -100000000000000000
+#
+select round(99999999999999999.999,3);
+#-- should return 100000000000000000.000
+#
+select round(-99999999999999999.999,3);
+#-- should return -100000000000000000.000
+#
+select truncate(99999999999999999999999999999999999999,31);
+#-- should return 99999999999999999999999999999999999999.000
+#
+select truncate(99.999999999999999999999999999999999999,31);
+#-- should return 99.9999999999999999999999999999999
+#
+select truncate(99999999999999999999999999999999999999,-31);
+# should return 90000000000000000000000000000000
+#
+#-- 6. Set functions (AVG, SUM, COUNT) should work.
+#
+#drop table if exists t1;
+#
+#delimiter //
+#
+#create procedure p1 () begin 
+#  declare v1 int default 1; declare v2 decimal(0,38) default 0; 
+#  create table t1 (col1 decimal(0,38)); 
+#  while v1 <= 10000 do 
+#    insert into t1 values (-v2); 
+#    set v2 = v2 + 0.00000000000000000000000000000000000001; 
+#    set v1 = v1 + 1; 
+#  end while;
+#  select avg(col1),sum(col1),count(col1) from t1; end;//
+#
+#call p1()//
+#-- should return
+#   -- avg(col1)=0.00000000000000000000000000000000000001 added 10,000 times, then divided by 10,000
+#   -- sum(col1)=0.00000000000000000000000000000000000001 added 10,000 times
+#
+#   -- count(col1)=10000
+#
+#delimiter ;//
+#
+#drop procedure p1;
+#drop table t1;
+#
+#-- When I say DECIMAL(x) I should be able to store x digits.
+#-- If I can't, there should be an error at CREATE time.
+#
+#drop table if exists t1;
+#
+#create table t1 (col1 decimal(254));
+#-- should return SQLSTATE 22003 numeric value out of range 
+#
+#-- When I say DECIMAL(x,y) there should be no silent change of precision or
+#-- scale.
+#
+#drop table if exists t1;
+#
+#create table t1 (col1 decimal(0,38));
+#
+#show create table t1;
+#-- should return:
+#+-------+--------------------------------+
+#| Table | Create Table                   |
+#+-------+--------------------------------+
+#| t9    | CREATE TABLE `t1` (            |
+#|`s1` decimal(0,38) default NULL         |
+#| ) ENGINE=MyISAM DEFAULT CHARSET=latin1 |
+#+-------+--------------------------------+
+#
+#drop table t1;
+#
+#-- From WL#1612 "The future" point 2.:
+#-- The standard requires that we treat numbers like "0.5" as
+#-- DECIMAL or NUMERIC, not as floating-point.
+#
+#drop table if exists t1;
+#
+#
+create table t1 as select 0.5;
+#
+show create table t1;
+#-- should return:
+#+-------+-----------------------------------+
+#| Table | Create Table                      |
+#+-------+-----------------------------------+
+#| t7 | CREATE TABLE `t1` (                  |
+#| `0.5` decimal(3,1) NOT NULL default '0.0' |
+#| ) ENGINE=MyISAM DEFAULT CHARSET=latin1    |
+#+-------+-----------------------------------+
+#
+drop table t1;
+#
+#-- From WL#1612, "The future", point 3.: We have to start rounding correctly.
+#
+select round(1.5),round(2.5);
+#-- should return:
+#+------------+------------+
+#| round(1.5) | round(2.5) |
+#+------------+------------+
+#| 2          | 3          |
+#+------------+------------+
+#
+#-- From WL#1612, "The future", point 4.: "select 0.07 * 0.07;" should return 0.0049, not 0.00.
+#-- If operand#1 has scale X and operand#2 has scale Y, then result should have scale (X+Y).
+#
+select 0.07 * 0.07;
+#-- should return 0.0049
+#
+#-- From WL#1612, "The future", point 5.: Division by zero is an error.
+#
+set sql_mode='traditional';
+#
+select 1E-500 = 0;
+#-- should return 1 (true).
+#
+select 1 / 1E-500;
+#
+#-- should return SQLSTATE 22012 division by zero.
+#
+select 1 / 0;
+#-- should return SQLSTATE 22012 division by zero.
+#
+#+-------+
+#| 1 / 0 |
+#+-------+
+#| NULL  |
+#+-------+
+#1 row in set, 1 warning (0.00 sec)
+#
+#-- From WL#1612 "The future" point 6.: Overflow is an error.
+#
+#set sql_mode='';
+#
+#select 1E300 * 1E300;
+#-- should return SQLSTATE 22003 numeric value out of range 
+#
+#select 18446744073709551615 + 1;
+#-- should return SQLSTATE 22003 numeric value out of range 
+#
+#-- 14. From WL#1612 "The future" point 7.:
+#-- If s1 is INTEGER and s2 is DECIMAL, then
+#-- "create table tk7 as select avg(s1),avg(s2) from tk;"
+#-- should not create a table with "double(17,4)" data types.
+#-- The result of AVG must still be exact numeric, with a
+#-- scale the same or greater than the operand's scale.
+#-- The result of SUM must still be exact numeric, with
+#-- a scale the same as the operand's scale.
+#
+#drop table if exists t1;
+#drop table if exists t2;
+#
+#create table t1 (col1 int, col2 decimal(5));
+#
+#create table t2 as select avg(col1),avg(col2) from t1;
+#
+#
+#show create table t2;
+#-- should return:
+#+-------+---------------------------------+
+#| Table | Create Table                    |
+#+-------+---------------------------------+
+#| t2    | CREATE TABLE `t2` (             |
+#| `avg(col1)` decimal(17,4) default NULL, |
+#| `avg(col2)` decimal(17,5) default NULL  |
+#| ) ENGINE=MyISAM DEFAULT CHARSET=latin1  |
+#+-------+---------------------------------+
+#
+#drop table t2;
+#drop table t1;
+#
+#-- From WL#1612 "The future" point 8.: Stop storing leading "+" signs and
+#   leading "0"s.
+#
+#drop table if exists t1;
+#
+#create table t1 (col1 decimal(5,2),col2 decimal(5) zerofill, col3 decimal(3,1));
+#
+#insert into t1 values (1,1,1);
+#
+#select col1 from t1 union select col2 from t1 union select col3 from t1;
+#
+#drop table t1;
+#
+#-- From WL#1612, The future" point 9.:
+#-- Accept the data type and precision and scale as the user
+#-- asks, or return an error, but don't change to something else.
+#
+#drop table if exists t1;
+#
+#create table t1 (col1 numeric(4,2));
+#
+#show create table t1;
+#
+#drop table t1;
+#
+#-- The scripts in the following bugs should work:
+#
+
+#BUG#559  Maximum precision for DECIMAL column ...
+#BUG#1499 INSERT/UPDATE into decimal field rounding problem
+#BUG#1845 Not correctly recognising value for decimal field
+#BUG#2493 Round function doesn't work correctly
+#BUG#2649 round(0.5) gives 0 (should be 1)
+#BUG#3612 impicite rounding of VARCHARS during aritchmetic operations...
+#BUG#3722 SELECT fails for certain values in Double(255,10) column.
+#BUG#4485 Floating point conversions are inconsistent
+#BUG#4891 MATH
+#BUG#5931 Out-of-range values are accepted
+#BUG#6048 Stored procedure causes operating system reboot
+#BUG#6053 DOUBLE PRECISION literal
+
+# Tests from 'traditional' mode tests
+#
+set sql_mode='ansi,traditional';
+#
+CREATE TABLE Sow6_2f (col1 NUMERIC(4,2));
+#-- should return OK
+INSERT INTO Sow6_2f VALUES (10.55);
+#-- should return OK
+INSERT INTO Sow6_2f VALUES (10.5555);
+#-- should return OK
+INSERT INTO Sow6_2f VALUES (-10.55);
+#-- should return OK
+INSERT INTO Sow6_2f VALUES (-10.5555);
+#-- should return OK
+INSERT INTO Sow6_2f VALUES (11);
+#-- should return OK
+-- error 1264
+INSERT INTO Sow6_2f VALUES (101.55);
+#-- should return SQLSTATE 22003 numeric value out of range
+-- error 1264
+UPDATE Sow6_2f SET col1 = col1 * 50 WHERE col1 = 11;
+#-- should return SQLSTATE 22003 numeric value out of range
+-- error 1365
+UPDATE Sow6_2f SET col1 = col1 / 0 WHERE col1 > 0;
+#-- should return SQLSTATE 22012 division by zero
+SELECT MOD(col1,0) FROM Sow6_2f;
+#-- should return SQLSTATE 22012 division by zero
+-- error 1366
+INSERT INTO Sow6_2f VALUES ('a59b');
+#-- should return SQLSTATE 22018 invalid character value for cast
+drop table Sow6_2f;
+
+#
+# bug#9501
+#
+select 10.3330000000000/12.34500000;
+
+#
+# Bug #10404
+#
+
+set sql_mode='';
+select 0/0;
+
+#
+# bug #9546
+#
+--disable_ps_protocol
+select 9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999 as x;
+select 9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999 + 1 as x;
+--enable_ps_protocol
+#
+# Bug #10004
+#
+select 0.190287977636363637 + 0.040372670 * 0 -  0;
+#
+# Bug #9527
+#
+select -0.123 * 0;
+
+#
+# Bug #10232
+#
+
+CREATE TABLE t1 (f1 DECIMAL (12,9), f2 DECIMAL(2,2));
+INSERT INTO t1 VALUES (10.5, 0);
+UPDATE t1 SET f1 = 4.5;
+SELECT * FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1 (f1 DECIMAL (64,20), f2 DECIMAL(2,2));
+INSERT INTO t1 VALUES (9999999999999999999999999999999999, 0);
+SELECT * FROM t1;
+DROP TABLE t1;
+
+#
+# Bug #10599: problem with NULL
+#
+
+select abs(10/0);
+select abs(NULL);
+
+#
+# Bug #9894 (negative to unsigned column)
+#
+set @@sql_mode='traditional';
+create table t1( d1 decimal(18) unsigned, d2 decimal(20) unsigned, d3 decimal (22) unsigned);
+--error 1264
+insert into t1 values(1,-1,-1);
+drop table t1;
+create table t1 (col1 decimal(5,2), col2 numeric(5,2));
+--error 1264
+insert into t1 values (999.999,999.999);
+--error 1264
+insert into t1 values (-999.999,-999.999);
+select * from t1;
+drop table t1;
+set sql_mode='';
+
+#
+# Bug #8425 (insufficient precision of the division)
+#
+set @sav_dpi= @@div_precision_increment;
+set @@div_precision_increment=15;
+create table t1 (col1 int, col2 decimal(30,25), col3 numeric(30,25));
+insert into t1 values (1,0.0123456789012345678912345,0.0123456789012345678912345);
+select col2/9999999999 from t1 where col1=1;
+select 9999999999/col2 from t1 where col1=1;
+select 77777777/7777777;
+drop table t1;
+set div_precision_increment= @sav_dpi;
+
+#
+# Bug #10896 (0.00 > -0.00)
+#
+create table t1 (a decimal(4,2));
+insert into t1 values (0.00);
+select * from t1 where a > -0.00;
+select * from t1 where a = -0.00;
+drop table t1;
+
+#
+# Bug #11215: a problem with LONGLONG_MIN
+#
+
+create table t1 (col1 bigint default -9223372036854775808);
+insert into t1 values (default);
+select * from t1;
+drop table t1;
+
+#
+# Bug #10891 (converting to decimal crashes server)
+#
+select cast('1.00000001335143196001808973960578441619873046875E-10' as decimal(30,15));
+
+#
+# Bug #11708 (conversion to decimal fails in decimal part)
+#
+select ln(14000) c1, convert(ln(14000),decimal(5,3)) c2, cast(ln(14000) as decimal(5,3)) c3;
+--error 1427
+select convert(ln(14000),decimal(2,3)) c1;
+--error 1427
+select cast(ln(14000) as decimal(2,3)) c1;
+ 
+#
+# Bug #8449 (Silent column changes)
+#
+--error 1426
+create table t1 (sl decimal(70,30));
+--error 1425
+create table t1 (sl decimal(32,31));
+--error 1425
+create table t1 (sl decimal(0,38));
+--error 1427
+create table t1 (sl decimal(0,30));
+create table t1 (sl decimal(5, 5));
+show create table t1;
+drop table t1;
+# Test limits
+create table t1 (sl decimal(65, 30));
+show create table t1;
+drop table t1;
+
+#
+# Bug 11557 (DEFAULT values rounded improperly
+#
+create table t1 (
+       f1 decimal unsigned not null default 17.49, 
+       f2 decimal unsigned not null default 17.68, 
+       f3 decimal unsigned not null default 99.2, 
+       f4 decimal unsigned not null default 99.7, 
+       f5 decimal unsigned not null default 104.49, 
+       f6 decimal unsigned not null default 199.91, 
+       f7 decimal unsigned not null default 999.9, 
+       f8 decimal unsigned not null default 9999.99);
+insert into t1 (f1) values (1);
+select * from t1;
+drop table t1;
+
+#
+# Bug 12173 (show create table fails)
+#
+create table t1 (
+        f0 decimal (30,30) zerofill not null DEFAULT 0,
+        f1 decimal (0,0) zerofill not null default 0);
+show create table t1;
+drop table t1;
+
+#
+# Bug 12938 (arithmetic loop's zero)
+#
+--disable_warnings
+drop procedure if exists wg2;
+--enable_warnings
+delimiter //;
+create procedure wg2()
+begin
+  declare v int default 1;
+  declare tdec decimal(5) default 0;
+  while v <= 9 do set tdec =tdec * 10;
+    select v, tdec;
+    set v = v + 1;
+  end while;
+end//
+
+call wg2()//
+
+delimiter ;//
+drop procedure wg2;
+
+#
+# Bug #12979 Stored procedures: crash if inout decimal parameter
+# (not a SP bug in fact)
+#
+
+select cast(@non_existing_user_var/2 as DECIMAL);
+
+#
+# Bug #13667 (Inconsistency for decimal(m,d) specification
+#
+--error 1427
+create table t (d decimal(0,10));
+
+#
+# Bug #14268 (bad FLOAT->DECIMAL conversion)
+#
+
+CREATE TABLE t1 (
+   my_float   FLOAT,
+   my_double  DOUBLE,
+   my_varchar VARCHAR(50),
+   my_decimal DECIMAL(65,30)
+);
+SHOW CREATE TABLE t1;
+
+let $max_power= 32;
+while ($max_power)
+{
+   eval INSERT INTO t1 SET my_float = 1.175494345e-$max_power,
+                           my_double = 1.175494345e-$max_power,
+                           my_varchar = '1.175494345e-$max_power';
+   dec $max_power;
+}
+SELECT my_float, my_double, my_varchar FROM t1;
+
+# Expected result   0.000000000011754943372854760000
+# On windows we get 0.000000000011754943372854770000
+# use replace_result to correct it
+--replace_result 0.000000000011754943372854770000 0.000000000011754943372854760000
+SELECT CAST(my_float   AS DECIMAL(65,30)), my_float FROM t1;
+SELECT CAST(my_double  AS DECIMAL(65,30)), my_double FROM t1;
+SELECT CAST(my_varchar AS DECIMAL(65,30)), my_varchar FROM t1;
+
+# We have to disable warnings here as the test in
+# Field_new_decimal::store(double):
+# if (nr2 != nr)
+# fails randomly depending on compiler options
+
+--disable_warnings
+UPDATE t1 SET my_decimal = my_float;
+
+# Expected result   0.000000000011754943372854760000
+# On windows we get 0.000000000011754943372854770000
+# use replace_result to correct it
+--replace_result 0.000000000011754943372854770000 0.000000000011754943372854760000
+SELECT my_decimal, my_float   FROM t1;
+
+UPDATE t1 SET my_decimal = my_double;
+SELECT my_decimal, my_double  FROM t1 order by my_decimal; # PBXT required for consistent result 
+--enable_warnings
+--disable_warnings # PBXT The rows updated keeps changing
+UPDATE t1 SET my_decimal = my_varchar;
+--enable_warnings # PBXT The rows updated keeps changing
+SELECT my_decimal, my_varchar FROM t1 order by my_decimal, my_varchar;
+
+DROP TABLE t1;
+
+#
+# Bug #13573 (Wrong data inserted for too big values)
+#
+
+create table t1 (c1 decimal(64));
+--disable_ps_protocol
+insert into t1 values(
+89000000000000000000000000000000000000000000000000000000000000000000000000000000000000000);
+insert into t1 values(
+99999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999 *
+99999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999);
+--enable_ps_protocol
+insert into t1 values(1e100);
+select * from t1;
+drop table t1;
+
+#
+# Bug #18014: problem with 'alter table'
+#
+
+create table t1(a decimal(7,2));
+insert into t1 values(123.12);
+select * from t1;
+alter table t1 modify a decimal(10,2);
+select * from t1;
+drop table t1;
+
+#
+# Bug#19667 group by a decimal expression yields wrong result
+#
+create table t1 (i int, j int);
+insert into t1 values (1,1), (1,2), (2,3), (2,4);
+select i, count(distinct j) from t1 group by i;
+select i+0.0 as i2, count(distinct j) from t1 group by i2;
+drop table t1;
+
+create table t1(f1 decimal(20,6));
+insert into t1 values (CAST('10:11:12' AS date) + interval 14 microsecond);
+insert into t1 values (CAST('10:11:12' AS time));
+select * from t1;
+drop table t1;
+
+#
+# Bug#16172 DECIMAL data type processed incorrectly
+#
+select cast(143.481 as decimal(4,1));
+select cast(143.481 as decimal(4,0));
+select cast(143.481 as decimal(2,1));
+select cast(-3.4 as decimal(2,1));
+select cast(99.6 as decimal(2,0));
+select cast(-13.4 as decimal(2,1));
+select cast(98.6 as decimal(2,0));
+
+# Bug #8663 (cant use bigint as input to CAST)
+#
+select cast(19999999999999999999 as unsigned);
+
+--disable_query_log
+drop database pbxt;
+--enable_query_log

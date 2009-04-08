@@ -1,0 +1,24 @@
+# This is a test for bug 578
+
+-- source include/have_innodb.inc
+
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+
+connection con1;
+--disable_warnings
+drop table if exists t1;
+create table t1(a int) engine=innodb;
+--enable_warnings
+lock tables t1 write;
+insert into t1 values(10);
+disconnect con1;
+
+connection con2;
+# The bug was that, because of the LOCK TABLES, the handler "forgot" to commit,
+# and the other commit when we write to the binlog was not done because of
+# binlog-ignore-db  
+select * from t1;
+drop table t1;
+
+# End of 4.1 tests

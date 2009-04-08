@@ -1,0 +1,141 @@
+# TODO: Only run this if we have privilege to do flush table
+
+#
+# Test of flush table
+#
+
+# Should work in embedded server after mysqltest is fixed
+-- source include/not_embedded.inc
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
+create table t1 (a int not null auto_increment primary key);
+insert into t1 values(0);
+
+# Test for with read lock + flush
+
+lock table t1 read;
+flush table t1;
+check table t1;
+unlock tables;
+
+# Test for with 2 read lock in different thread + flush
+
+lock table t1 read;
+connect (locker,localhost,root,,test);
+connection locker;
+lock table t1 read;
+connection default;
+send flush table t1;
+connection locker;
+--sleep 2
+select * from t1;
+unlock tables;
+connection default;
+reap;
+select * from t1;
+unlock tables;
+
+# Test for with a write lock and a waiting read lock + flush
+
+lock table t1 write;
+connection locker;
+send lock table t1 read;
+connection default;
+sleep 2;
+flush table t1;
+select * from t1;
+unlock tables;
+connection locker;
+reap;
+unlock tables;
+connection default;
+
+# Test for with a read lock and a waiting write lock + flush
+
+lock table t1 read;
+connection locker;
+send lock table t1 write;
+connection default;
+sleep 2;
+flush table t1;
+select * from t1;
+unlock tables;
+connection locker;
+reap;
+unlock tables;
+select * from t1;
+connection default;
+drop table t1;
+disconnect locker;
+
+#
+# In the following test FLUSH TABLES produces a deadlock
+# (hang forever) if the fix for BUG #3565 is missing.
+# And it shows that handler tables are re-opened after flush (BUG #4286).
+#
+create table t1(table_id char(20) primary key);
+create table t2(table_id char(20) primary key);
+insert into t1 values ('test.t1');
+insert into t1 values ('');
+insert into t2 values ('test.t2');
+insert into t2 values ('');
+handler t1 open as a1;
+handler t1 open as a2;
+handler t2 open;
+handler a1 read first limit 9;
+handler a2 read first limit 9;
+handler t2 read first limit 9;
+flush tables;
+handler a1 read first limit 9;
+handler a2 read first limit 9;
+handler t2 read first limit 9;
+#
+--error 1066
+handler t1 open as a1;
+--error 1066
+handler t1 open as a2;
+--error 1066
+handler t2 open;
+handler a1 read first limit 9;
+handler a2 read first limit 9;
+handler t2 read first limit 9;
+flush table t1;
+handler a1 read first limit 9;
+handler a2 read first limit 9;
+handler t2 read first limit 9;
+flush table t2;
+handler t2 close;
+drop table t1;
+drop table t2;
+
+#
+# The fix for BUG #4286 cannot restore the position after a flush.
+#
+create table t1(table_id char(20) primary key);
+insert into t1 values ('Record-01');
+insert into t1 values ('Record-02');
+insert into t1 values ('Record-03');
+insert into t1 values ('Record-04');
+insert into t1 values ('Record-05');
+handler t1 open;
+handler t1 read first limit 1;
+handler t1 read next limit 1;
+handler t1 read next limit 1;
+flush table t1;
+handler t1 read next limit 1;
+handler t1 read next limit 1;
+handler t1 close;
+drop table t1;
+
+#
+# Bug #11934 Two sequential FLUSH TABLES WITH READ LOCK hangs client
+#
+FLUSH TABLES WITH READ LOCK ;
+FLUSH TABLES WITH READ LOCK ;
+UNLOCK TABLES;
+
+--disable_query_log
+drop database pbxt;
+--enable_query_log
+# End of 4.1 tests

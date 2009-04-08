@@ -187,8 +187,10 @@ sub mtr_report_test ($) {
 }
 
 
-sub mtr_report_stats ($) {
+sub mtr_report_stats ($$$) {
+  my $fail= shift;
   my $tests= shift;
+  my $extra_warnings= shift;
 
   # ----------------------------------------------------------------------
   # Find out how we where doing
@@ -325,9 +327,26 @@ sub mtr_report_stats ($) {
     print "All $tot_tests tests were successful.\n\n";
   }
 
+  if (@$extra_warnings)
+  {
+    print <<MSG;
+Errors/warnings were found in logfiles during server shutdown after running the
+following sequence(s) of tests:
+MSG
+    print "    $_\n" for @$extra_warnings;
+  }
+
   if ( $tot_failed != 0 || $found_problems)
   {
     mtr_error("there were failing test cases");
+  }
+  elsif (@$extra_warnings)
+  {
+    mtr_error("There were errors/warnings in server logs after running test cases.");
+  }
+  elsif ($fail)
+  {
+    mtr_error("Test suite failure, see messages above for possible cause(s).");
   }
 }
 

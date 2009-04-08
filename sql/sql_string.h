@@ -63,6 +63,11 @@ public:
     Ptr=(char*) str; str_length=(uint) strlen(str); Alloced_length=0; alloced=0;
     str_charset=cs;
   }
+  /*
+    NOTE: If one intend to use the c_ptr() method, the following two
+    contructors need the size of memory for STR to be at least LEN+1 (to make
+    room for zero termination).
+  */
   String(const char *str,uint32 len, CHARSET_INFO *cs)
   { 
     Ptr=(char*) str; str_length=len; Alloced_length=0; alloced=0;

@@ -37,7 +37,7 @@ a	b
 32	6
 drop table t1;
 set @@session.auto_increment_increment=100, @@session.auto_increment_offset=10;
-show variables like "%auto_inc%";
+show variables like "auto_inc%";
 Variable_name	Value
 auto_increment_increment	100
 auto_increment_offset	10

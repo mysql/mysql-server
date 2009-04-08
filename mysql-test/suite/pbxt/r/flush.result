@@ -1,0 +1,57 @@
+drop table if exists t1,t2;
+drop database if exists mysqltest;
+create temporary table t1(n int not null primary key);
+create table t2(n int);
+insert into t2 values(3);
+select * from t1;
+n
+3
+flush tables with read lock;
+drop table t2;
+ERROR HY000: Can't execute the query because you have a conflicting read lock
+drop table t2;
+unlock tables;
+create database mysqltest;
+create table mysqltest.t1(n int);
+insert into mysqltest.t1 values (23);
+flush tables with read lock;
+drop database mysqltest;
+select * from mysqltest.t1;
+n
+23
+unlock tables;
+create table t1 (n int);
+flush tables with read lock;
+insert into t1 values (345);
+select * from t1;
+n
+345
+drop table t1;
+create table t1 (c1 int);
+lock table t1 write;
+flush tables with read lock;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+lock table t1 read;
+flush tables with read lock;
+lock table t1 write;
+ERROR HY000: Can't execute the query because you have a conflicting read lock
+lock table t1 read;
+lock table t1 write;
+ERROR HY000: Can't execute the query because you have a conflicting read lock
+unlock tables;
+create table t2 (c1 int);
+create table t3 (c1 int);
+lock table t1 read, t2 read, t3 write;
+flush tables with read lock;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+lock table t1 read, t2 read, t3 read;
+flush tables with read lock;
+unlock tables;
+drop table t1, t2, t3;
+create table t1 (c1 int);
+create table t2 (c1 int);
+lock table t1 write;
+flush tables with read lock;
+insert into t2 values(1);
+unlock tables;
+drop table t1, t2;

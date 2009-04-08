@@ -1740,7 +1740,7 @@ bool sys_var::check_enum(THD *thd, set_var *var, const TYPELIB *enum_names)
 {
   char buff[STRING_BUFFER_USUAL_SIZE];
   const char *value;
-  String str(buff, sizeof(buff), system_charset_info), *res;
+  String str(buff, sizeof(buff) - 1, system_charset_info), *res;
 
   if (var->value->result_type() == STRING_RESULT)
   {
@@ -1777,7 +1777,7 @@ bool sys_var::check_set(THD *thd, set_var *var, TYPELIB *enum_names)
   bool not_used;
   char buff[STRING_BUFFER_USUAL_SIZE], *error= 0;
   uint error_len= 0;
-  String str(buff, sizeof(buff), system_charset_info), *res;
+  String str(buff, sizeof(buff) - 1, system_charset_info), *res;
 
   if (var->value->result_type() == STRING_RESULT)
   {
@@ -1795,7 +1795,7 @@ bool sys_var::check_set(THD *thd, set_var *var, TYPELIB *enum_names)
     }
 
     var->save_result.ulong_value= ((ulong)
-				   find_set(enum_names, res->c_ptr(),
+				   find_set(enum_names, res->ptr(),
 					    res->length(),
                                             NULL,
                                             &error, &error_len,
@@ -1942,7 +1942,7 @@ bool sys_var_thd_date_time_format::update(THD *thd, set_var *var)
 bool sys_var_thd_date_time_format::check(THD *thd, set_var *var)
 {
   char buff[STRING_BUFFER_USUAL_SIZE];
-  String str(buff,sizeof(buff), system_charset_info), *res;
+  String str(buff,sizeof(buff) - 1, system_charset_info), *res;
   DATE_TIME_FORMAT *format;
 
   if (!(res=var->value->val_str(&str)))
@@ -2047,7 +2047,7 @@ bool sys_var_collation::check(THD *thd, set_var *var)
   if (var->value->result_type() == STRING_RESULT)
   {
     char buff[STRING_BUFFER_USUAL_SIZE];
-    String str(buff,sizeof(buff), system_charset_info), *res;
+    String str(buff,sizeof(buff) - 1, system_charset_info), *res;
     if (!(res=var->value->val_str(&str)))
     {
       my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, "NULL");
@@ -2082,7 +2082,7 @@ bool sys_var_character_set::check(THD *thd, set_var *var)
   if (var->value->result_type() == STRING_RESULT)
   {
     char buff[STRING_BUFFER_USUAL_SIZE];
-    String str(buff,sizeof(buff), system_charset_info), *res;
+    String str(buff,sizeof(buff) - 1, system_charset_info), *res;
     if (!(res=var->value->val_str(&str)))
     {
       if (!nullable)
@@ -3620,7 +3620,7 @@ bool sys_var_thd_storage_engine::check(THD *thd, set_var *var)
 {
   char buff[STRING_BUFFER_USUAL_SIZE];
   const char *value;
-  String str(buff, sizeof(buff), &my_charset_latin1), *res;
+  String str(buff, sizeof(buff) - 1, &my_charset_latin1), *res;
 
   var->save_result.plugin= NULL;
   if (var->value->result_type() == STRING_RESULT)
@@ -3737,7 +3737,7 @@ sys_var_thd_sql_mode::
 symbolic_mode_representation(THD *thd, ulonglong val, LEX_STRING *rep)
 {
   char buff[STRING_BUFFER_USUAL_SIZE*8];
-  String tmp(buff, sizeof(buff), &my_charset_latin1);
+  String tmp(buff, sizeof(buff) - 1, &my_charset_latin1);
 
   tmp.length(0);
 

@@ -506,6 +506,9 @@ int DbugParse(CODE_STATE *cs, const char *control)
   rel= control[0] == '+' || control[0] == '-';
   if ((!rel || (!stack->out_file && !stack->next)))
   {
+    /* If overwriting previous state, be sure to free old to avoid leak. */
+    if (stack->out_file)
+      FreeState(cs, stack, 0);
     stack->flags= 0;
     stack->delay= 0;
     stack->maxdepth= 0;
@@ -1648,10 +1651,12 @@ static void FreeState(CODE_STATE *cs, struct settings *state, int free_state)
     FreeList(state->processes);
   if (!is_shared(state, p_functions))
     FreeList(state->p_functions);
-  if (!is_shared(state, out_file))
+  if (!is_shared(state, out_file) &&
+      state->out_file != stderr && state->out_file != stdout)
     DBUGCloseFile(cs, state->out_file);
   (void) fflush(cs->stack->out_file);
-  if (state->prof_file)
+  if (state->prof_file &&
+      state->prof_file != stderr && state->prof_file != stdout)
     DBUGCloseFile(cs, state->prof_file);
   if (free_state)
     free((void*) state);

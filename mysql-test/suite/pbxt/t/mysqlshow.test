@@ -1,0 +1,39 @@
+# Can't run test of external client with embedded server
+-- source include/not_embedded.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1,t2,test1,test2;
+--enable_warnings
+
+#
+## Bug #5036 mysqlshow is missing a column
+#
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (1),(2),(3);
+CREATE TABLE t2 (a int, b int);
+show tables;
+select "--------------------" as "";
+--exec $MYSQL_SHOW test
+select "---- -v ------------" as "";
+--exec $MYSQL_SHOW test -v
+select "---- -v -v ---------" as "";
+--exec $MYSQL_SHOW test -v -v
+select "----- -t -----------" as "";
+--exec $MYSQL_SHOW test -t
+select "---- -v -t ---------" as "";
+--exec $MYSQL_SHOW test -v -t
+select "---- -v -v -t ------" as "";
+--exec $MYSQL_SHOW test -v -v -t
+DROP TABLE t1, t2;
+
+#
+# Bug #19147: mysqlshow INFORMATION_SCHEMA does not work
+#
+--exec $MYSQL_SHOW information_schema
+--exec $MYSQL_SHOW INFORMATION_SCHEMA
+--exec $MYSQL_SHOW inf_rmation_schema
+
+--disable_query_log
+drop database pbxt;
+--enable_query_log
+--echo End of 5.0 tests

@@ -1,0 +1,194 @@
+drop table if exists t1;
+create table t1 (t datetime);
+insert into t1 values (101),(691231),(700101),(991231),(10000101),(99991231),(101000000),(691231000000),(700101000000),(991231235959),(10000101000000),(99991231235959),(20030100000000),(20030000000000);
+select * from t1;
+t
+2000-01-01 00:00:00
+2069-12-31 00:00:00
+1970-01-01 00:00:00
+1999-12-31 00:00:00
+1000-01-01 00:00:00
+9999-12-31 00:00:00
+2000-01-01 00:00:00
+2069-12-31 00:00:00
+1970-01-01 00:00:00
+1999-12-31 23:59:59
+1000-01-01 00:00:00
+9999-12-31 23:59:59
+2003-01-00 00:00:00
+2003-00-00 00:00:00
+delete from t1 where t > 0;
+optimize table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+delete from t1;
+insert into t1 values("000101"),("691231"),("700101"),("991231"),("00000101"),("00010101"),("99991231"),("00101000000"),("691231000000"),("700101000000"),("991231235959"),("10000101000000"),("99991231235959"),("20030100000000"),("20030000000000");
+insert into t1 values ("2003-003-03");
+insert into t1 values ("20030102T131415"),("2001-01-01T01:01:01"), ("2001-1-1T1:01:01");
+select * from t1;
+t
+2000-01-01 00:00:00
+2069-12-31 00:00:00
+1970-01-01 00:00:00
+1999-12-31 00:00:00
+0000-01-01 00:00:00
+0001-01-01 00:00:00
+9999-12-31 00:00:00
+2000-10-10 00:00:00
+2069-12-31 00:00:00
+1970-01-01 00:00:00
+1999-12-31 23:59:59
+1000-01-01 00:00:00
+9999-12-31 23:59:59
+2003-01-00 00:00:00
+2003-00-00 00:00:00
+2003-03-03 00:00:00
+2003-01-02 13:14:15
+2001-01-01 01:01:01
+2001-01-01 01:01:01
+truncate table t1;
+insert into t1 values("2003-0303 12:13:14");
+Warnings:
+Warning	1264	Out of range value for column 't' at row 1
+select * from t1;
+t
+0000-00-00 00:00:00
+drop table t1;
+CREATE TABLE t1 (a timestamp, b date, c time, d datetime);
+insert into t1 (b,c,d) values(now(),curtime(),now());
+Warnings:
+Note	1265	Data truncated for column 'b' at row 1
+select date_format(a,"%Y-%m-%d")=b,right(a+0,6)=c+0,a=d+0 from t1;
+date_format(a,"%Y-%m-%d")=b	right(a+0,6)=c+0	a=d+0
+1	1	1
+drop table t1;
+CREATE TABLE t1 (a datetime not null);
+insert into t1 values (0);
+select * from t1 where a is null;
+a
+0000-00-00 00:00:00
+drop table t1;
+create table t1 (id int, dt datetime);
+insert into t1 values (1,"2001-08-14 00:00:00"),(2,"2001-08-15 00:00:00"),(3,"2001-08-16 00:00:00"),(4,"2003-09-15 01:20:30");
+select * from t1 where dt='2001-08-14 00:00:00' and dt =  if(id=1,'2001-08-14 00:00:00','1999-08-15');
+id	dt
+1	2001-08-14 00:00:00
+create index dt on t1 (dt);
+select * from t1 where dt > 20021020;
+id	dt
+4	2003-09-15 01:20:30
+select * from t1 ignore index (dt) where dt > 20021020;
+id	dt
+4	2003-09-15 01:20:30
+drop table t1;
+CREATE TABLE `t1` (
+`date` datetime NOT NULL default '0000-00-00 00:00:00',
+`numfacture` int(6) unsigned NOT NULL default '0',
+`expedition` datetime NOT NULL default '0000-00-00 00:00:00',
+PRIMARY KEY  (`numfacture`),
+KEY `date` (`date`),
+KEY `expedition` (`expedition`)
+) ENGINE=MyISAM;
+INSERT INTO t1 (expedition) VALUES ('0001-00-00 00:00:00');
+SELECT * FROM t1 WHERE expedition='0001-00-00 00:00:00';
+date	numfacture	expedition
+0000-00-00 00:00:00	0	0001-00-00 00:00:00
+INSERT INTO t1 (numfacture,expedition) VALUES ('1212','0001-00-00 00:00:00');
+SELECT * FROM t1 WHERE expedition='0001-00-00 00:00:00';
+date	numfacture	expedition
+0000-00-00 00:00:00	0	0001-00-00 00:00:00
+0000-00-00 00:00:00	1212	0001-00-00 00:00:00
+EXPLAIN SELECT * FROM t1 WHERE expedition='0001-00-00 00:00:00';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	expedition	expedition	8	const	1	
+drop table t1;
+create table t1 (a datetime not null, b datetime not null);
+insert into t1 values (now(), now());
+insert into t1 values (now(), now());
+select * from t1 where a is null or b is null;
+a	b
+drop table t1;
+create table t1 (t datetime);
+insert into t1 values (20030102030460),(20030102036301),(20030102240401),
+(20030132030401),(20031302030401),(100001202030401);
+Warnings:
+Warning	1264	Out of range value for column 't' at row 1
+Warning	1264	Out of range value for column 't' at row 2
+Warning	1264	Out of range value for column 't' at row 3
+Warning	1264	Out of range value for column 't' at row 4
+Warning	1264	Out of range value for column 't' at row 5
+Warning	1264	Out of range value for column 't' at row 6
+select * from t1;
+t
+0000-00-00 00:00:00
+0000-00-00 00:00:00
+0000-00-00 00:00:00
+0000-00-00 00:00:00
+0000-00-00 00:00:00
+0000-00-00 00:00:00
+delete from t1;
+insert into t1 values
+("2003-01-02 03:04:60"),("2003-01-02 03:63:01"),("2003-01-02 24:04:01"),
+("2003-01-32 03:04:01"),("2003-13-02 03:04:01"), ("10000-12-02 03:04:00");
+Warnings:
+Warning	1264	Out of range value for column 't' at row 1
+Warning	1264	Out of range value for column 't' at row 2
+Warning	1264	Out of range value for column 't' at row 3
+Warning	1264	Out of range value for column 't' at row 4
+Warning	1264	Out of range value for column 't' at row 5
+Warning	1264	Out of range value for column 't' at row 6
+select * from t1;
+t
+0000-00-00 00:00:00
+0000-00-00 00:00:00
+0000-00-00 00:00:00
+0000-00-00 00:00:00
+0000-00-00 00:00:00
+0000-00-00 00:00:00
+delete from t1;
+insert into t1 values ("0000-00-00 00:00:00 some trailer"),("2003-01-01 00:00:00 some trailer");
+Warnings:
+Warning	1264	Out of range value for column 't' at row 1
+Warning	1264	Out of range value for column 't' at row 2
+select * from t1 order by t;
+t
+0000-00-00 00:00:00
+2003-01-01 00:00:00
+drop table t1;
+create table t1 (dt datetime);
+insert into t1 values ("12-00-00"), ("00-00-00 01:00:00");
+insert into t1 values ("00-00-00"), ("00-00-00 00:00:00");
+select * from t1;
+dt
+2012-00-00 00:00:00
+2000-00-00 01:00:00
+0000-00-00 00:00:00
+0000-00-00 00:00:00
+drop table t1;
+CREATE TABLE t1(a DATETIME NOT NULL);
+INSERT INTO t1 VALUES ('20060606155555');
+SELECT a FROM t1 WHERE a=(SELECT MAX(a) FROM t1) AND (a="20060606155555");
+a
+2006-06-06 15:55:55
+PREPARE s FROM 'SELECT a FROM t1 WHERE a=(SELECT MAX(a) FROM t1) AND (a="20060606155555")';
+EXECUTE s;
+a
+2006-06-06 15:55:55
+DROP PREPARE s;
+DROP TABLE t1;
+SELECT CAST(CAST('2006-08-10' AS DATE) AS DECIMAL(20,6));
+CAST(CAST('2006-08-10' AS DATE) AS DECIMAL(20,6))
+20060810.000000
+SELECT CAST(CAST('2006-08-10 10:11:12' AS DATETIME) AS DECIMAL(20,6));
+CAST(CAST('2006-08-10 10:11:12' AS DATETIME) AS DECIMAL(20,6))
+20060810101112.000000
+SELECT CAST(CAST('2006-08-10 10:11:12' AS DATETIME) + INTERVAL 14 MICROSECOND AS DECIMAL(20,6));
+CAST(CAST('2006-08-10 10:11:12' AS DATETIME) + INTERVAL 14 MICROSECOND AS DECIMAL(20,6))
+20060810101112.000014
+SELECT CAST(CAST('10:11:12.098700' AS TIME) AS DECIMAL(20,6));
+CAST(CAST('10:11:12.098700' AS TIME) AS DECIMAL(20,6))
+101112.098700

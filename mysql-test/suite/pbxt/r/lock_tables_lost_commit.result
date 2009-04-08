@@ -1,0 +1,8 @@
+drop table if exists t1;
+create table t1(a int) engine=innodb;
+lock tables t1 write;
+insert into t1 values(10);
+select * from t1;
+a
+10
+drop table t1;

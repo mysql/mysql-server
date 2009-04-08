@@ -1,0 +1,19 @@
+PrimeBase XT for MySQL 5.1
+==========================
+
+This is the PrimeBase XT (PBXT) transactional storage engine for MySQL. PBXT is "pluggable", which means that it can be loaded dynamically by MySQL at runtime. It uses a unique "write-once" update strategy and MVCC (multi-version concurrency control) to provide optimal performance over a wide range of tasks.
+
+This package includes the complete source code for the engine. Although this is a standalone project it must be built against a compiled version of the MySQL 5.1 source tree, because it references headers files used internally by the server.
+
+Details about how to build PBXT both under UNIX or Windows, as a standalone plug-in, or as part of the MySQL source code, is distribed in the documentation which is avaliable online at:
+
+http://www.primebase.org/documentation
+
+Bug reports, questions and comments can be sent directly to me.
+
+Thanks for your support!
+
+Paul McCullagh
+SNAP Innovation GmbH
+paul.mccullagh@primebase.org
+

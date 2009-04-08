@@ -34,7 +34,7 @@ connection master;
 drop table t1;
 
 set @@session.auto_increment_increment=100, @@session.auto_increment_offset=10;
-show variables like "%auto_inc%";
+show variables like "auto_inc%";
 
 eval create table t1 (a int not null auto_increment, primary key (a)) engine=$engine_type2;
 # Insert with 2 insert statements to get better testing of logging

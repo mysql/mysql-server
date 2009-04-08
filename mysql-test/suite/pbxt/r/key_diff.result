@@ -1,0 +1,52 @@
+drop table if exists t1;
+CREATE TABLE t1 (
+a char(5) NOT NULL,
+b char(4) NOT NULL,
+KEY (a),
+KEY (b)
+);
+INSERT INTO t1 VALUES ('A','B'),('b','A'),('C','c'),('D','E'),('a','a');
+select * from t1,t1 as t2;
+a	b	a	b
+A	B	A	B
+b	A	A	B
+C	c	A	B
+D	E	A	B
+a	a	A	B
+A	B	b	A
+b	A	b	A
+C	c	b	A
+D	E	b	A
+a	a	b	A
+A	B	C	c
+b	A	C	c
+C	c	C	c
+D	E	C	c
+a	a	C	c
+A	B	D	E
+b	A	D	E
+C	c	D	E
+D	E	D	E
+a	a	D	E
+A	B	a	a
+b	A	a	a
+C	c	a	a
+D	E	a	a
+a	a	a	a
+explain select t1.*,t2.* from t1,t1 as t2 where t1.A=t2.B;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	5	
+1	SIMPLE	t2	ALL	b	NULL	NULL	NULL	5	Using where; Using join buffer
+select t1.*,t2.* from t1,t1 as t2 where t1.A=t2.B order by binary t1.a,t2.a;
+a	b	a	b
+A	B	a	a
+A	B	b	A
+C	c	C	c
+a	a	a	a
+a	a	b	A
+b	A	A	B
+select * from t1 where a='a';
+a	b
+A	B
+a	a
+drop table t1;

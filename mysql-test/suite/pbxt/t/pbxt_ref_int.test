@@ -1,0 +1,391 @@
+# Test PBXT referential integrity
+
+--disable_warnings
+drop table if exists t1, t2;
+--enable_warnings
+
+CREATE TABLE t1
+(
+ id INT PRIMARY KEY
+) ENGINE=pbxt; # PBXT: Instead of InnoDB
+
+CREATE TABLE t2
+(
+ v INT,
+ CONSTRAINT c1 FOREIGN KEY (v) REFERENCES t1(id)
+) ENGINE=pbxt; # PBXT: Instead of InnoDB
+
+--error 1452
+INSERT INTO t2 VALUES(2);
+
+set foreign_key_checks = 0;
+drop table t1;
+set foreign_key_checks = 1;
+
+--error 1452
+INSERT INTO t2 VALUES(2);
+
+--disable_warnings
+drop table if exists parent, child, child_child;
+--enable_warnings
+CREATE TABLE parent (
+	id INT NOT NULL,
+	PRIMARY KEY (id)
+) ENGINE=PBXT;
+
+CREATE TABLE child (
+	id INT PRIMARY KEY,
+	parent_id INT,
+	INDEX par_ind (parent_id),
+	FOREIGN KEY (parent_id) REFERENCES parent(id) ON DELETE SET NULL ON UPDATE SET NULL
+) ENGINE=PBXT;
+
+insert parent values(1);
+insert parent values(2);
+insert child values(100, 1);
+insert child values(200, 1);
+insert child values(300, 2);
+insert child values(400, 2);
+
+update parent set id = 3 where id = 1;
+
+select * from parent;
+select * from child order by id;
+
+delete from parent where id = 2;
+
+select * from parent;
+select * from child order by id;
+
+set foreign_key_checks = 0;
+--disable_warnings
+drop table if exists parent, child, child_child;
+--enable_warnings
+set foreign_key_checks = 1;
+
+CREATE TABLE parent (
+	id INT NOT NULL,
+	PRIMARY KEY (id)
+) ENGINE=PBXT;
+
+CREATE TABLE child (
+	id INT PRIMARY KEY,
+	parent_id INT,
+	INDEX par_ind (parent_id),
+	FOREIGN KEY (parent_id) REFERENCES parent(id) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=PBXT;
+
+CREATE TABLE child_child (
+	id INT PRIMARY KEY,
+	child_id INT,
+	INDEX (child_id),
+	FOREIGN KEY (child_id) REFERENCES child(id) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=PBXT;
+
+delete from parent;
+delete from child;
+delete from child_child;
+insert parent values(1);
+insert parent values(2);
+insert child values(100, 1);
+insert child values(200, 1);
+insert child values(300, 2);
+insert child values(400, 2);
+insert child_child values(1000, 100);
+insert child_child values(2000, 200);
+insert child_child values(3000, 300);
+insert child_child values(4000, 300);
+insert child_child values(5000, 400);
+
+select * from parent;
+select * from child order by id;
+select * from child_child;
+
+update parent set id = 3 where id = 1;
+
+select * from parent;
+select * from child order by id;
+
+delete from parent where id = 2;
+
+select * from parent;
+select * from child order by id;
+select * from child_child;
+
+set foreign_key_checks = 0;
+--disable_warnings
+drop table if exists parent, child, child_child;
+--enable_warnings
+set foreign_key_checks = 1;
+
+CREATE TABLE parent (
+	id INT NOT NULL,
+	PRIMARY KEY (id)
+) ENGINE=PBXT;
+
+CREATE TABLE child (
+	id INT,
+	parent_id INT,
+	INDEX par_ind (parent_id),
+	FOREIGN KEY (parent_id) REFERENCES parent(id)
+) ENGINE=PBXT;
+
+insert parent values(2);
+insert parent values(1);
+insert child values(100, 1);
+insert child values(200, 1);
+
+--error 1451
+update parent set id = 3 where id = 1;
+
+--error 1451
+delete from parent where id = 1;
+
+select * from parent;
+select * from child order by id;
+
+delete from child;
+
+insert child values(100, 1);
+insert child values(200, 1);
+
+create index child_ind on child(id);
+show create table child;
+drop index child_ind on child;
+show create table child;
+
+alter table parent add column c1 varchar(40);
+
+insert child values(2000, 2);
+
+select * from parent;
+select * from child order by id;
+
+show create table parent;
+
+alter table parent drop column c1;
+
+select * from parent;
+show create table parent;
+
+alter table parent add column c1 int;
+
+alter table parent drop column id;
+
+--error 1215
+insert child values(300, 1);
+
+alter table parent add column id int, add index (id);
+
+select * from parent;
+
+--error 1452
+insert child values(300, 1);
+
+update parent set id = 1 where id is null limit 1;
+update parent set id = 2 where id is null limit 1;
+
+insert child values(300, 1);
+
+select * from parent order by id;
+select * from child order by id;
+
+show create table parent;
+show create table child;
+
+alter table child add column c1 varchar(40);
+
+insert child values(400, 1, "asd");
+
+select * from parent order by id;
+select * from child order by id;
+
+alter table child drop key par_ind, drop column parent_id, add column parent_id int, add key par_ind (parent_id);
+
+insert child (id, parent_id, c1) values(500, 1, "asd");
+
+--disable_warnings
+drop table if exists child, parent;
+--enable_warnings
+CREATE TABLE parent (
+	id INT NOT NULL,
+	PRIMARY KEY (id)
+) ENGINE=PBXT;
+
+CREATE TABLE child (
+	id INT,
+	parent_id INT,
+	INDEX par_ind (parent_id),
+	FOREIGN KEY (parent_id)
+		REFERENCES parent(id) ON DELETE CASCADE
+) ENGINE=PBXT;
+
+show create table parent;
+show create table child;
+
+insert parent values(1);
+insert child values(100, 1);
+--error 1452
+insert child values(102, 2);
+
+set foreign_key_checks = 0;
+--disable_warnings
+drop table if exists parent, child;
+--enable_warnings
+set foreign_key_checks = 1;
+
+CREATE TABLE parent (
+	id INT NOT NULL,
+	PRIMARY KEY (id)
+) ENGINE=PBXT;
+
+CREATE TABLE child (
+	id INT,
+	parent_id INT,
+	INDEX par_ind (parent_id),
+	FOREIGN KEY (parent_id)
+		REFERENCES parent(glump) ON DELETE CASCADE
+) ENGINE=PBXT;
+
+insert parent values(1);
+--error 1215
+insert child values(100, 1);
+
+--disable_warnings
+drop table if exists test1;
+--enable_warnings
+CREATE TABLE test1 (
+	id INT NOT NULL,
+	c1 varchar(30),
+	PRIMARY KEY (id)
+) ENGINE=pbxt;
+
+insert test1 values(1, "asd");
+insert test1 values(2, "qwer");
+
+alter table test1 drop column id, drop primary key, add column id int;
+
+show create table test1;
+select * from test1;
+
+# Test some extended table and column names.
+--disable_warnings
+drop table if exists `таблица`, t2;
+--enable_warnings
+
+create table `таблица` (
+	id int primary key
+) engine=pbxt;
+
+CREATE TABLE t2
+(
+  поле int NOT NULL,
+  cc varchar(20),
+  foreign key (поле) references `таблица` (id),
+  index (поле)
+) engine=pbxt;
+
+insert `таблица` values (1);
+insert t2 values (1, "asd");
+
+select * from `таблица`;
+
+set foreign_key_checks = 0;
+--disable_warnings
+drop table if exists test1, parent, child, child_child, `таблица`, t2;
+--enable_warnings
+set foreign_key_checks = 1;
+
+SET CHARACTER SET koi8r;
+SET NAMES binary;
+
+create table `я┌п╣я│я┌` (
+	id int primary key
+) engine=pbxt;
+
+
+CREATE TABLE `2я┌п╣я│я┌` (
+	`я┌п╣я│я┌` int,
+	foreign key (`я┌п╣я│я┌`) references `я┌п╣я│я┌`(id),
+	index (`я┌п╣я│я┌`)
+) engine=pbxt;
+
+select * from `я┌п╣я│я┌`;
+select * from `2я┌п╣я│я┌`;
+
+set foreign_key_checks = 0;
+--disable_warnings
+drop table if exists `я┌п╣я│я┌`, `2я┌п╣я│я┌`;
+--enable_warnings
+set foreign_key_checks = 1;
+
+# Test processing of foreign_key_checks flag
+
+--disable_warnings
+drop table if exists t2, t1;
+--enable_warnings
+
+set foreign_key_checks = 1;
+--error 1005
+CREATE TABLE t2 (s1 INT DEFAULT NULL, FOREIGN KEY (s1) REFERENCES t1 (s1));
+
+set foreign_key_checks = 0;
+CREATE TABLE t2 (s1 INT DEFAULT NULL, FOREIGN KEY (s1) REFERENCES t1 (s1));
+
+set foreign_key_checks = 1;
+--error 1452
+insert into t2 values (1);
+
+set foreign_key_checks = 0;
+insert into t2 values (1);
+
+CREATE TABLE t1 (s1 INT PRIMARY KEY);
+set foreign_key_checks = 1;
+--error 1217
+DROP TABLE t1;
+set foreign_key_checks = 0;
+DROP TABLE t1;
+DROP TABLE t2;
+
+# check that table with self-refs can be dropped
+set foreign_key_checks = 1;
+CREATE TABLE t1 (s1 INT DEFAULT NULL, s2 INT DEFAULT NULL, s3 INT DEFAULT NULL, s4 INT DEFAULT NULL, 
+	INDEX (s1), INDEX (s2), INDEX (s3), INDEX (s4), 
+	FOREIGN KEY (s1) REFERENCES t1 (s2), 
+	FOREIGN KEY (s2) REFERENCES t1 (s3),
+	FOREIGN KEY (s3) REFERENCES t1 (s4));
+DROP TABLE t1;
+
+# .. but only if there are no other refs
+CREATE TABLE t1 (s1 INT DEFAULT NULL, s2 INT DEFAULT NULL, s3 INT DEFAULT NULL, s4 INT DEFAULT NULL, 
+	INDEX (s1), INDEX (s2), INDEX (s3), INDEX (s4), 
+	FOREIGN KEY (s1) REFERENCES t1 (s2), 
+	FOREIGN KEY (s2) REFERENCES t1 (s3),
+	FOREIGN KEY (s3) REFERENCES t1 (s4));
+CREATE TABLE t2 (s1 INT DEFAULT NULL, FOREIGN KEY (s1) REFERENCES t1 (s1));
+--error 1217
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t1;
+
+CREATE TABLE t2 (s1 INT, INDEX (s1));
+
+# this test is temporary disabled because the server error message includes temporary file name
+# and thus differs every time, so it's impossible to get fixed text output
+
+#set foreign_key_checks = 1;
+#--error 1005
+#ALTER TABLE t2 ADD FOREIGN KEY (s1) REFERENCES t1 (s1); 
+
+set foreign_key_checks = 0;
+ALTER TABLE t2 ADD FOREIGN KEY (s1) REFERENCES t1 (s1); 
+
+--disable_warnings
+DROP TABLE IF EXISTS t2, t1;
+--enable_warnings
+
+--disable_query_log
+drop database pbxt;
+--enable_query_log
+set foreign_key_checks = 1;
+
