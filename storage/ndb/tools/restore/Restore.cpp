@@ -33,12 +33,182 @@ Uint16 Twiddle16(Uint16 in); // Byte shift 16-bit data
 Uint32 Twiddle32(Uint32 in); // Byte shift 32-bit data
 Uint64 Twiddle64(Uint64 in); // Byte shift 64-bit data
 
+
+/*
+  TwiddleUtil
+
+  Utility class used when swapping byteorder
+  of one attribute in a table
+
+*/
+
+class TwiddleUtil {
+  Uint32 m_twiddle_size;
+  Uint32 m_twiddle_array_size;
+public:
+  TwiddleUtil(); // Not implemented
+  TwiddleUtil(const TwiddleUtil&); // Not implemented
+
+  TwiddleUtil(const AttributeDesc * const attr_desc) {
+    const NdbDictionary::Column::Type attribute_type =
+      attr_desc->m_column->getType();
+
+    switch(attribute_type){
+    case NdbDictionary::Column::Datetime:
+      // Datetime is stored as 8x8, should be twiddled as 64 bit
+      assert(attr_desc->size == 8);
+      assert(attr_desc->arraySize == 8);
+      m_twiddle_size = 64;
+      m_twiddle_array_size = 1;
+      break;
+
+    case NdbDictionary::Column::Timestamp:
+      // Timestamp is stored as 4x8, should be twiddled as 32 bit
+      assert(attr_desc->size == 8);
+      assert(attr_desc->arraySize == 4);
+      m_twiddle_size = 32;
+      m_twiddle_array_size = 1;
+      break;
+
+    case NdbDictionary::Column::Blob:
+    case NdbDictionary::Column::Text:
+      if (attr_desc->m_column->getArrayType() ==
+          NdbDictionary::Column::ArrayTypeFixed)
+      {
+        // Length of fixed size blob which is stored in first 64 bit's
+        // has to be twiddled, the remaining byte stream left as is
+        assert(attr_desc->size == 8);
+        assert(attr_desc->arraySize > 8);
+        m_twiddle_size = 64;
+        m_twiddle_array_size = 1;
+        break;
+      }
+      // Fallthrough for blob/text with ArrayTypeVar
+
+    default:
+      // Default twiddling parameters
+      m_twiddle_size = attr_desc->size;
+      m_twiddle_array_size = attr_desc->arraySize;
+      break;
+    }
+
+    assert(m_twiddle_array_size);
+    assert(m_twiddle_size);
+  }
+
+  bool is_aligned (void* data_ptr) const {
+    switch (m_twiddle_size){
+    case 8:
+      // Always aligned
+      return true;
+      break;
+    case 16:
+      return ((((size_t)data_ptr) & 1) == 0);
+      break;
+    case 32:
+      return ((((size_t)data_ptr) & 3) == 0);
+      break;
+    case 64:
+      return ((((size_t)data_ptr) & 7) == 0);
+      break;
+    default:
+      abort();
+    }
+  }
+
+  void twiddle_aligned(void* const data_ptr) const {
+    // Make sure the data pointer is properly aligned
+    assert(is_aligned(data_ptr));
+
+    switch(m_twiddle_size){
+    case 8:
+      // Nothing to swap
+      break;
+    case 16:
+    {
+      Uint16* ptr = (Uint16*)data_ptr;
+      for (Uint32 i = 0; i < m_twiddle_array_size; i++){
+        *ptr = Twiddle16(*ptr);
+        ptr++;
+      }
+      break;
+    }
+    case 32:
+    {
+      Uint32* ptr = (Uint32*)data_ptr;
+      for (Uint32 i = 0; i < m_twiddle_array_size; i++){
+        *ptr = Twiddle32(*ptr);
+        ptr++;
+      }
+      break;
+    }
+    case 64:
+    {
+      Uint64* ptr = (Uint64*)data_ptr;
+      for (Uint32 i = 0; i < m_twiddle_array_size; i++){
+        *ptr = Twiddle64(*ptr);
+        ptr++;
+      }
+      break;
+    }
+    default:
+      abort();
+    } // switch
+  }
+};
+
+
+/*
+  BackupFile::twiddle_attribute
+
+  Swap the byte order of one attribute whose data may or may not
+  be properly aligned for the current datatype
+
+*/
+
+void
+BackupFile::twiddle_atribute(const AttributeDesc * const attr_desc,
+                             AttributeData* attr_data)
+{
+  TwiddleUtil map(attr_desc);
+
+  // Check if data is aligned properly
+  void* data_ptr = (char*)attr_data->void_value;
+  Uint32 data_sz = attr_desc->getSizeInBytes();
+  bool aligned= map.is_aligned(data_ptr);
+  if (!aligned)
+  {
+    // The pointer is not properly aligned, copy the data
+    // to aligned memory before twiddling
+    m_twiddle_buffer.assign(data_ptr, data_sz);
+    data_ptr = m_twiddle_buffer.get_data();
+  }
+
+  // Swap the byteorder of the aligned data
+  map.twiddle_aligned(data_ptr);
+
+  if (!aligned)
+  {
+    // Copy data back from aligned memory
+    memcpy(attr_data->void_value,
+           m_twiddle_buffer.get_data(),
+           data_sz);
+  }
+}
+
+
+/*
+  BackupFile::Twiddle
+
+  Swap the byteorder for one attribute if it was stored
+  in different byteorder than current host
+
+*/
+
 bool
 BackupFile::Twiddle(const AttributeDesc * const attr_desc,
-                    AttributeData* attr_data, Uint32 arraySize) const
+                    AttributeData* attr_data)
 {
-  Uint32 i;
-
   // Check parameters are not NULL
   assert(attr_desc);
   assert(attr_data);
@@ -47,68 +217,25 @@ BackupFile::Twiddle(const AttributeDesc * const attr_desc,
   assert(!attr_data->null);
   assert(attr_data->void_value);
 
-  if(m_hostByteOrder)
-    return true;
-  
-  if((attr_desc->m_column->getType() == NdbDictionary::Column::Blob
-      || attr_desc->m_column->getType() == NdbDictionary::Column::Text)
-     && attr_desc->m_column->getArrayType() == NdbDictionary::Column::ArrayTypeFixed)
+  if(unlikely(!m_hostByteOrder))
   {
-    char* p = (char*)&attr_data->u_int64_value[0];
-    Uint64 x;
-    memcpy(&x, p, sizeof(Uint64));
-    x = Twiddle64(x);
-    memcpy(p, &x, sizeof(Uint64));
+    // The data file is not in host byte order, the
+    // attribute need byte order swapped
+    twiddle_atribute(attr_desc, attr_data);
   }
-  
-  //convert datetime type
-  if(attr_desc->m_column->getType() == NdbDictionary::Column::Datetime)
+#ifdef VM_TRACE
+  else
   {
-    char* p = (char*)&attr_data->u_int64_value[0];
-    Uint64 x;
-    memcpy(&x, p, sizeof(Uint64));
-    x = Twiddle64(x);
-    memcpy(p, &x, sizeof(Uint64));
+    // Increase test converage in debug mode by doing
+    // a double byte order swap to prove that both ways work
+    twiddle_atribute(attr_desc, attr_data);
+    twiddle_atribute(attr_desc, attr_data);
   }
+#endif
 
-  if(attr_desc->m_column->getType() == NdbDictionary::Column::Timestamp)
-  {
-    attr_data->u_int32_value[0] = Twiddle32(attr_data->u_int32_value[0]);
-  }
-  
-  if(arraySize == 0){
-    arraySize = attr_desc->arraySize;
-  }
-  
-  switch(attr_desc->size){
-  case 8:
-    
-    return true;
-  case 16:
-    for(i = 0; i<arraySize; i++){
-      attr_data->u_int16_value[i] = Twiddle16(attr_data->u_int16_value[i]);
-    }
-    return true;
-  case 32:
-    for(i = 0; i<arraySize; i++){
-      attr_data->u_int32_value[i] = Twiddle32(attr_data->u_int32_value[i]);
-    }
-    return true;
-  case 64:
-    for(i = 0; i<arraySize; i++){
-      // allow unaligned
-      char* p = (char*)&attr_data->u_int64_value[i];
-      Uint64 x;
-      memcpy(&x, p, sizeof(Uint64));
-      x = Twiddle64(x);
-      memcpy(p, &x, sizeof(Uint64));
-    }
-    return true;
-  default:
-    return false;
-  } // switch
+  return true;
+}
 
-} // Twiddle
 
 FilteredNdbOut err(* new FileOutputStream(stderr), 0, 0);
 FilteredNdbOut info(* new FileOutputStream(stdout), 1, 1);
@@ -612,7 +739,8 @@ RestoreDataIterator::reset_bitfield_storage()
 void
 RestoreDataIterator::free_bitfield_storage()
 {
-  delete [] m_bitfield_storage_ptr;
+  if (m_bitfield_storage_ptr)
+    free(m_bitfield_storage_ptr);
   m_bitfield_storage_ptr = 0;
   m_bitfield_storage_curr_ptr = 0;
   m_bitfield_storage_len = 0;
@@ -1028,16 +1156,8 @@ RestoreDataIterator::readVarData(Uint32 *buf_ptr, Uint32 *ptr,
     attr_data->void_value = &data->Data[0];
     attr_data->size = sz;
 
-    //if (m_currentTable->getTableId() >= 2) { ndbout << "var off=" << ptr-buf_ptr << " attrId=" << attrId << endl; }
-
-    /**
-     * Compute array size
-     */
-    const Uint32 arraySize = sz / (attr_desc->size / 8);
-    assert(arraySize <= attr_desc->arraySize);
-
     //convert the length of blob(v1) and text(v1)
-    if(!Twiddle(attr_desc, attr_data, attr_desc->arraySize))
+    if(!Twiddle(attr_desc, attr_data))
     {
       return -1;
     }
@@ -1086,12 +1206,7 @@ RestoreDataIterator::readVarData_drop6(Uint32 *buf_ptr, Uint32 *ptr,
     attr_data->null = false;
     attr_data->void_value = &data->Data[0];
 
-    /**
-     * Compute array size
-     */
-    const Uint32 arraySize = (4 * sz) / (attr_desc->size / 8);
-    assert(arraySize >= attr_desc->arraySize);
-    if (!Twiddle(attr_desc, attr_data, attr_desc->arraySize))
+    if (!Twiddle(attr_desc, attr_data))
     {
       return -1;
     }

@@ -86,6 +86,10 @@ public:
   AttributeDesc();
 
   Uint32 getSizeInWords() const { return (size * arraySize + 31)/ 32;}
+  Uint32 getSizeInBytes() const {
+    assert(size >= 8);
+    return (size / 8) * arraySize;
+  }
 }; // AttributeDesc
 
 struct AttributeS {
@@ -285,6 +289,8 @@ protected:
 
   Uint64 m_file_size;
   Uint64 m_file_pos;
+  
+  UtilBuffer m_twiddle_buffer;
 
   void (* free_data_callback)();
   virtual void reset_buffers() {}
@@ -313,11 +319,15 @@ public:
   Uint32 getNodeId() const { return m_nodeId;}
   const BackupFormat::FileHeader & getFileHeader() const { return m_fileHeader;}
   bool Twiddle(const AttributeDesc * const attr_desc,
-               AttributeData * attr_data,
-               Uint32 arraySize = 0) const;
+               AttributeData * attr_data);
 
   Uint64 get_file_size() const { return m_file_size; }
   Uint64 get_file_pos() const { return m_file_pos; }
+
+private:
+  void
+  twiddle_atribute(const AttributeDesc * const attr_desc,
+                   AttributeData* attr_data);
 };
 
 struct DictObject {
