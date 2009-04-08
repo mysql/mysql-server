@@ -1418,7 +1418,7 @@ int tokudb_prefix_cmp_dbt_key(DB *file, const DBT *keya, const DBT *keyb) {
         keyb->data,
         keyb->size,
         (uchar *)file->descriptor.data + 4,
-        *(u_int32_t *)file->descriptor.data,
+        *(u_int32_t *)file->descriptor.data - 4,
         true
         );
     return cmp;
