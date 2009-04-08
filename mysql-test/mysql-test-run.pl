@@ -3286,10 +3286,38 @@ sub run_testcase ($) {
   }
 
   my $test= start_mysqltest($tinfo);
+  # Set only when we have to keep waiting after expectedly died server
+  my $keep_waiting_proc = 0;
 
   while (1)
   {
-    my $proc= My::SafeProcess->wait_any();
+    my $proc;
+    if ($keep_waiting_proc)
+    {
+      # Any other process exited?
+      $proc = My::SafeProcess->check_any();
+      if ($proc)
+      {
+	mtr_verbose ("Found exited process $proc");
+	# If that was the timeout, cancel waiting
+	if ( $proc eq $test_timeout_proc )
+	{
+	  $keep_waiting_proc = 0;
+	}
+      }
+      else
+      {
+	$proc = $keep_waiting_proc;
+      }
+    }
+    else
+    {
+      $proc= My::SafeProcess->wait_any();
+    }
+
+    # Will be restored if we need to keep waiting
+    $keep_waiting_proc = 0;
+
     unless ( defined $proc )
     {
       mtr_error("wait_any failed");
@@ -3385,8 +3413,12 @@ sub run_testcase ($) {
     # ----------------------------------------------------
     # Check if it was an expected crash
     # ----------------------------------------------------
-    if ( check_expected_crash_and_restart($proc) )
+    my $check_crash = check_expected_crash_and_restart($proc);
+    if ($check_crash)
     {
+      # Keep waiting if it returned 2, if 1 don't wait or stop waiting.
+      $keep_waiting_proc = 0 if $check_crash == 1;
+      $keep_waiting_proc = $proc if $check_crash == 2;
       next;
     }
 
@@ -3727,16 +3759,16 @@ sub check_expected_crash_and_restart {
     {
       mtr_verbose("Crash was expected, file '$expect_file' exists");
 
-      while (1){
-
+      for (my $waits = 0;  $waits < 50;  $waits++)
+      {
 	# If last line in expect file starts with "wait"
 	# sleep a little and try again, thus allowing the
 	# test script to control when the server should start
-	# up again
+	# up again. Keep trying for up to 5s at a time.
 	my $last_line= mtr_lastlinesfromfile($expect_file, 1);
 	if ($last_line =~ /^wait/ )
 	{
-	  mtr_verbose("Test says wait before restart");
+	  mtr_verbose("Test says wait before restart") if $waits == 0;
 	  mtr_milli_sleep(100);
 	  next;
 	}
@@ -3746,11 +3778,11 @@ sub check_expected_crash_and_restart {
 	# Start server with same settings as last time
 	mysqld_start($mysqld, $mysqld->{'started_opts'});
 
-	last;
+	return 1;
       }
+      # Loop ran through: we should keep waiting after a re-check
+      return 2;
     }
-
-    return 1;
   }
 
   # Not an expected crash
