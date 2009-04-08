@@ -662,7 +662,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     buff.append(views->source.str, views->source.length);
 
     thd->binlog_query(THD::STMT_QUERY_TYPE,
-                      buff.ptr(), buff.length(), FALSE, FALSE);
+                      buff.ptr(), buff.length(), FALSE, FALSE, THD::NOT_KILLED);
   }
 
   VOID(pthread_mutex_unlock(&LOCK_open));
