@@ -1323,6 +1323,7 @@ public:
     else
       Item_ident::print(str);
   }
+  virtual Ref_Type ref_type() { return AGGREGATE_REF; }
 };
 
 
@@ -6969,18 +6970,26 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
   {
     if (decimals != NOT_FIXED_DEC)
     {
-      int delta1= max_length_orig - decimals_orig;
-      int delta2= item->max_length - item->decimals;
-      max_length= max(delta1, delta2) + decimals;
-      if (fld_type == MYSQL_TYPE_FLOAT && max_length > FLT_DIG + 2) 
+      /*
+        For FLOAT(M,D)/DOUBLE(M,D) do not change precision
+         if both fields have the same M and D
+      */
+      if (item->max_length != max_length_orig ||
+          item->decimals != decimals_orig)
       {
-        max_length= FLT_DIG + 6;
-        decimals= NOT_FIXED_DEC;
-      } 
-      if (fld_type == MYSQL_TYPE_DOUBLE && max_length > DBL_DIG + 2) 
-      {
-        max_length= DBL_DIG + 7;
-        decimals= NOT_FIXED_DEC;
+        int delta1= max_length_orig - decimals_orig;
+        int delta2= item->max_length - item->decimals;
+        max_length= max(delta1, delta2) + decimals;
+        if (fld_type == MYSQL_TYPE_FLOAT && max_length > FLT_DIG + 2)
+        {
+          max_length= MAX_FLOAT_STR_LENGTH;
+          decimals= NOT_FIXED_DEC;
+        } 
+        else if (fld_type == MYSQL_TYPE_DOUBLE && max_length > DBL_DIG + 2)
+        {
+          max_length= MAX_DOUBLE_STR_LENGTH;
+          decimals= NOT_FIXED_DEC;
+        }
       }
     }
     else

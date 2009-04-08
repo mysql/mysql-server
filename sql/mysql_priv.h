@@ -251,6 +251,11 @@ MY_LOCALE *my_locale_by_number(uint number);
 #define PRECISION_FOR_DOUBLE 53
 #define PRECISION_FOR_FLOAT  24
 
+/* -[digits].E+## */
+#define MAX_FLOAT_STR_LENGTH (FLT_DIG + 6)
+/* -[digits].E+### */
+#define MAX_DOUBLE_STR_LENGTH (DBL_DIG + 7)
+
 /*
   Default time to wait before aborting a new client connection
   that does not respond to "initial server greeting" timely
