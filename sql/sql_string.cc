@@ -65,10 +65,10 @@ bool String::real_alloc(uint32 arg_length)
 
 bool String::realloc(uint32 alloc_length)
 {
-  uint32 len=ALIGN_SIZE(alloc_length+1);
-  if (Alloced_length < len)
+  if (Alloced_length <= alloc_length)
   {
     char *new_ptr;
+    uint32 len= ALIGN_SIZE(alloc_length+1);
     if (alloced)
     {
       if ((new_ptr= (char*) my_realloc(Ptr,len,MYF(MY_WME))))

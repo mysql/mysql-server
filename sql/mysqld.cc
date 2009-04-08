@@ -4974,11 +4974,11 @@ inline void kill_broken_server()
 #if !defined(__NETWARE__)
       unix_sock == INVALID_SOCKET ||
 #endif
-      (!opt_disable_networking &&
-       (base_ip_sock == INVALID_SOCKET || extra_ip_sock != INVALID_SOCKET)))
+      (!opt_disable_networking && ip_sock == INVALID_SOCKET))
   {
     select_thread_in_use = 0;
     /* The following call will never return */
+    DBUG_PRINT("general", ("killing server because socket is closed"));
     kill_server(IF_NETWARE(MYSQL_KILL_SIGNAL, (void*) MYSQL_KILL_SIGNAL));
   }
 }
