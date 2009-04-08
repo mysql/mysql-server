@@ -357,7 +357,8 @@ sub main {
   mtr_print_thick_line();
   mtr_print_header();
 
-  my ($completed, $fail)= run_test_server($server, $tests, $opt_parallel);
+  my ($fail, $completed, $extra_warnings)=
+    run_test_server($server, $tests, $opt_parallel);
 
   # Send Ctrl-C to any children still running
   kill("INT", keys(%children));
@@ -393,10 +394,6 @@ sub main {
     mtr_error("Not all tests completed");
   }
 
-  if ($fail) {
-    mtr_error("Test suite failure.");
-  }
-
   mtr_print_line();
 
   if ( $opt_gcov ) {
@@ -404,7 +401,7 @@ sub main {
 		 $opt_gcov_msg, $opt_gcov_err);
   }
 
-  mtr_report_stats($completed);
+  mtr_report_stats($fail, $completed, $extra_warnings);
 
   exit(0);
 }
@@ -416,7 +413,8 @@ sub run_test_server ($$$) {
   my $num_saved_cores= 0;  # Number of core files saved in vardir/log/ so far.
   my $num_saved_datadir= 0;  # Number of datadirs saved in vardir/log/ so far.
   my $num_failed_test= 0; # Number of tests failed so far
-  my $test_failure= 0;
+  my $test_failure= 0;    # Set true if test suite failed
+  my $extra_warnings= []; # Warnings found during server shutdowns
 
   # Scheduler variables
   my $max_ndb= $childs / 2;
@@ -450,7 +448,7 @@ sub run_test_server ($$$) {
 	  $s->remove($sock);
 	  if (--$childs == 0){
 	    $suite_timeout_proc->kill();
-	    return ($completed, $test_failure);
+	    return ($test_failure, $completed, $extra_warnings);
 	  }
 	  next;
 	}
@@ -519,14 +517,14 @@ sub run_test_server ($$$) {
 	      # Test has failed, force is off
 	      $suite_timeout_proc->kill();
 	      push(@$completed, $result);
-	      return ($completed, 1);
+	      return (1, $completed, $extra_warnings);
 	    }
 	    elsif ($opt_max_test_fail > 0 and
 		   $num_failed_test >= $opt_max_test_fail) {
 	      $suite_timeout_proc->kill();
 	      mtr_report("Too many tests($num_failed_test) failed!",
 			 "Terminating...");
-	      return (undef, 1);
+	      return (1, $completed, $extra_warnings);
 	    }
 	    $num_failed_test++;
 	  }
@@ -580,13 +578,14 @@ sub run_test_server ($$$) {
 	elsif ($line eq 'WARNINGS'){
           my $fake_test= My::Test::read_test($sock);
           my $test_list= join (" ", @{$fake_test->{testnames}});
+          push @$extra_warnings, $test_list;
           mtr_report("***Warnings generated in error logs during shutdown ".
                      "after running tests: $test_list");
           $test_failure= 1;
           if ( !$opt_force ) {
             # Test failure due to warnings, force is off
             $suite_timeout_proc->kill();
-            return ($completed, 1);
+            return (1, $completed, $extra_warnings);
           }
         } else {
 	  mtr_error("Unknown response: '$line' from client");
@@ -666,7 +665,7 @@ sub run_test_server ($$$) {
     if ( ! $suite_timeout_proc->wait_one(0) )
     {
       mtr_report("Test suite timeout! Terminating...");
-      return (undef, 1);
+      return (1, $completed, $extra_warnings);
     }
   }
 }
@@ -758,7 +757,9 @@ sub run_worker ($) {
     }
   }
 
-  die "Internal error: should not reach this place.";
+  stop_all_servers();
+
+  exit(1);
 }
 
 

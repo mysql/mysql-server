@@ -569,6 +569,12 @@ int	__void__;
 #define PURIFY_OR_LINT_INIT(var)
 #endif
 
+#ifdef HAVE_purify
+#define IF_PURIFY(A,B) (A)
+#else
+#define IF_PURIFY(A,B) (B)
+#endif
+
 #if !defined(HAVE_UINT)
 #undef HAVE_UINT
 #define HAVE_UINT

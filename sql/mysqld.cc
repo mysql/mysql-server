@@ -4815,10 +4815,10 @@ static bool read_init_file(char *file_name)
   DBUG_ENTER("read_init_file");
   DBUG_PRINT("enter",("name: %s",file_name));
   if (!(file=my_fopen(file_name,O_RDONLY,MYF(MY_WME))))
-    return(1);
+    DBUG_RETURN(1);
   bootstrap(file);
   (void) my_fclose(file,MYF(MY_WME));
-  return 0;
+  DBUG_RETURN(0);
 }
 
 
@@ -4839,6 +4839,7 @@ void handle_connection_in_main_thread(THD *thd)
   safe_mutex_assert_owner(&LOCK_thread_count);
   thread_cache_size=0;			// Safety
   threads.append(thd);
+  thd->connect_utime= my_micro_time();
   (void) pthread_mutex_unlock(&LOCK_thread_count);
   handle_one_connection((void*) thd);
 }

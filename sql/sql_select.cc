@@ -1994,8 +1994,17 @@ JOIN::exec()
 				     tmp_fields_list2, tmp_all_fields2, 
 				     fields_list.elements, tmp_all_fields1))
 	  DBUG_VOID_RETURN;
-	curr_join->tmp_fields_list2= tmp_fields_list2;
-	curr_join->tmp_all_fields2= tmp_all_fields2;
+#ifdef HAVE_purify
+        /*
+          Some GCCs use memcpy() for struct assignment, even for x=x.
+          GCC bug 19410: http://gcc.gnu.org/bugzilla/show_bug.cgi?id=19410
+        */
+        if (curr_join != this)
+#endif
+        {
+          curr_join->tmp_fields_list2= tmp_fields_list2;
+          curr_join->tmp_all_fields2= tmp_all_fields2;
+        }
       }
       curr_fields_list= &curr_join->tmp_fields_list2;
       curr_all_fields= &curr_join->tmp_all_fields2;
