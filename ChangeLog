@@ -1,5 +1,13 @@
 2009-04-07	The InnoDB Team
 
+	* include/os0sync.h, include/sync0rw.ic, include/sync0sync.h,
+	include/sync0sync.ic, include/univ.i, plug.in, srv/srv0srv.c,
+	srv/srv0start.c, sync/sync0arr.c, sync/sync0sync.c:
+	Enable atomics on Solaris (using the libc functions as defined in
+	atomic.h) if GCC atomic builtins are not present.
+
+2009-04-07	The InnoDB Team
+
 	* btr/btr0btr.c, dict/dict0dict.c, ibuf/ibuf0ibuf.c,
 	include/data0data.h, include/data0data.ic, include/data0type.h,
 	include/data0type.ic, include/dict0dict.h,
