@@ -287,3 +287,61 @@ delete from t1 where a = 5;
 select * from t1 order by 1;
 a	b	c
 drop table t1;
+create table nott1 (a int, 
+b int, 
+c int, 
+primary key(a,b)) 
+engine=ndb partition by key(a);
+insert into nott1 values (0,0,0);
+insert into nott1 values (0,1,1);
+insert into nott1 values (0,2,2);
+insert into nott1 values (0,3,3);
+insert into nott1 values (1,0,4);
+insert into nott1 values (1,1,5);
+insert into nott1 values (1,2,6);
+insert into nott1 values (2,22,7);
+All partitions scan
+select * from nott1 order by c;
+a	b	c
+0	0	0
+0	1	1
+0	2	2
+0	3	3
+1	0	4
+1	1	5
+1	2	6
+2	22	7
+ndb_scan_count
+1
+ndb_pruned_scan_count
+0
+Single partition scan
+select * from nott1 where a=0 order by c;
+a	b	c
+0	0	0
+0	1	1
+0	2	2
+0	3	3
+ndb_scan_count
+1
+ndb_pruned_scan_count
+1
+Single partition scan
+select * from nott1 where a=4 order by c;
+a	b	c
+ndb_scan_count
+1
+ndb_pruned_scan_count
+1
+MRR scan on one partition
+select * from nott1 where a=0 and (( b > 0 and b < 3) or 
+( b > 5 and b < 10) or 
+( b > 22 and b < 50)) order by c;
+a	b	c
+0	1	1
+0	2	2
+ndb_scan_count
+1
+ndb_pruned_scan_count
+1
+drop table nott1;

@@ -354,6 +354,9 @@ class Thd_ndb
   uint m_old_violation_count;
   uint m_conflict_fn_usage_count;
 
+  uint m_scan_count;
+  uint m_pruned_scan_count;
+
   NdbTransaction *global_schema_lock_trans;
   uint global_schema_lock_count;
   uint global_schema_lock_error;

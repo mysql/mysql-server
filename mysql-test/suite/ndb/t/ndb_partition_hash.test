@@ -24,6 +24,8 @@ drop table if exists t1;
 # Testcase from Mikael Ronstrom.
 # Note that the testcase did not fail previously, but accessed
 # partitions unnecessarily
+# Testcase now checks that all scan accesses are pruned at
+# NDBAPI level
 #
 CREATE TABLE t1 (
   ol_o_id int NOT NULL,
@@ -39,11 +41,18 @@ insert into t1 values (1,0,0,0,0),(1,0,0,1,0),(1,0,0,2,0),(1,1,0,0,0),(1,1,0,1,0
 insert into t1 values (2,0,0,0,0),(4,0,0,0,0),(4,0,0,1,0);
 insert into t1 values (0,1,1,4,0),(0,1,1,5,0); # Only rows affected.
 
+--source include/ndb_init_scan_counts.inc
 UPDATE t1 force index (primary) SET ol_tmp = 1
 WHERE ol_o_id = 0 AND ol_d_id = 1 AND ol_w_id = 1;
+--source include/ndb_scan_counts.inc
 
+--source include/ndb_init_scan_counts.inc
 SELECT * FROM t1 WHERE ol_w_id = 1 AND ol_d_id = 1 AND ol_o_id = 0;
+--source include/ndb_scan_counts.inc
+
+--source include/ndb_init_scan_counts.inc
 SELECT SUM(ol_number) FROM t1 WHERE ol_o_id = 0 AND ol_w_id = 1 AND ol_d_id = 1;
+--source include/ndb_scan_counts.inc
 
 drop table t1;
 
