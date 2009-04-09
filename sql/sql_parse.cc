@@ -5067,6 +5067,14 @@ create_sp_error:
       case SP_KEY_NOT_FOUND:
 	if (lex->drop_if_exists)
 	{
+          if (mysql_bin_log.is_open())
+          {    
+            Query_log_event qinfo(thd, thd->query, thd->query_length, 
+                                  /* using_trans */ 0, 
+                                  /* suppress use */ FALSE,
+                                  THD::NOT_KILLED);
+            mysql_bin_log.write(&qinfo);
+          }    
 	  push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 			      ER_SP_DOES_NOT_EXIST, ER(ER_SP_DOES_NOT_EXIST),
 			      SP_COM_STRING(lex), lex->spname->m_name.str);
