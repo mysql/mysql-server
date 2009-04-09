@@ -1502,7 +1502,9 @@ my_bool _mi_memmap_file(MI_INFO *info)
       DBUG_PRINT("warning",("File isn't extended for memmap"));
       DBUG_RETURN(0);
     }
-    if (mi_dynmap_file(info, share->state.state.data_file_length))
+    if (mi_dynmap_file(info,
+                       share->state.state.data_file_length + 
+                         MEMMAP_EXTRA_MARGIN))
       DBUG_RETURN(0);
   }
   info->opt_flag|= MEMMAP_USED;
