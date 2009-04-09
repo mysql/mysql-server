@@ -38,7 +38,8 @@ sync_with_master;
 
 
 #
-# Bug #38205 Row-based Replication (RBR) causes inconsistencies...
+# Bug#38205 Row-based Replication (RBR) causes inconsistencies...
+# Bug#319   if while a non-transactional slave is replicating a transaction...
 #
 # Verifying that STOP SLAVE does not interrupt excution of a group
 # execution of events if the group can not roll back.
@@ -93,14 +94,13 @@ connection slave1;
 reap;
 source include/wait_for_slave_to_stop.inc;
 let $sql_status= query_get_value(SHOW SLAVE STATUS, Slave_SQL_Running, 1);
---echo *** sql thread is running: $sql_status ***
+--echo *** sql thread is *not* running: $sql_status ***
 
 
 connection master;
 let $pos1_master= query_get_value(SHOW MASTER STATUS, Position, 1);
 
 connection slave;
-source include/wait_for_slave_sql_to_stop.inc;
 
 let $pos1_slave= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1);
 
@@ -112,7 +112,7 @@ eval select $pos1_master - $pos1_slave as zero;
 eval select $pos1_slave > $pos0_slave as one;
 --enable_query_log
 
-start slave;
+source include/start_slave.inc;
 
 # clean-up
 connection master;
