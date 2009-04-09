@@ -8261,6 +8261,14 @@ static MYSQL_SYSVAR_BOOL(stats_on_metadata, innobase_stats_on_metadata,
   "Enable statistics gathering for metadata commands such as SHOW TABLE STATUS (on by default)",
   NULL, NULL, TRUE);
 
+static MYSQL_SYSVAR_BOOL(use_legacy_cardinality_algorithm,
+  srv_use_legacy_cardinality_algorithm,
+  PLUGIN_VAR_OPCMDARG,
+  "Use legacy algorithm for picking random pages during index cardinality "
+  "estimation. Disable this to use a better algorithm, but note that your "
+  "query plans may change (enabled by default).",
+  NULL, NULL, TRUE);
+
 static MYSQL_SYSVAR_BOOL(adaptive_hash_index, innobase_adaptive_hash_index,
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
   "Enable InnoDB adaptive hash index (enabled by default).  "
@@ -8396,6 +8404,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(open_files),
   MYSQL_SYSVAR(rollback_on_timeout),
   MYSQL_SYSVAR(stats_on_metadata),
+  MYSQL_SYSVAR(use_legacy_cardinality_algorithm),
   MYSQL_SYSVAR(adaptive_hash_index),
   MYSQL_SYSVAR(status_file),
   MYSQL_SYSVAR(support_xa),
