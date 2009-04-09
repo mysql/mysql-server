@@ -2292,7 +2292,16 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
     (thd_arg->is_error() ? thd_arg->main_da.sql_errno() : 0) :
     ((thd_arg->system_thread & SYSTEM_THREAD_DELAYED_INSERT) ? 0 :
      thd_arg->killed_errno());
-  
+
+  /* thd_arg->main_da.sql_errno() might be ER_SERVER_SHUTDOWN or
+     ER_QUERY_INTERRUPTED, So here we need to make sure that
+     error_code is not set to these errors when specified NOT_KILLED
+     by the caller
+  */
+  if ((killed_status_arg == THD::NOT_KILLED) &&
+      (error_code == ER_SERVER_SHUTDOWN || error_code == ER_QUERY_INTERRUPTED))
+    error_code= 0;
+
   time(&end_time);
   exec_time = (ulong) (end_time  - thd_arg->start_time);
   /**
