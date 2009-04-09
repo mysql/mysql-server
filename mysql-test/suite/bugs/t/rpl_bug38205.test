@@ -1,5 +1,6 @@
 #
 # Bug #38205 Row-based Replication (RBR) causes inconsistencies: HA_ERR_FOUND_DUPP_KEY
+# Bug#319  if while a non-transactional slave is replicating a transaction possible problem 
 #
 # Verifying the fact that STOP SLAVE in the middle of a group execution waits
 # for the end of the group before the slave sql thread will stop.
@@ -143,7 +144,7 @@ connection slave1;
 reap;
 source include/wait_for_slave_sql_to_stop.inc;
 let $sql_status= query_get_value(SHOW SLAVE STATUS, Slave_SQL_Running, 1);
---echo *** sql thread is running: $sql_status ***
+--echo *** sql thread is *not* running: $sql_status ***
 
 let $pos1_slave= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1);
 

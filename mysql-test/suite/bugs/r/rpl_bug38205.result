@@ -44,7 +44,7 @@ zero
 0
 stop slave sql_thread;
 rollback;
-*** sql thread is running: No ***
+*** sql thread is *not* running: No ***
 *** the prove: the stopped slave has rolled back the current transaction ***
 zero
 0

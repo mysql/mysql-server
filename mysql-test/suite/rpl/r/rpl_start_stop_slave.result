@@ -28,7 +28,7 @@ zero
 0
 stop slave;
 rollback;
-*** sql thread is running: No ***
+*** sql thread is *not* running: No ***
 *** the prove: the stopped slave has finished the current transaction ***
 five
 5
@@ -36,5 +36,5 @@ zero
 0
 one
 1
-start slave;
+include/start_slave.inc
 drop table t1i, t2m;
