@@ -170,8 +170,6 @@ struct brt_header {
     unsigned int flags;
     DBT descriptor;
 
-    FIFO fifo; // all the abort and commit commands.  If the header gets flushed to disk, we write the fifo contents beyond the unused_memory.
-
     u_int64_t root_put_counter; // the generation number of the brt
 
     BLOCK_TABLE blocktable;
@@ -192,7 +190,7 @@ struct brt {
     DBT          temp_descriptor;
     int (*compare_fun)(DB*,const DBT*,const DBT*);
     int (*dup_compare)(DB*,const DBT*,const DBT*);
-    DB *db;           // To pass to the compare fun
+    DB *db;           // To pass to the compare fun, and close once transactions are done.
 
     OMT txns; // transactions that are using this OMT (note that the transaction checks the cf also)
 
@@ -200,6 +198,9 @@ struct brt {
     // If a transaction locked the BRT when it was empty, which transaction?  (Only the latest one matters)
     // 0 if no such transaction
     TXNID txnid_that_created_or_locked_when_empty;
+    int was_closed; //True when this brt was closed, but is being kept around for transactions.
+    int (*close_db)(DB*, u_int32_t);
+    u_int32_t close_flags;
 };
 
 /* serialization code */
@@ -215,9 +216,6 @@ int toku_serialize_brt_header_to (int fd, struct brt_header *h);
 int toku_serialize_brt_header_to_wbuf (struct wbuf *, struct brt_header *h, int64_t address_translation, int64_t size_translation);
 int toku_deserialize_brtheader_from (int fd, struct brt_header **brth);
 int toku_serialize_descriptor_contents_to_fd(int fd, DBT *desc, DISKOFF offset);
-
-int toku_serialize_fifo_at (int fd, toku_off_t freeoff, FIFO fifo, u_int64_t fifo_size); // Write a fifo into a disk, without worrying about fitting it into a block.  This write is done at the end of the file.
-u_int64_t toku_fifo_get_serialized_size (FIFO fifo);
 
 void toku_brtnode_free (BRTNODE *node);
 
@@ -299,7 +297,6 @@ struct cmd_leafval_heaviside_extra {
 int toku_cmd_leafval_heaviside (OMTVALUE leafentry, void *extra);
 
 int toku_brt_root_put_cmd(BRT brt, BRT_CMD cmd, TOKULOGGER logger);
-int toku_cachefile_root_put_cmd (CACHEFILE cf, BRT_CMD cmd, TOKULOGGER logger);
 
 void *mempool_malloc_from_omt(OMT omt, struct mempool *mp, size_t size, void **maybe_free);
 // Effect: Allocate a new object of size SIZE in MP.  If MP runs out of space, allocate new a new mempool space, and copy all the items

@@ -1192,7 +1192,8 @@ int log_compare(const DB_LSN * a, const DB_LSN * b) {
     return 0;
 }
 
-static int toku_db_close(DB * db, u_int32_t UU(flags)) {
+static int
+db_close_before_brt(DB *db, u_int32_t UU(flags)) {
     char *error_string = 0;
     int r1 = toku_close_brt(db->i->brt, db->dbenv->i->logger, &error_string);
     if (r1) {
@@ -1231,6 +1232,12 @@ static int toku_db_close(DB * db, u_int32_t UU(flags)) {
     if (is_panicked) return EINVAL;
     return 0;
 }
+
+static int toku_db_close(DB * db, u_int32_t flags) {
+    int r = toku_brt_db_delay_closed(db->i->brt, db, db_close_before_brt, flags);
+    return r;
+}
+
 
 //Get the main portion of a cursor flag (excluding the bitwise or'd components).
 static int get_main_cursor_flag(u_int32_t flags) {

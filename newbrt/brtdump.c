@@ -33,31 +33,6 @@ dump_header (int f, struct brt_header **header) {
     printf(" unnamed_root=%" PRId64 "\n", h->root.b);
     printf(" flags=%u\n", h->flags);
     *header = h;
-    printf("Fifo:\n");
-    printf(" fifo has %d entries\n", toku_fifo_n_entries(h->fifo));
-    if (dump_data) {
-	FIFO_ITERATE(h->fifo, key, keylen, data, datalen, type, xid,
-		     {
-			 printf(" ");
-			 switch (type) {
-			 case BRT_NONE: printf("NONE"); goto ok;
-			 case BRT_INSERT: printf("INSERT"); goto ok;
-			 case BRT_DELETE_ANY: printf("DELETE_ANY"); goto ok;
-			 case BRT_DELETE_BOTH: printf("DELETE_BOTH"); goto ok;
-			 case BRT_ABORT_ANY: printf("ABORT_ANY"); goto ok;
-			 case BRT_ABORT_BOTH: printf("ABORT_BOTH"); goto ok;
-			 case BRT_COMMIT_ANY: printf("COMMIT_ANY"); goto ok;
-			 case BRT_COMMIT_BOTH: printf("COMMIT_BOTH"); goto ok;
-			 }
-			 printf("huh?");
-		     ok:
-			 printf(" %lld ", (long long)xid);
-			 print_item(key, keylen);
-			 printf(" ");
-			 print_item(data, datalen);
-			 printf("\n");
-		     });
-    }
 }
 
 static int

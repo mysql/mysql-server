@@ -140,8 +140,6 @@ const struct logtype logtypes[] = {
 				{"BYTESTRING", "key", 0},
 				{"BYTESTRING", "data", 0},
 				NULLFIELD}},
-    {"deqrootentry", 'A', FA{{"FILENUM", "filenum", 0},
-			     NULLFIELD}},
     {0,0,FA{NULLFIELD}}
 };
 

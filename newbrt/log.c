@@ -1148,6 +1148,7 @@ static int remove_brt (OMTVALUE txnv, u_int32_t UU(idx), void *brtv) {
 }
 
 int toku_txn_note_close_brt (BRT brt) {
+    assert(toku_omt_size(brt->txns)==0);
     int r = toku_omt_iterate(brt->txns, remove_brt, brt);
     assert(r==0);
     return 0;
@@ -1163,7 +1164,12 @@ static int remove_txn (OMTVALUE brtv, u_int32_t UU(idx), void *txnv) {
     assert((void*)txnv_again==txnv);
     r = toku_omt_delete_at(brt->txns, index);
     assert(r==0);
-    return 0;
+    if (toku_omt_size(brt->txns)==0 && brt->was_closed) {
+        //Close immediately.
+        assert(brt->close_db);
+        r = brt->close_db(brt->db, brt->close_flags);
+    }
+    return r;
 }
 
 // for every BRT in txn, remove it.
