@@ -6448,13 +6448,13 @@ int Field_str::store(double nr)
     calculate the maximum number of significant digits if the 'f'-format
     would be used (+1 for decimal point if the number has a fractional part).
   */
-  digits= max(0, (int) max_length - fractional);
+  digits= max(1, (int) max_length - fractional);
   /*
     If the exponent is negative, decrease digits by the number of leading zeros
     after the decimal point that do not count as significant digits.
   */
   if (exp < 0)
-    digits= max(0, (int) digits + exp);
+    digits= max(1, (int) digits + exp);
   /*
     'e'-format is used only if the exponent is less than -4 or greater than or
     equal to the precision. In this case we need to adjust the number of
@@ -6462,7 +6462,7 @@ int Field_str::store(double nr)
     We also have to reserve one additional character if abs(exp) >= 100.
   */
   if (exp >= (int) digits || exp < -4)
-    digits= max(0, (int) (max_length - 5 - (exp >= 100 || exp <= -100)));
+    digits= max(1, (int) (max_length - 5 - (exp >= 100 || exp <= -100)));
 
   /* Limit precision to DBL_DIG to avoid garbage past significant digits */
   set_if_smaller(digits, DBL_DIG);
