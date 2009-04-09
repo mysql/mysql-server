@@ -4087,6 +4087,7 @@ int select_connection_name(const char *name)
 
 int select_connection(struct st_command *command)
 {
+  int ret;
   char *p= command->first_argument;
   static DYNAMIC_STRING ds_connection;
   const struct command_arg connection_args[] = {
@@ -4103,7 +4104,7 @@ int select_connection(struct st_command *command)
 
   DBUG_PRINT("info", ("changing connection: %s", ds_connection.str));
 
-  int ret= select_connection_name(ds_connection.str);
+  ret= select_connection_name(ds_connection.str);
   dynstr_free(&ds_connection);
   return ret;
 }
