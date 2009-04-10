@@ -202,6 +202,9 @@ runtest(void) {
         open_db(order[i]);
         test_insert(i);
         close_db();
+        open_db(-1);
+        test_insert(i);
+        close_db();
         open_db(order[i]);
         test_insert(i);
         close_db();
