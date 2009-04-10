@@ -603,7 +603,7 @@ brtheader_destroy(struct brt_header *h) {
     else {
         assert(h->type == BRTHEADER_CURRENT);
         toku_blocktable_destroy(&h->blocktable);
-        if (h->descriptor.data) toku_free(h->descriptor.data);
+        if (h->descriptor.dbt.data) toku_free(h->descriptor.dbt.data);
     }
 }
 
@@ -2993,21 +2993,28 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, int is_cre
     }
     assert(t->h);
     if (t->did_set_descriptor) {
-        if (t->h->descriptor.size!=t->temp_descriptor.size ||
-            memcmp(t->h->descriptor.data, t->temp_descriptor.data, t->temp_descriptor.size)) {
+        if (t->h->descriptor.dbt.size!=t->temp_descriptor.dbt.size ||
+            memcmp(t->h->descriptor.dbt.data, t->temp_descriptor.dbt.data, t->temp_descriptor.dbt.size)) {
+            if (t->temp_descriptor.version <= t->h->descriptor.version) {
+                //Changing descriptor requires upping the version.
+                r = EINVAL;
+                goto died_after_read_and_pin;
+            }
+            //TODO: Disallow changing if exists two brts with the same header (counting this one)
+            //      The upgrade would be impossible/very hard!
             DISKOFF offset;
             //4 for checksum
-            toku_realloc_descriptor_on_disk(t->h->blocktable, t->temp_descriptor.size+4, &offset, t->h);
+            toku_realloc_descriptor_on_disk(t->h->blocktable, toku_serialize_descriptor_size(&t->temp_descriptor)+4, &offset, t->h);
             r = toku_serialize_descriptor_contents_to_fd(toku_cachefile_fd(t->cf), &t->temp_descriptor, offset);
             if (r!=0) goto died_after_read_and_pin;
-            if (t->h->descriptor.data) toku_free(t->h->descriptor.data);
-            toku_fill_dbt(&t->h->descriptor, t->temp_descriptor.data, t->temp_descriptor.size);
+            if (t->h->descriptor.dbt.data) toku_free(t->h->descriptor.dbt.data);
+            t->h->descriptor = t->temp_descriptor;
         }
-        else toku_free(t->temp_descriptor.data);
-        t->temp_descriptor.data = NULL;
+        else toku_free(t->temp_descriptor.dbt.data);
+        t->temp_descriptor.dbt.data = NULL;
         t->did_set_descriptor = 0;
     }
-    if (t->db) t->db->descriptor = &t->h->descriptor;
+    if (t->db) t->db->descriptor = &t->h->descriptor.dbt;
 
     //Opening a brt may restore to previous checkpoint.  Truncate if necessary.
     toku_maybe_truncate_cachefile_on_open(t->h->blocktable, t->h);
@@ -3216,7 +3223,7 @@ int toku_close_brt (BRT brt, TOKULOGGER logger, char **error_string) {
 	if (r==0 && error_string) assert(*error_string == 0);
     }
     if (brt->fname) toku_free(brt->fname);
-    if (brt->temp_descriptor.data) toku_free(brt->temp_descriptor.data);
+    if (brt->temp_descriptor.dbt.data) toku_free(brt->temp_descriptor.dbt.data);
     toku_free(brt);
     return r;
 }
@@ -3240,15 +3247,20 @@ int toku_brt_create(BRT *brt_ptr) {
 }
 
 int
-toku_brt_set_descriptor (BRT t, const DBT *descriptor) {
+toku_brt_set_descriptor (BRT t, u_int32_t version, const DBT* descriptor, toku_dbt_upgradef dbt_userformat_upgrade) {
     int r;
-    if (t->did_set_descriptor) r = EINVAL;
+    if (t->did_set_descriptor)             r = EINVAL;
+    else if (version==0)                   r = EINVAL; //0 is reserved for default (no descriptor).
+    else if (dbt_userformat_upgrade==NULL) r = EINVAL; //Must have an upgrade function.
     else {
         void *copy = toku_memdup(descriptor->data, descriptor->size);
         if (!copy) r = ENOMEM;
         else {
-            if (t->temp_descriptor.data) toku_free(t->temp_descriptor.data);
-            toku_fill_dbt(&t->temp_descriptor, copy, descriptor->size);
+            t->temp_descriptor.version = version;
+            assert(!t->temp_descriptor.dbt.data);
+            toku_fill_dbt(&t->temp_descriptor.dbt, copy, descriptor->size);
+            assert(!t->dbt_userformat_upgrade);
+            t->dbt_userformat_upgrade = dbt_userformat_upgrade;
             t->did_set_descriptor = 1;
             r = 0;
         }

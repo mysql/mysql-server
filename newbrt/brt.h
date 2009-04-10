@@ -28,9 +28,14 @@ typedef int(*BRT_GET_STRADDLE_CALLBACK_FUNCTION)(ITEMLEN, bytevec, ITEMLEN, byte
 
 int toku_open_brt (const char *fname, int is_create, BRT *, int nodesize, CACHETABLE, TOKUTXN, int(*)(DB*,const DBT*,const DBT*), DB*);
 
+struct descriptor {
+    u_int32_t version;
+    DBT       dbt;
+};
+u_int32_t toku_serialize_descriptor_size(struct descriptor *desc);
 int toku_brt_create(BRT *);
 int toku_brt_set_flags(BRT, unsigned int flags);
-int toku_brt_set_descriptor (BRT t, const DBT *descriptor);
+int toku_brt_set_descriptor (BRT t, u_int32_t version, const DBT* descriptor, toku_dbt_upgradef dbt_userformat_upgrade);
 int toku_brt_get_flags(BRT, unsigned int *flags);
 int toku_brt_set_nodesize(BRT, unsigned int nodesize);
 int toku_brt_get_nodesize(BRT, unsigned int *nodesize);

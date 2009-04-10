@@ -366,6 +366,10 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     assert(sizeof(dbt_fields32)==sizeof(dbt_fields64));
     print_struct("dbt", 0, dbt_fields32, dbt_fields64, sizeof(dbt_fields32)/sizeof(dbt_fields32[0]), 0);
 
+    printf("typedef int (*toku_dbt_upgradef)(DB*,\n");
+    printf("                                 u_int32_t old_version, const DBT *old_descriptor, const DBT *old_key, const DBT *old_val,\n");
+    printf("                                 u_int32_t new_version, const DBT *new_descriptor, const DBT *new_key, const DBT *new_val);\n");
+
     assert(sizeof(db_fields32)==sizeof(db_fields64));
     {
 	const char *extra[]={"int (*key_range64)(DB*, DB_TXN *, DBT *, u_int64_t *less, u_int64_t *equal, u_int64_t *greater, int *is_exact)",
@@ -377,7 +381,7 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
                              "int (*delboth) (DB*, DB_TXN*, DBT*, DBT*, u_int32_t) /* Delete the key/value pair. */",
                              "int (*row_size_supported) (DB*, u_int32_t) /* Test whether a row size is supported. */",
                              "const DBT *descriptor /* saved row/dictionary descriptor for aiding in comparisons */",
-                             "int (*set_descriptor) (DB*, const DBT*) /* set row/dictionary descriptor for a db.  Available only while db is open */",
+                             "int (*set_descriptor) (DB*, u_int32_t version, const DBT* descriptor, toku_dbt_upgradef dbt_userformat_upgrade) /* set row/dictionary descriptor for a db.  Available only while db is open */",
 			     NULL};
 	print_struct("db", 1, db_fields32, db_fields64, sizeof(db_fields32)/sizeof(db_fields32[0]), extra);
     }
