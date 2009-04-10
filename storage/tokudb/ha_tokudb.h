@@ -59,12 +59,12 @@ typedef struct st_tokudb_share {
 // To get the version, one looks up the value associated with key hatoku_version
 // in status.tokudb
 //
-typedef enum {
-    hatoku_version = 0,
-    hatoku_capabilities,
-    hatoku_max_ai, //maximum auto increment value found so far
-    hatoku_ai_create_value
-} HA_METADATA_KEY ;
+
+typedef ulonglong HA_METADATA_KEY;
+#define hatoku_version 0
+#define hatoku_capabilities 1
+#define hatoku_max_ai 2 //maximum auto increment value found so far
+#define hatoku_ai_create_value 3
 
 typedef struct st_prim_key_part_info {
     uint offset;
