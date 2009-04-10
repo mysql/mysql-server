@@ -712,6 +712,53 @@ static inline uint int_token(const char *str,uint length)
   return ((uchar) str[-1] <= (uchar) cmp[-1]) ? smaller : bigger;
 }
 
+
+/**
+  Given a stream that is advanced to the first contained character in 
+  an open comment, consume the comment.  Optionally, if we are allowed, 
+  recurse so that we understand comments within this current comment.
+
+  At this level, we do not support version-condition comments.  We might 
+  have been called with having just passed one in the stream, though.  In 
+  that case, we probably want to tolerate mundane comments inside.  Thus,
+  the case for recursion.
+
+  @retval  Whether EOF reached before comment is closed.
+*/
+bool consume_comment(Lex_input_stream *lip, int remaining_recursions_permitted)
+{
+  reg1 uchar c;
+  while (! lip->eof())
+  {
+    c= lip->yyGet();
+
+    if (remaining_recursions_permitted > 0)
+    {
+      if ((c == '/') && (lip->yyPeek() == '*'))
+      {
+        lip->yySkip(); /* Eat asterisk */
+        consume_comment(lip, remaining_recursions_permitted-1);
+        continue;
+      }
+    }
+
+    if (c == '*')
+    {
+      if (lip->yyPeek() == '/')
+      {
+        lip->yySkip(); /* Eat slash */
+        return FALSE;
+      }
+    }
+
+    if (c == '\n')
+      lip->yylineno++;
+  }
+
+  return TRUE;
+}
+
+
 /*
   MYSQLlex remember the following states from the following MYSQLlex()
 
@@ -1204,6 +1251,8 @@ int MYSQLlex(void *arg, void *yythd)
       /* Reject '/' '*', since we might need to turn off the echo */
       lip->yyUnget();
 
+      lip->save_in_comment_state();
+
       if (lip->yyPeekn(2) == '!')
       {
         lip->in_comment= DISCARD_COMMENT;
@@ -1246,11 +1295,17 @@ int MYSQLlex(void *arg, void *yythd)
             /* Expand the content of the special comment as real code */
             lip->set_echo(TRUE);
             state=MY_LEX_START;
-            break;
+            break;  /* Do not treat contents as a comment.  */
+          }
+          else
+          {
+            comment_closed= ! consume_comment(lip, 1);
+            /* version allowed to have one level of comment inside. */
           }
         }
         else
         {
+          /* Not a version comment. */
           state=MY_LEX_START;
           lip->set_echo(TRUE);
           break;
@@ -1261,38 +1316,30 @@ int MYSQLlex(void *arg, void *yythd)
         lip->in_comment= PRESERVE_COMMENT;
         lip->yySkip();                  // Accept /
         lip->yySkip();                  // Accept *
+        comment_closed= ! consume_comment(lip, 0);
+        /* regular comments can have zero comments inside. */
       }
       /*
         Discard:
         - regular '/' '*' comments,
         - special comments '/' '*' '!' for a future version,
         by scanning until we find a closing '*' '/' marker.
-        Note: There is no such thing as nesting comments,
-        the first '*' '/' sequence seen will mark the end.
+
+        Nesting regular comments isn't allowed.  The first 
+        '*' '/' returns the parser to the previous state.
+
+        /#!VERSI oned containing /# regular #/ is allowed #/
+
+		Inside one versioned comment, another versioned comment
+		is treated as a regular discardable comment.  It gets
+		no special parsing.
       */
-      comment_closed= FALSE;
-      while (! lip->eof())
-      {
-        c= lip->yyGet();
-        if (c == '*')
-        {
-          if (lip->yyPeek() == '/')
-          {
-            lip->yySkip();
-            comment_closed= TRUE;
-            state = MY_LEX_START;
-            break;
-          }
-        }
-        else if (c == '\n')
-          lip->yylineno++;
-      }
+
       /* Unbalanced comments with a missing '*' '/' are a syntax error */
       if (! comment_closed)
         return (ABORT_SYM);
       state = MY_LEX_START;             // Try again
-      lip->in_comment= NO_COMMENT;
-      lip->set_echo(TRUE);
+      lip->restore_in_comment_state();
       break;
     case MY_LEX_END_LONG_COMMENT:
       if ((lip->in_comment != NO_COMMENT) && lip->yyPeek() == '/')
