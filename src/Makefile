@@ -2,7 +2,7 @@
 
 .DEFAULT_GOAL=build
 TOKUROOT=../
-INCLUDEDIRS=-I$(TOKUROOT)newbrt -I./lock_tree -I./range_tree
+INCLUDEDIRS=-I$(TOKUROOT)newbrt -I../include -I./lock_tree -I./range_tree
 DEPEND_COMPILE += \
 	ydb-internal.h \
 	$(TOKUROOT)include/db.h \
@@ -10,7 +10,6 @@ DEPEND_COMPILE += \
 	$(TOKUROOT)newbrt/brt.h \
 	$(TOKUROOT)newbrt/log.c \
 #End of line
-ydbtrace.o tdbtrace.o: tdbtrace.h
 include $(TOKUROOT)toku_include/Makefile.include
 CPPFLAGS+=-D_GNU_SOURCE -D_THREAD_SAFE
 
@@ -27,12 +26,9 @@ IPO_YDB       = ipo_libtokudb.$(AEXT)
 NOIPO_YDB     = static_libtokudb.$(AEXT)
 
 LIBNAME=libtokudb
-TLIBNAME=libtokudbtrace
 
 LIBRARY=$(LIBNAME).$(SOEXT)
-TLIBRARY=$(TLIBNAME).$(SOEXT)
 LIBRARY_S=$(LIBNAME).$(AEXT)
-TLIBRARY_S=$(TLIBNAME).$(AEXT)
 OBJS_RAW = \
 	ydb_lib \
 	ydb \
@@ -44,9 +40,7 @@ OBJS_RAW = \
 
 LIBRARIES= \
 	$(LIBRARY) \
-	$(TLIBRARY) \
 	$(LIBRARY_S) \
-	$(TLIBRARY_S) \
 #Purposely here for \ at end of prev
 
 INSTALL_LIBRARIES= $(patsubst %,%.install,$(LIBRARIES))
@@ -60,10 +54,6 @@ local: buildlocktrees libs install_libs ;
 
 build_tests: | local
 	cd tests && $(MAKE) build
-
-
-TOBJS= tdbtrace.$(OEXT) $(patsubst ydb.$(OEXT),ydbtrace.$(OEXT),$(OBJS))
-
 
 install_libs: $(INSTALL_LIBRARIES)
 %.install: %
@@ -82,27 +72,19 @@ export.def: export.map
 
 buildlocktrees: $(LOCKTREE) $(RANGETREE) ;
 
-$(OBJS) $(TOBJS): CPPFLAGS+=-I$(TOKUROOT)include
 $(YDB):  $(OBJS) 
-$(TYDB): $(TOBJS)
-
 
 $(LIBRARY):  $(YDB)  $(LOCKTREE) $(RANGETREE) $(NEWBRT) $(DEPEND_COMPILE) $(DEPEND_LINK) 
-$(TLIBRARY): $(TYDB) $(LOCKTREE) $(RANGETREE) $(NEWBRT) $(DEPEND_COMPILE) $(DEPEND_LINK)
 
 $(LIBRARY):  LINK_FILES=ydb_lib.$(OEXT) $(YDB)  $(LOCKTREE) $(RANGETREE) $(NEWBRT)
-$(TLIBRARY): LINK_FILES=$(TYDB) $(LOCKTREE) $(RANGETREE) $(NEWBRT)
 
 #Skip all BDB tests for CYGWIN+ICC
 ifeq ($(CYGWIN),)
 $(LIBRARY_S):  $(patsubst %.$(AEXT),%.bundle, $(YDB) $(LOCKTREE) $(RANGETREE) $(NEWBRT) $(LIBPORTABILITY))
-$(TLIBRARY_S): $(TYDB) $(LOCKTREE) $(RANGETREE) $(NEWBRT_BUNDLE) $(LIBPORTABILITY)
 else ifneq ($(CC),icc)
 $(LIBRARY_S):  $(YDB)  $(LOCKTREE) $(RANGETREE) $(NEWBRT) $(LIBPORTABILITY)
-$(TLIBRARY_S): $(TYDB) $(LOCKTREE) $(RANGETREE) $(NEWBRT) $(LIBPORTABILITY)
 else
 $(LIBRARY_S):  $(LIBRARY)  ;
-$(TLIBRARY_S): $(TLIBRARY) ;
 #$(LIBRARY_S):  $(YDB)  $(LOCKTREE) $(RANGETREE) $(NEWBRT) $(LIBPORTABILITY)
 #$(TLIBRARY_S): $(TYDB) $(LOCKTREE) $(RANGETREE) $(NEWBRT) $(LIBPORTABILITY)
 endif
@@ -136,8 +118,3 @@ clean:
 	cd tests && $(MAKE) clean
 	cd lock_tree && $(MAKE) clean
 	cd range_tree && $(MAKE) clean
-
-ydbtrace.$(OEXT): CPPFLAGS+=-DTOKUTRACE
-ydbtrace.$(OEXT): ydb.c $(DEPEND_COMPILE)
-	$(CC) -c $< $(CPPFLAGS) $(CFLAGS) $(OOUTPUT)$@
-

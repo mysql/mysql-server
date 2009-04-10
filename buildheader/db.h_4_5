@@ -9,6 +9,7 @@
 extern "C" {
 #endif
 #define TOKUDB 1
+#define TOKUDB_NATIVE_H 0
 #define DB_VERSION_MAJOR 4
 #define DB_VERSION_MINOR 5
 #define DB_VERSION_PATCH 20
@@ -34,6 +35,7 @@ typedef u_int32_t db_recno_t;
 typedef int(*YDB_CALLBACK_FUNCTION)(DBT const*, DBT const*, void*);
 typedef int(*YDB_HEAVISIDE_CALLBACK_FUNCTION)(DBT const *key, DBT const *value, void *extra_f, int r_h);
 typedef int(*YDB_HEAVISIDE_FUNCTION)(const DBT *key, const DBT *value, void *extra_h);
+#include <tdb-internal.h>
 typedef struct __toku_db_btree_stat64 {
   u_int64_t bt_nkeys; /* how many unique keys (guaranteed only to be an estimate, even when flattened)          */
   u_int64_t bt_ndata; /* how many key-value pairs (an estimate, but exact when flattened)                       */
@@ -125,6 +127,7 @@ typedef enum {
 #endif
 struct __toku_db_env {
   struct __toku_db_env_internal *i;
+#define db_env_struct_i(x) ((x)->i)
   int (*checkpointing_postpone)               (DB_ENV*) /* Use for 'rename table' or any other operation that must be disjoint from a checkpoint */;
   int (*checkpointing_resume)                 (DB_ENV*) /* Alert tokudb 'postpone' is no longer necessary */;
   int (*checkpointing_begin_atomic_operation) (DB_ENV*) /* Begin a set of operations (that must be atomic as far as checkpoints are concerned). i.e. inserting into every index in one table */;
@@ -205,6 +208,7 @@ struct __toku_dbt {
 };
 struct __toku_db {
   struct __toku_db_internal *i;
+#define db_struct_i(x) ((x)->i)
   int (*key_range64)(DB*, DB_TXN *, DBT *, u_int64_t *less, u_int64_t *equal, u_int64_t *greater, int *is_exact);
   int (*stat64)(DB *, DB_TXN *, DB_BTREE_STAT64 *);
   int (*pre_acquire_read_lock)(DB*, DB_TXN*, const DBT*, const DBT*, const DBT*, const DBT*);
@@ -272,6 +276,7 @@ struct __toku_db_txn {
   DB_ENV *mgrp /*In TokuDB, mgrp is a DB_ENV not a DB_TXNMGR*/; /* 32-bit offset=0 size=4, 64=bit offset=0 size=8 */
   DB_TXN *parent; /* 32-bit offset=4 size=4, 64=bit offset=8 size=8 */
   struct __toku_db_txn_internal *i;
+#define db_txn_struct_i(x) ((x)->i)
   int (*txn_stat)(DB_TXN *, struct txn_stat **);
   void* __toku_dummy0[15];
   char __toku_dummy1[8];
@@ -295,6 +300,7 @@ struct __toku_db_txn_stat {
 struct __toku_dbc {
   DB *dbp; /* 32-bit offset=0 size=4, 64=bit offset=0 size=8 */
   struct __toku_dbc_internal *i;
+#define dbc_struct_i(x) ((x)->i)
   int (*c_getf_first)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *);
   int (*c_getf_last)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *);
   int (*c_getf_next)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *);

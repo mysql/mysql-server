@@ -192,7 +192,15 @@ void print_struct (const char *structname, int need_internal, struct fieldinfo *
 		unsigned int diff = diff64-diff32;
 		unsigned int n_dummys = diff/4;
 		if (need_internal && !did_toku_internal) {
-		    printf("  struct __toku_%s_internal *i;\n", structname);
+		    if (TDB_NATIVE &&
+			(strcmp(structname, "dbc")==0 ||
+			 strcmp(structname, "db_txn")==0)) {
+			printf("  struct __toku_%s_internal ii;\n", structname);
+			printf("#define %s_struct_i(x) (&(x)->ii)\n", structname);
+		    } else {
+			printf("  struct __toku_%s_internal *i;\n", structname);
+			printf("#define %s_struct_i(x) ((x)->i)\n", structname);
+		    }
 		    n_dummys--;
 		    did_toku_internal=1;
 		}
@@ -202,7 +210,9 @@ void print_struct (const char *structname, int need_internal, struct fieldinfo *
 		    n_dummys--;
 		}
 		if (n_dummys>0) {
-		    printf("  void* __toku_dummy%d[%d];\n", dummy_counter++, n_dummys);
+		    if (!TDB_NATIVE)
+			printf("  void* __toku_dummy%d[%d];\n", dummy_counter, n_dummys);
+		    dummy_counter++;
 		}
 		diff64-=diff*2;
 		diff32-=diff;
@@ -210,7 +220,9 @@ void print_struct (const char *structname, int need_internal, struct fieldinfo *
 	    }
 	    assert(diff32==diff64);
 	    if (diff32>0) {
-		printf("  char __toku_dummy%d[%d];\n", dummy_counter++, diff32);
+		if (!TDB_NATIVE)
+		    printf("  char __toku_dummy%d[%d];\n", dummy_counter, diff32);
+		dummy_counter++;
 	    }
 	    current_32 = this_32;
 	    current_64 = this_64;
@@ -220,7 +232,10 @@ void print_struct (const char *structname, int need_internal, struct fieldinfo *
 	}
 	if (i+1<N) {
 	    assert(strcmp(fields32[i].decl, fields64[i].decl)==0);
-	    printf("  %s; /* 32-bit offset=%d size=%d, 64=bit offset=%d size=%d */\n", fields32[i].decl, fields32[i].off, fields32[i].size, fields64[i].off, fields64[i].size);
+	    printf("  %s;", fields32[i].decl);
+	    if (!TDB_NATIVE)
+		printf(" /* 32-bit offset=%d size=%d, 64=bit offset=%d size=%d */", fields32[i].off, fields32[i].size, fields64[i].off, fields64[i].size);
+	    printf("\n");
 	} else {
 	    assert(fields32[i].decl==0);
 	    assert(fields64[i].decl==0);
@@ -236,16 +251,22 @@ void print_struct (const char *structname, int need_internal, struct fieldinfo *
 	unsigned int diff64  = this_64-current_64;
 	if (diff32>0 && diff32<diff64) {
 	    unsigned int diff = diff64-diff32;
-	    printf("  void* __toku_dummy%d[%d]; /* Padding at the end */ \n", dummy_counter++, diff/4);
+	    if (!TDB_NATIVE)
+		printf("  void* __toku_dummy%d[%d]; /* Padding at the end */ \n", dummy_counter, diff/4);
+	    dummy_counter++;
 	    diff64-=diff*2;
 	    diff32-=diff;
 	}
 	if (diff32>0) {
-	    printf("  char __toku_dummy%d[%d];  /* Padding at the end */ \n", dummy_counter++, diff32);
+	    if (!TDB_NATIVE)
+		printf("  char __toku_dummy%d[%d];  /* Padding at the end */ \n", dummy_counter, diff32);
+	    dummy_counter++;
 	    diff64-=diff32;
 	    diff32=0;
 	}
-	if (diff64>0) printf("  /* %d more bytes of alignment in the 64-bit case. */\n", diff64);
+	if (diff64>0)
+	    if (!TDB_NATIVE)
+		printf("  /* %d more bytes of alignment in the 64-bit case. */\n", diff64);
 	assert(diff64<8); /* there could be a few left from alignment. */ 
     }
     printf("};\n");
@@ -266,6 +287,7 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     assert(DB_VERSION_MAJOR==DB_VERSION_MAJOR_32);
     assert(DB_VERSION_MINOR==DB_VERSION_MINOR_32);
     printf("#define TOKUDB 1\n");
+    printf("#define TOKUDB_NATIVE_H %d\n", TDB_NATIVE);
     dodefine(DB_VERSION_MAJOR);
     dodefine(DB_VERSION_MINOR);
     dodefine(DB_VERSION_PATCH);
@@ -274,7 +296,7 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     printf("#else\n");
     printf("#define DB_VERSION_STRING_ydb \"Tokutek: TokuDB (wrapped bdb)\"\n");
     printf("#endif\n");
-    
+
     if (0) {
 	printf("#ifndef __BIT_TYPES_DEFINED__\n");
 	printf("/* Define some int types if not provided by the system.  BIND does this, so we do it too. */\n");
@@ -303,6 +325,8 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     printf("typedef int(*YDB_HEAVISIDE_CALLBACK_FUNCTION)(DBT const *key, DBT const *value, void *extra_f, int r_h);\n");
     printf("typedef int(*YDB_HEAVISIDE_FUNCTION)(const DBT *key, const DBT *value, void *extra_h);\n");
 
+    printf("#include <tdb-internal.h>\n");
+    
     //stat64
     printf("typedef struct __toku_db_btree_stat64 {\n");
     printf("  u_int64_t bt_nkeys; /* how many unique keys (guaranteed only to be an estimate, even when flattened)          */\n");

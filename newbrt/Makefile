@@ -2,7 +2,7 @@
 
 .DEFAULT_GOAL= build
 TOKUROOT=../
-INCLUDEDIRS=-I.
+INCLUDEDIRS=-I. -I../include
 COMBINE=1
 #TODO: Replace DEPEND_COMPILE with auto-dependancy generation.
 DEPEND_COMPILE += \

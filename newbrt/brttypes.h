@@ -9,7 +9,7 @@
 #endif
 #define _FILE_OFFSET_BITS 64
 
-#include "../include/db.h"
+#include <db.h>
 #include <inttypes.h>
 
 typedef struct brt *BRT;
@@ -114,10 +114,5 @@ build_brt_cmd (enum brt_cmd_type type, TXNID xid, DBT *key, DBT *val) {
 #define UU(x) x __attribute__((__unused__))
 
 typedef struct leafentry *LEAFENTRY;
-
-struct simple_dbt {
-    u_int32_t len;
-    void     *data;
-};
 
 #endif

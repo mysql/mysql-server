@@ -3,7 +3,7 @@
 
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 
-#include "../include/db.h"
+#include <db.h>
 #include "../newbrt/brttypes.h"
 #include "../newbrt/brt.h"
 #include "../newbrt/list.h"
@@ -59,22 +59,6 @@ struct __toku_db_env_internal {
     TOKULOGGER logger;
     toku_ltm* ltm;
 };
-
-struct __toku_db_txn_internal {
-    //TXNID txnid64; /* A sixty-four bit txn id. */
-    TOKUTXN tokutxn;
-    toku_lth* lth;
-    u_int32_t flags;
-    DB_TXN *child, *next, *prev;
-};
-
-struct __toku_dbc_internal {
-    BRT_CURSOR c;
-    DB_TXN *txn;
-    struct simple_dbt skey_s,sval_s;
-    struct simple_dbt *skey,*sval;
-};
-
 
 /* *********************************************************
 
