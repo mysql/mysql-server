@@ -9,7 +9,6 @@ DEPEND_COMPILE += \
 	../lock_tree/*.h \
 	test.h \
 #end
-SKIP_NORETURN=1 #Do not add the -Wmissing-noreturn flag
 include $(TOKUROOT)toku_include/Makefile.include
 CPPFLAGS+=-D_GNU_SOURCE
 LIBTDB=../libtokudb.$(SOEXT)

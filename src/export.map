@@ -46,6 +46,7 @@
    toku_stat;
    toku_fstat;
 
+   toku_tdiff;
 
  local: *;
 };

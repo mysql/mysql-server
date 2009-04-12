@@ -6,6 +6,7 @@
 
 #include <db.h>
 #include <toku_pthread.h>
+#include <toku_time.h>
 #include <sys/stat.h>
 
 DB_ENV *env;
@@ -89,7 +90,7 @@ static void
 printtdiff (char *str) {
     struct timeval thistime;
     gettimeofday(&thistime, 0);
-    if (verbose) printf("%10.6f %s\n", thistime.tv_sec-prevtime.tv_sec+1e-6*(thistime.tv_usec-prevtime.tv_usec), str);
+    if (verbose) printf("%10.6f %s\n", toku_tdiff(&thistime, &prevtime), str);
 }
 
 int

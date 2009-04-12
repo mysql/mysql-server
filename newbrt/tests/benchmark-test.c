@@ -5,6 +5,7 @@
 
 /* Insert a bunch of stuff */
 #include "includes.h"
+#include "toku_time.h"
 
 static const char fname[]="sinsert.brt";
 
@@ -75,10 +76,6 @@ static void random_insert_below (long long below) {
     }
 }
 
-static double tdiff (struct timeval *a, struct timeval *b) {
-    return (a->tv_sec-b->tv_sec)+1e-6*(a->tv_usec-b->tv_usec);
-}
-
 static void biginsert (long long n_elements, struct timeval *starttime) {
     long long i;
     struct timeval t1,t2;
@@ -89,7 +86,7 @@ static void biginsert (long long n_elements, struct timeval *starttime) {
             serial_insert_from(i);
 	gettimeofday(&t2,0);
 	if (verbose && do_serial) {
-	    printf("serial %9.6fs %8.0f/s    ", tdiff(&t2, &t1), ITEMS_TO_INSERT_PER_ITERATION/tdiff(&t2, &t1));
+	    printf("serial %9.6fs %8.0f/s    ", toku_tdiff(&t2, &t1), ITEMS_TO_INSERT_PER_ITERATION/toku_tdiff(&t2, &t1));
 	    fflush(stdout);
 	}
 	gettimeofday(&t1,0);
@@ -97,14 +94,14 @@ static void biginsert (long long n_elements, struct timeval *starttime) {
             random_insert_below((i+ITEMS_TO_INSERT_PER_ITERATION)*SERIAL_SPACING);
 	gettimeofday(&t2,0);
 	if (verbose && do_random) {
-	    printf("random %9.6fs %8.0f/s    ", tdiff(&t2, &t1), ITEMS_TO_INSERT_PER_ITERATION/tdiff(&t2, &t1));
+	    printf("random %9.6fs %8.0f/s    ", toku_tdiff(&t2, &t1), ITEMS_TO_INSERT_PER_ITERATION/toku_tdiff(&t2, &t1));
 	    fflush(stdout);
         }
         if (verbose && (do_serial || do_random)) {
             double f = 0;
             if (do_serial) f += 1.0;
             if (do_random) f += 1.0;
-	    printf("cumulative %9.6fs %8.0f/s\n", tdiff(&t2, starttime), (ITEMS_TO_INSERT_PER_ITERATION*f/tdiff(&t2, starttime))*(iteration+1));
+	    printf("cumulative %9.6fs %8.0f/s\n", toku_tdiff(&t2, starttime), (ITEMS_TO_INSERT_PER_ITERATION*f/toku_tdiff(&t2, starttime))*(iteration+1));
 	    fflush(stdout);
 	}
     }
@@ -192,8 +189,8 @@ test_main (int argc, const char *argv[]) {
         int f = 0;
         if (do_serial) f += 1;
         if (do_random) f += 1;
-	printf("Shutdown %9.6fs\n", tdiff(&t3, &t2));
-	printf("Total time %9.6fs for %lld insertions = %8.0f/s\n", tdiff(&t3, &t1), f*total_n_items, f*total_n_items/tdiff(&t3, &t1));
+	printf("Shutdown %9.6fs\n", toku_tdiff(&t3, &t2));
+	printf("Total time %9.6fs for %lld insertions = %8.0f/s\n", toku_tdiff(&t3, &t1), f*total_n_items, f*total_n_items/toku_tdiff(&t3, &t1));
         fflush(stdout);
     }
     if (verbose>1) {

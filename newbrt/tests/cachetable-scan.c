@@ -4,12 +4,9 @@
 #include "test.h"
 
 #include "includes.h"
+#include "toku_time.h"
 
 enum { KEYLIMIT = 4, BLOCKSIZE=1<<20, N=2048};
-
-static double tdiff (struct timeval *a, struct timeval *b) {
-    return (a->tv_sec-b->tv_sec)+1e-6*(a->tv_usec-b->tv_usec);
-}
 
 static void f_flush (CACHEFILE f,
 		     CACHEKEY key,
@@ -69,7 +66,7 @@ static void writeit (void) {
 	r = toku_cachetable_unpin(f, key, fullhash, CACHETABLE_CLEAN, BLOCKSIZE); assert(r==0);
     }
     gettimeofday(&end, 0);
-    double diff = tdiff(&end, &start);
+    double diff = toku_tdiff(&end, &start);
     printf("writeit %d blocks of size %d in %6.2fs at %6.2fMB/s\n", N, BLOCKSIZE, diff, (N/diff)*(BLOCKSIZE*1e-6));
 }
 
@@ -92,9 +89,9 @@ static void readit (void) {
     r = toku_cachetable_close(&t);      assert(r == 0);
     gettimeofday(&end, 0);
     toku_os_get_process_times(&end_usertime, &end_systime);
-    double diff = tdiff(&end, &start);
-    double udiff = tdiff(&end_usertime, &start_usertime);
-    double sdiff = tdiff(&end_systime, &start_systime);
+    double diff = toku_tdiff(&end, &start);
+    double udiff = toku_tdiff(&end_usertime, &start_usertime);
+    double sdiff = toku_tdiff(&end_systime, &start_systime);
     printf("readit  %d blocks of size %d in %6.2fs at %6.2fMB/s   user=%6.2fs sys=%6.2fs\n",
 	   N, BLOCKSIZE, diff, (N/diff)*(BLOCKSIZE*1e-6), udiff, sdiff);
 }

@@ -7,7 +7,6 @@ TOKUROOT=../
 INCLUDEDIRS=-I. -I$(TOKUROOT)toku_include -I$(TOKUROOT)include -I$(TOKUROOT)src
 DEPEND_COMPILE += \
 	./*.h \
-SKIP_NORETURN=1
 #end
 
 HERE = utils

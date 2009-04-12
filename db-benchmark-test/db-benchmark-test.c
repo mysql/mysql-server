@@ -270,10 +270,6 @@ static void random_insert_below (long long below) {
     }
 }
 
-static double tdiff (struct timeval *a, struct timeval *b) {
-    return (a->tv_sec-b->tv_sec)+1e-6*(a->tv_usec-b->tv_usec);
-}
-
 static void biginsert (long long n_elements, struct timeval *starttime) {
     long long i;
     struct timeval t1,t2;
@@ -283,16 +279,16 @@ static void biginsert (long long n_elements, struct timeval *starttime) {
 	    gettimeofday(&t1,0);
 	    serial_insert_from(i);
 	    gettimeofday(&t2,0);
-	    if (verbose) printf("serial %9.6fs %8.0f/s    ", tdiff(&t2, &t1), items_per_iteration/tdiff(&t2, &t1));
+	    if (verbose) printf("serial %9.6fs %8.0f/s    ", toku_tdiff(&t2, &t1), items_per_iteration/toku_tdiff(&t2, &t1));
 	    fflush(stdout);
 	}
         if (!norandom) {
 	gettimeofday(&t1,0);
 	random_insert_below((i+items_per_iteration)*SERIAL_SPACING);
 	gettimeofday(&t2,0);
-	if (verbose) printf("random %9.6fs %8.0f/s    ", tdiff(&t2, &t1), items_per_iteration/tdiff(&t2, &t1));
+	if (verbose) printf("random %9.6fs %8.0f/s    ", toku_tdiff(&t2, &t1), items_per_iteration/toku_tdiff(&t2, &t1));
         }
-	if (verbose) printf("cumulative %9.6fs %8.0f/s\n", tdiff(&t2, starttime), (((float)items_per_iteration*(!noserial+!norandom))/tdiff(&t2, starttime))*(iteration+1));
+	if (verbose) printf("cumulative %9.6fs %8.0f/s\n", toku_tdiff(&t2, starttime), (((float)items_per_iteration*(!noserial+!norandom))/toku_tdiff(&t2, starttime))*(iteration+1));
     }
 }
 
@@ -360,7 +356,7 @@ test1514(void) {
     CKERR2(r, DB_NOTFOUND);
     r = c->c_close(c); CKERR(r);
 
-    if (verbose) printf("(#1514) Single Point Query %9.6fs\n", tdiff(&t2, &t1));
+    if (verbose) printf("(#1514) Single Point Query %9.6fs\n", toku_tdiff(&t2, &t1));
 }
 #endif
 
@@ -491,9 +487,9 @@ int main (int argc, const char *argv[]) {
     benchmark_shutdown();
     gettimeofday(&t3,0);
     if (verbose) {
-	printf("Shutdown %9.6fs\n", tdiff(&t3, &t2));
-	printf("Total time %9.6fs for %lld insertions = %8.0f/s\n", tdiff(&t3, &t1), 
-	       (!noserial+!norandom)*total_n_items, (!noserial+!norandom)*total_n_items/tdiff(&t3, &t1));
+	printf("Shutdown %9.6fs\n", toku_tdiff(&t3, &t2));
+	printf("Total time %9.6fs for %lld insertions = %8.0f/s\n", toku_tdiff(&t3, &t1), 
+	       (!noserial+!norandom)*total_n_items, (!noserial+!norandom)*total_n_items/toku_tdiff(&t3, &t1));
     }
 #if 0 && defined TOKUDB
     if (verbose) {
