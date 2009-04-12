@@ -3,6 +3,7 @@
 
 /* Insert a bunch of stuff */
 #include <toku_portability.h>
+#include <toku_time.h>
 #include <db.h>
 #include <assert.h>
 #include <errno.h>
