@@ -77,6 +77,8 @@ protected:
 			  GetTabInfoReq * req,
 			  GetTabInfoRef::ErrorCode errorCode);
 
+  void exec_lcp_frag_ord(Signal*, SimulatedBlock* client_block);
+
 public:
   struct Log_waiter
   {
@@ -383,6 +385,10 @@ public:
 
   int free_log_space(Uint32 words) {
     return m_lgman->free_log_space(m_logfile_group_id, words);
+  }
+
+  void exec_lcp_frag_ord(Signal* signal) {
+    m_lgman->exec_lcp_frag_ord(signal, m_client_block);
   }
   
 private:

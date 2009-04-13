@@ -1889,6 +1889,14 @@ Lgman::execLCP_FRAG_ORD(Signal* signal)
 {
   jamEntry();
   client_lock(number(), __LINE__);
+  exec_lcp_frag_ord(signal, this);
+  client_unlock(number(), __LINE__);
+}
+
+void
+Lgman::exec_lcp_frag_ord(Signal* signal, SimulatedBlock* client_block)
+{
+  jamEntry();
 
   LcpFragOrd * ord = (LcpFragOrd *)signal->getDataPtr();
   Uint32 lcp_id= ord->lcpId;
@@ -1906,7 +1914,7 @@ Lgman::execLCP_FRAG_ORD(Signal* signal)
     ptr.p->m_state |= Logfile_group::LG_CUT_LOG_THREAD;
     signal->theData[0] = LgmanContinueB::CUT_LOG_TAIL;
     signal->theData[1] = ptr.i;
-    sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+    client_block->sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
   }
   
   if(!ptr.isNull() && ptr.p->m_last_lsn)
@@ -1971,7 +1979,6 @@ Lgman::execLCP_FRAG_ORD(Signal* signal)
   }
   
   m_latest_lcp = lcp_id;
-  client_unlock(number(), __LINE__);
 }
 
 void
