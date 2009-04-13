@@ -394,11 +394,12 @@ int toku_cachefile_close (CACHEFILE *cfp, TOKULOGGER logger, char **error_string
     CACHEFILE cf = *cfp;
     CACHETABLE ct = cf->cachetable;
     cachetable_lock(ct);
-    assert(!cf->next_in_checkpoint);
-    assert(!cf->for_checkpoint);
     assert(cf->refcount>0);
     cf->refcount--;
     if (cf->refcount==0) {
+        //Checkpoint holds a reference, close should be impossible if still in use by a checkpoint.
+        assert(!cf->next_in_checkpoint);
+        assert(!cf->for_checkpoint);
 	int r;
 	if ((r = cachetable_flush_cachefile(ct, cf))) {
 	error:
