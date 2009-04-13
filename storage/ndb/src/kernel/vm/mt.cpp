@@ -734,6 +734,7 @@ struct thr_data
 
   thr_wait m_waiter;
   unsigned m_thr_no;
+  pthread_t m_thr_id;
 
   /**
    * max signals to execute per JBB buffer
@@ -1251,6 +1252,7 @@ senddelay(Uint32 thr_no, const SignalHeader* s, Uint32 delay)
 {
   struct thr_repository* rep = &g_thr_repository;
   struct thr_data * selfptr = rep->m_thread + thr_no;
+  assert(pthread_equal(selfptr->m_thr_id, pthread_self()));
   unsigned siglen = (sizeof(*s) >> 2) + s->theLength + s->m_noOfSections;
 
   Uint32 max;
@@ -2673,6 +2675,8 @@ init_thread(thr_data *selfptr)
       tmp.appfmt("err: %u ", res);
     }
   }
+
+  selfptr->m_thr_id = pthread_self();
   
   for (Uint32 i = 0; i < selfptr->m_instance_count; i++) 
   {
@@ -3035,6 +3039,7 @@ sendlocal(Uint32 self, const SignalHeader *s, const Uint32 *data,
   Uint32 dst = block2ThreadId(block, instance);
   struct thr_repository* rep = &g_thr_repository;
   struct thr_data * selfptr = rep->m_thread + self;
+  assert(pthread_equal(selfptr->m_thr_id, pthread_self()));
   struct thr_data * dstptr = rep->m_thread + dst;
 
   selfptr->m_priob_count++;
@@ -3061,6 +3066,8 @@ sendprioa(Uint32 self, const SignalHeader *s, const uint32 *data,
   Uint32 dst = block2ThreadId(block, instance);
   struct thr_repository* rep = &g_thr_repository;
   struct thr_data *selfptr = rep->m_thread + self;
+  assert(s->theVerId_signalNumber == GSN_START_ORD ||
+         pthread_equal(selfptr->m_thr_id, pthread_self()));
   struct thr_data *dstptr = rep->m_thread + dst;
 
   selfptr->m_prioa_count++;
