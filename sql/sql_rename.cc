@@ -311,7 +311,7 @@ do_rename(THD *thd, TABLE_LIST *ren_table, char *new_db, char *new_table_name,
         my_error(ER_FORBID_SCHEMA_CHANGE, MYF(0), ren_table->db, 
                  new_db);
       else
-        rc= mysql_rename_view(thd, new_alias, ren_table);
+        rc= mysql_rename_view(thd, new_db, new_alias, ren_table);
       break;
     default:
       DBUG_ASSERT(0); // should never happen

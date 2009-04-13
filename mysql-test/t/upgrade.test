@@ -116,6 +116,8 @@ show databases like '%a-b-c%';
 ALTER DATABASE `#mysql50#a-b-c` UPGRADE DATA DIRECTORY NAME;
 show databases like '%a-b-c%';
 show create view `a-b-c`.v1;
+--disable_ps_protocol
 select * from `a-b-c`.v1;
+--enable_ps_protocol
 drop database `a-b-c`;
 use test;
