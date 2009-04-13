@@ -9,6 +9,7 @@ extern "C" {
 #endif
 
 #include <pthread.h>
+#include <time.h>
 
 typedef pthread_attr_t toku_pthread_attr_t;
 typedef pthread_t toku_pthread_t;
@@ -18,6 +19,7 @@ typedef pthread_condattr_t toku_pthread_condattr_t;
 typedef pthread_cond_t toku_pthread_cond_t;
 typedef pthread_rwlock_t toku_pthread_rwlock_t;
 typedef pthread_rwlockattr_t  toku_pthread_rwlockattr_t;
+typedef struct timespec toku_timespec_t;
 
 static inline int
 toku_pthread_rwlock_init(toku_pthread_rwlock_t *__restrict rwlock, const toku_pthread_rwlockattr_t *__restrict attr) {
@@ -123,6 +125,11 @@ int toku_pthread_cond_destroy(toku_pthread_cond_t *cond) {
 static inline
 int toku_pthread_cond_wait(toku_pthread_cond_t *cond, toku_pthread_mutex_t *mutex) {
     return pthread_cond_wait(cond, mutex);
+}
+
+static inline
+int toku_pthread_cond_timedwait(toku_pthread_cond_t *cond, toku_pthread_mutex_t *mutex, toku_timespec_t *wakeup_at) {
+    return pthread_cond_timedwait(cond, mutex, wakeup_at);
 }
 
 static inline

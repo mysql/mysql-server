@@ -54,9 +54,11 @@ else
     TDB_TESTS = $(patsubst %.c,%.tdb$(BINSUF),$(SRCS))
 endif
 
+# For diskfull.bdb: db-4.6 seems OK, but db-4.3 segfaults
 BDB_DONTRUN_TESTS = \
 	bug1381 \
 	bug627 \
+	diskfull \
 	test_abort1 \
 	test_abort4 \
 	test_abort5 \

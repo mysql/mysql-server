@@ -84,6 +84,7 @@ REGRESSION_TESTS_RAW = \
 	log-test6 \
 	log-test7 \
 	memtest \
+	minicron-test \
 	omt-cursor-test \
 	omt-test \
 	shortcut \
