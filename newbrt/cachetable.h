@@ -45,6 +45,10 @@ int toku_cachetable_end_checkpoint(CACHETABLE ct, TOKULOGGER logger, char **erro
 // Handles the case where cf points to /dev/null
 int toku_cachefile_fsync(CACHEFILE cf);
 
+// Shuts down checkpoint thread
+// Requires no locks be held that are taken by the checkpoint function
+void toku_cachetable_minicron_shutdown(CACHETABLE ct);
+
 // Close the cachetable.
 // Effects: All of the memory objects are flushed to disk, and the cachetable is
 // destroyed.
