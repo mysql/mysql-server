@@ -2323,7 +2323,7 @@ int ha_ibmdb2i::create(const char *name, TABLE *table_arg,
   if (!rc && !isTemporary)
   {
     db2i_table* temp = new db2i_table(table_arg->s, name);
-    int32 rc = temp->fastInitForCreate(name);
+    rc = temp->fastInitForCreate(name);
     delete temp;
     if (rc) 
       delete_table(name);
