@@ -40,7 +40,7 @@ CXXFLAGS += -g $(OPTFLAGS) $(GCOV_FLAGS) $(MYSQL_CXXFLAGS)
 CXXFLAGS += -fPIC
 LDFLAGS = -fPIC -shared -Wl,-soname -Wl,libtokudb_engine.so
 ifeq ($(SINGLESO),1)
-LIBS = $(TOKUDB)/lib/libtokudb.a $(TOKUDB)/lib/libtokuportability.a
+LIBS = $(TOKUDB)/src/ydb_lib.o $(TOKUDB)/lib/libtokudb.a $(TOKUDB)/lib/libtokuportability.a
 else
 LIBS = -L$(TOKUDB)/lib -ltokudb -ltokuportability 
 endif
