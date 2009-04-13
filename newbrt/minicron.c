@@ -126,6 +126,7 @@ toku_minicron_shutdown(struct minicron *p) {
     if (r!=0) fprintf(stderr, "%s:%d r=%d (%s)\n", __FILE__, __LINE__, r, strerror(r));
     assert(r==0);  assert(returned_value==0);
     r = toku_pthread_cond_destroy(&p->condvar);        assert(r==0);
+    r = toku_pthread_mutex_destroy(&p->mutex);         assert(r==0);
     //printf("%s:%d shutdowned\n", __FILE__, __LINE__);
     return 0;
 }
