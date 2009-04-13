@@ -3466,7 +3466,6 @@ loop:
 	}
 
 	ut_ad(i < array->n_slots);
-	array->cur_seg = (array->cur_seg + 1) % array->n_segments;
 
 	/* If we are unable to find a slot in our desired segment we do
 	a linear search of entire array. We are guaranteed to find a
@@ -3482,6 +3481,8 @@ loop:
 	/* We MUST always be able to get hold of a reserved slot. */
 	ut_error;
 found:
+	array->cur_seg = (array->cur_seg + 1) % array->n_segments;
+
 	ut_ad(!slot->reserved);
 
 	array->n_reserved++;
