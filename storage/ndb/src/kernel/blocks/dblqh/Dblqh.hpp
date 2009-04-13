@@ -37,6 +37,7 @@
 
 class Dbacc;
 class Dbtup;
+class Lgman;
 
 #ifdef DBLQH_C
 // Constants
@@ -2582,6 +2583,7 @@ private:
   
   Dbtup* c_tup;
   Dbacc* c_acc;
+  Lgman* c_lgman;
 
   /**
    * Read primary key from tup

@@ -593,7 +593,8 @@ void Dblqh::execSTTOR(Signal* signal)
     cstartPhase = tstartPhase;
     c_tup = (Dbtup*)globalData.getBlock(DBTUP, instance());
     c_acc = (Dbacc*)globalData.getBlock(DBACC, instance());
-    ndbrequire(c_tup != 0 && c_acc != 0);
+    c_lgman = (Lgman*)globalData.getBlock(LGMAN);
+    ndbrequire(c_tup != 0 && c_acc != 0 && c_lgman != 0);
     sendsttorryLab(signal);
     
 #if defined VM_TRACE || defined ERROR_INSERT || defined NDBD_TRACENR
@@ -12356,8 +12357,8 @@ void Dblqh::execLCP_PREPARE_CONF(Signal* signal)
     {
       LcpFragOrd *ord= (LcpFragOrd*)signal->getDataPtrSend();
       *ord = lcpPtr.p->currentFragment.lcpFragOrd;
-      EXECUTE_DIRECT(LGMAN, GSN_LCP_FRAG_ORD,
-                     signal, signal->length(), 0);
+      Logfile_client lgman(this, c_lgman, 0);
+      lgman.exec_lcp_frag_ord(signal);
       jamEntry();
       
       *ord = lcpPtr.p->currentFragment.lcpFragOrd;
