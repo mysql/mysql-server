@@ -1,6 +1,27 @@
 #include "minicron.h"
 #include <unistd.h>
 #include <assert.h>
+#include <string.h>
+#include <stdlib.h>
+
+int verbose=0;
+
+static inline void
+default_parse_args (int argc, const char *argv[]) {
+    const char *progname=argv[0];
+    argc--; argv++;
+    while (argc>0) {
+	if (strcmp(argv[0],"-v")==0) {
+	    verbose=1;
+	} else if (strcmp(argv[0],"-q")==0) {
+	    verbose=0;
+	} else {
+	    fprintf(stderr, "Usage:\n %s [-v] [-q]\n", progname);
+	    exit(1);
+	}
+	argc--; argv++;
+    }
+}
 
 static double
 tdiff (struct timeval *a, struct timeval *b) {
@@ -53,7 +74,7 @@ run_5x (void *v) {
     struct timeval now;
     gettimeofday(&now, 0);
     double diff = tdiff(&now, &tx->tv);
-    printf("T=%f\n", diff);
+    if (verbose) printf("T=%f\n", diff);
     assert(diff>0.5 + tx->counter);
     assert(diff<1.5 + tx->counter);
     tx->counter++;
@@ -77,11 +98,11 @@ test3 (void* v)
 
 static int
 run_3sec (void *v) {
-    printf("start3sec at %.6f\n", elapsed());
+    if (verbose) printf("start3sec at %.6f\n", elapsed());
     int *counter = v;
     (*counter)++;
     sleep(3);
-    printf("end3sec at %.6f\n", elapsed());
+    if (verbose) printf("end3sec at %.6f\n", elapsed());
     return 0;
 }
 
@@ -121,8 +142,9 @@ test6 (void *v) {
 
 typedef void*(*ptf)(void*);
 int
-main (int argc __attribute__((__unused__)), const char *argv[] __attribute__((__unused__)))
+main (int argc, const char *argv[])
 {
+    default_parse_args(argc,argv);
     gettimeofday(&starttime, 0);
 
     ptf testfuns[] = {test1, test2, test3,
