@@ -359,7 +359,7 @@ NdbDictionary::Column::getColumnNo() const {
 
 int
 NdbDictionary::Column::getAttrId() const {
-  return m_impl.m_attrId;;
+  return m_impl.m_attrId;
 }
 
 bool
@@ -609,7 +609,7 @@ NdbDictionary::Table::getMinRows() const
 void
 NdbDictionary::Table::setDefaultNoPartitionsFlag(Uint32 flag)
 {
-  m_impl.m_default_no_part_flag = flag;;
+  m_impl.m_default_no_part_flag = flag;
 }
 
 Uint32
