@@ -115,7 +115,6 @@ IF(NOT SOURCE_SUBLIBS)
 		# Also require mysqld.lib, which is built as part of the mysqld
 		ADD_DEPENDENCIES(ha_innodb GenError mysqld)
 
-		TARGET_LINK_LIBRARIES(ha_innodb strings zlib)
 		TARGET_LINK_LIBRARIES(ha_innodb ${CMAKE_SOURCE_DIR}/sql/\$\(OutDir\)/mysqld.lib)
 		SET_TARGET_PROPERTIES(ha_innodb PROPERTIES OUTPUT_NAME ha_innodb)
 		SET_TARGET_PROPERTIES(ha_innodb PROPERTIES LINK_FLAGS "/MAP /MAPINFO:EXPORTS")

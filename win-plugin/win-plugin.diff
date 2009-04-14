@@ -33,11 +33,11 @@ diff -Nur sql/CMakeLists.txt.orig sql/CMakeLists.txt
  IF(EMBED_MANIFESTS)
    MYSQL_EMBED_MANIFEST("mysqld" "asInvoker")
  ENDIF(EMBED_MANIFESTS)
- 
+
 diff -Nur sql/mysqld.def.orig sql/mysqld.def
 --- sql/mysqld.def.orig	1969-12-31 18:00:00 -06:00
-+++ sql/mysqld.def	2008-10-31 02:20:32 -05:00
-@@ -0,0 +1,98 @@
++++ sql/mysqld.def	2009-04-09 02:20:32 -05:00
+@@ -0,0 +1,111 @@
 +EXPORTS
 +	?use_hidden_primary_key@handler@@UAEXXZ
 +	?get_dynamic_partition_info@handler@@UAEXPAUPARTITION_INFO@@I@Z
@@ -136,11 +136,24 @@ diff -Nur sql/mysqld.def.orig sql/mysqld.def
 +	pthread_cond_destroy
 +	localtime_r
 +	my_strdup
++	deflate
++	deflateEnd
++	deflateReset
++	deflateInit2_
++	inflateEnd
++	inflateInit_
++	inflate
++	compressBound
++	inflateInit2_
++	adler32
++	longlong2str
++	strend
++	my_snprintf
 
 diff -Nur sql/mysqld_x64.def.orig sql/mysqld_x64.def
 --- sql/mysqld_x64.def.orig	1969-12-31 18:00:00 -06:00
-+++ sql/mysqld_x64.def		2008-10-31 02:22:04 -05:00
-@@ -0,0 +1,98 @@
++++ sql/mysqld_x64.def		2009-04-09 02:22:04 -05:00
+@@ -0,0 +1,111 @@
 +EXPORTS
 +	?use_hidden_primary_key@handler@@UEAAXXZ
 +	?get_dynamic_partition_info@handler@@UEAAXPEAUPARTITION_INFO@@I@Z
@@ -239,6 +252,19 @@ diff -Nur sql/mysqld_x64.def.orig sql/mysqld_x64.def
 +	pthread_cond_destroy
 +	localtime_r
 +	my_strdup
++	deflate
++	deflateEnd
++	deflateReset
++	deflateInit2_
++	inflateEnd
++	inflateInit_
++	inflate
++	compressBound
++	inflateInit2_
++	adler32
++	longlong2str
++	strend
++	my_snprintf
 
 diff -Nur win/configure.js.orig win/configure.js
 --- win/configure.js.orig	2008-09-26 21:18:37 -05:00
