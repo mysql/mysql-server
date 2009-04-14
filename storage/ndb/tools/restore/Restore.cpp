@@ -113,7 +113,9 @@ public:
       break;
     default:
       abort();
+      break;
     }
+    return false; // Never reached
   }
 
   void twiddle_aligned(void* const data_ptr) const {
