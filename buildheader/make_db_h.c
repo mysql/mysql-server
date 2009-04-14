@@ -30,11 +30,13 @@ void print_db_notices (void) {
 #define dodefine(name) printf("#define %s %d\n", #name, name)
 
 enum {
-	TOKUDB_OUT_OF_LOCKS        = -100000,
-        TOKUDB_SUCCEEDED_EARLY     = -100001,
-        TOKUDB_FOUND_BUT_REJECTED  = -100002,
-        TOKUDB_USER_CALLBACK_ERROR = -100003,
-        TOKUDB_DICTIONARY_TOO_OLD  = -100004
+	TOKUDB_OUT_OF_LOCKS         = -100000,
+        TOKUDB_SUCCEEDED_EARLY      = -100001,
+        TOKUDB_FOUND_BUT_REJECTED   = -100002,
+        TOKUDB_USER_CALLBACK_ERROR  = -100003,
+        TOKUDB_DICTIONARY_TOO_OLD   = -100004,
+        TOKUDB_DICTIONARY_TOO_NEW   = -100005,
+        TOKUDB_DICTIONARY_NO_HEADER = -100006
 };
 
 void print_defines (void) {
@@ -141,6 +143,8 @@ void print_defines (void) {
     dodefine(TOKUDB_OUT_OF_LOCKS);
     dodefine(TOKUDB_SUCCEEDED_EARLY);
     dodefine(TOKUDB_DICTIONARY_TOO_OLD);
+    dodefine(TOKUDB_DICTIONARY_TOO_NEW);
+    dodefine(TOKUDB_DICTIONARY_NO_HEADER);
     dodefine(TOKUDB_FOUND_BUT_REJECTED);
     dodefine(TOKUDB_USER_CALLBACK_ERROR);
 }

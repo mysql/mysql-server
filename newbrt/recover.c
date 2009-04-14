@@ -122,7 +122,7 @@ internal_toku_recover_fopen_or_fcreate (int flags, int mode, char *fixedfname, F
     assert(r==0);
     brt->cf=cf;
     r = toku_read_brt_header_and_store_in_cachefile(brt->cf, &brt->h);
-    if (r==-1) {
+    if (r==TOKUDB_DICTIONARY_NO_HEADER) {
 	r = toku_brt_alloc_init_header(brt);
     }
     toku_recover_note_cachefile(filenum, cf, brt);

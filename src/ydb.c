@@ -3243,7 +3243,7 @@ static int toku_db_remove(DB * db, const char *fname, const char *dbname, u_int3
     //TODO: Verify DB* db not yet opened
     //TODO: Verify db file not in use. (all dbs in the file must be unused)
     r = toku_db_open(db, NULL, fname, dbname, DB_UNKNOWN, 0, S_IRWXU|S_IRWXG|S_IRWXO);
-    if (r==TOKUDB_DICTIONARY_TOO_OLD) {
+    if (r==TOKUDB_DICTIONARY_TOO_OLD || r==TOKUDB_DICTIONARY_TOO_NEW || r==TOKUDB_DICTIONARY_NO_HEADER) {
         need_close = FALSE;
         goto delete_db_file;
     }
