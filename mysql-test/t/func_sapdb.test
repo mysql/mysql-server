@@ -169,4 +169,26 @@ SELECT TIMEDIFF(TIME('17:00:00'),TIME('17:00:00'))=TIME('00:00:00') AS 1Eq,
        TIMEDIFF(TIME('17:59:00'),TIME('17:00:00')),
        TIMEDIFF(TIME('17:00:00'),TIME('17:59:00'));
 
+#
+# Bug#42661 - sec_to_time() and signedness
+#
+
+SELECT sec_to_time(3020399)=TIME('838:59:59');
+SELECT sec_to_time(-3020399)=TIME('-838:59:59');
+SELECT sec_to_time(-3020399)='-838:59:59';
+SELECT time(sec_to_time(-3020399))=TIME('-838:59:59');
+SELECT time(sec_to_time(-3020399))=TIME('-838:59:58');
+
+#
+# Bug#42662 - maketime() and signedness
+#
+
+# TIME(...) and CAST(... AS TIME) go through the same code-path here,
+# but we'll explicitly show show that both work in case the ever changes.
+SELECT maketime(-1,0,1)='-01:00:01';
+SELECT TIME(maketime(-1,0,1))=CAST('-01:00:01' AS TIME);
+SELECT maketime(-1,0,1)=CAST('-01:00:01' AS TIME);
+SELECT maketime(1,0,1)=CAST('01:00:01' AS TIME);
+SELECT maketime(1,0,1)=CAST('01:00:02' AS TIME);
+
 # End of 5.0 tests
