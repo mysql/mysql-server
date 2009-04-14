@@ -74,8 +74,7 @@ do_update (void *UU(ignore))
 static void*
 do_checkpoint (void *UU(v))
 {
-  // TODO: #1510 Replace with real checkpoint function
-  int r = toku_checkpoint(ct, NULL, NULL);
+    int r = toku_checkpoint(ct, NULL, NULL, NULL, NULL);
     assert(r == 0);
     return 0;
 }
@@ -124,16 +123,14 @@ static void checkpoint_pending(void) {
     //printf("E43\n");
     n_flush = n_write_me = n_keep_me = n_fetch = 0; expect_value = 43;
 
-    //TODO: #1510 Replace with real checkpoint call
-    r = toku_checkpoint(ct, NULL, NULL);
+    r = toku_checkpoint(ct, NULL, NULL, NULL, NULL);
     assert(r == 0);
     assert(n_flush == N && n_write_me == N && n_keep_me == N);
 
     // a subsequent checkpoint should cause no flushes, or writes since all of the items are clean
     n_flush = n_write_me = n_keep_me = n_fetch = 0;
 
-    //TODO: #1510 Replace with real checkpoint call
-    r = toku_checkpoint(ct, NULL, NULL);
+    r = toku_checkpoint(ct, NULL, NULL, NULL, NULL);
     assert(r == 0);
     assert(n_flush == 0 && n_write_me == 0 && n_keep_me == 0);
 

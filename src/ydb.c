@@ -696,7 +696,7 @@ static int toku_env_set_verbose(DB_ENV * env, u_int32_t which, int onoff) {
 
 static int toku_env_txn_checkpoint(DB_ENV * env, u_int32_t kbyte __attribute__((__unused__)), u_int32_t min __attribute__((__unused__)), u_int32_t flags __attribute__((__unused__))) {
     char *error_string = NULL;
-    int r = toku_checkpoint(env->i->cachetable, env->i->logger, &error_string);
+    int r = toku_checkpoint(env->i->cachetable, env->i->logger, &error_string, NULL, NULL);
     if (r) {
 	env->i->is_panicked = r; // Panicking the whole environment may be overkill, but I'm not sure what else to do.
 	env->i->panic_string = error_string;

@@ -201,7 +201,7 @@ checkpoint_thread (void *cachetable_v)
     char *error_string;
     CACHETABLE ct = cachetable_v;
     printf("%s:%d Checkpointing\n", __FILE__, __LINE__);
-    int r = toku_checkpoint(ct, ct->logger, &error_string);
+    int r = toku_checkpoint(ct, ct->logger, &error_string, NULL, NULL);
     if (r) {
 	if (error_string) {
 	    fprintf(stderr, "%s:%d Got error %d while doing: %s\n", __FILE__, __LINE__, r, error_string);

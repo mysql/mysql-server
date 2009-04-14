@@ -161,7 +161,7 @@ void toku_checkpoint_destroy(void) {
 
 // Take a checkpoint of all currently open dictionaries
 int 
-toku_checkpoint(CACHETABLE ct, TOKULOGGER logger, char **error_string) {
+toku_checkpoint(CACHETABLE ct, TOKULOGGER logger, char **error_string, void (*callback_f)(void*), void * extra) {
     int r;
 
     assert(initialized);
@@ -173,7 +173,10 @@ toku_checkpoint(CACHETABLE ct, TOKULOGGER logger, char **error_string) {
 
     multi_operation_checkpoint_unlock();
     ydb_unlock();
+
     if (r==0) {
+	if (callback_f) 
+	    callback_f(extra);      // callback is called with checkpoint_safe_lock still held
 	r = toku_cachetable_end_checkpoint(ct, logger, error_string);
     }
 
