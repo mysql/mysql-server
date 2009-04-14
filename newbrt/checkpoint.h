@@ -3,6 +3,11 @@
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 #ident "$Id$"
 
+int toku_set_checkpoint_period(CACHETABLE ct, u_int32_t new_period);
+u_int32_t toku_get_checkpoint_period(CACHETABLE ct);
+//Effect: Change [end checkpoint (n) - begin checkpoint (n+1)] delay to
+//        new_period seconds.  0 means disable.
+
 /******
  *
  * NOTE: multi_operation_lock is highest level lock

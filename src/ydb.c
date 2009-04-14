@@ -790,6 +790,36 @@ static int locked_env_txn_stat(DB_ENV * env, DB_TXN_STAT ** statp, u_int32_t fla
 }
 
 static int
+env_checkpointing_set_period(DB_ENV * env, u_int32_t seconds) {
+    HANDLE_PANICKED_ENV(env);
+    int r;
+    if (!env_opened(env)) r = EINVAL;
+    else
+        r = toku_set_checkpoint_period(env->i->cachetable, seconds);
+    return r;
+}
+
+static int
+locked_env_checkpointing_set_period(DB_ENV * env, u_int32_t seconds) {
+    toku_ydb_lock(); int r = env_checkpointing_set_period(env, seconds); toku_ydb_unlock(); return r;
+}
+
+static int
+env_checkpointing_get_period(DB_ENV * env, u_int32_t *seconds) {
+    HANDLE_PANICKED_ENV(env);
+    int r = 0;
+    if (!env_opened(env)) r = EINVAL;
+    else 
+        *seconds = toku_get_checkpoint_period(env->i->cachetable);
+    return r;
+}
+
+static int
+locked_env_checkpointing_get_period(DB_ENV * env, u_int32_t *seconds) {
+    toku_ydb_lock(); int r = env_checkpointing_get_period(env, seconds); toku_ydb_unlock(); return r;
+}
+
+static int
 env_checkpointing_postpone(DB_ENV * env) {
     HANDLE_PANICKED_ENV(env);
     int r = 0;
@@ -882,6 +912,8 @@ static int toku_env_create(DB_ENV ** envp, u_int32_t flags) {
     result->err = (void (*)(const DB_ENV * env, int error, const char *fmt, ...)) toku_locked_env_err;
     result->set_default_bt_compare = locked_env_set_default_bt_compare;
     result->set_default_dup_compare = locked_env_set_default_dup_compare;
+    result->checkpointing_set_period = locked_env_checkpointing_set_period;
+    result->checkpointing_get_period = locked_env_checkpointing_get_period;
     result->checkpointing_postpone = env_checkpointing_postpone;
     result->checkpointing_resume = env_checkpointing_resume;
     result->checkpointing_begin_atomic_operation = env_checkpointing_begin_atomic_operation;
