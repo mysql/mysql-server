@@ -590,7 +590,7 @@ ErrorBundle ErrorCodes[] = {
   { 4538, DMEC, AE, "NdbInterpretedCode instruction requires that table is set" },
   { 4539, DMEC, AE, "NdbInterpretedCode not supported for operation type" },
   { 4540, DMEC, AE, "Attempt to pass an Index column to createRecord.  Use base table columns only" },
-  { 4541, DMEC, AE, "IndexBound has no bound information" }, // No longer generated
+  /* 4541 No longer generated */
   { 4542, DMEC, AE, "Unknown partition information type" },
   { 4543, DMEC, AE, "Duplicate partitioning information supplied" },
   { 4544, DMEC, AE, "Wrong partitionInfo type for table" },
@@ -789,23 +789,6 @@ static
 const
 int NbClassification = sizeof(StatusClassificationMapping)/sizeof(ErrorStatusClassification);
 
-#ifdef NOT_USED
-/**
- * Complete all fields of an NdbError given the error code
- * and details
- */
-static
-void
-set(ndberror_struct * error, int code, const char * details, ...){
-  error->code = code;
-  {
-    va_list ap;
-    va_start(ap, details);
-    vsnprintf(error->details, sizeof(error->details), details, ap);
-    va_end(ap);
-  }
-}
-#endif
 
 void
 ndberror_update(ndberror_struct * error){
@@ -842,28 +825,6 @@ ndberror_update(ndberror_struct * error){
   }
 }
 
-#if CHECK_ERRORCODES
-int
-checkErrorCodes(){
-  int i, j;
-  for(i = 0; i<NbErrorCodes; i++)
-    for(j = i+1; j<NbErrorCodes; j++)
-      if(ErrorCodes[i].code == ErrorCodes[j].code){
-	printf("ErrorCode %d is defined multiple times!!\n", 
-		 ErrorCodes[i].code);
-	assert(0);
-      }
-  
-  return 1;
-}
-
-/*static const int a = checkErrorCodes();*/
-
-int main(void){
-  checkErrorCodes();
-  return 0;
-}
-#endif
 
 const char *ndberror_status_message(ndberror_status status)
 {
