@@ -352,7 +352,7 @@ wdl_load_mapfile(
 			chain_header = map_cell;
 
 			map_cell->symbol = strdup(func_name);
-			map_cell->value = (ulint) strtoull(tmp_buf, NULL, 0)
+			map_cell->value = (ulint) _strtoui64(tmp_buf, NULL, 0)
 					  - load_addr;
 			map_fold = ut_fold_string(map_cell->symbol);
 
