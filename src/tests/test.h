@@ -9,6 +9,7 @@
 #include <db.h>
 #include <assert.h>
 #include <limits.h>
+#include <errno.h>
 #include "toku_htonl.h"
 #if defined(USE_TDB)
 #include "ydb.h"
@@ -79,6 +80,13 @@ dbt_init_malloc (DBT *dbt) {
     return dbt;
 }
 
+static __attribute__((__unused__)) DBT *
+dbt_init_realloc (DBT *dbt) {
+    memset(dbt, 0, sizeof *dbt);
+    dbt->flags = DB_DBT_REALLOC;
+    return dbt;
+}
+
 // Simple LCG random number generator.  Not high quality, but good enough.
 static u_int32_t rstate=1;
 static inline void mysrandom (int s) {
@@ -87,6 +95,20 @@ static inline void mysrandom (int s) {
 static inline u_int32_t myrandom (void) {
     rstate = (279470275ull*(u_int64_t)rstate)%4294967291ull;
     return rstate;
+}
+
+static __attribute__((__unused__)) int
+int64_dbt_cmp (DB *db, const DBT *a, const DBT *b) {
+    assert(db && a && b);
+    assert(a->size == sizeof(int64_t));
+    assert(b->size == sizeof(int64_t));
+
+    int64_t x = *(int64_t *) a->data;
+    int64_t y = *(int64_t *) b->data;
+
+    if (x<y) return -1;
+    if (x>y) return 1;
+    return 0;
 }
 
 static __attribute__((__unused__)) int
@@ -135,4 +157,30 @@ main(int argc, const char *argv[]) {
 #endif
     return r;
 }
+
+static int __attribute__((__unused__))
+abort_on_upgrade(DB* UU(pdb),
+                 u_int32_t UU(old_version), const DBT *UU(old_descriptor), const DBT *UU(old_key), const DBT *UU(old_val),
+                 u_int32_t UU(new_version), const DBT *UU(new_descriptor), const DBT *UU(new_key), const DBT *UU(new_val)) {
+    assert(FALSE); //Must not upgrade.
+    return ENOSYS;
+}
+
+unsigned int seed = 0xFEEDFACE;
+
+static u_int64_t __attribute__((__unused__))
+random64(void) {
+    static int seeded = 0;
+    if (!seeded) {
+        seeded = 1;
+        srandom(seed);
+    }
+    //random() generates 31 bits of randomness (low order)
+    u_int64_t low     = random();
+    u_int64_t high    = random();
+    u_int64_t twobits = random();
+    u_int64_t ret     = low | (high<<31) | (twobits<<62); 
+    return ret;
+}
+
 

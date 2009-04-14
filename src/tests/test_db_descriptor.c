@@ -58,13 +58,6 @@ verify_int_cmp (DB *dbp, const DBT *a, const DBT *b) {
     return r;
 }
 
-static int abort_on_upgrade(DB* UU(pdb),                                                                                                                                                       
-                            u_int32_t UU(old_version), const DBT *UU(old_descriptor), const DBT *UU(old_key), const DBT *UU(old_val),
-                            u_int32_t UU(new_version), const DBT *UU(new_descriptor), const DBT *UU(new_key), const DBT *UU(new_val)) {
-    assert(FALSE); //Must not upgrade.
-    return ENOSYS;
-}
-
 static void
 open_db(int descriptor) {
     /* create the dup database file */
