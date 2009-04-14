@@ -2122,7 +2122,7 @@ int ha_ibmdb2i::create(const char *name, TABLE *table_arg,
   if (osVersion.v < 6)
   {
     if (strlen(libName) > 
-         MAX_DB2_V5R4_LIBNAME_LENGTH + (isUpperOrQuote(system_charset_info, libName) ? 2 : 0))
+         MAX_DB2_V5R4_LIBNAME_LENGTH + (isOrdinaryIdentifier(libName) ? 2 : 0))
     {
       getErrTxt(DB2I_ERR_TOO_LONG_SCHEMA,libName, MAX_DB2_V5R4_LIBNAME_LENGTH);
       DBUG_RETURN(DB2I_ERR_TOO_LONG_SCHEMA);
@@ -2323,7 +2323,7 @@ int ha_ibmdb2i::create(const char *name, TABLE *table_arg,
   if (!rc && !isTemporary)
   {
     db2i_table* temp = new db2i_table(table_arg->s, name);
-    int32 rc = temp->fastInitForCreate(name);
+    rc = temp->fastInitForCreate(name);
     delete temp;
     if (rc) 
       delete_table(name);

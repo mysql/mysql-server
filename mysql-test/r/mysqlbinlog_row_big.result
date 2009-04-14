@@ -9,7 +9,17 @@ SET timestamp=1000000000;
 #
 # We need big packets.
 #
+# Capture initial value to reset at the end of the test
+# Now adjust max_allowed_packet
 SET @@global.max_allowed_packet= 1024*1024*1024;
+max_allowed_packet is a global variable.
+In order for the preceding change in max_allowed_packets' value
+to be seen and used, we must start a new connection.
+The change does not take effect with the current one.
+For simplicity, we just disconnect / reconnect connection default here.
+Disconnecting default connection...
+Reconnecting default connection...
+default connection established, continuing with the test
 #
 # Delete all existing binary logs.
 #
@@ -21,40 +31,56 @@ CREATE TABLE t1 (
 c1 LONGTEXT
 ) ENGINE=MyISAM DEFAULT CHARSET latin1;
 #
-# Show how much rows are affected by each statement.
+# Show how many rows are affected by each statement.
 #
 #
-# Insert a big row.
+# Insert some big rows.
 #
+256MB
+INSERT INTO t1 VALUES (REPEAT('ManyMegaByteBlck', 16777216));
+affected rows: 1
+32MB
 INSERT INTO t1 VALUES (REPEAT('ManyMegaByteBlck', 2097152));
 affected rows: 1
+4MB
+INSERT INTO t1 VALUES (REPEAT('ManyMegaByteBlck', 262144));
+affected rows: 1
+512KB
+INSERT INTO t1 VALUES (REPEAT('ManyMegaByteBlck', 32768));
+affected rows: 1
 #
 # Show what we have in the table.
 # Do not display the column value itself, just its length.
 #
 SELECT LENGTH(c1) FROM t1;
+LENGTH(c1)	268435456
 LENGTH(c1)	33554432
-affected rows: 1
+LENGTH(c1)	4194304
+LENGTH(c1)	524288
+affected rows: 4
 #
-# Grow the row by updating.
+# Grow the rows by updating.
 #
 UPDATE t1 SET c1 = CONCAT(c1, c1);
-affected rows: 1
-info: Rows matched: 1  Changed: 1  Warnings: 0
+affected rows: 4
+info: Rows matched: 4  Changed: 4  Warnings: 0
 #
 # Show what we have in the table.
 # Do not display the column value itself, just its length.
 #
 SELECT LENGTH(c1) FROM t1;
+LENGTH(c1)	536870912
+LENGTH(c1)	1048576
 LENGTH(c1)	67108864
-affected rows: 1
+LENGTH(c1)	8388608
+affected rows: 4
 #
-# Delete the row.
+# Delete the rows.
 #
 DELETE FROM t1 WHERE c1 >= 'ManyMegaByteBlck';
-affected rows: 1
+affected rows: 4
 #
-# Hide how much rows are affected by each statement.
+# Hide how many rows are affected by each statement.
 #
 #
 # Flush all log buffers to the log file.
@@ -70,5 +96,7 @@ FLUSH LOGS;
 #
 # Cleanup.
 #
+# reset variable value to pass testcase checks
+SET @@global.max_allowed_packet = 1048576;
 DROP TABLE t1;
 remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_big_1.out

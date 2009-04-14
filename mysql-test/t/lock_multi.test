@@ -317,6 +317,134 @@ reap;
 connection locker;
 drop table t1;
 
+#
+# Bug#43230: SELECT ... FOR UPDATE can hang with FLUSH TABLES WITH READ LOCK indefinitely
+#
+
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+connect (con3,localhost,root,,);
+connect (con4,localhost,root,,);
+connect (con5,localhost,root,,);
+
+create table t1 (a int);
+create table t2 like t1;
+
+connection con1;
+--echo # con1
+lock tables t1 write;
+connection con2;
+--echo # con2
+send flush tables with read lock;
+connection con5;
+--echo # con5
+let $show_statement= SHOW PROCESSLIST;
+let $field= State;
+let $condition= = 'Flushing tables';
+--source include/wait_show_condition.inc
+--echo # global read lock is taken
+connection con3;
+--echo # con3
+send select * from t2 for update;
+connection con5;
+let $show_statement= SHOW PROCESSLIST;
+let $field= State;
+let $condition= = 'Waiting for release of readlock';
+--source include/wait_show_condition.inc
+--echo # waiting for release of read lock
+connection con4;
+--echo # con4
+--echo # would hang and later cause a deadlock
+flush tables t2;
+connection con1;
+--echo # clean up
+unlock tables;
+connection con2;
+--reap
+unlock tables;
+connection con3;
+--reap
+connection default;
+disconnect con5;
+disconnect con4;
+disconnect con3;
+disconnect con2;
+disconnect con1;
+
+drop table t1,t2;
+
+--echo #
+--echo # Lightweight version:
+--echo # Ensure that the wait for a GRL is done before opening tables.
+--echo #
+
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+
+create table t1 (a int);
+create table t2 like t1;
+
+--echo #
+--echo # UPDATE
+--echo #
+
+connection default;
+--echo # default
+flush tables with read lock;
+connection con1;
+--echo # con1
+send update t2 set a = 1;
+connection default;
+--echo # default
+let $show_statement= SHOW PROCESSLIST;
+let $field= State;
+let $condition= = 'Waiting for release of readlock';
+--source include/wait_show_condition.inc
+--echo # statement is waiting for release of read lock
+connection con2;
+--echo # con2
+flush table t2;
+connection default;
+--echo # default
+unlock tables;
+connection con1;
+--echo # con1
+--reap
+
+--echo #
+--echo # LOCK TABLES .. WRITE
+--echo #
+
+connection default;
+--echo # default
+flush tables with read lock;
+connection con1;
+--echo # con1
+send lock tables t2 write;
+connection default;
+--echo # default
+let $show_statement= SHOW PROCESSLIST;
+let $field= State;
+let $condition= = 'Waiting for release of readlock';
+--source include/wait_show_condition.inc
+--echo # statement is waiting for release of read lock
+connection con2;
+--echo # con2
+flush table t2;
+connection default;
+--echo # default
+unlock tables;
+connection con1;
+--echo # con1
+--reap
+unlock tables;
+
+connection default;
+disconnect con2;
+disconnect con1;
+
+drop table t1,t2;
+
 
 --echo End of 5.0 tests
 
