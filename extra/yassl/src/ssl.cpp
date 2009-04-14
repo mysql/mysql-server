@@ -604,13 +604,13 @@ char* X509_NAME_oneline(X509_NAME* name, char* buffer, int sz)
 {
     if (!name->GetName()) return buffer;
 
-    int len    = strlen(name->GetName()) + 1;
-    int copySz = min(len, sz);
+    size_t len= strlen(name->GetName()) + 1;
+    int copySz = min((int) len, sz);
 
     if (!buffer) {
         buffer = (char*)malloc(len);
         if (!buffer) return buffer;
-        copySz = len;
+        copySz = (int) len;
     }
 
     if (copySz == 0)

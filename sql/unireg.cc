@@ -63,8 +63,8 @@ static bool make_empty_rec(THD *thd, int file, enum db_type table_type,
     db_file		Handler to use. May be zero, in which case we use
     			create_info->db_type
   RETURN
-    0  ok
-    1  error
+    false  ok
+    true   error
 */
 
 bool mysql_create_frm(THD *thd, my_string file_name,
@@ -119,7 +119,7 @@ bool mysql_create_frm(THD *thd, my_string file_name,
 
   /* Calculate extra data segment length */
   str_db_type.str= (char *) ha_get_storage_engine(create_info->db_type);
-  str_db_type.length= strlen(str_db_type.str);
+  str_db_type.length= (uint) strlen(str_db_type.str);
   create_info->extra_size= (2 + str_db_type.length +
                             2 + create_info->connect_string.length);
 

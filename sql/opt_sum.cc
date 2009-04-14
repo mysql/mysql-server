@@ -636,12 +636,12 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
   key_part_map org_key_part_used= *key_part_used;
   if (eq_type || between || max_fl == less_fl)
   {
-    uint length= (key_ptr-ref->key_buff)+part->store_length;
+    size_t length= (key_ptr-ref->key_buff)+part->store_length;
     if (ref->key_length < length)
     /* Ultimately ref->key_length will contain the length of the search key */
-      ref->key_length= length;      
+      ref->key_length= (uint) length;      
     if (!*prefix_len && part+1 == field_part)       
-      *prefix_len= length;
+      *prefix_len= (uint) length;
     if (is_field_part && eq_type)
       *prefix_len= ref->key_length;
   

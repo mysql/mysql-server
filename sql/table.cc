@@ -471,7 +471,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
       for (count= 0; count < interval->count; count++)
       {
         char *val= (char*) interval->type_names[count];
-        interval->type_lengths[count]= strlen(val);
+        interval->type_lengths[count]= (uint) strlen(val);
       }
       interval->type_lengths[count]= 0;
     }
@@ -916,7 +916,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
     the correct null_bytes can now be set, since bitfields have been taken
     into account
   */
-  share->null_bytes= (null_pos - (uchar*) outparam->null_flags +
+  share->null_bytes= (uint) (null_pos - (uchar*) outparam->null_flags +
                       (null_bit_pos + 7) / 8);
   share->last_null_bit_pos= null_bit_pos;
 
@@ -1792,11 +1792,8 @@ void st_table::reset_item_list(List<Item> *item_list) const
 
 void  TABLE_LIST::calc_md5(char *buffer)
 {
-  my_MD5_CTX context;
   uchar digest[16];
-  my_MD5Init(&context);
-  my_MD5Update(&context,(uchar *) query.str, query.length);
-  my_MD5Final(digest, &context);
+  MY_MD5_HASH(digest, (uchar *) query.str, query.length);
   sprintf((char *) buffer,
 	    "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
 	    digest[0], digest[1], digest[2], digest[3],
@@ -3000,8 +2997,8 @@ Field_iterator_table_ref::get_or_create_column_ref(THD *thd, TABLE_LIST *parent_
     /* The field belongs to a merge view or information schema table. */
     Field_translator *translated_field= view_field_it.field_translator();
     nj_col= new Natural_join_column(translated_field, table_ref);
-    field_count= table_ref->field_translation_end -
-                 table_ref->field_translation;
+    field_count= (uint) (table_ref->field_translation_end -
+                 table_ref->field_translation);
   }
   else
   {

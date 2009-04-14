@@ -40,6 +40,7 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
   IO_CACHE file;
   MI_INFO *isam=0;
   uint found_merge_insert_method= 0;
+  my_bool bad_children= FALSE;
   DBUG_ENTER("myrg_open");
 
   LINT_INIT(key_parts);
@@ -89,13 +90,13 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
       fn_format(buff, buff, "", "", 0);
     if (!(isam=mi_open(buff,mode,(handle_locking?HA_OPEN_WAIT_IF_LOCKED:0))))
     {
-      my_errno= HA_ERR_WRONG_MRG_TABLE_DEF;
       if (handle_locking & HA_OPEN_FOR_REPAIR)
       {
         myrg_print_wrong_table(buff);
+        bad_children= TRUE;
         continue;
       }
-      goto err;
+      goto bad_children;
     }
     if (!m_info)                                /* First file */
     {
@@ -122,13 +123,13 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
     files++;
     if (m_info->reclength != isam->s->base.reclength)
     {
-      my_errno=HA_ERR_WRONG_MRG_TABLE_DEF;
       if (handle_locking & HA_OPEN_FOR_REPAIR)
       {
         myrg_print_wrong_table(buff);
+        bad_children= TRUE;
         continue;
       }
-      goto err;
+      goto bad_children;
     }
     m_info->options|= isam->s->options;
     m_info->records+= isam->state->records;
@@ -141,8 +142,8 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
                                      m_info->tables);
   }
 
-  if (my_errno == HA_ERR_WRONG_MRG_TABLE_DEF)
-    goto err;
+  if (bad_children)
+    goto bad_children;
   if (!m_info && !(m_info= (MYRG_INFO*) my_malloc(sizeof(MYRG_INFO),
                                                   MYF(MY_WME | MY_ZEROFILL))))
     goto err;
@@ -170,12 +171,14 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
   pthread_mutex_unlock(&THR_LOCK_open);
   DBUG_RETURN(m_info);
 
+bad_children:
+  my_errno= HA_ERR_WRONG_MRG_TABLE_DEF;
 err:
   save_errno=my_errno;
   switch (errpos) {
   case 3:
     while (files)
-      mi_close(m_info->open_tables[--files].table);
+      (void) mi_close(m_info->open_tables[--files].table);
     my_free((char*) m_info,MYF(0));
     /* Fall through */
   case 2:

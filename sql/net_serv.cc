@@ -253,7 +253,7 @@ static int net_data_is_ready(my_socket sd)
 
   tv.tv_sec= tv.tv_usec= 0;
 
-  if ((res= select(sd+1, &sfds, NULL, NULL, &tv)) < 0)
+  if ((res= select((int) (sd + 1), &sfds, NULL, NULL, &tv)) < 0)
     return 0;
   else
     return test(res ? FD_ISSET(sd, &sfds) : 0);
@@ -501,7 +501,7 @@ net_write_buff(NET *net,const char *packet,ulong len)
 {
   ulong left_length;
   if (net->compress && net->max_packet > MAX_PACKET_LENGTH)
-    left_length= MAX_PACKET_LENGTH - (net->write_pos - net->buff);
+    left_length= (ulong) (MAX_PACKET_LENGTH - (net->write_pos - net->buff));
   else
     left_length= (ulong) (net->buff_end - net->write_pos);
 

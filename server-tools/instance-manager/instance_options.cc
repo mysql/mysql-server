@@ -257,7 +257,7 @@ int Instance_options::fill_log_options()
     strmov(hostname, "mysql");
 
   hostname[MAX_LOG_OPTION_LENGTH - 1]= 0; /* Safety */
-  hostname_length= strlen(hostname);
+  hostname_length= (uint) strlen(hostname);
 
 
   for (log_files= logs_st; log_files->name; log_files++)
@@ -392,7 +392,7 @@ int Instance_options::complete_initialization(const char *default_path,
   if (!mysqld_path)
   {
     // Need one extra byte, as convert_dirname() adds a slash at the end.
-    if (!(mysqld_path= alloc_root(&alloc, strlen(default_path) + 2)))
+    if (!(mysqld_path= alloc_root(&alloc, (uint) strlen(default_path) + 2)))
       goto err;
     strcpy((char *)mysqld_path, default_path);
   }
@@ -401,7 +401,7 @@ int Instance_options::complete_initialization(const char *default_path,
   end= convert_dirname((char*)mysqld_path, mysqld_path, NullS);
   end[-1]= 0;
 
-  mysqld_path_len= strlen(mysqld_path);
+  mysqld_path_len= (uint) strlen(mysqld_path);
 
   if (mysqld_port)
     mysqld_port_val= atoi(strchr(mysqld_port, '=') + 1);
@@ -572,7 +572,7 @@ void Instance_options::print_argv()
 
 int Instance_options::init(const char *instance_name_arg)
 {
-  instance_name_len= strlen(instance_name_arg);
+  instance_name_len= (uint) strlen(instance_name_arg);
 
   init_alloc_root(&alloc, MEM_ROOT_BLOCK_SIZE, 0);
 

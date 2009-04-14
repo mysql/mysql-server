@@ -640,7 +640,7 @@ static int parse_url(FEDERATED_SHARE *share, TABLE *table,
   share->database[share->table_name - share->database]= '\0';
   share->table_name++;
 
-  share->table_name_length= strlen(share->table_name);
+  share->table_name_length= (uint) strlen(share->table_name);
  
   /* make sure there's not an extra / */
   if ((strchr(share->table_name, '/')))
@@ -726,7 +726,7 @@ uint ha_federated::convert_row_to_internal_format(byte *record,
       index variable to move us through the row at the
       same iterative step as the field
     */
-    int x= field - table->field;
+    size_t x= (field - table->field);
     my_ptrdiff_t old_ptr;
     old_ptr= (my_ptrdiff_t) (record - table->record[0]);
     (*field)->move_field(old_ptr);
@@ -750,7 +750,7 @@ static bool emit_key_part_name(String *to, KEY_PART_INFO *part)
 {
   DBUG_ENTER("emit_key_part_name");
   if (append_ident(to, part->field->field_name, 
-                   strlen(part->field->field_name), ident_quote_char))
+                   (uint) strlen(part->field->field_name), ident_quote_char))
     DBUG_RETURN(1);                           // Out of memory
   DBUG_RETURN(0);
 }
@@ -1290,13 +1290,13 @@ static FEDERATED_SHARE *get_share(const char *table_name, TABLE *table)
     for (field= table->field; *field; field++)
     {
       append_ident(&query, (*field)->field_name, 
-                   strlen((*field)->field_name), ident_quote_char);
+                   (uint) strlen((*field)->field_name), ident_quote_char);
       query.append(FEDERATED_COMMA);
     }
-    query.length(query.length()- strlen(FEDERATED_COMMA));
+    query.length(query.length() - (uint) strlen(FEDERATED_COMMA));
     query.append(FEDERATED_FROM);
 
-    tmp_share.table_name_length= strlen(tmp_share.table_name);
+    tmp_share.table_name_length= (uint) strlen(tmp_share.table_name);
     append_ident(&query, tmp_share.table_name, 
                  tmp_share.table_name_length, ident_quote_char);
 
@@ -1528,7 +1528,7 @@ bool ha_federated::append_stmt_insert(String *query)
   append_ident(&insert_string, share->table_name, share->table_name_length, 
                ident_quote_char);
   insert_string.append(FEDERATED_OPENPAREN);
-  tmp_length= insert_string.length() - strlen(FEDERATED_COMMA);
+  tmp_length= insert_string.length() - (uint) strlen(FEDERATED_COMMA);
 
   /*
     loop through the field pointer array, add any fields to both the values
@@ -1538,7 +1538,7 @@ bool ha_federated::append_stmt_insert(String *query)
   {
     /* append the field name */
     append_ident(&insert_string, (*field)->field_name, 
-                 strlen((*field)->field_name), ident_quote_char);
+                 (uint) strlen((*field)->field_name), ident_quote_char);
 
     /* append commas between both fields and fieldnames */
     /*
@@ -1554,7 +1554,7 @@ bool ha_federated::append_stmt_insert(String *query)
   /*
     remove trailing comma
   */
-  insert_string.length(insert_string.length() - strlen(FEDERATED_COMMA));
+  insert_string.length(insert_string.length() - (uint) strlen(FEDERATED_COMMA));
 
   /*
     if there were no fields, we don't want to add a closing paren
@@ -1667,7 +1667,7 @@ int ha_federated::write_row(byte *buf)
   if (values_string.length() > tmp_length)
   {
     /* chops off leading commas */
-    values_string.length(values_string.length() - strlen(FEDERATED_COMMA));
+    values_string.length(values_string.length() - (uint) strlen(FEDERATED_COMMA));
   }
   /* we always want to append this, even if there aren't any fields */
   values_string.append(FEDERATED_CLOSEPAREN);
@@ -1950,10 +1950,10 @@ int ha_federated::update_row(const byte *old_data, byte *new_data)
 
   for (Field **field= table->field; *field; field++)
   {
-    uint field_name_length= strlen((*field)->field_name);
-    append_ident(&where_string, (*field)->field_name, field_name_length,
+    size_t field_name_length= strlen((*field)->field_name);
+    append_ident(&where_string, (*field)->field_name, (uint) field_name_length,
                  ident_quote_char);
-    append_ident(&update_string, (*field)->field_name, field_name_length,
+    append_ident(&update_string, (*field)->field_name, (uint) field_name_length,
                  ident_quote_char);
     update_string.append(FEDERATED_EQ);
 
@@ -2044,7 +2044,7 @@ int ha_federated::delete_row(const byte *buf)
     Field *cur_field= *field;
     data_string.length(0);
     append_ident(&delete_string, (*field)->field_name,
-                 strlen((*field)->field_name), ident_quote_char);
+                 (uint) strlen((*field)->field_name), ident_quote_char);
 
     if (cur_field->is_null())
     {
@@ -2359,7 +2359,7 @@ int ha_federated::rnd_init(bool scan)
       stored_result= 0;
     }
 
-    if (real_query(share->select_query, strlen(share->select_query)))
+    if (real_query(share->select_query, (uint) strlen(share->select_query)))
       goto error;
 
     stored_result= mysql_store_result(mysql);

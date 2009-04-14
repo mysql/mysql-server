@@ -78,7 +78,7 @@ typename A::pointer StdReallocate(A& a, T* p, typename A::size_type oldSize,
     if (preserve) {
         A b = A();
         typename A::pointer newPointer = b.allocate(newSize, 0);
-        memcpy(newPointer, p, sizeof(T) * min(oldSize, newSize));
+        memcpy(newPointer, p, sizeof(T) * min((word32) oldSize, (word32) newSize));
         a.deallocate(p, oldSize);
         STL::swap(a, b);
         return newPointer;

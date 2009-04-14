@@ -159,7 +159,7 @@ MYSQL_MANAGER*  STDCALL mysql_manager_connect(MYSQL_MANAGER* con,
     goto err;
   }
   sprintf(msg_buf,"%-.16s %-.16s\n",user,passwd);
-  msg_len=strlen(msg_buf);
+  msg_len= (uint) strlen(msg_buf);
   if (my_net_write(&con->net,msg_buf,msg_len) || net_flush(&con->net))
   {
     con->last_errno=con->net.last_errno;
@@ -219,7 +219,7 @@ int STDCALL mysql_manager_command(MYSQL_MANAGER* con,const char* cmd,
 				  int cmd_len)
 {
   if (!cmd_len)
-    cmd_len=strlen(cmd);
+    cmd_len= (uint) strlen(cmd);
   if (my_net_write(&con->net,(char*)cmd,cmd_len) || net_flush(&con->net))
   {
     con->last_errno=errno;

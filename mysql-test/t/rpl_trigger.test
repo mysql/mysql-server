@@ -293,7 +293,8 @@ STOP SLAVE;
 
 connection master;
 FLUSH LOGS;
-exec cp $MYSQL_TEST_DIR/std_data/bug16266.000001 $MYSQLTEST_VARDIR/log/master-bin.000001;
+--remove_file $MYSQLTEST_VARDIR/log/master-bin.000001
+--copy_file $MYSQL_TEST_DIR/std_data/bug16266.000001 $MYSQLTEST_VARDIR/log/master-bin.000001
 
 # Make the slave to replay the new binlog.
 

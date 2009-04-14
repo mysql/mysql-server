@@ -53,11 +53,11 @@ int net_send_ok(struct st_net *net, unsigned long connection_id,
   int2store(pos, 0);
   pos+= 2;
 
-  uint position= pos - buff.buffer; /* we might need it for message */
+  uint position= (uint) (pos - buff.buffer); /* we might need it for message */
 
   if (message != NULL)
   {
-    buff.reserve(position, 9 + strlen(message));
+    buff.reserve(position, 9 + (uint) strlen(message));
     store_to_protocol_packet(&buff, message, &position);
   }
 
@@ -82,7 +82,7 @@ int net_send_error(struct st_net *net, uint sql_errno)
   memcpy(pos, errno_to_sqlstate(sql_errno), SQLSTATE_LENGTH);
   pos+= SQLSTATE_LENGTH;
   pos= strmake(pos, err, MYSQL_ERRMSG_SIZE - 1) + 1;
-  return my_net_write(net, buff, pos - buff) || net_flush(net);
+  return my_net_write(net, buff, (uint) (pos - buff)) || net_flush(net);
 }
 
 
@@ -98,7 +98,7 @@ int net_send_error_323(struct st_net *net, uint sql_errno)
   int2store(pos, sql_errno);
   pos+= 2;
   pos= strmake(pos, err, MYSQL_ERRMSG_SIZE - 1) + 1;
-  return my_net_write(net, buff, pos - buff) || net_flush(net);
+  return my_net_write(net, buff, (uint) (pos - buff)) || net_flush(net);
 }
 
 char *net_store_length(char *pkg, uint length)
@@ -123,7 +123,7 @@ int store_to_protocol_packet(Buffer *buf, const char *string, uint *position,
   /* reserve max amount of bytes needed to store length */
   if (buf->reserve(*position, 9))
     goto err;
-  currpos= (net_store_length(buf->buffer + *position,
+  currpos= (uint) (net_store_length(buf->buffer + *position,
                              (ulonglong) string_len) - buf->buffer);
   if (buf->append(currpos, string, string_len))
     goto err;
@@ -139,7 +139,7 @@ int store_to_protocol_packet(Buffer *buf, const char *string, uint *position)
 {
   uint string_len;
 
-  string_len= strlen(string);
+  string_len= (uint) strlen(string);
   return store_to_protocol_packet(buf, string, position, string_len);
 }
 

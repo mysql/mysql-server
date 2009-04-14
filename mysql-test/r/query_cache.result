@@ -1681,3 +1681,54 @@ Qcache_hits	1
 DROP TABLE t1;
 SET GLOBAL concurrent_insert= @save_concurrent_insert;
 SET GLOBAL query_cache_size= default;
+DROP TABLE IF EXISTS t1;
+FLUSH STATUS;
+SET GLOBAL query_cache_size=1048576;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
+SHOW STATUS LIKE 'Qcache_queries_in_cache';
+Variable_name	Value
+Qcache_queries_in_cache	0
+SELECT * FROM t1;
+a
+1
+2
+3
+4
+5
+BEGIN;
+SELECT * FROM t1;
+a
+1
+2
+3
+4
+5
+COMMIT;
+SHOW STATUS LIKE 'Qcache_queries_in_cache';
+Variable_name	Value
+Qcache_queries_in_cache	2
+SHOW STATUS LIKE "Qcache_hits";
+Variable_name	Value
+Qcache_hits	0
+SELECT * FROM t1;
+a
+1
+2
+3
+4
+5
+BEGIN;
+SELECT * FROM t1;
+a
+1
+2
+3
+4
+5
+COMMIT;
+SHOW STATUS LIKE "Qcache_hits";
+Variable_name	Value
+Qcache_hits	2
+DROP TABLE t1;
+SET GLOBAL query_cache_size= default;

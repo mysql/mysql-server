@@ -52,7 +52,7 @@ EXTRA_DIST =		ctype-big5.c ctype-cp932.c ctype-czech.c ctype-eucjpms.c ctype-euc
 			bmove_upp-sparc.s strappend-sparc.s strend-sparc.s \
 			strinstr-sparc.s strmake-sparc.s strmov-sparc.s \
 			strnmov-sparc.s strstr-sparc.s strxmov-sparc.s \
-			t_ctype.h CMakeLists.txt
+			t_ctype.h CMakeLists.txt CHARSET_INFO.txt
 
 libmystrings_a_LIBADD=
 conf_to_src_SOURCES = conf_to_src.c xml.c ctype.c bcmp.c
