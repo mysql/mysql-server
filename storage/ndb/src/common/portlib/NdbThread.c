@@ -42,7 +42,6 @@ void NdbThread_set_shm_sigmask(my_bool block)
   if (g_ndb_shm_signum)
   {
     sigset_t mask;
-    // DBUG_PRINT("info",("Block signum %d",g_ndb_shm_signum));
     sigemptyset(&mask);
     sigaddset(&mask, g_ndb_shm_signum);
     if (block)
