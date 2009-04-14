@@ -21367,7 +21367,7 @@ ERROR 42S02: Table 'test.v1' doesn't exist
 CHECK TABLE v1;
 Table	Op	Msg_type	Msg_text
 test.v1	check	Error	Table 'test.v1' doesn't exist
-test.v1	check	error	Corrupt
+test.v1	check	status	Operation failed
 DESCRIBE v1;
 ERROR 42S02: Table 'test.v1' doesn't exist
 EXPLAIN SELECT * FROM v1;
@@ -22824,7 +22824,7 @@ f1	f2
 ABC	3
 SELECT * FROM v1 order by 2;
 f1	my_sqrt
-ABC	1.7320508075689
+ABC	1.73205080756888
 ALTER TABLE t1 CHANGE COLUMN f2 f2 VARCHAR(30);
 INSERT INTO t1   SET f1 = 'ABC', f2 = 'DEF';
 DESCRIBE t1;
@@ -22842,7 +22842,7 @@ ABC	DEF
 SELECT * FROM v1 order by 2;
 f1	my_sqrt
 ABC	0
-ABC	1.7320508075689
+ABC	1.73205080756888
 SELECT SQRT('DEF');
 SQRT('DEF')
 0
@@ -22862,7 +22862,7 @@ my_sqrt	double	YES		NULL
 SELECT * FROM v2 order by 2;
 f1	my_sqrt
 ABC	0
-ABC	1.7320508075689
+ABC	1.73205080756888
 CREATE TABLE t2 AS SELECT f1, SQRT(f2) my_sqrt FROM t1;
 SELECT * FROM t2 order by 2;
 f1	ABC

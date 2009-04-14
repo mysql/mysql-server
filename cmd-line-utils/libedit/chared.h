@@ -1,4 +1,4 @@
-/*	$NetBSD: chared.h,v 1.14 2004/08/13 12:10:39 mycroft Exp $	*/
+/*	$NetBSD: chared.h,v 1.17 2006/03/06 21:11:56 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -48,7 +48,7 @@
 #define	EL_MAXMACRO	10
 
 /*
- * This is a issue of basic "vi" look-and-feel. Defining VI_MOVE works
+ * This is an issue of basic "vi" look-and-feel. Defining VI_MOVE works
  * like real vi: i.e. the transition from command<->insert modes moves
  * the cursor.
  *
@@ -116,11 +116,10 @@ typedef struct el_chared_t {
 } el_chared_t;
 
 
-#define	STReof		"^D\b\b"
 #define	STRQQ		"\"\""
 
 #define	isglob(a)	(strchr("*[]?", (a)) != NULL)
-#define	isword(a)	(isprint(a))
+#define	isword(a)	(el_isprint(a))
 
 #define	NOP		0x00
 #define	DELETE		0x01
@@ -161,7 +160,7 @@ protected int	 c_gets(EditLine *, char *, const char *);
 protected int	 c_hpos(EditLine *);
 
 protected int	 ch_init(EditLine *);
-protected void	 ch_reset(EditLine *);
+protected void	 ch_reset(EditLine *, int);
 protected int	 ch_enlargebufs(EditLine *, size_t);
 protected void	 ch_end(EditLine *);
 

@@ -1001,7 +1001,7 @@ ulonglong my_strntoull10rnd_ucs2(CHARSET_INFO *cs __attribute__((unused)),
     *b++= (char) wc;
   }
 
-  res= my_strntoull10rnd_8bit(cs, buf, b - buf, unsign_fl, endptr, err);
+  res= my_strntoull10rnd_8bit(cs, buf, (uint) (b - buf), unsign_fl, endptr, err);
   *endptr= (char*) nptr + 2 * (uint) (*endptr- buf);
   return res;
 }

@@ -507,9 +507,9 @@ ERROR 42000: Access denied for user 'mysqltest_3'@'localhost' to database 'mysql
 drop table mysqltest.t1;
 drop database mysqltest;
 set names binary;
-delete from mysql.user 
+delete from mysql.user
 where user='mysqltest_1' || user='mysqltest_2' || user='mysqltest_3';
-delete from mysql.db   
+delete from mysql.db
 where user='mysqltest_1' || user='mysqltest_2' || user='mysqltest_3';
 flush privileges;
 CREATE TABLE t1 (i int, KEY (i)) ENGINE=MEMORY;
@@ -916,7 +916,7 @@ def			TRIGGERS	DEFINER	Definer	252	589815	14	N	17	0	33
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer
 t1_bi	INSERT	t1	SET @a = 1	BEFORE	NULL		root@localhost
 ----------------------------------------------------------------
-SELECT 
+SELECT
 TRIGGER_CATALOG,
 TRIGGER_SCHEMA,
 TRIGGER_NAME,
@@ -1094,7 +1094,7 @@ CREATE DATABASE mysqltest1;
 use mysqltest1;
 CREATE TABLE t1(колонка1 INT);
 
----> Dumping mysqltest1 to show_check.mysqltest1.sql
+---> Dumping mysqltest1 to outfile1
 
 
 DROP DATABASE mysqltest1;

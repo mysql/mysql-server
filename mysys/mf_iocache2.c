@@ -368,9 +368,9 @@ uint my_b_vprintf(IO_CACHE *info, const char* fmt, va_list args)
     else
     {
       /* %% or unknown code */
-      if (my_b_write(info, backtrack, fmt-backtrack))
+      if (my_b_write(info, backtrack, (uint) (fmt - backtrack)))
         goto err;
-      out_length+= fmt-backtrack;
+      out_length+= (uint) (fmt - backtrack);
     }
   }
   return out_length;

@@ -459,12 +459,12 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
   strxnmov(dir_buff, FN_REFLEN, mysql_data_home, "/", tables->db, "/", NullS);
   dir.length= unpack_filename(dir_buff, dir_buff);
   dir.str= dir_buff;
-  file.length=  strxnmov(file_buff, FN_REFLEN, tables->table_name,
-                         triggers_file_ext, NullS) - file_buff;
+  file.length= (uint) (strxnmov(file_buff, FN_REFLEN, tables->table_name,
+                         triggers_file_ext, NullS) - file_buff);
   file.str= file_buff;
-  trigname_file.length= strxnmov(trigname_buff, FN_REFLEN,
+  trigname_file.length= (uint) (strxnmov(trigname_buff, FN_REFLEN,
                                  lex->spname->m_name.str,
-                                 trigname_file_ext, NullS) - trigname_buff;
+                                 trigname_file_ext, NullS) - trigname_buff);
   trigname_file.str= trigname_buff;
   strxnmov(trigname_path, FN_REFLEN, dir_buff, trigname_buff, NullS);
 
@@ -524,8 +524,8 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
     definer_host= lex->definer->host;
 
     trg_definer->str= trg_definer_holder;
-    trg_definer->length= strxmov(trg_definer->str, definer_user.str, "@",
-                                 definer_host.str, NullS) - trg_definer->str;
+    trg_definer->length= (uint) (strxmov(trg_definer->str, definer_user.str, "@",
+                                 definer_host.str, NullS) - trg_definer->str);
   }
   else
   {
@@ -559,9 +559,9 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
   }
 
   stmt_query->append(thd->lex->stmt_definition_begin,
-                     (char *) thd->lex->sphead->m_body_begin -
+                     (uint) ((char *) thd->lex->sphead->m_body_begin -
                      thd->lex->stmt_definition_begin +
-                     thd->lex->sphead->m_body.length);
+                     thd->lex->sphead->m_body.length));
 
   trg_def->str= stmt_query->c_ptr();
   trg_def->length= stmt_query->length();
@@ -651,8 +651,8 @@ static bool save_trigger_file(Table_triggers_list *triggers, const char *db,
   strxnmov(dir_buff, FN_REFLEN, mysql_data_home, "/", db, "/", NullS);
   dir.length= unpack_filename(dir_buff, dir_buff);
   dir.str= dir_buff;
-  file.length=  strxnmov(file_buff, FN_REFLEN, table_name, triggers_file_ext,
-                         NullS) - file_buff;
+  file.length= (uint) (strxnmov(file_buff, FN_REFLEN, table_name, triggers_file_ext,
+                         NullS) - file_buff);
   file.str= file_buff;
 
   return sql_create_definition_file(&dir, &file, &triggers_file_type,
@@ -960,7 +960,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
 
       save_db.str= thd->db;
       save_db.length= thd->db_length;
-      thd->reset_db((char*) db, strlen(db));
+      thd->reset_db((char*) db, (uint) strlen(db));
       while ((trg_create_str= it++))
       {
         trg_sql_mode= itm++;
@@ -1153,8 +1153,8 @@ bool Table_triggers_list::get_trigger_info(THD *thd, trg_event_type event,
     }
     else
     {
-      definer->length= strxmov(definer->str, body->m_definer_user.str, "@",
-                               body->m_definer_host.str, NullS) - definer->str;
+      definer->length= (uint) (strxmov(definer->str, body->m_definer_user.str, "@",
+                               body->m_definer_host.str, NullS) - definer->str);
     }
 
     DBUG_RETURN(0);
@@ -1350,7 +1350,7 @@ Table_triggers_list::change_table_name_in_triggers(THD *thd,
 
     /* Construct CREATE TRIGGER statement with new table name. */
     buff.length(0);
-    before_on_len= on_table_name->str - def->str;
+    before_on_len= (uint) (on_table_name->str - def->str);
     buff.append(def->str, before_on_len);
     buff.append(STRING_WITH_LEN("ON "));
     append_identifier(thd, &buff, new_table_name->str, new_table_name->length);
@@ -1420,8 +1420,8 @@ Table_triggers_list::change_table_name_in_trignames(const char *db_name,
 
   while ((trigger= it_name++) != stopper)
   {
-    trigname_file.length= strxnmov(trigname_buff, FN_REFLEN, trigger->str,
-                                   trigname_file_ext, NullS) - trigname_buff;
+    trigname_file.length= (uint) (strxnmov(trigname_buff, FN_REFLEN, trigger->str,
+                                   trigname_file_ext, NullS) - trigname_buff);
     trigname_file.str= trigname_buff;
 
     trigname.trigger_table= *new_table_name;
@@ -1482,8 +1482,8 @@ bool Table_triggers_list::change_table_name(THD *thd, const char *db,
   }
   if (table.triggers)
   {
-    LEX_STRING_WITH_INIT old_table_name(old_table, strlen(old_table));
-    LEX_STRING_WITH_INIT new_table_name(new_table, strlen(new_table));
+    LEX_STRING_WITH_INIT old_table_name(old_table, (uint) strlen(old_table));
+    LEX_STRING_WITH_INIT new_table_name(new_table, (uint) strlen(new_table));
     /*
       Since triggers should be in the same schema as their subject tables
       moving table with them between two schemas raises too many questions.

@@ -628,7 +628,7 @@ bool mysqld_help(THD *thd, const char *mask)
   List<String> topics_list, categories_list, subcategories_list;
   String name, description, example;
   int count_topics, count_categories, error;
-  uint mlen= strlen(mask);
+  size_t mlen= strlen(mask);
   size_t i;
   MEM_ROOT *mem_root= thd->mem_root;
   DBUG_ENTER("mysqld_help");
@@ -668,7 +668,7 @@ bool mysqld_help(THD *thd, const char *mask)
     tables[i].table->file->init_table_handle_for_HANDLER();
 
   if (!(select=
-	prepare_select_for_name(thd,mask,mlen,tables,tables[0].table,
+	prepare_select_for_name(thd,mask,(uint) mlen,tables,tables[0].table,
 				used_fields[help_topic_name].field,&error)))
     goto error;
 
@@ -681,7 +681,7 @@ bool mysqld_help(THD *thd, const char *mask)
   {
     int key_id;
     if (!(select=
-          prepare_select_for_name(thd,mask,mlen,tables,tables[3].table,
+          prepare_select_for_name(thd,mask,(uint) mlen,tables,tables[3].table,
                                   used_fields[help_keyword_name].field,&error)))
       goto error;
 
@@ -698,7 +698,7 @@ bool mysqld_help(THD *thd, const char *mask)
     int16 category_id;
     Field *cat_cat_id= used_fields[help_category_parent_category_id].field;
     if (!(select=
-          prepare_select_for_name(thd,mask,mlen,tables,tables[1].table,
+          prepare_select_for_name(thd,mask,(uint) mlen,tables,tables[1].table,
                                   used_fields[help_category_name].field,&error)))
       goto error;
 
@@ -759,7 +759,7 @@ bool mysqld_help(THD *thd, const char *mask)
 	send_variant_2_list(mem_root,protocol, &topics_list, "N", 0))
       goto error;
     if (!(select=
-          prepare_select_for_name(thd,mask,mlen,tables,tables[1].table,
+          prepare_select_for_name(thd,mask,(uint) mlen,tables,tables[1].table,
                                   used_fields[help_category_name].field,&error)))
       goto error;
     search_categories(thd, tables[1].table, used_fields,

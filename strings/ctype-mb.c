@@ -37,7 +37,7 @@ uint my_caseup_str_mb(CHARSET_INFO * cs, char *str)
       str++;
     }
   }
-  return str - str_orig;
+  return (uint) (str - str_orig);
 }
 
 uint my_casedn_str_mb(CHARSET_INFO * cs, char *str)
@@ -57,7 +57,7 @@ uint my_casedn_str_mb(CHARSET_INFO * cs, char *str)
       str++;
     }
   }
-  return str - str_orig;
+  return (uint) (str - str_orig);
 }
 
 uint my_caseup_mb(CHARSET_INFO * cs, char *src, uint srclen,

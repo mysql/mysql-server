@@ -134,7 +134,6 @@ void get_pass(char* pw, int len)
 int main(int argc, char** argv)
 {
   FILE* fp;
-  my_MD5_CTX context;
   uchar digest[16];
   char pw[17];
   uint i;
@@ -147,9 +146,7 @@ int main(int argc, char** argv)
   if (!(fp=fopen(outfile,"w")))
     die("Could not open '%s'(errno=%d)",outfile,errno);
   get_pass(pw,sizeof(pw)-1);
-  my_MD5Init(&context);
-  my_MD5Update(&context,(uchar*) pw,sizeof(pw)-1);
-  my_MD5Final(digest,&context);
+  MY_MD5_HASH(digest,(uchar*) pw,sizeof(pw)-1);
   fprintf(fp,"%s:",user);
   for (i=0;i<sizeof(digest);i++)
     fprintf(fp,"%02x",digest[i]);

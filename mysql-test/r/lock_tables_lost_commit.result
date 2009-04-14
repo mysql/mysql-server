@@ -1,8 +1,8 @@
-drop table if exists t1;
-create table t1(a int) engine=innodb;
-lock tables t1 write;
-insert into t1 values(10);
-select * from t1;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1(a INT) ENGINE=innodb;
+LOCK TABLES t1 WRITE;
+INSERT INTO t1 VALUES(10);
+SELECT * FROM t1;
 a
 10
-drop table t1;
+DROP TABLE t1;

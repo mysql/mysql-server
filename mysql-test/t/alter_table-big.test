@@ -1,4 +1,4 @@
-# In order to be more or less robust test for bug#25044 has to take
+# In order to be more or less robust test for Bug#25044 has to take
 # significant time (e.g. about 9 seconds on my (Dmitri's) computer)
 # so we probably want execute it only in --big-test mode.
 # Also in 5.1 this test will require statement-based binlog.
@@ -6,8 +6,8 @@
 
 
 #
-# Test for bug #25044 "ALTER TABLE ... ENABLE KEYS acquires global
-# 'opening tables' lock".
+# Test for Bug#25044 ALTER TABLE ... ENABLE KEYS acquires global
+#                    'opening tables' lock
 #
 # ALTER TABLE ... ENABLE KEYS should not acquire LOCK_open mutex for
 # the whole its duration as it prevents other queries from execution.
@@ -57,6 +57,7 @@ show binlog events in 'master-bin.000001' from 98;
 
 # Clean up
 drop tables t1, t2;
+disconnect addconroot;
 
 
 --echo End of 5.0 tests

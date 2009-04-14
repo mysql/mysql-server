@@ -1,4 +1,4 @@
-/*	$NetBSD: fgetln.c,v 1.1.1.1 1999/04/12 07:43:21 crooksa Exp $	*/
+/*	$NetBSD: fgetln.c,v 1.9 2008/04/29 06:53:03 martin Exp $	*/
 
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -15,13 +15,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *        This product includes software developed by the NetBSD
- *        Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -36,17 +29,24 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifdef HAVE_NBTOOL_CONFIG_H
+#include "nbtool_config.h"
+#else
 #include "config.h"
-#include <stdio.h>
+#endif
+
+#if !HAVE_FGETLN
 #include <stdlib.h>
+#ifndef HAVE_NBTOOL_CONFIG_H
+/* These headers are required, but included from nbtool_config.h */
+#include <stdio.h>
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
+#endif
 
 char *
-fgetln(fp, len)
-	FILE *fp;
-	size_t *len;
+fgetln(FILE *fp, size_t *len)
 {
 	static char *buf = NULL;
 	static size_t bufsiz = 0;
@@ -61,8 +61,8 @@ fgetln(fp, len)
 
 	if (fgets(buf, bufsiz, fp) == NULL)
 		return NULL;
-	*len = 0;
 
+	*len = 0;
 	while ((ptr = strchr(&buf[*len], '\n')) == NULL) {
 		size_t nbufsiz = bufsiz + BUFSIZ;
 		char *nbuf = realloc(buf, nbufsiz);
@@ -76,13 +76,33 @@ fgetln(fp, len)
 		} else
 			buf = nbuf;
 
-		*len = bufsiz;
-		if (fgets(&buf[bufsiz], BUFSIZ, fp) == NULL)
+		if (fgets(&buf[bufsiz], BUFSIZ, fp) == NULL) {
+			buf[bufsiz] = '\0';
+			*len = strlen(buf);
 			return buf;
+		}
 
+		*len = bufsiz;
 		bufsiz = nbufsiz;
 	}
 
 	*len = (ptr - buf) + 1;
 	return buf;
 }
+
+#endif
+
+#ifdef TEST
+int
+main(int argc, char *argv[])
+{
+	char *p;
+	size_t len;
+
+	while ((p = fgetln(stdin, &len)) != NULL) {
+		(void)printf("%zu %s", len, p);
+		free(p);
+	}
+	return 0;
+}
+#endif

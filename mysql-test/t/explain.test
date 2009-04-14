@@ -123,4 +123,17 @@ execute s1;
 
 DROP TABLE t1,t2;
 
+
+#
+# Bug #43354: Use key hint can crash server in explain extended query
+#
+
+CREATE TABLE t1 (a INT PRIMARY KEY);
+
+--error ER_KEY_DOES_NOT_EXITS
+EXPLAIN EXTENDED SELECT COUNT(a) FROM t1 USE KEY(a);
+
+DROP TABLE t1;
+
+
 # End of 5.0 tests.
