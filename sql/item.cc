@@ -321,7 +321,7 @@ int Item::save_time_in_field(Field *field)
 {
   MYSQL_TIME ltime;
   if (get_time(&ltime))
-    return set_field_to_null(field);
+    return set_field_to_null_with_conversions(field, 0);
   field->set_notnull();
   return field->store_time(&ltime, MYSQL_TIMESTAMP_TIME);
 }
@@ -331,7 +331,7 @@ int Item::save_date_in_field(Field *field)
 {
   MYSQL_TIME ltime;
   if (get_date(&ltime, TIME_FUZZY_DATE))
-    return set_field_to_null(field);
+    return set_field_to_null_with_conversions(field, 0);
   field->set_notnull();
   return field->store_time(&ltime, MYSQL_TIMESTAMP_DATETIME);
 }
@@ -1243,13 +1243,26 @@ Item::Type Item_name_const::type() const
     valid_args guarantees value_item->basic_const_item(); if type is
     FUNC_ITEM, then we have a fudged item_func_neg() on our hands
     and return the underlying type.
+    For Item_func_set_collation()
+    e.g. NAME_CONST('name', 'value' COLLATE collation) we return its
+    'value' argument type. 
   */
-  return valid_args ?
-             (((value_item->type() == FUNC_ITEM) &&
-               (((Item_func *) value_item)->functype() == Item_func::NEG_FUNC)) ?
-             ((Item_func *) value_item)->key_item()->type() :
-             value_item->type()) :
-           NULL_ITEM;
+  if (!valid_args)
+    return NULL_ITEM;
+  Item::Type value_type= value_item->type();
+  if (value_type == FUNC_ITEM)
+  {
+    /* 
+      The second argument of NAME_CONST('name', 'value') must be 
+      a simple constant item or a NEG_FUNC/COLLATE_FUNC.
+    */
+    DBUG_ASSERT(((Item_func *) value_item)->functype() == 
+                Item_func::NEG_FUNC ||
+                ((Item_func *) value_item)->functype() == 
+                Item_func::COLLATE_FUNC);
+    return ((Item_func *) value_item)->key_item()->type();            
+  }
+  return value_type;
 }
 
 
@@ -1485,7 +1498,8 @@ bool DTCollation::aggregate(DTCollation &dt, uint flags)
     else
     {
       // Cannot apply conversion
-      set(0, DERIVATION_NONE, 0);
+      set(&my_charset_bin, DERIVATION_NONE,
+          (dt.repertoire|repertoire));
       return 1;
     }
   }
@@ -1568,15 +1582,31 @@ bool agg_item_collations(DTCollation &c, const char *fname,
 {
   uint i;
   Item **arg;
+  bool unknown_cs= 0;
+
   c.set(av[0]->collation);
   for (i= 1, arg= &av[item_sep]; i < count; i++, arg++)
   {
     if (c.aggregate((*arg)->collation, flags))
     {
+      if (c.derivation == DERIVATION_NONE &&
+          c.collation == &my_charset_bin)
+      {
+        unknown_cs= 1;
+        continue;
+      }
       my_coll_agg_error(av, count, fname, item_sep);
       return TRUE;
     }
   }
+
+  if (unknown_cs &&
+      c.derivation != DERIVATION_EXPLICIT)
+  {
+    my_coll_agg_error(av, count, fname, item_sep);
+    return TRUE;
+  }
+
   if ((flags & MY_COLL_DISALLOW_NONE) &&
       c.derivation == DERIVATION_NONE)
   {
@@ -1595,42 +1625,11 @@ bool agg_item_collations_for_comparison(DTCollation &c, const char *fname,
 }
 
 
-/* 
-  Collect arguments' character sets together.
-  We allow to apply automatic character set conversion in some cases.
-  The conditions when conversion is possible are:
-  - arguments A and B have different charsets
-  - A wins according to coercibility rules
-    (i.e. a column is stronger than a string constant,
-     an explicit COLLATE clause is stronger than a column)
-  - character set of A is either superset for character set of B,
-    or B is a string constant which can be converted into the
-    character set of A without data loss.
-    
-  If all of the above is true, then it's possible to convert
-  B into the character set of A, and then compare according
-  to the collation of A.
-  
-  For functions with more than two arguments:
 
-    collect(A,B,C) ::= collect(collect(A,B),C)
-
-  Since this function calls THD::change_item_tree() on the passed Item **
-  pointers, it is necessary to pass the original Item **'s, not copies.
-  Otherwise their values will not be properly restored (see BUG#20769).
-  If the items are not consecutive (eg. args[2] and args[5]), use the
-  item_sep argument, ie.
-
-    agg_item_charsets(coll, fname, &args[2], 2, flags, 3)
-
-*/
-
-bool agg_item_charsets(DTCollation &coll, const char *fname,
-                       Item **args, uint nargs, uint flags, int item_sep)
+bool agg_item_set_converter(DTCollation &coll, const char *fname,
+                            Item **args, uint nargs, uint flags, int item_sep)
 {
   Item **arg, *safe_args[2];
-  if (agg_item_collations(coll, fname, args, nargs, flags, item_sep))
-    return TRUE;
 
   /*
     For better error reporting: save the first and the second argument.
@@ -1708,6 +1707,46 @@ bool agg_item_charsets(DTCollation &coll, const char *fname,
   if (arena)
     thd->restore_active_arena(arena, &backup);
   return res;
+}
+
+
+/* 
+  Collect arguments' character sets together.
+  We allow to apply automatic character set conversion in some cases.
+  The conditions when conversion is possible are:
+  - arguments A and B have different charsets
+  - A wins according to coercibility rules
+    (i.e. a column is stronger than a string constant,
+     an explicit COLLATE clause is stronger than a column)
+  - character set of A is either superset for character set of B,
+    or B is a string constant which can be converted into the
+    character set of A without data loss.
+    
+  If all of the above is true, then it's possible to convert
+  B into the character set of A, and then compare according
+  to the collation of A.
+  
+  For functions with more than two arguments:
+
+    collect(A,B,C) ::= collect(collect(A,B),C)
+
+  Since this function calls THD::change_item_tree() on the passed Item **
+  pointers, it is necessary to pass the original Item **'s, not copies.
+  Otherwise their values will not be properly restored (see BUG#20769).
+  If the items are not consecutive (eg. args[2] and args[5]), use the
+  item_sep argument, ie.
+
+    agg_item_charsets(coll, fname, &args[2], 2, flags, 3)
+
+*/
+
+bool agg_item_charsets(DTCollation &coll, const char *fname,
+                       Item **args, uint nargs, uint flags, int item_sep)
+{
+  if (agg_item_collations(coll, fname, args, nargs, flags, item_sep))
+    return TRUE;
+
+  return agg_item_set_converter(coll, fname, args, nargs, flags, item_sep);
 }
 
 
@@ -2038,6 +2077,12 @@ bool Item_field::val_bool_result()
     DBUG_ASSERT(0);
     return 0;                                   // Shut up compiler
   }
+}
+
+
+bool Item_field::is_null_result()
+{
+  return (null_value=result_field->is_null());
 }
 
 
@@ -2991,7 +3036,7 @@ bool Item_param::convert_str_value(THD *thd)
       str_value.set_charset(value.cs_info.final_character_set_of_str_value);
     /* Here str_value is guaranteed to be in final_character_set_of_str_value */
 
-    max_length= str_value.length();
+    max_length= str_value.numchars() * str_value.charset()->mbmaxlen;
     decimals= 0;
     /*
       str_value_ptr is returned from val_str(). It must be not alloced
@@ -5629,6 +5674,15 @@ double Item_ref::val_result()
 }
 
 
+bool Item_ref::is_null_result()
+{
+  if (result_field)
+    return (null_value=result_field->is_null());
+
+  return is_null();
+}
+
+
 longlong Item_ref::val_int_result()
 {
   if (result_field)
@@ -5734,7 +5788,9 @@ String *Item_ref::val_str(String* tmp)
 bool Item_ref::is_null()
 {
   DBUG_ASSERT(fixed);
-  return (*ref)->is_null();
+  bool tmp=(*ref)->is_null_result();
+  null_value=(*ref)->null_value;
+  return tmp;
 }
 
 
@@ -6251,7 +6307,7 @@ bool Item_trigger_field::fix_fields(THD *thd, Item **items)
       if (check_grant_column(thd, table_grants, triggers->trigger_table->s->db,
                              triggers->trigger_table->s->table_name,
                              field_name,
-                             strlen(field_name), thd->security_ctx))
+                             (uint) strlen(field_name), thd->security_ctx))
         return TRUE;
     }
 #endif // NO_EMBEDDED_ACCESS_CHECKS

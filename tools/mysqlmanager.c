@@ -992,7 +992,6 @@ end:
 static int authenticate(struct manager_thd* thd)
 {
   char* buf_end,*buf,*p,*p_end;
-  my_MD5_CTX context;
   uchar digest[MD5_LEN];
   struct manager_user* u;
   char c;
@@ -1018,9 +1017,7 @@ static int authenticate(struct manager_thd* thd)
     return 1;
   for (;my_isspace(cs,*buf) && buf<buf_end;buf++) /* empty */;
 
-  my_MD5Init(&context);
-  my_MD5Update(&context,(uchar*) buf,(uint)(buf_end-buf));
-  my_MD5Final(digest,&context);
+  MY_MD5_HASH (digest, (uchar*) buf,(uint)(buf_end-buf));
   if (memcmp(u->md5_pass,digest,MD5_LEN))
     return 1;
   client_msg(&thd->net,MANAGER_OK,"OK");

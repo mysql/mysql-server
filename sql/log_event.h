@@ -204,12 +204,15 @@ struct sql_ex_info
   packet (i.e. a query) sent from client to master;
   First, an auxiliary log_event status vars estimation:
 */
-#define MAX_SIZE_LOG_EVENT_STATUS (4 /* flags2 */   + \
-                                   8 /* sql mode */ + \
-                                   1 + 1 + 255 /* catalog */ + \
-                                   4 /* autoinc */ + \
-                                   6 /* charset */ + \
-                                   MAX_TIME_ZONE_NAME_LENGTH)
+#define MAX_SIZE_LOG_EVENT_STATUS (1 + 4          /* type, flags2 */   + \
+                                   1 + 8          /* type, sql_mode */ + \
+                                   1 + 1 + 255    /* type, length, catalog */ + \
+                                   1 + 4          /* type, auto_increment */ + \
+                                   1 + 6          /* type, charset */ + \
+                                   1 + 1 + 255    /* type, length, time_zone */ + \
+                                   1 + 2          /* type, lc_time_names_number */ + \
+                                   1 + 2          /* type, charset_database_number */ + \
+                                   1 + 8          /* type, table_map_for_update */)
 #define MAX_LOG_EVENT_HEADER   ( /* in order of Query_log_event::write */ \
   LOG_EVENT_HEADER_LEN + /* write_header */ \
   QUERY_HEADER_LEN     + /* write_data */   \
@@ -273,6 +276,8 @@ struct sql_ex_info
 #define Q_LC_TIME_NAMES_CODE    7
 
 #define Q_CHARSET_DATABASE_CODE 8
+
+#define Q_TABLE_MAP_FOR_UPDATE_CODE 9
 /* Intvar event post-header */
 
 #define I_TYPE_OFFSET        0
@@ -800,6 +805,11 @@ public:
   const char *time_zone_str;
   uint lc_time_names_number; /* 0 means en_US */
   uint charset_database_number;
+  /*
+    map for tables that will be updated for a multi-table update query
+    statement, for other query statements, this will be zero.
+  */
+  ulonglong table_map_for_update;
 
 #ifndef MYSQL_CLIENT
 

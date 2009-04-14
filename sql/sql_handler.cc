@@ -90,7 +90,7 @@ static int mysql_ha_flush_table(THD *thd, TABLE **table_ptr, uint mode_flags);
 static char *mysql_ha_hash_get_key(TABLE_LIST *tables, uint *key_len_p,
                                    my_bool first __attribute__((unused)))
 {
-  *key_len_p= strlen(tables->alias) + 1 ; /* include '\0' in comparisons */
+  *key_len_p= (uint) strlen(tables->alias) + 1 ; /* include '\0' in comparisons */
   return tables->alias;
 }
 
@@ -151,6 +151,9 @@ static void mysql_ha_close_table(THD *thd, TABLE_LIST *tables)
     }
     VOID(pthread_mutex_unlock(&LOCK_open));
   }
+
+  /* Mark table as closed, ready for re-open if necessary. */
+  tables->table= NULL;
 }
 
 /*
@@ -168,8 +171,7 @@ static void mysql_ha_close_table(THD *thd, TABLE_LIST *tables)
     'reopen' is set when a handler table is to be re-opened. In this case,
     'tables' is the pointer to the hashed TABLE_LIST object which has been
     saved on the original open.
-    'reopen' is also used to suppress the sending of an 'ok' message or
-    error messages.
+    'reopen' is also used to suppress the sending of an 'ok' message.
 
   RETURN
     FALSE OK
@@ -202,11 +204,10 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
   else if (! reopen) /* Otherwise we have 'tables' already. */
   {
     if (hash_search(&thd->handler_tables_hash, (byte*) tables->alias,
-                    strlen(tables->alias) + 1))
+                    (uint) strlen(tables->alias) + 1))
     {
       DBUG_PRINT("info",("duplicate '%s'", tables->alias));
-      if (! reopen)
-        my_error(ER_NONUNIQ_TABLE, MYF(0), tables->alias);
+      my_error(ER_NONUNIQ_TABLE, MYF(0), tables->alias);
       goto err;
     }
   }
@@ -251,17 +252,16 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
   /* There can be only one table in '*tables'. */
   if (! (tables->table->file->table_flags() & HA_CAN_SQL_HANDLER))
   {
-    if (! reopen)
-      my_error(ER_ILLEGAL_HA, MYF(0), tables->alias);
+    my_error(ER_ILLEGAL_HA, MYF(0), tables->alias);
     goto err;
   }
 
   if (! reopen)
   {
     /* copy the TABLE_LIST struct */
-    dblen= strlen(tables->db) + 1;
-    namelen= strlen(tables->table_name) + 1;
-    aliaslen= strlen(tables->alias) + 1;
+    dblen= (uint) strlen(tables->db) + 1;
+    namelen= (uint) strlen(tables->table_name) + 1;
+    aliaslen= (uint) strlen(tables->alias) + 1;
     if (!(my_multi_malloc(MYF(MY_WME),
                           &hash_tables, sizeof(*hash_tables),
                           &db, dblen,
@@ -324,7 +324,7 @@ bool mysql_ha_close(THD *thd, TABLE_LIST *tables)
 
   if ((hash_tables= (TABLE_LIST*) hash_search(&thd->handler_tables_hash,
                                               (byte*) tables->alias,
-                                              strlen(tables->alias) + 1)))
+                                              (uint) strlen(tables->alias) + 1)))
   {
     mysql_ha_close_table(thd, hash_tables);
     hash_delete(&thd->handler_tables_hash, (byte*) hash_tables);
@@ -396,7 +396,7 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
 retry:
   if ((hash_tables= (TABLE_LIST*) hash_search(&thd->handler_tables_hash,
                                               (byte*) tables->alias,
-                                              strlen(tables->alias) + 1)))
+                                              (uint) strlen(tables->alias) + 1)))
   {
     table= hash_tables->table;
     DBUG_PRINT("info-in-hash",("'%s'.'%s' as '%s' tab %p",
@@ -464,8 +464,7 @@ retry:
 
   if (need_reopen)
   {
-    mysql_ha_close_table(thd, tables);
-    hash_tables->table= NULL;
+    mysql_ha_close_table(thd, hash_tables);
     /*
       The lock might have been aborted, we need to manually reset
       thd->some_tables_deleted because handler's tables are closed
@@ -779,7 +778,7 @@ static int mysql_ha_flush_table(THD *thd, TABLE **table_ptr, uint mode_flags)
 
   if ((hash_tables= (TABLE_LIST*) hash_search(&thd->handler_tables_hash,
                                               (byte*) table->alias,
-                                              strlen(table->alias) + 1)))
+                                              (uint) strlen(table->alias) + 1)))
   {
     if (! (mode_flags & MYSQL_HA_REOPEN_ON_USAGE))
     {

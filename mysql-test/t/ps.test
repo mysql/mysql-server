@@ -228,6 +228,10 @@ drop table t1;
 # statements or are correctly created and deleted on each execute
 #
 
+--let $outfile=$MYSQLTEST_VARDIR/tmp/f1.txt
+--error 0,1
+--remove_file $outfile
+
 prepare stmt1 from "select 1 into @var";
 execute stmt1;
 execute stmt1;
@@ -238,10 +242,13 @@ execute stmt1;
 prepare stmt1 from "insert into t1 select i from t1";
 execute stmt1;
 execute stmt1;
-prepare stmt1 from "select * from t1 into outfile 'f1.txt'";
+--replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
+eval prepare stmt1 from "select * from t1 into outfile '$outfile'";
 execute stmt1;
 deallocate prepare stmt1;
 drop table t1;
+
+--remove_file $outfile
 
 # 
 # BUG#5242 "Prepared statement names are case sensitive"

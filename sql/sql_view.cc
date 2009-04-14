@@ -775,11 +775,11 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   }
 
   view->source.str= thd->query + thd->lex->create_view_select_start;
-  view->source.length= (char *)skip_rear_comments(thd->charset(),
+  view->source.length= (uint) ((char *)skip_rear_comments(thd->charset(),
                                                   (char *)view->source.str,
                                                   (char *)thd->query +
                                                   thd->query_length) -
-                        view->source.str;
+                        view->source.str);
   view->file_version= 1;
   view->calc_md5(md5);
   if (!(view->md5.str= thd->memdup(md5, 32)))
@@ -831,10 +831,10 @@ loop_out:
 		     mysql_data_home, view->db);
   unpack_filename(dir_buff, dir_buff);
   dir.str= dir_buff;
-  dir.length= strlen(dir_buff);
+  dir.length= (uint) strlen(dir_buff);
 
   file.str= file_buff;
-  file.length= (strxnmov(file_buff, FN_REFLEN, view->table_name, reg_ext,
+  file.length= (uint) (strxnmov(file_buff, FN_REFLEN, view->table_name, reg_ext,
                          NullS) - file_buff);
   /* init timestamp */
   if (!view->timestamp.str)
@@ -848,7 +848,7 @@ loop_out:
 
     path.str= path_buff;
     fn_format(path_buff, file.str, dir.str, 0, MY_UNPACK_FILENAME);
-    path.length= strlen(path_buff);
+    path.length= (uint) strlen(path_buff);
 
     if (!access(path.str, F_OK))
     {
@@ -1828,7 +1828,7 @@ mysql_rename_view(THD *thd,
   (void) unpack_filename(view_path, view_path);
 
   pathstr.str= (char *)view_path;
-  pathstr.length= strlen(view_path);
+  pathstr.length= (uint) strlen(view_path);
 
   if ((parser= sql_parse_prepare(&pathstr, thd->mem_root, 1)) && 
        is_equal(&view_type, parser->type()))
@@ -1860,10 +1860,10 @@ mysql_rename_view(THD *thd,
     (void) unpack_filename(dir_buff, dir_buff);
 
     pathstr.str=    (char*)dir_buff;
-    pathstr.length= strlen(dir_buff);
+    pathstr.length= (uint) strlen(dir_buff);
 
     file.str= file_buff;
-    file.length= (strxnmov(file_buff, FN_REFLEN, new_name, reg_ext, NullS) 
+    file.length= (uint) (strxnmov(file_buff, FN_REFLEN, new_name, reg_ext, NullS) 
                   - file_buff);
 
     if (sql_create_definition_file(&pathstr, &file, view_file_type,

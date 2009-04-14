@@ -4,6 +4,9 @@
 # should work with embedded server after mysqltest is fixed
 -- source include/not_embedded.inc
 
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
 --disable_warnings
 DROP TABLE IF EXISTS t1,t2,t3;
 --enable_warnings
@@ -40,24 +43,24 @@ connection con1;
 
 select @@global.read_only;
 
---error 1290
+--error ER_OPTION_PREVENTS_STATEMENT
 create table t3 (a int);
 
---error 1290
+--error ER_OPTION_PREVENTS_STATEMENT
 insert into t1 values(1);
 
 # if a statement, after parse stage, looks like it will update a
 # non-temp table, it will be rejected, even if at execution it would
 # have turned out that 0 rows would be updated
---error 1290
+--error ER_OPTION_PREVENTS_STATEMENT
 update t1 set a=1 where 1=0;
 
 # multi-update is special (see sql_parse.cc) so we test it
---error 1290
+--error ER_OPTION_PREVENTS_STATEMENT
 update t1,t2 set t1.a=t2.a+1 where t1.a=t2.a;
 
 # check multi-delete to be sure
---error 1290
+--error ER_OPTION_PREVENTS_STATEMENT
 delete t1,t2 from t1,t2 where t1.a=t2.a;
 
 # With temp tables updates should be accepted:
@@ -71,7 +74,7 @@ insert into t3 values(1);
 insert into t4 select * from t3;
 
 # a non-temp table updated:
---error 1290
+--error ER_OPTION_PREVENTS_STATEMENT
 update t1,t3 set t1.a=t3.a+1 where t1.a=t3.a;
 
 # no non-temp table updated (just swapped):
@@ -79,7 +82,7 @@ update t1,t3 set t3.a=t1.a+1 where t1.a=t3.a;
 
 update t4,t3 set t4.a=t3.a+1 where t4.a=t3.a;
 
---error 1290
+--error ER_OPTION_PREVENTS_STATEMENT
 delete t1 from t1,t3 where t1.a=t3.a;
 
 delete t3 from t1,t3 where t1.a=t3.a;
@@ -98,11 +101,11 @@ delete t1 from t1,t3 where t1.a=t3.a;
 
 drop table t1;
 
---error 1290
+--error ER_OPTION_PREVENTS_STATEMENT
 insert into t1 values(1);
 
 #
-# BUG #22077 "DROP TEMPORARY TABLE fails with wrong error if read_only is set"
+# Bug#22077 DROP TEMPORARY TABLE fails with wrong error if read_only is set
 #
 # check if DROP TEMPORARY on a non-existing temporary table returns the right
 # error
@@ -114,11 +117,12 @@ drop temporary table ttt;
 drop temporary table if exists ttt;
 
 connection default;
+disconnect con1;
 drop table t1,t2;
 drop user test@localhost;
 
 --echo #
---echo # Bug #27440 read_only allows create and drop database
+--echo # Bug#27440 read_only allows create and drop database
 --echo #
 --disable_warnings
 drop database if exists mysqltest_db1;
@@ -151,3 +155,7 @@ delete from mysql.columns_priv where User like 'mysqltest_%';
 flush privileges;
 drop database mysqltest_db1;
 set global read_only=0;
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc
+

@@ -986,6 +986,7 @@ public:
   {
     return (*priv_host ? priv_host : (char *)"%");
   }
+  bool user_matches(Security_context *);
 };
 
 
@@ -1362,6 +1363,13 @@ public:
     Note: in the parser, stmt_arena == thd, even for PS/SP.
   */
   Query_arena *stmt_arena;
+
+  /*
+    map for tables that will be updated for a multi-table update query
+    statement, for other query statements, this will be zero.
+  */
+  table_map table_map_for_update;
+
   /*
     next_insert_id is set on SET INSERT_ID= #. This is used as the next
     generated auto_increment value in handler.cc
@@ -1556,6 +1564,9 @@ public:
   sp_rcontext *spcont;		// SP runtime context
   sp_cache   *sp_proc_cache;
   sp_cache   *sp_func_cache;
+
+  /** number of name_const() substitutions, see sp_head.cc:subst_spvars() */
+  uint       query_name_consts;
 
   /*
     If we do a purge of binary logs, log index info of the threads

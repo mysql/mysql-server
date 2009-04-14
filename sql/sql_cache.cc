@@ -363,6 +363,43 @@ TYPELIB query_cache_type_typelib=
   array_elements(query_cache_type_names)-1,"", query_cache_type_names, NULL
 };
 
+
+/**
+  Helper function for determine if a SELECT statement has a SQL_NO_CACHE
+  directive.
+  
+  @param sql A pointer to the first white space character after SELECT
+  
+  @return
+   @retval TRUE The character string contains SQL_NO_CACHE
+   @retval FALSE No directive found.
+*/
+ 
+static bool has_no_cache_directive(char *sql)
+{
+  int i=0;
+  while (sql[i] == ' ')
+    ++i;
+    
+  if (my_toupper(system_charset_info, sql[i])    == 'S' &&
+      my_toupper(system_charset_info, sql[i+1])  == 'Q' &&
+      my_toupper(system_charset_info, sql[i+2])  == 'L' &&
+      my_toupper(system_charset_info, sql[i+3])  == '_' &&
+      my_toupper(system_charset_info, sql[i+4])  == 'N' &&
+      my_toupper(system_charset_info, sql[i+5])  == 'O' &&
+      my_toupper(system_charset_info, sql[i+6])  == '_' &&
+      my_toupper(system_charset_info, sql[i+7])  == 'C' &&
+      my_toupper(system_charset_info, sql[i+8])  == 'A' &&
+      my_toupper(system_charset_info, sql[i+9])  == 'C' &&
+      my_toupper(system_charset_info, sql[i+10]) == 'H' &&
+      my_toupper(system_charset_info, sql[i+11]) == 'E' &&
+      my_toupper(system_charset_info, sql[i+12]) == ' ')
+    return TRUE;
+  
+  return FALSE;       
+}
+
+
 /*****************************************************************************
  Query_cache_block_table method(s)
 *****************************************************************************/
@@ -712,7 +749,12 @@ void query_cache_end_of_result(THD *thd)
   if (thd->net.query_cache_query == 0)
     DBUG_VOID_RETURN;
 
-  if (thd->killed)
+  /*
+    Check if the NET layer raised a unreported error -- my_error() and
+    as a consequence query_cache_abort() haven't been called. Abort the
+    cached result as it might be only partially complete.
+  */
+  if (thd->killed || thd->net.report_error)
   {
     query_cache_abort(&thd->net);
     DBUG_VOID_RETURN;
@@ -862,6 +904,8 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
                                    CLIENT_PROTOCOL_41);
     flags.more_results_exists= test(thd->server_status &
                                     SERVER_MORE_RESULTS_EXISTS);
+    flags.in_trans= test(thd->server_status & SERVER_STATUS_IN_TRANS);
+    flags.autocommit= test(thd->server_status & SERVER_STATUS_AUTOCOMMIT);
     flags.pkt_nr= net->pkt_nr;
     flags.character_set_client_num=
       thd->variables.character_set_client->number;
@@ -882,7 +926,7 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
     DBUG_PRINT("qcache", ("long %d, 4.1: %d, more results %d, pkt_nr: %d, \
 CS client: %u, CS result: %u, CS conn: %u, limit: %lu, TZ: 0x%lx, \
 sql mode: 0x%lx, sort len: %lu, conncat len: %lu, div_precision: %lu, \
-def_week_frmt: %lu",                          
+def_week_frmt: %lu, in_trans: %d, autocommit: %d",
                           (int)flags.client_long_flag,
                           (int)flags.client_protocol_41,
                           (int)flags.more_results_exists,
@@ -896,7 +940,10 @@ def_week_frmt: %lu",
                           flags.max_sort_length,
                           flags.group_concat_max_len,
                           flags.div_precision_increment,
-                          flags.default_week_format));
+                          flags.default_week_format,
+                          (int)flags.in_trans,
+                          (int)flags.autocommit));
+
     /*
      Make InnoDB to release the adaptive hash index latch before
      acquiring the query cache mutex.
@@ -1088,6 +1135,16 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
       DBUG_PRINT("qcache", ("The statement is not a SELECT; Not cached"));
       goto err;
     }
+    
+    if (query_length > 20 && has_no_cache_directive(&sql[i+6]))
+    {
+      /*
+        We do not increase 'refused' statistics here since it will be done
+        later when the query is parsed.
+      */
+      DBUG_PRINT("qcache", ("The statement has a SQL_NO_CACHE directive"));
+      goto err;
+    }
   }
 
 #ifdef __WIN__
@@ -1149,6 +1206,8 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
                                  CLIENT_PROTOCOL_41);
   flags.more_results_exists= test(thd->server_status &
                                   SERVER_MORE_RESULTS_EXISTS);
+  flags.in_trans= test(thd->server_status & SERVER_STATUS_IN_TRANS);
+  flags.autocommit= test(thd->server_status & SERVER_STATUS_AUTOCOMMIT);
   flags.pkt_nr= thd->net.pkt_nr;
   flags.character_set_client_num= thd->variables.character_set_client->number;
   flags.character_set_results_num=
@@ -1167,7 +1226,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   DBUG_PRINT("qcache", ("long %d, 4.1: %d, more results %d, pkt_nr: %d, \
 CS client: %u, CS result: %u, CS conn: %u, limit: %lu, TZ: 0x%lx, \
 sql mode: 0x%lx, sort len: %lu, conncat len: %lu, div_precision: %lu, \
-def_week_frmt: %lu",                          
+def_week_frmt: %lu, in_trans: %d, autocommit: %d",
                           (int)flags.client_long_flag,
                           (int)flags.client_protocol_41,
                           (int)flags.more_results_exists,
@@ -1181,7 +1240,9 @@ def_week_frmt: %lu",
                           flags.max_sort_length,
                           flags.group_concat_max_len,
                           flags.div_precision_increment,
-                          flags.default_week_format));
+                          flags.default_week_format,
+                          (int)flags.in_trans,
+                          (int)flags.autocommit));
   memcpy((void *)(sql + (tot_length - QUERY_CACHE_FLAGS_SIZE)),
 	 &flags, QUERY_CACHE_FLAGS_SIZE);
   query_block = (Query_cache_block *)  hash_search(&queries, (byte*) sql,
@@ -3124,7 +3185,7 @@ Query_cache::process_and_count_tables(THD *thd, TABLE_LIST *tables_used,
       {
         ha_myisammrg *handler = (ha_myisammrg *)tables_used->table->file;
         MYRG_INFO *file = handler->myrg_info();
-        table_count+= (file->end_table - file->open_tables);
+        table_count+= (uint) (file->end_table - file->open_tables);
       }
     }
   }
@@ -3311,7 +3372,7 @@ my_bool Query_cache::move_by_type(byte **border,
 		      *pprev = block->pprev,
 		      *pnext = block->pnext,
 		      *new_block =(Query_cache_block *) *border;
-    uint tablename_offset = block->table()->table() - block->table()->db();
+    size_t tablename_offset= block->table()->table() - block->table()->db();
     char *data = (char*) block->data();
     byte *key;
     uint key_length;
@@ -3623,7 +3684,7 @@ uint Query_cache::filename_2_table_key (char *key, const char *path,
   filename=  tablename + dirname_length(tablename + 2) + 2;
   /* Find start of databasename */
   for (dbname= filename - 2 ; dbname[-1] != FN_LIBCHAR ; dbname--) ;
-  *db_length= (filename - dbname) - 1;
+  *db_length= (uint) ((filename - dbname) - 1);
   DBUG_PRINT("qcache", ("table '%-.*s.%s'", *db_length, dbname, filename));
 
   DBUG_RETURN((uint) (strmov(strmake(key, dbname, *db_length) + 1,
@@ -3932,8 +3993,8 @@ my_bool Query_cache::check_integrity(bool locked)
       }
       else
       {
-	int idx = (((byte*)bin) - ((byte*)bins)) /
-	  sizeof(Query_cache_memory_bin);
+	int idx = (int) ((((byte*)bin) - ((byte*)bins)) /
+	  sizeof(Query_cache_memory_bin));
 	if (in_list(bins[idx].free_blocks, block, "free memory"))
 	  result = 1;
       }

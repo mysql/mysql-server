@@ -186,39 +186,41 @@ int initgroups(const char *,unsigned int);
 #ifdef HAVE_FP_EXCEPT				// Fix type conflict
 typedef fp_except fp_except_t;
 #endif
+#endif /* __FreeBSD__ && HAVE_IEEEFP_H */
+#ifdef HAVE_SYS_FPU_H
+/* for IRIX to use set_fpc_csr() */
+#include <sys/fpu.h>
+#endif
 
+inline void setup_fpu()
+{
+#if defined(__FreeBSD__) && defined(HAVE_IEEEFP_H)
   /* We can't handle floating point exceptions with threads, so disable
      this on freebsd
+     Don't fall for overflow, underflow,divide-by-zero or loss of precision
   */
-
-inline void set_proper_floating_point_mode()
-{
-  /* Don't fall for overflow, underflow,divide-by-zero or loss of precision */
 #if defined(__i386__)
   fpsetmask(~(FP_X_INV | FP_X_DNML | FP_X_OFL | FP_X_UFL | FP_X_DZ |
 	      FP_X_IMP));
 #else
- fpsetmask(~(FP_X_INV |             FP_X_OFL | FP_X_UFL | FP_X_DZ |
-	     FP_X_IMP));
+  fpsetmask(~(FP_X_INV |             FP_X_OFL | FP_X_UFL | FP_X_DZ |
+              FP_X_IMP));
+#endif /* __i386__ */
+#endif /* __FreeBSD__ && HAVE_IEEEFP_H */
+
+#ifdef HAVE_FESETROUND
+    /* Set FPU rounding mode to "round-to-nearest" */
+  fesetround(FE_TONEAREST);
+#endif /* HAVE_FESETROUND */
+    
+#if defined(__sgi) && defined(HAVE_SYS_FPU_H)
+  /* Enable denormalized DOUBLE values support for IRIX */
+  union fpc_csr n;
+  n.fc_word = get_fpc_csr();
+  n.fc_struct.flush = 0;
+  set_fpc_csr(n.fc_word);
 #endif
 }
-#elif defined(__sgi)
-/* for IRIX to use set_fpc_csr() */
-#include <sys/fpu.h>
-
-inline void set_proper_floating_point_mode()
-{
-  /* Enable denormalized DOUBLE values support for IRIX */
-  {
-    union fpc_csr n;
-    n.fc_word = get_fpc_csr();
-    n.fc_struct.flush = 0;
-    set_fpc_csr(n.fc_word);
-  }
-}
-#else
-#define set_proper_floating_point_mode()
-#endif /* __FreeBSD__ && HAVE_IEEEFP_H */
 
 } /* cplusplus */
 
@@ -2813,7 +2815,7 @@ static bool init_global_datetime_format(timestamp_type format_type,
     */
     opt_date_time_formats[format_type]= str;
   }
-  if (!(*var_ptr= date_time_format_make(format_type, str, strlen(str))))
+  if (!(*var_ptr= date_time_format_make(format_type, str, (uint) strlen(str))))
   {
     fprintf(stderr, "Wrong date/time format specifier: %s\n", str);
     return 1;
@@ -3039,7 +3041,7 @@ static int init_common_variables(const char *conf_file_name, int argc,
 
   sys_init_slave.value_length= 0;
   if ((sys_init_slave.value= opt_init_slave))
-    sys_init_slave.value_length= strlen(opt_init_slave);
+    sys_init_slave.value_length= (uint) strlen(opt_init_slave);
   else
     sys_init_slave.value=my_strdup("",MYF(0));
   sys_init_slave.is_os_charset= TRUE;
@@ -3279,7 +3281,7 @@ static int init_server_components()
   query_cache_init();
   query_cache_resize(query_cache_size);
   randominit(&sql_rand,(ulong) server_start_time,(ulong) server_start_time/2);
-  set_proper_floating_point_mode();
+  setup_fpu();
   init_thr_lock();
 #ifdef HAVE_REPLICATION
   init_slave_list();
@@ -7342,7 +7344,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case OPT_STORAGE_ENGINE:
   {
     if ((enum db_type)((global_system_variables.table_type=
-                        ha_resolve_by_name(argument, strlen(argument)))) ==
+                        ha_resolve_by_name(argument, (uint) strlen(argument)))) ==
         DB_TYPE_UNKNOWN)
     {
       fprintf(stderr,"Unknown/unsupported table type: %s\n",argument);

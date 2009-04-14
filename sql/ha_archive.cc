@@ -851,7 +851,7 @@ int ha_archive::get_row(gzFile file_to_read, byte *buf)
     total_blob_length += ((Field_blob*) table->field[*ptr])->get_length();
 
   /* Adjust our row buffer if we need be */
-  buffer.alloc(total_blob_length);
+  buffer.alloc((uint) total_blob_length);
   last= (char *)buffer.ptr();
 
   /* Loop through our blobs and read them */
@@ -862,10 +862,10 @@ int ha_archive::get_row(gzFile file_to_read, byte *buf)
     size_t size= ((Field_blob*) table->field[*ptr])->get_length();
     if (size)
     {
-      read= gzread(file_to_read, last, size);
+      read= gzread(file_to_read, last, (uint) size);
       if ((size_t) read != size)
         DBUG_RETURN(HA_ERR_END_OF_FILE);
-      ((Field_blob*) table->field[*ptr])->set_ptr(size, last);
+      ((Field_blob*) table->field[*ptr])->set_ptr((uint) size, last);
       last += size;
     }
   }

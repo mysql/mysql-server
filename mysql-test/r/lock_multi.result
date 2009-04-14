@@ -51,10 +51,10 @@ ERROR HY000: Can't execute the query because you have a conflicting read lock
 UNLOCK TABLES;
 DROP DATABASE mysqltest_1;
 ERROR HY000: Can't drop database 'mysqltest_1'; database doesn't exist
-use mysql;
+USE mysql;
 LOCK TABLES columns_priv WRITE, db WRITE, host WRITE, user WRITE;
 FLUSH TABLES;
-use mysql;
+USE mysql;
 SELECT user.Select_priv FROM user, db WHERE user.user = db.user LIMIT 1;
 OPTIMIZE TABLES columns_priv, db, host, user;
 Table	Op	Msg_type	Msg_text
@@ -65,7 +65,7 @@ mysql.user	optimize	status	OK
 UNLOCK TABLES;
 Select_priv
 N
-use test;
+USE test;
 use test;
 CREATE TABLE t1 (c1 int);
 LOCK TABLE t1 WRITE;
@@ -93,7 +93,7 @@ create table t1 (a int);
 connection: locker
 lock tables t1 read;
 connection: writer
-create table t2 like t1;;
+create table t2 like t1;
 connection: default
 kill query
 ERROR 70100: Query execution was interrupted

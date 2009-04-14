@@ -1,0 +1,9 @@
+set names utf8;
+create table `А` (id int);
+show tables from test like 'А';
+Tables_in_test (А)
+а
+show tables from test like 'а';
+Tables_in_test (а)
+а
+drop table `А`;

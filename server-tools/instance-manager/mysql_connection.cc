@@ -241,7 +241,7 @@ int Mysql_connection_thread::check_connection()
 
   /* write connection message and read reply */
   enum { MIN_HANDSHAKE_SIZE= 2 };
-  if (net_write_command(&net, protocol_version, "", 0, buff, pos - buff) ||
+  if (net_write_command(&net, protocol_version, "", 0, buff, (uint) (pos - buff)) ||
      (pkt_len= my_net_read(&net)) == packet_error ||
       pkt_len < MIN_HANDSHAKE_SIZE)
   {
@@ -275,7 +275,7 @@ int Mysql_connection_thread::check_connection()
     net_send_error(&net, ER_ACCESS_DENIED_ERROR);
     return 1;
   }
-  if (user_map.authenticate(user, password-user-2, password, scramble))
+  if (user_map.authenticate(user, (uint) (password - user - 2), password, scramble))
   {
     net_send_error(&net, ER_ACCESS_DENIED_ERROR);
     return 1;

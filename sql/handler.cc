@@ -188,7 +188,8 @@ retest:
   {
     if (!my_strnncoll(&my_charset_latin1,
                       (const uchar *)name, namelen,
-                      (const uchar *)(*types)->name, strlen((*types)->name)))
+                      (const uchar *)(*types)->name, 
+                      (uint) strlen((*types)->name)))
       return (enum db_type) (*types)->db_type;
   }
 
@@ -200,10 +201,10 @@ retest:
     if (!my_strnncoll(&my_charset_latin1,
                       (const uchar *)name, namelen,
                       (const uchar *)table_alias->alias,
-                      strlen(table_alias->alias)))
+                      (uint) strlen(table_alias->alias)))
     {
       name= table_alias->type;
-      namelen= strlen(name);
+      namelen= (uint) strlen(name);
       goto retest;
     }
   }

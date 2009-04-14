@@ -1159,4 +1159,13 @@ select format(a, 2) from t1;
 --disable_metadata
 drop table t1;
 
+#
+# Bug #41868: crash or memory overrun with concat + upper, date_format functions
+#
+
+CREATE TABLE t1 (c DATE, aa VARCHAR(30));
+INSERT INTO t1 VALUES ('2008-12-31','aaaaaa');
+SELECT DATE_FORMAT(c, GET_FORMAT(DATE, 'eur')) h, CONCAT(UPPER(aa),', ', aa) i FROM t1;
+DROP TABLE t1;
+
 --echo End of 5.0 tests

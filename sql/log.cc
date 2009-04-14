@@ -487,7 +487,7 @@ const char *MYSQL_LOG::generate_name(const char *log_name,
 {
   if (!log_name || !log_name[0])
   {
-    strmake(buff, pidfile_name, FN_REFLEN - strlen(suffix) - 1);
+    strmake(buff, pidfile_name, (uint) (FN_REFLEN - strlen(suffix) - 1));
     return (const char *)
       fn_format(buff, buff, "", suffix, MYF(MY_REPLACE_EXT|MY_REPLACE_DIR));
 
@@ -728,7 +728,7 @@ bool MYSQL_LOG::open(const char *log_name,
         file. As every time we write to the index file, we sync it.
       */
       if (my_b_write(&index_file, (byte*) log_file_name,
-		     strlen(log_file_name)) ||
+		     (uint) strlen(log_file_name)) ||
 	  my_b_write(&index_file, (byte*) "\n", 1) ||
 	  flush_io_cache(&index_file) ||
           my_sync(index_file.file, MYF(MY_WME)))

@@ -112,7 +112,7 @@ int Instance_map::process_one_option(const char *group, const char *option)
        || group[sizeof(prefix)] == '\0'))
     {
       if (!(instance= (Instance *) hash_search(&hash, (byte *) group,
-                                               strlen(group))))
+                                               (uint) strlen(group))))
       {
         if (!(instance= new Instance))
           goto err;
