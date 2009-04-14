@@ -760,6 +760,6 @@ NdbScanOperation::getNdbTransaction() const
    * scan's 'internal' / buddy transaction object
    */
   return m_transConnection;
-};
+}
 
 #endif
