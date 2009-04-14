@@ -277,6 +277,47 @@ static void clear_all_errors(THD *thd, Relay_log_info *rli)
   rli->clear_error();
 }
 
+inline int idempotent_error_code(int err_code)
+{
+  int ret= 0;
+
+  switch (err_code)
+  {
+    case 0:
+      ret= 1;
+    break;
+    /*
+      The following list of "idempotent" errors
+      means that an error from the list might happen
+      because of idempotent (more than once)
+      applying of a binlog file.
+      Notice, that binlog has a  ddl operation its
+      second applying may cause
+
+      case HA_ERR_TABLE_DEF_CHANGED:
+      case HA_ERR_CANNOT_ADD_FOREIGN:
+
+      which are not included into to the list.
+
+      Note that HA_ERR_RECORD_DELETED is not in the list since
+      do_exec_row() should not return that error code.
+    */
+    case HA_ERR_RECORD_CHANGED:
+    case HA_ERR_KEY_NOT_FOUND:
+    case HA_ERR_END_OF_FILE:
+    case HA_ERR_FOUND_DUPP_KEY:
+    case HA_ERR_FOUND_DUPP_UNIQUE:
+    case HA_ERR_FOREIGN_DUPLICATE_KEY:
+    case HA_ERR_NO_REFERENCED_ROW:
+    case HA_ERR_ROW_IS_REFERENCED:
+      ret= 1;
+    break;
+    default:
+      ret= 0;
+    break;
+  }
+  return (ret);
+}
 
 /**
   Ignore error code specified on command line.
@@ -301,14 +342,37 @@ inline int ignored_error_code(int err_code)
   return ((err_code == ER_SLAVE_IGNORED_TABLE) ||
           (use_slave_mask && bitmap_is_set(&slave_error_mask, err_code)));
 }
-#endif
 
+/*
+  This function converts an engine's error to a server error.
+   
+  If the thread does not have an error already reported, it tries to 
+  define it by calling the engine's method print_error. However, if a 
+  mapping is not found, it uses the ER_UNKNOWN_ERROR and prints out a 
+  warning message.
+*/ 
+int convert_handler_error(int error, THD* thd, TABLE *table)
+{
+  uint actual_error= (thd->is_error() ? thd->main_da.sql_errno() :
+                           0);
+
+  if (actual_error == 0)
+  {
+    table->file->print_error(error, MYF(0));
+    actual_error= (thd->is_error() ? thd->main_da.sql_errno() :
+                        ER_UNKNOWN_ERROR);
+    if (actual_error == ER_UNKNOWN_ERROR)
+      if (global_system_variables.log_warnings)
+        sql_print_warning("Unknown error detected %d in handler", error);
+  }
+
+  return (actual_error);
+}
 
 /*
   pretty_print_str()
 */
 
-#if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 static char *pretty_print_str(char *packet, const char *str, int len)
 {
   const char *end= str + len;
@@ -2292,7 +2356,16 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
     (thd_arg->is_error() ? thd_arg->main_da.sql_errno() : 0) :
     ((thd_arg->system_thread & SYSTEM_THREAD_DELAYED_INSERT) ? 0 :
      thd_arg->killed_errno());
-  
+
+  /* thd_arg->main_da.sql_errno() might be ER_SERVER_SHUTDOWN or
+     ER_QUERY_INTERRUPTED, So here we need to make sure that
+     error_code is not set to these errors when specified NOT_KILLED
+     by the caller
+  */
+  if ((killed_status_arg == THD::NOT_KILLED) &&
+      (error_code == ER_SERVER_SHUTDOWN || error_code == ER_QUERY_INTERRUPTED))
+    error_code= 0;
+
   time(&end_time);
   exec_time = (ulong) (end_time  - thd_arg->start_time);
   /**
@@ -7158,7 +7231,9 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       {
         /*
           Error reporting borrowed from Query_log_event with many excessive
-          simplifications (we don't honour --slave-skip-errors)
+          simplifications. 
+          We should not honour --slave-skip-errors at this point as we are
+          having severe errors which should not be skiped.
         */
         rli->report(ERROR_LEVEL, actual_error,
                     "Error '%s' on opening tables",
@@ -7184,6 +7259,10 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       {
         if (ptr->m_tabledef.compatible_with(rli, ptr->table))
         {
+          /*
+            We should not honour --slave-skip-errors at this point as we are
+            having severe errors which should not be skiped.
+          */
           mysql_unlock_tables(thd, thd->lock);
           thd->lock= 0;
           thd->is_slave_error= 1;
@@ -7275,7 +7354,6 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 
     // Do event specific preparations 
     error= do_before_row_operations(rli);
-
     // row processing loop
 
     while (error == 0 && m_curr_row < m_rows_end)
@@ -7291,48 +7369,27 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       DBUG_ASSERT(error != HA_ERR_RECORD_DELETED);
 
       table->in_use = old_thd;
-      switch (error)
+
+      if (error)
       {
-      case 0:
-	break;
-      /*
-        The following list of "idempotent" errors
-        means that an error from the list might happen
-        because of idempotent (more than once) 
-        applying of a binlog file.
-        Notice, that binlog has a  ddl operation its
-        second applying may cause
+        int actual_error= convert_handler_error(error, thd, table);
+        bool idempotent_error= (idempotent_error_code(error) &&
+                                ((bit_is_set(slave_exec_mode, 
+                                SLAVE_EXEC_MODE_IDEMPOTENT)) == 1));
+        bool ignored_error= (idempotent_error == 0 ?
+                             ignored_error_code(actual_error) : 0);
 
-        case HA_ERR_TABLE_DEF_CHANGED:
-        case HA_ERR_CANNOT_ADD_FOREIGN:
-
-        which are not included into to the list.
-
-        Note that HA_ERR_RECORD_DELETED is not in the list since
-        do_exec_row() should not return that error code.
-      */
-      case HA_ERR_RECORD_CHANGED:
-      case HA_ERR_KEY_NOT_FOUND:
-      case HA_ERR_END_OF_FILE:
-      case HA_ERR_FOUND_DUPP_KEY:
-      case HA_ERR_FOUND_DUPP_UNIQUE:
-      case HA_ERR_FOREIGN_DUPLICATE_KEY:
-      case HA_ERR_NO_REFERENCED_ROW:
-      case HA_ERR_ROW_IS_REFERENCED:
-
-        if (bit_is_set(slave_exec_mode, SLAVE_EXEC_MODE_IDEMPOTENT) == 1)
+        if (idempotent_error || ignored_error)
         {
           if (global_system_variables.log_warnings)
             slave_rows_error_report(WARNING_LEVEL, error, rli, thd, table,
                                     get_type_str(),
                                     RPL_LOG_NAME, (ulong) log_pos);
+          clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
           error= 0;
+          if (idempotent_error == 0)
+            break;
         }
-        break;
-        
-      default:
-	thd->is_slave_error= 1;
-	break;
       }
 
       /*
@@ -7346,7 +7403,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
                           (ulong) m_curr_row, (ulong) m_curr_row_end, (ulong) m_rows_end));
 
       if (!m_curr_row_end && !error)
-        unpack_current_row(rli);
+        error= unpack_current_row(rli);
   
       // at this moment m_curr_row_end should be set
       DBUG_ASSERT(error || m_curr_row_end != NULL); 
@@ -7359,7 +7416,19 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 
     DBUG_EXECUTE_IF("STOP_SLAVE_after_first_Rows_event",
                     const_cast<Relay_log_info*>(rli)->abort_slave= 1;);
-    error= do_after_row_operations(rli, error);
+
+    if ((error= do_after_row_operations(rli, error)) &&
+        ignored_error_code(convert_handler_error(error, thd, table)))
+    {
+
+      if (global_system_variables.log_warnings)
+        slave_rows_error_report(WARNING_LEVEL, error, rli, thd, table,
+                                get_type_str(),
+                                RPL_LOG_NAME, (ulong) log_pos);
+      clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
+      error= 0;
+    }
+
     if (!cache_stmt)
     {
       DBUG_PRINT("info", ("Marked that we need to keep log"));
@@ -7375,36 +7444,21 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
   
   if (error)
-  {                     /* error has occured during the transaction */
-    slave_rows_error_report(ERROR_LEVEL, error, rli, thd, table,
-                            get_type_str(), RPL_LOG_NAME, (ulong) log_pos);
-  }
-  if (error)
   {
-    /*
-      If one day we honour --skip-slave-errors in row-based replication, and
-      the error should be skipped, then we would clear mappings, rollback,
-      close tables, but the slave SQL thread would not stop and then may
-      assume the mapping is still available, the tables are still open...
-      So then we should clear mappings/rollback/close here only if this is a
-      STMT_END_F.
-      For now we code, knowing that error is not skippable and so slave SQL
-      thread is certainly going to stop.
-      rollback at the caller along with sbr.
-    */
+    slave_rows_error_report(ERROR_LEVEL, error, rli, thd, table,
+                             get_type_str(),
+                             RPL_LOG_NAME, (ulong) log_pos);
     thd->reset_current_stmt_binlog_row_based();
     const_cast<Relay_log_info*>(rli)->cleanup_context(thd, error);
     thd->is_slave_error= 1;
-    DBUG_RETURN(error);
   }
-
   /*
     This code would ideally be placed in do_update_pos() instead, but
     since we have no access to table there, we do the setting of
     last_event_start_time here instead.
   */
-  if (table && (table->s->primary_key == MAX_KEY) &&
-      !cache_stmt && get_flags(STMT_END_F) == RLE_NO_FLAGS)
+  else if (table && (table->s->primary_key == MAX_KEY) &&
+           !cache_stmt && get_flags(STMT_END_F) == RLE_NO_FLAGS)
   {
     /*
       ------------ Temporary fix until WL#2975 is implemented ---------
@@ -7425,7 +7479,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     const_cast<Relay_log_info*>(rli)->last_event_start_time= my_time(0);
   }
 
-  DBUG_RETURN(0);
+  DBUG_RETURN(error);
 }
 
 Log_event::enum_skip_reason

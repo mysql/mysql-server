@@ -1600,14 +1600,22 @@ sub mysql_fix_arguments () {
 }
 
 
-sub client_arguments ($) {
+sub client_arguments ($;$) {
   my $client_name= shift;
+  my $group_suffix= shift;
   my $client_exe= mtr_exe_exists("$path_client_bindir/$client_name");
 
   my $args;
   mtr_init_args(\$args);
   mtr_add_arg($args, "--defaults-file=%s", $path_config_file);
-  client_debug_arg($args, $client_name);
+  if (defined($group_suffix)) {
+    mtr_add_arg($args, "--defaults-group-suffix=%s", $group_suffix);
+    client_debug_arg($args, "$client_name-$group_suffix");
+  }
+  else
+  {
+    client_debug_arg($args, $client_name);
+  }
   return mtr_args2str($client_exe, @$args);
 }
 
@@ -1858,6 +1866,7 @@ sub environment_setup {
   $ENV{'MYSQL_SHOW'}=               client_arguments("mysqlshow");
   $ENV{'MYSQL_BINLOG'}=             client_arguments("mysqlbinlog");
   $ENV{'MYSQL'}=                    client_arguments("mysql");
+  $ENV{'MYSQL_SLAVE'}=              client_arguments("mysql", ".2");
   $ENV{'MYSQL_UPGRADE'}=            client_arguments("mysql_upgrade");
   $ENV{'MYSQLADMIN'}=               native_path($exe_mysqladmin);
   $ENV{'MYSQL_CLIENT_TEST'}=        mysql_client_test_arguments();

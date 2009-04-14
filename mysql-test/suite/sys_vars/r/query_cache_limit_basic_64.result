@@ -32,6 +32,8 @@ SELECT @@global.query_cache_limit;
 1048575
 '#--------------------FN_DYNVARS_131_04-------------------------#'
 SET @@global.query_cache_limit = -1;
+Warnings:
+Warning	1292	Truncated incorrect query_cache_limit value: '-1'
 SELECT @@global.query_cache_limit;
 @@global.query_cache_limit
 0
@@ -49,6 +51,8 @@ SELECT @@global.query_cache_limit;
 @@global.query_cache_limit
 10240022115
 SET @@global.query_cache_limit = -1024;
+Warnings:
+Warning	1292	Truncated incorrect query_cache_limit value: '-1024'
 SELECT @@global.query_cache_limit;
 @@global.query_cache_limit
 0
