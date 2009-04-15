@@ -41,11 +41,11 @@ class ConfigManager : public MgmtThread {
 
   struct ConfigChangeState {
     enum States {
-      IDLE,
-      PREPARING,
-      COMITTING,
-      ABORT,
-      ABORTING
+      IDLE = 0,
+      PREPARING = 1,
+      COMITTING = 2,
+      ABORT = 3,
+      ABORTING = 4
     } m_current_state;
 
     ConfigChangeState() :
@@ -57,12 +57,12 @@ class ConfigManager : public MgmtThread {
   void set_config_change_state(ConfigChangeState::States state);
 
   enum ConfigState {
-    CS_UNINITIALIZED,
+    CS_UNINITIALIZED = 0,
 
-    CS_INITIAL,      // Initial config.ini, ie. no config.bin.X found
+    CS_INITIAL = 1,   // Initial config.ini, ie. no config.bin.X found
 
-    CS_CONFIRMED,    // Started and all agreed
-    CS_FORCED        // Forced start
+    CS_CONFIRMED = 2, // Started and all agreed
+    CS_FORCED = 3     // Forced start
   };
 
   ConfigState m_config_state;
