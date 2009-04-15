@@ -1445,7 +1445,7 @@ ConfigManager::sendConfigCheckRef(SignalSender& ss, BlockReference to,
                        error, nodeId);
 
   ss.sendSignal(nodeId, ssig, MGM_CONFIG_MAN,
-                GSN_CONFIG_CHECK_REF, ConfigCheckReq::SignalLength);
+                GSN_CONFIG_CHECK_REF, ConfigCheckRef::SignalLength);
 }
 
 
