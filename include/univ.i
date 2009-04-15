@@ -70,9 +70,10 @@ the virtual method table (vtable) in GCC 3. */
 
 # include <windows.h>
 
-# if !defined(WIN64) && !defined(_WIN64)
-#  define UNIV_CAN_USE_X86_ASSEMBLER
-# endif
+# if defined(HAVE_WINDOWS_ATOMICS)
+/* If atomics are defined we use them in InnoDB mutex implementation */
+#  define HAVE_ATOMIC_BUILTINS
+# endif /* HAVE_WINDOWS_ATOMICS */
 
 # ifdef _NT_
 #  define __NT__
@@ -106,17 +107,12 @@ if we are compiling on Windows. */
 #  include <sched.h>
 # endif
 
-/* When compiling for Itanium IA64, undefine the flag below to prevent use
-of the 32-bit x86 assembler in mutex operations. */
-
-# if defined(__WIN__) && !defined(WIN64) && !defined(_WIN64)
-#  define UNIV_CAN_USE_X86_ASSEMBLER
-# endif
-
-# if defined(HAVE_GCC_ATOMIC_BUILTINS) || defined(HAVE_SOLARIS_ATOMICS)
+# if defined(HAVE_GCC_ATOMIC_BUILTINS) || defined(HAVE_SOLARIS_ATOMICS) \
+     || defined(HAVE_WINDOWS_ATOMICS)
 /* If atomics are defined we use them in InnoDB mutex implementation */
 #  define HAVE_ATOMIC_BUILTINS
-# endif /* (HAVE_GCC_ATOMIC_BUILTINS) || (HAVE_SOLARIS_ATOMICS) */
+# endif /* (HAVE_GCC_ATOMIC_BUILTINS) || (HAVE_SOLARIS_ATOMICS)
+	|| (HAVE_WINDOWS_ATOMICS) */
 
 /* For InnoDB rw_locks to work with atomics we need the thread_id
 to be no more than machine word wide. The following enables using

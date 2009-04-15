@@ -235,9 +235,7 @@ mutex_create_func(
 	const char*	cfile_name,	/* in: file name where created */
 	ulint		cline)		/* in: file line where created */
 {
-#if defined(_WIN32) && defined(UNIV_CAN_USE_X86_ASSEMBLER)
-	mutex_reset_lock_word(mutex);
-#elif defined(HAVE_ATOMIC_BUILTINS)
+#if defined(HAVE_ATOMIC_BUILTINS)
 	mutex_reset_lock_word(mutex);
 #else
 	os_fast_mutex_init(&(mutex->os_fast_mutex));
@@ -327,9 +325,7 @@ mutex_free(
 
 	os_event_free(mutex->event);
 
-#if defined(_WIN32) && defined(UNIV_CAN_USE_X86_ASSEMBLER)
-#elif defined(HAVE_ATOMIC_BUILTINS)
-#else
+#if !defined(HAVE_ATOMIC_BUILTINS)
 	os_fast_mutex_free(&(mutex->os_fast_mutex));
 #endif
 	/* If we free the mutex protecting the mutex list (freeing is
