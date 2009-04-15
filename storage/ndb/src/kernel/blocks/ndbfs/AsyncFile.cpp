@@ -87,7 +87,7 @@ AsyncFile::readvReq( Request * request)
 void
 AsyncFile::writeReq(Request * request)
 {
-  Uint32 cnt = request->par.readWrite.numberOfPages;
+  const Uint32 cnt = request->par.readWrite.numberOfPages;
   if (theWriteBuffer == 0 || cnt == 1)
   {
     for (Uint32 i = 0; i<cnt; i++)
@@ -100,8 +100,8 @@ AsyncFile::writeReq(Request * request)
         request->error = err;
         return;
       }
-      goto done;
     }
+    goto done;
   }
 
   {

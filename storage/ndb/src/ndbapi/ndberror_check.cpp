@@ -1,4 +1,4 @@
-/* Copyright (C) 2007 MySQL AB
+/* Copyright (C) 2007-2008 MySQL AB, 2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,23 +16,31 @@
 #include <stdio.h>
 #include "ndberror.c"
 
-int main()
+// Mock implementation of 'my_snprintf'
+size_t my_snprintf(char* to, size_t n, const char* fmt, ...)
 {
-  int i, j, error = 0;
+  abort();
+  return 0;
+}
 
+
+#include <NdbTap.hpp>
+
+TAPTEST(ndberror_check)
+{
+  int ok= 1;
   /* check for duplicate error codes */
-  for(i = 0; i < NbErrorCodes; i++)
+  for(int i = 0; i < NbErrorCodes; i++)
   {
-    for(j = i + 1; j < NbErrorCodes; j++)
+    for(int j = i + 1; j < NbErrorCodes; j++)
     {
       if (ErrorCodes[i].code == ErrorCodes[j].code)
       {
         fprintf(stderr, "Duplicate error code %u\n", ErrorCodes[i].code);
-        error = 1;
+        ok = 0;
       }
     }
   }
-  if (error)
-    return -1;
-  return 0;
+  return ok;
 }
+

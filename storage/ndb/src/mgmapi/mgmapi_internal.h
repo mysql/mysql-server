@@ -82,6 +82,19 @@ extern "C" {
 
   NDB_SOCKET_TYPE _ndb_mgm_get_socket(NdbMgmHandle handle);
 
+  /**
+   * Get configuration
+   *
+   * @param   handle    NDB management handle.
+   * @param   version   version of this node
+   * @param   nodetype   type of this node
+   */
+  struct ndb_mgm_configuration *
+  ndb_mgm_get_configuration2(NdbMgmHandle handle,
+                             unsigned version,
+                             enum ndb_mgm_node_type nodetype);
+
+
 #ifdef __cplusplus
 }
 #endif

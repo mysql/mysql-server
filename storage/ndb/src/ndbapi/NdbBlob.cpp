@@ -1207,7 +1207,7 @@ int
 NdbBlob::setActiveHook(ActiveHook activeHook, void* arg)
 {
   DBUG_ENTER("NdbBlob::setActiveHook");
-  DBUG_PRINT("info", ("hook=%p arg=%p", (void*)activeHook, arg));
+  DBUG_PRINT("info", ("hook=%p arg=%p", (void*)&activeHook, arg));
   if (theState != Prepared) {
     setErrorCode(NdbBlobImpl::ErrState);
     DBUG_RETURN(-1);
@@ -3139,4 +3139,4 @@ const NdbOperation*
 NdbBlob::getNdbOperation() const
 {
   return theNdbOp;
-};
+}

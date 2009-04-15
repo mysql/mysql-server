@@ -777,3 +777,25 @@ void Config::getConnectString(BaseString& connectstring,
   ndbout << connectstring << endl;
 }
 
+
+void
+Config::get_nodemask(NodeBitmask& mask,
+                     ndb_mgm_node_type type) const
+{
+  mask.clear();
+  ConfigIter it(this, CFG_SECTION_NODE);
+  for (; it.valid(); it.next())
+  {
+    Uint32 node_type;
+    require(it.get(CFG_TYPE_OF_SECTION, &node_type) == 0);
+
+    if (type == NDB_MGM_NODE_TYPE_UNKNOWN || // UNKOWN -> add all nodes to mask
+        type == (ndb_mgm_node_type)node_type)
+    {
+      Uint32 nodeid;
+      require(it.get(CFG_NODE_ID, &nodeid) == 0);
+      mask.set(nodeid);
+    }
+  }
+}
+

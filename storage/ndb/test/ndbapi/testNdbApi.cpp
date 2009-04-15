@@ -2636,6 +2636,209 @@ testNdbRecordRowLength(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int
+runBug44015(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* testNdbApi -n WeirdAssertFail
+   * Generates phrase "here2" on 6.3 which is 
+   * output by DbtupExecQuery::handleReadReq()
+   * detecting that the record's tuple checksum
+   * is incorrect.
+   * Later can generate assertion failure in 
+   * prepare_read
+   *         ndbassert(src_len >= (dynstart - src_data));
+   * resulting in node failure
+   */
+  Ndb* pNdb = GETNDB(step);
+  const NdbDictionary::Table* pTab= ctx->getTab();
+  
+  int numIterations= 100;
+  int numRecords= 1024;
+  
+  NdbTransaction* trans;
+  HugoOperations hugoOps(*pTab);
+  
+  for (int iter=0; iter < numIterations; iter++)
+  {
+    ndbout << "Iter : " << iter << endl;
+    CHECK((trans= pNdb->startTransaction()) != 0);
+    
+    CHECK(hugoOps.setTransaction(trans) == 0);
+    
+    CHECK(hugoOps.pkInsertRecord(pNdb,
+                                 0,
+                                 numRecords) == 0);
+    
+    /* Now execute the transaction */
+    if ((trans->execute(NdbTransaction::NoCommit) != 0))
+    {
+      ndbout << "Execute failed, error is " 
+             << trans->getNdbError().code << " "
+             << trans->getNdbError().message << endl;
+      CHECK(0);
+    }
+
+    CHECK(trans->getNdbError().code == 0);
+    
+    /* Now delete the records in the same transaction
+     * Need to do this manually as Hugo doesn't support it
+     */
+    CHECK(hugoOps.pkDeleteRecord(pNdb,
+                                 0,
+                                 numRecords) == 0);
+    
+    CHECK(trans->execute(NdbTransaction::NoCommit) == 0);
+    CHECK(trans->getNdbError().code == 0);
+    
+    /* Now abort the transaction by closing it */
+    trans->close();
+
+    /* Force Hugo Transaction back to NULL */
+    hugoOps.setTransaction(NULL, true);
+  }
+
+  ctx->stopTest();
+
+  return NDBT_OK;
+}
+
+int runScanReadUntilStopped(NDBT_Context* ctx, NDBT_Step* step){
+  int result = NDBT_OK;
+  int i = 0;
+  int scan_flags = NdbScanOperation::SF_TupScan;
+  NdbOperation::LockMode lm = 
+    (NdbOperation::LockMode)
+    ctx->getProperty("ReadLockMode", (Uint32)NdbOperation::LM_CommittedRead);
+
+  HugoTransactions hugoTrans(*ctx->getTab());
+  while (ctx->isTestStopped() == false) {
+    g_info << i << ": ";
+    if (hugoTrans.scanReadRecords(GETNDB(step), 0, 0, 0,
+                                  lm, scan_flags) != 0){
+      return NDBT_FAILED;
+    }
+    i++;
+  }
+  return result;
+}
+
+int
+runBug44065_org(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* testNdbApi -n WeirdAssertFail2
+   * Results in assertion failure in DbtupCommit::execTUP_DEALLOCREQ()
+   *   ndbassert(ptr->m_header_bits & Tuple_header::FREE);
+   * Results in node failure
+   */
+  Ndb* pNdb = GETNDB(step);
+  const NdbDictionary::Table* pTab= ctx->getTab();
+  
+  int numOuterIterations= 50;
+  int numInnerIterations= 20;
+  int numRecords= 200;
+  
+  NdbTransaction* trans;
+  
+  for (int outerIter=0; outerIter < numOuterIterations; outerIter++)
+  {
+    HugoOperations hugoOps(*pTab);
+
+    int offset= (outerIter * numRecords);
+    ndbout << "Outer Iter : " << outerIter 
+           << " " << offset << "-" << (offset + numRecords - 1) << endl;
+
+    CHECK(hugoOps.startTransaction(pNdb) == 0);
+    CHECK(hugoOps.pkInsertRecord(pNdb, offset, numRecords) == 0);
+    CHECK(hugoOps.execute_Commit(pNdb) == 0);
+    CHECK(hugoOps.closeTransaction(pNdb) == 0);
+
+    for (int iter=0; iter < numInnerIterations; iter++)
+    {
+      //ndbout << "Inner Iter : " << iter << endl;
+      CHECK((trans= pNdb->startTransaction()) != 0);
+      
+      CHECK(hugoOps.setTransaction(trans) == 0);
+      
+      /* Delete the records */
+      CHECK(hugoOps.pkDeleteRecord(pNdb,
+                                   offset,
+                                   numRecords) == 0);
+      
+      /* Re-insert them */
+      CHECK(hugoOps.pkInsertRecord(pNdb,
+                                   offset,
+                                   numRecords) == 0);
+      
+      /* Now execute the transaction, with IgnoreError */
+      if ((trans->execute(NdbTransaction::NoCommit,
+                          NdbOperation::AO_IgnoreError) != 0))
+      {
+        ndbout << "Execute failed, error is " 
+               << trans->getNdbError().code << " "
+               << trans->getNdbError().message << endl;
+        CHECK(0);
+      }
+      
+      /* Now abort the transaction by closing it without committing */
+      trans->close();
+      
+      /* Force Hugo Transaction back to NULL */
+      hugoOps.setTransaction(NULL, true);
+    }
+  }
+
+  ctx->stopTest();
+
+  return NDBT_OK;
+}
+
+static volatile int aValue = 0;
+
+void
+a_callback(int, NdbTransaction*, void*)
+{
+  ndbout_c("callback received!");
+  aValue = 1;
+}
+
+int
+runBug44065(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* testNdbApi -n WeirdAssertFail2
+   * Results in assertion failure in DbtupCommit::execTUP_DEALLOCREQ()
+   *   ndbassert(ptr->m_header_bits & Tuple_header::FREE);
+   * Results in node failure
+   */
+  int rowno = 0;
+  aValue = 0;
+  Ndb* pNdb = GETNDB(step);
+  const NdbDictionary::Table* pTab= ctx->getTab();
+  
+  HugoOperations hugoOps1(*pTab);
+  CHECK(hugoOps1.startTransaction(pNdb) == 0);
+  CHECK(hugoOps1.pkInsertRecord(pNdb, rowno) == 0);
+  CHECK(hugoOps1.execute_NoCommit(pNdb) == 0);
+
+  HugoOperations hugoOps2(*pTab);
+  CHECK(hugoOps2.startTransaction(pNdb) == 0);
+  
+  CHECK(hugoOps2.pkDeleteRecord(pNdb, rowno) == 0);
+  CHECK(hugoOps2.pkInsertRecord(pNdb, rowno) == 0);
+  
+  NdbTransaction* trans = hugoOps2.getTransaction();
+  
+  trans->executeAsynch(NdbTransaction::NoCommit, a_callback, 0);
+  CHECK(hugoOps1.execute_Commit(pNdb) == 0);
+  while (aValue == 0)
+  {
+    NdbSleep_MilliSleep(100);
+  }
+  CHECK(hugoOps2.execute_Rollback(pNdb) == 0);
+  
+  ctx->stopTest();
+
+  return NDBT_OK;
+}
 
 NDBT_TESTSUITE(testNdbApi);
 TESTCASE("MaxNdb", 
@@ -2772,6 +2975,19 @@ TESTCASE("NdbRecordCICharPKUpdate",
 TESTCASE("NdbRecordRowLength",
          "Verify that the record row length calculation is correct") {
   INITIALIZER(testNdbRecordRowLength);
+}
+TESTCASE("Bug44015",
+         "Rollback insert followed by delete to get corruption") {
+  STEP(runBug44015);
+  STEPS(runScanReadUntilStopped, 10);
+}
+TESTCASE("Bug44065_org",
+         "Rollback no-change update on top of existing data") {
+  INITIALIZER(runBug44065_org);
+}
+TESTCASE("Bug44065",
+         "Rollback no-change update on top of existing data") {
+  INITIALIZER(runBug44065);
 }
 NDBT_TESTSUITE_END(testNdbApi);
 

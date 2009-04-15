@@ -2302,13 +2302,16 @@ ndb_mgm_abort_backup(NdbMgmHandle handle, unsigned int backupId,
 
 extern "C"
 struct ndb_mgm_configuration *
-ndb_mgm_get_configuration(NdbMgmHandle handle, unsigned int version) {
+ndb_mgm_get_configuration2(NdbMgmHandle handle, unsigned int version,
+                           enum ndb_mgm_node_type nodetype)
+{
   CHECK_HANDLE(handle, 0);
   SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_get_configuration");
   CHECK_CONNECTED(handle, 0);
 
   Properties args;
   args.put("version", version);
+  args.put("nodetype", nodetype);
 
   const ParserRow<ParserDummy> reply[] = {
     MGM_CMD("get config reply", NULL, ""),
@@ -2324,9 +2327,10 @@ ndb_mgm_get_configuration(NdbMgmHandle handle, unsigned int version) {
   CHECK_REPLY(handle, prop, 0);
   
   do {
-    const char * buf;
+    const char * buf = "<unknown error>";
     if(!prop->get("result", &buf) || strcmp(buf, "Ok") != 0){
       fprintf(handle->errstream, "ERROR Message: %s\n\n", buf);
+      SET_ERROR(handle, NDB_MGM_GET_CONFIG_FAILED, buf);
       break;
     }
 
@@ -2398,6 +2402,14 @@ ndb_mgm_get_configuration(NdbMgmHandle handle, unsigned int version) {
 
   delete prop;
   return 0;
+}
+
+extern "C"
+struct ndb_mgm_configuration *
+ndb_mgm_get_configuration(NdbMgmHandle handle, unsigned int version)
+{
+  return ndb_mgm_get_configuration2(handle, version,
+                                    NDB_MGM_NODE_TYPE_UNKNOWN);
 }
 
 extern "C"
