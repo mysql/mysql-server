@@ -434,7 +434,7 @@ static void test_wrongendian_compare (int wrong_p, unsigned int N) {
 	    b[0] = a[3] = (unsigned char)((i>>24)&255);
 	    r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_NEXT, null_txn);
 	    assert(r==0);
-	    assert(pair.call_count=1);
+	    assert(pair.call_count==1);
 	    toku_cachetable_verify(ct);
 	}
 
