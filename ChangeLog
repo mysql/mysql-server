@@ -1,3 +1,19 @@
+2009-04-15	The InnoDB Team
+
+	* mysql-test/innodb.result, mysql-test/innodb.test:
+	Fix Bug#43309 Test main.innodb can't be run twice
+
+2009-04-14	The InnoDB Team
+
+	* CMakeLists.txt, handler/win_delay_loader.cc,
+	win-plugin/win-plugin.diff:
+	Remove statically linked libraries from MySQL (zlib and strings).
+
+2009-04-11	The InnoDB Team
+
+	* CMakeLists.txt, win-plugin/README, win-plugin/win-plugin.diff:
+	Rewrite CMakeLists.txt.
+
 2009-04-07	The InnoDB Team
 
 	* include/os0sync.h, include/sync0rw.ic, include/sync0sync.h,
