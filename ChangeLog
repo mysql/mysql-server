@@ -65,6 +65,14 @@
 	In consistent reads, refuse to use newly created indexes that may
 	lack history.
 
+2009-03-25	The InnoDB Team
+
+	* buf/buf0buf.c, handler/ha_innodb.cc, include/buf0buf.h:
+	In SHOW ENGINE INNODB MUTEX do not show the status of block->mutex,
+	block->lock, block->lock->mutex (if applicable) and all mutexes and
+	rw-locks for which number of os-waits are zero because this can
+	be overwhelming particularly when the buffer pool is very large.
+
 2009-03-20	The InnoDB Team
 
 	* buf/buf0buf.c, include/log0recv.h, log/log0recv.c:
