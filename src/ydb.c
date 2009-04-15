@@ -694,9 +694,13 @@ static int toku_env_set_verbose(DB_ENV * env, u_int32_t which, int onoff) {
     return 1;
 }
 
+// For test purposes only.
+static void (*checkpoint_callback_f)(void*) = NULL;
+static void * checkpoint_callback_extra     = NULL;
+
 static int toku_env_txn_checkpoint(DB_ENV * env, u_int32_t kbyte __attribute__((__unused__)), u_int32_t min __attribute__((__unused__)), u_int32_t flags __attribute__((__unused__))) {
     char *error_string = NULL;
-    int r = toku_checkpoint(env->i->cachetable, env->i->logger, &error_string, NULL, NULL);
+    int r = toku_checkpoint(env->i->cachetable, env->i->logger, &error_string, checkpoint_callback_f, checkpoint_callback_extra);
     if (r) {
 	env->i->is_panicked = r; // Panicking the whole environment may be overkill, but I'm not sure what else to do.
 	env->i->panic_string = error_string;
@@ -3809,4 +3813,11 @@ void setup_dlmalloc (void) {
     db_env_set_func_malloc(dlmalloc);
     db_env_set_func_realloc(dlrealloc);
     db_env_set_func_free(dlfree);
+}
+
+// For test purposes only.
+// With this interface, all checkpoint users get the same callback and the same extra.
+void db_env_set_checkpoint_callback (void (*callback_f)(void*), void* extra) {
+    checkpoint_callback_f = callback_f;
+    checkpoint_callback_extra = extra;
 }
