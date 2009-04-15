@@ -101,7 +101,9 @@ SET(INNODB_SOURCES	btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c btr/btr0sea.c
 			ut/ut0list.c ut/ut0wqueue.c)
 
 IF(NOT SOURCE_SUBLIBS)
-	ADD_DEFINITIONS(-D_WIN32)
+	# INNODB_RW_LOCKS_USE_ATOMICS may be defined only if HAVE_WINDOWS_ATOMICS is defined.
+	# Windows Interlocked functions require Windows 2000 or newer operating system
+	ADD_DEFINITIONS(-D_WIN32 -DHAVE_WINDOWS_ATOMICS -DINNODB_RW_LOCKS_USE_ATOMICS)
 	ADD_LIBRARY(innobase STATIC ${INNODB_SOURCES})
 	# Require mysqld_error.h, which is built as part of the GenError
 	ADD_DEPENDENCIES(innobase GenError)
