@@ -347,6 +347,39 @@ amount of increment. */
 Returns the old value of *ptr, atomically sets *ptr to new_val */
 # define os_atomic_test_and_set_byte(ptr, new_val) \
 	atomic_swap_uchar(ptr, new_val)
+/* On Windows, use Windows atomics / interlocked */
+#elif defined(HAVE_WINDOWS_ATOMICS)
+# ifdef _WIN64
+#  define win_cmp_and_xchg InterlockedCompareExchange64
+#  define win_xchg_and_add InterlockedExchangeAdd64
+# else /* _WIN64 */
+#  define win_cmp_and_xchg InterlockedCompareExchange
+#  define win_xchg_and_add InterlockedExchangeAdd
+# endif
+/**************************************************************
+Returns true if swapped, ptr is pointer to target, old_val is value to
+compare to, new_val is the value to swap in. */
+# define os_compare_and_swap_ulint(ptr, old_val, new_val) \
+	(win_cmp_and_xchg(ptr, new_val, old_val) == old_val)
+# define os_compare_and_swap_lint(ptr, old_val, new_val) \
+	(win_cmp_and_xchg(ptr, new_val, old_val) == old_val)
+# ifdef INNODB_RW_LOCKS_USE_ATOMICS
+#  define os_compare_and_swap_thread_id(ptr, old_val, new_val) \
+	(InterlockedCompareExchange(ptr, new_val, old_val) == old_val)
+# endif /* INNODB_RW_LOCKS_USE_ATOMICS */
+/**************************************************************
+Returns the resulting value, ptr is pointer to target, amount is the
+amount of increment. */
+# define os_atomic_increment_lint(ptr, amount) \
+	(win_xchg_and_add(ptr, amount) + amount)
+# define os_atomic_increment_ulint(ptr, amount) \
+	((ulint) (win_xchg_and_add(ptr, amount) + amount))
+/**************************************************************
+Returns the old value of *ptr, atomically sets *ptr to new_val.
+InterlockedExchange() operates on LONG, and the LONG will be
+clobbered */
+# define os_atomic_test_and_set_byte(ptr, new_val) \
+	((byte) InterlockedExchange(ptr, new_val))
 #endif /* HAVE_GCC_ATOMIC_BUILTINS */
 
 #ifndef UNIV_NONINL
