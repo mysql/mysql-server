@@ -2,6 +2,7 @@
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 #ident "$Id$"
 #include "test.h"
+#include <db.h>
 #include <sys/stat.h>
 
 DB_ENV *env;
@@ -284,6 +285,14 @@ runtests(u_int32_t flags, u_int32_t n, int snap_all) {
     checkpoint_test_1(flags, n, snap_all);
 }
 
+
+void checkpoint_callback(void * UU(extra)) {
+    if (verbose) {
+	printf("checkpoint callback called\n");
+	fflush(stdout);
+    }
+}
+
 int
 test_main (int argc, const char *argv[]) {
     parse_args(argc, argv);
@@ -301,6 +310,10 @@ test_main (int argc, const char *argv[]) {
             runtests(DB_DUP|DB_DUPSORT, n, snap);
         }
     }
+
+    db_env_set_checkpoint_callback(checkpoint_callback, NULL);
+    runtests(0,4,1);
+
     return 0;
 }
 
