@@ -27,6 +27,11 @@ static inline my_socket my_socket_create_invalid()
   return s;
 }
 
+static inline SOCKET my_socket_get_fd(my_socket s)
+{
+  return s.s;
+}
+
 static inline int my_socket_close(my_socket s)
 {
   return closesocket(s.s);
