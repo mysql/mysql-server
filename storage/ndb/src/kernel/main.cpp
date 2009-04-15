@@ -72,7 +72,7 @@ static struct my_option my_long_options[] =
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "initial-start", 256,
     "Perform a partial initial start of the cluster.  "
-    "Each node should be started with this option, as well as --nowait-nodes"
+    "Each node should be started with this option, as well as --nowait-nodes",
     (uchar**) &opt_initialstart, (uchar**) &opt_initialstart, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "bind-address", 256,
