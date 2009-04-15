@@ -2887,7 +2887,8 @@ Ndbcntr::StopRecord::checkLqhTimeout_1(Signal* signal){
     req->nodeState = newState;
     req->senderRef = cntr.reference();
     req->senderData = 12;
-    cntr.sendSignal(DBLQH_REF, GSN_CHANGE_NODE_STATE_REQ, signal, 2, JBB);
+    cntr.sendSignal(DBLQH_REF, GSN_CHANGE_NODE_STATE_REQ, signal, 
+                    ChangeNodeStateReq::SignalLength, JBB);
     return;
   }
   signal->theData[0] = ZSHUTDOWN;
