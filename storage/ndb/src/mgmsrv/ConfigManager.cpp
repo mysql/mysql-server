@@ -1462,7 +1462,7 @@ ConfigManager::sendConfigCheckConf(SignalSender& ss, BlockReference to) const
   g_eventLogger->debug("Send CONFIG_CHECK_CONF to node: %d", nodeId);
 
   ss.sendSignal(nodeId, ssig, MGM_CONFIG_MAN,
-                GSN_CONFIG_CHECK_CONF, ConfigCheckReq::SignalLength);
+                GSN_CONFIG_CHECK_CONF, ConfigCheckConf::SignalLength);
 }
 
 
