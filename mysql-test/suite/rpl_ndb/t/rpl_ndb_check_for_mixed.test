@@ -12,4 +12,10 @@
 --source include/have_log_bin.inc
 --source include/ndb_master-slave.inc
 
+disable_query_log;
+# so that both ROW and MIXED is output as MIXED
+# since both are exceptable valuse for NDB Replication
+-- replace_result ROW MIXED
 show variables like 'binlog_format';
+enable_query_log;
+
