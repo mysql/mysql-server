@@ -22,10 +22,10 @@
 //      and the call is rescheduled.  (If the time since f finished is more than the new period, then f is called immediately).
 
 struct minicron {
-    pthread_t thread;
+    toku_pthread_t thread;
     struct timespec time_of_last_call_to_f;
-    pthread_mutex_t mutex;
-    pthread_cond_t  condvar;
+    toku_pthread_mutex_t mutex;
+    toku_pthread_cond_t  condvar;
     int (*f)(void*);
     void *arg;
     u_int32_t period_in_seconds;
