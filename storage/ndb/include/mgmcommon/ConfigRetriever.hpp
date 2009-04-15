@@ -27,7 +27,7 @@
 class ConfigRetriever {
 public:
   ConfigRetriever(const char * _connect_string,
-		  Uint32 version, Uint32 nodeType,
+                  Uint32 version, ndb_mgm_node_type nodeType,
 		  const char * _bind_address = 0,
                   int timeout_ms = 30000);
   ~ConfigRetriever();
@@ -96,7 +96,7 @@ private:
 
   bool m_end_session;
   Uint32 m_version;
-  Uint32 m_node_type;
+  ndb_mgm_node_type m_node_type;
   NdbMgmHandle m_handle;
 };
 

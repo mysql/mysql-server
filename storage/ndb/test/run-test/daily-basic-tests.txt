@@ -1298,3 +1298,11 @@ max-time: 600
 cmd: testNodeRestart
 args: -n -l 3 -n Bug43224 T1
 
+max-time: 1200
+cmd: testNodeRestart
+args: -n Bug43888 T1
+
+max-time: 1200
+cmd: testNdbApi
+args: -n Bug44015 T1
+

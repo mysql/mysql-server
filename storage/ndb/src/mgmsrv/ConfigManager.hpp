@@ -39,13 +39,22 @@ class ConfigManager : public MgmtThread {
 
   ConfigRetriever m_config_retriever;
 
-  enum ConfigChangeState {
-    CCS_IDLE,
-    CCS_PREPARING,
-    CCS_COMITTING,
-    CCS_ABORT,
-    CCS_ABORTING
+  struct ConfigChangeState {
+    enum States {
+      IDLE,
+      PREPARING,
+      COMITTING,
+      ABORT,
+      ABORTING
+    } m_current_state;
+
+    ConfigChangeState() :
+      m_current_state(IDLE) {}
+
+    operator int() const { return m_current_state; }
   } m_config_change_state;
+
+  void set_config_change_state(ConfigChangeState::States state);
 
   enum ConfigState {
     CS_UNINITIALIZED,
@@ -139,6 +148,32 @@ class ConfigManager : public MgmtThread {
                           Uint32, Uint32, ConfigState, ConfigState) const;
   void sendConfigCheckConf(SignalSender& ss, BlockReference to) const;
 
+  /*
+    ConfigChecker - for connecting to other mgm nodes without
+    transporter
+  */
+  class ConfigChecker : public MgmtThread {
+    ConfigManager& m_manager;
+    ConfigRetriever m_config_retriever;
+    BaseString m_connect_string;
+    NodeId m_nodeid;
+  public:
+    ConfigChecker(); // Not implemented
+    ConfigChecker(const ConfigChecker&); // Not implemented
+    ConfigChecker(ConfigManager& manager,
+                  const char* connect_string,
+                  const char* bind_address,
+                  NodeId nodeid);
+    bool init();
+    virtual void run();
+  };
+  bool init_checkers(const Config* config);
+  void start_checkers();
+  void stop_checkers();
+  Vector<ConfigChecker*> m_checkers;
+  MutexVector<NodeId> m_exclude_nodes;
+  void handle_exclude_nodes(void);
+
 public:
   ConfigManager(const MgmtSrvr::MgmtOpts&,
                 const char* configdir);
@@ -155,9 +190,10 @@ public:
   int add_config_change_subscriber(ConfigSubscriber*);
 
   /*
-    Retrieve the current configuration in packed format
+    Retrieve the current configuration in base64 packed format
    */
-  bool get_packed_config(UtilBuffer& pack_buf);
+  bool get_packed_config(ndb_mgm_node_type nodetype,
+                         BaseString& buf64, BaseString& error);
 
   static Config* load_config(const char* config_filename, bool mycnf,
                              BaseString& msg);

@@ -242,3 +242,45 @@ delete from t1 where a = 5;
 select * from t1 order by 1;
 
 drop table t1;
+
+# Create table with distribution key != partition key to
+# test some partition pruning stuff
+#
+create table nott1 (a int, 
+                    b int, 
+                    c int, 
+                    primary key(a,b)) 
+        engine=ndb partition by key(a);
+
+insert into nott1 values (0,0,0);
+insert into nott1 values (0,1,1);
+insert into nott1 values (0,2,2);
+insert into nott1 values (0,3,3);
+insert into nott1 values (1,0,4);
+insert into nott1 values (1,1,5);
+insert into nott1 values (1,2,6);
+insert into nott1 values (2,22,7);
+
+--echo All partitions scan
+--source include/ndb_init_scan_counts.inc
+select * from nott1 order by c;
+--source include/ndb_scan_counts.inc
+
+--echo Single partition scan
+--source include/ndb_init_scan_counts.inc
+select * from nott1 where a=0 order by c;
+--source include/ndb_scan_counts.inc
+
+--echo Single partition scan
+--source include/ndb_init_scan_counts.inc
+select * from nott1 where a=4 order by c;
+--source include/ndb_scan_counts.inc
+
+--echo MRR scan on one partition
+--source include/ndb_init_scan_counts.inc
+select * from nott1 where a=0 and (( b > 0 and b < 3) or 
+                                   ( b > 5 and b < 10) or 
+                                   ( b > 22 and b < 50)) order by c;
+--source include/ndb_scan_counts.inc
+
+drop table nott1;

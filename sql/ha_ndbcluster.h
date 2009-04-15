@@ -355,6 +355,9 @@ class Thd_ndb
   uint m_old_violation_count;
   uint m_conflict_fn_usage_count;
 
+  uint m_scan_count;
+  uint m_pruned_scan_count;
+  
   uint m_transaction_no_hint_count[MAX_NDB_NODES];
   uint m_transaction_hint_count[MAX_NDB_NODES];
 

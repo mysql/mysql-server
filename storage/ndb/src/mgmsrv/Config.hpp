@@ -16,7 +16,9 @@
 #ifndef Config_H
 #define Config_H
 
+#include <kernel/NodeBitmask.hpp>
 #include "ConfigInfo.hpp"
+#include <mgmapi.h>
 #include <mgmapi_configuration.hpp>
 
 
@@ -112,6 +114,13 @@ public:
     Check if the config is equal to another config
   */
   bool equal(const Config*, const unsigned* exclude = NULL) const;
+
+  /*
+    Return bitmask of all defined nodes of a certain type
+    returns all defined nodes by default.
+   */
+  void get_nodemask(NodeBitmask& mask,
+                    ndb_mgm_node_type type = NDB_MGM_NODE_TYPE_UNKNOWN) const;
 
   struct ndb_mgm_configuration * m_configValues;
   struct ndb_mgm_configuration * values(void) const { return m_configValues; };

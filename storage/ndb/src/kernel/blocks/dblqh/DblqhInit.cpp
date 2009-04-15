@@ -39,6 +39,7 @@ void Dblqh::initData()
   ctabrecFileSize = 0;
   ctcConnectrecFileSize = 0;
   ctcNodeFailrecFileSize = MAX_NDB_NODES;
+  cTransactionDeadlockDetectionTimeout = 100;
 
   addFragRecord = 0;
   gcpRecord = 0;
@@ -224,7 +225,6 @@ Dblqh::Dblqh(Block_context& ctx, Uint32 instanceNumber):
   addRecSignal(GSN_START_EXEC_SR, &Dblqh::execSTART_EXEC_SR);
   addRecSignal(GSN_EXEC_SRREQ, &Dblqh::execEXEC_SRREQ);
   addRecSignal(GSN_EXEC_SRCONF, &Dblqh::execEXEC_SRCONF);
-  addRecSignal(GSN_SCAN_HBREP, &Dblqh::execSCAN_HBREP);
 
   addRecSignal(GSN_ALTER_TAB_REQ, &Dblqh::execALTER_TAB_REQ);
 
