@@ -502,8 +502,8 @@ int PosixAsyncFile::readBuffer(Request *req, char *buf,
 {
   int return_value;
   req->par.readWrite.pages[0].size = 0;
-#if ! defined(HAVE_PREAD)
   off_t seek_val;
+#if ! defined(HAVE_PREAD)
   if(!use_gz)
   {
     while((seek_val= lseek(theFd, offset, SEEK_SET)) == (off_t)-1
@@ -514,7 +514,6 @@ int PosixAsyncFile::readBuffer(Request *req, char *buf,
     }
   }
 #endif
-  off_t seek_val;
   if(use_gz)
   {
     while((seek_val= azseek(&azf, offset, SEEK_SET)) == (off_t)-1
