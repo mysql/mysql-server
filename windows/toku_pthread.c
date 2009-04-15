@@ -205,11 +205,37 @@ toku_pthread_cond_wait(toku_pthread_cond_t *cond, toku_pthread_mutex_t *mutex) {
     cond->waiters++;
     toku_pthread_mutex_unlock(mutex);
     r = WaitForMultipleObjects(TOKU_PTHREAD_COND_NEVENTS, cond->events, FALSE, INFINITE);
+    assert(r!=WAIT_FAILED);
     toku_pthread_mutex_lock(mutex);
     cond->waiters--;
     if (cond->waiters == 0 && r == WAIT_OBJECT_0 + 1)
         ResetEvent(cond->events[1]);
     return 0;
+}
+
+int toku_pthread_cond_timedwait(toku_pthread_cond_t *cond, toku_pthread_mutex_t *mutex, toku_timespec_t *wakeup_at) {
+    toku_timespec_t current;
+    int rclock = clock_gettime(CLOCK_REALTIME, &current);
+    assert(rclock==0);
+    int64_t milliseconds_wakeup = wakeup_at->tv_sec * 1000 + wakeup_at->tv_nsec / 1000000;
+    int64_t milliseconds_current = wakeup_at->tv_sec * 1000 + wakeup_at->tv_nsec / 1000000;
+    int64_t milli_diff = milliseconds_wakeup - milliseconds_current;
+    DWORD milliseconds_wait;
+    if (milli_diff <= 0) milliseconds_wait = 1; //Never sleep for 0.
+    else                milliseconds_wait = milli_diff;
+
+    DWORD r;
+    cond->waiters++;
+    toku_pthread_mutex_unlock(mutex);
+    r = WaitForMultipleObjects(TOKU_PTHREAD_COND_NEVENTS, cond->events, FALSE, milliseconds_wait);
+    assert(r!=WAIT_FAILED);
+    toku_pthread_mutex_lock(mutex);
+    cond->waiters--;
+    if (cond->waiters == 0 && r == WAIT_OBJECT_0 + 1)
+        ResetEvent(cond->events[1]);
+    if (r==WAIT_TIMEOUT) r = ETIMEDOUT;
+    else                 r = 0;
+    return r;
 }
 
 int 

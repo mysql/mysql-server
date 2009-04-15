@@ -23,7 +23,7 @@ gettimeofday(struct timeval *tv, struct timezone *tz) {
 }
 
 static int
-clock_get_realtime(struct timespec *ts) {
+clock_get_realtime(toku_timespec_t *ts) {
     FILETIME ft;
     ULARGE_INTEGER t;
 
@@ -40,7 +40,7 @@ clock_get_realtime(struct timespec *ts) {
 }
 
 int
-clock_gettime(clockid_t clockid, struct timespec *ts) {
+clock_gettime(clockid_t clockid, toku_timespec_t *ts) {
     if (clockid == CLOCK_REALTIME)
         return clock_get_realtime(ts);
     else
