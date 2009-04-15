@@ -201,7 +201,7 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
   DBUG_PRINT("info", ("ssl: 0x%lx timeout: %ld", (long) ssl, timeout));
   SSL_clear(ssl);
   SSL_SESSION_set_timeout(SSL_get_session(ssl), timeout);
-  SSL_set_fd(ssl, vio->sd);
+  SSL_set_fd(ssl, my_socket_get_fd(vio->sd));
 
   if (connect_accept_func(ssl) < 1)
   {
@@ -217,7 +217,7 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
     change type, set sd to the fd used when connecting
     and set pointer to the SSL structure
   */
-  vio_reset(vio, VIO_TYPE_SSL, SSL_get_fd(ssl), 0, 0);
+  vio_reset(vio, VIO_TYPE_SSL, vio->sd, 0, 0);
   vio->ssl_arg= (void*)ssl;
 
 #ifndef DBUG_OFF
