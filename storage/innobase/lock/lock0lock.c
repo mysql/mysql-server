@@ -1970,12 +1970,6 @@ lock_rec_lock_fast(
 	if (lock == NULL) {
 		if (!impl) {
 			lock_rec_create(mode, rec, index, trx);
-
-			if (srv_locks_unsafe_for_binlog
-			    || trx->isolation_level
-			    == TRX_ISO_READ_COMMITTED) {
-				trx_register_new_rec_lock(trx, index);
-			}
 		}
 
 		return(TRUE);
@@ -1999,11 +1993,6 @@ lock_rec_lock_fast(
 
 		if (!lock_rec_get_nth_bit(lock, heap_no)) {
 			lock_rec_set_nth_bit(lock, heap_no);
-			if (srv_locks_unsafe_for_binlog
-			    || trx->isolation_level
-			    == TRX_ISO_READ_COMMITTED) {
-				trx_register_new_rec_lock(trx, index);
-			}
 		}
 	}
 
@@ -2058,22 +2047,12 @@ lock_rec_lock_slow(
 		enough already granted on the record, we have to wait. */
 
 		err = lock_rec_enqueue_waiting(mode, rec, index, thr);
-
-		if (srv_locks_unsafe_for_binlog
-		    || trx->isolation_level == TRX_ISO_READ_COMMITTED) {
-			trx_register_new_rec_lock(trx, index);
-		}
 	} else {
 		if (!impl) {
 			/* Set the requested lock on the record */
 
 			lock_rec_add_to_queue(LOCK_REC | mode, rec, index,
 					      trx);
-			if (srv_locks_unsafe_for_binlog
-			    || trx->isolation_level
-			    == TRX_ISO_READ_COMMITTED) {
-				trx_register_new_rec_lock(trx, index);
-			}
 		}
 
 		err = DB_SUCCESS;
