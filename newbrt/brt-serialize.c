@@ -81,7 +81,7 @@ toku_maybe_truncate_cachefile (CACHEFILE cf, u_int64_t size_used)
             assert(file_size >= 0);
         }
         if ((u_int64_t)file_size >= size_used + (2*FILE_CHANGE_INCREMENT)) {
-            toku_off_t new_size = alignup(file_size, (2*FILE_CHANGE_INCREMENT)); //Truncate to new size_used.
+            toku_off_t new_size = alignup(size_used, (2*FILE_CHANGE_INCREMENT)); //Truncate to new size_used.
             assert(new_size < file_size);
             int r = toku_cachefile_truncate(cf, new_size);
             assert(r==0);
