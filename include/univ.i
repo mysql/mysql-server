@@ -54,6 +54,8 @@ component, i.e. we show M.N.P as M.N */
 			INNODB_VERSION_MINOR,	\
 			INNODB_VERSION_BUGFIX)
 
+#define REFMAN "http://dev.mysql.com/doc/refman/5.1/en/"
+
 #ifdef MYSQL_DYNAMIC_PLUGIN
 /* In the dynamic plugin, redefine some externally visible symbols
 in order not to conflict with the symbols of a builtin InnoDB. */

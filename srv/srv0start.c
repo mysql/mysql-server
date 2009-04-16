@@ -1830,8 +1830,7 @@ innobase_start_or_create_for_mysql(void)
 			" to an earlier version of\n"
 			"InnoDB: InnoDB! But if you absolutely need to"
 			" downgrade, see\n"
-			"InnoDB: http://dev.mysql.com/doc/refman/5.1/en/"
-			"multiple-tablespaces.html\n"
+			"InnoDB: " REFMAN "multiple-tablespaces.html\n"
 			"InnoDB: for instructions.\n");
 	}
 

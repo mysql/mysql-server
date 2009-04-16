@@ -276,7 +276,7 @@ os_file_get_last_error(
 				"InnoDB: Some operating system error numbers"
 				" are described at\n"
 				"InnoDB: "
-				"http://dev.mysql.com/doc/refman/5.1/en/"
+				REFMAN
 				"operating-system-error-codes.html\n");
 		}
 	}
@@ -335,7 +335,7 @@ os_file_get_last_error(
 				"InnoDB: Some operating system"
 				" error numbers are described at\n"
 				"InnoDB: "
-				"http://dev.mysql.com/doc/refman/5.1/en/"
+				REFMAN
 				"operating-system-error-codes.html\n");
 		}
 	}
@@ -695,8 +695,7 @@ next_file:
 			/* TODO: MySQL has apparently its own symlink
 			implementation in Windows, dbname.sym can
 			redirect a database directory:
-			http://dev.mysql.com/doc/refman/5.1/en/
-			windows-symbolic-links.html */
+			REFMAN "windows-symbolic-links.html" */
 			info->type = OS_FILE_TYPE_LINK;
 		} else if (lpFindFileData->dwFileAttributes
 			   & FILE_ATTRIBUTE_DIRECTORY) {
@@ -2474,8 +2473,7 @@ retry:
 			"InnoDB: Some operating system error numbers"
 			" are described at\n"
 			"InnoDB: "
-			"http://dev.mysql.com/doc/refman/5.1/en/"
-			"operating-system-error-codes.html\n",
+			REFMAN "operating-system-error-codes.html\n",
 			name, (ulong) offset_high, (ulong) offset,
 			(ulong) GetLastError());
 
@@ -2546,8 +2544,7 @@ retry:
 			"InnoDB: Some operating system error numbers"
 			" are described at\n"
 			"InnoDB: "
-			"http://dev.mysql.com/doc/refman/5.1/en/"
-			"operating-system-error-codes.html\n");
+			REFMAN "operating-system-error-codes.html\n");
 
 		os_has_said_disk_full = TRUE;
 	}
@@ -2589,8 +2586,7 @@ retry:
 			"InnoDB: Some operating system error numbers"
 			" are described at\n"
 			"InnoDB: "
-			"http://dev.mysql.com/doc/refman/5.1/en/"
-			"operating-system-error-codes.html\n");
+			REFMAN "operating-system-error-codes.html\n");
 
 		os_has_said_disk_full = TRUE;
 	}
