@@ -30,6 +30,7 @@ Created 9/17/2000 Heikki Tuuri
 #endif
 
 #include "row0ins.h"
+#include "row0merge.h"
 #include "row0sel.h"
 #include "row0upd.h"
 #include "row0row.h"
@@ -3957,6 +3958,8 @@ row_scan_and_check_index(
 	in scanning the index entries */
 
 	prebuilt->index = index;
+	prebuilt->index_usable = row_merge_is_index_usable(prebuilt->trx,
+							   index);
 	prebuilt->sql_stat_start = TRUE;
 	prebuilt->template_type = ROW_MYSQL_DUMMY_TEMPLATE;
 	prebuilt->n_template = 0;
