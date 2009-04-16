@@ -191,23 +191,9 @@ void Dbacc::execNDB_STTOR(Signal* signal)
     return;
     break;
   case ZSPH3:
-    if ((tStartType == NodeState::ST_NODE_RESTART) ||
-        (tStartType == NodeState::ST_INITIAL_NODE_RESTART)) {
-      jam();
-      //---------------------------------------------
-      // csystemRestart is used to check what is needed
-      // during log execution. When starting a node it
-      // is not a log execution and rather a normal
-      // execution. Thus we reset the variable here to
-      // avoid unnecessary system crashes.
-      //---------------------------------------------
-      csystemRestart = ZFALSE;
-    }//if
     break;
   case ZSPH6:
     jam();
-    csystemRestart = ZFALSE;
-
     signal->theData[0] = ZREPORT_MEMORY_USAGE;
     signal->theData[1] = 0;
     sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 1000, 2);    
@@ -252,7 +238,6 @@ void Dbacc::ndbrestart1Lab(Signal* signal)
   czero = 0;
   cminusOne = czero - 1;
   ctest = 0;
-  csystemRestart = ZTRUE;
   return;
 }//Dbacc::ndbrestart1Lab()
 
@@ -1527,8 +1512,6 @@ Dbacc::xfrmKeyData(Signal* signal)
 void 
 Dbacc::accIsLockedLab(Signal* signal, OperationrecPtr lockOwnerPtr) 
 {
-  ndbrequire(csystemRestart == ZFALSE);
-  
   Uint32 bits = operationRecPtr.p->m_op_bits;
   validate_lock_queue(lockOwnerPtr);
   
