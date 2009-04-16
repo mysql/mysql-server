@@ -1712,6 +1712,11 @@ runTO(NDBT_Context* ctx, NDBT_Step* step)
     CHECK(res.restartAll(false, true, true) == 0);
     CHECK(res.waitClusterNoStart() == 0);
     CHECK(res.startAll() == 0);
+    NDB_TICKS now = NdbTick_CurrentMillisecond();
+    do
+    {
+      hugoTrans.scanUpdateRecords(pNdb, 0);
+    } while (NdbTick_CurrentMillisecond() < (now + 30000));
     CHECK(res.waitClusterStarted() == 0);
     
     hugoTrans.clearTable(pNdb);

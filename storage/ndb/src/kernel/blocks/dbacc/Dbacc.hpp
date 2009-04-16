@@ -1086,7 +1086,6 @@ private:
   BlockReference cndbcntrRef;
   Uint16 csignalkey;
   Uint32 czero;
-  Uint32 csystemRestart;
   Uint32 cexcForward;
   Uint32 cexcPageindex;
   Uint32 cexcContainerptr;
