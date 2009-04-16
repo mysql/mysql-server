@@ -21,6 +21,12 @@
 #include <AtrtClient.hpp>
 #include <Bitmask.hpp>
 
+struct NodeInfo
+{
+  int nodeId;
+  int processId;
+  int nodeGroup;
+};
 
 /**
   Test that one node at a time can be upgraded
@@ -151,21 +157,31 @@ int runUpgrade_NR2(NDBT_Context* ctx, NDBT_Step* step){
     if (!atrt.getNdbds(clusterId, ndbds))
       return NDBT_FAILED;
 
-    Bitmask<4> seen_groups;
-    while(ndbds.next())
+    Vector<NodeInfo> nodes;
+    while (ndbds.next())
     {
-      int nodeId = ndbds.columnAsInt("node_id");
-      int processId = ndbds.columnAsInt("id");
-      int nodeGroup= restarter.getNodeGroup(nodeId);
+      struct NodeInfo n;
+      n.nodeId = ndbds.columnAsInt("node_id");
+      n.processId = ndbds.columnAsInt("id");
+      n.nodeGroup = restarter.getNodeGroup(n.nodeId);
+      nodes.push_back(n);
+    }
 
-      if (seen_groups.get(nodeGroup)){
+    Bitmask<4> seen_groups;
+    Bitmask<4> restarted_nodes;
+    for (Uint32 i = 0; i<nodes.size(); i++)
+    {
+      int nodeId = nodes[i].nodeId;
+      int processId = nodes[i].processId;
+      int nodeGroup= nodes[i].nodeGroup;
+
+      if (seen_groups.get(nodeGroup))
+      {
         // One node in this node group already down
         continue;
       }
       seen_groups.set(nodeGroup);
-
-      // Remove row from resultset
-      ndbds.remove();
+      restarted_nodes.set(nodeId);
 
       ndbout << "Restart node " << nodeId << endl;
 
@@ -185,21 +201,22 @@ int runUpgrade_NR2(NDBT_Context* ctx, NDBT_Step* step){
       return NDBT_FAILED;
 
     // Restart the remaining nodes
-    ndbds.reset();
-    while(ndbds.next())
+    for (Uint32 i = 0; i<nodes.size(); i++)
     {
-      int nodeId = ndbds.columnAsInt("node_id");
-      int processId = ndbds.columnAsInt("id");
-
+      int nodeId = nodes[i].nodeId;
+      if (restarted_nodes.get(nodeId))
+        continue;
+      
+      int processId = nodes[i].processId;
       ndbout << "Restart node " << nodeId << endl;
       if (!atrt.changeVersion(processId, ""))
         return NDBT_FAILED;
-
+      
       if (restarter.waitNodesNoStart(&nodeId, 1))
         return NDBT_FAILED;
-
+      
     }
-
+    
     ndbout << "Starting and wait for started..." << endl;
     if (restarter.startAll())
       return NDBT_FAILED;
@@ -266,36 +283,46 @@ int runUpgrade_NR3(NDBT_Context* ctx, NDBT_Step* step){
     if (!atrt.getNdbds(clusterId, ndbds))
       return NDBT_FAILED;
 
-    int nodes[256];
+    Vector<NodeInfo> nodes;
+    while (ndbds.next())
+    {
+      struct NodeInfo n;
+      n.nodeId = ndbds.columnAsInt("node_id");
+      n.processId = ndbds.columnAsInt("id");
+      n.nodeGroup = restarter.getNodeGroup(n.nodeId);
+      nodes.push_back(n);
+    }
+
+    int nodesarray[256];
     int cnt= 0;
 
     Bitmask<4> seen_groups;
-    while(ndbds.next())
+    Bitmask<4> restarted_nodes;
+    for (Uint32 i = 0; i<nodes.size(); i++)
     {
-      int nodeId = ndbds.columnAsInt("node_id");
-      int processId = ndbds.columnAsInt("id");
-      int nodeGroup= restarter.getNodeGroup(nodeId);
+      int nodeId = nodes[i].nodeId;
+      int processId = nodes[i].processId;
+      int nodeGroup= nodes[i].nodeGroup;
 
-      if (seen_groups.get(nodeGroup)){
+      if (seen_groups.get(nodeGroup))
+      {
         // One node in this node group already down
         continue;
       }
       seen_groups.set(nodeGroup);
-
-      // Remove row from resultset
-      ndbds.remove();
+      restarted_nodes.set(nodeId);
 
       ndbout << "Restart node " << nodeId << endl;
-
+      
       if (!atrt.changeVersion(processId, ""))
         return NDBT_FAILED;
-
-      nodes[cnt++]= nodeId;
+      
+      nodesarray[cnt++]= nodeId;
     }
-
-    if (restarter.waitNodesNoStart(nodes, cnt))
+    
+    if (restarter.waitNodesNoStart(nodesarray, cnt))
       return NDBT_FAILED;
-
+    
     ndbout << "Starting and wait for started..." << endl;
     if (restarter.startAll())
       return NDBT_FAILED;
@@ -305,32 +332,31 @@ int runUpgrade_NR3(NDBT_Context* ctx, NDBT_Step* step){
 
     // Restart the remaining nodes
     cnt= 0;
-    ndbds.reset();
-    while(ndbds.next())
+    for (Uint32 i = 0; i<nodes.size(); i++)
     {
-      int nodeId = ndbds.columnAsInt("node_id");
-      int processId = ndbds.columnAsInt("id");
+      int nodeId = nodes[i].nodeId;
+      int processId = nodes[i].processId;
 
+      if (restarted_nodes.get(nodeId))
+        continue;
+      
       ndbout << "Restart node " << nodeId << endl;
       if (!atrt.changeVersion(processId, ""))
         return NDBT_FAILED;
 
-
-      nodes[cnt++]= nodeId;
-
+      nodesarray[cnt++]= nodeId;
     }
-
-    if (restarter.waitNodesNoStart(nodes, cnt))
+    
+    if (restarter.waitNodesNoStart(nodesarray, cnt))
       return NDBT_FAILED;
-
-
+    
+    
     ndbout << "Starting and wait for started..." << endl;
     if (restarter.startAll())
       return NDBT_FAILED;
-
+    
     if (restarter.waitClusterStarted())
       return NDBT_FAILED;
-
   }
 
   ctx->stopTest();
@@ -396,3 +422,4 @@ int main(int argc, const char** argv){
   return testUpgrade.execute(argc, argv);
 }
 
+template class Vector<NodeInfo>;

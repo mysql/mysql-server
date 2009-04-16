@@ -58,6 +58,13 @@ LocalProxy::LocalProxy(BlockNumber blockNumber, Block_context& ctx) :
   addRecSignal(GSN_INCL_NODEREQ, &LocalProxy::execINCL_NODEREQ);
   addRecSignal(GSN_INCL_NODECONF, &LocalProxy::execINCL_NODECONF);
 
+  // GSN_NODE_STATE_REP
+  addRecSignal(GSN_NODE_STATE_REP, &LocalProxy::execNODE_STATE_REP, true);
+
+  // GSN_CHANGE_NODE_STATE_REQ
+  addRecSignal(GSN_CHANGE_NODE_STATE_REQ, &LocalProxy::execCHANGE_NODE_STATE_REQ, true);
+  addRecSignal(GSN_CHANGE_NODE_STATE_CONF, &LocalProxy::execCHANGE_NODE_STATE_CONF);
+
   // GSN_DUMP_STATE_ORD
   addRecSignal(GSN_DUMP_STATE_ORD, &LocalProxy::execDUMP_STATE_ORD);
 
@@ -664,6 +671,78 @@ LocalProxy::sendINCL_NODECONF(Signal* signal, Uint32 ssId)
              signal, 2, JBB);
 
   ssRelease<Ss_INCL_NODEREQ>(ssId);
+}
+
+// GSN_NODE_STATE_REP
+
+void
+LocalProxy::execNODE_STATE_REP(Signal* signal)
+{
+  Ss_NODE_STATE_REP& ss = ssSeize<Ss_NODE_STATE_REP>();
+  sendREQ(signal, ss);
+  SimulatedBlock::execNODE_STATE_REP(signal);
+  ssRelease<Ss_NODE_STATE_REP>(ss);
+}
+
+void
+LocalProxy::sendNODE_STATE_REP(Signal* signal, Uint32 ssId)
+{
+  Ss_NODE_STATE_REP& ss = ssFind<Ss_NODE_STATE_REP>(ssId);
+
+  sendSignal(workerRef(ss.m_worker), GSN_NODE_STATE_REP,
+             signal,NodeStateRep::SignalLength, JBB);
+}
+
+// GSN_CHANGE_NODE_STATE_REQ
+
+void
+LocalProxy::execCHANGE_NODE_STATE_REQ(Signal* signal)
+{
+  Ss_CHANGE_NODE_STATE_REQ& ss = ssSeize<Ss_CHANGE_NODE_STATE_REQ>(1);
+
+  ChangeNodeStateReq * req = (ChangeNodeStateReq*)signal->getDataPtrSend();
+  ss.m_req = *req;
+
+  sendREQ(signal, ss);
+}
+
+void
+LocalProxy::sendCHANGE_NODE_STATE_REQ(Signal* signal, Uint32 ssId)
+{
+  Ss_CHANGE_NODE_STATE_REQ& ss = ssFind<Ss_CHANGE_NODE_STATE_REQ>(ssId);
+
+  ChangeNodeStateReq * req = (ChangeNodeStateReq*)signal->getDataPtrSend();
+  req->senderRef = reference();
+
+  sendSignal(workerRef(ss.m_worker), GSN_CHANGE_NODE_STATE_REQ,
+             signal, ChangeNodeStateReq::SignalLength, JBB);
+}
+
+void
+LocalProxy::execCHANGE_NODE_STATE_CONF(Signal* signal)
+{
+  Ss_CHANGE_NODE_STATE_REQ& ss = ssFind<Ss_CHANGE_NODE_STATE_REQ>(1);
+
+  ChangeNodeStateConf * conf = (ChangeNodeStateConf*)signal->getDataPtrSend();
+  ndbrequire(conf->senderData == ss.m_req.senderData);
+  recvCONF(signal, ss);
+}
+
+void
+LocalProxy::sendCHANGE_NODE_STATE_CONF(Signal* signal, Uint32 ssId)
+{
+  Ss_CHANGE_NODE_STATE_REQ& ss = ssFind<Ss_CHANGE_NODE_STATE_REQ>(ssId);
+
+  if (!lastReply(ss))
+    return;
+
+  /**
+   * SimulatedBlock::execCHANGE_NODE_STATE_REQ will reply
+   */
+  ChangeNodeStateReq * req = (ChangeNodeStateReq*)signal->getDataPtrSend();
+  * req = ss.m_req;
+  SimulatedBlock::execCHANGE_NODE_STATE_REQ(signal);
+  ssRelease<Ss_CHANGE_NODE_STATE_REQ>(ssId);
 }
 
 // GSN_DUMP_STATE_ORD
