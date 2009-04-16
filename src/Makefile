@@ -42,6 +42,13 @@ LIBRARIES= \
 	$(LIBRARY) \
 	$(LIBRARY_S) \
 #Purposely here for \ at end of prev
+ifeq ($(OS_CHOICE),windows)
+    ifeq ($(DEBUG),0)
+	LIBRARIES += $(IPO_YDB)
+    else
+    	LIBRARIES += $(NOIPO_YDB)
+    endif
+endif
 
 INSTALL_LIBRARIES= $(patsubst %,%.install,$(LIBRARIES))
 
