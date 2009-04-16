@@ -197,7 +197,11 @@ enum {  /* ERR Constants */
   OpenSSL compatible
 */
 #if !defined(YASSL_SET_FD_INT) && defined(_WIN32)
-typedef SOCKET YASSL_SOCKET_T;
+#if defined(_WIN64)
+typedef unsigned __int64 YASSL_SOCKET_T;
+#else
+typedef unsigned int YASSL_SOCKET_T;
+#endif
 #else
 typedef int YASSL_SOCKET_T;
 #endif
