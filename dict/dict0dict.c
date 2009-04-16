@@ -2450,8 +2450,7 @@ dict_foreign_error_report(
 		fputs("The index in the foreign key in table is ", file);
 		ut_print_name(file, NULL, FALSE, fk->foreign_index->name);
 		fputs("\n"
-		      "See http://dev.mysql.com/doc/refman/5.1/en/"
-		      "innodb-foreign-key-constraints.html\n"
+		      "See " REFMAN "innodb-foreign-key-constraints.html\n"
 		      "for correct foreign key definition.\n",
 		      file);
 	}
@@ -3371,8 +3370,7 @@ col_loop1:
 		ut_print_name(ef, NULL, TRUE, name);
 		fprintf(ef, " where the columns appear\n"
 			"as the first columns. Constraint:\n%s\n"
-			"See http://dev.mysql.com/doc/refman/5.1/en/"
-			"innodb-foreign-key-constraints.html\n"
+			"See " REFMAN "innodb-foreign-key-constraints.html\n"
 			"for correct foreign key definition.\n",
 			start_of_latest_foreign);
 		mutex_exit(&dict_foreign_err_mutex);
@@ -3652,7 +3650,7 @@ try_find_index:
 				" and such columns in old tables\n"
 				"cannot be referenced by such columns"
 				" in new tables.\n"
-				"See http://dev.mysql.com/doc/refman/5.1/en/"
+				"See " REFMAN
 				"innodb-foreign-key-constraints.html\n"
 				"for correct foreign key definition.\n",
 				start_of_latest_foreign);
@@ -4136,8 +4134,7 @@ dict_update_statistics_low(
 			"  InnoDB: cannot calculate statistics for table %s\n"
 			"InnoDB: because the .ibd file is missing.  For help,"
 			" please refer to\n"
-			"InnoDB: http://dev.mysql.com/doc/refman/5.1/en/"
-			"innodb-troubleshooting.html\n",
+			"InnoDB: " REFMAN "innodb-troubleshooting.html\n",
 			table->name);
 
 		return;
