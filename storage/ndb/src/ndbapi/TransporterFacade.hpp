@@ -27,7 +27,6 @@
 
 class ClusterMgr;
 class ArbitMgr;
-class IPCConfig;
 struct ndb_mgm_configuration;
 
 class Ndb;

@@ -105,7 +105,7 @@ FastScheduler::doJob()
       globalData.incrementWatchDogCounter(1);
       if (reg_bnr > 0) {
         Uint32 tJobCounter = globalData.JobCounter;
-        Uint32 tJobLap = globalData.JobLap;
+        Uint64 tJobLap = globalData.JobLap;
         SimulatedBlock* b = globalData.getBlock(reg_bnr);
         theJobPriority[tJobCounter] = (Uint8)tHighPrio;
         globalData.JobCounter = (tJobCounter + 1) & 4095;
