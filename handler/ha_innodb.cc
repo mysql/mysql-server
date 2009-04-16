@@ -2986,7 +2986,7 @@ retry:
 				"or, the table contains indexes that this "
 				"version of the engine\n"
 				"doesn't support.\n"
-				"See http://dev.mysql.com/doc/refman/5.1/en/innodb-troubleshooting.html\n"
+				"See " REFMAN "innodb-troubleshooting.html\n"
 				"how you can resolve the problem.\n",
 				norm_name);
 		free_share(share);
@@ -3002,7 +3002,7 @@ retry:
 				"Have you deleted the .ibd file from the "
 				"database directory under\nthe MySQL datadir, "
 				"or have you used DISCARD TABLESPACE?\n"
-				"See http://dev.mysql.com/doc/refman/5.1/en/innodb-troubleshooting.html\n"
+				"See " REFMAN "innodb-troubleshooting.html\n"
 				"how you can resolve the problem.\n",
 				norm_name);
 		free_share(share);
@@ -6992,8 +6992,8 @@ ha_innobase::info(
 						".frm file. Have you mixed up "
 						".frm files from different "
 						"installations? See "
-"http://dev.mysql.com/doc/refman/5.1/en/innodb-troubleshooting.html\n",
-
+						REFMAN
+						"innodb-troubleshooting.html\n",
 						ib_table->name);
 				break;
 			}
@@ -7005,7 +7005,7 @@ ha_innobase::info(
 "Index %s of %s has %lu columns unique inside InnoDB, but MySQL is asking "
 "statistics for %lu columns. Have you mixed up .frm files from different "
 "installations? "
-"See http://dev.mysql.com/doc/refman/5.1/en/innodb-troubleshooting.html\n",
+"See " REFMAN "innodb-troubleshooting.html\n",
 							index->name,
 							ib_table->name,
 							(unsigned long)
@@ -7843,8 +7843,8 @@ ha_innobase::transactional_table_lock(
 			"InnoDB: Have you deleted the .ibd file"
 			" from the database directory under\n"
 			"InnoDB: the MySQL datadir?"
-			"InnoDB: See"
-			" http://dev.mysql.com/doc/refman/5.1/en/innodb-troubleshooting.html\n"
+			"InnoDB: See " REFMAN
+			"innodb-troubleshooting.html\n"
 			"InnoDB: how you can resolve the problem.\n",
 			prebuilt->table->name);
 		DBUG_RETURN(HA_ERR_CRASHED);

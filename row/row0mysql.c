@@ -562,8 +562,7 @@ handle_new_error:
 		      "InnoDB: If the mysqld server crashes"
 		      " after the startup or when\n"
 		      "InnoDB: you dump the tables, look at\n"
-		      "InnoDB: http://dev.mysql.com/doc/refman/5.1/en/"
-		      "forcing-recovery.html"
+		      "InnoDB: " REFMAN "forcing-recovery.html"
 		      " for help.\n", stderr);
 		break;
 	default:
@@ -1062,8 +1061,7 @@ row_insert_for_mysql(
 			"InnoDB: the MySQL datadir, or have you"
 			" used DISCARD TABLESPACE?\n"
 			"InnoDB: Look from\n"
-			"InnoDB: http://dev.mysql.com/doc/refman/5.1/en/"
-			"innodb-troubleshooting.html\n"
+			"InnoDB: " REFMAN "innodb-troubleshooting.html\n"
 			"InnoDB: how you can resolve the problem.\n",
 			prebuilt->table->name);
 		return(DB_ERROR);
@@ -1298,8 +1296,7 @@ row_update_for_mysql(
 			"InnoDB: the MySQL datadir, or have you"
 			" used DISCARD TABLESPACE?\n"
 			"InnoDB: Look from\n"
-			"InnoDB: http://dev.mysql.com/doc/refman/5.1/en/"
-			"innodb-troubleshooting.html\n"
+			"InnoDB: " REFMAN "innodb-troubleshooting.html\n"
 			"InnoDB: how you can resolve the problem.\n",
 			prebuilt->table->name);
 		return(DB_ERROR);
@@ -1914,9 +1911,8 @@ err_exit:
 		      " and DROP TABLE will\n"
 		      "InnoDB: succeed.\n"
 		      "InnoDB: You can look for further help from\n"
-		      "InnoDB: "
-		      "http://dev.mysql.com/doc/refman/5.1/en/"
-		      "innodb-troubleshooting.html\n", stderr);
+		      "InnoDB: " REFMAN "innodb-troubleshooting.html\n",
+		      stderr);
 
 		/* We may also get err == DB_ERROR if the .ibd file for the
 		table already exists */
@@ -3083,8 +3079,7 @@ row_drop_table_for_mysql(
 		      "InnoDB: MySQL database directory"
 		      " from another database?\n"
 		      "InnoDB: You can look for further help from\n"
-		      "InnoDB: http://dev.mysql.com/doc/refman/5.1/en/"
-		      "innodb-troubleshooting.html\n",
+		      "InnoDB: " REFMAN "innodb-troubleshooting.html\n",
 		      stderr);
 		goto funct_exit;
 	}
@@ -3662,8 +3657,7 @@ row_rename_table_for_mysql(
 		      "InnoDB: MySQL database directory"
 		      " from another database?\n"
 		      "InnoDB: You can look for further help from\n"
-		      "InnoDB: http://dev.mysql.com/doc/refman/5.1/en/"
-		      "innodb-troubleshooting.html\n",
+		      "InnoDB: " REFMAN "innodb-troubleshooting.html\n",
 		      stderr);
 		goto funct_exit;
 	} else if (table->ibd_file_missing) {
@@ -3675,8 +3669,7 @@ row_rename_table_for_mysql(
 		fputs(" does not have an .ibd file"
 		      " in the database directory.\n"
 		      "InnoDB: You can look for further help from\n"
-		      "InnoDB: http://dev.mysql.com/doc/refman/5.1/en/"
-		      "innodb-troubleshooting.html\n",
+		      "InnoDB: " REFMAN "innodb-troubleshooting.html\n",
 		      stderr);
 		goto funct_exit;
 	} else if (new_is_tmp) {
@@ -3828,8 +3821,7 @@ end:
 			      "InnoDB: Have you deleted the .frm file"
 			      " and not used DROP TABLE?\n"
 			      "InnoDB: You can look for further help from\n"
-			      "InnoDB: http://dev.mysql.com/doc/refman/5.1/en/"
-			      "innodb-troubleshooting.html\n"
+			      "InnoDB: " REFMAN "innodb-troubleshooting.html\n"
 			      "InnoDB: If table ", stderr);
 			ut_print_name(stderr, trx, TRUE, new_name);
 			fputs(" is a temporary table #sql..., then"
@@ -4103,8 +4095,7 @@ row_check_table_for_mysql(
 			"InnoDB: the MySQL datadir, or have you"
 			" used DISCARD TABLESPACE?\n"
 			"InnoDB: Look from\n"
-			"InnoDB: http://dev.mysql.com/doc/refman/5.1/en/"
-			"innodb-troubleshooting.html\n"
+			"InnoDB: " REFMAN "innodb-troubleshooting.html\n"
 			"InnoDB: how you can resolve the problem.\n",
 			table->name);
 		return(DB_ERROR);

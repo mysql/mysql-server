@@ -1,5 +1,11 @@
 2009-04-16	The InnoDB Team
 
+	* univ.i:
+	Define REFMAN as the base URL of the MySQL Reference Manual and
+	use the macro in all diagnostic output.
+
+2009-04-16	The InnoDB Team
+
 	* CMakeLists.txt, include/os0sync.h, include/sync0sync.h,
 	include/sync0sync.ic, include/univ.i, srv/srv0start.c,
 	sync/sync0sync.c:
