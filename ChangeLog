@@ -1,3 +1,11 @@
+2009-04-16	The InnoDB Team
+
+	* CMakeLists.txt, include/os0sync.h, include/sync0sync.h,
+	include/sync0sync.ic, include/univ.i, srv/srv0start.c,
+	sync/sync0sync.c:
+	Use the Windows Interlocked functions for atomic memory
+	access.
+
 2009-04-15	The InnoDB Team
 
 	* mysql-test/innodb.result, mysql-test/innodb.test:
