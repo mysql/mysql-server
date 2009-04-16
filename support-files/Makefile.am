@@ -33,7 +33,8 @@ EXTRA_DIST =		mysql.spec.sh \
 			magic mysql.m4 \
 			MySQL-shared-compat.spec.sh \
 			ndb-config-2-node.ini.sh \
-			compiler_warnings.supp
+			compiler_warnings.supp \ 
+			dtrace
 
 SUBDIRS =		MacOSX RHEL4-SElinux
 
