@@ -24,6 +24,7 @@
 #include <signaldata/NdbSttor.hpp>
 #include <signaldata/ReadNodesConf.hpp>
 #include <signaldata/NodeFailRep.hpp>
+#include <signaldata/NodeStateSignalData.hpp>
 #include <signaldata/NFCompleteRep.hpp>
 #include <signaldata/CreateTrigImpl.hpp>
 #include <signaldata/DropTrigImpl.hpp>
@@ -433,6 +434,39 @@ protected:
   void sendINCL_NODEREQ(Signal*, Uint32 ssId);
   void execINCL_NODECONF(Signal*);
   void sendINCL_NODECONF(Signal*, Uint32 ssId);
+
+  // GSN_NODE_STATE_REP
+  struct Ss_NODE_STATE_REP : SsParallel {
+    Ss_NODE_STATE_REP() {
+      m_sendREQ = &LocalProxy::sendNODE_STATE_REP;
+      m_sendCONF = 0;
+    }
+    enum { poolSize = 1 };
+    static SsPool<Ss_NODE_STATE_REP>& pool(LocalProxy* proxy) {
+      return proxy->c_ss_NODE_STATE_REP;
+    }
+  };
+  SsPool<Ss_NODE_STATE_REP> c_ss_NODE_STATE_REP;
+  void execNODE_STATE_REP(Signal*);
+  void sendNODE_STATE_REP(Signal*, Uint32 ssId);
+
+  // GSN_CHANGE_NODE_STATE_REQ
+  struct Ss_CHANGE_NODE_STATE_REQ : SsParallel {
+    ChangeNodeStateReq m_req;
+    Ss_CHANGE_NODE_STATE_REQ() {
+      m_sendREQ = &LocalProxy::sendCHANGE_NODE_STATE_REQ;
+      m_sendCONF = &LocalProxy::sendCHANGE_NODE_STATE_CONF;
+    }
+    enum { poolSize = 1 };
+    static SsPool<Ss_CHANGE_NODE_STATE_REQ>& pool(LocalProxy* proxy) {
+      return proxy->c_ss_CHANGE_NODE_STATE_REQ;
+    }
+  };
+  SsPool<Ss_CHANGE_NODE_STATE_REQ> c_ss_CHANGE_NODE_STATE_REQ;
+  void execCHANGE_NODE_STATE_REQ(Signal*);
+  void sendCHANGE_NODE_STATE_REQ(Signal*, Uint32 ssId);
+  void execCHANGE_NODE_STATE_CONF(Signal*);
+  void sendCHANGE_NODE_STATE_CONF(Signal*, Uint32 ssId);
 
   // GSN_DUMP_STATE_ORD
   struct Ss_DUMP_STATE_ORD : SsParallel {
