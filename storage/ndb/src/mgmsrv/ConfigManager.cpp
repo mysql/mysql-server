@@ -1331,6 +1331,7 @@ ConfigManager::execCONFIG_CHECK_REQ(SignalSender& ss, SimpleSignal* sig)
                        nodeId, generation, other_generation,
                        m_config_state, other_state);
 
+
   switch (m_config_state)
   {
   default:
@@ -1342,8 +1343,14 @@ ConfigManager::execCONFIG_CHECK_REQ(SignalSender& ss, SimpleSignal* sig)
   case CS_INITIAL:
     if (other_state != CS_INITIAL)
     {
-      g_eventLogger->error("Other node are not in INITIAL");
-      exit(1);
+      g_eventLogger->warning("Refusing CONGIG_CHECK_REQ from %u, "
+                             "  it's not CS_INITIAL (I am). "
+                             " Waiting for my check",
+                             nodeId);
+      sendConfigCheckRef(ss, from, ConfigCheckRef::WrongState,
+                         generation, other_generation,
+                         m_config_state, other_state);
+      return;
     }
 
     require(generation == 0);
@@ -1490,14 +1497,30 @@ ConfigManager::execCONFIG_CHECK_REF(SignalSender& ss, SimpleSignal* sig)
   const ConfigCheckRef* const ref =
     CAST_CONSTPTR(ConfigCheckRef, sig->getDataPtr());
 
-  g_eventLogger->error("Got CONFIG_CHECK_REF from node %d, "   \
-                       "error: %d, message: '%s'\n"            \
-                       "generation: %d, expected generation: %d\n"\
-                       "state: %d, expected state: %d",
-                       nodeId, ref->error,
-                       ConfigCheckRef::errorMessage(ref->error),
-                       ref->generation, ref->expected_generation,
-                       ref->state, ref->expected_state);
+  g_eventLogger->info("Got CONFIG_CHECK_REF from node %d, "
+                      "error: %d, message: '%s'\n"
+                      "generation: %d, expected generation: %d\n"
+                      "state: %d, expected state: %d own-state: %u",
+                      nodeId, ref->error,
+                      ConfigCheckRef::errorMessage(ref->error),
+                      ref->generation, ref->expected_generation,
+                      ref->state, ref->expected_state,
+                      m_config_state);
+  
+  if (m_config_state != CS_INITIAL &&
+      ref->expected_state == CS_INITIAL)
+  {
+    g_eventLogger->info("Waiting for peer");
+    return;
+  }
+
+  if (m_config_state == CS_INITIAL)
+  {
+    g_eventLogger->info("Waiting");
+    return;
+  }
+  
+  g_eventLogger->error("Terminating");
   exit(1);
 }
 
