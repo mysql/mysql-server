@@ -9,6 +9,8 @@ DB_ENV *env;
 
 enum {MAX_NAME=128};
 
+enum {NUM_FIXED_ROWS=4097};   // 4K + 1
+
 typedef struct {
     DB*       db;
     u_int32_t flags;
@@ -16,19 +18,31 @@ typedef struct {
     int       num;
 } DICTIONARY_S, *DICTIONARY;
 
-static void
+// Only useful for single threaded testing, 
+// but can be accessed from checkpoint_callback.
+static DICTIONARY test_dictionary = NULL;
+static int iter = 0;  // horrible technique, but quicker than putting in extra (this is just test code, not product code)
+
+
+// return 0 if same
+static int
 verify_identical_dbts(const DBT *dbt1, const DBT *dbt2) {
-    assert(dbt1->size == dbt2->size);
-    assert(memcmp(dbt1->data, dbt2->data, dbt1->size)==0);
+    int r = 0;
+    if (dbt1->size != dbt2->size) r = 1;
+    else if (memcmp(dbt1->data, dbt2->data, dbt1->size)!=0) r = 1;
+    return r;
 }
 
-static void
+// return 0 if same
+static int
 compare_dbs(DB *compare_db1, DB *compare_db2) {
     //This does not lock the dbs/grab table locks.
     //This means that you CANNOT CALL THIS while another thread is modifying the db.
     //You CAN call it while a txn is open however.
+    int rval = 0;
     DB_TXN *compare_txn;
-    int r = env->txn_begin(env, NULL, &compare_txn, DB_READ_UNCOMMITTED);
+    int r, r1, r2;
+    r = env->txn_begin(env, NULL, &compare_txn, DB_READ_UNCOMMITTED);
         CKERR(r);
     DBC *c1;
     DBC *c2;
@@ -46,18 +60,17 @@ compare_dbs(DB *compare_db1, DB *compare_db2) {
     dbt_init_realloc(&val2);
 
     do {
-        int r1 = c1->c_get(c1, &key1, &val1, DB_NEXT);
-        int r2 = c2->c_get(c2, &key2, &val2, DB_NEXT);
+        r1 = c1->c_get(c1, &key1, &val1, DB_NEXT);
+        r2 = c2->c_get(c2, &key2, &val2, DB_NEXT);
         assert(r1==0 || r1==DB_NOTFOUND);
         assert(r2==0 || r2==DB_NOTFOUND);
-        assert(r1==r2);
-        r = r1;
-        if (r==0) {
+	if (r1!=r2) rval = 1;
+        else if (r1==0 && r2==0) {
             //Both found
-            verify_identical_dbts(&key1, &key2);
-            verify_identical_dbts(&val1, &val2);
+            rval = verify_identical_dbts(&key1, &key2) |
+		   verify_identical_dbts(&val1, &val2);
         }
-    } while (r==0);
+    } while (r1==0 && r2==0 && rval==0);
     c1->c_close(c1);
     c2->c_close(c2);
     if (key1.data) toku_free(key1.data);
@@ -65,6 +78,7 @@ compare_dbs(DB *compare_db1, DB *compare_db2) {
     if (key2.data) toku_free(key2.data);
     if (val2.data) toku_free(val2.data);
     compare_txn->commit(compare_txn, 0);
+    return rval;
 }
 
 static void
@@ -101,6 +115,7 @@ fill_name(DICTIONARY d, char *buf, int bufsize) {
         assert(bytes>0);
         assert(bytes>(int)strlen(d->filename));
         assert(bytes<bufsize);
+	assert(buf[bytes] == 0);
 }
 
 static void
@@ -110,6 +125,7 @@ fill_full_name(DICTIONARY d, char *buf, int bufsize) {
         assert(bytes>0);
         assert(bytes>(int)strlen(d->filename));
         assert(bytes<bufsize);
+	assert(buf[bytes] == 0);
 }
 
 static void
@@ -237,6 +253,39 @@ insert_random(DB *db1, DB *db2, DB_TXN *txn) {
 }
 
 static void
+insert_n_fixed(DB *db1, DB *db2, DB_TXN *txn, int firstkey, int n) {
+    int64_t k;
+    int64_t v;
+    int r;
+    DBT key;
+    DBT val;
+    int i;
+
+    //    printf("enter %s, iter = %d\n", __FUNCTION__, iter);
+    //    printf("db1 = 0x%08lx, db2 = 0x%08lx, *txn = 0x%08lx, firstkey = %d, n = %d\n",
+    //	   (unsigned long) db1, (unsigned long) db2, (unsigned long) txn, firstkey, n);
+	
+
+    fflush(stdout);
+
+    for (i = 0; i<n; i++) {
+	k = firstkey + i;
+	v = k + 271828;          // arbitrary difference between key and value, naturally
+	dbt_init(&key, &k, sizeof(k));
+	dbt_init(&val, &v, sizeof(v));
+	if (db1) {
+	    r = db1->put(db1, txn, &key, &val, DB_YESOVERWRITE);
+            CKERR(r);
+	}
+	if (db2) {
+	    r = db2->put(db2, txn, &key, &val, DB_YESOVERWRITE);
+            CKERR(r);
+	}
+    }
+}
+
+
+static void
 snapshot(DICTIONARY d, int do_checkpoint) {
     if (do_checkpoint) {
         env->txn_checkpoint(env, 0, 0, 0);
@@ -247,14 +296,17 @@ snapshot(DICTIONARY d, int do_checkpoint) {
     }
 }
 
-// Only useful for single threaded testing, 
-// but can be accessed from checkpoint_callback.
-static DICTIONARY test_dictionary = NULL;
-
 static void
 checkpoint_test_1(u_int32_t flags, u_int32_t n, int snap_all) {
+    if (verbose) { 
+        printf("%s(%s):%d, n=0x%03x, checkpoint=%01x, flags=0x%05x\n", 
+               __FILE__, __FUNCTION__, __LINE__, 
+               n, snap_all, flags); 
+        fflush(stdout); 
+    }
     env_startup();
-    int runs;
+    int run;
+    int r;
     DICTIONARY_S db_control;
     init_dictionary(&db_control, flags, "control");
     DICTIONARY_S db_test;
@@ -264,7 +316,7 @@ checkpoint_test_1(u_int32_t flags, u_int32_t n, int snap_all) {
     db_startup(&db_test, NULL);
     db_startup(&db_control, NULL);
     const int num_runs = 4;
-    for (runs = 0; runs < num_runs; runs++) {
+    for (run = 0; run < num_runs; run++) {
         u_int32_t i;
         for (i=0; i < n/2/num_runs; i++)
             insert_random(db_test.db, db_control.db, NULL);
@@ -272,7 +324,8 @@ checkpoint_test_1(u_int32_t flags, u_int32_t n, int snap_all) {
         for (i=0; i < n/2/num_runs; i++)
             insert_random(db_test.db, NULL, NULL);
         db_replace(&db_test, NULL);
-        compare_dbs(db_test.db, db_control.db);
+        r = compare_dbs(db_test.db, db_control.db);
+	assert(r==0);
     }
     db_shutdown(&db_test);
     db_shutdown(&db_control);
@@ -280,26 +333,60 @@ checkpoint_test_1(u_int32_t flags, u_int32_t n, int snap_all) {
 }
 
 static void
-runtests(u_int32_t flags, u_int32_t n, int snap_all) {
-    if (verbose) {
-        printf("%s(%s):%d, n=%03x, checkpoint=%01x, flags=%05x\n",
+checkpoint_test_2(u_int32_t flags, u_int32_t n) {
+    if (verbose) { 
+        printf("%s(%s):%d, n=0x%03x, checkpoint=%01x, flags=0x%05x\n", 
                __FILE__, __FUNCTION__, __LINE__, 
-               n, snap_all, flags);
-        fflush(stdout);
+               n, 1, flags); 
+	printf("Verify that inserts done during checkpoint are effective\n");
+        fflush(stdout); 
     }
-    checkpoint_test_1(flags, n, snap_all);
+    env_startup();
+    int run;
+    int r;
+    DICTIONARY_S db_control;
+    init_dictionary(&db_control, flags, "control");
+    DICTIONARY_S db_test;
+    init_dictionary(&db_test, flags, "test");
+    test_dictionary = &db_test;
+
+    db_startup(&db_test, NULL);
+    db_startup(&db_control, NULL);
+    const int num_runs = 4;
+    for (run = 0; run < num_runs; run++) {
+	iter = run;
+        u_int32_t i;
+        for (i=0; i < n/2/num_runs; i++)
+            insert_random(db_test.db, db_control.db, NULL);
+	r = compare_dbs(db_test.db, db_control.db);
+	assert(r==0);
+        snapshot(&db_test, TRUE);  // take checkpoint, insert into test db during checkpoint callback
+	r = compare_dbs(db_test.db, db_control.db);
+	// test and control should be different 
+	assert(r!=0);
+	// now insert same rows into control and they should be same 
+	insert_n_fixed(db_control.db, NULL, NULL, iter * NUM_FIXED_ROWS, NUM_FIXED_ROWS);
+	r = compare_dbs(db_test.db, db_control.db);
+	assert(r==0);
+    }
+    db_shutdown(&db_test);
+    db_shutdown(&db_control);
+    env_shutdown();
 }
+
+
+ 
 
 // Purpose is to scribble over test db while checkpoint is 
 // in progress.
-void checkpoint_callback(void * extra) {
-    DICTIONARY d = (DICTIONARY) extra;
+void checkpoint_callback_1(void * extra) {
+    DICTIONARY d = *(DICTIONARY*) extra;
     int i;
     char name[MAX_NAME*2];
     fill_name(d, name, sizeof(name));
 
     if (verbose) {
-	printf("checkpoint callback inserting randomly into %s\n",
+	printf("checkpoint_callback_1 inserting randomly into %s\n",
 	       name);
 	fflush(stdout);
     }
@@ -307,6 +394,21 @@ void checkpoint_callback(void * extra) {
 	insert_random(d->db, NULL, NULL);
     
 }
+
+void checkpoint_callback_2(void * extra) {
+    DICTIONARY d = *(DICTIONARY*) extra;
+    assert(d==test_dictionary);
+    char name[MAX_NAME*2];
+    fill_name(d, name, sizeof(name));
+
+    if (verbose) {
+	printf("checkpoint_callback_2 inserting fixed rows into %s\n",
+	       name);
+	fflush(stdout);
+    }
+    insert_n_fixed(d->db, NULL, NULL, iter * NUM_FIXED_ROWS, NUM_FIXED_ROWS);
+}
+
 
 int
 test_main (int argc, const char *argv[]) {
@@ -316,18 +418,20 @@ test_main (int argc, const char *argv[]) {
 
     n = 0;
     for (snap = 0; snap < 2; snap++) {
-        runtests(0, n, snap);
-        runtests(DB_DUP|DB_DUPSORT, n, snap);
+        checkpoint_test_1(0, n, snap);
+        checkpoint_test_1(DB_DUP|DB_DUPSORT, n, snap);
     }
     for (n = 1; n <= 1<<9; n*= 2) {
         for (snap = 0; snap < 2; snap++) {
-            runtests(0, n, snap);
-            runtests(DB_DUP|DB_DUPSORT, n, snap);
+            checkpoint_test_1(0, n, snap);
+            checkpoint_test_1(DB_DUP|DB_DUPSORT, n, snap);
         }
     }
 
-    db_env_set_checkpoint_callback(checkpoint_callback, (void*) test_dictionary);
-    runtests(0,4096,1);
+    db_env_set_checkpoint_callback(checkpoint_callback_1, &test_dictionary);
+    checkpoint_test_1(0,4096,1);
+    db_env_set_checkpoint_callback(checkpoint_callback_2, &test_dictionary);
+    checkpoint_test_2(0,4096);
     db_env_set_checkpoint_callback(NULL, NULL);
 
     return 0;
