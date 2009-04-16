@@ -3055,7 +3055,7 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
                                   buf, 
                                   sizeof(buf)),
 	      NDB_VERSION_STRING,
-              extra ? extra : 0);
+              extra ? extra : "");
     apiNodePtr.p->phase = ZAPI_INACTIVE;
     sendApiRegRef(signal, ref, ApiRegRef::UnsupportedVersion);
     return;
