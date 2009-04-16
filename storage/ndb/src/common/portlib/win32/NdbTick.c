@@ -31,11 +31,18 @@ NDB_TICKS NdbTick_CurrentMillisecond(void)
 int
 NdbTick_CurrentMicrosecond(NDB_TICKS * secs, Uint32 * micros)
 {
-  LARGE_INTEGER liCount, liFreq;
-  QueryPerformanceCounter(&liCount);
-  QueryPerformanceFrequency(&liFreq);
-  *secs = liCount.QuadPart / liFreq.QuadPart;
-  liCount.QuadPart -= *secs * liFreq.QuadPart;
-  *micros = (Uint32)((liCount.QuadPart*1000000) / liFreq.QuadPart);
+  ulonglong time, timemicro, micropart, secpart;
+
+  GetSystemTimeAsFileTime((FILETIME*)&time);
+  timemicro = time/10;
+  
+  secpart   = timemicro/1000000;
+  micropart = timemicro%1000000;
+  assert(micropart <= ULONG_MAX);
+  assert(secpart*1000000+micropart == timemicro);
+
+  *micros = (Uint32)micropart;
+  *secs = secpart;
+
   return 0;
 }
