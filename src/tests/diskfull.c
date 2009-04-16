@@ -46,7 +46,7 @@ do_db_work(void) {
 	r=env->txn_begin(env, 0, &tid, 0);                                         assert(r==0);
 	r=db->put(db, tid, dbt_init(&key, "a", 2), dbt_init(&data, "b", 2), 0);    DOERR(r);
 	if (did_fail) {
-	    r = tid->abort(tid);                                                   CKERR(r);
+	    r = tid->abort(tid);                                                   CKERR2s(r, 0, ENOSPC);
 	} else {
 	    r=tid->commit(tid, 0);                                                 DOERR(r);
 	}
@@ -83,7 +83,7 @@ do_db_work(void) {
 	r=env->txn_begin(env, 0, &tid, 0);                                         assert(r==0);
 	r=db->open(db, tid, "foo.db", 0, DB_BTREE, DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); DOERR(r);
 	if (did_fail) {
-	    r = tid->abort(tid);                                                   CKERR(r);
+	    r = tid->abort(tid);                                                   CKERR2s(r, 0, ENOSPC);
 	} else {
 	    r=tid->commit(tid, 0);                                                 DOERR(r);
 	}
@@ -120,7 +120,7 @@ do_db_work(void) {
     break_out_of_loop:
 	//system("ls -l " ENVDIR);
 	if (did_fail) {
-	    r=tid->abort(tid);                                                     CKERR(r);
+	    r = tid->abort(tid);                                                   CKERR2s(r, 0, ENOSPC);
 	} else {
 	    r=tid->commit(tid, 0);                                                 DOERR(r);
 	}
