@@ -146,7 +146,6 @@ public:
     void (* unlock)(void);
   };
 
-  bool load(LockFun, Cache&, Uint32 n);
   bool seize(LockFun, Cache&, Ptr<T> &);
   void release(LockFun, Cache&, Uint32 i);
   void release(LockFun, Cache&, Ptr<T> &);
