@@ -412,12 +412,23 @@ void checkpoint_callback_2(void * extra) {
 	insert_n_fixed(d->db, NULL, NULL, iter * NUM_FIXED_ROWS, NUM_FIXED_ROWS);
     }
     else {
+	DICTIONARY_S db_temp;
+	init_dictionary(&db_temp, 0, "temp");
+	int i;
 	if (verbose) {
 	    printf("checkpoint_callback_2 closing %s\n",
 		   name);
 	    fflush(stdout);
 	}
 	db_shutdown(d);
+	if (verbose) {
+	    printf("checkpoint_callback_2 opening and closing unrelated dictionary\n");
+	    fflush(stdout);
+	}
+	db_startup(&db_temp, NULL);
+	for (i=0; i<1025; i++)
+	    insert_random(db_temp.db, NULL, NULL);
+	db_shutdown(&db_temp);	
     }
 }
 
