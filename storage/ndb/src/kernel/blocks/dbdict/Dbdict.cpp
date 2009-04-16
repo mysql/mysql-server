@@ -139,6 +139,14 @@ create_obj_inc_schema_version(Uint32 old)
   return (old + 0x00000001) & 0x00FFFFFF;
 }
 
+static
+void
+do_swap(Uint32 & v0, Uint32 & v1)
+{
+  Uint32 save = v0;
+  v0 = v1;
+  v1 = save;
+}
 
 /* **************************************************************** */
 /* ---------------------------------------------------------------- */
@@ -2230,21 +2238,20 @@ Uint32 Dbdict::getFsConnRecord()
  */
 Uint32 Dbdict::getFreeObjId(Uint32 minId)
 {
-  const XSchemaFile * xsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
-  Uint32 noOfPages = xsf->noOfPages;
-  Uint32 n, i;
-  for (n = 0; n < noOfPages; n++) {
-    jam();
-    const SchemaFile * sf = &xsf->schemaPage[n];
-    for (i = 0; i < NDB_SF_PAGE_ENTRIES; i++) {
-      const SchemaFile::TableEntry& te = sf->TableEntries[i];
-      if (te.m_tableState == (Uint32)SchemaFile::SF_UNUSED)
+  const XSchemaFile * newxsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
+  const XSchemaFile * oldxsf = &c_schemaFile[SchemaRecord::OLD_SCHEMA_FILE];
+  const Uint32 noOfEntries = newxsf->noOfPages * NDB_SF_PAGE_ENTRIES;
+  for (Uint32 i = 0; i<noOfEntries; i++)
+  {
+    const SchemaFile::TableEntry * oldentry = getTableEntry(oldxsf, i);
+    const SchemaFile::TableEntry * newentry = getTableEntry(newxsf, i);
+    if (newentry->m_tableState == (Uint32)SchemaFile::SF_UNUSED)
+    {
+      jam();
+      if (oldentry->m_tableState == (Uint32)SchemaFile::SF_UNUSED)
       {
-        // minId is obsolete anyway
-        if (minId <= n * NDB_SF_PAGE_ENTRIES + i)
-        {
-          return n * NDB_SF_PAGE_ENTRIES + i;
-        }
+        jam();
+        return i;
       }
     }
   }
@@ -3480,9 +3487,14 @@ void Dbdict::checkSchemaStatus(Signal* signal)
 
       if (masterState != SchemaFile::SF_IN_USE)
       {
-        ownEntry->init();
+        if (ownEntry->m_tableType != DictTabInfo::SchemaTransaction)
+        {
+          jam();
+          ownEntry->init();
+        }
         continue;
       }
+
       /**
        * handle table(index) special as DIH has already copied
        *   table (using COPY_TABREQ)
@@ -4982,6 +4994,17 @@ Dbdict::execCREATE_TABLE_REQ(Signal* signal)
   }
   SectionHandle handle(this, signal);
 
+  if (check_sender_version(signal, MAKE_VERSION(6,4,0)) < 0)
+  {
+    jam();
+    /**
+     * Pekka has for some obscure reason switched places of
+     *   senderRef/senderData
+     */
+    CreateTableReq* tmp = (CreateTableReq*)signal->getDataPtr();
+    do_swap(tmp->senderRef, tmp->senderData);
+  }
+
   const CreateTableReq req_copy =
     *(const CreateTableReq*)signal->getDataPtr();
   const CreateTableReq* req = &req_copy;
@@ -6465,6 +6488,17 @@ Dbdict::execDROP_TABLE_REQ(Signal* signal)
   }
   SectionHandle handle(this, signal);
 
+  if (check_sender_version(signal, MAKE_VERSION(6,4,0)) < 0)
+  {
+    jam();
+    /**
+     * Pekka has for some obscure reason switched places of
+     *   senderRef/senderData
+     */
+    DropTableReq * tmp = (DropTableReq*)signal->getDataPtr();
+    do_swap(tmp->senderRef, tmp->senderData);
+  }
+
   const DropTableReq req_copy =
     *(const DropTableReq*)signal->getDataPtr();
   const DropTableReq* req = &req_copy;
@@ -7137,6 +7171,17 @@ Dbdict::check_ndb_versions() const
   return true;
 }
 
+int
+Dbdict::check_sender_version(const Signal* signal, Uint32 version) const
+{
+  Uint32 ver = getNodeInfo(refToNode(signal->getSendersBlockRef())).m_version;
+  if (ver < version)
+    return -1;
+  else if (ver > version)
+    return 1;
+  return 0;
+}
+
 void
 Dbdict::execALTER_TABLE_REQ(Signal* signal)
 {
@@ -7147,6 +7192,18 @@ Dbdict::execALTER_TABLE_REQ(Signal* signal)
     return;
   }
   SectionHandle handle(this, signal);
+
+  if (check_sender_version(signal, MAKE_VERSION(6,4,0)) < 0)
+  {
+    jam();
+    /**
+     * Pekka has for some obscure reason switched places of
+     *   senderRef/senderData
+     */
+    AlterTableReq * tmp = (AlterTableReq*)signal->getDataPtr();
+    do_swap(tmp->clientRef, tmp->clientData);
+  }
+
   const AlterTableReq req_copy =
     *(const AlterTableReq*)signal->getDataPtr();
   const AlterTableReq* req = &req_copy;
@@ -9835,6 +9892,17 @@ Dbdict::execCREATE_INDX_REQ(Signal* signal)
   }
   SectionHandle handle(this, signal);
 
+  if (check_sender_version(signal, MAKE_VERSION(6,4,0)) < 0)
+  {
+    jam();
+    /**
+     * Pekka has for some obscure reason switched places of
+     *   senderRef/senderData
+     */
+    CreateIndxReq * tmp = (CreateIndxReq*)signal->getDataPtr();
+    do_swap(tmp->clientRef, tmp->clientData);
+  }
+
   const CreateIndxReq req_copy =
     *(const CreateIndxReq*)signal->getDataPtr();
   const CreateIndxReq* req = &req_copy;
@@ -10543,6 +10611,17 @@ Dbdict::execDROP_INDX_REQ(Signal* signal)
     return;
   }
   SectionHandle handle(this, signal);
+
+  if (check_sender_version(signal, MAKE_VERSION(6,4,0)) < 0)
+  {
+    jam();
+    /**
+     * Pekka has for some obscure reason switched places of
+     *   senderRef/senderData
+     */
+    DropIndxReq * tmp = (DropIndxReq*)signal->getDataPtr();
+    do_swap(tmp->clientRef, tmp->clientData);
+  }
 
   const DropIndxReq req_copy =
     *(const DropIndxReq*)signal->getDataPtr();
@@ -18377,6 +18456,17 @@ Dbdict::getTableEntry(XSchemaFile * xsf, Uint32 tableId)
   return &sf->TableEntries[i];
 }
 
+const SchemaFile::TableEntry *
+Dbdict::getTableEntry(const XSchemaFile * xsf, Uint32 tableId)
+{
+  Uint32 n = tableId / NDB_SF_PAGE_ENTRIES;
+  Uint32 i = tableId % NDB_SF_PAGE_ENTRIES;
+  ndbrequire(n < xsf->noOfPages);
+
+  SchemaFile * sf = &xsf->schemaPage[n];
+  return &sf->TableEntries[i];
+}
+
 //******************************************
 
 // MODULE: CreateFile
@@ -22247,7 +22337,7 @@ Dbdict::execSCHEMA_TRANS_BEGIN_REQ(Signal* signal)
       break;
     }
 
-    if (!check_ndb_versions())
+    if (!check_ndb_versions() && !localTrans)
     {
       jam();
       setError(error, SchemaTransBeginRef::IncompatibleVersions, __LINE__);
