@@ -53,8 +53,11 @@ static inline void thd_data_set(THD *thd, int slot, void *data) {
 #define lockretry lockretryN(100)
 
 #define lockretry_wait \
-    TOKUDB_TRACE("%s count=%d\n", __FUNCTION__, lockretrycount);    \
-    usleep((lockretrycount<4 ? (1<<lockretrycount) : (1<<3)) * 1024)
+    do { \
+        if (tokudb_debug & TOKUDB_DEBUG_LOCKRETRY) \
+            TOKUDB_TRACE("%s count=%d\n", __FUNCTION__, lockretrycount); \
+        usleep((lockretrycount<4 ? (1<<lockretrycount) : (1<<3)) * 1024); \
+    } while (0)
 
 /** @brief
     Simple lock controls. The "share" it creates is a structure we will
