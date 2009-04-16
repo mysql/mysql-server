@@ -1176,6 +1176,9 @@ static int remove_txn (OMTVALUE brtv, u_int32_t UU(idx), void *txnv) {
         assert(brt->close_db);
         r = brt->close_db(brt->db, brt->close_flags);
     }
+    if (txn->txnid64==brt->h->txnid_that_created_or_locked_when_empty) {
+        brt->h->txnid_that_created_or_locked_when_empty = 0;
+    }
     return r;
 }
 
