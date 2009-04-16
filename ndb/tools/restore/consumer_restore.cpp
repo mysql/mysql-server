@@ -556,7 +556,7 @@ BackupRestore::logEntry(const LogEntry & tup)
   NdbTransaction * trans = m_ndb->startTransaction();
   if (trans == NULL) 
   {
-    // Deep shit, TODO: handle the error
+    // TODO: handle the error
     err << "Cannot start transaction" << endl;
     exitHandler();
   } // if
@@ -693,7 +693,7 @@ BackupRestore::tuple(const TupleS & tup)
     NdbTransaction * trans = m_ndb->startTransaction();
     if (trans == NULL) 
     {
-      // Deep shit, TODO: handle the error
+      // TODO: handle the error
       ndbout << "Cannot start transaction" << endl;
       exitHandler();
     } // if
