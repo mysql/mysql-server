@@ -82,6 +82,7 @@ class ChangeNodeStateConf {
    * Reciver
    */
   friend class NdbCntr;
+  friend class LocalProxy;
   
 public:
   STATIC_CONST( SignalLength = 1 );

@@ -852,6 +852,8 @@ private:
   void execALTER_TABLE_REF(Signal* signal);
   void execALTER_TABLE_CONF(Signal* signal);
   bool check_ndb_versions() const;
+  int check_sender_version(const Signal* signal, Uint32 version) const;
+
 
   void execCREATE_FILE_REQ(Signal* signal);
   void execCREATE_FILEGROUP_REQ(Signal* signal);
@@ -1110,6 +1112,7 @@ private:
   bool validateChecksum(const XSchemaFile *);
   SchemaFile::TableEntry * getTableEntry(Uint32 tableId);
   SchemaFile::TableEntry * getTableEntry(XSchemaFile *, Uint32 tableId);
+  const SchemaFile::TableEntry * getTableEntry(const XSchemaFile*, Uint32);
 
   Uint32 computeChecksum(const Uint32 * src, Uint32 len);
 
