@@ -213,8 +213,8 @@ protected:
   template <class Ss>
   Ss& ssSeize() {
     const Uint32 base = SsIdBase;
-    const Uint32 mask = Uint32(Int32(SsIdBase) - 1);
-    Uint32 ssId = base | c_ssIdSeq;
+    const Uint32 mask = ~base;
+    const Uint32 ssId = base | c_ssIdSeq;
     c_ssIdSeq = (c_ssIdSeq + 1) & mask;
     return ssSeize<Ss>(ssId);
   }
