@@ -17780,7 +17780,16 @@ void Dbdict::check_takeover_replies(Signal* signal)
     pending_trans = c_schemaTransList.next(trans_ptr);
   }
 
-  masterNodePtr.p->recoveryState = NodeRecord::RS_NORMAL;
+  /* 
+     Initialize all node recovery states 
+  */
+  for (unsigned i = 1; i < MAX_NDB_NODES; i++) {
+    jam();
+    NodeRecordPtr nodePtr;
+    c_nodes.getPtr(nodePtr, i);
+    nodePtr.p->recoveryState = NodeRecord::RS_NORMAL;
+  }
+
   pending_trans = c_schemaTransList.first(trans_ptr);
   while (pending_trans)
   {
@@ -17796,7 +17805,6 @@ void Dbdict::check_takeover_replies(Signal* signal)
       {
         jam();
         c_nodes.getPtr(nodePtr, i);
-        nodePtr.p->recoveryState = NodeRecord::RS_NORMAL;
 #ifdef VM_TRACE
         ndbout_c("Node %u had %u operations, master has %u",i , nodePtr.p->takeOverConf.op_count, masterNodePtr.p->takeOverConf.op_count);
 #endif        
@@ -17813,7 +17821,6 @@ void Dbdict::check_takeover_replies(Signal* signal)
 #ifdef VM_TRACE
             ndbout_c("Node %u had no operations for  transaction %u, ignore it when aborting", i, trans_ptr.p->trans_key);
 #endif
-            nodePtr.p->recoveryState = NodeRecord::RS_PARTIAL_ROLLBACK;
             nodePtr.p->start_op = 0;
             nodePtr.p->start_op_state = SchemaOp::OS_PARSED;
           }
@@ -22167,6 +22174,9 @@ Dbdict::seizeSchemaTrans(SchemaTransPtr& trans_ptr)
     c_opRecordSequence = trans_key;
     return true;
   }
+#ifdef MARTIN
+  ndbout_c("Dbdict::seizeSchemaTrans: Failed to seize schema trans");
+#endif
   return false;
 }
 
@@ -23214,7 +23224,7 @@ Dbdict::check_partial_trans_abort_parse_next(SchemaTransPtr trans_ptr,
         jam();
         c_nodes.getPtr(nodePtr, i);
 #ifdef VM_TRACE
-        ndbout_c("Checking node %u(%u), %u<%u", nodePtr.i, nodePtr.p->recoveryState, nodePtr.p->start_op, op_ptr.p->op_key);
+        ndbout_c("Checking node %u(%u), %u(%u)<%u", nodePtr.i, nodePtr.p->recoveryState, nodePtr.p->start_op, nodePtr.p->start_op_state, op_ptr.p->op_key);
 #endif
         if (nodePtr.p->recoveryState == NodeRecord::RS_PARTIAL_ROLLBACK &&
             //nodePtr.p->start_op_state == SchemaOp::OS_PARSED &&
@@ -23371,13 +23381,15 @@ Dbdict::check_partial_trans_abort_prepare_next(SchemaTransPtr trans_ptr,
       {
         c_nodes.getPtr(nodePtr, i);
 #ifdef VM_TRACE
-        ndbout_c("Checking node %u(%u), %u<%u", nodePtr.i, nodePtr.p->recoveryState, nodePtr.p->start_op, op_ptr.p->op_key);
+        ndbout_c("Checking node %u(%u), %u(%u)<%u", nodePtr.i, nodePtr.p->recoveryState, nodePtr.p->start_op, nodePtr.p->start_op_state, op_ptr.p->op_key);
 #endif
         if (nodePtr.p->recoveryState == NodeRecord::RS_PARTIAL_ROLLBACK &&
+            (nodePtr.p->start_op_state == SchemaOp::OS_PARSED &&
+              nodePtr.p->start_op <= op_ptr.p->op_key) ||
             (nodePtr.p->start_op_state == SchemaOp::OS_PREPARED &&
               nodePtr.p->start_op < op_ptr.p->op_key) ||
             (nodePtr.p->start_op_state == SchemaOp::OS_ABORTED_PREPARE &&
-             nodePtr.p->start_op > op_ptr.p->op_key))
+             nodePtr.p->start_op >= op_ptr.p->op_key))
                
         {
 #ifdef VM_TRACE
@@ -24767,7 +24779,8 @@ Dbdict::slave_run_flush(Signal *signal,
     else
     {
       jam();
-      ndbrequire(trans_ptr.p->m_state == SchemaTrans::TS_STARTED);
+      ndbrequire(trans_ptr.p->m_state == SchemaTrans::TS_STARTED ||
+                 trans_ptr.p->m_state == SchemaTrans::TS_ABORTING_PARSE);
       trans_ptr.p->m_state = SchemaTrans::TS_FLUSH_PREPARE;
     }
     do_flush = trans_ptr.p->m_flush_prepare;
