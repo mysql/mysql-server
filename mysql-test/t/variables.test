@@ -36,6 +36,7 @@ set @my_slow_launch_time          =@@global.slow_launch_time;
 set @my_storage_engine            =@@global.storage_engine;
 set @my_thread_cache_size         =@@global.thread_cache_size;
 set @my_max_allowed_packet        =@@global.max_allowed_packet;
+set @my_join_buffer_size          =@@global.join_buffer_size;
 # case insensitivity tests (new in 5.0)
 set @`test`=1;
 select @test, @`test`, @TEST, @`TEST`, @"teSt";
@@ -780,6 +781,18 @@ show variables like 'hostname';
 
 --echo End of 5.0 tests
 
+#
+# Bug#36446: Attempt to set @@join_buffer_size to its minimum value
+#            produces spurious warning
+#
+
+# set to 1 so mysqld will correct to minimum (+ warn)
+set join_buffer_size=1;
+# save minimum
+set @save_join_buffer_size=@@join_buffer_size;
+# set minimum
+set join_buffer_size=@save_join_buffer_size;
+
 # This is at the very after the versioned tests, since it involves doing
 # cleanup
 #
@@ -816,6 +829,8 @@ set global slow_launch_time          =@my_slow_launch_time;
 set global storage_engine            =@my_storage_engine;
 set global thread_cache_size         =@my_thread_cache_size;
 set global max_allowed_packet        =@my_max_allowed_packet;
+set global join_buffer_size          =@my_join_buffer_size;
+
 #
 # Bug#28580 Repeatation of status variables
 #

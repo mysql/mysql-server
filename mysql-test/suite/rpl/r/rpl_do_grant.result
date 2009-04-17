@@ -89,3 +89,81 @@ show grants for rpl_do_grant2@localhost;
 ERROR 42000: There is no such grant defined for user 'rpl_do_grant2' on host 'localhost'
 show grants for rpl_do_grant2@localhost;
 ERROR 42000: There is no such grant defined for user 'rpl_do_grant2' on host 'localhost'
+DROP DATABASE IF EXISTS bug42217_db;
+CREATE DATABASE  bug42217_db;
+GRANT CREATE ROUTINE ON bug42217_db.* TO 'create_rout_db'@'localhost'
+        IDENTIFIED BY 'create_rout_db' WITH GRANT OPTION;
+USE bug42217_db;
+CREATE FUNCTION upgrade_del_func() RETURNS CHAR(30)
+BEGIN
+RETURN "INSIDE upgrade_del_func()";
+END//
+USE bug42217_db;
+SELECT * FROM mysql.procs_priv;
+Host	Db	User	Routine_name	Routine_type	Grantor	Proc_priv	Timestamp
+localhost	bug42217_db	create_rout_db	upgrade_del_func	FUNCTION	create_rout_db@localhost	Execute,Alter Routine	#
+SELECT upgrade_del_func();
+upgrade_del_func()
+INSIDE upgrade_del_func()
+SELECT * FROM mysql.procs_priv;
+Host	Db	User	Routine_name	Routine_type	Grantor	Proc_priv	Timestamp
+localhost	bug42217_db	create_rout_db	upgrade_del_func	FUNCTION	create_rout_db@localhost	Execute,Alter Routine	#
+SHOW GRANTS FOR 'create_rout_db'@'localhost';
+Grants for create_rout_db@localhost
+GRANT USAGE ON *.* TO 'create_rout_db'@'localhost' IDENTIFIED BY PASSWORD '*08792480350CBA057BDE781B9DF183B263934601'
+GRANT CREATE ROUTINE ON `bug42217_db`.* TO 'create_rout_db'@'localhost' WITH GRANT OPTION
+GRANT EXECUTE, ALTER ROUTINE ON FUNCTION `bug42217_db`.`upgrade_del_func` TO 'create_rout_db'@'localhost'
+USE bug42217_db;
+SHOW CREATE FUNCTION upgrade_del_func;
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+upgrade_del_func		CREATE DEFINER=`create_rout_db`@`localhost` FUNCTION `upgrade_del_func`() RETURNS char(30) CHARSET latin1
+BEGIN
+RETURN "INSIDE upgrade_del_func()";
+END	latin1	latin1_swedish_ci	latin1_swedish_ci
+SELECT upgrade_del_func();
+upgrade_del_func()
+INSIDE upgrade_del_func()
+"Check whether the definer user will be able to execute the replicated routine on slave"
+USE bug42217_db;
+SHOW CREATE FUNCTION upgrade_del_func;
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+upgrade_del_func		CREATE DEFINER=`create_rout_db`@`localhost` FUNCTION `upgrade_del_func`() RETURNS char(30) CHARSET latin1
+BEGIN
+RETURN "INSIDE upgrade_del_func()";
+END	latin1	latin1_swedish_ci	latin1_swedish_ci
+SELECT upgrade_del_func();
+upgrade_del_func()
+INSIDE upgrade_del_func()
+DELETE FROM mysql.procs_priv;
+FLUSH PRIVILEGES;
+USE bug42217_db;
+"Can't execute the replicated routine on slave like before after procs privilege is deleted "
+SELECT upgrade_del_func();
+ERROR 42000: execute command denied to user 'create_rout_db'@'localhost' for routine 'bug42217_db.upgrade_del_func'
+"Test the user who creates a function on master doesn't exist on slave."
+"Hence SQL thread ACL_GLOBAL privilege jumps in and no mysql.procs_priv is inserted"
+DROP USER 'create_rout_db'@'localhost';
+CREATE FUNCTION upgrade_alter_func() RETURNS CHAR(30)
+BEGIN
+RETURN "INSIDE upgrade_alter_func()";
+END//
+SELECT upgrade_alter_func();
+upgrade_alter_func()
+INSIDE upgrade_alter_func()
+SHOW CREATE FUNCTION upgrade_alter_func;
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+upgrade_alter_func		CREATE DEFINER=`create_rout_db`@`localhost` FUNCTION `upgrade_alter_func`() RETURNS char(30) CHARSET latin1
+BEGIN
+RETURN "INSIDE upgrade_alter_func()";
+END	latin1	latin1_swedish_ci	latin1_swedish_ci
+"Should no privilege record for upgrade_alter_func in mysql.procs_priv"
+SELECT * FROM mysql.procs_priv;
+Host	Db	User	Routine_name	Routine_type	Grantor	Proc_priv	Timestamp
+SELECT upgrade_alter_func();
+ERROR HY000: The user specified as a definer ('create_rout_db'@'localhost') does not exist
+USE bug42217_db;
+DROP FUNCTION upgrade_del_func;
+DROP FUNCTION upgrade_alter_func;
+DROP DATABASE bug42217_db;
+DROP USER 'create_rout_db'@'localhost';
+"End of test"

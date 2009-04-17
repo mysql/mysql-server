@@ -328,7 +328,7 @@ static my_bool my_read_charset_file(const char *filename, myf myflags)
 {
   uchar *buf;
   int  fd;
-  uint len, tmp_len;
+  size_t len, tmp_len;
   MY_STAT stat_info;
   
   if (!my_stat(filename, &stat_info, MYF(myflags)) ||
