@@ -3,6 +3,7 @@ MYSQL_SRC = $(HOME)/mysql-5.1.23-rc
 MYSQL_LIBDIR = $(HOME)/mysql-5.1.23-rc-build/lib/mysql
 TOKUDB = /usr/local/tokudb-4.4
 TOKUDB_VERSION = "Tokudb"
+CXX = cc 
 DEBUG = 1
 GCOV = 0
 SINGLESO = 1
@@ -44,7 +45,7 @@ LIBS = $(TOKUDB)/src/ydb_lib.o $(TOKUDB)/lib/libtokudb.a $(TOKUDB)/lib/libtokupo
 else
 LIBS = -L$(TOKUDB)/lib -ltokudb -ltokuportability 
 endif
-LIBS += -lpthread -lz -lstdc++ -lm -lgcc_s -lc
+LIBS += -lpthread -lz -lm -lc
 
 
 # LIBDIR = /usr/lib
