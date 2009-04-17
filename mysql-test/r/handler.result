@@ -502,3 +502,7 @@ handler t1_alias READ a next where inexistent > 0;
 ERROR 42S22: Unknown column 'inexistent' in 'field list'
 handler t1_alias close;
 drop table t1;
+USE information_schema;
+HANDLER COLUMNS OPEN;
+ERROR HY000: Incorrect usage of HANDLER OPEN and information_schema
+USE test;
