@@ -3188,7 +3188,7 @@ private:
   // these 2 were file-static before mt-lqh
   bool f_undo_done;
   Dbtup::Apply_undo f_undo;
-  Uint32 c_proxy_undo_data[MAX_TUPLE_SIZE_IN_WORDS];
+  Uint32 c_proxy_undo_data[20 + MAX_TUPLE_SIZE_IN_WORDS];
 
   void disk_restart_undo_next(Signal*);
   void disk_restart_undo_lcp(Uint32, Uint32, Uint32 flag, Uint32 lcpId);
