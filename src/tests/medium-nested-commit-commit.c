@@ -112,7 +112,7 @@ test_shutdown (void) {
 }
 
 int
-test_main (int argc, const char *argv[]) {
+test_main (int argc, char *argv[]) {
     parse_args(argc, argv);
     test_setup();
     test_commit_commit();

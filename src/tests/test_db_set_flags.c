@@ -34,7 +34,7 @@ test_db_set_flags (int flags, int expectr, int flags2, int expectr2) {
 }
 
 int
-test_main(int argc, const char *argv[]) {
+test_main(int argc, char *argv[]) {
 
     parse_args(argc, argv);
   

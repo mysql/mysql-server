@@ -57,7 +57,7 @@ close_dbs (void) {
 }
 
 int
-test_main(int argc, const char *argv[]) {
+test_main(int argc, char *argv[]) {
     int i;
     int r;
     

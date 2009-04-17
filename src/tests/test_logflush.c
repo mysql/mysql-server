@@ -26,7 +26,7 @@ grep_for_in_logs (const char *str) {
 }
 
 int
-test_main (int UU(argc), const char UU(*argv[])) {
+test_main (int UU(argc), char UU(*argv[])) {
     int r;
     DB_ENV *env;
     DB *db;

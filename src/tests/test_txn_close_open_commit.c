@@ -73,7 +73,7 @@ test_txn_close_open_commit (void) {
 }
 
 int
-test_main(int UU(argc), const char UU(*argv[])) {
+test_main(int UU(argc), char UU(*argv[])) {
     test_txn_close_open_commit();
     return 0;
 }

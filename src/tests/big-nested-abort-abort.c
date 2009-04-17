@@ -108,7 +108,7 @@ test_shutdown (void) {
 }
 
 int
-test_main (int argc, const char *argv[]) {
+test_main (int argc, char *argv[]) {
     parse_args(argc, argv);
     setup();
     test_abort_abort();

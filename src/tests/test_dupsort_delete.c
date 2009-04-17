@@ -97,7 +97,7 @@ test_dupsort_delete (int n) {
 }
 
 int
-test_main(int argc, const char *argv[]) {
+test_main(int argc, char *argv[]) {
     int i;
 
     parse_args(argc, argv);

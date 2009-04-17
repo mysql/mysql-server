@@ -221,7 +221,7 @@ test_put_00_01_01 (int dup_mode, u_int32_t put_flags) {
 }
 
 int
-test_main(int argc, const char *argv[]) {
+test_main(int argc, char *argv[]) {
 
     int yes_overwrite=0;
     if (IS_TDB)

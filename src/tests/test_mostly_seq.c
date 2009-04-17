@@ -45,7 +45,7 @@ seqinsert (int n, float p) {
 }
 
 int
-test_main(int argc, const char *argv[]) {
+test_main(int argc, char *argv[]) {
     srandom(time(0));
     int i;
     for (i=1; i<argc; i++) {

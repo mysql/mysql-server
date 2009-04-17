@@ -208,7 +208,7 @@ runtest(void) {
 
 
 int
-test_main(int argc, const char *argv[]) {
+test_main(int argc, char *argv[]) {
     parse_args(argc, argv);
 
     for (abort_type = 0; abort_type < 3; abort_type++) {

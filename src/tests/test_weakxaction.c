@@ -64,7 +64,7 @@ test_autotxn (u_int32_t env_flags, u_int32_t db_flags) {
 }
 
 int
-test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute__((__unused__)))  {
+test_main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__)))  {
     test_autotxn(DB_AUTO_COMMIT, DB_AUTO_COMMIT); 
     test_autotxn(0,              DB_AUTO_COMMIT); 
     test_autotxn(DB_AUTO_COMMIT, 0); 

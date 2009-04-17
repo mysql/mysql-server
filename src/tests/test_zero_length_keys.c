@@ -137,7 +137,7 @@ test_insert_zero_length_keys (int n, int dup_mode, const char *dbname) {
 }
 
 int
-test_main(int argc, const char *argv[]) {
+test_main(int argc, char *argv[]) {
 
     parse_args(argc, argv);
   

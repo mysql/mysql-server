@@ -8,7 +8,7 @@
 
 
 int
-test_main (int argc, const char *argv[]) {
+test_main (int argc, char *argv[]) {
     parse_args(argc, argv);
     DB_ENV *env;
     DB *db;

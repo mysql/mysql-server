@@ -16,7 +16,7 @@ void *startb(void* ignore __attribute__((__unused__))) {
 }
 
 int
-test_main (int argc, const char *argv[]) {
+test_main (int argc, char *argv[]) {
     parse_args(argc, argv);
     pthread_t a,b;
     { int x_l = pthread_create(&a, NULL, starta, NULL); assert(x_l==0); }

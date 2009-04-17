@@ -138,7 +138,7 @@ test_reverse_compare (int n, int dup_flags) {
 }
 
 int
-test_main(int argc, const char *argv[]) {
+test_main(int argc, char *argv[]) {
     parse_args(argc, argv);
 
     int i;

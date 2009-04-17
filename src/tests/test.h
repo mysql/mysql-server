@@ -42,7 +42,7 @@ int verbose=0;
 #endif
 
 static __attribute__((__unused__)) void
-parse_args (int argc, const char *argv[]) {
+parse_args (int argc, char *argv[]) {
     const char *argv0=argv[0];
     while (argc>1) {
 	int resultcode=0;
@@ -139,9 +139,9 @@ typedef enum __toku_bool { FALSE=0, TRUE=1} BOOL;
 #endif
 
 #include <memory.h>
-int test_main (int argc, const char *argv[]);
+int test_main (int argc, char *argv[]);
 int
-main(int argc, const char *argv[]) {
+main(int argc, char *argv[]) {
     int r;
 #if IS_TDB && (defined(_WIN32) || defined(_WIN64))
     toku_ydb_init();
