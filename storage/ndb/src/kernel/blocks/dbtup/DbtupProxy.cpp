@@ -255,6 +255,7 @@ DbtupProxy::Proxy_undo::Proxy_undo()
   m_fragment_id = ~(Uint32)0;
   m_instance_no = ~(Uint32)0;
   m_actions = 0;
+  m_in_use = false;
 }
 
 void
@@ -262,7 +263,9 @@ DbtupProxy::disk_restart_undo(Signal* signal, Uint64 lsn,
                               Uint32 type, const Uint32 * ptr, Uint32 len)
 {
   Proxy_undo& undo = c_proxy_undo;
+  ndbrequire(!undo.m_in_use);
   new (&undo) Proxy_undo;
+  undo.m_in_use = true;
 
   D("proxy: disk_restart_undo" << V(type) << hex << V(ptr) << dec << V(len) << V(lsn));
   undo.m_type = type;
@@ -445,7 +448,7 @@ DbtupProxy::disk_restart_undo_finish(Signal* signal)
 
   if (undo.m_actions & Proxy_undo::NoExecute) {
     jam();
-    return;
+    goto finish;
   }
 
   if (undo.m_actions & Proxy_undo::GetInstance) {
@@ -467,6 +470,10 @@ DbtupProxy::disk_restart_undo_finish(Signal* signal)
       disk_restart_undo_send(signal, i);
     }
   }
+
+finish:
+  ndbrequire(undo.m_in_use);
+  undo.m_in_use = false;
 }
 
 void
