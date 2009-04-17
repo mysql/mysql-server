@@ -467,6 +467,8 @@ static sys_var_thd_ulong        sys_optimizer_prune_level(&vars, "optimizer_prun
                                                   &SV::optimizer_prune_level);
 static sys_var_thd_ulong        sys_optimizer_search_depth(&vars, "optimizer_search_depth",
                                                    &SV::optimizer_search_depth);
+static sys_var_thd_optimizer_switch   sys_optimizer_switch(&vars, "optimizer_switch",
+                                     &SV::optimizer_switch);
 static sys_var_const            sys_pid_file(&vars, "pid_file",
                                              OPT_GLOBAL, SHOW_CHAR,
                                              (uchar*) pidfile_name);
@@ -3918,6 +3920,97 @@ ulong fix_sql_mode(ulong sql_mode)
   return sql_mode;
 }
 
+
+bool
+sys_var_thd_optimizer_switch::
+symbolic_mode_representation(THD *thd, ulonglong val, LEX_STRING *rep)
+{
+  char buff[STRING_BUFFER_USUAL_SIZE*8];
+  String tmp(buff, sizeof(buff), &my_charset_latin1);
+  int i;
+  ulonglong bit;
+  tmp.length(0);
+ 
+  for (i= 0, bit=1; bit != OPTIMIZER_SWITCH_LAST; i++, bit= bit << 1)
+  {
+    tmp.append(optimizer_switch_typelib.type_names[i],
+               optimizer_switch_typelib.type_lengths[i]);
+    tmp.append('=');
+    tmp.append((val & bit)? "on":"off");
+    tmp.append(',');
+  }
+
+  if (tmp.length())
+    tmp.length(tmp.length() - 1); /* trim the trailing comma */
+
+  rep->str= thd->strmake(tmp.ptr(), tmp.length());
+
+  rep->length= rep->str ? tmp.length() : 0;
+
+  return rep->length != tmp.length();
+}
+
+
+uchar *sys_var_thd_optimizer_switch::value_ptr(THD *thd, enum_var_type type,
+				               LEX_STRING *base)
+{
+  LEX_STRING opts;
+  ulonglong val= ((type == OPT_GLOBAL) ? global_system_variables.*offset :
+                  thd->variables.*offset);
+  (void) symbolic_mode_representation(thd, val, &opts);
+  return (uchar *) opts.str;
+}
+
+
+/*
+  Check (and actually parse) string representation of @@optimizer_switch.
+*/
+
+bool sys_var_thd_optimizer_switch::check(THD *thd, set_var *var)
+{
+  bool not_used;
+  char buff[STRING_BUFFER_USUAL_SIZE], *error= 0;
+  uint error_len= 0;
+  String str(buff, sizeof(buff), system_charset_info), *res;
+
+  if (!(res= var->value->val_str(&str)))
+  {
+    strmov(buff, "NULL");
+    goto err;
+  }
+  
+  if (res->length() == 0)
+  {
+    buff[0]= 0;
+    goto err;
+  }
+
+  var->save_result.ulong_value= 
+    (ulong)find_set_from_flags(&optimizer_switch_typelib, 
+                               optimizer_switch_typelib.count, 
+                               thd->variables.optimizer_switch,
+                               global_system_variables.optimizer_switch,
+                               res->c_ptr_safe(), res->length(), NULL,
+                               &error, &error_len, &not_used);
+  if (error_len)
+  {
+    strmake(buff, error, min(sizeof(buff) - 1, error_len));
+    goto err;
+  }
+  return FALSE;
+err:
+  my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, buff);
+  return TRUE;
+}
+
+
+void sys_var_thd_optimizer_switch::set_default(THD *thd, enum_var_type type)
+{
+  if (type == OPT_GLOBAL)
+    global_system_variables.*offset= OPTIMIZER_SWITCH_DEFAULT;
+  else
+    thd->variables.*offset= global_system_variables.*offset;
+}
 
 /****************************************************************************
   Named list handling

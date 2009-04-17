@@ -62,7 +62,7 @@ static void mi_check_print_msg(MI_CHECK *param,	const char* msg_type,
 {
   THD* thd = (THD*)param->thd;
   Protocol *protocol= thd->protocol;
-  uint length, msg_length;
+  size_t length, msg_length;
   char msgbuf[MI_MAX_MSG_BUF];
   char name[NAME_LEN*2+2];
 
@@ -1557,7 +1557,7 @@ bool ha_myisam::check_and_repair(THD *thd)
   old_query_length= thd->query_length;
   pthread_mutex_lock(&LOCK_thread_count);
   thd->query=        table->s->table_name.str;
-  thd->query_length= table->s->table_name.length;
+  thd->query_length= (uint) table->s->table_name.length;
   pthread_mutex_unlock(&LOCK_thread_count);
 
   if ((marked_crashed= mi_is_crashed(file)) || check(thd, &check_opt))

@@ -3,10 +3,11 @@
 # event while the "--secure-file-priv" option is set.
 # 
 # The test is divided in two steps:
-#    1 - Creates a table and populates it through "LOAD DATA INFILE".
+#    1 - Creates tables and populates them through "LOAD DATA INFILE".
 #    2 - Compares the master and slave.
 ##########################################################################
-source include/master-slave.inc;
+--source include/have_innodb.inc
+--source include/master-slave.inc
 
 ##########################################################################
 #                            Loading data
@@ -14,7 +15,16 @@ source include/master-slave.inc;
 connection master;
 
 create table t1(a int not null auto_increment, b int, primary key(a));
+create table t2(a int not null auto_increment, b int, primary key(a)) engine=innodb;
+
 load data infile '../../std_data/rpl_loaddata.dat' into table t1;
+
+start transaction;
+  insert into t2(b) values (1);
+  insert into t2(b) values (2);
+  load data infile '../../std_data/rpl_loaddata.dat' into table t2;
+  load data infile '../../std_data/rpl_loaddata.dat' into table t2;
+commit;
 
 ##########################################################################
 #                       Checking Consistency
@@ -25,11 +35,16 @@ let $diff_table_1=master:test.t1;
 let $diff_table_2=slave:test.t1;
 source include/diff_tables.inc;
 
+let $diff_table_1=master:test.t2;
+let $diff_table_2=slave:test.t2;
+source include/diff_tables.inc;
+
 ##########################################################################
 #                             Clean up
 ##########################################################################
 connection master;
 
 drop table t1;
+drop table t2;
 
 sync_slave_with_master;

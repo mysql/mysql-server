@@ -1021,7 +1021,7 @@ void mysql_read_default_options(struct st_mysql_options *options,
   argc=1; argv=argv_buff; argv_buff[0]= (char*) "client";
   groups[0]= (char*) "client"; groups[1]= (char*) group; groups[2]=0;
 
-  load_defaults(filename, groups, &argc, &argv);
+  my_load_defaults(filename, groups, &argc, &argv, NULL);
   if (argc != 1)				/* If some default option */
   {
     char **option=argv;
@@ -3183,7 +3183,7 @@ int STDCALL mysql_set_character_set(MYSQL *mysql, const char *cs_name)
     if (mysql_get_server_version(mysql) < 40100)
       return 0;
     sprintf(buff, "SET NAMES %s", cs_name);
-    if (!mysql_real_query(mysql, buff, strlen(buff)))
+    if (!mysql_real_query(mysql, buff, (uint) strlen(buff)))
     {
       mysql->charset= cs;
     }

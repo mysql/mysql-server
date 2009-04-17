@@ -371,7 +371,7 @@ void freeze_size(DYNAMIC_ARRAY *array)
 
 int get_index_dynamic(DYNAMIC_ARRAY *array, uchar* element)
 {
-  uint ret;
+  size_t ret;
   if (array->buffer > element)
     return -1;
 
