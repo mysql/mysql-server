@@ -3844,6 +3844,16 @@ retry:
   if (share->is_view)
   {
     /*
+      If parent_l of the table_list is non null then a merge table
+      has this view as child table, which is not supported.
+    */
+    if (table_list->parent_l)
+    {
+      my_error(ER_WRONG_MRG_TABLE, MYF(0));
+      goto err;
+    }
+
+    /*
       This table is a view. Validate its metadata version: in particular,
       that it was a view when the statement was prepared.
     */
