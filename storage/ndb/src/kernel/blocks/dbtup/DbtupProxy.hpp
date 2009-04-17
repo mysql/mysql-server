@@ -114,6 +114,7 @@ protected:
       SendUndoNext = 16
     };
     Uint32 m_actions;
+    bool m_in_use;
     Proxy_undo();
   };
   Proxy_undo c_proxy_undo;
