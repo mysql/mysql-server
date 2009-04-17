@@ -273,6 +273,13 @@ DbtupProxy::disk_restart_undo(Signal* signal, Uint64 lsn,
   undo.m_ptr = ptr;
   undo.m_lsn = lsn;
 
+  /*
+   * The timeslice via PGMAN/5 gives LGMAN a chance to overwrite the
+   * data pointed to by ptr.  So save it now and do not use ptr.
+   */
+  ndbrequire(undo.m_len <= Proxy_undo::MaxData);
+  memcpy(undo.m_data, undo.m_ptr, undo.m_len << 2);
+
   switch (undo.m_type) {
   case File_formats::Undofile::UNDO_LCP_FIRST:
   case File_formats::Undofile::UNDO_LCP:
@@ -484,12 +491,10 @@ DbtupProxy::disk_restart_undo_send(Signal* signal, Uint32 i)
    * 1) a method call would execute in another non-mutexed Pgman
    * 2) MT-LGMAN is planned, do not optimize (pass pointer) now
    */
-  const Proxy_undo& undo = c_proxy_undo;
-  ndbrequire(undo.m_len <= MaxUndoData);
-  memcpy(c_proxy_undo_data, undo.m_ptr, undo.m_len << 2);
+  Proxy_undo& undo = c_proxy_undo;
 
   LinearSectionPtr ptr[3];
-  ptr[0].p = c_proxy_undo_data;
+  ptr[0].p = undo.m_data;
   ptr[0].sz = undo.m_len;
 
   signal->theData[0] = ZDISK_RESTART_UNDO;

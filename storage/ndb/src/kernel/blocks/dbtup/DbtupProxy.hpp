@@ -92,13 +92,12 @@ protected:
 
   // LGMAN
 
-  enum { MaxUndoData = MAX_TUPLE_SIZE_IN_WORDS };
-  Uint32 c_proxy_undo_data[MaxUndoData];
-
   struct Proxy_undo {
+    enum { MaxData = 20 + MAX_TUPLE_SIZE_IN_WORDS };
     Uint32 m_type;
     Uint32 m_len;
     const Uint32* m_ptr;
+    Uint32 m_data[MaxData]; // copied from m_ptr at once
     Uint64 m_lsn;
     // from undo entry and page
     Local_key m_key;
