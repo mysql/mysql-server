@@ -162,9 +162,6 @@ int toku_cachefile_close (CACHEFILE*, TOKULOGGER, char **error_string);
 // Returns: 0 if success, otherwise returns an error number.
 int toku_cachefile_flush (CACHEFILE);
 
-// Increment the reference count.  Use close to decrement it.
-void toku_cachefile_refup (CACHEFILE cfp);
-
 // Return on success (different from pread and pwrite)
 //int cachefile_pwrite (CACHEFILE, const void *buf, size_t count, toku_off_t offset);
 //int cachefile_pread  (CACHEFILE, void *buf, size_t count, toku_off_t offset);
