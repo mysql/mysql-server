@@ -11,3 +11,5 @@
 ##############################################################################
 kill                     : Bug#37780 2008-12-03 HHunger need some changes to be robust enough for pushbuild.
 innodb_bug39438          : BUG#42383 2009-01-28 lsoares "This fails in embedded and on windows.  Note that this test is not run on windows and on embedded in PB for main trees currently"
+#concurrent_innodb_safelog: disabled for embedded server due to bug#43733 Select on processlist let the embedded server crash (concurrent_innodb_safelog).
+#concurrent_innodb_unsafelog: disabled for embedded server due to bug#43733.

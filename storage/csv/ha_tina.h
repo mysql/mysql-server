@@ -40,7 +40,7 @@ typedef struct st_tina_share {
     inserts, updates and deletes. The var is initialized along with the
     share initialization.
   */
-  off_t saved_data_file_length;
+  my_off_t saved_data_file_length;
   pthread_mutex_t mutex;
   THR_LOCK lock;
   bool update_file_opened;
@@ -53,18 +53,18 @@ typedef struct st_tina_share {
 } TINA_SHARE;
 
 struct tina_set {
-  off_t begin;
-  off_t end;
+  my_off_t begin;
+  my_off_t end;
 };
 
 class ha_tina: public handler
 {
   THR_LOCK_DATA lock;      /* MySQL lock */
   TINA_SHARE *share;       /* Shared lock info */
-  off_t current_position;  /* Current position in the file during a file scan */
-  off_t next_position;     /* Next position in the file scan */
-  off_t local_saved_data_file_length; /* save position for reads */
-  off_t temp_file_length;
+  my_off_t current_position;  /* Current position in the file during a file scan */
+  my_off_t next_position;     /* Next position in the file scan */
+  my_off_t local_saved_data_file_length; /* save position for reads */
+  my_off_t temp_file_length;
   uchar byte_buffer[IO_SIZE];
   Transparent_file *file_buff;
   File data_file;                   /* File handler for readers */
@@ -85,7 +85,7 @@ class ha_tina: public handler
   MEM_ROOT blobroot;
 
 private:
-  bool get_write_pos(off_t *end_pos, tina_set *closest_hole);
+  bool get_write_pos(my_off_t *end_pos, tina_set *closest_hole);
   int open_update_temp_file_if_needed();
   int init_tina_writer();
   int init_data_file();
