@@ -2826,6 +2826,15 @@ int ha_tokudb::index_end() {
         last_cursor_error = 0;
     }
     active_index = MAX_KEY;
+
+    //
+    // reset query variables
+    //
+    unpack_entire_row = true;
+    read_blobs = true;
+    read_key = true;
+    num_fixed_cols_for_query = 0;
+    num_var_cols_for_query = 0;
     TOKUDB_DBUG_RETURN(error);
 }
 
