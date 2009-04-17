@@ -1,3 +1,8 @@
+2009-04-18	The InnoDB Team
+
+	* handler/ha_innodb.cc, include/pars0pars.h:
+	Fix Bug#29125 Windows Server X64: so many compiler warnings
+
 2009-04-16	The InnoDB Team
 
 	* univ.i:
