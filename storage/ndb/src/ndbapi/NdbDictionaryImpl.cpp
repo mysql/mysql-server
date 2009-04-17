@@ -7685,11 +7685,13 @@ NdbDictionaryImpl::endSchemaTrans(Uint32 flags)
     if (m_tx.m_state == NdbDictInterface::Tx::Aborted && // rollback at master takeover
         flags & NdbDictionary::Dictionary::SchemaTransAbort)
     {
-      m_tx.m_error.code = 0;
+      m_error.code = m_tx.m_error.code = 0;
+      m_tx.m_state = NdbDictInterface::Tx::NotStarted;
       DBUG_RETURN(0);
     }
     if (m_tx.m_error.code != 0)
       m_error.code = m_tx.m_error.code;
+    m_tx.m_state = NdbDictInterface::Tx::NotStarted;
     DBUG_RETURN(-1);
   }
 committed:
