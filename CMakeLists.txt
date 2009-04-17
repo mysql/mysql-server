@@ -19,7 +19,8 @@
 # property will not be set
 CMAKE_MINIMUM_REQUIRED(VERSION 2.6 FATAL_ERROR)
 
-PROJECT (INNODB_PLUGIN)
+# When PROJECT is defined, a separate .sln file will be generated.
+# PROJECT (INNODB_PLUGIN)
 
 MESSAGE(STATUS "Enter InnoDB ...")
 MESSAGE(STATUS "INNODB_DYNAMIC_PLUGIN: " ${INNODB_DYNAMIC_PLUGIN})
@@ -44,8 +45,9 @@ MESSAGE(STATUS "MSVC: " ${MSVC})
 # Check type sizes
 include(CheckTypeSize)
 
+# Currently, the checked results are not used.
 CHECK_TYPE_SIZE(int SIZEOF_INT)
-CHECK_TYPE_SIZE(int SIZEOF_LONG)
+CHECK_TYPE_SIZE(long SIZEOF_LONG)
 CHECK_TYPE_SIZE(void* SIZEOF_VOID_P)
 
 # Include directories under innobase
