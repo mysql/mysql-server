@@ -142,6 +142,15 @@ private:
     //
     uchar *primary_key_buff;
 
+    //
+    // when unpacking blobs, we need to store it in a temporary
+    // buffer that will persist because MySQL just gets a pointer to the 
+    // blob data, a pointer we need to ensure is valid until the next
+    // query
+    //
+    uchar* blob_buff;
+    u_int32_t num_blob_bytes;
+
     bool unpack_entire_row;
 
     //
@@ -394,6 +403,11 @@ public:
     void read_key_only(uchar * buf, uint keynr, DBT const *row, DBT const *found_key);
     void read_primary_key(uchar * buf, uint keynr, DBT const *row, DBT const *found_key);
     int read_row(uchar * buf, uint keynr, DBT const *row, DBT const *found_key);
+    void ha_tokudb::unpack_blobs(
+        uchar* record,
+        const uchar* from_tokudb_blob,
+        u_int32_t num_blob_bytes
+        );
     void unpack_row(
         uchar* record, 
         DBT const *row, 

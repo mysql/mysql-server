@@ -778,6 +778,8 @@ ha_tokudb::ha_tokudb(handlerton * hton, TABLE_SHARE * table_arg):handler(hton, t
     num_added_rows_in_stmt = 0;
     num_deleted_rows_in_stmt = 0;
     num_updated_rows_in_stmt = 0;
+    blob_buff = NULL;
+    num_blob_bytes = 0;
 }
 
 //
@@ -1498,6 +1500,28 @@ cleanup:
     return r;
 }
 
+
+void ha_tokudb::unpack_blobs(
+    uchar* record,
+    const uchar* from_tokudb_blob,
+    u_int32_t num_blob_bytes
+    )
+{
+    //
+    // now read blobs
+    //
+    const uchar* ptr = from_tokudb_blob;
+    for (uint i = 0; i < share->num_blobs; i++) {
+        Field* field = table->field[share->blob_fields[i]];
+        ptr = field->unpack(
+            record + field_offset(field, table),
+            ptr
+            );
+    }
+
+}
+    
+
 //
 // take the row passed in as a DBT*, and convert it into a row in MySQL format in record
 // Parameters:
@@ -1582,15 +1606,13 @@ void ha_tokudb::unpack_row(
                 var_field_offset_ptr += share->num_offset_bytes;
                 var_field_data_ptr += data_end_offset - last_offset;
                 last_offset = data_end_offset;
-            }        
+            }
         }
-        for (uint i = 0; i < share->num_blobs; i++) {
-            Field* field = table->field[share->blob_fields[i]];
-            var_field_data_ptr = field->unpack(
-                record + field_offset(field, table),
-                var_field_data_ptr
-                );
-        }
+        unpack_blobs(
+            record,
+            var_field_data_ptr,
+            row->size - (u_int32_t)(var_field_data_ptr - (const uchar *)row->data)
+            );
     }
     //
     // in this case, we unpack only what is specified 
@@ -1656,35 +1678,36 @@ void ha_tokudb::unpack_row(
                 );
         }
 
-        //
-        // now the blobs
-        //
+        if (read_blobs) {
+            //
+            // now the blobs
+            //
 
-        //
-        // need to set var_field_data_ptr to point to beginning of blobs, which
-        // is at the end of the var stuff (if they exist), if var stuff does not exist
-        // then the bottom variable will be 0, and var_field_data_ptr is already
-        // set correctly
-        //
-        if (share->mcp_info[index].len_of_offsets) {
-            switch (share->num_offset_bytes) {
-            case (1):
-                data_end_offset = (var_field_data_ptr - 1)[0];
-                break;
-            case (2):
-                data_end_offset = uint2korr(var_field_data_ptr - 2);
-                break;
-            default:
-                assert(false);
-                break;
+            //
+            // need to set var_field_data_ptr to point to beginning of blobs, which
+            // is at the end of the var stuff (if they exist), if var stuff does not exist
+            // then the bottom variable will be 0, and var_field_data_ptr is already
+            // set correctly
+            //
+            if (share->mcp_info[index].len_of_offsets) {
+                switch (share->num_offset_bytes) {
+                case (1):
+                    data_end_offset = (var_field_data_ptr - 1)[0];
+                    break;
+                case (2):
+                    data_end_offset = uint2korr(var_field_data_ptr - 2);
+                    break;
+                default:
+                    assert(false);
+                    break;
+                }
+                var_field_data_ptr += data_end_offset;
             }
-            var_field_data_ptr += data_end_offset;
-        }
-        for (uint i = 0; i < share->num_blobs; i++) {
-            Field* field = table->field[share->blob_fields[i]];
-            var_field_data_ptr = field->unpack(
-                record + field_offset(field, table),
-                var_field_data_ptr
+
+            unpack_blobs(
+                record,
+                var_field_data_ptr,
+                row->size - (u_int32_t)(var_field_data_ptr - (const uchar *)row->data)
                 );
         }
     }
