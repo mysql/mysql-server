@@ -341,7 +341,6 @@ public:
     int index_read_last(uchar * buf, const uchar * key, uint key_len);
 #endif
     int index_next(uchar * buf);
-    int index_next_same(uchar * buf, const uchar * key, uint keylen);
     int index_prev(uchar * buf);
     int index_first(uchar * buf);
     int index_last(uchar * buf);
