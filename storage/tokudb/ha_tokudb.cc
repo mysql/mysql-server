@@ -1030,6 +1030,8 @@ int ha_tokudb::initialize_share(
     if (error) {
         goto exit;
     }
+    share->key_file[primary_key] = share->file;
+    share->key_type[primary_key] = hidden_primary_key ? DB_YESOVERWRITE : DB_NOOVERWRITE;
 
     //
     // set comparison function for main.tokudb
@@ -1048,8 +1050,6 @@ int ha_tokudb::initialize_share(
     }
 
     /* Open other keys;  These are part of the share structure */
-    share->key_file[primary_key] = share->file;
-    share->key_type[primary_key] = hidden_primary_key ? DB_YESOVERWRITE : DB_NOOVERWRITE;
 
     for (uint i = 0; i < table_share->keys; i++) {
         if (i != primary_key) {
