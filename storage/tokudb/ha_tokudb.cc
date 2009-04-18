@@ -3072,43 +3072,6 @@ int ha_tokudb::read_row(uchar * buf, uint keynr, DBT const *row, DBT const *foun
 }
 
 //
-// This is only used to read whole keys
-// According to InnoDB handlerton: Positions an index cursor to the index 
-// specified in keynr. Fetches the row if any
-// Parameters:
-//      [out]        buf - buffer for the  returned row
-//                   keynr - index to use
-//      [in]         key - key value, according to InnoDB, if NULL, 
-//                              position cursor at start or end of index,
-//                              not sure if this is done now
-//                     key_len - length of key
-//                     find_flag - according to InnoDB, search flags from my_base.h
-// Returns:
-//      0 on success
-//      HA_ERR_KEY_NOT_FOUND if not found (per InnoDB), 
-//      error otherwise
-//
-int ha_tokudb::index_read_idx(uchar * buf, uint keynr, const uchar * key, uint key_len, enum ha_rkey_function find_flag) {
-    TOKUDB_DBUG_ENTER("ha_tokudb::index_read_idx");
-    int error;
-    table->in_use->status_var.ha_read_key_count++;
-    current_row.flags = DB_DBT_REALLOC;
-    active_index = MAX_KEY;
-
-    error = share->key_file[keynr]->get(share->key_file[keynr], transaction, pack_key(&last_key, keynr, key_buff, key, key_len, COL_NEG_INF), &current_row, 0);
-    if (error == DB_NOTFOUND) {
-        error = HA_ERR_KEY_NOT_FOUND;
-        goto cleanup;
-    }
-    if (!error) {
-        error = read_row(buf, keynr, &current_row, &last_key);
-    }
-cleanup:
-    TOKUDB_DBUG_RETURN(error);
-}
-
-
-//
 // context information for the heaviside functions.
 // Context information includes data necessary
 // to perform comparisons

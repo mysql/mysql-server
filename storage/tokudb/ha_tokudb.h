@@ -337,7 +337,6 @@ public:
     int index_init(uint index, bool sorted);
     int index_end();
     int index_read(uchar * buf, const uchar * key, uint key_len, enum ha_rkey_function find_flag);
-    int index_read_idx(uchar * buf, uint index, const uchar * key, uint key_len, enum ha_rkey_function find_flag);
 #if 0
     int index_read_last(uchar * buf, const uchar * key, uint key_len);
 #endif
