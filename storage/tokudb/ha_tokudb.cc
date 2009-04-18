@@ -922,6 +922,7 @@ int ha_tokudb::initialize_share(
     char name_buff[FN_REFLEN];
     u_int64_t num_rows = 0;
     u_int32_t curr_blob_field_index = 0;
+    u_int32_t max_var_bytes = 0;
     uint open_flags = (mode == O_RDONLY ? DB_RDONLY : 0) | DB_THREAD;
     open_flags += DB_AUTO_COMMIT;
     DBUG_PRINT("info", ("share->use_count %u", share->use_count));
@@ -932,15 +933,6 @@ int ha_tokudb::initialize_share(
         goto exit;
     }
 
-    //
-    // initialize share->num_offset_bytes
-    //
-    if (table_share->reclength < 256) {
-        share->num_offset_bytes = 1;
-    }
-    else {
-        share->num_offset_bytes = 2;
-    }
 
     //
     // fill in the field lengths. 0 means it is a variable sized field length
@@ -974,12 +966,26 @@ int ha_tokudb::initialize_share(
             //
             share->field_lengths[i] = 0;
             share->length_bytes[i] = (uchar)((Field_varstring *)field)->length_bytes;
+            max_var_bytes += field->field_length;
             break;
         default:
             assert(false);
         }
     }
     share->num_blobs = curr_blob_field_index;
+
+    //
+    // initialize share->num_offset_bytes
+    // because MAX_REF_LENGTH is 65536, we
+    // can safely set num_offset_bytes to 1 or 2
+    //
+    if (max_var_bytes < 256) {
+        share->num_offset_bytes = 1;
+    }
+    else {
+        share->num_offset_bytes = 2;
+    }
+
 
     for (uint i = 0; i < table_share->keys + test(hidden_primary_key); i++) {
         //
