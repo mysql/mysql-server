@@ -1,0 +1,211 @@
+/* -*- mode: C; c-basic-offset: 4 -*- */
+#ident "Copyright (c) 2009 Tokutek Inc.  All rights reserved."
+#ident "$Id$"
+#include "test.h"
+#include <db.h>
+#include <sys/stat.h>
+#include "checkpoint_test.h"
+
+/***
+
+
+
+TODO: This test is not yet complete
+ - write scribble_n function to scribble over expected data (and maybe do some random inserts?)
+ - create separate thread to do scribbling 
+ - have drop_dead function sleep a random time (0.1 to 5 seconds?) before sigsegv
+ - find some way to force disk I/O
+ - operate on multiple dictionaries 
+
+
+
+
+Accept n as iteration number
+Operate on more than one dictionary simultaneously
+
+Parameters:
+ -i # iteration number
+ -d # number of dictionaries (default 5)
+ -o # number of operations per iteration (x)
+ -t (0|1|2) type of crash (perhaps a function of iteration number)
+ -b #, -e # verify from/to
+ -v verbose
+ -q quiet
+
+Each iteration does:
+ - Verify that previous iteration was correctly executed
+   - Previous inserts were done correctly
+   - There are no rows after last expected
+ - Perform more inserts/deletes to end of iteration (e.g. on keys a though a+x-1)
+ - take checkpoint
+  - sometimes crash right here (after checkpoint returns)
+ - Perform more inserts/deletes beyond end of iteration (e.g. on keys a+x through a+2x-1)  
+ - drop dead(type)
+  - sometimes in callback, sometimes during inserts
+  - perhaps spawn separate thread to scribble over database while main thread sleeps random interval then drops dead
+    (simulating crash at different times)
+
+***/
+
+// assert that correct values are in expected rows
+static void
+verify_sequential_rows(DB* compare_db, int64_t firstkey, int64_t numkeys) {
+    //This does not lock the dbs/grab table locks.
+    //This means that you CANNOT CALL THIS while another thread is modifying the db.
+    //You CAN call it while a txn is open however.
+    int rval = 0;
+    DB_TXN *compare_txn;
+    int r, r1;
+
+    assert(numkeys >= 1);
+    r = env->txn_begin(env, NULL, &compare_txn, DB_READ_UNCOMMITTED);
+        CKERR(r);
+    DBC *c1;
+
+    r = compare_db->cursor(compare_db, compare_txn, &c1, 0);
+        CKERR(r);
+
+
+    DBT key1, val1;
+    DBT key2, val2;
+
+    int64_t k, v;
+
+    dbt_init_realloc(&key1);
+    dbt_init_realloc(&val1);
+
+    dbt_init(&key2, &k, sizeof(k));
+    dbt_init(&val2, &v, sizeof(v));
+
+    k = firstkey;
+    v = generate_val(k);
+    r1 = c1->c_get(c1, &key2, &val2, DB_GET_BOTH);
+    CKERR(r1);
+
+    int64_t i;
+    for (i = 1; i<numkeys; i++) {
+	k = i + firstkey;
+	v = generate_val(k);
+        r1 = c1->c_get(c1, &key1, &val1, DB_NEXT);
+	assert(r1==0);
+	rval = verify_identical_dbts(&key1, &key2) |
+	    verify_identical_dbts(&val1, &val2);
+	assert(rval == 0);
+    }
+    // now verify that there are no rows after the last expected 
+    r1 = c1->c_get(c1, &key1, &val1, DB_NEXT);
+    assert(r1 == DB_NOTFOUND);
+
+    c1->c_close(c1);
+    if (key1.data) toku_free(key1.data);
+    if (val1.data) toku_free(val1.data);
+    compare_txn->commit(compare_txn, 0);
+}
+
+static void
+drop_dead(void) {
+    // deliberate zerodivide or sigsegv
+    printf("Simulate crash with deliberate sigsegv\n");
+    fflush(stdout);
+    void * intothevoid = NULL;
+    (*(int*)intothevoid)++;
+    printf("This line should never be printed\n");
+    fflush(stdout);
+}
+
+
+void
+run_test (int iter, int die) {
+
+    int oper_per_iter = 1025;
+    u_int32_t flags = DB_DUP|DB_DUPSORT;
+
+    int64_t firstkey;     // first key to verify/insert
+    int64_t numkeys;      // number of keys to verify/insert
+
+    env_startup();
+    
+    DICTIONARY_S db_alpha;
+    init_dictionary(&db_alpha, flags, "alpha");
+        
+    if (iter == 0)
+	dir_create();  // create directory if first time through
+
+    db_startup(&db_alpha, NULL);
+    DB* db= db_alpha.db;    
+
+    if (iter > 0){
+	if (iter == 1) {
+	    firstkey = 0;
+	    numkeys = oper_per_iter;
+	}
+	else {
+	    firstkey = (iter - 2) * oper_per_iter;
+	    numkeys = oper_per_iter * 2;
+	}
+	verify_sequential_rows(db, firstkey, numkeys);
+    }
+    
+    // now insert new rows for this iteration
+    firstkey = iter * oper_per_iter;
+    numkeys = oper_per_iter;
+
+    insert_n_fixed(db, NULL, NULL, firstkey, numkeys);
+    snapshot(NULL, 1);    // checkpoint all dictionaries
+
+#if 0
+    // now scribble over previously checkpointed rows with different data
+    scribble_n(firstkey, 5);
+#endif
+    if (die)
+	drop_dead();
+
+    db_shutdown(&db_alpha);	
+
+    env_shutdown();
+}
+
+
+
+
+int
+test_main (int argc, char *argv[]) {
+
+    // get arguments, set parameters
+
+    printf("enter test_main \n");
+
+    int iter = -1;
+
+    int c;
+    while ((c = getopt(argc, argv, "i:vq")) != -1) {
+	switch(c) {
+	case 'i':
+	    iter = atoi(optarg);
+	    printf(" setting iter = %d\n", iter);
+	    break;
+	case 'v':
+	case 'q':
+	case 'h':
+	    // handled by parse_args()
+	    break;
+	default:
+	    printf(" unknown argument 0x%0x\n", c);
+	    break;
+	}
+    }
+    
+    if (iter <0) {
+	printf("No argument, just run five times without crash\n");
+	for (iter = 0; iter<5; iter++) {
+	    run_test(iter, 0);
+	}
+    }
+    else {
+	printf("checkpoint_stress running one iteration, iter = %d\n", iter);
+	run_test(iter, 1);
+    }
+
+    return 0;
+
+}
