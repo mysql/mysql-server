@@ -60,6 +60,7 @@ checkpoint_test_2(u_int32_t flags, u_int32_t n) {
 	printf("Verify that inserts done during checkpoint are effective\n");
         fflush(stdout); 
     }
+    dir_create();
     env_startup();
     int run;
     int r;
