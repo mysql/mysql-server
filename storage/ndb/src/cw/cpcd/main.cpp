@@ -1,4 +1,4 @@
-/* Copyright (C) 2003 MySQL AB
+/* Copyright (C) 2003-2008 MySQL AB, 2009 Sun Microsystems Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include <ndb_global.h>	/* Needed for mkdir(2) */
+#include <ndb_global.h>
 #include <my_sys.h>
 #include <my_getopt.h>
 #include <mysql_version.h>
@@ -67,11 +67,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 }
 
 static CPCD * g_cpcd = 0;
-#if 0
-extern "C" static void sig_child(int signo, siginfo_t*, void*);
-#endif
-
-const char *progname = "ndb_cpcd";
 
 int main(int argc, char** argv){
   const char *load_default_groups[]= { "ndb_cpcd",0 };
@@ -86,7 +81,7 @@ int main(int argc, char** argv){
     exit(1);
   }
 
-  logger.setCategory(progname);
+  logger.setCategory("ndb_cpcd");
   logger.enable(Logger::LL_ALL);
 
   if(debug)
@@ -151,33 +146,11 @@ int main(int argc, char** argv){
   {  
     signal(SIGPIPE, SIG_IGN);
     signal(SIGCHLD, SIG_IGN);
-#if 0
-    struct sigaction act;
-    act.sa_handler = 0;
-    act.sa_sigaction = sig_child;
-    sigemptyset(&act.sa_mask);
-    act.sa_flags = SA_SIGINFO;
-    sigaction(SIGCHLD, &act, 0);
-#endif
   }
-  
+
   logger.debug("Start completed");
   while(true) NdbSleep_MilliSleep(1000);
-  
+
   delete ss;
   return 0;
 }
-
-#if 0
-extern "C" 
-void 
-sig_child(int signo, siginfo_t* info, void*){
-  printf("signo: %d si_signo: %d si_errno: %d si_code: %d si_pid: %d\n",
-	 signo, 
-	 info->si_signo,
-	 info->si_errno,
-	 info->si_code,
-	 info->si_pid);
-  
-}
-#endif
