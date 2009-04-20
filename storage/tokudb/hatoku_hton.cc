@@ -104,6 +104,7 @@ static char *tokudb_log_dir;
 static ulong tokudb_max_lock;
 static const char tokudb_hton_name[] = "TokuDB";
 static const int tokudb_hton_name_length = sizeof(tokudb_hton_name) - 1;
+static ulong tokudb_checkpointing_period;
 #ifdef TOKUDB_VERSION
  char *tokudb_version = TOKUDB_VERSION;
 #else
@@ -315,15 +316,11 @@ bool tokudb_flush_logs(handlerton * hton) {
     TOKUDB_DBUG_ENTER("tokudb_flush_logs");
     int error;
     bool result = 0;
-    if (tokudb_init_flags & DB_INIT_LOG) {
-        if ((error = db_env->log_flush(db_env, 0))) {
-            my_error(ER_ERROR_DURING_FLUSH_LOGS, MYF(0), error);
-            result = 1;
-        }
-        if ((error = db_env->txn_checkpoint(db_env, 0, 0, 0))) {
-            my_error(ER_ERROR_DURING_CHECKPOINT, MYF(0), error);
-            result = 1;
-        }
+
+    error = db_env->txn_checkpoint(db_env, 0, 0, 0);
+    if (error) {
+        my_error(ER_ERROR_DURING_CHECKPOINT, MYF(0), error);
+        result = 1;
     }
     TOKUDB_DBUG_RETURN(result);
 }
@@ -540,6 +537,7 @@ static MYSQL_SYSVAR_STR(version, tokudb_version, PLUGIN_VAR_READONLY, "TokuDB Ve
 
 static MYSQL_SYSVAR_UINT(init_flags, tokudb_init_flags, PLUGIN_VAR_READONLY, "Sets TokuDB DB_ENV->open flags", NULL, NULL, tokudb_init_flags, 0, ~0, 0);
 
+static MYSQL_SYSVAR_ULONG(checkpointing_period, tokudb_checkpointing_period, 0, "TokuDB Checkpointing period", NULL, NULL, 0, 0, ~0L, 0);
 #if 0
 
 static MYSQL_SYSVAR_ULONG(cache_parts, tokudb_cache_parts, PLUGIN_VAR_READONLY, "Sets TokuDB set_cache_parts", NULL, NULL, 0, 0, ~0L, 0);
@@ -578,6 +576,7 @@ static struct st_mysql_sys_var *tokudb_system_variables[] = {
     MYSQL_SYSVAR(commit_sync),
     MYSQL_SYSVAR(version),
     MYSQL_SYSVAR(init_flags),
+    MYSQL_SYSVAR(checkpointing_period),
 #if 0
     MYSQL_SYSVAR(cache_parts),
     MYSQL_SYSVAR(env_flags),

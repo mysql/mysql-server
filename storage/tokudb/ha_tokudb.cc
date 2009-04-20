@@ -2421,7 +2421,7 @@ cleanup:
             error = sub_trans->commit(sub_trans, DB_TXN_NOSYNC);
         }
     }
-    db_env->checkpointing_end_atomic_operation(db_env);
+    assert(!db_env->checkpointing_end_atomic_operation(db_env));
     TOKUDB_DBUG_RETURN(error);
 }
 
@@ -2640,7 +2640,7 @@ cleanup:
             error = sub_trans->commit(sub_trans, DB_TXN_NOSYNC);
         }
     }
-    db_env->checkpointing_end_atomic_operation(db_env);
+    assert(!db_env->checkpointing_end_atomic_operation(db_env));
     TOKUDB_DBUG_RETURN(error);
 }
 
@@ -2762,7 +2762,7 @@ int ha_tokudb::delete_row(const uchar * record) {
             thd_proc_info(thd, write_status_msg);
         }
     }
-    db_env->checkpointing_end_atomic_operation(db_env);
+    assert(!db_env->checkpointing_end_atomic_operation(db_env));
     TOKUDB_DBUG_RETURN(error);
 }
 
@@ -4597,7 +4597,7 @@ int ha_tokudb::rename_table(const char *from, const char *to) {
     }
 
 cleanup:
-    db_env->checkpointing_resume(db_env);
+    assert(!db_env->checkpointing_resume(db_env));
     my_free(newfrom, MYF(MY_ALLOW_ZERO_PTR));
     my_free(newto, MYF(MY_ALLOW_ZERO_PTR));
     TOKUDB_DBUG_RETURN(error);
