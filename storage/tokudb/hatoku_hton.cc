@@ -104,7 +104,7 @@ static char *tokudb_log_dir;
 static ulong tokudb_max_lock;
 static const char tokudb_hton_name[] = "TokuDB";
 static const int tokudb_hton_name_length = sizeof(tokudb_hton_name) - 1;
-static ulong tokudb_checkpointing_period;
+static u_int32_t tokudb_checkpointing_period;
 #ifdef TOKUDB_VERSION
  char *tokudb_version = TOKUDB_VERSION;
 #else
@@ -268,6 +268,7 @@ static int tokudb_init_func(void *p) {
     r = db_env->checkpointing_set_period(db_env, tokudb_checkpointing_period);
     assert(!r);
 
+
     DBUG_RETURN(FALSE);
 
 error:
@@ -319,12 +320,49 @@ bool tokudb_flush_logs(handlerton * hton) {
     TOKUDB_DBUG_ENTER("tokudb_flush_logs");
     int error;
     bool result = 0;
+    u_int32_t curr_tokudb_checkpointing_period = 0;
 
+    //
+    // get the current checkpointing period
+    //
+    error = db_env->checkpointing_get_period(
+        db_env, 
+        &curr_tokudb_checkpointing_period
+        );
+    if (error) {
+        my_error(ER_ERROR_DURING_CHECKPOINT, MYF(0), error);
+        result = 1;
+        goto exit;
+    }
+
+    //
+    // if the current period is not the same as the variable, that means
+    // the user has changed the period and now we need to update it
+    //
+    if (tokudb_checkpointing_period != curr_tokudb_checkpointing_period) {
+        error = db_env->checkpointing_set_period(
+            db_env, 
+            tokudb_checkpointing_period
+            );
+        if (error) {
+            my_error(ER_ERROR_DURING_CHECKPOINT, MYF(0), error);
+            result = 1;
+            goto exit;
+        }
+    }
+    
+    //
+    // take the checkpoint
+    //
     error = db_env->txn_checkpoint(db_env, 0, 0, 0);
     if (error) {
         my_error(ER_ERROR_DURING_CHECKPOINT, MYF(0), error);
         result = 1;
+        goto exit;
     }
+
+    result = 0;
+exit:
     TOKUDB_DBUG_RETURN(result);
 }
 
@@ -540,7 +578,7 @@ static MYSQL_SYSVAR_STR(version, tokudb_version, PLUGIN_VAR_READONLY, "TokuDB Ve
 
 static MYSQL_SYSVAR_UINT(init_flags, tokudb_init_flags, PLUGIN_VAR_READONLY, "Sets TokuDB DB_ENV->open flags", NULL, NULL, tokudb_init_flags, 0, ~0, 0);
 
-static MYSQL_SYSVAR_ULONG(checkpointing_period, tokudb_checkpointing_period, 0, "TokuDB Checkpointing period", NULL, NULL, 555, 0, ~0L, 0);
+static MYSQL_SYSVAR_UINT(checkpointing_period, tokudb_checkpointing_period, 0, "TokuDB Checkpointing period", NULL, NULL, 0, 0, ~0L, 0);
 #if 0
 
 static MYSQL_SYSVAR_ULONG(cache_parts, tokudb_cache_parts, PLUGIN_VAR_READONLY, "Sets TokuDB set_cache_parts", NULL, NULL, 0, 0, ~0L, 0);
