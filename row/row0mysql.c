@@ -1461,7 +1461,7 @@ row_unlock_for_mysql(
 
 	if (prebuilt->new_rec_locks >= 1) {
 
-		rec_t*		rec;
+		const rec_t*	rec;
 		dict_index_t*	index;
 		dulint		rec_trx_id;
 		mtr_t		mtr;
@@ -1492,7 +1492,7 @@ row_unlock_for_mysql(
 
 		/* If the record has been modified by this
 		transaction, do not unlock it. */
-		ut_a(index->type & DICT_CLUSTERED);
+		ut_a(dict_index_is_clust(index));
 
 		if (index->trx_id_offset) {
 			rec_trx_id = trx_read_trx_id(rec
