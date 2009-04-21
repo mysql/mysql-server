@@ -673,7 +673,7 @@ trx_sys_update_mysql_binlog_offset(
 	trx_sysf_t*	sys_header;
 	const char*	file_name;
 
-	if (ut_strlen(file_name) >= TRX_SYS_MYSQL_MASTER_LOG_NAME_LEN) {
+	if (ut_strlen(file_name_in) >= TRX_SYS_MYSQL_MASTER_LOG_NAME_LEN) {
 
 		/* We cannot fit the name to the 512 bytes we have reserved */
 		/* -> To store relay log file information, file_name must fit to the 480 bytes */
