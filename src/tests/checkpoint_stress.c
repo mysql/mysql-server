@@ -14,9 +14,9 @@ TODO: This test is not yet complete
  - write scribble_n function to scribble over expected data (and maybe do some random inserts?)
  - create separate thread to do scribbling 
  - have drop_dead function sleep a random time (0.1 to 5 seconds?) before sigsegv
- - find some way to force disk I/O
- - operate on multiple dictionaries 
 
+ - find some way to force disk I/O  (Make cachetable very small)
+   
 
 
 
@@ -48,6 +48,32 @@ Each iteration does:
 ***/
 
 #define NUM_DICTIONARIES 5
+
+const int oper_per_iter = 5001;  // nice odd number (not a multiple of a power of two)
+
+
+static void UU()
+scribble(DB* db, int iter) {
+    int64_t firstkey;     // first key to verify/insert
+    int64_t numkeys;      // number of keys to verify/insert
+
+    if (iter > 0){
+	if (iter == 1) {
+	    firstkey = 0;
+	    numkeys = oper_per_iter;
+	}
+	else {
+	    firstkey = (iter - 2) * oper_per_iter;
+	    numkeys = oper_per_iter * 2;
+	}
+    }
+    
+    // now insert new rows for this iteration
+    firstkey = iter * oper_per_iter;
+    numkeys = oper_per_iter;
+
+    insert_n_broken(db, NULL, NULL, firstkey, numkeys);
+}
 
 
 // assert that correct values are in expected rows
@@ -108,10 +134,14 @@ verify_sequential_rows(DB* compare_db, int64_t firstkey, int64_t numkeys) {
 static void
 drop_dead(void) {
     // deliberate zerodivide or sigsegv
-    printf("Simulate crash with deliberate sigsegv\n");
+    fprintf(stderr, "HAPPY CRASH\n");
     fflush(stdout);
+    fflush(stderr);
+    int zero = 0;
+    int infinity = 1/zero;
     void * intothevoid = NULL;
     (*(int*)intothevoid)++;
+    printf("intothevoid = %p, infinity = %d\n", intothevoid, infinity);
     printf("This line should never be printed\n");
     fflush(stdout);
 }
@@ -119,8 +149,6 @@ drop_dead(void) {
 
 void
 verify_and_insert (DB* db, int iter) {
-
-    int oper_per_iter = 1025;
 
     int64_t firstkey;     // first key to verify/insert
     int64_t numkeys;      // number of keys to verify/insert
@@ -151,11 +179,12 @@ run_test (int iter, int die) {
 
     int i;
 
-    env_startup();
-
     if (iter == 0)
 	dir_create();  // create directory if first time through
     
+    // run with 32K cachesize to force lots of disk I/O
+    env_startup(0, 1<<15);
+
     // create array of dictionaries
     // for each dictionary verify previous iterations and perform new inserts
 
@@ -173,14 +202,32 @@ run_test (int iter, int die) {
     snapshot(NULL, 1);    
 
     if (die) {
-	// first scribble over correct data, then die
+	//TODO: in separate thread do random inserts/deletes/queries
+        // in this thread:
+        //    first scribble over correct data
+        //    sleep a random amount of time and drop dead
+	DB* db = dictionaries[0].db;
+	scribble(db, iter);
+	u_int32_t delay = myrandom();
+	delay &= 0xFFF;       // select lower 12 bits, shifted up 8
+	delay = delay << 8;   // sleep up to one second
+	usleep(delay);
 	drop_dead();
     }
-    else
+    else {
+	for (i = 0; i < NUM_DICTIONARIES; i++) {
+	    db_shutdown(&dictionaries[i]);
+	}
 	env_shutdown();
+    }
 }
 
 
+static void
+usage(char *progname) {
+    fprintf(stderr, "Usage:\n%s [-i n] [-q|-v]\n"
+                    "      \n%s [-h]\n", progname, progname);
+}
 
 
 int
@@ -193,23 +240,38 @@ test_main (int argc, char *argv[]) {
     int iter = -1;
 
     int c;
-    while ((c = getopt(argc, argv, "i:vq")) != -1) {
+    int crash = 0;
+    while ((c = getopt(argc, argv, "cChi:qv")) != -1) {
 	switch(c) {
+        case 'c':
+            crash = 1;
+            break;
+        case 'C':
+            crash = 0;
+            break;
 	case 'i':
 	    iter = atoi(optarg);
 	    printf(" setting iter = %d\n", iter);
 	    break;
 	case 'v':
+	    verbose++;
+            break;
 	case 'q':
+	    verbose--;
+	    if (verbose<0) verbose=0;
+            break;
 	case 'h':
-	    // handled by parse_args()
-	    break;
+        case '?':
+            usage(argv[0]);
+            return 1;
 	default:
-	    printf(" unknown argument 0x%0x\n", c);
-	    break;
+            assert(FALSE);
+            return 1;
 	}
     }
-    
+    if (argc!=optind) { usage(argv[0]); return 1; }
+
+    // for developing this test
     if (iter <0) {
 	printf("No argument, just run five times without crash\n");
 	for (iter = 0; iter<5; iter++) {
@@ -218,7 +280,7 @@ test_main (int argc, char *argv[]) {
     }
     else {
 	printf("checkpoint_stress running one iteration, iter = %d\n", iter);
-	run_test(iter, 1);
+	run_test(iter, crash);
     }
 
     return 0;
