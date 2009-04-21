@@ -68,6 +68,29 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 
 static CPCD * g_cpcd = 0;
 
+
+static bool
+create_directory(const char* dir)
+{
+#ifdef _WIN32
+  if (CreateDirectory(dir, NULL) == 0)
+  {
+    logger.warning("Failed to create directory '%s', error: %d",
+                     dir, GetLastError());
+    return false;
+  }
+#else
+  if (mkdir(dir, S_IRWXU | S_IRGRP | S_IROTH) != 0)
+  {
+    logger.warning("Failed to create directory '%s', error: %d",
+                    dir, errno);
+    return false;
+  }
+#endif
+  return true;
+}
+
+
 int main(int argc, char** argv){
   const char *load_default_groups[]= { "ndb_cpcd",0 };
   NDB_INIT(argv[0]);
@@ -105,25 +128,34 @@ int main(int argc, char** argv){
 
   logger.info("Starting");
 
+#if defined SIGPIPE && !defined _WIN32
+  (void)signal(SIGPIPE, SIG_IGN);
+#endif
+#ifdef SIGCHLD
+  /* Only "poll" for child to be alive, never use 'wait' */
+  (void)signal(SIGCHLD, SIG_IGN);
+#endif
+
   CPCD cpcd;
   g_cpcd = &cpcd;
-  
-  /* XXX This will probably not work on !unix */
-  int err = mkdir(work_dir, S_IRWXU | S_IRGRP | S_IROTH);
-  if(err != 0) {
-    switch(errno) {
-    case EEXIST:
-      break;
-    default:
-      fprintf(stderr, "Cannot mkdir %s: %s\n", work_dir, strerror(errno));
+
+  /* Create working directory unless it already exists */
+  if (access(work_dir, F_OK))
+  {
+    logger.info("Working directory '%s' does not exist, trying "
+                "to create it", work_dir);
+    if (!create_directory(work_dir))
+    {
+      logger.error("Failed to create working directory, terminating!");
       exit(1);
     }
   }
 
   if(strlen(work_dir) > 0){
+    int err;
     logger.debug("Changing dir to '%s'", work_dir);
-    if((err = chdir(work_dir)) != 0){
-      fprintf(stderr, "Cannot chdir %s: %s\n", work_dir, strerror(errno));
+    if((err = my_setwd(work_dir, MYF(0))) != 0){
+      logger.error("Cannot change directory to '%s', terminating!", work_dir);
       exit(1);
     }
   }
@@ -143,13 +175,9 @@ int main(int argc, char** argv){
 
   ss->startServer();
 
-  {  
-    signal(SIGPIPE, SIG_IGN);
-    signal(SIGCHLD, SIG_IGN);
-  }
-
   logger.debug("Start completed");
-  while(true) NdbSleep_MilliSleep(1000);
+  while(true)
+    NdbSleep_MilliSleep(1000);
 
   delete ss;
   return 0;
