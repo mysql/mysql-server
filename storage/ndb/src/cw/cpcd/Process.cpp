@@ -21,7 +21,10 @@
 #include "common.hpp"
 #include "CPCD.hpp"
 
+#ifndef _WIN32
 #include <pwd.h>
+#endif
+
 #ifdef HAVE_GETRLIMIT
 #include <sys/resource.h>
 #endif
