@@ -221,6 +221,22 @@ CPCD::notifyChanges() {
   return ret;
 }
 
+
+#ifdef _WIN32
+static int link(const char* from_file, const char* to_file)
+{
+  BOOL fail_if_exists = TRUE;
+  if (CopyFile(from_file, to_file, fail_if_exists) != 0)
+  {
+    /* "On error, -1 is returned" */
+    return -1;
+  }
+  /* "On success, zero is returned" */
+  return 0;
+}
+#endif
+
+
 /* Must be called with m_processlist locked */
 bool
 CPCD::saveProcessList(){
