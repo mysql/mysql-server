@@ -9250,7 +9250,7 @@ Incident_log_event::Incident_log_event(const char *buf, uint event_len,
     // If the incident is not recognized, this binlog event is
     // invalid.  If we set incident_number to INCIDENT_NONE, the
     // invalidity will be detected by is_valid().
-    incident_number= INCIDENT_NONE;
+    m_incident= INCIDENT_NONE;
     DBUG_VOID_RETURN;
   }
   m_incident= static_cast<Incident>(incident_number);
