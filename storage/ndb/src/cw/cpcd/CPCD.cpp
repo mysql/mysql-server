@@ -49,8 +49,8 @@ CPCD::findUniqueId() {
   
   while(!ok) {
     ok = true;
-    id = random() % 8192; /* Don't want so big numbers */
-    
+    id = rand() % 8192; /* Don't want so big numbers */
+
     if(id == 0)
       ok = false;
 
