@@ -389,13 +389,15 @@ test1426.tdbrun: test1426.tdb$(BINSUF)  test1426.bdb$(BINSUF)
 	 diff -q -I db_pagesize=4096 dump.bdb.1426 dump.tdb.1426 ) \
 	 $(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
-STRESS_RUNS=10
+# STRESS RUNS is number of iterations, STRESS_SIZE is operations per iteration (must not change between iterations)
+STRESS_RUNS=5
+STRESS_SIZE=5001
 checkpoint_stress.tdbrun: SHELL=/bin/bash
 checkpoint_stress.tdbrun: checkpoint_stress.tdb$(BINSUF)
-	$(VGRIND) ./$< $(VERBVERBOSE) && \
-	($(VGRIND) ./$< -C -i 0 $(VERBVERBOSE) && \
+	$(VGRIND) ./$< -C -n $(STRESS_SIZE) $(VERBVERBOSE) && \
+	($(VGRIND) ./$< -C -i 0 -n $(STRESS_SIZE) $(VERBVERBOSE) && \
 	 for (( i = 1; i < $(STRESS_RUNS); i++ )); do \
-		./$< -c -i $$i $(VERBVERBOSE) 2> dir.checkpoint_stress.c.tdb/error.$$i ; \
+		./$< -c -i $$i -n $(STRESS_SIZE) $(VERBVERBOSE) 2> dir.checkpoint_stress.c.tdb/error.$$i ; \
 		if ! grep -q 'HAPPY CRASH' dir.checkpoint_stress.c.tdb/error.$$i; then break; fi; \
 	done && \
 	test `grep -l 'HAPPY CRASH' dir.checkpoint_stress.c.tdb/error.* |wc -l` = $$(($(STRESS_RUNS)-1)) \
