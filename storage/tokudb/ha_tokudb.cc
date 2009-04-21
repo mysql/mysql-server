@@ -3834,6 +3834,14 @@ void ha_tokudb::position(const uchar * record) {
 //
 int ha_tokudb::info(uint flag) {
     TOKUDB_DBUG_ENTER("ha_tokudb::info %p %d %lld", this, flag, share->rows);
+    int error = 0;
+    DB_TXN* txn = NULL;
+
+    error = db_env->txn_begin(db_env, 0, &txn, 0);
+    if (error) {
+        goto exit;    
+    }
+
     if (flag & HA_STATUS_VARIABLE) {
         // Just to get optimizations right
         stats.records = share->rows + share->rows_from_locked_table;
@@ -3841,7 +3849,19 @@ int ha_tokudb::info(uint flag) {
     }
     if ((flag & HA_STATUS_CONST)) {
         for (uint i = 0; i < table_share->keys; i++) {
-            table->key_info[i].rec_per_key[table->key_info[i].key_parts - 1] = 0;
+            DB_BTREE_STAT64 stat64;
+            u_int64_t rec_per_key = 0;
+            error = share->key_file[i]->stat64(
+                share->key_file[i],
+                txn,
+                &stat64
+                );
+            if (error) {
+                goto exit;
+            }
+            rec_per_key = (stat64.bt_nkeys) ? stat64.bt_ndata/stat64.bt_nkeys : 0;
+            table->key_info[i].rec_per_key[table->key_info[i].key_parts - 1] = (ulong)rec_per_key;
+                
         }
     }
     /* Don't return key if we got an error for the internal primary key */
@@ -3853,7 +3873,14 @@ int ha_tokudb::info(uint flag) {
         struct system_variables *variables= &thd->variables;
         stats.auto_increment_value = share->last_auto_increment + variables->auto_increment_increment;
     }
-    TOKUDB_DBUG_RETURN(0);
+    error = 0;
+exit:
+    if (txn) {
+        int r;
+        r = txn->commit(txn, 0);
+        assert(!r);
+    }
+    TOKUDB_DBUG_RETURN(error);
 }
 
 //
@@ -5401,51 +5428,13 @@ void ha_tokudb::print_error(int error, myf errflag) {
     handler::print_error(error, errflag);
 }
 
-#if 0 // QQQ use default
 //
 // This function will probably need to be redone from scratch
 // if we ever choose to implement it
 //
 int ha_tokudb::analyze(THD * thd, HA_CHECK_OPT * check_opt) {
-    uint i;
-    DB_BTREE_STAT *stat = 0;
-    DB_TXN_STAT *txn_stat_ptr = 0;
-    tokudb_trx_data *trx = (tokudb_trx_data *) thd->ha_data[tokudb_hton->slot];
-    DBUG_ASSERT(trx);
-
-    for (i = 0; i < table_share->keys; i++) {
-        if (stat) {
-            free(stat);
-            stat = 0;
-        }
-        if ((key_file[i]->stat) (key_file[i], trx->all, (void *) &stat, 0))
-            goto err;
-        share->rec_per_key[i] = (stat->bt_ndata / (stat->bt_nkeys ? stat->bt_nkeys : 1));
-    }
-    /* A hidden primary key is not in key_file[] */
-    if (hidden_primary_key) {
-        if (stat) {
-            free(stat);
-            stat = 0;
-        }
-        if ((file->stat) (file, trx->all, (void *) &stat, 0))
-            goto err;
-    }
-    pthread_mutex_lock(&share->mutex);
-    share->status |= STATUS_TOKUDB_ANALYZE;        // Save status on close
-    share->version++;           // Update stat in table
-    pthread_mutex_unlock(&share->mutex);
-    update_status(share, table);        // Write status to file
-    if (stat)
-        free(stat);
-    return ((share->status & STATUS_TOKUDB_ANALYZE) ? HA_ADMIN_FAILED : HA_ADMIN_OK);
-
-  err:
-    if (stat)
-        free(stat);
-    return HA_ADMIN_FAILED;
+    return info(HA_STATUS_CONST | HA_STATUS_VARIABLE);
 }
-#endif
 
 //
 // flatten all DB's in this table, to do so, just do a full scan on every DB
