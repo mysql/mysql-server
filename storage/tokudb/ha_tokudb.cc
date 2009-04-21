@@ -2791,7 +2791,7 @@ void ha_tokudb::set_query_columns(uint keynr) {
     //
     uint key_index = 0;
 
-    if (keynr == primary_key) {
+    if (keynr == primary_key || keynr == MAX_KEY) {
         key_index = primary_key;
     }
     else {
@@ -2836,6 +2836,11 @@ void ha_tokudb::set_query_columns(uint keynr) {
     num_var_cols_for_query = curr_var_col_index;
 }
 
+void ha_tokudb::column_bitmaps_signal() {
+    if (active_index != MAX_KEY) {
+        set_query_columns(active_index);
+    }
+}
 
 //
 // Notification that a scan of entire secondary table is about
@@ -3662,7 +3667,10 @@ int ha_tokudb::rnd_pos(uchar * buf, uchar * pos) {
     }    
 
     if (!error) {
+        bool old_unpack_entire_row = unpack_entire_row;
+        unpack_entire_row = true;
         error = read_row(buf, primary_key, &current_row, key);
+        unpack_entire_row = old_unpack_entire_row;
     }
 cleanup:
     TOKUDB_DBUG_RETURN(error);
