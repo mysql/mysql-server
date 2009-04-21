@@ -13,16 +13,6 @@
 
 
 
-TODO: This test is not yet complete
- - write scribble_n function to scribble over expected data (and maybe do some random inserts?)
- - create separate thread to do scribbling 
- - have drop_dead function sleep a random time (0.1 to 5 seconds?) before sigsegv
-
- - find some way to force disk I/O  (Make cachetable very small)
-   
-
-
-
 Accept n as iteration number
 Operate on more than one dictionary simultaneously
 
@@ -178,12 +168,36 @@ verify_and_insert (DB* db, int iter) {
 }
 
 
+//  Purpose of this function is to perform a variety of random acts.  
+//  This will simulate normal database operations.  The idea is for the 
+//  the crash to occur sometimes during an insert, sometimes during a query, etc.
 void *
 random_acts(void * d) {
     void * intothevoid = NULL;
     DICTIONARY dictionaries = (DICTIONARY) d;
-    printf("perform random acts, %s\n", dictionaries[0].filename);
+    if (verbose)
+	printf("perform random acts, %s\n", dictionaries[0].filename);
     fflush(stdout);
+    int i = 0;
+    int64_t k = 0;
+
+    while (1) {    // run until crash
+	// main thread is scribbling over dictionary 0
+	// this thread will futz with other dictionaries
+	for (i = 1; i < NUM_DICTIONARIES; i++) {
+	    int j;
+	    DB * db = dictionaries[i].db;
+	    insert_random(db, NULL, NULL);
+	    delete_both_random(db, NULL, NULL, 0);  // delete only if found (performs query)
+	    delete_both_random(db, NULL, NULL, DB_DELETE_ANY);  // delete whether or not found (no query)
+	    for (j = 0; j < 10; j++) {
+		delete_fixed(db, NULL, NULL, k, 0);      // delete only if found to provoke more queries
+		k++;
+	    }
+	}
+    }
+
+
     return intothevoid;
 }
 
@@ -218,19 +232,17 @@ run_test (int iter, int die) {
     snapshot(NULL, 1);    
 
     if (die) {
-	//TODO: in separate thread do random inserts/deletes/queries
-        // in this thread:
-        //    first scribble over correct data
-        //    sleep a random amount of time and drop dead
-
+	// separate thread will perform random acts on other dictionaries (not 0)
 	int r = toku_pthread_create(&thread, 0, random_acts, (void *) dictionaries);
-            CKERR(r);
+	CKERR(r);
+	// this thead will scribble over dictionary 0 before crash to verify that
+	// post-checkpoint inserts are not in the database
 	DB* db = dictionaries[0].db;
 	scribble(db, iter);
 	u_int32_t delay = myrandom();
-	delay &= 0xFFF;       // select lower 12 bits, shifted up 8
-	delay = delay << 8;   // sleep up to one second
-	usleep(delay);
+	delay &= 0xFFF;       // select lower 12 bits, shifted up 8 for random number ...
+	delay = delay << 8;   // ... uniformly distributed between 0 and 1M ...
+	usleep(delay);        // ... to sleep up to one second (1M usec)
 	drop_dead();
     }
     else {
@@ -254,8 +266,6 @@ test_main (int argc, char *argv[]) {
 
     // get arguments, set parameters
 
-    printf("enter test_main \n");
-
     int iter = -1;
 
     int c;
@@ -270,7 +280,6 @@ test_main (int argc, char *argv[]) {
             break;
 	case 'i':
 	    iter = atoi(optarg);
-	    printf(" setting iter = %d\n", iter);
 	    break;
 	case 'v':
 	    verbose++;
@@ -292,13 +301,15 @@ test_main (int argc, char *argv[]) {
 
     // for developing this test
     if (iter <0) {
-	printf("No argument, just run five times without crash\n");
+	if (verbose)
+	    printf("No argument, just run five times without crash\n");
 	for (iter = 0; iter<5; iter++) {
 	    run_test(iter, 0);
 	}
     }
     else {
-	printf("checkpoint_stress running one iteration, iter = %d\n", iter);
+	if (verbose)
+	    printf("checkpoint_stress running one iteration, iter = %d\n", iter);
 	run_test(iter, crash);
     }
 
