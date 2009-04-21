@@ -85,6 +85,9 @@ BDB_DONTRUN_TESTS = \
 	test_db_descriptor_named_db \
 	test_heaviside_straddle_1622 \
 	test_dbremove_old \
+	root_fifo_2 \
+	root_fifo_32 \
+	root_fifo_41 \
 	checkpoint_1 \
 	checkpoint_stress \
 #\ ends prev line

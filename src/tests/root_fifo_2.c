@@ -11,13 +11,14 @@ DBC *null_cursor = NULL;
 static void root_fifo_verify(DB_ENV *env, int n) {
     if (verbose) printf("%s:%d %d\n", __FUNCTION__, __LINE__, n);
     int r;
-    DB *db = null_db;
-    r = db_create(&db, env, 0); assert(r == 0); assert(db != NULL);
-    r = db->open(db, null_txn, "test.db", 0, DB_BTREE, DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); 
-    assert(r == 0);
 
     DB_TXN *txn = null_txn;
     r = env->txn_begin(env, null_txn, &txn, 0); assert(r == 0); assert(txn != NULL);
+
+    DB *db = null_db;
+    r = db_create(&db, env, 0); assert(r == 0); assert(db != NULL);
+    r = db->open(db, txn, "test.db", 0, DB_BTREE, DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); 
+    assert(r == 0);
 
     DBC *cursor = null_cursor;
     r = db->cursor(db, txn, &cursor, 0); assert(r == 0);
@@ -41,7 +42,7 @@ static void root_fifo_verify(DB_ENV *env, int n) {
     r = db->close(db, 0); assert(r == 0); db = null_db;
 }
 
-static void root_fifo_1(int n) {
+static void root_fifo_2(int n) {
     if (verbose) printf("%s:%d %d\n", __FUNCTION__, __LINE__, n);
     int r;
 
@@ -84,7 +85,12 @@ static void root_fifo_1(int n) {
     root_fifo_verify(env, n);
 
     // cleanup
-    r = env->close(env, 0); assert(r == 0); env = null_env;
+    r = env->close(env, 0); 
+#if TOKUDB
+    assert(r == 0); env = null_env;
+#else
+    printf("%s:%d env close r=%d\n", __FUNCTION__, __LINE__, r);
+#endif
 }
 
 int test_main(int argc, char *argv[]) {
@@ -105,10 +111,10 @@ int test_main(int argc, char *argv[]) {
     }
               
     if (n >= 0)
-        root_fifo_1(n);
+        root_fifo_2(n);
     else 
         for (i=0; i<100; i++)
-            root_fifo_1(i);
+            root_fifo_2(i);
     return 0;
 }
 
