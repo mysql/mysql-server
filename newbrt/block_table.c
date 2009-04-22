@@ -282,12 +282,14 @@ unlock_for_blocktable (BLOCK_TABLE bt) {
 }
 
 void
-toku_block_lock_for_multiple_operations (BLOCK_TABLE bt) {
+toku_brtheader_lock (struct brt_header *h) {
+    BLOCK_TABLE bt = h->blocktable;
     lock_for_blocktable(bt);
 }
 
 void
-toku_block_unlock_for_multiple_operations (BLOCK_TABLE bt) {
+toku_brtheader_unlock (struct brt_header *h) {
+    BLOCK_TABLE bt = h->blocktable;
     assert(bt->is_locked);
     unlock_for_blocktable(bt);
 }

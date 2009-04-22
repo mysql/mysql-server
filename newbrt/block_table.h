@@ -20,8 +20,8 @@ void toku_blocktable_create_new(BLOCK_TABLE *btp);
 void toku_blocktable_create_from_buffer(BLOCK_TABLE *btp, DISKOFF location_on_disk, DISKOFF size_on_disk, unsigned char *translation_buffer);
 void toku_blocktable_destroy(BLOCK_TABLE *btp);
 
-void toku_block_lock_for_multiple_operations(BLOCK_TABLE bt);
-void toku_block_unlock_for_multiple_operations(BLOCK_TABLE bt);
+void toku_brtheader_lock(struct brt_header *h);
+void toku_brtheader_unlock(struct brt_header *h);
 
 void toku_block_translation_note_start_checkpoint_unlocked(BLOCK_TABLE bt);
 void toku_block_translation_note_end_checkpoint(BLOCK_TABLE bt, struct brt_header *h);
