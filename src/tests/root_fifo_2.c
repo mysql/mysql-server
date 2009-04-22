@@ -42,7 +42,7 @@ static void root_fifo_verify(DB_ENV *env, int n) {
     r = db->close(db, 0); assert(r == 0); db = null_db;
 }
 
-static void root_fifo_2(int n) {
+static void root_fifo_2(int n, int create_outside) {
     if (verbose) printf("%s:%d %d\n", __FUNCTION__, __LINE__, n);
     int r;
 
@@ -60,6 +60,16 @@ static void root_fifo_2(int n) {
                   S_IRWXU+S_IRWXG+S_IRWXO); 
     assert(r == 0);
 
+    if (create_outside) {
+        DB_TXN *txn_open = null_txn;
+        r = env->txn_begin(env, null_txn, &txn_open, 0); assert(r == 0); assert(txn_open != NULL);
+        DB *db_open = null_db;
+        r = db_create(&db_open, env, 0); assert(r == 0); assert(db_open != NULL);
+        r = db_open->open(db_open, txn_open, "test.db", 0, DB_BTREE, DB_CREATE|DB_EXCL, S_IRWXU+S_IRWXG+S_IRWXO); 
+        assert(r == 0);
+        r = db_open->close(db_open, 0); assert(r == 0); db_open = null_db;
+        r = txn_open->commit(txn_open, 0); assert(r == 0); txn_open = null_txn;
+    }
     DB_TXN *txn = null_txn;
     r = env->txn_begin(env, null_txn, &txn, 0); assert(r == 0); assert(txn != NULL);
 
@@ -110,11 +120,15 @@ int test_main(int argc, char *argv[]) {
         }
     }
               
-    if (n >= 0)
-        root_fifo_2(n);
+    if (n >= 0) {
+        root_fifo_2(n, 0);
+        root_fifo_2(n, 1);
+    }
     else 
-        for (i=0; i<100; i++)
-            root_fifo_2(i);
+        for (i=0; i<100; i++) {
+            root_fifo_2(i, 0);
+            root_fifo_2(i, 1);
+        }
     return 0;
 }
 
