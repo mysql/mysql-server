@@ -2,11 +2,9 @@
 #ident "Copyright (c) 2009 Tokutek Inc.  All rights reserved."
 #ident "$Id$"
 
+#include "test.h"
 #include <db.h>
 #include <sys/stat.h>
-#include "toku_portability.h"
-#include "toku_pthread.h"
-#include "test.h"
 #include "checkpoint_test.h"
 
 /***
@@ -195,7 +193,9 @@ random_acts(void * d) {
     }
 
 
+#if IS_TDB && !defined(_WIN32) && !defined(_WIN64)
     return intothevoid;
+#endif
 }
 
 
