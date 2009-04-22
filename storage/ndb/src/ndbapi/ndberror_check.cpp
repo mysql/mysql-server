@@ -20,7 +20,8 @@
 size_t my_snprintf(char* to, size_t n, const char* fmt, ...)
 {
   abort();
-  return 0;
+  /*NOTREACHED*/
+  return 0;  /* the function just satisfies the linker, never to be executed */
 }
 
 
