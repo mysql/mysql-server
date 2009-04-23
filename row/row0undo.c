@@ -236,10 +236,10 @@ row_undo(
 	undo_node_t*	node,	/* in: row undo node */
 	que_thr_t*	thr)	/* in: query thread */
 {
-	ulint	err;
-	trx_t*	trx;
-	dulint	roll_ptr;
-	ibool	locked_data_dict;
+	ulint		err;
+	trx_t*		trx;
+	roll_ptr_t	roll_ptr;
+	ibool		locked_data_dict;
 
 	ut_ad(node && thr);
 

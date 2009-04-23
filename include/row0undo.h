@@ -89,14 +89,14 @@ struct undo_node_struct{
 	que_common_t	common;	/* node type: QUE_NODE_UNDO */
 	ulint		state;	/* node execution state */
 	trx_t*		trx;	/* trx for which undo is done */
-	dulint		roll_ptr;/* roll pointer to undo log record */
+	roll_ptr_t	roll_ptr;/* roll pointer to undo log record */
 	trx_undo_rec_t*	undo_rec;/* undo log record */
-	dulint		undo_no;/* undo number of the record */
+	undo_no_t	undo_no;/* undo number of the record */
 	ulint		rec_type;/* undo log record type: TRX_UNDO_INSERT_REC,
 				... */
-	dulint		new_roll_ptr; /* roll ptr to restore to clustered index
+	roll_ptr_t	new_roll_ptr; /* roll ptr to restore to clustered index
 				record */
-	dulint		new_trx_id; /* trx id to restore to clustered index
+	trx_id_t	new_trx_id; /* trx id to restore to clustered index
 				record */
 	btr_pcur_t	pcur;	/* persistent cursor used in searching the
 				clustered index record */

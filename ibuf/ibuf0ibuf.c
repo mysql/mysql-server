@@ -3314,7 +3314,7 @@ loop:
 			keep the latch to the rec page until the
 			insertion is finished! */
 			dtuple_t*	entry;
-			dulint		max_trx_id;
+			trx_id_t	max_trx_id;
 			dict_index_t*	dummy_index;
 
 			max_trx_id = page_get_max_trx_id(page_align(rec));

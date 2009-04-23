@@ -56,10 +56,11 @@ UNIV_INTERN
 ibool
 trx_purge_update_undo_must_exist(
 /*=============================*/
-			/* out: TRUE if is sure that it is preserved, also
-			if the function returns FALSE, it is possible that
-			the undo log still exists in the system */
-	dulint	trx_id)	/* in: transaction id */
+				/* out: TRUE if is sure that it is
+				preserved, also if the function
+				returns FALSE, it is possible that the
+				undo log still exists in the system */
+	trx_id_t	trx_id)	/* in: transaction id */
 {
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
@@ -81,9 +82,9 @@ static
 trx_undo_inf_t*
 trx_purge_arr_store_info(
 /*=====================*/
-			/* out: pointer to the storage cell */
-	dulint	trx_no,	/* in: transaction number */
-	dulint	undo_no)/* in: undo number */
+				/* out: pointer to the storage cell */
+	trx_id_t	trx_no,	/* in: transaction number */
+	undo_no_t	undo_no)/* in: undo number */
 {
 	trx_undo_inf_t*	cell;
 	trx_undo_arr_t*	arr;
@@ -133,13 +134,13 @@ void
 trx_purge_arr_get_biggest(
 /*======================*/
 	trx_undo_arr_t*	arr,	/* in: purge array */
-	dulint*		trx_no,	/* out: transaction number: ut_dulint_zero
+	trx_id_t*	trx_no,	/* out: transaction number: ut_dulint_zero
 				if array is empty */
-	dulint*		undo_no)/* out: undo number */
+	undo_no_t*	undo_no)/* out: undo number */
 {
 	trx_undo_inf_t*	cell;
-	dulint		pair_trx_no;
-	dulint		pair_undo_no;
+	trx_id_t	pair_trx_no;
+	undo_no_t	pair_undo_no;
 	int		trx_cmp;
 	ulint		n_used;
 	ulint		i;
@@ -443,9 +444,9 @@ void
 trx_purge_truncate_rseg_history(
 /*============================*/
 	trx_rseg_t*	rseg,		/* in: rollback segment */
-	dulint		limit_trx_no,	/* in: remove update undo logs whose
+	trx_id_t	limit_trx_no,	/* in: remove update undo logs whose
 					trx number is < limit_trx_no */
-	dulint		limit_undo_no)	/* in: if transaction number is equal
+	undo_no_t	limit_undo_no)	/* in: if transaction number is equal
 					to limit_trx_no, truncate undo records
 					with undo number < limit_undo_no */
 {
@@ -549,8 +550,8 @@ trx_purge_truncate_history(void)
 /*============================*/
 {
 	trx_rseg_t*	rseg;
-	dulint		limit_trx_no;
-	dulint		limit_undo_no;
+	trx_id_t	limit_trx_no;
+	undo_no_t	limit_undo_no;
 
 	ut_ad(mutex_own(&(purge_sys->mutex)));
 
@@ -617,7 +618,7 @@ trx_purge_rseg_get_next_history_log(
 	trx_ulogf_t*	log_hdr;
 	trx_usegf_t*	seg_hdr;
 	fil_addr_t	prev_log_addr;
-	dulint		trx_no;
+	trx_id_t	trx_no;
 	ibool		del_marks;
 	mtr_t		mtr;
 
@@ -718,7 +719,7 @@ trx_purge_choose_next_log(void)
 	trx_undo_rec_t*	rec;
 	trx_rseg_t*	rseg;
 	trx_rseg_t*	min_rseg;
-	dulint		min_trx_no;
+	trx_id_t	min_trx_no;
 	ulint		space = 0;   /* remove warning (??? bug ???) */
 	ulint		zip_size = 0;
 	ulint		page_no = 0; /* remove warning (??? bug ???) */
@@ -938,7 +939,7 @@ trx_purge_fetch_next_rec(
 				pointer to the dummy undo log record
 				&trx_purge_dummy_rec, if the whole undo log
 				can skipped in purge; NULL if none left */
-	dulint*		roll_ptr,/* out: roll pointer to undo record */
+	roll_ptr_t*	roll_ptr,/* out: roll pointer to undo record */
 	trx_undo_inf_t** cell,	/* out: storage cell for the record in the
 				purge array */
 	mem_heap_t*	heap)	/* in: memory heap where copied */
