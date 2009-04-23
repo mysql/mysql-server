@@ -1742,7 +1742,7 @@ String *Item_func_encode::val_str(String *str)
 
   null_value=0;
   res=copy_if_not_alloced(str,res,res->length());
-  SQL_CRYPT sql_crypt(password->ptr());
+  SQL_CRYPT sql_crypt(password->ptr(), password->length());
   sql_crypt.init();
   sql_crypt.encode((char*) res->ptr(),res->length());
   res->set_charset(&my_charset_bin);
@@ -1771,7 +1771,7 @@ String *Item_func_decode::val_str(String *str)
 
   null_value=0;
   res=copy_if_not_alloced(str,res,res->length());
-  SQL_CRYPT sql_crypt(password->ptr());
+  SQL_CRYPT sql_crypt(password->ptr(), password->length());
   sql_crypt.init();
   sql_crypt.decode((char*) res->ptr(),res->length());
   return res;
