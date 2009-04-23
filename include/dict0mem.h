@@ -402,7 +402,7 @@ struct dict_table_struct{
 				on the table: we cannot drop the table while
 				there are foreign key checks running on
 				it! */
-	dulint		query_cache_inv_trx_id;
+	trx_id_t	query_cache_inv_trx_id;
 				/* transactions whose trx id < than this
 				number are not allowed to store to the MySQL
 				query cache or retrieve from it; when a trx

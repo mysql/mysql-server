@@ -948,7 +948,7 @@ btr_cur_ins_lock_and_undo(
 	dict_index_t*	index;
 	ulint		err;
 	rec_t*		rec;
-	dulint		roll_ptr;
+	roll_ptr_t	roll_ptr;
 
 	/* Check if we have to wait for a lock: enqueue an explicit lock
 	request if yes */
@@ -1443,7 +1443,7 @@ btr_cur_upd_lock_and_undo(
 	ulint		cmpl_info,/* in: compiler info on secondary index
 				updates */
 	que_thr_t*	thr,	/* in: query thread */
-	dulint*		roll_ptr)/* out: roll pointer */
+	roll_ptr_t*	roll_ptr)/* out: roll pointer */
 {
 	dict_index_t*	index;
 	rec_t*		rec;
@@ -1504,7 +1504,7 @@ btr_cur_update_in_place_log(
 	dict_index_t*	index,		/* in: index where cursor positioned */
 	const upd_t*	update,		/* in: update vector */
 	trx_t*		trx,		/* in: transaction */
-	dulint		roll_ptr,	/* in: roll ptr */
+	roll_ptr_t	roll_ptr,	/* in: roll ptr */
 	mtr_t*		mtr)		/* in: mtr */
 {
 	byte*	log_ptr;
@@ -1555,15 +1555,15 @@ btr_cur_parse_update_in_place(
 	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
 	dict_index_t*	index)	/* in: index corresponding to page */
 {
-	ulint	flags;
-	rec_t*	rec;
-	upd_t*	update;
-	ulint	pos;
-	dulint	trx_id;
-	dulint	roll_ptr;
-	ulint	rec_offset;
-	mem_heap_t* heap;
-	ulint*	offsets;
+	ulint		flags;
+	rec_t*		rec;
+	upd_t*		update;
+	ulint		pos;
+	trx_id_t	trx_id;
+	roll_ptr_t	roll_ptr;
+	ulint		rec_offset;
+	mem_heap_t*	heap;
+	ulint*		offsets;
 
 	if (end_ptr < ptr + 1) {
 
@@ -1703,7 +1703,7 @@ btr_cur_update_in_place(
 	page_zip_des_t*	page_zip;
 	ulint		err;
 	rec_t*		rec;
-	dulint		roll_ptr	= ut_dulint_zero;
+	roll_ptr_t	roll_ptr	= ut_dulint_zero;
 	trx_t*		trx;
 	ulint		was_delete_marked;
 	mem_heap_t*	heap		= NULL;
@@ -1840,7 +1840,7 @@ btr_cur_optimistic_update(
 	ulint		new_rec_size;
 	ulint		old_rec_size;
 	dtuple_t*	new_entry;
-	dulint		roll_ptr;
+	roll_ptr_t	roll_ptr;
 	trx_t*		trx;
 	mem_heap_t*	heap;
 	ulint		i;
@@ -2096,7 +2096,7 @@ btr_cur_pessimistic_update(
 	dtuple_t*	new_entry;
 	ulint		err;
 	ulint		optim_err;
-	dulint		roll_ptr;
+	roll_ptr_t	roll_ptr;
 	trx_t*		trx;
 	ibool		was_first;
 	ulint		n_extents	= 0;
@@ -2368,7 +2368,7 @@ btr_cur_del_mark_set_clust_rec_log(
 	dict_index_t*	index,	/* in: index of the record */
 	ibool		val,	/* in: value to set */
 	trx_t*		trx,	/* in: deleting transaction */
-	dulint		roll_ptr,/* in: roll ptr to the undo log record */
+	roll_ptr_t	roll_ptr,/* in: roll ptr to the undo log record */
 	mtr_t*		mtr)	/* in: mtr */
 {
 	byte*	log_ptr;
@@ -2417,13 +2417,13 @@ btr_cur_parse_del_mark_set_clust_rec(
 	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
 	dict_index_t*	index)	/* in: index corresponding to page */
 {
-	ulint	flags;
-	ulint	val;
-	ulint	pos;
-	dulint	trx_id;
-	dulint	roll_ptr;
-	ulint	offset;
-	rec_t*	rec;
+	ulint		flags;
+	ulint		val;
+	ulint		pos;
+	trx_id_t	trx_id;
+	roll_ptr_t	roll_ptr;
+	ulint		offset;
+	rec_t*		rec;
 
 	ut_ad(!page
 	      || !!page_is_comp(page) == dict_table_is_comp(index->table));
@@ -2503,7 +2503,7 @@ btr_cur_del_mark_set_clust_rec(
 {
 	dict_index_t*	index;
 	buf_block_t*	block;
-	dulint		roll_ptr;
+	roll_ptr_t	roll_ptr;
 	ulint		err;
 	rec_t*		rec;
 	page_zip_des_t*	page_zip;

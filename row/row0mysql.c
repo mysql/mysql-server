@@ -1463,7 +1463,7 @@ row_unlock_for_mysql(
 
 		const rec_t*	rec;
 		dict_index_t*	index;
-		dulint		rec_trx_id;
+		trx_id_t	rec_trx_id;
 		mtr_t		mtr;
 
 		mtr_start(&mtr);

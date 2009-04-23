@@ -55,10 +55,12 @@ UNIV_INTERN
 ibool
 row_vers_must_preserve_del_marked(
 /*==============================*/
-			/* out: TRUE if earlier version should be preserved */
-	dulint	trx_id,	/* in: transaction id in the version */
-	mtr_t*	mtr);	/* in: mtr holding the latch on the clustered index
-			record; it will also hold the latch on purge_view */
+				/* out: TRUE if earlier version should
+				be preserved */
+	trx_id_t	trx_id,	/* in: transaction id in the version */
+	mtr_t*		mtr);	/* in: mtr holding the latch on the
+				clustered index record; it will also
+				hold the latch on purge_view */
 /*********************************************************************
 Finds out if a version of the record, where the version >= the current
 purge view, should have ientry as its secondary index entry. We check

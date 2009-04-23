@@ -209,7 +209,7 @@ page_set_max_trx_id(
 /*================*/
 	buf_block_t*	block,	/* in/out: page */
 	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
-	dulint		trx_id)	/* in: transaction id */
+	trx_id_t	trx_id)	/* in: transaction id */
 {
 	page_t*		page		= buf_block_get_frame(block);
 #ifndef UNIV_HOTBACKUP

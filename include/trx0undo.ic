@@ -27,9 +27,9 @@ Created 3/26/1996 Heikki Tuuri
 
 #ifndef UNIV_HOTBACKUP
 /***************************************************************************
-Builds a roll pointer dulint. */
+Builds a roll pointer. */
 UNIV_INLINE
-dulint
+roll_ptr_t
 trx_undo_build_roll_ptr(
 /*====================*/
 				/* out: roll pointer */
@@ -51,16 +51,17 @@ trx_undo_build_roll_ptr(
 }
 
 /***************************************************************************
-Decodes a roll pointer dulint. */
+Decodes a roll pointer. */
 UNIV_INLINE
 void
 trx_undo_decode_roll_ptr(
 /*=====================*/
-	dulint	roll_ptr,	/* in: roll pointer */
-	ibool*	is_insert,	/* out: TRUE if insert undo log */
-	ulint*	rseg_id,	/* out: rollback segment id */
-	ulint*	page_no,	/* out: page number */
-	ulint*	offset)		/* out: offset of the undo entry within page */
+	roll_ptr_t	roll_ptr,	/* in: roll pointer */
+	ibool*		is_insert,	/* out: TRUE if insert undo log */
+	ulint*		rseg_id,	/* out: rollback segment id */
+	ulint*		page_no,	/* out: page number */
+	ulint*		offset)		/* out: offset of the undo
+					entry within page */
 {
 	ulint	low;
 	ulint	high;
@@ -88,8 +89,8 @@ UNIV_INLINE
 ibool
 trx_undo_roll_ptr_is_insert(
 /*========================*/
-				/* out: TRUE if insert undo log */
-	dulint	roll_ptr)	/* in: roll pointer */
+					/* out: TRUE if insert undo log */
+	roll_ptr_t	roll_ptr)	/* in: roll pointer */
 {
 	ulint	high;
 #if DATA_ROLL_PTR_LEN != 7
@@ -112,8 +113,9 @@ UNIV_INLINE
 void
 trx_write_roll_ptr(
 /*===============*/
-	byte*	ptr,		/* in: pointer to memory where written */
-	dulint	roll_ptr)	/* in: roll ptr */
+	byte*		ptr,		/* in: pointer to memory where
+					written */
+	roll_ptr_t	roll_ptr)	/* in: roll ptr */
 {
 #if DATA_ROLL_PTR_LEN != 7
 # error "DATA_ROLL_PTR_LEN != 7"
@@ -126,7 +128,7 @@ Reads a roll ptr from an index page. In case that the roll ptr size
 changes in some future version, this function should be used instead of
 mach_read_... */
 UNIV_INLINE
-dulint
+roll_ptr_t
 trx_read_roll_ptr(
 /*==============*/
 				/* out: roll ptr */

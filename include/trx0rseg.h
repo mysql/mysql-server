@@ -174,7 +174,7 @@ struct trx_rseg_struct{
 					FIL_NULL if all list purged */
 	ulint		last_offset;	/* Byte offset of the last not yet
 					purged log header */
-	dulint		last_trx_no;	/* Transaction number of the last not
+	trx_id_t	last_trx_no;	/* Transaction number of the last not
 					yet purged log */
 	ibool		last_del_marks;	/* TRUE if the last not yet purged log
 					needs purging */
