@@ -1326,16 +1326,19 @@ sub set_build_thread_ports($) {
 
   if ( lc($opt_build_thread) eq 'auto' ) {
     my $found_free = 0;
-    $build_thread = 250;	# Start attempts from here
+    $build_thread = 300;	# Start attempts from here
     while (! $found_free)
     {
-      $build_thread= mtr_get_unique_id($build_thread, 299);
+      $build_thread= mtr_get_unique_id($build_thread, 349);
       if ( !defined $build_thread ) {
-	mtr_error("Could not get a unique build thread id");
+        mtr_error("Could not get a unique build thread id");
       }
       $found_free= check_ports_free($build_thread);
       # If not free, release and try from next number
-      mtr_release_unique_id($build_thread++) unless $found_free;
+      if (! $found_free) {
+        mtr_release_unique_id();
+        $build_thread++;
+      }
     }
   }
   else
