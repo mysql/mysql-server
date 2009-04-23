@@ -1,6 +1,6 @@
 2009-04-23	The InnoDB Team
 
-	* trx0types.h:
+	* include/trx0types.h:
 	Define the logical type names trx_id_t, roll_ptr_t, and undo_no_t
 	and use them in place of dulint everywhere.
 
@@ -11,7 +11,7 @@
 
 2009-04-16	The InnoDB Team
 
-	* univ.i:
+	* include/univ.i:
 	Define REFMAN as the base URL of the MySQL Reference Manual and
 	use the macro in all diagnostic output.
 
