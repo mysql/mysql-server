@@ -30,6 +30,8 @@ our @EXPORT= qw(report_option mtr_print_line mtr_print_thick_line
 		mtr_report_test);
 
 use mtr_match;
+use My::Platform;
+use POSIX qw[ _exit ];
 require "mtr_io.pl";
 
 my $tot_real_time= 0;
@@ -470,7 +472,14 @@ sub mtr_warning (@) {
 sub mtr_error (@) {
   print STDERR _name(), _timestamp(),
     "mysql-test-run: *** ERROR: ", join(" ", @_), "\n";
-  exit(1);
+  if (IS_WINDOWS)
+  {
+    POSIX::_exit(1);
+  }
+  else
+  {
+    exit(1);
+  }
 }
 
 
