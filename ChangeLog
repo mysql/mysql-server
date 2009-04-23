@@ -1,5 +1,12 @@
 2009-04-23	The InnoDB Team
 
+	* row/row0mysql.c:
+	When scanning indexes, report in the error log any error codes
+	returned by the search function.  These error codes will still be
+	ignored in CHECK TABLE.
+
+2009-04-23	The InnoDB Team
+
 	* include/trx0types.h:
 	Define the logical type names trx_id_t, roll_ptr_t, and undo_no_t
 	and use them in place of dulint everywhere.
