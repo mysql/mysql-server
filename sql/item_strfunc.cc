@@ -1693,10 +1693,10 @@ String *Item_func_encrypt::val_str(String *str)
     String *salt_str=args[1]->val_str(&tmp_value);
     if ((null_value= (args[1]->null_value || salt_str->length() < 2)))
       return 0;
-    salt_ptr= salt_str->c_ptr();
+    salt_ptr= salt_str->c_ptr_safe();
   }
   pthread_mutex_lock(&LOCK_crypt);
-  char *tmp= crypt(res->c_ptr(),salt_ptr);
+  char *tmp= crypt(res->c_ptr_safe(),salt_ptr);
   if (!tmp)
   {
     pthread_mutex_unlock(&LOCK_crypt);
