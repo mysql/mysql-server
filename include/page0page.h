@@ -66,8 +66,8 @@ typedef	byte		page_header_t;
 #define	PAGE_N_RECS	 16	/* number of user records on the page */
 #define PAGE_MAX_TRX_ID	 18	/* highest id of a trx which may have modified
 				a record on the page; a dulint; defined only
-				in secondary indexes; specifically, not in an
-				ibuf tree; NOTE: this may be modified only
+				in secondary indexes and in the insert buffer
+				tree; NOTE: this may be modified only
 				when the thread has an x-latch to the page,
 				and ALSO an x-latch to btr_search_latch
 				if there is a hash index to the page! */
