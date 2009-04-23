@@ -79,7 +79,7 @@ lock_clust_rec_some_has_impl(
 	dict_index_t*	index,	/* in: clustered index */
 	const ulint*	offsets)/* in: rec_get_offsets(rec, index) */
 {
-	dulint	trx_id;
+	trx_id_t	trx_id;
 
 	ut_ad(mutex_own(&kernel_mutex));
 	ut_ad(dict_index_is_clust(index));

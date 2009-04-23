@@ -177,7 +177,7 @@ page_offset(
 /*****************************************************************
 Returns the max trx id field value. */
 UNIV_INLINE
-dulint
+trx_id_t
 page_get_max_trx_id(
 /*================*/
 	const page_t*	page);	/* in: page */
@@ -189,7 +189,7 @@ page_set_max_trx_id(
 /*================*/
 	buf_block_t*	block,	/* in/out: page */
 	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
-	dulint		trx_id);/* in: transaction id */
+	trx_id_t	trx_id);/* in: transaction id */
 /*****************************************************************
 Sets the max trx id field value if trx_id is bigger than the previous
 value. */
@@ -200,7 +200,7 @@ page_update_max_trx_id(
 	buf_block_t*	block,	/* in/out: page */
 	page_zip_des_t*	page_zip,/* in/out: compressed page whose
 				uncompressed part will be updated, or NULL */
-	dulint		trx_id);/* in: transaction id */
+	trx_id_t	trx_id);/* in: transaction id */
 /*****************************************************************
 Reads the given header field. */
 UNIV_INLINE

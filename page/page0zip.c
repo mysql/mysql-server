@@ -3795,8 +3795,8 @@ page_zip_write_trx_id_and_roll_ptr(
 	byte*		rec,	/* in/out: record */
 	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
 	ulint		trx_id_col,/* in: column number of TRX_ID in rec */
-	dulint		trx_id,	/* in: transaction identifier */
-	dulint		roll_ptr)/* in: roll_ptr */
+	trx_id_t	trx_id,	/* in: transaction identifier */
+	roll_ptr_t	roll_ptr)/* in: roll_ptr */
 {
 	byte*	field;
 	byte*	storage;

@@ -452,7 +452,7 @@ ibool
 lock_check_trx_id_sanity(
 /*=====================*/
 					/* out: TRUE if ok */
-	dulint		trx_id,		/* in: trx id */
+	trx_id_t	trx_id,		/* in: trx id */
 	const rec_t*	rec,		/* in: user record */
 	dict_index_t*	index,		/* in: index */
 	const ulint*	offsets,	/* in: rec_get_offsets(rec, index) */
@@ -510,7 +510,7 @@ lock_clust_rec_cons_read_sees(
 	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
 	read_view_t*	view)	/* in: consistent read view */
 {
-	dulint	trx_id;
+	trx_id_t	trx_id;
 
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(page_rec_is_user_rec(rec));
@@ -549,7 +549,7 @@ lock_sec_rec_cons_read_sees(
 					by a read cursor */
 	const read_view_t*	view)	/* in: consistent read view */
 {
-	dulint	max_trx_id;
+	trx_id_t	max_trx_id;
 
 	ut_ad(page_rec_is_user_rec(rec));
 

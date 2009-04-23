@@ -151,7 +151,7 @@ read_view_create_low(
 	view = mem_heap_alloc(heap, sizeof(read_view_t));
 
 	view->n_trx_ids = n;
-	view->trx_ids = mem_heap_alloc(heap, n * sizeof(dulint));
+	view->trx_ids = mem_heap_alloc(heap, n * sizeof *view->trx_ids);
 
 	return(view);
 }
@@ -166,8 +166,9 @@ read_view_t*
 read_view_oldest_copy_or_open_new(
 /*==============================*/
 					/* out, own: read view struct */
-	dulint		cr_trx_id,	/* in: trx_id of creating
-					transaction, or (0, 0) used in purge*/
+	trx_id_t	cr_trx_id,	/* in: trx_id of creating
+					transaction, or ut_dulint_zero
+					used in purge */
 	mem_heap_t*	heap)		/* in: memory heap from which
 					allocated */
 {
@@ -249,9 +250,9 @@ read_view_t*
 read_view_open_now(
 /*===============*/
 					/* out, own: read view struct */
-	dulint		cr_trx_id,	/* in: trx_id of creating
-					transaction, or (0, 0) used in
-					purge */
+	trx_id_t	cr_trx_id,	/* in: trx_id of creating
+					transaction, or ut_dulint_zero
+					used in purge */
 	mem_heap_t*	heap)		/* in: memory heap from which
 					allocated */
 {
@@ -358,7 +359,7 @@ UNIV_INTERN
 void
 read_view_print(
 /*============*/
-	read_view_t*	view)	/* in: read view */
+	const read_view_t*	view)	/* in: read view */
 {
 	ulint	n_ids;
 	ulint	i;

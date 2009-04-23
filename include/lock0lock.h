@@ -617,7 +617,7 @@ ibool
 lock_check_trx_id_sanity(
 /*=====================*/
 					/* out: TRUE if ok */
-	dulint		trx_id,		/* in: trx id */
+	trx_id_t	trx_id,		/* in: trx id */
 	const rec_t*	rec,		/* in: user record */
 	dict_index_t*	index,		/* in: clustered index */
 	const ulint*	offsets,	/* in: rec_get_offsets(rec, index) */

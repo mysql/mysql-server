@@ -29,8 +29,8 @@ UNIV_INLINE
 ulint
 trx_undo_rec_get_type(
 /*==================*/
-					/* out: record type */
-	trx_undo_rec_t*	undo_rec)	/* in: undo log record */
+						/* out: record type */
+	const trx_undo_rec_t*	undo_rec)	/* in: undo log record */
 {
 	return(mach_read_from_1(undo_rec + 2) & (TRX_UNDO_CMPL_INFO_MULT - 1));
 }
@@ -41,8 +41,8 @@ UNIV_INLINE
 ulint
 trx_undo_rec_get_cmpl_info(
 /*=======================*/
-					/* out: compiler info */
-	trx_undo_rec_t*	undo_rec)	/* in: undo log record */
+						/* out: compiler info */
+	const trx_undo_rec_t*	undo_rec)	/* in: undo log record */
 {
 	return(mach_read_from_1(undo_rec + 2) / TRX_UNDO_CMPL_INFO_MULT);
 }
@@ -53,8 +53,8 @@ UNIV_INLINE
 ibool
 trx_undo_rec_get_extern_storage(
 /*============================*/
-					/* out: TRUE if extern */
-	trx_undo_rec_t*	undo_rec)	/* in: undo log record */
+						/* out: TRUE if extern */
+	const trx_undo_rec_t*	undo_rec)	/* in: undo log record */
 {
 	if (mach_read_from_1(undo_rec + 2) & TRX_UNDO_UPD_EXTERN) {
 
@@ -67,13 +67,13 @@ trx_undo_rec_get_extern_storage(
 /**************************************************************************
 Reads the undo log record number. */
 UNIV_INLINE
-dulint
+undo_no_t
 trx_undo_rec_get_undo_no(
 /*=====================*/
-					/* out: undo no */
-	trx_undo_rec_t*	undo_rec)	/* in: undo log record */
+						/* out: undo no */
+	const trx_undo_rec_t*	undo_rec)	/* in: undo log record */
 {
-	byte*	ptr;
+	const byte*	ptr;
 
 	ptr = undo_rec + 3;
 
@@ -83,15 +83,13 @@ trx_undo_rec_get_undo_no(
 /**************************************************************************
 Returns the start of the undo record data area. */
 UNIV_INLINE
-byte*
-trx_undo_rec_get_ptr(
-/*=================*/
-					/* out: compiler info */
-	trx_undo_rec_t*	undo_rec,	/* in: undo log record */
-	dulint		undo_no)	/* in: undo no read from node */
+ulint
+trx_undo_rec_get_offset(
+/*====================*/
+					/* out: offset to the data area */
+	undo_no_t	undo_no)	/* in: undo no read from node */
 {
-	return (((byte*) undo_rec) + 3
-		+ mach_dulint_get_much_compressed_size(undo_no));
+	return (3 + mach_dulint_get_much_compressed_size(undo_no));
 }
 
 /***************************************************************************
@@ -105,14 +103,9 @@ trx_undo_rec_copy(
 	mem_heap_t*	heap)		/* in: heap where copied */
 {
 	ulint		len;
-	trx_undo_rec_t*	rec_copy;
 
 	len = mach_read_from_2(undo_rec)
 		- ut_align_offset(undo_rec, UNIV_PAGE_SIZE);
-	rec_copy = mem_heap_alloc(heap, len);
-
-	ut_memcpy(rec_copy, undo_rec, len);
-
-	return(rec_copy);
+	return(mem_heap_dup(heap, undo_rec, len));
 }
 #endif /* !UNIV_HOTBACKUP */

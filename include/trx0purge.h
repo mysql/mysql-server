@@ -58,10 +58,11 @@ UNIV_INTERN
 ibool
 trx_purge_update_undo_must_exist(
 /*=============================*/
-			/* out: TRUE if is sure that it is preserved, also
-			if the function returns FALSE, it is possible that
-			the undo log still exists in the system */
-	dulint	trx_id);/* in: transaction id */
+				/* out: TRUE if is sure that it is
+				preserved, also if the function
+				returns FALSE, it is possible that the
+				undo log still exists in the system */
+	trx_id_t	trx_id);/* in: transaction id */
 /************************************************************************
 Creates the global purge system control structure and inits the history
 mutex. */
@@ -91,7 +92,7 @@ trx_purge_fetch_next_rec(
 				pointer to the dummy undo log record
 				&trx_purge_dummy_rec if the whole undo log
 				can skipped in purge; NULL if none left */
-	dulint*		roll_ptr,/* out: roll pointer to undo record */
+	roll_ptr_t*	roll_ptr,/* out: roll pointer to undo record */
 	trx_undo_inf_t** cell,	/* out: storage cell for the record in the
 				purge array */
 	mem_heap_t*	heap);	/* in: memory heap where copied */
@@ -144,10 +145,10 @@ struct trx_purge_struct{
 	/* The following two fields form the 'purge pointer' which advances
 	during a purge, and which is used in history list truncation */
 
-	dulint		purge_trx_no;	/* Purge has advanced past all
+	trx_id_t	purge_trx_no;	/* Purge has advanced past all
 					transactions whose number is less
 					than this */
-	dulint		purge_undo_no;	/* Purge has advanced past all records
+	undo_no_t	purge_undo_no;	/* Purge has advanced past all records
 					whose undo number is less than this */
 	/*-----------------------------*/
 	ibool		next_stored;	/* TRUE if the info of the next record
