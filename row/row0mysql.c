@@ -3943,6 +3943,10 @@ row_scan_and_check_index(
 
 	*n_rows = 0;
 
+	if (!row_merge_is_index_usable(prebuilt->trx, index)) {
+		return(is_ok);
+	}
+
 	buf = mem_alloc(UNIV_PAGE_SIZE);
 	heap = mem_heap_create(100);
 
@@ -3950,8 +3954,7 @@ row_scan_and_check_index(
 	in scanning the index entries */
 
 	prebuilt->index = index;
-	prebuilt->index_usable = row_merge_is_index_usable(prebuilt->trx,
-							   index);
+	prebuilt->index_usable = TRUE;
 	prebuilt->sql_stat_start = TRUE;
 	prebuilt->template_type = ROW_MYSQL_DUMMY_TEMPLATE;
 	prebuilt->n_template = 0;
