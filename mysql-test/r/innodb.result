@@ -1803,15 +1803,12 @@ Innodb_buffer_pool_pages_total	512
 show status like "Innodb_page_size";
 Variable_name	Value
 Innodb_page_size	16384
-show status like "Innodb_rows_deleted";
-Variable_name	Value
-Innodb_rows_deleted	73
-show status like "Innodb_rows_inserted";
-Variable_name	Value
-Innodb_rows_inserted	29734
-show status like "Innodb_rows_updated";
-Variable_name	Value
-Innodb_rows_updated	29532
+innodb_rows_deleted
+73
+innodb_rows_inserted
+29734
+innodb_rows_updated
+29532
 show status like "Innodb_row_lock_waits";
 Variable_name	Value
 Innodb_row_lock_waits	0
