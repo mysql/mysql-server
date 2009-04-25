@@ -300,6 +300,25 @@ static const unsigned int sql_mode_names_len[]=
 TYPELIB sql_mode_typelib= { array_elements(sql_mode_names)-1,"",
 			    sql_mode_names,
                             (unsigned int *)sql_mode_names_len };
+
+static const char *optimizer_switch_names[]=
+{
+  "index_merge","index_merge_union","index_merge_sort_union", 
+  "index_merge_intersection", "default", NullS
+};
+/* Corresponding defines are named OPTIMIZER_SWITCH_XXX */
+static const unsigned int optimizer_switch_names_len[]=
+{
+  sizeof("index_merge") - 1,
+  sizeof("index_merge_union") - 1,
+  sizeof("index_merge_sort_union") - 1,
+  sizeof("index_merge_intersection") - 1,
+  sizeof("default") - 1
+};
+TYPELIB optimizer_switch_typelib= { array_elements(optimizer_switch_names)-1,"",
+                                    optimizer_switch_names,
+                                    (unsigned int *)optimizer_switch_names_len };
+
 static const char *tc_heuristic_recover_names[]=
 {
   "COMMIT", "ROLLBACK", NullS
@@ -366,6 +385,10 @@ static ulong max_used_connections;
 static ulong my_bind_addr;			/**< the address we bind to */
 static volatile ulong cached_thread_count= 0;
 static const char *sql_mode_str= "OFF";
+/* Text representation for OPTIMIZER_SWITCH_DEFAULT */
+static const char *optimizer_switch_str="index_merge=on,index_merge_union=on,"
+                                        "index_merge_sort_union=on,"
+                                        "index_merge_intersection=on";
 static char *mysqld_user, *mysqld_chroot, *log_error_file_ptr;
 static char *opt_init_slave, *language_ptr, *opt_init_connect;
 static char *default_character_set_name;
@@ -652,6 +675,9 @@ static char *mysql_home_ptr, *pidfile_name_ptr;
 static int defaults_argc;
 static char **defaults_argv;
 static char *opt_bin_logname;
+
+int orig_argc;
+char **orig_argv;
 
 static my_socket unix_sock, base_ip_sock, extra_ip_sock;
 struct my_rnd_struct sql_rand; ///< used by sql_class.cc:THD::THD()
@@ -3014,8 +3040,7 @@ pthread_handler_t handle_shutdown(void *arg)
 }
 #endif
 
-#if !defined(EMBEDDED_LIBRARY)
-static const char *load_default_groups[]= {
+const char *load_default_groups[]= {
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 "mysql_cluster",
 #endif
@@ -3023,11 +3048,10 @@ static const char *load_default_groups[]= {
 "mariadb", MARIADB_BASE_VERSION,
 0, 0};
 
-#if defined(__WIN__)
+#if defined(__WIN__) && !defined(EMBEDDED_LIBRARY)
 static const int load_default_groups_sz=
 sizeof(load_default_groups)/sizeof(load_default_groups[0]);
 #endif
-#endif /*!EMBEDDED_LIBRARY*/
 
 
 /**
@@ -3313,6 +3337,8 @@ static int init_common_variables(const char *conf_file_name, int argc,
                      SQLCOM_END + 8);
 #endif
 
+  orig_argc=argc;
+  orig_argv=argv;
   load_defaults(conf_file_name, groups, &argc, &argv);
   defaults_argv=argv;
   defaults_argc=argc;
@@ -3989,6 +4015,7 @@ server.");
     if ((ho_error= handle_options(&defaults_argc, &tmp_argv, no_opts,
                                   mysqld_get_one_option)))
       unireg_abort(ho_error);
+    my_getopt_skip_unknown= TRUE;
 
     if (defaults_argc)
     {
@@ -5707,6 +5734,7 @@ enum options_mysqld
   OPT_SYSDATE_IS_NOW,
   OPT_OPTIMIZER_SEARCH_DEPTH,
   OPT_OPTIMIZER_PRUNE_LEVEL,
+  OPT_OPTIMIZER_SWITCH,
   OPT_UPDATABLE_VIEWS_WITH_LIMIT,
   OPT_SP_AUTOMATIC_PRIVILEGES,
   OPT_MAX_SP_RECURSION_DEPTH,
@@ -6905,6 +6933,13 @@ The minimum value for this variable is 4096.",
    (uchar**) &global_system_variables.optimizer_search_depth,
    (uchar**) &max_system_variables.optimizer_search_depth,
    0, GET_ULONG, OPT_ARG, MAX_TABLES+1, 0, MAX_TABLES+2, 0, 1, 0},
+  {"optimizer_switch", OPT_OPTIMIZER_SWITCH,
+   "optimizer_switch=option=val[,option=val...], where option={index_merge, "
+   "index_merge_union, index_merge_sort_union, index_merge_intersection} and "
+   "val={on, off, default}.",
+   (uchar**) &optimizer_switch_str, (uchar**) &optimizer_switch_str, 0, GET_STR, REQUIRED_ARG, 
+   /*OPTIMIZER_SWITCH_DEFAULT*/0,
+   0, 0, 0, 0, 0},
   {"plugin_dir", OPT_PLUGIN_DIR,
    "Directory for plugins.",
    (uchar**) &opt_plugin_dir_ptr, (uchar**) &opt_plugin_dir_ptr, 0,
@@ -7819,7 +7854,8 @@ static int mysql_init_variables(void)
     when collecting index statistics for MyISAM tables.
   */
   global_system_variables.myisam_stats_method= MI_STATS_METHOD_NULLS_NOT_EQUAL;
-
+  
+  global_system_variables.optimizer_switch= OPTIMIZER_SWITCH_DEFAULT;
   /* Variables that depends on compile options */
 #ifndef DBUG_OFF
   default_dbug_option=IF_WIN("d:t:i:O,\\mysqld.trace",
@@ -8458,6 +8494,29 @@ mysqld_get_one_option(int optid,
       return 1;
     global_system_variables.sql_mode= fix_sql_mode(global_system_variables.
 						   sql_mode);
+    break;
+  }
+  case OPT_OPTIMIZER_SWITCH:
+  {
+    bool not_used;
+    char *error= 0;
+    uint error_len= 0;
+    optimizer_switch_str= argument;
+    global_system_variables.optimizer_switch=
+      (ulong)find_set_from_flags(&optimizer_switch_typelib, 
+                                 optimizer_switch_typelib.count, 
+                                 global_system_variables.optimizer_switch,
+                                 global_system_variables.optimizer_switch,
+                                 argument, strlen(argument), NULL,
+                                 &error, &error_len, &not_used);
+     if (error)
+     {
+       char buf[512];
+       char *cbuf= buf;
+       cbuf += my_snprintf(buf, 512, "Error in parsing optimizer_switch setting near %*s\n", error_len, error);
+       sql_perror(buf);
+       return 1;
+     }
     break;
   }
   case OPT_ONE_THREAD:

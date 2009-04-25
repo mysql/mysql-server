@@ -660,7 +660,7 @@ void mi_collect_stats_nonulls_first(HA_KEYSEG *keyseg, ulonglong *notnull,
                                     uchar *key)
 {
   uint first_null, kp;
-  first_null= ha_find_null(keyseg, key) - keyseg;
+  first_null= (uint) (ha_find_null(keyseg, key) - keyseg);
   /*
     All prefix tuples that don't include keypart_{first_null} are not-null
     tuples (and all others aren't), increment counters for them.
@@ -716,7 +716,7 @@ int mi_collect_stats_nonulls_next(HA_KEYSEG *keyseg, ulonglong *notnull,
   seg= keyseg + diffs[0] - 1;
 
   /* Find first NULL in last_key */
-  first_null_seg= ha_find_null(seg, last_key + diffs[1]) - keyseg;
+  first_null_seg= (uint) (ha_find_null(seg, last_key + diffs[1]) - keyseg);
   for (kp= 0; kp < first_null_seg; kp++)
     notnull[kp]++;
 

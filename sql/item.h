@@ -1093,7 +1093,7 @@ inline void Item_sp_variable::make_field(Send_field *field)
   if (name)
     it->set_name(name, (uint) strlen(name), system_charset_info);
   else
-    it->set_name(m_name.str, m_name.length, system_charset_info);
+    it->set_name(m_name.str, (uint) m_name.length, system_charset_info);
   it->make_field(field);
 }
 
