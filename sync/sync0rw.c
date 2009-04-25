@@ -474,7 +474,7 @@ lock_loop:
 
 		/* If wait_ex_waiter stalls, wakes it. */
 		if (lock->reader_count == 0
-		    && __sync_lock_test_and_set(&lock->wait_ex_waiters, 0)) {
+		    && os_compare_and_swap(&lock->wait_ex_waiters, 1, 0)) {
 			os_event_set(lock->wait_ex_event);
 			sync_array_object_signalled(sync_primary_wait_array);
 		}

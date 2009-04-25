@@ -105,8 +105,7 @@ rw_lock_set_s_waiter_flag(
 	rw_lock_t*	lock)	/* in: rw-lock */
 {
 #ifdef INNODB_RW_LOCKS_USE_ATOMICS
-	// os_compare_and_swap(&lock->s_waiters, 0, 1);
-	__sync_lock_test_and_set(&lock->s_waiters, 1);
+	os_compare_and_swap(&lock->s_waiters, 0, 1);
 #else /* INNODB_RW_LOCKS_USE_ATOMICS */
 	lock->s_waiters = 1;
 #endif /* INNODB_RW_LOCKS_USE_ATOMICS */
@@ -118,8 +117,7 @@ rw_lock_set_x_waiter_flag(
 	rw_lock_t*	lock)	/* in: rw-lock */
 {
 #ifdef INNODB_RW_LOCKS_USE_ATOMICS
-	// os_compare_and_swap(&lock->x_waiters, 0, 1);
-	__sync_lock_test_and_set(&lock->x_waiters, 1);
+	os_compare_and_swap(&lock->x_waiters, 0, 1);
 #else /* INNODB_RW_LOCKS_USE_ATOMICS */
 	lock->x_waiters = 1;
 #endif /* INNODB_RW_LOCKS_USE_ATOMICS */
@@ -131,8 +129,7 @@ rw_lock_set_wx_waiter_flag(
 	rw_lock_t*	lock)	/* in: rw-lock */
 {
 #ifdef INNODB_RW_LOCKS_USE_ATOMICS
-	// os_compare_and_swap(&lock->wait_ex_waiters, 0, 1);
-	__sync_lock_test_and_set(&lock->wait_ex_waiters, 1);
+	os_compare_and_swap(&lock->wait_ex_waiters, 0, 1);
 #else /* INNODB_RW_LOCKS_USE_ATOMICS */
 	lock->wait_ex_waiters = 1;
 #endif /* INNODB_RW_LOCKS_USE_ATOMICS */
@@ -149,8 +146,7 @@ rw_lock_reset_s_waiter_flag(
 	rw_lock_t*	lock)	/* in: rw-lock */
 {
 #ifdef INNODB_RW_LOCKS_USE_ATOMICS
-	// os_compare_and_swap(&lock->s_waiters, 1, 0);
-	__sync_lock_test_and_set(&lock->s_waiters, 0);
+	os_compare_and_swap(&lock->s_waiters, 1, 0);
 #else /* INNODB_RW_LOCKS_USE_ATOMICS */
 	lock->s_waiters = 0;
 #endif /* INNODB_RW_LOCKS_USE_ATOMICS */
@@ -162,8 +158,7 @@ rw_lock_reset_x_waiter_flag(
 	rw_lock_t*	lock)	/* in: rw-lock */
 {
 #ifdef INNODB_RW_LOCKS_USE_ATOMICS
-	// os_compare_and_swap(&lock->x_waiters, 1, 0);
-	__sync_lock_test_and_set(&lock->x_waiters, 0);
+	os_compare_and_swap(&lock->x_waiters, 1, 0);
 #else /* INNODB_RW_LOCKS_USE_ATOMICS */
 	lock->x_waiters = 0;
 #endif /* INNODB_RW_LOCKS_USE_ATOMICS */
@@ -175,8 +170,7 @@ rw_lock_reset_wx_waiter_flag(
 	rw_lock_t*	lock)	/* in: rw-lock */
 {
 #ifdef INNODB_RW_LOCKS_USE_ATOMICS
-	// os_compare_and_swap(&lock->wait_ex_waiters, 1, 0);
-	__sync_lock_test_and_set(&lock->wait_ex_waiters, 0);
+	os_compare_and_swap(&lock->wait_ex_waiters, 1, 0);
 #else /* INNODB_RW_LOCKS_USE_ATOMICS */
 	lock->wait_ex_waiters = 0;
 #endif /* INNODB_RW_LOCKS_USE_ATOMICS */
@@ -569,16 +563,15 @@ rw_lock_x_lock_func_nowait(
 
 #ifdef INNODB_RW_LOCKS_USE_ATOMICS
 	success = FALSE;
-	if ((lock->reader_count == 0)
-			&& rw_lock_get_writer(lock) == RW_LOCK_NOT_LOCKED) {
-retry_x_lock:
-		/* try x-lock */
-		if(__sync_sub_and_fetch(&(lock->lock_word),
-				X_LOCK_DECR) == 0) {
+	if (lock->reader_count == 0) {
+		/* try to lock writer */
+		if(__sync_lock_test_and_set(&(lock->writer),RW_LOCK_EX)
+				== RW_LOCK_NOT_LOCKED) {
 			/* success */
-			/* try to lock writer */
-			if(__sync_lock_test_and_set(&(lock->writer),RW_LOCK_EX)
-					== RW_LOCK_NOT_LOCKED) {
+retry_x_lock:
+			/* try x-lock */
+			if(__sync_sub_and_fetch(&(lock->lock_word),
+					X_LOCK_DECR) == 0) {
 				/* success */
 				lock->writer_thread = curr_thread;
 				lock->recursive = TRUE;
@@ -598,15 +591,13 @@ retry_x_lock:
 
 				return(TRUE);
 			} else {
-				/* x-unlock */
-				__sync_fetch_and_add(&(lock->lock_word),
-					X_LOCK_DECR);
+				/* fail (x-lock) */
+				if (__sync_fetch_and_add(&(lock->lock_word),X_LOCK_DECR)
+						== 0)
+					goto retry_x_lock;
 			}
-		} else {
-			/* fail (x-lock) */
-			if (__sync_fetch_and_add(&(lock->lock_word),X_LOCK_DECR)
-					== 0)
-				goto retry_x_lock;
+
+			__sync_lock_test_and_set(&(lock->writer),RW_LOCK_NOT_LOCKED);
 		}
 	}
 
@@ -686,11 +677,11 @@ rw_lock_s_unlock_func(
 	rw_lock_remove_debug_info(lock, pass, RW_LOCK_SHARED);
 #endif
 
-	if (UNIV_UNLIKELY(last && __sync_lock_test_and_set(&lock->wait_ex_waiters, 0))) {
+	if (UNIV_UNLIKELY(last && os_compare_and_swap(&lock->wait_ex_waiters, 1, 0))) {
 		os_event_set(lock->wait_ex_event);
 		sync_array_object_signalled(sync_primary_wait_array);
 	}
-	else if (UNIV_UNLIKELY(last && __sync_lock_test_and_set(&lock->x_waiters, 0))) {
+	else if (UNIV_UNLIKELY(last && os_compare_and_swap(&lock->x_waiters, 1, 0))) {
 		os_event_set(lock->x_event);
 		sync_array_object_signalled(sync_primary_wait_array);
 	}
@@ -798,10 +789,10 @@ rw_lock_x_unlock_func(
 	rw_lock_remove_debug_info(lock, pass, RW_LOCK_EX);
 #endif
 	if (last) {
-		if(__sync_lock_test_and_set(&lock->s_waiters, 0)){
+		if(os_compare_and_swap(&lock->s_waiters, 1, 0)){
 			s_sg = TRUE;
 		}
-		if(__sync_lock_test_and_set(&lock->x_waiters, 0)){
+		if(os_compare_and_swap(&lock->x_waiters, 1, 0)){
 			x_sg = TRUE;
 		}
 	}

@@ -483,7 +483,7 @@ sync_array_cell_print(
 
 	fprintf(file,
 		"--Thread %lu has waited at %s line %lu"
-		" for %.2f seconds the semaphore:\n",
+		" for %#.5g seconds the semaphore:\n",
 		(ulong) os_thread_pf(cell->thread), cell->file,
 		(ulong) cell->line,
 		difftime(time(NULL), cell->reservation_time));
