@@ -1,0 +1,36 @@
+--- mysql-test/t/innodb.test.orig	2009-04-16 16:15:05.000000000 +0000
++++ mysql-test/t/innodb.test	2009-04-16 16:15:54.000000000 +0000
+@@ -1318,6 +1318,7 @@
+ show variables like "innodb_sync_spin_loops";
+ 
+ # Test for innodb_thread_concurrency variable
++set @old_innodb_thread_concurrency=@@innodb_thread_concurrency;
+ show variables like "innodb_thread_concurrency";
+ set global innodb_thread_concurrency=1001;
+ show variables like "innodb_thread_concurrency";
+@@ -1325,6 +1326,7 @@
+ show variables like "innodb_thread_concurrency";
+ set global innodb_thread_concurrency=16;
+ show variables like "innodb_thread_concurrency";
++set global innodb_thread_concurrency=@old_innodb_thread_concurrency;
+ 
+ # Test for innodb_concurrency_tickets variable
+ show variables like "innodb_concurrency_tickets";
+--- mysql-test/r/innodb.result.orig	2009-04-16 16:16:11.000000000 +0000
++++ mysql-test/r/innodb.result	2009-04-16 16:16:46.000000000 +0000
+@@ -1781,6 +1781,7 @@
+ show variables like "innodb_sync_spin_loops";
+ Variable_name	Value
+ innodb_sync_spin_loops	20
++set @old_innodb_thread_concurrency=@@innodb_thread_concurrency;
+ show variables like "innodb_thread_concurrency";
+ Variable_name	Value
+ innodb_thread_concurrency	0
+@@ -1798,6 +1799,7 @@
+ show variables like "innodb_thread_concurrency";
+ Variable_name	Value
+ innodb_thread_concurrency	16
++set global innodb_thread_concurrency=@old_innodb_thread_concurrency;
+ show variables like "innodb_concurrency_tickets";
+ Variable_name	Value
+ innodb_concurrency_tickets	500

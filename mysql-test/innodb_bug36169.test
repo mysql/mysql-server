@@ -4,6 +4,9 @@
 #
 
 -- source include/have_innodb.inc
+set @old_innodb_file_per_table=@@innodb_file_per_table;
+set @old_innodb_file_format=@@innodb_file_format;
+set @old_innodb_file_format_check=@@innodb_file_format_check;
 
 SET GLOBAL innodb_file_format='Barracuda';
 SET GLOBAL innodb_file_per_table=ON;
@@ -1152,4 +1155,8 @@ DROP TABLE IF EXISTS table3;
 DROP TABLE IF EXISTS table4;
 DROP TABLE IF EXISTS table5;
 DROP TABLE IF EXISTS table6;
+
+set global innodb_file_per_table=@old_innodb_file_per_table;
+set global innodb_file_format=@old_innodb_file_format;
+set global innodb_file_format_check=@old_innodb_file_format_check;
 

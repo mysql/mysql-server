@@ -1,0 +1,16 @@
+--- mysql-test/t/innodb-analyze.test.orig	2009-04-16 22:08:00.000000000 +0000
++++ mysql-test/t/innodb-analyze.test	2009-04-16 22:09:08.000000000 +0000
+@@ -10,7 +10,7 @@
+ -- disable_query_log
+ -- disable_result_log
+ -- enable_warnings
+-
++SET @old_innodb_stats_sample_pages=@@innodb_stats_sample_pages;
+ SET GLOBAL innodb_stats_sample_pages=0;
+ 
+ # check that the value has been adjusted to 1
+@@ -61,3 +61,4 @@
+ ANALYZE TABLE innodb_analyze;
+ 
+ DROP TABLE innodb_analyze;
++SET GLOBAL innodb_stats_sample_pages=@old_innodb_stats_sample_pages;
