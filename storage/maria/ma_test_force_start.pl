@@ -42,7 +42,8 @@ my $sql_name= "./var/tmp/create_table.sql";
 my $error_log_name= "./var/log/master.err";
 my @cmd_output;
 my $whatever; # garbage data
-my $base_server_cmd= "perl mysql-test-run.pl --mysqld=--maria-force-start-after-recovery-failures=$force_after maria-recover ";
+$ENV{MTR_VERSION} = 1; # MTR2 does not have --start-and-exit
+my $base_server_cmd= "perl mysql-test-run.pl --mysqld=--maria-force-start-after-recovery-failures=$force_after --suite=maria maria.maria-recover ";
 if ($^O =~ /^mswin/i)
   {
     print <<EOF;

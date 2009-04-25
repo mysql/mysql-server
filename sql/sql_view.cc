@@ -564,24 +564,36 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   fill_effective_table_privileges(thd, &view->grant, view->db,
                                   view->table_name);
 
+  /*
+    Make sure that the current user does not have more column-level privileges
+    on the newly created view than he/she does on the underlying
+    tables. E.g. it must not be so that the user has UPDATE privileges on a
+    view column of he/she doesn't have it on the underlying table's
+    corresponding column. In that case, return an error for CREATE VIEW.
+   */
   {
     Item *report_item= NULL;
+    /* 
+       This will hold the intersection of the priviliges on all columns in the
+       view.
+     */
     uint final_priv= VIEW_ANY_ACL;
-
-  for (sl= select_lex; sl; sl= sl->next_select())
-  {
-    DBUG_ASSERT(view->db);                     /* Must be set in the parser */
-    List_iterator_fast<Item> it(sl->item_list);
-    Item *item;
-    while ((item= it++))
+    
+    for (sl= select_lex; sl; sl= sl->next_select())
     {
+      DBUG_ASSERT(view->db);                     /* Must be set in the parser */
+      List_iterator_fast<Item> it(sl->item_list);
+      Item *item;
+      while ((item= it++))
+      {
         Item_field *fld= item->filed_for_view_update();
-      uint priv= (get_column_grant(thd, &view->grant, view->db,
-                                    view->table_name, item->name) &
-                  VIEW_ANY_ACL);
+        uint priv= (get_column_grant(thd, &view->grant, view->db,
+                                     view->table_name, item->name) &
+                    VIEW_ANY_ACL);
 
         if (fld && !fld->field->table->s->tmp_table)
-      {
+        {
+
           final_priv&= fld->have_privileges;
 
           if (~fld->have_privileges & priv)
@@ -589,17 +601,15 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
         }
       }
     }
-
-    if (!final_priv)
-        {
-      DBUG_ASSERT(report_item);
-
-          my_error(ER_COLUMNACCESS_DENIED_ERROR, MYF(0),
-                   "create view", thd->security_ctx->priv_user,
+    
+    if (!final_priv && report_item)
+    {
+      my_error(ER_COLUMNACCESS_DENIED_ERROR, MYF(0),
+               "create view", thd->security_ctx->priv_user,
                thd->security_ctx->priv_host, report_item->name,
-                   view->table_name);
-          res= TRUE;
-          goto err;
+               view->table_name);
+      res= TRUE;
+      goto err;
     }
   }
 #endif

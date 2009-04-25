@@ -428,17 +428,14 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
                                 MYF(MY_WME | MY_ZEROFILL));
   /* Historical Requirement */
   plugin->data= hton; // shortcut for the future
-  if (plugin->plugin->init)
+  if (plugin->plugin->init && plugin->plugin->init(hton))
   {
-    if (plugin->plugin->init(hton))
-    {
-      sql_print_error("Plugin '%s' init function returned error.",
-                      plugin->name.str);
-      /* Free data, so that we don't refer to it in ha_finalize_handlerton */
-      my_free(hton, MYF(0));
-      plugin->data= 0;
-      goto err;
-    }
+    sql_print_error("Plugin '%s' init function returned error.",
+		    plugin->name.str);
+    /* Free data, so that we don't refer to it in ha_finalize_handlerton */
+    my_free(hton, MYF(0));
+    plugin->data= 0;
+    goto err;
   }
 
   /*
@@ -467,7 +464,7 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
           sql_print_warning("Too many storage engines!");
           my_free(hton, MYF(0));
           plugin->data= 0;
-          DBUG_RETURN(1);
+	  goto err_deinit;
         }
         if (hton->db_type != DB_TYPE_UNKNOWN)
           sql_print_warning("Storage engine '%s' has conflicting typecode. "
@@ -498,11 +495,14 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
         {
           sql_print_error("Too many plugins loaded. Limit is %lu. "
                           "Failed on '%s'", (ulong) MAX_HA, plugin->name.str);
-          goto err;
+          goto err_deinit;
         }
         hton->slot= total_ha++;
       }
-
+      installed_htons[hton->db_type]= hton;
+      tmp= hton->savepoint_offset;
+      hton->savepoint_offset= savepoint_alloc_size;
+      savepoint_alloc_size+= tmp;
       hton2plugin[hton->slot]=plugin;
       if (hton->prepare)
         total_ha_2pc++;
@@ -534,7 +534,18 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
   };
 
   DBUG_RETURN(0);
+
+err_deinit:
+  /* 
+    Let plugin do its inner deinitialization as plugin->init() 
+    was successfully called before.
+  */
+  if (plugin->plugin->deinit)
+    (void) plugin->plugin->deinit(NULL);
+          
 err:
+  my_free((uchar*) hton, MYF(0));
+  plugin->data= NULL;
   DBUG_RETURN(1);
 }
 
@@ -2932,7 +2943,7 @@ uint handler::get_dup_key(int error)
   if (error == HA_ERR_FOUND_DUPP_KEY || error == HA_ERR_FOREIGN_DUPLICATE_KEY ||
       error == HA_ERR_FOUND_DUPP_UNIQUE || error == HA_ERR_NULL_IN_SPATIAL ||
       error == HA_ERR_DROP_INDEX_FK)
-    info(HA_STATUS_ERRKEY | HA_STATUS_NO_LOCK);
+    table->file->info(HA_STATUS_ERRKEY | HA_STATUS_NO_LOCK);
   DBUG_RETURN(table->file->errkey);
 }
 

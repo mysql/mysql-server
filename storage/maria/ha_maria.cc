@@ -1575,7 +1575,7 @@ int ha_maria::preload_keys(THD * thd, HA_CHECK_OPT *check_opt)
 
   if ((error= maria_preload(file, map, table_list->ignore_leaves)))
   {
-    char buf[ERRMSGSIZE+20];
+    char buf[MYSQL_ERRMSG_SIZE+20];
     const char *errmsg;
 
     switch (error) {
@@ -1586,7 +1586,7 @@ int ha_maria::preload_keys(THD * thd, HA_CHECK_OPT *check_opt)
       errmsg= "Failed to allocate buffer";
       break;
     default:
-      my_snprintf(buf, ERRMSGSIZE,
+      my_snprintf(buf, sizeof(buf),
                   "Failed to read from index file (errno: %d)", my_errno);
       errmsg= buf;
     }
@@ -2229,6 +2229,10 @@ int ha_maria::extra(enum ha_extra_function operation)
 {
   if ((specialflag & SPECIAL_SAFE_MODE) && operation == HA_EXTRA_KEYREAD)
     return 0;
+#ifdef NOT_USED
+  if (operation == HA_EXTRA_MMAP && !opt_maria_use_mmap)
+    return 0;
+#endif
 
   /*
     We have to set file->trn here because in some cases we call

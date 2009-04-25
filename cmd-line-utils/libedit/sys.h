@@ -48,12 +48,12 @@
 # define __attribute__(A)
 #endif
 
-#ifndef __P
-# define __P(x) x
-#endif
-
 #ifndef _DIAGASSERT
 # define _DIAGASSERT(x)
+#endif
+
+#ifndef SIZE_T_MAX
+# define SIZE_T_MAX UINT_MAX
 #endif
 
 #ifndef __BEGIN_DECLS
@@ -112,6 +112,25 @@ char	*fgetln(FILE *fp, size_t *len);
 
 #define	REGEX		/* Use POSIX.2 regular expression functions */
 #undef	REGEXP		/* Use UNIX V8 regular expression functions */
+
+#ifdef __SunOS
+extern int tgetent(char *, const char *);
+extern int tgetflag(char *);
+extern int tgetnum(char *);
+extern int tputs(const char *, int, int (*)(int));
+extern char* tgoto(const char*, int, int);
+extern char* tgetstr(char*, char**);
+#endif
+
+/* XXXMYSQL: Bug#10218 Command line recall rolls into segfault */
+#if !HAVE_DECL_TGOTO
+/*
+ 'tgoto' is not declared in the system header files, this causes
+ problems on 64-bit systems. The function returns a 64 bit pointer
+ but caller see it as "int" and it's thus truncated to 32-bit
+*/
+extern char* tgoto(const char*, int, int);
+#endif
 
 #ifdef notdef
 # undef REGEX

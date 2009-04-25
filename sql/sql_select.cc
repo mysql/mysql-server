@@ -92,7 +92,6 @@ static store_key *get_store_key(THD *thd,
 				KEYUSE *keyuse, table_map used_tables,
 				KEY_PART_INFO *key_part, uchar *key_buff,
 				uint maybe_null);
-static bool make_simple_join(JOIN *join,TABLE *tmp_table);
 static void make_outerjoin_info(JOIN *join);
 static bool make_join_select(JOIN *join,SQL_SELECT *select,COND *item);
 static void make_join_readinfo(JOIN *join, ulonglong options);
@@ -1897,7 +1896,7 @@ JOIN::exec()
       
       /* Free first data from old join */
       curr_join->join_free();
-      if (make_simple_join(curr_join, curr_tmp_table))
+      if (curr_join->make_simple_join(this, curr_tmp_table))
 	DBUG_VOID_RETURN;
       calc_group_buffer(curr_join, group_list);
       count_field_types(select_lex, &curr_join->tmp_table_param,
@@ -2029,7 +2028,7 @@ JOIN::exec()
       curr_join->select_distinct=0;
     }
     curr_tmp_table->reginfo.lock_type= TL_UNLOCK;
-    if (make_simple_join(curr_join, curr_tmp_table))
+    if (curr_join->make_simple_join(this, curr_tmp_table))
       DBUG_VOID_RETURN;
     calc_group_buffer(curr_join, curr_join->group_list);
     count_field_types(select_lex, &curr_join->tmp_table_param, 
@@ -2493,11 +2492,12 @@ typedef struct st_sargable_param
 */
 
 static bool
-make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
+make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
 		     DYNAMIC_ARRAY *keyuse_array)
 {
   int error;
   TABLE *table;
+  TABLE_LIST *tables= tables_arg;
   uint i,table_count,const_count,key;
   table_map found_const_table_map, all_table_map, found_ref, refs;
   key_map const_ref, eq_part;
@@ -2534,10 +2534,11 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
     s->needed_reg.init();
     table_vector[i]=s->table=table=tables->table;
     table->pos_in_table_list= tables;
-    if ((error= table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK)))
+    error= table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
+    if (error)
     {
       table->file->print_error(error, MYF(0));
-      DBUG_RETURN(1);
+      goto error;
     }
     table->quick_keys.clear_all();
     table->reginfo.join_tab=s;
@@ -2633,7 +2634,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
       {
         join->tables=0;			// Don't use join->table
         my_message(ER_WRONG_OUTER_JOIN, ER(ER_WRONG_OUTER_JOIN), MYF(0));
-        DBUG_RETURN(1);
+        goto error;
       }
       s->key_dependent= s->dependent;
     }
@@ -2643,7 +2644,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
     if (update_ref_and_keys(join->thd, keyuse_array, stat, join->tables,
                             conds, join->cond_equal,
                             ~outer_join, join->select_lex, &sargables))
-      DBUG_RETURN(1);
+      goto error;
 
   /* Read tables with 0 or 1 rows (system tables) */
   join->const_table_map= 0;
@@ -2659,7 +2660,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
     if ((tmp=join_read_const_table(s, p_pos)))
     {
       if (tmp > 0)
-	DBUG_RETURN(1);			// Fatal error
+	goto error;		// Fatal error
     }
     else
       found_const_table_map|= s->table->map;
@@ -2731,7 +2732,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
 	  if ((tmp= join_read_const_table(s, join->positions+const_count-1)))
 	  {
 	    if (tmp > 0)
-	      DBUG_RETURN(1);			// Fatal error
+	      goto error;			// Fatal error
 	  }
 	  else
 	    found_const_table_map|= table->map;
@@ -2780,12 +2781,12 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
 	        set_position(join,const_count++,s,start_keyuse);
 	        if (create_ref_for_key(join, s, start_keyuse,
 				       found_const_table_map))
-		  DBUG_RETURN(1);
+                  goto error;
 	        if ((tmp=join_read_const_table(s,
                                                join->positions+const_count-1)))
 	        {
 		  if (tmp > 0)
-		    DBUG_RETURN(1);			// Fatal error
+		    goto error;			// Fatal error
 	        }
 	        else
 		  found_const_table_map|= table->map;
@@ -2862,7 +2863,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
 			  *s->on_expr_ref ? *s->on_expr_ref : conds,
 			  1, &error);
       if (!select)
-        DBUG_RETURN(1);
+        goto error;
       records= get_quick_record_count(join->thd, select, s->table,
 				      &s->const_keys, join->row_limit);
       s->quick=select->quick;
@@ -2908,7 +2909,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
   {
     optimize_keyuse(join, keyuse_array);
     if (choose_plan(join, all_table_map & ~join->const_table_map))
-      DBUG_RETURN(TRUE);
+      goto error;
   }
   else
   {
@@ -2918,6 +2919,17 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
   }
   /* Generate an execution plan from the found optimal join order. */
   DBUG_RETURN(join->thd->killed || get_best_combination(join));
+
+error:
+  /*
+    Need to clean up join_tab from TABLEs in case of error.
+    They won't get cleaned up by JOIN::cleanup() because JOIN::join_tab
+    may not be assigned yet by this function (which is building join_tab).
+    Dangling TABLE::reginfo.join_tab may cause part_of_refkey to choke. 
+  */
+  for (tables= tables_arg; tables; tables= tables->next_leaf)
+    tables->table->reginfo.join_tab= NULL;
+  DBUG_RETURN (1);
 }
 
 
@@ -5717,48 +5729,42 @@ store_val_in_field(Field *field, Item *item, enum_check_fields check_flag)
 }
 
 
-static bool
-make_simple_join(JOIN *join,TABLE *tmp_table)
+/**
+  @details Initialize a JOIN as a query execution plan
+  that accesses a single table via a table scan.
+
+  @param  parent      contains JOIN_TAB and TABLE object buffers for this join
+  @param  tmp_table   temporary table
+
+  @retval FALSE       success
+  @retval TRUE        error occurred
+*/
+bool
+JOIN::make_simple_join(JOIN *parent, TABLE *tmp_table)
 {
-  TABLE **tableptr;
-  JOIN_TAB *join_tab;
-  DBUG_ENTER("make_simple_join");
+  DBUG_ENTER("JOIN::make_simple_join");
 
   /*
     Reuse TABLE * and JOIN_TAB if already allocated by a previous call
     to this function through JOIN::exec (may happen for sub-queries).
   */
-  if (!join->table_reexec)
-  {
-    if (!(join->table_reexec= (TABLE**) join->thd->alloc(sizeof(TABLE*))))
-      DBUG_RETURN(TRUE);                        /* purecov: inspected */
-    if (join->tmp_join)
-      join->tmp_join->table_reexec= join->table_reexec;
-  }
-  if (!join->join_tab_reexec)
-  {
-    if (!(join->join_tab_reexec=
-          (JOIN_TAB*) join->thd->alloc(sizeof(JOIN_TAB))))
-      DBUG_RETURN(TRUE);                        /* purecov: inspected */
-    if (join->tmp_join)
-      join->tmp_join->join_tab_reexec= join->join_tab_reexec;
-  }
-  tableptr= join->table_reexec;
-  join_tab= join->join_tab_reexec;
+  if (!parent->join_tab_reexec &&
+      !(parent->join_tab_reexec= (JOIN_TAB*) thd->alloc(sizeof(JOIN_TAB))))
+    DBUG_RETURN(TRUE);                        /* purecov: inspected */
 
-  join->join_tab=join_tab;
-  join->table=tableptr; tableptr[0]=tmp_table;
-  join->tables=1;
-  join->const_tables=0;
-  join->const_table_map=0;
-  join->tmp_table_param.field_count= join->tmp_table_param.sum_func_count=
-    join->tmp_table_param.func_count=0;
-  join->tmp_table_param.copy_field=join->tmp_table_param.copy_field_end=0;
-  join->first_record=join->sort_and_group=0;
-  join->send_records=(ha_rows) 0;
-  join->group=0;
-  join->row_limit=join->unit->select_limit_cnt;
-  join->do_send_rows = (join->row_limit) ? 1 : 0;
+  join_tab= parent->join_tab_reexec;
+  table= &parent->table_reexec[0]; parent->table_reexec[0]= tmp_table;
+  tables= 1;
+  const_tables= 0;
+  const_table_map= 0;
+  tmp_table_param.field_count= tmp_table_param.sum_func_count=
+    tmp_table_param.func_count= 0;
+  tmp_table_param.copy_field= tmp_table_param.copy_field_end=0;
+  first_record= sort_and_group=0;
+  send_records= (ha_rows) 0;
+  group= 0;
+  row_limit= unit->select_limit_cnt;
+  do_send_rows= row_limit ? 1 : 0;
 
   join_tab->cache.buff=0;			/* No caching */
   join_tab->table=tmp_table;
@@ -5775,7 +5781,7 @@ make_simple_join(JOIN *join,TABLE *tmp_table)
   join_tab->ref.key = -1;
   join_tab->not_used_in_distinct=0;
   join_tab->read_first_record= join_init_read_record;
-  join_tab->join=join;
+  join_tab->join= this;
   join_tab->ref.key_parts= 0;
   bzero((char*) &join_tab->read_record,sizeof(join_tab->read_record));
   tmp_table->status=0;

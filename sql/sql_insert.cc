@@ -929,20 +929,6 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     }
     DBUG_ASSERT(transactional_table || !changed || 
                 thd->transaction.stmt.modified_non_trans_table);
-
-    if (thd->lock)
-    {
-      /*
-        Invalidate the table in the query cache if something changed
-        after unlocking when changes become fisible.
-        TODO: this is workaround. right way will be move invalidating in
-        the unlock procedure.
-      */
-      if (lock_type ==  TL_WRITE_CONCURRENT_INSERT && changed)
-      {
-        query_cache_invalidate3(thd, table_list, 1);
-      }
-    }
   }
   thd_proc_info(thd, "end");
   /*
@@ -1716,6 +1702,7 @@ public:
 
 class Delayed_insert :public ilink {
   uint locks_in_memory;
+  thr_lock_type delayed_lock;
 public:
   THD thd;
   TABLE *table;
@@ -1758,6 +1745,8 @@ public:
     pthread_cond_init(&cond_client,NULL);
     VOID(pthread_mutex_lock(&LOCK_thread_count));
     delayed_insert_threads++;
+    delayed_lock= global_system_variables.low_priority_updates ?
+                                          TL_WRITE_LOW_PRIORITY : TL_WRITE;
     VOID(pthread_mutex_unlock(&LOCK_thread_count));
   }
   ~Delayed_insert()
@@ -2569,7 +2558,7 @@ bool Delayed_insert::handle_inserts(void)
   table->use_all_columns();
 
   thd_proc_info(&thd, "upgrading lock");
-  if (thr_upgrade_write_delay_lock(*thd.lock->locks))
+  if (thr_upgrade_write_delay_lock(*thd.lock->locks, delayed_lock))
   {
     /*
       This can happen if thread is killed either by a shutdown

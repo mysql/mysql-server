@@ -51,10 +51,10 @@ Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
 unlock tables;
 drop table t1;
-use mysql;
+USE mysql;
 LOCK TABLES columns_priv WRITE, db WRITE, host WRITE, user WRITE;
 FLUSH TABLES;
-use mysql;
+USE mysql;
 SELECT user.Select_priv FROM user, db WHERE user.user = db.user LIMIT 1;
 OPTIMIZE TABLES columns_priv, db, host, user;
 Table	Op	Msg_type	Msg_text
@@ -65,7 +65,7 @@ mysql.user	optimize	status	OK
 UNLOCK TABLES;
 Select_priv
 N
-use test;
+USE test;
 use test;
 CREATE TABLE t1 (c1 int);
 LOCK TABLE t1 WRITE;
@@ -133,8 +133,8 @@ DROP TABLE t1;
 End of 5.0 tests
 create table t1 (i int);
 lock table t1 read;
-update t1 set i= 10;;
-select * from t1;;
+update t1 set i= 10;
+select * from t1;
 kill query ID;
 i
 ERROR 70100: Query execution was interrupted

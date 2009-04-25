@@ -5,6 +5,10 @@ eval set @tmpdir="../../tmp";
 enable_query_log;
 -- source include/have_outfile.inc
 
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+
 #
 # test of into outfile|dumpfile
 #
@@ -46,7 +50,7 @@ select load_file(concat(@tmpdir,"/outfile-test.not-exist"));
 --remove_file $MYSQLTEST_VARDIR/tmp/outfile-test.3
 drop table t1;
 
-# Bug#8191
+# Bug#8191 SELECT INTO OUTFILE insists on FROM clause
 disable_query_log;
 eval select 1 into outfile "../../tmp/outfile-test.4";
 enable_query_log;
@@ -54,11 +58,11 @@ select load_file(concat(@tmpdir,"/outfile-test.4"));
 --remove_file $MYSQLTEST_VARDIR/tmp/outfile-test.4
 
 #
-# Bug #5382: 'explain select into outfile' crashes the server
+# Bug#5382 'explain select into outfile' crashes the server
 #
 
 CREATE TABLE t1 (a INT);
-EXPLAIN 
+EXPLAIN
   SELECT *
   INTO OUTFILE '/tmp/t1.txt'
   FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"' LINES TERMINATED BY '\r\n'
@@ -68,7 +72,7 @@ DROP TABLE t1;
 # End of 4.1 tests
 
 #
-# Bug#13202  SELECT * INTO OUTFILE ... FROM information_schema.schemata now fails
+# Bug#13202 SELECT * INTO OUTFILE ... FROM information_schema.schemata now fails
 #
 disable_query_log;
 eval SELECT * INTO OUTFILE "../../tmp/outfile-test.4"
@@ -114,6 +118,7 @@ from information_schema.schemata
 where schema_name like 'mysqltest';
 
 connection default;
+disconnect con28181_1;
 grant file on *.* to user_1@localhost;
 
 connect (con28181_2,localhost,user_1,,mysqltest);
@@ -125,9 +130,12 @@ from information_schema.schemata
 where schema_name like 'mysqltest';
 
 connection default;
+disconnect con28181_2;
 --remove_file $MYSQLTEST_VARDIR/tmp/outfile-test.4
 use test;
 revoke all privileges on *.* from user_1@localhost;
 drop user user_1@localhost;
 drop database mysqltest;
 
+# Wait till we reached the initial number of concurrent sessions
+--source include/wait_until_count_sessions.inc

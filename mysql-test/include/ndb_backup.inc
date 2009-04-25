@@ -2,6 +2,13 @@
 # By JBM 2006-02-16 So that the code is not repeated #
 # in test cases and can be reused.                   #
 ######################################################
+
+# Bug#41307: Tests using include/ndb_backup.inc won't work on Windows due to
+#            'grep' call
+# This test is disabled on Windows via the next line until the above bug is
+# resolved
+--source include/not_windows.inc
+
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "start backup" >> $NDB_TOOLS_OUTPUT
 
 # there is no neat way to find the backupid, this is a hack to find it...

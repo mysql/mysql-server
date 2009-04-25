@@ -419,6 +419,7 @@ public:
   {
     return save_time_in_field(field);
   }
+  longlong val_int() { return val_int_from_decimal(); }
   bool result_as_longlong() { return TRUE; }
 };
 

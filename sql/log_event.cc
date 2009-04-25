@@ -53,6 +53,8 @@
 
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+static int rows_event_stmt_cleanup(Relay_log_info const *rli, THD* thd);
+
 static const char *HA_ERR(int i)
 {
   switch (i) {
@@ -352,7 +354,7 @@ static char *slave_load_file_stem(char *buf, uint file_id,
                                   int event_server_id, const char *ext)
 {
   char *res;
-  fn_format(buf,"SQL_LOAD-",slave_load_tmpdir, "", MY_UNPACK_FILENAME);
+  fn_format(buf,PREFIX_SQL_LOAD,slave_load_tmpdir, "", MY_UNPACK_FILENAME);
   to_unix_path(buf);
 
   buf = strend(buf);
@@ -391,7 +393,7 @@ static void cleanup_load_tmpdir()
      we cannot meet Start_log event in the middle of events from one 
      LOAD DATA.
   */
-  p= strmake(prefbuf, STRING_WITH_LEN("SQL_LOAD-"));
+  p= strmake(prefbuf, STRING_WITH_LEN(PREFIX_SQL_LOAD));
   p= int10_to_str(::server_id, p, 10);
   *(p++)= '-';
   *p= 0;
@@ -1255,7 +1257,7 @@ void Log_event::print_header(IO_CACHE* file,
 
   my_b_printf(file, "#");
   print_timestamp(file);
-  my_b_printf(file, " server id %d  end_log_pos %s ", server_id,
+  my_b_printf(file, " server id %lu  end_log_pos %s ", (ulong) server_id,
               llstr(log_pos,llbuff));
 
   /* mysqlbinlog --hexdump */
@@ -2893,7 +2895,37 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
   DBUG_PRINT("info", ("log_pos: %lu", (ulong) log_pos));
 
   clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
-  const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
+  if (strcmp("COMMIT", query) == 0 && rli->tables_to_lock)
+  {
+    /*
+      Cleaning-up the last statement context:
+      the terminal event of the current statement flagged with
+      STMT_END_F got filtered out in ndb circular replication.
+    */
+    int error;
+    char llbuff[22];
+    if ((error= rows_event_stmt_cleanup(const_cast<Relay_log_info*>(rli), thd)))
+    {
+      const_cast<Relay_log_info*>(rli)->report(ERROR_LEVEL, error,
+                  "Error in cleaning up after an event preceeding the commit; "
+                  "the group log file/position: %s %s",
+                  const_cast<Relay_log_info*>(rli)->group_master_log_name,
+                  llstr(const_cast<Relay_log_info*>(rli)->group_master_log_pos,
+                        llbuff));
+    }
+    /*
+      Executing a part of rli->stmt_done() logics that does not deal
+      with group position change. The part is redundant now but is 
+      future-change-proof addon, e.g if COMMIT handling will start checking
+      invariants like IN_STMT flag must be off at committing the transaction.
+    */
+    const_cast<Relay_log_info*>(rli)->inc_event_relay_log_pos();
+    const_cast<Relay_log_info*>(rli)->clear_flag(Relay_log_info::IN_STMT);
+  }
+  else
+  {
+    const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
+  }
 
   /*
     Note:   We do not need to execute reset_one_shot_variables() if this
@@ -7405,16 +7437,20 @@ Rows_log_event::do_shall_skip(Relay_log_info *rli)
     return Log_event::do_shall_skip(rli);
 }
 
-int
-Rows_log_event::do_update_pos(Relay_log_info *rli)
+/**
+   The function is called at Rows_log_event statement commit time,
+   normally from Rows_log_event::do_update_pos() and possibly from
+   Query_log_event::do_apply_event() of the COMMIT.
+   The function commits the last statement for engines, binlog and
+   releases resources have been allocated for the statement.
+  
+   @retval  0         Ok.
+   @retval  non-zero  Error at the commit.
+ */
+
+static int rows_event_stmt_cleanup(Relay_log_info const *rli, THD * thd)
 {
-  DBUG_ENTER("Rows_log_event::do_update_pos");
-  int error= 0;
-
-  DBUG_PRINT("info", ("flags: %s",
-                      get_flags(STMT_END_F) ? "STMT_END_F " : ""));
-
-  if (get_flags(STMT_END_F))
+  int error;
   {
     /*
       This is the end of a statement or transaction, so close (and
@@ -7456,14 +7492,39 @@ Rows_log_event::do_update_pos(Relay_log_info *rli)
 
     thd->reset_current_stmt_binlog_row_based();
 
-    rli->cleanup_context(thd, 0);
-    if (error == 0)
+    const_cast<Relay_log_info*>(rli)->cleanup_context(thd, 0);
+  }
+  return error;
+}
+
+/**
+   The method either increments the relay log position or
+   commits the current statement and increments the master group 
+   possition if the event is STMT_END_F flagged and
+   the statement corresponds to the autocommit query (i.e replicated
+   without wrapping in BEGIN/COMMIT)
+
+   @retval 0         Success
+   @retval non-zero  Error in the statement commit
+ */
+int
+Rows_log_event::do_update_pos(Relay_log_info *rli)
+{
+  DBUG_ENTER("Rows_log_event::do_update_pos");
+  int error= 0;
+
+  DBUG_PRINT("info", ("flags: %s",
+                      get_flags(STMT_END_F) ? "STMT_END_F " : ""));
+
+  if (get_flags(STMT_END_F))
+  {
+    if ((error= rows_event_stmt_cleanup(rli, thd)) == 0)
     {
       /*
         Indicate that a statement is finished.
         Step the group log position if we are not in a transaction,
         otherwise increase the event log position.
-       */
+      */
       rli->stmt_done(log_pos, when);
 
       /*
@@ -7477,11 +7538,13 @@ Rows_log_event::do_update_pos(Relay_log_info *rli)
       thd->clear_error();
     }
     else
+    {
       rli->report(ERROR_LEVEL, error,
                   "Error in %s event: commit of row events failed, "
                   "table `%s`.`%s`",
                   get_type_str(), m_table->s->db.str,
                   m_table->s->table_name.str);
+    }
   }
   else
   {

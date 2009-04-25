@@ -1,4 +1,4 @@
-/*	$NetBSD: key.c,v 1.15 2003/10/18 23:48:42 christos Exp $	*/
+/*	$NetBSD: key.c,v 1.19 2006/03/23 20:22:51 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -32,14 +32,20 @@
  * SUCH DAMAGE.
  */
 
-#include <config.h>
+#include "config.h"
+#if !defined(lint) && !defined(SCCSID)
+#if 0
+static char sccsid[] = "@(#)key.c	8.1 (Berkeley) 6/4/93";
+#else
+#endif
+#endif /* not lint && not SCCSID */
 
 /*
  * key.c: This module contains the procedures for maintaining
  *	  the extended-key map.
  *
  *      An extended-key (key) is a sequence of keystrokes introduced
- *	with an sequence introducer and consisting of an arbitrary
+ *	with a sequence introducer and consisting of an arbitrary
  *	number of characters.  This module maintains a map (the el->el_key.map)
  *	to convert these extended-key sequences into input strs
  *	(XK_STR), editor functions (XK_CMD), or unix commands (XK_EXE).
@@ -78,12 +84,12 @@ private int		 node_trav(EditLine *, key_node_t *, char *,
 private int		 node__try(EditLine *, key_node_t *, const char *,
     key_value_t *, int);
 private key_node_t	*node__get(int);
+private void		 node__free(key_node_t *);
 private void		 node__put(EditLine *, key_node_t *);
 private int		 node__delete(EditLine *, key_node_t **, const char *);
 private int		 node_lookup(EditLine *, const char *, key_node_t *,
     int);
 private int		 node_enum(EditLine *, key_node_t *, int);
-private int		 key__decode_char(char *, int, int);
 
 #define	KEY_BUFSIZ	EL_BUFSIZ
 
@@ -103,7 +109,6 @@ key_init(EditLine *el)
 	return (0);
 }
 
-
 /* key_end():
  *	Free the key maps
  */
@@ -113,8 +118,7 @@ key_end(EditLine *el)
 
 	el_free((ptr_t) el->el_key.buf);
 	el->el_key.buf = NULL;
-	/* XXX: provide a function to clear the keys */
-	el->el_key.map = NULL;
+	node__free(el->el_key.map);
 }
 
 
@@ -443,7 +447,7 @@ node__put(EditLine *el, key_node_t *ptr)
 
 
 /* node__get():
- *	Returns pointer to an key_node_t for ch.
+ *	Returns pointer to a key_node_t for ch.
  */
 private key_node_t *
 node__get(int ch)
@@ -461,7 +465,15 @@ node__get(int ch)
 	return (ptr);
 }
 
-
+private void
+node__free(key_node_t *k)
+{
+	if (k == NULL)
+		return;
+	node__free(k->sibling);
+	node__free(k->next);
+	el_free((ptr_t) k);
+}
 
 /* node_lookup():
  *	look for the str starting at node ptr.
@@ -483,7 +495,7 @@ node_lookup(EditLine *el, const char *str, key_node_t *ptr, int cnt)
 		/* If match put this char into el->el_key.buf.  Recurse */
 		if (ptr->ch == *str) {
 			/* match found */
-			ncnt = key__decode_char(el->el_key.buf, cnt,
+			ncnt = key__decode_char(el->el_key.buf, KEY_BUFSIZ, cnt,
 			    (unsigned char) ptr->ch);
 			if (ptr->next != NULL)
 				/* not yet at leaf */
@@ -537,7 +549,8 @@ node_enum(EditLine *el, key_node_t *ptr, int cnt)
 		return (-1);
 	}
 	/* put this char at end of str */
-	ncnt = key__decode_char(el->el_key.buf, cnt, (unsigned char) ptr->ch);
+	ncnt = key__decode_char(el->el_key.buf, KEY_BUFSIZ, cnt,
+	    (unsigned char)ptr->ch);
 	if (ptr->next == NULL) {
 		/* print this key and function */
 		el->el_key.buf[ncnt + 1] = '"';
@@ -568,9 +581,10 @@ key_kprint(EditLine *el, const char *key, key_value_t *val, int ntype)
 		switch (ntype) {
 		case XK_STR:
 		case XK_EXE:
-			(void) fprintf(el->el_outfile, fmt, key,
-			    key__decode_str(val->str, unparsbuf,
-				ntype == XK_STR ? "\"\"" : "[]"));
+			(void) key__decode_str(val->str, unparsbuf,
+			    sizeof(unparsbuf), 
+			    ntype == XK_STR ? "\"\"" : "[]");
+			(void) fprintf(el->el_outfile, fmt, key, unparsbuf);
 			break;
 		case XK_CMD:
 			for (fp = el->el_map.help; fp->name; fp++)
@@ -595,83 +609,97 @@ key_kprint(EditLine *el, const char *key, key_value_t *val, int ntype)
 }
 
 
+#define ADDC(c) \
+	if (b < eb) \
+		*b++ = c; \
+	else \
+		b++
 /* key__decode_char():
  *	Put a printable form of char in buf.
  */
-private int
-key__decode_char(char *buf, int cnt, int ch)
+protected int
+key__decode_char(char *buf, int cnt, int off, int ch)
 {
+	char *sb = buf + off;
+	char *eb = buf + cnt;
+	char *b = sb;
 	if (ch == 0) {
-		buf[cnt++] = '^';
-		buf[cnt] = '@';
-		return (cnt);
+		ADDC('^');
+		ADDC('@');
+		return b - sb;
 	}
 	if (iscntrl(ch)) {
-		buf[cnt++] = '^';
+		ADDC('^');
 		if (ch == '\177')
-			buf[cnt] = '?';
+			ADDC('?');
 		else
-			buf[cnt] = ch | 0100;
+			ADDC(ch | 0100);
 	} else if (ch == '^') {
-		buf[cnt++] = '\\';
-		buf[cnt] = '^';
+		ADDC('\\');
+		ADDC('^');
 	} else if (ch == '\\') {
-		buf[cnt++] = '\\';
-		buf[cnt] = '\\';
+		ADDC('\\');
+		ADDC('\\');
 	} else if (ch == ' ' || (el_isprint(ch) && !isspace(ch))) {
-		buf[cnt] = ch;
+		ADDC(ch);
 	} else {
-		buf[cnt++] = '\\';
-		buf[cnt++] = (((unsigned int) ch >> 6) & 7) + '0';
-		buf[cnt++] = (((unsigned int) ch >> 3) & 7) + '0';
-		buf[cnt] = (ch & 7) + '0';
+		ADDC('\\');
+		ADDC((((unsigned int) ch >> 6) & 7) + '0');
+		ADDC((((unsigned int) ch >> 3) & 7) + '0');
+		ADDC((ch & 7) + '0');
 	}
-	return (cnt);
+	return b - sb;
 }
 
 
 /* key__decode_str():
  *	Make a printable version of the ey
  */
-protected char *
-key__decode_str(const char *str, char *buf, const char *sep)
+protected int
+key__decode_str(const char *str, char *buf, int len, const char *sep)
 {
-	char *b;
+	char *b = buf, *eb = b + len;
 	const char *p;
 
 	b = buf;
-	if (sep[0] != '\0')
-		*b++ = sep[0];
-	if (*str == 0) {
-		*b++ = '^';
-		*b++ = '@';
-		if (sep[0] != '\0' && sep[1] != '\0')
-			*b++ = sep[1];
-		*b++ = 0;
-		return (buf);
+	if (sep[0] != '\0') {
+		ADDC(sep[0]);
+	}
+	if (*str == '\0') {
+		ADDC('^');
+		ADDC('@');
+		if (sep[0] != '\0' && sep[1] != '\0') {
+			ADDC(sep[1]);
+		}
+		goto done;
 	}
 	for (p = str; *p != 0; p++) {
 		if (iscntrl((unsigned char) *p)) {
-			*b++ = '^';
-			if (*p == '\177')
-				*b++ = '?';
-			else
-				*b++ = *p | 0100;
+			ADDC('^');
+			if (*p == '\177') {
+				ADDC('?');
+			} else {
+				ADDC(*p | 0100);
+			}
 		} else if (*p == '^' || *p == '\\') {
-			*b++ = '\\';
-			*b++ = *p;
+			ADDC('\\');
+			ADDC(*p);
 		} else if (*p == ' ' || (el_isprint((unsigned char) *p) &&
 			!isspace((unsigned char) *p))) {
-			*b++ = *p;
+			ADDC(*p);
 		} else {
-			*b++ = '\\';
-			*b++ = (((unsigned int) *p >> 6) & 7) + '0';
-			*b++ = (((unsigned int) *p >> 3) & 7) + '0';
-			*b++ = (*p & 7) + '0';
+			ADDC('\\');
+			ADDC((((unsigned int) *p >> 6) & 7) + '0');
+			ADDC((((unsigned int) *p >> 3) & 7) + '0');
+			ADDC((*p & 7) + '0');
 		}
 	}
-	if (sep[0] != '\0' && sep[1] != '\0')
-		*b++ = sep[1];
-	*b++ = 0;
-	return (buf);		/* should check for overflow */
+	if (sep[0] != '\0' && sep[1] != '\0') {
+		ADDC(sep[1]);
+	}
+done:
+	ADDC('\0');
+	if (b - buf >= len)
+	    buf[len - 1] = '\0';
+	return b - buf;
 }

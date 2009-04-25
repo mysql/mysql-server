@@ -250,7 +250,7 @@ static COMMANDS commands[] = {
   { "connect",'r', com_connect,1,
     "Reconnect to the server. Optional arguments are db and host." },
   { "delimiter", 'd', com_delimiter,    1,
-    "Set statement delimiter. NOTE: Takes the rest of the line as new delimiter." },
+    "Set statement delimiter." },
 #ifdef USE_POPEN
   { "edit",   'e', com_edit,   0, "Edit command with $EDITOR."},
 #endif
@@ -2255,8 +2255,22 @@ static bool add_line(String &buffer,char *line,char *in_string,
   }
   if (out != line || !buffer.is_empty())
   {
-    *out++='\n';
     uint length=(uint) (out-line);
+
+    if (length < 9 || 
+        my_strnncoll (charset_info, 
+                      (uchar *)line, 9, (const uchar *) "delimiter", 9))
+    {
+      /* 
+        Don't add a new line in case there's a DELIMITER command to be 
+        added to the glob buffer (e.g. on processing a line like 
+        "<command>;DELIMITER <non-eof>") : similar to how a new line is 
+        not added in the case when the DELIMITER is the first command 
+        entered with an empty glob buffer. 
+      */
+      *out++='\n';
+      length++;
+    }
     if (buffer.length() + length >= buffer.alloced_length())
       buffer.realloc(buffer.length()+length+IO_SIZE);
     if ((!*ml_comment || preserve_comments) && buffer.append(line, length))
@@ -2280,8 +2294,10 @@ extern "C" char **new_mysql_completion (const char *text, int start, int end);
   if not.
 */
 
-#if defined(USE_NEW_READLINE_INTERFACE) || defined(USE_LIBEDIT_INTERFACE)
+#if defined(USE_NEW_READLINE_INTERFACE) 
 extern "C" char *no_completion(const char*,int)
+#elif defined(USE_LIBEDIT_INTERFACE)
+extern "C" int no_completion(const char*,int)
 #else
 extern "C" char *no_completion()
 #endif
@@ -2863,7 +2879,7 @@ com_charset(String *buffer __attribute__((unused)), char *line)
   param= get_arg(buff, 0);
   if (!param || !*param)
   {
-    return put_info("Usage: \\C char_setname | charset charset_name", 
+    return put_info("Usage: \\C charset_name | charset charset_name", 
 		    INFO_ERROR, 0);
   }
   new_cs= get_charset_by_csname(param, MY_CS_PRIMARY, MYF(MY_WME));

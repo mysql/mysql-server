@@ -94,7 +94,7 @@ EXTRA_DIST=	$(BUILT_SOURCES) comp_err.def install_test_db.ncf \
 		BUILD/compile-netware-standard BUILD/create-patch \
 		BUILD/cron-build BUILD/crontab BUILD/knetware.imp \
 		BUILD/mwasmnlm BUILD/mwccnlm BUILD/mwenv BUILD/mwldnlm \
-		BUILD/nwbootstrap BUILD/openssl.imp BUILD/save-patch
+		BUILD/nwbuild BUILD/openssl.imp BUILD/save-patch
 
 endif
 

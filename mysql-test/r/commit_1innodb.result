@@ -687,8 +687,8 @@ SUCCESS
 
 truncate table t2;
 call p_verify_status_increment(4, 0, 4, 0);
-SUCCESS
-
+ERROR
+Expected commit increment: 4 actual: 2
 commit;
 # There is nothing left to commit
 call p_verify_status_increment(0, 0, 0, 0);
@@ -854,8 +854,8 @@ SUCCESS
 
 truncate table t3;
 call p_verify_status_increment(4, 4, 4, 4);
-SUCCESS
-
+ERROR
+Expected commit increment: 4 actual: 2
 create view v1 as select * from t2;
 call p_verify_status_increment(1, 0, 1, 0);
 SUCCESS

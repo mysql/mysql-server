@@ -1,0 +1,9 @@
+set names utf8;
+create table `Ö` (id int);
+show tables from test like 'Ö';
+Tables_in_test (Ö)
+ö
+show tables from test like 'ö';
+Tables_in_test (ö)
+ö
+drop table `Ö`;

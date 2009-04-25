@@ -3322,7 +3322,7 @@ bool mysql_create_table_no_lock(THD *thd,
       if (key->type == Key::FOREIGN_KEY &&
           !part_info->is_auto_partitioned)
       {
-        my_error(ER_CANNOT_ADD_FOREIGN, MYF(0));
+        my_error(ER_FOREIGN_KEY_ON_PARTITIONED, MYF(0));
         goto err;
       }
     }
@@ -4306,7 +4306,14 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
           view_checksum(thd, table) == HA_ADMIN_WRONG_CHECKSUM)
         push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
                      ER_VIEW_CHECKSUM, ER(ER_VIEW_CHECKSUM));
-      result_code= HA_ADMIN_CORRUPT;
+      if (thd->main_da.is_error() && 
+          (thd->main_da.sql_errno() == ER_NO_SUCH_TABLE ||
+           thd->main_da.sql_errno() == ER_FILE_NOT_FOUND))
+        /* A missing table is just issued as a failed command */
+        result_code= HA_ADMIN_FAILED;
+      else
+        /* Default failure code is corrupt table */
+        result_code= HA_ADMIN_CORRUPT;
       goto send_result;
     }
 
@@ -4444,8 +4451,8 @@ send_result_message:
     switch (result_code) {
     case HA_ADMIN_NOT_IMPLEMENTED:
       {
-	char buf[ERRMSGSIZE+20];
-	uint length=my_snprintf(buf, ERRMSGSIZE,
+       char buf[MYSQL_ERRMSG_SIZE];
+       uint length=my_snprintf(buf, sizeof(buf),
 				ER(ER_CHECK_NOT_IMPLEMENTED), operator_name);
 	protocol->store(STRING_WITH_LEN("note"), system_charset_info);
 	protocol->store(buf, length, system_charset_info);
@@ -4454,8 +4461,8 @@ send_result_message:
 
     case HA_ADMIN_NOT_BASE_TABLE:
       {
-        char buf[ERRMSGSIZE+20];
-        uint length= my_snprintf(buf, ERRMSGSIZE,
+        char buf[MYSQL_ERRMSG_SIZE];
+        uint length= my_snprintf(buf, sizeof(buf),
                                  ER(ER_BAD_TABLE_ERROR), table_name);
         protocol->store(STRING_WITH_LEN("note"), system_charset_info);
         protocol->store(buf, length, system_charset_info);
@@ -4582,11 +4589,12 @@ send_result_message:
     case HA_ADMIN_NEEDS_UPGRADE:
     case HA_ADMIN_NEEDS_ALTER:
     {
-      char buf[ERRMSGSIZE];
+      char buf[MYSQL_ERRMSG_SIZE];
       uint length;
 
       protocol->store(STRING_WITH_LEN("error"), system_charset_info);
-      length=my_snprintf(buf, ERRMSGSIZE, ER(ER_TABLE_NEEDS_UPGRADE), table->table_name);
+      length=my_snprintf(buf, sizeof(buf), ER(ER_TABLE_NEEDS_UPGRADE),
+                         table->table_name);
       protocol->store(buf, length, system_charset_info);
       fatal_error=1;
       break;
@@ -4594,8 +4602,8 @@ send_result_message:
 
     default:				// Probably HA_ADMIN_INTERNAL_ERROR
       {
-        char buf[ERRMSGSIZE+20];
-        uint length=my_snprintf(buf, ERRMSGSIZE,
+        char buf[MYSQL_ERRMSG_SIZE];
+        uint length=my_snprintf(buf, sizeof(buf),
                                 "Unknown - internal error %d during operation",
                                 result_code);
         protocol->store(STRING_WITH_LEN("error"), system_charset_info);
@@ -4647,7 +4655,7 @@ err:
 bool mysql_backup_table(THD* thd, TABLE_LIST* table_list)
 {
   DBUG_ENTER("mysql_backup_table");
-  WARN_DEPRECATED(thd, "5.2", "BACKUP TABLE",
+  WARN_DEPRECATED(thd, "6.0", "BACKUP TABLE",
                   "MySQL Administrator (mysqldump, mysql)");
   DBUG_RETURN(mysql_admin_table(thd, table_list, 0,
 				"backup", TL_READ, 0, 0, 0, 0,
@@ -4658,7 +4666,7 @@ bool mysql_backup_table(THD* thd, TABLE_LIST* table_list)
 bool mysql_restore_table(THD* thd, TABLE_LIST* table_list)
 {
   DBUG_ENTER("mysql_restore_table");
-  WARN_DEPRECATED(thd, "5.2", "RESTORE TABLE",
+  WARN_DEPRECATED(thd, "6.0", "RESTORE TABLE",
                   "MySQL Administrator (mysqldump, mysql)");
   DBUG_RETURN(mysql_admin_table(thd, table_list, 0,
 				"restore", TL_WRITE, 1, 1, 0,

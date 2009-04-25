@@ -1,0 +1,86 @@
+#! /bin/sh
+
+# This script builds a Netware binary from a MySQL source tarball
+
+# debug
+#set -x
+
+# stop on errors
+set -e
+
+# init
+build=""
+
+# show usage
+show_usage()
+{
+  cat << EOF
+
+usage: nwbuild [options]
+
+Build Netware binary from source .tar.gz
+
+options:
+
+--build=<opt>               Build the binary distributions for NetWare,
+                            where <opt> is "standard", "debug", or "all"
+                            (default is to not build a binary distribution)
+                            
+--help                      Show this help information
+  
+Examples:
+
+  ./netware/BUILD/nwbuild --build=debug
+  ./netware/BUILD/nwbuild --build=standard
+
+EOF
+}
+
+# parse arguments
+for arg do
+  case "$arg" in
+    --build=*) build=`echo "$arg" | sed -e "s;--build=;;"` ;;
+    --help) show_usage; exit 0 ;;
+    *) show_usage >&2; exit 1 ;;
+  esac
+done
+
+# determine version
+version=`grep -e "AM_INIT_AUTOMAKE(mysql, .*)" < configure.in | sed -e "s/AM_INIT_AUTOMAKE(mysql, \(.*\))/\1/"`
+echo "version: $version"
+
+# make files writeable
+echo "making files writable..."
+chmod -R u+rw,g+rw .
+
+# edit the def file versions
+nlm_version=`echo "$version" | sed -e "s;\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\).*;\1, \2, \3;"`
+echo "updating *.def file versions to $nlm_version..."
+
+for file in ./netware/*.def
+do
+  mv -f $file $file.org
+  sed -e "s;VERSION.*;VERSION $nlm_version;g" $file.org > $file
+  rm $file.org
+done
+
+# create the libmysql.imp file in netware folder from libmysql/libmysql.def
+# file
+echo "generating libmysql.imp file..."
+awk 'BEGIN{x=0;}  END{printf("\n");} x==1 {printf(" %s",$1); x++; next} x>1 {printf(",\n %s", $1);next} /EXPORTS/{x=1}' libmysql/libmysql.def > netware/libmysql.imp
+# build linux tools
+echo "compiling linux tools..."
+./netware/BUILD/compile-linux-tools
+test -f ./netware/init_db.sql  # this must exist
+test -f ./netware/test_db.sql  # this must exist
+
+# compile
+if test $build
+then
+  echo "compiling $build..."
+  ./netware/BUILD/compile-netware-$build
+else
+  echo "Preparation complete.  Use ./netware/BUILD/compile-netware-* to build MySQL."
+fi
+
+echo "done"
