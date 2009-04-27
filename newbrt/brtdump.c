@@ -246,6 +246,17 @@ dump_node_wrapper(BLOCKNUM b, int64_t UU(size), int64_t UU(address), void *extra
     return 0;
 }
 
+static void 
+interactive_help(void) {
+    fprintf(stderr, "help\n");
+    fprintf(stderr, "header\n");
+    fprintf(stderr, "node NUMBER\n");
+    fprintf(stderr, "bx [OFFSET]\n");
+    fprintf(stderr, "fragmentation\n");
+    fprintf(stderr, "file OFFSET SIZE\n");
+    fprintf(stderr, "quit\n");
+}
+
 int 
 main (int argc, const char *argv[]) {
     const char *arg0 = argv[0];
@@ -281,7 +292,9 @@ main (int argc, const char *argv[]) {
             int nfields = split_fields(line, fields, maxfields);
             if (nfields == 0) 
                 continue;
-            if (strcmp(fields[0], "header") == 0) {
+            if (strcmp(fields[0], "help") == 0) {
+                interactive_help();
+            } else if (strcmp(fields[0], "header") == 0) {
                 toku_brtheader_free(h);
                 dump_header(f, &h);
             } else if (strcmp(fields[0], "node") == 0 && nfields == 2) {
