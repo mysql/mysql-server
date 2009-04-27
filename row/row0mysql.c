@@ -3944,6 +3944,10 @@ row_scan_and_check_index(
 	*n_rows = 0;
 
 	if (!row_merge_is_index_usable(prebuilt->trx, index)) {
+		/* A newly created index may lack some delete-marked
+		records that may exist in the read view of
+		prebuilt->trx.  Thus, such indexes must not be
+		accessed by consistent read. */
 		return(is_ok);
 	}
 
@@ -3954,6 +3958,7 @@ row_scan_and_check_index(
 	in scanning the index entries */
 
 	prebuilt->index = index;
+	/* row_merge_is_index_usable() was already checked above. */
 	prebuilt->index_usable = TRUE;
 	prebuilt->sql_stat_start = TRUE;
 	prebuilt->template_type = ROW_MYSQL_DUMMY_TEMPLATE;
