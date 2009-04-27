@@ -713,8 +713,7 @@ check_have_atomic_pthread_t:
 		echo '#define HAVE_ATOMIC_PTHREAD_T' > include/ut0auxconf.h ; \
 	fi
 
-# This is temprary fix for http://bugs.mysql.com/43740
-all: all-am
+all: check_have_atomic_pthread_t all-am
 
 .SUFFIXES:
 .SUFFIXES: .c .cc .lo .o .obj

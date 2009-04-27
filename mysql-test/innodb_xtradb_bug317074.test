@@ -1,7 +1,4 @@
 -- source include/have_innodb.inc
-set @old_innodb_file_per_table=@@innodb_file_per_table;
-set @old_innodb_file_format=@@innodb_file_format;
-set @old_innodb_file_format_check=@@innodb_file_format_check;
 
 SET GLOBAL innodb_file_format='Barracuda';
 SET GLOBAL innodb_file_per_table=ON;
@@ -39,7 +36,3 @@ DROP PROCEDURE insert_many;
 ALTER TABLE test1 ENGINE=MyISAM;
 
 DROP TABLE test1;
-set global innodb_file_per_table=@old_innodb_file_per_table;
-set global innodb_file_format=@old_innodb_file_format;
-set global innodb_file_format_check=@old_innodb_file_format_check;
-
