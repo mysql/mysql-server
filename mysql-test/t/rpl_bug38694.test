@@ -1,0 +1,10 @@
+# Testing replication threads stopping concurrency issue
+# at the server shutdown
+# Related bugs: bug#38694, bug#29968, bug#25306
+# The test checks if a delay at the termination phase of slave threads
+# DBUG_EXECUTE_IF("simulate_slave_delay_at_terminate_bug38694", sleep(5););
+# could cause any issue.
+
+source include/master-slave.inc;
+
+# End of tests
