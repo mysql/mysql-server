@@ -1344,13 +1344,12 @@ sub set_build_thread_ports($) {
   else
   {
     $build_thread = $opt_build_thread + $thread - 1;
+    if (! check_ports_free($build_thread)) {
+      # Some port was not free(which one has already been printed)
+      mtr_error("Some port(s) was not free")
+    }
   }
   $ENV{MTR_BUILD_THREAD}= $build_thread;
-
-  if (! check_ports_free($build_thread)) {
-    # Some port was not free(which one has already been printed)
-    mtr_error("Some port(s) was not free")
-  }
 
   # Calculate baseport
   $baseport= $build_thread * 10 + 10000;
