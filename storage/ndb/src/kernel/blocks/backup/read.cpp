@@ -50,7 +50,7 @@ main(int argc, const char * argv[]){
 
   ndb_init();
   if(argc <= 1){
-    printf("Usage: %s <filename>", argv[0]);
+    printf("Usage: %s <filename>\n", argv[0]);
     exit(1);
   }
   FILE * f = fopen(argv[1], "rb");
