@@ -21,6 +21,9 @@
 use strict;
 use Socket;
 use Errno;
+use My::Platform;
+use if IS_WINDOWS, "Net::Ping";
+
 
 sub sleep_until_file_created ($$$);
 sub mtr_ping_port ($);
@@ -30,6 +33,25 @@ sub mtr_ping_port ($) {
 
   mtr_verbose("mtr_ping_port: $port");
 
+  if (IS_WINDOWS)
+  {
+    # Under Windows, connect to a port that is not open is slow
+    # It takes ~1sec. Net::Ping with small timeout is much faster.
+    my $ping = Net::Ping->new();
+    $ping->port_number($port);
+   
+    if ($ping->ping("localhost",0.1))
+    {
+       mtr_verbose("USED");
+	   return 1;
+    }
+    else
+    {
+       mtr_verbose("FREE");
+	   return 0;
+    }
+  }
+  
   my $remote= "localhost";
   my $iaddr=  inet_aton($remote);
   if ( ! $iaddr )
