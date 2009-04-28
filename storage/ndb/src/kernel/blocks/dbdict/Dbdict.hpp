@@ -1997,8 +1997,6 @@ private:
       return;
     }
 
-    D("before add op" << *trans_ptr.p);
-
     if (trans_ptr.p->m_transId != req->transId) {
       jam();
       setError(error, SchemaTransImplRef::InvalidTransId, __LINE__);
