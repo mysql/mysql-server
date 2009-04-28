@@ -981,6 +981,12 @@ write_pair_for_checkpoint (CACHETABLE ct, PAIR p)
 }
 
 
+// TODO #1398  Get rid of this entire straddle_callback hack
+// Man is this ugly.  
+#ifdef  BRT_LEVEL_STRADDLE_CALLBACK_LOGIC_NOT_READY
+extern int STRADDLE_HACK_INSIDE_CALLBACK;
+#endif
+
 int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, void**value, long *sizep,
 			        CACHETABLE_FLUSH_CALLBACK flush_callback, 
                                 CACHETABLE_FETCH_CALLBACK fetch_callback, void *extraargs) {
@@ -1011,6 +1017,19 @@ int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, u_int32_t ful
 		write_pair_for_checkpoint(ct, p); // releases the pair_write_lock, but not the cachetable lock
 	    }
 	    // still have the cachetable lock
+	    // TODO 1398  kill this hack before it multiplies further
+	    // This logic here to prevent deadlock that results when a query pins a node,
+	    // then the straddle callback creates a cursor that pins it again.  If 
+	    // toku_cachetable_end_checkpoint() is called between those two calls to pin
+	    // the node, then the checkpoint function waits for the first pin to be released
+	    // while the callback waits for the checkpoint function to release the write
+	    // lock.  The work-around is to have an unfair rwlock mechanism that favors the 
+	    // reader.
+#ifdef  BRT_LEVEL_STRADDLE_CALLBACK_LOGIC_NOT_READY
+	    if (STRADDLE_HACK_INSIDE_CALLBACK)
+		rwlock_prefer_read_lock(&p->rwlock, ct->mutex);
+	    else
+#endif
             rwlock_read_lock(&p->rwlock, ct->mutex);
 #if TOKU_DO_WAIT_TIME
 	    if (do_wait_time) {

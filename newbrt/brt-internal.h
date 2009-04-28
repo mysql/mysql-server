@@ -20,9 +20,6 @@ typedef void *OMTVALUE;
 #include "block_table.h"
 #include "leaflock.h"
 
-//Enable hacks to deal with missing straddle callback logic.
-#define BRT_LEVEL_STRADDLE_CALLBACK_LOGIC_NOT_READY
-
 #ifndef BRT_FANOUT
 #define BRT_FANOUT 16
 #endif
