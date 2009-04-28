@@ -115,11 +115,11 @@ static struct my_option my_long_options[]=
 #endif
   {"socket", 'S', "Socket file to use for connection.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#include <sslopt-longopts.h>
   {"tmpdir", 't', "Directory for temporary files",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"user", 'u', "User for login if not current user.", (uchar**) &opt_user,
    (uchar**) &opt_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#include <sslopt-longopts.h>
   {"verbose", 'v', "Display more output about the process",
    (uchar**) &opt_verbose, (uchar**) &opt_verbose, 0,
    GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
