@@ -23,18 +23,18 @@ $opt_help=$opt_version=$opt_verbose=$opt_force=0;
 $opt_user=$opt_database=$opt_password=undef;
 $opt_host="localhost";
 $opt_socket="";
-$opt_type="MYISAM";
+$opt_engine="MYISAM";
 $opt_port=0;
 $exit_status=0;
 
-GetOptions("force","help","host=s","password=s","user=s","type=s","verbose","version","socket=s", "port=i") || 
+GetOptions("force","help","host=s","password=s","user=s","engine|type=s","verbose","version","socket=s", "port=i") || 
   usage(0);
 usage($opt_version) if ($#ARGV < 0 || $opt_help || $opt_version);
 $opt_database=shift(@ARGV);
 
-if (uc($opt_type) eq "HEAP")
+if (grep { /^$opt_engine$/i } qw(HEAP MEMORY BLACKHOLE))
 {
-  print "Converting to type HEAP would delete your tables; aborting\n";
+  print "Converting to '$opt_engine' would delete your data; aborting\n";
   exit(1);
 }
 
@@ -76,14 +76,15 @@ foreach $table (@ARGV)
   $sth=$dbh->prepare("show table status like '$table'");  
   if ($sth->execute && ($row = $sth->fetchrow_arrayref))
   {
-    if (uc($row->[1]) eq uc($opt_type))
+    if (uc($row->[1]) eq uc($opt_engine))
     {
-      print "$table is already of type $opt_type;  Ignored\n";
+      print "$table already uses the '$opt_engine' engine;  Ignored\n";
       next;
     }
   }
   print "converting $table\n" if ($opt_verbose);
-  if (!$dbh->do("ALTER TABLE $table ENGINE=$opt_type"))
+  $table=~ s/`/``/g;
+  if (!$dbh->do("ALTER TABLE `$table` ENGINE=$opt_engine"))
   {
     print STDERR "Can't convert $table: Error $DBI::errstr\n";
     exit(1) if (!$opt_force);
@@ -103,7 +104,7 @@ sub usage
 
   print <<EOF;
 
-Conversion of a MySQL tables to other table types.
+Conversion of a MySQL tables to other storage engines
 
  Usage: $0 database [tables]
  If no tables has been specifed, all tables in the database will be converted.
@@ -113,8 +114,11 @@ Conversion of a MySQL tables to other table types.
 --force
   Continue even if there is some error.
 
---help or --Information
+--help
   Shows this help
+
+--engine='engine'
+  Converts tables to the given storage engine (Default: $opt_engine)
 
 --host='host name' (Default $opt_host)
   Host name where the database server is located.
@@ -127,10 +131,6 @@ Conversion of a MySQL tables to other table types.
 
 --socket='/path/to/socket'
   Socket to connect with.
-
---ENGINE='table-type'
-  Converts tables to the given table type (Default: $opt_type)
-  MySQL 3.23 supports at least the BDB, ISAM and MYISAM types.
 
 --user='user_name'
   User name to log into the SQL server.
