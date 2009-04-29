@@ -1252,9 +1252,7 @@ fail_err:
 		buf_block_get_page_no(block), max_size,
 		rec_size + PAGE_DIR_SLOT_SIZE, index->type);
 #endif
-	if (leaf
-	    && !dict_index_is_clust(index)
-	    && !dict_index_is_ibuf(index)) {
+	if (leaf && !dict_index_is_clust(index)) {
 		/* Update the free bits of the B-tree page in the
 		insert buffer bitmap. */
 
