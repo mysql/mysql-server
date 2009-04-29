@@ -536,6 +536,18 @@ sub wait_any {
   return $proc;
 }
 
+
+#
+# Wait for all processes to exit
+#
+sub wait_all {
+  while(keys %running)
+  {
+    wait_any();
+  }
+}
+
+
 #
 # Check if any process has exited, but don't wait.
 #
