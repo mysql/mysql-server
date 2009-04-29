@@ -65,7 +65,7 @@ void *rdlockThread(void *arg __attribute__((unused)))
   rc = pthread_rwlock_unlock(&rwlock);
   t_end = rdtsc();
   compResults("pthread_rwlock_unlock()\n", rc);
-  printf("%llu to %llu is %llu clocks\n", t_start, t_end, rtdiff(t_start, t_end));
+  printf("Took %llu clocks\n", rtdiff(t_start, t_end));
 
   printf("Secondary thread complete\n");
   return NULL;
@@ -125,5 +125,11 @@ int main(int argc __attribute__((unused)), char **argv)
   rc = pthread_rwlock_destroy(&rwlock);
   compResults("pthread_rwlock_destroy()\n", rc);
   printf("Main completed\n");
+
+  
+  t_start = rdtsc();
+  sleep(1);
+  t_end   = rdtsc();
+  printf("sleep(1) took %llu clocks\n", t_end-t_start);
   return 0;
 }
