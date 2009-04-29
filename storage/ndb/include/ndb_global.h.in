@@ -146,4 +146,6 @@ extern "C" {
 
 #define NDB_O_DIRECT_WRITE_ALIGNMENT 512
 
+#define NDB_ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
+
 #endif
