@@ -1,3 +1,4 @@
-CFLAGS=-O2 -Wall -W -Werror -D_GNU_SOURCE
+CPPFLAGS= -D_GNU_SOURCE -I../../toku_include
+CFLAGS=-O2 -Wall -W -Werror
 LDFLAGS=-lpthread
-trylock: 
+default: trylock trylock-rdtsc mfence-benchmark process_locks pthread-locks

@@ -107,7 +107,7 @@ int main (int argc __attribute__((__unused__)),
 	  char *argv[] __attribute__((__unused__))) {
     int x[4];
     int i;
-    for (i=0; i<2; i++) {
+    for (i=0; i<4; i++) {
 	do1(x);
 	domfence(x);
 	dosfence(x);
