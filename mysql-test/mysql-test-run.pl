@@ -209,6 +209,7 @@ sub check_timeout { return $opt_testcase_timeout * 6; };
 
 my $opt_start;
 my $opt_start_dirty;
+my $opt_wait_all;
 my $opt_repeat= 1;
 my $opt_retry= 3;
 my $opt_retry_failure= 2;
@@ -879,6 +880,7 @@ sub command_line_setup {
              'sleep=i'                  => \$opt_sleep,
              'start-dirty'              => \$opt_start_dirty,
              'start'                    => \$opt_start,
+             'wait-all'                 => \$opt_wait_all,
 	     'print-testcases'          => \&collect_option,
 	     'repeat=i'                 => \$opt_repeat,
 	     'retry=i'                  => \$opt_retry,
@@ -1234,6 +1236,15 @@ sub command_line_setup {
     {
       mtr_error("Can't use --extern when using debugger");
     }
+  }
+
+  # --------------------------------------------------------------------------
+  # Check use of wait-all
+  # --------------------------------------------------------------------------
+
+  if ($opt_wait_all && ! ($opt_start_dirty || $opt_start))
+  {
+    mtr_error("--wait-all can only be used with --start or --start-dirty");
   }
 
   # --------------------------------------------------------------------------
@@ -3258,19 +3269,29 @@ sub run_testcase ($) {
   # --------------------------------------------------------------------
   # If --start or --start-dirty given, stop here to let user manually
   # run tests
+  # If --wait-all is also given, do the same, but don't die if one
+  # server exits
   # ----------------------------------------------------------------------
+
   if ( $opt_start or $opt_start_dirty )
   {
     mtr_print("\nStarted", started(all_servers()));
     mtr_print("Waiting for server(s) to exit...");
-    my $proc= My::SafeProcess->wait_any();
-    if ( grep($proc eq $_, started(all_servers())) )
-    {
-      mtr_print("Server $proc died");
+    if ( $opt_wait_all ) {
+      My::SafeProcess->wait_all();
+      mtr_print( "All servers exited" );
       exit(1);
     }
-    mtr_print("Unknown process $proc died");
-    exit(1);
+    else {
+      my $proc= My::SafeProcess->wait_any();
+      if ( grep($proc eq $_, started(all_servers())) )
+      {
+        mtr_print("Server $proc died");
+        exit(1);
+      }
+      mtr_print("Unknown process $proc died");
+      exit(1);
+    }
   }
 
   my $test_timeout_proc= My::SafeProcess->timer(testcase_timeout());
@@ -5153,6 +5174,8 @@ Misc options
                          $0 --start alias &
   start-dirty           Only start the servers (without initialization) for
                         the first specified test case
+  wait-all              If --start or --start-dirty option is used, wait for all
+                        servers to exit before finishing the process
   fast                  Run as fast as possible, dont't wait for servers
                         to shutdown etc.
   repeat=N              Run each test N number of times
