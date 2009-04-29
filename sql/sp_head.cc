@@ -2132,17 +2132,16 @@ sp_head::restore_lex(THD *thd)
 /**
   Put the instruction on the backpatch list, associated with the label.
 */
-void
+int
 sp_head::push_backpatch(sp_instr *i, sp_label_t *lab)
 {
   bp_t *bp= (bp_t *)sql_alloc(sizeof(bp_t));
 
-  if (bp)
-  {
-    bp->lab= lab;
-    bp->instr= i;
-    (void)m_backpatch.push_front(bp);
-  }
+  if (!bp)
+    return 1;
+  bp->lab= lab;
+  bp->instr= i;
+  return m_backpatch.push_front(bp);
 }
 
 /**
@@ -2217,7 +2216,7 @@ sp_head::fill_field_definition(THD *thd, LEX *lex,
 }
 
 
-void
+int
 sp_head::new_cont_backpatch(sp_instr_opt_meta *i)
 {
   m_cont_level+= 1;
@@ -2225,15 +2224,17 @@ sp_head::new_cont_backpatch(sp_instr_opt_meta *i)
   {
     /* Use the cont. destination slot to store the level */
     i->m_cont_dest= m_cont_level;
-    (void)m_cont_backpatch.push_front(i);
+    if (m_cont_backpatch.push_front(i))
+      return 1;
   }
+  return 0;
 }
 
-void
+int
 sp_head::add_cont_backpatch(sp_instr_opt_meta *i)
 {
   i->m_cont_dest= m_cont_level;
-  (void)m_cont_backpatch.push_front(i);
+  return m_cont_backpatch.push_front(i);
 }
 
 void
@@ -2469,7 +2470,7 @@ sp_head::show_create_routine(THD *thd, int type)
   @param instr   Instruction
 */
 
-void sp_head::add_instr(sp_instr *instr)
+int sp_head::add_instr(sp_instr *instr)
 {
   instr->free_list= m_thd->free_list;
   m_thd->free_list= 0;
@@ -2480,7 +2481,7 @@ void sp_head::add_instr(sp_instr *instr)
     entire stored procedure, as their life span is equal.
   */
   instr->mem_root= &main_mem_root;
-  insert_dynamic(&m_instr, (uchar*)&instr);
+  return insert_dynamic(&m_instr, (uchar*)&instr);
 }
 
 
