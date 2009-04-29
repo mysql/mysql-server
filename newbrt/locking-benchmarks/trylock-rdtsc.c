@@ -140,6 +140,14 @@ int main(int argc __attribute__((unused)), char **argv)
       printf("sync_lock_release      took %llu clocks\n", t_end-t_start);
   }
 
+
+  {
+      t_start = rdtsc();
+      (void)__sync_synchronize();
+      t_end   = rdtsc();
+      printf("sync_synchornize took %llu clocks\n", t_end-t_start);
+  }
+
   t_start = rdtsc();
   sleep(1);
   t_end   = rdtsc();
