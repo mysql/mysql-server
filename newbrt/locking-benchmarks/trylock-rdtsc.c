@@ -127,6 +127,19 @@ int main(int argc __attribute__((unused)), char **argv)
   printf("Main completed\n");
 
   
+  {
+      static int lock_for_lock_and_unlock;
+      t_start = rdtsc();
+      (void)__sync_lock_test_and_set(&lock_for_lock_and_unlock, 1);
+      t_end   = rdtsc();
+      printf("sync_lock_test_and_set took %llu clocks\n", t_end-t_start);
+
+      t_start = rdtsc();
+      __sync_lock_release(&lock_for_lock_and_unlock);
+      t_end   = rdtsc();
+      printf("sync_lock_release      took %llu clocks\n", t_end-t_start);
+  }
+
   t_start = rdtsc();
   sleep(1);
   t_end   = rdtsc();
