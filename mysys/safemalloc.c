@@ -174,7 +174,7 @@ void *_mymalloc(size_t size, const char *filename, uint lineno, myf MyFlags)
   data[size + 3]= MAGICEND3;
   irem->filename= (char *) filename;
   irem->linenum= lineno;
-  irem->datasize= (uint32) size;
+  irem->datasize= size;
   irem->prev=	  NULL;
 
   /* Add this remember structure to the linked list */
