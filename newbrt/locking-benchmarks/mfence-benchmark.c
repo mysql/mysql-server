@@ -60,6 +60,12 @@ static inline void sfence (void) {
     asm volatile ("sfence":::"memory");
 }
 
+int lock_for_lock_and_unlock;
+static inline void lock_and_unlock (void) {
+    __sync_lock_test_and_set(&lock_for_lock_and_unlock, 1);
+    __sync_lock_release(&lock_for_lock_and_unlock);
+}
+
 
 double tdiff (struct timeval *start, struct timeval *end) {
     return ((end->tv_sec-start->tv_sec + 1e-6*(end->tv_usec + start->tv_usec))/COUNT)*1e9;
@@ -94,7 +100,7 @@ void do1 (volatile int *x) {
     }                           \
     gettimeofday(&end, 0);      \
     double this_cost = tdiff(&start, &end); \
-    printf("%6s:%6.1fns/loop  (marginal cost=%6.1fns)\n",  #name, this_cost, this_cost-nop_cost); \
+    printf("%15s:%6.1fns/loop  (marginal cost=%6.1fns)\n",  #name, this_cost, this_cost-nop_cost); \
 }
 
 
@@ -102,6 +108,7 @@ doit(mfence)
 doit(lfence)
 doit(sfence)
 doit(xchgl)
+doit(lock_and_unlock);
 
 int main (int argc __attribute__((__unused__)), 
 	  char *argv[] __attribute__((__unused__))) {
@@ -113,6 +120,7 @@ int main (int argc __attribute__((__unused__)),
 	dosfence(x);
 	dolfence(x);
 	doxchgl(x);
+	dolock_and_unlock(x);
     }
     return 0;
 }
