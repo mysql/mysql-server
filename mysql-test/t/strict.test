@@ -1204,7 +1204,7 @@ drop table t1;
 #
 
 #60 chars, 120 (+1) bytes (UTF-8 with 2-byte chars)
-CREATE TABLE t3 (f1 INT) COMMENT '××§××××××§××××××§××××××§××××××§××××××§××××××§××××××§××××××§××××××§××××';
+CREATE TABLE t3 (f1 INT) COMMENT 'כקבהחןכקבהחןכקבהחןכקבהחןכקבהחןכקבהחןכקבהחןכקבהחןכקבהחןכקבהחן';
 SHOW CREATE TABLE t3;
 DROP TABLE t3;
 
