@@ -1,4 +1,4 @@
-/*	$NetBSD: common.c,v 1.16 2003/08/07 16:44:30 agc Exp $	*/
+/*	$NetBSD: common.c,v 1.21 2008/09/30 08:37:42 aymeric Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -32,7 +32,13 @@
  * SUCH DAMAGE.
  */
 
-#include <config.h>
+#include "config.h"
+#if !defined(lint) && !defined(SCCSID)
+#if 0
+static char sccsid[] = "@(#)common.c	8.1 (Berkeley) 6/4/93";
+#else
+#endif
+#endif /* not lint && not SCCSID */
 
 /*
  * common.c: Common Editor functions
@@ -130,7 +136,7 @@ ed_delete_prev_word(EditLine *el, int c __attribute__((__unused__)))
  */
 protected el_action_t
 /*ARGSUSED*/
-ed_delete_next_char(EditLine *el, int c __attribute__((__unused__)))
+ed_delete_next_char(EditLine *el, int c)
 {
 #ifdef notdef			/* XXX */
 #define	EL	el->el_line
@@ -147,9 +153,8 @@ ed_delete_next_char(EditLine *el, int c __attribute__((__unused__)))
 #ifdef KSHVI
 				return (CC_ERROR);
 #else
-				term_overwrite(el, STReof, 4);
-					/* then do a EOF */
-				term__flush();
+				/* then do an EOF */
+				term_writechar(el, c);
 				return (CC_EOF);
 #endif
 			} else {
@@ -207,13 +212,13 @@ ed_move_to_end(EditLine *el, int c __attribute__((__unused__)))
 
 	el->el_line.cursor = el->el_line.lastchar;
 	if (el->el_map.type == MAP_VI) {
-#ifdef VI_MOVE
-		el->el_line.cursor--;
-#endif
 		if (el->el_chared.c_vcmd.action != NOP) {
 			cv_delfini(el);
 			return (CC_REFRESH);
 		}
+#ifdef VI_MOVE
+		el->el_line.cursor--;
+#endif
 	}
 	return (CC_CURSOR);
 }
@@ -609,7 +614,7 @@ protected el_action_t
 ed_start_over(EditLine *el, int c __attribute__((__unused__)))
 {
 
-	ch_reset(el);
+	ch_reset(el, 0);
 	return (CC_REFRESH);
 }
 
@@ -904,7 +909,7 @@ ed_command(EditLine *el, int c __attribute__((__unused__)))
 	int tmplen;
 
 	tmplen = c_gets(el, tmpbuf, "\n: ");
-	term__putc('\n');
+	term__putc(el, '\n');
 
 	if (tmplen < 0 || (tmpbuf[tmplen] = 0, parse_line(el, tmpbuf)) == -1)
 		term_beep(el);
