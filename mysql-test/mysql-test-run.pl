@@ -3202,7 +3202,7 @@ sub run_testcase ($) {
     {
 
       # Remove old datadirs
-      clean_datadir();
+      clean_datadir() unless $opt_start_dirty;
 
       # Restore old ENV
       while (my ($option, $value)= each( %old_env )) {
@@ -4504,14 +4504,17 @@ sub start_servers($) {
     my $mysqld_basedir= $mysqld->value('basedir');
     if ( $basedir eq $mysqld_basedir )
     {
-      # Copy datadir from installed system db
-      for my $path ( "$opt_vardir", "$opt_vardir/..") {
-	my $install_db= "$path/install.db";
-	copytree($install_db, $datadir)
-	  if -d $install_db;
+      if (! $opt_start_dirty)	# If dirty, keep possibly grown system db
+      {
+	# Copy datadir from installed system db
+	for my $path ( "$opt_vardir", "$opt_vardir/..") {
+	  my $install_db= "$path/install.db";
+	  copytree($install_db, $datadir)
+	    if -d $install_db;
+	}
+	mtr_error("Failed to copy system db to '$datadir'")
+	  unless -d $datadir;
       }
-      mtr_error("Failed to copy system db to '$datadir'")
-	unless -d $datadir;
     }
     else
     {
