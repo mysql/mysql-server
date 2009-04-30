@@ -593,3 +593,13 @@ select str_to_date('04/30/2004 ', '%m/%d/%Y ');
 str_to_date('04/30/2004 ', '%m/%d/%Y ')
 2004-04-30
 "End of 4.1 tests"
+SELECT DATE_FORMAT("0000-01-01",'%W %d %M %Y') as valid_date;
+valid_date
+Sunday 01 January 0000
+SELECT DATE_FORMAT("0000-02-28",'%W %d %M %Y') as valid_date;
+valid_date
+Tuesday 28 February 0000
+SELECT DATE_FORMAT("2009-01-01",'%W %d %M %Y') as valid_date;
+valid_date
+Thursday 01 January 2009
+"End of 5.0 tests"
