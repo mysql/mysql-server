@@ -143,8 +143,8 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi);
 static Log_event* next_event(Relay_log_info* rli);
 static int queue_event(Master_info* mi,const char* buf,ulong event_len);
 static int terminate_slave_thread(THD *thd,
-                                  pthread_mutex_t* term_lock,
-                                  pthread_cond_t* term_cond,
+                                  pthread_mutex_t *term_lock,
+                                  pthread_cond_t *term_cond,
                                   volatile uint *slave_running,
                                   bool skip_lock);
 static bool check_io_slave_killed(THD *thd, Master_info *mi, const char *info);
@@ -399,31 +399,30 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool skip_lock)
   int error,force_all = (thread_mask & SLAVE_FORCE_ALL);
   pthread_mutex_t *sql_lock = &mi->rli.run_lock, *io_lock = &mi->run_lock;
 
-  if ((thread_mask & (SLAVE_IO|SLAVE_FORCE_ALL)))
+  if (thread_mask & (SLAVE_IO|SLAVE_FORCE_ALL))
   {
     DBUG_PRINT("info",("Terminating IO thread"));
     mi->abort_slave=1;
-    if ((error=terminate_slave_thread(mi->io_thd,io_lock,
-                                      &mi->stop_cond,
-                                      &mi->slave_running,
+    if ((error=terminate_slave_thread(mi->io_thd, io_lock,
+				      &mi->stop_cond,
+				      &mi->slave_running,
                                       skip_lock)) &&
         !force_all)
       DBUG_RETURN(error);
   }
-  if ((thread_mask & (SLAVE_SQL|SLAVE_FORCE_ALL)))
+  if (thread_mask & (SLAVE_SQL|SLAVE_FORCE_ALL))
   {
     DBUG_PRINT("info",("Terminating SQL thread"));
     mi->rli.abort_slave=1;
-    if ((error=terminate_slave_thread(mi->rli.sql_thd,sql_lock,
-                                      &mi->rli.stop_cond,
-                                      &mi->rli.slave_running,
+    if ((error=terminate_slave_thread(mi->rli.sql_thd, sql_lock,
+				      &mi->rli.stop_cond,
+				      &mi->rli.slave_running,
                                       skip_lock)) &&
         !force_all)
       DBUG_RETURN(error);
   }
   DBUG_RETURN(0);
 }
-
 
 /**
    Wait for a slave thread to terminate.
@@ -452,29 +451,46 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool skip_lock)
           the condition. In this case, it is assumed that the calling
           function acquires the lock before calling this function.
 
-   @retval 0 All OK
+   @retval 0 All OK ER_SLAVE_NOT_RUNNING otherwise.
+
+   @note  If the executing thread has to acquire term_lock (skip_lock
+          is false), the negative running status does not represent
+          any issue therefore no error is reported.
+
  */
 static int
 terminate_slave_thread(THD *thd,
-                       pthread_mutex_t* term_lock,
-                       pthread_cond_t* term_cond,
+                       pthread_mutex_t *term_lock,
+                       pthread_cond_t *term_cond,
                        volatile uint *slave_running,
                        bool skip_lock)
 {
   int error;
 
   DBUG_ENTER("terminate_slave_thread");
-
   if (!skip_lock)
+  {
     pthread_mutex_lock(term_lock);
-
-  safe_mutex_assert_owner(term_lock);
-
+  }
+  else
+  {
+    safe_mutex_assert_owner(term_lock);
+  }
   if (!*slave_running)
   {
     if (!skip_lock)
+    {
+      /*
+        if run_lock (term_lock) is acquired locally then either
+        slave_running status is fine
+      */
       pthread_mutex_unlock(term_lock);
-    DBUG_RETURN(ER_SLAVE_NOT_RUNNING);
+      DBUG_RETURN(0);
+    }
+    else
+    {
+      DBUG_RETURN(ER_SLAVE_NOT_RUNNING);
+    }
   }
   DBUG_ASSERT(thd != 0);
   THD_CHECK_SENTRY(thd);
@@ -486,6 +502,7 @@ terminate_slave_thread(THD *thd,
 
   while (*slave_running)                        // Should always be true
   {
+    int error;
     DBUG_PRINT("loop", ("killing slave thread"));
 
     pthread_mutex_lock(&thd->LOCK_delete);
@@ -627,7 +644,7 @@ int start_slave_threads(bool need_slave_mutex, bool wait_for_start,
                              &mi->rli.slave_running, &mi->rli.slave_run_id,
                              mi, 0);
     if (error)
-      terminate_slave_threads(mi, thread_mask & SLAVE_IO, 0);
+      terminate_slave_threads(mi, thread_mask & SLAVE_IO, !need_slave_mutex);
   }
   DBUG_RETURN(error);
 }
@@ -2640,6 +2657,7 @@ err:
     delete the mi structure leading to a crash! (see BUG#25306 for details)
    */ 
   pthread_cond_broadcast(&mi->stop_cond);       // tell the world we are done
+  DBUG_EXECUTE_IF("simulate_slave_delay_at_terminate_bug38694", sleep(5););
   pthread_mutex_unlock(&mi->run_lock);
   my_thread_end();
   pthread_exit(0);
@@ -2989,6 +3007,7 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
   delete the mi structure leading to a crash! (see BUG#25306 for details)
  */ 
   pthread_cond_broadcast(&rli->stop_cond);
+  DBUG_EXECUTE_IF("simulate_slave_delay_at_terminate_bug38694", sleep(5););
   pthread_mutex_unlock(&rli->run_lock);  // tell the world we are done
   
   my_thread_end();
