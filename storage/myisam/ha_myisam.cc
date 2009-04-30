@@ -414,7 +414,7 @@ int check_definition(MI_KEYDEF *t1_keyinfo, MI_COLUMNDEF *t1_recinfo,
                             test(t2_keyinfo[i].flag & HA_SPATIAL)));
        DBUG_RETURN(1);
     }
-    if ((mysql_40_compat &&
+    if ((!mysql_40_compat &&
         t1_keyinfo[i].key_alg != t2_keyinfo[i].key_alg) ||
         t1_keyinfo[i].keysegs != t2_keyinfo[i].keysegs)
     {
@@ -446,7 +446,7 @@ int check_definition(MI_KEYDEF *t1_keyinfo, MI_COLUMNDEF *t1_recinfo,
           t1_keysegs_j__type= HA_KEYTYPE_VARBINARY1; /* purecov: inspected */
       }
 
-      if ((mysql_40_compat &&
+      if ((!mysql_40_compat &&
           t1_keysegs[j].language != t2_keysegs[j].language) ||
           t1_keysegs_j__type != t2_keysegs[j].type ||
           t1_keysegs[j].null_bit != t2_keysegs[j].null_bit ||
