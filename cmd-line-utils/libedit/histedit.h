@@ -1,4 +1,4 @@
-/*	$NetBSD: histedit.h,v 1.25 2003/12/05 13:37:48 lukem Exp $	*/
+/*	$NetBSD: histedit.h,v 1.35 2009/02/05 19:15:44 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -41,10 +41,14 @@
 #define	_HISTEDIT_H_
 
 #define	LIBEDIT_MAJOR 2
-#define	LIBEDIT_MINOR 9
+#define	LIBEDIT_MINOR 11
 
 #include <sys/types.h>
 #include <stdio.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /*
  * ==== Editing ====
@@ -88,7 +92,7 @@ void		 el_reset(EditLine *);
  */
 const char	*el_gets(EditLine *, int *);
 int		 el_getc(EditLine *, char *);
-void		 el_push(EditLine *, char *);
+void		 el_push(EditLine *, const char *);
 
 /*
  * Beep!
@@ -105,7 +109,8 @@ int		 el_parse(EditLine *, int, const char **);
  * Low level editline access functions
  */
 int		 el_set(EditLine *, int, ...);
-int		 el_get(EditLine *, int, void *);
+int		 el_get(EditLine *, int, ...);
+unsigned char	_el_fn_complete(EditLine *, int);
 
 /*
  * el_set/el_get parameters
@@ -128,8 +133,12 @@ int		 el_get(EditLine *, int, void *);
 #define	EL_CLIENTDATA	14	/* , void *);			*/
 #define	EL_UNBUFFERED	15	/* , int);			*/
 #define	EL_PREP_TERM    16      /* , int);                      */
+#define	EL_GETTC	17	/* , const char *, ..., NULL);	*/
+#define	EL_GETFP	18	/* , int, FILE **);		*/
+#define	EL_SETFP	19	/* , int, FILE *);		*/
+#define EL_REFRESH	20	/* , void);			*/
 
-#define EL_BUILTIN_GETCFN	(NULL)
+#define	EL_BUILTIN_GETCFN	(NULL)
 
 /*
  * Source named file or $PWD/.editrc or $HOME/.editrc
@@ -192,6 +201,7 @@ int		history(History *, HistEvent *, int, ...);
 #define	H_CLEAR		19	/* , void);		*/
 #define	H_SETUNIQUE	20	/* , int);		*/
 #define	H_GETUNIQUE	21	/* , void);		*/
+#define	H_DEL		22	/* , int);		*/
 
 
 /*
@@ -210,5 +220,9 @@ int		 tok_line(Tokenizer *, const LineInfo *,
 		    int *, const char ***, int *, int *);
 int		 tok_str(Tokenizer *, const char *,
 		    int *, const char ***);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* _HISTEDIT_H_ */

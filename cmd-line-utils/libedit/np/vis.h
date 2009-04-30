@@ -1,4 +1,4 @@
-/*	$NetBSD: vis.h,v 1.12 2002/03/23 17:39:05 christos Exp $	*/
+/*	$NetBSD: vis.h,v 1.16 2005/09/13 01:44:32 christos Exp $	*/
 
 /*-
  * Copyright (c) 1990, 1993
@@ -12,11 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -38,9 +34,7 @@
 #ifndef _VIS_H_
 #define	_VIS_H_
 
-#ifdef HAVE_SYS_CDEFS_H
-#include <sys/cdefs.h>
-#endif
+#include <sys/types.h>
 
 /*
  * to select alternate encoding format
@@ -78,6 +72,7 @@
  */
 #define	UNVIS_END	1	/* no more characters */
 
+__BEGIN_DECLS
 char	*vis(char *, int, int, int);
 char	*svis(char *, int, int, int, const char *);
 int	strvis(char *, const char *, int);
@@ -86,11 +81,7 @@ int	strvisx(char *, const char *, size_t, int);
 int	strsvisx(char *, const char *, size_t, int, const char *);
 int	strunvis(char *, const char *);
 int	strunvisx(char *, const char *, int);
-#ifdef __LIBC12_SOURCE__
 int	unvis(char *, int, int *, int);
-int	__unvis13(char *, int, int *, int);
-#else
-int	unvis(char *, int, int *, int)	__RENAME(__unvis13);
-#endif
+__END_DECLS
 
 #endif /* !_VIS_H_ */
