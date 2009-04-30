@@ -2333,7 +2333,7 @@ brt_merge_child (BRT t, BRTNODE node, int childnum_to_merge, BOOL *did_io, BOOL 
     return r;
 }
 
-// TODO #1398  Get rid of this entire straddle_callback hack
+// TODO: #1398  Get rid of this entire straddle_callback hack
 #ifdef  BRT_LEVEL_STRADDLE_CALLBACK_LOGIC_NOT_READY
 int STRADDLE_HACK_INSIDE_CALLBACK = 0;
 #endif

@@ -1014,7 +1014,7 @@ int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, u_int32_t ful
 		write_pair_for_checkpoint(ct, p); // releases the pair_write_lock, but not the cachetable lock
 	    }
 	    // still have the cachetable lock
-	    // TODO 1398  kill this hack before it multiplies further
+	    // TODO: #1398  kill this hack before it multiplies further
 	    // This logic here to prevent deadlock that results when a query pins a node,
 	    // then the straddle callback creates a cursor that pins it again.  If 
 	    // toku_cachetable_end_checkpoint() is called between those two calls to pin
@@ -1087,9 +1087,15 @@ int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, u_int32_t ful
 }
 
 // Lookup a key in the cachetable.  If it is found and it is not being written, then
-// acquire a read lock on the pair, update the LRU list, and return sucess.  However,
-// if it is being written, then allow the writer to evict it.  This prevents writers
-// being suspended on a block that was just selected for eviction.
+// acquire a read lock on the pair, update the LRU list, and return sucess.
+//
+// However, if the page is clean or has checkpoint pending, don't return success.
+// This will minimize the number of dirty nodes.
+// Rationale:  maybe_get_and_pin is used when the system has an alternative to modifying a node.
+//  In the context of checkpointing, we don't want to gratuituously dirty a page, because it causes an I/O.
+//  For example, imagine that we can modify a bit in a dirty parent, or modify a bit in a clean child, then we should modify
+//  the dirty parent (which will have to do I/O eventually anyway) rather than incur a full block write to modify one bit.
+//  Similarly, if the checkpoint is actually pending, we don't want to block on it.
 int toku_cachetable_maybe_get_and_pin (CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, void**value) {
     CACHETABLE ct = cachefile->cachetable;
     PAIR p;
@@ -1100,12 +1106,9 @@ int toku_cachetable_maybe_get_and_pin (CACHEFILE cachefile, CACHEKEY key, u_int3
 	count++;
 	if (p->key.b==key.b && p->cachefile==cachefile && p->state == CTPAIR_IDLE) {
 
-	    if (p->checkpoint_pending) {
-		rwlock_write_lock(&p->rwlock, ct->mutex);
-		write_pair_for_checkpoint(ct, p); // releases the pair_write_lock, but not the cachetable lock
+	    if (p->checkpoint_pending || !p->dirty) {
+		goto finish;
 	    }
-	    // still have the cachetable lock
-
 	    *value = p->value;
 	    rwlock_read_lock(&p->rwlock, ct->mutex);
 	    lru_touch(ct,p);
@@ -1114,6 +1117,7 @@ int toku_cachetable_maybe_get_and_pin (CACHEFILE cachefile, CACHEKEY key, u_int3
             break;
 	}
     }
+ finish:
     note_hash_count(count);
     cachetable_unlock(ct);
     return r;

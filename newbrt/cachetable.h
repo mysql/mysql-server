@@ -9,8 +9,7 @@
 #include "brttypes.h"
 #include "workqueue.h"
 
-
-// TODO #1398  Get rid of this entire straddle_callback hack
+// TODO: #1398  Get rid of this entire straddle_callback hack
 // Man is this ugly.  
 #ifdef  BRT_LEVEL_STRADDLE_CALLBACK_LOGIC_NOT_READY
 extern int STRADDLE_HACK_INSIDE_CALLBACK;
