@@ -978,6 +978,7 @@ public:
   {
     return (*priv_host ? priv_host : (char *)"%");
   }
+  bool user_matches(Security_context *);
 };
 
 
