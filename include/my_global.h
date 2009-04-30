@@ -156,9 +156,17 @@
 #define __builtin_expect(x, expected_value) (x)
 #endif
 
+#if defined(NDEBUG)
 #define likely(x)	__builtin_expect((x),1)
 #define unlikely(x)	__builtin_expect((x),0)
-
+#else
+/*
+  No branch hinting in DEBUG as this enables warning in case
+  of malformed predicates: ie. use of '=' instead if '=='
+*/
+#define likely(x)	(x)
+#define unlikely(x)	(x)
+#endif
 
 /*
   The macros below are useful in optimising places where it has been
