@@ -76,6 +76,8 @@ else ifeq ($(VERBOSE),1)
 endif
 
 CPPFLAGS = $(INCLUDEDIRS) -I$(PORTABILITY_HEADERS) -I$(TOKUROOT)toku_include
+# TODO: 1398 Get rid of this hack.
+CPPFLAGS+=-DBRT_LEVEL_STRADDLE_CALLBACK_LOGIC_NOT_READY=1
 
 #CFLAG default options
 # Add -Wconversion #DISABLED for now.

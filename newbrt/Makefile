@@ -18,8 +18,6 @@ LINK_FILES += $(NEWBRT)
 
 SKIP_NEWBRTRULE=1
 include $(TOKUROOT)toku_include/Makefile.include
-# TODO: 1398 Get rid of this hack.
-CPPFLAGS+=-DBRT_LEVEL_STRADDLE_CALLBACK_LOGIC_NOT_READY=1
 
 # When debugging, try: valgrind --show-reachable=yes --leak-check=full ./brt-test
 
