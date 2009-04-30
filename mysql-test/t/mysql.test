@@ -290,4 +290,9 @@ EOF
 --exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug29323.sql 2>&1
 remove_file $MYSQLTEST_VARDIR/tmp/bug29323.sql;
 
+#
+# Bug #41437: Value stored in 'case' lacks charset, causees segfault
+#
+--exec $MYSQL -e "select @z:='1',@z=database()"
+
 --echo End of 5.0 tests
