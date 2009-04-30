@@ -19,7 +19,7 @@ and this test verifies that all checkpoints are valid.
 
 Parameters:
  -cC crash or not (not crashing useful for running valgrind)
- -i # iteration number (default 5)
+ -i # iteration number (default is to run 5 iterations)
  -n # number of operations per iteration (default 5001)
  -v verbose
  -q quiet
@@ -248,7 +248,7 @@ random_acts(void * d) {
 #endif
 }
 
-u_int64_t default_cachesize;
+u_int64_t max_windows_cachesize = 256 << 20;
 
 void
 run_test (int iter, int die) {
@@ -266,8 +266,9 @@ run_test (int iter, int die) {
     const int32_t K256 = 256 * 1024;
     u_int64_t cachebytes = 0;
     cachebytes = K256 * (iter + 1) - (128 * 1024);
-    if (cachebytes > default_cachesize)
-        cachebytes = default_cachesize;
+    if (cachebytes > max_windows_cachesize)
+        cachebytes = 0;
+    if (iter & 1) cachebytes = 0;       // every other iteration use default cachesize
 
     if (verbose)
 	printf("checkpoint_stress: iter = %d, cachesize (bytes) = 0x%08"PRIx64"\n", iter, cachebytes);
@@ -363,7 +364,6 @@ test_main (int argc, char *argv[]) {
 	}
     }
     if (argc!=optind) { usage(argv[0]); return 1; }
-    default_cachesize = 256 << 20;
 
     // for developing this test and for exercising with valgrind (no crash)
     if (iter <0) {
