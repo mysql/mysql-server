@@ -164,7 +164,10 @@ static inline void cachetable_unlock(CACHETABLE ct __attribute__((unused))) {
 }
 
 // Wait for cache table space to become available 
+// size_current is number of bytes currently occupied by data (referred to by pairs)
+// size_writing is number of bytes queued up to be written out (sum of sizes of pairs in CTPAIR_WRITING state)
 static inline void cachetable_wait_write(CACHETABLE ct) {
+    // if we're writing more than half the data in the cachetable
     while (2*ct->size_writing > ct->size_current) {
         workqueue_wait_write(&ct->wq, 0);
     }
