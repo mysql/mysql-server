@@ -1267,4 +1267,36 @@ CREATE INDEX i1 on t1 (a(3));
 SELECT * FROM t1 WHERE a = 'abcde';
 a
 DROP TABLE t1;
+CREATE DATABASE systest1;
+USE systest1;
+CREATE TABLE tb1_eng1 (
+i1 INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (i1),
+f1 INT
+) ENGINE = InnoDB;
+INSERT INTO systest1.tb1_eng1 VALUES (1,1),(2,2),(3,3);
+COMMIT;
+SET AUTOCOMMIT = 0;
+CREATE TEMPORARY TABLE systest1.t1_tmp ( f1 INT );
+INSERT INTO systest1.t1_tmp (f1)
+SELECT f1 FROM systest1.tb1_eng1 WHERE i1 = 3;
+INSERT INTO systest1.t1_tmp (f1)
+SELECT f1 FROM systest1.tb1_eng1 WHERE i1 = 2;
+SET AUTOCOMMIT = 0;
+USE systest1;
+CREATE TEMPORARY TABLE systest1.t2_tmp ( i1 int, new_i1 int );
+INSERT INTO systest1.t2_tmp VALUES
+(1,51),(2,52),(3,53);
+UPDATE systest1.tb1_eng1 target
+SET i1 = (SELECT new_i1 FROM systest1.t2_tmp source WHERE source.i1 = target.i1)
+WHERE i1 = 1;
+UPDATE systest1.tb1_eng1 target
+SET i1 = (SELECT new_i1 FROM systest1.t2_tmp source WHERE source.i1 = target.i1)
+WHERE i1 = 2;
+INSERT INTO systest1.t1_tmp (f1)
+SELECT f1 FROM systest1.tb1_eng1 WHERE i1 = 1;
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+UPDATE systest1.tb1_eng1 target
+SET i1 = (SELECT new_i1 FROM systest1.t2_tmp source WHERE source.i1 = target.i1)
+WHERE i1 = 3;
+drop database systest1;
 End of 5.0 tests
