@@ -49,11 +49,11 @@ $0 Ver $VERSION
 
 Usage: $0 db_name[./table_regex/] [new_db_name | directory]
 
-  -?, --help           display this helpscreen and exit
+  -?, --help           display this help-screen and exit
   -u, --user=#         user for database login if not current user
   -p, --password=#     password to use when connecting to server (if not set
                        in my.cnf, which is recommended)
-  -h, --host=#         Hostname for local server when connecting over TCP/IP
+  -h, --host=#         hostname for local server when connecting over TCP/IP
   -P, --port=#         port to use when connecting to local server with TCP/IP
   -S, --socket=#       socket to use when connecting to local server
 
@@ -86,7 +86,7 @@ sub usage {
 
 # Do not initialize user or password options; that way, any user/password
 # options specified in option files will be used.  If no values are specified
-# all, the defaults will be used (login name, no password).
+# at all, the defaults will be used (login name, no password).
 
 my %opt = (
     noindices	=> 0,
@@ -95,7 +95,7 @@ my %opt = (
     method	=> "cp",
     flushlog    => 0,
 );
-Getopt::Long::Configure(qw(no_ignore_case)); # disambuguate -p and -P
+Getopt::Long::Configure(qw(no_ignore_case)); # disambiguate -p and -P
 GetOptions( \%opt,
     "help",
     "host|h=s",
@@ -453,7 +453,7 @@ else {
     printf "Locked $num_tables tables in %d seconds.\n", time-$start unless $opt{quiet};
     $hc_started = time;	# count from time lock is granted
 
-    # flush tables to make on-disk copy uptodate
+    # flush tables to make on-disk copy up to date
     $start = time;
     $dbh->do("FLUSH TABLES /*!32323 $hc_tables */");
     printf "Flushed tables ($hc_tables) in %d seconds.\n", time-$start unless $opt{quiet};
@@ -895,7 +895,7 @@ tables and you don't want to have all the tables locked for the
 whole duration.
 
 In this situation, I<if> you are happy for groups of tables to be
-backed up separately (and thus possibly not be logically consistant
+backed up separately (and thus possibly not be logically consistent
 with one another) then you can run mysqlhotcopy several times on
 the same database each with different db_name./table_regex/.
 All but the first should use the --addtodest option so the tables
@@ -920,7 +920,7 @@ server in a mutual replication setup.
 
 =item --regexp pattern
 
-Copy all databases with names matching the pattern
+Copy all databases with names matching the pattern.
 
 =item --regexp /pattern1/./pattern2/
 
@@ -933,7 +933,7 @@ names begin with 'bar' from all databases which names end with 'foo':
 =item db_name./pattern/
 
 Copy only tables matching pattern. Shell metacharacters ( (, ), |, !,
-etc.) have to be escaped (e.g. \). For example, to select all tables
+etc.) have to be escaped (e.g., \). For example, to select all tables
 in database db1 whose names begin with 'foo' or 'bar':
 
     mysqlhotcopy --indices --method=cp db1./^\(foo\|bar\)/
@@ -947,19 +947,19 @@ that do not begin with foo nor bar:
 
 =item -?, --help
 
-Display helpscreen and exit
+Display help-screen and exit.
 
 =item -u, --user=#         
 
-user for database login if not current user
+User for database login if not current user.
 
 =item -p, --password=#     
 
-password to use when connecting to the server. Note that you are strongly
+Password to use when connecting to the server. Note that you are strongly
 encouraged *not* to use this option as every user would be able to see the
 password in the process list. Instead use the '[mysqlhotcopy]' section in
 one of the config files, normally /etc/my.cnf or your personal ~/.my.cnf.
-(See the chapter 'my.cnf Option Files' in the manual)
+(See the chapter 'my.cnf Option Files' in the manual.)
 
 =item -h, -h, --host=#
 
@@ -968,12 +968,12 @@ different from 'localhost' will trigger mysqlhotcopy to use TCP/IP connection.
 
 =item -P, --port=#         
 
-port to use when connecting to MySQL server with TCP/IP.  This is only used
+Port to use when connecting to MySQL server with TCP/IP.  This is only used
 when using the --host option.
 
 =item -S, --socket=#         
 
-UNIX domain socket to use when connecting to local server
+UNIX domain socket to use when connecting to local server.
 
 =item  --noindices          
 
@@ -983,7 +983,7 @@ on the backup.
 
 =item  --method=#           
 
-method for copy (only "cp" currently supported). Alpha support for
+Method for copy (only "cp" currently supported). Alpha support for
 "scp" was added in November 2000. Your experience with the scp method
 will vary with your ability to understand how scp works. 'man scp'
 and 'man ssh' are your friends.
@@ -1000,15 +1000,15 @@ scp or rsync the files at your leisure.
 
 =item -q, --quiet              
 
-be silent except for errors
+Be silent except for errors.
 
 =item  --debug
 
-Debug messages are displayed 
+Debug messages are displayed.
 
 =item -n, --dryrun
 
-Display commands without actually doing them
+Display commands without actually doing them.
 
 =back
 
@@ -1030,18 +1030,18 @@ to be specified on the command line:
   mysqlhotcopy db newdb  t1 t2 /^foo_/ : t3 /^bar_/ : +
 
 where ":" delimits the subsets, the /^foo_/ indicates all tables
-with names begining with "foo_" and the "+" indicates all tables
+with names beginning with "foo_" and the "+" indicates all tables
 not copied by the previous subsets.
 
-newdb is either another not existing database or a full path to a directory
-where we can create a directory 'db'
+'newdb' is either the name of the new database, or the full path name
+of the new database file. The database should not already exist.
 
 Add option to lock each table in turn for people who don\'t need
 cross-table integrity.
 
 Add option to FLUSH STATUS just before UNLOCK TABLES.
 
-Add support for other copy methods (eg tar to single file?).
+Add support for other copy methods (e.g., tar to single file?).
 
 Add support for forthcoming MySQL ``RAID'' table subdirectory layouts.
 
@@ -1049,26 +1049,26 @@ Add support for forthcoming MySQL ``RAID'' table subdirectory layouts.
 
 Tim Bunce
 
-Martin Waite - added checkpoint, flushlog, regexp and dryrun options
+Martin Waite - Added checkpoint, flushlog, regexp and dryrun options.
                Fixed cleanup of targets when hotcopy fails. 
-	       Added --record_log_pos.
+               Added --record_log_pos.
                RAID tables are now copied (don't know if this works over scp).
 
-Ralph Corderoy - added synonyms for commands
+Ralph Corderoy - Added synonyms for commands.
 
-Scott Wiersdorf - added table regex and scp support
+Scott Wiersdorf - Added table regex and scp support.
 
-Monty - working --noindex (copy only first 2048 bytes of index file)
-        Fixes for --method=scp
+Monty - Working --noindex (copy only first 2048 bytes of index file).
+        Fixes for --method=scp.
 
 Ask Bjoern Hansen - Cleanup code to fix a few bugs and enable -w again.
 
 Emil S. Hansen - Added resetslave and resetmaster.
 
-Jeremy D. Zawodny - Removed depricated DBI calls.  Fixed bug which
+Jeremy D. Zawodny - Removed deprecated DBI calls.  Fixed bug which
 resulted in nothing being copied when a regexp was specified but no
 database name(s).
 
 Martin Waite - Fix to handle database name that contains space.
 
-Paul DuBois - Remove end '/' from directory names
+Paul DuBois - Remove end '/' from directory names.

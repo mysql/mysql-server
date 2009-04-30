@@ -5044,7 +5044,8 @@ enum options_mysqld
   OPT_SECURE_FILE_PRIV,
   OPT_KEEP_FILES_ON_CREATE,
   OPT_INNODB_ADAPTIVE_HASH_INDEX,
-  OPT_FEDERATED
+  OPT_FEDERATED,
+  OPT_INNODB_USE_LEGACY_CARDINALITY_ALGORITHM
 };
 
 
@@ -5350,6 +5351,14 @@ Disable with --skip-innodb-doublewrite.", (gptr*) &innobase_use_doublewrite,
    "Enable InnoDB locking in LOCK TABLES",
    (gptr*) &global_system_variables.innodb_table_locks,
    (gptr*) &global_system_variables.innodb_table_locks,
+   0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
+  {"innodb_use_legacy_cardinality_algorithm", 
+   OPT_INNODB_USE_LEGACY_CARDINALITY_ALGORITHM,
+   "Use legacy algorithm for picking random pages during index cardinality "
+   "estimation. Disable this to use a better algorithm, but note that your "
+   "query plans may change (enabled by default).",
+   (gptr*) &srv_use_legacy_cardinality_algorithm,
+   (gptr*) &srv_use_legacy_cardinality_algorithm,
    0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
 #endif /* End HAVE_INNOBASE_DB */
   {"isam", OPT_ISAM, "Obsolete. ISAM storage engine is no longer supported.",
