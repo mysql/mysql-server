@@ -43,6 +43,28 @@ TYPELIB myisam_stats_method_typelib= {
   array_elements(myisam_stats_method_names) - 1, "",
   myisam_stats_method_names, NULL};
 
+#ifndef DBUG_OFF
+/**
+  Causes the thread to wait in a spin lock for a query kill signal.
+  This function is used by the test frame work to identify race conditions.
+
+  The signal is caught and ignored and the thread is not killed.
+*/
+
+static void debug_wait_for_kill(const char *info)
+{
+  DBUG_ENTER("debug_wait_for_kill");
+  const char *prev_info;
+  THD *thd;
+  thd= current_thd;
+  prev_info= thd_proc_info(thd, info);
+  while(!thd->killed)
+    my_sleep(1000);
+  DBUG_PRINT("info", ("Exit debug_wait_for_kill"));
+  thd_proc_info(thd, prev_info);
+  DBUG_VOID_RETURN;
+}
+#endif
 
 /*****************************************************************************
 ** MyISAM tables
@@ -1395,6 +1417,9 @@ int ha_myisam::enable_indexes(uint mode)
 {
   int error;
 
+  DBUG_EXECUTE_IF("wait_in_enable_indexes",
+                  debug_wait_for_kill("wait_in_enable_indexes"); );
+
   if (mi_is_all_keys_active(file->s->state.key_map, file->s->base.keys))
   {
     /* All indexes are enabled already. */
@@ -1508,8 +1533,9 @@ void ha_myisam::start_bulk_insert(ha_rows rows)
     /*
       Only disable old index if the table was empty and we are inserting
       a lot of rows.
-      We should not do this for only a few rows as this is slower and
-      we don't want to update the key statistics based of only a few rows.
+      Note that in end_bulk_insert() we may truncate the table if
+      enable_indexes() failed, thus it's essential that indexes are
+      disabled ONLY for an empty table.
     */
     if (file->state->records == 0 && can_enable_indexes &&
         (!rows || rows >= MI_MIN_ROWS_TO_DISABLE_INDEXES))
@@ -1541,8 +1567,27 @@ int ha_myisam::end_bulk_insert()
 {
   mi_end_bulk_insert(file);
   int err=mi_extra(file, HA_EXTRA_NO_CACHE, 0);
-  return err ? err : can_enable_indexes ?
-                     enable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE) : 0;
+  if (!err)
+  {
+    if (can_enable_indexes)
+    {
+      /* 
+        Truncate the table when enable index operation is killed. 
+        After truncating the table we don't need to enable the 
+        indexes, because the last repair operation is aborted after 
+        setting the indexes as active and  trying to recreate them. 
+     */
+   
+      if (((err= enable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE)) != 0) && 
+                                                  current_thd->killed)
+      {
+        delete_all_rows();
+        /* not crashed, despite being killed during repair */
+        file->s->state.changed&= ~(STATE_CRASHED|STATE_CRASHED_ON_REPAIR);
+      }
+    } 
+  }
+  return err;
 }
 
 
