@@ -522,8 +522,7 @@ int Instance_options::add_option(const char* option)
        switch (selected_options->type) {
        case SAVE_WHOLE_AND_ADD:
          *(selected_options->value)= tmp;
-         insert_dynamic(&options_array,(gptr) &tmp);
-         return 0;
+         return insert_dynamic(&options_array,(gptr) &tmp);
        case SAVE_VALUE:
          *(selected_options->value)= strchr(tmp, '=') + 1;
          return 0;
