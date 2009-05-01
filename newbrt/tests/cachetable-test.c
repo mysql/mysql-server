@@ -414,7 +414,7 @@ static void test_multi_filehandles (void) {
     assert((unsigned long)v==125);
     r = toku_cachetable_get_and_pin(f3, make_blocknum(2), toku_cachetable_hash(f3, make_blocknum(2)), &v, NULL, null_flush, add222_fetch, (void*)222); assert(r==0);
     assert((unsigned long)v==224);
-    r = toku_cachetable_maybe_get_and_pin(f1, make_blocknum(2), toku_cachetable_hash(f1, make_blocknum(2)), &v); assert(r==0);
+    r = toku_cachetable_maybe_get_and_pin_clean(f1, make_blocknum(2), toku_cachetable_hash(f1, make_blocknum(2)), &v); assert(r==0);
     assert((unsigned long)v==125);
 
     r = toku_cachetable_unpin(f1, make_blocknum(1), toku_cachetable_hash(f1, make_blocknum(1)), CACHETABLE_CLEAN, 0); assert(r==0);

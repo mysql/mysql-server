@@ -56,7 +56,7 @@ static void cachetable_prefetch_maybegetandpin_test (void) {
     int i;
     for (i=1; i>=0; i++) {
         void *v;
-        r = toku_cachetable_maybe_get_and_pin(f1, key, fullhash, &v);
+        r = toku_cachetable_maybe_get_and_pin_clean(f1, key, fullhash, &v);
         if (r == 0) break;
         toku_pthread_yield();
     }
