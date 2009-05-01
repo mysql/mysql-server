@@ -127,14 +127,9 @@ ifeq ($(OS_CHOICE),windows)
 	test-recover3 \
 #\ ends prev line
     TDB_TESTS_THAT_SHOULD_FAIL_LIT += \
-	test_log2.recover \
-	test_log3.recover \
 	test_log4.recover \
 	test_log5.recover \
-	test_log6.recover \
 	test_log7.recover \
-	test_log8.recover \
-	test_log9.recover \
 	test_log10.recover \
 #\ ends prev line
 endif
@@ -234,8 +229,14 @@ endif
 %.tdbrun: %.tdb$(BINSUF) $(DEPEND_COMPILE) $(DEPEND_LINK) $(notdir $(LIBTDB))
 	$(TDBVGRIND)    ./$< $(VERBVERBOSE) $(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
-TDBDUMP=$(TOKUROOT)utils/tokudb_dump_static$(BINSUF)
-TDBLOAD=$(TOKUROOT)utils/tokudb_load_static$(BINSUF)
+ifeq ($(OS_CHOICE),windows)
+    TDBDUMP=$(TOKUROOT)utils/tokudb_dump$(BINSUF)
+    TDBLOAD=$(TOKUROOT)utils/tokudb_load$(BINSUF)
+else
+    TDBDUMP=$(TOKUROOT)utils/tokudb_dump_static$(BINSUF)
+    TDBLOAD=$(TOKUROOT)utils/tokudb_load_static$(BINSUF)
+endif
+
 
 %.recover: %.tdb$(BINSUF)
 	echo doing ./$< &&\
