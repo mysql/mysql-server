@@ -191,6 +191,7 @@ ifeq ($(CC),icc)
 	#Cygwin
         ICC_NOWARN=-Qdiag-disable:
         SKIP_WARNING += $(ICC_NOWARN)869    # Don't complain about unused variables (since we defined __attribute__ to be nothing.)
+        SKIP_WARNING += $(ICC_NOWARN)593    # Don't complain about unused variables (since we defined __attribute__ to be nothing.)
         SKIP_WARNING += $(ICC_NOWARN)11000  # Disable message about multi-file optimization
         SKIP_WARNING += $(ICC_NOWARN)11000  # Disable message about single-file optimization
         SKIP_WARNING += $(ICC_NOWARN)11005  # Disable message about creating object file
