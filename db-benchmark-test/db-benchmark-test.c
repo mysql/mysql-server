@@ -120,7 +120,7 @@ static void benchmark_setup (void) {
 	assert(r == 0);
     }
 
-#if TOKUDB
+#if defined(TOKUDB)
     if (do_checkpoint_period) {
         r = dbenv->checkpointing_set_period(dbenv, checkpoint_period);
         assert(r == 0);
