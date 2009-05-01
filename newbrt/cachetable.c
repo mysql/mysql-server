@@ -724,7 +724,7 @@ static void cachetable_complete_write_pair (CACHETABLE ct, PAIR p, BOOL do_remov
 // the pair dirty state is adjusted, and the write is completed.  The write_me boolean
 // is true when the pair is dirty and the pair is requested to be written.  The keep_me
 // boolean is true, so the pair is not yet evicted from the cachetable.
-
+// Requires: This thread must hold the write lock for the pair.
 static void cachetable_write_pair(CACHETABLE ct, PAIR p) {
     rwlock_read_lock(&ct->pending_lock, ct->mutex);
 
@@ -964,11 +964,20 @@ static u_int64_t tdelta(struct timeval *tnew, struct timeval *told) {
 }
 #endif
 
-// On entry: hold the ct lock and the rwlock_write_lock.
+// for debug 
+static PAIR write_for_checkpoint_pair = NULL;
+
+// On entry: hold the ct lock
+// On exit:  the node is written out
+// Method:   take write lock
+//           if still pending write out the node
+//           release the write lock.
 static void
 write_pair_for_checkpoint (CACHETABLE ct, PAIR p)
 {
-    assert(p->state!=CTPAIR_WRITING);
+    write_for_checkpoint_pair = p;
+    rwlock_write_lock(&p->rwlock, ct->mutex); // grab an exclusive lock on the pair
+    assert(p->state!=CTPAIR_WRITING);         // if we have the write lock, no one else should be writing out the node
     if (p->checkpoint_pending) {
         // this is essentially a flush_and_maybe_remove except that
         // we already have p->rwlock and we just do the write in our own thread.
@@ -979,8 +988,12 @@ write_pair_for_checkpoint (CACHETABLE ct, PAIR p)
         assert(ct->size_writing>=0);
         p->write_me = TRUE;
         p->remove_me = FALSE;
-        cachetable_write_pair(ct, p); // unlocks the pair
+        cachetable_write_pair(ct, p);    // releases the write lock on the pair
     }
+    else {
+	rwlock_write_unlock(&p->rwlock); // didn't call cachetable_write_pair so we have to unlock it ourselves.
+    }
+    write_for_checkpoint_pair = NULL;
 }
 
 // for debugging
@@ -1029,9 +1042,7 @@ int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, u_int32_t ful
             }
 	    if (p->checkpoint_pending) {
 		get_and_pin_footprint = 4;		
-		rwlock_write_lock(&p->rwlock, ct->mutex);
-		get_and_pin_footprint = 5;
-		write_pair_for_checkpoint(ct, p); // releases the pair_write_lock, but not the cachetable lock
+		write_pair_for_checkpoint(ct, p);
 	    }
 	    // still have the cachetable lock
 	    // TODO: #1398  kill this hack before it multiplies further
@@ -1642,16 +1653,7 @@ toku_cachetable_end_checkpoint(CACHETABLE ct, TOKULOGGER logger, char **error_st
 	while ((p = ct->pending_head)!=0) {
             ct->pending_head = ct->pending_head->pending_next;
             pending_pairs_remove(ct, p);
-	    
-            rwlock_write_lock(&p->rwlock, ct->mutex); // grab an exclusive lock on the pair
-	    // If it is no longer pending we don't have do do anything
-	    if (p->checkpoint_pending) {
-		write_pair_for_checkpoint(ct, p); // clears the pending bit, writes it out, and unlocks the write pair, 
-	    } else {
-		// it was previously written, so we just have to release the lock.
-		rwlock_write_unlock(&p->rwlock); // didn't call cachetable_write_pair so we have to unlock it ourselves.
-	    }
-	    
+	    write_pair_for_checkpoint(ct, p); // if still pending, clear the pending bit and write out the node
 	    // Don't need to unlock and lock cachetable, because the cachetable was unlocked and locked while the flush callback ran.
 	}
     }
