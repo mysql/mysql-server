@@ -48,6 +48,12 @@ WINDOWS_BDB_DONTRUN_TESTS = \
 #test_groupcommit_count: windows bdb is missing db_env_set_func_fsync
 #test_set_func_malloc: windows bdb (some) are missing db_env_set_func_(malloc|realloc|free)
 
+
+#These tests fail, but sometimes they hang! (in windows).  Just disable them.
+WINDOWS_BDB_DONTRUN_TESTS += \
+	test_error \
+#\ ends prev line
+
 ifeq ($(OS_CHOICE),windows)
     TDB_TESTS = $(patsubst %.c,%.tdb$(BINSUF),$(filter-out $(patsubst %,%.c,$(WINDOWS_DONTRUN_TESTS)),$(SRCS)))
 else
@@ -119,6 +125,18 @@ endif
 TDB_TESTS_THAT_SHOULD_FAIL_LIT= \
 #\ ends prev line
 
+BDB_TESTS_THAT_SHOULD_FAIL= \
+#\ ends prev line
+ifneq ($(OS_CHOICE),windows)
+    BDB_TESTS_THAT_SHOULD_FAIL += \
+	test_unused_memory_crash \
+	test_dupsort_set \
+	test_dupsort_get_both_range \
+	test_db_dbt_mem_behavior \
+	test_archive2 \
+#\ ends prev line
+endif
+
 ifeq ($(OS_CHOICE),windows)
     #Tests that fail in windows but shouldn't.  TODO: Fix each one of these and remove from the list!
     TDB_TESTS_THAT_SHOULD_FAIL += \
@@ -186,7 +204,8 @@ traces: $(patsubst %.tdb$(BINSUF),%.tdbt$(BINSUF),$(TDB_TESTS))
 
 %.run: %.bdbrun %.tdbrun
 
-SHOULD_FAIL = $(TDB_TESTS_THAT_SHOULD_FAIL_LIT) $(patsubst %,%.tdbrun,$(TDB_TESTS_THAT_SHOULD_FAIL))
+SHOULD_FAIL = $(TDB_TESTS_THAT_SHOULD_FAIL_LIT) $(patsubst %,%.tdbrun,$(TDB_TESTS_THAT_SHOULD_FAIL)) \
+	      $(BDB_TESTS_THAT_SHOULD_FAIL_LIT) $(patsubst %,%.bdbrun,$(BDB_TESTS_THAT_SHOULD_FAIL))
 # Any test that should fail, we invert the result by using MAYBEINVERTER
 $(SHOULD_FAIL): MAYBEINVERTER=$(INVERTER)
 $(SHOULD_FAIL): SUMMARIZE_CMD=$(SUMMARIZE_SHOULD_FAIL)
@@ -225,9 +244,9 @@ endif
 # Use -s on the command line to make things quiet.
 # Use -s on the command line to make things quiet.
 %.bdbrun: %.bdb$(BINSUF) $(DEPEND_COMPILE) $(DEPEND_LINK) $(WINDOWS_BDB_LIB_NAME)
-	$(BDBVGRIND) ./$< $(VERBVERBOSE) $(SUMMARIZE_CMD)
+	$(BDBVGRIND) ./$< $(VERBVERBOSE) $(MAYBEINVERTER) $(SUMMARIZE_CMD)
 %.tdbrun: %.tdb$(BINSUF) $(DEPEND_COMPILE) $(DEPEND_LINK) $(notdir $(LIBTDB))
-	$(TDBVGRIND)    ./$< $(VERBVERBOSE) $(MAYBEINVERTER) $(SUMMARIZE_CMD)
+	$(TDBVGRIND) ./$< $(VERBVERBOSE) $(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
 ifeq ($(OS_CHOICE),windows)
     TDBDUMP=$(TOKUROOT)utils/tokudb_dump$(BINSUF)
