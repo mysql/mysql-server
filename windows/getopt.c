@@ -12,38 +12,53 @@ static const char *match(char c, const char *optstring) {
 }
 
 int getopt(int argc, char * const argv[], const char *optstring) {
-    static int lastargc = 0;
+    static int nextargc = 0;
+    static int nextchar = 0;
     char *arg;
     const char *theopt;
-    if (lastargc == 0) {
-        lastargc = 1;
+    if (nextargc == 0) {
+        nextargc = 1;
         optind = 1;
+        nextchar = 0;
     }
+again:
     optarg = 0;
-    if (lastargc >= argc) {
-        lastargc = 0;
+    if (nextargc >= argc) {
+        nextargc = 0;
         return -1;
     }
-    arg = argv[lastargc++];
-    if (arg[0] != '-') {
-        lastargc = 0;
-        return -1;
+    arg = argv[nextargc];
+    if (!nextchar) {
+        arg = argv[nextargc];
+        if (arg[0] != '-') {
+            nextargc = 0;
+            return -1;
+        }
+        nextchar = 1;
     }
-    theopt = match(arg[1], optstring);
+    theopt = match(arg[nextchar++], optstring);
     if (!theopt) {
-        lastargc = 0;
-        return -1;
+        nextargc++;
+        nextchar = 0;
+        goto again;
     }
     if (theopt[1] == ':') {
-        if (arg[2])
-            optarg = &arg[2];
-        else if (lastargc >= argc) {
-            lastargc = 0;
+        if (arg[nextchar]) {
+            optarg = &arg[nextchar];
+            nextargc++;
+            nextchar = 0;
+        } else if (nextargc >= argc) {
+            nextargc++;
+            nextchar = 0;
             return -1;
-        } else
-            optarg = argv[lastargc++];
+        } else {
+            nextargc++;
+            nextchar = 0;
+            optarg = argv[nextargc++];
+        }
     }
-    optind = lastargc;
+    optind = nextargc;
     return theopt[0];
 }
 
+    
