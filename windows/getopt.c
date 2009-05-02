@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <unistd.h>
 
 char *optarg;
@@ -16,32 +17,44 @@ int getopt(int argc, char * const argv[], const char *optstring) {
     static int nextchar = 0;
     char *arg;
     const char *theopt;
+
+    // first time initialization
     if (nextargc == 0) {
         nextargc = 1;
         optind = 1;
         nextchar = 0;
     }
+
 again:
     optarg = 0;
-    if (nextargc >= argc) {
-        nextargc = 0;
+    optind = nextargc;
+    // last arg
+    if (nextargc >= argc)
         return -1;
-    }
+
     arg = argv[nextargc];
-    if (!nextchar) {
-        arg = argv[nextargc];
-        if (arg[0] != '-') {
-            nextargc = 0;
-            return -1;
-        }
-        nextchar = 1;
-    }
-    theopt = match(arg[nextchar++], optstring);
-    if (!theopt) {
+    if (!arg[nextchar]) {
         nextargc++;
         nextchar = 0;
         goto again;
     }
+    if (!nextchar) {
+        // not an option
+        if (arg[0] != '-')
+            return -1;
+        // end of options "--"
+        if (arg[1] == '-') {
+            nextargc++;
+            optind = nextargc;
+            return -1;
+        }
+        nextchar = 1;
+    }
+    // try to match the arg with the options
+    theopt = match(arg[nextchar++], optstring);
+    if (!theopt)
+        return '?';
+
     if (theopt[1] == ':') {
         if (arg[nextchar]) {
             optarg = &arg[nextchar];
@@ -57,7 +70,6 @@ again:
             optarg = argv[nextargc++];
         }
     }
-    optind = nextargc;
     return theopt[0];
 }
 
