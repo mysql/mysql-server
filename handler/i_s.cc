@@ -2282,8 +2282,7 @@ i_s_cmpmem_fill_low(
 
 	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
 
-	//buf_pool_mutex_enter();
-	mutex_enter(&zip_free_mutex);
+	buf_pool_mutex_enter();
 
 	for (uint x = 0; x <= BUF_BUDDY_SIZES; x++) {
 		buf_buddy_stat_t*	buddy_stat = &buf_buddy_stat[x];
@@ -2309,8 +2308,7 @@ i_s_cmpmem_fill_low(
 		}
 	}
 
-	//buf_pool_mutex_exit();
-	mutex_exit(&zip_free_mutex);
+	buf_pool_mutex_exit();
 	DBUG_RETURN(status);
 }
 

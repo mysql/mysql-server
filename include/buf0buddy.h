@@ -49,11 +49,10 @@ buf_buddy_alloc(
 			/* out: allocated block,
 			possibly NULL if lru == NULL */
 	ulint	size,	/* in: block size, up to UNIV_PAGE_SIZE */
-	ibool*	lru,	/* in: pointer to a variable that will be assigned
+	ibool*	lru)	/* in: pointer to a variable that will be assigned
 			TRUE if storage was allocated from the LRU list
 			and buf_pool_mutex was temporarily released,
 			or NULL if the LRU list should not be used */
-	ibool	have_page_hash_mutex)
 	__attribute__((malloc));
 
 /**************************************************************************
@@ -64,8 +63,7 @@ buf_buddy_free(
 /*===========*/
 	void*	buf,	/* in: block to be freed, must not be
 			pointed to by the buffer pool */
-	ulint	size,	/* in: block size, up to UNIV_PAGE_SIZE */
-	ibool	have_page_hash_mutex)
+	ulint	size)	/* in: block size, up to UNIV_PAGE_SIZE */
 	__attribute__((nonnull));
 
 /** Statistics of buddy blocks of a given size. */
