@@ -162,10 +162,10 @@
 #else
 /*
   No branch hinting in DEBUG as this enables warning in case
-  of malformed predicates: ie. use of '=' instead if '=='
+  of malformed predicates: ie. use of '=' instead of '=='
 */
-#define likely(x)	(x)
-#define unlikely(x)	(x)
+#define likely(x)	x
+#define unlikely(x)	x
 #endif
 
 /*
