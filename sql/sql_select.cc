@@ -7092,15 +7092,17 @@ return_zero_rows(JOIN *join, select_result *result,TABLE_LIST *tables,
   if (!(result->send_fields(fields,
                               Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF)))
   {
+    bool send_error= FALSE;
     if (send_row)
     {
       List_iterator_fast<Item> it(fields);
       Item *item;
       while ((item= it++))
 	item->no_rows_in_result();
-      result->send_data(fields);
+      send_error= result->send_data(fields);
     }
-    result->send_eof();				// Should be safe
+    if (!send_error)
+      result->send_eof();				// Should be safe
   }
   /* Update results for FOUND_ROWS */
   join->thd->limit_found_rows= join->thd->examined_row_count= 0;
