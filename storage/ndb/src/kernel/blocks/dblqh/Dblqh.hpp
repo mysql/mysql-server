@@ -1978,6 +1978,7 @@ public:
       Uint32 m_scan_curr_range_no;
       UintR noFiredTriggers;
     };
+    Uint32 m_anyValue;
     Uint16 errorCode;
     Uint16 logStartPageIndex;
     Uint16 logStartPageNo;

@@ -153,6 +153,12 @@ private:
    */
   static UintR getNormalProtocolFlag(const UintR & requestInfo);
   static void setNormalProtocolFlag(UintR & requestInfo, UintR val);
+
+  /**
+   * Include any-value
+   */
+  static UintR getAnyValueFlag(const UintR & requestInfo);
+  static void setAnyValueFlag(UintR & requestInfo, UintR val);
 };
 
 /**
@@ -180,6 +186,7 @@ private:
  * g = gci flag               - 1  Bit (12)
  * n = NR copy                - 1  Bit (13)
  * P = Do normal protocol even if dirty-read - 1 Bit (14)
+ * A = AnyValue flag          - 1  Bit (24)
 
  * Short LQHKEYREQ :
  *             1111111111222222222233
@@ -190,7 +197,7 @@ private:
  * Long LQHKEYREQ :
  *             1111111111222222222233
  *   01234567890123456789012345678901
- *             llgn pdisooorr   cumxz
+ *             llgnPpdisooorrA  cumxz
  *
  */
 
@@ -218,6 +225,7 @@ private:
 #define RI_GCI_SHIFT         (12)
 #define RI_NR_COPY_SHIFT     (13)
 #define RI_NORMAL_DIRTY      (14)
+#define RI_ANY_VALUE         (24)
 
 /**
  * Scan Info
@@ -592,6 +600,19 @@ inline
 UintR
 LqhKeyReq::getNormalProtocolFlag(const UintR & requestInfo){
   return (requestInfo >> RI_NORMAL_DIRTY) & 1;
+}
+
+inline
+void
+LqhKeyReq::setAnyValueFlag(UintR & requestInfo, UintR val){
+  ASSERT_BOOL(val, "LqhKeyReq::setNrCopyFlag");
+  requestInfo |= (val << RI_ANY_VALUE);
+}
+
+inline
+UintR
+LqhKeyReq::getAnyValueFlag(const UintR & requestInfo){
+  return (requestInfo >> RI_ANY_VALUE) & 1;
 }
 
 class LqhKeyConf {

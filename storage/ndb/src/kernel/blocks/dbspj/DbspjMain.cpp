@@ -600,6 +600,7 @@ Dbspj::createNode(Build_context& ctx, Ptr<Request> requestPtr,
     treeNodePtr.p->m_requestPtrI = requestPtr.i;
     treeNodePtr.p->m_bits = TreeNode::T_LEAF; // start as leaf...
     treeNodePtr.p->m_state = TreeNode::TN_BUILDING;
+    treeNodePtr.p->m_send.m_correlation = 0;
     treeNodePtr.p->m_send.m_keyInfoPtrI = RNIL;
     treeNodePtr.p->m_send.m_attrInfoPtrI = RNIL;
     treeNodePtr.p->m_send.m_attrInfoParamPtrI = RNIL;
@@ -908,8 +909,8 @@ Dbspj::execTRANSID_AI(Signal* signal)
   /**
    * build easy-access-array for row
    */
-  Uint32 tmp[1+MAX_ATTRIBUTES_IN_TABLE];
-  buildRowHeader((RowRef::Header*)tmp, dataPtr);
+  Uint32 tmp[2+MAX_ATTRIBUTES_IN_TABLE];
+  Uint32 cnt = buildRowHeader((RowRef::Header*)tmp, dataPtr);
 
   /**
    * TODO: If row needs to be buffered (m_bits & ROW_BUFFER)
@@ -921,6 +922,7 @@ Dbspj::execTRANSID_AI(Signal* signal)
   row.m_src_node_no = treeNodePtr.p->m_node_no;
   row.m_row_data.m_section.m_header = (RowRef::Header*)tmp;
   row.m_row_data.m_section.m_dataPtr = dataPtr;
+  row.m_src_correlation = getColData32(row.m_row_data.m_section, cnt - 1);
 
   ndbrequire(treeNodePtr.p->m_info&&treeNodePtr.p->m_info->m_execTRANSID_AI);
   (this->*(treeNodePtr.p->m_info->m_execTRANSID_AI))(signal,
@@ -988,6 +990,8 @@ Dbspj::lookup_build(Build_context& ctx,
       /**
        * TODO reference()+treeNodePtr.i is passed twice
        *   this can likely be optimized using the requestInfo-bits
+       * UPDATE: This can be accomplished by *not* setApplicationAddressFlag
+       *         and patch LQH to then instead use tcBlockref/clientConnectPtr
        */
       dst->transId1 = transId1;
       dst->transId2 = transId2;
@@ -1002,6 +1006,7 @@ Dbspj::lookup_build(Build_context& ctx,
       LqhKeyReq::setDirtyFlag(requestInfo, 1);
       LqhKeyReq::setSimpleFlag(requestInfo, 1);
       LqhKeyReq::setNormalProtocolFlag(requestInfo, 1);
+      LqhKeyReq::setAnyValueFlag(requestInfo, 1);
       dst->requestInfo = requestInfo;
     }
 
@@ -1138,6 +1143,7 @@ Dbspj::lookup_send(Signal* signal,
   LqhKeyReq* req = (LqhKeyReq*)signal->getDataPtrSend();
   memcpy(req, treeNodePtr.p->m_lookup_data.m_lqhKeyReq,
 	 sizeof(treeNodePtr.p->m_lookup_data.m_lqhKeyReq));
+  req->variableData[2] = treeNodePtr.p->m_send.m_correlation;
 
   SectionHandle handle(this);
 
@@ -1190,7 +1196,8 @@ Dbspj::lookup_send(Signal* signal,
 #ifdef DEBUG_LQHKEYREQ
   ndbout_c("LQHKEYREQ to %x", ref);
   printLQHKEYREQ(stdout, signal->getDataPtrSend(),
-		 LqhKeyReq::FixedSignalLength + 2, DBLQH);
+		 NDB_ARRAY_SIZE(treeNodePtr.p->m_lookup_data.m_lqhKeyReq),
+                 DBLQH);
   printf("KEYINFO: ");
   print(handle.m_ptr[0], stdout);
   printf("ATTRINFO: ");
@@ -1198,8 +1205,8 @@ Dbspj::lookup_send(Signal* signal,
 #endif
 
   sendSignal(ref, GSN_LQHKEYREQ, signal,
-	     LqhKeyReq::FixedSignalLength + 2, JBB,
-	     &handle);
+	     NDB_ARRAY_SIZE(treeNodePtr.p->m_lookup_data.m_lqhKeyReq),
+             JBB, &handle);
 
   Uint32 add = 2;
   if (treeNodePtr.p->m_bits & TreeNode::T_LEAF)
@@ -1320,6 +1327,7 @@ Dbspj::lookup_start_child(Signal* signal,
   Uint32 err;
   const LqhKeyReq* src = (LqhKeyReq*)treeNodePtr.p->m_lookup_data.m_lqhKeyReq;
   const Uint32 tableId = LqhKeyReq::getTableId(src->tableSchemaVersion);
+  const Uint32 corrVal = rowRef.m_src_correlation;
 
   do
   {
@@ -1358,6 +1366,10 @@ Dbspj::lookup_start_child(Signal* signal,
      * TODO merge better with lookup_start (refactor)
      */
     {
+      /**
+       * TODO, how should correlation factor really be constructed
+       */
+      treeNodePtr.p->m_send.m_correlation = (corrVal << 16); 
       treeNodePtr.p->m_send.m_ref = tmp.receiverRef;
       LqhKeyReq * dst = (LqhKeyReq*)treeNodePtr.p->m_lookup_data.m_lqhKeyReq;
       dst->hashValue = tmp.hashInfo[0];
@@ -1497,6 +1509,8 @@ Dbspj::scanFrag_build(Build_context& ctx,
     Uint32 requestInfo = 0;
     ScanFragReq::setReadCommittedFlag(requestInfo, 1);
     ScanFragReq::setScanPrio(requestInfo, ctx.m_scanPrio);
+    ScanFragReq::setAnyValueFlag(requestInfo, 1);
+
 #if 0
     static void setDescendingFlag(Uint32 & requestInfo, Uint32 descending);
     static void setTupScanFlag(Uint32 & requestInfo, Uint32 tupScan);
@@ -1630,6 +1644,7 @@ Dbspj::scanFrag_send(Signal* signal,
   ScanFragReq* req = (ScanFragReq*)signal->getDataPtrSend();
   memcpy(req, treeNodePtr.p->m_scanfrag_data.m_scanFragReq,
 	 sizeof(treeNodePtr.p->m_scanfrag_data.m_scanFragReq));
+  req->variableData[0] = treeNodePtr.p->m_send.m_correlation;
 
   SectionHandle handle(this);
 
@@ -1692,7 +1707,8 @@ Dbspj::scanFrag_send(Signal* signal,
 #ifdef DEBUG_SCAN_FRAGREQ
   ndbout_c("SCAN_FRAGREQ to %x", ref);
   printSCAN_FRAGREQ(stdout, signal->getDataPtrSend(),
-                    ScanFragReq::SignalLength, DBLQH);
+                    NDB_ARRAY_SIZE(treeNodePtr.p->m_scanfrag_data.m_scanFragReq),
+                    DBLQH);
   printf("ATTRINFO: ");
   print(handle.m_ptr[0], stdout);
   if (handle.m_cnt > 1)
@@ -1703,7 +1719,8 @@ Dbspj::scanFrag_send(Signal* signal,
 #endif
 
   sendSignal(ref, GSN_SCAN_FRAGREQ, signal,
-	     ScanFragReq::SignalLength, JBB, &handle);
+	     NDB_ARRAY_SIZE(treeNodePtr.p->m_scanfrag_data.m_scanFragReq),
+             JBB, &handle);
 
   treeNodePtr.p->m_scanfrag_data.m_scan_state = ScanFragData::SF_RUNNING;
   treeNodePtr.p->m_scanfrag_data.m_scan_status = 0;
@@ -1930,7 +1947,7 @@ Dbspj::buildRowHeader(RowRef::Header * header, SegmentedSectionPtr ptr)
     * dst++ = tmp;
   } while (r0.step(len));
 
-  return header->m_len = (save - dst);
+  return header->m_len = (dst - save);
 }
 
 /**
@@ -1950,7 +1967,7 @@ Dbspj::buildRowHeader(RowRef::Header * header, const Uint32 * src, Uint32 len)
     src += tmp_len;
   }
 
-  return header->m_len = (save - dst);
+  return header->m_len = (dst - save);
 }
 
 Uint32
@@ -2006,6 +2023,29 @@ Dbspj::appendTreeToSection(Uint32 & ptrI, SectionReader & tree, Uint32 len)
   tree.getWords(tmp, len);
   appendToSection(ptrI, tmp, len);
   return 0;
+}
+
+Uint32
+Dbspj::getColData32(const RowRef::Section & row, Uint32 col)
+{
+  /**
+   * TODO handle errors
+   */
+  const Uint32 * header = (const Uint32*)row.m_header->m_headers;
+  SegmentedSectionPtr ptr(row.m_dataPtr);
+  SectionReader reader(ptr, getSectionSegmentPool());
+  Uint32 offset = 0;
+  for (Uint32 i = 0; i<col; i++)
+  {
+    offset += 1 + AttributeHeader::getDataSize(* header++);
+  }
+  ndbrequire(reader.step(offset));
+  Uint32 tmp;
+  ndbrequire(reader.getWord(&tmp));
+  Uint32 len = AttributeHeader::getDataSize(tmp);
+  ndbrequire(len == 1);
+  ndbrequire(reader.getWord(&tmp));
+  return tmp;
 }
 
 Uint32
@@ -2509,7 +2549,7 @@ Dbspj::parseDA(Build_context& ctx,
       }
 
       Uint32 sum_read = 0;
-      Uint32 dst[MAX_ATTRIBUTES_IN_TABLE];
+      Uint32 dst[MAX_ATTRIBUTES_IN_TABLE + 2];
 
       if (paramBits & DABits::PI_ATTR_LIST)
       {
@@ -2560,14 +2600,19 @@ Dbspj::parseDA(Build_context& ctx,
         for (Uint32 i = 0; i<cnt; i++)
           dst[i] <<= 16;
 
+        /**
+         * Read correlation factor
+         */
+        dst[cnt] = AttributeHeader::READ_ANY_VALUE << 16;
+
         err = DbspjErr::OutOfSectionMemory;
-        if (!appendToSection(attrInfoPtrI, dst, cnt))
+        if (!appendToSection(attrInfoPtrI, dst, cnt + 1))
         {
           DEBUG_CRASH();
           break;
         }
 
-        sum_read += cnt;
+        sum_read += cnt + 1;
       }
 
       if (interpreted)

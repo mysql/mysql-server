@@ -111,8 +111,6 @@ void Dbtup::copyAttrinfo(Operationrec * regOperPtr,
     copy(inBuffer, attrInfoIVal);
   }
 
-  regOperPtr->m_any_value= 0;
-  
   return;
 }
 
@@ -533,11 +531,13 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
  /* -----------    INITIATE THE OPERATION RECORD       -------------- */
  /* ----------------------------------------------------------------- */
    Uint32 Rstoredid= tupKeyReq->storedProcedure;
+   Uint32 anyValue = tupKeyReq->anyValue;
 
    regOperPtr->fragmentPtr= Rfragptr;
    regOperPtr->op_struct.op_type= (TrequestInfo >> 6) & 0xf;
    regOperPtr->op_struct.delete_insert_flag = false;
    regOperPtr->op_struct.m_reorg = (TrequestInfo >> 12) & 3;
+   regOperPtr->m_any_value = anyValue;
 
    regOperPtr->m_copy_tuple_location.setNull();
    regOperPtr->tupVersion= ZNIL;

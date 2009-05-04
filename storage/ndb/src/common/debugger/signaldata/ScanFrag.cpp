@@ -23,9 +23,9 @@ bool
 printSCAN_FRAGREQ(FILE * output, const Uint32 * theData, 
 		  Uint32 len, Uint16 receiverBlockNo) {
   const ScanFragReq * const sig = (ScanFragReq *)theData;
-  fprintf(output, " senderData: %x\n", sig->senderData);
-  fprintf(output, " resultRef: %x\n", sig->resultRef);
-  fprintf(output, " savePointId: %x\n", sig->savePointId);
+  fprintf(output, " senderData: 0x%x\n", sig->senderData);
+  fprintf(output, " resultRef: 0x%x\n", sig->resultRef);
+  fprintf(output, " savePointId: %u\n", sig->savePointId);
 
   fprintf(output, " flags: ");
   if (ScanFragReq::getLockMode(sig->requestInfo))
@@ -51,15 +51,20 @@ printSCAN_FRAGREQ(FILE * output, const Uint32 * theData,
   fprintf(output, " prio: %u\n",
           ScanFragReq::getScanPrio(sig->requestInfo));
 
-  fprintf(output, " tableId: %x\n", sig->tableId);
-  fprintf(output, " fragmentNo: %x\n", sig->fragmentNoKeyLen & 0xFFFF);
-  fprintf(output, " keyLen: %x\n", sig->fragmentNoKeyLen >> 16);
-  fprintf(output, " schemaVersion: %x\n", sig->schemaVersion);
-  fprintf(output, " transId1: %x\n", sig->transId1);
-  fprintf(output, " transId2: %x\n", sig->transId2);
-  fprintf(output, " clientOpPtr: %x\n", sig->clientOpPtr);
-  fprintf(output, " batch_size_rows: %x\n", sig->batch_size_rows);
-  fprintf(output, " batch_size_bytes: %x\n", sig->batch_size_bytes);
+  fprintf(output, " tableId: %u\n", sig->tableId);
+  fprintf(output, " fragmentNo: %u\n", sig->fragmentNoKeyLen & 0xFFFF);
+  fprintf(output, " keyLen: %u\n", sig->fragmentNoKeyLen >> 16);
+  fprintf(output, " schemaVersion: 0x%x\n", sig->schemaVersion);
+  fprintf(output, " transId1: 0x%x\n", sig->transId1);
+  fprintf(output, " transId2: 0x%x\n", sig->transId2);
+  fprintf(output, " clientOpPtr: 0x%x\n", sig->clientOpPtr);
+  fprintf(output, " batch_size_rows: %u\n", sig->batch_size_rows);
+  fprintf(output, " batch_size_bytes: %u\n", sig->batch_size_bytes);
+  if (len > ScanFragReq::SignalLength)
+  {
+    fprintf(output, " AnyValue: 0x%x\n", sig->variableData[0]);
+  }
+
   return true;
 }
 

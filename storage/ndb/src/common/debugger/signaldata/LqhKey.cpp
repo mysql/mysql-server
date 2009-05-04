@@ -143,6 +143,12 @@ printLQHKEYREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receive
     fprintf(output, " GCI: %u", sig->variableData[nextPos + 0]);
     nextPos++;
   }
+
+  if (LqhKeyReq::getAnyValueFlag(reqInfo))
+  {
+    fprintf(output, " AnyValue: 0x%x", sig->variableData[nextPos + 0]);
+    nextPos++;
+  }
   
   if(!LqhKeyReq::getInterpretedFlag(reqInfo)){
     fprintf(output, " AttrInfo: ");
