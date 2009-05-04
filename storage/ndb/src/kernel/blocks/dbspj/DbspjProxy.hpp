@@ -13,41 +13,20 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifndef TCKEYREF_HPP
-#define TCKEYREF_HPP
+#ifndef NDB_DBSPJ_PROXY_HPP
+#define NDB_DBSPJ_PROXY_HPP
 
-#include "SignalData.hpp"
+#include <LocalProxy.hpp>
 
-class TcKeyRef {
-
-  /**
-   * Receiver(s)
-   */
-  friend class NdbOperation;
-  friend class Ndbcntr;
-  friend class DbUtil;
-
-  /**
-   * Sender(s) / Receiver(s)
-   */
-  friend class Dbtc;
-
-  /**
-   * Sender(s)
-   */
-  friend class Dblqh;
-  friend class Dbspj;
-
-  friend bool printTCKEYREF(FILE *, const Uint32 *, Uint32, Uint16);
-  
+class DbspjProxy : public LocalProxy {
 public:
-  STATIC_CONST( SignalLength = 5 );
+  DbspjProxy(Block_context& ctx);
+  virtual ~DbspjProxy();
+  BLOCK_DEFINES(DbspjProxy);
 
-private:
-  Uint32 connectPtr; /* Operation pointer */
-  Uint32 transId[2];
-  Uint32 errorCode;
-  Uint32 errorData;
+protected:
+  virtual SimulatedBlock* newWorker(Uint32 instanceNo);
+
 };
 
 #endif

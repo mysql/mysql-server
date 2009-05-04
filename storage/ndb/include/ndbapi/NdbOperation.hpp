@@ -1479,6 +1479,8 @@ protected:
   friend struct Ndb_free_list_t<NdbOperation>;
 
   Uint32 repack_read(Uint32 len);
+
+  bool m_isLinked;
 };
 
 #ifdef NDB_NO_DROPPED_SIGNAL

@@ -41,7 +41,12 @@ printLQHKEYREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receive
   if(LqhKeyReq::getSimpleFlag(reqInfo))
     fprintf(output, "Simple ");
   if(LqhKeyReq::getDirtyFlag(reqInfo))
-    fprintf(output, "Dirty ");
+  {
+    if (LqhKeyReq::getNormalProtocolFlag(reqInfo))
+      fprintf(output, "Dirty(N) ");
+    else
+      fprintf(output, "Dirty ");
+  }
   if(LqhKeyReq::getInterpretedFlag(reqInfo))
     fprintf(output, "Interpreted ");
   if(LqhKeyReq::getScanTakeOverFlag(attrLen))

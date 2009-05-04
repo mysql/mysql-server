@@ -2697,6 +2697,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   Uint8 TNoDiskFlag         = TcKeyReq::getNoDiskFlag(Treqinfo);
   Uint8 TexecuteFlag        = TexecFlag;
   Uint8 Treorg              = TcKeyReq::getReorgFlag(Treqinfo);
+  const Uint8 TViaSPJFlag   = TcKeyReq::getViaSPJFlag(Treqinfo); 
 
   if (Treorg)
   {
@@ -2715,6 +2716,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   regCachePtr->opExec   = TInterpretedFlag;
   regCachePtr->distributionKeyIndicator = TDistrKeyFlag;
   regCachePtr->m_no_disk_flag = TNoDiskFlag;
+  regCachePtr->viaSPJFlag = TViaSPJFlag;
 
   //-------------------------------------------------------------
   // The next step is to read the upto three conditional words.
@@ -3204,7 +3206,14 @@ void Dbtc::attrinfoDihReceivedLab(Signal* signal)
     jam();
     arrGuard(Tnode, MAX_NDB_NODES);
     Uint32 instanceKey = regTcPtr->lqhInstanceKey;
-    BlockReference lqhRef = numberToRef(DBLQH, instanceKey, Tnode);
+    BlockReference lqhRef;
+    if(regCachePtr->viaSPJFlag){
+      //ndbout << "TC:Choosing SPJ." << endl;
+      lqhRef = numberToRef(DBSPJ, instanceKey, Tnode);
+    }else{
+      //ndbout << "TC:Choosing LQH." << endl;
+      lqhRef = numberToRef(DBLQH, instanceKey, Tnode);
+    }
     packLqhkeyreq(signal, lqhRef);
   }
   else
@@ -3930,6 +3939,12 @@ void Dbtc::execSIGNAL_DROPPED_REP(Signal* signal)
 void Dbtc::execLQHKEYCONF(Signal* signal) 
 {
   const LqhKeyConf * const lqhKeyConf = (LqhKeyConf *)signal->getDataPtr();
+#ifdef UNUSED
+  ndbout << "TC: Received LQHKEYCONF" 
+         << " transId1=" << lqhKeyConf-> transId1
+         << " transId2=" << lqhKeyConf-> transId2
+	 << endl;
+#endif /*UNUSED*/
   UintR compare_transid1, compare_transid2;
   BlockReference tlastLqhBlockref;
   UintR tlastLqhConnect;
@@ -9888,6 +9903,7 @@ Dbtc::initScanrec(ScanRecordPtr scanptr,
   scanptr.p->first_batch_size_rows = scanTabReq->first_batch_size;
   scanptr.p->batch_byte_size = scanTabReq->batch_byte_size;
   scanptr.p->batch_size_rows = noOprecPerFrag;
+  scanptr.p->m_scan_block_no = DBLQH;
 
   Uint32 tmp = 0;
   ScanFragReq::setLockMode(tmp, ScanTabReq::getLockMode(ri));
@@ -9899,7 +9915,12 @@ Dbtc::initScanrec(ScanRecordPtr scanptr,
   ScanFragReq::setTupScanFlag(tmp, ScanTabReq::getTupScanFlag(ri));
   ScanFragReq::setAttrLen(tmp, aiLength);
   ScanFragReq::setNoDiskFlag(tmp, ScanTabReq::getNoDiskFlag(ri));
-  
+  if (ScanTabReq::getViaSPJFlag(ri))
+  {
+    jam();
+    scanptr.p->m_scan_block_no = DBSPJ;
+  }
+
   scanptr.p->scanRequestInfo = tmp;
   scanptr.p->scanStoredProcId = scanTabReq->storedProcId;
   scanptr.p->scanState = ScanRecord::RUNNING;
@@ -10397,7 +10418,8 @@ void Dbtc::execDIH_SCAN_GET_NODES_CONF(Signal* signal)
    * the KeyInfo and AttrInfo sections when sending.
    */
   Uint32 instanceKey = conf->instanceKey;
-  scanFragptr.p->lqhBlockref = numberToRef(DBLQH, instanceKey, tnodeid);
+  scanFragptr.p->lqhBlockref = numberToRef(scanptr.p->m_scan_block_no,
+                                           instanceKey, tnodeid);
   scanFragptr.p->m_connectCount = getNodeInfo(tnodeid).m_connectCount;
 
   /* Determine whether this is the last scanFragReq

@@ -295,6 +295,11 @@ protected:
   
   class SectionSegmentPool& getSectionSegmentPool();
   void release(SegmentedSectionPtr & ptr);
+  void release(SegmentedSectionPtrPOD & ptr) {
+    SegmentedSectionPtr tmp(ptr);
+    release(tmp);
+    ptr.setNull();
+  }
   void releaseSection(Uint32 firstSegmentIVal);
   void releaseSections(struct SectionHandle&);
 

@@ -27,6 +27,7 @@ class LqhKeyReq {
   /**
    * Sender(s)
    */
+  friend class Dbspj;      
   friend class Dbtc;      
   friend class Restore;
   
@@ -146,6 +147,12 @@ private:
 
   static UintR getNrCopyFlag(const UintR & requestInfo);
   static void setNrCopyFlag(UintR & requestInfo, UintR val);
+
+  /**
+   * Do normal protocol (LQHKEYCONF/REF) even if doing dirty read
+   */
+  static UintR getNormalProtocolFlag(const UintR & requestInfo);
+  static void setNormalProtocolFlag(UintR & requestInfo, UintR val);
 };
 
 /**
@@ -172,6 +179,7 @@ private:
  * z = Use rowid for insert   - 1  Bit (31)
  * g = gci flag               - 1  Bit (12)
  * n = NR copy                - 1  Bit (13)
+ * P = Do normal protocol even if dirty-read - 1 Bit (14)
 
  * Short LQHKEYREQ :
  *             1111111111222222222233
@@ -209,6 +217,7 @@ private:
 #define RI_ROWID_SHIFT       (31)
 #define RI_GCI_SHIFT         (12)
 #define RI_NR_COPY_SHIFT     (13)
+#define RI_NORMAL_DIRTY      (14)
 
 /**
  * Scan Info
@@ -572,12 +581,26 @@ LqhKeyReq::getNrCopyFlag(const UintR & requestInfo){
   return (requestInfo >> RI_NR_COPY_SHIFT) & 1;
 }
 
+inline
+void
+LqhKeyReq::setNormalProtocolFlag(UintR & requestInfo, UintR val){
+  ASSERT_BOOL(val, "LqhKeyReq::setNrCopyFlag");
+  requestInfo |= (val << RI_NORMAL_DIRTY);
+}
+
+inline
+UintR
+LqhKeyReq::getNormalProtocolFlag(const UintR & requestInfo){
+  return (requestInfo >> RI_NORMAL_DIRTY) & 1;
+}
+
 class LqhKeyConf {
   /**
    * Reciver(s)
    */
   friend class Dbtc;
   friend class Restore;
+  friend class Dbspj;
 
   /**
    * Sender(s)
@@ -614,6 +637,7 @@ class LqhKeyRef {
    * Reciver(s)
    */
   friend class Dbtc;      
+  friend class Dbspj;
   friend class Restore;
 
   /**

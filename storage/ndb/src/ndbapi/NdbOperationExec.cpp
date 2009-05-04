@@ -346,7 +346,8 @@ NdbOperation::prepareSend(Uint32 aTC_ConnectPtr,
   tcKeyReq->setDirtyFlag(tReqInfo, tDirtyIndicator);
   tcKeyReq->setOperationType(tReqInfo, tOperationType);
   tcKeyReq->setKeyLength(tReqInfo, 0); // Not needed
-  
+  tcKeyReq->setViaSPJFlag(tReqInfo, m_isLinked);
+
   // A dirty read is always ignore error
   abortOption = tDirtyState ? (Uint8) AO_IgnoreError : (Uint8) abortOption;
   tcKeyReq->setAbortOption(tReqInfo, abortOption);

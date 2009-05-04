@@ -31,6 +31,7 @@ class ScanFragReq {
    * Reciver(s)
    */
   friend class Dblqh;
+  friend class Dbspj;
 public:
   STATIC_CONST( SignalLength = 12 );
 
@@ -56,7 +57,10 @@ public:
   Uint32 schemaVersion;
   Uint32 transId1;
   Uint32 transId2;
-  Uint32 clientOpPtr;
+  union {
+    Uint32 clientOpPtr;
+    Uint32 resultData;
+  };
   Uint32 batch_size_rows;
   Uint32 batch_size_bytes;
   

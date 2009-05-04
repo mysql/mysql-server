@@ -50,6 +50,7 @@ public:
   STATIC_CONST( COPY_ROWID   = 0xFFF1 );
   STATIC_CONST( READ_ALL     = 0xFFF0 );
   STATIC_CONST( READ_LCP     = 0xFFEF );
+  STATIC_CONST( FLUSH_AI     = 0xFFEE );
   
   /**
    * Optimize pseudo column and optimization options
@@ -92,7 +93,8 @@ public:
 
   static Uint32 getByteSize(Uint32);
   static Uint32 getDataSize(Uint32);
-  
+  static Uint32 getAttributeId(Uint32 id);
+
 public:
   AttributeHeader(Uint32 = 0);
   AttributeHeader(Uint32 anAttributeId, Uint32 aByteSize);
@@ -244,6 +246,13 @@ inline
 Uint32
 AttributeHeader::getDataSize(Uint32 m_value){
   return (((m_value & 0xFFFF) + 3) >> 2);
+}
+
+inline
+Uint32
+AttributeHeader::getAttributeId(Uint32 m_value)
+{
+  return m_value >> 16;
 }
 
 #endif
