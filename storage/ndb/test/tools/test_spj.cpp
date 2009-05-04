@@ -303,10 +303,15 @@ int main(int argc, char** argv){
     };
     p1.requestInfo = DABits::PI_ATTR_LIST;
     p1.resultData = 0x10000; //NdbScanFilterImpl::getTransPtr(pOp);
-    p1.optional[0] = 1; // Length of user projecttion
+    p1.optional[0] = 2; // Length of user projecttion
     AttributeHeader::init(p1.optional + 1, AttributeHeader::READ_ALL,
                           pTab->getNoOfColumns());
-    QueryNode::setOpLen(p1.len, QueryNode::QN_SCAN_FRAG, p1.NodeSize + 2);
+    /**
+     * correlation value
+     */
+    AttributeHeader::init(p1.optional + 2, AttributeHeader::READ_ANY_VALUE,
+                          0);
+    QueryNode::setOpLen(p1.len, QueryNode::QN_SCAN_FRAG, p1.NodeSize + 3);
 
 
     union {
@@ -332,10 +337,14 @@ int main(int argc, char** argv){
     };
     p2.requestInfo = DABits::PI_ATTR_LIST;
     p2.resultData = 0x20000; //NdbScanFilterImpl::getTransPtr(pOp);
-    p2.optional[0] = 1; // Length of user projection
+    p2.optional[0] = 2; // Length of user projection
     AttributeHeader::init(p2.optional+1, AttributeHeader::READ_ALL,
                           pTab->getNoOfColumns());
-    QueryNode::setOpLen(p2.len, QueryNode::QN_LOOKUP, p2.NodeSize + 2);
+    /**
+     * correlation value
+     */
+    AttributeHeader::init(p2.optional+2, AttributeHeader::READ_ANY_VALUE, 0);
+    QueryNode::setOpLen(p2.len, QueryNode::QN_LOOKUP, p2.NodeSize + 3);
 
 
     union {

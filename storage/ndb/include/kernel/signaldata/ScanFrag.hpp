@@ -63,6 +63,7 @@ public:
   };
   Uint32 batch_size_rows;
   Uint32 batch_size_bytes;
+  Uint32 variableData[1];
   
   static Uint32 getLockMode(const Uint32 & requestInfo);
   static Uint32 getHoldLockFlag(const Uint32 & requestInfo);
@@ -90,6 +91,9 @@ public:
 
   static void setReorgFlag(Uint32 & requestInfo, Uint32 val);
   static Uint32 getReorgFlag(const Uint32 & requestInfo);
+
+  static void setAnyValueFlag(Uint32 & requestInfo, Uint32 val);
+  static Uint32 getAnyValueFlag(const Uint32 & requestInfo);
 };
 
 /*
@@ -252,11 +256,12 @@ public:
  * t = tup scan              - 1  Bit 11 (implies x=z=0)
  * p = Scan prio             - 4  Bits (12-15) -> max 15
  * r = Reorg flag            - 2  Bits (1-2)
+ * A = any value flag        - 1  Bit  (16)
  *
  *           1111111111222222222233
  * 01234567890123456789012345678901
  *  rrcdlxhkrztppppaaaaaaaaaaaaaaaa   Short variant ( < 6.4.0)
- *  rrcdlxhkrztpppp                   Long variant (6.4.0 +)
+ *  rrcdlxhkrztppppA                  Long variant (6.4.0 +)
  */
 #define SF_LOCK_MODE_SHIFT   (5)
 #define SF_LOCK_MODE_MASK    (1)
@@ -278,6 +283,8 @@ public:
 
 #define SF_REORG_SHIFT      (1)
 #define SF_REORG_MASK       (3)
+
+#define SF_ANY_VALUE_SHIFT  (16)
 
 inline 
 Uint32
@@ -453,6 +460,19 @@ void
 ScanFragReq::setReorgFlag(UintR & requestInfo, UintR val){
   ASSERT_MAX(val, SF_REORG_MASK, "ScanFragReq::setLcpScanFlag");
   requestInfo |= (val << SF_REORG_SHIFT);
+}
+
+inline
+Uint32
+ScanFragReq::getAnyValueFlag(const Uint32 & requestInfo){
+  return (requestInfo >> SF_ANY_VALUE_SHIFT) & 1;
+}
+
+inline
+void
+ScanFragReq::setAnyValueFlag(UintR & requestInfo, UintR val){
+  ASSERT_BOOL(val, "ScanFragReq::setAnyValueFlag");
+  requestInfo |= (val << SF_ANY_VALUE_SHIFT);
 }
 
 #endif

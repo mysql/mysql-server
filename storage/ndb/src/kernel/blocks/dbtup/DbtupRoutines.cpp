@@ -2399,6 +2399,12 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
     flush_read_buffer(req_struct, outBuf, resultRef, resultData);
     return 2;
   }
+  case AttributeHeader::READ_ANY_VALUE:{
+    jam();
+    sz = 1;
+    outBuffer[1] = operPtr.p->m_any_value;
+    break;
+  }
   default:
     return 0;
   }

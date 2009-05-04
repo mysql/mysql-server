@@ -81,6 +81,7 @@ public:
     Uint32 m_type;
     Uint32 m_src_node_no;
     Uint32 m_src_node_ptrI;
+    Uint32 m_src_correlation;
 
     struct Header
     {
@@ -215,7 +216,7 @@ public:
     Uint32 m_api_resultRef;
     Uint32 m_api_resultData;
     Uint32 m_outstanding;
-    Uint32 m_lqhKeyReq[LqhKeyReq::FixedSignalLength + 2];
+    Uint32 m_lqhKeyReq[LqhKeyReq::FixedSignalLength + 3];
   };
 
   struct ScanFragData
@@ -242,7 +243,7 @@ public:
     Uint32 m_scan_status;    // fragmentCompleted
     Uint32 m_rows_received;  // #execTRANSID_AI
     Uint32 m_rows_expecting; // ScanFragConf
-    Uint32 m_scanFragReq[ScanFragReq::SignalLength];
+    Uint32 m_scanFragReq[ScanFragReq::SignalLength + 1];
   };
 
   /**
@@ -336,6 +337,7 @@ public:
 
     struct {
       Uint32 m_ref;              // dst for signal
+      Uint32 m_correlation;      // correlation value
       Uint32 m_keyInfoPtrI;      // keyInfoSection
       Uint32 m_attrInfoPtrI;     // attrInfoSection
       Uint32 m_attrInfoParamPtrI;// attrInfoParamSection
@@ -447,6 +449,7 @@ private:
    */
   Uint32 buildRowHeader(RowRef::Header *, SegmentedSectionPtr);
   Uint32 buildRowHeader(RowRef::Header *, const Uint32 * src, Uint32 len);
+  Uint32 getColData32(const RowRef::Section&, Uint32 colNo);
   Uint32 appendToPattern(Local_pattern_store &, DABuffer & tree, Uint32);
   Uint32 appendColToPattern(Local_pattern_store&,const RowRef::Linear&, Uint32);
 

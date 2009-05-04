@@ -51,6 +51,7 @@ public:
   STATIC_CONST( READ_ALL     = 0xFFF0 );
   STATIC_CONST( READ_LCP     = 0xFFEF );
   STATIC_CONST( FLUSH_AI     = 0xFFEE );
+  STATIC_CONST( READ_ANY_VALUE = 0xFFED );
   
   /**
    * Optimize pseudo column and optimization options
