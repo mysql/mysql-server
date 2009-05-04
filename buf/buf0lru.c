@@ -1090,7 +1090,7 @@ buf_LRU_remove_block(
 
 	/* Remove the block from the LRU list */
 	UT_LIST_REMOVE(LRU, buf_pool->LRU, bpage);
-	ut_d(bpage->in_LRU_list = FALSE);
+	bpage->in_LRU_list = FALSE;
 
 	buf_unzip_LRU_remove_block_if_needed(bpage);
 
@@ -1166,7 +1166,7 @@ buf_LRU_add_block_to_end_low(
 
 	ut_ad(!bpage->in_LRU_list);
 	UT_LIST_ADD_LAST(LRU, buf_pool->LRU, bpage);
-	ut_d(bpage->in_LRU_list = TRUE);
+	bpage->in_LRU_list = TRUE;
 
 	buf_page_set_old(bpage, TRUE);
 
@@ -1243,7 +1243,7 @@ buf_LRU_add_block_low(
 		bpage->LRU_position = (buf_pool->LRU_old)->LRU_position;
 	}
 
-	ut_d(bpage->in_LRU_list = TRUE);
+	bpage->in_LRU_list = TRUE;
 
 	buf_page_set_old(bpage, old);
 
@@ -1478,7 +1478,7 @@ alloc:
 					buf_LRU_old_init();
 				}
 			} else {
-				ut_d(b->in_LRU_list = FALSE);
+				b->in_LRU_list = FALSE;
 				buf_LRU_add_block_low(b, buf_page_is_old(b));
 			}
 

@@ -134,10 +134,10 @@ buf_flush_ready_for_replace(
 				buf_page_in_file(bpage) and in the LRU list */
 {
 	//ut_ad(buf_pool_mutex_own());
-	ut_ad(mutex_own(buf_page_get_mutex(bpage)));
+	//ut_ad(mutex_own(buf_page_get_mutex(bpage)));
 	//ut_ad(bpage->in_LRU_list); /* optimistic use */
 
-	if (UNIV_LIKELY(buf_page_in_file(bpage))) {
+	if (UNIV_LIKELY(bpage->in_LRU_list && buf_page_in_file(bpage))) {
 
 		return(bpage->oldest_modification == 0
 		       && buf_page_get_io_fix(bpage) == BUF_IO_NONE
@@ -1147,8 +1147,14 @@ buf_flush_LRU_recommendation(void)
 	buf_page_t*	bpage;
 	ulint		n_replaceable;
 	ulint		distance	= 0;
+	ibool		have_LRU_mutex = FALSE;
+
+	if(UT_LIST_GET_LEN(buf_pool->unzip_LRU))
+		have_LRU_mutex = TRUE;
 
 	//buf_pool_mutex_enter();
+	if (have_LRU_mutex)
+		buf_pool_mutex_enter();
 
 	n_replaceable = UT_LIST_GET_LEN(buf_pool->free);
 
@@ -1158,6 +1164,12 @@ buf_flush_LRU_recommendation(void)
 	       && (n_replaceable < BUF_FLUSH_FREE_BLOCK_MARGIN
 		   + BUF_FLUSH_EXTRA_MARGIN)
 	       && (distance < BUF_LRU_FREE_SEARCH_LEN)) {
+
+		if (!bpage->in_LRU_list) {
+			/* reatart. but it is very optimistic */
+			bpage = UT_LIST_GET_LAST(buf_pool->LRU);
+			continue;
+		}
 
 		mutex_t* block_mutex = buf_page_get_mutex(bpage);
 
@@ -1175,6 +1187,8 @@ buf_flush_LRU_recommendation(void)
 	}
 
 	//buf_pool_mutex_exit();
+	if (have_LRU_mutex)
+		buf_pool_mutex_exit();
 
 	if (n_replaceable >= BUF_FLUSH_FREE_BLOCK_MARGIN) {
 

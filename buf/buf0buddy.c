@@ -138,7 +138,7 @@ buf_buddy_alloc_zip(
 	/* Valgrind would complain about accessing free memory. */
 	UT_LIST_VALIDATE(list, buf_page_t, buf_pool->zip_free[i]);
 #endif /* UNIV_DEBUG && !UNIV_DEBUG_VALGRIND */
-	bpage = UT_LIST_GET_FIRST(buf_pool->zip_free[i]);
+	bpage = UT_LIST_GET_LAST(buf_pool->zip_free[i]);
 
 	if (bpage) {
 		UNIV_MEM_VALID(bpage, BUF_BUDDY_LOW << i);

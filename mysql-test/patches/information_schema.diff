@@ -74,3 +74,51 @@
  KEY_COLUMN_USAGE	information_schema.KEY_COLUMN_USAGE	1
  PARTITIONS	information_schema.PARTITIONS	1
  PLUGINS	information_schema.PLUGINS	1
+diff mysql-test/r/information_schema_db.result.orig mysql-test/r/information_schema_db.result
+--- mysql-test/r/information_schema_db.result.orig	2008-08-04 09:27:49.000000000 +0300
++++ mysql-test/r/information_schema_db.result	2008-10-07 12:26:31.000000000 +0300
+@@ -33,6 +33,13 @@
+ TRIGGERS
+ USER_PRIVILEGES
+ VIEWS
++INNODB_CMP_RESET
++INNODB_TRX
++INNODB_CMPMEM_RESET
++INNODB_LOCK_WAITS
++INNODB_CMPMEM
++INNODB_CMP
++INNODB_LOCKS
+ show tables from INFORMATION_SCHEMA like 'T%';
+ Tables_in_information_schema (T%)
+ TABLES
+diff mysql-test/r/mysqlshow.result.orig mysql-test/r/mysqlshow.result
+--- mysql-test/r/mysqlshow.result.orig	2008-08-04 09:27:51.000000000 +0300
++++ mysql-test/r/mysqlshow.result	2008-10-07 12:35:39.000000000 +0300
+@@ -107,6 +107,13 @@
+ | TRIGGERS                              |
+ | USER_PRIVILEGES                       |
+ | VIEWS                                 |
++| INNODB_CMP_RESET                      |
++| INNODB_TRX                            |
++| INNODB_CMPMEM_RESET                   |
++| INNODB_LOCK_WAITS                     |
++| INNODB_CMPMEM                         |
++| INNODB_CMP                            |
++| INNODB_LOCKS                          |
+ +---------------------------------------+
+ Database: INFORMATION_SCHEMA
+ +---------------------------------------+
+@@ -140,6 +147,13 @@
+ | TRIGGERS                              |
+ | USER_PRIVILEGES                       |
+ | VIEWS                                 |
++| INNODB_CMP_RESET                      |
++| INNODB_TRX                            |
++| INNODB_CMPMEM_RESET                   |
++| INNODB_LOCK_WAITS                     |
++| INNODB_CMPMEM                         |
++| INNODB_CMP                            |
++| INNODB_LOCKS                          |
+ +---------------------------------------+
+ Wildcard: inf_rmation_schema
+ +--------------------+

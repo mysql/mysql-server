@@ -1061,10 +1061,10 @@ struct buf_page_struct{
 
 	UT_LIST_NODE_T(buf_page_t) LRU;
 					/* node of the LRU list */
-#ifdef UNIV_DEBUG
+//#ifdef UNIV_DEBUG
 	ibool		in_LRU_list;	/* TRUE if the page is in the LRU list;
 					used in debugging */
-#endif /* UNIV_DEBUG */
+//#endif /* UNIV_DEBUG */
 	unsigned	old:1;		/* TRUE if the block is in the old
 					blocks in the LRU list */
 	unsigned	LRU_position:31;/* value which monotonically decreases
