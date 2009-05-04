@@ -2542,7 +2542,8 @@ void Dblqh::noFreeRecordLab(Signal* signal,
   }
 
   if (LqhKeyReq::getDirtyFlag(reqInfo) && 
-      LqhKeyReq::getOperation(reqInfo) == ZREAD){ 
+      LqhKeyReq::getOperation(reqInfo) == ZREAD &&
+      !LqhKeyReq::getNormalProtocolFlag(reqInfo)){
     jam();
     /* Dirty read sends TCKEYREF direct to client, and nothing to TC */
     ndbrequire(LqhKeyReq::getApplicationAddressFlag(reqInfo));
@@ -3787,6 +3788,15 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   const LqhKeyReq * const lqhKeyReq = (LqhKeyReq *)signal->getDataPtr();
   SectionHandle handle(this, signal);
 
+#ifdef UNUSED
+  ndbout << "LQH: Received LQHKEYREQ from TC instance" 
+	 << refToInstance(lqhKeyReq->tcBlockref) 
+	 << " hashValue=" << lqhKeyReq->hashValue
+         << " transId1=" << lqhKeyReq-> transId1
+         << " transId2=" << lqhKeyReq-> transId2
+	 << " handle.m_cnt=" << handle.m_cnt
+	 << endl;
+#endif /*UNUSED*/
   {
     const NodeBitmask& all = globalTransporterRegistry.get_status_overloaded();
     if (unlikely(!all.isclear()) &&
@@ -4093,7 +4103,8 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   }
   else if(op == ZINSERT)
   {
-    ndbassert(refToBlock(senderRef) == DBTC);
+    ndbassert(refToBlock(senderRef) == DBTC || 
+	      refToBlock(senderRef) == DBSPJ);
   }
   
   if ((LqhKeyReq::FixedSignalLength + nextPos + TreclenAiLqhkey) != 
@@ -7052,6 +7063,8 @@ void Dblqh::commitContinueAfterBlockedLab(Signal* signal)
   Uint32 operation = regTcPtr.p->operation;
   Uint32 dirtyOp = regTcPtr.p->dirtyOp;
   Uint32 opSimple = regTcPtr.p->opSimple;
+  Uint32 normalProtocol = LqhKeyReq::getNormalProtocolFlag(regTcPtr.p->reqinfo);
+
   if (regTcPtr.p->activeCreat != Fragrecord::AC_IGNORED) {
     if (operation != ZREAD) {
       TupCommitReq * const tupCommitReq = 
@@ -7110,7 +7123,7 @@ void Dblqh::commitContinueAfterBlockedLab(Signal* signal)
 	EXECUTE_DIRECT(acc, GSN_ACC_COMMITREQ, signal, 1);
       }
       
-      if (dirtyOp) 
+      if (dirtyOp && normalProtocol == 0)
       {
 	jam();
         /**
@@ -8021,7 +8034,8 @@ void Dblqh::continueAfterLogAbortWriteLab(Signal* signal)
 
   remove_commit_marker(regTcPtr);
 
-  if (regTcPtr->operation == ZREAD && regTcPtr->dirtyOp)
+  if (regTcPtr->operation == ZREAD && regTcPtr->dirtyOp &&
+      !LqhKeyReq::getNormalProtocolFlag(regTcPtr->reqinfo))
   {
     jam();
     TcKeyRef * const tcKeyRef = (TcKeyRef *) signal->getDataPtrSend();

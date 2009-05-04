@@ -36,6 +36,7 @@ libkernel_a_SOURCES = \
         ndbd_malloc.cpp \
 	ndbd_malloc_impl.cpp \
 	Pool.cpp WOPool.cpp RWPool.cpp DynArr256.cpp LockQueue.cpp \
+        ArenaPool.cpp \
 	GlobalData.cpp \
 	SafeMutex.cpp
 

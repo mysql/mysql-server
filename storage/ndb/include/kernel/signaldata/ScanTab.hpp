@@ -100,6 +100,7 @@ private:
   static Uint16 getScanBatch(const UintR & requestInfo);
   static Uint8 getDistributionKeyFlag(const UintR & requestInfo);
   static UintR getNoDiskFlag(const UintR & requestInfo);
+  static Uint32 getViaSPJFlag(const Uint32 & requestInfo);
 
   /**
    * Set:ers for requestInfo
@@ -116,6 +117,7 @@ private:
   static void setScanBatch(Uint32& requestInfo, Uint32 sz);
   static void setDistributionKeyFlag(Uint32& requestInfo, Uint32 flag);
   static void setNoDiskFlag(UintR & requestInfo, UintR val);
+  static void setViaSPJFlag(Uint32 & requestInfo, Uint32 val);
 };
 
 /**
@@ -136,6 +138,7 @@ private:
  b = Scan batch            - 10 Bit 16-25 (max 1023)
  d = Distribution key flag - 1  Bit 26
  n = No disk flag          - 1  Bit 9
+ j = Via SPJ flag          - 1  Bit 27
 
            1111111111222222222233
  01234567890123456789012345678901
@@ -174,6 +177,8 @@ private:
 
 #define SCAN_NODISK_SHIFT (9)
 #define SCAN_NODISK_MASK (1)
+
+#define SCAN_SPJ_SHIFT (27)
 
 inline
 Uint8
@@ -333,6 +338,19 @@ ScanTabReq::setNoDiskFlag(UintR & requestInfo, Uint32 flag){
   ASSERT_BOOL(flag, "TcKeyReq::setNoDiskFlag");
   requestInfo= (requestInfo & ~(SCAN_NODISK_MASK << SCAN_NODISK_SHIFT)) |
                ((flag & SCAN_NODISK_MASK) << SCAN_NODISK_SHIFT);
+}
+
+inline
+UintR
+ScanTabReq::getViaSPJFlag(const UintR & requestInfo){
+  return (requestInfo >> SCAN_SPJ_SHIFT) & 1;
+}
+
+inline
+void
+ScanTabReq::setViaSPJFlag(UintR & requestInfo, Uint32 flag){
+  ASSERT_BOOL(flag, "TcKeyReq::setViaSPJFlag");
+  requestInfo |= (flag << SCAN_SPJ_SHIFT);
 }
 
 /**

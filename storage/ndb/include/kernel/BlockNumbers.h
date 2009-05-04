@@ -57,6 +57,7 @@
 #define PGMAN      0x105
 #define RESTORE    0x106
 #define DBINFO     0x107
+#define DBSPJ      0x108
 
 const BlockReference BACKUP_REF  = numberToRef(BACKUP, 0);
 const BlockReference DBTC_REF    = numberToRef(DBTC, 0);
@@ -78,9 +79,10 @@ const BlockReference LGMAN_REF   = numberToRef(LGMAN, 0);
 const BlockReference PGMAN_REF   = numberToRef(PGMAN, 0);
 const BlockReference RESTORE_REF = numberToRef(RESTORE, 0);
 const BlockReference DBINFO_REF  = numberToRef(DBINFO, 0);
+const BlockReference DBSPJ_REF  = numberToRef(DBSPJ, 0);
 
 const BlockNumber MIN_BLOCK_NO = BACKUP;
-const BlockNumber MAX_BLOCK_NO = DBINFO;
+const BlockNumber MAX_BLOCK_NO = DBSPJ;
 const BlockNumber NO_OF_BLOCKS = (MAX_BLOCK_NO - MIN_BLOCK_NO + 1);
 
 /**

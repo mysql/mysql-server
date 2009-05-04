@@ -13,41 +13,24 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifndef TCKEYREF_HPP
-#define TCKEYREF_HPP
+#ifndef DBSPJ_ERR_H
+#define DBSPJ_ERR_H
 
-#include "SignalData.hpp"
-
-class TcKeyRef {
-
-  /**
-   * Receiver(s)
-   */
-  friend class NdbOperation;
-  friend class Ndbcntr;
-  friend class DbUtil;
-
-  /**
-   * Sender(s) / Receiver(s)
-   */
-  friend class Dbtc;
-
-  /**
-   * Sender(s)
-   */
-  friend class Dblqh;
-  friend class Dbspj;
-
-  friend bool printTCKEYREF(FILE *, const Uint32 *, Uint32, Uint16);
-  
-public:
-  STATIC_CONST( SignalLength = 5 );
-
-private:
-  Uint32 connectPtr; /* Operation pointer */
-  Uint32 transId[2];
-  Uint32 errorCode;
-  Uint32 errorData;
+struct DbspjErr
+{
+  enum {
+    OutOfOperations = 20000
+    ,ZeroLengthQueryTree = 20001
+    ,InvalidRequest = 20002
+    ,UnknowQueryOperation = 20003
+    ,InvalidTreeNodeSpecification = 20004
+    ,InvalidTreeParametersSpecification = 20005
+    ,OutOfSectionMemory = 20006
+    ,InvalidPattern = 20007
+    ,OutOfQueryMemory = 20008
+    ,QueryNodeTooBig = 20009
+    ,QueryNodeParametersTooBig = 20010
+  };
 };
 
 #endif

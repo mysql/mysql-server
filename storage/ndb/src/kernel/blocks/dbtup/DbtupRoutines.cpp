@@ -2392,6 +2392,13 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
     outBuffer[1] = operPtr.p->m_copy_tuple_location.m_page_no;
     outBuffer[2] = operPtr.p->m_copy_tuple_location.m_page_idx;
     break;
+  case AttributeHeader::FLUSH_AI:{
+    jam();
+    Uint32 resultRef = inBuffer[inPos];
+    Uint32 resultData = inBuffer[inPos + 1];
+    flush_read_buffer(req_struct, outBuf, resultRef, resultData);
+    return 2;
+  }
   default:
     return 0;
   }
@@ -2529,6 +2536,31 @@ Dbtup::read_packed(const Uint32* inBuf, Uint32 inPos,
 error:  
   ndbrequire(false);
   return 0;
+}
+
+#include <signaldata/TransIdAI.hpp>
+
+void
+Dbtup::flush_read_buffer(KeyReqStruct *req_struct,
+			 const Uint32 * outBuf,
+			 Uint32 resultRef, Uint32 resultData)
+{
+  Uint32 sig1= req_struct->trans_id1;
+  Uint32 sig2= req_struct->trans_id2;
+  Uint32 len = (req_struct->out_buf_index >> 2) - 1;
+  Signal * signal = req_struct->signal;
+
+  TransIdAI * transIdAI=  (TransIdAI *)signal->getDataPtrSend();
+  transIdAI->connectPtr= resultData;
+  transIdAI->transId[0]= sig1;
+  transIdAI->transId[1]= sig2;
+
+  LinearSectionPtr ptr[3];
+  ptr[0].p= (Uint32*)outBuf; // Should really remove this
+  ptr[0].sz= len;
+  sendSignal(resultRef, GSN_TRANSID_AI, signal, 3, JBB, ptr, 1);
+
+  req_struct->out_buf_index = 0; // Reset buffer
 }
 
 Uint32

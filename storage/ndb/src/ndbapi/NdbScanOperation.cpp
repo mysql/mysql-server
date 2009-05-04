@@ -124,6 +124,7 @@ NdbScanOperation::init(const NdbTableImpl* tab, NdbTransaction* myConnection)
   m_readTuplesCalled= false;
   m_interpretedCodeOldApi= NULL;
   m_pruneState= SPS_UNKNOWN;
+  m_isLinked = false;
 
   m_api_receivers_count = 0;
   m_current_api_receiver = 0;
@@ -2414,6 +2415,14 @@ NdbScanOperation::doSendScan(int aProcessorId)
   }
 
   TransporterFacade *tp = theNdb->theImpl->m_transporter_facade;
+
+  if (m_isLinked)
+  {
+    ScanTabReq * req = CAST_PTR(ScanTabReq, theSCAN_TABREQ->getDataPtrSend());
+    Uint32 reqInfo = req->requestInfo;
+    ScanTabReq::setViaSPJFlag(reqInfo, 1);
+    req->requestInfo = reqInfo;
+  }
   
   /* Send Fragmented as SCAN_TABREQ can be large */
   if (tp->sendFragmentedSignal(theSCAN_TABREQ, 

@@ -497,7 +497,17 @@ SimulatedBlock::sendSignal(BlockReference ref,
                                                &signal->theData[0], recNode,
                                                (LinearSectionPtr*)0);
 #endif
-    
+/*  if(!(ss == SEND_OK || ss == SEND_BLOCKED || ss == SEND_DISCONNECTED)){
+ *      ndbout << "Failed to send signal no " << gsn 
+ *	     << " sender blockNumber=" << refToMain(sendBRef)
+ *	     << " sender Nodeno=" << refToNode(sendBRef)
+ *	     << " sender instanceNo=" << refToInstance(sendBRef) 
+ *	     << " blockNumber=" << refToMain(ref)
+ *	     << " Nodeno=" << refToNode(ref)
+ *	     << " instanceNo=" << refToInstance(ref) << endl;
+ *     ndbout.flushline();
+ *   }
+ */   
     ndbrequire(ss == SEND_OK || ss == SEND_BLOCKED || ss == SEND_DISCONNECTED);
   }
   return;

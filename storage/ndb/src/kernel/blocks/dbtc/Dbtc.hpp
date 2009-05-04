@@ -888,6 +888,7 @@ public:
       /* Distribution information */
       // TODO : Consider placing this info into other records
       Uint8  distributionKeyIndicator;
+      Uint8  viaSPJFlag;        /* Send request via the SPJ block.*/ 
       UintR  distributionKey;
     /* End of fields used by TCKEYREQ/TCINDXREQ/SCANTABREQ */
     
@@ -1220,6 +1221,7 @@ public:
       Uint16 batch_size_rows;
     };
     Uint32 batch_byte_size;
+    Uint32 m_scan_block_no;
 
     Uint32 scanRequestInfo; // ScanFrag format
 

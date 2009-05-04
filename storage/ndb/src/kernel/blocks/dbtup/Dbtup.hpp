@@ -1990,6 +1990,10 @@ private:
 			 Uint32 * tmpArea,
 			 Uint32 tmpAreaSz);
 
+  const Uint32 * lookupInterpreterParameter(Uint32 paramNo,
+                                            const Uint32 * subptr,
+                                            Uint32 sublen) const;
+
 // *****************************************************************
 // Signal Sending methods.
 // *****************************************************************
@@ -2403,6 +2407,9 @@ private:
 
   Uint32 read_lcp(const Uint32 *, Uint32, KeyReqStruct*, Uint32*);
   void update_lcp(KeyReqStruct *req_struct, const Uint32* src, Uint32 len);
+
+  void flush_read_buffer(KeyReqStruct *, const Uint32* outBuf,
+			 Uint32 resultRef, Uint32 resultData);
 public:
   /**
    * Used by Restore...

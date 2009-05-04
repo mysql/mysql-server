@@ -2018,6 +2018,39 @@ Dbtup::brancher(Uint32 TheInstruction, Uint32 TprogramCounter)
   }
 }
 
+const Uint32 *
+Dbtup::lookupInterpreterParameter(Uint32 paramNo,
+                                  const Uint32 * subptr,
+                                  Uint32 sublen) const
+{
+  /**
+   * The parameters...are stored in the subroutine section
+   *
+   * WORD0      WORD1      WORD2         WORD3       WORD4         WORD5
+   * [ P0-pos ] [ P1-pos ] [ P0 HEADER ] [ P0 DATA ] [ P1 HEADER ] [ P1 DATA ]
+   *
+   * e.g
+   * pos=2      pos=4      [ no=0 len=4]             [ no=1 len=4]
+   *
+   * len=4 <=> 1 word
+   */
+  if (likely(paramNo < sublen))
+  {
+    jam();
+    Uint32 pos = subptr[paramNo];
+    if (likely(pos < sublen))
+    {
+      jam();
+      const Uint32 * ptr = subptr + pos;
+      Uint32 len = AttributeHeader::getDataSize(* ptr);
+      Uint32 no = AttributeHeader::getAttributeId(* ptr);
+      if (likely(no == paramNo && (pos + 1 + len) < sublen))
+        return ptr;
+    }
+  }
+  return 0;
+}
+
 int Dbtup::interpreterNextLab(Signal* signal,
                               KeyReqStruct* req_struct,
                               Uint32* logMemory,
@@ -2419,12 +2452,14 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	  break;
 	}
 
+      case Interpreter::BRANCH_ATTR_OP_ARG_2:
       case Interpreter::BRANCH_ATTR_OP_ARG:{
 	jam();
 	Uint32 cond = Interpreter::getBinaryCondition(theInstruction);
 	Uint32 ins2 = TcurrentProgram[TprogramCounter];
 	Uint32 attrId = Interpreter::getBranchCol_AttrId(ins2) << 16;
 	Uint32 argLen = Interpreter::getBranchCol_Len(ins2);
+        Uint32 step = argLen;
 
 	if(tmpHabitant != attrId){
 	  Int32 TnoDataR = readAttributes(req_struct,
@@ -2461,6 +2496,27 @@ int Dbtup::interpreterNextLab(Signal* signal,
         const char* s2 = (char*)&TcurrentProgram[TprogramCounter+1];
         // fixed length in 5.0
 	Uint32 attrLen = AttributeDescriptor::getSizeInBytes(TattrDesc1);
+
+        if (Interpreter::getOpCode(theInstruction) ==
+            Interpreter::BRANCH_ATTR_OP_ARG_2)
+        {
+          jam();
+          Uint32 paramNo = Interpreter::getBranchCol_ParamNo(ins2);
+          const Uint32 * paramptr = lookupInterpreterParameter(paramNo,
+                                                               subroutineProg,
+                                                               TsubroutineLen);
+          if (unlikely(paramptr == 0))
+          {
+            jam();
+            terrorCode = 99; // TODO
+            tupkeyErrorLab(signal);
+            return -1;
+          }
+
+          argLen = AttributeHeader::getByteSize(* paramptr);
+          step = 0;
+          s2 = (char*)(paramptr + 1);
+        }
         
         if (typeId == NDB_TYPE_BIT)
         {
@@ -2579,7 +2635,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
           TprogramCounter = brancher(theInstruction, TprogramCounter);
         else 
 	{
-          Uint32 tmp = ((argLen + 3) >> 2) + 1;
+          Uint32 tmp = ((step + 3) >> 2) + 1;
           TprogramCounter += tmp;
         }
 	break;
