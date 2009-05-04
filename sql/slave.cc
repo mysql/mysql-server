@@ -465,8 +465,6 @@ terminate_slave_thread(THD *thd,
                        volatile uint *slave_running,
                        bool skip_lock)
 {
-  int error;
-
   DBUG_ENTER("terminate_slave_thread");
   if (!skip_lock)
   {
