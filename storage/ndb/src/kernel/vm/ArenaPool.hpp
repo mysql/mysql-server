@@ -22,11 +22,12 @@
 struct ArenaBlock
 {
   Uint32 m_magic;
-  Uint32 m_next_block;
   union {
+    Uint32 m_next_block;
     Uint32 nextPool;
-    Uint32 m_data[1];
   };
+
+  Uint32 m_data[1];
 
   STATIC_CONST( HeaderSize = 2 );
 
