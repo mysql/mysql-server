@@ -151,7 +151,7 @@ int ha_ibmdb2i::convertFieldChars(enum_conversionDirection direction,
   
   if (unlikely(conversion == (iconv_t)(-1)))
   {
-    return (DB2I_ERR_ICONV_OPEN);
+    return (DB2I_ERR_UNSUPP_CHARSET);
   }
 
   size_t initOLen= olen;
@@ -670,6 +670,13 @@ int ha_ibmdb2i::getFieldTypeMapping(Field* field,
               if (rtnCode)
                 return rtnCode;
             }
+            
+            // Check whether there is a character conversion available.
+            iconv_t temp;
+            int32 rc = getConversion(toDB2, fieldCharSet, db2Ccsid, temp);
+            if (unlikely(rc))
+              return rc;
+            
             sprintf(stringBuildBuffer, " CCSID %d ", db2Ccsid);
             mapping.append(stringBuildBuffer);
           }
