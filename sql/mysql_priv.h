@@ -1479,6 +1479,8 @@ extern SHOW_COMP_OPTION have_query_cache;
 extern SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 extern SHOW_COMP_OPTION have_crypt;
 extern SHOW_COMP_OPTION have_compress;
+extern SHOW_COMP_OPTION have_community_features;
+extern SHOW_COMP_OPTION have_profiling;
 
 #ifndef __WIN__
 extern pthread_t signal_thread;

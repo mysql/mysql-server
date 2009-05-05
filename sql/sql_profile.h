@@ -54,7 +54,7 @@ int make_profile_table_for_show(THD *thd, ST_SCHEMA_TABLE *schema_table);
 #define PROFILE_ALL          (~0)
 
 
-#if defined(ENABLED_PROFILING)
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
 #include "mysql_priv.h"
 
 #ifdef HAVE_SYS_RESOURCE_H
