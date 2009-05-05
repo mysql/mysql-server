@@ -3958,6 +3958,7 @@ st_do_errins(ST_Con& c, ST_Errins& errins)
   }
   g_info << "errins: " << errins << endl;
   chk2(c.restarter->insertErrorInNode(errins.node, errins.value) == 0, errins);
+  c.restarter->get_status(); // do sync call to ensure error has been inserted
   return 0;
 err:
   return -1;
@@ -4531,7 +4532,9 @@ static int
 st_end_trans(ST_Con& c, uint flags)
 {
   g_info << "end trans flags:" << hex << flags << endl;
-  chk2(c.dic->endSchemaTrans(flags) == 0, c.dic->getNdbError());
+  int res= c.dic->endSchemaTrans(flags);
+  g_info << "end trans result:" << res << endl;
+  chk2(res == 0, c.dic->getNdbError());
   c.tx_on = false;
   c.tx_commit = !(flags & ST_AbortFlag);
   st_set_commit_all(c);
@@ -4544,10 +4547,12 @@ static int
 st_end_trans_aborted(ST_Con& c, uint flags)
 {
   g_info << "end trans flags:" << hex << flags << endl;
+  int res= c.dic->endSchemaTrans(flags);
+  g_info << "end trans result:" << res << endl;
   if (flags & ST_AbortFlag)
-    chk1(c.dic->endSchemaTrans(flags) == 0);
+    chk1(res == 0);
   else
-    chk1(c.dic->endSchemaTrans(flags) != 0);
+    chk1(res != 0);
   c.tx_on = false;
   c.tx_commit = (flags & ST_AbortFlag);
   return 0;
@@ -5708,10 +5713,15 @@ st_test_mnf_prepare(ST_Con& c, int arg = -1)
   }
   else
     chk1(st_end_trans_aborted(c, errins, ST_CommitFlag) == 0);
-  st_wait_db_node_up(c, master);
+  chk1(c.restarter->waitClusterStarted() == 0);
+  //st_wait_db_node_up(c, master);
   for (i = 0; i < c.tabcount; i++) {
     ST_Tab& tab = c.tab(i);
-    chk1(st_verify_table(c, tab) == -1);
+    // Verify that table is not in db
+    c.dic->invalidateTable(tab.name);
+    const NdbDictionary::Table* pTab =
+      NDBT_Table::discoverTableFromDb(c.ndb, tab.name);
+    chk1(pTab == NULL);
   }
   return NDBT_OK;
 err:
@@ -5738,7 +5748,8 @@ st_test_mnf_commit1(ST_Con& c, int arg = -1)
   }
   else
     chk1(st_end_trans(c, errins, ST_CommitFlag) == 0);
-  st_wait_db_node_up(c, master);
+  chk1(c.restarter->waitClusterStarted() == 0);
+  //st_wait_db_node_up(c, master);
   for (i = 0; i < c.tabcount; i++) {
     ST_Tab& tab = c.tab(i);
     chk1(st_verify_table(c, tab) == 0);
@@ -5769,7 +5780,8 @@ st_test_mnf_commit2(ST_Con& c, int arg = -1)
   }
   else
     chk1(st_end_trans(c, errins, ST_CommitFlag) == 0);
-  st_wait_db_node_up(c, master);
+  chk1(c.restarter->waitClusterStarted() == 0);
+  //st_wait_db_node_up(c, master);
   chk1(st_verify_all(c) == 0);
   for (i = 0; i < c.tabcount; i++) {
     ST_Tab& tab = c.tab(i);
@@ -5818,7 +5830,8 @@ st_test_mnf_run_commit(ST_Con& c, int arg = -1)
 
 verify:
   g_info << "wait for master node to come up" << endl;
-  st_wait_db_node_up(c, master);
+  chk1(c.restarter->waitClusterStarted() == 0);
+  //st_wait_db_node_up(c, master);
   g_info << "verify all" << endl;
   for (i = 0; i < c.tabcount; i++) {
     ST_Tab& tab = c.tab(i);
@@ -5864,7 +5877,8 @@ st_test_mnf_run_abort(ST_Con& c, int arg = -1)
     chk1(st_end_trans_aborted(c, ST_AbortFlag) == 0);
 
   g_info << "wait for master node to come up" << endl;
-  st_wait_db_node_up(c, master);
+  chk1(c.restarter->waitClusterStarted() == 0);
+  //st_wait_db_node_up(c, master);
   g_info << "verify all" << endl;
   for (i = 0; i < c.tabcount; i++) {
     ST_Tab& tab = c.tab(i);
