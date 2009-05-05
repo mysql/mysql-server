@@ -57,6 +57,18 @@ s1
 1
 drop table `txu@0023p@0023p1`;
 drop table `txu#p#p1`;
+#
+# Bug#37631 Incorrect key file for table after upgrading from 5.0 to 5.1
+#
+# copy table created using mysql4.0 into the data dir
+# check the table created using mysql 4.0
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	error	Table upgrade required. Please do "REPAIR TABLE `t1`" or dump/reload to fix it!
+# query the table created using mysql 4.0
+SELECT * FROM t1;
+c1	c2	c3
+DROP TABLE t1;
 truncate t1;
 drop table t1;
 drop database if exists `tabc`;

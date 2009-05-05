@@ -8270,6 +8270,33 @@ select replace(@full_mode, 'ALLOW_INVALID_DATES', 'INVALID_DATES') into @full_mo
 select name from mysql.proc where name = 'p' and sql_mode = @full_mode;
 drop procedure p;
 
+#
+# Bug#43962 "Packets out of order" calling a SHOW TABLE STATUS
+#
+DELIMITER //;
+CREATE DEFINER = 'root'@'localhost' PROCEDURE p1()
+NOT DETERMINISTIC
+CONTAINS SQL
+SQL SECURITY DEFINER
+COMMENT ''
+BEGIN
+ SHOW TABLE STATUS like 't1';
+END;//
+DELIMITER ;//
+
+
+CREATE TABLE t1 (f1 INT);
+--disable_result_log
+let $tab_count= 4;
+while ($tab_count)
+{
+ EVAL CALL p1();
+ dec $tab_count ;
+}
+--enable_result_log
+DROP PROCEDURE p1;
+DROP TABLE t1;
+
 --echo # ------------------------------------------------------------------
 --echo # -- End of 5.1 tests
 --echo # ------------------------------------------------------------------
