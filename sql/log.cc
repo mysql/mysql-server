@@ -158,7 +158,8 @@ static int binlog_commit(THD *thd, bool all)
   */
   if (all || !(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
   {
-    Query_log_event qev(thd, STRING_WITH_LEN("COMMIT"), TRUE, FALSE);
+    Query_log_event qev(thd, STRING_WITH_LEN("COMMIT"),
+                        TRUE, FALSE, THD::KILLED_NO_VALUE);
     qev.error_code= 0; // see comment in MYSQL_LOG::write(THD, IO_CACHE)
     DBUG_RETURN(binlog_end_trans(thd, trans_log, &qev));
   }
@@ -202,7 +203,8 @@ static int binlog_rollback(THD *thd, bool all)
   */
   if (unlikely(thd->transaction.all.modified_non_trans_table))
   {
-    Query_log_event qev(thd, STRING_WITH_LEN("ROLLBACK"), TRUE, FALSE);
+    Query_log_event qev(thd, STRING_WITH_LEN("ROLLBACK"),
+                        TRUE, FALSE, THD::KILLED_NO_VALUE);
     qev.error_code= 0; // see comment in MYSQL_LOG::write(THD, IO_CACHE)
     error= binlog_end_trans(thd, trans_log, &qev);
   }
@@ -240,7 +242,8 @@ static int binlog_savepoint_set(THD *thd, void *sv)
 
   *(my_off_t *)sv= my_b_tell(trans_log);
   /* Write it to the binary log */
-  Query_log_event qinfo(thd, thd->query, thd->query_length, TRUE, FALSE);
+  Query_log_event qinfo(thd, thd->query, thd->query_length,
+                        TRUE, FALSE, THD::KILLED_NO_VALUE);
   DBUG_RETURN(mysql_bin_log.write(&qinfo));
 }
 
@@ -257,7 +260,8 @@ static int binlog_savepoint_rollback(THD *thd, void *sv)
   */
   if (unlikely(thd->transaction.all.modified_non_trans_table))
   {
-    Query_log_event qinfo(thd, thd->query, thd->query_length, TRUE, FALSE);
+    Query_log_event qinfo(thd, thd->query, thd->query_length,
+                          TRUE, FALSE, THD::KILLED_NO_VALUE);
     DBUG_RETURN(mysql_bin_log.write(&qinfo));
   }
   reinit_io_cache(trans_log, WRITE_CACHE, *(my_off_t *)sv, 0, 0);
@@ -2089,7 +2093,8 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event)
       transaction is either a BEGIN..COMMIT block or a single
       statement in autocommit mode.
     */
-    Query_log_event qinfo(thd, STRING_WITH_LEN("BEGIN"), TRUE, FALSE);
+    Query_log_event qinfo(thd, STRING_WITH_LEN("BEGIN"),
+                          TRUE, FALSE, THD::KILLED_NO_VALUE);
     /*
       Imagine this is rollback due to net timeout, after all
       statements of the transaction succeeded. Then we want a

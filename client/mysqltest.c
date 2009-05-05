@@ -4087,19 +4087,26 @@ int select_connection_name(const char *name)
 
 int select_connection(struct st_command *command)
 {
-  char *name;
+  int ret;
   char *p= command->first_argument;
+  static DYNAMIC_STRING ds_connection;
+  const struct command_arg connection_args[] = {
+    { "connection_name", ARG_STRING, TRUE, &ds_connection, "Name of the connection that we switch to." }
+  };
   DBUG_ENTER("select_connection");
 
   if (!*p)
     die("Missing connection name in connect");
-  name= p;
-  while (*p && !my_isspace(charset_info,*p))
-    p++;
-  if (*p)
-    *p++= 0;
-  command->last_argument= p;
-  return select_connection_name(name);
+
+  check_command_args(command, command->first_argument, connection_args,
+                     sizeof(connection_args)/sizeof(struct command_arg),
+                     ',');
+
+  DBUG_PRINT("info", ("changing connection: %s", ds_connection.str));
+
+  ret= select_connection_name(ds_connection.str);
+  dynstr_free(&ds_connection);
+  return ret;
 }
 
 

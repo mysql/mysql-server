@@ -460,3 +460,11 @@ handler t1_alias read a next;
 handler t1_alias READ a next where inexistent > 0;
 handler t1_alias close;
 drop table t1;
+
+#
+# Bug#44151 using handler commands on information_schema tables crashes server
+#
+USE information_schema;
+--error ER_WRONG_USAGE
+HANDLER COLUMNS OPEN;
+USE test;

@@ -473,17 +473,21 @@ String *Item_func_des_encrypt::val_str(String *str)
      string marking change of string length.
   */
 
-  tail=  (8-(res_length) % 8);			// 1..8 marking extra length
+  tail= 8 - (res_length % 8);                   // 1..8 marking extra length
   res_length+=tail;
+  tmp_arg.realloc(res_length);
+  tmp_arg.length(0);
+  tmp_arg.append(res->ptr(), res->length());
   code= ER_OUT_OF_RESOURCES;
-  if (tail && res->append(append_str, tail) || tmp_value.alloc(res_length+1))
+  if (tmp_arg.append(append_str, tail) || tmp_value.alloc(res_length+1))
     goto error;
-  (*res)[res_length-1]=tail;			// save extra length
+  tmp_arg[res_length-1]=tail;                   // save extra length
+  tmp_value.realloc(res_length+1);
   tmp_value.length(res_length+1);
   tmp_value[0]=(char) (128 | key_number);
   // Real encryption
   bzero((char*) &ivec,sizeof(ivec));
-  DES_ede3_cbc_encrypt((const uchar*) (res->ptr()),
+  DES_ede3_cbc_encrypt((const uchar*) (tmp_arg.ptr()),
 		       (uchar*) (tmp_value.ptr()+1),
 		       res_length,
 		       &keyschedule.ks1,

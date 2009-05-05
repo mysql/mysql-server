@@ -1605,7 +1605,8 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   if (need_binlog_call && thd->binlog_evt_union.unioned_events)
   {
     Query_log_event qinfo(thd, binlog_buf.ptr(), binlog_buf.length(),
-                          thd->binlog_evt_union.unioned_events_trans, FALSE);
+                          thd->binlog_evt_union.unioned_events_trans,
+                          FALSE, THD::KILLED_NO_VALUE);
     if (mysql_bin_log.write(&qinfo) &&
         thd->binlog_evt_union.unioned_events_trans)
     {
@@ -1928,17 +1929,16 @@ sp_head::restore_lex(THD *thd)
   DBUG_VOID_RETURN;
 }
 
-void
+int
 sp_head::push_backpatch(sp_instr *i, sp_label_t *lab)
 {
   bp_t *bp= (bp_t *)sql_alloc(sizeof(bp_t));
 
-  if (bp)
-  {
-    bp->lab= lab;
-    bp->instr= i;
-    (void)m_backpatch.push_front(bp);
-  }
+  if (!bp)
+    return 1;
+  bp->lab= lab;
+  bp->instr= i;
+  return m_backpatch.push_front(bp);
 }
 
 void
@@ -2013,7 +2013,7 @@ sp_head::fill_field_definition(THD *thd, LEX *lex,
 }
 
 
-void
+int
 sp_head::new_cont_backpatch(sp_instr_opt_meta *i)
 {
   m_cont_level+= 1;
@@ -2021,15 +2021,17 @@ sp_head::new_cont_backpatch(sp_instr_opt_meta *i)
   {
     /* Use the cont. destination slot to store the level */
     i->m_cont_dest= m_cont_level;
-    (void)m_cont_backpatch.push_front(i);
+    if (m_cont_backpatch.push_front(i))
+      return 1;
   }
+  return 0;
 }
 
-void
+int
 sp_head::add_cont_backpatch(sp_instr_opt_meta *i)
 {
   i->m_cont_dest= m_cont_level;
-  (void)m_cont_backpatch.push_front(i);
+  return m_cont_backpatch.push_front(i);
 }
 
 void
@@ -2211,7 +2213,7 @@ sp_head::show_create_procedure(THD *thd)
     instr   Instruction
 */
 
-void sp_head::add_instr(sp_instr *instr)
+int sp_head::add_instr(sp_instr *instr)
 {
   instr->free_list= m_thd->free_list;
   m_thd->free_list= 0;
@@ -2222,7 +2224,7 @@ void sp_head::add_instr(sp_instr *instr)
     entire stored procedure, as their life span is equal.
   */
   instr->mem_root= &main_mem_root;
-  insert_dynamic(&m_instr, (gptr)&instr);
+  return insert_dynamic(&m_instr, (gptr)&instr);
 }
 
 
