@@ -564,7 +564,7 @@ static sys_var_thd_bit	sys_unique_checks("unique_checks", 0,
 					  set_option_bit,
 					  OPTION_RELAXED_UNIQUE_CHECKS,
 					  1);
-#ifdef ENABLED_PROFILING
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
 static sys_var_thd_bit  sys_profiling("profiling", NULL, set_option_bit,
                                       ulonglong(OPTION_PROFILING));
 static sys_var_thd_ulong	sys_profiling_history_size("profiling_history_size",
@@ -899,6 +899,8 @@ struct show_var_st init_vars[]= {
   {"have_bdb",		      (char*) &have_berkeley_db,	    SHOW_HAVE},
   {"have_blackhole_engine",   (char*) &have_blackhole_db,	    SHOW_HAVE},
   {"have_compress",	      (char*) &have_compress,		    SHOW_HAVE},
+  {"have_community_features", (char*) &have_community_features,	    SHOW_HAVE},
+  {"have_profiling",          (char*) &have_profiling,	            SHOW_HAVE},
   {"have_crypt",	      (char*) &have_crypt,		    SHOW_HAVE},
   {"have_csv",	              (char*) &have_csv_db,	            SHOW_HAVE},
   {"have_dynamic_loading",    (char*) &have_dlopen,	            SHOW_HAVE},
