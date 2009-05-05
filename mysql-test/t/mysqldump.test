@@ -1647,9 +1647,6 @@ DROP TABLE t1,t2;
 --replace_regex /-- [^D][^u][^m][^p].*// /\/\*!.*// / on [0-9 :-]+/ on DATE/
 --exec $MYSQL_DUMP test
 
-# We reset concurrent_inserts value to whatever it was at the start of the test
-SET @@GLOBAL.CONCURRENT_INSERT = @OLD_CONCURRENT_INSERT;
-
 --echo #
 --echo # Bug #42635: mysqldump includes views that were excluded using 
 --echo #   the --ignore-table option
@@ -1680,7 +1677,6 @@ CREATE TABLE `כדשגכחךלדגכחשךדגחכךלדגכ` ( f1 INT );
 --exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --skip-comments --default-character-set=latin1 --compatible=mysql323 test
 DROP TABLE `כדשגכחךלדגכחשךדגחכךלדגכ`;
 SET NAMES latin1;
-
 
 --echo #
 --echo # End of 5.0 tests
@@ -1954,6 +1950,7 @@ DROP DATABASE mysqldump_test_db;
 --echo
 
 # We reset concurrent_inserts value to whatever it was at the start of the test
+# This line must be executed _after_ all test cases.
 SET @@GLOBAL.CONCURRENT_INSERT = @OLD_CONCURRENT_INSERT;
 
 
