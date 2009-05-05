@@ -1311,7 +1311,7 @@ static void descript(MI_CHECK *param, register MI_INFO *info, my_string name)
 	  share->base.max_key_file_length != HA_OFFSET_ERROR)
 	printf("Max datafile length: %13s  Max keyfile length: %13s\n",
 	       llstr(share->base.max_data_file_length-1,llbuff),
-	       llstr(share->base.max_key_file_length-1,llbuff2));
+               ullstr(share->base.max_key_file_length - 1, llbuff2));
     }
   }
 

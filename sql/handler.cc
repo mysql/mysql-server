@@ -730,6 +730,16 @@ end:
     if (is_real_trans)
       start_waiting_global_read_lock(thd);
   }
+  else if (all)
+  {
+    /*
+      A COMMIT of an empty transaction. There may be savepoints.
+      Destroy them. If the transaction is not empty
+      savepoints are cleared in ha_commit_one_phase()
+      or ha_rollback_trans().
+    */
+    thd->transaction.cleanup();
+  }
 #endif /* USING_TRANSACTIONS */
   DBUG_RETURN(error);
 }
@@ -825,11 +835,11 @@ int ha_rollback_trans(THD *thd, bool all)
         thd->transaction.xid_state.xid.null();
     }
     if (all)
-    {
       thd->variables.tx_isolation=thd->session_tx_isolation;
-      thd->transaction.cleanup();
-    }
   }
+  /* Always cleanup. Even if there nht==0. There may be savepoints. */
+  if (all)
+    thd->transaction.cleanup();
 #endif /* USING_TRANSACTIONS */
   if (all)
     thd->transaction_rollback_request= FALSE;
