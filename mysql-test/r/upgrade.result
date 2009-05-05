@@ -57,6 +57,18 @@ s1
 1
 drop table `txu@0023p@0023p1`;
 drop table `txu#p#p1`;
+#
+# Bug#37631 Incorrect key file for table after upgrading from 5.0 to 5.1
+#
+# copy table created using mysql4.0 into the data dir
+# check the table created using mysql 4.0
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	error	Table upgrade required. Please do "REPAIR TABLE `t1`" or dump/reload to fix it!
+# query the table created using mysql 4.0
+SELECT * FROM t1;
+c1	c2	c3
+DROP TABLE t1;
 truncate t1;
 drop table t1;
 drop database if exists `tabc`;
@@ -84,3 +96,23 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin2
 drop database `a-b-c`;
 drop database `tabc`;
+use `#mysql50#a-b-c`;
+create table t1(f1 char(10));
+show databases like '%a-b-c%';
+Database (%a-b-c%)
+#mysql50#a-b-c
+ALTER DATABASE `#mysql50#a-b-c` UPGRADE DATA DIRECTORY NAME;
+show databases like '%a-b-c%';
+Database (%a-b-c%)
+a-b-c
+show create view `a-b-c`.v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `a`.`f1` AS `f1` from (`a-b-c`.`t1` `a` join `information_schema`.`tables` `b`) where (convert(`a`.`f1` using utf8) = `b`.`TABLE_NAME`)	utf8	utf8_general_ci
+Warnings:
+Note	1600	Creation context of view `a-b-c`.`v1' is invalid
+select * from `a-b-c`.v1;
+f1
+Warnings:
+Note	1600	Creation context of view `a-b-c`.`v1' is invalid
+drop database `a-b-c`;
+use test;

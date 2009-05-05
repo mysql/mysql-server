@@ -898,6 +898,8 @@ int ha_ibmdb2i::index_init(uint idx, bool sorted)
       releaseIndexFile(idx);
   }
   
+  rrnAssocHandle= 0;
+
   DBUG_RETURN(rc); 
 }
 
@@ -1154,6 +1156,8 @@ int ha_ibmdb2i::rnd_init(bool scan)
       releaseDataFile();
   }
   
+  rrnAssocHandle= 0;
+
   DBUG_RETURN(0); // MySQL sometimes does not check the return code, causing 
                   // an assert in ha_rnd_end later on if we return a non-zero
                   // value here. 
@@ -1251,7 +1255,8 @@ int ha_ibmdb2i::rnd_pos(uchar * buf, uchar *pos)
   
   int rc = 0;
 
-  if (activeHandle != rrnAssocHandle) 
+  if (rrnAssocHandle &&
+      (activeHandle != rrnAssocHandle))
   {
     if (activeHandle) releaseActiveHandle();
     rc = useFileByHandle(QMY_UPDATABLE, rrnAssocHandle);    
@@ -2122,7 +2127,7 @@ int ha_ibmdb2i::create(const char *name, TABLE *table_arg,
   if (osVersion.v < 6)
   {
     if (strlen(libName) > 
-         MAX_DB2_V5R4_LIBNAME_LENGTH + (isUpperOrQuote(system_charset_info, libName) ? 2 : 0))
+         MAX_DB2_V5R4_LIBNAME_LENGTH + (isOrdinaryIdentifier(libName) ? 2 : 0))
     {
       getErrTxt(DB2I_ERR_TOO_LONG_SCHEMA,libName, MAX_DB2_V5R4_LIBNAME_LENGTH);
       DBUG_RETURN(DB2I_ERR_TOO_LONG_SCHEMA);
@@ -2323,7 +2328,7 @@ int ha_ibmdb2i::create(const char *name, TABLE *table_arg,
   if (!rc && !isTemporary)
   {
     db2i_table* temp = new db2i_table(table_arg->s, name);
-    int32 rc = temp->fastInitForCreate(name);
+    rc = temp->fastInitForCreate(name);
     delete temp;
     if (rc) 
       delete_table(name);
