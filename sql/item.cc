@@ -3390,14 +3390,12 @@ static void mark_as_dependent(THD *thd, SELECT_LEX *last, SELECT_LEX *current,
   current->mark_as_dependent(last);
   if (thd->lex->describe & DESCRIBE_EXTENDED)
   {
-    char warn_buff[MYSQL_ERRMSG_SIZE];
-    sprintf(warn_buff, ER(ER_WARN_FIELD_RESOLVED),
-            db_name, (db_name[0] ? "." : ""),
-            table_name, (table_name [0] ? "." : ""),
-            resolved_item->field_name,
-	    current->select_number, last->select_number);
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
-		 ER_WARN_FIELD_RESOLVED, warn_buff);
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+		 ER_WARN_FIELD_RESOLVED, ER(ER_WARN_FIELD_RESOLVED),
+                 db_name, (db_name[0] ? "." : ""),
+                 table_name, (table_name [0] ? "." : ""),
+                 resolved_item->field_name,
+                 current->select_number, last->select_number);
   }
 }
 
