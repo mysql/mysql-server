@@ -173,7 +173,7 @@ const char *set_thd_proc_info(THD *thd, const char *info,
 {
   const char *old_info= thd->proc_info;
   DBUG_PRINT("proc_info", ("%s:%d  %s", calling_file, calling_line, info));
-#if defined(ENABLED_PROFILING)
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
   thd->profiling.status_change(info, calling_function, calling_file, calling_line);
 #endif 
   thd->proc_info= info;
@@ -272,7 +272,7 @@ THD::THD()
   init();
   /* Initialize sub structures */
   init_sql_alloc(&warn_root, WARN_ALLOC_BLOCK_SIZE, WARN_ALLOC_PREALLOC_SIZE);
-#ifdef ENABLED_PROFILING
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
   profiling.set_thd(this);
 #endif
   user_connect=(USER_CONN *)0;
