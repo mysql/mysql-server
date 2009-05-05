@@ -199,6 +199,14 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
                       tables->db, tables->table_name, tables->alias,
                       (int) reopen));
 
+  if (tables->schema_table)
+  {
+    my_error(ER_WRONG_USAGE, MYF(0), "HANDLER OPEN",
+             INFORMATION_SCHEMA_NAME.str);
+    DBUG_PRINT("exit",("ERROR"));
+    DBUG_RETURN(TRUE);
+  }
+
   if (! hash_inited(&thd->handler_tables_hash))
   {
     /*

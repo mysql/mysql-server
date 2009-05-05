@@ -66,7 +66,7 @@ static int _mi_cmp_buffer(File file, const uchar *buff, my_off_t filepos,
 my_bool mi_dynmap_file(MI_INFO *info, my_off_t size)
 {
   DBUG_ENTER("mi_dynmap_file");
-  if (size > (my_off_t) (~((size_t) 0)) - MEMMAP_EXTRA_MARGIN)
+  if (size > (my_off_t) (~((size_t) 0)))
   {
     DBUG_PRINT("warning", ("File is too large for mmap"));
     DBUG_RETURN(1);
@@ -80,7 +80,7 @@ my_bool mi_dynmap_file(MI_INFO *info, my_off_t size)
       upon a write if no physical memory is available.
   */
   info->s->file_map= (uchar*)
-                  my_mmap(0, (size_t)(size + MEMMAP_EXTRA_MARGIN),
+                  my_mmap(0, (size_t) size,
                           info->s->mode==O_RDONLY ? PROT_READ :
                           PROT_READ | PROT_WRITE,
                           MAP_SHARED | MAP_NORESERVE,
@@ -113,7 +113,7 @@ void mi_remap_file(MI_INFO *info, my_off_t size)
   if (info->s->file_map)
   {
     VOID(my_munmap((char*) info->s->file_map,
-                   (size_t) info->s->mmaped_length + MEMMAP_EXTRA_MARGIN));
+                   (size_t) info->s->mmaped_length));
     mi_dynmap_file(info, size);
   }
 }
