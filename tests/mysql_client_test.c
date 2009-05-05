@@ -2464,6 +2464,9 @@ static void test_ps_query_cache()
 
   myheader("test_ps_query_cache");
 
+  rc= mysql_query(mysql, "SET SQL_MODE=''");
+  myquery(rc);
+
   /* prepare the table */
 
   rc= mysql_query(mysql, "drop table if exists t1");
@@ -2506,6 +2509,9 @@ static void test_ps_query_cache()
         mysql_close(lmysql);
         DIE_UNLESS(0);
       }
+      rc= mysql_query(lmysql, "SET SQL_MODE=''");
+      myquery(rc);
+
       if (!opt_silent)
         fprintf(stdout, "OK");
     }
@@ -4240,6 +4246,10 @@ static void test_fetch_date()
 
   myheader("test_fetch_date");
 
+  /* Will not work if sql_mode is NO_ZERO_DATE (implicit if TRADITIONAL) /*/
+  rc= mysql_query(mysql, "SET SQL_MODE=''");
+  myquery(rc);
+
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_bind_result");
   myquery(rc);
 
@@ -4953,6 +4963,9 @@ static void test_stmt_close()
 
   /* set AUTOCOMMIT to ON*/
   mysql_autocommit(lmysql, TRUE);
+
+  rc= mysql_query(lmysql, "SET SQL_MODE = ''");
+  myquery(rc);
 
   rc= mysql_query(lmysql, "DROP TABLE IF EXISTS test_stmt_close");
   myquery(rc);
@@ -12088,6 +12101,9 @@ static void test_bug6058()
 
   myheader("test_bug6058");
 
+  rc= mysql_query(mysql, "SET SQL_MODE=''");
+  myquery(rc);
+
   stmt_text= "SELECT CAST('0000-00-00' AS DATE)";
 
   rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
@@ -13302,6 +13318,9 @@ static void test_bug8378()
   }
   if (!opt_silent)
     fprintf(stdout, "OK");
+
+  rc= mysql_query(lmysql, "SET SQL_MODE=''");
+  myquery(rc);
 
   len= mysql_real_escape_string(lmysql, out, TEST_BUG8378_IN, 4);
 
@@ -16390,7 +16409,22 @@ static void test_change_user()
   myquery(rc);
 
   sprintf(buff,
+          "grant select on %s.* to %s@'localhost' identified by '%s'",
+          db,
+          user_pw,
+          pw);
+  rc= mysql_query(mysql, buff);
+  myquery(rc);
+
+  sprintf(buff,
           "grant select on %s.* to %s@'%%'",
+          db,
+          user_no_pw);
+  rc= mysql_query(mysql, buff);
+  myquery(rc);
+
+  sprintf(buff,
+          "grant select on %s.* to %s@'localhost'",
           db,
           user_no_pw);
   rc= mysql_query(mysql, buff);
@@ -16549,6 +16583,14 @@ static void test_change_user()
   myquery(rc);
 
   sprintf(buff, "drop user %s@'%%'", user_no_pw);
+  rc= mysql_query(mysql, buff);
+  myquery(rc);
+
+  sprintf(buff, "drop user %s@'localhost'", user_pw);
+  rc= mysql_query(mysql, buff);
+  myquery(rc);
+
+  sprintf(buff, "drop user %s@'localhost'", user_no_pw);
   rc= mysql_query(mysql, buff);
   myquery(rc);
 
@@ -17220,6 +17262,11 @@ static void test_bug31669()
   rc= mysql_query(mysql, query);
   myquery(rc);
 
+  strxmov(query, "GRANT ALL PRIVILEGES ON *.* TO '", user, "'@'localhost' IDENTIFIED BY "
+                 "'", buff, "' WITH GRANT OPTION", NullS);
+  rc= mysql_query(mysql, query);
+  myquery(rc);
+
   rc= mysql_query(mysql, "FLUSH PRIVILEGES");
   myquery(rc);
 
@@ -17257,7 +17304,7 @@ static void test_bug31669()
   strxmov(query, "DELETE FROM mysql.user WHERE User='", user, "'", NullS);
   rc= mysql_query(mysql, query);
   myquery(rc);
-  DIE_UNLESS(mysql_affected_rows(mysql) == 1);
+  DIE_UNLESS(mysql_affected_rows(mysql) == 2);
 #endif
 
   DBUG_VOID_RETURN;
@@ -17468,6 +17515,9 @@ static void test_wl4166_2()
   int rc;
 
   myheader("test_wl4166_2");
+
+  rc= mysql_query(mysql, "SET SQL_MODE=''");
+  myquery(rc);
 
   rc= mysql_query(mysql, "drop table if exists t1");
   myquery(rc);
