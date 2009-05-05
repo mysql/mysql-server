@@ -50,7 +50,7 @@ ArenaAllocator::init(Uint32 sz, Uint32 type_id, const Pool_context& pc)
 
   Uint32 bs = computeBlockSize(blocksz, wpp);
   Record_info ri;
-  ri.m_size = bs;
+  ri.m_size = 4 * bs;
   {
     ArenaBlock tmp;
     const char * off_base = (char*)&tmp;
