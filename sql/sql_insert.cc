@@ -2539,7 +2539,8 @@ bool Delayed_insert::handle_inserts(void)
         thd.variables.time_zone = row->time_zone;
       }
 
-      Query_log_event qinfo(&thd, row->query, row->query_length, 0, FALSE);
+      Query_log_event qinfo(&thd, row->query, row->query_length,
+                            0, FALSE, THD::KILLED_NO_VALUE);
       mysql_bin_log.write(&qinfo);
 
       thd.time_zone_used = backup_time_zone_used;
@@ -3101,7 +3102,7 @@ void select_insert::abort()
     if (mysql_bin_log.is_open())
     {
       Query_log_event qinfo(thd, thd->query, thd->query_length,
-                            transactional_table, FALSE);
+                            transactional_table, FALSE, THD::KILLED_NO_VALUE);
       mysql_bin_log.write(&qinfo);
     }
     if (thd->transaction.stmt.modified_non_trans_table)

@@ -793,18 +793,9 @@ void close_temporary_tables(THD *thd)
       thd->variables.character_set_client= system_charset_info;
       Query_log_event qinfo(thd, s_query.ptr(),
                             s_query.length() - 1 /* to remove trailing ',' */,
-                            0, FALSE);
+                            0, FALSE, THD::NOT_KILLED);
       thd->variables.character_set_client= cs_save;
-      /*
-        Imagine the thread had created a temp table, then was doing a SELECT, and
-        the SELECT was killed. Then it's not clever to mark the statement above as
-        "killed", because it's not really a statement updating data, and there
-        are 99.99% chances it will succeed on slave.
-        If a real update (one updating a persistent table) was killed on the
-        master, then this real update will be logged with error_code=killed,
-        rightfully causing the slave to stop.
-      */
-      qinfo.error_code= 0;
+      DBUG_ASSERT(qinfo.error_code == 0);
       mysql_bin_log.write(&qinfo);
     }
     else
@@ -1596,27 +1587,11 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   {						// Using table locks
     TABLE *best_table= 0;
     int best_distance= INT_MIN;
-    bool check_if_used= thd->prelocked_mode &&
-                        ((int) table_list->lock_type >=
-                         (int) TL_WRITE_ALLOW_WRITE);
     for (table=thd->open_tables; table ; table=table->next)
     {
       if (table->s->key_length == key_length &&
           !memcmp(table->s->table_cache_key, key, key_length))
       {
-        if (check_if_used && table->query_id &&
-            table->query_id != thd->query_id)
-        {
-          /*
-            If we are in stored function or trigger we should ensure that
-            we won't change table that is already used by calling statement.
-            So if we are opening table for writing, we should check that it
-            is not already open by some calling stamement.
-          */
-          my_error(ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG, MYF(0),
-                   table->s->table_name);
-          DBUG_RETURN(0);
-        }
         if (!my_strcasecmp(system_charset_info, table->alias, alias) &&
             table->query_id != thd->query_id && /* skip tables already used */
             !(thd->prelocked_mode && table->query_id))
@@ -1640,13 +1615,13 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
           {
             best_distance= distance;
             best_table= table;
-            if (best_distance == 0 && !check_if_used)
+            if (best_distance == 0)
             {
               /*
-                If we have found perfect match and we don't need to check that
-                table is not used by one of calling statements (assuming that
-                we are inside of function or trigger) we can finish iterating
-                through open tables list.
+                We have found a perfect match and can finish iterating
+                through open tables list. Check for table use conflict
+                between calling statement and SP/trigger is done in
+                lock_tables().
               */
               break;
             }
@@ -2578,7 +2553,8 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
       {
         end = strxmov(strmov(query, "DELETE FROM `"),
                       db,"`.`",name,"`", NullS);
-        Query_log_event qinfo(thd, query, (ulong)(end-query), 0, FALSE);
+        Query_log_event qinfo(thd, query, (ulong)(end-query),
+                              0, FALSE, THD::NOT_KILLED);
         mysql_bin_log.write(&qinfo);
         my_free(query, MYF(0));
       }
@@ -2944,9 +2920,9 @@ static bool check_lock_and_start_stmt(THD *thd, TABLE *table,
     lock_type		Lock to use for open
 
   NOTE
-    This function don't do anything like SP/SF/views/triggers analysis done
-    in open_tables(). It is intended for opening of only one concrete table.
-    And used only in special contexts.
+    This function doesn't do anything like SP/SF/views/triggers analysis done 
+    in open_tables()/lock_tables(). It is intended for opening of only one
+    concrete table. And used only in special contexts.
 
   RETURN VALUES
     table		Opened table
@@ -3262,8 +3238,36 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
     TABLE_LIST *first_not_own= thd->lex->first_not_own_table();
     for (table= tables; table != first_not_own; table= table->next_global)
     {
-      if (!table->placeholder() &&
-	  check_lock_and_start_stmt(thd, table->table, table->lock_type))
+      if (table->placeholder())
+        continue;
+
+      /*
+        In a stored function or trigger we should ensure that we won't change
+        a table that is already used by the calling statement.
+      */
+      if (thd->prelocked_mode &&
+          table->lock_type >= TL_WRITE_ALLOW_WRITE)
+      {
+        for (TABLE* opentab= thd->open_tables; opentab; opentab= opentab->next)
+        {
+          /* 
+            issue an error if the tables are the same (by key comparison),
+            but query_id isn't
+          */
+          if (opentab->query_id && 
+              table->table->query_id != opentab->query_id &&
+              table->table->s->key_length == opentab->s->key_length &&
+              !memcmp(table->table->s->table_cache_key,
+                      opentab->s->table_cache_key, opentab->s->key_length))
+          {
+            my_error(ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG, MYF(0),
+                     table->table->s->table_name);
+            DBUG_RETURN(-1);
+          }
+        }
+      }
+
+      if (check_lock_and_start_stmt(thd, table->table, table->lock_type))
       {
 	ha_rollback_stmt(thd);
 	DBUG_RETURN(-1);
