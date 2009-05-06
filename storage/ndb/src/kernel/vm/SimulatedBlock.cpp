@@ -2269,6 +2269,7 @@ SimulatedBlock::xfrm_attr(Uint32 attrDesc, CHARSET_INFO* cs,
       break;
 #ifndef VM_TRACE
     default:
+      abort();
 #endif
     case NDB_ARRAYTYPE_FIXED:
       len = srcBytes;
