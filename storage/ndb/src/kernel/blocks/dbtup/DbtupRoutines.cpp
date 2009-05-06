@@ -399,10 +399,18 @@ int Dbtup::readAttributes(KeyReqStruct *req_struct,
     } 
     else if(attributeId & AttributeHeader::PSEUDO) 
     {
-      Uint32 sz = read_pseudo(inBuffer, inBufIndex,
-                              req_struct,
-                              (Uint32*)outBuffer);
-      inBufIndex += sz;
+      int sz = read_pseudo(inBuffer, inBufIndex,
+                           req_struct,
+                           (Uint32*)outBuffer);
+      if (likely(sz >= 0))
+      {
+        inBufIndex += Uint32(sz);
+      }
+      else
+      {
+        terrorCode = -sz;
+        return -1;
+      }
     } 
     else 
     {
@@ -2289,7 +2297,7 @@ Dbtup::updateDynVarSizeNULLable(Uint32* inBuffer,
   }
 }
 
-Uint32 
+int
 Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
                    KeyReqStruct *req_struct,
                    Uint32* outBuf)
@@ -2312,7 +2320,7 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
     return read_lcp(inBuffer, inPos, req_struct, outBuf);
   case AttributeHeader::READ_PACKED:
   case AttributeHeader::READ_ALL:
-    return read_packed(inBuffer, inPos, req_struct, outBuf);
+    return (int)read_packed(inBuffer, inPos, req_struct, outBuf);
   case AttributeHeader::FRAGMENT:
     outBuffer[1] = fragptr.p->fragmentId;
     sz = 1;
@@ -2413,7 +2421,7 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
     outBuffer[2] = operPtr.p->m_copy_tuple_location.m_page_idx;
     break;
   default:
-    return 0;
+    return -ZATTRIBUTE_ID_ERROR;
   }
   
   AttributeHeader::init(outBuffer, attrId, sz << 2);
