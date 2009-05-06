@@ -4522,7 +4522,7 @@ static int sort_key_read(MARIA_SORT_PARAM *sort_param, uchar *key)
                                                 sort_param->current_filepos,
                                                 0);
   sort_param->real_key_length= int_key.data_length + int_key.ref_length;
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
   bzero(key+sort_param->real_key_length,
 	(sort_param->key_length-sort_param->real_key_length));
 #endif
@@ -4567,7 +4567,7 @@ static int sort_maria_ft_key_read(MARIA_SORT_PARAM *sort_param, uchar *key)
                   sort_param->current_filepos);
   sort_param->real_key_length= int_key.data_length + int_key.ref_length;
 
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
   if (sort_param->key_length > sort_param->real_key_length)
     bzero(key+sort_param->real_key_length,
 	  (sort_param->key_length-sort_param->real_key_length));
@@ -5104,7 +5104,7 @@ static int sort_get_next_record(MARIA_SORT_PARAM *sort_param)
 			      llstr(sort_param->pos,llbuff));
 	continue;
       }
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
       bzero(sort_param->rec_buff + block_info.rec_len,
             share->base.extra_rec_buff_size);
 #endif

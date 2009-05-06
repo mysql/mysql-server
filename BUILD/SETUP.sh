@@ -119,7 +119,7 @@ fi
 
 # Set flags for various build configurations.
 # Used in -valgrind builds
-valgrind_flags="-USAFEMALLOC -UFORCE_INIT_OF_VARS -DHAVE_purify "
+valgrind_flags="-USAFEMALLOC -UFORCE_INIT_OF_VARS -DHAVE_valgrind "
 valgrind_flags="$valgrind_flags -DMYSQL_SERVER_SUFFIX=-valgrind-max"
 #
 # Used in -debug builds

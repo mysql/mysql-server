@@ -1594,7 +1594,7 @@ static void make_empty_page(MARIA_HA *info, uchar *buff, uint page_type,
 
   bzero(buff, PAGE_HEADER_SIZE);
 
-#if !defined(DONT_ZERO_PAGE_BLOCKS) || defined(HAVE_purify)
+#if !defined(DONT_ZERO_PAGE_BLOCKS) || defined(HAVE_valgrind)
   /*
     We zero the rest of the block to avoid getting old memory information
     to disk and to allow the file to be compressed better if archived.

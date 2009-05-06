@@ -256,7 +256,7 @@ static my_bool _ma_read_pack_info(MARIA_SHARE *share, File file,
 	      (uint) (share->pack.header_length-sizeof(header)),
 	      MYF(MY_NABP)))
     goto err2;
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
   /* Zero bytes accessed by fill_buffer */
   bzero(disk_cache + (share->pack.header_length-sizeof(header)),
         share->base.extra_rec_buff_size);

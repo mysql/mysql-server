@@ -59,7 +59,7 @@ void mysql_client_binlog_statement(THD* thd)
   if (!thd->rli_fake)
   {
     thd->rli_fake= new Relay_log_info;
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
     thd->rli_fake->is_fake= TRUE;
 #endif
     have_fd_event= FALSE;
@@ -95,7 +95,7 @@ void mysql_client_binlog_statement(THD* thd)
     char const *endptr= 0;
     int bytes_decoded= base64_decode(strptr, coded_len, buf, &endptr);
 
-#ifndef HAVE_purify
+#ifndef HAVE_valgrind
       /*
         This debug printout should not be used for valgrind builds
         since it will read from unassigned memory.
@@ -188,7 +188,7 @@ void mysql_client_binlog_statement(THD* thd)
       bufptr += event_len;
 
       DBUG_PRINT("info",("ev->get_type_code()=%d", ev->get_type_code()));
-#ifndef HAVE_purify
+#ifndef HAVE_valgrind
       /*
         This debug printout should not be used for valgrind builds
         since it will read from unassigned memory.

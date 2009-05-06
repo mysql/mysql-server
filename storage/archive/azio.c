@@ -63,7 +63,7 @@ void read_header(azio_stream *s, unsigned char *buffer);
 */
 static void *az_allocator(void *dummy, uInt items, uInt size)
 {
-  return my_malloc((size_t)items*(size_t)size, IF_PURIFY(MY_ZEROFILL, MYF(0)));
+  return my_malloc((size_t)items*(size_t)size, IF_VALGRIND(MY_ZEROFILL, MYF(0)));
 }
 
 static void az_free(void *dummy, void *address)

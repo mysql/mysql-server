@@ -2014,7 +2014,7 @@ int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli,
   if (exec_res == 0)
   {
     int error= ev->update_pos(rli);
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
     if (!rli->is_fake)
 #endif
     {

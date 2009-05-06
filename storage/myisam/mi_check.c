@@ -3147,7 +3147,7 @@ static int sort_key_read(MI_SORT_PARAM *sort_param, void *key)
     (info->s->rec_reflength+
      _mi_make_key(info, sort_param->key, (uchar*) key,
 		  sort_param->record, sort_param->filepos));
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
   bzero(key+sort_param->real_key_length,
 	(sort_param->key_length-sort_param->real_key_length));
 #endif
@@ -3187,7 +3187,7 @@ static int sort_ft_key_read(MI_SORT_PARAM *sort_param, void *key)
   sort_param->real_key_length=(info->s->rec_reflength+
 			       _ft_make_key(info, sort_param->key,
 					    key, wptr++, sort_param->filepos));
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
   if (sort_param->key_length > sort_param->real_key_length)
     bzero(key+sort_param->real_key_length,
 	  (sort_param->key_length-sort_param->real_key_length));

@@ -773,7 +773,7 @@ int field_conv(Field *to,Field *from)
          ((Field_varstring*)from)->length_bytes ==
           ((Field_varstring*)to)->length_bytes))
     {						// Identical fields
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
       /* This may happen if one does 'UPDATE ... SET x=x' */
       if (to->ptr != from->ptr)
 #endif

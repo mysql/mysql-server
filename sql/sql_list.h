@@ -43,7 +43,7 @@ public:
   static void operator delete[](void *ptr, MEM_ROOT *mem_root)
   { /* never called */ }
   static void operator delete[](void *ptr, size_t size) { TRASH(ptr, size); }
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
   bool dummy;
   inline Sql_alloc() :dummy(0) {}
   inline ~Sql_alloc() {}

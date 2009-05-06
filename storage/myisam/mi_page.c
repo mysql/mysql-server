@@ -86,7 +86,7 @@ int _mi_write_keypage(register MI_INFO *info, register MI_KEYDEF *keyinfo,
   if ((length=keyinfo->block_length) > IO_SIZE*2 &&
       info->state->key_file_length != page+length)
     length= ((mi_getint(buff)+IO_SIZE-1) & (uint) ~(IO_SIZE-1));
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
   {
     length=mi_getint(buff);
     bzero((uchar*) buff+length,keyinfo->block_length-length);

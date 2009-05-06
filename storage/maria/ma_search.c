@@ -2172,7 +2172,7 @@ int _ma_calc_bin_pack_key_length(const MARIA_KEY *int_key,
 
   s_temp->totlength= key_length= (int_key->data_length + int_key->ref_length+
                                   nod_flag);
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
   s_temp->n_length= s_temp->n_ref_length=0;	/* For valgrind */
 #endif
   s_temp->key=key;

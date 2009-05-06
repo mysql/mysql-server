@@ -144,7 +144,7 @@ static double scaler1[]= {
   1.0, 10.0, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9
 };
 
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
 #define sanity(d) DBUG_ASSERT((d)->len > 0)
 #else
 #define sanity(d) DBUG_ASSERT((d)->len >0 && ((d)->buf[0] | \
