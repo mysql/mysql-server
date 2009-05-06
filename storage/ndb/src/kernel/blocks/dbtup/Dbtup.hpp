@@ -2413,7 +2413,7 @@ private:
 //------------------------------------------------------------------
   bool nullFlagCheck(KeyReqStruct *req_struct, Uint32  attrDes2);
   bool disk_nullFlagCheck(KeyReqStruct *req_struct, Uint32 attrDes2);
-  Uint32 read_pseudo(const Uint32 *, Uint32, KeyReqStruct*, Uint32*);
+  int read_pseudo(const Uint32 *, Uint32, KeyReqStruct*, Uint32*);
   Uint32 read_packed(const Uint32 *, Uint32, KeyReqStruct*, Uint32*);
   Uint32 update_packed(KeyReqStruct*, const Uint32* src);
 
