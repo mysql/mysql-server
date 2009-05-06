@@ -16,7 +16,7 @@
 #ifndef DBACC_H
 #define DBACC_H
 
-#ifdef VM_TRACE
+#if defined (VM_TRACE) && !defined(ACC_SAFE_QUEUE)
 #define ACC_SAFE_QUEUE
 #endif
 
