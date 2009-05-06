@@ -48,6 +48,8 @@ public:
   static Uint32 getDynamic(const Uint32 &);
   static Uint32 getDiskBased(const Uint32 &);
 
+  static void clearArrayType(Uint32 &);
+
   Uint32 m_data;
 };
 
@@ -117,6 +119,13 @@ void
 AttributeDescriptor::setArrayType(Uint32 & desc, Uint32 arrayType){
   assert(arrayType <= AD_ARRAY_TYPE_MASK);
   desc |= (arrayType << AD_ARRAY_TYPE_SHIFT);
+}
+
+inline
+void
+AttributeDescriptor::clearArrayType(Uint32 & desc)
+{
+  desc &= ~Uint32(AD_ARRAY_TYPE_MASK << AD_ARRAY_TYPE_SHIFT);
 }
 
 inline
