@@ -119,6 +119,10 @@ ArenaPool::seize(ArenaHead & ah, Ptr<void>& ptr)
   Uint32 sz = m_record_info.m_size;
   Uint32 off = m_record_info.m_offset_magic;
 
+  if (0)
+    ndbout_c("pos: %u sz: %u (sum: %u) bs: %u",
+             pos, sz, (pos + sz), bs);
+
   if (pos + sz <= bs)
   {
     /**

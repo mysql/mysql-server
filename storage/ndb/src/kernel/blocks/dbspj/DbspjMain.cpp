@@ -63,7 +63,10 @@ void Dbspj::execREAD_CONFIG_REQ(Signal* signal)
   m_treenode_pool.arena_pool_init(&m_arenaAllocator, RT_SPJ_TREENODE, pc);
   m_lookup_request_hash.setSize(16);
   m_scan_request_hash.setSize(16);
-  m_dependency_map_pool.setSize(16);
+
+  Record_info ri;
+  Dependency_map::createRecordInfo(ri, RT_SPJ_DATABUFFER);
+  m_dependency_map_pool.init(&m_arenaAllocator, ri, pc);
 
   ReadConfigConf* const conf = 
     reinterpret_cast<ReadConfigConf*>(signal->getDataPtrSend());
@@ -77,22 +80,93 @@ void Dbspj::execREAD_CONFIG_REQ(Signal* signal)
 
 void Dbspj::execSTTOR(Signal* signal) 
 {
+//#define UNIT_TEST_DATABUFFER2
+
   jamEntry();
   /* START CASE */
-  // const Uint16 tphase = signal->theData[1];
+  const Uint16 tphase = signal->theData[1];
+
   ndbout << "Dbspj::execSTTOR() inst:" << instance() 
-	 << " phase=" << signal->theData[1] << endl;
+	 << " phase=" << tphase << endl;
   const Uint16 csignalKey = signal->theData[6];
   signal->theData[0] = csignalKey;
   signal->theData[1] = 3;    /* BLOCK CATEGORY */
   signal->theData[2] = 2;    /* SIGNAL VERSION NUMBER */
-  signal->theData[3] = 255;  /* Start phase end*/
-  //signal->theData[4] = 255;
+#ifdef UNIT_TEST_DATABUFFER2
+  signal->theData[3] = 120;  /* Start phase end*/
+#else
+  signal->theData[3] = 255;
+#endif
+  signal->theData[4] = 255;
   if(isNdbMtLqh()){
     sendSignal(DBSPJ_REF, GSN_STTORRY, signal, 5, JBB);
   }else{
     sendSignal(NDBCNTR_REF, GSN_STTORRY, signal, 5, JBB);
   }
+
+#ifdef UNIT_TEST_DATABUFFER2
+  if (tphase == 120)
+  {
+    ndbout_c("basic test of ArenaPool / DataBuffer2");
+
+    for (Uint32 i = 0; i<100; i++)
+    {
+      ArenaHead ah;
+      if (!m_arenaAllocator.seize(ah))
+      {
+        ndbout_c("Failed to allocate arena");
+        break;
+      }
+
+      ndbout_c("*** LOOP %u", i);
+      Uint32 sum = 0;
+      Dependency_map::Head head;
+      LocalArenaPoolImpl pool(ah, m_dependency_map_pool);
+      for (Uint32 j = 0; j<100; j++)
+      {
+        Uint32 sz = rand() % 1000;
+        if (0)
+          ndbout_c("adding %u", sz);
+        Local_dependency_map list(pool, head);
+        for (Uint32 i = 0; i<sz; i++)
+          signal->theData[i] = sum + i;
+        list.append(signal->theData, sz);
+        sum += sz;
+      }
+
+      {
+        ndbrequire(head.getSize() == sum);
+        Local_dependency_map list(pool, head);
+        Dependency_map::ConstDataBufferIterator it;
+        Uint32 cnt = 0;
+        for (list.first(it); !it.isNull(); list.next(it))
+        {
+          ndbrequire(* it.data == cnt);
+          cnt++;
+        }
+
+        ndbrequire(cnt == sum);
+      }
+
+      Resource_limit rl;
+      if (m_ctx.m_mm.get_resource_limit(7, rl))
+      {
+        ndbout_c("Resource %d min: %d max: %d curr: %d",
+                 7, rl.m_min, rl.m_max, rl.m_curr);
+      }
+
+      {
+        ndbout_c("release map");
+        Local_dependency_map list(pool, head);
+        list.release();
+      }
+
+      ndbout_c("release all");
+      m_arenaAllocator.release(ah);
+      ndbout_c("*** LOOP %u sum: %u", i, sum);
+    }
+  }
+#endif
 }//Dbspj::execSTTOR()
 
 /**
@@ -703,25 +777,23 @@ Dbspj::cleanup(Ptr<Request> requestPtr)
 }
 
 void
-Dbspj::cleanup_common(Ptr<TreeNode> treeNodePtr)
+Dbspj::cleanup_common(Ptr<Request> requestPtr, Ptr<TreeNode> treeNodePtr)
 {
   jam();
 
+  LocalArenaPoolImpl pool(requestPtr.p->m_arena, m_dependency_map_pool);
   {
-    Local_dependency_map list(m_dependency_map_pool,
-                              treeNodePtr.p->m_dependent_nodes);
+    Local_dependency_map list(pool, treeNodePtr.p->m_dependent_nodes);
     list.release();
   }
 
   {
-    Local_pattern_store pattern(m_dependency_map_pool,
-                                treeNodePtr.p->m_keyPattern);
+    Local_pattern_store pattern(pool, treeNodePtr.p->m_keyPattern);
     pattern.release();
   }
 
   {
-    Local_pattern_store pattern(m_dependency_map_pool,
-                                treeNodePtr.p->m_attrParamPattern);
+    Local_pattern_store pattern(pool, treeNodePtr.p->m_attrParamPattern);
     pattern.release();
   }
 
@@ -1226,8 +1298,8 @@ Dbspj::lookup_execTRANSID_AI(Signal* signal,
   jam();
 
   {
-    Local_dependency_map list(m_dependency_map_pool,
-                              treeNodePtr.p->m_dependent_nodes);
+    LocalArenaPoolImpl pool(requestPtr.p->m_arena, m_dependency_map_pool);
+    Local_dependency_map list(pool, treeNodePtr.p->m_dependent_nodes);
     Dependency_map::ConstDataBufferIterator it;
     for (list.first(it); !it.isNull(); list.next(it))
     {
@@ -1339,8 +1411,8 @@ Dbspj::lookup_start_child(Signal* signal,
       /**
        * Get key-pattern
        */
-      Local_pattern_store pattern(m_dependency_map_pool,
-                                  treeNodePtr.p->m_keyPattern);
+      LocalArenaPoolImpl pool(requestPtr.p->m_arena, m_dependency_map_pool);
+      Local_pattern_store pattern(pool, treeNodePtr.p->m_keyPattern);
 
       err = expand(ptrI, pattern, rowRef.m_row_data.m_section);
       if (unlikely(err != 0))
@@ -1389,7 +1461,7 @@ void
 Dbspj::lookup_cleanup(Ptr<Request> requestPtr,
                       Ptr<TreeNode> treeNodePtr)
 {
-  cleanup_common(treeNodePtr);
+  cleanup_common(requestPtr, treeNodePtr);
 }
 
 
@@ -1742,8 +1814,8 @@ Dbspj::scanFrag_execTRANSID_AI(Signal* signal,
     treeNodePtr.p->m_scanfrag_data.m_rows_received;
 
   {
-    Local_dependency_map list(m_dependency_map_pool,
-                              treeNodePtr.p->m_dependent_nodes);
+    LocalArenaPoolImpl pool(requestPtr.p->m_arena, m_dependency_map_pool);
+    Local_dependency_map list(pool, treeNodePtr.p->m_dependent_nodes);
     Dependency_map::ConstDataBufferIterator it;
     for (list.first(it); !it.isNull(); list.next(it))
     {
@@ -1854,7 +1926,7 @@ void
 Dbspj::scanFrag_cleanup(Ptr<Request> requestPtr,
                         Ptr<TreeNode> treeNodePtr)
 {
-  cleanup_common(treeNodePtr);
+  cleanup_common(requestPtr, treeNodePtr);
 }
 /**
  * END - MODULE SCAN FRAG
@@ -2313,8 +2385,8 @@ Dbspj::parseDA(Build_context& ctx,
       {
         DEBUG("adding " << dst[i] << " as parent");
         Ptr<TreeNode> parentPtr = ctx.m_node_list[dst[i]];
-        Local_dependency_map map(m_dependency_map_pool,
-                                 parentPtr.p->m_dependent_nodes);
+        LocalArenaPoolImpl pool(requestPtr.p->m_arena, m_dependency_map_pool);
+        Local_dependency_map map(pool, parentPtr.p->m_dependent_nodes);
         if (unlikely(!map.append(&treeNodePtr.i, 1)))
         {
           err = DbspjErr::OutOfQueryMemory;
@@ -2343,8 +2415,8 @@ Dbspj::parseDA(Build_context& ctx,
       Uint32 len = len_cnt & 0xFFFF; // length of pattern in words
       Uint32 cnt = len_cnt >> 16;    // no of parameters
 
-      Local_pattern_store pattern(m_dependency_map_pool,
-                                  treeNodePtr.p->m_keyPattern);
+      LocalArenaPoolImpl pool(requestPtr.p->m_arena, m_dependency_map_pool);
+      Local_pattern_store pattern(pool, treeNodePtr.p->m_keyPattern);
 
       if (cnt)
       {
