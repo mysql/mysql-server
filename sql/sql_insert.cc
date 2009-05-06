@@ -622,7 +622,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   }
   lock_type= table_list->lock_type;
 
-  thd->proc_info="init";
+  thd_proc_info(thd, "init");
   thd->used_tables=0;
   values= its++;
   value_count= values->elements;
@@ -708,7 +708,11 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 
   error=0;
   id=0;
-  thd->proc_info="update";
+
+  thd_proc_info(thd, "update");
+  if (duplic != DUP_ERROR || ignore)
+    table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
+
   if (duplic == DUP_REPLACE)
   {
     if (!table->triggers || !table->triggers->has_delete_triggers())
@@ -945,7 +949,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       thd->lock=0;
     }
   }
-  thd->proc_info="end";
+  thd_proc_info(thd, "end");
   table->next_number_field=0;
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
   thd->next_insert_id=0;			// Reset this if wrongly used
@@ -1723,7 +1727,7 @@ I_List<Delayed_insert> delayed_threads;
 static
 Delayed_insert *find_handler(THD *thd, TABLE_LIST *table_list)
 {
-  thd->proc_info="waiting for delay_list";
+  thd_proc_info(thd, "waiting for delay_list");
   pthread_mutex_lock(&LOCK_delayed_insert);	// Protect master list
   I_List_iterator<Delayed_insert> it(delayed_threads);
   Delayed_insert *di;
@@ -1805,7 +1809,7 @@ bool delayed_get_table(THD *thd, TABLE_LIST *table_list)
     */
     if (delayed_insert_threads >= thd->variables.max_insert_delayed_threads)
       DBUG_RETURN(0);
-    thd->proc_info="Creating delayed handler";
+    thd_proc_info(thd, "Creating delayed handler");
     pthread_mutex_lock(&LOCK_delayed_create);
     /*
       The first search above was done without LOCK_delayed_create.
@@ -1852,13 +1856,13 @@ bool delayed_get_table(THD *thd, TABLE_LIST *table_list)
       }
 
       /* Wait until table is open */
-      thd->proc_info="waiting for handler open";
+      thd_proc_info(thd, "waiting for handler open");
       while (!di->thd.killed && !di->table && !thd->killed)
       {
 	pthread_cond_wait(&di->cond_client, &di->mutex);
       }
       pthread_mutex_unlock(&di->mutex);
-      thd->proc_info="got old table";
+      thd_proc_info(thd, "got old table");
       if (di->thd.killed)
       {
 	if (di->thd.net.report_error)
@@ -1933,13 +1937,13 @@ TABLE *Delayed_insert::get_local_table(THD* client_thd)
   tables_in_use++;
   if (!thd.lock)				// Table is not locked
   {
-    client_thd->proc_info="waiting for handler lock";
+    thd_proc_info(client_thd, "waiting for handler lock");
     pthread_cond_signal(&cond);			// Tell handler to lock table
     while (!dead && !thd.lock && ! client_thd->killed)
     {
       pthread_cond_wait(&cond_client,&mutex);
     }
-    client_thd->proc_info="got handler lock";
+    thd_proc_info(client_thd, "got handler lock");
     if (client_thd->killed)
       goto error;
     if (dead)
@@ -1956,7 +1960,7 @@ TABLE *Delayed_insert::get_local_table(THD* client_thd)
     bytes. Since the table copy is used for creating one record only,
     the other record buffers and alignment are unnecessary.
   */
-  client_thd->proc_info="allocating local table";
+  thd_proc_info(client_thd, "allocating local table");
   copy= (TABLE*) client_thd->alloc(sizeof(*copy)+
 				   (table->s->fields+1)*sizeof(Field**)+
 				   table->s->reclength);
@@ -2037,11 +2041,11 @@ int write_delayed(THD *thd,TABLE *table,enum_duplicates duplic, bool ignore,
   Delayed_insert *di=thd->di;
   DBUG_ENTER("write_delayed");
 
-  thd->proc_info="waiting for handler insert";
+  thd_proc_info(thd, "waiting for handler insert");
   pthread_mutex_lock(&di->mutex);
   while (di->stacked_inserts >= delayed_queue_size && !thd->killed)
     pthread_cond_wait(&di->cond_client,&di->mutex);
-  thd->proc_info="storing row into queue";
+  thd_proc_info(thd, "storing row into queue");
 
   if (thd->killed || !(row= new delayed_row(duplic, ignore, log_on)))
     goto err;
@@ -2271,7 +2275,7 @@ pthread_handler_t handle_delayed_insert(void *arg)
       /* Information for pthread_kill */
       di->thd.mysys_var->current_mutex= &di->mutex;
       di->thd.mysys_var->current_cond= &di->cond;
-      di->thd.proc_info="Waiting for INSERT";
+      thd_proc_info(&(di->thd), "Waiting for INSERT");
 
       DBUG_PRINT("info",("Waiting for someone to insert rows"));
       while (!thd->killed)
@@ -2306,7 +2310,7 @@ pthread_handler_t handle_delayed_insert(void *arg)
       pthread_mutex_unlock(&di->thd.mysys_var->mutex);
       pthread_mutex_lock(&di->mutex);
     }
-    di->thd.proc_info=0;
+    thd_proc_info(&(di->thd), 0);
 
     if (di->tables_in_use && ! thd->lock)
     {
@@ -2425,7 +2429,7 @@ bool Delayed_insert::handle_inserts(void)
 
   table->next_number_field=table->found_next_number_field;
 
-  thd.proc_info="upgrading lock";
+  thd_proc_info(&thd, "upgrading lock");
   if (thr_upgrade_write_delay_lock(*thd.lock->locks))
   {
     /* This can only happen if thread is killed by shutdown */
@@ -2433,7 +2437,7 @@ bool Delayed_insert::handle_inserts(void)
     goto err;
   }
 
-  thd.proc_info="insert";
+  thd_proc_info(&thd, "insert");
   max_rows= delayed_insert_limit;
   if (thd.killed || table->needs_reopen_or_name_lock())
   {
@@ -2568,7 +2572,7 @@ bool Delayed_insert::handle_inserts(void)
       {
 	if (tables_in_use)
 	  pthread_cond_broadcast(&cond_client); // If waiting clients
-	thd.proc_info="reschedule";
+	thd_proc_info(&thd, "reschedule");
 	pthread_mutex_unlock(&mutex);
 	if ((error=table->file->extra(HA_EXTRA_NO_CACHE)))
 	{
@@ -2587,14 +2591,14 @@ bool Delayed_insert::handle_inserts(void)
 	if (!using_bin_log)
 	  table->file->extra(HA_EXTRA_WRITE_CACHE);
 	pthread_mutex_lock(&mutex);
-	thd.proc_info="insert";
+	thd_proc_info(&thd, "insert");
       }
       if (tables_in_use)
 	pthread_cond_broadcast(&cond_client);	// If waiting clients
     }
   }
 
-  thd.proc_info=0;
+  thd_proc_info(&thd, 0);
   table->next_number_field=0;
   pthread_mutex_unlock(&mutex);
   if ((error=table->file->extra(HA_EXTRA_NO_CACHE)))

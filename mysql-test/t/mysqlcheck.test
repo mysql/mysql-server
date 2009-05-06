@@ -50,7 +50,7 @@ create view v_bug25347 as select * from t_bug25347;
 flush tables;
 --echo removing and creating
 --remove_file $MYSQLTEST_VARDIR/master-data/d_bug25347/t_bug25347.MYI
---write_file $MYSQLTEST_VARDIR/master-data/d_bug25347/t_bug25347.MYI
+--write_file  $MYSQLTEST_VARDIR/master-data/d_bug25347/t_bug25347.MYI
 EOF
 --exec $MYSQL_CHECK --repair --databases --use-frm d_bug25347
 drop view v_bug25347;
