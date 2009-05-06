@@ -472,7 +472,7 @@ ulong slow_launch_threads = 0, sync_binlog_period;
 ulong expire_logs_days = 0;
 ulong rpl_recovery_rank=0;
 
-time_t server_start_time;
+time_t server_start_time, flush_status_time;
 
 char mysql_home[FN_REFLEN], pidfile_name[FN_REFLEN], system_time_zone[30];
 char *default_tz_name;
@@ -538,6 +538,8 @@ SHOW_COMP_OPTION have_isam;
 SHOW_COMP_OPTION have_raid, have_ssl, have_symlink, have_query_cache;
 SHOW_COMP_OPTION have_geometry, have_rtree_keys, have_dlopen;
 SHOW_COMP_OPTION have_crypt, have_compress;
+SHOW_COMP_OPTION have_community_features;
+SHOW_COMP_OPTION have_profiling;
 
 /* Thread specific variables */
 
@@ -2832,7 +2834,7 @@ static int init_common_variables(const char *conf_file_name, int argc,
   tzset();			// Set tzname
 
   max_system_variables.pseudo_thread_id= (ulong)~0;
-  server_start_time= time((time_t*) 0);
+  server_start_time= flush_status_time= time((time_t*) 0);
   if (init_thread_environment())
     return 1;
   mysql_init_variables();
@@ -5040,6 +5042,7 @@ enum options_mysqld
   OPT_PLUGIN_DIR,
   OPT_PORT_OPEN_TIMEOUT,
   OPT_MERGE,
+  OPT_PROFILING,
   OPT_INNODB_ROLLBACK_ON_TIMEOUT,
   OPT_SECURE_FILE_PRIV,
   OPT_KEEP_FILES_ON_CREATE,
@@ -5646,6 +5649,12 @@ Disable with --skip-ndbcluster (will save memory).",
    "Maximum time in seconds to wait for the port to become free. "
    "(Default: no wait)", (gptr*) &mysqld_port_timeout,
    (gptr*) &mysqld_port_timeout, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+  {"profiling_history_size", OPT_PROFILING, "Limit of query profiling memory",
+   (gptr*) &global_system_variables.profiling_history_size,
+   (gptr*) &max_system_variables.profiling_history_size,
+   0, GET_ULONG, REQUIRED_ARG, 15, 0, 100, 0, 0, 0},
+#endif
   {"relay-log", OPT_RELAY_LOG,
    "The location and name to use for relay logs.",
    (gptr*) &opt_relay_logname, (gptr*) &opt_relay_logname, 0,
@@ -6687,6 +6696,9 @@ struct show_var_st status_vars[]= {
   {"Threads_created",	       (char*) &thread_created,		SHOW_LONG_CONST},
   {"Threads_running",          (char*) &thread_running,         SHOW_INT_CONST},
   {"Uptime",                   (char*) 0,                       SHOW_STARTTIME},
+#ifdef COMMUNITY_SERVER
+  {"Uptime_since_flush_status",(char*) 0,                       SHOW_FLUSHTIME},
+#endif
   {NullS, NullS, SHOW_LONG}
 };
 
@@ -6992,6 +7004,16 @@ static void mysql_init_variables(void)
 #endif
 #if !defined(my_pthread_setprio) && !defined(HAVE_PTHREAD_SETSCHEDPARAM)
   opt_specialflag |= SPECIAL_NO_PRIOR;
+#endif
+#ifdef ENABLED_PROFILING
+  have_profiling = SHOW_OPTION_YES;
+#else
+  have_profiling = SHOW_OPTION_NO;
+#endif
+#ifdef COMMUNITY_SERVER
+  have_community_features = SHOW_OPTION_YES;
+#else
+  have_community_features = SHOW_OPTION_NO;
 #endif
 
 #if defined(__WIN__) || defined(__NETWARE__)
@@ -8017,6 +8039,9 @@ void refresh_status(THD *thd)
 
   /* Reset the counters of all key caches (default and named). */
   process_key_caches(reset_key_cache_counters);
+#ifdef COMMUNITY_SERVER
+  flush_status_time= time((time_t*) 0);
+#endif
   pthread_mutex_unlock(&LOCK_status);
 
   /*
