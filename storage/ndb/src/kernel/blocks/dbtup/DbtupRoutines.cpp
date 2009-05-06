@@ -1820,25 +1820,45 @@ Dbtup::varsize_updater(Uint32* in_buffer,
   Uint32 size_in_bytes = ahIn.getByteSize();
   vsize_in_words= (size_in_bytes + 3) >> 2;
   max_var_size= AttributeDescriptor::getSizeInBytes(attr_descriptor);
+  Uint32 arrayType = AttributeDescriptor::getArrayType(attr_descriptor);
   new_index= index_buf + vsize_in_words + 1;
+
+  Uint32 dataLen = size_in_bytes;
+  const Uint8 * src = (const Uint8*)&in_buffer[index_buf + 1];
   
-  if (new_index <= in_buf_len && vsize_in_words <= max_var_size) {
+  if (new_index <= in_buf_len && size_in_bytes <= max_var_size)
+  {
     if (!null_ind) {
       jam();
-      *len_offset_ptr= var_attr_pos+size_in_bytes;
-      req_struct->in_buf_index= new_index;
-      
-      ndbrequire(var_attr_pos+size_in_bytes <= check_offset);
-      memcpy(var_data_start+var_attr_pos, &in_buffer[index_buf + 1],
-	     size_in_bytes);
-      return true;
-    }
 
+      if (arrayType == NDB_ARRAYTYPE_SHORT_VAR)
+      {
+        dataLen = 1 + src[0];
+      }
+      else if (arrayType == NDB_ARRAYTYPE_MEDIUM_VAR)
+      {
+        dataLen = 2 + src[0] + 256 * Uint32(src[1]);
+      }
+            
+      if (dataLen == size_in_bytes) 
+      {
+        *len_offset_ptr= var_attr_pos+size_in_bytes;
+        req_struct->in_buf_index= new_index;
+        
+        ndbrequire(var_attr_pos+size_in_bytes <= check_offset);
+        memcpy(var_data_start+var_attr_pos, src, size_in_bytes);
+        return true;
+      }
+      jam();
+      terrorCode= ZAI_INCONSISTENCY_ERROR;
+      return false;
+    }
+    
     jam();
     terrorCode= ZNOT_NULL_ATTR;
     return false;
   }
-
+  
   jam();
   terrorCode= ZAI_INCONSISTENCY_ERROR;
   return false;

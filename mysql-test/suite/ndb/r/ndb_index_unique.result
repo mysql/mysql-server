@@ -690,3 +690,18 @@ drop table t1;
 create table t1(id int not null) engine = NDB;
 alter table t1 add constraint uk_test unique (id) using hash;
 drop table t1;
+CREATE TABLE t1 (
+pk0 INT,
+pk1 VARCHAR(100),
+col0 INT NOT NULL,
+PRIMARY KEY(pk0, pk1),
+UNIQUE (col0) USING HASH
+) engine = ndb;
+CREATE TABLE t2 (
+pk0 VARCHAR(100),
+pk1 INT,
+col0 INT NOT NULL,
+PRIMARY KEY(pk0, pk1),
+UNIQUE (col0) USING HASH
+) engine = ndb;
+drop table t1, t2;
