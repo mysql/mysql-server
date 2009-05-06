@@ -405,18 +405,6 @@ void Dbdict::execCONTINUEB(Signal* signal)
     jam();
     sendGetTabResponse(signal);
     break;
-#ifdef VM_TRACE
-  case 6103: // search for it
-    jam();
-    {
-      Uint32* data = &signal->theData[0];
-      Uint32 masterRef = data[1];
-      memmove(&data[0], &data[2], SchemaTransImplConf::SignalLength << 2);
-      sendSignal(masterRef, GSN_SCHEMA_TRANS_IMPL_CONF, signal,
-                 SchemaTransImplConf::SignalLength, JBB);
-    }
-    break;
-#endif
   case ZWAIT_SUBSTARTSTOP:
     jam();
     wait_substartstop(signal, signal->theData[1]);
@@ -430,6 +418,16 @@ void Dbdict::execCONTINUEB(Signal* signal)
   }
   break;
 #ifdef ERROR_INSERT
+  case 6103: // search for it
+    jam();
+    {
+      Uint32* data = &signal->theData[0];
+      Uint32 masterRef = data[1];
+      memmove(&data[0], &data[2], SchemaTransImplConf::SignalLength << 2);
+      sendSignal(masterRef, GSN_SCHEMA_TRANS_IMPL_CONF, signal,
+                 SchemaTransImplConf::SignalLength, JBB);
+    }
+    break;
   case 9999:
     ERROR_INSERTED(signal->theData[1]);
     CRASH_INSERTION(ERROR_INSERT_VALUE);
