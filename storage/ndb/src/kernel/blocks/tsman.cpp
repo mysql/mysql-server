@@ -721,8 +721,13 @@ Tsman::execFSCLOSECONF(Signal* signal)
   
   if (ptr.p->m_state == Datafile::FS_CREATING)
   {
-    Page_cache_client pgman(this, m_pgman);
-    pgman.free_data_file(signal, ptr.p->m_file_no);  
+    if (ptr.p->m_file_no != RNIL)
+    {
+      jam();
+      Page_cache_client pgman(this, m_pgman);
+      pgman.free_data_file(signal, ptr.p->m_file_no);
+    }
+
     CreateFileImplConf* conf= (CreateFileImplConf*)signal->getDataPtr();
     conf->senderData = senderData;
     conf->senderRef = reference();

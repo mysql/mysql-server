@@ -5621,6 +5621,9 @@ Dbdict::sendLQHADDATTRREQ(Signal* signal,
 
   TableRecordPtr tabPtr;
   c_tableRecordPool.getPtr(tabPtr, createTabPtr.p->m_request.tableId);
+
+  const bool isHashIndex = tabPtr.p->isHashIndex();
+
   LqhAddAttrReq * const req = (LqhAddAttrReq*)signal->getDataPtrSend();
   Uint32 i = 0;
   for(i = 0; i<LqhAddAttrReq::MAX_ATTRIBUTES && attributePtrI != RNIL; i++){
@@ -5644,6 +5647,28 @@ Dbdict::sendLQHADDATTRREQ(Signal* signal,
       }
       entry.attrId |= (primaryAttrId << 16);
     }
+
+    if (attrPtr.p->nextList == RNIL && isHashIndex)
+    {
+      jam();
+      /**
+       * Nasty code to handle upgrade of unique index(es)
+       *   If unique index is "old" rewrite it to new format
+       */
+      char tmp[MAX_TAB_NAME_SIZE];
+      ConstRope name(c_rope_pool, attrPtr.p->attributeName);
+      name.copy(tmp);
+      ndbrequire(memcmp(tmp, "NDB$PK", sizeof("NDB$PK")) == 0);
+      Uint32 at = AttributeDescriptor::getArrayType(entry.attrDescriptor);
+      if (at == NDB_ARRAYTYPE_MEDIUM_VAR)
+      {
+        jam();
+        AttributeDescriptor::clearArrayType(entry.attrDescriptor);
+        AttributeDescriptor::setArrayType(entry.attrDescriptor, 
+                                          NDB_ARRAYTYPE_NONE_VAR);
+      }
+    }
+
     attributePtrI = attrPtr.p->nextList;
   }
   req->lqhFragPtr = createTabPtr.p->m_lqhFragPtr;
@@ -10308,6 +10333,19 @@ Dbdict::createIndex_toCreateTable(Signal* signal, SchemaOpPtr op_ptr)
 	  AttributeDescriptor::getArrayType(desc) != NDB_ARRAYTYPE_FIXED)
       {
 	key_type = NDB_ARRAYTYPE_MEDIUM_VAR;
+        if (NDB_VERSION_D >= MAKE_VERSION(7,1,0))
+        {
+          jam();
+          /**
+           * We can only set this new array type "globally" if 
+           *   version >= X, this to allow down-grade(s) within minor versions
+           *   if unique index has been added in newer version
+           *
+           * There is anyway nasty code sendLQHADDATTRREQ to handle the
+           *   "local" variant of this
+           */
+          key_type = NDB_ARRAYTYPE_NONE_VAR;
+        }
 	break;
       }
     }

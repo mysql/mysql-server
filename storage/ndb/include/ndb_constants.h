@@ -76,6 +76,7 @@
 #define NDB_ARRAYTYPE_FIXED             0 /* 0 length bytes */
 #define NDB_ARRAYTYPE_SHORT_VAR         1 /* 1 length bytes */
 #define NDB_ARRAYTYPE_MEDIUM_VAR        2 /* 2 length bytes */
+#define NDB_ARRAYTYPE_NONE_VAR          3 /* 0 length bytes */
 
 /*
  * Attribute storage type.
