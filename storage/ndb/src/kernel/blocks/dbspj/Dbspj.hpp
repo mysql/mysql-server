@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 #include <AttributeHeader.hpp>
 #include <DLFifoList.hpp>
 #include <ArenaPool.hpp>
+#include <DataBuffer2.hpp>
 
 class SectionReader;
 struct QueryNode;
@@ -65,10 +66,10 @@ protected:
 public:
   struct Request;
   struct TreeNode;
-  typedef DataBuffer<15> Dependency_map;
-  typedef LocalDataBuffer<15> Local_dependency_map;
-  typedef DataBuffer<15> PatternStore;
-  typedef LocalDataBuffer<15> Local_pattern_store;
+  typedef DataBuffer2<14, LocalArenaPoolImpl> Dependency_map;
+  typedef LocalDataBuffer2<14, LocalArenaPoolImpl> Local_dependency_map;
+  typedef DataBuffer2<14, LocalArenaPoolImpl> PatternStore;
+  typedef LocalDataBuffer2<14, LocalArenaPoolImpl> Local_pattern_store;
 
   /**
    * This struct represent a row being passed to a child
@@ -409,12 +410,8 @@ private:
   Request_pool m_request_pool;
   Request_hash m_scan_request_hash;
   Request_hash m_lookup_request_hash;
+  ArenaPool m_dependency_map_pool;
   TreeNode_pool m_treenode_pool;
-
-  /**
-   * TODO, make arena-variant of DataBuffer
-   */
-  Dependency_map::DataBufferPool m_dependency_map_pool;
 
   void do_init(Request*, const struct LqhKeyReq*, Uint32 senderRef);
   void store_lookup(Ptr<Request>);
@@ -442,7 +439,7 @@ private:
   void start(Signal*, Ptr<Request>, SegmentedSectionPtr);
   void nodeFinished(Signal* signal, Ptr<Request>, Ptr<TreeNode>);
   void cleanup(Ptr<Request>);
-  void cleanup_common(Ptr<TreeNode>);
+  void cleanup_common(Ptr<Request>, Ptr<TreeNode>);
 
   /**
    * Misc
