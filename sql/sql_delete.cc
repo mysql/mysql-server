@@ -730,7 +730,7 @@ void multi_delete::send_error(uint errcode,const char *err)
     if (mysql_bin_log.is_open())
     {
       Query_log_event qinfo(thd, thd->query, thd->query_length,
-                            transactional_tables, FALSE);
+                            transactional_tables, FALSE, THD::KILLED_NO_VALUE);
       mysql_bin_log.write(&qinfo);
     }
     thd->transaction.all.modified_non_trans_table= true;
@@ -958,7 +958,7 @@ end:
       {
         thd->clear_error();
 	Query_log_event qinfo(thd, thd->query, thd->query_length,
-			      0, FALSE);
+			      0, FALSE, THD::NOT_KILLED);
 	mysql_bin_log.write(&qinfo);
       }
       send_ok(thd);		// This should return record count

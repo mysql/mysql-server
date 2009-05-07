@@ -3557,7 +3557,6 @@ DROP TABLE t1,t2;
 
 
 -- Dump completed on DATE
-SET @@GLOBAL.CONCURRENT_INSERT = @OLD_CONCURRENT_INSERT;
 #
 # Bug #42635: mysqldump includes views that were excluded using 
 #   the --ignore-table option
@@ -3693,6 +3692,7 @@ UNLOCK TABLES;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 DROP TABLE `כדשגכחךלדגכחשךדגחכךלדגכ`;
 SET NAMES latin1;
+SET @@GLOBAL.CONCURRENT_INSERT = @OLD_CONCURRENT_INSERT;
 #
 # End of 5.0 tests
 #

@@ -208,10 +208,17 @@ my_bool _mi_read_pack_info(MI_INFO *info, pbool fix_keys)
     This segment will be reallocated after construction of the tables.
   */
   length=(uint) (elements*2+trees*(1 << myisam_quick_table_bits));
+  /*
+    To keep some algorithms simpler, we accept that they access
+    bytes beyond the end of the input data. This can affect up to
+    one byte less than the "word size" size used in this file,
+    which is BITS_SAVED / 8. To avoid accessing non-allocated
+    data, we add (BITS_SAVED / 8) - 1 bytes to the buffer size.
+  */
   if (!(share->decode_tables=(uint16*)
         my_malloc((length + OFFSET_TABLE_SIZE) * sizeof(uint16) +
-                  (uint) (share->pack.header_length - sizeof(header)),
-                  MYF(MY_WME | MY_ZEROFILL))))
+                  (uint) (share->pack.header_length - sizeof(header) +
+                  (BITS_SAVED / 8) - 1), MYF(MY_WME | MY_ZEROFILL))))
     goto err1;
   tmp_buff=share->decode_tables+length;
   disk_cache=(byte*) (tmp_buff+OFFSET_TABLE_SIZE);
@@ -1430,6 +1437,7 @@ static void fill_buffer(MI_BIT_BUFF *bit_buff)
     bit_buff->current_byte=0;
     return;
   }
+
 #if BITS_SAVED == 64
   bit_buff->current_byte=  ((((uint) ((uchar) bit_buff->pos[7]))) +
 			     (((uint) ((uchar) bit_buff->pos[6])) << 8) +

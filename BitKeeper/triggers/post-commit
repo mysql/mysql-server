@@ -11,7 +11,7 @@ FROM=$COMMITTER@mysql.com
 COMMITS=commits@lists.mysql.com
 DOCS=docs-commit@mysql.com
 LIMIT=10000
-VERSION="5.0-community"
+VERSION="5.0"
 BKROOT=`bk root`
 
 if [ -x /usr/sbin/sendmail ]; then

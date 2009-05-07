@@ -253,6 +253,11 @@ MY_LOCALE *my_locale_by_number(uint number);
 #define PRECISION_FOR_DOUBLE 53
 #define PRECISION_FOR_FLOAT  24
 
+/* -[digits].E+## */
+#define MAX_FLOAT_STR_LENGTH (FLT_DIG + 6)
+/* -[digits].E+### */
+#define MAX_DOUBLE_STR_LENGTH (DBL_DIG + 7)
+
 /*
   Default time to wait before aborting a new client connection
   that does not respond to "initial server greeting" timely
@@ -455,6 +460,13 @@ MY_LOCALE *my_locale_by_number(uint number);
   The client tells the server to block with SELECT GET_LOCK()
   and unblocks it with SELECT RELEASE_LOCK(). Used for debugging difficult
   concurrency problems
+
+  NOTE: This will release the user lock that the thread currently
+  locked, which can cause problem if users want to use user locks for
+  other purposes. In order to overcome this problem, it's adviced to
+  wrap the call to DBUG_SYNC_POINT() within the DBUG_EXECUTE_IF(), so
+  that it will only be activated if the given keyword is included in
+  the 'debug' option, and will not fiddle user locks otherwise.
 */
 #define DBUG_SYNC_POINT(lock_name,lock_timeout) \
  debug_sync_point(lock_name,lock_timeout)
@@ -1479,6 +1491,8 @@ extern SHOW_COMP_OPTION have_query_cache;
 extern SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 extern SHOW_COMP_OPTION have_crypt;
 extern SHOW_COMP_OPTION have_compress;
+extern SHOW_COMP_OPTION have_community_features;
+extern SHOW_COMP_OPTION have_profiling;
 
 #ifndef __WIN__
 extern pthread_t signal_thread;
