@@ -234,6 +234,11 @@ extern ulong srv_thread_sleep_delay;
 extern ulong srv_thread_concurrency;
 extern ulong srv_commit_concurrency;
 extern ulong srv_flush_log_at_trx_commit;
+/* An option to enable the fix for "Bug#43660 SHOW INDEXES/ANALYZE does
+NOT update cardinality for indexes of InnoDB table". By default we are
+running with the fix disabled because MySQL 5.1 is frozen for such
+behavioral changes. */
+extern char srv_use_legacy_cardinality_algorithm;
 }
 
 bool innobase_init(void);

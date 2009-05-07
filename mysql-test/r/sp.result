@@ -4390,9 +4390,9 @@ drop procedure if exists bug13012|
 create procedure bug13012()
 BEGIN
 REPAIR TABLE t1;
-BACKUP TABLE t1 to '../tmp';
+BACKUP TABLE t1 to '<MYSQLTEST_VARDIR>/tmp/';
 DROP TABLE t1;
-RESTORE TABLE t1 FROM '../tmp';
+RESTORE TABLE t1 FROM '<MYSQLTEST_VARDIR>/tmp/';
 END|
 call bug13012()|
 Table	Op	Msg_type	Msg_text

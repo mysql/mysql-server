@@ -655,7 +655,8 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     else if (views->with_check == VIEW_CHECK_CASCADED)
       buff.append(STRING_WITH_LEN(" WITH CASCADED CHECK OPTION"));
 
-    Query_log_event qinfo(thd, buff.ptr(), buff.length(), 0, FALSE);
+    Query_log_event qinfo(thd, buff.ptr(), buff.length(),
+                          0, FALSE, THD::NOT_KILLED);
     mysql_bin_log.write(&qinfo);
   }
 
@@ -1544,7 +1545,8 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
   {
     if (!something_wrong)
       thd->clear_error();
-    Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
+    Query_log_event qinfo(thd, thd->query, thd->query_length,
+                          0, FALSE, THD::NOT_KILLED);
     mysql_bin_log.write(&qinfo);
   }
 

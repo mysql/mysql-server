@@ -538,6 +538,8 @@ SHOW_COMP_OPTION have_isam;
 SHOW_COMP_OPTION have_raid, have_ssl, have_symlink, have_query_cache;
 SHOW_COMP_OPTION have_geometry, have_rtree_keys, have_dlopen;
 SHOW_COMP_OPTION have_crypt, have_compress;
+SHOW_COMP_OPTION have_community_features;
+SHOW_COMP_OPTION have_profiling;
 
 /* Thread specific variables */
 
@@ -5045,7 +5047,8 @@ enum options_mysqld
   OPT_SECURE_FILE_PRIV,
   OPT_KEEP_FILES_ON_CREATE,
   OPT_INNODB_ADAPTIVE_HASH_INDEX,
-  OPT_FEDERATED
+  OPT_FEDERATED,
+  OPT_INNODB_USE_LEGACY_CARDINALITY_ALGORITHM
 };
 
 
@@ -5352,6 +5355,14 @@ Disable with --skip-innodb-doublewrite.", (gptr*) &innobase_use_doublewrite,
    (gptr*) &global_system_variables.innodb_table_locks,
    (gptr*) &global_system_variables.innodb_table_locks,
    0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
+  {"innodb_use_legacy_cardinality_algorithm", 
+   OPT_INNODB_USE_LEGACY_CARDINALITY_ALGORITHM,
+   "Use legacy algorithm for picking random pages during index cardinality "
+   "estimation. Disable this to use a better algorithm, but note that your "
+   "query plans may change (enabled by default).",
+   (gptr*) &srv_use_legacy_cardinality_algorithm,
+   (gptr*) &srv_use_legacy_cardinality_algorithm,
+   0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
 #endif /* End HAVE_INNOBASE_DB */
   {"isam", OPT_ISAM, "Obsolete. ISAM storage engine is no longer supported.",
    (gptr*) &opt_isam, (gptr*) &opt_isam, 0, GET_BOOL, NO_ARG, 0, 0, 0,
@@ -5638,7 +5649,7 @@ Disable with --skip-ndbcluster (will save memory).",
    "Maximum time in seconds to wait for the port to become free. "
    "(Default: no wait)", (gptr*) &mysqld_port_timeout,
    (gptr*) &mysqld_port_timeout, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef ENABLED_PROFILING
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
   {"profiling_history_size", OPT_PROFILING, "Limit of query profiling memory",
    (gptr*) &global_system_variables.profiling_history_size,
    (gptr*) &max_system_variables.profiling_history_size,
@@ -6685,7 +6696,9 @@ struct show_var_st status_vars[]= {
   {"Threads_created",	       (char*) &thread_created,		SHOW_LONG_CONST},
   {"Threads_running",          (char*) &thread_running,         SHOW_INT_CONST},
   {"Uptime",                   (char*) 0,                       SHOW_STARTTIME},
+#ifdef COMMUNITY_SERVER
   {"Uptime_since_flush_status",(char*) 0,                       SHOW_FLUSHTIME},
+#endif
   {NullS, NullS, SHOW_LONG}
 };
 
@@ -6991,6 +7004,16 @@ static void mysql_init_variables(void)
 #endif
 #if !defined(my_pthread_setprio) && !defined(HAVE_PTHREAD_SETSCHEDPARAM)
   opt_specialflag |= SPECIAL_NO_PRIOR;
+#endif
+#ifdef ENABLED_PROFILING
+  have_profiling = SHOW_OPTION_YES;
+#else
+  have_profiling = SHOW_OPTION_NO;
+#endif
+#ifdef COMMUNITY_SERVER
+  have_community_features = SHOW_OPTION_YES;
+#else
+  have_community_features = SHOW_OPTION_NO;
 #endif
 
 #if defined(__WIN__) || defined(__NETWARE__)
@@ -8016,7 +8039,9 @@ void refresh_status(THD *thd)
 
   /* Reset the counters of all key caches (default and named). */
   process_key_caches(reset_key_cache_counters);
+#ifdef COMMUNITY_SERVER
   flush_status_time= time((time_t*) 0);
+#endif
   pthread_mutex_unlock(&LOCK_status);
 
   /*
