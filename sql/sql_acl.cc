@@ -1506,7 +1506,8 @@ bool change_password(THD *thd, const char *host, const char *user,
                   acl_user->host.hostname ? acl_user->host.hostname : "",
                   new_password));
     thd->clear_error();
-    Query_log_event qinfo(thd, buff, query_length, 0, FALSE);
+    Query_log_event qinfo(thd, buff, query_length,
+                          0, FALSE, THD::NOT_KILLED);
     mysql_bin_log.write(&qinfo);
   }
 end:
@@ -3014,7 +3015,8 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     if (mysql_bin_log.is_open())
     {
       thd->clear_error();
-      Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
+      Query_log_event qinfo(thd, thd->query, thd->query_length,
+                            0, FALSE, THD::NOT_KILLED);
       mysql_bin_log.write(&qinfo);
     }
   }
@@ -3181,7 +3183,8 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
     if (mysql_bin_log.is_open())
     {
       thd->clear_error();
-      Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
+      Query_log_event qinfo(thd, thd->query, thd->query_length,
+                            0, FALSE, THD::NOT_KILLED);
       mysql_bin_log.write(&qinfo);
     }
   }
@@ -3294,7 +3297,8 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
     if (mysql_bin_log.is_open())
     {
       thd->clear_error();
-      Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
+      Query_log_event qinfo(thd, thd->query, thd->query_length,
+                            0, FALSE, THD::NOT_KILLED);
       mysql_bin_log.write(&qinfo);
     }
   }
@@ -5404,7 +5408,8 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
 
   if (some_users_created && mysql_bin_log.is_open())
   {
-    Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
+    Query_log_event qinfo(thd, thd->query, thd->query_length,
+                          0, FALSE, THD::NOT_KILLED);
     mysql_bin_log.write(&qinfo);
   }
 
@@ -5473,7 +5478,8 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
 
   if (some_users_deleted && mysql_bin_log.is_open())
   {
-    Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
+    Query_log_event qinfo(thd, thd->query, thd->query_length, 
+                          0, FALSE, THD::NOT_KILLED);
     mysql_bin_log.write(&qinfo);
   }
 
@@ -5553,7 +5559,8 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
   
   if (some_users_renamed && mysql_bin_log.is_open())
   {
-    Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
+    Query_log_event qinfo(thd, thd->query, thd->query_length, 
+                          0, FALSE, THD::NOT_KILLED);
     mysql_bin_log.write(&qinfo);
   }
 
@@ -5731,7 +5738,8 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 
   if (mysql_bin_log.is_open())
   {
-    Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
+    Query_log_event qinfo(thd, thd->query, thd->query_length,
+                          0, FALSE, THD::NOT_KILLED);
     mysql_bin_log.write(&qinfo);
   }
 

@@ -41,6 +41,8 @@ TARGET_LINK_LIBRARIES(myisamlog myisam mysys debug dbug strings zlib wsock32)
 ADD_EXECUTABLE(myisampack myisampack.c)
 TARGET_LINK_LIBRARIES(myisampack myisam mysys debug dbug strings zlib wsock32)
 
+SET_TARGET_PROPERTIES(myisamchk myisampack PROPERTIES LINK_FLAGS "setargv.obj")
+
 IF(EMBED_MANIFESTS)
   MYSQL_EMBED_MANIFEST("myisam_ftdump" "asInvoker")
   MYSQL_EMBED_MANIFEST("myisamchk" "asInvoker")

@@ -2063,7 +2063,7 @@ sub environment_setup () {
   $ENV{'MYSQL_BINLOG'}= $cmdline_mysqlbinlog;
 
   # ----------------------------------------------------
-  # Setup env so childs can execute mysql
+  # Setup env so childs can execute mysql against master
   # ----------------------------------------------------
   my $cmdline_mysql=
     mtr_native_path($exe_mysql) .
@@ -2073,6 +2073,18 @@ sub environment_setup () {
     "--character-sets-dir=$path_charsetsdir";
 
   $ENV{'MYSQL'}= $cmdline_mysql;
+
+  # ----------------------------------------------------
+  # Setup env so childs can execute mysql against slave
+  # ----------------------------------------------------
+  my $cmdline_mysql_slave=
+    mtr_native_path($exe_mysql) .
+    " --no-defaults --host=localhost  --user=root --password= " .
+    "--port=$slave->[0]->{'port'} " .
+    "--socket=$slave->[0]->{'path_sock'} ".
+    "--character-sets-dir=$path_charsetsdir";
+
+  $ENV{'MYSQL_SLAVE'}= $cmdline_mysql_slave;
 
   # ----------------------------------------------------
   # Setup env so childs can execute bug25714

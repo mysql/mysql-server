@@ -241,7 +241,7 @@ typedef struct {
 
 static COMMANDS commands[] = {
   { "?",      '?', com_help,   1, "Synonym for `help'." },
-  { "clear",  'c', com_clear,  0, "Clear command."},
+  { "clear",  'c', com_clear,  0, "Clear the current input statement."},
   { "connect",'r', com_connect,1,
     "Reconnect to the server. Optional arguments are db and host." },
   { "delimiter", 'd', com_delimiter,    1,

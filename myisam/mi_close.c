@@ -35,8 +35,6 @@ int mi_close(register MI_INFO *info)
   if (info->lock_type == F_EXTRA_LCK)
     info->lock_type=F_UNLCK;			/* HA_EXTRA_NO_USER_CHANGE */
 
-  if (share->reopen == 1 && share->kfile >= 0)
-    _mi_decrement_open_count(info);
 
   if (info->lock_type != F_UNLCK)
   {
@@ -78,6 +76,8 @@ int mi_close(register MI_INFO *info)
       */
       if (share->mode != O_RDONLY && mi_is_crashed(info))
 	mi_state_info_write(share->kfile, &share->state, 1);
+      /* Decrement open count must be last I/O on this file. */
+      _mi_decrement_open_count(info);
       if (my_close(share->kfile,MYF(0)))
         error = my_errno;
     }
