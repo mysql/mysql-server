@@ -367,7 +367,7 @@ public:
   char *name(uint *lenp = 0) const
   {
     if (lenp)
-      *lenp= m_name.length;
+      *lenp= (uint) m_name.length;
     return m_name.str;
   }
 

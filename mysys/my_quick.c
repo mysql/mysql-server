@@ -23,7 +23,7 @@ size_t my_quick_read(File Filedes,uchar *Buffer,size_t Count,myf MyFlags)
 {
   size_t readbytes;
 
-  if ((readbytes = read(Filedes, Buffer, Count)) != Count)
+  if ((readbytes = read(Filedes, Buffer, (uint) Count)) != Count)
   {
 #ifndef DBUG_OFF
     if ((readbytes == 0 || readbytes == (size_t) -1) && errno == EINTR)
@@ -50,7 +50,7 @@ size_t my_quick_write(File Filedes,const uchar *Buffer,size_t Count)
 #ifndef DBUG_OFF
        writtenbytes =
 #endif
-       (size_t) write(Filedes,Buffer,Count)) != Count)
+       (size_t) write(Filedes,Buffer, (uint) Count)) != Count)
   {
 #ifndef DBUG_OFF
     if ((writtenbytes == 0 || writtenbytes == (size_t) -1) && errno == EINTR)

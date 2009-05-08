@@ -409,7 +409,7 @@ int _mi_prefix_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
       }
       from+=keyseg->length;
       page=from+nod_flag;
-      length=from-vseg;
+      length= (uint) (from - vseg);
     }
 
     if (page > end)

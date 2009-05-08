@@ -255,7 +255,7 @@ my_bool _mi_read_pack_info(MI_INFO *info, pbool fix_keys)
 	       MYF(MY_HOLD_ON_ERROR));
   /* Fix the table addresses in the tree heads. */
   {
-    long diff=PTR_BYTE_DIFF(decode_table,share->decode_tables);
+    my_ptrdiff_t diff=PTR_BYTE_DIFF(decode_table,share->decode_tables);
     share->decode_tables=decode_table;
     for (i=0 ; i < trees ; i++)
       share->decode_trees[i].table=ADD_TO_PTR(share->decode_trees[i].table,

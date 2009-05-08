@@ -17,8 +17,6 @@ SELECT @@global.key_buffer_size BETWEEN 8 AND 36;
 @@global.key_buffer_size BETWEEN 8 AND 36
 1
 SET @@global.key_buffer_size = 1800;
-Warnings:
-Warning	1292	Truncated incorrect key_buffer_size value: '1800'
 SELECT @@global.key_buffer_size BETWEEN 8 AND 36;
 @@global.key_buffer_size BETWEEN 8 AND 36
 1
@@ -55,13 +53,13 @@ SELECT @@global.key_buffer_size BETWEEN 8 AND 36;
 @@global.key_buffer_size BETWEEN 8 AND 36
 1
 '#----------------------FN_DYNVARS_055_06------------------------#'
-SELECT @@global.key_buffer_size = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+SELECT @@global.key_buffer_size = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='key_buffer_size';
 @@global.key_buffer_size = VARIABLE_VALUE
 1
-SELECT @@key_buffer_size = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+SELECT @@key_buffer_size = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES
 WHERE VARIABLE_NAME='key_buffer_size';
 @@key_buffer_size = VARIABLE_VALUE
 1
