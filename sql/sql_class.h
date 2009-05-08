@@ -321,6 +321,8 @@ struct system_variables
   ulong net_write_timeout;
   ulong optimizer_prune_level;
   ulong optimizer_search_depth;
+  /* A bitmap for switching optimizations on/off */
+  ulong optimizer_switch;
   ulong preload_buff_size;
   ulong profiling_history_size;
   ulong query_cache_type;
@@ -664,7 +666,7 @@ public:
   */
 
   char *db;
-  uint db_length;
+  size_t db_length;
 
 public:
 
@@ -811,6 +813,7 @@ public:
   void
   restore_security_context(THD *thd, Security_context *backup);
 #endif
+  bool user_matches(Security_context *);
 };
 
 
@@ -1771,6 +1774,9 @@ public:
   sp_rcontext *spcont;		// SP runtime context
   sp_cache   *sp_proc_cache;
   sp_cache   *sp_func_cache;
+
+  /** number of name_const() substitutions, see sp_head.cc:subst_spvars() */
+  uint       query_name_consts;
 
   /*
     If we do a purge of binary logs, log index info of the threads

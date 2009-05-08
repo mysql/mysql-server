@@ -1391,3 +1391,174 @@ WHERE
 `RUNID`= '' AND `SUBMITNR`= '' AND `ORDERNR`='' AND `PROGRAMM`='' AND
 `TESTID`='' AND `UCCHECK`='';
 drop table t1;
+#
+# Generic @@optimizer_switch tests (move those into a separate file if
+#  we get another @@optimizer_switch user)
+#
+select @@optimizer_switch;
+@@optimizer_switch
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on
+set optimizer_switch='index_merge=off,index_merge_union=off';
+select @@optimizer_switch;
+@@optimizer_switch
+index_merge=off,index_merge_union=off,index_merge_sort_union=on,index_merge_intersection=on
+set optimizer_switch='index_merge_union=on';
+select @@optimizer_switch;
+@@optimizer_switch
+index_merge=off,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on
+set optimizer_switch='default,index_merge_sort_union=off';
+select @@optimizer_switch;
+@@optimizer_switch
+index_merge=on,index_merge_union=on,index_merge_sort_union=off,index_merge_intersection=on
+set optimizer_switch=4;
+ERROR 42000: Variable 'optimizer_switch' can't be set to the value of '4'
+set optimizer_switch=NULL;
+ERROR 42000: Variable 'optimizer_switch' can't be set to the value of 'NULL'
+set optimizer_switch='default,index_merge';
+ERROR 42000: Variable 'optimizer_switch' can't be set to the value of 'index_merge'
+set optimizer_switch='index_merge=index_merge';
+ERROR 42000: Variable 'optimizer_switch' can't be set to the value of 'index_merge=index_merge'
+set optimizer_switch='index_merge=on,but...';
+ERROR 42000: Variable 'optimizer_switch' can't be set to the value of 'but...'
+set optimizer_switch='index_merge=';
+ERROR 42000: Variable 'optimizer_switch' can't be set to the value of 'index_merge='
+set optimizer_switch='index_merge';
+ERROR 42000: Variable 'optimizer_switch' can't be set to the value of 'index_merge'
+set optimizer_switch='on';
+ERROR 42000: Variable 'optimizer_switch' can't be set to the value of 'on'
+set optimizer_switch='index_merge=on,index_merge=off';
+ERROR 42000: Variable 'optimizer_switch' can't be set to the value of 'index_merge=off'
+set optimizer_switch='index_merge_union=on,index_merge_union=default';
+ERROR 42000: Variable 'optimizer_switch' can't be set to the value of 'index_merge_union=default'
+set optimizer_switch='default,index_merge=on,index_merge=off,default';
+ERROR 42000: Variable 'optimizer_switch' can't be set to the value of 'index_merge=off,default'
+set optimizer_switch=default;
+set optimizer_switch='index_merge=off,index_merge_union=off,default';
+select @@optimizer_switch;
+@@optimizer_switch
+index_merge=off,index_merge_union=off,index_merge_sort_union=on,index_merge_intersection=on
+set optimizer_switch=default;
+select @@global.optimizer_switch;
+@@global.optimizer_switch
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on
+set @@global.optimizer_switch=default;
+select @@global.optimizer_switch;
+@@global.optimizer_switch
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on
+#
+# Check index_merge's @@optimizer_switch flags
+#
+select @@optimizer_switch;
+@@optimizer_switch
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on
+create table t0 (a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t1 (a int, b int, c int, filler char(100), 
+key(a), key(b), key(c));
+insert into t1 select 
+A.a * B.a*10 + C.a*100, 
+A.a * B.a*10 + C.a*100,
+A.a, 
+'filler'
+from t0 A, t0 B, t0 C;
+This should use union:
+explain select * from t1 where a=1 or b=1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	a,b	a,b	5,5	NULL	2	Using union(a,b); Using where
+This should use ALL:
+set optimizer_switch='default,index_merge=off';
+explain select * from t1 where a=1 or b=1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	a,b	NULL	NULL	NULL	1000	Using where
+This should use sort-union:
+set optimizer_switch='default,index_merge_union=off';
+explain select * from t1 where a=1 or b=1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	a,b	a,b	5,5	NULL	2	Using sort_union(a,b); Using where
+This will use sort-union:
+set optimizer_switch=default;
+explain select * from t1 where a<1 or b <1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	a,b	a,b	5,5	NULL	38	Using sort_union(a,b); Using where
+This should use ALL:
+set optimizer_switch='default,index_merge_sort_union=off';
+explain select * from t1 where a<1 or b <1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	a,b	NULL	NULL	NULL	1000	Using where
+This should use ALL:
+set optimizer_switch='default,index_merge=off';
+explain select * from t1 where a<1 or b <1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	a,b	NULL	NULL	NULL	1000	Using where
+This will use sort-union:
+set optimizer_switch='default,index_merge_union=off';
+explain select * from t1 where a<1 or b <1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	a,b	a,b	5,5	NULL	38	Using sort_union(a,b); Using where
+alter table t1 add d int, add key(d);
+update t1 set d=a;
+This will use sort_union:
+set optimizer_switch=default;
+explain select * from t1 where (a=3 or b in (1,2)) and (c=3 or d=4);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	a,b,c,d	a,b	5,5	NULL	3	Using sort_union(a,b); Using where
+And if we disable sort_union, union:
+set optimizer_switch='default,index_merge_sort_union=off';
+explain select * from t1 where (a=3 or b in (1,2)) and (c=3 or d=4);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	a,b,c,d	c,d	5,5	NULL	100	Using union(c,d); Using where
+drop table t1;
+create table t1 (
+a int, b int, c int,
+filler1 char(200), filler2 char(200), 
+key(a),key(b),key(c)
+);
+insert into t1 
+select A.a+10*B.a, A.a+10*B.a, A.a+10*B.a+100*C.a, 'foo', 'bar' 
+from t0 A, t0 B, t0 C, t0 D where D.a<5;
+This should be intersect:
+set optimizer_switch=default;
+explain select * from t1 where a=10 and b=10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	a,b	a,b	5,5	NULL	1	Using intersect(a,b); Using where
+No intersect when index_merge is disabled:
+set optimizer_switch='default,index_merge=off';
+explain select * from t1 where a=10 and b=10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	a,b	a	5	const	49	Using where
+No intersect if it is disabled:
+set optimizer_switch='default,index_merge_intersection=off';
+explain select * from t1 where a=10 and b=10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	a,b	a	5	const	49	Using where
+Do intersect when union was disabled
+set optimizer_switch='default,index_merge_union=off';
+explain select * from t1 where a=10 and b=10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	a,b	a,b	5,5	NULL	1	Using intersect(a,b); Using where
+Do intersect when sort_union was disabled
+set optimizer_switch='default,index_merge_sort_union=off';
+explain select * from t1 where a=10 and b=10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	a,b	a,b	5,5	NULL	1	Using intersect(a,b); Using where
+This will use intersection inside a union:
+set optimizer_switch=default;
+explain select * from t1 where a=10 and b=10 or c=10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	a,b,c	a,b,c	5,5,5	NULL	6	Using union(intersect(a,b),c); Using where
+Should be only union left:
+set optimizer_switch='default,index_merge_intersection=off';
+explain select * from t1 where a=10 and b=10 or c=10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	a,b,c	a,c	5,5	NULL	54	Using union(a,c); Using where
+This will switch to sort-union (intersection will be gone, too,
+thats a known limitation:
+set optimizer_switch='default,index_merge_union=off';
+explain select * from t1 where a=10 and b=10 or c=10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	a,b,c	a,c	5,5	NULL	54	Using sort_union(a,c); Using where
+set optimizer_switch=default;
+show variables like 'optimizer_switch';
+Variable_name	Value
+optimizer_switch	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on
+drop table t0, t1;

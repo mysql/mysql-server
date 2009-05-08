@@ -40,10 +40,14 @@ SELECT @@global.max_heap_table_size;
 @@global.max_heap_table_size
 64512
 SET @@global.max_heap_table_size = 4294967294;
+Warnings:
+Warning	1292	Truncated incorrect max_heap_table_size value: '4294967294'
 SELECT @@global.max_heap_table_size;
 @@global.max_heap_table_size
 4294966272
 SET @@global.max_heap_table_size = 4294967295;
+Warnings:
+Warning	1292	Truncated incorrect max_heap_table_size value: '4294967295'
 SELECT @@global.max_heap_table_size;
 @@global.max_heap_table_size
 4294966272
@@ -62,10 +66,14 @@ SELECT @@session.max_heap_table_size;
 @@session.max_heap_table_size
 64512
 SET @@session.max_heap_table_size = 4294967294;
+Warnings:
+Warning	1292	Truncated incorrect max_heap_table_size value: '4294967294'
 SELECT @@session.max_heap_table_size;
 @@session.max_heap_table_size
 4294966272
 SET @@session.max_heap_table_size = 4294967295;
+Warnings:
+Warning	1292	Truncated incorrect max_heap_table_size value: '4294967295'
 SELECT @@session.max_heap_table_size;
 @@session.max_heap_table_size
 4294966272
@@ -73,13 +81,13 @@ SELECT @@session.max_heap_table_size;
 '#------------------FN_DYNVARS_077_05-----------------------#'
 SET @@global.max_heap_table_size = -1;
 Warnings:
-Warning	1292	Truncated incorrect max_heap_table_size value: '0'
+Warning	1292	Truncated incorrect max_heap_table_size value: '-1'
 SELECT @@global.max_heap_table_size;
 @@global.max_heap_table_size
 16384
 SET @@global.max_heap_table_size = -1024;
 Warnings:
-Warning	1292	Truncated incorrect max_heap_table_size value: '0'
+Warning	1292	Truncated incorrect max_heap_table_size value: '-1024'
 SELECT @@global.max_heap_table_size;
 @@global.max_heap_table_size
 16384
@@ -96,6 +104,8 @@ SELECT @@global.max_heap_table_size;
 @@global.max_heap_table_size
 16384
 SET @@global.max_heap_table_size = 4294967296;
+Warnings:
+Warning	1292	Truncated incorrect max_heap_table_size value: '4294967296'
 SELECT @@global.max_heap_table_size;
 @@global.max_heap_table_size
 4294966272
@@ -111,7 +121,7 @@ SELECT @@global.max_heap_table_size;
 4294966272
 SET @@session.max_heap_table_size = -1;
 Warnings:
-Warning	1292	Truncated incorrect max_heap_table_size value: '0'
+Warning	1292	Truncated incorrect max_heap_table_size value: '-1'
 SELECT @@session.max_heap_table_size;
 @@session.max_heap_table_size
 16384
@@ -122,12 +132,16 @@ SELECT @@session.max_heap_table_size;
 @@session.max_heap_table_size
 16384
 SET @@session.max_heap_table_size = 4294967296;
+Warnings:
+Warning	1292	Truncated incorrect max_heap_table_size value: '4294967296'
 SELECT @@session.max_heap_table_size;
 @@session.max_heap_table_size
 4294966272
 SET @@session.max_heap_table_size = 65530.34.;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.' at line 1
 SET @@session.max_heap_table_size = 10737418241;
+Warnings:
+Warning	1292	Truncated incorrect max_heap_table_size value: '10737418241'
 SELECT @@session.max_heap_table_size;
 @@session.max_heap_table_size
 4294966272

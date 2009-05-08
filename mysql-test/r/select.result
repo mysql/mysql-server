@@ -4416,4 +4416,32 @@ date_nokey
 Warnings:
 Warning	1292	Incorrect date value: '10:41:7' for column 'date_nokey' at row 1
 DROP TABLE A,C;
+CREATE TABLE t1 (a INT NOT NULL, b INT);
+INSERT INTO t1 VALUES (1, 1);
+EXPLAIN EXTENDED SELECT * FROM t1 WHERE (a=a AND a=a) OR b > 2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+Warnings:
+Note	1003	select '1' AS `a`,'1' AS `b` from `test`.`t1` where 1
+SELECT * FROM t1 WHERE (a=a AND a=a) OR b > 2;
+a	b
+1	1
+DROP TABLE t1;
+CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL, c INT NOT NULL);
+EXPLAIN EXTENDED SELECT * FROM t1 WHERE (a=a AND b=b AND c=c) OR b > 20;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
+Warnings:
+Note	1003	select '0' AS `a`,'0' AS `b`,'0' AS `c` from `test`.`t1` where 1
+EXPLAIN EXTENDED SELECT * FROM t1 WHERE (a=a AND a=a AND b=b) OR b > 20;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
+Warnings:
+Note	1003	select '0' AS `a`,'0' AS `b`,'0' AS `c` from `test`.`t1` where 1
+EXPLAIN EXTENDED SELECT * FROM t1 WHERE (a=a AND b=b AND a=a) OR b > 20;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
+Warnings:
+Note	1003	select '0' AS `a`,'0' AS `b`,'0' AS `c` from `test`.`t1` where 1
+DROP TABLE t1;
 End of 5.1 tests

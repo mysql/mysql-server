@@ -59,7 +59,7 @@ size_t my_pread(File Filedes, uchar *Buffer, size_t Count, my_off_t offset,
     pthread_mutex_lock(&my_file_info[Filedes].mutex);
     readbytes= (uint) -1;
     error= (lseek(Filedes, offset, MY_SEEK_SET) == (my_off_t) -1 ||
-	    (readbytes= read(Filedes, Buffer, Count)) != Count);
+	    (readbytes= read(Filedes, Buffer, (uint) Count)) != Count);
     pthread_mutex_unlock(&my_file_info[Filedes].mutex);
 #else
     if ((error= ((readbytes= pread(Filedes, Buffer, Count, offset)) != Count)))
@@ -136,7 +136,7 @@ size_t my_pwrite(int Filedes, const uchar *Buffer, size_t Count,
     writenbytes= (size_t) -1;
     pthread_mutex_lock(&my_file_info[Filedes].mutex);
     error= (lseek(Filedes, offset, MY_SEEK_SET) != (my_off_t) -1 &&
-            (writenbytes = write(Filedes, Buffer, Count)) == Count);
+            (writenbytes = write(Filedes, Buffer, (uint) Count)) == Count);
     pthread_mutex_unlock(&my_file_info[Filedes].mutex);
     if (error)
       break;

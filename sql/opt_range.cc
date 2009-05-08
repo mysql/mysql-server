@@ -2386,7 +2386,8 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
           objects are not allowed so don't use ROR-intersection for
           table deletes.
         */
-        if ((thd->lex->sql_command != SQLCOM_DELETE))
+        if ((thd->lex->sql_command != SQLCOM_DELETE) && 
+             optimizer_flag(thd, OPTIMIZER_SWITCH_INDEX_MERGE))
         {
           /*
             Get best non-covering ROR-intersection plan and prepare data for
@@ -2410,25 +2411,28 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
       }
       else
       {
-        /* Try creating index_merge/ROR-union scan. */
-        SEL_IMERGE *imerge;
-        TABLE_READ_PLAN *best_conj_trp= NULL, *new_conj_trp;
-        LINT_INIT(new_conj_trp); /* no empty index_merge lists possible */
-        DBUG_PRINT("info",("No range reads possible,"
-                           " trying to construct index_merge"));
-        List_iterator_fast<SEL_IMERGE> it(tree->merges);
-        while ((imerge= it++))
+        if (optimizer_flag(thd, OPTIMIZER_SWITCH_INDEX_MERGE))
         {
-          new_conj_trp= get_best_disjunct_quick(&param, imerge, best_read_time);
-          if (new_conj_trp)
-            set_if_smaller(param.table->quick_condition_rows, 
-                           new_conj_trp->records);
-          if (!best_conj_trp || (new_conj_trp && new_conj_trp->read_cost <
-                                 best_conj_trp->read_cost))
-            best_conj_trp= new_conj_trp;
+          /* Try creating index_merge/ROR-union scan. */
+          SEL_IMERGE *imerge;
+          TABLE_READ_PLAN *best_conj_trp= NULL, *new_conj_trp;
+          LINT_INIT(new_conj_trp); /* no empty index_merge lists possible */
+          DBUG_PRINT("info",("No range reads possible,"
+                             " trying to construct index_merge"));
+          List_iterator_fast<SEL_IMERGE> it(tree->merges);
+          while ((imerge= it++))
+          {
+            new_conj_trp= get_best_disjunct_quick(&param, imerge, best_read_time);
+            if (new_conj_trp)
+              set_if_smaller(param.table->quick_condition_rows, 
+                             new_conj_trp->records);
+            if (!best_conj_trp || (new_conj_trp && new_conj_trp->read_cost <
+                                   best_conj_trp->read_cost))
+              best_conj_trp= new_conj_trp;
+          }
+          if (best_conj_trp)
+            best_trp= best_conj_trp;
         }
-        if (best_conj_trp)
-          best_trp= best_conj_trp;
       }
     }
 
@@ -3767,11 +3771,19 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
                         "full table scan, bailing out"));
     DBUG_RETURN(NULL);
   }
-  if (all_scans_rors)
+
+  /* 
+    If all scans happen to be ROR, proceed to generate a ROR-union plan (it's 
+    guaranteed to be cheaper than non-ROR union), unless ROR-unions are
+    disabled in @@optimizer_switch
+  */
+  if (all_scans_rors && 
+      optimizer_flag(param->thd, OPTIMIZER_SWITCH_INDEX_MERGE_UNION))
   {
     roru_read_plans= (TABLE_READ_PLAN**)range_scans;
     goto skip_to_ror_scan;
   }
+
   if (cpk_scan)
   {
     /*
@@ -3785,8 +3797,11 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
   imerge_cost += get_sweep_read_cost(param, non_cpk_scan_records);
   DBUG_PRINT("info",("index_merge cost with rowid-to-row scan: %g",
                      imerge_cost));
-  if (imerge_cost > read_time)
+  if (imerge_cost > read_time || 
+      !optimizer_flag(param->thd, OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION))
+  {
     goto build_ror_index_merge;
+  }
 
   /* Add Unique operations cost */
   unique_calc_buff_size=
@@ -3822,7 +3837,9 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
   }
 
 build_ror_index_merge:
-  if (!all_scans_ror_able || param->thd->lex->sql_command == SQLCOM_DELETE)
+  if (!all_scans_ror_able || 
+      param->thd->lex->sql_command == SQLCOM_DELETE ||
+      !optimizer_flag(param->thd, OPTIMIZER_SWITCH_INDEX_MERGE_UNION))
     DBUG_RETURN(imerge_trp);
 
   /* Ok, it is possible to build a ROR-union, try it. */
@@ -4495,7 +4512,8 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
   double min_cost= DBL_MAX;
   DBUG_ENTER("get_best_ror_intersect");
 
-  if ((tree->n_ror_scans < 2) || !param->table->file->stats.records)
+  if ((tree->n_ror_scans < 2) || !param->table->file->stats.records ||
+      !optimizer_flag(param->thd, OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT))
     DBUG_RETURN(NULL);
 
   /*
@@ -4684,6 +4702,9 @@ TRP_ROR_INTERSECT *get_best_covering_ror_intersect(PARAM *param,
   ROR_SCAN_INFO **ror_scan_mark;
   ROR_SCAN_INFO **ror_scans_end= tree->ror_scans_end;
   DBUG_ENTER("get_best_covering_ror_intersect");
+
+  if (!optimizer_flag(param->thd, OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT))
+    DBUG_RETURN(NULL);
 
   for (ROR_SCAN_INFO **scan= tree->ror_scans; scan != ror_scans_end; ++scan)
     (*scan)->key_components=
@@ -9473,7 +9494,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
     }
 
     /* If we got to this point, cur_index_info passes the test. */
-    key_infix_parts= cur_key_infix_len ?
+    key_infix_parts= cur_key_infix_len ? (uint) 
                      (first_non_infix_part - first_non_group_part) : 0;
     cur_used_key_parts= cur_group_key_parts + key_infix_parts;
 
