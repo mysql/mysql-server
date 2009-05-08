@@ -360,7 +360,7 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
     */
     thd->mysys_var->current_mutex= &LOCK_open;
     thd->mysys_var->current_cond= &COND_refresh;
-    thd->proc_info="Flushing tables";
+    thd_proc_info(thd, "Flushing tables");
 
     close_old_data_files(thd,thd->open_tables,1,1);
     mysql_ha_flush(thd, tables, MYSQL_HA_REOPEN_ON_USAGE | MYSQL_HA_FLUSH_ALL,
@@ -416,7 +416,7 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
     pthread_mutex_lock(&thd->mysys_var->mutex);
     thd->mysys_var->current_mutex= 0;
     thd->mysys_var->current_cond= 0;
-    thd->proc_info=0;
+    thd_proc_info(thd, 0);
     pthread_mutex_unlock(&thd->mysys_var->mutex);
   }
   DBUG_RETURN(result);
@@ -609,7 +609,7 @@ void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived)
       good idea to turn off OPTION_TABLE_LOCK flag.
     */
     DBUG_ASSERT(thd->lex->requires_prelocking());
-    thd->options&= ~(ulong) (OPTION_TABLE_LOCK);
+    thd->options&= ~(OPTION_TABLE_LOCK);
   }
 
   DBUG_VOID_RETURN;
@@ -793,18 +793,9 @@ void close_temporary_tables(THD *thd)
       thd->variables.character_set_client= system_charset_info;
       Query_log_event qinfo(thd, s_query.ptr(),
                             s_query.length() - 1 /* to remove trailing ',' */,
-                            0, FALSE);
+                            0, FALSE, THD::NOT_KILLED);
       thd->variables.character_set_client= cs_save;
-      /*
-        Imagine the thread had created a temp table, then was doing a SELECT, and
-        the SELECT was killed. Then it's not clever to mark the statement above as
-        "killed", because it's not really a statement updating data, and there
-        are 99.99% chances it will succeed on slave.
-        If a real update (one updating a persistent table) was killed on the
-        master, then this real update will be logged with error_code=killed,
-        rightfully causing the slave to stop.
-      */
-      qinfo.error_code= 0;
+      DBUG_ASSERT(qinfo.error_code == 0);
       mysql_bin_log.write(&qinfo);
     }
     else
@@ -1211,7 +1202,7 @@ void wait_for_refresh(THD *thd)
   thd->mysys_var->current_mutex= &LOCK_open;
   thd->mysys_var->current_cond= &COND_refresh;
   proc_info=thd->proc_info;
-  thd->proc_info="Waiting for table";
+  thd_proc_info(thd, "Waiting for table");
   if (!thd->killed)
     (void) pthread_cond_wait(&COND_refresh,&LOCK_open);
 
@@ -1219,7 +1210,7 @@ void wait_for_refresh(THD *thd)
   pthread_mutex_lock(&thd->mysys_var->mutex);
   thd->mysys_var->current_mutex= 0;
   thd->mysys_var->current_cond= 0;
-  thd->proc_info= proc_info;
+  thd_proc_info(thd, proc_info);
   pthread_mutex_unlock(&thd->mysys_var->mutex);
   DBUG_VOID_RETURN;
 }
@@ -2323,7 +2314,7 @@ bool wait_for_tables(THD *thd)
   bool result;
   DBUG_ENTER("wait_for_tables");
 
-  thd->proc_info="Waiting for tables";
+  thd_proc_info(thd, "Waiting for tables");
   pthread_mutex_lock(&LOCK_open);
   while (!thd->killed)
   {
@@ -2339,12 +2330,12 @@ bool wait_for_tables(THD *thd)
   else
   {
     /* Now we can open all tables without any interference */
-    thd->proc_info="Reopen tables";
+    thd_proc_info(thd, "Reopen tables");
     thd->version= refresh_version;
     result=reopen_tables(thd,0,0);
   }
   pthread_mutex_unlock(&LOCK_open);
-  thd->proc_info=0;
+  thd_proc_info(thd, 0);
   DBUG_RETURN(result);
 }
 
@@ -2562,7 +2553,8 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
       {
         end = strxmov(strmov(query, "DELETE FROM `"),
                       db,"`.`",name,"`", NullS);
-        Query_log_event qinfo(thd, query, (ulong)(end-query), 0, FALSE);
+        Query_log_event qinfo(thd, query, (ulong)(end-query),
+                              0, FALSE, THD::NOT_KILLED);
         mysql_bin_log.write(&qinfo);
         my_free(query, MYF(0));
       }
@@ -2645,7 +2637,7 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
  restart:
   *counter= 0;
   query_tables_last_own= 0;
-  thd->proc_info="Opening tables";
+  thd_proc_info(thd, "Opening tables");
 
   /*
     If we are not already executing prelocked statement and don't have
@@ -2873,7 +2865,7 @@ process_view_routines:
   }
 
  err:
-  thd->proc_info=0;
+  thd_proc_info(thd, 0);
   free_root(&new_frm_mem, MYF(0));              // Free pre-alloced block
 
   if (query_tables_last_own)
@@ -2947,7 +2939,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type)
   bool refresh;
   DBUG_ENTER("open_ltable");
 
-  thd->proc_info="Opening table";
+  thd_proc_info(thd, "Opening table");
   thd->current_tablenr= 0;
   /* open_ltable can be used only for BASIC TABLEs */
   table_list->required_type= FRMTYPE_TABLE;
@@ -2974,7 +2966,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type)
 	  table= 0;
     }
   }
-  thd->proc_info=0;
+  thd_proc_info(thd, 0);
   DBUG_RETURN(table);
 }
 
@@ -3194,7 +3186,7 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
     {
       if (thd->lex->requires_prelocking())
       {
-        thd->options&= ~(ulong) (OPTION_TABLE_LOCK);
+        thd->options&= ~(OPTION_TABLE_LOCK);
         thd->in_lock_tables=0;
       }
       DBUG_RETURN(-1);
@@ -3227,7 +3219,7 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
             ha_rollback_stmt(thd);
             mysql_unlock_tables(thd, thd->locked_tables);
             thd->locked_tables= 0;
-            thd->options&= ~(ulong) (OPTION_TABLE_LOCK);
+            thd->options&= ~(OPTION_TABLE_LOCK);
             DBUG_RETURN(-1);
           }
         }
@@ -6236,7 +6228,7 @@ int init_ftfuncs(THD *thd, SELECT_LEX *select_lex, bool no_order)
     List_iterator<Item_func_match> li(*(select_lex->ftfunc_list));
     Item_func_match *ifm;
     DBUG_PRINT("info",("Performing FULLTEXT search"));
-    thd->proc_info="FULLTEXT initialization";
+    thd_proc_info(thd, "FULLTEXT initialization");
 
     while ((ifm=li++))
       ifm->init_search(no_order);

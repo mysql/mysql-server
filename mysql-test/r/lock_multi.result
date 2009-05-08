@@ -133,3 +133,58 @@ ALTER TABLE t1 ADD COLUMN a INT;
 # 2.2.1. normal mode
 # 2.2.2. PS mode
 DROP TABLE t1;
+create table t1 (a int);
+create table t2 like t1;
+# con1
+lock tables t1 write;
+# con2
+flush tables with read lock;
+# con5
+# global read lock is taken
+# con3
+select * from t2 for update;
+# waiting for release of read lock
+# con4
+# would hang and later cause a deadlock
+flush tables t2;
+# clean up
+unlock tables;
+unlock tables;
+a
+drop table t1,t2;
+#
+# Lightweight version:
+# Ensure that the wait for a GRL is done before opening tables.
+#
+create table t1 (a int);
+create table t2 like t1;
+#
+# UPDATE
+#
+# default
+flush tables with read lock;
+# con1
+update t2 set a = 1;
+# default
+# statement is waiting for release of read lock
+# con2
+flush table t2;
+# default
+unlock tables;
+# con1
+#
+# LOCK TABLES .. WRITE
+#
+# default
+flush tables with read lock;
+# con1
+lock tables t2 write;
+# default
+# statement is waiting for release of read lock
+# con2
+flush table t2;
+# default
+unlock tables;
+# con1
+unlock tables;
+drop table t1,t2;

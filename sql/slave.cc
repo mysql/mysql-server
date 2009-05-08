@@ -78,6 +78,11 @@ static int request_table_dump(MYSQL* mysql, const char* db, const char* table);
 static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
 				  const char* table_name, bool overwrite);
 static int get_master_version_and_clock(MYSQL* mysql, MASTER_INFO* mi);
+static int terminate_slave_thread(THD *thd,
+                                  pthread_mutex_t *term_lock,
+                                  pthread_cond_t *term_cond,
+                                  volatile uint *slave_running,
+                                  bool skip_lock);
 
 /*
   Find out which replications threads are running
@@ -637,55 +642,96 @@ int terminate_slave_threads(MASTER_INFO* mi,int thread_mask,bool skip_lock)
     return 0; /* successfully do nothing */
   int error,force_all = (thread_mask & SLAVE_FORCE_ALL);
   pthread_mutex_t *sql_lock = &mi->rli.run_lock, *io_lock = &mi->run_lock;
-  pthread_mutex_t *sql_cond_lock,*io_cond_lock;
   DBUG_ENTER("terminate_slave_threads");
 
-  sql_cond_lock=sql_lock;
-  io_cond_lock=io_lock;
-  
-  if (skip_lock)
-  {
-    sql_lock = io_lock = 0;
-  }
-  if ((thread_mask & (SLAVE_IO|SLAVE_FORCE_ALL)) && mi->slave_running)
+  if (thread_mask & (SLAVE_IO|SLAVE_FORCE_ALL))
   {
     DBUG_PRINT("info",("Terminating IO thread"));
     mi->abort_slave=1;
-    if ((error=terminate_slave_thread(mi->io_thd,io_lock,
-				      io_cond_lock,
+    if ((error=terminate_slave_thread(mi->io_thd, io_lock,
 				      &mi->stop_cond,
-				      &mi->slave_running)) &&
+				      &mi->slave_running,
+                                      skip_lock)) &&
 	!force_all)
       DBUG_RETURN(error);
   }
-  if ((thread_mask & (SLAVE_SQL|SLAVE_FORCE_ALL)) && mi->rli.slave_running)
+  if (thread_mask & (SLAVE_SQL|SLAVE_FORCE_ALL))
   {
     DBUG_PRINT("info",("Terminating SQL thread"));
-    DBUG_ASSERT(mi->rli.sql_thd != 0) ;
     mi->rli.abort_slave=1;
-    if ((error=terminate_slave_thread(mi->rli.sql_thd,sql_lock,
-				      sql_cond_lock,
+    if ((error=terminate_slave_thread(mi->rli.sql_thd, sql_lock,
 				      &mi->rli.stop_cond,
-				      &mi->rli.slave_running)) &&
+				      &mi->rli.slave_running,
+                                      skip_lock)) &&
 	!force_all)
       DBUG_RETURN(error);
   }
   DBUG_RETURN(0);
 }
 
+/**
+   Wait for a slave thread to terminate.
 
-int terminate_slave_thread(THD* thd, pthread_mutex_t* term_lock,
-			   pthread_mutex_t *cond_lock,
-			   pthread_cond_t* term_cond,
-			   volatile uint *slave_running)
+   This function is called after requesting the thread to terminate
+   (by setting abort_slave member of Relay_log_info or
+   Master_info structure to 1). Termination of the thread is
+   controlled with the the predicate *slave_running.
+
+   Function will acquire term_lock before waiting on the condition
+   unless skip_lock is true in which case the mutex should be owned
+   by the caller of this function and will remain acquired after
+   return from the function.
+
+   term_lock
+          Associated lock to use when waiting for term_cond
+
+   term_cond
+          Condition that is signalled when the thread has terminated
+
+   slave_running
+          Pointer to predicate to check for slave thread termination
+
+   skip_lock
+          If true the lock will not be acquired before waiting on
+          the condition. In this case, it is assumed that the calling
+          function acquires the lock before calling this function.
+
+
+  returns zero if success, ER_SLAVE_NOT_RUNNING otherwise.
+  
+  NOTE: 
+  If the executing thread has to acquire term_lock (skip_lock is false),
+  the negative running status does not represent any issue therefore no error  is reported.
+*/
+
+int terminate_slave_thread(THD* thd,
+                           pthread_mutex_t *term_lock,
+			   pthread_cond_t *term_cond,
+			   volatile uint *slave_running,
+                           bool skip_lock)
 {
   DBUG_ENTER("terminate_slave_thread");
-  if (term_lock)
+  if (!skip_lock)
   {
     pthread_mutex_lock(term_lock);
-    if (!*slave_running)
+  }
+  else
+  {
+    safe_mutex_assert_owner(term_lock);
+  }
+  if (!*slave_running)
+  {
+    if (!skip_lock)
     {
+      /*
+        if run_lock (term_lock) is acquired locally then either
+        slave_running status is fine
+      */
       pthread_mutex_unlock(term_lock);
+      DBUG_RETURN(0);
+    }
+    else
+    {
       DBUG_RETURN(ER_SLAVE_NOT_RUNNING);
     }
   }
@@ -698,6 +744,7 @@ int terminate_slave_thread(THD* thd, pthread_mutex_t* term_lock,
 
   while (*slave_running)			// Should always be true
   {
+    int error;
     DBUG_PRINT("loop", ("killing slave thread"));
 
     pthread_mutex_lock(&thd->LOCK_delete);
@@ -719,9 +766,13 @@ int terminate_slave_thread(THD* thd, pthread_mutex_t* term_lock,
     */
     struct timespec abstime;
     set_timespec(abstime,2);
-    pthread_cond_timedwait(term_cond, cond_lock, &abstime);
+    error= pthread_cond_timedwait(term_cond, term_lock, &abstime);
+    DBUG_ASSERT(error == ETIMEDOUT || error == 0);
   }
-  if (term_lock)
+
+  DBUG_ASSERT(*slave_running == 0);
+
+  if (!skip_lock)
     pthread_mutex_unlock(term_lock);
   DBUG_RETURN(0);
 }
@@ -834,7 +885,7 @@ int start_slave_threads(bool need_slave_mutex, bool wait_for_start,
 			     &mi->rli.slave_running, &mi->rli.slave_run_id,
 			     mi, 0);
     if (error)
-      terminate_slave_threads(mi, thread_mask & SLAVE_IO, 0);
+      terminate_slave_threads(mi, thread_mask & SLAVE_IO, !need_slave_mutex);
   }
   DBUG_RETURN(error);
 }
@@ -1053,8 +1104,7 @@ int add_wild_table_rule(DYNAMIC_ARRAY* a, const char* table_spec)
   e->tbl_name = e->db + (dot - table_spec) + 1;
   e->key_len = len;
   memcpy(e->db, table_spec, len);
-  insert_dynamic(a, (gptr)&e);
-  return 0;
+  return insert_dynamic(a, (gptr)&e);
 }
 
 
@@ -1575,8 +1625,8 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
 
   /* Create the table. We do not want to log the "create table" statement */
   save_options = thd->options;
-  thd->options &= ~(ulong) (OPTION_BIN_LOG);
-  thd->proc_info = "Creating table from master dump";
+  thd->options &= ~ (OPTION_BIN_LOG);
+  thd_proc_info(thd, "Creating table from master dump");
   // save old db in case we are creating in a different database
   save_db = thd->db;
   save_db_length= thd->db_length;
@@ -1590,7 +1640,7 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
   if (thd->query_error)
     goto err;			// mysql_parse took care of the error send
 
-  thd->proc_info = "Opening master dump table";
+  thd_proc_info(thd, "Opening master dump table");
   tables.lock_type = TL_WRITE;
   if (!open_ltable(thd, &tables, TL_WRITE))
   {
@@ -1599,7 +1649,7 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
   }
   
   file = tables.table->file;
-  thd->proc_info = "Reading master dump table data";
+  thd_proc_info(thd, "Reading master dump table data");
   /* Copy the data file */
   if (file->net_read_dump(net))
   {
@@ -1611,7 +1661,7 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
 
   check_opt.init();
   check_opt.flags|= T_VERY_SILENT | T_CALC_CHECKSUM | T_QUICK;
-  thd->proc_info = "Rebuilding the index on master dump table";
+  thd_proc_info(thd, "Rebuilding the index on master dump table");
   /*
     We do not want repair() to spam us with messages
     just send them to the error log, and report the failure in case of
@@ -2952,9 +3002,9 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
 #endif
 
   if (thd_type == SLAVE_THD_SQL)
-    thd->proc_info= "Waiting for the next event in relay log";
+    thd_proc_info(thd, "Waiting for the next event in relay log");
   else
-    thd->proc_info= "Waiting for master update";
+    thd_proc_info(thd, "Waiting for master update");
   thd->version=refresh_version;
   thd->set_time();
   DBUG_RETURN(0);
@@ -3572,7 +3622,7 @@ slave_begin:
     goto err;
   }
 
-  thd->proc_info = "Connecting to master";
+  thd_proc_info(thd, "Connecting to master");
   // we can get killed during safe_connect
   if (!safe_connect(thd, mysql, mi))
   {
@@ -3599,7 +3649,7 @@ connected:
   // TODO: the assignment below should be under mutex (5.0)
   mi->slave_running= MYSQL_SLAVE_RUN_CONNECT;
   thd->slave_net = &mysql->net;
-  thd->proc_info = "Checking master version";
+  thd_proc_info(thd, "Checking master version");
   if (get_master_version_and_clock(mysql, mi))
     goto err;
 
@@ -3610,7 +3660,7 @@ connected:
       If fails, this is not fatal - we just print the error message and go
       on with life.
     */
-    thd->proc_info = "Registering slave on master";
+    thd_proc_info(thd, "Registering slave on master");
     if (register_slave_on_master(mysql))
       goto err;
   }
@@ -3619,7 +3669,7 @@ connected:
   while (!io_slave_killed(thd,mi))
   {
     bool suppress_warnings= 0;
-    thd->proc_info = "Requesting binlog dump";
+    thd_proc_info(thd, "Requesting binlog dump");
     if (request_dump(mysql, mi, &suppress_warnings))
     {
       sql_print_error("Failed on request_dump()");
@@ -3631,7 +3681,7 @@ dump");
       }
 
       mi->slave_running= MYSQL_SLAVE_RUN_NOT_CONNECT;
-      thd->proc_info= "Waiting to reconnect after a failed binlog dump request";
+      thd_proc_info(thd, "Waiting to reconnect after a failed binlog dump request");
 #ifdef SIGNAL_WITH_VIO_CLOSE
       thd->clear_active_vio();
 #endif
@@ -3655,7 +3705,7 @@ dump");
 	goto err;
       }
 
-      thd->proc_info = "Reconnecting after a failed binlog dump request";
+      thd_proc_info(thd, "Reconnecting after a failed binlog dump request");
       if (!suppress_warnings)
 	sql_print_error("Slave I/O thread: failed dump request, \
 reconnecting to try again, log '%s' at postion %s", IO_RPL_LOG_NAME,
@@ -3682,7 +3732,7 @@ after reconnect");
          important thing is to not confuse users by saying "reading" whereas
          we're in fact receiving nothing.
       */
-      thd->proc_info= "Waiting for master to send event";
+      thd_proc_info(thd, "Waiting for master to send event");
       event_len= read_event(mysql, mi, &suppress_warnings);
       if (io_slave_killed(thd,mi))
       {
@@ -3713,7 +3763,7 @@ Stopping slave I/O thread due to out-of-memory error from master");
           goto err;
         }
         mi->slave_running= MYSQL_SLAVE_RUN_NOT_CONNECT;
-	thd->proc_info = "Waiting to reconnect after a failed master event read";
+	thd_proc_info(thd, "Waiting to reconnect after a failed master event read");
 #ifdef SIGNAL_WITH_VIO_CLOSE
         thd->clear_active_vio();
 #endif
@@ -3732,7 +3782,7 @@ Stopping slave I/O thread due to out-of-memory error from master");
 reconnect after a failed read");
 	  goto err;
 	}
-	thd->proc_info = "Reconnecting after a failed master event read";
+	thd_proc_info(thd, "Reconnecting after a failed master event read");
 	if (!suppress_warnings)
 	  sql_print_information("Slave I/O thread: Failed reading log event, \
 reconnecting to retry, log '%s' position %s", IO_RPL_LOG_NAME,
@@ -3749,7 +3799,7 @@ reconnect done to recover from failed read");
       } // if (event_len == packet_error)
 
       retry_count=0;			// ok event, reset retry counter
-      thd->proc_info = "Queueing master event to the relay log";
+      thd_proc_info(thd, "Queueing master event to the relay log");
       if (queue_event(mi,(const char*)mysql->net.read_pos + 1,
 		      event_len))
       {
@@ -3831,7 +3881,7 @@ err:
     mi->mysql=0;
   }
   write_ignored_events_info_to_relay_log(thd, mi);
-  thd->proc_info = "Waiting for slave mutex on exit";
+  thd_proc_info(thd, "Waiting for slave mutex on exit");
   pthread_mutex_lock(&mi->run_lock);
 
   /* Forget the relay log's format */
@@ -3855,6 +3905,7 @@ err:
     delete the mi structure leading to a crash! (see BUG#25306 for details)
    */ 
   pthread_cond_broadcast(&mi->stop_cond);       // tell the world we are done
+  DBUG_EXECUTE_IF("simulate_slave_delay_at_terminate_bug38694", sleep(5););
   pthread_mutex_unlock(&mi->run_lock);
 #ifndef DBUG_OFF
   if (abort_slave_event_count && !events_till_abort)
@@ -4024,7 +4075,7 @@ Slave SQL thread aborted. Can't execute init_slave query");
 
   while (!sql_slave_killed(thd,rli))
   {
-    thd->proc_info = "Reading event from the relay log";
+    thd_proc_info(thd, "Reading event from the relay log");
     DBUG_ASSERT(rli->sql_thd == thd);
     THD_CHECK_SENTRY(thd);
     if (exec_relay_log_event(thd,rli))
@@ -4056,7 +4107,7 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
   thd->query= 0; 
   thd->query_length= 0;
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
-  thd->proc_info = "Waiting for slave mutex on exit";
+  thd_proc_info(thd, "Waiting for slave mutex on exit");
   pthread_mutex_lock(&rli->run_lock);
   /* We need data_lock, at least to wake up any waiting master_pos_wait() */
   pthread_mutex_lock(&rli->data_lock);
@@ -4103,6 +4154,7 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
   */
   const int eta= rli->events_till_abort;
 #endif
+  DBUG_EXECUTE_IF("simulate_slave_delay_at_terminate_bug38694", sleep(5););
   pthread_mutex_unlock(&rli->run_lock);  // tell the world we are done
   
 #ifndef DBUG_OFF // TODO: reconsider the code below
