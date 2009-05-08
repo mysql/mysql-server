@@ -104,9 +104,136 @@ EOF
 }
 
 
+# Check that Debugging tools for Windows are installed
+sub cdb_check {
+   `cdb -? 2>&1`;
+  if ($? >> 8)
+  {
+    print "Cannot find cdb. Please Install Debugging tools for Windows\n";
+    print "from http://www.microsoft.com/whdc/devtools/debugging/";
+    if($ENV{'ProgramW6432'})
+    {
+      print "install64bit.mspx (native x64 version)\n";
+    }
+    else
+   {
+      print "installx86.mspx\n";
+   }
+  }
+}
+
+
+sub _cdb {
+  my ($core_name)= @_;
+  print "\nTrying 'cdb' to get a backtrace\n";
+  return unless -f $core_name;
+  
+  # Try to set environment for debugging tools for Windows
+  if ($ENV{'PATH'} !~ /Debugging Tools/)
+  {
+    if ($ENV{'ProgramW6432'})
+    {
+      # On x64 computer
+      $ENV{'PATH'}.= ";".$ENV{'ProgramW6432'}."\\Debugging Tools For Windows (x64)";
+    }
+    else
+    {
+     # On x86 computer. Newest versions of Debugging tools are installed in the  
+     # directory with (x86) suffix, older versions did not have this suffix.
+     $ENV{'PATH'}.= ";".$ENV{'ProgramFiles'}."\\Debugging Tools For Windows (x86)";
+     $ENV{'PATH'}.= ";".$ENV{'ProgramFiles'}."\\Debugging Tools For Windows";
+    }
+  }
+  
+  
+  # Read module list, find out the name of executable and 
+  # build symbol path (required by cdb if executable was built on 
+  # different machine)
+  my $tmp_name= $core_name.".cdb_lmv";
+  `cdb -z $core_name -c \"lmv;q\" > $tmp_name 2>&1`;
+  if ($? >> 8)
+  {
+    unlink($tmp_name);
+    # check if cdb is installed and complain if not
+    cdb_check();
+    return;
+  }
+  
+  open(temp,"< $tmp_name");
+  my %dirhash=();
+  while(<temp>)
+  {
+    if($_ =~ /Image path\: (.*)/)
+    {
+      if (rindex($1,'\\') != -1)
+      {
+        my $dir= substr($1, 0, rindex($1,'\\'));
+        $dirhash{$dir}++;
+      }
+    }
+  }
+  close(temp);
+  unlink($tmp_name);
+  
+  my $image_path= join(";", (keys %dirhash),".");
+
+  # For better callstacks, setup _NT_SYMBOL_PATH to include
+  # OS symbols. Note : Dowloading symbols for the first time 
+  # can take some minutes
+  if (!$ENV{'_NT_SYMBOL_PATH'})
+  {
+    my $windir= $ENV{'windir'};
+    my $symbol_cache= substr($windir ,0, index($windir,'\\'))."\\cdb_symbols";
+
+    print "OS debug symbols will be downloaded and stored in $symbol_cache.\n";
+    print "You can control the location of symbol cache with _NT_SYMBOL_PATH\n";
+    print "environment variable. Please refer to Microsoft KB article\n";
+    print "http://support.microsoft.com/kb/311503  for details about _NT_SYMBOL_PATH\n";
+    print "-------------------------------------------------------------------------\n";
+
+    $ENV{'_NT_SYMBOL_PATH'}.= 
+      "srv*".$symbol_cache."*http://msdl.microsoft.com/download/symbols";
+  }
+  
+  my $symbol_path= $image_path.";".$ENV{'_NT_SYMBOL_PATH'};
+  
+  
+  # Run cdb. Use "analyze" extension to print crashing thread stacktrace
+  # and "uniqstack" to print other threads
+
+  my $cdb_cmd = "!sym prompts off; !analyze -v; .ecxr; !for_each_frame dv /t;!uniqstack -p;q";
+  my $cdb_output=
+    `cdb -z $core_name -i "$image_path" -y "$symbol_path" -t 0 -lines -c "$cdb_cmd" 2>&1`;
+  return if $? >> 8;
+  return unless $cdb_output;
+  
+  # Remove comments (lines starting with *), stack pointer and frame 
+  # pointer adresses and offsets to function to make output better readable
+  $cdb_output=~ s/^\*.*\n//gm;   
+  $cdb_output=~ s/^([\:0-9a-fA-F\`]+ )+//gm; 
+  $cdb_output=~ s/^ChildEBP RetAddr//gm;
+  $cdb_output=~ s/^Child\-SP          RetAddr           Call Site//gm;
+  $cdb_output=~ s/\+0x([0-9a-fA-F]+)//gm;
+  
+  print <<EOF, $cdb_output, "\n";
+Output from cdb follows. Faulting thread is printed twice,with and without function parameters
+Search for STACK_TEXT to see the stack trace of 
+the faulting thread. Callstacks of other threads are printed after it.
+EOF
+  return 1;
+}
+
+
 sub show {
   my ($class, $core_name)= @_;
 
+  # On Windows, rely on cdb to be there...
+  if (IS_WINDOWS)
+  {
+    _cdb($core_name);
+    return;
+  }
+  
   # We try dbx first; gdb itself may coredump if run on a Sun Studio
   # compiled binary on Solaris.
 

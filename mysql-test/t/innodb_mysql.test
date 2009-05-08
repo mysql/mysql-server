@@ -91,6 +91,7 @@ INSERT INTO foo2 SELECT * FROM foo;
 
 DROP TABLE foo, bar, foo2;
 
+
 #
 # Bug#41348: INSERT INTO tbl SELECT * FROM temp_tbl overwrites locking type of temp table
 #
