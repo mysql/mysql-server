@@ -450,6 +450,9 @@ sys_var_thd_bool	sys_innodb_table_locks("innodb_table_locks",
                                                &SV::innodb_table_locks);
 sys_var_thd_bool	sys_innodb_support_xa("innodb_support_xa",
                                                &SV::innodb_support_xa);
+sys_var_bool_ptr        sys_innodb_use_legacy_cardinality_algorithm(
+                          "innodb_use_legacy_cardinality_algorithm",
+                          &srv_use_legacy_cardinality_algorithm);
 sys_var_long_ptr	sys_innodb_autoextend_increment("innodb_autoextend_increment",
 							&srv_auto_extend_increment);
 sys_var_long_ptr	sys_innodb_sync_spin_loops("innodb_sync_spin_loops",
@@ -564,6 +567,12 @@ static sys_var_thd_bit	sys_unique_checks("unique_checks", 0,
 					  set_option_bit,
 					  OPTION_RELAXED_UNIQUE_CHECKS,
 					  1);
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+static sys_var_thd_bit  sys_profiling("profiling", NULL, set_option_bit,
+                                      ulonglong(OPTION_PROFILING));
+static sys_var_thd_ulong	sys_profiling_history_size("profiling_history_size",
+					      &SV::profiling_history_size);
+#endif
 
 /* Local state variables */
 
@@ -727,6 +736,10 @@ sys_var *sys_variables[]=
   &sys_optimizer_prune_level,
   &sys_optimizer_search_depth,
   &sys_preload_buff_size,
+#ifdef ENABLED_PROFILING
+  &sys_profiling,
+  &sys_profiling_history_size,
+#endif
   &sys_pseudo_thread_id,
   &sys_query_alloc_block_size,
   &sys_query_cache_size,
@@ -804,6 +817,7 @@ sys_var *sys_variables[]=
   &sys_innodb_max_purge_lag,
   &sys_innodb_table_locks,
   &sys_innodb_support_xa,
+  &sys_innodb_use_legacy_cardinality_algorithm,
   &sys_innodb_autoextend_increment,
   &sys_innodb_sync_spin_loops,
   &sys_innodb_concurrency_tickets,
@@ -889,6 +903,8 @@ struct show_var_st init_vars[]= {
   {"have_bdb",		      (char*) &have_berkeley_db,	    SHOW_HAVE},
   {"have_blackhole_engine",   (char*) &have_blackhole_db,	    SHOW_HAVE},
   {"have_compress",	      (char*) &have_compress,		    SHOW_HAVE},
+  {"have_community_features", (char*) &have_community_features,	    SHOW_HAVE},
+  {"have_profiling",          (char*) &have_profiling,	            SHOW_HAVE},
   {"have_crypt",	      (char*) &have_crypt,		    SHOW_HAVE},
   {"have_csv",	              (char*) &have_csv_db,	            SHOW_HAVE},
   {"have_dynamic_loading",    (char*) &have_dlopen,	            SHOW_HAVE},
@@ -946,6 +962,8 @@ struct show_var_st init_vars[]= {
   {sys_innodb_table_locks.name, (char*) &sys_innodb_table_locks, SHOW_SYS},
   {sys_innodb_thread_concurrency.name, (char*) &sys_innodb_thread_concurrency, SHOW_SYS},
   {sys_innodb_thread_sleep_delay.name, (char*) &sys_innodb_thread_sleep_delay, SHOW_SYS},
+  {sys_innodb_use_legacy_cardinality_algorithm.name,
+   (char*) &sys_innodb_use_legacy_cardinality_algorithm, SHOW_SYS},
 #endif
   {sys_interactive_timeout.name,(char*) &sys_interactive_timeout,   SHOW_SYS},
   {sys_join_buffer_size.name,   (char*) &sys_join_buffer_size,	    SHOW_SYS},
@@ -1042,6 +1060,10 @@ struct show_var_st init_vars[]= {
   {sys_plugin_dir.name,       (char*) &sys_plugin_dir,              SHOW_SYS},
   {"port",                    (char*) &mysqld_port,                  SHOW_INT},
   {sys_preload_buff_size.name, (char*) &sys_preload_buff_size,      SHOW_SYS},
+#ifdef ENABLED_PROFILING
+  {sys_profiling.name,        (char*) &sys_profiling,               SHOW_SYS},
+  {sys_profiling_history_size.name, (char*) &sys_profiling_history_size, SHOW_SYS},
+#endif
   {"protocol_version",        (char*) &protocol_version,            SHOW_INT},
   {sys_query_alloc_block_size.name, (char*) &sys_query_alloc_block_size,
    SHOW_SYS},
@@ -3021,7 +3043,7 @@ static bool set_option_autocommit(THD *thd, set_var *var)
     if ((org_options & OPTION_NOT_AUTOCOMMIT))
     {
       /* We changed to auto_commit mode */
-      thd->options&= ~(ulong) OPTION_BEGIN;
+      thd->options&= ~OPTION_BEGIN;
       thd->transaction.all.modified_non_trans_table= FALSE;
       thd->server_status|= SERVER_STATUS_AUTOCOMMIT;
       if (ha_commit(thd))

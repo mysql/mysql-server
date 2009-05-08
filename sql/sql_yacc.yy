@@ -234,9 +234,7 @@ int case_stmt_action_expr(LEX *lex, Item* expr)
                                 parsing_ctx, case_expr_id, expr, lex);
 
   sp->add_cont_backpatch(i);
-  sp->add_instr(i);
-
-  return 0;
+  return sp->add_instr(i);
 }
 
 /**
@@ -247,7 +245,7 @@ int case_stmt_action_expr(LEX *lex, Item* expr)
   @param simple true for simple cases, false for searched cases
 */
 
-void case_stmt_action_when(LEX *lex, Item *when, bool simple)
+int case_stmt_action_when(LEX *lex, Item *when, bool simple)
 {
   sp_head *sp= lex->sphead;
   sp_pcontext *ctx= lex->spcont;
@@ -279,9 +277,10 @@ void case_stmt_action_when(LEX *lex, Item *when, bool simple)
     (jump_if_not from instruction 2 to 5, 5 to 8 ... in the example)
   */
 
-  sp->push_backpatch(i, ctx->push_label((char *)"", 0));
-  sp->add_cont_backpatch(i);
-  sp->add_instr(i);
+  return !test(i) ||
+         sp->push_backpatch(i, ctx->push_label((char *)"", 0)) ||
+         sp->add_cont_backpatch(i) ||
+         sp->add_instr(i);
 }
 
 /**
@@ -290,13 +289,14 @@ void case_stmt_action_when(LEX *lex, Item *when, bool simple)
   @param lex the parser lex context
 */
 
-void case_stmt_action_then(LEX *lex)
+int case_stmt_action_then(LEX *lex)
 {
   sp_head *sp= lex->sphead;
   sp_pcontext *ctx= lex->spcont;
   uint ip= sp->instructions();
   sp_instr_jump *i = new sp_instr_jump(ip, ctx);
-  sp->add_instr(i);
+  if (!test(i) || sp->add_instr(i))
+    return 1;
 
   /*
     BACKPATCH: Resolving forward jump from
@@ -312,7 +312,7 @@ void case_stmt_action_then(LEX *lex)
     (jump from instruction 4 to 12, 7 to 12 ... in the example)
   */
 
-  sp->push_backpatch(i, ctx->last_label());
+  return sp->push_backpatch(i, ctx->last_label());
 }
 
 /**
@@ -502,6 +502,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  BIT_SYM
 %token  BIT_XOR
 %token  BLOB_SYM
+%token  BLOCK_SYM
 %token  BOOLEAN_SYM
 %token  BOOL_SYM
 %token  BOTH
@@ -542,10 +543,12 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  CONSISTENT_SYM
 %token  CONSTRAINT
 %token  CONTAINS_SYM
+%token  CONTEXT_SYM
 %token  CONTINUE_SYM
 %token  CONVERT_SYM
 %token  CONVERT_TZ_SYM
 %token  COUNT_SYM
+%token  CPU_SYM
 %token  CREATE
 %token  CROSS
 %token  CUBE_SYM
@@ -619,6 +622,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  EXTRACT_SYM
 %token  FALSE_SYM
 %token  FAST_SYM
+%token  FAULTS_SYM
 %token  FETCH_SYM
 %token  FIELD_FUNC
 %token  FILE_SYM
@@ -688,6 +692,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  INT_SYM
 %token  INVOKER_SYM
 %token  IN_SYM
+%token  IO_SYM
+%token  IPC_SYM
 %token  IS
 %token  ISOLATION
 %token  ISSUER_SYM
@@ -756,6 +762,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  MEDIUMINT
 %token  MEDIUMTEXT
 %token  MEDIUM_SYM
+%token  MEMORY_SYM
 %token  MERGE_SYM
 %token  MICROSECOND_SYM
 %token  MIGRATE_SYM
@@ -814,6 +821,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  OUTFILE
 %token  OUT_SYM
 %token  PACK_KEYS_SYM
+%token  PAGE_SYM
 %token  PARTIAL
 %token  PASSWORD
 %token  PARAM_MARKER
@@ -831,6 +839,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  PROCEDURE
 %token  PROCESS
 %token  PROCESSLIST_SYM
+%token  PROFILE_SYM
+%token  PROFILES_SYM
 %token  PURGE
 %token  QUARTER_SYM
 %token  QUERY_SYM
@@ -901,6 +911,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  SMALLINT
 %token  SNAPSHOT_SYM
 %token  SOUNDS_SYM
+%token  SOURCE_SYM
 %token  SPATIAL_SYM
 %token  SPECIFIC_SYM
 %token  SQLEXCEPTION_SYM
@@ -931,6 +942,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  SUM_SYM
 %token  SUPER_SYM
 %token  SUSPEND_SYM
+%token  SWAPS_SYM
+%token  SWITCHES_SYM
 %token  SYSDATE
 %token  TABLES
 %token  TABLESPACE
@@ -1905,10 +1918,9 @@ sp_decl:
                                                  var_type,
                                                  lex,
                                                  (i == num_vars - 1));
-              if (is == NULL)
+              if (is == NULL ||
+                  lex->sphead->add_instr(is))
                 MYSQL_YYABORT;
-
-              lex->sphead->add_instr(is);
             }
 
             pctx->declare_var_boundary(0);
@@ -1927,7 +1939,8 @@ sp_decl:
 	      my_error(ER_SP_DUP_COND, MYF(0), $2.str);
 	      MYSQL_YYABORT;
 	    }
-	    YYTHD->lex->spcont->push_cond(&$2, $5);
+	    if(YYTHD->lex->spcont->push_cond(&$2, $5))
+              MYSQL_YYABORT;
 	    $$.vars= $$.hndlrs= $$.curs= 0;
 	    $$.conds= 1;
 	  }
@@ -1942,10 +1955,10 @@ sp_decl:
 	    sp_instr_hpush_jump *i=
               new sp_instr_hpush_jump(sp->instructions(), ctx, $2,
 	                              ctx->current_var_count());
-            if (i == NULL)
+            if (i == NULL ||
+	        sp->add_instr(i))
               MYSQL_YYABORT;
 
-	    sp->add_instr(i);
 	    sp->push_backpatch(i, ctx->push_label((char *)"", 0));
 	  }
 	  sp_hcond_list sp_proc_stmt
@@ -1960,17 +1973,17 @@ sp_decl:
 	    {
 	      i= new sp_instr_hreturn(sp->instructions(), ctx,
 	                              ctx->current_var_count());
-              if (i == NULL )
+              if (i == NULL ||
+	          sp->add_instr(i))
                 MYSQL_YYABORT;
-	      sp->add_instr(i);
 	    }
 	    else
 	    {  /* EXIT or UNDO handler, just jump to the end of the block */
 	      i= new sp_instr_hreturn(sp->instructions(), ctx, 0);
-              if (i == NULL)
+              if (i == NULL ||
+	          sp->add_instr(i) ||
+	          sp->push_backpatch(i, lex->spcont->last_label())) /* Block end */
                 MYSQL_YYABORT;
-	      sp->add_instr(i);
-	      sp->push_backpatch(i, lex->spcont->last_label()); /* Block end */
 	    }
 	    lex->sphead->backpatch(hlab);
 
@@ -1996,10 +2009,10 @@ sp_decl:
 	    }
             i= new sp_instr_cpush(sp->instructions(), ctx, $5,
                                   ctx->current_cursor_count());
-	    if (i == NULL)
+	    if (i == NULL ||
+                sp->add_instr(i) ||
+	        ctx->push_cursor(&$2))
               MYSQL_YYABORT;
-            sp->add_instr(i);
-	    ctx->push_cursor(&$2);
 	    $$.vars= $$.conds= $$.hndlrs= 0;
 	    $$.curs= 1;
 	  }
@@ -2223,10 +2236,11 @@ sp_proc_stmt:
                 i->m_query.length= lip->ptr - sp->m_tmp_query;
               else
                 i->m_query.length= lip->tok_end - sp->m_tmp_query;
-              i->m_query.str= strmake_root(thd->mem_root,
-                                           sp->m_tmp_query,
-                                           i->m_query.length);
-              sp->add_instr(i);
+              if (!(i->m_query.str= strmake_root(thd->mem_root,
+                                                 sp->m_tmp_query,
+                                                 i->m_query.length)) ||
+                    sp->add_instr(i))
+                MYSQL_YYABORT;
             }
 	    sp->restore_lex(thd);
           }
@@ -2251,9 +2265,9 @@ sp_proc_stmt:
 
 	      i= new sp_instr_freturn(sp->instructions(), lex->spcont, $3,
                                       sp->m_return_field_def.sql_type, lex);
-              if (i == NULL)
+              if (i == NULL ||
+	          sp->add_instr(i))
                 MYSQL_YYABORT;
-	      sp->add_instr(i);
 	      sp->m_flags|= sp_head::HAS_RETURN;
 	    }
 	    sp->restore_lex(YYTHD);
@@ -2311,23 +2325,23 @@ sp_proc_stmt:
 	      if (n)
               {
                 sp_instr_hpop *hpop= new sp_instr_hpop(ip++, ctx, n);
-                if (hpop == NULL)
+                if (hpop == NULL ||
+	            sp->add_instr(hpop))
                   MYSQL_YYABORT;
-	        sp->add_instr(hpop);
               }
 	      n= ctx->diff_cursors(lab->ctx, exclusive);
 	      if (n)
               {
                 sp_instr_cpop *cpop= new sp_instr_cpop(ip++, ctx, n);
-                if (cpop == NULL)
+                if (cpop == NULL ||
+	            sp->add_instr(cpop))
                   MYSQL_YYABORT;
-	        sp->add_instr(cpop);
               }
 	      i= new sp_instr_jump(ip, ctx);
-              if (i == NULL)
+              if (i == NULL ||
+	          sp->push_backpatch(i, lab) ||  /* Jumping forward */
+                  sp->add_instr(i))
                 MYSQL_YYABORT;
-	      sp->push_backpatch(i, lab);  /* Jumping forward */
-              sp->add_instr(i);
 	    }
 	  }
 	| ITERATE_SYM label_ident
@@ -2352,22 +2366,22 @@ sp_proc_stmt:
 	      if (n)
               {
                 sp_instr_hpop *hpop= new sp_instr_hpop(ip++, ctx, n);
-                if (hpop == NULL)
+                if (hpop == NULL ||
+	            sp->add_instr(hpop))
                   MYSQL_YYABORT;
-	        sp->add_instr(hpop);
               }
 	      n= ctx->diff_cursors(lab->ctx, FALSE);  /* Inclusive the dest. */
 	      if (n)
               {
                 sp_instr_cpop *cpop= new sp_instr_cpop(ip++, ctx, n);
-                if (cpop == NULL)
+                if (cpop == NULL ||
+	            sp->add_instr(cpop))
                   MYSQL_YYABORT;
-	        sp->add_instr(cpop);
               }
 	      i= new sp_instr_jump(ip, ctx, lab->ip); /* Jump back */
-              if (i == NULL)
+              if (i == NULL ||
+                  sp->add_instr(i))
                 MYSQL_YYABORT;
-              sp->add_instr(i);
 	    }
 	  }
 	| OPEN_SYM ident
@@ -2383,9 +2397,9 @@ sp_proc_stmt:
 	      MYSQL_YYABORT;
 	    }
 	    i= new sp_instr_copen(sp->instructions(), lex->spcont, offset);
-            if (i == NULL)
+            if (i == NULL ||
+	        sp->add_instr(i))
               MYSQL_YYABORT;
-	    sp->add_instr(i);
 	  }
 	| FETCH_SYM sp_opt_fetch_noise ident INTO
 	  {
@@ -2400,9 +2414,9 @@ sp_proc_stmt:
 	      MYSQL_YYABORT;
 	    }
 	    i= new sp_instr_cfetch(sp->instructions(), lex->spcont, offset);
-            if (i == NULL)
+            if (i == NULL ||
+	        sp->add_instr(i))
               MYSQL_YYABORT;
-	    sp->add_instr(i);
 	  }
 	  sp_fetch_list
 	  { }
@@ -2419,9 +2433,9 @@ sp_proc_stmt:
 	      MYSQL_YYABORT;
 	    }
 	    i= new sp_instr_cclose(sp->instructions(), lex->spcont,  offset);
-            if (i == NULL)
+            if (i == NULL ||
+	        sp->add_instr(i))
               MYSQL_YYABORT;
-	    sp->add_instr(i);
 	  }
 	;
 
@@ -2488,11 +2502,11 @@ sp_if:
 	    uint ip= sp->instructions();
 	    sp_instr_jump_if_not *i = new sp_instr_jump_if_not(ip, ctx,
                                                                $2, lex);
-            if (i == NULL)
+            if (i == NULL ||
+	        sp->push_backpatch(i, ctx->push_label((char *)"", 0)) ||
+                sp->add_cont_backpatch(i) ||
+                sp->add_instr(i))
               MYSQL_YYABORT;
-	    sp->push_backpatch(i, ctx->push_label((char *)"", 0));
-            sp->add_cont_backpatch(i);
-            sp->add_instr(i);
             sp->restore_lex(YYTHD);
 	  }
 	  sp_proc_stmts1
@@ -2501,9 +2515,9 @@ sp_if:
 	    sp_pcontext *ctx= Lex->spcont;
 	    uint ip= sp->instructions();
 	    sp_instr_jump *i = new sp_instr_jump(ip, ctx);
-            if (i == NULL)
+            if (i == NULL ||
+	        sp->add_instr(i))
               MYSQL_YYABORT;
-	    sp->add_instr(i);
 	    sp->backpatch(ctx->pop_label());
 	    sp->push_backpatch(i, ctx->push_label((char *)"", 0));
 	  }
@@ -2589,14 +2603,16 @@ simple_when_clause:
             /* Simple case: <caseval> = <whenval> */
 
             LEX *lex= Lex;
-            case_stmt_action_when(lex, $3, true);
+            if (case_stmt_action_when(lex, $3, true))
+              MYSQL_YYABORT;
             lex->sphead->restore_lex(YYTHD); /* For expr $3 */
           }
           THEN_SYM
           sp_proc_stmts1
           {
             LEX *lex= Lex;
-            case_stmt_action_then(lex);
+            if (case_stmt_action_then(lex))
+              MYSQL_YYABORT;
           }
         ;
 
@@ -2609,14 +2625,16 @@ searched_when_clause:
           expr
           {
             LEX *lex= Lex;
-            case_stmt_action_when(lex, $3, false);
+            if (case_stmt_action_when(lex, $3, false))
+              MYSQL_YYABORT;
             lex->sphead->restore_lex(YYTHD); /* For expr $3 */
           }
           THEN_SYM
           sp_proc_stmts1
           {
             LEX *lex= Lex;
-            case_stmt_action_then(lex);
+            if (case_stmt_action_then(lex))
+              MYSQL_YYABORT;
           }
         ;
 
@@ -2628,9 +2646,9 @@ else_clause_opt:
             uint ip= sp->instructions();
             sp_instr_error *i= new sp_instr_error(ip, lex->spcont,
                                                   ER_SP_CASE_NOT_FOUND);
-            if (i == NULL)
+            if (i == NULL ||
+                sp->add_instr(i))
               MYSQL_YYABORT;
-            sp->add_instr(i);
           }
         | ELSE sp_proc_stmts1
         ;
@@ -2744,17 +2762,17 @@ sp_block_content:
             {
               sp_instr_hpop *hpop= new sp_instr_hpop(sp->instructions(), ctx,
                                                      $3.hndlrs);
-              if (hpop == NULL)
+              if (hpop == NULL ||
+	          sp->add_instr(hpop))
                 MYSQL_YYABORT;
-	      sp->add_instr(hpop);
             }
 	    if ($3.curs)
             {
               sp_instr_cpop *cpop= new sp_instr_cpop(sp->instructions(), ctx,
                                                      $3.curs);
-              if (cpop == NULL)
+              if (cpop == NULL ||
+	          sp->add_instr(cpop))
                 MYSQL_YYABORT;
-	      sp->add_instr(cpop);
             }
 	    lex->spcont= ctx->pop_context();
 	  }
@@ -2768,9 +2786,9 @@ sp_unlabeled_control:
 	    uint ip= lex->sphead->instructions();
 	    sp_label_t *lab= lex->spcont->last_label();  /* Jumping back */
 	    sp_instr_jump *i = new sp_instr_jump(ip, lex->spcont, lab->ip);
-            if (i == NULL)
+            if (i == NULL ||
+	        lex->sphead->add_instr(i))
               MYSQL_YYABORT;
-	    lex->sphead->add_instr(i);
 	  }
         | WHILE_SYM 
           {
@@ -2784,12 +2802,12 @@ sp_unlabeled_control:
 	    uint ip= sp->instructions();
 	    sp_instr_jump_if_not *i = new sp_instr_jump_if_not(ip, lex->spcont,
 							       $3, lex);
-            if (i == NULL)
-              MYSQL_YYABORT;
+            if (i == NULL ||
 	    /* Jumping forward */
-	    sp->push_backpatch(i, lex->spcont->last_label());
-            sp->new_cont_backpatch(i);
-            sp->add_instr(i);
+                sp->push_backpatch(i, lex->spcont->last_label()) ||
+                sp->new_cont_backpatch(i) ||
+                sp->add_instr(i))
+              MYSQL_YYABORT;
             sp->restore_lex(YYTHD);
 	  }
 	  sp_proc_stmts1 END WHILE_SYM
@@ -2798,9 +2816,9 @@ sp_unlabeled_control:
 	    uint ip= lex->sphead->instructions();
 	    sp_label_t *lab= lex->spcont->last_label();  /* Jumping back */
 	    sp_instr_jump *i = new sp_instr_jump(ip, lex->spcont, lab->ip);
-            if (i == NULL)
+            if (i == NULL ||
+	        lex->sphead->add_instr(i))
               MYSQL_YYABORT;
-	    lex->sphead->add_instr(i);
             lex->sphead->do_cont_backpatch();
 	  }
         | REPEAT_SYM sp_proc_stmts1 UNTIL_SYM 
@@ -2816,9 +2834,9 @@ sp_unlabeled_control:
 	    sp_instr_jump_if_not *i = new sp_instr_jump_if_not(ip, lex->spcont,
                                                                $5, lab->ip,
                                                                lex);
-            if (i == NULL)
+            if (i == NULL ||
+                lex->sphead->add_instr(i))
               MYSQL_YYABORT;
-            lex->sphead->add_instr(i);
             lex->sphead->restore_lex(YYTHD);
             /* We can shortcut the cont_backpatch here */
             i->m_cont_dest= ip+1;
@@ -4522,6 +4540,7 @@ select_lock_type:
 	    LEX *lex=Lex;
 	    lex->current_select->set_lock_for_tables(TL_WRITE);
 	    lex->safe_to_cache_query=0;
+            lex->protect_against_global_read_lock= TRUE;
 	  }
 	| LOCK_SYM IN_SYM SHARE_SYM MODE_SYM
 	  {
@@ -7937,6 +7956,64 @@ opt_table_sym:
 	/* empty */
 	| TABLE_SYM;
 
+opt_profile_defs:
+  /* empty */
+  | profile_defs;
+
+profile_defs:
+  profile_def
+  | profile_defs ',' profile_def;
+
+profile_def:
+  CPU_SYM
+    {
+      Lex->profile_options|= PROFILE_CPU;
+    }
+  | MEMORY_SYM
+    {
+      Lex->profile_options|= PROFILE_MEMORY;
+    }
+  | BLOCK_SYM IO_SYM
+    {
+      Lex->profile_options|= PROFILE_BLOCK_IO;
+    }
+  | CONTEXT_SYM SWITCHES_SYM
+    {
+      Lex->profile_options|= PROFILE_CONTEXT;
+    }
+  | PAGE_SYM FAULTS_SYM
+    {
+      Lex->profile_options|= PROFILE_PAGE_FAULTS;
+    }
+  | IPC_SYM
+    {
+      Lex->profile_options|= PROFILE_IPC;
+    }
+  | SWAPS_SYM
+    {
+      Lex->profile_options|= PROFILE_SWAPS;
+    }
+  | SOURCE_SYM
+    {
+      Lex->profile_options|= PROFILE_SOURCE;
+    }
+  | ALL
+    {
+      Lex->profile_options|= PROFILE_ALL;
+    }
+  ;
+
+opt_profile_args:
+  /* empty */
+    {
+      Lex->profile_query_id= 0;
+    }
+  | FOR_SYM QUERY_SYM NUM
+    {
+      Lex->profile_query_id= atoi($3.str);
+    }
+  ;
+
 /* Show things */
 
 show:	SHOW
@@ -8072,6 +8149,16 @@ show_param:
           { Lex->sql_command = SQLCOM_SHOW_WARNS;}
         | ERRORS opt_limit_clause_init
           { Lex->sql_command = SQLCOM_SHOW_ERRORS;}
+        | PROFILES_SYM
+          { Lex->sql_command = SQLCOM_SHOW_PROFILES; }
+        | PROFILE_SYM opt_profile_defs opt_profile_args opt_limit_clause_init
+          { 
+            LEX *lex= Lex;
+            lex->sql_command= SQLCOM_SELECT;
+            lex->orig_sql_command= SQLCOM_SHOW_PROFILE;
+            if (prepare_schema_table(YYTHD, lex, NULL, SCH_PROFILES) != 0)
+              YYABORT;
+          }
         | opt_var_type STATUS_SYM wild_and_where
           {
             LEX *lex= Lex;
@@ -9350,6 +9437,7 @@ keyword_sp:
 	| BERKELEY_DB_SYM	{}
 	| BINLOG_SYM		{}
 	| BIT_SYM		{}
+	| BLOCK_SYM             {}
 	| BOOL_SYM		{}
 	| BOOLEAN_SYM		{}
 	| BTREE_SYM		{}
@@ -9367,6 +9455,8 @@ keyword_sp:
 	| CONCURRENT		{}
 	| CONNECTION_SYM	{}
 	| CONSISTENT_SYM	{}
+	| CONTEXT_SYM           {}
+	| CPU_SYM               {}
 	| CUBE_SYM		{}
 	| DATA_SYM		{}
 	| DATETIME		{}
@@ -9389,6 +9479,7 @@ keyword_sp:
         | EXPANSION_SYM         {}
 	| EXTENDED_SYM		{}
 	| FAST_SYM		{}
+	| FAULTS_SYM            {}
 	| FOUND_SYM		{}
 	| DISABLE_SYM		{}
 	| ENABLE_SYM		{}
@@ -9413,6 +9504,8 @@ keyword_sp:
 	| ISSUER_SYM		{}
 	| INNOBASE_SYM		{}
 	| INSERT_METHOD		{}
+	| IO_SYM                {}
+	| IPC_SYM               {}
 	| RELAY_THREAD		{}
 	| LAST_SYM		{}
 	| LEAVES                {}
@@ -9442,6 +9535,7 @@ keyword_sp:
 	| MAX_UPDATES_PER_HOUR	{}
 	| MAX_USER_CONNECTIONS_SYM {}
 	| MEDIUM_SYM		{}
+	| MEMORY_SYM            {}
 	| MERGE_SYM		{}
 	| MICROSECOND_SYM	{}
         | MIGRATE_SYM           {}
@@ -9468,6 +9562,7 @@ keyword_sp:
 	| ONE_SHOT_SYM		{}
         | ONE_SYM               {}
 	| PACK_KEYS_SYM		{}
+	| PAGE_SYM              {}
 	| PARTIAL		{}
 	| PASSWORD		{}
         | PHASE_SYM             {}
@@ -9477,6 +9572,8 @@ keyword_sp:
         | PRIVILEGES            {}
 	| PROCESS		{}
 	| PROCESSLIST_SYM	{}
+	| PROFILE_SYM           {}
+	| PROFILES_SYM          {}
 	| QUARTER_SYM		{}
 	| QUERY_SYM		{}
 	| QUICK			{}
@@ -9510,6 +9607,7 @@ keyword_sp:
 	| SHUTDOWN		{}
 	| SNAPSHOT_SYM		{}
 	| SOUNDS_SYM		{}
+	| SOURCE_SYM            {}
 	| SQL_CACHE_SYM		{}
 	| SQL_BUFFER_RESULT	{}
 	| SQL_NO_CACHE_SYM	{}
@@ -9521,6 +9619,8 @@ keyword_sp:
 	| SUBJECT_SYM		{}
 	| SUPER_SYM		{}
         | SUSPEND_SYM           {}
+        | SWAPS_SYM             {}
+	| SWITCHES_SYM          {}
         | TABLES                {}
 	| TABLESPACE		{}
 	| TEMPORARY		{}
@@ -9648,7 +9748,8 @@ option_type_value:
                       qbuff.length);
               qbuff.length+= 4;
               i->m_query= qbuff;
-              sp->add_instr(i);
+              if (sp->add_instr(i))
+                MYSQL_YYABORT;
             }
             lex->sphead->restore_lex(thd);
           }
@@ -9730,7 +9831,8 @@ sys_option_value:
             lex->trg_table_fields.link_in_list((byte *)trg_fld,
                                     (byte **)&trg_fld->next_trg_field);
 
-            lex->sphead->add_instr(sp_fld);
+            if (lex->sphead->add_instr(sp_fld))
+              MYSQL_YYABORT;
           }
           else if ($2.var)
           { /* System variable */
@@ -9760,11 +9862,12 @@ sys_option_value:
               it= spv->dflt;
             else
               it= new Item_null();
-            if (it == NULL)
+            if (it == NULL ||
+                (sp_set= new sp_instr_set(lex->sphead->instructions(), ctx,
+                                          spv->offset, it, spv->type, lex,
+                                          TRUE)) == NULL ||
+                lex->sphead->add_instr(sp_set))
               MYSQL_YYABORT;
-            sp_set= new sp_instr_set(lex->sphead->instructions(), ctx,
-                                     spv->offset, it, spv->type, lex, TRUE);
-            lex->sphead->add_instr(sp_set);
           }
         }
         | option_type TRANSACTION_SYM ISOLATION LEVEL_SYM isolation_types
@@ -10058,8 +10161,12 @@ table_lock_list:
 table_lock:
 	table_ident opt_table_alias lock_option
 	{
-	  if (!Select->add_table_to_list(YYTHD, $1, $2, 0, (thr_lock_type) $3))
+          thr_lock_type lock_type= (thr_lock_type) $3;
+	  if (!Select->add_table_to_list(YYTHD, $1, $2, 0, lock_type))
 	   MYSQL_YYABORT;
+          /* If table is to be write locked, protect from a impending GRL. */
+          if (lock_type >= TL_WRITE_ALLOW_WRITE)
+            Lex->protect_against_global_read_lock= TRUE;
 	}
         ;
 

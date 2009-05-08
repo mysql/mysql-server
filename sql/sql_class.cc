@@ -165,6 +165,20 @@ Open_tables_state::Open_tables_state(ulong version_arg)
   reset_open_tables_state();
 }
 
+extern "C"
+const char *set_thd_proc_info(THD *thd, const char *info, 
+                              const char *calling_function,  
+                              const char *calling_file,
+                              const unsigned int calling_line)
+{
+  const char *old_info= thd->proc_info;
+  DBUG_PRINT("proc_info", ("%s:%d  %s", calling_file, calling_line, info));
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+  thd->profiling.status_change(info, calling_function, calling_file, calling_line);
+#endif 
+  thd->proc_info= info;
+  return old_info;
+}
 
 
 THD::THD()
@@ -258,6 +272,9 @@ THD::THD()
   init();
   /* Initialize sub structures */
   init_sql_alloc(&warn_root, WARN_ALLOC_BLOCK_SIZE, WARN_ALLOC_PREALLOC_SIZE);
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+  profiling.set_thd(this);
+#endif
   user_connect=(USER_CONN *)0;
   hash_init(&user_vars, system_charset_info, USER_VARS_HASH_SIZE, 0, 0,
 	    (hash_get_key) get_var_key,
