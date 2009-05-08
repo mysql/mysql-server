@@ -1139,4 +1139,22 @@ DROP TABLE t1;
 SET @@sql_mode = @old_sql_mode;
 
 
+#
+# Bug#42567 Invalid GROUP BY error
+#
+
+# Setup of the subtest
+SET @old_sql_mode = @@sql_mode;
+SET @@sql_mode='ONLY_FULL_GROUP_BY';
+
+CREATE TABLE t1(i INT);
+INSERT INTO t1 VALUES (1), (10);
+
+# The actual test
+SELECT COUNT(i) FROM t1;
+SELECT COUNT(i) FROM t1 WHERE i > 1;
+
+# Cleanup of subtest
+DROP TABLE t1;
+SET @@sql_mode = @old_sql_mode;
 
