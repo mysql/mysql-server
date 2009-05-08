@@ -61,7 +61,7 @@ SELECT @@global.net_read_timeout;
 1
 SET @@global.net_read_timeout = -1024;
 Warnings:
-Warning	1292	Truncated incorrect net_read_timeout value: '0'
+Warning	1292	Truncated incorrect net_read_timeout value: '-1024'
 SELECT @@global.net_read_timeout;
 @@global.net_read_timeout
 1
@@ -89,7 +89,7 @@ SELECT @@session.net_read_timeout;
 1
 SET @@session.net_read_timeout = -2;
 Warnings:
-Warning	1292	Truncated incorrect net_read_timeout value: '0'
+Warning	1292	Truncated incorrect net_read_timeout value: '-2'
 SELECT @@session.net_read_timeout;
 @@session.net_read_timeout
 1

@@ -113,8 +113,8 @@ sub check_socket_path_length {
 
   # Create a tempfile name with same length as "path"
   my $tmpdir = tempdir( CLEANUP => 0);
-  my $len = length($path) - length($tmpdir);
-  my $testfile = $tmpdir . "x" x ($len  > 0 ? $len : 1);
+  my $len = length($path) - length($tmpdir) - 1;
+  my $testfile = $tmpdir . "/" . "x" x ($len  > 0 ? $len : 1);
   my $sock;
   eval {
     $sock= new IO::Socket::UNIX
@@ -126,17 +126,15 @@ sub check_socket_path_length {
     die "Could not create UNIX domain socket: $!"
       unless defined $sock;
 
-    die "UNIX domain socket patch was truncated"
+    die "UNIX domain socket path was truncated"
       unless ($testfile eq $sock->hostpath());
 
     $truncated= 0; # Yes, it worked!
 
   };
-  #print "check_socket_path_length, failed: ", $@, '\n' if ($@);
 
   $sock= undef;  # Close socket
-  unlink($testfile); # Remove the physical file
-  rmdir($tmpdir); # Remove the tempdir
+  rmtree($tmpdir); # Remove the tempdir and any socket file created
   return $truncated;
 }
 

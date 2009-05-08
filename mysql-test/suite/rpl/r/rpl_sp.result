@@ -195,7 +195,7 @@ set @old_log_bin_trust_routine_creators= @@global.log_bin_trust_routine_creators
 set @old_log_bin_trust_function_creators= @@global.log_bin_trust_function_creators;
 set global log_bin_trust_routine_creators=1;
 Warnings:
-Warning	1287	The syntax '@@log_bin_trust_routine_creators' is deprecated and will be removed in MySQL 5.2. Please use '@@log_bin_trust_function_creators' instead
+Warning	1287	The syntax '@@log_bin_trust_routine_creators' is deprecated and will be removed in MySQL 6.0. Please use '@@log_bin_trust_function_creators' instead
 set global log_bin_trust_function_creators=0;
 set global log_bin_trust_function_creators=1;
 set @old_log_bin_trust_routine_creators= @@global.log_bin_trust_routine_creators;
@@ -511,6 +511,7 @@ master-bin.000001	#	Query	1	#	use `mysqltest1`; drop procedure foo
 master-bin.000001	#	Query	1	#	use `mysqltest1`; drop function fn1
 master-bin.000001	#	Query	1	#	drop database mysqltest1
 master-bin.000001	#	Query	1	#	drop user "zedjzlcsjhd"@127.0.0.1
+master-bin.000001	#	Query	1	#	use `test`; drop function if exists f1
 master-bin.000001	#	Query	1	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `f1`() RETURNS int(11)
     READS SQL DATA
 begin
@@ -526,12 +527,15 @@ master-bin.000001	#	Query	1	#	use `test`; create table t1 (a int)
 master-bin.000001	#	Query	1	#	use `test`; insert into t1 (a) values (f1())
 master-bin.000001	#	Query	1	#	use `test`; drop view v1
 master-bin.000001	#	Query	1	#	use `test`; drop function f1
+master-bin.000001	#	Query	1	#	use `test`; DROP PROCEDURE IF EXISTS p1
 master-bin.000001	#	Query	1	#	use `test`; DROP TABLE IF EXISTS t1
 master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE t1(col VARCHAR(10))
 master-bin.000001	#	Query	1	#	use `test`; CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`(arg VARCHAR(10))
 INSERT INTO t1 VALUES(arg)
 master-bin.000001	#	Query	1	#	use `test`; INSERT INTO t1 VALUES( NAME_CONST('arg',_latin1'test' COLLATE 'latin1_swedish_ci'))
 master-bin.000001	#	Query	1	#	use `test`; DROP PROCEDURE p1
+master-bin.000001	#	Query	1	#	use `test`; DROP PROCEDURE IF EXISTS p1
+master-bin.000001	#	Query	1	#	use `test`; DROP FUNCTION IF EXISTS f1
 master-bin.000001	#	Query	1	#	use `test`; CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
 SET @a = 1
 master-bin.000001	#	Query	1	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `f1`() RETURNS int(11)
@@ -555,11 +559,11 @@ end
 master-bin.000001	#	Query	1	#	use `mysqltest`; SELECT `mysqltest2`.`f1`()
 set @@global.log_bin_trust_routine_creators= @old_log_bin_trust_routine_creators;
 Warnings:
-Warning	1287	The syntax '@@log_bin_trust_routine_creators' is deprecated and will be removed in MySQL 5.2. Please use '@@log_bin_trust_function_creators' instead
+Warning	1287	The syntax '@@log_bin_trust_routine_creators' is deprecated and will be removed in MySQL 6.0. Please use '@@log_bin_trust_function_creators' instead
 set @@global.log_bin_trust_function_creators= @old_log_bin_trust_function_creators;
 set @@global.log_bin_trust_routine_creators= @old_log_bin_trust_routine_creators;
 Warnings:
-Warning	1287	The syntax '@@log_bin_trust_routine_creators' is deprecated and will be removed in MySQL 5.2. Please use '@@log_bin_trust_function_creators' instead
+Warning	1287	The syntax '@@log_bin_trust_routine_creators' is deprecated and will be removed in MySQL 6.0. Please use '@@log_bin_trust_function_creators' instead
 set @@global.log_bin_trust_function_creators= @old_log_bin_trust_function_creators;
 drop database mysqltest;
 drop database mysqltest2;
@@ -842,6 +846,9 @@ drop user "zedjzlcsjhd"@127.0.0.1
 /*!*/;
 use test/*!*/;
 SET TIMESTAMP=t/*!*/;
+drop function if exists f1
+/*!*/;
+SET TIMESTAMP=t/*!*/;
 CREATE DEFINER=`root`@`localhost` FUNCTION `f1`() RETURNS int(11)
     READS SQL DATA
 begin
@@ -869,6 +876,9 @@ SET TIMESTAMP=t/*!*/;
 drop function f1
 /*!*/;
 SET TIMESTAMP=t/*!*/;
+DROP PROCEDURE IF EXISTS p1
+/*!*/;
+SET TIMESTAMP=t/*!*/;
 DROP TABLE IF EXISTS t1
 /*!*/;
 SET TIMESTAMP=t/*!*/;
@@ -883,6 +893,12 @@ INSERT INTO t1 VALUES( NAME_CONST('arg',_latin1'test' COLLATE 'latin1_swedish_ci
 /*!*/;
 SET TIMESTAMP=t/*!*/;
 DROP PROCEDURE p1
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+DROP PROCEDURE IF EXISTS p1
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+DROP FUNCTION IF EXISTS f1
 /*!*/;
 SET TIMESTAMP=t/*!*/;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()

@@ -264,8 +264,19 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
   {
     const char *start= str;
     ulong tmp_value= (uint) (uchar) (*str++ - '0');
+
+    /*
+      Internal format means no delimiters; every field has a fixed
+      width. Otherwise, we scan until we find a delimiter and discard
+      leading zeroes -- except for the microsecond part, where leading
+      zeroes are significant, and where we never process more than six
+      digits.
+    */
+    my_bool     scan_until_delim= !is_internal_format &&
+                                  ((i != format_position[6]));
+
     while (str != end && my_isdigit(&my_charset_latin1,str[0]) &&
-           (!is_internal_format || --field_length))
+           (scan_until_delim || --field_length))
     {
       tmp_value=tmp_value*10 + (ulong) (uchar) (*str - '0');
       str++;

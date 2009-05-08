@@ -49,9 +49,7 @@ GRANT CREATE, TRIGGER ON mysqltest_db1.* TO mysqltest_dfn@localhost;
 CREATE TABLE t1(num_value INT);
 CREATE TABLE t2(user_str TEXT);
 
-CREATE TRIGGER wl2818_trg1 BEFORE INSERT ON t1
-  FOR EACH ROW
-    INSERT INTO t2 VALUES(CURRENT_USER());
+CREATE TRIGGER wl2818_trg1 BEFORE INSERT ON t1 FOR EACH ROW INSERT INTO t2 VALUES(CURRENT_USER());
 
 #
 # Remove definers from TRG file.
@@ -60,9 +58,24 @@ CREATE TRIGGER wl2818_trg1 BEFORE INSERT ON t1
 --echo
 --echo ---> patching t1.TRG...
 
-let $MYSQLD_DATADIR= `select @@datadir`;
---exec grep -v 'definers=' $MYSQLD_DATADIR/mysqltest_db1/t1.TRG > $MYSQLTEST_VARDIR/tmp/t1.TRG
---exec mv $MYSQLTEST_VARDIR/tmp/t1.TRG $MYSQLD_DATADIR/mysqltest_db1/t1.TRG
+# Here we remove definers.  This is somewhat complex than the original test
+# Previously, the test only used grep -v 'definers=' t1.TRG, but grep is not
+# portable and we have to load the file into a table, exclude the definers line,
+# then load the data to an outfile to accomplish the same effect
+
+--disable_query_log
+--connection default
+CREATE TABLE patch (a blob);
+let $MYSQLD_DATADIR = `select @@datadir`;
+eval LOAD DATA LOCAL INFILE '$MYSQLD_DATADIR/mysqltest_db1/t1.TRG' INTO TABLE patch;
+# remove original t1.TRG file so SELECT INTO OUTFILE won't fail
+--remove_file $MYSQLD_DATADIR/mysqltest_db1/t1.TRG
+eval SELECT SUBSTRING_INDEX(a,'definers=',1) INTO OUTFILE
+ '$MYSQLD_DATADIR/mysqltest_db1/t1.TRG' 
+FROM patch;
+DROP TABLE patch;
+--connection wl2818_definer_con
+--enable_query_log
 
 #
 # Create a new trigger.
