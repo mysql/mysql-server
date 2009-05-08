@@ -77,7 +77,7 @@ SELECT @@global.max_seeks_for_key;
 1
 SET @@global.max_seeks_for_key = -1024;
 Warnings:
-Warning	1292	Truncated incorrect max_seeks_for_key value: '0'
+Warning	1292	Truncated incorrect max_seeks_for_key value: '-1024'
 SELECT @@global.max_seeks_for_key;
 @@global.max_seeks_for_key
 1
@@ -103,7 +103,7 @@ SELECT @@session.max_seeks_for_key;
 1
 SET @@session.max_seeks_for_key = -2;
 Warnings:
-Warning	1292	Truncated incorrect max_seeks_for_key value: '0'
+Warning	1292	Truncated incorrect max_seeks_for_key value: '-2'
 SELECT @@session.max_seeks_for_key;
 @@session.max_seeks_for_key
 1

@@ -504,17 +504,21 @@ String *Item_func_des_encrypt::val_str(String *str)
      string marking change of string length.
   */
 
-  tail=  (8-(res_length) % 8);			// 1..8 marking extra length
+  tail= 8 - (res_length % 8);                   // 1..8 marking extra length
   res_length+=tail;
+  tmp_arg.realloc(res_length);
+  tmp_arg.length(0);
+  tmp_arg.append(res->ptr(), res->length());
   code= ER_OUT_OF_RESOURCES;
-  if (tail && res->append(append_str, tail) || tmp_value.alloc(res_length+1))
+  if (tmp_arg.append(append_str, tail) || tmp_value.alloc(res_length+1))
     goto error;
-  (*res)[res_length-1]=tail;			// save extra length
+  tmp_arg[res_length-1]=tail;                   // save extra length
+  tmp_value.realloc(res_length+1);
   tmp_value.length(res_length+1);
   tmp_value[0]=(char) (128 | key_number);
   // Real encryption
   bzero((char*) &ivec,sizeof(ivec));
-  DES_ede3_cbc_encrypt((const uchar*) (res->ptr()),
+  DES_ede3_cbc_encrypt((const uchar*) (tmp_arg.ptr()),
 		       (uchar*) (tmp_value.ptr()+1),
 		       res_length,
 		       &keyschedule.ks1,
@@ -1689,10 +1693,10 @@ String *Item_func_encrypt::val_str(String *str)
     String *salt_str=args[1]->val_str(&tmp_value);
     if ((null_value= (args[1]->null_value || salt_str->length() < 2)))
       return 0;
-    salt_ptr= salt_str->c_ptr();
+    salt_ptr= salt_str->c_ptr_safe();
   }
   pthread_mutex_lock(&LOCK_crypt);
-  char *tmp= crypt(res->c_ptr(),salt_ptr);
+  char *tmp= crypt(res->c_ptr_safe(),salt_ptr);
   if (!tmp)
   {
     pthread_mutex_unlock(&LOCK_crypt);
@@ -1738,7 +1742,7 @@ String *Item_func_encode::val_str(String *str)
 
   null_value=0;
   res=copy_if_not_alloced(str,res,res->length());
-  SQL_CRYPT sql_crypt(password->ptr());
+  SQL_CRYPT sql_crypt(password->ptr(), password->length());
   sql_crypt.init();
   sql_crypt.encode((char*) res->ptr(),res->length());
   res->set_charset(&my_charset_bin);
@@ -1767,7 +1771,7 @@ String *Item_func_decode::val_str(String *str)
 
   null_value=0;
   res=copy_if_not_alloced(str,res,res->length());
-  SQL_CRYPT sql_crypt(password->ptr());
+  SQL_CRYPT sql_crypt(password->ptr(), password->length());
   sql_crypt.init();
   sql_crypt.decode((char*) res->ptr(),res->length());
   return res;

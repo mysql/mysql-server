@@ -45,14 +45,20 @@ SET @@local.rpl_recovery_rank = 4;
 ERROR HY000: Variable 'rpl_recovery_rank' is a GLOBAL variable and should be set with SET GLOBAL
 '#------------------FN_DYNVARS_142_04-----------------------#'
 SET @@global.rpl_recovery_rank = -1;
+Warnings:
+Warning	1292	Truncated incorrect rpl_recovery_rank value: '-1'
 SELECT @@global.rpl_recovery_rank;
 @@global.rpl_recovery_rank
 0
 SET @@global.rpl_recovery_rank = -2147483648;
+Warnings:
+Warning	1292	Truncated incorrect rpl_recovery_rank value: '-2147483648'
 SELECT @@global.rpl_recovery_rank;
 @@global.rpl_recovery_rank
 0
 SET @@global.rpl_recovery_rank = -2147483649;
+Warnings:
+Warning	1292	Truncated incorrect rpl_recovery_rank value: '-2147483649'
 SELECT @@global.rpl_recovery_rank;
 @@global.rpl_recovery_rank
 0

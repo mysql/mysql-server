@@ -37,7 +37,7 @@ SELECT @@global.max_write_lock_count;
 '#------------------FN_DYNVARS_088_04-----------------------#'
 SET @@global.max_write_lock_count = -1024;
 Warnings:
-Warning	1292	Truncated incorrect max_write_lock_count value: '0'
+Warning	1292	Truncated incorrect max_write_lock_count value: '-1024'
 SELECT @@global.max_write_lock_count;
 @@global.max_write_lock_count
 1
@@ -47,7 +47,7 @@ SELECT @@global.max_write_lock_count;
 4294967296
 SET @@global.max_write_lock_count = -1;
 Warnings:
-Warning	1292	Truncated incorrect max_write_lock_count value: '0'
+Warning	1292	Truncated incorrect max_write_lock_count value: '-1'
 SELECT @@global.max_write_lock_count;
 @@global.max_write_lock_count
 1
