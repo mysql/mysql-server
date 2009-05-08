@@ -186,106 +186,106 @@ CREATE TABLE t2 (
 fid INT NOT NULL AUTO_INCREMENT PRIMARY KEY, 
 g GEOMETRY NOT NULL
 ) ENGINE=MyISAM;
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(10 * 10 - 9, 10 * 10 - 9), Point(10 * 10, 10 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(10 * 10 - 9, 9 * 10 - 9), Point(10 * 10, 9 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(10 * 10 - 9, 8 * 10 - 9), Point(10 * 10, 8 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(10 * 10 - 9, 7 * 10 - 9), Point(10 * 10, 7 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(10 * 10 - 9, 6 * 10 - 9), Point(10 * 10, 6 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(10 * 10 - 9, 5 * 10 - 9), Point(10 * 10, 5 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(10 * 10 - 9, 4 * 10 - 9), Point(10 * 10, 4 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(10 * 10 - 9, 3 * 10 - 9), Point(10 * 10, 3 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(10 * 10 - 9, 2 * 10 - 9), Point(10 * 10, 2 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(10 * 10 - 9, 1 * 10 - 9), Point(10 * 10, 1 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(9 * 10 - 9, 10 * 10 - 9), Point(9 * 10, 10 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(9 * 10 - 9, 9 * 10 - 9), Point(9 * 10, 9 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(9 * 10 - 9, 8 * 10 - 9), Point(9 * 10, 8 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(9 * 10 - 9, 7 * 10 - 9), Point(9 * 10, 7 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(9 * 10 - 9, 6 * 10 - 9), Point(9 * 10, 6 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(9 * 10 - 9, 5 * 10 - 9), Point(9 * 10, 5 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(9 * 10 - 9, 4 * 10 - 9), Point(9 * 10, 4 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(9 * 10 - 9, 3 * 10 - 9), Point(9 * 10, 3 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(9 * 10 - 9, 2 * 10 - 9), Point(9 * 10, 2 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(9 * 10 - 9, 1 * 10 - 9), Point(9 * 10, 1 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(8 * 10 - 9, 10 * 10 - 9), Point(8 * 10, 10 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(8 * 10 - 9, 9 * 10 - 9), Point(8 * 10, 9 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(8 * 10 - 9, 8 * 10 - 9), Point(8 * 10, 8 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(8 * 10 - 9, 7 * 10 - 9), Point(8 * 10, 7 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(8 * 10 - 9, 6 * 10 - 9), Point(8 * 10, 6 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(8 * 10 - 9, 5 * 10 - 9), Point(8 * 10, 5 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(8 * 10 - 9, 4 * 10 - 9), Point(8 * 10, 4 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(8 * 10 - 9, 3 * 10 - 9), Point(8 * 10, 3 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(8 * 10 - 9, 2 * 10 - 9), Point(8 * 10, 2 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(8 * 10 - 9, 1 * 10 - 9), Point(8 * 10, 1 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(7 * 10 - 9, 10 * 10 - 9), Point(7 * 10, 10 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(7 * 10 - 9, 9 * 10 - 9), Point(7 * 10, 9 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(7 * 10 - 9, 8 * 10 - 9), Point(7 * 10, 8 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(7 * 10 - 9, 7 * 10 - 9), Point(7 * 10, 7 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(7 * 10 - 9, 6 * 10 - 9), Point(7 * 10, 6 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(7 * 10 - 9, 5 * 10 - 9), Point(7 * 10, 5 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(7 * 10 - 9, 4 * 10 - 9), Point(7 * 10, 4 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(7 * 10 - 9, 3 * 10 - 9), Point(7 * 10, 3 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(7 * 10 - 9, 2 * 10 - 9), Point(7 * 10, 2 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(7 * 10 - 9, 1 * 10 - 9), Point(7 * 10, 1 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(6 * 10 - 9, 10 * 10 - 9), Point(6 * 10, 10 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(6 * 10 - 9, 9 * 10 - 9), Point(6 * 10, 9 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(6 * 10 - 9, 8 * 10 - 9), Point(6 * 10, 8 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(6 * 10 - 9, 7 * 10 - 9), Point(6 * 10, 7 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(6 * 10 - 9, 6 * 10 - 9), Point(6 * 10, 6 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(6 * 10 - 9, 5 * 10 - 9), Point(6 * 10, 5 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(6 * 10 - 9, 4 * 10 - 9), Point(6 * 10, 4 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(6 * 10 - 9, 3 * 10 - 9), Point(6 * 10, 3 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(6 * 10 - 9, 2 * 10 - 9), Point(6 * 10, 2 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(6 * 10 - 9, 1 * 10 - 9), Point(6 * 10, 1 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(5 * 10 - 9, 10 * 10 - 9), Point(5 * 10, 10 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(5 * 10 - 9, 9 * 10 - 9), Point(5 * 10, 9 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(5 * 10 - 9, 8 * 10 - 9), Point(5 * 10, 8 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(5 * 10 - 9, 7 * 10 - 9), Point(5 * 10, 7 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(5 * 10 - 9, 6 * 10 - 9), Point(5 * 10, 6 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(5 * 10 - 9, 5 * 10 - 9), Point(5 * 10, 5 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(5 * 10 - 9, 4 * 10 - 9), Point(5 * 10, 4 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(5 * 10 - 9, 3 * 10 - 9), Point(5 * 10, 3 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(5 * 10 - 9, 2 * 10 - 9), Point(5 * 10, 2 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(5 * 10 - 9, 1 * 10 - 9), Point(5 * 10, 1 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(4 * 10 - 9, 10 * 10 - 9), Point(4 * 10, 10 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(4 * 10 - 9, 9 * 10 - 9), Point(4 * 10, 9 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(4 * 10 - 9, 8 * 10 - 9), Point(4 * 10, 8 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(4 * 10 - 9, 7 * 10 - 9), Point(4 * 10, 7 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(4 * 10 - 9, 6 * 10 - 9), Point(4 * 10, 6 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(4 * 10 - 9, 5 * 10 - 9), Point(4 * 10, 5 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(4 * 10 - 9, 4 * 10 - 9), Point(4 * 10, 4 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(4 * 10 - 9, 3 * 10 - 9), Point(4 * 10, 3 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(4 * 10 - 9, 2 * 10 - 9), Point(4 * 10, 2 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(4 * 10 - 9, 1 * 10 - 9), Point(4 * 10, 1 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(3 * 10 - 9, 10 * 10 - 9), Point(3 * 10, 10 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(3 * 10 - 9, 9 * 10 - 9), Point(3 * 10, 9 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(3 * 10 - 9, 8 * 10 - 9), Point(3 * 10, 8 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(3 * 10 - 9, 7 * 10 - 9), Point(3 * 10, 7 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(3 * 10 - 9, 6 * 10 - 9), Point(3 * 10, 6 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(3 * 10 - 9, 5 * 10 - 9), Point(3 * 10, 5 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(3 * 10 - 9, 4 * 10 - 9), Point(3 * 10, 4 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(3 * 10 - 9, 3 * 10 - 9), Point(3 * 10, 3 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(3 * 10 - 9, 2 * 10 - 9), Point(3 * 10, 2 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(3 * 10 - 9, 1 * 10 - 9), Point(3 * 10, 1 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(2 * 10 - 9, 10 * 10 - 9), Point(2 * 10, 10 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(2 * 10 - 9, 9 * 10 - 9), Point(2 * 10, 9 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(2 * 10 - 9, 8 * 10 - 9), Point(2 * 10, 8 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(2 * 10 - 9, 7 * 10 - 9), Point(2 * 10, 7 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(2 * 10 - 9, 6 * 10 - 9), Point(2 * 10, 6 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(2 * 10 - 9, 5 * 10 - 9), Point(2 * 10, 5 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(2 * 10 - 9, 4 * 10 - 9), Point(2 * 10, 4 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(2 * 10 - 9, 3 * 10 - 9), Point(2 * 10, 3 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(2 * 10 - 9, 2 * 10 - 9), Point(2 * 10, 2 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(2 * 10 - 9, 1 * 10 - 9), Point(2 * 10, 1 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(1 * 10 - 9, 10 * 10 - 9), Point(1 * 10, 10 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(1 * 10 - 9, 9 * 10 - 9), Point(1 * 10, 9 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(1 * 10 - 9, 8 * 10 - 9), Point(1 * 10, 8 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(1 * 10 - 9, 7 * 10 - 9), Point(1 * 10, 7 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(1 * 10 - 9, 6 * 10 - 9), Point(1 * 10, 6 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(1 * 10 - 9, 5 * 10 - 9), Point(1 * 10, 5 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(1 * 10 - 9, 4 * 10 - 9), Point(1 * 10, 4 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(1 * 10 - 9, 3 * 10 - 9), Point(1 * 10, 3 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(1 * 10 - 9, 2 * 10 - 9), Point(1 * 10, 2 * 10))));
-INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(1 * 10 - 9, 1 * 10 - 9), Point(1 * 10, 1 * 10))));
+INSERT INTO t2 (g) VALUES (LineString(Point(10 * 10 - 9, 10 * 10 - 9), Point(10 * 10, 10 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(10 * 10 - 9, 9 * 10 - 9), Point(10 * 10, 9 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(10 * 10 - 9, 8 * 10 - 9), Point(10 * 10, 8 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(10 * 10 - 9, 7 * 10 - 9), Point(10 * 10, 7 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(10 * 10 - 9, 6 * 10 - 9), Point(10 * 10, 6 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(10 * 10 - 9, 5 * 10 - 9), Point(10 * 10, 5 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(10 * 10 - 9, 4 * 10 - 9), Point(10 * 10, 4 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(10 * 10 - 9, 3 * 10 - 9), Point(10 * 10, 3 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(10 * 10 - 9, 2 * 10 - 9), Point(10 * 10, 2 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(10 * 10 - 9, 1 * 10 - 9), Point(10 * 10, 1 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(9 * 10 - 9, 10 * 10 - 9), Point(9 * 10, 10 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(9 * 10 - 9, 9 * 10 - 9), Point(9 * 10, 9 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(9 * 10 - 9, 8 * 10 - 9), Point(9 * 10, 8 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(9 * 10 - 9, 7 * 10 - 9), Point(9 * 10, 7 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(9 * 10 - 9, 6 * 10 - 9), Point(9 * 10, 6 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(9 * 10 - 9, 5 * 10 - 9), Point(9 * 10, 5 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(9 * 10 - 9, 4 * 10 - 9), Point(9 * 10, 4 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(9 * 10 - 9, 3 * 10 - 9), Point(9 * 10, 3 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(9 * 10 - 9, 2 * 10 - 9), Point(9 * 10, 2 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(9 * 10 - 9, 1 * 10 - 9), Point(9 * 10, 1 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(8 * 10 - 9, 10 * 10 - 9), Point(8 * 10, 10 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(8 * 10 - 9, 9 * 10 - 9), Point(8 * 10, 9 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(8 * 10 - 9, 8 * 10 - 9), Point(8 * 10, 8 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(8 * 10 - 9, 7 * 10 - 9), Point(8 * 10, 7 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(8 * 10 - 9, 6 * 10 - 9), Point(8 * 10, 6 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(8 * 10 - 9, 5 * 10 - 9), Point(8 * 10, 5 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(8 * 10 - 9, 4 * 10 - 9), Point(8 * 10, 4 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(8 * 10 - 9, 3 * 10 - 9), Point(8 * 10, 3 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(8 * 10 - 9, 2 * 10 - 9), Point(8 * 10, 2 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(8 * 10 - 9, 1 * 10 - 9), Point(8 * 10, 1 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(7 * 10 - 9, 10 * 10 - 9), Point(7 * 10, 10 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(7 * 10 - 9, 9 * 10 - 9), Point(7 * 10, 9 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(7 * 10 - 9, 8 * 10 - 9), Point(7 * 10, 8 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(7 * 10 - 9, 7 * 10 - 9), Point(7 * 10, 7 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(7 * 10 - 9, 6 * 10 - 9), Point(7 * 10, 6 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(7 * 10 - 9, 5 * 10 - 9), Point(7 * 10, 5 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(7 * 10 - 9, 4 * 10 - 9), Point(7 * 10, 4 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(7 * 10 - 9, 3 * 10 - 9), Point(7 * 10, 3 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(7 * 10 - 9, 2 * 10 - 9), Point(7 * 10, 2 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(7 * 10 - 9, 1 * 10 - 9), Point(7 * 10, 1 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(6 * 10 - 9, 10 * 10 - 9), Point(6 * 10, 10 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(6 * 10 - 9, 9 * 10 - 9), Point(6 * 10, 9 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(6 * 10 - 9, 8 * 10 - 9), Point(6 * 10, 8 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(6 * 10 - 9, 7 * 10 - 9), Point(6 * 10, 7 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(6 * 10 - 9, 6 * 10 - 9), Point(6 * 10, 6 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(6 * 10 - 9, 5 * 10 - 9), Point(6 * 10, 5 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(6 * 10 - 9, 4 * 10 - 9), Point(6 * 10, 4 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(6 * 10 - 9, 3 * 10 - 9), Point(6 * 10, 3 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(6 * 10 - 9, 2 * 10 - 9), Point(6 * 10, 2 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(6 * 10 - 9, 1 * 10 - 9), Point(6 * 10, 1 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(5 * 10 - 9, 10 * 10 - 9), Point(5 * 10, 10 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(5 * 10 - 9, 9 * 10 - 9), Point(5 * 10, 9 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(5 * 10 - 9, 8 * 10 - 9), Point(5 * 10, 8 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(5 * 10 - 9, 7 * 10 - 9), Point(5 * 10, 7 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(5 * 10 - 9, 6 * 10 - 9), Point(5 * 10, 6 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(5 * 10 - 9, 5 * 10 - 9), Point(5 * 10, 5 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(5 * 10 - 9, 4 * 10 - 9), Point(5 * 10, 4 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(5 * 10 - 9, 3 * 10 - 9), Point(5 * 10, 3 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(5 * 10 - 9, 2 * 10 - 9), Point(5 * 10, 2 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(5 * 10 - 9, 1 * 10 - 9), Point(5 * 10, 1 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(4 * 10 - 9, 10 * 10 - 9), Point(4 * 10, 10 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(4 * 10 - 9, 9 * 10 - 9), Point(4 * 10, 9 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(4 * 10 - 9, 8 * 10 - 9), Point(4 * 10, 8 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(4 * 10 - 9, 7 * 10 - 9), Point(4 * 10, 7 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(4 * 10 - 9, 6 * 10 - 9), Point(4 * 10, 6 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(4 * 10 - 9, 5 * 10 - 9), Point(4 * 10, 5 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(4 * 10 - 9, 4 * 10 - 9), Point(4 * 10, 4 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(4 * 10 - 9, 3 * 10 - 9), Point(4 * 10, 3 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(4 * 10 - 9, 2 * 10 - 9), Point(4 * 10, 2 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(4 * 10 - 9, 1 * 10 - 9), Point(4 * 10, 1 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(3 * 10 - 9, 10 * 10 - 9), Point(3 * 10, 10 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(3 * 10 - 9, 9 * 10 - 9), Point(3 * 10, 9 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(3 * 10 - 9, 8 * 10 - 9), Point(3 * 10, 8 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(3 * 10 - 9, 7 * 10 - 9), Point(3 * 10, 7 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(3 * 10 - 9, 6 * 10 - 9), Point(3 * 10, 6 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(3 * 10 - 9, 5 * 10 - 9), Point(3 * 10, 5 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(3 * 10 - 9, 4 * 10 - 9), Point(3 * 10, 4 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(3 * 10 - 9, 3 * 10 - 9), Point(3 * 10, 3 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(3 * 10 - 9, 2 * 10 - 9), Point(3 * 10, 2 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(3 * 10 - 9, 1 * 10 - 9), Point(3 * 10, 1 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(2 * 10 - 9, 10 * 10 - 9), Point(2 * 10, 10 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(2 * 10 - 9, 9 * 10 - 9), Point(2 * 10, 9 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(2 * 10 - 9, 8 * 10 - 9), Point(2 * 10, 8 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(2 * 10 - 9, 7 * 10 - 9), Point(2 * 10, 7 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(2 * 10 - 9, 6 * 10 - 9), Point(2 * 10, 6 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(2 * 10 - 9, 5 * 10 - 9), Point(2 * 10, 5 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(2 * 10 - 9, 4 * 10 - 9), Point(2 * 10, 4 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(2 * 10 - 9, 3 * 10 - 9), Point(2 * 10, 3 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(2 * 10 - 9, 2 * 10 - 9), Point(2 * 10, 2 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(2 * 10 - 9, 1 * 10 - 9), Point(2 * 10, 1 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(1 * 10 - 9, 10 * 10 - 9), Point(1 * 10, 10 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(1 * 10 - 9, 9 * 10 - 9), Point(1 * 10, 9 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(1 * 10 - 9, 8 * 10 - 9), Point(1 * 10, 8 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(1 * 10 - 9, 7 * 10 - 9), Point(1 * 10, 7 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(1 * 10 - 9, 6 * 10 - 9), Point(1 * 10, 6 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(1 * 10 - 9, 5 * 10 - 9), Point(1 * 10, 5 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(1 * 10 - 9, 4 * 10 - 9), Point(1 * 10, 4 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(1 * 10 - 9, 3 * 10 - 9), Point(1 * 10, 3 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(1 * 10 - 9, 2 * 10 - 9), Point(1 * 10, 2 * 10)));
+INSERT INTO t2 (g) VALUES (LineString(Point(1 * 10 - 9, 1 * 10 - 9), Point(1 * 10, 1 * 10)));
 ALTER TABLE t2 ADD SPATIAL KEY(g);
 SHOW CREATE TABLE t2;
 Table	Create Table
@@ -309,406 +309,406 @@ fid	AsText(g)
 56	LINESTRING(41 41,50 50)
 45	LINESTRING(51 51,60 60)
 55	LINESTRING(41 51,50 60)
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(10 * 10 - 9, 10 * 10 - 9), Point(10 * 10, 10 * 10)))));
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(10 * 10 - 9, 10 * 10 - 9), Point(10 * 10, 10 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-99
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(10 * 10 - 9, 9 * 10 - 9), Point(10 * 10, 9 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(10 * 10 - 9, 9 * 10 - 9), Point(10 * 10, 9 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-98
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(10 * 10 - 9, 8 * 10 - 9), Point(10 * 10, 8 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(10 * 10 - 9, 8 * 10 - 9), Point(10 * 10, 8 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-97
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(10 * 10 - 9, 7 * 10 - 9), Point(10 * 10, 7 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(10 * 10 - 9, 7 * 10 - 9), Point(10 * 10, 7 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-96
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(10 * 10 - 9, 6 * 10 - 9), Point(10 * 10, 6 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(10 * 10 - 9, 6 * 10 - 9), Point(10 * 10, 6 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-95
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(10 * 10 - 9, 5 * 10 - 9), Point(10 * 10, 5 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(10 * 10 - 9, 5 * 10 - 9), Point(10 * 10, 5 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-94
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(10 * 10 - 9, 4 * 10 - 9), Point(10 * 10, 4 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(10 * 10 - 9, 4 * 10 - 9), Point(10 * 10, 4 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-93
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(10 * 10 - 9, 3 * 10 - 9), Point(10 * 10, 3 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(10 * 10 - 9, 3 * 10 - 9), Point(10 * 10, 3 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-92
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(10 * 10 - 9, 2 * 10 - 9), Point(10 * 10, 2 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(10 * 10 - 9, 2 * 10 - 9), Point(10 * 10, 2 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-91
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(10 * 10 - 9, 1 * 10 - 9), Point(10 * 10, 1 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(10 * 10 - 9, 1 * 10 - 9), Point(10 * 10, 1 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-90
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(9 * 10 - 9, 10 * 10 - 9), Point(9 * 10, 10 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(9 * 10 - 9, 10 * 10 - 9), Point(9 * 10, 10 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-89
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(9 * 10 - 9, 9 * 10 - 9), Point(9 * 10, 9 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(9 * 10 - 9, 9 * 10 - 9), Point(9 * 10, 9 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-88
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(9 * 10 - 9, 8 * 10 - 9), Point(9 * 10, 8 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(9 * 10 - 9, 8 * 10 - 9), Point(9 * 10, 8 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-87
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(9 * 10 - 9, 7 * 10 - 9), Point(9 * 10, 7 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(9 * 10 - 9, 7 * 10 - 9), Point(9 * 10, 7 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-86
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(9 * 10 - 9, 6 * 10 - 9), Point(9 * 10, 6 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(9 * 10 - 9, 6 * 10 - 9), Point(9 * 10, 6 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-85
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(9 * 10 - 9, 5 * 10 - 9), Point(9 * 10, 5 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(9 * 10 - 9, 5 * 10 - 9), Point(9 * 10, 5 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-84
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(9 * 10 - 9, 4 * 10 - 9), Point(9 * 10, 4 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(9 * 10 - 9, 4 * 10 - 9), Point(9 * 10, 4 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-83
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(9 * 10 - 9, 3 * 10 - 9), Point(9 * 10, 3 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(9 * 10 - 9, 3 * 10 - 9), Point(9 * 10, 3 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-82
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(9 * 10 - 9, 2 * 10 - 9), Point(9 * 10, 2 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(9 * 10 - 9, 2 * 10 - 9), Point(9 * 10, 2 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-81
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(9 * 10 - 9, 1 * 10 - 9), Point(9 * 10, 1 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(9 * 10 - 9, 1 * 10 - 9), Point(9 * 10, 1 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-80
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(8 * 10 - 9, 10 * 10 - 9), Point(8 * 10, 10 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(8 * 10 - 9, 10 * 10 - 9), Point(8 * 10, 10 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-79
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(8 * 10 - 9, 9 * 10 - 9), Point(8 * 10, 9 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(8 * 10 - 9, 9 * 10 - 9), Point(8 * 10, 9 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-78
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(8 * 10 - 9, 8 * 10 - 9), Point(8 * 10, 8 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(8 * 10 - 9, 8 * 10 - 9), Point(8 * 10, 8 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-77
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(8 * 10 - 9, 7 * 10 - 9), Point(8 * 10, 7 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(8 * 10 - 9, 7 * 10 - 9), Point(8 * 10, 7 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-76
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(8 * 10 - 9, 6 * 10 - 9), Point(8 * 10, 6 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(8 * 10 - 9, 6 * 10 - 9), Point(8 * 10, 6 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-75
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(8 * 10 - 9, 5 * 10 - 9), Point(8 * 10, 5 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(8 * 10 - 9, 5 * 10 - 9), Point(8 * 10, 5 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-74
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(8 * 10 - 9, 4 * 10 - 9), Point(8 * 10, 4 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(8 * 10 - 9, 4 * 10 - 9), Point(8 * 10, 4 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-73
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(8 * 10 - 9, 3 * 10 - 9), Point(8 * 10, 3 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(8 * 10 - 9, 3 * 10 - 9), Point(8 * 10, 3 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-72
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(8 * 10 - 9, 2 * 10 - 9), Point(8 * 10, 2 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(8 * 10 - 9, 2 * 10 - 9), Point(8 * 10, 2 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-71
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(8 * 10 - 9, 1 * 10 - 9), Point(8 * 10, 1 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(8 * 10 - 9, 1 * 10 - 9), Point(8 * 10, 1 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-70
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(7 * 10 - 9, 10 * 10 - 9), Point(7 * 10, 10 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(7 * 10 - 9, 10 * 10 - 9), Point(7 * 10, 10 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-69
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(7 * 10 - 9, 9 * 10 - 9), Point(7 * 10, 9 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(7 * 10 - 9, 9 * 10 - 9), Point(7 * 10, 9 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-68
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(7 * 10 - 9, 8 * 10 - 9), Point(7 * 10, 8 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(7 * 10 - 9, 8 * 10 - 9), Point(7 * 10, 8 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-67
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(7 * 10 - 9, 7 * 10 - 9), Point(7 * 10, 7 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(7 * 10 - 9, 7 * 10 - 9), Point(7 * 10, 7 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-66
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(7 * 10 - 9, 6 * 10 - 9), Point(7 * 10, 6 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(7 * 10 - 9, 6 * 10 - 9), Point(7 * 10, 6 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-65
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(7 * 10 - 9, 5 * 10 - 9), Point(7 * 10, 5 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(7 * 10 - 9, 5 * 10 - 9), Point(7 * 10, 5 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-64
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(7 * 10 - 9, 4 * 10 - 9), Point(7 * 10, 4 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(7 * 10 - 9, 4 * 10 - 9), Point(7 * 10, 4 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-63
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(7 * 10 - 9, 3 * 10 - 9), Point(7 * 10, 3 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(7 * 10 - 9, 3 * 10 - 9), Point(7 * 10, 3 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-62
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(7 * 10 - 9, 2 * 10 - 9), Point(7 * 10, 2 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(7 * 10 - 9, 2 * 10 - 9), Point(7 * 10, 2 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-61
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(7 * 10 - 9, 1 * 10 - 9), Point(7 * 10, 1 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(7 * 10 - 9, 1 * 10 - 9), Point(7 * 10, 1 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-60
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(6 * 10 - 9, 10 * 10 - 9), Point(6 * 10, 10 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(6 * 10 - 9, 10 * 10 - 9), Point(6 * 10, 10 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-59
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(6 * 10 - 9, 9 * 10 - 9), Point(6 * 10, 9 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(6 * 10 - 9, 9 * 10 - 9), Point(6 * 10, 9 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-58
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(6 * 10 - 9, 8 * 10 - 9), Point(6 * 10, 8 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(6 * 10 - 9, 8 * 10 - 9), Point(6 * 10, 8 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-57
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(6 * 10 - 9, 7 * 10 - 9), Point(6 * 10, 7 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(6 * 10 - 9, 7 * 10 - 9), Point(6 * 10, 7 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-56
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(6 * 10 - 9, 6 * 10 - 9), Point(6 * 10, 6 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(6 * 10 - 9, 6 * 10 - 9), Point(6 * 10, 6 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-55
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(6 * 10 - 9, 5 * 10 - 9), Point(6 * 10, 5 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(6 * 10 - 9, 5 * 10 - 9), Point(6 * 10, 5 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-54
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(6 * 10 - 9, 4 * 10 - 9), Point(6 * 10, 4 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(6 * 10 - 9, 4 * 10 - 9), Point(6 * 10, 4 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-53
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(6 * 10 - 9, 3 * 10 - 9), Point(6 * 10, 3 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(6 * 10 - 9, 3 * 10 - 9), Point(6 * 10, 3 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-52
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(6 * 10 - 9, 2 * 10 - 9), Point(6 * 10, 2 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(6 * 10 - 9, 2 * 10 - 9), Point(6 * 10, 2 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-51
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(6 * 10 - 9, 1 * 10 - 9), Point(6 * 10, 1 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(6 * 10 - 9, 1 * 10 - 9), Point(6 * 10, 1 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-50
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(5 * 10 - 9, 10 * 10 - 9), Point(5 * 10, 10 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(5 * 10 - 9, 10 * 10 - 9), Point(5 * 10, 10 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-49
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(5 * 10 - 9, 9 * 10 - 9), Point(5 * 10, 9 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(5 * 10 - 9, 9 * 10 - 9), Point(5 * 10, 9 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-48
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(5 * 10 - 9, 8 * 10 - 9), Point(5 * 10, 8 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(5 * 10 - 9, 8 * 10 - 9), Point(5 * 10, 8 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-47
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(5 * 10 - 9, 7 * 10 - 9), Point(5 * 10, 7 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(5 * 10 - 9, 7 * 10 - 9), Point(5 * 10, 7 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-46
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(5 * 10 - 9, 6 * 10 - 9), Point(5 * 10, 6 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(5 * 10 - 9, 6 * 10 - 9), Point(5 * 10, 6 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-45
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(5 * 10 - 9, 5 * 10 - 9), Point(5 * 10, 5 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(5 * 10 - 9, 5 * 10 - 9), Point(5 * 10, 5 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-44
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(5 * 10 - 9, 4 * 10 - 9), Point(5 * 10, 4 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(5 * 10 - 9, 4 * 10 - 9), Point(5 * 10, 4 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-43
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(5 * 10 - 9, 3 * 10 - 9), Point(5 * 10, 3 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(5 * 10 - 9, 3 * 10 - 9), Point(5 * 10, 3 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-42
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(5 * 10 - 9, 2 * 10 - 9), Point(5 * 10, 2 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(5 * 10 - 9, 2 * 10 - 9), Point(5 * 10, 2 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-41
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(5 * 10 - 9, 1 * 10 - 9), Point(5 * 10, 1 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(5 * 10 - 9, 1 * 10 - 9), Point(5 * 10, 1 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-40
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(4 * 10 - 9, 10 * 10 - 9), Point(4 * 10, 10 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(4 * 10 - 9, 10 * 10 - 9), Point(4 * 10, 10 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-39
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(4 * 10 - 9, 9 * 10 - 9), Point(4 * 10, 9 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(4 * 10 - 9, 9 * 10 - 9), Point(4 * 10, 9 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-38
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(4 * 10 - 9, 8 * 10 - 9), Point(4 * 10, 8 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(4 * 10 - 9, 8 * 10 - 9), Point(4 * 10, 8 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-37
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(4 * 10 - 9, 7 * 10 - 9), Point(4 * 10, 7 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(4 * 10 - 9, 7 * 10 - 9), Point(4 * 10, 7 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-36
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(4 * 10 - 9, 6 * 10 - 9), Point(4 * 10, 6 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(4 * 10 - 9, 6 * 10 - 9), Point(4 * 10, 6 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-35
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(4 * 10 - 9, 5 * 10 - 9), Point(4 * 10, 5 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(4 * 10 - 9, 5 * 10 - 9), Point(4 * 10, 5 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-34
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(4 * 10 - 9, 4 * 10 - 9), Point(4 * 10, 4 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(4 * 10 - 9, 4 * 10 - 9), Point(4 * 10, 4 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-33
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(4 * 10 - 9, 3 * 10 - 9), Point(4 * 10, 3 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(4 * 10 - 9, 3 * 10 - 9), Point(4 * 10, 3 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-32
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(4 * 10 - 9, 2 * 10 - 9), Point(4 * 10, 2 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(4 * 10 - 9, 2 * 10 - 9), Point(4 * 10, 2 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-31
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(4 * 10 - 9, 1 * 10 - 9), Point(4 * 10, 1 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(4 * 10 - 9, 1 * 10 - 9), Point(4 * 10, 1 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-30
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(3 * 10 - 9, 10 * 10 - 9), Point(3 * 10, 10 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(3 * 10 - 9, 10 * 10 - 9), Point(3 * 10, 10 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-29
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(3 * 10 - 9, 9 * 10 - 9), Point(3 * 10, 9 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(3 * 10 - 9, 9 * 10 - 9), Point(3 * 10, 9 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-28
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(3 * 10 - 9, 8 * 10 - 9), Point(3 * 10, 8 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(3 * 10 - 9, 8 * 10 - 9), Point(3 * 10, 8 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-27
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(3 * 10 - 9, 7 * 10 - 9), Point(3 * 10, 7 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(3 * 10 - 9, 7 * 10 - 9), Point(3 * 10, 7 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-26
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(3 * 10 - 9, 6 * 10 - 9), Point(3 * 10, 6 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(3 * 10 - 9, 6 * 10 - 9), Point(3 * 10, 6 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-25
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(3 * 10 - 9, 5 * 10 - 9), Point(3 * 10, 5 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(3 * 10 - 9, 5 * 10 - 9), Point(3 * 10, 5 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-24
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(3 * 10 - 9, 4 * 10 - 9), Point(3 * 10, 4 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(3 * 10 - 9, 4 * 10 - 9), Point(3 * 10, 4 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-23
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(3 * 10 - 9, 3 * 10 - 9), Point(3 * 10, 3 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(3 * 10 - 9, 3 * 10 - 9), Point(3 * 10, 3 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-22
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(3 * 10 - 9, 2 * 10 - 9), Point(3 * 10, 2 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(3 * 10 - 9, 2 * 10 - 9), Point(3 * 10, 2 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-21
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(3 * 10 - 9, 1 * 10 - 9), Point(3 * 10, 1 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(3 * 10 - 9, 1 * 10 - 9), Point(3 * 10, 1 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-20
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(2 * 10 - 9, 10 * 10 - 9), Point(2 * 10, 10 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(2 * 10 - 9, 10 * 10 - 9), Point(2 * 10, 10 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-19
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(2 * 10 - 9, 9 * 10 - 9), Point(2 * 10, 9 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(2 * 10 - 9, 9 * 10 - 9), Point(2 * 10, 9 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-18
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(2 * 10 - 9, 8 * 10 - 9), Point(2 * 10, 8 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(2 * 10 - 9, 8 * 10 - 9), Point(2 * 10, 8 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-17
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(2 * 10 - 9, 7 * 10 - 9), Point(2 * 10, 7 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(2 * 10 - 9, 7 * 10 - 9), Point(2 * 10, 7 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-16
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(2 * 10 - 9, 6 * 10 - 9), Point(2 * 10, 6 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(2 * 10 - 9, 6 * 10 - 9), Point(2 * 10, 6 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-15
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(2 * 10 - 9, 5 * 10 - 9), Point(2 * 10, 5 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(2 * 10 - 9, 5 * 10 - 9), Point(2 * 10, 5 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-14
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(2 * 10 - 9, 4 * 10 - 9), Point(2 * 10, 4 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(2 * 10 - 9, 4 * 10 - 9), Point(2 * 10, 4 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-13
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(2 * 10 - 9, 3 * 10 - 9), Point(2 * 10, 3 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(2 * 10 - 9, 3 * 10 - 9), Point(2 * 10, 3 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-12
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(2 * 10 - 9, 2 * 10 - 9), Point(2 * 10, 2 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(2 * 10 - 9, 2 * 10 - 9), Point(2 * 10, 2 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-11
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(2 * 10 - 9, 1 * 10 - 9), Point(2 * 10, 1 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(2 * 10 - 9, 1 * 10 - 9), Point(2 * 10, 1 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-10
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(1 * 10 - 9, 10 * 10 - 9), Point(1 * 10, 10 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(1 * 10 - 9, 10 * 10 - 9), Point(1 * 10, 10 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-9
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(1 * 10 - 9, 9 * 10 - 9), Point(1 * 10, 9 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(1 * 10 - 9, 9 * 10 - 9), Point(1 * 10, 9 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-8
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(1 * 10 - 9, 8 * 10 - 9), Point(1 * 10, 8 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(1 * 10 - 9, 8 * 10 - 9), Point(1 * 10, 8 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-7
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(1 * 10 - 9, 7 * 10 - 9), Point(1 * 10, 7 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(1 * 10 - 9, 7 * 10 - 9), Point(1 * 10, 7 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-6
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(1 * 10 - 9, 6 * 10 - 9), Point(1 * 10, 6 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(1 * 10 - 9, 6 * 10 - 9), Point(1 * 10, 6 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-5
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(1 * 10 - 9, 5 * 10 - 9), Point(1 * 10, 5 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(1 * 10 - 9, 5 * 10 - 9), Point(1 * 10, 5 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-4
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(1 * 10 - 9, 4 * 10 - 9), Point(1 * 10, 4 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(1 * 10 - 9, 4 * 10 - 9), Point(1 * 10, 4 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-3
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(1 * 10 - 9, 3 * 10 - 9), Point(1 * 10, 3 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(1 * 10 - 9, 3 * 10 - 9), Point(1 * 10, 3 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-2
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(1 * 10 - 9, 2 * 10 - 9), Point(1 * 10, 2 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(1 * 10 - 9, 2 * 10 - 9), Point(1 * 10, 2 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-1
-DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(1 * 10 - 9, 1 * 10 - 9), Point(1 * 10, 1 * 10)))));
+100
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(Point(1 * 10 - 9, 1 * 10 - 9), Point(1 * 10, 1 * 10))));
 SELECT count(*) FROM t2;
 count(*)
-0
+100
 DROP TABLE t2;
 drop table if exists t1;
 Warnings:
@@ -863,11 +863,11 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 DROP TABLE t1;
 CREATE TABLE t1 (foo GEOMETRY NOT NULL, SPATIAL INDEX(foo) );
-INSERT INTO t1 (foo) VALUES (PointFromWKB(POINT(1,1)));
-INSERT INTO t1 (foo) VALUES (PointFromWKB(POINT(1,0)));
-INSERT INTO t1 (foo) VALUES (PointFromWKB(POINT(0,1)));
-INSERT INTO t1 (foo) VALUES (PointFromWKB(POINT(0,0)));
-SELECT 1 FROM t1 WHERE foo != PointFromWKB(POINT(0,0));
+INSERT INTO t1 (foo) VALUES (POINT(1,1));
+INSERT INTO t1 (foo) VALUES (POINT(1,0));
+INSERT INTO t1 (foo) VALUES (POINT(0,1));
+INSERT INTO t1 (foo) VALUES (POINT(0,0));
+SELECT 1 FROM t1 WHERE foo != POINT(0,0);
 1
 1
 1
@@ -1426,35 +1426,35 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 DROP TABLE t1;
 create table t1 (a geometry not null, spatial index(a));
-insert into t1 values (PointFromWKB(POINT(1.1517219314031e+164, 131072)));
-insert into t1 values (PointFromWKB(POINT(9.1248812352444e+192, 2.9740338169556e+284)));
-insert into t1 values (PointFromWKB(POINT(4.7783097267365e-299, -0)));
-insert into t1 values (PointFromWKB(POINT(1.49166814624e-154, 2.0880974297595e-53)));
-insert into t1 values (PointFromWKB(POINT(4.0917382598702e+149, 1.2024538023802e+111)));
-insert into t1 values (PointFromWKB(POINT(2.0349165139404e+236, 2.9993936277913e-241)));
-insert into t1 values (PointFromWKB(POINT(2.5243548967072e-29, 1.2024538023802e+111)));
-insert into t1 values (PointFromWKB(POINT(0, 6.9835074892995e-251)));
-insert into t1 values (PointFromWKB(POINT(2.0880974297595e-53, 3.1050361846014e+231)));
-insert into t1 values (PointFromWKB(POINT(2.8728483499323e-188, 2.4600631144627e+260)));
-insert into t1 values (PointFromWKB(POINT(3.0517578125e-05, 2.0349165139404e+236)));
-insert into t1 values (PointFromWKB(POINT(1.1517219314031e+164, 1.1818212630766e-125)));
-insert into t1 values (PointFromWKB(POINT(2.481040258324e-265, 5.7766220027675e-275)));
-insert into t1 values (PointFromWKB(POINT(2.0880974297595e-53, 2.5243548967072e-29)));
-insert into t1 values (PointFromWKB(POINT(5.7766220027675e-275, 9.9464647281957e+86)));
-insert into t1 values (PointFromWKB(POINT(2.2181357552967e+130, 3.7857669957337e-270)));
-insert into t1 values (PointFromWKB(POINT(4.5767114681874e-246, 3.6893488147419e+19)));
-insert into t1 values (PointFromWKB(POINT(4.5767114681874e-246, 3.7537584144024e+255)));
-insert into t1 values (PointFromWKB(POINT(3.7857669957337e-270, 1.8033161362863e-130)));
-insert into t1 values (PointFromWKB(POINT(0, 5.8774717541114e-39)));
-insert into t1 values (PointFromWKB(POINT(1.1517219314031e+164, 2.2761049594727e-159)));
-insert into t1 values (PointFromWKB(POINT(6.243497100632e+144, 3.7857669957337e-270)));
-insert into t1 values (PointFromWKB(POINT(3.7857669957337e-270, 2.6355494858076e-82)));
-insert into t1 values (PointFromWKB(POINT(2.0349165139404e+236, 3.8518598887745e-34)));
-insert into t1 values (PointFromWKB(POINT(4.6566128730774e-10, 2.0880974297595e-53)));
-insert into t1 values (PointFromWKB(POINT(2.0880974297595e-53, 1.8827498946116e-183)));
-insert into t1 values (PointFromWKB(POINT(1.8033161362863e-130, 9.1248812352444e+192)));
-insert into t1 values (PointFromWKB(POINT(4.7783097267365e-299, 2.2761049594727e-159)));
-insert into t1 values (PointFromWKB(POINT(1.94906280228e+289, 1.2338789709327e-178)));
+insert into t1 values (POINT(1.1517219314031e+164, 131072));
+insert into t1 values (POINT(9.1248812352444e+192, 2.9740338169556e+284));
+insert into t1 values (POINT(4.7783097267365e-299, -0));
+insert into t1 values (POINT(1.49166814624e-154, 2.0880974297595e-53));
+insert into t1 values (POINT(4.0917382598702e+149, 1.2024538023802e+111));
+insert into t1 values (POINT(2.0349165139404e+236, 2.9993936277913e-241));
+insert into t1 values (POINT(2.5243548967072e-29, 1.2024538023802e+111));
+insert into t1 values (POINT(0, 6.9835074892995e-251));
+insert into t1 values (POINT(2.0880974297595e-53, 3.1050361846014e+231));
+insert into t1 values (POINT(2.8728483499323e-188, 2.4600631144627e+260));
+insert into t1 values (POINT(3.0517578125e-05, 2.0349165139404e+236));
+insert into t1 values (POINT(1.1517219314031e+164, 1.1818212630766e-125));
+insert into t1 values (POINT(2.481040258324e-265, 5.7766220027675e-275));
+insert into t1 values (POINT(2.0880974297595e-53, 2.5243548967072e-29));
+insert into t1 values (POINT(5.7766220027675e-275, 9.9464647281957e+86));
+insert into t1 values (POINT(2.2181357552967e+130, 3.7857669957337e-270));
+insert into t1 values (POINT(4.5767114681874e-246, 3.6893488147419e+19));
+insert into t1 values (POINT(4.5767114681874e-246, 3.7537584144024e+255));
+insert into t1 values (POINT(3.7857669957337e-270, 1.8033161362863e-130));
+insert into t1 values (POINT(0, 5.8774717541114e-39));
+insert into t1 values (POINT(1.1517219314031e+164, 2.2761049594727e-159));
+insert into t1 values (POINT(6.243497100632e+144, 3.7857669957337e-270));
+insert into t1 values (POINT(3.7857669957337e-270, 2.6355494858076e-82));
+insert into t1 values (POINT(2.0349165139404e+236, 3.8518598887745e-34));
+insert into t1 values (POINT(4.6566128730774e-10, 2.0880974297595e-53));
+insert into t1 values (POINT(2.0880974297595e-53, 1.8827498946116e-183));
+insert into t1 values (POINT(1.8033161362863e-130, 9.1248812352444e+192));
+insert into t1 values (POINT(4.7783097267365e-299, 2.2761049594727e-159));
+insert into t1 values (POINT(1.94906280228e+289, 1.2338789709327e-178));
 drop table t1;
 CREATE TABLE t1(foo GEOMETRY NOT NULL, SPATIAL INDEX(foo) );
 INSERT INTO t1(foo) VALUES (NULL);

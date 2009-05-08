@@ -53,7 +53,14 @@ CREATE TABLE t1 (a INT)
 of multi-line
 comment */
 PARTITIONS 5 */;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '*/' at line 6
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY HASH (a)
+PARTITIONS 5 */
+DROP TABLE t1;
 CREATE TABLE t1 (a INT)
 /*!50100 PARTITION BY HASH (a)
 -- with a single line comment embedded

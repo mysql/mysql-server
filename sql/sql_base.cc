@@ -1541,19 +1541,8 @@ void close_temporary_tables(THD *thd)
       thd->variables.character_set_client= system_charset_info;
       Query_log_event qinfo(thd, s_query.ptr(),
                             s_query.length() - 1 /* to remove trailing ',' */,
-                            0, FALSE);
+                            0, FALSE, THD::NOT_KILLED);
       thd->variables.character_set_client= cs_save;
-      /*
-        Imagine the thread had created a temp table, then was doing a
-        SELECT, and the SELECT was killed. Then it's not clever to
-        mark the statement above as "killed", because it's not really
-        a statement updating data, and there are 99.99% chances it
-        will succeed on slave.  If a real update (one updating a
-        persistent table) was killed on the master, then this real
-        update will be logged with error_code=killed, rightfully
-        causing the slave to stop.
-      */
-      qinfo.error_code= 0;
       mysql_bin_log.write(&qinfo);
       thd->variables.pseudo_thread_id= save_pseudo_thread_id;
     }
@@ -3855,6 +3844,16 @@ retry:
   if (share->is_view)
   {
     /*
+      If parent_l of the table_list is non null then a merge table
+      has this view as child table, which is not supported.
+    */
+    if (table_list->parent_l)
+    {
+      my_error(ER_WRONG_MRG_TABLE, MYF(0));
+      goto err;
+    }
+
+    /*
       This table is a view. Validate its metadata version: in particular,
       that it was a view when the statement was prepared.
     */
@@ -4017,7 +4016,8 @@ retry:
         end = strxmov(strmov(query, "DELETE FROM `"),
                       share->db.str,"`.`",share->table_name.str,"`", NullS);
         thd->binlog_query(THD::STMT_QUERY_TYPE,
-                          query, (ulong)(end-query), FALSE, FALSE);
+                          query, (ulong)(end-query),
+                          FALSE, FALSE, THD::NOT_KILLED);
         my_free(query, MYF(0));
       }
       else

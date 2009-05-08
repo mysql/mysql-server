@@ -27,6 +27,10 @@ extern "C" {
 struct st_thr_lock;
 extern ulong locks_immediate,locks_waited ;
 
+/*
+  Important: if a new lock type is added, a matching lock description
+             must be added to sql_test.cc's lock_descriptions array.
+*/
 enum thr_lock_type { TL_IGNORE=-1,
 		     TL_UNLOCK,			/* UNLOCK ANY LOCK */
                      /*
