@@ -1103,15 +1103,36 @@ sp_head::execute(THD *thd)
   */
   thd->spcont->callers_arena= &backup_arena;
 
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+  /* Discard the initial part of executing routines. */
+  thd->profiling.discard_current_query();
+#endif
   do
   {
     sp_instr *i;
     uint hip;			// Handler ip
 
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+    /* 
+     Treat each "instr" of a routine as discrete unit that could be profiled.
+     Profiling only records information for segments of code that set the
+     source of the query, and almost all kinds of instructions in s-p do not.
+    */
+    thd->profiling.finish_current_query();
+    thd->profiling.start_new_query("continuing inside routine");
+#endif
+
     i = get_instr(ip);	// Returns NULL when we're done.
     if (i == NULL)
+    {
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+      thd->profiling.discard_current_query();
+#endif
       break;
+    }
+
     DBUG_PRINT("execute", ("Instruction %u", ip));
+
     /* Don't change NOW() in FUNCTION or TRIGGER */
     if (!thd->in_sub_stmt)
       thd->set_time();		// Make current_time() et al work
@@ -1188,6 +1209,10 @@ sp_head::execute(THD *thd)
     }
   } while (!err_status && !thd->killed);
 
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+  thd->profiling.finish_current_query();
+  thd->profiling.start_new_query("tail end of routine");
+#endif
   thd->restore_active_arena(&execute_arena, &backup_arena);
 
   thd->spcont->pop_all_cursors(); // To avoid memory leaks after an error
@@ -1605,7 +1630,8 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   if (need_binlog_call && thd->binlog_evt_union.unioned_events)
   {
     Query_log_event qinfo(thd, binlog_buf.ptr(), binlog_buf.length(),
-                          thd->binlog_evt_union.unioned_events_trans, FALSE);
+                          thd->binlog_evt_union.unioned_events_trans,
+                          FALSE, THD::KILLED_NO_VALUE);
     if (mysql_bin_log.write(&qinfo) &&
         thd->binlog_evt_union.unioned_events_trans)
     {
@@ -1928,17 +1954,16 @@ sp_head::restore_lex(THD *thd)
   DBUG_VOID_RETURN;
 }
 
-void
+int
 sp_head::push_backpatch(sp_instr *i, sp_label_t *lab)
 {
   bp_t *bp= (bp_t *)sql_alloc(sizeof(bp_t));
 
-  if (bp)
-  {
-    bp->lab= lab;
-    bp->instr= i;
-    (void)m_backpatch.push_front(bp);
-  }
+  if (!bp)
+    return 1;
+  bp->lab= lab;
+  bp->instr= i;
+  return m_backpatch.push_front(bp);
 }
 
 void
@@ -2013,7 +2038,7 @@ sp_head::fill_field_definition(THD *thd, LEX *lex,
 }
 
 
-void
+int
 sp_head::new_cont_backpatch(sp_instr_opt_meta *i)
 {
   m_cont_level+= 1;
@@ -2021,15 +2046,17 @@ sp_head::new_cont_backpatch(sp_instr_opt_meta *i)
   {
     /* Use the cont. destination slot to store the level */
     i->m_cont_dest= m_cont_level;
-    (void)m_cont_backpatch.push_front(i);
+    if (m_cont_backpatch.push_front(i))
+      return 1;
   }
+  return 0;
 }
 
-void
+int
 sp_head::add_cont_backpatch(sp_instr_opt_meta *i)
 {
   i->m_cont_dest= m_cont_level;
-  (void)m_cont_backpatch.push_front(i);
+  return m_cont_backpatch.push_front(i);
 }
 
 void
@@ -2211,7 +2238,7 @@ sp_head::show_create_procedure(THD *thd)
     instr   Instruction
 */
 
-void sp_head::add_instr(sp_instr *instr)
+int sp_head::add_instr(sp_instr *instr)
 {
   instr->free_list= m_thd->free_list;
   m_thd->free_list= 0;
@@ -2222,7 +2249,7 @@ void sp_head::add_instr(sp_instr *instr)
     entire stored procedure, as their life span is equal.
   */
   instr->mem_root= &main_mem_root;
-  insert_dynamic(&m_instr, (gptr)&instr);
+  return insert_dynamic(&m_instr, (gptr)&instr);
 }
 
 
@@ -2518,9 +2545,9 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
 
   m_lex->unit.cleanup();
 
-  thd->proc_info="closing tables";
+  thd_proc_info(thd, "closing tables");
   close_thread_tables(thd);
-  thd->proc_info= 0;
+  thd_proc_info(thd, 0);
 
   if (m_lex->query_tables_own_last)
   {
@@ -2608,6 +2635,10 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
 
   query= thd->query;
   query_length= thd->query_length;
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+  /* This s-p instr is profilable and will be captured. */
+  thd->profiling.set_query_source(m_query.str, m_query.length);
+#endif
   if (!(res= alloc_query(thd, m_query.str, m_query.length+1)) &&
       !(res=subst_spvars(thd, this, &m_query)))
   {

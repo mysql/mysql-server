@@ -1,0 +1,77 @@
+# BUG#13684: 
+#   SP: DROP PROCEDURE|FUNCTION IF EXISTS not binlogged if routine 
+#   does not exist
+#   
+#   There is an inconsistency with DROP DATABASE IF EXISTS, DROP
+#   TABLE IF EXISTS and DROP VIEW IF EXISTS: those are binlogged even
+#   if the DB or TABLE does not exist, whereas DROP PROCEDURE IF
+#   EXISTS does not. It would be nice or at least consistent if DROP
+#   PROCEDURE/STATEMENT worked the same too.
+#
+# Description: 
+#   DROP PROCEDURE|FUNCTION IF EXISTS does not get binlogged whereas DROP
+#   DATABASE|TABLE|TRIGGER|... IF EXISTS do.
+#
+#   Fixed DROP PROCEDURE|FUNCTION IF EXISTS by adding a call to
+#   mysql_bin_log.write in mysql_execute_command. Checked also if all
+#   documented "DROP (...) IF EXISTS" get binlogged. 
+#
+#   Test is implemented as follows:
+#
+#       i) test each "drop if exists" (DDL)
+#      ii) show binlog events;
+#     iii) create an object for each drop if exists statement;
+#      iv) issue "drop if exists" in existent objects.
+#       v) show binlog events;
+#
+
+--source include/have_log_bin.inc
+RESET MASTER;
+
+disable_warnings;
+
+# test all "drop if exists" in manual with inexistent objects
+DROP PROCEDURE IF EXISTS db_bug_13684.p;
+DROP FUNCTION IF EXISTS db_bug_13684.f;
+DROP TRIGGER IF EXISTS db_bug_13684.tr;
+DROP VIEW IF EXISTS db_bug_13684.v;
+DROP TABLE IF EXISTS db_bug_13684.t;
+DROP DATABASE IF EXISTS db_bug_13684;
+
+--source include/show_binlog_events.inc
+
+# test drop with existing values
+
+# create 
+CREATE DATABASE db_bug_13684;
+
+CREATE TABLE db_bug_13684.t (a int);
+
+CREATE VIEW db_bug_13684.v 
+  AS SELECT * FROM db_bug_13684.t;
+
+CREATE TRIGGER db_bug_13684.tr BEFORE INSERT ON db_bug_13684.t
+  FOR EACH ROW BEGIN
+  END;
+
+CREATE PROCEDURE db_bug_13684.p (OUT p1 INT)
+  BEGIN
+  END;
+
+CREATE FUNCTION db_bug_13684.f (s CHAR(20))
+  RETURNS CHAR(50) DETERMINISTIC
+  RETURN s;
+
+--source include/show_binlog_events.inc
+
+# drop existing 
+DROP PROCEDURE IF EXISTS db_bug_13684.p;
+DROP FUNCTION IF EXISTS db_bug_13684.f;
+DROP TRIGGER IF EXISTS db_bug_13684.tr;
+DROP VIEW IF EXISTS db_bug_13684.v;
+DROP TABLE IF EXISTS db_bug_13684.t;
+DROP DATABASE IF EXISTS db_bug_13684;
+
+--source include/show_binlog_events.inc
+
+enable_warnings;

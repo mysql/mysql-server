@@ -94,8 +94,13 @@ enum enum_sql_command {
   SQLCOM_XA_START, SQLCOM_XA_END, SQLCOM_XA_PREPARE,
   SQLCOM_XA_COMMIT, SQLCOM_XA_ROLLBACK, SQLCOM_XA_RECOVER,
   SQLCOM_SHOW_PROC_CODE, SQLCOM_SHOW_FUNC_CODE,
-  /* This should be the last !!! */
+  SQLCOM_SHOW_PROFILE, SQLCOM_SHOW_PROFILES,
 
+  /*
+    When a command is added here, be sure it's also added in mysqld.cc
+    in "struct show_var_st status_vars[]= {" ...
+  */
+  /* This should be the last !!! */
   SQLCOM_END
 };
 
@@ -1076,6 +1081,9 @@ typedef struct st_lex : public Query_tables_list
   enum enum_var_type option_type;
   enum enum_view_create_mode create_view_mode;
   enum enum_drop_mode drop_mode;
+
+  uint profile_query_id;
+  uint profile_options;
   uint uint_geom_type;
   uint grant, grant_tot_col, which_columns;
   uint fk_delete_opt, fk_update_opt, fk_match_option;
@@ -1175,6 +1183,22 @@ typedef struct st_lex : public Query_tables_list
   const char *fname_end;
 
   bool escape_used;
+
+  /*
+    Special case for SELECT .. FOR UPDATE and LOCK TABLES .. WRITE.
+
+    Protect from a impending GRL as otherwise the thread might deadlock
+    if it starts waiting for the GRL in mysql_lock_tables.
+
+    The protection is needed because there is a race between setting
+    the global read lock and waiting for all open tables to be closed.
+    The problem is a circular wait where a thread holding "old" open
+    tables will wait for the global read lock to be released while the
+    thread holding the global read lock will wait for all "old" open
+    tables to be closed -- the flush part of flush tables with read
+    lock.
+  */
+  bool protect_against_global_read_lock;
 
   st_lex();
 

@@ -4341,7 +4341,7 @@ Item *Item_field::replace_equal_field(byte *arg)
       return const_item;
     }
     Item_field *subst= item_equal->get_first();
-    if (subst && !field->eq(subst->field))
+    if (subst && field->table != subst->field->table && !field->eq(subst->field))
       return subst;
   }
   return this;
