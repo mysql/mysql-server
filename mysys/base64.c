@@ -223,7 +223,7 @@ base64_decode(const char *src_base, size_t len,
     The variable 'i' is set to 'len' when padding has been read, so it
     does not actually reflect the number of bytes read from 'src'.
    */
-  return i != len ? -1 : d - dst_base;
+  return i != len ? -1 : (int) (d - dst_base);
 }
 
 

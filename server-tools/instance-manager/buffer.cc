@@ -100,7 +100,7 @@ err:
 
 int Buffer::get_size()
 {
-  return buffer_size;
+  return (uint) buffer_size;
 }
 
 

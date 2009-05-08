@@ -55,7 +55,7 @@ int my_getwd(char * buf, size_t size, myf MyFlags)
   else
   {
 #if defined(HAVE_GETCWD)
-    if (!getcwd(buf,size-2) && MyFlags & MY_WME)
+    if (!getcwd(buf,(uint) (size-2)) && MyFlags & MY_WME)
     {
       my_errno=errno;
       my_error(EE_GETWD,MYF(ME_BELL+ME_WAITTANG),errno);
