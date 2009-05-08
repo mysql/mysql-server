@@ -1183,7 +1183,12 @@ int main(int argc,char *argv[])
         histfile= 0;
       }
     }
-    if (histfile)
+
+    /* We used to suggest setting MYSQL_HISTFILE=/dev/null. */
+    if (histfile && strncmp(histfile, "/dev/null", 10) == 0)
+      histfile= NULL;
+
+    if (histfile && histfile[0])
     {
       if (verbose)
 	tee_fprintf(stdout, "Reading history-file %s\n",histfile);
@@ -1218,7 +1223,8 @@ sig_handler mysql_end(int sig)
 {
   mysql_close(&mysql);
 #ifdef HAVE_READLINE
-  if (!status.batch && !quick && !opt_html && !opt_xml && histfile)
+  if (!status.batch && !quick && !opt_html && !opt_xml &&
+      histfile && histfile[0])
   {
     /* write-history */
     if (verbose)
