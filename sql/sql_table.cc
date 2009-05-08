@@ -1463,7 +1463,7 @@ void write_bin_log(THD *thd, bool clear_error,
     if (clear_error)
       thd->clear_error();
     thd->binlog_query(THD::STMT_QUERY_TYPE,
-                      query, query_length, FALSE, FALSE);
+                      query, query_length, FALSE, FALSE, THD::NOT_KILLED);
   }
 }
 
@@ -6165,7 +6165,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       if (mysql_bin_log.is_open())
       {
         thd->clear_error();
-        Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
+        Query_log_event qinfo(thd, thd->query, thd->query_length,
+                              0, FALSE, THD::NOT_KILLED);
         mysql_bin_log.write(&qinfo);
       }
       my_ok(thd);
@@ -7488,6 +7489,16 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
 	{
 	  for (;;)
 	  {
+            if (thd->killed)
+            {
+              /* 
+                 we've been killed; let handler clean up, and remove the 
+                 partial current row from the recordset (embedded lib) 
+              */
+              t->file->ha_rnd_end();
+              thd->protocol->remove_last_row();
+              goto err;
+            }
 	    ha_checksum row_crc= 0;
             int error= t->file->rnd_next(t->record[0]);
             if (unlikely(error))

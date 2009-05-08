@@ -25,7 +25,7 @@ class SQL_CRYPT :public Sql_alloc
   uint shift;
   void crypt_init(ulong *seed);
  public:
-  SQL_CRYPT(const char *seed);
+  SQL_CRYPT(const char *seed, uint length);
   SQL_CRYPT(ulong *seed)
   {
     crypt_init(seed);

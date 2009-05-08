@@ -83,4 +83,4 @@ sync_slave_with_master;
 # will be created. You will need to go to the mysql-test dir and diff
 # the files your self to see what is not matching
 
---exec diff $MYSQLTEST_VARDIR/tmp/rpl_switch_stm_row_mixed_master.sql $MYSQLTEST_VARDIR/tmp/rpl_switch_stm_row_mixed_slave.sql
+--diff_files $MYSQLTEST_VARDIR/tmp/rpl_switch_stm_row_mixed_master.sql $MYSQLTEST_VARDIR/tmp/rpl_switch_stm_row_mixed_slave.sql

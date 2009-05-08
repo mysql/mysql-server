@@ -61,7 +61,7 @@ static char sccsid[] = "@(#)term.c	8.2 (Berkeley) 4/30/95";
 #ifdef HAVE_NCURSES_H
 #include <ncurses.h>
 #endif
-/* Solaris's term.h does horrid things. */
+/* Don't use Solaris's term.h. */
 #if (defined(HAVE_TERM_H) && !defined(__SunOS))
 #include <term.h>
 #endif
