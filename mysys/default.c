@@ -144,6 +144,7 @@ static char *remove_end_comment(char *ptr);
   RETURN
     0  ok
     1  given cinf_file doesn't exist
+    2  out of memory
 
     The global variable 'my_defaults_group_suffix' is updated with value for
     --defaults_group_suffix
@@ -190,7 +191,7 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
     if (!(extra_groups= 
 	  (const char**)alloc_root(ctx->alloc,
                                    (2*group->count+1)*sizeof(char*))))
-      goto err;
+      DBUG_RETURN(2);
     
     for (i= 0; i < group->count; i++)
     {
@@ -199,7 +200,7 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
       
       len= strlen(extra_groups[i]);
       if (!(ptr= alloc_root(ctx->alloc, len+instance_len+1)))
-	goto err;
+        DBUG_RETURN(2);
       
       extra_groups[i+group->count]= ptr;
       
@@ -254,12 +255,11 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
     }
   }
 
-  DBUG_RETURN(error);
+  DBUG_RETURN(0);
 
 err:
   fprintf(stderr,"Fatal error in defaults handling. Program aborted\n");
-  exit(1);
-  return 0;					/* Keep compiler happy */
+  DBUG_RETURN(1);
 }
 
 

@@ -61,7 +61,7 @@ SELECT @@global.server_id;
 0
 SET @@global.server_id = 2147483649*2;
 Warnings:
-Warning	1292	Truncated incorrect server-id value: '4294967298'
+Warning	1292	Truncated incorrect server_id value: '4294967298'
 SELECT @@global.server_id;
 @@global.server_id
 4294967295

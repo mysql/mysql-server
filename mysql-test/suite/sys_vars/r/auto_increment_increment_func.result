@@ -169,7 +169,7 @@ id	name
 ## Verifying behavior of variable with negative value ##
 SET @@auto_increment_increment = -10;
 Warnings:
-Warning	1292	Truncated incorrect auto-increment-increment value: '0'
+Warning	1292	Truncated incorrect auto_increment_increment value: '-10'
 INSERT into t1(name) values('Record_17');
 INSERT into t1(name) values('Record_18');
 SELECT * from t1;

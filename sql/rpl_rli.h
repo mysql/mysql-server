@@ -260,6 +260,13 @@ public:
   char ign_master_log_name_end[FN_REFLEN];
   ulonglong ign_master_log_pos_end;
 
+  /* 
+    Indentifies where the SQL Thread should create temporary files for the
+    LOAD DATA INFILE. This is used for security reasons.
+   */ 
+  char slave_patternload_file[FN_REFLEN]; 
+  size_t slave_patternload_file_size;  
+
   Relay_log_info();
   ~Relay_log_info();
 
