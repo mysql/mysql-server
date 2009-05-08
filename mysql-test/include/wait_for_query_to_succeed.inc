@@ -1,5 +1,5 @@
 #
-# Run a query over and over until it suceeds ot timeout occurs
+# Run a query over and over until it succeeds ot timeout occurs
 #
 
 
@@ -17,7 +17,7 @@ while ($mysql_errno)
 
   if (!$counter)
   {
-    die("Waited too long for query to suceed");
+    --die "Waited too long for query to succeed";
   }
 }
 enable_abort_on_error;

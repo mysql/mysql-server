@@ -28,12 +28,14 @@ SELECT @@global.concurrent_insert;
 2
 '#--------------------FN_DYNVARS_018_04-------------------------#'
 SET @@global.concurrent_insert = -1;
+Warnings:
+Warning	1292	Truncated incorrect concurrent_insert value: '-1'
 Select @@global.concurrent_insert;
 @@global.concurrent_insert
 0
 SET @@global.concurrent_insert = 100;
 Warnings:
-Warning	1292	Truncated incorrect concurrent-insert value: '100'
+Warning	1292	Truncated incorrect concurrent_insert value: '100'
 Select @@global.concurrent_insert;
 @@global.concurrent_insert
 2

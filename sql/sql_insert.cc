@@ -904,20 +904,6 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     }
     DBUG_ASSERT(transactional_table || !changed || 
                 thd->transaction.stmt.modified_non_trans_table);
-
-    if (thd->lock)
-    {
-      /*
-        Invalidate the table in the query cache if something changed
-        after unlocking when changes become fisible.
-        TODO: this is workaround. right way will be move invalidating in
-        the unlock procedure.
-      */
-      if (lock_type ==  TL_WRITE_CONCURRENT_INSERT && changed)
-      {
-        query_cache_invalidate3(thd, table_list, 1);
-      }
-    }
   }
   thd_proc_info(thd, "end");
   /*

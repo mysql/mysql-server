@@ -6,6 +6,9 @@
 # This test uses chmod, can't be run with root permissions
 -- source include/not_as_root.inc
 
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
 # ============================================================================
 #
 # Test of mysqltest itself
@@ -50,7 +53,7 @@ select otto from (select 1 as otto) as t1;
 
 # ----------------------------------------------------------------------------
 # Negative case(statement):
-# The derived table t1 does not contain a column named 'friedrich' . 
+# The derived table t1 does not contain a column named 'friedrich' .
 # --> ERROR 42S22: Unknown column 'friedrich' in 'field list and
 # --> 1054: Unknown column 'friedrich' in 'field list'
 # ----------------------------------------------------------------------------
@@ -62,7 +65,8 @@ select otto from (select 1 as otto) as t1;
 --exec echo "select friedrich from (select 1 as otto) as t1;" | $MYSQL_TEST  2>&1
 
 # expectation = response
---error 1054
+--error ER_BAD_FIELD_ERROR
+
 select friedrich from (select 1 as otto) as t1;
 
 # The following unmasked unsuccessful statement must give
@@ -120,7 +124,7 @@ select friedrich from (select 1 as otto) as t1;
 # $mysql_errno is a builtin variable of mysqltest and contains the return code
 # of the last command sent to the server.
 #
-#      The following test cases often initialize $mysql_errno to 1064 by 
+#      The following test cases often initialize $mysql_errno to 1064 by
 #      a command with wrong syntax.
 #      Example: --error 1064      To prevent the abort after the error.
 #               garbage ;
@@ -135,14 +139,16 @@ eval select $mysql_errno as "after_successful_stmt_errno" ;
 #----------------------------------------------------------------------------
 # check mysql_errno = 1064 after statement with wrong syntax
 # ----------------------------------------------------------------------------
---error 1064
+--error ER_PARSE_ERROR
+
 garbage ;
 eval select $mysql_errno as "after_wrong_syntax_errno" ;
 
 # ----------------------------------------------------------------------------
 # check if let $my_var= 'abc' ; affects $mysql_errno
 # ----------------------------------------------------------------------------
---error 1064
+--error ER_PARSE_ERROR
+
 garbage ;
 let $my_var= 'abc' ;
 eval select $mysql_errno as "after_let_var_equal_value" ;
@@ -150,7 +156,8 @@ eval select $mysql_errno as "after_let_var_equal_value" ;
 # ----------------------------------------------------------------------------
 # check if set @my_var= 'abc' ; affects $mysql_errno
 # ----------------------------------------------------------------------------
---error 1064
+--error ER_PARSE_ERROR
+
 garbage ;
 set @my_var= 'abc' ;
 eval select $mysql_errno as "after_set_var_equal_value" ;
@@ -159,7 +166,8 @@ eval select $mysql_errno as "after_set_var_equal_value" ;
 #  check if the setting of --disable-warnings itself affects $mysql_errno
 #  (May be --<whatever> modifies $mysql_errno.)
 # ----------------------------------------------------------------------------
---error 1064
+--error ER_PARSE_ERROR
+
 garbage ;
 --disable_warnings
 eval select $mysql_errno as "after_disable_warnings_command" ;
@@ -170,7 +178,8 @@ eval select $mysql_errno as "after_disable_warnings_command" ;
 # (May be disabled warnings affect $mysql_errno.)
 # ----------------------------------------------------------------------------
 drop table if exists t1 ;
---error 1064
+--error ER_PARSE_ERROR
+
 garbage ;
 drop table if exists t1 ;
 eval select $mysql_errno as "after_disable_warnings" ;
@@ -179,21 +188,26 @@ eval select $mysql_errno as "after_disable_warnings" ;
 # ----------------------------------------------------------------------------
 # check if masked errors affect $mysql_errno
 # ----------------------------------------------------------------------------
---error 1064
+--error ER_PARSE_ERROR
+
 garbage ;
---error 1146
+--error ER_NO_SUCH_TABLE
+
 select 3 from t1 ;
 eval select $mysql_errno as "after_minus_masked" ;
---error 1064
+--error ER_PARSE_ERROR
+
 garbage ;
---error 1146
+--error ER_NO_SUCH_TABLE
+
 select 3 from t1 ;
 eval select $mysql_errno as "after_!_masked" ;
 
 # ----------------------------------------------------------------------------
 # Will manipulations of $mysql_errno be possible and visible ?
 # ----------------------------------------------------------------------------
---error 1064
+--error ER_PARSE_ERROR
+
 garbage ;
 let $mysql_errno= -1;
 eval select $mysql_errno as "after_let_errno_equal_value" ;
@@ -202,50 +216,61 @@ eval select $mysql_errno as "after_let_errno_equal_value" ;
 # How affect actions on prepared statements $mysql_errno ?
 # ----------------------------------------------------------------------------
 # failing prepare
---error 1064
+--error ER_PARSE_ERROR
+
 garbage ;
---error 1146
+--error ER_NO_SUCH_TABLE
+
 prepare stmt from "select 3 from t1" ;
 eval select $mysql_errno as "after_failing_prepare" ;
 create table t1 ( f1 char(10));
 
 # successful prepare
---error 1064
+--error ER_PARSE_ERROR
+
 garbage ;
 prepare stmt from "select 3 from t1" ;
 eval select $mysql_errno as "after_successful_prepare" ;
 
 # successful execute
---error 1064
+--error ER_PARSE_ERROR
+
 garbage ;
 execute stmt;
 eval select $mysql_errno as "after_successful_execute" ;
 
 # failing execute (table has been dropped)
 drop table t1;
---error 1064
+--error ER_PARSE_ERROR
+
 garbage ;
---error 1146
+--error ER_NO_SUCH_TABLE
+
 execute stmt;
 eval select $mysql_errno as "after_failing_execute" ;
 
 # failing execute (unknown statement)
---error 1064
+--error ER_PARSE_ERROR
+
 garbage ;
---error 1243
+--error ER_UNKNOWN_STMT_HANDLER
+
 execute __stmt_;
 eval select $mysql_errno as "after_failing_execute" ;
 
 # successful deallocate
---error 1064
+--error ER_PARSE_ERROR
+
 garbage ;
 deallocate prepare stmt;
 eval select $mysql_errno as "after_successful_deallocate" ;
 
 # failing deallocate ( statement handle does not exist )
---error 1064
+--error ER_PARSE_ERROR
+
 garbage ;
---error 1243
+--error ER_UNKNOWN_STMT_HANDLER
+
 deallocate prepare __stmt_;
 eval select $mysql_errno as "after_failing_deallocate" ;
 
@@ -270,7 +295,8 @@ eval select $mysql_errno as "after_failing_deallocate" ;
 # ----------------------------------------------------------------------------
 # Switch off the abort on error and check the effect on $mysql_errno
 # ----------------------------------------------------------------------------
---error 1064
+--error ER_PARSE_ERROR
+
 garbage ;
 --disable_abort_on_error
 eval select $mysql_errno as "after_--disable_abort_on_error" ;
@@ -284,9 +310,11 @@ select 3 from t1 ;
 # masked failing statements
 # ----------------------------------------------------------------------------
 # expected error = response
---error 1146
+--error ER_NO_SUCH_TABLE
+
 select 3 from t1 ;
---error 1146
+--error ER_NO_SUCH_TABLE
+
 select 3 from t1 ;
 eval select $mysql_errno as "after_!errno_masked_error" ;
 # expected error <> response
@@ -300,7 +328,8 @@ eval select $mysql_errno as "after_!errno_masked_error" ;
 # ----------------------------------------------------------------------------
 # Switch the abort on error on and check the effect on $mysql_errno
 # ----------------------------------------------------------------------------
---error 1064
+--error ER_PARSE_ERROR
+
 garbage ;
 --enable_abort_on_error
 eval select $mysql_errno as "after_--enable_abort_on_error" ;
@@ -309,7 +338,8 @@ eval select $mysql_errno as "after_--enable_abort_on_error" ;
 # masked failing statements
 # ----------------------------------------------------------------------------
 # expected error = response
---error 1146
+--error ER_NO_SUCH_TABLE
+
 select 3 from t1 ;
 
 # ----------------------------------------------------------------------------
@@ -458,7 +488,7 @@ remove_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql;
 
 # Allow trailing # comment
 --sleep 1 # Wait for insert delayed to be executed.
---sleep 1 	 # Wait for insert delayed to be executed.
+--sleep 1        # Wait for insert delayed to be executed.
 
 # ----------------------------------------------------------------------------
 # Test error
@@ -573,9 +603,6 @@ echo ;
 
 # Illegal use of exec
 --error 1
---exec echo "--exec false" | $MYSQL_TEST 2>&1
-
---error 1
 --exec echo "--exec " | $MYSQL_TEST 2>&1
 
 # ----------------------------------------------------------------------------
@@ -683,7 +710,7 @@ echo Not a banana: $cat;
 --error 1
 --exec echo "let hi;" | $MYSQL_TEST  2>&1
 
-# More advanced test for bug#17280
+# More advanced test for Bug#17280
 let $success= 1;
 --echo # Execute: --echo # <whatever> success: \$success
 --echo # <whatever> success: $success
@@ -955,8 +982,6 @@ system echo "hej" > /dev/null;
 --exec echo "system;" | $MYSQL_TEST 2>&1
 --error 1
 --exec echo "system $NONEXISTSINFVAREABLI;" | $MYSQL_TEST 2>&1
---error 1
---exec echo "system false;" | $MYSQL_TEST 2>&1
 
 --disable_abort_on_error
 system NonExistsinfComamdn 2> /dev/null;
@@ -1364,17 +1389,18 @@ connection default;
 
 
 # ----------------------------------------------------------------------------
-# TODO Test queries, especially their errormessages... so it's easy to debug 
+# TODO Test queries, especially their errormessages... so it's easy to debug
 # new scripts and diagnose errors
 # ----------------------------------------------------------------------------
 
 # ----------------------------------------------------------------------------
-# Test bug#12386
+# Test Bug#12386
 # ----------------------------------------------------------------------------
 let $num= 2;
 while ($num)
 {
-   --error 1064
+   --error ER_PARSE_ERROR
+
    failing_statement;
 
    dec $num;
@@ -1384,7 +1410,7 @@ SELECT 1 as a;
 
 
 #
-# Bug #10251: Identifiers containing quotes not handled correctly
+# Bug#10251 Identifiers containing quotes not handled correctly
 #
 select 1 as `a'b`, 2 as `a"b`;
 
@@ -1405,7 +1431,7 @@ let $message= `SELECT USER()`;
 
 # The message contains more then 80 characters on multiple lines
 # and is kept between double quotes.
-let $message= 
+let $message=
 "Here comes a very very long message that
     - is longer then 80 characters    and
     - consists of several lines";
@@ -1433,14 +1459,16 @@ select "this will be executed";
 #
 # Test zero length result file. Should not pass
 #
---exec touch $MYSQLTEST_VARDIR/tmp/zero_length_file.result
+--exec echo '' > $MYSQLTEST_VARDIR/tmp/zero_length_file.result
 --exec echo "echo ok;" > $MYSQLTEST_VARDIR/tmp/query.sql
 --error 1
 --exec $MYSQL_TEST -x $MYSQLTEST_VARDIR/tmp/query.sql -R $MYSQLTEST_VARDIR/tmp/zero_length_file.result  > /dev/null 2>&1
 
 remove_file $MYSQLTEST_VARDIR/tmp/zero_length_file.result;
 --error 0,1
-remove_file $MYSQLTEST_VARDIR/log/zero_length_file.reject;
+remove_file $MYSQLTEST_VARDIR/tmp/zero_length_file.reject;
+--error 0,1
+remove_file $MYSQLTEST_VARDIR/tmp/zero_length_file.log;
 --error 0,1
 remove_file $MYSQL_TEST_DIR/r/zero_length_file.reject;
 
@@ -1464,8 +1492,8 @@ remove_file $MYSQLTEST_VARDIR/tmp/query.sql;
 #--exec $MYSQL_TEST -x $MYSQLTEST_VARDIR/tmp/query.sql -R $MYSQLTEST_VARDIR/tmp/result_file.result 2>&1
 
 #
-# Bug #11731 mysqltest in multi-statement queries ignores errors in
-#            non-1st queries
+# Bug#11731 mysqltest in multi-statement queries ignores errors in
+#           non-1st queries
 #
 
 echo Failing multi statement query;
@@ -1486,7 +1514,8 @@ drop table t1;
 --error 1
 --exec $MYSQL_TEST --record -x $MYSQLTEST_VARDIR/tmp/bug11731.sql -R $MYSQLTEST_VARDIR/tmp/bug11731.out 2>&1
 # The .out file should be non existent
---exec test ! -s $MYSQLTEST_VARDIR/tmp/bug11731.out
+--error 1
+--file_exists $MYSQLTEST_VARDIR/tmp/bug11731.out
 drop table t1;
 
 
@@ -1508,26 +1537,29 @@ drop table t1;
 
 --exec $MYSQL_TEST --record -x $MYSQLTEST_VARDIR/tmp/bug11731.sql -R $MYSQLTEST_VARDIR/tmp/bug11731.out 2>&1
 # The .out file should exist
---exec test -s $MYSQLTEST_VARDIR/tmp/bug11731.out
+--file_exists $MYSQLTEST_VARDIR/tmp/bug11731.out
 drop table t1;
 remove_file $MYSQLTEST_VARDIR/tmp/bug11731.out;
 remove_file $MYSQLTEST_VARDIR/log/bug11731.log;
 remove_file $MYSQLTEST_VARDIR/tmp/bug11731.sql;
 
 #
-# Bug#19890  	mysqltest: "query" command is broken
+# Bug#19890 mysqltest "query" command is broken
 #
 
 # It should be possible to use the command "query" to force mysqltest to
 # send the command to the server although it's a builtin mysqltest command.
---error 1064
+--error ER_PARSE_ERROR
+
 query sleep;
 
---error 1064
+--error ER_PARSE_ERROR
+
 --query sleep
 
 # Just an empty query command
---error 1065
+--error ER_EMPTY_QUERY
+
 query ;
 
 # test for replace_regex
@@ -1538,7 +1570,7 @@ select "at" as col1, "c" as col2;
 select "at" as col1, "AT" as col2, "c" as col3;
 
 --replace_regex /a/b/ /ct/d/
-select "a" as col1, "ct" as col2; 
+select "a" as col1, "ct" as col2;
 
 --replace_regex /(strawberry)/raspberry and \1/ /blueberry/blackberry/ /potato/tomato/;
 select "strawberry","blueberry","potato";
@@ -1556,7 +1588,7 @@ select "strawberry","blueberry","potato";
 --error 1
 --exec echo "--replace_regex /a b c" | $MYSQL_TEST 2>&1
 --error 1
---exec echo "replace_regex /a /b c ;" | $MYSQL_TEST 2>&1 
+--exec echo "replace_regex /a /b c ;" | $MYSQL_TEST 2>&1
 
 # REQUIREMENT
 #   replace_regex should replace substitutions from left to right in output
@@ -1921,12 +1953,13 @@ eval $my_stmt;
 # 8. Ensure that "sorted_result " does not change the semantics of
 #    "--error ...." or the protocol output after such an expected failure
 --sorted_result
---error 1146
+--error ER_NO_SUCH_TABLE
+
 SELECT '2' as "my_col1",2 as "my_col2"
 UNION
 SELECT '1',1 from t2;
 
-# 9. Ensure that several result formatting options including "sorted_result" 
+# 9. Ensure that several result formatting options including "sorted_result"
 #    - have all an effect
 #    - "--sorted_result" does not need to be direct before the statement
 #    - Row sorting is applied after modification of the column content
@@ -2142,15 +2175,15 @@ remove_file $MYSQLTEST_VARDIR/tmp/testdir/file3.txt;
 rmdir $MYSQLTEST_VARDIR/tmp/testdir;
 
 #
-# Bug #36041: mysql-test-run doesn't seem to string match 100% effectively
-# on Windows
+# Bug#36041 mysql-test-run doesn't seem to string match 100% effectively
+#           on Windows
 #
 
 --replace_result c:\\a.txt z
 SELECT 'c:\\a.txt' AS col;
 
 #
-# Bug #32307  	mysqltest - does not detect illegal if syntax
+# Bug#32307 mysqltest - does not detect illegal if syntax
 #
 
 let $test= 1;
@@ -2184,11 +2217,13 @@ select 1;
 
 
 # ----------------------------------------------------------------------------
-# BUG#35701: please allow test language variables in connection and sync_slave_with_master
+# BUG#35701 please allow test language variables in connection and sync_slave_with_master
 # Test that "connection $variable" works and that $CURRENT_CONNECTION has the right value.
 # ----------------------------------------------------------------------------
 
 connect (con1,localhost,root,,);
+--echo $CURRENT_CONNECTION
+connect (con2,localhost,root,,);
 --echo $CURRENT_CONNECTION
 
 connection default;
@@ -2197,8 +2232,11 @@ connection default;
 connection con1;
 --echo $CURRENT_CONNECTION
 
-let $x= default;
-let $y= con1;
+connection con2;
+--echo $CURRENT_CONNECTION
+
+let $x= con1;
+let $y= con2;
 
 connection $x;
 --echo $CURRENT_CONNECTION
@@ -2217,3 +2255,6 @@ disconnect $y;
 
 --echo End of tests
 
+connection default;
+# Wait till we reached the initial number of concurrent sessions
+--source include/wait_until_count_sessions.inc

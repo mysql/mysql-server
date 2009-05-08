@@ -1350,6 +1350,8 @@ public:
 
   /* <> 0 if we are inside of trigger or stored function. */
   uint in_sub_stmt;
+  /* TRUE when the current top has SQL_LOG_BIN ON */
+  bool sql_log_bin_toplevel;
 
   /* container for handler's private per-connection data */
   Ha_data ha_data[MAX_HA];

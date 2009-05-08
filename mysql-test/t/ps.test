@@ -230,6 +230,10 @@ drop table t1;
 # statements or are correctly created and deleted on each execute
 #
 
+--let $outfile=$MYSQLTEST_VARDIR/tmp/f1.txt
+--error 0,1
+--remove_file $outfile
+
 prepare stmt1 from "select 1 into @var";
 execute stmt1;
 execute stmt1;
@@ -240,10 +244,13 @@ execute stmt1;
 prepare stmt1 from "insert into t1 select i from t1";
 execute stmt1;
 execute stmt1;
-prepare stmt1 from "select * from t1 into outfile 'f1.txt'";
+--replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
+eval prepare stmt1 from "select * from t1 into outfile '$outfile'";
 execute stmt1;
 deallocate prepare stmt1;
 drop table t1;
+
+--remove_file $outfile
 
 # 
 # BUG#5242 "Prepared statement names are case sensitive"
@@ -939,8 +946,13 @@ set global max_prepared_stmt_count=3;
 select @@max_prepared_stmt_count;
 show status like 'prepared_stmt_count';
 prepare stmt from "select 1";
+
 connect (con1,localhost,root,,);
+
+# Switch to connection con1
 connection con1;
+let $con1_id=`SELECT CONNECTION_ID()`;
+
 prepare stmt from "select 2";
 prepare stmt1 from "select 3";
 --error ER_MAX_PREPARED_STMT_COUNT_REACHED
@@ -950,18 +962,17 @@ connection default;
 prepare stmt2 from "select 4";
 select @@max_prepared_stmt_count;
 show status like 'prepared_stmt_count';
+
+# Disconnect connection con1 and switch to default connection
 disconnect con1;
 connection default;
-# Wait for the connection to die: deal with a possible race
+
+# Wait for the connection con1 to die
+let $wait_condition=SELECT COUNT(*)=0 FROM information_schema.processlist WHERE id=$con1_id;
+--source include/wait_condition.inc
+
 deallocate prepare stmt;
-let $query= select variable_value from information_schema.global_status
-            where variable_name = 'prepared_stmt_count';
-let $count= `$query`;
-if ($count)
-{
---sleep 1
-  let $count= `$query`;
-}
+
 select @@max_prepared_stmt_count;
 show status like 'prepared_stmt_count';
 #

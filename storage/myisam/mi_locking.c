@@ -293,6 +293,8 @@ void mi_get_status(void* param, int concurrent_insert)
   info->save_state=info->s->state.state;
   info->state= &info->save_state;
   info->append_insert_at_end= concurrent_insert;
+  if (concurrent_insert)
+    info->s->state.state.uncacheable= TRUE;
   DBUG_VOID_RETURN;
 }
 

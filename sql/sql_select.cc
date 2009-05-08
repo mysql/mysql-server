@@ -2460,11 +2460,12 @@ typedef struct st_sargable_param
 */
 
 static bool
-make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
+make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
 		     DYNAMIC_ARRAY *keyuse_array)
 {
   int error;
   TABLE *table;
+  TABLE_LIST *tables= tables_arg;
   uint i,table_count,const_count,key;
   table_map found_const_table_map, all_table_map, found_ref, refs;
   key_map const_ref, eq_part;
@@ -2502,10 +2503,10 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
     table_vector[i]=s->table=table=tables->table;
     table->pos_in_table_list= tables;
     error= table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
-    if(error)
+    if (error)
     {
-        table->file->print_error(error, MYF(0));
-        DBUG_RETURN(1);
+      table->file->print_error(error, MYF(0));
+      goto error;
     }
     table->quick_keys.clear_all();
     table->reginfo.join_tab=s;
@@ -2601,7 +2602,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
       {
         join->tables=0;			// Don't use join->table
         my_message(ER_WRONG_OUTER_JOIN, ER(ER_WRONG_OUTER_JOIN), MYF(0));
-        DBUG_RETURN(1);
+        goto error;
       }
       s->key_dependent= s->dependent;
     }
@@ -2611,7 +2612,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
     if (update_ref_and_keys(join->thd, keyuse_array, stat, join->tables,
                             conds, join->cond_equal,
                             ~outer_join, join->select_lex, &sargables))
-      DBUG_RETURN(1);
+      goto error;
 
   /* Read tables with 0 or 1 rows (system tables) */
   join->const_table_map= 0;
@@ -2627,7 +2628,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
     if ((tmp=join_read_const_table(s, p_pos)))
     {
       if (tmp > 0)
-	DBUG_RETURN(1);			// Fatal error
+	goto error;		// Fatal error
     }
     else
       found_const_table_map|= s->table->map;
@@ -2699,7 +2700,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
 	  if ((tmp= join_read_const_table(s, join->positions+const_count-1)))
 	  {
 	    if (tmp > 0)
-	      DBUG_RETURN(1);			// Fatal error
+	      goto error;			// Fatal error
 	  }
 	  else
 	    found_const_table_map|= table->map;
@@ -2748,12 +2749,12 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
 	        set_position(join,const_count++,s,start_keyuse);
 	        if (create_ref_for_key(join, s, start_keyuse,
 				       found_const_table_map))
-		  DBUG_RETURN(1);
+                  goto error;
 	        if ((tmp=join_read_const_table(s,
                                                join->positions+const_count-1)))
 	        {
 		  if (tmp > 0)
-		    DBUG_RETURN(1);			// Fatal error
+		    goto error;			// Fatal error
 	        }
 	        else
 		  found_const_table_map|= table->map;
@@ -2830,7 +2831,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
 			  *s->on_expr_ref ? *s->on_expr_ref : conds,
 			  1, &error);
       if (!select)
-        DBUG_RETURN(1);
+        goto error;
       records= get_quick_record_count(join->thd, select, s->table,
 				      &s->const_keys, join->row_limit);
       s->quick=select->quick;
@@ -2876,7 +2877,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
   {
     optimize_keyuse(join, keyuse_array);
     if (choose_plan(join, all_table_map & ~join->const_table_map))
-      DBUG_RETURN(TRUE);
+      goto error;
   }
   else
   {
@@ -2886,6 +2887,17 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
   }
   /* Generate an execution plan from the found optimal join order. */
   DBUG_RETURN(join->thd->killed || get_best_combination(join));
+
+error:
+  /*
+    Need to clean up join_tab from TABLEs in case of error.
+    They won't get cleaned up by JOIN::cleanup() because JOIN::join_tab
+    may not be assigned yet by this function (which is building join_tab).
+    Dangling TABLE::reginfo.join_tab may cause part_of_refkey to choke. 
+  */
+  for (tables= tables_arg; tables; tables= tables->next_leaf)
+    tables->table->reginfo.join_tab= NULL;
+  DBUG_RETURN (1);
 }
 
 

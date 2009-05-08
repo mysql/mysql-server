@@ -9,7 +9,7 @@
 --source include/have_case_insensitive_file_system.inc
 --source include/not_windows.inc
 
-call mtr.add_suppression("Cannot find or open table test/BUG29839 from");
+call mtr.add_suppression("Cannot find or open table test/BUG29839 from .*");
 
 --disable_warnings
 DROP TABLE IF EXISTS t1,T1;
@@ -18,11 +18,10 @@ DROP TABLE IF EXISTS t1,T1;
 #
 # This is actually an error, but ok as the user has forced this
 # by using --lower-case-table-names=0
-
-CREATE TABLE t1 (a int);
-SELECT * from T1;
-drop table t1;
-flush tables;
+CREATE TABLE t1 (a INT);
+SELECT * FROM T1;
+FLUSH TABLES;
+DROP TABLE t1;
 
 #
 # InnoDB should in this case be case sensitive
@@ -30,9 +29,9 @@ flush tables;
 # storing things in lower case.
 #
 
-CREATE TABLE bug29839 (a int) ENGINE=INNODB;
---error 1146
-SELECT * from BUG29839;
-drop table bug29839;
+CREATE TABLE bug29839 (a INT) ENGINE=INNODB;
+--error ER_NO_SUCH_TABLE
+SELECT * FROM BUG29839;
+DROP TABLE bug29839;
 
 # End of 4.1 tests

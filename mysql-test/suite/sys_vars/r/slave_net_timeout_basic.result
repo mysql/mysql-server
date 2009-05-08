@@ -58,13 +58,13 @@ ERROR HY000: Variable 'slave_net_timeout' is a GLOBAL variable and should be set
 '#------------------FN_DYNVARS_146_05-----------------------#'
 SET @@global.slave_net_timeout = -1;
 Warnings:
-Warning	1292	Truncated incorrect slave_net_timeout value: '0'
+Warning	1292	Truncated incorrect slave_net_timeout value: '-1'
 SELECT @@global.slave_net_timeout;
 @@global.slave_net_timeout
 1
 SET @@global.slave_net_timeout = -2147483648;
 Warnings:
-Warning	1292	Truncated incorrect slave_net_timeout value: '0'
+Warning	1292	Truncated incorrect slave_net_timeout value: '-2147483648'
 SELECT @@global.slave_net_timeout;
 @@global.slave_net_timeout
 1
