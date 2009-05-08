@@ -178,7 +178,7 @@ id	name
 ## Assigning -ve value to variable ## 
 SET @@auto_increment_offset = -10;
 Warnings:
-Warning	1292	Truncated incorrect auto-increment-offset value: '0'
+Warning	1292	Truncated incorrect auto_increment_offset value: '-10'
 SELECT @@auto_increment_offset = -10;
 @@auto_increment_offset = -10
 0

@@ -33,7 +33,6 @@
         myrg_attach_children(). Please duplicate changes in these
         functions or make common sub-functions.
 */
-/* purecov: begin deadcode */ /* not used in MySQL server */
 
 MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
 {
@@ -198,7 +197,6 @@ err:
   my_errno=save_errno;
   DBUG_RETURN (NULL);
 }
-/* purecov: end */
 
 
 /**
@@ -428,10 +426,11 @@ int myrg_attach_children(MYRG_INFO *m_info, int handle_locking,
       if (!m_info->rec_per_key_part)
       {
         if(!(m_info->rec_per_key_part= (ulong*)
-             my_malloc(key_parts * sizeof(long), MYF(MY_WME|MY_ZEROFILL))))
+             my_malloc(key_parts * sizeof(long), MYF(MY_WME))))
           goto err; /* purecov: inspected */
         errpos= 1;
       }
+      bzero((char*) m_info->rec_per_key_part, key_parts * sizeof(long));
     }
 
     /* Add MyISAM table info. */

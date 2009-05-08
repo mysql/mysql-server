@@ -77,7 +77,7 @@ SELECT @@global.preload_buffer_size;
 1024
 SET @@global.preload_buffer_size = -1;
 Warnings:
-Warning	1292	Truncated incorrect preload_buffer_size value: '0'
+Warning	1292	Truncated incorrect preload_buffer_size value: '-1'
 SELECT @@global.preload_buffer_size;
 @@global.preload_buffer_size
 1024
@@ -111,7 +111,7 @@ SELECT @@session.preload_buffer_size;
 1024
 SET @@session.preload_buffer_size = -2;
 Warnings:
-Warning	1292	Truncated incorrect preload_buffer_size value: '0'
+Warning	1292	Truncated incorrect preload_buffer_size value: '-2'
 SELECT @@session.preload_buffer_size;
 @@session.preload_buffer_size
 1024

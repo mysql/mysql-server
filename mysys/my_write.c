@@ -54,10 +54,8 @@ size_t my_write(int Filedes, const uchar *Buffer, size_t Count, myf MyFlags)
     if ((my_errno == ENOSPC || my_errno == EDQUOT) &&
         (MyFlags & MY_WAIT_IF_FULL))
     {
-      if (!(errors++ % MY_WAIT_GIVE_USER_A_MESSAGE))
-	my_error(EE_DISK_FULL,MYF(ME_BELL | ME_NOREFRESH),
-		 my_filename(Filedes),my_errno,MY_WAIT_FOR_USER_TO_FIX_PANIC);
-      VOID(sleep(MY_WAIT_FOR_USER_TO_FIX_PANIC));
+      wait_for_free_space(my_filename(Filedes), errors);
+      errors++;
       continue;
     }
 

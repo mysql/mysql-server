@@ -47,6 +47,8 @@
 #include "rpl_reporting.h"
 #endif
 
+#define PREFIX_SQL_LOAD "SQL_LOAD-"
+
 /**
    Either assert or return an error.
 
