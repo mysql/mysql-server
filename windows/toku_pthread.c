@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <toku_pthread.h>
+#include "memory.h"
 
 int
 toku_pthread_rwlock_init(toku_pthread_rwlock_t *restrict rwlock, const toku_pthread_rwlockattr_t *restrict attr) {
@@ -152,7 +153,7 @@ toku_pthread_start(LPVOID a) {
 int 
 toku_pthread_create(toku_pthread_t *threadptr, const toku_pthread_attr_t *attr, void *(*f)(void *), void *arg) {
     size_t stacksize = 0;
-    toku_pthread_t thread = malloc(sizeof (struct toku_pthread));
+    toku_pthread_t thread = toku_malloc(sizeof (struct toku_pthread));
     if (thread == 0) 
         return ENOMEM;
     if (attr)
@@ -161,16 +162,24 @@ toku_pthread_create(toku_pthread_t *threadptr, const toku_pthread_attr_t *attr, 
     thread->arg = arg;
     // _beginthread or CreateThread
     thread->handle = CreateThread(NULL, stacksize, toku_pthread_start, thread, 0, &thread->id);
+    if (thread->handle == NULL) {
+	toku_free(thread);
+	return ENOMEM;
+    }
     *threadptr = thread;
     return 0;
 }
 
 int 
 toku_pthread_join(toku_pthread_t thread, void **ret) {
-    WaitForSingleObject(thread->handle, INFINITE);
+    DWORD r;
+    r = WaitForSingleObject(thread->handle, INFINITE);
+    assert(r != WAIT_FAILED);
     if (ret)
         *ret = thread->ret;
-    free(thread);
+    BOOL b;
+    b = CloseHandle(thread->handle); assert(b != 0);
+    toku_free(thread);
     return 0;
 }
 
