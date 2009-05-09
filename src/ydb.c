@@ -344,6 +344,10 @@ static int toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mo
 	return toku_ydb_do_error(env, EINVAL, "DB_USE_ENVIRON and DB_USE_ENVIRON_ROOT are incompatible flags\n");
     }
 
+    if ((flags & DB_PRIVATE) && !(flags & DB_CREATE)) {
+	return toku_ydb_do_error(env, ENOENT, "DB_PRIVATE requires DB_CREATE (seems gratuitous to us, but that's BDB's behavior\n");
+    }
+
     if (home) {
         if ((flags & DB_USE_ENVIRON) || (flags & DB_USE_ENVIRON_ROOT)) {
 	    return toku_ydb_do_error(env, EINVAL, "DB_USE_ENVIRON and DB_USE_ENVIRON_ROOT are incompatible with specifying a home\n");
@@ -3673,7 +3677,7 @@ static int toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
         r = toku_env_create(&env, 0);
         if (r != 0)
             return r;
-        r = toku_env_open(env, ".", DB_PRIVATE + DB_INIT_MPOOL, 0);
+        r = toku_env_open(env, ".", DB_CREATE | DB_PRIVATE | DB_INIT_MPOOL, 0);
         if (r != 0) {
             env_unref(env);
             return r;

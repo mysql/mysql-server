@@ -35,7 +35,7 @@ test_main(int argc, char *argv[]) {
 #else
 	if (do_private==1) continue; // See #530.  BDB 4.6.21 segfaults if DB_PRIVATE is passed when no environment previously exists.
 #endif
-	int private_flags = do_private ? DB_PRIVATE : 0;
+	int private_flags = do_private ? (DB_CREATE|DB_PRIVATE) : 0;
 	
 	system("rm -rf " ENVDIR);
 	r = db_env_create(&dbenv, 0);
