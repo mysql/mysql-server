@@ -36,7 +36,7 @@ struct utimbuf {
 
 int my_append(const char *from, const char *to, myf MyFlags)
 {
-  uint Count;
+  size_t Count;
   File from_file,to_file;
   uchar buff[IO_SIZE];
   DBUG_ENTER("my_append");

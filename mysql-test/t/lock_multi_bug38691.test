@@ -1,0 +1,141 @@
+#
+# Bug#38691 segfault/abort in ``UPDATE ...JOIN'' while
+#           ``FLUSH TABLES WITH READ LOCK''
+# MySQL >= 5.0
+#
+
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+# Test to see if select will get the lock ahead of low priority update
+
+connect (locker,localhost,root,,);
+connect (writer,localhost,root,,);
+
+--connection default
+--disable_warnings
+DROP TABLE IF EXISTS t1,t2,t3;
+--enable_warnings
+
+CREATE TABLE t1 (
+  a int(11) unsigned default NULL,
+  b varchar(255) default NULL,
+  UNIQUE KEY a (a),
+  KEY b (b)
+);
+
+INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3);
+CREATE TABLE t2 SELECT * FROM t1;
+CREATE TABLE t3 SELECT * FROM t1;
+
+--echo # test altering of columns that multiupdate doesn't use
+
+--echo # normal mode
+
+--disable_query_log
+let $i = 100;
+while ($i) {
+--dec $i
+
+--connection writer
+  send UPDATE t2 INNER JOIN (t1 JOIN t3 USING(a)) USING(a)
+         SET a = NULL WHERE t1.b <> t2.b;
+
+--connection locker
+  ALTER TABLE t2 ADD COLUMN (c INT);
+  ALTER TABLE t2 DROP COLUMN c;
+
+--connection writer
+--reap
+}
+
+--echo # PS mode
+
+--connection writer
+PREPARE stmt FROM 'UPDATE t2 INNER JOIN (t1 JOIN t3 USING(a)) USING(a)
+                     SET a = NULL WHERE t1.b <> t2.b';
+
+let $i = 100;
+while ($i) {
+--dec $i
+
+--connection writer
+--send EXECUTE stmt
+
+--connection locker
+  ALTER TABLE t2 ADD COLUMN (c INT);
+  ALTER TABLE t2 DROP COLUMN c;
+
+--connection writer
+--reap
+}
+--enable_query_log
+
+
+--echo # test altering of columns that multiupdate uses
+
+--echo # normal mode
+
+--connection default
+
+--disable_query_log
+let $i = 100;
+while ($i) {
+  dec $i;
+
+--connection locker
+--error 0,ER_DUP_FIELDNAME
+  ALTER TABLE t2 ADD COLUMN a int(11) unsigned default NULL;
+  UPDATE t2 SET a=b;
+
+--connection writer
+--send UPDATE t2 INNER JOIN (t1 JOIN t3 USING(a)) USING(a) SET a = NULL WHERE t1.b <> t2.b
+
+--connection locker
+--error 0,ER_CANT_DROP_FIELD_OR_KEY
+  ALTER TABLE t2 DROP COLUMN a;
+
+--connection writer
+--error 0,ER_BAD_FIELD_ERROR
+--reap
+}
+--enable_query_log
+
+--echo # PS mode
+
+--disable_query_log
+let $i = 100;
+while ($i) {
+  dec $i;
+
+--connection locker
+--error 0,ER_DUP_FIELDNAME
+  ALTER TABLE t2 ADD COLUMN a int(11) unsigned default NULL;
+  UPDATE t2 SET a=b;
+
+--connection writer
+  PREPARE stmt FROM 'UPDATE t2 INNER JOIN (t1 JOIN t3 USING(a)) USING(a) SET a = NULL WHERE t1.b <> t2.b';
+--send EXECUTE stmt
+
+--connection locker
+--error 0,ER_CANT_DROP_FIELD_OR_KEY
+  ALTER TABLE t2 DROP COLUMN a;
+
+--connection writer
+--error 0,ER_BAD_FIELD_ERROR
+--reap
+
+}
+--enable_query_log
+--connection default
+DROP TABLE t1, t2, t3;
+
+
+# Close connections
+--disconnect locker
+--disconnect writer
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc
+

@@ -95,7 +95,7 @@ static int rtree_find_req(MI_INFO *info, MI_KEYDEF *keyinfo, uint search_flag,
                                       _mi_kpos(nod_flag, k), level + 1)))
         {
           case 0: /* found - exit from recursion */
-            *saved_key = k - page_buf;
+            *saved_key = (uint) (k - page_buf);
             goto ok;
           case 1: /* not found - continue searching */
             info->rtree_recursion_depth = level;
@@ -117,7 +117,7 @@ static int rtree_find_req(MI_INFO *info, MI_KEYDEF *keyinfo, uint search_flag,
         info->lastkey_length = k_len + info->s->base.rec_reflength;
         memcpy(info->lastkey, k, info->lastkey_length);
         info->rtree_recursion_depth = level;
-        *saved_key = last - page_buf;
+        *saved_key = (uint) (last - page_buf);
 
         if (after_key < last)
         {
@@ -314,7 +314,7 @@ static int rtree_get_req(MI_INFO *info, MI_KEYDEF *keyinfo, uint key_length,
                                   _mi_kpos(nod_flag, k), level + 1)))
       {
         case 0: /* found - exit from recursion */
-          *saved_key = k - page_buf;
+          *saved_key = (uint) (k - page_buf);
           goto ok;
         case 1: /* not found - continue searching */
           info->rtree_recursion_depth = level;
@@ -333,7 +333,7 @@ static int rtree_get_req(MI_INFO *info, MI_KEYDEF *keyinfo, uint key_length,
       memcpy(info->lastkey, k, info->lastkey_length);
 
       info->rtree_recursion_depth = level;
-      *saved_key = k - page_buf;
+      *saved_key = (uint) (k - page_buf);
 
       if (after_key < last)
       {
@@ -420,7 +420,7 @@ int rtree_get_next(MI_INFO *info, uint keynr, uint key_length)
     info->lastkey_length = k_len + info->s->base.rec_reflength;
     memcpy(info->lastkey, key, k_len + info->s->base.rec_reflength);
 
-    *(int*)info->int_keypos = key - info->buff;
+    *(uint*)info->int_keypos = (uint) (key - info->buff);
     if (after_key >= info->int_maxpos)
     {
       info->buff_used = 1;

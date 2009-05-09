@@ -112,14 +112,24 @@ source include/show_master_logs.inc;
 purge binary logs to 'master-bin.000002';
 source include/show_binary_logs.inc;
 
-# Calculate time to use in "purge master logs before" by taking
-# last modification time of t2 and adding 1 second
-# This is donw in order to handle the case where file system
-# time differs from mysqld's time
+# Set the purge time 1 second after the last modify time of master-bin.000002.
+perl;
+open F, ">>".$ENV{'MYSQLTEST_VARDIR'}.'/tmp/rpl_rotate_logs.tmp' or die "Tmp file rpl_rotate_logs.tmp not found";
+my $binlogpath = $ENV{'MYSQLTEST_VARDIR'}.'/mysqld.1/data/master-bin.000002';
+my @array = stat($binlogpath);
+my $filemodifytime = $array[9];
+my @t = localtime $filemodifytime;
+my $modifytime = sprintf "%04u-%02u-%02u %02u:%02u:%02u",$t[5]+1900,$t[4]+1,$t[3],$t[2],$t[1],$t[0];
+printf F ("let \$tmpval = %s;",$modifytime);
+close F;
+EOF
+
+--source $MYSQLTEST_VARDIR/tmp/rpl_rotate_logs.tmp
+remove_file $MYSQLTEST_VARDIR/tmp/rpl_rotate_logs.tmp;
+
 --disable_result_log
-select @time_for_purge:=DATE_ADD(UPDATE_TIME, INTERVAL 1 SECOND)
-  from information_schema.tables
-    where TABLE_SCHEMA="test" and TABLE_NAME="t2";
+--replace_result $tmpval tmpval
+--eval SELECT @time_for_purge:=DATE_ADD('$tmpval', INTERVAL 1 SECOND)
 --enable_result_log
 
 purge master logs before (@time_for_purge);
