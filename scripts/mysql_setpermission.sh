@@ -1,4 +1,4 @@
-#!@PERL@
+#!/usr/bin/perl
 ## Emacs, this is -*- perl -*- mode? :-)
 ##
 ##        Permission setter for MySQL
