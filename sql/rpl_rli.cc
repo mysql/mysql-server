@@ -104,6 +104,11 @@ int init_relay_log_info(Relay_log_info* rli,
   rli->tables_to_lock= 0;
   rli->tables_to_lock_count= 0;
 
+  fn_format(rli->slave_patternload_file, PREFIX_SQL_LOAD, slave_load_tmpdir, "",
+            MY_PACK_FILENAME | MY_UNPACK_FILENAME |
+            MY_RETURN_REAL_PATH);
+  rli->slave_patternload_file_size= strlen(rli->slave_patternload_file);
+
   /*
     The relay log will now be opened, as a SEQ_READ_APPEND IO_CACHE.
     Note that the I/O thread flushes it to disk after writing every
