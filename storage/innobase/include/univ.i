@@ -55,10 +55,10 @@ of the 32-bit x86 assembler in mutex operations. */
 #  define UNIV_CAN_USE_X86_ASSEMBLER
 # endif
 
-/* We only try to do explicit inlining of functions with gcc and
-Microsoft Visual C++ */
+/* Enable explicit inlining of functions only for compilers known to
+support it. */
 
-# if !defined(__GNUC__)
+# if !defined(__GNUC__) && !defined(__SUNPRO_C)
 #  undef  UNIV_MUST_NOT_INLINE			/* Remove compiler warning */
 #  define UNIV_MUST_NOT_INLINE
 # endif

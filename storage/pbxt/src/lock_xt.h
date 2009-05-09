@@ -208,9 +208,9 @@ inline void xt_atomic_dec2(volatile xtWord2 *mptr)
 #elif defined(__GNUC__)
 	__sync_fetch_and_sub(mptr, 1);
 #elif defined(XT_SPL_SOLARIS_LIB)
-	val1 = atomic_dec_16_nv(mptr);
+	atomic_dec_16_nv(mptr);
 #else
-	val1 = --(*mptr);
+	--(*mptr);
 #endif
 }
 

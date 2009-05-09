@@ -782,21 +782,28 @@ private:
 
 	void deleteTempFiles()
 	{
-		struct dirent	entry;
+		struct dirent *entry;
 		struct dirent	*result;
 		DIR				*odir;
 		int				err;
+		size_t				sz;
 		char			temp_file[100];
 
+#ifdef XT_SOLARIS
+		sz = sizeof(struct dirent) + pathconf("/tmp/", _PC_NAME_MAX); // Solaris, see readdir(3C)
+#else
+		sz = sizeof(struct dirent);
+#endif
+		entry = (struct dirent*)malloc(sz);
 		if (!(odir = opendir("/tmp/")))
 			return;
-		err = readdir_r(odir, &entry, &result);
+		err = readdir_r(odir, entry, &result);
 		while (!err && result) {
 			const char **prefix = temp_prefix;
 			
 			while (*prefix) {
-				if (startsWith(entry.d_name, *prefix)) {
-					int pid = atoi(entry.d_name + strlen(*prefix));
+				if (startsWith(entry->d_name, *prefix)) {
+					int pid = atoi(entry->d_name + strlen(*prefix));
 					
 					/* If the process does not exist: */
 					if (kill(pid, 0) == -1 && errno == ESRCH) {
@@ -807,9 +814,10 @@ private:
 				prefix++;
 			}
 			
-			err = readdir_r(odir, &entry, &result);
+			err = readdir_r(odir, entry, &result);
 		}
 		closedir(odir);
+		free(entry);
 	}
 };
 #endif // PBMS_API
