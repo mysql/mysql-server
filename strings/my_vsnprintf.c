@@ -128,9 +128,9 @@ size_t my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
     {
       char *par = va_arg(ap, char *);
       DBUG_ASSERT(to <= end);
-      if (to + width + 1 > end)
-        width= end - to - 1;  /* sign doesn't matter */
-      memmove(to, par, width);
+      if (to + abs(width) + 1 > end)
+        width= (uint) (end - to - 1);  /* sign doesn't matter */
+      memmove(to, par, abs(width));
       to+= width;
       continue;
     }

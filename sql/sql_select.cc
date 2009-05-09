@@ -7625,7 +7625,7 @@ static COND *build_equal_items_for_cond(THD *thd, COND *cond,
     if (and_level)
     {
       /*
-         Retrieve all conjucts of this level detecting the equality
+         Retrieve all conjuncts of this level detecting the equality
          that are subject to substitution by multiple equality items and
          removing each such predicate from the conjunction after having 
          found/created a multiple equality whose inference the predicate is.
@@ -7640,6 +7640,15 @@ static COND *build_equal_items_for_cond(THD *thd, COND *cond,
         if (check_equality(thd, item, &cond_equal, &eq_list))
           li.remove();
       }
+
+      /*
+        Check if we eliminated all the predicates of the level, e.g.
+        (a=a AND b=b AND a=a).
+      */
+      if (!args->elements && 
+          !cond_equal.current_level.elements && 
+          !eq_list.elements)
+        return new Item_int((longlong) 1, 1);
 
       List_iterator_fast<Item_equal> it(cond_equal.current_level);
       while ((item_equal= it++))
@@ -9788,6 +9797,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   table->in_use= thd;
   table->quick_keys.init();
   table->covering_keys.init();
+  table->merge_keys.init();
   table->keys_in_use_for_query.init();
 
   table->s= share;

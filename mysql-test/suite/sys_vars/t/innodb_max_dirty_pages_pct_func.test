@@ -1,4 +1,4 @@
-################# mysql-test\t\innodb_max_dirty_pages_pct_func.test  ##########
+###############################################################################
 #                                                                             #
 # Variable Name: innodb_max_dirty_pages_pct                                   #
 # Scope: GLOBAL                                                               #

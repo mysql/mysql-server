@@ -2404,7 +2404,7 @@ static void read_block(KEY_CACHE *keycache,
                        BLOCK_LINK *block, uint read_length,
                        uint min_length, my_bool primary)
 {
-  uint got_length;
+  size_t got_length;
 
   /* On entry cache_lock is locked */
 

@@ -3,15 +3,44 @@
 # in test cases and can be reused.                   #
 ######################################################
 
-# Bug#41307: Tests using include/ndb_backup.inc won't work on Windows due to
-#            'grep' call
-# This test is disabled on Windows via the next line until the above bug is
-# resolved
---source include/not_windows.inc
-
---disable_query_log
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "start backup" >> $NDB_TOOLS_OUTPUT
 
---source include/ndb_backup_id.inc
+# To find the backupid, we must dump this data to a table, and SELECT
+# what we want into an outfile.  This could be accomplished with grep, but
+# grep isn't Windows-portable
+
+--disable_query_log
+# create a table to help us out
+--disable_warnings # leave this on until done with the entire process
+# cleanup
+DROP TABLE IF EXISTS helper1;
+CREATE TABLE helper1(c1 VARCHAR(20));
+# dump raw data to file
+let $ndb_backup_file1= $MYSQLTEST_VARDIR/ndb_backup_tmp.dat;
+let $ndb_backup_file2= $MYSQLTEST_VARDIR/tmp.dat;
+--error 0,1
+--remove_file $ndb_backup_file1
+--exec $NDB_SELECT_ALL --ndb-connectstring="$NDB_CONNECTSTRING" -d sys --delimiter=',' SYSTAB_0 > $ndb_backup_file1
+# load the table from the raw data file
+eval LOAD DATA INFILE '$ndb_backup_file1' INTO TABLE helper1;
+--remove_file $ndb_backup_file1
+# output what we need
+eval SELECT * FROM helper1 WHERE c1 LIKE '%520093696%'
+INTO OUTFILE '$ndb_backup_file2';
+# cleanup
+DROP TABLE helper1;
+--enable_warnings
+
+CREATE TEMPORARY TABLE IF NOT EXISTS test.backup_info
+(id INT, backup_id INT) ENGINE = MEMORY;
+
+--replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
+eval LOAD DATA INFILE '$ndb_backup_file2' INTO TABLE test.backup_info FIELDS TERMINATED BY ',';
+--remove_file $ndb_backup_file2
+
+# Load backup id into environment variable
+let the_backup_id=`SELECT  backup_id from test.backup_info`;
+
+DROP TABLE test.backup_info;
 --enable_query_log
 
