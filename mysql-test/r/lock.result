@@ -166,4 +166,31 @@ ERROR HY000: View's SELECT refers to a temporary table 't2'
 Cleanup.
 
 drop table t2, t3;
+#
+# Bug#39843 DELETE requires write access to table in subquery in where clause
+#
+DROP TABLE IF EXISTS t1,t2;
+CREATE TABLE t1 (
+table1_rowid SMALLINT NOT NULL
+);
+CREATE TABLE t2 (
+table2_rowid SMALLINT NOT NULL
+);
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+LOCK TABLES t1 WRITE, t2 READ;
+# Sub-select should not try to aquire a write lock.
+DELETE FROM t1 
+WHERE EXISTS 
+( 
+SELECT 'x' 
+FROM t2
+WHERE t1.table1_rowid = t2.table2_rowid
+) ;
+# While implementing the patch we didn't break old behavior;
+# The following sub-select should still requires a write lock:
+SELECT * FROM t1 WHERE 1 IN (SELECT * FROM t2 FOR UPDATE);
+ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
+UNLOCK TABLES;
+DROP TABLE t1,t2;
 End of 5.1 tests.
