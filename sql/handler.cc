@@ -4637,9 +4637,9 @@ int handler::ha_write_row(uchar *buf)
 
   mark_trx_read_write();
 
-  if (unlikely(error= write_row(buf)))
+  if (unlikely((error= write_row(buf)) != 0))
     DBUG_RETURN(error);
-  if (unlikely(error= binlog_log_row(table, 0, buf, log_func)))
+  if (unlikely((error= binlog_log_row(table, 0, buf, log_func)) != 0))
     DBUG_RETURN(error); /* purecov: inspected */
   DBUG_RETURN(0);
 }
@@ -4658,9 +4658,9 @@ int handler::ha_update_row(const uchar *old_data, uchar *new_data)
 
   mark_trx_read_write();
 
-  if (unlikely(error= update_row(old_data, new_data)))
+  if (unlikely((error= update_row(old_data, new_data)) != 0))
     return error;
-  if (unlikely(error= binlog_log_row(table, old_data, new_data, log_func)))
+  if (unlikely((error= binlog_log_row(table, old_data, new_data, log_func))!=0))
     return error;
   return 0;
 }
@@ -4672,14 +4672,14 @@ int handler::ha_delete_row(const uchar *buf, bool will_batch)
 
   mark_trx_read_write();
 
-    if (will_batch)
+  if (will_batch)
   {
-    if (unlikely(error= bulk_delete_row(buf)))
+    if (unlikely((error= bulk_delete_row(buf)) != 0))
       return error;
   }
-  else if (unlikely(error= delete_row(buf)))
+  else if (unlikely((error= delete_row(buf)) != 0))
     return error;
-  if (unlikely(error= binlog_log_row(table, buf, 0, log_func)))
+  if (unlikely((error= binlog_log_row(table, buf, 0, log_func)) != 0))
     return error;
   return 0;
 }

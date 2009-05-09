@@ -320,9 +320,9 @@ int get_parts_for_update(const uchar *old_data, uchar *new_data,
   if (new_data == rec0)
 #endif
   {
-    if (unlikely(error= part_info->get_partition_id(part_info,
+    if (unlikely((error= part_info->get_partition_id(part_info,
                                                     new_part_id,
-                                                    new_func_value)))
+                                                     new_func_value)) != 0))
     {
       DBUG_RETURN(error);
     }
