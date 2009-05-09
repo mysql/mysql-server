@@ -7,8 +7,6 @@ SELECT @@global.innodb_locks_unsafe_for_binlog;
 1
 # keep_locks == 0
 GRANT USAGE ON test.* TO mysqltest@localhost;
-DO release_lock("hello");
-DO release_lock("hello2");
 drop table if exists t1;
 
 **
@@ -36,7 +34,7 @@ get_lock("hello",10)
 ** connection thread2
 ** Start transaction for thread 2
 begin;
-** Update will cause a table scan and a new ULL  will 
+** Update will cause a table scan and a new ULL  will
 ** be created and blocked on the first row where tipo=11.
 update t1 set eta=1+get_lock("hello",10)*0 where tipo=11;
 ** connection thread1
@@ -50,9 +48,7 @@ begin;
 update t1 set eta=2 where tipo=22;
 ** Release user level name lock from thread 1. This will cause the ULL
 ** on thread 2 to end its wait.
-select release_lock("hello");
-release_lock("hello")
-1
+DO release_lock("hello");
 ** Table is now updated with a new eta on tipo=22 for thread 1.
 select * from t1;
 eta	tipo	c
@@ -69,9 +65,7 @@ eta	tipo	c
 90	11	kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
 ** connection thread2
 ** Release the lock and collect result from update on thread 2
-select release_lock("hello");
-release_lock("hello")
-1
+DO release_lock("hello");
 ** Table should have eta updates where tipo=11 but updates made by
 ** thread 1 shouldn't be visible yet.
 select * from t1;
@@ -192,9 +186,7 @@ begin;
 ** do not match the WHERE condition are released.
 update t1 set tipo=1 where tipo=2;
 ** Release ULL. This will release the next waiting ULL on thread 2.
-select release_lock("hello");
-release_lock("hello")
-1
+DO release_lock("hello");
 ** The table should still be updated with updates for thread 1 only:
 select * from t1;
 eta	tipo	c
@@ -211,9 +203,7 @@ eta	tipo	c
 90	11	kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
 ** connection thread2
 ** Release the lock and collect result from thread 2:
-select release_lock("hello");
-release_lock("hello")
-1
+DO release_lock("hello");
 ** Seen from thread 2 the table should have been updated on four
 ** places.
 select * from t1;
@@ -317,9 +307,7 @@ update t1 set b=10+get_lock(concat("hello",a),10)*0 where a=2;
 ** commit since there are no on-going transactions.
 insert into t1 values (1,1);
 ** Release the ULL (thread 2 updates will finish).
-select release_lock("hello2");
-release_lock("hello2")
-1
+DO release_lock("hello2");
 ** ..but thread 1 will still see t1 as if nothing has happend:
 select * from t1;
 a	b
@@ -330,9 +318,7 @@ a	b
 1	1
 ** connection thread2
 ** Collect results from thread 2 and release the lock.
-select release_lock("hello2");
-release_lock("hello2")
-1
+DO release_lock("hello2");
 ** The table should look like the original+updates for thread 2,
 ** and consist of new rows:
 select * from t1;

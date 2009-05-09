@@ -262,7 +262,7 @@ static MYSQL_STMT *STDCALL
 mysql_simple_prepare(MYSQL *mysql_arg, const char *query)
 {
   MYSQL_STMT *stmt= mysql_stmt_init(mysql_arg);
-  if (stmt && mysql_stmt_prepare(stmt, query, strlen(query)))
+  if (stmt && mysql_stmt_prepare(stmt, query, (uint) strlen(query)))
   {
     mysql_stmt_close(stmt);
     return 0;
