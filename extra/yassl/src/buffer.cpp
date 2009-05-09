@@ -106,7 +106,7 @@ void input_buffer::add_size(uint i)
 
 uint input_buffer::get_capacity()  const 
 { 
-    return end_ - buffer_; 
+    return (uint) (end_ - buffer_); 
 }
 
 
@@ -223,7 +223,7 @@ uint output_buffer::get_size() const
 
 uint output_buffer::get_capacity() const 
 { 
-    return end_ - buffer_; 
+    return (uint) (end_ - buffer_); 
 }
 
 

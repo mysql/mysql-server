@@ -1114,7 +1114,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
     {
       memcpy(thd->query+thd->query_length+1, thd->db, thd->db_length);
       DBUG_PRINT("qcache", ("database: %s  length: %u",
-			    thd->db, thd->db_length)); 
+			    thd->db, (unsigned) thd->db_length)); 
     }
     else
     {
@@ -1307,7 +1307,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   {
     memcpy(sql+query_length+1, thd->db, thd->db_length);
     DBUG_PRINT("qcache", ("database: '%s'  length: %u",
-			  thd->db, thd->db_length));
+			  thd->db, (unsigned)thd->db_length));
   }
   else
   {
