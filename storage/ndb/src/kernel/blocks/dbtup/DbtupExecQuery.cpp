@@ -1535,11 +1535,11 @@ int Dbtup::handleInsertReq(Signal* signal,
 
     if (regTabPtr->need_shrink() && cmp[0] != cmp[1] &&
 	unlikely(handle_size_change_after_update(req_struct,
-						       base,
-						       regOperPtr.p,
-						       regFragPtr,
-						       regTabPtr,
-						       sizes)))
+                                                 base,
+                                                 regOperPtr.p,
+                                                 regFragPtr,
+                                                 regTabPtr,
+                                                 sizes) != 0))
     {
       goto size_change_error;
     }
