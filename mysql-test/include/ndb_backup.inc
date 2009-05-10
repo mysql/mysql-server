@@ -22,6 +22,7 @@ let $ndb_backup_file2= $MYSQLTEST_VARDIR/tmp.dat;
 --remove_file $ndb_backup_file1
 --exec $NDB_TOOLS_DIR/ndb_select_all --ndb-connectstring="$NDB_CONNECTSTRING" -d sys --delimiter=',' SYSTAB_0 > $ndb_backup_file1
 # load the table from the raw data file
+--exec chmod 0777 $ndb_backup_file1
 eval LOAD DATA INFILE '$ndb_backup_file1' INTO TABLE helper1;
 --remove_file $ndb_backup_file1
 # output what we need
@@ -34,6 +35,7 @@ DROP TABLE helper1;
 CREATE TEMPORARY TABLE IF NOT EXISTS test.backup_info
 (id INT, backup_id INT) ENGINE = MEMORY;
 
+--exec chmod 0777 $ndb_backup_file2
 --replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
 eval LOAD DATA INFILE '$ndb_backup_file2' INTO TABLE test.backup_info FIELDS TERMINATED BY ',';
 --remove_file $ndb_backup_file2
