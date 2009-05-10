@@ -2599,7 +2599,7 @@ bool select_dumpvar::send_data(List<Item> &items)
     {
       Item_func_set_user_var *suv= new Item_func_set_user_var(mv->s, item);
       suv->fix_fields(thd, 0);
-      suv->check(0);
+      suv->save_item_result(item);
       suv->update();
     }
   }
