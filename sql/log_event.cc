@@ -9311,7 +9311,7 @@ Incident_log_event::print(FILE *file,
 
   Write_on_release_cache cache(&print_event_info->head_cache, file);
   print_header(&cache, print_event_info, FALSE);
-  my_b_printf(&cache, "\n# Incident: %s", description());
+  my_b_printf(&cache, "\n# Incident: %s\nRELOAD DATABASE; # Shall generate syntax error\n", description());
 }
 #endif
 
