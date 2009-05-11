@@ -80,7 +80,13 @@ path=`dirname $0`
 . "$path/check-cpu"
 
 export AM_MAKEFLAGS
-AM_MAKEFLAGS="-j 6"
+# Default to a parallel build, but only if AM_MAKEFLAGS is not set.
+# (So buildbots can easily disable this behaviour if required.)
+if test -z "$AM_MAKEFLAGS"
+then
+  AM_MAKEFLAGS="-j 6"
+fi
+
 
 # SSL library to use.--with-ssl will select our bundled yaSSL
 # implementation of SSL. To use openSSl you will nee too point out
