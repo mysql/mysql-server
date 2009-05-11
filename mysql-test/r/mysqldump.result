@@ -3815,7 +3815,6 @@ DROP TABLE t1,t2;
 
 
 -- Dump completed on DATE
-SET @@GLOBAL.CONCURRENT_INSERT = @OLD_CONCURRENT_INSERT;
 #
 # Bug #42635: mysqldump includes views that were excluded using 
 #   the --ignore-table option

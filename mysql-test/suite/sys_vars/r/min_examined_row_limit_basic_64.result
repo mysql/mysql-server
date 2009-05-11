@@ -82,6 +82,8 @@ SELECT @@global.min_examined_row_limit;
 @@global.min_examined_row_limit
 429496726
 SET @@global.min_examined_row_limit = -1024;
+Warnings:
+Warning	1292	Truncated incorrect min_examined_row_limit value: '-1024'
 SELECT @@global.min_examined_row_limit;
 @@global.min_examined_row_limit
 0
@@ -104,6 +106,8 @@ SELECT @@session.min_examined_row_limit;
 @@session.min_examined_row_limit
 4294967296
 SET @@session.min_examined_row_limit = -1;
+Warnings:
+Warning	1292	Truncated incorrect min_examined_row_limit value: '-1'
 SELECT @@session.min_examined_row_limit;
 @@session.min_examined_row_limit
 0

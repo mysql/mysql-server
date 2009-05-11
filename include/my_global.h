@@ -580,40 +580,6 @@ typedef unsigned short ushort;
 #define test_all_bits(a,b) (((a) & (b)) == (b))
 #define set_bits(type, bit_count) (sizeof(type)*8 <= (bit_count) ? ~(type) 0 : ((((type) 1) << (bit_count)) - (type) 1))
 #define array_elements(A) ((uint) (sizeof(A)/sizeof(A[0])))
-#ifndef HAVE_RINT
-/**
-   All integers up to this number can be represented exactly as double precision
-   values (DBL_MANT_DIG == 53 for IEEE 754 hardware).
-*/
-#define MAX_EXACT_INTEGER ((1LL << DBL_MANT_DIG) - 1)
-
-/**
-   rint(3) implementation for platforms that do not have it.
-   Always rounds to the nearest integer with ties being rounded to the nearest
-   even integer to mimic glibc's rint() behavior in the "round-to-nearest"
-   FPU mode. Hardware-specific optimizations are possible (frndint on x86).
-   Unlike this implementation, hardware will also honor the FPU rounding mode.
-*/
-
-static inline double rint(double x)
-{
-  double f, i;
-  f = modf(x, &i);
-  /*
-    All doubles with absolute values > MAX_EXACT_INTEGER are even anyway,
-    no need to check it.
-  */
-  if (x > 0.0)
-    i += (double) ((f > 0.5) || (f == 0.5 &&
-                                 i <= (double) MAX_EXACT_INTEGER &&
-                                 (longlong) i % 2));
-  else
-    i -= (double) ((f < -0.5) || (f == -0.5 &&
-                                  i >= (double) -MAX_EXACT_INTEGER &&
-                                  (longlong) i % 2));
-  return i;
-}
-#endif /* HAVE_RINT */
 
 /* Define some general constants */
 #ifndef TRUE
@@ -905,10 +871,20 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #endif
 
 #ifdef HAVE_ISINF
-/* isinf() can be used in both C and C++ code */
-#define my_isinf(X) isinf(X)
+/* Check if C compiler is affected by GCC bug #39228 */
+#if !defined(__cplusplus) && defined(HAVE_BROKEN_ISINF)
+/* Force store/reload of the argument to/from a 64-bit double */
+static inline double my_isinf(double x)
+{
+  volatile double t= x;
+  return isinf(t);
+}
 #else
-#define my_isinf(X) (!isfinite(X) && !isnan(X))
+/* System-provided isinf() is available and safe to use */
+#define my_isinf(X) isinf(X)
+#endif
+#else /* !HAVE_ISINF */
+#define my_isinf(X) (!finite(X) && !isnan(X))
 #endif
 
 /* Define missing math constants. */
@@ -1561,5 +1537,40 @@ inline void  operator delete[](void*, void*) { /* Do nothing */ }
 #if !defined(__cplusplus) && !defined(bool)
 #define bool In_C_you_should_use_my_bool_instead()
 #endif
+
+#ifndef HAVE_RINT
+/**
+   All integers up to this number can be represented exactly as double precision
+   values (DBL_MANT_DIG == 53 for IEEE 754 hardware).
+*/
+#define MAX_EXACT_INTEGER ((1LL << DBL_MANT_DIG) - 1)
+
+/**
+   rint(3) implementation for platforms that do not have it.
+   Always rounds to the nearest integer with ties being rounded to the nearest
+   even integer to mimic glibc's rint() behavior in the "round-to-nearest"
+   FPU mode. Hardware-specific optimizations are possible (frndint on x86).
+   Unlike this implementation, hardware will also honor the FPU rounding mode.
+*/
+
+static inline double rint(double x)
+{
+  double f, i;
+  f = modf(x, &i);
+  /*
+    All doubles with absolute values > MAX_EXACT_INTEGER are even anyway,
+    no need to check it.
+  */
+  if (x > 0.0)
+    i += (double) ((f > 0.5) || (f == 0.5 &&
+                                 i <= (double) MAX_EXACT_INTEGER &&
+                                 (longlong) i % 2));
+  else
+    i -= (double) ((f < -0.5) || (f == -0.5 &&
+                                  i >= (double) -MAX_EXACT_INTEGER &&
+                                  (longlong) i % 2));
+  return i;
+}
+#endif /* HAVE_RINT */
 
 #endif /* my_global_h */
