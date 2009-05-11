@@ -293,12 +293,7 @@ sub start_mysqlds()
   @groups = &find_groups($groupids);
   for ($i = 0; defined($groups[$i]); $i++)
   {
-    # Defaults are made explicit parameters to server execution...
     @options = defaults_for_group($groups[$i]);
-    # ...so server MUST NOT try to read again from some config file, especially
-    # as the "right" file may be unknown to the server if we are using
-    # --defaults-file=... params in here.
-    unshift(@options,"--no-defaults");  
 
     $mysqld_found= 1; # The default
     $mysqld_found= 0 if (!length($mysqld));

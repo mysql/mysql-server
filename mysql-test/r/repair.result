@@ -126,7 +126,7 @@ id
 # Run CHECK TABLE, it should indicate table need a REPAIR TABLE
 CHECK TABLE t1 FOR UPGRADE;
 Table	Op	Msg_type	Msg_text
-test.t1	check	error	Table upgrade required. Please do "REPAIR TABLE `t1`" to fix it!
+test.t1	check	error	Table upgrade required. Please do "REPAIR TABLE `t1`" or dump/reload to fix it!
 # REPAIR old table USE_FRM should fail
 REPAIR TABLE t1 USE_FRM;
 Table	Op	Msg_type	Msg_text
