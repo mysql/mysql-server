@@ -1122,6 +1122,46 @@ SELECT a, b, c FROM t1 WHERE b = 1 ORDER BY a DESC LIMIT 5;
 
 DROP TABLE t1;
 
+# 
+# Bug#37284 Crash in Field_string::type() 
+# 
+--disable_warnings 
+DROP TABLE IF EXISTS t1; 
+--enable_warnings 
+CREATE TABLE t1 (a char(50)) ENGINE=InnoDB; 
+CREATE INDEX i1 on t1 (a(3)); 
+SELECT * FROM t1 WHERE a = 'abcde'; 
+DROP TABLE t1;
+
+
+--echo #
+--echo # BUG #26288: savepoint are not deleted on comit, if the transaction 
+--echo # was otherwise empty
+--echo #
+BEGIN;
+SAVEPOINT s1;
+COMMIT;
+--error 1305
+RELEASE SAVEPOINT s1;
+
+BEGIN;
+SAVEPOINT s2;
+COMMIT;
+--error 1305
+ROLLBACK TO SAVEPOINT s2;
+
+BEGIN;
+SAVEPOINT s3;
+ROLLBACK;
+--error 1305
+RELEASE SAVEPOINT s3;
+
+BEGIN;
+SAVEPOINT s4;
+ROLLBACK;
+--error 1305
+ROLLBACK TO SAVEPOINT s4;
+
 --echo End of 5.0 tests
 
 # Fix for BUG#19243 "wrong LAST_INSERT_ID() after ON DUPLICATE KEY
@@ -1368,6 +1408,7 @@ SELECT * FROM t1;
 
 --echo # Switch to connection con2
 connection con2;
+--reap
 SELECT * FROM t1;
 
 connection default;
