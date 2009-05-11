@@ -198,8 +198,6 @@ bool begin_trans(THD *thd)
     LEX *lex= thd->lex;
     thd->options|= OPTION_BEGIN;
     thd->server_status|= SERVER_STATUS_IN_TRANS;
-    if (lex->start_transaction_opt & MYSQL_START_TRANS_OPT_WITH_CONS_SNAPSHOT)
-      error= ha_start_consistent_snapshot(thd);
   }
   return error;
 }
@@ -4027,6 +4025,11 @@ end_with_restore_list:
     }
     if (begin_trans(thd))
       goto error;
+    if (lex->start_transaction_opt & MYSQL_START_TRANS_OPT_WITH_CONS_SNAPSHOT)
+    {
+      if (ha_start_consistent_snapshot(thd))
+        goto error;
+    }
     my_ok(thd);
     break;
   case SQLCOM_COMMIT:
