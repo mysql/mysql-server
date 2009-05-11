@@ -8,17 +8,17 @@
 delimiter |;
 
 #
-# Bug #13270 INSERT,UPDATE,etc that calls func with side-effect does not binlog
-# Bug #23333 stored function + non-transac table + transac table =
-#            breaks stmt-based binlog
-# Bug #27395 OPTION_STATUS_NO_TRANS_UPDATE is not preserved at the end of SF()
+# Bug#13270 INSERT,UPDATE,etc that calls func with side-effect does not binlog
+# Bug#23333 stored function + non-transac table + transac table =
+#           breaks stmt-based binlog
+# Bug#27395 OPTION_STATUS_NO_TRANS_UPDATE is not preserved at the end of SF()
 #
 --disable_warnings
 drop function if exists bug23333|
 drop table if exists t1,t2|
 --enable_warnings
- CREATE TABLE t1 (a int  NOT NULL auto_increment primary key) ENGINE=MyISAM|
- CREATE TABLE t2 (a int  NOT NULL auto_increment, b int, PRIMARY KEY (a)) ENGINE=InnoDB|
+CREATE TABLE t1 (a int  NOT NULL auto_increment primary key) ENGINE=MyISAM|
+CREATE TABLE t2 (a int  NOT NULL auto_increment, b int, PRIMARY KEY (a)) ENGINE=InnoDB|
 
 insert into t2 values (1,1)|
 

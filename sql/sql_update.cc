@@ -818,7 +818,7 @@ int mysql_update(THD *thd,
   if (error < 0)
   {
     char buff[STRING_BUFFER_USUAL_SIZE];
-    sprintf(buff, ER(ER_UPDATE_INFO), (ulong) found, (ulong) updated,
+    my_snprintf(buff, sizeof(buff), ER(ER_UPDATE_INFO), (ulong) found, (ulong) updated,
 	    (ulong) thd->cuted_fields);
     thd->row_count_func=
       (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated;
@@ -2066,8 +2066,8 @@ bool multi_update::send_eof()
 
   id= thd->arg_of_last_insert_id_function ?
     thd->first_successful_insert_id_in_prev_stmt : 0;
-  sprintf(buff, ER(ER_UPDATE_INFO), (ulong) found, (ulong) updated,
-	  (ulong) thd->cuted_fields);
+  my_snprintf(buff, sizeof(buff), ER(ER_UPDATE_INFO),
+              (ulong) found, (ulong) updated, (ulong) thd->cuted_fields);
   thd->row_count_func=
     (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated;
   ::my_ok(thd, (ulong) thd->row_count_func, id, buff);

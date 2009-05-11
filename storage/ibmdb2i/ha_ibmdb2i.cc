@@ -898,6 +898,8 @@ int ha_ibmdb2i::index_init(uint idx, bool sorted)
       releaseIndexFile(idx);
   }
   
+  rrnAssocHandle= 0;
+
   DBUG_RETURN(rc); 
 }
 
@@ -1154,6 +1156,8 @@ int ha_ibmdb2i::rnd_init(bool scan)
       releaseDataFile();
   }
   
+  rrnAssocHandle= 0;
+
   DBUG_RETURN(0); // MySQL sometimes does not check the return code, causing 
                   // an assert in ha_rnd_end later on if we return a non-zero
                   // value here. 
@@ -1251,7 +1255,8 @@ int ha_ibmdb2i::rnd_pos(uchar * buf, uchar *pos)
   
   int rc = 0;
 
-  if (activeHandle != rrnAssocHandle) 
+  if (rrnAssocHandle &&
+      (activeHandle != rrnAssocHandle))
   {
     if (activeHandle) releaseActiveHandle();
     rc = useFileByHandle(QMY_UPDATABLE, rrnAssocHandle);    

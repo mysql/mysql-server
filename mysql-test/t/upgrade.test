@@ -48,6 +48,20 @@ select * from `txu#p#p1`;
 drop table `txu@0023p@0023p1`;
 drop table `txu#p#p1`;
 
+--echo #
+--echo # Bug#37631 Incorrect key file for table after upgrading from 5.0 to 5.1
+--echo #
+--echo # copy table created using mysql4.0 into the data dir
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+copy_file std_data/bug37631.frm $MYSQLD_DATADIR/test/t1.frm;
+copy_file std_data/bug37631.MYD $MYSQLD_DATADIR/test/t1.MYD;
+copy_file std_data/bug37631.MYI $MYSQLD_DATADIR/test/t1.MYI;
+--echo # check the table created using mysql 4.0
+CHECK TABLE t1;
+--echo # query the table created using mysql 4.0
+SELECT * FROM t1;
+DROP TABLE t1;
+
 #
 # Check if old tables work
 #

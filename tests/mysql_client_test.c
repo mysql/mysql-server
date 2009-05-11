@@ -2464,6 +2464,9 @@ static void test_ps_query_cache()
 
   myheader("test_ps_query_cache");
 
+  rc= mysql_query(mysql, "SET SQL_MODE=''");
+  myquery(rc);
+
   /* prepare the table */
 
   rc= mysql_query(mysql, "drop table if exists t1");
@@ -2506,6 +2509,9 @@ static void test_ps_query_cache()
         mysql_close(lmysql);
         DIE_UNLESS(0);
       }
+      rc= mysql_query(lmysql, "SET SQL_MODE=''");
+      myquery(rc);
+
       if (!opt_silent)
         fprintf(stdout, "OK");
     }
@@ -4240,6 +4246,10 @@ static void test_fetch_date()
 
   myheader("test_fetch_date");
 
+  /* Will not work if sql_mode is NO_ZERO_DATE (implicit if TRADITIONAL) /*/
+  rc= mysql_query(mysql, "SET SQL_MODE=''");
+  myquery(rc);
+
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_bind_result");
   myquery(rc);
 
@@ -4953,6 +4963,9 @@ static void test_stmt_close()
 
   /* set AUTOCOMMIT to ON*/
   mysql_autocommit(lmysql, TRUE);
+
+  rc= mysql_query(lmysql, "SET SQL_MODE = ''");
+  myquery(rc);
 
   rc= mysql_query(lmysql, "DROP TABLE IF EXISTS test_stmt_close");
   myquery(rc);
@@ -12088,6 +12101,9 @@ static void test_bug6058()
 
   myheader("test_bug6058");
 
+  rc= mysql_query(mysql, "SET SQL_MODE=''");
+  myquery(rc);
+
   stmt_text= "SELECT CAST('0000-00-00' AS DATE)";
 
   rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
@@ -13302,6 +13318,9 @@ static void test_bug8378()
   }
   if (!opt_silent)
     fprintf(stdout, "OK");
+
+  rc= mysql_query(lmysql, "SET SQL_MODE=''");
+  myquery(rc);
 
   len= mysql_real_escape_string(lmysql, out, TEST_BUG8378_IN, 4);
 
@@ -16390,7 +16409,22 @@ static void test_change_user()
   myquery(rc);
 
   sprintf(buff,
+          "grant select on %s.* to %s@'localhost' identified by '%s'",
+          db,
+          user_pw,
+          pw);
+  rc= mysql_query(mysql, buff);
+  myquery(rc);
+
+  sprintf(buff,
           "grant select on %s.* to %s@'%%'",
+          db,
+          user_no_pw);
+  rc= mysql_query(mysql, buff);
+  myquery(rc);
+
+  sprintf(buff,
+          "grant select on %s.* to %s@'localhost'",
           db,
           user_no_pw);
   rc= mysql_query(mysql, buff);
@@ -16552,63 +16586,16 @@ static void test_change_user()
   rc= mysql_query(mysql, buff);
   myquery(rc);
 
+  sprintf(buff, "drop user %s@'localhost'", user_pw);
+  rc= mysql_query(mysql, buff);
+  myquery(rc);
+
+  sprintf(buff, "drop user %s@'localhost'", user_no_pw);
+  rc= mysql_query(mysql, buff);
+  myquery(rc);
+
   DBUG_VOID_RETURN;
 }
-
-#ifdef HAVE_SPATIAL
-/**
-  Bug#37956 memory leak and / or crash with geometry and prepared statements! 
-*/
-
-static void test_bug37956(void)
-{
-  const char *query="select point(?,?)";
-  MYSQL_STMT *stmt=NULL;
-  ulong val=0;
-  MYSQL_BIND bind_param[2];
-  unsigned char buff[2]= { 134, 211 };
-  DBUG_ENTER("test_bug37956");
-  myheader("test_bug37956");
-
-  stmt= mysql_simple_prepare(mysql, query);
-  check_stmt(stmt);
-
-  val=1;
-  mysql_stmt_attr_set(stmt, STMT_ATTR_UPDATE_MAX_LENGTH, (void *)&val);
-  val=CURSOR_TYPE_READ_ONLY;
-  mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, (void *)&val);
-  val=0;
-  mysql_stmt_attr_set(stmt, STMT_ATTR_PREFETCH_ROWS, (void *)&val);
-
-  memset(bind_param, 0, sizeof(bind_param));
-  bind_param[0].buffer_type=MYSQL_TYPE_TINY;
-  bind_param[0].buffer= (void *)buff;
-  bind_param[0].is_null=NULL;
-  bind_param[0].error=NULL;
-  bind_param[0].is_unsigned=1;
-  bind_param[1].buffer_type=MYSQL_TYPE_TINY;
-  bind_param[1].buffer= (void *)(buff+1);
-  bind_param[1].is_null=NULL;
-  bind_param[1].error=NULL;
-  bind_param[1].is_unsigned=1;
-
-  if (mysql_stmt_bind_param(stmt, bind_param))
-  {
-    mysql_stmt_close(stmt);
-    DIE_UNLESS(0);
-  }
-
-  if (mysql_stmt_execute(stmt))
-  {
-    mysql_stmt_close(stmt);
-    DBUG_VOID_RETURN;
-  }
-  /* Should never reach here: execution returns an error. */
-  mysql_stmt_close(stmt);
-  DIE_UNLESS(0);
-  DBUG_VOID_RETURN;
-}
-#endif
 
 /*
   Bug#27592 (stack overrun when storing datetime value using prepared statements)
@@ -17275,6 +17262,11 @@ static void test_bug31669()
   rc= mysql_query(mysql, query);
   myquery(rc);
 
+  strxmov(query, "GRANT ALL PRIVILEGES ON *.* TO '", user, "'@'localhost' IDENTIFIED BY "
+                 "'", buff, "' WITH GRANT OPTION", NullS);
+  rc= mysql_query(mysql, query);
+  myquery(rc);
+
   rc= mysql_query(mysql, "FLUSH PRIVILEGES");
   myquery(rc);
 
@@ -17312,7 +17304,7 @@ static void test_bug31669()
   strxmov(query, "DELETE FROM mysql.user WHERE User='", user, "'", NullS);
   rc= mysql_query(mysql, query);
   myquery(rc);
-  DIE_UNLESS(mysql_affected_rows(mysql) == 1);
+  DIE_UNLESS(mysql_affected_rows(mysql) == 2);
 #endif
 
   DBUG_VOID_RETURN;
@@ -17523,6 +17515,9 @@ static void test_wl4166_2()
   int rc;
 
   myheader("test_wl4166_2");
+
+  rc= mysql_query(mysql, "SET SQL_MODE=''");
+  myquery(rc);
 
   rc= mysql_query(mysql, "drop table if exists t1");
   myquery(rc);
@@ -18145,9 +18140,6 @@ static struct my_tests_st my_tests[]= {
   { "test_wl4166_2", test_wl4166_2 },
   { "test_bug38486", test_bug38486 },
   { "test_bug40365", test_bug40365 },
-#ifdef HAVE_SPATIAL
-  { "test_bug37956", test_bug37956 },
-#endif
 #ifdef HAVE_QUERY_CACHE
   { "test_bug36326", test_bug36326 },
 #endif
