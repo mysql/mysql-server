@@ -1345,7 +1345,7 @@ static struct my_option my_long_options[] =
   {"debug", '#', "Output debug log", (uchar**) &default_dbug_option,
    (uchar**) &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"debug-check", OPT_DEBUG_CHECK, "Check memory and open file usage at exit .",
+  {"debug-check", OPT_DEBUG_CHECK, "Check memory and open file usage at exit.",
    (uchar**) &debug_check_flag, (uchar**) &debug_check_flag, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"debug-info", 'T', "Print some debug info at exit.", (uchar**) &debug_info_flag,
@@ -3381,9 +3381,12 @@ print_table_data_html(MYSQL_RES *result)
   {
     while((field = mysql_fetch_field(result)))
     {
-      tee_fprintf(PAGER, "<TH>%s</TH>", (field->name ? 
-					 (field->name[0] ? field->name : 
-					  " &nbsp; ") : "NULL"));
+      tee_fputs("<TH>", PAGER);
+      if (field->name && field->name[0])
+        xmlencode_print(field->name, field->name_length);
+      else
+        tee_fputs(field->name ? " &nbsp; " : "NULL", PAGER);
+      tee_fputs("</TH>", PAGER);
     }
     (void) tee_fputs("</TR>", PAGER);
   }
@@ -3396,7 +3399,7 @@ print_table_data_html(MYSQL_RES *result)
     for (uint i=0; i < mysql_num_fields(result); i++)
     {
       (void) tee_fputs("<TD>", PAGER);
-      safe_put_field(cur[i],lengths[i]);
+      xmlencode_print(cur[i], lengths[i]);
       (void) tee_fputs("</TD>", PAGER);
     }
     (void) tee_fputs("</TR>", PAGER);

@@ -6994,6 +6994,21 @@ select name from mysql.proc where name = 'p' and sql_mode = @full_mode;
 name
 p
 drop procedure p;
+CREATE DEFINER = 'root'@'localhost' PROCEDURE p1()
+NOT DETERMINISTIC
+CONTAINS SQL
+SQL SECURITY DEFINER
+COMMENT ''
+BEGIN
+SHOW TABLE STATUS like 't1';
+END;//
+CREATE TABLE t1 (f1 INT);
+CALL p1();
+CALL p1();
+CALL p1();
+CALL p1();
+DROP PROCEDURE p1;
+DROP TABLE t1;
 # ------------------------------------------------------------------
 # -- End of 5.1 tests
 # ------------------------------------------------------------------

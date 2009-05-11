@@ -189,9 +189,4 @@ engine=myisam default charset=latin1;
 insert into t1 values (null,'contraction\'s');
 insert into t1 values (-15818,'requirement\'s');
 select encrypt(f1,f2) as a from t1,(select encrypt(f1,f2) as b from t1) a;
-a
-NULL
-re3VF.eOzS/lg
-NULL
-re3VF.eOzS/lg
 drop table t1;

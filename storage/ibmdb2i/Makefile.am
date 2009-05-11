@@ -27,6 +27,7 @@ DEFS =                  @DEFS@
 noinst_HEADERS =	ha_ibmdb2i.h db2i_collationSupport.h db2i_file.h \
 			db2i_ioBuffers.h db2i_blobCollection.h \
 			db2i_global.h db2i_misc.h db2i_charsetSupport.h db2i_errors.h \
+			db2i_iconv.h db2i_myconv.h db2i_safeString.h db2i_sqlStatementStream.h \
 			db2i_ileBridge.h db2i_validatedPointer.h
 
 EXTRA_LTLIBRARIES =	ha_ibmdb2i.la

@@ -99,5 +99,7 @@ create table t1 (f1 smallint(6) default null, f2  mediumtext character set utf8)
 engine=myisam default charset=latin1;
 insert into t1 values (null,'contraction\'s');
 insert into t1 values (-15818,'requirement\'s');
+--disable_result_log
 select encrypt(f1,f2) as a from t1,(select encrypt(f1,f2) as b from t1) a;
+--enable_result_log
 drop table t1;
