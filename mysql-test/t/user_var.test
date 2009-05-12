@@ -237,3 +237,15 @@ select @a:=f2, count(f2) from t1 group by 1 desc;
 select @a:=f3, count(f3) from t1 group by 1 desc;
 select @a:=f4, count(f4) from t1 group by 1 desc;
 drop table t1;
+
+#
+# Bug#42009: SELECT into variable gives different results to direct SELECT
+#
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (0, 0), (2, 1), (2, 3), (1, 1), (30, 20);
+SELECT a, b INTO @a, @b FROM t1 WHERE a=2 AND b=3 GROUP BY a, b;
+SELECT @a, @b;
+SELECT a, b FROM t1 WHERE a=2 AND b=3 GROUP BY a, b;
+DROP TABLE t1;
+
+--echo End of 5.0 tests
