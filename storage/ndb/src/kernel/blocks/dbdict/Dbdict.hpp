@@ -224,7 +224,7 @@ public:
    * on disk.  Index trigger ids are volatile.
    */
   struct TableRecord {
-    TableRecord(){}
+    TableRecord(){ m_upgrade_trigger_handling.m_upgrade = false;}
     Uint32 maxRowsLow;
     Uint32 maxRowsHigh;
     Uint32 minRowsLow;
@@ -356,6 +356,20 @@ public:
     /**   Trigger ids of index (volatile data) */
     Uint32 triggerId;      // ordered index (1)
     Uint32 buildTriggerId; // temp during build
+
+    struct UpgradeTriggerHandling
+    {
+      /**
+       * In 6.3 (and prior) 3 triggers was created for each unique index
+       *  in 6.4 these has been merged to 1
+       *  but...we need to maintain these during an upgrade situation
+       *  puh
+       */
+      bool m_upgrade;
+      Uint32 insertTriggerId;
+      Uint32 updateTriggerId;
+      Uint32 deleteTriggerId;
+    } m_upgrade_trigger_handling;
     
     Uint32 noOfNullBits;
     

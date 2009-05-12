@@ -29,6 +29,7 @@ struct CreateTrigImplReq
   };
 
   STATIC_CONST( SignalLength = 11 + MAXNROFATTRIBUTESINWORDS);
+  STATIC_CONST( SignalLengthLocal = 11 + MAXNROFATTRIBUTESINWORDS + 3);
   SECTION( TRIGGER_NAME_SECTION = 0 );
   SECTION( ATTRIBUTE_MASK_SECTION = 1 );        // not yet in use
 
@@ -46,6 +47,7 @@ struct CreateTrigImplReq
   Uint32 triggerInfo;
   Uint32 receiverRef;
   AttributeMask attributeMask;
+  Uint32 upgradeExtra[3]; // Send TriggerId's as defined in 6.3 here
 };
 
 struct CreateTrigImplConf {

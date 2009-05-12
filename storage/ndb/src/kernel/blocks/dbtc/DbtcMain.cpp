@@ -12641,6 +12641,8 @@ ref:
   triggerData->triggerId = req->triggerId;
   triggerData->triggerType = TriggerInfo::getTriggerType(req->triggerInfo);
   triggerData->triggerEvent = TriggerInfo::getTriggerEvent(req->triggerInfo);
+  triggerData->oldTriggerIds[0] = RNIL;
+  triggerData->oldTriggerIds[1] = RNIL;
 
   switch(triggerData->triggerType){
   case TriggerType::SECONDARY_INDEX:
@@ -12655,8 +12657,52 @@ ref:
     c_theDefinedTriggers.release(triggerPtr);
     goto ref;
   }
+
+  if (unlikely(req->triggerId != req->upgradeExtra[1]))
+  {
+    /**
+     * This is nasty upgrade for unique indexes
+     */
+    jam();
+    ndbrequire(req->triggerId == req->upgradeExtra[0]);
+    ndbrequire(triggerData->triggerType == TriggerType::SECONDARY_INDEX);
+
+    DefinedTriggerPtr insertPtr = triggerPtr;
+    DefinedTriggerPtr updatePtr;
+    DefinedTriggerPtr deletePtr;
+    if (c_theDefinedTriggers.seizeId(updatePtr, req->upgradeExtra[1]) == false)
+    {
+      jam();
+      c_theDefinedTriggers.release(insertPtr);
+      goto ref;
+    }
+
+    if (c_theDefinedTriggers.seizeId(deletePtr, req->upgradeExtra[2]) == false)
+    {
+      jam();
+      c_theDefinedTriggers.release(insertPtr);
+      c_theDefinedTriggers.release(updatePtr);
+      goto ref;
+    }
+
+    insertPtr.p->triggerEvent = TriggerEvent::TE_INSERT;
+
+    updatePtr.p->triggerId = req->upgradeExtra[1];
+    updatePtr.p->triggerType = TriggerType::SECONDARY_INDEX;
+    updatePtr.p->triggerEvent = TriggerEvent::TE_UPDATE;
+    updatePtr.p->oldTriggerIds[0] = RNIL;
+    updatePtr.p->oldTriggerIds[1] = RNIL;
+    updatePtr.p->indexId = req->indexId;
+
+    deletePtr.p->triggerId = req->upgradeExtra[2];
+    deletePtr.p->triggerType = TriggerType::SECONDARY_INDEX;
+    deletePtr.p->triggerEvent = TriggerEvent::TE_DELETE;
+    deletePtr.p->oldTriggerIds[0] = RNIL;
+    deletePtr.p->oldTriggerIds[1] = RNIL;
+    deletePtr.p->indexId = req->indexId;
+  }
+
   CreateTrigImplConf* conf = (CreateTrigImplConf*)signal->getDataPtrSend();
-  
   conf->senderRef = reference();
   conf->senderData = senderData;
   sendSignal(senderRef, GSN_CREATE_TRIG_IMPL_CONF, 
@@ -12670,8 +12716,12 @@ void Dbtc::execDROP_TRIG_IMPL_REQ(Signal* signal)
   const Uint32 senderRef = req->senderRef;
   const Uint32 senderData = req->senderData;
 
+  DefinedTriggerPtr triggerPtr;
+  triggerPtr.i = req->triggerId;
+
   if (ERROR_INSERTED(8035) ||
-      c_theDefinedTriggers.getPtr(req->triggerId) == NULL) {
+      ((triggerPtr.p = c_theDefinedTriggers.getPtr(req->triggerId)) == NULL))
+  {
     jam();
     CLEAR_ERROR_INSERT_VALUE;
     // Failed to find find trigger record
@@ -12686,8 +12736,15 @@ void Dbtc::execDROP_TRIG_IMPL_REQ(Signal* signal)
     return;
   }
 
+  if (unlikely(triggerPtr.p->oldTriggerIds[0] != RNIL))
+  {
+    jam();
+    c_theDefinedTriggers.release(triggerPtr.p->oldTriggerIds[0]);
+    c_theDefinedTriggers.release(triggerPtr.p->oldTriggerIds[1]);
+  }
+
   // Release trigger record
-  c_theDefinedTriggers.release(req->triggerId);
+  c_theDefinedTriggers.release(triggerPtr);
 
   DropTrigImplConf* conf = (DropTrigImplConf*)signal->getDataPtrSend();
 
@@ -12831,6 +12888,7 @@ void Dbtc::execFIRE_TRIG_ORD(Signal* signal)
 
     if (unlikely(signal->getLength() < FireTrigOrd::SignalLength))
     {
+      jam();
       Uint32 version = getNodeInfo(key.nodeId).m_version;
       ndbrequire(!ndb_fire_trig_ord_transid(version));
       Ptr<TcDefinedTriggerData> ptr;

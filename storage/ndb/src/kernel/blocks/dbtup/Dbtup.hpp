@@ -852,6 +852,11 @@ struct TupTriggerData {
   Uint32 triggerId;
 
   /**
+   * In 6.3 there is one trigger per operation
+   */
+  Uint32 oldTriggerIds[3]; // INS/UPD/DEL
+
+  /**
    * Index id is needed for ordered index.
    */
   Uint32 indexId;
@@ -2482,11 +2487,13 @@ private:
                   TriggerActionTime::Value ttime,
                   TriggerEvent::Value tevent);
 
-  bool createTrigger(Tablerec* table, const CreateTrigImplReq* req);
+  bool createTrigger(Tablerec*, const CreateTrigImplReq* req);
 
   Uint32 dropTrigger(Tablerec* table,
 		     const DropTrigImplReq* req,
 		     BlockNumber sender);
+
+  Uint32 getOldTriggerId(const TupTriggerData*, Uint32 op);
 
   void
   checkImmediateTriggersAfterInsert(KeyReqStruct *req_struct,
