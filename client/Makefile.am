@@ -71,7 +71,7 @@ mysqldump_SOURCES=              mysqldump.c \
 	                        $(top_srcdir)/mysys/mf_getdate.c
 
 mysqlimport_SOURCES=		mysqlimport.c
-
+mysqlimport_CFLAGS=		-DTHREAD -UUNDEF_THREADS_HACK
 mysqlimport_LDADD =		$(CXXLDFLAGS) $(CLIENT_THREAD_LIBS) \
 				@CLIENT_EXTRA_LDFLAGS@ \
 				$(LIBMYSQLCLIENT_LA) \
