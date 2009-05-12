@@ -825,4 +825,56 @@ NdbRestarter::checkClusterAlive(const int * deadnodes, int num_nodes)
   return 0;
 }
 
+int
+NdbRestarter::rollingRestart(Uint32 flags)
+{
+  if (getStatus() != 0)
+    return -1;
+  
+  NdbNodeBitmask ng_mask;
+  NdbNodeBitmask restart_nodes;
+  Vector<int> nodes;
+  for(size_t i = 0; i < ndbNodes.size(); i++)
+  { 
+    if (ng_mask.get(ndbNodes[i].node_group) == false)
+    {
+      ng_mask.set(ndbNodes[i].node_group);
+      nodes.push_back(ndbNodes[i].node_id);
+      restart_nodes.set(ndbNodes[i].node_id);
+    }
+  }
+
+loop:  
+  if (ndb_mgm_restart2(handle, nodes.size(), nodes.getBase(),
+                       (flags & NRRF_INITIAL) != 0, 
+                       (flags & NRRF_NOSTART) != 0,
+                       (flags & NRRF_ABORT) != 0 || true) <= 0)
+  {
+    return -1;
+  }
+  
+  if (waitNodesNoStart(nodes.getBase(), nodes.size()))
+    return -1;
+
+  if (startNodes(nodes.getBase(), nodes.size()))
+    return -1;
+
+  if (waitClusterStarted())
+    return -1;
+
+  nodes.clear();
+  for (Uint32 i = 0; i<ndbNodes.size(); i++)
+  {
+    if (restart_nodes.get(ndbNodes[i].node_id) == false)
+    {
+      nodes.push_back(ndbNodes[i].node_id);
+      restart_nodes.set(ndbNodes[i].node_id);
+    }
+  }
+  if (nodes.size())
+    goto loop;
+  
+  return 0;
+}
+
 template class Vector<ndb_mgm_node_state>;
