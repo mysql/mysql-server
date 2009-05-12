@@ -4433,6 +4433,29 @@ brt_cursor_straddle_search(BRT_CURSOR cursor, brt_search_t *search, BRT_GET_STRA
     return r;
 }
 
+struct brt_cursor_heaviside_struct {
+    BRT_GET_STRADDLE_CALLBACK_FUNCTION getf;
+    void *getf_v;
+    HEAVI_WRAPPER wrapper;
+};
+
+static int
+heaviside_getf(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val,
+               ITEMLEN next_keylen, bytevec next_key, ITEMLEN next_vallen, bytevec next_val, void* v) {
+    struct brt_cursor_heaviside_struct *bchs = v;
+    if (bchs->wrapper->r_h==0) {
+        //PROVDELs can confuse the heaviside query.
+        //If r_h is 0, it might be wrong.
+        //Run the heaviside function again to get correct answer.
+        DBT dbtkey, dbtval;
+        bchs->wrapper->r_h = bchs->wrapper->h(toku_fill_dbt(&dbtkey, key, keylen),
+                                              toku_fill_dbt(&dbtval, val, vallen),
+                                              bchs->wrapper->extra_h);
+    }
+    int r = bchs->getf(keylen, key, vallen, val, next_keylen, next_key, next_vallen, next_val, bchs->getf_v);
+    return r;
+}
+
 int
 toku_brt_cursor_heaviside(BRT_CURSOR cursor, BRT_GET_STRADDLE_CALLBACK_FUNCTION getf, void *getf_v, TOKULOGGER logger, HEAVI_WRAPPER wrapper)
 {
@@ -4441,7 +4464,11 @@ toku_brt_cursor_heaviside(BRT_CURSOR cursor, BRT_GET_STRADDLE_CALLBACK_FUNCTION 
                                          (DBT*)toku_dbt_fake,
                                          cursor->brt->flags & TOKU_DB_DUPSORT ? (DBT*)toku_dbt_fake : NULL,
                                          wrapper);
-    return brt_cursor_straddle_search(cursor, &search, getf, getf_v, logger);
+
+
+    struct brt_cursor_heaviside_struct bchs = {getf, getf_v, wrapper};
+
+    return brt_cursor_straddle_search(cursor, &search, heaviside_getf, &bchs, logger);
 }
 
 BOOL toku_brt_cursor_uninitialized(BRT_CURSOR c) {
