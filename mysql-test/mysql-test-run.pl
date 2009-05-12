@@ -3575,7 +3575,7 @@ sub run_testcase ($$) {
 # valuable debugging information even if there is no test failure recorded.
 sub _preserve_error_log_names {
   my ($mysqld)= @_;
-  my $error_log_file= $mysqld->value('log-error');
+  my $error_log_file= $mysqld->value('#log-error');
   my $error_log_dir= dirname($error_log_file);
   my $save_name= $error_log_dir ."/../". $mysqld->name() .".error.log";
   return ($error_log_file, $save_name);
@@ -3909,7 +3909,7 @@ sub check_warnings_post_shutdown {
   my $testname_hash= { };
   foreach my $mysqld ( mysqlds())
   {
-    my $testlist= extract_warning_lines($mysqld->value('log-error'));
+    my $testlist= extract_warning_lines($mysqld->value('#log-error'));
     $testname_hash->{$_}= 1 for @$testlist;
   }
   my @warning_tests= keys(%$testname_hash);

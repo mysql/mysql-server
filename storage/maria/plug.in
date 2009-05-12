@@ -7,7 +7,7 @@ MYSQL_PLUGIN_STATIC(maria,     [libmaria.a])
 MYSQL_PLUGIN_DEPENDS_ON_MYSQL_INTERNALS(maria, [ha_maria.cc])
 
 MYSQL_PLUGIN_ACTIONS(maria,  [
-AC_CONFIG_FILES(storage/maria/unittest/Makefile)
+# AC_CONFIG_FILES(storage/maria/unittest/Makefile)
 AC_ARG_WITH(maria-tmp-tables,
     AC_HELP_STRING([--with-maria-tmp-tables],[Use Maria for internal temporary tables]),
     [with_maria_tmp_tables=$withval],
