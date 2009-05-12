@@ -825,7 +825,7 @@ LocalProxy::execCREATE_TRIG_IMPL_REQ(Signal* signal)
   const CreateTrigImplReq* req = (const CreateTrigImplReq*)signal->getDataPtr();
   Ss_CREATE_TRIG_IMPL_REQ& ss = ssSeize<Ss_CREATE_TRIG_IMPL_REQ>();
   ss.m_req = *req;
-  ndbrequire(signal->getLength() == CreateTrigImplReq::SignalLength);
+  ndbrequire(signal->getLength() == CreateTrigImplReq::SignalLengthLocal);
   sendREQ(signal, ss);
 }
 
@@ -839,7 +839,7 @@ LocalProxy::sendCREATE_TRIG_IMPL_REQ(Signal* signal, Uint32 ssId)
   req->senderRef = reference();
   req->senderData = ssId;
   sendSignal(workerRef(ss.m_worker), GSN_CREATE_TRIG_IMPL_REQ,
-             signal, CreateTrigImplReq::SignalLength, JBB);
+             signal, CreateTrigImplReq::SignalLengthLocal, JBB);
 }
 
 void

@@ -3395,6 +3395,18 @@ Uint32 Dblqh::handleLongTupKey(Signal* signal,
   Uint32 total = regTcPtr->save1 + len;
   Uint32 primKeyLen = regTcPtr->primKeyLen;
 
+  if (unlikely(total > primKeyLen))
+  {
+    /**
+     * DBLQH 6.3 has the bad taste to send more KEYINFO than what is
+     *  really in the key...up to 3 words extra
+     */
+    Uint32 extra = total - primKeyLen;
+    ndbrequire(extra <= 3);
+    ndbrequire(len > extra);
+    len -= extra;
+  }
+
   bool ok= appendToSection(regTcPtr->keyInfoIVal,
                            dataPtr,
                            len);
@@ -20757,7 +20769,7 @@ Dblqh::execCREATE_TRIG_IMPL_REQ(Signal* signal)
   req->senderRef = reference();
   BlockReference tupRef = calcInstanceBlockRef(DBTUP);
   sendSignal(tupRef, GSN_CREATE_TRIG_IMPL_REQ, signal,
-             CreateTrigImplReq::SignalLength, JBB);
+             CreateTrigImplReq::SignalLengthLocal, JBB);
 }
 
 void

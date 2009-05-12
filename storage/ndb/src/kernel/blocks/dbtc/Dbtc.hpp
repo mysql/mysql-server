@@ -345,6 +345,8 @@ public:
      */
     Uint32 prevList;
 
+    Uint32 oldTriggerIds[2]; // For upgrade :(
+
     inline void print(NdbOut & s) const { 
       s << "[DefinedTriggerData = " << triggerId << "]"; 
     }
