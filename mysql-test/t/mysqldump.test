@@ -1396,9 +1396,6 @@ drop user mysqltest_1@localhost;
 
 
 --echo #
---echo # Bug#21527 mysqldump incorrectly tries to LOCK TABLES on the
---echo #           information_schema database.
---echo #
 --echo # Bug#21424 mysqldump failing to export/import views
 --echo #
 
@@ -1464,6 +1461,13 @@ disconnect root;
 --remove_file $MYSQLTEST_VARDIR/tmp/bug21527.sql
 use test;
 
+--echo #
+--echo # Bug #21527 mysqldump incorrectly tries to LOCK TABLES on the 
+--echo # information_schema database.
+--echo #
+--echo # Bug #33762: mysqldump can not dump INFORMATION_SCHEMA
+--echo #
+--exec $MYSQL_DUMP --compact --opt -d information_schema tables
 
 --echo #
 --echo # Bug#19745 mysqldump --xml produces invalid xml

@@ -3563,9 +3563,6 @@ grant REPLICATION CLIENT on *.* to mysqltest_1@localhost;
 drop table t1;
 drop user mysqltest_1@localhost;
 #
-# Bug#21527 mysqldump incorrectly tries to LOCK TABLES on the
-#           information_schema database.
-#
 # Bug#21424 mysqldump failing to export/import views
 #
 create database mysqldump_myDB;
@@ -3604,6 +3601,39 @@ revoke all privileges on mysqldump_myDB.* from myDB_User@localhost;
 drop user myDB_User@localhost;
 drop database mysqldump_myDB;
 use test;
+#
+# Bug #21527 mysqldump incorrectly tries to LOCK TABLES on the 
+# information_schema database.
+#
+# Bug #33762: mysqldump can not dump INFORMATION_SCHEMA
+#
+DROP TABLE IF EXISTS `TABLES`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TEMPORARY TABLE `TABLES` (
+  `TABLE_CATALOG` varchar(512) DEFAULT NULL,
+  `TABLE_SCHEMA` varchar(64) NOT NULL DEFAULT '',
+  `TABLE_NAME` varchar(64) NOT NULL DEFAULT '',
+  `TABLE_TYPE` varchar(64) NOT NULL DEFAULT '',
+  `ENGINE` varchar(64) DEFAULT NULL,
+  `VERSION` bigint(21) unsigned DEFAULT NULL,
+  `ROW_FORMAT` varchar(10) DEFAULT NULL,
+  `TABLE_ROWS` bigint(21) unsigned DEFAULT NULL,
+  `AVG_ROW_LENGTH` bigint(21) unsigned DEFAULT NULL,
+  `DATA_LENGTH` bigint(21) unsigned DEFAULT NULL,
+  `MAX_DATA_LENGTH` bigint(21) unsigned DEFAULT NULL,
+  `INDEX_LENGTH` bigint(21) unsigned DEFAULT NULL,
+  `DATA_FREE` bigint(21) unsigned DEFAULT NULL,
+  `AUTO_INCREMENT` bigint(21) unsigned DEFAULT NULL,
+  `CREATE_TIME` datetime DEFAULT NULL,
+  `UPDATE_TIME` datetime DEFAULT NULL,
+  `CHECK_TIME` datetime DEFAULT NULL,
+  `TABLE_COLLATION` varchar(32) DEFAULT NULL,
+  `CHECKSUM` bigint(21) unsigned DEFAULT NULL,
+  `CREATE_OPTIONS` varchar(255) DEFAULT NULL,
+  `TABLE_COMMENT` varchar(80) NOT NULL DEFAULT ''
+) ENGINE=MEMORY DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
 #
 # Bug#19745 mysqldump --xml produces invalid xml
 #
