@@ -104,6 +104,11 @@ do_change_version(atrt_config& config, SqlResultSet& command,
   }
   BaseString suffix(proc.m_proc.m_path.substr(strlen(old_prefix)));
   proc.m_proc.m_path.assign(new_prefix).append(suffix);
+  if (process_args && strlen(process_args))
+  {
+    proc.m_proc.m_args.append(" ");
+    proc.m_proc.m_args.append(process_args);
+  }
 
   ndbout << proc << endl;
 
