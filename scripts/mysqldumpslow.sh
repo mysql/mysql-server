@@ -163,7 +163,14 @@ Parse and summarize the MySQL slow query log. Options are
 
   -v           verbose
   -d           debug
-  -s ORDER     what to sort by (al, at, ar, c, t, l, r), 'at' is default
+  -s ORDER     what to sort by (al, at, ar, c, l, r, t), 'at' is default
+                al: average lock time
+                ar: average rows sent
+                at: average query time
+                 c: count
+                 l: lock time
+                 r: rows sent
+                 t: query time  
   -r           reverse the sort order (largest last instead of first)
   -t NUM       just show the top n queries
   -a           don't abstract all numbers to N and strings to 'S'

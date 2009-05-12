@@ -5803,6 +5803,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   }
   case 'p':
+    if (argument == disabled_my_option)
+      argument= (char*) "";			// Don't require password
     if (argument)
     {
       my_free(opt_pass, MYF(MY_ALLOW_ZERO_PTR));
