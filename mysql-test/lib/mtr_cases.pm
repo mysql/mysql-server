@@ -33,7 +33,7 @@ our $print_testcases;
 our $skip_rpl;
 our $do_test;
 our $skip_test;
-our $opt_skip_combination;
+our $skip_combinations;
 our $binlog_format;
 our $enable_disabled;
 our $default_storage_engine;
@@ -386,7 +386,7 @@ sub collect_one_suite($)
   # Read combinations for this suite and build testcases x combinations
   # if any combinations exists
   # ----------------------------------------------------------------------
-  if ( ! $opt_skip_combination )
+  if ( ! $skip_combinations )
   {
     my @combinations;
     my $combination_file= "$suitedir/combinations";

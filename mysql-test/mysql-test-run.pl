@@ -5063,10 +5063,13 @@ Options to control what engine/variation to run
   vs-config             Visual Studio configuration used to create executables
                         (default: MTR_VS_CONFIG environment variable)
 
-  config|defaults-file=<config template> Use fixed config template for all
+  defaults-file=<config template> Use fixed config template for all
                         tests
   defaults_extra_file=<config template> Extra config template to add to
                         all generated configs
+  combination=<opt>     Use at least twice to run tests with specified 
+                        options to mysqld
+  skip-combinations     Ignore combination file (or options)
 
 Options to control directories to use
   tmpdir=DIR            The directory where temporary files are stored
@@ -5089,7 +5092,6 @@ Options to control what test suites or cases to run
   force                 Continue to run the suite after failure
   with-ndbcluster-only  Run only tests that include "ndb" in the filename
   skip-ndb[cluster]     Skip all tests that need cluster
-  skip-ndb[cluster]-slave Skip all tests that need a slave cluster
   do-test=PREFIX or REGEX
                         Run test cases which name are prefixed with PREFIX
                         or fulfills REGEX
@@ -5104,6 +5106,9 @@ Options to control what test suites or cases to run
                         The default is: "$DEFAULT_SUITES"
   skip-rpl              Skip the replication test cases.
   big-test              Also run tests marked as "big"
+  enable-disabled       Run also tests marked as disabled
+  print_testcases       Don't run the tests but print details about all the
+                        selected tests, in the order they would be run.
 
 Options that specify ports
 
@@ -5172,7 +5177,7 @@ Options for valgrind
   valgrind-options=ARGS Deprecated, use --valgrind-option
   valgrind-option=ARGS  Option to give valgrind, replaces default option(s),
                         can be specified more then once
-  valgrind-path=[EXE]   Path to the valgrind executable
+  valgrind-path=<EXE>   Path to the valgrind executable
   callgrind             Instruct valgrind to use callgrind
 
 Misc options
@@ -5180,6 +5185,7 @@ Misc options
   comment=STR           Write STR to the output
   notimer               Don't show test case execution time
   verbose               More verbose output(use multiple times for even more)
+  verbose-restart       Write when and why servers are restarted
   start                 Only initialize and start the servers, using the
                         startup settings for the first specified test case
                         Example:
@@ -5190,6 +5196,7 @@ Misc options
                         servers to exit before finishing the process
   fast                  Run as fast as possible, dont't wait for servers
                         to shutdown etc.
+  parallel=N            Run tests in N parallel threads (default=1)
   repeat=N              Run each test N number of times
   retry=N               Retry tests that fail N times, limit number of failures
                         to $opt_retry_failure
@@ -5207,6 +5214,12 @@ Misc options
   sleep=SECONDS         Passed to mysqltest, will be used as fixed sleep time
   gcov                  Collect coverage information after the test.
                         The result is a gcov file per source and header file.
+  experimental=<file>   Refer to list of tests considered experimental;
+                        failures will be marked exp-fail instead of fail.
+  report-features       First run a "test" that reports mysql features
+  timestamp             Print timestamp before each test report line
+  timediff              With --timestamp, also print time passed since
+                        *previous* test started
 
 HERE
   exit(1);
