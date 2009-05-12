@@ -21,6 +21,8 @@
 #include <AtrtClient.hpp>
 #include <Bitmask.hpp>
 
+static Vector<BaseString> table_list;
+
 struct NodeInfo
 {
   int nodeId;
@@ -105,142 +107,20 @@ int runUpgrade_NR1(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
-
-/**
-   Test that one node in each nodegroup can be upgraded simultaneously
-    - using method1
-*/
-
-int runUpgrade_NR2(NDBT_Context* ctx, NDBT_Step* step){
+static
+int
+runUpgrade_Half(NDBT_Context* ctx, NDBT_Step* step)
+{
   // Assuming 2 replicas
 
   AtrtClient atrt;
 
-  SqlResultSet clusters;
-  if (!atrt.getClusters(clusters))
-    return NDBT_FAILED;
-
-  while (clusters.next())
+  const bool waitNode = ctx->getProperty("WaitNode", Uint32(0)) != 0;
+  const char * args = "";
+  if (ctx->getProperty("KeepFS", Uint32(0)) != 0)
   {
-    uint clusterId= clusters.columnAsInt("id");
-    SqlResultSet tmp_result;
-    if (!atrt.getConnectString(clusterId, tmp_result))
-      return NDBT_FAILED;
-
-    NdbRestarter restarter(tmp_result.column("connectstring"));
-    restarter.setReconnect(true); // Restarting mgmd
-    g_err << "Cluster '" << clusters.column("name")
-          << "@" << tmp_result.column("connectstring") << "'" << endl;
-
-    if(restarter.waitClusterStarted())
-      return NDBT_FAILED;
-
-    // Restart ndb_mgmd(s)
-    SqlResultSet mgmds;
-    if (!atrt.getMgmds(clusterId, mgmds))
-      return NDBT_FAILED;
-
-    while (mgmds.next())
-    {
-      ndbout << "Restart mgmd" << mgmds.columnAsInt("node_id") << endl;
-      if (!atrt.changeVersion(mgmds.columnAsInt("id"), ""))
-        return NDBT_FAILED;
-
-      if(restarter.waitConnected())
-        return NDBT_FAILED;
-    }
-
-    NdbSleep_SecSleep(5); // TODO, handle arbitration
-
-    // Restart one ndbd in each node group
-    SqlResultSet ndbds;
-    if (!atrt.getNdbds(clusterId, ndbds))
-      return NDBT_FAILED;
-
-    Vector<NodeInfo> nodes;
-    while (ndbds.next())
-    {
-      struct NodeInfo n;
-      n.nodeId = ndbds.columnAsInt("node_id");
-      n.processId = ndbds.columnAsInt("id");
-      n.nodeGroup = restarter.getNodeGroup(n.nodeId);
-      nodes.push_back(n);
-    }
-
-    Bitmask<4> seen_groups;
-    Bitmask<4> restarted_nodes;
-    for (Uint32 i = 0; i<nodes.size(); i++)
-    {
-      int nodeId = nodes[i].nodeId;
-      int processId = nodes[i].processId;
-      int nodeGroup= nodes[i].nodeGroup;
-
-      if (seen_groups.get(nodeGroup))
-      {
-        // One node in this node group already down
-        continue;
-      }
-      seen_groups.set(nodeGroup);
-      restarted_nodes.set(nodeId);
-
-      ndbout << "Restart node " << nodeId << endl;
-
-      if (!atrt.changeVersion(processId, ""))
-        return NDBT_FAILED;
-
-      if (restarter.waitNodesNoStart(&nodeId, 1))
-        return NDBT_FAILED;
-
-    }
-
-    ndbout << "Starting and wait for started..." << endl;
-    if (restarter.startAll())
-      return NDBT_FAILED;
-
-    if (restarter.waitClusterStarted())
-      return NDBT_FAILED;
-
-    // Restart the remaining nodes
-    for (Uint32 i = 0; i<nodes.size(); i++)
-    {
-      int nodeId = nodes[i].nodeId;
-      if (restarted_nodes.get(nodeId))
-        continue;
-      
-      int processId = nodes[i].processId;
-      ndbout << "Restart node " << nodeId << endl;
-      if (!atrt.changeVersion(processId, ""))
-        return NDBT_FAILED;
-      
-      if (restarter.waitNodesNoStart(&nodeId, 1))
-        return NDBT_FAILED;
-      
-    }
-    
-    ndbout << "Starting and wait for started..." << endl;
-    if (restarter.startAll())
-      return NDBT_FAILED;
-
-    if (restarter.waitClusterStarted())
-      return NDBT_FAILED;
-
+    args = "--initial=0";
   }
-
-  ctx->stopTest();
-  return NDBT_OK;
-}
-
-
-/**
-   Test that one node in each nodegroup can be upgrade simultaneously
-    - using method2, ie. don't wait for "nostart" before stopping
-      next node
-*/
-
-int runUpgrade_NR3(NDBT_Context* ctx, NDBT_Step* step){
-  // Assuming 2 replicas
-
-  AtrtClient atrt;
 
   SqlResultSet clusters;
   if (!atrt.getClusters(clusters))
@@ -314,15 +194,23 @@ int runUpgrade_NR3(NDBT_Context* ctx, NDBT_Step* step){
 
       ndbout << "Restart node " << nodeId << endl;
       
-      if (!atrt.changeVersion(processId, ""))
+      if (!atrt.changeVersion(processId, args))
         return NDBT_FAILED;
       
+      if (waitNode)
+      {
+        restarter.waitNodesNoStart(&nodeId, 1);
+      }
+
       nodesarray[cnt++]= nodeId;
     }
     
-    if (restarter.waitNodesNoStart(nodesarray, cnt))
-      return NDBT_FAILED;
-    
+    if (!waitNode)
+    {
+      if (restarter.waitNodesNoStart(nodesarray, cnt))
+        return NDBT_FAILED;
+    }
+
     ndbout << "Starting and wait for started..." << endl;
     if (restarter.startAll())
       return NDBT_FAILED;
@@ -341,16 +229,24 @@ int runUpgrade_NR3(NDBT_Context* ctx, NDBT_Step* step){
         continue;
       
       ndbout << "Restart node " << nodeId << endl;
-      if (!atrt.changeVersion(processId, ""))
+      if (!atrt.changeVersion(processId, args))
         return NDBT_FAILED;
+
+      if (waitNode)
+      {
+        restarter.waitNodesNoStart(&nodeId, 1);
+      }
 
       nodesarray[cnt++]= nodeId;
     }
+
     
-    if (restarter.waitNodesNoStart(nodesarray, cnt))
-      return NDBT_FAILED;
-    
-    
+    if (!waitNode)
+    {
+      if (restarter.waitNodesNoStart(nodesarray, cnt))
+        return NDBT_FAILED;
+    }
+
     ndbout << "Starting and wait for started..." << endl;
     if (restarter.startAll())
       return NDBT_FAILED;
@@ -359,10 +255,39 @@ int runUpgrade_NR3(NDBT_Context* ctx, NDBT_Step* step){
       return NDBT_FAILED;
   }
 
-  ctx->stopTest();
   return NDBT_OK;
 }
 
+
+
+/**
+   Test that one node in each nodegroup can be upgraded simultaneously
+    - using method1
+*/
+
+int runUpgrade_NR2(NDBT_Context* ctx, NDBT_Step* step)
+{
+  // Assuming 2 replicas
+
+  ctx->setProperty("WaitNode", 1);
+  int res = runUpgrade_Half(ctx, step);
+  ctx->stopTest();
+  return res;
+}
+
+/**
+   Test that one node in each nodegroup can be upgrade simultaneously
+    - using method2, ie. don't wait for "nostart" before stopping
+      next node
+*/
+
+int runUpgrade_NR3(NDBT_Context* ctx, NDBT_Step* step){
+  // Assuming 2 replicas
+
+  int res = runUpgrade_Half(ctx, step);
+  ctx->stopTest();
+  return res;
+}
 
 int runCheckStarted(NDBT_Context* ctx, NDBT_Step* step){
 
@@ -397,6 +322,118 @@ int runCheckStarted(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
+int 
+runCreateAllTables(NDBT_Context* ctx, NDBT_Step* step)
+{
+  ndbout_c("createAllTables");
+  if (NDBT_Tables::createAllTables(GETNDB(step), false, true))
+    return NDBT_FAILED;
+
+  for (int i = 0; i<NDBT_Tables::getNumTables(); i++)
+    table_list.push_back(BaseString(NDBT_Tables::getTable(i)->getName()));
+
+  return NDBT_OK;
+}
+
+int
+runLoadAll(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary * pDict = pNdb->getDictionary();
+  int records = ctx->getNumRecords();
+  int result = NDBT_OK;
+  
+  for (unsigned i = 0; i<table_list.size(); i++)
+  {
+    const NdbDictionary::Table* tab = pDict->getTable(table_list[i].c_str());
+    HugoTransactions trans(* tab);
+    trans.loadTable(pNdb, records);
+    trans.scanUpdateRecords(pNdb, records);
+  }
+  
+  return result;
+}
+
+
+int
+runBasic(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary * pDict = pNdb->getDictionary();
+  int records = ctx->getNumRecords();
+  int result = NDBT_OK;
+
+  int l = 0;
+  while (!ctx->isTestStopped())
+  {
+    l++;
+    for (unsigned i = 0; i<table_list.size(); i++)
+    {
+      const NdbDictionary::Table* tab = pDict->getTable(table_list[i].c_str());
+      HugoTransactions trans(* tab);
+      switch(l % 3){
+      case 0:
+        trans.loadTable(pNdb, records);
+        trans.scanUpdateRecords(pNdb, records);
+        break;
+      case 1:
+        trans.scanUpdateRecords(pNdb, records);
+        trans.clearTable(pNdb, records/2);
+        trans.loadTable(pNdb, records/2);
+        break;
+      case 2:
+        trans.clearTable(pNdb, records/2);
+        trans.loadTable(pNdb, records/2);
+        trans.clearTable(pNdb, records/2);
+        break;
+      }
+    }
+  }
+  
+  return result;
+}
+
+int
+rollingRestart(NDBT_Context* ctx, NDBT_Step* step)
+{
+  // Assuming 2 replicas
+
+  AtrtClient atrt;
+
+  SqlResultSet clusters;
+  if (!atrt.getClusters(clusters))
+    return NDBT_FAILED;
+
+  while (clusters.next())
+  {
+    uint clusterId= clusters.columnAsInt("id");
+    SqlResultSet tmp_result;
+    if (!atrt.getConnectString(clusterId, tmp_result))
+      return NDBT_FAILED;
+
+    NdbRestarter restarter(tmp_result.column("connectstring"));
+    if (restarter.rollingRestart())
+      return NDBT_FAILED;
+  }
+  
+  return NDBT_OK;
+
+}
+
+int runUpgrade_Traffic(NDBT_Context* ctx, NDBT_Step* step){
+  // Assuming 2 replicas
+  
+  ndbout_c("upgrading");
+  int res = runUpgrade_Half(ctx, step);
+  if (res == NDBT_OK)
+  {
+    ndbout_c("rolling restarting");
+    res = rollingRestart(ctx, step);
+  }
+  ctx->stopTest();
+  return res;
+}
+
 NDBT_TESTSUITE(testUpgrade);
 TESTCASE("Upgrade_NR1",
 	 "Test that one node at a time can be upgraded"){
@@ -409,9 +446,35 @@ TESTCASE("Upgrade_NR2",
   STEP(runUpgrade_NR2);
 }
 TESTCASE("Upgrade_NR3",
-	 "Test that one node in each nodegroup can be upgrade simultaneously"){
+	 "Test that one node in each nodegroup can be upgradde simultaneously"){
   INITIALIZER(runCheckStarted);
   STEP(runUpgrade_NR3);
+}
+TESTCASE("Upgrade_FS",
+	 "Test that one node in each nodegroup can be upgrade simultaneously")
+{
+  TC_PROPERTY("KeepFS", 1);
+  INITIALIZER(runCheckStarted);
+  INITIALIZER(runCreateAllTables);
+  INITIALIZER(runLoadAll);
+  STEP(runUpgrade_Traffic);
+}
+TESTCASE("Upgrade_Traffic",
+	 "Test that one node in each nodegroup can be upgrade simultaneously")
+{
+  INITIALIZER(runCheckStarted);
+  INITIALIZER(runCreateAllTables);
+  STEP(runUpgrade_Traffic);
+  STEP(runBasic);
+}
+TESTCASE("Upgrade_Traffic_FS",
+	 "Test that one node in each nodegroup can be upgrade simultaneously")
+{
+  TC_PROPERTY("KeepFS", 1);
+  INITIALIZER(runCheckStarted);
+  INITIALIZER(runCreateAllTables);
+  STEP(runUpgrade_Traffic);
+  STEP(runBasic);
 }
 NDBT_TESTSUITE_END(testUpgrade);
 
