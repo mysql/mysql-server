@@ -629,21 +629,21 @@ SELECT DISTINCT @v5:= fruit_id, @v6:= fruit_name INTO @v7, @v8 FROM t1 WHERE
 fruit_name = 'APPLE';
 SELECT @v5, @v6, @v7, @v8;
 @v5	@v6	@v7	@v8
-3	PEAR	3	PEAR
+2	APPLE	2	APPLE
 SELECT DISTINCT @v5 + fruit_id, CONCAT(@v6, fruit_name) INTO @v9, @v10 FROM t1 
 WHERE fruit_name = 'APPLE';
 SELECT @v5, @v6, @v7, @v8, @v9, @v10;
 @v5	@v6	@v7	@v8	@v9	@v10
-3	PEAR	3	PEAR	5	PEARAPPLE
+2	APPLE	2	APPLE	4	APPLEAPPLE
 SELECT DISTINCT @v11:= @v5 + fruit_id, @v12:= CONCAT(@v6, fruit_name) INTO 
 @v13, @v14 FROM t1 WHERE fruit_name = 'APPLE';
 SELECT @v11, @v12, @v13, @v14;
 @v11	@v12	@v13	@v14
-6	PEARPEAR	6	PEARPEAR
+4	APPLEAPPLE	4	APPLEAPPLE
 SELECT DISTINCT @v13, @v14 INTO @v15, @v16 FROM t1 WHERE fruit_name = 'APPLE';
 SELECT @v15, @v16;
 @v15	@v16
-6	PEARPEAR
+4	APPLEAPPLE
 SELECT DISTINCT 2 + 2, 'Bob' INTO @v17, @v18 FROM t1 WHERE fruit_name = 
 'APPLE';
 SELECT @v17, @v18;
