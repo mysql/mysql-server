@@ -1145,16 +1145,16 @@ static int locked_txn_stat (DB_TXN *txn, struct txn_stat **txn_stat) {
 }
 
 static int locked_txn_commit(DB_TXN *txn, u_int32_t flags) {
-    env_checkpointing_begin_atomic_operation(txn->mgrp); //Cannot checkpoint during a commit.
+    toku_multi_operation_client_lock(); //Cannot checkpoint during a commit.
     toku_ydb_lock(); int r = toku_txn_commit(txn, flags); toku_ydb_unlock();
-    env_checkpointing_end_atomic_operation(txn->mgrp); //Cannot checkpoint during a commit.
+    toku_multi_operation_client_unlock(); //Cannot checkpoint during a commit.
     return r;
 }
 
 static int locked_txn_abort(DB_TXN *txn) {
-    env_checkpointing_begin_atomic_operation(txn->mgrp); //Cannot checkpoint during an abort.
+    toku_multi_operation_client_lock(); //Cannot checkpoint during an abort.
     toku_ydb_lock(); int r = toku_txn_abort(txn); toku_ydb_unlock();
-    env_checkpointing_end_atomic_operation(txn->mgrp); //Cannot checkpoint during an abort.
+    toku_multi_operation_client_unlock(); //Cannot checkpoint during an abort.
     return r;
 }
 
