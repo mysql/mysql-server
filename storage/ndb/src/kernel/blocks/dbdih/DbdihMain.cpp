@@ -3569,7 +3569,10 @@ Dbdih::nr_start_fragment(Signal* signal,
   Uint32 idx = prevLcpNo(replicaPtr.p->nextLcp);
   for(i = 0; i<MAX_LCP_USED; i++, idx = prevLcpNo(idx))
   {
-    printf("scanning idx: %d lcpId: %d", idx, replicaPtr.p->lcpId[idx]);
+    printf("scanning idx: %d lcpId: %d crashed replicas: %u %s", 
+           idx, replicaPtr.p->lcpId[idx],
+           replicaPtr.p->noCrashedReplicas,
+           replicaPtr.p->lcpStatus[idx] == ZVALID ? "VALID" : "NOT VALID");
     if (replicaPtr.p->lcpStatus[idx] == ZVALID) 
     {
       Uint32 stopGci = replicaPtr.p->maxGciStarted[idx];
@@ -14967,11 +14970,15 @@ void Dbdih::readReplica(RWFragment* rf, ReplicaRecordPtr readReplicaPtr)
   /*       THAT ARE NO LONGER VALID DUE TO MOVING RESTART GCI BACKWARDS.    */
   /* ---------------------------------------------------------------------- */
   removeTooNewCrashedReplicas(readReplicaPtr);
-  /* ---------------------------------------------------------------------- */
-  /*       WE WILL REMOVE ANY OCCURRENCES OF REPLICAS THAT HAVE CRASHED     */
-  /*       THAT ARE NO LONGER VALID SINCE THEY ARE NO LONGER RESTORABLE.    */
-  /* ---------------------------------------------------------------------- */
-  removeOldCrashedReplicas(readReplicaPtr);
+
+  /**
+   * Don't remove crashed replicas here,
+   *   as 1) this will disable optimized NR
+   *         if oldestRestorableGCI > GCI needed for local LCP's
+   *      2) This is anyway done during LCP, which will be run during SR
+   */
+  //removeOldCrashedReplicas(readReplicaPtr);
+  
   /* --------------------------------------------------------------------- */
   // We set the last GCI of the replica that was alive before the node
   // crashed last time. We set it to the last GCI which the node participated in.
