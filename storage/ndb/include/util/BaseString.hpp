@@ -188,6 +188,17 @@ public:
   static int snprintf(char *str, size_t size, const char *format, ...)
     ATTRIBUTE_FORMAT(printf, 3, 4);
   static int vsnprintf(char *str, size_t size, const char *format, va_list ap);
+
+  /**
+   * Return pointer and length for key to use when BaseString is
+   * used as Key in HashMap
+   */
+  static const void* get_key(const void* key, size_t* key_length) {
+    const BaseString* str = (const BaseString*)key;
+    *key_length = str->length();
+    return str->c_str();
+  }
+
 private:
   char* m_chr;
   unsigned m_len;
