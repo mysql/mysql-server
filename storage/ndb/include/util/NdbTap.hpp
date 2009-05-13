@@ -19,6 +19,12 @@
 #include <../../../unittest/mytap/tap.h>
 #include <../../../unittest/mytap/tap.c>
 
+#ifdef VM_TRACE
+#define OK(b) assert(b);
+#else
+#define OK(b) if (!(b)) abort();
+#endif
+
 #define TAPTEST(name)                           \
 int name##_test();                              \
 int main(int argc, const char** argv){          \
