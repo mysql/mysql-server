@@ -55,9 +55,26 @@ cpu_pause()
 #define wmb()   asm volatile("membar #StoreStore" ::: "memory")
 #define read_barrier_depends()  do {} while(0)
 
+#ifdef HAVE_ATOMIC_H
+#include <atomic.h>
+#endif
+
+#ifdef HAVE_ATOMIC_SWAP_32
+/**
+ * "our" xcng implementation must provide same
+ *   semantics as the x86 one, i.e xcng should provide a full barrier. 
+ *   According to http://gee.cs.oswego.edu/dl/jmm/cookbook.html any atomic
+ *   provides a full barrier
+ *   (ref: "JSR-133 Cookbook for Compiler Writers" if link is broken)
+ */
+#define xcng(a,v) atomic_swap_32(a,v)
+#define cpu_pause()
+#define NDB_HAVE_XCNG
+#else
 // link error if used incorrectly (i.e wo/ having NDB_HAVE_XCNG)
 extern  int xcng(volatile unsigned * addr, int val);
 extern void cpu_pause();
+#endif
 
 #else
 #error "Unsupported architecture (gcc)"
@@ -87,6 +104,26 @@ extern void cpu_pause();
 #endif
 #else
 #error "Unsupported compiler"
+#endif
+
+#if defined(__x86_64__) || defined(__sparc)
+/**
+ * we should probably use assembler for x86 aswell...
+ *   but i'm not really sure how you do this in sun-studio :-(
+ */
+#ifdef HAVE_ATOMIC_H
+#include <atomic.h>
+#endif
+
+#ifdef HAVE_ATOMIC_SWAP_32
+#define xcng(a,v) atomic_swap_32(a,v)
+#define cpu_pause()
+#define NDB_HAVE_XCNG
+#else
+// link error if used incorrectly (i.e wo/ having NDB_HAVE_XCNG)
+extern  int xcng(volatile unsigned * addr, int val);
+extern void cpu_pause();
+#endif
 #endif
 
 #endif

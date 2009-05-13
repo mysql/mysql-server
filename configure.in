@@ -831,7 +831,7 @@ AC_CHECK_HEADERS(fcntl.h fenv.h float.h floatingpoint.h ieeefp.h limits.h \
  unistd.h utime.h sys/utime.h termio.h termios.h sched.h crypt.h alloca.h \
  sys/ioctl.h malloc.h sys/malloc.h sys/ipc.h sys/shm.h linux/config.h \
  sys/prctl.h sys/resource.h sys/param.h port.h ieeefp.h \
- execinfo.h)
+ execinfo.h atomic.h)
 
 AC_CHECK_HEADERS([xfs/xfs.h])
 
@@ -2066,7 +2066,7 @@ AC_CHECK_FUNCS(alarm bcmp bfill bmove bsearch bzero \
   snprintf socket stpcpy strcasecmp strerror strsignal strnlen strpbrk strstr \
   strtol strtoll strtoul strtoull tell tempnam thr_setconcurrency vidattr \
   backtrace backtrace_symbols backtrace_symbols_fd \
-  posix_fallocate posix_memalign memalign sysconf directio)
+  posix_fallocate posix_memalign memalign sysconf directio atomic_swap_32)
 
 #
 #
@@ -2426,6 +2426,10 @@ AC_TRY_LINK(
   AC_MSG_RESULT(no))
 
 #checking for asm needed for ndbmtd
+SAVE_CFLAGS="$CFLAGS"
+if test "x${ac_cv_header_atomic_h}" = xyes; then
+   CFLAGS="$CFLAGS -DHAVE_ATOMIC_H"
+fi
 AC_CACHE_CHECK([assembler needed for ndbmtd],
                [have_ndbmtd_asm], [AC_TRY_RUN([
     #include "storage/ndb/src/kernel/vm/mt-asm.h"
@@ -2453,6 +2457,7 @@ if test "x$have_ndbmtd_asm" = xyes; then
   AC_DEFINE(HAVE_NDBMTD_ASM, 1,
             [Define to 1 if assmbler needed to run ndbmtd is present.])
 fi
+CFLAGS="$SAVE_CFLAGS"
 
 AC_CACHE_CHECK([support for weak symbols], mysql_cv_weak_symbol,
 [AC_TRY_LINK([],[
