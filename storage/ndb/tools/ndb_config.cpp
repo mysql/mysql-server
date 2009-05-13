@@ -494,7 +494,7 @@ ConnectionTypeApply::apply(const Iter& iter)
   return 0;
 }
 
-ndb_mgm_configuration*
+static ndb_mgm_configuration*
 fetch_configuration()
 {  
   ndb_mgm_configuration* conf = 0;
@@ -556,11 +556,12 @@ noconnect:
 
 extern EventLogger *g_eventLogger;
 
-ndb_mgm_configuration*
+static ndb_mgm_configuration*
 load_configuration()
 {
   g_eventLogger->removeAllHandlers();
   g_eventLogger->createConsoleHandler(ndberr);
+  g_eventLogger->setCategory("ndb_config");
   InitConfigFileParser parser;
   if (g_config_file)
   {
