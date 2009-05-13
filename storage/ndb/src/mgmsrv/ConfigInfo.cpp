@@ -96,7 +96,6 @@ static bool fixNodeHostname(InitConfigFileParser::Context & ctx, const char * da
 static bool fixHostname(InitConfigFileParser::Context & ctx, const char * data);
 static bool fixNodeId(InitConfigFileParser::Context & ctx, const char * data);
 static bool fixDepricated(InitConfigFileParser::Context & ctx, const char *);
-static bool saveInConfigValues(InitConfigFileParser::Context & ctx, const char *);
 static bool fixFileSystemPath(InitConfigFileParser::Context & ctx, const char * data);
 static bool fixBackupDataDir(InitConfigFileParser::Context & ctx, const char * data);
 static bool fixShmUniqueId(InitConfigFileParser::Context & ctx, const char * data);
@@ -172,20 +171,6 @@ ConfigInfo::m_SectionRules[] = {
   { "SHM",  checkTCPConstraints, "HostName2" },
   
   { "*",    checkMandatory, 0 }
-  
-#if 0
-  /**
-   * Moved to saveSectionsInConfigValues
-   *   Which is run *after* all sections are parsed
-   */
-  ,{ DB_TOKEN,   saveInConfigValues, 0 },
-  { API_TOKEN,  saveInConfigValues, 0 },
-  { MGM_TOKEN,  saveInConfigValues, 0 },
-
-  { "TCP",  saveInConfigValues, 0 },
-  { "SHM",  saveInConfigValues, 0 },
-  { "SCI",  saveInConfigValues, 0 }
-#endif
 };
 const int ConfigInfo::m_NoOfRules = sizeof(m_SectionRules)/sizeof(SectionRule);
 
@@ -4883,6 +4868,18 @@ ConfigInfo::ParamInfoIter::next(void) {
 }
 
 
+static bool
+is_name_in_list(const char* name, Vector<BaseString>& list)
+{
+  for (Uint32 i = 0; i<list.size(); i++)
+  {
+    if (strstr(name, list[i].c_str()))
+      return true;
+  }
+  return false;
+}
+
+
 static
 bool
 saveSectionsInConfigValues(Vector<ConfigInfo::ConfigRuleSection>& notused,
@@ -4897,19 +4894,61 @@ saveSectionsInConfigValues(Vector<ConfigInfo::ConfigRuleSection>& notused,
   sections.split(list, ",");
 
   Properties::Iterator it(ctx.m_config);
+
+  {
+    // Estimate size of Properties when saved as ConfigValues
+    // and expand ConfigValues to that size in order to avoid
+    // the need of allocating memory and copying from new to old
+    Uint32 keys = 0, data_sz = 0;
+    for (const char * name = it.first(); name != 0; name = it.next())
+    {
+      PropertiesType pt;
+      if (is_name_in_list(name, list) &&
+          ctx.m_config->getTypeOf(name, &pt) &&
+          pt == PropertiesType_Properties)
+      {
+        const Properties* tmp;
+        require(ctx.m_config->get(name, &tmp) != 0);
+
+        keys += 2; // openSection(key + no)
+        keys += 1; // CFG_TYPE_OF_SECTION
+
+        Properties::Iterator it2(tmp);
+        for (const char * name2 = it2.first(); name2 != 0; name2 = it2.next())
+        {
+          keys++;
+          require(tmp->getTypeOf(name2, &pt) != 0);
+          switch(pt){
+          case PropertiesType_char:
+            const char* value;
+            require(tmp->get(name2, &value) != 0);
+            data_sz += 1 + ((strlen(value) + 3) / 4);
+            break;
+
+          case PropertiesType_Uint32:
+            data_sz += 1;
+            break;
+
+          case PropertiesType_Uint64:
+            data_sz += 2;
+            break;
+
+          case PropertiesType_Properties:
+          default:
+            require(false);
+            break;
+          }
+        }
+      }
+    }
+
+    ctx.m_configValues.expand(keys, data_sz);
+  }
+
   for (const char * name = it.first(); name != 0; name = it.next())
   {
     PropertiesType pt;
-    bool match = false;
-    for (Uint32 i = 0; i<list.size(); i++)
-    {
-      if (strstr(name, list[i].c_str()))
-      {
-        match = true;
-        break;
-      }
-    }
-    if (match &&
+    if (is_name_in_list(name, list) &&
         ctx.m_config->getTypeOf(name, &pt) &&
         pt == PropertiesType_Properties)
     {
@@ -4923,6 +4962,7 @@ saveSectionsInConfigValues(Vector<ConfigInfo::ConfigRuleSection>& notused,
       saveInConfigValues(ctx, 0);
     }
   }
+
   return true;
 }
 
