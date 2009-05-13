@@ -46,6 +46,7 @@ int prelockflag = 0;
 int items_per_transaction = DEFAULT_ITEMS_PER_TRANSACTION;
 int items_per_iteration   = DEFAULT_ITEMS_TO_INSERT_PER_ITERATION;
 int singlex = 0;  // Do a single transaction
+int singlex_create = 0;  // Create the db using the single transaction (only valid if singlex)
 int insert1first = 0;  // insert 1 before doing the rest
 int check_small_rolltmp = 0; // verify that the rollback logs are small (only valid if singlex)
 int do_transactions = 0;
@@ -160,6 +161,11 @@ static void benchmark_setup (void) {
             r=dbenv->txn_begin(dbenv, 0, &tid, 0); CKERR(r);
         }
     }
+    else if (singlex && !singlex_create) {
+        r=tid->commit(tid, 0);
+        assert(r==0);
+        r=dbenv->txn_begin(dbenv, 0, &tid, 0); CKERR(r);
+    }
     if (do_transactions) {
 	if (singlex) do_prelock(db, tid);
         else {
@@ -179,7 +185,7 @@ static void benchmark_shutdown (void) {
 #if defined(TOKUDB)
     if (do_1514_point_query) test1514();
 #endif
-    if (do_transactions && singlex && !insert1first) {
+    if (do_transactions && singlex && !insert1first && (singlex_create || prelock)) {
 #if defined(TOKUDB)
 	struct txn_stat *s;
 	r = tid->txn_stat(tid, &s);
@@ -321,7 +327,8 @@ static int print_usage (const char *argv0) {
     fprintf(stderr, "    --norandom         causes the random insertions to be skipped\n");
     fprintf(stderr, "    --compressibility C   creates data that should compress by about a factor C.   Default C is large.   C is an float.\n");
     fprintf(stderr, "    --xcount N            how many insertions per transaction (default=%d)\n", DEFAULT_ITEMS_PER_TRANSACTION);
-    fprintf(stderr, "    --singlex             Run the whole job as a single transaction.  (Default don't run as a single transaction.)\n");
+    fprintf(stderr, "    --singlex             (implies -x) Run the whole job as a single transaction.  (Default don't run as a single transaction.)\n");
+    fprintf(stderr, "    --singlex-create      (implies --singlex)  Create the file using the single transaction (Default is to use a different transaction to create.)\n");
     fprintf(stderr, "    --check_small_rolltmp (Only valid in --singlex mode)  Verify that very little data was saved in the rollback logs.\n");
     fprintf(stderr, "    --prelock             Prelock the database.\n");
     fprintf(stderr, "    --prelockflag         Prelock the database and send the DB_PRELOCKED_WRITE flag.\n");
@@ -394,6 +401,10 @@ int main (int argc, const char *argv[]) {
 	    compressibility = atof(argv[++i]);
 	} else if (strcmp(arg, "--nolog") == 0) {
 	    if_transactions_do_logging = 0;
+	} else if (strcmp(arg, "--singlex-create") == 0) {
+	    do_transactions = 1;
+	    singlex = 1;
+	    singlex_create = 1;
 	} else if (strcmp(arg, "--singlex") == 0) {
 	    do_transactions = 1;
 	    singlex = 1;
