@@ -332,4 +332,31 @@ DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
 
+#
+# Bug#43580: Issue with Innodb on multi-table update
+#
+CREATE TABLE t1 (a INT, b INT, KEY (a)) ENGINE = INNODB;
+CREATE TABLE t2 (a INT KEY, b INT, KEY (b)) ENGINE = INNODB;
+
+CREATE TABLE t3 (a INT, b INT KEY, KEY (a)) ENGINE = INNODB;
+CREATE TABLE t4 (a INT KEY, b INT, KEY (b)) ENGINE = INNODB;
+
+INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3), (4, 4), (5, 5), (6, 6);
+INSERT INTO t2 VALUES (1, 1), (2, 2), (3, 3), (4, 4), (5, 5);
+
+INSERT INTO t3 VALUES (1, 101), (2, 102), (3, 103), (4, 104), (5, 105), (6, 106);
+INSERT INTO t4 VALUES (1, 1), (2, 2), (3, 3), (4, 4), (5, 5);
+
+UPDATE t1, t2 SET t1.a = t1.a + 100, t2.b = t1.a + 10 
+WHERE t1.a BETWEEN 2 AND 4 AND t2.a = t1.b;
+--sorted_result
+SELECT * FROM t2;
+
+UPDATE t3, t4 SET t3.a = t3.a + 100, t4.b = t3.a + 10 
+WHERE t3.a BETWEEN 2 AND 4 AND t4.a = t3.b - 100;
+--sorted_result
+SELECT * FROM t4;
+
+DROP TABLE t1, t2, t3, t4;
+
 --echo End of 5.1 tests
