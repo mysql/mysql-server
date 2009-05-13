@@ -1,3 +1,9 @@
+2009-05-13	The InnoDB Team
+
+	* dict/dict0dict.c:
+	Fix Bug#44320 InnoDB: missing DB_ROLL_PTR in Table Monitor COLUMNS
+	output
+
 2009-04-23	The InnoDB Team
 
 	* row/row0mysql.c:
