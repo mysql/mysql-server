@@ -21,9 +21,9 @@
 #define NDB_MT_ASM_H
 
 #if defined(__GNUC__)
-
-/** gcc */
-
+/********************
+ * GCC
+ *******************/
 #if defined(__x86_64__) || defined (__i386__)
 /* Memory barriers, these definitions are for x64_64. */
 #define mb()    asm volatile("mfence":::"memory")
@@ -60,14 +60,15 @@ cpu_pause()
 #endif
 
 #ifdef HAVE_ATOMIC_SWAP_32
-/**
- * "our" xcng implementation must provide same
- *   semantics as the x86 one, i.e xcng should provide a full barrier. 
- *   According to http://gee.cs.oswego.edu/dl/jmm/cookbook.html any atomic
- *   provides a full barrier
- *   (ref: "JSR-133 Cookbook for Compiler Writers" if link is broken)
- */
-#define xcng(a,v) atomic_swap_32(a,v)
+static inline
+int
+xcng(volatile unsigned * addr, int val)
+{
+  asm volatile("membar #StoreLoad | #LoadLoad");
+  int ret = atomic_swap_32(addr, val);
+  asm volatile("membar #StoreLoad | #StoreStore");
+  return ret;
+}
 #define cpu_pause()
 #define NDB_HAVE_XCNG
 #else
@@ -81,8 +82,10 @@ extern void cpu_pause();
 #endif
 
 #elif defined(__sun)
+/********************
+ * SUN STUDIO
+ *******************/
 
-/** sun studio */
 /**
  * TODO check that asm ("") implies a compiler barrier
  *      i.e that it clobbers memory
@@ -102,10 +105,6 @@ extern void cpu_pause();
 #else
 #error "Unsupported architecture (sun studio)"
 #endif
-#else
-#error "Unsupported compiler"
-#endif
-
 #if defined(__x86_64__) || defined(__sparc)
 /**
  * we should probably use assembler for x86 aswell...
@@ -116,14 +115,46 @@ extern void cpu_pause();
 #endif
 
 #ifdef HAVE_ATOMIC_SWAP_32
-#define xcng(a,v) atomic_swap_32(a,v)
-#define cpu_pause()
 #define NDB_HAVE_XCNG
+#if defined(__sparc)
+static inline
+int
+xcng(volatile unsigned * addr, int val)
+{
+  asm ("membar #StoreLoad | #LoadLoad");
+  int ret = atomic_swap_32(addr, val);
+  asm ("membar #StoreLoad | #StoreStore");
+  return ret;
+}
+#define cpu_pause()
+#elif defined(__x86_64__)
+static inline
+int
+xcng(volatile unsigned * addr, int val)
+{
+  /**
+   * TODO check that atomic_swap_32 on x86-64 with sun-studio implies
+   *  proper barriers
+   */
+  int ret = atomic_swap_32(addr, val);
+  return ret;
+}
+static
+inline
+void
+cpu_pause()
+{
+  asm volatile ("rep;nop");
+}
+#endif
 #else
 // link error if used incorrectly (i.e wo/ having NDB_HAVE_XCNG)
 extern  int xcng(volatile unsigned * addr, int val);
 extern void cpu_pause();
 #endif
+#endif
+#else
+#error "Unsupported compiler"
 #endif
 
 #endif
