@@ -570,6 +570,7 @@ load_configuration()
     Config* conf = parser.parseConfig(g_config_file);
     if (conf)
       return conf->m_configValues;
+    return 0;
   }
   
   if (g_verbose)
