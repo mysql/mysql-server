@@ -39,8 +39,8 @@ a	b
 SELECT * FROM t2;
 c	d
 1	2
-2	16
-3	54
+2	8
+3	18
 **** On Slave ****
 START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=762;
 SHOW SLAVE STATUS;
@@ -50,7 +50,7 @@ Master_User	root
 Master_Port	MASTER_PORT
 Connect_Retry	1
 Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	1133
+Read_Master_Log_Pos	1115
 Relay_Log_File	#
 Relay_Log_Pos	#
 Relay_Master_Log_File	master-bin.000001
