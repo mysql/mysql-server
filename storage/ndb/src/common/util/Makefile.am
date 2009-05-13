@@ -35,13 +35,22 @@ INCLUDES_LOC = @ZLIB_INCLUDES@
 libndbazio_la_SOURCES = azio.c
 libndbazio_la_LIBADD = @ZLIB_LIBS@
 
-noinst_PROGRAMS = BaseString-t
+noinst_PROGRAMS = BaseString-t HashMap-t
 
 BaseString_t_SOURCES = BaseString.cpp
 BaseString_t_CXXFLAGS = -DTEST_BASE_STRING
 BaseString_t_LDADD = \
 	libgeneral.la \
 	$(top_builddir)/mysys/libmysyslt.la
+
+HashMap_t_SOURCES = HashMap.cpp
+HashMap_t_CXXFLAGS = -DTEST_HASH
+HashMap_t_LDADD = \
+	libgeneral.la \
+	$(top_builddir)/mysys/libmysyslt.la \
+	$(top_builddir)/dbug/libdbuglt.la \
+	$(top_builddir)/strings/libmystringslt.la
+
 
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/type_util.mk.am
