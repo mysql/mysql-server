@@ -5585,6 +5585,13 @@ static void update_field_dependencies(THD *thd, Field *field, TABLE *table)
       other_bitmap=   table->read_set;
     }
 
+    /* 
+       The test-and-set mechanism in the bitmap is not reliable during
+       multi-UPDATE statements under MARK_COLUMNS_READ mode
+       (thd->mark_used_columns == MARK_COLUMNS_READ), as this bitmap contains
+       only those columns that are used in the SET clause. I.e they are being
+       set here. See multi_update::prepare()
+    */
     if (bitmap_fast_test_and_set(current_bitmap, field->field_index))
     {
       if (thd->mark_used_columns == MARK_COLUMNS_WRITE)
