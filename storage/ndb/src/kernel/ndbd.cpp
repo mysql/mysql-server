@@ -595,9 +595,9 @@ ndbd_run(bool foreground)
   // Re-use the mgm handle as a transporter
   if(!globalTransporterRegistry.connect_client(
 		 theConfig->get_config_retriever()->get_mgmHandlePtr()))
-      ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG,
-		"Connection to mgmd terminated before setup was complete",
-		"StopOnError missing");
+      ERROR_SET(fatal, NDBD_EXIT_CONNECTION_SETUP_FAILED,
+                "Failed to convert mgm connection to a transporter",
+                __FILE__);
 
   NdbThread* pTrp = globalTransporterRegistry.start_clients();
   if (pTrp == 0)
