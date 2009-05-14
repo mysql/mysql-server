@@ -489,63 +489,63 @@ TAPTEST(BaseString)
     BaseString t(s);
     s.assign("def");
     t.append("123");
-    assert(s == "def");
-    assert(t == "abc123");
+    OK(s == "def");
+    OK(t == "abc123");
     s.assign("");
     t.assign("");
     for (unsigned i = 0; i < 1000; i++) {
 	s.append("xyz");
 	t.assign(s);
-	assert(strlen(t.c_str()) % 3 == 0);
+	OK(strlen(t.c_str()) % 3 == 0);
     }
 
     {
 	BaseString s(":123:abc:;:foo:");
 	Vector<BaseString> v;
-	assert(s.split(v, ":;") == 7);
+	OK(s.split(v, ":;") == 7);
 
-	assert(v[0] == "");
-	assert(v[1] == "123");
-	assert(v[2] == "abc");
-	assert(v[3] == "");
-	assert(v[4] == "");
-	assert(v[5] == "foo");
-	assert(v[6] == "");
+	OK(v[0] == "");
+	OK(v[1] == "123");
+	OK(v[2] == "abc");
+	OK(v[3] == "");
+	OK(v[4] == "");
+	OK(v[5] == "foo");
+	OK(v[6] == "");
     }
 
     {
 	BaseString s(":123:abc:foo:bar");
 	Vector<BaseString> v;
-	assert(s.split(v, ":;", 4) == 4);
+	OK(s.split(v, ":;", 4) == 4);
 
-	assert(v[0] == "");
-	assert(v[1] == "123");
-	assert(v[2] == "abc");
-	assert(v[3] == "foo:bar");
+	OK(v[0] == "");
+	OK(v[1] == "123");
+	OK(v[2] == "abc");
+	OK(v[3] == "foo:bar");
 
 	BaseString n;
 	n.append(v, "()");
-	assert(n == "()123()abc()foo:bar");
+	OK(n == "()123()abc()foo:bar");
 	n = "";
 	n.append(v);
-	assert(n == " 123 abc foo:bar");
+	OK(n == " 123 abc foo:bar");
     }
 
     {
-	assert(BaseString("hamburger").substr(4,2) == "");
-	assert(BaseString("hamburger").substr(3) == "burger");
-	assert(BaseString("hamburger").substr(4,8) == "urge");
-	assert(BaseString("smiles").substr(1,5) == "mile");
-	assert(BaseString("012345").indexOf('2') == 2);
-	assert(BaseString("hej").indexOf('X') == -1);
+	OK(BaseString("hamburger").substr(4,2) == "");
+	OK(BaseString("hamburger").substr(3) == "burger");
+	OK(BaseString("hamburger").substr(4,8) == "urge");
+	OK(BaseString("smiles").substr(1,5) == "mile");
+	OK(BaseString("012345").indexOf('2') == 2);
+	OK(BaseString("hej").indexOf('X') == -1);
     }
 
     {
-	assert(BaseString(" 1").trim(" ") == "1");
-	assert(BaseString("1 ").trim(" ") == "1");
-	assert(BaseString(" 1 ").trim(" ") == "1");
-	assert(BaseString("abc\t\n\r kalleabc\t\r\n").trim("abc\t\r\n ") == "kalle");
-	assert(BaseString(" ").trim(" ") == "");
+	OK(BaseString(" 1").trim(" ") == "1");
+	OK(BaseString("1 ").trim(" ") == "1");
+	OK(BaseString(" 1 ").trim(" ") == "1");
+	OK(BaseString("abc\t\n\r kalleabc\t\r\n").trim("abc\t\r\n ") == "kalle");
+	OK(BaseString(" ").trim(" ") == "");
     }
 
     // Tests for BUG#38662
@@ -553,15 +553,15 @@ TAPTEST(BaseString)
     BaseString s3;
     BaseString s4("elf");
 
-    assert(s3.append((const char*)NULL) == "");
-    assert(s4.append((const char*)NULL) == "elf");
-    assert(s4.append(s3) == "elf");
-    assert(s4.append(s2) == "elf");
-    assert(s4.append(s4) == "elfelf");
+    OK(s3.append((const char*)NULL) == "");
+    OK(s4.append((const char*)NULL) == "elf");
+    OK(s4.append(s3) == "elf");
+    OK(s4.append(s2) == "elf");
+    OK(s4.append(s4) == "elfelf");
 
-    assert(s3.assign((const char*)NULL).c_str() == NULL);
-    assert(s4.assign((const char*)NULL).c_str() == NULL);
-    assert(s4.assign(s4).c_str() == NULL);
+    OK(s3.assign((const char*)NULL).c_str() == NULL);
+    OK(s4.assign((const char*)NULL).c_str() == NULL);
+    OK(s4.assign(s4).c_str() == NULL);
 
     return 1; // OK
 }
