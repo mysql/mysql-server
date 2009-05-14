@@ -1,3 +1,13 @@
+2009-05-14	The InnoDB Team
+
+	* handler/ha_innodb.cc, include/srv0srv.h,
+	mysql-test/innodb_bug42101-nonzero-master.opt,
+	mysql-test/innodb_bug42101-nonzero.result,
+	mysql-test/innodb_bug42101-nonzero.test,
+	mysql-test/innodb_bug42101.result, mysql-test/innodb_bug42101.test,
+	srv/srv0srv.c:
+	Fix Bug#42101 Race condition in innodb_commit_concurrency
+
 2009-05-13	The InnoDB Team
 
 	* dict/dict0dict.c:
