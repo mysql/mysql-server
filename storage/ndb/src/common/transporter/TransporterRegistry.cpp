@@ -1823,7 +1823,7 @@ NDB_SOCKET_TYPE TransporterRegistry::connect_ndb_mgmd(NdbMgmHandle *h)
 
   if ( h==NULL || *h == NULL )
   {
-    g_eventLogger->error("%s: %d", __FILE__, __LINE__);
+    g_eventLogger->error("Mgm handle is NULL (%s:%d)", __FILE__, __LINE__);
     DBUG_RETURN(sockfd);
   }
 
@@ -1843,11 +1843,10 @@ NDB_SOCKET_TYPE TransporterRegistry::connect_ndb_mgmd(NdbMgmHandle *h)
 				   m_transporter_interface[i].m_s_service_port,
 				   &mgm_reply) < 0)
     {
-      DBUG_PRINT("error", ("Failed to set dynamic port"));
-      g_eventLogger->error("Error: %s: %d",
-                           ndb_mgm_get_latest_error_desc(*h),
-                           ndb_mgm_get_latest_error(*h));
-      g_eventLogger->error("%s: %d", __FILE__, __LINE__);
+      g_eventLogger->error("Could not set dynamic port for %d->%d (%s:%d)",
+                           localNodeId,
+                           m_transporter_interface[i].m_remote_nodeId,
+                           __FILE__, __LINE__);
       ndb_mgm_destroy_handle(h);
       DBUG_RETURN(sockfd);
     }
@@ -1861,11 +1860,8 @@ NDB_SOCKET_TYPE TransporterRegistry::connect_ndb_mgmd(NdbMgmHandle *h)
   sockfd= ndb_mgm_convert_to_transporter(h);
   if (!my_socket_valid(sockfd))
   {
-    DBUG_PRINT("error", ("Failed to convert to transporter"));
-    g_eventLogger->error("Error: %s: %d",
-                         ndb_mgm_get_latest_error_desc(*h),
-                         ndb_mgm_get_latest_error(*h));
-    g_eventLogger->error("%s: %d", __FILE__, __LINE__);
+    g_eventLogger->error("Failed to convert to transporter (%s: %d)",
+                         __FILE__, __LINE__);
     ndb_mgm_destroy_handle(h);
   }
   DBUG_RETURN(sockfd);
