@@ -623,6 +623,9 @@ ConfigManager::set_config(Config* new_config)
   delete m_config;
   m_config = new_config;
 
+  // Removed cache of packed config
+  m_packed_config.clear();
+
   for (unsigned i = 0; i < m_subscribers.size(); i++)
     m_subscribers[i]->config_changed(m_node_id, new_config);
 }
@@ -2012,7 +2015,24 @@ ConfigManager::get_packed_config(ndb_mgm_node_type nodetype,
   }
 
   require(m_config);
-  return m_config->pack64(buf64);
+  if (!m_packed_config.length())
+  {
+    // No packed config exist, generate a new one
+    Config config_copy(m_config);
+    if (!m_dynamic_ports.set_in_config(&config_copy))
+    {
+      error.assign("get_packed_config, failed to set dynamic ports in config");
+      return false;
+    }
+
+    if (!config_copy.pack64(m_packed_config))
+    {
+      error.assign("get_packed_config, failed to pack config_copy");
+      return false;
+    }
+  }
+  buf64.assign(m_packed_config, m_packed_config.length());
+  return true;
 }
 
 
@@ -2191,6 +2211,168 @@ ConfigManager::handle_exclude_nodes(void)
   }
   m_exclude_nodes.clear();
 
+}
+
+
+static bool
+check_dynamic_port_configured(const Config* config,
+                              int node1, int node2,
+                              BaseString& msg)
+{
+  ConfigIter iter(config, CFG_SECTION_CONNECTION);
+
+  for(;iter.valid();iter.next()) {
+    Uint32 n1, n2;
+    if (iter.get(CFG_CONNECTION_NODE_1, &n1) != 0 ||
+        iter.get(CFG_CONNECTION_NODE_2, &n2) != 0)
+    {
+      msg.assign("Could not get node1 or node2 from connection section");
+      return false;
+    }
+
+    if((n1 == (Uint32)node1 && n2 == (Uint32)node2) ||
+       (n1 == (Uint32)node2 && n2 == (Uint32)node1))
+      break;
+  }
+  if(!iter.valid()) {
+    msg.assfmt("Unable to find connection between nodes %d -> %d",
+               node1, node2);
+    return false;
+  }
+
+  Uint32 port;
+  if(iter.get(CFG_CONNECTION_SERVER_PORT, &port) != 0) {
+    msg.assign("Unable to get current value of CFG_CONNECTION_SERVER_PORT");
+    return false;
+  }
+
+  if (port != 0)
+  {
+    // Dynamic ports is zero in configuration
+    msg.assfmt("Server port for %d -> %d is not marked as dynamic, value: %d",
+               node1, node2, port);
+    return false;
+  }
+  return true;
+}
+
+
+bool
+ConfigManager::set_dynamic_port(int node1, int node2, int value,
+                                BaseString& msg){
+
+  Guard g(m_config_mutex);
+  if (!check_dynamic_port_configured(m_config,
+                                     node1, node2, msg))
+    return false;
+
+  if (!m_dynamic_ports.set(node1, node2, value))
+  {
+    msg.assfmt("Could not set dynamic port for %d -> %d", node1, node2);
+    return false;
+  }
+
+  // Removed cache of packed config, need to be recreated
+  // to include the new dynamic port
+  m_packed_config.clear();
+
+  return true;
+}
+
+
+bool
+ConfigManager::get_dynamic_port(int node1, int node2, int *value,
+                                BaseString& msg) const {
+
+  Guard g(m_config_mutex);
+  if (!check_dynamic_port_configured(m_config,
+                                     node1, node2, msg))
+    return false;
+
+  if (!m_dynamic_ports.get(node1, node2, value))
+  {
+    msg.assfmt("Could not get dynamic port for %d -> %d", node1, node2);
+    return false;
+  }
+  return true;
+}
+
+
+bool ConfigManager::DynamicPorts::check(int& node1, int& node2) const
+{
+  // Always use smaller node first
+  if (node1 > node2)
+  {
+    int tmp = node1;
+    node1 = node2;
+    node2 = tmp;
+  }
+
+  // Only NDB nodes can be dynamic port server
+  if (node1 <= 0 || node1 >= MAX_NDB_NODES)
+    return false;
+  if (node2 <= 0 || node2 >= MAX_NODES)
+    return false;
+  if (node1 == node2)
+    return false;
+
+  return true;
+}
+
+
+bool ConfigManager::DynamicPorts::set(int node1, int node2, int port)
+{
+  if (!check(node1, node2))
+    return false;
+
+  if (!m_ports.insert(NodePair(node1, node2), port, true))
+    return false;
+
+  return true;
+}
+
+
+bool ConfigManager::DynamicPorts::get(int node1, int node2, int* port) const
+{
+  if (!check(node1, node2))
+    return false;
+
+  int value = 0; // Return 0 if not found
+  (void)m_ports.search(NodePair(node1, node2), value);
+
+  *port = (int)value;
+  return true;
+}
+
+
+bool
+ConfigManager::DynamicPorts::set_in_config(Config* config)
+{
+  bool result = true;
+  ConfigIter iter(config, CFG_SECTION_CONNECTION);
+
+  for(;iter.valid();iter.next()) {
+    Uint32 port = 0;
+    if (iter.get(CFG_CONNECTION_SERVER_PORT, &port) != 0 ||
+        port != 0)
+      continue; // Not configured as dynamic port
+
+    Uint32 n1, n2;
+    require(iter.get(CFG_CONNECTION_NODE_1, &n1) == 0 &&
+            iter.get(CFG_CONNECTION_NODE_2, &n2) == 0);
+
+    int dyn_port;
+    if (!get(n1, n2, &dyn_port) || dyn_port == 0)
+      continue; // No dynamic port registered
+
+    // Write the dynamic port to config
+    port = (Uint32)dyn_port;
+    ConfigValues::Iterator i2(config->m_configValues->m_config,
+                              iter.m_config);
+    if(i2.set(CFG_CONNECTION_SERVER_PORT, port) == false)
+      result = false;
+  }
+  return result;
 }
 
 
