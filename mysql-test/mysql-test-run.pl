@@ -1106,7 +1106,7 @@ sub command_line_setup () {
   # On some operating systems, there is a limit to the length of a
   # UNIX domain socket's path far below PATH_MAX, so try to avoid long
   # socket path names.
-  $sockdir = tempdir(CLEANUP => 0) if ( length($sockdir) >= 70 );
+  $sockdir = tempdir(CLEANUP => 0) if ( length($sockdir) >= 70 ) && (! $glob_win32 );
 
   $master->[0]=
   {
