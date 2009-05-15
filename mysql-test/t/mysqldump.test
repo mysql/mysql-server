@@ -1467,7 +1467,7 @@ use test;
 --echo #
 --echo # Bug #33762: mysqldump can not dump INFORMATION_SCHEMA
 --echo #
---exec $MYSQL_DUMP --compact --opt -d information_schema tables
+--exec $MYSQL_DUMP --compact --opt -d information_schema TABLES
 
 --echo #
 --echo # Bug#19745 mysqldump --xml produces invalid xml
