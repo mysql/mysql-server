@@ -4877,7 +4877,7 @@ bool Field_time::get_time(MYSQL_TIME *ltime)
     ltime->neg= 1;
     tmp=-tmp;
   }
-  ltime->day= 0;
+  ltime->year= ltime->month= ltime->day= 0;
   ltime->hour=   (int) (tmp/10000);
   tmp-=ltime->hour*10000;
   ltime->minute= (int) tmp/100;
