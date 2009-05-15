@@ -174,12 +174,7 @@ private:
 
 protected:
   Uint32 m_os_max_iovec;
-
-  Uint32 getErrorCount();
-  Uint32 m_errorCount;
   Uint32 m_timeOutMillis;
-
-protected:
   bool m_connected;     // Are we connected
   TransporterType m_type;
 
@@ -209,13 +204,6 @@ inline
 NodeId
 Transporter::getLocalNodeId() const {
   return localNodeId;
-}
-
-inline
-Uint32
-Transporter::getErrorCount()
-{ 
-  return m_errorCount;
 }
 
 /**
