@@ -2850,10 +2850,10 @@ int ha_federated::info(uint flag)
       stats.data_file_length= stats.records * stats.mean_rec_length;
 
       if (row[12] != NULL)
-        stats.update_time=     (time_t) my_strtoll10(row[12], (char**) 0,
+        stats.update_time=     (ulong) my_strtoll10(row[12], (char**) 0,
                                                       &error);
       if (row[13] != NULL)
-        stats.check_time=      (time_t) my_strtoll10(row[13], (char**) 0,
+        stats.check_time=      (ulong) my_strtoll10(row[13], (char**) 0,
                                                       &error);
     }
     /*

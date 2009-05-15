@@ -2943,7 +2943,7 @@ String *Item_load_file::val_str(String *str)
       )
     goto err;
 
-  (void) fn_format(path, file_name->c_ptr(), mysql_real_data_home, "",
+  (void) fn_format(path, file_name->c_ptr_safe(), mysql_real_data_home, "",
 		   MY_RELATIVE_PATH | MY_UNPACK_FILENAME);
 
   /* Read only allowed from within dir specified by secure_file_priv */
@@ -2969,7 +2969,7 @@ String *Item_load_file::val_str(String *str)
   }
   if (tmp_value.alloc(stat_info.st_size))
     goto err;
-  if ((file = my_open(file_name->c_ptr(), O_RDONLY, MYF(0))) < 0)
+  if ((file = my_open(file_name->ptr(), O_RDONLY, MYF(0))) < 0)
     goto err;
   if (my_read(file, (uchar*) tmp_value.ptr(), stat_info.st_size, MYF(MY_NABP)))
   {

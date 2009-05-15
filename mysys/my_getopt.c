@@ -410,7 +410,8 @@ invalid value '%s'",
 	  argument= optend;
 	}
 	else if (optp->arg_type == OPT_ARG &&
-		 (optp->var_type & GET_TYPE_MASK) == GET_BOOL)
+		 (((optp->var_type & GET_TYPE_MASK) == GET_BOOL) ||
+                   (optp->var_type & GET_TYPE_MASK) == GET_ENUM))
 	{
 	  if (optend == disabled_my_option)
 	    *((my_bool*) value)= (my_bool) 0;
