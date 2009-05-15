@@ -7360,6 +7360,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 
     // Do event specific preparations 
     error= do_before_row_operations(rli);
+
     // row processing loop
 
     while (error == 0 && m_curr_row < m_rows_end)
@@ -7861,10 +7862,11 @@ Table_map_log_event::Table_map_log_event(THD *thd, TABLE *tbl, ulong tid,
 
   /*
     Now set the size of the data to the size of the field metadata array
-    plus one or two bytes for number of elements in the field metadata array.
+    plus one or three bytes (see pack.c:net_store_length) for number of 
+    elements in the field metadata array.
   */
   if (m_field_metadata_size > 255)
-    m_data_size+= m_field_metadata_size + 2; 
+    m_data_size+= m_field_metadata_size + 3; 
   else
     m_data_size+= m_field_metadata_size + 1; 
 
