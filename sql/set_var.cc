@@ -736,7 +736,7 @@ sys_var *sys_variables[]=
   &sys_optimizer_prune_level,
   &sys_optimizer_search_depth,
   &sys_preload_buff_size,
-#ifdef ENABLED_PROFILING
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
   &sys_profiling,
   &sys_profiling_history_size,
 #endif
@@ -1060,7 +1060,7 @@ struct show_var_st init_vars[]= {
   {sys_plugin_dir.name,       (char*) &sys_plugin_dir,              SHOW_SYS},
   {"port",                    (char*) &mysqld_port,                  SHOW_INT},
   {sys_preload_buff_size.name, (char*) &sys_preload_buff_size,      SHOW_SYS},
-#ifdef ENABLED_PROFILING
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
   {sys_profiling.name,        (char*) &sys_profiling,               SHOW_SYS},
   {sys_profiling_history_size.name, (char*) &sys_profiling_history_size, SHOW_SYS},
 #endif
