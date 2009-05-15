@@ -195,7 +195,6 @@ bool begin_trans(THD *thd)
     error= -1;
   else
   {
-    LEX *lex= thd->lex;
     thd->options|= OPTION_BEGIN;
     thd->server_status|= SERVER_STATUS_IN_TRANS;
   }
