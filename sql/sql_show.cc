@@ -1402,7 +1402,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
 
 #if !defined(DONT_USE_THR_ALARM) && ! defined(SCO)
         if (pthread_kill(tmp->real_id,0))
-          tmp->proc_info="*** DEAD ***";        // This shouldn't happen
+          thd_proc_info(tmp, "*** DEAD ***");        // This shouldn't happen
 #endif
 #ifdef EXTRA_DEBUG
         thd_info->start_time= tmp->time_after_lock;
@@ -1549,6 +1549,12 @@ static bool show_status_array(THD *thd, const char *wild,
           nr= (long) (thd->query_start() - server_start_time);
           end= int10_to_str(nr, buff, 10);
           break;
+#ifdef COMMUNITY_SERVER
+        case SHOW_FLUSHTIME:
+          nr= (long) (thd->query_start() - flush_status_time);
+          end= int10_to_str(nr, buff, 10);
+          break;
+#endif
         case SHOW_QUERIES:
           end= int10_to_str((long) thd->query_id, buff, 10);
           break;
@@ -3668,6 +3674,14 @@ ST_SCHEMA_TABLE *get_schema_table(enum enum_schema_tables schema_table_idx)
 /*
   Create information_schema table using schema_table data
 
+  @note
+    For MYSQL_TYPE_DECIMAL fields only, the field_length member has encoded
+    into it two numbers, based on modulus of base-10 numbers.  In the ones
+    position is the number of decimals.  Tens position is unused.  In the
+    hundreds and thousands position is a two-digit decimal number representing
+    length.  Encode this value with  (decimals*100)+length  , where
+    0<decimals<10 and 0<=length<100 .
+
   SYNOPSIS
     create_schema_table()
     thd	       	          thread handler
@@ -3712,9 +3726,25 @@ TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
                            fields_info->field_length)) == NULL)
         DBUG_RETURN(NULL);
       break;
+    case MYSQL_TYPE_DECIMAL:
+      if (!(item= new Item_decimal((longlong) fields_info->value, false)))
+      {
+        DBUG_RETURN(0);
+      }
+      item->decimals= fields_info->field_length%10;
+      item->max_length= (fields_info->field_length/100)%100;
+      if (item->unsigned_flag == 0)
+        item->max_length+= 1;
+      if (item->decimals > 0)
+        item->max_length+= 1;
+      item->set_name(fields_info->field_name,
+                     strlen(fields_info->field_name), cs);
+      break;
+    case MYSQL_TYPE_STRING:
     default:
       /* Don't let unimplemented types pass through. Could be a grave error. */
-      DBUG_ASSERT(fields_info->field_type == MYSQL_TYPE_STRING);
+      DBUG_ASSERT(fields_info->field_type == MYSQL_TYPE_STRING ||
+                  fields_info->field_type == MYSQL_TYPE_DECIMAL);
 
       if (!(item= new Item_empty_string("", fields_info->field_length, cs)))
       {
@@ -4443,6 +4473,9 @@ ST_SCHEMA_TABLE schema_tables[]=
     get_all_tables, 0, get_schema_key_column_usage_record, 4, 5, 0},
   {"OPEN_TABLES", open_tables_fields_info, create_schema_table,
    fill_open_tables, make_old_format, 0, -1, -1, 1},
+  {"PROFILING", query_profile_statistics_info, create_schema_table,
+   fill_query_profile_statistics_info, make_profile_table_for_show, 
+   NULL, -1, -1, false},
   {"ROUTINES", proc_fields_info, create_schema_table, 
     fill_schema_proc, make_proc_old_format, 0, -1, -1, 0},
   {"SCHEMATA", schema_fields_info, create_schema_table,
