@@ -893,7 +893,7 @@ public:
   /**
    * Get the type of access for this operation
    */
-  Type getType() const;
+  const Type getType() const;
 
   /** @} *********************************************************************/
 
@@ -1571,7 +1571,7 @@ Return Value    Return the Type.
 Remark:         Gets type of access.
 ******************************************************************************/
 inline
-NdbOperation::Type
+const NdbOperation::Type
 NdbOperation::getType() const
 {
   return m_type;

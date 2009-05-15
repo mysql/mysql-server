@@ -178,22 +178,22 @@ public:
   /**
    * Check if table name has changed, for event TE_ALTER
    */
-  bool tableNameChanged() const;
+  const bool tableNameChanged() const;
 
   /**
    * Check if table frm has changed, for event TE_ALTER
    */
-  bool tableFrmChanged() const;
+  const bool tableFrmChanged() const;
 
   /**
    * Check if table fragmentation has changed, for event TE_ALTER
    */
-  bool tableFragmentationChanged() const;
+  const bool tableFragmentationChanged() const;
 
   /**
    * Check if table range partition list name has changed, for event TE_ALTER
    */
-  bool tableRangeListChanged() const;
+  const bool tableRangeListChanged() const;
 
   /**
    * Retrieve the GCI of the latest retrieved event
