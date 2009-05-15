@@ -149,7 +149,7 @@ select "user3";
 user3
 user3
 select * from t1;
-ERROR 42000: SELECT command denied to user 'mysqltest_3'@'localhost' for column 'b' in table 't1'
+ERROR 42000: SELECT command denied to user 'mysqltest_3'@'localhost' for table 't1'
 select a from t1;
 a
 1
