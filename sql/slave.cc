@@ -404,8 +404,8 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool skip_lock)
     DBUG_PRINT("info",("Terminating IO thread"));
     mi->abort_slave=1;
     if ((error=terminate_slave_thread(mi->io_thd, io_lock,
-				      &mi->stop_cond,
-				      &mi->slave_running,
+                                      &mi->stop_cond,
+                                      &mi->slave_running,
                                       skip_lock)) &&
         !force_all)
       DBUG_RETURN(error);
@@ -415,14 +415,15 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool skip_lock)
     DBUG_PRINT("info",("Terminating SQL thread"));
     mi->rli.abort_slave=1;
     if ((error=terminate_slave_thread(mi->rli.sql_thd, sql_lock,
-				      &mi->rli.stop_cond,
-				      &mi->rli.slave_running,
+                                      &mi->rli.stop_cond,
+                                      &mi->rli.slave_running,
                                       skip_lock)) &&
         !force_all)
       DBUG_RETURN(error);
   }
   DBUG_RETURN(0);
 }
+
 
 /**
    Wait for a slave thread to terminate.
