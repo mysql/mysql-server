@@ -45,7 +45,7 @@ extern "C" {
 #undef HAVE_SYS_MMAN_H
 #undef HAVE_SYNCH_H
 #undef HAVE_MMAP
-#undef HAVE_RINT
+#undef HAVE_FESETROUND
 
 #define HAVE_PTHREAD_ATTR_SETSTACKSIZE 1
 #define HAVE_PTHREAD_SIGMASK 1

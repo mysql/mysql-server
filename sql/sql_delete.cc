@@ -56,7 +56,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
     table->file->print_error(error, MYF(0));
     DBUG_RETURN(error);
   }
-  thd->proc_info="init";
+  thd_proc_info(thd, "init");
   table->map=1;
 
   if (mysql_prepare_delete(thd, table_list, &conds))
@@ -220,7 +220,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
 
   deleted=0L;
   init_ftfuncs(thd, select_lex, 1);
-  thd->proc_info="updating";
+  thd_proc_info(thd, "updating");
 
   if (triggers_applicable)
   {
@@ -288,7 +288,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   }
   killed_status= thd->killed;
   error= (killed_status == THD::NOT_KILLED)?  error : 1;
-  thd->proc_info="end";
+  thd_proc_info(thd, "end");
   end_read_record(&info);
   free_io_cache(table);				// Will not do any harm
   if (options & OPTION_QUICK)
@@ -527,7 +527,7 @@ multi_delete::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   DBUG_ENTER("multi_delete::prepare");
   unit= u;
   do_delete= 1;
-  thd->proc_info="deleting from main table";
+  thd_proc_info(thd, "deleting from main table");
   DBUG_RETURN(0);
 }
 
@@ -841,7 +841,7 @@ int multi_delete::do_deletes()
 bool multi_delete::send_eof()
 {
   THD::killed_state killed_status= THD::NOT_KILLED;
-  thd->proc_info="deleting from reference tables";
+  thd_proc_info(thd, "deleting from reference tables");
 
   /* Does deletes for the last n - 1 tables, returns 0 if ok */
   int local_error= do_deletes();		// returns 0 if success
@@ -850,7 +850,7 @@ bool multi_delete::send_eof()
   local_error= local_error || error;
   killed_status= (local_error == 0)? THD::NOT_KILLED : thd->killed;
   /* reset used flags */
-  thd->proc_info="end";
+  thd_proc_info(thd, "end");
 
   /*
     We must invalidate the query cache before binlog writing and
@@ -997,7 +997,7 @@ end:
   /* Probably InnoDB table */
   ulonglong save_options= thd->options;
   table_list->lock_type= TL_WRITE;
-  thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_NOT_AUTOCOMMIT);
+  thd->options&= ~(OPTION_BEGIN | OPTION_NOT_AUTOCOMMIT);
   ha_enable_transaction(thd, FALSE);
   mysql_init_select(thd->lex);
   error= mysql_delete(thd, table_list, (COND*) 0, (SQL_LIST*) 0,

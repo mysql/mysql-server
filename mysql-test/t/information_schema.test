@@ -1029,6 +1029,7 @@ where t.table_schema = 'information_schema' and
           group by c2.column_type order by num limit 1)
 group by t.table_name order by num1, t.table_name;
 
+
 #
 # Bug#28266 IS_UPDATABLE field on VIEWS table in I_S database is wrong
 #
