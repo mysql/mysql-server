@@ -17,10 +17,8 @@
 
    TODO: print the catalog (some USE catalog.db ????).
 
-   Standalone program to read a MySQL binary log (or relay log);
-   can read files produced by 3.23, 4.x, 5.0 servers. 
+   Standalone program to read a MySQL binary log (or relay log).
 
-   Can read binlogs from 3.23/4.x/5.0 and relay logs from 4.x/5.0.
    Should be able to read any file of these categories, even with
    --start-position.
    An important fact: the Format_desc event of the log is at most the 3rd event
