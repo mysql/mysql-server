@@ -438,10 +438,10 @@ public:
   /**
    * Called to completely empty the send buffer for a node (ie. disconnect).
    *
-   * This can be called from any thread context, so must be implemented to be
-   * thread safe.
+   * Can be called to check that no one has written to the sendbuffer
+   * since it was reset last time by using the "should_be_emtpy" flag
    */
-  virtual void reset_send_buffer(NodeId node) = 0;
+  virtual void reset_send_buffer(NodeId node, bool should_be_empty=false) = 0;
 
   virtual ~TransporterCallback() { };
 };

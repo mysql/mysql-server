@@ -848,7 +848,7 @@ struct trp_callback : public TransporterCallbackKernel
   Uint32 get_bytes_to_send_iovec(NodeId node, struct iovec *dst, Uint32 max);
   Uint32 bytes_sent(NodeId node, Uint32 bytes);
   bool has_data_to_send(NodeId node);
-  void reset_send_buffer(NodeId node);
+  void reset_send_buffer(NodeId node, bool should_be_empty);
 };
 
 extern trp_callback g_trp_callback;             // Forward declaration
@@ -1838,7 +1838,7 @@ trp_callback::has_data_to_send(NodeId node)
 }
 
 void
-trp_callback::reset_send_buffer(NodeId node)
+trp_callback::reset_send_buffer(NodeId node, bool should_be_empty)
 {
   struct thr_repository *rep = &g_thr_repository;
   thr_repository::send_buffer * sb = g_thr_repository.m_send_buffers+node;
@@ -1847,6 +1847,12 @@ trp_callback::reset_send_buffer(NodeId node)
   thread_local_pool<thr_send_page> pool(&rep->m_sb_pool, 0);
 
   lock(&sb->m_send_lock);
+
+  // Make sure send buffer is empty when "should_be_empty" flag is set
+  if (should_be_empty &&
+      sb->m_buffer.m_first_page == 0 && sb->m_bytes == 0)
+    return;
+  assert(!should_be_empty);
 
   for (;;)
   {

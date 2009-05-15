@@ -185,9 +185,9 @@ public:
   {
     return theTransporterRegistry->has_data_to_send(node);
   }
-  void reset_send_buffer(NodeId node)
+  void reset_send_buffer(NodeId node, bool should_be_empty)
   {
-    theTransporterRegistry->reset_send_buffer(node);
+    theTransporterRegistry->reset_send_buffer(node, should_be_empty);
   }
 
 
