@@ -42,6 +42,7 @@ Transporter::Transporter(TransporterRegistry &t_reg,
     isServer(lNodeId==serverNodeId),
     m_packer(_signalId, _checksum), m_max_send_buffer(max_send_buffer),
     m_overload_limit(0xFFFFFFFF), isMgmConnection(_isMgmConnection),
+    m_connected(false),
     m_type(_type),
     m_transporter_registry(t_reg)
 {
@@ -71,7 +72,6 @@ Transporter::Transporter(TransporterRegistry &t_reg,
   checksumUsed    = _checksum;
   signalIdUsed    = _signalId;
 
-  m_connected     = false;
   m_timeOutMillis = 30000;
 
   m_connect_address.s_addr= 0;
@@ -131,21 +131,18 @@ Transporter::connect_server(NDB_SOCKET_TYPE sockfd) {
   DBUG_ENTER("Transporter::connect_server");
 
   if(m_connected)
-  {
-    DBUG_RETURN(false); // TODO assert(0);
-  }
-  
+    DBUG_RETURN(false);
+
   get_callback_obj()->reset_send_buffer(remoteNodeId);
 
   my_socket_connect_address(sockfd, &m_connect_address);
 
-  bool res = connect_server_impl(sockfd);
-  if(res){
-    m_connected  = true;
-    m_errorCount = 0;
-  }
+  if (!connect_server_impl(sockfd))
+    DBUG_RETURN(false);
 
-  DBUG_RETURN(res);
+  m_connected  = true;
+
+  DBUG_RETURN(true);
 }
 
 
@@ -268,22 +265,21 @@ Transporter::connect_client(NDB_SOCKET_TYPE sockfd) {
   // Cache the connect address
   my_socket_connect_address(sockfd, &m_connect_address);
 
-  bool res = connect_client_impl(sockfd);
-  if (res)
-  {
-    m_connected  = true;
-    m_errorCount = 0;
-  }
-  DBUG_RETURN(res);
+  if (!connect_client_impl(sockfd))
+    DBUG_RETURN(false);
+
+  m_connected = true;
+
+  DBUG_RETURN(true);
 }
 
 void
 Transporter::doDisconnect() {
 
   if(!m_connected)
-    return; //assert(0); TODO will fail
+    return;
 
-  m_connected= false;
+  m_connected = false;
 
   get_callback_obj()->reset_send_buffer(remoteNodeId);
   disconnectImpl();
