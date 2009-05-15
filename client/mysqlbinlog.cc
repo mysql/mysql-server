@@ -932,10 +932,13 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"base64-output", OPT_BASE64_OUTPUT_MODE,
+    /* 'unspec' is not mentioned because it is just a placeholder. */
    "Determine when the output statements should be base64-encoded BINLOG "
    "statements: 'never' disables it and works only for binlogs without "
    "row-based events; 'auto' is the default and prints base64 only when "
    "necessary (i.e., for row-based events and format description events); "
+   "'decode-rows' suppresses BINLOG statements for row events, but does "
+   "not exit as an error if a row event is found, unlike 'never'; "
    "'always' prints base64 whenever possible. 'always' is for debugging "
    "only and should not be used in a production system. The default is "
    "'auto'. --base64-output is a short form for --base64-output=always."
