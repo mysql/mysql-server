@@ -1848,17 +1848,12 @@ trp_callback::reset_send_buffer(NodeId node, bool should_be_empty)
 
   lock(&sb->m_send_lock);
 
-  // Make sure send buffer is empty when "should_be_empty" flag is set
-  if (should_be_empty &&
-      sb->m_buffer.m_first_page == 0 && sb->m_bytes == 0)
-    return;
-  assert(!should_be_empty);
-
   for (;;)
   {
     Uint32 count = get_bytes_to_send_iovec(node, v, sizeof(v)/sizeof(v[0]));
     if (count == 0)
       break;
+    assert(!should_be_empty); // Got data when it should be empty
     int bytes = 0;
     for (Uint32 i = 0; i < count; i++)
       bytes += v[i].iov_len;
