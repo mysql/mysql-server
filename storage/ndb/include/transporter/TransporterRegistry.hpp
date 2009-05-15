@@ -498,7 +498,7 @@ public:
   Uint32 bytes_sent(NodeId node, Uint32 bytes);
   bool has_data_to_send(NodeId node);
 
-  void reset_send_buffer(NodeId node);
+  void reset_send_buffer(NodeId node, bool should_be_empty);
 
   void print_transporters(const char* where, NdbOut& out = ndbout);
 

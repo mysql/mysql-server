@@ -133,8 +133,7 @@ Transporter::connect_server(NDB_SOCKET_TYPE sockfd) {
   if(m_connected)
     DBUG_RETURN(false);
 
-  get_callback_obj()->reset_send_buffer(remoteNodeId);
-
+  // Cache the connect address
   my_socket_connect_address(sockfd, &m_connect_address);
 
   if (!connect_server_impl(sockfd))
@@ -198,8 +197,6 @@ Transporter::connect_client(NDB_SOCKET_TYPE sockfd) {
 
   DBUG_PRINT("info",("server port: %d, isMgmConnection: %d",
                      m_s_port, isMgmConnection));
-
-  get_callback_obj()->reset_send_buffer(remoteNodeId);
 
   // Send "hello"
   DBUG_PRINT("info", ("Sending own nodeid: %d and transporter type: %d",
@@ -281,6 +278,5 @@ Transporter::doDisconnect() {
 
   m_connected = false;
 
-  get_callback_obj()->reset_send_buffer(remoteNodeId);
   disconnectImpl();
 }

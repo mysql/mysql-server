@@ -92,9 +92,9 @@ class TransporterCallbackKernelNonMT : public TransporterCallbackKernel
   {
     return globalTransporterRegistry.has_data_to_send(node);
   }
-  void reset_send_buffer(NodeId node)
+  void reset_send_buffer(NodeId node, bool should_be_empty)
   {
-    globalTransporterRegistry.reset_send_buffer(node);
+    globalTransporterRegistry.reset_send_buffer(node, should_be_empty);
   }
 };
 static TransporterCallbackKernelNonMT myTransporterCallback;

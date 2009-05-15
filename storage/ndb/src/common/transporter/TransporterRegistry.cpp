@@ -1338,6 +1338,13 @@ TransporterRegistry::do_connect(NodeId node_id)
   }
   DBUG_ENTER("TransporterRegistry::do_connect");
   DBUG_PRINT("info",("performStates[%d]=CONNECTING",node_id));
+
+  /*
+    No one else should be using the transporter now, reset
+    its send buffer
+   */
+  callbackObj->reset_send_buffer(node_id);
+
   curr_state= CONNECTING;
   DBUG_VOID_RETURN;
 }
@@ -1374,6 +1381,16 @@ TransporterRegistry::report_connect(NodeId node_id)
 {
   DBUG_ENTER("TransporterRegistry::report_connect");
   DBUG_PRINT("info",("performStates[%d]=CONNECTED",node_id));
+
+  /*
+    The send buffers was reset when this connection
+    was set to CONNECTING. In order to make sure no stray
+    signals has been written to the send buffer since then
+    call 'reset_send_buffer' with the "should_be_empty" flag
+    set
+  */
+  callbackObj->reset_send_buffer(node_id, true);
+
   performStates[node_id] = CONNECTED;
 #if defined(HAVE_EPOLL_CREATE)
   if (likely(m_epoll_fd != -1))
@@ -2047,9 +2064,16 @@ TransporterRegistry::has_data_to_send(NodeId node)
 }
 
 void
-TransporterRegistry::reset_send_buffer(NodeId node)
+TransporterRegistry::reset_send_buffer(NodeId node, bool should_be_empty)
 {
   assert(m_use_default_send_buffer);
+
+  // Make sure that buffer is already empty if the "should_be_empty"
+  // flag is set. This is done to quickly catch any stray signals
+  // written to the send buffer while not being connected
+  if (should_be_empty && !has_data_to_send(node))
+    return;
+  assert(!should_be_empty);
 
   SendBuffer *b = m_send_buffers + node;
   SendBufferPage *page = b->m_first_page;
