@@ -273,7 +273,9 @@ select t2.* from ((select * from t1) as A inner join t2 on A.ID = t2.FID);
 select t2.* from (select * from t1) as A inner join t2 on A.ID = t2.FID;
 drop table t1, t2;
 
+connection con1;
 disconnect con1;
+--source include/wait_until_disconnected.inc
 connection default;
 drop user mysqltest_1;
 
