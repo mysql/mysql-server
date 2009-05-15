@@ -507,7 +507,8 @@ ulong slave_net_timeout, slave_trans_retries;
 ulong slave_exec_mode_options;
 const char *slave_exec_mode_str= "STRICT";
 ulong thread_cache_size=0, thread_pool_size= 0;
-ulong binlog_cache_size=0, max_binlog_cache_size=0;
+ulong binlog_cache_size=0;
+ulonglong  max_binlog_cache_size=0;
 ulong query_cache_size=0;
 ulong refresh_version;  /* Increments on each reload */
 query_id_t global_query_id;
@@ -6582,7 +6583,7 @@ log and this option does nothing anymore.",
   {"max_binlog_cache_size", OPT_MAX_BINLOG_CACHE_SIZE,
    "Can be used to restrict the total size used to cache a multi-transaction query.",
    (uchar**) &max_binlog_cache_size, (uchar**) &max_binlog_cache_size, 0,
-   GET_ULONG, REQUIRED_ARG, ULONG_MAX, IO_SIZE, ULONG_MAX, 0, IO_SIZE, 0},
+   GET_ULL, REQUIRED_ARG, ULONG_MAX, IO_SIZE, ULLONG_MAX, 0, IO_SIZE, 0},
   {"max_binlog_size", OPT_MAX_BINLOG_SIZE,
    "Binary log will be rotated automatically when the size exceeds this \
 value. Will also apply to relay logs if max_relay_log_size is 0. \
