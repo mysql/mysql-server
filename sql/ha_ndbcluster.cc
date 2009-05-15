@@ -5265,6 +5265,11 @@ static int create_ndb_column(THD *thd,
   // Set nullable and pk
   col.setNullable(field->maybe_null());
   col.setPrimaryKey(field->flags & PRI_KEY_FLAG);
+  if ((field->flags & FIELD_IN_PART_FUNC_FLAG) != 0)
+  {
+    col.setPartitionKey(TRUE);
+  }
+
   // Set autoincrement
   if (field->flags & AUTO_INCREMENT_FLAG) 
   {
