@@ -86,7 +86,7 @@ IPCConfig::configureTransporters(Uint32 nodeId,
     ndb_mgm_configuration_iterator iter(config, CFG_SECTION_NODE);
     if (tr.get_transporter(i) && iter.find(CFG_NODE_ID, i))
     {
-      // Transporter exist in TransporterResgistry but not
+      // Transporter exist in TransporterRegistry but not
       // in configuration
       ndbout_c("The connection to node %d could not "
                "be removed at this time", i);

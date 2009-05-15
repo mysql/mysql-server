@@ -123,7 +123,7 @@ TCP_Transporter::configure_derived(const TransporterConfiguration* conf)
       (int)conf->tcp.tcpMaxsegSize == sockOptTcpMaxSeg &&
       overload_limit(conf) == m_overload_limit)
     return true; // No change
-ndbout_c("configure_derived, can't reconfigure");
+
   return false; // Can't reconfigure
 }
 
