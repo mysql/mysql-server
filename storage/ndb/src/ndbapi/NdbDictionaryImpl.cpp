@@ -3074,6 +3074,12 @@ NdbDictInterface::serializeTableDesc(Ndb & ndb,
     if (col->m_distributionKey)
     {
       distKeys++;
+      if (!col->m_pk)
+      {
+        m_error.code = 4327;
+        NdbMem_Free((void*)tmpTab);
+        DBUG_RETURN(-1);
+      }
     }
   }
   if (distKeys == impl.m_noOfKeys)
