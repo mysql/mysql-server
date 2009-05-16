@@ -51,7 +51,7 @@ drop table t1;
 #
 # Bug #17763 mysqld cores with list partitioning if update to missing partition
 #
-CREATE TABLE t1 (id INT) ENGINE=NDB
+CREATE TABLE t1 (id INT PRIMARY KEY) ENGINE=NDB
   PARTITION BY LIST(id)
    (PARTITION p0 VALUES IN (2, 4),
     PARTITION p1 VALUES IN (42, 142));
@@ -63,12 +63,12 @@ DROP TABLE t1;
 #
 # NULL for LIST partition
 #
-create table t1 (a int,b int, c int)
+create table t1 (a int,b int, c int, primary key(a))
 engine = ndb
 partition by list(a)
 partitions 2
 (partition x123 values in (11, 12),
  partition x234 values in (5, 1));
---error ER_NO_PARTITION_FOR_GIVEN_VALUE
+--error ER_BAD_NULL_ERROR,ER_NO_PARTITION_FOR_GIVEN_VALUE
 insert into t1 values (NULL,1,1);
 drop table t1;

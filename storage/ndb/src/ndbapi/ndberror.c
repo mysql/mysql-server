@@ -567,7 +567,7 @@ ErrorBundle ErrorCodes[] = {
   { 4324, DMEC, AE, "Attempt to define distribution group when not prepared to" },
   { 4325, DMEC, AE, "Distribution Group set on table but not defined on first attribute" },
   { 4326, DMEC, AE, "Distribution Group with erroneus number of bits" },
-  { 4327, DMEC, AE, "Distribution Group with 1 byte attribute is not allowed" },
+  { 4327, DMEC, AE, "Distribution key is only supported on part of primary key" },
   { 4328, DMEC, AE, "Disk memory attributes not yet supported" },
   { 4329, DMEC, AE, "Variable stored attributes not yet supported" },
   { 4340, DMEC, AE, "Result or attribute record must be a base table ndbrecord, not an index ndbrecord" },
