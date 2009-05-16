@@ -31,14 +31,6 @@ if (`SELECT @@session.storage_engine IN('ndbcluster')`)
 {
    eval CREATE TABLE t1 (
    $column_list,
-   $unique_index
-   )
-   $partition_scheme;
-   eval $insert_all;
-   --source suite/parts/inc/partition_check.inc
-   DROP TABLE t1;
-   eval CREATE TABLE t1 (
-   $column_list,
    PRIMARY KEY(f_int1,f_int2), $unique_index
    )
    $partition_scheme;

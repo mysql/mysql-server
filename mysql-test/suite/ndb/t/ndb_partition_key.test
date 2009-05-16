@@ -96,7 +96,7 @@ drop table t1;
 # Bug #17754 Improper handling of removal of partitioning in ALTER TABLE
 # Also added a number of general test cases in the same area
 #
-create table t1 (a int)
+create table t1 (a int primary key)
 engine=ndb
 partition by key(a)
 (partition p0, partition p1);
