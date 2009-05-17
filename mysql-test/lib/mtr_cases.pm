@@ -887,7 +887,8 @@ sub collect_one_test_case {
   if ( $tinfo->{'innodb_test'} )
   {
     # This is a test that need innodb
-    if ( $::mysqld_variables{'innodb'} eq "OFF" )
+    if ( $::mysqld_variables{'innodb'} eq "OFF" ||
+         ! exists $::mysqld_variables{'innodb'} )
     {
       # innodb is not supported, skip it
       $tinfo->{'skip'}= 1;
