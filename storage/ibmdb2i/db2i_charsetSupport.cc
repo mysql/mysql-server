@@ -129,8 +129,8 @@ struct IconvMap
 {
   struct HashKey
   {
-    uint16 direction; // This is a uint16 instead of a uchar to avoid garbage data in the key from compiler padding
-    uint16 db2CCSID;
+    uint32 direction; // These are uint32s to avoid garbage data in the key from compiler padding
+    uint32 db2CCSID;
     const CHARSET_INFO* myCharset;
   } hashKey;
   iconv_t iconvDesc;
