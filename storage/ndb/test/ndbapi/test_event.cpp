@@ -3260,6 +3260,26 @@ runBug30780(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int
+runBug44915(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result = NDBT_OK;
+  
+  NdbRestarter res;
+  int error[] = { 13031, 13044, 13045, 0 };
+  for (int i = 0; error[i]; i++)
+  {
+    ndbout_c("error: %d", error[i]);
+    res.insertErrorInNode(res.getDbNodeId(rand() % res.getNumDbNodes()),
+                          error[i]);
+    
+    result = runCreateEvent(ctx, step); // should fail due to error insert
+    result = runCreateEvent(ctx, step); // should pass
+  }
+
+  return result;
+}
+
 NDBT_TESTSUITE(test_event);
 TESTCASE("BasicEventOperation", 
 	 "Verify that we can listen to Events"
@@ -3463,6 +3483,10 @@ TESTCASE("Bug30780", "")
   STEPS(runScanUpdateUntilStopped, 3);
   STEP(runBug30780);
   FINALIZER(runDropEvent);
+}
+TESTCASE("Bug44915", "")
+{
+  INITIALIZER(runBug44915);
 }
 NDBT_TESTSUITE_END(test_event);
 
