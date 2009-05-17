@@ -1544,13 +1544,18 @@ Suma::execSUB_CREATE_REQ(Signal* signal)
 
   Ptr<SubOpRecord> subOpPtr;
   LocalDLFifoList<SubOpRecord> subOpList(c_subOpPool, subPtr.p->m_create_req);
-  if (subOpList.seize(subOpPtr) == false)
+  if ((ERROR_INSERTED(13044) && found == false) ||
+      subOpList.seize(subOpPtr) == false)
   {
     jam();
     if (found == false)
     {
       jam();
-      c_subscriptions.release(subPtr);
+      if (ERROR_INSERTED(13044))
+      {
+        CLEAR_ERROR_INSERT_VALUE;
+      }
+      c_subscriptionPool.release(subPtr); // not yet in hash
     }
     sendSubCreateRef(signal, senderRef, senderData,
                      SubCreateRef::OutOfTableRecords);
@@ -1579,11 +1584,16 @@ Suma::execSUB_CREATE_REQ(Signal* signal)
   else
   {
     jam();
-    if (c_tablePool.seize(tabPtr) == false)
+    if (ERROR_INSERTED(13045) || c_tablePool.seize(tabPtr) == false)
     {
       jam();
+      if (ERROR_INSERTED(13045))
+      {
+        CLEAR_ERROR_INSERT_VALUE;
+      }
+
       subOpList.release(subOpPtr);
-      c_subscriptions.release(subPtr);
+      c_subscriptionPool.release(subPtr); // not yet in hash
       sendSubCreateRef(signal, senderRef, senderData,
                        SubCreateRef::OutOfTableRecords);
       return;
@@ -1841,6 +1851,7 @@ Suma::execGET_TABINFOREF(Signal* signal){
     }
     Ptr<Subscription> tmp1 = subPtr;
     subList.next(subPtr);
+    c_subscriptions.remove(tmp1);
     subList.release(tmp1);
   }
 
