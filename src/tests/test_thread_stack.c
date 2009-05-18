@@ -29,13 +29,19 @@ db_put (DB *db, my_t k, my_t v) {
 static void *
 do_inserts (void *arg) {
     struct db_inserter *mywork = (struct db_inserter *) arg;
-    if (verbose) printf("%lu:%d:do_inserts:start:%u-%u\n", (unsigned long)toku_pthread_self(), toku_os_gettid(), mywork->startno, mywork->endno);
+    if (verbose) {
+        toku_pthread_t self = toku_pthread_self();
+        printf("%lu:%d:do_inserts:start:%u-%u\n", *(unsigned long*)&self, toku_os_gettid(), mywork->startno, mywork->endno);
+    }
     my_t i;
     for (i=mywork->startno; i < mywork->endno; i++) {
         int r = db_put(mywork->db, htonl(i), i); assert(r == 0);
     }
     
-    if (verbose) printf("%lu:%d:do_inserts:end\n", (unsigned long)toku_pthread_self(), toku_os_gettid());
+    if (verbose) {
+        toku_pthread_t self = toku_pthread_self();
+        printf("%lu:%d:do_inserts:end\n", *(unsigned long*)&self, toku_os_gettid());
+    }
     if (mywork->do_exit) return arg;
     return 0;
 }

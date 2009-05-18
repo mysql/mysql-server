@@ -567,7 +567,7 @@ struct decompress_work {
 static void init_decompress_work(struct decompress_work *w,
                                  void *compress_ptr, u_int32_t compress_size,
                                  void *uncompress_ptr, u_int32_t uncompress_size) {
-    w->id = 0;
+    memset(&w->id, 0, sizeof(w->id));
     w->compress_ptr = compress_ptr; w->compress_size = compress_size;
     w->uncompress_ptr = uncompress_ptr; w->uncompress_size = uncompress_size;
 }

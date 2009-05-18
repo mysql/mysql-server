@@ -21,7 +21,7 @@ all: $(BINS)
 .PHONY: check
 check: $(BINS) $(RUNTARGETS);
 
-%.tdbrun: %$(BINSUF)
+%.tdbrun: %$(BINSUF) $(PTHREAD_LOCAL)
 	mkdir -p dir.$*
 ifeq ($(VGRIND),)
 	cd dir.$* && ../$< $(SUMMARIZE_CMD)

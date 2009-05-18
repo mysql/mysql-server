@@ -127,11 +127,11 @@ OFILES = \
 	$(LIBPORTABILITY) \
 #end
 
-$(TARGET_TDB): db-benchmark-test.c
+$(TARGET_TDB): db-benchmark-test.c $(PTHREAD_LOCAL)
 	$(CC) $< $(BIN_FROM_C_FLAGS) $(OFILES) $(LINK_MUST_BE_LAST)
-$(SCANSCAN_TDB): scanscan.c
+$(SCANSCAN_TDB): scanscan.c $(PTHREAD_LOCAL)
 	$(CC) $< $(BIN_FROM_C_FLAGS) $(OFILES) $(LINK_MUST_BE_LAST)
-$(SCANRACE_TDB): scanrace.c
+$(SCANRACE_TDB): scanrace.c $(PTHREAD_LOCAL)
 	$(CC) $< $(BIN_FROM_C_FLAGS) $(OFILES) $(LINK_MUST_BE_LAST)
 
 else
@@ -141,14 +141,14 @@ $(TOKUDB): $(TOKUROOT)lib/$(TOKUDB)
 	cp $< $@
 $(TOKUROOT)lib/$(TOKUDB):
 	cd $(@D) && $(MAKE) $(@F).install
-$(TARGET_TDB) $(SCANSCAN_TDB) $(SCANRACE_TDB): $(TOKUDB)
+$(TARGET_TDB) $(SCANSCAN_TDB) $(SCANRACE_TDB): $(TOKUDB) $(PTHREAD_LOCAL)
 endif
 $(TARGET_TDB) $(SCANSCAN_TDB) $(SCANRACE_TDB): RPATH_DIRS=$(dir $(TDB_DLINK_FILES))
-$(TARGET_TDB): db-benchmark-test.c
+$(TARGET_TDB): db-benchmark-test.c $(PTHREAD_LOCAL)
 	$(CC) $< $(BIN_FROM_C_FLAGS) $(LINK_MUST_BE_LAST)
-$(SCANSCAN_TDB): scanscan.c
+$(SCANSCAN_TDB): scanscan.c $(PTHREAD_LOCAL)
 	$(CC) $< $(BIN_FROM_C_FLAGS) $(LINK_MUST_BE_LAST)
-$(SCANRACE_TDB): scanrace.c
+$(SCANRACE_TDB): scanrace.c $(PTHREAD_LOCAL)
 	$(CC) $< $(BIN_FROM_C_FLAGS) $(LINK_MUST_BE_LAST)
 endif
 
