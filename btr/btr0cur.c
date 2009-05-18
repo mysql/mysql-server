@@ -1631,6 +1631,8 @@ btr_cur_update_alloc_zip(
 	buf_block_t*	block,	/* in/out: buffer page */
 	dict_index_t*	index,	/* in: the index corresponding to the block */
 	ulint		length,	/* in: size needed */
+	ibool		create,	/* in: TRUE=delete-and-insert,
+				FALSE=update-in-place */
 	mtr_t*		mtr)	/* in: mini-transaction */
 {
 	ut_a(page_zip == buf_block_get_page_zip(block));
@@ -1638,7 +1640,7 @@ btr_cur_update_alloc_zip(
 	ut_ad(!dict_index_is_ibuf(index));
 
 	if (page_zip_available(page_zip, dict_index_is_clust(index),
-			       length, 0)) {
+			       length, create)) {
 		return(TRUE);
 	}
 
@@ -1665,7 +1667,7 @@ btr_cur_update_alloc_zip(
 	the free space available on the page. */
 
 	if (!page_zip_available(page_zip, dict_index_is_clust(index),
-				length, 0)) {
+				length, create)) {
 		/* Out of space: reset the free bits. */
 		if (!dict_index_is_clust(index)
 		    && page_is_leaf(buf_block_get_frame(block))) {
@@ -1730,7 +1732,7 @@ btr_cur_update_in_place(
 	/* Check that enough space is available on the compressed page. */
 	if (UNIV_LIKELY_NULL(page_zip)
 	    && !btr_cur_update_alloc_zip(page_zip, block, index,
-					 rec_offs_size(offsets), mtr)) {
+					 rec_offs_size(offsets), FALSE, mtr)) {
 		return(DB_ZIP_OVERFLOW);
 	}
 
@@ -1914,7 +1916,7 @@ any_extern:
 
 	if (UNIV_LIKELY_NULL(page_zip)
 	    && !btr_cur_update_alloc_zip(page_zip, block, index,
-					 new_rec_size, mtr)) {
+					 new_rec_size, TRUE, mtr)) {
 		err = DB_ZIP_OVERFLOW;
 		goto err_exit;
 	}
