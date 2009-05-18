@@ -3314,7 +3314,7 @@ static int test_plugin_options(MEM_ROOT *tmp_root, struct st_plugin_int *tmp,
       varname= (char*) alloc_root(mem_root, len);
       strxmov(varname, tmp->name.str, "-", o->name, NullS);
       my_casedn_str(&my_charset_latin1, varname);
-      convert_dash_to_underscore(varname, len);
+      convert_dash_to_underscore(varname, len-1);
       v= new (mem_root) sys_var_pluginvar(varname, o);
     }
     DBUG_ASSERT(v); /* check that an object was actually constructed */
