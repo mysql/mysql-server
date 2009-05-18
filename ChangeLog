@@ -1,3 +1,9 @@
+2009-05-18	The InnoDB Team
+
+	* btr/btr0cur.c:
+	Correctly estimate the space needed on the compressed page when
+	performing an update by delete-and-insert.
+
 2009-05-14	The InnoDB Team
 
 	* handler/ha_innodb.cc, include/srv0srv.h,
