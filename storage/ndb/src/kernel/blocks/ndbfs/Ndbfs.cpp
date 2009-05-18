@@ -248,6 +248,7 @@ Ndbfs::execREAD_CONFIG_REQ(Signal* signal)
   Uint32 noIdleFiles = 27;
 
   ndb_mgm_get_int_parameter(p, CFG_DB_INITIAL_OPEN_FILES, &noIdleFiles);
+  // Make sure at least "noIdleFiles" files can be created
   if (noIdleFiles > m_maxFiles && m_maxFiles != 0)
     m_maxFiles = noIdleFiles;
 
