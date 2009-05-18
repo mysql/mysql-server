@@ -419,10 +419,10 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "HostName",
     DB_TOKEN,
     "Name of computer for this node",
-    ConfigInfo::CI_INTERNAL,
+    ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_STRING,
-    "localhost",
+    UNDEFINED,
     0, 0 },
 
   {
@@ -480,7 +480,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    MANDATORY,
+    "2",
     "1",
     "4" },
 
@@ -1079,7 +1079,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    "0",
+    UNDEFINED,
     "20",
     STR_VALUE(MAX_INT_RNIL) },
   
@@ -1764,10 +1764,10 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "HostName",
     API_TOKEN,
     "Name of computer for this node",
-    ConfigInfo::CI_INTERNAL,
+    ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_STRING,
-    "",
+    UNDEFINED,
     0, 0 },
 
   {
@@ -1936,10 +1936,10 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "HostName",
     MGM_TOKEN,
     "Name of computer for this node",
-    ConfigInfo::CI_INTERNAL,
+    ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_STRING,
-    "",
+    UNDEFINED,
     0, 0 },
 
   {
