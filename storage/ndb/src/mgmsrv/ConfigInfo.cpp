@@ -3175,8 +3175,7 @@ void ConfigInfo::print_impl(const char* section_filter,
     default_section_name.assfmt("%s %s",
                                 section_alias ? section_alias : s,
                                 "DEFAULT");
-    printer.section_start(s, default_section_name.c_str(),
-                          sectionPrimaryKeys(s));
+    printer.section_start(s, default_section_name.c_str());
 
     /* Iterate through all parameters in section */
     for (const char* n = it.first(); n != NULL; n = it.next()) {
