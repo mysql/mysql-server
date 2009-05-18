@@ -5810,7 +5810,8 @@ void Item_ref::print(String *str, enum_query_type query_type)
         !table_name && name && alias_name_used)
     {
       THD *thd= current_thd;
-      append_identifier(thd, str, name, (uint) strlen(name));
+      append_identifier(thd, str, (*ref)->real_item()->name,
+                        (*ref)->real_item()->name_length);
     }
     else
       (*ref)->print(str, query_type);
