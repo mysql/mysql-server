@@ -566,6 +566,7 @@ UNIV_INTERN
 ulint
 buf_get_latched_pages_number(void);
 /*==============================*/
+				/* out: number of latched pages */
 #endif /* UNIV_DEBUG */
 /*************************************************************************
 Returns the number of pending buf pool ios. */
@@ -573,6 +574,7 @@ UNIV_INTERN
 ulint
 buf_get_n_pending_ios(void);
 /*=======================*/
+				/* out: number of pending I/O operations */
 /*************************************************************************
 Prints info of the buffer i/o. */
 UNIV_INTERN
@@ -587,6 +589,7 @@ UNIV_INTERN
 ulint
 buf_get_modified_ratio_pct(void);
 /*============================*/
+				/* out: modified page percentage ratio */
 /**************************************************************************
 Refreshes the statistics used to print per-second averages. */
 UNIV_INTERN
@@ -594,11 +597,12 @@ void
 buf_refresh_io_stats(void);
 /*======================*/
 /*************************************************************************
-Checks that all file pages in the buffer are in a replaceable state. */
+Asserts that all file pages in the buffer are in a replaceable state. */
 UNIV_INTERN
 ibool
 buf_all_freed(void);
 /*===============*/
+				/* out: TRUE */
 /*************************************************************************
 Checks that there currently are no pending i/o-operations for the buffer
 pool. */
@@ -1018,6 +1022,7 @@ UNIV_INTERN
 ulint
 buf_get_free_list_len(void);
 /*=======================*/
+				/* out: length of the free list */
 #endif /* !UNIV_HOTBACKUP */
 
 
