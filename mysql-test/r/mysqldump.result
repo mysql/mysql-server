@@ -1991,7 +1991,7 @@ SET character_set_client = utf8;
   `a` varchar(30)
 ) ENGINE=MyISAM */;
 SET character_set_client = @saved_cs_client;
-/*!50001 DROP TABLE `v2`*/;
+/*!50001 DROP TABLE IF EXISTS `v2`*/;
 /*!50001 DROP VIEW IF EXISTS `v2`*/;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;
@@ -2085,7 +2085,7 @@ SET character_set_client = utf8;
   `a` int(11)
 ) ENGINE=MyISAM */;
 SET character_set_client = @saved_cs_client;
-/*!50001 DROP TABLE `v1`*/;
+/*!50001 DROP TABLE IF EXISTS `v1`*/;
 /*!50001 DROP VIEW IF EXISTS `v1`*/;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;
@@ -2159,7 +2159,7 @@ SET character_set_client = utf8;
   `a` varchar(30)
 ) ENGINE=MyISAM */;
 SET character_set_client = @saved_cs_client;
-/*!50001 DROP TABLE `v2`*/;
+/*!50001 DROP TABLE IF EXISTS `v2`*/;
 /*!50001 DROP VIEW IF EXISTS `v2`*/;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;
@@ -2293,7 +2293,7 @@ SET character_set_client = utf8;
   `c` varchar(30)
 ) ENGINE=MyISAM */;
 SET character_set_client = @saved_cs_client;
-/*!50001 DROP TABLE `v1`*/;
+/*!50001 DROP TABLE IF EXISTS `v1`*/;
 /*!50001 DROP VIEW IF EXISTS `v1`*/;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;
@@ -2307,7 +2307,7 @@ SET character_set_client = @saved_cs_client;
 /*!50001 SET character_set_client      = @saved_cs_client */;
 /*!50001 SET character_set_results     = @saved_cs_results */;
 /*!50001 SET collation_connection      = @saved_col_connection */;
-/*!50001 DROP TABLE `v2`*/;
+/*!50001 DROP TABLE IF EXISTS `v2`*/;
 /*!50001 DROP VIEW IF EXISTS `v2`*/;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;
@@ -2321,7 +2321,7 @@ SET character_set_client = @saved_cs_client;
 /*!50001 SET character_set_client      = @saved_cs_client */;
 /*!50001 SET character_set_results     = @saved_cs_results */;
 /*!50001 SET collation_connection      = @saved_col_connection */;
-/*!50001 DROP TABLE `v3`*/;
+/*!50001 DROP TABLE IF EXISTS `v3`*/;
 /*!50001 DROP VIEW IF EXISTS `v3`*/;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;
@@ -3054,7 +3054,7 @@ SET character_set_client = utf8;
 SET character_set_client = @saved_cs_client;
 
 USE `test`;
-/*!50001 DROP TABLE `v0`*/;
+/*!50001 DROP TABLE IF EXISTS `v0`*/;
 /*!50001 DROP VIEW IF EXISTS `v0`*/;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;
@@ -3068,7 +3068,7 @@ USE `test`;
 /*!50001 SET character_set_client      = @saved_cs_client */;
 /*!50001 SET character_set_results     = @saved_cs_results */;
 /*!50001 SET collation_connection      = @saved_col_connection */;
-/*!50001 DROP TABLE `v1`*/;
+/*!50001 DROP TABLE IF EXISTS `v1`*/;
 /*!50001 DROP VIEW IF EXISTS `v1`*/;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;
@@ -3082,7 +3082,7 @@ USE `test`;
 /*!50001 SET character_set_client      = @saved_cs_client */;
 /*!50001 SET character_set_results     = @saved_cs_results */;
 /*!50001 SET collation_connection      = @saved_col_connection */;
-/*!50001 DROP TABLE `v2`*/;
+/*!50001 DROP TABLE IF EXISTS `v2`*/;
 /*!50001 DROP VIEW IF EXISTS `v2`*/;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;
@@ -3320,7 +3320,7 @@ insert into t values(5, 51);
 create view v1 as select qty, price, qty*price as value from t;
 create view v2 as select qty from v1;
 mysqldump {
-/*!50001 DROP TABLE `v1`*/;
+/*!50001 DROP TABLE IF EXISTS `v1`*/;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;
 /*!50001 SET @saved_col_connection     = @@collation_connection */;
@@ -3335,7 +3335,7 @@ mysqldump {
 /*!50001 SET collation_connection      = @saved_col_connection */;
 
 } mysqldump {
-/*!50001 DROP TABLE `v2`*/;
+/*!50001 DROP TABLE IF EXISTS `v2`*/;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;
 /*!50001 SET @saved_col_connection     = @@collation_connection */;
@@ -3434,7 +3434,7 @@ SET character_set_client = utf8;
 SET character_set_client = @saved_cs_client;
 
 USE `mysqldump_test_db`;
-/*!50001 DROP TABLE `v1`*/;
+/*!50001 DROP TABLE IF EXISTS `v1`*/;
 /*!50001 DROP VIEW IF EXISTS `v1`*/;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;
@@ -3496,7 +3496,7 @@ SET character_set_client = @saved_cs_client;
 USE `mysqldump_tables`;
 
 USE `mysqldump_views`;
-/*!50001 DROP TABLE `nasishnasifu`*/;
+/*!50001 DROP TABLE IF EXISTS `nasishnasifu`*/;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;
 /*!50001 SET @saved_col_connection     = @@collation_connection */;
@@ -3885,7 +3885,7 @@ SET character_set_client = utf8;
   `c` int(11)
 ) ENGINE=MyISAM */;
 SET character_set_client = @saved_cs_client;
-/*!50001 DROP TABLE `v2`*/;
+/*!50001 DROP TABLE IF EXISTS `v2`*/;
 /*!50001 DROP VIEW IF EXISTS `v2`*/;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;
@@ -4304,7 +4304,7 @@ SET character_set_client = utf8;
 SET character_set_client = @saved_cs_client;
 
 USE `mysqldump_test_db`;
-/*!50001 DROP TABLE `v1`*/;
+/*!50001 DROP TABLE IF EXISTS `v1`*/;
 /*!50001 DROP VIEW IF EXISTS `v1`*/;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;
@@ -4430,6 +4430,15 @@ DROP DATABASE mysqldump_test_db;
 
 # -- End of test case for Bug#32538.
 
+#
+# Bug#37377 Incorrect DROP TABLE statement in dump of a VIEW using --tab
+#
+create table t1 (a int);
+create view v1 as select a from t1;
+drop view v1;
+drop table t1;
+drop view v1;
+drop table t1;
 SET @@GLOBAL.CONCURRENT_INSERT = @OLD_CONCURRENT_INSERT;
 #
 # End of 5.1 tests
