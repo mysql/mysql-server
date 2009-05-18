@@ -91,7 +91,7 @@ public:
     COND_AND_EQ_MASK = 8,  ///< (bit & mask) == mask
     COND_AND_NE_MASK = 9,  ///< (bit & mask) != mask (incl. NULL)
     COND_AND_EQ_ZERO = 10, ///< (bit & mask) == 0
-    COND_AND_NE_ZERO = 11, ///< (bit & mask) != 0 (incl. NULL)
+    COND_AND_NE_ZERO = 11  ///< (bit & mask) != 0 (incl. NULL)
   };
 
   /** 
