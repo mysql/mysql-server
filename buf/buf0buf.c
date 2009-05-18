@@ -3275,6 +3275,7 @@ UNIV_INTERN
 ibool
 buf_validate(void)
 /*==============*/
+				/* out: TRUE */
 {
 	buf_page_t*	b;
 	buf_chunk_t*	chunk;
