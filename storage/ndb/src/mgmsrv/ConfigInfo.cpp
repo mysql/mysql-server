@@ -1220,7 +1220,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     DB_TOKEN,
     "Data directory for this node",
     ConfigInfo::CI_USED,
-    false,
+    CI_CHECK_WRITABLE,
     ConfigInfo::CI_STRING,
     MYSQLCLUSTERDIR,
     0, 0 },
@@ -1231,7 +1231,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     DB_TOKEN,
     "Path to directory where the "DB_TOKEN_PRINT" node stores its data (directory must exist)",
     ConfigInfo::CI_USED,
-    false,
+    CI_CHECK_WRITABLE,
     ConfigInfo::CI_STRING,
     UNDEFINED,
     0, 0 },
@@ -1365,7 +1365,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     DB_TOKEN,
     "Path to where to store backups",
     ConfigInfo::CI_USED,
-    false,
+    CI_CHECK_WRITABLE,
     ConfigInfo::CI_STRING,
     UNDEFINED,
     0, 0 },
@@ -1565,7 +1565,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     DB_TOKEN,
     "Path to directory where the "DB_TOKEN_PRINT" node stores its disk-data-files",
     ConfigInfo::CI_USED,
-    false,
+    CI_CHECK_WRITABLE,
     ConfigInfo::CI_STRING,
     UNDEFINED,
     0, 0 },
@@ -1819,7 +1819,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     MGM_TOKEN,
     "Data directory for this node",
     ConfigInfo::CI_USED,
-    false,
+    CI_CHECK_WRITABLE,
     ConfigInfo::CI_STRING,
     MYSQLCLUSTERDIR,
     0, 0 },
@@ -2598,7 +2598,7 @@ ConfigInfo::ConfigInfo()
     pinfo.put("Id",          param._paramId);
     pinfo.put("Fname",       param._fname);
     pinfo.put("Description", param._description);
-    pinfo.put("Updateable",  param._updateable);
+    pinfo.put("Flags",       param._flags);
     pinfo.put("Type",        param._type);
     pinfo.put("Status",      param._status);
 
@@ -2900,6 +2900,11 @@ ConfigInfo::getStatus(const Properties * section, const char* fname) const {
   return (ConfigInfo::Status) getInfoInt(section, fname, "Status");
 }
 
+Uint32
+ConfigInfo::getFlags(const Properties* section, const char* fname) const {
+  return getInfoInt(section, fname, "Flags");
+}
+
 /****************************************************************************
  * Printers
  ****************************************************************************/
@@ -3110,6 +3115,16 @@ public:
     case ConfigInfo::CI_SECTION:
       return; // Don't print anything for the section itself
     }
+
+    // Get "check" flag(s)
+    Uint32 flags = info.getFlags(section, param_name);
+    buf.clear();
+    if (flags & ConfigInfo::CI_CHECK_WRITABLE)
+      buf.append("writable");
+
+    if (buf.length())
+      pairs.put("check", buf.c_str());
+
     print_xml("param", pairs);
   }
 };
