@@ -49,6 +49,11 @@ public:
 		     CI_INTERNAL         ///< Not configurable by the user
   };
 
+  enum Flags {
+    CI_UPDATEABLE = 1, // Parameter can be updated
+    CI_CHECK_WRITABLE = 2 // Path given by parameter should be writable
+  };
+
   /**
    *   Entry for one configuration parameter
    */
@@ -58,7 +63,7 @@ public:
     const char*    _section;
     const char*    _description;
     Status         _status;
-    bool           _updateable;    
+    Uint32         _flags;
     Type           _type;          
     const char*    _default;
     const char*    _min;
@@ -120,6 +125,7 @@ public:
   Uint64       getMin(const Properties * section, const char* fname) const;
   Uint64       getMax(const Properties * section, const char* fname) const;
   Uint64 getDefault(const Properties * section, const char* fname) const;
+  Uint32 getFlags(const Properties* section, const char* fname) const;
   const char* getDefaultString(const Properties * section,
                                const char* fname) const;
   bool getMandatory(const Properties * section, const char* fname) const;

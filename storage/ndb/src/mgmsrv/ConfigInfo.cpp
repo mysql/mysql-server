@@ -1220,7 +1220,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     DB_TOKEN,
     "Data directory for this node",
     ConfigInfo::CI_USED,
-    false,
+    CI_CHECK_WRITABLE,
     ConfigInfo::CI_STRING,
     MYSQLCLUSTERDIR,
     0, 0 },
@@ -1231,7 +1231,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     DB_TOKEN,
     "Path to directory where the "DB_TOKEN_PRINT" node stores its data (directory must exist)",
     ConfigInfo::CI_USED,
-    false,
+    CI_CHECK_WRITABLE,
     ConfigInfo::CI_STRING,
     UNDEFINED,
     0, 0 },
@@ -1365,7 +1365,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     DB_TOKEN,
     "Path to where to store backups",
     ConfigInfo::CI_USED,
-    false,
+    CI_CHECK_WRITABLE,
     ConfigInfo::CI_STRING,
     UNDEFINED,
     0, 0 },
@@ -1565,7 +1565,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     DB_TOKEN,
     "Path to directory where the "DB_TOKEN_PRINT" node stores its disk-data-files",
     ConfigInfo::CI_USED,
-    false,
+    CI_CHECK_WRITABLE,
     ConfigInfo::CI_STRING,
     UNDEFINED,
     0, 0 },
@@ -1819,7 +1819,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     MGM_TOKEN,
     "Data directory for this node",
     ConfigInfo::CI_USED,
-    false,
+    CI_CHECK_WRITABLE,
     ConfigInfo::CI_STRING,
     MYSQLCLUSTERDIR,
     0, 0 },
@@ -2598,7 +2598,7 @@ ConfigInfo::ConfigInfo()
     pinfo.put("Id",          param._paramId);
     pinfo.put("Fname",       param._fname);
     pinfo.put("Description", param._description);
-    pinfo.put("Updateable",  param._updateable);
+    pinfo.put("Flags",       param._flags);
     pinfo.put("Type",        param._type);
     pinfo.put("Status",      param._status);
 
@@ -2855,6 +2855,25 @@ ConfigInfo::getAlias(const char * section) {
   return 0;
 }
 
+const ConfigInfo::AliasPair
+section2PrimaryKeys[]={
+  {API_TOKEN, "NodeId"},
+  {DB_TOKEN,  "NodeId"},
+  {MGM_TOKEN, "NodeId"},
+  {"TCP", "NodeId1,NodeId2"},
+  {"SCI", "NodeId1,NodeId2"},
+  {"SHM", "NodeId1,NodeId2"},
+  {0, 0}
+};
+
+static const char*
+sectionPrimaryKeys(const char * name) {
+  for (int i = 0; section2PrimaryKeys[i].name != 0; i++)
+    if(!strcasecmp(name, section2PrimaryKeys[i].name))
+      return section2PrimaryKeys[i].alias;
+  return 0;
+}
+
 bool
 ConfigInfo::verify(const Properties * section, const char* fname, 
 		   Uint64 value) const {
@@ -2881,6 +2900,11 @@ ConfigInfo::getStatus(const Properties * section, const char* fname) const {
   return (ConfigInfo::Status) getInfoInt(section, fname, "Status");
 }
 
+Uint32
+ConfigInfo::getFlags(const Properties* section, const char* fname) const {
+  return getInfoInt(section, fname, "Flags");
+}
+
 /****************************************************************************
  * Printers
  ****************************************************************************/
@@ -2897,7 +2921,8 @@ public:
   virtual void start() {}
   virtual void end() {}
 
-  virtual void section_start(const char* name, const char* alias) {}
+  virtual void section_start(const char* name, const char* alias,
+                             const char* primarykeys = NULL) {}
   virtual void section_end(const char* name) {}
 
   virtual void parameter(const char* section_name,
@@ -2912,7 +2937,8 @@ public:
   PrettyPrinter(FILE* out = stdout) : ConfigPrinter(out) {}
   virtual ~PrettyPrinter() {}
 
-  virtual void section_start(const char* name, const char* alias) {
+  virtual void section_start(const char* name, const char* alias,
+                             const char* primarykeys = NULL) {
     fprintf(m_out, "****** %s ******\n\n", name);
   }
 
@@ -3021,9 +3047,12 @@ public:
     print_xml("/configvariables", pairs, false);
   }
 
-  virtual void section_start(const char* name, const char* alias) {
+  virtual void section_start(const char* name, const char* alias,
+                             const char* primarykeys = NULL) {
     Properties pairs;
     pairs.put("name", alias ? alias : name);
+    if (primarykeys)
+      pairs.put("primarykeys", primarykeys);
     print_xml("section", pairs, false);
     m_indent++;
   }
@@ -3086,6 +3115,16 @@ public:
     case ConfigInfo::CI_SECTION:
       return; // Don't print anything for the section itself
     }
+
+    // Get "check" flag(s)
+    Uint32 flags = info.getFlags(section, param_name);
+    buf.clear();
+    if (flags & ConfigInfo::CI_CHECK_WRITABLE)
+      buf.append("writable");
+
+    if (buf.length())
+      pairs.put("check", buf.c_str());
+
     print_xml("param", pairs);
   }
 };
@@ -3129,8 +3168,9 @@ void ConfigInfo::print_impl(const char* section_filter,
     if (is_internal_section(sec))
       continue; // Skip whole section
 
-    printer.section_start(s, nameToAlias(s));
-
+    const char* section_alias = nameToAlias(s);
+    printer.section_start(s, section_alias, sectionPrimaryKeys(s));
+ 
     /* Iterate through all parameters in section */
     Properties::Iterator it(sec);
     for (const char* n = it.first(); n != NULL; n = it.next()) {
@@ -3141,6 +3181,27 @@ void ConfigInfo::print_impl(const char* section_filter,
       printer.parameter(s, sec, n, *this);
     }
     printer.section_end(s);
+
+    // Print [<section> DEFAULT] for all sections but SYSTEM
+    if (strcmp(s, "SYSTEM") == 0)
+      continue; // Skip SYSTEM section
+
+    BaseString default_section_name;
+    default_section_name.assfmt("%s %s",
+                                section_alias ? section_alias : s,
+                                "DEFAULT");
+    printer.section_start(s, default_section_name.c_str());
+
+    /* Iterate through all parameters in section */
+    for (const char* n = it.first(); n != NULL; n = it.next()) {
+      // Skip entries with different F- and P-names
+      if (getStatus(sec, n) == ConfigInfo::CI_INTERNAL) continue;
+      if (getStatus(sec, n) == ConfigInfo::CI_DEPRICATED) continue;
+      if (getStatus(sec, n) == ConfigInfo::CI_NOTIMPLEMENTED) continue;
+      printer.parameter(s, sec, n, *this);
+    }
+    printer.section_end(s);
+
   }
   printer.end();
 }
