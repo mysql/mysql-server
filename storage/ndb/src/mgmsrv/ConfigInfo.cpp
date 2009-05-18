@@ -2855,6 +2855,25 @@ ConfigInfo::getAlias(const char * section) {
   return 0;
 }
 
+const ConfigInfo::AliasPair
+section2PrimaryKeys[]={
+  {API_TOKEN, "NodeId"},
+  {DB_TOKEN,  "NodeId"},
+  {MGM_TOKEN, "NodeId"},
+  {"TCP", "NodeId1,NodeId2"},
+  {"SCI", "NodeId1,NodeId2"},
+  {"SHM", "NodeId1,NodeId2"},
+  {0, 0}
+};
+
+static const char*
+sectionPrimaryKeys(const char * name) {
+  for (int i = 0; section2PrimaryKeys[i].name != 0; i++)
+    if(!strcasecmp(name, section2PrimaryKeys[i].name))
+      return section2PrimaryKeys[i].alias;
+  return 0;
+}
+
 bool
 ConfigInfo::verify(const Properties * section, const char* fname, 
 		   Uint64 value) const {
@@ -2897,7 +2916,8 @@ public:
   virtual void start() {}
   virtual void end() {}
 
-  virtual void section_start(const char* name, const char* alias) {}
+  virtual void section_start(const char* name, const char* alias,
+                             const char* primarykeys = NULL) {}
   virtual void section_end(const char* name) {}
 
   virtual void parameter(const char* section_name,
@@ -2912,7 +2932,8 @@ public:
   PrettyPrinter(FILE* out = stdout) : ConfigPrinter(out) {}
   virtual ~PrettyPrinter() {}
 
-  virtual void section_start(const char* name, const char* alias) {
+  virtual void section_start(const char* name, const char* alias,
+                             const char* primarykeys = NULL) {
     fprintf(m_out, "****** %s ******\n\n", name);
   }
 
@@ -3021,9 +3042,12 @@ public:
     print_xml("/configvariables", pairs, false);
   }
 
-  virtual void section_start(const char* name, const char* alias) {
+  virtual void section_start(const char* name, const char* alias,
+                             const char* primarykeys = NULL) {
     Properties pairs;
     pairs.put("name", alias ? alias : name);
+    if (primarykeys)
+      pairs.put("primarykeys", primarykeys);
     print_xml("section", pairs, false);
     m_indent++;
   }
@@ -3129,7 +3153,7 @@ void ConfigInfo::print_impl(const char* section_filter,
     if (is_internal_section(sec))
       continue; // Skip whole section
 
-    printer.section_start(s, nameToAlias(s));
+    printer.section_start(s, nameToAlias(s), sectionPrimaryKeys(s));
 
     /* Iterate through all parameters in section */
     Properties::Iterator it(sec);
