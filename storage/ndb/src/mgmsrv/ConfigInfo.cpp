@@ -3153,8 +3153,9 @@ void ConfigInfo::print_impl(const char* section_filter,
     if (is_internal_section(sec))
       continue; // Skip whole section
 
-    printer.section_start(s, nameToAlias(s), sectionPrimaryKeys(s));
-
+    const char* section_alias = nameToAlias(s);
+    printer.section_start(s, section_alias, sectionPrimaryKeys(s));
+ 
     /* Iterate through all parameters in section */
     Properties::Iterator it(sec);
     for (const char* n = it.first(); n != NULL; n = it.next()) {
@@ -3165,6 +3166,28 @@ void ConfigInfo::print_impl(const char* section_filter,
       printer.parameter(s, sec, n, *this);
     }
     printer.section_end(s);
+
+    // Print [<section> DEFAULT] for all sections but SYSTEM
+    if (strcmp(s, "SYSTEM") == 0)
+      continue; // Skip SYSTEM section
+
+    BaseString default_section_name;
+    default_section_name.assfmt("%s %s",
+                                section_alias ? section_alias : s,
+                                "DEFAULT");
+    printer.section_start(s, default_section_name.c_str(),
+                          sectionPrimaryKeys(s));
+
+    /* Iterate through all parameters in section */
+    for (const char* n = it.first(); n != NULL; n = it.next()) {
+      // Skip entries with different F- and P-names
+      if (getStatus(sec, n) == ConfigInfo::CI_INTERNAL) continue;
+      if (getStatus(sec, n) == ConfigInfo::CI_DEPRICATED) continue;
+      if (getStatus(sec, n) == ConfigInfo::CI_NOTIMPLEMENTED) continue;
+      printer.parameter(s, sec, n, *this);
+    }
+    printer.section_end(s);
+
   }
   printer.end();
 }
