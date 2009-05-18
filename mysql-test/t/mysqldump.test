@@ -1948,6 +1948,29 @@ DROP DATABASE mysqldump_test_db;
 --echo # -- End of test case for Bug#32538.
 --echo
 
+--echo #
+--echo # Bug#37377 Incorrect DROP TABLE statement in dump of a VIEW using --tab
+--echo #
+
+create table t1 (a int);
+create view v1 as select a from t1;
+
+--exec $MYSQL_DUMP --skip-comments --tab=$MYSQLTEST_VARDIR/tmp/ test t1 v1
+
+drop view v1;
+drop table t1;
+
+--exec $MYSQL test < $MYSQLTEST_VARDIR/tmp/t1.sql
+--exec $MYSQL test < $MYSQLTEST_VARDIR/tmp/v1.sql
+
+drop view v1;
+drop table t1;
+
+--remove_file $MYSQLTEST_VARDIR/tmp/t1.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/t1.txt
+--remove_file $MYSQLTEST_VARDIR/tmp/v1.sql
+
+
 # We reset concurrent_inserts value to whatever it was at the start of the test
 # This line must be executed _after_ all test cases.
 SET @@GLOBAL.CONCURRENT_INSERT = @OLD_CONCURRENT_INSERT;
