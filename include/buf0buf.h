@@ -529,6 +529,7 @@ UNIV_INTERN
 ibool
 buf_validate(void);
 /*==============*/
+				/* out: TRUE */
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 #if defined UNIV_DEBUG_PRINT || defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /*************************************************************************
