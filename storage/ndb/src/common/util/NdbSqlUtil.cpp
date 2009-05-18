@@ -1026,7 +1026,7 @@ NdbSqlUtil::maskBit(const void* data, unsigned dataLen, const void* mask, unsign
 
     return 0;
   }
-};
+}
 
 
 // check charset
