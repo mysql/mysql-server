@@ -2143,9 +2143,6 @@ bool Item_func_rand::fix_fields(THD *thd,Item **ref)
     if (!rand && !(rand= (struct rand_struct*)
                    thd->stmt_arena->alloc(sizeof(*rand))))
       return TRUE;
-
-    if (args[0]->const_item())
-      seed_random (args[0]);
   }
   else
   {
@@ -2175,8 +2172,21 @@ void Item_func_rand::update_used_tables()
 double Item_func_rand::val_real()
 {
   DBUG_ASSERT(fixed == 1);
-  if (arg_count && !args[0]->const_item())
-    seed_random (args[0]);
+  if (arg_count)
+  {
+    if (!args[0]->const_item())
+      seed_random(args[0]);
+    else if (first_eval)
+    {
+      /*
+        Constantness of args[0] may be set during JOIN::optimize(), if arg[0]
+        is a field item of "constant" table. Thus, we have to evaluate
+        seed_random() for constant arg there but not at the fix_fields method.
+      */
+      first_eval= FALSE;
+      seed_random(args[0]);
+    }
+  }
   return my_rnd(rand);
 }
 

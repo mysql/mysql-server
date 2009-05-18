@@ -696,14 +696,16 @@ public:
 class Item_func_rand :public Item_real_func
 {
   struct rand_struct *rand;
+  bool first_eval; // TRUE if val_real() is called 1st time
 public:
-  Item_func_rand(Item *a) :Item_real_func(a), rand(0) {}
+  Item_func_rand(Item *a) :Item_real_func(a), rand(0), first_eval(TRUE) {}
   Item_func_rand()	  :Item_real_func() {}
   double val_real();
   const char *func_name() const { return "rand"; }
   bool const_item() const { return 0; }
   void update_used_tables();
   bool fix_fields(THD *thd, Item **ref);
+  void cleanup() { first_eval= TRUE; Item_real_func::cleanup(); }
 private:
   void seed_random (Item * val);  
 };
