@@ -21,34 +21,19 @@ If this program compiles, then Solaris libc atomic funcions are available.
 
 Created April 18, 2009 Vasil Dimov
 *****************************************************************************/
-
-#ifdef __cplusplus
-extern "C"
-#endif
-int atomic_cas_ulong();
-
-#ifdef __cplusplus
-extern "C"
-#endif
-int atomic_cas_32();
-
-#ifdef __cplusplus
-extern "C"
-#endif
-int atomic_cas_64();
-
-#ifdef __cplusplus
-extern "C"
-#endif
-int atomic_add_long();
+#include <atomic.h>
 
 int
 main(int argc, char** argv)
 {
-	atomic_cas_ulong();
-	atomic_cas_32();
-	atomic_cas_64();
-	atomic_add_long();
+	ulong_t		ulong	= 0;
+	uint32_t	uint32	= 0;
+	uint64_t	uint64	= 0;
+
+	atomic_cas_ulong(&ulong, 0, 1);
+	atomic_cas_32(&uint32, 0, 1);
+	atomic_cas_64(&uint64, 0, 1);
+	atomic_add_long(&ulong, 0);
 
 	return(0);
 }
