@@ -64,6 +64,7 @@ Wait for a work item to appear in the queue. */
 UNIV_INTERN
 void*
 ib_wqueue_wait(
+/*===========*/
 				/* out: work item */
 	ib_wqueue_t*	wq);	/* in: work queue */
 
