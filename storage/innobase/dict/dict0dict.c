@@ -2616,7 +2616,7 @@ scan_more:
 		} else if (quote) {
 			/* Within quotes: do not look for
 			starting quotes or comments. */
-		} else if (*sptr == '"' || *sptr == '`') {
+		} else if (*sptr == '"' || *sptr == '`' || *sptr == '\'') {
 			/* Starting quote: remember the quote character. */
 			quote = *sptr;
 		} else if (*sptr == '#'
