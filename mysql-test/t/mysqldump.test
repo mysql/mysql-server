@@ -1971,8 +1971,27 @@ drop table t1;
 --remove_file $MYSQLTEST_VARDIR/tmp/v1.sql
 
 
-# We reset concurrent_inserts value to whatever it was at the start of the test
-# This line must be executed _after_ all test cases.
+--echo #
+--echo # Bug#28071 mysqlimport does not quote or escape table name
+--echo #
+
+--disable_warnings
+drop table if exists `load`;
+--enable_warnings
+create table `load` (a varchar(255));
+
+--copy_file std_data/words.dat $MYSQLTEST_VARDIR/tmp/load.txt
+
+--exec $MYSQL_IMPORT --ignore test $MYSQLTEST_VARDIR/tmp/load.txt
+
+select count(*) from `load`;
+
+--remove_file $MYSQLTEST_VARDIR/tmp/load.txt
+
+drop table `load`;
+
+# We reset concurrent_inserts value to whatever it was at the start of the
+# test This line must be executed _after_ all test cases.
 SET @@GLOBAL.CONCURRENT_INSERT = @OLD_CONCURRENT_INSERT;
 
 
