@@ -285,7 +285,6 @@ computer. Bigger computers need bigger values. Value 0 will disable the
 concurrency check. */
 
 ulong	srv_thread_concurrency	= 0;
-ulong	srv_commit_concurrency	= 0;
 
 os_fast_mutex_t	srv_conc_mutex;		/* this mutex protects srv_conc data
 					structures */
