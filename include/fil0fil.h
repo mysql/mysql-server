@@ -698,7 +698,7 @@ ulint
 fil_page_get_next(
 /*==============*/
 				/* out: FIL_PAGE_NEXT */
-	const byte*	page):	/* in: file page */
+	const byte*	page);	/* in: file page */
 /*************************************************************************
 Sets the file page type. */
 UNIV_INTERN
