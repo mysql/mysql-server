@@ -87,6 +87,7 @@ UNIV_INTERN
 os_thread_id_t
 os_thread_get_curr_id(void)
 /*=======================*/
+				/* out: current thread identifier */
 {
 #ifdef __WIN__
 	return(GetCurrentThreadId());
@@ -240,6 +241,7 @@ UNIV_INTERN
 os_thread_t
 os_thread_get_curr(void)
 /*====================*/
+				/* out: current thread handle */
 {
 #ifdef __WIN__
 	return(GetCurrentThread());
