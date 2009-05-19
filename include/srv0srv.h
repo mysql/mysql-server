@@ -370,6 +370,7 @@ UNIV_INTERN
 ulint
 srv_get_n_threads(void);
 /*===================*/
+			/* out: sum of srv_n_threads[] */
 /*************************************************************************
 Returns the calling thread type. */
 

@@ -664,6 +664,7 @@ UNIV_INTERN
 ulint
 srv_get_n_threads(void)
 /*===================*/
+			/* out: sum of srv_n_threads[] */
 {
 	ulint	i;
 	ulint	n_threads	= 0;

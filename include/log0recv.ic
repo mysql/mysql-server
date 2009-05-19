@@ -30,6 +30,7 @@ UNIV_INLINE
 ibool
 recv_recovery_is_on(void)
 /*=====================*/
+				/* out: recv_recovery_on */
 {
 	return(UNIV_UNLIKELY(recv_recovery_on));
 }
@@ -43,6 +44,7 @@ UNIV_INLINE
 ibool
 recv_recovery_from_backup_is_on(void)
 /*=================================*/
+				/* out: recv_recovery_from_backup_on */
 {
 	return(recv_recovery_from_backup_on);
 }
