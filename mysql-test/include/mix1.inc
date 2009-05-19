@@ -1162,6 +1162,15 @@ ROLLBACK;
 --error 1305
 ROLLBACK TO SAVEPOINT s4;
 
+#
+# Bug#39793 Foreign keys not constructed when column has a '#' in a comment or default value
+#
+
+#This statement should be written on a single line for proper testing
+CREATE TABLE t1 (f1 INTEGER PRIMARY KEY COMMENT 'My ID#', f2 INTEGER DEFAULT NULL, f3 CHAR(10) DEFAULT 'My ID#', CONSTRAINT f2_ref FOREIGN KEY (f2) REFERENCES t1 (f1)) ENGINE=INNODB;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
 --echo End of 5.0 tests
 
 # Fix for BUG#19243 "wrong LAST_INSERT_ID() after ON DUPLICATE KEY
