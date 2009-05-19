@@ -3932,7 +3932,7 @@ dict_table_print_low(
 		(ulong) UT_LIST_GET_LEN(table->indexes),
 		(ulong) table->stat_n_rows);
 
-	for (i = 0; i + 1 < (ulint) table->n_cols; i++) {
+	for (i = 0; i < (ulint) table->n_cols; i++) {
 		dict_col_print_low(table, dict_table_get_nth_col(table, i));
 		fputs("; ", stderr);
 	}
