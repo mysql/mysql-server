@@ -4439,6 +4439,16 @@ drop view v1;
 drop table t1;
 drop view v1;
 drop table t1;
+#
+# Bug#28071 mysqlimport does not quote or escape table name
+#
+drop table if exists `load`;
+create table `load` (a varchar(255));
+test.load: Records: 70  Deleted: 0  Skipped: 0  Warnings: 0
+select count(*) from `load`;
+count(*)
+70
+drop table `load`;
 SET @@GLOBAL.CONCURRENT_INSERT = @OLD_CONCURRENT_INSERT;
 #
 # End of 5.1 tests
