@@ -163,7 +163,6 @@ UNIV_INLINE
 void
 rec_set_n_owned_old(
 /*================*/
-				/* out: TRUE on success */
 	rec_t*	rec,		/* in: old-style physical record */
 	ulint	n_owned);	/* in: the number of owned */
 /**********************************************************

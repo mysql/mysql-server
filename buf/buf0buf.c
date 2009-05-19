@@ -1174,7 +1174,6 @@ static
 void
 buf_pool_shrink(
 /*============*/
-				/* out: TRUE if shrunk */
 	ulint	chunk_size)	/* in: number of pages to remove */
 {
 	buf_chunk_t*	chunks;
