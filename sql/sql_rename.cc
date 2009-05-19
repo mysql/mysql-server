@@ -261,6 +261,8 @@ do_rename(THD *thd, TABLE_LIST *ren_table, char *new_db, char *new_table_name,
     old_alias= ren_table->table_name;
     new_alias= new_table_name;
   }
+  DBUG_ASSERT(new_alias);
+
   build_table_filename(name, sizeof(name),
                        new_db, new_alias, reg_ext, 0);
   if (!access(name,F_OK))

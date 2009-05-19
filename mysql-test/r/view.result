@@ -3836,6 +3836,14 @@ call p();
 call p();
 drop view a;
 drop procedure p;
+#
+# Bug #44860: ALTER TABLE on view crashes server
+#
+CREATE TABLE t1 (a INT);
+CREATE VIEW v1 AS SELECT a FROM t1;
+ALTER TABLE v1;
+DROP VIEW v1;
+DROP TABLE t1;
 # -----------------------------------------------------------------
 # -- End of 5.1 tests.
 # -----------------------------------------------------------------
