@@ -568,6 +568,16 @@ dict_index_is_ibuf(
 					zero for other indexes */
 	const dict_index_t*	index)	/* in: index */
 	__attribute__((pure));
+/************************************************************************
+Check whether the index is a secondary index or the insert buffer tree. */
+UNIV_INLINE
+ulint
+dict_index_is_sec_or_ibuf(
+/*======================*/
+					/* out: nonzero for insert buffer,
+					zero for other indexes */
+	const dict_index_t*	index)	/* in: index */
+	__attribute__((pure));
 
 /************************************************************************
 Gets the number of user-defined columns in a table in the dictionary

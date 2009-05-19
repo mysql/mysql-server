@@ -1,3 +1,15 @@
+2009-05-19	The InnoDB Team
+
+	* btr/btr0btr.c, btr/btr0cur.c, lock/lock0lock.c,
+	include/page0page.ic, include/lock0lock.h, include/dict0dict.h,
+	include/page0page.h, include/dict0dict.ic, ibuf/ibuf0ibuf.c,
+	page/page0zip.c, page/page0page.c:
+	Write updates of PAGE_MAX_TRX_ID to the redo log and add debug
+	assertions for checking that PAGE_MAX_TRX_ID is valid on leaf
+	pages of secondary indexes and the insert buffer B-tree.  This bug
+	could cause failures in secondary index lookups in consistent
+	reads right after crash recovery.
+
 2009-05-18	The InnoDB Team
 
 	* btr/btr0cur.c:

@@ -246,6 +246,26 @@ dict_index_is_ibuf(
 }
 
 /************************************************************************
+Check whether the index is a secondary index or the insert buffer tree. */
+UNIV_INLINE
+ulint
+dict_index_is_sec_or_ibuf(
+/*======================*/
+					/* out: nonzero for insert buffer,
+					zero for other indexes */
+	const dict_index_t*	index)	/* in: index */
+{
+	ulint	type;
+
+	ut_ad(index);
+	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
+
+	type = index->type;
+
+	return(UNIV_LIKELY(!(type & DICT_CLUSTERED) || (type & DICT_IBUF)));
+}
+
+/************************************************************************
 Gets the number of user-defined columns in a table in the dictionary
 cache. */
 UNIV_INLINE

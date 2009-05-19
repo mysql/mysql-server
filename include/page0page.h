@@ -189,7 +189,8 @@ page_set_max_trx_id(
 /*================*/
 	buf_block_t*	block,	/* in/out: page */
 	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
-	trx_id_t	trx_id);/* in: transaction id */
+	trx_id_t	trx_id,	/* in: transaction id */
+	mtr_t*		mtr);	/* in/out: mini-transaction, or NULL */
 /*****************************************************************
 Sets the max trx id field value if trx_id is bigger than the previous
 value. */
@@ -200,7 +201,8 @@ page_update_max_trx_id(
 	buf_block_t*	block,	/* in/out: page */
 	page_zip_des_t*	page_zip,/* in/out: compressed page whose
 				uncompressed part will be updated, or NULL */
-	trx_id_t	trx_id);/* in: transaction id */
+	trx_id_t	trx_id,	/* in: transaction id */
+	mtr_t*		mtr);	/* in/out: mini-transaction */
 /*****************************************************************
 Reads the given header field. */
 UNIV_INLINE
