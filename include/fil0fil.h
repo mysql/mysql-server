@@ -684,19 +684,28 @@ fil_addr_is_null(
 				/* out: TRUE if undefined */
 	fil_addr_t	addr);	/* in: address */
 /************************************************************************
-Accessor functions for a file page */
+Get the predecessor of a file page. */
 UNIV_INTERN
 ulint
-fil_page_get_prev(const byte*	page);
+fil_page_get_prev(
+/*==============*/
+				/* out: FIL_PAGE_PREV */
+	const byte*	page);	/* in: file page */
+/************************************************************************
+Get the successor of a file page. */
+UNIV_INTERN
 ulint
-fil_page_get_next(const byte*	page);
+fil_page_get_next(
+/*==============*/
+				/* out: FIL_PAGE_NEXT */
+	const byte*	page):	/* in: file page */
 /*************************************************************************
 Sets the file page type. */
 UNIV_INTERN
 void
 fil_page_set_type(
 /*==============*/
-	byte*	page,	/* in: file page */
+	byte*	page,	/* in/out: file page */
 	ulint	type);	/* in: type */
 /*************************************************************************
 Gets the file page type. */
