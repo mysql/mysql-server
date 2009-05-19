@@ -368,12 +368,14 @@ UNIV_INTERN
 commit_node_t*
 pars_commit_statement(void);
 /*=======================*/
+				/* out, own: commit node struct */
 /*************************************************************************
 Parses a rollback statement. */
 UNIV_INTERN
 roll_node_t*
 pars_rollback_statement(void);
 /*=========================*/
+				/* out, own: rollback node struct */
 /*************************************************************************
 Parses a column definition at a table creation. */
 UNIV_INTERN
