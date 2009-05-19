@@ -6140,6 +6140,20 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   if (frm_type == FRMTYPE_VIEW && !(alter_info->flags & ~ALTER_RENAME))
   {
     /*
+      The following branch handles "ALTER VIEW v1 /no arguments/;"
+      This feature is not documented one. 
+      However, before "OPTIMIZE TABLE t1;" was implemented, 
+      ALTER TABLE with no alter_specifications was used to force-rebuild
+      the table. That's why this grammar is allowed. That's why we ignore
+      it for views. So just do nothing in such a case.
+    */
+    if (!new_name)
+    {
+      my_ok(thd);
+      DBUG_RETURN(FALSE);
+    }
+
+    /*
       Avoid problems with a rename on a table that we have locked or
       if the user is trying to to do this in a transcation context
     */
