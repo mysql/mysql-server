@@ -1555,6 +1555,7 @@ UNIV_INTERN
 commit_node_t*
 pars_commit_statement(void)
 /*=======================*/
+				/* out, own: commit node struct */
 {
 	return(commit_node_create(pars_sym_tab_global->heap));
 }
@@ -1565,6 +1566,7 @@ UNIV_INTERN
 roll_node_t*
 pars_rollback_statement(void)
 /*=========================*/
+				/* out, own: rollback node struct */
 {
 	return(roll_node_create(pars_sym_tab_global->heap));
 }

@@ -453,6 +453,7 @@ UNIV_INTERN
 ulint
 rw_lock_n_locked(void);
 /*==================*/
+			/* out: number of locked rw-locks  */
 
 /*#####################################################################*/
 
