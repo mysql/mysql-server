@@ -423,7 +423,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    "localhost",
     0, 0 },
 
   {
@@ -1651,7 +1651,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    "",
     0, 0 },
 
   {
@@ -1810,7 +1810,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_STRING,
-    UNDEFINED,
+    "",
     0, 0 },
 
   {
