@@ -304,7 +304,7 @@ void _myfree(void *ptr, const char *filename, uint lineno, myf myflags)
   sf_malloc_count--;
   pthread_mutex_unlock(&THR_LOCK_malloc);
 
-#ifndef HAVE_purify
+#ifndef HAVE_valgrind
   /* Mark this data as free'ed */
   if (!sf_malloc_quick)
     bfill(ptr, irem->datasize, (pchar) FREE_VAL);

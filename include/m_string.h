@@ -108,7 +108,7 @@ extern const double log_10[309];
 #define memcpy_fixed(A,B,C) memcpy((A),(B),(C))
 #endif
 
-#if (!defined(USE_BMOVE512) || defined(HAVE_purify)) && !defined(bmove512)
+#if (!defined(USE_BMOVE512) || defined(HAVE_valgrind)) && !defined(bmove512)
 #define bmove512(A,B,C) memcpy(A,B,C)
 #endif
 
@@ -125,14 +125,14 @@ extern	void bzero(uchar * dst,size_t len);
 #if !defined(bcmp) && !defined(HAVE_BCMP)
 extern	size_t bcmp(const uchar *s1,const uchar *s2,size_t len);
 #endif
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
 extern	size_t my_bcmp(const uchar *s1,const uchar *s2,size_t len);
 #undef bcmp
 #define bcmp(A,B,C) my_bcmp((A),(B),(C))
-#define bzero_if_purify(A,B) bzero(A,B)
+#define bzero_if_valgrind(A,B) bzero(A,B)
 #else
-#define bzero_if_purify(A,B)
-#endif /* HAVE_purify */
+#define bzero_if_valgrind(A,B)
+#endif /* HAVE_valgrind */
 
 #if defined(_lint) || defined(FORCE_INIT_OF_VARS)
 #define LINT_INIT_STRUCT(var) bzero(&var, sizeof(var)) /* No uninitialize-warning */

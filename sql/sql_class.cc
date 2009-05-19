@@ -3496,7 +3496,7 @@ int THD::binlog_update_row(TABLE* table, bool is_trans,
     Don't print debug messages when running valgrind since they can
     trigger false warnings.
    */
-#ifndef HAVE_purify
+#ifndef HAVE_valgrind
   DBUG_DUMP("before_record", before_record, table->s->reclength);
   DBUG_DUMP("after_record",  after_record, table->s->reclength);
   DBUG_DUMP("before_row",    before_row, before_size);

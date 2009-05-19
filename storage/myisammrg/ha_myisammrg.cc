@@ -918,7 +918,7 @@ int ha_myisammrg::info(uint flag)
   {
     if (table->s->key_parts && mrg_info.rec_per_key)
     {
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
       /*
         valgrind may be unhappy about it, because optimizer may access values
         between file->keys and table->key_parts, that will be uninitialized.

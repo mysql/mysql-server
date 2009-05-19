@@ -3001,7 +3001,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   table->pos_in_table_list= table_list;
   table_list->updatable= 1; // It is not derived table nor non-updatable VIEW
   table->clear_column_bitmaps();
-#if !defined(DBUG_OFF) && !defined(HAVE_purify)
+#if !defined(DBUG_OFF) && !defined(HAVE_valgrind)
   /*
     Fill record with random values to find bugs where we access fields
     without first reading them.
@@ -7371,7 +7371,7 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
     /* make * substituting permanent */
     SELECT_LEX *select_lex= thd->lex->current_select;
     select_lex->with_wild= 0;
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
     if (&select_lex->item_list != &fields)      // Avoid warning
 #endif
       select_lex->item_list= fields;

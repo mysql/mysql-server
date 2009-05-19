@@ -72,14 +72,14 @@ sub mtr_get_unique_id($$) {
     die 'lock file is a symbolic link';
   }
 
+  my $save_umask= umask(0);
   open SEM, ">", "$file.sem" or die "can't write to $file.sem";
-  chmod 0777, "$file.sem";
   flock SEM, LOCK_EX or die "can't lock $file.sem";
   if(! -e $file) {
     open FILE, ">", $file or die "can't create $file";
     close FILE;
   }
-  chmod 0777, $file;
+  umask($save_umask);
 
   msg("HAVE THE LOCK");
 
@@ -145,8 +145,8 @@ sub mtr_release_unique_id($) {
     die 'lock file is a symbolic link';
   }
 
+  my $save_umask= umask(0);
   open SEM, ">", "$file.sem" or die "can't write to $file.sem";
-  chmod 0777, "$file.sem";
   flock SEM, LOCK_EX or die "can't lock $file.sem";
 
   msg("HAVE THE LOCK");
@@ -159,7 +159,7 @@ sub mtr_release_unique_id($) {
     open FILE, ">", $file or die "can't create $file";
     close FILE;
   }
-  chmod 0777, "$file.sem";
+  umask($save_umask);
   open FILE, "+<", $file or die "can't open $file";
   #select undef,undef,undef,0.2;
   seek FILE, 0, 0;

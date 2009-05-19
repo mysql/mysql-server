@@ -604,7 +604,7 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     }
     it.rewind();
     uchar *pos=read_info.row_start;
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
     read_info.row_end[0]=0;
 #endif
 

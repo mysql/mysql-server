@@ -323,6 +323,10 @@ if ($error)
 --echo # -- End of 5.1 tests
 --echo # ------------------------------------------------------------------
 
+--disconnect extracon
+--disconnect extracon2
+--connection default
+
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
 

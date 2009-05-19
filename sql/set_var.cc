@@ -648,8 +648,8 @@ static sys_var_long_ptr	sys_table_lock_wait_timeout(&vars, "table_lock_wait_time
 static sys_var_long_ptr	sys_thread_cache_size(&vars, "thread_cache_size",
 					      &thread_cache_size);
 #if HAVE_POOL_OF_THREADS == 1
-sys_var_long_ptr	sys_thread_pool_size(&vars, "thread_pool_size",
-					      &thread_pool_size);
+static sys_var_long_ptr sys_thread_pool_size(&vars, "thread_pool_size",
+                                             &thread_pool_size);
 #endif
 static sys_var_thd_enum	sys_tx_isolation(&vars, "tx_isolation",
 					 &SV::tx_isolation,

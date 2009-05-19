@@ -34,7 +34,7 @@ Relay_log_info::Relay_log_info()
    no_storage(FALSE), replicate_same_server_id(::replicate_same_server_id),
    info_fd(-1), cur_log_fd(-1), save_temporary_tables(0),
    cur_log_old_open_count(0), group_relay_log_pos(0), event_relay_log_pos(0),
-#if HAVE_purify
+#if HAVE_valgrind
    is_fake(FALSE),
 #endif
    group_master_log_pos(0), log_space_total(0), ignore_log_space_limit(0),

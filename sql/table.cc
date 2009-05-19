@@ -1695,7 +1695,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
       outparam->record[1]= outparam->record[0];   // Safety
   }
 
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
   /*
     We need this because when we read var-length rows, we are not updating
     bytes after end of varchar
@@ -1917,7 +1917,7 @@ partititon_err:
     }
   }
 
-#if defined(HAVE_purify) && !defined(DBUG_OFF)
+#if defined(HAVE_valgrind) && !defined(DBUG_OFF)
   bzero((char*) bitmaps, bitmap_size*3);
 #endif
 

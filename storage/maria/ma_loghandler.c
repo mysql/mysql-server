@@ -6195,12 +6195,12 @@ my_bool translog_write_record(LSN *lsn,
   {
     uint i;
     uint len= 0;
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
     ha_checksum checksum= 0;
 #endif
     for (i= TRANSLOG_INTERNAL_PARTS; i < part_no; i++)
     {
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
       /* Find unitialized bytes early */
       checksum+= my_checksum(checksum, parts_data[i].str,
                              parts_data[i].length);

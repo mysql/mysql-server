@@ -953,13 +953,13 @@ static void make_sortkey(register SORTPARAM *param,
       if (addonf->null_bit && field->is_null())
       {
         nulls[addonf->null_offset]|= addonf->null_bit;
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
 	bzero(to, addonf->length);
 #endif
       }
       else
       {
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
         uchar *end= field->pack(to, field->ptr);
 	uint length= (uint) ((to + addonf->length) - end);
 	DBUG_ASSERT((int) length >= 0);

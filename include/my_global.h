@@ -566,16 +566,16 @@ int	__void__;
 #define LINT_INIT(var)
 #endif
 
-#if defined(_lint) || defined(FORCE_INIT_OF_VARS) || defined(HAVE_purify)
-#define PURIFY_OR_LINT_INIT(var) var=0
+#if defined(_lint) || defined(FORCE_INIT_OF_VARS) || defined(HAVE_valgrind)
+#define VALGRIND_OR_LINT_INIT(var) var=0
 #else
-#define PURIFY_OR_LINT_INIT(var)
+#define VALGRIND_OR_LINT_INIT(var)
 #endif
 
-#ifdef HAVE_purify
-#define IF_PURIFY(A,B) (A)
+#ifdef HAVE_valgrind
+#define IF_VALGRIND(A,B) (A)
 #else
-#define IF_PURIFY(A,B) (B)
+#define IF_VALGRIND(A,B) (B)
 #endif
 
 #if !defined(HAVE_UINT)
@@ -1206,7 +1206,7 @@ typedef char		bool;	/* Ordinary boolean values 0 1 */
 				  ((uint32) (uchar) (A)[0])))
 #define sint4korr(A)	(*((const long *) (A)))
 #define uint2korr(A)	(*((const uint16 *) (A)))
-#if defined(HAVE_purify) && !defined(_WIN32)
+#if defined(HAVE_valgrind) && !defined(_WIN32)
 #define uint3korr(A)	(uint32) (((uint32) ((uchar) (A)[0])) +\
 				  (((uint32) ((uchar) (A)[1])) << 8) +\
 				  (((uint32) ((uchar) (A)[2])) << 16))
@@ -1218,7 +1218,7 @@ typedef char		bool;	/* Ordinary boolean values 0 1 */
     It means, that you have to provide enough allocated space !
 */
 #define uint3korr(A)	(long) (*((const unsigned int *) (A)) & 0xFFFFFF)
-#endif /* HAVE_purify && !_WIN32 */
+#endif /* HAVE_valgrind && !_WIN32 */
 #define uint4korr(A)	(*((const uint32 *) (A)))
 #define uint5korr(A)	((ulonglong)(((uint32) ((uchar) (A)[0])) +\
 				    (((uint32) ((uchar) (A)[1])) << 8) +\

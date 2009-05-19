@@ -24,7 +24,7 @@
 #include <my_global.h>
 #include "m_string.h"
 
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
 #undef bcmp
 #undef HAVE_BCMP
 #endif
@@ -50,7 +50,7 @@ uint len;					/* 0 <= len <= 65535 */
 
 #else
 
-#ifndef HAVE_purify
+#ifndef HAVE_valgrind
 size_t bcmp(register const uchar *s1,register const uchar *s2,
             register size_t len)
 #else

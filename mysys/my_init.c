@@ -172,7 +172,7 @@ void my_end(int infoflag)
   {
 #ifdef HAVE_GETRUSAGE
     struct rusage rus;
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
     /* Purify assumes that rus is uninitialized after getrusage call */
     bzero((char*) &rus, sizeof(rus));
 #endif

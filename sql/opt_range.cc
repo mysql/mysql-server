@@ -8368,7 +8368,7 @@ int QUICK_RANGE_SELECT::reset()
     multi_range_buff->buffer= mrange_buff;
     multi_range_buff->buffer_end= mrange_buff + mrange_bufsiz;
     multi_range_buff->end_of_used_area= mrange_buff;
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
     /*
       We need this until ndb will use the buffer efficiently
       (Now ndb stores  complete row in here, instead of only the used fields

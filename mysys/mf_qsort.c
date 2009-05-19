@@ -108,7 +108,7 @@ qsort_t my_qsort(void *base_ptr, size_t count, size_t size, qsort_cmp cmp)
   low  = (char*) base_ptr;
   high = low+ size * (count - 1);
   stack_ptr = stack + 1;
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
   /* The first element in the stack will be accessed for the last POP */
   stack[0].low=stack[0].high=0;
 #endif

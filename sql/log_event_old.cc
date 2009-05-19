@@ -724,7 +724,7 @@ static int find_and_fetch_row(TABLE *table, uchar *key)
     Don't print debug messages when running valgrind since they can
     trigger false warnings.
    */
-#ifndef HAVE_purify
+#ifndef HAVE_valgrind
     DBUG_DUMP("table->record[0]", table->record[0], table->s->reclength);
     DBUG_DUMP("table->record[1]", table->record[1], table->s->reclength);
 #endif
@@ -750,7 +750,7 @@ static int find_and_fetch_row(TABLE *table, uchar *key)
     Don't print debug messages when running valgrind since they can
     trigger false warnings.
    */
-#ifndef HAVE_purify
+#ifndef HAVE_valgrind
     DBUG_DUMP("table->record[0]", table->record[0], table->s->reclength);
     DBUG_DUMP("table->record[1]", table->record[1], table->s->reclength);
 #endif
@@ -1404,7 +1404,7 @@ int Old_rows_log_event::do_add_row_data(uchar *row_data, size_t length)
     Don't print debug messages when running valgrind since they can
     trigger false warnings.
    */
-#ifndef HAVE_purify
+#ifndef HAVE_valgrind
   DBUG_DUMP("row_data", row_data, min(length, 32));
 #endif
 
@@ -2353,7 +2353,7 @@ int Old_rows_log_event::find_row(const Relay_log_info *rli)
       Don't print debug messages when running valgrind since they can
       trigger false warnings.
      */
-#ifndef HAVE_purify
+#ifndef HAVE_valgrind
     DBUG_DUMP("key data", m_key, table->key_info->key_length);
 #endif
 
@@ -2383,7 +2383,7 @@ int Old_rows_log_event::find_row(const Relay_log_info *rli)
     Don't print debug messages when running valgrind since they can
     trigger false warnings.
    */
-#ifndef HAVE_purify
+#ifndef HAVE_valgrind
     DBUG_PRINT("info",("found first matching record")); 
     DBUG_DUMP("record[0]", table->record[0], table->s->reclength);
 #endif
@@ -2878,7 +2878,7 @@ Update_rows_log_event_old::do_exec_row(const Relay_log_info *const rli)
     Now we have the right row to update.  The old row (the one we're
     looking for) is in record[1] and the new row is in record[0].
   */
-#ifndef HAVE_purify
+#ifndef HAVE_valgrind
   /*
     Don't print debug messages when running valgrind since they can
     trigger false warnings.

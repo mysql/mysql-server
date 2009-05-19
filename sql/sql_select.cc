@@ -1817,7 +1817,7 @@ JOIN::exec()
       curr_join->having= curr_join->tmp_having= 0; // Allready done
     
     /* Change sum_fields reference to calculated fields in tmp_table */
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
     if (curr_join != this)
 #endif
       curr_join->all_fields= *curr_all_fields;
@@ -1839,7 +1839,7 @@ JOIN::exec()
 				      fields_list.elements, all_fields))
 	  DBUG_VOID_RETURN;
       }
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
       if (curr_join != this)
 #endif
       {
@@ -1993,7 +1993,7 @@ JOIN::exec()
 				     tmp_fields_list2, tmp_all_fields2, 
 				     fields_list.elements, tmp_all_fields1))
 	  DBUG_VOID_RETURN;
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
         /*
           Some GCCs use memcpy() for struct assignment, even for x=x.
           GCC bug 19410: http://gcc.gnu.org/bugzilla/show_bug.cgi?id=19410
@@ -2058,7 +2058,7 @@ JOIN::exec()
       tmp_table_param.save_copy_field= curr_join->tmp_table_param.copy_field;
       tmp_table_param.save_copy_field_end=
 	curr_join->tmp_table_param.copy_field_end;
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
       if (curr_join != this)
 #endif
       {
@@ -3860,7 +3860,7 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
 	  continue;
       }
 
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
       /* Valgrind complains about overlapped memcpy when save_pos==use. */
       if (save_pos != use)
 #endif
@@ -15154,7 +15154,7 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
           DBUG_ASSERT (param->field_count > (uint) (copy - copy_start));
           copy->set(tmp, item->result_field);
           item->result_field->move_field(copy->to_ptr,copy->to_null_ptr,1);
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
           copy->to_ptr[copy->from_length]= 0;
 #endif
           copy++;

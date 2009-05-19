@@ -520,7 +520,7 @@ static int init_rr_cache(THD *thd, READ_RECORD *info)
 					   info->struct_length+1,
 					   MYF(0))))
     DBUG_RETURN(1);
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
   // Avoid warnings in qsort
   bzero(info->cache,rec_cache_size+info->cache_records* info->struct_length+1);
 #endif

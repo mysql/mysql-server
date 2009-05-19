@@ -57,12 +57,6 @@
 
 #define mysqld_charset &my_charset_latin1
 
-#ifdef HAVE_purify
-#define IF_PURIFY(A,B) (A)
-#else
-#define IF_PURIFY(A,B) (B)
-#endif
-
 #if SIZEOF_CHARP == 4
 #define MAX_MEM_TABLE_SIZE ~(ulong) 0
 #else
@@ -76,9 +70,9 @@
 char pstack_file_name[80];
 #endif /* __linux__ */
 
-/* We have HAVE_purify below as this speeds up the shutdown of MySQL */
+/* We have HAVE_valgrind below as this speeds up the shutdown of MySQL */
 
-#if defined(HAVE_DEC_3_2_THREADS) || defined(SIGNALS_DONT_BREAK_READ) || defined(HAVE_purify) && defined(__linux__)
+#if defined(HAVE_DEC_3_2_THREADS) || defined(SIGNALS_DONT_BREAK_READ) || defined(HAVE_valgrind) && defined(__linux__)
 #define HAVE_CLOSE_SERVER_SOCK 1
 #endif
 
@@ -6565,7 +6559,7 @@ log and this option does nothing anymore.",
      purify. These are not suppressed: instead we disable symlinks
      option if compiled with valgrind support.
    */
-   IF_PURIFY(0,1), 0, 0, 0, 0, 0},
+   IF_VALGRIND(0,1), 0, 0, 0, 0, 0},
   {"sysdate-is-now", OPT_SYSDATE_IS_NOW,
    "Non-default option to alias SYSDATE() to NOW() to make it safe-replicable. Since 5.0, SYSDATE() returns a `dynamic' value different for different invocations, even within the same statement.",
    (uchar**) &global_system_variables.sysdate_is_now,
@@ -6606,7 +6600,7 @@ log and this option does nothing anymore.",
    0, 0, 0, 0, 0},
   {"use-symbolic-links", 's', "Enable symbolic link support. Deprecated option; use --symbolic-links instead.",
    (uchar**) &my_use_symdir, (uchar**) &my_use_symdir, 0, GET_BOOL, NO_ARG,
-   IF_PURIFY(0,1), 0, 0, 0, 0, 0},
+   IF_VALGRIND(0,1), 0, 0, 0, 0, 0},
   {"user", 'u', "Run mysqld daemon as user.", 0, 0, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
   {"verbose", 'v', "Used with --help option for detailed help",
@@ -7722,7 +7716,7 @@ static int mysql_init_variables(void)
   /* Things reset to zero */
   opt_skip_slave_start= opt_reckless_slave = 0;
   mysql_home[0]= pidfile_name[0]= log_error_file[0]= 0;
-#if defined(HAVE_REALPATH) && !defined(HAVE_purify) && !defined(HAVE_BROKEN_REALPATH)
+#if defined(HAVE_REALPATH) && !defined(HAVE_valgrind) && !defined(HAVE_BROKEN_REALPATH)
   /*  We can only test for sub paths if my_symlink.c is using realpath */
   myisam_test_invalid_symlink= test_if_data_home_dir;
 #endif

@@ -3548,10 +3548,10 @@ void ha_partition::position(const uchar *record)
 	 (ref_length - PARTITION_BYTES_IN_POS));
 
 #ifdef SUPPORTING_PARTITION_OVER_DIFFERENT_ENGINES
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
   bzero(ref + PARTITION_BYTES_IN_POS + ref_length,
         max_ref_length-ref_length);
-#endif /* HAVE_purify */
+#endif /* HAVE_valgrind */
 #endif
   DBUG_VOID_RETURN;
 }
