@@ -3859,6 +3859,17 @@ drop procedure p;
 
 ###########################################################################
 
+
+--echo #
+--echo # Bug #44860: ALTER TABLE on view crashes server
+--echo #
+CREATE TABLE t1 (a INT);
+CREATE VIEW v1 AS SELECT a FROM t1;
+ALTER TABLE v1;
+DROP VIEW v1;
+DROP TABLE t1;
+
+
 --echo # -----------------------------------------------------------------
 --echo # -- End of 5.1 tests.
 --echo # -----------------------------------------------------------------
