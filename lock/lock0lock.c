@@ -563,6 +563,7 @@ lock_sec_rec_cons_read_sees(
 	}
 
 	max_trx_id = page_get_max_trx_id(page_align(rec));
+	ut_ad(!ut_dulint_is_zero(max_trx_id));
 
 	return(ut_dulint_cmp(max_trx_id, view->up_limit_id) < 0);
 }
@@ -4923,10 +4924,11 @@ lock_rec_insert_check_and_lock(
 				DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
 	ulint		flags,	/* in: if BTR_NO_LOCKING_FLAG bit is
 				set, does nothing */
-	rec_t*		rec,	/* in: record after which to insert */
+	const rec_t*	rec,	/* in: record after which to insert */
 	buf_block_t*	block,	/* in/out: buffer block of rec */
 	dict_index_t*	index,	/* in: index */
 	que_thr_t*	thr,	/* in: query thread */
+	mtr_t*		mtr,	/* in/out: mini-transaction */
 	ibool*		inherit)/* out: set to TRUE if the new
 				inserted record maybe should inherit
 				LOCK_GAP type locks from the successor
@@ -4946,7 +4948,7 @@ lock_rec_insert_check_and_lock(
 	}
 
 	trx = thr_get_trx(thr);
-	next_rec = page_rec_get_next(rec);
+	next_rec = page_rec_get_next((rec_t*) rec);
 	next_rec_heap_no = page_rec_get_heap_no(next_rec);
 
 	lock_mutex_enter_kernel();
@@ -4969,7 +4971,7 @@ lock_rec_insert_check_and_lock(
 			/* Update the page max trx id field */
 			page_update_max_trx_id(block,
 					       buf_block_get_page_zip(block),
-					       trx->id);
+					       trx->id, mtr);
 		}
 
 		*inherit = FALSE;
@@ -5008,7 +5010,7 @@ lock_rec_insert_check_and_lock(
 		/* Update the page max trx id field */
 		page_update_max_trx_id(block,
 				       buf_block_get_page_zip(block),
-				       trx->id);
+				       trx->id, mtr);
 	}
 
 #ifdef UNIV_DEBUG
@@ -5144,13 +5146,14 @@ lock_sec_rec_modify_check_and_lock(
 	ulint		flags,	/* in: if BTR_NO_LOCKING_FLAG
 				bit is set, does nothing */
 	buf_block_t*	block,	/* in/out: buffer block of rec */
-	rec_t*		rec,	/* in: record which should be
+	const rec_t*	rec,	/* in: record which should be
 				modified; NOTE: as this is a secondary
 				index, we always have to modify the
 				clustered index record first: see the
 				comment below */
 	dict_index_t*	index,	/* in: secondary index */
-	que_thr_t*	thr)	/* in: query thread */
+	que_thr_t*	thr,	/* in: query thread */
+	mtr_t*		mtr)	/* in/out: mini-transaction */
 {
 	ulint	err;
 	ulint	heap_no;
@@ -5199,7 +5202,7 @@ lock_sec_rec_modify_check_and_lock(
 		/* Update the page max trx id field */
 		page_update_max_trx_id(block,
 				       buf_block_get_page_zip(block),
-				       thr_get_trx(thr)->id);
+				       thr_get_trx(thr)->id, mtr);
 	}
 
 	return(err);

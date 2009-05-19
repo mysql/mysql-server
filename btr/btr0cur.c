@@ -939,6 +939,7 @@ btr_cur_ins_lock_and_undo(
 	btr_cur_t*	cursor,	/* in: cursor on page after which to insert */
 	const dtuple_t*	entry,	/* in: entry to insert */
 	que_thr_t*	thr,	/* in: query thread or NULL */
+	mtr_t*		mtr,	/* in/out: mini-transaction */
 	ibool*		inherit)/* out: TRUE if the inserted new record maybe
 				should inherit LOCK_GAP type locks from the
 				successor record */
@@ -956,7 +957,7 @@ btr_cur_ins_lock_and_undo(
 
 	err = lock_rec_insert_check_and_lock(flags, rec,
 					     btr_cur_get_block(cursor),
-					     index, thr, inherit);
+					     index, thr, mtr, inherit);
 
 	if (err != DB_SUCCESS) {
 
@@ -1170,7 +1171,8 @@ fail_err:
 	}
 
 	/* Check locks and write to the undo log, if specified */
-	err = btr_cur_ins_lock_and_undo(flags, cursor, entry, thr, &inherit);
+	err = btr_cur_ins_lock_and_undo(flags, cursor, entry,
+					thr, mtr, &inherit);
 
 	if (UNIV_UNLIKELY(err != DB_SUCCESS)) {
 
@@ -1344,7 +1346,8 @@ btr_cur_pessimistic_insert(
 	/* Retry with a pessimistic insert. Check locks and write to undo log,
 	if specified */
 
-	err = btr_cur_ins_lock_and_undo(flags, cursor, entry, thr, &dummy_inh);
+	err = btr_cur_ins_lock_and_undo(flags, cursor, entry,
+					thr, mtr, &dummy_inh);
 
 	if (err != DB_SUCCESS) {
 
@@ -1439,6 +1442,7 @@ btr_cur_upd_lock_and_undo(
 	ulint		cmpl_info,/* in: compiler info on secondary index
 				updates */
 	que_thr_t*	thr,	/* in: query thread */
+	mtr_t*		mtr,	/* in/out: mini-transaction */
 	roll_ptr_t*	roll_ptr)/* out: roll pointer */
 {
 	dict_index_t*	index;
@@ -1455,7 +1459,7 @@ btr_cur_upd_lock_and_undo(
 		record */
 		return(lock_sec_rec_modify_check_and_lock(
 			       flags, btr_cur_get_block(cursor), rec,
-			       index, thr));
+			       index, thr, mtr));
 	}
 
 	/* Check if we have to wait for a lock: enqueue an explicit lock
@@ -1736,7 +1740,7 @@ btr_cur_update_in_place(
 
 	/* Do lock checking and undo logging */
 	err = btr_cur_upd_lock_and_undo(flags, cursor, update, cmpl_info,
-					thr, &roll_ptr);
+					thr, mtr, &roll_ptr);
 	if (UNIV_UNLIKELY(err != DB_SUCCESS)) {
 
 		if (UNIV_LIKELY_NULL(heap)) {
@@ -1953,8 +1957,8 @@ any_extern:
 	}
 
 	/* Do lock checking and undo logging */
-	err = btr_cur_upd_lock_and_undo(flags, cursor, update, cmpl_info, thr,
-					&roll_ptr);
+	err = btr_cur_upd_lock_and_undo(flags, cursor, update, cmpl_info,
+					thr, mtr, &roll_ptr);
 	if (err != DB_SUCCESS) {
 err_exit:
 		mem_heap_free(heap);
@@ -2133,7 +2137,7 @@ btr_cur_pessimistic_update(
 
 	/* Do lock checking and undo logging */
 	err = btr_cur_upd_lock_and_undo(flags, cursor, update, cmpl_info,
-					thr, &roll_ptr);
+					thr, mtr, &roll_ptr);
 	if (err != DB_SUCCESS) {
 
 		return(err);
@@ -2307,6 +2311,19 @@ make_external:
 	ut_a(rec);
 	ut_a(err == DB_SUCCESS);
 	ut_a(dummy_big_rec == NULL);
+
+	if (dict_index_is_sec_or_ibuf(index)) {
+		/* Update PAGE_MAX_TRX_ID in the index page header.
+		It was not updated by btr_cur_pessimistic_insert()
+		because of BTR_NO_LOCKING_FLAG. */
+		buf_block_t*	rec_block;
+
+		rec_block = btr_cur_get_block(cursor);
+
+		page_update_max_trx_id(rec_block,
+				       buf_block_get_page_zip(rec_block),
+				       trx->id, mtr);
+	}
 
 	if (!rec_get_deleted_flag(rec, rec_offs_comp(offsets))) {
 		/* The new inserted record owns its possible externally
@@ -2683,7 +2700,7 @@ btr_cur_del_mark_set_sec_rec(
 
 	err = lock_sec_rec_modify_check_and_lock(flags,
 						 btr_cur_get_block(cursor),
-						 rec, cursor->index, thr);
+						 rec, cursor->index, thr, mtr);
 	if (err != DB_SUCCESS) {
 
 		return(err);

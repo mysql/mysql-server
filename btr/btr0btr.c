@@ -998,8 +998,16 @@ btr_page_reorganize_low(
 	page_copy_rec_list_end_no_locks(block, temp_block,
 					page_get_infimum_rec(temp_page),
 					index, mtr);
-	/* Copy max trx id to recreated page */
-	page_set_max_trx_id(block, NULL, page_get_max_trx_id(temp_page));
+
+	if (dict_index_is_sec_or_ibuf(index) && page_is_leaf(page)) {
+		/* Copy max trx id to recreated page */
+		trx_id_t	max_trx_id = page_get_max_trx_id(temp_page);
+		page_set_max_trx_id(block, NULL, max_trx_id, mtr);
+		/* In crash recovery, dict_index_is_sec_or_ibuf() always
+		returns TRUE, even for clustered indexes.  max_trx_id is
+		unused in clustered index pages. */
+		ut_ad(!ut_dulint_is_zero(max_trx_id) || recovery);
+	}
 
 	if (UNIV_LIKELY_NULL(page_zip)
 	    && UNIV_UNLIKELY
@@ -2757,7 +2765,11 @@ btr_discard_only_page_on_level(
 	buf_block_t*	block,	/* in: page which is the only on its level */
 	mtr_t*		mtr)	/* in: mtr */
 {
-	ulint	page_level = 0;
+	ulint		page_level = 0;
+	trx_id_t	max_trx_id;
+
+	/* Save the PAGE_MAX_TRX_ID from the leaf page. */
+	max_trx_id = page_get_max_trx_id(buf_block_get_frame(block));
 
 	while (buf_block_get_page_no(block) != dict_index_get_page(index)) {
 		btr_cur_t	cursor;
@@ -2800,9 +2812,16 @@ btr_discard_only_page_on_level(
 
 	btr_page_empty(block, buf_block_get_page_zip(block), index, 0, mtr);
 
-	/* We play it safe and reset the free bits for the root */
 	if (!dict_index_is_clust(index)) {
+		/* We play it safe and reset the free bits for the root */
 		ibuf_reset_free_bits(block);
+
+		if (page_is_leaf(buf_block_get_frame(block))) {
+			ut_a(!ut_dulint_is_zero(max_trx_id));
+			page_set_max_trx_id(block,
+					    buf_block_get_page_zip(block),
+					    max_trx_id, mtr);
+		}
 	}
 }
 
