@@ -174,9 +174,8 @@ UNIV_INTERN
 void
 row_update_prebuilt_trx(
 /*====================*/
-					/* out: prebuilt dtuple */
-	row_prebuilt_t*	prebuilt,	/* in: prebuilt struct in MySQL
-					handle */
+	row_prebuilt_t*	prebuilt,	/* in/out: prebuilt struct
+					in MySQL handle */
 	trx_t*		trx);		/* in: transaction handle */
 /*************************************************************************
 Unlocks AUTO_INC type locks that were possibly reserved by a trx. */
