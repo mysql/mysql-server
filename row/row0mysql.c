@@ -735,9 +735,8 @@ UNIV_INTERN
 void
 row_update_prebuilt_trx(
 /*====================*/
-					/* out: prebuilt dtuple */
-	row_prebuilt_t*	prebuilt,	/* in: prebuilt struct in MySQL
-					handle */
+	row_prebuilt_t*	prebuilt,	/* in/out: prebuilt struct
+					in MySQL handle */
 	trx_t*		trx)		/* in: transaction handle */
 {
 	if (trx->magic_n != TRX_MAGIC_N) {
