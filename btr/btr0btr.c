@@ -3261,7 +3261,6 @@ static
 void
 btr_validate_report1(
 /*=================*/
-					/* out: TRUE if ok */
 	dict_index_t*		index,	/* in: index */
 	ulint			level,	/* in: B-tree level */
 	const buf_block_t*	block)	/* in: index page */
@@ -3281,7 +3280,6 @@ static
 void
 btr_validate_report2(
 /*=================*/
-					/* out: TRUE if ok */
 	const dict_index_t*	index,	/* in: index */
 	ulint			level,	/* in: B-tree level */
 	const buf_block_t*	block1,	/* in: first index page */

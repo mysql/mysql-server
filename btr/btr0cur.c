@@ -172,8 +172,6 @@ UNIV_INLINE
 void
 btr_rec_set_deleted_flag(
 /*=====================*/
-				/* out: TRUE on success;
-				FALSE on page_zip overflow */
 	rec_t*		rec,	/* in/out: physical record */
 	page_zip_des_t*	page_zip,/* in/out: compressed page (or NULL) */
 	ulint		flag)	/* in: nonzero if delete marked */
