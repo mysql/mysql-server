@@ -306,12 +306,14 @@ ut_copy_file(
 	FILE*	src);	/* in: input file to be appended to output */
 #endif /* !UNIV_HOTBACKUP */
 
-/**************************************************************************
-snprintf(). */
-
 #ifdef __WIN__
+/**************************************************************************
+A substitute for snprintf(3), formatted output conversion into
+a limited buffer. */
+UNIV_INTERN
 int
 ut_snprintf(
+/*========*/
 				/* out: number of characters that would
 				have been printed if the size were
 				unlimited, not including the terminating
@@ -321,7 +323,7 @@ ut_snprintf(
 	const char*	fmt,	/* in: format */
 	...);			/* in: format values */
 #else
-#define ut_snprintf	snprintf
+# define ut_snprintf	snprintf
 #endif /* __WIN__ */
 
 #ifndef UNIV_NONINL

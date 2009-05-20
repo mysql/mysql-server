@@ -552,13 +552,15 @@ ut_copy_file(
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/**************************************************************************
-snprintf(). */
-
 #ifdef __WIN__
-#include <stdarg.h>
+# include <stdarg.h>
+/**************************************************************************
+A substitute for snprintf(3), formatted output conversion into
+a limited buffer. */
+UNIV_INTERN
 int
 ut_snprintf(
+/*========*/
 				/* out: number of characters that would
 				have been printed if the size were
 				unlimited, not including the terminating
