@@ -94,5 +94,11 @@ INSERT INTO `t1` VALUES
 (NULL,1,1,1,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,b'100000',b'010010',b'011111',4,5,5,5,5,5,5,5,5,5,3,2,1),
 (NULL,1,1,1,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,b'000000',b'001100',b'111111',4,5,5,5,5,5,5,5,5,5,3,2,1),
 (NULL,1,1,1,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,b'111111',b'000000',b'000000',4,5,5,5,5,5,5,5,5,5,3,2,1);
+# Determine the number of open sessions
+--source include/count_sessions.inc
 --exec $MYSQL_DUMP --hex-blob --compact --order-by-primary --skip-extended-insert --no-create-info test t1
 drop table t1;
+# Wait till the number of open sessions is <= the number before the run with $MYSQL_DUMP
+# = The session caused by mysqldump has finished its disconnect
+--source include/wait_until_count_sessions.inc
+
