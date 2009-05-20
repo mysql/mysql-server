@@ -165,6 +165,7 @@ UNIV_INTERN
 ib_time_t
 ut_time(void);
 /*=========*/
+				/* out: system time */
 /**************************************************************
 Returns system time.
 Upon successful completion, the value 0 is returned; otherwise the

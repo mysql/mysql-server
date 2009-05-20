@@ -67,13 +67,13 @@ rw_lock_remove_debug_info(
 #endif /* UNIV_SYNC_DEBUG */
 
 /************************************************************************
-Accessor functions for rw lock. */
+Check if there are threads waiting for the rw-lock. */
 UNIV_INLINE
 ulint
 rw_lock_get_waiters(
 /*================*/
-				/* out: 1 if waiters, 0 otherwise */
-	rw_lock_t*	lock)	/* in: rw-lock */
+					/* out: 1 if waiters, 0 otherwise */
+	const rw_lock_t*	lock)	/* in: rw-lock */
 {
 	return(lock->waiters);
 }
@@ -86,7 +86,7 @@ UNIV_INLINE
 void
 rw_lock_set_waiter_flag(
 /*====================*/
-	rw_lock_t*	lock)	/* in: rw-lock */
+	rw_lock_t*	lock)	/* in/out: rw-lock */
 {
 #ifdef INNODB_RW_LOCKS_USE_ATOMICS
 	os_compare_and_swap_ulint(&lock->waiters, 0, 1);
@@ -103,7 +103,7 @@ UNIV_INLINE
 void
 rw_lock_reset_waiter_flag(
 /*======================*/
-	rw_lock_t*	lock)	/* in: rw-lock */
+	rw_lock_t*	lock)	/* in/out: rw-lock */
 {
 #ifdef INNODB_RW_LOCKS_USE_ATOMICS
 	os_compare_and_swap_ulint(&lock->waiters, 1, 0);
@@ -119,10 +119,12 @@ UNIV_INLINE
 ulint
 rw_lock_get_writer(
 /*===============*/
-	rw_lock_t*	lock)
+					/* out: RW_LOCK_NOT_LOCKED,
+					RW_LOCK_EX, RW_LOCK_WAIT_EX */
+	const rw_lock_t*	lock)	/* in: rw-lock */
 {
 	lint lock_word = lock->lock_word;
-	if(lock_word > 0) {
+	if (lock_word > 0) {
 		/* return NOT_LOCKED in s-lock state, like the writer
 		member of the old lock implementation. */
 		return(RW_LOCK_NOT_LOCKED);
@@ -135,15 +137,16 @@ rw_lock_get_writer(
 }
 
 /**********************************************************************
-Returns number of readers. */
+Returns the number of readers. */
 UNIV_INLINE
 ulint
 rw_lock_get_reader_count(
 /*=====================*/
-	rw_lock_t*	lock)
+					/* out: number of readers */
+	const rw_lock_t*	lock)	/* in: rw-lock */
 {
 	lint lock_word = lock->lock_word;
-	if(lock_word > 0) {
+	if (lock_word > 0) {
 		/* s-locked, no x-waiters */
 		return(X_LOCK_DECR - lock_word);
 	} else if (lock_word < 0 && lock_word > -X_LOCK_DECR) {
@@ -171,12 +174,12 @@ UNIV_INLINE
 ulint
 rw_lock_get_x_lock_count(
 /*=====================*/
-				/* out: value of writer_count */
-	rw_lock_t*	lock)	/* in: rw-lock */
+					/* out: value of writer_count */
+	const rw_lock_t*	lock)	/* in: rw-lock */
 {
 	lint lock_copy = lock->lock_word;
 	/* If there is a reader, lock_word is not divisible by X_LOCK_DECR */
-	if(lock_copy > 0 || (-lock_copy) % X_LOCK_DECR != 0) {
+	if (lock_copy > 0 || (-lock_copy) % X_LOCK_DECR != 0) {
 		return(0);
 	}
 	return(((-lock_copy) / X_LOCK_DECR) + 1);
@@ -192,56 +195,47 @@ UNIV_INLINE
 ibool
 rw_lock_lock_word_decr(
 /*===================*/
-				/* out: TRUE if decr occurs */
-	rw_lock_t*	lock,	/* in: rw-lock */
-	ulint		amount)	/* in: amount of decrement */
+					/* out: TRUE if decr occurs */
+	rw_lock_t*	lock,		/* in/out: rw-lock */
+	ulint		amount);	/* in: amount to decrement */
 {
-
 #ifdef INNODB_RW_LOCKS_USE_ATOMICS
-
         lint local_lock_word = lock->lock_word;
 	while (local_lock_word > 0) {
-		if(os_compare_and_swap_lint(&lock->lock_word,
-					    local_lock_word,
-					    local_lock_word - amount)) {
+		if (os_compare_and_swap_lint(&lock->lock_word,
+					     local_lock_word,
+					     local_lock_word - amount)) {
 			return(TRUE);
 		}
 		local_lock_word = lock->lock_word;
 	}
 	return(FALSE);
-
 #else /* INNODB_RW_LOCKS_USE_ATOMICS */
-
 	ibool success = FALSE;
 	mutex_enter(&(lock->mutex));
-	if(lock->lock_word > 0) {
+	if (lock->lock_word > 0) {
 		lock->lock_word -= amount;
 		success = TRUE;
 	}
 	mutex_exit(&(lock->mutex));
 	return(success);
-
 #endif /* INNODB_RW_LOCKS_USE_ATOMICS */
 }
 
 /**********************************************************************
-Two different implementations for incrementing the lock_word of a rw_lock:
-one for systems supporting atomic operations, one for others.
-Returns the value of lock_word after increment. */
+Increments lock_word the specified amount and returns new value. */
 UNIV_INLINE
 lint
 rw_lock_lock_word_incr(
 /*===================*/
-				/* out: lock->lock_word after increment */
-	rw_lock_t*	lock,	/* in: rw-lock */
-	ulint		amount)	/* in: amount of increment */
+					/* out: lock->lock_word after
+					increment */
+	rw_lock_t*	lock,		/* in/out: rw-lock */
+	ulint		amount)		/* in: amount of increment */
 {
 #ifdef INNODB_RW_LOCKS_USE_ATOMICS
-
 	return(os_atomic_increment_lint(&lock->lock_word, amount));
-
 #else /* INNODB_RW_LOCKS_USE_ATOMICS */
-
 	lint local_lock_word;
 
 	mutex_enter(&(lock->mutex));
@@ -252,7 +246,6 @@ rw_lock_lock_word_incr(
 	mutex_exit(&(lock->mutex));
 
         return(local_lock_word);
-
 #endif /* INNODB_RW_LOCKS_USE_ATOMICS */
 }
 

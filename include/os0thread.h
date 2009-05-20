@@ -71,8 +71,8 @@ UNIV_INTERN
 ulint
 os_thread_pf(
 /*=========*/
-				/* out: unsigned long int */
-	os_thread_id_t	a);	/* in: thread or thread id */
+				/* out: thread identifier as a number */
+	os_thread_id_t	a);	/* in: OS thread identifier */
 /********************************************************************
 Creates a new thread of execution. The execution starts from
 the function given. The start function takes a void* parameter
@@ -152,6 +152,7 @@ UNIV_INTERN
 ulint
 os_thread_get_last_error(void);
 /*==========================*/
+				/* out: last error on Windows, 0 otherwise */
 
 #ifndef UNIV_NONINL
 #include "os0thread.ic"

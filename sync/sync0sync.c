@@ -374,7 +374,8 @@ UNIV_INTERN
 ibool
 mutex_validate(
 /*===========*/
-	const mutex_t*	mutex)
+				/* out: TRUE */
+	const mutex_t*	mutex)	/* in: mutex */
 {
 	ut_a(mutex);
 	ut_a(mutex->magic_n == MUTEX_MAGIC_N);
@@ -703,6 +704,7 @@ UNIV_INTERN
 ulint
 mutex_n_reserved(void)
 /*==================*/
+				/* out: number of reserved mutexes */
 {
 	mutex_t*	mutex;
 	ulint		count		= 0;
@@ -735,6 +737,7 @@ UNIV_INTERN
 ibool
 sync_all_freed(void)
 /*================*/
+			/* out: TRUE if no mutexes and rw-locks reserved */
 {
 	return(mutex_n_reserved() + rw_lock_n_locked() == 0);
 }

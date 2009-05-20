@@ -1113,19 +1113,22 @@ innobase_mysql_tmpfile(void)
 #endif /* defined (__WIN__) && defined (MYSQL_DYNAMIC_PLUGIN) */
 
 /*************************************************************************
-Wrapper around MySQL's copy_and_convert function, see it for
-documentation. */
+Wrapper around MySQL's copy_and_convert function. */
 extern "C" UNIV_INTERN
 ulint
 innobase_convert_string(
 /*====================*/
-	void*		to,
-	ulint		to_length,
-	CHARSET_INFO*	to_cs,
-	const void*	from,
-	ulint		from_length,
-	CHARSET_INFO*	from_cs,
-	uint*		errors)
+					/* out: number of bytes copied
+					to 'to' */
+	void*		to,		/* out: converted string */
+	ulint		to_length,	/* in: number of bytes reserved
+					for the converted string */
+	CHARSET_INFO*	to_cs,		/* in: character set to convert to */
+	const void*	from,		/* in: string to convert */
+	ulint		from_length,	/* in: number of bytes to convert */
+	CHARSET_INFO*	from_cs,	/* in: character set to convert from */
+	uint*		errors)		/* out: number of errors encountered
+					during the conversion */
 {
   return(copy_and_convert((char*)to, (uint32) to_length, to_cs,
                           (const char*)from, (uint32) from_length, from_cs,
