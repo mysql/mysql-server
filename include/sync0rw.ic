@@ -197,7 +197,7 @@ rw_lock_lock_word_decr(
 /*===================*/
 					/* out: TRUE if decr occurs */
 	rw_lock_t*	lock,		/* in/out: rw-lock */
-	ulint		amount);	/* in: amount to decrement */
+	ulint		amount)		/* in: amount to decrement */
 {
 #ifdef INNODB_RW_LOCKS_USE_ATOMICS
         lint local_lock_word = lock->lock_word;
