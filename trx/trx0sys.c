@@ -403,7 +403,7 @@ UNIV_INTERN
 void
 trx_sys_doublewrite_init_or_restore_pages(
 /*======================================*/
-	ibool	restore_corrupt_pages)
+	ibool	restore_corrupt_pages)	/* in: TRUE=restore pages */
 {
 	byte*	buf;
 	byte*	read_buf;
