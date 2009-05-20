@@ -339,7 +339,8 @@ static int write_to_table(char *filename, MYSQL *mysql)
       fprintf(stdout, "Loading data from SERVER file: %s into %s\n",
 	      hard_path, tablename);
   }
-  mysql_real_escape_string(mysql, escaped_name, hard_path, strlen(hard_path));
+  mysql_real_escape_string(mysql, escaped_name, hard_path,
+                           (unsigned long) strlen(hard_path));
   sprintf(sql_statement, "LOAD DATA %s %s INFILE '%s'",
 	  opt_low_priority ? "LOW_PRIORITY" : "",
 	  opt_local_file ? "LOCAL" : "", escaped_name);
