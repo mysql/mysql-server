@@ -3174,6 +3174,8 @@ page_zip_validate(
 #endif /* UNIV_ZIP_DEBUG */
 
 #ifdef UNIV_DEBUG
+/**************************************************************************
+Assert that the compressed and decompressed page headers match. */
 static
 ibool
 page_zip_header_cmp(
