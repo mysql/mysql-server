@@ -647,7 +647,7 @@ ArbitMgr::ArbitMgr(TransporterFacade & _fac)
 
   theInputTimeout = 0;
   theInputFull = false;
-  memset(&theInputFull, 0, sizeof(theInputFull));
+  memset(&theInputBuffer, 0, sizeof(theInputBuffer));
   theState = StateInit;
 
   memset(&theStartReq, 0, sizeof(theStartReq));
