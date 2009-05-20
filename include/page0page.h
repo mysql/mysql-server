@@ -939,7 +939,7 @@ UNIV_INTERN
 void
 page_header_print(
 /*==============*/
-	const page_t*	page);
+	const page_t*	page);	/* in: index page */
 /*******************************************************************
 This is used to print the contents of the page for
 debugging purposes. */
