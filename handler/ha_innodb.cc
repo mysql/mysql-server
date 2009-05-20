@@ -2776,6 +2776,8 @@ static const char* ha_innobase_exts[] = {
   NullS
 };
 
+/********************************************************************
+Returns the table type (storage engine name). */
 UNIV_INTERN
 const char*
 ha_innobase::table_type() const
@@ -2785,15 +2787,20 @@ ha_innobase::table_type() const
 	return(innobase_hton_name);
 }
 
+/********************************************************************
+Returns the index type. */
 UNIV_INTERN
 const char*
-ha_innobase::index_type(uint)
-/*=========================*/
+ha_innobase::index_type(
+/*====================*/
+	uint)
 				/* out: index type */
 {
 	return("BTREE");
 }
 
+/********************************************************************
+Returns the table file name extension. */
 UNIV_INTERN
 const char**
 ha_innobase::bas_ext() const
@@ -2803,24 +2810,40 @@ ha_innobase::bas_ext() const
 	return(ha_innobase_exts);
 }
 
+/********************************************************************
+Returns the operations supported for indexes. */
 UNIV_INTERN
 ulong
-ha_innobase::index_flags(uint, uint, bool) const
+ha_innobase::index_flags(
+/*=====================*/
+			/* out: flags of supported operations */
+	uint,
+	uint,
+	bool)
+const
 {
 	return(HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER
 	       | HA_READ_RANGE | HA_KEYREAD_ONLY);
 }
 
+/********************************************************************
+Returns the maximum number of keys. */
 UNIV_INTERN
 uint
 ha_innobase::max_supported_keys() const
+/*===================================*/
+			/* out: MAX_KEY */
 {
 	return(MAX_KEY);
 }
 
+/********************************************************************
+Returns the maximum key length. */
 UNIV_INTERN
 uint
 ha_innobase::max_supported_key_length() const
+/*=========================================*/
+			/* out: maximum supported key length, in bytes */
 {
 	/* An InnoDB page must store >= 2 keys; a secondary key record
 	must also contain the primary key value: max key length is
@@ -2830,23 +2853,32 @@ ha_innobase::max_supported_key_length() const
 	return(3500);
 }
 
+/********************************************************************
+Returns the key map of keys that are usable for scanning. */
 UNIV_INTERN
 const key_map*
 ha_innobase::keys_to_use_for_scanning()
+			/* out: key_map_full */
 {
 	return(&key_map_full);
 }
 
+/********************************************************************
+Determines if table caching is supported. */
 UNIV_INTERN
 uint8
 ha_innobase::table_cache_type()
+			/* out: HA_CACHE_TBL_ASKTRANSACT */
 {
 	return(HA_CACHE_TBL_ASKTRANSACT);
 }
 
+/********************************************************************
+Determines if the primary key is clustered index. */
 UNIV_INTERN
 bool
 ha_innobase::primary_key_is_clustered()
+			/* out: true */
 {
 	return(true);
 }
