@@ -812,10 +812,6 @@ TransporterFacade::configure(NodeId nodeId,
                                         * theTransporterRegistry))
     DBUG_RETURN(false);
 
-  // Open connection between MGM servers
-  if (!do_connect_mgm(nodeId, conf))
-    DBUG_RETURN(false);
-
   // Configure cluster manager
   theClusterMgr->configure(conf);
 
@@ -880,6 +876,10 @@ TransporterFacade::configure(NodeId nodeId,
 #ifdef API_TRACE
   signalLogger.logOn(true, 0, SignalLoggerManager::LogInOut);
 #endif
+
+  // Open connection between MGM servers
+  if (!do_connect_mgm(nodeId, conf))
+    DBUG_RETURN(false);
   
   DBUG_RETURN(true);
 }
