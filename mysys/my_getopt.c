@@ -647,7 +647,7 @@ static int setval(const struct my_option *opts, uchar* *value, char *argument,
 	return EXIT_OUT_OF_MEMORY;
       break;
     case GET_ENUM:
-      if (((*(int*)result_pos)= find_type(argument, opts->typelib, 2) - 1) < 0)
+      if (((*(ulong *)result_pos)= find_type(argument, opts->typelib, 2) - 1) < 0)
         return EXIT_ARGUMENT_INVALID;
       break;
     case GET_SET:
@@ -983,7 +983,7 @@ static void init_one_value(const struct my_option *option, uchar* *variable,
     *((int*) variable)= (int) getopt_ll_limit_value((int) value, option, NULL);
     break;
   case GET_ENUM:
-    *((uint*) variable)= (uint) value;
+    *((ulong*) variable)= (uint) value;
     break;
   case GET_UINT:
     *((uint*) variable)= (uint) getopt_ull_limit_value((uint) value, option, NULL);
@@ -1221,7 +1221,7 @@ void my_print_variables(const struct my_option *options)
 	}
 	break;
       case GET_ENUM:
-        printf("%s\n", get_type(optp->typelib, *(uint*) value));
+        printf("%s\n", get_type(optp->typelib, *(ulong*) value));
 	break;
       case GET_STR:
       case GET_STR_ALLOC:                    /* fall through */
