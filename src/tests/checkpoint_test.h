@@ -247,6 +247,15 @@ db_replace(DICTIONARY d, DB_TXN *open_txn) {
 }
 
 static void UU()
+db_truncate(DB* db, DB_TXN *txn) {
+    u_int32_t row_count;
+    u_int32_t flags = 0;
+    int r = db->truncate(db, txn, &row_count, flags);
+    assert(row_count == 0);
+    CKERR(r);
+}
+
+static void UU()
 insert_random(DB *db1, DB *db2, DB_TXN *txn) {
     int64_t k = random64();
     int64_t v = random64();
@@ -354,6 +363,61 @@ insert_n_fixed(DB *db1, DB *db2, DB_TXN *txn, int firstkey, int n) {
     insert_n(db1, db2, txn, firstkey, n, 0);
 }
 
+
+// assert that correct values are in expected rows
+static void  UU()
+verify_sequential_rows(DB* compare_db, int64_t firstkey, int64_t numkeys) {
+    //This does not lock the dbs/grab table locks.
+    //This means that you CANNOT CALL THIS while another thread is modifying the db.
+    //You CAN call it while a txn is open however.
+    int rval = 0;
+    DB_TXN *compare_txn;
+    int r, r1;
+
+    assert(numkeys >= 1);
+    r = env->txn_begin(env, NULL, &compare_txn, DB_READ_UNCOMMITTED);
+        CKERR(r);
+    DBC *c1;
+
+    r = compare_db->cursor(compare_db, compare_txn, &c1, 0);
+        CKERR(r);
+
+
+    DBT key1, val1;
+    DBT key2, val2;
+
+    int64_t k, v;
+
+    dbt_init_realloc(&key1);
+    dbt_init_realloc(&val1);
+
+    dbt_init(&key2, &k, sizeof(k));
+    dbt_init(&val2, &v, sizeof(v));
+
+    k = firstkey;
+    v = generate_val(k);
+    r1 = c1->c_get(c1, &key2, &val2, DB_GET_BOTH);
+    CKERR(r1);
+
+    int64_t i;
+    for (i = 1; i<numkeys; i++) {
+	k = i + firstkey;
+	v = generate_val(k);
+        r1 = c1->c_get(c1, &key1, &val1, DB_NEXT);
+	assert(r1==0);
+	rval = verify_identical_dbts(&key1, &key2) |
+	    verify_identical_dbts(&val1, &val2);
+	assert(rval == 0);
+    }
+    // now verify that there are no rows after the last expected 
+    r1 = c1->c_get(c1, &key1, &val1, DB_NEXT);
+    assert(r1 == DB_NOTFOUND);
+
+    c1->c_close(c1);
+    if (key1.data) toku_free(key1.data);
+    if (val1.data) toku_free(val1.data);
+    compare_txn->commit(compare_txn, 0);
+}
 
 
 

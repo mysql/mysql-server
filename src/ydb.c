@@ -3665,7 +3665,12 @@ static const DBT* toku_db_dbt_neg_infty(void) {
 }
 
 static int locked_db_truncate(DB *db, DB_TXN *txn, u_int32_t *row_count, u_int32_t flags) {
-    toku_ydb_lock(); int r = toku_db_truncate(db, txn, row_count, flags); toku_ydb_unlock(); return r;
+    toku_checkpoint_safe_client_lock();
+    toku_ydb_lock();
+    int r = toku_db_truncate(db, txn, row_count, flags);
+    toku_ydb_unlock();
+    toku_checkpoint_safe_client_unlock();
+    return r;
 }
 
 static int toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
