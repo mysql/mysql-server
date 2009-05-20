@@ -81,8 +81,9 @@ Test whether a vector is empty or not. */
 UNIV_INLINE
 ibool
 ib_vector_is_empty(
-/*===============*/			/* out: TRUE if empty else FALSE */
-	const ib_vector_t*	vec)	/* in vector to test */
+/*===============*/
+					/* out: TRUE if empty */
+	const ib_vector_t*	vec)	/* in: vector */
 {
 	return(ib_vector_size(vec) == 0);
 }
