@@ -5111,8 +5111,8 @@ ha_innobase::change_active_index(
 
 /**************************************************************************
 Positions an index cursor to the index specified in keynr. Fetches the
-row if any. */
-/* ??? This is only used to read whole keys ??? */
+row if any.
+??? This is only used to read whole keys ??? */
 UNIV_INTERN
 int
 ha_innobase::index_read_idx(
@@ -8636,11 +8636,16 @@ ha_innobase::get_auto_increment(
 	dict_table_autoinc_unlock(prebuilt->table);
 }
 
-/* See comment in handler.h */
+/***********************************************************************
+Reset the auto-increment counter to the given value, i.e. the next row
+inserted will get the given value. This is called e.g. after TRUNCATE
+is emulated by doing a 'DELETE FROM t'. HA_ERR_WRONG_COMMAND is
+returned by storage engines that don't support this operation. */
 UNIV_INTERN
 int
 ha_innobase::reset_auto_increment(
 /*==============================*/
+					/* out: 0 or error code */
 	ulonglong	value)		/* in: new value for table autoinc */
 {
 	DBUG_ENTER("ha_innobase::reset_auto_increment");
