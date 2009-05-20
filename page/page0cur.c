@@ -50,14 +50,14 @@ a = 1103515245 (3^5 * 5 * 7 * 129749)
 c = 12345 (3 * 5 * 823)
 m = 18446744073709551616 (2^64)
 */
-#define LCG_a	1103515245
-#define LCG_c	12345
 static
 ib_uint64_t
 page_cur_lcg_prng()
 /*===============*/
 			/* out: number between 0 and 2^64-1 */
 {
+#define LCG_a	1103515245
+#define LCG_c	12345
 	static ib_uint64_t	lcg_current = 0;
 	static ibool		initialized = FALSE;
 
