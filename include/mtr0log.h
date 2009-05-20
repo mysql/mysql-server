@@ -237,8 +237,7 @@ mlog_parse_index(
 				/* out: parsed record end,
 				NULL if not a complete record */
 	byte*		ptr,	/* in: buffer */
-	byte*		end_ptr,/* in: buffer end */
-				/* out: new value of log_ptr */
+	const byte*	end_ptr,/* in: buffer end */
 	ibool		comp,	/* in: TRUE=compact record format */
 	dict_index_t**	index);	/* out, own: dummy index */
 
