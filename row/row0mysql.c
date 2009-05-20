@@ -1616,7 +1616,9 @@ UNIV_INTERN
 ibool
 row_table_got_default_clust_index(
 /*==============================*/
-	const dict_table_t*	table)
+					/* out: TRUE if the clustered index
+					was generated automatically */
+	const dict_table_t*	table)	/* in: table */
 {
 	const dict_index_t*	clust_index;
 
@@ -1632,7 +1634,9 @@ UNIV_INTERN
 ulint
 row_get_mysql_key_number_for_index(
 /*===============================*/
-	const dict_index_t*	index)
+					/* out: the key number used
+					inside MySQL */
+	const dict_index_t*	index)	/* in: index */
 {
 	const dict_index_t*	ind;
 	ulint			i;

@@ -651,9 +651,9 @@ static
 void*
 page_zip_malloc(
 /*============*/
-	void*	opaque,
-	uInt	items,
-	uInt	size)
+	void*	opaque,	/* in/out: memory heap */
+	uInt	items,	/* in: number of items to allocate */
+	uInt	size)	/* in: size of an item in bytes */
 {
 	return(mem_heap_alloc(opaque, items * size));
 }
@@ -664,8 +664,8 @@ static
 void
 page_zip_free(
 /*==========*/
-	void*	opaque __attribute__((unused)),
-	void*	address __attribute__((unused)))
+	void*	opaque __attribute__((unused)),	/* in: memory heap */
+	void*	address __attribute__((unused)))/* in: object to free */
 {
 }
 

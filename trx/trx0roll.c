@@ -614,6 +614,7 @@ UNIV_INTERN
 trx_undo_arr_t*
 trx_undo_arr_create(void)
 /*=====================*/
+				/* out, own: undo number array */
 {
 	trx_undo_arr_t*	arr;
 	mem_heap_t*	heap;

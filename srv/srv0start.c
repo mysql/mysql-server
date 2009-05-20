@@ -444,7 +444,9 @@ static
 os_thread_ret_t
 io_handler_thread(
 /*==============*/
-	void*	arg)
+			/* out: OS_THREAD_DUMMY_RETURN */
+	void*	arg)	/* in: pointer to the number of the segment in
+			the aio array */
 {
 	ulint	segment;
 	ulint	i;

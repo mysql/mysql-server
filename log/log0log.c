@@ -177,6 +177,7 @@ static
 ib_uint64_t
 log_buf_pool_get_oldest_modification(void)
 /*======================================*/
+				/* out: LSN of oldest modification */
 {
 	ib_uint64_t	lsn;
 
