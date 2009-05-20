@@ -189,7 +189,6 @@ enum_field_types agg_field_type(Item **items, uint nitems)
     collect_cmp_types()
       items             Array of items to collect types from
       nitems            Number of items in the array
-      with_sum_func     a sum function is referenced
 
   DESCRIPTION
     This function collects different result types for comparison of the first
@@ -200,7 +199,7 @@ enum_field_types agg_field_type(Item **items, uint nitems)
     Bitmap of collected types - otherwise
 */
 
-static uint collect_cmp_types(Item **items, uint nitems, my_bool with_sum_func)
+static uint collect_cmp_types(Item **items, uint nitems)
 {
   uint i;
   uint found_types;
@@ -215,16 +214,6 @@ static uint collect_cmp_types(Item **items, uint nitems, my_bool with_sum_func)
       return 0;
     found_types|= 1<< (uint)item_cmp_type(left_result,
                                            items[i]->result_type());
-  }
-  if (with_sum_func || current_thd->lex->current_select->group_list.elements)
-  {
-    /*
-      See TODO commentary in the setup_copy_fields function:
-      item in a group may be wrapped with an Item_copy_string item.
-      That item has a STRING_RESULT result type, so we need
-      to take this type into account.
-     */
-    found_types |= (1 << item_cmp_type(left_result, STRING_RESULT));
   }
   return found_types;
 }
@@ -2733,8 +2722,19 @@ void Item_func_case::fix_length_and_dec()
     for (nagg= 0; nagg < ncases/2 ; nagg++)
       agg[nagg+1]= args[nagg*2];
     nagg++;
-    if (!(found_types= collect_cmp_types(agg, nagg, with_sum_func)))
+    if (!(found_types= collect_cmp_types(agg, nagg)))
       return;
+    if (with_sum_func || current_thd->lex->current_select->group_list.elements)
+    {
+      /*
+        See TODO commentary in the setup_copy_fields function:
+        item in a group may be wrapped with an Item_copy_string item.
+        That item has a STRING_RESULT result type, so we need
+        to take this type into account.
+      */
+      found_types |= (1 << item_cmp_type(left_result_type, STRING_RESULT));
+    }
+
     for (i= 0; i <= (uint)DECIMAL_RESULT; i++)
     {
       if (found_types & (1 << i) && !cmp_items[i])
@@ -3525,7 +3525,7 @@ void Item_func_in::fix_length_and_dec()
   uint type_cnt= 0, i;
   Item_result cmp_type= STRING_RESULT;
   left_result_type= args[0]->result_type();
-  if (!(found_types= collect_cmp_types(args, arg_count, with_sum_func)))
+  if (!(found_types= collect_cmp_types(args, arg_count)))
     return;
   
   for (arg= args + 1, arg_end= args + arg_count; arg != arg_end ; arg++)
