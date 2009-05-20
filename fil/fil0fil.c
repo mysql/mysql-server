@@ -185,8 +185,7 @@ struct fil_space_struct {
 				tablespace whose size we do not know yet;
 				last incomplete megabytes in data files may be
 				ignored if space == 0 */
-	ulint		flags;	/* in: compressed page size
-				and file format, or 0 */
+	ulint		flags;	/* compressed page size and file format, or 0 */
 	ulint		n_reserved_extents;
 				/* number of reserved free extents for
 				ongoing operations like B-tree page split */
@@ -1625,8 +1624,8 @@ fil_write_lsn_and_arch_no_to_file(
 	ulint		sum_of_sizes,	/* in: combined size of previous files
 					in space, in database pages */
 	ib_uint64_t	lsn,		/* in: lsn to write */
-	ulint		arch_log_no	/* in: archived log number to write */
-	__attribute__((unused)))
+	ulint		arch_log_no __attribute__((unused)))
+					/* in: archived log number to write */
 {
 	byte*	buf1;
 	byte*	buf;
