@@ -26,19 +26,22 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 InnoDB's C-code. */
 
 /*************************************************************************
-Wrapper around MySQL's copy_and_convert function, see it for
-documentation. */
+Wrapper around MySQL's copy_and_convert function. */
 UNIV_INTERN
 ulint
 innobase_convert_string(
 /*====================*/
-	void*		to,
-	ulint		to_length,
-	CHARSET_INFO*	to_cs,
-	const void*	from,
-	ulint		from_length,
-	CHARSET_INFO*	from_cs,
-	uint*		errors);
+					/* out: number of bytes copied
+					to 'to' */
+	void*		to,		/* out: converted string */
+	ulint		to_length,	/* in: number of bytes reserved
+					for the converted string */
+	CHARSET_INFO*	to_cs,		/* in: character set to convert to */
+	const void*	from,		/* in: string to convert */
+	ulint		from_length,	/* in: number of bytes to convert */
+	CHARSET_INFO*	from_cs,	/* in: character set to convert from */
+	uint*		errors);	/* out: number of errors encountered
+					during the conversion */
 
 /***********************************************************************
 Formats the raw data in "data" (in InnoDB on-disk format) that is of

@@ -160,6 +160,7 @@ void
 mutex_exit(
 /*=======*/
 	mutex_t*	mutex);	/* in: pointer to mutex */
+#ifdef UNIV_SYNC_DEBUG
 /**********************************************************************
 Returns TRUE if no mutex or rw-lock is currently locked.
 Works only in the debug version. */
@@ -167,6 +168,8 @@ UNIV_INTERN
 ibool
 sync_all_freed(void);
 /*================*/
+			/* out: TRUE if no mutexes and rw-locks reserved */
+#endif /* UNIV_SYNC_DEBUG */
 /*#####################################################################
 FUNCTION PROTOTYPES FOR DEBUGGING */
 /***********************************************************************
@@ -190,7 +193,8 @@ UNIV_INTERN
 ibool
 mutex_validate(
 /*===========*/
-	const mutex_t*	mutex);
+				/* out: TRUE */
+	const mutex_t*	mutex);	/* in: mutex */
 /**********************************************************************
 Checks that the current thread owns the mutex. Works only
 in the debug version. */
@@ -260,6 +264,7 @@ UNIV_INTERN
 ulint
 mutex_n_reserved(void);
 /*==================*/
+				/* out: number of reserved mutexes */
 #endif /* UNIV_SYNC_DEBUG */
 /**********************************************************************
 NOT to be used outside this module except in debugging! Gets the value

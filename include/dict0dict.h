@@ -164,7 +164,9 @@ UNIV_INLINE
 ulint
 dict_col_get_no(
 /*============*/
-	const dict_col_t*	col);
+					/* out: col->ind, table column
+					position (starting from 0) */
+	const dict_col_t*	col);	/* in: column */
 /*************************************************************************
 Gets the column position in the clustered index. */
 UNIV_INLINE
@@ -915,7 +917,9 @@ UNIV_INLINE
 const dict_col_t*
 dict_field_get_col(
 /*===============*/
-	const dict_field_t*	field);
+					/* out: field->col,
+					pointer to the table column */
+	const dict_field_t*	field);	/* in: index field */
 #ifndef UNIV_HOTBACKUP
 /**************************************************************************
 Returns an index object if it is found in the dictionary cache.

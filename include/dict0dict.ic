@@ -131,7 +131,9 @@ UNIV_INLINE
 ulint
 dict_col_get_no(
 /*============*/
-	const dict_col_t*	col)
+					/* out: col->ind, table column
+					position (starting from 0) */
+	const dict_col_t*	col)	/* in: column */
 {
 	ut_ad(col);
 
@@ -590,7 +592,9 @@ UNIV_INLINE
 const dict_col_t*
 dict_field_get_col(
 /*===============*/
-	const dict_field_t*	field)
+					/* out: field->col,
+					pointer to the table column */
+	const dict_field_t*	field)	/* in: index field */
 {
 	ut_ad(field);
 

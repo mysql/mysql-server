@@ -4343,6 +4343,7 @@ static
 ulint
 lock_get_n_rec_locks(void)
 /*======================*/
+				/* out: number of record locks */
 {
 	lock_t*	lock;
 	ulint	n_locks	= 0;

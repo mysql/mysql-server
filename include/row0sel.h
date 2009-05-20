@@ -67,8 +67,9 @@ UNIV_INLINE
 plan_t*
 sel_node_get_nth_plan(
 /*==================*/
-	sel_node_t*	node,
-	ulint		i);
+				/* out: plan node */
+	sel_node_t*	node,	/* in: select node */
+	ulint		i);	/* in: get ith plan node */
 /**************************************************************************
 Performs a select step. This is a high-level function used in SQL execution
 graphs. */

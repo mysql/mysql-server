@@ -116,6 +116,7 @@ UNIV_INTERN
 ib_time_t
 ut_time(void)
 /*=========*/
+				/* out: system time */
 {
 	return(time(NULL));
 }
