@@ -2207,9 +2207,12 @@ error:
 Closes an InnoDB database. */
 static
 int
-innobase_end(handlerton *hton, ha_panic_function type)
-/*==============*/
-				/* out: TRUE if error */
+innobase_end(
+/*=========*/
+					/* out: TRUE if error */
+	handlerton*		hton,	/* in/out: InnoDB handlerton */
+	ha_panic_function	type __attribute__((unused)))
+					/* in: ha_panic() parameter */
 {
 	int	err= 0;
 
@@ -2248,9 +2251,10 @@ Flushes InnoDB logs to disk and makes a checkpoint. Really, a commit flushes
 the logs, and the name of this function should be innobase_checkpoint. */
 static
 bool
-innobase_flush_logs(handlerton *hton)
-/*=====================*/
+innobase_flush_logs(
+/*================*/
 				/* out: TRUE if error */
+	handlerton*	hton)	/* in/out: InnoDB handlerton */
 {
 	bool	result = 0;
 
