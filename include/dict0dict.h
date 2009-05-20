@@ -440,8 +440,8 @@ dict_foreign_find_equiv_index(
 				foreign->foreign_index, or NULL */
 	dict_foreign_t*	foreign);/* in: foreign key */
 /**************************************************************************
-Returns an index object by matching on the name and column names and if
-more than index is found return the index with the higher id.*/
+Returns an index object by matching on the name and column names and
+if more than one index matches return the index with the max id */
 UNIV_INTERN
 dict_index_t*
 dict_table_get_index_by_max_id(
