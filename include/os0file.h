@@ -614,11 +614,14 @@ os_aio(
 	ulint		offset_high, /* in: most significant 32 bits of
 				offset */
 	ulint		n,	/* in: number of bytes to read or write */
-	fil_node_t*	message1,/* in: messages for the aio handler (these
-				can be used to identify a completed aio
-				operation); if mode is OS_AIO_SYNC, these
-				are ignored */
-	void*		message2);
+	fil_node_t*	message1,/* in: message for the aio handler
+				(can be used to identify a completed
+				aio operation); ignored if mode is
+				OS_AIO_SYNC */
+	void*		message2);/* in: message for the aio handler
+				(can be used to identify a completed
+				aio operation); ignored if mode is
+				OS_AIO_SYNC */
 /****************************************************************************
 Wakes up all async i/o threads so that they know to exit themselves in
 shutdown. */

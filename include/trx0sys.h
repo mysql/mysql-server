@@ -84,7 +84,7 @@ UNIV_INTERN
 void
 trx_sys_doublewrite_init_or_restore_pages(
 /*======================================*/
-	ibool	restore_corrupt_pages);
+	ibool	restore_corrupt_pages);	/* in: TRUE=restore pages */
 /********************************************************************
 Marks the trx sys header when we have successfully upgraded to the >= 4.1.x
 multiple tablespace format. */
