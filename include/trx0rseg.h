@@ -148,7 +148,7 @@ struct trx_rseg_struct{
 				rseg mutex */
 	ulint		space;	/* space where the rollback segment is
 				header is placed */
-	ulint		zip_size;/* in: compressed page size of space
+	ulint		zip_size;/* compressed page size of space
 				in bytes, or 0 for uncompressed spaces */
 	ulint		page_no;/* page number of the rollback segment
 				header */
