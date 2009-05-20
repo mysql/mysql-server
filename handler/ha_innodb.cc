@@ -7955,8 +7955,6 @@ innodb_export_status(void)
 	if (innodb_inited) {
 		srv_export_innodb_status();
 	}
-
-	return(0);
 }
 
 /****************************************************************************
