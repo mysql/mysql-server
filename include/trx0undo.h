@@ -389,7 +389,7 @@ struct trx_undo_struct{
 	/*-----------------------------*/
 	ulint		space;		/* space id where the undo log
 					placed */
-	ulint		zip_size;	/* in: compressed page size of space
+	ulint		zip_size;	/* compressed page size of space
 					in bytes, or 0 for uncompressed */
 	ulint		hdr_page_no;	/* page number of the header page in
 					the undo log */
