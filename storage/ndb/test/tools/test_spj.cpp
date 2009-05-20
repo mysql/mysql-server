@@ -198,7 +198,7 @@ int main(int argc, char** argv){
     p1.optional[0] = 1; // Length of user projecttion
     AttributeHeader::init(p1.optional + 1, AttributeHeader::READ_ALL,
                           pTab->getNoOfColumns());
-    QueryNode::setOpLen(p1.len, QueryNode::QN_LOOKUP, p1.NodeSize + 2);
+    QueryNodeParameters::setOpLen(p1.len, QueryNodeParameters::QN_LOOKUP, p1.NodeSize + 2);
 
 
     union {
@@ -227,7 +227,7 @@ int main(int argc, char** argv){
     p2.optional[0] = 1; // Length of user projection
     AttributeHeader::init(p2.optional+1, AttributeHeader::READ_ALL,
                           pTab->getNoOfColumns());
-    QueryNode::setOpLen(p2.len, QueryNode::QN_LOOKUP, p2.NodeSize + 2);
+    QueryNodeParameters::setOpLen(p2.len, QueryNodeParameters::QN_LOOKUP, p2.NodeSize + 2);
 
 
     union {
@@ -245,8 +245,8 @@ int main(int argc, char** argv){
 
     dump("treeSpec: ", treeSpec, "\n");
 
-    push_back(paramSpec, _data4, QueryNode::getLength(p1.len));
-    push_back(paramSpec, _data5, QueryNode::getLength(p2.len));
+    push_back(paramSpec, _data4, QueryNodeParams::getLength(p1.len));
+    push_back(paramSpec, _data5, QueryNodeParams::getLength(p2.len));
 
     dump("paramSpec: ", paramSpec, "\n");
 
@@ -311,7 +311,7 @@ int main(int argc, char** argv){
      */
     AttributeHeader::init(p1.optional + 2, AttributeHeader::READ_ANY_VALUE,
                           0);
-    QueryNode::setOpLen(p1.len, QueryNode::QN_SCAN_FRAG, p1.NodeSize + 3);
+    QueryNodeParams::setOpLen(p1.len, QueryNodeParams::QN_SCAN_FRAG, p1.NodeSize + 3);
 
 
     union {
@@ -344,7 +344,7 @@ int main(int argc, char** argv){
      * correlation value
      */
     AttributeHeader::init(p2.optional+2, AttributeHeader::READ_ANY_VALUE, 0);
-    QueryNode::setOpLen(p2.len, QueryNode::QN_LOOKUP, p2.NodeSize + 3);
+    QueryNodeParams::setOpLen(p2.len, QueryNodeParams::QN_LOOKUP, p2.NodeSize + 3);
 
 
     union {
@@ -362,8 +362,8 @@ int main(int argc, char** argv){
 
     dump("treeSpec: ", treeSpec, "\n");
 
-    push_back(paramSpec, _data4, QueryNode::getLength(p1.len));
-    push_back(paramSpec, _data5, QueryNode::getLength(p2.len));
+    push_back(paramSpec, _data4, QueryNodeParams::getLength(p1.len));
+    push_back(paramSpec, _data5, QueryNodeParams::getLength(p2.len));
 
     dump("paramSpec: ", paramSpec, "\n");
 

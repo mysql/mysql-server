@@ -249,13 +249,32 @@ public:
 
   /**
    * A node in a Query
-   *   (This is is an intantiated version of QueryNode in
+   *   (This is is an instantiated version of QueryNode in
    *    include/kernel/signal/QueryTree.hpp)
    */
   struct TreeNode
   {
-    TreeNode() {}
-    Uint32 m_magic;
+    STATIC_CONST ( MAGIC = 0xCafeBabe );
+
+    TreeNode()
+    : m_magic(MAGIC), m_state(TN_END),
+      m_node_no(0), m_requestPtrI(0)
+    {}
+
+    TreeNode(Uint32 node_no, Uint32 request)
+    : m_magic(MAGIC),
+      m_info(0), m_bits(T_LEAF), m_state(TN_BUILDING),
+      m_node_no(node_no), m_requestPtrI(request),
+      nextList(RNIL), prevList(RNIL)
+    {
+//    m_send.m_ref = 0;
+      m_send.m_correlation = 0;
+      m_send.m_keyInfoPtrI = RNIL;
+      m_send.m_attrInfoPtrI = RNIL;
+      m_send.m_attrInfoParamPtrI = RNIL;
+    };
+
+    const Uint32 m_magic;
     const struct OpInfo* m_info;
 
     enum TreeNodeState
@@ -324,8 +343,8 @@ public:
 
     Uint32 m_bits;
     Uint32 m_state;
-    Uint32 m_node_no;
-    Uint32 m_requestPtrI;
+    const Uint32 m_node_no;
+    const Uint32 m_requestPtrI;
     Dependency_map::Head m_dependent_nodes;
     PatternStore::Head m_keyPattern;
     PatternStore::Head m_attrParamPattern;

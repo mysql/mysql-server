@@ -18,7 +18,7 @@
 
 #include <ndb_types.h>
 
-struct QueryNode
+struct QueryNode  // Effectively used as a base class for QN_xxxNode
 {
   Uint32 op_len;
 
@@ -29,13 +29,18 @@ struct QueryNode
     QN_END = 0
   };
 
-  static Uint32 getOpType(const Uint32 & op_len) { return op_len & 0xFFFF;}
-  static Uint32 getLength(const Uint32 & op_len) { return op_len >> 16;}
+  static Uint32 getOpType(Uint32 op_len) { return op_len & 0xFFFF;}
+  static Uint32 getLength(Uint32 op_len) { return op_len >> 16;}
 
   static void setOpLen(Uint32 &d, Uint32 o, Uint32 l) { d = (l << 16) | o;}
+
+  // If possible we should change the above static methods to non-static:
+//Uint32 getOpType() const { return len & 0xFFFF;}
+//Uint32 getLength() const { return len >> 16;}
+//void setOpLen(Uint32 o, Uint32 l) { len = (l << 16) | o;}
 };
 
-struct QueryNodeParameters
+struct QueryNodeParameters  // Effectively used as a base class for QN_xxxParameters
 {
   Uint32 op_len;
 
@@ -46,10 +51,15 @@ struct QueryNodeParameters
     QN_END = 0
   };
 
-  static Uint32 getOpType(const Uint32 & op_len) { return op_len & 0xFFFF;}
-  static Uint32 getLength(const Uint32 & op_len) { return op_len >> 16;}
+  static Uint32 getOpType(Uint32 op_len) { return op_len & 0xFFFF;}
+  static Uint32 getLength(Uint32 op_len) { return op_len >> 16;}
 
   static void setOpLen(Uint32 &d, Uint32 o, Uint32 l) { d = (l << 16) | o;}
+
+  // If possible we should change the above static methods to non-static:
+//Uint32 getOpType() const { return len & 0xFFFF;}
+//Uint32 getLength() const { return len >> 16;}
+//void setOpLen(Uint32 o, Uint32 l) { len = (l << 16) | o;}
 };
 
 struct DABits
@@ -84,7 +94,7 @@ struct DABits
 /**
  * This node describes a pk-lookup
  */
-struct QN_LookupNode
+struct QN_LookupNode // Is a QueryNode subclass
 {
   Uint32 len;
   Uint32 requestInfo;
@@ -96,13 +106,16 @@ struct QN_LookupNode
    * See DABits::NodeInfoBits
    */
   Uint32 optional[1];
+
+//Uint32 getLength() const { return len >> 16;}
+//void setOpLen(Uint32 o, Uint32 l) { len = (l << 16) | o;}
 };
 
 /**
  * This struct describes parameters that are associated with
  *  a QN_LookupNode
  */
-struct QN_LookupParameters
+struct QN_LookupParameters // Is a QueryNodeParameters subclass
 {
   Uint32 len;
   Uint32 requestInfo;
@@ -118,7 +131,7 @@ struct QN_LookupParameters
 /**
  * This node describes a table/index-fragment scan
  */
-struct QN_ScanFragNode
+struct QN_ScanFragNode // Is a QueryNode subclass
 {
   Uint32 len;
   Uint32 requestInfo;
@@ -136,7 +149,7 @@ struct QN_ScanFragNode
  * This struct describes parameters that are associated with
  *  a QN_ScanFragNode
  */
-struct QN_ScanFragParameters
+struct QN_ScanFragParameters // Is a QueryNodeParameters subclass
 {
   Uint32 len;
   Uint32 requestInfo;
@@ -157,8 +170,8 @@ struct QueryTree
   Uint32 cnt_len;  // Length in words describing full tree + #nodes
   Uint32 nodes[1]; // The nodes
 
-  static Uint32 getNodeCnt(const Uint32 & cnt_len) { return cnt_len & 0xFFFF;}
-  static Uint32 getLength(const Uint32 & cnt_len) { return cnt_len >> 16;}
+  static Uint32 getNodeCnt(Uint32 cnt_len) { return cnt_len & 0xFFFF;}
+  static Uint32 getLength(Uint32 cnt_len) { return cnt_len >> 16;}
   static void setCntLen(Uint32 &d, Uint32 c, Uint32 l) { d=(l << 16) | c;}
 };
 
@@ -176,17 +189,17 @@ struct QueryPattern
     P_END  = 0
   };
 
-  static Uint32 getType(const Uint32 & info) { return info >> 16;}
+  static Uint32 getType(const Uint32 info) { return info >> 16;}
 
   /**
    * If type == DATA, get len here
    */
-  static Uint32 getLength(const Uint32 & info) { return info & 0xFFFF;}
+  static Uint32 getLength(Uint32 info) { return info & 0xFFFF;}
 
   /**
    * If type == COL, get col-no here (index in row)
    */
-  static Uint32 getColNo(const Uint32 & info) { return info & 0xFFFF;}
+  static Uint32 getColNo(Uint32 info) { return info & 0xFFFF;}
   static Uint32 col(Uint32 no) { return (P_COL << 16) | no; }
 };
 
