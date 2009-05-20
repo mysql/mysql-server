@@ -252,6 +252,10 @@ void Dbspj::execLQHKEYREQ(Signal* signal)
     return;
   } while (0);
 
+  /**
+   * Error handling below,
+   *  'err' may contain error code.
+   */
   if (!requestPtr.isNull())
   {
     jam();
@@ -578,8 +582,8 @@ Dbspj::build(Build_context& ctx,
     param.peekWord(&tmp1);
     Uint32 node_op = QueryNode::getOpType(tmp0);
     Uint32 node_len = QueryNode::getLength(tmp0);
-    Uint32 param_op = QueryNode::getOpType(tmp1);
-    Uint32 param_len = QueryNode::getLength(tmp1);
+    Uint32 param_op = QueryNodeParameters::getOpType(tmp1);
+    Uint32 param_len = QueryNodeParameters::getLength(tmp1);
 
     err = DbspjErr::QueryNodeTooBig;
     if (unlikely(node_len >= NDB_ARRAY_SIZE(m_buffer0)))
@@ -669,15 +673,7 @@ Dbspj::createNode(Build_context& ctx, Ptr<Request> requestPtr,
   if (m_treenode_pool.seize(requestPtr.p->m_arena, treeNodePtr))
   {
     DEBUG("createNode - seize -> ptrI: " << treeNodePtr.i);
-    new (treeNodePtr.p) TreeNode();
-    treeNodePtr.p->m_node_no = ctx.m_cnt;
-    treeNodePtr.p->m_requestPtrI = requestPtr.i;
-    treeNodePtr.p->m_bits = TreeNode::T_LEAF; // start as leaf...
-    treeNodePtr.p->m_state = TreeNode::TN_BUILDING;
-    treeNodePtr.p->m_send.m_correlation = 0;
-    treeNodePtr.p->m_send.m_keyInfoPtrI = RNIL;
-    treeNodePtr.p->m_send.m_attrInfoPtrI = RNIL;
-    treeNodePtr.p->m_send.m_attrInfoParamPtrI = RNIL;
+    new (treeNodePtr.p) TreeNode(ctx.m_cnt, requestPtr.i);
     ctx.m_node_list[ctx.m_cnt] = treeNodePtr;
     Local_TreeNode_list list(m_treenode_pool, requestPtr.p->m_nodes);
     list.addLast(treeNodePtr);
