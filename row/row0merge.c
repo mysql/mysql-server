@@ -2172,10 +2172,10 @@ dict_index_t*
 row_merge_create_index(
 /*===================*/
 					/* out: index, or NULL on error */
-	trx_t*		trx,		/* in/out: trx (sets error_state) */
-	dict_table_t*	table,		/* in: the index is on this table */
-	const merge_index_def_t*	/* in: the index definition */
-			index_def)
+	trx_t*			trx,	/* in/out: trx (sets error_state) */
+	dict_table_t*		table,	/* in: the index is on this table */
+	const merge_index_def_t*index_def)
+					/* in: the index definition */
 {
 	dict_index_t*	index;
 	ulint		err;
