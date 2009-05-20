@@ -924,6 +924,7 @@ void end_server(MYSQL *mysql)
     vio_delete(mysql->net.vio);
     reset_sigpipe(mysql);
     mysql->net.vio= 0;          /* Marker */
+    mysql_prune_stmt_list(mysql);
   }
   net_end(&mysql->net);
   free_old_query(mysql);
@@ -2526,30 +2527,9 @@ my_bool mysql_reconnect(MYSQL *mysql)
   tmp_mysql.reconnect= 1;
   tmp_mysql.free_me= mysql->free_me;
 
-  /*
-    For each stmt in mysql->stmts, move it to tmp_mysql if it is
-    in state MYSQL_STMT_INIT_DONE, otherwise close it.
-  */
-  {
-    LIST *element= mysql->stmts;
-    for (; element; element= element->next)
-    {
-      MYSQL_STMT *stmt= (MYSQL_STMT *) element->data;
-      if (stmt->state != MYSQL_STMT_INIT_DONE)
-      {
-        stmt->mysql= 0;
-        stmt->last_errno= CR_SERVER_LOST;
-        strmov(stmt->last_error, ER(CR_SERVER_LOST));
-        strmov(stmt->sqlstate, unknown_sqlstate);
-      }
-      else
-      {
-        tmp_mysql.stmts= list_add(tmp_mysql.stmts, &stmt->list);
-      }
-      /* No need to call list_delete for statement here */
-    }
-    mysql->stmts= NULL;
-  }
+  /* Move prepared statements (if any) over to the new mysql object */
+  tmp_mysql.stmts= mysql->stmts;
+  mysql->stmts= 0;
 
   /* Don't free options as these are now used in tmp_mysql */
   bzero((char*) &mysql->options,sizeof(mysql->options));
@@ -2636,6 +2616,46 @@ static void mysql_close_free(MYSQL *mysql)
 #endif
   /* Clear pointers for better safety */
   mysql->host_info= mysql->user= mysql->passwd= mysql->db= 0;
+}
+
+
+/**
+  For use when the connection to the server has been lost (in which case 
+  the server has discarded all information about prepared statements
+  associated with the connection).
+
+  Mark all statements in mysql->stmts by setting stmt->mysql= 0 if the
+  statement has transitioned beyond the MYSQL_STMT_INIT_DONE state, and
+  unlink the statement from the mysql->stmts list.
+
+  The remaining pruned list of statements (if any) is kept in mysql->stmts.
+
+  @param mysql       pointer to the MYSQL object
+
+  @return none
+*/
+void mysql_prune_stmt_list(MYSQL *mysql)
+{
+  LIST *element= mysql->stmts;
+  LIST *pruned_list= 0;
+
+  for (; element; element= element->next)
+  {
+    MYSQL_STMT *stmt= (MYSQL_STMT *) element->data;
+    if (stmt->state != MYSQL_STMT_INIT_DONE)
+    {
+      stmt->mysql= 0;
+      stmt->last_errno= CR_SERVER_LOST;
+      strmov(stmt->last_error, ER(CR_SERVER_LOST));
+      strmov(stmt->sqlstate, unknown_sqlstate);
+    }
+    else
+    {
+      pruned_list= list_add(pruned_list, element);
+    }
+  }
+
+  mysql->stmts= pruned_list;
 }
 
 
