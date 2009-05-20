@@ -334,7 +334,7 @@ UNIV_INLINE
 void
 rw_lock_s_lock_direct(
 /*==================*/
-	rw_lock_t*	lock,		/* in: pointer to rw-lock */
+	rw_lock_t*	lock,		/* in/out: rw-lock */
 	const char*	file_name,	/* in: file name where requested */
 	ulint		line)		/* in: line where lock requested */
 {
@@ -359,7 +359,7 @@ UNIV_INLINE
 void
 rw_lock_x_lock_direct(
 /*==================*/
-	rw_lock_t*	lock,		/* in: pointer to rw-lock */
+	rw_lock_t*	lock,		/* in/out: rw-lock */
 	const char*	file_name,	/* in: file name where requested */
 	ulint		line)		/* in: line where lock requested */
 {
@@ -486,12 +486,11 @@ UNIV_INLINE
 void
 rw_lock_s_unlock_func(
 /*==================*/
-	rw_lock_t*	lock	/* in: rw-lock */
 #ifdef UNIV_SYNC_DEBUG
-	,ulint		pass	/* in: pass value; != 0, if the lock may have
+	ulint		pass,	/* in: pass value; != 0, if the lock may have
 				been passed to another thread to unlock */
 #endif
-	)
+	rw_lock_t*	lock)	/* in/out: rw-lock */
 {
 	ut_ad((lock->lock_word % X_LOCK_DECR) != 0);
 
@@ -524,7 +523,7 @@ UNIV_INLINE
 void
 rw_lock_s_unlock_direct(
 /*====================*/
-	rw_lock_t*	lock)	/* in: rw-lock */
+	rw_lock_t*	lock)	/* in/out: rw-lock */
 {
 	ut_ad(lock->lock_word < X_LOCK_DECR);
 
@@ -548,12 +547,11 @@ UNIV_INLINE
 void
 rw_lock_x_unlock_func(
 /*==================*/
-	rw_lock_t*	lock	/* in: rw-lock */
 #ifdef UNIV_SYNC_DEBUG
-	,ulint		pass	/* in: pass value; != 0, if the lock may have
+	ulint		pass,	/* in: pass value; != 0, if the lock may have
 				been passed to another thread to unlock */
 #endif
-	)
+	rw_lock_t*	lock)	/* in/out: rw-lock */
 {
 	ut_ad((lock->lock_word % X_LOCK_DECR) == 0);
 
@@ -599,7 +597,7 @@ UNIV_INLINE
 void
 rw_lock_x_unlock_direct(
 /*====================*/
-	rw_lock_t*	lock)	/* in: rw-lock */
+	rw_lock_t*	lock)	/* in/out: rw-lock */
 {
 	/* Reset the exclusive lock if this thread no longer has an x-mode
 	lock */
