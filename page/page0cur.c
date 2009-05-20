@@ -52,8 +52,8 @@ m = 18446744073709551616 (2^64)
 */
 static
 ib_uint64_t
-page_cur_lcg_prng()
-/*===============*/
+page_cur_lcg_prng(void)
+/*===================*/
 			/* out: number between 0 and 2^64-1 */
 {
 #define LCG_a	1103515245
