@@ -210,28 +210,21 @@ UNIV_INLINE
 void
 rw_lock_s_unlock_func(
 /*==================*/
-	rw_lock_t*	lock	/* in: rw-lock */
 #ifdef UNIV_SYNC_DEBUG
-	,ulint		pass	/* in: pass value; != 0, if the lock may have
+	ulint		pass,	/* in: pass value; != 0, if the lock may have
 				been passed to another thread to unlock */
 #endif
-	);
-/***********************************************************************
-Releases a shared mode lock. */
+	rw_lock_t*	lock);	/* in/out: rw-lock */
 
 #ifdef UNIV_SYNC_DEBUG
-#define rw_lock_s_unlock(L)	rw_lock_s_unlock_func(L, 0)
+# define rw_lock_s_unlock_gen(L, P)	rw_lock_s_unlock_func(P, L)
 #else
-#define rw_lock_s_unlock(L)	rw_lock_s_unlock_func(L)
+# define rw_lock_s_unlock_gen(L, P)	rw_lock_s_unlock_func(L)
 #endif
 /***********************************************************************
 Releases a shared mode lock. */
+#define rw_lock_s_unlock(L)		rw_lock_s_unlock_gen(L, 0)
 
-#ifdef UNIV_SYNC_DEBUG
-#define rw_lock_s_unlock_gen(L, P)	rw_lock_s_unlock_func(L, P)
-#else
-#define rw_lock_s_unlock_gen(L, P)	rw_lock_s_unlock_func(L)
-#endif
 /******************************************************************
 NOTE! The following macro should be used in rw x-locking, not the
 corresponding function. */
@@ -274,28 +267,21 @@ UNIV_INLINE
 void
 rw_lock_x_unlock_func(
 /*==================*/
-	rw_lock_t*	lock	/* in: rw-lock */
 #ifdef UNIV_SYNC_DEBUG
-	,ulint		pass	/* in: pass value; != 0, if the lock may have
+	ulint		pass,	/* in: pass value; != 0, if the lock may have
 				been passed to another thread to unlock */
 #endif
-	);
-/***********************************************************************
-Releases an exclusive mode lock. */
+	rw_lock_t*	lock);	/* in/out: rw-lock */
 
 #ifdef UNIV_SYNC_DEBUG
-#define rw_lock_x_unlock(L)	rw_lock_x_unlock_func(L, 0)
+# define rw_lock_x_unlock_gen(L, P)	rw_lock_x_unlock_func(P, L)
 #else
-#define rw_lock_x_unlock(L)	rw_lock_x_unlock_func(L)
+# define rw_lock_x_unlock_gen(L, P)	rw_lock_x_unlock_func(L)
 #endif
 /***********************************************************************
 Releases an exclusive mode lock. */
+#define rw_lock_x_unlock(L)		rw_lock_x_unlock_gen(L, 0)
 
-#ifdef UNIV_SYNC_DEBUG
-#define rw_lock_x_unlock_gen(L, P)	rw_lock_x_unlock_func(L, P)
-#else
-#define rw_lock_x_unlock_gen(L, P)	rw_lock_x_unlock_func(L)
-#endif
 /**********************************************************************
 Low-level function which locks an rw-lock in s-mode when we know that it
 is possible and none else is currently accessing the rw-lock structure.
@@ -304,10 +290,9 @@ UNIV_INLINE
 void
 rw_lock_s_lock_direct(
 /*==================*/
-	rw_lock_t*	lock,		/* in: pointer to rw-lock */
+	rw_lock_t*	lock,		/* in/out: rw-lock */
 	const char*	file_name,	/* in: file name where requested */
-	ulint		line		/* in: line where lock requested */
-);
+	ulint		line);		/* in: line where lock requested */
 /**********************************************************************
 Low-level function which locks an rw-lock in x-mode when we know that it
 is not locked and none else is currently accessing the rw-lock structure.
@@ -316,10 +301,9 @@ UNIV_INLINE
 void
 rw_lock_x_lock_direct(
 /*==================*/
-	rw_lock_t*	lock,		/* in: pointer to rw-lock */
+	rw_lock_t*	lock,		/* in/out: rw-lock */
 	const char*	file_name,	/* in: file name where requested */
-	ulint		line		/* in: line where lock requested */
-);
+	ulint		line);		/* in: line where lock requested */
 /**********************************************************************
 This function is used in the insert buffer to move the ownership of an
 x-latch on a buffer frame to the current thread. The x-latch was set by
@@ -341,7 +325,7 @@ UNIV_INLINE
 void
 rw_lock_s_unlock_direct(
 /*====================*/
-	rw_lock_t*	lock);	/* in: rw-lock */
+	rw_lock_t*	lock);	/* in/out: rw-lock */
 /**********************************************************************
 Releases an exclusive mode lock when we know there are no waiters, and
 none else will access the lock durint the time this function is executed. */
@@ -349,7 +333,7 @@ UNIV_INLINE
 void
 rw_lock_x_unlock_direct(
 /*====================*/
-	rw_lock_t*	lock);	/* in: rw-lock */
+	rw_lock_t*	lock);	/* in/out: rw-lock */
 /**********************************************************************
 Returns the value of writer_count for the lock. Does not reserve the lock
 mutex, so the caller must be sure it is not changed during the call. */
