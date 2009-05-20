@@ -50,6 +50,7 @@ set @@global.max_allowed_packet=1048576*100;
 --connect (newconn, localhost, root,,)
 eval select compress(repeat('aaaaaaaaaa', IF('$LOW_MEMORY', 10, 10000000))) is null;
 disconnect newconn;
+--source include/wait_until_disconnected.inc
 connection default;
 set @@global.max_allowed_packet=default;
 
