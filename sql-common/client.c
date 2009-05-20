@@ -120,6 +120,7 @@ const char 	*def_shared_memory_base_name= default_shared_memory_base_name;
 
 static void mysql_close_free_options(MYSQL *mysql);
 static void mysql_close_free(MYSQL *mysql);
+static void mysql_prune_stmt_list(MYSQL *mysql);
 
 #if !(defined(__WIN__) || defined(__NETWARE__))
 static int wait_for_data(my_socket fd, uint timeout);
@@ -2634,7 +2635,7 @@ static void mysql_close_free(MYSQL *mysql)
 
   @return none
 */
-void mysql_prune_stmt_list(MYSQL *mysql)
+static void mysql_prune_stmt_list(MYSQL *mysql)
 {
   LIST *element= mysql->stmts;
   LIST *pruned_list= 0;
