@@ -1767,6 +1767,7 @@ Function to pass InnoDB status variables to MySQL */
 UNIV_INTERN
 void
 srv_export_innodb_status(void)
+/*==========================*/
 {
 	mutex_enter(&srv_innodb_monitor_mutex);
 

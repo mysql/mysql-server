@@ -380,7 +380,6 @@ static
 void
 innobase_drop_database(
 /*===================*/
-			/* out: error number */
 	handlerton* hton, /* in: handlerton of Innodb */
 	char*	path);	/* in: database path; inside InnoDB the name
 			of the last directory in the path is used as
@@ -2755,6 +2754,8 @@ Get the table flags to use for the statement. */
 UNIV_INTERN
 handler::Table_flags
 ha_innobase::table_flags() const
+/*============================*/
+				/* out: table flags */
 {
        /* Need to use tx_isolation here since table flags is (also)
           called before prebuilt is inited. */
@@ -2899,6 +2900,7 @@ UNIV_INTERN
 ulint
 ha_innobase::innobase_initialize_autoinc()
 /*======================================*/
+				/* out: DB_SUCCESS or error code */
 {
 	dict_index_t*	index;
 	ulonglong	auto_inc;
@@ -4765,6 +4767,7 @@ UNIV_INTERN
 int
 ha_innobase::index_end(void)
 /*========================*/
+				/* out: 0 */
 {
 	int	error	= 0;
 	DBUG_ENTER("index_end");
@@ -6442,8 +6445,7 @@ static
 void
 innobase_drop_database(
 /*===================*/
-			/* out: error number */
-        handlerton *hton, /* in: handlerton of Innodb */
+	handlerton *hton, /* in: handlerton of Innodb */
 	char*	path)	/* in: database path; inside InnoDB the name
 			of the last directory in the path is used as
 			the database name: for example, in 'mysql/data/test'
@@ -7447,6 +7449,7 @@ UNIV_INTERN
 bool
 ha_innobase::can_switch_engines(void)
 /*=================================*/
+				/* out: TRUE if can switch engines */
 {
 	bool	can_switch;
 
@@ -7945,9 +7948,9 @@ ha_innobase::transactional_table_lock(
 /****************************************************************************
 Here we export InnoDB status variables to MySQL.  */
 static
-int
-innodb_export_status()
-/*==================*/
+void
+innodb_export_status(void)
+/*======================*/
 {
 	if (innodb_inited) {
 		srv_export_innodb_status();

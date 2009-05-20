@@ -484,7 +484,7 @@ UNIV_INTERN
 void
 dict_table_print_by_name(
 /*=====================*/
-	const char*	name);
+	const char*	name);	/* in: table name */
 /**************************************************************************
 Outputs info on foreign keys of a table. */
 UNIV_INTERN

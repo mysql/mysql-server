@@ -90,14 +90,19 @@ absolute address (VA). This is due to the pointers in the delay
 descriptor (ImgDelayDescr in delayimp.h) have been changed from
 VAs to RVAs to work on both 32- and 64-bit platforms. */
 template <class X>
-X PFromRva(RVA rva) {
+X PFromRva(
+/*=======*/
+			/* out: absolute virtual address */
+	RVA	rva)	/* in: relative virtual address */
+{
 	return X(PBYTE(&__ImageBase) + rva);
 }
 
 /***********************************************************************
 Convert to the old format for convenience. The structure as well as its
 element names follow the definition of ImgDelayDescr in delayimp.h. */
-struct InternalImgDelayDescr {
+struct InternalImgDelayDescr
+{
 	DWORD		grAttrs;	/* attributes */
 	LPCSTR		szName;		/* pointer to dll name */
 	HMODULE*	phmod;		/* address of module handle */
@@ -138,8 +143,7 @@ in the server:
 	_db_return_
 	_db_dump_
 
-The plugin will get those function pointers during the initialization.
-*/
+The plugin will get those function pointers during the initialization. */
 typedef void (__cdecl* pfn_db_enter_)(
 	const char*	_func_,
 	const char*	_file_,

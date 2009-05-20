@@ -518,7 +518,7 @@ Function to pass InnoDB status variables to MySQL */
 UNIV_INTERN
 void
 srv_export_innodb_status(void);
-/*=====================*/
+/*==========================*/
 
 /* Thread slot in the thread table */
 typedef struct srv_slot_struct	srv_slot_t;
