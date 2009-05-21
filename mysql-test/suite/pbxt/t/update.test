@@ -1,0 +1,314 @@
+#
+# test of updating of keys
+#
+
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
+
+create table t1 (a int auto_increment , primary key (a));
+insert into t1 values (NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL); 
+update t1 set a=a+10 where a > 34;
+update t1 set a=a+100 where a > 0;
+
+# Some strange updates to test some otherwise unused code
+update t1 set a=a+100 where a=1 and a=2;
+--error 1054
+update t1 set a=b+100 where a=1 and a=2; 
+--error 1054
+update t1 set a=b+100 where c=1 and a=2; 
+--error 1054
+update t1 set d=a+100 where a=1;
+select * from t1;
+drop table t1;
+
+CREATE TABLE t1
+ (
+ place_id int (10) unsigned NOT NULL,
+ shows int(10) unsigned DEFAULT '0' NOT NULL,
+ ishows int(10) unsigned DEFAULT '0' NOT NULL,
+ ushows int(10) unsigned DEFAULT '0' NOT NULL,
+ clicks int(10) unsigned DEFAULT '0' NOT NULL,
+ iclicks int(10) unsigned DEFAULT '0' NOT NULL,
+ uclicks int(10) unsigned DEFAULT '0' NOT NULL,
+ ts timestamp,
+ PRIMARY KEY (place_id,ts)
+ );
+
+INSERT INTO t1 (place_id,shows,ishows,ushows,clicks,iclicks,uclicks,ts)
+VALUES (1,0,0,0,0,0,0,20000928174434);
+UPDATE t1 SET shows=shows+1,ishows=ishows+1,ushows=ushows+1,clicks=clicks+1,iclicks=iclicks+1,uclicks=uclicks+1 WHERE place_id=1 AND ts>="2000-09-28 00:00:00";
+select place_id,shows from t1;
+drop table t1;
+
+#
+# Test bug with update reported by Jan Legenhausen
+#
+
+CREATE TABLE t1 (
+  lfdnr int(10) unsigned NOT NULL default '0',
+  ticket int(10) unsigned NOT NULL default '0',
+  client varchar(255) NOT NULL default '',
+  replyto varchar(255) NOT NULL default '',
+  subject varchar(100) NOT NULL default '',
+  timestamp int(10) unsigned NOT NULL default '0',
+  tstamp timestamp NOT NULL,
+  status int(3) NOT NULL default '0',
+  type varchar(15) NOT NULL default '',
+  assignment int(10) unsigned NOT NULL default '0',
+  fupcount int(4) unsigned NOT NULL default '0',
+  parent int(10) unsigned NOT NULL default '0',
+  activity int(10) unsigned NOT NULL default '0',
+  priority tinyint(1) unsigned NOT NULL default '1',
+  cc varchar(255) NOT NULL default '',
+  bcc varchar(255) NOT NULL default '',
+  body text NOT NULL,
+  comment text,
+  header text,
+  PRIMARY KEY  (lfdnr),
+  KEY k1 (timestamp),
+  KEY k2 (type),
+  KEY k3 (parent),
+  KEY k4 (assignment),
+  KEY ticket (ticket)
+) ENGINE=MyISAM;
+
+INSERT INTO t1 VALUES (773,773,'','','',980257344,20010318180652,0,'Open',10,0,0,0,1,'','','','','');
+
+alter table t1 change lfdnr lfdnr int(10) unsigned not null auto_increment;
+update t1 set status=1 where type='Open';
+select status from t1;
+drop table t1;
+
+#
+# Test of ORDER BY
+#
+
+create table t1 (a int not null, b int not null, key (a));
+insert into t1 values (1,1),(1,2),(1,3),(3,1),(3,2),(3,3),(3,1),(3,2),(3,3),(2,1),(2,2),(2,3);
+SET @tmp=0;
+update t1 set b=(@tmp:=@tmp+1) order by a;
+update t1 set b=99 where a=1 order by b asc limit 1;
+select * from t1 order by a,b;
+update t1 set b=100 where a=1 order by b desc limit 2;
+update t1 set a=a+10+b where a=1 order by b;
+select * from t1 order by a,b;
+create table t2 (a int not null, b int not null);
+insert into t2 values (1,1),(1,2),(1,3);
+update t1 set b=(select distinct 1 from (select * from t2) a);
+drop table t1,t2;
+
+#
+# Test with limit (Bug #393)
+#
+
+CREATE TABLE t1 (
+   `id_param` smallint(3) unsigned NOT NULL default '0',
+   `nom_option` char(40) NOT NULL default '',
+   `valid` tinyint(1) NOT NULL default '0',
+   KEY `id_param` (`id_param`,`nom_option`)
+ ) ENGINE=MyISAM;
+
+INSERT INTO t1 (id_param,nom_option,valid) VALUES (185,'600x1200',1);
+
+UPDATE t1 SET nom_option='test' WHERE id_param=185 AND nom_option='600x1200' AND valid=1 LIMIT 1;
+select * from t1;
+drop table t1;
+
+#
+# Multi table update test from bugs
+#
+
+create table t1 (F1 VARCHAR(30), F2 VARCHAR(30), F3 VARCHAR(30), cnt int, groupid int, KEY groupid_index (groupid));
+
+insert into t1 (F1,F2,F3,cnt,groupid) values ('0','0','0',1,6),
+('0','1','2',1,5), ('0','2','0',1,3), ('1','0','1',1,2),
+('1','2','1',1,1), ('1','2','2',1,1), ('2','0','1',2,4),
+('2','2','0',1,7);
+delete from m1 using t1 m1,t1 m2 where m1.groupid=m2.groupid and (m1.cnt < m2.cnt or m1.cnt=m2.cnt and m1.F3>m2.F3);
+select * from t1;
+drop table t1;
+
+#
+# Bug#5553 - Multi table UPDATE IGNORE fails on duplicate keys 
+#
+
+CREATE TABLE t1 ( 
+   `colA` int(10) unsigned NOT NULL auto_increment,
+   `colB` int(11) NOT NULL default '0',
+   PRIMARY KEY  (`colA`)
+);
+INSERT INTO t1 VALUES (4433,5424);
+CREATE TABLE t2 (
+  `colC` int(10) unsigned NOT NULL default '0',
+  `colA` int(10) unsigned NOT NULL default '0',
+  `colD` int(10) unsigned NOT NULL default '0',
+  `colE` int(10) unsigned NOT NULL default '0',
+  `colF` int(10) unsigned NOT NULL default '0',
+  PRIMARY KEY  (`colC`,`colA`,`colD`,`colE`)
+);
+INSERT INTO t2 VALUES (3,4433,10005,495,500);
+INSERT INTO t2 VALUES (3,4433,10005,496,500);
+INSERT INTO t2 VALUES (3,4433,10009,494,500);
+INSERT INTO t2 VALUES (3,4433,10011,494,500);
+INSERT INTO t2 VALUES (3,4433,10005,497,500);
+INSERT INTO t2 VALUES (3,4433,10013,489,500);
+INSERT INTO t2 VALUES (3,4433,10005,494,500);
+INSERT INTO t2 VALUES (3,4433,10005,493,500);
+INSERT INTO t2 VALUES (3,4433,10005,492,500);
+UPDATE IGNORE t2,t1 set t2.colE = t2.colE + 1,colF=0 WHERE t1.colA = t2.colA AND (t1.colB & 4096) > 0 AND (colE + 1) < colF;
+SELECT * FROM t2;
+DROP TABLE t1;
+DROP TABLE t2;
+
+#
+# Bug #6054 
+#
+create table t1 (c1 int, c2 char(6), c3 int);
+create table t2 (c1 int, c2 char(6));
+insert into t1 values (1, "t1c2-1", 10), (2, "t1c2-2", 20);
+update t1 left join t2 on t1.c1 = t2.c1 set t2.c2 = "t2c2-1";
+update t1 left join t2 on t1.c1 = t2.c1 set t2.c2 = "t2c2-1" where t1.c3 = 10;
+drop table t1, t2;
+
+#
+# Bug #8057
+#
+create table t1 (id int not null auto_increment primary key, id_str varchar(32));
+insert into t1 (id_str) values ("test");
+update t1 set id_str = concat(id_str, id) where id = last_insert_id();
+select * from t1;
+drop table t1;
+
+#
+# Bug #8942: a problem with update and partial key part
+#
+
+create table t1 (a int, b char(255), key(a, b(20)));
+insert into t1 values (0, '1');
+update t1 set b = b + 1 where a = 0;
+select * from t1;
+drop table t1;
+
+# BUG#9103 "Erroneous data truncation warnings on multi-table updates"
+create table t1 (a int, b varchar(10), key b(b(5))) engine=myisam;
+create table t2 (a int, b varchar(10)) engine=myisam;
+insert into t1 values ( 1, 'abcd1e');
+insert into t1 values ( 2, 'abcd2e');
+insert into t2 values ( 1, 'abcd1e');
+insert into t2 values ( 2, 'abcd2e');
+analyze table t1,t2;
+update t1, t2 set t1.a = t2.a where t2.b = t1.b;
+show warnings;
+drop table t1, t2;
+
+#
+# Bug #11868 Update with subquery with ref built with a key from the updated
+#            table crashes server
+#
+create table t1(f1 int, f2 int);
+create table t2(f3 int, f4 int);
+create index idx on t2(f3);
+insert into t1 values(1,0),(2,0);
+insert into t2 values(1,1),(2,2);
+UPDATE t1 SET t1.f2=(SELECT MAX(t2.f4) FROM t2 WHERE t2.f3=t1.f1);
+select * from t1;
+drop table t1,t2;
+
+#
+# Bug #13180 sometimes server accepts sum func in update/delete where condition
+#
+create table t1(f1 int);
+select DATABASE();
+--error 1111
+update t1 set f1=1 where count(*)=1;
+select DATABASE();
+--error 1111
+delete from t1 where count(*)=1;
+drop table t1;
+
+# BUG#12915: Optimize "DELETE|UPDATE ... ORDER BY ... LIMIT n" to use an index
+create table t1 ( a int, b int default 0, index (a) );
+insert into t1 (a) values (0),(0),(0),(0),(0),(0),(0),(0);
+
+flush status;
+select a from t1 order by a limit 1;
+show status like 'handler_read%';
+
+flush status;
+update t1 set a=9999 order by a limit 1;
+analyze table t1; # PBXT required to get a consistent order in the update below
+update t1 set b=9999 order by a desc limit 1; # PBXT Update last updated field
+show status like 'handler_read%';
+
+flush status;
+delete from t1 order by a limit 1;
+show status like 'handler_read%';
+
+flush status;
+delete from t1 order by a desc limit 1;
+show status like 'handler_read%';
+
+alter table t1 disable keys;
+
+flush status;
+delete from t1 order by a limit 1;
+show status like 'handler_read%';
+
+select * from t1;
+update t1 set a=a+10,b=1 order by a limit 3;
+update t1 set a=a+11,b=2 order by a limit 3;
+update t1 set a=a+12,b=3 order by a limit 3;
+select * from t1 order by a;
+
+drop table t1;
+
+#
+# Bug#14186 select datefield is null not updated
+#
+create table t1 (f1 date not null);
+insert into t1 values('2000-01-01'),('0000-00-00');
+update t1 set f1='2002-02-02' where f1 is null;
+select * from t1;
+drop table t1;
+
+#
+# Bug#15028 Multitable update returns different numbers of matched rows
+#           depending on table order
+create table t1 (f1 int);
+create table t2 (f2 int);
+insert into t1 values(1),(2);
+insert into t2 values(1),(1);
+--enable_info
+update t1,t2 set f1=3,f2=3 where f1=f2 and f1=1;
+--disable_info
+update t2 set f2=1;
+update t1 set f1=1 where f1=3;
+--enable_info
+update t2,t1 set f1=3,f2=3 where f1=f2 and f1=1;
+--disable_info
+drop table t1,t2;
+
+
+# BUG#15935
+create table t1 (a int);
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t2 (a int, filler1 char(200), filler2 char(200), key(a));
+insert into t2 select A.a + 10*B.a, 'filler','filler' from t1 A, t1 B;
+flush status;
+update t2 set a=3 where a=2;
+show status like 'handler_read%';
+drop table t1, t2;
+
+#
+# Bug #16510 Updating field named like '*name' caused server crash
+#
+create table t1(f1 int, `*f2` int);
+insert into t1 values (1,1);
+update t1 set `*f2`=1;
+drop table t1;
+
+--disable_query_log
+drop database pbxt;
+--enable_query_log
+# End of 4.1 tests

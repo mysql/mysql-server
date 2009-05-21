@@ -380,7 +380,7 @@ bool
 Event_job_data::load_from_row(THD *thd, TABLE *table)
 {
   char *ptr;
-  uint len;
+  size_t len;
   LEX_STRING tz_name;
 
   DBUG_ENTER("Event_job_data::load_from_row");
@@ -580,7 +580,7 @@ bool
 Event_timed::load_from_row(THD *thd, TABLE *table)
 {
   char *ptr;
-  uint len;
+  size_t len;
 
   DBUG_ENTER("Event_timed::load_from_row");
 

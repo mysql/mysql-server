@@ -1,4 +1,4 @@
-/*	$NetBSD: read.c,v 1.35 2005/03/09 23:55:02 christos Exp $	*/
+/*	$NetBSD: read.c,v 1.43 2009/02/05 19:15:44 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -32,7 +32,13 @@
  * SUCH DAMAGE.
  */
 
-#include <config.h>
+#include "config.h"
+#if !defined(lint) && !defined(SCCSID)
+#if 0
+static char sccsid[] = "@(#)read.c	8.1 (Berkeley) 6/4/93";
+#else
+#endif
+#endif /* not lint && not SCCSID */
 
 /*
  * read.c: Clean this junk up! This is horrible code.
@@ -50,6 +56,7 @@ private int	read__fixio(int, int);
 private int	read_preread(EditLine *);
 private int	read_char(EditLine *, char *);
 private int	read_getcmd(EditLine *, el_action_t *, char *);
+private void	read_pop(c_macro_t *);
 
 /* read_init():
  *	Initialize the read stuff
@@ -205,7 +212,7 @@ read_preread(EditLine *el)
  *	Push a macro
  */
 public void
-el_push(EditLine *el, char *str)
+el_push(EditLine *el, const char *str)
 {
 	c_macro_t *ma = &el->el_chared.c_macro;
 
@@ -216,7 +223,7 @@ el_push(EditLine *el, char *str)
 		ma->level--;
 	}
 	term_beep(el);
-	term__flush();
+	term__flush(el);
 }
 
 
@@ -294,6 +301,19 @@ read_char(EditLine *el, char *cp)
 	return (num_read);
 }
 
+/* read_pop():
+ *	Pop a macro from the stack
+ */
+private void
+read_pop(c_macro_t *ma)
+{
+	int i;
+
+	el_free(ma->macro[0]);
+	for (i = ma->level--; i > 0; i--)
+		ma->macro[i - 1] = ma->macro[i];
+	ma->offset = 0;
+}
 
 /* el_getc():
  *	Read a character
@@ -304,26 +324,28 @@ el_getc(EditLine *el, char *cp)
 	int num_read;
 	c_macro_t *ma = &el->el_chared.c_macro;
 
-	term__flush();
+	term__flush(el);
 	for (;;) {
 		if (ma->level < 0) {
 			if (!read_preread(el))
 				break;
 		}
+
 		if (ma->level < 0)
 			break;
 
-		if (ma->macro[ma->level][ma->offset] == '\0') {
-			el_free(ma->macro[ma->level--]);
-			ma->offset = 0;
+		if (ma->macro[0][ma->offset] == '\0') {
+			read_pop(ma);
 			continue;
 		}
-		*cp = ma->macro[ma->level][ma->offset++] & 0377;
-		if (ma->macro[ma->level][ma->offset] == '\0') {
+
+		*cp = ma->macro[0][ma->offset++] & 0377;
+
+		if (ma->macro[0][ma->offset] == '\0') {
 			/* Needed for QuoteMode On */
-			el_free(ma->macro[ma->level--]);
-			ma->offset = 0;
+			read_pop(ma);
 		}
+
 		return (1);
 	}
 
@@ -357,11 +379,11 @@ read_prepare(EditLine *el)
 	   we have the wrong size. */
 	el_resize(el);
 	re_clear_display(el);	/* reset the display stuff */
-	ch_reset(el);
+	ch_reset(el, 0);
 	re_refresh(el);		/* print the prompt */
 
 	if (el->el_flags & UNBUFFERED)
-		term__flush();
+		term__flush(el);
 }
 
 protected void
@@ -438,7 +460,7 @@ el_gets(EditLine *el, int *nread)
 		else
 			cp = el->el_line.lastchar;
 
-		term__flush();
+		term__flush(el);
 
 		while ((*el->el_read.read_char)(el, cp) == 1) {
 			/* make sure there is space next character */
@@ -478,7 +500,7 @@ el_gets(EditLine *el, int *nread)
 #endif /* DEBUG_READ */
 			break;
 		}
-		if ((unsigned int)cmdnum >= el->el_map.nfunc) {	/* BUG CHECK command */
+		if ((unsigned int)cmdnum >= (unsigned int)el->el_map.nfunc) {	/* BUG CHECK command */
 #ifdef DEBUG_EDIT
 			(void) fprintf(el->el_errfile,
 			    "ERROR: illegal command from key 0%o\r\n", ch);
@@ -570,7 +592,7 @@ el_gets(EditLine *el, int *nread)
 #endif /* DEBUG_READ */
 			/* put (real) cursor in a known place */
 			re_clear_display(el);	/* reset the display stuff */
-			ch_reset(el);	/* reset the input pointers */
+			ch_reset(el, 1);	/* reset the input pointers */
 			re_refresh(el);	/* print the prompt again */
 			break;
 
@@ -581,7 +603,7 @@ el_gets(EditLine *el, int *nread)
 			    "*** editor ERROR ***\r\n\n");
 #endif /* DEBUG_READ */
 			term_beep(el);
-			term__flush();
+			term__flush(el);
 			break;
 		}
 		el->el_state.argument = 1;
@@ -591,7 +613,7 @@ el_gets(EditLine *el, int *nread)
 			break;
 	}
 
-	term__flush();		/* flush any buffered output */
+	term__flush(el);		/* flush any buffered output */
 	/* make sure the tty is set up correctly */
 	if ((el->el_flags & UNBUFFERED) == 0) {
 		read_finish(el);

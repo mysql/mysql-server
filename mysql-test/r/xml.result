@@ -1053,4 +1053,15 @@ ExtractValue('<xml  xxx  "yyy">CharData</xml>', '/xml')
 NULL
 Warnings:
 Warning	1525	Incorrect XML value: 'parse error at line 1 pos 17: STRING unexpected ('>' wanted)'
+set @x=10;
+select extractvalue('<a></a>','$@x/a');
+ERROR HY000: XPATH syntax error: '/a'
+select extractvalue('<a></a>','round(123.4)/a');
+ERROR HY000: XPATH syntax error: '/a'
+select extractvalue('<a></a>','1/a');
+ERROR HY000: XPATH syntax error: '/a'
+select extractvalue('<a></a>','"b"/a');
+ERROR HY000: XPATH syntax error: '/a'
+select extractvalue('<a></a>','(1)/a');
+ERROR HY000: XPATH syntax error: '/a'
 End of 5.1 tests

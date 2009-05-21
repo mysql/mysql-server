@@ -2,37 +2,6 @@ drop table if exists t1,t2;
 drop view if exists v1,v2;
 drop function if exists f1;
 drop function if exists f2;
-use INFORMATION_SCHEMA;
-show tables;
-Tables_in_information_schema
-CHARACTER_SETS
-COLLATIONS
-COLLATION_CHARACTER_SET_APPLICABILITY
-COLUMNS
-COLUMN_PRIVILEGES
-ENGINES
-EVENTS
-FILES
-GLOBAL_STATUS
-GLOBAL_VARIABLES
-KEY_COLUMN_USAGE
-PARTITIONS
-PLUGINS
-PROCESSLIST
-PROFILING
-REFERENTIAL_CONSTRAINTS
-ROUTINES
-SCHEMATA
-SCHEMA_PRIVILEGES
-SESSION_STATUS
-SESSION_VARIABLES
-STATISTICS
-TABLES
-TABLE_CONSTRAINTS
-TABLE_PRIVILEGES
-TRIGGERS
-USER_PRIVILEGES
-VIEWS
 show tables from INFORMATION_SCHEMA like 'T%';
 Tables_in_information_schema (T%)
 TABLES
@@ -200,7 +169,7 @@ Field	Type	Null	Key	Default	Extra
 f1	char(4)	YES		NULL	
 show create view v2;
 View	Create View	character_set_client	collation_connection
-v2	CREATE ALGORITHM=UNDEFINED DEFINER=`testdb_2`@`localhost` SQL SECURITY DEFINER VIEW `test`.`v2` AS select `v1`.`f1` AS `f1` from `testdb_1`.`v1`	latin1	latin1_swedish_ci
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`testdb_2`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `v1`.`f1` AS `f1` from `testdb_1`.`v1`	latin1	latin1_swedish_ci
 show create view testdb_1.v1;
 ERROR 42000: SHOW VIEW command denied to user 'testdb_2'@'localhost' for table 'v1'
 select table_name from information_schema.columns a 

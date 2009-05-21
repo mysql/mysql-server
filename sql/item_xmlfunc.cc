@@ -1972,6 +1972,13 @@ my_xpath_parse_FilterExpr_opt_slashes_RelativeLocationPath(MY_XPATH *xpath)
   if (!my_xpath_parse_term(xpath, MY_XPATH_LEX_SLASH))
     return 1;
 
+  if (xpath->item->type() != Item::XPATH_NODESET)
+  {
+    xpath->lasttok= xpath->prevtok;
+    xpath->error= 1;
+    return 0;
+  }
+
   my_xpath_parse_term(xpath, MY_XPATH_LEX_SLASH);
   return my_xpath_parse_RelativeLocationPath(xpath);
 }
@@ -1979,7 +1986,6 @@ static int my_xpath_parse_PathExpr(MY_XPATH *xpath)
 {
   return my_xpath_parse_LocationPath(xpath) || 
          my_xpath_parse_FilterExpr_opt_slashes_RelativeLocationPath(xpath);
-         
 }
 
 

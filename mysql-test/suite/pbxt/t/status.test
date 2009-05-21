@@ -1,0 +1,190 @@
+# embedded server causes different stat
+-- source include/not_embedded.inc
+
+# PS causes different statistics
+--disable_ps_protocol
+
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+
+flush status;
+show status like 'Table_lock%';
+select * from information_schema.session_status where variable_name like 'Table_lock%';
+connection con1;
+SET SQL_LOG_BIN=0;
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+create table t1(n int) engine=myisam;
+insert into t1 values(1);
+
+# PBXT: fix for late commit on unlock, see comment in ps.test
+#
+select * from t1;
+connection con2;
+lock tables t1 read;
+unlock tables;
+lock tables t1 read;
+connection con1;
+--send
+update t1 set n = 3;
+connection con2;
+sleep 0.5;
+unlock tables;
+connection con1;
+reap;
+show status like 'Table_lock%';
+select * from information_schema.session_status where variable_name like 'Table_lock%';
+drop table t1;
+
+disconnect con2;
+disconnect con1;
+connection default;
+
+# End of 4.1 tests
+
+#
+# last_query_cost
+#
+
+select 1;
+show status like 'last_query_cost';
+create table t1 (a int);
+insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+select * from t1 where a=6;
+show status like 'last_query_cost';
+# Ensure value dosn't change by second status call
+show status like 'last_query_cost';
+select 1;
+show status like 'last_query_cost';
+drop table t1;
+
+#
+# Test for Bug #15933 max_used_connections is wrong after FLUSH STATUS
+# if connections are cached
+#
+#
+# The first suggested fix from the bug report was chosen
+# (see http://bugs.mysql.com/bug.php?id=15933):
+#
+#   a) On flushing the status, set max_used_connections to
+#   threads_connected, not to 0.
+#
+#   b) Check if it is necessary to increment max_used_connections when
+#   taking a thread from the cache as well as when creating new threads
+#
+
+# Wait for at most $disconnect_timeout seconds for disconnects to finish.
+let $disconnect_timeout = 10;
+
+# Wait for any previous disconnects to finish.
+FLUSH STATUS;
+--disable_query_log
+--disable_result_log
+eval SET @wait_left = $disconnect_timeout;
+let $max_used_connections = `SHOW STATUS LIKE 'max_used_connections'`;
+eval SET @max_used_connections = SUBSTRING('$max_used_connections', 21)+0;
+let $wait_more = `SELECT @max_used_connections != 1 && @wait_left > 0`;
+while ($wait_more)
+{
+  sleep 1;
+  FLUSH STATUS;
+  SET @wait_left = @wait_left - 1;
+  let $max_used_connections = `SHOW STATUS LIKE 'max_used_connections'`;
+  eval SET @max_used_connections = SUBSTRING('$max_used_connections', 21)+0;
+  let $wait_more = `SELECT @max_used_connections != 1 && @wait_left > 0`;
+}
+--enable_query_log
+--enable_result_log
+
+# Prerequisite.
+SHOW STATUS LIKE 'max_used_connections';
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS WHERE VARIABLE_NAME LIKE 'max_used_connections';
+
+# Save original setting.
+SET @save_thread_cache_size=@@thread_cache_size;
+SET GLOBAL thread_cache_size=3;
+
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+
+connection con1;
+disconnect con2;
+
+# Check that max_used_connections still reflects maximum value.
+SHOW STATUS LIKE 'max_used_connections';
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS WHERE VARIABLE_NAME LIKE 'max_used_connections';
+
+# Check that after flush max_used_connections equals to current number
+# of connections.  First wait for previous disconnect to finish.
+FLUSH STATUS;
+--disable_query_log
+--disable_result_log
+eval SET @wait_left = $disconnect_timeout;
+let $max_used_connections = `SHOW STATUS LIKE 'max_used_connections'`;
+eval SET @max_used_connections = SUBSTRING('$max_used_connections', 21)+0;
+let $wait_more = `SELECT @max_used_connections != 2 && @wait_left > 0`;
+while ($wait_more)
+{
+  sleep 1;
+  FLUSH STATUS;
+  SET @wait_left = @wait_left - 1;
+  let $max_used_connections = `SHOW STATUS LIKE 'max_used_connections'`;
+  eval SET @max_used_connections = SUBSTRING('$max_used_connections', 21)+0;
+  let $wait_more = `SELECT @max_used_connections != 2 && @wait_left > 0`;
+}
+--enable_query_log
+--enable_result_log
+# Check that we don't count disconnected thread any longer.
+SHOW STATUS LIKE 'max_used_connections';
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS WHERE VARIABLE_NAME LIKE 'max_used_connections';
+
+# Check that max_used_connections is updated when cached thread is
+# reused...
+connect (con2,localhost,root,,);
+SHOW STATUS LIKE 'max_used_connections';
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS WHERE VARIABLE_NAME LIKE 'max_used_connections';
+
+# ...and when new thread is created.
+connect (con3,localhost,root,,);
+SHOW STATUS LIKE 'max_used_connections';
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS WHERE VARIABLE_NAME LIKE 'max_used_connections';
+
+# Restore original setting.
+connection default;
+SET GLOBAL thread_cache_size=@save_thread_cache_size;
+
+disconnect con3;
+disconnect con2;
+disconnect con1;
+
+# End of 5.0 tests
+
+#
+# Ensure that SHOW STATUS only changes global status variables
+#
+
+connect (con1,localhost,root,,);
+let $rnd_next = `show global status like 'handler_read_rnd_next'`;
+let $tmp_table = `show global status like 'Created_tmp_tables'`;
+show status like 'com_show_status';
+show status like 'hand%write%';
+show status like '%tmp%';
+show status like 'hand%write%';
+show status like '%tmp%';
+show status like 'com_show_status';
+let $rnd_next2 = `show global status like 'handler_read_rnd_next'`;
+let $tmp_table2 = `show global status like 'Created_tmp_tables'`;
+--disable_query_log
+eval select substring_index('$rnd_next2',0x9,-1)-substring_index('$rnd_next',0x9,-1) as rnd_diff, substring_index('$tmp_table2',0x9,-1)-substring_index('$tmp_table',0x9,-1) as tmp_table_diff;
+--enable_query_log
+
+--disable_query_log
+drop database pbxt;
+--enable_query_log
+# End of 5.1 tests

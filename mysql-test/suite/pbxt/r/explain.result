@@ -1,0 +1,59 @@
+drop table if exists t1;
+create table t1 (id int not null, str char(10), unique(str));
+explain select * from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	0	
+insert into t1 values (1, null),(2, null),(3, "foo"),(4, "bar");
+select * from t1 where str is null;
+id	str
+1	NULL
+2	NULL
+select * from t1 where str="foo";
+id	str
+3	foo
+explain select * from t1 where str is null;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	str	str	11	const	1	Using where
+explain select * from t1 where str="foo";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	const	str	str	11	const	1	
+explain select * from t1 ignore key (str) where str="foo";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
+explain select * from t1 use key (str,str) where str="foo";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	const	str	str	11	const	1	
+explain select * from t1 use key (str,str,foo) where str="foo";
+ERROR 42000: Key 'foo' doesn't exist in table 't1'
+explain select * from t1 ignore key (str,str,foo) where str="foo";
+ERROR 42000: Key 'foo' doesn't exist in table 't1'
+drop table t1;
+explain select 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+create table t1 (a int not null);
+explain select count(*) from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	0	
+insert into t1 values(1);
+explain select count(*) from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	1	
+insert into t1 values(1);
+explain select count(*) from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
+drop table t1;
+set names koi8r;
+create table таб (кол0 int, кол1 int, key инд0 (кол0), key инд01 (кол0,кол1));
+insert into таб (кол0) values (1);
+insert into таб (кол0) values (2);
+explain select кол0 from таб where кол0=1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	таб	ref	инд0,инд01	инд0	5	const	1	Using where; Using index
+drop table таб;
+set names latin1;
+select 3 into @v1;
+explain select 3 into @v1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used

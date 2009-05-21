@@ -1,0 +1,137 @@
+drop table if exists t1,t2;
+create table t1 (a int not null auto_increment primary key);
+insert into t1 values(0);
+lock table t1 read;
+flush table t1;
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+unlock tables;
+lock table t1 read;
+lock table t1 read;
+flush table t1;
+select * from t1;
+a
+1
+unlock tables;
+select * from t1;
+a
+1
+unlock tables;
+lock table t1 write;
+lock table t1 read;
+flush table t1;
+select * from t1;
+a
+1
+unlock tables;
+unlock tables;
+lock table t1 read;
+lock table t1 write;
+flush table t1;
+select * from t1;
+a
+1
+unlock tables;
+unlock tables;
+select * from t1;
+a
+1
+drop table t1;
+create table t1(table_id char(20) primary key);
+create table t2(table_id char(20) primary key);
+insert into t1 values ('test.t1');
+insert into t1 values ('');
+insert into t2 values ('test.t2');
+insert into t2 values ('');
+handler t1 open as a1;
+handler t1 open as a2;
+handler t2 open;
+handler a1 read first limit 9;
+table_id
+test.t1
+
+handler a2 read first limit 9;
+table_id
+test.t1
+
+handler t2 read first limit 9;
+table_id
+test.t2
+
+flush tables;
+handler a1 read first limit 9;
+table_id
+test.t1
+
+handler a2 read first limit 9;
+table_id
+test.t1
+
+handler t2 read first limit 9;
+table_id
+test.t2
+
+handler t1 open as a1;
+ERROR 42000: Not unique table/alias: 'a1'
+handler t1 open as a2;
+ERROR 42000: Not unique table/alias: 'a2'
+handler t2 open;
+ERROR 42000: Not unique table/alias: 't2'
+handler a1 read first limit 9;
+table_id
+test.t1
+
+handler a2 read first limit 9;
+table_id
+test.t1
+
+handler t2 read first limit 9;
+table_id
+test.t2
+
+flush table t1;
+handler a1 read first limit 9;
+table_id
+test.t1
+
+handler a2 read first limit 9;
+table_id
+test.t1
+
+handler t2 read first limit 9;
+table_id
+test.t2
+
+flush table t2;
+handler t2 close;
+drop table t1;
+drop table t2;
+create table t1(table_id char(20) primary key);
+insert into t1 values ('Record-01');
+insert into t1 values ('Record-02');
+insert into t1 values ('Record-03');
+insert into t1 values ('Record-04');
+insert into t1 values ('Record-05');
+handler t1 open;
+handler t1 read first limit 1;
+table_id
+Record-01
+handler t1 read next limit 1;
+table_id
+Record-02
+handler t1 read next limit 1;
+table_id
+Record-03
+flush table t1;
+handler t1 read next limit 1;
+table_id
+Record-01
+handler t1 read next limit 1;
+table_id
+Record-02
+handler t1 close;
+drop table t1;
+FLUSH TABLES WITH READ LOCK ;
+FLUSH TABLES WITH READ LOCK ;
+UNLOCK TABLES;

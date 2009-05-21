@@ -2,8 +2,8 @@
 
 [mysqld.1]
 test-ignore-wrong-options
-thread-handling=   pool-of-threads
-thread_pool_size=  2
+loose-thread-handling=   pool-of-threads
+loose-thread_pool_size=  2
 extra-port=        @mysqld.1.#extra-port
 extra-max-connections=1
 

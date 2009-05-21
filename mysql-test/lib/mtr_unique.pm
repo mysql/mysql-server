@@ -28,7 +28,17 @@ sub msg {
  # print "### unique($$) - ", join(" ", @_), "\n";
 }
 
-my $file= "/tmp/mysql-test-ports";
+my $file;
+
+if(!IS_WINDOWS)
+{
+  $file= "/tmp/mysql-test-ports";
+}
+else
+{
+  $file= $ENV{'TEMP'}."/mysql-test-ports";
+}
+  
 
 my %mtr_unique_ids;
 
@@ -62,13 +72,14 @@ sub mtr_get_unique_id($$) {
     die 'lock file is a symbolic link';
   }
 
-  chmod 0777, "$file.sem";
+  my $save_umask= umask(0);
   open SEM, ">", "$file.sem" or die "can't write to $file.sem";
   flock SEM, LOCK_EX or die "can't lock $file.sem";
   if(! -e $file) {
     open FILE, ">", $file or die "can't create $file";
     close FILE;
   }
+  umask($save_umask);
 
   msg("HAVE THE LOCK");
 
@@ -76,7 +87,6 @@ sub mtr_get_unique_id($$) {
     die 'lock file is a symbolic link';
   }
 
-  chmod 0777, $file;
   open FILE, "+<", $file or die "can't open $file";
   #select undef,undef,undef,0.2;
   seek FILE, 0, 0;
@@ -135,6 +145,7 @@ sub mtr_release_unique_id($) {
     die 'lock file is a symbolic link';
   }
 
+  my $save_umask= umask(0);
   open SEM, ">", "$file.sem" or die "can't write to $file.sem";
   flock SEM, LOCK_EX or die "can't lock $file.sem";
 
@@ -148,6 +159,7 @@ sub mtr_release_unique_id($) {
     open FILE, ">", $file or die "can't create $file";
     close FILE;
   }
+  umask($save_umask);
   open FILE, "+<", $file or die "can't open $file";
   #select undef,undef,undef,0.2;
   seek FILE, 0, 0;
@@ -178,6 +190,8 @@ sub mtr_release_unique_id($) {
 
   flock SEM, LOCK_UN or warn "can't unlock $file.sem";
   close SEM;
+
+  delete $mtr_unique_ids{$$};
 }
 
 

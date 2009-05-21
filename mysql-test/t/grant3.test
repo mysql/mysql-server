@@ -1,5 +1,9 @@
-# Can't run with embedded server
+# Can't run with embedded server because we use GRANT
 -- source include/not_embedded.inc
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
 
 # Test of GRANT commands
 
@@ -23,10 +27,11 @@ grant create user on *.* to mysqltest_1@localhost;
 grant select on `my\_1`.* to mysqltest_1@localhost with grant option;
 connect (user_a,localhost,mysqltest_1,,);
 connection user_a;
---error 1410
+--error ER_CANT_CREATE_USER_WITH_GRANT
 grant select on `my\_1`.* to mysqltest_2@localhost;
 create user mysqltest_2@localhost;
 disconnect user_a;
+disconnect master;
 connection default;
 
 delete from mysql.user where user like 'mysqltest\_%';
@@ -36,7 +41,7 @@ delete from mysql.columns_priv where user like 'mysqltest\_%';
 flush privileges;
 
 #
-# Bug: #19828 Case sensitivity in Grant/Revoke
+# Bug#19828 Case sensitivity in Grant/Revoke
 #
 
 grant select on test.* to CUser@localhost;
@@ -137,7 +142,7 @@ DROP USER CUser2@LOCALHOST;
 
 
 #
-# Bug#31194: Privilege ordering does not order properly for wildcard values
+# Bug#31194 Privilege ordering does not order properly for wildcard values
 #
 
 CREATE DATABASE mysqltest_1;
@@ -160,3 +165,6 @@ DROP DATABASE mysqltest_1;
 
 
 --echo End of 5.0 tests
+
+# Wait till we reached the initial number of concurrent sessions
+--source include/wait_until_count_sessions.inc

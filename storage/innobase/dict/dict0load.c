@@ -868,11 +868,11 @@ err_exit:
 	of the error condition, since the user may want to dump data from the
 	clustered index. However we load the foreign key information only if
 	all indexes were loaded. */
-	if (err != DB_SUCCESS && !srv_force_recovery) {
-		dict_mem_table_free(table);
-		table = NULL;
-	} else if (err == DB_SUCCESS) {
+	if (err == DB_SUCCESS) {
 		err = dict_load_foreigns(table->name, TRUE);
+	} else if (!srv_force_recovery) {
+		dict_table_remove_from_cache(table);
+		table = NULL;
 	}
 #if 0
 	if (err != DB_SUCCESS && table != NULL) {

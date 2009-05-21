@@ -1,0 +1,183 @@
+# mysqltest should be fixed
+-- source include/not_embedded.inc
+#
+# Test of temporary tables
+#
+
+--disable_warnings
+drop table if exists t1,t2;
+drop view if exists v1;
+--enable_warnings
+
+CREATE TABLE t1 (c int not null, d char (10) not null);
+insert into t1 values(1,""),(2,"a"),(3,"b");
+CREATE TEMPORARY TABLE t1 (a int not null, b char (10) not null);
+insert into t1 values(4,"e"),(5,"f"),(6,"g");
+alter table t1 rename t2;
+select * from t1;
+select * from t2;
+CREATE TABLE t2 (x int not null, y int not null);
+alter table t2 rename t1;
+select * from t1;
+create TEMPORARY TABLE t2 engine=heap select * from t1;
+create TEMPORARY TABLE IF NOT EXISTS t2 (a int) engine=heap;
+
+# This should give errors
+--error 1050
+CREATE TEMPORARY TABLE t1 (a int not null, b char (10) not null);
+--error 1050
+ALTER TABLE t1 RENAME t2;
+
+select * from t2;
+alter table t2 add primary key (a,b);
+drop table t1,t2;
+select * from t1;
+drop table t2;
+create temporary table t1 engine=myisam select *,2 as "e" from t1; # PBXT cannot handle INSERT/SELECT with temp
+select * from t1;
+drop table t1;
+drop table t1;
+
+#
+# Test CONCAT_WS with temporary tables
+#
+
+CREATE TABLE t1 (pkCrash INTEGER PRIMARY KEY,strCrash VARCHAR(255));
+INSERT INTO t1 ( pkCrash, strCrash ) VALUES ( 1, '1');
+SELECT CONCAT_WS(pkCrash, strCrash) FROM t1;
+drop table t1;
+create temporary table t1 select 1 as 'x';
+drop table t1;
+CREATE TABLE t1 (x INT);
+INSERT INTO t1 VALUES (1), (2), (3);
+CREATE TEMPORARY TABLE tmp engine=myisam SELECT *, NULL FROM t1; # PBXT cannot handle INSERT/SELECT with temp
+drop table t1;
+
+#
+# Problem with ELT
+#
+create temporary table t1 (id int(10) not null unique);
+create temporary table t2 (id int(10) not null primary key, 
+val int(10) not null);
+
+# put in some initial values
+insert into t1 values (1),(2),(4);
+insert into t2 values (1,1),(2,1),(3,1),(4,2);
+
+# do a query using ELT, a join and an ORDER BY.
+select one.id, two.val, elt(two.val,'one','two') from t1 one, t2 two where two.id=one.id order by one.id;
+drop table t1,t2;
+
+#
+# Test of failed ALTER TABLE on temporary table
+#
+create temporary table t1 (a int not null);
+insert into t1 values (1),(1);
+-- error 1062
+alter table t1 add primary key (a);
+drop table t1;
+
+#
+# In MySQL 4.0.4 doing a GROUP BY on a NULL column created a disk based
+# temporary table when a memory based one would be good enough.
+
+CREATE TABLE t1 (
+  d datetime default NULL
+) ENGINE=MyISAM;
+
+
+INSERT INTO t1 VALUES ('2002-10-24 14:50:32'),('2002-10-24 14:50:33'),('2002-10-24 14:50:34'),('2002-10-24 14:50:34'),('2002-10-24 14:50:34'),('2002-10-24 14:50:35'),('2002-10-24 14:50:35'),('2002-10-24 14:50:35'),('2002-10-24 14:50:35'),('2002-10-24 14:50:36'),('2002-10-24 14:50:36'),('2002-10-24 14:50:36'),('2002-10-24 14:50:36'),('2002-10-24 14:50:37'),('2002-10-24 14:50:37'),('2002-10-24 14:50:37'),('2002-10-24 14:50:37'),('2002-10-24 14:50:38'),('2002-10-24 14:50:38'),('2002-10-24 14:50:38'),('2002-10-24 14:50:39'),('2002-10-24 14:50:39'),('2002-10-24 14:50:39'),('2002-10-24 14:50:39'),('2002-10-24 14:50:40'),('2002-10-24 14:50:40'),('2002-10-24 14:50:40');
+
+flush status;
+select * from t1 group by d;
+show status like "created_tmp%tables";
+drop table t1;
+
+# Fix for BUG#8921: Check that temporary table is ingored by view commands.
+create temporary table v1 as select 'This is temp. table' A;
+create view v1 as select 'This is view' A;
+select * from v1;
+show create table v1;
+show create view v1;
+drop view v1;
+select * from v1;
+create view v1 as select 'This is view again' A;
+select * from v1;
+drop table v1;
+select * from v1;
+drop view v1;
+
+# Bug #8497: tmpdir with extra slashes would cause failures
+#
+create table t1 (a int, b int, index(a), index(b));
+create table t2 (c int auto_increment, d varchar(255), primary key (c));
+insert into t1 values (3,1),(3,2);
+insert into t2 values (NULL, 'foo'), (NULL, 'bar');
+select d, c from t1 left join t2 on b = c where a = 3 order by d;
+drop table t1, t2;
+
+
+#
+# BUG#21096: locking issue ; temporary table conflicts.
+#
+# The problem was that on DROP TEMPORARY table name lock was acquired,
+# which should not be done.
+#
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (i INT);
+
+LOCK TABLE t1 WRITE;
+
+connect (conn1, localhost, root,,);
+
+CREATE TEMPORARY TABLE t1 (i INT);
+
+--echo The following command should not block
+DROP TEMPORARY TABLE t1;
+
+disconnect conn1;
+connection default;
+
+DROP TABLE t1;
+
+#
+# Check that it's not possible to drop a base table with
+# DROP TEMPORARY statement.
+#
+CREATE TABLE t1 (i INT);
+CREATE TEMPORARY TABLE t2 (i INT);
+
+--error 1051
+DROP TEMPORARY TABLE t2, t1;
+
+# Table t2 should have been dropped.
+--error 1146
+SELECT * FROM t2;
+# But table t1 should still be there.
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+
+--echo End of 4.1 tests.
+
+
+#
+# Test truncate with temporary tables
+#
+
+create temporary table t1 (a int);
+insert into t1 values (4711);
+select * from t1;
+truncate t1;
+insert into t1 values (42);
+select * from t1;
+drop table t1;
+
+
+--disable_query_log
+drop database pbxt;
+--enable_query_log

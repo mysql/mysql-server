@@ -1,0 +1,18 @@
+#
+# test of ISNULL()
+#
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+create table t1 (id int auto_increment primary key not null, mydate date not null);
+insert into t1 values (0,"2002-05-01"),(0,"2002-05-01"),(0,"2002-05-01");
+flush tables;
+select * from t1 where isnull(to_days(mydate));
+drop table t1;
+
+--disable_query_log
+drop database pbxt;
+--enable_query_log
+# End of 4.1 tests

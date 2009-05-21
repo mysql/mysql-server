@@ -1,0 +1,14 @@
+#
+# Just a couple of tests to make sure that schema works.
+#
+# Drop mysqltest1 database, as it can left from the previous tests.
+#
+
+--disable_warnings
+drop database if exists mysqltest1;
+--enable_warnings
+
+create schema foo;
+show create schema foo;
+show schemas;
+drop schema foo;

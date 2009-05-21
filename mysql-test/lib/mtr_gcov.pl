@@ -22,40 +22,46 @@ use strict;
 
 sub gcov_prepare ($) {
   my ($dir)= @_;
+  print "Purging gcov information from '$dir'...\n";
 
-  `find $dir -name \*.gcov \
-    -or -name \*.da | xargs rm`;
+  system("find $dir -name \*.gcov -o -name \*.da"
+             . " -o -name \*.gcda | grep -v 'README.gcov\$' | xargs rm");
 }
 
-my @mysqld_src_dirs=
-  (
-   "strings",
-   "mysys",
-   "include",
-   "extra",
-   "regex",
-   "isam",
-   "merge",
-   "myisam",
-   "myisammrg",
-   "heap",
-   "sql",
-  );
-
+#
+# Collect gcov statistics.
+# Arguments:
+#   $dir       basedir, normally source directory
+#   $gcov      gcov utility program [path] name
+#   $gcov_msg  message file name
+#   $gcov_err  error file name
+#
 sub gcov_collect ($$$) {
   my ($dir, $gcov, $gcov_msg, $gcov_err)= @_;
 
+  # Get current directory to return to later.
   my $start_dir= cwd();
 
-  print "Collecting source coverage info...\n";
-  -f $gcov_msg and unlink($gcov_msg);
-  -f $gcov_err and unlink($gcov_err);
-  foreach my $d ( @mysqld_src_dirs )
-  {
-    chdir("$dir/$d");
-    foreach my $f ( (glob("*.h"), glob("*.cc"), glob("*.c")) )
-    {
-      `$gcov $f 2>>$gcov_err  >>$gcov_msg`;
+  print "Collecting source coverage info using '$gcov'...\n";
+  -f "$start_dir/$gcov_msg" and unlink("$start_dir/$gcov_msg");
+  -f "$start_dir/$gcov_err" and unlink("$start_dir/$gcov_err");
+
+  my @dirs= `find "$dir" -type d -print | sort`;
+  #print "List of directories:\n@dirs\n";
+
+  foreach my $d ( @dirs ) {
+    my $dir_reported= 0;
+    chomp($d);
+    chdir($d) or next;
+
+    foreach my $f ( (glob("*.h"), glob("*.cc"), glob("*.c")) ) {
+      $f =~ /(.*)\.[ch]c?/;
+      -f "$1.gcno" or next;
+      if (!$dir_reported) {
+	print "Collecting in '$d'...\n";
+	$dir_reported= 1;
+      }
+      system("$gcov $f 2>>$start_dir/$gcov_err >>$start_dir/$gcov_msg");
     }
     chdir($start_dir);
   }

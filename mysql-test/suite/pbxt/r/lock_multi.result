@@ -1,0 +1,96 @@
+drop table if exists t1,t2;
+create table t1(n int);
+insert into t1 values (1);
+lock tables t1 write;
+update low_priority t1 set n = 4;
+select n from t1;
+unlock tables;
+n
+1
+drop table t1;
+create table t1(n int);
+insert into t1 values (1);
+lock tables t1 read;
+update low_priority t1 set n = 4;
+select n from t1;
+unlock tables;
+n
+1
+drop table t1;
+create table t1 (a int, b int);
+create table t2 (c int, d int);
+insert into t1 values(1,1);
+insert into t1 values(2,2);
+insert into t2 values(1,2);
+lock table t1 read;
+update t1,t2 set c=a where b=d;
+select c from t2;
+c
+2
+drop table t1;
+drop table t2;
+create table t1 (a int);
+create table t2 (a int);
+lock table t1 write, t2 write;
+insert t1 select * from t2;
+drop table t2;
+ERROR 42S02: Table 'test.t2' doesn't exist
+drop table t1;
+create table t1 (a int);
+create table t2 (a int);
+lock table t1 write, t2 write, t1 as t1_2 write, t2 as t2_2 write;
+insert t1 select * from t2;
+drop table t2;
+ERROR 42S02: Table 'test.t2' doesn't exist
+drop table t1;
+create table t1(a int);
+lock tables t1 write;
+show columns from t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+unlock tables;
+drop table t1;
+use mysql;
+LOCK TABLES columns_priv WRITE, db WRITE, host WRITE, user WRITE;
+FLUSH TABLES;
+use mysql;
+SELECT user.Select_priv FROM user, db WHERE user.user = db.user LIMIT 1;
+OPTIMIZE TABLES columns_priv, db, host, user;
+Table	Op	Msg_type	Msg_text
+mysql.columns_priv	optimize	status	OK
+mysql.db	optimize	status	OK
+mysql.host	optimize	status	OK
+mysql.user	optimize	status	OK
+UNLOCK TABLES;
+Select_priv
+use test;
+use test;
+CREATE TABLE t1 (c1 int);
+LOCK TABLE t1 WRITE;
+FLUSH TABLES WITH READ LOCK;
+CREATE TABLE t2 (c1 int);
+UNLOCK TABLES;
+UNLOCK TABLES;
+DROP TABLE t1, t2;
+CREATE TABLE t1 (c1 int);
+LOCK TABLE t1 WRITE;
+FLUSH TABLES WITH READ LOCK;
+CREATE TABLE t2 AS SELECT * FROM t1;
+ERROR HY000: Table 't2' was not locked with LOCK TABLES
+UNLOCK TABLES;
+UNLOCK TABLES;
+DROP TABLE t1;
+CREATE DATABASE mysqltest_1;
+FLUSH TABLES WITH READ LOCK;
+DROP DATABASE mysqltest_1;
+DROP DATABASE mysqltest_1;
+ERROR HY000: Can't execute the query because you have a conflicting read lock
+UNLOCK TABLES;
+DROP DATABASE mysqltest_1;
+ERROR HY000: Can't drop database 'mysqltest_1'; database doesn't exist
+create table t1 (f1 int(12) unsigned not null auto_increment, primary key(f1)) engine=innodb;
+lock tables t1 write;
+alter table t1 auto_increment=0; alter table t1 auto_increment=0; alter table t1 auto_increment=0; alter table t1 auto_increment=0; alter table t1 auto_increment=0; //
+alter table t1 auto_increment=0; alter table t1 auto_increment=0; alter table t1 auto_increment=0; alter table t1 auto_increment=0; alter table t1 auto_increment=0; //
+unlock tables;
+drop table t1;

@@ -712,11 +712,6 @@ my_bool trnman_collect_transactions(LEX_STRING *str_act, LEX_STRING *str_com,
   ptr+= TRANSID_SIZE;
   for (trn= active_list_min.next; trn != &active_list_max; trn= trn->next)
   {
-    /*
-      trns with a short trid of 0 are not even initialized, we can ignore
-      them. trns with undo_lsn==0 have done no writes, we can ignore them
-      too. XID not needed now.
-    */
     uint sid;
     LSN rec_lsn, undo_lsn, first_undo_lsn;
     pthread_mutex_lock(&trn->state_lock);
@@ -732,16 +727,24 @@ my_bool trnman_collect_transactions(LEX_STRING *str_act, LEX_STRING *str_com,
       */
       continue;
     }
-      /* needed for low-water mark calculation */
+    /* needed for low-water mark calculation */
     if (((rec_lsn= lsn_read_non_atomic(trn->rec_lsn)) > 0) &&
         (cmp_translog_addr(rec_lsn, minimum_rec_lsn) < 0))
       minimum_rec_lsn= rec_lsn;
     /*
-      trn may have logged REDOs but not yet UNDO, that's why we read rec_lsn
-      before deciding to ignore if undo_lsn==0.
+      If trn has not logged LOGREC_LONG_TRANSACTION_ID, this trn will be
+      discovered when seeing that log record which is for sure located after
+      checkpoint_start_log_horizon.
     */
-    if  ((undo_lsn= trn->undo_lsn) == 0) /* trn can be forgotten */
+    if ((LSN_WITH_FLAGS_TO_FLAGS(trn->first_undo_lsn) &
+         TRANSACTION_LOGGED_LONG_ID) == 0)
       continue;
+    /*
+      On the other hand, if undo_lsn is LSN_IMPOSSIBLE, trn may later log
+      records; so we must include trn in the checkpoint now, because we cannot
+      count on LOGREC_LONG_TRANSACTION_ID (as we are already past it).
+    */
+    undo_lsn= trn->undo_lsn;
     stored_transactions++;
     int2store(ptr, sid);
     ptr+= 2;

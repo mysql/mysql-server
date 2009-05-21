@@ -1,6 +1,4 @@
 ## Process this file with automake to create Makefile.in
-# Makefile for the GNU readline library.
-# Copyright (C) 1994,1996,1997 Free Software Foundation, Inc.
 
 ASRC =			$(srcdir)/vi.c $(srcdir)/emacs.c $(srcdir)/common.c
 AHDR =			vi.h emacs.h common.h
@@ -12,32 +10,22 @@ noinst_LIBRARIES =	libedit.a
 libedit_a_SOURCES =	chared.c el.c history.c map.c prompt.c readline.c \
 			search.c tokenizer.c vi.c common.c emacs.c \
 			hist.c key.c parse.c read.c refresh.c sig.c term.c \
-			tty.c help.c fcns.c
-
-EXTRA_libedit_a_SOURCES =	np/unvis.c np/strlcpy.c np/vis.c np/strlcat.c \
-				np/fgetln.c
+			tty.c help.c fcns.c filecomplete.c \
+			np/unvis.c np/strlcpy.c np/vis.c np/strlcat.c \
+			np/fgetln.c
 
 libedit_a_LIBADD = 		@LIBEDIT_LOBJECTS@
 libedit_a_DEPENDENCIES 	= 	@LIBEDIT_LOBJECTS@
 
-noinst_HEADERS =	readline/readline.h \
-\
-			chared.h el.h el_term.h histedit.h key.h parse.h refresh.h sig.h \
-			sys.h tokenizer.h config.h hist.h map.h prompt.h read.h \
-			search.h tty.h libedit_term.h vis.h
+pkginclude_HEADERS =	readline/readline.h
 
-EXTRA_DIST = makelist.sh np/unvis.c np/strlcpy.c np/vis.c np/vis.h np/strlcat.c np/fgetln.c
+noinst_HEADERS =	chared.h el.h el_term.h histedit.h key.h parse.h refresh.h sig.h \
+			sys.h config.h hist.h map.h prompt.h read.h \
+			search.h tty.h filecomplete.h np/vis.h
+
+EXTRA_DIST = makelist.sh
 
 CLEANFILES = makelist common.h emacs.h vi.h fcns.h help.h fcns.c help.c
-
-# Make sure to include stuff from this directory first, to get right "config.h"
-# Automake puts into DEFAULT_INCLUDES this source and corresponding
-# build directory together with ../../include to let all make files
-# find the central "config.h". This variable is used before INCLUDES
-# above. But in automake 1.10 the order of these are changed. Put the
-# includes of this directory into DEFS to always be sure it is first
-# before DEFAULT_INCLUDES on the compile line.
-DEFS = -DUNDEF_THREADS_HACK -DHAVE_CONFIG_H -DNO_KILL_INTR -I. -I$(srcdir)
 
 SUFFIXES = .sh
 
@@ -101,6 +89,4 @@ term.o: vi.h emacs.h common.h help.h fcns.h
 tty.o: vi.h emacs.h common.h help.h fcns.h 
 help.o: vi.h emacs.h common.h help.h fcns.h
 fcns.o: vi.h emacs.h common.h help.h fcns.h
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%
+filecomplete.o: vi.h emacs.h common.h help.h fcns.h

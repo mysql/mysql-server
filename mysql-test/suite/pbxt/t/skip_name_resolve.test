@@ -1,0 +1,20 @@
+# Can't be tested with embedded server
+-- source include/not_embedded.inc
+
+# Bug #8471: IP address with mask fail when skip-name-resolve is on
+GRANT ALL ON test.* TO mysqltest_1@'127.0.0.1/255.255.255.255';
+SHOW GRANTS FOR mysqltest_1@'127.0.0.1/255.255.255.255';
+REVOKE ALL ON test.* FROM mysqltest_1@'127.0.0.1/255.255.255.255';
+DROP USER mysqltest_1@'127.0.0.1/255.255.255.255';
+
+# End of 4.1 tests
+
+# Bug #13407 "Remote connecting crashes server".
+# Server crashed when one used USER() function in connection for which
+# was impossible to obtain peer hostname.
+connect (con1, 127.0.0.1, root, , test, $MASTER_MYPORT, );
+--replace_column 1 #
+select user();
+--replace_column 1 <id> 3 <host> 5 <command> 6 <time> 7 <state> 8 <info>
+show processlist;
+connection default;

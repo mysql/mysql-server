@@ -1,0 +1,171 @@
+drop table if exists t1;
+create table t1 (a varchar(10), key(a));
+insert into t1 values ("a"),("abc"),("abcd"),("hello"),("test");
+explain extended select * from t1 where a like 'abc%';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	index	a	a	13	NULL	5	20.00	Using where; Using index
+Warnings:
+Note	1003	select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` like 'abc%')
+explain extended select * from t1 where a like concat('abc','%');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	index	a	a	13	NULL	5	20.00	Using where; Using index
+Warnings:
+Note	1003	select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` like concat('abc','%'))
+select * from t1 where a like "abc%";
+a
+abc
+abcd
+select * from t1 where a like concat("abc","%");
+a
+abc
+abcd
+select * from t1 where a like "ABC%";
+a
+abc
+abcd
+select * from t1 where a like "test%";
+a
+test
+select * from t1 where a like "te_t";
+a
+test
+select * from t1 where a like "%a%";
+a
+a
+abc
+abcd
+select * from t1 where a like "%abcd%";
+a
+abcd
+select * from t1 where a like "%abc\d%";
+a
+abcd
+drop table t1;
+create table t1 (a varchar(10), key(a));
+insert into t1 values ('a'), ('a\\b');
+select * from t1 where a like 'a\\%' escape '#';
+a
+a\b
+select * from t1 where a like 'a\\%' escape '#' and a like 'a\\\\b';
+a
+a\b
+prepare stmt1 from 'select * from t1 where a like \'a\\%\' escape ?';
+set @esc='#';
+execute stmt1 using @esc;
+a
+a\b
+deallocate prepare stmt1;
+drop table t1;
+create table t1 (a datetime);
+insert into t1 values ('2004-03-11 12:00:21');
+select * from t1 where a like '2004-03-11 12:00:21';
+a
+2004-03-11 12:00:21
+drop table t1;
+SET NAMES koi8r;
+CREATE TABLE t1 (a VARCHAR(10) CHARACTER SET koi8r);
+INSERT INTO t1 VALUES ('фыва'),('Фыва'),('фЫва'),('фыВа'),('фывА'),('ФЫВА');
+INSERT INTO t1 VALUES ('фывапролдж'),('Фывапролдж'),('фЫвапролдж'),('фыВапролдж');
+INSERT INTO t1 VALUES ('фывАпролдж'),('фываПролдж'),('фывапРолдж'),('фывапрОлдж');
+INSERT INTO t1 VALUES ('фывапроЛдж'),('фывапролДж'),('фывапролдЖ'),('ФЫВАПРОЛДЖ');
+SELECT * FROM t1 WHERE a LIKE '%фЫва%';
+a
+фыва
+Фыва
+фЫва
+фыВа
+фывА
+ФЫВА
+фывапролдж
+Фывапролдж
+фЫвапролдж
+фыВапролдж
+фывАпролдж
+фываПролдж
+фывапРолдж
+фывапрОлдж
+фывапроЛдж
+фывапролДж
+фывапролдЖ
+ФЫВАПРОЛДЖ
+SELECT * FROM t1 WHERE a LIKE '%фЫв%';
+a
+фыва
+Фыва
+фЫва
+фыВа
+фывА
+ФЫВА
+фывапролдж
+Фывапролдж
+фЫвапролдж
+фыВапролдж
+фывАпролдж
+фываПролдж
+фывапРолдж
+фывапрОлдж
+фывапроЛдж
+фывапролДж
+фывапролдЖ
+ФЫВАПРОЛДЖ
+SELECT * FROM t1 WHERE a LIKE 'фЫва%';
+a
+фыва
+Фыва
+фЫва
+фыВа
+фывА
+ФЫВА
+фывапролдж
+Фывапролдж
+фЫвапролдж
+фыВапролдж
+фывАпролдж
+фываПролдж
+фывапРолдж
+фывапрОлдж
+фывапроЛдж
+фывапролДж
+фывапролдЖ
+ФЫВАПРОЛДЖ
+DROP TABLE t1;
+SET NAMES cp1250;
+CREATE TABLE t1 (a varchar(250) NOT NULL) DEFAULT CHARACTER SET=cp1250;
+INSERT INTO t1 VALUES
+('Techni Tapes Sp. z o.o.'),
+('Pojazdy Szynowe PESA Bydgoszcz SA Holding'),
+('AKAPESTER 1 P.P.H.U.'),
+('Pojazdy Szynowe PESA Bydgoszcz S A Holding'),
+('PPUH PESKA-I Maria Struniarska');
+select * from t1 where a like '%PESA%';
+a
+Pojazdy Szynowe PESA Bydgoszcz SA Holding
+Pojazdy Szynowe PESA Bydgoszcz S A Holding
+select * from t1 where a like '%PESA %';
+a
+Pojazdy Szynowe PESA Bydgoszcz SA Holding
+Pojazdy Szynowe PESA Bydgoszcz S A Holding
+select * from t1 where a like '%PES%';
+a
+Techni Tapes Sp. z o.o.
+Pojazdy Szynowe PESA Bydgoszcz SA Holding
+AKAPESTER 1 P.P.H.U.
+Pojazdy Szynowe PESA Bydgoszcz S A Holding
+PPUH PESKA-I Maria Struniarska
+select * from t1 where a like '%PESKA%';
+a
+PPUH PESKA-I Maria Struniarska
+select * from t1 where a like '%ESKA%';
+a
+PPUH PESKA-I Maria Struniarska
+DROP TABLE t1;
+select _cp866'aaaaaaaaa' like _cp866'%aaaa%' collate cp866_bin;
+_cp866'aaaaaaaaa' like _cp866'%aaaa%' collate cp866_bin
+1
+set names koi8r;
+select 'andre%' like 'andreй%' escape 'й';
+'andre%' like 'andreй%' escape 'й'
+1
+select _cp1251'andre%' like convert('andreй%' using cp1251)  escape 'й';
+_cp1251'andre%' like convert('andreй%' using cp1251)  escape 'й'
+1

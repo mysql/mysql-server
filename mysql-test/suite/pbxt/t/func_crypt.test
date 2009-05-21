@@ -1,0 +1,61 @@
+-- source include/have_crypt.inc
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+select length(encrypt('foo', 'ff')) <> 0;
+--replace_result $1$aa$4OSUA5cjdx0RUQ08opV27/ aaqPiZY5xR5l.
+
+create table t1 (name varchar(50), pw varchar(64));
+insert into t1 values ('tom', password('my_pass'));
+set @pass='my_pass';
+select name from t1 where name='tom' and pw=password(@pass);
+select name from t1 where name='tom' and pw=password(@undefined);
+drop table t1;
+
+# Test new and old password handling functions 
+
+select password('abc');
+select password('');
+select old_password('abc');
+select old_password('');
+select password('gabbagabbahey');
+select old_password('idkfa');
+select length(password('1'));
+select length(encrypt('test'));
+select encrypt('test','aa');
+select old_password(NULL);
+select password(NULL);
+set global old_passwords=on;
+select password('');
+select old_password('');
+select password('idkfa');
+select old_password('idkfa');
+set old_passwords=on;
+select password('idkfa');
+select old_password('idkfa');
+set global old_passwords=off;
+select password('idkfa');
+select old_password('idkfa');
+
+# this test shows that new scrambles honor spaces in passwords:
+set old_passwords=off;
+select password('idkfa ');
+select password('idkfa');
+select password(' idkfa');
+select old_password('idkfa');
+select old_password(' i 	 d k f a ');
+
+explain extended select password('idkfa '), old_password('idkfa');
+
+#
+# Bug #13619: Crash on FreeBSD with salt like '_.'
+#
+--replace_column 1 #
+select encrypt('1234','_.');
+
+--disable_query_log
+drop database pbxt;
+--enable_query_log
+# End of 4.1 tests

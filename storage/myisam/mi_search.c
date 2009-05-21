@@ -409,7 +409,7 @@ int _mi_prefix_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
       }
       from+=keyseg->length;
       page=from+nod_flag;
-      length= (uint) (from-vseg);
+      length= (uint) (from - vseg);
     }
 
     if (page > end)
@@ -1749,7 +1749,7 @@ _mi_calc_bin_pack_key_length(MI_KEYDEF *keyinfo,uint nod_flag,uchar *next_key,
   uint length,key_length,ref_length;
 
   s_temp->totlength=key_length=_mi_keylength(keyinfo,key)+nod_flag;
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
   s_temp->n_length= s_temp->n_ref_length=0;	/* For valgrind */
 #endif
   s_temp->key=key;

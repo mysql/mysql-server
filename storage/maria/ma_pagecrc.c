@@ -318,7 +318,7 @@ my_bool maria_page_filler_set_none(uchar *page __attribute__((unused)),
                                    __attribute__((unused)),
                                    uchar *data_ptr __attribute__((unused)))
 {
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
   int4store_aligned(page + ((MARIA_SHARE *)data_ptr)->block_size - CRC_SIZE,
                     0);
 #endif

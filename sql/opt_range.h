@@ -44,7 +44,7 @@ class QUICK_RANGE :public Sql_alloc {
   uint16 min_length,max_length,flag;
   key_part_map min_keypart_map, // bitmap of used keyparts in min_key
                max_keypart_map; // bitmap of used keyparts in max_key
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
   uint16 dummy;					/* Avoid warnings on 'flag' */
 #endif
   QUICK_RANGE();				/* Full range */
@@ -61,7 +61,7 @@ class QUICK_RANGE :public Sql_alloc {
       min_keypart_map(min_keypart_map_arg),
       max_keypart_map(max_keypart_map_arg)
     {
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
       dummy=0;
 #endif
     }

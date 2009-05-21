@@ -33,7 +33,6 @@
         myrg_attach_children(). Please duplicate changes in these
         functions or make common sub-functions.
 */
-/* purecov: begin deadcode */ /* not used in MySQL server */
 
 MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
 {
@@ -47,6 +46,7 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
   MI_INFO *isam=0;
   uint found_merge_insert_method= 0;
   size_t name_buff_length;
+  my_bool bad_children= FALSE;
   DBUG_ENTER("myrg_open");
 
   LINT_INIT(key_parts);
@@ -97,13 +97,13 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
       fn_format(buff, buff, "", "", 0);
     if (!(isam=mi_open(buff,mode,(handle_locking?HA_OPEN_WAIT_IF_LOCKED:0))))
     {
-      my_errno= HA_ERR_WRONG_MRG_TABLE_DEF;
       if (handle_locking & HA_OPEN_FOR_REPAIR)
       {
         myrg_print_wrong_table(buff);
+        bad_children= TRUE;
         continue;
       }
-      goto err;
+      goto bad_children;
     }
     if (!m_info)                                /* First file */
     {
@@ -128,13 +128,13 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
     files++;
     if (m_info->reclength != isam->s->base.reclength)
     {
-      my_errno=HA_ERR_WRONG_MRG_TABLE_DEF;
       if (handle_locking & HA_OPEN_FOR_REPAIR)
       {
         myrg_print_wrong_table(buff);
+        bad_children= TRUE;
         continue;
       }
-      goto err;
+      goto bad_children;
     }
     m_info->options|= isam->s->options;
     m_info->records+= isam->state->records;
@@ -147,8 +147,8 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
                                      m_info->tables);
   }
 
-  if (my_errno == HA_ERR_WRONG_MRG_TABLE_DEF)
-    goto err;
+  if (bad_children)
+    goto bad_children;
   if (!m_info && !(m_info= (MYRG_INFO*) my_malloc(sizeof(MYRG_INFO),
                                                   MYF(MY_WME | MY_ZEROFILL))))
     goto err;
@@ -178,12 +178,14 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
   pthread_mutex_unlock(&THR_LOCK_open);
   DBUG_RETURN(m_info);
 
+bad_children:
+  my_errno= HA_ERR_WRONG_MRG_TABLE_DEF;
 err:
   save_errno=my_errno;
   switch (errpos) {
   case 3:
     while (files)
-      mi_close(m_info->open_tables[--files].table);
+      (void) mi_close(m_info->open_tables[--files].table);
     my_free((char*) m_info,MYF(0));
     /* Fall through */
   case 2:
@@ -195,7 +197,6 @@ err:
   my_errno=save_errno;
   DBUG_RETURN (NULL);
 }
-/* purecov: end */
 
 
 /**
@@ -392,6 +393,7 @@ int myrg_attach_children(MYRG_INFO *m_info, int handle_locking,
   uint       child_nr;
   uint       key_parts;
   uint       min_keys;
+  my_bool    bad_children= FALSE;
   DBUG_ENTER("myrg_attach_children");
   DBUG_PRINT("myrg", ("handle_locking: %d", handle_locking));
 
@@ -424,10 +426,11 @@ int myrg_attach_children(MYRG_INFO *m_info, int handle_locking,
       if (!m_info->rec_per_key_part)
       {
         if(!(m_info->rec_per_key_part= (ulong*)
-             my_malloc(key_parts * sizeof(long), MYF(MY_WME|MY_ZEROFILL))))
+             my_malloc(key_parts * sizeof(long), MYF(MY_WME))))
           goto err; /* purecov: inspected */
         errpos= 1;
       }
+      bzero((char*) m_info->rec_per_key_part, key_parts * sizeof(long));
     }
 
     /* Add MyISAM table info. */
@@ -441,13 +444,13 @@ int myrg_attach_children(MYRG_INFO *m_info, int handle_locking,
       DBUG_PRINT("error", ("definition mismatch table: '%s'  repair: %d",
                            myisam->filename,
                            (handle_locking & HA_OPEN_FOR_REPAIR)));
-      my_errno= HA_ERR_WRONG_MRG_TABLE_DEF;
       if (handle_locking & HA_OPEN_FOR_REPAIR)
       {
         myrg_print_wrong_table(myisam->filename);
+        bad_children= TRUE;
         continue;
       }
-      goto err;
+      goto bad_children;
     }
 
     m_info->options|= myisam->s->options;
@@ -462,6 +465,9 @@ int myrg_attach_children(MYRG_INFO *m_info, int handle_locking,
     child_nr++;
   }
 
+  if (bad_children)
+    goto bad_children;
+  /* Note: callback() resets my_errno, so it is safe to check it here */
   if (my_errno == HA_ERR_WRONG_MRG_TABLE_DEF)
     goto err;
   if (sizeof(my_off_t) == 4 && file_offset > (ulonglong) (ulong) ~0L)
@@ -477,6 +483,8 @@ int myrg_attach_children(MYRG_INFO *m_info, int handle_locking,
   pthread_mutex_unlock(&m_info->mutex);
   DBUG_RETURN(0);
 
+bad_children:
+  my_errno= HA_ERR_WRONG_MRG_TABLE_DEF;
 err:
   save_errno= my_errno;
   switch (errpos) {

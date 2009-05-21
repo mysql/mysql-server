@@ -1,0 +1,364 @@
+drop table if exists t1,t2,t3;
+create table t1 (a int not null);
+insert into t1 values (1);
+insert into t1 values (a+2);
+insert into t1 values (a+3),(a+4);
+insert into t1 values (5),(a+6);
+select * from t1;
+a
+1
+2
+3
+4
+5
+6
+drop table t1;
+create table t1 (id int not null auto_increment primary key, username varchar(32) not null, unique (username));
+insert into t1 values (0,"mysql");
+insert into t1 values (0,"mysql ab");
+insert into t1 values (0,"mysql a");
+insert into t1 values (0,"r1manic");
+insert into t1 values (0,"r1man");
+drop table t1;
+create table t1 (a int not null auto_increment, primary key (a), t timestamp, c char(10) default "hello", i int);
+insert into t1 values (default,default,default,default), (default,default,default,default), (4,0,"a",5),(default,default,default,default);
+select a,t>0,c,i from t1;
+a	t>0	c	i
+1	1	hello	NULL
+2	1	hello	NULL
+4	0	a	5
+5	1	hello	NULL
+truncate table t1;
+insert into t1 set a=default,t=default,c=default;
+insert into t1 set a=default,t=default,c=default,i=default;
+insert into t1 set a=4,t=0,c="a",i=5;
+insert into t1 set a=5,t=0,c="a",i=null;
+insert into t1 set a=default,t=default,c=default,i=default;
+select a,t>0,c,i from t1;
+a	t>0	c	i
+1	1	hello	NULL
+2	1	hello	NULL
+4	0	a	5
+5	0	a	NULL
+6	1	hello	NULL
+drop table t1;
+create table t1 (sid char(20), id int(2) NOT NULL auto_increment, key(sid, id));
+insert into t1 values ('skr',NULL),('skr',NULL),('test',NULL);
+select * from t1;
+sid	id
+skr	1
+skr	2
+test	3
+insert into t1 values ('rts',NULL),('rts',NULL),('test',NULL);
+select * from t1;
+sid	id
+rts	4
+rts	5
+skr	1
+skr	2
+test	3
+test	6
+drop table t1;
+create table t1 (id int NOT NULL DEFAULT 8);
+insert into t1 values(NULL);
+ERROR 23000: Column 'id' cannot be null
+insert into t1 values (1), (NULL), (2);
+Warnings:
+Warning	1048	Column 'id' cannot be null
+select * from t1;
+id
+1
+0
+2
+drop table t1;
+create table t1 (email varchar(50));
+insert into t1 values ('sasha@mysql.com'),('monty@mysql.com'),('foo@hotmail.com'),('foo@aol.com'),('bar@aol.com');
+create table t2(id int not null auto_increment primary key, t2 varchar(50), unique(t2));
+insert into t2 (t2) select distinct substring(email, locate('@', email)+1) from t1;
+select * from t2;
+id	t2
+1	mysql.com
+2	hotmail.com
+3	aol.com
+drop table t1,t2;
+drop database if exists mysqltest;
+create database mysqltest;
+use mysqltest;
+create table t1 (c int);
+insert into mysqltest.t1 set mysqltest.t1.c = '1';
+drop database mysqltest;
+use test;
+create table t1(number int auto_increment primary key, original_value varchar(50), f_double double, f_float float, f_double_7_2 double(7,2), f_float_4_3 float (4,3), f_double_u double unsigned, f_float_u float unsigned, f_double_15_1_u double(15,1) unsigned, f_float_3_1_u float (3,1) unsigned);
+set @value= "aa";
+insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
+Warnings:
+Warning	1265	Data truncated for column 'f_double' at row 1
+Warning	1265	Data truncated for column 'f_float' at row 1
+Warning	1265	Data truncated for column 'f_double_7_2' at row 1
+Warning	1265	Data truncated for column 'f_float_4_3' at row 1
+Warning	1265	Data truncated for column 'f_double_u' at row 1
+Warning	1265	Data truncated for column 'f_float_u' at row 1
+Warning	1265	Data truncated for column 'f_double_15_1_u' at row 1
+Warning	1265	Data truncated for column 'f_float_3_1_u' at row 1
+select * from t1 where number =last_insert_id();
+number	1
+original_value	aa
+f_double	0
+f_float	0
+f_double_7_2	0.00
+f_float_4_3	0.000
+f_double_u	0
+f_float_u	0
+f_double_15_1_u	0.0
+f_float_3_1_u	0.0
+set @value= "1aa";
+insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
+Warnings:
+Warning	1265	Data truncated for column 'f_double' at row 1
+Warning	1265	Data truncated for column 'f_float' at row 1
+Warning	1265	Data truncated for column 'f_double_7_2' at row 1
+Warning	1265	Data truncated for column 'f_float_4_3' at row 1
+Warning	1265	Data truncated for column 'f_double_u' at row 1
+Warning	1265	Data truncated for column 'f_float_u' at row 1
+Warning	1265	Data truncated for column 'f_double_15_1_u' at row 1
+Warning	1265	Data truncated for column 'f_float_3_1_u' at row 1
+select * from t1 where number =last_insert_id();
+number	2
+original_value	1aa
+f_double	1
+f_float	1
+f_double_7_2	1.00
+f_float_4_3	1.000
+f_double_u	1
+f_float_u	1
+f_double_15_1_u	1.0
+f_float_3_1_u	1.0
+set @value= "aa1";
+insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
+Warnings:
+Warning	1265	Data truncated for column 'f_double' at row 1
+Warning	1265	Data truncated for column 'f_float' at row 1
+Warning	1265	Data truncated for column 'f_double_7_2' at row 1
+Warning	1265	Data truncated for column 'f_float_4_3' at row 1
+Warning	1265	Data truncated for column 'f_double_u' at row 1
+Warning	1265	Data truncated for column 'f_float_u' at row 1
+Warning	1265	Data truncated for column 'f_double_15_1_u' at row 1
+Warning	1265	Data truncated for column 'f_float_3_1_u' at row 1
+select * from t1 where number =last_insert_id();
+number	3
+original_value	aa1
+f_double	0
+f_float	0
+f_double_7_2	0.00
+f_float_4_3	0.000
+f_double_u	0
+f_float_u	0
+f_double_15_1_u	0.0
+f_float_3_1_u	0.0
+set @value= "1e+1111111111a";
+insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
+Warnings:
+Warning	1264	Out of range value for column 'f_double' at row 1
+Warning	1264	Out of range value for column 'f_float' at row 1
+Warning	1264	Out of range value for column 'f_float' at row 1
+Warning	1264	Out of range value for column 'f_double_7_2' at row 1
+Warning	1264	Out of range value for column 'f_double_7_2' at row 1
+Warning	1264	Out of range value for column 'f_float_4_3' at row 1
+Warning	1264	Out of range value for column 'f_float_4_3' at row 1
+Warning	1264	Out of range value for column 'f_double_u' at row 1
+Warning	1264	Out of range value for column 'f_float_u' at row 1
+Warning	1264	Out of range value for column 'f_float_u' at row 1
+Warning	1264	Out of range value for column 'f_double_15_1_u' at row 1
+Warning	1264	Out of range value for column 'f_double_15_1_u' at row 1
+Warning	1264	Out of range value for column 'f_float_3_1_u' at row 1
+Warning	1264	Out of range value for column 'f_float_3_1_u' at row 1
+select * from t1 where number =last_insert_id();
+number	4
+original_value	1e+1111111111a
+f_double	1.79769313486232e+308
+f_float	3.40282e+38
+f_double_7_2	99999.99
+f_float_4_3	9.999
+f_double_u	1.79769313486232e+308
+f_float_u	3.40282e+38
+f_double_15_1_u	99999999999999.9
+f_float_3_1_u	99.9
+set @value= "-1e+1111111111a";
+insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
+Warnings:
+Warning	1264	Out of range value for column 'f_double' at row 1
+Warning	1264	Out of range value for column 'f_float' at row 1
+Warning	1264	Out of range value for column 'f_float' at row 1
+Warning	1264	Out of range value for column 'f_double_7_2' at row 1
+Warning	1264	Out of range value for column 'f_double_7_2' at row 1
+Warning	1264	Out of range value for column 'f_float_4_3' at row 1
+Warning	1264	Out of range value for column 'f_float_4_3' at row 1
+Warning	1264	Out of range value for column 'f_double_u' at row 1
+Warning	1264	Out of range value for column 'f_double_u' at row 1
+Warning	1264	Out of range value for column 'f_float_u' at row 1
+Warning	1264	Out of range value for column 'f_float_u' at row 1
+Warning	1264	Out of range value for column 'f_double_15_1_u' at row 1
+Warning	1264	Out of range value for column 'f_double_15_1_u' at row 1
+Warning	1264	Out of range value for column 'f_float_3_1_u' at row 1
+Warning	1264	Out of range value for column 'f_float_3_1_u' at row 1
+select * from t1 where number =last_insert_id();
+number	5
+original_value	-1e+1111111111a
+f_double	-1.79769313486232e+308
+f_float	-3.40282e+38
+f_double_7_2	-99999.99
+f_float_4_3	-9.999
+f_double_u	0
+f_float_u	0
+f_double_15_1_u	0.0
+f_float_3_1_u	0.0
+set @value= 1e+1111111111;
+ERROR 22007: Illegal double '1e+1111111111' value found during parsing
+set @value= -1e+1111111111;
+ERROR 22007: Illegal double '1e+1111111111' value found during parsing
+set @value= 1e+111;
+insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
+Warnings:
+Warning	1264	Out of range value for column 'f_float' at row 1
+Warning	1264	Out of range value for column 'f_double_7_2' at row 1
+Warning	1264	Out of range value for column 'f_float_4_3' at row 1
+Warning	1264	Out of range value for column 'f_float_u' at row 1
+Warning	1264	Out of range value for column 'f_double_15_1_u' at row 1
+Warning	1264	Out of range value for column 'f_float_3_1_u' at row 1
+select * from t1 where number =last_insert_id();
+number	6
+original_value	1e+111
+f_double	1e+111
+f_float	3.40282e+38
+f_double_7_2	99999.99
+f_float_4_3	9.999
+f_double_u	1e+111
+f_float_u	3.40282e+38
+f_double_15_1_u	99999999999999.9
+f_float_3_1_u	99.9
+set @value= -1e+111;
+insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
+Warnings:
+Warning	1264	Out of range value for column 'f_float' at row 1
+Warning	1264	Out of range value for column 'f_double_7_2' at row 1
+Warning	1264	Out of range value for column 'f_float_4_3' at row 1
+Warning	1264	Out of range value for column 'f_double_u' at row 1
+Warning	1264	Out of range value for column 'f_float_u' at row 1
+Warning	1264	Out of range value for column 'f_double_15_1_u' at row 1
+Warning	1264	Out of range value for column 'f_float_3_1_u' at row 1
+select * from t1 where number =last_insert_id();
+number	7
+original_value	-1e+111
+f_double	-1e+111
+f_float	-3.40282e+38
+f_double_7_2	-99999.99
+f_float_4_3	-9.999
+f_double_u	0
+f_float_u	0
+f_double_15_1_u	0.0
+f_float_3_1_u	0.0
+set @value= 1;
+insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
+select * from t1 where number =last_insert_id();
+number	8
+original_value	1
+f_double	1
+f_float	1
+f_double_7_2	1.00
+f_float_4_3	1.000
+f_double_u	1
+f_float_u	1
+f_double_15_1_u	1.0
+f_float_3_1_u	1.0
+set @value= -1;
+insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
+Warnings:
+Warning	1264	Out of range value for column 'f_double_u' at row 1
+Warning	1264	Out of range value for column 'f_float_u' at row 1
+Warning	1264	Out of range value for column 'f_double_15_1_u' at row 1
+Warning	1264	Out of range value for column 'f_float_3_1_u' at row 1
+select * from t1 where number =last_insert_id();
+number	9
+original_value	-1
+f_double	-1
+f_float	-1
+f_double_7_2	-1.00
+f_float_4_3	-1.000
+f_double_u	0
+f_float_u	0
+f_double_15_1_u	0.0
+f_float_3_1_u	0.0
+drop table t1;
+create table t1(id1 int not null auto_increment primary key, t char(12));
+create table t2(id2 int not null, t char(12));
+create table t3(id3 int not null, t char(12), index(id3));
+select count(*) from t2;
+count(*)
+500
+insert into  t2 select t1.* from t1, t2 t, t3 where  t1.id1 = t.id2 and t.id2 = t3.id3;
+select count(*) from t2;
+count(*)
+25500
+drop table t1,t2,t3;
+create table t1 (a int, b int);
+insert into t1 (a,b) values (a,b);
+insert into t1 SET a=1, b=a+1;
+insert into t1 (a,b) select 1,2;
+INSERT INTO t1 ( a ) SELECT 0 ON DUPLICATE KEY UPDATE a = a + VALUES (a);
+prepare stmt1 from ' replace into t1 (a,a) select 100, ''hundred'' ';
+execute stmt1;
+ERROR 42000: Column 'a' specified twice
+insert into t1 (a,b,b) values (1,1,1);
+ERROR 42000: Column 'b' specified twice
+insert into t1 (a,a) values (1,1,1);
+ERROR 21S01: Column count doesn't match value count at row 1
+insert into t1 (a,a) values (1,1);
+ERROR 42000: Column 'a' specified twice
+insert into t1 SET a=1,b=2,a=1;
+ERROR 42000: Column 'a' specified twice
+insert into t1 (b,b) select 1,2;
+ERROR 42000: Column 'b' specified twice
+INSERT INTO t1 (b,b) SELECT 0,0 ON DUPLICATE KEY UPDATE a = a + VALUES (a);
+ERROR 42000: Column 'b' specified twice
+drop table t1;
+create table t1 (id int primary key, data int);
+insert into t1 values (1, 1), (2, 2), (3, 3);
+select row_count();
+row_count()
+3
+insert ignore into t1 values (1, 1);
+select row_count();
+row_count()
+0
+replace into t1 values (1, 11);
+select row_count();
+row_count()
+2
+replace into t1 values (4, 4);
+select row_count();
+row_count()
+1
+insert into t1 values (2, 2) on duplicate key update data= data + 10;
+select row_count();
+row_count()
+2
+insert into t1 values (5, 5) on duplicate key update data= data + 10;
+select row_count();
+row_count()
+1
+drop table t1;
+create table t1 (id int primary key auto_increment, data int, unique(data));
+insert ignore into t1 values(NULL,100),(NULL,110),(NULL,120);
+insert ignore into t1 values(NULL,10),(NULL,20),(NULL,110),(NULL,120),(NULL,100),(NULL,90);
+insert ignore into t1 values(NULL,130),(NULL,140),(500,110),(550,120),(450,100),(NULL,150);
+select * from t1 order by id;
+id	data
+1	100
+2	110
+3	120
+4	10
+5	20
+6	90
+7	130
+8	140
+551	150

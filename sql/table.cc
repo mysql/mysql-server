@@ -1652,6 +1652,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     goto err;
   outparam->quick_keys.init();
   outparam->covering_keys.init();
+  outparam->merge_keys.init();
   outparam->keys_in_use_for_query.init();
 
   /* Allocate handler */
@@ -1694,7 +1695,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
       outparam->record[1]= outparam->record[0];   // Safety
   }
 
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
   /*
     We need this because when we read var-length rows, we are not updating
     bytes after end of varchar
@@ -1916,7 +1917,7 @@ partititon_err:
     }
   }
 
-#if defined(HAVE_purify) && !defined(DBUG_OFF)
+#if defined(HAVE_valgrind) && !defined(DBUG_OFF)
   bzero((char*) bitmaps, bitmap_size*3);
 #endif
 
@@ -2984,11 +2985,8 @@ void st_table::reset_item_list(List<Item> *item_list) const
 
 void  TABLE_LIST::calc_md5(char *buffer)
 {
-  my_MD5_CTX context;
   uchar digest[16];
-  my_MD5Init(&context);
-  my_MD5Update(&context,(uchar *) select_stmt.str, select_stmt.length);
-  my_MD5Final(digest, &context);
+  MY_MD5_HASH(digest, (uchar *) select_stmt.str, select_stmt.length);
   sprintf((char *) buffer,
 	    "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
 	    digest[0], digest[1], digest[2], digest[3],

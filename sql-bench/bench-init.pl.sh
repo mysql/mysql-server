@@ -47,7 +47,7 @@ $opt_machine=""; $opt_suffix="";
 $opt_create_options=undef;
 $opt_optimization="None";
 $opt_hw="";
-$opt_threads=5;
+$opt_threads=-1;
 
 if (!defined($opt_time_limit))
 {
@@ -67,6 +67,11 @@ $server=get_server($opt_server,$opt_host,$opt_database,$opt_odbc,
 $limits=merge_limits($server,$opt_cmp);
 $date=date();
 @estimated=(0.0,0.0,0.0);		# For estimated time support
+
+if ($opt_threads != -1)
+{
+    print "WARNING: Option --threads is deprecated and has no effect\n"
+}
 
 if ($opt_hires)
 {
@@ -560,8 +565,8 @@ All benchmarks takes the following options:
   Inform test suite that we are generate random inital values for sequence of
   test executions. It should be used for imitation of real conditions.
 
---threads=# (Default 5)
-  Number of threads for multi-user benchmarks.
+--threads=#  **DEPRECATED**
+  This option has no effect, and will be removed in a future version.
 
 --tcpip
   Inform test suite that we are using TCP/IP to connect to the server. In

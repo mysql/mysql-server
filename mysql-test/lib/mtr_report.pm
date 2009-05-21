@@ -69,6 +69,8 @@ sub _mtr_report_test_name ($) {
 
   print _name(), _timestamp();
   printf "%-40s ", $tname;
+
+  return $tname;
 }
 
 
@@ -105,20 +107,48 @@ sub mtr_report_test_passed ($) {
 
 sub mtr_report_test ($) {
   my ($tinfo)= @_;
-  _mtr_report_test_name($tinfo);
+  my $test_name = _mtr_report_test_name($tinfo);
 
   my $comment=  $tinfo->{'comment'};
   my $logfile=  $tinfo->{'logfile'};
   my $warnings= $tinfo->{'warnings'};
   my $result=   $tinfo->{'result'};
+  my $retry=    $tinfo->{'retries'} ? "retry-" : "";
 
   if ($result eq 'MTR_RES_FAILED'){
 
     my $timest = format_time();
+    my $fail = "fail";
+
+    if ( $::opt_experimental )
+    {
+      # Find out if this test case is an experimental one, so we can treat
+      # the failure as an expected failure instead of a regression.
+      for my $exp ( @$::experimental_test_cases ) {
+        if ( $exp ne $test_name ) {
+          # if the expression is not the name of this test case, but has
+          # an asterisk at the end, determine if the characters up to
+          # but excluding the asterisk are the same
+          if ( $exp ne "" && substr($exp, -1, 1) eq "*" ) {
+            $exp = substr($exp, 0, length($exp) - 1);
+            if ( substr($test_name, 0, length($exp)) ne $exp ) {
+              # no match, try next entry
+              next;
+            }
+            # if yes, fall through to set the exp-fail status
+          } else {
+            # no match, try next entry
+            next;
+          }
+        }
+        $fail = "exp-fail";
+        last;
+      }
+    }
 
     if ( $warnings )
     {
-      mtr_report("[ fail ]  Found warnings/errors in server log file!");
+      mtr_report("[ $retry$fail ]  Found warnings/errors in server log file!");
       mtr_report("        Test ended at $timest");
       mtr_report($warnings);
       return;
@@ -126,14 +156,14 @@ sub mtr_report_test ($) {
     my $timeout= $tinfo->{'timeout'};
     if ( $timeout )
     {
-      mtr_report("[ fail ]  timeout after $timeout seconds");
+      mtr_report("[ $retry$fail ]  timeout after $timeout seconds");
       mtr_report("        Test ended at $timest");
       mtr_report("\n$tinfo->{'comment'}");
       return;
     }
     else
     {
-      mtr_report("[ fail ]\n        Test ended at $timest");
+      mtr_report("[ $retry$fail ]\n        Test ended at $timest");
     }
 
     if ( $logfile )
@@ -176,7 +206,7 @@ sub mtr_report_test ($) {
   {
     my $timer_str= $tinfo->{timer} || "";
     $tot_real_time += ($timer_str/1000);
-    mtr_report("[ pass ] ", sprintf("%5s", $timer_str));
+    mtr_report("[ ${retry}pass ] ", sprintf("%5s", $timer_str));
 
     # Show any problems check-testcase found
     if ( defined $tinfo->{'check'} )
@@ -187,8 +217,10 @@ sub mtr_report_test ($) {
 }
 
 
-sub mtr_report_stats ($) {
+sub mtr_report_stats ($$$) {
+  my $fail= shift;
   my $tests= shift;
+  my $extra_warnings= shift;
 
   # ----------------------------------------------------------------------
   # Find out how we where doing
@@ -325,9 +357,26 @@ sub mtr_report_stats ($) {
     print "All $tot_tests tests were successful.\n\n";
   }
 
+  if (@$extra_warnings)
+  {
+    print <<MSG;
+Errors/warnings were found in logfiles during server shutdown after running the
+following sequence(s) of tests:
+MSG
+    print "    $_\n" for @$extra_warnings;
+  }
+
   if ( $tot_failed != 0 || $found_problems)
   {
     mtr_error("there were failing test cases");
+  }
+  elsif (@$extra_warnings)
+  {
+    mtr_error("There were errors/warnings in server logs after running test cases.");
+  }
+  elsif ($fail)
+  {
+    mtr_error("Test suite failure, see messages above for possible cause(s).");
   }
 }
 

@@ -1,0 +1,345 @@
+#
+# Test timestamp
+#
+
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
+
+# Set timezone to GMT-3, to make it possible to use "interval 3 hour"
+set time_zone="+03:00";
+
+CREATE TABLE t1 (a int, t timestamp);
+CREATE TABLE t2 (a int, t datetime);
+SET TIMESTAMP=1234;
+insert into t1 values(1,NULL);
+insert into t1 values(2,"2002-03-03");
+SET TIMESTAMP=1235;
+insert into t1 values(3,NULL);
+SET TIMESTAMP=1236;
+insert into t1 (a) values(4);
+insert into t2 values(5,"2002-03-04"),(6,NULL),(7,"2002-03-05"),(8,"00-00-00");
+SET TIMESTAMP=1237;
+insert into t1 select * from t2;
+SET TIMESTAMP=1238;
+insert into t1 (a) select a+1 from t2 where a=8;
+select * from t1;
+drop table t1,t2;
+
+SET TIMESTAMP=1234;
+CREATE TABLE t1 (value TEXT NOT NULL, id VARCHAR(32) NOT NULL, stamp timestamp, PRIMARY KEY (id));
+INSERT INTO t1 VALUES ("my value", "myKey","1999-04-02 00:00:00");
+SELECT stamp FROM t1 WHERE id="myKey";
+UPDATE t1 SET value="my value" WHERE id="myKey";
+SELECT stamp FROM t1 WHERE id="myKey";
+UPDATE t1 SET id="myKey" WHERE value="my value";
+SELECT stamp FROM t1 WHERE id="myKey";
+drop table t1;
+
+create table t1 (a timestamp);
+insert into t1 values (now());
+select date_format(a,"%Y %y"),year(a),year(now()) from t1;
+drop table t1;
+
+create table t1 (ix timestamp);
+insert into t1 values (19991101000000),(19990102030405),(19990630232922),(19990601000000),(19990930232922),(19990531232922),(19990501000000),(19991101000000),(19990501000000);
+select ix+0 from t1;
+truncate table t1;
+insert into t1 values ("19991101000000"),("19990102030405"),("19990630232922"),("19990601000000");
+select ix+0 from t1;
+drop table t1;
+
+CREATE TABLE t1 (date date, date_time datetime, time_stamp timestamp);
+INSERT INTO t1 VALUES ("1998-12-31","1998-12-31 23:59:59",19981231235959);
+INSERT INTO t1 VALUES ("1999-01-01","1999-01-01 00:00:00",19990101000000);
+INSERT INTO t1 VALUES ("1999-09-09","1999-09-09 23:59:59",19990909235959);
+INSERT INTO t1 VALUES ("2000-01-01","2000-01-01 00:00:00",20000101000000);
+INSERT INTO t1 VALUES ("2000-02-28","2000-02-28 00:00:00",20000228000000);
+INSERT INTO t1 VALUES ("2000-02-29","2000-02-29 00:00:00",20000229000000);
+INSERT INTO t1 VALUES ("2000-03-01","2000-03-01 00:00:00",20000301000000);
+INSERT INTO t1 VALUES ("2000-12-31","2000-12-31 23:59:59",20001231235959);
+INSERT INTO t1 VALUES ("2001-01-01","2001-01-01 00:00:00",20010101000000);
+INSERT INTO t1 VALUES ("2004-12-31","2004-12-31 23:59:59",20041231235959);
+INSERT INTO t1 VALUES ("2005-01-01","2005-01-01 00:00:00",20050101000000);
+INSERT INTO t1 VALUES ("2030-01-01","2030-01-01 00:00:00",20300101000000);
+# The following will get you an different answer on 64 bit machines
+#INSERT INTO t1 VALUES ("2050-01-01","2050-01-01 00:00:00",20500101000000);
+SELECT * FROM t1;
+drop table t1;
+
+create table t1 (t2 timestamp(2), t4 timestamp(4), t6 timestamp(6),
+                 t8 timestamp(8), t10 timestamp(10), t12 timestamp(12),
+                 t14 timestamp(14));
+insert t1 values (0,0,0,0,0,0,0),
+("1997-12-31 23:47:59", "1997-12-31 23:47:59", "1997-12-31 23:47:59",
+"1997-12-31 23:47:59", "1997-12-31 23:47:59", "1997-12-31 23:47:59",
+"1997-12-31 23:47:59");
+select * from t1;
+select * from t1;
+drop table t1;
+
+#
+# Let us check if we properly treat wrong datetimes and produce proper warnings
+# (for both strings and numbers)
+#
+create table t1 (ix timestamp);
+insert into t1 values (0),(20030101010160),(20030101016001),(20030101240101),(20030132010101),(20031301010101),(20031200000000),(20030000000000);
+select ix+0 from t1;
+truncate table t1;
+insert into t1 values ("00000000000000"),("20030101010160"),("20030101016001"),("20030101240101"),("20030132010101"),("20031301010101"),("20031200000000"),("20030000000000");
+select ix+0 from t1;
+truncate table t1;
+insert into t1 values ("0000-00-00 00:00:00 some trailer"),("2003-01-01 00:00:00 some trailer");
+select ix+0 from t1;
+drop table t1;
+
+#
+# Test for TIMESTAMP column with default now() and on update now() clauses
+#
+
+# These statements should fail.
+--error 1293
+create table t1 (t1 timestamp, t2 timestamp default now());
+--error 1293
+create table t1 (t1 timestamp, t2 timestamp on update now());
+--error 1293
+create table t1 (t1 timestamp, t2 timestamp default now() on update now());
+--error 1293
+create table t1 (t1 timestamp default now(), t2 timestamp on update now());
+--error 1293
+create table t1 (t1 timestamp on update now(), t2 timestamp default now() on update now());
+
+# Let us test TIMESTAMP auto-update behaviour
+# Also we will test behaviour of TIMESTAMP field in SHOW CREATE TABLE and
+# behaviour of DEFAULT literal for such fields
+create table t1 (t1 timestamp default '2003-01-01 00:00:00', t2 datetime, t3 timestamp);
+SET TIMESTAMP=1000000000;
+insert into t1 values ();
+SET TIMESTAMP=1000000001;
+update t1 set t2=now();
+SET TIMESTAMP=1000000002;
+insert into t1 (t1,t3) values (default, default);
+select * from t1 order by t2; # PBXT: Order for consistent result
+show create table t1;
+show columns from t1;
+drop table t1;
+
+create table t1 (t1 timestamp default now(), t2 datetime, t3 timestamp);
+SET TIMESTAMP=1000000002;
+insert into t1 values ();
+SET TIMESTAMP=1000000003;
+update t1 set t2=now();
+SET TIMESTAMP=1000000003;
+insert into t1 (t1,t3) values (default, default);
+select * from t1 order by t1; # PBXT: Order for consistent result
+show create table t1;
+show columns from t1;
+drop table t1;
+
+create table t1 (t1 timestamp default '2003-01-01 00:00:00' on update now(), t2 datetime);
+SET TIMESTAMP=1000000004;
+insert into t1 values ();
+select * from t1;
+SET TIMESTAMP=1000000005;
+update t1 set t2=now();
+SET TIMESTAMP=1000000005;
+insert into t1 (t1) values (default);
+select * from t1 order by t1; # PBXT: Order for consistent result
+show create table t1;
+show columns from t1;
+drop table t1;
+
+create table t1 (t1 timestamp default now() on update now(), t2 datetime);
+SET TIMESTAMP=1000000006;
+insert into t1 values ();
+select * from t1;
+SET TIMESTAMP=1000000007;
+update t1 set t2=now();
+SET TIMESTAMP=1000000007;
+insert into t1 (t1) values (default);
+select * from t1 order by t2; # PBXT: Order for consistent result
+show create table t1;
+show columns from t1;
+drop table t1;
+
+create table t1 (t1 timestamp, t2 datetime, t3 timestamp);
+SET TIMESTAMP=1000000007;
+insert into t1 values ();
+select * from t1;
+SET TIMESTAMP=1000000008;
+update t1 set t2=now();
+SET TIMESTAMP=1000000008;
+insert into t1 (t1,t3) values (default, default);
+select * from t1 order by t2; # PBXT: Order for consistent result
+show create table t1;
+show columns from t1;
+drop table t1;
+
+# Let us test if CURRENT_TIMESTAMP also works well as default value
+# (Of course NOW and CURRENT_TIMESTAMP are same for parser but still just
+# for demonstartion.)
+create table t1 (t1 timestamp default current_timestamp on update current_timestamp, t2 datetime);
+SET TIMESTAMP=1000000009;
+insert into t1 values ();
+select * from t1;
+SET TIMESTAMP=1000000010;
+update t1 set t2=now();
+SET TIMESTAMP=1000000011;
+insert into t1 (t1) values (default);
+select * from t1 order by t1; # PBXT: Order for consistent result
+show create table t1;
+show columns from t1;
+truncate table t1;
+
+# 
+# Let us test some cases when auto-set should be disabled or influence
+# on server behavior in some other way.
+#
+
+# Update statement that explicitly sets field should not auto-set it. 
+insert into t1 values ('2004-04-01 00:00:00', '2004-04-01 00:00:00');
+SET TIMESTAMP=1000000012;
+update t1 set t1= '2004-04-02 00:00:00';
+select * from t1;
+# The same for multi updates
+update t1 as ta, t1 as tb set tb.t1= '2004-04-03 00:00:00';
+select * from t1;
+drop table t1;
+
+# Now let us test replace it should behave exactly like delete+insert
+# Case where optimization is possible DEFAULT = ON UPDATE
+create table t1 (pk int primary key, t1 timestamp default current_timestamp on update current_timestamp, bulk int);
+insert into t1 values (1, '2004-04-01 00:00:00', 10);
+SET TIMESTAMP=1000000013;
+replace into t1 set pk = 1, bulk= 20; 
+select * from t1;
+drop table t1;
+# Case in which there should not be optimisation
+create table t1 (pk int primary key, t1 timestamp default '2003-01-01 00:00:00' on update current_timestamp, bulk int);
+insert into t1 values (1, '2004-04-01 00:00:00', 10);
+SET TIMESTAMP=1000000014;
+replace into t1 set pk = 1, bulk= 20; 
+select * from t1;
+drop table t1;
+# Other similar case
+create table t1 (pk int primary key, t1 timestamp default current_timestamp, bulk int);
+insert into t1 values (1, '2004-04-01 00:00:00', 10);
+SET TIMESTAMP=1000000015;
+replace into t1 set pk = 1, bulk= 20; 
+select * from t1;
+drop table t1;
+
+# Let us test alter now
+create table t1 (t1 timestamp default current_timestamp on update current_timestamp);
+insert into t1 values ('2004-04-01 00:00:00');
+SET TIMESTAMP=1000000016;
+alter table t1 add i int default 10;
+select * from t1;
+drop table t1;
+
+#
+# Test for TIMESTAMP columns which are able to store NULLs
+#
+
+# Unlike for default TIMESTAMP fields we don't interpret first field
+# in this table as TIMESTAMP with DEFAULT NOW() ON UPDATE NOW() properties.
+create table t1 (a timestamp null, b timestamp null);
+show create table t1;
+insert into t1 values (NULL, NULL);
+SET TIMESTAMP=1000000017;
+insert into t1 values ();
+select * from t1;
+drop table t1;
+
+# But explicit auto-set properties still should be OK.
+create table t1 (a timestamp null default current_timestamp on update current_timestamp, b timestamp null);
+show create table t1;
+insert into t1 values (NULL, NULL);
+SET TIMESTAMP=1000000018;
+insert into t1 values ();
+select * from t1;
+drop table t1;
+
+# It is also OK to specify NULL as default explicitly for such fields.
+# This is also a test for bug #2464, DEFAULT keyword in INSERT statement
+# should return default value for column.
+
+create table t1 (a timestamp null default null, b timestamp null default '2003-01-01 00:00:00');
+show create table t1;
+insert into t1 values (NULL, NULL);
+insert into t1 values (DEFAULT, DEFAULT);
+select * from t1;
+drop table t1;
+
+#
+# Let us test behavior of ALTER TABLE when it converts columns 
+# containing NULL to TIMESTAMP columns.
+#
+create table t1 (a bigint, b bigint);
+insert into t1 values (NULL, NULL), (20030101000000, 20030102000000);
+set timestamp=1000000019;
+alter table t1 modify a timestamp, modify b timestamp;
+select * from t1;
+drop table t1;
+
+#
+# Test for bug #4131, TIMESTAMP columns missing minutes and seconds when
+# using GROUP BY in @@new=1 mode.
+#
+create table t1 (a char(2), t timestamp);
+insert into t1 values ('a', '2004-01-01 00:00:00'), ('a', '2004-01-01 01:00:00'),
+                      ('b', '2004-02-01 00:00:00');
+select max(t) from t1 group by a;
+drop table t1;
+
+#
+# Test for bug #7418 "TIMESTAMP not always converted to DATETIME in MAXDB
+# mode". TIMESTAMP columns should be converted DATETIME columns in MAXDB
+# mode regardless of whether a display width is given.
+#
+set sql_mode='maxdb';
+create table t1 (a timestamp, b timestamp(19));
+show create table t1;
+# restore default mode
+set sql_mode='';
+drop table t1;
+
+#
+# Bug#7806 - insert on duplicate key and auto-update of timestamp
+#
+create table t1 (a int auto_increment primary key, b int, c timestamp);
+insert into t1 (a, b, c) values (1, 0, '2001-01-01 01:01:01'),
+  (2, 0, '2002-02-02 02:02:02'), (3, 0, '2003-03-03 03:03:03');
+select * from t1;
+update t1 set b = 2, c = c where a = 2;
+select * from t1;
+insert into t1 (a) values (4);
+select * from t1 order by a; # PBXT: Order for consistent result
+update t1 set c = '2004-04-04 04:04:04' where a = 4;
+select * from t1 order by a; # PBXT required order for consistent result
+insert into t1 (a) values (3), (5) on duplicate key update b = 3, c = c;
+select * from t1 order by a; # PBXT: Order for consistent result
+insert into t1 (a, c) values (4, '2004-04-04 00:00:00'),
+  (6, '2006-06-06 06:06:06') on duplicate key update b = 4;
+select * from t1 order by a; # PBXT: Order for consistent result
+drop table t1;
+
+# End of 4.1 tests
+
+# Restore timezone to default
+set time_zone= @@global.time_zone;
+
+CREATE TABLE t1 (
+`id` int(11) NOT NULL auto_increment,
+`username` varchar(80) NOT NULL default '',
+`posted_on` timestamp NOT NULL default '0000-00-00 00:00:00',
+PRIMARY KEY (`id`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 AUTO_INCREMENT=1;
+
+show fields from t1;
+select is_nullable from INFORMATION_SCHEMA.COLUMNS where TABLE_NAME='t1' and COLUMN_NAME='posted_on';
+drop table t1;
+
+--disable_query_log
+drop database pbxt;
+--enable_query_log

@@ -10,7 +10,4 @@
 #
 ##############################################################################
 
-rpl_ndb_circular         : Bug#41183 rpl_ndb_circular, rpl_ndb_circular_simplex need maintenance, crash
-rpl_ndb_circular_simplex : Bug#41183 rpl_ndb_circular, rpl_ndb_circular_simplex need maintenance, crash
-
 # the below testcase have been reworked to avoid the bug, test contains comment, keep bug open

@@ -1,0 +1,1450 @@
+drop table if exists t1;
+select 1.1 IN (1.0, 1.2);
+1.1 IN (1.0, 1.2)
+0
+select 1.1 IN (1.0, 1.2, 1.1, 1.4, 0.5);
+1.1 IN (1.0, 1.2, 1.1, 1.4, 0.5)
+1
+select 1.1 IN (1.0, 1.2, NULL, 1.4, 0.5);
+1.1 IN (1.0, 1.2, NULL, 1.4, 0.5)
+NULL
+select 0.5 IN (1.0, 1.2, NULL, 1.4, 0.5);
+0.5 IN (1.0, 1.2, NULL, 1.4, 0.5)
+1
+select 1 IN (1.11, 1.2, 1.1, 1.4, 1, 0.5);
+1 IN (1.11, 1.2, 1.1, 1.4, 1, 0.5)
+1
+select 1 IN (1.11, 1.2, 1.1, 1.4, NULL, 0.5);
+1 IN (1.11, 1.2, 1.1, 1.4, NULL, 0.5)
+NULL
+select case 1.0 when 0.1 then "a" when 1.0 then "b" else "c" END;
+case 1.0 when 0.1 then "a" when 1.0 then "b" else "c" END
+b
+select case 0.1 when 0.1 then "a" when 1.0 then "b" else "c" END;
+case 0.1 when 0.1 then "a" when 1.0 then "b" else "c" END
+a
+select case 1 when 0.1 then "a" when 1.0 then "b" else "c" END;
+case 1 when 0.1 then "a" when 1.0 then "b" else "c" END
+b
+select case 1.0 when 0.1 then "a" when 1 then "b" else "c" END;
+case 1.0 when 0.1 then "a" when 1 then "b" else "c" END
+b
+select case 1.001 when 0.1 then "a" when 1 then "b" else "c" END;
+case 1.001 when 0.1 then "a" when 1 then "b" else "c" END
+c
+create table t1 (a decimal(6,3));
+insert into t1 values (1.0), (NULL), (0.1);
+select * from t1;
+a
+1.000
+NULL
+0.100
+select 0.1 in (1.0, 1.2, 1.1, a, 1.4, 0.5) from t1;
+0.1 in (1.0, 1.2, 1.1, a, 1.4, 0.5)
+0
+NULL
+1
+drop table t1;
+create table t1 select if(1, 1.1, 1.2), if(0, 1.1, 1.2), if(0.1, 1.1, 1.2), if(0, 1, 1.1), if(0, NULL, 1.2), if(1, 0.22e1, 1.1), if(1E0, 1.1, 1.2);
+select * from t1;
+if(1, 1.1, 1.2)	if(0, 1.1, 1.2)	if(0.1, 1.1, 1.2)	if(0, 1, 1.1)	if(0, NULL, 1.2)	if(1, 0.22e1, 1.1)	if(1E0, 1.1, 1.2)
+1.1	1.2	1.1	1.1	1.2	2.2	1.1
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `if(1, 1.1, 1.2)` decimal(2,1) NOT NULL DEFAULT '0.0',
+  `if(0, 1.1, 1.2)` decimal(2,1) NOT NULL DEFAULT '0.0',
+  `if(0.1, 1.1, 1.2)` decimal(2,1) NOT NULL DEFAULT '0.0',
+  `if(0, 1, 1.1)` decimal(2,1) NOT NULL DEFAULT '0.0',
+  `if(0, NULL, 1.2)` decimal(2,1) DEFAULT NULL,
+  `if(1, 0.22e1, 1.1)` double NOT NULL DEFAULT '0',
+  `if(1E0, 1.1, 1.2)` decimal(2,1) NOT NULL DEFAULT '0.0'
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 select nullif(1.1, 1.1), nullif(1.1, 1.2), nullif(1.1, 0.11e1), nullif(1.0, 1), nullif(1, 1.0), nullif(1, 1.1);
+select * from t1;
+nullif(1.1, 1.1)	nullif(1.1, 1.2)	nullif(1.1, 0.11e1)	nullif(1.0, 1)	nullif(1, 1.0)	nullif(1, 1.1)
+NULL	1.1	NULL	NULL	NULL	1
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `nullif(1.1, 1.1)` decimal(2,1) DEFAULT NULL,
+  `nullif(1.1, 1.2)` decimal(2,1) DEFAULT NULL,
+  `nullif(1.1, 0.11e1)` decimal(2,1) DEFAULT NULL,
+  `nullif(1.0, 1)` decimal(2,1) DEFAULT NULL,
+  `nullif(1, 1.0)` int(1) DEFAULT NULL,
+  `nullif(1, 1.1)` int(1) DEFAULT NULL
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 (a decimal(4,2));
+insert into t1 value (10000), (1.1e10), ("11111"), (100000.1);
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 1
+Warning	1264	Out of range value for column 'a' at row 2
+Warning	1264	Out of range value for column 'a' at row 3
+Warning	1264	Out of range value for column 'a' at row 4
+insert into t1 value (-10000), (-1.1e10), ("-11111"), (-100000.1);
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 1
+Warning	1264	Out of range value for column 'a' at row 2
+Warning	1264	Out of range value for column 'a' at row 3
+Warning	1264	Out of range value for column 'a' at row 4
+select a from t1;
+a
+99.99
+99.99
+99.99
+99.99
+-99.99
+-99.99
+-99.99
+-99.99
+drop table t1;
+create table t1 (a decimal(4,2) unsigned);
+insert into t1 value (10000), (1.1e10), ("11111"), (100000.1);
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 1
+Warning	1264	Out of range value for column 'a' at row 2
+Warning	1264	Out of range value for column 'a' at row 3
+Warning	1264	Out of range value for column 'a' at row 4
+insert into t1 value (-10000), (-1.1e10), ("-11111"), (-100000.1);
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 1
+Warning	1264	Out of range value for column 'a' at row 2
+Warning	1264	Out of range value for column 'a' at row 3
+Warning	1264	Out of range value for column 'a' at row 4
+select a from t1;
+a
+99.99
+99.99
+99.99
+99.99
+0.00
+0.00
+0.00
+0.00
+drop table t1;
+create table t1 (a bigint);
+insert into t1 values (18446744073709551615.0);
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 1
+insert into t1 values (9223372036854775808.0);
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 1
+insert into t1 values (-18446744073709551615.0);
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 1
+select * from t1;
+a
+9223372036854775807
+9223372036854775807
+-9223372036854775808
+drop table t1;
+create table t1 (a bigint unsigned);
+insert into t1 values (18446744073709551615.0);
+insert into t1 values (9223372036854775808.0);
+insert into t1 values (9999999999999999999999999.000);
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 1
+insert into t1 values (-1.0);
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 1
+select * from t1;
+a
+18446744073709551615
+9223372036854775808
+18446744073709551615
+0
+drop table t1;
+create table t1 (a tinyint);
+insert into t1 values (18446744073709551615.0);
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 1
+Warning	1264	Out of range value for column 'a' at row 1
+insert into t1 values (9223372036854775808.0);
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 1
+Warning	1264	Out of range value for column 'a' at row 1
+select * from t1;
+a
+127
+127
+drop table t1;
+create table t1 select round(15.4,-1), truncate(-5678.123451,-3), abs(-1.1), -(-1.1);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `round(15.4,-1)` decimal(3,0) NOT NULL DEFAULT '0',
+  `truncate(-5678.123451,-3)` decimal(4,0) NOT NULL DEFAULT '0',
+  `abs(-1.1)` decimal(3,1) NOT NULL DEFAULT '0.0',
+  `-(-1.1)` decimal(2,1) NOT NULL DEFAULT '0.0'
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+drop table t1;
+set session sql_mode='traditional';
+select 1e10/0e0;
+1e10/0e0
+NULL
+Warnings:
+Error	1365	Division by 0
+create table wl1612 (col1 int, col2 decimal(38,10), col3 numeric(38,10));
+insert into wl1612 values(1,12345678901234567890.1234567890,12345678901234567890.1234567890);
+select * from wl1612;
+col1	col2	col3
+1	12345678901234567890.1234567890	12345678901234567890.1234567890
+insert into wl1612 values(2,01234567890123456789.0123456789,01234567890123456789.0123456789);
+select * from wl1612 where col1=2;
+col1	col2	col3
+2	1234567890123456789.0123456789	1234567890123456789.0123456789
+insert into wl1612 values(3,1234567890123456789012345678.0123456789,1234567890123456789012345678.0123456789);
+select * from wl1612 where col1=3;
+col1	col2	col3
+3	1234567890123456789012345678.0123456789	1234567890123456789012345678.0123456789
+select col1/0 from wl1612;
+col1/0
+NULL
+NULL
+NULL
+Warnings:
+Error	1365	Division by 0
+Error	1365	Division by 0
+Error	1365	Division by 0
+select col2/0 from wl1612;
+col2/0
+NULL
+NULL
+NULL
+Warnings:
+Error	1365	Division by 0
+Error	1365	Division by 0
+Error	1365	Division by 0
+select col3/0 from wl1612;
+col3/0
+NULL
+NULL
+NULL
+Warnings:
+Error	1365	Division by 0
+Error	1365	Division by 0
+Error	1365	Division by 0
+insert into wl1612 values(5,5000.0005,5000.0005);
+insert into wl1612 values(6,5000.0005,5000.0005);
+select sum(col2),sum(col3) from wl1612;
+sum(col2)	sum(col3)
+1234567903703703580370380357.1491481468	1234567903703703580370380357.1491481468
+insert into wl1612 values(7,500000.000005,500000.000005);
+insert into wl1612 values(8,500000.000005,500000.000005);
+select sum(col2),sum(col3) from wl1612 where col1>4;
+sum(col2)	sum(col3)
+1010000.0010100000	1010000.0010100000
+insert into wl1612 (col1, col2) values(9,1.01234567891);
+Warnings:
+Note	1265	Data truncated for column 'col2' at row 1
+insert into wl1612 (col1, col2) values(10,1.01234567894);
+Warnings:
+Note	1265	Data truncated for column 'col2' at row 1
+insert into wl1612 (col1, col2) values(11,1.01234567895);
+Warnings:
+Note	1265	Data truncated for column 'col2' at row 1
+insert into wl1612 (col1, col2) values(12,1.01234567896);
+Warnings:
+Note	1265	Data truncated for column 'col2' at row 1
+select col1,col2 from wl1612 where col1>8;
+col1	col2
+9	1.0123456789
+10	1.0123456789
+11	1.0123456790
+12	1.0123456790
+insert into wl1612 (col1, col3) values(13,1.01234567891);
+Warnings:
+Note	1265	Data truncated for column 'col3' at row 1
+insert into wl1612 (col1, col3) values(14,1.01234567894);
+Warnings:
+Note	1265	Data truncated for column 'col3' at row 1
+insert into wl1612 (col1, col3) values(15,1.01234567895);
+Warnings:
+Note	1265	Data truncated for column 'col3' at row 1
+insert into wl1612 (col1, col3) values(16,1.01234567896);
+Warnings:
+Note	1265	Data truncated for column 'col3' at row 1
+select col1,col3 from wl1612 where col1>12;
+col1	col3
+13	1.0123456789
+14	1.0123456789
+15	1.0123456790
+16	1.0123456790
+select col1 from wl1612 where col1>4 and col2=1.01234567891;
+col1
+select col1 from wl1612 where col1>4 and col2=1.0123456789;
+col1
+9
+10
+select col1 from wl1612 where col1>4 and col2<>1.0123456789;
+col1
+5
+6
+7
+8
+11
+12
+select col1 from wl1612 where col1>4 and col2<1.0123456789;
+col1
+select col1 from wl1612 where col1>4 and col2<=1.0123456789;
+col1
+9
+10
+select col1 from wl1612 where col1>4 and col2>1.0123456789;
+col1
+5
+6
+7
+8
+11
+12
+select col1 from wl1612 where col1>4 and col2>=1.0123456789;
+col1
+5
+6
+7
+8
+9
+10
+11
+12
+select col1 from wl1612 where col1>4 and col2=1.012345679;
+col1
+11
+12
+select col1 from wl1612 where col1>4 and col2<>1.012345679;
+col1
+5
+6
+7
+8
+9
+10
+select col1 from wl1612 where col1>4 and col3=1.01234567891;
+col1
+select col1 from wl1612 where col1>4 and col3=1.0123456789;
+col1
+13
+14
+select col1 from wl1612 where col1>4 and col3<>1.0123456789;
+col1
+5
+6
+7
+8
+15
+16
+select col1 from wl1612 where col1>4 and col3<1.0123456789;
+col1
+select col1 from wl1612 where col1>4 and col3<=1.0123456789;
+col1
+13
+14
+select col1 from wl1612 where col1>4 and col3>1.0123456789;
+col1
+5
+6
+7
+8
+15
+16
+select col1 from wl1612 where col1>4 and col3>=1.0123456789;
+col1
+5
+6
+7
+8
+13
+14
+15
+16
+select col1 from wl1612 where col1>4 and col3=1.012345679;
+col1
+15
+16
+select col1 from wl1612 where col1>4 and col3<>1.012345679;
+col1
+5
+6
+7
+8
+13
+14
+drop table wl1612;
+select 1/3;
+1/3
+0.3333
+select 0.8=0.7+0.1;
+0.8=0.7+0.1
+1
+select 0.7+0.1;
+0.7+0.1
+0.8
+create table wl1612_1 (col1 int);
+insert into wl1612_1 values(10);
+select * from wl1612_1 where 0.8=0.7+0.1;
+col1
+10
+select 0.07+0.07 from wl1612_1;
+0.07+0.07
+0.14
+select 0.07-0.07 from wl1612_1;
+0.07-0.07
+0.00
+select 0.07*0.07 from wl1612_1;
+0.07*0.07
+0.0049
+select 0.07/0.07 from wl1612_1;
+0.07/0.07
+1.000000
+drop table wl1612_1;
+create table wl1612_2 (col1 decimal(10,2), col2 numeric(10,2));
+insert into wl1612_2 values(1,1);
+insert into wl1612_2 values(+1,+1);
+insert into wl1612_2 values(+01,+01);
+insert into wl1612_2 values(+001,+001);
+select col1,count(*) from wl1612_2 group by col1;
+col1	count(*)
+1.00	4
+select col2,count(*) from wl1612_2 group by col2;
+col2	count(*)
+1.00	4
+drop table wl1612_2;
+create table wl1612_3 (col1 decimal(10,2), col2 numeric(10,2));
+insert into wl1612_3 values('1','1');
+insert into wl1612_3 values('+1','+1');
+insert into wl1612_3 values('+01','+01');
+insert into wl1612_3 values('+001','+001');
+select col1,count(*) from wl1612_3 group by col1;
+col1	count(*)
+1.00	4
+select col2,count(*) from wl1612_3 group by col2;
+col2	count(*)
+1.00	4
+drop table wl1612_3;
+select mod(234,10) ;
+mod(234,10)
+4
+select mod(234.567,10.555);
+mod(234.567,10.555)
+2.357
+select mod(-234.567,10.555);
+mod(-234.567,10.555)
+-2.357
+select mod(234.567,-10.555);
+mod(234.567,-10.555)
+2.357
+select round(15.1);
+round(15.1)
+15
+select round(15.4);
+round(15.4)
+15
+select round(15.5);
+round(15.5)
+16
+select round(15.6);
+round(15.6)
+16
+select round(15.9);
+round(15.9)
+16
+select round(-15.1);
+round(-15.1)
+-15
+select round(-15.4);
+round(-15.4)
+-15
+select round(-15.5);
+round(-15.5)
+-16
+select round(-15.6);
+round(-15.6)
+-16
+select round(-15.9);
+round(-15.9)
+-16
+select round(15.1,1);
+round(15.1,1)
+15.1
+select round(15.4,1);
+round(15.4,1)
+15.4
+select round(15.5,1);
+round(15.5,1)
+15.5
+select round(15.6,1);
+round(15.6,1)
+15.6
+select round(15.9,1);
+round(15.9,1)
+15.9
+select round(-15.1,1);
+round(-15.1,1)
+-15.1
+select round(-15.4,1);
+round(-15.4,1)
+-15.4
+select round(-15.5,1);
+round(-15.5,1)
+-15.5
+select round(-15.6,1);
+round(-15.6,1)
+-15.6
+select round(-15.9,1);
+round(-15.9,1)
+-15.9
+select round(15.1,0);
+round(15.1,0)
+15
+select round(15.4,0);
+round(15.4,0)
+15
+select round(15.5,0);
+round(15.5,0)
+16
+select round(15.6,0);
+round(15.6,0)
+16
+select round(15.9,0);
+round(15.9,0)
+16
+select round(-15.1,0);
+round(-15.1,0)
+-15
+select round(-15.4,0);
+round(-15.4,0)
+-15
+select round(-15.5,0);
+round(-15.5,0)
+-16
+select round(-15.6,0);
+round(-15.6,0)
+-16
+select round(-15.9,0);
+round(-15.9,0)
+-16
+select round(15.1,-1);
+round(15.1,-1)
+20
+select round(15.4,-1);
+round(15.4,-1)
+20
+select round(15.5,-1);
+round(15.5,-1)
+20
+select round(15.6,-1);
+round(15.6,-1)
+20
+select round(15.9,-1);
+round(15.9,-1)
+20
+select round(-15.1,-1);
+round(-15.1,-1)
+-20
+select round(-15.4,-1);
+round(-15.4,-1)
+-20
+select round(-15.5,-1);
+round(-15.5,-1)
+-20
+select round(-15.6,-1);
+round(-15.6,-1)
+-20
+select round(-15.91,-1);
+round(-15.91,-1)
+-20
+select truncate(5678.123451,0);
+truncate(5678.123451,0)
+5678
+select truncate(5678.123451,1);
+truncate(5678.123451,1)
+5678.1
+select truncate(5678.123451,2);
+truncate(5678.123451,2)
+5678.12
+select truncate(5678.123451,3);
+truncate(5678.123451,3)
+5678.123
+select truncate(5678.123451,4);
+truncate(5678.123451,4)
+5678.1234
+select truncate(5678.123451,5);
+truncate(5678.123451,5)
+5678.12345
+select truncate(5678.123451,6);
+truncate(5678.123451,6)
+5678.123451
+select truncate(5678.123451,-1);
+truncate(5678.123451,-1)
+5670
+select truncate(5678.123451,-2);
+truncate(5678.123451,-2)
+5600
+select truncate(5678.123451,-3);
+truncate(5678.123451,-3)
+5000
+select truncate(5678.123451,-4);
+truncate(5678.123451,-4)
+0
+select truncate(-5678.123451,0);
+truncate(-5678.123451,0)
+-5678
+select truncate(-5678.123451,1);
+truncate(-5678.123451,1)
+-5678.1
+select truncate(-5678.123451,2);
+truncate(-5678.123451,2)
+-5678.12
+select truncate(-5678.123451,3);
+truncate(-5678.123451,3)
+-5678.123
+select truncate(-5678.123451,4);
+truncate(-5678.123451,4)
+-5678.1234
+select truncate(-5678.123451,5);
+truncate(-5678.123451,5)
+-5678.12345
+select truncate(-5678.123451,6);
+truncate(-5678.123451,6)
+-5678.123451
+select truncate(-5678.123451,-1);
+truncate(-5678.123451,-1)
+-5670
+select truncate(-5678.123451,-2);
+truncate(-5678.123451,-2)
+-5600
+select truncate(-5678.123451,-3);
+truncate(-5678.123451,-3)
+-5000
+select truncate(-5678.123451,-4);
+truncate(-5678.123451,-4)
+0
+create table wl1612_4 (col1 int, col2 decimal(30,25), col3 numeric(30,25));
+insert into wl1612_4 values(1,0.0123456789012345678912345,0.0123456789012345678912345);
+select col2/9999999999 from wl1612_4 where col1=1;
+col2/9999999999
+0.00000000000123456789024691358
+select col3/9999999999 from wl1612_4 where col1=1;
+col3/9999999999
+0.00000000000123456789024691358
+select 9999999999/col2 from wl1612_4 where col1=1;
+9999999999/col2
+810000007209.0001
+select 9999999999/col3 from wl1612_4 where col1=1;
+9999999999/col3
+810000007209.0001
+select col2*9999999999 from wl1612_4 where col1=1;
+col2*9999999999
+123456789.0000000000111104321087655
+select col3*9999999999 from wl1612_4 where col1=1;
+col3*9999999999
+123456789.0000000000111104321087655
+insert into wl1612_4 values(2,55555.0123456789012345678912345,55555.0123456789012345678912345);
+select col2/9999999999 from wl1612_4 where col1=2;
+col2/9999999999
+0.00000555550123512344024696913
+select col3/9999999999 from wl1612_4 where col1=2;
+col3/9999999999
+0.00000555550123512344024696913
+select 9999999999/col2 from wl1612_4 where col1=2;
+9999999999/col2
+180001.7600
+select 9999999999/col3 from wl1612_4 where col1=2;
+9999999999/col3
+180001.7600
+select col2*9999999999 from wl1612_4 where col1=2;
+col2*9999999999
+555550123401234.0000000000111104321087655
+select col3*9999999999 from wl1612_4 where col1=2;
+col3*9999999999
+555550123401234.0000000000111104321087655
+drop table wl1612_4;
+set sql_mode='';
+select 23.4 + (-41.7), 23.4 - (41.7) = -18.3;
+23.4 + (-41.7)	23.4 - (41.7) = -18.3
+-18.3	1
+select -18.3=-18.3;
+-18.3=-18.3
+1
+select 18.3=18.3;
+18.3=18.3
+1
+select -18.3=18.3;
+-18.3=18.3
+0
+select 0.8 = 0.7 + 0.1;
+0.8 = 0.7 + 0.1
+1
+drop table if exists t1;
+Warnings:
+Note	1051	Unknown table 't1'
+create table t1 (col1 decimal(38));
+insert into t1 values (12345678901234567890123456789012345678);
+select * from t1;
+col1
+12345678901234567890123456789012345678
+drop table t1;
+create table t1 (col1 decimal(31,30));
+insert into t1 values (0.00000000001);
+select * from t1;
+col1
+0.000000000010000000000000000000
+drop table t1;
+select 7777777777777777777777777777777777777 * 10;
+7777777777777777777777777777777777777 * 10
+77777777777777777777777777777777777770
+select .7777777777777777777777777777777777777 *
+1000000000000000000;
+.7777777777777777777777777777777777777 *
+1000000000000000000
+777777777777777777.777777777777777777700000000000
+select .7777777777777777777777777777777777777 - 0.1;
+.7777777777777777777777777777777777777 - 0.1
+0.6777777777777777777777777777777777777
+select .343434343434343434 + .343434343434343434;
+.343434343434343434 + .343434343434343434
+0.686868686868686868
+select abs(9999999999999999999999);
+abs(9999999999999999999999)
+9999999999999999999999
+select abs(-9999999999999999999999);
+abs(-9999999999999999999999)
+9999999999999999999999
+select ceiling(999999999999999999);
+ceiling(999999999999999999)
+999999999999999999
+select ceiling(99999999999999999999);
+ceiling(99999999999999999999)
+99999999999999999999
+select ceiling(9.9999999999999999999);
+ceiling(9.9999999999999999999)
+10
+select ceiling(-9.9999999999999999999);
+ceiling(-9.9999999999999999999)
+-9
+select floor(999999999999999999);
+floor(999999999999999999)
+999999999999999999
+select floor(9999999999999999999999);
+floor(9999999999999999999999)
+9999999999999999999999
+select floor(9.999999999999999999999);
+floor(9.999999999999999999999)
+9
+select floor(-9.999999999999999999999);
+floor(-9.999999999999999999999)
+-10
+select floor(-999999999999999999999.999);
+floor(-999999999999999999999.999)
+-1000000000000000000000
+select ceiling(999999999999999999999.999);
+ceiling(999999999999999999999.999)
+1000000000000000000000
+select 99999999999999999999999999999999999999 mod 3;
+99999999999999999999999999999999999999 mod 3
+0
+select round(99999999999999999.999);
+round(99999999999999999.999)
+100000000000000000
+select round(-99999999999999999.999);
+round(-99999999999999999.999)
+-100000000000000000
+select round(99999999999999999.999,3);
+round(99999999999999999.999,3)
+99999999999999999.999
+select round(-99999999999999999.999,3);
+round(-99999999999999999.999,3)
+-99999999999999999.999
+select truncate(99999999999999999999999999999999999999,31);
+truncate(99999999999999999999999999999999999999,31)
+99999999999999999999999999999999999999.000000000000000000000000000000
+select truncate(99.999999999999999999999999999999999999,31);
+truncate(99.999999999999999999999999999999999999,31)
+99.999999999999999999999999999999
+select truncate(99999999999999999999999999999999999999,-31);
+truncate(99999999999999999999999999999999999999,-31)
+99999990000000000000000000000000000000
+create table t1 as select 0.5;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `0.5` decimal(2,1) NOT NULL DEFAULT '0.0'
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+drop table t1;
+select round(1.5),round(2.5);
+round(1.5)	round(2.5)
+2	3
+select 0.07 * 0.07;
+0.07 * 0.07
+0.0049
+set sql_mode='traditional';
+select 1E-500 = 0;
+1E-500 = 0
+1
+select 1 / 1E-500;
+1 / 1E-500
+NULL
+Warnings:
+Error	1365	Division by 0
+select 1 / 0;
+1 / 0
+NULL
+Warnings:
+Error	1365	Division by 0
+set sql_mode='ansi,traditional';
+CREATE TABLE Sow6_2f (col1 NUMERIC(4,2));
+INSERT INTO Sow6_2f VALUES (10.55);
+INSERT INTO Sow6_2f VALUES (10.5555);
+Warnings:
+Note	1265	Data truncated for column 'col1' at row 1
+INSERT INTO Sow6_2f VALUES (-10.55);
+INSERT INTO Sow6_2f VALUES (-10.5555);
+Warnings:
+Note	1265	Data truncated for column 'col1' at row 1
+INSERT INTO Sow6_2f VALUES (11);
+INSERT INTO Sow6_2f VALUES (101.55);
+ERROR 22003: Out of range value for column 'col1' at row 1
+UPDATE Sow6_2f SET col1 = col1 * 50 WHERE col1 = 11;
+ERROR 22003: Out of range value for column 'col1' at row 5
+UPDATE Sow6_2f SET col1 = col1 / 0 WHERE col1 > 0;
+ERROR 22012: Division by 0
+SELECT MOD(col1,0) FROM Sow6_2f;
+MOD(col1,0)
+NULL
+NULL
+NULL
+NULL
+NULL
+Warnings:
+Error	1365	Division by 0
+Error	1365	Division by 0
+Error	1365	Division by 0
+Error	1365	Division by 0
+Error	1365	Division by 0
+INSERT INTO Sow6_2f VALUES ('a59b');
+ERROR HY000: Incorrect decimal value: 'a59b' for column 'col1' at row 1
+drop table Sow6_2f;
+select 10.3330000000000/12.34500000;
+10.3330000000000/12.34500000
+0.83701903604698258
+set sql_mode='';
+select 0/0;
+0/0
+NULL
+select 9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999 as x;
+x
+99999999999999999999999999999999999999999999999999999999999999999
+Warnings:
+Error	1292	Truncated incorrect DECIMAL value: ''
+select 9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999 + 1 as x;
+x
+100000000000000000000000000000000000000000000000000000000000000000
+Warnings:
+Error	1292	Truncated incorrect DECIMAL value: ''
+select 0.190287977636363637 + 0.040372670 * 0 -  0;
+0.190287977636363637 + 0.040372670 * 0 -  0
+0.190287977636363637
+select -0.123 * 0;
+-0.123 * 0
+0.000
+CREATE TABLE t1 (f1 DECIMAL (12,9), f2 DECIMAL(2,2));
+INSERT INTO t1 VALUES (10.5, 0);
+UPDATE t1 SET f1 = 4.5;
+SELECT * FROM t1;
+f1	f2
+4.500000000	0.00
+DROP TABLE t1;
+CREATE TABLE t1 (f1 DECIMAL (64,20), f2 DECIMAL(2,2));
+INSERT INTO t1 VALUES (9999999999999999999999999999999999, 0);
+SELECT * FROM t1;
+f1	f2
+9999999999999999999999999999999999.00000000000000000000	0.00
+DROP TABLE t1;
+select abs(10/0);
+abs(10/0)
+NULL
+select abs(NULL);
+abs(NULL)
+NULL
+set @@sql_mode='traditional';
+create table t1( d1 decimal(18) unsigned, d2 decimal(20) unsigned, d3 decimal (22) unsigned);
+insert into t1 values(1,-1,-1);
+ERROR 22003: Out of range value for column 'd2' at row 1
+drop table t1;
+create table t1 (col1 decimal(5,2), col2 numeric(5,2));
+insert into t1 values (999.999,999.999);
+ERROR 22003: Out of range value for column 'col1' at row 1
+insert into t1 values (-999.999,-999.999);
+ERROR 22003: Out of range value for column 'col1' at row 1
+select * from t1;
+col1	col2
+drop table t1;
+set sql_mode='';
+set @sav_dpi= @@div_precision_increment;
+set @@div_precision_increment=15;
+create table t1 (col1 int, col2 decimal(30,25), col3 numeric(30,25));
+insert into t1 values (1,0.0123456789012345678912345,0.0123456789012345678912345);
+select col2/9999999999 from t1 where col1=1;
+col2/9999999999
+0.000000000001234567890246913578
+select 9999999999/col2 from t1 where col1=1;
+9999999999/col2
+810000007209.000065537105051
+select 77777777/7777777;
+77777777/7777777
+10.000000900000090
+drop table t1;
+set div_precision_increment= @sav_dpi;
+create table t1 (a decimal(4,2));
+insert into t1 values (0.00);
+select * from t1 where a > -0.00;
+a
+select * from t1 where a = -0.00;
+a
+0.00
+drop table t1;
+create table t1 (col1 bigint default -9223372036854775808);
+insert into t1 values (default);
+select * from t1;
+col1
+-9223372036854775808
+drop table t1;
+select cast('1.00000001335143196001808973960578441619873046875E-10' as decimal(30,15));
+cast('1.00000001335143196001808973960578441619873046875E-10' as decimal(30,15))
+0.000000000100000
+select ln(14000) c1, convert(ln(14000),decimal(5,3)) c2, cast(ln(14000) as decimal(5,3)) c3;
+c1	c2	c3
+9.5468126085974	9.547	9.547
+select convert(ln(14000),decimal(2,3)) c1;
+ERROR 42000: For float(M,D), double(M,D) or decimal(M,D), M must be >= D (column '').
+select cast(ln(14000) as decimal(2,3)) c1;
+ERROR 42000: For float(M,D), double(M,D) or decimal(M,D), M must be >= D (column '').
+create table t1 (sl decimal(70,30));
+ERROR 42000: Too big precision 70 specified for column 'sl'. Maximum is 65.
+create table t1 (sl decimal(32,31));
+ERROR 42000: Too big scale 31 specified for column 'sl'. Maximum is 30.
+create table t1 (sl decimal(0,38));
+ERROR 42000: Too big scale 38 specified for column 'sl'. Maximum is 30.
+create table t1 (sl decimal(0,30));
+ERROR 42000: For float(M,D), double(M,D) or decimal(M,D), M must be >= D (column 'sl').
+create table t1 (sl decimal(5, 5));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `sl` decimal(5,5) DEFAULT NULL
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 (sl decimal(65, 30));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `sl` decimal(65,30) DEFAULT NULL
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 (
+f1 decimal unsigned not null default 17.49, 
+f2 decimal unsigned not null default 17.68, 
+f3 decimal unsigned not null default 99.2, 
+f4 decimal unsigned not null default 99.7, 
+f5 decimal unsigned not null default 104.49, 
+f6 decimal unsigned not null default 199.91, 
+f7 decimal unsigned not null default 999.9, 
+f8 decimal unsigned not null default 9999.99);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+Note	1265	Data truncated for column 'f2' at row 1
+Note	1265	Data truncated for column 'f3' at row 1
+Note	1265	Data truncated for column 'f4' at row 1
+Note	1265	Data truncated for column 'f5' at row 1
+Note	1265	Data truncated for column 'f6' at row 1
+Note	1265	Data truncated for column 'f7' at row 1
+Note	1265	Data truncated for column 'f8' at row 1
+insert into t1 (f1) values (1);
+select * from t1;
+f1	f2	f3	f4	f5	f6	f7	f8
+1	18	99	100	104	200	1000	10000
+drop table t1;
+create table t1 (
+f0 decimal (30,30) zerofill not null DEFAULT 0,
+f1 decimal (0,0) zerofill not null default 0);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f0` decimal(30,30) unsigned zerofill NOT NULL DEFAULT '0.000000000000000000000000000000',
+  `f1` decimal(10,0) unsigned zerofill NOT NULL DEFAULT '0000000000'
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+drop table t1;
+drop procedure if exists wg2;
+create procedure wg2()
+begin
+declare v int default 1;
+declare tdec decimal(5) default 0;
+while v <= 9 do set tdec =tdec * 10;
+select v, tdec;
+set v = v + 1;
+end while;
+end//
+call wg2()//
+v	tdec
+1	0
+v	tdec
+2	0
+v	tdec
+3	0
+v	tdec
+4	0
+v	tdec
+5	0
+v	tdec
+6	0
+v	tdec
+7	0
+v	tdec
+8	0
+v	tdec
+9	0
+drop procedure wg2;
+select cast(@non_existing_user_var/2 as DECIMAL);
+cast(@non_existing_user_var/2 as DECIMAL)
+NULL
+create table t (d decimal(0,10));
+ERROR 42000: For float(M,D), double(M,D) or decimal(M,D), M must be >= D (column 'd').
+CREATE TABLE t1 (
+my_float   FLOAT,
+my_double  DOUBLE,
+my_varchar VARCHAR(50),
+my_decimal DECIMAL(65,30)
+);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `my_float` float DEFAULT NULL,
+  `my_double` double DEFAULT NULL,
+  `my_varchar` varchar(50) DEFAULT NULL,
+  `my_decimal` decimal(65,30) DEFAULT NULL
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+INSERT INTO t1 SET my_float = 1.175494345e-32,
+my_double = 1.175494345e-32,
+my_varchar = '1.175494345e-32';
+INSERT INTO t1 SET my_float = 1.175494345e-31,
+my_double = 1.175494345e-31,
+my_varchar = '1.175494345e-31';
+INSERT INTO t1 SET my_float = 1.175494345e-30,
+my_double = 1.175494345e-30,
+my_varchar = '1.175494345e-30';
+INSERT INTO t1 SET my_float = 1.175494345e-29,
+my_double = 1.175494345e-29,
+my_varchar = '1.175494345e-29';
+INSERT INTO t1 SET my_float = 1.175494345e-28,
+my_double = 1.175494345e-28,
+my_varchar = '1.175494345e-28';
+INSERT INTO t1 SET my_float = 1.175494345e-27,
+my_double = 1.175494345e-27,
+my_varchar = '1.175494345e-27';
+INSERT INTO t1 SET my_float = 1.175494345e-26,
+my_double = 1.175494345e-26,
+my_varchar = '1.175494345e-26';
+INSERT INTO t1 SET my_float = 1.175494345e-25,
+my_double = 1.175494345e-25,
+my_varchar = '1.175494345e-25';
+INSERT INTO t1 SET my_float = 1.175494345e-24,
+my_double = 1.175494345e-24,
+my_varchar = '1.175494345e-24';
+INSERT INTO t1 SET my_float = 1.175494345e-23,
+my_double = 1.175494345e-23,
+my_varchar = '1.175494345e-23';
+INSERT INTO t1 SET my_float = 1.175494345e-22,
+my_double = 1.175494345e-22,
+my_varchar = '1.175494345e-22';
+INSERT INTO t1 SET my_float = 1.175494345e-21,
+my_double = 1.175494345e-21,
+my_varchar = '1.175494345e-21';
+INSERT INTO t1 SET my_float = 1.175494345e-20,
+my_double = 1.175494345e-20,
+my_varchar = '1.175494345e-20';
+INSERT INTO t1 SET my_float = 1.175494345e-19,
+my_double = 1.175494345e-19,
+my_varchar = '1.175494345e-19';
+INSERT INTO t1 SET my_float = 1.175494345e-18,
+my_double = 1.175494345e-18,
+my_varchar = '1.175494345e-18';
+INSERT INTO t1 SET my_float = 1.175494345e-17,
+my_double = 1.175494345e-17,
+my_varchar = '1.175494345e-17';
+INSERT INTO t1 SET my_float = 1.175494345e-16,
+my_double = 1.175494345e-16,
+my_varchar = '1.175494345e-16';
+INSERT INTO t1 SET my_float = 1.175494345e-15,
+my_double = 1.175494345e-15,
+my_varchar = '1.175494345e-15';
+INSERT INTO t1 SET my_float = 1.175494345e-14,
+my_double = 1.175494345e-14,
+my_varchar = '1.175494345e-14';
+INSERT INTO t1 SET my_float = 1.175494345e-13,
+my_double = 1.175494345e-13,
+my_varchar = '1.175494345e-13';
+INSERT INTO t1 SET my_float = 1.175494345e-12,
+my_double = 1.175494345e-12,
+my_varchar = '1.175494345e-12';
+INSERT INTO t1 SET my_float = 1.175494345e-11,
+my_double = 1.175494345e-11,
+my_varchar = '1.175494345e-11';
+INSERT INTO t1 SET my_float = 1.175494345e-10,
+my_double = 1.175494345e-10,
+my_varchar = '1.175494345e-10';
+INSERT INTO t1 SET my_float = 1.175494345e-9,
+my_double = 1.175494345e-9,
+my_varchar = '1.175494345e-9';
+INSERT INTO t1 SET my_float = 1.175494345e-8,
+my_double = 1.175494345e-8,
+my_varchar = '1.175494345e-8';
+INSERT INTO t1 SET my_float = 1.175494345e-7,
+my_double = 1.175494345e-7,
+my_varchar = '1.175494345e-7';
+INSERT INTO t1 SET my_float = 1.175494345e-6,
+my_double = 1.175494345e-6,
+my_varchar = '1.175494345e-6';
+INSERT INTO t1 SET my_float = 1.175494345e-5,
+my_double = 1.175494345e-5,
+my_varchar = '1.175494345e-5';
+INSERT INTO t1 SET my_float = 1.175494345e-4,
+my_double = 1.175494345e-4,
+my_varchar = '1.175494345e-4';
+INSERT INTO t1 SET my_float = 1.175494345e-3,
+my_double = 1.175494345e-3,
+my_varchar = '1.175494345e-3';
+INSERT INTO t1 SET my_float = 1.175494345e-2,
+my_double = 1.175494345e-2,
+my_varchar = '1.175494345e-2';
+INSERT INTO t1 SET my_float = 1.175494345e-1,
+my_double = 1.175494345e-1,
+my_varchar = '1.175494345e-1';
+SELECT my_float, my_double, my_varchar FROM t1;
+my_float	my_double	my_varchar
+1.17549e-32	1.175494345e-32	1.175494345e-32
+1.17549e-31	1.175494345e-31	1.175494345e-31
+1.17549e-30	1.175494345e-30	1.175494345e-30
+1.17549e-29	1.175494345e-29	1.175494345e-29
+1.17549e-28	1.175494345e-28	1.175494345e-28
+1.17549e-27	1.175494345e-27	1.175494345e-27
+1.17549e-26	1.175494345e-26	1.175494345e-26
+1.17549e-25	1.175494345e-25	1.175494345e-25
+1.17549e-24	1.175494345e-24	1.175494345e-24
+1.17549e-23	1.175494345e-23	1.175494345e-23
+1.17549e-22	1.175494345e-22	1.175494345e-22
+1.17549e-21	1.175494345e-21	1.175494345e-21
+1.17549e-20	1.175494345e-20	1.175494345e-20
+1.17549e-19	1.175494345e-19	1.175494345e-19
+1.17549e-18	1.175494345e-18	1.175494345e-18
+1.17549e-17	1.175494345e-17	1.175494345e-17
+1.17549e-16	1.175494345e-16	1.175494345e-16
+1.17549e-15	1.175494345e-15	1.175494345e-15
+1.17549e-14	1.175494345e-14	1.175494345e-14
+1.17549e-13	1.175494345e-13	1.175494345e-13
+1.17549e-12	1.175494345e-12	1.175494345e-12
+1.17549e-11	1.175494345e-11	1.175494345e-11
+1.17549e-10	1.175494345e-10	1.175494345e-10
+1.17549e-09	1.175494345e-09	1.175494345e-9
+1.17549e-08	1.175494345e-08	1.175494345e-8
+1.17549e-07	1.175494345e-07	1.175494345e-7
+1.17549e-06	1.175494345e-06	1.175494345e-6
+1.17549e-05	1.175494345e-05	1.175494345e-5
+0.000117549	0.0001175494345	1.175494345e-4
+0.00117549	0.001175494345	1.175494345e-3
+0.0117549	0.01175494345	1.175494345e-2
+0.117549	0.1175494345	1.175494345e-1
+SELECT CAST(my_float   AS DECIMAL(65,30)), my_float FROM t1;
+CAST(my_float   AS DECIMAL(65,30))	my_float
+0.000000000000000000000000000000	1.17549e-32
+0.000000000000000000000000000000	1.17549e-31
+0.000000000000000000000000000001	1.17549e-30
+0.000000000000000000000000000012	1.17549e-29
+0.000000000000000000000000000118	1.17549e-28
+0.000000000000000000000000001175	1.17549e-27
+0.000000000000000000000000011755	1.17549e-26
+0.000000000000000000000000117549	1.17549e-25
+0.000000000000000000000001175494	1.17549e-24
+0.000000000000000000000011754943	1.17549e-23
+0.000000000000000000000117549438	1.17549e-22
+0.000000000000000000001175494332	1.17549e-21
+0.000000000000000000011754943324	1.17549e-20
+0.000000000000000000117549434853	1.17549e-19
+0.000000000000000001175494374380	1.17549e-18
+0.000000000000000011754943743802	1.17549e-17
+0.000000000000000117549432474939	1.17549e-16
+0.000000000000001175494324749389	1.17549e-15
+0.000000000000011754943671010360	1.17549e-14
+0.000000000000117549429933840000	1.17549e-13
+0.000000000001175494380653563000	1.17549e-12
+0.000000000011754943372854760000	1.17549e-11
+0.000000000117549428524377200000	1.17549e-10
+0.000000001175494368510499000000	1.17549e-09
+0.000000011754943685104990000000	1.17549e-08
+0.000000117549433298336200000000	1.17549e-07
+0.000001175494389826781000000000	1.17549e-06
+0.000011754943443520460000000000	1.17549e-05
+0.000117549432616215200000000000	0.000117549
+0.001175494398921728000000000000	0.00117549
+0.011754943057894710000000000000	0.0117549
+0.117549434304237400000000000000	0.117549
+SELECT CAST(my_double  AS DECIMAL(65,30)), my_double FROM t1;
+CAST(my_double  AS DECIMAL(65,30))	my_double
+0.000000000000000000000000000000	1.175494345e-32
+0.000000000000000000000000000000	1.175494345e-31
+0.000000000000000000000000000001	1.175494345e-30
+0.000000000000000000000000000012	1.175494345e-29
+0.000000000000000000000000000118	1.175494345e-28
+0.000000000000000000000000001175	1.175494345e-27
+0.000000000000000000000000011755	1.175494345e-26
+0.000000000000000000000000117549	1.175494345e-25
+0.000000000000000000000001175494	1.175494345e-24
+0.000000000000000000000011754943	1.175494345e-23
+0.000000000000000000000117549435	1.175494345e-22
+0.000000000000000000001175494345	1.175494345e-21
+0.000000000000000000011754943450	1.175494345e-20
+0.000000000000000000117549434500	1.175494345e-19
+0.000000000000000001175494345000	1.175494345e-18
+0.000000000000000011754943450000	1.175494345e-17
+0.000000000000000117549434500000	1.175494345e-16
+0.000000000000001175494345000000	1.175494345e-15
+0.000000000000011754943450000000	1.175494345e-14
+0.000000000000117549434500000000	1.175494345e-13
+0.000000000001175494345000000000	1.175494345e-12
+0.000000000011754943450000000000	1.175494345e-11
+0.000000000117549434500000000000	1.175494345e-10
+0.000000001175494345000000000000	1.175494345e-09
+0.000000011754943450000000000000	1.175494345e-08
+0.000000117549434500000000000000	1.175494345e-07
+0.000001175494345000000000000000	1.175494345e-06
+0.000011754943450000000000000000	1.175494345e-05
+0.000117549434500000000000000000	0.0001175494345
+0.001175494345000000000000000000	0.001175494345
+0.011754943450000000000000000000	0.01175494345
+0.117549434500000000000000000000	0.1175494345
+SELECT CAST(my_varchar AS DECIMAL(65,30)), my_varchar FROM t1;
+CAST(my_varchar AS DECIMAL(65,30))	my_varchar
+0.000000000000000000000000000000	1.175494345e-32
+0.000000000000000000000000000000	1.175494345e-31
+0.000000000000000000000000000001	1.175494345e-30
+0.000000000000000000000000000012	1.175494345e-29
+0.000000000000000000000000000118	1.175494345e-28
+0.000000000000000000000000001175	1.175494345e-27
+0.000000000000000000000000011755	1.175494345e-26
+0.000000000000000000000000117549	1.175494345e-25
+0.000000000000000000000001175494	1.175494345e-24
+0.000000000000000000000011754943	1.175494345e-23
+0.000000000000000000000117549435	1.175494345e-22
+0.000000000000000000001175494345	1.175494345e-21
+0.000000000000000000011754943450	1.175494345e-20
+0.000000000000000000117549434500	1.175494345e-19
+0.000000000000000001175494345000	1.175494345e-18
+0.000000000000000011754943450000	1.175494345e-17
+0.000000000000000117549434500000	1.175494345e-16
+0.000000000000001175494345000000	1.175494345e-15
+0.000000000000011754943450000000	1.175494345e-14
+0.000000000000117549434500000000	1.175494345e-13
+0.000000000001175494345000000000	1.175494345e-12
+0.000000000011754943450000000000	1.175494345e-11
+0.000000000117549434500000000000	1.175494345e-10
+0.000000001175494345000000000000	1.175494345e-9
+0.000000011754943450000000000000	1.175494345e-8
+0.000000117549434500000000000000	1.175494345e-7
+0.000001175494345000000000000000	1.175494345e-6
+0.000011754943450000000000000000	1.175494345e-5
+0.000117549434500000000000000000	1.175494345e-4
+0.001175494345000000000000000000	1.175494345e-3
+0.011754943450000000000000000000	1.175494345e-2
+0.117549434500000000000000000000	1.175494345e-1
+UPDATE t1 SET my_decimal = my_float;
+SELECT my_decimal, my_float   FROM t1;
+my_decimal	my_float
+0.000000000000000000000000000000	1.17549e-32
+0.000000000000000000000000000000	1.17549e-31
+0.000000000000000000000000000001	1.17549e-30
+0.000000000000000000000000000012	1.17549e-29
+0.000000000000000000000000000118	1.17549e-28
+0.000000000000000000000000001175	1.17549e-27
+0.000000000000000000000000011755	1.17549e-26
+0.000000000000000000000000117549	1.17549e-25
+0.000000000000000000000001175494	1.17549e-24
+0.000000000000000000000011754943	1.17549e-23
+0.000000000000000000000117549438	1.17549e-22
+0.000000000000000000001175494332	1.17549e-21
+0.000000000000000000011754943324	1.17549e-20
+0.000000000000000000117549434853	1.17549e-19
+0.000000000000000001175494374380	1.17549e-18
+0.000000000000000011754943743802	1.17549e-17
+0.000000000000000117549432474939	1.17549e-16
+0.000000000000001175494324749389	1.17549e-15
+0.000000000000011754943671010360	1.17549e-14
+0.000000000000117549429933840000	1.17549e-13
+0.000000000001175494380653563000	1.17549e-12
+0.000000000011754943372854760000	1.17549e-11
+0.000000000117549428524377200000	1.17549e-10
+0.000000001175494368510499000000	1.17549e-09
+0.000000011754943685104990000000	1.17549e-08
+0.000000117549433298336200000000	1.17549e-07
+0.000001175494389826781000000000	1.17549e-06
+0.000011754943443520460000000000	1.17549e-05
+0.000117549432616215200000000000	0.000117549
+0.001175494398921728000000000000	0.00117549
+0.011754943057894710000000000000	0.0117549
+0.117549434304237400000000000000	0.117549
+UPDATE t1 SET my_decimal = my_double;
+SELECT my_decimal, my_double  FROM t1 order by my_decimal;
+my_decimal	my_double
+0.000000000000000000000000000000	1.175494345e-32
+0.000000000000000000000000000000	1.175494345e-31
+0.000000000000000000000000000001	1.175494345e-30
+0.000000000000000000000000000012	1.175494345e-29
+0.000000000000000000000000000118	1.175494345e-28
+0.000000000000000000000000001175	1.175494345e-27
+0.000000000000000000000000011755	1.175494345e-26
+0.000000000000000000000000117549	1.175494345e-25
+0.000000000000000000000001175494	1.175494345e-24
+0.000000000000000000000011754943	1.175494345e-23
+0.000000000000000000000117549435	1.175494345e-22
+0.000000000000000000001175494345	1.175494345e-21
+0.000000000000000000011754943450	1.175494345e-20
+0.000000000000000000117549434500	1.175494345e-19
+0.000000000000000001175494345000	1.175494345e-18
+0.000000000000000011754943450000	1.175494345e-17
+0.000000000000000117549434500000	1.175494345e-16
+0.000000000000001175494345000000	1.175494345e-15
+0.000000000000011754943450000000	1.175494345e-14
+0.000000000000117549434500000000	1.175494345e-13
+0.000000000001175494345000000000	1.175494345e-12
+0.000000000011754943450000000000	1.175494345e-11
+0.000000000117549434500000000000	1.175494345e-10
+0.000000001175494345000000000000	1.175494345e-09
+0.000000011754943450000000000000	1.175494345e-08
+0.000000117549434500000000000000	1.175494345e-07
+0.000001175494345000000000000000	1.175494345e-06
+0.000011754943450000000000000000	1.175494345e-05
+0.000117549434500000000000000000	0.0001175494345
+0.001175494345000000000000000000	0.001175494345
+0.011754943450000000000000000000	0.01175494345
+0.117549434500000000000000000000	0.1175494345
+UPDATE t1 SET my_decimal = my_varchar;
+SELECT my_decimal, my_varchar FROM t1 order by my_decimal, my_varchar;
+my_decimal	my_varchar
+0.000000000000000000000000000000	1.175494345e-31
+0.000000000000000000000000000000	1.175494345e-32
+0.000000000000000000000000000001	1.175494345e-30
+0.000000000000000000000000000012	1.175494345e-29
+0.000000000000000000000000000118	1.175494345e-28
+0.000000000000000000000000001175	1.175494345e-27
+0.000000000000000000000000011755	1.175494345e-26
+0.000000000000000000000000117549	1.175494345e-25
+0.000000000000000000000001175494	1.175494345e-24
+0.000000000000000000000011754943	1.175494345e-23
+0.000000000000000000000117549435	1.175494345e-22
+0.000000000000000000001175494345	1.175494345e-21
+0.000000000000000000011754943450	1.175494345e-20
+0.000000000000000000117549434500	1.175494345e-19
+0.000000000000000001175494345000	1.175494345e-18
+0.000000000000000011754943450000	1.175494345e-17
+0.000000000000000117549434500000	1.175494345e-16
+0.000000000000001175494345000000	1.175494345e-15
+0.000000000000011754943450000000	1.175494345e-14
+0.000000000000117549434500000000	1.175494345e-13
+0.000000000001175494345000000000	1.175494345e-12
+0.000000000011754943450000000000	1.175494345e-11
+0.000000000117549434500000000000	1.175494345e-10
+0.000000001175494345000000000000	1.175494345e-9
+0.000000011754943450000000000000	1.175494345e-8
+0.000000117549434500000000000000	1.175494345e-7
+0.000001175494345000000000000000	1.175494345e-6
+0.000011754943450000000000000000	1.175494345e-5
+0.000117549434500000000000000000	1.175494345e-4
+0.001175494345000000000000000000	1.175494345e-3
+0.011754943450000000000000000000	1.175494345e-2
+0.117549434500000000000000000000	1.175494345e-1
+DROP TABLE t1;
+create table t1 (c1 decimal(64));
+insert into t1 values(
+89000000000000000000000000000000000000000000000000000000000000000000000000000000000000000);
+Warnings:
+Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1264	Out of range value for column 'c1' at row 1
+insert into t1 values(
+99999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999 *
+99999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999);
+Warnings:
+Error	1292	Truncated incorrect DECIMAL value: ''
+Error	1292	Truncated incorrect DECIMAL value: ''
+Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1264	Out of range value for column 'c1' at row 1
+insert into t1 values(1e100);
+Warnings:
+Warning	1264	Out of range value for column 'c1' at row 1
+select * from t1;
+c1
+9999999999999999999999999999999999999999999999999999999999999999
+9999999999999999999999999999999999999999999999999999999999999999
+9999999999999999999999999999999999999999999999999999999999999999
+drop table t1;
+create table t1(a decimal(7,2));
+insert into t1 values(123.12);
+select * from t1;
+a
+123.12
+alter table t1 modify a decimal(10,2);
+select * from t1;
+a
+123.12
+drop table t1;
+create table t1 (i int, j int);
+insert into t1 values (1,1), (1,2), (2,3), (2,4);
+select i, count(distinct j) from t1 group by i;
+i	count(distinct j)
+1	2
+2	2
+select i+0.0 as i2, count(distinct j) from t1 group by i2;
+i2	count(distinct j)
+1.0	2
+2.0	2
+drop table t1;
+create table t1(f1 decimal(20,6));
+insert into t1 values (CAST('10:11:12' AS date) + interval 14 microsecond);
+insert into t1 values (CAST('10:11:12' AS time));
+select * from t1;
+f1
+20101112000000.000014
+101112.000000
+drop table t1;
+select cast(143.481 as decimal(4,1));
+cast(143.481 as decimal(4,1))
+143.5
+select cast(143.481 as decimal(4,0));
+cast(143.481 as decimal(4,0))
+143
+select cast(143.481 as decimal(2,1));
+cast(143.481 as decimal(2,1))
+9.9
+Warnings:
+Error	1264	Out of range value for column 'cast(143.481 as decimal(2,1))' at row 1
+select cast(-3.4 as decimal(2,1));
+cast(-3.4 as decimal(2,1))
+-3.4
+select cast(99.6 as decimal(2,0));
+cast(99.6 as decimal(2,0))
+99
+Warnings:
+Error	1264	Out of range value for column 'cast(99.6 as decimal(2,0))' at row 1
+select cast(-13.4 as decimal(2,1));
+cast(-13.4 as decimal(2,1))
+-9.9
+Warnings:
+Error	1264	Out of range value for column 'cast(-13.4 as decimal(2,1))' at row 1
+select cast(98.6 as decimal(2,0));
+cast(98.6 as decimal(2,0))
+99
+select cast(19999999999999999999 as unsigned);
+cast(19999999999999999999 as unsigned)
+18446744073709551615
+Warnings:
+Error	1292	Truncated incorrect DECIMAL value: ''

@@ -43,6 +43,15 @@ extern char mysql_server_last_error[MYSQL_ERRMSG_SIZE];
 static my_bool emb_read_query_result(MYSQL *mysql);
 
 
+extern "C" void unireg_clear(int exit_code)
+{
+  DBUG_ENTER("unireg_clear");
+  clean_up(!opt_help && (exit_code || !opt_bootstrap)); /* purecov: inspected */
+  my_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
+  DBUG_VOID_RETURN;
+}
+
+
 /*
   Reads error information from the MYSQL_DATA and puts
   it into proper MYSQL members

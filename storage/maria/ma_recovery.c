@@ -2031,7 +2031,8 @@ prototype_redo_exec_hook(DEBUG_INFO)
   data= log_record_buffer.str + 1;
   switch (debug_info) {
   case LOGREC_DEBUG_INFO_QUERY:
-    tprint(tracef, "Query: %s\n", (char*) data);
+    tprint(tracef, "Query: %.*s\n", rec->record_length - 1,
+           (char*) data);
     break;
   default:
     DBUG_ASSERT(0);

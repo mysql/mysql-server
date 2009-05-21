@@ -430,6 +430,9 @@ C_MODE_END
 #ifdef HAVE_FLOAT_H
 #include <float.h>
 #endif
+#ifdef HAVE_FENV_H
+#include <fenv.h> /* For fesetround() */
+#endif
 
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
@@ -563,10 +566,16 @@ int	__void__;
 #define LINT_INIT(var)
 #endif
 
-#if defined(_lint) || defined(FORCE_INIT_OF_VARS) || defined(HAVE_purify)
-#define PURIFY_OR_LINT_INIT(var) var=0
+#if defined(_lint) || defined(FORCE_INIT_OF_VARS) || defined(HAVE_valgrind)
+#define VALGRIND_OR_LINT_INIT(var) var=0
 #else
-#define PURIFY_OR_LINT_INIT(var)
+#define VALGRIND_OR_LINT_INIT(var)
+#endif
+
+#ifdef HAVE_valgrind
+#define IF_VALGRIND(A,B) (A)
+#else
+#define IF_VALGRIND(A,B) (B)
 #endif
 
 #if !defined(HAVE_UINT)
@@ -586,8 +595,39 @@ typedef unsigned short ushort;
 #define set_bits(type, bit_count) (sizeof(type)*8 <= (bit_count) ? ~(type) 0 : ((((type) 1) << (bit_count)) - (type) 1))
 #define array_elements(A) ((uint) (sizeof(A)/sizeof(A[0])))
 #ifndef HAVE_RINT
-#define rint(A) floor((A)+(((A) < 0)? -0.5 : 0.5))
-#endif
+/**
+   All integers up to this number can be represented exactly as double precision
+   values (DBL_MANT_DIG == 53 for IEEE 754 hardware).
+*/
+#define MAX_EXACT_INTEGER ((1LL << DBL_MANT_DIG) - 1)
+
+/**
+   rint(3) implementation for platforms that do not have it.
+   Always rounds to the nearest integer with ties being rounded to the nearest
+   even integer to mimic glibc's rint() behavior in the "round-to-nearest"
+   FPU mode. Hardware-specific optimizations are possible (frndint on x86).
+   Unlike this implementation, hardware will also honor the FPU rounding mode.
+*/
+
+static inline double rint(double x)
+{
+  double f, i;
+  f = modf(x, &i);
+  /*
+    All doubles with absolute values > MAX_EXACT_INTEGER are even anyway,
+    no need to check it.
+  */
+  if (x > 0.0)
+    i += (double) ((f > 0.5) || (f == 0.5 &&
+                                 i <= (double) MAX_EXACT_INTEGER &&
+                                 (longlong) i % 2));
+  else
+    i -= (double) ((f < -0.5) || (f == -0.5 &&
+                                  i >= (double) -MAX_EXACT_INTEGER &&
+                                  (longlong) i % 2));
+  return i;
+}
+#endif /* HAVE_RINT */
 
 /* Define some general constants */
 #ifndef TRUE
@@ -629,7 +669,6 @@ C_MODE_END
 */
 #define _VARARGS(X) X
 #define _STATIC_VARARGS(X) X
-#define _PC(X)	X
 
 /* The DBUG_ON flag always takes precedence over default DBUG_OFF */
 #if defined(DBUG_ON) && defined(DBUG_OFF)
@@ -733,7 +772,6 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #define UNSINT32		/* unsigned int32 */
 
 	/* General constants */
-#define SC_MAXWIDTH	256	/* Max width of screen (for error messages) */
 #define FN_LEN		256	/* Max file name len */
 #define FN_HEADLEN	253	/* Max length of filepart of file name */
 #define FN_EXTLEN	20	/* Max length of extension (part of FN_LEN) */
@@ -1168,7 +1206,7 @@ typedef char		bool;	/* Ordinary boolean values 0 1 */
 				  ((uint32) (uchar) (A)[0])))
 #define sint4korr(A)	(*((const long *) (A)))
 #define uint2korr(A)	(*((const uint16 *) (A)))
-#if defined(HAVE_purify) && !defined(_WIN32)
+#if defined(HAVE_valgrind) && !defined(_WIN32)
 #define uint3korr(A)	(uint32) (((uint32) ((uchar) (A)[0])) +\
 				  (((uint32) ((uchar) (A)[1])) << 8) +\
 				  (((uint32) ((uchar) (A)[2])) << 16))
@@ -1180,7 +1218,7 @@ typedef char		bool;	/* Ordinary boolean values 0 1 */
     It means, that you have to provide enough allocated space !
 */
 #define uint3korr(A)	(long) (*((const unsigned int *) (A)) & 0xFFFFFF)
-#endif /* HAVE_purify && !_WIN32 */
+#endif /* HAVE_valgrind && !_WIN32 */
 #define uint4korr(A)	(*((const uint32 *) (A)))
 #define uint5korr(A)	((ulonglong)(((uint32) ((uchar) (A)[0])) +\
 				    (((uint32) ((uchar) (A)[1])) << 8) +\

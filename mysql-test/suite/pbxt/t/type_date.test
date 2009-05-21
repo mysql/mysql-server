@@ -1,0 +1,128 @@
+#
+# test of problem with date fields
+#
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
+
+create table t1 (a char(16), b date, c datetime);
+insert into t1 SET a='test 2000-01-01', b='2000-01-01', c='2000-01-01';
+select * from t1 where c = '2000-01-01';
+select * from t1 where b = '2000-01-01';
+drop table t1;
+
+#
+# problem with date conversions
+#
+
+CREATE TABLE t1 (name char(6),cdate date);
+INSERT INTO t1 VALUES ('name1','1998-01-01');
+INSERT INTO t1 VALUES ('name2','1998-01-01');
+INSERT INTO t1 VALUES ('name1','1998-01-02');
+INSERT INTO t1 VALUES ('name2','1998-01-02');
+CREATE TABLE t2 (cdate date, note char(6));
+INSERT INTO t2 VALUES ('1998-01-01','note01');
+INSERT INTO t2 VALUES ('1998-01-02','note02');
+select name,t1.cdate,note from t1,t2 where t1.cdate=t2.cdate and t1.cdate='1998-01-01';
+drop table t1,t2;
+
+#
+# Date and BETWEEN
+#
+
+CREATE TABLE t1 ( datum DATE );
+INSERT INTO t1 VALUES ( "2000-1-1" );
+INSERT INTO t1 VALUES ( "2000-1-2" );
+INSERT INTO t1 VALUES ( "2000-1-3" );
+INSERT INTO t1 VALUES ( "2000-1-4" );
+INSERT INTO t1 VALUES ( "2000-1-5" );
+SELECT * FROM t1 WHERE datum BETWEEN cast("2000-1-2" as date) AND cast("2000-1-4" as date);
+SELECT * FROM t1 WHERE datum BETWEEN cast("2000-1-2" as date) AND datum - INTERVAL 100 DAY;
+DROP TABLE t1;
+
+#
+# test of max(date) and having
+#
+
+CREATE TABLE t1 (
+  user_id char(10),
+  summa int(11),
+  rdate date
+);
+INSERT INTO t1 VALUES ('aaa',100,'1998-01-01');
+INSERT INTO t1 VALUES ('aaa',200,'1998-01-03');
+INSERT INTO t1 VALUES ('bbb',50,'1998-01-02');
+INSERT INTO t1 VALUES ('bbb',200,'1998-01-04');
+select max(rdate) as s from t1 where rdate < '1998-01-03' having s> "1998-01-01";
+select max(rdate) as s from t1 having s="1998-01-04";
+select max(rdate+0) as s from t1 having s="19980104";
+drop table t1;
+
+#
+# Test of date and not null
+#
+
+create table t1 (date date);  
+insert into t1 values ("2000-08-10"),("2000-08-11");
+select date_add(date,INTERVAL 1 DAY),date_add(date,INTERVAL 1 SECOND) from t1;
+drop table t1;
+
+#
+# Test problem with DATE_FORMAT
+#
+
+CREATE TABLE t1(AFIELD INT);
+INSERT INTO t1 VALUES(1);
+CREATE TABLE t2(GMT  VARCHAR(32));
+INSERT INTO t2 VALUES('GMT-0800');
+SELECT DATE_FORMAT("2002-03-06 10:11:12", CONCAT('%a, %d %M %Y %H:%i:%s ' ,  t2.GMT)) FROM t1, t2 GROUP BY t1.AFIELD;
+INSERT INTO t1 VALUES(1);
+SELECT DATE_FORMAT("2002-03-06 10:11:12", CONCAT('%a, %d %M %Y %H:%i:%s ' ,  t2.GMT)), DATE_FORMAT("2002-03-06 10:11:12",  CONCAT('%a, %d %M %Y %H:%i:%s ' ,  t2.GMT)) FROM t1,t2 GROUP BY t1.AFIELD;
+drop table t1,t2;
+
+#
+# Multiple SELECT DATE_FORMAT gave incorrect results (Bug #4036)
+#
+
+CREATE TABLE t1 (f1 time default NULL, f2 time default NULL);
+INSERT INTO t1 (f1, f2) VALUES ('09:00', '12:00');
+SELECT DATE_FORMAT(f1, "%l.%i %p") , DATE_FORMAT(f2, "%l.%i %p") FROM t1;
+DROP TABLE t1;
+
+#
+# Bug 4937: different date -> string conversion when using SELECT ... UNION
+# and INSERT ... SELECT ... UNION
+#
+
+CREATE TABLE t1 (f1 DATE);
+CREATE TABLE t2 (f2 VARCHAR(8));
+CREATE TABLE t3 (f2 CHAR(8));
+
+INSERT INTO t1 VALUES ('1978-11-26');
+INSERT INTO t2 SELECT f1+0 FROM t1;
+INSERT INTO t2 SELECT f1+0 FROM t1 UNION SELECT f1+0 FROM t1;
+INSERT INTO t3 SELECT f1+0 FROM t1;
+INSERT INTO t3 SELECT f1+0 FROM t1 UNION SELECT f1+0 FROM t1;
+SELECT * FROM t2;
+SELECT * FROM t3;
+
+DROP TABLE t1, t2, t3;
+
+# Test that setting YEAR to invalid string results in default value, not
+# 2000. (Bug #6067)
+CREATE TABLE t1 (y YEAR);
+INSERT INTO t1 VALUES ('abc');
+SELECT * FROM t1;
+DROP TABLE t1;
+
+#
+# Bug#21677: Wrong result when comparing a DATE and a DATETIME in BETWEEN
+#
+create table t1(start_date date, end_date date);
+insert into t1 values ('2000-01-01','2000-01-02');
+select 1 from t1 where cast('2000-01-01 12:01:01' as datetime) between start_date and end_date;
+drop table t1;
+--disable_query_log
+drop database pbxt;
+--enable_query_log
+# End of 4.1 tests

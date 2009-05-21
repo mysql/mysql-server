@@ -324,6 +324,11 @@ select @my_uuid_date - @my_uuid_synthetic;
 @my_uuid_date - @my_uuid_synthetic
 0
 set @@session.time_zone=@save_tz;
+CREATE TABLE t1 (a DATE);
+SELECT * FROM t1 WHERE a = NAME_CONST('reportDate',
+_binary'2009-01-09' COLLATE 'binary');
+a
+DROP TABLE t1;
 End of 5.0 tests
 select connection_id() > 0;
 connection_id() > 0

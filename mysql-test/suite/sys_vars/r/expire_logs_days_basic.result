@@ -32,6 +32,8 @@ SELECT @@global.expire_logs_days;
 21
 '#--------------------FN_DYNVARS_029_04-------------------------#'
 SET @@global.expire_logs_days = -1;
+Warnings:
+Warning	1292	Truncated incorrect expire_logs_days value: '-1'
 SELECT @@global.expire_logs_days;
 @@global.expire_logs_days
 0
@@ -53,6 +55,8 @@ SELECT @@global.expire_logs_days;
 @@global.expire_logs_days
 99
 SET @@global.expire_logs_days = -1024;
+Warnings:
+Warning	1292	Truncated incorrect expire_logs_days value: '-1024'
 SELECT @@global.expire_logs_days;
 @@global.expire_logs_days
 0

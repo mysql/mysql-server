@@ -1,0 +1,117 @@
+drop table if exists t1,t2;
+show tables;
+Tables_in_mysql
+columns_priv
+db
+event
+func
+general_log
+help_category
+help_keyword
+help_relation
+help_topic
+host
+ndb_binlog_index
+plugin
+proc
+procs_priv
+servers
+slow_log
+tables_priv
+time_zone
+time_zone_leap_second
+time_zone_name
+time_zone_transition
+time_zone_transition_type
+user
+show tables;
+Tables_in_test
+connect(localhost,root,z,test2,MASTER_PORT,MASTER_SOCKET);
+ERROR 28000: Access denied for user 'root'@'localhost' (using password: YES)
+connect(localhost,root,z,test,MASTER_PORT,MASTER_SOCKET);
+ERROR 28000: Access denied for user 'root'@'localhost' (using password: YES)
+grant ALL on *.* to test@localhost identified by "gambling";
+grant ALL on *.* to test@127.0.0.1 identified by "gambling";
+show tables;
+Tables_in_mysql
+columns_priv
+db
+event
+func
+general_log
+help_category
+help_keyword
+help_relation
+help_topic
+host
+ndb_binlog_index
+plugin
+proc
+procs_priv
+servers
+slow_log
+tables_priv
+time_zone
+time_zone_leap_second
+time_zone_name
+time_zone_transition
+time_zone_transition_type
+user
+show tables;
+Tables_in_test
+connect(localhost,test,,test2,MASTER_PORT,MASTER_SOCKET);
+ERROR 28000: Access denied for user 'test'@'localhost' (using password: NO)
+connect(localhost,test,,"",MASTER_PORT,MASTER_SOCKET);
+ERROR 28000: Access denied for user 'test'@'localhost' (using password: NO)
+connect(localhost,test,zorro,test2,MASTER_PORT,MASTER_SOCKET);
+ERROR 28000: Access denied for user 'test'@'localhost' (using password: YES)
+connect(localhost,test,zorro,test,MASTER_PORT,MASTER_SOCKET);
+ERROR 28000: Access denied for user 'test'@'localhost' (using password: YES)
+update mysql.user set password=old_password("gambling2") where user=_binary"test";
+flush privileges;
+set password="";
+set password='gambling3';
+ERROR HY000: Password hash should be a 41-digit hexadecimal number
+set password=old_password('gambling3');
+show tables;
+Tables_in_mysql
+columns_priv
+db
+event
+func
+general_log
+help_category
+help_keyword
+help_relation
+help_topic
+host
+ndb_binlog_index
+plugin
+proc
+procs_priv
+servers
+slow_log
+tables_priv
+time_zone
+time_zone_leap_second
+time_zone_name
+time_zone_transition
+time_zone_transition_type
+user
+show tables;
+Tables_in_test
+connect(localhost,test,,test2,MASTER_PORT,MASTER_SOCKET);
+ERROR 28000: Access denied for user 'test'@'localhost' (using password: NO)
+connect(localhost,test,,test,MASTER_PORT,MASTER_SOCKET);
+ERROR 28000: Access denied for user 'test'@'localhost' (using password: NO)
+connect(localhost,test,zorro,test2,MASTER_PORT,MASTER_SOCKET);
+ERROR 28000: Access denied for user 'test'@'localhost' (using password: YES)
+connect(localhost,test,zorro,test,MASTER_PORT,MASTER_SOCKET);
+ERROR 28000: Access denied for user 'test'@'localhost' (using password: YES)
+delete from mysql.user where user=_binary"test";
+flush privileges;
+create table t1 (id integer not null auto_increment primary key);
+create temporary table t2(id integer not null auto_increment primary key);
+set @id := 1;
+delete from t1 where id like @id;
+drop table t1;

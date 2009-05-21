@@ -445,6 +445,15 @@ select @my_uuid_date - @my_uuid_synthetic;
 
 set @@session.time_zone=@save_tz;
 
+
+#
+# Bug#42014: Crash, name_const with collate
+#
+CREATE TABLE t1 (a DATE);
+SELECT * FROM t1 WHERE a = NAME_CONST('reportDate',
+  _binary'2009-01-09' COLLATE 'binary');
+DROP TABLE t1;
+
 --echo End of 5.0 tests
 
 #

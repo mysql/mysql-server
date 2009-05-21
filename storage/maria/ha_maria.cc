@@ -1575,7 +1575,7 @@ int ha_maria::preload_keys(THD * thd, HA_CHECK_OPT *check_opt)
 
   if ((error= maria_preload(file, map, table_list->ignore_leaves)))
   {
-    char buf[ERRMSGSIZE+20];
+    char buf[MYSQL_ERRMSG_SIZE+20];
     const char *errmsg;
 
     switch (error) {
@@ -1586,7 +1586,7 @@ int ha_maria::preload_keys(THD * thd, HA_CHECK_OPT *check_opt)
       errmsg= "Failed to allocate buffer";
       break;
     default:
-      my_snprintf(buf, ERRMSGSIZE,
+      my_snprintf(buf, sizeof(buf),
                   "Failed to read from index file (errno: %d)", my_errno);
       errmsg= buf;
     }
@@ -2229,6 +2229,10 @@ int ha_maria::extra(enum ha_extra_function operation)
 {
   if ((specialflag & SPECIAL_SAFE_MODE) && operation == HA_EXTRA_KEYREAD)
     return 0;
+#ifdef NOT_USED
+  if (operation == HA_EXTRA_MMAP && !opt_maria_use_mmap)
+    return 0;
+#endif
 
   /*
     We have to set file->trn here because in some cases we call
@@ -3166,7 +3170,7 @@ static int ha_maria_init(void *p)
     ma_checkpoint_init(checkpoint_interval);
   maria_multi_threaded= maria_in_ha_maria= TRUE;
 
-#if defined(HAVE_REALPATH) && !defined(HAVE_purify) && !defined(HAVE_BROKEN_REALPATH)
+#if defined(HAVE_REALPATH) && !defined(HAVE_valgrind) && !defined(HAVE_BROKEN_REALPATH)
   /*  We can only test for sub paths if my_symlink.c is using realpath */
   maria_test_invalid_symlink= test_if_data_home_dir;
 #endif

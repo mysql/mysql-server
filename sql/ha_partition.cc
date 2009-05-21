@@ -3548,10 +3548,10 @@ void ha_partition::position(const uchar *record)
 	 (ref_length - PARTITION_BYTES_IN_POS));
 
 #ifdef SUPPORTING_PARTITION_OVER_DIFFERENT_ENGINES
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
   bzero(ref + PARTITION_BYTES_IN_POS + ref_length,
         max_ref_length-ref_length);
-#endif /* HAVE_purify */
+#endif /* HAVE_valgrind */
 #endif
   DBUG_VOID_RETURN;
 }
@@ -4929,10 +4929,11 @@ int ha_partition::info(uint flag)
       This flag is used to get index number of the unique index that
       reported duplicate key
       We will report the errkey on the last handler used and ignore the rest
+      Note: all engines does not support HA_STATUS_ERRKEY, so set errkey.
     */
+    file->errkey= errkey;
     file->info(HA_STATUS_ERRKEY);
-    if (file->errkey != (uint) -1)
-      errkey= file->errkey;
+    errkey= file->errkey;
   }
   if (flag & HA_STATUS_TIME)
   {

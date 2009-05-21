@@ -1,0 +1,14 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (c1 VARCHAR(255), c2 VARCHAR(255), c3 INT);
+INSERT INTO t1 VALUES (REPEAT('x', 255), REPEAT('y', 255), 1);
+INSERT INTO t1 VALUES (REPEAT('x', 255), REPEAT('y', 255), 2);
+INSERT INTO t1 VALUES (REPEAT('x', 255), REPEAT('y', 255), 3);
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+3
+drop table if exists t1;
+create table t1 (a int, unique index indexa (a));
+insert into t1 values (-1), (-4), (-2), (NULL);
+select -10 IN (select a from t1 FORCE INDEX (indexa));
+-10 IN (select a from t1 FORCE INDEX (indexa))
+NULL

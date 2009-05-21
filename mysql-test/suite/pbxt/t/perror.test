@@ -1,0 +1,19 @@
+#
+# Check if the variable MY_PERROR is set
+#
+--require r/have_perror.require
+disable_query_log;
+eval select LENGTH("$MY_PERROR") > 0 as "have_perror";
+enable_query_log;
+
+--exec $MY_PERROR 150 > /dev/null
+--exec $MY_PERROR --silent 120 > /dev/null
+
+#
+# Bug#16561 Unknown ERROR msg "ERROR 1186 (HY000): Binlog closed" by perror
+#
+
+# Test with error code 10000 as it's a common "unknown error"
+# As there is no error code defined for 10000, expect error
+--error 1
+--exec $MY_PERROR 10000 2>&1

@@ -175,7 +175,7 @@ char * ip_to_hostname(struct in_addr *in, uint *errors)
   char buff[GETHOSTBYADDR_BUFF_SIZE],buff2[GETHOSTBYNAME_BUFF_SIZE];
   int tmp_errno;
   struct hostent tmp_hostent, tmp_hostent2;
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
   bzero(buff,sizeof(buff));		// Bug in purify
 #endif
   if (!(hp=gethostbyaddr_r((char*) in,sizeof(*in),

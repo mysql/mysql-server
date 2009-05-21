@@ -110,6 +110,7 @@ static void sys_default_init_connect(THD*, enum_var_type type);
 static bool sys_update_init_slave(THD*, set_var*);
 static void sys_default_init_slave(THD*, enum_var_type type);
 static bool set_option_bit(THD *thd, set_var *var);
+static bool set_option_log_bin_bit(THD *thd, set_var *var);
 static bool set_option_autocommit(THD *thd, set_var *var);
 static int  check_log_update(THD *thd, set_var *var);
 static bool set_log_update(THD *thd, set_var *var);
@@ -134,8 +135,6 @@ static int check_max_delayed_threads(THD *thd, set_var *var);
 static void fix_thd_mem_root(THD *thd, enum_var_type type);
 static void fix_trans_mem_root(THD *thd, enum_var_type type);
 static void fix_server_id(THD *thd, enum_var_type type);
-static ulonglong fix_unsigned(THD *, ulonglong, const struct my_option *);
-static bool get_unsigned(THD *thd, set_var *var);
 bool throw_bounds_warning(THD *thd, bool fixed, bool unsignd,
                           const char *name, longlong val);
 static KEY_CACHE *create_key_cache(const char *name, uint length);
@@ -295,6 +294,11 @@ static sys_var_const    sys_ft_query_expansion_limit(&vars,
 static sys_var_const    sys_ft_stopword_file(&vars, "ft_stopword_file",
                                              OPT_GLOBAL, SHOW_CHAR_PTR,
                                              (uchar*) &ft_stopword_file);
+
+static sys_var_const    sys_ignore_builtin_innodb(&vars, "ignore_builtin_innodb",
+                                                  OPT_GLOBAL, SHOW_BOOL,
+                                                  (uchar*) &opt_ignore_builtin_innodb);
+
 sys_var_str             sys_init_connect(&vars, "init_connect", 0,
                                          sys_update_init_connect,
                                          sys_default_init_connect,0);
@@ -483,6 +487,8 @@ static sys_var_thd_ulong        sys_optimizer_prune_level(&vars, "optimizer_prun
                                                   &SV::optimizer_prune_level);
 static sys_var_thd_ulong        sys_optimizer_search_depth(&vars, "optimizer_search_depth",
                                                    &SV::optimizer_search_depth);
+static sys_var_thd_optimizer_switch   sys_optimizer_switch(&vars, "optimizer_switch",
+                                     &SV::optimizer_switch);
 static sys_var_const            sys_pid_file(&vars, "pid_file",
                                              OPT_GLOBAL, SHOW_CHAR,
                                              (uchar*) pidfile_name);
@@ -642,8 +648,8 @@ static sys_var_long_ptr	sys_table_lock_wait_timeout(&vars, "table_lock_wait_time
 static sys_var_long_ptr	sys_thread_cache_size(&vars, "thread_cache_size",
 					      &thread_cache_size);
 #if HAVE_POOL_OF_THREADS == 1
-sys_var_long_ptr	sys_thread_pool_size(&vars, "thread_pool_size",
-					      &thread_pool_size);
+static sys_var_long_ptr sys_thread_pool_size(&vars, "thread_pool_size",
+                                             &thread_pool_size);
 #endif
 static sys_var_thd_enum	sys_tx_isolation(&vars, "tx_isolation",
 					 &SV::tx_isolation,
@@ -746,7 +752,7 @@ static sys_var_thd_bit	sys_log_update(&vars, "sql_log_update",
 				       OPTION_BIN_LOG);
 static sys_var_thd_bit	sys_log_binlog(&vars, "sql_log_bin",
                                        check_log_update,
-				       set_option_bit,
+                                       set_option_log_bin_bit,
 				       OPTION_BIN_LOG);
 static sys_var_thd_bit	sys_sql_warnings(&vars, "sql_warnings", 0,
 					 set_option_bit,
@@ -1397,6 +1403,19 @@ static void fix_server_id(THD *thd, enum_var_type type)
 }
 
 
+/**
+  Throw warning (error in STRICT mode) if value for variable needed bounding.
+  Only call from check(), not update(), because an error in update() would be
+  bad mojo. Plug-in interface also uses this.
+
+  @param thd      thread handle
+  @param fixed    did we have to correct the value? (throw warn/err if so)
+  @param unsignd  is value's type unsigned?
+  @param name     variable's name
+  @param val      variable's value
+
+  @retval         TRUE on error, FALSE otherwise (warning or OK)
+ */
 bool throw_bounds_warning(THD *thd, bool fixed, bool unsignd,
                           const char *name, longlong val)
 {
@@ -1422,26 +1441,128 @@ bool throw_bounds_warning(THD *thd, bool fixed, bool unsignd,
   return FALSE;
 }
 
-static ulonglong fix_unsigned(THD *thd, ulonglong num,
+
+/**
+  check an unsigned user-supplied value for a systemvariable against bounds.
+
+  TODO: This is a wrapper function to call clipping from within an update()
+        function.  Calling bounds from within update() is fair game in theory,
+        but we can only send warnings from in there, not errors, and besides,
+        it violates our model of separating check from update phase.
+        To avoid breaking out of the server with an ASSERT() in strict mode,
+        we pretend we're not in strict mode when we go through here. Bug#43233
+        was opened to remind us to replace this kludge with The Right Thing,
+        which of course is to do the check in the actual check phase, and then
+        throw an error or warning accordingly.
+
+  @param thd             thread handle
+  @param num             the value to limit
+  @param option_limits   the bounds-record, or NULL if none
+ */
+static void bound_unsigned(THD *thd, ulonglong *num,
                               const struct my_option *option_limits)
 {
-  my_bool fixed= FALSE;
-  ulonglong out= getopt_ull_limit_value(num, option_limits, &fixed);
+  if (option_limits)
+  {
+    my_bool   fixed     = FALSE;
+    ulonglong unadjusted= *num;
 
-  throw_bounds_warning(thd, fixed, TRUE, option_limits->name, (longlong) num);
-  return out;
+    *num= getopt_ull_limit_value(unadjusted, option_limits, &fixed);
+
+    if (fixed)
+    {
+      ulong ssm= thd->variables.sql_mode;
+      thd->variables.sql_mode&= ~MODE_STRICT_ALL_TABLES;
+      throw_bounds_warning(thd, fixed, TRUE, option_limits->name, unadjusted);
+      thd->variables.sql_mode= ssm;
+    }
+  }
 }
 
-static bool get_unsigned(THD *thd, set_var *var)
+
+/**
+  Get unsigned system-variable.
+  Negative value does not wrap around, but becomes zero.
+  Check user-supplied value for a systemvariable against bounds.
+  If we needed to adjust the value, throw a warning or error depending
+  on SQL-mode.
+
+  @param thd             thread handle
+  @param var             the system-variable to get
+  @param user_max        a limit given with --maximum-variable-name=... or 0
+  @param var_type        function will bound on systems where necessary.
+
+  @retval                TRUE on error, FALSE otherwise (warning or OK)
+ */
+static bool get_unsigned(THD *thd, set_var *var, ulonglong user_max,
+                         ulong var_type)
 {
+  int                     warnings= 0;
+  ulonglong               unadjusted;
+  const struct my_option *limits= var->var->option_limits;
+  struct my_option        fallback;
+
+  /* get_unsigned() */
   if (var->value->unsigned_flag)
     var->save_result.ulonglong_value= (ulonglong) var->value->val_int();
   else
   {
     longlong v= var->value->val_int();
     var->save_result.ulonglong_value= (ulonglong) ((v < 0) ? 0 : v);
+    if (v < 0)
+    {
+      warnings++;
+      if (throw_bounds_warning(thd, TRUE, FALSE, var->var->name, v))
+        return TRUE;  /* warning was promoted to error, give up */
+    }
   }
-  return 0;
+
+  unadjusted= var->save_result.ulonglong_value;
+
+  /* max, if any */
+
+  if ((user_max > 0) && (unadjusted > user_max))
+  {
+    var->save_result.ulonglong_value= user_max;
+
+    if ((warnings == 0) && throw_bounds_warning(thd, TRUE, TRUE,
+                                                var->var->name,
+                                                (longlong) unadjusted))
+      return TRUE;
+
+    warnings++;
+  }
+
+  /*
+    if the sysvar doesn't have a proper bounds record but the check
+    function would like bounding to ULONG where its size differs from
+    that of ULONGLONG, we make up a bogus limits record here and let
+    the usual suspects handle the actual limiting.
+  */
+
+  if (!limits && var_type != GET_ULL)
+  {
+    bzero(&fallback, sizeof(fallback));
+    fallback.var_type= var_type;
+    limits= &fallback;
+  }
+
+  /* fix_unsigned() */
+  if (limits)
+  {
+    my_bool   fixed;
+
+    var->save_result.ulonglong_value= getopt_ull_limit_value(var->save_result.
+                                                             ulonglong_value,
+                                                             limits, &fixed);
+
+    if ((warnings == 0) && throw_bounds_warning(thd, fixed, TRUE,
+                                                var->var->name,
+                                                (longlong) unadjusted))
+      return TRUE;
+  }
+
+  return FALSE;
 }
 
 
@@ -1455,29 +1576,13 @@ sys_var_long_ptr(sys_var_chain *chain, const char *name_arg, ulong *value_ptr_ar
 
 bool sys_var_long_ptr_global::check(THD *thd, set_var *var)
 {
-  return get_unsigned(thd, var);
+  return get_unsigned(thd, var, 0, GET_ULONG);
 }
 
 bool sys_var_long_ptr_global::update(THD *thd, set_var *var)
 {
-  ulonglong tmp= var->save_result.ulonglong_value;
   pthread_mutex_lock(guard);
-  if (option_limits)
-    *value= (ulong) fix_unsigned(thd, tmp, option_limits);
-  else
-  {
-#if SIZEOF_LONG < SIZEOF_LONG_LONG
-    /* Avoid overflows on 32 bit systems */
-    if (tmp > ULONG_MAX)
-    {
-      tmp= ULONG_MAX;
-      throw_bounds_warning(thd, TRUE, TRUE, name,
-                           (longlong) var->save_result.ulonglong_value);
-    }
-#endif
-    *value= (ulong) tmp;
-  }
-
+  *value= (ulong) var->save_result.ulonglong_value;
   pthread_mutex_unlock(guard);
   return 0;
 }
@@ -1497,10 +1602,8 @@ bool sys_var_ulonglong_ptr::update(THD *thd, set_var *var)
 {
   ulonglong tmp= var->save_result.ulonglong_value;
   pthread_mutex_lock(&LOCK_global_system_variables);
-  if (option_limits)
-    *value= (ulonglong) fix_unsigned(thd, tmp, option_limits);
-  else
-    *value= (ulonglong) tmp;
+  bound_unsigned(thd, &tmp, option_limits);
+  *value= (ulonglong) tmp;
   pthread_mutex_unlock(&LOCK_global_system_variables);
   return 0;
 }
@@ -1549,36 +1652,18 @@ uchar *sys_var_enum_const::value_ptr(THD *thd, enum_var_type type,
 
 bool sys_var_thd_ulong::check(THD *thd, set_var *var)
 {
-  return (get_unsigned(thd, var) ||
-          (check_func && (*check_func)(thd, var)));
+  if (get_unsigned(thd, var, max_system_variables.*offset, GET_ULONG))
+    return TRUE;
+  DBUG_ASSERT(var->save_result.ulonglong_value <= ULONG_MAX);
+  return ((check_func && (*check_func)(thd, var)));
 }
 
 bool sys_var_thd_ulong::update(THD *thd, set_var *var)
 {
-  ulonglong tmp= var->save_result.ulonglong_value;
-
-  /* Don't use bigger value than given with --maximum-variable-name=.. */
-  if (tmp > max_system_variables.*offset)
-  {
-    throw_bounds_warning(thd, TRUE, TRUE, name, (longlong) tmp);
-    tmp= max_system_variables.*offset;
-  }
-
-  if (option_limits)
-    tmp= fix_unsigned(thd, tmp, option_limits);
-#if SIZEOF_LONG < SIZEOF_LONG_LONG
-  else if (tmp > ULONG_MAX)
-  {
-    tmp= ULONG_MAX;
-    throw_bounds_warning(thd, TRUE, TRUE, name, (longlong) var->save_result.ulonglong_value);
-  }
-#endif
-
-  DBUG_ASSERT(tmp <= ULONG_MAX);
   if (var->type == OPT_GLOBAL)
-    global_system_variables.*offset= (ulong) tmp;
+    global_system_variables.*offset= (ulong) var->save_result.ulonglong_value;
   else
-    thd->variables.*offset= (ulong) tmp;
+    thd->variables.*offset= (ulong) var->save_result.ulonglong_value;
 
   return 0;
 }
@@ -1616,8 +1701,8 @@ bool sys_var_thd_ha_rows::update(THD *thd, set_var *var)
   if ((ha_rows) tmp > max_system_variables.*offset)
     tmp= max_system_variables.*offset;
 
-  if (option_limits)
-    tmp= (ha_rows) fix_unsigned(thd, tmp, option_limits);
+  bound_unsigned(thd, &tmp, option_limits);
+
   if (var->type == OPT_GLOBAL)
   {
     /* Lock is needed to make things safe on 32 bit systems */
@@ -1658,27 +1743,21 @@ uchar *sys_var_thd_ha_rows::value_ptr(THD *thd, enum_var_type type,
 
 bool sys_var_thd_ulonglong::check(THD *thd, set_var *var)
 {
-  return get_unsigned(thd, var);
+  return get_unsigned(thd, var, max_system_variables.*offset, GET_ULL);
 }
 
 bool sys_var_thd_ulonglong::update(THD *thd,  set_var *var)
 {
-  ulonglong tmp= var->save_result.ulonglong_value;
-
-  if (tmp > max_system_variables.*offset)
-    tmp= max_system_variables.*offset;
-
-  if (option_limits)
-    tmp= fix_unsigned(thd, tmp, option_limits);
   if (var->type == OPT_GLOBAL)
   {
     /* Lock is needed to make things safe on 32 bit systems */
     pthread_mutex_lock(&LOCK_global_system_variables);
-    global_system_variables.*offset= (ulonglong) tmp;
+    global_system_variables.*offset= (ulonglong)
+                                     var->save_result.ulonglong_value;
     pthread_mutex_unlock(&LOCK_global_system_variables);
   }
   else
-    thd->variables.*offset= (ulonglong) tmp;
+    thd->variables.*offset= (ulonglong) var->save_result.ulonglong_value;
   return 0;
 }
 
@@ -1740,7 +1819,7 @@ bool sys_var::check_enum(THD *thd, set_var *var, const TYPELIB *enum_names)
 {
   char buff[STRING_BUFFER_USUAL_SIZE];
   const char *value;
-  String str(buff, sizeof(buff), system_charset_info), *res;
+  String str(buff, sizeof(buff) - 1, system_charset_info), *res;
 
   if (var->value->result_type() == STRING_RESULT)
   {
@@ -1777,7 +1856,7 @@ bool sys_var::check_set(THD *thd, set_var *var, TYPELIB *enum_names)
   bool not_used;
   char buff[STRING_BUFFER_USUAL_SIZE], *error= 0;
   uint error_len= 0;
-  String str(buff, sizeof(buff), system_charset_info), *res;
+  String str(buff, sizeof(buff) - 1, system_charset_info), *res;
 
   if (var->value->result_type() == STRING_RESULT)
   {
@@ -1795,7 +1874,7 @@ bool sys_var::check_set(THD *thd, set_var *var, TYPELIB *enum_names)
     }
 
     var->save_result.ulong_value= ((ulong)
-				   find_set(enum_names, res->c_ptr(),
+				   find_set(enum_names, res->ptr(),
 					    res->length(),
                                             NULL,
                                             &error, &error_len,
@@ -1942,7 +2021,7 @@ bool sys_var_thd_date_time_format::update(THD *thd, set_var *var)
 bool sys_var_thd_date_time_format::check(THD *thd, set_var *var)
 {
   char buff[STRING_BUFFER_USUAL_SIZE];
-  String str(buff,sizeof(buff), system_charset_info), *res;
+  String str(buff,sizeof(buff) - 1, system_charset_info), *res;
   DATE_TIME_FORMAT *format;
 
   if (!(res=var->value->val_str(&str)))
@@ -2047,7 +2126,7 @@ bool sys_var_collation::check(THD *thd, set_var *var)
   if (var->value->result_type() == STRING_RESULT)
   {
     char buff[STRING_BUFFER_USUAL_SIZE];
-    String str(buff,sizeof(buff), system_charset_info), *res;
+    String str(buff,sizeof(buff) - 1, system_charset_info), *res;
     if (!(res=var->value->val_str(&str)))
     {
       my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, "NULL");
@@ -2082,7 +2161,7 @@ bool sys_var_character_set::check(THD *thd, set_var *var)
   if (var->value->result_type() == STRING_RESULT)
   {
     char buff[STRING_BUFFER_USUAL_SIZE];
-    String str(buff,sizeof(buff), system_charset_info), *res;
+    String str(buff,sizeof(buff) - 1, system_charset_info), *res;
     if (!(res=var->value->val_str(&str)))
     {
       if (!nullable)
@@ -2309,10 +2388,10 @@ bool sys_var_key_buffer_size::update(THD *thd, set_var *var)
     goto end;
   }
 
-  key_cache->param_buff_size=
-    (ulonglong) fix_unsigned(thd, tmp, option_limits);
+  bound_unsigned(thd, &tmp, option_limits);
+  key_cache->param_buff_size= (ulonglong) tmp;
 
-  /* If key cache didn't existed initialize it, else resize it */
+  /* If key cache didn't exist initialize it, else resize it */
   key_cache->in_init= 1;
   pthread_mutex_unlock(&LOCK_global_system_variables);
 
@@ -2338,7 +2417,7 @@ end:
 */
 bool sys_var_key_cache_long::update(THD *thd, set_var *var)
 {
-  ulong tmp= (ulong) var->value->val_int();
+  ulonglong tmp= var->value->val_int();
   LEX_STRING *base_name= &var->base;
   bool error= 0;
 
@@ -2363,8 +2442,8 @@ bool sys_var_key_cache_long::update(THD *thd, set_var *var)
   if (key_cache->in_init)
     goto end;
 
-  *((ulong*) (((char*) key_cache) + offset))=
-    (ulong) fix_unsigned(thd, tmp, option_limits);
+  bound_unsigned(thd, &tmp, option_limits);
+  *((ulong*) (((char*) key_cache) + offset))= (ulong) tmp;
 
   /*
     Don't create a new key cache if it didn't exist
@@ -2981,6 +3060,16 @@ static bool set_option_bit(THD *thd, set_var *var)
   return 0;
 }
 
+/*
+  Functions to be only used to update thd->options OPTION_BIN_LOG bit
+*/
+static bool set_option_log_bin_bit(THD *thd, set_var *var)
+{
+  set_option_bit(thd, var);
+  if (!thd->in_sub_stmt)
+    thd->sql_log_bin_toplevel= thd->options & OPTION_BIN_LOG;
+  return 0;
+}
 
 static bool set_option_autocommit(THD *thd, set_var *var)
 {
@@ -3620,7 +3709,7 @@ bool sys_var_thd_storage_engine::check(THD *thd, set_var *var)
 {
   char buff[STRING_BUFFER_USUAL_SIZE];
   const char *value;
-  String str(buff, sizeof(buff), &my_charset_latin1), *res;
+  String str(buff, sizeof(buff) - 1, &my_charset_latin1), *res;
 
   var->save_result.plugin= NULL;
   if (var->value->result_type() == STRING_RESULT)
@@ -3701,7 +3790,7 @@ bool sys_var_thd_storage_engine::update(THD *thd, set_var *var)
 
 void sys_var_thd_table_type::warn_deprecated(THD *thd)
 {
-  WARN_DEPRECATED(thd, "5.2", "@@table_type", "'@@storage_engine'");
+  WARN_DEPRECATED(thd, "6.0", "@@table_type", "'@@storage_engine'");
 }
 
 void sys_var_thd_table_type::set_default(THD *thd, enum_var_type type)
@@ -3737,7 +3826,7 @@ sys_var_thd_sql_mode::
 symbolic_mode_representation(THD *thd, ulonglong val, LEX_STRING *rep)
 {
   char buff[STRING_BUFFER_USUAL_SIZE*8];
-  String tmp(buff, sizeof(buff), &my_charset_latin1);
+  String tmp(buff, sizeof(buff) - 1, &my_charset_latin1);
 
   tmp.length(0);
 
@@ -3856,6 +3945,97 @@ ulong fix_sql_mode(ulong sql_mode)
 }
 
 
+bool
+sys_var_thd_optimizer_switch::
+symbolic_mode_representation(THD *thd, ulonglong val, LEX_STRING *rep)
+{
+  char buff[STRING_BUFFER_USUAL_SIZE*8];
+  String tmp(buff, sizeof(buff), &my_charset_latin1);
+  int i;
+  ulonglong bit;
+  tmp.length(0);
+ 
+  for (i= 0, bit=1; bit != OPTIMIZER_SWITCH_LAST; i++, bit= bit << 1)
+  {
+    tmp.append(optimizer_switch_typelib.type_names[i],
+               optimizer_switch_typelib.type_lengths[i]);
+    tmp.append('=');
+    tmp.append((val & bit)? "on":"off");
+    tmp.append(',');
+  }
+
+  if (tmp.length())
+    tmp.length(tmp.length() - 1); /* trim the trailing comma */
+
+  rep->str= thd->strmake(tmp.ptr(), tmp.length());
+
+  rep->length= rep->str ? tmp.length() : 0;
+
+  return rep->length != tmp.length();
+}
+
+
+uchar *sys_var_thd_optimizer_switch::value_ptr(THD *thd, enum_var_type type,
+				               LEX_STRING *base)
+{
+  LEX_STRING opts;
+  ulonglong val= ((type == OPT_GLOBAL) ? global_system_variables.*offset :
+                  thd->variables.*offset);
+  (void) symbolic_mode_representation(thd, val, &opts);
+  return (uchar *) opts.str;
+}
+
+
+/*
+  Check (and actually parse) string representation of @@optimizer_switch.
+*/
+
+bool sys_var_thd_optimizer_switch::check(THD *thd, set_var *var)
+{
+  bool not_used;
+  char buff[STRING_BUFFER_USUAL_SIZE], *error= 0;
+  uint error_len= 0;
+  String str(buff, sizeof(buff), system_charset_info), *res;
+
+  if (!(res= var->value->val_str(&str)))
+  {
+    strmov(buff, "NULL");
+    goto err;
+  }
+  
+  if (res->length() == 0)
+  {
+    buff[0]= 0;
+    goto err;
+  }
+
+  var->save_result.ulong_value= 
+    (ulong)find_set_from_flags(&optimizer_switch_typelib, 
+                               optimizer_switch_typelib.count, 
+                               thd->variables.optimizer_switch,
+                               global_system_variables.optimizer_switch,
+                               res->c_ptr_safe(), res->length(), NULL,
+                               &error, &error_len, &not_used);
+  if (error_len)
+  {
+    strmake(buff, error, min(sizeof(buff) - 1, error_len));
+    goto err;
+  }
+  return FALSE;
+err:
+  my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, buff);
+  return TRUE;
+}
+
+
+void sys_var_thd_optimizer_switch::set_default(THD *thd, enum_var_type type)
+{
+  if (type == OPT_GLOBAL)
+    global_system_variables.*offset= OPTIMIZER_SWITCH_DEFAULT;
+  else
+    thd->variables.*offset= global_system_variables.*offset;
+}
+
 /****************************************************************************
   Named list handling
 ****************************************************************************/
@@ -3963,7 +4143,7 @@ bool process_key_caches(process_key_cache_t func)
 
 void sys_var_trust_routine_creators::warn_deprecated(THD *thd)
 {
-  WARN_DEPRECATED(thd, "5.2", "@@log_bin_trust_routine_creators",
+  WARN_DEPRECATED(thd, "6.0", "@@log_bin_trust_routine_creators",
                       "'@@log_bin_trust_function_creators'");
 }
 

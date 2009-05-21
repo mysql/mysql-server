@@ -956,6 +956,8 @@ subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str)
   qbuf.length(0);
   cur= query_str->str;
   prev_pos= res= 0;
+  thd->query_name_consts= 0;
+  
   for (Item_splocal **splocal= sp_vars_uses.front(); 
        splocal < sp_vars_uses.back(); splocal++)
   {
@@ -989,6 +991,8 @@ subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str)
     res|= qbuf.append(')');
     if (res)
       break;
+      
+    thd->query_name_consts++;
   }
   res|= qbuf.append(cur + prev_pos, query_str->length - prev_pos);
   if (res)
@@ -2853,6 +2857,7 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
       *nextp= m_ip+1;
     thd->query= query;
     thd->query_length= query_length;
+    thd->query_name_consts= 0;
 
     if (!thd->is_error())
       thd->main_da.reset_diagnostics_area();

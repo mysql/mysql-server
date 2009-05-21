@@ -688,6 +688,15 @@ public:
   int cur_pos_in_select_list;
 
   List<udf_func>     udf_list;                  /* udf function calls stack */
+
+  /**
+    Per sub-query locking strategy.
+    Note: This variable might interfer with the corresponding statement-level
+    variable Lex::lock_option because on how different parser rules depend
+    on eachother.
+  */
+  thr_lock_type lock_option;
+
   /* 
     This is a copy of the original JOIN USING list that comes from
     the parser. The parser :
@@ -1361,7 +1370,7 @@ public:
   /** Get the utf8-body length. */
   uint get_body_utf8_length()
   {
-    return m_body_utf8_ptr - m_body_utf8;
+    return (uint) (m_body_utf8_ptr - m_body_utf8);
   }
 
   void body_utf8_start(THD *thd, const char *begin_ptr);

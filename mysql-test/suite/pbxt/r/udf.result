@@ -1,0 +1,395 @@
+drop table if exists t1;
+CREATE FUNCTION metaphon RETURNS STRING SONAME "UDF_EXAMPLE_LIB";
+CREATE FUNCTION myfunc_double RETURNS REAL SONAME "UDF_EXAMPLE_LIB";
+CREATE FUNCTION myfunc_nonexist RETURNS INTEGER SONAME "UDF_EXAMPLE_LIB";
+ERROR HY000: Can't find symbol 'myfunc_nonexist' in library
+CREATE FUNCTION myfunc_int RETURNS INTEGER SONAME "UDF_EXAMPLE_LIB";
+CREATE FUNCTION sequence RETURNS INTEGER SONAME "UDF_EXAMPLE_LIB";
+CREATE FUNCTION lookup RETURNS STRING SONAME "UDF_EXAMPLE_LIB";
+CREATE FUNCTION reverse_lookup
+RETURNS STRING SONAME "UDF_EXAMPLE_LIB";
+CREATE AGGREGATE FUNCTION avgcost
+RETURNS REAL SONAME "UDF_EXAMPLE_LIB";
+select myfunc_double();
+ERROR HY000: Can't initialize function 'myfunc_double'; myfunc_double must have at least one argument
+select myfunc_double(1);
+myfunc_double(1)
+49.00
+select myfunc_double(78654);
+myfunc_double(78654)
+54.00
+select myfunc_nonexist();
+ERROR 42000: FUNCTION test.myfunc_nonexist does not exist
+select myfunc_int();
+myfunc_int()
+0
+select lookup();
+ERROR HY000: Can't initialize function 'lookup'; Wrong arguments to lookup;  Use the source
+select lookup("127.0.0.1");
+lookup("127.0.0.1")
+127.0.0.1
+select lookup(127,0,0,1);
+ERROR HY000: Can't initialize function 'lookup'; Wrong arguments to lookup;  Use the source
+select lookup("localhost");
+lookup("localhost")
+127.0.0.1
+select reverse_lookup();
+ERROR HY000: Can't initialize function 'reverse_lookup'; Wrong number of arguments to reverse_lookup;  Use the source
+select reverse_lookup("127.0.0.1");
+select reverse_lookup(127,0,0,1);
+select reverse_lookup("localhost");
+reverse_lookup("localhost")
+NULL
+select avgcost();
+ERROR HY000: Can't initialize function 'avgcost'; wrong number of arguments: AVGCOST() requires two arguments
+select avgcost(100,23.76);
+ERROR HY000: Can't initialize function 'avgcost'; wrong argument type: AVGCOST() requires an INT and a REAL
+create table t1(sum int, price float(24));
+insert into t1 values(100, 50.00), (100, 100.00);
+select avgcost(sum, price) from t1;
+avgcost(sum, price)
+75.0000
+delete from t1;
+insert into t1 values(100, 54.33), (200, 199.99);
+select avgcost(sum, price) from t1;
+avgcost(sum, price)
+151.4367
+drop table t1;
+select metaphon('hello');
+metaphon('hello')
+HL
+CREATE PROCEDURE `XXX1`(in testval varchar(10))
+begin
+select metaphon(testval);
+end//
+call XXX1('hello');
+metaphon(testval)
+HL
+drop procedure xxx1;
+CREATE PROCEDURE `XXX2`()
+begin
+declare testval varchar(10);
+set testval = 'hello';
+select metaphon(testval);
+end//
+call XXX2();
+metaphon(testval)
+HL
+drop procedure xxx2;
+CREATE TABLE bug19904(n INT, v varchar(10));
+INSERT INTO bug19904 VALUES (1,'one'),(2,'two'),(NULL,NULL),(3,'three'),(4,'four');
+SELECT myfunc_double(n) AS f FROM bug19904;
+f
+49.00
+50.00
+NULL
+51.00
+52.00
+SELECT metaphon(v) AS f FROM bug19904;
+f
+ON
+TW
+NULL
+0R
+FR
+DROP TABLE bug19904;
+CREATE DEFINER=CURRENT_USER() FUNCTION should_not_parse
+RETURNS STRING SONAME "should_not_parse.so";
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'RETURNS STRING SONAME "should_not_parse.so"' at line 2
+CREATE DEFINER=someone@somewhere FUNCTION should_not_parse
+RETURNS STRING SONAME "should_not_parse.so";
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'RETURNS STRING SONAME "should_not_parse.so"' at line 2
+create table t1(f1 int);
+insert into t1 values(1),(2);
+explain select myfunc_int(f1) from t1 order by 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using temporary; Using filesort
+drop table t1;
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 values (1,1),(2,2);
+CREATE FUNCTION fn(a int) RETURNS int DETERMINISTIC
+BEGIN
+RETURN a;
+END
+||
+CREATE VIEW v1 AS SELECT a, fn(MIN(b)) as c FROM t1 GROUP BY a;
+SELECT myfunc_int(a AS attr_name) FROM t1;
+myfunc_int(a AS attr_name)
+1
+2
+EXPLAIN EXTENDED SELECT myfunc_int(a AS attr_name) FROM t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
+Warnings:
+Note	1003	select myfunc_int(`test`.`t1`.`a` AS `attr_name`) AS `myfunc_int(a AS attr_name)` from `test`.`t1`
+EXPLAIN EXTENDED SELECT myfunc_int(a) FROM t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
+Warnings:
+Note	1003	select myfunc_int(`test`.`t1`.`a` AS `a`) AS `myfunc_int(a)` from `test`.`t1`
+SELECT a,c FROM v1;
+a	c
+1	1
+2	2
+SELECT a, fn(MIN(b) xx) as c FROM t1 GROUP BY a;
+ERROR 42000: Incorrect parameters in the call to stored function 'fn'
+SELECT myfunc_int(fn(MIN(b) xx)) as c FROM t1 GROUP BY a;
+ERROR 42000: Incorrect parameters in the call to stored function 'fn'
+SELECT myfunc_int(test.fn(MIN(b) xx)) as c FROM t1 GROUP BY a;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'xx)) as c FROM t1 GROUP BY a' at line 1
+SELECT myfunc_int(fn(MIN(b)) xx) as c FROM t1 GROUP BY a;
+c
+1
+2
+SELECT myfunc_int(test.fn(MIN(b)) xx) as c FROM t1 GROUP BY a;
+c
+1
+2
+EXPLAIN EXTENDED SELECT myfunc_int(MIN(b) xx) as c FROM t1 GROUP BY a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
+Warnings:
+Note	1003	select myfunc_int(min(`test`.`t1`.`b`) AS `xx`) AS `c` from `test`.`t1` group by `test`.`t1`.`a`
+EXPLAIN EXTENDED SELECT test.fn(MIN(b)) as c FROM t1 GROUP BY a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
+Warnings:
+Note	1003	select `test`.`fn`(min(`test`.`t1`.`b`)) AS `c` from `test`.`t1` group by `test`.`t1`.`a`
+EXPLAIN EXTENDED SELECT myfunc_int(fn(MIN(b))) as c FROM t1 GROUP BY a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
+Warnings:
+Note	1003	select myfunc_int(`fn`(min(`test`.`t1`.`b`)) AS `fn(MIN(b))`) AS `c` from `test`.`t1` group by `test`.`t1`.`a`
+EXPLAIN EXTENDED SELECT myfunc_int(test.fn(MIN(b))) as c FROM t1 GROUP BY a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
+Warnings:
+Note	1003	select myfunc_int(`test`.`fn`(min(`test`.`t1`.`b`)) AS `test.fn(MIN(b))`) AS `c` from `test`.`t1` group by `test`.`t1`.`a`
+SELECT myfunc_int(MIN(b) xx) as c FROM t1 GROUP BY a;
+c
+1
+2
+SELECT test.fn(MIN(b)) as c FROM t1 GROUP BY a;
+c
+1
+2
+SELECT myfunc_int(fn(MIN(b))) as c FROM t1 GROUP BY a;
+c
+1
+2
+SELECT myfunc_int(test.fn(MIN(b))) as c FROM t1 GROUP BY a;
+c
+1
+2
+DROP VIEW v1;
+DROP TABLE t1;
+DROP FUNCTION fn;
+End of 5.0 tests.
+select myfunc_double(3);
+myfunc_double(3)
+51.00
+select myfunc_double(3 AS three);
+myfunc_double(3 AS three)
+51.00
+select myfunc_double(abs(3));
+myfunc_double(abs(3))
+51.00
+select myfunc_double(abs(3) AS named_param);
+myfunc_double(abs(3) AS named_param)
+51.00
+select abs(myfunc_double(3));
+abs(myfunc_double(3))
+51.00
+select abs(myfunc_double(3 AS three));
+abs(myfunc_double(3 AS three))
+51.00
+select myfunc_double(abs(3 AS wrong));
+ERROR 42000: Incorrect parameters in the call to native function 'abs'
+select abs(myfunc_double(3) AS wrong);
+ERROR 42000: Incorrect parameters in the call to native function 'abs'
+drop function if exists pi;
+CREATE FUNCTION pi RETURNS STRING SONAME "should_not_parse.so";
+ERROR HY000: This function 'pi' has the same name as a native function
+DROP FUNCTION IF EXISTS metaphon;
+CREATE FUNCTION metaphon(a int) RETURNS int
+return 0;
+CREATE FUNCTION metaphon RETURNS STRING SONAME "UDF_EXAMPLE_LIB";
+DROP FUNCTION metaphon;
+DROP FUNCTION metaphon;
+CREATE FUNCTION metaphon RETURNS STRING SONAME "UDF_EXAMPLE_LIB";
+CREATE FUNCTION metaphon(a int) RETURNS int
+return 0;
+ERROR HY000: Function 'metaphon' already exists
+CREATE FUNCTION test.metaphon(a int) RETURNS int
+return 0;
+ERROR HY000: Function 'metaphon' already exists
+DROP FUNCTION metaphon;
+DROP FUNCTION myfunc_double;
+DROP FUNCTION myfunc_nonexist;
+ERROR 42000: FUNCTION test.myfunc_nonexist does not exist
+DROP FUNCTION myfunc_int;
+DROP FUNCTION sequence;
+DROP FUNCTION lookup;
+DROP FUNCTION reverse_lookup;
+DROP FUNCTION avgcost;
+select * from mysql.func;
+name	ret	dl	type
+CREATE FUNCTION is_const RETURNS STRING SONAME "UDF_EXAMPLE_LIB";
+select IS_const(3);
+IS_const(3)
+const
+drop function IS_const;
+select * from mysql.func;
+name	ret	dl	type
+select is_const(3);
+ERROR 42000: FUNCTION test.is_const does not exist
+CREATE FUNCTION is_const RETURNS STRING SONAME "UDF_EXAMPLE_LIB";
+select
+is_const(3) as const,
+is_const(3.14) as const,
+is_const('fnord') as const,
+is_const(2+3) as const,
+is_const(rand()) as 'nc rand()',
+is_const(sin(3.14)) as const,
+is_const(upper('test')) as const;
+const	const	const	const	nc rand()	const	const
+const	const	const	const	not const	const	const
+create table bug18761 (n int);
+insert into bug18761 values (null),(2);
+select
+is_const(3) as const,
+is_const(3.14) as const,
+is_const('fnord') as const,
+is_const(2+3) as const,
+is_const(2+n) as 'nc  2+n  ',
+is_const(sin(n)) as 'nc sin(n)',
+is_const(sin(3.14)) as const,
+is_const(upper('test')) as const,
+is_const(rand()) as 'nc rand()',
+is_const(n) as 'nc   n   ',
+is_const(is_const(n)) as 'nc ic?(n)',
+is_const(is_const('c')) as const
+from
+bug18761;
+const	const	const	const	nc  2+n  	nc sin(n)	const	const	nc rand()	nc   n   	nc ic?(n)	const
+const	const	const	const	not const	not const	const	const	not const	not const	not const	const
+const	const	const	const	not const	not const	const	const	not const	not const	not const	const
+drop table bug18761;
+select is_const((1,2,3));
+ERROR 21000: Operand should contain 1 column(s)
+drop function if exists is_const;
+CREATE FUNCTION metaphon RETURNS STRING SONAME "UDF_EXAMPLE_LIB";
+CREATE FUNCTION myfunc_double RETURNS REAL SONAME "UDF_EXAMPLE_LIB";
+CREATE FUNCTION myfunc_int RETURNS INTEGER SONAME "UDF_EXAMPLE_LIB";
+create function f1(p1 varchar(255))
+returns varchar(255)
+begin
+return metaphon(p1);
+end//
+create function f2(p1 varchar(255))
+returns double
+begin
+return myfunc_double(p1);
+end//
+create function f3(p1 varchar(255))
+returns double
+begin
+return myfunc_int(p1);
+end//
+select f3(NULL);
+f3(NULL)
+0
+select f2(NULL);
+f2(NULL)
+NULL
+select f1(NULL);
+f1(NULL)
+NULL
+drop function f1;
+drop function f2;
+drop function f3;
+drop function metaphon;
+drop function myfunc_double;
+drop function myfunc_int;
+CREATE FUNCTION metaphon RETURNS STRING SONAME "UDF_EXAMPLE_LIB";
+create table t1 (a char);
+set GLOBAL query_cache_size=1355776;
+reset query cache;
+select metaphon('MySQL') from t1;
+metaphon('MySQL')
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	0
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	0
+select metaphon('MySQL') from t1;
+metaphon('MySQL')
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	0
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	0
+drop table t1;
+drop function metaphon;
+set GLOBAL query_cache_size=default;
+DROP DATABASE IF EXISTS mysqltest;
+CREATE DATABASE mysqltest;
+USE mysqltest;
+DROP DATABASE mysqltest;
+CREATE FUNCTION metaphon RETURNS STRING SONAME "UDF_EXAMPLE_LIB";
+DROP FUNCTION metaphon;
+USE test;
+CREATE TABLE const_len_bug (
+str_const varchar(4000),
+result1 varchar(4000),
+result2 varchar(4000)
+);
+CREATE TRIGGER check_const_len_trigger BEFORE INSERT ON const_len_bug FOR EACH ROW BEGIN
+set NEW.str_const = 'bar';
+set NEW.result2 = check_const_len(NEW.str_const);
+END |
+CREATE PROCEDURE check_const_len_sp (IN str_const VARCHAR(4000))
+BEGIN
+DECLARE result VARCHAR(4000);
+SET result = check_const_len(str_const);
+insert into const_len_bug values(str_const, result, "");
+END |
+CREATE FUNCTION check_const_len RETURNS string SONAME "UDF_EXAMPLE_LIB";
+CALL check_const_len_sp("foo");
+SELECT * from const_len_bug;
+str_const	result1	result2
+bar	Correct length	Correct length
+DROP FUNCTION check_const_len;
+DROP PROCEDURE check_const_len_sp;
+DROP TRIGGER check_const_len_trigger;
+DROP TABLE const_len_bug;
+CREATE FUNCTION sequence RETURNS INTEGER SONAME "UDF_EXAMPLE_LIB";
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT PRIMARY KEY);
+INSERT INTO t1 VALUES (4),(3),(2),(1);
+INSERT INTO t2 SELECT * FROM t1;
+SELECT sequence() AS seq, a FROM t1 ORDER BY seq ASC;
+seq	a
+1	4
+2	3
+3	2
+4	1
+SELECT sequence() AS seq, a FROM t1 ORDER BY seq DESC;
+seq	a
+4	1
+3	2
+2	3
+1	4
+SELECT * FROM t1 WHERE a = sequence();
+a
+SELECT * FROM t2 WHERE a = sequence();
+a
+1
+2
+3
+4
+DROP FUNCTION sequence;
+DROP TABLE t1,t2;
+End of 5.0 tests.

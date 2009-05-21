@@ -1,0 +1,13 @@
+drop database if exists mysqltest1;
+create schema foo;
+show create schema foo;
+Database	Create Database
+foo	CREATE DATABASE `foo` /*!40100 DEFAULT CHARACTER SET latin1 */
+show schemas;
+Database
+information_schema
+foo
+mtr
+mysql
+test
+drop schema foo;

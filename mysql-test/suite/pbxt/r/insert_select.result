@@ -1,0 +1,706 @@
+drop table if exists t1,t2,t3;
+create table t1 (bandID MEDIUMINT UNSIGNED NOT NULL PRIMARY KEY, payoutID SMALLINT UNSIGNED NOT NULL);
+insert into t1 (bandID,payoutID) VALUES (1,6),(2,6),(3,4),(4,9),(5,10),(6,1),(7,12),(8,12);
+create table t2 (payoutID SMALLINT UNSIGNED NOT NULL PRIMARY KEY);
+insert into t2 (payoutID) SELECT DISTINCT payoutID FROM t1;
+insert into t2 (payoutID) SELECT payoutID+10 FROM t1;
+ERROR 23000: Duplicate entry '16' for key 'PRIMARY'
+insert ignore into t2 (payoutID) SELECT payoutID+10 FROM t1;
+select * from t2;
+payoutID
+1
+4
+6
+9
+10
+11
+12
+14
+16
+19
+20
+22
+drop table t1,t2;
+CREATE TABLE `t1` (
+`numeropost` bigint(20) unsigned NOT NULL default '0',
+`icone` tinyint(4) unsigned NOT NULL default '0',
+`numreponse` bigint(20) unsigned NOT NULL auto_increment,
+`contenu` text NOT NULL,
+`pseudo` varchar(50) NOT NULL default '',
+`date` datetime NOT NULL default '0000-00-00 00:00:00',
+`ip` bigint(11) NOT NULL default '0',
+`signature` tinyint(1) unsigned NOT NULL default '0',
+PRIMARY KEY  (`numeropost`,`numreponse`)
+,KEY `ip` (`ip`),
+KEY `date` (`date`),
+KEY `pseudo` (`pseudo`),
+KEY `numreponse` (`numreponse`)
+) ENGINE=MyISAM;
+CREATE TABLE `t2` (
+`numeropost` bigint(20) unsigned NOT NULL default '0',
+`icone` tinyint(4) unsigned NOT NULL default '0',
+`numreponse` bigint(20) unsigned NOT NULL auto_increment,
+`contenu` text NOT NULL,
+`pseudo` varchar(50) NOT NULL default '',
+`date` datetime NOT NULL default '0000-00-00 00:00:00',
+`ip` bigint(11) NOT NULL default '0',
+`signature` tinyint(1) unsigned NOT NULL default '0',
+PRIMARY KEY  (`numeropost`,`numreponse`),
+KEY `ip` (`ip`),
+KEY `date` (`date`),
+KEY `pseudo` (`pseudo`),
+KEY `numreponse` (`numreponse`)
+) ENGINE=MyISAM;
+INSERT INTO t2
+(numeropost,icone,numreponse,contenu,pseudo,date,ip,signature) VALUES
+(9,1,56,'test','joce','2001-07-25 13:50:53'
+,3649052399,0);
+INSERT INTO t1 (numeropost,icone,contenu,pseudo,date,signature,ip)
+SELECT 1618,icone,contenu,pseudo,date,signature,ip FROM t2
+WHERE numeropost=9 ORDER BY numreponse ASC;
+show variables like '%bulk%';
+Variable_name	Value
+bulk_insert_buffer_size	8388608
+INSERT INTO t1 (numeropost,icone,contenu,pseudo,date,signature,ip)
+SELECT 1718,icone,contenu,pseudo,date,signature,ip FROM t2
+WHERE numeropost=9 ORDER BY numreponse ASC;
+DROP TABLE t1,t2;
+create table t1 (a int not null);
+create table t2 (a int not null);
+insert into t1 values (1);
+insert into t1 values (a+2);
+insert into t1 values (a+3);
+insert into t1 values (4),(a+5);
+insert into t1 select * from t1;
+select * from t1;
+a
+1
+2
+3
+4
+5
+1
+2
+3
+4
+5
+insert into t1 select * from t1 as t2;
+select * from t1;
+a
+1
+2
+3
+4
+5
+1
+2
+3
+4
+5
+1
+2
+3
+4
+5
+1
+2
+3
+4
+5
+insert into t2 select * from t1 as t2;
+select * from t1;
+a
+1
+2
+3
+4
+5
+1
+2
+3
+4
+5
+1
+2
+3
+4
+5
+1
+2
+3
+4
+5
+insert into t1 select t2.a from t1,t2;
+select * from t1;
+a
+1
+2
+3
+4
+5
+1
+2
+3
+4
+5
+1
+2
+3
+4
+5
+1
+2
+3
+4
+5
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+3
+3
+3
+3
+3
+3
+3
+3
+3
+3
+3
+3
+3
+3
+3
+3
+3
+3
+3
+3
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+5
+5
+5
+5
+5
+5
+5
+5
+5
+5
+5
+5
+5
+5
+5
+5
+5
+5
+5
+5
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+3
+3
+3
+3
+3
+3
+3
+3
+3
+3
+3
+3
+3
+3
+3
+3
+3
+3
+3
+3
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+5
+5
+5
+5
+5
+5
+5
+5
+5
+5
+5
+5
+5
+5
+5
+5
+5
+5
+5
+5
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+3
+3
+3
+3
+3
+3
+3
+3
+3
+3
+3
+3
+3
+3
+3
+3
+3
+3
+3
+3
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+5
+5
+5
+5
+5
+5
+5
+5
+5
+5
+5
+5
+5
+5
+5
+5
+5
+5
+5
+5
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+3
+3
+3
+3
+3
+3
+3
+3
+3
+3
+3
+3
+3
+3
+3
+3
+3
+3
+3
+3
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+4
+5
+5
+5
+5
+5
+5
+5
+5
+5
+5
+5
+5
+5
+5
+5
+5
+5
+5
+5
+5
+insert into t1 select * from t1,t1;
+ERROR 42000: Not unique table/alias: 't1'
+drop table t1,t2;
+create table t1 (a int not null primary key, b char(10));
+create table t2 (a int not null, b char(10));
+insert into t1 values (1,"t1:1"),(3,"t1:3");
+insert into t2 values (2,"t2:2"), (3,"t2:3");
+insert into t1 select * from t2;
+ERROR 23000: Duplicate entry '3' for key 'PRIMARY'
+select * from t1;
+a	b
+1	t1:1
+3	t1:3
+replace into t1 select * from t2;
+select * from t1;
+a	b
+1	t1:1
+2	t2:2
+3	t2:3
+drop table t1,t2;
+CREATE TABLE t1 ( USID INTEGER UNSIGNED, ServerID TINYINT UNSIGNED, State ENUM ('unknown', 'Access-Granted', 'Session-Active', 'Session-Closed' ) NOT NULL DEFAULT 'unknown', SessionID CHAR(32), User CHAR(32) NOT NULL DEFAULT '<UNKNOWN>', NASAddr INTEGER UNSIGNED, NASPort INTEGER UNSIGNED, NASPortType INTEGER UNSIGNED, ConnectSpeed INTEGER UNSIGNED, CarrierType CHAR(32), CallingStationID CHAR(32), CalledStationID CHAR(32), AssignedAddr INTEGER UNSIGNED, SessionTime INTEGER UNSIGNED, PacketsIn INTEGER UNSIGNED, OctetsIn INTEGER UNSIGNED, PacketsOut INTEGER UNSIGNED, OctetsOut INTEGER UNSIGNED, TerminateCause INTEGER UNSIGNED, UnauthTime TINYINT UNSIGNED, AccessRequestTime DATETIME, AcctStartTime DATETIME, AcctLastTime DATETIME, LastModification TIMESTAMP NOT NULL);
+CREATE TABLE t2 ( USID INTEGER UNSIGNED AUTO_INCREMENT, ServerID TINYINT UNSIGNED, State ENUM ('unknown', 'Access-Granted', 'Session-Active', 'Session-Closed' ) NOT NULL DEFAULT 'unknown', SessionID CHAR(32), User TEXT NOT NULL, NASAddr INTEGER UNSIGNED, NASPort INTEGER UNSIGNED, NASPortType INTEGER UNSIGNED, ConnectSpeed INTEGER UNSIGNED, CarrierType CHAR(32), CallingStationID CHAR(32), CalledStationID CHAR(32), AssignedAddr INTEGER UNSIGNED, SessionTime INTEGER UNSIGNED, PacketsIn INTEGER UNSIGNED, OctetsIn INTEGER UNSIGNED, PacketsOut INTEGER UNSIGNED, OctetsOut INTEGER UNSIGNED, TerminateCause INTEGER UNSIGNED, UnauthTime TINYINT UNSIGNED, AccessRequestTime DATETIME, AcctStartTime DATETIME, AcctLastTime DATETIME, LastModification TIMESTAMP NOT NULL, INDEX(USID,ServerID,NASAddr,SessionID), INDEX(AssignedAddr));
+INSERT INTO t1 VALUES (39,42,'Access-Granted','46','491721000045',2130706433,17690,NULL,NULL,'Localnet','491721000045','49172200000',754974766,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'2003-07-18 00:11:21',NULL,NULL,20030718001121);
+INSERT INTO t2 SELECT USID, ServerID, State, SessionID, User, NASAddr, NASPort, NASPortType, ConnectSpeed, CarrierType, CallingStationID, CalledStationID, AssignedAddr, SessionTime, PacketsIn, OctetsIn, PacketsOut, OctetsOut, TerminateCause, UnauthTime, AccessRequestTime, AcctStartTime, AcctLastTime, LastModification from t1 LIMIT 1;
+drop table t1,t2;
+CREATE TABLE t1(
+Month date NOT NULL,
+Type tinyint(3) unsigned NOT NULL auto_increment,
+Field int(10) unsigned NOT NULL,
+Count int(10) unsigned NOT NULL,
+UNIQUE KEY Month (Month,Type,Field)
+);
+insert into t1 Values
+(20030901, 1, 1, 100),
+(20030901, 1, 2, 100),
+(20030901, 2, 1, 100),
+(20030901, 2, 2, 100),
+(20030901, 3, 1, 100);
+select * from t1;
+Month	Type	Field	Count
+2003-09-01	1	1	100
+2003-09-01	1	2	100
+2003-09-01	2	1	100
+2003-09-01	2	2	100
+2003-09-01	3	1	100
+Select null, Field, Count From t1 Where Month=20030901 and Type=2;
+NULL	Field	Count
+NULL	1	100
+NULL	2	100
+create table t2(No int not null, Field int not null, Count int not null);
+insert into t2 Select null, Field, Count From t1 Where Month=20030901 and Type=2;
+Warnings:
+Warning	1048	Column 'No' cannot be null
+Warning	1048	Column 'No' cannot be null
+select * from t2;
+No	Field	Count
+0	1	100
+0	2	100
+drop table t1, t2;
+CREATE TABLE t1 (
+ID           int(11) NOT NULL auto_increment,
+NO           int(11) NOT NULL default '0',
+SEQ          int(11) NOT NULL default '0',
+PRIMARY KEY  (ID),
+KEY t1$NO    (SEQ,NO)
+) ENGINE=MyISAM;
+INSERT INTO t1 (SEQ, NO) SELECT "1" AS SEQ, IF(MAX(NO) IS NULL, 0, MAX(NO)) + 1 AS NO FROM t1 WHERE (SEQ = 1);
+select SQL_BUFFER_RESULT * from t1 WHERE (SEQ = 1);
+ID	NO	SEQ
+1	1	1
+drop table t1;
+create table t1 (f1 int);
+create table t2 (ff1 int unique, ff2 int default 1);
+insert into t1 values (1),(1),(2);
+insert into t2(ff1) select f1 from t1 on duplicate key update ff2=ff2+1;
+select * from t2;
+ff1	ff2
+1	2
+2	1
+drop table t1, t2;
+create table t1 (a int unique);
+create table t2 (a int, b int);
+create table t3 (c int, d int);
+insert into t1 values (1),(2);
+insert into t2 values (1,2);
+insert into t3 values (1,6),(3,7);
+select * from t1;
+a
+1
+2
+insert into t1 select a from t2 on duplicate key update a= t1.a + t2.b;
+select * from t1;
+a
+2
+3
+insert into t1 select a+1 from t2 on duplicate key update t1.a= t1.a + t2.b+1;
+select * from t1;
+a
+3
+5
+insert into t1 select t3.c from t3 on duplicate key update a= a + t3.d;
+select * from t1;
+a
+1
+5
+10
+insert into t1 select t2.a from t2 group by t2.a on duplicate key update a= a + 10;
+insert into t1 select t2.a from t2 on duplicate key update a= a + t2.b;
+ERROR 23000: Column 'a' in field list is ambiguous
+insert into t1 select t2.a from t2 on duplicate key update t2.a= a + t2.b;
+ERROR 42S22: Unknown column 't2.a' in 'field list'
+insert into t1 select t2.a from t2 group by t2.a on duplicate key update a= t1.a + t2.b;
+ERROR 42S22: Unknown column 't2.b' in 'field list'
+drop table t1,t2,t3;
+create table t1(f1 varchar(5) key);
+insert into t1(f1) select if(max(f1) is null, '2000',max(f1)+1) from t1;
+insert into t1(f1) select if(max(f1) is null, '2000',max(f1)+1) from t1;
+insert into t1(f1) select if(max(f1) is null, '2000',max(f1)+1) from t1;
+select * from t1;
+f1
+2000
+2001
+2002
+drop table t1;
+create table t1(x int, y int);
+create table t2(x int, z int);
+insert into t1(x,y) select x,z from t2 on duplicate key update x=values(x);
+insert into t1(x,y) select x,z from t2 on duplicate key update x=values(z);
+ERROR 42S22: Unknown column 'z' in 'field list'
+insert into t1(x,y) select x,z from t2 on duplicate key update x=values(t2.x);
+ERROR 42S22: Unknown column 't2.x' in 'field list'
+drop table t1,t2;
+CREATE TABLE t1 (a int PRIMARY KEY);
+INSERT INTO t1 values (1), (2);
+INSERT INTO t1 SELECT a + 2 FROM t1 LIMIT 1;
+DROP TABLE t1;
+CREATE TABLE t1 (x int, y int);
+CREATE TABLE t2 (z int, y int);
+CREATE TABLE t3 (a int, b int);
+INSERT INTO t3 (SELECT x, y FROM t1 JOIN t2 USING (y) WHERE z = 1);
+DROP TABLE IF EXISTS t1,t2,t3;
+CREATE DATABASE bug21774_1;
+CREATE DATABASE bug21774_2;
+CREATE TABLE bug21774_1.t1(id VARCHAR(10) NOT NULL,label VARCHAR(255));
+CREATE TABLE bug21774_2.t1(id VARCHAR(10) NOT NULL,label VARCHAR(255));
+CREATE TABLE bug21774_1.t2(id VARCHAR(10) NOT NULL,label VARCHAR(255));
+INSERT INTO bug21774_2.t1 SELECT t1.* FROM bug21774_1.t1;
+use bug21774_1;
+INSERT INTO bug21774_2.t1 SELECT t1.* FROM t1;
+DROP DATABASE bug21774_1;
+DROP DATABASE bug21774_2;

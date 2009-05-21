@@ -1,0 +1,57 @@
+#
+# Test of different EXPLAIN's
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1 (id int not null, str char(10), unique(str));
+explain select * from t1;
+insert into t1 values (1, null),(2, null),(3, "foo"),(4, "bar");
+select * from t1 where str is null;
+select * from t1 where str="foo";
+explain select * from t1 where str is null;
+explain select * from t1 where str="foo";
+explain select * from t1 ignore key (str) where str="foo";
+explain select * from t1 use key (str,str) where str="foo";
+
+#The following should give errors
+--error 1176
+explain select * from t1 use key (str,str,foo) where str="foo";
+--error 1176
+explain select * from t1 ignore key (str,str,foo) where str="foo";
+drop table t1;
+
+explain select 1;
+
+create table t1 (a int not null);
+explain select count(*) from t1;
+insert into t1 values(1);
+explain select count(*) from t1;
+insert into t1 values(1);
+explain select count(*) from t1;
+drop table t1;
+
+#
+# Bug #3403 Wrong encoding in EXPLAIN SELECT output
+#
+set names koi8r;
+create table таб (кол0 int, кол1 int, key инд0 (кол0), key инд01 (кол0,кол1));
+insert into таб (кол0) values (1);
+insert into таб (кол0) values (2);
+explain select кол0 from таб where кол0=1;
+drop table таб;
+set names latin1;
+
+# End of 4.1 tests
+
+
+#
+# Bug#15463: EXPLAIN SELECT..INTO hangs the client (QB, command line)
+#
+select 3 into @v1;
+explain select 3 into @v1;
+
+--disable_query_log
+drop database pbxt;
+--enable_query_log
+# End of 5.0 tests.

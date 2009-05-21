@@ -34,7 +34,6 @@ functions */
 #include <sys/locking.h>
 #include <sys/stat.h>			/* chmod() constants*/
 #include <winsock2.h>
-#include <math.h>			/* Because of rint() */
 #include <fcntl.h>
 #include <io.h>
 #include <malloc.h>
@@ -255,13 +254,6 @@ typedef SSIZE_T ssize_t;
 #define inline __inline
 #endif /* __cplusplus */
 
-inline double rint(double nr)
-{
-  double f = floor(nr);
-  double c = ceil(nr);
-  return (((c-nr) >= (nr-f)) ? f :c);
-}
-
 #ifdef _WIN64
 #define ulonglong2double(A) ((double) (ulonglong) (A))
 #define my_off_t2double(A)  ((double) (my_off_t) (A))
@@ -316,7 +308,6 @@ inline ulonglong double2ulonglong(double d)
 #define HAVE_FLOAT_H
 #define HAVE_LIMITS_H
 #define HAVE_STDDEF_H
-#define HAVE_RINT		/* defined in this file */
 #define NO_FCNTL_NONBLOCK	/* No FCNTL */
 #define HAVE_ALLOCA
 #define HAVE_STRPBRK

@@ -39,8 +39,6 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #define MYSYS_PROGRAM_DONT_USE_CURSES()  { error_handler_hook = my_message_no_curses; mysys_uses_curses=0;}
 #define MY_INIT(name);		{ my_progname= name; my_init(); }
 
-#define ERRMSGSIZE	(SC_MAXWIDTH)	/* Max length of a error message */
-#define NRERRBUFFS	(2)	/* Buffers for parameters */
 #define MY_FILE_ERROR	((size_t) -1)
 
 	/* General bitmaps for my_func's */
@@ -212,7 +210,6 @@ extern void my_large_free(uchar * ptr, myf my_flags);
 extern int errno;			/* declare errno */
 #endif
 #endif					/* #ifndef errno */
-extern char NEAR errbuff[NRERRBUFFS][ERRMSGSIZE];
 extern char *home_dir;			/* Home directory for user */
 extern const char *my_progname;		/* program-name (printed in errors) */
 extern const char *my_progname_short;	/* like above but without directory */
@@ -655,6 +652,7 @@ extern int nt_share_delete(const char *name,myf MyFlags);
 extern void TERMINATE(FILE *file, uint flag);
 #endif
 extern void init_glob_errs(void);
+extern void wait_for_free_space(const char *filename, int errors);
 extern FILE *my_fopen(const char *FileName,int Flags,myf MyFlags);
 extern FILE *my_fdopen(File Filedes,const char *name, int Flags,myf MyFlags);
 extern int my_fclose(FILE *fd,myf MyFlags);
@@ -863,14 +861,17 @@ extern void *memdup_root(MEM_ROOT *root,const void *str, size_t len);
 extern int get_defaults_options(int argc, char **argv,
                                 char **defaults, char **extra_defaults,
                                 char **group_suffix);
+extern int my_load_defaults(const char *conf_file, const char **groups,
+                            int *argc, char ***argv, const char ***);
 extern int load_defaults(const char *conf_file, const char **groups,
-			 int *argc, char ***argv);
+                         int *argc, char ***argv);
 extern int modify_defaults_file(const char *file_location, const char *option,
                                 const char *option_value,
                                 const char *section_name, int remove_option);
 extern int my_search_option_files(const char *conf_file, int *argc,
                                   char ***argv, uint *args_used,
-                                  Process_option_func func, void *func_ctx);
+                                  Process_option_func func, void *func_ctx,
+                                  const char **default_directories);
 extern void free_defaults(char **argv);
 extern void my_print_default_files(const char *conf_file);
 extern void print_defaults(const char *conf_file, const char **groups);

@@ -2578,6 +2578,43 @@ mysql_execute_command(THD *thd)
     {
       select_result *result;
 
+      /*
+        If:
+        a) we inside an SP and there was NAME_CONST substitution,
+        b) binlogging is on (STMT mode),
+        c) we log the SP as separate statements
+        raise a warning, as it may cause problems
+        (see 'NAME_CONST issues' in 'Binary Logging of Stored Programs')
+       */
+      if (thd->query_name_consts && 
+          mysql_bin_log.is_open() &&
+          thd->variables.binlog_format == BINLOG_FORMAT_STMT &&
+          !mysql_bin_log.is_query_in_union(thd, thd->query_id))
+      {
+        List_iterator_fast<Item> it(select_lex->item_list);
+        Item *item;
+        uint splocal_refs= 0;
+        /* Count SP local vars in the top-level SELECT list */
+        while ((item= it++))
+        {
+          if (item->is_splocal())
+            splocal_refs++;
+        }
+        /*
+          If it differs from number of NAME_CONST substitution applied,
+          we may have a SOME_FUNC(NAME_CONST()) in the SELECT list,
+          that may cause a problem with binary log (see BUG#35383),
+          raise a warning. 
+        */
+        if (splocal_refs != thd->query_name_consts)
+          push_warning(thd, 
+                       MYSQL_ERROR::WARN_LEVEL_WARN,
+                       ER_UNKNOWN_ERROR,
+"Invoked routine ran a statement that may cause problems with "
+"binary log, see 'NAME_CONST issues' in 'Binary Logging of Stored Programs' "
+"section of the manual.");
+      }
+      
       select_lex->options|= SELECT_NO_UNLOCK;
       unit->set_limit(select_lex);
 
@@ -4151,9 +4188,32 @@ end_with_restore_list:
 
     res= (sp_result= lex->sphead->create(thd));
     switch (sp_result) {
-    case SP_OK:
+    case SP_OK: {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
       /* only add privileges if really neccessary */
+
+      Security_context security_context;
+      bool restore_backup_context= false;
+      Security_context *backup= NULL;
+      LEX_USER *definer= thd->lex->definer;
+      /*
+        Check if the definer exists on slave, 
+        then use definer privilege to insert routine privileges to mysql.procs_priv.
+
+        For current user of SQL thread has GLOBAL_ACL privilege, 
+        which doesn't any check routine privileges, 
+        so no routine privilege record  will insert into mysql.procs_priv.
+      */
+      if (thd->slave_thread && is_acl_user(definer->host.str, definer->user.str))
+      {
+        security_context.change_security_context(thd, 
+                                                 &thd->lex->definer->user,
+                                                 &thd->lex->definer->host,
+                                                 &thd->lex->sphead->m_db,
+                                                 &backup);
+        restore_backup_context= true;
+      }
+
       if (sp_automatic_privileges && !opt_noacl &&
           check_routine_access(thd, DEFAULT_CREATE_PROC_ACLS,
                                lex->sphead->m_db.str, name,
@@ -4165,8 +4225,19 @@ end_with_restore_list:
                        ER_PROC_AUTO_GRANT_FAIL,
                        ER(ER_PROC_AUTO_GRANT_FAIL));
       }
+
+      /*
+        Restore current user with GLOBAL_ACL privilege of SQL thread
+      */ 
+      if (restore_backup_context)
+      {
+        DBUG_ASSERT(thd->slave_thread == 1);
+        thd->security_ctx->restore_security_context(thd, backup);
+      }
+
 #endif
     break;
+    }
     case SP_WRITE_ROW_FAILED:
       my_error(ER_SP_ALREADY_EXISTS, MYF(0), SP_TYPE_STRING(lex), name);
     break;
@@ -4449,6 +4520,7 @@ create_sp_error:
       case SP_KEY_NOT_FOUND:
 	if (lex->drop_if_exists)
 	{
+          write_bin_log(thd, TRUE, thd->query, thd->query_length);
 	  push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 			      ER_SP_DOES_NOT_EXIST, ER(ER_SP_DOES_NOT_EXIST),
 			      SP_COM_STRING(lex), lex->spname->m_name.str);
@@ -5475,9 +5547,10 @@ bool check_stack_overrun(THD *thd, long margin,
   if ((stack_used=used_stack(thd->thread_stack,(char*) &stack_used)) >=
       (long) (my_thread_stack_size - margin))
   {
-    sprintf(errbuff[0],ER(ER_STACK_OVERRUN_NEED_MORE),
-            stack_used,my_thread_stack_size,margin);
-    my_message(ER_STACK_OVERRUN_NEED_MORE,errbuff[0],MYF(0));
+    char ebuff[MYSQL_ERRMSG_SIZE];
+    my_snprintf(ebuff, sizeof(ebuff), ER(ER_STACK_OVERRUN_NEED_MORE),
+                stack_used, my_thread_stack_size, margin);
+    my_message(ER_STACK_OVERRUN_NEED_MORE, ebuff, MYF(ME_FATALERROR));
     thd->fatal_error();
     return 1;
   }
@@ -5600,6 +5673,14 @@ void mysql_reset_thd_for_next_command(THD *thd)
 }
 
 
+/**
+  Resets the lex->current_select object.
+  @note It is assumed that lex->current_select != NULL
+
+  This function is a wrapper around select_lex->init_select() with an added
+  check for the special situation when using INTO OUTFILE and LOAD DATA.
+*/
+
 void
 mysql_init_select(LEX *lex)
 {
@@ -5613,6 +5694,18 @@ mysql_init_select(LEX *lex)
   }
 }
 
+
+/**
+  Used to allocate a new SELECT_LEX object on the current thd mem_root and
+  link it into the relevant lists.
+
+  This function is always followed by mysql_init_select.
+
+  @see mysql_init_select
+
+  @retval TRUE An error occurred
+  @retval FALSE The new SELECT_LEX was successfully allocated.
+*/
 
 bool
 mysql_new_select(LEX *lex, bool move_down)
@@ -5987,7 +6080,7 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
     */
     char buf[32];
     my_snprintf(buf, sizeof(buf), "TIMESTAMP(%s)", length);
-    WARN_DEPRECATED(thd, "5.2", buf, "'TIMESTAMP'");
+    WARN_DEPRECATED(thd, "6.0", buf, "'TIMESTAMP'");
   }
 
   if (!(new_field= new Create_field()) ||
@@ -6431,7 +6524,6 @@ void st_select_lex::set_lock_for_tables(thr_lock_type lock_type)
   DBUG_ENTER("set_lock_for_tables");
   DBUG_PRINT("enter", ("lock_type: %d  for_update: %d", lock_type,
 		       for_update));
-
   for (TABLE_LIST *tables= (TABLE_LIST*) table_list.first;
        tables;
        tables= tables->next_local)
@@ -6857,8 +6949,26 @@ uint kill_one_thread(THD *thd, ulong id, bool only_kill_query)
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
   if (tmp)
   {
+
+    /*
+      If we're SUPER, we can KILL anything, including system-threads.
+      No further checks.
+
+      KILLer: thd->security_ctx->user could in theory be NULL while
+      we're still in "unauthenticated" state. This is a theoretical
+      case (the code suggests this could happen, so we play it safe).
+
+      KILLee: tmp->security_ctx->user will be NULL for system threads.
+      We need to check so Jane Random User doesn't crash the server
+      when trying to kill a) system threads or b) unauthenticated users'
+      threads (Bug#43748).
+
+      If user of both killer and killee are non-NULL, proceed with
+      slayage if both are string-equal.
+    */
+
     if ((thd->security_ctx->master_access & SUPER_ACL) ||
-	!strcmp(thd->security_ctx->user, tmp->security_ctx->user))
+        thd->security_ctx->user_matches(tmp->security_ctx))
     {
       tmp->awake(only_kill_query ? THD::KILL_QUERY : THD::KILL_CONNECTION);
       error=0;

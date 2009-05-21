@@ -1,0 +1,152 @@
+DROP TABLE IF EXISTS t1,t2,test1,test2;
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (1),(2),(3);
+CREATE TABLE t2 (a int, b int);
+show tables;
+Tables_in_test
+t1
+t2
+select "--------------------" as "";
+
+--------------------
+Database: test
++--------+
+| Tables |
++--------+
+| t1     |
+| t2     |
++--------+
+select "---- -v ------------" as "";
+
+---- -v ------------
+Database: test
++--------+----------+
+| Tables | Columns  |
++--------+----------+
+| t1     |        1 |
+| t2     |        2 |
++--------+----------+
+2 rows in set.
+
+select "---- -v -v ---------" as "";
+
+---- -v -v ---------
+Database: test
++--------+----------+------------+
+| Tables | Columns  | Total Rows |
++--------+----------+------------+
+| t1     |        1 |          3 |
+| t2     |        2 |          0 |
++--------+----------+------------+
+2 rows in set.
+
+select "----- -t -----------" as "";
+
+----- -t -----------
+Database: test
++--------+------------+
+| Tables | table_type |
++--------+------------+
+| t1     | BASE TABLE |
+| t2     | BASE TABLE |
++--------+------------+
+select "---- -v -t ---------" as "";
+
+---- -v -t ---------
+Database: test
++--------+------------+----------+
+| Tables | table_type | Columns  |
++--------+------------+----------+
+| t1     | BASE TABLE |        1 |
+| t2     | BASE TABLE |        2 |
++--------+------------+----------+
+2 rows in set.
+
+select "---- -v -v -t ------" as "";
+
+---- -v -v -t ------
+Database: test
++--------+------------+----------+------------+
+| Tables | table_type | Columns  | Total Rows |
++--------+------------+----------+------------+
+| t1     | BASE TABLE |        1 |          3 |
+| t2     | BASE TABLE |        2 |          0 |
++--------+------------+----------+------------+
+2 rows in set.
+
+DROP TABLE t1, t2;
+Database: information_schema
++---------------------------------------+
+|                Tables                 |
++---------------------------------------+
+| CHARACTER_SETS                        |
+| COLLATIONS                            |
+| COLLATION_CHARACTER_SET_APPLICABILITY |
+| COLUMNS                               |
+| COLUMN_PRIVILEGES                     |
+| ENGINES                               |
+| EVENTS                                |
+| FILES                                 |
+| GLOBAL_STATUS                         |
+| GLOBAL_VARIABLES                      |
+| KEY_COLUMN_USAGE                      |
+| PARTITIONS                            |
+| PLUGINS                               |
+| PROCESSLIST                           |
+| PROFILING                             |
+| REFERENTIAL_CONSTRAINTS               |
+| ROUTINES                              |
+| SCHEMATA                              |
+| SCHEMA_PRIVILEGES                     |
+| SESSION_STATUS                        |
+| SESSION_VARIABLES                     |
+| STATISTICS                            |
+| TABLES                                |
+| TABLE_CONSTRAINTS                     |
+| TABLE_PRIVILEGES                      |
+| TRIGGERS                              |
+| USER_PRIVILEGES                       |
+| VIEWS                                 |
+| PBXT_STATISTICS                       |
++---------------------------------------+
+Database: INFORMATION_SCHEMA
++---------------------------------------+
+|                Tables                 |
++---------------------------------------+
+| CHARACTER_SETS                        |
+| COLLATIONS                            |
+| COLLATION_CHARACTER_SET_APPLICABILITY |
+| COLUMNS                               |
+| COLUMN_PRIVILEGES                     |
+| ENGINES                               |
+| EVENTS                                |
+| FILES                                 |
+| GLOBAL_STATUS                         |
+| GLOBAL_VARIABLES                      |
+| KEY_COLUMN_USAGE                      |
+| PARTITIONS                            |
+| PLUGINS                               |
+| PROCESSLIST                           |
+| PROFILING                             |
+| REFERENTIAL_CONSTRAINTS               |
+| ROUTINES                              |
+| SCHEMATA                              |
+| SCHEMA_PRIVILEGES                     |
+| SESSION_STATUS                        |
+| SESSION_VARIABLES                     |
+| STATISTICS                            |
+| TABLES                                |
+| TABLE_CONSTRAINTS                     |
+| TABLE_PRIVILEGES                      |
+| TRIGGERS                              |
+| USER_PRIVILEGES                       |
+| VIEWS                                 |
+| PBXT_STATISTICS                       |
++---------------------------------------+
+Wildcard: inf_rmation_schema
++--------------------+
+|     Databases      |
++--------------------+
+| information_schema |
++--------------------+
+End of 5.0 tests

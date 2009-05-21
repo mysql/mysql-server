@@ -51,11 +51,11 @@ char *strmake(register char *dst, register const char *src, size_t length)
       */
       if (length)
       {
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
         dst[length-1]= 'Z';
 #else
         bfill(dst, length-1, (int) 'Z');
-#endif /* HAVE_purify */
+#endif /* HAVE_valgrind */
       }
 #endif /* EXTRA_DEBUG */
       return dst-1;

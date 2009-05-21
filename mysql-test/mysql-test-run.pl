@@ -45,8 +45,8 @@ BEGIN {
     print "=======================================================\n";
     print "  WARNING: Using mysql-test-run.pl version 1!  \n";
     print "=======================================================\n";
-    require "lib/v1/mysql-test-run.pl";
-    exit(1);
+    # Should use exec() here on *nix but this appears not to work on Windows
+    exit(system($^X, "lib/v1/mysql-test-run.pl", @ARGV) >> 8);
   }
   elsif ( $version == 2 )
   {
@@ -107,6 +107,17 @@ our $default_vardir;
 our $opt_vardir;                # Path to use for var/ dir
 my $path_vardir_trace;          # unix formatted opt_vardir for trace files
 my $opt_tmpdir;                 # Path to use for tmp/ dir
+my $opt_tmpdir_pid;
+
+END {
+  if ( defined $opt_tmpdir_pid and $opt_tmpdir_pid == $$ )
+  {
+    # Remove the tempdir this process has created
+    mtr_verbose("Removing tmpdir '$opt_tmpdir");
+    rmtree($opt_tmpdir);
+  }
+}
+
 my $path_config_file;           # The generated config file, var/my.cnf
 
 # Visual Studio produces executables in different sub-directories based on the
@@ -137,7 +148,7 @@ our @opt_extra_mysqltest_opt;
 
 my $opt_compress;
 my $opt_ssl;
-my $opt_skip_ssl = 1; # Until bug#42366 has been fixed
+my $opt_skip_ssl;
 my $opt_ssl_supported;
 my $opt_ps_protocol;
 my $opt_sp_protocol;
@@ -157,8 +168,9 @@ our $opt_force;
 our $opt_mem= $ENV{'MTR_MEM'};
 
 our $opt_gcov;
-our $opt_gcov_err;
-our $opt_gcov_msg;
+our $opt_gcov_exe= "gcov";
+our $opt_gcov_err= "mysql-test-gcov.msg";
+our $opt_gcov_msg= "mysql-test-gcov.err";
 
 our $glob_debugger= 0;
 our $opt_gdb;
@@ -174,11 +186,17 @@ our $opt_client_debugger;
 my $config; # The currently running config
 my $current_config_name; # The currently running config file template
 
+our $opt_experimental;
+our $experimental_test_cases;
+
 my $baseport;
 my $opt_build_thread= $ENV{'MTR_BUILD_THREAD'} || "auto";
+my $build_thread= 0;
 
 my $opt_record;
 my $opt_report_features;
+
+my $opt_skip_core;
 
 our $opt_check_testcases= 1;
 my $opt_mark_progress;
@@ -357,7 +375,8 @@ sub main {
   mtr_print_thick_line();
   mtr_print_header();
 
-  my ($completed, $fail)= run_test_server($server, $tests, $opt_parallel);
+  my ($fail, $completed, $extra_warnings)=
+    run_test_server($server, $tests, $opt_parallel);
 
   # Send Ctrl-C to any children still running
   kill("INT", keys(%children));
@@ -393,18 +412,14 @@ sub main {
     mtr_error("Not all tests completed");
   }
 
-  if ($fail) {
-    mtr_error("Test suite failure.");
-  }
-
   mtr_print_line();
 
   if ( $opt_gcov ) {
-    gcov_collect($basedir, $opt_gcov,
+    gcov_collect($basedir, $opt_gcov_exe,
 		 $opt_gcov_msg, $opt_gcov_err);
   }
 
-  mtr_report_stats($completed);
+  mtr_report_stats($fail, $completed, $extra_warnings);
 
   exit(0);
 }
@@ -416,7 +431,8 @@ sub run_test_server ($$$) {
   my $num_saved_cores= 0;  # Number of core files saved in vardir/log/ so far.
   my $num_saved_datadir= 0;  # Number of datadirs saved in vardir/log/ so far.
   my $num_failed_test= 0; # Number of tests failed so far
-  my $test_failure= 0;
+  my $test_failure= 0;    # Set true if test suite failed
+  my $extra_warnings= []; # Warnings found during server shutdowns
 
   # Scheduler variables
   my $max_ndb= $childs / 2;
@@ -450,7 +466,7 @@ sub run_test_server ($$$) {
 	  $s->remove($sock);
 	  if (--$childs == 0){
 	    $suite_timeout_proc->kill();
-	    return ($completed, $test_failure);
+	    return ($test_failure, $completed, $extra_warnings);
 	  }
 	  next;
 	}
@@ -519,14 +535,14 @@ sub run_test_server ($$$) {
 	      # Test has failed, force is off
 	      $suite_timeout_proc->kill();
 	      push(@$completed, $result);
-	      return ($completed, 1);
+	      return (1, $completed, $extra_warnings);
 	    }
 	    elsif ($opt_max_test_fail > 0 and
 		   $num_failed_test >= $opt_max_test_fail) {
 	      $suite_timeout_proc->kill();
 	      mtr_report("Too many tests($num_failed_test) failed!",
 			 "Terminating...");
-	      return (undef, 1);
+	      return (1, $completed, $extra_warnings);
 	    }
 	    $num_failed_test++;
 	  }
@@ -580,13 +596,14 @@ sub run_test_server ($$$) {
 	elsif ($line eq 'WARNINGS'){
           my $fake_test= My::Test::read_test($sock);
           my $test_list= join (" ", @{$fake_test->{testnames}});
+          push @$extra_warnings, $test_list;
           mtr_report("***Warnings generated in error logs during shutdown ".
                      "after running tests: $test_list");
           $test_failure= 1;
           if ( !$opt_force ) {
             # Test failure due to warnings, force is off
             $suite_timeout_proc->kill();
-            return ($completed, 1);
+            return (1, $completed, $extra_warnings);
           }
         } else {
 	  mtr_error("Unknown response: '$line' from client");
@@ -666,7 +683,7 @@ sub run_test_server ($$$) {
     if ( ! $suite_timeout_proc->wait_one(0) )
     {
       mtr_report("Test suite timeout! Terminating...");
-      return (undef, 1);
+      return (1, $completed, $extra_warnings);
     }
   }
 }
@@ -693,14 +710,9 @@ sub run_worker ($) {
   report_option('name',"worker[$thread_num]");
 
   # --------------------------------------------------------------------------
-  # Use auto build thread in all but first worker
+  # Set different ports per thread
   # --------------------------------------------------------------------------
-  set_build_thread_ports($thread_num > 1 ? 'auto' : $opt_build_thread);
-
-  if (check_ports_free()){
-    # Some port was not free(which one has already been printed)
-    mtr_error("Some port(s) was not free")
-  }
+  set_build_thread_ports($thread_num);
 
   # --------------------------------------------------------------------------
   # Turn off verbosity in workers, unless explicitly specified
@@ -758,7 +770,9 @@ sub run_worker ($) {
     }
   }
 
-  die "Internal error: should not reach this place.";
+  stop_all_servers();
+
+  exit(1);
 }
 
 
@@ -828,7 +842,7 @@ sub command_line_setup {
              'big-test'                 => \$opt_big_test,
 	     'combination=s'            => \@opt_combinations,
              'skip-combinations'        => \&collect_option,
-
+             'experimental=s'           => \$opt_experimental,
 	     'skip-im'                  => \&ignore_option,
 
              # Specify ports
@@ -975,11 +989,11 @@ sub command_line_setup {
   }
 
   # Look for language files and charsetsdir, use same share
-  my $path_share=      mtr_path_exists("$basedir/share/mysql",
-				       "$basedir/sql/share",
-				       "$basedir/share");
+  $path_language=   mtr_path_exists("$basedir/share/mysql/english",
+                                    "$basedir/sql/share/english",
+                                    "$basedir/share/english");
 
-  $path_language=      mtr_path_exists("$path_share/english");
+  my $path_share= dirname($path_language);
   $path_charsetsdir=   mtr_path_exists("$path_share/charsets");
 
   if (using_extern())
@@ -999,6 +1013,33 @@ sub command_line_setup {
     mtr_print_thick_line('#');
     mtr_report("# $opt_comment");
     mtr_print_thick_line('#');
+  }
+
+  if ( $opt_experimental )
+  {
+    # read the list of experimental test cases from the file specified on
+    # the command line
+    open(FILE, "<", $opt_experimental) or mtr_error("Can't read experimental file: $opt_experimental");
+    mtr_report("Using experimental file: $opt_experimental");
+    $experimental_test_cases = [];
+    while(<FILE>) {
+      chomp;
+      # remove comments (# foo) at the beginning of the line, or after a 
+      # blank at the end of the line
+      s/( +|^)#.*$//;
+      # remove whitespace
+      s/^ +//;              
+      s/ +$//;
+      # if nothing left, don't need to remember this line
+      if ( $_ eq "" ) {
+        next;
+      }
+      # remember what is left as the name of another test case that should be
+      # treated as experimental
+      print " - $_\n";
+      push @$experimental_test_cases, $_;
+    }
+    close FILE;
   }
 
   foreach my $arg ( @ARGV )
@@ -1114,8 +1155,11 @@ sub command_line_setup {
 		 " creating a shorter one...");
 
       # Create temporary directory in standard location for temporary files
-      $opt_tmpdir= tempdir( TMPDIR => 1, CLEANUP => 1 );
+      $opt_tmpdir= tempdir( TMPDIR => 1, CLEANUP => 0 );
       mtr_report(" - using tmpdir: '$opt_tmpdir'\n");
+
+      # Remember pid that created dir so it's removed by correct process
+      $opt_tmpdir_pid= $$;
     }
   }
   $opt_tmpdir =~ s,/+$,,;       # Remove ending slash if any
@@ -1125,6 +1169,14 @@ sub command_line_setup {
   # --------------------------------------------------------------------------
   if ($opt_fast){
     $opt_shutdown_timeout= 0; # Kill processes instead of nice shutdown
+  }
+
+  # --------------------------------------------------------------------------
+  # Check parallel value
+  # --------------------------------------------------------------------------
+  if ($opt_parallel < 1)
+  {
+    mtr_error("0 or negative parallel value makes no sense, use positive number");
   }
 
   # --------------------------------------------------------------------------
@@ -1328,18 +1380,32 @@ sub command_line_setup {
 # But a fairly safe range seems to be 5001 - 32767
 #
 sub set_build_thread_ports($) {
-  my $build_thread= shift || 0;
+  my $thread= shift || 0;
 
-  if ( lc($build_thread) eq 'auto' ) {
-    #mtr_report("Requesting build thread... ");
-    $build_thread= mtr_get_unique_id(250, 299);
-    if ( !defined $build_thread ) {
-      mtr_error("Could not get a unique build thread id");
+  if ( lc($opt_build_thread) eq 'auto' ) {
+    my $found_free = 0;
+    $build_thread = 250;	# Start attempts from here
+    while (! $found_free)
+    {
+      $build_thread= mtr_get_unique_id($build_thread, 299);
+      if ( !defined $build_thread ) {
+	mtr_error("Could not get a unique build thread id");
+      }
+      $found_free= check_ports_free($build_thread);
+      # If not free, release and try from next number
+      mtr_release_unique_id($build_thread++) unless $found_free;
     }
-    #mtr_report(" - got $build_thread");
+  }
+  else
+  {
+    $build_thread = $opt_build_thread + $thread - 1;
   }
   $ENV{MTR_BUILD_THREAD}= $build_thread;
-  $opt_build_thread= $build_thread;
+
+  if (! check_ports_free($build_thread)) {
+    # Some port was not free(which one has already been printed)
+    mtr_error("Some port(s) was not free")
+  }
 
   # Calculate baseport
   $baseport= $build_thread * 10 + 10000;
@@ -1588,8 +1654,8 @@ sub mysql_fix_arguments () {
   mtr_init_args(\$args);
   mtr_add_arg($args, "--defaults-file=%s", $path_config_file);
 
-  mtr_add_arg($args, "--basedir=", $basedir);
-  mtr_add_arg($args, "--bindir=", $path_client_bindir);
+  mtr_add_arg($args, "--basedir=%s", $basedir);
+  mtr_add_arg($args, "--bindir=%s", $path_client_bindir);
   mtr_add_arg($args, "--verbose");
   return mtr_args2str($exe, @$args);
 }
@@ -2523,22 +2589,18 @@ sub kill_leftovers ($) {
 # Check that all the ports that are going to
 # be used are free
 #
-sub check_ports_free
+sub check_ports_free ($)
 {
-  my @ports_to_check;
-  for ($baseport..$baseport+9){
-    push(@ports_to_check, $_);
-  }
-  #mtr_report("Checking ports...");
-  # print "@ports_to_check\n";
-  foreach my $port (@ports_to_check){
-    if (mtr_ping_port($port)){
-      mtr_report(" - 'localhost:$port' was not free");
-      return 1; # One port was not free
+  my $bthread= shift;
+  my $portbase = $bthread * 10 + 10000;
+  for ($portbase..$portbase+9){
+    if (mtr_ping_port($_)){
+      mtr_report(" - 'localhost:$_' was not free");
+      return 0; # One port was not free
     }
   }
 
-  return 0; # All ports free
+  return 1; # All ports free
 }
 
 
@@ -3513,7 +3575,7 @@ sub run_testcase ($$) {
 # valuable debugging information even if there is no test failure recorded.
 sub _preserve_error_log_names {
   my ($mysqld)= @_;
-  my $error_log_file= $mysqld->value('log-error');
+  my $error_log_file= $mysqld->value('#log-error');
   my $error_log_dir= dirname($error_log_file);
   my $save_name= $error_log_dir ."/../". $mysqld->name() .".error.log";
   return ($error_log_file, $save_name);
@@ -3688,7 +3750,10 @@ sub start_check_warnings ($$) {
 
   my $name= "warnings-".$mysqld->name();
 
-  extract_warning_lines($mysqld->value('log-error'));
+  my $log_error= $mysqld->value('#log-error');
+  # To be communicated to the test
+  $ENV{MTR_LOG_ERROR}= $log_error;
+  extract_warning_lines($log_error);
 
   my $args;
   mtr_init_args(\$args);
@@ -3698,6 +3763,7 @@ sub start_check_warnings ($$) {
 
   mtr_add_arg($args, "--skip-safemalloc");
   mtr_add_arg($args, "--test-file=%s", "include/check-warnings.test");
+  mtr_add_arg($args, "--verbose");
 
   if ( $opt_embedded_server )
   {
@@ -3787,10 +3853,9 @@ sub check_warnings ($) {
 
 	if ( $res == 62 ) {
 	  # Test case was ok and called "skip"
-	  ;
+	  # Remove the .err file the check generated
+	  unlink($err_file);
 	}
-	# Remove the .err file the check generated
-	unlink($err_file);
 
 	if ( keys(%started) == 0){
 	  # All checks completed
@@ -3812,8 +3877,6 @@ sub check_warnings ($) {
 
 	$result= 2;
       }
-      # Remove the .err file the check generated
-      unlink($err_file);
     }
     elsif ( $proc eq $timeout_proc ) {
       $tinfo->{comment}.= "Timeout $timeout_proc for ".
@@ -3846,7 +3909,7 @@ sub check_warnings_post_shutdown {
   my $testname_hash= { };
   foreach my $mysqld ( mysqlds())
   {
-    my $testlist= extract_warning_lines($mysqld->value('log-error'));
+    my $testlist= extract_warning_lines($mysqld->value('#log-error'));
     $testname_hash->{$_}= 1 for @$testlist;
   }
   my @warning_tests= keys(%$testname_hash);
@@ -4184,6 +4247,7 @@ sub mysqld_arguments ($$$) {
       mtr_add_arg($args, "%s", $arg);
     }
   }
+  $opt_skip_core = $found_skip_core;
   if ( !$found_skip_core )
   {
     mtr_add_arg($args, "%s", "--core-file");
@@ -4228,6 +4292,12 @@ sub mysqld_start ($$) {
 		$path_vardir_trace, $mysqld->name());
   }
 
+  if (IS_WINDOWS)
+  {
+    # Trick the server to send output to stderr, with --console
+    mtr_add_arg($args, "--console");
+  }
+
   if ( $opt_gdb || $opt_manual_gdb )
   {
     gdb_arguments(\$args, \$exe, $mysqld->name());
@@ -4260,7 +4330,7 @@ sub mysqld_start ($$) {
   # Remove the old pidfile if any
   unlink($mysqld->value('pid-file'));
 
-  my $output= $mysqld->value('log-error');
+  my $output= $mysqld->value('#log-error');
   if ( $opt_valgrind and $opt_debug )
   {
     # When both --valgrind and --debug is selected, send
@@ -4291,6 +4361,7 @@ sub mysqld_start ($$) {
        error         => $output,
        append        => 1,
        verbose       => $opt_verbose,
+       nocore        => $opt_skip_core,
        host          => undef,
        shutdown      => sub { mysqld_stop($mysqld) },
       );
@@ -4340,12 +4411,6 @@ sub server_need_restart {
   if ( using_extern() )
   {
     mtr_verbose_restart($server, "no restart for --extern server");
-    return 0;
-  }
-
-  if ( $opt_embedded_server )
-  {
-    mtr_verbose_restart($server, "no start or restart for embedded server");
     return 0;
   }
 
@@ -4575,7 +4640,7 @@ sub start_servers($) {
       # Already started
 
       # Write start of testcase to log file
-      mark_log($mysqld->value('log-error'), $tinfo);
+      mark_log($mysqld->value('#log-error'), $tinfo);
 
       next;
     }
@@ -4636,7 +4701,7 @@ sub start_servers($) {
     mkpath($tmpdir) unless -d $tmpdir;
 
     # Write start of testcase to log file
-    mark_log($mysqld->value('log-error'), $tinfo);
+    mark_log($mysqld->value('#log-error'), $tinfo);
 
     # Run <tname>-master.sh
     if ($mysqld->option('#!run-master-sh') and
@@ -4687,7 +4752,7 @@ sub start_servers($) {
       $tinfo->{comment}=
 	"Failed to start ".$mysqld->name();
 
-      my $logfile= $mysqld->value('log-error');
+      my $logfile= $mysqld->value('#log-error');
       if ( defined $logfile and -f $logfile )
       {
 	$tinfo->{logfile}= mtr_fromfile($logfile);
@@ -4731,6 +4796,7 @@ sub start_check_testcase ($$$) {
 
   mtr_add_arg($args, "--result-file=%s", "$opt_vardir/tmp/$name.result");
   mtr_add_arg($args, "--test-file=%s", "include/check-testcase.test");
+  mtr_add_arg($args, "--verbose");
 
   if ( $mode eq "before" )
   {
@@ -4910,8 +4976,7 @@ sub start_mysqltest ($) {
   elsif ( $opt_client_debugger )
   {
     debugger_arguments(\$args, \$exe, "client");
- }
-
+  }
 
   my $proc= My::SafeProcess->new
     (
@@ -5313,6 +5378,8 @@ Misc options
   sleep=SECONDS         Passed to mysqltest, will be used as fixed sleep time
   debug-sync-timeout=NUM Set default timeout for WAIT_FOR debug sync
                         actions. Disable facility with NUM=0.
+  gcov                  Collect coverage information after the test.
+                        The result is a gcov file per source and header file.
 
 HERE
   exit(1);

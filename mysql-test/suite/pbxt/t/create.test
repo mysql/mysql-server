@@ -1,0 +1,741 @@
+#
+# Check some special create statements.
+#
+
+--disable_warnings
+drop table if exists t1,t2,t3,t4,t5;
+drop database if exists mysqltest;
+--enable_warnings
+
+create table t1 (b char(0));
+insert into t1 values (""),(null);
+select * from t1;
+drop table if exists t1;
+
+create table t1 (b char(0) not null);
+create table if not exists t1 (b char(0) not null);
+insert into t1 values (""),(null);
+select * from t1;
+drop table t1;
+
+create table t1 (a int not null auto_increment,primary key (a)) engine=heap;
+drop table t1;
+
+#
+# Test of some CREATE TABLE'S that should fail
+#
+
+--error 1146
+create table t2 engine=heap select * from t1;
+--error 1146
+create table t2 select auto+1 from t1;
+drop table if exists t1,t2;
+--error 1167
+create table t1 (b char(0) not null, index(b));
+--error 1163
+create table t1 (a int not null,b text) engine=heap;
+drop table if exists t1;
+
+--error 1075
+create table t1 (ordid int(8) not null auto_increment, ord  varchar(50) not null, primary key (ord,ordid)) engine=heap;
+
+-- error 1049
+create table not_existing_database.test (a int);
+create table `a/a` (a int);
+show create table `a/a`;
+create table t1 like `a/a`;
+drop table `a/a`;
+drop table `t1`;
+--error 1103
+create table `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` (aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa int);
+--error 1059
+create table a (`aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` int);
+
+#
+# Some wrong defaults, so these creates should fail too (Bug #5902)
+#
+--error 1067
+create table t1 (a datetime default now());
+--error 1294
+create table t1 (a datetime on update now());
+--error 1067
+create table t1 (a int default 100 auto_increment);
+--error 1067
+create table t1 (a tinyint default 1000);
+--error 1067
+create table t1 (a varchar(5) default 'abcdef');
+
+create table t1 (a varchar(5) default 'abcde');
+insert into t1 values();
+select * from t1;
+--error 1067
+alter table t1 alter column a set default 'abcdef';
+drop table t1;
+
+#
+# test of dummy table names
+#
+
+create table 1ea10 (1a20 int,1e int);
+insert into 1ea10 values(1,1);
+select 1ea10.1a20,1e+ 1e+10 from 1ea10;
+drop table 1ea10;
+create table t1 (t1.index int);
+drop table t1;
+# Test that we get warning for this
+drop database if exists mysqltest;
+create database mysqltest;
+create table mysqltest.$test1 (a$1 int, $b int, c$ int);
+insert into mysqltest.$test1 values (1,2,3);
+select a$1, $b, c$ from mysqltest.$test1;
+create table mysqltest.test2$ (a int);
+drop table mysqltest.test2$;
+drop database mysqltest;
+
+--error 1103
+create table `` (a int);
+--error 1103
+drop table if exists ``;
+--error 1166
+create table t1 (`` int);
+--error 1280
+create table t1 (i int, index `` (i)); 
+
+#
+# Test of CREATE ... SELECT with indexes
+#
+
+create table t1 (a int auto_increment not null primary key, B CHAR(20));
+insert into t1 (b) values ("hello"),("my"),("world");
+create table t2 (key (b)) select * from t1;
+explain select * from t2 where b="world";
+select * from t2 where b="world";
+drop table t1,t2;
+
+#
+# Test types after CREATE ... SELECT
+#
+
+create table t1(x varchar(50) );
+create table t2 select x from t1 where 1=2;
+describe t1;
+describe t2;
+drop table t2;
+create table t2 select now() as a , curtime() as b, curdate() as c , 1+1 as d , 1.0 + 1 as e , 33333333333333333 + 3 as f;
+describe t2;
+drop table t2;
+create table t2 select CAST("2001-12-29" AS DATE) as d, CAST("20:45:11" AS TIME) as t, CAST("2001-12-29  20:45:11" AS DATETIME) as dt;
+describe t2;
+drop table t1,t2;
+
+#
+# Test of CREATE ... SELECT with duplicate fields
+#
+
+create table t1 (a tinyint);
+create table t2 (a int) select * from t1;                        
+describe t1;
+describe t2;
+drop table if exists t2;
+--error 1060
+create table t2 (a int, a float) select * from t1;               
+drop table if exists t2;
+--error 1060
+create table t2 (a int) select a as b, a+1 as b from t1;         
+drop table if exists t2;
+--error 1060
+create table t2 (b int) select a as b, a+1 as b from t1;         
+drop table if exists t1,t2;
+
+#
+# Test CREATE ... SELECT when insert fails
+#
+
+CREATE TABLE t1 (a int not null);
+INSERT INTO t1 values (1),(2),(1);
+--error ER_DUP_ENTRY
+CREATE TABLE t2 (primary key(a)) SELECT * FROM t1;
+--error 1146
+SELECT * from t2;
+DROP TABLE t1;
+DROP TABLE IF EXISTS t2;
+
+#
+# Test of primary key with 32 index
+#
+
+create table t1 (a int not null, b int, primary key(a), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b));
+show create table t1;
+drop table t1;
+create table t1 select if(1,'1','0'), month("2002-08-02");
+drop table t1;
+create table t1 select if('2002'='2002','Y','N');
+select * from t1;
+drop table if exists t1;
+
+#
+# Test default table type
+#
+SET SESSION storage_engine="heap";
+SELECT @@storage_engine;
+CREATE TABLE t1 (a int not null);
+show create table t1;
+drop table t1;
+--error 1286
+SET SESSION storage_engine="gemini";
+SELECT @@storage_engine;
+CREATE TABLE t1 (a int not null);
+show create table t1;
+SET SESSION storage_engine=default;
+drop table t1;
+
+
+#
+# ISO requires that primary keys are implicitly NOT NULL
+#
+create table t1 ( k1 varchar(2), k2 int, primary key(k1,k2));
+insert into t1 values ("a", 1), ("b", 2);
+--error 1048
+insert into t1 values ("c", NULL);
+--error 1048
+insert into t1 values (NULL, 3);
+--error 1048
+insert into t1 values (NULL, NULL);
+drop table t1;
+
+#
+# Bug # 801
+#
+
+create table t1 select x'4132';
+drop table t1;
+
+#
+# bug #1434
+#
+
+create table t1 select 1,2,3;
+create table if not exists t1 select 1,2;
+--error 1136
+create table if not exists t1 select 1,2,3,4;
+create table if not exists t1 select 1;
+select * from t1;
+drop table t1;
+
+#
+# Test create table if not exists with duplicate key error
+#
+
+flush status;
+create table t1 (a int not null, b int, primary key (a));
+insert into t1 values (1,1);
+create table if not exists t1 select 2;
+select * from t1;
+create table if not exists t1 select 3 as 'a',4 as 'b';
+--error ER_DUP_ENTRY
+create table if not exists t1 select 3 as 'a',3 as 'b';
+show warnings;
+show status like "Opened_tables";
+select * from t1;
+drop table t1;
+
+#
+# Test for Bug #2985 
+#   "Table truncated when creating another table name with Spaces"
+#
+
+--error 1103
+create table `t1 `(a int);
+--error 1102
+create database `db1 `;
+--error 1166
+create table t1(`a ` int);
+
+#
+# Test for Bug #3481 
+#   "Parser permits multiple commas without syntax error"
+#
+
+--error 1064
+create table t1 (a int,);
+--error 1064
+create table t1 (a int,,b int);
+--error 1064
+create table t1 (,b int);
+
+#
+# Test create with foreign keys
+#
+
+create table t1 (a int, key(a));
+create table t2 (b int, foreign key(b) references t1(a), key(b));
+drop table if exists t2,t1;
+
+#
+# Test for CREATE TABLE .. LIKE ..
+#
+
+create table t1(id int not null, name char(20));
+insert into t1 values(10,'mysql'),(20,'monty- the creator');
+create table t2(id int not null);
+insert into t2 values(10),(20);
+create table t3 like t1;
+show create table t3;
+select * from t3;
+# Disable PS becasue of @@warning_count
+create table if not exists t3 like t1;
+--disable_ps_protocol
+select @@warning_count;
+--enable_ps_protocol
+create temporary table t3 like t2;
+show create table t3;
+select * from t3;
+drop table t3;
+show create table t3;
+select * from t3;
+drop table t2, t3;
+create database mysqltest;
+alter table t1;
+create table mysqltest.t3 like t1;
+create temporary table t3 like mysqltest.t3;
+show create table t3;
+create table t2 like t3;
+show create table t2;
+select * from t2;
+create table t3 like t1;
+--error 1050
+create table t3 like mysqltest.t3;
+--error 1049
+create table non_existing_database.t1 like t1;
+--error ER_NO_SUCH_TABLE
+create table t3 like non_existing_table;
+--error 1050
+create temporary table t3 like t1;
+drop table t1, t2, t3;
+drop table t3;
+drop database mysqltest;
+
+#
+# Test default table type
+#
+SET SESSION storage_engine="heap";
+SELECT @@storage_engine;
+CREATE TABLE t1 (a int not null);
+show create table t1;
+drop table t1;
+--error 1286
+SET SESSION storage_engine="gemini";
+SELECT @@storage_engine;
+CREATE TABLE t1 (a int not null);
+show create table t1;
+SET SESSION storage_engine=default;
+drop table t1;
+
+#
+# Test types of data for create select with functions
+#
+
+create table t1(a int,b int,c int unsigned,d date,e char,f datetime,g time,h blob);
+insert into t1(a)values(1);
+insert into t1(a,b,c,d,e,f,g,h)
+values(2,-2,2,'1825-12-14','a','2003-1-1 3:2:1','4:3:2','binary data');
+select * from t1;
+select a, 
+    ifnull(b,cast(-7 as signed)) as b, 
+    ifnull(c,cast(7 as unsigned)) as c, 
+    ifnull(d,cast('2000-01-01' as date)) as d, 
+    ifnull(e,cast('b' as char)) as e,
+    ifnull(f,cast('2000-01-01' as datetime)) as f, 
+    ifnull(g,cast('5:4:3' as time)) as g,
+    ifnull(h,cast('yet another binary data' as binary)) as h,
+    addtime(cast('1:0:0' as time),cast('1:0:0' as time)) as dd 
+from t1;
+
+create table t2
+select
+    a, 
+    ifnull(b,cast(-7                        as signed))   as b,
+    ifnull(c,cast(7                         as unsigned)) as c,
+    ifnull(d,cast('2000-01-01'              as date))     as d,
+    ifnull(e,cast('b'                       as char))     as e,
+    ifnull(f,cast('2000-01-01'              as datetime)) as f,
+    ifnull(g,cast('5:4:3'                   as time))     as g,
+    ifnull(h,cast('yet another binary data' as binary))   as h,
+    addtime(cast('1:0:0' as time),cast('1:0:0' as time))  as dd
+from t1;
+explain t2;
+select * from t2;
+drop table t1, t2;
+
+create table t1 (a tinyint, b smallint, c mediumint, d int, e bigint, f float(3,2), g double(4,3), h decimal(5,4), i year, j date, k timestamp, l datetime, m enum('a','b'), n set('a','b'), o char(10));
+create table t2 select ifnull(a,a), ifnull(b,b), ifnull(c,c), ifnull(d,d), ifnull(e,e), ifnull(f,f), ifnull(g,g), ifnull(h,h), ifnull(i,i), ifnull(j,j), ifnull(k,k), ifnull(l,l), ifnull(m,m), ifnull(n,n), ifnull(o,o) from t1;
+show create table t2;
+drop table t1,t2;
+
+#
+# Test of default()
+#
+create table t1(str varchar(10) default 'def',strnull varchar(10),intg int default '10',rel double default '3.14');
+insert into t1 values ('','',0,0.0);
+describe t1;
+create table t2 select default(str) as str, default(strnull) as strnull, default(intg) as intg, default(rel) as rel from t1;
+describe t2;
+drop table t1, t2;
+
+#
+# Bug #2075
+#
+
+create table t1(name varchar(10), age smallint default -1);
+describe t1;
+create table t2(name varchar(10), age smallint default - 1);
+describe t2;
+drop table t1, t2;
+
+#
+# test for bug #1427 "enum allows duplicate values in the list"
+#
+
+create table t1(cenum enum('a'), cset set('b'));
+create table t2(cenum enum('a','a'), cset set('b','b'));
+create table t3(cenum enum('a','A','a','c','c'), cset set('b','B','b','d','d'));
+drop table t1, t2, t3;
+
+#
+# Bug #1209
+#
+
+create database mysqltest;
+use mysqltest;
+select database();
+drop database mysqltest;
+select database();
+
+# Connect without a database as user mysqltest_1
+create user mysqltest_1;
+connect (user1,localhost,mysqltest_1,,*NO-ONE*);
+connection user1;
+select database(), user();
+connection default;
+disconnect user1;
+drop user mysqltest_1;
+use test;
+
+#
+# Test for Bug 856 'Naming a key "Primary" causes trouble'
+#
+
+--error 1280
+create table t1 (a int, index `primary` (a));
+--error 1280
+create table t1 (a int, index `PRIMARY` (a));
+
+create table t1 (`primary` int, index(`primary`));
+show create table t1;
+create table t2 (`PRIMARY` int, index(`PRIMARY`));
+show create table t2;
+
+create table t3 (a int);
+--error 1280
+alter table t3 add index `primary` (a);
+--error 1280
+alter table t3 add index `PRIMARY` (a);
+
+create table t4 (`primary` int);
+alter table t4 add index(`primary`);
+show create table t4;
+create table t5 (`PRIMARY` int);
+alter table t5 add index(`PRIMARY`);
+show create table t5;
+
+drop table t1, t2, t3, t4, t5;
+
+#
+# bug #3266 TEXT in CREATE TABLE SELECT
+#
+
+CREATE TABLE t1(id varchar(10) NOT NULL PRIMARY KEY, dsc longtext);
+INSERT INTO t1 VALUES ('5000000001', NULL),('5000000003', 'Test'),('5000000004', NULL);
+CREATE TABLE t2(id varchar(15) NOT NULL, proc varchar(100) NOT NULL, runID varchar(16) NOT NULL, start datetime NOT NULL, PRIMARY KEY  (id,proc,runID,start));
+
+INSERT INTO t2 VALUES ('5000000001', 'proc01', '20031029090650', '2003-10-29 13:38:40'),('5000000001', 'proc02', '20031029090650', '2003-10-29 13:38:51'),('5000000001', 'proc03', '20031029090650', '2003-10-29 13:38:11'),('5000000002', 'proc09', '20031024013310', '2003-10-24 01:33:11'),('5000000002', 'proc09', '20031024153537', '2003-10-24 15:36:04'),('5000000004', 'proc01', '20031024013641', '2003-10-24 01:37:29'),('5000000004', 'proc02', '20031024013641', '2003-10-24 01:37:39');
+
+CREATE TABLE t3  SELECT t1.dsc,COUNT(DISTINCT t2.id) AS countOfRuns  FROM t1 LEFT JOIN t2 ON (t1.id=t2.id) GROUP BY t1.id;
+SELECT * FROM t3;
+drop table t1, t2, t3;
+
+#
+# Bug#9666: Can't use 'DEFAULT FALSE' for column of type bool
+#
+create table t1 (b bool not null default false);
+create table t2 (b bool not null default true);
+insert into t1 values ();
+insert into t2 values ();
+select * from t1;
+select * from t2;
+drop table t1,t2;
+
+#
+# Bug#10224 - ANALYZE TABLE crashing with simultaneous
+# CREATE ... SELECT statement.
+# This tests two additional possible errors and a hang if 
+# an improper fix is present.
+#
+create table t1 (a int);
+--error 1093
+create table t1 select * from t1;
+--error 1347
+create table t2 union = (t1) select * from t1;
+flush tables with read lock;
+unlock tables;
+drop table t1;
+
+#
+# Bug#10413: Invalid column name is not rejected
+#
+--error 1103
+create table t1(column.name int);
+--error 1103
+create table t1(test.column.name int);
+--error 1102
+create table t1(xyz.t1.name int);
+create table t1(t1.name int);
+create table t2(test.t2.name int);
+drop table t1,t2;
+
+#
+# Bug #12537: UNION produces longtext instead of varchar
+#
+CREATE TABLE t1 (f1 VARCHAR(255) CHARACTER SET utf8);
+CREATE TABLE t2 AS SELECT LEFT(f1,171) AS f2 FROM t1 UNION SELECT LEFT(f1,171) AS f2 FROM t1;
+DESC t2;
+DROP TABLE t1,t2;
+
+#
+# Bug#12913 Simple SQL can crash server or connection
+#
+CREATE TABLE t12913 (f1 ENUM ('a','b')) AS SELECT 'a' AS f1;
+SELECT * FROM t12913;
+DROP TABLE t12913;
+
+#
+# Bug#11028: Crash on create table like
+#
+create database mysqltest;
+use mysqltest;
+drop database mysqltest;
+--error ER_NO_DB_ERROR 
+create table test.t1 like x;
+--disable_warnings
+drop table if exists test.t1;
+--enable_warnings
+
+#
+# Bug #6859: Bogus error message on attempt to CREATE TABLE t LIKE view
+#
+create database mysqltest;
+use mysqltest;
+create view v1 as select 'foo' from dual;
+--error 1347
+create table t1 like v1;
+drop view v1;
+drop database mysqltest;
+# Bug #6008 MySQL does not create warnings when
+# creating database and using IF NOT EXISTS
+#
+create database mysqltest;
+create database if not exists mysqltest character set latin2;
+show create database mysqltest;
+drop database mysqltest;
+use test;
+create table t1 (a int);
+create table if not exists t1 (a int);
+drop table t1;
+
+# BUG#14139
+create table t1 (
+  a varchar(112) charset utf8 collate utf8_bin not null,
+  primary key (a)
+) select 'test' as a ;
+#--warning 1364
+show create table t1;
+drop table t1;
+
+#
+# BUG#14480: assert failure in CREATE ... SELECT because of wrong
+#            calculation of number of NULLs.
+#
+CREATE TABLE t2 (
+  a int(11) default NULL
+);
+insert into t2 values(111);
+
+#--warning 1364
+create table t1 ( 
+  a varchar(12) charset utf8 collate utf8_bin not null, 
+  b int not null, primary key (a)
+) select a, 1 as b from t2 ;
+show create table t1;
+drop table t1;
+
+#--warning 1364
+create table t1 ( 
+  a varchar(12) charset utf8 collate utf8_bin not null, 
+  b int not null, primary key (a)
+) select a, 1 as c from t2 ;
+show create table t1;
+drop table t1;
+
+#--warning 1364
+create table t1 ( 
+  a varchar(12) charset utf8 collate utf8_bin not null, 
+  b int null, primary key (a)
+) select a, 1 as c from t2 ;
+show create table t1;
+drop table t1;
+
+#--warning 1364
+create table t1 ( 
+  a varchar(12) charset utf8 collate utf8_bin not null,
+  b int not null, primary key (a)
+) select 'a' as a , 1 as b from t2 ;
+show create table t1;
+drop table t1;
+
+#--warning 1364
+create table t1 ( 
+  a varchar(12) charset utf8 collate utf8_bin,
+  b int not null, primary key (a)
+) select 'a' as a , 1 as b from t2 ;
+show create table t1;
+drop table t1, t2;
+
+create table t1 ( 
+  a1 int not null,
+  a2 int, a3 int, a4 int, a5 int, a6 int, a7 int, a8 int, a9 int
+);
+insert into t1 values (1,1,1, 1,1,1, 1,1,1);
+
+#--warning 1364
+create table t2 ( 
+  a1 varchar(12) charset utf8 collate utf8_bin not null,
+  a2 int, a3 int, a4 int, a5 int, a6 int, a7 int, a8 int, a9 int,
+  primary key (a1)
+) select a1,a2,a3,a4,a5,a6,a7,a8,a9 from t1 ;
+drop table t2;
+
+#--warning 1364
+create table t2 ( 
+  a1 varchar(12) charset utf8 collate utf8_bin,
+  a2 int, a3 int, a4 int, a5 int, a6 int, a7 int, a8 int, a9 int
+) select a1,a2,a3,a4,a5,a6,a7,a8,a9 from t1;
+
+drop table t1, t2;
+#--warning 1364
+create table t1 ( 
+  a1 int, a2 int, a3 int, a4 int, a5 int, a6 int, a7 int, a8 int, a9 int
+);
+insert into t1 values (1,1,1, 1,1,1, 1,1,1);
+
+#--warning 1364
+create table t2 ( 
+  a1 varchar(12) charset utf8 collate utf8_bin not null,
+  a2 int, a3 int, a4 int, a5 int, a6 int, a7 int, a8 int, a9 int,
+  primary key (a1)
+) select a1,a2,a3,a4,a5,a6,a7,a8,a9 from t1 ;
+
+# Test the default value
+drop table t2;
+
+create table t2 ( a int default 3, b int default 3)
+  select a1,a2 from t1;
+show create table t2;
+
+drop table t1, t2;
+
+#
+# Bug #15316 SET value having comma not correctly handled
+#
+--error 1367
+create table t1(a set("a,b","c,d") not null);
+
+# End of 4.1 tests
+
+#
+# Bug #14155: Maximum value of MAX_ROWS handled incorrectly on 64-bit
+# platforms
+#
+create table t1 (i int) engine=myisam max_rows=100000000000;
+show create table t1;
+alter table t1 max_rows=100;
+show create table t1;
+alter table t1 max_rows=100000000000;
+show create table t1;
+drop table t1;
+
+#
+# Bug#21772: can not name a column 'upgrade' when create a table
+#
+create table t1 (upgrade int);
+drop table t1;
+
+# End of 5.0 tests
+
+#
+# Test of behaviour with CREATE ... SELECT
+#
+
+CREATE TABLE t1 (a int, b int);
+insert into t1 values (1,1),(1,2);
+--error ER_DUP_ENTRY
+CREATE TABLE t2 (primary key (a)) select * from t1;
+# This should give warning
+drop table if exists t2;
+--error ER_DUP_ENTRY
+CREATE TEMPORARY TABLE t2 (primary key (a)) select * from t1;
+# This should give warning
+drop table if exists t2;
+CREATE TABLE t2 (a int, b int, primary key (a));
+--error ER_DUP_ENTRY
+CREATE TABLE IF NOT EXISTS t2 (primary key (a)) select * from t1;
+SELECT * from t2;
+TRUNCATE table t2;
+--error ER_DUP_ENTRY
+INSERT INTO t2 select * from t1;
+SELECT * from t2;
+drop table t2;
+
+CREATE TEMPORARY TABLE t2 (a int, b int, primary key (a));
+--error ER_DUP_ENTRY
+CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) select * from t1;
+SELECT * from t2;
+TRUNCATE table t2;
+--error ER_DUP_ENTRY
+INSERT INTO t2 select * from t1;
+SELECT * from t2;
+drop table t1,t2;
+
+#
+# Test incorrect database names
+#
+
+--error 1102
+CREATE DATABASE aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;
+--error 1102
+DROP DATABASE aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;
+--error 1064
+RENAME DATABASE aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa TO a;
+--error 1064
+RENAME DATABASE mysqltest TO aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;
+create database mysqltest;
+--error 1064
+RENAME DATABASE mysqltest TO aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;
+drop database mysqltest;
+--error 1102
+USE aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;
+--error 1102
+SHOW CREATE DATABASE aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;
+
+--disable_query_log
+drop database pbxt;
+--enable_query_log

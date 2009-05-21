@@ -116,7 +116,7 @@ static handler *myisammrg_create_handler(handlerton *hton,
 */
 
 ha_myisammrg::ha_myisammrg(handlerton *hton, TABLE_SHARE *table_arg)
-  :handler(hton, table_arg), file(0)
+  :handler(hton, table_arg), file(0), is_cloned(0)
 {}
 
 
@@ -220,7 +220,7 @@ static int myisammrg_parent_open_callback(void *callback_param,
   TABLE_LIST    *child_l;
   const char    *db;
   const char    *table_name;
-  uint          dirlen;
+  size_t        dirlen;
   char          dir_path[FN_REFLEN];
   DBUG_ENTER("myisammrg_parent_open_callback");
 
@@ -415,7 +415,28 @@ int ha_myisammrg::open(const char *name, int mode __attribute__((unused)),
 
   /* retrieve children table list. */
   my_errno= 0;
-  if (!(file= myrg_parent_open(name, myisammrg_parent_open_callback, this)))
+  if (is_cloned)
+  {
+    /*
+      Open and attaches the MyISAM tables,that are under the MERGE table 
+      parent, on the MyISAM storage engine interface directly within the
+      MERGE engine. The new MyISAM table instances, as well as the MERGE 
+      clone itself, are not visible in the table cache. This is not a 
+      problem because all locking is handled by the original MERGE table
+      from which this is cloned of.
+    */
+    if (!(file= myrg_open(table->s->normalized_path.str, table->db_stat, 
+                                       HA_OPEN_IGNORE_IF_LOCKED)))
+    {
+      DBUG_PRINT("error", ("my_errno %d", my_errno));
+      DBUG_RETURN(my_errno ? my_errno : -1); 
+    }
+
+    file->children_attached= TRUE;
+
+    info(HA_STATUS_NO_LOCK | HA_STATUS_VARIABLE | HA_STATUS_CONST);
+  }
+  else if (!(file= myrg_parent_open(name, myisammrg_parent_open_callback, this)))
   {
     DBUG_PRINT("error", ("my_errno %d", my_errno));
     DBUG_RETURN(my_errno ? my_errno : -1);
@@ -423,6 +444,55 @@ int ha_myisammrg::open(const char *name, int mode __attribute__((unused)),
   DBUG_PRINT("myrg", ("MYRG_INFO: 0x%lx", (long) file));
   DBUG_RETURN(0);
 }
+
+/**
+   Returns a cloned instance of the current handler.
+
+   @return A cloned handler instance.
+ */
+handler *ha_myisammrg::clone(MEM_ROOT *mem_root)
+{
+  MYRG_TABLE    *u_table,*newu_table;
+  ha_myisammrg *new_handler= 
+    (ha_myisammrg*) get_new_handler(table->s, mem_root, table->s->db_type());
+  if (!new_handler)
+    return NULL;
+  
+  /* Inform ha_myisammrg::open() that it is a cloned handler */
+  new_handler->is_cloned= TRUE;
+  /*
+    Allocate handler->ref here because otherwise ha_open will allocate it
+    on this->table->mem_root and we will not be able to reclaim that memory 
+    when the clone handler object is destroyed.
+  */
+  if (!(new_handler->ref= (uchar*) alloc_root(mem_root, ALIGN_SIZE(ref_length)*2)))
+  {
+    delete new_handler;
+    return NULL;
+  }
+
+  if (new_handler->ha_open(table, table->s->normalized_path.str, table->db_stat,
+                            HA_OPEN_IGNORE_IF_LOCKED))
+  {
+    delete new_handler;
+    return NULL;
+  }
+ 
+  /*
+    Iterate through the original child tables and
+    copy the state into the cloned child tables.
+    We need to do this because all the child tables
+    can be involved in delete.
+  */
+  newu_table= new_handler->file->open_tables;
+  for (u_table= file->open_tables; u_table < file->end_table; u_table++)
+  {
+    newu_table->table->state= u_table->table->state;
+    newu_table++;
+  }
+
+  return new_handler;
+ }
 
 
 /**
@@ -615,9 +685,10 @@ int ha_myisammrg::close(void)
   DBUG_ENTER("ha_myisammrg::close");
   /*
     Children must not be attached here. Unless the MERGE table has no
-    children. In this case children_attached is always true.
+    children or the handler instance has been cloned. In these cases 
+    children_attached is always true. 
   */
-  DBUG_ASSERT(!this->file->children_attached || !this->file->tables);
+  DBUG_ASSERT(!this->file->children_attached || !this->file->tables || this->is_cloned);
   rc= myrg_close(file);
   file= 0;
   DBUG_RETURN(rc);
@@ -803,6 +874,16 @@ int ha_myisammrg::info(uint flag)
     table->s->crashed= 1;
 #endif
   stats.data_file_length= mrg_info.data_file_length;
+  if (mrg_info.errkey >= (int) table_share->keys)
+  {
+    /*
+     If value of errkey is higher than the number of keys
+     on the table set errkey to MAX_KEY. This will be
+     treated as unknown key case and error message generator
+     won't try to locate key causing segmentation fault.
+    */
+    mrg_info.errkey= MAX_KEY;
+  }
   errkey= mrg_info.errkey;
   table->s->keys_in_use.set_prefix(table->s->keys);
   stats.mean_rec_length= mrg_info.reclength;
@@ -837,7 +918,7 @@ int ha_myisammrg::info(uint flag)
   {
     if (table->s->key_parts && mrg_info.rec_per_key)
     {
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
       /*
         valgrind may be unhappy about it, because optimizer may access values
         between file->keys and table->key_parts, that will be uninitialized.
@@ -964,7 +1045,7 @@ THR_LOCK_DATA **ha_myisammrg::store_lock(THD *thd,
 static void split_file_name(const char *file_name,
 			    LEX_STRING *db, LEX_STRING *name)
 {
-  uint dir_length, prefix_length;
+  size_t dir_length, prefix_length;
   char buff[FN_REFLEN];
 
   db->length= 0;
@@ -1037,7 +1118,7 @@ int ha_myisammrg::create(const char *name, register TABLE *form,
   const char **table_names, **pos;
   TABLE_LIST *tables= (TABLE_LIST*) create_info->merge_list.first;
   THD *thd= current_thd;
-  uint dirlgt= dirname_length(name);
+  size_t dirlgt= dirname_length(name);
   DBUG_ENTER("ha_myisammrg::create");
 
   /* Allocate a table_names array in thread mem_root. */
@@ -1096,7 +1177,7 @@ int ha_myisammrg::create(const char *name, register TABLE *form,
 void ha_myisammrg::append_create_info(String *packet)
 {
   const char *current_db;
-  uint db_length;
+  size_t db_length;
   THD *thd= current_thd;
   MYRG_TABLE *open_table, *first;
 

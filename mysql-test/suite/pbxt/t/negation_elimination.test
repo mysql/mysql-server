@@ -1,0 +1,78 @@
+#
+# Test negation elimination
+#
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+create table t1 (a int, key (a));
+insert into t1 values (NULL), (0), (1), (2), (3), (4), (5), (6), (7), (8), (9),
+(10), (11), (12), (13), (14), (15), (16), (17), (18), (19);
+
+explain select * from t1 where not(not(a));
+select * from t1 where not(not(a));
+explain select * from t1 where not(not(not(a > 10)));
+select * from t1 where not(not(not(a > 10)));
+explain select * from t1 where not(not(not(a < 5) and not(a > 10)));
+select * from t1 where not(not(not(a < 5) and not(a > 10)));
+explain select * from t1 where not(a = 10);
+select * from t1 where not(a = 10);
+explain select * from t1 where not(a != 10);
+select * from t1 where not(a != 1);
+explain select * from t1 where not(a < 10);
+select * from t1 where not(a < 10);
+explain select * from t1 where not(a >= 10);
+select * from t1 where not(a >= 10);
+explain select * from t1 where not(a > 10);
+select * from t1 where not(a > 10);
+explain select * from t1 where not(a <= 10);
+select * from t1 where not(a <= 10);
+explain select * from t1 where not(a is null);
+select * from t1 where not(a is null);
+explain select * from t1 where not(a is not null);
+select * from t1 where not(a is not null);
+explain select * from t1 where not(a < 5 or a > 15);
+select * from t1 where not(a < 5 or a > 15);
+explain select * from t1 where not(a < 15 and a > 5);
+select * from t1 where not(a < 15 and a > 5);
+
+explain select * from t1 where a = 2 or not(a < 10);
+select * from t1 where a = 2 or not(a < 10);
+explain select * from t1 where a > 5 and not(a > 10);
+select * from t1 where a > 5 and not(a > 10);
+explain select * from t1 where a > 5 xor a < 10;
+select * from t1 where a > 5 xor a < 10;
+
+explain select * from t1 where a = 2 or not(a < 5 or a > 15);
+select * from t1 where a = 2 or not(a < 5 or a > 15);
+explain select * from t1 where a = 7 or not(a < 15 and a > 5);
+select * from t1 where a = 7 or not(a < 15 and a > 5);
+
+explain select * from t1 where NULL or not(a < 15 and a > 5);
+select * from t1 where NULL or not(a < 15 and a > 5);
+explain select * from t1 where not(NULL and a > 5);
+select * from t1 where not(NULL and a > 5);
+explain select * from t1 where not(NULL or a);
+select * from t1 where not(NULL or a);
+explain select * from t1 where not(NULL and a);
+select * from t1 where not(NULL and a);
+
+explain select * from t1 where not((a < 5 or a < 10) and (not(a > 16) or a > 17));
+select * from t1 where not((a < 5 or a < 10) and (not(a > 16) or a > 17));
+explain select * from t1 where not((a < 5 and a < 10) and (not(a > 16) or a > 17));
+select * from t1 where not((a < 5 and a < 10) and (not(a > 16) or a > 17));
+explain select * from t1 where ((a between 5 and 15) and (not(a like 10)));
+select * from t1 where ((a between 5 and 15) and (not(a like 10)));
+
+delete from t1 where a > 3;
+select a, not(not(a)) from t1;
+analyze table t1; # PBXT: Required for consistent explain result
+explain extended select a, not(not(a)), not(a <= 2 and not(a)), not(a not like "1"), not (a not in (1,2)), not(a != 2) from t1 where not(not(a)) having not(not(a));
+
+drop table t1;
+
+--disable_query_log
+drop database pbxt;
+--enable_query_log
+# End of 4.1 tests

@@ -1,0 +1,24 @@
+set GLOBAL query_cache_size=1355776;
+drop database if exists MySQLtesT;
+create database MySQLtesT;
+create table MySQLtesT.t1 (a int);
+select * from MySQLtesT.t1;
+a
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	1
+drop database mysqltest;
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	0
+use MySQL;
+select * from db;
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	0
+use test;
+select * from MySQL.db;
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	0
+set GLOBAL query_cache_size=0;

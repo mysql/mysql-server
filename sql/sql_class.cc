@@ -543,6 +543,7 @@ THD::THD()
    Open_tables_state(refresh_version), rli_fake(0),
    lock_id(&main_lock_id),
    user_time(0), in_sub_stmt(0),
+   sql_log_bin_toplevel(false),
    binlog_table_maps(0), binlog_flags(0UL),
    table_map_for_update(0),
    arg_of_last_insert_id_function(FALSE),
@@ -605,6 +606,7 @@ THD::THD()
   one_shot_set= 0;
   file_id = 0;
   query_id= 0;
+  query_name_consts= 0;
   warn_id= 0;
   db_charset= global_system_variables.collation_database;
   bzero(ha_data, sizeof(ha_data));
@@ -798,6 +800,7 @@ void THD::init(void)
   update_charset();
   reset_current_stmt_binlog_row_based();
   bzero((char *) &status_var, sizeof(status_var));
+  sql_log_bin_toplevel= options & OPTION_BIN_LOG;
 }
 
 
@@ -1642,6 +1645,11 @@ bool select_send::send_data(List<Item> &items)
       my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
       break;
     }
+    /*
+      Reset buffer to its original state, as it may have been altered in
+      Item::send().
+    */
+    buffer.set(buff, sizeof(buff), &my_charset_bin);
   }
   thd->sent_row_count++;
   if (thd->is_error())
@@ -2351,7 +2359,7 @@ void Query_arena::set_query_arena(Query_arena *set)
 
 void Query_arena::cleanup_stmt()
 {
-  DBUG_ASSERT("Query_arena::cleanup_stmt()" == "not implemented");
+  DBUG_ASSERT(! "Query_arena::cleanup_stmt() not implemented");
 }
 
 /*
@@ -2852,6 +2860,14 @@ Security_context::restore_security_context(THD *thd,
     thd->security_ctx= backup;
 }
 #endif
+
+
+bool Security_context::user_matches(Security_context *them)
+{
+  return ((user != NULL) && (them->user != NULL) &&
+          !strcmp(user, them->user));
+}
+
 
 /****************************************************************************
   Handling of open and locked tables states.
@@ -3480,7 +3496,7 @@ int THD::binlog_update_row(TABLE* table, bool is_trans,
     Don't print debug messages when running valgrind since they can
     trigger false warnings.
    */
-#ifndef HAVE_purify
+#ifndef HAVE_valgrind
   DBUG_DUMP("before_record", before_record, table->s->reclength);
   DBUG_DUMP("after_record",  after_record, table->s->reclength);
   DBUG_DUMP("before_row",    before_row, before_size);
@@ -3648,19 +3664,17 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
     If we are in statement mode and trying to log an unsafe statement,
     we should print a warning.
   */
-  if (lex->is_stmt_unsafe() &&
+  if (sql_log_bin_toplevel && lex->is_stmt_unsafe() &&
       variables.binlog_format == BINLOG_FORMAT_STMT)
   {
-    DBUG_ASSERT(this->query != NULL);
     push_warning(this, MYSQL_ERROR::WARN_LEVEL_WARN,
                  ER_BINLOG_UNSAFE_STATEMENT,
                  ER(ER_BINLOG_UNSAFE_STATEMENT));
     if (!(binlog_flags & BINLOG_FLAG_UNSAFE_STMT_PRINTED))
     {
-      char warn_buf[MYSQL_ERRMSG_SIZE];
-      my_snprintf(warn_buf, MYSQL_ERRMSG_SIZE, "%s Statement: %s",
-                  ER(ER_BINLOG_UNSAFE_STATEMENT), this->query);
-      sql_print_warning(warn_buf);
+      sql_print_warning("%s Statement: %.*s",
+                        ER(ER_BINLOG_UNSAFE_STATEMENT),
+                        MYSQL_ERRMSG_SIZE, query_arg);
       binlog_flags|= BINLOG_FLAG_UNSAFE_STMT_PRINTED;
     }
   }

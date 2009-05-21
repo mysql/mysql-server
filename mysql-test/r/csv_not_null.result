@@ -46,8 +46,9 @@ SELECT * FROM t1;
 a	b
 0	new_value
 UPDATE t1 set b = NULL where b = 'new_value';
-ERROR 23000: Column 'b' cannot be null
+Warnings:
+Warning	1048	Column 'b' cannot be null
 SELECT * FROM t1;
 a	b
-0	new_value
+0	
 DROP TABLE t1;

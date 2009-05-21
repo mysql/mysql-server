@@ -25,17 +25,17 @@ let $1 = 100;
 while ($1)
  {
   let $2 = 5;
-  eval insert into t1(t) values ('$1'); 
+  eval insert into t1(t) values ('$1');
   while ($2)
    {
-     eval insert into t2(id2,t) values ($1,'$2'); 
+     eval insert into t2(id2,t) values ($1,'$2');
      let $3 = 10;
      while ($3)
      {
-       eval insert into t3(id3,t) values ($1,'$2'); 
+       eval insert into t3(id3,t) values ($1,'$2');
        dec $3;
      }
-     dec $2; 
+     dec $2;
    }
   dec $1;
  }
@@ -80,11 +80,11 @@ let $1 = 1000;
 while ($1)
  {
   let $2 = 5;
-  eval insert into t1 values ($1,'aaaaaaaaaaaaaaaaaaaa'); 
+  eval insert into t1 values ($1,'aaaaaaaaaaaaaaaaaaaa');
   while ($2)
    {
-     eval insert into t2(id2,t) values ($1,'bbbbbbbbbbbbbbbbb'); 
-     dec $2; 
+     eval insert into t2(id2,t) values ($1,'bbbbbbbbbbbbbbbbb');
+     dec $2;
    }
   dec $1;
  }
@@ -318,7 +318,7 @@ update t2, t1 set t2.field=t1.field
 
 delete t1, t2 from t2 inner join t1 on t1.id1=t2.id2
   where 0=1;
-delete t1, t2 from t2,t1 
+delete t1, t2 from t2,t1
   where t1.id1=t2.id2 and 0=1;
 
 drop table t1,t2;
@@ -352,7 +352,7 @@ create table `t2` (`c2_id` int(10) unsigned NULL auto_increment, `c2_p_id` int(1
 insert into t1 values (0,'A01-Comp',1);
 insert into t1 values (0,'B01-Comp',1);
 insert into t2 values (0,1,'A Note',1);
-update t1 left join t2 on p_id = c2_p_id set c2_note = 'asdf-1' where p_id = 2; 
+update t1 left join t2 on p_id = c2_p_id set c2_note = 'asdf-1' where p_id = 2;
 select * from t1;
 select * from t2;
 drop table t1, t2;
@@ -380,6 +380,9 @@ revoke all privileges on mysqltest.t1 from mysqltest_1@localhost;
 revoke all privileges on mysqltest.* from mysqltest_1@localhost;
 delete from mysql.user where user=_binary'mysqltest_1';
 drop database mysqltest;
+connection default;
+disconnect user1;
+disconnect root;
 
 #
 # multi delete wrong table check
@@ -394,7 +397,7 @@ drop table t1, t2, t3;
 #
 # multi* unique updating table check
 #
-create table t1 (col1 int); 
+create table t1 (col1 int);
 create table t2 (col1 int);
 -- error ER_UPDATE_TABLE_USED
 update t1,t2 set t1.col1 = (select max(col1) from t1) where t1.col1 = t2.col1;
@@ -402,16 +405,16 @@ update t1,t2 set t1.col1 = (select max(col1) from t1) where t1.col1 = t2.col1;
 delete t1 from t1,t2 where t1.col1 < (select max(col1) from t1) and t1.col1 = t2.col1;
 drop table t1,t2;
 
-# Test for BUG#5837 - delete with outer join and const tables
+# Test for Bug#5837 delete with outer join and const tables
 --disable_warnings
 create table t1 (
-  aclid bigint not null primary key, 
-  status tinyint(1) not null 
+  aclid bigint not null primary key,
+  status tinyint(1) not null
 ) engine = innodb;
 
 create table t2 (
-  refid bigint not null primary key, 
-  aclid bigint, index idx_acl(aclid) 
+  refid bigint not null primary key,
+  aclid bigint, index idx_acl(aclid)
 ) engine = innodb;
 --enable_warnings
 insert into t2 values(1,null);
@@ -419,7 +422,7 @@ delete t2, t1 from t2 left join t1 on (t2.aclid=t1.aclid) where t2.refid='1';
 drop table t1, t2;
 
 #
-# Bug#19225: unchecked error leads to server crash
+# Bug#19225 unchecked error leads to server crash
 #
 create table t1(a int);
 create table t2(a int);
@@ -429,7 +432,7 @@ drop table t1, t2;
 # End of 4.1 tests
 
 #
-# Test for bug #1980.
+# Test for Bug#1980.
 #
 --disable_warnings
 create table t1 ( c char(8) not null ) engine=innodb;
@@ -490,11 +493,22 @@ send alter table t1 add column c int default 100 after a;
 
 connect (updater,localhost,root,,test);
 connection updater;
-sleep 2;
+# Wait till "alter table t1 ..." of session changer is in work.
+# = There is one session is in state "Locked".
+let $wait_condition= select count(*)= 1 from information_schema.processlist
+                     where state= 'Locked';
+--source include/wait_condition.inc
 send update t1, v1 set t1.b=t1.a+t1.b+v1.b where t1.a=v1.a;
 
 connection locker;
-sleep 2;
+# Wait till
+# - "alter table t1 ..." of session changer and
+# - "update t1, v1 ..." of session updater
+# are in work.
+# = There are two session is in state "Locked".
+let $wait_condition= select count(*)= 2 from information_schema.processlist
+                     where state= 'Locked';
+--source include/wait_condition.inc
 unlock tables;
 
 connection changer;
@@ -506,6 +520,11 @@ select * from t1;
 select * from t2;
 drop view v1;
 drop table t1, t2;
+
+connection default;
+disconnect locker;
+disconnect changer;
+disconnect updater;
 
 #
 # Test multi updates and deletes using primary key and without.
@@ -538,8 +557,9 @@ select * from t2 order by id;
 drop table t1, t2;
 
 #
-# Bug#27716  	multi-update did partially and has not binlogged
+# Bug#27716 multi-update did partially and has not binlogged
 #
+
 CREATE TABLE `t1` (
   `a` int(11) NOT NULL auto_increment,
   `b` int(11) default NULL,
@@ -561,29 +581,29 @@ set @@session.binlog_format= mixed;
 insert into t1 values (1,1),(2,2);
 insert into t2 values (1,1),(4,4);
 reset master;
-error ER_DUP_ENTRY;
+--error ER_DUP_ENTRY
 UPDATE t2,t1 SET t2.a=t1.a+2;
 # check
 select * from t2 /* must be (3,1), (4,4) */;
 show master status /* there must be the UPDATE query event */;
 
-# B. testing multi_update::send_error() ineffective update 
-# (as there is a policy described at mysql_update() still go to binlog) 
+# B. testing multi_update::send_error() ineffective update
+# (as there is a policy described at mysql_update() still go to binlog)
 delete from t1;
 delete from t2;
 insert into t1 values (1,2),(3,4),(4,4);
 insert into t2 values (1,2),(3,4),(4,4);
 reset master;
-error ER_DUP_ENTRY;
+--error ER_DUP_ENTRY
 UPDATE t2,t1  SET t2.a=t2.b where t2.a=t1.a;
 show master status /* there must be the UPDATE query event */;
 
-# cleanup bug#27716
+# cleanup
 drop table t1, t2;
 set @@session.binlog_format= @sav_binlog_format;
 
 #
-# Bug #29136  	erred multi-delete on trans table does not rollback 
+# Bug#29136 erred multi-delete on trans table does not rollback
 #
 
 # prepare
@@ -610,7 +630,7 @@ delete t3.* from t2,t3 where t2.a=t3.a;
 select count(*) from t1 /* must be 1 */;
 select count(*) from t3 /* must be 1 */;
 
-# cleanup bug#29136
+# cleanup
 drop table t1, t2, t3;
 
 #

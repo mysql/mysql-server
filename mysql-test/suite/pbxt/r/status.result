@@ -1,0 +1,121 @@
+flush status;
+show status like 'Table_lock%';
+Variable_name	Value
+Table_locks_immediate	1
+Table_locks_waited	0
+select * from information_schema.session_status where variable_name like 'Table_lock%';
+VARIABLE_NAME	VARIABLE_VALUE
+TABLE_LOCKS_IMMEDIATE	2
+TABLE_LOCKS_WAITED	0
+SET SQL_LOG_BIN=0;
+drop table if exists t1;
+create table t1(n int) engine=myisam;
+insert into t1 values(1);
+select * from t1;
+n
+1
+lock tables t1 read;
+unlock tables;
+lock tables t1 read;
+update t1 set n = 3;
+unlock tables;
+show status like 'Table_lock%';
+Variable_name	Value
+Table_locks_immediate	17
+Table_locks_waited	1
+select * from information_schema.session_status where variable_name like 'Table_lock%';
+VARIABLE_NAME	VARIABLE_VALUE
+TABLE_LOCKS_IMMEDIATE	18
+TABLE_LOCKS_WAITED	1
+drop table t1;
+select 1;
+1
+1
+show status like 'last_query_cost';
+Variable_name	Value
+Last_query_cost	0.000000
+create table t1 (a int);
+insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+select * from t1 where a=6;
+a
+6
+6
+6
+6
+6
+show status like 'last_query_cost';
+Variable_name	Value
+Last_query_cost	13.314789
+show status like 'last_query_cost';
+Variable_name	Value
+Last_query_cost	13.314789
+select 1;
+1
+1
+show status like 'last_query_cost';
+Variable_name	Value
+Last_query_cost	0.000000
+drop table t1;
+FLUSH STATUS;
+SHOW STATUS LIKE 'max_used_connections';
+Variable_name	Value
+Max_used_connections	1
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS WHERE VARIABLE_NAME LIKE 'max_used_connections';
+VARIABLE_NAME	VARIABLE_VALUE
+MAX_USED_CONNECTIONS	1
+SET @save_thread_cache_size=@@thread_cache_size;
+SET GLOBAL thread_cache_size=3;
+SHOW STATUS LIKE 'max_used_connections';
+Variable_name	Value
+Max_used_connections	3
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS WHERE VARIABLE_NAME LIKE 'max_used_connections';
+VARIABLE_NAME	VARIABLE_VALUE
+MAX_USED_CONNECTIONS	3
+FLUSH STATUS;
+SHOW STATUS LIKE 'max_used_connections';
+Variable_name	Value
+Max_used_connections	2
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS WHERE VARIABLE_NAME LIKE 'max_used_connections';
+VARIABLE_NAME	VARIABLE_VALUE
+MAX_USED_CONNECTIONS	2
+SHOW STATUS LIKE 'max_used_connections';
+Variable_name	Value
+Max_used_connections	3
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS WHERE VARIABLE_NAME LIKE 'max_used_connections';
+VARIABLE_NAME	VARIABLE_VALUE
+MAX_USED_CONNECTIONS	3
+SHOW STATUS LIKE 'max_used_connections';
+Variable_name	Value
+Max_used_connections	4
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS WHERE VARIABLE_NAME LIKE 'max_used_connections';
+VARIABLE_NAME	VARIABLE_VALUE
+MAX_USED_CONNECTIONS	4
+SET GLOBAL thread_cache_size=@save_thread_cache_size;
+show status like 'com_show_status';
+Variable_name	Value
+Com_show_status	3
+show status like 'hand%write%';
+Variable_name	Value
+Handler_write	5
+show status like '%tmp%';
+Variable_name	Value
+Created_tmp_disk_tables	0
+Created_tmp_files	0
+Created_tmp_tables	0
+show status like 'hand%write%';
+Variable_name	Value
+Handler_write	7
+show status like '%tmp%';
+Variable_name	Value
+Created_tmp_disk_tables	0
+Created_tmp_files	0
+Created_tmp_tables	0
+show status like 'com_show_status';
+Variable_name	Value
+Com_show_status	8
+rnd_diff	tmp_table_diff
+20	8

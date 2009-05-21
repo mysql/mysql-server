@@ -1440,7 +1440,8 @@ void close_temporary_tables(THD *thd)
   if (!thd->temporary_tables)
     return;
 
-  if (!mysql_bin_log.is_open() || thd->current_stmt_binlog_row_based)
+  if (!mysql_bin_log.is_open() || 
+      (thd->current_stmt_binlog_row_based && thd->variables.binlog_format == BINLOG_FORMAT_ROW))
   {
     TABLE *tmp_next;
     for (table= thd->temporary_tables; table; table= tmp_next)
@@ -3000,7 +3001,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   table->pos_in_table_list= table_list;
   table_list->updatable= 1; // It is not derived table nor non-updatable VIEW
   table->clear_column_bitmaps();
-#if !defined(DBUG_OFF) && !defined(HAVE_purify)
+#if !defined(DBUG_OFF) && !defined(HAVE_valgrind)
   /*
     Fill record with random values to find bugs where we access fields
     without first reading them.
@@ -5121,8 +5122,15 @@ int decide_logging_format(THD *thd, TABLE_LIST *tables)
 {
   if (mysql_bin_log.is_open() && (thd->options & OPTION_BIN_LOG))
   {
-    handler::Table_flags flags_some_set= handler::Table_flags();
-    handler::Table_flags flags_all_set= ~handler::Table_flags();
+    /*
+      Compute the starting vectors for the computations by creating a
+      set with all the capabilities bits set and one with no
+      capabilities bits set.
+     */
+    handler::Table_flags flags_some_set= 0;
+    handler::Table_flags flags_all_set=
+      HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE;
+
     my_bool multi_engine= FALSE;
     void* prev_ht= NULL;
     for (TABLE_LIST *table= tables; table; table= table->next_global)
@@ -7363,7 +7371,7 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
     /* make * substituting permanent */
     SELECT_LEX *select_lex= thd->lex->current_select;
     select_lex->with_wild= 0;
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
     if (&select_lex->item_list != &fields)      // Avoid warning
 #endif
       select_lex->item_list= fields;

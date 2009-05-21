@@ -136,7 +136,7 @@ MARIA_PAGECACHE_READS	274
 load index into cache t3, t2 key (primary,b) ;
 Table	Op	Msg_type	Msg_text
 test.t3	preload_keys	Error	Table 'test.t3' doesn't exist
-test.t3	preload_keys	error	Corrupt
+test.t3	preload_keys	status	Operation failed
 test.t2	preload_keys	status	OK
 select g.variable_name,g.variable_value-i.variable_value from information_schema.global_status as g,initial as i where g.variable_name like "Maria_pagecache_read%" and g.variable_name=i.variable_name order by g.variable_name desc;
 variable_name	g.variable_value-i.variable_value
@@ -149,7 +149,7 @@ MARIA_PAGECACHE_READS	317
 load index into cache t3 key (b), t2 key (c) ;
 Table	Op	Msg_type	Msg_text
 test.t3	preload_keys	Error	Table 'test.t3' doesn't exist
-test.t3	preload_keys	error	Corrupt
+test.t3	preload_keys	status	Operation failed
 test.t2	preload_keys	Error	Key 'c' doesn't exist in table 't2'
 test.t2	preload_keys	status	Operation failed
 select g.variable_name,g.variable_value-i.variable_value from information_schema.global_status as g,initial as i where g.variable_name like "Maria_pagecache_read%" and g.variable_name=i.variable_name order by g.variable_name desc;

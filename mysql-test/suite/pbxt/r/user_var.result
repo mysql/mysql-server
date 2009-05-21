@@ -1,0 +1,319 @@
+drop table if exists t1,t2;
+set @a := foo;
+ERROR 42S22: Unknown column 'foo' in 'field list'
+set @a := connection_id() + 3;
+select @a - connection_id();
+@a - connection_id()
+3
+set @b := 1;
+select @b;
+@b
+1
+CREATE TABLE t1 ( i int not null, v int not null,index (i));
+insert into t1 values (1,1),(1,3),(2,1);
+create table t2 (i int not null, unique (i));
+insert into t2 select distinct i from t1;
+select * from t2;
+i
+1
+2
+select distinct t2.i,@vv1:=if(sv1.i,1,0),@vv2:=if(sv2.i,1,0),@vv3:=if(sv3.i,1,0), @vv1+@vv2+@vv3 from t2 left join t1 as sv1 on sv1.i=t2.i and sv1.v=1 left join t1 as sv2 on sv2.i=t2.i and sv2.v=2 left join t1 as sv3 on sv3.i=t2.i and sv3.v=3;
+i	@vv1:=if(sv1.i,1,0)	@vv2:=if(sv2.i,1,0)	@vv3:=if(sv3.i,1,0)	@vv1+@vv2+@vv3
+1	1	0	1	2
+2	1	0	0	1
+explain select * from t1 where i=@vv1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	i	i	4	const	1	
+select @vv1,i,v from t1 where i=@vv1;
+@vv1	i	v
+1	1	1
+1	1	3
+explain select * from t1 where @vv1:=@vv1+1 and i=@vv1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+explain select @vv1:=i from t1 where i=@vv1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	i	4	NULL	3	Using where; Using index
+explain select * from t1 where i=@vv1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	i	i	4	const	1	
+drop table t1,t2;
+set @a=0,@b=0;
+select @a:=10,   @b:=1,   @a > @b, @a < @b;
+@a:=10	@b:=1	@a > @b	@a < @b
+10	1	1	0
+select @a:="10", @b:="1", @a > @b, @a < @b;
+@a:="10"	@b:="1"	@a > @b	@a < @b
+10	1	1	0
+select @a:=10,   @b:=2,   @a > @b, @a < @b;
+@a:=10	@b:=2	@a > @b	@a < @b
+10	2	0	1
+select @a:="10", @b:="2", @a > @b, @a < @b;
+@a:="10"	@b:="2"	@a > @b	@a < @b
+10	2	1	0
+select @a:=1;
+@a:=1
+1
+select @a, @a:=1;
+@a	@a:=1
+1	1
+create table t1 (id int, d double, c char(10));
+insert into t1 values (1,2.0, "test");
+select @c:=0;
+@c:=0
+0
+update t1 SET id=(@c:=@c+1);
+select @c;
+@c
+1
+select @c:=0;
+@c:=0
+0
+update t1 set id=(@c:=@c+1);
+select @c;
+@c
+1
+select @c:=0;
+@c:=0
+0
+select @c:=@c+1;
+@c:=@c+1
+1
+select @d,(@d:=id),@d from t1;
+@d	(@d:=id)	@d
+NULL	1	1
+select @e,(@e:=d),@e from t1;
+@e	(@e:=d)	@e
+NULL	2	2
+select @f,(@f:=c),@f from t1;
+@f	(@f:=c)	@f
+NULL	test	test
+set @g=1;
+select @g,(@g:=c),@g from t1;
+@g	(@g:=c)	@g
+1	test	0
+select @c, @d, @e, @f;
+@c	@d	@e	@f
+1	1	2	test
+select @d:=id, @e:=id, @f:=id, @g:=@id from t1;
+@d:=id	@e:=id	@f:=id	@g:=@id
+1	1	1	NULL
+select @c, @d, @e, @f, @g;
+@c	@d	@e	@f	@g
+1	1	1	1	NULL
+drop table t1;
+select @a:=10, @b:=2, @a>@b, @a:="10", @b:="2", @a>@b, @a:=10, @b:=2, @a>@b, @a:="10", @b:="2", @a>@b;
+@a:=10	@b:=2	@a>@b	@a:="10"	@b:="2"	@a>@b	@a:=10	@b:=2	@a>@b	@a:="10"	@b:="2"	@a>@b
+10	2	1	10	2	1	10	2	1	10	2	1
+create table t1 (i int not null);
+insert t1 values (1),(2),(2),(3),(3),(3);
+select @a:=0;
+@a:=0
+0
+select @a, @a:=@a+count(*), count(*), @a from t1 group by i;
+@a	@a:=@a+count(*)	count(*)	@a
+0	1	1	0
+0	2	2	0
+0	3	3	0
+select @a:=0;
+@a:=0
+0
+select @a+0, @a:=@a+0+count(*), count(*), @a+0 from t1 group by i;
+@a+0	@a:=@a+0+count(*)	count(*)	@a+0
+0	1	1	0
+0	2	2	0
+0	3	3	0
+set @a=0;
+select @a,@a:="hello",@a,@a:=3,@a,@a:="hello again" from t1 group by i;
+@a	@a:="hello"	@a	@a:=3	@a	@a:="hello again"
+0	hello	0	3	0	hello again
+0	hello	0	3	0	hello again
+0	hello	0	3	0	hello again
+select @a,@a:="hello",@a,@a:=3,@a,@a:="hello again" from t1 group by i;
+@a	@a:="hello"	@a	@a:=3	@a	@a:="hello again"
+hello again	hello	hello again	3	hello again	hello again
+hello again	hello	hello again	3	hello again	hello again
+hello again	hello	hello again	3	hello again	hello again
+drop table t1;
+set @a=_latin2'test';
+select charset(@a),collation(@a),coercibility(@a);
+charset(@a)	collation(@a)	coercibility(@a)
+latin2	latin2_general_ci	2
+select @a=_latin2'TEST';
+@a=_latin2'TEST'
+1
+select @a=_latin2'TEST' collate latin2_bin;
+@a=_latin2'TEST' collate latin2_bin
+0
+set @a=_latin2'test' collate latin2_general_ci;
+select charset(@a),collation(@a),coercibility(@a);
+charset(@a)	collation(@a)	coercibility(@a)
+latin2	latin2_general_ci	2
+select @a=_latin2'TEST';
+@a=_latin2'TEST'
+1
+select @a=_latin2'TEST' collate latin2_bin;
+@a=_latin2'TEST' collate latin2_bin
+0
+select charset(@a:=_latin2'test');
+charset(@a:=_latin2'test')
+latin2
+select collation(@a:=_latin2'test');
+collation(@a:=_latin2'test')
+latin2_general_ci
+select coercibility(@a:=_latin2'test');
+coercibility(@a:=_latin2'test')
+2
+select collation(@a:=_latin2'test' collate latin2_bin);
+collation(@a:=_latin2'test' collate latin2_bin)
+latin2_bin
+select coercibility(@a:=_latin2'test' collate latin2_bin);
+coercibility(@a:=_latin2'test' collate latin2_bin)
+2
+select (@a:=_latin2'test' collate latin2_bin) = _latin2'TEST';
+(@a:=_latin2'test' collate latin2_bin) = _latin2'TEST'
+0
+select charset(@a),collation(@a),coercibility(@a);
+charset(@a)	collation(@a)	coercibility(@a)
+latin2	latin2_bin	2
+select (@a:=_latin2'test' collate latin2_bin) = _latin2'TEST' collate latin2_general_ci;
+(@a:=_latin2'test' collate latin2_bin) = _latin2'TEST' collate latin2_general_ci
+1
+set @var= NULL ;
+select FIELD( @var,'1it','Hit') as my_column;
+my_column
+0
+select @v, coercibility(@v);
+@v	coercibility(@v)
+NULL	2
+set @v1=null, @v2=1, @v3=1.1, @v4=now();
+select coercibility(@v1),coercibility(@v2),coercibility(@v3),coercibility(@v4);
+coercibility(@v1)	coercibility(@v2)	coercibility(@v3)	coercibility(@v4)
+2	2	2	2
+set session @honk=99;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '@honk=99' at line 1
+set one_shot @honk=99;
+ERROR HY000: The 'SET ONE_SHOT' syntax is reserved for purposes internal to the MySQL server
+select @@local.max_allowed_packet;
+@@local.max_allowed_packet
+#
+select @@session.max_allowed_packet;
+@@session.max_allowed_packet
+#
+select @@global.max_allowed_packet;
+@@global.max_allowed_packet
+#
+select @@max_allowed_packet;
+@@max_allowed_packet
+#
+select @@Max_Allowed_Packet;
+@@Max_Allowed_Packet
+#
+select @@version;
+@@version
+#
+select @@global.version;
+@@global.version
+#
+End of 4.1 tests
+set @first_var= NULL;
+create table t1 select @first_var;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `@first_var` longblob
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+drop table t1;
+set @first_var= cast(NULL as signed integer);
+create table t1 select @first_var;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `@first_var` bigint(20) DEFAULT NULL
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+drop table t1;
+set @first_var= NULL;
+create table t1 select @first_var;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `@first_var` bigint(20) DEFAULT NULL
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+drop table t1;
+set @first_var= concat(NULL);
+create table t1 select @first_var;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `@first_var` longblob
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+drop table t1;
+set @first_var=1;
+set @first_var= cast(NULL as CHAR);
+create table t1 select @first_var;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `@first_var` longtext
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+drop table t1;
+set @a=18446744071710965857;
+select @a;
+@a
+18446744071710965857
+CREATE TABLE `bigfailure` (
+`afield` BIGINT UNSIGNED NOT NULL
+);
+INSERT INTO `bigfailure` VALUES (18446744071710965857);
+SELECT * FROM bigfailure;
+afield
+18446744071710965857
+select * from (SELECT afield FROM bigfailure) as b;
+afield
+18446744071710965857
+select * from bigfailure where afield = (SELECT afield FROM bigfailure);
+afield
+18446744071710965857
+select * from bigfailure where afield = 18446744071710965857;
+afield
+18446744071710965857
+select * from bigfailure where afield = 18446744071710965856+1;
+afield
+18446744071710965857
+SET @a := (SELECT afield FROM bigfailure);
+SELECT @a;
+@a
+18446744071710965857
+SET @a := (select afield from (SELECT afield FROM bigfailure) as b);
+SELECT @a;
+@a
+18446744071710965857
+SET @a := (select * from bigfailure where afield = (SELECT afield FROM bigfailure));
+SELECT @a;
+@a
+18446744071710965857
+drop table bigfailure;
+create table t1(f1 int, f2 int);
+insert into t1 values (1,2),(2,3),(3,1);
+select @var:=f2 from t1 group by f1 order by f2 desc limit 1;
+@var:=f2
+3
+select @var;
+@var
+3
+create table t2 as select @var:=f2 from t1 group by f1 order by f2 desc limit 1;
+select * from t2;
+@var:=f2
+3
+select @var;
+@var
+3
+drop table t1,t2;
+insert into city 'blah';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''blah'' at line 1
+SHOW COUNT(*) WARNINGS;
+@@session.warning_count
+1
+SHOW COUNT(*) ERRORS;
+@@session.error_count
+1

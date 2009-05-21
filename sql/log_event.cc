@@ -53,6 +53,8 @@
 
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+static int rows_event_stmt_cleanup(Relay_log_info const *rli, THD* thd);
+
 static const char *HA_ERR(int i)
 {
   switch (i) {
@@ -352,7 +354,7 @@ static char *slave_load_file_stem(char *buf, uint file_id,
                                   int event_server_id, const char *ext)
 {
   char *res;
-  fn_format(buf,"SQL_LOAD-",slave_load_tmpdir, "", MY_UNPACK_FILENAME);
+  fn_format(buf,PREFIX_SQL_LOAD,slave_load_tmpdir, "", MY_UNPACK_FILENAME);
   to_unix_path(buf);
 
   buf = strend(buf);
@@ -380,7 +382,7 @@ static void cleanup_load_tmpdir()
   uint i;
   char fname[FN_REFLEN], prefbuf[31], *p;
 
-  if (!(dirp=my_dir(slave_load_tmpdir,MYF(MY_WME))))
+  if (!(dirp=my_dir(slave_load_tmpdir,MYF(0))))
     return;
 
   /* 
@@ -391,7 +393,7 @@ static void cleanup_load_tmpdir()
      we cannot meet Start_log event in the middle of events from one 
      LOAD DATA.
   */
-  p= strmake(prefbuf, STRING_WITH_LEN("SQL_LOAD-"));
+  p= strmake(prefbuf, STRING_WITH_LEN(PREFIX_SQL_LOAD));
   p= int10_to_str(::server_id, p, 10);
   *(p++)= '-';
   *p= 0;
@@ -1255,7 +1257,7 @@ void Log_event::print_header(IO_CACHE* file,
 
   my_b_printf(file, "#");
   print_timestamp(file);
-  my_b_printf(file, " server id %d  end_log_pos %s ", server_id,
+  my_b_printf(file, " server id %lu  end_log_pos %s ", (ulong) server_id,
               llstr(log_pos,llbuff));
 
   /* mysqlbinlog --hexdump */
@@ -1277,7 +1279,7 @@ void Log_event::print_header(IO_CACHE* file,
       char emit_buf[256];               // Enough for storing one line
       my_b_printf(file, "# Position  Timestamp   Type   Master ID        "
                   "Size      Master Pos    Flags \n");
-      int const bytes_written=
+      size_t const bytes_written=
         my_snprintf(emit_buf, sizeof(emit_buf),
                     "# %8.8lx %02x %02x %02x %02x   %02x   "
                     "%02x %02x %02x %02x   %02x %02x %02x %02x   "
@@ -1286,7 +1288,6 @@ void Log_event::print_header(IO_CACHE* file,
                     ptr[0], ptr[1], ptr[2], ptr[3], ptr[4], ptr[5], ptr[6],
                     ptr[7], ptr[8], ptr[9], ptr[10], ptr[11], ptr[12], ptr[13],
                     ptr[14], ptr[15], ptr[16], ptr[17], ptr[18]);
-      DBUG_ASSERT(bytes_written >= 0);
       DBUG_ASSERT(static_cast<size_t>(bytes_written) < sizeof(emit_buf));
       my_b_write(file, (uchar*) emit_buf, bytes_written);
       ptr += LOG_EVENT_MINIMAL_HEADER_LEN;
@@ -1312,12 +1313,11 @@ void Log_event::print_header(IO_CACHE* file,
           TODO: Rewrite my_b_printf() to support full printf() syntax.
          */
         char emit_buf[256];
-        int const bytes_written=
+        size_t const bytes_written=
           my_snprintf(emit_buf, sizeof(emit_buf),
                       "# %8.8lx %-48.48s |%16s|\n",
                       (unsigned long) (hexdump_from + (i & 0xfffffff0)),
                       hex_string, char_string);
-        DBUG_ASSERT(bytes_written >= 0);
         DBUG_ASSERT(static_cast<size_t>(bytes_written) < sizeof(emit_buf));
 	my_b_write(file, (uchar*) emit_buf, bytes_written);
 	hex_string[0]= 0;
@@ -1332,12 +1332,11 @@ void Log_event::print_header(IO_CACHE* file,
     if (hex_string[0])
     {
       char emit_buf[256];
-      int const bytes_written=
+      size_t const bytes_written=
         my_snprintf(emit_buf, sizeof(emit_buf),
                     "# %8.8lx %-48.48s |%s|\n",
                     (unsigned long) (hexdump_from + (i & 0xfffffff0)),
                     hex_string, char_string);
-      DBUG_ASSERT(bytes_written >= 0);
       DBUG_ASSERT(static_cast<size_t>(bytes_written) < sizeof(emit_buf));
       my_b_write(file, (uchar*) emit_buf, bytes_written);
     }
@@ -1625,7 +1624,7 @@ beg:
 
   case MYSQL_TYPE_DATETIME:
     {
-      uint d, t;
+      size_t d, t;
       uint64 i64= uint8korr(ptr); /* YYYYMMDDhhmmss */
       d= i64 / 1000000;
       t= i64 % 1000000;
@@ -2893,7 +2892,37 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
   DBUG_PRINT("info", ("log_pos: %lu", (ulong) log_pos));
 
   clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
-  const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
+  if (strcmp("COMMIT", query) == 0 && rli->tables_to_lock)
+  {
+    /*
+      Cleaning-up the last statement context:
+      the terminal event of the current statement flagged with
+      STMT_END_F got filtered out in ndb circular replication.
+    */
+    int error;
+    char llbuff[22];
+    if ((error= rows_event_stmt_cleanup(const_cast<Relay_log_info*>(rli), thd)))
+    {
+      const_cast<Relay_log_info*>(rli)->report(ERROR_LEVEL, error,
+                  "Error in cleaning up after an event preceeding the commit; "
+                  "the group log file/position: %s %s",
+                  const_cast<Relay_log_info*>(rli)->group_master_log_name,
+                  llstr(const_cast<Relay_log_info*>(rli)->group_master_log_pos,
+                        llbuff));
+    }
+    /*
+      Executing a part of rli->stmt_done() logics that does not deal
+      with group position change. The part is redundant now but is 
+      future-change-proof addon, e.g if COMMIT handling will start checking
+      invariants like IN_STMT flag must be off at committing the transaction.
+    */
+    const_cast<Relay_log_info*>(rli)->inc_event_relay_log_pos();
+    const_cast<Relay_log_info*>(rli)->clear_flag(Relay_log_info::IN_STMT);
+  }
+  else
+  {
+    const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
+  }
 
   /*
     Note:   We do not need to execute reset_one_shot_variables() if this
@@ -4165,7 +4194,7 @@ int Load_log_event::copy_log_event(const char *buf, ulong event_len,
   table_name  = fields + field_block_len;
   db = table_name + table_name_len + 1;
   fname = db + db_len + 1;
-  fname_len = strlen(fname);
+  fname_len = (uint) strlen(fname);
   // null termination is accomplished by the caller doing buf[event_len]=0
 
   DBUG_RETURN(0);
@@ -5667,7 +5696,7 @@ void Slave_log_event::init_from_mem_pool(int data_size)
   master_pos = uint8korr(mem_pool + SL_MASTER_POS_OFFSET);
   master_port = uint2korr(mem_pool + SL_MASTER_PORT_OFFSET);
   master_host = mem_pool + SL_MASTER_HOST_OFFSET;
-  master_host_len = strlen(master_host);
+  master_host_len = (uint) strlen(master_host);
   // safety
   master_log = master_host + master_host_len + 1;
   if (master_log > mem_pool + data_size)
@@ -5675,7 +5704,7 @@ void Slave_log_event::init_from_mem_pool(int data_size)
     master_host = 0;
     return;
   }
-  master_log_len = strlen(master_log);
+  master_log_len = (uint) strlen(master_log);
 }
 
 
@@ -6148,6 +6177,12 @@ int Append_block_log_event::do_apply_event(Relay_log_info const *rli)
   thd_proc_info(thd, proc_info);
   if (get_create_or_append())
   {
+    /*
+      Usually lex_start() is called by mysql_parse(), but we need it here
+      as the present method does not call mysql_parse().
+    */
+    lex_start(thd);
+    mysql_reset_thd_for_next_command(thd);
     my_delete(fname, MYF(0)); // old copy may exist already
     if ((fd= my_create(fname, CREATE_MODE,
 		       O_WRONLY | O_BINARY | O_EXCL | O_NOFOLLOW,
@@ -6167,6 +6202,10 @@ int Append_block_log_event::do_apply_event(Relay_log_info const *rli)
                 get_type_str(), fname);
     goto err;
   }
+
+  DBUG_EXECUTE_IF("remove_slave_load_file_before_write", 
+                  my_close(fd,MYF(0)); fd= -1; my_delete(fname, MYF(0)););
+
   if (my_write(fd, (uchar*) block, block_len, MYF(MY_WME+MY_NABP)))
   {
     rli->report(ERROR_LEVEL, my_errno,
@@ -6588,7 +6627,7 @@ void Execute_load_query_log_event::print(FILE* file,
     my_b_printf(&cache, "\'");
     if (dup_handling == LOAD_DUP_REPLACE)
       my_b_printf(&cache, " REPLACE");
-    my_b_printf(&cache, " INTO");
+    my_b_printf(&cache, " INTO ");
     my_b_write(&cache, (uchar*) query + fn_pos_end, q_len-fn_pos_end);
     my_b_printf(&cache, "\n%s\n", print_event_info->delimiter);
   }
@@ -6669,7 +6708,7 @@ Execute_load_query_log_event::do_apply_event(Relay_log_info const *rli)
     /* Ordinary load data */
     break;
   }
-  p= strmake(p, STRING_WITH_LEN(" INTO"));
+  p= strmake(p, STRING_WITH_LEN(" INTO "));
   p= strmake(p, query+fn_pos_end, q_len-fn_pos_end);
 
   error= Query_log_event::do_apply_event(rli, buf, p-buf);
@@ -6956,8 +6995,8 @@ int Rows_log_event::get_data_size()
 {
   int const type_code= get_type_code();
 
-  uchar buf[sizeof(m_width)+1];
-  uchar *end= net_store_length(buf, (m_width + 7) / 8);
+  uchar buf[sizeof(m_width) + 1];
+  uchar *end= net_store_length(buf, m_width);
 
   DBUG_EXECUTE_IF("old_row_based_repl_4_byte_map_id_master",
                   return 6 + no_bytes_in_map(&m_cols) + (end - buf) +
@@ -6965,12 +7004,12 @@ int Rows_log_event::get_data_size()
                   (m_rows_cur - m_rows_buf););
   int data_size= ROWS_HEADER_LEN;
   data_size+= no_bytes_in_map(&m_cols);
-  data_size+= end - buf;
+  data_size+= (uint) (end - buf);
 
   if (type_code == UPDATE_ROWS_EVENT)
     data_size+= no_bytes_in_map(&m_cols_ai);
 
-  data_size+= (m_rows_cur - m_rows_buf);
+  data_size+= (uint) (m_rows_cur - m_rows_buf);
   return data_size; 
 }
 
@@ -6990,7 +7029,7 @@ int Rows_log_event::do_add_row_data(uchar *row_data, size_t length)
     Don't print debug messages when running valgrind since they can
     trigger false warnings.
    */
-#ifndef HAVE_purify
+#ifndef HAVE_valgrind
   DBUG_DUMP("row_data", row_data, min(length, 32));
 #endif
 
@@ -7405,16 +7444,20 @@ Rows_log_event::do_shall_skip(Relay_log_info *rli)
     return Log_event::do_shall_skip(rli);
 }
 
-int
-Rows_log_event::do_update_pos(Relay_log_info *rli)
+/**
+   The function is called at Rows_log_event statement commit time,
+   normally from Rows_log_event::do_update_pos() and possibly from
+   Query_log_event::do_apply_event() of the COMMIT.
+   The function commits the last statement for engines, binlog and
+   releases resources have been allocated for the statement.
+  
+   @retval  0         Ok.
+   @retval  non-zero  Error at the commit.
+ */
+
+static int rows_event_stmt_cleanup(Relay_log_info const *rli, THD * thd)
 {
-  DBUG_ENTER("Rows_log_event::do_update_pos");
-  int error= 0;
-
-  DBUG_PRINT("info", ("flags: %s",
-                      get_flags(STMT_END_F) ? "STMT_END_F " : ""));
-
-  if (get_flags(STMT_END_F))
+  int error;
   {
     /*
       This is the end of a statement or transaction, so close (and
@@ -7456,14 +7499,39 @@ Rows_log_event::do_update_pos(Relay_log_info *rli)
 
     thd->reset_current_stmt_binlog_row_based();
 
-    rli->cleanup_context(thd, 0);
-    if (error == 0)
+    const_cast<Relay_log_info*>(rli)->cleanup_context(thd, 0);
+  }
+  return error;
+}
+
+/**
+   The method either increments the relay log position or
+   commits the current statement and increments the master group 
+   possition if the event is STMT_END_F flagged and
+   the statement corresponds to the autocommit query (i.e replicated
+   without wrapping in BEGIN/COMMIT)
+
+   @retval 0         Success
+   @retval non-zero  Error in the statement commit
+ */
+int
+Rows_log_event::do_update_pos(Relay_log_info *rli)
+{
+  DBUG_ENTER("Rows_log_event::do_update_pos");
+  int error= 0;
+
+  DBUG_PRINT("info", ("flags: %s",
+                      get_flags(STMT_END_F) ? "STMT_END_F " : ""));
+
+  if (get_flags(STMT_END_F))
+  {
+    if ((error= rows_event_stmt_cleanup(rli, thd)) == 0)
     {
       /*
         Indicate that a statement is finished.
         Step the group log position if we are not in a transaction,
         otherwise increase the event log position.
-       */
+      */
       rli->stmt_done(log_pos, when);
 
       /*
@@ -7477,11 +7545,13 @@ Rows_log_event::do_update_pos(Relay_log_info *rli)
       thd->clear_error();
     }
     else
+    {
       rli->report(ERROR_LEVEL, error,
                   "Error in %s event: commit of row events failed, "
                   "table `%s`.`%s`",
                   get_type_str(), m_table->s->db.str,
                   m_table->s->table_name.str);
+    }
   }
   else
   {
@@ -7515,7 +7585,7 @@ bool Rows_log_event::write_data_body(IO_CACHE*file)
      Note that this should be the number of *bits*, not the number of
      bytes.
   */
-  uchar sbuf[sizeof(m_width)];
+  uchar sbuf[sizeof(m_width) + 1];
   my_ptrdiff_t const data_size= m_rows_cur - m_rows_buf;
   bool res= false;
   uchar *const sbuf_end= net_store_length(sbuf, (size_t) m_width);
@@ -7677,6 +7747,8 @@ Table_map_log_event::Table_map_log_event(THD *thd, TABLE *tbl, ulong tid,
     m_null_bits(0),
     m_meta_memory(NULL)
 {
+  uchar cbuf[sizeof(m_colcnt) + 1];
+  uchar *cbuf_end;
   DBUG_ASSERT(m_table_id != ~0UL);
   /*
     In TABLE_SHARE, "db" and "table_name" are 0-terminated (see this comment in
@@ -7693,7 +7765,9 @@ Table_map_log_event::Table_map_log_event(THD *thd, TABLE *tbl, ulong tid,
   DBUG_EXECUTE_IF("old_row_based_repl_4_byte_map_id_master", m_data_size= 6;);
   m_data_size+= m_dblen + 2;	// Include length and terminating \0
   m_data_size+= m_tbllen + 2;	// Include length and terminating \0
-  m_data_size+= 1 + m_colcnt;	// COLCNT and column types
+  cbuf_end= net_store_length(cbuf, (size_t) m_colcnt);
+  DBUG_ASSERT(static_cast<size_t>(cbuf_end - cbuf) <= sizeof(cbuf));
+  m_data_size+= (cbuf_end - cbuf) + m_colcnt;	// COLCNT and column types
 
   /* If malloc fails, caught in is_valid() */
   if ((m_memory= (uchar*) my_malloc(m_colcnt, MYF(MY_WME))))
@@ -7771,7 +7845,7 @@ Table_map_log_event::Table_map_log_event(const char *buf, uint event_len,
     Don't print debug messages when running valgrind since they can
     trigger false warnings.
    */
-#ifndef HAVE_purify
+#ifndef HAVE_valgrind
   DBUG_DUMP("event buffer", (uchar*) buf, event_len);
 #endif
 
@@ -7832,7 +7906,7 @@ Table_map_log_event::Table_map_log_event(const char *buf, uint event_len,
     memcpy(m_coltype, ptr_after_colcnt, m_colcnt);
 
     ptr_after_colcnt= ptr_after_colcnt + m_colcnt;
-    bytes_read= ptr_after_colcnt - (uchar *)buf;
+    bytes_read= (uint) (ptr_after_colcnt - (uchar *)buf);
     DBUG_PRINT("info", ("Bytes read: %d.\n", bytes_read));
     if (bytes_read < event_len)
     {
@@ -7985,7 +8059,7 @@ bool Table_map_log_event::write_data_body(IO_CACHE *file)
   uchar const dbuf[]= { (uchar) m_dblen };
   uchar const tbuf[]= { (uchar) m_tbllen };
 
-  uchar cbuf[sizeof(m_colcnt)];
+  uchar cbuf[sizeof(m_colcnt) + 1];
   uchar *const cbuf_end= net_store_length(cbuf, (size_t) m_colcnt);
   DBUG_ASSERT(static_cast<size_t>(cbuf_end - cbuf) <= sizeof(cbuf));
 
@@ -8674,7 +8748,7 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
       Don't print debug messages when running valgrind since they can
       trigger false warnings.
      */
-#ifndef HAVE_purify
+#ifndef HAVE_valgrind
     DBUG_DUMP("key data", m_key, table->key_info->key_length);
 #endif
 
@@ -8704,7 +8778,7 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
     Don't print debug messages when running valgrind since they can
     trigger false warnings.
    */
-#ifndef HAVE_purify
+#ifndef HAVE_valgrind
     DBUG_PRINT("info",("found first matching record")); 
     DBUG_DUMP("record[0]", table->record[0], table->s->reclength);
 #endif
@@ -9067,7 +9141,7 @@ Update_rows_log_event::do_exec_row(const Relay_log_info *const rli)
     Now we have the right row to update.  The old row (the one we're
     looking for) is in record[1] and the new row is in record[0].
   */
-#ifndef HAVE_purify
+#ifndef HAVE_valgrind
   /*
     Don't print debug messages when running valgrind since they can
     trigger false warnings.
@@ -9206,7 +9280,7 @@ bool
 Incident_log_event::write_data_body(IO_CACHE *file)
 {
   DBUG_ENTER("Incident_log_event::write_data_body");
-  DBUG_RETURN(write_str(file, m_message.str, m_message.length));
+  DBUG_RETURN(write_str(file, m_message.str, (uint) m_message.length));
 }
 
 

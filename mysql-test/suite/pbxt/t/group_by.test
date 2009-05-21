@@ -1,0 +1,720 @@
+
+# Initialise
+--disable_warnings
+drop table if exists t1,t2,t3;
+--enable_warnings
+
+#
+# Simple test without tables
+
+-- error 1111
+SELECT 1 FROM (SELECT 1) as a  GROUP BY SUM(1);
+
+#
+# Test of group (Failed for Lars Hoss <lh@pbm.de>)
+#
+
+CREATE TABLE t1 (
+  spID int(10) unsigned,
+  userID int(10) unsigned,
+  score smallint(5) unsigned,
+  lsg char(40),
+  date date
+);
+
+INSERT INTO t1 VALUES (1,1,1,'','0000-00-00');
+INSERT INTO t1 VALUES (2,2,2,'','0000-00-00');
+INSERT INTO t1 VALUES (2,1,1,'','0000-00-00');
+INSERT INTO t1 VALUES (3,3,3,'','0000-00-00');
+
+CREATE TABLE t2 (
+  userID int(10) unsigned NOT NULL auto_increment,
+  niName char(15),
+  passwd char(8),
+  mail char(50),
+  isAukt enum('N','Y') DEFAULT 'N',
+  vName char(30),
+  nName char(40),
+  adr char(60),
+  plz char(5),
+  ort char(35),
+  land char(20),
+  PRIMARY KEY (userID)
+);
+
+INSERT INTO t2 VALUES (1,'name','pass','mail','Y','v','n','adr','1','1','1');
+INSERT INTO t2 VALUES (2,'name','pass','mail','Y','v','n','adr','1','1','1');
+INSERT INTO t2 VALUES (3,'name','pass','mail','Y','v','n','adr','1','1','1');
+INSERT INTO t2 VALUES (4,'name','pass','mail','Y','v','n','adr','1','1','1');
+INSERT INTO t2 VALUES (5,'name','pass','mail','Y','v','n','adr','1','1','1');
+
+SELECT t2.userid, MIN(t1.score) FROM t1, t2 WHERE t1.userID=t2.userID GROUP BY t2.userid;
+SELECT t2.userid, MIN(t1.score) FROM t1, t2 WHERE t1.userID=t2.userID GROUP BY t2.userid ORDER BY NULL;
+SELECT t2.userid, MIN(t1.score) FROM t1, t2 WHERE t1.userID=t2.userID AND t1.spID=2  GROUP BY t2.userid;
+SELECT t2.userid, MIN(t1.score+0.0) FROM t1, t2 WHERE t1.userID=t2.userID AND t1.spID=2  GROUP BY t2.userid;
+SELECT t2.userid, MIN(t1.score+0.0) FROM t1, t2 WHERE t1.userID=t2.userID AND t1.spID=2  GROUP BY t2.userid ORDER BY NULL;
+EXPLAIN SELECT t2.userid, MIN(t1.score+0.0) FROM t1, t2 WHERE t1.userID=t2.userID AND t1.spID=2  GROUP BY t2.userid ORDER BY NULL;
+drop table t1,t2;
+
+#
+# Bug in GROUP BY, by Nikki Chumakov <nikki@saddam.cityline.ru>
+#
+
+CREATE TABLE t1 (
+  PID int(10) unsigned NOT NULL auto_increment,
+  payDate date DEFAULT '0000-00-00' NOT NULL,
+  recDate datetime DEFAULT '0000-00-00 00:00:00' NOT NULL,
+  URID int(10) unsigned DEFAULT '0' NOT NULL,
+  CRID int(10) unsigned DEFAULT '0' NOT NULL,
+  amount int(10) unsigned DEFAULT '0' NOT NULL,
+  operator int(10) unsigned,
+  method enum('unknown','cash','dealer','check','card','lazy','delayed','test') DEFAULT 'unknown' NOT NULL,
+  DIID int(10) unsigned,
+  reason char(1) binary DEFAULT '' NOT NULL,
+  code_id int(10) unsigned,
+  qty mediumint(8) unsigned DEFAULT '0' NOT NULL,
+  PRIMARY KEY (PID),
+  KEY URID (URID),
+  KEY reason (reason),
+  KEY method (method),
+  KEY payDate (payDate)
+);
+
+INSERT INTO t1 VALUES (1,'1970-01-01','1997-10-17 00:00:00',2529,1,21000,11886,'check',0,'F',16200,6);
+
+--error 1056
+SELECT COUNT(P.URID),SUM(P.amount),P.method, MIN(PP.recdate+0) > 19980501000000   AS IsNew FROM t1 AS P JOIN t1 as PP WHERE P.URID = PP.URID GROUP BY method,IsNew;
+
+drop table t1;
+
+#
+# Problem with GROUP BY + ORDER BY when no match
+# Tested with locking
+#
+
+CREATE TABLE t1 (
+  cid mediumint(9) NOT NULL auto_increment,
+  firstname varchar(32) DEFAULT '' NOT NULL,
+  surname varchar(32) DEFAULT '' NOT NULL,
+  PRIMARY KEY (cid)
+);
+INSERT INTO t1 VALUES (1,'That','Guy');
+INSERT INTO t1 VALUES (2,'Another','Gent');
+
+CREATE TABLE t2 (
+  call_id mediumint(8) NOT NULL auto_increment,
+  contact_id mediumint(8) DEFAULT '0' NOT NULL,
+  PRIMARY KEY (call_id),
+  KEY contact_id (contact_id)
+);
+
+lock tables t1 read,t2 write;
+
+INSERT INTO t2 VALUES (10,2);
+INSERT INTO t2 VALUES (18,2);
+INSERT INTO t2 VALUES (62,2);
+INSERT INTO t2 VALUES (91,2);
+INSERT INTO t2 VALUES (92,2);
+
+SELECT cid, CONCAT(firstname, ' ', surname), COUNT(call_id) FROM t1 LEFT JOIN t2 ON cid=contact_id WHERE firstname like '%foo%' GROUP BY cid;
+SELECT cid, CONCAT(firstname, ' ', surname), COUNT(call_id) FROM t1 LEFT JOIN t2 ON cid=contact_id WHERE firstname like '%foo%' GROUP BY cid ORDER BY NULL;
+SELECT HIGH_PRIORITY cid, CONCAT(firstname, ' ', surname), COUNT(call_id) FROM t1 LEFT JOIN t2 ON cid=contact_id WHERE firstname like '%foo%' GROUP BY cid ORDER BY surname, firstname;
+
+drop table t1,t2;
+unlock tables;
+
+#
+# Test of group by bug in bugzilla
+#
+
+CREATE TABLE t1 (
+  bug_id mediumint(9) NOT NULL auto_increment,
+  groupset bigint(20) DEFAULT '0' NOT NULL,
+  assigned_to mediumint(9) DEFAULT '0' NOT NULL,
+  bug_file_loc text,
+  bug_severity enum('blocker','critical','major','normal','minor','trivial','enhancement') DEFAULT 'blocker' NOT NULL,
+  bug_status enum('','NEW','ASSIGNED','REOPENED','RESOLVED','VERIFIED','CLOSED') DEFAULT 'NEW' NOT NULL,
+  creation_ts datetime DEFAULT '0000-00-00 00:00:00' NOT NULL,
+  delta_ts timestamp,
+  short_desc mediumtext,
+  long_desc mediumtext,
+  op_sys enum('All','Windows 3.1','Windows 95','Windows 98','Windows NT','Windows 2000','Linux','other') DEFAULT 'All' NOT NULL,
+  priority enum('P1','P2','P3','P4','P5') DEFAULT 'P1' NOT NULL,
+  product varchar(64) DEFAULT '' NOT NULL,
+  rep_platform enum('All','PC','VTD-8','Other'),
+  reporter mediumint(9) DEFAULT '0' NOT NULL,
+  version varchar(16) DEFAULT '' NOT NULL,
+  component varchar(50) DEFAULT '' NOT NULL,
+  resolution enum('','FIXED','INVALID','WONTFIX','LATER','REMIND','DUPLICATE','WORKSFORME') DEFAULT '' NOT NULL,
+  target_milestone varchar(20) DEFAULT '' NOT NULL,
+  qa_contact mediumint(9) DEFAULT '0' NOT NULL,
+  status_whiteboard mediumtext NOT NULL,
+  votes mediumint(9) DEFAULT '0' NOT NULL,
+  PRIMARY KEY (bug_id),
+  KEY assigned_to (assigned_to),
+  KEY creation_ts (creation_ts),
+  KEY delta_ts (delta_ts),
+  KEY bug_severity (bug_severity),
+  KEY bug_status (bug_status),
+  KEY op_sys (op_sys),
+  KEY priority (priority),
+  KEY product (product),
+  KEY reporter (reporter),
+  KEY version (version),
+  KEY component (component),
+  KEY resolution (resolution),
+  KEY target_milestone (target_milestone),
+  KEY qa_contact (qa_contact),
+  KEY votes (votes)
+);
+
+INSERT INTO t1 VALUES (1,0,0,'','normal','','2000-02-10 09:25:12',20000321114747,'','','Linux','P1','TestProduct','PC',3,'other','TestComponent','','M1',0,'',0);
+INSERT INTO t1 VALUES (9,0,0,'','enhancement','','2000-03-10 11:49:36',20000321114747,'','','All','P5','AAAAA','PC',3,'2.00 CD - Pre','BBBBBBBBBBBBB - conversion','','',0,'',0);
+INSERT INTO t1 VALUES (10,0,0,'','enhancement','','2000-03-10 18:10:16',20000321114747,'','','All','P4','AAAAA','PC',3,'2.00 CD - Pre','BBBBBBBBBBBBB - conversion','','',0,'',0);
+INSERT INTO t1 VALUES (7,0,0,'','critical','','2000-03-09 10:50:21',20000321114747,'','','All','P1','AAAAA','PC',3,'2.00 CD - Pre','BBBBBBBBBBBBB - generic','','',0,'',0);
+INSERT INTO t1 VALUES (6,0,0,'','normal','','2000-03-09 10:42:44',20000321114747,'','','All','P2','AAAAA','PC',3,'2.00 CD - Pre','kkkkkkkkkkk lllllllllll','','',0,'',0);
+INSERT INTO t1 VALUES (8,0,0,'','major','','2000-03-09 11:32:14',20000321114747,'','','All','P3','AAAAA','PC',3,'2.00 CD - Pre','kkkkkkkkkkk lllllllllll','','',0,'',0);
+INSERT INTO t1 VALUES (5,0,0,'','enhancement','','2000-03-09 10:38:59',20000321114747,'','','All','P5','CCC/CCCCCC','PC',5,'7.00','Administration','','',0,'',0);
+INSERT INTO t1 VALUES (4,0,0,'','normal','','2000-03-08 18:32:14',20000321114747,'','','other','P2','TestProduct','Other',3,'other','TestComponent2','','',0,'',0);
+INSERT INTO t1 VALUES (3,0,0,'','normal','','2000-03-08 18:30:52',20000321114747,'','','other','P2','TestProduct','Other',3,'other','TestComponent','','',0,'',0);
+INSERT INTO t1 VALUES (2,0,0,'','enhancement','','2000-03-08 18:24:51',20000321114747,'','','All','P2','TestProduct','Other',4,'other','TestComponent2','','',0,'',0);
+INSERT INTO t1 VALUES (11,0,0,'','blocker','','2000-03-13 09:43:41',20000321114747,'','','All','P2','CCC/CCCCCC','PC',5,'7.00','DDDDDDDDD','','',0,'',0);
+INSERT INTO t1 VALUES (12,0,0,'','normal','','2000-03-13 16:14:31',20000321114747,'','','All','P2','AAAAA','PC',3,'2.00 CD - Pre','kkkkkkkkkkk lllllllllll','','',0,'',0);
+INSERT INTO t1 VALUES (13,0,0,'','normal','','2000-03-15 16:20:44',20000321114747,'','','other','P2','TestProduct','Other',3,'other','TestComponent','','',0,'',0);
+INSERT INTO t1 VALUES (14,0,0,'','blocker','','2000-03-15 18:13:47',20000321114747,'','','All','P1','AAAAA','PC',3,'2.00 CD - Pre','BBBBBBBBBBBBB - generic','','',0,'',0);
+INSERT INTO t1 VALUES (15,0,0,'','minor','','2000-03-16 18:03:28',20000321114747,'','','All','P2','CCC/CCCCCC','Other',5,'7.00','DDDDDDDDD','','',0,'',0);
+INSERT INTO t1 VALUES (16,0,0,'','normal','','2000-03-16 18:33:41',20000321114747,'','','All','P2','CCC/CCCCCC','Other',5,'7.00','Administration','','',0,'',0);
+INSERT INTO t1 VALUES (17,0,0,'','normal','','2000-03-16 18:34:18',20000321114747,'','','All','P2','CCC/CCCCCC','Other',5,'7.00','Administration','','',0,'',0);
+INSERT INTO t1 VALUES (18,0,0,'','normal','','2000-03-16 18:34:56',20000321114747,'','','All','P2','CCC/CCCCCC','Other',5,'7.00','Administration','','',0,'',0);
+INSERT INTO t1 VALUES (19,0,0,'','enhancement','','2000-03-16 18:35:34',20000321114747,'','','All','P2','CCC/CCCCCC','Other',5,'7.00','Administration','','',0,'',0);
+INSERT INTO t1 VALUES (20,0,0,'','enhancement','','2000-03-16 18:36:23',20000321114747,'','','All','P2','CCC/CCCCCC','Other',5,'7.00','Administration','','',0,'',0);
+INSERT INTO t1 VALUES (21,0,0,'','enhancement','','2000-03-16 18:37:23',20000321114747,'','','All','P2','CCC/CCCCCC','Other',5,'7.00','Administration','','',0,'',0);
+INSERT INTO t1 VALUES (22,0,0,'','enhancement','','2000-03-16 18:38:16',20000321114747,'','','All','P2','CCC/CCCCCC','Other',5,'7.00','Administration','','',0,'',0);
+INSERT INTO t1 VALUES (23,0,0,'','normal','','2000-03-16 18:58:12',20000321114747,'','','All','P2','CCC/CCCCCC','Other',5,'7.00','DDDDDDDDD','','',0,'',0);
+INSERT INTO t1 VALUES (24,0,0,'','normal','','2000-03-17 11:08:10',20000321114747,'','','All','P2','AAAAAAAA-AAA','PC',3,'2.8','Web Interface','','',0,'',0);
+INSERT INTO t1 VALUES (25,0,0,'','normal','','2000-03-17 11:10:45',20000321114747,'','','All','P2','AAAAAAAA-AAA','PC',3,'2.8','Web Interface','','',0,'',0);
+INSERT INTO t1 VALUES (26,0,0,'','normal','','2000-03-17 11:15:47',20000321114747,'','','All','P2','AAAAAAAA-AAA','PC',3,'2.8','Web Interface','','',0,'',0);
+INSERT INTO t1 VALUES (27,0,0,'','normal','','2000-03-17 17:45:41',20000321114747,'','','All','P2','CCC/CCCCCC','PC',5,'7.00','DDDDDDDDD','','',0,'',0);
+INSERT INTO t1 VALUES (28,0,0,'','normal','','2000-03-20 09:51:45',20000321114747,'','','Windows NT','P2','TestProduct','PC',8,'other','TestComponent','','',0,'',0);
+INSERT INTO t1 VALUES (29,0,0,'','normal','','2000-03-20 11:15:09',20000321114747,'','','All','P5','AAAAAAAA-AAA','PC',3,'2.8','Web Interface','','',0,'',0);
+CREATE TABLE t2 (
+  value tinytext,
+  program varchar(64),
+  initialowner tinytext NOT NULL,
+  initialqacontact tinytext NOT NULL,
+  description mediumtext NOT NULL
+);
+
+INSERT INTO t2 VALUES ('TestComponent','TestProduct','id0001','','');
+INSERT INTO t2 VALUES ('BBBBBBBBBBBBB - conversion','AAAAA','id0001','','');
+INSERT INTO t2 VALUES ('BBBBBBBBBBBBB - generic','AAAAA','id0001','','');
+INSERT INTO t2 VALUES ('TestComponent2','TestProduct','id0001','','');
+INSERT INTO t2 VALUES ('BBBBBBBBBBBBB - eeeeeeeee','AAAAA','id0001','','');
+INSERT INTO t2 VALUES ('kkkkkkkkkkk lllllllllll','AAAAA','id0001','','');
+INSERT INTO t2 VALUES ('Test Procedures','AAAAA','id0001','','');
+INSERT INTO t2 VALUES ('Documentation','AAAAA','id0003','','');
+INSERT INTO t2 VALUES ('DDDDDDDDD','CCC/CCCCCC','id0002','','');
+INSERT INTO t2 VALUES ('Eeeeeeee Lite','CCC/CCCCCC','id0002','','');
+INSERT INTO t2 VALUES ('Eeeeeeee Full','CCC/CCCCCC','id0002','','');
+INSERT INTO t2 VALUES ('Administration','CCC/CCCCCC','id0002','','');
+INSERT INTO t2 VALUES ('Distribution','CCC/CCCCCC','id0002','','');
+INSERT INTO t2 VALUES ('Setup','CCC/CCCCCC','id0002','','');
+INSERT INTO t2 VALUES ('Unspecified','CCC/CCCCCC','id0002','','');
+INSERT INTO t2 VALUES ('Web Interface','AAAAAAAA-AAA','id0001','','');
+INSERT INTO t2 VALUES ('Host communication','AAAAA','id0001','','');
+select value,description,bug_id from t2 left join t1 on t2.program=t1.product and t2.value=t1.component where program="AAAAA";
+select value,description,COUNT(bug_id) from t2 left join t1 on t2.program=t1.product and t2.value=t1.component where program="AAAAA" group by value;
+select value,description,COUNT(bug_id) from t2 left join t1 on t2.program=t1.product and t2.value=t1.component where program="AAAAA" group by value having COUNT(bug_id) IN (0,2);
+
+drop table t1,t2;
+
+#
+# Problem with functions and group functions when no matching rows
+#
+
+create table t1 (foo int);
+insert into t1 values (1);
+select 1+1, "a",count(*) from t1 where foo in (2);
+insert into t1 values (1);
+select 1+1,"a",count(*) from t1 where foo in (2);
+drop table t1;
+
+#
+# Test GROUP BY DESC
+
+CREATE TABLE t1 (
+  spID int(10) unsigned,
+  userID int(10) unsigned,
+  score smallint(5) unsigned,
+  key (spid),
+  key (score)
+);
+
+INSERT INTO t1 VALUES (1,1,1),(2,2,2),(2,1,1),(3,3,3),(4,3,3),(5,3,3),(6,3,3),(7,3,3);
+explain select userid,count(*) from t1 group by userid desc;
+explain select userid,count(*) from t1 group by userid desc order by null;
+select userid,count(*) from t1 group by userid desc;
+select userid,count(*) from t1 group by userid desc having (count(*)+1) IN (4,3);
+select userid,count(*) from t1 group by userid desc having 3  IN (1,COUNT(*));
+explain select spid,count(*) from t1 where spid between 1 and 2 group by spid desc;
+explain select spid,count(*) from t1 where spid between 1 and 2 group by spid;
+explain select spid,count(*) from t1 where spid between 1 and 2 group by spid order by null;
+select spid,count(*) from t1 where spid between 1 and 2 group by spid;
+select spid,count(*) from t1 where spid between 1 and 2 group by spid desc;
+explain extended select sql_big_result spid,sum(userid) from t1 group by spid desc;
+explain select sql_big_result spid,sum(userid) from t1 group by spid desc order by null;
+select sql_big_result spid,sum(userid) from t1 group by spid desc;
+explain select sql_big_result score,count(*) from t1 group by score desc;
+explain select sql_big_result score,count(*) from t1 group by score desc order by null;
+select sql_big_result score,count(*) from t1 group by score desc;
+drop table t1;
+
+# not purely group_by bug, but group_by is involved...
+
+create table t1 (a date default null, b date default null);
+insert t1 values ('1999-10-01','2000-01-10'), ('1997-01-01','1998-10-01');
+select a,min(b) c,count(distinct rand()) from t1 group by a having c<a + interval 1 day;
+drop table t1;
+
+# Compare with hash keys
+
+CREATE TABLE t1 (a char(1));
+INSERT INTO t1 VALUES ('A'),('B'),('A'),('B'),('A'),('B'),(NULL),('a'),('b'),(NULL),('A'),('B'),(NULL);
+SELECT a FROM t1 GROUP BY a;
+SELECT a,count(*) FROM t1 GROUP BY a;
+SELECT a FROM t1 GROUP BY binary a;
+SELECT a,count(*) FROM t1 GROUP BY binary a;
+SELECT binary a FROM t1 GROUP BY 1;
+SELECT binary a,count(*) FROM t1 GROUP BY 1;
+# Do the same tests with MyISAM temporary tables
+SET SQL_BIG_TABLES=1;
+SELECT a FROM t1 GROUP BY a;
+SELECT a,count(*) FROM t1 GROUP BY a;
+SELECT a FROM t1 GROUP BY binary a;
+SELECT a,count(*) FROM t1 GROUP BY binary a;
+SELECT binary a FROM t1 GROUP BY 1;
+SELECT binary a,count(*) FROM t1 GROUP BY 1;
+SET SQL_BIG_TABLES=0;
+drop table t1;
+
+#
+# Test of key >= 256 bytes
+#
+
+CREATE TABLE t1 (
+  `a` char(193) default NULL,
+  `b` char(63) default NULL
+);
+INSERT INTO t1 VALUES ('abc','def'),('hij','klm');
+SELECT CONCAT(a, b) FROM t1 GROUP BY 1;
+SELECT CONCAT(a, b),count(*) FROM t1 GROUP BY 1;
+SELECT CONCAT(a, b),count(distinct a) FROM t1 GROUP BY 1;
+SELECT 1 FROM t1 GROUP BY CONCAT(a, b);
+INSERT INTO t1 values ('hij','klm');
+SELECT CONCAT(a, b),count(*) FROM t1 GROUP BY 1;
+DROP TABLE t1;
+
+#
+# Test problem with ORDER BY on a SUM() column
+#
+
+create table t1 (One int unsigned, Two int unsigned, Three int unsigned, Four int unsigned);
+insert into t1 values (1,2,1,4),(1,2,2,4),(1,2,3,4),(1,2,4,4),(1,1,1,4),(1,1,2,4),(1,1,3,4),(1,1,4,4),(1,3,1,4),(1,3,2,4),(1,3,3,4),(1,3,4,4);
+select One, Two, sum(Four) from t1 group by One,Two;
+drop table t1;
+
+create table t1 (id integer primary key not null auto_increment, gender char(1));
+insert into t1 values (NULL, 'M'), (NULL, 'F'),(NULL, 'F'),(NULL, 'F'),(NULL, 'M');
+create table t2 (user_id integer not null, date date);
+insert into t2 values (1, '2002-06-09'),(2, '2002-06-09'),(1, '2002-06-09'),(3, '2002-06-09'),(4, '2002-06-09'),(4, '2002-06-09');
+select u.gender as gender, count(distinct  u.id) as dist_count, (count(distinct u.id)/5*100) as percentage from t1 u, t2 l where l.user_id = u.id group by u.gender;
+select u.gender as  gender, count(distinct  u.id) as dist_count, (count(distinct u.id)/5*100) as percentage from t1 u, t2 l where l.user_id = u.id group by u.gender  order by percentage;
+drop table t1,t2;
+
+#
+# The GROUP BY returned rows in wrong order in 3.23.51
+#
+
+CREATE TABLE t1 (ID1 int, ID2 int, ID int NOT NULL AUTO_INCREMENT,PRIMARY KEY(ID
+));
+insert into t1 values (1,244,NULL),(2,243,NULL),(134,223,NULL),(185,186,NULL);
+select S.ID as xID, S.ID1 as xID1 from t1 as S left join t1 as yS  on S.ID1 between yS.ID1 and yS.ID2;
+select S.ID as xID, S.ID1 as xID1, repeat('*',count(distinct yS.ID)) as Level from t1 as S left join t1 as yS  on S.ID1 between yS.ID1 and yS.ID2 group by xID order by xID1;
+drop table t1;
+
+#
+# Problem with MAX and LEFT JOIN
+#
+
+CREATE TABLE t1 (
+  pid int(11) unsigned NOT NULL default '0',
+  c1id int(11) unsigned default NULL,
+  c2id int(11) unsigned default NULL,
+  value int(11) unsigned NOT NULL default '0',
+  UNIQUE KEY pid2 (pid,c1id,c2id),
+  UNIQUE KEY pid (pid,value)
+) ENGINE=MyISAM;
+
+INSERT INTO t1 VALUES (1, 1, NULL, 1),(1, 2, NULL, 2),(1, NULL, 3, 3),(1, 4, NULL, 4),(1, 5, NULL, 5);
+
+CREATE TABLE t2 (
+  id int(11) unsigned NOT NULL default '0',
+  active enum('Yes','No') NOT NULL default 'Yes',
+  PRIMARY KEY  (id)
+) ENGINE=MyISAM;
+
+INSERT INTO t2 VALUES (1, 'Yes'),(2, 'No'),(4, 'Yes'),(5, 'No');
+
+CREATE TABLE t3 (
+  id int(11) unsigned NOT NULL default '0',
+  active enum('Yes','No') NOT NULL default 'Yes',
+  PRIMARY KEY  (id)
+);
+INSERT INTO t3 VALUES (3, 'Yes');
+
+select * from t1 AS m LEFT JOIN t2 AS c1 ON m.c1id = 
+c1.id AND c1.active = 'Yes' LEFT JOIN t3 AS c2 ON m.c2id = c2.id AND 
+c2.active = 'Yes' WHERE m.pid=1  AND (c1.id IS NOT NULL OR c2.id IS NOT NULL);
+select max(value) from t1 AS m LEFT JOIN t2 AS c1 ON 
+m.c1id = c1.id AND c1.active = 'Yes' LEFT JOIN t3 AS c2 ON m.c2id = 
+c2.id AND c2.active = 'Yes' WHERE m.pid=1  AND (c1.id IS NOT NULL OR c2.id IS 
+NOT NULL);
+drop table t1,t2,t3;
+
+#
+# Test bug in GROUP BY on BLOB that is NULL or empty
+#
+
+create table t1 (a blob null);
+insert into t1 values (NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(""),(""),(""),("b");
+select a,count(*) from t1 group by a;
+set option sql_big_tables=1;
+select a,count(*) from t1 group by a;
+drop table t1;
+
+#
+# Test of GROUP BY ... ORDER BY NULL optimization
+#
+
+create table t1 (a int not null, b int not null);
+insert into t1 values (1,1),(1,2),(3,1),(3,2),(2,2),(2,1);
+create table t2 (a int not null, b int not null, key(a));
+insert into t2 values (1,3),(3,1),(2,2),(1,1);
+select t1.a,t2.b from t1,t2 where t1.a=t2.a group by t1.a,t2.b;
+select t1.a,t2.b from t1,t2 where t1.a=t2.a group by t1.a,t2.b ORDER BY NULL;
+explain select t1.a,t2.b from t1,t2 where t1.a=t2.a group by t1.a,t2.b;
+explain select t1.a,t2.b from t1,t2 where t1.a=t2.a group by t1.a,t2.b ORDER BY NULL;
+drop table t1,t2;
+
+#
+# group function arguments in some functions
+#
+
+create table t1 (a int, b int);
+insert into t1 values (1, 4),(10, 40),(1, 4),(10, 43),(1, 4),(10, 41),(1, 4),(10, 43),(1, 4);
+select a, MAX(b), INTERVAL (MAX(b), 1,3,10,30,39,40,50,60,100,1000) from t1 group by a;
+select a, MAX(b), CASE MAX(b) when 4 then 4 when 43 then 43 else 0 end from t1 group by a;
+select a, MAX(b), FIELD(MAX(b), '43', '4', '5') from t1 group by a;
+select a, MAX(b), CONCAT_WS(MAX(b), '43', '4', '5') from t1 group by a;
+select a, MAX(b), ELT(MAX(b), 'a', 'b', 'c', 'd', 'e', 'f') from t1 group by a;
+select a, MAX(b), MAKE_SET(MAX(b), 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h') from t1 group by a;
+drop table t1;
+
+#
+# Problem with group by and alias
+#
+
+create table t1 (id int not null, qty int not null);
+insert into t1 values (1,2),(1,3),(2,4),(2,5);
+select id, sum(qty) as sqty, count(qty) as cqty from t1 group by id having sum(qty)>2 and cqty>1;
+select id, sum(qty) as sqty from t1 group by id having sqty>2 and count(qty)>1;
+select id, sum(qty) as sqty, count(qty) as cqty from t1 group by id having sqty>2 and cqty>1;
+select id, sum(qty) as sqty, count(qty) as cqty from t1 group by id having sum(qty)>2 and count(qty)>1;
+select count(*), case interval(qty,2,3,4,5,6,7,8) when -1 then NULL when 0 then "zero" when 1 then "one" when 2 then "two" end as category from t1 group by category;
+select count(*), interval(qty,2,3,4,5,6,7,8) as category from t1 group by category;
+drop table t1;
+#
+# Tests for bug #1355: 'Using filesort' is missing in EXPLAIN when ORDER BY
+# NULL is used.
+#
+CREATE TABLE t1 (
+  userid int(10) unsigned,
+  score smallint(5) unsigned,
+  key (score)
+);
+INSERT INTO t1 VALUES (1,1),(2,2),(1,1),(3,3),(3,3),(3,3),(3,3),(3,3);
+# Here we select unordered GROUP BY into a temporary talbe, 
+# and then sort it with filesort (GROUP BY in MySQL 
+# implies sorted order of results)
+SELECT userid,count(*) FROM t1 GROUP BY userid DESC;
+EXPLAIN SELECT userid,count(*) FROM t1 GROUP BY userid DESC;
+DROP TABLE t1;
+CREATE TABLE t1 (
+  i int(11) default NULL,
+  j int(11) default NULL
+);
+INSERT INTO t1 VALUES (1,2),(2,3),(4,5),(3,5),(1,5),(23,5);
+SELECT i, COUNT(DISTINCT(i)) FROM t1 GROUP BY j ORDER BY NULL;
+explain SELECT i, COUNT(DISTINCT(i)) FROM t1 GROUP BY j ORDER BY NULL;
+DROP TABLE t1;
+
+#Test for BUG#6976: Aggregate functions have incorrect NULL-ness
+create table t1 (a int);
+insert into t1 values(null);
+select min(a) is null from t1;
+select min(a) is null or null from t1;
+select 1 and min(a) is null from t1;
+drop table t1;
+
+# Test for BUG#5400: GROUP_CONCAT returns everything twice.
+create table t1 ( col1 int, col2 int );
+insert into t1 values (1,1),(1,2),(1,3),(2,1),(2,2);
+select group_concat( distinct col1 ) as alias from t1
+  group by col2 having alias like '%';
+
+drop table t1;
+
+#
+# Test BUG#8216 when referring in HAVING to n alias which is rand() function
+#
+
+create table t1 (a integer, b integer, c integer);
+insert into t1 (a,b) values (1,2),(1,3),(2,5);
+select a, 0.1*0+1 r2, sum(1) r1 from t1 where a = 1 group  by a having r1>1 and r2=1;
+# rand(100)*10 will be < 2 only for the first row (of 6)
+select a, round(rand(100)*10) r2, sum(1) r1 from t1 where a = 1 group  by a having r1>1 and r2<=2;
+select a,sum(b) from t1 where a=1 group by c;
+select a*sum(b) from t1 where a=1 group by c;
+select sum(a)*sum(b) from t1 where a=1 group by c;
+select a,sum(b) from t1 where a=1 group by c having a=1;
+select a as d,sum(b) from t1 where a=1 group by c having d=1;
+select sum(a)*sum(b) as d from t1 where a=1 group by c having d > 0;
+drop table t1;
+
+# Test for BUG#9213 GROUP BY query on utf-8 key returns wrong results
+create table t1(a int);
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(8),(9);
+create table t2 (
+  a int,
+  b varchar(200) NOT NULL,
+  c varchar(50) NOT NULL,
+  d varchar(100) NOT NULL,
+  primary key (a,b(132),c,d),
+  key a (a,b)
+) charset=utf8;
+
+insert into t2 select 
+   x3.a,  -- 3
+   concat('val-', x3.a + 3*x4.a), -- 12
+   concat('val-', @a:=x3.a + 3*x4.a + 12*C.a), -- 120
+   concat('val-', @a + 120*D.a)
+from t1 x3, t1 x4, t1 C, t1 D where x3.a < 3 and x4.a < 4 and D.a < 4;
+
+delete from t2  where a = 2 and b = 'val-2' order by a,b,c,d limit 30;
+# PBXT: row count may vary
+--replace_column 9 #
+explain select c from t2 where a = 2 and b = 'val-2' group by c;
+select c from t2 where a = 2 and b = 'val-2' group by c;
+drop table t1,t2;
+
+# Test for BUG#9298 "Wrong handling of int4 unsigned columns in GROUP functions"
+# (the actual problem was with protocol code, not GROUP BY)
+create table t1 (b int4 unsigned not null);
+insert into t1 values(3000000000);
+select * from t1;
+select min(b) from t1;
+drop table t1;
+
+#
+# Test for bug #11088: GROUP BY a BLOB column with COUNT(DISTINCT column1) 
+#
+
+CREATE TABLE t1 (id int PRIMARY KEY, user_id int, hostname longtext);
+
+INSERT INTO t1 VALUES
+  (1, 7, 'cache-dtc-af05.proxy.aol.com'),
+  (2, 3, 'what.ever.com'),
+  (3, 7, 'cache-dtc-af05.proxy.aol.com'),
+  (4, 7, 'cache-dtc-af05.proxy.aol.com');
+
+SELECT hostname, COUNT(DISTINCT user_id) as no FROM t1
+  WHERE hostname LIKE '%aol%'
+    GROUP BY hostname;
+
+DROP TABLE t1;
+
+#
+# Test for bug #8614: GROUP BY 'const' with DISTINCT  
+#
+
+CREATE TABLE t1 (a  int, b int);
+INSERT INTO t1 VALUES (1,2), (1,3);
+SELECT a, b FROM t1 GROUP BY 'const';
+SELECT DISTINCT a, b FROM t1 GROUP BY 'const';
+
+DROP TABLE t1;
+
+#
+# Test for bug #11385: GROUP BY for datetime converted to decimals  
+#
+
+CREATE TABLE t1 (id INT, dt DATETIME);
+INSERT INTO t1 VALUES ( 1, '2005-05-01 12:30:00' );
+INSERT INTO t1 VALUES ( 1, '2005-05-01 12:30:00' );
+INSERT INTO t1 VALUES ( 1, '2005-05-01 12:30:00' );
+INSERT INTO t1 VALUES ( 1, '2005-05-01 12:30:00' );
+SELECT dt DIV 1 AS f, id FROM t1 GROUP BY f;
+
+DROP TABLE t1;
+
+#
+# Test for bug #11295: GROUP BY a BLOB column with COUNT(DISTINCT column1) 
+#                      when the BLOB column takes NULL values
+# 
+
+CREATE TABLE t1 (id varchar(20) NOT NULL);
+INSERT INTO t1 VALUES ('trans1'), ('trans2');
+CREATE TABLE t2 (id varchar(20) NOT NULL, err_comment blob NOT NULL);
+INSERT INTO t2 VALUES ('trans1', 'a problem');
+SELECT COUNT(DISTINCT(t1.id)), LEFT(err_comment, 256) AS comment
+  FROM t1 LEFT JOIN t2 ON t1.id=t2.id GROUP BY comment;
+
+DROP TABLE t1, t2;
+
+#
+# Bug #12266 GROUP BY expression on DATE column produces result with
+#            reduced length
+#
+create table t1 (f1 date);
+insert into t1 values('2005-06-06');
+insert into t1 values('2005-06-06'); 
+select date(left(f1+0,8)) from t1 group by 1;
+drop table t1;
+
+#
+# Test for bug #11414: crash on Windows for a simple GROUP BY query 
+#  
+                    
+CREATE TABLE t1 (n int);
+INSERT INTO t1 VALUES (1);
+SELECT n+1 AS n FROM t1 GROUP BY n;
+DROP TABLE t1;
+
+#
+# BUG#12695: Item_func_isnull::update_used_tables
+# did not update const_item_cache
+#
+create table t1(f1 varchar(5) key);
+insert into t1 values (1),(2);
+select sql_buffer_result max(f1) is null from t1;
+select sql_buffer_result max(f1)+1 from t1;
+drop table t1;
+
+#
+# BUG#14019-4.1-opt
+#
+CREATE TABLE t1(a INT); INSERT INTO t1 VALUES (1),(2);
+
+SELECT a FROM t1 GROUP BY 'a';
+SELECT a FROM t1 GROUP BY "a";
+SELECT a FROM t1 GROUP BY `a`;
+
+set sql_mode=ANSI_QUOTES;
+SELECT a FROM t1 GROUP BY "a";
+SELECT a FROM t1 GROUP BY 'a';
+SELECT a FROM t1 GROUP BY `a`;
+set sql_mode='';
+
+SELECT a FROM t1 HAVING 'a' > 1;
+SELECT a FROM t1 HAVING "a" > 1;
+SELECT a FROM t1 HAVING `a` > 1;
+
+SELECT a FROM t1 ORDER BY 'a' DESC;
+SELECT a FROM t1 ORDER BY "a" DESC;
+SELECT a FROM t1 ORDER BY `a` DESC;
+DROP TABLE t1;
+
+# End of 4.1 tests
+
+#
+# Bug#11211: Ambiguous column reference in GROUP BY.
+#
+
+create table t1 (c1 char(3), c2 char(3));
+create table t2 (c3 char(3), c4 char(3));
+insert into t1 values ('aaa', 'bb1'), ('aaa', 'bb2');
+insert into t2 values ('aaa', 'bb1'), ('aaa', 'bb2');
+
+# query with ambiguous column reference 'c2'
+select t1.c1 as c2 from t1, t2 where t1.c2 = t2.c4
+group by c2;
+show warnings;
+
+# this query has no ambiguity
+select t1.c1 as c2 from t1, t2 where t1.c2 = t2.c4
+group by t1.c1;
+
+show warnings;
+drop table t1, t2;
+
+#
+# Bug #20466: a view is mixing data when there's a trigger on the table
+#
+CREATE TABLE t1 (a tinyint(3), b varchar(255), PRIMARY KEY  (a));
+
+INSERT INTO t1 VALUES (1,'-----'), (6,'Allemagne'), (17,'Autriche'), 
+    (25,'Belgique'), (54,'Danemark'), (62,'Espagne'), (68,'France');
+
+CREATE TABLE t2 (a tinyint(3), b tinyint(3), PRIMARY KEY  (a), KEY b (b));
+
+INSERT INTO t2 VALUES (1,1), (2,1), (6,6), (18,17), (15,25), (16,25),
+ (17,25), (10,54), (5,62),(3,68);
+
+CREATE VIEW v1 AS select t1.a, concat(t1.b,'') AS b, t1.b as real_b from t1;
+
+explain 
+SELECT straight_join sql_no_cache v1.a, v1.b, v1.real_b from t2, v1
+where t2.b=v1.a GROUP BY t2.b;
+SELECT straight_join sql_no_cache v1.a, v1.b, v1.real_b from t2, v1
+where t2.b=v1.a GROUP BY t2.b;
+
+DROP VIEW v1;
+DROP TABLE t1,t2;
+
+#
+# Bug#22781: SQL_BIG_RESULT fails to influence sort plan
+#
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT, key (b));
+
+INSERT INTO t1 VALUES (1,      1);
+INSERT INTO t1 SELECT  a + 1 , MOD(a + 1 , 20) FROM t1;
+INSERT INTO t1 SELECT  a + 2 , MOD(a + 2 , 20) FROM t1;
+INSERT INTO t1 SELECT  a + 4 , MOD(a + 4 , 20) FROM t1;
+INSERT INTO t1 SELECT  a + 8 , MOD(a + 8 , 20) FROM t1;
+INSERT INTO t1 SELECT  a + 16, MOD(a + 16, 20) FROM t1;
+INSERT INTO t1 SELECT  a + 32, MOD(a + 32, 20) FROM t1;
+INSERT INTO t1 SELECT  a + 64, MOD(a + 64, 20) FROM t1;
+
+SELECT MIN(b), MAX(b) from t1;
+
+EXPLAIN SELECT b, sum(1) FROM t1 GROUP BY b;
+EXPLAIN SELECT SQL_BIG_RESULT b, sum(1) FROM t1 GROUP BY b;
+SELECT b, sum(1) FROM t1 GROUP BY b;
+SELECT SQL_BIG_RESULT b, sum(1) FROM t1 GROUP BY b;
+DROP TABLE t1;
+
+#
+# Bug #21174: Index degrades sort performance and 
+#             optimizer does not honor IGNORE INDEX
+#
+CREATE TABLE t1 (a INT, b INT, KEY(a));
+INSERT INTO t1 VALUES (1, 1), (2, 2), (3,3), (4,4);
+
+EXPLAIN SELECT a, SUM(b) FROM t1 GROUP BY a LIMIT 2; 
+EXPLAIN SELECT a, SUM(b) FROM t1 IGNORE INDEX (a) GROUP BY a LIMIT 2;
+
+DROP TABLE t1;
+
+--disable_query_log
+drop database pbxt;
+--enable_query_log

@@ -153,9 +153,11 @@ void my_end(int infoflag)
   {					/* Test if some file is left open */
     if (my_file_opened | my_stream_opened)
     {
-      sprintf(errbuff[0],EE(EE_OPEN_WARNING),my_file_opened,my_stream_opened);
-      (void) my_message_no_curses(EE_OPEN_WARNING,errbuff[0],ME_BELL);
-      DBUG_PRINT("error",("%s",errbuff[0]));
+      char ebuff[512];
+      my_snprintf(ebuff, sizeof(ebuff), EE(EE_OPEN_WARNING),
+                  my_file_opened, my_stream_opened);
+      my_message_no_curses(EE_OPEN_WARNING, ebuff, ME_BELL);
+      DBUG_PRINT("error", ("%s", ebuff));
       my_print_open_files();
     }
   }
@@ -170,7 +172,7 @@ void my_end(int infoflag)
   {
 #ifdef HAVE_GETRUSAGE
     struct rusage rus;
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
     /* Purify assumes that rus is uninitialized after getrusage call */
     bzero((char*) &rus, sizeof(rus));
 #endif

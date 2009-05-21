@@ -99,10 +99,10 @@ static void default_reporter(enum loglevel level,
   one. Call function 'get_one_option()' once for each option.
 */
 
-static uchar** (*getopt_get_addr)(const char *, uint, const struct my_option *);
+static uchar** (*getopt_get_addr)(const char *, uint, const struct my_option *, int *);
 
 void my_getopt_register_get_addr(uchar** (*func_addr)(const char *, uint,
-						    const struct my_option *))
+						    const struct my_option *, int *))
 {
   getopt_get_addr= func_addr;
 }
@@ -361,8 +361,12 @@ int handle_options(int *argc, char ***argv,
                                      my_progname, optp->name);
 	  return EXIT_NO_ARGUMENT_ALLOWED;
 	}
+        error= 0;
 	value= optp->var_type & GET_ASK_ADDR ?
-	  (*getopt_get_addr)(key_name, (uint) strlen(key_name), optp) : optp->value;
+	  (*getopt_get_addr)(key_name, (uint) strlen(key_name), optp, &error) :
+          optp->value;
+        if (error)
+          return error;
   
 	if (optp->arg_type == NO_ARG)
 	{
@@ -643,7 +647,7 @@ static int setval(const struct my_option *opts, uchar* *value, char *argument,
 	return EXIT_OUT_OF_MEMORY;
       break;
     case GET_ENUM:
-      if (((*(int*)result_pos)= find_type(argument, opts->typelib, 2) - 1) < 0)
+      if (((*(ulong *)result_pos)= find_type(argument, opts->typelib, 2) - 1) < 0)
         return EXIT_ARGUMENT_INVALID;
       break;
     case GET_SET:
@@ -841,7 +845,8 @@ longlong getopt_ll_limit_value(longlong num, const struct my_option *optp,
   if (num < optp->min_value)
   {
     num= optp->min_value;
-    adjusted= TRUE;
+    if (old < optp->min_value)
+      adjusted= TRUE;
   }
 
   if (fix)
@@ -912,7 +917,8 @@ ulonglong getopt_ull_limit_value(ulonglong num, const struct my_option *optp,
   if (num < (ulonglong) optp->min_value)
   {
     num= (ulonglong) optp->min_value;
-    adjusted= TRUE;
+    if (old < (ulonglong) optp->min_value)
+      adjusted= TRUE;
   }
 
   if (fix)
@@ -977,7 +983,7 @@ static void init_one_value(const struct my_option *option, uchar* *variable,
     *((int*) variable)= (int) getopt_ll_limit_value((int) value, option, NULL);
     break;
   case GET_ENUM:
-    *((uint*) variable)= (uint) value;
+    *((ulong*) variable)= (uint) value;
     break;
   case GET_UINT:
     *((uint*) variable)= (uint) getopt_ull_limit_value((uint) value, option, NULL);
@@ -1090,7 +1096,7 @@ static void init_variables(const struct my_option *options,
     if (options->value)
       init_one_value(options, options->value, options->def_value);
     if (options->var_type & GET_ASK_ADDR &&
-	(variable= (*getopt_get_addr)("", 0, options)))
+	(variable= (*getopt_get_addr)("", 0, options, 0)))
       init_one_value(options, variable, options->def_value);
   }
   DBUG_VOID_RETURN;
@@ -1194,7 +1200,7 @@ void my_print_variables(const struct my_option *options)
   for (optp= options; optp->id; optp++)
   {
     uchar* *value= (optp->var_type & GET_ASK_ADDR ?
-		  (*getopt_get_addr)("", 0, optp) : optp->value);
+		  (*getopt_get_addr)("", 0, optp, 0) : optp->value);
     if (value)
     {
       printf("%s ", optp->name);
@@ -1215,7 +1221,7 @@ void my_print_variables(const struct my_option *options)
 	}
 	break;
       case GET_ENUM:
-        printf("%s\n", get_type(optp->typelib, *(uint*) value));
+        printf("%s\n", get_type(optp->typelib, *(ulong*) value));
 	break;
       case GET_STR:
       case GET_STR_ALLOC:                    /* fall through */

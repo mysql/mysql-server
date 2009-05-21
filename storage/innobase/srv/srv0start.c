@@ -104,7 +104,7 @@ static char*	srv_monitor_file_name;
 
 /* Avoid warnings when using purify */
 
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
 static int inno_bcmp(register const char *s1, register const char *s2,
 	register uint len)
 {

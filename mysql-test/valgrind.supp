@@ -379,12 +379,25 @@
 }
 
 {
-   dlclose memory loss from plugin
+   dlclose memory loss from plugin variant 1
    Memcheck:Leak
    fun:calloc
    fun:_dlerror_run
    fun:dlclose
    fun:plugin_dl_del(st_mysql_lex_string const*)
+}
+
+{
+   dlclose memory loss from plugin variant 2
+   Memcheck:Leak
+   fun:malloc
+   fun:_dl_close_worker
+   fun:_dl_close
+   fun:_dl_catch_error
+   fun:_dlerror_run
+   fun:dlclose
+   fun:_Z15free_plugin_memP12st_plugin_dl
+   fun:_Z13plugin_dl_delPK19st_mysql_lex_string
 }
 
 {
@@ -588,3 +601,19 @@
    fun:dlopen*
 }
 
+#
+# In glibc (checked version 2.7), inet_ntoa allocates an 18-byte
+# per-thread static buffer for the return value. That memory is freed
+# at thread exit, however if called from the main thread, Valgrind
+# does not see the free (test main.no-threads).
+#
+# Since inet_ntoa() does not allocate memory dynamically per-call, this
+# suppression is safe.
+#
+
+{
+   inet_ntoa thread local storage
+   Memcheck:Leak
+   fun:malloc
+   fun:inet_ntoa
+}

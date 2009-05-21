@@ -1,0 +1,103 @@
+#
+# Init section
+#
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+#
+# Simple IF tests
+#
+
+select IF(0,"ERROR","this"),IF(1,"is","ERROR"),IF(NULL,"ERROR","a"),IF(1,2,3)|0,IF(1,2.0,3.0)+0 ;
+
+#
+# Test of IF and case-sensitiveness
+#
+CREATE TABLE t1 (st varchar(255) NOT NULL, u int(11) NOT NULL) ENGINE=MyISAM;
+INSERT INTO t1 VALUES ('a',1),('A',1),('aa',1),('AA',1),('a',1),('aaa',0),('BBB',0);
+select if(1,st,st) s from t1 order by s;
+select if(u=1,st,st) s from t1 order by s;
+select if(u=1,binary st,st) s from t1 order by s;
+select if(u=1,st,binary st) s from t1 where st like "%a%" order by s;
+explain extended select if(u=1,st,binary st) s from t1 where st like "%a%" order by s;
+
+#
+# NULLIF test
+#
+select nullif(u, 1) from t1;
+explain extended select nullif(u, 1) from t1;
+drop table t1;
+select nullif(1,'test');
+
+#
+# Bug 2629
+#
+select NULLIF(NULL,NULL), NULLIF(NULL,1), NULLIF(NULL,1.0), NULLIF(NULL,"test");
+select NULLIF(1,NULL), NULLIF(1.0, NULL), NULLIF("test", NULL);
+
+#
+# Problem with IF()
+#
+
+create table t1 (num  double(12,2));
+insert into t1 values (144.54);
+select sum(if(num is null,0.00,num)) from t1;
+drop table t1;
+create table t1 (x int, y int);
+insert into t1 values (0,6),(10,16),(20,26),(30,10),(40,46),(50,56);
+select min(if(y -x > 5,y,NULL)), max(if(y - x > 5,y,NULL)) from t1;
+drop table t1;
+
+#
+# BUG#3987
+#
+create table t1 (a int);
+insert t1 values (1),(2);
+select if(1>2,a,avg(a)) from t1;
+drop table t1;
+
+#
+# Bug #5595  NULLIF() IS NULL returns false if NULLIF() returns NULL
+#
+SELECT NULLIF(5,5) IS NULL, NULLIF(5,5) IS NOT NULL;
+
+#
+# Bug #9669 Ordering on IF function with FROM_UNIXTIME function fails
+#
+CREATE TABLE `t1` (
+  `id` int(11) NOT NULL ,
+  `date` int(10) default NULL,
+  `text` varchar(32) NOT NULL
+);
+INSERT INTO t1 VALUES (1,1110000000,'Day 1'),(2,1111000000,'Day 2'),(3,1112000000,'Day 3');
+SELECT id, IF(date IS NULL, '-', FROM_UNIXTIME(date, '%d-%m-%Y')) AS date_ord, text FROM t1 ORDER BY date_ord ASC;
+SELECT id, IF(date IS NULL, '-', FROM_UNIXTIME(date, '%d-%m-%Y')) AS date_ord, text FROM t1 ORDER BY date_ord DESC;
+DROP TABLE t1;
+
+
+#
+# Test for bug #11142: evaluation of NULLIF when the first argument is NULL
+#
+
+CREATE TABLE t1 (a CHAR(10));
+INSERT INTO t1 VALUES ('aaa'), (NULL), (''), ('bbb');
+
+SELECT a, NULLIF(a,'') FROM t1;
+SELECT a, NULLIF(a,'') FROM t1 WHERE NULLIF(a,'') IS NULL;
+
+DROP TABLE t1;
+
+# End of 4.1 tests
+
+#
+# Bug #16272 IF function with decimal args can produce wrong result
+#
+create table t1 (f1 int, f2 int);
+insert into t1 values(1,1),(0,0);
+select f1, f2, if(f1, 40.0, 5.00) from t1 group by f1 order by f2;
+drop table t1;
+
+--disable_query_log
+drop database pbxt;
+--enable_query_log

@@ -8,24 +8,27 @@
 # won't test anything interesting).
 
 # This also won't work with the embedded server test
--- source include/not_embedded.inc
+--source include/not_embedded.inc
 
--- source include/have_debug.inc
+--source include/have_debug.inc
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
 
 # Disable concurrent inserts to avoid test failures when reading the
 # connection id which was inserted into a table by another thread.
-set @old_concurrent_insert= @@global.concurrent_insert;
-set @@global.concurrent_insert= 0;
+SET @old_concurrent_insert= @@global.concurrent_insert;
+SET @@global.concurrent_insert= 0;
 
 connect (con1,localhost,root,,);
 connect (con2,localhost,root,,);
 connection con1;
 
 --disable_warnings
-drop table if exists t1;
+DROP TABLE IF EXISTS t1;
 --enable_warnings
-create table t1 (kill_id int);
-insert into t1 values(connection_id());
+CREATE TABLE t1 (kill_id INT);
+INSERT INTO t1 VALUES(connection_id());
 
 # Thanks to the parameter we passed to --debug, this FLUSH will
 # block on a debug build running with our --debug=make_global... It
@@ -33,11 +36,11 @@ insert into t1 values(connection_id());
 # --debug) it will succeed immediately
 
 connection con1;
-send flush tables with read lock;
+send FLUSH TABLES WITH READ LOCK;
 
 # kill con1
 connection con2;
-select ((@id := kill_id) - kill_id) from t1; 
+SELECT ((@id := kill_id) - kill_id) FROM t1;
 
 # Wait for the debug sync point, test won't run on non-debug
 # builds anyway.
@@ -47,7 +50,7 @@ let $wait_condition=
   and info = "flush tables with read lock";
 --source include/wait_condition.inc
 
-kill connection @id;
+KILL CONNECTION @id;
 
 connection con1;
 # On debug builds it will be error 1053 (killed); on non-debug, or
@@ -58,8 +61,14 @@ connection con1;
 reap;
 
 connection con2;
-drop table t1;
+DROP TABLE t1;
+
 connection default;
+disconnect con2;
 
 # Restore global concurrent_insert value
-set @@global.concurrent_insert= @old_concurrent_insert;
+SET @@global.concurrent_insert= @old_concurrent_insert;
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc
+

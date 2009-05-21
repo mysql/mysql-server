@@ -1,0 +1,74 @@
+# This test demonstrates how the flag OPTION_STATUS_NO_TRANS_UPDATE is
+# not correctly reset, and leads to an incorrect warning
+
+delimiter |;
+
+--disable_warnings
+drop table if exists t4|
+--enable_warnings
+create table t4 (
+  a mediumint(8) unsigned not null auto_increment,
+  b smallint(5) unsigned not null,
+  c char(32) not null,
+  primary key  (a)
+) engine=myisam default charset=latin1|
+insert into t4 values (1, 2, 'oneword')|
+insert into t4 values (2, 2, 'anotherword')|
+
+--disable_warnings
+drop table if exists t3|
+--enable_warnings
+
+create table t3 ( x int unique ) engine=pbxt|
+
+create procedure bug7049_1()
+begin
+  insert into t3 values (42);
+  insert into t3 values (42);
+end|
+
+create procedure bug7049_2()
+begin
+  declare exit handler for sqlexception
+    select 'Caught it' as 'Result';
+
+  call bug7049_1();
+  select 'Missed it' as 'Result';
+end|
+
+create function bug7049_1()
+  returns int
+begin
+  insert into t3 values (42);
+  insert into t3 values (42);
+  return 42;
+end|
+
+create function bug7049_2()
+  returns int
+begin
+  declare x int default 0;
+  declare continue handler for sqlexception
+    set x = 1;
+
+  set x = bug7049_1();
+  return x;
+end|
+
+# This cause the following warning:
+# Warning 1196: Some non-transactional changed tables couldn't be rolled back
+# which is not correct
+# PMC - This bug was fixed in 5.1.12 (confirmed 2006-9-15).
+call bug7049_2()|
+
+drop procedure bug7049_1|
+drop function bug7049_1|
+drop procedure bug7049_2|
+drop function bug7049_2|
+
+delimiter ;|
+
+--disable_query_log
+drop table t3, t4;
+drop database pbxt;
+--enable_query_log
