@@ -86,6 +86,8 @@ endif
 
 $(NEWBRT): $(NEWBRT_O_FILES)
 
+$(NEWBRT_BUNDLE): log_code.c log_header.h
+
 ipo_newbrt.obj: $(NEWBRT_BUNDLE)
 	$(CC) $(CFLAGS) $(CPPFLAGS) -Qipo-c $(filter %.$(OEXT),$^) $(patsubst %.bundle, %.bundle/*.$(OEXT), $(filter-out %.$(OEXT),$^))
 	mv ipo_out.obj $@
