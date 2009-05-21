@@ -3226,7 +3226,21 @@ longlong Item_func_uncompressed_length::val_int()
   if (res->is_empty()) return 0;
 
   /*
-    res->ptr() using is safe because we have tested that string is not empty,
+    If length is <= 4 bytes, data is corrupt. This is the best we can do
+    to detect garbage input without decompressing it.
+  */
+  if (res->length() <= 4)
+  {
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                        ER_ZLIB_Z_DATA_ERROR,
+                        ER(ER_ZLIB_Z_DATA_ERROR));
+    null_value= 1;
+    return 0;
+  }
+
+ /*
+    res->ptr() using is safe because we have tested that string is at least
+    5 bytes long.
     res->c_ptr() is not used because:
       - we do not need \0 terminated string to get first 4 bytes
       - c_ptr() tests simbol after string end (uninitialiozed memory) which
