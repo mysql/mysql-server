@@ -1201,4 +1201,23 @@ SET GLOBAL server_id = -1;
 SELECT @@GLOBAL.server_id;
 SET GLOBAL server_id = @old_server_id;
 
+#
+# Bug #42778: delete order by null global variable causes 
+#             assertion .\filesort.cc, line 797
+#
+
+SELECT @@GLOBAL.INIT_FILE, @@GLOBAL.INIT_FILE IS NULL;
+SELECT @@GLOBAL.REPORT_HOST, @@GLOBAL.REPORT_HOST IS NULL;
+SELECT @@GLOBAL.REPORT_PASSWORD, @@GLOBAL.REPORT_PASSWORD IS NULL;
+SELECT @@GLOBAL.REPORT_USER, @@GLOBAL.REPORT_USER IS NULL;
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES ();
+SET @bug42778= @@sql_safe_updates;
+SET @@sql_safe_updates= 0;
+DELETE FROM t1 ORDER BY (@@GLOBAL.INIT_FILE) ASC LIMIT 10;
+SET @@sql_safe_updates= @bug42778;
+
+DROP TABLE t1;
+
 --echo End of 5.1 tests
