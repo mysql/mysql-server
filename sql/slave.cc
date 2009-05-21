@@ -2668,12 +2668,19 @@ err:
   LOAD DATA INFILE.
  */
 static 
-int check_temp_dir(char* tmp_dir, char *tmp_file)
+int check_temp_dir(char* tmp_file)
 {
   int fd;
   MY_DIR *dirp;
+  char tmp_dir[FN_REFLEN];
+  size_t tmp_dir_size;
 
   DBUG_ENTER("check_temp_dir");
+
+  /*
+    Get the directory from the temporary file.
+  */
+  dirname_part(tmp_dir, tmp_file, &tmp_dir_size);
 
   /*
     Check if the directory exists.
@@ -2830,7 +2837,7 @@ log '%s' at position %s, relay log '%s' position: %s", RPL_LOG_NAME,
                     llstr(rli->group_master_log_pos,llbuff),rli->group_relay_log_name,
                     llstr(rli->group_relay_log_pos,llbuff1));
 
-  if (check_temp_dir(slave_load_tmpdir, rli->slave_patternload_file))
+  if (check_temp_dir(rli->slave_patternload_file))
   {
     rli->report(ERROR_LEVEL, thd->main_da.sql_errno(), 
                 "Unable to use slave's temporary directory %s - %s", 
