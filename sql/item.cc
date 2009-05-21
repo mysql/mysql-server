@@ -2472,8 +2472,9 @@ longlong_from_string_with_check (CHARSET_INFO *cs, const char *cptr, char *end)
     TODO: Give error if we wanted a signed integer and we got an unsigned
     one
   */
-  if (err > 0 ||
-      (end != org_end && !check_if_only_end_space(cs, end, org_end)))
+  if (!current_thd->no_errors &&
+      (err > 0 ||
+       (end != org_end && !check_if_only_end_space(cs, end, org_end))))
   {
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_TRUNCATED_WRONG_VALUE,

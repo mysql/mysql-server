@@ -4880,10 +4880,20 @@ bool Item_func_get_system_var::is_written_to_binlog()
 }
 
 
+void Item_func_get_system_var::update_null_value()
+{
+  THD *thd= current_thd;
+  int save_no_errors= thd->no_errors;
+  thd->no_errors= TRUE;
+  Item::update_null_value();
+  thd->no_errors= save_no_errors;
+}
+
+
 void Item_func_get_system_var::fix_length_and_dec()
 {
   char *cptr;
-  maybe_null=0;
+  maybe_null= TRUE;
   max_length= 0;
 
   if (var->check_type(var_type))
