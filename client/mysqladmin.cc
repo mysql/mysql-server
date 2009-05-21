@@ -371,7 +371,7 @@ int main(int argc,char *argv[])
   }
   else
   {
-    while (!interrupted && (!opt_count_iterations || nr_iterations))
+    while (!interrupted)
     {
       new_line = 0;
       if ((error=execute_commands(&mysql,argc,commands)))
@@ -395,11 +395,11 @@ int main(int argc,char *argv[])
       }
       if (interval)
       {
+	if (opt_count_iterations && --nr_iterations == 0)
+          break;
 	sleep(interval);
 	if (new_line)
 	  puts("");
-	if (opt_count_iterations)
-	  nr_iterations--;
       }
       else
 	break;
