@@ -4873,7 +4873,10 @@ int Item_null::save_safe_in_field(Field *field)
 /*
   This implementation can lose str_value content, so if the
   Item uses str_value to store something, it should
-  reimplement it's ::save_in_field() as Item_string, for example, does
+  reimplement it's ::save_in_field() as Item_string, for example, does.
+
+  Note: all Item_XXX::val_str(str) methods must NOT rely on the fact that
+  str != str_value. For example, see fix for bug #44743.
 */
 
 int Item::save_in_field(Field *field, bool no_conversions)
