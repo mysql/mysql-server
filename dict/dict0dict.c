@@ -650,8 +650,7 @@ dict_table_get(
 					/* out: table, NULL if
 					does not exist */
 	const char*	table_name,	/* in: table name */
-	ibool		inc_mysql_count)
-					/* in: whether to increment the open
+	ibool		inc_mysql_count)/* in: whether to increment the open
 					handle count on the table */
 {
 	dict_table_t*	table;
