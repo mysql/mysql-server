@@ -94,6 +94,9 @@ drop table t1;
 #             uncompressed_length
 #
 
+SET @old_max_allowed_packet = @@max_allowed_packet;
+SET @@max_allowed_packet = 1024 * 1024;
+
 CREATE TABLE t1 (c1 INT);
 INSERT INTO t1 VALUES (1), (1111), (11111);
 
@@ -103,6 +106,8 @@ SELECT UNCOMPRESS(c1), UNCOMPRESSED_LENGTH(c1) FROM t1;
 --disable_result_log
 EXPLAIN EXTENDED SELECT * FROM (SELECT UNCOMPRESSED_LENGTH(c1) FROM t1) AS s;
 --enable_result_log
+
+SET @@max_allowed_packet = @old_max_allowed_packet;
 
 DROP TABLE t1;
 
