@@ -3319,6 +3319,9 @@ print_table_data(MYSQL_RES *result)
       uint visible_length;
       uint extra_padding;
 
+      if (off)
+        (void) tee_fputs(" ", PAGER);
+
       if (cur[off] == NULL)
       {
         buffer= "NULL";
@@ -3353,7 +3356,7 @@ print_table_data(MYSQL_RES *result)
         else 
           tee_print_sized_data(buffer, data_length, field_max_length+extra_padding, FALSE);
       }
-      tee_fputs(" | ", PAGER);
+      tee_fputs(" |", PAGER);
     }
     (void) tee_fputs("\n", PAGER);
   }
