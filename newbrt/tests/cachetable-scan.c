@@ -49,7 +49,7 @@ CACHEFILE f;
 static void open_file (void ) {
     int r;
     r = toku_create_cachetable(&t, KEYLIMIT, ZERO_LSN, NULL_LOGGER); assert(r==0);
-    r = toku_cachetable_openf(&f, t, fname, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO);   assert(r==0);
+    r = toku_cachetable_openf(&f, t, fname, fname, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO);   assert(r==0);
 }
 
 static void writeit (void) {
@@ -85,7 +85,7 @@ static void readit (void) {
 	r=toku_cachetable_get_and_pin(f, key, fullhash, &block, &current_size, f_flush, f_fetch, 0); assert(r==0);
 	r=toku_cachetable_unpin(f, key, fullhash, CACHETABLE_CLEAN, BLOCKSIZE);                                      assert(r==0);
     }
-    r = toku_cachefile_close(&f, 0, 0);    assert(r == 0);
+    r = toku_cachefile_close(&f, 0, 0, ZERO_LSN);    assert(r == 0);
     r = toku_cachetable_close(&t);      assert(r == 0);
     gettimeofday(&end, 0);
     toku_os_get_process_times(&end_usertime, &end_systime);

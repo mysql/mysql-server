@@ -35,12 +35,12 @@ test_cachetable_flush (int n) {
     char fname1[] = __FILE__ "test1.dat";
     unlink(fname1);
     CACHEFILE f1;
-    r = toku_cachetable_openf(&f1, ct, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
+    r = toku_cachetable_openf(&f1, ct, fname1, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
 
     char fname2[] = __FILE__ "test2.dat";
     unlink(fname2);
     CACHEFILE f2;
-    r = toku_cachetable_openf(&f2, ct, fname2, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
+    r = toku_cachetable_openf(&f2, ct, fname2, fname2, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
 
     // insert keys 0..n-1 
     int i;
@@ -93,8 +93,8 @@ test_cachetable_flush (int n) {
         assert(r == 0);
     }
 
-    r = toku_cachefile_close(&f1, NULL_LOGGER, 0); assert(r == 0 && f1 == 0);
-    r = toku_cachefile_close(&f2, NULL_LOGGER, 0); assert(r == 0 && f2 == 0);
+    r = toku_cachefile_close(&f1, NULL_LOGGER, 0, ZERO_LSN); assert(r == 0 && f1 == 0);
+    r = toku_cachefile_close(&f2, NULL_LOGGER, 0, ZERO_LSN); assert(r == 0 && f2 == 0);
     r = toku_cachetable_close(&ct); assert(r == 0 && ct == 0);
 }
 

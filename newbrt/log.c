@@ -58,7 +58,9 @@ logfilenamecompare (const void *ap, const void *bp) {
     return strcmp(a,b);
 }
 
-int toku_logger_find_logfiles (const char *directory, char ***resultp) {
+// Return the log files in sorted order
+// Return a null_terminated array of strings, and also return the number of strings in the array.
+int toku_logger_find_logfiles (const char *directory, char ***resultp, int *n_logfiles) {
     int result_limit=2;
     int n_results=0;
     char **MALLOC_N(result_limit, result);
@@ -85,6 +87,7 @@ int toku_logger_find_logfiles (const char *directory, char ***resultp) {
     // Return them in increasing order.
     qsort(result, n_results, sizeof(result[0]), logfilenamecompare);
     *resultp    = result;
+    *n_logfiles = n_results;
     result[n_results]=0; // make a trailing null
     return d ? closedir(d) : 0;
 }
@@ -953,7 +956,8 @@ int toku_logger_log_archive (TOKULOGGER logger, char ***logs_p, int flags) {
     int all_n_logs;
     int i;
     char **all_logs;
-    int r = toku_logger_find_logfiles (logger->directory, &all_logs);
+    int n_logfiles;
+    int r = toku_logger_find_logfiles (logger->directory, &all_logs, &n_logfiles);
     if (r!=0) return r;
 
     for (i=0; all_logs[i]; i++);

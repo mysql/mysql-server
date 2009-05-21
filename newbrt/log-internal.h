@@ -80,7 +80,7 @@ struct tokulogger {
 };
 
 int toku_logger_find_next_unused_log_file(const char *directory, long long *result);
-int toku_logger_find_logfiles (const char *directory, char ***resultp);
+int toku_logger_find_logfiles (const char *directory, char ***resultp, int *n_logfiles);
 
 struct brtcachefile_pair {
     BRT brt;

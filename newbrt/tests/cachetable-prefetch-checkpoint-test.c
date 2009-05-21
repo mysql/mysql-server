@@ -42,7 +42,7 @@ static void cachetable_prefetch_checkpoint_test(int n, enum cachetable_dirty dir
     char fname1[] = __FILE__ "test1.dat";
     unlink(fname1);
     CACHEFILE f1;
-    r = toku_cachetable_openf(&f1, ct, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
+    r = toku_cachetable_openf(&f1, ct, fname1, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
 
     // prefetch block n+1. this will take 10 seconds.
     {
@@ -112,7 +112,7 @@ static void cachetable_prefetch_checkpoint_test(int n, enum cachetable_dirty dir
     assert(r == 0);
     assert(n_flush == 0 && n_write_me == 0 && n_keep_me == 0);
 
-    r = toku_cachefile_close(&f1, NULL_LOGGER, 0); assert(r == 0 && f1 == 0);
+    r = toku_cachefile_close(&f1, NULL_LOGGER, 0, ZERO_LSN); assert(r == 0 && f1 == 0);
     r = toku_cachetable_close(&ct); assert(r == 0 && ct == 0);
 }
 

@@ -29,10 +29,9 @@ int cmp(DB *db, const DBT *dbt1, const DBT *dbt2) {
 
 void test_db(void) {
     DbEnv env(DB_CXX_NO_EXCEPTIONS);
-    env.open(NULL, DB_PRIVATE, 0666);
+    int r = env.open(NULL, DB_CREATE|DB_PRIVATE, 0666);
+    assert(r==0);
     Db db(&env, 0);
-    
-    int r;
     
     r = db.set_bt_compare(cmp);                 assert(r == 0);
     r = db.remove("DoesNotExist.db", NULL, 0);  assert(r == ENOENT);

@@ -327,7 +327,7 @@ enum brt_layout_version_e {
 };
 
 void toku_brtheader_free (struct brt_header *h);
-int toku_brtheader_close (CACHEFILE cachefile, void *header_v, char **error_string);
+int toku_brtheader_close (CACHEFILE cachefile, void *header_v, char **error_string, LSN);
 int toku_brtheader_begin_checkpoint (CACHEFILE cachefile, LSN checkpoint_lsn, void *header_v);
 int toku_brtheader_checkpoint (CACHEFILE cachefile, void *header_v);
 int toku_brtheader_end_checkpoint (CACHEFILE cachefile, void *header_v);

@@ -48,7 +48,7 @@ static void cachetable_checkpoint_test(int n, enum cachetable_dirty dirty) {
     char fname1[] = __FILE__ "test1.dat";
     unlink(fname1);
     CACHEFILE f1;
-    r = toku_cachetable_openf(&f1, ct, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
+    r = toku_cachetable_openf(&f1, ct, fname1, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
 
     // insert items into the cachetable. all should be dirty
     int i;
@@ -112,7 +112,7 @@ static void cachetable_checkpoint_test(int n, enum cachetable_dirty dirty) {
     assert(r == 0);
     assert(n_flush == 0 && n_write_me == 0 && n_keep_me == 0);
 
-    r = toku_cachefile_close(&f1, NULL_LOGGER, 0); assert(r == 0 && f1 == 0);
+    r = toku_cachefile_close(&f1, NULL_LOGGER, 0, ZERO_LSN); assert(r == 0 && f1 == 0);
     r = toku_cachetable_close(&ct); assert(r == 0 && ct == 0);
 }
 
