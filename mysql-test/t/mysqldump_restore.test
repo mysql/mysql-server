@@ -1,5 +1,6 @@
 ###############################################################################
 # mysqldump_restore.test
+#
 # Purpose:  Tests if mysqldump output can be used to successfully restore
 #           tables and data.  
 #           We CREATE a table, mysqldump it to a file, ALTER the original
@@ -35,15 +36,14 @@ let $mysqldumpfile = $MYSQLTEST_VARDIR/tmp/mysqldumpfile.sql;
 
 --echo # Pre-test cleanup
 --disable_warnings
-DROP TABLE IF EXISTS t1; 
+DROP TABLE IF EXISTS t1;
 --enable_warnings
 
 --echo # Begin tests
 --echo #
 --echo # Bug#2005 Long decimal comparison bug.
 --echo #
-
-CREATE TABLE t1 (a decimal(64, 20));
+CREATE TABLE t1 (a DECIMAL(64, 20));
 INSERT INTO t1 VALUES ("1234567890123456789012345678901234567890"),
 ("0987654321098765432109876543210987654321");
 --exec $MYSQL_DUMP --compact test t1 > $mysqldumpfile
@@ -53,15 +53,11 @@ let $table_name = test.t1;
 --echo #
 --echo # Bug#3361 mysqldump quotes DECIMAL values inconsistently
 --echo #
-
 CREATE TABLE t1 (a DECIMAL(10,5), b FLOAT);
-
-# check at first how mysql work with quoted decimal
-
+# Check at first how mysql work with quoted decimal
 INSERT INTO t1 VALUES (1.2345, 2.3456);
 INSERT INTO t1 VALUES ('1.2345', 2.3456);
 INSERT INTO t1 VALUES ("1.2345", 2.3456);
-
 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='ANSI_QUOTES';
 INSERT INTO t1 VALUES (1.2345, 2.3456);
 INSERT INTO t1 VALUES ('1.2345', 2.3456);
@@ -78,7 +74,6 @@ let $table_name = test.t1;
 --echo # Bug#1994 mysqldump does not correctly dump UCS2 data
 --echo # Bug#4261 mysqldump 10.7 (mysql 4.1.2) --skip-extended-insert drops NULL from inserts
 --echo #
-
 CREATE TABLE t1 (a  VARCHAR(255)) DEFAULT CHARSET koi8r;
 INSERT INTO t1  VALUES (_koi8r x'C1C2C3C4C5'), (NULL);
 --exec $MYSQL_DUMP --skip-comments --skip-extended-insert test t1 > $mysqldumpfile
@@ -88,9 +83,8 @@ let $table_name = test.t1;
 --echo #
 --echo # WL#2319 Exclude Tables from dump
 --echo #
-
-CREATE TABLE t1 (a int);
-CREATE TABLE t2 (a int);
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT);
 INSERT INTO t1 VALUES (1),(2),(3);
 INSERT INTO t2 VALUES (4),(5),(6);
 --exec $MYSQL_DUMP --skip-comments --ignore-table=test.t1 test > $mysqldumpfile
@@ -101,14 +95,11 @@ DROP TABLE t1;
 --echo #
 --echo # Bug#8830 mysqldump --skip-extended-insert causes --hex-blob to dump wrong values
 --echo #
-
 CREATE TABLE t1 (`b` blob);
 INSERT INTO `t1` VALUES (0x602010000280100005E71A);
 --exec $MYSQL_DUMP --skip-extended-insert --hex-blob test --skip-comments t1 > $mysqldumpfile
 let $table_name = test.t1;
 --source include/mysqldump.inc
-
-
 
 --echo # End tests
 
