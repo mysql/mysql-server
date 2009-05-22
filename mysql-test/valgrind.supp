@@ -401,6 +401,20 @@
 }
 
 {
+   dlclose memory loss from plugin variant 3
+   Memcheck:Leak
+   fun:malloc
+   fun:_dl_scope_free
+   fun:_dl_close_worker
+   fun:_dl_close
+   fun:_dl_catch_error
+   fun:_dlerror_run
+   fun:dlclose
+   fun:_Z15free_plugin_memP12st_plugin_dl
+   fun:_Z13plugin_dl_delPK19st_mysql_lex_string
+}
+
+{
    dlopen / ptread_cancel_init memory loss on Suse Linux 10.3 32/64 bit
    Memcheck:Leak
    fun:*alloc

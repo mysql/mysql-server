@@ -9,8 +9,11 @@ AC_CANONICAL_SYSTEM
 # remember to also update version.c in ndb
 #
 # When changing major version number please also check switch statement
-# in mysqlbinlog::check_master_version().
-AM_INIT_AUTOMAKE(mysql, 5.1.35-maria-beta2)
+# in mysqlbinlog.cc / check_master_version().
+#
+# When merging new MySQL releases, update the version number to match the
+# MySQL version number, but reset the maria subrelease (-beta1).
+AM_INIT_AUTOMAKE(mysql, 5.1.35-maria-beta1)
 AM_CONFIG_HEADER([include/config.h:config.h.in])
 
 PROTOCOL_VERSION=10

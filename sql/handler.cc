@@ -432,9 +432,6 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
   {
     sql_print_error("Plugin '%s' init function returned error.",
 		    plugin->name.str);
-    /* Free data, so that we don't refer to it in ha_finalize_handlerton */
-    my_free(hton, MYF(0));
-    plugin->data= 0;
     goto err;
   }
 

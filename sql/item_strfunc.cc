@@ -3243,7 +3243,7 @@ longlong Item_func_crc32::val_int()
 String *Item_func_compress::val_str(String *str)
 {
   int err= Z_OK, code;
-  ulong new_size;
+  size_t new_size;
   String *res;
   Byte *body;
   char *tmp, *last_char;
@@ -3279,8 +3279,8 @@ String *Item_func_compress::val_str(String *str)
   body= ((Byte*)buffer.ptr()) + 4;
 
   // As far as we have checked res->is_empty() we can use ptr()
-  if ((err= compress(body, &new_size,
-		     (const Bytef*)res->ptr(), res->length())) != Z_OK)
+  if ((err= my_compress_buffer(body, &new_size, (const uchar *)res->ptr(),
+                               res->length())) != Z_OK)
   {
     code= err==Z_MEM_ERROR ? ER_ZLIB_Z_MEM_ERROR : ER_ZLIB_Z_BUF_ERROR;
     push_warning(current_thd,MYSQL_ERROR::WARN_LEVEL_ERROR,code,ER(code));

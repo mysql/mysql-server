@@ -879,6 +879,10 @@ extern my_bool my_compress(uchar *, size_t *, size_t *);
 extern my_bool my_uncompress(uchar *, size_t , size_t *);
 extern uchar *my_compress_alloc(const uchar *packet, size_t *len,
                                 size_t *complen);
+extern void *my_az_allocator(void *dummy, unsigned int items, unsigned int size);
+extern void my_az_free(void *dummy, void *address);
+extern int my_compress_buffer(uchar *dest, size_t *destLen,
+                              const uchar *source, size_t sourceLen);
 extern int packfrm(uchar *, size_t, uchar **, size_t *);
 extern int unpackfrm(uchar **, size_t *, const uchar *);
 
