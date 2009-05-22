@@ -1,0 +1,111 @@
+###############################################################################
+# mysqldump_restore.test
+#
+# Purpose:  Tests if mysqldump output can be used to successfully restore
+#           tables and data.  
+#           We CREATE a table, mysqldump it to a file, ALTER the original
+#           table's name, recreate the table from the mysqldump file, then
+#           utilize include/diff_tables to compare the original and recreated
+#           tables.
+#
+#           We use several examples from mysqldump.test here and include
+#           the relevant bug numbers and headers from that test.
+#
+# NOTE:     This test is not currently complete and offers only basic
+#           cases of mysqldump output being restored. 
+#           Also, does NOT work with -X (xml) output!
+#           
+# Author:   pcrews
+# Created:  2009-05-21
+# Last Change:
+# Change date:
+###############################################################################
+
+# Embedded server doesn't support external clients
+--source include/not_embedded.inc
+--source include/have_log_bin.inc
+
+--echo # Set concurrent_insert = 0 to prevent random errors
+--echo # will reset to original value at the end of the test
+SET @old_concurrent_insert = @@global.concurrent_insert;
+SET @@global.concurrent_insert = 0;
+
+# Define mysqldumpfile here.  It is used to capture mysqldump output
+# in order to test the output's ability to restore an exact copy of the table
+let $mysqldumpfile = $MYSQLTEST_VARDIR/tmp/mysqldumpfile.sql;
+
+--echo # Pre-test cleanup
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+--echo # Begin tests
+--echo #
+--echo # Bug#2005 Long decimal comparison bug.
+--echo #
+CREATE TABLE t1 (a DECIMAL(64, 20));
+INSERT INTO t1 VALUES ("1234567890123456789012345678901234567890"),
+("0987654321098765432109876543210987654321");
+--exec $MYSQL_DUMP --compact test t1 > $mysqldumpfile
+let $table_name = test.t1;
+--source include/mysqldump.inc
+
+--echo #
+--echo # Bug#3361 mysqldump quotes DECIMAL values inconsistently
+--echo #
+CREATE TABLE t1 (a DECIMAL(10,5), b FLOAT);
+# Check at first how mysql work with quoted decimal
+INSERT INTO t1 VALUES (1.2345, 2.3456);
+INSERT INTO t1 VALUES ('1.2345', 2.3456);
+INSERT INTO t1 VALUES ("1.2345", 2.3456);
+SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='ANSI_QUOTES';
+INSERT INTO t1 VALUES (1.2345, 2.3456);
+INSERT INTO t1 VALUES ('1.2345', 2.3456);
+--error ER_BAD_FIELD_ERROR
+INSERT INTO t1 VALUES ("1.2345", 2.3456);
+SET SQL_MODE=@OLD_SQL_MODE;
+
+# check how mysqldump make quoting
+--exec $MYSQL_DUMP --compact test t1 > $mysqldumpfile
+let $table_name = test.t1;
+--source include/mysqldump.inc
+
+--echo #
+--echo # Bug#1994 mysqldump does not correctly dump UCS2 data
+--echo # Bug#4261 mysqldump 10.7 (mysql 4.1.2) --skip-extended-insert drops NULL from inserts
+--echo #
+CREATE TABLE t1 (a  VARCHAR(255)) DEFAULT CHARSET koi8r;
+INSERT INTO t1  VALUES (_koi8r x'C1C2C3C4C5'), (NULL);
+--exec $MYSQL_DUMP --skip-comments --skip-extended-insert test t1 > $mysqldumpfile
+let $table_name = test.t1;
+--source include/mysqldump.inc
+
+--echo #
+--echo # WL#2319 Exclude Tables from dump
+--echo #
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT);
+INSERT INTO t1 VALUES (1),(2),(3);
+INSERT INTO t2 VALUES (4),(5),(6);
+--exec $MYSQL_DUMP --skip-comments --ignore-table=test.t1 test > $mysqldumpfile
+let $table_name = test.t2;
+--source include/mysqldump.inc
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#8830 mysqldump --skip-extended-insert causes --hex-blob to dump wrong values
+--echo #
+CREATE TABLE t1 (`b` blob);
+INSERT INTO `t1` VALUES (0x602010000280100005E71A);
+--exec $MYSQL_DUMP --skip-extended-insert --hex-blob test --skip-comments t1 > $mysqldumpfile
+let $table_name = test.t1;
+--source include/mysqldump.inc
+
+--echo # End tests
+
+--echo # Cleanup
+--echo # Reset concurrent_insert to its original value
+SET @@global.concurrent_insert = @old_concurrent_insert;
+--echo # remove mysqldumpfile
+--error 0,1
+--remove_file $mysqldumpfile
