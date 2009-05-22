@@ -545,6 +545,14 @@ void st_relay_log_info::close_temporary_tables()
   slave_open_temp_tables= 0;
 }
 
+static void set_thd_in_use_temporary_tables(RELAY_LOG_INFO *rli)
+{
+  TABLE *table;
+
+  for (table= rli->save_temporary_tables ; table ; table= table->next)
+    table->in_use= rli->sql_thd;
+}
+
 /*
   purge_relay_logs()
 
@@ -3964,6 +3972,7 @@ slave_begin:
   }
   thd->init_for_queries();
   thd->temporary_tables = rli->save_temporary_tables; // restore temp tables
+  set_thd_in_use_temporary_tables(rli);   // (re)set sql_thd in use for saved temp tables
   pthread_mutex_lock(&LOCK_thread_count);
   threads.append(thd);
   pthread_mutex_unlock(&LOCK_thread_count);
@@ -4136,6 +4145,7 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
   DBUG_ASSERT(rli->sql_thd == thd);
   THD_CHECK_SENTRY(thd);
   rli->sql_thd= 0;
+  set_thd_in_use_temporary_tables(rli);  // (re)set sql_thd in use for saved temp tables
   pthread_mutex_lock(&LOCK_thread_count);
   THD_CHECK_SENTRY(thd);
   delete thd;
