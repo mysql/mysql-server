@@ -123,12 +123,6 @@ UNCOMPRESS(c1)	UNCOMPRESSED_LENGTH(c1)
 NULL	NULL
 NULL	NULL
 NULL	825307441
-Warnings:
-Error	1259	ZLIB: Input data corrupted
-Error	1259	ZLIB: Input data corrupted
-Error	1259	ZLIB: Input data corrupted
-Error	1259	ZLIB: Input data corrupted
-Error	1256	Uncompressed data size too large; the maximum size is 104857600 (probably, length of uncompressed data was corrupted)
 EXPLAIN EXTENDED SELECT * FROM (SELECT UNCOMPRESSED_LENGTH(c1) FROM t1) AS s;
 DROP TABLE t1;
 End of 5.0 tests
