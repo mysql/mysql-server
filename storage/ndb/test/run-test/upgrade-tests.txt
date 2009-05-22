@@ -10,3 +10,15 @@ cmd: testUpgrade
 args: -n Upgrade_NR3 T1
 max-time: 600
 
+cmd: testUpgrade
+args: -n Upgrade_FS T1
+max-time: 600
+
+cmd: testUpgrade
+args: -n Upgrade_Traffic T1
+max-time: 600
+
+cmd: testUpgrade
+args: -n Upgrade_Traffic_FS T1
+max-time: 600
+

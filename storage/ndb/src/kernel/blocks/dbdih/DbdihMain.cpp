@@ -2341,7 +2341,7 @@ void Dbdih::execINCL_NODECONF(Signal* signal)
     return;
   }
   
-  ndbrequire(cmasterdihref = reference());
+  ndbrequire(reference() == cmasterdihref);
   receiveLoopMacro(INCL_NODEREQ, TsendNodeId_or_blockref);
   
   CRASH_INSERTION(7128);
@@ -8831,7 +8831,7 @@ void Dbdih::execGCP_COMMIT(Signal* signal)
 #endif
 
   Uint32 masterRef = calcDihBlockRef(masterNodeId);
-  ndbrequire(masterNodeId = cmasterNodeId);
+  ndbrequire(masterNodeId == cmasterNodeId);
   if (isMaster())
   {
     ndbrequire(m_micro_gcp.m_master.m_state == MicroGcp::M_GCP_COMMIT);
@@ -9472,7 +9472,7 @@ void Dbdih::execSTART_LCP_REQ(Signal* signal){
   CRASH_INSERTION2(7021, isMaster());
   CRASH_INSERTION2(7022, !isMaster());
 
-  ndbrequire(c_lcpState.m_masterLcpDihRef = req->senderRef);
+  ndbrequire(c_lcpState.m_masterLcpDihRef == req->senderRef);
   c_lcpState.m_participatingDIH = req->participatingDIH;
   c_lcpState.m_participatingLQH = req->participatingLQH;
   

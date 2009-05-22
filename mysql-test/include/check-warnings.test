@@ -26,7 +26,7 @@ create temporary table error_log (
 ) engine=myisam;
 
 # Get the name of servers error log
-let $log_error= query_get_value(show variables like 'log_error', Value, 1);
+let $log_error= $MTR_LOG_ERROR;
 let $log_warning= $log_error.warnings;
 
 # Try tload the warnings into a temporary table,

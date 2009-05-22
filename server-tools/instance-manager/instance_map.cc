@@ -536,7 +536,8 @@ int Instance_map::load()
   */
   if (my_search_option_files(Options::Main::config_file, &argc,
                              (char ***) &argv, &args_used,
-                             process_option, (void*) this))
+                             process_option, (void*) this,
+                             Options::default_directories))
     log_info("Falling back to compiled-in defaults.");
 
   return complete_initialization();

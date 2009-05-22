@@ -99,7 +99,7 @@ t2
 t3
 t5
 v1
-select c,table_name from v1 
+select c,table_name from v1
 inner join information_schema.TABLES v2 on (v1.c=v2.table_name)
 where v1.c like "t%";
 c	table_name
@@ -118,7 +118,7 @@ t4	t4
 t2	t2
 t3	t3
 t5	t5
-select c,table_name from v1 
+select c,table_name from v1
 left join information_schema.TABLES v2 on (v1.c=v2.table_name)
 where v1.c like "t%";
 c	table_name
@@ -197,7 +197,7 @@ a	int(11)	YES		NULL
 create view mysqltest.v1 (c) as select a from mysqltest.t1;
 grant select (a) on mysqltest.t1 to mysqltest_2@localhost;
 grant select on mysqltest.v1 to mysqltest_3;
-select table_name, column_name, privileges from information_schema.columns 
+select table_name, column_name, privileges from information_schema.columns
 where table_schema = 'mysqltest' and table_name = 't1';
 table_name	column_name	privileges
 t1	a	select
@@ -275,7 +275,7 @@ begin
 select * from t1;
 select * from t2;
 end|
-select parameter_style, sql_data_access, dtd_identifier 
+select parameter_style, sql_data_access, dtd_identifier
 from information_schema.routines where routine_schema='test';
 parameter_style	sql_data_access	dtd_identifier
 SQL	CONTAINS SQL	NULL
@@ -560,7 +560,7 @@ drop view v1;
 create table t1(a NUMERIC(5,3), b NUMERIC(5,1), c float(5,2),
 d NUMERIC(6,4), e float, f DECIMAL(6,3), g int(11), h DOUBLE(10,3),
 i DOUBLE);
-select COLUMN_NAME,COLUMN_TYPE, CHARACTER_MAXIMUM_LENGTH, 
+select COLUMN_NAME,COLUMN_TYPE, CHARACTER_MAXIMUM_LENGTH,
 CHARACTER_OCTET_LENGTH, NUMERIC_PRECISION, NUMERIC_SCALE
 from information_schema.columns where table_name= 't1';
 COLUMN_NAME	COLUMN_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE
@@ -621,7 +621,7 @@ TABLE_NAME= "vo";
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	POSITION_IN_UNIQUE_CONSTRAINT	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	REFERENCED_COLUMN_NAME
 drop view vo;
 select TABLE_NAME,TABLE_TYPE,ENGINE
-from information_schema.tables 
+from information_schema.tables
 where table_schema='information_schema' limit 2;
 TABLE_NAME	TABLE_TYPE	ENGINE
 CHARACTER_SETS	SYSTEM VIEW	MEMORY
@@ -726,7 +726,7 @@ where table_schema="information_schema" and table_name="COLUMNS" and
 column_type
 varchar(32)
 varchar(32)
-select TABLE_ROWS from information_schema.tables where 
+select TABLE_ROWS from information_schema.tables where
 table_schema="information_schema" and table_name="COLUMNS";
 TABLE_ROWS
 NULL
@@ -760,7 +760,7 @@ count(*)
 drop view a2, a1;
 drop table t_crashme;
 select table_schema,table_name, column_name from
-information_schema.columns 
+information_schema.columns
 where data_type = 'longtext';
 table_schema	table_name	column_name
 information_schema	COLUMNS	COLUMN_DEFAULT
@@ -804,7 +804,7 @@ event	last_executed	datetime
 event	starts	datetime
 event	ends	datetime
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES A
-WHERE NOT EXISTS 
+WHERE NOT EXISTS
 (SELECT * FROM INFORMATION_SCHEMA.COLUMNS B
 WHERE A.TABLE_SCHEMA = B.TABLE_SCHEMA
 AND A.TABLE_NAME = B.TABLE_NAME);
@@ -833,7 +833,7 @@ x_float	NULL	NULL
 x_double_precision	NULL	NULL
 drop table t1;
 grant select on test.* to mysqltest_4@localhost;
-SELECT TABLE_NAME, COLUMN_NAME, PRIVILEGES FROM INFORMATION_SCHEMA.COLUMNS 
+SELECT TABLE_NAME, COLUMN_NAME, PRIVILEGES FROM INFORMATION_SCHEMA.COLUMNS
 where COLUMN_NAME='TABLE_NAME';
 TABLE_NAME	COLUMN_NAME	PRIVILEGES
 COLUMNS	TABLE_NAME	select
@@ -1079,7 +1079,7 @@ BEGIN
 SELECT 'foo' FROM DUAL;
 END |
 ERROR 42000: Unknown database 'information_schema'
-select  ROUTINE_NAME from routines where ROUTINE_SCHEMA='information_schema';
+select ROUTINE_NAME from routines where ROUTINE_SCHEMA='information_schema';
 ROUTINE_NAME
 grant all on information_schema.* to 'user1'@'localhost';
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
@@ -1634,7 +1634,7 @@ show events where Db= 'information_schema';
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
 use test;
 #
-# Bug#34166: Server crash in SHOW OPEN TABLES and prelocking
+# Bug#34166 Server crash in SHOW OPEN TABLES and prelocking
 #
 drop table if exists t1;
 drop function if exists f1;
@@ -1720,4 +1720,9 @@ SELECT CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='t1';
 CREATE_OPTIONS
 KEY_BLOCK_SIZE=1
 DROP TABLE t1;
+SET TIMESTAMP=@@TIMESTAMP + 10000000;
+SELECT 'OK' AS TEST_RESULT FROM INFORMATION_SCHEMA.PROCESSLIST WHERE time < 0;
+TEST_RESULT
+OK
+SET TIMESTAMP=DEFAULT;
 End of 5.1 tests.
