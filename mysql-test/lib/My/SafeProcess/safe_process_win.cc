@@ -77,14 +77,29 @@ static void message(const char* fmt, ...)
 
 static void die(const char* fmt, ...)
 {
+  DWORD last_err= GetLastError();
   va_list args;
   fprintf(stderr, "%s: FATAL ERROR, ", safe_process_name);
   va_start(args, fmt);
   vfprintf(stderr, fmt, args);
   fprintf(stderr, "\n");
   va_end(args);
-  if (int last_err= GetLastError())
-    fprintf(stderr, "error: %d, %s\n", last_err, strerror(last_err));
+  if (last_err)
+  {
+    char *message_text;
+    if (FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_ALLOCATE_BUFFER
+        |FORMAT_MESSAGE_IGNORE_INSERTS, NULL, last_err , 0, (LPSTR)&message_text,
+        0, NULL))
+    {
+      fprintf(stderr,"error: %d, %s\n",last_err, message_text);
+      LocalFree(message_text);
+    }
+    else
+    {
+      /* FormatMessage failed, print error code only */
+      fprintf(stderr,"error:%d\n", last_err);
+    }
+  }
   fflush(stderr);
   exit(1);
 }

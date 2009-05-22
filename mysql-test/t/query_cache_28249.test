@@ -11,6 +11,7 @@
 #
 
 --source include/have_query_cache.inc
+--source include/not_embedded.inc
 
 SET @query_cache_type=         @@global.query_cache_type;
 SET @query_cache_limit=        @@global.query_cache_limit;

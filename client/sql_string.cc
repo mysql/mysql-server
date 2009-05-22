@@ -71,25 +71,22 @@ bool String::realloc(uint32 alloc_length)
     char *new_ptr;
     if (alloced)
     {
-      if ((new_ptr= (char*) my_realloc(Ptr,len,MYF(MY_WME))))
-      {
-	Ptr=new_ptr;
-	Alloced_length=len;
-      }
-      else
-	return TRUE;				// Signal error
+      if (!(new_ptr= (char*) my_realloc(Ptr,len,MYF(MY_WME))))
+        return TRUE;				// Signal error
     }
     else if ((new_ptr= (char*) my_malloc(len,MYF(MY_WME))))
     {
+      if (str_length > len - 1)
+        str_length= 0;
       if (str_length)				// Avoid bugs in memcpy on AIX
 	memcpy(new_ptr,Ptr,str_length);
       new_ptr[str_length]=0;
-      Ptr=new_ptr;
-      Alloced_length=len;
       alloced=1;
     }
     else
       return TRUE;			// Signal error
+    Ptr= new_ptr;
+    Alloced_length= len;
   }
   Ptr[alloc_length]=0;			// This make other funcs shorter
   return FALSE;
@@ -125,7 +122,7 @@ bool String::set(double num,uint decimals, CHARSET_INFO *cs)
   str_charset=cs;
   if (decimals >= NOT_FIXED_DEC)
   {
-    uint32 len= my_sprintf(buff,(buff, "%.14g",num));// Enough for a DATETIME
+    uint32 len= my_sprintf(buff,(buff, "%.15g",num));// Enough for a DATETIME
     return copy(buff, len, &my_charset_latin1, cs, &dummy_errors);
   }
 #ifdef HAVE_FCONVERT
@@ -468,7 +465,7 @@ bool String::append(const char *s,uint32 arg_length)
 
 bool String::append(const char *s)
 {
-  return append(s, strlen(s));
+  return append(s, (uint) strlen(s));
 }
 
 
@@ -677,7 +674,7 @@ void String::qs_append(const char *str, uint32 len)
 void String::qs_append(double d)
 {
   char *buff = Ptr + str_length;
-  str_length+= my_sprintf(buff, (buff, "%.14g", d));
+  str_length+= my_sprintf(buff, (buff, "%.15g", d));
 }
 
 void String::qs_append(double *d)

@@ -5,6 +5,9 @@
 # Can't test with embedded server that doesn't support grants
 -- source include/not_embedded.inc
 
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
 connect (con1root,localhost,root,,);
 
 connection con1root;
@@ -156,7 +159,7 @@ call db1_secret.stamp(6);
 select db1_secret.db();
 
 #
-# BUG#2777
+# Bug#2777 Stored procedure doesn't observe definer's rights
 #
 
 connection con1root;
@@ -215,7 +218,7 @@ call q();
 select * from t2;
 
 #
-# BUG#6030: Stored procedure has no appropriate DROP privilege
+# Bug#6030 Stored procedure has no appropriate DROP privilege
 # (or ALTER for that matter)
 
 # still connection con2user1 in db2
@@ -330,7 +333,7 @@ flush privileges;
 drop table t1;
 
 #
-# BUG#9503: reseting correct parameters of thread after error in SP function
+# Bug#9503 reseting correct parameters of thread after error in SP function
 #
 connect (root,localhost,root,,test);
 connection root;
@@ -366,10 +369,12 @@ REVOKE ALL PRIVILEGES, GRANT OPTION FROM user1@localhost;
 drop function bug_9503;
 use test;
 drop database mysqltest;
+connection default;
+disconnect root;
 
 #
 # correct value from current_user() in function run from "security definer"
-# (BUG#7291)
+# (Bug#7291 Stored procedures: wrong CURRENT_USER value)
 #
 connection con1root;
 use test;
@@ -398,10 +403,10 @@ REVOKE ALL PRIVILEGES, GRANT OPTION FROM user1@localhost;
 drop user user1@localhost;
 
 #
-# Bug #12318: Wrong error message when accessing an inaccessible stored
+# Bug#12318 Wrong error message when accessing an inaccessible stored
 # procedure in another database when the current database is
 # information_schema.
-# 
+#
 
 --disable_warnings
 drop database if exists mysqltest_1;
@@ -438,7 +443,7 @@ revoke usage on *.* from mysqltest_1@localhost;
 drop user mysqltest_1@localhost;
 
 #
-# BUG#12812 create view calling a function works without execute right
+# Bug#12812 create view calling a function works without execute right
 #           on function
 delimiter |;
 --disable_warnings
@@ -464,7 +469,7 @@ delimiter ;|
 
 
 #
-# BUG#14834: Server denies to execute Stored Procedure
+# Bug#14834 Server denies to execute Stored Procedure
 #
 # The problem here was with '_' in the database name.
 #
@@ -507,7 +512,7 @@ drop database db_bug14834;
 
 
 #
-# BUG#14533: 'desc tbl' in stored procedure causes error
+# Bug#14533 'desc tbl' in stored procedure causes error
 # ER_TABLEACCESS_DENIED_ERROR
 #
 create database db_bug14533;
@@ -546,7 +551,7 @@ drop database db_bug14533;
 
 
 #
-# WL#2897: Complete definer support in the stored routines.
+# WL#2897 Complete definer support in the stored routines.
 #
 # The following cases are tested:
 #   1. check that if DEFINER-clause is not explicitly specified, stored routines
@@ -591,7 +596,7 @@ GRANT ALL PRIVILEGES ON mysqltest.* TO mysqltest_2@localhost;
 --echo ---> connection: mysqltest_2_con
 --connection mysqltest_2_con
 
-use mysqltest;
+USE mysqltest;
 
 CREATE PROCEDURE wl2897_p1() SELECT 1;
 
@@ -603,7 +608,7 @@ CREATE FUNCTION wl2897_f1() RETURNS INT RETURN 1;
 --echo ---> connection: mysqltest_1_con
 --connection mysqltest_1_con
 
-use mysqltest;
+USE mysqltest;
 
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
 CREATE DEFINER=root@localhost PROCEDURE wl2897_p2() SELECT 2;
@@ -629,7 +634,7 @@ CREATE DEFINER='a @ b @ c'@localhost FUNCTION wl2897_f3() RETURNS INT RETURN 3;
 --echo ---> connection: con1root
 --connection con1root
 
-use mysqltest;
+USE mysqltest;
 
 SHOW CREATE PROCEDURE wl2897_p1;
 SHOW CREATE PROCEDURE wl2897_p3;
@@ -649,7 +654,7 @@ DROP DATABASE mysqltest;
 
 
 #
-# BUG#13198: SP executes if definer does not exist
+# Bug#13198 SP executes if definer does not exist
 #
 
 # Prepare environment.
@@ -679,7 +684,7 @@ GRANT ALL PRIVILEGES ON mysqltest.* TO mysqltest_2@localhost;
 --echo ---> connection: mysqltest_1_con
 --connection mysqltest_1_con
 
-use mysqltest;
+USE mysqltest;
 
 CREATE PROCEDURE bug13198_p1()
   SELECT 1;
@@ -697,7 +702,7 @@ SELECT bug13198_f1();
 --echo ---> connection: mysqltest_2_con
 --connection mysqltest_2_con
 
-use mysqltest;
+USE mysqltest;
 
 CALL bug13198_p1();
 
@@ -719,7 +724,7 @@ DROP USER mysqltest_1@localhost;
 --echo ---> connection: mysqltest_2_con
 --connection mysqltest_2_con
 
-use mysqltest;
+USE mysqltest;
 
 --error ER_NO_SUCH_USER
 CALL bug13198_p1();
@@ -740,8 +745,8 @@ DROP USER mysqltest_2@localhost;
 DROP DATABASE mysqltest;
 
 #
-# Bug#19857 - When a user with CREATE ROUTINE priv creates a routine,
-#             it results in NULL p/w
+# Bug#19857 When a user with CREATE ROUTINE priv creates a routine,
+#           it results in NULL p/w
 #
 
 # Can't test with embedded server that doesn't support grants
@@ -756,7 +761,7 @@ SELECT Host,User,Password FROM mysql.user WHERE User='user19857';
 --echo ---> connection: mysqltest_2_con
 --connection mysqltest_2_con
 
-use test;
+USE test;
 
 DELIMITER //;
   CREATE PROCEDURE sp19857() DETERMINISTIC
@@ -790,8 +795,7 @@ DROP USER user19857@localhost;
 use test;
 
 #
-# BUG#18630: Arguments of suid routine calculated in wrong security
-# context
+# Bug#18630 Arguments of suid routine calculated in wrong security context
 #
 # Arguments of suid routines were calculated in definer's security
 # context instead of caller's context thus creating security hole.
@@ -862,3 +866,7 @@ DROP FUNCTION f_suid;
 DROP TABLE t1;
 
 --echo End of 5.0 tests.
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc
+

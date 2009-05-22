@@ -5,6 +5,10 @@
 # on the presence of the log tables (which are CSV-based).
 --source include/have_csv.inc
 
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+
 # Test for information_schema.schemata &
 # show databases
 
@@ -44,11 +48,11 @@ create view v1 (c) as
         table_name<>'ndb_apply_status';
 select * from v1;
 
-select c,table_name from v1 
+select c,table_name from v1
 inner join information_schema.TABLES v2 on (v1.c=v2.table_name)
 where v1.c like "t%";
 
-select c,table_name from v1 
+select c,table_name from v1
 left join information_schema.TABLES v2 on (v1.c=v2.table_name)
 where v1.c like "t%";
 
@@ -77,16 +81,17 @@ grant select (a) on mysqltest.t1 to mysqltest_2@localhost;
 grant select on mysqltest.v1 to mysqltest_3;
 connect (user3,localhost,mysqltest_2,,);
 connection user3;
-select table_name, column_name, privileges from information_schema.columns 
+select table_name, column_name, privileges from information_schema.columns
 where table_schema = 'mysqltest' and table_name = 't1';
 show columns from mysqltest.t1;
 connect (user4,localhost,mysqltest_3,,mysqltest);
 connection user4;
 select table_name, column_name, privileges from information_schema.columns
 where table_schema = 'mysqltest' and table_name = 'v1';
---error 1345
+--error ER_VIEW_NO_EXPLAIN
 explain select * from v1;
 connection default;
+disconnect user4;
 
 drop view v1, mysqltest.v1;
 drop tables mysqltest.t4, mysqltest.t1, t2, t3, t5;
@@ -136,7 +141,7 @@ delimiter ;|
 #
 # Bug#7222 information_schema: errors in "routines"
 #
-select parameter_style, sql_data_access, dtd_identifier 
+select parameter_style, sql_data_access, dtd_identifier
 from information_schema.routines where routine_schema='test';
 
 --replace_column 5 # 6 #
@@ -163,7 +168,7 @@ drop view v1;
 connect (user1,localhost,mysqltest_1,,);
 connection user1;
 select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES;
---error 1305
+--error ER_SP_DOES_NOT_EXIST
 show create function sub1;
 connection user3;
 select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES;
@@ -182,6 +187,7 @@ show create function sub2;
 show function status like "sub2";
 connection default;
 disconnect user1;
+disconnect user3;
 drop function sub2;
 show create procedure sel2;
 
@@ -321,7 +327,7 @@ drop view v1;
 create table t1(a NUMERIC(5,3), b NUMERIC(5,1), c float(5,2),
  d NUMERIC(6,4), e float, f DECIMAL(6,3), g int(11), h DOUBLE(10,3),
  i DOUBLE);
-select COLUMN_NAME,COLUMN_TYPE, CHARACTER_MAXIMUM_LENGTH, 
+select COLUMN_NAME,COLUMN_TYPE, CHARACTER_MAXIMUM_LENGTH,
  CHARACTER_OCTET_LENGTH, NUMERIC_PRECISION, NUMERIC_SCALE
 from information_schema.columns where table_name= 't1';
 drop table t1;
@@ -334,7 +340,7 @@ drop table t115;
 delimiter //;
 create procedure p108 () begin declare c cursor for select data_type
 from information_schema.columns;  open c; open c; end;//
---error 1325
+--error ER_SP_CURSOR_ALREADY_OPEN
 call p108()//
 delimiter ;//
 drop procedure p108;
@@ -344,24 +350,24 @@ where table_name= "user";
 select * from v1;
 drop view v1;
 
-create view vo as select 'a' union select 'a';  
+create view vo as select 'a' union select 'a';
 show index from vo;
 select * from information_schema.TABLE_CONSTRAINTS where
 TABLE_NAME= "vo";
 select * from information_schema.KEY_COLUMN_USAGE where
-TABLE_NAME= "vo"; 
+TABLE_NAME= "vo";
 drop view vo;
 
 select TABLE_NAME,TABLE_TYPE,ENGINE
-from information_schema.tables 
+from information_schema.tables
 where table_schema='information_schema' limit 2;
 show tables from information_schema like "T%";
 
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 create database information_schema;
 use information_schema;
 show full tables like "T%";
---error 1109
+--error ER_UNKNOWN_TABLE
 create table t1(a int);
 use test;
 show tables;
@@ -369,15 +375,15 @@ use information_schema;
 show tables like "T%";
 
 #
-# Bug#7210: information_schema: can't access when table-name = reserved word
+# Bug#7210 information_schema: can't access when table-name = reserved word
 #
 select table_name from tables where table_name='user';
 select column_name, privileges from columns
 where table_name='user' and column_name like '%o%';
 
 #
-# Bug#7212: information_schema: "Can't find file" errors if storage engine gone
-# Bug#7211: information_schema: crash if bad view
+# Bug#7212 information_schema: "Can't find file" errors if storage engine gone
+# Bug#7211 information_schema: crash if bad view
 #
 use test;
 create function sub1(i int) returns int
@@ -404,9 +410,9 @@ drop view v3;
 drop table t4;
 
 #
-# Bug#7213: information_schema: redundant non-standard TABLE_NAMES table
+# Bug#7213 information_schema: redundant non-standard TABLE_NAMES table
 #
---error 1109
+--error ER_UNKNOWN_TABLE
 select * from information_schema.table_names;
 
 #
@@ -419,7 +425,7 @@ where table_schema="information_schema" and table_name="COLUMNS" and
 #
 # Bug#2718 information_schema: errors in "tables"
 #
-select TABLE_ROWS from information_schema.tables where 
+select TABLE_ROWS from information_schema.tables where
 table_schema="information_schema" and table_name="COLUMNS";
 select table_type from information_schema.tables
 where table_schema="mysql" and table_name="user";
@@ -432,14 +438,14 @@ show status where variable_name like "%database%";
 show variables where variable_name like "skip_show_databas";
 
 #
-# Bug #7981:SHOW GLOBAL STATUS crashes server
+# Bug#7981 SHOW GLOBAL STATUS crashes server
 #
 # We don't actually care about the value, just that it doesn't crash.
 --replace_column 2 #
 show global status like "Threads_running";
 
 #
-# Bug #7915  crash,JOIN VIEW, subquery, 
+# Bug#7915 crash,JOIN VIEW, subquery,
 # SELECT .. FROM INFORMATION_SCHEMA.COLUMNS
 #
 create table t1(f1 int);
@@ -450,7 +456,7 @@ drop view v1;
 drop table t1, t2;
 
 #
-# Bug #7476: crash on SELECT * FROM INFORMATION_SCHEMA.TABLES
+# Bug#7476 crash on SELECT * FROM INFORMATION_SCHEMA.TABLES
 #
 use test;
 CREATE TABLE t_crashme ( f1 BIGINT);
@@ -478,26 +484,26 @@ drop view a2, a1;
 drop table t_crashme;
 
 #
-# Bug #7215  information_schema: columns are longtext instead of varchar
-# Bug #7217  information_schema: columns are varbinary() instead of timestamp
+# Bug#7215 information_schema: columns are longtext instead of varchar
+# Bug#7217 information_schema: columns are varbinary() instead of timestamp
 #
 select table_schema,table_name, column_name from
-information_schema.columns 
+information_schema.columns
 where data_type = 'longtext';
 select table_name, column_name, data_type from information_schema.columns
 where data_type = 'datetime';
 
 #
-# Bug #8164  subquery with INFORMATION_SCHEMA.COLUMNS, 100 % CPU
+# Bug#8164 subquery with INFORMATION_SCHEMA.COLUMNS, 100 % CPU
 #
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES A
-WHERE NOT EXISTS 
+WHERE NOT EXISTS
 (SELECT * FROM INFORMATION_SCHEMA.COLUMNS B
   WHERE A.TABLE_SCHEMA = B.TABLE_SCHEMA
   AND A.TABLE_NAME = B.TABLE_NAME);
 
 #
-# Bug #9344  INFORMATION_SCHEMA, wrong content, numeric columns
+# Bug#9344 INFORMATION_SCHEMA, wrong content, numeric columns
 #
 
 create table t1
@@ -515,21 +521,22 @@ WHERE TABLE_NAME= 't1';
 drop table t1;
 
 #
-# Bug#10261  INFORMATION_SCHEMA.COLUMNS, incomplete result for non root user
+# Bug#10261 INFORMATION_SCHEMA.COLUMNS, incomplete result for non root user
 #
 
 grant select on test.* to mysqltest_4@localhost;
 connect (user10261,localhost,mysqltest_4,,);
 connection user10261;
-SELECT TABLE_NAME, COLUMN_NAME, PRIVILEGES FROM INFORMATION_SCHEMA.COLUMNS 
+SELECT TABLE_NAME, COLUMN_NAME, PRIVILEGES FROM INFORMATION_SCHEMA.COLUMNS
 where COLUMN_NAME='TABLE_NAME';
 connection default;
+disconnect user10261;
 delete from mysql.user where user='mysqltest_4';
 delete from mysql.db where user='mysqltest_4';
 flush privileges;
 
 #
-# Bug #9404  information_schema: Weird error messages
+# Bug#9404 information_schema: Weird error messages
 # with SELECT SUM() ... GROUP BY queries
 #
 SELECT table_schema, count(*) FROM information_schema.TABLES WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test', 'mysqltest') AND table_name<>'ndb_binlog_index' AND table_name<>'ndb_apply_status' GROUP BY TABLE_SCHEMA;
@@ -570,7 +577,7 @@ drop table t1;
 
 
 #
-# Bug #10964  Information Schema:Authorization check on privilege tables is improper
+# Bug#10964 Information Schema:Authorization check on privilege tables is improper
 #
 
 create database mysqltest;
@@ -614,12 +621,16 @@ select * from information_schema.user_privileges where grantee like '%user%'
 order by grantee;
 show grants;
 connection default;
+disconnect con1;
+disconnect con2;
+disconnect con3;
+disconnect con4;
 drop user user1@localhost, user2@localhost, user3@localhost, user4@localhost;
 use test;
 drop database mysqltest;
 
 #
-# Bug #11055 information_schema: routines.sql_data_access has wrong value
+# Bug#11055 information_schema: routines.sql_data_access has wrong value
 #
 --disable_warnings
 drop procedure if exists p1;
@@ -634,13 +645,13 @@ drop procedure p1;
 drop procedure p2;
 
 #
-# Bug #9434 SHOW CREATE DATABASE information_schema;
+# Bug#9434 SHOW CREATE DATABASE information_schema;
 #
 show create database information_schema;
 
 #
-# Bug #11057 information_schema: columns table has some questionable contents
-# Bug #12301 information_schema: NUMERIC_SCALE must be 0 for integer columns
+# Bug#11057 information_schema: columns table has some questionable contents
+# Bug#12301 information_schema: NUMERIC_SCALE must be 0 for integer columns
 #
 create table t1(f1 LONGBLOB, f2 LONGTEXT);
 select column_name,data_type,CHARACTER_OCTET_LENGTH,
@@ -656,7 +667,7 @@ where table_name='t1';
 drop table t1;
 
 #
-# Bug #12127 triggers do not show in info_schema before they are used if set to the database
+# Bug#12127 triggers do not show in info_schema before they are used if set to the database
 #
 create table t1 (f1 integer);
 create trigger tr1 after insert on t1 for each row set @test_var=42;
@@ -678,8 +689,8 @@ show columns from t1;
 drop table t1;
 
 #
-# Bug #12636: SHOW TABLE STATUS with where condition containing a subquery
-#             over information schema
+# Bug#12636 SHOW TABLE STATUS with where condition containing a subquery
+#           over information schema
 #
 
 CREATE TABLE t1 (a int);
@@ -693,7 +704,7 @@ SHOW TABLE STATUS FROM test
 DROP TABLE t1,t2;
 
 #
-# Bug #12905 show fields from view behaving erratically with current database
+# Bug#12905 show fields from view behaving erratically with current database
 #
 create table t1(f1 int);
 create view v1 (c) as select f1 from t1;
@@ -701,28 +712,29 @@ connect (con5,localhost,root,,*NO-ONE*);
 select database();
 show fields from test.v1;
 connection default;
+disconnect con5;
 drop view v1;
 drop table t1;
 
 #
-# Bug #9846 Inappropriate error displayed while dropping table from 'INFORMATION_SCHEMA'
+# Bug#9846 Inappropriate error displayed while dropping table from 'INFORMATION_SCHEMA'
 #
 --error ER_PARSE_ERROR
 alter database information_schema;
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 drop database information_schema;
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 drop table information_schema.tables;
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 alter table information_schema.tables;
 #
-# Bug #9683 INFORMATION_SCH: Creation of temporary table allowed in Information_schema DB
+# Bug#9683 INFORMATION_SCH: Creation of temporary table allowed in Information_schema DB
 #
 use information_schema;
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 create temporary table schemata(f1 char(10));
 #
-# Bug #10708 SP's can use INFORMATION_SCHEMA as ROUTINE_SCHEMA
+# Bug#10708 SP's can use INFORMATION_SCHEMA as ROUTINE_SCHEMA
 #
 delimiter |;
 --error ER_BAD_DB_ERROR
@@ -731,13 +743,13 @@ BEGIN
   SELECT 'foo' FROM DUAL;
 END |
 delimiter ;|
-select  ROUTINE_NAME from routines where ROUTINE_SCHEMA='information_schema';
+select ROUTINE_NAME from routines where ROUTINE_SCHEMA='information_schema';
 #
-# Bug #10734 Grant of privileges other than 'select' and 'create view' should fail on schema
+# Bug#10734 Grant of privileges other than 'select' and 'create view' should fail on schema
 #
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 grant all on information_schema.* to 'user1'@'localhost';
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 grant select on information_schema.* to 'user1'@'localhost';
 
 #
@@ -763,9 +775,9 @@ where table_name="v1";
 drop view v1;
 
 #
-# Bug #14387 SHOW COLUMNS doesn't work on temporary tables
-# Bug #15224 SHOW INDEX from temporary table doesn't work
-# Bug #12770 DESC cannot display the info. about temporary table
+# Bug#14387 SHOW COLUMNS doesn't work on temporary tables
+# Bug#15224 SHOW INDEX from temporary table doesn't work
+# Bug#12770 DESC cannot display the info. about temporary table
 #
 create temporary table t1(f1 int, index(f1));
 show columns from t1;
@@ -850,6 +862,7 @@ connection con16681;
 select * from information_schema.views
 where table_name='v1' or table_name='v2';
 connection default;
+disconnect con16681;
 drop view v1, v2;
 drop table t1;
 drop user mysqltest_1@localhost;
@@ -864,8 +877,9 @@ select concat(@a, table_name), @a, table_name
 from information_schema.tables where table_schema = 'test';
 drop table t1,t2;
 
+
 #
-# Bug#20230: routine_definition is not null
+# Bug#20230 routine_definition is not null
 #
 --disable_warnings
 DROP PROCEDURE IF EXISTS p1;
@@ -898,7 +912,7 @@ DROP PROCEDURE p1;
 DROP USER mysql_bug20230@localhost;
 
 #
-# Bug#18925: subqueries with MIN/MAX functions on INFORMARTION_SCHEMA 
+# Bug#18925 subqueries with MIN/MAX functions on INFORMARTION_SCHEMA
 #
 
 SELECT t.table_name, c1.column_name
@@ -931,8 +945,8 @@ SELECT t.table_name, c1.column_name
         );
 
 #
-# Bug#21231: query with a simple non-correlated subquery over
-#            INFORMARTION_SCHEMA.TABLES 
+# Bug#2123 query with a simple non-correlated subquery over
+#          INFORMARTION_SCHEMA.TABLES
 #
 
 SELECT MAX(table_name) FROM information_schema.tables WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test');
@@ -940,7 +954,7 @@ SELECT table_name from information_schema.tables
   WHERE table_name=(SELECT MAX(table_name)
                       FROM information_schema.tables WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test'));
 #
-# Bug #23037: Bug in field "Default" of query "SHOW COLUMNS FROM table"
+# Bug#23037 Bug in field "Default" of query "SHOW COLUMNS FROM table"
 #
 # Note, MyISAM/InnoDB can't take more that 65532 chars, because the row
 # size is limited to 65535 bytes (BLOBs not counted)
@@ -981,7 +995,7 @@ DROP TABLE bug23037;
 DROP FUNCTION get_value;
 
 #
-# Bug#22413: EXPLAIN SELECT FROM view with ORDER BY yield server crash
+# Bug#22413 EXPLAIN SELECT FROM view with ORDER BY yield server crash
 #
 create view v1 as
 select table_schema as object_schema,
@@ -1007,7 +1021,7 @@ drop table t1,t2;
 
 
 #
-# Bug#24630  Subselect query crashes mysqld
+# Bug#24630 Subselect query crashes mysqld
 #
 select 1 as f1 from information_schema.tables  where "CHARACTER_SETS"=
 (select cast(table_name as char)  from information_schema.tables
@@ -1034,8 +1048,8 @@ group by t.table_name order by num1, t.table_name;
 #
 create table t1(f1 int);
 create view v1 as select f1+1 as a from t1;
-create table t2 (f1 int, f2 int);                                                         
-create view v2 as select f1+1 as a, f2 as b from t2;                                      
+create table t2 (f1 int, f2 int);
+create view v2 as select f1+1 as a, f2 as b from t2;
 select table_name, is_updatable from information_schema.views;
 #
 # Note: we can perform 'delete' for non updatable view.
@@ -1045,7 +1059,7 @@ drop view v1,v2;
 drop table t1,t2;
 
 #
-# Bug#25859    ALTER DATABASE works w/o parameters
+# Bug#25859 ALTER DATABASE works w/o parameters
 #
 --error ER_PARSE_ERROR
 alter database;
@@ -1074,6 +1088,7 @@ show triggers;
 select trigger_name from information_schema.triggers
 where event_object_table='t1';
 connection default;
+disconnect con27629;
 drop user mysqltest_1@localhost;
 drop database mysqltest;
 
@@ -1097,13 +1112,13 @@ drop table t1;
 #
 # Bug#30079 A check for "hidden" I_S tables is flawed
 #
---error 1109
+--error ER_UNKNOWN_TABLE
 show fields from information_schema.table_names;
---error 1109
+--error ER_UNKNOWN_TABLE
 show keys from information_schema.table_names;
 
 #
-# Bug#34529: Crash on complex Falcon I_S select after ALTER .. PARTITION BY
+# Bug#34529 Crash on complex Falcon I_S select after ALTER .. PARTITION BY
 #
 USE information_schema;
 SET max_heap_table_size = 16384;
@@ -1112,9 +1127,9 @@ CREATE TABLE test.t1( a INT );
 
 # What we need to create here is a bit of a corner case:
 # We need a star query with information_schema tables, where the first
-# branch of the star join produces zero rows, so that reading of the 
+# branch of the star join produces zero rows, so that reading of the
 # second branch never happens. At the same time we have to make sure
-# that data for at least the last table is swapped from MEMORY/HEAP to 
+# that data for at least the last table is swapped from MEMORY/HEAP to
 # MyISAM. This and only this triggers the bug.
 SELECT *
 FROM tables ta
@@ -1142,10 +1157,11 @@ connect (con3148,localhost,user3148,,test);
 connection con3148;
 select user,db from information_schema.processlist;
 connection default;
+disconnect con3148;
 drop user user3148@localhost;
 
 #
-# Bug #26174 Server Crash: INSERT ... SELECT ... FROM I_S.GLOBAL_STATUS
+# Bug#26174 Server Crash: INSERT ... SELECT ... FROM I_S.GLOBAL_STATUS
 # in Event (see also openssl_1.test)
 #
 --disable_warnings
@@ -1183,7 +1199,7 @@ SET GLOBAL event_scheduler=0;
 
 #
 # WL#3732 Information schema optimization
-# 
+#
 
 explain select table_name from information_schema.views where
 table_schema='test' and table_name='v1';
@@ -1231,7 +1247,7 @@ DROP VIEW v1;
 #
 SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA
 WHERE SCHEMA_NAME ='information_schema';
-                                                                                                 
+
 #
 # Bug#31381 Error in retrieving Data from INFORMATION_SCHEMA
 #
@@ -1277,7 +1293,7 @@ show events where Db= 'information_schema';
 use test;
 
 --echo #
---echo # Bug#34166: Server crash in SHOW OPEN TABLES and prelocking
+--echo # Bug#34166 Server crash in SHOW OPEN TABLES and prelocking
 --echo #
 --disable_warnings
 drop table if exists t1;
@@ -1299,8 +1315,8 @@ drop table t1;
 drop function f1;
 
 #
-# BUG#34656 - KILL a query = Assertion failed: m_status == DA_ERROR ||
-#             m_status == DA_OK
+# Bug#34656 KILL a query = Assertion failed: m_status == DA_ERROR ||
+#           m_status == DA_OK
 #
 connect (conn1, localhost, root,,);
 connection conn1;
@@ -1378,13 +1394,13 @@ select * from information_schema.global_variables where variable_name='init_conn
 set global init_connect="";
 
 #
-# Bug #34517 SHOW GLOBAL STATUS does not work properly in embedded server.
+# Bug#34517 SHOW GLOBAL STATUS does not work properly in embedded server.
 #
 
 create table t0 select * from information_schema.global_status where VARIABLE_NAME='COM_SELECT';
 SELECT 1;
 select a.VARIABLE_VALUE - b.VARIABLE_VALUE from t0 b, information_schema.global_status a
-   where a.VARIABLE_NAME = b.VARIABLE_NAME; 
+   where a.VARIABLE_NAME = b.VARIABLE_NAME;
 drop table t0;
 
 #
@@ -1394,4 +1410,17 @@ CREATE TABLE t1(a INT) KEY_BLOCK_SIZE=1;
 SELECT CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='t1';
 DROP TABLE t1;
 
+#
+# Bug #22047: Time in SHOW PROCESSLIST for SQL thread in replication seems
+# to become negative
+#
+
+SET TIMESTAMP=@@TIMESTAMP + 10000000;
+SELECT 'OK' AS TEST_RESULT FROM INFORMATION_SCHEMA.PROCESSLIST WHERE time < 0;
+SET TIMESTAMP=DEFAULT;
+
 --echo End of 5.1 tests.
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc
+

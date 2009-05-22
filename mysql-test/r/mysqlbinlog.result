@@ -44,16 +44,16 @@ SET TIMESTAMP=1000000000/*!*/;
 insert into t2 values ()
 /*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO table t1
+load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO  table t1
 /*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO table t1
+load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO  table t1
 /*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO table t1
+load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO  table t1
 /*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO table t1
+load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO  table t1
 /*!*/;
 DELIMITER ;
 # End of log file
@@ -144,16 +144,16 @@ SET TIMESTAMP=1000000000/*!*/;
 insert into t2 values ()
 /*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO table t1
+load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO  table t1
 /*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO table t1
+load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO  table t1
 /*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO table t1
+load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO  table t1
 /*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO table t1
+load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO  table t1
 /*!*/;
 DELIMITER ;
 # End of log file
@@ -359,29 +359,29 @@ SET @@session.collation_database=DEFAULT/*!*/;
 create table t1 (a varchar(64) character set utf8)
 /*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO table t1
+load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO  table t1
 /*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 SET @@session.collation_database=7/*!*/;
-load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO table t1
+load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO  table t1
 /*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
-load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO table t1
+load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO  table t1
 /*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO table t1
+load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO  table t1
 /*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 SET @@session.collation_database=7/*!*/;
-load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-a-0' INTO table t1
+load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-a-0' INTO  table t1
 /*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
-load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-b-0' INTO table t1
+load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-b-0' INTO  table t1
 /*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-c-0' INTO table t1 character set koi8r
+load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-c-0' INTO  table t1 character set koi8r
 /*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 drop table t1
@@ -391,22 +391,28 @@ DELIMITER ;
 ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 CREATE TABLE t1 (c1 CHAR(10));
-flush logs;
+FLUSH LOGS;
 INSERT INTO t1 VALUES ('0123456789');
-flush logs;
+FLUSH LOGS;
 DROP TABLE t1;
-# 	Query	thread_id=REMOVED	exec_time=REMOVED	error_code=REMOVED
-flush logs;
-create table t1(a int);
-insert into t1 values(connection_id());
-flush logs;
-drop table t1;
+We expect this value to be 1
+The bug being tested was that 'Query' lines were not preceded by '#'
+If the line is in the table, it had to have been preceded by a '#'
+
+SELECT COUNT(*) AS `BUG#28293_expect_1` FROM patch WHERE a LIKE '%Query%';
+BUG#28293_expect_1
 1
-drop table t1;
+DROP TABLE patch;
+FLUSH LOGS;
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(connection_id());
+FLUSH LOGS;
+DROP TABLE t1;
+1
+DROP TABLE t1;
 shell> mysqlbinlog std_data/corrupt-relay-bin.000624 > var/tmp/bug31793.sql
-End of 5.0 tests
-flush logs;
-BUG#31611: Security risk with BINLOG statement
+FLUSH LOGS;
+Bug#31611 Security risk with BINLOG statement
 SET BINLOG_FORMAT=ROW;
 CREATE DATABASE mysqltest1;
 CREATE USER untrusted@localhost;
@@ -429,7 +435,7 @@ a	b
 1	root@localhost
 DROP DATABASE mysqltest1;
 DROP USER untrusted@localhost;
-BUG#32580: mysqlbinlog cannot read binlog event with user variables
+Bug#32580 mysqlbinlog cannot read binlog event with user variables
 USE test;
 SET BINLOG_FORMAT = STATEMENT;
 FLUSH LOGS;
@@ -454,4 +460,15 @@ an_int	1000
 a_decimal	907.79
 a_string	Just a test
 DROP TABLE t1;
+SET @@global.server_id= 4294967295;
+RESET MASTER;
+FLUSH LOGS;
+SELECT
+(@a:=LOAD_FILE("MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug37313.binlog"))
+IS NOT NULL;
+(@a:=LOAD_FILE("MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug37313.binlog"))
+IS NOT NULL
+1
+*** Unsigned server_id 4294967295 is found: 1 ***
+SET @@global.server_id= 1;
 End of 5.1 tests

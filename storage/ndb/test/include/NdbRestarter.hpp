@@ -100,6 +100,8 @@ public:
   int getNode(NodeSelector);
 
   void setReconnect(bool);
+
+  int rollingRestart(Uint32 flags = 0);
 protected:
 
   int waitClusterState(ndb_mgm_node_status _status,

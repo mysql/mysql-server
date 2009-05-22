@@ -71,7 +71,7 @@ SELECT @@session.max_sort_length;
 '#------------------FN_DYNVARS_084_05-----------------------#'
 SET @@global.max_sort_length = -1024;
 Warnings:
-Warning	1292	Truncated incorrect max_sort_length value: '0'
+Warning	1292	Truncated incorrect max_sort_length value: '-1024'
 SELECT @@global.max_sort_length;
 @@global.max_sort_length
 4
@@ -111,7 +111,7 @@ SELECT @@session.max_sort_length;
 8388608
 SET @@session.max_sort_length = -1;
 Warnings:
-Warning	1292	Truncated incorrect max_sort_length value: '0'
+Warning	1292	Truncated incorrect max_sort_length value: '-1'
 SELECT @@session.max_sort_length;
 @@session.max_sort_length
 4
