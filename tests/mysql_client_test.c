@@ -17744,8 +17744,8 @@ static void test_bug43560(void)
   MYSQL_STMT   *stmt= 0;
   MYSQL_BIND   bind;
   my_bool      is_null= 0;
-  const uint   BUFSIZE= 256;
-  char         buffer[BUFSIZE];
+  char         buffer[256];
+  const uint   BUFSIZE= sizeof(buffer);
   const char*  values[] = {"eins", "zwei", "drei", "viele", NULL};
   const char   insert_str[] = "INSERT INTO t1 (c2) VALUES (?)";
   unsigned long length;
