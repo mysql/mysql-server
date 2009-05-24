@@ -3273,6 +3273,78 @@ runBug43888(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+#define CHECK(b, m) { int _xx = b; if (!(_xx)) { \
+  ndbout << "ERR: "<< m \
+           << "   " << "File: " << __FILE__ \
+           << " (Line: " << __LINE__ << ")" << "- " << _xx << endl; \
+  return NDBT_FAILED; } }
+
+int
+runBug44952(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter res;
+  NdbDictionary::Dictionary* pDict = GETNDB(step)->getDictionary();
+
+  const int codes [] = {
+    5051, 5052, 5053, 0
+  };
+
+  int randomId = myRandom48(res.getNumDbNodes());
+  int nodeId = res.getDbNodeId(randomId);
+
+  int loops = ctx->getNumLoops();
+  const int val[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 } ;
+  for (int l = 0; l < loops; l++)
+  {
+    int randomId = myRandom48(res.getNumDbNodes());
+    int nodeId = res.getDbNodeId(randomId);
+
+    ndbout_c("killing node %u error 5051 loop %u/%u", nodeId, l+1, loops);
+    CHECK(res.dumpStateOneNode(nodeId, val, 2) == 0,
+          "failed to set RestartOnErrorInsert");
+
+    CHECK(res.insertErrorInNode(nodeId, 5051) == 0,
+          "failed to insert error 5051");
+
+    while (res.waitNodesNoStart(&nodeId, 1, 1 /* seconds */) != 0)
+    {
+      pDict->forceGCPWait();
+    }
+
+    ndbout_c("killing node %u during restart error 5052", nodeId);
+    for (int j = 0; j < 3; j++)
+    {
+      ndbout_c("loop: %d - killing node %u during restart error 5052",
+               j, nodeId);
+      int val[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 } ;
+      CHECK(res.dumpStateOneNode(nodeId, val, 2) == 0,
+            "failed to set RestartOnErrorInsert");
+
+      CHECK(res.insertErrorInNode(nodeId, 5052) == 0,
+            "failed to set error insert");
+
+      NdbSleep_SecSleep(3); // ...
+
+      CHECK(res.startNodes(&nodeId, 1) == 0,
+            "failed to start node");
+
+      NdbSleep_SecSleep(3);
+
+      CHECK(res.waitNodesNoStart(&nodeId, 1) == 0,
+            "waitNodesNoStart failed");
+    }
+
+    CHECK(res.startNodes(&nodeId, 1) == 0,
+          "failed to start node");
+
+    CHECK(res.waitNodesStarted(&nodeId, 1) == 0,
+          "waitNodesStarted failed");
+  }
+
+  ctx->stopTest();
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
 	 "Test that one node at a time can be stopped and then restarted "\
@@ -3731,6 +3803,17 @@ TESTCASE("Bug42422", ""){
 }
 TESTCASE("Bug43888", ""){
   INITIALIZER(runBug43888);
+}
+TESTCASE("Bug44952",
+	 "Test that we can execute the restart RestartNFDuringNR loop\n" \
+	 "number of times"){
+  INITIALIZER(runCheckAllNodesStarted);
+  INITIALIZER(runLoadTable);
+  STEP(runBug44952);
+  STEP(runPkUpdateUntilStopped);
+  STEP(runScanUpdateUntilStopped);
+  FINALIZER(runScanReadVerify);
+  FINALIZER(runClearTable);
 }
 NDBT_TESTSUITE_END(testNodeRestart);
 
