@@ -12537,8 +12537,17 @@ void Dblqh::execGCP_SAVEREQ(Signal* signal)
     saveRef->errorCode = GCPSaveRef::NodeRestartInProgress;
     sendSignal(dihBlockRef, GSN_GCP_SAVEREF, signal, 
 	       GCPSaveRef::SignalLength, JBB);
+
+    if (ERROR_INSERTED(5052))
+    {
+      jam();
+      signal->theData[0] = 9999;
+      sendSignalWithDelay(CMVMI_REF, GSN_NDB_TAMPER, signal, 300, 1);
+    }
     return;
   }
+
+  CRASH_INSERTION(5052);
 
 #ifdef GCP_TIMER_HACK
   NdbTick_getMicroTimer(&globalData.gcp_timer_save[0]);
@@ -14123,6 +14132,14 @@ void Dblqh::writeFileDescriptor(Signal* signal)
 /*       START BY WRITING TO LOG FILE RECORD          */
 /* -------------------------------------------------- */
   arrGuard(logFilePtr.p->currentMbyte, clogFileSize);
+  if (DEBUG_REDO)
+  {
+    ndbout_c("part: %u file: %u setting logMaxGciCompleted[%u] = %u",
+             logPartPtr.i,
+             logFilePtr.p->fileNo,
+             logFilePtr.p->currentMbyte,
+             logPartPtr.p->logPartNewestCompletedGCI);
+  }
   logFilePtr.p->logMaxGciCompleted[logFilePtr.p->currentMbyte] = 
     logPartPtr.p->logPartNewestCompletedGCI;
   logFilePtr.p->logMaxGciStarted[logFilePtr.p->currentMbyte] = cnewestGci;
@@ -14384,10 +14401,16 @@ void Dblqh::readSrLastFileLab(Signal* signal)
 
 void Dblqh::readSrLastMbyteLab(Signal* signal) 
 {
-  if (logPartPtr.p->lastMbyte == ZNIL) {
+  if (logPartPtr.p->lastMbyte == ZNIL)
+  {
     if (logPagePtr.p->logPageWord[ZPOS_LOG_LAP] < logPartPtr.p->logLap) {
       jam();
       logPartPtr.p->lastMbyte = logFilePtr.p->currentMbyte - 1;
+      if (DEBUG_REDO)
+      {
+        ndbout_c("readSrLastMbyteLab part: %u lastMbyte: %u",
+                 logPartPtr.i, logPartPtr.p->lastMbyte);
+      }
     }//if
   }//if
   arrGuard(logFilePtr.p->currentMbyte, clogFileSize);
@@ -15270,15 +15293,6 @@ void Dblqh::srGciLimits(Signal* signal)
     }//if
   }
 
-  for(Uint32 i = 1; i<4; i++)
-  {
-    LogPartRecordPtr tmp;
-    tmp.i = i;
-    ptrAss(tmp, logPartRecord);
-    tmp.p->logStartGci = logPartPtr.p->logStartGci;
-    tmp.p->logLastGci = logPartPtr.p->logLastGci;
-  }
-
   if (logPartPtr.p->logStartGci == (UintR)-1) {
     jam();
       /* --------------------------------------------------------------------
@@ -15289,6 +15303,15 @@ void Dblqh::srGciLimits(Signal* signal)
     logPartPtr.p->logStartGci = logPartPtr.p->logLastGci;
   }//if
   
+  for(Uint32 i = 1; i<4; i++)
+  {
+    LogPartRecordPtr tmp;
+    tmp.i = i;
+    ptrAss(tmp, logPartRecord);
+    tmp.p->logStartGci = logPartPtr.p->logStartGci;
+    tmp.p->logLastGci = logPartPtr.p->logLastGci;
+  }
+
   for (logPartPtr.i = 0; logPartPtr.i < 4; logPartPtr.i++) {
     jam();
     ptrAss(logPartPtr, logPartRecord);
@@ -15325,7 +15348,7 @@ void Dblqh::srLogLimits(Signal* signal)
   while(true) {
     ndbrequire(tmbyte < clogFileSize);
     if (logPartPtr.p->logExecState == LogPartRecord::LES_SEARCH_STOP) {
-      if (logFilePtr.p->logMaxGciCompleted[tmbyte] < logPartPtr.p->logLastGci) {
+      if (logFilePtr.p->logMaxGciCompleted[tmbyte] <= logPartPtr.p->logLastGci) {
         jam();
       /* --------------------------------------------------------------------
        *  WE ARE STEPPING BACKWARDS FROM MBYTE TO MBYTE. THIS IS THE FIRST 
@@ -15337,6 +15360,15 @@ void Dblqh::srLogLimits(Signal* signal)
         logPartPtr.p->stopMbyte = tmbyte;
         logPartPtr.p->logExecState = LogPartRecord::LES_SEARCH_START;
       }//if
+      else if (DEBUG_REDO)
+      {
+        ndbout_c("SKIP part: %u file: %u mb: %u logMaxGciCompleted: %u >= %u",
+                 logPartPtr.i,
+                 logFilePtr.p->fileNo,
+                 tmbyte,
+                 logFilePtr.p->logMaxGciCompleted[tmbyte],
+                 logPartPtr.p->logLastGci);
+      }
     }//if
   /* ------------------------------------------------------------------------
    *  WHEN WE HAVEN'T FOUND THE STOP MBYTE IT IS NOT NECESSARY TO LOOK FOR THE
@@ -15395,8 +15427,10 @@ void Dblqh::srLogLimits(Signal* signal)
     LogFileRecordPtr tmp;
     tmp.i = logPartPtr.p->stopLogfile;
     ptrCheckGuard(tmp, clogFileFileSize, logFileRecord);
-    ndbout_c("srLogLimits part: %u start file: %u mb: %u stop file: %u mb: %u",
+    ndbout_c("srLogLimits part: %u gci: %u-%u start file: %u mb: %u stop file: %u mb: %u",
              logPartPtr.i,
+             logPartPtr.p->logStartGci,
+             logPartPtr.p->logLastGci,
              tlastPrepRef >> 16,
              tlastPrepRef & 65535,
              tmp.p->fileNo,
@@ -15899,8 +15933,9 @@ crash:
   char buf[255];
   BaseString::snprintf(buf, sizeof(buf), 
 		       "Error while reading REDO log. from %d\n"
-		       "D=%d, F=%d Mb=%d FP=%d W1=%d W2=%d : %s gci: %u",
+		       "part: %u D=%d, F=%d Mb=%d FP=%d W1=%d W2=%d : %s gci: %u",
 		       signal->theData[8],
+                       logPartPtr.i,
 		       signal->theData[2], 
 		       signal->theData[3], 
 		       signal->theData[4],
@@ -19002,6 +19037,12 @@ void Dblqh::writeCompletedGciLog(Signal* signal)
     jam();
     changeMbyte(signal);
   }//if
+
+  if (ERROR_INSERTED(5051) && (logFilePtr.p->currentFilepage > 0) &&
+      (logFilePtr.p->currentFilepage % 32) == 0)
+  {
+    SET_ERROR_INSERT_VALUE(5000);
+  }
 
   logFilePtr.p->remainingWordsInMbyte = 
     logFilePtr.p->remainingWordsInMbyte - ZCOMPLETED_GCI_LOG_SIZE;
