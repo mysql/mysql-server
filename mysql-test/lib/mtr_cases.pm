@@ -33,7 +33,7 @@ our $print_testcases;
 our $skip_rpl;
 our $do_test;
 our $skip_test;
-our $opt_skip_combination;
+our $skip_combinations;
 our $binlog_format;
 our $enable_disabled;
 our $default_storage_engine;
@@ -119,11 +119,22 @@ sub collect_test_cases ($$) {
 	if ( $test->{name} =~ /.*\.$tname/ )
 	{
 	  $found= 1;
+	  last;
 	}
       }
       if ( not $found )
       {
-	mtr_error("Could not find '$tname' in '$suites' suite(s)");
+	mtr_error("Could not find '$tname' in '$suites' suite(s)") unless $sname;
+	# If suite was part of name, find it there
+	my ($this_case) = collect_one_suite($sname, [ $tname ]);
+	if ($this_case)
+        {
+	  push (@$cases, $this_case);
+	}
+	else
+	{
+	  mtr_error("Could not find '$tname' in '$sname' suite");
+        }
       }
     }
   }
@@ -375,7 +386,7 @@ sub collect_one_suite($)
   # Read combinations for this suite and build testcases x combinations
   # if any combinations exists
   # ----------------------------------------------------------------------
-  if ( ! $opt_skip_combination )
+  if ( ! $skip_combinations )
   {
     my @combinations;
     my $combination_file= "$suitedir/combinations";
