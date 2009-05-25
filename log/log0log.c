@@ -628,7 +628,8 @@ log_group_set_fields(
 /*********************************************************************
 Calculates the recommended highest values for lsn - last_checkpoint_lsn,
 lsn - buf_get_oldest_modification(), and lsn - max_archive_lsn_age.
-@return	error value FALSE if the smallest log group is too small to accommodate the number of OS threads in the database server */
+@return error value FALSE if the smallest log group is too small to
+accommodate the number of OS threads in the database server */
 static
 ibool
 log_calc_max_ages(void)
@@ -1564,7 +1565,8 @@ log_flush_margin(void)
 Advances the smallest lsn for which there are unflushed dirty blocks in the
 buffer pool. NOTE: this function may only be called if the calling thread owns
 no synchronization objects!
-@return	FALSE if there was a flush batch of the same type running, which means that we could not start this flush batch */
+@return FALSE if there was a flush batch of the same type running,
+which means that we could not start this flush batch */
 UNIV_INTERN
 ibool
 log_preflush_pool_modified_pages(

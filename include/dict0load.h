@@ -46,7 +46,8 @@ dict_check_tablespaces_and_store_max_id(
 	ibool	in_crash_recovery);	/*!< in: are we doing a crash recovery */
 /************************************************************************
 Finds the first table name in the given database.
-@return	own: table name, NULL if does not exist; the caller must free the memory in the string! */
+@return own: table name, NULL if does not exist; the caller must free
+the memory in the string! */
 UNIV_INTERN
 char*
 dict_get_first_table_name_in_db(
@@ -57,7 +58,9 @@ Loads a table definition and also all its index definitions, and also
 the cluster definition if the table is a member in a cluster. Also loads
 all foreign key constraints where the foreign key is in the table or where
 a foreign key references columns in this table.
-@return	table, NULL if does not exist; if the table is stored in an .ibd file, but the file does not exist, then we set the ibd_file_missing flag TRUE in the table object we return */
+@return table, NULL if does not exist; if the table is stored in an
+.ibd file, but the file does not exist, then we set the
+ibd_file_missing flag TRUE in the table object we return */
 UNIV_INTERN
 dict_table_t*
 dict_load_table(

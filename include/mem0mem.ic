@@ -29,7 +29,8 @@ Created 6/8/1994 Heikki Tuuri
 
 /*******************************************************************
 Creates a memory heap block where data can be allocated.
-@return	own: memory heap block, NULL if did not succeed (only possible for MEM_HEAP_BTR_SEARCH type heaps) */
+@return own: memory heap block, NULL if did not succeed (only possible
+for MEM_HEAP_BTR_SEARCH type heaps) */
 UNIV_INTERN
 mem_block_t*
 mem_heap_create_block(
@@ -60,7 +61,8 @@ mem_heap_free_block_free(
 #endif /* !UNIV_HOTBACKUP */
 /*******************************************************************
 Adds a new block to a memory heap.
-@return	created block, NULL if did not succeed (only possible for MEM_HEAP_BTR_SEARCH type heaps) */
+@return created block, NULL if did not succeed (only possible for
+MEM_HEAP_BTR_SEARCH type heaps) */
 UNIV_INTERN
 mem_block_t*
 mem_heap_add_block(
@@ -153,7 +155,8 @@ mem_heap_zalloc(
 
 /*******************************************************************
 Allocates n bytes of memory from a memory heap.
-@return	allocated storage, NULL if did not succeed (only possible for MEM_HEAP_BTR_SEARCH type heaps) */
+@return allocated storage, NULL if did not succeed (only possible for
+MEM_HEAP_BTR_SEARCH type heaps) */
 UNIV_INLINE
 void*
 mem_heap_alloc(
@@ -416,7 +419,8 @@ mem_heap_free_top(
 NOTE: Use the corresponding macros instead of this function. Creates a
 memory heap. For debugging purposes, takes also the file name and line as
 argument.
-@return	own: memory heap, NULL if did not succeed (only possible for MEM_HEAP_BTR_SEARCH type heaps) */
+@return own: memory heap, NULL if did not succeed (only possible for
+MEM_HEAP_BTR_SEARCH type heaps) */
 UNIV_INLINE
 mem_heap_t*
 mem_heap_create_func(

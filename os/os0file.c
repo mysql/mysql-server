@@ -844,7 +844,8 @@ os_file_create_directory(
 
 /********************************************************************
 A simple function to open or create a file.
-@return	own: handle to the file, not defined if error, error number can be retrieved with os_file_get_last_error */
+@return own: handle to the file, not defined if error, error number
+can be retrieved with os_file_get_last_error */
 UNIV_INTERN
 os_file_t
 os_file_create_simple(
@@ -984,7 +985,8 @@ try_again:
 
 /********************************************************************
 A simple function to open or create a file.
-@return	own: handle to the file, not defined if error, error number can be retrieved with os_file_get_last_error */
+@return own: handle to the file, not defined if error, error number
+can be retrieved with os_file_get_last_error */
 UNIV_INTERN
 os_file_t
 os_file_create_simple_no_error_handling(
@@ -1138,7 +1140,8 @@ os_file_set_nocache(
 
 /********************************************************************
 Opens an existing file or creates a new.
-@return	own: handle to the file, not defined if error, error number can be retrieved with os_file_get_last_error */
+@return own: handle to the file, not defined if error, error number
+can be retrieved with os_file_get_last_error */
 UNIV_INTERN
 os_file_t
 os_file_create(
@@ -3035,7 +3038,8 @@ os_aio_wait_until_no_pending_writes(void)
 
 /**************************************************************************
 Calculates segment number for a slot.
-@return	segment number (which is the number used by, for example, i/o-handler threads) */
+@return segment number (which is the number used by, for example,
+i/o-handler threads) */
 static
 ulint
 os_aio_get_segment_no_from_slot(

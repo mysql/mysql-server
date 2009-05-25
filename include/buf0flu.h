@@ -70,7 +70,8 @@ NOTE 1: in the case of an LRU flush the calling thread may own latches to
 pages: to avoid deadlocks, this function must be written so that it cannot
 end up waiting for these latches! NOTE 2: in the case of a flush list flush,
 the calling thread is not allowed to own any latches on pages!
-@return	number of blocks for which the write request was queued; ULINT_UNDEFINED if there was a flush of the same type already running */
+@return number of blocks for which the write request was queued;
+ULINT_UNDEFINED if there was a flush of the same type already running */
 UNIV_INTERN
 ulint
 buf_flush_batch(

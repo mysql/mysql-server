@@ -54,7 +54,9 @@ trx_purge_get_log_from_hist(
 /*********************************************************************
 Checks if trx_id is >= purge_view: then it is guaranteed that its update
 undo log still exists in the system.
-@return	TRUE if is sure that it is preserved, also if the function returns FALSE, it is possible that the undo log still exists in the system */
+@return TRUE if is sure that it is preserved, also if the function
+returns FALSE, it is possible that the undo log still exists in the
+system */
 UNIV_INTERN
 ibool
 trx_purge_update_undo_must_exist(
@@ -81,7 +83,8 @@ trx_purge_add_update_undo_to_history(
 /************************************************************************
 Fetches the next undo log record from the history list to purge. It must be
 released with the corresponding release function.
-@return	copy of an undo log record, or pointer to the dummy undo log record &trx_purge_dummy_rec if the whole undo log can skipped in purge; NULL if none left */
+@return copy of an undo log record or pointer to trx_purge_dummy_rec,
+if the whole undo log can skipped in purge; NULL if none left */
 UNIV_INTERN
 trx_undo_rec_t*
 trx_purge_fetch_next_rec(

@@ -143,7 +143,8 @@ Scans log from a buffer and stores new log data to the parsing buffer.
 Parses and hashes the log records if new data found.  Unless
 UNIV_HOTBACKUP is defined, this function will apply log records
 automatically when the hash table becomes full.
-@return	TRUE if limit_lsn has been reached, or not able to scan any more in this log group */
+@return TRUE if limit_lsn has been reached, or not able to scan any
+more in this log group */
 UNIV_INTERN
 ibool
 recv_scan_log_recs(

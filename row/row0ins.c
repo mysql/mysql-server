@@ -405,7 +405,10 @@ row_ins_cascade_n_ancestors(
 /**********************************************************************
 Calculates the update vector node->cascade->update for a child table in
 a cascaded update.
-@return	number of fields in the calculated update vector; the value can also be 0 if no foreign key fields changed; the returned value is ULINT_UNDEFINED if the column type in the child table is too short to fit the new value in the parent table: that means the update fails */
+@return number of fields in the calculated update vector; the value
+can also be 0 if no foreign key fields changed; the returned value is
+ULINT_UNDEFINED if the column type in the child table is too short to
+fit the new value in the parent table: that means the update fails */
 static
 ulint
 row_ins_cascade_calc_update_vec(
@@ -1760,7 +1763,9 @@ row_ins_scan_sec_index_for_duplicate(
 Checks if a unique key violation error would occur at an index entry
 insert. Sets shared locks on possible duplicate records. Works only
 for a clustered index!
-@return	DB_SUCCESS if no error, DB_DUPLICATE_KEY if error, DB_LOCK_WAIT if we have to wait for a lock on a possible duplicate record */
+@return DB_SUCCESS if no error, DB_DUPLICATE_KEY if error,
+DB_LOCK_WAIT if we have to wait for a lock on a possible duplicate
+record */
 static
 ulint
 row_ins_duplicate_error_in_clust(
@@ -1901,7 +1906,9 @@ record so that the intended insert of the entry must be changed to a modify of
 the existing record. In the case of a clustered index, the prefix must be
 n_unique fields long, and in the case of a secondary index, all fields must be
 equal.
-@return	0 if no update, ROW_INS_PREV if previous should be updated; currently we do the search so that only the low_match record can match enough to the search tuple, not the next record */
+@return 0 if no update, ROW_INS_PREV if previous should be updated;
+currently we do the search so that only the low_match record can match
+enough to the search tuple, not the next record */
 UNIV_INLINE
 ulint
 row_ins_must_modify(
@@ -1942,7 +1949,8 @@ existing record, and we must write an undo log record on the delete
 marked record. If the index is secondary, and a record with exactly the
 same fields is found, the other record is necessarily marked deleted.
 It is then unmarked. Otherwise, the entry is just inserted to the index.
-@return	DB_SUCCESS, DB_LOCK_WAIT, DB_FAIL if pessimistic retry needed, or error code */
+@return DB_SUCCESS, DB_LOCK_WAIT, DB_FAIL if pessimistic retry needed,
+or error code */
 static
 ulint
 row_ins_index_entry_low(
@@ -2216,7 +2224,8 @@ row_ins_index_entry_set_vals(
 
 /***************************************************************
 Inserts a single index entry to the table.
-@return	DB_SUCCESS if operation successfully completed, else error code or DB_LOCK_WAIT */
+@return DB_SUCCESS if operation successfully completed, else error
+code or DB_LOCK_WAIT */
 static
 ulint
 row_ins_index_entry_step(
@@ -2329,7 +2338,8 @@ row_ins_get_row_from_select(
 
 /***************************************************************
 Inserts a row to a table.
-@return	DB_SUCCESS if operation successfully completed, else error code or DB_LOCK_WAIT */
+@return DB_SUCCESS if operation successfully completed, else error
+code or DB_LOCK_WAIT */
 static
 ulint
 row_ins(

@@ -150,7 +150,8 @@ MySQL. This function opens a cursor, and also implements fetch next
 and fetch prev. NOTE that if we do a search with a full key value
 from a unique index (ROW_SEL_EXACT), then we will not store the cursor
 position and fetch next or fetch prev must not be tried to the cursor!
-@return	DB_SUCCESS, DB_RECORD_NOT_FOUND, DB_END_OF_INDEX, DB_DEADLOCK, DB_LOCK_TABLE_FULL, or DB_TOO_BIG_RECORD */
+@return DB_SUCCESS, DB_RECORD_NOT_FOUND, DB_END_OF_INDEX, DB_DEADLOCK,
+DB_LOCK_TABLE_FULL, or DB_TOO_BIG_RECORD */
 UNIV_INTERN
 ulint
 row_search_for_mysql(

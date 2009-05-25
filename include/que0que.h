@@ -209,7 +209,9 @@ Starts execution of a command in a query fork. Picks a query thread which
 is not in the QUE_THR_RUNNING state and moves it to that state. If none
 can be chosen, a situation which may arise in parallelized fetches, NULL
 is returned.
-@return	a query thread of the graph moved to QUE_THR_RUNNING state, or NULL; the query thread should be executed by que_run_threads by the caller */
+@return a query thread of the graph moved to QUE_THR_RUNNING state, or
+NULL; the query thread should be executed by que_run_threads by the
+caller */
 UNIV_INTERN
 que_thr_t*
 que_fork_start_command(
@@ -303,7 +305,9 @@ que_node_list_get_len(
 /**************************************************************************
 Checks if graph, trx, or session is in a state where the query thread should
 be stopped.
-@return	TRUE if should be stopped; NOTE that if the peek is made without reserving the kernel mutex, then another peek with the mutex reserved is necessary before deciding the actual stopping */
+@return TRUE if should be stopped; NOTE that if the peek is made
+without reserving the kernel mutex, then another peek with the mutex
+reserved is necessary before deciding the actual stopping */
 UNIV_INLINE
 ibool
 que_thr_peek_stop(

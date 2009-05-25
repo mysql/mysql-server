@@ -199,7 +199,9 @@ infimum;
 GREATER than the user record which was the predecessor of the supremum.
 (4) cursor was positioned before the first or after the last in an empty tree:
 restores to before first or after the last in the tree.
-@return	TRUE if the cursor position was stored when it was on a user record and it can be restored on a user record whose ordering fields are identical to the ones of the original user record */
+@return TRUE if the cursor position was stored when it was on a user
+record and it can be restored on a user record whose ordering fields
+are identical to the ones of the original user record */
 UNIV_INTERN
 ibool
 btr_pcur_restore_position(

@@ -673,10 +673,11 @@ recv_read_cp_info_for_backup(
 #endif /* !UNIV_HOTBACKUP */
 
 /**********************************************************
-Checks the 4-byte checksum to the trailer checksum field of a log block.
-We also accept a log block in the old format < InnoDB-3.23.52 where the
-checksum field contains the log block number.
-@return	TRUE if ok, or if the log block may be in the format of InnoDB version < 3.23.52 */
+Checks the 4-byte checksum to the trailer checksum field of a log
+block.  We also accept a log block in the old format before
+InnoDB-3.23.52 where the checksum field contains the log block number.
+@return TRUE if ok, or if the log block may be in the format of InnoDB
+version predating 3.23.52 */
 static
 ibool
 log_block_checksum_is_ok_or_old_format(
@@ -2359,7 +2360,8 @@ Scans log from a buffer and stores new log data to the parsing buffer.
 Parses and hashes the log records if new data found.  Unless
 UNIV_HOTBACKUP is defined, this function will apply log records
 automatically when the hash table becomes full.
-@return	TRUE if limit_lsn has been reached, or not able to scan any more in this log group */
+@return TRUE if limit_lsn has been reached, or not able to scan any
+more in this log group */
 UNIV_INTERN
 ibool
 recv_scan_log_recs(

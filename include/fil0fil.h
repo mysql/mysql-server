@@ -150,7 +150,8 @@ extern ulint	fil_n_pending_tablespace_flushes;
 #ifndef UNIV_HOTBACKUP
 /***********************************************************************
 Returns the version number of a tablespace, -1 if not found.
-@return	version number, -1 if the tablespace does not exist in the memory cache */
+@return version number, -1 if the tablespace does not exist in the
+memory cache */
 UNIV_INTERN
 ib_int64_t
 fil_space_get_version(
@@ -350,7 +351,8 @@ created does not exist, then we create the directory, too.
 
 Note that ibbackup --apply-log sets fil_path_to_mysql_datadir to point to the
 datadir that we should use in replaying the file operations.
-@return	end of log record, or NULL if the record was not completely contained between ptr and end_ptr */
+@return end of log record, or NULL if the record was not completely
+contained between ptr and end_ptr */
 UNIV_INTERN
 byte*
 fil_op_log_parse_or_replay(
@@ -601,7 +603,8 @@ fil_space_get_n_reserved_extents(
 	ulint	id);		/*!< in: space id */
 /************************************************************************
 Reads or writes data. This operation is asynchronous (aio).
-@return	DB_SUCCESS, or DB_TABLESPACE_DELETED if we are trying to do i/o on a tablespace which does not exist */
+@return DB_SUCCESS, or DB_TABLESPACE_DELETED if we are trying to do
+i/o on a tablespace which does not exist */
 UNIV_INTERN
 ulint
 fil_io(
@@ -700,7 +703,8 @@ fil_page_set_type(
 	ulint	type);	/*!< in: type */
 /*************************************************************************
 Gets the file page type.
-@return	type; NOTE that if the type has not been written to page, the return value not defined */
+@return type; NOTE that if the type has not been written to page, the
+return value not defined */
 UNIV_INTERN
 ulint
 fil_page_get_type(

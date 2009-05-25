@@ -61,7 +61,8 @@ name_of_col_is(
 
 /************************************************************************
 Finds the first table name in the given database.
-@return	own: table name, NULL if does not exist; the caller must free the memory in the string! */
+@return own: table name, NULL if does not exist; the caller must free
+the memory in the string! */
 UNIV_INTERN
 char*
 dict_get_first_table_name_in_db(
@@ -236,7 +237,8 @@ loop:
 
 /************************************************************************
 Determine the flags of a table described in SYS_TABLES.
-@return	compressed page size in kilobytes; or 0 if the tablespace is uncompressed, ULINT_UNDEFINED on error */
+@return compressed page size in kilobytes; or 0 if the tablespace is
+uncompressed, ULINT_UNDEFINED on error */
 static
 ulint
 dict_sys_tables_get_flags(
@@ -627,7 +629,8 @@ next_rec:
 /************************************************************************
 Loads definitions for table indexes. Adds them to the data dictionary
 cache.
-@return	DB_SUCCESS if ok, DB_CORRUPTION if corruption of dictionary table or DB_UNSUPPORTED if table has unknown index type */
+@return DB_SUCCESS if ok, DB_CORRUPTION if corruption of dictionary
+table or DB_UNSUPPORTED if table has unknown index type */
 static
 ulint
 dict_load_indexes(
@@ -802,7 +805,9 @@ the cluster definition if the table is a member in a cluster. Also loads
 all foreign key constraints where the foreign key is in the table or where
 a foreign key references columns in this table. Adds all these to the data
 dictionary cache.
-@return	table, NULL if does not exist; if the table is stored in an .ibd file, but the file does not exist, then we set the ibd_file_missing flag TRUE in the table object we return */
+@return table, NULL if does not exist; if the table is stored in an
+.ibd file, but the file does not exist, then we set the
+ibd_file_missing flag TRUE in the table object we return */
 UNIV_INTERN
 dict_table_t*
 dict_load_table(

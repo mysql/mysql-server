@@ -379,7 +379,9 @@ UNIV_INTERN FILE*	lock_latest_err_file;
 
 /************************************************************************
 Checks if a lock request results in a deadlock.
-@return	TRUE if a deadlock was detected and we chose trx as a victim; FALSE if no deadlock, or there was a deadlock, but we chose other transaction(s) as victim(s) */
+@return TRUE if a deadlock was detected and we chose trx as a victim;
+FALSE if no deadlock, or there was a deadlock, but we chose other
+transaction(s) as victim(s) */
 static
 ibool
 lock_deadlock_occurs(
@@ -388,7 +390,11 @@ lock_deadlock_occurs(
 	trx_t*	trx);	/*!< in: transaction */
 /************************************************************************
 Looks recursively for a deadlock.
-@return	0 if no deadlock found, LOCK_VICTIM_IS_START if there was a deadlock and we chose 'start' as the victim, LOCK_VICTIM_IS_OTHER if a deadlock was found and we chose some other trx as a victim: we must do the search again in this last case because there may be another deadlock! */
+@return 0 if no deadlock found, LOCK_VICTIM_IS_START if there was a
+deadlock and we chose 'start' as the victim, LOCK_VICTIM_IS_OTHER if a
+deadlock was found and we chose some other trx as a victim: we must do
+the search again in this last case because there may be another
+deadlock! */
 static
 ulint
 lock_deadlock_recursive(
@@ -488,7 +494,8 @@ lock_check_trx_id_sanity(
 
 /*************************************************************************
 Checks that a record is seen in a consistent read.
-@return	TRUE if sees, or FALSE if an earlier version of the record should be retrieved */
+@return TRUE if sees, or FALSE if an earlier version of the record
+should be retrieved */
 UNIV_INTERN
 ibool
 lock_clust_rec_cons_read_sees(
@@ -516,7 +523,14 @@ lock_clust_rec_cons_read_sees(
 
 /*************************************************************************
 Checks that a non-clustered index record is seen in a consistent read.
-@return	TRUE if certainly sees, or FALSE if an earlier version of the clustered index record might be needed: NOTE that a non-clustered index page contains so little information on its modifications that also in the case FALSE, the present version of rec may be the right, but we must check this from the clustered index record */
+
+NOTE that a non-clustered index page contains so little information on
+its modifications that also in the case FALSE, the present version of
+rec may be the right, but we must check this from the clustered index
+record.
+
+@return TRUE if certainly sees, or FALSE if an earlier version of the
+clustered index record might be needed */
 UNIV_INTERN
 ulint
 lock_sec_rec_cons_read_sees(
@@ -610,7 +624,10 @@ lock_get_wait(
 /*************************************************************************
 Gets the source table of an ALTER TABLE transaction.  The table must be
 covered by an IX or IS table lock.
-@return	the source table of transaction, if it is covered by an IX or IS table lock; dest if there is no source table, and NULL if the transaction is locking more than two tables or an inconsistency is found */
+@return the source table of transaction, if it is covered by an IX or
+IS table lock; dest if there is no source table, and NULL if the
+transaction is locking more than two tables or an inconsistency is
+found */
 UNIV_INTERN
 dict_table_t*
 lock_get_src_table(
@@ -677,7 +694,8 @@ lock_get_src_table(
 Determine if the given table is exclusively "owned" by the given
 transaction, i.e., transaction holds LOCK_IX and possibly LOCK_AUTO_INC
 on the table.
-@return	TRUE if table is only locked by trx, with LOCK_IX, and possibly LOCK_AUTO_INC */
+@return TRUE if table is only locked by trx, with LOCK_IX, and
+possibly LOCK_AUTO_INC */
 UNIV_INTERN
 ibool
 lock_is_table_exclusive(
@@ -1016,7 +1034,8 @@ lock_rec_set_nth_bit(
 /**************************************************************************
 Looks for a set bit in a record lock bitmap. Returns ULINT_UNDEFINED,
 if none found.
-@return	bit index == heap number of the record, or ULINT_UNDEFINED if none found */
+@return bit index == heap number of the record, or ULINT_UNDEFINED if
+none found */
 UNIV_INTERN
 ulint
 lock_rec_find_set_bit(
@@ -1694,7 +1713,10 @@ lock_rec_create(
 /*************************************************************************
 Enqueues a waiting request for a lock which cannot be granted immediately.
 Checks for deadlocks.
-@return	DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED, or DB_SUCCESS; DB_SUCCESS means that there was a deadlock, but another transaction was chosen as a victim, and we got the lock immediately: no need to wait then */
+@return DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED, or
+DB_SUCCESS; DB_SUCCESS means that there was a deadlock, but another
+transaction was chosen as a victim, and we got the lock immediately:
+no need to wait then */
 static
 ulint
 lock_rec_enqueue_waiting(
@@ -3208,7 +3230,9 @@ lock_rec_restore_from_page_infimum(
 
 /************************************************************************
 Checks if a lock request results in a deadlock.
-@return	TRUE if a deadlock was detected and we chose trx as a victim; FALSE if no deadlock, or there was a deadlock, but we chose other transaction(s) as victim(s) */
+@return TRUE if a deadlock was detected and we chose trx as a victim;
+FALSE if no deadlock, or there was a deadlock, but we chose other
+transaction(s) as victim(s) */
 static
 ibool
 lock_deadlock_occurs(
@@ -3268,7 +3292,11 @@ retry:
 
 /************************************************************************
 Looks recursively for a deadlock.
-@return	0 if no deadlock found, LOCK_VICTIM_IS_START if there was a deadlock and we chose 'start' as the victim, LOCK_VICTIM_IS_OTHER if a deadlock was found and we chose some other trx as a victim: we must do the search again in this last case because there may be another deadlock! */
+@return 0 if no deadlock found, LOCK_VICTIM_IS_START if there was a
+deadlock and we chose 'start' as the victim, LOCK_VICTIM_IS_OTHER if a
+deadlock was found and we chose some other trx as a victim: we must do
+the search again in this last case because there may be another
+deadlock! */
 static
 ulint
 lock_deadlock_recursive(
@@ -3563,7 +3591,10 @@ lock_table_remove_low(
 /*************************************************************************
 Enqueues a waiting request for a table lock which cannot be granted
 immediately. Checks for deadlocks.
-@return	DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED, or DB_SUCCESS; DB_SUCCESS means that there was a deadlock, but another transaction was chosen as a victim, and we got the lock immediately: no need to wait then */
+@return DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED, or
+DB_SUCCESS; DB_SUCCESS means that there was a deadlock, but another
+transaction was chosen as a victim, and we got the lock immediately:
+no need to wait then */
 static
 ulint
 lock_table_enqueue_waiting(

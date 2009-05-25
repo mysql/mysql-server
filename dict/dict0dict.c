@@ -261,7 +261,8 @@ dict_table_decrement_handle_count(
 
 /**************************************************************************
 Returns a column's name.
-@return	column name. NOTE: not guaranteed to stay valid if table is modified in any way (columns added, etc.). */
+@return column name. NOTE: not guaranteed to stay valid if table is
+modified in any way (columns added, etc.). */
 UNIV_INTERN
 const char*
 dict_table_get_col_name(
@@ -388,7 +389,8 @@ dict_index_get_on_id_low(
 
 /************************************************************************
 Looks for column n in an index.
-@return	position in internal representation of the index; if not contained, returns ULINT_UNDEFINED */
+@return position in internal representation of the index;
+ULINT_UNDEFINED if not contained */
 UNIV_INTERN
 ulint
 dict_index_get_nth_col_pos(
@@ -470,7 +472,8 @@ Looks for a matching field in an index. The column has to be the same. The
 column in index must be complete, or must contain a prefix longer than the
 column in index2. That is, we must be able to construct the prefix in index2
 from the prefix in index.
-@return	position in internal representation of the index; if not contained, returns ULINT_UNDEFINED */
+@return position in internal representation of the index;
+ULINT_UNDEFINED if not contained */
 UNIV_INTERN
 ulint
 dict_index_get_nth_field_pos(
@@ -2082,7 +2085,8 @@ dict_table_is_referenced_by_foreign_key(
 /*************************************************************************
 Check if the index is referenced by a foreign key, if TRUE return foreign
 else return NULL
-@return	pointer to foreign key struct if index is defined for foreign key, otherwise NULL */
+@return pointer to foreign key struct if index is defined for foreign
+key, otherwise NULL */
 UNIV_INTERN
 dict_foreign_t*
 dict_table_get_referenced_constraint(
@@ -2112,7 +2116,8 @@ dict_table_get_referenced_constraint(
 Checks if a index is defined for a foreign key constraint. Index is a part
 of a foreign key constraint if the index is referenced by foreign key
 or index is a foreign key index.
-@return	pointer to foreign key struct if index is defined for foreign key, otherwise NULL */
+@return pointer to foreign key struct if index is defined for foreign
+key, otherwise NULL */
 UNIV_INTERN
 dict_foreign_t*
 dict_table_get_foreign_constraint(
@@ -2595,7 +2600,8 @@ nomatch:
 
 /*************************************************************************
 Accepts a specified string. Comparisons are case-insensitive.
-@return	if string was accepted, the pointer is moved after that, else ptr is returned */
+@return if string was accepted, the pointer is moved after that, else
+ptr is returned */
 static
 const char*
 dict_accept(
@@ -2929,7 +2935,8 @@ Removes MySQL comments from an SQL string. A comment is either
 (b) '--<space>' to the end of the line, or
 (c) '<slash><asterisk>' till the next '<asterisk><slash>' (like the familiar
 C comment syntax).
-@return	own: SQL string stripped from comments; the caller must free this with mem_free()! */
+@return own: SQL string stripped from comments; the caller must free
+this with mem_free()! */
 static
 char*
 dict_strip_comments(
@@ -3704,7 +3711,8 @@ dict_create_foreign_constraints(
 
 /**************************************************************************
 Parses the CONSTRAINT id's to be dropped in an ALTER TABLE statement.
-@return	DB_SUCCESS or DB_CANNOT_DROP_CONSTRAINT if syntax error or the constraint id does not match */
+@return DB_SUCCESS or DB_CANNOT_DROP_CONSTRAINT if syntax error or the
+constraint id does not match */
 UNIV_INTERN
 ulint
 dict_foreign_parse_drop_constraints(

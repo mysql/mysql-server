@@ -296,7 +296,8 @@ cmp_dtuple_rec_with_match in the way that the record must reside on an
 index page, and also page infimum and supremum records can be given in
 the parameter rec. These are considered as the negative infinity and
 the positive infinity in the alphabetical order.
-@return	1, 0, -1, if dtuple is greater, equal, less than rec, respectively, when only the common first fields are compared */
+@return 1, 0, -1, if dtuple is greater, equal, less than rec,
+respectively, when only the common first fields are compared */
 UNIV_INLINE
 int
 page_cmp_dtuple_rec_with_match(
@@ -464,7 +465,8 @@ page_dir_find_owner_slot(
 	const rec_t*	rec);	/*!< in: the physical record */
 /****************************************************************
 Determine whether the page is in new-style compact format.
-@return	nonzero if the page is in compact format, zero if it is in old-style format */
+@return nonzero if the page is in compact format, zero if it is in
+old-style format */
 UNIV_INLINE
 ulint
 page_is_comp(
@@ -751,7 +753,8 @@ page_copy_rec_list_end_no_locks(
 Copies records from page to new_page, from the given record onward,
 including that record. Infimum and supremum records are not copied.
 The records are copied to the start of the record list on new_page.
-@return	pointer to the original successor of the infimum record on new_page, or NULL on zip overflow (new_block will be decompressed) */
+@return pointer to the original successor of the infimum record on
+new_page, or NULL on zip overflow (new_block will be decompressed) */
 UNIV_INTERN
 rec_t*
 page_copy_rec_list_end(
@@ -766,7 +769,8 @@ page_copy_rec_list_end(
 Copies records from page to new_page, up to the given record, NOT
 including that record. Infimum and supremum records are not copied.
 The records are copied to the end of the record list on new_page.
-@return	pointer to the original predecessor of the supremum record on new_page, or NULL on zip overflow (new_block will be decompressed) */
+@return pointer to the original predecessor of the supremum record on
+new_page, or NULL on zip overflow (new_block will be decompressed) */
 UNIV_INTERN
 rec_t*
 page_copy_rec_list_start(
@@ -809,7 +813,8 @@ page_delete_rec_list_start(
 /*****************************************************************
 Moves record list end to another page. Moved records include
 split_rec.
-@return	TRUE on success; FALSE on compression failure (new_block will be decompressed) */
+@return TRUE on success; FALSE on compression failure (new_block will
+be decompressed) */
 UNIV_INTERN
 ibool
 page_move_rec_list_end(
