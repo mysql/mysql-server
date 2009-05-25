@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/*********************************************************************
+/*****************************************************************//**
+@file ut/ut0dbg.c
 Debug utilities for Innobase.
 
 Created 1/30/1994 Heikki Tuuri
@@ -46,7 +47,7 @@ UNIV_INTERN ibool panic_shutdown = FALSE;
 UNIV_INTERN ulint*	ut_dbg_null_ptr		= NULL;
 #endif
 
-/*****************************************************************
+/*************************************************************//**
 Report a failed assertion. */
 UNIV_INTERN
 void
@@ -86,7 +87,7 @@ ut_dbg_assertion_failed(
 }
 
 #ifdef __NETWARE__
-/*****************************************************************
+/*************************************************************//**
 Shut down MySQL/InnoDB after assertion failure. */
 UNIV_INTERN
 void
@@ -101,7 +102,7 @@ ut_dbg_panic(void)
 }
 #else /* __NETWARE__ */
 # if defined(UNIV_SYNC_DEBUG) || !defined(UT_DBG_USE_ABORT)
-/*****************************************************************
+/*************************************************************//**
 Stop a thread after assertion failure. */
 UNIV_INTERN
 void
@@ -139,7 +140,7 @@ ut_dbg_stop_thread(
 	} while (0)
 #endif /* timersub */
 
-/***********************************************************************
+/*******************************************************************//**
 Resets a speedo (records the current time in it). */
 UNIV_INTERN
 void
@@ -152,7 +153,7 @@ speedo_reset(
 	getrusage(RUSAGE_SELF, &speedo->ru);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Shows the time elapsed and usage statistics since the last reset of a
 speedo. */
 UNIV_INTERN

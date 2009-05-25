@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/************************************************************************
+/********************************************************************//**
+@file include/rem0rec.ic
 Record manager
 
 Created 5/30/1994 Heikki Tuuri
@@ -143,7 +144,7 @@ a field stored to another page: */
 # error "sum of new-style masks != 0xFFFFFFUL"
 #endif
 
-/***************************************************************
+/***********************************************************//**
 Sets the value of the ith field SQL null bit of an old-style record. */
 UNIV_INTERN
 void
@@ -152,7 +153,7 @@ rec_set_nth_field_null_bit(
 	rec_t*	rec,	/*!< in: record */
 	ulint	i,	/*!< in: ith field */
 	ibool	val);	/*!< in: value to set */
-/***************************************************************
+/***********************************************************//**
 Sets an old-style record field to SQL null.
 The physical size of the field is not changed. */
 UNIV_INTERN
@@ -162,7 +163,7 @@ rec_set_nth_field_sql_null(
 	rec_t*	rec,	/*!< in: record */
 	ulint	n);	/*!< in: index of the field */
 
-/**********************************************************
+/******************************************************//**
 Gets a bit field from within 1 byte. */
 UNIV_INLINE
 ulint
@@ -178,7 +179,7 @@ rec_get_bit_field_1(
 	return((mach_read_from_1(rec - offs) & mask) >> shift);
 }
 
-/**********************************************************
+/******************************************************//**
 Sets a bit field within 1 byte. */
 UNIV_INLINE
 void
@@ -202,7 +203,7 @@ rec_set_bit_field_1(
 			| (val << shift));
 }
 
-/**********************************************************
+/******************************************************//**
 Gets a bit field from within 2 bytes. */
 UNIV_INLINE
 ulint
@@ -218,7 +219,7 @@ rec_get_bit_field_2(
 	return((mach_read_from_2(rec - offs) & mask) >> shift);
 }
 
-/**********************************************************
+/******************************************************//**
 Sets a bit field within 2 bytes. */
 UNIV_INLINE
 void
@@ -244,7 +245,7 @@ rec_set_bit_field_2(
 			| (val << shift));
 }
 
-/**********************************************************
+/******************************************************//**
 The following function is used to get the pointer of the next chained record
 on the same page.
 @return	pointer to the next chained record, or NULL if none */
@@ -300,7 +301,7 @@ rec_get_next_ptr_const(
 	}
 }
 
-/**********************************************************
+/******************************************************//**
 The following function is used to get the pointer of the next chained record
 on the same page.
 @return	pointer to the next chained record, or NULL if none */
@@ -314,7 +315,7 @@ rec_get_next_ptr(
 	return((rec_t*) rec_get_next_ptr_const(rec, comp));
 }
 
-/**********************************************************
+/******************************************************//**
 The following function is used to get the offset of the next chained record
 on the same page.
 @return	the page offset of the next chained record, or 0 if none */
@@ -371,7 +372,7 @@ rec_get_next_offs(
 	}
 }
 
-/**********************************************************
+/******************************************************//**
 The following function is used to set the next record offset field
 of an old-style record. */
 UNIV_INLINE
@@ -393,7 +394,7 @@ rec_set_next_offs_old(
 	mach_write_to_2(rec - REC_NEXT, next);
 }
 
-/**********************************************************
+/******************************************************//**
 The following function is used to set the next record offset field
 of a new-style record. */
 UNIV_INLINE
@@ -424,7 +425,7 @@ rec_set_next_offs_new(
 	mach_write_to_2(rec - REC_NEXT, field_value);
 }
 
-/**********************************************************
+/******************************************************//**
 The following function is used to get the number of fields
 in an old-style record.
 @return	number of data fields */
@@ -447,7 +448,7 @@ rec_get_n_fields_old(
 	return(ret);
 }
 
-/**********************************************************
+/******************************************************//**
 The following function is used to set the number of fields
 in an old-style record. */
 UNIV_INLINE
@@ -465,7 +466,7 @@ rec_set_n_fields_old(
 			    REC_OLD_N_FIELDS_MASK, REC_OLD_N_FIELDS_SHIFT);
 }
 
-/**********************************************************
+/******************************************************//**
 The following function retrieves the status bits of a new-style record.
 @return	status bits */
 UNIV_INLINE
@@ -485,7 +486,7 @@ rec_get_status(
 	return(ret);
 }
 
-/**********************************************************
+/******************************************************//**
 The following function is used to get the number of fields
 in a record.
 @return	number of data fields */
@@ -517,7 +518,7 @@ rec_get_n_fields(
 	}
 }
 
-/**********************************************************
+/******************************************************//**
 The following function is used to get the number of records owned by the
 previous directory record.
 @return	number of owned records */
@@ -531,7 +532,7 @@ rec_get_n_owned_old(
 				   REC_N_OWNED_MASK, REC_N_OWNED_SHIFT));
 }
 
-/**********************************************************
+/******************************************************//**
 The following function is used to set the number of owned records. */
 UNIV_INLINE
 void
@@ -544,7 +545,7 @@ rec_set_n_owned_old(
 			    REC_N_OWNED_MASK, REC_N_OWNED_SHIFT);
 }
 
-/**********************************************************
+/******************************************************//**
 The following function is used to get the number of records owned by the
 previous directory record.
 @return	number of owned records */
@@ -558,7 +559,7 @@ rec_get_n_owned_new(
 				   REC_N_OWNED_MASK, REC_N_OWNED_SHIFT));
 }
 
-/**********************************************************
+/******************************************************//**
 The following function is used to set the number of owned records. */
 UNIV_INLINE
 void
@@ -577,7 +578,7 @@ rec_set_n_owned_new(
 	}
 }
 
-/**********************************************************
+/******************************************************//**
 The following function is used to retrieve the info bits of a record.
 @return	info bits */
 UNIV_INLINE
@@ -592,7 +593,7 @@ rec_get_info_bits(
 		       REC_INFO_BITS_MASK, REC_INFO_BITS_SHIFT));
 }
 
-/**********************************************************
+/******************************************************//**
 The following function is used to set the info bits of a record. */
 UNIV_INLINE
 void
@@ -604,7 +605,7 @@ rec_set_info_bits_old(
 	rec_set_bit_field_1(rec, bits, REC_OLD_INFO_BITS,
 			    REC_INFO_BITS_MASK, REC_INFO_BITS_SHIFT);
 }
-/**********************************************************
+/******************************************************//**
 The following function is used to set the info bits of a record. */
 UNIV_INLINE
 void
@@ -617,7 +618,7 @@ rec_set_info_bits_new(
 			    REC_INFO_BITS_MASK, REC_INFO_BITS_SHIFT);
 }
 
-/**********************************************************
+/******************************************************//**
 The following function is used to set the status bits of a new-style record. */
 UNIV_INLINE
 void
@@ -630,7 +631,7 @@ rec_set_status(
 			    REC_NEW_STATUS_MASK, REC_NEW_STATUS_SHIFT);
 }
 
-/**********************************************************
+/******************************************************//**
 The following function is used to retrieve the info and status
 bits of a record.  (Only compact records have status bits.)
 @return	info bits */
@@ -654,7 +655,7 @@ rec_get_info_and_status_bits(
 	}
 	return(bits);
 }
-/**********************************************************
+/******************************************************//**
 The following function is used to set the info and status
 bits of a record.  (Only compact records have status bits.) */
 UNIV_INLINE
@@ -672,7 +673,7 @@ rec_set_info_and_status_bits(
 	rec_set_info_bits_new(rec, bits & ~REC_NEW_STATUS_MASK);
 }
 
-/**********************************************************
+/******************************************************//**
 The following function tells if record is delete marked.
 @return	nonzero if delete marked */
 UNIV_INLINE
@@ -695,7 +696,7 @@ rec_get_deleted_flag(
 	}
 }
 
-/**********************************************************
+/******************************************************//**
 The following function is used to set the deleted bit. */
 UNIV_INLINE
 void
@@ -717,7 +718,7 @@ rec_set_deleted_flag_old(
 	rec_set_info_bits_old(rec, val);
 }
 
-/**********************************************************
+/******************************************************//**
 The following function is used to set the deleted bit. */
 UNIV_INLINE
 void
@@ -744,7 +745,7 @@ rec_set_deleted_flag_new(
 	}
 }
 
-/**********************************************************
+/******************************************************//**
 The following function tells if a new-style record is a node pointer.
 @return	TRUE if node pointer */
 UNIV_INLINE
@@ -756,7 +757,7 @@ rec_get_node_ptr_flag(
 	return(REC_STATUS_NODE_PTR == rec_get_status(rec));
 }
 
-/**********************************************************
+/******************************************************//**
 The following function is used to get the order number
 of an old-style record in the heap of the index page.
 @return	heap order number */
@@ -770,7 +771,7 @@ rec_get_heap_no_old(
 				   REC_HEAP_NO_MASK, REC_HEAP_NO_SHIFT));
 }
 
-/**********************************************************
+/******************************************************//**
 The following function is used to set the heap number
 field in an old-style record. */
 UNIV_INLINE
@@ -784,7 +785,7 @@ rec_set_heap_no_old(
 			    REC_HEAP_NO_MASK, REC_HEAP_NO_SHIFT);
 }
 
-/**********************************************************
+/******************************************************//**
 The following function is used to get the order number
 of a new-style record in the heap of the index page.
 @return	heap order number */
@@ -798,7 +799,7 @@ rec_get_heap_no_new(
 				   REC_HEAP_NO_MASK, REC_HEAP_NO_SHIFT));
 }
 
-/**********************************************************
+/******************************************************//**
 The following function is used to set the heap number
 field in a new-style record. */
 UNIV_INLINE
@@ -812,7 +813,7 @@ rec_set_heap_no_new(
 			    REC_HEAP_NO_MASK, REC_HEAP_NO_SHIFT);
 }
 
-/**********************************************************
+/******************************************************//**
 The following function is used to test whether the data offsets in the record
 are stored in one-byte or two-byte format.
 @return	TRUE if 1-byte form */
@@ -830,7 +831,7 @@ rec_get_1byte_offs_flag(
 				   REC_OLD_SHORT_SHIFT));
 }
 
-/**********************************************************
+/******************************************************//**
 The following function is used to set the 1-byte offsets flag. */
 UNIV_INLINE
 void
@@ -848,7 +849,7 @@ rec_set_1byte_offs_flag(
 			    REC_OLD_SHORT_SHIFT);
 }
 
-/**********************************************************
+/******************************************************//**
 Returns the offset of nth field end if the record is stored in the 1-byte
 offsets form. If the field is SQL null, the flag is ORed in the returned
 value.
@@ -866,7 +867,7 @@ rec_1_get_field_end_info(
 	return(mach_read_from_1(rec - (REC_N_OLD_EXTRA_BYTES + n + 1)));
 }
 
-/**********************************************************
+/******************************************************//**
 Returns the offset of nth field end if the record is stored in the 2-byte
 offsets form. If the field is SQL null, the flag is ORed in the returned
 value.
@@ -890,7 +891,7 @@ this position, and following positions hold the end offsets of
 the fields. */
 #define rec_offs_base(offsets) (offsets + REC_OFFS_HEADER_SIZE)
 
-/**************************************************************
+/**********************************************************//**
 The following function returns the number of allocated elements
 for an array of offsets.
 @return	number of elements */
@@ -908,7 +909,7 @@ rec_offs_get_n_alloc(
 	return(n_alloc);
 }
 
-/**************************************************************
+/**********************************************************//**
 The following function sets the number of allocated elements
 for an array of offsets. */
 UNIV_INLINE
@@ -925,7 +926,7 @@ rec_offs_set_n_alloc(
 	offsets[0] = n_alloc;
 }
 
-/**************************************************************
+/**********************************************************//**
 The following function returns the number of fields in a record.
 @return	number of fields */
 UNIV_INLINE
@@ -944,7 +945,7 @@ rec_offs_n_fields(
 	return(n_fields);
 }
 
-/****************************************************************
+/************************************************************//**
 Validates offsets returned by rec_get_offsets().
 @return	TRUE if valid */
 UNIV_INLINE
@@ -1000,7 +1001,7 @@ rec_offs_validate(
 	return(TRUE);
 }
 #ifdef UNIV_DEBUG
-/****************************************************************
+/************************************************************//**
 Updates debug data in offsets, in order to avoid bogus
 rec_offs_validate() failures. */
 UNIV_INLINE
@@ -1021,7 +1022,7 @@ rec_offs_make_valid(
 }
 #endif /* UNIV_DEBUG */
 
-/****************************************************************
+/************************************************************//**
 The following function is used to get an offset to the nth
 data field in a record.
 @return	offset from the origin of rec */
@@ -1058,7 +1059,7 @@ rec_get_nth_field_offs(
 	return(offs);
 }
 
-/**********************************************************
+/******************************************************//**
 Determine if the offsets are for a record in the new
 compact format.
 @return	nonzero if compact format */
@@ -1072,7 +1073,7 @@ rec_offs_comp(
 	return(*rec_offs_base(offsets) & REC_OFFS_COMPACT);
 }
 
-/**********************************************************
+/******************************************************//**
 Determine if the offsets are for a record containing
 externally stored columns.
 @return	nonzero if externally stored */
@@ -1086,7 +1087,7 @@ rec_offs_any_extern(
 	return(UNIV_UNLIKELY(*rec_offs_base(offsets) & REC_OFFS_EXTERNAL));
 }
 
-/**********************************************************
+/******************************************************//**
 Returns nonzero if the extern bit is set in nth field of rec.
 @return	nonzero if externally stored */
 UNIV_INLINE
@@ -1102,7 +1103,7 @@ rec_offs_nth_extern(
 			     & REC_OFFS_EXTERNAL));
 }
 
-/**********************************************************
+/******************************************************//**
 Returns nonzero if the SQL NULL bit is set in nth field of rec.
 @return	nonzero if SQL NULL */
 UNIV_INLINE
@@ -1118,7 +1119,7 @@ rec_offs_nth_sql_null(
 			     & REC_OFFS_SQL_NULL));
 }
 
-/**********************************************************
+/******************************************************//**
 Gets the physical size of a field.
 @return	length of field */
 UNIV_INLINE
@@ -1137,7 +1138,7 @@ rec_offs_nth_size(
 	       & REC_OFFS_MASK);
 }
 
-/**********************************************************
+/******************************************************//**
 Returns the number of extern bits set in a record.
 @return	number of externally stored fields */
 UNIV_INLINE
@@ -1161,7 +1162,7 @@ rec_offs_n_extern(
 	return(n);
 }
 
-/**********************************************************
+/******************************************************//**
 Returns the offset of n - 1th field end if the record is stored in the 1-byte
 offsets form. If the field is SQL null, the flag is ORed in the returned
 value. This function and the 2-byte counterpart are defined here because the
@@ -1181,7 +1182,7 @@ rec_1_get_prev_field_end_info(
 	return(mach_read_from_1(rec - (REC_N_OLD_EXTRA_BYTES + n)));
 }
 
-/**********************************************************
+/******************************************************//**
 Returns the offset of n - 1th field end if the record is stored in the 2-byte
 offsets form. If the field is SQL null, the flag is ORed in the returned
 value.
@@ -1199,7 +1200,7 @@ rec_2_get_prev_field_end_info(
 	return(mach_read_from_2(rec - (REC_N_OLD_EXTRA_BYTES + 2 * n)));
 }
 
-/**********************************************************
+/******************************************************//**
 Sets the field end info for the nth field if the record is stored in the
 1-byte format. */
 UNIV_INLINE
@@ -1216,7 +1217,7 @@ rec_1_set_field_end_info(
 	mach_write_to_1(rec - (REC_N_OLD_EXTRA_BYTES + n + 1), info);
 }
 
-/**********************************************************
+/******************************************************//**
 Sets the field end info for the nth field if the record is stored in the
 2-byte format. */
 UNIV_INLINE
@@ -1233,7 +1234,7 @@ rec_2_set_field_end_info(
 	mach_write_to_2(rec - (REC_N_OLD_EXTRA_BYTES + 2 * n + 2), info);
 }
 
-/**********************************************************
+/******************************************************//**
 Returns the offset of nth field start if the record is stored in the 1-byte
 offsets form.
 @return	offset of the start of the field */
@@ -1256,7 +1257,7 @@ rec_1_get_field_start_offs(
 	       & ~REC_1BYTE_SQL_NULL_MASK);
 }
 
-/**********************************************************
+/******************************************************//**
 Returns the offset of nth field start if the record is stored in the 2-byte
 offsets form.
 @return	offset of the start of the field */
@@ -1279,7 +1280,7 @@ rec_2_get_field_start_offs(
 	       & ~(REC_2BYTE_SQL_NULL_MASK | REC_2BYTE_EXTERN_MASK));
 }
 
-/**********************************************************
+/******************************************************//**
 The following function is used to read the offset of the start of a data field
 in the record. The start of an SQL null field is the end offset of the
 previous non-null field, or 0, if none exists. If n is the number of the last
@@ -1308,7 +1309,7 @@ rec_get_field_start_offs(
 	return(rec_2_get_field_start_offs(rec, n));
 }
 
-/****************************************************************
+/************************************************************//**
 Gets the physical size of an old-style field.
 Also an SQL null may have a field of size > 0,
 if the data type is of a fixed size.
@@ -1331,7 +1332,7 @@ rec_get_nth_field_size(
 	return(next_os - os);
 }
 
-/***************************************************************
+/***********************************************************//**
 This is used to modify the value of an already existing field in a record.
 The previous value must have exactly the same size as the new value. If len
 is UNIV_SQL_NULL then the field is treated as an SQL null.
@@ -1375,7 +1376,7 @@ rec_set_nth_field(
 	ut_memcpy(data2, data, len);
 }
 
-/**************************************************************
+/**********************************************************//**
 The following function returns the data size of an old-style physical
 record, that is the sum of field lengths. SQL null fields
 are counted as length 0 fields. The value returned by the function
@@ -1392,7 +1393,7 @@ rec_get_data_size_old(
 	return(rec_get_field_start_offs(rec, rec_get_n_fields_old(rec)));
 }
 
-/**************************************************************
+/**********************************************************//**
 The following function sets the number of fields in offsets. */
 UNIV_INLINE
 void
@@ -1410,7 +1411,7 @@ rec_offs_set_n_fields(
 	offsets[1] = n_fields;
 }
 
-/**************************************************************
+/**********************************************************//**
 The following function returns the data size of a physical
 record, that is the sum of field lengths. SQL null fields
 are counted as length 0 fields. The value returned by the function
@@ -1431,7 +1432,7 @@ rec_offs_data_size(
 	return(size);
 }
 
-/**************************************************************
+/**********************************************************//**
 Returns the total size of record minus data size of record. The value
 returned by the function is the distance from record start to record origin
 in bytes.
@@ -1449,7 +1450,7 @@ rec_offs_extra_size(
 	return(size);
 }
 
-/**************************************************************
+/**********************************************************//**
 Returns the total size of a physical record.
 @return	size */
 UNIV_INLINE
@@ -1461,7 +1462,7 @@ rec_offs_size(
 	return(rec_offs_data_size(offsets) + rec_offs_extra_size(offsets));
 }
 
-/**************************************************************
+/**********************************************************//**
 Returns a pointer to the end of the record.
 @return	pointer to end */
 UNIV_INLINE
@@ -1475,7 +1476,7 @@ rec_get_end(
 	return(rec + rec_offs_data_size(offsets));
 }
 
-/**************************************************************
+/**********************************************************//**
 Returns a pointer to the start of the record.
 @return	pointer to start */
 UNIV_INLINE
@@ -1489,7 +1490,7 @@ rec_get_start(
 	return(rec - rec_offs_extra_size(offsets));
 }
 
-/*******************************************************************
+/***************************************************************//**
 Copies a physical record to a buffer.
 @return	pointer to the origin of the copy */
 UNIV_INLINE
@@ -1515,7 +1516,7 @@ rec_copy(
 	return((byte*)buf + extra_len);
 }
 
-/**************************************************************
+/**********************************************************//**
 Returns the extra size of an old-style physical record if we know its
 data size and number of fields.
 @return	extra size */
@@ -1535,7 +1536,7 @@ rec_get_converted_extra_size(
 	return(REC_N_OLD_EXTRA_BYTES + 2 * n_fields);
 }
 
-/**************************************************************
+/**********************************************************//**
 The following function returns the size of a data tuple when converted to
 a physical record.
 @return	size */
@@ -1578,7 +1579,7 @@ rec_get_converted_size(
 }
 
 #ifndef UNIV_HOTBACKUP
-/****************************************************************
+/************************************************************//**
 Folds a prefix of a physical record to a ulint. Folds only existing fields,
 that is, checks that we do not run out of the record.
 @return	the folded value */

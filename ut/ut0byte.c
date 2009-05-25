@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/*******************************************************************
+/***************************************************************//**
+@file ut/ut0byte.c
 Byte utilities
 
 Created 5/11/1994 Heikki Tuuri
@@ -37,7 +38,7 @@ UNIV_INTERN const dulint	ut_dulint_max	= {0xFFFFFFFFUL, 0xFFFFFFFFUL};
 #ifdef notdefined /* unused code */
 #include "ut0sort.h"
 
-/****************************************************************
+/************************************************************//**
 Sort function for dulint arrays. */
 UNIV_INTERN
 void

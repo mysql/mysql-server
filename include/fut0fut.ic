@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/**********************************************************************
+/******************************************************************//**
+@file include/fut0fut.ic
 File-based utilities
 
 Created 12/13/1995 Heikki Tuuri
@@ -25,7 +26,7 @@ Created 12/13/1995 Heikki Tuuri
 #include "sync0rw.h"
 #include "buf0buf.h"
 
-/************************************************************************
+/********************************************************************//**
 Gets a pointer to a file address and latches the page.
 @return pointer to a byte in a frame; the file page in the frame is
 bufferfixed and latched */

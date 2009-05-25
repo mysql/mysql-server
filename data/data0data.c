@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/************************************************************************
+/********************************************************************//**
+@file data/data0data.c
 SQL data field and tuple
 
 Created 5/30/1994 Heikki Tuuri
@@ -51,7 +52,7 @@ UNIV_INTERN ulint	data_dummy;
 #endif /* UNIV_DEBUG */
 
 #ifndef UNIV_HOTBACKUP
-/*************************************************************************
+/*********************************************************************//**
 Tests if dfield data length and content is equal to the given.
 @return	TRUE if equal */
 UNIV_INTERN
@@ -80,7 +81,7 @@ dfield_data_is_binary_equal(
 	return(TRUE);
 }
 
-/****************************************************************
+/************************************************************//**
 Compare two data tuples, respecting the collation of character fields.
 @return 1, 0 , -1 if tuple1 is greater, equal, less, respectively,
 than tuple2 */
@@ -122,7 +123,7 @@ dtuple_coll_cmp(
 	return(0);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Sets number of fields used in a tuple. Normally this is set in
 dtuple_create, but if you want later to set it smaller, you can use this. */
 UNIV_INTERN
@@ -138,7 +139,7 @@ dtuple_set_n_fields(
 	tuple->n_fields_cmp = n_fields;
 }
 
-/**************************************************************
+/**********************************************************//**
 Checks that a data field is typed.
 @return	TRUE if ok */
 static
@@ -160,7 +161,7 @@ dfield_check_typed_no_assert(
 	return(TRUE);
 }
 
-/**************************************************************
+/**********************************************************//**
 Checks that a data tuple is typed.
 @return	TRUE if ok */
 UNIV_INTERN
@@ -198,7 +199,7 @@ dump:
 #endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_DEBUG
-/**************************************************************
+/**********************************************************//**
 Checks that a data field is typed. Asserts an error if not.
 @return	TRUE if ok */
 UNIV_INTERN
@@ -221,7 +222,7 @@ dfield_check_typed(
 	return(TRUE);
 }
 
-/**************************************************************
+/**********************************************************//**
 Checks that a data tuple is typed. Asserts an error if not.
 @return	TRUE if ok */
 UNIV_INTERN
@@ -243,7 +244,7 @@ dtuple_check_typed(
 	return(TRUE);
 }
 
-/**************************************************************
+/**********************************************************//**
 Validates the consistency of a tuple which must be complete, i.e,
 all fields must have been set.
 @return	TRUE if ok */
@@ -296,7 +297,7 @@ dtuple_validate(
 #endif /* UNIV_DEBUG */
 
 #ifndef UNIV_HOTBACKUP
-/*****************************************************************
+/*************************************************************//**
 Pretty prints a dfield value according to its data type. */
 UNIV_INTERN
 void
@@ -338,7 +339,7 @@ dfield_print(
 	}
 }
 
-/*****************************************************************
+/*************************************************************//**
 Pretty prints a dfield value according to its data type. Also the hex string
 is printed if a string contains non-printable characters. */
 UNIV_INTERN
@@ -510,7 +511,7 @@ print_hex:
 	}
 }
 
-/*****************************************************************
+/*************************************************************//**
 Print a dfield value using ut_print_buf. */
 static
 void
@@ -533,7 +534,7 @@ dfield_print_raw(
 	}
 }
 
-/**************************************************************
+/**********************************************************//**
 The following function prints the contents of a tuple. */
 UNIV_INTERN
 void
@@ -561,7 +562,7 @@ dtuple_print(
 	ut_ad(dtuple_validate(tuple));
 }
 
-/******************************************************************
+/**************************************************************//**
 Moves parts of long fields in entry to the big record vector so that
 the size of tuple drops below the maximum record size allowed in the
 database. Moves data only from those fields which are not necessary
@@ -722,7 +723,7 @@ skip_field:
 	return(vector);
 }
 
-/******************************************************************
+/**************************************************************//**
 Puts back to entry the data stored in vector. Note that to ensure the
 fields in entry can accommodate the data, vector must have been created
 from entry with dtuple_convert_big_rec. */

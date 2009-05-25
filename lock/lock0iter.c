@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file lock/lock0iter.c
 Lock queue iterator. Can iterate over table and record
 lock queues.
 
@@ -35,7 +36,7 @@ Created July 16, 2007 Vasil Dimov
 # include "srv0srv.h" /* kernel_mutex */
 #endif /* UNIV_DEBUG */
 
-/***********************************************************************
+/*******************************************************************//**
 Initialize lock queue iterator so that it starts to iterate from
 "lock". bit_no specifies the record number within the heap where the
 record is stored. It can be undefined (ULINT_UNDEFINED) in two cases:
@@ -76,7 +77,7 @@ lock_queue_iterator_reset(
 	}
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Gets the previous lock in the lock queue, returns NULL if there are no
 more locks (i.e. the current lock is the first one). The iterator is
 receded (if not-NULL is returned).

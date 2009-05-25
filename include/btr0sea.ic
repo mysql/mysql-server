@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/************************************************************************
+/********************************************************************//**
+@file include/btr0sea.ic
 The index tree adaptive search
 
 Created 2/17/1996 Heikki Tuuri
@@ -26,7 +27,7 @@ Created 2/17/1996 Heikki Tuuri
 #include "btr0cur.h"
 #include "buf0buf.h"
 
-/*************************************************************************
+/*********************************************************************//**
 Updates the search info. */
 UNIV_INTERN
 void
@@ -35,7 +36,7 @@ btr_search_info_update_slow(
 	btr_search_t*	info,	/*!< in/out: search info */
 	btr_cur_t*	cursor);/*!< in: cursor which was just positioned */
 
-/************************************************************************
+/********************************************************************//**
 Returns search info for an index.
 @return	search info; search mutex reserved */
 UNIV_INLINE
@@ -49,7 +50,7 @@ btr_search_get_info(
 	return(index->search_info);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Updates the search info. */
 UNIV_INLINE
 void

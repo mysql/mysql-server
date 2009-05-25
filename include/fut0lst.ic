@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/**********************************************************************
+/******************************************************************//**
+@file include/fut0lst.ic
 File-based list utilities
 
 Created 11/28/1995 Heikki Tuuri
@@ -42,7 +43,7 @@ Created 11/28/1995 Heikki Tuuri
 				last element of the list; undefined
 				if empty list */
 
-/************************************************************************
+/********************************************************************//**
 Writes a file address. */
 UNIV_INLINE
 void
@@ -62,7 +63,7 @@ flst_write_addr(
 			 MLOG_2BYTES, mtr);
 }
 
-/************************************************************************
+/********************************************************************//**
 Reads a file address.
 @return	file address */
 UNIV_INLINE
@@ -84,7 +85,7 @@ flst_read_addr(
 	return(addr);
 }
 
-/************************************************************************
+/********************************************************************//**
 Initializes a list base node. */
 UNIV_INLINE
 void
@@ -100,7 +101,7 @@ flst_init(
 	flst_write_addr(base + FLST_LAST, fil_addr_null, mtr);
 }
 
-/************************************************************************
+/********************************************************************//**
 Gets list length.
 @return	length */
 UNIV_INLINE
@@ -113,7 +114,7 @@ flst_get_len(
 	return(mtr_read_ulint(base + FLST_LEN, MLOG_4BYTES, mtr));
 }
 
-/************************************************************************
+/********************************************************************//**
 Gets list first node address.
 @return	file address */
 UNIV_INLINE
@@ -126,7 +127,7 @@ flst_get_first(
 	return(flst_read_addr(base + FLST_FIRST, mtr));
 }
 
-/************************************************************************
+/********************************************************************//**
 Gets list last node address.
 @return	file address */
 UNIV_INLINE
@@ -139,7 +140,7 @@ flst_get_last(
 	return(flst_read_addr(base + FLST_LAST, mtr));
 }
 
-/************************************************************************
+/********************************************************************//**
 Gets list next node address.
 @return	file address */
 UNIV_INLINE
@@ -152,7 +153,7 @@ flst_get_next_addr(
 	return(flst_read_addr(node + FLST_NEXT, mtr));
 }
 
-/************************************************************************
+/********************************************************************//**
 Gets list prev node address.
 @return	file address */
 UNIV_INLINE

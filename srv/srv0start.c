@@ -23,7 +23,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/************************************************************************
+/********************************************************************//**
+@file srv/srv0start.c
 Starts the InnoDB database server
 
 Created 2/16/1996 Heikki Tuuri
@@ -118,7 +119,7 @@ static char*	srv_monitor_file_name;
 #define SRV_MAX_N_PENDING_SYNC_IOS	100
 
 
-/*************************************************************************
+/*********************************************************************//**
 Convert a numeric string that optionally ends in G or M, to a number
 containing megabytes.
 @return	next character in string */
@@ -152,7 +153,7 @@ srv_parse_megabytes(
 	return(str);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Reads the data files and their sizes from a character string given in
 the .cnf file.
 @return	TRUE if ok, FALSE on parse error */
@@ -336,7 +337,7 @@ srv_parse_data_file_paths_and_sizes(
 	return(TRUE);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Reads log group home directories from a character string given in
 the .cnf file.
 @return	TRUE if ok, FALSE on parse error */
@@ -408,7 +409,7 @@ srv_parse_log_group_home_dirs(
 	return(TRUE);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Frees the memory allocated by srv_parse_data_file_paths_and_sizes()
 and srv_parse_log_group_home_dirs(). */
 UNIV_INTERN
@@ -427,7 +428,7 @@ srv_free_paths_and_sizes(void)
 }
 
 #ifndef UNIV_HOTBACKUP
-/************************************************************************
+/********************************************************************//**
 I/o-handler thread function.
 @return	OS_THREAD_DUMMY_RETURN */
 static
@@ -471,7 +472,7 @@ io_handler_thread(
 #define SRV_PATH_SEPARATOR	'/'
 #endif
 
-/*************************************************************************
+/*********************************************************************//**
 Normalizes a directory path for Windows: converts slashes to backslashes. */
 UNIV_INTERN
 void
@@ -490,7 +491,7 @@ srv_normalize_path_for_win(
 #endif
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Adds a slash or a backslash to the end of a string if it is missing
 and the string is not empty.
 @return	string which has the separator if the string is not empty */
@@ -517,7 +518,7 @@ srv_add_path_separator_if_needed(
 }
 
 #ifndef UNIV_HOTBACKUP
-/*************************************************************************
+/*********************************************************************//**
 Calculates the low 32 bits when a file size which is given as a number
 database pages is converted to the number of bytes.
 @return	low 32 bytes of file size when expressed in bytes */
@@ -530,7 +531,7 @@ srv_calc_low32(
 	return(0xFFFFFFFFUL & (file_size << UNIV_PAGE_SIZE_SHIFT));
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Calculates the high 32 bits when a file size which is given as a number
 database pages is converted to the number of bytes.
 @return	high 32 bytes of file size when expressed in bytes */
@@ -543,7 +544,7 @@ srv_calc_high32(
 	return(file_size >> (32 - UNIV_PAGE_SIZE_SHIFT));
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Creates or opens the log files and closes them.
 @return	DB_SUCCESS or error code */
 static
@@ -696,7 +697,7 @@ open_or_create_log_file(
 	return(DB_SUCCESS);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Creates or opens database data files and closes them.
 @return	DB_SUCCESS or error code */
 static
@@ -968,7 +969,7 @@ skip_size_check:
 	return(DB_SUCCESS);
 }
 
-/********************************************************************
+/****************************************************************//**
 Starts InnoDB and creates a new database if database files
 are not found and the user wants.
 @return	DB_SUCCESS or error code */
@@ -1838,7 +1839,7 @@ innobase_start_or_create_for_mysql(void)
 	return((int) DB_SUCCESS);
 }
 
-/********************************************************************
+/****************************************************************//**
 Shuts down the InnoDB database.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN

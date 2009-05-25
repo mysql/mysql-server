@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/row0row.h
 General row routines
 
 Created 4/20/1996 Heikki Tuuri
@@ -36,7 +37,7 @@ Created 4/20/1996 Heikki Tuuri
 #include "row0types.h"
 #include "btr0types.h"
 
-/*************************************************************************
+/*********************************************************************//**
 Gets the offset of the trx id field, in bytes relative to the origin of
 a clustered index record.
 @return	offset of DATA_TRX_ID */
@@ -47,7 +48,7 @@ row_get_trx_id_offset(
 	const rec_t*	rec,	/*!< in: record */
 	dict_index_t*	index,	/*!< in: clustered index */
 	const ulint*	offsets);/*!< in: rec_get_offsets(rec, index) */
-/*************************************************************************
+/*********************************************************************//**
 Reads the trx id field from a clustered index record.
 @return	value of the field */
 UNIV_INLINE
@@ -57,7 +58,7 @@ row_get_rec_trx_id(
 	const rec_t*	rec,	/*!< in: record */
 	dict_index_t*	index,	/*!< in: clustered index */
 	const ulint*	offsets);/*!< in: rec_get_offsets(rec, index) */
-/*************************************************************************
+/*********************************************************************//**
 Reads the roll pointer field from a clustered index record.
 @return	value of the field */
 UNIV_INLINE
@@ -67,7 +68,7 @@ row_get_rec_roll_ptr(
 	const rec_t*	rec,	/*!< in: record */
 	dict_index_t*	index,	/*!< in: clustered index */
 	const ulint*	offsets);/*!< in: rec_get_offsets(rec, index) */
-/*********************************************************************
+/*****************************************************************//**
 When an insert or purge to a table is performed, this function builds
 the entry to be inserted into or purged from an index on the table.
 @return index entry which should be inserted or purged, or NULL if the
@@ -84,7 +85,7 @@ row_build_index_entry(
 	dict_index_t*	index,	/*!< in: index on the table */
 	mem_heap_t*	heap);	/*!< in: memory heap from which the memory for
 				the index entry is allocated */
-/***********************************************************************
+/*******************************************************************//**
 An inverse function to row_build_index_entry. Builds a row from a
 record in a clustered index.
 @return	own: row built; see the NOTE below! */
@@ -126,7 +127,7 @@ row_build(
 					prefixes, or NULL */
 	mem_heap_t*		heap);	/*!< in: memory heap from which
 					the memory needed is allocated */
-/***********************************************************************
+/*******************************************************************//**
 Converts an index record to a typed data tuple.
 @return index entry built; does not set info_bits, and the data fields
 in the entry will point directly to rec */
@@ -141,7 +142,7 @@ row_rec_to_index_entry_low(
 					stored columns */
 	mem_heap_t*		heap);	/*!< in: memory heap from which
 					the memory needed is allocated */
-/***********************************************************************
+/*******************************************************************//**
 Converts an index record to a typed data tuple. NOTE that externally
 stored (often big) fields are NOT copied to heap.
 @return	own: index entry built; see the NOTE below! */
@@ -170,7 +171,7 @@ row_rec_to_index_entry(
 					stored columns */
 	mem_heap_t*		heap);	/*!< in: memory heap from which
 					the memory needed is allocated */
-/***********************************************************************
+/*******************************************************************//**
 Builds from a secondary index record a row reference with which we can
 search the clustered index record.
 @return	own: row reference built; see the NOTE below! */
@@ -192,7 +193,7 @@ row_build_row_ref(
 				as long as the row reference is used! */
 	mem_heap_t*	heap);	/*!< in: memory heap from which the memory
 				needed is allocated */
-/***********************************************************************
+/*******************************************************************//**
 Builds from a secondary index record a row reference with which we can
 search the clustered index record. */
 UNIV_INTERN
@@ -213,7 +214,7 @@ row_build_row_ref_in_tuple(
 	ulint*			offsets,/*!< in: rec_get_offsets(rec, index)
 					or NULL */
 	trx_t*			trx);	/*!< in: transaction */
-/***********************************************************************
+/*******************************************************************//**
 From a row build a row reference with which we can search the clustered
 index record. */
 UNIV_INTERN
@@ -228,7 +229,7 @@ row_build_row_ref_from_row(
 	const dtuple_t*		row);	/*!< in: row
 					NOTE: the data fields in ref will point
 					directly into data of this row */
-/***********************************************************************
+/*******************************************************************//**
 Builds from a secondary index record a row reference with which we can
 search the clustered index record. */
 UNIV_INLINE
@@ -244,7 +245,7 @@ row_build_row_ref_fast(
 				preserved while ref is used, as we do
 				not copy field values to heap */
 	const ulint*	offsets);/*!< in: array returned by rec_get_offsets() */
-/*******************************************************************
+/***************************************************************//**
 Searches the clustered index record for a row, if we have the row
 reference.
 @return	TRUE if found */
@@ -258,7 +259,7 @@ row_search_on_row_ref(
 	const dict_table_t*	table,	/*!< in: table */
 	const dtuple_t*		ref,	/*!< in: row reference */
 	mtr_t*			mtr);	/*!< in/out: mtr */
-/*************************************************************************
+/*********************************************************************//**
 Fetches the clustered index record for a secondary index record. The latches
 on the secondary index record are preserved.
 @return	record or NULL, if no record found */
@@ -271,7 +272,7 @@ row_get_clust_rec(
 	dict_index_t*	index,	/*!< in: secondary index */
 	dict_index_t**	clust_index,/*!< out: clustered index */
 	mtr_t*		mtr);	/*!< in: mtr */
-/*******************************************************************
+/***************************************************************//**
 Searches an index record.
 @return	TRUE if found */
 UNIV_INTERN
@@ -297,7 +298,7 @@ row_search_index_entry(
 No new latches may be obtained while the kernel mutex is reserved.
 However, the kernel mutex can be reserved while latches are owned. */
 
-/***********************************************************************
+/*******************************************************************//**
 Formats the raw data in "data" (in InnoDB on-disk format) using
 "dict_field" and writes the result to "buf".
 Not more than "buf_size" bytes are written to "buf".

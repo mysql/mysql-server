@@ -23,7 +23,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/sync0sync.h
 Mutex, the basic synchronization primitive
 
 Created 9/5/1995 Heikki Tuuri
@@ -49,19 +50,19 @@ typedef LONG lock_word_t;	/* On Windows, InterlockedExchange operates
 typedef byte lock_word_t;
 #endif
 
-/**********************************************************************
+/******************************************************************//**
 Initializes the synchronization data structures. */
 UNIV_INTERN
 void
 sync_init(void);
 /*===========*/
-/**********************************************************************
+/******************************************************************//**
 Frees the resources in synchronization data structures. */
 UNIV_INTERN
 void
 sync_close(void);
 /*===========*/
-/**********************************************************************
+/******************************************************************//**
 Creates, or rather, initializes a mutex object to a specified memory
 location (which must be appropriately aligned). The mutex is initialized
 in the reset state. Explicit freeing of the mutex with mutex_free is
@@ -80,7 +81,7 @@ necessary only if the memory block containing it is freed. */
 	mutex_create_func((M), __FILE__, __LINE__)
 #endif
 
-/**********************************************************************
+/******************************************************************//**
 Creates, or rather, initializes a mutex object in a specified memory
 location (which must be appropriately aligned). The mutex is initialized
 in the reset state. Explicit freeing of the mutex with mutex_free is
@@ -101,7 +102,7 @@ mutex_create_func(
 
 #undef mutex_free			/* Fix for MacOS X */
 
-/**********************************************************************
+/******************************************************************//**
 Calling this function is obligatory only if the memory buffer containing
 the mutex is freed. Removes a mutex object from the mutex list. The mutex
 is checked to be in the reset state. */
@@ -110,19 +111,19 @@ void
 mutex_free(
 /*=======*/
 	mutex_t*	mutex);	/*!< in: mutex */
-/******************************************************************
+/**************************************************************//**
 NOTE! The following macro should be used in mutex locking, not the
 corresponding function. */
 
 #define mutex_enter(M)	  mutex_enter_func((M), __FILE__, __LINE__)
-/******************************************************************
+/**************************************************************//**
 NOTE! The following macro should be used in mutex locking, not the
 corresponding function. */
 
 /* NOTE! currently same as mutex_enter! */
 
 #define mutex_enter_fast(M)	mutex_enter_func((M), __FILE__, __LINE__)
-/**********************************************************************
+/******************************************************************//**
 NOTE! Use the corresponding macro in the header file, not this function
 directly. Locks a mutex for the current thread. If the mutex is reserved
 the function spins a preset time (controlled by SYNC_SPIN_ROUNDS) waiting
@@ -134,13 +135,13 @@ mutex_enter_func(
 	mutex_t*	mutex,		/*!< in: pointer to mutex */
 	const char*	file_name,	/*!< in: file name where locked */
 	ulint		line);		/*!< in: line where locked */
-/******************************************************************
+/**************************************************************//**
 NOTE! The following macro should be used in mutex locking, not the
 corresponding function. */
 
 #define mutex_enter_nowait(M)	\
 	mutex_enter_nowait_func((M), __FILE__, __LINE__)
-/************************************************************************
+/********************************************************************//**
 NOTE! Use the corresponding macro in the header file, not this function
 directly. Tries to lock the mutex for the current thread. If the lock is not
 acquired immediately, returns with return value 1.
@@ -153,7 +154,7 @@ mutex_enter_nowait_func(
 	const char*	file_name,	/*!< in: file name where mutex
 					requested */
 	ulint		line);		/*!< in: line where requested */
-/**********************************************************************
+/******************************************************************//**
 Unlocks a mutex owned by the current thread. */
 UNIV_INLINE
 void
@@ -161,7 +162,7 @@ mutex_exit(
 /*=======*/
 	mutex_t*	mutex);	/*!< in: pointer to mutex */
 #ifdef UNIV_SYNC_DEBUG
-/**********************************************************************
+/******************************************************************//**
 Returns TRUE if no mutex or rw-lock is currently locked.
 Works only in the debug version.
 @return	TRUE if no mutexes and rw-locks reserved */
@@ -172,14 +173,14 @@ sync_all_freed(void);
 #endif /* UNIV_SYNC_DEBUG */
 /*#####################################################################
 FUNCTION PROTOTYPES FOR DEBUGGING */
-/***********************************************************************
+/*******************************************************************//**
 Prints wait info of the sync system. */
 UNIV_INTERN
 void
 sync_print_wait_info(
 /*=================*/
 	FILE*	file);		/*!< in: file where to print */
-/***********************************************************************
+/*******************************************************************//**
 Prints info of the sync system. */
 UNIV_INTERN
 void
@@ -187,7 +188,7 @@ sync_print(
 /*=======*/
 	FILE*	file);		/*!< in: file where to print */
 #ifdef UNIV_DEBUG
-/**********************************************************************
+/******************************************************************//**
 Checks that the mutex has been initialized.
 @return	TRUE */
 UNIV_INTERN
@@ -195,7 +196,7 @@ ibool
 mutex_validate(
 /*===========*/
 	const mutex_t*	mutex);	/*!< in: mutex */
-/**********************************************************************
+/******************************************************************//**
 Checks that the current thread owns the mutex. Works only
 in the debug version.
 @return	TRUE if owns */
@@ -206,7 +207,7 @@ mutex_own(
 	const mutex_t*	mutex);	/*!< in: mutex */
 #endif /* UNIV_DEBUG */
 #ifdef UNIV_SYNC_DEBUG
-/**********************************************************************
+/******************************************************************//**
 Adds a latch and its level in the thread level array. Allocates the memory
 for the array if called first time for this OS thread. Makes the checks
 against other latch levels stored in the array for this thread. */
@@ -217,7 +218,7 @@ sync_thread_add_level(
 	void*	latch,	/*!< in: pointer to a mutex or an rw-lock */
 	ulint	level);	/*!< in: level in the latching order; if
 			SYNC_LEVEL_VARYING, nothing is done */
-/**********************************************************************
+/******************************************************************//**
 Removes a latch from the thread level array if it is found there.
 @return TRUE if found in the array; it is no error if the latch is
 not found, as we presently are not able to determine the level for
@@ -227,14 +228,14 @@ ibool
 sync_thread_reset_level(
 /*====================*/
 	void*	latch);	/*!< in: pointer to a mutex or an rw-lock */
-/**********************************************************************
+/******************************************************************//**
 Checks that the level array for the current thread is empty.
 @return	TRUE if empty */
 UNIV_INTERN
 ibool
 sync_thread_levels_empty(void);
 /*==========================*/
-/**********************************************************************
+/******************************************************************//**
 Checks that the level array for the current thread is empty.
 @return	TRUE if empty except the exceptions specified below */
 UNIV_INTERN
@@ -245,7 +246,7 @@ sync_thread_levels_empty_gen(
 					allowed to be owned by the thread,
 					also purge_is_running mutex is
 					allowed */
-/**********************************************************************
+/******************************************************************//**
 Gets the debug information for a reserved mutex. */
 UNIV_INTERN
 void
@@ -256,7 +257,7 @@ mutex_get_debug_info(
 	ulint*		line,		/*!< out: line where requested */
 	os_thread_id_t* thread_id);	/*!< out: id of the thread which owns
 					the mutex */
-/**********************************************************************
+/******************************************************************//**
 Counts currently reserved mutexes. Works only in the debug version.
 @return	number of reserved mutexes */
 UNIV_INTERN
@@ -264,7 +265,7 @@ ulint
 mutex_n_reserved(void);
 /*==================*/
 #endif /* UNIV_SYNC_DEBUG */
-/**********************************************************************
+/******************************************************************//**
 NOT to be used outside this module except in debugging! Gets the value
 of the lock word. */
 UNIV_INLINE
@@ -273,7 +274,7 @@ mutex_get_lock_word(
 /*================*/
 	const mutex_t*	mutex);	/*!< in: mutex */
 #ifdef UNIV_SYNC_DEBUG
-/**********************************************************************
+/******************************************************************//**
 NOT to be used outside this module except in debugging! Gets the waiters
 field in a mutex.
 @return	value to set */

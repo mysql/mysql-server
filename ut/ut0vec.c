@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/***********************************************************************
+/*******************************************************************//**
+@file ut/ut0vec.c
 A vector of pointers to data items
 
 Created 4/6/2006 Osku Salerma
@@ -28,7 +29,7 @@ Created 4/6/2006 Osku Salerma
 #endif
 #include <string.h>
 
-/********************************************************************
+/****************************************************************//**
 Create a new vector with the given initial size.
 @return	vector */
 UNIV_INTERN
@@ -52,7 +53,7 @@ ib_vector_create(
 	return(vec);
 }
 
-/********************************************************************
+/****************************************************************//**
 Push a new element to the vector, increasing its size if necessary. */
 UNIV_INTERN
 void

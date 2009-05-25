@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file mtr/mtr0log.c
 Mini-transaction log routines
 
 Created 12/7/1995 Heikki Tuuri
@@ -36,7 +37,7 @@ Created 12/7/1995 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 # include "dict0boot.h"
 
-/************************************************************
+/********************************************************//**
 Catenates n bytes to the mtr log. */
 UNIV_INTERN
 void
@@ -58,7 +59,7 @@ mlog_catenate_string(
 	dyn_push_string(mlog, str, len);
 }
 
-/************************************************************
+/********************************************************//**
 Writes the initial part of a log record consisting of one-byte item
 type and four-byte space and page numbers. Also pushes info
 to the mtr memo that a buffer page has been modified. */
@@ -91,7 +92,7 @@ mlog_write_initial_log_record(
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/************************************************************
+/********************************************************//**
 Parses an initial log record written by mlog_write_initial_log_record.
 @return	parsed record end, NULL if not a complete record */
 UNIV_INTERN
@@ -131,7 +132,7 @@ mlog_parse_initial_log_record(
 	return(ptr);
 }
 
-/************************************************************
+/********************************************************//**
 Parses a log record written by mlog_write_ulint or mlog_write_dulint.
 @return	parsed record end, NULL if not a complete record or a corrupt record */
 UNIV_INTERN
@@ -239,7 +240,7 @@ mlog_parse_nbytes(
 }
 
 #ifndef UNIV_HOTBACKUP
-/************************************************************
+/********************************************************//**
 Writes 1 - 4 bytes to a file page buffered in the buffer pool.
 Writes the corresponding log record to the mini-transaction log. */
 UNIV_INTERN
@@ -285,7 +286,7 @@ mlog_write_ulint(
 	mlog_close(mtr, log_ptr);
 }
 
-/************************************************************
+/********************************************************//**
 Writes 8 bytes to a file page buffered in the buffer pool.
 Writes the corresponding log record to the mini-transaction log. */
 UNIV_INTERN
@@ -321,7 +322,7 @@ mlog_write_dulint(
 	mlog_close(mtr, log_ptr);
 }
 
-/************************************************************
+/********************************************************//**
 Writes a string to a file page buffered in the buffer pool. Writes the
 corresponding log record to the mini-transaction log. */
 UNIV_INTERN
@@ -341,7 +342,7 @@ mlog_write_string(
 	mlog_log_string(ptr, len, mtr);
 }
 
-/************************************************************
+/********************************************************//**
 Logs a write of a string to a file page buffered in the buffer pool.
 Writes the corresponding log record to the mini-transaction log. */
 UNIV_INTERN
@@ -379,7 +380,7 @@ mlog_log_string(
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/************************************************************
+/********************************************************//**
 Parses a log record written by mlog_write_string.
 @return	parsed record end, NULL if not a complete record */
 UNIV_INTERN
@@ -430,7 +431,7 @@ mlog_parse_string(
 }
 
 #ifndef UNIV_HOTBACKUP
-/************************************************************
+/********************************************************//**
 Opens a buffer for mlog, writes the initial log record and,
 if needed, the field lengths of an index.
 @return	buffer, NULL if log mode MTR_LOG_NONE */
@@ -528,7 +529,7 @@ mlog_open_and_write_index(
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/************************************************************
+/********************************************************//**
 Parses a log record written by mlog_open_and_write_index.
 @return	parsed record end, NULL if not a complete record */
 UNIV_INTERN

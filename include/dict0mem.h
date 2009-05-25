@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/dict0mem.h
 Data dictionary memory object creation
 
 Created 1/8/1996 Heikki Tuuri
@@ -85,7 +86,7 @@ combination of types */
 # error "DICT_TF_BITS is insufficient for DICT_TF_FORMAT_MAX"
 #endif
 
-/**************************************************************************
+/**********************************************************************//**
 Creates a table memory object.
 @return	own: table object */
 UNIV_INTERN
@@ -99,14 +100,14 @@ dict_mem_table_create(
 					a member of a cluster */
 	ulint		n_cols,		/*!< in: number of columns */
 	ulint		flags);		/*!< in: table flags */
-/********************************************************************
+/****************************************************************//**
 Free a table memory object. */
 UNIV_INTERN
 void
 dict_mem_table_free(
 /*================*/
 	dict_table_t*	table);		/*!< in: table */
-/**************************************************************************
+/**********************************************************************//**
 Adds a column definition to a table. */
 UNIV_INTERN
 void
@@ -118,7 +119,7 @@ dict_mem_table_add_col(
 	ulint		mtype,	/*!< in: main datatype */
 	ulint		prtype,	/*!< in: precise type */
 	ulint		len);	/*!< in: precision */
-/**************************************************************************
+/**********************************************************************//**
 Creates an index memory object.
 @return	own: index object */
 UNIV_INTERN
@@ -133,7 +134,7 @@ dict_mem_index_create(
 	ulint		type,		/*!< in: DICT_UNIQUE,
 					DICT_CLUSTERED, ... ORed */
 	ulint		n_fields);	/*!< in: number of fields */
-/**************************************************************************
+/**********************************************************************//**
 Adds a field definition to an index. NOTE: does not take a copy
 of the column name if the field is a column. The memory occupied
 by the column name may be released only after publishing the index. */
@@ -146,14 +147,14 @@ dict_mem_index_add_field(
 	ulint		prefix_len);	/*!< in: 0 or the column prefix length
 					in a MySQL index like
 					INDEX (textcol(25)) */
-/**************************************************************************
+/**********************************************************************//**
 Frees an index memory object. */
 UNIV_INTERN
 void
 dict_mem_index_free(
 /*================*/
 	dict_index_t*	index);	/*!< in: index */
-/**************************************************************************
+/**********************************************************************//**
 Creates and initializes a foreign constraint memory object.
 @return	own: foreign constraint struct */
 UNIV_INTERN

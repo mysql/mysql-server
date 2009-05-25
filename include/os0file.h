@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/os0file.h
 The interface to the operating system file io
 
 Created 10/21/1995 Heikki Tuuri
@@ -188,7 +189,7 @@ typedef HANDLE	os_file_dir_t;	/* directory stream */
 typedef DIR*	os_file_dir_t;	/* directory stream */
 #endif
 
-/***************************************************************************
+/***********************************************************************//**
 Gets the operating system version. Currently works only on Windows.
 @return	OS_WIN95, OS_WIN31, OS_WINNT, or OS_WIN2000 */
 UNIV_INTERN
@@ -196,13 +197,13 @@ ulint
 os_get_os_version(void);
 /*===================*/
 #ifndef UNIV_HOTBACKUP
-/********************************************************************
+/****************************************************************//**
 Creates the seek mutexes used in positioned reads and writes. */
 UNIV_INTERN
 void
 os_io_init_simple(void);
 /*===================*/
-/***************************************************************************
+/***********************************************************************//**
 Creates a temporary file.  This function is like tmpfile(3), but
 the temporary file is created in the MySQL temporary directory.
 On Netware, this function is like tmpfile(3), because the C run-time
@@ -213,7 +214,7 @@ FILE*
 os_file_create_tmpfile(void);
 /*========================*/
 #endif /* !UNIV_HOTBACKUP */
-/***************************************************************************
+/***********************************************************************//**
 The os_file_opendir() function opens a directory stream corresponding to the
 directory named by the dirname argument. The directory stream is positioned
 at the first entry. In both Unix and Windows we automatically skip the '.'
@@ -230,7 +231,7 @@ os_file_opendir(
 					open symlinks then we do not wish a
 					fatal error if it happens not to be
 					a directory */
-/***************************************************************************
+/***********************************************************************//**
 Closes a directory stream.
 @return	0 if success, -1 if failure */
 UNIV_INTERN
@@ -238,7 +239,7 @@ int
 os_file_closedir(
 /*=============*/
 	os_file_dir_t	dir);	/*!< in: directory stream */
-/***************************************************************************
+/***********************************************************************//**
 This function returns information of the next file in the directory. We jump
 over the '.' and '..' entries in the directory.
 @return	0 if ok, -1 if error, 1 if at the end of the directory */
@@ -249,7 +250,7 @@ os_file_readdir_next_file(
 	const char*	dirname,/*!< in: directory name or path */
 	os_file_dir_t	dir,	/*!< in: directory stream */
 	os_file_stat_t*	info);	/*!< in/out: buffer where the info is returned */
-/*********************************************************************
+/*****************************************************************//**
 This function attempts to create a directory named pathname. The new directory
 gets default permissions. On Unix, the permissions are (0770 & ~umask). If the
 directory exists already, nothing is done and the call succeeds, unless the
@@ -263,7 +264,7 @@ os_file_create_directory(
 					null-terminated string */
 	ibool		fail_if_exists);/*!< in: if TRUE, pre-existing directory
 					is treated as an error. */
-/********************************************************************
+/****************************************************************//**
 A simple function to open or create a file.
 @return own: handle to the file, not defined if error, error number
 can be retrieved with os_file_get_last_error */
@@ -283,7 +284,7 @@ os_file_create_simple(
 	ulint		access_type,/*!< in: OS_FILE_READ_ONLY or
 				OS_FILE_READ_WRITE */
 	ibool*		success);/*!< out: TRUE if succeed, FALSE if error */
-/********************************************************************
+/****************************************************************//**
 A simple function to open or create a file.
 @return own: handle to the file, not defined if error, error number
 can be retrieved with os_file_get_last_error */
@@ -302,7 +303,7 @@ os_file_create_simple_no_error_handling(
 				OS_FILE_READ_ALLOW_DELETE; the last option is
 				used by a backup program reading the file */
 	ibool*		success);/*!< out: TRUE if succeed, FALSE if error */
-/********************************************************************
+/****************************************************************//**
 Tries to disable OS caching on an opened file descriptor. */
 UNIV_INTERN
 void
@@ -313,7 +314,7 @@ os_file_set_nocache(
 					diagnostic message */
 	const char*	operation_name);/*!< in: "open" or "create"; used in the
 					diagnostic message */
-/********************************************************************
+/****************************************************************//**
 Opens an existing file or creates a new.
 @return own: handle to the file, not defined if error, error number
 can be retrieved with os_file_get_last_error */
@@ -340,7 +341,7 @@ os_file_create(
 				function source code for the exact rules */
 	ulint		type,	/*!< in: OS_DATA_FILE or OS_LOG_FILE */
 	ibool*		success);/*!< out: TRUE if succeed, FALSE if error */
-/***************************************************************************
+/***********************************************************************//**
 Deletes a file. The file has to be closed before calling this.
 @return	TRUE if success */
 UNIV_INTERN
@@ -349,7 +350,7 @@ os_file_delete(
 /*===========*/
 	const char*	name);	/*!< in: file path as a null-terminated string */
 
-/***************************************************************************
+/***********************************************************************//**
 Deletes a file if it exists. The file has to be closed before calling this.
 @return	TRUE if success */
 UNIV_INTERN
@@ -357,7 +358,7 @@ ibool
 os_file_delete_if_exists(
 /*=====================*/
 	const char*	name);	/*!< in: file path as a null-terminated string */
-/***************************************************************************
+/***********************************************************************//**
 Renames a file (can also move it to another directory). It is safest that the
 file is closed before calling this function.
 @return	TRUE if success */
@@ -368,7 +369,7 @@ os_file_rename(
 	const char*	oldpath,	/*!< in: old file path as a
 					null-terminated string */
 	const char*	newpath);	/*!< in: new file path */
-/***************************************************************************
+/***********************************************************************//**
 Closes a file handle. In case of error, error number can be retrieved with
 os_file_get_last_error.
 @return	TRUE if success */
@@ -377,7 +378,7 @@ ibool
 os_file_close(
 /*==========*/
 	os_file_t	file);	/*!< in, own: handle to a file */
-/***************************************************************************
+/***********************************************************************//**
 Closes a file handle.
 @return	TRUE if success */
 UNIV_INTERN
@@ -385,7 +386,7 @@ ibool
 os_file_close_no_error_handling(
 /*============================*/
 	os_file_t	file);	/*!< in, own: handle to a file */
-/***************************************************************************
+/***********************************************************************//**
 Gets a file size.
 @return	TRUE if success */
 UNIV_INTERN
@@ -396,7 +397,7 @@ os_file_get_size(
 	ulint*		size,	/*!< out: least significant 32 bits of file
 				size */
 	ulint*		size_high);/*!< out: most significant 32 bits of size */
-/***************************************************************************
+/***********************************************************************//**
 Gets file size as a 64-bit integer ib_int64_t.
 @return	size in bytes, -1 if error */
 UNIV_INTERN
@@ -404,7 +405,7 @@ ib_int64_t
 os_file_get_size_as_iblonglong(
 /*===========================*/
 	os_file_t	file);	/*!< in: handle to a file */
-/***************************************************************************
+/***********************************************************************//**
 Write the specified number of zeros to a newly created file.
 @return	TRUE if success */
 UNIV_INTERN
@@ -417,7 +418,7 @@ os_file_set_size(
 	ulint		size,	/*!< in: least significant 32 bits of file
 				size */
 	ulint		size_high);/*!< in: most significant 32 bits of size */
-/***************************************************************************
+/***********************************************************************//**
 Truncates a file at its current position.
 @return	TRUE if success */
 UNIV_INTERN
@@ -425,7 +426,7 @@ ibool
 os_file_set_eof(
 /*============*/
 	FILE*		file);	/*!< in: file to be truncated */
-/***************************************************************************
+/***********************************************************************//**
 Flushes the write buffers of a given file to the disk.
 @return	TRUE if success */
 UNIV_INTERN
@@ -433,7 +434,7 @@ ibool
 os_file_flush(
 /*==========*/
 	os_file_t	file);	/*!< in, own: handle to a file */
-/***************************************************************************
+/***********************************************************************//**
 Retrieves the last error number if an error occurs in a file io function.
 The number should be retrieved before any other OS calls (because they may
 overwrite the error number). If the number is not known to this program,
@@ -445,7 +446,7 @@ os_file_get_last_error(
 /*===================*/
 	ibool	report_all_errors);	/*!< in: TRUE if we want an error message
 					printed of all errors */
-/***********************************************************************
+/*******************************************************************//**
 Requests a synchronous read operation.
 @return	TRUE if request was successful, FALSE if fail */
 UNIV_INTERN
@@ -459,7 +460,7 @@ os_file_read(
 	ulint		offset_high,/*!< in: most significant 32 bits of
 				offset */
 	ulint		n);	/*!< in: number of bytes to read */
-/***********************************************************************
+/*******************************************************************//**
 Rewind file to its start, read at most size - 1 bytes from it to str, and
 NUL-terminate str. All errors are silently ignored. This function is
 mostly meant to be used with temporary files. */
@@ -470,7 +471,7 @@ os_file_read_string(
 	FILE*	file,	/*!< in: file to read from */
 	char*	str,	/*!< in: buffer where to read */
 	ulint	size);	/*!< in: size of buffer */
-/***********************************************************************
+/*******************************************************************//**
 Requests a synchronous positioned read operation. This function does not do
 any error handling. In case of error it returns FALSE.
 @return	TRUE if request was successful, FALSE if fail */
@@ -486,7 +487,7 @@ os_file_read_no_error_handling(
 				offset */
 	ulint		n);	/*!< in: number of bytes to read */
 
-/***********************************************************************
+/*******************************************************************//**
 Requests a synchronous write operation.
 @return	TRUE if request was successful, FALSE if fail */
 UNIV_INTERN
@@ -502,7 +503,7 @@ os_file_write(
 	ulint		offset_high,/*!< in: most significant 32 bits of
 				offset */
 	ulint		n);	/*!< in: number of bytes to write */
-/***********************************************************************
+/*******************************************************************//**
 Check the existence and type of the given file.
 @return	TRUE if call succeeded */
 UNIV_INTERN
@@ -512,7 +513,7 @@ os_file_status(
 	const char*	path,	/*!< in:	pathname of the file */
 	ibool*		exists,	/*!< out: TRUE if file exists */
 	os_file_type_t* type);	/*!< out: type of the file (if it exists) */
-/********************************************************************
+/****************************************************************//**
 The function os_file_dirname returns a directory component of a
 null-terminated pathname string.  In the usual case, dirname returns
 the string up to, but not including, the final '/', and basename
@@ -545,7 +546,7 @@ char*
 os_file_dirname(
 /*============*/
 	const char*	path);	/*!< in: pathname */
-/********************************************************************
+/****************************************************************//**
 Creates all missing subdirectories along the given path.
 @return	TRUE if call succeeded FALSE otherwise */
 UNIV_INTERN
@@ -553,7 +554,7 @@ ibool
 os_file_create_subdirs_if_needed(
 /*=============================*/
 	const char*	path);	/*!< in: path name */
-/****************************************************************************
+/************************************************************************//**
 Initializes the asynchronous io system. Creates separate aio array for
 non-ibuf read and write, a third aio array for the ibuf i/o, with just one
 segment, two aio arrays for log reads and writes with one segment, and a
@@ -570,7 +571,7 @@ os_aio_init(
 	ulint	n_segments,	/*!< in: combined number of segments in the four
 				first aio arrays; must be >= 4 */
 	ulint	n_slots_sync);	/*!< in: number of slots in the sync aio array */
-/***********************************************************************
+/*******************************************************************//**
 Requests an asynchronous i/o operation.
 @return	TRUE if request was queued successfully, FALSE if fail */
 UNIV_INTERN
@@ -609,27 +610,27 @@ os_aio(
 				(can be used to identify a completed
 				aio operation); ignored if mode is
 				OS_AIO_SYNC */
-/****************************************************************************
+/************************************************************************//**
 Wakes up all async i/o threads so that they know to exit themselves in
 shutdown. */
 UNIV_INTERN
 void
 os_aio_wake_all_threads_at_shutdown(void);
 /*=====================================*/
-/****************************************************************************
+/************************************************************************//**
 Waits until there are no pending writes in os_aio_write_array. There can
 be other, synchronous, pending writes. */
 UNIV_INTERN
 void
 os_aio_wait_until_no_pending_writes(void);
 /*=====================================*/
-/**************************************************************************
+/**********************************************************************//**
 Wakes up simulated aio i/o-handler threads if they have something to do. */
 UNIV_INTERN
 void
 os_aio_simulated_wake_handler_threads(void);
 /*=======================================*/
-/**************************************************************************
+/**********************************************************************//**
 This function can be called if one wants to post a batch of reads and
 prefers an i/o-handler thread to handle them all at once later. You must
 call os_aio_simulated_wake_handler_threads later to ensure the threads
@@ -640,7 +641,7 @@ os_aio_simulated_put_read_threads_to_sleep(void);
 /*============================================*/
 
 #ifdef WIN_ASYNC_IO
-/**************************************************************************
+/**********************************************************************//**
 This function is only used in Windows asynchronous i/o.
 Waits for an aio operation to complete. This function is used to wait the
 for completed requests. The aio array of pending requests is divided
@@ -671,7 +672,7 @@ os_aio_windows_handle(
 	ulint*	type);		/*!< out: OS_FILE_WRITE or ..._READ */
 #endif
 
-/**************************************************************************
+/**********************************************************************//**
 Does simulated aio. This function should be called by an i/o-handler
 thread.
 @return	TRUE if the aio operation succeeded */
@@ -691,21 +692,21 @@ os_aio_simulated_handle(
 				restart the operation, for example */
 	void**	message2,
 	ulint*	type);		/*!< out: OS_FILE_WRITE or ..._READ */
-/**************************************************************************
+/**********************************************************************//**
 Validates the consistency of the aio system.
 @return	TRUE if ok */
 UNIV_INTERN
 ibool
 os_aio_validate(void);
 /*=================*/
-/**************************************************************************
+/**********************************************************************//**
 Prints info of the aio arrays. */
 UNIV_INTERN
 void
 os_aio_print(
 /*=========*/
 	FILE*	file);	/*!< in: file where to print */
-/**************************************************************************
+/**********************************************************************//**
 Refreshes the statistics used to print per-second averages. */
 UNIV_INTERN
 void
@@ -713,7 +714,7 @@ os_aio_refresh_stats(void);
 /*======================*/
 
 #ifdef UNIV_DEBUG
-/**************************************************************************
+/**********************************************************************//**
 Checks that all slots in the system have been freed, that is, there are
 no pending io operations. */
 UNIV_INTERN
@@ -722,7 +723,7 @@ os_aio_all_slots_free(void);
 /*=======================*/
 #endif /* UNIV_DEBUG */
 
-/***********************************************************************
+/*******************************************************************//**
 This function returns information about the specified file
 @return	TRUE if stat information found */
 UNIV_INTERN
@@ -734,7 +735,7 @@ os_file_get_status(
 					directory */
 
 #if !defined(UNIV_HOTBACKUP) && !defined(__NETWARE__)
-/*************************************************************************
+/*********************************************************************//**
 Creates a temporary file that will be deleted on close.
 This function is defined in ha_innodb.cc.
 @return	temporary file descriptor, or < 0 on error */

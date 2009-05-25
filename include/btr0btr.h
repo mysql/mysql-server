@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/btr0btr.h
 The B-tree
 
 Created 6/2/1994 Heikki Tuuri
@@ -71,7 +72,7 @@ UNIQUE definition on secondary indexes when we decide if we can use the
 insert buffer to speed up inserts */
 #define BTR_IGNORE_SEC_UNIQUE	2048
 
-/******************************************************************
+/**************************************************************//**
 Gets the root node of a tree and x-latches it.
 @return	root page, x-latched */
 UNIV_INTERN
@@ -80,7 +81,7 @@ btr_root_get(
 /*=========*/
 	dict_index_t*	index,	/*!< in: index tree */
 	mtr_t*		mtr);	/*!< in: mtr */
-/******************************************************************
+/**************************************************************//**
 Gets a buffer page and declares its latching order level. */
 UNIV_INLINE
 buf_block_t*
@@ -92,7 +93,7 @@ btr_block_get(
 	ulint	page_no,	/*!< in: page number */
 	ulint	mode,		/*!< in: latch mode */
 	mtr_t*	mtr);		/*!< in: mtr */
-/******************************************************************
+/**************************************************************//**
 Gets a buffer page and declares its latching order level. */
 UNIV_INLINE
 page_t*
@@ -105,7 +106,7 @@ btr_page_get(
 	ulint	mode,		/*!< in: latch mode */
 	mtr_t*	mtr);		/*!< in: mtr */
 #endif /* !UNIV_HOTBACKUP */
-/******************************************************************
+/**************************************************************//**
 Gets the index id field of a page.
 @return	index id */
 UNIV_INLINE
@@ -114,7 +115,7 @@ btr_page_get_index_id(
 /*==================*/
 	const page_t*	page);	/*!< in: index page */
 #ifndef UNIV_HOTBACKUP
-/************************************************************
+/********************************************************//**
 Gets the node level field in an index page.
 @return	level, leaf level == 0 */
 UNIV_INLINE
@@ -122,7 +123,7 @@ ulint
 btr_page_get_level_low(
 /*===================*/
 	const page_t*	page);	/*!< in: index page */
-/************************************************************
+/********************************************************//**
 Gets the node level field in an index page.
 @return	level, leaf level == 0 */
 UNIV_INLINE
@@ -131,7 +132,7 @@ btr_page_get_level(
 /*===============*/
 	const page_t*	page,	/*!< in: index page */
 	mtr_t*		mtr);	/*!< in: mini-transaction handle */
-/************************************************************
+/********************************************************//**
 Gets the next index page number.
 @return	next page number */
 UNIV_INLINE
@@ -140,7 +141,7 @@ btr_page_get_next(
 /*==============*/
 	const page_t*	page,	/*!< in: index page */
 	mtr_t*		mtr);	/*!< in: mini-transaction handle */
-/************************************************************
+/********************************************************//**
 Gets the previous index page number.
 @return	prev page number */
 UNIV_INLINE
@@ -149,7 +150,7 @@ btr_page_get_prev(
 /*==============*/
 	const page_t*	page,	/*!< in: index page */
 	mtr_t*		mtr);	/*!< in: mini-transaction handle */
-/*****************************************************************
+/*************************************************************//**
 Gets pointer to the previous user record in the tree. It is assumed
 that the caller has appropriate latches on the page and its neighbor.
 @return	previous user record, NULL if there is none */
@@ -160,7 +161,7 @@ btr_get_prev_user_rec(
 	rec_t*	rec,	/*!< in: record on leaf level */
 	mtr_t*	mtr);	/*!< in: mtr holding a latch on the page, and if
 			needed, also to the previous page */
-/*****************************************************************
+/*************************************************************//**
 Gets pointer to the next user record in the tree. It is assumed
 that the caller has appropriate latches on the page and its neighbor.
 @return	next user record, NULL if there is none */
@@ -171,7 +172,7 @@ btr_get_next_user_rec(
 	rec_t*	rec,	/*!< in: record on leaf level */
 	mtr_t*	mtr);	/*!< in: mtr holding a latch on the page, and if
 			needed, also to the next page */
-/******************************************************************
+/**************************************************************//**
 Releases the latch on a leaf page and bufferunfixes it. */
 UNIV_INLINE
 void
@@ -181,7 +182,7 @@ btr_leaf_page_release(
 	ulint		latch_mode,	/*!< in: BTR_SEARCH_LEAF or
 					BTR_MODIFY_LEAF */
 	mtr_t*		mtr);		/*!< in: mtr */
-/******************************************************************
+/**************************************************************//**
 Gets the child node file address in a node pointer.
 @return	child node address */
 UNIV_INLINE
@@ -190,7 +191,7 @@ btr_node_ptr_get_child_page_no(
 /*===========================*/
 	const rec_t*	rec,	/*!< in: node pointer record */
 	const ulint*	offsets);/*!< in: array returned by rec_get_offsets() */
-/****************************************************************
+/************************************************************//**
 Creates the root node for a new index tree.
 @return	page number of the created root, FIL_NULL if did not succeed */
 UNIV_INTERN
@@ -204,7 +205,7 @@ btr_create(
 	dulint		index_id,/*!< in: index id */
 	dict_index_t*	index,	/*!< in: index */
 	mtr_t*		mtr);	/*!< in: mini-transaction handle */
-/****************************************************************
+/************************************************************//**
 Frees a B-tree except the root page, which MUST be freed after this
 by calling btr_free_root. */
 UNIV_INTERN
@@ -215,7 +216,7 @@ btr_free_but_not_root(
 	ulint	zip_size,	/*!< in: compressed page size in bytes
 				or 0 for uncompressed pages */
 	ulint	root_page_no);	/*!< in: root page number */
-/****************************************************************
+/************************************************************//**
 Frees the B-tree root page. Other tree MUST already have been freed. */
 UNIV_INTERN
 void
@@ -227,7 +228,7 @@ btr_free_root(
 	ulint	root_page_no,	/*!< in: root page number */
 	mtr_t*	mtr);		/*!< in: a mini-transaction which has already
 				been started */
-/*****************************************************************
+/*************************************************************//**
 Makes tree one level higher by splitting the root, and inserts
 the tuple. It is assumed that mtr contains an x-latch on the tree.
 NOTE that the operation of this function must always succeed,
@@ -245,7 +246,7 @@ btr_root_raise_and_insert(
 	const dtuple_t*	tuple,	/*!< in: tuple to insert */
 	ulint		n_ext,	/*!< in: number of externally stored columns */
 	mtr_t*		mtr);	/*!< in: mtr */
-/*****************************************************************
+/*************************************************************//**
 Reorganizes an index page.
 IMPORTANT: if btr_page_reorganize() is invoked on a compressed leaf
 page of a non-clustered index, the caller must update the insert
@@ -259,7 +260,7 @@ btr_page_reorganize(
 	buf_block_t*	block,	/*!< in: page to be reorganized */
 	dict_index_t*	index,	/*!< in: record descriptor */
 	mtr_t*		mtr);	/*!< in: mtr */
-/*****************************************************************
+/*************************************************************//**
 Decides if the page should be split at the convergence point of
 inserts converging to left.
 @return	TRUE if split recommended */
@@ -271,7 +272,7 @@ btr_page_get_split_rec_to_left(
 	rec_t**		split_rec);/*!< out: if split recommended,
 				the first record on upper half page,
 				or NULL if tuple should be first */
-/*****************************************************************
+/*************************************************************//**
 Decides if the page should be split at the convergence point of
 inserts converging to right.
 @return	TRUE if split recommended */
@@ -283,7 +284,7 @@ btr_page_get_split_rec_to_right(
 	rec_t**		split_rec);/*!< out: if split recommended,
 				the first record on upper half page,
 				or NULL if tuple should be first */
-/*****************************************************************
+/*************************************************************//**
 Splits an index page to halves and inserts the tuple. It is assumed
 that mtr holds an x-latch to the index tree. NOTE: the tree x-latch is
 released within this function! NOTE that the operation of this
@@ -302,7 +303,7 @@ btr_page_split_and_insert(
 	const dtuple_t*	tuple,	/*!< in: tuple to insert */
 	ulint		n_ext,	/*!< in: number of externally stored columns */
 	mtr_t*		mtr);	/*!< in: mtr */
-/***********************************************************
+/*******************************************************//**
 Inserts a data tuple to a tree on a non-leaf level. It is assumed
 that mtr holds an x-latch on the tree. */
 UNIV_INTERN
@@ -314,7 +315,7 @@ btr_insert_on_non_leaf_level(
 	dtuple_t*	tuple,	/*!< in: the record to be inserted */
 	mtr_t*		mtr);	/*!< in: mtr */
 #endif /* !UNIV_HOTBACKUP */
-/********************************************************************
+/****************************************************************//**
 Sets a record as the predefined minimum record. */
 UNIV_INTERN
 void
@@ -323,7 +324,7 @@ btr_set_min_rec_mark(
 	rec_t*	rec,	/*!< in/out: record */
 	mtr_t*	mtr);	/*!< in: mtr */
 #ifndef UNIV_HOTBACKUP
-/*****************************************************************
+/*************************************************************//**
 Deletes on the upper level the node pointer to a page. */
 UNIV_INTERN
 void
@@ -333,7 +334,7 @@ btr_node_ptr_delete(
 	buf_block_t*	block,	/*!< in: page whose node pointer is deleted */
 	mtr_t*		mtr);	/*!< in: mtr */
 #ifdef UNIV_DEBUG
-/****************************************************************
+/************************************************************//**
 Checks that the node pointer to a page is appropriate.
 @return	TRUE */
 UNIV_INTERN
@@ -344,7 +345,7 @@ btr_check_node_ptr(
 	buf_block_t*	block,	/*!< in: index page */
 	mtr_t*		mtr);	/*!< in: mtr */
 #endif /* UNIV_DEBUG */
-/*****************************************************************
+/*************************************************************//**
 Tries to merge the page first to the left immediate brother if such a
 brother exists, and the node pointers to the current page and to the
 brother reside on the same page. If the left brother does not satisfy these
@@ -363,7 +364,7 @@ btr_compress(
 				use btr_discard_page if the page would become
 				empty */
 	mtr_t*		mtr);	/*!< in: mtr */
-/*****************************************************************
+/*************************************************************//**
 Discards a page from a B-tree. This is used to remove the last record from
 a B-tree page: the whole page must be removed at the same time. This cannot
 be used for the root page, which is allowed to be empty. */
@@ -375,7 +376,7 @@ btr_discard_page(
 				the root page */
 	mtr_t*		mtr);	/*!< in: mtr */
 #endif /* !UNIV_HOTBACKUP */
-/********************************************************************
+/****************************************************************//**
 Parses the redo log record for setting an index record as the predefined
 minimum record.
 @return	end of log record or NULL */
@@ -388,7 +389,7 @@ btr_parse_set_min_rec_mark(
 	ulint	comp,	/*!< in: nonzero=compact page format */
 	page_t*	page,	/*!< in: page or NULL */
 	mtr_t*	mtr);	/*!< in: mtr or NULL */
-/***************************************************************
+/***********************************************************//**
 Parses a redo log record of reorganizing a page.
 @return	end of log record or NULL */
 UNIV_INTERN
@@ -401,7 +402,7 @@ btr_parse_page_reorganize(
 	buf_block_t*	block,	/*!< in: page to be reorganized, or NULL */
 	mtr_t*		mtr);	/*!< in: mtr or NULL */
 #ifndef UNIV_HOTBACKUP
-/******************************************************************
+/**************************************************************//**
 Gets the number of pages in a B-tree.
 @return	number of pages */
 UNIV_INTERN
@@ -410,7 +411,7 @@ btr_get_size(
 /*=========*/
 	dict_index_t*	index,	/*!< in: index */
 	ulint		flag);	/*!< in: BTR_N_LEAF_PAGES or BTR_TOTAL_SIZE */
-/******************************************************************
+/**************************************************************//**
 Allocates a new file page to be used in an index tree. NOTE: we assume
 that the caller has made the reservation for free extents!
 @return	new allocated block, x-latched; NULL if out of space */
@@ -425,7 +426,7 @@ btr_page_alloc(
 	ulint		level,		/*!< in: level where the page is placed
 					in the tree */
 	mtr_t*		mtr);		/*!< in: mtr */
-/******************************************************************
+/**************************************************************//**
 Frees a file page used in an index tree. NOTE: cannot free field external
 storage pages because the page must contain info on its level. */
 UNIV_INTERN
@@ -435,7 +436,7 @@ btr_page_free(
 	dict_index_t*	index,	/*!< in: index tree */
 	buf_block_t*	block,	/*!< in: block to be freed, x-latched */
 	mtr_t*		mtr);	/*!< in: mtr */
-/******************************************************************
+/**************************************************************//**
 Frees a file page used in an index tree. Can be used also to BLOB
 external storage pages, because the page level 0 can be given as an
 argument. */
@@ -448,14 +449,14 @@ btr_page_free_low(
 	ulint		level,	/*!< in: page level */
 	mtr_t*		mtr);	/*!< in: mtr */
 #ifdef UNIV_BTR_PRINT
-/*****************************************************************
+/*************************************************************//**
 Prints size info of a B-tree. */
 UNIV_INTERN
 void
 btr_print_size(
 /*===========*/
 	dict_index_t*	index);	/*!< in: index tree */
-/******************************************************************
+/**************************************************************//**
 Prints directories and other info of all nodes in the index. */
 UNIV_INTERN
 void
@@ -465,7 +466,7 @@ btr_print_index(
 	ulint		width);	/*!< in: print this many entries from start
 				and end */
 #endif /* UNIV_BTR_PRINT */
-/****************************************************************
+/************************************************************//**
 Checks the size and number of fields in a record based on the definition of
 the index.
 @return	TRUE if ok */
@@ -478,7 +479,7 @@ btr_index_rec_validate(
 	ibool			dump_on_error);	/*!< in: TRUE if the function
 						should print hex dump of record
 						and page on error */
-/******************************************************************
+/**************************************************************//**
 Checks the consistency of an index tree.
 @return	TRUE if ok */
 UNIV_INTERN

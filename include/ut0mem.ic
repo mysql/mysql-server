@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/***********************************************************************
+/*******************************************************************//**
+@file include/ut0mem.ic
 Memory primitives
 
 Created 5/30/1994 Heikki Tuuri
@@ -67,7 +68,7 @@ ut_strcmp(const char* str1, const char* str2)
 	return(strcmp(str1, str2));
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Compute strlen(ut_strcpyq(str, q)).
 @return	length of the string when quoted */
 UNIV_INLINE
@@ -88,7 +89,7 @@ ut_strlenq(
 	return(len);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Converts a raw binary data to a '\0'-terminated hex string. The output is
 truncated if there is not enough space in "hex", make sure "hex_size" is at
 least (2 * raw_size + 1) if you do not want this to happen. Returns the
@@ -208,7 +209,7 @@ ut_raw_to_hex(
 	return(write_bytes);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Adds single quotes to the start and end of string and escapes any quotes
 by doubling them. Returns the number of bytes that were written to "buf"
 (including the terminating '\0'). If buf_size is too small then the

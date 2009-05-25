@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file fil/fil0fil.c
 The tablespace memory cache
 
 Created 10/25/1995 Heikki Tuuri
@@ -274,7 +275,7 @@ initialized. */
 UNIV_INTERN fil_system_t*	fil_system	= NULL;
 
 
-/************************************************************************
+/********************************************************************//**
 NOTE: you must call fil_mutex_enter_and_prepare_for_io() first!
 
 Prepares a file node for i/o. Opens the file if it is closed. Updates the
@@ -288,7 +289,7 @@ fil_node_prepare_for_io(
 	fil_node_t*	node,	/*!< in: file node */
 	fil_system_t*	system,	/*!< in: tablespace memory cache */
 	fil_space_t*	space);	/*!< in: space */
-/************************************************************************
+/********************************************************************//**
 Updates the data structures when an i/o operation finishes. Updates the
 pending i/o's field in the node appropriately. */
 static
@@ -300,7 +301,7 @@ fil_node_complete_io(
 	ulint		type);	/*!< in: OS_FILE_WRITE or OS_FILE_READ; marks
 				the node as modified if
 				type == OS_FILE_WRITE */
-/***********************************************************************
+/*******************************************************************//**
 Checks if a single-table tablespace for a given table name exists in the
 tablespace memory cache.
 @return	space id, ULINT_UNDEFINED if not found */
@@ -310,7 +311,7 @@ fil_get_space_id_for_table(
 /*=======================*/
 	const char*	name);	/*!< in: table name in the standard
 				'databasename/tablename' format */
-/************************************************************************
+/********************************************************************//**
 Reads data from a space to a buffer. Remember that the possible incomplete
 blocks at the end of file are ignored: they are not taken into account when
 calculating the byte offset within a space.
@@ -339,7 +340,7 @@ fil_read(
 					  byte_offset, len, buf, message));
 }
 
-/************************************************************************
+/********************************************************************//**
 Writes data to a space from a buffer. Remember that the possible incomplete
 blocks at the end of file are ignored: they are not taken into account when
 calculating the byte offset within a space.
@@ -368,7 +369,7 @@ fil_write(
 					   byte_offset, len, buf, message));
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Returns the table space by a given id, NULL if not found. */
 UNIV_INLINE
 fil_space_t*
@@ -388,7 +389,7 @@ fil_space_get_by_id(
 	return(space);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Returns the table space by a given name, NULL if not found. */
 UNIV_INLINE
 fil_space_t*
@@ -412,7 +413,7 @@ fil_space_get_by_name(
 }
 
 #ifndef UNIV_HOTBACKUP
-/***********************************************************************
+/*******************************************************************//**
 Returns the version number of a tablespace, -1 if not found.
 @return version number, -1 if the tablespace does not exist in the
 memory cache */
@@ -440,7 +441,7 @@ fil_space_get_version(
 	return(version);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Returns the latch of a file space.
 @return	latch protecting storage allocation */
 UNIV_INTERN
@@ -469,7 +470,7 @@ fil_space_get_latch(
 	return(&(space->latch));
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Returns the type of a file space.
 @return	FIL_TABLESPACE or FIL_LOG */
 UNIV_INTERN
@@ -494,7 +495,7 @@ fil_space_get_type(
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/**************************************************************************
+/**********************************************************************//**
 Checks if all the file nodes in a space are flushed. The caller must hold
 the fil_system mutex.
 @return	TRUE if all are flushed */
@@ -522,7 +523,7 @@ fil_space_is_flushed(
 	return(TRUE);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Appends a new file to the chain of files of a space. File must be closed. */
 UNIV_INTERN
 void
@@ -586,7 +587,7 @@ fil_node_create(
 	mutex_exit(&fil_system->mutex);
 }
 
-/************************************************************************
+/********************************************************************//**
 Opens a the file of a node of a tablespace. The caller must own the fil_system
 mutex. */
 static
@@ -758,7 +759,7 @@ fil_node_open_file(
 	}
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Closes a file. */
 static
 void
@@ -793,7 +794,7 @@ fil_node_close_file(
 	}
 }
 
-/************************************************************************
+/********************************************************************//**
 Tries to close a file in the LRU list. The caller must hold the fil_sys
 mutex.
 @return TRUE if success, FALSE if should retry later; since i/o's
@@ -852,7 +853,7 @@ fil_try_to_close_file_in_LRU(
 	return(FALSE);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Reserves the fil_system mutex and tries to make sure we can open at least one
 file while holding it. This should be called before calling
 fil_node_prepare_for_io(), because that function may need to open a file. */
@@ -971,7 +972,7 @@ close_more:
 	goto retry;
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Frees a file node object from a tablespace memory cache. */
 static
 void
@@ -1014,7 +1015,7 @@ fil_node_free(
 }
 
 #ifdef UNIV_LOG_ARCHIVE
-/********************************************************************
+/****************************************************************//**
 Drops files from the start of a file space, so that its size is cut by
 the amount given. */
 UNIV_INTERN
@@ -1049,7 +1050,7 @@ fil_space_truncate_start(
 }
 #endif /* UNIV_LOG_ARCHIVE */
 
-/***********************************************************************
+/*******************************************************************//**
 Creates a space memory object and puts it to the tablespace memory cache. If
 there is an error, prints an error message to the .err log.
 @return	TRUE if success */
@@ -1192,7 +1193,7 @@ try_again:
 	return(TRUE);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Assigns a new space id for a new single-table tablespace. This works simply by
 incrementing the global counter. If 4 billion id's is not enough, we may need
 to recycle id's.
@@ -1244,7 +1245,7 @@ fil_assign_new_space_id(void)
 	return(id);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Frees a space object from the tablespace memory cache. Closes the files in
 the chain but does not delete them. There must not be any pending i/o's or
 flushes on the files.
@@ -1316,7 +1317,7 @@ fil_space_free(
 	return(TRUE);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Returns the size of the space in pages. The tablespace must be cached in the
 memory cache.
 @return	space size, 0 if space not found */
@@ -1364,7 +1365,7 @@ fil_space_get_size(
 	return(size);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Returns the flags of the space. The tablespace must be cached
 in the memory cache.
 @return	flags, ULINT_UNDEFINED if space not found */
@@ -1416,7 +1417,7 @@ fil_space_get_flags(
 	return(flags);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Returns the compressed page size of the space, or 0 if the space
 is not compressed. The tablespace must be cached in the memory cache.
 @return	compressed page size, ULINT_UNDEFINED if space not found */
@@ -1438,7 +1439,7 @@ fil_space_get_zip_size(
 	return(flags);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Checks if the pair space, page_no refers to an existing page in a tablespace
 file space. The tablespace must be cached in the memory cache.
 @return	TRUE if the address is meaningful */
@@ -1457,7 +1458,7 @@ fil_check_adress_in_tablespace(
 	return(FALSE);
 }
 
-/********************************************************************
+/****************************************************************//**
 Initializes the tablespace memory cache. */
 UNIV_INTERN
 void
@@ -1492,7 +1493,7 @@ fil_init(
 	UT_LIST_INIT(fil_system->space_list);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Opens all log files and system tablespace data files. They stay open until the
 database server shutdown. This should be called at a server startup after the
 space objects for the log and the system tablespace have been created. The
@@ -1550,7 +1551,7 @@ fil_open_log_and_system_tablespace_files(void)
 	mutex_exit(&fil_system->mutex);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Closes all open files. There must not be any pending i/o's or not flushed
 modifications in the files. */
 UNIV_INTERN
@@ -1580,7 +1581,7 @@ fil_close_all_files(void)
 	mutex_exit(&fil_system->mutex);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Sets the max tablespace id counter if the given number is bigger than the
 previous value. */
 UNIV_INTERN
@@ -1606,7 +1607,7 @@ fil_set_max_space_id_if_bigger(
 	mutex_exit(&fil_system->mutex);
 }
 
-/********************************************************************
+/****************************************************************//**
 Writes the flushed lsn and the latest archived log number to the page header
 of the first page of a data file of the system tablespace (space 0),
 which is uncompressed. */
@@ -1637,7 +1638,7 @@ fil_write_lsn_and_arch_no_to_file(
 	return(DB_SUCCESS);
 }
 
-/********************************************************************
+/****************************************************************//**
 Writes the flushed lsn and the latest archived log number to the page
 header of the first page of each data file in the system tablespace.
 @return	DB_SUCCESS or error number */
@@ -1694,7 +1695,7 @@ fil_write_flushed_lsn_to_data_files(
 	return(DB_SUCCESS);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Reads the flushed lsn and arch no fields from a data file at database
 startup. */
 UNIV_INTERN
@@ -1755,7 +1756,7 @@ fil_read_flushed_lsn_and_arch_log_no(
 /*================ SINGLE-TABLE TABLESPACES ==========================*/
 
 #ifndef UNIV_HOTBACKUP
-/***********************************************************************
+/*******************************************************************//**
 Increments the count of pending insert buffer page merges, if space is not
 being deleted.
 @return	TRUE if being deleted, and ibuf merges should be skipped */
@@ -1791,7 +1792,7 @@ fil_inc_pending_ibuf_merges(
 	return(FALSE);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Decrements the count of pending insert buffer page merges. */
 UNIV_INTERN
 void
@@ -1820,7 +1821,7 @@ fil_decr_pending_ibuf_merges(
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/************************************************************
+/********************************************************//**
 Creates the database directory for a table if it does not exist yet. */
 static
 void
@@ -1850,7 +1851,7 @@ fil_create_directory_for_tablename(
 }
 
 #ifndef UNIV_HOTBACKUP
-/************************************************************
+/********************************************************//**
 Writes a log record about an .ibd file create/rename/delete. */
 static
 void
@@ -1916,7 +1917,7 @@ fil_op_write_log(
 }
 #endif
 
-/***********************************************************************
+/*******************************************************************//**
 Parses the body of a log record written about an .ibd file operation. That is,
 the log record part after the standard (type, space id, page no) header of the
 log record.
@@ -2086,7 +2087,7 @@ fil_op_log_parse_or_replay(
 	return(ptr);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Deletes a single-table tablespace. The tablespace must be cached in the
 memory cache.
 @return	TRUE if success */
@@ -2242,7 +2243,7 @@ try_again:
 }
 
 #ifndef UNIV_HOTBACKUP
-/***********************************************************************
+/*******************************************************************//**
 Discards a single-table tablespace. The tablespace must be cached in the
 memory cache. Discarding is like deleting a tablespace, but
 1) we do not drop the table from the data dictionary;
@@ -2278,7 +2279,7 @@ fil_discard_tablespace(
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/***********************************************************************
+/*******************************************************************//**
 Renames the memory cache structures of a single-table tablespace.
 @return	TRUE if success */
 static
@@ -2325,7 +2326,7 @@ fil_rename_tablespace_in_mem(
 	return(TRUE);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Allocates a file name for a single-table tablespace. The string must be freed
 by caller with mem_free().
 @return	own: file name */
@@ -2357,7 +2358,7 @@ fil_make_ibd_name(
 	return(filename);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Renames a single-table tablespace. The tablespace must be cached in the
 tablespace memory cache.
 @return	TRUE if success */
@@ -2507,7 +2508,7 @@ retry:
 	return(success);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Creates a new single-table tablespace to a database directory of MySQL.
 Database directories are under the 'datadir' of MySQL. The datadir is the
 directory of a running mysqld program. We can refer to it by simply the
@@ -2716,7 +2717,7 @@ error_exit2:
 }
 
 #ifndef UNIV_HOTBACKUP
-/************************************************************************
+/********************************************************************//**
 It is possible, though very improbable, that the lsn's in the tablespace to be
 imported have risen above the current system lsn, if a lengthy purge, ibuf
 merge, or rollback was performed on a backup taken with ibbackup. If that is
@@ -2879,7 +2880,7 @@ func_exit:
 	return(success);
 }
 
-/************************************************************************
+/********************************************************************//**
 Tries to open a single-table tablespace and optionally checks the space id is
 right in it. If does not succeed, prints an error message to the .err log. This
 function is used to open a tablespace when we start up mysqld, and also in
@@ -3015,7 +3016,7 @@ func_exit:
 #endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_HOTBACKUP
-/***********************************************************************
+/*******************************************************************//**
 Allocates a file name for an old version of a single-table tablespace.
 The string must be freed by caller with mem_free()!
 @return	own: file name */
@@ -3036,7 +3037,7 @@ fil_make_ibbackup_old_name(
 }
 #endif /* UNIV_HOTBACKUP */
 
-/************************************************************************
+/********************************************************************//**
 Opens an .ibd file and adds the associated single-table tablespace to the
 InnoDB fil0fil.c data structures. */
 static
@@ -3302,7 +3303,7 @@ func_exit:
 	mem_free(filepath);
 }
 
-/***************************************************************************
+/***********************************************************************//**
 A fault-tolerant function that tries to read the next file name in the
 directory. We retry 100 times if os_file_readdir_next_file() returns -1. The
 idea is to read as much good data as we can and jump over bad data.
@@ -3342,7 +3343,7 @@ fil_file_readdir_next_file(
 	return(-1);
 }
 
-/************************************************************************
+/********************************************************************//**
 At the server startup, if we need crash recovery, scans the database
 directories under the MySQL datadir, looking for .ibd files. Those files are
 single-table tablespaces. We need to know the space id in each of them so that
@@ -3471,7 +3472,7 @@ next_datadir_item:
 	return(err);
 }
 
-/************************************************************************
+/********************************************************************//**
 If we need crash recovery, and we have called
 fil_load_single_table_tablespaces() and dict_load_single_table_tablespaces(),
 we can call this function to print an error message of orphaned .ibd files
@@ -3504,7 +3505,7 @@ fil_print_orphaned_tablespaces(void)
 	mutex_exit(&fil_system->mutex);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Returns TRUE if a single-table tablespace does not exist in the memory cache,
 or is being deleted there.
 @return	TRUE if does not exist or is being\ deleted */
@@ -3543,7 +3544,7 @@ fil_tablespace_deleted_or_being_deleted_in_mem(
 	return(FALSE);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Returns TRUE if a single-table tablespace exists in the memory cache.
 @return	TRUE if exists */
 UNIV_INTERN
@@ -3565,7 +3566,7 @@ fil_tablespace_exists_in_mem(
 	return(space != NULL);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Returns TRUE if a matching tablespace exists in the InnoDB tablespace memory
 cache. Note that if we have not done a crash recovery at the database startup,
 there may be many tablespaces which are not yet in the memory cache.
@@ -3705,7 +3706,7 @@ error_exit:
 	return(FALSE);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Checks if a single-table tablespace for a given table name exists in the
 tablespace memory cache.
 @return	space id, ULINT_UNDEFINED if not found */
@@ -3742,7 +3743,7 @@ fil_get_space_id_for_table(
 	return(id);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Tries to extend a data file so that it would accommodate the number of pages
 given. The tablespace must be cached in the memory cache. If the space is big
 enough already, does nothing.
@@ -3877,7 +3878,7 @@ fil_extend_space_to_desired_size(
 }
 
 #ifdef UNIV_HOTBACKUP
-/************************************************************************
+/********************************************************************//**
 Extends all tablespaces to the size stored in the space header. During the
 ibbackup --apply-log phase we extended the spaces on-demand so that log records
 could be applied, but that may have left spaces still too small compared to
@@ -3941,7 +3942,7 @@ fil_extend_tablespaces_to_stored_len(void)
 
 /*========== RESERVE FREE EXTENTS (for a B-tree split, for example) ===*/
 
-/***********************************************************************
+/*******************************************************************//**
 Tries to reserve free extents in a file space.
 @return	TRUE if succeed */
 UNIV_INTERN
@@ -3975,7 +3976,7 @@ fil_space_reserve_free_extents(
 	return(success);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Releases free extents in a file space. */
 UNIV_INTERN
 void
@@ -4000,7 +4001,7 @@ fil_space_release_free_extents(
 	mutex_exit(&fil_system->mutex);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Gets the number of reserved extents. If the database is silent, this number
 should be zero. */
 UNIV_INTERN
@@ -4029,7 +4030,7 @@ fil_space_get_n_reserved_extents(
 
 /*============================ FILE I/O ================================*/
 
-/************************************************************************
+/********************************************************************//**
 NOTE: you must call fil_mutex_enter_and_prepare_for_io() first!
 
 Prepares a file node for i/o. Opens the file if it is closed. Updates the
@@ -4075,7 +4076,7 @@ fil_node_prepare_for_io(
 	node->n_pending++;
 }
 
-/************************************************************************
+/********************************************************************//**
 Updates the data structures when an i/o operation finishes. Updates the
 pending i/o's field in the node appropriately. */
 static
@@ -4116,7 +4117,7 @@ fil_node_complete_io(
 	}
 }
 
-/************************************************************************
+/********************************************************************//**
 Report information about an invalid page access. */
 static
 void
@@ -4144,7 +4145,7 @@ fil_report_invalid_page_access(
 		(ulong) byte_offset, (ulong) len, (ulong) type);
 }
 
-/************************************************************************
+/********************************************************************//**
 Reads or writes data. This operation is asynchronous (aio).
 @return DB_SUCCESS, or DB_TABLESPACE_DELETED if we are trying to do
 i/o on a tablespace which does not exist */
@@ -4367,7 +4368,7 @@ fil_io(
 }
 
 #ifndef UNIV_HOTBACKUP
-/**************************************************************************
+/**********************************************************************//**
 Waits for an aio operation to complete. This function is used to write the
 handler for completed requests. The aio array of pending requests is divided
 into segments (see os0file.c for more info). The thread specifies which
@@ -4430,7 +4431,7 @@ fil_aio_wait(
 }
 #endif /* UNIV_HOTBACKUP */
 
-/**************************************************************************
+/**********************************************************************//**
 Flushes to disk possible writes cached by the OS. If the space does not exist
 or is being dropped, does not do anything. */
 UNIV_INTERN
@@ -4545,7 +4546,7 @@ skip_flush:
 	mutex_exit(&fil_system->mutex);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Flushes to disk the writes in file spaces of the given type possibly cached by
 the OS. */
 UNIV_INTERN
@@ -4598,7 +4599,7 @@ fil_flush_file_spaces(
 	mem_free(space_ids);
 }
 
-/**********************************************************************
+/******************************************************************//**
 Checks the consistency of the tablespace cache.
 @return	TRUE if ok */
 UNIV_INTERN
@@ -4660,7 +4661,7 @@ fil_validate(void)
 	return(TRUE);
 }
 
-/************************************************************************
+/********************************************************************//**
 Returns TRUE if file address is undefined.
 @return	TRUE if undefined */
 UNIV_INTERN
@@ -4672,7 +4673,7 @@ fil_addr_is_null(
 	return(addr.page == FIL_NULL);
 }
 
-/************************************************************************
+/********************************************************************//**
 Get the predecessor of a file page.
 @return	FIL_PAGE_PREV */
 UNIV_INTERN
@@ -4684,7 +4685,7 @@ fil_page_get_prev(
 	return(mach_read_from_4(page + FIL_PAGE_PREV));
 }
 
-/************************************************************************
+/********************************************************************//**
 Get the successor of a file page.
 @return	FIL_PAGE_NEXT */
 UNIV_INTERN
@@ -4696,7 +4697,7 @@ fil_page_get_next(
 	return(mach_read_from_4(page + FIL_PAGE_NEXT));
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Sets the file page type. */
 UNIV_INTERN
 void
@@ -4710,7 +4711,7 @@ fil_page_set_type(
 	mach_write_to_2(page + FIL_PAGE_TYPE, type);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Gets the file page type.
 @return type; NOTE that if the type has not been written to page, the
 return value not defined */

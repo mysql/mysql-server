@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/os0proc.h
 The interface to the operating system
 process control primitives
 
@@ -40,7 +41,7 @@ extern ibool os_use_large_pages;
 /* Large page size. This may be a boot-time option on some platforms */
 extern ulint os_large_page_size;
 
-/********************************************************************
+/****************************************************************//**
 Converts the current process id to a number. It is not guaranteed that the
 number is unique. In Linux returns the 'process number' of the current
 thread. That number is the same as one sees in 'top', for example. In Linux
@@ -50,7 +51,7 @@ UNIV_INTERN
 ulint
 os_proc_get_number(void);
 /*====================*/
-/********************************************************************
+/****************************************************************//**
 Allocates large pages memory.
 @return	allocated memory */
 UNIV_INTERN
@@ -58,7 +59,7 @@ void*
 os_mem_alloc_large(
 /*===============*/
 	ulint*	n);			/*!< in/out: number of bytes */
-/********************************************************************
+/****************************************************************//**
 Frees large pages memory. */
 UNIV_INTERN
 void
@@ -68,7 +69,7 @@ os_mem_free_large(
 					os_mem_alloc_large() */
 	ulint	size);			/*!< in: size returned by
 					os_mem_alloc_large() */
-/********************************************************************
+/****************************************************************//**
 Sets the priority boost for threads released from waiting within the current
 process. */
 UNIV_INTERN

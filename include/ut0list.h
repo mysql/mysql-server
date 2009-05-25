@@ -16,13 +16,14 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/***********************************************************************
+/*******************************************************************//**
+@file include/ut0list.h
 A double-linked list
 
 Created 4/26/2006 Osku Salerma
 ************************************************************************/
 
-/***********************************************************************
+/*******************************************************************//**
 A double-linked list. This differs from the one in ut0lst.h in that in this
 one, each list node contains a pointer to the data, whereas the one in
 ut0lst.h uses a strategy where the list pointers are embedded in the data
@@ -51,7 +52,7 @@ typedef struct ib_list_struct ib_list_t;
 typedef struct ib_list_node_struct ib_list_node_t;
 typedef struct ib_list_helper_struct ib_list_helper_t;
 
-/********************************************************************
+/****************************************************************//**
 Create a new list using mem_alloc. Lists created with this function must be
 freed with ib_list_free.
 @return	list */
@@ -61,7 +62,7 @@ ib_list_create(void);
 /*=================*/
 
 
-/********************************************************************
+/****************************************************************//**
 Create a new list using the given heap. ib_list_free MUST NOT BE CALLED for
 lists created with this function.
 @return	list */
@@ -71,7 +72,7 @@ ib_list_create_heap(
 /*================*/
 	mem_heap_t*	heap);	/*!< in: memory heap to use */
 
-/********************************************************************
+/****************************************************************//**
 Free a list. */
 UNIV_INTERN
 void
@@ -79,7 +80,7 @@ ib_list_free(
 /*=========*/
 	ib_list_t*	list);	/*!< in: list */
 
-/********************************************************************
+/****************************************************************//**
 Add the data to the start of the list.
 @return	new list node */
 UNIV_INTERN
@@ -90,7 +91,7 @@ ib_list_add_first(
 	void*		data,	/*!< in: data */
 	mem_heap_t*	heap);	/*!< in: memory heap to use */
 
-/********************************************************************
+/****************************************************************//**
 Add the data to the end of the list.
 @return	new list node */
 UNIV_INTERN
@@ -101,7 +102,7 @@ ib_list_add_last(
 	void*		data,	/*!< in: data */
 	mem_heap_t*	heap);	/*!< in: memory heap to use */
 
-/********************************************************************
+/****************************************************************//**
 Add the data after the indicated node.
 @return	new list node */
 UNIV_INTERN
@@ -114,7 +115,7 @@ ib_list_add_after(
 	void*		data,		/*!< in: data */
 	mem_heap_t*	heap);		/*!< in: memory heap to use */
 
-/********************************************************************
+/****************************************************************//**
 Remove the node from the list. */
 UNIV_INTERN
 void
@@ -123,7 +124,7 @@ ib_list_remove(
 	ib_list_t*	list,	/*!< in: list */
 	ib_list_node_t*	node);	/*!< in: node to remove */
 
-/********************************************************************
+/****************************************************************//**
 Get the first node in the list.
 @return	first node, or NULL */
 UNIV_INLINE
@@ -132,7 +133,7 @@ ib_list_get_first(
 /*==============*/
 	ib_list_t*	list);	/*!< in: list */
 
-/********************************************************************
+/****************************************************************//**
 Get the last node in the list.
 @return	last node, or NULL */
 UNIV_INLINE

@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file ha/ha0storage.c
 Hash storage.
 Provides a data structure that stores chunks of data in
 its own storage, avoiding duplicates.
@@ -34,7 +35,7 @@ Created September 22, 2007 Vasil Dimov
 #include "ha0storage.ic"
 #endif
 
-/***********************************************************************
+/*******************************************************************//**
 Retrieves a data from a storage. If it is present, a pointer to the
 stored copy of data is returned, otherwise NULL is returned. */
 static
@@ -73,7 +74,7 @@ ha_storage_get(
 	return(node->data);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Copies data into the storage and returns a pointer to the copy. If the
 same data chunk is already present, then pointer to it is returned.
 Data chunks are considered to be equal if len1 == len2 and

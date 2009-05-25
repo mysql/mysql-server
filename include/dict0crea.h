@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/dict0crea.h
 Database object creation
 
 Created 1/8/1996 Heikki Tuuri
@@ -32,7 +33,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "row0types.h"
 #include "mtr0mtr.h"
 
-/*************************************************************************
+/*********************************************************************//**
 Creates a table create graph.
 @return	own: table create node */
 UNIV_INTERN
@@ -42,7 +43,7 @@ tab_create_graph_create(
 	dict_table_t*	table,	/*!< in: table to create, built as a memory data
 				structure */
 	mem_heap_t*	heap);	/*!< in: heap where created */
-/*************************************************************************
+/*********************************************************************//**
 Creates an index create graph.
 @return	own: index create node */
 UNIV_INTERN
@@ -52,7 +53,7 @@ ind_create_graph_create(
 	dict_index_t*	index,	/*!< in: index to create, built as a memory data
 				structure */
 	mem_heap_t*	heap);	/*!< in: heap where created */
-/***************************************************************
+/***********************************************************//**
 Creates a table. This is a high-level function used in SQL execution graphs.
 @return	query thread to run next or NULL */
 UNIV_INTERN
@@ -60,7 +61,7 @@ que_thr_t*
 dict_create_table_step(
 /*===================*/
 	que_thr_t*	thr);	/*!< in: query thread */
-/***************************************************************
+/***********************************************************//**
 Creates an index. This is a high-level function used in SQL execution
 graphs.
 @return	query thread to run next or NULL */
@@ -69,7 +70,7 @@ que_thr_t*
 dict_create_index_step(
 /*===================*/
 	que_thr_t*	thr);	/*!< in: query thread */
-/***********************************************************************
+/*******************************************************************//**
 Truncates the index tree associated with a row in SYS_INDEXES table.
 @return	new root page number, or FIL_NULL on failure */
 UNIV_INTERN
@@ -87,7 +88,7 @@ dict_truncate_index_tree(
 	mtr_t*		mtr);	/*!< in: mtr having the latch
 				on the record page. The mtr may be
 				committed and restarted in this call. */
-/***********************************************************************
+/*******************************************************************//**
 Drops the index tree associated with a row in SYS_INDEXES table. */
 UNIV_INTERN
 void
@@ -96,7 +97,7 @@ dict_drop_index_tree(
 	rec_t*	rec,	/*!< in/out: record in the clustered index
 			of SYS_INDEXES table */
 	mtr_t*	mtr);	/*!< in: mtr having the latch on the record page */
-/********************************************************************
+/****************************************************************//**
 Creates the foreign key constraints system tables inside InnoDB
 at database creation or database start if they are not found or are
 not of the right form.
@@ -105,7 +106,7 @@ UNIV_INTERN
 ulint
 dict_create_or_check_foreign_constraint_tables(void);
 /*================================================*/
-/************************************************************************
+/********************************************************************//**
 Adds foreign key definitions to data dictionary tables in the database. We
 look at table->foreign_list, and also generate names to constraints that were
 not named by the user. A generated constraint has a name of the format

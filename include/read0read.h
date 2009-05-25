@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/read0read.h
 Cursor read
 
 Created 2/16/1997 Heikki Tuuri
@@ -33,7 +34,7 @@ Created 2/16/1997 Heikki Tuuri
 #include "trx0trx.h"
 #include "read0types.h"
 
-/*************************************************************************
+/*********************************************************************//**
 Opens a read view where exactly the transactions serialized before this
 point in time are seen in the view.
 @return	own: read view struct */
@@ -46,7 +47,7 @@ read_view_open_now(
 					used in purge */
 	mem_heap_t*	heap);		/*!< in: memory heap from which
 					allocated */
-/*************************************************************************
+/*********************************************************************//**
 Makes a copy of the oldest existing read view, or opens a new. The view
 must be closed with ..._close.
 @return	own: read view struct */
@@ -59,14 +60,14 @@ read_view_oldest_copy_or_open_new(
 					used in purge */
 	mem_heap_t*	heap);		/*!< in: memory heap from which
 					allocated */
-/*************************************************************************
+/*********************************************************************//**
 Closes a read view. */
 UNIV_INTERN
 void
 read_view_close(
 /*============*/
 	read_view_t*	view);	/*!< in: read view */
-/*************************************************************************
+/*********************************************************************//**
 Closes a consistent read view for MySQL. This function is called at an SQL
 statement end if the trx isolation level is <= TRX_ISO_READ_COMMITTED. */
 UNIV_INTERN
@@ -74,7 +75,7 @@ void
 read_view_close_for_mysql(
 /*======================*/
 	trx_t*	trx);	/*!< in: trx which has a read view */
-/*************************************************************************
+/*********************************************************************//**
 Checks if a read view sees the specified transaction.
 @return	TRUE if sees */
 UNIV_INLINE
@@ -83,14 +84,14 @@ read_view_sees_trx_id(
 /*==================*/
 	const read_view_t*	view,	/*!< in: read view */
 	trx_id_t		trx_id);/*!< in: trx id */
-/*************************************************************************
+/*********************************************************************//**
 Prints a read view to stderr. */
 UNIV_INTERN
 void
 read_view_print(
 /*============*/
 	const read_view_t*	view);	/*!< in: read view */
-/*************************************************************************
+/*********************************************************************//**
 Create a consistent cursor view for mysql to be used in cursors. In this
 consistent read view modifications done by the creating transaction or future
 transactions are not visible. */
@@ -99,7 +100,7 @@ cursor_view_t*
 read_cursor_view_create_for_mysql(
 /*==============================*/
 	trx_t*		cr_trx);/*!< in: trx where cursor view is created */
-/*************************************************************************
+/*********************************************************************//**
 Close a given consistent cursor view for mysql and restore global read view
 back to a transaction read view. */
 UNIV_INTERN
@@ -108,7 +109,7 @@ read_cursor_view_close_for_mysql(
 /*=============================*/
 	trx_t*		trx,		/*!< in: trx */
 	cursor_view_t*	curview);	/*!< in: cursor view to be closed */
-/*************************************************************************
+/*********************************************************************//**
 This function sets a given consistent cursor view to a transaction
 read view if given consistent cursor view is not NULL. Otherwise, function
 restores a global read view to a transaction read view. */
