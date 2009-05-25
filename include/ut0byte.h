@@ -29,21 +29,21 @@ Created 1/20/1994 Heikki Tuuri
 
 #include "univ.i"
 
-/* Type definition for a 64-bit unsigned integer, which works also
+/** Pair of ulint integers. */
+typedef	struct dulint_struct	dulint;
+/** Type definition for a 64-bit unsigned integer, which works also
 in 32-bit machines. NOTE! Access the fields only with the accessor
 functions. This definition appears here only for the compiler to
 know the size of a dulint. */
-
-typedef	struct dulint_struct	dulint;
 struct dulint_struct{
-	ulint	high;	/* most significant 32 bits */
-	ulint	low;	/* least significant 32 bits */
+	ulint	high;	/*!< most significant 32 bits */
+	ulint	low;	/*!< least significant 32 bits */
 };
 
-/* Zero value for a dulint */
+/** Zero value for a dulint */
 extern const dulint	ut_dulint_zero;
 
-/* Maximum value for a dulint */
+/** Maximum value for a dulint */
 extern const dulint	ut_dulint_max;
 
 /*******************************************************//**

@@ -29,6 +29,7 @@ Created 4/6/2006 Osku Salerma
 #include "univ.i"
 #include "mem0mem.h"
 
+/** An automatically resizing vector data type. */
 typedef struct ib_vector_struct ib_vector_t;
 
 /* An automatically resizing vector datatype with the following properties:
@@ -109,12 +110,12 @@ ib_vector_free(
 /*===========*/
 	ib_vector_t*	vec);	/*!< in,own: vector */
 
-/* See comment at beginning of file. */
+/** An automatically resizing vector data type. */
 struct ib_vector_struct {
-	mem_heap_t*	heap;	/* heap */
-	void**		data;	/* data elements */
-	ulint		used;	/* number of elements currently used */
-	ulint		total;	/* number of elements allocated */
+	mem_heap_t*	heap;	/*!< heap */
+	void**		data;	/*!< data elements */
+	ulint		used;	/*!< number of elements currently used */
+	ulint		total;	/*!< number of elements allocated */
 };
 
 #ifndef UNIV_NONINL

@@ -39,25 +39,27 @@ Created 13/06/2005 Jan Lindstrom
 #include "row0mysql.h"
 #include "lock0types.h"
 
-/* This structure holds index field definitions */
-
+/** Index field definition */
 struct merge_index_field_struct {
-	ulint		prefix_len;	/* Prefix len */
-	const char*	field_name;	/* Field name */
+	ulint		prefix_len;	/*!< column prefix length, or 0
+					if indexing the whole column */
+	const char*	field_name;	/*!< field name */
 };
 
+/** Index field definition */
 typedef struct merge_index_field_struct merge_index_field_t;
 
-/* This structure holds index definitions */
-
+/** Definition of an index being created */
 struct merge_index_def_struct {
-	const char*		name;		/* Index name */
-	ulint			ind_type;	/* 0, DICT_UNIQUE,
+	const char*		name;		/*!< index name */
+	ulint			ind_type;	/*!< 0, DICT_UNIQUE,
 						or DICT_CLUSTERED */
-	ulint			n_fields;	/* Number of fields in index */
-	merge_index_field_t*	fields;		/* Field definitions */
+	ulint			n_fields;	/*!< number of fields
+						in index */
+	merge_index_field_t*	fields;		/*!< field definitions */
 };
 
+/** Definition of an index being created */
 typedef struct merge_index_def_struct merge_index_def_t;
 
 /*********************************************************************//**

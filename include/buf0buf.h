@@ -64,23 +64,29 @@ extern buf_block_t*	back_block2;	/* second block, for page reorganize */
 /* Magic value to use instead of checksums when they are disabled */
 #define BUF_NO_CHECKSUM_MAGIC 0xDEADBEEFUL
 
-/* States of a control block (@see buf_page_struct).
+/** @brief States of a control block
+@see buf_page_struct
+
 The enumeration values must be 0..7. */
 enum buf_page_state {
-	BUF_BLOCK_ZIP_FREE = 0,		/* contains a free compressed page */
-	BUF_BLOCK_ZIP_PAGE,		/* contains a clean compressed page */
-	BUF_BLOCK_ZIP_DIRTY,		/* contains a compressed page that is
-					in the buf_pool->flush_list */
+	BUF_BLOCK_ZIP_FREE = 0,		/*!< contains a free
+					compressed page */
+	BUF_BLOCK_ZIP_PAGE,		/*!< contains a clean
+					compressed page */
+	BUF_BLOCK_ZIP_DIRTY,		/*!< contains a compressed
+					page that is in the
+					buf_pool->flush_list */
 
-	/* The constants for compressed-only pages must precede
-	BUF_BLOCK_NOT_USED; @see buf_block_state_valid() */
-
-	BUF_BLOCK_NOT_USED,		/* is in the free list */
-	BUF_BLOCK_READY_FOR_USE,	/* when buf_LRU_get_free_block returns
-					a block, it is in this state */
-	BUF_BLOCK_FILE_PAGE,		/* contains a buffered file page */
-	BUF_BLOCK_MEMORY,		/* contains some main memory object */
-	BUF_BLOCK_REMOVE_HASH		/* hash index should be removed
+	BUF_BLOCK_NOT_USED,		/*!< is in the free list;
+					must be after the BUF_BLOCK_ZIP_
+					constants for compressed-only pages
+					@see buf_block_state_valid() */
+	BUF_BLOCK_READY_FOR_USE,	/*!< when buf_LRU_get_free_block
+					returns a block, it is in this state */
+	BUF_BLOCK_FILE_PAGE,		/*!< contains a buffered file page */
+	BUF_BLOCK_MEMORY,		/*!< contains some main memory
+					object */
+	BUF_BLOCK_REMOVE_HASH		/*!< hash index should be removed
 					before putting to the free list */
 };
 
@@ -1241,7 +1247,9 @@ struct buf_block_struct{
 #endif /* !UNIV_HOTBACKUP */
 };
 
-/* Check if a buf_block_t object is in a valid state. */
+/** Check if a buf_block_t object is in a valid state
+@param block	buffer block
+@return		TRUE if valid */
 #define buf_block_state_valid(block)				\
 (buf_block_get_state(block) >= BUF_BLOCK_NOT_USED		\
  && (buf_block_get_state(block) <= BUF_BLOCK_REMOVE_HASH))
