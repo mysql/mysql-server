@@ -225,15 +225,15 @@ UNIV_INTERN
 void
 mutex_create_func(
 /*==============*/
-	mutex_t*	mutex,		/* in: pointer to memory */
+	mutex_t*	mutex,		/*!< in: pointer to memory */
 #ifdef UNIV_DEBUG
-	const char*	cmutex_name,	/* in: mutex name */
+	const char*	cmutex_name,	/*!< in: mutex name */
 # ifdef UNIV_SYNC_DEBUG
-	ulint		level,		/* in: level */
+	ulint		level,		/*!< in: level */
 # endif /* UNIV_SYNC_DEBUG */
 #endif /* UNIV_DEBUG */
-	const char*	cfile_name,	/* in: file name where created */
-	ulint		cline)		/* in: file line where created */
+	const char*	cfile_name,	/*!< in: file name where created */
+	ulint		cline)		/*!< in: file line where created */
 {
 #if defined(HAVE_ATOMIC_BUILTINS)
 	mutex_reset_lock_word(mutex);
@@ -297,7 +297,7 @@ UNIV_INTERN
 void
 mutex_free(
 /*=======*/
-	mutex_t*	mutex)	/* in: mutex */
+	mutex_t*	mutex)	/*!< in: mutex */
 {
 	ut_ad(mutex_validate(mutex));
 	ut_a(mutex_get_lock_word(mutex) == 0);
@@ -339,18 +339,18 @@ mutex_free(
 /************************************************************************
 NOTE! Use the corresponding macro in the header file, not this function
 directly. Tries to lock the mutex for the current thread. If the lock is not
-acquired immediately, returns with return value 1. */
+acquired immediately, returns with return value 1.
+@return	0 if succeed, 1 if not */
 UNIV_INTERN
 ulint
 mutex_enter_nowait_func(
 /*====================*/
-					/* out: 0 if succeed, 1 if not */
-	mutex_t*	mutex,		/* in: pointer to mutex */
+	mutex_t*	mutex,		/*!< in: pointer to mutex */
 	const char*	file_name __attribute__((unused)),
-					/* in: file name where mutex
+					/*!< in: file name where mutex
 					requested */
 	ulint		line __attribute__((unused)))
-					/* in: line where requested */
+					/*!< in: line where requested */
 {
 	ut_ad(mutex_validate(mutex));
 
@@ -369,13 +369,13 @@ mutex_enter_nowait_func(
 
 #ifdef UNIV_DEBUG
 /**********************************************************************
-Checks that the mutex has been initialized. */
+Checks that the mutex has been initialized.
+@return	TRUE */
 UNIV_INTERN
 ibool
 mutex_validate(
 /*===========*/
-				/* out: TRUE */
-	const mutex_t*	mutex)	/* in: mutex */
+	const mutex_t*	mutex)	/*!< in: mutex */
 {
 	ut_a(mutex);
 	ut_a(mutex->magic_n == MUTEX_MAGIC_N);
@@ -385,13 +385,13 @@ mutex_validate(
 
 /**********************************************************************
 Checks that the current thread owns the mutex. Works only in the debug
-version. */
+version.
+@return	TRUE if owns */
 UNIV_INTERN
 ibool
 mutex_own(
 /*======*/
-				/* out: TRUE if owns */
-	const mutex_t*	mutex)	/* in: mutex */
+	const mutex_t*	mutex)	/*!< in: mutex */
 {
 	ut_ad(mutex_validate(mutex));
 
@@ -406,8 +406,8 @@ UNIV_INTERN
 void
 mutex_set_waiters(
 /*==============*/
-	mutex_t*	mutex,	/* in: mutex */
-	ulint		n)	/* in: value to set */
+	mutex_t*	mutex,	/*!< in: mutex */
+	ulint		n)	/*!< in: value to set */
 {
 	volatile ulint*	ptr;		/* declared volatile to ensure that
 					the value is stored to memory */
@@ -427,10 +427,10 @@ UNIV_INTERN
 void
 mutex_spin_wait(
 /*============*/
-	mutex_t*	mutex,		/* in: pointer to mutex */
-	const char*	file_name,	/* in: file name where mutex
+	mutex_t*	mutex,		/*!< in: pointer to mutex */
+	const char*	file_name,	/*!< in: file name where mutex
 					requested */
-	ulint		line)		/* in: line where requested */
+	ulint		line)		/*!< in: line where requested */
 {
 	ulint	   index; /* index of the reserved wait cell */
 	ulint	   i;	  /* spin round count */
@@ -606,7 +606,7 @@ UNIV_INTERN
 void
 mutex_signal_object(
 /*================*/
-	mutex_t*	mutex)	/* in: mutex */
+	mutex_t*	mutex)	/*!< in: mutex */
 {
 	mutex_set_waiters(mutex, 0);
 
@@ -623,9 +623,9 @@ UNIV_INTERN
 void
 mutex_set_debug_info(
 /*=================*/
-	mutex_t*	mutex,		/* in: mutex */
-	const char*	file_name,	/* in: file where requested */
-	ulint		line)		/* in: line where requested */
+	mutex_t*	mutex,		/*!< in: mutex */
+	const char*	file_name,	/*!< in: file where requested */
+	ulint		line)		/*!< in: line where requested */
 {
 	ut_ad(mutex);
 	ut_ad(file_name);
@@ -642,10 +642,10 @@ UNIV_INTERN
 void
 mutex_get_debug_info(
 /*=================*/
-	mutex_t*	mutex,		/* in: mutex */
-	const char**	file_name,	/* out: file where requested */
-	ulint*		line,		/* out: line where requested */
-	os_thread_id_t* thread_id)	/* out: id of the thread which owns
+	mutex_t*	mutex,		/*!< in: mutex */
+	const char**	file_name,	/*!< out: file where requested */
+	ulint*		line,		/*!< out: line where requested */
+	os_thread_id_t* thread_id)	/*!< out: id of the thread which owns
 					the mutex */
 {
 	ut_ad(mutex);
@@ -661,7 +661,7 @@ static
 void
 mutex_list_print_info(
 /*==================*/
-	FILE*	file)		/* in: file where to print */
+	FILE*	file)		/*!< in: file where to print */
 {
 	mutex_t*	mutex;
 	const char*	file_name;
@@ -699,12 +699,12 @@ mutex_list_print_info(
 }
 
 /**********************************************************************
-Counts currently reserved mutexes. Works only in the debug version. */
+Counts currently reserved mutexes. Works only in the debug version.
+@return	number of reserved mutexes */
 UNIV_INTERN
 ulint
 mutex_n_reserved(void)
 /*==================*/
-				/* out: number of reserved mutexes */
 {
 	mutex_t*	mutex;
 	ulint		count		= 0;
@@ -732,24 +732,24 @@ mutex_n_reserved(void)
 
 /**********************************************************************
 Returns TRUE if no mutex or rw-lock is currently locked. Works only in
-the debug version. */
+the debug version.
+@return	TRUE if no mutexes and rw-locks reserved */
 UNIV_INTERN
 ibool
 sync_all_freed(void)
 /*================*/
-			/* out: TRUE if no mutexes and rw-locks reserved */
 {
 	return(mutex_n_reserved() + rw_lock_n_locked() == 0);
 }
 
 /**********************************************************************
-Gets the value in the nth slot in the thread level arrays. */
+Gets the value in the nth slot in the thread level arrays.
+@return	pointer to thread slot */
 static
 sync_thread_t*
 sync_thread_level_arrays_get_nth(
 /*=============================*/
-			/* out: pointer to thread slot */
-	ulint	n)	/* in: slot number */
+	ulint	n)	/*!< in: slot number */
 {
 	ut_ad(n < OS_THREAD_MAX_N);
 
@@ -757,12 +757,12 @@ sync_thread_level_arrays_get_nth(
 }
 
 /**********************************************************************
-Looks for the thread slot for the calling thread. */
+Looks for the thread slot for the calling thread.
+@return	pointer to thread slot, NULL if not found */
 static
 sync_thread_t*
 sync_thread_level_arrays_find_slot(void)
 /*====================================*/
-			/* out: pointer to thread slot, NULL if not found */
 
 {
 	sync_thread_t*	slot;
@@ -785,12 +785,12 @@ sync_thread_level_arrays_find_slot(void)
 }
 
 /**********************************************************************
-Looks for an unused thread slot. */
+Looks for an unused thread slot.
+@return	pointer to thread slot */
 static
 sync_thread_t*
 sync_thread_level_arrays_find_free(void)
 /*====================================*/
-			/* out: pointer to thread slot */
 
 {
 	sync_thread_t*	slot;
@@ -810,15 +810,15 @@ sync_thread_level_arrays_find_free(void)
 }
 
 /**********************************************************************
-Gets the value in the nth slot in the thread level array. */
+Gets the value in the nth slot in the thread level array.
+@return	pointer to level slot */
 static
 sync_level_t*
 sync_thread_levels_get_nth(
 /*=======================*/
-				/* out: pointer to level slot */
-	sync_level_t*	arr,	/* in: pointer to level array for an OS
+	sync_level_t*	arr,	/*!< in: pointer to level array for an OS
 				thread */
-	ulint		n)	/* in: slot number */
+	ulint		n)	/*!< in: slot number */
 {
 	ut_ad(n < SYNC_THREAD_N_LEVELS);
 
@@ -827,15 +827,15 @@ sync_thread_levels_get_nth(
 
 /**********************************************************************
 Checks if all the level values stored in the level array are greater than
-the given limit. */
+the given limit.
+@return	TRUE if all greater */
 static
 ibool
 sync_thread_levels_g(
 /*=================*/
-				/* out: TRUE if all greater */
-	sync_level_t*	arr,	/* in: pointer to level array for an OS
+	sync_level_t*	arr,	/*!< in: pointer to level array for an OS
 				thread */
-	ulint		limit)	/* in: level limit */
+	ulint		limit)	/*!< in: level limit */
 {
 	sync_level_t*	slot;
 	rw_lock_t*	lock;
@@ -897,15 +897,15 @@ sync_thread_levels_g(
 }
 
 /**********************************************************************
-Checks if the level value is stored in the level array. */
+Checks if the level value is stored in the level array.
+@return	TRUE if stored */
 static
 ibool
 sync_thread_levels_contain(
 /*=======================*/
-				/* out: TRUE if stored */
-	sync_level_t*	arr,	/* in: pointer to level array for an OS
+	sync_level_t*	arr,	/*!< in: pointer to level array for an OS
 				thread */
-	ulint		level)	/* in: level */
+	ulint		level)	/*!< in: level */
 {
 	sync_level_t*	slot;
 	ulint		i;
@@ -926,14 +926,13 @@ sync_thread_levels_contain(
 }
 
 /**********************************************************************
-Checks that the level array for the current thread is empty. */
+Checks that the level array for the current thread is empty.
+@return	TRUE if empty except the exceptions specified below */
 UNIV_INTERN
 ibool
 sync_thread_levels_empty_gen(
 /*=========================*/
-					/* out: TRUE if empty except the
-					exceptions specified below */
-	ibool	dict_mutex_allowed)	/* in: TRUE if dictionary mutex is
+	ibool	dict_mutex_allowed)	/*!< in: TRUE if dictionary mutex is
 					allowed to be owned by the thread,
 					also purge_is_running mutex is
 					allowed */
@@ -983,12 +982,12 @@ sync_thread_levels_empty_gen(
 }
 
 /**********************************************************************
-Checks that the level array for the current thread is empty. */
+Checks that the level array for the current thread is empty.
+@return	TRUE if empty */
 UNIV_INTERN
 ibool
 sync_thread_levels_empty(void)
 /*==========================*/
-			/* out: TRUE if empty */
 {
 	return(sync_thread_levels_empty_gen(FALSE));
 }
@@ -1001,8 +1000,8 @@ UNIV_INTERN
 void
 sync_thread_add_level(
 /*==================*/
-	void*	latch,	/* in: pointer to a mutex or an rw-lock */
-	ulint	level)	/* in: level in the latching order; if
+	void*	latch,	/*!< in: pointer to a mutex or an rw-lock */
+	ulint	level)	/*!< in: level in the latching order; if
 			SYNC_LEVEL_VARYING, nothing is done */
 {
 	sync_level_t*	array;
@@ -1194,14 +1193,13 @@ sync_thread_add_level(
 }
 
 /**********************************************************************
-Removes a latch from the thread level array if it is found there. */
+Removes a latch from the thread level array if it is found there.
+@return	TRUE if found from the array; it is an error if the latch is not found */
 UNIV_INTERN
 ibool
 sync_thread_reset_level(
 /*====================*/
-			/* out: TRUE if found from the array; it is an error
-			if the latch is not found */
-	void*	latch)	/* in: pointer to a mutex or an rw-lock */
+	void*	latch)	/*!< in: pointer to a mutex or an rw-lock */
 {
 	sync_level_t*	array;
 	sync_level_t*	slot;
@@ -1353,7 +1351,7 @@ UNIV_INTERN
 void
 sync_print_wait_info(
 /*=================*/
-	FILE*	file)		/* in: file where to print */
+	FILE*	file)		/*!< in: file where to print */
 {
 #ifdef UNIV_SYNC_DEBUG
 	fprintf(file, "Mutex exits %llu, rws exits %llu, rwx exits %llu\n",
@@ -1389,7 +1387,7 @@ UNIV_INTERN
 void
 sync_print(
 /*=======*/
-	FILE*	file)		/* in: file where to print */
+	FILE*	file)		/*!< in: file where to print */
 {
 #ifdef UNIV_SYNC_DEBUG
 	mutex_list_print_info(file);

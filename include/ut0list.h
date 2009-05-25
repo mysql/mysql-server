@@ -47,23 +47,23 @@ typedef struct ib_list_helper_struct ib_list_helper_t;
 
 /********************************************************************
 Create a new list using mem_alloc. Lists created with this function must be
-freed with ib_list_free. */
+freed with ib_list_free.
+@return	list */
 UNIV_INTERN
 ib_list_t*
 ib_list_create(void);
 /*=================*/
-			/* out: list */
 
 
 /********************************************************************
 Create a new list using the given heap. ib_list_free MUST NOT BE CALLED for
-lists created with this function. */
+lists created with this function.
+@return	list */
 UNIV_INTERN
 ib_list_t*
 ib_list_create_heap(
 /*================*/
-				/* out: list */
-	mem_heap_t*	heap);	/* in: memory heap to use */
+	mem_heap_t*	heap);	/*!< in: memory heap to use */
 
 /********************************************************************
 Free a list. */
@@ -71,42 +71,42 @@ UNIV_INTERN
 void
 ib_list_free(
 /*=========*/
-	ib_list_t*	list);	/* in: list */
+	ib_list_t*	list);	/*!< in: list */
 
 /********************************************************************
-Add the data to the start of the list. */
+Add the data to the start of the list.
+@return	new list node */
 UNIV_INTERN
 ib_list_node_t*
 ib_list_add_first(
 /*==============*/
-				/* out: new list node*/
-	ib_list_t*	list,	/* in: list */
-	void*		data,	/* in: data */
-	mem_heap_t*	heap);	/* in: memory heap to use */
+	ib_list_t*	list,	/*!< in: list */
+	void*		data,	/*!< in: data */
+	mem_heap_t*	heap);	/*!< in: memory heap to use */
 
 /********************************************************************
-Add the data to the end of the list. */
+Add the data to the end of the list.
+@return	new list node */
 UNIV_INTERN
 ib_list_node_t*
 ib_list_add_last(
 /*=============*/
-				/* out: new list node*/
-	ib_list_t*	list,	/* in: list */
-	void*		data,	/* in: data */
-	mem_heap_t*	heap);	/* in: memory heap to use */
+	ib_list_t*	list,	/*!< in: list */
+	void*		data,	/*!< in: data */
+	mem_heap_t*	heap);	/*!< in: memory heap to use */
 
 /********************************************************************
-Add the data after the indicated node. */
+Add the data after the indicated node.
+@return	new list node */
 UNIV_INTERN
 ib_list_node_t*
 ib_list_add_after(
 /*==============*/
-					/* out: new list node*/
-	ib_list_t*	list,		/* in: list */
-	ib_list_node_t*	prev_node,	/* in: node preceding new node (can
+	ib_list_t*	list,		/*!< in: list */
+	ib_list_node_t*	prev_node,	/*!< in: node preceding new node (can
 					be NULL) */
-	void*		data,		/* in: data */
-	mem_heap_t*	heap);		/* in: memory heap to use */
+	void*		data,		/*!< in: data */
+	mem_heap_t*	heap);		/*!< in: memory heap to use */
 
 /********************************************************************
 Remove the node from the list. */
@@ -114,26 +114,26 @@ UNIV_INTERN
 void
 ib_list_remove(
 /*===========*/
-	ib_list_t*	list,	/* in: list */
-	ib_list_node_t*	node);	/* in: node to remove */
+	ib_list_t*	list,	/*!< in: list */
+	ib_list_node_t*	node);	/*!< in: node to remove */
 
 /********************************************************************
-Get the first node in the list. */
+Get the first node in the list.
+@return	first node, or NULL */
 UNIV_INLINE
 ib_list_node_t*
 ib_list_get_first(
 /*==============*/
-				/* out: first node, or NULL */
-	ib_list_t*	list);	/* in: list */
+	ib_list_t*	list);	/*!< in: list */
 
 /********************************************************************
-Get the last node in the list. */
+Get the last node in the list.
+@return	last node, or NULL */
 UNIV_INLINE
 ib_list_node_t*
 ib_list_get_last(
 /*=============*/
-				/* out: last node, or NULL */
-	ib_list_t*	list);	/* in: list */
+	ib_list_t*	list);	/*!< in: list */
 
 /* List. */
 struct ib_list_struct {

@@ -37,10 +37,10 @@ static
 void
 flst_add_to_empty(
 /*==============*/
-	flst_base_node_t*	base,	/* in: pointer to base node of
+	flst_base_node_t*	base,	/*!< in: pointer to base node of
 					empty list */
-	flst_node_t*		node,	/* in: node to add */
-	mtr_t*			mtr)	/* in: mini-transaction handle */
+	flst_node_t*		node,	/*!< in: node to add */
+	mtr_t*			mtr)	/*!< in: mini-transaction handle */
 {
 	ulint		space;
 	fil_addr_t	node_addr;
@@ -73,9 +73,9 @@ UNIV_INTERN
 void
 flst_add_last(
 /*==========*/
-	flst_base_node_t*	base,	/* in: pointer to base node of list */
-	flst_node_t*		node,	/* in: node to add */
-	mtr_t*			mtr)	/* in: mini-transaction handle */
+	flst_base_node_t*	base,	/*!< in: pointer to base node of list */
+	flst_node_t*		node,	/*!< in: node to add */
+	mtr_t*			mtr)	/*!< in: mini-transaction handle */
 {
 	ulint		space;
 	fil_addr_t	node_addr;
@@ -116,9 +116,9 @@ UNIV_INTERN
 void
 flst_add_first(
 /*===========*/
-	flst_base_node_t*	base,	/* in: pointer to base node of list */
-	flst_node_t*		node,	/* in: node to add */
-	mtr_t*			mtr)	/* in: mini-transaction handle */
+	flst_base_node_t*	base,	/*!< in: pointer to base node of list */
+	flst_node_t*		node,	/*!< in: node to add */
+	mtr_t*			mtr)	/*!< in: mini-transaction handle */
 {
 	ulint		space;
 	fil_addr_t	node_addr;
@@ -159,10 +159,10 @@ UNIV_INTERN
 void
 flst_insert_after(
 /*==============*/
-	flst_base_node_t*	base,	/* in: pointer to base node of list */
-	flst_node_t*		node1,	/* in: node to insert after */
-	flst_node_t*		node2,	/* in: node to add */
-	mtr_t*			mtr)	/* in: mini-transaction handle */
+	flst_base_node_t*	base,	/*!< in: pointer to base node of list */
+	flst_node_t*		node1,	/*!< in: node to insert after */
+	flst_node_t*		node2,	/*!< in: node to add */
+	mtr_t*			mtr)	/*!< in: mini-transaction handle */
 {
 	ulint		space;
 	fil_addr_t	node1_addr;
@@ -214,10 +214,10 @@ UNIV_INTERN
 void
 flst_insert_before(
 /*===============*/
-	flst_base_node_t*	base,	/* in: pointer to base node of list */
-	flst_node_t*		node2,	/* in: node to insert */
-	flst_node_t*		node3,	/* in: node to insert before */
-	mtr_t*			mtr)	/* in: mini-transaction handle */
+	flst_base_node_t*	base,	/*!< in: pointer to base node of list */
+	flst_node_t*		node2,	/*!< in: node to insert */
+	flst_node_t*		node3,	/*!< in: node to insert before */
+	mtr_t*			mtr)	/*!< in: mini-transaction handle */
 {
 	ulint		space;
 	flst_node_t*	node1;
@@ -268,9 +268,9 @@ UNIV_INTERN
 void
 flst_remove(
 /*========*/
-	flst_base_node_t*	base,	/* in: pointer to base node of list */
-	flst_node_t*		node2,	/* in: node to remove */
-	mtr_t*			mtr)	/* in: mini-transaction handle */
+	flst_base_node_t*	base,	/*!< in: pointer to base node of list */
+	flst_node_t*		node2,	/*!< in: node to remove */
+	mtr_t*			mtr)	/*!< in: mini-transaction handle */
 {
 	ulint		space;
 	ulint		zip_size;
@@ -345,11 +345,11 @@ UNIV_INTERN
 void
 flst_cut_end(
 /*=========*/
-	flst_base_node_t*	base,	/* in: pointer to base node of list */
-	flst_node_t*		node2,	/* in: first node to remove */
-	ulint			n_nodes,/* in: number of nodes to remove,
+	flst_base_node_t*	base,	/*!< in: pointer to base node of list */
+	flst_node_t*		node2,	/*!< in: first node to remove */
+	ulint			n_nodes,/*!< in: number of nodes to remove,
 					must be >= 1 */
-	mtr_t*			mtr)	/* in: mini-transaction handle */
+	mtr_t*			mtr)	/*!< in: mini-transaction handle */
 {
 	ulint		space;
 	flst_node_t*	node1;
@@ -402,10 +402,10 @@ UNIV_INTERN
 void
 flst_truncate_end(
 /*==============*/
-	flst_base_node_t*	base,	/* in: pointer to base node of list */
-	flst_node_t*		node2,	/* in: first node not to remove */
-	ulint			n_nodes,/* in: number of nodes to remove */
-	mtr_t*			mtr)	/* in: mini-transaction handle */
+	flst_base_node_t*	base,	/*!< in: pointer to base node of list */
+	flst_node_t*		node2,	/*!< in: first node not to remove */
+	ulint			n_nodes,/*!< in: number of nodes to remove */
+	mtr_t*			mtr)	/*!< in: mini-transaction handle */
 {
 	fil_addr_t	node2_addr;
 	ulint		len;
@@ -436,14 +436,14 @@ flst_truncate_end(
 }
 
 /************************************************************************
-Validates a file-based list. */
+Validates a file-based list.
+@return	TRUE if ok */
 UNIV_INTERN
 ibool
 flst_validate(
 /*==========*/
-					/* out: TRUE if ok */
-	const flst_base_node_t*	base,	/* in: pointer to base node of list */
-	mtr_t*			mtr1)	/* in: mtr */
+	const flst_base_node_t*	base,	/*!< in: pointer to base node of list */
+	mtr_t*			mtr1)	/*!< in: mtr */
 {
 	ulint			space;
 	ulint			zip_size;
@@ -508,8 +508,8 @@ UNIV_INTERN
 void
 flst_print(
 /*=======*/
-	const flst_base_node_t*	base,	/* in: pointer to base node of list */
-	mtr_t*			mtr)	/* in: mtr */
+	const flst_base_node_t*	base,	/*!< in: pointer to base node of list */
+	mtr_t*			mtr)	/*!< in: mtr */
 {
 	const buf_frame_t*	frame;
 	ulint			len;

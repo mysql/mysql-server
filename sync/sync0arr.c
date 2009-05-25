@@ -136,28 +136,28 @@ struct sync_array_struct {
 #ifdef UNIV_SYNC_DEBUG
 /**********************************************************************
 This function is called only in the debug version. Detects a deadlock
-of one or more threads because of waits of semaphores. */
+of one or more threads because of waits of semaphores.
+@return	TRUE if deadlock detected */
 static
 ibool
 sync_array_detect_deadlock(
 /*=======================*/
-				/* out: TRUE if deadlock detected */
-	sync_array_t*	arr,	/* in: wait array; NOTE! the caller must
+	sync_array_t*	arr,	/*!< in: wait array; NOTE! the caller must
 				own the mutex to array */
-	sync_cell_t*	start,	/* in: cell where recursive search started */
-	sync_cell_t*	cell,	/* in: cell to search */
-	ulint		depth);	/* in: recursion depth */
+	sync_cell_t*	start,	/*!< in: cell where recursive search started */
+	sync_cell_t*	cell,	/*!< in: cell to search */
+	ulint		depth);	/*!< in: recursion depth */
 #endif /* UNIV_SYNC_DEBUG */
 
 /*********************************************************************
-Gets the nth cell in array. */
+Gets the nth cell in array.
+@return	cell */
 static
 sync_cell_t*
 sync_array_get_nth_cell(
 /*====================*/
-				/* out: cell */
-	sync_array_t*	arr,	/* in: sync array */
-	ulint		n)	/* in: index */
+	sync_array_t*	arr,	/*!< in: sync array */
+	ulint		n)	/*!< in: index */
 {
 	ut_a(arr);
 	ut_a(n < arr->n_cells);
@@ -171,7 +171,7 @@ static
 void
 sync_array_enter(
 /*=============*/
-	sync_array_t*	arr)	/* in: sync wait array */
+	sync_array_t*	arr)	/*!< in: sync wait array */
 {
 	ulint	protection;
 
@@ -192,7 +192,7 @@ static
 void
 sync_array_exit(
 /*============*/
-	sync_array_t*	arr)	/* in: sync wait array */
+	sync_array_t*	arr)	/*!< in: sync wait array */
 {
 	ulint	protection;
 
@@ -210,15 +210,15 @@ sync_array_exit(
 /***********************************************************************
 Creates a synchronization wait array. It is protected by a mutex
 which is automatically reserved when the functions operating on it
-are called. */
+are called.
+@return	own: created wait array */
 UNIV_INTERN
 sync_array_t*
 sync_array_create(
 /*==============*/
-				/* out, own: created wait array */
-	ulint	n_cells,	/* in: number of cells in the array
+	ulint	n_cells,	/*!< in: number of cells in the array
 				to create */
-	ulint	protection)	/* in: either SYNC_ARRAY_OS_MUTEX or
+	ulint	protection)	/*!< in: either SYNC_ARRAY_OS_MUTEX or
 				SYNC_ARRAY_MUTEX: determines the type
 				of mutex protecting the data structure */
 {
@@ -266,7 +266,7 @@ UNIV_INTERN
 void
 sync_array_free(
 /*============*/
-	sync_array_t*	arr)	/* in, own: sync wait array */
+	sync_array_t*	arr)	/*!< in, own: sync wait array */
 {
 	ulint		protection;
 
@@ -297,7 +297,7 @@ UNIV_INTERN
 void
 sync_array_validate(
 /*================*/
-	sync_array_t*	arr)	/* in: sync wait array */
+	sync_array_t*	arr)	/*!< in: sync wait array */
 {
 	ulint		i;
 	sync_cell_t*	cell;
@@ -323,7 +323,7 @@ static
 os_event_t
 sync_cell_get_event(
 /*================*/
-	sync_cell_t*	cell) /* in: non-empty sync array cell */
+	sync_cell_t*	cell) /*!< in: non-empty sync array cell */
 {
 	ulint type = cell->request_type;
 
@@ -343,12 +343,12 @@ UNIV_INTERN
 void
 sync_array_reserve_cell(
 /*====================*/
-	sync_array_t*	arr,	/* in: wait array */
-	void*		object, /* in: pointer to the object to wait for */
-	ulint		type,	/* in: lock request type */
-	const char*	file,	/* in: file where requested */
-	ulint		line,	/* in: line where requested */
-	ulint*		index)	/* out: index of the reserved cell */
+	sync_array_t*	arr,	/*!< in: wait array */
+	void*		object, /*!< in: pointer to the object to wait for */
+	ulint		type,	/*!< in: lock request type */
+	const char*	file,	/*!< in: file where requested */
+	ulint		line,	/*!< in: line where requested */
+	ulint*		index)	/*!< out: index of the reserved cell */
 {
 	sync_cell_t*	cell;
 	os_event_t      event;
@@ -415,8 +415,8 @@ UNIV_INTERN
 void
 sync_array_wait_event(
 /*==================*/
-	sync_array_t*	arr,	/* in: wait array */
-	ulint		index)	/* in: index of the reserved cell */
+	sync_array_t*	arr,	/*!< in: wait array */
+	ulint		index)	/*!< in: index of the reserved cell */
 {
 	sync_cell_t*	cell;
 	os_event_t	event;
@@ -464,8 +464,8 @@ static
 void
 sync_array_cell_print(
 /*==================*/
-	FILE*		file,	/* in: file where to print */
-	sync_cell_t*	cell)	/* in: sync cell */
+	FILE*		file,	/*!< in: file where to print */
+	sync_cell_t*	cell)	/*!< in: sync cell */
 {
 	mutex_t*	mutex;
 	rw_lock_t*	rwlock;
@@ -545,15 +545,14 @@ sync_array_cell_print(
 
 #ifdef UNIV_SYNC_DEBUG
 /**********************************************************************
-Looks for a cell with the given thread id. */
+Looks for a cell with the given thread id.
+@return	pointer to cell or NULL if not found */
 static
 sync_cell_t*
 sync_array_find_thread(
 /*===================*/
-				/* out: pointer to cell or NULL
-				if not found */
-	sync_array_t*	arr,	/* in: wait array */
-	os_thread_id_t	thread)	/* in: thread id */
+	sync_array_t*	arr,	/*!< in: wait array */
+	os_thread_id_t	thread)	/*!< in: thread id */
 {
 	ulint		i;
 	sync_cell_t*	cell;
@@ -573,19 +572,19 @@ sync_array_find_thread(
 }
 
 /**********************************************************************
-Recursion step for deadlock detection. */
+Recursion step for deadlock detection.
+@return	TRUE if deadlock detected */
 static
 ibool
 sync_array_deadlock_step(
 /*=====================*/
-				/* out: TRUE if deadlock detected */
-	sync_array_t*	arr,	/* in: wait array; NOTE! the caller must
+	sync_array_t*	arr,	/*!< in: wait array; NOTE! the caller must
 				own the mutex to array */
-	sync_cell_t*	start,	/* in: cell where recursive search
+	sync_cell_t*	start,	/*!< in: cell where recursive search
 				started */
-	os_thread_id_t	thread,	/* in: thread to look at */
-	ulint		pass,	/* in: pass value */
-	ulint		depth)	/* in: recursion depth */
+	os_thread_id_t	thread,	/*!< in: thread to look at */
+	ulint		pass,	/*!< in: pass value */
+	ulint		depth)	/*!< in: recursion depth */
 {
 	sync_cell_t*	new;
 	ibool		ret;
@@ -625,17 +624,17 @@ sync_array_deadlock_step(
 
 /**********************************************************************
 This function is called only in the debug version. Detects a deadlock
-of one or more threads because of waits of semaphores. */
+of one or more threads because of waits of semaphores.
+@return	TRUE if deadlock detected */
 static
 ibool
 sync_array_detect_deadlock(
 /*=======================*/
-				/* out: TRUE if deadlock detected */
-	sync_array_t*	arr,	/* in: wait array; NOTE! the caller must
+	sync_array_t*	arr,	/*!< in: wait array; NOTE! the caller must
 				own the mutex to array */
-	sync_cell_t*	start,	/* in: cell where recursive search started */
-	sync_cell_t*	cell,	/* in: cell to search */
-	ulint		depth)	/* in: recursion depth */
+	sync_cell_t*	start,	/*!< in: cell where recursive search started */
+	sync_cell_t*	cell,	/*!< in: cell to search */
+	ulint		depth)	/*!< in: recursion depth */
 {
 	mutex_t*	mutex;
 	rw_lock_t*	lock;
@@ -774,7 +773,7 @@ static
 ibool
 sync_arr_cell_can_wake_up(
 /*======================*/
-	sync_cell_t*	cell)	/* in: cell to search */
+	sync_cell_t*	cell)	/*!< in: cell to search */
 {
 	mutex_t*	mutex;
 	rw_lock_t*	lock;
@@ -827,8 +826,8 @@ UNIV_INTERN
 void
 sync_array_free_cell(
 /*=================*/
-	sync_array_t*	arr,	/* in: wait array */
-	ulint		index)  /* in: index of the cell in array */
+	sync_array_t*	arr,	/*!< in: wait array */
+	ulint		index)  /*!< in: index of the cell in array */
 {
 	sync_cell_t*	cell;
 
@@ -854,7 +853,7 @@ UNIV_INTERN
 void
 sync_array_object_signalled(
 /*========================*/
-	sync_array_t*	arr)	/* in: wait array */
+	sync_array_t*	arr)	/*!< in: wait array */
 {
 #ifdef HAVE_ATOMIC_BUILTINS
 	(void) os_atomic_increment_ulint(&arr->sg_count, 1);
@@ -914,13 +913,12 @@ sync_arr_wake_threads_if_sema_free(void)
 }
 
 /**************************************************************************
-Prints warnings of long semaphore waits to stderr. */
+Prints warnings of long semaphore waits to stderr.
+@return	TRUE if fatal semaphore wait threshold was exceeded */
 UNIV_INTERN
 ibool
 sync_array_print_long_waits(void)
 /*=============================*/
-			/* out: TRUE if fatal semaphore wait threshold
-			was exceeded */
 {
 	sync_cell_t*	cell;
 	ibool		old_val;
@@ -985,8 +983,8 @@ static
 void
 sync_array_output_info(
 /*===================*/
-	FILE*		file,	/* in: file where to print */
-	sync_array_t*	arr)	/* in: wait array; NOTE! caller must own the
+	FILE*		file,	/*!< in: file where to print */
+	sync_array_t*	arr)	/*!< in: wait array; NOTE! caller must own the
 				mutex */
 {
 	sync_cell_t*	cell;
@@ -1018,8 +1016,8 @@ UNIV_INTERN
 void
 sync_array_print_info(
 /*==================*/
-	FILE*		file,	/* in: file where to print */
-	sync_array_t*	arr)	/* in: wait array */
+	FILE*		file,	/*!< in: file where to print */
+	sync_array_t*	arr)	/*!< in: wait array */
 {
 	sync_array_enter(arr);
 

@@ -99,9 +99,9 @@ UNIV_INTERN
 void
 page_zip_rec_set_deleted(
 /*=====================*/
-	page_zip_des_t*	page_zip,/* in/out: compressed page */
-	const byte*	rec,	/* in: record on the uncompressed page */
-	ulint		flag)	/* in: the deleted flag (nonzero=TRUE) */
+	page_zip_des_t*	page_zip,/*!< in/out: compressed page */
+	const byte*	rec,	/*!< in: record on the uncompressed page */
+	ulint		flag)	/*!< in: the deleted flag (nonzero=TRUE) */
 	__attribute__((nonnull));
 
 /**************************************************************************
@@ -111,9 +111,9 @@ UNIV_INTERN
 void
 page_zip_rec_set_owned(
 /*===================*/
-	page_zip_des_t*	page_zip,/* in/out: compressed page */
-	const byte*	rec,	/* in: record on the uncompressed page */
-	ulint		flag)	/* in: the owned flag (nonzero=TRUE) */
+	page_zip_des_t*	page_zip,/*!< in/out: compressed page */
+	const byte*	rec,	/*!< in: record on the uncompressed page */
+	ulint		flag)	/*!< in: the owned flag (nonzero=TRUE) */
 	__attribute__((nonnull));
 
 /**************************************************************************
@@ -122,11 +122,11 @@ UNIV_INTERN
 void
 page_zip_dir_delete(
 /*================*/
-	page_zip_des_t*	page_zip,/* in/out: compressed page */
-	byte*		rec,	/* in: deleted record */
-	dict_index_t*	index,	/* in: index of rec */
-	const ulint*	offsets,/* in: rec_get_offsets(rec) */
-	const byte*	free)	/* in: previous start of the free list */
+	page_zip_des_t*	page_zip,/*!< in/out: compressed page */
+	byte*		rec,	/*!< in: deleted record */
+	dict_index_t*	index,	/*!< in: index of rec */
+	const ulint*	offsets,/*!< in: rec_get_offsets(rec) */
+	const byte*	free)	/*!< in: previous start of the free list */
 	__attribute__((nonnull(1,2,3,4)));
 
 /**************************************************************************
@@ -135,8 +135,8 @@ UNIV_INTERN
 void
 page_zip_dir_add_slot(
 /*==================*/
-	page_zip_des_t*	page_zip,	/* in/out: compressed page */
-	ulint		is_clustered)	/* in: nonzero for clustered index,
+	page_zip_des_t*	page_zip,	/*!< in/out: compressed page */
+	ulint		is_clustered)	/*!< in: nonzero for clustered index,
 					zero for others */
 	__attribute__((nonnull));
 #endif

@@ -23,14 +23,14 @@ Created 3/26/1996 Heikki Tuuri
 *******************************************************/
 
 /***********************************************************************
-Returns pointer to nth element in an undo number array. */
+Returns pointer to nth element in an undo number array.
+@return	pointer to the nth element */
 UNIV_INLINE
 trx_undo_inf_t*
 trx_undo_arr_get_nth_info(
 /*======================*/
-				/* out: pointer to the nth element */
-	trx_undo_arr_t*	arr,	/* in: undo number array */
-	ulint		n)	/* in: position */
+	trx_undo_arr_t*	arr,	/*!< in: undo number array */
+	ulint		n)	/*!< in: position */
 {
 	ut_ad(arr);
 	ut_ad(n < arr->n_cells);

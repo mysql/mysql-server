@@ -41,16 +41,16 @@ Created 4/24/1996 Heikki Tuuri
 #include "srv0srv.h"
 
 /********************************************************************
-Returns TRUE if index's i'th column's name is 'name' .*/
+Returns TRUE if index's i'th column's name is 'name' .
+@return	 */
 static
 ibool
 name_of_col_is(
 /*===========*/
-				/* out: */
-	dict_table_t*	table,	/* in: table */
-	dict_index_t*	index,	/* in: index */
-	ulint		i,	/* in:  */
-	const char*	name)	/* in: name to compare to */
+	dict_table_t*	table,	/*!< in: table */
+	dict_index_t*	index,	/*!< in: index */
+	ulint		i,	/*!< in:  */
+	const char*	name)	/*!< in: name to compare to */
 {
 	ulint	tmp = dict_col_get_no(dict_field_get_col(
 					      dict_index_get_nth_field(
@@ -60,15 +60,13 @@ name_of_col_is(
 }
 
 /************************************************************************
-Finds the first table name in the given database. */
+Finds the first table name in the given database.
+@return	own: table name, NULL if does not exist; the caller must free the memory in the string! */
 UNIV_INTERN
 char*
 dict_get_first_table_name_in_db(
 /*============================*/
-				/* out, own: table name, NULL if
-				does not exist; the caller must
-				free the memory in the string! */
-	const char*	name)	/* in: database name which ends in '/' */
+	const char*	name)	/*!< in: database name which ends in '/' */
 {
 	dict_table_t*	sys_tables;
 	btr_pcur_t	pcur;
@@ -237,15 +235,13 @@ loop:
 }
 
 /************************************************************************
-Determine the flags of a table described in SYS_TABLES. */
+Determine the flags of a table described in SYS_TABLES.
+@return	compressed page size in kilobytes; or 0 if the tablespace is uncompressed, ULINT_UNDEFINED on error */
 static
 ulint
 dict_sys_tables_get_flags(
 /*======================*/
-				/* out: compressed page size in kilobytes;
-				or 0 if the tablespace is uncompressed,
-				ULINT_UNDEFINED on error */
-	const rec_t*	rec)	/* in: a record of SYS_TABLES */
+	const rec_t*	rec)	/*!< in: a record of SYS_TABLES */
 {
 	const byte*	field;
 	ulint		len;
@@ -311,7 +307,7 @@ UNIV_INTERN
 void
 dict_check_tablespaces_and_store_max_id(
 /*====================================*/
-	ibool	in_crash_recovery)	/* in: are we doing a crash recovery */
+	ibool	in_crash_recovery)	/*!< in: are we doing a crash recovery */
 {
 	dict_table_t*	sys_tables;
 	dict_index_t*	sys_index;
@@ -427,8 +423,8 @@ static
 void
 dict_load_columns(
 /*==============*/
-	dict_table_t*	table,	/* in: table */
-	mem_heap_t*	heap)	/* in: memory heap for temporary storage */
+	dict_table_t*	table,	/*!< in: table */
+	mem_heap_t*	heap)	/*!< in: memory heap for temporary storage */
 {
 	dict_table_t*	sys_columns;
 	dict_index_t*	sys_index;
@@ -533,8 +529,8 @@ static
 void
 dict_load_fields(
 /*=============*/
-	dict_index_t*	index,	/* in: index whose fields to load */
-	mem_heap_t*	heap)	/* in: memory heap for temporary storage */
+	dict_index_t*	index,	/*!< in: index whose fields to load */
+	mem_heap_t*	heap)	/*!< in: memory heap for temporary storage */
 {
 	dict_table_t*	sys_fields;
 	dict_index_t*	sys_index;
@@ -630,17 +626,14 @@ next_rec:
 
 /************************************************************************
 Loads definitions for table indexes. Adds them to the data dictionary
-cache. */
+cache.
+@return	DB_SUCCESS if ok, DB_CORRUPTION if corruption of dictionary table or DB_UNSUPPORTED if table has unknown index type */
 static
 ulint
 dict_load_indexes(
 /*==============*/
-				/* out: DB_SUCCESS if ok, DB_CORRUPTION
-				if corruption of dictionary table or
-				DB_UNSUPPORTED if table has unknown index
-				type */
-	dict_table_t*	table,	/* in: table */
-	mem_heap_t*	heap)	/* in: memory heap for temporary storage */
+	dict_table_t*	table,	/*!< in: table */
+	mem_heap_t*	heap)	/*!< in: memory heap for temporary storage */
 {
 	dict_table_t*	sys_indexes;
 	dict_index_t*	sys_index;
@@ -808,17 +801,13 @@ Loads a table definition and also all its index definitions, and also
 the cluster definition if the table is a member in a cluster. Also loads
 all foreign key constraints where the foreign key is in the table or where
 a foreign key references columns in this table. Adds all these to the data
-dictionary cache. */
+dictionary cache.
+@return	table, NULL if does not exist; if the table is stored in an .ibd file, but the file does not exist, then we set the ibd_file_missing flag TRUE in the table object we return */
 UNIV_INTERN
 dict_table_t*
 dict_load_table(
 /*============*/
-				/* out: table, NULL if does not exist;
-				if the table is stored in an .ibd file,
-				but the file does not exist,
-				then we set the ibd_file_missing flag TRUE
-				in the table object we return */
-	const char*	name)	/* in: table name in the
+	const char*	name)	/*!< in: table name in the
 				databasename/tablename format */
 {
 	ibool		ibd_file_missing	= FALSE;
@@ -999,13 +988,13 @@ err_exit:
 }
 
 /***************************************************************************
-Loads a table object based on the table id. */
+Loads a table object based on the table id.
+@return	table; NULL if table does not exist */
 UNIV_INTERN
 dict_table_t*
 dict_load_table_on_id(
 /*==================*/
-				/* out: table; NULL if table does not exist */
-	dulint	table_id)	/* in: table id */
+	dulint	table_id)	/*!< in: table id */
 {
 	byte		id_buf[8];
 	btr_pcur_t	pcur;
@@ -1097,7 +1086,7 @@ UNIV_INTERN
 void
 dict_load_sys_table(
 /*================*/
-	dict_table_t*	table)	/* in: system table */
+	dict_table_t*	table)	/*!< in: system table */
 {
 	mem_heap_t*	heap;
 
@@ -1116,9 +1105,9 @@ static
 void
 dict_load_foreign_cols(
 /*===================*/
-	const char*	id,	/* in: foreign constraint id as a
+	const char*	id,	/*!< in: foreign constraint id as a
 				null-terminated string */
-	dict_foreign_t*	foreign)/* in: foreign constraint object */
+	dict_foreign_t*	foreign)/*!< in: foreign constraint object */
 {
 	dict_table_t*	sys_foreign_cols;
 	dict_index_t*	sys_index;
@@ -1183,16 +1172,16 @@ dict_load_foreign_cols(
 }
 
 /***************************************************************************
-Loads a foreign key constraint to the dictionary cache. */
+Loads a foreign key constraint to the dictionary cache.
+@return	DB_SUCCESS or error code */
 static
 ulint
 dict_load_foreign(
 /*==============*/
-				/* out: DB_SUCCESS or error code */
-	const char*	id,	/* in: foreign constraint id as a
+	const char*	id,	/*!< in: foreign constraint id as a
 				null-terminated string */
 	ibool		check_charsets)
-				/* in: TRUE=check charset compatibility */
+				/*!< in: TRUE=check charset compatibility */
 {
 	dict_foreign_t*	foreign;
 	dict_table_t*	sys_foreign;
@@ -1312,14 +1301,14 @@ Loads foreign key constraints where the table is either the foreign key
 holder or where the table is referenced by a foreign key. Adds these
 constraints to the data dictionary. Note that we know that the dictionary
 cache already contains all constraints where the other relevant table is
-already in the dictionary cache. */
+already in the dictionary cache.
+@return	DB_SUCCESS or error code */
 UNIV_INTERN
 ulint
 dict_load_foreigns(
 /*===============*/
-					/* out: DB_SUCCESS or error code */
-	const char*	table_name,	/* in: table name */
-	ibool		check_charsets)	/* in: TRUE=check charset
+	const char*	table_name,	/*!< in: table name */
+	ibool		check_charsets)	/*!< in: TRUE=check charset
 					compatibility */
 {
 	btr_pcur_t	pcur;

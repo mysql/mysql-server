@@ -28,7 +28,7 @@ UNIV_INLINE
 void
 trx_start_if_not_started(
 /*=====================*/
-	trx_t*	trx)	/* in: transaction */
+	trx_t*	trx)	/*!< in: transaction */
 {
 	ut_ad(trx->conc_state != TRX_COMMITTED_IN_MEMORY);
 
@@ -45,7 +45,7 @@ UNIV_INLINE
 void
 trx_start_if_not_started_low(
 /*=========================*/
-	trx_t*	trx)	/* in: transaction */
+	trx_t*	trx)	/*!< in: transaction */
 {
 	ut_ad(trx->conc_state != TRX_COMMITTED_IN_MEMORY);
 
@@ -56,38 +56,38 @@ trx_start_if_not_started_low(
 }
 
 /********************************************************************
-Retrieves the error_info field from a trx. */
+Retrieves the error_info field from a trx.
+@return	the error info */
 UNIV_INLINE
 const dict_index_t*
 trx_get_error_info(
 /*===============*/
-				/* out: the error info */
-	const trx_t*	trx)	/* in: trx object */
+	const trx_t*	trx)	/*!< in: trx object */
 {
 	return(trx->error_info);
 }
 
 /***********************************************************************
-Retrieves transacion's id, represented as unsigned long long. */
+Retrieves transacion's id, represented as unsigned long long.
+@return	transaction's id */
 UNIV_INLINE
 ullint
 trx_get_id(
 /*=======*/
-				/* out: transaction's id */
-	const trx_t*	trx)	/* in: transaction */
+	const trx_t*	trx)	/*!< in: transaction */
 {
 	return((ullint)ut_conv_dulint_to_longlong(trx->id));
 }
 
 /***********************************************************************
 Retrieves transaction's que state in a human readable string. The string
-should not be free()'d or modified. */
+should not be free()'d or modified.
+@return	string in the data segment */
 UNIV_INLINE
 const char*
 trx_get_que_state_str(
 /*==================*/
-				/* out: string in the data segment */
-	const trx_t*	trx)	/* in: transaction */
+	const trx_t*	trx)	/*!< in: transaction */
 {
 	/* be sure to adjust TRX_QUE_STATE_STR_MAX_LEN if you change this */
 	switch (trx->que_state) {
@@ -105,13 +105,13 @@ trx_get_que_state_str(
 }
 
 /**************************************************************************
-Determine if a transaction is a dictionary operation. */
+Determine if a transaction is a dictionary operation.
+@return	dictionary operation mode */
 UNIV_INLINE
 enum trx_dict_op
 trx_get_dict_operation(
 /*===================*/
-				/* out: dictionary operation mode */
-	const trx_t*	trx)	/* in: transaction */
+	const trx_t*	trx)	/*!< in: transaction */
 {
 	enum trx_dict_op op = (enum trx_dict_op) trx->dict_operation;
 
@@ -132,8 +132,8 @@ UNIV_INLINE
 void
 trx_set_dict_operation(
 /*===================*/
-	trx_t*			trx,	/* in/out: transaction */
-	enum trx_dict_op	op)	/* in: operation, not
+	trx_t*			trx,	/*!< in/out: transaction */
+	enum trx_dict_op	op)	/*!< in: operation, not
 					TRX_DICT_OP_NONE */
 {
 #ifdef UNIV_DEBUG

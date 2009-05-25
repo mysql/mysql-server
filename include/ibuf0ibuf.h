@@ -90,8 +90,8 @@ UNIV_INTERN
 void
 ibuf_bitmap_page_init(
 /*==================*/
-	buf_block_t*	block,	/* in: bitmap page */
-	mtr_t*		mtr);	/* in: mtr */
+	buf_block_t*	block,	/*!< in: bitmap page */
+	mtr_t*		mtr);	/*!< in: mtr */
 /****************************************************************************
 Resets the free bits of the page in the ibuf bitmap. This is done in a
 separate mini-transaction, hence this operation does not restrict
@@ -105,7 +105,7 @@ UNIV_INTERN
 void
 ibuf_reset_free_bits(
 /*=================*/
-	buf_block_t*	block);	/* in: index page; free bits are set to 0
+	buf_block_t*	block);	/*!< in: index page; free bits are set to 0
 				if the index is a non-clustered
 				non-unique, and page level is 0 */
 /****************************************************************************
@@ -125,15 +125,15 @@ UNIV_INLINE
 void
 ibuf_update_free_bits_if_full(
 /*==========================*/
-	buf_block_t*	block,	/* in: index page to which we have added new
+	buf_block_t*	block,	/*!< in: index page to which we have added new
 				records; the free bits are updated if the
 				index is non-clustered and non-unique and
 				the page level is 0, and the page becomes
 				fuller */
-	ulint		max_ins_size,/* in: value of maximum insert size with
+	ulint		max_ins_size,/*!< in: value of maximum insert size with
 				reorganize before the latest operation
 				performed to the page */
-	ulint		increase);/* in: upper limit for the additional space
+	ulint		increase);/*!< in: upper limit for the additional space
 				used in the latest operation, if known, or
 				ULINT_UNDEFINED */
 /**************************************************************************
@@ -148,13 +148,13 @@ UNIV_INTERN
 void
 ibuf_update_free_bits_low(
 /*======================*/
-	const buf_block_t*	block,		/* in: index page */
-	ulint			max_ins_size,	/* in: value of
+	const buf_block_t*	block,		/*!< in: index page */
+	ulint			max_ins_size,	/*!< in: value of
 						maximum insert size
 						with reorganize before
 						the latest operation
 						performed to the page */
-	mtr_t*			mtr);		/* in/out: mtr */
+	mtr_t*			mtr);		/*!< in/out: mtr */
 /**************************************************************************
 Updates the free bits for a compressed page to reflect the present
 state.  Does this in the mtr given, which means that the latching
@@ -167,8 +167,8 @@ UNIV_INTERN
 void
 ibuf_update_free_bits_zip(
 /*======================*/
-	buf_block_t*	block,	/* in/out: index page */
-	mtr_t*		mtr);	/* in/out: mtr */
+	buf_block_t*	block,	/*!< in/out: index page */
+	mtr_t*		mtr);	/*!< in/out: mtr */
 /**************************************************************************
 Updates the free bits for the two pages to reflect the present state.
 Does this in the mtr given, which means that the latching order rules
@@ -180,11 +180,11 @@ UNIV_INTERN
 void
 ibuf_update_free_bits_for_two_pages_low(
 /*====================================*/
-	ulint		zip_size,/* in: compressed page size in bytes;
+	ulint		zip_size,/*!< in: compressed page size in bytes;
 				0 for uncompressed pages */
-	buf_block_t*	block1,	/* in: index page */
-	buf_block_t*	block2,	/* in: index page */
-	mtr_t*		mtr);	/* in: mtr */
+	buf_block_t*	block1,	/*!< in: index page */
+	buf_block_t*	block2,	/*!< in: index page */
+	mtr_t*		mtr);	/*!< in: mtr */
 /**************************************************************************
 A basic partial test if an insert to the insert buffer could be possible and
 recommended. */
@@ -192,42 +192,41 @@ UNIV_INLINE
 ibool
 ibuf_should_try(
 /*============*/
-	dict_index_t*	index,			/* in: index where to insert */
-	ulint		ignore_sec_unique);	/* in: if != 0, we should
+	dict_index_t*	index,			/*!< in: index where to insert */
+	ulint		ignore_sec_unique);	/*!< in: if != 0, we should
 						ignore UNIQUE constraint on
 						a secondary index when we
 						decide */
 /**********************************************************************
 Returns TRUE if the current OS thread is performing an insert buffer
-routine. */
+routine.
+@return	TRUE if inside an insert buffer routine: for instance, a read-ahead of non-ibuf pages is then forbidden */
 UNIV_INTERN
 ibool
 ibuf_inside(void);
 /*=============*/
-		/* out: TRUE if inside an insert buffer routine: for instance,
-		a read-ahead of non-ibuf pages is then forbidden */
 /***************************************************************************
-Checks if a page address is an ibuf bitmap page (level 3 page) address. */
+Checks if a page address is an ibuf bitmap page (level 3 page) address.
+@return	TRUE if a bitmap page */
 UNIV_INLINE
 ibool
 ibuf_bitmap_page(
 /*=============*/
-			/* out: TRUE if a bitmap page */
-	ulint	zip_size,/* in: compressed page size in bytes;
+	ulint	zip_size,/*!< in: compressed page size in bytes;
 			0 for uncompressed pages */
-	ulint	page_no);/* in: page number */
+	ulint	page_no);/*!< in: page number */
 /***************************************************************************
 Checks if a page is a level 2 or 3 page in the ibuf hierarchy of pages.
-Must not be called when recv_no_ibuf_operations==TRUE. */
+Must not be called when recv_no_ibuf_operations==TRUE.
+@return	TRUE if level 2 or level 3 page */
 UNIV_INTERN
 ibool
 ibuf_page(
 /*======*/
-			/* out: TRUE if level 2 or level 3 page */
-	ulint	space,	/* in: space id */
-	ulint	zip_size,/* in: compressed page size in bytes, or 0 */
-	ulint	page_no,/* in: page number */
-	mtr_t*	mtr);	/* in: mtr which will contain an x-latch to the
+	ulint	space,	/*!< in: space id */
+	ulint	zip_size,/*!< in: compressed page size in bytes, or 0 */
+	ulint	page_no,/*!< in: page number */
+	mtr_t*	mtr);	/*!< in: mtr which will contain an x-latch to the
 			bitmap page if the page is not one of the fixed
 			address ibuf pages, or NULL, in which case a new
 			transaction is created. */
@@ -242,18 +241,18 @@ ibuf_free_excess_pages(void);
 /*************************************************************************
 Makes an index insert to the insert buffer, instead of directly to the disk
 page, if this is possible. Does not do insert if the index is clustered
-or unique. */
+or unique.
+@return	TRUE if success */
 UNIV_INTERN
 ibool
 ibuf_insert(
 /*========*/
-				/* out: TRUE if success */
-	const dtuple_t*	entry,	/* in: index entry to insert */
-	dict_index_t*	index,	/* in: index where to insert */
-	ulint		space,	/* in: space id where to insert */
-	ulint		zip_size,/* in: compressed page size in bytes, or 0 */
-	ulint		page_no,/* in: page number where to insert */
-	que_thr_t*	thr);	/* in: query thread */
+	const dtuple_t*	entry,	/*!< in: index entry to insert */
+	dict_index_t*	index,	/*!< in: index where to insert */
+	ulint		space,	/*!< in: space id where to insert */
+	ulint		zip_size,/*!< in: compressed page size in bytes, or 0 */
+	ulint		page_no,/*!< in: page number where to insert */
+	que_thr_t*	thr);	/*!< in: query thread */
 /*************************************************************************
 When an index page is read from a disk to the buffer pool, this function
 inserts to the page the possible index entries buffered in the insert buffer.
@@ -265,14 +264,14 @@ UNIV_INTERN
 void
 ibuf_merge_or_delete_for_page(
 /*==========================*/
-	buf_block_t*	block,	/* in: if page has been read from
+	buf_block_t*	block,	/*!< in: if page has been read from
 				disk, pointer to the page x-latched,
 				else NULL */
-	ulint		space,	/* in: space id of the index page */
-	ulint		page_no,/* in: page number of the index page */
-	ulint		zip_size,/* in: compressed page size in bytes,
+	ulint		space,	/*!< in: space id of the index page */
+	ulint		page_no,/*!< in: page number of the index page */
+	ulint		zip_size,/*!< in: compressed page size in bytes,
 				or 0 */
-	ibool		update_ibuf_bitmap);/* in: normally this is set
+	ibool		update_ibuf_bitmap);/*!< in: normally this is set
 				to TRUE, but if we have deleted or are
 				deleting the tablespace, then we
 				naturally do not want to update a
@@ -286,73 +285,68 @@ UNIV_INTERN
 void
 ibuf_delete_for_discarded_space(
 /*============================*/
-	ulint	space);	/* in: space id */
+	ulint	space);	/*!< in: space id */
 /*************************************************************************
-Contracts insert buffer trees by reading pages to the buffer pool. */
+Contracts insert buffer trees by reading pages to the buffer pool.
+@return	a lower limit for the combined size in bytes of entries which will be merged from ibuf trees to the pages read, 0 if ibuf is empty */
 UNIV_INTERN
 ulint
 ibuf_contract(
 /*==========*/
-			/* out: a lower limit for the combined size in bytes
-			of entries which will be merged from ibuf trees to the
-			pages read, 0 if ibuf is empty */
-	ibool	sync);	/* in: TRUE if the caller wants to wait for the
+	ibool	sync);	/*!< in: TRUE if the caller wants to wait for the
 			issued read with the highest tablespace address
 			to complete */
 /*************************************************************************
-Contracts insert buffer trees by reading pages to the buffer pool. */
+Contracts insert buffer trees by reading pages to the buffer pool.
+@return	a lower limit for the combined size in bytes of entries which will be merged from ibuf trees to the pages read, 0 if ibuf is empty */
 UNIV_INTERN
 ulint
 ibuf_contract_for_n_pages(
 /*======================*/
-			/* out: a lower limit for the combined size in bytes
-			of entries which will be merged from ibuf trees to the
-			pages read, 0 if ibuf is empty */
-	ibool	sync,	/* in: TRUE if the caller wants to wait for the
+	ibool	sync,	/*!< in: TRUE if the caller wants to wait for the
 			issued read with the highest tablespace address
 			to complete */
-	ulint	n_pages);/* in: try to read at least this many pages to
+	ulint	n_pages);/*!< in: try to read at least this many pages to
 			the buffer pool and merge the ibuf contents to
 			them */
 #endif /* !UNIV_HOTBACKUP */
 /*************************************************************************
-Parses a redo log record of an ibuf bitmap page init. */
+Parses a redo log record of an ibuf bitmap page init.
+@return	end of log record or NULL */
 UNIV_INTERN
 byte*
 ibuf_parse_bitmap_init(
 /*===================*/
-				/* out: end of log record or NULL */
-	byte*		ptr,	/* in: buffer */
-	byte*		end_ptr,/* in: buffer end */
-	buf_block_t*	block,	/* in: block or NULL */
-	mtr_t*		mtr);	/* in: mtr or NULL */
+	byte*		ptr,	/*!< in: buffer */
+	byte*		end_ptr,/*!< in: buffer end */
+	buf_block_t*	block,	/*!< in: block or NULL */
+	mtr_t*		mtr);	/*!< in: mtr or NULL */
 #ifndef UNIV_HOTBACKUP
 #ifdef UNIV_IBUF_COUNT_DEBUG
 /**********************************************************************
-Gets the ibuf count for a given page. */
+Gets the ibuf count for a given page.
+@return	number of entries in the insert buffer currently buffered for this page */
 UNIV_INTERN
 ulint
 ibuf_count_get(
 /*===========*/
-			/* out: number of entries in the insert buffer
-			currently buffered for this page */
-	ulint	space,	/* in: space id */
-	ulint	page_no);/* in: page number */
+	ulint	space,	/*!< in: space id */
+	ulint	page_no);/*!< in: page number */
 #endif
 /**********************************************************************
-Looks if the insert buffer is empty. */
+Looks if the insert buffer is empty.
+@return	TRUE if empty */
 UNIV_INTERN
 ibool
 ibuf_is_empty(void);
 /*===============*/
-			/* out: TRUE if empty */
 /**********************************************************************
 Prints info of ibuf. */
 UNIV_INTERN
 void
 ibuf_print(
 /*=======*/
-	FILE*	file);	/* in: file where to print */
+	FILE*	file);	/*!< in: file where to print */
 
 #define IBUF_HEADER_PAGE_NO	FSP_IBUF_HEADER_PAGE_NO
 #define IBUF_TREE_ROOT_PAGE_NO	FSP_IBUF_TREE_ROOT_PAGE_NO

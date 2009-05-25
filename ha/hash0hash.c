@@ -36,8 +36,8 @@ UNIV_INTERN
 void
 hash_mutex_enter(
 /*=============*/
-	hash_table_t*	table,	/* in: hash table */
-	ulint		fold)	/* in: fold */
+	hash_table_t*	table,	/*!< in: hash table */
+	ulint		fold)	/*!< in: fold */
 {
 	mutex_enter(hash_get_mutex(table, fold));
 }
@@ -48,8 +48,8 @@ UNIV_INTERN
 void
 hash_mutex_exit(
 /*============*/
-	hash_table_t*	table,	/* in: hash table */
-	ulint		fold)	/* in: fold */
+	hash_table_t*	table,	/*!< in: hash table */
+	ulint		fold)	/*!< in: fold */
 {
 	mutex_exit(hash_get_mutex(table, fold));
 }
@@ -60,7 +60,7 @@ UNIV_INTERN
 void
 hash_mutex_enter_all(
 /*=================*/
-	hash_table_t*	table)	/* in: hash table */
+	hash_table_t*	table)	/*!< in: hash table */
 {
 	ulint	i;
 
@@ -76,7 +76,7 @@ UNIV_INTERN
 void
 hash_mutex_exit_all(
 /*================*/
-	hash_table_t*	table)	/* in: hash table */
+	hash_table_t*	table)	/*!< in: hash table */
 {
 	ulint	i;
 
@@ -89,13 +89,13 @@ hash_mutex_exit_all(
 
 /*****************************************************************
 Creates a hash table with >= n array cells. The actual number of cells is
-chosen to be a prime number slightly bigger than n. */
+chosen to be a prime number slightly bigger than n.
+@return	own: created table */
 UNIV_INTERN
 hash_table_t*
 hash_create(
 /*========*/
-			/* out, own: created table */
-	ulint	n)	/* in: number of array cells */
+	ulint	n)	/*!< in: number of array cells */
 {
 	hash_cell_t*	array;
 	ulint		prime;
@@ -132,7 +132,7 @@ UNIV_INTERN
 void
 hash_table_free(
 /*============*/
-	hash_table_t*	table)	/* in, own: hash table */
+	hash_table_t*	table)	/*!< in, own: hash table */
 {
 #ifndef UNIV_HOTBACKUP
 	ut_a(table->mutexes == NULL);
@@ -149,12 +149,12 @@ UNIV_INTERN
 void
 hash_create_mutexes_func(
 /*=====================*/
-	hash_table_t*	table,		/* in: hash table */
+	hash_table_t*	table,		/*!< in: hash table */
 #ifdef UNIV_SYNC_DEBUG
-	ulint		sync_level,	/* in: latching order level of the
+	ulint		sync_level,	/*!< in: latching order level of the
 					mutexes: used in the debug version */
 #endif /* UNIV_SYNC_DEBUG */
-	ulint		n_mutexes)	/* in: number of mutexes, must be a
+	ulint		n_mutexes)	/*!< in: number of mutexes, must be a
 					power of 2 */
 {
 	ulint	i;

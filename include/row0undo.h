@@ -36,37 +36,35 @@ Created 1/8/1997 Heikki Tuuri
 #include "row0types.h"
 
 /************************************************************************
-Creates a row undo node to a query graph. */
+Creates a row undo node to a query graph.
+@return	own: undo node */
 UNIV_INTERN
 undo_node_t*
 row_undo_node_create(
 /*=================*/
-				/* out, own: undo node */
-	trx_t*		trx,	/* in: transaction */
-	que_thr_t*	parent,	/* in: parent node, i.e., a thr node */
-	mem_heap_t*	heap);	/* in: memory heap where created */
+	trx_t*		trx,	/*!< in: transaction */
+	que_thr_t*	parent,	/*!< in: parent node, i.e., a thr node */
+	mem_heap_t*	heap);	/*!< in: memory heap where created */
 /***************************************************************
 Looks for the clustered index record when node has the row reference.
 The pcur in node is used in the search. If found, stores the row to node,
 and stores the position of pcur, and detaches it. The pcur must be closed
-by the caller in any case. */
+by the caller in any case.
+@return	TRUE if found; NOTE the node->pcur must be closed by the caller, regardless of the return value */
 UNIV_INTERN
 ibool
 row_undo_search_clust_to_pcur(
 /*==========================*/
-				/* out: TRUE if found; NOTE the node->pcur
-				must be closed by the caller, regardless of
-				the return value */
-	undo_node_t*	node);	/* in: row undo node */
+	undo_node_t*	node);	/*!< in: row undo node */
 /***************************************************************
 Undoes a row operation in a table. This is a high-level function used
-in SQL execution graphs. */
+in SQL execution graphs.
+@return	query thread to run next or NULL */
 UNIV_INTERN
 que_thr_t*
 row_undo_step(
 /*==========*/
-				/* out: query thread to run next or NULL */
-	que_thr_t*	thr);	/* in: query thread */
+	que_thr_t*	thr);	/*!< in: query thread */
 
 /* A single query thread will try to perform the undo for all successive
 versions of a clustered index record, if the transaction has modified it

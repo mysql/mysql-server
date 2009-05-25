@@ -49,12 +49,12 @@ X[0] = ut_time_us(NULL)
 a = 1103515245 (3^5 * 5 * 7 * 129749)
 c = 12345 (3 * 5 * 823)
 m = 18446744073709551616 (2^64)
-*/
+
+@return	number between 0 and 2^64-1 */
 static
 ib_uint64_t
 page_cur_lcg_prng(void)
 /*===================*/
-			/* out: number between 0 and 2^64-1 */
 {
 #define LCG_a	1103515245
 #define LCG_c	12345
@@ -74,30 +74,30 @@ page_cur_lcg_prng(void)
 }
 
 /********************************************************************
-Tries a search shortcut based on the last insert. */
+Tries a search shortcut based on the last insert.
+@return	TRUE on success */
 UNIV_INLINE
 ibool
 page_cur_try_search_shortcut(
 /*=========================*/
-					/* out: TRUE on success */
-	const buf_block_t*	block,	/* in: index page */
-	const dict_index_t*	index,	/* in: record descriptor */
-	const dtuple_t*		tuple,	/* in: data tuple */
+	const buf_block_t*	block,	/*!< in: index page */
+	const dict_index_t*	index,	/*!< in: record descriptor */
+	const dtuple_t*		tuple,	/*!< in: data tuple */
 	ulint*			iup_matched_fields,
-					/* in/out: already matched
+					/*!< in/out: already matched
 					fields in upper limit record */
 	ulint*			iup_matched_bytes,
-					/* in/out: already matched
+					/*!< in/out: already matched
 					bytes in a field not yet
 					completely matched */
 	ulint*			ilow_matched_fields,
-					/* in/out: already matched
+					/*!< in/out: already matched
 					fields in lower limit record */
 	ulint*			ilow_matched_bytes,
-					/* in/out: already matched
+					/*!< in/out: already matched
 					bytes in a field not yet
 					completely matched */
-	page_cur_t*		cursor) /* out: page cursor */
+	page_cur_t*		cursor) /*!< out: page cursor */
 {
 	const rec_t*	rec;
 	const rec_t*	next_rec;
@@ -191,17 +191,16 @@ exit_func:
 /********************************************************************
 Checks if the nth field in a record is a character type field which extends
 the nth field in tuple, i.e., the field is longer or equal in length and has
-common first characters. */
+common first characters.
+@return	TRUE if rec field extends tuple field */
 static
 ibool
 page_cur_rec_field_extends(
 /*=======================*/
-				/* out: TRUE if rec field
-				extends tuple field */
-	const dtuple_t*	tuple,	/* in: data tuple */
-	const rec_t*	rec,	/* in: record */
-	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
-	ulint		n)	/* in: compare nth field */
+	const dtuple_t*	tuple,	/*!< in: data tuple */
+	const rec_t*	rec,	/*!< in: record */
+	const ulint*	offsets,/*!< in: array returned by rec_get_offsets() */
+	ulint		n)	/*!< in: compare nth field */
 {
 	const dtype_t*	type;
 	const dfield_t*	dfield;
@@ -245,27 +244,27 @@ UNIV_INTERN
 void
 page_cur_search_with_match(
 /*=======================*/
-	const buf_block_t*	block,	/* in: buffer block */
-	const dict_index_t*	index,	/* in: record descriptor */
-	const dtuple_t*		tuple,	/* in: data tuple */
-	ulint			mode,	/* in: PAGE_CUR_L,
+	const buf_block_t*	block,	/*!< in: buffer block */
+	const dict_index_t*	index,	/*!< in: record descriptor */
+	const dtuple_t*		tuple,	/*!< in: data tuple */
+	ulint			mode,	/*!< in: PAGE_CUR_L,
 					PAGE_CUR_LE, PAGE_CUR_G, or
 					PAGE_CUR_GE */
 	ulint*			iup_matched_fields,
-					/* in/out: already matched
+					/*!< in/out: already matched
 					fields in upper limit record */
 	ulint*			iup_matched_bytes,
-					/* in/out: already matched
+					/*!< in/out: already matched
 					bytes in a field not yet
 					completely matched */
 	ulint*			ilow_matched_fields,
-					/* in/out: already matched
+					/*!< in/out: already matched
 					fields in lower limit record */
 	ulint*			ilow_matched_bytes,
-					/* in/out: already matched
+					/*!< in/out: already matched
 					bytes in a field not yet
 					completely matched */
-	page_cur_t*		cursor)	/* out: page cursor */
+	page_cur_t*		cursor)	/*!< out: page cursor */
 {
 	ulint		up;
 	ulint		low;
@@ -544,8 +543,8 @@ UNIV_INTERN
 void
 page_cur_open_on_rnd_user_rec(
 /*==========================*/
-	buf_block_t*	block,	/* in: page */
-	page_cur_t*	cursor)	/* out: page cursor */
+	buf_block_t*	block,	/*!< in: page */
+	page_cur_t*	cursor)	/*!< out: page cursor */
 {
 	ulint	rnd;
 	ulint	n_recs = page_get_n_recs(buf_block_get_frame(block));
@@ -570,12 +569,12 @@ static
 void
 page_cur_insert_rec_write_log(
 /*==========================*/
-	rec_t*		insert_rec,	/* in: inserted physical record */
-	ulint		rec_size,	/* in: insert_rec size */
-	rec_t*		cursor_rec,	/* in: record the
+	rec_t*		insert_rec,	/*!< in: inserted physical record */
+	ulint		rec_size,	/*!< in: insert_rec size */
+	rec_t*		cursor_rec,	/*!< in: record the
 					cursor is pointing to */
-	dict_index_t*	index,		/* in: record descriptor */
-	mtr_t*		mtr)		/* in: mini-transaction handle */
+	dict_index_t*	index,		/*!< in: record descriptor */
+	mtr_t*		mtr)		/*!< in: mini-transaction handle */
 {
 	ulint	cur_rec_size;
 	ulint	extra_size;
@@ -750,18 +749,18 @@ need_extra_info:
 #endif /* !UNIV_HOTBACKUP */
 
 /***************************************************************
-Parses a log record of a record insert on a page. */
+Parses a log record of a record insert on a page.
+@return	end of log record or NULL */
 UNIV_INTERN
 byte*
 page_cur_parse_insert_rec(
 /*======================*/
-				/* out: end of log record or NULL */
-	ibool		is_short,/* in: TRUE if short inserts */
-	byte*		ptr,	/* in: buffer */
-	byte*		end_ptr,/* in: buffer end */
-	buf_block_t*	block,	/* in: page or NULL */
-	dict_index_t*	index,	/* in: record descriptor */
-	mtr_t*		mtr)	/* in: mtr or NULL */
+	ibool		is_short,/*!< in: TRUE if short inserts */
+	byte*		ptr,	/*!< in: buffer */
+	byte*		end_ptr,/*!< in: buffer end */
+	buf_block_t*	block,	/*!< in: page or NULL */
+	dict_index_t*	index,	/*!< in: record descriptor */
+	mtr_t*		mtr)	/*!< in: mtr or NULL */
 {
 	ulint	origin_offset;
 	ulint	end_seg_len;
@@ -943,19 +942,18 @@ page_cur_parse_insert_rec(
 /***************************************************************
 Inserts a record next to page cursor on an uncompressed page.
 Returns pointer to inserted record if succeed, i.e., enough
-space available, NULL otherwise. The cursor stays at the same position. */
+space available, NULL otherwise. The cursor stays at the same position.
+@return	pointer to record if succeed, NULL otherwise */
 UNIV_INTERN
 rec_t*
 page_cur_insert_rec_low(
 /*====================*/
-				/* out: pointer to record if succeed, NULL
-				otherwise */
-	rec_t*		current_rec,/* in: pointer to current record after
+	rec_t*		current_rec,/*!< in: pointer to current record after
 				which the new record is inserted */
-	dict_index_t*	index,	/* in: record descriptor */
-	const rec_t*	rec,	/* in: pointer to a physical record */
-	ulint*		offsets,/* in/out: rec_get_offsets(rec, index) */
-	mtr_t*		mtr)	/* in: mini-transaction handle, or NULL */
+	dict_index_t*	index,	/*!< in: record descriptor */
+	const rec_t*	rec,	/*!< in: pointer to a physical record */
+	ulint*		offsets,/*!< in/out: rec_get_offsets(rec, index) */
+	mtr_t*		mtr)	/*!< in: mini-transaction handle, or NULL */
 {
 	byte*		insert_buf;
 	ulint		rec_size;
@@ -1154,20 +1152,20 @@ use_heap:
 }
 
 /***************************************************************
-Compresses or reorganizes a page after an optimistic insert. */
+Compresses or reorganizes a page after an optimistic insert.
+@return	rec if succeed, NULL otherwise */
 static
 rec_t*
 page_cur_insert_rec_zip_reorg(
 /*==========================*/
-				/* out: rec if succeed, NULL otherwise */
-	rec_t**		current_rec,/* in/out: pointer to current record after
+	rec_t**		current_rec,/*!< in/out: pointer to current record after
 				which the new record is inserted */
-	buf_block_t*	block,	/* in: buffer block */
-	dict_index_t*	index,	/* in: record descriptor */
-	rec_t*		rec,	/* in: inserted record */
-	page_t*		page,	/* in: uncompressed page */
-	page_zip_des_t*	page_zip,/* in: compressed page */
-	mtr_t*		mtr)	/* in: mini-transaction, or NULL */
+	buf_block_t*	block,	/*!< in: buffer block */
+	dict_index_t*	index,	/*!< in: record descriptor */
+	rec_t*		rec,	/*!< in: inserted record */
+	page_t*		page,	/*!< in: uncompressed page */
+	page_zip_des_t*	page_zip,/*!< in: compressed page */
+	mtr_t*		mtr)	/*!< in: mini-transaction, or NULL */
 {
 	ulint		pos;
 
@@ -1207,20 +1205,19 @@ page_cur_insert_rec_zip_reorg(
 Inserts a record next to page cursor on a compressed and uncompressed
 page. Returns pointer to inserted record if succeed, i.e.,
 enough space available, NULL otherwise.
-The cursor stays at the same position. */
+The cursor stays at the same position.
+@return	pointer to record if succeed, NULL otherwise */
 UNIV_INTERN
 rec_t*
 page_cur_insert_rec_zip(
 /*====================*/
-				/* out: pointer to record if succeed, NULL
-				otherwise */
-	rec_t**		current_rec,/* in/out: pointer to current record after
+	rec_t**		current_rec,/*!< in/out: pointer to current record after
 				which the new record is inserted */
-	buf_block_t*	block,	/* in: buffer block of *current_rec */
-	dict_index_t*	index,	/* in: record descriptor */
-	const rec_t*	rec,	/* in: pointer to a physical record */
-	ulint*		offsets,/* in/out: rec_get_offsets(rec, index) */
-	mtr_t*		mtr)	/* in: mini-transaction handle, or NULL */
+	buf_block_t*	block,	/*!< in: buffer block of *current_rec */
+	dict_index_t*	index,	/*!< in: record descriptor */
+	const rec_t*	rec,	/*!< in: pointer to a physical record */
+	ulint*		offsets,/*!< in/out: rec_get_offsets(rec, index) */
+	mtr_t*		mtr)	/*!< in: mini-transaction handle, or NULL */
 {
 	byte*		insert_buf;
 	ulint		rec_size;
@@ -1503,17 +1500,15 @@ use_heap:
 
 #ifndef UNIV_HOTBACKUP
 /**************************************************************
-Writes a log record of copying a record list end to a new created page. */
+Writes a log record of copying a record list end to a new created page.
+@return	4-byte field where to write the log data length, or NULL if logging is disabled */
 UNIV_INLINE
 byte*
 page_copy_rec_list_to_created_page_write_log(
 /*=========================================*/
-				/* out: 4-byte field where to
-				write the log data length,
-				or NULL if logging is disabled */
-	page_t*		page,	/* in: index page */
-	dict_index_t*	index,	/* in: record descriptor */
-	mtr_t*		mtr)	/* in: mtr */
+	page_t*		page,	/*!< in: index page */
+	dict_index_t*	index,	/*!< in: record descriptor */
+	mtr_t*		mtr)	/*!< in: mtr */
 {
 	byte*	log_ptr;
 
@@ -1532,17 +1527,17 @@ page_copy_rec_list_to_created_page_write_log(
 #endif /* !UNIV_HOTBACKUP */
 
 /**************************************************************
-Parses a log record of copying a record list end to a new created page. */
+Parses a log record of copying a record list end to a new created page.
+@return	end of log record or NULL */
 UNIV_INTERN
 byte*
 page_parse_copy_rec_list_to_created_page(
 /*=====================================*/
-				/* out: end of log record or NULL */
-	byte*		ptr,	/* in: buffer */
-	byte*		end_ptr,/* in: buffer end */
-	buf_block_t*	block,	/* in: page or NULL */
-	dict_index_t*	index,	/* in: record descriptor */
-	mtr_t*		mtr)	/* in: mtr or NULL */
+	byte*		ptr,	/*!< in: buffer */
+	byte*		end_ptr,/*!< in: buffer end */
+	buf_block_t*	block,	/*!< in: page or NULL */
+	dict_index_t*	index,	/*!< in: record descriptor */
+	mtr_t*		mtr)	/*!< in: mtr or NULL */
 {
 	byte*		rec_end;
 	ulint		log_data_len;
@@ -1595,10 +1590,10 @@ UNIV_INTERN
 void
 page_copy_rec_list_end_to_created_page(
 /*===================================*/
-	page_t*		new_page,	/* in/out: index page to copy to */
-	rec_t*		rec,		/* in: first record to copy */
-	dict_index_t*	index,		/* in: record descriptor */
-	mtr_t*		mtr)		/* in: mtr */
+	page_t*		new_page,	/*!< in/out: index page to copy to */
+	rec_t*		rec,		/*!< in: first record to copy */
+	dict_index_t*	index,		/*!< in: record descriptor */
+	mtr_t*		mtr)		/*!< in: mtr */
 {
 	page_dir_slot_t* slot = 0; /* remove warning */
 	byte*	heap_top;
@@ -1767,9 +1762,9 @@ UNIV_INLINE
 void
 page_cur_delete_rec_write_log(
 /*==========================*/
-	rec_t*		rec,	/* in: record to be deleted */
-	dict_index_t*	index,	/* in: record descriptor */
-	mtr_t*		mtr)	/* in: mini-transaction handle */
+	rec_t*		rec,	/*!< in: record to be deleted */
+	dict_index_t*	index,	/*!< in: record descriptor */
+	mtr_t*		mtr)	/*!< in: mini-transaction handle */
 {
 	byte*	log_ptr;
 
@@ -1796,17 +1791,17 @@ page_cur_delete_rec_write_log(
 #endif /* !UNIV_HOTBACKUP */
 
 /***************************************************************
-Parses log record of a record delete on a page. */
+Parses log record of a record delete on a page.
+@return	pointer to record end or NULL */
 UNIV_INTERN
 byte*
 page_cur_parse_delete_rec(
 /*======================*/
-				/* out: pointer to record end or NULL */
-	byte*		ptr,	/* in: buffer */
-	byte*		end_ptr,/* in: buffer end */
-	buf_block_t*	block,	/* in: page or NULL */
-	dict_index_t*	index,	/* in: record descriptor */
-	mtr_t*		mtr)	/* in: mtr or NULL */
+	byte*		ptr,	/*!< in: buffer */
+	byte*		end_ptr,/*!< in: buffer end */
+	buf_block_t*	block,	/*!< in: page or NULL */
+	dict_index_t*	index,	/*!< in: record descriptor */
+	mtr_t*		mtr)	/*!< in: mtr or NULL */
 {
 	ulint		offset;
 	page_cur_t	cursor;
@@ -1851,10 +1846,10 @@ UNIV_INTERN
 void
 page_cur_delete_rec(
 /*================*/
-	page_cur_t*	cursor,	/* in/out: a page cursor */
-	dict_index_t*	index,	/* in: record descriptor */
-	const ulint*	offsets,/* in: rec_get_offsets(cursor->rec, index) */
-	mtr_t*		mtr)	/* in: mini-transaction handle */
+	page_cur_t*	cursor,	/*!< in/out: a page cursor */
+	dict_index_t*	index,	/*!< in: record descriptor */
+	const ulint*	offsets,/*!< in: rec_get_offsets(cursor->rec, index) */
+	mtr_t*		mtr)	/*!< in: mini-transaction handle */
 {
 	page_dir_slot_t* cur_dir_slot;
 	page_dir_slot_t* prev_slot;
@@ -1970,7 +1965,7 @@ Print the first n numbers, generated by page_cur_lcg_prng() to make sure
 void
 test_page_cur_lcg_prng(
 /*===================*/
-	int	n)	/* in: print first n numbers */
+	int	n)	/*!< in: print first n numbers */
 {
 	int			i;
 	unsigned long long	rnd;

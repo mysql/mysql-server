@@ -27,13 +27,13 @@ Created 1/20/1998 Heikki Tuuri
 #include "eval0eval.h"
 
 /**************************************************************************
-Performs an execution step of a procedure node. */
+Performs an execution step of a procedure node.
+@return	query thread to run next or NULL */
 UNIV_INLINE
 que_thr_t*
 proc_step(
 /*======*/
-				/* out: query thread to run next or NULL */
-	que_thr_t*	thr)	/* in: query thread */
+	que_thr_t*	thr)	/*!< in: query thread */
 {
 	proc_node_t*	node;
 
@@ -62,13 +62,13 @@ proc_step(
 }
 
 /**************************************************************************
-Performs an execution step of a procedure call node. */
+Performs an execution step of a procedure call node.
+@return	query thread to run next or NULL */
 UNIV_INLINE
 que_thr_t*
 proc_eval_step(
 /*===========*/
-				/* out: query thread to run next or NULL */
-	que_thr_t*	thr)	/* in: query thread */
+	que_thr_t*	thr)	/*!< in: query thread */
 {
 	func_node_t*	node;
 
