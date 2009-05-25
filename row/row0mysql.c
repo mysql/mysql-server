@@ -52,30 +52,43 @@ Created 9/17/2000 Heikki Tuuri
 #include "fil0fil.h"
 #include "ibuf0ibuf.h"
 
-/* Provide optional 4.x backwards compatibility for 5.0 and above */
+/** Provide optional 4.x backwards compatibility for 5.0 and above */
 UNIV_INTERN ibool	row_rollback_on_timeout	= FALSE;
 
-/* List of tables we should drop in background. ALTER TABLE in MySQL requires
-that the table handler can drop the table in background when there are no
-queries to it any more. Protected by the kernel mutex. */
+/** Chain node of the list of tables to drop in the background. */
 typedef struct row_mysql_drop_struct	row_mysql_drop_t;
+
+/** Chain node of the list of tables to drop in the background. */
 struct row_mysql_drop_struct{
-	char*				table_name;
-	UT_LIST_NODE_T(row_mysql_drop_t) row_mysql_drop_list;
+	char*				table_name;	/*!< table name */
+	UT_LIST_NODE_T(row_mysql_drop_t)row_mysql_drop_list;
+							/*!< list chain node */
 };
 
+/** @brief List of tables we should drop in background.
+
+ALTER TABLE in MySQL requires that the table handler can drop the
+table in background when there are no queries to it any
+more.  Protected by kernel_mutex. */
 static UT_LIST_BASE_NODE_T(row_mysql_drop_t)	row_mysql_drop_list;
+/** Flag: has row_mysql_drop_list been initialized? */
 static ibool	row_mysql_drop_list_inited	= FALSE;
 
-/* Magic table names for invoking various monitor threads */
+/** Magic table names for invoking various monitor threads */
+/* @{ */
 static const char S_innodb_monitor[] = "innodb_monitor";
 static const char S_innodb_lock_monitor[] = "innodb_lock_monitor";
 static const char S_innodb_tablespace_monitor[] = "innodb_tablespace_monitor";
 static const char S_innodb_table_monitor[] = "innodb_table_monitor";
 static const char S_innodb_mem_validate[] = "innodb_mem_validate";
+/* @} */
 
-/* Evaluates to true if str1 equals str2_onstack, used for comparing
-the above strings. */
+/** Evaluates to true if str1 equals str2_onstack, used for comparing
+the magic table names.
+@param str1		in: string to compare
+@param str1_len 	in: length of str1, in bytes, including terminating NUL
+@param str2_onstack	in: char[] array containing a NUL terminated string
+@return			TRUE if str1 equals str2_onstack */
 #define STR_EQ(str1, str1_len, str2_onstack) \
 	((str1_len) == sizeof(str2_onstack) \
 	 && memcmp(str1, str2_onstack, sizeof(str2_onstack)) == 0)
@@ -3379,7 +3392,7 @@ drop_all_foreign_keys_in_db(
 
 	pars_info_add_str_literal(pinfo, "dbname", name);
 
-/* true if for_name is not prefixed with dbname */
+/** true if for_name is not prefixed with dbname */
 #define TABLE_NOT_IN_THIS_DB \
 "SUBSTR(for_name, 0, LENGTH(:dbname)) <> :dbname"
 

@@ -35,41 +35,50 @@ Created 6/2/1994 Heikki Tuuri
 #include "btr0types.h"
 
 #ifndef UNIV_HOTBACKUP
-/* Maximum record size which can be stored on a page, without using the
+/** Maximum record size which can be stored on a page, without using the
 special big record storage structure */
-
 #define	BTR_PAGE_MAX_REC_SIZE	(UNIV_PAGE_SIZE / 2 - 200)
 
-/* Maximum depth of a B-tree in InnoDB. Note that this isn't a maximum as
-such; none of the tree operations avoid producing trees bigger than this. It
-is instead a "max depth that other code must work with", useful for e.g.
-fixed-size arrays that must store some information about each level in a
-tree. In other words: if a B-tree with bigger depth than this is
-encountered, it is not acceptable for it to lead to mysterious memory
-corruption, but it is acceptable for the program to die with a clear assert
-failure. */
+/** @brief Maximum depth of a B-tree in InnoDB.
+
+Note that this isn't a maximum as such; none of the tree operations
+avoid producing trees bigger than this. It is instead a "max depth
+that other code must work with", useful for e.g.  fixed-size arrays
+that must store some information about each level in a tree. In other
+words: if a B-tree with bigger depth than this is encountered, it is
+not acceptable for it to lead to mysterious memory corruption, but it
+is acceptable for the program to die with a clear assert failure. */
 #define BTR_MAX_LEVELS		100
 
-/* Latching modes for btr_cur_search_to_nth_level(). */
-#define BTR_SEARCH_LEAF		RW_S_LATCH
-#define BTR_MODIFY_LEAF		RW_X_LATCH
-#define BTR_NO_LATCHES		RW_NO_LATCH
-#define	BTR_MODIFY_TREE		33
-#define	BTR_CONT_MODIFY_TREE	34
-#define	BTR_SEARCH_PREV		35
-#define	BTR_MODIFY_PREV		36
+/** Latching modes for btr_cur_search_to_nth_level(). */
+enum btr_latch_mode {
+	/** Search a record on a leaf page and S-latch it. */
+	BTR_SEARCH_LEAF = RW_S_LATCH,
+	/** (Prepare to) modify a record on a leaf page and X-latch it. */
+	BTR_MODIFY_LEAF	= RW_X_LATCH,
+	/** Obtain no latches. */
+	BTR_NO_LATCHES = RW_NO_LATCH,
+	/** Start modifying the entire B-tree. */
+	BTR_MODIFY_TREE = 33,
+	/** Continue modifying the entire B-tree. */
+	BTR_CONT_MODIFY_TREE = 34,
+	/** Search the previous record. */
+	BTR_SEARCH_PREV = 35,
+	/** Modify the previous record. */
+	BTR_MODIFY_PREV = 36
+};
 
-/* If this is ORed to the latch mode, it means that the search tuple will be
-inserted to the index, at the searched position */
+/** If this is ORed to btr_latch_mode, it means that the search tuple
+will be inserted to the index, at the searched position */
 #define BTR_INSERT		512
 
-/* This flag ORed to latch mode says that we do the search in query
+/** This flag ORed to btr_latch_mode says that we do the search in query
 optimization */
 #define BTR_ESTIMATE		1024
 
-/* This flag ORed to latch mode says that we can ignore possible
-UNIQUE definition on secondary indexes when we decide if we can use the
-insert buffer to speed up inserts */
+/** This flag ORed to btr_latch_mode says that we can ignore possible
+UNIQUE definition on secondary indexes when we decide if we can use
+the insert buffer to speed up inserts */
 #define BTR_IGNORE_SEC_UNIQUE	2048
 
 /**************************************************************//**

@@ -72,23 +72,32 @@ ha_storage_put_memlim(
 	ulint		memlim);	/*!< in: memory limit to obey */
 
 /*******************************************************************//**
-Same as ha_storage_put_memlim() but without memory limit. */
-
+Same as ha_storage_put_memlim() but without memory limit.
+@param storage	in/out: hash storage
+@param data	in: data to store
+@param data_len	in: data length
+@return		pointer to the copy of the string */
 #define ha_storage_put(storage, data, data_len)	\
 	ha_storage_put_memlim((storage), (data), (data_len), 0)
 
 /*******************************************************************//**
 Copies string into the storage and returns a pointer to the copy. If the
 same string is already present, then pointer to it is returned.
-Strings are considered to be equal if strcmp(str1, str2) == 0. */
-
+Strings are considered to be equal if strcmp(str1, str2) == 0.
+@param storage	in/out: hash storage
+@param str	in: string to put
+@return		pointer to the copy of the string */
 #define ha_storage_put_str(storage, str)	\
 	((const char*) ha_storage_put((storage), (str), strlen(str) + 1))
 
 /*******************************************************************//**
 Copies string into the storage and returns a pointer to the copy obeying
-a memory limit. */
-
+a memory limit.
+If the same string is already present, then pointer to it is returned.
+Strings are considered to be equal if strcmp(str1, str2) == 0.
+@param storage	in/out: hash storage
+@param str	in: string to put
+@return		pointer to the copy of the string */
 #define ha_storage_put_str_memlim(storage, str, memlim)	\
 	((const char*) ha_storage_put_memlim((storage), (str),	\
 					     strlen(str) + 1, (memlim)))

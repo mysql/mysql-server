@@ -58,57 +58,62 @@ Completed by Sunny Bains and Marko Makela
 #include "handler0alter.h"
 
 #ifdef UNIV_DEBUG
-/* Set these in order ot enable debug printout. */
+/** Set these in order ot enable debug printout. */
+/* @{ */
 static ibool	row_merge_print_cmp;
 static ibool	row_merge_print_read;
 static ibool	row_merge_print_write;
+/* @} */
 #endif /* UNIV_DEBUG */
 
-/* Block size for I/O operations in merge sort.  The minimum is
-UNIV_PAGE_SIZE, or page_get_free_space_of_empty() rounded to a power of 2.
+/** @brief Block size for I/O operations in merge sort.
+
+The minimum is UNIV_PAGE_SIZE, or page_get_free_space_of_empty()
+rounded to a power of 2.
 
 When not creating a PRIMARY KEY that contains column prefixes, this
 can be set as small as UNIV_PAGE_SIZE / 2.  See the comment above
 ut_ad(data_size < sizeof(row_merge_block_t)). */
-
 typedef byte	row_merge_block_t[1048576];
 
-/* Secondary buffer for I/O operations of merge records.  This buffer
-is used for writing or reading a record that spans two row_merge_block_t.
-Thus, it must be able to hold one merge record, whose maximum size is
-the same as the minimum size of row_merge_block_t. */
+/** @brief Secondary buffer for I/O operations of merge records.
 
+This buffer is used for writing or reading a record that spans two
+row_merge_block_t.  Thus, it must be able to hold one merge record,
+whose maximum size is the same as the minimum size of
+row_merge_block_t. */
 typedef byte	mrec_buf_t[UNIV_PAGE_SIZE];
 
-/* Merge record in row_merge_block_t.  The format is the same as a
-record in ROW_FORMAT=COMPACT with the exception that the
-REC_N_NEW_EXTRA_BYTES are omitted. */
+/** @brief Merge record in row_merge_block_t.
+
+The format is the same as a record in ROW_FORMAT=COMPACT with the
+exception that the REC_N_NEW_EXTRA_BYTES are omitted. */
 typedef byte	mrec_t;
 
-/* Buffer for sorting in main memory. */
+/** Buffer for sorting in main memory. */
 struct row_merge_buf_struct {
-	mem_heap_t*	heap;		/* memory heap where allocated */
-	dict_index_t*	index;		/* the index the tuples belong to */
-	ulint		total_size;	/* total amount of data bytes */
-	ulint		n_tuples;	/* number of data tuples */
-	ulint		max_tuples;	/* maximum number of data tuples */
-	const dfield_t**tuples;		/* array of pointers to
+	mem_heap_t*	heap;		/*!< memory heap where allocated */
+	dict_index_t*	index;		/*!< the index the tuples belong to */
+	ulint		total_size;	/*!< total amount of data bytes */
+	ulint		n_tuples;	/*!< number of data tuples */
+	ulint		max_tuples;	/*!< maximum number of data tuples */
+	const dfield_t**tuples;		/*!< array of pointers to
 					arrays of fields that form
 					the data tuples */
-	const dfield_t**tmp_tuples;	/* temporary copy of tuples,
+	const dfield_t**tmp_tuples;	/*!< temporary copy of tuples,
 					for sorting */
 };
 
+/** Buffer for sorting in main memory. */
 typedef struct row_merge_buf_struct row_merge_buf_t;
 
-/* Information about temporary files used in merge sort are stored
-to this structure */
-
+/** Information about temporary files used in merge sort */
 struct merge_file_struct {
-	int	fd;		/* File descriptor */
-	ulint	offset;		/* File offset */
+	int	fd;		/*!< file descriptor */
+	ulint	offset;		/*!< file offset */
 };
 
+/** Information about temporary files used in merge sort */
 typedef struct merge_file_struct merge_file_t;
 
 #ifdef UNIV_DEBUG
@@ -389,13 +394,14 @@ row_merge_buf_add(
 	return(TRUE);
 }
 
-/* Structure for reporting duplicate records. */
+/** Structure for reporting duplicate records. */
 struct row_merge_dup_struct {
-	const dict_index_t*	index;		/* index being sorted */
-	TABLE*			table;		/* MySQL table object */
-	ulint			n_dup;		/* number of duplicates */
+	const dict_index_t*	index;		/*!< index being sorted */
+	TABLE*			table;		/*!< MySQL table object */
+	ulint			n_dup;		/*!< number of duplicates */
 };
 
+/** Structure for reporting duplicate records. */
 typedef struct row_merge_dup_struct row_merge_dup_t;
 
 /*************************************************************//**
@@ -498,8 +504,19 @@ row_merge_tuple_sort(
 	ulint			high)	/*!< in: upper bound of the
 					sorting area, exclusive */
 {
+/** Wrapper for row_merge_tuple_sort() to inject some more context to
+UT_SORT_FUNCTION_BODY().
+@param a	array of tuples that being sorted
+@param b	aux (work area), same size as tuples[]
+@param c	lower bound of the sorting area, inclusive
+@param d	upper bound of the sorting area, inclusive */
 #define row_merge_tuple_sort_ctx(a,b,c,d) \
 	row_merge_tuple_sort(n_field, dup, a, b, c, d)
+/** Wrapper for row_merge_tuple_cmp() to inject some more context to
+UT_SORT_FUNCTION_BODY().
+@param a	first tuple to be compared
+@param b	second tuple to be compared
+@return	1, 0, -1 if a is greater, equal, less, respectively, than b */
 #define row_merge_tuple_cmp_ctx(a,b) row_merge_tuple_cmp(n_field, a, b, dup)
 
 	UT_SORT_FUNCTION_BODY(row_merge_tuple_sort_ctx,
@@ -1323,6 +1340,10 @@ row_merge_blocks(
 
 	/* Write a record and read the next record.  Split the output
 	file in two halves, which can be merged on the following pass. */
+
+/** Write a record via buffer 2 and read the next record to buffer N.
+@param N	number of the buffer (0 or 1)
+@param AT_END	statement to execute at end of input */
 #define ROW_MERGE_WRITE_GET_NEXT(N, AT_END)				\
 	do {								\
 		b2 = row_merge_write_rec(&block[2], &buf[2], b2,	\

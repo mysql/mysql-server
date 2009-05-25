@@ -33,6 +33,8 @@ Created 5/30/1994 Heikki Tuuri
 #include "mem0mem.h"
 #include "dict0types.h"
 
+/** Storage for overflow data in a big record, that is, a clustered
+index record which needs external storage of data fields */
 typedef struct big_rec_struct		big_rec_t;
 
 #ifdef UNIV_DEBUG
@@ -422,53 +424,56 @@ dtuple_big_rec_free(
 
 /*######################################################################*/
 
-/* Structure for an SQL data field */
+/** Structure for an SQL data field */
 struct dfield_struct{
-	void*		data;	/* pointer to data */
-	unsigned	ext:1;	/* TRUE=externally stored, FALSE=local */
-	unsigned	len:32;	/* data length; UNIV_SQL_NULL if SQL null */
-	dtype_t		type;	/* type of data */
+	void*		data;	/*!< pointer to data */
+	unsigned	ext:1;	/*!< TRUE=externally stored, FALSE=local */
+	unsigned	len:32;	/*!< data length; UNIV_SQL_NULL if SQL null */
+	dtype_t		type;	/*!< type of data */
 };
 
+/** Structure for an SQL data tuple of fields (logical record) */
 struct dtuple_struct {
-	ulint		info_bits;	/* info bits of an index record:
+	ulint		info_bits;	/*!< info bits of an index record:
 					the default is 0; this field is used
 					if an index record is built from
 					a data tuple */
-	ulint		n_fields;	/* number of fields in dtuple */
-	ulint		n_fields_cmp;	/* number of fields which should
+	ulint		n_fields;	/*!< number of fields in dtuple */
+	ulint		n_fields_cmp;	/*!< number of fields which should
 					be used in comparison services
 					of rem0cmp.*; the index search
 					is performed by comparing only these
 					fields, others are ignored; the
 					default value in dtuple creation is
 					the same value as n_fields */
-	dfield_t*	fields;		/* fields */
+	dfield_t*	fields;		/*!< fields */
 	UT_LIST_NODE_T(dtuple_t) tuple_list;
-					/* data tuples can be linked into a
+					/*!< data tuples can be linked into a
 					list using this field */
 #ifdef UNIV_DEBUG
-	ulint		magic_n;
+	ulint		magic_n;	/*!< magic number, used in
+					debug assertions */
+/** Value of dtuple_struct::magic_n */
 # define		DATA_TUPLE_MAGIC_N	65478679
 #endif /* UNIV_DEBUG */
 };
 
-/* A slot for a field in a big rec vector */
-
+/** A slot for a field in a big rec vector */
 typedef struct big_rec_field_struct	big_rec_field_t;
+/** A slot for a field in a big rec vector */
 struct big_rec_field_struct {
-	ulint		field_no;	/* field number in record */
-	ulint		len;		/* stored data len */
-	const void*	data;		/* stored data */
+	ulint		field_no;	/*!< field number in record */
+	ulint		len;		/*!< stored data length, in bytes */
+	const void*	data;		/*!< stored data */
 };
 
-/* Storage format for overflow data in a big record, that is, a record
-which needs external storage of data fields */
-
+/** Storage format for overflow data in a big record, that is, a
+clustered index record which needs external storage of data fields */
 struct big_rec_struct {
-	mem_heap_t*	heap;		/* memory heap from which allocated */
-	ulint		n_fields;	/* number of stored fields */
-	big_rec_field_t* fields;	/* stored fields */
+	mem_heap_t*	heap;		/*!< memory heap from which
+					allocated */
+	ulint		n_fields;	/*!< number of stored fields */
+	big_rec_field_t*fields;		/*!< stored fields */
 };
 
 #ifndef UNIV_NONINL
