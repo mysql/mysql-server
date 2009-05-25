@@ -77,7 +77,8 @@ cmp_data_data_slow(
 /*****************************************************************
 This function is used to compare two dfields where at least the first
 has its data type field set.
-@return	1, 0, -1, if dfield1 is greater, equal, less than dfield2, respectively */
+@return 1, 0, -1, if dfield1 is greater, equal, less than dfield2,
+respectively */
 UNIV_INLINE
 int
 cmp_dfield_dfield(
@@ -92,7 +93,9 @@ have either m >= n fields, or it must differ from dtuple in some of
 the m fields rec has. If rec has an externally stored field we do not
 compare it but return with value 0 if such a comparison should be
 made.
-@return	1, 0, -1, if dtuple is greater, equal, less than rec, respectively, when only the common first fields are compared, or until the first externally stored field in rec */
+@return 1, 0, -1, if dtuple is greater, equal, less than rec,
+respectively, when only the common first fields are compared, or until
+the first externally stored field in rec */
 UNIV_INTERN
 int
 cmp_dtuple_rec_with_match(
@@ -112,7 +115,8 @@ cmp_dtuple_rec_with_match(
 				value for current comparison */
 /******************************************************************
 Compares a data tuple to a physical record.
-@return	1, 0, -1, if dtuple is greater, equal, less than rec, respectively; see the comments for cmp_dtuple_rec_with_match */
+@see cmp_dtuple_rec_with_match
+@return 1, 0, -1, if dtuple is greater, equal, less than rec, respectively */
 UNIV_INTERN
 int
 cmp_dtuple_rec(
@@ -134,21 +138,21 @@ cmp_dtuple_is_prefix_of_rec(
 /*****************************************************************
 Compare two physical records that contain the same number of columns,
 none of which are stored externally.
-@return	1, 0 , -1 if rec1 is greater, equal, less, respectively, than rec2 */
+@return	1, 0, -1 if rec1 is greater, equal, less, respectively, than rec2 */
 UNIV_INTERN
 int
 cmp_rec_rec_simple(
 /*===============*/
 	const rec_t*		rec1,	/*!< in: physical record */
 	const rec_t*		rec2,	/*!< in: physical record */
-	const ulint*		offsets1,/*!< in: rec_get_offsets(rec1, index) */
-	const ulint*		offsets2,/*!< in: rec_get_offsets(rec2, index) */
+	const ulint*		offsets1,/*!< in: rec_get_offsets(rec1, ...) */
+	const ulint*		offsets2,/*!< in: rec_get_offsets(rec2, ...) */
 	const dict_index_t*	index);	/*!< in: data dictionary index */
 /*****************************************************************
 This function is used to compare two physical records. Only the common
 first fields are compared, and if an externally stored field is
 encountered, then 0 is returned.
-@return	1, 0 , -1 if rec1 is greater, equal, less, respectively, than rec2; only the common first fields are compared */
+@return 1, 0, -1 if rec1 is greater, equal, less, respectively */
 UNIV_INTERN
 int
 cmp_rec_rec_with_match(
@@ -169,7 +173,8 @@ cmp_rec_rec_with_match(
 /*****************************************************************
 This function is used to compare two physical records. Only the common
 first fields are compared.
-@return	1, 0 , -1 if rec1 is greater, equal, less, respectively, than rec2; only the common first fields are compared */
+@return 1, 0 , -1 if rec1 is greater, equal, less, respectively, than
+rec2; only the common first fields are compared */
 UNIV_INLINE
 int
 cmp_rec_rec(

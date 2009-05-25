@@ -221,7 +221,8 @@ page_zip_simple_validate(
 
 /**************************************************************************
 Determine if the length of the page trailer.
-@return	length of the page trailer, in bytes, not including the terminating zero byte of the modification log */
+@return length of the page trailer, in bytes, not including the
+terminating zero byte of the modification log */
 UNIV_INLINE
 ibool
 page_zip_get_trailer_len(
@@ -259,7 +260,8 @@ page_zip_get_trailer_len(
 
 /**************************************************************************
 Determine how big record can be inserted without recompressing the page.
-@return	a positive number indicating the maximum size of a record whose insertion is guaranteed to succeed, or zero or negative */
+@return a positive number indicating the maximum size of a record
+whose insertion is guaranteed to succeed, or zero or negative */
 UNIV_INLINE
 lint
 page_zip_max_ins_size(

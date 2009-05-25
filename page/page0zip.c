@@ -233,7 +233,8 @@ page_zip_dir_find_free(
 
 /*****************************************************************
 Read a given slot in the dense page directory.
-@return	record offset on the uncompressed page, possibly ORed with PAGE_ZIP_DIR_SLOT_DEL or PAGE_ZIP_DIR_SLOT_OWNED */
+@return record offset on the uncompressed page, possibly ORed with
+PAGE_ZIP_DIR_SLOT_DEL or PAGE_ZIP_DIR_SLOT_OWNED */
 UNIV_INLINE
 ulint
 page_zip_dir_get(
@@ -1095,7 +1096,8 @@ func_exit:
 
 /**************************************************************************
 Compress a page.
-@return	TRUE on success, FALSE on failure; page_zip will be left intact on failure. */
+@return TRUE on success, FALSE on failure; page_zip will be left
+intact on failure. */
 UNIV_INTERN
 ibool
 page_zip_compress(
@@ -4335,7 +4337,8 @@ IMPORTANT: if page_zip_reorganize() is invoked on a leaf page of a
 non-clustered index, the caller must update the insert buffer free
 bits in the same mini-transaction in such a way that the modification
 will be redo-logged.
-@return	TRUE on success, FALSE on failure; page and page_zip will be left intact on failure. */
+@return TRUE on success, FALSE on failure; page and page_zip will be
+left intact on failure. */
 UNIV_INTERN
 ibool
 page_zip_reorganize(

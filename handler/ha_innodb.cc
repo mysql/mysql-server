@@ -1491,7 +1491,9 @@ holding any InnoDB semaphores. The calling thread is holding the
 query cache mutex, and this function will reserver the InnoDB kernel mutex.
 Thus, the 'rank' in sync0sync.h of the MySQL query cache mutex is above
 the InnoDB kernel mutex.
-@return	TRUE if permitted, FALSE if not; note that the value FALSE does not mean we should invalidate the query cache: invalidation is called explicitly */
+@return TRUE if permitted, FALSE if not; note that the value FALSE
+does not mean we should invalidate the query cache: invalidation is
+called explicitly */
 static
 my_bool
 innobase_query_caching_of_table_permitted(
@@ -2541,7 +2543,8 @@ innobase_rollback_trx(
 
 /*********************************************************************
 Rolls back a transaction to a savepoint.
-@return	0 if success, HA_ERR_NO_SAVEPOINT if no savepoint with the given name */
+@return 0 if success, HA_ERR_NO_SAVEPOINT if no savepoint with the
+given name */
 static
 int
 innobase_rollback_to_savepoint(
@@ -2578,7 +2581,8 @@ innobase_rollback_to_savepoint(
 
 /*********************************************************************
 Release transaction savepoint name.
-@return	0 if success, HA_ERR_NO_SAVEPOINT if no savepoint with the given name */
+@return 0 if success, HA_ERR_NO_SAVEPOINT if no savepoint with the
+given name */
 static
 int
 innobase_release_savepoint(
@@ -2704,7 +2708,8 @@ innobase_close_connection(
 
 /********************************************************************
 Get the record format from the data dictionary.
-@return	one of ROW_TYPE_REDUNDANT, ROW_TYPE_COMPACT, ROW_TYPE_COMPRESSED, ROW_TYPE_DYNAMIC */
+@return one of ROW_TYPE_REDUNDANT, ROW_TYPE_COMPACT,
+ROW_TYPE_COMPRESSED, ROW_TYPE_DYNAMIC */
 UNIV_INTERN
 enum row_type
 ha_innobase::get_row_type() const
@@ -7259,7 +7264,9 @@ ha_innobase::update_table_comment(
 
 /***********************************************************************
 Gets the foreign key create info for a table stored in InnoDB.
-@return	own: character string in the form which can be inserted to the CREATE TABLE statement, MUST be freed with ::free_foreign_key_create_info */
+@return own: character string in the form which can be inserted to the
+CREATE TABLE statement, MUST be freed with
+ha_innobase::free_foreign_key_create_info */
 UNIV_INTERN
 char*
 ha_innobase::get_foreign_key_create_info(void)
@@ -7503,7 +7510,7 @@ UNIV_INTERN
 void
 ha_innobase::free_foreign_key_create_info(
 /*======================================*/
-	char*	str)	/*!< in, own: create info string to free	*/
+	char*	str)	/*!< in, own: create info string to free */
 {
 	if (str) {
 		my_free(str, MYF(0));
@@ -8478,7 +8485,7 @@ ha_innobase::store_lock(
 	return(to);
 }
 
-/*******************************************************************************
+/*************************************************************************
 Read the next autoinc value. Acquire the relevant locks before reading
 the AUTOINC value. If SUCCESS then the table AUTOINC mutex will be locked
 on return and all relevant locks acquired.
@@ -8529,11 +8536,11 @@ ha_innobase::innobase_peek_autoinc(void)
 	ut_a(auto_inc > 0);
 
 	dict_table_autoinc_unlock(innodb_table);
- 
+
 	return(auto_inc);
 }
-  
-/*******************************************************************************
+
+/*************************************************************************
 This function initializes the auto-inc counter if it has not been
 initialized yet. This function does not change the value of the auto-inc
 counter if it already has been initialized. Returns the value of the
@@ -8544,7 +8551,7 @@ UNIV_INTERN
 void
 ha_innobase::get_auto_increment(
 /*============================*/
-        ulonglong	offset,              /*!< in: */
+        ulonglong	offset,              /*!< in: table autoinc offset */
         ulonglong	increment,           /*!< in: table autoinc increment */
         ulonglong	nb_desired_values,   /*!< in: number of values reqd */
         ulonglong	*first_value,        /*!< out: the autoinc value */

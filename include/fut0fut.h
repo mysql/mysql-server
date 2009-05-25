@@ -33,7 +33,8 @@ Created 12/13/1995 Heikki Tuuri
 
 /************************************************************************
 Gets a pointer to a file address and latches the page.
-@return	pointer to a byte in a frame; the file page in the frame is bufferfixed and latched */
+@return pointer to a byte in a frame; the file page in the frame is
+bufferfixed and latched */
 UNIV_INLINE
 byte*
 fut_get_ptr(

@@ -293,7 +293,8 @@ dict_foreign_add_to_cache(
 /*************************************************************************
 Check if the index is referenced by a foreign key, if TRUE return the
 matching instance NULL otherwise.
-@return	pointer to foreign key struct if index is defined for foreign key, otherwise NULL */
+@return pointer to foreign key struct if index is defined for foreign
+key, otherwise NULL */
 UNIV_INTERN
 dict_foreign_t*
 dict_table_get_referenced_constraint(
@@ -321,7 +322,8 @@ dict_table_replace_index_in_foreign_list(
 Checks if a index is defined for a foreign key constraint. Index is a part
 of a foreign key constraint if the index is referenced by foreign key
 or index is a foreign key index
-@return	pointer to foreign key struct if index is defined for foreign key, otherwise NULL */
+@return pointer to foreign key struct if index is defined for foreign
+key, otherwise NULL */
 UNIV_INTERN
 dict_foreign_t*
 dict_table_get_foreign_constraint(
@@ -357,7 +359,8 @@ dict_create_foreign_constraints(
 					any foreign keys are found. */
 /**************************************************************************
 Parses the CONSTRAINT id's to be dropped in an ALTER TABLE statement.
-@return	DB_SUCCESS or DB_CANNOT_DROP_CONSTRAINT if syntax error or the constraint id does not match */
+@return DB_SUCCESS or DB_CANNOT_DROP_CONSTRAINT if syntax error or the
+constraint id does not match */
 UNIV_INTERN
 ulint
 dict_foreign_parse_drop_constraints(
@@ -442,8 +445,9 @@ dict_table_get_index_by_max_id(
 	ulint		n_cols);/*!< in: number of columns */
 /**************************************************************************
 Returns a column's name.
-@return	column name. NOTE: not guaranteed to stay valid if table is modified in any way (columns added, etc.). */
-
+@return column name. NOTE: not guaranteed to stay valid if table is
+modified in any way (columns added, etc.). */
+UNIV_INTERN
 const char*
 dict_table_get_col_name(
 /*====================*/
@@ -807,7 +811,8 @@ dict_index_get_nth_col_no(
 	ulint			pos);	/*!< in: position of the field */
 /************************************************************************
 Looks for column n in an index.
-@return	position in internal representation of the index; if not contained, returns ULINT_UNDEFINED */
+@return position in internal representation of the index;
+ULINT_UNDEFINED if not contained */
 UNIV_INTERN
 ulint
 dict_index_get_nth_col_pos(
@@ -828,7 +833,8 @@ Looks for a matching field in an index. The column has to be the same. The
 column in index must be complete, or must contain a prefix longer than the
 column in index2. That is, we must be able to construct the prefix in index2
 from the prefix in index.
-@return	position in internal representation of the index; if not contained, returns ULINT_UNDEFINED */
+@return position in internal representation of the index;
+ULINT_UNDEFINED if not contained */
 UNIV_INTERN
 ulint
 dict_index_get_nth_field_pos(

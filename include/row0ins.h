@@ -36,7 +36,8 @@ Created 4/20/1996 Heikki Tuuri
 Checks if foreign key constraint fails for an index entry. Sets shared locks
 which lock either the success or the failure of the constraint. NOTE that
 the caller must have a shared latch on dict_foreign_key_check_lock.
-@return	DB_SUCCESS, DB_LOCK_WAIT, DB_NO_REFERENCED_ROW, or DB_ROW_IS_REFERENCED */
+@return DB_SUCCESS, DB_LOCK_WAIT, DB_NO_REFERENCED_ROW, or
+DB_ROW_IS_REFERENCED */
 UNIV_INTERN
 ulint
 row_ins_check_foreign_constraint(

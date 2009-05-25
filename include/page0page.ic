@@ -225,7 +225,8 @@ page_header_reset_last_insert(
 
 /****************************************************************
 Determine whether the page is in new-style compact format.
-@return	nonzero if the page is in compact format, zero if it is in old-style format */
+@return nonzero if the page is in compact format, zero if it is in
+old-style format */
 UNIV_INLINE
 ulint
 page_is_comp(
@@ -425,7 +426,8 @@ cmp_dtuple_rec_with_match in the way that the record must reside on an
 index page, and also page infimum and supremum records can be given in
 the parameter rec. These are considered as the negative infinity and
 the positive infinity in the alphabetical order.
-@return	1, 0, -1, if dtuple is greater, equal, less than rec, respectively, when only the common first fields are compared */
+@return 1, 0, -1, if dtuple is greater, equal, less than rec,
+respectively, when only the common first fields are compared */
 UNIV_INLINE
 int
 page_cmp_dtuple_rec_with_match(

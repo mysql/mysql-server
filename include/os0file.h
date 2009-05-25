@@ -265,7 +265,8 @@ os_file_create_directory(
 					is treated as an error. */
 /********************************************************************
 A simple function to open or create a file.
-@return	own: handle to the file, not defined if error, error number can be retrieved with os_file_get_last_error */
+@return own: handle to the file, not defined if error, error number
+can be retrieved with os_file_get_last_error */
 UNIV_INTERN
 os_file_t
 os_file_create_simple(
@@ -284,7 +285,8 @@ os_file_create_simple(
 	ibool*		success);/*!< out: TRUE if succeed, FALSE if error */
 /********************************************************************
 A simple function to open or create a file.
-@return	own: handle to the file, not defined if error, error number can be retrieved with os_file_get_last_error */
+@return own: handle to the file, not defined if error, error number
+can be retrieved with os_file_get_last_error */
 UNIV_INTERN
 os_file_t
 os_file_create_simple_no_error_handling(
@@ -313,7 +315,8 @@ os_file_set_nocache(
 					diagnostic message */
 /********************************************************************
 Opens an existing file or creates a new.
-@return	own: handle to the file, not defined if error, error number can be retrieved with os_file_get_last_error */
+@return own: handle to the file, not defined if error, error number
+can be retrieved with os_file_get_last_error */
 UNIV_INTERN
 os_file_t
 os_file_create(

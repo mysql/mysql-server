@@ -557,7 +557,8 @@ ut_copy_file(
 /**************************************************************************
 A substitute for snprintf(3), formatted output conversion into
 a limited buffer.
-@return	number of characters that would have been printed if the size were unlimited, not including the terminating '\0'. */
+@return number of characters that would have been printed if the size
+were unlimited, not including the terminating '\0'. */
 UNIV_INTERN
 int
 ut_snprintf(

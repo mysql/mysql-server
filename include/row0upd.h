@@ -155,7 +155,8 @@ row_upd_index_write_log(
 /***************************************************************
 Returns TRUE if row update changes size of some field in index or if some
 field to be updated is stored externally in rec or update.
-@return	TRUE if the update changes the size of some field in index or the field is external in rec or update */
+@return TRUE if the update changes the size of some field in index or
+the field is external in rec or update */
 UNIV_INTERN
 ibool
 row_upd_changes_field_size_or_external(
@@ -196,7 +197,8 @@ row_upd_build_sec_rec_difference_binary(
 Builds an update vector from those fields, excluding the roll ptr and
 trx id fields, which in an index entry differ from a record that has
 the equal ordering fields. NOTE: we compare the fields as binary strings!
-@return	own: update vector of differing fields, excluding roll ptr and trx id */
+@return own: update vector of differing fields, excluding roll ptr and
+trx id */
 UNIV_INTERN
 upd_t*
 row_upd_build_difference_binary(
@@ -267,10 +269,11 @@ row_upd_replace(
 	mem_heap_t*		heap);	/*!< in: memory heap */
 /***************************************************************
 Checks if an update vector changes an ordering field of an index record.
+
 This function is fast if the update vector is short or the number of ordering
 fields in the index is small. Otherwise, this can be quadratic.
 NOTE: we compare the fields as binary strings!
-@return	TRUE if update vector changes an ordering field in the index record; NOTE: the fields are compared as binary strings */
+@return TRUE if update vector changes an ordering field in the index record */
 UNIV_INTERN
 ibool
 row_upd_changes_ord_field_binary(
@@ -288,7 +291,8 @@ Checks if an update vector changes an ordering field of an index record.
 This function is fast if the update vector is short or the number of ordering
 fields in the index is small. Otherwise, this can be quadratic.
 NOTE: we compare the fields as binary strings!
-@return	TRUE if update vector may change an ordering field in an index record */
+@return TRUE if update vector may change an ordering field in an index
+record */
 UNIV_INTERN
 ibool
 row_upd_changes_some_index_ord_field_binary(

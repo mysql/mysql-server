@@ -245,7 +245,9 @@ trx_undo_lists_init(
 /**************************************************************************
 Assigns an undo log for a transaction. A new undo log is created or a cached
 undo log reused.
-@return	DB_SUCCESS if undo log assign successful, possible error codes are: DB_TOO_MANY_CONCURRENT_TRXS DB_OUT_OF_FILE_SPACE DB_OUT_OF_MEMORY */
+@return DB_SUCCESS if undo log assign successful, possible error codes
+are: DB_TOO_MANY_CONCURRENT_TRXS DB_OUT_OF_FILE_SPACE
+DB_OUT_OF_MEMORY */
 UNIV_INTERN
 ulint
 trx_undo_assign_undo(

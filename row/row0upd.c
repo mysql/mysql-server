@@ -109,7 +109,12 @@ row_upd_changes_first_fields_binary(
 /*************************************************************************
 Checks if index currently is mentioned as a referenced index in a foreign
 key constraint.
-@return	TRUE if referenced; NOTE that since we do not hold dict_operation_lock when leaving the function, it may be that the referencing table has been dropped when we leave this function: this function is only for heuristic use! */
+
+NOTE that since we do not hold dict_operation_lock when leaving the
+function, it may be that the referencing table has been dropped when
+we leave this function: this function is only for heuristic use!
+
+@return TRUE if referenced */
 static
 ibool
 row_upd_index_is_referenced(
@@ -154,8 +159,11 @@ func_exit:
 
 /*************************************************************************
 Checks if possible foreign key constraints hold after a delete of the record
-under pcur. NOTE that this function will temporarily commit mtr and lose the
+under pcur.
+
+NOTE that this function will temporarily commit mtr and lose the
 pcur position!
+
 @return	DB_SUCCESS or an error code */
 static
 ulint
@@ -382,7 +390,8 @@ row_upd_index_entry_sys_field(
 /***************************************************************
 Returns TRUE if row update changes size of some field in index or if some
 field to be updated is stored externally in rec or update.
-@return	TRUE if the update changes the size of some field in index or the field is external in rec or update */
+@return TRUE if the update changes the size of some field in index or
+the field is external in rec or update */
 UNIV_INTERN
 ibool
 row_upd_changes_field_size_or_external(
@@ -781,7 +790,8 @@ row_upd_build_sec_rec_difference_binary(
 Builds an update vector from those fields, excluding the roll ptr and
 trx id fields, which in an index entry differ from a record that has
 the equal ordering fields. NOTE: we compare the fields as binary strings!
-@return	own: update vector of differing fields, excluding roll ptr and trx id */
+@return own: update vector of differing fields, excluding roll ptr and
+trx id */
 UNIV_INTERN
 upd_t*
 row_upd_build_difference_binary(
@@ -1161,10 +1171,11 @@ row_upd_replace(
 
 /***************************************************************
 Checks if an update vector changes an ordering field of an index record.
+
 This function is fast if the update vector is short or the number of ordering
 fields in the index is small. Otherwise, this can be quadratic.
 NOTE: we compare the fields as binary strings!
-@return	TRUE if update vector changes an ordering field in the index record; NOTE: the fields are compared as binary strings */
+@return TRUE if update vector changes an ordering field in the index record */
 UNIV_INTERN
 ibool
 row_upd_changes_ord_field_binary(
@@ -1230,7 +1241,8 @@ row_upd_changes_ord_field_binary(
 /***************************************************************
 Checks if an update vector changes an ordering field of an index record.
 NOTE: we compare the fields as binary strings!
-@return	TRUE if update vector may change an ordering field in an index record */
+@return TRUE if update vector may change an ordering field in an index
+record */
 UNIV_INTERN
 ibool
 row_upd_changes_some_index_ord_field_binary(
@@ -1412,7 +1424,8 @@ row_upd_store_row(
 
 /***************************************************************
 Updates a secondary index entry of a row.
-@return	DB_SUCCESS if operation successfully completed, else error code or DB_LOCK_WAIT */
+@return DB_SUCCESS if operation successfully completed, else error
+code or DB_LOCK_WAIT */
 static
 ulint
 row_upd_sec_index_entry(
@@ -1516,7 +1529,8 @@ func_exit:
 /***************************************************************
 Updates the secondary index record if it is changed in the row update or
 deletes it if this is a delete.
-@return	DB_SUCCESS if operation successfully completed, else error code or DB_LOCK_WAIT */
+@return DB_SUCCESS if operation successfully completed, else error
+code or DB_LOCK_WAIT */
 UNIV_INLINE
 ulint
 row_upd_sec_step(
@@ -1542,7 +1556,8 @@ Marks the clustered index record deleted and inserts the updated version
 of the record to the index. This function should be used when the ordering
 fields of the clustered index record change. This should be quite rare in
 database applications.
-@return	DB_SUCCESS if operation successfully completed, else error code or DB_LOCK_WAIT */
+@return DB_SUCCESS if operation successfully completed, else error
+code or DB_LOCK_WAIT */
 static
 ulint
 row_upd_clust_rec_by_insert(
@@ -1648,7 +1663,8 @@ row_upd_clust_rec_by_insert(
 /***************************************************************
 Updates a clustered index record of a row when the ordering fields do
 not change.
-@return	DB_SUCCESS if operation successfully completed, else error code or DB_LOCK_WAIT */
+@return DB_SUCCESS if operation successfully completed, else error
+code or DB_LOCK_WAIT */
 static
 ulint
 row_upd_clust_rec(
@@ -1800,7 +1816,8 @@ row_upd_del_mark_clust_rec(
 
 /***************************************************************
 Updates the clustered index record.
-@return	DB_SUCCESS if operation successfully completed, DB_LOCK_WAIT in case of a lock wait, else error code */
+@return DB_SUCCESS if operation successfully completed, DB_LOCK_WAIT
+in case of a lock wait, else error code */
 static
 ulint
 row_upd_clust_step(
@@ -1970,7 +1987,8 @@ exit_func:
 Updates the affected index records of a row. When the control is transferred
 to this node, we assume that we have a persistent cursor which was on a
 record, and the position of the cursor is stored in the cursor.
-@return	DB_SUCCESS if operation successfully completed, else error code or DB_LOCK_WAIT */
+@return DB_SUCCESS if operation successfully completed, else error
+code or DB_LOCK_WAIT */
 static
 ulint
 row_upd(

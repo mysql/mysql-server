@@ -122,7 +122,8 @@ static	file_format_t	file_format_max;
 
 /********************************************************************
 Determines if a page number is located inside the doublewrite buffer.
-@return	TRUE if the location is inside the two blocks of the doublewrite buffer */
+@return TRUE if the location is inside the two blocks of the
+doublewrite buffer */
 UNIV_INTERN
 ibool
 trx_doublewrite_page_inside(

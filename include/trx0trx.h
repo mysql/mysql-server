@@ -132,7 +132,8 @@ trx_lists_init_at_db_start(void);
 /*============================*/
 /********************************************************************
 Starts a new transaction.
-@return	TRUE if success, FALSE if the rollback segment could not support this many transactions */
+@return TRUE if success, FALSE if the rollback segment could not
+support this many transactions */
 UNIV_INTERN
 ibool
 trx_start(

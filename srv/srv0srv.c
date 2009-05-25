@@ -768,7 +768,8 @@ srv_suspend_thread(void)
 /*************************************************************************
 Releases threads of the type given from suspension in the thread table.
 NOTE! The server mutex has to be reserved by the caller!
-@return	number of threads released: this may be < n if not enough threads were suspended at the moment */
+@return number of threads released: this may be less than n if not
+enough threads were suspended at the moment */
 UNIV_INTERN
 ulint
 srv_release_threads(

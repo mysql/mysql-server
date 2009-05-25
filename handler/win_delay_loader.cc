@@ -814,7 +814,8 @@ __delayLoadHelper2(
 
 /***********************************************************************
 Unload a DLL that was delay loaded. This function is called by run-time.
-@return	TRUE is returned if the DLL is found and the IAT matches the original one. */
+@return TRUE is returned if the DLL is found and the IAT matches the
+original one. */
 extern "C"
 BOOL WINAPI
 __FUnloadDelayLoadedDLL2(

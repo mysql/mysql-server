@@ -146,7 +146,8 @@ fsp_header_inc_size(
 	mtr_t*	mtr);	/*!< in: mini-transaction handle */
 /**************************************************************************
 Creates a new segment.
-@return	the block where the segment header is placed, x-latched, NULL if could not create segment because of lack of space */
+@return the block where the segment header is placed, x-latched, NULL
+if could not create segment because of lack of space */
 UNIV_INTERN
 buf_block_t*
 fseg_create(
@@ -161,7 +162,8 @@ fseg_create(
 	mtr_t*	mtr);	/*!< in: mtr */
 /**************************************************************************
 Creates a new segment.
-@return	the block where the segment header is placed, x-latched, NULL if could not create segment because of lack of space */
+@return the block where the segment header is placed, x-latched, NULL
+if could not create segment because of lack of space */
 UNIV_INTERN
 buf_block_t*
 fseg_create_general(

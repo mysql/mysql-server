@@ -33,7 +33,8 @@ Created 8/18/1994 Heikki Tuuri
 
 /*****************************************************************
 Looks for an element in a hash table.
-@return	pointer to the data of the first hash table node in chain having the fold number, NULL if not found */
+@return pointer to the data of the first hash table node in chain
+having the fold number, NULL if not found */
 UNIV_INLINE
 void*
 ha_search_and_get_data(

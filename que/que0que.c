@@ -334,7 +334,9 @@ Starts execution of a command in a query fork. Picks a query thread which
 is not in the QUE_THR_RUNNING state and moves it to that state. If none
 can be chosen, a situation which may arise in parallelized fetches, NULL
 is returned.
-@return	a query thread of the graph moved to QUE_THR_RUNNING state, or NULL; the query thread should be executed by que_run_threads by the caller */
+@return a query thread of the graph moved to QUE_THR_RUNNING state, or
+NULL; the query thread should be executed by que_run_threads by the
+caller */
 UNIV_INTERN
 que_thr_t*
 que_fork_start_command(
@@ -458,7 +460,8 @@ que_fork_error_handle(
 
 /********************************************************************
 Tests if all the query threads in the same fork have a given state.
-@return	TRUE if all the query threads in the same fork were in the given state */
+@return TRUE if all the query threads in the same fork were in the
+given state */
 UNIV_INLINE
 ibool
 que_fork_all_thrs_in_state(
@@ -1174,7 +1177,8 @@ que_node_print_info(
 
 /**************************************************************************
 Performs an execution step on a query thread.
-@return	query thread to run next: it may differ from the input parameter if, e.g., a subprocedure call is made */
+@return query thread to run next: it may differ from the input
+parameter if, e.g., a subprocedure call is made */
 UNIV_INLINE
 que_thr_t*
 que_thr_step(

@@ -516,7 +516,8 @@ trx_undo_page_report_modify_ext(
 /**************************************************************************
 Reports in the undo log of an update or delete marking of a clustered index
 record.
-@return	byte offset of the inserted undo log entry on the page if succeed, 0 if fail */
+@return byte offset of the inserted undo log entry on the page if
+succeed, 0 if fail */
 static
 ulint
 trx_undo_page_report_modify(
@@ -884,7 +885,8 @@ trx_undo_update_rec_get_field_no(
 
 /***********************************************************************
 Builds an update vector based on a remaining part of an undo log record.
-@return	remaining part of the record, NULL if an error detected, which means that the record is corrupted */
+@return remaining part of the record, NULL if an error detected, which
+means that the record is corrupted */
 UNIV_INTERN
 byte*
 trx_undo_update_rec_get_update(
@@ -1353,7 +1355,12 @@ trx_undo_get_undo_rec_low(
 
 /**********************************************************************
 Copies an undo record to heap.
-@return	DB_SUCCESS, or DB_MISSING_HISTORY if the undo log has been truncated and we cannot fetch the old version; NOTE: the caller must have latches on the clustered index page and purge_view */
+
+NOTE: the caller must have latches on the clustered index page and
+purge_view.
+
+@return DB_SUCCESS, or DB_MISSING_HISTORY if the undo log has been
+truncated and we cannot fetch the old version */
 UNIV_INTERN
 ulint
 trx_undo_get_undo_rec(
@@ -1387,7 +1394,9 @@ Build a previous version of a clustered index record. This function checks
 that the caller has a latch on the index page of the clustered index record
 and an s-latch on the purge_view. This guarantees that the stack of versions
 is locked all the way down to the purge_view.
-@return	DB_SUCCESS, or DB_MISSING_HISTORY if the previous version is not >= purge_view, which means that it may have been removed, DB_ERROR if corrupted record */
+@return DB_SUCCESS, or DB_MISSING_HISTORY if the previous version is
+earlier than purge_view, which means that it may have been removed,
+DB_ERROR if corrupted record */
 UNIV_INTERN
 ulint
 trx_undo_prev_version_build(

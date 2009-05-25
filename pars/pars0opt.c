@@ -614,7 +614,9 @@ opt_search_plan_for_table(
 /***********************************************************************
 Looks at a comparison condition and decides if it can, and need, be tested for
 a table AFTER the table has been accessed.
-@return	OPT_NOT_COND if not for this table, else OPT_END_COND, OPT_TEST_COND, or OPT_SCROLL_COND, where the last means that the condition need not be tested, except when scroll cursors are used */
+@return OPT_NOT_COND if not for this table, else OPT_END_COND,
+OPT_TEST_COND, or OPT_SCROLL_COND, where the last means that the
+condition need not be tested, except when scroll cursors are used */
 static
 ulint
 opt_classify_comparison(

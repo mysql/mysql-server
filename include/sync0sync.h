@@ -219,7 +219,9 @@ sync_thread_add_level(
 			SYNC_LEVEL_VARYING, nothing is done */
 /**********************************************************************
 Removes a latch from the thread level array if it is found there.
-@return	TRUE if found from the array; it is no error if the latch is not found, as we presently are not able to determine the level for every latch reservation the program does */
+@return TRUE if found in the array; it is no error if the latch is
+not found, as we presently are not able to determine the level for
+every latch reservation the program does */
 UNIV_INTERN
 ibool
 sync_thread_reset_level(

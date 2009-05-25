@@ -692,7 +692,8 @@ descriptor resides is x-locked. If the page offset is equal to the free limit
 of the space, adds new extents from above the free limit to the space free
 list, if not free limit == space size. This adding is necessary to make the
 descriptor defined, as they are uninitialized above the free limit.
-@return	pointer to the extent descriptor, NULL if the page does not exist in the space or if offset > free limit */
+@return pointer to the extent descriptor, NULL if the page does not
+exist in the space or if the offset exceeds the free limit */
 UNIV_INLINE
 xdes_t*
 xdes_get_descriptor_with_space_hdr(
@@ -763,7 +764,8 @@ the free limit of the space, adds new extents from above the free limit
 to the space free list, if not free limit == space size. This adding
 is necessary to make the descriptor defined, as they are uninitialized
 above the free limit.
-@return	pointer to the extent descriptor, NULL if the page does not exist in the space or if offset > free limit */
+@return pointer to the extent descriptor, NULL if the page does not
+exist in the space or if the offset exceeds the free limit */
 static
 xdes_t*
 xdes_get_descriptor(
@@ -2171,7 +2173,8 @@ fseg_get_n_frag_pages(
 
 /**************************************************************************
 Creates a new segment.
-@return	the block where the segment header is placed, x-latched, NULL if could not create segment because of lack of space */
+@return the block where the segment header is placed, x-latched, NULL
+if could not create segment because of lack of space */
 UNIV_INTERN
 buf_block_t*
 fseg_create_general(
@@ -2304,7 +2307,8 @@ funct_exit:
 
 /**************************************************************************
 Creates a new segment.
-@return	the block where the segment header is placed, x-latched, NULL if could not create segment because of lack of space */
+@return the block where the segment header is placed, x-latched, NULL
+if could not create segment because of lack of space */
 UNIV_INTERN
 buf_block_t*
 fseg_create(
@@ -2453,7 +2457,8 @@ fseg_fill_free_list(
 Allocates a free extent for the segment: looks first in the free list of the
 segment, then tries to allocate from the space free list. NOTE that the extent
 returned still resides in the segment free list, it is not yet taken off it!
-@return	allocated extent, still placed in the segment free list, NULL if could not be allocated */
+@return allocated extent, still placed in the segment free list, NULL
+if could not be allocated */
 static
 xdes_t*
 fseg_alloc_free_extent(

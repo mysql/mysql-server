@@ -606,7 +606,8 @@ page_copy_rec_list_end_no_locks(
 Copies records from page to new_page, from a given record onward,
 including that record. Infimum and supremum records are not copied.
 The records are copied to the start of the record list on new_page.
-@return	pointer to the original successor of the infimum record on new_page, or NULL on zip overflow (new_block will be decompressed) */
+@return pointer to the original successor of the infimum record on
+new_page, or NULL on zip overflow (new_block will be decompressed) */
 UNIV_INTERN
 rec_t*
 page_copy_rec_list_end(
@@ -710,7 +711,8 @@ page_copy_rec_list_end(
 Copies records from page to new_page, up to the given record,
 NOT including that record. Infimum and supremum records are not copied.
 The records are copied to the end of the record list on new_page.
-@return	pointer to the original predecessor of the supremum record on new_page, or NULL on zip overflow (new_block will be decompressed) */
+@return pointer to the original predecessor of the supremum record on
+new_page, or NULL on zip overflow (new_block will be decompressed) */
 UNIV_INTERN
 rec_t*
 page_copy_rec_list_start(
@@ -1157,7 +1159,8 @@ page_delete_rec_list_start(
 /*****************************************************************
 Moves record list end to another page. Moved records include
 split_rec.
-@return	TRUE on success; FALSE on compression failure (new_block will be decompressed) */
+@return TRUE on success; FALSE on compression failure (new_block will
+be decompressed) */
 UNIV_INTERN
 ibool
 page_move_rec_list_end(

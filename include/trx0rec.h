@@ -151,7 +151,8 @@ trx_undo_update_rec_get_sys_cols(
 	ulint*		info_bits);	/*!< out: info bits state */
 /***********************************************************************
 Builds an update vector based on a remaining part of an undo log record.
-@return	remaining part of the record, NULL if an error detected, which means that the record is corrupted */
+@return remaining part of the record, NULL if an error detected, which
+means that the record is corrupted */
 UNIV_INTERN
 byte*
 trx_undo_update_rec_get_update(
@@ -239,7 +240,12 @@ trx_undo_get_undo_rec_low(
 	mem_heap_t*	heap);		/*!< in: memory heap where copied */
 /**********************************************************************
 Copies an undo record to heap.
-@return	DB_SUCCESS, or DB_MISSING_HISTORY if the undo log has been truncated and we cannot fetch the old version; NOTE: the caller must have latches on the clustered index page and purge_view */
+
+NOTE: the caller must have latches on the clustered index page and
+purge_view.
+
+@return DB_SUCCESS, or DB_MISSING_HISTORY if the undo log has been
+truncated and we cannot fetch the old version */
 UNIV_INTERN
 ulint
 trx_undo_get_undo_rec(
@@ -255,7 +261,9 @@ Build a previous version of a clustered index record. This function checks
 that the caller has a latch on the index page of the clustered index record
 and an s-latch on the purge_view. This guarantees that the stack of versions
 is locked.
-@return	DB_SUCCESS, or DB_MISSING_HISTORY if the previous version is not >= purge_view, which means that it may have been removed, DB_ERROR if corrupted record */
+@return DB_SUCCESS, or DB_MISSING_HISTORY if the previous version is
+earlier than purge_view, which means that it may have been removed,
+DB_ERROR if corrupted record */
 UNIV_INTERN
 ulint
 trx_undo_prev_version_build(

@@ -154,7 +154,8 @@ Looks for the clustered index record when node has the row reference.
 The pcur in node is used in the search. If found, stores the row to node,
 and stores the position of pcur, and detaches it. The pcur must be closed
 by the caller in any case.
-@return	TRUE if found; NOTE the node->pcur must be closed by the caller, regardless of the return value */
+@return TRUE if found; NOTE the node->pcur must be closed by the
+caller, regardless of the return value */
 UNIV_INTERN
 ibool
 row_undo_search_clust_to_pcur(

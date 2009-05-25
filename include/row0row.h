@@ -70,7 +70,9 @@ row_get_rec_roll_ptr(
 /*********************************************************************
 When an insert or purge to a table is performed, this function builds
 the entry to be inserted into or purged from an index on the table.
-@return	index entry which should be inserted or purged, or NULL if the externally stored columns in the clustered index record are unavailable and ext != NULL */
+@return index entry which should be inserted or purged, or NULL if the
+externally stored columns in the clustered index record are
+unavailable and ext != NULL */
 UNIV_INTERN
 dtuple_t*
 row_build_index_entry(
@@ -126,7 +128,8 @@ row_build(
 					the memory needed is allocated */
 /***********************************************************************
 Converts an index record to a typed data tuple.
-@return	index entry built; does not set info_bits, and the data fields in the entry will point directly to rec */
+@return index entry built; does not set info_bits, and the data fields
+in the entry will point directly to rec */
 UNIV_INTERN
 dtuple_t*
 row_rec_to_index_entry_low(

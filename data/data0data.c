@@ -82,7 +82,8 @@ dfield_data_is_binary_equal(
 
 /****************************************************************
 Compare two data tuples, respecting the collation of character fields.
-@return	1, 0 , -1 if tuple1 is greater, equal, less, respectively, than tuple2 */
+@return 1, 0 , -1 if tuple1 is greater, equal, less, respectively,
+than tuple2 */
 UNIV_INTERN
 int
 dtuple_coll_cmp(
@@ -565,7 +566,9 @@ Moves parts of long fields in entry to the big record vector so that
 the size of tuple drops below the maximum record size allowed in the
 database. Moves data only from those fields which are not necessary
 to determine uniquely the insertion place of the tuple in the index.
-@return	own: created big record vector, NULL if we are not able to shorten the entry enough, i.e., if there are too many fixed-length or short fields in entry or the index is clustered */
+@return own: created big record vector, NULL if we are not able to
+shorten the entry enough, i.e., if there are too many fixed-length or
+short fields in entry or the index is clustered */
 UNIV_INTERN
 big_rec_t*
 dtuple_convert_big_rec(

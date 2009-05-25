@@ -102,7 +102,8 @@ page_zip_set_alloc(
 
 /**************************************************************************
 Compress a page.
-@return	TRUE on success, FALSE on failure; page_zip will be left intact on failure. */
+@return TRUE on success, FALSE on failure; page_zip will be left
+intact on failure. */
 UNIV_INTERN
 ibool
 page_zip_compress(
@@ -166,7 +167,8 @@ page_zip_validate(
 
 /**************************************************************************
 Determine how big record can be inserted without recompressing the page.
-@return	a positive number indicating the maximum size of a record whose insertion is guaranteed to succeed, or zero or negative */
+@return a positive number indicating the maximum size of a record
+whose insertion is guaranteed to succeed, or zero or negative */
 UNIV_INLINE
 lint
 page_zip_max_ins_size(
@@ -382,7 +384,8 @@ IMPORTANT: if page_zip_reorganize() is invoked on a leaf page of a
 non-clustered index, the caller must update the insert buffer free
 bits in the same mini-transaction in such a way that the modification
 will be redo-logged.
-@return	TRUE on success, FALSE on failure; page and page_zip will be left intact on failure. */
+@return TRUE on success, FALSE on failure; page and page_zip will be
+left intact on failure. */
 UNIV_INTERN
 ibool
 page_zip_reorganize(

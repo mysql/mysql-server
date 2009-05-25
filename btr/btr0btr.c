@@ -1417,7 +1417,8 @@ split_at_new:
 Calculates a split record such that the tuple will certainly fit on
 its half-page when the split is performed. We assume in this function
 only that the cursor page has at least one user record.
-@return	split record, or NULL if tuple will be the first record on upper half-page */
+@return split record, or NULL if tuple will be the first record on
+upper half-page */
 static
 rec_t*
 btr_page_get_sure_split_rec(
@@ -1797,12 +1798,13 @@ btr_attach_half_pages(
 
 /*****************************************************************
 Splits an index page to halves and inserts the tuple. It is assumed
-that mtr holds an x-latch to the index tree. NOTE: the tree x-latch
-is released within this function! NOTE that the operation of this
-function must always succeed, we cannot reverse it: therefore
-enough free disk space must be guaranteed to be available before
+that mtr holds an x-latch to the index tree. NOTE: the tree x-latch is
+released within this function! NOTE that the operation of this
+function must always succeed, we cannot reverse it: therefore enough
+free disk space (2 pages) must be guaranteed to be available before
 this function is called.
-@return	inserted record; NOTE: the tree x-latch is released! NOTE: 2 free disk pages must be available! */
+
+@return inserted record */
 UNIV_INTERN
 rec_t*
 btr_page_split_and_insert(

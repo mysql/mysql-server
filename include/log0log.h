@@ -194,7 +194,8 @@ log_buffer_flush_to_disk(void);
 Advances the smallest lsn for which there are unflushed dirty blocks in the
 buffer pool and also may make a new checkpoint. NOTE: this function may only
 be called if the calling thread owns no synchronization objects!
-@return	FALSE if there was a flush batch of the same type running, which means that we could not start this flush batch */
+@return FALSE if there was a flush batch of the same type running,
+which means that we could not start this flush batch */
 UNIV_INTERN
 ibool
 log_preflush_pool_modified_pages(
@@ -453,7 +454,8 @@ log_block_set_checksum(
 	ulint	checksum);	/*!< in: checksum */
 /****************************************************************
 Gets a log block first mtr log record group offset.
-@return	first mtr log record group byte offset from the block start, 0 if none */
+@return first mtr log record group byte offset from the block start, 0
+if none */
 UNIV_INLINE
 ulint
 log_block_get_first_rec_group(
