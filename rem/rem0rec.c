@@ -144,25 +144,25 @@ the corresponding canonical strings have the same property. */
 UNIV_INTERN ulint	rec_dummy;
 
 /*******************************************************************
-Validates the consistency of an old-style physical record. */
+Validates the consistency of an old-style physical record.
+@return	TRUE if ok */
 static
 ibool
 rec_validate_old(
 /*=============*/
-				/* out: TRUE if ok */
-	const rec_t*	rec);	/* in: physical record */
+	const rec_t*	rec);	/*!< in: physical record */
 
 /**********************************************************
 Determine how many of the first n columns in a compact
-physical record are stored externally. */
+physical record are stored externally.
+@return	number of externally stored columns */
 UNIV_INTERN
 ulint
 rec_get_n_extern_new(
 /*=================*/
-				/* out: number of externally stored columns */
-	const rec_t*	rec,	/* in: compact physical record */
-	dict_index_t*	index,	/* in: record descriptor */
-	ulint		n)	/* in: number of columns to scan */
+	const rec_t*	rec,	/*!< in: compact physical record */
+	dict_index_t*	index,	/*!< in: record descriptor */
+	ulint		n)	/*!< in: number of columns to scan */
 {
 	const byte*	nulls;
 	const byte*	lens;
@@ -235,14 +235,14 @@ UNIV_INTERN
 void
 rec_init_offsets_comp_ordinary(
 /*===========================*/
-	const rec_t*		rec,	/* in: physical record in
+	const rec_t*		rec,	/*!< in: physical record in
 					ROW_FORMAT=COMPACT */
-	ulint			extra,	/* in: number of bytes to reserve
+	ulint			extra,	/*!< in: number of bytes to reserve
 					between the record header and
 					the data payload
 					(usually REC_N_NEW_EXTRA_BYTES) */
-	const dict_index_t*	index,	/* in: record descriptor */
-	ulint*			offsets)/* in/out: array of offsets;
+	const dict_index_t*	index,	/*!< in: record descriptor */
+	ulint*			offsets)/*!< in/out: array of offsets;
 					in: n=rec_offs_n_fields(offsets) */
 {
 	ulint		i		= 0;
@@ -347,9 +347,9 @@ static
 void
 rec_init_offsets(
 /*=============*/
-	const rec_t*		rec,	/* in: physical record */
-	const dict_index_t*	index,	/* in: record descriptor */
-	ulint*			offsets)/* in/out: array of offsets;
+	const rec_t*		rec,	/*!< in: physical record */
+	const dict_index_t*	index,	/*!< in: record descriptor */
+	ulint*			offsets)/*!< in/out: array of offsets;
 					in: n=rec_offs_n_fields(offsets) */
 {
 	ulint	i	= 0;
@@ -493,24 +493,24 @@ resolved:
 
 /**********************************************************
 The following function determines the offsets to each field
-in the record.	It can reuse a previously returned array. */
+in the record.	It can reuse a previously returned array.
+@return	the new offsets */
 UNIV_INTERN
 ulint*
 rec_get_offsets_func(
 /*=================*/
-					/* out: the new offsets */
-	const rec_t*		rec,	/* in: physical record */
-	const dict_index_t*	index,	/* in: record descriptor */
-	ulint*			offsets,/* in/out: array consisting of
+	const rec_t*		rec,	/*!< in: physical record */
+	const dict_index_t*	index,	/*!< in: record descriptor */
+	ulint*			offsets,/*!< in/out: array consisting of
 					offsets[0] allocated elements,
 					or an array from rec_get_offsets(),
 					or NULL */
-	ulint			n_fields,/* in: maximum number of
+	ulint			n_fields,/*!< in: maximum number of
 					initialized fields
 					 (ULINT_UNDEFINED if all fields) */
-	mem_heap_t**		heap,	/* in/out: memory heap */
-	const char*		file,	/* in: file name where called */
-	ulint			line)	/* in: line number where called */
+	mem_heap_t**		heap,	/*!< in/out: memory heap */
+	const char*		file,	/*!< in: file name where called */
+	ulint			line)	/*!< in: line number where called */
 {
 	ulint	n;
 	ulint	size;
@@ -570,14 +570,14 @@ UNIV_INTERN
 void
 rec_get_offsets_reverse(
 /*====================*/
-	const byte*		extra,	/* in: the extra bytes of a
+	const byte*		extra,	/*!< in: the extra bytes of a
 					compact record in reverse order,
 					excluding the fixed-size
 					REC_N_NEW_EXTRA_BYTES */
-	const dict_index_t*	index,	/* in: record descriptor */
-	ulint			node_ptr,/* in: nonzero=node pointer,
+	const dict_index_t*	index,	/*!< in: record descriptor */
+	ulint			node_ptr,/*!< in: nonzero=node pointer,
 					0=leaf node */
-	ulint*			offsets)/* in/out: array consisting of
+	ulint*			offsets)/*!< in/out: array consisting of
 					offsets[0] allocated elements */
 {
 	ulint		n;
@@ -680,15 +680,15 @@ resolved:
 
 /****************************************************************
 The following function is used to get the offset to the nth
-data field in an old-style record. */
+data field in an old-style record.
+@return	offset to the field */
 UNIV_INTERN
 ulint
 rec_get_nth_field_offs_old(
 /*=======================*/
-				/* out: offset to the field */
-	const rec_t*	rec,	/* in: record */
-	ulint		n,	/* in: index of the field */
-	ulint*		len)	/* out: length of the field;
+	const rec_t*	rec,	/*!< in: record */
+	ulint		n,	/*!< in: index of the field */
+	ulint*		len)	/*!< out: length of the field;
 				UNIV_SQL_NULL if SQL null */
 {
 	ulint	os;
@@ -743,19 +743,19 @@ rec_get_nth_field_offs_old(
 }
 
 /**************************************************************
-Determines the size of a data tuple prefix in ROW_FORMAT=COMPACT. */
+Determines the size of a data tuple prefix in ROW_FORMAT=COMPACT.
+@return	total size */
 UNIV_INTERN
 ulint
 rec_get_converted_size_comp_prefix(
 /*===============================*/
-					/* out: total size */
-	const dict_index_t*	index,	/* in: record descriptor;
+	const dict_index_t*	index,	/*!< in: record descriptor;
 					dict_table_is_comp() is
 					assumed to hold, even if
 					it does not */
-	const dfield_t*		fields,	/* in: array of data fields */
-	ulint			n_fields,/* in: number of data fields */
-	ulint*			extra)	/* out: extra size */
+	const dfield_t*		fields,	/*!< in: array of data fields */
+	ulint			n_fields,/*!< in: number of data fields */
+	ulint*			extra)	/*!< out: extra size */
 {
 	ulint	extra_size;
 	ulint	data_size;
@@ -818,20 +818,20 @@ rec_get_converted_size_comp_prefix(
 }
 
 /**************************************************************
-Determines the size of a data tuple in ROW_FORMAT=COMPACT. */
+Determines the size of a data tuple in ROW_FORMAT=COMPACT.
+@return	total size */
 UNIV_INTERN
 ulint
 rec_get_converted_size_comp(
 /*========================*/
-					/* out: total size */
-	const dict_index_t*	index,	/* in: record descriptor;
+	const dict_index_t*	index,	/*!< in: record descriptor;
 					dict_table_is_comp() is
 					assumed to hold, even if
 					it does not */
-	ulint			status,	/* in: status bits of the record */
-	const dfield_t*		fields,	/* in: array of data fields */
-	ulint			n_fields,/* in: number of data fields */
-	ulint*			extra)	/* out: extra size */
+	ulint			status,	/*!< in: status bits of the record */
+	const dfield_t*		fields,	/*!< in: array of data fields */
+	ulint			n_fields,/*!< in: number of data fields */
+	ulint*			extra)	/*!< out: extra size */
 {
 	ulint	size;
 	ut_ad(index);
@@ -871,9 +871,9 @@ UNIV_INTERN
 void
 rec_set_nth_field_null_bit(
 /*=======================*/
-	rec_t*	rec,	/* in: record */
-	ulint	i,	/* in: ith field */
-	ibool	val)	/* in: value to set */
+	rec_t*	rec,	/*!< in: record */
+	ulint	i,	/*!< in: ith field */
+	ibool	val)	/*!< in: value to set */
 {
 	ulint	info;
 
@@ -910,8 +910,8 @@ UNIV_INTERN
 void
 rec_set_nth_field_sql_null(
 /*=======================*/
-	rec_t*	rec,	/* in: record */
-	ulint	n)	/* in: index of the field */
+	rec_t*	rec,	/*!< in: record */
+	ulint	n)	/*!< in: index of the field */
 {
 	ulint	offset;
 
@@ -924,16 +924,15 @@ rec_set_nth_field_sql_null(
 
 /*************************************************************
 Builds an old-style physical record out of a data tuple and
-stores it beginning from the start of the given buffer. */
+stores it beginning from the start of the given buffer.
+@return	pointer to the origin of physical record */
 static
 rec_t*
 rec_convert_dtuple_to_rec_old(
 /*==========================*/
-				/* out: pointer to the origin of
-				physical record */
-	byte*		buf,	/* in: start address of the physical record */
-	const dtuple_t*	dtuple,	/* in: data tuple */
-	ulint		n_ext)	/* in: number of externally stored columns */
+	byte*		buf,	/*!< in: start address of the physical record */
+	const dtuple_t*	dtuple,	/*!< in: data tuple */
+	ulint		n_ext)	/*!< in: number of externally stored columns */
 {
 	const dfield_t*	field;
 	ulint		n_fields;
@@ -1044,15 +1043,15 @@ UNIV_INTERN
 void
 rec_convert_dtuple_to_rec_comp(
 /*===========================*/
-	rec_t*			rec,	/* in: origin of record */
-	ulint			extra,	/* in: number of bytes to
+	rec_t*			rec,	/*!< in: origin of record */
+	ulint			extra,	/*!< in: number of bytes to
 					reserve between the record
 					header and the data payload
 					(normally REC_N_NEW_EXTRA_BYTES) */
-	const dict_index_t*	index,	/* in: record descriptor */
-	ulint			status,	/* in: status bits of the record */
-	const dfield_t*		fields,	/* in: array of data fields */
-	ulint			n_fields)/* in: number of data fields */
+	const dict_index_t*	index,	/*!< in: record descriptor */
+	ulint			status,	/*!< in: status bits of the record */
+	const dfield_t*		fields,	/*!< in: array of data fields */
+	ulint			n_fields)/*!< in: number of data fields */
 {
 	const dfield_t*	field;
 	const dtype_t*	type;
@@ -1162,17 +1161,16 @@ rec_convert_dtuple_to_rec_comp(
 
 /*************************************************************
 Builds a new-style physical record out of a data tuple and
-stores it beginning from the start of the given buffer. */
+stores it beginning from the start of the given buffer.
+@return	pointer to the origin of physical record */
 static
 rec_t*
 rec_convert_dtuple_to_rec_new(
 /*==========================*/
-					/* out: pointer to the origin
-					of physical record */
-	byte*			buf,	/* in: start address of
+	byte*			buf,	/*!< in: start address of
 					the physical record */
-	const dict_index_t*	index,	/* in: record descriptor */
-	const dtuple_t*		dtuple)	/* in: data tuple */
+	const dict_index_t*	index,	/*!< in: record descriptor */
+	const dtuple_t*		dtuple)	/*!< in: data tuple */
 {
 	ulint	extra_size;
 	ulint	status;
@@ -1196,18 +1194,17 @@ rec_convert_dtuple_to_rec_new(
 
 /*************************************************************
 Builds a physical record out of a data tuple and
-stores it beginning from the start of the given buffer. */
+stores it beginning from the start of the given buffer.
+@return	pointer to the origin of physical record */
 UNIV_INTERN
 rec_t*
 rec_convert_dtuple_to_rec(
 /*======================*/
-					/* out: pointer to the origin
-					of physical record */
-	byte*			buf,	/* in: start address of the
+	byte*			buf,	/*!< in: start address of the
 					physical record */
-	const dict_index_t*	index,	/* in: record descriptor */
-	const dtuple_t*		dtuple,	/* in: data tuple */
-	ulint			n_ext)	/* in: number of
+	const dict_index_t*	index,	/*!< in: record descriptor */
+	const dtuple_t*		dtuple,	/*!< in: data tuple */
+	ulint			n_ext)	/*!< in: number of
 					externally stored columns */
 {
 	rec_t*	rec;
@@ -1247,12 +1244,12 @@ UNIV_INTERN
 void
 rec_copy_prefix_to_dtuple(
 /*======================*/
-	dtuple_t*		tuple,		/* out: data tuple */
-	const rec_t*		rec,		/* in: physical record */
-	const dict_index_t*	index,		/* in: record descriptor */
-	ulint			n_fields,	/* in: number of fields
+	dtuple_t*		tuple,		/*!< out: data tuple */
+	const rec_t*		rec,		/*!< in: physical record */
+	const dict_index_t*	index,		/*!< in: record descriptor */
+	ulint			n_fields,	/*!< in: number of fields
 						to copy */
-	mem_heap_t*		heap)		/* in: memory heap */
+	mem_heap_t*		heap)		/*!< in: memory heap */
 {
 	ulint	i;
 	ulint	offsets_[REC_OFFS_NORMAL_SIZE];
@@ -1287,18 +1284,18 @@ rec_copy_prefix_to_dtuple(
 
 /******************************************************************
 Copies the first n fields of an old-style physical record
-to a new physical record in a buffer. */
+to a new physical record in a buffer.
+@return	own: copied record */
 static
 rec_t*
 rec_copy_prefix_to_buf_old(
 /*=======================*/
-					/* out, own: copied record */
-	const rec_t*	rec,		/* in: physical record */
-	ulint		n_fields,	/* in: number of fields to copy */
-	ulint		area_end,	/* in: end of the prefix data */
-	byte**		buf,		/* in/out: memory buffer for
+	const rec_t*	rec,		/*!< in: physical record */
+	ulint		n_fields,	/*!< in: number of fields to copy */
+	ulint		area_end,	/*!< in: end of the prefix data */
+	byte**		buf,		/*!< in/out: memory buffer for
 					the copied prefix, or NULL */
-	ulint*		buf_size)	/* in/out: buffer size */
+	ulint*		buf_size)	/*!< in/out: buffer size */
 {
 	rec_t*	copy_rec;
 	ulint	area_start;
@@ -1331,20 +1328,20 @@ rec_copy_prefix_to_buf_old(
 
 /******************************************************************
 Copies the first n fields of a physical record to a new physical record in
-a buffer. */
+a buffer.
+@return	own: copied record */
 UNIV_INTERN
 rec_t*
 rec_copy_prefix_to_buf(
 /*===================*/
-						/* out, own: copied record */
-	const rec_t*		rec,		/* in: physical record */
-	const dict_index_t*	index,		/* in: record descriptor */
-	ulint			n_fields,	/* in: number of fields
+	const rec_t*		rec,		/*!< in: physical record */
+	const dict_index_t*	index,		/*!< in: record descriptor */
+	ulint			n_fields,	/*!< in: number of fields
 						to copy */
-	byte**			buf,		/* in/out: memory buffer
+	byte**			buf,		/*!< in/out: memory buffer
 						for the copied prefix,
 						or NULL */
-	ulint*			buf_size)	/* in/out: buffer size */
+	ulint*			buf_size)	/*!< in/out: buffer size */
 {
 	const byte*	nulls;
 	const byte*	lens;
@@ -1445,13 +1442,13 @@ rec_copy_prefix_to_buf(
 }
 
 /*******************************************************************
-Validates the consistency of an old-style physical record. */
+Validates the consistency of an old-style physical record.
+@return	TRUE if ok */
 static
 ibool
 rec_validate_old(
 /*=============*/
-				/* out: TRUE if ok */
-	const rec_t*	rec)	/* in: physical record */
+	const rec_t*	rec)	/*!< in: physical record */
 {
 	const byte*	data;
 	ulint		len;
@@ -1505,14 +1502,14 @@ rec_validate_old(
 }
 
 /*******************************************************************
-Validates the consistency of a physical record. */
+Validates the consistency of a physical record.
+@return	TRUE if ok */
 UNIV_INTERN
 ibool
 rec_validate(
 /*=========*/
-				/* out: TRUE if ok */
-	const rec_t*	rec,	/* in: physical record */
-	const ulint*	offsets)/* in: array returned by rec_get_offsets() */
+	const rec_t*	rec,	/*!< in: physical record */
+	const ulint*	offsets)/*!< in: array returned by rec_get_offsets() */
 {
 	const byte*	data;
 	ulint		len;
@@ -1577,8 +1574,8 @@ UNIV_INTERN
 void
 rec_print_old(
 /*==========*/
-	FILE*		file,	/* in: file where to print */
-	const rec_t*	rec)	/* in: physical record */
+	FILE*		file,	/*!< in: file where to print */
+	const rec_t*	rec)	/*!< in: physical record */
 {
 	const byte*	data;
 	ulint		len;
@@ -1631,9 +1628,9 @@ UNIV_INTERN
 void
 rec_print_comp(
 /*===========*/
-	FILE*		file,	/* in: file where to print */
-	const rec_t*	rec,	/* in: physical record */
-	const ulint*	offsets)/* in: array returned by rec_get_offsets() */
+	FILE*		file,	/*!< in: file where to print */
+	const rec_t*	rec,	/*!< in: physical record */
+	const ulint*	offsets)/*!< in: array returned by rec_get_offsets() */
 {
 	ulint	i;
 
@@ -1669,9 +1666,9 @@ UNIV_INTERN
 void
 rec_print_new(
 /*==========*/
-	FILE*		file,	/* in: file where to print */
-	const rec_t*	rec,	/* in: physical record */
-	const ulint*	offsets)/* in: array returned by rec_get_offsets() */
+	FILE*		file,	/*!< in: file where to print */
+	const rec_t*	rec,	/*!< in: physical record */
+	const ulint*	offsets)/*!< in: array returned by rec_get_offsets() */
 {
 	ut_ad(rec);
 	ut_ad(offsets);
@@ -1697,9 +1694,9 @@ UNIV_INTERN
 void
 rec_print(
 /*======*/
-	FILE*		file,	/* in: file where to print */
-	const rec_t*	rec,	/* in: physical record */
-	dict_index_t*	index)	/* in: record descriptor */
+	FILE*		file,	/*!< in: file where to print */
+	const rec_t*	rec,	/*!< in: physical record */
+	dict_index_t*	index)	/*!< in: record descriptor */
 {
 	ut_ad(index);
 

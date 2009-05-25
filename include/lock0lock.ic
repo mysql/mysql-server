@@ -39,28 +39,28 @@ Created 5/7/1996 Heikki Tuuri
 
 /*************************************************************************
 Calculates the fold value of a page file address: used in inserting or
-searching for a lock in the hash table. */
+searching for a lock in the hash table.
+@return	folded value */
 UNIV_INLINE
 ulint
 lock_rec_fold(
 /*==========*/
-			/* out: folded value */
-	ulint	space,	/* in: space */
-	ulint	page_no)/* in: page number */
+	ulint	space,	/*!< in: space */
+	ulint	page_no)/*!< in: page number */
 {
 	return(ut_fold_ulint_pair(space, page_no));
 }
 
 /*************************************************************************
 Calculates the hash value of a page file address: used in inserting or
-searching for a lock in the hash table. */
+searching for a lock in the hash table.
+@return	hashed value */
 UNIV_INLINE
 ulint
 lock_rec_hash(
 /*==========*/
-			/* out: hashed value */
-	ulint	space,	/* in: space */
-	ulint	page_no)/* in: page number */
+	ulint	space,	/*!< in: space */
+	ulint	page_no)/*!< in: page number */
 {
 	return(hash_calc_hash(lock_rec_fold(space, page_no),
 			      lock_sys->rec_hash));
@@ -68,16 +68,15 @@ lock_rec_hash(
 
 /*************************************************************************
 Checks if some transaction has an implicit x-lock on a record in a clustered
-index. */
+index.
+@return	transaction which has the x-lock, or NULL */
 UNIV_INLINE
 trx_t*
 lock_clust_rec_some_has_impl(
 /*=========================*/
-				/* out: transaction which has the x-lock, or
-				NULL */
-	const rec_t*	rec,	/* in: user record */
-	dict_index_t*	index,	/* in: clustered index */
-	const ulint*	offsets)/* in: rec_get_offsets(rec, index) */
+	const rec_t*	rec,	/*!< in: user record */
+	dict_index_t*	index,	/*!< in: clustered index */
+	const ulint*	offsets)/*!< in: rec_get_offsets(rec, index) */
 {
 	trx_id_t	trx_id;
 
@@ -97,15 +96,13 @@ lock_clust_rec_some_has_impl(
 }
 
 /*************************************************************************
-Gets the heap_no of the smallest user record on a page. */
+Gets the heap_no of the smallest user record on a page.
+@return	heap_no of smallest user record, or PAGE_HEAP_NO_SUPREMUM */
 UNIV_INLINE
 ulint
 lock_get_min_heap_no(
 /*=================*/
-					/* out: heap_no of smallest
-					user record, or
-					PAGE_HEAP_NO_SUPREMUM */
-	const buf_block_t*	block)	/* in: buffer block */
+	const buf_block_t*	block)	/*!< in: buffer block */
 {
 	const page_t*	page	= block->frame;
 

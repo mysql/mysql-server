@@ -45,16 +45,16 @@ Allocate a buffer from global dynamic memory for a value of a que_node.
 NOTE that this memory must be explicitly freed when the query graph is
 freed. If the node already has an allocated buffer, that buffer is freed
 here. NOTE that this is the only function where dynamic memory should be
-allocated for a query node val field. */
+allocated for a query node val field.
+@return	pointer to allocated buffer */
 UNIV_INTERN
 byte*
 eval_node_alloc_val_buf(
 /*====================*/
-				/* out: pointer to allocated buffer */
-	que_node_t*	node,	/* in: query graph node; sets the val field
+	que_node_t*	node,	/*!< in: query graph node; sets the val field
 				data field to point to the new buffer, and
 				len field equal to size */
-	ulint		size)	/* in: buffer size */
+	ulint		size)	/*!< in: buffer size */
 {
 	dfield_t*	dfield;
 	byte*		data;
@@ -91,7 +91,7 @@ UNIV_INTERN
 void
 eval_node_free_val_buf(
 /*===================*/
-	que_node_t*	node)	/* in: query graph node */
+	que_node_t*	node)	/*!< in: query graph node */
 {
 	dfield_t*	dfield;
 	byte*		data;
@@ -111,13 +111,13 @@ eval_node_free_val_buf(
 }
 
 /*********************************************************************
-Evaluates a comparison node. */
+Evaluates a comparison node.
+@return	the result of the comparison */
 UNIV_INTERN
 ibool
 eval_cmp(
 /*=====*/
-					/* out: the result of the comparison */
-	func_node_t*	cmp_node)	/* in: comparison node */
+	func_node_t*	cmp_node)	/*!< in: comparison node */
 {
 	que_node_t*	arg1;
 	que_node_t*	arg2;
@@ -175,7 +175,7 @@ UNIV_INLINE
 void
 eval_logical(
 /*=========*/
-	func_node_t*	logical_node)	/* in: logical operation node */
+	func_node_t*	logical_node)	/*!< in: logical operation node */
 {
 	que_node_t*	arg1;
 	que_node_t*	arg2;
@@ -216,7 +216,7 @@ UNIV_INLINE
 void
 eval_arith(
 /*=======*/
-	func_node_t*	arith_node)	/* in: arithmetic operation node */
+	func_node_t*	arith_node)	/*!< in: arithmetic operation node */
 {
 	que_node_t*	arg1;
 	que_node_t*	arg2;
@@ -260,7 +260,7 @@ UNIV_INLINE
 void
 eval_aggregate(
 /*===========*/
-	func_node_t*	node)	/* in: aggregate operation node */
+	func_node_t*	node)	/*!< in: aggregate operation node */
 {
 	que_node_t*	arg;
 	lint		val;
@@ -295,7 +295,7 @@ static
 void
 eval_predefined_2(
 /*==============*/
-	func_node_t*	func_node)	/* in: predefined function node */
+	func_node_t*	func_node)	/*!< in: predefined function node */
 {
 	que_node_t*	arg;
 	que_node_t*	arg1;
@@ -381,7 +381,7 @@ UNIV_INLINE
 void
 eval_notfound(
 /*==========*/
-	func_node_t*	func_node)	/* in: function node */
+	func_node_t*	func_node)	/*!< in: function node */
 {
 	que_node_t*	arg1;
 	que_node_t*	arg2;
@@ -423,7 +423,7 @@ UNIV_INLINE
 void
 eval_substr(
 /*========*/
-	func_node_t*	func_node)	/* in: function node */
+	func_node_t*	func_node)	/*!< in: function node */
 {
 	que_node_t*	arg1;
 	que_node_t*	arg2;
@@ -456,7 +456,7 @@ static
 void
 eval_replstr(
 /*=========*/
-	func_node_t*	func_node)	/* in: function node */
+	func_node_t*	func_node)	/*!< in: function node */
 {
 	que_node_t*	arg1;
 	que_node_t*	arg2;
@@ -496,7 +496,7 @@ static
 void
 eval_instr(
 /*=======*/
-	func_node_t*	func_node)	/* in: function node */
+	func_node_t*	func_node)	/*!< in: function node */
 {
 	que_node_t*	arg1;
 	que_node_t*	arg2;
@@ -568,7 +568,7 @@ UNIV_INLINE
 void
 eval_binary_to_number(
 /*==================*/
-	func_node_t*	func_node)	/* in: function node */
+	func_node_t*	func_node)	/*!< in: function node */
 {
 	que_node_t*	arg1;
 	dfield_t*	dfield;
@@ -606,7 +606,7 @@ static
 void
 eval_concat(
 /*========*/
-	func_node_t*	func_node)	/* in: function node */
+	func_node_t*	func_node)	/*!< in: function node */
 {
 	que_node_t*	arg;
 	dfield_t*	dfield;
@@ -652,7 +652,7 @@ UNIV_INLINE
 void
 eval_to_binary(
 /*===========*/
-	func_node_t*	func_node)	/* in: function node */
+	func_node_t*	func_node)	/*!< in: function node */
 {
 	que_node_t*	arg1;
 	que_node_t*	arg2;
@@ -696,7 +696,7 @@ UNIV_INLINE
 void
 eval_predefined(
 /*============*/
-	func_node_t*	func_node)	/* in: function node */
+	func_node_t*	func_node)	/*!< in: function node */
 {
 	que_node_t*	arg1;
 	lint		int_val;
@@ -788,7 +788,7 @@ UNIV_INTERN
 void
 eval_func(
 /*======*/
-	func_node_t*	func_node)	/* in: function node */
+	func_node_t*	func_node)	/*!< in: function node */
 {
 	que_node_t*	arg;
 	ulint		class;

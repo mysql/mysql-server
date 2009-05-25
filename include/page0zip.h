@@ -38,13 +38,13 @@ Created June 2005 by Marko Makela
 #include "mem0mem.h"
 
 /**************************************************************************
-Determine the size of a compressed page in bytes. */
+Determine the size of a compressed page in bytes.
+@return	size in bytes */
 UNIV_INLINE
 ulint
 page_zip_get_size(
 /*==============*/
-						/* out: size in bytes */
-	const page_zip_des_t*	page_zip)	/* in: compressed page */
+	const page_zip_des_t*	page_zip)	/*!< in: compressed page */
 	__attribute__((nonnull, pure));
 /**************************************************************************
 Set the size of a compressed page in bytes. */
@@ -52,34 +52,33 @@ UNIV_INLINE
 void
 page_zip_set_size(
 /*==============*/
-	page_zip_des_t*	page_zip,	/* in/out: compressed page */
-	ulint		size);		/* in: size in bytes */
+	page_zip_des_t*	page_zip,	/*!< in/out: compressed page */
+	ulint		size);		/*!< in: size in bytes */
 
 #ifndef UNIV_HOTBACKUP
 /**************************************************************************
-Determine if a record is so big that it needs to be stored externally. */
+Determine if a record is so big that it needs to be stored externally.
+@return	FALSE if the entire record can be stored locally on the page */
 UNIV_INLINE
 ibool
 page_zip_rec_needs_ext(
 /*===================*/
-				/* out: FALSE if the entire record
-				can be stored locally on the page */
-	ulint	rec_size,	/* in: length of the record in bytes */
-	ulint	comp,		/* in: nonzero=compact format */
-	ulint	n_fields,	/* in: number of fields in the record;
+	ulint	rec_size,	/*!< in: length of the record in bytes */
+	ulint	comp,		/*!< in: nonzero=compact format */
+	ulint	n_fields,	/*!< in: number of fields in the record;
 				ignored if zip_size == 0 */
-	ulint	zip_size)	/* in: compressed page size in bytes, or 0 */
+	ulint	zip_size)	/*!< in: compressed page size in bytes, or 0 */
 	__attribute__((const));
 
 /**************************************************************************
-Determine the guaranteed free space on an empty page. */
+Determine the guaranteed free space on an empty page.
+@return	minimum payload size on the page */
 UNIV_INTERN
 ulint
 page_zip_empty_size(
 /*================*/
-				/* out: minimum payload size on the page */
-	ulint	n_fields,	/* in: number of columns in the index */
-	ulint	zip_size)	/* in: compressed page size in bytes */
+	ulint	n_fields,	/*!< in: number of columns in the index */
+	ulint	zip_size)	/*!< in: compressed page size in bytes */
 	__attribute__((const));
 #endif /* !UNIV_HOTBACKUP */
 
@@ -89,7 +88,7 @@ UNIV_INLINE
 void
 page_zip_des_init(
 /*==============*/
-	page_zip_des_t*	page_zip);	/* in/out: compressed page
+	page_zip_des_t*	page_zip);	/*!< in/out: compressed page
 					descriptor */
 
 /**************************************************************************
@@ -98,61 +97,60 @@ UNIV_INTERN
 void
 page_zip_set_alloc(
 /*===============*/
-	void*		stream,		/* in/out: zlib stream */
-	mem_heap_t*	heap);		/* in: memory heap to use */
+	void*		stream,		/*!< in/out: zlib stream */
+	mem_heap_t*	heap);		/*!< in: memory heap to use */
 
 /**************************************************************************
-Compress a page. */
+Compress a page.
+@return	TRUE on success, FALSE on failure; page_zip will be left intact on failure. */
 UNIV_INTERN
 ibool
 page_zip_compress(
 /*==============*/
-				/* out: TRUE on success, FALSE on failure;
-				page_zip will be left intact on failure. */
-	page_zip_des_t*	page_zip,/* in: size; out: data, n_blobs,
+	page_zip_des_t*	page_zip,/*!< in: size; out: data, n_blobs,
 				m_start, m_end, m_nonempty */
-	const page_t*	page,	/* in: uncompressed page */
-	dict_index_t*	index,	/* in: index of the B-tree node */
-	mtr_t*		mtr)	/* in: mini-transaction, or NULL */
+	const page_t*	page,	/*!< in: uncompressed page */
+	dict_index_t*	index,	/*!< in: index of the B-tree node */
+	mtr_t*		mtr)	/*!< in: mini-transaction, or NULL */
 	__attribute__((nonnull(1,2,3)));
 
 /**************************************************************************
 Decompress a page.  This function should tolerate errors on the compressed
 page.  Instead of letting assertions fail, it will return FALSE if an
-inconsistency is detected. */
+inconsistency is detected.
+@return	TRUE on success, FALSE on failure */
 UNIV_INTERN
 ibool
 page_zip_decompress(
 /*================*/
-				/* out: TRUE on success, FALSE on failure */
-	page_zip_des_t*	page_zip,/* in: data, ssize;
+	page_zip_des_t*	page_zip,/*!< in: data, ssize;
 				out: m_start, m_end, m_nonempty, n_blobs */
-	page_t*		page)	/* out: uncompressed page, may be trashed */
+	page_t*		page)	/*!< out: uncompressed page, may be trashed */
 	__attribute__((nonnull));
 
 #ifdef UNIV_DEBUG
 /**************************************************************************
-Validate a compressed page descriptor. */
+Validate a compressed page descriptor.
+@return	TRUE if ok */
 UNIV_INLINE
 ibool
 page_zip_simple_validate(
 /*=====================*/
-						/* out: TRUE if ok */
-	const page_zip_des_t*	page_zip);	/* in: compressed page
+	const page_zip_des_t*	page_zip);	/*!< in: compressed page
 						descriptor */
 #endif /* UNIV_DEBUG */
 
 #ifdef UNIV_ZIP_DEBUG
 /**************************************************************************
-Check that the compressed and decompressed pages match. */
+Check that the compressed and decompressed pages match.
+@return	TRUE if valid, FALSE if not */
 UNIV_INTERN
 ibool
 page_zip_validate_low(
 /*==================*/
-					/* out: TRUE if valid, FALSE if not */
-	const page_zip_des_t*	page_zip,/* in: compressed page */
-	const page_t*		page,	/* in: uncompressed page */
-	ibool			sloppy)	/* in: FALSE=strict,
+	const page_zip_des_t*	page_zip,/*!< in: compressed page */
+	const page_t*		page,	/*!< in: uncompressed page */
+	ibool			sloppy)	/*!< in: FALSE=strict,
 					TRUE=ignore the MIN_REC_FLAG */
 	__attribute__((nonnull));
 /**************************************************************************
@@ -161,38 +159,33 @@ UNIV_INTERN
 ibool
 page_zip_validate(
 /*==============*/
-	const page_zip_des_t*	page_zip,/* in: compressed page */
-	const page_t*		page)	/* in: uncompressed page */
+	const page_zip_des_t*	page_zip,/*!< in: compressed page */
+	const page_t*		page)	/*!< in: uncompressed page */
 	__attribute__((nonnull));
 #endif /* UNIV_ZIP_DEBUG */
 
 /**************************************************************************
-Determine how big record can be inserted without recompressing the page. */
+Determine how big record can be inserted without recompressing the page.
+@return	a positive number indicating the maximum size of a record whose insertion is guaranteed to succeed, or zero or negative */
 UNIV_INLINE
 lint
 page_zip_max_ins_size(
 /*==================*/
-					/* out: a positive number
-					indicating the maximum size of
-					a record whose insertion is
-					guaranteed to succeed, or
-					zero or negative */
-	const page_zip_des_t*	page_zip,/* in: compressed page */
-	ibool			is_clust)/* in: TRUE if clustered index */
+	const page_zip_des_t*	page_zip,/*!< in: compressed page */
+	ibool			is_clust)/*!< in: TRUE if clustered index */
 	__attribute__((nonnull, pure));
 
 /**************************************************************************
-Determine if enough space is available in the modification log. */
+Determine if enough space is available in the modification log.
+@return	TRUE if page_zip_write_rec() will succeed */
 UNIV_INLINE
 ibool
 page_zip_available(
 /*===============*/
-					/* out: TRUE if page_zip_write_rec()
-					will succeed */
-	const page_zip_des_t*	page_zip,/* in: compressed page */
-	ibool			is_clust,/* in: TRUE if clustered index */
-	ulint			length,	/* in: combined size of the record */
-	ulint			create)	/* in: nonzero=add the record to
+	const page_zip_des_t*	page_zip,/*!< in: compressed page */
+	ibool			is_clust,/*!< in: TRUE if clustered index */
+	ulint			length,	/*!< in: combined size of the record */
+	ulint			create)	/*!< in: nonzero=add the record to
 					the heap */
 	__attribute__((nonnull, pure));
 
@@ -203,10 +196,10 @@ UNIV_INLINE
 void
 page_zip_write_header(
 /*==================*/
-	page_zip_des_t*	page_zip,/* in/out: compressed page */
-	const byte*	str,	/* in: address on the uncompressed page */
-	ulint		length,	/* in: length of the data */
-	mtr_t*		mtr)	/* in: mini-transaction, or NULL */
+	page_zip_des_t*	page_zip,/*!< in/out: compressed page */
+	const byte*	str,	/*!< in: address on the uncompressed page */
+	ulint		length,	/*!< in: length of the data */
+	mtr_t*		mtr)	/*!< in: mini-transaction, or NULL */
 	__attribute__((nonnull(1,2)));
 
 /**************************************************************************
@@ -216,24 +209,24 @@ UNIV_INTERN
 void
 page_zip_write_rec(
 /*===============*/
-	page_zip_des_t*	page_zip,/* in/out: compressed page */
-	const byte*	rec,	/* in: record being written */
-	dict_index_t*	index,	/* in: the index the record belongs to */
-	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
-	ulint		create)	/* in: nonzero=insert, zero=update */
+	page_zip_des_t*	page_zip,/*!< in/out: compressed page */
+	const byte*	rec,	/*!< in: record being written */
+	dict_index_t*	index,	/*!< in: the index the record belongs to */
+	const ulint*	offsets,/*!< in: rec_get_offsets(rec, index) */
+	ulint		create)	/*!< in: nonzero=insert, zero=update */
 	__attribute__((nonnull));
 
 /***************************************************************
-Parses a log record of writing a BLOB pointer of a record. */
+Parses a log record of writing a BLOB pointer of a record.
+@return	end of log record or NULL */
 UNIV_INTERN
 byte*
 page_zip_parse_write_blob_ptr(
 /*==========================*/
-				/* out: end of log record or NULL */
-	byte*		ptr,	/* in: redo log buffer */
-	byte*		end_ptr,/* in: redo log buffer end */
-	page_t*		page,	/* in/out: uncompressed page */
-	page_zip_des_t*	page_zip);/* in/out: compressed page */
+	byte*		ptr,	/*!< in: redo log buffer */
+	byte*		end_ptr,/*!< in: redo log buffer end */
+	page_t*		page,	/*!< in/out: uncompressed page */
+	page_zip_des_t*	page_zip);/*!< in/out: compressed page */
 
 /**************************************************************************
 Write a BLOB pointer of a record on the leaf page of a clustered index.
@@ -242,27 +235,27 @@ UNIV_INTERN
 void
 page_zip_write_blob_ptr(
 /*====================*/
-	page_zip_des_t*	page_zip,/* in/out: compressed page */
-	const byte*	rec,	/* in/out: record whose data is being
+	page_zip_des_t*	page_zip,/*!< in/out: compressed page */
+	const byte*	rec,	/*!< in/out: record whose data is being
 				written */
-	dict_index_t*	index,	/* in: index of the page */
-	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
-	ulint		n,	/* in: column index */
-	mtr_t*		mtr)	/* in: mini-transaction handle,
+	dict_index_t*	index,	/*!< in: index of the page */
+	const ulint*	offsets,/*!< in: rec_get_offsets(rec, index) */
+	ulint		n,	/*!< in: column index */
+	mtr_t*		mtr)	/*!< in: mini-transaction handle,
 				or NULL if no logging is needed */
 	__attribute__((nonnull(1,2,3,4)));
 
 /***************************************************************
-Parses a log record of writing the node pointer of a record. */
+Parses a log record of writing the node pointer of a record.
+@return	end of log record or NULL */
 UNIV_INTERN
 byte*
 page_zip_parse_write_node_ptr(
 /*==========================*/
-				/* out: end of log record or NULL */
-	byte*		ptr,	/* in: redo log buffer */
-	byte*		end_ptr,/* in: redo log buffer end */
-	page_t*		page,	/* in/out: uncompressed page */
-	page_zip_des_t*	page_zip);/* in/out: compressed page */
+	byte*		ptr,	/*!< in: redo log buffer */
+	byte*		end_ptr,/*!< in: redo log buffer end */
+	page_t*		page,	/*!< in/out: uncompressed page */
+	page_zip_des_t*	page_zip);/*!< in/out: compressed page */
 
 /**************************************************************************
 Write the node pointer of a record on a non-leaf compressed page. */
@@ -270,11 +263,11 @@ UNIV_INTERN
 void
 page_zip_write_node_ptr(
 /*====================*/
-	page_zip_des_t*	page_zip,/* in/out: compressed page */
-	byte*		rec,	/* in/out: record */
-	ulint		size,	/* in: data size of rec */
-	ulint		ptr,	/* in: node pointer */
-	mtr_t*		mtr)	/* in: mini-transaction, or NULL */
+	page_zip_des_t*	page_zip,/*!< in/out: compressed page */
+	byte*		rec,	/*!< in/out: record */
+	ulint		size,	/*!< in: data size of rec */
+	ulint		ptr,	/*!< in: node pointer */
+	mtr_t*		mtr)	/*!< in: mini-transaction, or NULL */
 	__attribute__((nonnull(1,2)));
 
 /**************************************************************************
@@ -283,12 +276,12 @@ UNIV_INTERN
 void
 page_zip_write_trx_id_and_roll_ptr(
 /*===============================*/
-	page_zip_des_t*	page_zip,/* in/out: compressed page */
-	byte*		rec,	/* in/out: record */
-	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
-	ulint		trx_id_col,/* in: column number of TRX_ID in rec */
-	trx_id_t	trx_id,	/* in: transaction identifier */
-	roll_ptr_t	roll_ptr)/* in: roll_ptr */
+	page_zip_des_t*	page_zip,/*!< in/out: compressed page */
+	byte*		rec,	/*!< in/out: record */
+	const ulint*	offsets,/*!< in: rec_get_offsets(rec, index) */
+	ulint		trx_id_col,/*!< in: column number of TRX_ID in rec */
+	trx_id_t	trx_id,	/*!< in: transaction identifier */
+	roll_ptr_t	roll_ptr)/*!< in: roll_ptr */
 	__attribute__((nonnull));
 
 /**************************************************************************
@@ -298,9 +291,9 @@ UNIV_INTERN
 void
 page_zip_rec_set_deleted(
 /*=====================*/
-	page_zip_des_t*	page_zip,/* in/out: compressed page */
-	const byte*	rec,	/* in: record on the uncompressed page */
-	ulint		flag)	/* in: the deleted flag (nonzero=TRUE) */
+	page_zip_des_t*	page_zip,/*!< in/out: compressed page */
+	const byte*	rec,	/*!< in: record on the uncompressed page */
+	ulint		flag)	/*!< in: the deleted flag (nonzero=TRUE) */
 	__attribute__((nonnull));
 
 /**************************************************************************
@@ -310,9 +303,9 @@ UNIV_INTERN
 void
 page_zip_rec_set_owned(
 /*===================*/
-	page_zip_des_t*	page_zip,/* in/out: compressed page */
-	const byte*	rec,	/* in: record on the uncompressed page */
-	ulint		flag)	/* in: the owned flag (nonzero=TRUE) */
+	page_zip_des_t*	page_zip,/*!< in/out: compressed page */
+	const byte*	rec,	/*!< in: record on the uncompressed page */
+	ulint		flag)	/*!< in: the owned flag (nonzero=TRUE) */
 	__attribute__((nonnull));
 
 /**************************************************************************
@@ -321,11 +314,11 @@ UNIV_INTERN
 void
 page_zip_dir_insert(
 /*================*/
-	page_zip_des_t*	page_zip,/* in/out: compressed page */
-	const byte*	prev_rec,/* in: record after which to insert */
-	const byte*	free_rec,/* in: record from which rec was
+	page_zip_des_t*	page_zip,/*!< in/out: compressed page */
+	const byte*	prev_rec,/*!< in: record after which to insert */
+	const byte*	free_rec,/*!< in: record from which rec was
 				allocated, or NULL */
-	byte*		rec);	/* in: record to insert */
+	byte*		rec);	/*!< in: record to insert */
 
 /**************************************************************************
 Shift the dense page directory and the array of BLOB pointers
@@ -334,11 +327,11 @@ UNIV_INTERN
 void
 page_zip_dir_delete(
 /*================*/
-	page_zip_des_t*	page_zip,/* in/out: compressed page */
-	byte*		rec,	/* in: deleted record */
-	dict_index_t*	index,	/* in: index of rec */
-	const ulint*	offsets,/* in: rec_get_offsets(rec) */
-	const byte*	free)	/* in: previous start of the free list */
+	page_zip_des_t*	page_zip,/*!< in/out: compressed page */
+	byte*		rec,	/*!< in: deleted record */
+	dict_index_t*	index,	/*!< in: index of rec */
+	const ulint*	offsets,/*!< in: rec_get_offsets(rec) */
+	const byte*	free)	/*!< in: previous start of the free list */
 	__attribute__((nonnull(1,2,3,4)));
 
 /**************************************************************************
@@ -347,22 +340,22 @@ UNIV_INTERN
 void
 page_zip_dir_add_slot(
 /*==================*/
-	page_zip_des_t*	page_zip,	/* in/out: compressed page */
-	ulint		is_clustered)	/* in: nonzero for clustered index,
+	page_zip_des_t*	page_zip,	/*!< in/out: compressed page */
+	ulint		is_clustered)	/*!< in: nonzero for clustered index,
 					zero for others */
 	__attribute__((nonnull));
 
 /***************************************************************
-Parses a log record of writing to the header of a page. */
+Parses a log record of writing to the header of a page.
+@return	end of log record or NULL */
 UNIV_INTERN
 byte*
 page_zip_parse_write_header(
 /*========================*/
-				/* out: end of log record or NULL */
-	byte*		ptr,	/* in: redo log buffer */
-	byte*		end_ptr,/* in: redo log buffer end */
-	page_t*		page,	/* in/out: uncompressed page */
-	page_zip_des_t*	page_zip);/* in/out: compressed page */
+	byte*		ptr,	/*!< in: redo log buffer */
+	byte*		end_ptr,/*!< in: redo log buffer end */
+	page_t*		page,	/*!< in/out: uncompressed page */
+	page_zip_des_t*	page_zip);/*!< in/out: compressed page */
 
 /**************************************************************************
 Write data to the uncompressed header portion of a page.  The data must
@@ -374,10 +367,10 @@ UNIV_INLINE
 void
 page_zip_write_header(
 /*==================*/
-	page_zip_des_t*	page_zip,/* in/out: compressed page */
-	const byte*	str,	/* in: address on the uncompressed page */
-	ulint		length,	/* in: length of the data */
-	mtr_t*		mtr)	/* in: mini-transaction, or NULL */
+	page_zip_des_t*	page_zip,/*!< in/out: compressed page */
+	const byte*	str,	/*!< in: address on the uncompressed page */
+	ulint		length,	/*!< in: length of the data */
+	mtr_t*		mtr)	/*!< in: mini-transaction, or NULL */
 	__attribute__((nonnull(1,2)));
 
 /**************************************************************************
@@ -388,20 +381,18 @@ The function btr_page_reorganize() should be preferred whenever possible.
 IMPORTANT: if page_zip_reorganize() is invoked on a leaf page of a
 non-clustered index, the caller must update the insert buffer free
 bits in the same mini-transaction in such a way that the modification
-will be redo-logged. */
+will be redo-logged.
+@return	TRUE on success, FALSE on failure; page and page_zip will be left intact on failure. */
 UNIV_INTERN
 ibool
 page_zip_reorganize(
 /*================*/
-				/* out: TRUE on success, FALSE on failure;
-				page and page_zip will be left intact
-				on failure. */
-	buf_block_t*	block,	/* in/out: page with compressed page;
+	buf_block_t*	block,	/*!< in/out: page with compressed page;
 				on the compressed page, in: size;
 				out: data, n_blobs,
 				m_start, m_end, m_nonempty */
-	dict_index_t*	index,	/* in: index of the B-tree node */
-	mtr_t*		mtr)	/* in: mini-transaction */
+	dict_index_t*	index,	/*!< in: index of the B-tree node */
+	mtr_t*		mtr)	/*!< in: mini-transaction */
 	__attribute__((nonnull));
 #ifndef UNIV_HOTBACKUP
 /**************************************************************************
@@ -413,39 +404,39 @@ UNIV_INTERN
 void
 page_zip_copy_recs(
 /*===============*/
-	page_zip_des_t*		page_zip,	/* out: copy of src_zip
+	page_zip_des_t*		page_zip,	/*!< out: copy of src_zip
 						(n_blobs, m_start, m_end,
 						m_nonempty, data[0..size-1]) */
-	page_t*			page,		/* out: copy of src */
-	const page_zip_des_t*	src_zip,	/* in: compressed page */
-	const page_t*		src,		/* in: page */
-	dict_index_t*		index,		/* in: index of the B-tree */
-	mtr_t*			mtr)		/* in: mini-transaction */
+	page_t*			page,		/*!< out: copy of src */
+	const page_zip_des_t*	src_zip,	/*!< in: compressed page */
+	const page_t*		src,		/*!< in: page */
+	dict_index_t*		index,		/*!< in: index of the B-tree */
+	mtr_t*			mtr)		/*!< in: mini-transaction */
 	__attribute__((nonnull(1,2,3,4)));
 #endif /* !UNIV_HOTBACKUP */
 
 /**************************************************************************
-Parses a log record of compressing an index page. */
+Parses a log record of compressing an index page.
+@return	end of log record or NULL */
 UNIV_INTERN
 byte*
 page_zip_parse_compress(
 /*====================*/
-				/* out: end of log record or NULL */
-	byte*		ptr,	/* in: buffer */
-	byte*		end_ptr,/* in: buffer end */
-	page_t*		page,	/* out: uncompressed page */
-	page_zip_des_t*	page_zip)/* out: compressed page */
+	byte*		ptr,	/*!< in: buffer */
+	byte*		end_ptr,/*!< in: buffer end */
+	page_t*		page,	/*!< out: uncompressed page */
+	page_zip_des_t*	page_zip)/*!< out: compressed page */
 	__attribute__((nonnull(1,2)));
 
 /**************************************************************************
-Calculate the compressed page checksum. */
+Calculate the compressed page checksum.
+@return	page checksum */
 UNIV_INTERN
 ulint
 page_zip_calc_checksum(
 /*===================*/
-                                /* out: page checksum */
-        const void*     data,   /* in: compressed page */
-        ulint           size)   /* in: size of compressed page */
+        const void*     data,   /*!< in: compressed page */
+        ulint           size)   /*!< in: size of compressed page */
 	__attribute__((nonnull));
 
 #ifndef UNIV_HOTBACKUP

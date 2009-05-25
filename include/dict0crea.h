@@ -33,59 +33,58 @@ Created 1/8/1996 Heikki Tuuri
 #include "mtr0mtr.h"
 
 /*************************************************************************
-Creates a table create graph. */
+Creates a table create graph.
+@return	own: table create node */
 UNIV_INTERN
 tab_node_t*
 tab_create_graph_create(
 /*====================*/
-				/* out, own: table create node */
-	dict_table_t*	table,	/* in: table to create, built as a memory data
+	dict_table_t*	table,	/*!< in: table to create, built as a memory data
 				structure */
-	mem_heap_t*	heap);	/* in: heap where created */
+	mem_heap_t*	heap);	/*!< in: heap where created */
 /*************************************************************************
-Creates an index create graph. */
+Creates an index create graph.
+@return	own: index create node */
 UNIV_INTERN
 ind_node_t*
 ind_create_graph_create(
 /*====================*/
-				/* out, own: index create node */
-	dict_index_t*	index,	/* in: index to create, built as a memory data
+	dict_index_t*	index,	/*!< in: index to create, built as a memory data
 				structure */
-	mem_heap_t*	heap);	/* in: heap where created */
+	mem_heap_t*	heap);	/*!< in: heap where created */
 /***************************************************************
-Creates a table. This is a high-level function used in SQL execution graphs. */
+Creates a table. This is a high-level function used in SQL execution graphs.
+@return	query thread to run next or NULL */
 UNIV_INTERN
 que_thr_t*
 dict_create_table_step(
 /*===================*/
-				/* out: query thread to run next or NULL */
-	que_thr_t*	thr);	/* in: query thread */
+	que_thr_t*	thr);	/*!< in: query thread */
 /***************************************************************
 Creates an index. This is a high-level function used in SQL execution
-graphs. */
+graphs.
+@return	query thread to run next or NULL */
 UNIV_INTERN
 que_thr_t*
 dict_create_index_step(
 /*===================*/
-				/* out: query thread to run next or NULL */
-	que_thr_t*	thr);	/* in: query thread */
+	que_thr_t*	thr);	/*!< in: query thread */
 /***********************************************************************
-Truncates the index tree associated with a row in SYS_INDEXES table. */
+Truncates the index tree associated with a row in SYS_INDEXES table.
+@return	new root page number, or FIL_NULL on failure */
 UNIV_INTERN
 ulint
 dict_truncate_index_tree(
 /*=====================*/
-				/* out: new root page number, or
-				FIL_NULL on failure */
-	dict_table_t*	table,	/* in: the table the index belongs to */
-	ulint		space,	/* in: 0=truncate,
+	dict_table_t*	table,	/*!< in: the table the index belongs to */
+	ulint		space,	/*!< in: 0=truncate,
 				nonzero=create the index tree in the
 				given tablespace */
-	btr_pcur_t*	pcur,	/* in/out: persistent cursor pointing to
+	btr_pcur_t*	pcur,	/*!< in/out: persistent cursor pointing to
 				record in the clustered index of
 				SYS_INDEXES table. The cursor may be
 				repositioned in this call. */
-	mtr_t*		mtr);	/* in: mtr having the latch
+	mtr_t*		mtr);	/*!< in: mtr having the latch
 				on the record page. The mtr may be
 				committed and restarted in this call. */
 /***********************************************************************
@@ -94,31 +93,31 @@ UNIV_INTERN
 void
 dict_drop_index_tree(
 /*=================*/
-	rec_t*	rec,	/* in/out: record in the clustered index
+	rec_t*	rec,	/*!< in/out: record in the clustered index
 			of SYS_INDEXES table */
-	mtr_t*	mtr);	/* in: mtr having the latch on the record page */
+	mtr_t*	mtr);	/*!< in: mtr having the latch on the record page */
 /********************************************************************
 Creates the foreign key constraints system tables inside InnoDB
 at database creation or database start if they are not found or are
-not of the right form. */
+not of the right form.
+@return	DB_SUCCESS or error code */
 UNIV_INTERN
 ulint
 dict_create_or_check_foreign_constraint_tables(void);
 /*================================================*/
-				/* out: DB_SUCCESS or error code */
 /************************************************************************
 Adds foreign key definitions to data dictionary tables in the database. We
 look at table->foreign_list, and also generate names to constraints that were
 not named by the user. A generated constraint has a name of the format
 databasename/tablename_ibfk_<number>, where the numbers start from 1, and are
 given locally for this table, that is, the number is not global, as in the
-old format constraints < 4.0.18 it used to be. */
+old format constraints < 4.0.18 it used to be.
+@return	error code or DB_SUCCESS */
 UNIV_INTERN
 ulint
 dict_create_add_foreigns_to_dictionary(
 /*===================================*/
-				/* out: error code or DB_SUCCESS */
-	ulint		start_id,/* in: if we are actually doing ALTER TABLE
+	ulint		start_id,/*!< in: if we are actually doing ALTER TABLE
 				ADD CONSTRAINT, we want to generate constraint
 				numbers which are bigger than in the table so
 				far; we number the constraints from
@@ -126,8 +125,8 @@ dict_create_add_foreigns_to_dictionary(
 				we are creating a new table, or if the table
 				so far has no constraints for which the name
 				was generated here */
-	dict_table_t*	table,	/* in: table */
-	trx_t*		trx);	/* in: transaction */
+	dict_table_t*	table,	/*!< in: table */
+	trx_t*		trx);	/*!< in: transaction */
 
 /* Table create node structure */
 

@@ -29,13 +29,13 @@ Created 1/20/1998 Heikki Tuuri
 #endif
 
 /**************************************************************************
-Performs an execution step of an if-statement node. */
+Performs an execution step of an if-statement node.
+@return	query thread to run next or NULL */
 UNIV_INTERN
 que_thr_t*
 if_step(
 /*====*/
-				/* out: query thread to run next or NULL */
-	que_thr_t*	thr)	/* in: query thread */
+	que_thr_t*	thr)	/*!< in: query thread */
 {
 	if_node_t*	node;
 	elsif_node_t*	elsif_node;
@@ -105,13 +105,13 @@ if_step(
 }
 
 /**************************************************************************
-Performs an execution step of a while-statement node. */
+Performs an execution step of a while-statement node.
+@return	query thread to run next or NULL */
 UNIV_INTERN
 que_thr_t*
 while_step(
 /*=======*/
-				/* out: query thread to run next or NULL */
-	que_thr_t*	thr)	/* in: query thread */
+	que_thr_t*	thr)	/*!< in: query thread */
 {
 	while_node_t*	node;
 
@@ -141,13 +141,13 @@ while_step(
 }
 
 /**************************************************************************
-Performs an execution step of an assignment statement node. */
+Performs an execution step of an assignment statement node.
+@return	query thread to run next or NULL */
 UNIV_INTERN
 que_thr_t*
 assign_step(
 /*========*/
-				/* out: query thread to run next or NULL */
-	que_thr_t*	thr)	/* in: query thread */
+	que_thr_t*	thr)	/*!< in: query thread */
 {
 	assign_node_t*	node;
 
@@ -168,13 +168,13 @@ assign_step(
 }
 
 /**************************************************************************
-Performs an execution step of a for-loop node. */
+Performs an execution step of a for-loop node.
+@return	query thread to run next or NULL */
 UNIV_INTERN
 que_thr_t*
 for_step(
 /*=====*/
-				/* out: query thread to run next or NULL */
-	que_thr_t*	thr)	/* in: query thread */
+	que_thr_t*	thr)	/*!< in: query thread */
 {
 	for_node_t*	node;
 	que_node_t*	parent;
@@ -230,13 +230,13 @@ for_step(
 }
 
 /**************************************************************************
-Performs an execution step of an exit statement node. */
+Performs an execution step of an exit statement node.
+@return	query thread to run next or NULL */
 UNIV_INTERN
 que_thr_t*
 exit_step(
 /*======*/
-				/* out: query thread to run next or NULL */
-	que_thr_t*	thr)	/* in: query thread */
+	que_thr_t*	thr)	/*!< in: query thread */
 {
 	exit_node_t*	node;
 	que_node_t*	loop_node;
@@ -262,13 +262,13 @@ exit_step(
 }
 
 /**************************************************************************
-Performs an execution step of a return-statement node. */
+Performs an execution step of a return-statement node.
+@return	query thread to run next or NULL */
 UNIV_INTERN
 que_thr_t*
 return_step(
 /*========*/
-				/* out: query thread to run next or NULL */
-	que_thr_t*	thr)	/* in: query thread */
+	que_thr_t*	thr)	/*!< in: query thread */
 {
 	return_node_t*	node;
 	que_node_t*	parent;

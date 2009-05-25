@@ -51,44 +51,44 @@ struct mem_area_struct{
 			UNIV_MEM_ALIGNMENT))
 
 /************************************************************************
-Creates a memory pool. */
+Creates a memory pool.
+@return	memory pool */
 UNIV_INTERN
 mem_pool_t*
 mem_pool_create(
 /*============*/
-			/* out: memory pool */
-	ulint	size);	/* in: pool size in bytes */
+	ulint	size);	/*!< in: pool size in bytes */
 /************************************************************************
 Allocates memory from a pool. NOTE: This low-level function should only be
-used in mem0mem.*! */
+used in mem0mem.*!
+@return	own: allocated memory buffer */
 UNIV_INTERN
 void*
 mem_area_alloc(
 /*===========*/
-				/* out, own: allocated memory buffer */
-	ulint*		psize,	/* in: requested size in bytes; for optimum
+	ulint*		psize,	/*!< in: requested size in bytes; for optimum
 				space usage, the size should be a power of 2
 				minus MEM_AREA_EXTRA_SIZE;
 				out: allocated size in bytes (greater than
 				or equal to the requested size) */
-	mem_pool_t*	pool);	/* in: memory pool */
+	mem_pool_t*	pool);	/*!< in: memory pool */
 /************************************************************************
 Frees memory to a pool. */
 UNIV_INTERN
 void
 mem_area_free(
 /*==========*/
-	void*		ptr,	/* in, own: pointer to allocated memory
+	void*		ptr,	/*!< in, own: pointer to allocated memory
 				buffer */
-	mem_pool_t*	pool);	/* in: memory pool */
+	mem_pool_t*	pool);	/*!< in: memory pool */
 /************************************************************************
-Returns the amount of reserved memory. */
+Returns the amount of reserved memory.
+@return	reserved mmeory in bytes */
 UNIV_INTERN
 ulint
 mem_pool_get_reserved(
 /*==================*/
-				/* out: reserved mmeory in bytes */
-	mem_pool_t*	pool);	/* in: memory pool */
+	mem_pool_t*	pool);	/*!< in: memory pool */
 /************************************************************************
 Reserves the mem pool mutex. */
 UNIV_INTERN
@@ -102,21 +102,21 @@ void
 mem_pool_mutex_exit(void);
 /*=====================*/
 /************************************************************************
-Validates a memory pool. */
+Validates a memory pool.
+@return	TRUE if ok */
 UNIV_INTERN
 ibool
 mem_pool_validate(
 /*==============*/
-				/* out: TRUE if ok */
-	mem_pool_t*	pool);	/* in: memory pool */
+	mem_pool_t*	pool);	/*!< in: memory pool */
 /************************************************************************
 Prints info of a memory pool. */
 UNIV_INTERN
 void
 mem_pool_print_info(
 /*================*/
-	FILE*		outfile,/* in: output file to write to */
-	mem_pool_t*	pool);	/* in: memory pool */
+	FILE*		outfile,/*!< in: output file to write to */
+	mem_pool_t*	pool);	/*!< in: memory pool */
 
 
 #ifndef UNIV_NONINL

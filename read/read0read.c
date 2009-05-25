@@ -137,14 +137,14 @@ TODO: proof this
 */
 
 /*************************************************************************
-Creates a read view object. */
+Creates a read view object.
+@return	own: read view struct */
 UNIV_INLINE
 read_view_t*
 read_view_create_low(
 /*=================*/
-				/* out, own: read view struct */
-	ulint		n,	/* in: number of cells in the trx_ids array */
-	mem_heap_t*	heap)	/* in: memory heap from which allocated */
+	ulint		n,	/*!< in: number of cells in the trx_ids array */
+	mem_heap_t*	heap)	/*!< in: memory heap from which allocated */
 {
 	read_view_t*	view;
 
@@ -160,16 +160,16 @@ read_view_create_low(
 Makes a copy of the oldest existing read view, with the exception that also
 the creating trx of the oldest view is set as not visible in the 'copied'
 view. Opens a new view if no views currently exist. The view must be closed
-with ..._close. This is used in purge. */
+with ..._close. This is used in purge.
+@return	own: read view struct */
 UNIV_INTERN
 read_view_t*
 read_view_oldest_copy_or_open_new(
 /*==============================*/
-					/* out, own: read view struct */
-	trx_id_t	cr_trx_id,	/* in: trx_id of creating
+	trx_id_t	cr_trx_id,	/*!< in: trx_id of creating
 					transaction, or ut_dulint_zero
 					used in purge */
-	mem_heap_t*	heap)		/* in: memory heap from which
+	mem_heap_t*	heap)		/*!< in: memory heap from which
 					allocated */
 {
 	read_view_t*	old_view;
@@ -244,16 +244,16 @@ read_view_oldest_copy_or_open_new(
 
 /*************************************************************************
 Opens a read view where exactly the transactions serialized before this
-point in time are seen in the view. */
+point in time are seen in the view.
+@return	own: read view struct */
 UNIV_INTERN
 read_view_t*
 read_view_open_now(
 /*===============*/
-					/* out, own: read view struct */
-	trx_id_t	cr_trx_id,	/* in: trx_id of creating
+	trx_id_t	cr_trx_id,	/*!< in: trx_id of creating
 					transaction, or ut_dulint_zero
 					used in purge */
-	mem_heap_t*	heap)		/* in: memory heap from which
+	mem_heap_t*	heap)		/*!< in: memory heap from which
 					allocated */
 {
 	read_view_t*	view;
@@ -323,7 +323,7 @@ UNIV_INTERN
 void
 read_view_close(
 /*============*/
-	read_view_t*	view)	/* in: read view */
+	read_view_t*	view)	/*!< in: read view */
 {
 	ut_ad(mutex_own(&kernel_mutex));
 
@@ -337,7 +337,7 @@ UNIV_INTERN
 void
 read_view_close_for_mysql(
 /*======================*/
-	trx_t*	trx)	/* in: trx which has a read view */
+	trx_t*	trx)	/*!< in: trx which has a read view */
 {
 	ut_a(trx->global_read_view);
 
@@ -359,7 +359,7 @@ UNIV_INTERN
 void
 read_view_print(
 /*============*/
-	const read_view_t*	view)	/* in: read view */
+	const read_view_t*	view)	/*!< in: read view */
 {
 	ulint	n_ids;
 	ulint	i;
@@ -403,7 +403,7 @@ UNIV_INTERN
 cursor_view_t*
 read_cursor_view_create_for_mysql(
 /*==============================*/
-	trx_t*	cr_trx)	/* in: trx where cursor view is created */
+	trx_t*	cr_trx)	/*!< in: trx where cursor view is created */
 {
 	cursor_view_t*	curview;
 	read_view_t*	view;
@@ -493,8 +493,8 @@ UNIV_INTERN
 void
 read_cursor_view_close_for_mysql(
 /*=============================*/
-	trx_t*		trx,	/* in: trx */
-	cursor_view_t*	curview)/* in: cursor view to be closed */
+	trx_t*		trx,	/*!< in: trx */
+	cursor_view_t*	curview)/*!< in: cursor view to be closed */
 {
 	ut_a(curview);
 	ut_a(curview->read_view);
@@ -522,8 +522,8 @@ UNIV_INTERN
 void
 read_cursor_set_for_mysql(
 /*======================*/
-	trx_t*		trx,	/* in: transaction where cursor is set */
-	cursor_view_t*	curview)/* in: consistent cursor view to be set */
+	trx_t*		trx,	/*!< in: transaction where cursor is set */
+	cursor_view_t*	curview)/*!< in: consistent cursor view to be set */
 {
 	ut_a(trx);
 

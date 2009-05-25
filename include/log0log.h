@@ -58,39 +58,38 @@ UNIV_INTERN
 void
 log_fsp_current_free_limit_set_and_checkpoint(
 /*==========================================*/
-	ulint	limit);	/* in: limit to set */
+	ulint	limit);	/*!< in: limit to set */
 #endif /* !UNIV_HOTBACKUP */
 /***********************************************************************
-Calculates where in log files we find a specified lsn. */
+Calculates where in log files we find a specified lsn.
+@return	log file number */
 UNIV_INTERN
 ulint
 log_calc_where_lsn_is(
 /*==================*/
-						/* out: log file number */
-	ib_int64_t*	log_file_offset,	/* out: offset in that file
+	ib_int64_t*	log_file_offset,	/*!< out: offset in that file
 						(including the header) */
-	ib_uint64_t	first_header_lsn,	/* in: first log file start
+	ib_uint64_t	first_header_lsn,	/*!< in: first log file start
 						lsn */
-	ib_uint64_t	lsn,			/* in: lsn whose position to
+	ib_uint64_t	lsn,			/*!< in: lsn whose position to
 						determine */
-	ulint		n_log_files,		/* in: total number of log
+	ulint		n_log_files,		/*!< in: total number of log
 						files */
-	ib_int64_t	log_file_size);		/* in: log file size
+	ib_int64_t	log_file_size);		/*!< in: log file size
 						(including the header) */
 #ifndef UNIV_HOTBACKUP
 /****************************************************************
 Writes to the log the string given. The log must be released with
-log_release. */
+log_release.
+@return	end lsn of the log record, zero if did not succeed */
 UNIV_INLINE
 ib_uint64_t
 log_reserve_and_write_fast(
 /*=======================*/
-				/* out: end lsn of the log record,
-				zero if did not succeed */
-	byte*		str,	/* in: string */
-	ulint		len,	/* in: string length */
-	ib_uint64_t*	start_lsn,/* out: start lsn of the log record */
-	ibool*		success);/* out: TRUE if success */
+	byte*		str,	/*!< in: string */
+	ulint		len,	/*!< in: string length */
+	ib_uint64_t*	start_lsn,/*!< out: start lsn of the log record */
+	ibool*		success);/*!< out: TRUE if success */
 /***************************************************************************
 Releases the log mutex. */
 UNIV_INLINE
@@ -108,13 +107,13 @@ log_free_check(void);
 /*================*/
 /****************************************************************
 Opens the log for log_write_low. The log must be closed with log_close and
-released with log_release. */
+released with log_release.
+@return	start lsn of the log record */
 UNIV_INTERN
 ib_uint64_t
 log_reserve_and_open(
 /*=================*/
-			/* out: start lsn of the log record */
-	ulint	len);	/* in: length of data to be catenated */
+	ulint	len);	/*!< in: length of data to be catenated */
 /****************************************************************
 Writes to the log the string given. It is assumed that the caller holds the
 log mutex. */
@@ -122,22 +121,22 @@ UNIV_INTERN
 void
 log_write_low(
 /*==========*/
-	byte*	str,		/* in: string */
-	ulint	str_len);	/* in: string length */
+	byte*	str,		/*!< in: string */
+	ulint	str_len);	/*!< in: string length */
 /****************************************************************
-Closes the log. */
+Closes the log.
+@return	lsn */
 UNIV_INTERN
 ib_uint64_t
 log_close(void);
 /*===========*/
-			/* out: lsn */
 /****************************************************************
-Gets the current lsn. */
+Gets the current lsn.
+@return	current lsn */
 UNIV_INLINE
 ib_uint64_t
 log_get_lsn(void);
 /*=============*/
-			/* out: current lsn */
 /**********************************************************
 Initializes the log. */
 UNIV_INTERN
@@ -150,13 +149,13 @@ UNIV_INTERN
 void
 log_group_init(
 /*===========*/
-	ulint	id,			/* in: group id */
-	ulint	n_files,		/* in: number of log files */
-	ulint	file_size,		/* in: log file size in bytes */
-	ulint	space_id,		/* in: space id of the file space
+	ulint	id,			/*!< in: group id */
+	ulint	n_files,		/*!< in: number of log files */
+	ulint	file_size,		/*!< in: log file size in bytes */
+	ulint	space_id,		/*!< in: space id of the file space
 					which contains the log files of this
 					group */
-	ulint	archive_space_id);	/* in: space id of the file space
+	ulint	archive_space_id);	/*!< in: space id of the file space
 					which contains some archived log
 					files for this group; currently, only
 					for the first log group this is
@@ -167,7 +166,7 @@ UNIV_INTERN
 void
 log_io_complete(
 /*============*/
-	log_group_t*	group);	/* in: log group */
+	log_group_t*	group);	/*!< in: log group */
 /**********************************************************
 This function is called, e.g., when a transaction wants to commit. It checks
 that the log has been written to the log file up to the last log entry written
@@ -177,13 +176,13 @@ UNIV_INTERN
 void
 log_write_up_to(
 /*============*/
-	ib_uint64_t	lsn,	/* in: log sequence number up to which
+	ib_uint64_t	lsn,	/*!< in: log sequence number up to which
 				the log should be written,
 				IB_ULONGLONG_MAX if not specified */
-	ulint		wait,	/* in: LOG_NO_WAIT, LOG_WAIT_ONE_GROUP,
+	ulint		wait,	/*!< in: LOG_NO_WAIT, LOG_WAIT_ONE_GROUP,
 				or LOG_WAIT_ALL_GROUPS */
 	ibool		flush_to_disk);
-				/* in: TRUE if we want the written log
+				/*!< in: TRUE if we want the written log
 				also to be flushed to disk */
 /********************************************************************
 Does a syncronous flush of the log buffer to disk. */
@@ -194,35 +193,30 @@ log_buffer_flush_to_disk(void);
 /********************************************************************
 Advances the smallest lsn for which there are unflushed dirty blocks in the
 buffer pool and also may make a new checkpoint. NOTE: this function may only
-be called if the calling thread owns no synchronization objects! */
+be called if the calling thread owns no synchronization objects!
+@return	FALSE if there was a flush batch of the same type running, which means that we could not start this flush batch */
 UNIV_INTERN
 ibool
 log_preflush_pool_modified_pages(
 /*=============================*/
-					/* out: FALSE if there was a
-					flush batch of the same type
-					running, which means that we
-					could not start this flush
-					batch */
-	ib_uint64_t	new_oldest,	/* in: try to advance
+	ib_uint64_t	new_oldest,	/*!< in: try to advance
 					oldest_modified_lsn at least
 					to this lsn */
-	ibool		sync);		/* in: TRUE if synchronous
+	ibool		sync);		/*!< in: TRUE if synchronous
 					operation is desired */
 /**********************************************************
 Makes a checkpoint. Note that this function does not flush dirty
 blocks from the buffer pool: it only checks what is lsn of the oldest
 modification in the pool, and writes information about the lsn in
-log files. Use log_make_checkpoint_at to flush also the pool. */
+log files. Use log_make_checkpoint_at to flush also the pool.
+@return	TRUE if success, FALSE if a checkpoint write was already running */
 UNIV_INTERN
 ibool
 log_checkpoint(
 /*===========*/
-				/* out: TRUE if success, FALSE if a checkpoint
-				write was already running */
-	ibool	sync,		/* in: TRUE if synchronous operation is
+	ibool	sync,		/*!< in: TRUE if synchronous operation is
 				desired */
-	ibool	write_always);	/* in: the function normally checks if the
+	ibool	write_always);	/*!< in: the function normally checks if the
 				the new checkpoint would have a greater
 				lsn than the previous one: if not, then no
 				physical write is done; by setting this
@@ -234,10 +228,10 @@ UNIV_INTERN
 void
 log_make_checkpoint_at(
 /*===================*/
-	ib_uint64_t	lsn,		/* in: make a checkpoint at this or a
+	ib_uint64_t	lsn,		/*!< in: make a checkpoint at this or a
 					later lsn, if IB_ULONGLONG_MAX, makes
 					a checkpoint at the latest lsn */
-	ibool		write_always);	/* in: the function normally checks if
+	ibool		write_always);	/*!< in: the function normally checks if
 					the the new checkpoint would have a
 					greater lsn than the previous one: if
 					not, then no physical write is done;
@@ -259,18 +253,18 @@ UNIV_INTERN
 void
 log_group_read_checkpoint_info(
 /*===========================*/
-	log_group_t*	group,	/* in: log group */
-	ulint		field);	/* in: LOG_CHECKPOINT_1 or LOG_CHECKPOINT_2 */
+	log_group_t*	group,	/*!< in: log group */
+	ulint		field);	/*!< in: LOG_CHECKPOINT_1 or LOG_CHECKPOINT_2 */
 /***********************************************************************
 Gets info from a checkpoint about a log group. */
 UNIV_INTERN
 void
 log_checkpoint_get_nth_group_info(
 /*==============================*/
-	const byte*	buf,	/* in: buffer containing checkpoint info */
-	ulint		n,	/* in: nth slot */
-	ulint*		file_no,/* out: archived file number */
-	ulint*		offset);/* out: archived file offset */
+	const byte*	buf,	/*!< in: buffer containing checkpoint info */
+	ulint		n,	/*!< in: nth slot */
+	ulint*		file_no,/*!< out: archived file number */
+	ulint*		offset);/*!< out: archived file offset */
 /**********************************************************
 Writes checkpoint info to groups. */
 UNIV_INTERN
@@ -278,57 +272,56 @@ void
 log_groups_write_checkpoint_info(void);
 /*==================================*/
 /************************************************************************
-Starts an archiving operation. */
+Starts an archiving operation.
+@return	TRUE if succeed, FALSE if an archiving operation was already running */
 UNIV_INTERN
 ibool
 log_archive_do(
 /*===========*/
-			/* out: TRUE if succeed, FALSE if an archiving
-			operation was already running */
-	ibool	sync,	/* in: TRUE if synchronous operation is desired */
-	ulint*	n_bytes);/* out: archive log buffer size, 0 if nothing to
+	ibool	sync,	/*!< in: TRUE if synchronous operation is desired */
+	ulint*	n_bytes);/*!< out: archive log buffer size, 0 if nothing to
 			archive */
 /********************************************************************
 Writes the log contents to the archive up to the lsn when this function was
 called, and stops the archiving. When archiving is started again, the archived
 log file numbers start from a number one higher, so that the archiving will
 not write again to the archived log files which exist when this function
-returns. */
+returns.
+@return	DB_SUCCESS or DB_ERROR */
 UNIV_INTERN
 ulint
 log_archive_stop(void);
 /*==================*/
-				/* out: DB_SUCCESS or DB_ERROR */
 /********************************************************************
-Starts again archiving which has been stopped. */
+Starts again archiving which has been stopped.
+@return	DB_SUCCESS or DB_ERROR */
 UNIV_INTERN
 ulint
 log_archive_start(void);
 /*===================*/
-			/* out: DB_SUCCESS or DB_ERROR */
 /********************************************************************
-Stop archiving the log so that a gap may occur in the archived log files. */
+Stop archiving the log so that a gap may occur in the archived log files.
+@return	DB_SUCCESS or DB_ERROR */
 UNIV_INTERN
 ulint
 log_archive_noarchivelog(void);
 /*==========================*/
-			/* out: DB_SUCCESS or DB_ERROR */
 /********************************************************************
-Start archiving the log so that a gap may occur in the archived log files. */
+Start archiving the log so that a gap may occur in the archived log files.
+@return	DB_SUCCESS or DB_ERROR */
 UNIV_INTERN
 ulint
 log_archive_archivelog(void);
 /*========================*/
-			/* out: DB_SUCCESS or DB_ERROR */
 /**********************************************************
 Generates an archived log file name. */
 UNIV_INTERN
 void
 log_archived_file_name_gen(
 /*=======================*/
-	char*	buf,	/* in: buffer where to write */
-	ulint	id,	/* in: group id */
-	ulint	file_no);/* in: file number */
+	char*	buf,	/*!< in: buffer where to write */
+	ulint	id,	/*!< in: group id */
+	ulint	file_no);/*!< in: file number */
 #else /* !UNIV_HOTBACKUP */
 /**********************************************************
 Writes info to a buffer of a log group when log files are created in
@@ -337,9 +330,9 @@ UNIV_INTERN
 void
 log_reset_first_header_and_checkpoint(
 /*==================================*/
-	byte*		hdr_buf,/* in: buffer which will be written to the
+	byte*		hdr_buf,/*!< in: buffer which will be written to the
 				start of the first log file */
-	ib_uint64_t	start);	/* in: lsn of the start of the first log file;
+	ib_uint64_t	start);	/*!< in: lsn of the start of the first log file;
 				we pretend that there is a checkpoint at
 				start + LOG_BLOCK_HDR_SIZE */
 #endif /* !UNIV_HOTBACKUP */
@@ -359,25 +352,25 @@ UNIV_INTERN
 void
 log_group_read_log_seg(
 /*===================*/
-	ulint		type,		/* in: LOG_ARCHIVE or LOG_RECOVER */
-	byte*		buf,		/* in: buffer where to read */
-	log_group_t*	group,		/* in: log group */
-	ib_uint64_t	start_lsn,	/* in: read area start */
-	ib_uint64_t	end_lsn);	/* in: read area end */
+	ulint		type,		/*!< in: LOG_ARCHIVE or LOG_RECOVER */
+	byte*		buf,		/*!< in: buffer where to read */
+	log_group_t*	group,		/*!< in: log group */
+	ib_uint64_t	start_lsn,	/*!< in: read area start */
+	ib_uint64_t	end_lsn);	/*!< in: read area end */
 /**********************************************************
 Writes a buffer to a log file group. */
 UNIV_INTERN
 void
 log_group_write_buf(
 /*================*/
-	log_group_t*	group,		/* in: log group */
-	byte*		buf,		/* in: buffer */
-	ulint		len,		/* in: buffer len; must be divisible
+	log_group_t*	group,		/*!< in: log group */
+	byte*		buf,		/*!< in: buffer */
+	ulint		len,		/*!< in: buffer len; must be divisible
 					by OS_FILE_LOG_BLOCK_SIZE */
-	ib_uint64_t	start_lsn,	/* in: start lsn of the buffer; must
+	ib_uint64_t	start_lsn,	/*!< in: start lsn of the buffer; must
 					be divisible by
 					OS_FILE_LOG_BLOCK_SIZE */
-	ulint		new_data_offset);/* in: start offset of new data in
+	ulint		new_data_offset);/*!< in: start offset of new data in
 					buf: this parameter is used to decide
 					if we have to write a new log file
 					header */
@@ -389,115 +382,107 @@ UNIV_INTERN
 void
 log_group_set_fields(
 /*=================*/
-	log_group_t*	group,	/* in/out: group */
-	ib_uint64_t	lsn);	/* in: lsn for which the values should be
+	log_group_t*	group,	/*!< in/out: group */
+	ib_uint64_t	lsn);	/*!< in: lsn for which the values should be
 				set */
 /**********************************************************
 Calculates the data capacity of a log group, when the log file headers are not
-included. */
+included.
+@return	capacity in bytes */
 UNIV_INTERN
 ulint
 log_group_get_capacity(
 /*===================*/
-					/* out: capacity in bytes */
-	const log_group_t*	group);	/* in: log group */
+	const log_group_t*	group);	/*!< in: log group */
 #endif /* !UNIV_HOTBACKUP */
 /****************************************************************
-Gets a log block flush bit. */
+Gets a log block flush bit.
+@return	TRUE if this block was the first to be written in a log flush */
 UNIV_INLINE
 ibool
 log_block_get_flush_bit(
 /*====================*/
-					/* out: TRUE if this block was
-					the first to be written in a
-					log flush */
-	const byte*	log_block);	/* in: log block */
+	const byte*	log_block);	/*!< in: log block */
 /****************************************************************
-Gets a log block number stored in the header. */
+Gets a log block number stored in the header.
+@return	log block number stored in the block header */
 UNIV_INLINE
 ulint
 log_block_get_hdr_no(
 /*=================*/
-					/* out: log block number
-					stored in the block header */
-	const byte*	log_block);	/* in: log block */
+	const byte*	log_block);	/*!< in: log block */
 /****************************************************************
-Gets a log block data length. */
+Gets a log block data length.
+@return	log block data length measured as a byte offset from the block start */
 UNIV_INLINE
 ulint
 log_block_get_data_len(
 /*===================*/
-					/* out: log block data length
-					measured as a byte offset from
-					the block start */
-	const byte*	log_block);	/* in: log block */
+	const byte*	log_block);	/*!< in: log block */
 /****************************************************************
 Sets the log block data length. */
 UNIV_INLINE
 void
 log_block_set_data_len(
 /*===================*/
-	byte*	log_block,	/* in/out: log block */
-	ulint	len);		/* in: data length */
+	byte*	log_block,	/*!< in/out: log block */
+	ulint	len);		/*!< in: data length */
 /****************************************************************
-Calculates the checksum for a log block. */
+Calculates the checksum for a log block.
+@return	checksum */
 UNIV_INLINE
 ulint
 log_block_calc_checksum(
 /*====================*/
-				/* out: checksum */
-	const byte*	block);	/* in: log block */
+	const byte*	block);	/*!< in: log block */
 /****************************************************************
-Gets a log block checksum field value. */
+Gets a log block checksum field value.
+@return	checksum */
 UNIV_INLINE
 ulint
 log_block_get_checksum(
 /*===================*/
-					/* out: checksum */
-	const byte*	log_block);	/* in: log block */
+	const byte*	log_block);	/*!< in: log block */
 /****************************************************************
 Sets a log block checksum field value. */
 UNIV_INLINE
 void
 log_block_set_checksum(
 /*===================*/
-	byte*	log_block,	/* in/out: log block */
-	ulint	checksum);	/* in: checksum */
+	byte*	log_block,	/*!< in/out: log block */
+	ulint	checksum);	/*!< in: checksum */
 /****************************************************************
-Gets a log block first mtr log record group offset. */
+Gets a log block first mtr log record group offset.
+@return	first mtr log record group byte offset from the block start, 0 if none */
 UNIV_INLINE
 ulint
 log_block_get_first_rec_group(
 /*==========================*/
-					/* out: first mtr log record
-					group byte offset from the
-					block start, 0 if none */
-	const byte*	log_block);	/* in: log block */
+	const byte*	log_block);	/*!< in: log block */
 /****************************************************************
 Sets the log block first mtr log record group offset. */
 UNIV_INLINE
 void
 log_block_set_first_rec_group(
 /*==========================*/
-	byte*	log_block,	/* in/out: log block */
-	ulint	offset);	/* in: offset, 0 if none */
+	byte*	log_block,	/*!< in/out: log block */
+	ulint	offset);	/*!< in: offset, 0 if none */
 /****************************************************************
-Gets a log block checkpoint number field (4 lowest bytes). */
+Gets a log block checkpoint number field (4 lowest bytes).
+@return	checkpoint no (4 lowest bytes) */
 UNIV_INLINE
 ulint
 log_block_get_checkpoint_no(
 /*========================*/
-					/* out: checkpoint no (4
-					lowest bytes) */
-	const byte*	log_block);	/* in: log block */
+	const byte*	log_block);	/*!< in: log block */
 /****************************************************************
 Initializes a log block in the log buffer. */
 UNIV_INLINE
 void
 log_block_init(
 /*===========*/
-	byte*		log_block,	/* in: pointer to the log buffer */
-	ib_uint64_t	lsn);		/* in: lsn within the log block */
+	byte*		log_block,	/*!< in: pointer to the log buffer */
+	ib_uint64_t	lsn);		/*!< in: lsn within the log block */
 /****************************************************************
 Initializes a log block in the log buffer in the old, < 3.23.52 format, where
 there was no checksum yet. */
@@ -505,33 +490,31 @@ UNIV_INLINE
 void
 log_block_init_in_old_format(
 /*=========================*/
-	byte*		log_block,	/* in: pointer to the log buffer */
-	ib_uint64_t	lsn);		/* in: lsn within the log block */
+	byte*		log_block,	/*!< in: pointer to the log buffer */
+	ib_uint64_t	lsn);		/*!< in: lsn within the log block */
 /****************************************************************
-Converts a lsn to a log block number. */
+Converts a lsn to a log block number.
+@return	log block number, it is > 0 and <= 1G */
 UNIV_INLINE
 ulint
 log_block_convert_lsn_to_no(
 /*========================*/
-				/* out: log block number,
-				it is > 0 and <= 1G */
-	ib_uint64_t	lsn);	/* in: lsn of a byte within the block */
+	ib_uint64_t	lsn);	/*!< in: lsn of a byte within the block */
 /**********************************************************
 Prints info of the log. */
 UNIV_INTERN
 void
 log_print(
 /*======*/
-	FILE*	file);	/* in: file where to print */
+	FILE*	file);	/*!< in: file where to print */
 /**********************************************************
-Peeks the current lsn. */
+Peeks the current lsn.
+@return	TRUE if success, FALSE if could not get the log system mutex */
 UNIV_INTERN
 ibool
 log_peek_lsn(
 /*=========*/
-				/* out: TRUE if success, FALSE if
-				could not get the log system mutex */
-	ib_uint64_t*	lsn);	/* out: if returns TRUE, current lsn is here */
+	ib_uint64_t*	lsn);	/*!< out: if returns TRUE, current lsn is here */
 /**************************************************************************
 Refreshes the statistics used to print per-second averages. */
 UNIV_INTERN

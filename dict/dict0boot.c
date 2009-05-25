@@ -40,14 +40,13 @@ Created 4/18/1996 Heikki Tuuri
 #include "os0file.h"
 
 /**************************************************************************
-Gets a pointer to the dictionary header and x-latches its page. */
+Gets a pointer to the dictionary header and x-latches its page.
+@return	pointer to the dictionary header, page x-latched */
 UNIV_INTERN
 dict_hdr_t*
 dict_hdr_get(
 /*=========*/
-			/* out: pointer to the dictionary header,
-			page x-latched */
-	mtr_t*	mtr)	/* in: mtr */
+	mtr_t*	mtr)	/*!< in: mtr */
 {
 	buf_block_t*	block;
 	dict_hdr_t*	header;
@@ -62,13 +61,13 @@ dict_hdr_get(
 }
 
 /**************************************************************************
-Returns a new table, index, or tree id. */
+Returns a new table, index, or tree id.
+@return	the new id */
 UNIV_INTERN
 dulint
 dict_hdr_get_new_id(
 /*================*/
-			/* out: the new id */
-	ulint	type)	/* in: DICT_HDR_ROW_ID, ... */
+	ulint	type)	/*!< in: DICT_HDR_ROW_ID, ... */
 {
 	dict_hdr_t*	dict_hdr;
 	dulint		id;
@@ -117,13 +116,13 @@ dict_hdr_flush_row_id(void)
 
 /*********************************************************************
 Creates the file page for the dictionary header. This function is
-called only at the database creation. */
+called only at the database creation.
+@return	TRUE if succeed */
 static
 ibool
 dict_hdr_create(
 /*============*/
-			/* out: TRUE if succeed */
-	mtr_t*	mtr)	/* in: mtr */
+	mtr_t*	mtr)	/*!< in: mtr */
 {
 	buf_block_t*	block;
 	dict_hdr_t*	dict_header;

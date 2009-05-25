@@ -23,15 +23,15 @@ Created 12/18/1995 Heikki Tuuri
 *******************************************************/
 
 /***************************************************************************
-Checks if a page address is an extent descriptor page address. */
+Checks if a page address is an extent descriptor page address.
+@return	TRUE if a descriptor page */
 UNIV_INLINE
 ibool
 fsp_descr_page(
 /*===========*/
-			/* out: TRUE if a descriptor page */
-	ulint	zip_size,/* in: compressed page size in bytes;
+	ulint	zip_size,/*!< in: compressed page size in bytes;
 			0 for uncompressed pages */
-	ulint	page_no)/* in: page number */
+	ulint	page_no)/*!< in: page number */
 {
 	ut_ad(ut_is_2pow(zip_size));
 

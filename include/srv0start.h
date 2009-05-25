@@ -34,25 +34,25 @@ UNIV_INTERN
 void
 srv_normalize_path_for_win(
 /*=======================*/
-	char*	str);	/* in/out: null-terminated character string */
+	char*	str);	/*!< in/out: null-terminated character string */
 /*************************************************************************
 Reads the data files and their sizes from a character string given in
-the .cnf file. */
+the .cnf file.
+@return	TRUE if ok, FALSE on parse error */
 UNIV_INTERN
 ibool
 srv_parse_data_file_paths_and_sizes(
 /*================================*/
-			/* out: TRUE if ok, FALSE on parse error */
-	char*	str);	/* in/out: the data file path string */
+	char*	str);	/*!< in/out: the data file path string */
 /*************************************************************************
 Reads log group home directories from a character string given in
-the .cnf file. */
+the .cnf file.
+@return	TRUE if ok, FALSE on parse error */
 UNIV_INTERN
 ibool
 srv_parse_log_group_home_dirs(
 /*==========================*/
-			/* out: TRUE if ok, FALSE on parse error */
-	char*	str);	/* in/out: character string */
+	char*	str);	/*!< in/out: character string */
 /*************************************************************************
 Frees the memory allocated by srv_parse_data_file_paths_and_sizes()
 and srv_parse_log_group_home_dirs(). */
@@ -62,30 +62,29 @@ srv_free_paths_and_sizes(void);
 /*==========================*/
 /*************************************************************************
 Adds a slash or a backslash to the end of a string if it is missing
-and the string is not empty. */
+and the string is not empty.
+@return	string which has the separator if the string is not empty */
 UNIV_INTERN
 char*
 srv_add_path_separator_if_needed(
 /*=============================*/
-			/* out: string which has the separator if the
-			string is not empty */
-	char*	str);	/* in: null-terminated character string */
+	char*	str);	/*!< in: null-terminated character string */
 #ifndef UNIV_HOTBACKUP
 /********************************************************************
 Starts Innobase and creates a new database if database files
-are not found and the user wants. */
+are not found and the user wants.
+@return	DB_SUCCESS or error code */
 UNIV_INTERN
 int
 innobase_start_or_create_for_mysql(void);
 /*====================================*/
-				/* out: DB_SUCCESS or error code */
 /********************************************************************
-Shuts down the Innobase database. */
+Shuts down the Innobase database.
+@return	DB_SUCCESS or error code */
 UNIV_INTERN
 int
 innobase_shutdown_for_mysql(void);
 /*=============================*/
-				/* out: DB_SUCCESS or error code */
 extern	ib_uint64_t	srv_shutdown_lsn;
 extern	ib_uint64_t	srv_start_lsn;
 

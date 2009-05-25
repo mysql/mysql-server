@@ -41,14 +41,14 @@ typedef struct ha_storage_struct	ha_storage_t;
 
 /***********************************************************************
 Creates a hash storage. If any of the parameters is 0, then a default
-value is used. */
+value is used.
+@return	own: hash storage */
 UNIV_INLINE
 ha_storage_t*
 ha_storage_create(
 /*==============*/
-					/* out, own: hash storage */
-	ulint	initial_heap_bytes,	/* in: initial heap's size */
-	ulint	initial_hash_cells);	/* in: initial number of cells
+	ulint	initial_heap_bytes,	/*!< in: initial heap's size */
+	ulint	initial_hash_cells);	/*!< in: initial number of cells
 					in the hash table */
 
 /***********************************************************************
@@ -59,16 +59,16 @@ memcmp(data1, data2, len1) == 0. If "data" is not present (and thus
 data_len bytes need to be allocated) and the size of storage is going to
 become more than "memlim" then "data" is not added and NULL is returned.
 To disable this behavior "memlim" can be set to 0, which stands for
-"no limit". */
+"no limit".
+@return	pointer to the copy */
 
 const void*
 ha_storage_put_memlim(
 /*==================*/
-					/* out: pointer to the copy */
-	ha_storage_t*	storage,	/* in/out: hash storage */
-	const void*	data,		/* in: data to store */
-	ulint		data_len,	/* in: data length */
-	ulint		memlim);	/* in: memory limit to obey */
+	ha_storage_t*	storage,	/*!< in/out: hash storage */
+	const void*	data,		/*!< in: data to store */
+	ulint		data_len,	/*!< in: data length */
+	ulint		memlim);	/*!< in: memory limit to obey */
 
 /***********************************************************************
 Same as ha_storage_put_memlim() but without memory limit. */
@@ -100,27 +100,27 @@ UNIV_INLINE
 void
 ha_storage_empty(
 /*=============*/
-	ha_storage_t**	storage);	/* in/out: hash storage */
+	ha_storage_t**	storage);	/*!< in/out: hash storage */
 
 /***********************************************************************
 Frees a hash storage and everything it contains, it cannot be used after
 this call.
 This invalidates any pointers previously returned by ha_storage_put().
-*/
+ */
 UNIV_INLINE
 void
 ha_storage_free(
 /*============*/
-	ha_storage_t*	storage);	/* in/out: hash storage */
+	ha_storage_t*	storage);	/*!< in/out: hash storage */
 
 /***********************************************************************
-Gets the size of the memory used by a storage. */
+Gets the size of the memory used by a storage.
+@return	bytes used */
 UNIV_INLINE
 ulint
 ha_storage_get_size(
 /*================*/
-						/* out: bytes used */
-	const ha_storage_t*	storage);	/* in: hash storage */
+	const ha_storage_t*	storage);	/*!< in: hash storage */
 
 #ifndef UNIV_NONINL
 #include "ha0storage.ic"

@@ -255,21 +255,21 @@ typedef struct trx_struct trx_t;
 /************************************************************************
 Converts an InnoDB error code to a MySQL error code and also tells to MySQL
 about a possible transaction rollback inside InnoDB caused by a lock wait
-timeout or a deadlock. */
+timeout or a deadlock.
+@return	MySQL error code */
 extern "C"
 int
 convert_error_code_to_mysql(
 /*========================*/
-				/* out: MySQL error code */
-	int		error,	/* in: InnoDB error code */
-	ulint		flags,	/* in: InnoDB table flags, or 0 */
-	MYSQL_THD	thd);	/* in: user thread handle or NULL */
+	int		error,	/*!< in: InnoDB error code */
+	ulint		flags,	/*!< in: InnoDB table flags, or 0 */
+	MYSQL_THD	thd);	/*!< in: user thread handle or NULL */
 
 /*************************************************************************
-Allocates an InnoDB transaction for a MySQL handler object. */
+Allocates an InnoDB transaction for a MySQL handler object.
+@return	InnoDB transaction handle */
 extern "C"
 trx_t*
 innobase_trx_allocate(
 /*==================*/
-				/* out: InnoDB transaction handle */
-	MYSQL_THD	thd);	/* in: user thread handle */
+	MYSQL_THD	thd);	/*!< in: user thread handle */

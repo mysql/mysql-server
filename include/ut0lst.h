@@ -59,7 +59,7 @@ struct LRU_node_struct {
 }
 The example implements an LRU list of name LRU_list. Its nodes are of type
 LRU_node_t.
-*/
+ */
 
 #define UT_LIST_NODE_T(TYPE)\
 struct {\

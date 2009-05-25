@@ -48,16 +48,16 @@ Created 4/20/1996 Heikki Tuuri
 
 /*************************************************************************
 Gets the offset of trx id field, in bytes relative to the origin of
-a clustered index record. */
+a clustered index record.
+@return	offset of DATA_TRX_ID */
 UNIV_INTERN
 ulint
 row_get_trx_id_offset(
 /*==================*/
-				/* out: offset of DATA_TRX_ID */
 	const rec_t*	rec __attribute__((unused)),
-				/* in: record */
-	dict_index_t*	index,	/* in: clustered index */
-	const ulint*	offsets)/* in: rec_get_offsets(rec, index) */
+				/*!< in: record */
+	dict_index_t*	index,	/*!< in: clustered index */
+	const ulint*	offsets)/*!< in: rec_get_offsets(rec, index) */
 {
 	ulint	pos;
 	ulint	offset;
@@ -77,22 +77,18 @@ row_get_trx_id_offset(
 
 /*********************************************************************
 When an insert or purge to a table is performed, this function builds
-the entry to be inserted into or purged from an index on the table. */
+the entry to be inserted into or purged from an index on the table.
+@return	index entry which should be inserted or purged, or NULL if the externally stored columns in the clustered index record are unavailable and ext != NULL */
 UNIV_INTERN
 dtuple_t*
 row_build_index_entry(
 /*==================*/
-				/* out: index entry which should be
-				inserted or purged, or NULL if the
-				externally stored columns in the
-				clustered index record are unavailable
-				and ext != NULL */
-	const dtuple_t*	row,	/* in: row which should be
+	const dtuple_t*	row,	/*!< in: row which should be
 				inserted or purged */
-	row_ext_t*	ext,	/* in: externally stored column prefixes,
+	row_ext_t*	ext,	/*!< in: externally stored column prefixes,
 				or NULL */
-	dict_index_t*	index,	/* in: index on the table */
-	mem_heap_t*	heap)	/* in: memory heap from which the memory for
+	dict_index_t*	index,	/*!< in: index on the table */
+	mem_heap_t*	heap)	/*!< in: memory heap from which the memory for
 				the index entry is allocated */
 {
 	dtuple_t*	entry;
@@ -169,22 +165,21 @@ row_build_index_entry(
 
 /***********************************************************************
 An inverse function to row_build_index_entry. Builds a row from a
-record in a clustered index. */
+record in a clustered index.
+@return	own: row built; see the NOTE below! */
 UNIV_INTERN
 dtuple_t*
 row_build(
 /*======*/
-					/* out, own: row built;
-					see the NOTE below! */
-	ulint			type,	/* in: ROW_COPY_POINTERS or
+	ulint			type,	/*!< in: ROW_COPY_POINTERS or
 					ROW_COPY_DATA; the latter
 					copies also the data fields to
 					heap while the first only
 					places pointers to data fields
 					on the index page, and thus is
 					more efficient */
-	const dict_index_t*	index,	/* in: clustered index */
-	const rec_t*		rec,	/* in: record in the clustered
+	const dict_index_t*	index,	/*!< in: clustered index */
+	const rec_t*		rec,	/*!< in: record in the clustered
 					index; NOTE: in the case
 					ROW_COPY_POINTERS the data
 					fields in the row will point
@@ -193,20 +188,20 @@ row_build(
 					this record must be at least
 					s-latched and the latch held
 					as long as the row dtuple is used! */
-	const ulint*		offsets,/* in: rec_get_offsets(rec,index)
+	const ulint*		offsets,/*!< in: rec_get_offsets(rec,index)
 					or NULL, in which case this function
 					will invoke rec_get_offsets() */
 	const dict_table_t*	col_table,
-					/* in: table, to check which
+					/*!< in: table, to check which
 					externally stored columns
 					occur in the ordering columns
 					of an index, or NULL if
 					index->table should be
 					consulted instead */
-	row_ext_t**		ext,	/* out, own: cache of
+	row_ext_t**		ext,	/*!< out, own: cache of
 					externally stored column
 					prefixes, or NULL */
-	mem_heap_t*		heap)	/* in: memory heap from which
+	mem_heap_t*		heap)	/*!< in: memory heap from which
 					the memory needed is allocated */
 {
 	dtuple_t*		row;
@@ -312,20 +307,18 @@ row_build(
 }
 
 /***********************************************************************
-Converts an index record to a typed data tuple. */
+Converts an index record to a typed data tuple.
+@return	index entry built; does not set info_bits, and the data fields in the entry will point directly to rec */
 UNIV_INTERN
 dtuple_t*
 row_rec_to_index_entry_low(
 /*=======================*/
-					/* out: index entry built; does not
-					set info_bits, and the data fields in
-					the entry will point directly to rec */
-	const rec_t*		rec,	/* in: record in the index */
-	const dict_index_t*	index,	/* in: index */
-	const ulint*		offsets,/* in: rec_get_offsets(rec, index) */
-	ulint*			n_ext,	/* out: number of externally
+	const rec_t*		rec,	/*!< in: record in the index */
+	const dict_index_t*	index,	/*!< in: index */
+	const ulint*		offsets,/*!< in: rec_get_offsets(rec, index) */
+	ulint*			n_ext,	/*!< out: number of externally
 					stored columns */
-	mem_heap_t*		heap)	/* in: memory heap from which
+	mem_heap_t*		heap)	/*!< in: memory heap from which
 					the memory needed is allocated */
 {
 	dtuple_t*	entry;
@@ -372,20 +365,19 @@ row_rec_to_index_entry_low(
 
 /***********************************************************************
 Converts an index record to a typed data tuple. NOTE that externally
-stored (often big) fields are NOT copied to heap. */
+stored (often big) fields are NOT copied to heap.
+@return	own: index entry built; see the NOTE below! */
 UNIV_INTERN
 dtuple_t*
 row_rec_to_index_entry(
 /*===================*/
-					/* out, own: index entry
-					built; see the NOTE below! */
-	ulint			type,	/* in: ROW_COPY_DATA, or
+	ulint			type,	/*!< in: ROW_COPY_DATA, or
 					ROW_COPY_POINTERS: the former
 					copies also the data fields to
 					heap as the latter only places
 					pointers to data fields on the
 					index page */
-	const rec_t*		rec,	/* in: record in the index;
+	const rec_t*		rec,	/*!< in: record in the index;
 					NOTE: in the case
 					ROW_COPY_POINTERS the data
 					fields in the row will point
@@ -394,11 +386,11 @@ row_rec_to_index_entry(
 					this record must be at least
 					s-latched and the latch held
 					as long as the dtuple is used! */
-	const dict_index_t*	index,	/* in: index */
-	ulint*			offsets,/* in/out: rec_get_offsets(rec) */
-	ulint*			n_ext,	/* out: number of externally
+	const dict_index_t*	index,	/*!< in: index */
+	ulint*			offsets,/*!< in/out: rec_get_offsets(rec) */
+	ulint*			n_ext,	/*!< out: number of externally
 					stored columns */
-	mem_heap_t*		heap)	/* in: memory heap from which
+	mem_heap_t*		heap)	/*!< in: memory heap from which
 					the memory needed is allocated */
 {
 	dtuple_t*	entry;
@@ -425,26 +417,25 @@ row_rec_to_index_entry(
 
 /***********************************************************************
 Builds from a secondary index record a row reference with which we can
-search the clustered index record. */
+search the clustered index record.
+@return	own: row reference built; see the NOTE below! */
 UNIV_INTERN
 dtuple_t*
 row_build_row_ref(
 /*==============*/
-				/* out, own: row reference built; see the
-				NOTE below! */
-	ulint		type,	/* in: ROW_COPY_DATA, or ROW_COPY_POINTERS:
+	ulint		type,	/*!< in: ROW_COPY_DATA, or ROW_COPY_POINTERS:
 				the former copies also the data fields to
 				heap, whereas the latter only places pointers
 				to data fields on the index page */
-	dict_index_t*	index,	/* in: secondary index */
-	const rec_t*	rec,	/* in: record in the index;
+	dict_index_t*	index,	/*!< in: secondary index */
+	const rec_t*	rec,	/*!< in: record in the index;
 				NOTE: in the case ROW_COPY_POINTERS
 				the data fields in the row will point
 				directly into this record, therefore,
 				the buffer page of this record must be
 				at least s-latched and the latch held
 				as long as the row reference is used! */
-	mem_heap_t*	heap)	/* in: memory heap from which the memory
+	mem_heap_t*	heap)	/*!< in: memory heap from which the memory
 				needed is allocated */
 {
 	dict_table_t*	table;
@@ -542,9 +533,9 @@ UNIV_INTERN
 void
 row_build_row_ref_in_tuple(
 /*=======================*/
-	dtuple_t*		ref,	/* in/out: row reference built;
+	dtuple_t*		ref,	/*!< in/out: row reference built;
 					see the NOTE below! */
-	const rec_t*		rec,	/* in: record in the index;
+	const rec_t*		rec,	/*!< in: record in the index;
 					NOTE: the data fields in ref
 					will point directly into this
 					record, therefore, the buffer
@@ -552,10 +543,10 @@ row_build_row_ref_in_tuple(
 					least s-latched and the latch
 					held as long as the row
 					reference is used! */
-	const dict_index_t*	index,	/* in: secondary index */
-	ulint*			offsets,/* in: rec_get_offsets(rec, index)
+	const dict_index_t*	index,	/*!< in: secondary index */
+	ulint*			offsets,/*!< in: rec_get_offsets(rec, index)
 					or NULL */
-	trx_t*			trx)	/* in: transaction */
+	trx_t*			trx)	/*!< in: transaction */
 {
 	const dict_index_t*	clust_index;
 	dfield_t*		dfield;
@@ -655,12 +646,12 @@ UNIV_INTERN
 void
 row_build_row_ref_from_row(
 /*=======================*/
-	dtuple_t*		ref,	/* in/out: row reference built;
+	dtuple_t*		ref,	/*!< in/out: row reference built;
 					see the NOTE below!
 					ref must have the right number
 					of fields! */
-	const dict_table_t*	table,	/* in: table */
-	const dtuple_t*		row)	/* in: row
+	const dict_table_t*	table,	/*!< in: table */
+	const dtuple_t*		row)	/*!< in: row
 					NOTE: the data fields in ref will point
 					directly into data of this row */
 {
@@ -710,18 +701,18 @@ row_build_row_ref_from_row(
 }
 
 /*******************************************************************
-Searches the clustered index record for a row, if we have the row reference. */
+Searches the clustered index record for a row, if we have the row reference.
+@return	TRUE if found */
 UNIV_INTERN
 ibool
 row_search_on_row_ref(
 /*==================*/
-					/* out: TRUE if found */
-	btr_pcur_t*		pcur,	/* out: persistent cursor, which must
+	btr_pcur_t*		pcur,	/*!< out: persistent cursor, which must
 					be closed by the caller */
-	ulint			mode,	/* in: BTR_MODIFY_LEAF, ... */
-	const dict_table_t*	table,	/* in: table */
-	const dtuple_t*		ref,	/* in: row reference */
-	mtr_t*			mtr)	/* in/out: mtr */
+	ulint			mode,	/*!< in: BTR_MODIFY_LEAF, ... */
+	const dict_table_t*	table,	/*!< in: table */
+	const dtuple_t*		ref,	/*!< in: row reference */
+	mtr_t*			mtr)	/*!< in/out: mtr */
 {
 	ulint		low_match;
 	rec_t*		rec;
@@ -754,17 +745,17 @@ row_search_on_row_ref(
 
 /*************************************************************************
 Fetches the clustered index record for a secondary index record. The latches
-on the secondary index record are preserved. */
+on the secondary index record are preserved.
+@return	record or NULL, if no record found */
 UNIV_INTERN
 rec_t*
 row_get_clust_rec(
 /*==============*/
-				/* out: record or NULL, if no record found */
-	ulint		mode,	/* in: BTR_MODIFY_LEAF, ... */
-	const rec_t*	rec,	/* in: record in a secondary index */
-	dict_index_t*	index,	/* in: secondary index */
-	dict_index_t**	clust_index,/* out: clustered index */
-	mtr_t*		mtr)	/* in: mtr */
+	ulint		mode,	/*!< in: BTR_MODIFY_LEAF, ... */
+	const rec_t*	rec,	/*!< in: record in a secondary index */
+	dict_index_t*	index,	/*!< in: secondary index */
+	dict_index_t**	clust_index,/*!< out: clustered index */
+	mtr_t*		mtr)	/*!< in: mtr */
 {
 	mem_heap_t*	heap;
 	dtuple_t*	ref;
@@ -795,19 +786,18 @@ row_get_clust_rec(
 }
 
 /*******************************************************************
-Searches an index record. */
+Searches an index record.
+@return	whether the record was found or buffered */
 UNIV_INTERN
 enum row_search_result
 row_search_index_entry(
 /*===================*/
-				/* out: whether the record was found
-				or buffered */
-	dict_index_t*	index,	/* in: index */
-	const dtuple_t*	entry,	/* in: index entry */
-	ulint		mode,	/* in: BTR_MODIFY_LEAF, ... */
-	btr_pcur_t*	pcur,	/* in/out: persistent cursor, which must
+	dict_index_t*	index,	/*!< in: index */
+	const dtuple_t*	entry,	/*!< in: index entry */
+	ulint		mode,	/*!< in: BTR_MODIFY_LEAF, ... */
+	btr_pcur_t*	pcur,	/*!< in/out: persistent cursor, which must
 				be closed by the caller */
-	mtr_t*		mtr)	/* in: mtr */
+	mtr_t*		mtr)	/*!< in: mtr */
 {
 	ulint	n_fields;
 	ulint	low_match;
@@ -860,21 +850,20 @@ If the data is in unknown format, then nothing is written to "buf",
 Not more than "buf_size" bytes are written to "buf".
 The result is always '\0'-terminated (provided buf_size > 0) and the
 number of bytes that were written to "buf" is returned (including the
-terminating '\0'). */
+terminating '\0').
+@return	number of bytes that were written */
 static
 ulint
 row_raw_format_int(
 /*===============*/
-					/* out: number of bytes
-					that were written */
-	const char*	data,		/* in: raw data */
-	ulint		data_len,	/* in: raw data length
+	const char*	data,		/*!< in: raw data */
+	ulint		data_len,	/*!< in: raw data length
 					in bytes */
-	ulint		prtype,		/* in: precise type */
-	char*		buf,		/* out: output buffer */
-	ulint		buf_size,	/* in: output buffer size
+	ulint		prtype,		/*!< in: precise type */
+	char*		buf,		/*!< out: output buffer */
+	ulint		buf_size,	/*!< in: output buffer size
 					in bytes */
-	ibool*		format_in_hex)	/* out: should the data be
+	ibool*		format_in_hex)	/*!< out: should the data be
 					formated in hex */
 {
 	ulint	ret;
@@ -916,21 +905,20 @@ If the data is in binary format, then nothing is written to "buf",
 Not more than "buf_size" bytes are written to "buf".
 The result is always '\0'-terminated (provided buf_size > 0) and the
 number of bytes that were written to "buf" is returned (including the
-terminating '\0'). */
+terminating '\0').
+@return	number of bytes that were written */
 static
 ulint
 row_raw_format_str(
 /*===============*/
-					/* out: number of bytes
-					that were written */
-	const char*	data,		/* in: raw data */
-	ulint		data_len,	/* in: raw data length
+	const char*	data,		/*!< in: raw data */
+	ulint		data_len,	/*!< in: raw data length
 					in bytes */
-	ulint		prtype,		/* in: precise type */
-	char*		buf,		/* out: output buffer */
-	ulint		buf_size,	/* in: output buffer size
+	ulint		prtype,		/*!< in: precise type */
+	char*		buf,		/*!< out: output buffer */
+	ulint		buf_size,	/*!< in: output buffer size
 					in bytes */
-	ibool*		format_in_hex)	/* out: should the data be
+	ibool*		format_in_hex)	/*!< out: should the data be
 					formated in hex */
 {
 	ulint	charset_coll;
@@ -967,19 +955,18 @@ Formats the raw data in "data" (in InnoDB on-disk format) using
 Not more than "buf_size" bytes are written to "buf".
 The result is always '\0'-terminated (provided buf_size > 0) and the
 number of bytes that were written to "buf" is returned (including the
-terminating '\0'). */
+terminating '\0').
+@return	number of bytes that were written */
 UNIV_INTERN
 ulint
 row_raw_format(
 /*===========*/
-						/* out: number of bytes
-						that were written */
-	const char*		data,		/* in: raw data */
-	ulint			data_len,	/* in: raw data length
+	const char*		data,		/*!< in: raw data */
+	ulint			data_len,	/*!< in: raw data length
 						in bytes */
-	const dict_field_t*	dict_field,	/* in: index field */
-	char*			buf,		/* out: output buffer */
-	ulint			buf_size)	/* in: output buffer size
+	const dict_field_t*	dict_field,	/*!< in: index field */
+	char*			buf,		/*!< out: output buffer */
+	ulint			buf_size)	/*!< in: output buffer size
 						in bytes */
 {
 	ulint	mtype;

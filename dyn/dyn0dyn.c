@@ -28,13 +28,13 @@ Created 2/5/1996 Heikki Tuuri
 #endif
 
 /****************************************************************
-Adds a new block to a dyn array. */
+Adds a new block to a dyn array.
+@return	created block */
 UNIV_INTERN
 dyn_block_t*
 dyn_array_add_block(
 /*================*/
-				/* out: created block */
-	dyn_array_t*	arr)	/* in: dyn array */
+	dyn_array_t*	arr)	/*!< in: dyn array */
 {
 	mem_heap_t*	heap;
 	dyn_block_t*	block;

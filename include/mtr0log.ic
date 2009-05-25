@@ -28,14 +28,14 @@ Created 12/7/1995 Heikki Tuuri
 #include "buf0buf.h"
 
 /************************************************************
-Opens a buffer to mlog. It must be closed with mlog_close. */
+Opens a buffer to mlog. It must be closed with mlog_close.
+@return	buffer, NULL if log mode MTR_LOG_NONE */
 UNIV_INLINE
 byte*
 mlog_open(
 /*======*/
-			/* out: buffer, NULL if log mode MTR_LOG_NONE */
-	mtr_t*	mtr,	/* in: mtr */
-	ulint	size)	/* in: buffer size in bytes; MUST be
+	mtr_t*	mtr,	/*!< in: mtr */
+	ulint	size)	/*!< in: buffer size in bytes; MUST be
 			smaller than DYN_ARRAY_DATA_SIZE! */
 {
 	dyn_array_t*	mlog;
@@ -58,8 +58,8 @@ UNIV_INLINE
 void
 mlog_close(
 /*=======*/
-	mtr_t*	mtr,	/* in: mtr */
-	byte*	ptr)	/* in: buffer space from ptr up was not used */
+	mtr_t*	mtr,	/*!< in: mtr */
+	byte*	ptr)	/*!< in: buffer space from ptr up was not used */
 {
 	dyn_array_t*	mlog;
 
@@ -76,9 +76,9 @@ UNIV_INLINE
 void
 mlog_catenate_ulint(
 /*================*/
-	mtr_t*	mtr,	/* in: mtr */
-	ulint	val,	/* in: value to write */
-	ulint	type)	/* in: MLOG_1BYTE, MLOG_2BYTES, MLOG_4BYTES */
+	mtr_t*	mtr,	/*!< in: mtr */
+	ulint	val,	/*!< in: value to write */
+	ulint	type)	/*!< in: MLOG_1BYTE, MLOG_2BYTES, MLOG_4BYTES */
 {
 	dyn_array_t*	mlog;
 	byte*		ptr;
@@ -120,8 +120,8 @@ UNIV_INLINE
 void
 mlog_catenate_ulint_compressed(
 /*===========================*/
-	mtr_t*	mtr,	/* in: mtr */
-	ulint	val)	/* in: value to write */
+	mtr_t*	mtr,	/*!< in: mtr */
+	ulint	val)	/*!< in: value to write */
 {
 	byte*	log_ptr;
 
@@ -144,8 +144,8 @@ UNIV_INLINE
 void
 mlog_catenate_dulint_compressed(
 /*============================*/
-	mtr_t*	mtr,	/* in: mtr */
-	dulint	val)	/* in: value to write */
+	mtr_t*	mtr,	/*!< in: mtr */
+	dulint	val)	/*!< in: value to write */
 {
 	byte*	log_ptr;
 
@@ -165,19 +165,19 @@ mlog_catenate_dulint_compressed(
 /************************************************************
 Writes the initial part of a log record (3..11 bytes).
 If the implementation of this function is changed, all
-size parameters to mlog_open() should be adjusted accordingly! */
+size parameters to mlog_open() should be adjusted accordingly!
+@return	new value of log_ptr */
 UNIV_INLINE
 byte*
 mlog_write_initial_log_record_fast(
 /*===============================*/
-				/* out: new value of log_ptr */
-	const byte*	ptr,	/* in: pointer to (inside) a buffer
+	const byte*	ptr,	/*!< in: pointer to (inside) a buffer
 				frame holding the file page where
 				modification is made */
-	byte		type,	/* in: log item type: MLOG_1BYTE, ... */
-	byte*		log_ptr,/* in: pointer to mtr log which has
+	byte		type,	/*!< in: log item type: MLOG_1BYTE, ... */
+	byte*		log_ptr,/*!< in: pointer to mtr log which has
 				been opened */
-	mtr_t*		mtr)	/* in: mtr */
+	mtr_t*		mtr)	/*!< in: mtr */
 {
 #ifdef UNIV_DEBUG
 	buf_block_t*	block;
@@ -220,18 +220,18 @@ mlog_write_initial_log_record_fast(
 }
 
 /************************************************************
-Writes a log record about an .ibd file create/delete/rename. */
+Writes a log record about an .ibd file create/delete/rename.
+@return	new value of log_ptr */
 UNIV_INLINE
 byte*
 mlog_write_initial_log_record_for_file_op(
 /*======================================*/
-			/* out: new value of log_ptr */
-	ulint	type,	/* in: MLOG_FILE_CREATE, MLOG_FILE_DELETE, or
+	ulint	type,	/*!< in: MLOG_FILE_CREATE, MLOG_FILE_DELETE, or
 			MLOG_FILE_RENAME */
-	ulint	space_id,/* in: space id, if applicable */
-	ulint	page_no,/* in: page number (not relevant currently) */
-	byte*	log_ptr,/* in: pointer to mtr log which has been opened */
-	mtr_t*	mtr)	/* in: mtr */
+	ulint	space_id,/*!< in: space id, if applicable */
+	ulint	page_no,/*!< in: page number (not relevant currently) */
+	byte*	log_ptr,/*!< in: pointer to mtr log which has been opened */
+	mtr_t*	mtr)	/*!< in: mtr */
 {
 	ut_ad(log_ptr);
 
