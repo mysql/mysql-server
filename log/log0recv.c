@@ -51,31 +51,40 @@ Created 9/20/1997 Heikki Tuuri
 # include "sync0sync.h"
 #else /* !UNIV_HOTBACKUP */
 
-/* This is set to FALSE if the backup was originally taken with the
+/** This is set to FALSE if the backup was originally taken with the
 ibbackup --include regexp option: then we do not want to create tables in
 directories which were not included */
 UNIV_INTERN ibool	recv_replay_file_ops	= TRUE;
 #endif /* !UNIV_HOTBACKUP */
 
-/* Log records are stored in the hash table in chunks at most of this size;
+/** Log records are stored in the hash table in chunks at most of this size;
 this must be less than UNIV_PAGE_SIZE as it is stored in the buffer pool */
 #define RECV_DATA_BLOCK_SIZE	(MEM_MAX_ALLOC_IN_BUF - sizeof(recv_data_t))
 
-/* Read-ahead area in applying log records to file pages */
+/** Read-ahead area in applying log records to file pages */
 #define RECV_READ_AHEAD_AREA	32
 
+/** The recovery system */
 UNIV_INTERN recv_sys_t*	recv_sys = NULL;
+/** TRUE when applying redo log records during crash recovery; FALSE
+otherwise.  Note that this is FALSE while a background thread is
+rolling back incomplete transactions. */
 UNIV_INTERN ibool	recv_recovery_on = FALSE;
 #ifdef UNIV_LOG_ARCHIVE
+/** TRUE when applying redo log records from an archived log file */
 UNIV_INTERN ibool	recv_recovery_from_backup_on = FALSE;
 #endif /* UNIV_LOG_ARCHIVE */
 
 #ifndef UNIV_HOTBACKUP
+/** TRUE when recv_init_crash_recovery() has been called. */
 UNIV_INTERN ibool	recv_needed_recovery = FALSE;
 
+/** TRUE if buf_page_is_corrupted() should check if the log sequence
+number (FIL_PAGE_LSN) is in the future.  Initially FALSE, and set by
+recv_recovery_from_checkpoint_start_func(). */
 UNIV_INTERN ibool	recv_lsn_checks_on = FALSE;
 
-/* There are two conditions under which we scan the logs, the first
+/** There are two conditions under which we scan the logs, the first
 is normal startup and the second is when we do a recovery from an
 archive.
 This flag is set if we are doing a scan from the last checkpoint during
@@ -83,48 +92,53 @@ startup. If we find log entries that were written after the last checkpoint
 we know that the server was not cleanly shutdown. We must then initialize
 the crash recovery environment before attempting to store these entries in
 the log hash table. */
-UNIV_INTERN ibool	recv_log_scan_is_startup_type = FALSE;
+static ibool		recv_log_scan_is_startup_type = FALSE;
 
-/* If the following is TRUE, the buffer pool file pages must be invalidated
+/** If the following is TRUE, the buffer pool file pages must be invalidated
 after recovery and no ibuf operations are allowed; this becomes TRUE if
 the log record hash table becomes too full, and log records must be merged
 to file pages already before the recovery is finished: in this case no
 ibuf operations are allowed, as they could modify the pages read in the
-buffer pool before the pages have been recovered to the up-to-date state */
+buffer pool before the pages have been recovered to the up-to-date state.
 
-/* Recovery is running and no operations on the log files are allowed
-yet: the variable name is misleading */
-
+TRUE means that recovery is running and no operations on the log files
+are allowed yet: the variable name is misleading. */
 UNIV_INTERN ibool	recv_no_ibuf_operations = FALSE;
+/** TRUE when the redo log is being backed up */
 # define recv_is_making_a_backup		FALSE
+/** TRUE when recovering from a backed up redo log file */
 # define recv_is_from_backup			FALSE
 #else /* !UNIV_HOTBACKUP */
 # define recv_needed_recovery			FALSE
+/** TRUE when the redo log is being backed up */
 UNIV_INTERN ibool	recv_is_making_a_backup = FALSE;
+/** TRUE when recovering from a backed up redo log file */
 UNIV_INTERN ibool	recv_is_from_backup	= FALSE;
 # define buf_pool_get_curr_size() (5 * 1024 * 1024)
 #endif /* !UNIV_HOTBACKUP */
-/* The following counter is used to decide when to print info on
+/** The following counter is used to decide when to print info on
 log scan */
-UNIV_INTERN ulint	recv_scan_print_counter	= 0;
+static ulint	recv_scan_print_counter	= 0;
 
-UNIV_INTERN ulint	recv_previous_parsed_rec_type	= 999999;
-UNIV_INTERN ulint	recv_previous_parsed_rec_offset	= 0;
-UNIV_INTERN ulint	recv_previous_parsed_rec_is_multi = 0;
+/** The type of the previous parsed redo log record */
+static ulint	recv_previous_parsed_rec_type	= 999999;
+/** The offset of the previous parsed redo log record */
+static ulint	recv_previous_parsed_rec_offset	= 0;
+/** The 'multi' flag of the previous parsed redo log record */
+static ulint	recv_previous_parsed_rec_is_multi = 0;
 
+/** Maximum page number encountered in the redo log */
 UNIV_INTERN ulint	recv_max_parsed_page_no		= 0;
 
-/* This many frames must be left free in the buffer pool when we scan
+/** This many frames must be left free in the buffer pool when we scan
 the log and store the scanned log records in the buffer pool: we will
 use these free frames to read in pages when we start applying the
 log records to the database. */
-
 UNIV_INTERN ulint	recv_n_pool_free_frames		= 256;
 
-/* The maximum lsn we see for a page during the recovery process. If this
+/** The maximum lsn we see for a page during the recovery process. If this
 is bigger than the lsn we are able to scan up to, that is an indication that
 the recovery failed and the database may be corrupt. */
-
 UNIV_INTERN ib_uint64_t	recv_max_page_lsn;
 
 /* prototypes */
@@ -1307,10 +1321,10 @@ recv_recover_page_func(
 /*===================*/
 #ifndef UNIV_HOTBACKUP
 	ibool		just_read_in,
-				/*!< in: TRUE if the i/o-handler calls this for
-				a freshly read page */
+				/*!< in: TRUE if the i/o handler calls
+				this for a freshly read page */
 #endif /* !UNIV_HOTBACKUP */
-	buf_block_t*	block)	/*!< in: buffer block */
+	buf_block_t*	block)	/*!< in/out: buffer block */
 {
 	page_t*		page;
 	recv_addr_t*	recv_addr;
@@ -2680,7 +2694,8 @@ ulint
 recv_recovery_from_checkpoint_start_func(
 /*=====================================*/
 #ifdef UNIV_LOG_ARCHIVE
-	ulint		type,		/*!< in: LOG_CHECKPOINT or LOG_ARCHIVE */
+	ulint		type,		/*!< in: LOG_CHECKPOINT or
+					LOG_ARCHIVE */
 	ib_uint64_t	limit_lsn,	/*!< in: recover up to this lsn
 					if possible */
 #endif /* UNIV_LOG_ARCHIVE */
@@ -2705,10 +2720,14 @@ recv_recovery_from_checkpoint_start_func(
 
 #ifdef UNIV_LOG_ARCHIVE
 	ut_ad(type != LOG_CHECKPOINT || limit_lsn == IB_ULONGLONG_MAX);
+/** TRUE when recovering from a checkpoint */
 # define TYPE_CHECKPOINT	(type == LOG_CHECKPOINT)
+/** Recover up to this log sequence number */
 # define LIMIT_LSN		limit_lsn
 #else /* UNIV_LOG_ARCHIVE */
+/** TRUE when recovering from a checkpoint */
 # define TYPE_CHECKPOINT	1
+/** Recover up to this log sequence number */
 # define LIMIT_LSN		IB_ULONGLONG_MAX
 #endif /* UNIV_LOG_ARCHIVE */
 

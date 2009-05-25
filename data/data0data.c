@@ -41,12 +41,13 @@ Created 5/30/1994 Heikki Tuuri
 #endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_DEBUG
-/* data pointers of tuple fields are initialized to point here
-for error checking */
+/** Dummy variable to catch access to uninitialized fields.  In the
+debug version, dtuple_create() will make all fields of dtuple_t point
+to data_error. */
 UNIV_INTERN byte	data_error;
 
 # ifndef UNIV_DEBUG_VALGRIND
-/* this is used to fool the compiler in dtuple_validate */
+/** this is used to fool the compiler in dtuple_validate */
 UNIV_INTERN ulint	data_dummy;
 # endif /* !UNIV_DEBUG_VALGRIND */
 #endif /* UNIV_DEBUG */

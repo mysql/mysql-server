@@ -39,6 +39,7 @@ Created 5/11/1994 Heikki Tuuri
 # include "mysql_com.h" /* NAME_LEN */
 #endif /* UNIV_HOTBACKUP */
 
+/** A constant to prevent the compiler from optimizing ut_delay() away. */
 UNIV_INTERN ibool	ut_always_false	= FALSE;
 
 #ifdef __WIN__
@@ -87,6 +88,8 @@ ut_gettimeofday(
 	return(0);
 }
 #else
+/** An alias for gettimeofday(2).  On Microsoft Windows, we have to
+reimplement this function. */
 #define	ut_gettimeofday		gettimeofday
 #endif
 

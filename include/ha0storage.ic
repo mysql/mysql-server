@@ -30,19 +30,21 @@ Created September 24, 2007 Vasil Dimov
 #include "hash0hash.h"
 #include "mem0mem.h"
 
+/** Hash storage for strings */
 struct ha_storage_struct {
-	mem_heap_t*	heap;	/* storage from which memory is
+	mem_heap_t*	heap;	/*!< memory heap from which memory is
 				allocated */
-	hash_table_t*	hash;	/* hash table used to avoid
+	hash_table_t*	hash;	/*!< hash table used to avoid
 				duplicates */
 };
 
-/* Objects of this type are put in the hash */
+/** Objects of this type are stored in ha_storage_t */
 typedef struct ha_storage_node_struct ha_storage_node_t;
+/** Objects of this type are stored in ha_storage_struct */
 struct ha_storage_node_struct {
-	ulint			data_len;/* length of the data */
-	const void*		data;	/* pointer to data */
-	ha_storage_node_t*	next;	/* next node in hash chain */
+	ulint			data_len;/*!< length of the data */
+	const void*		data;	/*!< pointer to data */
+	ha_storage_node_t*	next;	/*!< next node in hash chain */
 };
 
 /*******************************************************************//**

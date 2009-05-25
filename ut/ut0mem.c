@@ -35,32 +35,38 @@ Created 5/11/1994 Heikki Tuuri
 
 #include <stdlib.h>
 
-/* This struct is placed first in every allocated memory block */
+/** This struct is placed first in every allocated memory block */
 typedef struct ut_mem_block_struct ut_mem_block_t;
 
-/* The total amount of memory currently allocated from the operating
+/** The total amount of memory currently allocated from the operating
 system with os_mem_alloc_large() or malloc().  Does not count malloc()
 if srv_use_sys_malloc is set.  Protected by ut_list_mutex. */
 UNIV_INTERN ulint		ut_total_allocated_memory	= 0;
 
-/* Mutex protecting ut_total_allocated_memory and ut_mem_block_list */
+/** Mutex protecting ut_total_allocated_memory and ut_mem_block_list */
 UNIV_INTERN os_fast_mutex_t	ut_list_mutex;
 
+/** Dynamically allocated memory block */
 struct ut_mem_block_struct{
 	UT_LIST_NODE_T(ut_mem_block_t) mem_block_list;
-			/* mem block list node */
-	ulint	size;	/* size of allocated memory */
-	ulint	magic_n;
+			/*!< mem block list node */
+	ulint	size;	/*!< size of allocated memory */
+	ulint	magic_n;/*!< magic number (UT_MEM_MAGIC_N) */
 };
 
+/** The value of ut_mem_block_struct::magic_n.  Used in detecting
+memory corruption. */
 #define UT_MEM_MAGIC_N	1601650166
 
-/* List of all memory blocks allocated from the operating system
+/** List of all memory blocks allocated from the operating system
 with malloc.  Protected by ut_list_mutex. */
 static UT_LIST_BASE_NODE_T(ut_mem_block_t)   ut_mem_block_list;
 
+/** Flag: has ut_mem_block_list been initialized? */
 static ibool  ut_mem_block_list_inited = FALSE;
 
+/** A dummy pointer for generating a null pointer exception in
+ut_malloc_low() */
 static ulint*	ut_mem_null_ptr	= NULL;
 
 /**********************************************************************//**

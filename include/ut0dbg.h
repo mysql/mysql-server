@@ -33,8 +33,8 @@ Created 1/30/1994 Heikki Tuuri
 #if defined(__GNUC__) && (__GNUC__ > 2)
 # define UT_DBG_FAIL(EXPR) UNIV_UNLIKELY(!((ulint)(EXPR)))
 #else
-extern ulint	ut_dbg_zero; /* This is used to eliminate
-				compiler warnings */
+/** This is used to eliminate compiler warnings */
+extern ulint	ut_dbg_zero;
 # define UT_DBG_FAIL(EXPR) !((ulint)(EXPR) + ut_dbg_zero)
 #endif
 
@@ -49,8 +49,9 @@ ut_dbg_assertion_failed(
 	ulint line);		/*!< in: line number of the assertion */
 
 #ifdef __NETWARE__
-/* Flag for ignoring further assertion failures.
-On NetWare, have a graceful exit rather than a segfault to avoid abends. */
+/** Flag for ignoring further assertion failures.  This is set to TRUE
+when on NetWare there happens an InnoDB assertion failure or other
+fatal error condition that requires an immediate shutdown. */
 extern ibool	panic_shutdown;
 /* Abort the execution. */
 void ut_dbg_panic(void);
@@ -65,13 +66,13 @@ void ut_dbg_panic(void);
 # endif
 
 # ifndef UT_DBG_USE_ABORT
-/* A null pointer that will be dereferenced to trigger a memory trap */
+/** A null pointer that will be dereferenced to trigger a memory trap */
 extern ulint*	ut_dbg_null_ptr;
 # endif
 
 # if defined(UNIV_SYNC_DEBUG) || !defined(UT_DBG_USE_ABORT)
-/* Flag for indicating that all threads should stop.  This will be set
-by ut_dbg_assertion_failed(). */
+/** If this is set to TRUE by ut_dbg_assertion_failed(), all threads
+will stop at the next ut_a() or ut_ad(). */
 extern ibool	ut_dbg_stop_threads;
 
 /*************************************************************//**

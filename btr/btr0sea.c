@@ -43,26 +43,29 @@ Created 2/17/1996 Heikki Tuuri
 #include "btr0btr.h"
 #include "ha0ha.h"
 
-/* Flag: has the search system been enabled?
+/** Flag: has the search system been enabled?
 Protected by btr_search_latch and btr_search_enabled_mutex. */
 UNIV_INTERN char		btr_search_enabled	= TRUE;
 
+/** Mutex protecting btr_search_enabled */
 static mutex_t			btr_search_enabled_mutex;
 
-/* A dummy variable to fool the compiler */
+/** A dummy variable to fool the compiler */
 UNIV_INTERN ulint		btr_search_this_is_zero = 0;
 
 #ifdef UNIV_SEARCH_PERF_STAT
+/** Number of successful adaptive hash index lookups */
 UNIV_INTERN ulint		btr_search_n_succ	= 0;
+/** Number of failed adaptive hash index lookups */
 UNIV_INTERN ulint		btr_search_n_hash_fail	= 0;
 #endif /* UNIV_SEARCH_PERF_STAT */
 
-/* padding to prevent other memory update
+/** padding to prevent other memory update
 hotspots from residing on the same memory
 cache line as btr_search_latch */
 UNIV_INTERN byte		btr_sea_pad1[64];
 
-/* The latch protecting the adaptive search system: this latch protects the
+/** The latch protecting the adaptive search system: this latch protects the
 (1) positions of records on those pages where a hash index has been built.
 NOTE: It does not protect values of non-ordering fields within a record from
 being updated in-place! We can use fact (1) to perform unique searches to
@@ -72,21 +75,20 @@ indexes. */
 same DRAM page as other hotspot semaphores */
 UNIV_INTERN rw_lock_t*		btr_search_latch_temp;
 
-/* padding to prevent other memory update hotspots from residing on
+/** padding to prevent other memory update hotspots from residing on
 the same memory cache line */
 UNIV_INTERN byte		btr_sea_pad2[64];
 
+/** The adaptive hash index */
 UNIV_INTERN btr_search_sys_t*	btr_search_sys;
 
-/* If the number of records on the page divided by this parameter
+/** If the number of records on the page divided by this parameter
 would have been successfully accessed using a hash index, the index
 is then built on the page, assuming the global limit has been reached */
-
 #define BTR_SEARCH_PAGE_BUILD_LIMIT	16
 
-/* The global limit for consecutive potentially successful hash searches,
+/** The global limit for consecutive potentially successful hash searches,
 before hash index building is started */
-
 #define BTR_SEARCH_BUILD_LIMIT		100
 
 /********************************************************************//**

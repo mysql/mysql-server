@@ -182,74 +182,81 @@ ibool
 btr_search_validate(void);
 /*======================*/
 
-/* Flag: has the search system been enabled?
+/** Flag: has the search system been enabled?
 Protected by btr_search_latch and btr_search_enabled_mutex. */
 extern char btr_search_enabled;
 
-/* The search info struct in an index */
-
+/** The search info struct in an index */
 struct btr_search_struct{
-	ulint	ref_count;	/* Number of blocks in this index tree
+	ulint	ref_count;	/*!< Number of blocks in this index tree
 				that have search index built
 				i.e. block->index points to this index.
 				Protected by btr_search_latch except
 				when during initialization in
 				btr_search_info_create(). */
 
-	/* The following fields are not protected by any latch.
+	/* @{ The following fields are not protected by any latch.
 	Unfortunately, this means that they must be aligned to
 	the machine word, i.e., they cannot be turned into bit-fields. */
-	buf_block_t* root_guess;/* the root page frame when it was last time
+	buf_block_t* root_guess;/*!< the root page frame when it was last time
 				fetched, or NULL */
-	ulint	hash_analysis;	/* when this exceeds BTR_SEARCH_HASH_ANALYSIS,
-				the hash analysis starts; this is reset if no
+	ulint	hash_analysis;	/*!< when this exceeds
+				BTR_SEARCH_HASH_ANALYSIS, the hash
+				analysis starts; this is reset if no
 				success noticed */
-	ibool	last_hash_succ;	/* TRUE if the last search would have
+	ibool	last_hash_succ;	/*!< TRUE if the last search would have
 				succeeded, or did succeed, using the hash
 				index; NOTE that the value here is not exact:
 				it is not calculated for every search, and the
 				calculation itself is not always accurate! */
 	ulint	n_hash_potential;
-				/* number of consecutive searches
+				/*!< number of consecutive searches
 				which would have succeeded, or did succeed,
 				using the hash index;
 				the range is 0 .. BTR_SEARCH_BUILD_LIMIT + 5 */
-	/*----------------------*/
-	ulint	n_fields;	/* recommended prefix length for hash search:
+	/* @} */
+	/*---------------------- @{ */
+	ulint	n_fields;	/*!< recommended prefix length for hash search:
 				number of full fields */
-	ulint	n_bytes;	/* recommended prefix: number of bytes in
-				an incomplete field;
-				see also BTR_PAGE_MAX_REC_SIZE */
-	ibool	left_side;	/* TRUE or FALSE, depending on whether
+	ulint	n_bytes;	/*!< recommended prefix: number of bytes in
+				an incomplete field
+				@see BTR_PAGE_MAX_REC_SIZE */
+	ibool	left_side;	/*!< TRUE or FALSE, depending on whether
 				the leftmost record of several records with
 				the same prefix should be indexed in the
 				hash index */
-	/*----------------------*/
+	/*---------------------- @} */
 #ifdef UNIV_SEARCH_PERF_STAT
-	ulint	n_hash_succ;	/* number of successful hash searches thus
+	ulint	n_hash_succ;	/*!< number of successful hash searches thus
 				far */
-	ulint	n_hash_fail;	/* number of failed hash searches */
-	ulint	n_patt_succ;	/* number of successful pattern searches thus
+	ulint	n_hash_fail;	/*!< number of failed hash searches */
+	ulint	n_patt_succ;	/*!< number of successful pattern searches thus
 				far */
-	ulint	n_searches;	/* number of searches */
+	ulint	n_searches;	/*!< number of searches */
 #endif /* UNIV_SEARCH_PERF_STAT */
 #ifdef UNIV_DEBUG
-	ulint	magic_n;	/* magic number */
+	ulint	magic_n;	/*!< magic number @see BTR_SEARCH_MAGIC_N */
+/** value of btr_search_struct::magic_n, used in assertions */
 # define BTR_SEARCH_MAGIC_N	1112765
 #endif /* UNIV_DEBUG */
 };
 
-/* The hash index system */
-
+/** The hash index system */
 typedef struct btr_search_sys_struct	btr_search_sys_t;
 
+/** The hash index system */
 struct btr_search_sys_struct{
-	hash_table_t*	hash_index;
+	hash_table_t*	hash_index;	/*!< the adaptive hash index,
+					mapping dtuple_fold values
+					to rec_t pointers on index pages */
 };
 
+/** The adaptive hash index */
 extern btr_search_sys_t*	btr_search_sys;
 
-/* The latch protecting the adaptive search system: this latch protects the
+/** @brief The latch protecting the adaptive search system
+
+This latch protects the
 (1) hash index;
 (2) columns of a record to which we have a pointer in the hash index;
 
@@ -260,36 +267,34 @@ but does NOT protect:
 
 Bear in mind (3) and (4) when using the hash index.
 */
-
 extern rw_lock_t*	btr_search_latch_temp;
 
+/** The latch protecting the adaptive search system */
 #define btr_search_latch	(*btr_search_latch_temp)
 
 #ifdef UNIV_SEARCH_PERF_STAT
+/** Number of successful adaptive hash index lookups */
 extern ulint	btr_search_n_succ;
+/** Number of failed adaptive hash index lookups */
 extern ulint	btr_search_n_hash_fail;
 #endif /* UNIV_SEARCH_PERF_STAT */
 
-/* After change in n_fields or n_bytes in info, this many rounds are waited
+/** After change in n_fields or n_bytes in info, this many rounds are waited
 before starting the hash analysis again: this is to save CPU time when there
 is no hope in building a hash index. */
-
 #define BTR_SEARCH_HASH_ANALYSIS	17
 
-/* Limit of consecutive searches for trying a search shortcut on the search
+/** Limit of consecutive searches for trying a search shortcut on the search
 pattern */
-
 #define BTR_SEARCH_ON_PATTERN_LIMIT	3
 
-/* Limit of consecutive searches for trying a search shortcut using the hash
-index */
-
+/** Limit of consecutive searches for trying a search shortcut using
+the hash index */
 #define BTR_SEARCH_ON_HASH_LIMIT	3
 
-/* We do this many searches before trying to keep the search latch over calls
-from MySQL. If we notice someone waiting for the latch, we again set this
-much timeout. This is to reduce contention. */
-
+/** We do this many searches before trying to keep the search latch
+over calls from MySQL. If we notice someone waiting for the latch, we
+again set this much timeout. This is to reduce contention. */
 #define BTR_SEA_TIMEOUT			10000
 
 #ifndef UNIV_NONINL

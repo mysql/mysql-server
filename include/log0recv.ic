@@ -37,6 +37,7 @@ recv_recovery_is_on(void)
 }
 
 #ifdef UNIV_LOG_ARCHIVE
+/** TRUE when applying redo log records from an archived log file */
 extern ibool	recv_recovery_from_backup_on;
 
 /*******************************************************************//**

@@ -31,23 +31,41 @@ Created 5/30/1994 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 # include "os0sync.h"
 
-/* The total amount of memory currently allocated from the operating
+/** The total amount of memory currently allocated from the operating
 system with os_mem_alloc_large() or malloc().  Does not count malloc()
 if srv_use_sys_malloc is set.  Protected by ut_list_mutex. */
 extern ulint		ut_total_allocated_memory;
 
-/* Mutex protecting ut_total_allocated_memory and ut_mem_block_list */
+/** Mutex protecting ut_total_allocated_memory and ut_mem_block_list */
 extern os_fast_mutex_t	ut_list_mutex;
 #endif /* !UNIV_HOTBACKUP */
 
+/** Wrapper for memcpy(3).  Copy memory area when the source and
+target are not overlapping.
+* @param dest	in: copy to
+* @param sour	in: copy from
+* @param n	in: number of bytes to copy
+* @return	dest */
 UNIV_INLINE
 void*
 ut_memcpy(void* dest, const void* sour, ulint n);
 
+/** Wrapper for memmove(3).  Copy memory area when the source and
+target are overlapping.
+* @param dest	in: copy to
+* @param sour	in: copy from
+* @param n	in: number of bytes to copy
+* @return	dest */
 UNIV_INLINE
 void*
 ut_memmove(void* dest, const void* sour, ulint n);
 
+/** Wrapper for memcmp(3).  Compare memory areas.
+* @param str1	in: first memory block to compare
+* @param str2	in: second memory block to compare
+* @param n	in: number of bytes to compare
+* @return	negative, 0, or positive if str1 is smaller, equal,
+		or greater than str2, respectively. */
 UNIV_INLINE
 int
 ut_memcmp(const void* str1, const void* str2, ulint n);
@@ -141,14 +159,26 @@ ut_free_all_mem(void);
 /*=================*/
 #endif /* !UNIV_HOTBACKUP */
 
+/** Wrapper for strcpy(3).  Copy a NUL-terminated string.
+* @param dest	in: copy to
+* @param sour	in: copy from
+* @return	dest */
 UNIV_INLINE
 char*
 ut_strcpy(char* dest, const char* sour);
 
+/** Wrapper for strlen(3).  Determine the length of a NUL-terminated string.
+* @param str	in: string
+* @return	length of the string in bytes, excluding the terminating NUL */
 UNIV_INLINE
 ulint
 ut_strlen(const char* str);
 
+/** Wrapper for strcmp(3).  Compare NUL-terminated strings.
+* @param str1	in: first string to compare
+* @param str2	in: second string to compare
+* @return	negative, 0, or positive if str1 is smaller, equal,
+		or greater than str2, respectively. */
 UNIV_INLINE
 int
 ut_strcmp(const char* str1, const char* str2);
@@ -239,10 +269,10 @@ ut_strreplace(
 	const char*	s2);	/*!< in: string to replace s1 with */
 
 /**********************************************************************//**
-Converts a raw binary data to a '\0'-terminated hex string. The output is
+Converts a raw binary data to a NUL-terminated hex string. The output is
 truncated if there is not enough space in "hex", make sure "hex_size" is at
 least (2 * raw_size + 1) if you do not want this to happen. Returns the
-actual number of characters written to "hex" (including the '\0').
+actual number of characters written to "hex" (including the NUL).
 @return	number of chars written */
 UNIV_INLINE
 ulint
@@ -256,7 +286,7 @@ ut_raw_to_hex(
 /*******************************************************************//**
 Adds single quotes to the start and end of string and escapes any quotes
 by doubling them. Returns the number of bytes that were written to "buf"
-(including the terminating '\0'). If buf_size is too small then the
+(including the terminating NUL). If buf_size is too small then the
 trailing bytes from "str" are discarded.
 @return	number of bytes that were written */
 UNIV_INLINE
