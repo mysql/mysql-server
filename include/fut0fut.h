@@ -32,19 +32,18 @@ Created 12/13/1995 Heikki Tuuri
 #include "mtr0mtr.h"
 
 /************************************************************************
-Gets a pointer to a file address and latches the page. */
+Gets a pointer to a file address and latches the page.
+@return	pointer to a byte in a frame; the file page in the frame is bufferfixed and latched */
 UNIV_INLINE
 byte*
 fut_get_ptr(
 /*========*/
-				/* out: pointer to a byte in a frame; the file
-				page in the frame is bufferfixed and latched */
-	ulint		space,	/* in: space id */
-	ulint		zip_size,/* in: compressed page size in bytes
+	ulint		space,	/*!< in: space id */
+	ulint		zip_size,/*!< in: compressed page size in bytes
 				or 0 for uncompressed pages */
-	fil_addr_t	addr,	/* in: file address */
-	ulint		rw_latch, /* in: RW_S_LATCH, RW_X_LATCH */
-	mtr_t*		mtr);	/* in: mtr handle */
+	fil_addr_t	addr,	/*!< in: file address */
+	ulint		rw_latch, /*!< in: RW_S_LATCH, RW_X_LATCH */
+	mtr_t*		mtr);	/*!< in: mtr handle */
 
 #ifndef UNIV_NONINL
 #include "fut0fut.ic"

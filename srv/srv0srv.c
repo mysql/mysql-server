@@ -640,8 +640,8 @@ UNIV_INTERN
 void
 srv_set_io_thread_op_info(
 /*======================*/
-	ulint		i,	/* in: the 'segment' of the i/o thread */
-	const char*	str)	/* in: constant char string describing the
+	ulint		i,	/*!< in: the 'segment' of the i/o thread */
+	const char*	str)	/*!< in: constant char string describing the
 				state */
 {
 	ut_a(i < SRV_MAX_N_IO_THREADS);
@@ -651,13 +651,13 @@ srv_set_io_thread_op_info(
 
 /*************************************************************************
 Accessor function to get pointer to n'th slot in the server thread
-table. */
+table.
+@return	pointer to the slot */
 static
 srv_slot_t*
 srv_table_get_nth_slot(
 /*===================*/
-				/* out: pointer to the slot */
-	ulint	index)		/* in: index of the slot */
+	ulint	index)		/*!< in: index of the slot */
 {
 	ut_a(index < OS_THREAD_MAX_N);
 
@@ -665,12 +665,12 @@ srv_table_get_nth_slot(
 }
 
 /*************************************************************************
-Gets the number of threads in the system. */
+Gets the number of threads in the system.
+@return	sum of srv_n_threads[] */
 UNIV_INTERN
 ulint
 srv_get_n_threads(void)
 /*===================*/
-			/* out: sum of srv_n_threads[] */
 {
 	ulint	i;
 	ulint	n_threads	= 0;
@@ -690,13 +690,13 @@ srv_get_n_threads(void)
 /*************************************************************************
 Reserves a slot in the thread table for the current thread. Also creates the
 thread local storage struct for the current thread. NOTE! The server mutex
-has to be reserved by the caller! */
+has to be reserved by the caller!
+@return	reserved slot index */
 static
 ulint
 srv_table_reserve_slot(
 /*===================*/
-					/* out: reserved slot index */
-	enum srv_thread_type	type)	/* in: type of the thread */
+	enum srv_thread_type	type)	/*!< in: type of the thread */
 {
 	srv_slot_t*	slot;
 	ulint		i;
@@ -729,12 +729,12 @@ srv_table_reserve_slot(
 
 /*************************************************************************
 Suspends the calling thread to wait for the event in its thread slot.
-NOTE! The server mutex has to be reserved by the caller! */
+NOTE! The server mutex has to be reserved by the caller!
+@return	event for the calling thread to wait */
 static
 os_event_t
 srv_suspend_thread(void)
 /*====================*/
-			/* out: event for the calling thread to wait */
 {
 	srv_slot_t*		slot;
 	os_event_t		event;
@@ -773,17 +773,14 @@ srv_suspend_thread(void)
 
 /*************************************************************************
 Releases threads of the type given from suspension in the thread table.
-NOTE! The server mutex has to be reserved by the caller! */
+NOTE! The server mutex has to be reserved by the caller!
+@return	number of threads released: this may be < n if not enough threads were suspended at the moment */
 UNIV_INTERN
 ulint
 srv_release_threads(
 /*================*/
-					/* out: number of threads
-					released: this may be < n if
-					not enough threads were
-					suspended at the moment */
-	enum srv_thread_type	type,	/* in: thread type */
-	ulint			n)	/* in: number of threads to release */
+	enum srv_thread_type	type,	/*!< in: thread type */
+	ulint			n)	/*!< in: number of threads to release */
 {
 	srv_slot_t*	slot;
 	ulint		i;
@@ -826,12 +823,12 @@ srv_release_threads(
 }
 
 /*************************************************************************
-Returns the calling thread type. */
+Returns the calling thread type.
+@return	SRV_COM, ... */
 UNIV_INTERN
 enum srv_thread_type
 srv_get_thread_type(void)
 /*=====================*/
-			/* out: SRV_COM, ... */
 {
 	ulint			slot_no;
 	srv_slot_t*		slot;
@@ -967,7 +964,7 @@ UNIV_INTERN
 void
 srv_conc_enter_innodb(
 /*==================*/
-	trx_t*	trx)	/* in: transaction object associated with the
+	trx_t*	trx)	/*!< in: transaction object associated with the
 			thread */
 {
 	ibool			has_slept = FALSE;
@@ -1127,7 +1124,7 @@ UNIV_INTERN
 void
 srv_conc_force_enter_innodb(
 /*========================*/
-	trx_t*	trx)	/* in: transaction object associated with the
+	trx_t*	trx)	/*!< in: transaction object associated with the
 			thread */
 {
 	if (UNIV_LIKELY(!srv_thread_concurrency)) {
@@ -1153,7 +1150,7 @@ UNIV_INTERN
 void
 srv_conc_force_exit_innodb(
 /*=======================*/
-	trx_t*	trx)	/* in: transaction object associated with the
+	trx_t*	trx)	/*!< in: transaction object associated with the
 			thread */
 {
 	srv_conc_slot_t*	slot	= NULL;
@@ -1209,7 +1206,7 @@ UNIV_INTERN
 void
 srv_conc_exit_innodb(
 /*=================*/
-	trx_t*	trx)	/* in: transaction object associated with the
+	trx_t*	trx)	/*!< in: transaction object associated with the
 			thread */
 {
 	if (trx->n_tickets_to_enter_innodb > 0) {
@@ -1229,12 +1226,12 @@ srv_conc_exit_innodb(
 /*========================================================================*/
 
 /*************************************************************************
-Normalizes init parameter values to use units we use inside InnoDB. */
+Normalizes init parameter values to use units we use inside InnoDB.
+@return	DB_SUCCESS or error code */
 static
 ulint
 srv_normalize_init_values(void)
 /*===========================*/
-				/* out: DB_SUCCESS or error code */
 {
 	ulint	n;
 	ulint	i;
@@ -1259,12 +1256,12 @@ srv_normalize_init_values(void)
 }
 
 /*************************************************************************
-Boots the InnoDB server. */
+Boots the InnoDB server.
+@return	DB_SUCCESS or error code */
 UNIV_INTERN
 ulint
 srv_boot(void)
 /*==========*/
-			/* out: DB_SUCCESS or error code */
 {
 	ulint	err;
 
@@ -1291,12 +1288,12 @@ srv_boot(void)
 
 /*************************************************************************
 Reserves a slot in the thread table for the current MySQL OS thread.
-NOTE! The kernel mutex has to be reserved by the caller! */
+NOTE! The kernel mutex has to be reserved by the caller!
+@return	reserved slot */
 static
 srv_slot_t*
 srv_table_reserve_slot_for_mysql(void)
 /*==================================*/
-			/* out: reserved slot */
 {
 	srv_slot_t*	slot;
 	ulint		i;
@@ -1364,7 +1361,7 @@ UNIV_INTERN
 void
 srv_suspend_mysql_thread(
 /*=====================*/
-	que_thr_t*	thr)	/* in: query thread associated with the MySQL
+	que_thr_t*	thr)	/*!< in: query thread associated with the MySQL
 				OS thread */
 {
 	srv_slot_t*	slot;
@@ -1540,7 +1537,7 @@ UNIV_INTERN
 void
 srv_release_mysql_thread_if_suspended(
 /*==================================*/
-	que_thr_t*	thr)	/* in: query thread associated with the
+	que_thr_t*	thr)	/*!< in: query thread associated with the
 				MySQL OS thread	 */
 {
 	srv_slot_t*	slot;
@@ -1598,10 +1595,10 @@ UNIV_INTERN
 void
 srv_printf_innodb_monitor(
 /*======================*/
-	FILE*	file,		/* in: output stream */
-	ulint*	trx_start,	/* out: file position of the start of
+	FILE*	file,		/*!< in: output stream */
+	ulint*	trx_start,	/*!< out: file position of the start of
 				the list of active transactions */
-	ulint*	trx_end)	/* out: file position of the end of
+	ulint*	trx_end)	/*!< out: file position of the end of
 				the list of active transactions */
 {
 	double	time_elapsed;
@@ -1852,14 +1849,14 @@ srv_export_innodb_status(void)
 
 /*************************************************************************
 A thread which wakes up threads whose lock wait may have lasted too long.
-This also prints the info output by various InnoDB monitors. */
+This also prints the info output by various InnoDB monitors.
+@return	a dummy parameter */
 UNIV_INTERN
 os_thread_ret_t
 srv_lock_timeout_and_monitor_thread(
 /*================================*/
-			/* out: a dummy parameter */
 	void*	arg __attribute__((unused)))
-			/* in: a dummy parameter required by
+			/*!< in: a dummy parameter required by
 			os_thread_create */
 {
 	srv_slot_t*	slot;
@@ -2039,14 +2036,14 @@ exit_func:
 
 /*************************************************************************
 A thread which prints warnings about semaphore waits which have lasted
-too long. These can be used to track bugs which cause hangs. */
+too long. These can be used to track bugs which cause hangs.
+@return	a dummy parameter */
 UNIV_INTERN
 os_thread_ret_t
 srv_error_monitor_thread(
 /*=====================*/
-			/* out: a dummy parameter */
 	void*	arg __attribute__((unused)))
-			/* in: a dummy parameter required by
+			/*!< in: a dummy parameter required by
 			os_thread_create */
 {
 	/* number of successive fatal timeouts observed */
@@ -2177,14 +2174,14 @@ srv_wake_master_thread(void)
 }
 
 /*************************************************************************
-The master thread controlling the server. */
+The master thread controlling the server.
+@return	a dummy parameter */
 UNIV_INTERN
 os_thread_ret_t
 srv_master_thread(
 /*==============*/
-			/* out: a dummy parameter */
 	void*	arg __attribute__((unused)))
-			/* in: a dummy parameter required by
+			/*!< in: a dummy parameter required by
 			os_thread_create */
 {
 	os_event_t	event;

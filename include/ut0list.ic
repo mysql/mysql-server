@@ -17,25 +17,25 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 *****************************************************************************/
 
 /********************************************************************
-Get the first node in the list. */
+Get the first node in the list.
+@return	first node, or NULL */
 UNIV_INLINE
 ib_list_node_t*
 ib_list_get_first(
 /*==============*/
-				/* out: first node, or NULL */
-	ib_list_t*	list)	/* in: list */
+	ib_list_t*	list)	/*!< in: list */
 {
 	return(list->first);
 }
 
 /********************************************************************
-Get the last node in the list. */
+Get the last node in the list.
+@return	last node, or NULL */
 UNIV_INLINE
 ib_list_node_t*
 ib_list_get_last(
 /*=============*/
-				/* out: last node, or NULL */
-	ib_list_t*	list)	/* in: list */
+	ib_list_t*	list)	/*!< in: list */
 {
 	return(list->last);
 }

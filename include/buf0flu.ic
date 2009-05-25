@@ -32,7 +32,7 @@ UNIV_INTERN
 void
 buf_flush_insert_into_flush_list(
 /*=============================*/
-	buf_block_t*	block);	/* in/out: block which is modified */
+	buf_block_t*	block);	/*!< in/out: block which is modified */
 /************************************************************************
 Inserts a modified block into the flush list in the right sorted position.
 This function is used by recovery, because there the modifications do not
@@ -41,7 +41,7 @@ UNIV_INTERN
 void
 buf_flush_insert_sorted_into_flush_list(
 /*====================================*/
-	buf_block_t*	block);	/* in/out: block which is modified */
+	buf_block_t*	block);	/*!< in/out: block which is modified */
 
 /************************************************************************
 This function should be called at a mini-transaction commit, if a page was
@@ -51,8 +51,8 @@ UNIV_INLINE
 void
 buf_flush_note_modification(
 /*========================*/
-	buf_block_t*	block,	/* in: block which is modified */
-	mtr_t*		mtr)	/* in: mtr */
+	buf_block_t*	block,	/*!< in: block which is modified */
+	mtr_t*		mtr)	/*!< in: mtr */
 {
 	ut_ad(block);
 	ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
@@ -87,10 +87,10 @@ UNIV_INLINE
 void
 buf_flush_recv_note_modification(
 /*=============================*/
-	buf_block_t*	block,		/* in: block which is modified */
-	ib_uint64_t	start_lsn,	/* in: start lsn of the first mtr in a
+	buf_block_t*	block,		/*!< in: block which is modified */
+	ib_uint64_t	start_lsn,	/*!< in: start lsn of the first mtr in a
 					set of mtr's */
-	ib_uint64_t	end_lsn)	/* in: end lsn of the last mtr in the
+	ib_uint64_t	end_lsn)	/*!< in: end lsn of the last mtr in the
 					set of mtr's */
 {
 	ut_ad(block);

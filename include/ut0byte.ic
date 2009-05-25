@@ -23,14 +23,14 @@ Created 5/30/1994 Heikki Tuuri
 *******************************************************************/
 
 /***********************************************************
-Creates a 64-bit dulint out of two ulints. */
+Creates a 64-bit dulint out of two ulints.
+@return	created dulint */
 UNIV_INLINE
 dulint
 ut_dulint_create(
 /*=============*/
-			/* out: created dulint */
-	ulint	high,	/* in: high-order 32 bits */
-	ulint	low)	/* in: low-order 32 bits */
+	ulint	high,	/*!< in: high-order 32 bits */
+	ulint	low)	/*!< in: low-order 32 bits */
 {
 	dulint	res;
 
@@ -44,51 +44,51 @@ ut_dulint_create(
 }
 
 /***********************************************************
-Gets the high-order 32 bits of a dulint. */
+Gets the high-order 32 bits of a dulint.
+@return	32 bits in ulint */
 UNIV_INLINE
 ulint
 ut_dulint_get_high(
 /*===============*/
-			/* out: 32 bits in ulint */
-	dulint	d)	/* in: dulint */
+	dulint	d)	/*!< in: dulint */
 {
 	return(d.high);
 }
 
 /***********************************************************
-Gets the low-order 32 bits of a dulint. */
+Gets the low-order 32 bits of a dulint.
+@return	32 bits in ulint */
 UNIV_INLINE
 ulint
 ut_dulint_get_low(
 /*==============*/
-			/* out: 32 bits in ulint */
-	dulint	d)	/* in: dulint */
+	dulint	d)	/*!< in: dulint */
 {
 	return(d.low);
 }
 
 /***********************************************************
 Converts a dulint (a struct of 2 ulints) to ib_int64_t, which is a 64-bit
-integer type. */
+integer type.
+@return	value in ib_int64_t type */
 UNIV_INLINE
 ib_int64_t
 ut_conv_dulint_to_longlong(
 /*=======================*/
-			/* out: value in ib_int64_t type */
-	dulint	d)	/* in: dulint */
+	dulint	d)	/*!< in: dulint */
 {
 	return((ib_int64_t)d.low
 	       + (((ib_int64_t)d.high) << 32));
 }
 
 /***********************************************************
-Tests if a dulint is zero. */
+Tests if a dulint is zero.
+@return	TRUE if zero */
 UNIV_INLINE
 ibool
 ut_dulint_is_zero(
 /*==============*/
-			/* out: TRUE if zero */
-	dulint	a)	/* in: dulint */
+	dulint	a)	/*!< in: dulint */
 {
 	if ((a.low == 0) && (a.high == 0)) {
 
@@ -99,15 +99,14 @@ ut_dulint_is_zero(
 }
 
 /***********************************************************
-Compares two dulints. */
+Compares two dulints.
+@return	-1 if a < b, 0 if a == b, 1 if a > b */
 UNIV_INLINE
 int
 ut_dulint_cmp(
 /*==========*/
-			/* out: -1 if a < b, 0 if a == b,
-			1 if a > b */
-	dulint	a,	/* in: dulint */
-	dulint	b)	/* in: dulint */
+	dulint	a,	/*!< in: dulint */
+	dulint	b)	/*!< in: dulint */
 {
 	if (a.high > b.high) {
 		return(1);
@@ -123,14 +122,14 @@ ut_dulint_cmp(
 }
 
 /***********************************************************
-Calculates the max of two dulints. */
+Calculates the max of two dulints.
+@return	max(a, b) */
 UNIV_INLINE
 dulint
 ut_dulint_get_max(
 /*==============*/
-			/* out: max(a, b) */
-	dulint	a,	/* in: dulint */
-	dulint	b)	/* in: dulint */
+	dulint	a,	/*!< in: dulint */
+	dulint	b)	/*!< in: dulint */
 {
 	if (ut_dulint_cmp(a, b) > 0) {
 
@@ -141,14 +140,14 @@ ut_dulint_get_max(
 }
 
 /***********************************************************
-Calculates the min of two dulints. */
+Calculates the min of two dulints.
+@return	min(a, b) */
 UNIV_INLINE
 dulint
 ut_dulint_get_min(
 /*==============*/
-			/* out: min(a, b) */
-	dulint	a,	/* in: dulint */
-	dulint	b)	/* in: dulint */
+	dulint	a,	/*!< in: dulint */
+	dulint	b)	/*!< in: dulint */
 {
 	if (ut_dulint_cmp(a, b) > 0) {
 
@@ -159,14 +158,14 @@ ut_dulint_get_min(
 }
 
 /***********************************************************
-Adds a ulint to a dulint. */
+Adds a ulint to a dulint.
+@return	sum a + b */
 UNIV_INLINE
 dulint
 ut_dulint_add(
 /*==========*/
-			/* out: sum a + b */
-	dulint	a,	/* in: dulint */
-	ulint	b)	/* in: ulint */
+	dulint	a,	/*!< in: dulint */
+	ulint	b)	/*!< in: ulint */
 {
 	if (0xFFFFFFFFUL - b >= a.low) {
 		a.low += b;
@@ -182,14 +181,14 @@ ut_dulint_add(
 }
 
 /***********************************************************
-Subtracts a ulint from a dulint. */
+Subtracts a ulint from a dulint.
+@return	a - b */
 UNIV_INLINE
 dulint
 ut_dulint_subtract(
 /*===============*/
-			/* out: a - b */
-	dulint	a,	/* in: dulint */
-	ulint	b)	/* in: ulint, b <= a */
+	dulint	a,	/*!< in: dulint */
+	ulint	b)	/*!< in: ulint, b <= a */
 {
 	if (a.low >= b) {
 		a.low -= b;
@@ -210,15 +209,15 @@ ut_dulint_subtract(
 
 /***********************************************************
 Subtracts a dulint from another. NOTE that the difference must be positive
-and smaller that 4G. */
+and smaller that 4G.
+@return	a - b */
 UNIV_INLINE
 ulint
 ut_dulint_minus(
 /*============*/
-			/* out: a - b */
-	dulint	a,	/* in: dulint; NOTE a must be >= b and at most
+	dulint	a,	/*!< in: dulint; NOTE a must be >= b and at most
 			2 to power 32 - 1 greater */
-	dulint	b)	/* in: dulint */
+	dulint	b)	/*!< in: dulint */
 {
 	ulint	diff;
 
@@ -239,14 +238,14 @@ ut_dulint_minus(
 }
 
 /************************************************************
-Rounds a dulint downward to a multiple of a power of 2. */
+Rounds a dulint downward to a multiple of a power of 2.
+@return	rounded value */
 UNIV_INLINE
 dulint
 ut_dulint_align_down(
 /*=================*/
-				/* out: rounded value */
-	dulint	 n,		/* in: number to be rounded */
-	ulint	 align_no)	/* in: align by this number which must be a
+	dulint	 n,		/*!< in: number to be rounded */
+	ulint	 align_no)	/*!< in: align by this number which must be a
 				power of 2 */
 {
 	ulint	low, high;
@@ -263,28 +262,28 @@ ut_dulint_align_down(
 }
 
 /************************************************************
-Rounds a dulint upward to a multiple of a power of 2. */
+Rounds a dulint upward to a multiple of a power of 2.
+@return	rounded value */
 UNIV_INLINE
 dulint
 ut_dulint_align_up(
 /*===============*/
-				/* out: rounded value */
-	dulint	 n,		/* in: number to be rounded */
-	ulint	 align_no)	/* in: align by this number which must be a
+	dulint	 n,		/*!< in: number to be rounded */
+	ulint	 align_no)	/*!< in: align by this number which must be a
 				power of 2 */
 {
 	return(ut_dulint_align_down(ut_dulint_add(n, align_no - 1), align_no));
 }
 
 /************************************************************
-Rounds ib_uint64_t downward to a multiple of a power of 2. */
+Rounds ib_uint64_t downward to a multiple of a power of 2.
+@return	rounded value */
 UNIV_INLINE
 ib_uint64_t
 ut_uint64_align_down(
 /*=================*/
-					/* out: rounded value */
-	ib_uint64_t	 n,		/* in: number to be rounded */
-	ulint		 align_no)	/* in: align by this number
+	ib_uint64_t	 n,		/*!< in: number to be rounded */
+	ulint		 align_no)	/*!< in: align by this number
 					which must be a power of 2 */
 {
 	ut_ad(align_no > 0);
@@ -294,14 +293,14 @@ ut_uint64_align_down(
 }
 
 /************************************************************
-Rounds ib_uint64_t upward to a multiple of a power of 2. */
+Rounds ib_uint64_t upward to a multiple of a power of 2.
+@return	rounded value */
 UNIV_INLINE
 ib_uint64_t
 ut_uint64_align_up(
 /*===============*/
-					/* out: rounded value */
-	ib_uint64_t	 n,		/* in: number to be rounded */
-	ulint		 align_no)	/* in: align by this number
+	ib_uint64_t	 n,		/*!< in: number to be rounded */
+	ulint		 align_no)	/*!< in: align by this number
 					which must be a power of 2 */
 {
 	ib_uint64_t	align_1 = (ib_uint64_t) align_no - 1;
@@ -313,14 +312,14 @@ ut_uint64_align_up(
 }
 
 /*************************************************************
-The following function rounds up a pointer to the nearest aligned address. */
+The following function rounds up a pointer to the nearest aligned address.
+@return	aligned pointer */
 UNIV_INLINE
 void*
 ut_align(
 /*=====*/
-				/* out: aligned pointer */
-	void*	ptr,		/* in: pointer */
-	ulint	align_no)	/* in: align by this number */
+	void*	ptr,		/*!< in: pointer */
+	ulint	align_no)	/*!< in: align by this number */
 {
 	ut_ad(align_no > 0);
 	ut_ad(((align_no - 1) & align_no) == 0);
@@ -333,14 +332,14 @@ ut_align(
 
 /*************************************************************
 The following function rounds down a pointer to the nearest
-aligned address. */
+aligned address.
+@return	aligned pointer */
 UNIV_INLINE
 void*
 ut_align_down(
 /*==========*/
-					/* out: aligned pointer */
-	const void*	ptr,		/* in: pointer */
-	ulint		align_no)	/* in: align by this number */
+	const void*	ptr,		/*!< in: pointer */
+	ulint		align_no)	/*!< in: align by this number */
 {
 	ut_ad(align_no > 0);
 	ut_ad(((align_no - 1) & align_no) == 0);
@@ -353,15 +352,14 @@ ut_align_down(
 
 /*************************************************************
 The following function computes the offset of a pointer from the nearest
-aligned address. */
+aligned address.
+@return	distance from aligned pointer */
 UNIV_INLINE
 ulint
 ut_align_offset(
 /*============*/
-					/* out: distance from
-					aligned pointer */
-	const void*	ptr,		/* in: pointer */
-	ulint		align_no)	/* in: align by this number */
+	const void*	ptr,		/*!< in: pointer */
+	ulint		align_no)	/*!< in: align by this number */
 {
 	ut_ad(align_no > 0);
 	ut_ad(((align_no - 1) & align_no) == 0);
@@ -373,15 +371,14 @@ ut_align_offset(
 }
 
 /*********************************************************************
-Gets the nth bit of a ulint. */
+Gets the nth bit of a ulint.
+@return	TRUE if nth bit is 1; 0th bit is defined to be the least significant */
 UNIV_INLINE
 ibool
 ut_bit_get_nth(
 /*===========*/
-			/* out: TRUE if nth bit is 1; 0th bit is defined to
-			be the least significant */
-	ulint	a,	/* in: ulint */
-	ulint	n)	/* in: nth bit requested */
+	ulint	a,	/*!< in: ulint */
+	ulint	n)	/*!< in: nth bit requested */
 {
 	ut_ad(n < 8 * sizeof(ulint));
 #if TRUE != 1
@@ -391,15 +388,15 @@ ut_bit_get_nth(
 }
 
 /*********************************************************************
-Sets the nth bit of a ulint. */
+Sets the nth bit of a ulint.
+@return	the ulint with the bit set as requested */
 UNIV_INLINE
 ulint
 ut_bit_set_nth(
 /*===========*/
-			/* out: the ulint with the bit set as requested */
-	ulint	a,	/* in: ulint */
-	ulint	n,	/* in: nth bit requested */
-	ibool	val)	/* in: value for the bit to set */
+	ulint	a,	/*!< in: ulint */
+	ulint	n,	/*!< in: nth bit requested */
+	ibool	val)	/*!< in: value for the bit to set */
 {
 	ut_ad(n < 8 * sizeof(ulint));
 #if TRUE != 1

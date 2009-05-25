@@ -140,13 +140,13 @@ mem_pool_mutex_exit(void)
 }
 
 /************************************************************************
-Returns memory area size. */
+Returns memory area size.
+@return	size */
 UNIV_INLINE
 ulint
 mem_area_get_size(
 /*==============*/
-				/* out: size */
-	mem_area_t*	area)	/* in: area */
+	mem_area_t*	area)	/*!< in: area */
 {
 	return(area->size_and_free & ~MEM_AREA_FREE);
 }
@@ -157,21 +157,21 @@ UNIV_INLINE
 void
 mem_area_set_size(
 /*==============*/
-	mem_area_t*	area,	/* in: area */
-	ulint		size)	/* in: size */
+	mem_area_t*	area,	/*!< in: area */
+	ulint		size)	/*!< in: size */
 {
 	area->size_and_free = (area->size_and_free & MEM_AREA_FREE)
 		| size;
 }
 
 /************************************************************************
-Returns memory area free bit. */
+Returns memory area free bit.
+@return	TRUE if free */
 UNIV_INLINE
 ibool
 mem_area_get_free(
 /*==============*/
-				/* out: TRUE if free */
-	mem_area_t*	area)	/* in: area */
+	mem_area_t*	area)	/*!< in: area */
 {
 #if TRUE != MEM_AREA_FREE
 # error "TRUE != MEM_AREA_FREE"
@@ -185,8 +185,8 @@ UNIV_INLINE
 void
 mem_area_set_free(
 /*==============*/
-	mem_area_t*	area,	/* in: area */
-	ibool		free)	/* in: free bit value */
+	mem_area_t*	area,	/*!< in: area */
+	ibool		free)	/*!< in: free bit value */
 {
 #if TRUE != MEM_AREA_FREE
 # error "TRUE != MEM_AREA_FREE"
@@ -196,13 +196,13 @@ mem_area_set_free(
 }
 
 /************************************************************************
-Creates a memory pool. */
+Creates a memory pool.
+@return	memory pool */
 UNIV_INTERN
 mem_pool_t*
 mem_pool_create(
 /*============*/
-			/* out: memory pool */
-	ulint	size)	/* in: pool size in bytes */
+	ulint	size)	/*!< in: pool size in bytes */
 {
 	mem_pool_t*	pool;
 	mem_area_t*	area;
@@ -260,15 +260,14 @@ mem_pool_create(
 }
 
 /************************************************************************
-Fills the specified free list. */
+Fills the specified free list.
+@return	TRUE if we were able to insert a block to the free list */
 static
 ibool
 mem_pool_fill_free_list(
 /*====================*/
-				/* out: TRUE if we were able to insert a
-				block to the free list */
-	ulint		i,	/* in: free list index */
-	mem_pool_t*	pool)	/* in: memory pool */
+	ulint		i,	/*!< in: free list index */
+	mem_pool_t*	pool)	/*!< in: memory pool */
 {
 	mem_area_t*	area;
 	mem_area_t*	area2;
@@ -333,18 +332,18 @@ mem_pool_fill_free_list(
 
 /************************************************************************
 Allocates memory from a pool. NOTE: This low-level function should only be
-used in mem0mem.*! */
+used in mem0mem.*!
+@return	own: allocated memory buffer */
 UNIV_INTERN
 void*
 mem_area_alloc(
 /*===========*/
-				/* out, own: allocated memory buffer */
-	ulint*		psize,	/* in: requested size in bytes; for optimum
+	ulint*		psize,	/*!< in: requested size in bytes; for optimum
 				space usage, the size should be a power of 2
 				minus MEM_AREA_EXTRA_SIZE;
 				out: allocated size in bytes (greater than
 				or equal to the requested size) */
-	mem_pool_t*	pool)	/* in: memory pool */
+	mem_pool_t*	pool)	/*!< in: memory pool */
 {
 	mem_area_t*	area;
 	ulint		size;
@@ -436,15 +435,15 @@ mem_area_alloc(
 }
 
 /************************************************************************
-Gets the buddy of an area, if it exists in pool. */
+Gets the buddy of an area, if it exists in pool.
+@return	the buddy, NULL if no buddy in pool */
 UNIV_INLINE
 mem_area_t*
 mem_area_get_buddy(
 /*===============*/
-				/* out: the buddy, NULL if no buddy in pool */
-	mem_area_t*	area,	/* in: memory area */
-	ulint		size,	/* in: memory area size */
-	mem_pool_t*	pool)	/* in: memory pool */
+	mem_area_t*	area,	/*!< in: memory area */
+	ulint		size,	/*!< in: memory area size */
+	mem_pool_t*	pool)	/*!< in: memory pool */
 {
 	mem_area_t*	buddy;
 
@@ -481,9 +480,9 @@ UNIV_INTERN
 void
 mem_area_free(
 /*==========*/
-	void*		ptr,	/* in, own: pointer to allocated memory
+	void*		ptr,	/*!< in, own: pointer to allocated memory
 				buffer */
-	mem_pool_t*	pool)	/* in: memory pool */
+	mem_pool_t*	pool)	/*!< in: memory pool */
 {
 	mem_area_t*	area;
 	mem_area_t*	buddy;
@@ -605,13 +604,13 @@ mem_area_free(
 }
 
 /************************************************************************
-Validates a memory pool. */
+Validates a memory pool.
+@return	TRUE if ok */
 UNIV_INTERN
 ibool
 mem_pool_validate(
 /*==============*/
-				/* out: TRUE if ok */
-	mem_pool_t*	pool)	/* in: memory pool */
+	mem_pool_t*	pool)	/*!< in: memory pool */
 {
 	mem_area_t*	area;
 	mem_area_t*	buddy;
@@ -657,8 +656,8 @@ UNIV_INTERN
 void
 mem_pool_print_info(
 /*================*/
-	FILE*		outfile,/* in: output file to write to */
-	mem_pool_t*	pool)	/* in: memory pool */
+	FILE*		outfile,/*!< in: output file to write to */
+	mem_pool_t*	pool)	/*!< in: memory pool */
 {
 	ulint		i;
 
@@ -685,13 +684,13 @@ mem_pool_print_info(
 }
 
 /************************************************************************
-Returns the amount of reserved memory. */
+Returns the amount of reserved memory.
+@return	reserved memory in bytes */
 UNIV_INTERN
 ulint
 mem_pool_get_reserved(
 /*==================*/
-				/* out: reserved memory in bytes */
-	mem_pool_t*	pool)	/* in: memory pool */
+	mem_pool_t*	pool)	/*!< in: memory pool */
 {
 	ulint	reserved;
 

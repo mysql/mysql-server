@@ -34,14 +34,14 @@ Created 2/27/1997 Heikki Tuuri
 #include "mtr0mtr.h"
 
 /***************************************************************
-Undoes a modify operation on a row of a table. */
+Undoes a modify operation on a row of a table.
+@return	DB_SUCCESS or error code */
 UNIV_INTERN
 ulint
 row_undo_mod(
 /*=========*/
-				/* out: DB_SUCCESS or error code */
-	undo_node_t*	node,	/* in: row undo node */
-	que_thr_t*	thr);	/* in: query thread */
+	undo_node_t*	node,	/*!< in: row undo node */
+	que_thr_t*	thr);	/*!< in: query thread */
 
 
 #ifndef UNIV_NONINL

@@ -32,14 +32,14 @@ Created 12/27/1996 Heikki Tuuri
 #include "page0zip.h"
 
 /*************************************************************************
-Creates an update vector object. */
+Creates an update vector object.
+@return	own: update vector object */
 UNIV_INLINE
 upd_t*
 upd_create(
 /*=======*/
-				/* out, own: update vector object */
-	ulint		n,	/* in: number of fields */
-	mem_heap_t*	heap)	/* in: heap from which memory allocated */
+	ulint		n,	/*!< in: number of fields */
+	mem_heap_t*	heap)	/*!< in: heap from which memory allocated */
 {
 	upd_t*	update;
 
@@ -55,13 +55,13 @@ upd_create(
 
 /*************************************************************************
 Returns the number of fields in the update vector == number of columns
-to be updated by an update vector. */
+to be updated by an update vector.
+@return	number of fields */
 UNIV_INLINE
 ulint
 upd_get_n_fields(
 /*=============*/
-				/* out: number of fields */
-	const upd_t*	update)	/* in: update vector */
+	const upd_t*	update)	/*!< in: update vector */
 {
 	ut_ad(update);
 
@@ -70,14 +70,14 @@ upd_get_n_fields(
 
 #ifdef UNIV_DEBUG
 /*************************************************************************
-Returns the nth field of an update vector. */
+Returns the nth field of an update vector.
+@return	update vector field */
 UNIV_INLINE
 upd_field_t*
 upd_get_nth_field(
 /*==============*/
-				/* out: update vector field */
-	const upd_t*	update,	/* in: update vector */
-	ulint		n)	/* in: field position in update vector */
+	const upd_t*	update,	/*!< in: update vector */
+	ulint		n)	/*!< in: field position in update vector */
 {
 	ut_ad(update);
 	ut_ad(n < update->n_fields);
@@ -93,11 +93,11 @@ UNIV_INLINE
 void
 upd_field_set_field_no(
 /*===================*/
-	upd_field_t*	upd_field,	/* in: update vector field */
-	ulint		field_no,	/* in: field number in a clustered
+	upd_field_t*	upd_field,	/*!< in: update vector field */
+	ulint		field_no,	/*!< in: field number in a clustered
 					index */
-	dict_index_t*	index,		/* in: index */
-	trx_t*		trx)		/* in: transaction */
+	dict_index_t*	index,		/*!< in: index */
+	trx_t*		trx)		/*!< in: transaction */
 {
 	upd_field->field_no = field_no;
 	upd_field->orig_len = 0;
@@ -117,14 +117,14 @@ upd_field_set_field_no(
 }
 
 /*************************************************************************
-Returns a field of an update vector by field_no. */
+Returns a field of an update vector by field_no.
+@return	update vector field, or NULL */
 UNIV_INLINE
 const upd_field_t*
 upd_get_field_by_field_no(
 /*======================*/
-				/* out: update vector field, or NULL */
-	const upd_t*	update,	/* in: update vector */
-	ulint		no)	/* in: field_no */
+	const upd_t*	update,	/*!< in: update vector */
+	ulint		no)	/*!< in: field_no */
 {
 	ulint	i;
 	for (i = 0; i < upd_get_n_fields(update); i++) {
@@ -146,13 +146,13 @@ UNIV_INLINE
 void
 row_upd_rec_sys_fields(
 /*===================*/
-	rec_t*		rec,	/* in/out: record */
-	page_zip_des_t*	page_zip,/* in/out: compressed page whose
+	rec_t*		rec,	/*!< in/out: record */
+	page_zip_des_t*	page_zip,/*!< in/out: compressed page whose
 				uncompressed part will be updated, or NULL */
-	dict_index_t*	index,	/* in: clustered index */
-	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
-	trx_t*		trx,	/* in: transaction */
-	roll_ptr_t	roll_ptr)/* in: roll ptr of the undo log record */
+	dict_index_t*	index,	/*!< in: clustered index */
+	const ulint*	offsets,/*!< in: rec_get_offsets(rec, index) */
+	trx_t*		trx,	/*!< in: transaction */
+	roll_ptr_t	roll_ptr)/*!< in: roll ptr of the undo log record */
 {
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(rec_offs_validate(rec, index, offsets));

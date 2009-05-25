@@ -68,13 +68,13 @@ struct thr_local_struct{
 #define THR_LOCAL_MAGIC_N	1231234
 
 /***********************************************************************
-Returns the local storage struct for a thread. */
+Returns the local storage struct for a thread.
+@return	local storage */
 static
 thr_local_t*
 thr_local_get(
 /*==========*/
-				/* out: local storage */
-	os_thread_id_t	id)	/* in: thread id of the thread */
+	os_thread_id_t	id)	/*!< in: thread id of the thread */
 {
 	thr_local_t*	local;
 
@@ -104,13 +104,13 @@ try_again:
 }
 
 /***********************************************************************
-Gets the slot number in the thread table of a thread. */
+Gets the slot number in the thread table of a thread.
+@return	slot number */
 UNIV_INTERN
 ulint
 thr_local_get_slot_no(
 /*==================*/
-				/* out: slot number */
-	os_thread_id_t	id)	/* in: thread id of the thread */
+	os_thread_id_t	id)	/*!< in: thread id of the thread */
 {
 	ulint		slot_no;
 	thr_local_t*	local;
@@ -132,8 +132,8 @@ UNIV_INTERN
 void
 thr_local_set_slot_no(
 /*==================*/
-	os_thread_id_t	id,	/* in: thread id of the thread */
-	ulint		slot_no)/* in: slot number */
+	os_thread_id_t	id,	/*!< in: thread id of the thread */
+	ulint		slot_no)/*!< in: slot number */
 {
 	thr_local_t*	local;
 
@@ -148,12 +148,12 @@ thr_local_set_slot_no(
 
 /***********************************************************************
 Returns pointer to the 'in_ibuf' field within the current thread local
-storage. */
+storage.
+@return	pointer to the in_ibuf field */
 UNIV_INTERN
 ibool*
 thr_local_get_in_ibuf_field(void)
 /*=============================*/
-			/* out: pointer to the in_ibuf field */
 {
 	thr_local_t*	local;
 
@@ -202,7 +202,7 @@ UNIV_INTERN
 void
 thr_local_free(
 /*===========*/
-	os_thread_id_t	id)	/* in: thread id */
+	os_thread_id_t	id)	/*!< in: thread id */
 {
 	thr_local_t*	local;
 

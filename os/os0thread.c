@@ -36,14 +36,14 @@ Created 9/8/1995 Heikki Tuuri
 #include "os0sync.h"
 
 /*******************************************************************
-Compares two thread ids for equality. */
+Compares two thread ids for equality.
+@return	TRUE if equal */
 UNIV_INTERN
 ibool
 os_thread_eq(
 /*=========*/
-				/* out: TRUE if equal */
-	os_thread_id_t	a,	/* in: OS thread or thread id */
-	os_thread_id_t	b)	/* in: OS thread or thread id */
+	os_thread_id_t	a,	/*!< in: OS thread or thread id */
+	os_thread_id_t	b)	/*!< in: OS thread or thread id */
 {
 #ifdef __WIN__
 	if (a == b) {
@@ -62,13 +62,13 @@ os_thread_eq(
 
 /********************************************************************
 Converts an OS thread id to a ulint. It is NOT guaranteed that the ulint is
-unique for the thread though! */
+unique for the thread though!
+@return	thread identifier as a number */
 UNIV_INTERN
 ulint
 os_thread_pf(
 /*=========*/
-				/* out: thread identifier as a number */
-	os_thread_id_t	a)	/* in: OS thread identifier */
+	os_thread_id_t	a)	/*!< in: OS thread identifier */
 {
 #ifdef UNIV_HPUX10
 	/* In HP-UX-10.20 a pthread_t is a struct of 3 fields: field1, field2,
@@ -83,12 +83,12 @@ os_thread_pf(
 /*********************************************************************
 Returns the thread identifier of current thread. Currently the thread
 identifier in Unix is the thread handle itself. Note that in HP-UX
-pthread_t is a struct of 3 fields. */
+pthread_t is a struct of 3 fields.
+@return	current thread identifier */
 UNIV_INTERN
 os_thread_id_t
 os_thread_get_curr_id(void)
 /*=======================*/
-				/* out: current thread identifier */
 {
 #ifdef __WIN__
 	return(GetCurrentThreadId());
@@ -100,21 +100,21 @@ os_thread_get_curr_id(void)
 /********************************************************************
 Creates a new thread of execution. The execution starts from
 the function given. The start function takes a void* parameter
-and returns an ulint. */
+and returns an ulint.
+@return	handle to the thread */
 UNIV_INTERN
 os_thread_t
 os_thread_create(
 /*=============*/
-						/* out: handle to the thread */
 #ifndef __WIN__
 	os_posix_f_t		start_f,
 #else
-	ulint (*start_f)(void*),		/* in: pointer to function
+	ulint (*start_f)(void*),		/*!< in: pointer to function
 						from which to start */
 #endif
-	void*			arg,		/* in: argument to start
+	void*			arg,		/*!< in: argument to start
 						function */
-	os_thread_id_t*		thread_id)	/* out: id of the created
+	os_thread_id_t*		thread_id)	/*!< out: id of the created
 						thread, or NULL */
 {
 #ifdef __WIN__
@@ -218,7 +218,7 @@ UNIV_INTERN
 void
 os_thread_exit(
 /*===========*/
-	void*	exit_value)	/* in: exit value; in Windows this void*
+	void*	exit_value)	/*!< in: exit value; in Windows this void*
 				is cast as a DWORD */
 {
 #ifdef UNIV_DEBUG_THREAD_CREATION
@@ -237,12 +237,12 @@ os_thread_exit(
 }
 
 /*********************************************************************
-Returns handle to the current thread. */
+Returns handle to the current thread.
+@return	current thread handle */
 UNIV_INTERN
 os_thread_t
 os_thread_get_curr(void)
 /*====================*/
-				/* out: current thread handle */
 {
 #ifdef __WIN__
 	return(GetCurrentThread());
@@ -278,7 +278,7 @@ UNIV_INTERN
 void
 os_thread_sleep(
 /*============*/
-	ulint	tm)	/* in: time in microseconds */
+	ulint	tm)	/*!< in: time in microseconds */
 {
 #ifdef __WIN__
 	Sleep((DWORD) tm / 1000);
@@ -301,8 +301,8 @@ UNIV_INTERN
 void
 os_thread_set_priority(
 /*===================*/
-	os_thread_t	handle,	/* in: OS handle to the thread */
-	ulint		pri)	/* in: priority */
+	os_thread_t	handle,	/*!< in: OS handle to the thread */
+	ulint		pri)	/*!< in: priority */
 {
 #ifdef __WIN__
 	int	os_pri;
@@ -325,14 +325,14 @@ os_thread_set_priority(
 }
 
 /**********************************************************************
-Gets a thread priority. */
+Gets a thread priority.
+@return	priority */
 UNIV_INTERN
 ulint
 os_thread_get_priority(
 /*===================*/
-				/* out: priority */
 	os_thread_t	handle __attribute__((unused)))
-				/* in: OS handle to the thread */
+				/*!< in: OS handle to the thread */
 {
 #ifdef __WIN__
 	int	os_pri;
@@ -357,12 +357,12 @@ os_thread_get_priority(
 }
 
 /**********************************************************************
-Gets the last operating system error code for the calling thread. */
+Gets the last operating system error code for the calling thread.
+@return	last error on Windows, 0 otherwise */
 UNIV_INTERN
 ulint
 os_thread_get_last_error(void)
 /*==========================*/
-				/* out: last error on Windows, 0 otherwise */
 {
 #ifdef __WIN__
 	return(GetLastError());

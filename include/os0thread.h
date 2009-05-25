@@ -56,43 +56,43 @@ typedef os_thread_t		os_thread_id_t;	/* In Unix we use the thread
 typedef void* (*os_posix_f_t) (void*);
 
 /*******************************************************************
-Compares two thread ids for equality. */
+Compares two thread ids for equality.
+@return	TRUE if equal */
 UNIV_INTERN
 ibool
 os_thread_eq(
 /*=========*/
-				/* out: TRUE if equal */
-	os_thread_id_t	a,	/* in: OS thread or thread id */
-	os_thread_id_t	b);	/* in: OS thread or thread id */
+	os_thread_id_t	a,	/*!< in: OS thread or thread id */
+	os_thread_id_t	b);	/*!< in: OS thread or thread id */
 /********************************************************************
 Converts an OS thread id to a ulint. It is NOT guaranteed that the ulint is
-unique for the thread though! */
+unique for the thread though!
+@return	thread identifier as a number */
 UNIV_INTERN
 ulint
 os_thread_pf(
 /*=========*/
-				/* out: thread identifier as a number */
-	os_thread_id_t	a);	/* in: OS thread identifier */
+	os_thread_id_t	a);	/*!< in: OS thread identifier */
 /********************************************************************
 Creates a new thread of execution. The execution starts from
 the function given. The start function takes a void* parameter
 and returns a ulint.
 NOTE: We count the number of threads in os_thread_exit(). A created
-thread should always use that to exit and not use return() to exit. */
+thread should always use that to exit and not use return() to exit.
+@return	handle to the thread */
 UNIV_INTERN
 os_thread_t
 os_thread_create(
 /*=============*/
-						/* out: handle to the thread */
 #ifndef __WIN__
 		 os_posix_f_t		 start_f,
 #else
-	ulint (*start_f)(void*),		/* in: pointer to function
+	ulint (*start_f)(void*),		/*!< in: pointer to function
 						from which to start */
 #endif
-	void*			arg,		/* in: argument to start
+	void*			arg,		/*!< in: argument to start
 						function */
-	os_thread_id_t*		thread_id);	/* out: id of the created
+	os_thread_id_t*		thread_id);	/*!< out: id of the created
 						thread, or NULL */
 
 /*********************************************************************
@@ -101,22 +101,22 @@ UNIV_INTERN
 void
 os_thread_exit(
 /*===========*/
-	void*	exit_value);	/* in: exit value; in Windows this void*
+	void*	exit_value);	/*!< in: exit value; in Windows this void*
 				is cast as a DWORD */
 /*********************************************************************
-Returns the thread identifier of current thread. */
+Returns the thread identifier of current thread.
+@return	current thread identifier */
 UNIV_INTERN
 os_thread_id_t
 os_thread_get_curr_id(void);
 /*========================*/
-				/* out: current thread identifier */
 /*********************************************************************
-Returns handle to the current thread. */
+Returns handle to the current thread.
+@return	current thread handle */
 UNIV_INTERN
 os_thread_t
 os_thread_get_curr(void);
 /*====================*/
-				/* out: current thread handle */
 /*********************************************************************
 Advises the os to give up remainder of the thread's time slice. */
 UNIV_INTERN
@@ -129,30 +129,30 @@ UNIV_INTERN
 void
 os_thread_sleep(
 /*============*/
-	ulint	tm);	/* in: time in microseconds */
+	ulint	tm);	/*!< in: time in microseconds */
 /**********************************************************************
-Gets a thread priority. */
+Gets a thread priority.
+@return	priority */
 UNIV_INTERN
 ulint
 os_thread_get_priority(
 /*===================*/
-				/* out: priority */
-	os_thread_t	handle);/* in: OS handle to the thread */
+	os_thread_t	handle);/*!< in: OS handle to the thread */
 /**********************************************************************
 Sets a thread priority. */
 UNIV_INTERN
 void
 os_thread_set_priority(
 /*===================*/
-	os_thread_t	handle,	/* in: OS handle to the thread */
-	ulint		pri);	/* in: priority: one of OS_PRIORITY_... */
+	os_thread_t	handle,	/*!< in: OS handle to the thread */
+	ulint		pri);	/*!< in: priority: one of OS_PRIORITY_... */
 /**********************************************************************
-Gets the last operating system error code for the calling thread. */
+Gets the last operating system error code for the calling thread.
+@return	last error on Windows, 0 otherwise */
 UNIV_INTERN
 ulint
 os_thread_get_last_error(void);
 /*==========================*/
-				/* out: last error on Windows, 0 otherwise */
 
 #ifndef UNIV_NONINL
 #include "os0thread.ic"

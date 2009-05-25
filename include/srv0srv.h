@@ -344,12 +344,12 @@ enum srv_thread_type {
 };
 
 /*************************************************************************
-Boots Innobase server. */
+Boots Innobase server.
+@return	DB_SUCCESS or error code */
 UNIV_INTERN
 ulint
 srv_boot(void);
 /*==========*/
-			/* out: DB_SUCCESS or error code */
 /*************************************************************************
 Initializes the server. */
 UNIV_INTERN
@@ -370,49 +370,46 @@ void
 srv_general_init(void);
 /*==================*/
 /*************************************************************************
-Gets the number of threads in the system. */
+Gets the number of threads in the system.
+@return	sum of srv_n_threads[] */
 UNIV_INTERN
 ulint
 srv_get_n_threads(void);
 /*===================*/
-			/* out: sum of srv_n_threads[] */
 /*************************************************************************
-Returns the calling thread type. */
+Returns the calling thread type.
+@return	SRV_COM, ... */
 
 enum srv_thread_type
 srv_get_thread_type(void);
 /*=====================*/
-			/* out: SRV_COM, ... */
 /*************************************************************************
 Sets the info describing an i/o thread current state. */
 UNIV_INTERN
 void
 srv_set_io_thread_op_info(
 /*======================*/
-	ulint		i,	/* in: the 'segment' of the i/o thread */
-	const char*	str);	/* in: constant char string describing the
+	ulint		i,	/*!< in: the 'segment' of the i/o thread */
+	const char*	str);	/*!< in: constant char string describing the
 				state */
 /*************************************************************************
 Releases threads of the type given from suspension in the thread table.
-NOTE! The server mutex has to be reserved by the caller! */
+NOTE! The server mutex has to be reserved by the caller!
+@return	number of threads released: this may be < n if not enough threads were suspended at the moment */
 UNIV_INTERN
 ulint
 srv_release_threads(
 /*================*/
-					/* out: number of threads
-					released: this may be < n if
-					not enough threads were
-					suspended at the moment */
-	enum srv_thread_type	type,	/* in: thread type */
-	ulint			n);	/* in: number of threads to release */
+	enum srv_thread_type	type,	/*!< in: thread type */
+	ulint			n);	/*!< in: number of threads to release */
 /*************************************************************************
-The master thread controlling the server. */
+The master thread controlling the server.
+@return	a dummy parameter */
 UNIV_INTERN
 os_thread_ret_t
 srv_master_thread(
 /*==============*/
-			/* out: a dummy parameter */
-	void*	arg);	/* in: a dummy parameter required by
+	void*	arg);	/*!< in: a dummy parameter required by
 			os_thread_create */
 /***********************************************************************
 Tells the Innobase server that there has been activity in the database
@@ -437,7 +434,7 @@ UNIV_INTERN
 void
 srv_conc_enter_innodb(
 /*==================*/
-	trx_t*	trx);	/* in: transaction object associated with the
+	trx_t*	trx);	/*!< in: transaction object associated with the
 			thread */
 /*************************************************************************
 This lets a thread enter InnoDB regardless of the number of threads inside
@@ -446,7 +443,7 @@ UNIV_INTERN
 void
 srv_conc_force_enter_innodb(
 /*========================*/
-	trx_t*	trx);	/* in: transaction object associated with the
+	trx_t*	trx);	/*!< in: transaction object associated with the
 			thread */
 /*************************************************************************
 This must be called when a thread exits InnoDB in a lock wait or at the
@@ -455,7 +452,7 @@ UNIV_INTERN
 void
 srv_conc_force_exit_innodb(
 /*=======================*/
-	trx_t*	trx);	/* in: transaction object associated with the
+	trx_t*	trx);	/*!< in: transaction object associated with the
 			thread */
 /*************************************************************************
 This must be called when a thread exits InnoDB. */
@@ -463,7 +460,7 @@ UNIV_INTERN
 void
 srv_conc_exit_innodb(
 /*=================*/
-	trx_t*	trx);	/* in: transaction object associated with the
+	trx_t*	trx);	/*!< in: transaction object associated with the
 			thread */
 /*******************************************************************
 Puts a MySQL OS thread to wait for a lock to be released. If an error
@@ -475,7 +472,7 @@ UNIV_INTERN
 void
 srv_suspend_mysql_thread(
 /*=====================*/
-	que_thr_t*	thr);	/* in: query thread associated with the MySQL
+	que_thr_t*	thr);	/*!< in: query thread associated with the MySQL
 				OS thread */
 /************************************************************************
 Releases a MySQL OS thread waiting for a lock to be released, if the
@@ -484,27 +481,27 @@ UNIV_INTERN
 void
 srv_release_mysql_thread_if_suspended(
 /*==================================*/
-	que_thr_t*	thr);	/* in: query thread associated with the
+	que_thr_t*	thr);	/*!< in: query thread associated with the
 				MySQL OS thread	 */
 /*************************************************************************
 A thread which wakes up threads whose lock wait may have lasted too long.
-This also prints the info output by various InnoDB monitors. */
+This also prints the info output by various InnoDB monitors.
+@return	a dummy parameter */
 UNIV_INTERN
 os_thread_ret_t
 srv_lock_timeout_and_monitor_thread(
 /*================================*/
-			/* out: a dummy parameter */
-	void*	arg);	/* in: a dummy parameter required by
+	void*	arg);	/*!< in: a dummy parameter required by
 			os_thread_create */
 /*************************************************************************
 A thread which prints warnings about semaphore waits which have lasted
-too long. These can be used to track bugs which cause hangs. */
+too long. These can be used to track bugs which cause hangs.
+@return	a dummy parameter */
 UNIV_INTERN
 os_thread_ret_t
 srv_error_monitor_thread(
 /*=====================*/
-			/* out: a dummy parameter */
-	void*	arg);	/* in: a dummy parameter required by
+	void*	arg);	/*!< in: a dummy parameter required by
 			os_thread_create */
 /**********************************************************************
 Outputs to a file the output of the InnoDB Monitor. */
@@ -512,10 +509,10 @@ UNIV_INTERN
 void
 srv_printf_innodb_monitor(
 /*======================*/
-	FILE*	file,		/* in: output stream */
-	ulint*	trx_start,	/* out: file position of the start of
+	FILE*	file,		/*!< in: output stream */
+	ulint*	trx_start,	/*!< out: file position of the start of
 				the list of active transactions */
-	ulint*	trx_end);	/* out: file position of the end of
+	ulint*	trx_end);	/*!< out: file position of the end of
 				the list of active transactions */
 
 /**********************************************************************

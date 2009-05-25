@@ -139,7 +139,7 @@ UNIV_INTERN
 void
 mem_init(
 /*=====*/
-	ulint	size)	/* in: common pool size in bytes */
+	ulint	size)	/*!< in: common pool size in bytes */
 {
 #ifdef UNIV_MEM_DEBUG
 
@@ -178,8 +178,8 @@ UNIV_INTERN
 void
 mem_field_init(
 /*===========*/
-	byte*	buf,	/* in: memory field */
-	ulint	n)	/* in: how many bytes the user requested */
+	byte*	buf,	/*!< in: memory field */
+	ulint	n)	/*!< in: how many bytes the user requested */
 {
 	ulint	rnd;
 	byte*	usr_buf;
@@ -225,9 +225,9 @@ UNIV_INTERN
 void
 mem_field_erase(
 /*============*/
-	byte*	buf,	/* in: memory field */
+	byte*	buf,	/*!< in: memory field */
 	ulint	n __attribute__((unused)))
-			/* in: how many bytes the user requested */
+			/*!< in: how many bytes the user requested */
 {
 	byte*	usr_buf;
 
@@ -253,8 +253,8 @@ UNIV_INTERN
 void
 mem_init_buf(
 /*=========*/
-	byte*	buf,	/* in: pointer to buffer */
-	ulint	 n)	/* in: length of buffer */
+	byte*	buf,	/*!< in: pointer to buffer */
+	ulint	 n)	/*!< in: length of buffer */
 {
 	byte*	ptr;
 
@@ -274,13 +274,13 @@ mem_init_buf(
 
 /*******************************************************************
 Initializes a buffer to a random combination of hex DE and AD.
-Used to erase freed memory.*/
+Used to erase freed memory. */
 UNIV_INTERN
 void
 mem_erase_buf(
 /*==========*/
-	byte*	buf,	/* in: pointer to buffer */
-	ulint	 n)	 /* in: length of buffer */
+	byte*	buf,	/*!< in: pointer to buffer */
+	ulint	 n)	 /*!< in: length of buffer */
 {
 	byte*	ptr;
 
@@ -304,9 +304,9 @@ UNIV_INTERN
 void
 mem_hash_insert(
 /*============*/
-	mem_heap_t*	heap,	   /* in: the created heap */
-	const char*	file_name, /* in: file name of creation */
-	ulint		line)	   /* in: line where created */
+	mem_heap_t*	heap,	   /*!< in: the created heap */
+	const char*	file_name, /*!< in: file name of creation */
+	ulint		line)	   /*!< in: line where created */
 {
 	mem_hash_node_t*	new_node;
 	ulint			cell_no	;
@@ -347,9 +347,9 @@ UNIV_INTERN
 void
 mem_hash_remove(
 /*============*/
-	mem_heap_t*	heap,	   /* in: the heap to be freed */
-	const char*	file_name, /* in: file name of freeing */
-	ulint		line)	   /* in: line where freed */
+	mem_heap_t*	heap,	   /*!< in: the heap to be freed */
+	const char*	file_name, /*!< in: file name of freeing */
+	ulint		line)	   /*!< in: line where freed */
 {
 	mem_hash_node_t*	node;
 	ulint			cell_no;
@@ -426,24 +426,24 @@ UNIV_INTERN
 void
 mem_heap_validate_or_print(
 /*=======================*/
-	mem_heap_t*	heap,	/* in: memory heap */
+	mem_heap_t*	heap,	/*!< in: memory heap */
 	byte*		top __attribute__((unused)),
-				/* in: calculate and validate only until
+				/*!< in: calculate and validate only until
 				this top pointer in the heap is reached,
 				if this pointer is NULL, ignored */
-	ibool		print,	/* in: if TRUE, prints the contents
+	ibool		print,	/*!< in: if TRUE, prints the contents
 				of the heap; works only in
 				the debug version */
-	ibool*		error,	/* out: TRUE if error */
-	ulint*		us_size,/* out: allocated memory
+	ibool*		error,	/*!< out: TRUE if error */
+	ulint*		us_size,/*!< out: allocated memory
 				(for the user) in the heap,
 				if a NULL pointer is passed as this
 				argument, it is ignored; in the
 				non-debug version this is always -1 */
-	ulint*		ph_size,/* out: physical size of the heap,
+	ulint*		ph_size,/*!< out: physical size of the heap,
 				if a NULL pointer is passed as this
 				argument, it is ignored */
-	ulint*		n_blocks) /* out: number of blocks in the heap,
+	ulint*		n_blocks) /*!< out: number of blocks in the heap,
 				if a NULL pointer is passed as this
 				argument, it is ignored */
 {
@@ -597,7 +597,7 @@ static
 void
 mem_heap_print(
 /*===========*/
-	mem_heap_t*	heap)	/* in: memory heap */
+	mem_heap_t*	heap)	/*!< in: memory heap */
 {
 	ibool	error;
 	ulint	us_size;
@@ -617,13 +617,13 @@ mem_heap_print(
 }
 
 /******************************************************************
-Validates the contents of a memory heap. */
+Validates the contents of a memory heap.
+@return	TRUE if ok */
 UNIV_INTERN
 ibool
 mem_heap_validate(
 /*==============*/
-				/* out: TRUE if ok */
-	mem_heap_t*	heap)	/* in: memory heap */
+	mem_heap_t*	heap)	/*!< in: memory heap */
 {
 	ibool	error;
 	ulint	us_size;
@@ -646,13 +646,13 @@ mem_heap_validate(
 
 #ifdef UNIV_DEBUG
 /******************************************************************
-Checks that an object is a memory heap (or a block of it). */
+Checks that an object is a memory heap (or a block of it).
+@return	TRUE if ok */
 UNIV_INTERN
 ibool
 mem_heap_check(
 /*===========*/
-				/* out: TRUE if ok */
-	mem_heap_t*	heap)	/* in: memory heap */
+	mem_heap_t*	heap)	/*!< in: memory heap */
 {
 	ut_a(heap->magic_n == MEM_BLOCK_MAGIC_N);
 
@@ -662,12 +662,12 @@ mem_heap_check(
 
 #ifdef UNIV_MEM_DEBUG
 /*********************************************************************
-TRUE if no memory is currently allocated. */
+TRUE if no memory is currently allocated.
+@return	TRUE if no heaps exist */
 UNIV_INTERN
 ibool
 mem_all_freed(void)
 /*===============*/
-			/* out: TRUE if no heaps exist */
 {
 	mem_hash_node_t*	node;
 	ulint			heap_count	= 0;
@@ -700,12 +700,12 @@ mem_all_freed(void)
 }
 
 /*********************************************************************
-Validates the dynamic memory allocation system. */
+Validates the dynamic memory allocation system.
+@return	TRUE if error */
 UNIV_INTERN
 ibool
 mem_validate_no_assert(void)
 /*========================*/
-			/* out: TRUE if error */
 {
 	mem_hash_node_t*	node;
 	ulint			n_heaps			= 0;
@@ -775,12 +775,12 @@ mem_validate_no_assert(void)
 }
 
 /****************************************************************
-Validates the dynamic memory */
+Validates the dynamic memory
+@return	TRUE if ok */
 UNIV_INTERN
 ibool
 mem_validate(void)
 /*==============*/
-			/* out: TRUE if ok */
 {
 	ut_a(!mem_validate_no_assert());
 
@@ -795,7 +795,7 @@ UNIV_INTERN
 void
 mem_analyze_corruption(
 /*===================*/
-	void*	ptr)	/* in: pointer to place of possible corruption */
+	void*	ptr)	/*!< in: pointer to place of possible corruption */
 {
 	byte*	p;
 	ulint	i;
@@ -904,7 +904,7 @@ static
 void
 mem_print_info_low(
 /*===============*/
-	ibool	print_all)	/* in: if TRUE, all heaps are printed,
+	ibool	print_all)	/*!< in: if TRUE, all heaps are printed,
 				else only the heaps allocated after the
 				previous call of this function */
 {

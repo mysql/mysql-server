@@ -37,7 +37,7 @@ UNIV_INTERN
 void
 buf_flush_remove(
 /*=============*/
-	buf_page_t*	bpage);	/* in: pointer to the block in question */
+	buf_page_t*	bpage);	/*!< in: pointer to the block in question */
 /***********************************************************************
 Relocates a buffer control block on the flush_list.
 Note that it is assumed that the contents of bpage has already been
@@ -46,15 +46,15 @@ UNIV_INTERN
 void
 buf_flush_relocate_on_flush_list(
 /*=============================*/
-	buf_page_t*	bpage,	/* in/out: control block being moved */
-	buf_page_t*	dpage);	/* in/out: destination block */
+	buf_page_t*	bpage,	/*!< in/out: control block being moved */
+	buf_page_t*	dpage);	/*!< in/out: destination block */
 /************************************************************************
 Updates the flush system data structures when a write is completed. */
 UNIV_INTERN
 void
 buf_flush_write_complete(
 /*=====================*/
-	buf_page_t*	bpage);	/* in: pointer to the block in question */
+	buf_page_t*	bpage);	/*!< in: pointer to the block in question */
 /*************************************************************************
 Flushes pages from the end of the LRU list if there is too small
 a margin of replaceable pages there. */
@@ -69,9 +69,9 @@ UNIV_INTERN
 void
 buf_flush_init_for_writing(
 /*=======================*/
-	byte*		page,		/* in/out: page */
-	void*		page_zip_,	/* in/out: compressed page, or NULL */
-	ib_uint64_t	newest_lsn);	/* in: newest modification lsn
+	byte*		page,		/*!< in/out: page */
+	void*		page_zip_,	/*!< in/out: compressed page, or NULL */
+	ib_uint64_t	newest_lsn);	/*!< in: newest modification lsn
 					to the page */
 #ifndef UNIV_HOTBACKUP
 /***********************************************************************
@@ -79,23 +79,20 @@ This utility flushes dirty blocks from the end of the LRU list or flush_list.
 NOTE 1: in the case of an LRU flush the calling thread may own latches to
 pages: to avoid deadlocks, this function must be written so that it cannot
 end up waiting for these latches! NOTE 2: in the case of a flush list flush,
-the calling thread is not allowed to own any latches on pages! */
+the calling thread is not allowed to own any latches on pages!
+@return	number of blocks for which the write request was queued; ULINT_UNDEFINED if there was a flush of the same type already running */
 UNIV_INTERN
 ulint
 buf_flush_batch(
 /*============*/
-					/* out: number of blocks for which the
-					write request was queued;
-					ULINT_UNDEFINED if there was a flush
-					of the same type already running */
-	enum buf_flush	flush_type,	/* in: BUF_FLUSH_LRU or
+	enum buf_flush	flush_type,	/*!< in: BUF_FLUSH_LRU or
 					BUF_FLUSH_LIST; if BUF_FLUSH_LIST,
 					then the caller must not own any
 					latches on pages */
-	ulint		min_n,		/* in: wished minimum mumber of blocks
+	ulint		min_n,		/*!< in: wished minimum mumber of blocks
 					flushed (it is not guaranteed that the
 					actual number is that big, though) */
-	ib_uint64_t	lsn_limit);	/* in the case BUF_FLUSH_LIST all
+	ib_uint64_t	lsn_limit);	/*!< in the case BUF_FLUSH_LIST all
 					blocks whose oldest_modification is
 					smaller than this should be flushed
 					(if their number does not exceed
@@ -106,7 +103,7 @@ UNIV_INTERN
 void
 buf_flush_wait_batch_end(
 /*=====================*/
-	enum buf_flush	type);	/* in: BUF_FLUSH_LRU or BUF_FLUSH_LIST */
+	enum buf_flush	type);	/*!< in: BUF_FLUSH_LRU or BUF_FLUSH_LIST */
 /************************************************************************
 This function should be called at a mini-transaction commit, if a page was
 modified in it. Puts the block to the list of modified blocks, if it not
@@ -115,37 +112,37 @@ UNIV_INLINE
 void
 buf_flush_note_modification(
 /*========================*/
-	buf_block_t*	block,	/* in: block which is modified */
-	mtr_t*		mtr);	/* in: mtr */
+	buf_block_t*	block,	/*!< in: block which is modified */
+	mtr_t*		mtr);	/*!< in: mtr */
 /************************************************************************
 This function should be called when recovery has modified a buffer page. */
 UNIV_INLINE
 void
 buf_flush_recv_note_modification(
 /*=============================*/
-	buf_block_t*	block,		/* in: block which is modified */
-	ib_uint64_t	start_lsn,	/* in: start lsn of the first mtr in a
+	buf_block_t*	block,		/*!< in: block which is modified */
+	ib_uint64_t	start_lsn,	/*!< in: start lsn of the first mtr in a
 					set of mtr's */
-	ib_uint64_t	end_lsn);	/* in: end lsn of the last mtr in the
+	ib_uint64_t	end_lsn);	/*!< in: end lsn of the last mtr in the
 					set of mtr's */
 /************************************************************************
 Returns TRUE if the file page block is immediately suitable for replacement,
-i.e., transition FILE_PAGE => NOT_USED allowed. */
+i.e., transition FILE_PAGE => NOT_USED allowed.
+@return	TRUE if can replace immediately */
 UNIV_INTERN
 ibool
 buf_flush_ready_for_replace(
 /*========================*/
-				/* out: TRUE if can replace immediately */
-	buf_page_t*	bpage);	/* in: buffer control block, must be
+	buf_page_t*	bpage);	/*!< in: buffer control block, must be
 				buf_page_in_file(bpage) and in the LRU list */
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /**********************************************************************
-Validates the flush list. */
+Validates the flush list.
+@return	TRUE if ok */
 UNIV_INTERN
 ibool
 buf_flush_validate(void);
 /*====================*/
-		/* out: TRUE if ok */
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
 /************************************************************************
