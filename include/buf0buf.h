@@ -1447,7 +1447,7 @@ FILE_PAGE => NOT_USED	NOTE: This transition is allowed if and only if
 				(1) buf_fix_count == 0,
 				(2) oldest_modification == 0, and
 				(3) io_fix == 0.
- */
+*/
 
 #ifndef UNIV_NONINL
 #include "buf0buf.ic"

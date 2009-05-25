@@ -62,7 +62,7 @@ void
 mem_erase_buf(
 /*==========*/
 	byte*	buf,	/*!< in: pointer to buffer */
-	ulint	 n);	 /*!< in: length of buffer */
+	ulint	n);	/*!< in: length of buffer */
 /*******************************************************************
 Inserts a created memory heap to the hash table of
 current allocated memory heaps.

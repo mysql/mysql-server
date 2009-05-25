@@ -470,7 +470,7 @@ UNIV_INTERN
 void
 pars_info_free(
 /*===========*/
-	pars_info_t*	info);	/*!< in: info struct */
+	pars_info_t*	info);	/*!< in, own: info struct */
 
 /********************************************************************
 Add bound literal. */
