@@ -46,6 +46,16 @@ MYSQL_PLUGIN_ACTIONS(innobase,  [
 	irix*|osf*|sysv5uw7*|openbsd*)
 		CFLAGS="$CFLAGS -DUNIV_MUST_NOT_INLINE";;
 	*solaris*|*SunOS*)
+		# Begin Solaris atomic function checks
+		AC_CHECK_FUNCS(atomic_cas_ulong atomic_cas_32 \
+			       atomic_cas_64 atomic_add_long,
+			AC_DEFINE(
+				[HAVE_SOLARIS_ATOMICS],
+				[1],
+				[Define to 1 if Solaris supports \
+				 atomic functions.]))
+		### End Solaris atomic function checks
+
 		CFLAGS="$CFLAGS -DUNIV_SOLARIS";;
   esac
   INNODB_DYNAMIC_CFLAGS="-DMYSQL_DYNAMIC_PLUGIN"
@@ -63,11 +73,16 @@ MYSQL_PLUGIN_ACTIONS(innobase,  [
   AC_TRY_RUN(
     [
       #include <pthread.h>
+      #include <string.h>
 
       int main(int argc, char** argv) {
         pthread_t       x1;
         pthread_t       x2;
         pthread_t       x3;
+
+	memset(&x1, 0x0, sizeof(x1));
+	memset(&x2, 0x0, sizeof(x2));
+	memset(&x3, 0x0, sizeof(x3));
 
         __sync_bool_compare_and_swap(&x1, x2, x3);
 
@@ -83,6 +98,39 @@ MYSQL_PLUGIN_ACTIONS(innobase,  [
       AC_MSG_RESULT(no)
     ]
     )
+
+  # Try using solaris atomics on SunOS if GCC atomics are not available
+  AC_CHECK_DECLS(
+    [HAVE_ATOMIC_PTHREAD_T],
+    [
+      AC_MSG_NOTICE(no need to check pthread_t size)
+    ],
+    [
+      AC_CHECK_DECLS(
+        [HAVE_SOLARIS_ATOMICS],
+        [
+          AC_MSG_CHECKING(checking if pthread_t size is integral)
+          AC_TRY_RUN(
+            [
+              #include <pthread.h>
+              int main()
+              {
+                pthread_t x = 0;
+                return(0);
+              }
+            ],
+            [
+              AC_DEFINE([HAVE_ATOMIC_PTHREAD_T], [1],
+                [pthread_t can be used by solaris atomics])
+              AC_MSG_RESULT(yes)
+              # size of pthread_t is needed for typed solaris atomics
+              AC_CHECK_SIZEOF([pthread_t], [], [#include <pthread.h>])
+            ],
+            [
+              AC_MSG_RESULT(no)
+            ])
+        ])
+    ])
   ])
 
 # vim: set ft=config:

@@ -372,8 +372,7 @@ buf_page_is_corrupted(
 				"you may have copied the InnoDB\n"
 				"InnoDB: tablespace but not the InnoDB "
 				"log files. See\n"
-				"InnoDB: http://dev.mysql.com/doc/refman/"
-				"5.1/en/forcing-recovery.html\n"
+				"InnoDB: " REFMAN "forcing-recovery.html\n"
 				"InnoDB: for more information.\n",
 				(ulong) mach_read_from_4(read_buf
 							 + FIL_PAGE_OFFSET),
@@ -1173,7 +1172,6 @@ static
 void
 buf_pool_shrink(
 /*============*/
-				/* out: TRUE if shrunk */
 	ulint	chunk_size)	/* in: number of pages to remove */
 {
 	buf_chunk_t*	chunks;
@@ -3243,9 +3241,8 @@ corrupt:
 			      " You can use CHECK\n"
 			      "InnoDB: TABLE to scan your"
 			      " table for corruption.\n"
-			      "InnoDB: See also"
-			      " http://dev.mysql.com/doc/refman/5.1/en/"
-			      "forcing-recovery.html\n"
+			      "InnoDB: See also "
+			      REFMAN "forcing-recovery.html\n"
 			      "InnoDB: about forcing recovery.\n", stderr);
 
 			if (srv_force_recovery < SRV_FORCE_IGNORE_CORRUPT) {
@@ -3371,6 +3368,7 @@ UNIV_INTERN
 ibool
 buf_validate(void)
 /*==============*/
+				/* out: TRUE */
 {
 	buf_page_t*	b;
 	buf_chunk_t*	chunk;
@@ -3707,6 +3705,7 @@ UNIV_INTERN
 ulint
 buf_get_latched_pages_number(void)
 /*==============================*/
+				/* out: number of latched pages */
 {
 	buf_chunk_t*	chunk;
 	buf_page_t*	b;
@@ -3795,6 +3794,7 @@ UNIV_INTERN
 ulint
 buf_get_n_pending_ios(void)
 /*=======================*/
+				/* out: number of pending I/O operations */
 {
 	return(buf_pool->n_pend_reads
 	       + buf_pool->n_flush[BUF_FLUSH_LRU]
@@ -3809,6 +3809,7 @@ UNIV_INTERN
 ulint
 buf_get_modified_ratio_pct(void)
 /*============================*/
+				/* out: modified page percentage ratio */
 {
 	ulint	ratio;
 
@@ -3923,11 +3924,12 @@ buf_refresh_io_stats(void)
 }
 
 /*************************************************************************
-Checks that all file pages in the buffer are in a replaceable state. */
+Asserts that all file pages in the buffer are in a replaceable state. */
 UNIV_INTERN
 ibool
 buf_all_freed(void)
 /*===============*/
+				/* out: TRUE */
 {
 	buf_chunk_t*	chunk;
 	ulint		i;
@@ -3988,6 +3990,7 @@ UNIV_INTERN
 ulint
 buf_get_free_list_len(void)
 /*=======================*/
+				/* out: length of the free list */
 {
 	ulint	len;
 

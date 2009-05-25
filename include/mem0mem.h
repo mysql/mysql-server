@@ -250,8 +250,7 @@ mem_free_func(
 /*==========*/
 	void*		ptr,		/* in, own: buffer to be freed */
 	const char*	file_name,	/* in: file name where created */
-	ulint		line		/* in: line where created */
-);
+	ulint		line);		/* in: line where created */
 
 /**************************************************************************
 Duplicates a NUL-terminated string. */

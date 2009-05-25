@@ -174,9 +174,8 @@ UNIV_INTERN
 void
 row_update_prebuilt_trx(
 /*====================*/
-					/* out: prebuilt dtuple */
-	row_prebuilt_t*	prebuilt,	/* in: prebuilt struct in MySQL
-					handle */
+	row_prebuilt_t*	prebuilt,	/* in/out: prebuilt struct
+					in MySQL handle */
 	trx_t*		trx);		/* in: transaction handle */
 /*************************************************************************
 Unlocks AUTO_INC type locks that were possibly reserved by a trx. */
@@ -250,7 +249,9 @@ UNIV_INTERN
 ibool
 row_table_got_default_clust_index(
 /*==============================*/
-	const dict_table_t*	table);
+					/* out: TRUE if the clustered index
+					was generated automatically */
+	const dict_table_t*	table);	/* in: table */
 /*************************************************************************
 Calculates the key number used inside MySQL for an Innobase index. We have
 to take into account if we generated a default clustered index for the table */
@@ -258,7 +259,9 @@ UNIV_INTERN
 ulint
 row_get_mysql_key_number_for_index(
 /*===============================*/
-	const dict_index_t*	index);
+					/* out: the key number used
+					inside MySQL */
+	const dict_index_t*	index);	/* in: index */
 /*************************************************************************
 Does an update or delete of a row for MySQL. */
 UNIV_INTERN

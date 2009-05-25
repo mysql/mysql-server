@@ -64,7 +64,7 @@ row_vers_impl_x_locked_off_kernel(
 	rec_t*		clust_rec;
 	ulint*		clust_offsets;
 	rec_t*		version;
-	dulint		trx_id;
+	trx_id_t	trx_id;
 	mem_heap_t*	heap;
 	mem_heap_t*	heap2;
 	dtuple_t*	row;
@@ -157,7 +157,7 @@ row_vers_impl_x_locked_off_kernel(
 		rec_t*		prev_version;
 		ulint		vers_del;
 		row_ext_t*	ext;
-		dulint		prev_trx_id;
+		trx_id_t	prev_trx_id;
 
 		mutex_exit(&kernel_mutex);
 
@@ -305,10 +305,12 @@ UNIV_INTERN
 ibool
 row_vers_must_preserve_del_marked(
 /*==============================*/
-			/* out: TRUE if earlier version should be preserved */
-	dulint	trx_id,	/* in: transaction id in the version */
-	mtr_t*	mtr)	/* in: mtr holding the latch on the clustered index
-			record; it will also hold the latch on purge_view */
+				/* out: TRUE if earlier version should
+				be preserved */
+	trx_id_t	trx_id,	/* in: transaction id in the version */
+	mtr_t*		mtr)	/* in: mtr holding the latch on the
+				clustered index record; it will also
+				hold the latch on purge_view */
 {
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
@@ -499,7 +501,7 @@ row_vers_build_for_consistent_read(
 {
 	const rec_t*	version;
 	rec_t*		prev_version;
-	dulint		trx_id;
+	trx_id_t	trx_id;
 	mem_heap_t*	heap		= NULL;
 	byte*		buf;
 	ulint		err;
@@ -523,8 +525,8 @@ row_vers_build_for_consistent_read(
 	for (;;) {
 		mem_heap_t*	heap2	= heap;
 		trx_undo_rec_t* undo_rec;
-		dulint		roll_ptr;
-		dulint		undo_no;
+		roll_ptr_t	roll_ptr;
+		undo_no_t	undo_no;
 		heap = mem_heap_create(1024);
 
 		/* If we have high-granularity consistent read view and
@@ -632,7 +634,7 @@ row_vers_build_for_semi_consistent_read(
 	mem_heap_t*	heap		= NULL;
 	byte*		buf;
 	ulint		err;
-	dulint		rec_trx_id	= ut_dulint_zero;
+	trx_id_t	rec_trx_id	= ut_dulint_zero;
 
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_X_FIX)
@@ -655,7 +657,7 @@ row_vers_build_for_semi_consistent_read(
 		trx_t*		version_trx;
 		mem_heap_t*	heap2;
 		rec_t*		prev_version;
-		dulint		version_trx_id;
+		trx_id_t	version_trx_id;
 
 		version_trx_id = row_get_rec_trx_id(version, index, *offsets);
 		if (rec == version) {

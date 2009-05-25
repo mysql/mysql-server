@@ -273,6 +273,8 @@ page_zip_compress_write_log(
 	byte*	log_ptr;
 	ulint	trailer_size;
 
+	ut_ad(!dict_index_is_ibuf(index));
+
 	log_ptr = mlog_open(mtr, 11 + 2 + 2);
 
 	if (!log_ptr) {
@@ -346,6 +348,7 @@ page_zip_get_n_prev_extern(
 	ut_ad(page_is_comp(page));
 	ut_ad(dict_table_is_comp(index->table));
 	ut_ad(dict_index_is_clust(index));
+	ut_ad(!dict_index_is_ibuf(index));
 
 	heap_no = rec_get_heap_no_new(rec);
 	ut_ad(heap_no >= PAGE_HEAP_NO_USER_LOW);
@@ -648,9 +651,9 @@ static
 void*
 page_zip_malloc(
 /*============*/
-	void*	opaque,
-	uInt	items,
-	uInt	size)
+	void*	opaque,	/* in/out: memory heap */
+	uInt	items,	/* in: number of items to allocate */
+	uInt	size)	/* in: size of an item in bytes */
 {
 	return(mem_heap_alloc(opaque, items * size));
 }
@@ -661,8 +664,8 @@ static
 void
 page_zip_free(
 /*==========*/
-	void*	opaque __attribute__((unused)),
-	void*	address __attribute__((unused)))
+	void*	opaque __attribute__((unused)),	/* in: memory heap */
+	void*	address __attribute__((unused)))/* in: object to free */
 {
 }
 
@@ -1137,6 +1140,8 @@ page_zip_compress(
 	ut_a(fil_page_get_type(page) == FIL_PAGE_INDEX);
 	ut_ad(page_simple_validate_new((page_t*) page));
 	ut_ad(page_zip_simple_validate(page_zip));
+	ut_ad(dict_table_is_comp(index->table));
+	ut_ad(!dict_index_is_ibuf(index));
 
 	UNIV_MEM_ASSERT_RW(page, UNIV_PAGE_SIZE);
 
@@ -3169,6 +3174,8 @@ page_zip_validate(
 #endif /* UNIV_ZIP_DEBUG */
 
 #ifdef UNIV_DEBUG
+/**************************************************************************
+Assert that the compressed and decompressed page headers match. */
 static
 ibool
 page_zip_header_cmp(
@@ -3795,8 +3802,8 @@ page_zip_write_trx_id_and_roll_ptr(
 	byte*		rec,	/* in/out: record */
 	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
 	ulint		trx_id_col,/* in: column number of TRX_ID in rec */
-	dulint		trx_id,	/* in: transaction identifier */
-	dulint		roll_ptr)/* in: roll_ptr */
+	trx_id_t	trx_id,	/* in: transaction identifier */
+	roll_ptr_t	roll_ptr)/* in: roll_ptr */
 {
 	byte*	field;
 	byte*	storage;
@@ -4369,6 +4376,7 @@ page_zip_reorganize(
 
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 	ut_ad(page_is_comp(page));
+	ut_ad(!dict_index_is_ibuf(index));
 	/* Note that page_zip_validate(page_zip, page) may fail here. */
 	UNIV_MEM_ASSERT_RW(page, UNIV_PAGE_SIZE);
 	UNIV_MEM_ASSERT_RW(page_zip->data, page_zip_get_size(page_zip));
@@ -4400,8 +4408,13 @@ page_zip_reorganize(
 	page_copy_rec_list_end_no_locks(block, temp_block,
 					page_get_infimum_rec(temp_page),
 					index, mtr);
-	/* Copy max trx id to recreated page */
-	page_set_max_trx_id(block, NULL, page_get_max_trx_id(temp_page));
+
+	if (!dict_index_is_clust(index) && page_is_leaf(temp_page)) {
+		/* Copy max trx id to recreated page */
+		trx_id_t	max_trx_id = page_get_max_trx_id(temp_page);
+		page_set_max_trx_id(block, NULL, max_trx_id, NULL);
+		ut_ad(!ut_dulint_is_zero(max_trx_id));
+	}
 
 	/* Restore logging. */
 	mtr_set_log_mode(mtr, log_mode);
@@ -4446,6 +4459,7 @@ page_zip_copy_recs(
 {
 	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX));
 	ut_ad(mtr_memo_contains_page(mtr, (page_t*) src, MTR_MEMO_PAGE_X_FIX));
+	ut_ad(!dict_index_is_ibuf(index));
 #ifdef UNIV_ZIP_DEBUG
 	/* The B-tree operations that call this function may set
 	FIL_PAGE_PREV or PAGE_LEVEL, causing a temporary min_rec_flag
@@ -4458,6 +4472,11 @@ page_zip_copy_recs(
 		ut_a(page_is_leaf(src));
 		ut_a(dict_index_is_clust(index));
 	}
+
+	/* The PAGE_MAX_TRX_ID must be set on leaf pages of secondary
+	indexes.  It does not matter on other pages. */
+	ut_a(dict_index_is_clust(index) || !page_is_leaf(src)
+	     || !ut_dulint_is_zero(page_get_max_trx_id(src)));
 
 	UNIV_MEM_ASSERT_W(page, UNIV_PAGE_SIZE);
 	UNIV_MEM_ASSERT_W(page_zip->data, page_zip_get_size(page_zip));

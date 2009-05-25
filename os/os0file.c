@@ -360,7 +360,7 @@ os_file_get_last_error(
 				"InnoDB: Some operating system error numbers"
 				" are described at\n"
 				"InnoDB: "
-				"http://dev.mysql.com/doc/refman/5.1/en/"
+				REFMAN
 				"operating-system-error-codes.html\n");
 		}
 	}
@@ -419,7 +419,7 @@ os_file_get_last_error(
 				"InnoDB: Some operating system"
 				" error numbers are described at\n"
 				"InnoDB: "
-				"http://dev.mysql.com/doc/refman/5.1/en/"
+				REFMAN
 				"operating-system-error-codes.html\n");
 		}
 	}
@@ -794,8 +794,7 @@ next_file:
 			/* TODO: MySQL has apparently its own symlink
 			implementation in Windows, dbname.sym can
 			redirect a database directory:
-			http://dev.mysql.com/doc/refman/5.1/en/
-			windows-symbolic-links.html */
+			REFMAN "windows-symbolic-links.html" */
 			info->type = OS_FILE_TYPE_LINK;
 		} else if (lpFindFileData->dwFileAttributes
 			   & FILE_ATTRIBUTE_DIRECTORY) {
@@ -2573,8 +2572,7 @@ retry:
 			"InnoDB: Some operating system error numbers"
 			" are described at\n"
 			"InnoDB: "
-			"http://dev.mysql.com/doc/refman/5.1/en/"
-			"operating-system-error-codes.html\n",
+			REFMAN "operating-system-error-codes.html\n",
 			name, (ulong) offset_high, (ulong) offset,
 			(ulong) GetLastError());
 
@@ -2645,8 +2643,7 @@ retry:
 			"InnoDB: Some operating system error numbers"
 			" are described at\n"
 			"InnoDB: "
-			"http://dev.mysql.com/doc/refman/5.1/en/"
-			"operating-system-error-codes.html\n");
+			REFMAN "operating-system-error-codes.html\n");
 
 		os_has_said_disk_full = TRUE;
 	}
@@ -2688,8 +2685,7 @@ retry:
 			"InnoDB: Some operating system error numbers"
 			" are described at\n"
 			"InnoDB: "
-			"http://dev.mysql.com/doc/refman/5.1/en/"
-			"operating-system-error-codes.html\n");
+			REFMAN "operating-system-error-codes.html\n");
 
 		os_has_said_disk_full = TRUE;
 	}
@@ -3773,11 +3769,14 @@ os_aio(
 	ulint		offset_high, /* in: most significant 32 bits of
 				offset */
 	ulint		n,	/* in: number of bytes to read or write */
-	fil_node_t*	message1,/* in: messages for the aio handler (these
-				can be used to identify a completed aio
-				operation); if mode is OS_AIO_SYNC, these
-				are ignored */
-	void*		message2)
+	fil_node_t*	message1,/* in: message for the aio handler
+				(can be used to identify a completed
+				aio operation); ignored if mode is
+				OS_AIO_SYNC */
+	void*		message2)/* in: message for the aio handler
+				(can be used to identify a completed
+				aio operation); ignored if mode is
+				OS_AIO_SYNC */
 {
 	os_aio_array_t*	array;
 	os_aio_slot_t*	slot;

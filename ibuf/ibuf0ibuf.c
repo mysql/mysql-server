@@ -1534,8 +1534,10 @@ ibuf_rec_get_size(
 	const rec_t*	rec,			/* in: ibuf record */
 	const byte*	types,			/* in: fields */
 	ulint		n_fields,		/* in: number of fields */
-	ibool		pre_4_1)		/* in: TRUE=pre-4.1 format,
+	ibool		pre_4_1,		/* in: TRUE=pre-4.1 format,
 						FALSE=newer */
+	ulint		comp)			/* in: 0=ROW_FORMAT=REDUNDANT,
+						nonzero=ROW_FORMAT=COMPACT */
 {
 	ulint	i;
 	ulint	field_offset;
@@ -1561,11 +1563,11 @@ ibuf_rec_get_size(
 		} else if (pre_4_1) {
 			dtype_read_for_order_and_null_size(&dtype, types);
 
-			size += dtype_get_sql_null_size(&dtype);
+			size += dtype_get_sql_null_size(&dtype, comp);
 		} else {
 			dtype_new_read_for_order_and_null_size(&dtype, types);
 
-			size += dtype_get_sql_null_size(&dtype);
+			size += dtype_get_sql_null_size(&dtype, comp);
 		}
 
 		types += types_offset;
@@ -1592,35 +1594,33 @@ ibuf_rec_get_volume(
 	ulint		n_fields;
 	ulint		data_size;
 	ibool		pre_4_1;
+	ulint		comp;
 
 	ut_ad(ibuf_inside());
 	ut_ad(rec_get_n_fields_old(ibuf_rec) > 2);
 
 	data = rec_get_nth_field_old(ibuf_rec, 1, &len);
+	pre_4_1 = (len > 1);
 
-	if (len > 1) {
+	if (pre_4_1) {
 		/* < 4.1.x format record */
 
 		ut_a(trx_doublewrite_must_reset_space_ids);
 		ut_a(!trx_sys_multiple_tablespace_format);
-
-		pre_4_1 = TRUE;
 
 		n_fields = rec_get_n_fields_old(ibuf_rec) - 2;
 
 		types = rec_get_nth_field_old(ibuf_rec, 1, &len);
 
 		ut_ad(len == n_fields * DATA_ORDER_NULL_TYPE_BUF_SIZE);
+		comp = 0;
 	} else {
 		/* >= 4.1.x format record */
 		ibuf_op_t	op;
-		ibool		comp;
 		ulint		info_len;
 
 		ut_a(trx_sys_multiple_tablespace_format);
 		ut_a(*data == 0);
-
-		pre_4_1 = FALSE;
 
 		types = rec_get_nth_field_old(ibuf_rec, 3, &len);
 
@@ -1655,7 +1655,7 @@ ibuf_rec_get_volume(
 		n_fields = rec_get_n_fields_old(ibuf_rec) - 4;
 	}
 
-	data_size = ibuf_rec_get_size(ibuf_rec, types, n_fields, pre_4_1);
+	data_size = ibuf_rec_get_size(ibuf_rec, types, n_fields, pre_4_1, comp);
 
 	return(data_size + rec_get_converted_extra_size(data_size, n_fields, 0)
 	       + page_dir_calc_reserved_space(1));
@@ -2599,6 +2599,8 @@ ibuf_get_volume_buffered_hash(
 	const rec_t*	rec,	/* in: ibuf record in post-4.1 format */
 	const byte*	types,	/* in: fields */
 	const byte*	data,	/* in: start of user record data */
+	ulint		comp,	/* in: 0=ROW_FORMAT=REDUNDANT,
+				nonzero=ROW_FORMAT=COMPACT */
 	byte*		hash,	/* in/out: hash array */
 	ulint		size)	/* in: size of hash array, in bytes */
 {
@@ -2607,7 +2609,7 @@ ibuf_get_volume_buffered_hash(
 	ulint		bitmask;
 
 	len = ibuf_rec_get_size(rec, types, rec_get_n_fields_old(rec) - 4,
-				FALSE);
+				FALSE, comp);
 	fold = ut_fold_binary(data, len);
 
 	hash += (fold / 8) % size;
@@ -2668,7 +2670,7 @@ ibuf_get_volume_buffered_count(
 		because deletes cannot be buffered if there are
 		old-style inserts buffered for the page. */
 
-		len = ibuf_rec_get_size(rec, types, n_fields, FALSE);
+		len = ibuf_rec_get_size(rec, types, n_fields, FALSE, 0);
 
 		return(len
 		       + rec_get_converted_extra_size(len, n_fields, 0)
@@ -2697,7 +2699,9 @@ ibuf_get_volume_buffered_count(
 		See if this record has been already buffered. */
 		if (n_recs && ibuf_get_volume_buffered_hash(
 			    rec, types + IBUF_REC_INFO_SIZE,
-			    types + len, hash, size)) {
+			    types + len,
+			    types[IBUF_REC_OFFSET_FLAGS] & IBUF_REC_COMPACT,
+			    hash, size)) {
 			(*n_recs)++;
 		}
 
@@ -3437,7 +3441,7 @@ bitmap_fail:
 		if (err == DB_SUCCESS) {
 			/* Update the page max trx id field */
 			page_update_max_trx_id(btr_cur_get_block(cursor), NULL,
-					       thr_get_trx(thr)->id);
+					       thr_get_trx(thr)->id, &mtr);
 		}
 	} else {
 		ut_ad(mode == BTR_MODIFY_TREE);
@@ -3457,7 +3461,7 @@ bitmap_fail:
 		if (err == DB_SUCCESS) {
 			/* Update the page max trx id field */
 			page_update_max_trx_id(btr_cur_get_block(cursor), NULL,
-					       thr_get_trx(thr)->id);
+					       thr_get_trx(thr)->id, &mtr);
 		}
 
 		ibuf_size_update(root, &mtr);
@@ -4255,12 +4259,13 @@ loop:
 			keep the latch to the rec page until the
 			insertion is finished! */
 			dtuple_t*	entry;
-			dulint		max_trx_id;
+			trx_id_t	max_trx_id;
 			dict_index_t*	dummy_index;
 			ibuf_op_t	op = ibuf_rec_get_op_type(rec);
 
 			max_trx_id = page_get_max_trx_id(page_align(rec));
-			page_update_max_trx_id(block, page_zip, max_trx_id);
+			page_update_max_trx_id(block, page_zip, max_trx_id,
+					       &mtr);
 
 			entry = ibuf_build_entry_from_ibuf_rec(
 				rec, heap, &dummy_index);

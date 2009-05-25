@@ -50,7 +50,7 @@ row_get_trx_id_offset(
 /*************************************************************************
 Reads the trx id field from a clustered index record. */
 UNIV_INLINE
-dulint
+trx_id_t
 row_get_rec_trx_id(
 /*===============*/
 				/* out: value of the field */
@@ -60,7 +60,7 @@ row_get_rec_trx_id(
 /*************************************************************************
 Reads the roll pointer field from a clustered index record. */
 UNIV_INLINE
-dulint
+roll_ptr_t
 row_get_rec_roll_ptr(
 /*=================*/
 				/* out: value of the field */

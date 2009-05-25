@@ -152,7 +152,7 @@ row_upd_rec_sys_fields(
 	dict_index_t*	index,	/* in: clustered index */
 	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
 	trx_t*		trx,	/* in: transaction */
-	dulint		roll_ptr)/* in: roll ptr of the undo log record */
+	roll_ptr_t	roll_ptr)/* in: roll ptr of the undo log record */
 {
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(rec_offs_validate(rec, index, offsets));

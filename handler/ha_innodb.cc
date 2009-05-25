@@ -112,13 +112,7 @@ undefined.  Map it to NULL. */
 # define EQ_CURRENT_THD(thd) ((thd) == current_thd)
 #endif /* MYSQL_DYNAMIC_PLUGIN && __WIN__ */
 
-#ifdef MYSQL_DYNAMIC_PLUGIN
-/* These must be weak global variables in the dynamic plugin. */
-struct handlerton* innodb_hton_ptr;
-#else /* MYSQL_DYNAMIC_PLUGIN */
-/* This must be a global variable in the statically linked InnoDB. */
-struct handlerton* innodb_hton_ptr = NULL;
-#endif /* MYSQL_DYNAMIC_PLUGIN */
+static struct handlerton* innodb_hton_ptr;
 
 static const long AUTOINC_OLD_STYLE_LOCKING = 0;
 static const long AUTOINC_NEW_STYLE_LOCKING = 1;
@@ -129,6 +123,7 @@ static long innobase_mirrored_log_groups, innobase_log_files_in_group,
 	innobase_additional_mem_pool_size, innobase_file_io_threads,
 	innobase_force_recovery, innobase_open_files,
 	innobase_autoinc_lock_mode;
+static ulong innobase_commit_concurrency = 0;
 
 static long long innobase_buffer_pool_size, innobase_log_file_size;
 
@@ -246,6 +241,39 @@ innobase_alter_table_flags(
 
 static const char innobase_hton_name[]= "InnoDB";
 
+/*****************************************************************
+Check for a valid value of innobase_commit_concurrency. */
+static
+int
+innobase_commit_concurrency_validate(
+/*=================================*/
+						/* out: 0 for valid
+						innodb_commit_concurrency */
+	THD*				thd,	/* in: thread handle */
+	struct st_mysql_sys_var*	var,	/* in: pointer to system
+						variable */
+	void*				save,	/* out: immediate result
+						for update function */
+	struct st_mysql_value*		value)	/* in: incoming string */
+{
+	long long	intbuf;
+	ulong		commit_concurrency;
+
+	DBUG_ENTER("innobase_commit_concurrency_validate");
+
+	if (value->val_int(value, &intbuf)) {
+		/* The value is NULL. That is invalid. */
+		DBUG_RETURN(1);
+	}
+
+	*reinterpret_cast<ulong*>(save) = commit_concurrency
+		= static_cast<ulong>(intbuf);
+
+	/* Allow the value to be updated, as long as it remains zero
+	or nonzero. */
+	DBUG_RETURN(!(!commit_concurrency == !innobase_commit_concurrency));
+}
+
 static MYSQL_THDVAR_BOOL(support_xa, PLUGIN_VAR_OPCMDARG,
   "Enable InnoDB support for the XA two-phase commit",
   /* check_func */ NULL, /* update_func */ NULL,
@@ -356,7 +384,6 @@ static
 void
 innobase_drop_database(
 /*===================*/
-			/* out: error number */
 	handlerton* hton, /* in: handlerton of Innodb */
 	char*	path);	/* in: database path; inside InnoDB the name
 			of the last directory in the path is used as
@@ -1089,19 +1116,22 @@ innobase_mysql_tmpfile(void)
 #endif /* defined (__WIN__) && defined (MYSQL_DYNAMIC_PLUGIN) */
 
 /*************************************************************************
-Wrapper around MySQL's copy_and_convert function, see it for
-documentation. */
+Wrapper around MySQL's copy_and_convert function. */
 extern "C" UNIV_INTERN
 ulint
 innobase_convert_string(
 /*====================*/
-	void*		to,
-	ulint		to_length,
-	CHARSET_INFO*	to_cs,
-	const void*	from,
-	ulint		from_length,
-	CHARSET_INFO*	from_cs,
-	uint*		errors)
+					/* out: number of bytes copied
+					to 'to' */
+	void*		to,		/* out: converted string */
+	ulint		to_length,	/* in: number of bytes reserved
+					for the converted string */
+	CHARSET_INFO*	to_cs,		/* in: character set to convert to */
+	const void*	from,		/* in: string to convert */
+	ulint		from_length,	/* in: number of bytes to convert */
+	CHARSET_INFO*	from_cs,	/* in: character set to convert from */
+	uint*		errors)		/* out: number of errors encountered
+					during the conversion */
 {
   return(copy_and_convert((char*)to, (uint32) to_length, to_cs,
                           (const char*)from, (uint32) from_length, from_cs,
@@ -2181,9 +2211,12 @@ error:
 Closes an InnoDB database. */
 static
 int
-innobase_end(handlerton *hton, ha_panic_function type)
-/*==============*/
-				/* out: TRUE if error */
+innobase_end(
+/*=========*/
+					/* out: TRUE if error */
+	handlerton*		hton,	/* in/out: InnoDB handlerton */
+	ha_panic_function	type __attribute__((unused)))
+					/* in: ha_panic() parameter */
 {
 	int	err= 0;
 
@@ -2222,9 +2255,10 @@ Flushes InnoDB logs to disk and makes a checkpoint. Really, a commit flushes
 the logs, and the name of this function should be innobase_checkpoint. */
 static
 bool
-innobase_flush_logs(handlerton *hton)
-/*=====================*/
+innobase_flush_logs(
+/*================*/
 				/* out: TRUE if error */
+	handlerton*	hton)	/* in/out: InnoDB handlerton */
 {
 	bool	result = 0;
 
@@ -2374,11 +2408,11 @@ innobase_commit(
 		Note, the position is current because of
 		prepare_commit_mutex */
 retry:
-		if (srv_commit_concurrency > 0) {
+		if (innobase_commit_concurrency > 0) {
 			pthread_mutex_lock(&commit_cond_m);
 			commit_threads++;
 
-			if (commit_threads > srv_commit_concurrency) {
+			if (commit_threads > innobase_commit_concurrency) {
 				commit_threads--;
 				pthread_cond_wait(&commit_cond,
 					&commit_cond_m);
@@ -2400,7 +2434,7 @@ retry:
 		innobase_commit_low(trx);
 		trx->flush_log_later = FALSE;
 
-		if (srv_commit_concurrency > 0) {
+		if (innobase_commit_concurrency > 0) {
 			pthread_mutex_lock(&commit_cond_m);
 			commit_threads--;
 			pthread_cond_signal(&commit_cond);
@@ -2735,6 +2769,8 @@ Get the table flags to use for the statement. */
 UNIV_INTERN
 handler::Table_flags
 ha_innobase::table_flags() const
+/*============================*/
+				/* out: table flags */
 {
        /* Need to use tx_isolation here since table flags is (also)
           called before prebuilt is inited. */
@@ -2751,6 +2787,8 @@ static const char* ha_innobase_exts[] = {
   NullS
 };
 
+/********************************************************************
+Returns the table type (storage engine name). */
 UNIV_INTERN
 const char*
 ha_innobase::table_type() const
@@ -2760,15 +2798,20 @@ ha_innobase::table_type() const
 	return(innobase_hton_name);
 }
 
+/********************************************************************
+Returns the index type. */
 UNIV_INTERN
 const char*
-ha_innobase::index_type(uint)
-/*=========================*/
+ha_innobase::index_type(
+/*====================*/
+	uint)
 				/* out: index type */
 {
 	return("BTREE");
 }
 
+/********************************************************************
+Returns the table file name extension. */
 UNIV_INTERN
 const char**
 ha_innobase::bas_ext() const
@@ -2778,24 +2821,40 @@ ha_innobase::bas_ext() const
 	return(ha_innobase_exts);
 }
 
+/********************************************************************
+Returns the operations supported for indexes. */
 UNIV_INTERN
 ulong
-ha_innobase::index_flags(uint, uint, bool) const
+ha_innobase::index_flags(
+/*=====================*/
+			/* out: flags of supported operations */
+	uint,
+	uint,
+	bool)
+const
 {
 	return(HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER
 	       | HA_READ_RANGE | HA_KEYREAD_ONLY);
 }
 
+/********************************************************************
+Returns the maximum number of keys. */
 UNIV_INTERN
 uint
 ha_innobase::max_supported_keys() const
+/*===================================*/
+			/* out: MAX_KEY */
 {
 	return(MAX_KEY);
 }
 
+/********************************************************************
+Returns the maximum key length. */
 UNIV_INTERN
 uint
 ha_innobase::max_supported_key_length() const
+/*=========================================*/
+			/* out: maximum supported key length, in bytes */
 {
 	/* An InnoDB page must store >= 2 keys; a secondary key record
 	must also contain the primary key value: max key length is
@@ -2805,23 +2864,32 @@ ha_innobase::max_supported_key_length() const
 	return(3500);
 }
 
+/********************************************************************
+Returns the key map of keys that are usable for scanning. */
 UNIV_INTERN
 const key_map*
 ha_innobase::keys_to_use_for_scanning()
+			/* out: key_map_full */
 {
 	return(&key_map_full);
 }
 
+/********************************************************************
+Determines if table caching is supported. */
 UNIV_INTERN
 uint8
 ha_innobase::table_cache_type()
+			/* out: HA_CACHE_TBL_ASKTRANSACT */
 {
 	return(HA_CACHE_TBL_ASKTRANSACT);
 }
 
+/********************************************************************
+Determines if the primary key is clustered index. */
 UNIV_INTERN
 bool
 ha_innobase::primary_key_is_clustered()
+			/* out: true */
 {
 	return(true);
 }
@@ -2879,6 +2947,7 @@ UNIV_INTERN
 ulint
 ha_innobase::innobase_initialize_autoinc()
 /*======================================*/
+				/* out: DB_SUCCESS or error code */
 {
 	dict_index_t*	index;
 	ulonglong	auto_inc;
@@ -3003,7 +3072,7 @@ retry:
 				"or, the table contains indexes that this "
 				"version of the engine\n"
 				"doesn't support.\n"
-				"See http://dev.mysql.com/doc/refman/5.1/en/innodb-troubleshooting.html\n"
+				"See " REFMAN "innodb-troubleshooting.html\n"
 				"how you can resolve the problem.\n",
 				norm_name);
 		free_share(share);
@@ -3019,7 +3088,7 @@ retry:
 				"Have you deleted the .ibd file from the "
 				"database directory under\nthe MySQL datadir, "
 				"or have you used DISCARD TABLESPACE?\n"
-				"See http://dev.mysql.com/doc/refman/5.1/en/innodb-troubleshooting.html\n"
+				"See " REFMAN "innodb-troubleshooting.html\n"
 				"how you can resolve the problem.\n",
 				norm_name);
 		free_share(share);
@@ -4745,6 +4814,7 @@ UNIV_INTERN
 int
 ha_innobase::index_end(void)
 /*========================*/
+				/* out: 0 */
 {
 	int	error	= 0;
 	DBUG_ENTER("index_end");
@@ -4797,7 +4867,6 @@ convert_search_mode_to_innobase(
 	case HA_READ_MBR_WITHIN:
 	case HA_READ_MBR_DISJOINT:
 	case HA_READ_MBR_EQUAL:
-		my_error(ER_TABLE_CANT_HANDLE_SPKEYS, MYF(0));
 		return(PAGE_CUR_UNSUPP);
 	/* do not use "default:" in order to produce a gcc warning:
 	enumeration value '...' not handled in switch
@@ -5089,8 +5158,8 @@ ha_innobase::change_active_index(
 
 /**************************************************************************
 Positions an index cursor to the index specified in keynr. Fetches the
-row if any. */
-/* ??? This is only used to read whole keys ??? */
+row if any.
+??? This is only used to read whole keys ??? */
 UNIV_INTERN
 int
 ha_innobase::index_read_idx(
@@ -6423,8 +6492,7 @@ static
 void
 innobase_drop_database(
 /*===================*/
-			/* out: error number */
-        handlerton *hton, /* in: handlerton of Innodb */
+	handlerton *hton, /* in: handlerton of Innodb */
 	char*	path)	/* in: database path; inside InnoDB the name
 			of the last directory in the path is used as
 			the database name: for example, in 'mysql/data/test'
@@ -6690,7 +6758,7 @@ ha_innobase::records_in_range(
 						      mode2);
 	} else {
 
-		n_rows = 0;
+		n_rows = HA_POS_ERROR;
 	}
 
 	mem_heap_free(heap);
@@ -7010,8 +7078,8 @@ ha_innobase::info(
 						".frm file. Have you mixed up "
 						".frm files from different "
 						"installations? See "
-"http://dev.mysql.com/doc/refman/5.1/en/innodb-troubleshooting.html\n",
-
+						REFMAN
+						"innodb-troubleshooting.html\n",
 						ib_table->name);
 				break;
 			}
@@ -7023,7 +7091,7 @@ ha_innobase::info(
 "Index %s of %s has %lu columns unique inside InnoDB, but MySQL is asking "
 "statistics for %lu columns. Have you mixed up .frm files from different "
 "installations? "
-"See http://dev.mysql.com/doc/refman/5.1/en/innodb-troubleshooting.html\n",
+"See " REFMAN "innodb-troubleshooting.html\n",
 							index->name,
 							ib_table->name,
 							(unsigned long)
@@ -7404,7 +7472,7 @@ ha_innobase::get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
 	    f_key_info.referenced_key_name = thd_make_lex_string(
 		    thd, f_key_info.referenced_key_name,
 		    foreign->referenced_index->name,
-		    strlen(foreign->referenced_index->name), 1);
+		    (uint) strlen(foreign->referenced_index->name), 1);
           }
           else
             f_key_info.referenced_key_name= 0;
@@ -7428,6 +7496,7 @@ UNIV_INTERN
 bool
 ha_innobase::can_switch_engines(void)
 /*=================================*/
+				/* out: TRUE if can switch engines */
 {
 	bool	can_switch;
 
@@ -7861,8 +7930,8 @@ ha_innobase::transactional_table_lock(
 			"InnoDB: Have you deleted the .ibd file"
 			" from the database directory under\n"
 			"InnoDB: the MySQL datadir?"
-			"InnoDB: See"
-			" http://dev.mysql.com/doc/refman/5.1/en/innodb-troubleshooting.html\n"
+			"InnoDB: See " REFMAN
+			"innodb-troubleshooting.html\n"
 			"InnoDB: how you can resolve the problem.\n",
 			prebuilt->table->name);
 		DBUG_RETURN(HA_ERR_CRASHED);
@@ -7926,15 +7995,13 @@ ha_innobase::transactional_table_lock(
 /****************************************************************************
 Here we export InnoDB status variables to MySQL.  */
 static
-int
-innodb_export_status()
-/*==================*/
+void
+innodb_export_status(void)
+/*======================*/
 {
 	if (innodb_inited) {
 		srv_export_innodb_status();
 	}
-
-	return(0);
 }
 
 /****************************************************************************
@@ -8017,7 +8084,7 @@ innodb_show_status(
 
 	bool result = FALSE;
 
-	if (stat_print(thd, innobase_hton_name, strlen(innobase_hton_name),
+	if (stat_print(thd, innobase_hton_name, (uint) strlen(innobase_hton_name),
 			STRING_WITH_LEN(""), str, flen)) {
 		result= TRUE;
 	}
@@ -8048,7 +8115,7 @@ innodb_mutex_show_status(
 	ulint	  rw_lock_count_os_yield= 0;
 	ulonglong rw_lock_wait_time= 0;
 #endif /* UNIV_DEBUG */
-	uint	  hton_name_len= strlen(innobase_hton_name), buf1len, buf2len;
+	uint	  hton_name_len= (uint) strlen(innobase_hton_name), buf1len, buf2len;
 	DBUG_ENTER("innodb_mutex_show_status");
 	DBUG_ASSERT(hton == innodb_hton_ptr);
 
@@ -8096,9 +8163,9 @@ innodb_mutex_show_status(
 			rw_lock_wait_time += mutex->lspent_time;
 		}
 #else /* UNIV_DEBUG */
-		buf1len= my_snprintf(buf1, sizeof(buf1), "%s:%lu",
+		buf1len= (uint) my_snprintf(buf1, sizeof(buf1), "%s:%lu",
 				     mutex->cfile_name, (ulong) mutex->cline);
-		buf2len= my_snprintf(buf2, sizeof(buf2), "os_waits=%lu",
+		buf2len= (uint) my_snprintf(buf2, sizeof(buf2), "os_waits=%lu",
 				     mutex->count_os_wait);
 
 		if (stat_print(thd, innobase_hton_name,
@@ -8616,11 +8683,16 @@ ha_innobase::get_auto_increment(
 	dict_table_autoinc_unlock(prebuilt->table);
 }
 
-/* See comment in handler.h */
+/***********************************************************************
+Reset the auto-increment counter to the given value, i.e. the next row
+inserted will get the given value. This is called e.g. after TRUNCATE
+is emulated by doing a 'DELETE FROM t'. HA_ERR_WRONG_COMMAND is
+returned by storage engines that don't support this operation. */
 UNIV_INTERN
 int
 ha_innobase::reset_auto_increment(
 /*==============================*/
+					/* out: 0 or error code */
 	ulonglong	value)		/* in: new value for table autoinc */
 {
 	DBUG_ENTER("ha_innobase::reset_auto_increment");
@@ -8656,7 +8728,7 @@ ha_innobase::get_error_message(int error, String *buf)
 {
 	trx_t*	trx = check_trx_exists(ha_thd());
 
-	buf->copy(trx->detailed_error, strlen(trx->detailed_error),
+	buf->copy(trx->detailed_error, (uint) strlen(trx->detailed_error),
 		system_charset_info);
 
 	return(FALSE);
@@ -9604,10 +9676,10 @@ static MYSQL_SYSVAR_LONGLONG(buffer_pool_size, innobase_buffer_pool_size,
   "The size of the memory buffer InnoDB uses to cache data and indexes of its tables.",
   NULL, NULL, 8*1024*1024L, 5*1024*1024L, LONGLONG_MAX, 1024*1024L);
 
-static MYSQL_SYSVAR_ULONG(commit_concurrency, srv_commit_concurrency,
+static MYSQL_SYSVAR_ULONG(commit_concurrency, innobase_commit_concurrency,
   PLUGIN_VAR_RQCMDARG,
   "Helps in performance tuning in heavily concurrent environments.",
-  NULL, NULL, 0, 0, 1000, 0);
+  innobase_commit_concurrency_validate, NULL, 0, 0, 1000, 0);
 
 static MYSQL_SYSVAR_ULONG(concurrency_tickets, srv_n_free_tickets_to_enter,
   PLUGIN_VAR_RQCMDARG,

@@ -41,9 +41,9 @@ read_view_t*
 read_view_open_now(
 /*===============*/
 					/* out, own: read view struct */
-	dulint		cr_trx_id,	/* in: trx_id of creating
-					transaction, or (0, 0) used in
-					purge */
+	trx_id_t	cr_trx_id,	/* in: trx_id of creating
+					transaction, or ut_dulint_zero
+					used in purge */
 	mem_heap_t*	heap);		/* in: memory heap from which
 					allocated */
 /*************************************************************************
@@ -54,9 +54,9 @@ read_view_t*
 read_view_oldest_copy_or_open_new(
 /*==============================*/
 					/* out, own: read view struct */
-	dulint		cr_trx_id,	/* in: trx_id of creating
-					transaction, or (0, 0) used in
-					purge */
+	trx_id_t	cr_trx_id,	/* in: trx_id of creating
+					transaction, or ut_dulint_zero
+					used in purge */
 	mem_heap_t*	heap);		/* in: memory heap from which
 					allocated */
 /*************************************************************************
@@ -80,16 +80,16 @@ UNIV_INLINE
 ibool
 read_view_sees_trx_id(
 /*==================*/
-				/* out: TRUE if sees */
-	read_view_t*	view,	/* in: read view */
-	dulint		trx_id);/* in: trx id */
+					/* out: TRUE if sees */
+	const read_view_t*	view,	/* in: read view */
+	trx_id_t		trx_id);/* in: trx id */
 /*************************************************************************
 Prints a read view to stderr. */
 UNIV_INTERN
 void
 read_view_print(
 /*============*/
-	read_view_t*	view);	/* in: read view */
+	const read_view_t*	view);	/* in: read view */
 /*************************************************************************
 Create a consistent cursor view for mysql to be used in cursors. In this
 consistent read view modifications done by the creating transaction or future
@@ -123,24 +123,29 @@ read_cursor_set_for_mysql(
 read should not see the modifications to the database. */
 
 struct read_view_struct{
-	ulint	type;		/* VIEW_NORMAL, VIEW_HIGH_GRANULARITY */
-	dulint	undo_no;	/* (0, 0) or if type is VIEW_HIGH_GRANULARITY
+	ulint		type;	/* VIEW_NORMAL, VIEW_HIGH_GRANULARITY */
+	undo_no_t	undo_no;/* ut_dulint_zero or if type is
+				VIEW_HIGH_GRANULARITY
 				transaction undo_no when this high-granularity
 				consistent read view was created */
-	dulint	low_limit_no;	/* The view does not need to see the undo
+	trx_id_t	low_limit_no;
+				/* The view does not need to see the undo
 				logs for transactions whose transaction number
 				is strictly smaller (<) than this value: they
 				can be removed in purge if not needed by other
 				views */
-	dulint	low_limit_id;	/* The read should not see any transaction
+	trx_id_t	low_limit_id;
+				/* The read should not see any transaction
 				with trx id >= this value. In other words,
 				this is the "high water mark". */
-	dulint	up_limit_id;	/* The read should see all trx ids which
+	trx_id_t	up_limit_id;
+				/* The read should see all trx ids which
 				are strictly smaller (<) than this value.
 				In other words,
 				this is the "low water mark". */
-	ulint	n_trx_ids;	/* Number of cells in the trx_ids array */
-	dulint*	trx_ids;	/* Additional trx ids which the read should
+	ulint		n_trx_ids;
+				/* Number of cells in the trx_ids array */
+	trx_id_t*	trx_ids;/* Additional trx ids which the read should
 				not see: typically, these are the active
 				transactions at the time when the read is
 				serialized, except the reading transaction
@@ -148,8 +153,9 @@ struct read_view_struct{
 				descending order. These trx_ids should be
 				between the "low" and "high" water marks,
 				that is, up_limit_id and low_limit_id. */
-	dulint	creator_trx_id;	/* trx id of creating transaction, or
-				(0, 0) used in purge */
+	trx_id_t	creator_trx_id;
+				/* trx id of creating transaction, or
+				ut_dulint_zero used in purge */
 	UT_LIST_NODE_T(read_view_t) view_list;
 				/* List of read views in trx_sys */
 };

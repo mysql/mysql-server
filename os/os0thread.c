@@ -67,7 +67,8 @@ UNIV_INTERN
 ulint
 os_thread_pf(
 /*=========*/
-	os_thread_id_t	a)
+				/* out: thread identifier as a number */
+	os_thread_id_t	a)	/* in: OS thread identifier */
 {
 #ifdef UNIV_HPUX10
 	/* In HP-UX-10.20 a pthread_t is a struct of 3 fields: field1, field2,
@@ -87,6 +88,7 @@ UNIV_INTERN
 os_thread_id_t
 os_thread_get_curr_id(void)
 /*=======================*/
+				/* out: current thread identifier */
 {
 #ifdef __WIN__
 	return(GetCurrentThreadId());
@@ -240,6 +242,7 @@ UNIV_INTERN
 os_thread_t
 os_thread_get_curr(void)
 /*====================*/
+				/* out: current thread handle */
 {
 #ifdef __WIN__
 	return(GetCurrentThread());
@@ -359,6 +362,7 @@ UNIV_INTERN
 ulint
 os_thread_get_last_error(void)
 /*==========================*/
+				/* out: last error on Windows, 0 otherwise */
 {
 #ifdef __WIN__
 	return(GetLastError());

@@ -49,6 +49,7 @@ UNIV_INTERN
 ulint
 os_proc_get_number(void);
 /*====================*/
+				/* out: process id as a number */
 /********************************************************************
 Allocates large pages memory. */
 UNIV_INTERN

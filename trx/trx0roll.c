@@ -198,7 +198,7 @@ trx_roll_savepoint_free(
 /***********************************************************************
 Frees savepoint structs starting from savep, if savep == NULL then
 free all savepoints. */
-
+UNIV_INTERN
 void
 trx_roll_savepoints_free(
 /*=====================*/
@@ -614,6 +614,7 @@ UNIV_INTERN
 trx_undo_arr_t*
 trx_undo_arr_create(void)
 /*=====================*/
+				/* out, own: undo number array */
 {
 	trx_undo_arr_t*	arr;
 	mem_heap_t*	heap;
@@ -657,10 +658,10 @@ static
 ibool
 trx_undo_arr_store_info(
 /*====================*/
-			/* out: FALSE if the record already existed in the
-			array */
-	trx_t*	trx,	/* in: transaction */
-	dulint	undo_no)/* in: undo number */
+				/* out: FALSE if the record already
+				existed in the array */
+	trx_t*		trx,	/* in: transaction */
+	undo_no_t	undo_no)/* in: undo number */
 {
 	trx_undo_inf_t*	cell;
 	trx_undo_inf_t*	stored_here;
@@ -720,7 +721,7 @@ void
 trx_undo_arr_remove_info(
 /*=====================*/
 	trx_undo_arr_t*	arr,	/* in: undo number array */
-	dulint		undo_no)/* in: undo number */
+	undo_no_t	undo_no)/* in: undo number */
 {
 	trx_undo_inf_t*	cell;
 	ulint		n_used;
@@ -750,7 +751,7 @@ trx_undo_arr_remove_info(
 /***********************************************************************
 Gets the biggest undo number in an array. */
 static
-dulint
+undo_no_t
 trx_undo_arr_get_biggest(
 /*=====================*/
 				/* out: biggest value, ut_dulint_zero if
@@ -759,7 +760,7 @@ trx_undo_arr_get_biggest(
 {
 	trx_undo_inf_t*	cell;
 	ulint		n_used;
-	dulint		biggest;
+	undo_no_t	biggest;
 	ulint		n;
 	ulint		i;
 
@@ -790,11 +791,11 @@ UNIV_INTERN
 void
 trx_roll_try_truncate(
 /*==================*/
-	trx_t*	trx)	/* in: transaction */
+	trx_t*	trx)	/* in/out: transaction */
 {
 	trx_undo_arr_t*	arr;
-	dulint		limit;
-	dulint		biggest;
+	undo_no_t	limit;
+	undo_no_t	biggest;
 
 	ut_ad(mutex_own(&(trx->undo_mutex)));
 	ut_ad(mutex_own(&((trx->rseg)->mutex)));
@@ -886,8 +887,8 @@ trx_roll_pop_top_rec_of_trx(
 				if none left, or if the undo number of the
 				top record would be less than the limit */
 	trx_t*		trx,	/* in: transaction */
-	dulint		limit,	/* in: least undo number we need */
-	dulint*		roll_ptr,/* out: roll pointer to undo record */
+	undo_no_t	limit,	/* in: least undo number we need */
+	roll_ptr_t*	roll_ptr,/* out: roll pointer to undo record */
 	mem_heap_t*	heap)	/* in: memory heap where copied */
 {
 	trx_undo_t*	undo;
@@ -895,7 +896,7 @@ trx_roll_pop_top_rec_of_trx(
 	trx_undo_t*	upd_undo;
 	trx_undo_rec_t*	undo_rec;
 	trx_undo_rec_t*	undo_rec_copy;
-	dulint		undo_no;
+	undo_no_t	undo_no;
 	ibool		is_insert;
 	trx_rseg_t*	rseg;
 	ulint		progress_pct;
@@ -1013,9 +1014,9 @@ UNIV_INTERN
 ibool
 trx_undo_rec_reserve(
 /*=================*/
-			/* out: TRUE if succeeded */
-	trx_t*	trx,	/* in: transaction */
-	dulint	undo_no)/* in: undo number of the record */
+				/* out: TRUE if succeeded */
+	trx_t*		trx,	/* in/out: transaction */
+	undo_no_t	undo_no)/* in: undo number of the record */
 {
 	ibool	ret;
 
@@ -1034,8 +1035,8 @@ UNIV_INTERN
 void
 trx_undo_rec_release(
 /*=================*/
-	trx_t*	trx,	/* in: transaction */
-	dulint	undo_no)/* in: undo number */
+	trx_t*		trx,	/* in/out: transaction */
+	undo_no_t	undo_no)/* in: undo number */
 {
 	trx_undo_arr_t*	arr;
 

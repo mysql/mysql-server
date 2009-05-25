@@ -945,7 +945,8 @@ pars_process_assign_list(
 
 		if (!dict_col_get_fixed_size(
 			    dict_index_get_nth_col(clust_index,
-						   upd_field->field_no))) {
+						   upd_field->field_no),
+			    dict_table_is_comp(node->table))) {
 			changes_field_size = 0;
 		}
 
@@ -1554,6 +1555,7 @@ UNIV_INTERN
 commit_node_t*
 pars_commit_statement(void)
 /*=======================*/
+				/* out, own: commit node struct */
 {
 	return(commit_node_create(pars_sym_tab_global->heap));
 }
@@ -1564,6 +1566,7 @@ UNIV_INTERN
 roll_node_t*
 pars_rollback_statement(void)
 /*=========================*/
+				/* out, own: rollback node struct */
 {
 	return(roll_node_create(pars_sym_tab_global->heap));
 }

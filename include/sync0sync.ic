@@ -79,40 +79,8 @@ mutex_test_and_set(
 				1 */
 	mutex_t*	mutex)	/* in: mutex */
 {
-#if defined(_WIN32) && defined(UNIV_CAN_USE_X86_ASSEMBLER)
-	byte	res;
-	byte*	lw;		/* assembler code is used to ensure that
-				lock_word is loaded from memory */
-	ut_ad(mutex);
-	ut_ad(sizeof(byte) == 1);
-
-	lw = &(mutex->lock_word);
-
-	__asm	MOV	ECX, lw
-		__asm	MOV	EDX, 1
-		__asm	XCHG	DL, BYTE PTR [ECX]
-		__asm	MOV	res, DL
-
-		/* The fence below would prevent this thread from
-		reading the data structure protected by the mutex
-		before the test-and-set operation is committed, but
-		the fence is apparently not needed:
-
-		In a posting to comp.arch newsgroup (August 10, 1997)
-		Andy Glew said that in P6 a LOCKed instruction like
-		XCHG establishes a fence with respect to memory reads
-		and writes and thus an explicit fence is not
-		needed. In P5 he seemed to agree with a previous
-		newsgroup poster that LOCKed instructions serialize
-		all instruction execution, and, consequently, also
-		memory operations. This is confirmed in Intel Software
-		Dev. Manual, Vol. 3. */
-
-		/* mutex_fence(); */
-
-		return(res);
-#elif defined(HAVE_GCC_ATOMIC_BUILTINS)
-	return __sync_lock_test_and_set(&(mutex->lock_word), 1);
+#if defined(HAVE_ATOMIC_BUILTINS)
+	return(os_atomic_test_and_set_byte(&mutex->lock_word, 1));
 #else
 	ibool	ret;
 
@@ -139,21 +107,11 @@ mutex_reset_lock_word(
 /*==================*/
 	mutex_t*	mutex)	/* in: mutex */
 {
-#if defined(_WIN32) && defined(UNIV_CAN_USE_X86_ASSEMBLER)
-	byte*	lw;		/* assembler code is used to ensure that
-				lock_word is loaded from memory */
-	ut_ad(mutex);
-
-	lw = &(mutex->lock_word);
-
-	__asm	MOV	EDX, 0
-		__asm	MOV	ECX, lw
-		__asm	XCHG	DL, BYTE PTR [ECX]
-#elif defined(HAVE_GCC_ATOMIC_BUILTINS)
+#if defined(HAVE_ATOMIC_BUILTINS)
 	/* In theory __sync_lock_release should be used to release the lock.
 	Unfortunately, it does not work properly alone. The workaround is
 	that more conservative __sync_lock_test_and_set is used instead. */
-	__sync_lock_test_and_set(&(mutex->lock_word), 0);
+	os_atomic_test_and_set_byte(&mutex->lock_word, 0);
 #else
 	mutex->lock_word = 0;
 
@@ -164,18 +122,14 @@ mutex_reset_lock_word(
 /**********************************************************************
 Gets the value of the lock word. */
 UNIV_INLINE
-byte
+lock_word_t
 mutex_get_lock_word(
 /*================*/
 	const mutex_t*	mutex)	/* in: mutex */
 {
-	const volatile byte*	ptr;	/* declared volatile to ensure that
-					lock_word is loaded from memory */
 	ut_ad(mutex);
 
-	ptr = &(mutex->lock_word);
-
-	return(*ptr);
+	return(mutex->lock_word);
 }
 
 /**********************************************************************

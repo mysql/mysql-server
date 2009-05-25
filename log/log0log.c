@@ -177,6 +177,7 @@ static
 ib_uint64_t
 log_buf_pool_get_oldest_modification(void)
 /*======================================*/
+				/* out: LSN of oldest modification */
 {
 	ib_uint64_t	lsn;
 
@@ -727,8 +728,7 @@ failure:
 			" After an ERROR-FREE shutdown\n"
 			"InnoDB: of mysqld you can adjust the size of"
 			" ib_logfiles, as explained in\n"
-			"InnoDB: http://dev.mysql.com/doc/refman/5.1/en/"
-			"adding-and-removing.html\n"
+			"InnoDB: " REFMAN "adding-and-removing.html\n"
 			"InnoDB: Cannot continue operation."
 			" Calling exit(1).\n",
 			(ulong)srv_thread_concurrency);

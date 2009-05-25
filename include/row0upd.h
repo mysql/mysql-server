@@ -101,7 +101,7 @@ row_upd_write_sys_vals_to_log(
 				/* out: new pointer to mlog */
 	dict_index_t*	index,	/* in: clustered index */
 	trx_t*		trx,	/* in: transaction */
-	dulint		roll_ptr,/* in: roll ptr of the undo log record */
+	roll_ptr_t	roll_ptr,/* in: roll ptr of the undo log record */
 	byte*		log_ptr,/* pointer to a buffer of size > 20 opened
 				in mlog */
 	mtr_t*		mtr);	/* in: mtr */
@@ -118,7 +118,7 @@ row_upd_rec_sys_fields(
 	dict_index_t*	index,	/* in: clustered index */
 	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
 	trx_t*		trx,	/* in: transaction */
-	dulint		roll_ptr);/* in: roll ptr of the undo log record */
+	roll_ptr_t	roll_ptr);/* in: roll ptr of the undo log record */
 /*************************************************************************
 Sets the trx id or roll ptr field of a clustered index entry. */
 UNIV_INTERN
@@ -320,12 +320,12 @@ UNIV_INTERN
 byte*
 row_upd_parse_sys_vals(
 /*===================*/
-			/* out: log data end or NULL */
-	byte*	ptr,	/* in: buffer */
-	byte*	end_ptr,/* in: buffer end */
-	ulint*	pos,	/* out: TRX_ID position in record */
-	dulint*	trx_id,	/* out: trx id */
-	dulint*	roll_ptr);/* out: roll ptr */
+				/* out: log data end or NULL */
+	byte*		ptr,	/* in: buffer */
+	byte*		end_ptr,/* in: buffer end */
+	ulint*		pos,	/* out: TRX_ID position in record */
+	trx_id_t*	trx_id,	/* out: trx id */
+	roll_ptr_t*	roll_ptr);/* out: roll ptr */
 /*************************************************************************
 Updates the trx id and roll ptr field in a clustered index record in database
 recovery. */
@@ -337,8 +337,8 @@ row_upd_rec_sys_fields_in_recovery(
 	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
 	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
 	ulint		pos,	/* in: TRX_ID position in rec */
-	dulint		trx_id,	/* in: transaction id */
-	dulint		roll_ptr);/* in: roll ptr of the undo log record */
+	trx_id_t	trx_id,	/* in: transaction id */
+	roll_ptr_t	roll_ptr);/* in: roll ptr of the undo log record */
 /*************************************************************************
 Parses the log data written by row_upd_index_write_log. */
 UNIV_INTERN

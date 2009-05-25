@@ -34,9 +34,9 @@ Created 3/26/1996 Heikki Tuuri
 
 #ifndef UNIV_HOTBACKUP
 /***************************************************************************
-Builds a roll pointer dulint. */
+Builds a roll pointer. */
 UNIV_INLINE
-dulint
+roll_ptr_t
 trx_undo_build_roll_ptr(
 /*====================*/
 				/* out: roll pointer */
@@ -45,24 +45,25 @@ trx_undo_build_roll_ptr(
 	ulint	page_no,	/* in: page number */
 	ulint	offset);	/* in: offset of the undo entry within page */
 /***************************************************************************
-Decodes a roll pointer dulint. */
+Decodes a roll pointer. */
 UNIV_INLINE
 void
 trx_undo_decode_roll_ptr(
 /*=====================*/
-	dulint	roll_ptr,	/* in: roll pointer */
-	ibool*	is_insert,	/* out: TRUE if insert undo log */
-	ulint*	rseg_id,	/* out: rollback segment id */
-	ulint*	page_no,	/* out: page number */
-	ulint*	offset);	/* out: offset of the undo entry within page */
+	roll_ptr_t	roll_ptr,	/* in: roll pointer */
+	ibool*		is_insert,	/* out: TRUE if insert undo log */
+	ulint*		rseg_id,	/* out: rollback segment id */
+	ulint*		page_no,	/* out: page number */
+	ulint*		offset);	/* out: offset of the undo
+					entry within page */
 /***************************************************************************
 Returns TRUE if the roll pointer is of the insert type. */
 UNIV_INLINE
 ibool
 trx_undo_roll_ptr_is_insert(
 /*========================*/
-				/* out: TRUE if insert undo log */
-	dulint	roll_ptr);	/* in: roll pointer */
+					/* out: TRUE if insert undo log */
+	roll_ptr_t	roll_ptr);	/* in: roll pointer */
 #endif /* !UNIV_HOTBACKUP */
 /*********************************************************************
 Writes a roll ptr to an index page. In case that the size changes in
@@ -72,14 +73,15 @@ UNIV_INLINE
 void
 trx_write_roll_ptr(
 /*===============*/
-	byte*	ptr,		/* in: pointer to memory where written */
-	dulint	roll_ptr);	/* in: roll ptr */
+	byte*		ptr,		/* in: pointer to memory where
+					written */
+	roll_ptr_t	roll_ptr);	/* in: roll ptr */
 /*********************************************************************
 Reads a roll ptr from an index page. In case that the roll ptr size
 changes in some future version, this function should be used instead of
 mach_read_... */
 UNIV_INLINE
-dulint
+roll_ptr_t
 trx_read_roll_ptr(
 /*==============*/
 				/* out: roll ptr */
@@ -214,7 +216,7 @@ trx_undo_truncate_end(
 /*==================*/
 	trx_t*		trx,	/* in: transaction whose undo log it is */
 	trx_undo_t*	undo,	/* in: undo log */
-	dulint		limit);	/* in: all undo records with undo number
+	undo_no_t	limit);	/* in: all undo records with undo number
 				>= this value should be truncated */
 /***************************************************************************
 Truncates an undo log from the start. This function is used during a purge
@@ -223,15 +225,17 @@ UNIV_INTERN
 void
 trx_undo_truncate_start(
 /*====================*/
-	trx_rseg_t* rseg,	/* in: rollback segment */
-	ulint	space,		/* in: space id of the log */
-	ulint	hdr_page_no,	/* in: header page number */
-	ulint	hdr_offset,	/* in: header offset on the page */
-	dulint	limit);		/* in: all undo pages with undo numbers <
-				this value should be truncated; NOTE that
-				the function only frees whole pages; the
-				header page is not freed, but emptied, if
-				all the records there are < limit */
+	trx_rseg_t*	rseg,		/* in: rollback segment */
+	ulint		space,		/* in: space id of the log */
+	ulint		hdr_page_no,	/* in: header page number */
+	ulint		hdr_offset,	/* in: header offset on the page */
+	undo_no_t	limit);		/* in: all undo pages with
+					undo numbers < this value
+					should be truncated; NOTE that
+					the function only frees whole
+					pages; the header page is not
+					freed, but emptied, if all the
+					records there are < limit */
 /************************************************************************
 Initializes the undo log lists for a rollback segment memory copy.
 This function is only called when the database is started or a new
@@ -374,7 +378,7 @@ struct trx_undo_struct{
 					necessary; also TRUE if the transaction
 					has updated an externally stored
 					field */
-	dulint		trx_id;		/* id of the trx assigned to the undo
+	trx_id_t	trx_id;		/* id of the trx assigned to the undo
 					log */
 	XID		xid;		/* X/Open XA transaction
 					identification */
@@ -385,7 +389,7 @@ struct trx_undo_struct{
 	/*-----------------------------*/
 	ulint		space;		/* space id where the undo log
 					placed */
-	ulint		zip_size;	/* in: compressed page size of space
+	ulint		zip_size;	/* compressed page size of space
 					in bytes, or 0 for uncompressed */
 	ulint		hdr_page_no;	/* page number of the header page in
 					the undo log */
@@ -405,7 +409,7 @@ struct trx_undo_struct{
 	ulint		top_offset;	/* offset of the latest undo record,
 					i.e., the topmost element in the undo
 					log if we think of it as a stack */
-	dulint		top_undo_no;	/* undo number of the latest record */
+	undo_no_t	top_undo_no;	/* undo number of the latest record */
 	buf_block_t*	guess_block;	/* guess for the buffer block where
 					the top page might reside */
 	/*-----------------------------*/

@@ -68,7 +68,7 @@ row_undo_mod_undo_also_prev_vers(
 				/* out: TRUE if also previous modify or
 				insert of this row should be undone */
 	undo_node_t*	node,	/* in: row undo node */
-	dulint*		undo_no)/* out: the undo number */
+	undo_no_t*	undo_no)/* out: the undo number */
 {
 	trx_undo_rec_t*	undo_rec;
 	trx_t*		trx;
@@ -223,7 +223,7 @@ row_undo_mod_clust(
 	ulint		err;
 	ibool		success;
 	ibool		more_vers;
-	dulint		new_undo_no;
+	undo_no_t	new_undo_no;
 
 	ut_ad(node && thr);
 
@@ -745,10 +745,10 @@ row_undo_mod_parse_undo_rec(
 {
 	dict_index_t*	clust_index;
 	byte*		ptr;
-	dulint		undo_no;
+	undo_no_t	undo_no;
 	dulint		table_id;
-	dulint		trx_id;
-	dulint		roll_ptr;
+	trx_id_t	trx_id;
+	roll_ptr_t	roll_ptr;
 	ulint		info_bits;
 	ulint		type;
 	ulint		cmpl_info;

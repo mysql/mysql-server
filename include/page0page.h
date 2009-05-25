@@ -66,8 +66,8 @@ typedef	byte		page_header_t;
 #define	PAGE_N_RECS	 16	/* number of user records on the page */
 #define PAGE_MAX_TRX_ID	 18	/* highest id of a trx which may have modified
 				a record on the page; a dulint; defined only
-				in secondary indexes; specifically, not in an
-				ibuf tree; NOTE: this may be modified only
+				in secondary indexes and in the insert buffer
+				tree; NOTE: this may be modified only
 				when the thread has an x-latch to the page,
 				and ALSO an x-latch to btr_search_latch
 				if there is a hash index to the page! */
@@ -177,7 +177,7 @@ page_offset(
 /*****************************************************************
 Returns the max trx id field value. */
 UNIV_INLINE
-dulint
+trx_id_t
 page_get_max_trx_id(
 /*================*/
 	const page_t*	page);	/* in: page */
@@ -189,7 +189,8 @@ page_set_max_trx_id(
 /*================*/
 	buf_block_t*	block,	/* in/out: page */
 	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
-	dulint		trx_id);/* in: transaction id */
+	trx_id_t	trx_id,	/* in: transaction id */
+	mtr_t*		mtr);	/* in/out: mini-transaction, or NULL */
 /*****************************************************************
 Sets the max trx id field value if trx_id is bigger than the previous
 value. */
@@ -200,7 +201,8 @@ page_update_max_trx_id(
 	buf_block_t*	block,	/* in/out: page */
 	page_zip_des_t*	page_zip,/* in/out: compressed page whose
 				uncompressed part will be updated, or NULL */
-	dulint		trx_id);/* in: transaction id */
+	trx_id_t	trx_id,	/* in: transaction id */
+	mtr_t*		mtr);	/* in/out: mini-transaction */
 /*****************************************************************
 Reads the given header field. */
 UNIV_INLINE
@@ -937,7 +939,7 @@ UNIV_INTERN
 void
 page_header_print(
 /*==============*/
-	const page_t*	page);
+	const page_t*	page);	/* in: index page */
 /*******************************************************************
 This is used to print the contents of the page for
 debugging purposes. */

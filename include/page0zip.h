@@ -34,6 +34,7 @@ Created June 2005 by Marko Makela
 #include "page0types.h"
 #include "buf0types.h"
 #include "dict0types.h"
+#include "trx0types.h"
 #include "mem0mem.h"
 
 /**************************************************************************
@@ -286,8 +287,8 @@ page_zip_write_trx_id_and_roll_ptr(
 	byte*		rec,	/* in/out: record */
 	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
 	ulint		trx_id_col,/* in: column number of TRX_ID in rec */
-	dulint		trx_id,	/* in: transaction identifier */
-	dulint		roll_ptr)/* in: roll_ptr */
+	trx_id_t	trx_id,	/* in: transaction identifier */
+	roll_ptr_t	roll_ptr)/* in: roll_ptr */
 	__attribute__((nonnull));
 
 /**************************************************************************
