@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/***********************************************************************
+/*******************************************************************//**
+@file rem/rem0cmp.c
 Comparison services for records
 
 Created 7/1/1994 Heikki Tuuri
@@ -50,7 +51,7 @@ where two records disagree only in the way that one
 has more fields than the other. */
 
 #ifdef UNIV_DEBUG
-/*****************************************************************
+/*************************************************************//**
 Used in debug checking of cmp_dtuple_... .
 This function is used to compare a data tuple to a physical record. If
 dtuple has n fields then rec must have either m >= n fields, or it must
@@ -72,7 +73,7 @@ cmp_debug_dtuple_rec_with_match(
 				returns, contains the value for current
 				comparison */
 #endif /* UNIV_DEBUG */
-/*****************************************************************
+/*************************************************************//**
 This function is used to compare two data fields for which the data type
 is such that we must use MySQL code to compare them. The prototype here
 must be a copy of the the one in ha_innobase.cc!
@@ -89,7 +90,7 @@ innobase_mysql_cmp(
 	const unsigned char* b,		/*!< in: data field */
 	unsigned int	b_length);	/*!< in: data field length,
 					not UNIV_SQL_NULL */
-/*************************************************************************
+/*********************************************************************//**
 Transforms the character code so that it is ordered appropriately for the
 language. This is only used for the latin1 char set. MySQL does the
 comparisons for other char sets.
@@ -103,7 +104,7 @@ cmp_collate(
 	return((ulint) srv_latin1_ordering[code]);
 }
 
-/*****************************************************************
+/*************************************************************//**
 Returns TRUE if two columns are equal for comparison purposes.
 @return	TRUE if the columns are considered equal in comparisons */
 UNIV_INTERN
@@ -156,7 +157,7 @@ cmp_cols_are_equal(
 	return(col1->mtype != DATA_INT || col1->len == col2->len);
 }
 
-/*****************************************************************
+/*************************************************************//**
 Innobase uses this function to compare two data fields for which the data type
 is such that we must compare whole fields or call MySQL to do the comparison
 @return	1, 0, -1, if a is greater, equal, less than b, respectively */
@@ -282,7 +283,7 @@ cmp_whole_field(
 	return(0);
 }
 
-/*****************************************************************
+/*************************************************************//**
 This function is used to compare two data fields for which we know the
 data type.
 @return	1, 0, -1, if data1 is greater, equal, less than data2, respectively */
@@ -395,7 +396,7 @@ next_byte:
 	return(0);		/* Not reached */
 }
 
-/*****************************************************************
+/*************************************************************//**
 This function is used to compare a data tuple to a physical record.
 Only dtuple->n_fields_cmp first fields are taken into account for
 the the data tuple! If we denote by n = n_fields_cmp, then rec must
@@ -633,7 +634,7 @@ order_resolved:
 	return(ret);
 }
 
-/******************************************************************
+/**************************************************************//**
 Compares a data tuple to a physical record.
 @see cmp_dtuple_rec_with_match
 @return 1, 0, -1, if dtuple is greater, equal, less than rec, respectively */
@@ -653,7 +654,7 @@ cmp_dtuple_rec(
 					 &matched_fields, &matched_bytes));
 }
 
-/******************************************************************
+/**************************************************************//**
 Checks if a dtuple is a prefix of a record. The last field in dtuple
 is allowed to be a prefix of the corresponding field in the record.
 @return	TRUE if prefix */
@@ -693,7 +694,7 @@ cmp_dtuple_is_prefix_of_rec(
 	return(FALSE);
 }
 
-/*****************************************************************
+/*************************************************************//**
 Compare two physical records that contain the same number of columns,
 none of which are stored externally.
 @return	1, 0, -1 if rec1 is greater, equal, less, respectively, than rec2 */
@@ -842,7 +843,7 @@ next_field:
 	return(0);
 }
 
-/*****************************************************************
+/*************************************************************//**
 This function is used to compare two physical records. Only the common
 first fields are compared, and if an externally stored field is
 encountered, then 0 is returned.
@@ -1081,7 +1082,7 @@ order_resolved:
 }
 
 #ifdef UNIV_DEBUG
-/*****************************************************************
+/*************************************************************//**
 Used in debug checking of cmp_dtuple_... .
 This function is used to compare a data tuple to a physical record. If
 dtuple has n fields then rec must have either m >= n fields, or it must

@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/row0ext.ic
 Caching of externally stored column prefixes
 
 Created September 2006 Marko Makela
@@ -25,7 +26,7 @@ Created September 2006 Marko Makela
 #include "rem0types.h"
 #include "btr0types.h"
 
-/************************************************************************
+/********************************************************************//**
 Looks up a column prefix of an externally stored column.
 @return column prefix, or NULL if the column is not stored externally,
 or pointer to field_ref_zero if the BLOB pointer is unset */
@@ -52,7 +53,7 @@ row_ext_lookup_ith(
 	}
 }
 
-/************************************************************************
+/********************************************************************//**
 Looks up a column prefix of an externally stored column.
 @return column prefix, or NULL if the column is not stored externally,
 or pointer to field_ref_zero if the BLOB pointer is unset */

@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file os/os0file.c
 The interface to the operating system file i/o primitives
 
 Created 10/21/1995 Heikki Tuuri
@@ -179,7 +180,7 @@ UNIV_INTERN ulint	os_file_n_pending_pwrites = 0;
 UNIV_INTERN ulint	os_n_pending_writes = 0;
 UNIV_INTERN ulint	os_n_pending_reads = 0;
 
-/***************************************************************************
+/***********************************************************************//**
 Gets the operating system version. Currently works only on Windows.
 @return	OS_WIN95, OS_WIN31, OS_WINNT, OS_WIN2000 */
 UNIV_INTERN
@@ -215,7 +216,7 @@ os_get_os_version(void)
 #endif
 }
 
-/***************************************************************************
+/***********************************************************************//**
 Retrieves the last error number if an error occurs in a file io function.
 The number should be retrieved before any other OS calls (because they may
 overwrite the error number). If the number is not known to this program,
@@ -355,7 +356,7 @@ os_file_get_last_error(
 #endif
 }
 
-/********************************************************************
+/****************************************************************//**
 Does error handling when a file operation fails.
 Conditionally exits (calling exit(3)) based on should_exit value and the
 error type
@@ -429,7 +430,7 @@ os_file_handle_error_cond_exit(
 	return(FALSE);
 }
 
-/********************************************************************
+/****************************************************************//**
 Does error handling when a file operation fails.
 @return	TRUE if we should retry the operation */
 static
@@ -443,7 +444,7 @@ os_file_handle_error(
 	return(os_file_handle_error_cond_exit(name, operation, TRUE));
 }
 
-/********************************************************************
+/****************************************************************//**
 Does error handling when a file operation fails.
 @return	TRUE if we should retry the operation */
 static
@@ -466,7 +467,7 @@ os_file_handle_error_no_exit(
 # undef USE_FILE_LOCK
 #endif
 #ifdef USE_FILE_LOCK
-/********************************************************************
+/****************************************************************//**
 Obtain an exclusive lock on a file.
 @return	0 on success */
 static
@@ -500,7 +501,7 @@ os_file_lock(
 #endif /* USE_FILE_LOCK */
 
 #ifndef UNIV_HOTBACKUP
-/********************************************************************
+/****************************************************************//**
 Creates the seek mutexes used in positioned reads and writes. */
 UNIV_INTERN
 void
@@ -516,7 +517,7 @@ os_io_init_simple(void)
 	}
 }
 
-/***************************************************************************
+/***********************************************************************//**
 Creates a temporary file.  This function is like tmpfile(3), but
 the temporary file is created in the MySQL temporary directory.
 On Netware, this function is like tmpfile(3), because the C run-time
@@ -554,7 +555,7 @@ os_file_create_tmpfile(void)
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/***************************************************************************
+/***********************************************************************//**
 The os_file_opendir() function opens a directory stream corresponding to the
 directory named by the dirname argument. The directory stream is positioned
 at the first entry. In both Unix and Windows we automatically skip the '.'
@@ -613,7 +614,7 @@ os_file_opendir(
 #endif
 }
 
-/***************************************************************************
+/***********************************************************************//**
 Closes a directory stream.
 @return	0 if success, -1 if failure */
 UNIV_INTERN
@@ -647,7 +648,7 @@ os_file_closedir(
 #endif
 }
 
-/***************************************************************************
+/***********************************************************************//**
 This function returns information of the next file in the directory. We jump
 over the '.' and '..' entries in the directory.
 @return	0 if ok, -1 if error, 1 if at the end of the directory */
@@ -797,7 +798,7 @@ next_file:
 #endif
 }
 
-/*********************************************************************
+/*****************************************************************//**
 This function attempts to create a directory named pathname. The new directory
 gets default permissions. On Unix the permissions are (0770 & ~umask). If the
 directory exists already, nothing is done and the call succeeds, unless the
@@ -842,7 +843,7 @@ os_file_create_directory(
 #endif
 }
 
-/********************************************************************
+/****************************************************************//**
 A simple function to open or create a file.
 @return own: handle to the file, not defined if error, error number
 can be retrieved with os_file_get_last_error */
@@ -983,7 +984,7 @@ try_again:
 #endif /* __WIN__ */
 }
 
-/********************************************************************
+/****************************************************************//**
 A simple function to open or create a file.
 @return own: handle to the file, not defined if error, error number
 can be retrieved with os_file_get_last_error */
@@ -1095,7 +1096,7 @@ os_file_create_simple_no_error_handling(
 #endif /* __WIN__ */
 }
 
-/********************************************************************
+/****************************************************************//**
 Tries to disable OS caching on an opened file descriptor. */
 UNIV_INTERN
 void
@@ -1138,7 +1139,7 @@ os_file_set_nocache(
 #endif
 }
 
-/********************************************************************
+/****************************************************************//**
 Opens an existing file or creates a new.
 @return own: handle to the file, not defined if error, error number
 can be retrieved with os_file_get_last_error */
@@ -1396,7 +1397,7 @@ try_again:
 #endif /* __WIN__ */
 }
 
-/***************************************************************************
+/***********************************************************************//**
 Deletes a file if it exists. The file has to be closed before calling this.
 @return	TRUE if success */
 UNIV_INTERN
@@ -1458,7 +1459,7 @@ loop:
 #endif
 }
 
-/***************************************************************************
+/***********************************************************************//**
 Deletes a file. The file has to be closed before calling this.
 @return	TRUE if success */
 UNIV_INTERN
@@ -1521,7 +1522,7 @@ loop:
 #endif
 }
 
-/***************************************************************************
+/***********************************************************************//**
 Renames a file (can also move it to another directory). It is safest that the
 file is closed before calling this function.
 @return	TRUE if success */
@@ -1560,7 +1561,7 @@ os_file_rename(
 #endif
 }
 
-/***************************************************************************
+/***********************************************************************//**
 Closes a file handle. In case of error, error number can be retrieved with
 os_file_get_last_error.
 @return	TRUE if success */
@@ -1599,7 +1600,7 @@ os_file_close(
 #endif
 }
 
-/***************************************************************************
+/***********************************************************************//**
 Closes a file handle.
 @return	TRUE if success */
 UNIV_INTERN
@@ -1634,7 +1635,7 @@ os_file_close_no_error_handling(
 #endif
 }
 
-/***************************************************************************
+/***********************************************************************//**
 Gets a file size.
 @return	TRUE if success */
 UNIV_INTERN
@@ -1682,7 +1683,7 @@ os_file_get_size(
 #endif
 }
 
-/***************************************************************************
+/***********************************************************************//**
 Gets file size as a 64-bit integer ib_int64_t.
 @return	size in bytes, -1 if error */
 UNIV_INTERN
@@ -1705,7 +1706,7 @@ os_file_get_size_as_iblonglong(
 	return((((ib_int64_t)size_high) << 32) + (ib_int64_t)size);
 }
 
-/***************************************************************************
+/***********************************************************************//**
 Write the specified number of zeros to a newly created file.
 @return	TRUE if success */
 UNIV_INTERN
@@ -1794,7 +1795,7 @@ error_handling:
 	return(FALSE);
 }
 
-/***************************************************************************
+/***********************************************************************//**
 Truncates a file at its current position.
 @return	TRUE if success */
 UNIV_INTERN
@@ -1812,7 +1813,7 @@ os_file_set_eof(
 }
 
 #ifndef __WIN__
-/***************************************************************************
+/***********************************************************************//**
 Wrapper to fsync(2) that retries the call on some errors.
 Returns the value 0 if successful; otherwise the value -1 is returned and
 the global variable errno is set to indicate the error.
@@ -1860,7 +1861,7 @@ os_file_fsync(
 }
 #endif /* !__WIN__ */
 
-/***************************************************************************
+/***********************************************************************//**
 Flushes the write buffers of a given file to the disk.
 @return	TRUE if success */
 UNIV_INTERN
@@ -1959,7 +1960,7 @@ os_file_flush(
 }
 
 #ifndef __WIN__
-/***********************************************************************
+/*******************************************************************//**
 Does a synchronous read operation in Posix.
 @return	number of bytes read, -1 if error */
 static
@@ -2044,7 +2045,7 @@ os_file_pread(
 #endif
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Does a synchronous write operation in Posix.
 @return	number of bytes written, -1 if error */
 static
@@ -2158,7 +2159,7 @@ func_exit:
 }
 #endif
 
-/***********************************************************************
+/*******************************************************************//**
 Requests a synchronous positioned read operation.
 @return	TRUE if request was successful, FALSE if fail */
 UNIV_INTERN
@@ -2273,7 +2274,7 @@ error_handling:
 	return(FALSE);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Requests a synchronous positioned read operation. This function does not do
 any error handling. In case of error it returns FALSE.
 @return	TRUE if request was successful, FALSE if fail */
@@ -2370,7 +2371,7 @@ error_handling:
 	return(FALSE);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Rewind file to its start, read at most size - 1 bytes from it to str, and
 NUL-terminate str. All errors are silently ignored. This function is
 mostly meant to be used with temporary files. */
@@ -2393,7 +2394,7 @@ os_file_read_string(
 	str[flen] = '\0';
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Requests a synchronous write operation.
 @return	TRUE if request was successful, FALSE if fail */
 UNIV_INTERN
@@ -2582,7 +2583,7 @@ retry:
 #endif
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Check the existence and type of the given file.
 @return	TRUE if call succeeded */
 UNIV_INTERN
@@ -2654,7 +2655,7 @@ os_file_status(
 #endif
 }
 
-/***********************************************************************
+/*******************************************************************//**
 This function returns information about the specified file
 @return	TRUE if stat information found */
 UNIV_INTERN
@@ -2739,7 +2740,7 @@ os_file_get_status(
 #  define OS_FILE_PATH_SEPARATOR	'/'
 #endif
 
-/********************************************************************
+/****************************************************************//**
 The function os_file_dirname returns a directory component of a
 null-terminated pathname string.  In the usual case, dirname returns
 the string up to, but not including, the final '/', and basename
@@ -2794,7 +2795,7 @@ os_file_dirname(
 	return(mem_strdupl(path, last_slash - path));
 }
 
-/********************************************************************
+/****************************************************************//**
 Creates all missing subdirectories along the given path.
 @return	TRUE if call succeeded FALSE otherwise */
 UNIV_INTERN
@@ -2835,7 +2836,7 @@ os_file_create_subdirs_if_needed(
 }
 
 #ifndef UNIV_HOTBACKUP
-/********************************************************************
+/****************************************************************//**
 Returns a pointer to the nth slot in the aio array.
 @return	pointer to slot */
 static
@@ -2850,7 +2851,7 @@ os_aio_array_get_nth_slot(
 	return((array->slots) + index);
 }
 
-/****************************************************************************
+/************************************************************************//**
 Creates an aio wait array.
 @return	own: aio array */
 static
@@ -2904,7 +2905,7 @@ os_aio_array_create(
 	return(array);
 }
 
-/****************************************************************************
+/************************************************************************//**
 Initializes the asynchronous io system. Calls also os_io_init_simple.
 Creates a separate aio array for
 non-ibuf read and write, a third aio array for the ibuf i/o, with just one
@@ -2982,7 +2983,7 @@ os_aio_init(
 }
 
 #ifdef WIN_ASYNC_IO
-/****************************************************************************
+/************************************************************************//**
 Wakes up all async i/o threads in the array in Windows async i/o at
 shutdown. */
 static
@@ -3000,7 +3001,7 @@ os_aio_array_wake_win_aio_at_shutdown(
 }
 #endif
 
-/****************************************************************************
+/************************************************************************//**
 Wakes up all async i/o threads so that they know to exit themselves in
 shutdown. */
 UNIV_INTERN
@@ -3025,7 +3026,7 @@ os_aio_wake_all_threads_at_shutdown(void)
 	}
 }
 
-/****************************************************************************
+/************************************************************************//**
 Waits until there are no pending writes in os_aio_write_array. There can
 be other, synchronous, pending writes. */
 UNIV_INTERN
@@ -3036,7 +3037,7 @@ os_aio_wait_until_no_pending_writes(void)
 	os_event_wait(os_aio_write_array->is_empty);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Calculates segment number for a slot.
 @return segment number (which is the number used by, for example,
 i/o-handler threads) */
@@ -3073,7 +3074,7 @@ os_aio_get_segment_no_from_slot(
 	return(segment);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Calculates local segment number and aio array from global segment number.
 @return	local segment number within the aio array */
 static
@@ -3108,7 +3109,7 @@ os_aio_get_array_and_local_segment(
 	return(segment);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Requests for a slot in the aio array. If no slot is available, waits until
 not_full-event becomes signaled.
 @return	pointer to slot */
@@ -3199,7 +3200,7 @@ loop:
 	return(slot);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Frees a slot in the aio array. */
 static
 void
@@ -3233,7 +3234,7 @@ os_aio_array_free_slot(
 	os_mutex_exit(array->mutex);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Wakes up a simulated aio i/o-handler thread if it has something to do. */
 static
 void
@@ -3275,7 +3276,7 @@ os_aio_simulated_wake_handler_thread(
 	}
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Wakes up simulated aio i/o-handler threads if they have something to do. */
 UNIV_INTERN
 void
@@ -3297,7 +3298,7 @@ os_aio_simulated_wake_handler_threads(void)
 	}
 }
 
-/**************************************************************************
+/**********************************************************************//**
 This function can be called if one wants to post a batch of reads and
 prefers an i/o-handler thread to handle them all at once later. You must
 call os_aio_simulated_wake_handler_threads later to ensure the threads
@@ -3322,7 +3323,7 @@ os_aio_simulated_put_read_threads_to_sleep(void)
 	}
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Requests an asynchronous i/o operation.
 @return	TRUE if request was queued successfully, FALSE if fail */
 UNIV_INTERN
@@ -3516,7 +3517,7 @@ try_again:
 }
 
 #ifdef WIN_ASYNC_IO
-/**************************************************************************
+/**********************************************************************//**
 This function is only used in Windows asynchronous i/o.
 Waits for an aio operation to complete. This function is used to wait the
 for completed requests. The aio array of pending requests is divided
@@ -3621,7 +3622,7 @@ os_aio_windows_handle(
 }
 #endif
 
-/**************************************************************************
+/**********************************************************************//**
 Does simulated aio. This function should be called by an i/o-handler
 thread.
 @return	TRUE if the aio operation succeeded */
@@ -3942,7 +3943,7 @@ recommended_sleep:
 	goto restart;
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Validates the consistency of an aio array.
 @return	TRUE if ok */
 static
@@ -3978,7 +3979,7 @@ os_aio_array_validate(
 	return(TRUE);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Validates the consistency the aio system.
 @return	TRUE if ok */
 UNIV_INTERN
@@ -3995,7 +3996,7 @@ os_aio_validate(void)
 	return(TRUE);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Prints info of the aio arrays. */
 UNIV_INTERN
 void
@@ -4132,7 +4133,7 @@ loop:
 	os_last_printout = current_time;
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Refreshes the statistics used to print per-second averages. */
 UNIV_INTERN
 void
@@ -4148,7 +4149,7 @@ os_aio_refresh_stats(void)
 }
 
 #ifdef UNIV_DEBUG
-/**************************************************************************
+/**********************************************************************//**
 Checks that all slots in the system have been freed, that is, there are
 no pending io operations.
 @return	TRUE if all free */

@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/***********************************************************************
+/*******************************************************************//**
+@file include/rem0cmp.h
 Comparison services for records
 
 Created 7/1/1994 Heikki Tuuri
@@ -31,7 +32,7 @@ Created 7/1/1994 Heikki Tuuri
 #include "dict0dict.h"
 #include "rem0rec.h"
 
-/*****************************************************************
+/*************************************************************//**
 Returns TRUE if two columns are equal for comparison purposes.
 @return	TRUE if the columns are considered equal in comparisons */
 UNIV_INTERN
@@ -42,7 +43,7 @@ cmp_cols_are_equal(
 	const dict_col_t*	col2,	/*!< in: column 2 */
 	ibool			check_charsets);
 					/*!< in: whether to check charsets */
-/*****************************************************************
+/*************************************************************//**
 This function is used to compare two data fields for which we know the
 data type.
 @return	1, 0, -1, if data1 is greater, equal, less than data2, respectively */
@@ -58,7 +59,7 @@ cmp_data_data(
 	const byte*	data2,	/*!< in: data field (== a pointer to a memory
 				buffer) */
 	ulint		len2);	/*!< in: data field length or UNIV_SQL_NULL */
-/*****************************************************************
+/*************************************************************//**
 This function is used to compare two data fields for which we know the
 data type.
 @return	1, 0, -1, if data1 is greater, equal, less than data2, respectively */
@@ -74,7 +75,7 @@ cmp_data_data_slow(
 	const byte*	data2,	/*!< in: data field (== a pointer to a memory
 				buffer) */
 	ulint		len2);	/*!< in: data field length or UNIV_SQL_NULL */
-/*****************************************************************
+/*************************************************************//**
 This function is used to compare two dfields where at least the first
 has its data type field set.
 @return 1, 0, -1, if dfield1 is greater, equal, less than dfield2,
@@ -85,7 +86,7 @@ cmp_dfield_dfield(
 /*==============*/
 	const dfield_t*	dfield1,/*!< in: data field; must have type field set */
 	const dfield_t*	dfield2);/*!< in: data field */
-/*****************************************************************
+/*************************************************************//**
 This function is used to compare a data tuple to a physical record.
 Only dtuple->n_fields_cmp first fields are taken into account for
 the the data tuple! If we denote by n = n_fields_cmp, then rec must
@@ -113,7 +114,7 @@ cmp_dtuple_rec_with_match(
 				bytes within the first field not completely
 				matched; when function returns, contains the
 				value for current comparison */
-/******************************************************************
+/**************************************************************//**
 Compares a data tuple to a physical record.
 @see cmp_dtuple_rec_with_match
 @return 1, 0, -1, if dtuple is greater, equal, less than rec, respectively */
@@ -124,7 +125,7 @@ cmp_dtuple_rec(
 	const dtuple_t*	dtuple,	/*!< in: data tuple */
 	const rec_t*	rec,	/*!< in: physical record */
 	const ulint*	offsets);/*!< in: array returned by rec_get_offsets() */
-/******************************************************************
+/**************************************************************//**
 Checks if a dtuple is a prefix of a record. The last field in dtuple
 is allowed to be a prefix of the corresponding field in the record.
 @return	TRUE if prefix */
@@ -135,7 +136,7 @@ cmp_dtuple_is_prefix_of_rec(
 	const dtuple_t*	dtuple,	/*!< in: data tuple */
 	const rec_t*	rec,	/*!< in: physical record */
 	const ulint*	offsets);/*!< in: array returned by rec_get_offsets() */
-/*****************************************************************
+/*************************************************************//**
 Compare two physical records that contain the same number of columns,
 none of which are stored externally.
 @return	1, 0, -1 if rec1 is greater, equal, less, respectively, than rec2 */
@@ -148,7 +149,7 @@ cmp_rec_rec_simple(
 	const ulint*		offsets1,/*!< in: rec_get_offsets(rec1, ...) */
 	const ulint*		offsets2,/*!< in: rec_get_offsets(rec2, ...) */
 	const dict_index_t*	index);	/*!< in: data dictionary index */
-/*****************************************************************
+/*************************************************************//**
 This function is used to compare two physical records. Only the common
 first fields are compared, and if an externally stored field is
 encountered, then 0 is returned.
@@ -170,7 +171,7 @@ cmp_rec_rec_with_match(
 				bytes within the first field not completely
 				matched; when the function returns, contains
 				the value for the current comparison */
-/*****************************************************************
+/*************************************************************//**
 This function is used to compare two physical records. Only the common
 first fields are compared.
 @return 1, 0 , -1 if rec1 is greater, equal, less, respectively, than

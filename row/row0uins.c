@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file row/row0uins.c
 Fresh insert undo
 
 Created 2/25/1997 Heikki Tuuri
@@ -45,7 +46,7 @@ Created 2/25/1997 Heikki Tuuri
 #include "ibuf0ibuf.h"
 #include "log0log.h"
 
-/*******************************************************************
+/***************************************************************//**
 Removes a clustered index record. The pcur in node was positioned on the
 record, now it is detached.
 @return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
@@ -131,7 +132,7 @@ retry:
 	return(err);
 }
 
-/*******************************************************************
+/***************************************************************//**
 Removes a secondary index entry if found.
 @return	DB_SUCCESS, DB_FAIL, or DB_OUT_OF_FILE_SPACE */
 static
@@ -194,7 +195,7 @@ row_undo_ins_remove_sec_low(
 	return(err);
 }
 
-/*******************************************************************
+/***************************************************************//**
 Removes a secondary index entry from the index if found. Tries first
 optimistic, then pessimistic descent down the tree.
 @return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
@@ -237,7 +238,7 @@ retry:
 	return(err);
 }
 
-/***************************************************************
+/***********************************************************//**
 Parses the row reference and other info in a fresh insert undo record. */
 static
 void
@@ -286,7 +287,7 @@ row_undo_ins_parse_undo_rec(
 	}
 }
 
-/***************************************************************
+/***********************************************************//**
 Undoes a fresh insert of a row to a table. A fresh insert means that
 the same clustered index unique key did not have any record, even delete
 marked, at the time of the insert.  InnoDB is eager in a rollback:

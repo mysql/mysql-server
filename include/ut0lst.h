@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/**********************************************************************
+/******************************************************************//**
+@file include/ut0lst.h
 List utilities
 
 Created 9/10/1995 Heikki Tuuri
@@ -32,7 +33,7 @@ if a list is used in the database. Note that a single struct may belong
 to two or more lists, provided that the list are given different names.
 An example of the usage of the lists can be found in fil0fil.c. */
 
-/***********************************************************************
+/*******************************************************************//**
 This macro expands to the unnamed type definition of a struct which acts
 as the two-way list base node. The base node contains pointers
 to both ends of the list and a count of nodes in the list (excluding
@@ -45,7 +46,7 @@ struct {\
 	TYPE *	end;	/* pointer to list end, NULL if empty */\
 }\
 
-/***********************************************************************
+/*******************************************************************//**
 This macro expands to the unnamed type definition of a struct which
 should be embedded in the nodes of the list, the node type must be a struct.
 This struct contains the pointers to next and previous nodes in the list.
@@ -67,7 +68,7 @@ struct {\
 	TYPE *	next;	/* pointer to next node, NULL if end of list */\
 }\
 
-/***********************************************************************
+/*******************************************************************//**
 Initializes the base node of a two-way list. */
 
 #define UT_LIST_INIT(BASE)\
@@ -77,7 +78,7 @@ Initializes the base node of a two-way list. */
 	(BASE).end   = NULL;\
 }\
 
-/***********************************************************************
+/*******************************************************************//**
 Adds the node as the first element in a two-way linked list.
 BASE has to be the base node (not a pointer to it). N has to be
 the pointer to the node to be added to the list. NAME is the list name. */
@@ -98,7 +99,7 @@ the pointer to the node to be added to the list. NAME is the list name. */
 	}\
 }\
 
-/***********************************************************************
+/*******************************************************************//**
 Adds the node as the last element in a two-way linked list.
 BASE has to be the base node (not a pointer to it). N has to be
 the pointer to the node to be added to the list. NAME is the list name. */
@@ -119,7 +120,7 @@ the pointer to the node to be added to the list. NAME is the list name. */
 	}\
 }\
 
-/***********************************************************************
+/*******************************************************************//**
 Inserts a NODE2 after NODE1 in a list.
 BASE has to be the base node (not a pointer to it). NAME is the list
 name, NODE1 and NODE2 are pointers to nodes. */
@@ -149,7 +150,7 @@ name, NODE1 and NODE2 are pointers to nodes. */
 # define UT_LIST_REMOVE_CLEAR(NAME, N) while (0)
 #endif
 
-/***********************************************************************
+/*******************************************************************//**
 Removes a node from a two-way linked list. BASE has to be the base node
 (not a pointer to it). N has to be the pointer to the node to be removed
 from the list. NAME is the list name. */
@@ -172,42 +173,42 @@ do {									\
 	UT_LIST_REMOVE_CLEAR(NAME, N);					\
 } while (0)
 
-/************************************************************************
+/********************************************************************//**
 Gets the next node in a two-way list. NAME is the name of the list
 and N is pointer to a node. */
 
 #define UT_LIST_GET_NEXT(NAME, N)\
 	(((N)->NAME).next)
 
-/************************************************************************
+/********************************************************************//**
 Gets the previous node in a two-way list. NAME is the name of the list
 and N is pointer to a node. */
 
 #define UT_LIST_GET_PREV(NAME, N)\
 	(((N)->NAME).prev)
 
-/************************************************************************
+/********************************************************************//**
 Alternative macro to get the number of nodes in a two-way list, i.e.,
 its length. BASE is the base node (not a pointer to it). */
 
 #define UT_LIST_GET_LEN(BASE)\
 	(BASE).count
 
-/************************************************************************
+/********************************************************************//**
 Gets the first node in a two-way list, or returns NULL,
 if the list is empty. BASE is the base node (not a pointer to it). */
 
 #define UT_LIST_GET_FIRST(BASE)\
 	(BASE).start
 
-/************************************************************************
+/********************************************************************//**
 Gets the last node in a two-way list, or returns NULL,
 if the list is empty. BASE is the base node (not a pointer to it). */
 
 #define UT_LIST_GET_LAST(BASE)\
 	(BASE).end
 
-/************************************************************************
+/********************************************************************//**
 Checks the consistency of a two-way list. NAME is the name of the list,
 TYPE is the node type, BASE is the base node (not a pointer to it),
 and ASSERTION is a condition on ut_list_node_313. */

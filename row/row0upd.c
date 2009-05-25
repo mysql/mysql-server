@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file row/row0upd.c
 Update of a row
 
 Created 12/27/1996 Heikki Tuuri
@@ -91,7 +92,7 @@ the x-latch freed? The most efficient way for performing a
 searched delete is obviously to keep the x-latch for several
 steps of query graph execution. */
 
-/***************************************************************
+/***********************************************************//**
 Checks if an update vector changes some of the first ordering fields of an
 index record. This is only used in foreign key checks and we can assume
 that index does not contain column prefixes.
@@ -106,7 +107,7 @@ row_upd_changes_first_fields_binary(
 	ulint		n);	/*!< in: how many first fields to check */
 
 
-/*************************************************************************
+/*********************************************************************//**
 Checks if index currently is mentioned as a referenced index in a foreign
 key constraint.
 
@@ -157,7 +158,7 @@ func_exit:
 	return(is_referenced);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Checks if possible foreign key constraints hold after a delete of the record
 under pcur.
 
@@ -281,7 +282,7 @@ func_exit:
 	return(err);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Creates an update node for a query graph.
 @return	own: update node */
 UNIV_INTERN
@@ -320,7 +321,7 @@ upd_node_create(
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/*************************************************************************
+/*********************************************************************//**
 Updates the trx id and roll ptr field in a clustered index record in database
 recovery. */
 UNIV_INTERN
@@ -354,7 +355,7 @@ row_upd_rec_sys_fields_in_recovery(
 }
 
 #ifndef UNIV_HOTBACKUP
-/*************************************************************************
+/*********************************************************************//**
 Sets the trx id or roll ptr field of a clustered index entry. */
 UNIV_INTERN
 void
@@ -387,7 +388,7 @@ row_upd_index_entry_sys_field(
 	}
 }
 
-/***************************************************************
+/***********************************************************//**
 Returns TRUE if row update changes size of some field in index or if some
 field to be updated is stored externally in rec or update.
 @return TRUE if the update changes the size of some field in index or
@@ -454,7 +455,7 @@ row_upd_changes_field_size_or_external(
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/***************************************************************
+/***********************************************************//**
 Replaces the new column values stored in the update vector to the record
 given. No field size changes are allowed. */
 UNIV_INTERN
@@ -500,7 +501,7 @@ row_upd_rec_in_place(
 }
 
 #ifndef UNIV_HOTBACKUP
-/*************************************************************************
+/*********************************************************************//**
 Writes into the redo log the values of trx id and roll ptr and enough info
 to determine their positions within a clustered index record.
 @return	new pointer to mlog */
@@ -531,7 +532,7 @@ row_upd_write_sys_vals_to_log(
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/*************************************************************************
+/*********************************************************************//**
 Parses the log data of system field values.
 @return	log data end or NULL */
 UNIV_INTERN
@@ -565,7 +566,7 @@ row_upd_parse_sys_vals(
 }
 
 #ifndef UNIV_HOTBACKUP
-/***************************************************************
+/***********************************************************//**
 Writes to the redo log the new values of the fields occurring in the index. */
 UNIV_INTERN
 void
@@ -637,7 +638,7 @@ row_upd_index_write_log(
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/*************************************************************************
+/*********************************************************************//**
 Parses the log data written by row_upd_index_write_log.
 @return	log data end or NULL */
 UNIV_INTERN
@@ -717,7 +718,7 @@ row_upd_index_parse(
 }
 
 #ifndef UNIV_HOTBACKUP
-/*******************************************************************
+/***************************************************************//**
 Builds an update vector from those fields which in a secondary index entry
 differ from a record that has the equal ordering fields. NOTE: we compare
 the fields as binary strings!
@@ -786,7 +787,7 @@ row_upd_build_sec_rec_difference_binary(
 	return(update);
 }
 
-/*******************************************************************
+/***************************************************************//**
 Builds an update vector from those fields, excluding the roll ptr and
 trx id fields, which in an index entry differ from a record that has
 the equal ordering fields. NOTE: we compare the fields as binary strings!
@@ -863,7 +864,7 @@ skip_compare:
 	return(update);
 }
 
-/***************************************************************
+/***********************************************************//**
 Fetch a prefix of an externally stored column.  This is similar
 to row_ext_lookup(), but the row_ext_t holds the old values
 of the column and must not be poisoned with the new values.
@@ -894,7 +895,7 @@ row_upd_ext_fetch(
 	return(buf);
 }
 
-/***************************************************************
+/***********************************************************//**
 Replaces the new column value stored in the update vector in
 the given index entry field. */
 static
@@ -987,7 +988,7 @@ row_upd_index_replace_new_col_val(
 	}
 }
 
-/***************************************************************
+/***********************************************************//**
 Replaces the new column values stored in the update vector to the index entry
 given. */
 UNIV_INTERN
@@ -1041,7 +1042,7 @@ row_upd_index_replace_new_col_vals_index_pos(
 	}
 }
 
-/***************************************************************
+/***********************************************************//**
 Replaces the new column values stored in the update vector to the index entry
 given. */
 UNIV_INTERN
@@ -1086,7 +1087,7 @@ row_upd_index_replace_new_col_vals(
 	}
 }
 
-/***************************************************************
+/***********************************************************//**
 Replaces the new column values stored in the update vector. */
 UNIV_INTERN
 void
@@ -1169,7 +1170,7 @@ row_upd_replace(
 	}
 }
 
-/***************************************************************
+/***********************************************************//**
 Checks if an update vector changes an ordering field of an index record.
 
 This function is fast if the update vector is short or the number of ordering
@@ -1238,7 +1239,7 @@ row_upd_changes_ord_field_binary(
 	return(FALSE);
 }
 
-/***************************************************************
+/***********************************************************//**
 Checks if an update vector changes an ordering field of an index record.
 NOTE: we compare the fields as binary strings!
 @return TRUE if update vector may change an ordering field in an index
@@ -1271,7 +1272,7 @@ row_upd_changes_some_index_ord_field_binary(
 	return(FALSE);
 }
 
-/***************************************************************
+/***********************************************************//**
 Checks if an update vector changes some of the first ordering fields of an
 index record. This is only used in foreign key checks and we can assume
 that index does not contain column prefixes.
@@ -1325,7 +1326,7 @@ row_upd_changes_first_fields_binary(
 	return(FALSE);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Copies the column values from a record. */
 UNIV_INLINE
 void
@@ -1352,7 +1353,7 @@ row_upd_copy_columns(
 	}
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Calculates the new values for fields to update. Note that row_upd_copy_columns
 must have been called first. */
 UNIV_INLINE
@@ -1379,7 +1380,7 @@ row_upd_eval_new_vals(
 	}
 }
 
-/***************************************************************
+/***********************************************************//**
 Stores to the heap the row on which the node->pcur is positioned. */
 static
 void
@@ -1422,7 +1423,7 @@ row_upd_store_row(
 	}
 }
 
-/***************************************************************
+/***********************************************************//**
 Updates a secondary index entry of a row.
 @return DB_SUCCESS if operation successfully completed, else error
 code or DB_LOCK_WAIT */
@@ -1526,7 +1527,7 @@ func_exit:
 	return(err);
 }
 
-/***************************************************************
+/***********************************************************//**
 Updates the secondary index record if it is changed in the row update or
 deletes it if this is a delete.
 @return DB_SUCCESS if operation successfully completed, else error
@@ -1551,7 +1552,7 @@ row_upd_sec_step(
 	return(DB_SUCCESS);
 }
 
-/***************************************************************
+/***********************************************************//**
 Marks the clustered index record deleted and inserts the updated version
 of the record to the index. This function should be used when the ordering
 fields of the clustered index record change. This should be quite rare in
@@ -1660,7 +1661,7 @@ row_upd_clust_rec_by_insert(
 	return(err);
 }
 
-/***************************************************************
+/***********************************************************//**
 Updates a clustered index record of a row when the ordering fields do
 not change.
 @return DB_SUCCESS if operation successfully completed, else error
@@ -1763,7 +1764,7 @@ row_upd_clust_rec(
 	return(err);
 }
 
-/***************************************************************
+/***********************************************************//**
 Delete marks a clustered index record.
 @return	DB_SUCCESS if operation successfully completed, else error code */
 static
@@ -1814,7 +1815,7 @@ row_upd_del_mark_clust_rec(
 	return(err);
 }
 
-/***************************************************************
+/***********************************************************//**
 Updates the clustered index record.
 @return DB_SUCCESS if operation successfully completed, DB_LOCK_WAIT
 in case of a lock wait, else error code */
@@ -1983,7 +1984,7 @@ exit_func:
 	return(err);
 }
 
-/***************************************************************
+/***********************************************************//**
 Updates the affected index records of a row. When the control is transferred
 to this node, we assume that we have a persistent cursor which was on a
 record, and the position of the cursor is stored in the cursor.
@@ -2059,7 +2060,7 @@ function_exit:
 	return(err);
 }
 
-/***************************************************************
+/***********************************************************//**
 Updates a row in a table. This is a high-level function used in SQL execution
 graphs.
 @return	query thread to run next or NULL */

@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/log0recv.h
 Recovery
 
 Created 9/20/1997 Heikki Tuuri
@@ -34,7 +35,7 @@ Created 9/20/1997 Heikki Tuuri
 #ifdef UNIV_HOTBACKUP
 extern ibool	recv_replay_file_ops;
 
-/***********************************************************************
+/*******************************************************************//**
 Reads the checkpoint info needed in hot backup.
 @return	TRUE if success */
 UNIV_INTERN
@@ -52,7 +53,7 @@ recv_read_cp_info_for_backup(
 	ib_uint64_t*	first_header_lsn);
 				/*!< out: lsn of of the start of the
 				first log file */
-/***********************************************************************
+/*******************************************************************//**
 Scans the log segment and n_bytes_scanned is set to the length of valid
 log scanned. */
 UNIV_INTERN
@@ -71,7 +72,7 @@ recv_scan_log_seg_for_backup(
 					scan, smaller than buf_len if log
 					data ended here */
 #endif /* UNIV_HOTBACKUP */
-/***********************************************************************
+/*******************************************************************//**
 Returns TRUE if recovery is currently running.
 @return	recv_recovery_on */
 UNIV_INLINE
@@ -79,7 +80,7 @@ ibool
 recv_recovery_is_on(void);
 /*=====================*/
 #ifdef UNIV_LOG_ARCHIVE
-/***********************************************************************
+/*******************************************************************//**
 Returns TRUE if recovery from backup is currently running.
 @return	recv_recovery_from_backup_on */
 UNIV_INLINE
@@ -87,7 +88,7 @@ ibool
 recv_recovery_from_backup_is_on(void);
 /*=================================*/
 #endif /* UNIV_LOG_ARCHIVE */
-/****************************************************************************
+/************************************************************************//**
 Applies the hashed log records to the page, if the page lsn is less than the
 lsn of a log record. This can be called when a buffer page has just been
 read in, or also for a page already in the buffer pool. */
@@ -106,7 +107,7 @@ recv_recover_page_func(
 #else /* !UNIV_HOTBACKUP */
 # define recv_recover_page(jri, block)	recv_recover_page_func(block)
 #endif /* !UNIV_HOTBACKUP */
-/************************************************************
+/********************************************************//**
 Recovers from a checkpoint. When this function returns, the database is able
 to start processing of new user transactions, but the function
 recv_recovery_from_checkpoint_finish should be called later to complete
@@ -132,13 +133,13 @@ recv_recovery_from_checkpoint_start_func(
 # define recv_recovery_from_checkpoint_start(type,lim,min,max)		\
 	recv_recovery_from_checkpoint_start_func(min,max)
 #endif /* UNIV_LOG_ARCHIVE */
-/************************************************************
+/********************************************************//**
 Completes recovery from a checkpoint. */
 UNIV_INTERN
 void
 recv_recovery_from_checkpoint_finish(void);
 /*======================================*/
-/***********************************************************
+/*******************************************************//**
 Scans log from a buffer and stores new log data to the parsing buffer.
 Parses and hashes the log records if new data found.  Unless
 UNIV_HOTBACKUP is defined, this function will apply log records
@@ -164,7 +165,7 @@ recv_scan_log_recs(
 					to this lsn */
 	ib_uint64_t*	group_scanned_lsn);/*!< out: scanning succeeded up to
 					this lsn */
-/**********************************************************
+/******************************************************//**
 Resets the logs. The contents of log files will be lost! */
 UNIV_INTERN
 void
@@ -183,7 +184,7 @@ recv_reset_logs(
 					FALSE if it is done after
 					archive recovery */
 #ifdef UNIV_HOTBACKUP
-/**********************************************************
+/******************************************************//**
 Creates new log files after a backup has been restored. */
 UNIV_INTERN
 void
@@ -195,20 +196,20 @@ recv_reset_log_files_for_backup(
 	ib_uint64_t	lsn);		/*!< in: new start lsn, must be
 					divisible by OS_FILE_LOG_BLOCK_SIZE */
 #endif /* UNIV_HOTBACKUP */
-/************************************************************
+/********************************************************//**
 Creates the recovery system. */
 UNIV_INTERN
 void
 recv_sys_create(void);
 /*=================*/
-/************************************************************
+/********************************************************//**
 Inits the recovery system for a recovery operation. */
 UNIV_INTERN
 void
 recv_sys_init(
 /*==========*/
 	ulint	available_memory);	/*!< in: available memory in bytes */
-/***********************************************************************
+/*******************************************************************//**
 Empties the hash table of stored log records, applying them to appropriate
 pages. */
 UNIV_INTERN
@@ -223,7 +224,7 @@ recv_apply_hashed_log_recs(
 				alternative means that no new log records
 				can be generated during the application */
 #ifdef UNIV_HOTBACKUP
-/***********************************************************************
+/*******************************************************************//**
 Applies log records in the hash table to a backup. */
 UNIV_INTERN
 void
@@ -231,7 +232,7 @@ recv_apply_log_recs_for_backup(void);
 /*================================*/
 #endif
 #ifdef UNIV_LOG_ARCHIVE
-/************************************************************
+/********************************************************//**
 Recovers from archived log files, and also from log files, if they exist.
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
@@ -247,7 +248,7 @@ recv_recovery_from_archive_start(
 					file will be searched from
 					INNOBASE_LOG_ARCH_DIR specified in
 					server config file */
-/************************************************************
+/********************************************************//**
 Completes recovery from archive. */
 UNIV_INTERN
 void

@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/page0types.h
 Index page routines
 
 Created 2/2/1994 Heikki Tuuri
@@ -92,7 +93,7 @@ typedef struct page_zip_stat_struct page_zip_stat_t;
 /** Statistics on compression, indexed by page_zip_des_t::ssize - 1 */
 extern page_zip_stat_t page_zip_stat[PAGE_ZIP_NUM_SSIZE - 1];
 
-/**************************************************************************
+/**********************************************************************//**
 Write the "deleted" flag of a record on a compressed page.  The flag must
 already have been written on the uncompressed page. */
 UNIV_INTERN
@@ -104,7 +105,7 @@ page_zip_rec_set_deleted(
 	ulint		flag)	/*!< in: the deleted flag (nonzero=TRUE) */
 	__attribute__((nonnull));
 
-/**************************************************************************
+/**********************************************************************//**
 Write the "owned" flag of a record on a compressed page.  The n_owned field
 must already have been written on the uncompressed page. */
 UNIV_INTERN
@@ -116,7 +117,7 @@ page_zip_rec_set_owned(
 	ulint		flag)	/*!< in: the owned flag (nonzero=TRUE) */
 	__attribute__((nonnull));
 
-/**************************************************************************
+/**********************************************************************//**
 Shift the dense page directory when a record is deleted. */
 UNIV_INTERN
 void
@@ -129,7 +130,7 @@ page_zip_dir_delete(
 	const byte*	free)	/*!< in: previous start of the free list */
 	__attribute__((nonnull(1,2,3,4)));
 
-/**************************************************************************
+/**********************************************************************//**
 Add a slot to the dense page directory. */
 UNIV_INTERN
 void

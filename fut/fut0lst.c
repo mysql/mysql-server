@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/**********************************************************************
+/******************************************************************//**
+@file fut/fut0lst.c
 File-based list utilities
 
 Created 11/28/1995 Heikki Tuuri
@@ -31,7 +32,7 @@ Created 11/28/1995 Heikki Tuuri
 #include "buf0buf.h"
 #include "page0page.h"
 
-/************************************************************************
+/********************************************************************//**
 Adds a node to an empty list. */
 static
 void
@@ -67,7 +68,7 @@ flst_add_to_empty(
 	mlog_write_ulint(base + FLST_LEN, len + 1, MLOG_4BYTES, mtr);
 }
 
-/************************************************************************
+/********************************************************************//**
 Adds a node as the last node in a list. */
 UNIV_INTERN
 void
@@ -110,7 +111,7 @@ flst_add_last(
 	}
 }
 
-/************************************************************************
+/********************************************************************//**
 Adds a node as the first node in a list. */
 UNIV_INTERN
 void
@@ -153,7 +154,7 @@ flst_add_first(
 	}
 }
 
-/************************************************************************
+/********************************************************************//**
 Inserts a node after another in a list. */
 UNIV_INTERN
 void
@@ -208,7 +209,7 @@ flst_insert_after(
 	mlog_write_ulint(base + FLST_LEN, len + 1, MLOG_4BYTES, mtr);
 }
 
-/************************************************************************
+/********************************************************************//**
 Inserts a node before another in a list. */
 UNIV_INTERN
 void
@@ -262,7 +263,7 @@ flst_insert_before(
 	mlog_write_ulint(base + FLST_LEN, len + 1, MLOG_4BYTES, mtr);
 }
 
-/************************************************************************
+/********************************************************************//**
 Removes a node. */
 UNIV_INTERN
 void
@@ -337,7 +338,7 @@ flst_remove(
 	mlog_write_ulint(base + FLST_LEN, len - 1, MLOG_4BYTES, mtr);
 }
 
-/************************************************************************
+/********************************************************************//**
 Cuts off the tail of the list, including the node given. The number of
 nodes which will be removed must be provided by the caller, as this function
 does not measure the length of the tail. */
@@ -394,7 +395,7 @@ flst_cut_end(
 	mlog_write_ulint(base + FLST_LEN, len - n_nodes, MLOG_4BYTES, mtr);
 }
 
-/************************************************************************
+/********************************************************************//**
 Cuts off the tail of the list, not including the given node. The number of
 nodes which will be removed must be provided by the caller, as this function
 does not measure the length of the tail. */
@@ -435,7 +436,7 @@ flst_truncate_end(
 	mlog_write_ulint(base + FLST_LEN, len - n_nodes, MLOG_4BYTES, mtr);
 }
 
-/************************************************************************
+/********************************************************************//**
 Validates a file-based list.
 @return	TRUE if ok */
 UNIV_INTERN
@@ -502,7 +503,7 @@ flst_validate(
 	return(TRUE);
 }
 
-/************************************************************************
+/********************************************************************//**
 Prints info of a file-based list. */
 UNIV_INTERN
 void

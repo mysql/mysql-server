@@ -16,12 +16,13 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/***********************************************************************
+/*******************************************************************//**
+@file handler/handler0vars.h
 This file contains accessor functions for dynamic plugin on Windows.
 ***********************************************************************/
 
 #if defined __WIN__ && defined MYSQL_DYNAMIC_PLUGIN
-/***********************************************************************
+/*******************************************************************//**
 This is a list of externals that can not be resolved by delay loading.
 They have to be resolved indirectly via their addresses in the .map file.
 All of them are external variables. */

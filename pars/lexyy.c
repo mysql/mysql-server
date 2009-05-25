@@ -703,7 +703,8 @@ static int yy_flex_debug = 0;
 #define YY_RESTORE_YY_MORE_OFFSET
 static char *yytext;
 #line 1 "pars0lex.l"
-/******************************************************
+/**************************************************//**
+@file pars/lexyy.c
 SQL parser lexical analyzer: input file for the GNU Flex lexer generator
 
 (c) 1997 Innobase Oy

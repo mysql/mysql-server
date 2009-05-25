@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/************************************************************************
+/********************************************************************//**
+@file mem/mem0pool.c
 The lowest-level memory management
 
 Created 5/12/1997 Heikki Tuuri
@@ -119,7 +120,7 @@ mysql@lists.mysql.com */
 
 UNIV_INTERN ulint	mem_n_threads_inside		= 0;
 
-/************************************************************************
+/********************************************************************//**
 Reserves the mem pool mutex. */
 UNIV_INTERN
 void
@@ -129,7 +130,7 @@ mem_pool_mutex_enter(void)
 	mutex_enter(&(mem_comm_pool->mutex));
 }
 
-/************************************************************************
+/********************************************************************//**
 Releases the mem pool mutex. */
 UNIV_INTERN
 void
@@ -139,7 +140,7 @@ mem_pool_mutex_exit(void)
 	mutex_exit(&(mem_comm_pool->mutex));
 }
 
-/************************************************************************
+/********************************************************************//**
 Returns memory area size.
 @return	size */
 UNIV_INLINE
@@ -151,7 +152,7 @@ mem_area_get_size(
 	return(area->size_and_free & ~MEM_AREA_FREE);
 }
 
-/************************************************************************
+/********************************************************************//**
 Sets memory area size. */
 UNIV_INLINE
 void
@@ -164,7 +165,7 @@ mem_area_set_size(
 		| size;
 }
 
-/************************************************************************
+/********************************************************************//**
 Returns memory area free bit.
 @return	TRUE if free */
 UNIV_INLINE
@@ -179,7 +180,7 @@ mem_area_get_free(
 	return(area->size_and_free & MEM_AREA_FREE);
 }
 
-/************************************************************************
+/********************************************************************//**
 Sets memory area free bit. */
 UNIV_INLINE
 void
@@ -195,7 +196,7 @@ mem_area_set_free(
 		| free;
 }
 
-/************************************************************************
+/********************************************************************//**
 Creates a memory pool.
 @return	memory pool */
 UNIV_INTERN
@@ -259,7 +260,7 @@ mem_pool_create(
 	return(pool);
 }
 
-/************************************************************************
+/********************************************************************//**
 Fills the specified free list.
 @return	TRUE if we were able to insert a block to the free list */
 static
@@ -330,7 +331,7 @@ mem_pool_fill_free_list(
 	return(TRUE);
 }
 
-/************************************************************************
+/********************************************************************//**
 Allocates memory from a pool. NOTE: This low-level function should only be
 used in mem0mem.*!
 @return	own: allocated memory buffer */
@@ -434,7 +435,7 @@ mem_area_alloc(
 	return((void*)(MEM_AREA_EXTRA_SIZE + ((byte*)area)));
 }
 
-/************************************************************************
+/********************************************************************//**
 Gets the buddy of an area, if it exists in pool.
 @return	the buddy, NULL if no buddy in pool */
 UNIV_INLINE
@@ -474,7 +475,7 @@ mem_area_get_buddy(
 	return(buddy);
 }
 
-/************************************************************************
+/********************************************************************//**
 Frees memory to a pool. */
 UNIV_INTERN
 void
@@ -603,7 +604,7 @@ mem_area_free(
 	ut_ad(mem_pool_validate(pool));
 }
 
-/************************************************************************
+/********************************************************************//**
 Validates a memory pool.
 @return	TRUE if ok */
 UNIV_INTERN
@@ -650,7 +651,7 @@ mem_pool_validate(
 	return(TRUE);
 }
 
-/************************************************************************
+/********************************************************************//**
 Prints info of a memory pool. */
 UNIV_INTERN
 void
@@ -683,7 +684,7 @@ mem_pool_print_info(
 	mutex_exit(&(pool->mutex));
 }
 
-/************************************************************************
+/********************************************************************//**
 Returns the amount of reserved memory.
 @return	reserved memory in bytes */
 UNIV_INTERN

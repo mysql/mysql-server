@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/************************************************************************
+/********************************************************************//**
+@file include/mem0dbg.ic
 The memory management: the debug code. This is not an independent
 compilation module but is included in mem0mem.*.
 
@@ -29,7 +30,7 @@ extern mutex_t	mem_hash_mutex;
 # endif /* !UNIV_HOTBACKUP */
 extern ulint	mem_current_allocated_memory;
 
-/**********************************************************************
+/******************************************************************//**
 Initializes an allocated memory field in the debug version. */
 UNIV_INTERN
 void
@@ -37,7 +38,7 @@ mem_field_init(
 /*===========*/
 	byte*	buf,	/*!< in: memory field */
 	ulint	n);	/*!< in: how many bytes the user requested */
-/**********************************************************************
+/******************************************************************//**
 Erases an allocated memory field in the debug version. */
 UNIV_INTERN
 void
@@ -45,7 +46,7 @@ mem_field_erase(
 /*============*/
 	byte*	buf,	/*!< in: memory field */
 	ulint	n);	/*!< in: how many bytes the user requested */
-/*******************************************************************
+/***************************************************************//**
 Initializes a buffer to a random combination of hex BA and BE.
 Used to initialize allocated memory. */
 UNIV_INTERN
@@ -54,7 +55,7 @@ mem_init_buf(
 /*=========*/
 	byte*	buf,	/*!< in: pointer to buffer */
 	ulint	 n);	 /*!< in: length of buffer */
-/*******************************************************************
+/***************************************************************//**
 Initializes a buffer to a random combination of hex DE and AD.
 Used to erase freed memory. */
 UNIV_INTERN
@@ -63,7 +64,7 @@ mem_erase_buf(
 /*==========*/
 	byte*	buf,	/*!< in: pointer to buffer */
 	ulint	n);	/*!< in: length of buffer */
-/*******************************************************************
+/***************************************************************//**
 Inserts a created memory heap to the hash table of
 current allocated memory heaps.
 Initializes the hash table when first called. */
@@ -74,7 +75,7 @@ mem_hash_insert(
 	mem_heap_t*	heap,	   /*!< in: the created heap */
 	const char*	file_name, /*!< in: file name of creation */
 	ulint		line);	   /*!< in: line where created */
-/*******************************************************************
+/***************************************************************//**
 Removes a memory heap (which is going to be freed by the caller)
 from the list of live memory heaps. Returns the size of the heap
 in terms of how much memory in bytes was allocated for the user of

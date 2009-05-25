@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/row0sel.h
 Select
 
 Created 12/19/1997 Heikki Tuuri
@@ -37,7 +38,7 @@ Created 12/19/1997 Heikki Tuuri
 #include "read0read.h"
 #include "row0mysql.h"
 
-/*************************************************************************
+/*********************************************************************//**
 Creates a select node struct.
 @return	own: select node struct */
 UNIV_INTERN
@@ -45,7 +46,7 @@ sel_node_t*
 sel_node_create(
 /*============*/
 	mem_heap_t*	heap);	/*!< in: memory heap where created */
-/*************************************************************************
+/*********************************************************************//**
 Frees the memory private to a select node when a query graph is freed,
 does not free the heap where the node was originally created. */
 UNIV_INTERN
@@ -53,7 +54,7 @@ void
 sel_node_free_private(
 /*==================*/
 	sel_node_t*	node);	/*!< in: select node struct */
-/*************************************************************************
+/*********************************************************************//**
 Frees a prefetch buffer for a column, including the dynamically allocated
 memory for data stored there. */
 UNIV_INTERN
@@ -61,7 +62,7 @@ void
 sel_col_prefetch_buf_free(
 /*======================*/
 	sel_buf_t*	prefetch_buf);	/*!< in, own: prefetch buffer */
-/*************************************************************************
+/*********************************************************************//**
 Gets the plan node for the nth table in a join.
 @return	plan node */
 UNIV_INLINE
@@ -70,7 +71,7 @@ sel_node_get_nth_plan(
 /*==================*/
 	sel_node_t*	node,	/*!< in: select node */
 	ulint		i);	/*!< in: get ith plan node */
-/**************************************************************************
+/**********************************************************************//**
 Performs a select step. This is a high-level function used in SQL execution
 graphs.
 @return	query thread to run next or NULL */
@@ -79,7 +80,7 @@ que_thr_t*
 row_sel_step(
 /*=========*/
 	que_thr_t*	thr);	/*!< in: query thread */
-/**************************************************************************
+/**********************************************************************//**
 Performs an execution step of an open or close cursor statement node.
 @return	query thread to run next or NULL */
 UNIV_INLINE
@@ -87,7 +88,7 @@ que_thr_t*
 open_step(
 /*======*/
 	que_thr_t*	thr);	/*!< in: query thread */
-/**************************************************************************
+/**********************************************************************//**
 Performs a fetch for a cursor.
 @return	query thread to run next or NULL */
 UNIV_INTERN
@@ -95,7 +96,7 @@ que_thr_t*
 fetch_step(
 /*=======*/
 	que_thr_t*	thr);	/*!< in: query thread */
-/********************************************************************
+/****************************************************************//**
 Sample callback function for fetch that prints each row.
 @return	always returns non-NULL */
 UNIV_INTERN
@@ -104,7 +105,7 @@ row_fetch_print(
 /*============*/
 	void*	row,		/*!< in:  sel_node_t* */
 	void*	user_arg);	/*!< in:  not used */
-/********************************************************************
+/****************************************************************//**
 Callback function for fetch that stores an unsigned 4 byte integer to the
 location pointed. The column's type must be DATA_INT, DATA_UNSIGNED, length
 = 4.
@@ -115,7 +116,7 @@ row_fetch_store_uint4(
 /*==================*/
 	void*	row,		/*!< in:  sel_node_t* */
 	void*	user_arg);	/*!< in:  data pointer */
-/***************************************************************
+/***********************************************************//**
 Prints a row in a select result.
 @return	query thread to run next or NULL */
 UNIV_INTERN
@@ -123,7 +124,7 @@ que_thr_t*
 row_printf_step(
 /*============*/
 	que_thr_t*	thr);	/*!< in: query thread */
-/********************************************************************
+/****************************************************************//**
 Converts a key value stored in MySQL format to an Innobase dtuple. The last
 field of the key value may be just a prefix of a fixed length field: hence
 the parameter key_len. But currently we do not allow search keys where the
@@ -144,7 +145,7 @@ row_sel_convert_mysql_key_to_innobase(
 	const byte*	key_ptr,	/*!< in: MySQL key value */
 	ulint		key_len,	/*!< in: MySQL key value length */
 	trx_t*		trx);		/*!< in: transaction */
-/************************************************************************
+/********************************************************************//**
 Searches for rows in the database. This is used in the interface to
 MySQL. This function opens a cursor, and also implements fetch next
 and fetch prev. NOTE that if we do a search with a full key value
@@ -173,7 +174,7 @@ row_search_for_mysql(
 					then prebuilt must have a pcur
 					with stored position! In opening of a
 					cursor 'direction' should be 0. */
-/***********************************************************************
+/*******************************************************************//**
 Checks if MySQL at the moment is allowed for this table to retrieve a
 consistent read result, or store it to the query cache.
 @return	TRUE if storing or retrieving from the query cache is permitted */
@@ -184,7 +185,7 @@ row_search_check_if_query_cache_permitted(
 	trx_t*		trx,		/*!< in: transaction object */
 	const char*	norm_name);	/*!< in: concatenation of database name,
 					'/' char, table name */
-/***********************************************************************
+/*******************************************************************//**
 Read the max AUTOINC value from an index.
 @return	DB_SUCCESS if all OK else error code */
 UNIV_INTERN

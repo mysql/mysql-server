@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file eval/eval0eval.c
 SQL evaluator: evaluates simple data structures, like expressions, in
 a query graph
 
@@ -40,7 +41,7 @@ the function below */
 
 static byte	eval_dummy;
 
-/*********************************************************************
+/*****************************************************************//**
 Allocate a buffer from global dynamic memory for a value of a que_node.
 NOTE that this memory must be explicitly freed when the query graph is
 freed. If the node already has an allocated buffer, that buffer is freed
@@ -83,7 +84,7 @@ eval_node_alloc_val_buf(
 	return(data);
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Free the buffer from global dynamic memory for a value of a que_node,
 if it has been allocated in the above function. The freeing for pushed
 column values is done in sel_col_prefetch_buf_free. */
@@ -110,7 +111,7 @@ eval_node_free_val_buf(
 	}
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Evaluates a comparison node.
 @return	the result of the comparison */
 UNIV_INTERN
@@ -169,7 +170,7 @@ eval_cmp(
 	return(val);
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Evaluates a logical operation node. */
 UNIV_INLINE
 void
@@ -210,7 +211,7 @@ eval_logical(
 	eval_node_set_ibool_val(logical_node, val);
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Evaluates an arithmetic operation node. */
 UNIV_INLINE
 void
@@ -254,7 +255,7 @@ eval_arith(
 	eval_node_set_int_val(arith_node, val);
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Evaluates an aggregate operation node. */
 UNIV_INLINE
 void
@@ -288,7 +289,7 @@ eval_aggregate(
 	eval_node_set_int_val(node, val);
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Evaluates a predefined function node where the function is not relevant
 in benchmarks. */
 static
@@ -375,7 +376,7 @@ eval_predefined_2(
 	}
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Evaluates a notfound-function node. */
 UNIV_INLINE
 void
@@ -417,7 +418,7 @@ eval_notfound(
 	eval_node_set_ibool_val(func_node, ibool_val);
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Evaluates a substr-function node. */
 UNIV_INLINE
 void
@@ -450,7 +451,7 @@ eval_substr(
 	dfield_set_data(dfield, str1 + len1, len2);
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Evaluates a replstr-procedure node. */
 static
 void
@@ -490,7 +491,7 @@ eval_replstr(
 	ut_memcpy(str1 + len1, str2, len2);
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Evaluates an instr-function node. */
 static
 void
@@ -562,7 +563,7 @@ match_found:
 	eval_node_set_int_val(func_node, int_val);
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Evaluates a predefined function node. */
 UNIV_INLINE
 void
@@ -600,7 +601,7 @@ eval_binary_to_number(
 	eval_node_copy_and_alloc_val(func_node, str2, 4);
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Evaluates a predefined function node. */
 static
 void
@@ -642,7 +643,7 @@ eval_concat(
 	}
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Evaluates a predefined function node. If the first argument is an integer,
 this function looks at the second argument which is the integer length in
 bytes, and converts the integer to a VARCHAR.
@@ -690,7 +691,7 @@ eval_to_binary(
 	dfield_set_data(dfield, str1 + (4 - len1), len1);
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Evaluates a predefined function node. */
 UNIV_INLINE
 void
@@ -782,7 +783,7 @@ eval_predefined(
 	eval_node_set_int_val(func_node, int_val);
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Evaluates a function node. */
 UNIV_INTERN
 void

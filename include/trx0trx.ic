@@ -16,13 +16,14 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/trx0trx.ic
 The transaction
 
 Created 3/26/1996 Heikki Tuuri
 *******************************************************/
 
-/*****************************************************************
+/*************************************************************//**
 Starts the transaction if it is not yet started. */
 UNIV_INLINE
 void
@@ -38,7 +39,7 @@ trx_start_if_not_started(
 	}
 }
 
-/*****************************************************************
+/*************************************************************//**
 Starts the transaction if it is not yet started. Assumes we have reserved
 the kernel mutex! */
 UNIV_INLINE
@@ -55,7 +56,7 @@ trx_start_if_not_started_low(
 	}
 }
 
-/********************************************************************
+/****************************************************************//**
 Retrieves the error_info field from a trx.
 @return	the error info */
 UNIV_INLINE
@@ -67,7 +68,7 @@ trx_get_error_info(
 	return(trx->error_info);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Retrieves transacion's id, represented as unsigned long long.
 @return	transaction's id */
 UNIV_INLINE
@@ -79,7 +80,7 @@ trx_get_id(
 	return((ullint)ut_conv_dulint_to_longlong(trx->id));
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Retrieves transaction's que state in a human readable string. The string
 should not be free()'d or modified.
 @return	string in the data segment */
@@ -104,7 +105,7 @@ trx_get_que_state_str(
 	}
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Determine if a transaction is a dictionary operation.
 @return	dictionary operation mode */
 UNIV_INLINE
@@ -126,7 +127,7 @@ trx_get_dict_operation(
 #endif /* UNIV_DEBUG */
 	return((enum trx_dict_op) UNIV_EXPECT(op, TRX_DICT_OP_NONE));
 }
-/**************************************************************************
+/**********************************************************************//**
 Flag a transaction a dictionary operation. */
 UNIV_INLINE
 void

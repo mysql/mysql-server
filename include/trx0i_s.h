@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/trx0i_s.h
 INFORMATION SCHEMA innodb_trx, innodb_locks and
 innodb_lock_waits tables cache structures and public
 functions.
@@ -106,7 +107,7 @@ INFORMATION SCHEMA tables is fetched and later retrieved by the C++
 code in handler/i_s.cc. */
 extern trx_i_s_cache_t*	trx_i_s_cache;
 
-/***********************************************************************
+/*******************************************************************//**
 Initialize INFORMATION SCHEMA trx related cache. */
 UNIV_INTERN
 void
@@ -114,7 +115,7 @@ trx_i_s_cache_init(
 /*===============*/
 	trx_i_s_cache_t*	cache);	/*!< out: cache to init */
 
-/***********************************************************************
+/*******************************************************************//**
 Issue a shared/read lock on the tables cache. */
 UNIV_INTERN
 void
@@ -122,7 +123,7 @@ trx_i_s_cache_start_read(
 /*=====================*/
 	trx_i_s_cache_t*	cache);	/*!< in: cache */
 
-/***********************************************************************
+/*******************************************************************//**
 Release a shared/read lock on the tables cache. */
 UNIV_INTERN
 void
@@ -130,7 +131,7 @@ trx_i_s_cache_end_read(
 /*===================*/
 	trx_i_s_cache_t*	cache);	/*!< in: cache */
 
-/***********************************************************************
+/*******************************************************************//**
 Issue an exclusive/write lock on the tables cache. */
 UNIV_INTERN
 void
@@ -138,7 +139,7 @@ trx_i_s_cache_start_write(
 /*======================*/
 	trx_i_s_cache_t*	cache);	/*!< in: cache */
 
-/***********************************************************************
+/*******************************************************************//**
 Release an exclusive/write lock on the tables cache. */
 UNIV_INTERN
 void
@@ -147,7 +148,7 @@ trx_i_s_cache_end_write(
 	trx_i_s_cache_t*	cache);	/*!< in: cache */
 
 
-/***********************************************************************
+/*******************************************************************//**
 Retrieves the number of used rows in the cache for a given
 INFORMATION SCHEMA table.
 @return	number of rows */
@@ -158,7 +159,7 @@ trx_i_s_cache_get_rows_used(
 	trx_i_s_cache_t*	cache,	/*!< in: cache */
 	enum i_s_table		table);	/*!< in: which table */
 
-/***********************************************************************
+/*******************************************************************//**
 Retrieves the nth row in the cache for a given INFORMATION SCHEMA
 table.
 @return	row */
@@ -170,7 +171,7 @@ trx_i_s_cache_get_nth_row(
 	enum i_s_table		table,	/*!< in: which table */
 	ulint			n);	/*!< in: row number */
 
-/***********************************************************************
+/*******************************************************************//**
 Update the transactions cache if it has not been read for some time.
 @return	0 - fetched, 1 - not */
 UNIV_INTERN
@@ -179,7 +180,7 @@ trx_i_s_possibly_fetch_data_into_cache(
 /*===================================*/
 	trx_i_s_cache_t*	cache);	/*!< in/out: cache */
 
-/***********************************************************************
+/*******************************************************************//**
 Returns TRUE if the data in the cache is truncated due to the memory
 limit posed by TRX_I_S_MEM_LIMIT.
 @return	TRUE if truncated */
@@ -194,7 +195,7 @@ trx_i_s_create_lock_id(), not including the terminating '\0'.
 ":%lu:%lu:%lu" -> 63 chars */
 #define TRX_I_S_LOCK_ID_MAX_LEN	(TRX_ID_MAX_LEN + 63)
 
-/***********************************************************************
+/*******************************************************************//**
 Crafts a lock id string from a i_s_locks_row_t object. Returns its
 second argument. This function aborts if there is not enough space in
 lock_id. Be sure to provide at least TRX_I_S_LOCK_ID_MAX_LEN + 1 if you

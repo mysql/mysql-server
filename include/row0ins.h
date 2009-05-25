@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/row0ins.h
 Insert into a table
 
 Created 4/20/1996 Heikki Tuuri
@@ -32,7 +33,7 @@ Created 4/20/1996 Heikki Tuuri
 #include "trx0types.h"
 #include "row0types.h"
 
-/*******************************************************************
+/***************************************************************//**
 Checks if foreign key constraint fails for an index entry. Sets shared locks
 which lock either the success or the failure of the constraint. NOTE that
 the caller must have a shared latch on dict_foreign_key_check_lock.
@@ -52,7 +53,7 @@ row_ins_check_foreign_constraint(
 				table, else the referenced table */
 	dtuple_t*	entry,	/*!< in: index entry for index */
 	que_thr_t*	thr);	/*!< in: query thread */
-/*************************************************************************
+/*********************************************************************//**
 Creates an insert node struct.
 @return	own: insert node struct */
 UNIV_INTERN
@@ -62,7 +63,7 @@ ins_node_create(
 	ulint		ins_type,	/*!< in: INS_VALUES, ... */
 	dict_table_t*	table,		/*!< in: table where to insert */
 	mem_heap_t*	heap);		/*!< in: mem heap where created */
-/*************************************************************************
+/*********************************************************************//**
 Sets a new row to insert for an INS_DIRECT node. This function is only used
 if we have constructed the row separately, which is a rare case; this
 function is quite slow. */
@@ -72,7 +73,7 @@ ins_node_set_new_row(
 /*=================*/
 	ins_node_t*	node,	/*!< in: insert node */
 	dtuple_t*	row);	/*!< in: new row (or first row) for the node */
-/*******************************************************************
+/***************************************************************//**
 Inserts an index entry to index. Tries first optimistic, then pessimistic
 descent down the tree. If the entry matches enough to a delete marked record,
 performs the insert by updating or delete unmarking the delete marked
@@ -87,7 +88,7 @@ row_ins_index_entry(
 	ulint		n_ext,	/*!< in: number of externally stored columns */
 	ibool		foreign,/*!< in: TRUE=check foreign key constraints */
 	que_thr_t*	thr);	/*!< in: query thread */
-/***************************************************************
+/***********************************************************//**
 Inserts a row to a table. This is a high-level function used in
 SQL execution graphs.
 @return	query thread to run next or NULL */
@@ -96,7 +97,7 @@ que_thr_t*
 row_ins_step(
 /*=========*/
 	que_thr_t*	thr);	/*!< in: query thread */
-/***************************************************************
+/***********************************************************//**
 Creates an entry template for each index of a table. */
 UNIV_INTERN
 void

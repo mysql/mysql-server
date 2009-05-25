@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/dict0boot.h
 Data dictionary creation and booting
 
 Created 4/18/1996 Heikki Tuuri
@@ -36,7 +37,7 @@ Created 4/18/1996 Heikki Tuuri
 
 typedef	byte	dict_hdr_t;
 
-/**************************************************************************
+/**********************************************************************//**
 Gets a pointer to the dictionary header and x-latches its page.
 @return	pointer to the dictionary header, page x-latched */
 UNIV_INTERN
@@ -44,7 +45,7 @@ dict_hdr_t*
 dict_hdr_get(
 /*=========*/
 	mtr_t*	mtr);	/*!< in: mtr */
-/**************************************************************************
+/**********************************************************************//**
 Returns a new row, table, index, or tree id.
 @return	the new id */
 UNIV_INTERN
@@ -52,14 +53,14 @@ dulint
 dict_hdr_get_new_id(
 /*================*/
 	ulint	type);	/*!< in: DICT_HDR_ROW_ID, ... */
-/**************************************************************************
+/**********************************************************************//**
 Returns a new row id.
 @return	the new id */
 UNIV_INLINE
 dulint
 dict_sys_get_new_row_id(void);
 /*=========================*/
-/**************************************************************************
+/**********************************************************************//**
 Reads a row id from a record or other 6-byte stored form.
 @return	row id */
 UNIV_INLINE
@@ -67,7 +68,7 @@ dulint
 dict_sys_read_row_id(
 /*=================*/
 	byte*	field);	/*!< in: record field */
-/**************************************************************************
+/**********************************************************************//**
 Writes a row id to a record or other 6-byte stored form. */
 UNIV_INLINE
 void
@@ -75,14 +76,14 @@ dict_sys_write_row_id(
 /*==================*/
 	byte*	field,	/*!< in: record field */
 	dulint	row_id);/*!< in: row id */
-/*********************************************************************
+/*****************************************************************//**
 Initializes the data dictionary memory structures when the database is
 started. This function is also called when the data dictionary is created. */
 UNIV_INTERN
 void
 dict_boot(void);
 /*===========*/
-/*********************************************************************
+/*****************************************************************//**
 Creates and initializes the data dictionary at the database creation. */
 UNIV_INTERN
 void

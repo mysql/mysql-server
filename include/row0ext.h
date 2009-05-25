@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/row0ext.h
 Caching of externally stored column prefixes
 
 Created September 2006 Marko Makela
@@ -30,7 +31,7 @@ Created September 2006 Marko Makela
 #include "data0types.h"
 #include "mem0mem.h"
 
-/************************************************************************
+/********************************************************************//**
 Creates a cache of column prefixes of externally stored columns.
 @return	own: column prefix cache */
 UNIV_INTERN
@@ -51,7 +52,7 @@ row_ext_create(
 	ulint		zip_size,/*!< compressed page size in bytes, or 0 */
 	mem_heap_t*	heap);	/*!< in: heap where created */
 
-/************************************************************************
+/********************************************************************//**
 Looks up a column prefix of an externally stored column.
 @return column prefix, or NULL if the column is not stored externally,
 or pointer to field_ref_zero if the BLOB pointer is unset */
@@ -63,7 +64,7 @@ row_ext_lookup_ith(
 	ulint			i,	/*!< in: index of ext->ext[] */
 	ulint*			len);	/*!< out: length of prefix, in bytes,
 					at most REC_MAX_INDEX_COL_LEN */
-/************************************************************************
+/********************************************************************//**
 Looks up a column prefix of an externally stored column.
 @return column prefix, or NULL if the column is not stored externally,
 or pointer to field_ref_zero if the BLOB pointer is unset */

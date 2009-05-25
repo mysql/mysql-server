@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file row/row0purge.c
 Purge obsolete records
 
 Created 3/14/1997 Heikki Tuuri
@@ -43,7 +44,7 @@ Created 3/14/1997 Heikki Tuuri
 #include "row0mysql.h"
 #include "log0log.h"
 
-/************************************************************************
+/********************************************************************//**
 Creates a purge node to a query graph.
 @return	own: purge node */
 UNIV_INTERN
@@ -67,7 +68,7 @@ row_purge_node_create(
 	return(node);
 }
 
-/***************************************************************
+/***********************************************************//**
 Repositions the pcur in the purge node on the clustered index record,
 if found.
 @return	TRUE if the record was found */
@@ -98,7 +99,7 @@ row_purge_reposition_pcur(
 	return(found);
 }
 
-/***************************************************************
+/***********************************************************//**
 Removes a delete marked clustered index record if possible.
 @return TRUE if success, or if not found, or if modified after the
 delete marking */
@@ -177,7 +178,7 @@ row_purge_remove_clust_if_poss_low(
 	return(success);
 }
 
-/***************************************************************
+/***********************************************************//**
 Removes a clustered index record if it has not been modified after the delete
 marking. */
 static
@@ -213,7 +214,7 @@ retry:
 	ut_a(success);
 }
 
-/***************************************************************
+/***********************************************************//**
 Removes a secondary index entry if possible.
 @return	TRUE if success or if not found */
 static
@@ -298,7 +299,7 @@ row_purge_remove_sec_if_poss_low(
 	return(success);
 }
 
-/***************************************************************
+/***********************************************************//**
 Removes a secondary index entry if possible. */
 UNIV_INLINE
 void
@@ -338,7 +339,7 @@ retry:
 	ut_a(success);
 }
 
-/***************************************************************
+/***********************************************************//**
 Purges a delete marking of a record. */
 static
 void
@@ -370,7 +371,7 @@ row_purge_del_mark(
 	row_purge_remove_clust_if_poss(node);
 }
 
-/***************************************************************
+/***********************************************************//**
 Purges an update of an existing record. Also purges an update of a delete
 marked record if that record contained an externally stored field. */
 static
@@ -484,7 +485,7 @@ skip_secondaries:
 	}
 }
 
-/***************************************************************
+/***********************************************************//**
 Parses the row reference and other info in a modify undo log record.
 @return TRUE if purge operation required: NOTE that then the CALLER
 must unfreeze data dictionary! */
@@ -587,7 +588,7 @@ err_exit:
 	return(TRUE);
 }
 
-/***************************************************************
+/***********************************************************//**
 Fetches an undo log record and does the purge for the recorded operation.
 If none left, or the current purge completed, returns the control to the
 parent node, which is always a query thread node.
@@ -661,7 +662,7 @@ row_purge(
 	return(DB_SUCCESS);
 }
 
-/***************************************************************
+/***********************************************************//**
 Does the purge operation for a single undo log record. This is a high-level
 function used in an SQL execution graph.
 @return	query thread to run next or NULL */

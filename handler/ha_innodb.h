@@ -252,7 +252,8 @@ void thd_mark_transaction_to_rollback(MYSQL_THD thd, bool all);
 }
 
 typedef struct trx_struct trx_t;
-/************************************************************************
+/********************************************************************//**
+@file handler/ha_innodb.h
 Converts an InnoDB error code to a MySQL error code and also tells to MySQL
 about a possible transaction rollback inside InnoDB caused by a lock wait
 timeout or a deadlock.
@@ -265,7 +266,7 @@ convert_error_code_to_mysql(
 	ulint		flags,	/*!< in: InnoDB table flags, or 0 */
 	MYSQL_THD	thd);	/*!< in: user thread handle or NULL */
 
-/*************************************************************************
+/*********************************************************************//**
 Allocates an InnoDB transaction for a MySQL handler object.
 @return	InnoDB transaction handle */
 extern "C"

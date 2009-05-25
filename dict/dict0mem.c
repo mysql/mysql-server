@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/**********************************************************************
+/******************************************************************//**
+@file dict/dict0mem.c
 Data dictionary memory object creation
 
 Created 1/8/1996 Heikki Tuuri
@@ -39,7 +40,7 @@ Created 1/8/1996 Heikki Tuuri
 #define	DICT_HEAP_SIZE		100	/* initial memory heap size when
 					creating a table or index object */
 
-/**************************************************************************
+/**********************************************************************//**
 Creates a table memory object.
 @return	own: table object */
 UNIV_INTERN
@@ -90,7 +91,7 @@ dict_mem_table_create(
 	return(table);
 }
 
-/********************************************************************
+/****************************************************************//**
 Free a table memory object. */
 UNIV_INTERN
 void
@@ -106,7 +107,7 @@ dict_mem_table_free(
 	mem_heap_free(table->heap);
 }
 
-/********************************************************************
+/****************************************************************//**
 Append 'name' to 'col_names' (@see dict_table_t::col_names).
 @return	new column names array */
 static
@@ -154,7 +155,7 @@ dict_add_col_name(
 	return(res);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Adds a column definition to a table. */
 UNIV_INTERN
 void
@@ -211,7 +212,7 @@ dict_mem_table_add_col(
 #endif /* !UNIV_HOTBACKUP */
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Creates an index memory object.
 @return	own: index object */
 UNIV_INTERN
@@ -254,7 +255,7 @@ dict_mem_index_create(
 	return(index);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Creates and initializes a foreign constraint memory object.
 @return	own: foreign constraint struct */
 UNIV_INTERN
@@ -274,7 +275,7 @@ dict_mem_foreign_create(void)
 	return(foreign);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Adds a field definition to an index. NOTE: does not take a copy
 of the column name if the field is a column. The memory occupied
 by the column name may be released only after publishing the index. */
@@ -301,7 +302,7 @@ dict_mem_index_add_field(
 	field->prefix_len = (unsigned int) prefix_len;
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Frees an index memory object. */
 UNIV_INTERN
 void

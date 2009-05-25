@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/mtr0log.ic
 Mini-transaction logging routines
 
 Created 12/7/1995 Heikki Tuuri
@@ -27,7 +28,7 @@ Created 12/7/1995 Heikki Tuuri
 #include "ut0lst.h"
 #include "buf0buf.h"
 
-/************************************************************
+/********************************************************//**
 Opens a buffer to mlog. It must be closed with mlog_close.
 @return	buffer, NULL if log mode MTR_LOG_NONE */
 UNIV_INLINE
@@ -52,7 +53,7 @@ mlog_open(
 	return(dyn_array_open(mlog, size));
 }
 
-/************************************************************
+/********************************************************//**
 Closes a buffer opened to mlog. */
 UNIV_INLINE
 void
@@ -70,7 +71,7 @@ mlog_close(
 	dyn_array_close(mlog, ptr);
 }
 
-/************************************************************
+/********************************************************//**
 Catenates 1 - 4 bytes to the mtr log. The value is not compressed. */
 UNIV_INLINE
 void
@@ -114,7 +115,7 @@ mlog_catenate_ulint(
 	}
 }
 
-/************************************************************
+/********************************************************//**
 Catenates a compressed ulint to mlog. */
 UNIV_INLINE
 void
@@ -138,7 +139,7 @@ mlog_catenate_ulint_compressed(
 	mlog_close(mtr, log_ptr);
 }
 
-/************************************************************
+/********************************************************//**
 Catenates a compressed dulint to mlog. */
 UNIV_INLINE
 void
@@ -162,7 +163,7 @@ mlog_catenate_dulint_compressed(
 	mlog_close(mtr, log_ptr);
 }
 
-/************************************************************
+/********************************************************//**
 Writes the initial part of a log record (3..11 bytes).
 If the implementation of this function is changed, all
 size parameters to mlog_open() should be adjusted accordingly!
@@ -219,7 +220,7 @@ mlog_write_initial_log_record_fast(
 	return(log_ptr);
 }
 
-/************************************************************
+/********************************************************//**
 Writes a log record about an .ibd file create/delete/rename.
 @return	new value of log_ptr */
 UNIV_INLINE
