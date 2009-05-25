@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/ha0storage.h
 Hash storage.
 Provides a data structure that stores chunks of data in
 its own storage, avoiding duplicates.
@@ -39,7 +40,7 @@ constant per ha_storage's lifetime. */
 
 typedef struct ha_storage_struct	ha_storage_t;
 
-/***********************************************************************
+/*******************************************************************//**
 Creates a hash storage. If any of the parameters is 0, then a default
 value is used.
 @return	own: hash storage */
@@ -51,7 +52,7 @@ ha_storage_create(
 	ulint	initial_hash_cells);	/*!< in: initial number of cells
 					in the hash table */
 
-/***********************************************************************
+/*******************************************************************//**
 Copies data into the storage and returns a pointer to the copy. If the
 same data chunk is already present, then pointer to it is returned.
 Data chunks are considered to be equal if len1 == len2 and
@@ -70,13 +71,13 @@ ha_storage_put_memlim(
 	ulint		data_len,	/*!< in: data length */
 	ulint		memlim);	/*!< in: memory limit to obey */
 
-/***********************************************************************
+/*******************************************************************//**
 Same as ha_storage_put_memlim() but without memory limit. */
 
 #define ha_storage_put(storage, data, data_len)	\
 	ha_storage_put_memlim((storage), (data), (data_len), 0)
 
-/***********************************************************************
+/*******************************************************************//**
 Copies string into the storage and returns a pointer to the copy. If the
 same string is already present, then pointer to it is returned.
 Strings are considered to be equal if strcmp(str1, str2) == 0. */
@@ -84,7 +85,7 @@ Strings are considered to be equal if strcmp(str1, str2) == 0. */
 #define ha_storage_put_str(storage, str)	\
 	((const char*) ha_storage_put((storage), (str), strlen(str) + 1))
 
-/***********************************************************************
+/*******************************************************************//**
 Copies string into the storage and returns a pointer to the copy obeying
 a memory limit. */
 
@@ -92,7 +93,7 @@ a memory limit. */
 	((const char*) ha_storage_put_memlim((storage), (str),	\
 					     strlen(str) + 1, (memlim)))
 
-/***********************************************************************
+/*******************************************************************//**
 Empties a hash storage, freeing memory occupied by data chunks.
 This invalidates any pointers previously returned by ha_storage_put().
 The hash storage is not invalidated itself and can be used again. */
@@ -102,7 +103,7 @@ ha_storage_empty(
 /*=============*/
 	ha_storage_t**	storage);	/*!< in/out: hash storage */
 
-/***********************************************************************
+/*******************************************************************//**
 Frees a hash storage and everything it contains, it cannot be used after
 this call.
 This invalidates any pointers previously returned by ha_storage_put(). */
@@ -112,7 +113,7 @@ ha_storage_free(
 /*============*/
 	ha_storage_t*	storage);	/*!< in, own: hash storage */
 
-/***********************************************************************
+/*******************************************************************//**
 Gets the size of the memory used by a storage.
 @return	bytes used */
 UNIV_INLINE

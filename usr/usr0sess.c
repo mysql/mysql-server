@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file usr/usr0sess.c
 Sessions
 
 Created 6/25/1996 Heikki Tuuri
@@ -30,7 +31,7 @@ Created 6/25/1996 Heikki Tuuri
 
 #include "trx0trx.h"
 
-/*************************************************************************
+/*********************************************************************//**
 Closes a session, freeing the memory occupied by it. */
 static
 void
@@ -38,7 +39,7 @@ sess_close(
 /*=======*/
 	sess_t*		sess);	/*!< in, own: session object */
 
-/*************************************************************************
+/*********************************************************************//**
 Opens a session.
 @return	own: session object */
 UNIV_INTERN
@@ -61,7 +62,7 @@ sess_open(void)
 	return(sess);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Closes a session, freeing the memory occupied by it. */
 static
 void
@@ -75,7 +76,7 @@ sess_close(
 	mem_free(sess);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Closes a session, freeing the memory occupied by it, if it is in a state
 where it should be closed.
 @return	TRUE if closed */

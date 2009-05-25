@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/*********************************************************************
+/*****************************************************************//**
+@file include/ut0dbg.h
 Debug utilities for Innobase
 
 Created 1/30/1994 Heikki Tuuri
@@ -37,7 +38,7 @@ extern ulint	ut_dbg_zero; /* This is used to eliminate
 # define UT_DBG_FAIL(EXPR) !((ulint)(EXPR) + ut_dbg_zero)
 #endif
 
-/*****************************************************************
+/*************************************************************//**
 Report a failed assertion. */
 UNIV_INTERN
 void
@@ -73,7 +74,7 @@ extern ulint*	ut_dbg_null_ptr;
 by ut_dbg_assertion_failed(). */
 extern ibool	ut_dbg_stop_threads;
 
-/*****************************************************************
+/*************************************************************//**
 Stop a thread after assertion failure. */
 UNIV_INTERN
 void
@@ -138,7 +139,7 @@ typedef struct speedo_struct {
 	struct timeval	tv;
 } speedo_t;
 
-/***********************************************************************
+/*******************************************************************//**
 Resets a speedo (records the current time in it). */
 UNIV_INTERN
 void
@@ -146,7 +147,7 @@ speedo_reset(
 /*=========*/
 	speedo_t*	speedo);	/*!< out: speedo */
 
-/***********************************************************************
+/*******************************************************************//**
 Shows the time elapsed and usage statistics since the last reset of a
 speedo. */
 UNIV_INTERN

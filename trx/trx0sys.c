@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file trx/trx0sys.c
 Transaction system
 
 Created 3/26/1996 Heikki Tuuri
@@ -120,7 +121,7 @@ updated via SET GLOBAL innodb_file_format_check = 'x' or when we open
 or create a table. */
 static	file_format_t	file_format_max;
 
-/********************************************************************
+/****************************************************************//**
 Determines if a page number is located inside the doublewrite buffer.
 @return TRUE if the location is inside the two blocks of the
 doublewrite buffer */
@@ -150,7 +151,7 @@ trx_doublewrite_page_inside(
 	return(FALSE);
 }
 
-/********************************************************************
+/****************************************************************//**
 Creates or initialializes the doublewrite buffer at a database start. */
 static
 void
@@ -184,7 +185,7 @@ trx_doublewrite_init(
 		2 * TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * sizeof(void*));
 }
 
-/********************************************************************
+/****************************************************************//**
 Marks the trx sys header when we have successfully upgraded to the >= 4.1.x
 multiple tablespace format. */
 UNIV_INTERN
@@ -219,7 +220,7 @@ trx_sys_mark_upgraded_to_multiple_tablespaces(void)
 	trx_sys_multiple_tablespace_format = TRUE;
 }
 
-/********************************************************************
+/****************************************************************//**
 Creates the doublewrite buffer to a new InnoDB installation. The header of the
 doublewrite buffer is placed on the trx system header page. */
 UNIV_INTERN
@@ -392,7 +393,7 @@ start_again:
 	}
 }
 
-/********************************************************************
+/****************************************************************//**
 At a database startup initializes the doublewrite buffer memory structure if
 we already have a doublewrite buffer created in the data files. If we are
 upgrading to an InnoDB version which supports multiple tablespaces, then this
@@ -604,7 +605,7 @@ leave_func:
 	ut_free(unaligned_read_buf);
 }
 
-/********************************************************************
+/****************************************************************//**
 Checks that trx is in the trx list.
 @return	TRUE if is in */
 UNIV_INTERN
@@ -632,7 +633,7 @@ trx_in_trx_list(
 	return(FALSE);
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Writes the value of max_trx_id to the file based trx system header. */
 UNIV_INTERN
 void
@@ -653,7 +654,7 @@ trx_sys_flush_max_trx_id(void)
 	mtr_commit(&mtr);
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Updates the offset information about the end of the MySQL binlog entry
 which corresponds to the transaction just being committed. In a MySQL
 replication slave updates the latest master binlog position up to which
@@ -714,7 +715,7 @@ trx_sys_update_mysql_binlog_offset(
 			 MLOG_4BYTES, mtr);
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Stores the MySQL binlog offset info in the trx system header if
 the magic number shows it valid, and print the info to stderr */
 UNIV_INTERN
@@ -764,7 +765,7 @@ trx_sys_print_mysql_binlog_offset(void)
 	mtr_commit(&mtr);
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Prints to stderr the MySQL master log offset info in the trx system header if
 the magic number shows it valid. */
 UNIV_INTERN
@@ -818,7 +819,7 @@ trx_sys_print_mysql_master_log_pos(void)
 	mtr_commit(&mtr);
 }
 
-/********************************************************************
+/****************************************************************//**
 Looks for a free slot for a rollback segment in the trx system file copy.
 @return	slot index or ULINT_UNDEFINED if not found */
 UNIV_INTERN
@@ -848,7 +849,7 @@ trx_sysf_rseg_find_free(
 	return(ULINT_UNDEFINED);
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Creates the file page for the transaction system. This function is called only
 at the database creation, before trx_sys_init. */
 static
@@ -925,7 +926,7 @@ trx_sysf_create(
 	mutex_exit(&kernel_mutex);
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Creates and initializes the central memory structures for the transaction
 system. This is called when the database is started. */
 UNIV_INTERN
@@ -1013,7 +1014,7 @@ trx_sys_init_at_db_start(void)
 	mtr_commit(&mtr);
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Creates and initializes the transaction system at the database creation. */
 UNIV_INTERN
 void
@@ -1031,7 +1032,7 @@ trx_sys_create(void)
 	trx_sys_init_at_db_start();
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Update the file format tag.
 @return	always TRUE */
 static
@@ -1073,7 +1074,7 @@ trx_sys_file_format_max_write(
 	return(TRUE);
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Read the file format tag.
 @return	the file format or ULINT_UNDEFINED if not set. */
 static
@@ -1111,7 +1112,7 @@ trx_sys_file_format_max_read(void)
 	return(format_id);
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Get the name representation of the file format from its id.
 @return	pointer to the name */
 UNIV_INTERN
@@ -1125,7 +1126,7 @@ trx_sys_file_format_id_to_name(
 	return(file_format_name_map[id]);
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Check for the max file format tag stored on disk. Note: If max_format_id
 is == DICT_TF_FORMAT_MAX + 1 then we only print a warning.
 @return	DB_SUCCESS or error code */
@@ -1179,7 +1180,7 @@ trx_sys_file_format_max_check(
 	return(DB_SUCCESS);
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Set the file format id unconditionally except if it's already the
 same value.
 @return	TRUE if value updated */
@@ -1208,7 +1209,7 @@ trx_sys_file_format_max_set(
 	return(ret);
 }
 
-/************************************************************************
+/********************************************************************//**
 Tags the system table space with minimum format id if it has not been
 tagged yet.
 WARNING: This function is only called during the startup and AFTER the
@@ -1228,7 +1229,7 @@ trx_sys_file_format_tag_init(void)
 	}
 }
 
-/************************************************************************
+/********************************************************************//**
 Update the file format tag in the system tablespace only if the given
 format id is greater than the known max id.
 @return	TRUE if format_id was bigger than the known max id */
@@ -1257,7 +1258,7 @@ trx_sys_file_format_max_upgrade(
 	return(ret);
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Get the name representation of the file format from its id.
 @return	pointer to the max format name */
 UNIV_INTERN
@@ -1268,7 +1269,7 @@ trx_sys_file_format_max_get(void)
 	return(file_format_max.name);
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Initializes the tablespace tag system. */
 UNIV_INTERN
 void
@@ -1285,7 +1286,7 @@ trx_sys_file_format_init(void)
 		file_format_max.id);
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Closes the tablespace tag system. */
 UNIV_INTERN
 void
@@ -1295,7 +1296,7 @@ trx_sys_file_format_close(void)
 	/* Does nothing at the moment */
 }
 #else /* !UNIV_HOTBACKUP */
-/*********************************************************************
+/*****************************************************************//**
 Prints to stderr the MySQL binlog info in the system header if the
 magic number shows it valid. */
 UNIV_INTERN

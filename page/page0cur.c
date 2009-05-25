@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/************************************************************************
+/********************************************************************//**
+@file page/page0cur.c
 The page cursor
 
 Created 10/4/1994 Heikki Tuuri
@@ -39,7 +40,7 @@ Created 10/4/1994 Heikki Tuuri
 static ulint	page_cur_short_succ	= 0;
 # endif /* UNIV_SEARCH_PERF_STAT */
 
-/***********************************************************************
+/*******************************************************************//**
 This is a linear congruential generator PRNG. Returns a pseudo random
 number between 0 and 2^64-1 inclusive. The formula and the constants
 being used are:
@@ -73,7 +74,7 @@ page_cur_lcg_prng(void)
 	return(lcg_current);
 }
 
-/********************************************************************
+/****************************************************************//**
 Tries a search shortcut based on the last insert.
 @return	TRUE on success */
 UNIV_INLINE
@@ -188,7 +189,7 @@ exit_func:
 #endif
 
 #ifdef PAGE_CUR_LE_OR_EXTENDS
-/********************************************************************
+/****************************************************************//**
 Checks if the nth field in a record is a character type field which extends
 the nth field in tuple, i.e., the field is longer or equal in length and has
 common first characters.
@@ -238,7 +239,7 @@ page_cur_rec_field_extends(
 }
 #endif /* PAGE_CUR_LE_OR_EXTENDS */
 
-/********************************************************************
+/****************************************************************//**
 Searches the right position for a page cursor. */
 UNIV_INTERN
 void
@@ -536,7 +537,7 @@ up_rec_match:
 	}
 }
 
-/***************************************************************
+/***********************************************************//**
 Positions a page cursor on a randomly chosen user record on a page. If there
 are no user records, sets the cursor on the infimum record. */
 UNIV_INTERN
@@ -563,7 +564,7 @@ page_cur_open_on_rnd_user_rec(
 	} while (rnd--);
 }
 
-/***************************************************************
+/***********************************************************//**
 Writes the log record of a record insert on a page. */
 static
 void
@@ -748,7 +749,7 @@ need_extra_info:
 # define page_cur_insert_rec_write_log(ins_rec,size,cur,index,mtr) ((void) 0)
 #endif /* !UNIV_HOTBACKUP */
 
-/***************************************************************
+/***********************************************************//**
 Parses a log record of a record insert on a page.
 @return	end of log record or NULL */
 UNIV_INTERN
@@ -939,7 +940,7 @@ page_cur_parse_insert_rec(
 	return(ptr + end_seg_len);
 }
 
-/***************************************************************
+/***********************************************************//**
 Inserts a record next to page cursor on an uncompressed page.
 Returns pointer to inserted record if succeed, i.e., enough
 space available, NULL otherwise. The cursor stays at the same position.
@@ -1151,7 +1152,7 @@ use_heap:
 	return(insert_rec);
 }
 
-/***************************************************************
+/***********************************************************//**
 Compresses or reorganizes a page after an optimistic insert.
 @return	rec if succeed, NULL otherwise */
 static
@@ -1201,7 +1202,7 @@ page_cur_insert_rec_zip_reorg(
 	return(NULL);
 }
 
-/***************************************************************
+/***********************************************************//**
 Inserts a record next to page cursor on a compressed and uncompressed
 page. Returns pointer to inserted record if succeed, i.e.,
 enough space available, NULL otherwise.
@@ -1499,7 +1500,7 @@ use_heap:
 }
 
 #ifndef UNIV_HOTBACKUP
-/**************************************************************
+/**********************************************************//**
 Writes a log record of copying a record list end to a new created page.
 @return 4-byte field where to write the log data length, or NULL if
 logging is disabled */
@@ -1527,7 +1528,7 @@ page_copy_rec_list_to_created_page_write_log(
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/**************************************************************
+/**********************************************************//**
 Parses a log record of copying a record list end to a new created page.
 @return	end of log record or NULL */
 UNIV_INTERN
@@ -1584,7 +1585,7 @@ page_parse_copy_rec_list_to_created_page(
 }
 
 #ifndef UNIV_HOTBACKUP
-/*****************************************************************
+/*************************************************************//**
 Copies records from page to a newly created page, from a given record onward,
 including that record. Infimum and supremum records are not copied. */
 UNIV_INTERN
@@ -1757,7 +1758,7 @@ page_copy_rec_list_end_to_created_page(
 	mtr_set_log_mode(mtr, log_mode);
 }
 
-/***************************************************************
+/***********************************************************//**
 Writes log record of a record delete on a page. */
 UNIV_INLINE
 void
@@ -1791,7 +1792,7 @@ page_cur_delete_rec_write_log(
 # define page_cur_delete_rec_write_log(rec,index,mtr) ((void) 0)
 #endif /* !UNIV_HOTBACKUP */
 
-/***************************************************************
+/***********************************************************//**
 Parses log record of a record delete on a page.
 @return	pointer to record end or NULL */
 UNIV_INTERN
@@ -1840,7 +1841,7 @@ page_cur_parse_delete_rec(
 	return(ptr);
 }
 
-/***************************************************************
+/***********************************************************//**
 Deletes a record at the page cursor. The cursor is moved to the next
 record after the deleted one. */
 UNIV_INTERN
@@ -1960,7 +1961,7 @@ page_cur_delete_rec(
 
 #ifdef UNIV_COMPILE_TEST_FUNCS
 
-/***********************************************************************
+/*******************************************************************//**
 Print the first n numbers, generated by page_cur_lcg_prng() to make sure
 (visually) that it works properly. */
 void

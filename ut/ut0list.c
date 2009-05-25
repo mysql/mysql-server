@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/***********************************************************************
+/*******************************************************************//**
+@file ut/ut0list.c
 A double-linked list
 
 Created 4/26/2006 Osku Salerma
@@ -27,7 +28,7 @@ Created 4/26/2006 Osku Salerma
 #include "ut0list.ic"
 #endif
 
-/********************************************************************
+/****************************************************************//**
 Create a new list.
 @return	list */
 UNIV_INTERN
@@ -44,7 +45,7 @@ ib_list_create(void)
 	return(list);
 }
 
-/********************************************************************
+/****************************************************************//**
 Create a new list using the given heap. ib_list_free MUST NOT BE CALLED for
 lists created with this function.
 @return	list */
@@ -63,7 +64,7 @@ ib_list_create_heap(
 	return(list);
 }
 
-/********************************************************************
+/****************************************************************//**
 Free a list. */
 UNIV_INTERN
 void
@@ -80,7 +81,7 @@ ib_list_free(
 	mem_free(list);
 }
 
-/********************************************************************
+/****************************************************************//**
 Add the data to the start of the list.
 @return	new list node */
 UNIV_INTERN
@@ -94,7 +95,7 @@ ib_list_add_first(
 	return(ib_list_add_after(list, ib_list_get_first(list), data, heap));
 }
 
-/********************************************************************
+/****************************************************************//**
 Add the data to the end of the list.
 @return	new list node */
 UNIV_INTERN
@@ -108,7 +109,7 @@ ib_list_add_last(
 	return(ib_list_add_after(list, ib_list_get_last(list), data, heap));
 }
 
-/********************************************************************
+/****************************************************************//**
 Add the data after the indicated node.
 @return	new list node */
 UNIV_INTERN
@@ -162,7 +163,7 @@ ib_list_add_after(
 	return(node);
 }
 
-/********************************************************************
+/****************************************************************//**
 Remove the node from the list. */
 UNIV_INTERN
 void

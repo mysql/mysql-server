@@ -23,7 +23,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/srv0srv.h
 The server main program
 
 Created 10/10/1995 Heikki Tuuri
@@ -338,47 +339,47 @@ enum srv_thread_type {
 			be biggest) */
 };
 
-/*************************************************************************
+/*********************************************************************//**
 Boots Innobase server.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
 ulint
 srv_boot(void);
 /*==========*/
-/*************************************************************************
+/*********************************************************************//**
 Initializes the server. */
 UNIV_INTERN
 void
 srv_init(void);
 /*==========*/
-/*************************************************************************
+/*********************************************************************//**
 Frees the OS fast mutex created in srv_boot(). */
 UNIV_INTERN
 void
 srv_free(void);
 /*==========*/
-/*************************************************************************
+/*********************************************************************//**
 Initializes the synchronization primitives, memory system, and the thread
 local storage. */
 UNIV_INTERN
 void
 srv_general_init(void);
 /*==================*/
-/*************************************************************************
+/*********************************************************************//**
 Gets the number of threads in the system.
 @return	sum of srv_n_threads[] */
 UNIV_INTERN
 ulint
 srv_get_n_threads(void);
 /*===================*/
-/*************************************************************************
+/*********************************************************************//**
 Returns the calling thread type.
 @return	SRV_COM, ... */
 
 enum srv_thread_type
 srv_get_thread_type(void);
 /*=====================*/
-/*************************************************************************
+/*********************************************************************//**
 Sets the info describing an i/o thread current state. */
 UNIV_INTERN
 void
@@ -387,7 +388,7 @@ srv_set_io_thread_op_info(
 	ulint		i,	/*!< in: the 'segment' of the i/o thread */
 	const char*	str);	/*!< in: constant char string describing the
 				state */
-/*************************************************************************
+/*********************************************************************//**
 Releases threads of the type given from suspension in the thread table.
 NOTE! The server mutex has to be reserved by the caller!
 @return number of threads released: this may be less than n if not
@@ -398,7 +399,7 @@ srv_release_threads(
 /*================*/
 	enum srv_thread_type	type,	/*!< in: thread type */
 	ulint			n);	/*!< in: number of threads to release */
-/*************************************************************************
+/*********************************************************************//**
 The master thread controlling the server.
 @return	a dummy parameter */
 UNIV_INTERN
@@ -407,7 +408,7 @@ srv_master_thread(
 /*==============*/
 	void*	arg);	/*!< in: a dummy parameter required by
 			os_thread_create */
-/***********************************************************************
+/*******************************************************************//**
 Tells the Innobase server that there has been activity in the database
 and wakes up the master thread if it is suspended (not sleeping). Used
 in the MySQL interface. Note that there is a small chance that the master
@@ -417,13 +418,13 @@ UNIV_INTERN
 void
 srv_active_wake_master_thread(void);
 /*===============================*/
-/***********************************************************************
+/*******************************************************************//**
 Wakes up the master thread if it is suspended or being suspended. */
 UNIV_INTERN
 void
 srv_wake_master_thread(void);
 /*========================*/
-/*************************************************************************
+/*********************************************************************//**
 Puts an OS thread to wait if there are too many concurrent threads
 (>= srv_thread_concurrency) inside InnoDB. The threads wait in a FIFO queue. */
 UNIV_INTERN
@@ -432,7 +433,7 @@ srv_conc_enter_innodb(
 /*==================*/
 	trx_t*	trx);	/*!< in: transaction object associated with the
 			thread */
-/*************************************************************************
+/*********************************************************************//**
 This lets a thread enter InnoDB regardless of the number of threads inside
 InnoDB. This must be called when a thread ends a lock wait. */
 UNIV_INTERN
@@ -441,7 +442,7 @@ srv_conc_force_enter_innodb(
 /*========================*/
 	trx_t*	trx);	/*!< in: transaction object associated with the
 			thread */
-/*************************************************************************
+/*********************************************************************//**
 This must be called when a thread exits InnoDB in a lock wait or at the
 end of an SQL statement. */
 UNIV_INTERN
@@ -450,7 +451,7 @@ srv_conc_force_exit_innodb(
 /*=======================*/
 	trx_t*	trx);	/*!< in: transaction object associated with the
 			thread */
-/*************************************************************************
+/*********************************************************************//**
 This must be called when a thread exits InnoDB. */
 UNIV_INTERN
 void
@@ -458,7 +459,7 @@ srv_conc_exit_innodb(
 /*=================*/
 	trx_t*	trx);	/*!< in: transaction object associated with the
 			thread */
-/*******************************************************************
+/***************************************************************//**
 Puts a MySQL OS thread to wait for a lock to be released. If an error
 occurs during the wait trx->error_state associated with thr is
 != DB_SUCCESS when we return. DB_LOCK_WAIT_TIMEOUT and DB_DEADLOCK
@@ -470,7 +471,7 @@ srv_suspend_mysql_thread(
 /*=====================*/
 	que_thr_t*	thr);	/*!< in: query thread associated with the MySQL
 				OS thread */
-/************************************************************************
+/********************************************************************//**
 Releases a MySQL OS thread waiting for a lock to be released, if the
 thread is already suspended. */
 UNIV_INTERN
@@ -479,7 +480,7 @@ srv_release_mysql_thread_if_suspended(
 /*==================================*/
 	que_thr_t*	thr);	/*!< in: query thread associated with the
 				MySQL OS thread	 */
-/*************************************************************************
+/*********************************************************************//**
 A thread which wakes up threads whose lock wait may have lasted too long.
 This also prints the info output by various InnoDB monitors.
 @return	a dummy parameter */
@@ -489,7 +490,7 @@ srv_lock_timeout_and_monitor_thread(
 /*================================*/
 	void*	arg);	/*!< in: a dummy parameter required by
 			os_thread_create */
-/*************************************************************************
+/*********************************************************************//**
 A thread which prints warnings about semaphore waits which have lasted
 too long. These can be used to track bugs which cause hangs.
 @return	a dummy parameter */
@@ -499,7 +500,7 @@ srv_error_monitor_thread(
 /*=====================*/
 	void*	arg);	/*!< in: a dummy parameter required by
 			os_thread_create */
-/**********************************************************************
+/******************************************************************//**
 Outputs to a file the output of the InnoDB Monitor. */
 UNIV_INTERN
 void
@@ -511,7 +512,7 @@ srv_printf_innodb_monitor(
 	ulint*	trx_end);	/*!< out: file position of the end of
 				the list of active transactions */
 
-/**********************************************************************
+/******************************************************************//**
 Function to pass InnoDB status variables to MySQL */
 UNIV_INTERN
 void

@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/**********************************************************************
+/******************************************************************//**
+@file include/mach0data.ic
 Utilities for converting data from the database file
 to the machine format.
 
@@ -25,7 +26,7 @@ Created 11/28/1995 Heikki Tuuri
 
 #include "ut0mem.h"
 
-/***********************************************************
+/*******************************************************//**
 The following function is used to store data in one byte. */
 UNIV_INLINE
 void
@@ -40,7 +41,7 @@ mach_write_to_1(
 	b[0] = (byte)n;
 }
 
-/************************************************************
+/********************************************************//**
 The following function is used to fetch data from one byte.
 @return	ulint integer, >= 0, < 256 */
 UNIV_INLINE
@@ -53,7 +54,7 @@ mach_read_from_1(
 	return((ulint)(b[0]));
 }
 
-/***********************************************************
+/*******************************************************//**
 The following function is used to store data in two consecutive
 bytes. We store the most significant byte to the lowest address. */
 UNIV_INLINE
@@ -70,7 +71,7 @@ mach_write_to_2(
 	b[1] = (byte)(n);
 }
 
-/************************************************************
+/********************************************************//**
 The following function is used to fetch data from 2 consecutive
 bytes. The most significant byte is at the lowest address.
 @return	ulint integer */
@@ -86,7 +87,7 @@ mach_read_from_2(
 		);
 }
 
-/************************************************************
+/********************************************************//**
 The following function is used to convert a 16-bit data item
 to the canonical format, for fast bytewise equality test
 against memory.
@@ -102,7 +103,7 @@ mach_encode_2(
 	mach_write_to_2((byte*) &ret, n);
 	return(ret);
 }
-/************************************************************
+/********************************************************//**
 The following function is used to convert a 16-bit data item
 from the canonical format, for fast bytewise equality test
 against memory.
@@ -117,7 +118,7 @@ mach_decode_2(
 	return(mach_read_from_2((const byte*) &n));
 }
 
-/***********************************************************
+/*******************************************************//**
 The following function is used to store data in 3 consecutive
 bytes. We store the most significant byte to the lowest address. */
 UNIV_INLINE
@@ -135,7 +136,7 @@ mach_write_to_3(
 	b[2] = (byte)(n);
 }
 
-/************************************************************
+/********************************************************//**
 The following function is used to fetch data from 3 consecutive
 bytes. The most significant byte is at the lowest address.
 @return	ulint integer */
@@ -152,7 +153,7 @@ mach_read_from_3(
 		);
 }
 
-/***********************************************************
+/*******************************************************//**
 The following function is used to store data in four consecutive
 bytes. We store the most significant byte to the lowest address. */
 UNIV_INLINE
@@ -170,7 +171,7 @@ mach_write_to_4(
 	b[3] = (byte)n;
 }
 
-/************************************************************
+/********************************************************//**
 The following function is used to fetch data from 4 consecutive
 bytes. The most significant byte is at the lowest address.
 @return	ulint integer */
@@ -188,7 +189,7 @@ mach_read_from_4(
 		);
 }
 
-/*************************************************************
+/*********************************************************//**
 Writes a ulint in a compressed form where the first byte codes the
 length of the stored ulint. We look at the most significant bits of
 the byte. If the most significant bit is zero, it means 1-byte storage,
@@ -224,7 +225,7 @@ mach_write_compressed(
 	}
 }
 
-/*************************************************************
+/*********************************************************//**
 Returns the size of a ulint when written in the compressed form.
 @return	compressed size in bytes */
 UNIV_INLINE
@@ -246,7 +247,7 @@ mach_get_compressed_size(
 	}
 }
 
-/*************************************************************
+/*********************************************************//**
 Reads a ulint in a compressed form.
 @return	read integer (< 2^32) */
 UNIV_INLINE
@@ -275,7 +276,7 @@ mach_read_compressed(
 	}
 }
 
-/***********************************************************
+/*******************************************************//**
 The following function is used to store data in 8 consecutive
 bytes. We store the most significant byte to the lowest address. */
 UNIV_INLINE
@@ -291,7 +292,7 @@ mach_write_to_8(
 	mach_write_to_4(b + 4, ut_dulint_get_low(n));
 }
 
-/***********************************************************
+/*******************************************************//**
 The following function is used to store data in 8 consecutive
 bytes. We store the most significant byte to the lowest address. */
 UNIV_INLINE
@@ -307,7 +308,7 @@ mach_write_ull(
 	mach_write_to_4(b + 4, (ulint) n);
 }
 
-/************************************************************
+/********************************************************//**
 The following function is used to fetch data from 8 consecutive
 bytes. The most significant byte is at the lowest address.
 @return	dulint integer */
@@ -328,7 +329,7 @@ mach_read_from_8(
 	return(ut_dulint_create(high, low));
 }
 
-/************************************************************
+/********************************************************//**
 The following function is used to fetch data from 8 consecutive
 bytes. The most significant byte is at the lowest address.
 @return	64-bit integer */
@@ -346,7 +347,7 @@ mach_read_ull(
 	return(ull);
 }
 
-/***********************************************************
+/*******************************************************//**
 The following function is used to store data in 7 consecutive
 bytes. We store the most significant byte to the lowest address. */
 UNIV_INLINE
@@ -362,7 +363,7 @@ mach_write_to_7(
 	mach_write_to_4(b + 3, ut_dulint_get_low(n));
 }
 
-/************************************************************
+/********************************************************//**
 The following function is used to fetch data from 7 consecutive
 bytes. The most significant byte is at the lowest address.
 @return	dulint integer */
@@ -383,7 +384,7 @@ mach_read_from_7(
 	return(ut_dulint_create(high, low));
 }
 
-/***********************************************************
+/*******************************************************//**
 The following function is used to store data in 6 consecutive
 bytes. We store the most significant byte to the lowest address. */
 UNIV_INLINE
@@ -399,7 +400,7 @@ mach_write_to_6(
 	mach_write_to_4(b + 2, ut_dulint_get_low(n));
 }
 
-/************************************************************
+/********************************************************//**
 The following function is used to fetch data from 6 consecutive
 bytes. The most significant byte is at the lowest address.
 @return	dulint integer */
@@ -420,7 +421,7 @@ mach_read_from_6(
 	return(ut_dulint_create(high, low));
 }
 
-/*************************************************************
+/*********************************************************//**
 Writes a dulint in a compressed form (5..9 bytes).
 @return	size in bytes */
 UNIV_INLINE
@@ -440,7 +441,7 @@ mach_dulint_write_compressed(
 	return(size + 4);
 }
 
-/*************************************************************
+/*********************************************************//**
 Returns the size of a dulint when written in the compressed form.
 @return	compressed size in bytes */
 UNIV_INLINE
@@ -452,7 +453,7 @@ mach_dulint_get_compressed_size(
 	return(4 + mach_get_compressed_size(ut_dulint_get_high(n)));
 }
 
-/*************************************************************
+/*********************************************************//**
 Reads a dulint in a compressed form.
 @return	read dulint */
 UNIV_INLINE
@@ -476,7 +477,7 @@ mach_dulint_read_compressed(
 	return(ut_dulint_create(high, low));
 }
 
-/*************************************************************
+/*********************************************************//**
 Writes a dulint in a compressed form (1..11 bytes).
 @return	size in bytes */
 UNIV_INLINE
@@ -502,7 +503,7 @@ mach_dulint_write_much_compressed(
 	return(size);
 }
 
-/*************************************************************
+/*********************************************************//**
 Returns the size of a dulint when written in the compressed form.
 @return	compressed size in bytes */
 UNIV_INLINE
@@ -519,7 +520,7 @@ mach_dulint_get_much_compressed_size(
 	       + mach_get_compressed_size(ut_dulint_get_low(n)));
 }
 
-/*************************************************************
+/*********************************************************//**
 Reads a dulint in a compressed form.
 @return	read dulint */
 UNIV_INLINE
@@ -548,7 +549,7 @@ mach_dulint_read_much_compressed(
 	return(ut_dulint_create(high, low));
 }
 #ifndef UNIV_HOTBACKUP
-/*************************************************************
+/*********************************************************//**
 Reads a double. It is stored in a little-endian format.
 @return	double read */
 UNIV_INLINE
@@ -574,7 +575,7 @@ mach_double_read(
 	return(d);
 }
 
-/*************************************************************
+/*********************************************************//**
 Writes a double. It is stored in a little-endian format. */
 UNIV_INLINE
 void
@@ -597,7 +598,7 @@ mach_double_write(
 	}
 }
 
-/*************************************************************
+/*********************************************************//**
 Reads a float. It is stored in a little-endian format.
 @return	float read */
 UNIV_INLINE
@@ -623,7 +624,7 @@ mach_float_read(
 	return(d);
 }
 
-/*************************************************************
+/*********************************************************//**
 Writes a float. It is stored in a little-endian format. */
 UNIV_INLINE
 void
@@ -646,7 +647,7 @@ mach_float_write(
 	}
 }
 
-/*************************************************************
+/*********************************************************//**
 Reads a ulint stored in the little-endian format.
 @return	unsigned long int */
 UNIV_INLINE
@@ -679,7 +680,7 @@ mach_read_from_n_little_endian(
 	return(n);
 }
 
-/*************************************************************
+/*********************************************************//**
 Writes a ulint in the little-endian format. */
 UNIV_INLINE
 void
@@ -711,7 +712,7 @@ mach_write_to_n_little_endian(
 	ut_ad(n == 0);
 }
 
-/*************************************************************
+/*********************************************************//**
 Reads a ulint stored in the little-endian format.
 @return	unsigned long int */
 UNIV_INLINE
@@ -723,7 +724,7 @@ mach_read_from_2_little_endian(
 	return((ulint)(*buf) + ((ulint)(*(buf + 1))) * 256);
 }
 
-/*************************************************************
+/*********************************************************//**
 Writes a ulint in the little-endian format. */
 UNIV_INLINE
 void
@@ -742,7 +743,7 @@ mach_write_to_2_little_endian(
 	*dest = (byte)(n & 0xFFUL);
 }
 
-/*************************************************************
+/*********************************************************//**
 Convert integral type from storage byte order (big endian) to
 host byte order.
 @return	integer value */

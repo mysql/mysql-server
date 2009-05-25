@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file eval/eval0proc.c
 Executes SQL stored procedures and their control structures
 
 Created 1/20/1998 Heikki Tuuri
@@ -28,7 +29,7 @@ Created 1/20/1998 Heikki Tuuri
 #include "eval0proc.ic"
 #endif
 
-/**************************************************************************
+/**********************************************************************//**
 Performs an execution step of an if-statement node.
 @return	query thread to run next or NULL */
 UNIV_INTERN
@@ -104,7 +105,7 @@ if_step(
 	return(thr);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Performs an execution step of a while-statement node.
 @return	query thread to run next or NULL */
 UNIV_INTERN
@@ -140,7 +141,7 @@ while_step(
 	return(thr);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Performs an execution step of an assignment statement node.
 @return	query thread to run next or NULL */
 UNIV_INTERN
@@ -167,7 +168,7 @@ assign_step(
 	return(thr);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Performs an execution step of a for-loop node.
 @return	query thread to run next or NULL */
 UNIV_INTERN
@@ -229,7 +230,7 @@ for_step(
 	return(thr);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Performs an execution step of an exit statement node.
 @return	query thread to run next or NULL */
 UNIV_INTERN
@@ -261,7 +262,7 @@ exit_step(
 	return(thr);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Performs an execution step of a return-statement node.
 @return	query thread to run next or NULL */
 UNIV_INTERN

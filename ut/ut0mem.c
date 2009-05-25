@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/************************************************************************
+/********************************************************************//**
+@file ut/ut0mem.c
 Memory primitives
 
 Created 5/11/1994 Heikki Tuuri
@@ -62,7 +63,7 @@ static ibool  ut_mem_block_list_inited = FALSE;
 
 static ulint*	ut_mem_null_ptr	= NULL;
 
-/**************************************************************************
+/**********************************************************************//**
 Initializes the mem block list at database startup. */
 UNIV_INTERN
 void
@@ -76,7 +77,7 @@ ut_mem_init(void)
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/**************************************************************************
+/**********************************************************************//**
 Allocates memory. Sets it also to zero if UNIV_SET_MEM_TO_ZERO is
 defined and set_to_zero is TRUE.
 @return	own: allocated memory */
@@ -223,7 +224,7 @@ retry:
 #endif /* !UNIV_HOTBACKUP */
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Allocates memory. Sets it also to zero if UNIV_SET_MEM_TO_ZERO is
 defined.
 @return	own: allocated memory */
@@ -241,7 +242,7 @@ ut_malloc(
 }
 
 #ifndef UNIV_HOTBACKUP
-/**************************************************************************
+/**********************************************************************//**
 Tests if malloc of n bytes would succeed. ut_malloc() asserts if memory runs
 out. It cannot be used if we want to return an error message. Prints to
 stderr a message if fails.
@@ -282,7 +283,7 @@ ut_test_malloc(
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/**************************************************************************
+/**********************************************************************//**
 Frees a memory block allocated with ut_malloc. */
 UNIV_INTERN
 void
@@ -317,7 +318,7 @@ ut_free(
 }
 
 #ifndef UNIV_HOTBACKUP
-/**************************************************************************
+/**********************************************************************//**
 Implements realloc. This is needed by /pars/lexyy.c. Otherwise, you should not
 use this function because the allocation functions in mem0mem.h are the
 recommended ones in InnoDB.
@@ -396,7 +397,7 @@ ut_realloc(
 	return(new_ptr);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Frees in shutdown all allocated memory not freed yet. */
 UNIV_INTERN
 void
@@ -429,7 +430,7 @@ ut_free_all_mem(void)
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/**************************************************************************
+/**********************************************************************//**
 Copies up to size - 1 characters from the NUL-terminated string src to
 dst, NUL-terminating the result. Returns strlen(src), so truncation
 occurred if the return value >= size.
@@ -454,7 +455,7 @@ ut_strlcpy(
 	return(src_size);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Like ut_strlcpy, but if src doesn't fit in dst completely, copies the last
 (size - 1) bytes of src, not the first.
 @return	strlen(src) */
@@ -477,7 +478,7 @@ ut_strlcpy_rev(
 	return(src_size);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Make a quoted copy of a NUL-terminated string.	Leading and trailing
 quotes will not be included; only embedded quotes will be escaped.
 See also ut_strlenq() and ut_memcpyq().
@@ -499,7 +500,7 @@ ut_strcpyq(
 	return(dest);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Make a quoted copy of a fixed-length string.  Leading and trailing
 quotes will not be included; only embedded quotes will be escaped.
 See also ut_strlenq() and ut_strcpyq().
@@ -525,7 +526,7 @@ ut_memcpyq(
 }
 
 #ifndef UNIV_HOTBACKUP
-/**************************************************************************
+/**********************************************************************//**
 Return the number of times s2 occurs in s1. Overlapping instances of s2
 are only counted once.
 @return	the number of times s2 occurs in s1 */
@@ -559,7 +560,7 @@ ut_strcount(
 	return(count);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Replace every occurrence of s1 in str with s2. Overlapping instances of s1
 are only replaced once.
 @return	own: modified string, must be freed with mem_free() */

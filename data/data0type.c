@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file data/data0type.c
 Data types
 
 Created 1/16/1996 Heikki Tuuri
@@ -38,7 +39,7 @@ charset-collation code for them. */
 
 UNIV_INTERN ulint	data_mysql_default_charset_coll;
 
-/*************************************************************************
+/*********************************************************************//**
 Determine how many bytes the first n characters of the given string occupy.
 If the string is shorter than n characters, returns the number of bytes
 the characters in the string occupy.
@@ -79,7 +80,7 @@ dtype_get_at_most_n_mbchars(
 }
 #endif /* UNIV_HOTBACKUP */
 
-/*************************************************************************
+/*********************************************************************//**
 Checks if a data main type is a string type. Also a BLOB is considered a
 string type.
 @return	TRUE if string type */
@@ -99,7 +100,7 @@ dtype_is_string_type(
 	return(FALSE);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Checks if a type is a binary string type. Note that for tables created with
 < 4.0.14, we do not know if a DATA_BLOB column is a BLOB or a TEXT column. For
 those DATA_BLOB columns this function currently returns FALSE.
@@ -121,7 +122,7 @@ dtype_is_binary_string_type(
 	return(FALSE);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Checks if a type is a non-binary string type. That is, dtype_is_string_type is
 TRUE and dtype_is_binary_string_type is FALSE. Note that for tables created
 with < 4.0.14, we do not know if a DATA_BLOB column is a BLOB or a TEXT column.
@@ -143,7 +144,7 @@ dtype_is_non_binary_string_type(
 	return(FALSE);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Forms a precise type from the < 4.1.2 format precise type plus the
 charset-collation code. */
 UNIV_INTERN
@@ -160,7 +161,7 @@ dtype_form_prtype(
 	return(old_prtype + (charset_coll << 16));
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Validates a data type structure.
 @return	TRUE if ok */
 UNIV_INTERN
@@ -185,7 +186,7 @@ dtype_validate(
 }
 
 #ifndef UNIV_HOTBACKUP
-/*************************************************************************
+/*********************************************************************//**
 Prints a data type structure. */
 UNIV_INTERN
 void

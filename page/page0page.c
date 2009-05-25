@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file page/page0page.c
 Index page routines
 
 Created 2/2/1994 Heikki Tuuri
@@ -82,7 +83,7 @@ Assuming a page size of 8 kB, a typical index page of a secondary
 index contains 300 index entries, and the size of the page directory
 is 50 x 4 bytes = 200 bytes. */
 
-/*******************************************************************
+/***************************************************************//**
 Looks for the directory slot which owns the given record.
 @return	the directory slot number */
 UNIV_INTERN
@@ -158,7 +159,7 @@ page_dir_find_owner_slot(
 	return(((ulint) (first_slot - slot)) / PAGE_DIR_SLOT_SIZE);
 }
 
-/******************************************************************
+/**************************************************************//**
 Used to check the consistency of a directory slot.
 @return	TRUE if succeed */
 static
@@ -201,7 +202,7 @@ page_dir_slot_check(
 	return(TRUE);
 }
 
-/*****************************************************************
+/*************************************************************//**
 Sets the max trx id field value. */
 UNIV_INTERN
 void
@@ -246,7 +247,7 @@ page_set_max_trx_id(
 #endif /* !UNIV_HOTBACKUP */
 }
 
-/****************************************************************
+/************************************************************//**
 Allocates a block of memory from the heap of an index page.
 @return	pointer to start of allocated buffer, or NULL if allocation fails */
 UNIV_INTERN
@@ -285,7 +286,7 @@ page_mem_alloc_heap(
 }
 
 #ifndef UNIV_HOTBACKUP
-/**************************************************************
+/**********************************************************//**
 Writes a log record of page creation. */
 UNIV_INLINE
 void
@@ -304,7 +305,7 @@ page_create_write_log(
 # define page_create_write_log(frame,mtr,comp) ((void) 0)
 #endif /* !UNIV_HOTBACKUP */
 
-/***************************************************************
+/***********************************************************//**
 Parses a redo log record of creating a page.
 @return	end of log record or NULL */
 UNIV_INTERN
@@ -328,7 +329,7 @@ page_parse_create(
 	return(ptr);
 }
 
-/**************************************************************
+/**********************************************************//**
 The index page creation function.
 @return	pointer to the page */
 static
@@ -481,7 +482,7 @@ page_create_low(
 	return(page);
 }
 
-/**************************************************************
+/**********************************************************//**
 Create an uncompressed B-tree index page.
 @return	pointer to the page */
 UNIV_INTERN
@@ -497,7 +498,7 @@ page_create(
 	return(page_create_low(block, comp));
 }
 
-/**************************************************************
+/**********************************************************//**
 Create a compressed B-tree index page.
 @return	pointer to the page */
 UNIV_INTERN
@@ -530,7 +531,7 @@ page_create_zip(
 	return(page);
 }
 
-/*****************************************************************
+/*************************************************************//**
 Differs from page_copy_rec_list_end, because this function does not
 touch the lock table and max trx id on page or compress the page. */
 UNIV_INTERN
@@ -602,7 +603,7 @@ page_copy_rec_list_end_no_locks(
 }
 
 #ifndef UNIV_HOTBACKUP
-/*****************************************************************
+/*************************************************************//**
 Copies records from page to new_page, from a given record onward,
 including that record. Infimum and supremum records are not copied.
 The records are copied to the start of the record list on new_page.
@@ -707,7 +708,7 @@ page_copy_rec_list_end(
 	return(ret);
 }
 
-/*****************************************************************
+/*************************************************************//**
 Copies records from page to new_page, up to the given record,
 NOT including that record. Infimum and supremum records are not copied.
 The records are copied to the end of the record list on new_page.
@@ -822,7 +823,7 @@ page_copy_rec_list_start(
 	return(ret);
 }
 
-/**************************************************************
+/**********************************************************//**
 Writes a log record of a record list end or start deletion. */
 UNIV_INLINE
 void
@@ -851,7 +852,7 @@ page_delete_rec_list_write_log(
 # define page_delete_rec_list_write_log(rec,index,type,mtr) ((void) 0)
 #endif /* !UNIV_HOTBACKUP */
 
-/**************************************************************
+/**********************************************************//**
 Parses a log record of a record list end or start deletion.
 @return	end of log record or NULL */
 UNIV_INTERN
@@ -907,7 +908,7 @@ page_parse_delete_rec_list(
 	return(ptr);
 }
 
-/*****************************************************************
+/*************************************************************//**
 Deletes records from a page from a given record onward, including that record.
 The infimum and supremum records are not deleted. */
 UNIV_INTERN
@@ -1083,7 +1084,7 @@ page_delete_rec_list_end(
 			      (ulint)(page_get_n_recs(page) - n_recs));
 }
 
-/*****************************************************************
+/*************************************************************//**
 Deletes records from page, up to the given record, NOT including
 that record. Infimum and supremum records are not deleted. */
 UNIV_INTERN
@@ -1156,7 +1157,7 @@ page_delete_rec_list_start(
 }
 
 #ifndef UNIV_HOTBACKUP
-/*****************************************************************
+/*************************************************************//**
 Moves record list end to another page. Moved records include
 split_rec.
 @return TRUE on success; FALSE on compression failure (new_block will
@@ -1210,7 +1211,7 @@ page_move_rec_list_end(
 	return(TRUE);
 }
 
-/*****************************************************************
+/*************************************************************//**
 Moves record list start to another page. Moved records do not include
 split_rec.
 @return	TRUE on success; FALSE on compression failure */
@@ -1234,7 +1235,7 @@ page_move_rec_list_start(
 	return(TRUE);
 }
 
-/***************************************************************************
+/***********************************************************************//**
 This is a low-level operation which is used in a database index creation
 to update the page number of a created B-tree to a data dictionary record. */
 UNIV_INTERN
@@ -1257,7 +1258,7 @@ page_rec_write_index_page_no(
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/******************************************************************
+/**************************************************************//**
 Used to delete n slots from the directory. This function updates
 also n_owned fields in the records, so that the first slot after
 the deleted ones inherits the records of the deleted slots. */
@@ -1306,7 +1307,7 @@ page_dir_delete_slot(
 	page_header_set_field(page, page_zip, PAGE_N_DIR_SLOTS, n_slots - 1);
 }
 
-/******************************************************************
+/**************************************************************//**
 Used to add n slots to the directory. Does not set the record pointers
 in the added slots or update n_owned values: this is the responsibility
 of the caller. */
@@ -1335,7 +1336,7 @@ page_dir_add_slot(
 		(n_slots - 1 - start) * PAGE_DIR_SLOT_SIZE);
 }
 
-/********************************************************************
+/****************************************************************//**
 Splits a directory slot which owns too many records. */
 UNIV_INTERN
 void
@@ -1396,7 +1397,7 @@ page_dir_split_slot(
 	page_dir_slot_set_n_owned(slot, page_zip, n_owned - (n_owned / 2));
 }
 
-/*****************************************************************
+/*************************************************************//**
 Tries to balance the given directory slot with too few records with the upper
 neighbor, so that there are at least the minimum number of records owned by
 the slot; this may result in the merging of two slots. */
@@ -1468,7 +1469,7 @@ page_dir_balance_slot(
 }
 
 #ifndef UNIV_HOTBACKUP
-/****************************************************************
+/************************************************************//**
 Returns the middle record of the record list. If there are an even number
 of records in the list, returns the first record of the upper half-list.
 @return	middle record */
@@ -1517,7 +1518,7 @@ page_get_middle_rec(
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/*******************************************************************
+/***************************************************************//**
 Returns the number of records before the given record in chain.
 The number includes infimum and supremum records.
 @return	number of records */
@@ -1582,7 +1583,7 @@ page_rec_get_n_recs_before(
 }
 
 #ifndef UNIV_HOTBACKUP
-/****************************************************************
+/************************************************************//**
 Prints record contents including the data relevant only in
 the index page context. */
 UNIV_INTERN
@@ -1612,7 +1613,7 @@ page_rec_print(
 	rec_validate(rec, offsets);
 }
 
-/*******************************************************************
+/***************************************************************//**
 This is used to print the contents of the directory for
 debugging purposes. */
 UNIV_INTERN
@@ -1654,7 +1655,7 @@ page_dir_print(
 		(ulong) (PAGE_HEAP_NO_USER_LOW + page_get_n_recs(page)));
 }
 
-/*******************************************************************
+/***************************************************************//**
 This is used to print the contents of the page record list for
 debugging purposes. */
 UNIV_INTERN
@@ -1725,7 +1726,7 @@ page_print_list(
 	}
 }
 
-/*******************************************************************
+/***************************************************************//**
 Prints the info in a page header. */
 UNIV_INTERN
 void
@@ -1752,7 +1753,7 @@ page_header_print(
 		(ulong) page_header_get_field(page, PAGE_N_DIRECTION));
 }
 
-/*******************************************************************
+/***************************************************************//**
 This is used to print the contents of the page for
 debugging purposes. */
 UNIV_INTERN
@@ -1774,7 +1775,7 @@ page_print(
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/*******************************************************************
+/***************************************************************//**
 The following is used to validate a record on a page. This function
 differs from rec_validate as it can also check the n_owned field and
 the heap_no field.
@@ -1823,7 +1824,7 @@ page_rec_validate(
 }
 
 #ifndef UNIV_HOTBACKUP
-/*******************************************************************
+/***************************************************************//**
 Checks that the first directory slot points to the infimum record and
 the last to the supremum. This function is intended to track if the
 bug fixed in 4.0.14 has caused corruption to users' databases. */
@@ -1860,7 +1861,7 @@ page_check_dir(
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/*******************************************************************
+/***************************************************************//**
 This function checks the consistency of an index page when we do not
 know the index. This is also resilient so that this should never crash
 even if the page is total garbage.
@@ -2070,7 +2071,7 @@ func_exit:
 	return(ret);
 }
 
-/*******************************************************************
+/***************************************************************//**
 This function checks the consistency of an index page when we do not
 know the index. This is also resilient so that this should never crash
 even if the page is total garbage.
@@ -2281,7 +2282,7 @@ func_exit:
 	return(ret);
 }
 
-/*******************************************************************
+/***************************************************************//**
 This function checks the consistency of an index page.
 @return	TRUE if ok */
 UNIV_INTERN
@@ -2556,7 +2557,7 @@ func_exit2:
 }
 
 #ifndef UNIV_HOTBACKUP
-/*******************************************************************
+/***************************************************************//**
 Looks in the page record list for a record with the given heap number.
 @return	record, NULL if not found */
 UNIV_INTERN

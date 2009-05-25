@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/lock0priv.h
 Lock module internal structures and methods.
 
 Created July 12, 2007 Vasil Dimov
@@ -79,7 +80,7 @@ struct lock_struct {
 	} un_member;
 };
 
-/*************************************************************************
+/*********************************************************************//**
 Gets the type of a lock.
 @return	LOCK_TABLE or LOCK_REC */
 UNIV_INLINE
@@ -88,7 +89,7 @@ lock_get_type_low(
 /*==============*/
 	const lock_t*	lock);	/*!< in: lock */
 
-/*************************************************************************
+/*********************************************************************//**
 Gets the previous record lock set on a record.
 @return	previous lock on the same record, NULL if none exists */
 

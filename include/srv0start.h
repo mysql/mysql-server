@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/srv0start.h
 Starts the Innobase database server
 
 Created 10/10/1995 Heikki Tuuri
@@ -28,14 +29,14 @@ Created 10/10/1995 Heikki Tuuri
 #include "univ.i"
 #include "ut0byte.h"
 
-/*************************************************************************
+/*********************************************************************//**
 Normalizes a directory path for Windows: converts slashes to backslashes. */
 UNIV_INTERN
 void
 srv_normalize_path_for_win(
 /*=======================*/
 	char*	str);	/*!< in/out: null-terminated character string */
-/*************************************************************************
+/*********************************************************************//**
 Reads the data files and their sizes from a character string given in
 the .cnf file.
 @return	TRUE if ok, FALSE on parse error */
@@ -44,7 +45,7 @@ ibool
 srv_parse_data_file_paths_and_sizes(
 /*================================*/
 	char*	str);	/*!< in/out: the data file path string */
-/*************************************************************************
+/*********************************************************************//**
 Reads log group home directories from a character string given in
 the .cnf file.
 @return	TRUE if ok, FALSE on parse error */
@@ -53,14 +54,14 @@ ibool
 srv_parse_log_group_home_dirs(
 /*==========================*/
 	char*	str);	/*!< in/out: character string */
-/*************************************************************************
+/*********************************************************************//**
 Frees the memory allocated by srv_parse_data_file_paths_and_sizes()
 and srv_parse_log_group_home_dirs(). */
 UNIV_INTERN
 void
 srv_free_paths_and_sizes(void);
 /*==========================*/
-/*************************************************************************
+/*********************************************************************//**
 Adds a slash or a backslash to the end of a string if it is missing
 and the string is not empty.
 @return	string which has the separator if the string is not empty */
@@ -70,7 +71,7 @@ srv_add_path_separator_if_needed(
 /*=============================*/
 	char*	str);	/*!< in: null-terminated character string */
 #ifndef UNIV_HOTBACKUP
-/********************************************************************
+/****************************************************************//**
 Starts Innobase and creates a new database if database files
 are not found and the user wants.
 @return	DB_SUCCESS or error code */
@@ -78,7 +79,7 @@ UNIV_INTERN
 int
 innobase_start_or_create_for_mysql(void);
 /*====================================*/
-/********************************************************************
+/****************************************************************//**
 Shuts down the Innobase database.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN

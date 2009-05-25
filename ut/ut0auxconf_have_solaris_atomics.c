@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/*****************************************************************************
+/*************************************************************************//**
+@file ut/ut0auxconf_have_solaris_atomics.c
 If this program compiles, then Solaris libc atomic funcions are available.
 
 Created April 18, 2009 Vasil Dimov

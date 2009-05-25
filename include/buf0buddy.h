@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/buf0buddy.h
 Binary buddy allocator for compressed pages
 
 Created December 2006 by Marko Makela
@@ -33,7 +34,7 @@ Created December 2006 by Marko Makela
 #include "univ.i"
 #include "buf0types.h"
 
-/**************************************************************************
+/**********************************************************************//**
 Allocate a block.  The thread calling this function must hold
 buf_pool_mutex and must not hold buf_pool_zip_mutex or any
 block->mutex.  The buf_pool_mutex may only be released and reacquired
@@ -54,7 +55,7 @@ buf_buddy_alloc(
 			or NULL if the LRU list should not be used */
 	__attribute__((malloc));
 
-/**************************************************************************
+/**********************************************************************//**
 Release a block. */
 UNIV_INLINE
 void

@@ -23,13 +23,14 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/sync0rw.ic
 The read-write lock (for threads)
 
 Created 9/11/1995 Heikki Tuuri
 *******************************************************/
 
-/**********************************************************************
+/******************************************************************//**
 Lock an rw-lock in shared mode for the current thread. If the rw-lock is
 locked in exclusive mode, or there is an exclusive lock request waiting,
 the function spins a preset time (controlled by SYNC_SPIN_ROUNDS),
@@ -44,7 +45,7 @@ rw_lock_s_lock_spin(
 	const char*	file_name,/*!< in: file name where lock requested */
 	ulint		line);	/*!< in: line where requested */
 #ifdef UNIV_SYNC_DEBUG
-/**********************************************************************
+/******************************************************************//**
 Inserts the debug information for an rw-lock. */
 UNIV_INTERN
 void
@@ -55,7 +56,7 @@ rw_lock_add_debug_info(
 	ulint		lock_type,	/*!< in: lock type */
 	const char*	file_name,	/*!< in: file where requested */
 	ulint		line);		/*!< in: line where requested */
-/**********************************************************************
+/******************************************************************//**
 Removes a debug information struct for an rw-lock. */
 UNIV_INTERN
 void
@@ -66,7 +67,7 @@ rw_lock_remove_debug_info(
 	ulint		lock_type);	/*!< in: lock type */
 #endif /* UNIV_SYNC_DEBUG */
 
-/************************************************************************
+/********************************************************************//**
 Check if there are threads waiting for the rw-lock.
 @return	1 if waiters, 0 otherwise */
 UNIV_INLINE
@@ -78,7 +79,7 @@ rw_lock_get_waiters(
 	return(lock->waiters);
 }
 
-/************************************************************************
+/********************************************************************//**
 Sets lock->waiters to 1. It is not an error if lock->waiters is already
 1. On platforms where ATOMIC builtins are used this function enforces a
 memory barrier. */
@@ -95,7 +96,7 @@ rw_lock_set_waiter_flag(
 #endif /* INNODB_RW_LOCKS_USE_ATOMICS */
 }
 
-/************************************************************************
+/********************************************************************//**
 Resets lock->waiters to 0. It is not an error if lock->waiters is already
 0. On platforms where ATOMIC builtins are used this function enforces a
 memory barrier. */
@@ -112,7 +113,7 @@ rw_lock_reset_waiter_flag(
 #endif /* INNODB_RW_LOCKS_USE_ATOMICS */
 }
 
-/**********************************************************************
+/******************************************************************//**
 Returns the write-status of the lock - this function made more sense
 with the old rw_lock implementation.
 @return	RW_LOCK_NOT_LOCKED, RW_LOCK_EX, RW_LOCK_WAIT_EX */
@@ -135,7 +136,7 @@ rw_lock_get_writer(
 	}
 }
 
-/**********************************************************************
+/******************************************************************//**
 Returns the number of readers.
 @return	number of readers */
 UNIV_INLINE
@@ -166,7 +167,7 @@ rw_lock_get_mutex(
 }
 #endif
 
-/**********************************************************************
+/******************************************************************//**
 Returns the value of writer_count for the lock. Does not reserve the lock
 mutex, so the caller must be sure it is not changed during the call.
 @return	value of writer_count */
@@ -184,7 +185,7 @@ rw_lock_get_x_lock_count(
 	return(((-lock_copy) / X_LOCK_DECR) + 1);
 }
 
-/**********************************************************************
+/******************************************************************//**
 Two different implementations for decrementing the lock_word of a rw_lock:
 one for systems supporting atomic operations, one for others. This does
 does not support recusive x-locks: they should be handled by the caller and
@@ -221,7 +222,7 @@ rw_lock_lock_word_decr(
 #endif /* INNODB_RW_LOCKS_USE_ATOMICS */
 }
 
-/**********************************************************************
+/******************************************************************//**
 Increments lock_word the specified amount and returns new value.
 @return	lock->lock_word after increment */
 UNIV_INLINE
@@ -247,7 +248,7 @@ rw_lock_lock_word_incr(
 #endif /* INNODB_RW_LOCKS_USE_ATOMICS */
 }
 
-/**********************************************************************
+/******************************************************************//**
 This function sets the lock->writer_thread and lock->recursive fields.
 For platforms where we are using atomic builtins instead of lock->mutex
 it sets the lock->writer_thread field using atomics to ensure memory
@@ -292,7 +293,7 @@ rw_lock_set_writer_id_and_recursion_flag(
 #endif /* INNODB_RW_LOCKS_USE_ATOMICS */
 }
 
-/**********************************************************************
+/******************************************************************//**
 Low-level function which tries to lock an rw-lock in s-mode. Performs no
 spinning.
 @return	TRUE if success */
@@ -324,7 +325,7 @@ rw_lock_s_lock_low(
 	return(TRUE);	/* locking succeeded */
 }
 
-/**********************************************************************
+/******************************************************************//**
 Low-level function which locks an rw-lock in s-mode when we know that it
 is possible and none else is currently accessing the rw-lock structure.
 Then we can do the locking without reserving the mutex. */
@@ -349,7 +350,7 @@ rw_lock_s_lock_direct(
 #endif
 }
 
-/**********************************************************************
+/******************************************************************//**
 Low-level function which locks an rw-lock in x-mode when we know that it
 is not locked and none else is currently accessing the rw-lock structure.
 Then we can do the locking without reserving the mutex. */
@@ -376,7 +377,7 @@ rw_lock_x_lock_direct(
 #endif
 }
 
-/**********************************************************************
+/******************************************************************//**
 NOTE! Use the corresponding macro, not directly this function! Lock an
 rw-lock in shared mode for the current thread. If the rw-lock is locked
 in exclusive mode, or there is an exclusive lock request waiting, the
@@ -420,7 +421,7 @@ rw_lock_s_lock_func(
 	}
 }
 
-/**********************************************************************
+/******************************************************************//**
 NOTE! Use the corresponding macro, not directly this function! Lock an
 rw-lock in exclusive mode for the current thread if the lock can be
 obtained immediately.
@@ -478,7 +479,7 @@ rw_lock_x_lock_func_nowait(
 	return(TRUE);
 }
 
-/**********************************************************************
+/******************************************************************//**
 Releases a shared mode lock. */
 UNIV_INLINE
 void
@@ -514,7 +515,7 @@ rw_lock_s_unlock_func(
 #endif
 }
 
-/**********************************************************************
+/******************************************************************//**
 Releases a shared mode lock when we know there are no waiters and none
 else will access the lock during the time this function is executed. */
 UNIV_INLINE
@@ -539,7 +540,7 @@ rw_lock_s_unlock_direct(
 #endif
 }
 
-/**********************************************************************
+/******************************************************************//**
 Releases an exclusive mode lock. */
 UNIV_INLINE
 void
@@ -588,7 +589,7 @@ rw_lock_x_unlock_func(
 #endif
 }
 
-/**********************************************************************
+/******************************************************************//**
 Releases an exclusive mode lock when we know there are no waiters, and
 none else will access the lock during the time this function is executed. */
 UNIV_INLINE

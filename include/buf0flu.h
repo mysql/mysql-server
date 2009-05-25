@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/buf0flu.h
 The database buffer pool flush algorithm
 
 Created 11/5/1995 Heikki Tuuri
@@ -31,21 +32,21 @@ Created 11/5/1995 Heikki Tuuri
 #include "mtr0types.h"
 #include "buf0types.h"
 
-/************************************************************************
+/********************************************************************//**
 Remove a block from the flush list of modified blocks. */
 UNIV_INTERN
 void
 buf_flush_remove(
 /*=============*/
 	buf_page_t*	bpage);	/*!< in: pointer to the block in question */
-/************************************************************************
+/********************************************************************//**
 Updates the flush system data structures when a write is completed. */
 UNIV_INTERN
 void
 buf_flush_write_complete(
 /*=====================*/
 	buf_page_t*	bpage);	/*!< in: pointer to the block in question */
-/*************************************************************************
+/*********************************************************************//**
 Flushes pages from the end of the LRU list if there is too small
 a margin of replaceable pages there. */
 UNIV_INTERN
@@ -53,7 +54,7 @@ void
 buf_flush_free_margin(void);
 /*=======================*/
 #endif /* !UNIV_HOTBACKUP */
-/************************************************************************
+/********************************************************************//**
 Initializes a page for writing to the tablespace. */
 UNIV_INTERN
 void
@@ -64,7 +65,7 @@ buf_flush_init_for_writing(
 	ib_uint64_t	newest_lsn);	/*!< in: newest modification lsn
 					to the page */
 #ifndef UNIV_HOTBACKUP
-/***********************************************************************
+/*******************************************************************//**
 This utility flushes dirty blocks from the end of the LRU list or flush_list.
 NOTE 1: in the case of an LRU flush the calling thread may own latches to
 pages: to avoid deadlocks, this function must be written so that it cannot
@@ -88,14 +89,14 @@ buf_flush_batch(
 					smaller than this should be flushed
 					(if their number does not exceed
 					min_n), otherwise ignored */
-/**********************************************************************
+/******************************************************************//**
 Waits until a flush batch of the given type ends */
 UNIV_INTERN
 void
 buf_flush_wait_batch_end(
 /*=====================*/
 	enum buf_flush	type);	/*!< in: BUF_FLUSH_LRU or BUF_FLUSH_LIST */
-/************************************************************************
+/********************************************************************//**
 This function should be called at a mini-transaction commit, if a page was
 modified in it. Puts the block to the list of modified blocks, if it not
 already in it. */
@@ -105,7 +106,7 @@ buf_flush_note_modification(
 /*========================*/
 	buf_block_t*	block,	/*!< in: block which is modified */
 	mtr_t*		mtr);	/*!< in: mtr */
-/************************************************************************
+/********************************************************************//**
 This function should be called when recovery has modified a buffer page. */
 UNIV_INLINE
 void
@@ -116,7 +117,7 @@ buf_flush_recv_note_modification(
 					set of mtr's */
 	ib_uint64_t	end_lsn);	/*!< in: end lsn of the last mtr in the
 					set of mtr's */
-/************************************************************************
+/********************************************************************//**
 Returns TRUE if the file page block is immediately suitable for replacement,
 i.e., transition FILE_PAGE => NOT_USED allowed.
 @return	TRUE if can replace immediately */
@@ -127,7 +128,7 @@ buf_flush_ready_for_replace(
 	buf_page_t*	bpage);	/*!< in: buffer control block, must be
 				buf_page_in_file(bpage) and in the LRU list */
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
-/**********************************************************************
+/******************************************************************//**
 Validates the flush list.
 @return	TRUE if ok */
 UNIV_INTERN

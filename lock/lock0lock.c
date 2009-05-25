@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file lock/lock0lock.c
 The transaction lock system
 
 Created 5/7/1996 Heikki Tuuri
@@ -343,7 +344,7 @@ equal to mode2. */
 #ifdef UNIV_DEBUG
 UNIV_INTERN ibool	lock_print_waits	= FALSE;
 
-/*************************************************************************
+/*********************************************************************//**
 Validates the lock system.
 @return	TRUE if ok */
 static
@@ -351,7 +352,7 @@ ibool
 lock_validate(void);
 /*===============*/
 
-/*************************************************************************
+/*********************************************************************//**
 Validates the record lock queues on a page.
 @return	TRUE if ok */
 static
@@ -377,7 +378,7 @@ UNIV_INTERN FILE*	lock_latest_err_file;
 #define LOCK_VICTIM_IS_START	1
 #define LOCK_VICTIM_IS_OTHER	2
 
-/************************************************************************
+/********************************************************************//**
 Checks if a lock request results in a deadlock.
 @return TRUE if a deadlock was detected and we chose trx as a victim;
 FALSE if no deadlock, or there was a deadlock, but we chose other
@@ -388,7 +389,7 @@ lock_deadlock_occurs(
 /*=================*/
 	lock_t*	lock,	/*!< in: lock the transaction is requesting */
 	trx_t*	trx);	/*!< in: transaction */
-/************************************************************************
+/********************************************************************//**
 Looks recursively for a deadlock.
 @return 0 if no deadlock found, LOCK_VICTIM_IS_START if there was a
 deadlock and we chose 'start' as the victim, LOCK_VICTIM_IS_OTHER if a
@@ -409,7 +410,7 @@ lock_deadlock_recursive(
 				LOCK_MAX_DEPTH_IN_DEADLOCK_CHECK, we
 				return LOCK_VICTIM_IS_START */
 
-/*************************************************************************
+/*********************************************************************//**
 Gets the nth bit of a record lock.
 @return	TRUE if bit set */
 UNIV_INLINE
@@ -441,7 +442,7 @@ lock_rec_get_nth_bit(
 #define lock_mutex_enter_kernel()	mutex_enter(&kernel_mutex)
 #define lock_mutex_exit_kernel()	mutex_exit(&kernel_mutex)
 
-/*************************************************************************
+/*********************************************************************//**
 Checks that a transaction id is sensible, i.e., not in the future.
 @return	TRUE if ok */
 UNIV_INTERN
@@ -492,7 +493,7 @@ lock_check_trx_id_sanity(
 	return(is_ok);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Checks that a record is seen in a consistent read.
 @return TRUE if sees, or FALSE if an earlier version of the record
 should be retrieved */
@@ -521,7 +522,7 @@ lock_clust_rec_cons_read_sees(
 	return(read_view_sees_trx_id(view, trx_id));
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Checks that a non-clustered index record is seen in a consistent read.
 
 NOTE that a non-clustered index page contains so little information on
@@ -559,7 +560,7 @@ lock_sec_rec_cons_read_sees(
 	return(ut_dulint_cmp(max_trx_id, view->up_limit_id) < 0);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Creates the lock system at database start. */
 UNIV_INTERN
 void
@@ -577,7 +578,7 @@ lock_sys_create(
 	ut_a(lock_latest_err_file);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Gets the size of a lock struct.
 @return	size in bytes */
 UNIV_INTERN
@@ -588,7 +589,7 @@ lock_get_size(void)
 	return((ulint)sizeof(lock_t));
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Gets the mode of a lock.
 @return	mode */
 UNIV_INLINE
@@ -602,7 +603,7 @@ lock_get_mode(
 	return(lock->type_mode & LOCK_MODE_MASK);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Gets the wait flag of a lock.
 @return	TRUE if waiting */
 UNIV_INLINE
@@ -621,7 +622,7 @@ lock_get_wait(
 	return(FALSE);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Gets the source table of an ALTER TABLE transaction.  The table must be
 covered by an IX or IS table lock.
 @return the source table of transaction, if it is covered by an IX or
@@ -690,7 +691,7 @@ lock_get_src_table(
 	return(src);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Determine if the given table is exclusively "owned" by the given
 transaction, i.e., transaction holds LOCK_IX and possibly LOCK_AUTO_INC
 on the table.
@@ -747,7 +748,7 @@ func_exit:
 	return(ok);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Sets the wait flag of a lock and the back pointer in trx to lock. */
 UNIV_INLINE
 void
@@ -763,7 +764,7 @@ lock_set_lock_and_trx_wait(
 	lock->type_mode |= LOCK_WAIT;
 }
 
-/**************************************************************************
+/**********************************************************************//**
 The back pointer to a waiting lock request in the transaction is set to NULL
 and the wait bit in lock type_mode is reset. */
 UNIV_INLINE
@@ -781,7 +782,7 @@ lock_reset_lock_and_trx_wait(
 	lock->type_mode &= ~LOCK_WAIT;
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Gets the gap flag of a record lock.
 @return	TRUE if gap flag set */
 UNIV_INLINE
@@ -801,7 +802,7 @@ lock_rec_get_gap(
 	return(FALSE);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Gets the LOCK_REC_NOT_GAP flag of a record lock.
 @return	TRUE if LOCK_REC_NOT_GAP flag set */
 UNIV_INLINE
@@ -821,7 +822,7 @@ lock_rec_get_rec_not_gap(
 	return(FALSE);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Gets the waiting insert flag of a record lock.
 @return	TRUE if gap flag set */
 UNIV_INLINE
@@ -841,7 +842,7 @@ lock_rec_get_insert_intention(
 	return(FALSE);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Calculates if lock mode 1 is stronger or equal to lock mode 2.
 @return	nonzero if mode1 stronger or equal to mode2 */
 UNIV_INLINE
@@ -859,7 +860,7 @@ lock_mode_stronger_or_eq(
 	return((LOCK_MODE_STRONGER_OR_EQ) & LK(mode1, mode2));
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Calculates if lock mode 1 is compatible with lock mode 2.
 @return	nonzero if mode1 compatible with mode2 */
 UNIV_INLINE
@@ -877,7 +878,7 @@ lock_mode_compatible(
 	return((LOCK_MODE_COMPATIBILITY) & LK(mode1, mode2));
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Checks if a lock request for a new lock has to wait for request lock2.
 @return	TRUE if new lock has to wait for lock2 to be removed */
 UNIV_INLINE
@@ -959,7 +960,7 @@ lock_rec_has_to_wait(
 	return(FALSE);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Checks if a lock request lock1 has to wait for request lock2.
 @return	TRUE if lock1 has to wait for lock2 to be removed */
 UNIV_INTERN
@@ -997,7 +998,7 @@ lock_has_to_wait(
 
 /*============== RECORD LOCK BASIC FUNCTIONS ============================*/
 
-/*************************************************************************
+/*********************************************************************//**
 Gets the number of bits in a record lock bitmap.
 @return	number of bits */
 UNIV_INLINE
@@ -1009,7 +1010,7 @@ lock_rec_get_n_bits(
 	return(lock->un_member.rec_lock.n_bits);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Sets the nth bit of a record lock to TRUE. */
 UNIV_INLINE
 void
@@ -1031,7 +1032,7 @@ lock_rec_set_nth_bit(
 	((byte*) &lock[1])[byte_index] |= 1 << bit_index;
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Looks for a set bit in a record lock bitmap. Returns ULINT_UNDEFINED,
 if none found.
 @return bit index == heap number of the record, or ULINT_UNDEFINED if
@@ -1055,7 +1056,7 @@ lock_rec_find_set_bit(
 	return(ULINT_UNDEFINED);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Resets the nth bit of a record lock. */
 UNIV_INLINE
 void
@@ -1078,7 +1079,7 @@ lock_rec_reset_nth_bit(
 	((byte*) &lock[1])[byte_index] &= ~(1 << bit_index);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Gets the first or next record lock on a page.
 @return	next lock, NULL if none exists */
 UNIV_INLINE
@@ -1114,7 +1115,7 @@ lock_rec_get_next_on_page(
 	return(lock);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Gets the first record lock on a page, where the page is identified by its
 file address.
 @return	first lock, NULL if none exists */
@@ -1144,7 +1145,7 @@ lock_rec_get_first_on_page_addr(
 	return(lock);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Returns TRUE if there are explicit record locks on a page.
 @return	TRUE if there are explicit record locks on the page */
 UNIV_INTERN
@@ -1169,7 +1170,7 @@ lock_rec_expl_exist_on_page(
 	return(ret);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Gets the first record lock on a page, where the page is identified by a
 pointer to it.
 @return	first lock, NULL if none exists */
@@ -1203,7 +1204,7 @@ lock_rec_get_first_on_page(
 	return(lock);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Gets the next explicit lock request on a record.
 @return	next lock, NULL if none exists */
 UNIV_INLINE
@@ -1223,7 +1224,7 @@ lock_rec_get_next(
 	return(lock);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Gets the first explicit lock request on a record.
 @return	first lock, NULL if none exists */
 UNIV_INLINE
@@ -1247,7 +1248,7 @@ lock_rec_get_first(
 	return(lock);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Resets the record lock bitmap to zero. NOTE: does not touch the wait_lock
 pointer in the transaction! This function is used in lock object creation
 and resetting. */
@@ -1271,7 +1272,7 @@ lock_rec_bitmap_reset(
 	memset(&lock[1], 0, n_bytes);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Copies a record lock to heap.
 @return	copy of lock */
 static
@@ -1290,7 +1291,7 @@ lock_rec_copy(
 	return(mem_heap_dup(heap, lock, size));
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Gets the previous record lock set on a record.
 @return	previous lock on the same record, NULL if none exists */
 UNIV_INTERN
@@ -1332,7 +1333,7 @@ lock_rec_get_prev(
 
 /*============= FUNCTIONS FOR ANALYZING TABLE LOCK QUEUE ================*/
 
-/*************************************************************************
+/*********************************************************************//**
 Checks if a transaction has the specified table lock, or stronger.
 @return	lock or NULL */
 UNIV_INLINE
@@ -1372,7 +1373,7 @@ lock_table_has(
 
 /*============= FUNCTIONS FOR ANALYZING RECORD LOCK QUEUE ================*/
 
-/*************************************************************************
+/*********************************************************************//**
 Checks if a transaction has a GRANTED explicit lock on rec stronger or equal
 to precise_mode.
 @return	lock or NULL */
@@ -1422,7 +1423,7 @@ lock_rec_has_expl(
 }
 
 #ifdef UNIV_DEBUG
-/*************************************************************************
+/*********************************************************************//**
 Checks if some other transaction has a lock request in the queue.
 @return	lock or NULL */
 static
@@ -1470,7 +1471,7 @@ lock_rec_other_has_expl_req(
 }
 #endif /* UNIV_DEBUG */
 
-/*************************************************************************
+/*********************************************************************//**
 Checks if some other transaction has a conflicting explicit lock request
 in the queue, so that we have to wait.
 @return	lock or NULL */
@@ -1520,7 +1521,7 @@ lock_rec_other_has_conflicting(
 	return(NULL);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Looks for a suitable type record lock struct by the same trx on the same page.
 This can be used to save space when a new record lock should be set on a page:
 no new struct is needed, if a suitable old is found.
@@ -1550,7 +1551,7 @@ lock_rec_find_similar_on_page(
 	return(NULL);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Checks if some transaction has an implicit x-lock on a record in a secondary
 index.
 @return	transaction which has the x-lock, or NULL */
@@ -1597,7 +1598,7 @@ lock_sec_rec_some_has_impl_off_kernel(
 	return(row_vers_impl_x_locked_off_kernel(rec, index, offsets));
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Return approximate number or record locks (bits set in the bitmap) for
 this transaction. Since delete-marked records may be removed, the
 record count will not be precise. */
@@ -1633,7 +1634,7 @@ lock_number_of_rows_locked(
 
 /*============== RECORD LOCK CREATION AND QUEUE MANAGEMENT =============*/
 
-/*************************************************************************
+/*********************************************************************//**
 Creates a new record lock and inserts it to the lock queue. Does NOT check
 for deadlocks or lock compatibility!
 @return	created lock */
@@ -1710,7 +1711,7 @@ lock_rec_create(
 	return(lock);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Enqueues a waiting request for a lock which cannot be granted immediately.
 Checks for deadlocks.
 @return DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED, or
@@ -1810,7 +1811,7 @@ lock_rec_enqueue_waiting(
 	return(DB_LOCK_WAIT);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Adds a record lock request in the record queue. The request is normally
 added as the last in the queue, but if there are no waiting lock requests
 on the record, and the request to be added is not a waiting request, we
@@ -1906,7 +1907,7 @@ somebody_waits:
 	return(lock_rec_create(type_mode, block, heap_no, index, trx));
 }
 
-/*************************************************************************
+/*********************************************************************//**
 This is a fast routine for locking a record in the most common cases:
 there are no explicit locks on the page, or there is just one lock, owned
 by this transaction, and of the right type_mode. This is a low-level function
@@ -1981,7 +1982,7 @@ lock_rec_lock_fast(
 	return(TRUE);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 This is the general, and slower, routine for locking a record. This is a
 low-level function which does NOT look at implicit locks! Checks lock
 compatibility within explicit locks. This function sets a normal next-key
@@ -2047,7 +2048,7 @@ lock_rec_lock_slow(
 	return(err);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Tries to lock the specified record in the mode requested. If not immediately
 possible, enqueues a waiting lock request. This is a low-level function
 which does NOT look at implicit locks! Checks lock compatibility within
@@ -2098,7 +2099,7 @@ lock_rec_lock(
 	return(err);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Checks if a waiting record lock request still has to wait in a queue.
 @return	TRUE if still has to wait */
 static
@@ -2136,7 +2137,7 @@ lock_rec_has_to_wait_in_queue(
 	return(FALSE);
 }
 
-/*****************************************************************
+/*************************************************************//**
 Grants a lock to a waiting lock request and releases the waiting
 transaction. */
 static
@@ -2181,7 +2182,7 @@ lock_grant(
 	}
 }
 
-/*****************************************************************
+/*************************************************************//**
 Cancels a waiting record lock request and releases the waiting transaction
 that requested it. NOTE: does NOT check if waiting lock requests behind this
 one can now be granted! */
@@ -2206,7 +2207,7 @@ lock_rec_cancel(
 	trx_end_lock_wait(lock->trx);
 }
 
-/*****************************************************************
+/*************************************************************//**
 Removes a record lock request, waiting or granted, from the queue and
 grants locks to other transactions in the queue if they now are entitled
 to a lock. NOTE: all record locks contained in in_lock are removed. */
@@ -2254,7 +2255,7 @@ lock_rec_dequeue_from_page(
 	}
 }
 
-/*****************************************************************
+/*************************************************************//**
 Removes a record lock request, waiting or granted, from the queue. */
 static
 void
@@ -2281,7 +2282,7 @@ lock_rec_discard(
 	UT_LIST_REMOVE(trx_locks, trx->trx_locks, in_lock);
 }
 
-/*****************************************************************
+/*************************************************************//**
 Removes record lock objects set on an index page which is discarded. This
 function does not move locks, or check for waiting locks, therefore the
 lock bitmaps must already be reset when this function is called. */
@@ -2317,7 +2318,7 @@ lock_rec_free_all_from_discard_page(
 
 /*============= RECORD LOCK MOVING AND INHERITING ===================*/
 
-/*****************************************************************
+/*************************************************************//**
 Resets the lock bits for a single record. Releases transactions waiting for
 lock requests here. */
 static
@@ -2345,7 +2346,7 @@ lock_rec_reset_and_release_wait(
 	}
 }
 
-/*****************************************************************
+/*************************************************************//**
 Makes a record to inherit the locks (except LOCK_INSERT_INTENTION type)
 of another record as gap type locks, but does not reset the lock bits of
 the other record. Also waiting lock requests on rec are inherited as
@@ -2394,7 +2395,7 @@ lock_rec_inherit_to_gap(
 	}
 }
 
-/*****************************************************************
+/*************************************************************//**
 Makes a record to inherit the gap locks (except LOCK_INSERT_INTENTION type)
 of another record as gap type locks, but does not reset the lock bits of the
 other record. Also waiting lock requests are inherited as GRANTED gap locks. */
@@ -2431,7 +2432,7 @@ lock_rec_inherit_to_gap_if_gap_lock(
 	}
 }
 
-/*****************************************************************
+/*************************************************************//**
 Moves the locks of a record to another record and resets the lock bits of
 the donating record. */
 static
@@ -2477,7 +2478,7 @@ lock_rec_move(
 	ut_ad(lock_rec_get_first(donator, donator_heap_no) == NULL);
 }
 
-/*****************************************************************
+/*************************************************************//**
 Updates the lock table when we have reorganized a page. NOTE: we copy
 also the locks set on the infimum of the page; the infimum may carry
 locks if an update of a record is occurring on the page, and its locks
@@ -2625,7 +2626,7 @@ lock_move_reorganize_page(
 #endif
 }
 
-/*****************************************************************
+/*************************************************************//**
 Moves the explicit locks on user records to another page if a record
 list end is moved to another page. */
 UNIV_INTERN
@@ -2716,7 +2717,7 @@ lock_move_rec_list_end(
 #endif
 }
 
-/*****************************************************************
+/*************************************************************//**
 Moves the explicit locks on user records to another page if a record
 list start is moved to another page. */
 UNIV_INTERN
@@ -2825,7 +2826,7 @@ lock_move_rec_list_start(
 #endif
 }
 
-/*****************************************************************
+/*************************************************************//**
 Updates the lock table when a page is split to the right. */
 UNIV_INTERN
 void
@@ -2853,7 +2854,7 @@ lock_update_split_right(
 	lock_mutex_exit_kernel();
 }
 
-/*****************************************************************
+/*************************************************************//**
 Updates the lock table when a page is merged to the right. */
 UNIV_INTERN
 void
@@ -2890,7 +2891,7 @@ lock_update_merge_right(
 	lock_mutex_exit_kernel();
 }
 
-/*****************************************************************
+/*************************************************************//**
 Updates the lock table when the root page is copied to another in
 btr_root_raise_and_insert. Note that we leave lock structs on the
 root page, even though they do not make sense on other than leaf
@@ -2914,7 +2915,7 @@ lock_update_root_raise(
 	lock_mutex_exit_kernel();
 }
 
-/*****************************************************************
+/*************************************************************//**
 Updates the lock table when a page is copied to another and the original page
 is removed from the chain of leaf pages, except if page is the root! */
 UNIV_INTERN
@@ -2938,7 +2939,7 @@ lock_update_copy_and_discard(
 	lock_mutex_exit_kernel();
 }
 
-/*****************************************************************
+/*************************************************************//**
 Updates the lock table when a page is split to the left. */
 UNIV_INTERN
 void
@@ -2960,7 +2961,7 @@ lock_update_split_left(
 	lock_mutex_exit_kernel();
 }
 
-/*****************************************************************
+/*************************************************************//**
 Updates the lock table when a page is merged to the left. */
 UNIV_INTERN
 void
@@ -3009,7 +3010,7 @@ lock_update_merge_left(
 	lock_mutex_exit_kernel();
 }
 
-/*****************************************************************
+/*************************************************************//**
 Resets the original locks on heir and replaces them with gap type locks
 inherited from rec. */
 UNIV_INTERN
@@ -3036,7 +3037,7 @@ lock_rec_reset_and_inherit_gap_locks(
 	mutex_exit(&kernel_mutex);
 }
 
-/*****************************************************************
+/*************************************************************//**
 Updates the lock table when a page is discarded. */
 UNIV_INTERN
 void
@@ -3099,7 +3100,7 @@ lock_update_discard(
 	lock_mutex_exit_kernel();
 }
 
-/*****************************************************************
+/*************************************************************//**
 Updates the lock table when a new user record is inserted. */
 UNIV_INTERN
 void
@@ -3132,7 +3133,7 @@ lock_update_insert(
 	lock_mutex_exit_kernel();
 }
 
-/*****************************************************************
+/*************************************************************//**
 Updates the lock table when a record is removed. */
 UNIV_INTERN
 void
@@ -3172,7 +3173,7 @@ lock_update_delete(
 	lock_mutex_exit_kernel();
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Stores on the page infimum record the explicit locks of another record.
 This function is used to store the lock state of a record when it is
 updated and the size of the record changes in the update. The record
@@ -3201,7 +3202,7 @@ lock_rec_store_on_page_infimum(
 	lock_mutex_exit_kernel();
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Restores the state of explicit lock requests on a single record, where the
 state was stored on the infimum of the page. */
 UNIV_INTERN
@@ -3228,7 +3229,7 @@ lock_rec_restore_from_page_infimum(
 
 /*=========== DEADLOCK CHECKING ======================================*/
 
-/************************************************************************
+/********************************************************************//**
 Checks if a lock request results in a deadlock.
 @return TRUE if a deadlock was detected and we chose trx as a victim;
 FALSE if no deadlock, or there was a deadlock, but we chose other
@@ -3290,7 +3291,7 @@ retry:
 	return(FALSE);
 }
 
-/************************************************************************
+/********************************************************************//**
 Looks recursively for a deadlock.
 @return 0 if no deadlock found, LOCK_VICTIM_IS_START if there was a
 deadlock and we chose 'start' as the victim, LOCK_VICTIM_IS_OTHER if a
@@ -3483,7 +3484,7 @@ lock_deadlock_recursive(
 
 /*========================= TABLE LOCKS ==============================*/
 
-/*************************************************************************
+/*********************************************************************//**
 Creates a table lock object and adds it as the last in the lock queue
 of the table. Does NOT check for deadlocks or lock compatibility.
 @return	own: new lock object */
@@ -3536,7 +3537,7 @@ lock_table_create(
 	return(lock);
 }
 
-/*****************************************************************
+/*************************************************************//**
 Removes a table lock request from the queue and the trx list of locks;
 this is a low-level function which does NOT check if waiting requests
 can now be granted. */
@@ -3588,7 +3589,7 @@ lock_table_remove_low(
 	UT_LIST_REMOVE(un_member.tab_lock.locks, table->locks, lock);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Enqueues a waiting request for a table lock which cannot be granted
 immediately. Checks for deadlocks.
 @return DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED, or
@@ -3668,7 +3669,7 @@ lock_table_enqueue_waiting(
 	return(DB_LOCK_WAIT);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Checks if other transactions have an incompatible mode lock request in
 the lock queue. */
 UNIV_INLINE
@@ -3703,7 +3704,7 @@ lock_table_other_has_incompatible(
 	return(FALSE);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Locks the specified database table in the mode given. If the lock cannot
 be granted immediately, the query thread is put to wait.
 @return	DB_SUCCESS, DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
@@ -3766,7 +3767,7 @@ lock_table(
 	return(DB_SUCCESS);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Checks if there are any locks set on the table.
 @return	TRUE if there are lock(s) */
 UNIV_INTERN
@@ -3792,7 +3793,7 @@ lock_is_on_table(
 	return(ret);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Checks if a waiting table lock request still has to wait in a queue.
 @return	TRUE if still has to wait */
 static
@@ -3824,7 +3825,7 @@ lock_table_has_to_wait_in_queue(
 	return(FALSE);
 }
 
-/*****************************************************************
+/*************************************************************//**
 Removes a table lock request, waiting or granted, from the queue and grants
 locks to other transactions in the queue, if they now are entitled to a
 lock. */
@@ -3863,7 +3864,7 @@ lock_table_dequeue(
 
 /*=========================== LOCK RELEASE ==============================*/
 
-/*****************************************************************
+/*************************************************************//**
 Removes a granted record lock of a transaction from the queue and grants
 locks to other transactions waiting in the queue if they now are entitled
 to a lock. */
@@ -3935,7 +3936,7 @@ lock_rec_unlock(
 	mutex_exit(&kernel_mutex);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Releases a table lock.
 Releases possible other transactions waiting for this lock. */
 UNIV_INTERN
@@ -3951,7 +3952,7 @@ lock_table_unlock(
 	mutex_exit(&kernel_mutex);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Releases transaction locks, and releases possible other transactions waiting
 because of these locks. */
 UNIV_INTERN
@@ -4015,7 +4016,7 @@ lock_release_off_kernel(
 	mem_heap_empty(trx->lock_heap);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Cancels a waiting lock request and releases possible other transactions
 waiting behind it. */
 UNIV_INTERN
@@ -4055,7 +4056,7 @@ lock_cancel_waiting_and_release(
 	 || lock_get_mode(lock) == LOCK_X)
 
 
-/*************************************************************************
+/*********************************************************************//**
 Removes locks of a transaction on a table to be dropped.
 If remove_also_table_sx_locks is TRUE then table-level S and X locks are
 also removed in addition to other table-level and record-level locks.
@@ -4098,7 +4099,7 @@ lock_remove_all_on_table_for_trx(
 	}
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Removes locks on a table to be dropped or truncated.
 If remove_also_table_sx_locks is TRUE then table-level S and X locks are
 also removed in addition to other table-level and record-level locks.
@@ -4165,7 +4166,7 @@ lock_remove_all_on_table(
 
 /*===================== VALIDATION AND DEBUGGING  ====================*/
 
-/*************************************************************************
+/*********************************************************************//**
 Prints info of a table lock. */
 UNIV_INTERN
 void
@@ -4205,7 +4206,7 @@ lock_table_print(
 	putc('\n', file);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Prints info of a record lock. */
 UNIV_INTERN
 void
@@ -4305,7 +4306,7 @@ http://bugs.mysql.com/36942 */
 #endif /* UNIV_DEBUG */
 
 #ifdef PRINT_NUM_OF_LOCK_STRUCTS
-/*************************************************************************
+/*********************************************************************//**
 Calculates the number of record lock structs in the record lock hash table.
 @return	number of record locks */
 static
@@ -4334,7 +4335,7 @@ lock_get_n_rec_locks(void)
 }
 #endif /* PRINT_NUM_OF_LOCK_STRUCTS */
 
-/*************************************************************************
+/*********************************************************************//**
 Prints info of locks for all transactions. */
 UNIV_INTERN
 void
@@ -4381,7 +4382,7 @@ lock_print_info_summary(
 #endif /* PRINT_NUM_OF_LOCK_STRUCTS */
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Prints info of locks for each transaction. */
 UNIV_INTERN
 void
@@ -4542,7 +4543,7 @@ loop:
 }
 
 #ifdef UNIV_DEBUG
-/*************************************************************************
+/*********************************************************************//**
 Validates the lock queue on a table.
 @return	TRUE if ok */
 static
@@ -4578,7 +4579,7 @@ lock_table_queue_validate(
 	return(TRUE);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Validates the lock queue on a single record.
 @return	TRUE if ok */
 static
@@ -4702,7 +4703,7 @@ lock_rec_queue_validate(
 	return(TRUE);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Validates the record lock queues on a page.
 @return	TRUE if ok */
 static
@@ -4800,7 +4801,7 @@ function_exit:
 	return(TRUE);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Validates the lock system.
 @return	TRUE if ok */
 static
@@ -4879,7 +4880,7 @@ lock_validate(void)
 #endif /* UNIV_DEBUG */
 /*============ RECORD LOCK CHECKS FOR ROW OPERATIONS ====================*/
 
-/*************************************************************************
+/*********************************************************************//**
 Checks if locks of other transactions prevent an immediate insert of
 a record. If they do, first tests if the query thread should anyway
 be suspended for some reason; if not, then puts the transaction and
@@ -5001,7 +5002,7 @@ lock_rec_insert_check_and_lock(
 	return(err);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 If a transaction has an implicit x-lock on a record, but no explicit x-lock
 set on the record, sets one for it. NOTE that in the case of a secondary
 index, the kernel mutex may get temporarily released. */
@@ -5044,7 +5045,7 @@ lock_rec_convert_impl_to_expl(
 	}
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Checks if locks of other transactions prevent an immediate modify (update,
 delete mark, or delete unmark) of a clustered index record. If they do,
 first tests if the query thread should anyway be suspended for some
@@ -5100,7 +5101,7 @@ lock_clust_rec_modify_check_and_lock(
 	return(err);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Checks if locks of other transactions prevent an immediate modify (delete
 mark or delete unmark) of a secondary index record.
 @return	DB_SUCCESS, DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
@@ -5173,7 +5174,7 @@ lock_sec_rec_modify_check_and_lock(
 	return(err);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Like the counterpart for a clustered index below, but now we read a
 secondary index record.
 @return	DB_SUCCESS, DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
@@ -5244,7 +5245,7 @@ lock_sec_rec_read_check_and_lock(
 	return(err);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Checks if locks of other transactions prevent an immediate read, or passing
 over by a read cursor, of a clustered index record. If they do, first tests
 if the query thread should anyway be suspended for some reason; if not, then
@@ -5312,7 +5313,7 @@ lock_clust_rec_read_check_and_lock(
 
 	return(err);
 }
-/*************************************************************************
+/*********************************************************************//**
 Checks if locks of other transactions prevent an immediate read, or passing
 over by a read cursor, of a clustered index record. If they do, first tests
 if the query thread should anyway be suspended for some reason; if not, then
@@ -5359,7 +5360,7 @@ lock_clust_rec_read_check_and_lock_alt(
 	return(ret);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Release the last lock from the transaction's autoinc locks. */
 UNIV_INLINE
 void
@@ -5387,7 +5388,7 @@ lock_release_autoinc_last_lock(
 	lock_table_dequeue(lock);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Release all the transaction's autoinc locks. */
 UNIV_INTERN
 void
@@ -5413,7 +5414,7 @@ lock_release_autoinc_locks(
 	ut_a(ib_vector_is_empty(trx->autoinc_locks));
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Gets the type of a lock. Non-inline version for using outside of the
 lock module.
 @return	LOCK_TABLE or LOCK_REC */
@@ -5426,7 +5427,7 @@ lock_get_type(
 	return(lock_get_type_low(lock));
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Gets the id of the transaction owning a lock.
 @return	transaction id */
 UNIV_INTERN
@@ -5438,7 +5439,7 @@ lock_get_trx_id(
 	return(trx_get_id(lock->trx));
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Gets the mode of a lock in a human readable string.
 The string should not be free()'d or modified.
 @return	lock mode */
@@ -5485,7 +5486,7 @@ lock_get_mode_str(
 	}
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Gets the type of a lock in a human readable string.
 The string should not be free()'d or modified.
 @return	lock type */
@@ -5505,7 +5506,7 @@ lock_get_type_str(
 	}
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Gets the table on which the lock is.
 @return	table */
 UNIV_INLINE
@@ -5525,7 +5526,7 @@ lock_get_table(
 	}
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Gets the id of the table on which the lock is.
 @return	id of the table */
 UNIV_INTERN
@@ -5541,7 +5542,7 @@ lock_get_table_id(
 	return((ullint)ut_conv_dulint_to_longlong(table->id));
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Gets the name of the table on which the lock is.
 The string should not be free()'d or modified.
 @return	name of the table */
@@ -5558,7 +5559,7 @@ lock_get_table_name(
 	return(table->name);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 For a record lock, gets the index on which the lock is.
 @return	index */
 UNIV_INTERN
@@ -5572,7 +5573,7 @@ lock_rec_get_index(
 	return(lock->index);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 For a record lock, gets the name of the index on which the lock is.
 The string should not be free()'d or modified.
 @return	name of the index */
@@ -5587,7 +5588,7 @@ lock_rec_get_index_name(
 	return(lock->index->name);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 For a record lock, gets the tablespace number on which the lock is.
 @return	tablespace number */
 UNIV_INTERN
@@ -5601,7 +5602,7 @@ lock_rec_get_space_id(
 	return(lock->un_member.rec_lock.space);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 For a record lock, gets the page number on which the lock is.
 @return	page number */
 UNIV_INTERN

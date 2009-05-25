@@ -23,7 +23,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/************************************************************************
+/********************************************************************//**
+@file btr/btr0sea.c
 The index tree adaptive search
 
 Created 2/17/1996 Heikki Tuuri
@@ -88,7 +89,7 @@ before hash index building is started */
 
 #define BTR_SEARCH_BUILD_LIMIT		100
 
-/************************************************************************
+/********************************************************************//**
 Builds a hash index on a page with the given parameters. If the page already
 has a hash index with different parameters, the old hash index is removed.
 If index is non-NULL, this function checks if n_fields and n_bytes are
@@ -105,7 +106,7 @@ btr_search_build_page_hash_index(
 				field */
 	ibool		left_side);/*!< in: hash for searches from left side? */
 
-/*********************************************************************
+/*****************************************************************//**
 This function should be called before reserving any btr search mutex, if
 the intended operation might add nodes to the search system hash table.
 Because of the latching order, once we have reserved the btr search system
@@ -151,7 +152,7 @@ btr_search_check_free_space_in_heap(void)
 	}
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Creates and initializes the adaptive search system at a database start. */
 UNIV_INTERN
 void
@@ -172,7 +173,7 @@ btr_search_sys_create(
 	btr_search_sys->hash_index = ha_create(hash_size, 0, 0);
 }
 
-/************************************************************************
+/********************************************************************//**
 Disable the adaptive hash search system and empty the index. */
 UNIV_INTERN
 void
@@ -195,7 +196,7 @@ btr_search_disable(void)
 	mutex_exit(&btr_search_enabled_mutex);
 }
 
-/************************************************************************
+/********************************************************************//**
 Enable the adaptive hash search system. */
 UNIV_INTERN
 void
@@ -211,7 +212,7 @@ btr_search_enable(void)
 	mutex_exit(&btr_search_enabled_mutex);
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Creates and initializes a search info struct.
 @return	own: search info struct */
 UNIV_INTERN
@@ -252,7 +253,7 @@ btr_search_info_create(
 	return(info);
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Returns the value of ref_count. The value is protected by
 btr_search_latch.
 @return	ref_count value. */
@@ -278,7 +279,7 @@ btr_search_info_get_ref_count(
 	return(ret);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Updates the search info of an index about hash successes. NOTE that info
 is NOT protected by any semaphore, to save CPU time! Do not assume its fields
 are consistent. */
@@ -398,7 +399,7 @@ set_new_recomm:
 	}
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Updates the block search info on hash successes. NOTE that info and
 block->n_hash_helps, n_fields, n_bytes, side are NOT protected by any
 semaphore, to save CPU time! Do not assume the fields are consistent.
@@ -476,7 +477,7 @@ btr_search_update_block_hash_info(
 	return(FALSE);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Updates a hash node reference when it has been unsuccessfully used in a
 search which could have succeeded with the used hash parameters. This can
 happen because when building a hash index for a page, we do not check
@@ -546,7 +547,7 @@ btr_search_update_hash_ref(
 	}
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Updates the search info. */
 UNIV_INTERN
 void
@@ -623,7 +624,7 @@ btr_search_info_update_slow(
 	}
 }
 
-/**********************************************************************
+/******************************************************************//**
 Checks if a guessed position for a tree cursor is right. Note that if
 mode is PAGE_CUR_LE, which is used in inserts, and the function returns
 TRUE, then cursor->up_match and cursor->low_match both have sensible values.
@@ -769,7 +770,7 @@ exit_func:
 	return(success);
 }
 
-/**********************************************************************
+/******************************************************************//**
 Tries to guess the right search position based on the hash search info
 of the index. Note that if mode is PAGE_CUR_LE, which is used in inserts,
 and the function returns TRUE, then cursor->up_match and cursor->low_match
@@ -978,7 +979,7 @@ failure:
 	return(FALSE);
 }
 
-/************************************************************************
+/********************************************************************//**
 Drops a page hash index. */
 UNIV_INTERN
 void
@@ -1145,7 +1146,7 @@ cleanup:
 	mem_free(folds);
 }
 
-/************************************************************************
+/********************************************************************//**
 Drops a page hash index when a page is freed from a fseg to the file system.
 Drops possible hash index if the page happens to be in the buffer pool. */
 UNIV_INTERN
@@ -1191,7 +1192,7 @@ btr_search_drop_page_hash_when_freed(
 	mtr_commit(&mtr);
 }
 
-/************************************************************************
+/********************************************************************//**
 Builds a hash index on a page with the given parameters. If the page already
 has a hash index with different parameters, the old hash index is removed.
 If index is non-NULL, this function checks if n_fields and n_bytes are
@@ -1386,7 +1387,7 @@ exit_func:
 	}
 }
 
-/************************************************************************
+/********************************************************************//**
 Moves or deletes hash entries for moved records. If new_page is already hashed,
 then the hash index for page, if any, is dropped. If new_page is not hashed,
 and page is hashed, then a new hash index is built to new_page with the same
@@ -1452,7 +1453,7 @@ btr_search_move_or_delete_hash_entries(
 	rw_lock_s_unlock(&btr_search_latch);
 }
 
-/************************************************************************
+/********************************************************************//**
 Updates the page hash index when a single record is deleted from a page. */
 UNIV_INTERN
 void
@@ -1505,7 +1506,7 @@ btr_search_update_hash_on_delete(
 	rw_lock_x_unlock(&btr_search_latch);
 }
 
-/************************************************************************
+/********************************************************************//**
 Updates the page hash index when a single record is inserted on a page. */
 UNIV_INTERN
 void
@@ -1556,7 +1557,7 @@ btr_search_update_hash_node_on_insert(
 	}
 }
 
-/************************************************************************
+/********************************************************************//**
 Updates the page hash index when a single record is inserted on a page. */
 UNIV_INTERN
 void
@@ -1706,7 +1707,7 @@ function_exit:
 	}
 }
 
-/************************************************************************
+/********************************************************************//**
 Validates the search system.
 @return	TRUE if ok */
 UNIV_INTERN

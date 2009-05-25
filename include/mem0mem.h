@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/mem0mem.h
 The memory management
 
 Created 6/9/1994 Heikki Tuuri
@@ -74,26 +75,26 @@ allocations of small buffers. */
 is the maximum size for a single allocated buffer: */
 #define MEM_MAX_ALLOC_IN_BUF		(UNIV_PAGE_SIZE - 200)
 
-/**********************************************************************
+/******************************************************************//**
 Initializes the memory system. */
 UNIV_INTERN
 void
 mem_init(
 /*=====*/
 	ulint	size);	/*!< in: common pool size in bytes */
-/******************************************************************
+/**************************************************************//**
 Use this macro instead of the corresponding function! Macro for memory
 heap creation. */
 
 #define mem_heap_create(N)	mem_heap_create_func(\
 		(N), MEM_HEAP_DYNAMIC, __FILE__, __LINE__)
-/******************************************************************
+/**************************************************************//**
 Use this macro instead of the corresponding function! Macro for memory
 heap creation. */
 
 #define mem_heap_create_in_buffer(N)	mem_heap_create_func(\
 		(N), MEM_HEAP_BUFFER, __FILE__, __LINE__)
-/******************************************************************
+/**************************************************************//**
 Use this macro instead of the corresponding function! Macro for memory
 heap creation. */
 
@@ -101,13 +102,13 @@ heap creation. */
 		(N), MEM_HEAP_BTR_SEARCH | MEM_HEAP_BUFFER,\
 		__FILE__, __LINE__)
 
-/******************************************************************
+/**************************************************************//**
 Use this macro instead of the corresponding function! Macro for memory
 heap freeing. */
 
 #define mem_heap_free(heap) mem_heap_free_func(\
 					  (heap), __FILE__, __LINE__)
-/*********************************************************************
+/*****************************************************************//**
 NOTE: Use the corresponding macros instead of this function. Creates a
 memory heap. For debugging purposes, takes also the file name and line as
 arguments.
@@ -124,7 +125,7 @@ mem_heap_create_func(
 	ulint		type,		/*!< in: heap type */
 	const char*	file_name,	/*!< in: file name where created */
 	ulint		line);		/*!< in: line where created */
-/*********************************************************************
+/*****************************************************************//**
 NOTE: Use the corresponding macro instead of this function. Frees the space
 occupied by a memory heap. In the debug version erases the heap memory
 blocks. */
@@ -135,7 +136,7 @@ mem_heap_free_func(
 	mem_heap_t*	heap,		/*!< in, own: heap to be freed */
 	const char*	file_name,	/*!< in: file name where freed */
 	ulint		line);		/*!< in: line where freed */
-/*******************************************************************
+/***************************************************************//**
 Allocates and zero-fills n bytes of memory from a memory heap.
 @return	allocated, zero-filled storage */
 UNIV_INLINE
@@ -146,7 +147,7 @@ mem_heap_zalloc(
 	ulint		n);	/*!< in: number of bytes; if the heap is allowed
 				to grow into the buffer pool, this must be
 				<= MEM_MAX_ALLOC_IN_BUF */
-/*******************************************************************
+/***************************************************************//**
 Allocates n bytes of memory from a memory heap.
 @return allocated storage, NULL if did not succeed (only possible for
 MEM_HEAP_BTR_SEARCH type heaps) */
@@ -158,7 +159,7 @@ mem_heap_alloc(
 	ulint		n);	/*!< in: number of bytes; if the heap is allowed
 				to grow into the buffer pool, this must be
 				<= MEM_MAX_ALLOC_IN_BUF */
-/*********************************************************************
+/*****************************************************************//**
 Returns a pointer to the heap top.
 @return	pointer to the heap top */
 UNIV_INLINE
@@ -166,7 +167,7 @@ byte*
 mem_heap_get_heap_top(
 /*==================*/
 	mem_heap_t*	heap);	/*!< in: memory heap */
-/*********************************************************************
+/*****************************************************************//**
 Frees the space in a memory heap exceeding the pointer given. The
 pointer must have been acquired from mem_heap_get_heap_top. The first
 memory block of the heap is not freed. */
@@ -176,14 +177,14 @@ mem_heap_free_heap_top(
 /*===================*/
 	mem_heap_t*	heap,	/*!< in: heap from which to free */
 	byte*		old_top);/*!< in: pointer to old top of heap */
-/*********************************************************************
+/*****************************************************************//**
 Empties a memory heap. The first memory block of the heap is not freed. */
 UNIV_INLINE
 void
 mem_heap_empty(
 /*===========*/
 	mem_heap_t*	heap);	/*!< in: heap to empty */
-/*********************************************************************
+/*****************************************************************//**
 Returns a pointer to the topmost element in a memory heap.
 The size of the element must be given.
 @return	pointer to the topmost element */
@@ -193,7 +194,7 @@ mem_heap_get_top(
 /*=============*/
 	mem_heap_t*	heap,	/*!< in: memory heap */
 	ulint		n);	/*!< in: size of the topmost element */
-/*********************************************************************
+/*****************************************************************//**
 Frees the topmost element in a memory heap.
 The size of the element must be given. */
 UNIV_INLINE
@@ -202,14 +203,14 @@ mem_heap_free_top(
 /*==============*/
 	mem_heap_t*	heap,	/*!< in: memory heap */
 	ulint		n);	/*!< in: size of the topmost element */
-/*********************************************************************
+/*****************************************************************//**
 Returns the space in bytes occupied by a memory heap. */
 UNIV_INLINE
 ulint
 mem_heap_get_size(
 /*==============*/
 	mem_heap_t*	heap);		/*!< in: heap */
-/******************************************************************
+/**************************************************************//**
 Use this macro instead of the corresponding function!
 Macro for memory buffer allocation */
 
@@ -217,7 +218,7 @@ Macro for memory buffer allocation */
 
 #define mem_alloc(N)	mem_alloc_func((N), NULL, __FILE__, __LINE__)
 #define mem_alloc2(N,S)	mem_alloc_func((N), (S), __FILE__, __LINE__)
-/*******************************************************************
+/***************************************************************//**
 NOTE: Use the corresponding macro instead of this function.
 Allocates a single buffer of memory from the dynamic memory of
 the C compiler. Is like malloc of C. The buffer must be freed
@@ -233,12 +234,12 @@ mem_alloc_func(
 	const char*	file_name,	/*!< in: file name where created */
 	ulint		line);		/*!< in: line where created */
 
-/******************************************************************
+/**************************************************************//**
 Use this macro instead of the corresponding function!
 Macro for memory buffer freeing */
 
 #define mem_free(PTR)	mem_free_func((PTR), __FILE__, __LINE__)
-/*******************************************************************
+/***************************************************************//**
 NOTE: Use the corresponding macro instead of this function.
 Frees a single buffer of storage from
 the dynamic memory of C compiler. Similar to free of C. */
@@ -250,7 +251,7 @@ mem_free_func(
 	const char*	file_name,	/*!< in: file name where created */
 	ulint		line);		/*!< in: line where created */
 
-/**************************************************************************
+/**********************************************************************//**
 Duplicates a NUL-terminated string.
 @return	own: a copy of the string, must be deallocated with mem_free */
 UNIV_INLINE
@@ -258,7 +259,7 @@ char*
 mem_strdup(
 /*=======*/
 	const char*	str);	/*!< in: string to be copied */
-/**************************************************************************
+/**********************************************************************//**
 Makes a NUL-terminated copy of a nonterminated string.
 @return	own: a copy of the string, must be deallocated with mem_free */
 UNIV_INLINE
@@ -268,7 +269,7 @@ mem_strdupl(
 	const char*	str,	/*!< in: string to be copied */
 	ulint		len);	/*!< in: length of str, in bytes */
 
-/**************************************************************************
+/**********************************************************************//**
 Duplicates a NUL-terminated string, allocated from a memory heap.
 @return	own: a copy of the string */
 UNIV_INTERN
@@ -277,7 +278,7 @@ mem_heap_strdup(
 /*============*/
 	mem_heap_t*	heap,	/*!< in: memory heap where string is allocated */
 	const char*	str);	/*!< in: string to be copied */
-/**************************************************************************
+/**********************************************************************//**
 Makes a NUL-terminated copy of a nonterminated string,
 allocated from a memory heap.
 @return	own: a copy of the string */
@@ -289,7 +290,7 @@ mem_heap_strdupl(
 	const char*	str,	/*!< in: string to be copied */
 	ulint		len);	/*!< in: length of str, in bytes */
 
-/**************************************************************************
+/**********************************************************************//**
 Concatenate two strings and return the result, using a memory heap.
 @return	own: the result */
 UNIV_INTERN
@@ -300,7 +301,7 @@ mem_heap_strcat(
 	const char*	s1,	/*!< in: string 1 */
 	const char*	s2);	/*!< in: string 2 */
 
-/**************************************************************************
+/**********************************************************************//**
 Duplicate a block of data, allocated from a memory heap.
 @return	own: a copy of the data */
 UNIV_INTERN
@@ -311,7 +312,7 @@ mem_heap_dup(
 	const void*	data,	/*!< in: data to be copied */
 	ulint		len);	/*!< in: length of data, in bytes */
 
-/**************************************************************************
+/**********************************************************************//**
 Concatenate two memory blocks and return the result, using a memory heap.
 @return	own: the result */
 UNIV_INTERN
@@ -324,7 +325,7 @@ mem_heap_cat(
 	const void*	b2,	/*!< in: block 2 */
 	ulint		len2);	/*!< in: length of b2, in bytes */
 
-/********************************************************************
+/****************************************************************//**
 A simple (s)printf replacement that dynamically allocates the space for the
 formatted string from the given heap. This supports a very limited set of
 the printf syntax: types 's' and 'u' and length modifier 'l' (which is
@@ -339,7 +340,7 @@ mem_heap_printf(
 	...) __attribute__ ((format (printf, 2, 3)));
 
 #ifdef MEM_PERIODIC_CHECK
-/**********************************************************************
+/******************************************************************//**
 Goes through the list of all allocated mem blocks, checks their magic
 numbers, and reports possible corruption. */
 UNIV_INTERN

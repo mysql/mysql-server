@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/*****************************************************************************
+/*************************************************************************//**
+@file ut/ut0auxconf_atomic_pthread_t_solaris.c
 If this program compiles, then pthread_t objects can be used as arguments
 to Solaris libc atomic functions.
 

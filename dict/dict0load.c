@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file dict/dict0load.c
 Loads to the memory cache database object definitions
 from dictionary tables
 
@@ -40,7 +41,7 @@ Created 4/24/1996 Heikki Tuuri
 #include "srv0start.h"
 #include "srv0srv.h"
 
-/********************************************************************
+/****************************************************************//**
 Compare the name of an index column.
 @return	TRUE if the i'th column of index is 'name'. */
 static
@@ -59,7 +60,7 @@ name_of_col_is(
 	return(strcmp(name, dict_table_get_col_name(table, tmp)) == 0);
 }
 
-/************************************************************************
+/********************************************************************//**
 Finds the first table name in the given database.
 @return own: table name, NULL if does not exist; the caller must free
 the memory in the string! */
@@ -142,7 +143,7 @@ loop:
 	goto loop;
 }
 
-/************************************************************************
+/********************************************************************//**
 Prints to the standard output information on all tables found in the data
 dictionary system table. */
 UNIV_INTERN
@@ -235,7 +236,7 @@ loop:
 	goto loop;
 }
 
-/************************************************************************
+/********************************************************************//**
 Determine the flags of a table described in SYS_TABLES.
 @return compressed page size in kilobytes; or 0 if the tablespace is
 uncompressed, ULINT_UNDEFINED on error */
@@ -297,7 +298,7 @@ dict_sys_tables_get_flags(
 	return(flags);
 }
 
-/************************************************************************
+/********************************************************************//**
 In a crash recovery we already have all the tablespace objects created.
 This function compares the space id information in the InnoDB data dictionary
 to what we already read with fil_load_single_table_tablespaces().
@@ -419,7 +420,7 @@ loop:
 	goto loop;
 }
 
-/************************************************************************
+/********************************************************************//**
 Loads definitions for table columns. */
 static
 void
@@ -525,7 +526,7 @@ dict_load_columns(
 	mtr_commit(&mtr);
 }
 
-/************************************************************************
+/********************************************************************//**
 Loads definitions for index fields. */
 static
 void
@@ -626,7 +627,7 @@ next_rec:
 	mtr_commit(&mtr);
 }
 
-/************************************************************************
+/********************************************************************//**
 Loads definitions for table indexes. Adds them to the data dictionary
 cache.
 @return DB_SUCCESS if ok, DB_CORRUPTION if corruption of dictionary
@@ -799,7 +800,7 @@ func_exit:
 	return(error);
 }
 
-/************************************************************************
+/********************************************************************//**
 Loads a table definition and also all its index definitions, and also
 the cluster definition if the table is a member in a cluster. Also loads
 all foreign key constraints where the foreign key is in the table or where
@@ -992,7 +993,7 @@ err_exit:
 	return(table);
 }
 
-/***************************************************************************
+/***********************************************************************//**
 Loads a table object based on the table id.
 @return	table; NULL if table does not exist */
 UNIV_INTERN
@@ -1083,7 +1084,7 @@ dict_load_table_on_id(
 	return(table);
 }
 
-/************************************************************************
+/********************************************************************//**
 This function is called when the database is booted. Loads system table
 index definitions except for the clustered index which is added to the
 dictionary cache at booting before calling this function. */
@@ -1104,7 +1105,7 @@ dict_load_sys_table(
 	mem_heap_free(heap);
 }
 
-/************************************************************************
+/********************************************************************//**
 Loads foreign key constraint col names (also for the referenced table). */
 static
 void
@@ -1176,7 +1177,7 @@ dict_load_foreign_cols(
 	mtr_commit(&mtr);
 }
 
-/***************************************************************************
+/***********************************************************************//**
 Loads a foreign key constraint to the dictionary cache.
 @return	DB_SUCCESS or error code */
 static
@@ -1301,7 +1302,7 @@ dict_load_foreign(
 	return(dict_foreign_add_to_cache(foreign, check_charsets));
 }
 
-/***************************************************************************
+/***********************************************************************//**
 Loads foreign key constraints where the table is either the foreign key
 holder or where the table is referenced by a foreign key. Adds these
 constraints to the data dictionary. Note that we know that the dictionary

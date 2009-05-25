@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/row0vers.h
 Row versions
 
 Created 2/6/1997 Heikki Tuuri
@@ -34,7 +35,7 @@ Created 2/6/1997 Heikki Tuuri
 #include "mtr0mtr.h"
 #include "read0types.h"
 
-/*********************************************************************
+/*****************************************************************//**
 Finds out if an active transaction has inserted or modified a secondary
 index record. NOTE: the kernel mutex is temporarily released in this
 function!
@@ -46,7 +47,7 @@ row_vers_impl_x_locked_off_kernel(
 	const rec_t*	rec,	/*!< in: record in a secondary index */
 	dict_index_t*	index,	/*!< in: the secondary index */
 	const ulint*	offsets);/*!< in: rec_get_offsets(rec, index) */
-/*********************************************************************
+/*****************************************************************//**
 Finds out if we must preserve a delete marked earlier version of a clustered
 index record, because it is >= the purge view.
 @return	TRUE if earlier version should be preserved */
@@ -58,7 +59,7 @@ row_vers_must_preserve_del_marked(
 	mtr_t*		mtr);	/*!< in: mtr holding the latch on the
 				clustered index record; it will also
 				hold the latch on purge_view */
-/*********************************************************************
+/*****************************************************************//**
 Finds out if a version of the record, where the version >= the current
 purge view, should have ientry as its secondary index entry. We check
 if there is any not delete marked version of the record where the trx
@@ -78,7 +79,7 @@ row_vers_old_has_index_entry(
 				also hold the latch on purge_view */
 	dict_index_t*	index,	/*!< in: the secondary index */
 	const dtuple_t*	ientry);/*!< in: the secondary index entry */
-/*********************************************************************
+/*****************************************************************//**
 Constructs the version of a clustered index record which a consistent
 read should see. We assume that the trx id stored in rec is such that
 the consistent read should not see rec in its present version.
@@ -107,7 +108,7 @@ row_vers_build_for_consistent_read(
 				record does not exist in the view, that is,
 				it was freshly inserted afterwards */
 
-/*********************************************************************
+/*****************************************************************//**
 Constructs the last committed version of a clustered index record,
 which should be seen by a semi-consistent read.
 @return	DB_SUCCESS or DB_MISSING_HISTORY */

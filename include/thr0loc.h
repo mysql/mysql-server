@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/thr0loc.h
 The thread local storage
 
 Created 10/5/1995 Heikki Tuuri
@@ -32,26 +33,26 @@ OS handle to the current thread, or its priority. */
 #include "univ.i"
 #include "os0thread.h"
 
-/********************************************************************
+/****************************************************************//**
 Initializes the thread local storage module. */
 UNIV_INTERN
 void
 thr_local_init(void);
 /*================*/
-/***********************************************************************
+/*******************************************************************//**
 Creates a local storage struct for the calling new thread. */
 UNIV_INTERN
 void
 thr_local_create(void);
 /*==================*/
-/***********************************************************************
+/*******************************************************************//**
 Frees the local storage struct for the specified thread. */
 UNIV_INTERN
 void
 thr_local_free(
 /*===========*/
 	os_thread_id_t	id);	/*!< in: thread id */
-/***********************************************************************
+/*******************************************************************//**
 Gets the slot number in the thread table of a thread.
 @return	slot number */
 UNIV_INTERN
@@ -59,7 +60,7 @@ ulint
 thr_local_get_slot_no(
 /*==================*/
 	os_thread_id_t	id);	/*!< in: thread id of the thread */
-/***********************************************************************
+/*******************************************************************//**
 Sets in the local storage the slot number in the thread table of a thread. */
 UNIV_INTERN
 void
@@ -67,7 +68,7 @@ thr_local_set_slot_no(
 /*==================*/
 	os_thread_id_t	id,	/*!< in: thread id of the thread */
 	ulint		slot_no);/*!< in: slot number */
-/***********************************************************************
+/*******************************************************************//**
 Returns pointer to the 'in_ibuf' field within the current thread local
 storage.
 @return	pointer to the in_ibuf field */

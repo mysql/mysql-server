@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/row0purge.h
 Purge obsolete records
 
 Created 3/14/1997 Heikki Tuuri
@@ -34,7 +35,7 @@ Created 3/14/1997 Heikki Tuuri
 #include "que0types.h"
 #include "row0types.h"
 
-/************************************************************************
+/********************************************************************//**
 Creates a purge node to a query graph.
 @return	own: purge node */
 UNIV_INTERN
@@ -43,7 +44,7 @@ row_purge_node_create(
 /*==================*/
 	que_thr_t*	parent,	/*!< in: parent node, i.e., a thr node */
 	mem_heap_t*	heap);	/*!< in: memory heap where created */
-/***************************************************************
+/***********************************************************//**
 Does the purge operation for a single undo log record. This is a high-level
 function used in an SQL execution graph.
 @return	query thread to run next or NULL */

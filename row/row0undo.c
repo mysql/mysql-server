@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file row/row0undo.c
 Row undo
 
 Created 1/8/1997 Heikki Tuuri
@@ -119,7 +120,7 @@ doing the purge. Similarly, during a rollback, a record can be removed
 if the stored roll ptr in the undo log points to a trx already (being) purged,
 or if the roll ptr is NULL, i.e., it was a fresh insert. */
 
-/************************************************************************
+/********************************************************************//**
 Creates a row undo node to a query graph.
 @return	own: undo node */
 UNIV_INTERN
@@ -149,7 +150,7 @@ row_undo_node_create(
 	return(undo);
 }
 
-/***************************************************************
+/***********************************************************//**
 Looks for the clustered index record when node has the row reference.
 The pcur in node is used in the search. If found, stores the row to node,
 and stores the position of pcur, and detaches it. The pcur must be closed
@@ -222,7 +223,7 @@ row_undo_search_clust_to_pcur(
 	return(ret);
 }
 
-/***************************************************************
+/***********************************************************//**
 Fetches an undo log record and does the undo for the recorded operation.
 If none left, or a partial rollback completed, returns control to the
 parent node, which is always a query thread node.
@@ -324,7 +325,7 @@ row_undo(
 	return(err);
 }
 
-/***************************************************************
+/***********************************************************//**
 Undoes a row operation in a table. This is a high-level function used
 in SQL execution graphs.
 @return	query thread to run next or NULL */

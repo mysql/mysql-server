@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/trx0purge.h
 Purge old versions
 
 Created 3/26/1996 Heikki Tuuri
@@ -41,7 +42,7 @@ extern trx_purge_t*	purge_sys;
 which needs no purge */
 extern trx_undo_rec_t	trx_purge_dummy_rec;
 
-/************************************************************************
+/********************************************************************//**
 Calculates the file address of an undo log header when we have the file
 address of its history list node.
 @return	file address of the log */
@@ -51,7 +52,7 @@ trx_purge_get_log_from_hist(
 /*========================*/
 	fil_addr_t	node_addr);	/*!< in: file address of the history
 					list node of the log */
-/*********************************************************************
+/*****************************************************************//**
 Checks if trx_id is >= purge_view: then it is guaranteed that its update
 undo log still exists in the system.
 @return TRUE if is sure that it is preserved, also if the function
@@ -62,14 +63,14 @@ ibool
 trx_purge_update_undo_must_exist(
 /*=============================*/
 	trx_id_t	trx_id);/*!< in: transaction id */
-/************************************************************************
+/********************************************************************//**
 Creates the global purge system control structure and inits the history
 mutex. */
 UNIV_INTERN
 void
 trx_purge_sys_create(void);
 /*======================*/
-/************************************************************************
+/********************************************************************//**
 Adds the update undo log as the first log in the history list. Removes the
 update undo log segment from the rseg slot if it is too big for reuse. */
 UNIV_INTERN
@@ -80,7 +81,7 @@ trx_purge_add_update_undo_to_history(
 	page_t*	undo_page,	/*!< in: update undo log header page,
 				x-latched */
 	mtr_t*	mtr);		/*!< in: mtr */
-/************************************************************************
+/********************************************************************//**
 Fetches the next undo log record from the history list to purge. It must be
 released with the corresponding release function.
 @return copy of an undo log record or pointer to trx_purge_dummy_rec,
@@ -93,21 +94,21 @@ trx_purge_fetch_next_rec(
 	trx_undo_inf_t** cell,	/*!< out: storage cell for the record in the
 				purge array */
 	mem_heap_t*	heap);	/*!< in: memory heap where copied */
-/***********************************************************************
+/*******************************************************************//**
 Releases a reserved purge undo record. */
 UNIV_INTERN
 void
 trx_purge_rec_release(
 /*==================*/
 	trx_undo_inf_t*	cell);	/*!< in: storage cell */
-/***********************************************************************
+/*******************************************************************//**
 This function runs a purge batch.
 @return	number of undo log pages handled in the batch */
 UNIV_INTERN
 ulint
 trx_purge(void);
 /*===========*/
-/**********************************************************************
+/******************************************************************//**
 Prints information of the purge system to stderr. */
 UNIV_INTERN
 void
