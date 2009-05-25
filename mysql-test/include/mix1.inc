@@ -1544,4 +1544,31 @@ SELECT 1 FROM (SELECT COUNT(DISTINCT c1)
 
 DROP TABLE t1;
 
+eval
+CREATE TABLE t1 (c1 REAL, c2 REAL, c3 REAL, KEY (c3), KEY (c2, c3))
+  ENGINE=$engine_type;
+INSERT INTO t1 VALUES (1,1,1), (1,1,1), (1,1,2), (1,1,1), (1,1,2);
+
+SELECT 1 FROM (SELECT COUNT(DISTINCT c1) 
+                 FROM t1 WHERE c2 IN (1, 1) AND c3 = 2 GROUP BY c2) x;
+EXPLAIN 
+SELECT 1 FROM (SELECT COUNT(DISTINCT c1) 
+                 FROM t1 WHERE c2 IN (1, 1) AND c3 = 2 GROUP BY c2) x;
+
+DROP TABLE t1;
+
+eval
+CREATE TABLE t1 (c1 DECIMAL(12,2), c2 DECIMAL(12,2), c3 DECIMAL(12,2), 
+  KEY (c3), KEY (c2, c3))
+  ENGINE=$engine_type;
+INSERT INTO t1 VALUES (1,1,1), (1,1,1), (1,1,2), (1,1,1), (1,1,2);
+
+SELECT 1 FROM (SELECT COUNT(DISTINCT c1) 
+                 FROM t1 WHERE c2 IN (1, 1) AND c3 = 2 GROUP BY c2) x;
+EXPLAIN 
+SELECT 1 FROM (SELECT COUNT(DISTINCT c1) 
+                 FROM t1 WHERE c2 IN (1, 1) AND c3 = 2 GROUP BY c2) x;
+
+DROP TABLE t1;
+
 --echo End of 5.1 tests
