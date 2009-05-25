@@ -2724,16 +2724,6 @@ void Item_func_case::fix_length_and_dec()
     nagg++;
     if (!(found_types= collect_cmp_types(agg, nagg)))
       return;
-    if (with_sum_func || current_thd->lex->current_select->group_list.elements)
-    {
-      /*
-        See TODO commentary in the setup_copy_fields function:
-        item in a group may be wrapped with an Item_copy_string item.
-        That item has a STRING_RESULT result type, so we need
-        to take this type into account.
-      */
-      found_types |= (1 << item_cmp_type(left_result_type, STRING_RESULT));
-    }
 
     for (i= 0; i <= (uint)DECIMAL_RESULT; i++)
     {
