@@ -41,8 +41,12 @@ UNIV_INTERN const dulint	ut_dulint_max	= {0xFFFFFFFFUL, 0xFFFFFFFFUL};
 Sort function for dulint arrays. */
 UNIV_INTERN
 void
-ut_dulint_sort(dulint* arr, dulint* aux_arr, ulint low, ulint high)
-/*===============================================================*/
+ut_dulint_sort(
+/*===========*/
+	dulint*	arr,	/* in/out: array to be sorted */
+	dulint*	aux_arr,/* in/out: auxiliary array (same size as arr) */
+	ulint	low,	/* in: low bound of sort interval, inclusive */
+	ulint	high)	/* in: high bound of sort interval, noninclusive */
 {
 	UT_SORT_FUNCTION_BODY(ut_dulint_sort, arr, aux_arr, low, high,
 			      ut_dulint_cmp);

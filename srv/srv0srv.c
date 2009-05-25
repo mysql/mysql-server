@@ -284,7 +284,6 @@ computer. Bigger computers need bigger values. Value 0 will disable the
 concurrency check. */
 
 UNIV_INTERN ulong	srv_thread_concurrency	= 0;
-UNIV_INTERN ulong	srv_commit_concurrency	= 0;
 
 /* this mutex protects srv_conc data structures */
 UNIV_INTERN os_fast_mutex_t	srv_conc_mutex;
@@ -671,6 +670,7 @@ UNIV_INTERN
 ulint
 srv_get_n_threads(void)
 /*===================*/
+			/* out: sum of srv_n_threads[] */
 {
 	ulint	i;
 	ulint	n_threads	= 0;
@@ -1773,6 +1773,7 @@ Function to pass InnoDB status variables to MySQL */
 UNIV_INTERN
 void
 srv_export_innodb_status(void)
+/*==========================*/
 {
 	mutex_enter(&srv_innodb_monitor_mutex);
 
@@ -1811,7 +1812,7 @@ srv_export_innodb_status(void)
 	export_vars.innodb_buffer_pool_pages_misc = buf_pool->curr_size
 		- UT_LIST_GET_LEN(buf_pool->LRU)
 		- UT_LIST_GET_LEN(buf_pool->free);
-#ifdef HAVE_GCC_ATOMIC_BUILTINS
+#ifdef HAVE_ATOMIC_BUILTINS
 	export_vars.innodb_have_atomic_builtins = 1;
 #else
 	export_vars.innodb_have_atomic_builtins = 0;

@@ -84,7 +84,7 @@ UNIV_INTERN
 void
 trx_sys_doublewrite_init_or_restore_pages(
 /*======================================*/
-	ibool	restore_corrupt_pages);
+	ibool	restore_corrupt_pages);	/* in: TRUE=restore pages */
 /********************************************************************
 Marks the trx sys header when we have successfully upgraded to the >= 4.1.x
 multiple tablespace format. */
@@ -209,14 +209,14 @@ trx_sysf_rseg_set_page_no(
 /*********************************************************************
 Allocates a new transaction id. */
 UNIV_INLINE
-dulint
+trx_id_t
 trx_sys_get_new_trx_id(void);
 /*========================*/
 			/* out: new, allocated trx id */
 /*********************************************************************
 Allocates a new transaction number. */
 UNIV_INLINE
-dulint
+trx_id_t
 trx_sys_get_new_trx_no(void);
 /*========================*/
 			/* out: new, allocated trx number */
@@ -229,15 +229,15 @@ UNIV_INLINE
 void
 trx_write_trx_id(
 /*=============*/
-	byte*	ptr,	/* in: pointer to memory where written */
-	dulint	id);	/* in: id */
+	byte*		ptr,	/* in: pointer to memory where written */
+	trx_id_t	id);	/* in: id */
 #ifndef UNIV_HOTBACKUP
 /*********************************************************************
 Reads a trx id from an index page. In case that the id size changes in
 some future version, this function should be used instead of
 mach_read_... */
 UNIV_INLINE
-dulint
+trx_id_t
 trx_read_trx_id(
 /*============*/
 				/* out: id */
@@ -248,15 +248,15 @@ UNIV_INLINE
 trx_t*
 trx_get_on_id(
 /*==========*/
-			/* out: the trx handle or NULL if not found */
-	dulint	trx_id);	/* in: trx id to search for */
+				/* out: the trx handle or NULL if not found */
+	trx_id_t	trx_id);/* in: trx id to search for */
 /********************************************************************
 Returns the minumum trx id in trx list. This is the smallest id for which
 the trx can possibly be active. (But, you must look at the trx->conc_state to
 find out if the minimum trx id transaction itself is active, or already
 committed.) */
 UNIV_INLINE
-dulint
+trx_id_t
 trx_list_get_min_trx_id(void);
 /*=========================*/
 			/* out: the minimum trx id, or trx_sys->max_trx_id
@@ -267,8 +267,8 @@ UNIV_INLINE
 ibool
 trx_is_active(
 /*==========*/
-			/* out: TRUE if active */
-	dulint	trx_id);/* in: trx id of the transaction */
+				/* out: TRUE if active */
+	trx_id_t	trx_id);/* in: trx id of the transaction */
 /********************************************************************
 Checks that trx is in the trx list. */
 UNIV_INTERN
@@ -513,7 +513,7 @@ struct trx_doublewrite_struct{
 /* The transaction system central memory data structure; protected by the
 kernel mutex */
 struct trx_sys_struct{
-	dulint		max_trx_id;	/* The smallest number not yet
+	trx_id_t	max_trx_id;	/* The smallest number not yet
 					assigned as a transaction id or
 					transaction number */
 	UT_LIST_BASE_NODE_T(trx_t) trx_list;

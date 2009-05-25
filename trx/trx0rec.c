@@ -290,7 +290,7 @@ trx_undo_rec_get_pars(
 					for update type records */
 	ibool*		updated_extern,	/* out: TRUE if we updated an
 					externally stored fild */
-	dulint*		undo_no,	/* out: undo log record number */
+	undo_no_t*	undo_no,	/* out: undo log record number */
 	dulint*		table_id)	/* out: table id */
 {
 	byte*		ptr;
@@ -552,7 +552,7 @@ trx_undo_page_report_modify(
 	ulint		type_cmpl;
 	byte*		type_cmpl_ptr;
 	ulint		i;
-	dulint		trx_id;
+	trx_id_t	trx_id;
 	ibool		ignore_prefix = FALSE;
 	byte		ext_buf[REC_MAX_INDEX_COL_LEN
 				+ BTR_EXTERN_FIELD_REF_SIZE];
@@ -835,14 +835,14 @@ UNIV_INTERN
 byte*
 trx_undo_update_rec_get_sys_cols(
 /*=============================*/
-				/* out: remaining part of undo log
-				record after reading these values */
-	byte*	ptr,		/* in: remaining part of undo log
-				record after reading general
-				parameters */
-	dulint*	trx_id,		/* out: trx id */
-	dulint*	roll_ptr,	/* out: roll ptr */
-	ulint*	info_bits)	/* out: info bits state */
+					/* out: remaining part of undo log
+					record after reading these values */
+	byte*		ptr,		/* in: remaining part of undo
+					log record after reading
+					general parameters */
+	trx_id_t*	trx_id,		/* out: trx id */
+	roll_ptr_t*	roll_ptr,	/* out: roll ptr */
+	ulint*		info_bits)	/* out: info bits state */
 {
 	/* Read the state of the info bits */
 	*info_bits = mach_read_from_1(ptr);
@@ -914,8 +914,8 @@ trx_undo_update_rec_get_update(
 				TRX_UNDO_DEL_MARK_REC; in the last case,
 				only trx id and roll ptr fields are added to
 				the update vector */
-	dulint		trx_id,	/* in: transaction id from this undo record */
-	dulint		roll_ptr,/* in: roll pointer from this undo record */
+	trx_id_t	trx_id,	/* in: transaction id from this undo record */
+	roll_ptr_t	roll_ptr,/* in: roll pointer from this undo record */
 	ulint		info_bits,/* in: info bits from this undo record */
 	trx_t*		trx,	/* in: transaction */
 	mem_heap_t*	heap,	/* in: memory heap from which the memory
@@ -1167,7 +1167,7 @@ trx_undo_report_row_operation(
 	const rec_t*	rec,		/* in: in case of an update or delete
 					marking, the record in the clustered
 					index, otherwise NULL */
-	dulint*		roll_ptr)	/* out: rollback pointer to the
+	roll_ptr_t*	roll_ptr)	/* out: rollback pointer to the
 					inserted undo log record,
 					ut_dulint_zero if BTR_NO_UNDO_LOG
 					flag was specified */
@@ -1337,7 +1337,7 @@ trx_undo_rec_t*
 trx_undo_get_undo_rec_low(
 /*======================*/
 					/* out, own: copy of the record */
-	dulint		roll_ptr,	/* in: roll pointer to record */
+	roll_ptr_t	roll_ptr,	/* in: roll pointer to record */
 	mem_heap_t*	heap)		/* in: memory heap where copied */
 {
 	trx_undo_rec_t*	undo_rec;
@@ -1377,8 +1377,8 @@ trx_undo_get_undo_rec(
 					fetch the old version; NOTE: the
 					caller must have latches on the
 					clustered index page and purge_view */
-	dulint		roll_ptr,	/* in: roll pointer to record */
-	dulint		trx_id,		/* in: id of the trx that generated
+	roll_ptr_t	roll_ptr,	/* in: roll pointer to record */
+	trx_id_t	trx_id,		/* in: id of the trx that generated
 					the roll pointer: it points to an
 					undo log of this transaction */
 	trx_undo_rec_t** undo_rec,	/* out, own: copy of the record */
@@ -1432,13 +1432,13 @@ trx_undo_prev_version_build(
 {
 	trx_undo_rec_t*	undo_rec	= NULL;
 	dtuple_t*	entry;
-	dulint		rec_trx_id;
+	trx_id_t	rec_trx_id;
 	ulint		type;
-	dulint		undo_no;
+	undo_no_t	undo_no;
 	dulint		table_id;
-	dulint		trx_id;
-	dulint		roll_ptr;
-	dulint		old_roll_ptr;
+	trx_id_t	trx_id;
+	roll_ptr_t	roll_ptr;
+	roll_ptr_t	old_roll_ptr;
 	upd_t*		update;
 	byte*		ptr;
 	ulint		info_bits;

@@ -118,20 +118,9 @@ static char*	srv_monitor_file_name;
 #define SRV_MAX_N_PENDING_SYNC_IOS	100
 
 
-/* Avoid warnings when using purify */
-
-#ifdef HAVE_purify
-static int inno_bcmp(register const char *s1, register const char *s2,
-	register uint len)
-{
-	while ((len-- != 0) && (*s1++ == *s2++))
-		;
-
-	return(len + 1);
-}
-#define memcmp(A,B,C) inno_bcmp((A),(B),(C))
-#endif
-
+/*************************************************************************
+Convert a numeric string that optionally ends in G or M, to a number
+containing megabytes. */
 static
 char*
 srv_parse_megabytes(
@@ -444,7 +433,9 @@ static
 os_thread_ret_t
 io_handler_thread(
 /*==============*/
-	void*	arg)
+			/* out: OS_THREAD_DUMMY_RETURN */
+	void*	arg)	/* in: pointer to the number of the segment in
+			the aio array */
 {
 	ulint	segment;
 	ulint	i;
@@ -1079,13 +1070,29 @@ innobase_start_or_create_for_mysql(void)
 	}
 
 #ifdef HAVE_GCC_ATOMIC_BUILTINS
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
+# ifdef INNODB_RW_LOCKS_USE_ATOMICS
 	fprintf(stderr,
 		"InnoDB: Mutexes and rw_locks use GCC atomic builtins.\n");
-#else /* INNODB_RW_LOCKS_USE_ATOMICS */
+# else /* INNODB_RW_LOCKS_USE_ATOMICS */
 	fprintf(stderr,
 		"InnoDB: Mutexes use GCC atomic builtins, rw_locks do not.\n");
-#endif /* INNODB_RW_LOCKS_USE_ATOMICS */
+# endif /* INNODB_RW_LOCKS_USE_ATOMICS */
+#elif defined(HAVE_SOLARIS_ATOMICS)
+# ifdef INNODB_RW_LOCKS_USE_ATOMICS
+	fprintf(stderr,
+		"InnoDB: Mutexes and rw_locks use Solaris atomic functions.\n");
+# else
+	fprintf(stderr,
+		"InnoDB: Mutexes use Solaris atomic functions.\n");
+# endif /* INNODB_RW_LOCKS_USE_ATOMICS */
+#elif HAVE_WINDOWS_ATOMICS
+# ifdef INNODB_RW_LOCKS_USE_ATOMICS
+	fprintf(stderr,
+		"InnoDB: Mutexes and rw_locks use Windows interlocked functions.\n");
+# else
+	fprintf(stderr,
+		"InnoDB: Mutexes use Windows interlocked functions.\n");
+# endif /* INNODB_RW_LOCKS_USE_ATOMICS */
 #else /* HAVE_GCC_ATOMIC_BUILTINS */
 	fprintf(stderr,
 		"InnoDB: Neither mutexes nor rw_locks use GCC atomic builtins.\n");
@@ -1851,8 +1858,7 @@ innobase_start_or_create_for_mysql(void)
 			" to an earlier version of\n"
 			"InnoDB: InnoDB! But if you absolutely need to"
 			" downgrade, see\n"
-			"InnoDB: http://dev.mysql.com/doc/refman/5.1/en/"
-			"multiple-tablespaces.html\n"
+			"InnoDB: " REFMAN "multiple-tablespaces.html\n"
 			"InnoDB: for instructions.\n");
 	}
 

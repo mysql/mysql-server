@@ -209,7 +209,8 @@ page_set_max_trx_id(
 /*================*/
 	buf_block_t*	block,	/* in/out: page */
 	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
-	dulint		trx_id)	/* in: transaction id */
+	trx_id_t	trx_id,	/* in: transaction id */
+	mtr_t*		mtr)	/* in/out: mini-transaction, or NULL */
 {
 	page_t*		page		= buf_block_get_frame(block);
 #ifndef UNIV_HOTBACKUP
@@ -218,17 +219,24 @@ page_set_max_trx_id(
 	if (is_hashed) {
 		rw_lock_x_lock(&btr_search_latch);
 	}
+
+	ut_ad(!mtr || mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 #endif /* !UNIV_HOTBACKUP */
 
 	/* It is not necessary to write this change to the redo log, as
 	during a database recovery we assume that the max trx id of every
 	page is the maximum trx id assigned before the crash. */
 
-	mach_write_to_8(page + (PAGE_HEADER + PAGE_MAX_TRX_ID), trx_id);
 	if (UNIV_LIKELY_NULL(page_zip)) {
+		mach_write_to_8(page + (PAGE_HEADER + PAGE_MAX_TRX_ID), trx_id);
 		page_zip_write_header(page_zip,
 				      page + (PAGE_HEADER + PAGE_MAX_TRX_ID),
-				      8, NULL);
+				      8, mtr);
+	} else if (mtr) {
+		mlog_write_dulint(page + (PAGE_HEADER + PAGE_MAX_TRX_ID),
+				  trx_id, mtr);
+	} else {
+		mach_write_to_8(page + (PAGE_HEADER + PAGE_MAX_TRX_ID), trx_id);
 	}
 
 #ifndef UNIV_HOTBACKUP
@@ -447,7 +455,7 @@ page_create_low(
 	page_header_set_field(page, NULL, PAGE_DIRECTION, PAGE_NO_DIRECTION);
 	page_header_set_field(page, NULL, PAGE_N_DIRECTION, 0);
 	page_header_set_field(page, NULL, PAGE_N_RECS, 0);
-	page_set_max_trx_id(block, NULL, ut_dulint_zero);
+	page_set_max_trx_id(block, NULL, ut_dulint_zero, NULL);
 	memset(heap_top, 0, UNIV_PAGE_SIZE - PAGE_EMPTY_DIR_START
 	       - page_offset(heap_top));
 
@@ -692,8 +700,10 @@ page_copy_rec_list_end(
 
 	lock_move_rec_list_end(new_block, block, rec);
 
-	page_update_max_trx_id(new_block, new_page_zip,
-			       page_get_max_trx_id(page));
+	if (dict_index_is_sec_or_ibuf(index) && page_is_leaf(page)) {
+		page_update_max_trx_id(new_block, new_page_zip,
+				       page_get_max_trx_id(page), mtr);
+	}
 
 	btr_search_move_or_delete_hash_entries(new_block, block, index);
 
@@ -803,8 +813,12 @@ page_copy_rec_list_start(
 
 	/* Update MAX_TRX_ID, the lock table, and possible hash index */
 
-	page_update_max_trx_id(new_block, new_page_zip,
-			       page_get_max_trx_id(page_align(rec)));
+	if (dict_index_is_sec_or_ibuf(index)
+	    && page_is_leaf(page_align(rec))) {
+		page_update_max_trx_id(new_block, new_page_zip,
+				       page_get_max_trx_id(page_align(rec)),
+				       mtr);
+	}
 
 	lock_move_rec_list_start(new_block, block, rec, ret);
 

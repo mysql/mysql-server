@@ -365,9 +365,11 @@ fil_op_log_parse_or_replay(
 				not fir completely between ptr and end_ptr */
 	byte*	end_ptr,	/* in: buffer end */
 	ulint	type,		/* in: the type of this log record */
-	ulint	space_id);	/* in: the space id of the tablespace in
+	ulint	space_id,	/* in: the space id of the tablespace in
 				question, or 0 if the log record should
 				only be parsed but not replayed */
+	ulint	log_flags);	/* in: redo log flags
+				(stored in the page number parameter) */
 /***********************************************************************
 Deletes a single-table tablespace. The tablespace must be cached in the
 memory cache. */
@@ -682,19 +684,28 @@ fil_addr_is_null(
 				/* out: TRUE if undefined */
 	fil_addr_t	addr);	/* in: address */
 /************************************************************************
-Accessor functions for a file page */
+Get the predecessor of a file page. */
 UNIV_INTERN
 ulint
-fil_page_get_prev(const byte*	page);
+fil_page_get_prev(
+/*==============*/
+				/* out: FIL_PAGE_PREV */
+	const byte*	page);	/* in: file page */
+/************************************************************************
+Get the successor of a file page. */
+UNIV_INTERN
 ulint
-fil_page_get_next(const byte*	page);
+fil_page_get_next(
+/*==============*/
+				/* out: FIL_PAGE_NEXT */
+	const byte*	page);	/* in: file page */
 /*************************************************************************
 Sets the file page type. */
 UNIV_INTERN
 void
 fil_page_set_type(
 /*==============*/
-	byte*	page,	/* in: file page */
+	byte*	page,	/* in/out: file page */
 	ulint	type);	/* in: type */
 /*************************************************************************
 Gets the file page type. */

@@ -144,7 +144,6 @@ extern ulint	srv_max_dirty_pages_pct;
 
 extern ulint	srv_force_recovery;
 extern ulong	srv_thread_concurrency;
-extern ulong	srv_commit_concurrency;
 
 extern ulint	srv_max_n_threads;
 
@@ -376,6 +375,7 @@ UNIV_INTERN
 ulint
 srv_get_n_threads(void);
 /*===================*/
+			/* out: sum of srv_n_threads[] */
 /*************************************************************************
 Returns the calling thread type. */
 
@@ -523,7 +523,7 @@ Function to pass InnoDB status variables to MySQL */
 UNIV_INTERN
 void
 srv_export_innodb_status(void);
-/*=====================*/
+/*==========================*/
 
 /* Thread slot in the thread table */
 typedef struct srv_slot_struct	srv_slot_t;

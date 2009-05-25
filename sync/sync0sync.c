@@ -235,9 +235,7 @@ mutex_create_func(
 	const char*	cfile_name,	/* in: file name where created */
 	ulint		cline)		/* in: file line where created */
 {
-#if defined(_WIN32) && defined(UNIV_CAN_USE_X86_ASSEMBLER)
-	mutex_reset_lock_word(mutex);
-#elif defined(HAVE_GCC_ATOMIC_BUILTINS)
+#if defined(HAVE_ATOMIC_BUILTINS)
 	mutex_reset_lock_word(mutex);
 #else
 	os_fast_mutex_init(&(mutex->os_fast_mutex));
@@ -327,9 +325,7 @@ mutex_free(
 
 	os_event_free(mutex->event);
 
-#if defined(_WIN32) && defined(UNIV_CAN_USE_X86_ASSEMBLER)
-#elif defined(HAVE_GCC_ATOMIC_BUILTINS)
-#else
+#if !defined(HAVE_ATOMIC_BUILTINS)
 	os_fast_mutex_free(&(mutex->os_fast_mutex));
 #endif
 	/* If we free the mutex protecting the mutex list (freeing is
@@ -378,7 +374,8 @@ UNIV_INTERN
 ibool
 mutex_validate(
 /*===========*/
-	const mutex_t*	mutex)
+				/* out: TRUE */
+	const mutex_t*	mutex)	/* in: mutex */
 {
 	ut_a(mutex);
 	ut_a(mutex->magic_n == MUTEX_MAGIC_N);
@@ -707,6 +704,7 @@ UNIV_INTERN
 ulint
 mutex_n_reserved(void)
 /*==================*/
+				/* out: number of reserved mutexes */
 {
 	mutex_t*	mutex;
 	ulint		count		= 0;
@@ -739,6 +737,7 @@ UNIV_INTERN
 ibool
 sync_all_freed(void)
 /*================*/
+			/* out: TRUE if no mutexes and rw-locks reserved */
 {
 	return(mutex_n_reserved() + rw_lock_n_locked() == 0);
 }

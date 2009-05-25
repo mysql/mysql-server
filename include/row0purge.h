@@ -82,11 +82,11 @@ struct purge_node_struct{
 	que_common_t	common;	/* node type: QUE_NODE_PURGE */
 	/*----------------------*/
 	/* Local storage for this graph node */
-	dulint		roll_ptr;/* roll pointer to undo log record */
+	roll_ptr_t	roll_ptr;/* roll pointer to undo log record */
 	trx_undo_rec_t*	undo_rec;/* undo log record */
 	trx_undo_inf_t*	reservation;/* reservation for the undo log record in
 				the purge array */
-	dulint		undo_no;/* undo number of the record */
+	undo_no_t	undo_no;/* undo number of the record */
 	ulint		rec_type;/* undo log record type: TRX_UNDO_INSERT_REC,
 				... */
 	btr_pcur_t	pcur;	/* persistent cursor used in searching the

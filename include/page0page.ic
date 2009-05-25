@@ -23,6 +23,9 @@ Created 2/2/1994 Heikki Tuuri
 *******************************************************/
 
 #include "mach0data.h"
+#ifdef UNIV_DEBUG
+# include "log0recv.h"
+#endif /* !UNIV_DEBUG */
 #ifndef UNIV_HOTBACKUP
 # include "rem0cmp.h"
 #endif /* !UNIV_HOTBACKUP */
@@ -59,7 +62,7 @@ page_offset(
 /*****************************************************************
 Returns the max trx id field value. */
 UNIV_INLINE
-dulint
+trx_id_t
 page_get_max_trx_id(
 /*================*/
 	const page_t*	page)	/* in: page */
@@ -79,14 +82,24 @@ page_update_max_trx_id(
 	buf_block_t*	block,	/* in/out: page */
 	page_zip_des_t*	page_zip,/* in/out: compressed page whose
 				uncompressed part will be updated, or NULL */
-	dulint		trx_id)	/* in: transaction id */
+	trx_id_t	trx_id,	/* in: transaction id */
+	mtr_t*		mtr)	/* in/out: mini-transaction */
 {
 	ut_ad(block);
+	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
+	/* During crash recovery, this function may be called on
+	something else than a leaf page of a secondary index or the
+	insert buffer index tree (dict_index_is_sec_or_ibuf() returns
+	TRUE for the dummy indexes constructed during redo log
+	application).  In that case, PAGE_MAX_TRX_ID is unused,
+	and trx_id is usually zero. */
+	ut_ad(!ut_dulint_is_zero(trx_id) || recv_recovery_is_on());
+	ut_ad(page_is_leaf(buf_block_get_frame(block)));
 
 	if (ut_dulint_cmp(page_get_max_trx_id(buf_block_get_frame(block)),
 			  trx_id) < 0) {
 
-		page_set_max_trx_id(block, page_zip, trx_id);
+		page_set_max_trx_id(block, page_zip, trx_id, mtr);
 	}
 }
 

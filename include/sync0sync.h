@@ -42,6 +42,13 @@ Created 9/5/1995 Heikki Tuuri
 
 extern my_bool	timed_mutexes;
 
+#ifdef HAVE_WINDOWS_ATOMICS
+typedef LONG lock_word_t;	/* On Windows, InterlockedExchange operates
+				on LONG variable */
+#else
+typedef byte lock_word_t;
+#endif
+
 /**********************************************************************
 Initializes the synchronization data structures. */
 UNIV_INTERN
@@ -153,6 +160,7 @@ void
 mutex_exit(
 /*=======*/
 	mutex_t*	mutex);	/* in: pointer to mutex */
+#ifdef UNIV_SYNC_DEBUG
 /**********************************************************************
 Returns TRUE if no mutex or rw-lock is currently locked.
 Works only in the debug version. */
@@ -160,6 +168,8 @@ UNIV_INTERN
 ibool
 sync_all_freed(void);
 /*================*/
+			/* out: TRUE if no mutexes and rw-locks reserved */
+#endif /* UNIV_SYNC_DEBUG */
 /*#####################################################################
 FUNCTION PROTOTYPES FOR DEBUGGING */
 /***********************************************************************
@@ -183,7 +193,8 @@ UNIV_INTERN
 ibool
 mutex_validate(
 /*===========*/
-	const mutex_t*	mutex);
+				/* out: TRUE */
+	const mutex_t*	mutex);	/* in: mutex */
 /**********************************************************************
 Checks that the current thread owns the mutex. Works only
 in the debug version. */
@@ -253,12 +264,13 @@ UNIV_INTERN
 ulint
 mutex_n_reserved(void);
 /*==================*/
+				/* out: number of reserved mutexes */
 #endif /* UNIV_SYNC_DEBUG */
 /**********************************************************************
 NOT to be used outside this module except in debugging! Gets the value
 of the lock word. */
 UNIV_INLINE
-byte
+lock_word_t
 mutex_get_lock_word(
 /*================*/
 	const mutex_t*	mutex);	/* in: mutex */
@@ -484,15 +496,14 @@ implementation of a mutual exclusion semaphore. */
 
 struct mutex_struct {
 	os_event_t	event;	/* Used by sync0arr.c for the wait queue */
-	byte	lock_word;	/* This byte is the target of the atomic
-				test-and-set instruction in Win32 and
-				x86 32/64 with GCC 4.1.0 or later version */
-#if defined(_WIN32) && defined(UNIV_CAN_USE_X86_ASSEMBLER)
-#elif defined(HAVE_GCC_ATOMIC_BUILTINS)
-#else
+	volatile lock_word_t	lock_word;	/* lock_word is the target
+				of the atomic test-and-set instruction when
+				atomic operations are enabled. */
+
+#if !defined(HAVE_ATOMIC_BUILTINS)
 	os_fast_mutex_t
-		os_fast_mutex;	/* In other systems we use this OS mutex
-				in place of lock_word */
+		os_fast_mutex;	/* We use this OS mutex in place of lock_word
+				when atomic operations are not enabled */
 #endif
 	ulint	waiters;	/* This ulint is set to 1 if there are (or
 				may be) threads waiting in the global wait

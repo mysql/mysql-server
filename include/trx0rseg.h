@@ -148,7 +148,7 @@ struct trx_rseg_struct{
 				rseg mutex */
 	ulint		space;	/* space where the rollback segment is
 				header is placed */
-	ulint		zip_size;/* in: compressed page size of space
+	ulint		zip_size;/* compressed page size of space
 				in bytes, or 0 for uncompressed spaces */
 	ulint		page_no;/* page number of the rollback segment
 				header */
@@ -174,7 +174,7 @@ struct trx_rseg_struct{
 					FIL_NULL if all list purged */
 	ulint		last_offset;	/* Byte offset of the last not yet
 					purged log header */
-	dulint		last_trx_no;	/* Transaction number of the last not
+	trx_id_t	last_trx_no;	/* Transaction number of the last not
 					yet purged log */
 	ibool		last_del_marks;	/* TRUE if the last not yet purged log
 					needs purging */

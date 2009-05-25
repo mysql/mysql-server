@@ -251,7 +251,7 @@ row_undo_ins_parse_undo_rec(
 {
 	dict_index_t*	clust_index;
 	byte*		ptr;
-	dulint		undo_no;
+	undo_no_t	undo_no;
 	dulint		table_id;
 	ulint		type;
 	ulint		dummy;

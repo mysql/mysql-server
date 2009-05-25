@@ -612,8 +612,7 @@ not_consistent:
 			"InnoDB: to create the InnoDB data files,"
 			" but log file creation failed.\n"
 			"InnoDB: If that is the case, please refer to\n"
-			"InnoDB: http://dev.mysql.com/doc/refman/5.1/en/"
-			"error-creating-innodb.html\n");
+			"InnoDB: " REFMAN "error-creating-innodb.html\n");
 		return(DB_ERROR);
 	}
 
@@ -1109,7 +1108,7 @@ recv_parse_or_apply_log_rec_body(
 	case MLOG_FILE_RENAME:
 	case MLOG_FILE_DELETE:
 	case MLOG_FILE_CREATE2:
-		ptr = fil_op_log_parse_or_replay(ptr, end_ptr, type, 0);
+		ptr = fil_op_log_parse_or_replay(ptr, end_ptr, type, 0, 0);
 		break;
 	case MLOG_ZIP_WRITE_NODE_PTR:
 		ut_ad(!page || page_type == FIL_PAGE_INDEX);
@@ -2041,8 +2040,7 @@ recv_report_corrupt_log(
 	      "InnoDB: far enough in recovery! Please run CHECK TABLE\n"
 	      "InnoDB: on your InnoDB tables to check that they are ok!\n"
 	      "InnoDB: If mysqld crashes after this recovery, look at\n"
-	      "InnoDB: http://dev.mysql.com/doc/refman/5.1/en/"
-	      "forcing-recovery.html\n"
+	      "InnoDB: " REFMAN "forcing-recovery.html\n"
 	      "InnoDB: about forcing recovery.\n", stderr);
 
 	fflush(stderr);
@@ -2160,7 +2158,8 @@ loop:
 				point to the datadir we should use there */
 
 				if (NULL == fil_op_log_parse_or_replay(
-					    body, end_ptr, type, space)) {
+					    body, end_ptr, type,
+					    space, page_no)) {
 					fprintf(stderr,
 						"InnoDB: Error: file op"
 						" log record of type %lu"

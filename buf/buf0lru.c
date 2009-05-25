@@ -1874,6 +1874,7 @@ UNIV_INTERN
 ibool
 buf_LRU_validate(void)
 /*==================*/
+				/* out: TRUE */
 {
 	buf_page_t*	bpage;
 	buf_block_t*	block;

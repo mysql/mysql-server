@@ -1,8 +1,114 @@
+2009-05-19	The InnoDB Team
+
+	* btr/btr0btr.c, btr/btr0cur.c, lock/lock0lock.c,
+	include/page0page.ic, include/lock0lock.h, include/dict0dict.h,
+	include/page0page.h, include/dict0dict.ic, ibuf/ibuf0ibuf.c,
+	page/page0zip.c, page/page0page.c:
+	Write updates of PAGE_MAX_TRX_ID to the redo log and add debug
+	assertions for checking that PAGE_MAX_TRX_ID is valid on leaf
+	pages of secondary indexes and the insert buffer B-tree.  This bug
+	could cause failures in secondary index lookups in consistent
+	reads right after crash recovery.
+
+2009-05-18	The InnoDB Team
+
+	* btr/btr0cur.c:
+	Correctly estimate the space needed on the compressed page when
+	performing an update by delete-and-insert.
+
+2009-05-14	The InnoDB Team
+
+	* handler/ha_innodb.cc, include/srv0srv.h,
+	mysql-test/innodb_bug42101-nonzero-master.opt,
+	mysql-test/innodb_bug42101-nonzero.result,
+	mysql-test/innodb_bug42101-nonzero.test,
+	mysql-test/innodb_bug42101.result, mysql-test/innodb_bug42101.test,
+	srv/srv0srv.c:
+	Fix Bug#42101 Race condition in innodb_commit_concurrency
+
+2009-05-13	The InnoDB Team
+
+	* dict/dict0dict.c:
+	Fix Bug#44320 InnoDB: missing DB_ROLL_PTR in Table Monitor COLUMNS
+	output
+
+2009-04-23	The InnoDB Team
+
+	* row/row0mysql.c:
+	When scanning indexes, report in the error log any error codes
+	returned by the search function.  These error codes will still be
+	ignored in CHECK TABLE.
+
+2009-04-23	The InnoDB Team
+
+	* include/trx0types.h:
+	Define the logical type names trx_id_t, roll_ptr_t, and undo_no_t
+	and use them in place of dulint everywhere.
+
+2009-04-18	The InnoDB Team
+
+	* handler/ha_innodb.cc, include/pars0pars.h:
+	Fix Bug#29125 Windows Server X64: so many compiler warnings
+
+2009-04-16	The InnoDB Team
+
+	* include/univ.i:
+	Define REFMAN as the base URL of the MySQL Reference Manual and
+	use the macro in all diagnostic output.
+
+2009-04-16	The InnoDB Team
+
+	* CMakeLists.txt, include/os0sync.h, include/sync0sync.h,
+	include/sync0sync.ic, include/univ.i, srv/srv0start.c,
+	sync/sync0sync.c:
+	Use the Windows Interlocked functions for atomic memory
+	access.
+
+2009-04-15	The InnoDB Team
+
+	* mysql-test/innodb.result, mysql-test/innodb.test:
+	Fix Bug#43309 Test main.innodb can't be run twice
+
+2009-04-14	The InnoDB Team
+
+	* CMakeLists.txt, handler/win_delay_loader.cc,
+	win-plugin/win-plugin.diff:
+	Remove statically linked libraries from MySQL (zlib and strings).
+
+2009-04-11	The InnoDB Team
+
+	* CMakeLists.txt, win-plugin/README, win-plugin/win-plugin.diff:
+	Rewrite CMakeLists.txt.
+
+2009-04-07	The InnoDB Team
+
+	* include/os0sync.h, include/sync0rw.ic, include/sync0sync.h,
+	include/sync0sync.ic, include/univ.i, plug.in, srv/srv0srv.c,
+	srv/srv0start.c, sync/sync0arr.c, sync/sync0sync.c:
+	Enable atomics on Solaris (using the libc functions as defined in
+	atomic.h) if GCC atomic builtins are not present.
+
+2009-04-07	The InnoDB Team
+
+	* btr/btr0btr.c, dict/dict0dict.c, ibuf/ibuf0ibuf.c,
+	include/data0data.h, include/data0data.ic, include/data0type.h,
+	include/data0type.ic, include/dict0dict.h, include/dict0dict.ic,
+	include/rem0rec.ic, mysql-test/innodb.result, mysql-test/innodb.test,
+	pars/pars0pars.c, rem/rem0rec.c, row/row0upd.c:
+	Fix Bug#44032 In ROW_FORMAT=REDUNDANT, update UTF-8 CHAR
+	to/from NULL is not in-place
+
+2009-04-07	The InnoDB Team
+
+	* page/page0cur.c:
+	Fix Bug#43660 SHOW INDEXES/ANALYZE does NOT update cardinality for
+	indexes of InnoDB table
+
 2009-04-06	The InnoDB Team
 
 	* handler/ha_innodb.cc:
 	Make the parameter innodb_change_buffering settable by the
-	configuration file or mysqld command line options.  Before this
+	configuration file or mysqld command line options. Before this
 	fix, the initial value specified for this parameter was ignored.
 
 2009-04-06	The InnoDB Team
@@ -24,6 +130,14 @@
 	row/row0merge.c, row/row0sel.c:
 	In consistent reads, refuse to use newly created indexes that may
 	lack history.
+
+2009-03-25	The InnoDB Team
+
+	* buf/buf0buf.c, handler/ha_innodb.cc, include/buf0buf.h:
+	In SHOW ENGINE INNODB MUTEX do not show the status of block->mutex,
+	block->lock, block->lock->mutex (if applicable) and all mutexes and
+	rw-locks for which number of os-waits are zero because this can
+	be overwhelming particularly when the buffer pool is very large.
 
 2009-03-20	The InnoDB Team
 
@@ -67,7 +181,7 @@
 	dict_ind_redundant and dict_ind_compact, which are
 	initialized by dict_init().
 
-2008-03-11	The InnoDB Team
+2009-03-11	The InnoDB Team
 
 	InnoDB Plugin 1.0.3 released
 

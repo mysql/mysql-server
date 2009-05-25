@@ -223,8 +223,8 @@ UNIV_INLINE
 void
 trx_write_trx_id(
 /*=============*/
-	byte*	ptr,	/* in: pointer to memory where written */
-	dulint	id)	/* in: id */
+	byte*		ptr,	/* in: pointer to memory where written */
+	trx_id_t	id)	/* in: id */
 {
 #if DATA_TRX_ID_LEN != 6
 # error "DATA_TRX_ID_LEN != 6"
@@ -238,7 +238,7 @@ Reads a trx id from an index page. In case that the id size changes in
 some future version, this function should be used instead of
 mach_read_... */
 UNIV_INLINE
-dulint
+trx_id_t
 trx_read_trx_id(
 /*============*/
 				/* out: id */
@@ -256,8 +256,8 @@ UNIV_INLINE
 trx_t*
 trx_get_on_id(
 /*==========*/
-			/* out: the trx handle or NULL if not found */
-	dulint	trx_id)	/* in: trx id to search for */
+				/* out: the trx handle or NULL if not found */
+	trx_id_t	trx_id)	/* in: trx id to search for */
 {
 	trx_t*	trx;
 
@@ -283,7 +283,7 @@ the trx can possibly be active. (But, you must look at the trx->conc_state to
 find out if the minimum trx id transaction itself is active, or already
 committed.) */
 UNIV_INLINE
-dulint
+trx_id_t
 trx_list_get_min_trx_id(void)
 /*=========================*/
 			/* out: the minimum trx id, or trx_sys->max_trx_id
@@ -309,8 +309,8 @@ UNIV_INLINE
 ibool
 trx_is_active(
 /*==========*/
-			/* out: TRUE if active */
-	dulint	trx_id)	/* in: trx id of the transaction */
+				/* out: TRUE if active */
+	trx_id_t	trx_id)	/* in: trx id of the transaction */
 {
 	trx_t*	trx;
 
@@ -344,12 +344,12 @@ trx_is_active(
 /*********************************************************************
 Allocates a new transaction id. */
 UNIV_INLINE
-dulint
+trx_id_t
 trx_sys_get_new_trx_id(void)
 /*========================*/
 			/* out: new, allocated trx id */
 {
-	dulint	id;
+	trx_id_t	id;
 
 	ut_ad(mutex_own(&kernel_mutex));
 
@@ -376,7 +376,7 @@ trx_sys_get_new_trx_id(void)
 /*********************************************************************
 Allocates a new transaction number. */
 UNIV_INLINE
-dulint
+trx_id_t
 trx_sys_get_new_trx_no(void)
 /*========================*/
 			/* out: new, allocated trx number */

@@ -59,10 +59,14 @@ enum trx_rb_ctx {
 			in crash recovery */
 };
 
+typedef dulint	trx_id_t;
+typedef dulint	roll_ptr_t;
+typedef dulint	undo_no_t;
+
 /* Transaction savepoint */
 typedef struct trx_savept_struct trx_savept_t;
 struct trx_savept_struct{
-	dulint	least_undo_no;	/* least undo number to undo */
+	undo_no_t	least_undo_no;	/* least undo number to undo */
 };
 
 /* File objects */
