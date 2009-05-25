@@ -50,31 +50,31 @@ UNIV_INTERN
 void
 thr_local_free(
 /*===========*/
-	os_thread_id_t	id);	/* in: thread id */
+	os_thread_id_t	id);	/*!< in: thread id */
 /***********************************************************************
-Gets the slot number in the thread table of a thread. */
+Gets the slot number in the thread table of a thread.
+@return	slot number */
 UNIV_INTERN
 ulint
 thr_local_get_slot_no(
 /*==================*/
-				/* out: slot number */
-	os_thread_id_t	id);	/* in: thread id of the thread */
+	os_thread_id_t	id);	/*!< in: thread id of the thread */
 /***********************************************************************
 Sets in the local storage the slot number in the thread table of a thread. */
 UNIV_INTERN
 void
 thr_local_set_slot_no(
 /*==================*/
-	os_thread_id_t	id,	/* in: thread id of the thread */
-	ulint		slot_no);/* in: slot number */
+	os_thread_id_t	id,	/*!< in: thread id of the thread */
+	ulint		slot_no);/*!< in: slot number */
 /***********************************************************************
 Returns pointer to the 'in_ibuf' field within the current thread local
-storage. */
+storage.
+@return	pointer to the in_ibuf field */
 UNIV_INTERN
 ibool*
 thr_local_get_in_ibuf_field(void);
 /*=============================*/
-			/* out: pointer to the in_ibuf field */
 
 #ifndef UNIV_NONINL
 #include "thr0loc.ic"

@@ -35,8 +35,8 @@ UNIV_INTERN
 void
 mutex_set_waiters(
 /*==============*/
-	mutex_t*	mutex,	/* in: mutex */
-	ulint		n);	/* in: value to set */
+	mutex_t*	mutex,	/*!< in: mutex */
+	ulint		n);	/*!< in: value to set */
 /**********************************************************************
 Reserves a mutex for the current thread. If the mutex is reserved, the
 function spins a preset time (controlled by SYNC_SPIN_ROUNDS) waiting
@@ -45,10 +45,10 @@ UNIV_INTERN
 void
 mutex_spin_wait(
 /*============*/
-	mutex_t*	mutex,		/* in: pointer to mutex */
-	const char*	file_name,	/* in: file name where mutex
+	mutex_t*	mutex,		/*!< in: pointer to mutex */
+	const char*	file_name,	/*!< in: file name where mutex
 					requested */
-	ulint		line);		/* in: line where requested */
+	ulint		line);		/*!< in: line where requested */
 #ifdef UNIV_SYNC_DEBUG
 /**********************************************************************
 Sets the debug information for a reserved mutex. */
@@ -56,9 +56,9 @@ UNIV_INTERN
 void
 mutex_set_debug_info(
 /*=================*/
-	mutex_t*	mutex,		/* in: mutex */
-	const char*	file_name,	/* in: file where requested */
-	ulint		line);		/* in: line where requested */
+	mutex_t*	mutex,		/*!< in: mutex */
+	const char*	file_name,	/*!< in: file where requested */
+	ulint		line);		/*!< in: line where requested */
 #endif /* UNIV_SYNC_DEBUG */
 /**********************************************************************
 Releases the threads waiting in the primary wait array for this mutex. */
@@ -66,18 +66,17 @@ UNIV_INTERN
 void
 mutex_signal_object(
 /*================*/
-	mutex_t*	mutex);	/* in: mutex */
+	mutex_t*	mutex);	/*!< in: mutex */
 
 /**********************************************************************
 Performs an atomic test-and-set instruction to the lock_word field of a
-mutex. */
+mutex.
+@return	the previous value of lock_word: 0 or 1 */
 UNIV_INLINE
 byte
 mutex_test_and_set(
 /*===============*/
-				/* out: the previous value of lock_word: 0 or
-				1 */
-	mutex_t*	mutex)	/* in: mutex */
+	mutex_t*	mutex)	/*!< in: mutex */
 {
 #if defined(HAVE_ATOMIC_BUILTINS)
 	return(os_atomic_test_and_set_byte(&mutex->lock_word, 1));
@@ -105,7 +104,7 @@ UNIV_INLINE
 void
 mutex_reset_lock_word(
 /*==================*/
-	mutex_t*	mutex)	/* in: mutex */
+	mutex_t*	mutex)	/*!< in: mutex */
 {
 #if defined(HAVE_ATOMIC_BUILTINS)
 	/* In theory __sync_lock_release should be used to release the lock.
@@ -125,7 +124,7 @@ UNIV_INLINE
 lock_word_t
 mutex_get_lock_word(
 /*================*/
-	const mutex_t*	mutex)	/* in: mutex */
+	const mutex_t*	mutex)	/*!< in: mutex */
 {
 	ut_ad(mutex);
 
@@ -133,13 +132,13 @@ mutex_get_lock_word(
 }
 
 /**********************************************************************
-Gets the waiters field in a mutex. */
+Gets the waiters field in a mutex.
+@return	value to set */
 UNIV_INLINE
 ulint
 mutex_get_waiters(
 /*==============*/
-				/* out: value to set */
-	const mutex_t*	mutex)	/* in: mutex */
+	const mutex_t*	mutex)	/*!< in: mutex */
 {
 	const volatile ulint*	ptr;	/* declared volatile to ensure that
 					the value is read from memory */
@@ -157,7 +156,7 @@ UNIV_INLINE
 void
 mutex_exit(
 /*=======*/
-	mutex_t*	mutex)	/* in: pointer to mutex */
+	mutex_t*	mutex)	/*!< in: pointer to mutex */
 {
 	ut_ad(mutex_own(mutex));
 
@@ -198,9 +197,9 @@ UNIV_INLINE
 void
 mutex_enter_func(
 /*=============*/
-	mutex_t*	mutex,		/* in: pointer to mutex */
-	const char*	file_name,	/* in: file name where locked */
-	ulint		line)		/* in: line where locked */
+	mutex_t*	mutex,		/*!< in: pointer to mutex */
+	const char*	file_name,	/*!< in: file name where locked */
+	ulint		line)		/*!< in: line where locked */
 {
 	ut_ad(mutex_validate(mutex));
 	ut_ad(!mutex_own(mutex));

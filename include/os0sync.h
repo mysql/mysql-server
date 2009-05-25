@@ -106,24 +106,24 @@ os_sync_free(void);
 /*************************************************************
 Creates an event semaphore, i.e., a semaphore which may just have two states:
 signaled and nonsignaled. The created event is manual reset: it must be reset
-explicitly by calling sync_os_reset_event. */
+explicitly by calling sync_os_reset_event.
+@return	the event handle */
 UNIV_INTERN
 os_event_t
 os_event_create(
 /*============*/
-				/* out: the event handle */
-	const char*	name);	/* in: the name of the event, if NULL
+	const char*	name);	/*!< in: the name of the event, if NULL
 				the event is created without a name */
 #ifdef __WIN__
 /*************************************************************
 Creates an auto-reset event semaphore, i.e., an event which is automatically
-reset when a single thread is released. Works only in Windows. */
+reset when a single thread is released. Works only in Windows.
+@return	the event handle */
 UNIV_INTERN
 os_event_t
 os_event_create_auto(
 /*=================*/
-				/* out: the event handle */
-	const char*	name);	/* in: the name of the event, if NULL
+	const char*	name);	/*!< in: the name of the event, if NULL
 				the event is created without a name */
 #endif
 /**************************************************************
@@ -133,7 +133,7 @@ UNIV_INTERN
 void
 os_event_set(
 /*=========*/
-	os_event_t	event);	/* in: event to set */
+	os_event_t	event);	/*!< in: event to set */
 /**************************************************************
 Resets an event semaphore to the nonsignaled state. Waiting threads will
 stop to wait for the event.
@@ -145,14 +145,14 @@ UNIV_INTERN
 ib_int64_t
 os_event_reset(
 /*===========*/
-	os_event_t	event);	/* in: event to reset */
+	os_event_t	event);	/*!< in: event to reset */
 /**************************************************************
 Frees an event object. */
 UNIV_INTERN
 void
 os_event_free(
 /*==========*/
-	os_event_t	event);	/* in: event to free */
+	os_event_t	event);	/*!< in: event to free */
 
 /**************************************************************
 Waits for an event object until it is in the signaled state. If
@@ -178,8 +178,8 @@ UNIV_INTERN
 void
 os_event_wait_low(
 /*==============*/
-	os_event_t	event,		/* in: event to wait */
-	ib_int64_t	reset_sig_count);/* in: zero or the value
+	os_event_t	event,		/*!< in: event to wait */
+	ib_int64_t	reset_sig_count);/*!< in: zero or the value
 					returned by previous call of
 					os_event_reset(). */
 
@@ -187,42 +187,39 @@ os_event_wait_low(
 
 /**************************************************************
 Waits for an event object until it is in the signaled state or
-a timeout is exceeded. In Unix the timeout is always infinite. */
+a timeout is exceeded. In Unix the timeout is always infinite.
+@return	0 if success, OS_SYNC_TIME_EXCEEDED if timeout was exceeded */
 UNIV_INTERN
 ulint
 os_event_wait_time(
 /*===============*/
-				/* out: 0 if success,
-				OS_SYNC_TIME_EXCEEDED if timeout
-				was exceeded */
-	os_event_t	event,	/* in: event to wait */
-	ulint		time);	/* in: timeout in microseconds, or
+	os_event_t	event,	/*!< in: event to wait */
+	ulint		time);	/*!< in: timeout in microseconds, or
 				OS_SYNC_INFINITE_TIME */
 #ifdef __WIN__
 /**************************************************************
 Waits for any event in an OS native event array. Returns if even a single
-one is signaled or becomes signaled. */
+one is signaled or becomes signaled.
+@return	index of the event which was signaled */
 UNIV_INTERN
 ulint
 os_event_wait_multiple(
 /*===================*/
-					/* out: index of the event
-					which was signaled */
-	ulint			n,	/* in: number of events in the
+	ulint			n,	/*!< in: number of events in the
 					array */
 	os_native_event_t*	native_event_array);
-					/* in: pointer to an array of event
+					/*!< in: pointer to an array of event
 					handles */
 #endif
 /*************************************************************
 Creates an operating system mutex semaphore. Because these are slow, the
-mutex semaphore of InnoDB itself (mutex_t) should be used where possible. */
+mutex semaphore of InnoDB itself (mutex_t) should be used where possible.
+@return	the mutex handle */
 UNIV_INTERN
 os_mutex_t
 os_mutex_create(
 /*============*/
-				/* out: the mutex handle */
-	const char*	name);	/* in: the name of the mutex, if NULL
+	const char*	name);	/*!< in: the name of the mutex, if NULL
 				the mutex is created without a name */
 /**************************************************************
 Acquires ownership of a mutex semaphore. */
@@ -230,60 +227,58 @@ UNIV_INTERN
 void
 os_mutex_enter(
 /*===========*/
-	os_mutex_t	mutex);	/* in: mutex to acquire */
+	os_mutex_t	mutex);	/*!< in: mutex to acquire */
 /**************************************************************
 Releases ownership of a mutex. */
 UNIV_INTERN
 void
 os_mutex_exit(
 /*==========*/
-	os_mutex_t	mutex);	/* in: mutex to release */
+	os_mutex_t	mutex);	/*!< in: mutex to release */
 /**************************************************************
 Frees an mutex object. */
 UNIV_INTERN
 void
 os_mutex_free(
 /*==========*/
-	os_mutex_t	mutex);	/* in: mutex to free */
+	os_mutex_t	mutex);	/*!< in: mutex to free */
 /**************************************************************
 Acquires ownership of a fast mutex. Currently in Windows this is the same
-as os_fast_mutex_lock! */
+as os_fast_mutex_lock!
+@return	0 if success, != 0 if was reserved by another thread */
 UNIV_INLINE
 ulint
 os_fast_mutex_trylock(
 /*==================*/
-						/* out: 0 if success, != 0 if
-						was reserved by another
-						thread */
-	os_fast_mutex_t*	fast_mutex);	/* in: mutex to acquire */
+	os_fast_mutex_t*	fast_mutex);	/*!< in: mutex to acquire */
 /**************************************************************
 Releases ownership of a fast mutex. */
 UNIV_INTERN
 void
 os_fast_mutex_unlock(
 /*=================*/
-	os_fast_mutex_t*	fast_mutex);	/* in: mutex to release */
+	os_fast_mutex_t*	fast_mutex);	/*!< in: mutex to release */
 /*************************************************************
 Initializes an operating system fast mutex semaphore. */
 UNIV_INTERN
 void
 os_fast_mutex_init(
 /*===============*/
-	os_fast_mutex_t*	fast_mutex);	/* in: fast mutex */
+	os_fast_mutex_t*	fast_mutex);	/*!< in: fast mutex */
 /**************************************************************
 Acquires ownership of a fast mutex. */
 UNIV_INTERN
 void
 os_fast_mutex_lock(
 /*===============*/
-	os_fast_mutex_t*	fast_mutex);	/* in: mutex to acquire */
+	os_fast_mutex_t*	fast_mutex);	/*!< in: mutex to acquire */
 /**************************************************************
 Frees an mutex object. */
 UNIV_INTERN
 void
 os_fast_mutex_free(
 /*===============*/
-	os_fast_mutex_t*	fast_mutex);	/* in: mutex to free */
+	os_fast_mutex_t*	fast_mutex);	/*!< in: mutex to free */
 
 /**************************************************************
 Atomic compare-and-swap and increment for InnoDB. */

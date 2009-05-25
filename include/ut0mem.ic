@@ -68,14 +68,14 @@ ut_strcmp(const char* str1, const char* str2)
 }
 
 /**************************************************************************
-Compute strlen(ut_strcpyq(str, q)). */
+Compute strlen(ut_strcpyq(str, q)).
+@return	length of the string when quoted */
 UNIV_INLINE
 ulint
 ut_strlenq(
 /*=======*/
-				/* out: length of the string when quoted */
-	const char*	str,	/* in: null-terminated string */
-	char		q)	/* in: the quote character */
+	const char*	str,	/*!< in: null-terminated string */
+	char		q)	/*!< in: the quote character */
 {
 	ulint len;
 
@@ -92,16 +92,16 @@ ut_strlenq(
 Converts a raw binary data to a '\0'-terminated hex string. The output is
 truncated if there is not enough space in "hex", make sure "hex_size" is at
 least (2 * raw_size + 1) if you do not want this to happen. Returns the
-actual number of characters written to "hex" (including the '\0'). */
+actual number of characters written to "hex" (including the '\0').
+@return	number of chars written */
 UNIV_INLINE
 ulint
 ut_raw_to_hex(
 /*==========*/
-					/* out: number of chars written */
-	const void*	raw,		/* in: raw data */
-	ulint		raw_size,	/* in: "raw" length in bytes */
-	char*		hex,		/* out: hex string */
-	ulint		hex_size)	/* in: "hex" size in bytes */
+	const void*	raw,		/*!< in: raw data */
+	ulint		raw_size,	/*!< in: "raw" length in bytes */
+	char*		hex,		/*!< out: hex string */
+	ulint		hex_size)	/*!< in: "hex" size in bytes */
 {
 
 #ifdef WORDS_BIGENDIAN
@@ -212,17 +212,16 @@ ut_raw_to_hex(
 Adds single quotes to the start and end of string and escapes any quotes
 by doubling them. Returns the number of bytes that were written to "buf"
 (including the terminating '\0'). If buf_size is too small then the
-trailing bytes from "str" are discarded. */
+trailing bytes from "str" are discarded.
+@return	number of bytes that were written */
 UNIV_INLINE
 ulint
 ut_str_sql_format(
 /*==============*/
-					/* out: number of bytes
-					that were written */
-	const char*	str,		/* in: string */
-	ulint		str_len,	/* in: string length in bytes */
-	char*		buf,		/* out: output buffer */
-	ulint		buf_size)	/* in: output buffer size
+	const char*	str,		/*!< in: string */
+	ulint		str_len,	/*!< in: string length in bytes */
+	char*		buf,		/*!< out: output buffer */
+	ulint		buf_size)	/*!< in: output buffer size
 					in bytes */
 {
 	ulint	str_i;
