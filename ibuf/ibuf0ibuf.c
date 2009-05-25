@@ -1142,7 +1142,7 @@ ibuf_dummy_index_add_col(
 }
 /************************************************************************
 Deallocates a dummy index for inserting a record to a non-clustered index.
- */
+*/
 static
 void
 ibuf_dummy_index_free(

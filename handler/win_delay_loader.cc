@@ -73,7 +73,7 @@ ulong*			wdl_specialflag;
 int*			wdl_my_umask;
 
 /***********************************************************************
-The preffered load-address defined in PE (portable executable format). */
+The preferred load-address defined in PE (portable executable format). */
 #if defined(_M_IA64)
 #pragma section(".base", long, read)
 extern "C"

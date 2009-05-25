@@ -398,8 +398,8 @@ trx_is_interrupted(
 /***********************************************************************
 Calculates the "weight" of a transaction. The weight of one transaction
 is estimated as the number of altered rows + the number of locked rows.
- */
-
+@param t	transaction
+@return		transaction weight */
 #define TRX_WEIGHT(t)	\
 	ut_dulint_add((t)->undo_no, UT_LIST_GET_LEN((t)->trx_locks))
 

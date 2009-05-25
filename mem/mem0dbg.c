@@ -280,7 +280,7 @@ void
 mem_erase_buf(
 /*==========*/
 	byte*	buf,	/*!< in: pointer to buffer */
-	ulint	 n)	 /*!< in: length of buffer */
+	ulint	n)	/*!< in: length of buffer */
 {
 	byte*	ptr;
 
