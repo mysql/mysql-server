@@ -1,0 +1,67 @@
+.\"     Title: \fBmysql_secure_installation\fR
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.70.1 <http://docbook.sf.net/>
+.\"      Date: 03/31/2009
+.\"    Manual: MySQL Database System
+.\"    Source: MySQL 5.1
+.\"
+.TH "\fBMYSQL_SECURE_INST" "1" "03/31/2009" "MySQL 5.1" "MySQL Database System"
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.SH "NAME"
+mysql_secure_installation \- improve MySQL installation security
+.SH "SYNOPSIS"
+.HP 26
+\fBmysql_secure_installation\fR
+.SH "DESCRIPTION"
+.PP
+This program enables you to improve the security of your MySQL installation in the following ways:
+.TP 3n
+\(bu
+You can set a password for
+root
+accounts.
+.TP 3n
+\(bu
+You can remove
+root
+accounts that are accessible from outside the local host.
+.TP 3n
+\(bu
+You can remove anonymous\-user accounts.
+.TP 3n
+\(bu
+You can remove the
+test
+database, which by default can be accessed by anonymous users.
+.sp
+.RE
+.PP
+Invoke
+\fBmysql_secure_installation\fR
+without arguments:
+.sp
+.RS 3n
+.nf
+shell> \fBmysql_secure_installation\fR
+.fi
+.RE
+.PP
+The script will prompt you to determine which actions to perform.
+.SH "COPYRIGHT"
+.PP
+Copyright 2007\-2008 MySQL AB, 2009 Sun Microsystems, Inc.
+.PP
+This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
+.PP
+This documentation is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+.PP
+You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110\-1301 USA or see http://www.gnu.org/licenses/.
+.SH "SEE ALSO"
+For more information, please refer to the MySQL Reference Manual,
+which may already be installed locally and which is also available
+online at http://dev.mysql.com/doc/.
+.SH AUTHOR
+MySQL AB (http://www.mysql.com/).
