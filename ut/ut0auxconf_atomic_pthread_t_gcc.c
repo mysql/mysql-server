@@ -16,8 +16,7 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/*************************************************************************//**
-@file ut/ut0auxconf_atomic_pthread_t_gcc.c
+/*****************************************************************************
 If this program compiles, then pthread_t objects can be used as arguments
 to GCC atomic builtin functions.
 
