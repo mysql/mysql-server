@@ -23,14 +23,14 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 #include <string.h>
 
 /********************************************************************
-Create a new vector with the given initial size. */
+Create a new vector with the given initial size.
+@return	vector */
 UNIV_INTERN
 ib_vector_t*
 ib_vector_create(
 /*=============*/
-				/* out: vector */
-	mem_heap_t*	heap,	/* in: heap */
-	ulint		size)	/* in: initial size */
+	mem_heap_t*	heap,	/*!< in: heap */
+	ulint		size)	/*!< in: initial size */
 {
 	ib_vector_t*	vec;
 
@@ -52,8 +52,8 @@ UNIV_INTERN
 void
 ib_vector_push(
 /*===========*/
-	ib_vector_t*	vec,	/* in: vector */
-	void*		elem)	/* in: data element */
+	ib_vector_t*	vec,	/*!< in: vector */
+	void*		elem)	/*!< in: data element */
 {
 	if (vec->used >= vec->total) {
 		void**	new_data;

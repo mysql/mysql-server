@@ -37,45 +37,44 @@ Created 4/18/1996 Heikki Tuuri
 typedef	byte	dict_hdr_t;
 
 /**************************************************************************
-Gets a pointer to the dictionary header and x-latches its page. */
+Gets a pointer to the dictionary header and x-latches its page.
+@return	pointer to the dictionary header, page x-latched */
 UNIV_INTERN
 dict_hdr_t*
 dict_hdr_get(
 /*=========*/
-			/* out: pointer to the dictionary header,
-			page x-latched */
-	mtr_t*	mtr);	/* in: mtr */
+	mtr_t*	mtr);	/*!< in: mtr */
 /**************************************************************************
-Returns a new row, table, index, or tree id. */
+Returns a new row, table, index, or tree id.
+@return	the new id */
 UNIV_INTERN
 dulint
 dict_hdr_get_new_id(
 /*================*/
-			/* out: the new id */
-	ulint	type);	/* in: DICT_HDR_ROW_ID, ... */
+	ulint	type);	/*!< in: DICT_HDR_ROW_ID, ... */
 /**************************************************************************
-Returns a new row id. */
+Returns a new row id.
+@return	the new id */
 UNIV_INLINE
 dulint
 dict_sys_get_new_row_id(void);
 /*=========================*/
-			/* out: the new id */
 /**************************************************************************
-Reads a row id from a record or other 6-byte stored form. */
+Reads a row id from a record or other 6-byte stored form.
+@return	row id */
 UNIV_INLINE
 dulint
 dict_sys_read_row_id(
 /*=================*/
-			/* out: row id */
-	byte*	field);	/* in: record field */
+	byte*	field);	/*!< in: record field */
 /**************************************************************************
 Writes a row id to a record or other 6-byte stored form. */
 UNIV_INLINE
 void
 dict_sys_write_row_id(
 /*==================*/
-	byte*	field,	/* in: record field */
-	dulint	row_id);/* in: row id */
+	byte*	field,	/*!< in: record field */
+	dulint	row_id);/*!< in: row id */
 /*********************************************************************
 Initializes the data dictionary memory structures when the database is
 started. This function is also called when the data dictionary is created. */

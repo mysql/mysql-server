@@ -80,24 +80,23 @@ struct lock_struct {
 };
 
 /*************************************************************************
-Gets the type of a lock. */
+Gets the type of a lock.
+@return	LOCK_TABLE or LOCK_REC */
 UNIV_INLINE
 ulint
 lock_get_type_low(
 /*==============*/
-				/* out: LOCK_TABLE or LOCK_REC */
-	const lock_t*	lock);	/* in: lock */
+	const lock_t*	lock);	/*!< in: lock */
 
 /*************************************************************************
-Gets the previous record lock set on a record. */
+Gets the previous record lock set on a record.
+@return	previous lock on the same record, NULL if none exists */
 
 const lock_t*
 lock_rec_get_prev(
 /*==============*/
-				/* out: previous lock on the same
-				record, NULL if none exists */
-	const lock_t*	in_lock,/* in: record lock */
-	ulint		heap_no);/* in: heap number of the record */
+	const lock_t*	in_lock,/*!< in: record lock */
+	ulint		heap_no);/*!< in: heap number of the record */
 
 #ifndef UNIV_NONINL
 #include "lock0priv.ic"

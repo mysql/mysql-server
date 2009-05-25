@@ -32,17 +32,17 @@ UNIV_INTERN
 void
 btr_search_info_update_slow(
 /*========================*/
-	btr_search_t*	info,	/* in/out: search info */
-	btr_cur_t*	cursor);/* in: cursor which was just positioned */
+	btr_search_t*	info,	/*!< in/out: search info */
+	btr_cur_t*	cursor);/*!< in: cursor which was just positioned */
 
 /************************************************************************
-Returns search info for an index. */
+Returns search info for an index.
+@return	search info; search mutex reserved */
 UNIV_INLINE
 btr_search_t*
 btr_search_get_info(
 /*================*/
-				/* out: search info; search mutex reserved */
-	dict_index_t*	index)	/* in: index */
+	dict_index_t*	index)	/*!< in: index */
 {
 	ut_ad(index);
 
@@ -55,8 +55,8 @@ UNIV_INLINE
 void
 btr_search_info_update(
 /*===================*/
-	dict_index_t*	index,	/* in: index of the cursor */
-	btr_cur_t*	cursor)	/* in: cursor which was just positioned */
+	dict_index_t*	index,	/*!< in: index of the cursor */
+	btr_cur_t*	cursor)	/*!< in: cursor which was just positioned */
 {
 	btr_search_t*	info;
 

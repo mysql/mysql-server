@@ -43,9 +43,9 @@ UNIV_INTERN
 void
 ut_dbg_assertion_failed(
 /*====================*/
-	const char* expr,	/* in: the failed assertion */
-	const char* file,	/* in: source file containing the assertion */
-	ulint line);		/* in: line number of the assertion */
+	const char* expr,	/*!< in: the failed assertion */
+	const char* file,	/*!< in: source file containing the assertion */
+	ulint line);		/*!< in: line number of the assertion */
 
 #ifdef __NETWARE__
 /* Flag for ignoring further assertion failures.
@@ -144,7 +144,7 @@ UNIV_INTERN
 void
 speedo_reset(
 /*=========*/
-	speedo_t*	speedo);	/* out: speedo */
+	speedo_t*	speedo);	/*!< out: speedo */
 
 /***********************************************************************
 Shows the time elapsed and usage statistics since the last reset of a
@@ -153,7 +153,7 @@ UNIV_INTERN
 void
 speedo_show(
 /*========*/
-	const speedo_t*	speedo);	/* in: speedo */
+	const speedo_t*	speedo);	/*!< in: speedo */
 
 #endif /* UNIV_COMPILE_TEST_FUNCS */
 

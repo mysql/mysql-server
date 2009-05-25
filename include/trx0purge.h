@@ -43,26 +43,23 @@ extern trx_undo_rec_t	trx_purge_dummy_rec;
 
 /************************************************************************
 Calculates the file address of an undo log header when we have the file
-address of its history list node. */
+address of its history list node.
+@return	file address of the log */
 UNIV_INLINE
 fil_addr_t
 trx_purge_get_log_from_hist(
 /*========================*/
-					/* out: file address of the log */
-	fil_addr_t	node_addr);	/* in: file address of the history
+	fil_addr_t	node_addr);	/*!< in: file address of the history
 					list node of the log */
 /*********************************************************************
 Checks if trx_id is >= purge_view: then it is guaranteed that its update
-undo log still exists in the system. */
+undo log still exists in the system.
+@return	TRUE if is sure that it is preserved, also if the function returns FALSE, it is possible that the undo log still exists in the system */
 UNIV_INTERN
 ibool
 trx_purge_update_undo_must_exist(
 /*=============================*/
-				/* out: TRUE if is sure that it is
-				preserved, also if the function
-				returns FALSE, it is possible that the
-				undo log still exists in the system */
-	trx_id_t	trx_id);/* in: transaction id */
+	trx_id_t	trx_id);/*!< in: transaction id */
 /************************************************************************
 Creates the global purge system control structure and inits the history
 mutex. */
@@ -77,40 +74,36 @@ UNIV_INTERN
 void
 trx_purge_add_update_undo_to_history(
 /*=================================*/
-	trx_t*	trx,		/* in: transaction */
-	page_t*	undo_page,	/* in: update undo log header page,
+	trx_t*	trx,		/*!< in: transaction */
+	page_t*	undo_page,	/*!< in: update undo log header page,
 				x-latched */
-	mtr_t*	mtr);		/* in: mtr */
+	mtr_t*	mtr);		/*!< in: mtr */
 /************************************************************************
 Fetches the next undo log record from the history list to purge. It must be
-released with the corresponding release function. */
+released with the corresponding release function.
+@return	copy of an undo log record, or pointer to the dummy undo log record &trx_purge_dummy_rec if the whole undo log can skipped in purge; NULL if none left */
 UNIV_INTERN
 trx_undo_rec_t*
 trx_purge_fetch_next_rec(
 /*=====================*/
-				/* out: copy of an undo log record, or
-				pointer to the dummy undo log record
-				&trx_purge_dummy_rec if the whole undo log
-				can skipped in purge; NULL if none left */
-	roll_ptr_t*	roll_ptr,/* out: roll pointer to undo record */
-	trx_undo_inf_t** cell,	/* out: storage cell for the record in the
+	roll_ptr_t*	roll_ptr,/*!< out: roll pointer to undo record */
+	trx_undo_inf_t** cell,	/*!< out: storage cell for the record in the
 				purge array */
-	mem_heap_t*	heap);	/* in: memory heap where copied */
+	mem_heap_t*	heap);	/*!< in: memory heap where copied */
 /***********************************************************************
 Releases a reserved purge undo record. */
 UNIV_INTERN
 void
 trx_purge_rec_release(
 /*==================*/
-	trx_undo_inf_t*	cell);	/* in: storage cell */
+	trx_undo_inf_t*	cell);	/*!< in: storage cell */
 /***********************************************************************
-This function runs a purge batch. */
+This function runs a purge batch.
+@return	number of undo log pages handled in the batch */
 UNIV_INTERN
 ulint
 trx_purge(void);
 /*===========*/
-				/* out: number of undo log pages handled in
-				the batch */
 /**********************************************************************
 Prints information of the purge system to stderr. */
 UNIV_INTERN

@@ -52,9 +52,9 @@ UNIV_INTERN
 void
 ut_dbg_assertion_failed(
 /*====================*/
-	const char* expr,	/* in: the failed assertion (optional) */
-	const char* file,	/* in: source file containing the assertion */
-	ulint line)		/* in: line number of the assertion */
+	const char* expr,	/*!< in: the failed assertion (optional) */
+	const char* file,	/*!< in: source file containing the assertion */
+	ulint line)		/*!< in: line number of the assertion */
 {
 	ut_print_timestamp(stderr);
 #ifdef UNIV_HOTBACKUP
@@ -145,7 +145,7 @@ UNIV_INTERN
 void
 speedo_reset(
 /*=========*/
-	speedo_t*	speedo)	/* out: speedo */
+	speedo_t*	speedo)	/*!< out: speedo */
 {
 	gettimeofday(&speedo->tv, NULL);
 
@@ -159,7 +159,7 @@ UNIV_INTERN
 void
 speedo_show(
 /*========*/
-	const speedo_t*	speedo)	/* in: speedo */
+	const speedo_t*	speedo)	/*!< in: speedo */
 {
 	struct rusage	ru_now;
 	struct timeval	tv_now;

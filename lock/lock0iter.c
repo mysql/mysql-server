@@ -48,9 +48,9 @@ UNIV_INTERN
 void
 lock_queue_iterator_reset(
 /*======================*/
-	lock_queue_iterator_t*	iter,	/* out: iterator */
-	const lock_t*		lock,	/* in: lock to start from */
-	ulint			bit_no)	/* in: record number in the
+	lock_queue_iterator_t*	iter,	/*!< out: iterator */
+	const lock_t*		lock,	/*!< in: lock to start from */
+	ulint			bit_no)	/*!< in: record number in the
 					heap */
 {
 	ut_ad(mutex_own(&kernel_mutex));
@@ -79,13 +79,13 @@ lock_queue_iterator_reset(
 /***********************************************************************
 Gets the previous lock in the lock queue, returns NULL if there are no
 more locks (i.e. the current lock is the first one). The iterator is
-receded (if not-NULL is returned). */
+receded (if not-NULL is returned).
+@return	previous lock or NULL */
 UNIV_INTERN
 const lock_t*
 lock_queue_iterator_get_prev(
 /*=========================*/
-					/* out: previous lock or NULL */
-	lock_queue_iterator_t*	iter)	/* in/out: iterator */
+	lock_queue_iterator_t*	iter)	/*!< in/out: iterator */
 {
 	const lock_t*	prev_lock;
 

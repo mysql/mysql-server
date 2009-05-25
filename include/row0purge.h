@@ -35,23 +35,23 @@ Created 3/14/1997 Heikki Tuuri
 #include "row0types.h"
 
 /************************************************************************
-Creates a purge node to a query graph. */
+Creates a purge node to a query graph.
+@return	own: purge node */
 UNIV_INTERN
 purge_node_t*
 row_purge_node_create(
 /*==================*/
-				/* out, own: purge node */
-	que_thr_t*	parent,	/* in: parent node, i.e., a thr node */
-	mem_heap_t*	heap);	/* in: memory heap where created */
+	que_thr_t*	parent,	/*!< in: parent node, i.e., a thr node */
+	mem_heap_t*	heap);	/*!< in: memory heap where created */
 /***************************************************************
 Does the purge operation for a single undo log record. This is a high-level
-function used in an SQL execution graph. */
+function used in an SQL execution graph.
+@return	query thread to run next or NULL */
 UNIV_INTERN
 que_thr_t*
 row_purge_step(
 /*===========*/
-				/* out: query thread to run next or NULL */
-	que_thr_t*	thr);	/* in: query thread */
+	que_thr_t*	thr);	/*!< in: query thread */
 
 /* Purge node structure */
 

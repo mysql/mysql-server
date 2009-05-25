@@ -35,16 +35,16 @@ UNIV_INTERN
 void
 mem_field_init(
 /*===========*/
-	byte*	buf,	/* in: memory field */
-	ulint	n);	/* in: how many bytes the user requested */
+	byte*	buf,	/*!< in: memory field */
+	ulint	n);	/*!< in: how many bytes the user requested */
 /**********************************************************************
 Erases an allocated memory field in the debug version. */
 UNIV_INTERN
 void
 mem_field_erase(
 /*============*/
-	byte*	buf,	/* in: memory field */
-	ulint	n);	/* in: how many bytes the user requested */
+	byte*	buf,	/*!< in: memory field */
+	ulint	n);	/*!< in: how many bytes the user requested */
 /*******************************************************************
 Initializes a buffer to a random combination of hex BA and BE.
 Used to initialize allocated memory. */
@@ -52,17 +52,17 @@ UNIV_INTERN
 void
 mem_init_buf(
 /*=========*/
-	byte*	buf,	/* in: pointer to buffer */
-	ulint	 n);	 /* in: length of buffer */
+	byte*	buf,	/*!< in: pointer to buffer */
+	ulint	 n);	 /*!< in: length of buffer */
 /*******************************************************************
 Initializes a buffer to a random combination of hex DE and AD.
-Used to erase freed memory.*/
+Used to erase freed memory. */
 UNIV_INTERN
 void
 mem_erase_buf(
 /*==========*/
-	byte*	buf,	/* in: pointer to buffer */
-	ulint	 n);	 /* in: length of buffer */
+	byte*	buf,	/*!< in: pointer to buffer */
+	ulint	 n);	 /*!< in: length of buffer */
 /*******************************************************************
 Inserts a created memory heap to the hash table of
 current allocated memory heaps.
@@ -71,9 +71,9 @@ UNIV_INTERN
 void
 mem_hash_insert(
 /*============*/
-	mem_heap_t*	heap,	   /* in: the created heap */
-	const char*	file_name, /* in: file name of creation */
-	ulint		line);	   /* in: line where created */
+	mem_heap_t*	heap,	   /*!< in: the created heap */
+	const char*	file_name, /*!< in: file name of creation */
+	ulint		line);	   /*!< in: line where created */
 /*******************************************************************
 Removes a memory heap (which is going to be freed by the caller)
 from the list of live memory heaps. Returns the size of the heap
@@ -86,9 +86,9 @@ UNIV_INTERN
 void
 mem_hash_remove(
 /*============*/
-	mem_heap_t*	heap,	   /* in: the heap to be freed */
-	const char*	file_name, /* in: file name of freeing */
-	ulint		line);	   /* in: line where freed */
+	mem_heap_t*	heap,	   /*!< in: the heap to be freed */
+	const char*	file_name, /*!< in: file name of freeing */
+	ulint		line);	   /*!< in: line where freed */
 
 
 void

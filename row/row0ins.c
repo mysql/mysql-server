@@ -52,15 +52,15 @@ Created 4/20/1996 Heikki Tuuri
 
 
 /*************************************************************************
-Creates an insert node struct. */
+Creates an insert node struct.
+@return	own: insert node struct */
 UNIV_INTERN
 ins_node_t*
 ins_node_create(
 /*============*/
-					/* out, own: insert node struct */
-	ulint		ins_type,	/* in: INS_VALUES, ... */
-	dict_table_t*	table,		/* in: table where to insert */
-	mem_heap_t*	heap)		/* in: mem heap where created */
+	ulint		ins_type,	/*!< in: INS_VALUES, ... */
+	dict_table_t*	table,		/*!< in: table where to insert */
+	mem_heap_t*	heap)		/*!< in: mem heap where created */
 {
 	ins_node_t*	node;
 
@@ -92,7 +92,7 @@ UNIV_INTERN
 void
 ins_node_create_entry_list(
 /*=======================*/
-	ins_node_t*	node)	/* in: row insert node */
+	ins_node_t*	node)	/*!< in: row insert node */
 {
 	dict_index_t*	index;
 	dtuple_t*	entry;
@@ -118,7 +118,7 @@ static
 void
 row_ins_alloc_sys_fields(
 /*=====================*/
-	ins_node_t*	node)	/* in: insert node */
+	ins_node_t*	node)	/*!< in: insert node */
 {
 	dtuple_t*		row;
 	dict_table_t*		table;
@@ -175,8 +175,8 @@ UNIV_INTERN
 void
 ins_node_set_new_row(
 /*=================*/
-	ins_node_t*	node,	/* in: insert node */
-	dtuple_t*	row)	/* in: new row (or first row) for the node */
+	ins_node_t*	node,	/*!< in: insert node */
+	dtuple_t*	row)	/*!< in: new row (or first row) for the node */
 {
 	node->state = INS_NODE_SET_IX_LOCK;
 	node->index = NULL;
@@ -203,19 +203,19 @@ ins_node_set_new_row(
 /***********************************************************************
 Does an insert operation by updating a delete-marked existing record
 in the index. This situation can occur if the delete-marked record is
-kept in the index for consistent reads. */
+kept in the index for consistent reads.
+@return	DB_SUCCESS or error code */
 static
 ulint
 row_ins_sec_index_entry_by_modify(
 /*==============================*/
-				/* out: DB_SUCCESS or error code */
-	ulint		mode,	/* in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE,
+	ulint		mode,	/*!< in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE,
 				depending on whether mtr holds just a leaf
 				latch or also a tree latch */
-	btr_cur_t*	cursor,	/* in: B-tree cursor */
-	const dtuple_t*	entry,	/* in: index entry to insert */
-	que_thr_t*	thr,	/* in: query thread */
-	mtr_t*		mtr)	/* in: mtr; must be committed before
+	btr_cur_t*	cursor,	/*!< in: B-tree cursor */
+	const dtuple_t*	entry,	/*!< in: index entry to insert */
+	que_thr_t*	thr,	/*!< in: query thread */
+	mtr_t*		mtr)	/*!< in: mtr; must be committed before
 				latching any further pages */
 {
 	big_rec_t*	dummy_big_rec;
@@ -274,23 +274,23 @@ func_exit:
 /***********************************************************************
 Does an insert operation by delete unmarking and updating a delete marked
 existing record in the index. This situation can occur if the delete marked
-record is kept in the index for consistent reads. */
+record is kept in the index for consistent reads.
+@return	DB_SUCCESS, DB_FAIL, or error code */
 static
 ulint
 row_ins_clust_index_entry_by_modify(
 /*================================*/
-				/* out: DB_SUCCESS, DB_FAIL, or error code */
-	ulint		mode,	/* in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE,
+	ulint		mode,	/*!< in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE,
 				depending on whether mtr holds just a leaf
 				latch or also a tree latch */
-	btr_cur_t*	cursor,	/* in: B-tree cursor */
-	mem_heap_t**	heap,	/* in/out: pointer to memory heap, or NULL */
-	big_rec_t**	big_rec,/* out: possible big rec vector of fields
+	btr_cur_t*	cursor,	/*!< in: B-tree cursor */
+	mem_heap_t**	heap,	/*!< in/out: pointer to memory heap, or NULL */
+	big_rec_t**	big_rec,/*!< out: possible big rec vector of fields
 				which have to be stored externally by the
 				caller */
-	const dtuple_t*	entry,	/* in: index entry to insert */
-	que_thr_t*	thr,	/* in: query thread */
-	mtr_t*		mtr)	/* in: mtr; must be committed before
+	const dtuple_t*	entry,	/*!< in: index entry to insert */
+	que_thr_t*	thr,	/*!< in: query thread */
+	mtr_t*		mtr)	/*!< in: mtr; must be committed before
 				latching any further pages */
 {
 	rec_t*		rec;
@@ -345,14 +345,14 @@ row_ins_clust_index_entry_by_modify(
 
 /*************************************************************************
 Returns TRUE if in a cascaded update/delete an ancestor node of node
-updates (not DELETE, but UPDATE) table. */
+updates (not DELETE, but UPDATE) table.
+@return	TRUE if an ancestor updates table */
 static
 ibool
 row_ins_cascade_ancestor_updates_table(
 /*===================================*/
-				/* out: TRUE if an ancestor updates table */
-	que_node_t*	node,	/* in: node in a query graph */
-	dict_table_t*	table)	/* in: table */
+	que_node_t*	node,	/*!< in: node in a query graph */
+	dict_table_t*	table)	/*!< in: table */
 {
 	que_node_t*	parent;
 	upd_node_t*	upd_node;
@@ -378,13 +378,13 @@ row_ins_cascade_ancestor_updates_table(
 
 /*************************************************************************
 Returns the number of ancestor UPDATE or DELETE nodes of a
-cascaded update/delete node. */
+cascaded update/delete node.
+@return	number of ancestors */
 static
 ulint
 row_ins_cascade_n_ancestors(
 /*========================*/
-				/* out: number of ancestors */
-	que_node_t*	node)	/* in: node in a query graph */
+	que_node_t*	node)	/*!< in: node in a query graph */
 {
 	que_node_t*	parent;
 	ulint		n_ancestors = 0;
@@ -404,24 +404,17 @@ row_ins_cascade_n_ancestors(
 
 /**********************************************************************
 Calculates the update vector node->cascade->update for a child table in
-a cascaded update. */
+a cascaded update.
+@return	number of fields in the calculated update vector; the value can also be 0 if no foreign key fields changed; the returned value is ULINT_UNDEFINED if the column type in the child table is too short to fit the new value in the parent table: that means the update fails */
 static
 ulint
 row_ins_cascade_calc_update_vec(
 /*============================*/
-					/* out: number of fields in the
-					calculated update vector; the value
-					can also be 0 if no foreign key
-					fields changed; the returned value
-					is ULINT_UNDEFINED if the column
-					type in the child table is too short
-					to fit the new value in the parent
-					table: that means the update fails */
-	upd_node_t*	node,		/* in: update node of the parent
+	upd_node_t*	node,		/*!< in: update node of the parent
 					table */
-	dict_foreign_t*	foreign,	/* in: foreign key constraint whose
+	dict_foreign_t*	foreign,	/*!< in: foreign key constraint whose
 					type is != 0 */
-	mem_heap_t*	heap)		/* in: memory heap to use as
+	mem_heap_t*	heap)		/*!< in: memory heap to use as
 					temporary storage */
 {
 	upd_node_t*	cascade		= node->cascade_node;
@@ -597,8 +590,8 @@ static
 void
 row_ins_set_detailed(
 /*=================*/
-	trx_t*		trx,		/* in: transaction */
-	dict_foreign_t*	foreign)	/* in: foreign key constraint */
+	trx_t*		trx,		/*!< in: transaction */
+	dict_foreign_t*	foreign)	/*!< in: foreign key constraint */
 {
 	mutex_enter(&srv_misc_tmpfile_mutex);
 	rewind(srv_misc_tmpfile);
@@ -623,14 +616,14 @@ static
 void
 row_ins_foreign_report_err(
 /*=======================*/
-	const char*	errstr,		/* in: error string from the viewpoint
+	const char*	errstr,		/*!< in: error string from the viewpoint
 					of the parent table */
-	que_thr_t*	thr,		/* in: query thread whose run_node
+	que_thr_t*	thr,		/*!< in: query thread whose run_node
 					is an update node */
-	dict_foreign_t*	foreign,	/* in: foreign key constraint */
-	const rec_t*	rec,		/* in: a matching index record in the
+	dict_foreign_t*	foreign,	/*!< in: foreign key constraint */
+	const rec_t*	rec,		/*!< in: a matching index record in the
 					child table */
-	const dtuple_t*	entry)		/* in: index entry in the parent
+	const dtuple_t*	entry)		/*!< in: index entry in the parent
 					table */
 {
 	FILE*	ef	= dict_foreign_err_file;
@@ -680,12 +673,12 @@ static
 void
 row_ins_foreign_report_add_err(
 /*===========================*/
-	trx_t*		trx,		/* in: transaction */
-	dict_foreign_t*	foreign,	/* in: foreign key constraint */
-	const rec_t*	rec,		/* in: a record in the parent table:
+	trx_t*		trx,		/*!< in: transaction */
+	dict_foreign_t*	foreign,	/*!< in: foreign key constraint */
+	const rec_t*	rec,		/*!< in: a record in the parent table:
 					it does not match entry because we
 					have an error! */
-	const dtuple_t*	entry)		/* in: index entry to insert in the
+	const dtuple_t*	entry)		/*!< in: index entry to insert in the
 					child table */
 {
 	FILE*	ef	= dict_foreign_err_file;
@@ -736,9 +729,9 @@ static
 void
 row_ins_invalidate_query_cache(
 /*===========================*/
-	que_thr_t*	thr,		/* in: query thread whose run_node
+	que_thr_t*	thr,		/*!< in: query thread whose run_node
 					is an update node */
-	const char*	name)		/* in: table name prefixed with
+	const char*	name)		/*!< in: table name prefixed with
 					database name and a '/' character */
 {
 	char*	buf;
@@ -758,22 +751,21 @@ row_ins_invalidate_query_cache(
 /*************************************************************************
 Perform referential actions or checks when a parent row is deleted or updated
 and the constraint had an ON DELETE or ON UPDATE condition which was not
-RESTRICT. */
+RESTRICT.
+@return	DB_SUCCESS, DB_LOCK_WAIT, or error code */
 static
 ulint
 row_ins_foreign_check_on_constraint(
 /*================================*/
-					/* out: DB_SUCCESS, DB_LOCK_WAIT,
-					or error code */
-	que_thr_t*	thr,		/* in: query thread whose run_node
+	que_thr_t*	thr,		/*!< in: query thread whose run_node
 					is an update node */
-	dict_foreign_t*	foreign,	/* in: foreign key constraint whose
+	dict_foreign_t*	foreign,	/*!< in: foreign key constraint whose
 					type is != 0 */
-	btr_pcur_t*	pcur,		/* in: cursor placed on a matching
+	btr_pcur_t*	pcur,		/*!< in: cursor placed on a matching
 					index record in the child table */
-	dtuple_t*	entry,		/* in: index entry in the parent
+	dtuple_t*	entry,		/*!< in: index entry in the parent
 					table */
-	mtr_t*		mtr)		/* in: mtr holding the latch of pcur
+	mtr_t*		mtr)		/*!< in: mtr holding the latch of pcur
 					page */
 {
 	upd_node_t*	node;
@@ -1124,19 +1116,19 @@ nonstandard_exit_func:
 
 /*************************************************************************
 Sets a shared lock on a record. Used in locking possible duplicate key
-records and also in checking foreign key constraints. */
+records and also in checking foreign key constraints.
+@return	DB_SUCCESS or error code */
 static
 ulint
 row_ins_set_shared_rec_lock(
 /*========================*/
-					/* out: DB_SUCCESS or error code */
-	ulint			type,	/* in: LOCK_ORDINARY, LOCK_GAP, or
+	ulint			type,	/*!< in: LOCK_ORDINARY, LOCK_GAP, or
 					LOCK_REC_NOT_GAP type lock */
-	const buf_block_t*	block,	/* in: buffer block of rec */
-	const rec_t*		rec,	/* in: record */
-	dict_index_t*		index,	/* in: index */
-	const ulint*		offsets,/* in: rec_get_offsets(rec, index) */
-	que_thr_t*		thr)	/* in: query thread */
+	const buf_block_t*	block,	/*!< in: buffer block of rec */
+	const rec_t*		rec,	/*!< in: record */
+	dict_index_t*		index,	/*!< in: index */
+	const ulint*		offsets,/*!< in: rec_get_offsets(rec, index) */
+	que_thr_t*		thr)	/*!< in: query thread */
 {
 	ulint	err;
 
@@ -1155,19 +1147,19 @@ row_ins_set_shared_rec_lock(
 
 /*************************************************************************
 Sets a exclusive lock on a record. Used in locking possible duplicate key
-records */
+records
+@return	DB_SUCCESS or error code */
 static
 ulint
 row_ins_set_exclusive_rec_lock(
 /*===========================*/
-					/* out: DB_SUCCESS or error code */
-	ulint			type,	/* in: LOCK_ORDINARY, LOCK_GAP, or
+	ulint			type,	/*!< in: LOCK_ORDINARY, LOCK_GAP, or
 					LOCK_REC_NOT_GAP type lock */
-	const buf_block_t*	block,	/* in: buffer block of rec */
-	const rec_t*		rec,	/* in: record */
-	dict_index_t*		index,	/* in: index */
-	const ulint*		offsets,/* in: rec_get_offsets(rec, index) */
-	que_thr_t*		thr)	/* in: query thread */
+	const buf_block_t*	block,	/*!< in: buffer block of rec */
+	const rec_t*		rec,	/*!< in: record */
+	dict_index_t*		index,	/*!< in: index */
+	const ulint*		offsets,/*!< in: rec_get_offsets(rec, index) */
+	que_thr_t*		thr)	/*!< in: query thread */
 {
 	ulint	err;
 
@@ -1187,24 +1179,22 @@ row_ins_set_exclusive_rec_lock(
 /*******************************************************************
 Checks if foreign key constraint fails for an index entry. Sets shared locks
 which lock either the success or the failure of the constraint. NOTE that
-the caller must have a shared latch on dict_operation_lock. */
+the caller must have a shared latch on dict_operation_lock.
+@return	DB_SUCCESS, DB_NO_REFERENCED_ROW, or DB_ROW_IS_REFERENCED */
 UNIV_INTERN
 ulint
 row_ins_check_foreign_constraint(
 /*=============================*/
-				/* out: DB_SUCCESS,
-				DB_NO_REFERENCED_ROW,
-				or DB_ROW_IS_REFERENCED */
-	ibool		check_ref,/* in: TRUE if we want to check that
+	ibool		check_ref,/*!< in: TRUE if we want to check that
 				the referenced table is ok, FALSE if we
 				want to to check the foreign key table */
-	dict_foreign_t*	foreign,/* in: foreign constraint; NOTE that the
+	dict_foreign_t*	foreign,/*!< in: foreign constraint; NOTE that the
 				tables mentioned in it must be in the
 				dictionary cache if they exist at all */
-	dict_table_t*	table,	/* in: if check_ref is TRUE, then the foreign
+	dict_table_t*	table,	/*!< in: if check_ref is TRUE, then the foreign
 				table, else the referenced table */
-	dtuple_t*	entry,	/* in: index entry for index */
-	que_thr_t*	thr)	/* in: query thread */
+	dtuple_t*	entry,	/*!< in: index entry for index */
+	que_thr_t*	thr)	/*!< in: query thread */
 {
 	upd_node_t*	upd_node;
 	dict_table_t*	check_table;
@@ -1513,16 +1503,16 @@ Checks if foreign key constraints fail for an index entry. If index
 is not mentioned in any constraint, this function does nothing,
 Otherwise does searches to the indexes of referenced tables and
 sets shared locks which lock either the success or the failure of
-a constraint. */
+a constraint.
+@return	DB_SUCCESS or error code */
 static
 ulint
 row_ins_check_foreign_constraints(
 /*==============================*/
-				/* out: DB_SUCCESS or error code */
-	dict_table_t*	table,	/* in: table */
-	dict_index_t*	index,	/* in: index */
-	dtuple_t*	entry,	/* in: index entry for index */
-	que_thr_t*	thr)	/* in: query thread */
+	dict_table_t*	table,	/*!< in: table */
+	dict_index_t*	index,	/*!< in: index */
+	dtuple_t*	entry,	/*!< in: index entry for index */
+	que_thr_t*	thr)	/*!< in: query thread */
 {
 	dict_foreign_t*	foreign;
 	ulint		err;
@@ -1592,18 +1582,18 @@ row_ins_check_foreign_constraints(
 
 /*******************************************************************
 Checks if a unique key violation to rec would occur at the index entry
-insert. */
+insert.
+@return	TRUE if error */
 static
 ibool
 row_ins_dupl_error_with_rec(
 /*========================*/
-				/* out: TRUE if error */
-	const rec_t*	rec,	/* in: user record; NOTE that we assume
+	const rec_t*	rec,	/*!< in: user record; NOTE that we assume
 				that the caller already has a record lock on
 				the record! */
-	const dtuple_t*	entry,	/* in: entry to insert */
-	dict_index_t*	index,	/* in: index */
-	const ulint*	offsets)/* in: rec_get_offsets(rec, index) */
+	const dtuple_t*	entry,	/*!< in: entry to insert */
+	dict_index_t*	index,	/*!< in: index */
+	const ulint*	offsets)/*!< in: rec_get_offsets(rec, index) */
 {
 	ulint	matched_fields;
 	ulint	matched_bytes;
@@ -1645,16 +1635,15 @@ row_ins_dupl_error_with_rec(
 /*******************************************************************
 Scans a unique non-clustered index at a given index entry to determine
 whether a uniqueness violation has occurred for the key value of the entry.
-Set shared locks on possible duplicate records. */
+Set shared locks on possible duplicate records.
+@return	DB_SUCCESS, DB_DUPLICATE_KEY, or DB_LOCK_WAIT */
 static
 ulint
 row_ins_scan_sec_index_for_duplicate(
 /*=================================*/
-				/* out: DB_SUCCESS, DB_DUPLICATE_KEY, or
-				DB_LOCK_WAIT */
-	dict_index_t*	index,	/* in: non-clustered unique index */
-	dtuple_t*	entry,	/* in: index entry */
-	que_thr_t*	thr)	/* in: query thread */
+	dict_index_t*	index,	/*!< in: non-clustered unique index */
+	dtuple_t*	entry,	/*!< in: index entry */
+	que_thr_t*	thr)	/*!< in: query thread */
 {
 	ulint		n_unique;
 	ulint		i;
@@ -1770,19 +1759,16 @@ row_ins_scan_sec_index_for_duplicate(
 /*******************************************************************
 Checks if a unique key violation error would occur at an index entry
 insert. Sets shared locks on possible duplicate records. Works only
-for a clustered index! */
+for a clustered index!
+@return	DB_SUCCESS if no error, DB_DUPLICATE_KEY if error, DB_LOCK_WAIT if we have to wait for a lock on a possible duplicate record */
 static
 ulint
 row_ins_duplicate_error_in_clust(
 /*=============================*/
-				/* out: DB_SUCCESS if no error,
-				DB_DUPLICATE_KEY if error, DB_LOCK_WAIT if we
-				have to wait for a lock on a possible
-				duplicate record */
-	btr_cur_t*	cursor,	/* in: B-tree cursor */
-	dtuple_t*	entry,	/* in: entry to insert */
-	que_thr_t*	thr,	/* in: query thread */
-	mtr_t*		mtr)	/* in: mtr */
+	btr_cur_t*	cursor,	/*!< in: B-tree cursor */
+	dtuple_t*	entry,	/*!< in: entry to insert */
+	que_thr_t*	thr,	/*!< in: query thread */
+	mtr_t*		mtr)	/*!< in: mtr */
 {
 	ulint	err;
 	rec_t*	rec;
@@ -1914,17 +1900,13 @@ Checks if an index entry has long enough common prefix with an existing
 record so that the intended insert of the entry must be changed to a modify of
 the existing record. In the case of a clustered index, the prefix must be
 n_unique fields long, and in the case of a secondary index, all fields must be
-equal. */
+equal.
+@return	0 if no update, ROW_INS_PREV if previous should be updated; currently we do the search so that only the low_match record can match enough to the search tuple, not the next record */
 UNIV_INLINE
 ulint
 row_ins_must_modify(
 /*================*/
-				/* out: 0 if no update, ROW_INS_PREV if
-				previous should be updated; currently we
-				do the search so that only the low_match
-				record can match enough to the search tuple,
-				not the next record */
-	btr_cur_t*	cursor)	/* in: B-tree cursor */
+	btr_cur_t*	cursor)	/*!< in: B-tree cursor */
 {
 	ulint	enough_match;
 	rec_t*	rec;
@@ -1959,20 +1941,19 @@ violation error occurs. The delete marked record is then updated to an
 existing record, and we must write an undo log record on the delete
 marked record. If the index is secondary, and a record with exactly the
 same fields is found, the other record is necessarily marked deleted.
-It is then unmarked. Otherwise, the entry is just inserted to the index. */
+It is then unmarked. Otherwise, the entry is just inserted to the index.
+@return	DB_SUCCESS, DB_LOCK_WAIT, DB_FAIL if pessimistic retry needed, or error code */
 static
 ulint
 row_ins_index_entry_low(
 /*====================*/
-				/* out: DB_SUCCESS, DB_LOCK_WAIT, DB_FAIL
-				if pessimistic retry needed, or error code */
-	ulint		mode,	/* in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE,
+	ulint		mode,	/*!< in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE,
 				depending on whether we wish optimistic or
 				pessimistic descent down the index tree */
-	dict_index_t*	index,	/* in: index */
-	dtuple_t*	entry,	/* in: index entry to insert */
-	ulint		n_ext,	/* in: number of externally stored columns */
-	que_thr_t*	thr)	/* in: query thread */
+	dict_index_t*	index,	/*!< in: index */
+	dtuple_t*	entry,	/*!< in: index entry to insert */
+	ulint		n_ext,	/*!< in: number of externally stored columns */
+	que_thr_t*	thr)	/*!< in: query thread */
 {
 	btr_cur_t	cursor;
 	ulint		ignore_sec_unique	= 0;
@@ -2142,18 +2123,17 @@ function_exit:
 Inserts an index entry to index. Tries first optimistic, then pessimistic
 descent down the tree. If the entry matches enough to a delete marked record,
 performs the insert by updating or delete unmarking the delete marked
-record. */
+record.
+@return	DB_SUCCESS, DB_LOCK_WAIT, DB_DUPLICATE_KEY, or some other error code */
 UNIV_INTERN
 ulint
 row_ins_index_entry(
 /*================*/
-				/* out: DB_SUCCESS, DB_LOCK_WAIT,
-				DB_DUPLICATE_KEY, or some other error code */
-	dict_index_t*	index,	/* in: index */
-	dtuple_t*	entry,	/* in: index entry to insert */
-	ulint		n_ext,	/* in: number of externally stored columns */
-	ibool		foreign,/* in: TRUE=check foreign key constraints */
-	que_thr_t*	thr)	/* in: query thread */
+	dict_index_t*	index,	/*!< in: index */
+	dtuple_t*	entry,	/*!< in: index entry to insert */
+	ulint		n_ext,	/*!< in: number of externally stored columns */
+	ibool		foreign,/*!< in: TRUE=check foreign key constraints */
+	que_thr_t*	thr)	/*!< in: query thread */
 {
 	ulint	err;
 
@@ -2189,9 +2169,9 @@ static
 void
 row_ins_index_entry_set_vals(
 /*=========================*/
-	dict_index_t*	index,	/* in: index */
-	dtuple_t*	entry,	/* in: index entry to make */
-	const dtuple_t*	row)	/* in: row */
+	dict_index_t*	index,	/*!< in: index */
+	dtuple_t*	entry,	/*!< in: index entry to make */
+	const dtuple_t*	row)	/*!< in: row */
 {
 	ulint	n_fields;
 	ulint	i;
@@ -2235,15 +2215,14 @@ row_ins_index_entry_set_vals(
 }
 
 /***************************************************************
-Inserts a single index entry to the table. */
+Inserts a single index entry to the table.
+@return	DB_SUCCESS if operation successfully completed, else error code or DB_LOCK_WAIT */
 static
 ulint
 row_ins_index_entry_step(
 /*=====================*/
-				/* out: DB_SUCCESS if operation successfully
-				completed, else error code or DB_LOCK_WAIT */
-	ins_node_t*	node,	/* in: row insert node */
-	que_thr_t*	thr)	/* in: query thread */
+	ins_node_t*	node,	/*!< in: row insert node */
+	que_thr_t*	thr)	/*!< in: query thread */
 {
 	ulint	err;
 
@@ -2264,7 +2243,7 @@ UNIV_INLINE
 void
 row_ins_alloc_row_id_step(
 /*======================*/
-	ins_node_t*	node)	/* in: row insert node */
+	ins_node_t*	node)	/*!< in: row insert node */
 {
 	dulint	row_id;
 
@@ -2290,7 +2269,7 @@ UNIV_INLINE
 void
 row_ins_get_row_from_values(
 /*========================*/
-	ins_node_t*	node)	/* in: row insert node */
+	ins_node_t*	node)	/*!< in: row insert node */
 {
 	que_node_t*	list_node;
 	dfield_t*	dfield;
@@ -2323,7 +2302,7 @@ UNIV_INLINE
 void
 row_ins_get_row_from_select(
 /*========================*/
-	ins_node_t*	node)	/* in: row insert node */
+	ins_node_t*	node)	/*!< in: row insert node */
 {
 	que_node_t*	list_node;
 	dfield_t*	dfield;
@@ -2349,15 +2328,14 @@ row_ins_get_row_from_select(
 }
 
 /***************************************************************
-Inserts a row to a table. */
+Inserts a row to a table.
+@return	DB_SUCCESS if operation successfully completed, else error code or DB_LOCK_WAIT */
 static
 ulint
 row_ins(
 /*====*/
-				/* out: DB_SUCCESS if operation successfully
-				completed, else error code or DB_LOCK_WAIT */
-	ins_node_t*	node,	/* in: row insert node */
-	que_thr_t*	thr)	/* in: query thread */
+	ins_node_t*	node,	/*!< in: row insert node */
+	que_thr_t*	thr)	/*!< in: query thread */
 {
 	ulint	err;
 
@@ -2405,13 +2383,13 @@ row_ins(
 
 /***************************************************************
 Inserts a row to a table. This is a high-level function used in SQL execution
-graphs. */
+graphs.
+@return	query thread to run next or NULL */
 UNIV_INTERN
 que_thr_t*
 row_ins_step(
 /*=========*/
-				/* out: query thread to run next or NULL */
-	que_thr_t*	thr)	/* in: query thread */
+	que_thr_t*	thr)	/*!< in: query thread */
 {
 	ins_node_t*	node;
 	que_node_t*	parent;

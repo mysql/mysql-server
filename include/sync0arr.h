@@ -39,15 +39,15 @@ typedef struct sync_array_struct	sync_array_t;
 /***********************************************************************
 Creates a synchronization wait array. It is protected by a mutex
 which is automatically reserved when the functions operating on it
-are called. */
+are called.
+@return	own: created wait array */
 UNIV_INTERN
 sync_array_t*
 sync_array_create(
 /*==============*/
-				/* out, own: created wait array */
-	ulint	n_cells,	/* in: number of cells in the array
+	ulint	n_cells,	/*!< in: number of cells in the array
 				to create */
-	ulint	protection);	/* in: either SYNC_ARRAY_OS_MUTEX or
+	ulint	protection);	/*!< in: either SYNC_ARRAY_OS_MUTEX or
 				SYNC_ARRAY_MUTEX: determines the type
 				of mutex protecting the data structure */
 /**********************************************************************
@@ -56,7 +56,7 @@ UNIV_INTERN
 void
 sync_array_free(
 /*============*/
-	sync_array_t*	arr);	/* in, own: sync wait array */
+	sync_array_t*	arr);	/*!< in, own: sync wait array */
 /**********************************************************************
 Reserves a wait array cell for waiting for an object.
 The event of the cell is reset to nonsignalled state. */
@@ -64,12 +64,12 @@ UNIV_INTERN
 void
 sync_array_reserve_cell(
 /*====================*/
-	sync_array_t*	arr,	/* in: wait array */
-	void*		object, /* in: pointer to the object to wait for */
-	ulint		type,	/* in: lock request type */
-	const char*	file,	/* in: file where requested */
-	ulint		line,	/* in: line where requested */
-	ulint*		index); /* out: index of the reserved cell */
+	sync_array_t*	arr,	/*!< in: wait array */
+	void*		object, /*!< in: pointer to the object to wait for */
+	ulint		type,	/*!< in: lock request type */
+	const char*	file,	/*!< in: file where requested */
+	ulint		line,	/*!< in: line where requested */
+	ulint*		index); /*!< out: index of the reserved cell */
 /**********************************************************************
 This function should be called when a thread starts to wait on
 a wait array cell. In the debug version this function checks
@@ -79,8 +79,8 @@ UNIV_INTERN
 void
 sync_array_wait_event(
 /*==================*/
-	sync_array_t*	arr,	/* in: wait array */
-	ulint		index);	 /* in: index of the reserved cell */
+	sync_array_t*	arr,	/*!< in: wait array */
+	ulint		index);	 /*!< in: index of the reserved cell */
 /**********************************************************************
 Frees the cell. NOTE! sync_array_wait_event frees the cell
 automatically! */
@@ -88,15 +88,15 @@ UNIV_INTERN
 void
 sync_array_free_cell(
 /*=================*/
-	sync_array_t*	arr,	/* in: wait array */
-	ulint		index);	/* in: index of the cell in array */
+	sync_array_t*	arr,	/*!< in: wait array */
+	ulint		index);	/*!< in: index of the cell in array */
 /**************************************************************************
 Note that one of the wait objects was signalled. */
 UNIV_INTERN
 void
 sync_array_object_signalled(
 /*========================*/
-	sync_array_t*	arr);	/* in: wait array */
+	sync_array_t*	arr);	/*!< in: wait array */
 /**************************************************************************
 If the wakeup algorithm does not work perfectly at semaphore relases,
 this function will do the waking (see the comment in mutex_exit). This
@@ -106,13 +106,12 @@ void
 sync_arr_wake_threads_if_sema_free(void);
 /*====================================*/
 /**************************************************************************
-Prints warnings of long semaphore waits to stderr. */
+Prints warnings of long semaphore waits to stderr.
+@return	TRUE if fatal semaphore wait threshold was exceeded */
 UNIV_INTERN
 ibool
 sync_array_print_long_waits(void);
 /*=============================*/
-			/* out: TRUE if fatal semaphore wait threshold
-			was exceeded */
 /************************************************************************
 Validates the integrity of the wait array. Checks
 that the number of reserved cells equals the count variable. */
@@ -120,15 +119,15 @@ UNIV_INTERN
 void
 sync_array_validate(
 /*================*/
-	sync_array_t*	arr);	/* in: sync wait array */
+	sync_array_t*	arr);	/*!< in: sync wait array */
 /**************************************************************************
 Prints info of the wait array. */
 UNIV_INTERN
 void
 sync_array_print_info(
 /*==================*/
-	FILE*		file,	/* in: file where to print */
-	sync_array_t*	arr);	/* in: wait array */
+	FILE*		file,	/*!< in: file where to print */
+	sync_array_t*	arr);	/*!< in: wait array */
 
 
 #ifndef UNIV_NONINL

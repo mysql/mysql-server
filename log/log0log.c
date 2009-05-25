@@ -151,7 +151,7 @@ UNIV_INTERN
 void
 log_fsp_current_free_limit_set_and_checkpoint(
 /*==========================================*/
-	ulint	limit)	/* in: limit to set */
+	ulint	limit)	/*!< in: limit to set */
 {
 	ibool	success;
 
@@ -172,12 +172,12 @@ log_fsp_current_free_limit_set_and_checkpoint(
 
 /********************************************************************
 Returns the oldest modified block lsn in the pool, or log_sys->lsn if none
-exists. */
+exists.
+@return	LSN of oldest modification */
 static
 ib_uint64_t
 log_buf_pool_get_oldest_modification(void)
 /*======================================*/
-				/* out: LSN of oldest modification */
 {
 	ib_uint64_t	lsn;
 
@@ -195,13 +195,13 @@ log_buf_pool_get_oldest_modification(void)
 
 /****************************************************************
 Opens the log for log_write_low. The log must be closed with log_close and
-released with log_release. */
+released with log_release.
+@return	start lsn of the log record */
 UNIV_INTERN
 ib_uint64_t
 log_reserve_and_open(
 /*=================*/
-			/* out: start lsn of the log record */
-	ulint	len)	/* in: length of data to be catenated */
+	ulint	len)	/*!< in: length of data to be catenated */
 {
 	log_t*	log			= log_sys;
 	ulint	len_upper_limit;
@@ -274,8 +274,8 @@ UNIV_INTERN
 void
 log_write_low(
 /*==========*/
-	byte*	str,		/* in: string */
-	ulint	str_len)	/* in: string length */
+	byte*	str,		/*!< in: string */
+	ulint	str_len)	/*!< in: string length */
 {
 	log_t*	log	= log_sys;
 	ulint	len;
@@ -337,12 +337,12 @@ part_loop:
 }
 
 /****************************************************************
-Closes the log. */
+Closes the log.
+@return	lsn */
 UNIV_INTERN
 ib_uint64_t
 log_close(void)
 /*===========*/
-			/* out: lsn */
 {
 	byte*		log_block;
 	ulint		first_rec_group;
@@ -463,13 +463,13 @@ log_pad_current_log_block(void)
 
 /**********************************************************
 Calculates the data capacity of a log group, when the log file headers are not
-included. */
+included.
+@return	capacity in bytes */
 UNIV_INTERN
 ulint
 log_group_get_capacity(
 /*===================*/
-					/* out: capacity in bytes */
-	const log_group_t*	group)	/* in: log group */
+	const log_group_t*	group)	/*!< in: log group */
 {
 	ut_ad(mutex_own(&(log_sys->mutex)));
 
@@ -478,15 +478,15 @@ log_group_get_capacity(
 
 /**********************************************************
 Calculates the offset within a log group, when the log file headers are not
-included. */
+included.
+@return	size offset (<= offset) */
 UNIV_INLINE
 ulint
 log_group_calc_size_offset(
 /*=======================*/
-					/* out: size offset (<= offset) */
-	ulint			offset,	/* in: real offset within the
+	ulint			offset,	/*!< in: real offset within the
 					log group */
-	const log_group_t*	group)	/* in: log group */
+	const log_group_t*	group)	/*!< in: log group */
 {
 	ut_ad(mutex_own(&(log_sys->mutex)));
 
@@ -495,15 +495,15 @@ log_group_calc_size_offset(
 
 /**********************************************************
 Calculates the offset within a log group, when the log file headers are
-included. */
+included.
+@return	real offset (>= offset) */
 UNIV_INLINE
 ulint
 log_group_calc_real_offset(
 /*=======================*/
-					/* out: real offset (>= offset) */
-	ulint			offset,	/* in: size offset within the
+	ulint			offset,	/*!< in: size offset within the
 					log group */
-	const log_group_t*	group)	/* in: log group */
+	const log_group_t*	group)	/*!< in: log group */
 {
 	ut_ad(mutex_own(&(log_sys->mutex)));
 
@@ -512,15 +512,15 @@ log_group_calc_real_offset(
 }
 
 /**********************************************************
-Calculates the offset of an lsn within a log group. */
+Calculates the offset of an lsn within a log group.
+@return	offset within the log group */
 static
 ulint
 log_group_calc_lsn_offset(
 /*======================*/
-					/* out: offset within the log group */
-	ib_uint64_t		lsn,	/* in: lsn, must be within 4 GB of
+	ib_uint64_t		lsn,	/*!< in: lsn, must be within 4 GB of
 					group->lsn */
-	const log_group_t*	group)	/* in: log group */
+	const log_group_t*	group)	/*!< in: log group */
 {
 	ib_uint64_t	gr_lsn;
 	ib_int64_t	gr_lsn_size_offset;
@@ -569,21 +569,21 @@ UNIV_INTERN ibool	log_debug_writes = FALSE;
 #endif /* UNIV_DEBUG */
 
 /***********************************************************************
-Calculates where in log files we find a specified lsn. */
+Calculates where in log files we find a specified lsn.
+@return	log file number */
 UNIV_INTERN
 ulint
 log_calc_where_lsn_is(
 /*==================*/
-						/* out: log file number */
-	ib_int64_t*	log_file_offset,	/* out: offset in that file
+	ib_int64_t*	log_file_offset,	/*!< out: offset in that file
 						(including the header) */
-	ib_uint64_t	first_header_lsn,	/* in: first log file start
+	ib_uint64_t	first_header_lsn,	/*!< in: first log file start
 						lsn */
-	ib_uint64_t	lsn,			/* in: lsn whose position to
+	ib_uint64_t	lsn,			/*!< in: lsn whose position to
 						determine */
-	ulint		n_log_files,		/* in: total number of log
+	ulint		n_log_files,		/*!< in: total number of log
 						files */
-	ib_int64_t	log_file_size)		/* in: log file size
+	ib_int64_t	log_file_size)		/*!< in: log file size
 						(including the header) */
 {
 	ib_int64_t	capacity	= log_file_size - LOG_FILE_HDR_SIZE;
@@ -617,8 +617,8 @@ UNIV_INTERN
 void
 log_group_set_fields(
 /*=================*/
-	log_group_t*	group,	/* in/out: group */
-	ib_uint64_t	lsn)	/* in: lsn for which the values should be
+	log_group_t*	group,	/*!< in/out: group */
+	ib_uint64_t	lsn)	/*!< in: lsn for which the values should be
 				set */
 {
 	group->lsn_offset = log_group_calc_lsn_offset(lsn, group);
@@ -627,14 +627,12 @@ log_group_set_fields(
 
 /*********************************************************************
 Calculates the recommended highest values for lsn - last_checkpoint_lsn,
-lsn - buf_get_oldest_modification(), and lsn - max_archive_lsn_age. */
+lsn - buf_get_oldest_modification(), and lsn - max_archive_lsn_age.
+@return	error value FALSE if the smallest log group is too small to accommodate the number of OS threads in the database server */
 static
 ibool
 log_calc_max_ages(void)
 /*===================*/
-			/* out: error value FALSE if the smallest log group is
-			too small to accommodate the number of OS threads in
-			the database server */
 {
 	log_group_t*	group;
 	ulint		margin;
@@ -865,14 +863,14 @@ UNIV_INTERN
 void
 log_group_init(
 /*===========*/
-	ulint	id,			/* in: group id */
-	ulint	n_files,		/* in: number of log files */
-	ulint	file_size,		/* in: log file size in bytes */
-	ulint	space_id,		/* in: space id of the file space
+	ulint	id,			/*!< in: group id */
+	ulint	n_files,		/*!< in: number of log files */
+	ulint	file_size,		/*!< in: log file size in bytes */
+	ulint	space_id,		/*!< in: space id of the file space
 					which contains the log files of this
 					group */
 	ulint	archive_space_id __attribute__((unused)))
-					/* in: space id of the file space
+					/*!< in: space id of the file space
 					which contains some archived log
 					files for this group; currently, only
 					for the first log group this is
@@ -938,7 +936,7 @@ UNIV_INLINE
 void
 log_flush_do_unlocks(
 /*=================*/
-	ulint	code)	/* in: any ORed combination of LOG_UNLOCK_FLUSH_LOCK
+	ulint	code)	/*!< in: any ORed combination of LOG_UNLOCK_FLUSH_LOCK
 			and LOG_UNLOCK_NONE_FLUSHED_LOCK */
 {
 	ut_ad(mutex_own(&(log_sys->mutex)));
@@ -965,13 +963,13 @@ log_flush_do_unlocks(
 
 /**********************************************************************
 Checks if a flush is completed for a log group and does the completion
-routine if yes. */
+routine if yes.
+@return	LOG_UNLOCK_NONE_FLUSHED_LOCK or 0 */
 UNIV_INLINE
 ulint
 log_group_check_flush_completion(
 /*=============================*/
-				/* out: LOG_UNLOCK_NONE_FLUSHED_LOCK or 0 */
-	log_group_t*	group)	/* in: log group */
+	log_group_t*	group)	/*!< in: log group */
 {
 	ut_ad(mutex_own(&(log_sys->mutex)));
 
@@ -1000,12 +998,12 @@ log_group_check_flush_completion(
 }
 
 /**********************************************************
-Checks if a flush is completed and does the completion routine if yes. */
+Checks if a flush is completed and does the completion routine if yes.
+@return	LOG_UNLOCK_FLUSH_LOCK or 0 */
 static
 ulint
 log_sys_check_flush_completion(void)
 /*================================*/
-			/* out: LOG_UNLOCK_FLUSH_LOCK or 0 */
 {
 	ulint	move_start;
 	ulint	move_end;
@@ -1046,7 +1044,7 @@ UNIV_INTERN
 void
 log_io_complete(
 /*============*/
-	log_group_t*	group)	/* in: log group or a dummy pointer */
+	log_group_t*	group)	/*!< in: log group or a dummy pointer */
 {
 	ulint	unlock;
 
@@ -1114,10 +1112,10 @@ static
 void
 log_group_file_header_flush(
 /*========================*/
-	log_group_t*	group,		/* in: log group */
-	ulint		nth_file,	/* in: header to the nth file in the
+	log_group_t*	group,		/*!< in: log group */
+	ulint		nth_file,	/*!< in: header to the nth file in the
 					log file space */
-	ib_uint64_t	start_lsn)	/* in: log file data starts at this
+	ib_uint64_t	start_lsn)	/*!< in: log file data starts at this
 					lsn */
 {
 	byte*	buf;
@@ -1166,7 +1164,7 @@ static
 void
 log_block_store_checksum(
 /*=====================*/
-	byte*	block)	/* in/out: pointer to a log block */
+	byte*	block)	/*!< in/out: pointer to a log block */
 {
 	log_block_set_checksum(block, log_block_calc_checksum(block));
 }
@@ -1177,14 +1175,14 @@ UNIV_INTERN
 void
 log_group_write_buf(
 /*================*/
-	log_group_t*	group,		/* in: log group */
-	byte*		buf,		/* in: buffer */
-	ulint		len,		/* in: buffer len; must be divisible
+	log_group_t*	group,		/*!< in: log group */
+	byte*		buf,		/*!< in: buffer */
+	ulint		len,		/*!< in: buffer len; must be divisible
 					by OS_FILE_LOG_BLOCK_SIZE */
-	ib_uint64_t	start_lsn,	/* in: start lsn of the buffer; must
+	ib_uint64_t	start_lsn,	/*!< in: start lsn of the buffer; must
 					be divisible by
 					OS_FILE_LOG_BLOCK_SIZE */
-	ulint		new_data_offset)/* in: start offset of new data in
+	ulint		new_data_offset)/*!< in: start offset of new data in
 					buf: this parameter is used to decide
 					if we have to write a new log file
 					header */
@@ -1297,13 +1295,13 @@ UNIV_INTERN
 void
 log_write_up_to(
 /*============*/
-	ib_uint64_t	lsn,	/* in: log sequence number up to which
+	ib_uint64_t	lsn,	/*!< in: log sequence number up to which
 				the log should be written,
 				IB_ULONGLONG_MAX if not specified */
-	ulint		wait,	/* in: LOG_NO_WAIT, LOG_WAIT_ONE_GROUP,
+	ulint		wait,	/*!< in: LOG_NO_WAIT, LOG_WAIT_ONE_GROUP,
 				or LOG_WAIT_ALL_GROUPS */
 	ibool		flush_to_disk)
-				/* in: TRUE if we want the written log
+				/*!< in: TRUE if we want the written log
 				also to be flushed to disk */
 {
 	log_group_t*	group;
@@ -1565,20 +1563,16 @@ log_flush_margin(void)
 /********************************************************************
 Advances the smallest lsn for which there are unflushed dirty blocks in the
 buffer pool. NOTE: this function may only be called if the calling thread owns
-no synchronization objects! */
+no synchronization objects!
+@return	FALSE if there was a flush batch of the same type running, which means that we could not start this flush batch */
 UNIV_INTERN
 ibool
 log_preflush_pool_modified_pages(
 /*=============================*/
-					/* out: FALSE if there was a
-					flush batch of the same type
-					running, which means that we
-					could not start this flush
-					batch */
-	ib_uint64_t	new_oldest,	/* in: try to advance
+	ib_uint64_t	new_oldest,	/*!< in: try to advance
 					oldest_modified_lsn at least
 					to this lsn */
-	ibool		sync)		/* in: TRUE if synchronous
+	ibool		sync)		/*!< in: TRUE if synchronous
 					operation is desired */
 {
 	ulint	n_pages;
@@ -1653,10 +1647,10 @@ static
 void
 log_checkpoint_set_nth_group_info(
 /*==============================*/
-	byte*	buf,	/* in: buffer for checkpoint info */
-	ulint	n,	/* in: nth slot */
-	ulint	file_no,/* in: archived file number */
-	ulint	offset)	/* in: archived file offset */
+	byte*	buf,	/*!< in: buffer for checkpoint info */
+	ulint	n,	/*!< in: nth slot */
+	ulint	file_no,/*!< in: archived file number */
+	ulint	offset)	/*!< in: archived file offset */
 {
 	ut_ad(n < LOG_MAX_N_GROUPS);
 
@@ -1672,10 +1666,10 @@ UNIV_INTERN
 void
 log_checkpoint_get_nth_group_info(
 /*==============================*/
-	const byte*	buf,	/* in: buffer containing checkpoint info */
-	ulint		n,	/* in: nth slot */
-	ulint*		file_no,/* out: archived file number */
-	ulint*		offset)	/* out: archived file offset */
+	const byte*	buf,	/*!< in: buffer containing checkpoint info */
+	ulint		n,	/*!< in: nth slot */
+	ulint*		file_no,/*!< out: archived file number */
+	ulint*		offset)	/*!< out: archived file offset */
 {
 	ut_ad(n < LOG_MAX_N_GROUPS);
 
@@ -1691,7 +1685,7 @@ static
 void
 log_group_checkpoint(
 /*=================*/
-	log_group_t*	group)	/* in: log group */
+	log_group_t*	group)	/*!< in: log group */
 {
 	log_group_t*	group2;
 #ifdef UNIV_LOG_ARCHIVE
@@ -1814,9 +1808,9 @@ UNIV_INTERN
 void
 log_reset_first_header_and_checkpoint(
 /*==================================*/
-	byte*		hdr_buf,/* in: buffer which will be written to the
+	byte*		hdr_buf,/*!< in: buffer which will be written to the
 				start of the first log file */
-	ib_uint64_t	start)	/* in: lsn of the start of the first log file;
+	ib_uint64_t	start)	/*!< in: lsn of the start of the first log file;
 				we pretend that there is a checkpoint at
 				start + LOG_BLOCK_HDR_SIZE */
 {
@@ -1867,8 +1861,8 @@ UNIV_INTERN
 void
 log_group_read_checkpoint_info(
 /*===========================*/
-	log_group_t*	group,	/* in: log group */
-	ulint		field)	/* in: LOG_CHECKPOINT_1 or LOG_CHECKPOINT_2 */
+	log_group_t*	group,	/*!< in: log group */
+	ulint		field)	/*!< in: LOG_CHECKPOINT_1 or LOG_CHECKPOINT_2 */
 {
 	ut_ad(mutex_own(&(log_sys->mutex)));
 
@@ -1903,16 +1897,15 @@ log_groups_write_checkpoint_info(void)
 Makes a checkpoint. Note that this function does not flush dirty
 blocks from the buffer pool: it only checks what is lsn of the oldest
 modification in the pool, and writes information about the lsn in
-log files. Use log_make_checkpoint_at to flush also the pool. */
+log files. Use log_make_checkpoint_at to flush also the pool.
+@return	TRUE if success, FALSE if a checkpoint write was already running */
 UNIV_INTERN
 ibool
 log_checkpoint(
 /*===========*/
-				/* out: TRUE if success, FALSE if a checkpoint
-				write was already running */
-	ibool	sync,		/* in: TRUE if synchronous operation is
+	ibool	sync,		/*!< in: TRUE if synchronous operation is
 				desired */
-	ibool	write_always)	/* in: the function normally checks if the
+	ibool	write_always)	/*!< in: the function normally checks if the
 				the new checkpoint would have a greater
 				lsn than the previous one: if not, then no
 				physical write is done; by setting this
@@ -2000,10 +1993,10 @@ UNIV_INTERN
 void
 log_make_checkpoint_at(
 /*===================*/
-	ib_uint64_t	lsn,		/* in: make a checkpoint at this or a
+	ib_uint64_t	lsn,		/*!< in: make a checkpoint at this or a
 					later lsn, if IB_ULONGLONG_MAX, makes
 					a checkpoint at the latest lsn */
-	ibool		write_always)	/* in: the function normally checks if
+	ibool		write_always)	/*!< in: the function normally checks if
 					the the new checkpoint would have a
 					greater lsn than the previous one: if
 					not, then no physical write is done;
@@ -2126,11 +2119,11 @@ UNIV_INTERN
 void
 log_group_read_log_seg(
 /*===================*/
-	ulint		type,		/* in: LOG_ARCHIVE or LOG_RECOVER */
-	byte*		buf,		/* in: buffer where to read */
-	log_group_t*	group,		/* in: log group */
-	ib_uint64_t	start_lsn,	/* in: read area start */
-	ib_uint64_t	end_lsn)	/* in: read area end */
+	ulint		type,		/*!< in: LOG_ARCHIVE or LOG_RECOVER */
+	byte*		buf,		/*!< in: buffer where to read */
+	log_group_t*	group,		/*!< in: log group */
+	ib_uint64_t	start_lsn,	/*!< in: read area start */
+	ib_uint64_t	end_lsn)	/*!< in: read area end */
 {
 	ulint	len;
 	ulint	source_offset;
@@ -2180,11 +2173,11 @@ UNIV_INTERN
 void
 log_archived_file_name_gen(
 /*=======================*/
-	char*	buf,	/* in: buffer where to write */
+	char*	buf,	/*!< in: buffer where to write */
 	ulint	id __attribute__((unused)),
-			/* in: group id;
+			/*!< in: group id;
 			currently we only archive the first group */
-	ulint	file_no)/* in: file number */
+	ulint	file_no)/*!< in: file number */
 {
 	sprintf(buf, "%sib_arch_log_%010lu", srv_arch_dir, (ulong) file_no);
 }
@@ -2195,11 +2188,11 @@ static
 void
 log_group_archive_file_header_write(
 /*================================*/
-	log_group_t*	group,		/* in: log group */
-	ulint		nth_file,	/* in: header to the nth file in the
+	log_group_t*	group,		/*!< in: log group */
+	ulint		nth_file,	/*!< in: header to the nth file in the
 					archive log file space */
-	ulint		file_no,	/* in: archived file number */
-	ib_uint64_t	start_lsn)	/* in: log file data starts at this
+	ulint		file_no,	/*!< in: archived file number */
+	ib_uint64_t	start_lsn)	/*!< in: log file data starts at this
 					lsn */
 {
 	byte*	buf;
@@ -2234,10 +2227,10 @@ static
 void
 log_group_archive_completed_header_write(
 /*=====================================*/
-	log_group_t*	group,		/* in: log group */
-	ulint		nth_file,	/* in: header to the nth file in the
+	log_group_t*	group,		/*!< in: log group */
+	ulint		nth_file,	/*!< in: header to the nth file in the
 					archive log file space */
-	ib_uint64_t	end_lsn)	/* in: end lsn of the file */
+	ib_uint64_t	end_lsn)	/*!< in: end lsn of the file */
 {
 	byte*	buf;
 	ulint	dest_offset;
@@ -2268,7 +2261,7 @@ static
 void
 log_group_archive(
 /*==============*/
-	log_group_t*	group)	/* in: log group */
+	log_group_t*	group)	/*!< in: log group */
 {
 	os_file_t	 file_handle;
 	ib_uint64_t	start_lsn;
@@ -2559,15 +2552,14 @@ log_io_complete_archive(void)
 }
 
 /************************************************************************
-Starts an archiving operation. */
+Starts an archiving operation.
+@return	TRUE if succeed, FALSE if an archiving operation was already running */
 UNIV_INTERN
 ibool
 log_archive_do(
 /*===========*/
-			/* out: TRUE if succeed, FALSE if an archiving
-			operation was already running */
-	ibool	sync,	/* in: TRUE if synchronous operation is desired */
-	ulint*	n_bytes)/* out: archive log buffer size, 0 if nothing to
+	ibool	sync,	/*!< in: TRUE if synchronous operation is desired */
+	ulint*	n_bytes)/*!< out: archive log buffer size, 0 if nothing to
 			archive */
 {
 	ibool		calc_new_limit;
@@ -2721,7 +2713,7 @@ static
 void
 log_archive_close_groups(
 /*=====================*/
-	ibool	increment_file_count)	/* in: TRUE if we want to increment
+	ibool	increment_file_count)	/*!< in: TRUE if we want to increment
 					the file count */
 {
 	log_group_t*	group;
@@ -2770,12 +2762,12 @@ log_archive_close_groups(
 Writes the log contents to the archive up to the lsn when this function was
 called, and stops the archiving. When archiving is started again, the archived
 log file numbers start from 2 higher, so that the archiving will not write
-again to the archived log files which exist when this function returns. */
+again to the archived log files which exist when this function returns.
+@return	DB_SUCCESS or DB_ERROR */
 UNIV_INTERN
 ulint
 log_archive_stop(void)
 /*==================*/
-			/* out: DB_SUCCESS or DB_ERROR */
 {
 	ibool	success;
 
@@ -2834,12 +2826,12 @@ log_archive_stop(void)
 }
 
 /********************************************************************
-Starts again archiving which has been stopped. */
+Starts again archiving which has been stopped.
+@return	DB_SUCCESS or DB_ERROR */
 UNIV_INTERN
 ulint
 log_archive_start(void)
 /*===================*/
-			/* out: DB_SUCCESS or DB_ERROR */
 {
 	mutex_enter(&(log_sys->mutex));
 
@@ -2860,12 +2852,12 @@ log_archive_start(void)
 }
 
 /********************************************************************
-Stop archiving the log so that a gap may occur in the archived log files. */
+Stop archiving the log so that a gap may occur in the archived log files.
+@return	DB_SUCCESS or DB_ERROR */
 UNIV_INTERN
 ulint
 log_archive_noarchivelog(void)
 /*==========================*/
-			/* out: DB_SUCCESS or DB_ERROR */
 {
 loop:
 	mutex_enter(&(log_sys->mutex));
@@ -2892,12 +2884,12 @@ loop:
 }
 
 /********************************************************************
-Start archiving the log so that a gap may occur in the archived log files. */
+Start archiving the log so that a gap may occur in the archived log files.
+@return	DB_SUCCESS or DB_ERROR */
 UNIV_INTERN
 ulint
 log_archive_archivelog(void)
 /*========================*/
-			/* out: DB_SUCCESS or DB_ERROR */
 {
 	mutex_enter(&(log_sys->mutex));
 
@@ -3199,11 +3191,11 @@ UNIV_INTERN
 ibool
 log_check_log_recs(
 /*===============*/
-	byte*		buf,		/* in: pointer to the start of
+	byte*		buf,		/*!< in: pointer to the start of
 					the log segment in the
 					log_sys->buf log buffer */
-	ulint		len,		/* in: segment length in bytes */
-	ib_uint64_t	buf_start_lsn)	/* in: buffer start lsn */
+	ulint		len,		/*!< in: segment length in bytes */
+	ib_uint64_t	buf_start_lsn)	/*!< in: buffer start lsn */
 {
 	ib_uint64_t	contiguous_lsn;
 	ib_uint64_t	scanned_lsn;
@@ -3243,14 +3235,13 @@ log_check_log_recs(
 }
 
 /**********************************************************
-Peeks the current lsn. */
+Peeks the current lsn.
+@return	TRUE if success, FALSE if could not get the log system mutex */
 UNIV_INTERN
 ibool
 log_peek_lsn(
 /*=========*/
-				/* out: TRUE if success, FALSE if
-				could not get the log system mutex */
-	ib_uint64_t*	lsn)	/* out: if returns TRUE, current lsn is here */
+	ib_uint64_t*	lsn)	/*!< out: if returns TRUE, current lsn is here */
 {
 	if (0 == mutex_enter_nowait(&(log_sys->mutex))) {
 		*lsn = log_sys->lsn;
@@ -3269,7 +3260,7 @@ UNIV_INTERN
 void
 log_print(
 /*======*/
-	FILE*	file)	/* in: file where to print */
+	FILE*	file)	/*!< in: file where to print */
 {
 	double	time_elapsed;
 	time_t	current_time;

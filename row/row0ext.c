@@ -36,10 +36,10 @@ static
 void
 row_ext_cache_fill(
 /*===============*/
-	row_ext_t*	ext,	/* in/out: column prefix cache */
-	ulint		i,	/* in: index of ext->ext[] */
-	ulint		zip_size,/* compressed page size in bytes, or 0 */
-	const dfield_t*	dfield)	/* in: data field */
+	row_ext_t*	ext,	/*!< in/out: column prefix cache */
+	ulint		i,	/*!< in: index of ext->ext[] */
+	ulint		zip_size,/*!< compressed page size in bytes, or 0 */
+	const dfield_t*	dfield)	/*!< in: data field */
 {
 	const byte*	field	= dfield_get_data(dfield);
 	ulint		f_len	= dfield_get_len(dfield);
@@ -67,25 +67,25 @@ row_ext_cache_fill(
 }
 
 /************************************************************************
-Creates a cache of column prefixes of externally stored columns. */
+Creates a cache of column prefixes of externally stored columns.
+@return	own: column prefix cache */
 UNIV_INTERN
 row_ext_t*
 row_ext_create(
 /*===========*/
-				/* out,own: column prefix cache */
-	ulint		n_ext,	/* in: number of externally stored columns */
-	const ulint*	ext,	/* in: col_no's of externally stored columns
+	ulint		n_ext,	/*!< in: number of externally stored columns */
+	const ulint*	ext,	/*!< in: col_no's of externally stored columns
 				in the InnoDB table object, as reported by
 				dict_col_get_no(); NOT relative to the records
 				in the clustered index */
-	const dtuple_t*	tuple,	/* in: data tuple containing the field
+	const dtuple_t*	tuple,	/*!< in: data tuple containing the field
 				references of the externally stored
 				columns; must be indexed by col_no;
 				the clustered index record must be
 				covered by a lock or a page latch
 				to prevent deletion (rollback or purge). */
-	ulint		zip_size,/* compressed page size in bytes, or 0 */
-	mem_heap_t*	heap)	/* in: heap where created */
+	ulint		zip_size,/*!< compressed page size in bytes, or 0 */
+	mem_heap_t*	heap)	/*!< in: heap where created */
 {
 	ulint		i;
 	row_ext_t*	ret = mem_heap_alloc(heap, (sizeof *ret)

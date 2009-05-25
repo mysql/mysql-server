@@ -41,13 +41,13 @@ typedef void*	hash_node_t;
 
 /*****************************************************************
 Creates a hash table with >= n array cells. The actual number
-of cells is chosen to be a prime number slightly bigger than n. */
+of cells is chosen to be a prime number slightly bigger than n.
+@return	own: created table */
 UNIV_INTERN
 hash_table_t*
 hash_create(
 /*========*/
-			/* out, own: created table */
-	ulint	n);	/* in: number of array cells */
+	ulint	n);	/*!< in: number of array cells */
 #ifndef UNIV_HOTBACKUP
 /*****************************************************************
 Creates a mutex array to protect a hash table. */
@@ -55,12 +55,12 @@ UNIV_INTERN
 void
 hash_create_mutexes_func(
 /*=====================*/
-	hash_table_t*	table,		/* in: hash table */
+	hash_table_t*	table,		/*!< in: hash table */
 #ifdef UNIV_SYNC_DEBUG
-	ulint		sync_level,	/* in: latching order level of the
+	ulint		sync_level,	/*!< in: latching order level of the
 					mutexes: used in the debug version */
 #endif /* UNIV_SYNC_DEBUG */
-	ulint		n_mutexes);	/* in: number of mutexes */
+	ulint		n_mutexes);	/*!< in: number of mutexes */
 #ifdef UNIV_SYNC_DEBUG
 # define hash_create_mutexes(t,n,level) hash_create_mutexes_func(t,level,n)
 #else /* UNIV_SYNC_DEBUG */
@@ -74,16 +74,16 @@ UNIV_INTERN
 void
 hash_table_free(
 /*============*/
-	hash_table_t*	table);	/* in, own: hash table */
+	hash_table_t*	table);	/*!< in, own: hash table */
 /******************************************************************
-Calculates the hash value from a folded value. */
+Calculates the hash value from a folded value.
+@return	hashed value */
 UNIV_INLINE
 ulint
 hash_calc_hash(
 /*===========*/
-				/* out: hashed value */
-	ulint		fold,	/* in: folded value */
-	hash_table_t*	table);	/* in: hash table */
+	ulint		fold,	/*!< in: folded value */
+	hash_table_t*	table);	/*!< in: hash table */
 #ifndef UNIV_HOTBACKUP
 /************************************************************************
 Assert that the mutex for the table in a hash operation is owned. */
@@ -217,14 +217,14 @@ do {									\
 } while (0)
 
 /****************************************************************
-Gets the nth cell in a hash table. */
+Gets the nth cell in a hash table.
+@return	pointer to cell */
 UNIV_INLINE
 hash_cell_t*
 hash_get_nth_cell(
 /*==============*/
-				/* out: pointer to cell */
-	hash_table_t*	table,	/* in: hash table */
-	ulint		n);	/* in: cell index */
+	hash_table_t*	table,	/*!< in: hash table */
+	ulint		n);	/*!< in: cell index */
 
 /*****************************************************************
 Clears a hash table so that all the cells become empty. */
@@ -232,16 +232,16 @@ UNIV_INLINE
 void
 hash_table_clear(
 /*=============*/
-	hash_table_t*	table);	/* in/out: hash table */
+	hash_table_t*	table);	/*!< in/out: hash table */
 
 /*****************************************************************
-Returns the number of cells in a hash table. */
+Returns the number of cells in a hash table.
+@return	number of cells */
 UNIV_INLINE
 ulint
 hash_get_n_cells(
 /*=============*/
-				/* out: number of cells */
-	hash_table_t*	table);	/* in: table */
+	hash_table_t*	table);	/*!< in: table */
 /***********************************************************************
 Deletes a struct which is stored in the heap of the hash table, and compacts
 the heap. The fold value must be stored in the struct NODE in a field named
@@ -303,7 +303,7 @@ do {\
 
 #ifndef UNIV_HOTBACKUP
 /********************************************************************
-Move all hash table entries from OLD_TABLE to NEW_TABLE.*/
+Move all hash table entries from OLD_TABLE to NEW_TABLE. */
 
 #define HASH_MIGRATE(OLD_TABLE, NEW_TABLE, NODE_TYPE, PTR_NAME, FOLD_FUNC) \
 do {\
@@ -328,80 +328,80 @@ do {\
 } while (0)
 
 /****************************************************************
-Gets the mutex index for a fold value in a hash table. */
+Gets the mutex index for a fold value in a hash table.
+@return	mutex number */
 UNIV_INLINE
 ulint
 hash_get_mutex_no(
 /*==============*/
-				/* out: mutex number */
-	hash_table_t*	table,	/* in: hash table */
-	ulint		fold);	/* in: fold */
+	hash_table_t*	table,	/*!< in: hash table */
+	ulint		fold);	/*!< in: fold */
 /****************************************************************
-Gets the nth heap in a hash table. */
+Gets the nth heap in a hash table.
+@return	mem heap */
 UNIV_INLINE
 mem_heap_t*
 hash_get_nth_heap(
 /*==============*/
-				/* out: mem heap */
-	hash_table_t*	table,	/* in: hash table */
-	ulint		i);	/* in: index of the heap */
+	hash_table_t*	table,	/*!< in: hash table */
+	ulint		i);	/*!< in: index of the heap */
 /****************************************************************
-Gets the heap for a fold value in a hash table. */
+Gets the heap for a fold value in a hash table.
+@return	mem heap */
 UNIV_INLINE
 mem_heap_t*
 hash_get_heap(
 /*==========*/
-				/* out: mem heap */
-	hash_table_t*	table,	/* in: hash table */
-	ulint		fold);	/* in: fold */
+	hash_table_t*	table,	/*!< in: hash table */
+	ulint		fold);	/*!< in: fold */
 /****************************************************************
-Gets the nth mutex in a hash table. */
+Gets the nth mutex in a hash table.
+@return	mutex */
 UNIV_INLINE
 mutex_t*
 hash_get_nth_mutex(
 /*===============*/
-				/* out: mutex */
-	hash_table_t*	table,	/* in: hash table */
-	ulint		i);	/* in: index of the mutex */
+	hash_table_t*	table,	/*!< in: hash table */
+	ulint		i);	/*!< in: index of the mutex */
 /****************************************************************
-Gets the mutex for a fold value in a hash table. */
+Gets the mutex for a fold value in a hash table.
+@return	mutex */
 UNIV_INLINE
 mutex_t*
 hash_get_mutex(
 /*===========*/
-				/* out: mutex */
-	hash_table_t*	table,	/* in: hash table */
-	ulint		fold);	/* in: fold */
+	hash_table_t*	table,	/*!< in: hash table */
+	ulint		fold);	/*!< in: fold */
 /****************************************************************
 Reserves the mutex for a fold value in a hash table. */
 UNIV_INTERN
 void
 hash_mutex_enter(
 /*=============*/
-	hash_table_t*	table,	/* in: hash table */
-	ulint		fold);	/* in: fold */
+	hash_table_t*	table,	/*!< in: hash table */
+	ulint		fold);	/*!< in: fold */
 /****************************************************************
 Releases the mutex for a fold value in a hash table. */
 UNIV_INTERN
 void
 hash_mutex_exit(
 /*============*/
-	hash_table_t*	table,	/* in: hash table */
-	ulint		fold);	/* in: fold */
+	hash_table_t*	table,	/*!< in: hash table */
+	ulint		fold);	/*!< in: fold */
 /****************************************************************
 Reserves all the mutexes of a hash table, in an ascending order. */
 UNIV_INTERN
 void
 hash_mutex_enter_all(
 /*=================*/
-	hash_table_t*	table);	/* in: hash table */
+	hash_table_t*	table);	/*!< in: hash table */
 /****************************************************************
 Releases all the mutexes of a hash table. */
 UNIV_INTERN
 void
 hash_mutex_exit_all(
 /*================*/
-	hash_table_t*	table);	/* in: hash table */
+	hash_table_t*	table);	/*!< in: hash table */
 #else /* !UNIV_HOTBACKUP */
 # define hash_get_heap(table, fold)	((table)->heap)
 # define hash_mutex_enter(table, fold)	((void) 0)

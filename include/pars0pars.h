@@ -94,23 +94,23 @@ int
 yyparse(void);
 
 /*****************************************************************
-Parses an SQL string returning the query graph. */
+Parses an SQL string returning the query graph.
+@return	own: the query graph */
 UNIV_INTERN
 que_t*
 pars_sql(
 /*=====*/
-				/* out, own: the query graph */
-	pars_info_t*	info,	/* in: extra information, or NULL */
-	const char*	str);	/* in: SQL string */
+	pars_info_t*	info,	/*!< in: extra information, or NULL */
+	const char*	str);	/*!< in: SQL string */
 /*****************************************************************
 Retrieves characters to the lexical analyzer. */
 UNIV_INTERN
 void
 pars_get_lex_chars(
 /*===============*/
-	char*	buf,		/* in/out: buffer where to copy */
-	int*	result,		/* out: number of characters copied or EOF */
-	int	max_size);	/* in: maximum number of characters which fit
+	char*	buf,		/*!< in/out: buffer where to copy */
+	int*	result,		/*!< out: number of characters copied or EOF */
+	int	max_size);	/*!< in: maximum number of characters which fit
 				in the buffer */
 /*****************************************************************
 Called by yyparse on error. */
@@ -118,292 +118,284 @@ UNIV_INTERN
 void
 yyerror(
 /*====*/
-	const char*	s);	/* in: error message string */
+	const char*	s);	/*!< in: error message string */
 /*************************************************************************
-Parses a variable declaration. */
+Parses a variable declaration.
+@return	own: symbol table node of type SYM_VAR */
 UNIV_INTERN
 sym_node_t*
 pars_variable_declaration(
 /*======================*/
-				/* out, own: symbol table node of type
-				SYM_VAR */
-	sym_node_t*	node,	/* in: symbol table node allocated for the
+	sym_node_t*	node,	/*!< in: symbol table node allocated for the
 				id of the variable */
-	pars_res_word_t* type);	/* in: pointer to a type token */
+	pars_res_word_t* type);	/*!< in: pointer to a type token */
 /*************************************************************************
-Parses a function expression. */
+Parses a function expression.
+@return	own: function node in a query tree */
 UNIV_INTERN
 func_node_t*
 pars_func(
 /*======*/
-				/* out, own: function node in a query tree */
-	que_node_t*	res_word,/* in: function name reserved word */
-	que_node_t*	arg);	/* in: first argument in the argument list */
+	que_node_t*	res_word,/*!< in: function name reserved word */
+	que_node_t*	arg);	/*!< in: first argument in the argument list */
 /*************************************************************************
-Parses an operator expression. */
+Parses an operator expression.
+@return	own: function node in a query tree */
 UNIV_INTERN
 func_node_t*
 pars_op(
 /*====*/
-				/* out, own: function node in a query tree */
-	int		func,	/* in: operator token code */
-	que_node_t*	arg1,	/* in: first argument */
-	que_node_t*	arg2);	/* in: second argument or NULL for an unary
+	int		func,	/*!< in: operator token code */
+	que_node_t*	arg1,	/*!< in: first argument */
+	que_node_t*	arg2);	/*!< in: second argument or NULL for an unary
 				operator */
 /*************************************************************************
-Parses an ORDER BY clause. Order by a single column only is supported. */
+Parses an ORDER BY clause. Order by a single column only is supported.
+@return	own: order-by node in a query tree */
 UNIV_INTERN
 order_node_t*
 pars_order_by(
 /*==========*/
-				/* out, own: order-by node in a query tree */
-	sym_node_t*	column,	/* in: column name */
-	pars_res_word_t* asc);	/* in: &pars_asc_token or pars_desc_token */
+	sym_node_t*	column,	/*!< in: column name */
+	pars_res_word_t* asc);	/*!< in: &pars_asc_token or pars_desc_token */
 /*************************************************************************
 Parses a select list; creates a query graph node for the whole SELECT
-statement. */
+statement.
+@return	own: select node in a query tree */
 UNIV_INTERN
 sel_node_t*
 pars_select_list(
 /*=============*/
-					/* out, own: select node in a query
-					tree */
-	que_node_t*	select_list,	/* in: select list */
-	sym_node_t*	into_list);	/* in: variables list or NULL */
+	que_node_t*	select_list,	/*!< in: select list */
+	sym_node_t*	into_list);	/*!< in: variables list or NULL */
 /*************************************************************************
-Parses a cursor declaration. */
+Parses a cursor declaration.
+@return	sym_node */
 UNIV_INTERN
 que_node_t*
 pars_cursor_declaration(
 /*====================*/
-					/* out: sym_node */
-	sym_node_t*	sym_node,	/* in: cursor id node in the symbol
+	sym_node_t*	sym_node,	/*!< in: cursor id node in the symbol
 					table */
-	sel_node_t*	select_node);	/* in: select node */
+	sel_node_t*	select_node);	/*!< in: select node */
 /*************************************************************************
-Parses a function declaration. */
+Parses a function declaration.
+@return	sym_node */
 UNIV_INTERN
 que_node_t*
 pars_function_declaration(
 /*======================*/
-					/* out: sym_node */
-	sym_node_t*	sym_node);	/* in: function id node in the symbol
+	sym_node_t*	sym_node);	/*!< in: function id node in the symbol
 					table */
 /*************************************************************************
-Parses a select statement. */
+Parses a select statement.
+@return	own: select node in a query tree */
 UNIV_INTERN
 sel_node_t*
 pars_select_statement(
 /*==================*/
-					/* out, own: select node in a query
-					tree */
-	sel_node_t*	select_node,	/* in: select node already containing
+	sel_node_t*	select_node,	/*!< in: select node already containing
 					the select list */
-	sym_node_t*	table_list,	/* in: table list */
-	que_node_t*	search_cond,	/* in: search condition or NULL */
-	pars_res_word_t* for_update,	/* in: NULL or &pars_update_token */
-	pars_res_word_t* consistent_read,/* in: NULL or
+	sym_node_t*	table_list,	/*!< in: table list */
+	que_node_t*	search_cond,	/*!< in: search condition or NULL */
+	pars_res_word_t* for_update,	/*!< in: NULL or &pars_update_token */
+	pars_res_word_t* consistent_read,/*!< in: NULL or
 						&pars_consistent_token */
-	order_node_t*	order_by);	/* in: NULL or an order-by node */
+	order_node_t*	order_by);	/*!< in: NULL or an order-by node */
 /*************************************************************************
-Parses a column assignment in an update. */
+Parses a column assignment in an update.
+@return	column assignment node */
 UNIV_INTERN
 col_assign_node_t*
 pars_column_assignment(
 /*===================*/
-				/* out: column assignment node */
-	sym_node_t*	column,	/* in: column to assign */
-	que_node_t*	exp);	/* in: value to assign */
+	sym_node_t*	column,	/*!< in: column to assign */
+	que_node_t*	exp);	/*!< in: value to assign */
 /*************************************************************************
-Parses a delete or update statement start. */
+Parses a delete or update statement start.
+@return	own: update node in a query tree */
 UNIV_INTERN
 upd_node_t*
 pars_update_statement_start(
 /*========================*/
-					/* out, own: update node in a query
-					tree */
-	ibool		is_delete,	/* in: TRUE if delete */
-	sym_node_t*	table_sym,	/* in: table name node */
-	col_assign_node_t* col_assign_list);/* in: column assignment list, NULL
+	ibool		is_delete,	/*!< in: TRUE if delete */
+	sym_node_t*	table_sym,	/*!< in: table name node */
+	col_assign_node_t* col_assign_list);/*!< in: column assignment list, NULL
 					if delete */
 /*************************************************************************
-Parses an update or delete statement. */
+Parses an update or delete statement.
+@return	own: update node in a query tree */
 UNIV_INTERN
 upd_node_t*
 pars_update_statement(
 /*==================*/
-					/* out, own: update node in a query
-					tree */
-	upd_node_t*	node,		/* in: update node */
-	sym_node_t*	cursor_sym,	/* in: pointer to a cursor entry in
+	upd_node_t*	node,		/*!< in: update node */
+	sym_node_t*	cursor_sym,	/*!< in: pointer to a cursor entry in
 					the symbol table or NULL */
-	que_node_t*	search_cond);	/* in: search condition or NULL */
+	que_node_t*	search_cond);	/*!< in: search condition or NULL */
 /*************************************************************************
-Parses an insert statement. */
+Parses an insert statement.
+@return	own: update node in a query tree */
 UNIV_INTERN
 ins_node_t*
 pars_insert_statement(
 /*==================*/
-					/* out, own: update node in a query
-					tree */
-	sym_node_t*	table_sym,	/* in: table name node */
-	que_node_t*	values_list,	/* in: value expression list or NULL */
-	sel_node_t*	select);	/* in: select condition or NULL */
+	sym_node_t*	table_sym,	/*!< in: table name node */
+	que_node_t*	values_list,	/*!< in: value expression list or NULL */
+	sel_node_t*	select);	/*!< in: select condition or NULL */
 /*************************************************************************
-Parses a procedure parameter declaration. */
+Parses a procedure parameter declaration.
+@return	own: symbol table node of type SYM_VAR */
 UNIV_INTERN
 sym_node_t*
 pars_parameter_declaration(
 /*=======================*/
-				/* out, own: symbol table node of type
-				SYM_VAR */
-	sym_node_t*	node,	/* in: symbol table node allocated for the
+	sym_node_t*	node,	/*!< in: symbol table node allocated for the
 				id of the parameter */
 	ulint		param_type,
-				/* in: PARS_INPUT or PARS_OUTPUT */
-	pars_res_word_t* type);	/* in: pointer to a type token */
+				/*!< in: PARS_INPUT or PARS_OUTPUT */
+	pars_res_word_t* type);	/*!< in: pointer to a type token */
 /*************************************************************************
-Parses an elsif element. */
+Parses an elsif element.
+@return	elsif node */
 UNIV_INTERN
 elsif_node_t*
 pars_elsif_element(
 /*===============*/
-					/* out: elsif node */
-	que_node_t*	cond,		/* in: if-condition */
-	que_node_t*	stat_list);	/* in: statement list */
+	que_node_t*	cond,		/*!< in: if-condition */
+	que_node_t*	stat_list);	/*!< in: statement list */
 /*************************************************************************
-Parses an if-statement. */
+Parses an if-statement.
+@return	if-statement node */
 UNIV_INTERN
 if_node_t*
 pars_if_statement(
 /*==============*/
-					/* out: if-statement node */
-	que_node_t*	cond,		/* in: if-condition */
-	que_node_t*	stat_list,	/* in: statement list */
-	que_node_t*	else_part);	/* in: else-part statement list */
+	que_node_t*	cond,		/*!< in: if-condition */
+	que_node_t*	stat_list,	/*!< in: statement list */
+	que_node_t*	else_part);	/*!< in: else-part statement list */
 /*************************************************************************
-Parses a for-loop-statement. */
+Parses a for-loop-statement.
+@return	for-statement node */
 UNIV_INTERN
 for_node_t*
 pars_for_statement(
 /*===============*/
-					/* out: for-statement node */
-	sym_node_t*	loop_var,	/* in: loop variable */
-	que_node_t*	loop_start_limit,/* in: loop start expression */
-	que_node_t*	loop_end_limit,	/* in: loop end expression */
-	que_node_t*	stat_list);	/* in: statement list */
+	sym_node_t*	loop_var,	/*!< in: loop variable */
+	que_node_t*	loop_start_limit,/*!< in: loop start expression */
+	que_node_t*	loop_end_limit,	/*!< in: loop end expression */
+	que_node_t*	stat_list);	/*!< in: statement list */
 /*************************************************************************
-Parses a while-statement. */
+Parses a while-statement.
+@return	while-statement node */
 UNIV_INTERN
 while_node_t*
 pars_while_statement(
 /*=================*/
-					/* out: while-statement node */
-	que_node_t*	cond,		/* in: while-condition */
-	que_node_t*	stat_list);	/* in: statement list */
+	que_node_t*	cond,		/*!< in: while-condition */
+	que_node_t*	stat_list);	/*!< in: statement list */
 /*************************************************************************
-Parses an exit statement. */
+Parses an exit statement.
+@return	exit statement node */
 UNIV_INTERN
 exit_node_t*
 pars_exit_statement(void);
 /*=====================*/
-					/* out: exit statement node */
 /*************************************************************************
-Parses a return-statement. */
+Parses a return-statement.
+@return	return-statement node */
 UNIV_INTERN
 return_node_t*
 pars_return_statement(void);
 /*=======================*/
-					/* out: return-statement node */
 /*************************************************************************
-Parses a procedure call. */
+Parses a procedure call.
+@return	function node */
 UNIV_INTERN
 func_node_t*
 pars_procedure_call(
 /*================*/
-				/* out: function node */
-	que_node_t*	res_word,/* in: procedure name reserved word */
-	que_node_t*	args);	/* in: argument list */
+	que_node_t*	res_word,/*!< in: procedure name reserved word */
+	que_node_t*	args);	/*!< in: argument list */
 /*************************************************************************
-Parses an assignment statement. */
+Parses an assignment statement.
+@return	assignment statement node */
 UNIV_INTERN
 assign_node_t*
 pars_assignment_statement(
 /*======================*/
-				/* out: assignment statement node */
-	sym_node_t*	var,	/* in: variable to assign */
-	que_node_t*	val);	/* in: value to assign */
+	sym_node_t*	var,	/*!< in: variable to assign */
+	que_node_t*	val);	/*!< in: value to assign */
 /*************************************************************************
 Parses a fetch statement. into_list or user_func (but not both) must be
-non-NULL. */
+non-NULL.
+@return	fetch statement node */
 UNIV_INTERN
 fetch_node_t*
 pars_fetch_statement(
 /*=================*/
-					/* out: fetch statement node */
-	sym_node_t*	cursor,		/* in: cursor node */
-	sym_node_t*	into_list,	/* in: variables to set, or NULL */
-	sym_node_t*	user_func);	/* in: user function name, or NULL */
+	sym_node_t*	cursor,		/*!< in: cursor node */
+	sym_node_t*	into_list,	/*!< in: variables to set, or NULL */
+	sym_node_t*	user_func);	/*!< in: user function name, or NULL */
 /*************************************************************************
-Parses an open or close cursor statement. */
+Parses an open or close cursor statement.
+@return	fetch statement node */
 UNIV_INTERN
 open_node_t*
 pars_open_statement(
 /*================*/
-				/* out: fetch statement node */
-	ulint		type,	/* in: ROW_SEL_OPEN_CURSOR
+	ulint		type,	/*!< in: ROW_SEL_OPEN_CURSOR
 				or ROW_SEL_CLOSE_CURSOR */
-	sym_node_t*	cursor);	/* in: cursor node */
+	sym_node_t*	cursor);	/*!< in: cursor node */
 /*************************************************************************
-Parses a row_printf-statement. */
+Parses a row_printf-statement.
+@return	row_printf-statement node */
 UNIV_INTERN
 row_printf_node_t*
 pars_row_printf_statement(
 /*======================*/
-					/* out: row_printf-statement node */
-	sel_node_t*	sel_node);	/* in: select node */
+	sel_node_t*	sel_node);	/*!< in: select node */
 /*************************************************************************
-Parses a commit statement. */
+Parses a commit statement.
+@return	own: commit node struct */
 UNIV_INTERN
 commit_node_t*
 pars_commit_statement(void);
 /*=======================*/
-				/* out, own: commit node struct */
 /*************************************************************************
-Parses a rollback statement. */
+Parses a rollback statement.
+@return	own: rollback node struct */
 UNIV_INTERN
 roll_node_t*
 pars_rollback_statement(void);
 /*=========================*/
-				/* out, own: rollback node struct */
 /*************************************************************************
-Parses a column definition at a table creation. */
+Parses a column definition at a table creation.
+@return	column sym table node */
 UNIV_INTERN
 sym_node_t*
 pars_column_def(
 /*============*/
-						/* out: column sym table
-						node */
-	sym_node_t*		sym_node,	/* in: column node in the
+	sym_node_t*		sym_node,	/*!< in: column node in the
 						symbol table */
-	pars_res_word_t*	type,		/* in: data type */
-	sym_node_t*		len,		/* in: length of column, or
+	pars_res_word_t*	type,		/*!< in: data type */
+	sym_node_t*		len,		/*!< in: length of column, or
 						NULL */
-	void*			is_unsigned,	/* in: if not NULL, column
+	void*			is_unsigned,	/*!< in: if not NULL, column
 						is of type UNSIGNED. */
-	void*			is_not_null);	/* in: if not NULL, column
+	void*			is_not_null);	/*!< in: if not NULL, column
 						is of type NOT NULL. */
 /*************************************************************************
-Parses a table creation operation. */
+Parses a table creation operation.
+@return	table create subgraph */
 UNIV_INTERN
 tab_node_t*
 pars_create_table(
 /*==============*/
-					/* out: table create subgraph */
-	sym_node_t*	table_sym,	/* in: table name node in the symbol
+	sym_node_t*	table_sym,	/*!< in: table name node in the symbol
 					table */
-	sym_node_t*	column_defs,	/* in: list of column names */
-	void*		not_fit_in_memory);/* in: a non-NULL pointer means that
+	sym_node_t*	column_defs,	/*!< in: list of column names */
+	void*		not_fit_in_memory);/*!< in: a non-NULL pointer means that
 					this is a table which in simulations
 					should be simulated as not fitting
 					in memory; thread is put to sleep
@@ -414,71 +406,71 @@ pars_create_table(
 					it has to reload the table definition
 					from disk */
 /*************************************************************************
-Parses an index creation operation. */
+Parses an index creation operation.
+@return	index create subgraph */
 UNIV_INTERN
 ind_node_t*
 pars_create_index(
 /*==============*/
-					/* out: index create subgraph */
-	pars_res_word_t* unique_def,	/* in: not NULL if a unique index */
-	pars_res_word_t* clustered_def,	/* in: not NULL if a clustered index */
-	sym_node_t*	index_sym,	/* in: index name node in the symbol
+	pars_res_word_t* unique_def,	/*!< in: not NULL if a unique index */
+	pars_res_word_t* clustered_def,	/*!< in: not NULL if a clustered index */
+	sym_node_t*	index_sym,	/*!< in: index name node in the symbol
 					table */
-	sym_node_t*	table_sym,	/* in: table name node in the symbol
+	sym_node_t*	table_sym,	/*!< in: table name node in the symbol
 					table */
-	sym_node_t*	column_list);	/* in: list of column names */
+	sym_node_t*	column_list);	/*!< in: list of column names */
 /*************************************************************************
-Parses a procedure definition. */
+Parses a procedure definition.
+@return	query fork node */
 UNIV_INTERN
 que_fork_t*
 pars_procedure_definition(
 /*======================*/
-					/* out: query fork node */
-	sym_node_t*	sym_node,	/* in: procedure id node in the symbol
+	sym_node_t*	sym_node,	/*!< in: procedure id node in the symbol
 					table */
-	sym_node_t*	param_list,	/* in: parameter declaration list */
-	que_node_t*	stat_list);	/* in: statement list */
+	sym_node_t*	param_list,	/*!< in: parameter declaration list */
+	que_node_t*	stat_list);	/*!< in: statement list */
 
 /*****************************************************************
 Parses a stored procedure call, when this is not within another stored
 procedure, that is, the client issues a procedure call directly.
 In MySQL/InnoDB, stored InnoDB procedures are invoked via the
-parsed procedure tree, not via InnoDB SQL, so this function is not used. */
+parsed procedure tree, not via InnoDB SQL, so this function is not used.
+@return	query graph */
 UNIV_INTERN
 que_fork_t*
 pars_stored_procedure_call(
 /*=======================*/
-					/* out: query graph */
-	sym_node_t*	sym_node);	/* in: stored procedure name */
+	sym_node_t*	sym_node);	/*!< in: stored procedure name */
 /**********************************************************************
 Completes a query graph by adding query thread and fork nodes
 above it and prepares the graph for running. The fork created is of
-type QUE_FORK_MYSQL_INTERFACE. */
+type QUE_FORK_MYSQL_INTERFACE.
+@return	query thread node to run */
 UNIV_INTERN
 que_thr_t*
 pars_complete_graph_for_exec(
 /*=========================*/
-				/* out: query thread node to run */
-	que_node_t*	node,	/* in: root node for an incomplete
+	que_node_t*	node,	/*!< in: root node for an incomplete
 				query graph */
-	trx_t*		trx,	/* in: transaction handle */
-	mem_heap_t*	heap);	/* in: memory heap from which allocated */
+	trx_t*		trx,	/*!< in: transaction handle */
+	mem_heap_t*	heap);	/*!< in: memory heap from which allocated */
 
 /********************************************************************
-Create parser info struct.*/
+Create parser info struct.
+@return	own: info struct */
 UNIV_INTERN
 pars_info_t*
 pars_info_create(void);
 /*==================*/
-		/* out, own: info struct */
 
 /********************************************************************
-Free info struct and everything it contains.*/
+Free info struct and everything it contains. */
 UNIV_INTERN
 void
 pars_info_free(
 /*===========*/
-	pars_info_t*	info);	/* in: info struct */
+	pars_info_t*	info);	/*!< in: info struct */
 
 /********************************************************************
 Add bound literal. */
@@ -486,12 +478,12 @@ UNIV_INTERN
 void
 pars_info_add_literal(
 /*==================*/
-	pars_info_t*	info,		/* in: info struct */
-	const char*	name,		/* in: name */
-	const void*	address,	/* in: address */
-	ulint		length,		/* in: length of data */
-	ulint		type,		/* in: type, e.g. DATA_FIXBINARY */
-	ulint		prtype);	/* in: precise type, e.g.
+	pars_info_t*	info,		/*!< in: info struct */
+	const char*	name,		/*!< in: name */
+	const void*	address,	/*!< in: address */
+	ulint		length,		/*!< in: length of data */
+	ulint		type,		/*!< in: type, e.g. DATA_FIXBINARY */
+	ulint		prtype);	/*!< in: precise type, e.g.
 					DATA_UNSIGNED */
 
 /********************************************************************
@@ -501,9 +493,9 @@ UNIV_INTERN
 void
 pars_info_add_str_literal(
 /*======================*/
-	pars_info_t*	info,		/* in: info struct */
-	const char*	name,		/* in: name */
-	const char*	str);		/* in: string */
+	pars_info_t*	info,		/*!< in: info struct */
+	const char*	name,		/*!< in: name */
+	const char*	str);		/*!< in: string */
 
 /********************************************************************
 Equivalent to:
@@ -518,9 +510,9 @@ UNIV_INTERN
 void
 pars_info_add_int4_literal(
 /*=======================*/
-	pars_info_t*	info,		/* in: info struct */
-	const char*	name,		/* in: name */
-	lint		val);		/* in: value */
+	pars_info_t*	info,		/*!< in: info struct */
+	const char*	name,		/*!< in: name */
+	lint		val);		/*!< in: value */
 
 /********************************************************************
 Equivalent to:
@@ -535,19 +527,19 @@ UNIV_INTERN
 void
 pars_info_add_dulint_literal(
 /*=========================*/
-	pars_info_t*	info,		/* in: info struct */
-	const char*	name,		/* in: name */
-	dulint		val);		/* in: value */
+	pars_info_t*	info,		/*!< in: info struct */
+	const char*	name,		/*!< in: name */
+	dulint		val);		/*!< in: value */
 /********************************************************************
 Add user function. */
 UNIV_INTERN
 void
 pars_info_add_function(
 /*===================*/
-	pars_info_t*		info,	/* in: info struct */
-	const char*		name,	/* in: function name */
-	pars_user_func_cb_t	func,	/* in: function address */
-	void*			arg);	/* in: user-supplied argument */
+	pars_info_t*		info,	/*!< in: info struct */
+	const char*		name,	/*!< in: function name */
+	pars_user_func_cb_t	func,	/*!< in: function address */
+	void*			arg);	/*!< in: user-supplied argument */
 
 /********************************************************************
 Add bound id. */
@@ -555,42 +547,39 @@ UNIV_INTERN
 void
 pars_info_add_id(
 /*=============*/
-	pars_info_t*	info,		/* in: info struct */
-	const char*	name,		/* in: name */
-	const char*	id);		/* in: id */
+	pars_info_t*	info,		/*!< in: info struct */
+	const char*	name,		/*!< in: name */
+	const char*	id);		/*!< in: id */
 
 /********************************************************************
-Get user function with the given name.*/
+Get user function with the given name.
+@return	user func, or NULL if not found */
 UNIV_INTERN
 pars_user_func_t*
 pars_info_get_user_func(
 /*====================*/
-					/* out: user func, or NULL if not
-					found */
-	pars_info_t*		info,	/* in: info struct */
-	const char*		name);	/* in: function name to find*/
+	pars_info_t*		info,	/*!< in: info struct */
+	const char*		name);	/*!< in: function name to find*/
 
 /********************************************************************
-Get bound literal with the given name.*/
+Get bound literal with the given name.
+@return	bound literal, or NULL if not found */
 UNIV_INTERN
 pars_bound_lit_t*
 pars_info_get_bound_lit(
 /*====================*/
-					/* out: bound literal, or NULL if
-					not found */
-	pars_info_t*		info,	/* in: info struct */
-	const char*		name);	/* in: bound literal name to find */
+	pars_info_t*		info,	/*!< in: info struct */
+	const char*		name);	/*!< in: bound literal name to find */
 
 /********************************************************************
-Get bound id with the given name.*/
+Get bound id with the given name.
+@return	bound id, or NULL if not found */
 UNIV_INTERN
 pars_bound_id_t*
 pars_info_get_bound_id(
 /*===================*/
-					/* out: bound id, or NULL if not
-					found */
-	pars_info_t*		info,	/* in: info struct */
-	const char*		name);	/* in: bound id name to find */
+	pars_info_t*		info,	/*!< in: info struct */
+	const char*		name);	/*!< in: bound id name to find */
 
 
 /* Extra information supplied for pars_sql(). */

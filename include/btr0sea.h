@@ -39,7 +39,7 @@ UNIV_INTERN
 void
 btr_search_sys_create(
 /*==================*/
-	ulint	hash_size);	/* in: hash index hash table size */
+	ulint	hash_size);	/*!< in: hash index hash table size */
 
 /************************************************************************
 Disable the adaptive hash search system and empty the index. */
@@ -55,58 +55,58 @@ btr_search_enable(void);
 /*====================*/
 
 /************************************************************************
-Returns search info for an index. */
+Returns search info for an index.
+@return	search info; search mutex reserved */
 UNIV_INLINE
 btr_search_t*
 btr_search_get_info(
 /*================*/
-				/* out: search info; search mutex reserved */
-	dict_index_t*	index);	/* in: index */
+	dict_index_t*	index);	/*!< in: index */
 /*********************************************************************
-Creates and initializes a search info struct. */
+Creates and initializes a search info struct.
+@return	own: search info struct */
 UNIV_INTERN
 btr_search_t*
 btr_search_info_create(
 /*===================*/
-				/* out, own: search info struct */
-	mem_heap_t*	heap);	/* in: heap where created */
+	mem_heap_t*	heap);	/*!< in: heap where created */
 /*********************************************************************
 Returns the value of ref_count. The value is protected by
-btr_search_latch. */
+btr_search_latch.
+@return	ref_count value. */
 UNIV_INTERN
 ulint
 btr_search_info_get_ref_count(
 /*==========================*/
-				/* out: ref_count value. */
-	btr_search_t*   info);	/* in: search info. */
+	btr_search_t*   info);	/*!< in: search info. */
 /*************************************************************************
 Updates the search info. */
 UNIV_INLINE
 void
 btr_search_info_update(
 /*===================*/
-	dict_index_t*	index,	/* in: index of the cursor */
-	btr_cur_t*	cursor);/* in: cursor which was just positioned */
+	dict_index_t*	index,	/*!< in: index of the cursor */
+	btr_cur_t*	cursor);/*!< in: cursor which was just positioned */
 /**********************************************************************
 Tries to guess the right search position based on the hash search info
 of the index. Note that if mode is PAGE_CUR_LE, which is used in inserts,
 and the function returns TRUE, then cursor->up_match and cursor->low_match
-both have sensible values. */
+both have sensible values.
+@return	TRUE if succeeded */
 UNIV_INTERN
 ibool
 btr_search_guess_on_hash(
 /*=====================*/
-					/* out: TRUE if succeeded */
-	dict_index_t*	index,		/* in: index */
-	btr_search_t*	info,		/* in: index search info */
-	const dtuple_t*	tuple,		/* in: logical record */
-	ulint		mode,		/* in: PAGE_CUR_L, ... */
-	ulint		latch_mode,	/* in: BTR_SEARCH_LEAF, ... */
-	btr_cur_t*	cursor,		/* out: tree cursor */
-	ulint		has_search_latch,/* in: latch mode the caller
+	dict_index_t*	index,		/*!< in: index */
+	btr_search_t*	info,		/*!< in: index search info */
+	const dtuple_t*	tuple,		/*!< in: logical record */
+	ulint		mode,		/*!< in: PAGE_CUR_L, ... */
+	ulint		latch_mode,	/*!< in: BTR_SEARCH_LEAF, ... */
+	btr_cur_t*	cursor,		/*!< out: tree cursor */
+	ulint		has_search_latch,/*!< in: latch mode the caller
 					currently has on btr_search_latch:
 					RW_S_LATCH, RW_X_LATCH, or 0 */
-	mtr_t*		mtr);		/* in: mtr */
+	mtr_t*		mtr);		/*!< in: mtr */
 /************************************************************************
 Moves or deletes hash entries for moved records. If new_page is already hashed,
 then the hash index for page, if any, is dropped. If new_page is not hashed,
@@ -116,20 +116,20 @@ UNIV_INTERN
 void
 btr_search_move_or_delete_hash_entries(
 /*===================================*/
-	buf_block_t*	new_block,	/* in: records are copied
+	buf_block_t*	new_block,	/*!< in: records are copied
 					to this page */
-	buf_block_t*	block,		/* in: index page from which
+	buf_block_t*	block,		/*!< in: index page from which
 					records were copied, and the
 					copied records will be deleted
 					from this page */
-	dict_index_t*	index);		/* in: record descriptor */
+	dict_index_t*	index);		/*!< in: record descriptor */
 /************************************************************************
 Drops a page hash index. */
 UNIV_INTERN
 void
 btr_search_drop_page_hash_index(
 /*============================*/
-	buf_block_t*	block);	/* in: block containing index page,
+	buf_block_t*	block);	/*!< in: block containing index page,
 				s- or x-latched, or an index page
 				for which we know that
 				block->buf_fix_count == 0 */
@@ -140,17 +140,17 @@ UNIV_INTERN
 void
 btr_search_drop_page_hash_when_freed(
 /*=================================*/
-	ulint	space,		/* in: space id */
-	ulint	zip_size,	/* in: compressed page size in bytes
+	ulint	space,		/*!< in: space id */
+	ulint	zip_size,	/*!< in: compressed page size in bytes
 				or 0 for uncompressed pages */
-	ulint	page_no);	/* in: page number */
+	ulint	page_no);	/*!< in: page number */
 /************************************************************************
 Updates the page hash index when a single record is inserted on a page. */
 UNIV_INTERN
 void
 btr_search_update_hash_node_on_insert(
 /*==================================*/
-	btr_cur_t*	cursor);/* in: cursor which was positioned to the
+	btr_cur_t*	cursor);/*!< in: cursor which was positioned to the
 				place to insert using btr_cur_search_...,
 				and the new record has been inserted next
 				to the cursor */
@@ -160,7 +160,7 @@ UNIV_INTERN
 void
 btr_search_update_hash_on_insert(
 /*=============================*/
-	btr_cur_t*	cursor);/* in: cursor which was positioned to the
+	btr_cur_t*	cursor);/*!< in: cursor which was positioned to the
 				place to insert using btr_cur_search_...,
 				and the new record has been inserted next
 				to the cursor */
@@ -170,16 +170,16 @@ UNIV_INTERN
 void
 btr_search_update_hash_on_delete(
 /*=============================*/
-	btr_cur_t*	cursor);/* in: cursor which was positioned on the
+	btr_cur_t*	cursor);/*!< in: cursor which was positioned on the
 				record to delete using btr_cur_search_...,
 				the record is not yet deleted */
 /************************************************************************
-Validates the search system. */
+Validates the search system.
+@return	TRUE if ok */
 UNIV_INTERN
 ibool
 btr_search_validate(void);
 /*======================*/
-				/* out: TRUE if ok */
 
 /* Flag: has the search system been enabled?
 Protected by btr_search_latch and btr_search_enabled_mutex. */

@@ -44,14 +44,14 @@ Created 3/14/1997 Heikki Tuuri
 #include "log0log.h"
 
 /************************************************************************
-Creates a purge node to a query graph. */
+Creates a purge node to a query graph.
+@return	own: purge node */
 UNIV_INTERN
 purge_node_t*
 row_purge_node_create(
 /*==================*/
-				/* out, own: purge node */
-	que_thr_t*	parent,	/* in: parent node, i.e., a thr node */
-	mem_heap_t*	heap)	/* in: memory heap where created */
+	que_thr_t*	parent,	/*!< in: parent node, i.e., a thr node */
+	mem_heap_t*	heap)	/*!< in: memory heap where created */
 {
 	purge_node_t*	node;
 
@@ -69,15 +69,15 @@ row_purge_node_create(
 
 /***************************************************************
 Repositions the pcur in the purge node on the clustered index record,
-if found. */
+if found.
+@return	TRUE if the record was found */
 static
 ibool
 row_purge_reposition_pcur(
 /*======================*/
-				/* out: TRUE if the record was found */
-	ulint		mode,	/* in: latching mode */
-	purge_node_t*	node,	/* in: row purge node */
-	mtr_t*		mtr)	/* in: mtr */
+	ulint		mode,	/*!< in: latching mode */
+	purge_node_t*	node,	/*!< in: row purge node */
+	mtr_t*		mtr)	/*!< in: mtr */
 {
 	ibool	found;
 
@@ -99,15 +99,14 @@ row_purge_reposition_pcur(
 }
 
 /***************************************************************
-Removes a delete marked clustered index record if possible. */
+Removes a delete marked clustered index record if possible.
+@return	TRUE if success, or if not found, or if modified after the delete marking */
 static
 ibool
 row_purge_remove_clust_if_poss_low(
 /*===============================*/
-				/* out: TRUE if success, or if not found, or
-				if modified after the delete marking */
-	purge_node_t*	node,	/* in: row purge node */
-	ulint		mode)	/* in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE */
+	purge_node_t*	node,	/*!< in: row purge node */
+	ulint		mode)	/*!< in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE */
 {
 	dict_index_t*	index;
 	btr_pcur_t*	pcur;
@@ -184,7 +183,7 @@ static
 void
 row_purge_remove_clust_if_poss(
 /*===========================*/
-	purge_node_t*	node)	/* in: row purge node */
+	purge_node_t*	node)	/*!< in: row purge node */
 {
 	ibool	success;
 	ulint	n_tries	= 0;
@@ -214,16 +213,16 @@ retry:
 }
 
 /***************************************************************
-Removes a secondary index entry if possible. */
+Removes a secondary index entry if possible.
+@return	TRUE if success or if not found */
 static
 ibool
 row_purge_remove_sec_if_poss_low(
 /*=============================*/
-				/* out: TRUE if success or if not found */
-	purge_node_t*	node,	/* in: row purge node */
-	dict_index_t*	index,	/* in: index */
-	const dtuple_t*	entry,	/* in: index entry */
-	ulint		mode)	/* in: latch mode BTR_MODIFY_LEAF or
+	purge_node_t*	node,	/*!< in: row purge node */
+	dict_index_t*	index,	/*!< in: index */
+	const dtuple_t*	entry,	/*!< in: index entry */
+	ulint		mode)	/*!< in: latch mode BTR_MODIFY_LEAF or
 				BTR_MODIFY_TREE */
 {
 	btr_pcur_t	pcur;
@@ -304,9 +303,9 @@ UNIV_INLINE
 void
 row_purge_remove_sec_if_poss(
 /*=========================*/
-	purge_node_t*	node,	/* in: row purge node */
-	dict_index_t*	index,	/* in: index */
-	dtuple_t*	entry)	/* in: index entry */
+	purge_node_t*	node,	/*!< in: row purge node */
+	dict_index_t*	index,	/*!< in: index */
+	dtuple_t*	entry)	/*!< in: index entry */
 {
 	ibool	success;
 	ulint	n_tries		= 0;
@@ -344,7 +343,7 @@ static
 void
 row_purge_del_mark(
 /*===============*/
-	purge_node_t*	node)	/* in: row purge node */
+	purge_node_t*	node)	/*!< in: row purge node */
 {
 	mem_heap_t*	heap;
 	dtuple_t*	entry;
@@ -377,7 +376,7 @@ static
 void
 row_purge_upd_exist_or_extern(
 /*==========================*/
-	purge_node_t*	node)	/* in: row purge node */
+	purge_node_t*	node)	/*!< in: row purge node */
 {
 	mem_heap_t*	heap;
 	dtuple_t*	entry;
@@ -485,19 +484,17 @@ skip_secondaries:
 }
 
 /***************************************************************
-Parses the row reference and other info in a modify undo log record. */
+Parses the row reference and other info in a modify undo log record.
+@return	TRUE if purge operation required: NOTE that then the CALLER must unfreeze data dictionary! */
 static
 ibool
 row_purge_parse_undo_rec(
 /*=====================*/
-				/* out: TRUE if purge operation required:
-				NOTE that then the CALLER must unfreeze
-				data dictionary! */
-	purge_node_t*	node,	/* in: row undo node */
+	purge_node_t*	node,	/*!< in: row undo node */
 	ibool*		updated_extern,
-				/* out: TRUE if an externally stored field
+				/*!< out: TRUE if an externally stored field
 				was updated */
-	que_thr_t*	thr)	/* in: query thread */
+	que_thr_t*	thr)	/*!< in: query thread */
 {
 	dict_index_t*	clust_index;
 	byte*		ptr;
@@ -591,15 +588,14 @@ err_exit:
 /***************************************************************
 Fetches an undo log record and does the purge for the recorded operation.
 If none left, or the current purge completed, returns the control to the
-parent node, which is always a query thread node. */
+parent node, which is always a query thread node.
+@return	DB_SUCCESS if operation successfully completed, else error code */
 static
 ulint
 row_purge(
 /*======*/
-				/* out: DB_SUCCESS if operation successfully
-				completed, else error code */
-	purge_node_t*	node,	/* in: row purge node */
-	que_thr_t*	thr)	/* in: query thread */
+	purge_node_t*	node,	/*!< in: row purge node */
+	que_thr_t*	thr)	/*!< in: query thread */
 {
 	roll_ptr_t	roll_ptr;
 	ibool		purge_needed;
@@ -665,13 +661,13 @@ row_purge(
 
 /***************************************************************
 Does the purge operation for a single undo log record. This is a high-level
-function used in an SQL execution graph. */
+function used in an SQL execution graph.
+@return	query thread to run next or NULL */
 UNIV_INTERN
 que_thr_t*
 row_purge_step(
 /*===========*/
-				/* out: query thread to run next or NULL */
-	que_thr_t*	thr)	/* in: query thread */
+	que_thr_t*	thr)	/*!< in: query thread */
 {
 	purge_node_t*	node;
 	ulint		err;
