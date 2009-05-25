@@ -697,6 +697,7 @@ statement="SHOW COLUMNS FROM t1" row_number=1, column_name="Type", Value=int(11)
 statement=SHOW COLUMNS FROM t1 row_number=1, column_name=Default, Value=NULL
 value= ->A B<-
 value= 1
+value= 2
 mysqltest: At line 1: query_get_value - argument list started with '(' must be ended with ')'
 mysqltest: At line 1: Missing required argument 'query' to command 'query_get_value'
 mysqltest: At line 1: Missing required argument 'column name' to command 'query_get_value'

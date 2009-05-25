@@ -2037,6 +2037,10 @@ let $value= query_get_value(SELECT 'A B' AS "MyColumn", MyColumn, 1);
 let $value= query_get_value(SELECT 1 AS "My Column", My Column, 1);
 --echo value= $value
 #
+# 4.1 Query containing , protected by quotes, quotes also on column
+let $value= query_get_value('SELECT 1 as a, 2 as b', "b", 1);
+--echo value= $value
+#
 #------------ Negative tests ------------
 # 5. Incomplete statement including missing parameters
 # 5.1 incomplete statement

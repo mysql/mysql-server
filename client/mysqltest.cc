@@ -966,6 +966,7 @@ void check_command_args(struct st_command *command,
   for (i= 0; i < num_args; i++)
   {
     const struct command_arg *arg= &args[i];
+    char delimiter;
 
     switch (arg->type) {
       /* A string */
@@ -974,8 +975,15 @@ void check_command_args(struct st_command *command,
       while (*ptr && *ptr == ' ')
         ptr++;
       start= ptr;
-      /* Find end of arg, terminated by "delimiter_arg" */
-      while (*ptr && *ptr != delimiter_arg)
+      delimiter = delimiter_arg;
+      /* If start of arg is ' ` or " search to matching quote end instead */
+      if (*ptr && strchr ("'`\"", *ptr))
+      {
+	delimiter= *ptr;
+	start= ++ptr;
+      }
+      /* Find end of arg, terminated by "delimiter" */
+      while (*ptr && *ptr != delimiter)
         ptr++;
       if (ptr > start)
       {
@@ -987,6 +995,11 @@ void check_command_args(struct st_command *command,
         /* Empty string */
         init_dynamic_string(arg->ds, "", 0, 0);
       }
+      /* Find real end of arg, terminated by "delimiter_arg" */
+      /* This will do nothing if arg was not closed by quotes */
+      while (*ptr && *ptr != delimiter_arg)
+        ptr++;      
+
       command->last_argument= (char*)ptr;
 
       /* Step past the delimiter */
