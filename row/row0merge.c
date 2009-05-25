@@ -1831,14 +1831,11 @@ row_merge_drop_temp_indexes(void)
 	query graphs needed in deleting the dictionary data from system
 	tables in Innobase. Deleting a row from SYS_INDEXES table also
 	frees the file segments of the B-tree associated with the index. */
-#if TEMP_INDEX_PREFIX != '\377'
-# error "TEMP_INDEX_PREFIX != '\377'"
-#endif
 	static const char drop_temp_indexes[] =
 		"PROCEDURE DROP_TEMP_INDEXES_PROC () IS\n"
 		"indexid CHAR;\n"
 		"DECLARE CURSOR c IS SELECT ID FROM SYS_INDEXES\n"
-		"WHERE SUBSTR(NAME,0,1)='\377';\n"
+		"WHERE SUBSTR(NAME,0,1)='" TEMP_INDEX_PREFIX_STR "';\n"
 		"BEGIN\n"
 		"\tOPEN c;\n"
 		"\tWHILE 1=1 LOOP\n"
@@ -2004,15 +2001,12 @@ row_merge_rename_indexes(
 	/* We use the private SQL parser of Innobase to generate the
 	query graphs needed in renaming indexes. */
 
-#if TEMP_INDEX_PREFIX != '\377'
-# error "TEMP_INDEX_PREFIX != '\377'"
-#endif
-
 	static const char rename_indexes[] =
 		"PROCEDURE RENAME_INDEXES_PROC () IS\n"
 		"BEGIN\n"
 		"UPDATE SYS_INDEXES SET NAME=SUBSTR(NAME,1,LENGTH(NAME)-1)\n"
-		"WHERE TABLE_ID = :tableid AND SUBSTR(NAME,0,1)='\377';\n"
+		"WHERE TABLE_ID = :tableid AND SUBSTR(NAME,0,1)='"
+		TEMP_INDEX_PREFIX_STR "';\n"
 		"END;\n";
 
 	ut_ad(table);
