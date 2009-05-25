@@ -704,7 +704,6 @@ static int yy_flex_debug = 0;
 static char *yytext;
 #line 1 "pars0lex.l"
 /**************************************************//**
-@file pars/lexyy.c
 SQL parser lexical analyzer: input file for the GNU Flex lexer generator
 
 (c) 1997 Innobase Oy
