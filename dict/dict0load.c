@@ -41,16 +41,16 @@ Created 4/24/1996 Heikki Tuuri
 #include "srv0srv.h"
 
 /********************************************************************
-Returns TRUE if index's i'th column's name is 'name' .
-@return	 */
+Compare the name of an index column.
+@return	TRUE if the i'th column of index is 'name'. */
 static
 ibool
 name_of_col_is(
 /*===========*/
-	dict_table_t*	table,	/*!< in: table */
-	dict_index_t*	index,	/*!< in: index */
-	ulint		i,	/*!< in:  */
-	const char*	name)	/*!< in: name to compare to */
+	const dict_table_t*	table,	/*!< in: table */
+	const dict_index_t*	index,	/*!< in: index */
+	ulint			i,	/*!< in: index field offset */
+	const char*		name)	/*!< in: name to compare to */
 {
 	ulint	tmp = dict_col_get_no(dict_field_get_col(
 					      dict_index_get_nth_field(

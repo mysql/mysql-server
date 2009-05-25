@@ -294,27 +294,29 @@ static handler *innobase_create_handler(handlerton *hton,
 }
 
 /***********************************************************************
-This function is used to prepare X/Open XA distributed transaction
+This function is used to prepare an X/Open XA distributed transaction.
 @return	0 or error number */
 static
 int
 innobase_xa_prepare(
 /*================*/
-	handlerton* hton,
-	THD*	thd,	/*!< in: handle to the MySQL thread of the user
-			whose XA transaction should be prepared */
-	bool	all);	/*!< in: TRUE - commit transaction
-			FALSE - the current SQL statement ended */
+        handlerton*	hton,	/*!< in: InnoDB handlerton */
+	THD*		thd,	/*!< in: handle to the MySQL thread of
+				the user whose XA transaction should
+				be prepared */
+	bool		all);	/*!< in: TRUE - commit transaction
+				FALSE - the current SQL statement
+				ended */
 /***********************************************************************
-This function is used to recover X/Open XA distributed transactions
+This function is used to recover X/Open XA distributed transactions.
 @return	number of prepared transactions stored in xid_list */
 static
 int
 innobase_xa_recover(
 /*================*/
-	handlerton* hton,
-	XID*	xid_list,	/*!< in/out: prepared transactions */
-	uint	len);		/*!< in: number of slots in xid_list */
+	handlerton*	hton,	/*!< in: InnoDB handlerton */
+	XID*		xid_list,/*!< in/out: prepared transactions */
+	uint		len);	/*!< in: number of slots in xid_list */
 /***********************************************************************
 This function is used to commit one X/Open XA distributed transaction
 which is in the prepared state
@@ -4128,7 +4130,7 @@ ha_innobase::innobase_reset_autoinc(
 /************************************************************************
 Store the autoinc value in the table. The autoinc value is only set if
 it's greater than the existing autoinc value in the table.
-@return	DB_SUCCES if all went well else error code */
+@return	DB_SUCCESS if all went well else error code */
 UNIV_INTERN
 ulint
 ha_innobase::innobase_set_max_autoinc(
@@ -8876,17 +8878,19 @@ innobase_get_at_most_n_mbchars(
 }
 
 /***********************************************************************
-This function is used to prepare X/Open XA distributed transaction
+This function is used to prepare an X/Open XA distributed transaction.
 @return	0 or error number */
 static
 int
 innobase_xa_prepare(
 /*================*/
-        handlerton *hton,
-	THD*	thd,	/*!< in: handle to the MySQL thread of the user
-			whose XA transaction should be prepared */
-	bool	all)	/*!< in: TRUE - commit transaction
-			FALSE - the current SQL statement ended */
+        handlerton*	hton,	/*!< in: InnoDB handlerton */
+	THD*		thd,	/*!< in: handle to the MySQL thread of
+				the user whose XA transaction should
+				be prepared */
+	bool		all)	/*!< in: TRUE - commit transaction
+				FALSE - the current SQL statement
+				ended */
 {
 	int error = 0;
 	trx_t* trx = check_trx_exists(thd);
@@ -8976,15 +8980,15 @@ innobase_xa_prepare(
 }
 
 /***********************************************************************
-This function is used to recover X/Open XA distributed transactions
+This function is used to recover X/Open XA distributed transactions.
 @return	number of prepared transactions stored in xid_list */
 static
 int
 innobase_xa_recover(
 /*================*/
-        handlerton *hton,
-	XID*	xid_list,	/*!< in/out: prepared transactions */
-	uint	len)		/*!< in: number of slots in xid_list */
+	handlerton*	hton,	/*!< in: InnoDB handlerton */
+	XID*		xid_list,/*!< in/out: prepared transactions */
+	uint		len)	/*!< in: number of slots in xid_list */
 {
 	DBUG_ASSERT(hton == innodb_hton_ptr);
 

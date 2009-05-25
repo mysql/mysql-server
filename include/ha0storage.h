@@ -105,13 +105,12 @@ ha_storage_empty(
 /***********************************************************************
 Frees a hash storage and everything it contains, it cannot be used after
 this call.
-This invalidates any pointers previously returned by ha_storage_put().
- */
+This invalidates any pointers previously returned by ha_storage_put(). */
 UNIV_INLINE
 void
 ha_storage_free(
 /*============*/
-	ha_storage_t*	storage);	/*!< in/out: hash storage */
+	ha_storage_t*	storage);	/*!< in, own: hash storage */
 
 /***********************************************************************
 Gets the size of the memory used by a storage.
