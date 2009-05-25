@@ -182,8 +182,6 @@ UNIV_INLINE
 void
 btr_rec_set_deleted_flag(
 /*=====================*/
-				/* out: TRUE on success;
-				FALSE on page_zip overflow */
 	rec_t*		rec,	/* in/out: physical record */
 	page_zip_des_t*	page_zip,/* in/out: compressed page (or NULL) */
 	ulint		flag)	/* in: nonzero if delete marked */
@@ -1082,6 +1080,7 @@ btr_cur_ins_lock_and_undo(
 	btr_cur_t*	cursor,	/* in: cursor on page after which to insert */
 	const dtuple_t*	entry,	/* in: entry to insert */
 	que_thr_t*	thr,	/* in: query thread or NULL */
+	mtr_t*		mtr,	/* in/out: mini-transaction */
 	ibool*		inherit)/* out: TRUE if the inserted new record maybe
 				should inherit LOCK_GAP type locks from the
 				successor record */
@@ -1089,7 +1088,7 @@ btr_cur_ins_lock_and_undo(
 	dict_index_t*	index;
 	ulint		err;
 	rec_t*		rec;
-	dulint		roll_ptr;
+	roll_ptr_t	roll_ptr;
 
 	/* Check if we have to wait for a lock: enqueue an explicit lock
 	request if yes */
@@ -1099,7 +1098,7 @@ btr_cur_ins_lock_and_undo(
 
 	err = lock_rec_insert_check_and_lock(flags, rec,
 					     btr_cur_get_block(cursor),
-					     index, thr, inherit);
+					     index, thr, mtr, inherit);
 
 	if (err != DB_SUCCESS) {
 
@@ -1313,7 +1312,8 @@ fail_err:
 	}
 
 	/* Check locks and write to the undo log, if specified */
-	err = btr_cur_ins_lock_and_undo(flags, cursor, entry, thr, &inherit);
+	err = btr_cur_ins_lock_and_undo(flags, cursor, entry,
+					thr, mtr, &inherit);
 
 	if (UNIV_UNLIKELY(err != DB_SUCCESS)) {
 
@@ -1393,9 +1393,7 @@ fail_err:
 		buf_block_get_page_no(block), max_size,
 		rec_size + PAGE_DIR_SLOT_SIZE, index->type);
 #endif
-	if (leaf
-	    && !dict_index_is_clust(index)
-	    && !dict_index_is_ibuf(index)) {
+	if (leaf && !dict_index_is_clust(index)) {
 		/* Update the free bits of the B-tree page in the
 		insert buffer bitmap. */
 
@@ -1489,7 +1487,8 @@ btr_cur_pessimistic_insert(
 	/* Retry with a pessimistic insert. Check locks and write to undo log,
 	if specified */
 
-	err = btr_cur_ins_lock_and_undo(flags, cursor, entry, thr, &dummy_inh);
+	err = btr_cur_ins_lock_and_undo(flags, cursor, entry,
+					thr, mtr, &dummy_inh);
 
 	if (err != DB_SUCCESS) {
 
@@ -1584,7 +1583,8 @@ btr_cur_upd_lock_and_undo(
 	ulint		cmpl_info,/* in: compiler info on secondary index
 				updates */
 	que_thr_t*	thr,	/* in: query thread */
-	dulint*		roll_ptr)/* out: roll pointer */
+	mtr_t*		mtr,	/* in/out: mini-transaction */
+	roll_ptr_t*	roll_ptr)/* out: roll pointer */
 {
 	dict_index_t*	index;
 	rec_t*		rec;
@@ -1600,7 +1600,7 @@ btr_cur_upd_lock_and_undo(
 		record */
 		return(lock_sec_rec_modify_check_and_lock(
 			       flags, btr_cur_get_block(cursor), rec,
-			       index, thr));
+			       index, thr, mtr));
 	}
 
 	/* Check if we have to wait for a lock: enqueue an explicit lock
@@ -1645,7 +1645,7 @@ btr_cur_update_in_place_log(
 	dict_index_t*	index,		/* in: index where cursor positioned */
 	const upd_t*	update,		/* in: update vector */
 	trx_t*		trx,		/* in: transaction */
-	dulint		roll_ptr,	/* in: roll ptr */
+	roll_ptr_t	roll_ptr,	/* in: roll ptr */
 	mtr_t*		mtr)		/* in: mtr */
 {
 	byte*	log_ptr;
@@ -1696,15 +1696,15 @@ btr_cur_parse_update_in_place(
 	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
 	dict_index_t*	index)	/* in: index corresponding to page */
 {
-	ulint	flags;
-	rec_t*	rec;
-	upd_t*	update;
-	ulint	pos;
-	dulint	trx_id;
-	dulint	roll_ptr;
-	ulint	rec_offset;
-	mem_heap_t* heap;
-	ulint*	offsets;
+	ulint		flags;
+	rec_t*		rec;
+	upd_t*		update;
+	ulint		pos;
+	trx_id_t	trx_id;
+	roll_ptr_t	roll_ptr;
+	ulint		rec_offset;
+	mem_heap_t*	heap;
+	ulint*		offsets;
 
 	if (end_ptr < ptr + 1) {
 
@@ -1774,6 +1774,8 @@ btr_cur_update_alloc_zip(
 	buf_block_t*	block,	/* in/out: buffer page */
 	dict_index_t*	index,	/* in: the index corresponding to the block */
 	ulint		length,	/* in: size needed */
+	ibool		create,	/* in: TRUE=delete-and-insert,
+				FALSE=update-in-place */
 	mtr_t*		mtr)	/* in: mini-transaction */
 {
 	ut_a(page_zip == buf_block_get_page_zip(block));
@@ -1781,7 +1783,7 @@ btr_cur_update_alloc_zip(
 	ut_ad(!dict_index_is_ibuf(index));
 
 	if (page_zip_available(page_zip, dict_index_is_clust(index),
-			       length, 0)) {
+			       length, create)) {
 		return(TRUE);
 	}
 
@@ -1808,7 +1810,7 @@ btr_cur_update_alloc_zip(
 	the free space available on the page. */
 
 	if (!page_zip_available(page_zip, dict_index_is_clust(index),
-				length, 0)) {
+				length, create)) {
 		/* Out of space: reset the free bits. */
 		if (!dict_index_is_clust(index)
 		    && page_is_leaf(buf_block_get_frame(block))) {
@@ -1844,7 +1846,7 @@ btr_cur_update_in_place(
 	page_zip_des_t*	page_zip;
 	ulint		err;
 	rec_t*		rec;
-	dulint		roll_ptr	= ut_dulint_zero;
+	roll_ptr_t	roll_ptr	= ut_dulint_zero;
 	trx_t*		trx;
 	ulint		was_delete_marked;
 	mem_heap_t*	heap		= NULL;
@@ -1873,13 +1875,13 @@ btr_cur_update_in_place(
 	/* Check that enough space is available on the compressed page. */
 	if (UNIV_LIKELY_NULL(page_zip)
 	    && !btr_cur_update_alloc_zip(page_zip, block, index,
-					 rec_offs_size(offsets), mtr)) {
+					 rec_offs_size(offsets), FALSE, mtr)) {
 		return(DB_ZIP_OVERFLOW);
 	}
 
 	/* Do lock checking and undo logging */
 	err = btr_cur_upd_lock_and_undo(flags, cursor, update, cmpl_info,
-					thr, &roll_ptr);
+					thr, mtr, &roll_ptr);
 	if (UNIV_UNLIKELY(err != DB_SUCCESS)) {
 
 		if (UNIV_LIKELY_NULL(heap)) {
@@ -1981,7 +1983,7 @@ btr_cur_optimistic_update(
 	ulint		new_rec_size;
 	ulint		old_rec_size;
 	dtuple_t*	new_entry;
-	dulint		roll_ptr;
+	roll_ptr_t	roll_ptr;
 	trx_t*		trx;
 	mem_heap_t*	heap;
 	ulint		i;
@@ -2057,7 +2059,7 @@ any_extern:
 
 	if (UNIV_LIKELY_NULL(page_zip)
 	    && !btr_cur_update_alloc_zip(page_zip, block, index,
-					 new_rec_size, mtr)) {
+					 new_rec_size, TRUE, mtr)) {
 		err = DB_ZIP_OVERFLOW;
 		goto err_exit;
 	}
@@ -2096,8 +2098,8 @@ any_extern:
 	}
 
 	/* Do lock checking and undo logging */
-	err = btr_cur_upd_lock_and_undo(flags, cursor, update, cmpl_info, thr,
-					&roll_ptr);
+	err = btr_cur_upd_lock_and_undo(flags, cursor, update, cmpl_info,
+					thr, mtr, &roll_ptr);
 	if (err != DB_SUCCESS) {
 err_exit:
 		mem_heap_free(heap);
@@ -2237,7 +2239,7 @@ btr_cur_pessimistic_update(
 	dtuple_t*	new_entry;
 	ulint		err;
 	ulint		optim_err;
-	dulint		roll_ptr;
+	roll_ptr_t	roll_ptr;
 	trx_t*		trx;
 	ibool		was_first;
 	ulint		n_extents	= 0;
@@ -2276,7 +2278,7 @@ btr_cur_pessimistic_update(
 
 	/* Do lock checking and undo logging */
 	err = btr_cur_upd_lock_and_undo(flags, cursor, update, cmpl_info,
-					thr, &roll_ptr);
+					thr, mtr, &roll_ptr);
 	if (err != DB_SUCCESS) {
 
 		return(err);
@@ -2451,6 +2453,19 @@ make_external:
 	ut_a(err == DB_SUCCESS);
 	ut_a(dummy_big_rec == NULL);
 
+	if (dict_index_is_sec_or_ibuf(index)) {
+		/* Update PAGE_MAX_TRX_ID in the index page header.
+		It was not updated by btr_cur_pessimistic_insert()
+		because of BTR_NO_LOCKING_FLAG. */
+		buf_block_t*	rec_block;
+
+		rec_block = btr_cur_get_block(cursor);
+
+		page_update_max_trx_id(rec_block,
+				       buf_block_get_page_zip(rec_block),
+				       trx->id, mtr);
+	}
+
 	if (!rec_get_deleted_flag(rec, rec_offs_comp(offsets))) {
 		/* The new inserted record owns its possible externally
 		stored fields */
@@ -2509,7 +2524,7 @@ btr_cur_del_mark_set_clust_rec_log(
 	dict_index_t*	index,	/* in: index of the record */
 	ibool		val,	/* in: value to set */
 	trx_t*		trx,	/* in: deleting transaction */
-	dulint		roll_ptr,/* in: roll ptr to the undo log record */
+	roll_ptr_t	roll_ptr,/* in: roll ptr to the undo log record */
 	mtr_t*		mtr)	/* in: mtr */
 {
 	byte*	log_ptr;
@@ -2558,13 +2573,13 @@ btr_cur_parse_del_mark_set_clust_rec(
 	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
 	dict_index_t*	index)	/* in: index corresponding to page */
 {
-	ulint	flags;
-	ulint	val;
-	ulint	pos;
-	dulint	trx_id;
-	dulint	roll_ptr;
-	ulint	offset;
-	rec_t*	rec;
+	ulint		flags;
+	ulint		val;
+	ulint		pos;
+	trx_id_t	trx_id;
+	roll_ptr_t	roll_ptr;
+	ulint		offset;
+	rec_t*		rec;
 
 	ut_ad(!page
 	      || !!page_is_comp(page) == dict_table_is_comp(index->table));
@@ -2644,7 +2659,7 @@ btr_cur_del_mark_set_clust_rec(
 {
 	dict_index_t*	index;
 	buf_block_t*	block;
-	dulint		roll_ptr;
+	roll_ptr_t	roll_ptr;
 	ulint		err;
 	rec_t*		rec;
 	page_zip_des_t*	page_zip;
@@ -2826,7 +2841,7 @@ btr_cur_del_mark_set_sec_rec(
 
 	err = lock_sec_rec_modify_check_and_lock(flags,
 						 btr_cur_get_block(cursor),
-						 rec, cursor->index, thr);
+						 rec, cursor->index, thr, mtr);
 	if (err != DB_SUCCESS) {
 
 		return(err);

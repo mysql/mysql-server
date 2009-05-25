@@ -949,7 +949,7 @@ rec_convert_dtuple_to_rec_old(
 	ut_ad(dtuple_check_typed(dtuple));
 
 	n_fields = dtuple_get_n_fields(dtuple);
-	data_size = dtuple_get_data_size(dtuple);
+	data_size = dtuple_get_data_size(dtuple, 0);
 
 	ut_ad(n_fields > 0);
 
@@ -982,7 +982,7 @@ rec_convert_dtuple_to_rec_old(
 
 			if (dfield_is_null(field)) {
 				len = dtype_get_sql_null_size(
-					dfield_get_type(field));
+					dfield_get_type(field), 0);
 				data_write_sql_null(rec + end_offset, len);
 
 				end_offset += len;
@@ -1010,7 +1010,7 @@ rec_convert_dtuple_to_rec_old(
 
 			if (dfield_is_null(field)) {
 				len = dtype_get_sql_null_size(
-					dfield_get_type(field));
+					dfield_get_type(field), 0);
 				data_write_sql_null(rec + end_offset, len);
 
 				end_offset += len;

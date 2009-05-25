@@ -530,15 +530,15 @@ struct trx_struct{
 	time_t		start_time;	/* time the trx object was created
 					or the state last time became
 					TRX_ACTIVE */
-	dulint		id;		/* transaction id */
+	trx_id_t	id;		/* transaction id */
 	XID		xid;		/* X/Open XA transaction
 					identification to identify a
 					transaction branch */
-	dulint		no;		/* transaction serialization number ==
+	trx_id_t	no;		/* transaction serialization number ==
 					max trx id when the transaction is
 					moved to COMMITTED_IN_MEMORY state */
 	ib_uint64_t	commit_lsn;	/* lsn at the time of the commit */
-	dulint		table_id;	/* Table to drop iff dict_operation
+	trx_id_t	table_id;	/* Table to drop iff dict_operation
 					is TRUE, or ut_dulint_zero. */
 	/*------------------------------*/
 	void*		mysql_thd;	/* MySQL thread handle corresponding
@@ -675,7 +675,7 @@ struct trx_struct{
 					accessed only when we know that there
 					cannot be any activity in the undo
 					logs! */
-	dulint		undo_no;	/* next undo log record number to
+	undo_no_t	undo_no;	/* next undo log record number to
 					assign; since the undo log is
 					private for a transaction, this
 					is a simple ascending sequence
@@ -694,7 +694,7 @@ struct trx_struct{
 					NULL if no inserts performed yet */
 	trx_undo_t*	update_undo;	/* pointer to the update undo log, or
 					NULL if no update performed yet */
-	dulint		roll_limit;	/* least undo number to undo during
+	undo_no_t	roll_limit;	/* least undo number to undo during
 					a rollback */
 	ulint		pages_undone;	/* number of undo log pages undone
 					since the last undo log truncation */

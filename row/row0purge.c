@@ -591,10 +591,10 @@ row_purge_parse_undo_rec(
 	dict_index_t*	clust_index;
 	byte*		ptr;
 	trx_t*		trx;
-	dulint		undo_no;
+	undo_no_t	undo_no;
 	dulint		table_id;
-	dulint		trx_id;
-	dulint		roll_ptr;
+	trx_id_t	trx_id;
+	roll_ptr_t	roll_ptr;
 	ulint		info_bits;
 	ulint		type;
 	ulint		cmpl_info;
@@ -690,10 +690,10 @@ row_purge(
 	purge_node_t*	node,	/* in: row purge node */
 	que_thr_t*	thr)	/* in: query thread */
 {
-	dulint	roll_ptr;
-	ibool	purge_needed;
-	ibool	updated_extern;
-	trx_t*	trx;
+	roll_ptr_t	roll_ptr;
+	ibool		purge_needed;
+	ibool		updated_extern;
+	trx_t*		trx;
 
 	ut_ad(node && thr);
 

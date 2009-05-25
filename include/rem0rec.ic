@@ -540,7 +540,6 @@ UNIV_INLINE
 void
 rec_set_n_owned_old(
 /*================*/
-				/* out: TRUE on success */
 	rec_t*	rec,		/* in: old-style physical record */
 	ulint	n_owned)	/* in: the number of owned */
 {
@@ -1577,7 +1576,7 @@ rec_get_converted_size(
 						   dtuple->n_fields, NULL));
 	}
 
-	data_size = dtuple_get_data_size(dtuple);
+	data_size = dtuple_get_data_size(dtuple, 0);
 
 	extra_size = rec_get_converted_extra_size(
 		data_size, dtuple_get_n_fields(dtuple), n_ext);

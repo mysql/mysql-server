@@ -29,9 +29,9 @@ Created 1/8/1996 Heikki Tuuri
 #endif
 
 /* dummy index for ROW_FORMAT=REDUNDANT supremum and infimum records */
-dict_index_t*	dict_ind_redundant;
+UNIV_INTERN dict_index_t*	dict_ind_redundant;
 /* dummy index for ROW_FORMAT=COMPACT supremum and infimum records */
-dict_index_t*	dict_ind_compact;
+UNIV_INTERN dict_index_t*	dict_ind_compact;
 
 #ifndef UNIV_HOTBACKUP
 #include "buf0buf.h"
@@ -650,8 +650,7 @@ dict_table_get(
 					/* out: table, NULL if
 					does not exist */
 	const char*	table_name,	/* in: table name */
-	ibool		inc_mysql_count)
-					/* in: whether to increment the open
+	ibool		inc_mysql_count)/* in: whether to increment the open
 					handle count on the table */
 {
 	dict_table_t*	table;
@@ -1252,7 +1251,8 @@ dict_index_too_big_for_undo(
 		ulint			max_size
 			= dict_col_get_max_size(col);
 		ulint			fixed_size
-			= dict_col_get_fixed_size(col);
+			= dict_col_get_fixed_size(col,
+						  dict_table_is_comp(table));
 
 		if (fixed_size) {
 			/* Fixed-size columns are stored locally. */
@@ -1382,7 +1382,7 @@ dict_index_too_big_for_tree(
 		case in rec_get_converted_size_comp() for
 		REC_STATUS_ORDINARY records. */
 
-		field_max_size = dict_col_get_fixed_size(col);
+		field_max_size = dict_col_get_fixed_size(col, comp);
 		if (field_max_size) {
 			/* dict_index_add_col() should guarantee this */
 			ut_ad(!field->prefix_len
@@ -1542,7 +1542,7 @@ too_big:
 
 		if (field->prefix_len /* prefix index */
 		    && !col->ord_part /* not yet ordering column */
-		    && !dict_col_get_fixed_size(col) /* variable-length */
+		    && !dict_col_get_fixed_size(col, TRUE) /* variable-length */
 		    && dict_col_get_max_size(col)
 		    > BTR_EXTERN_FIELD_REF_SIZE * 2 /* long enough */) {
 
@@ -1737,7 +1737,8 @@ dict_index_add_col(
 	field = dict_index_get_nth_field(index, index->n_def - 1);
 
 	field->col = col;
-	field->fixed_len = (unsigned int) dict_col_get_fixed_size(col);
+	field->fixed_len = (unsigned int) dict_col_get_fixed_size(
+		col, dict_table_is_comp(table));
 
 	if (prefix_len && field->fixed_len > prefix_len) {
 		field->fixed_len = (unsigned int) prefix_len;
@@ -1934,7 +1935,8 @@ dict_index_build_internal_clust(
 		for (i = 0; i < trx_id_pos; i++) {
 
 			fixed_size = dict_col_get_fixed_size(
-				dict_index_get_nth_col(new_index, i));
+				dict_index_get_nth_col(new_index, i),
+				dict_table_is_comp(table));
 
 			if (fixed_size == 0) {
 				new_index->trx_id_offset = 0;
@@ -2447,8 +2449,7 @@ dict_foreign_error_report(
 		fputs("The index in the foreign key in table is ", file);
 		ut_print_name(file, NULL, FALSE, fk->foreign_index->name);
 		fputs("\n"
-		      "See http://dev.mysql.com/doc/refman/5.1/en/"
-		      "innodb-foreign-key-constraints.html\n"
+		      "See " REFMAN "innodb-foreign-key-constraints.html\n"
 		      "for correct foreign key definition.\n",
 		      file);
 	}
@@ -3368,8 +3369,7 @@ col_loop1:
 		ut_print_name(ef, NULL, TRUE, name);
 		fprintf(ef, " where the columns appear\n"
 			"as the first columns. Constraint:\n%s\n"
-			"See http://dev.mysql.com/doc/refman/5.1/en/"
-			"innodb-foreign-key-constraints.html\n"
+			"See " REFMAN "innodb-foreign-key-constraints.html\n"
 			"for correct foreign key definition.\n",
 			start_of_latest_foreign);
 		mutex_exit(&dict_foreign_err_mutex);
@@ -3649,7 +3649,7 @@ try_find_index:
 				" and such columns in old tables\n"
 				"cannot be referenced by such columns"
 				" in new tables.\n"
-				"See http://dev.mysql.com/doc/refman/5.1/en/"
+				"See " REFMAN
 				"innodb-foreign-key-constraints.html\n"
 				"for correct foreign key definition.\n",
 				start_of_latest_foreign);
@@ -4070,14 +4070,15 @@ dict_index_calc_min_rec_len(
 {
 	ulint	sum	= 0;
 	ulint	i;
+	ulint	comp	= dict_table_is_comp(index->table);
 
-	if (dict_table_is_comp(index->table)) {
+	if (comp) {
 		ulint nullable = 0;
 		sum = REC_N_NEW_EXTRA_BYTES;
 		for (i = 0; i < dict_index_get_n_fields(index); i++) {
 			const dict_col_t*	col
 				= dict_index_get_nth_col(index, i);
-			ulint	size = dict_col_get_fixed_size(col);
+			ulint	size = dict_col_get_fixed_size(col, comp);
 			sum += size;
 			if (!size) {
 				size = col->len;
@@ -4096,7 +4097,7 @@ dict_index_calc_min_rec_len(
 
 	for (i = 0; i < dict_index_get_n_fields(index); i++) {
 		sum += dict_col_get_fixed_size(
-			dict_index_get_nth_col(index, i));
+			dict_index_get_nth_col(index, i), comp);
 	}
 
 	if (sum > 127) {
@@ -4132,8 +4133,7 @@ dict_update_statistics_low(
 			"  InnoDB: cannot calculate statistics for table %s\n"
 			"InnoDB: because the .ibd file is missing.  For help,"
 			" please refer to\n"
-			"InnoDB: http://dev.mysql.com/doc/refman/5.1/en/"
-			"innodb-troubleshooting.html\n",
+			"InnoDB: " REFMAN "innodb-troubleshooting.html\n",
 			table->name);
 
 		return;
@@ -4255,7 +4255,7 @@ UNIV_INTERN
 void
 dict_table_print_by_name(
 /*=====================*/
-	const char*	name)
+	const char*	name)	/* in: table name */
 {
 	dict_table_t*	table;
 
@@ -4298,7 +4298,7 @@ dict_table_print_low(
 		(ulong) UT_LIST_GET_LEN(table->indexes),
 		(ulong) table->stat_n_rows);
 
-	for (i = 0; i + 1 < (ulint) table->n_cols; i++) {
+	for (i = 0; i < (ulint) table->n_cols; i++) {
 		dict_col_print_low(table, dict_table_get_nth_col(table, i));
 		fputs("; ", stderr);
 	}

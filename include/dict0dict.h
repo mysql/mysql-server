@@ -144,7 +144,8 @@ ulint
 dict_col_get_fixed_size(
 /*====================*/
 					/* out: fixed size, or 0 */
-	const dict_col_t*	col);	/* in: column */
+	const dict_col_t*	col,	/* in: column */
+	ulint			comp);	/* in: nonzero=ROW_FORMAT=COMPACT  */
 /***************************************************************************
 Returns the ROW_FORMAT=REDUNDANT stored SQL NULL size of a column.
 For fixed length types it is the fixed length of the type, otherwise 0. */
@@ -154,7 +155,8 @@ dict_col_get_sql_null_size(
 /*=======================*/
 					/* out: SQL null storage size
 					in ROW_FORMAT=REDUNDANT */
-	const dict_col_t*	col);	/* in: column */
+	const dict_col_t*	col,	/* in: column */
+	ulint			comp);	/* in: nonzero=ROW_FORMAT=COMPACT  */
 
 /*************************************************************************
 Gets the column number. */
@@ -162,7 +164,9 @@ UNIV_INLINE
 ulint
 dict_col_get_no(
 /*============*/
-	const dict_col_t*	col);
+					/* out: col->ind, table column
+					position (starting from 0) */
+	const dict_col_t*	col);	/* in: column */
 /*************************************************************************
 Gets the column position in the clustered index. */
 UNIV_INLINE
@@ -436,8 +440,8 @@ dict_foreign_find_equiv_index(
 				foreign->foreign_index, or NULL */
 	dict_foreign_t*	foreign);/* in: foreign key */
 /**************************************************************************
-Returns an index object by matching on the name and column names and if
-more than index is found return the index with the higher id.*/
+Returns an index object by matching on the name and column names and
+if more than one index matches return the index with the max id */
 UNIV_INTERN
 dict_index_t*
 dict_table_get_index_by_max_id(
@@ -480,7 +484,7 @@ UNIV_INTERN
 void
 dict_table_print_by_name(
 /*=====================*/
-	const char*	name);
+	const char*	name);	/* in: table name */
 /**************************************************************************
 Outputs info on foreign keys of a table. */
 UNIV_INTERN
@@ -562,6 +566,16 @@ UNIV_INLINE
 ulint
 dict_index_is_ibuf(
 /*===============*/
+					/* out: nonzero for insert buffer,
+					zero for other indexes */
+	const dict_index_t*	index)	/* in: index */
+	__attribute__((pure));
+/************************************************************************
+Check whether the index is a secondary index or the insert buffer tree. */
+UNIV_INLINE
+ulint
+dict_index_is_sec_or_ibuf(
+/*======================*/
 					/* out: nonzero for insert buffer,
 					zero for other indexes */
 	const dict_index_t*	index)	/* in: index */
@@ -903,7 +917,9 @@ UNIV_INLINE
 const dict_col_t*
 dict_field_get_col(
 /*===============*/
-	const dict_field_t*	field);
+					/* out: field->col,
+					pointer to the table column */
+	const dict_field_t*	field);	/* in: index field */
 #ifndef UNIV_HOTBACKUP
 /**************************************************************************
 Returns an index object if it is found in the dictionary cache.

@@ -328,8 +328,8 @@ row_upd_rec_sys_fields_in_recovery(
 	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
 	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
 	ulint		pos,	/* in: TRX_ID position in rec */
-	dulint		trx_id,	/* in: transaction id */
-	dulint		roll_ptr)/* in: roll ptr of the undo log record */
+	trx_id_t	trx_id,	/* in: transaction id */
+	roll_ptr_t	roll_ptr)/* in: roll ptr of the undo log record */
 {
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
 
@@ -422,7 +422,8 @@ row_upd_changes_field_size_or_external(
 
 			new_len = dict_col_get_sql_null_size(
 				dict_index_get_nth_col(index,
-						       upd_field->field_no));
+						       upd_field->field_no),
+				0);
 		}
 
 		old_len = rec_offs_nth_size(offsets, upd_field->field_no);
@@ -507,7 +508,7 @@ row_upd_write_sys_vals_to_log(
 				/* out: new pointer to mlog */
 	dict_index_t*	index,	/* in: clustered index */
 	trx_t*		trx,	/* in: transaction */
-	dulint		roll_ptr,/* in: roll ptr of the undo log record */
+	roll_ptr_t	roll_ptr,/* in: roll ptr of the undo log record */
 	byte*		log_ptr,/* pointer to a buffer of size > 20 opened
 				in mlog */
 	mtr_t*		mtr __attribute__((unused))) /* in: mtr */
@@ -534,12 +535,12 @@ UNIV_INTERN
 byte*
 row_upd_parse_sys_vals(
 /*===================*/
-			/* out: log data end or NULL */
-	byte*	ptr,	/* in: buffer */
-	byte*	end_ptr,/* in: buffer end */
-	ulint*	pos,	/* out: TRX_ID position in record */
-	dulint*	trx_id,	/* out: trx id */
-	dulint*	roll_ptr)/* out: roll ptr */
+				/* out: log data end or NULL */
+	byte*		ptr,	/* in: buffer */
+	byte*		end_ptr,/* in: buffer end */
+	ulint*		pos,	/* out: TRX_ID position in record */
+	trx_id_t*	trx_id,	/* out: trx id */
+	roll_ptr_t*	roll_ptr)/* out: roll ptr */
 {
 	ptr = mach_parse_compressed(ptr, end_ptr, pos);
 

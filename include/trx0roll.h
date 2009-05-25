@@ -80,7 +80,7 @@ UNIV_INTERN
 void
 trx_roll_try_truncate(
 /*==================*/
-	trx_t*	trx);	/* in: transaction */
+	trx_t*	trx);	/* in/out: transaction */
 /************************************************************************
 Pops the topmost record when the two undo logs of a transaction are seen
 as a single stack of records ordered by their undo numbers. Inserts the
@@ -95,8 +95,8 @@ trx_roll_pop_top_rec_of_trx(
 				if none left, or if the undo number of the
 				top record would be less than the limit */
 	trx_t*		trx,	/* in: transaction */
-	dulint		limit,	/* in: least undo number we need */
-	dulint*		roll_ptr,/* out: roll pointer to undo record */
+	undo_no_t	limit,	/* in: least undo number we need */
+	roll_ptr_t*	roll_ptr,/* out: roll pointer to undo record */
 	mem_heap_t*	heap);	/* in: memory heap where copied */
 /************************************************************************
 Reserves an undo log record for a query thread to undo. This should be
@@ -106,17 +106,17 @@ UNIV_INTERN
 ibool
 trx_undo_rec_reserve(
 /*=================*/
-			/* out: TRUE if succeeded */
-	trx_t*	trx,	/* in: transaction */
-	dulint	undo_no);/* in: undo number of the record */
+				/* out: TRUE if succeeded */
+	trx_t*		trx,	/* in/out: transaction */
+	undo_no_t	undo_no);/* in: undo number of the record */
 /***********************************************************************
 Releases a reserved undo record. */
 UNIV_INTERN
 void
 trx_undo_rec_release(
 /*=================*/
-	trx_t*	trx,	/* in: transaction */
-	dulint	undo_no);/* in: undo number */
+	trx_t*		trx,	/* in/out: transaction */
+	undo_no_t	undo_no);/* in: undo number */
 /*************************************************************************
 Starts a rollback operation. */
 UNIV_INTERN
@@ -278,7 +278,7 @@ trx_roll_savepoint_free(
 /***********************************************************************
 Frees savepoint structs starting from savep, if savep == NULL then
 free all savepoints. */
-
+UNIV_INTERN
 void
 trx_roll_savepoints_free(
 /*=====================*/
@@ -289,10 +289,10 @@ trx_roll_savepoints_free(
 
 /* A cell in the array used during a rollback and a purge */
 struct	trx_undo_inf_struct{
-	dulint	trx_no;		/* transaction number: not defined during
+	trx_id_t	trx_no;	/* transaction number: not defined during
 				a rollback */
-	dulint	undo_no;	/* undo number of an undo record */
-	ibool	in_use;		/* TRUE if the cell is in use */
+	undo_no_t	undo_no;/* undo number of an undo record */
+	ibool		in_use;	/* TRUE if the cell is in use */
 };
 
 /* During a rollback and a purge, undo numbers of undo records currently being

@@ -194,6 +194,7 @@ static
 rw_lock_debug_t*
 rw_lock_debug_create(void)
 /*======================*/
+				/* out, own: debug info struct */
 {
 	return((rw_lock_debug_t*) mem_alloc(sizeof(rw_lock_debug_t)));
 }
@@ -329,7 +330,8 @@ UNIV_INTERN
 ibool
 rw_lock_validate(
 /*=============*/
-	rw_lock_t*	lock)
+				/* out: TRUE */
+	rw_lock_t*	lock)	/* in: rw-lock */
 {
 	ut_a(lock);
 
@@ -1010,6 +1012,7 @@ UNIV_INTERN
 ulint
 rw_lock_n_locked(void)
 /*==================*/
+			/* out: number of locked rw-locks  */
 {
 	rw_lock_t*	lock;
 	ulint		count		= 0;

@@ -33,11 +33,11 @@ diff -Nur sql/CMakeLists.txt.orig sql/CMakeLists.txt
  IF(EMBED_MANIFESTS)
    MYSQL_EMBED_MANIFEST("mysqld" "asInvoker")
  ENDIF(EMBED_MANIFESTS)
- 
+
 diff -Nur sql/mysqld.def.orig sql/mysqld.def
 --- sql/mysqld.def.orig	1969-12-31 18:00:00 -06:00
-+++ sql/mysqld.def	2008-10-31 02:20:32 -05:00
-@@ -0,0 +1,98 @@
++++ sql/mysqld.def	2009-04-09 02:20:32 -05:00
+@@ -0,0 +1,111 @@
 +EXPORTS
 +	?use_hidden_primary_key@handler@@UAEXXZ
 +	?get_dynamic_partition_info@handler@@UAEXPAUPARTITION_INFO@@I@Z
@@ -136,11 +136,24 @@ diff -Nur sql/mysqld.def.orig sql/mysqld.def
 +	pthread_cond_destroy
 +	localtime_r
 +	my_strdup
++	deflate
++	deflateEnd
++	deflateReset
++	deflateInit2_
++	inflateEnd
++	inflateInit_
++	inflate
++	compressBound
++	inflateInit2_
++	adler32
++	longlong2str
++	strend
++	my_snprintf
 
 diff -Nur sql/mysqld_x64.def.orig sql/mysqld_x64.def
 --- sql/mysqld_x64.def.orig	1969-12-31 18:00:00 -06:00
-+++ sql/mysqld_x64.def		2008-10-31 02:22:04 -05:00
-@@ -0,0 +1,98 @@
++++ sql/mysqld_x64.def		2009-04-09 02:22:04 -05:00
+@@ -0,0 +1,111 @@
 +EXPORTS
 +	?use_hidden_primary_key@handler@@UEAAXXZ
 +	?get_dynamic_partition_info@handler@@UEAAXPEAUPARTITION_INFO@@I@Z
@@ -239,6 +252,19 @@ diff -Nur sql/mysqld_x64.def.orig sql/mysqld_x64.def
 +	pthread_cond_destroy
 +	localtime_r
 +	my_strdup
++	deflate
++	deflateEnd
++	deflateReset
++	deflateInit2_
++	inflateEnd
++	inflateInit_
++	inflate
++	compressBound
++	inflateInit2_
++	adler32
++	longlong2str
++	strend
++	my_snprintf
 
 diff -Nur win/configure.js.orig win/configure.js
 --- win/configure.js.orig	2008-09-26 21:18:37 -05:00
@@ -251,68 +277,3 @@ diff -Nur win/configure.js.orig win/configure.js
                      configfile.WriteLine("SET (" + args.Item(i) + " TRUE)");
                      break;
              case "MYSQL_SERVER_SUFFIX":
-
-diff -Nur win/build-vs71.bat.orig win/build-vs71.bat
---- win/build-vs71.bat.orig	2008-08-20 10:21:59 -05:00
-+++ win/build-vs71.bat	2008-10-27 10:52:38 -05:00
-@@ -15,8 +15,10 @@
- REM along with this program; if not, write to the Free Software
- REM Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
- 
-+REM CMAKE_BUILD_TYPE can be specified as Release or Debug
-+
- if exist cmakecache.txt del cmakecache.txt
- copy win\vs71cache.txt cmakecache.txt
--cmake -G "Visual Studio 7 .NET 2003"
-+cmake -G "Visual Studio 7 .NET 2003" -DCMAKE_BUILD_TYPE=%1
- copy cmakecache.txt win\vs71cache.txt
- 
-diff -Nur win/build-vs8.bat.orig win/build-vs8.bat
---- win/build-vs8.bat.orig	2008-08-20 10:21:59 -05:00
-+++ win/build-vs8.bat	2008-10-27 10:52:31 -05:00
-@@ -15,7 +15,9 @@
- REM along with this program; if not, write to the Free Software
- REM Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
- 
-+REM CMAKE_BUILD_TYPE can be specified as Release or Debug
-+
- if exist cmakecache.txt del cmakecache.txt
- copy win\vs8cache.txt cmakecache.txt
--cmake -G "Visual Studio 8 2005"
-+cmake -G "Visual Studio 8 2005" -DCMAKE_BUILD_TYPE=%1
- copy cmakecache.txt win\vs8cache.txt
-
-diff -Nur win/build-vs8_x64.bat.orig win/build-vs8_x64.bat
---- win/build-vs8_x64.bat.orig	2008-08-20 10:21:59 -05:00
-+++ win/build-vs8_x64.bat	2008-10-27 10:53:11 -05:00
-@@ -15,7 +15,9 @@
- REM along with this program; if not, write to the Free Software
- REM Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
- 
-+REM CMAKE_BUILD_TYPE can be specified as Release or Debug
-+
- if exist cmakecache.txt del cmakecache.txt
- copy win\vs8cache.txt cmakecache.txt
--cmake -G "Visual Studio 8 2005 Win64"
-+cmake -G "Visual Studio 8 2005 Win64" -DCMAKE_BUILD_TYPE=%1
- copy cmakecache.txt win\vs8cache.txt
-
-diff -Nur old/build-vs9.bat new/build-vs9.bat
---- win/build-vs9.bat.orig	2008-11-17 14:07:18 -06:00
-+++ win/build-vs9.bat		2009-03-21 03:45:34 -05:00
-@@ -14,5 +14,5 @@
- REM You should have received a copy of the GNU General Public License
- REM along with this program; if not, write to the Free Software
- REM Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
--cmake -G "Visual Studio 9 2008"
-+cmake -G "Visual Studio 9 2008" -DCMAKE_BUILD_TYPE=%1
-
-diff -Nur old/build-vs9_x64.bat new/build-vs9_x64.bat
---- win/build-vs9_x64.bat.orig	2008-11-17 14:07:18 -06:00
-+++ win/build-vs9_x64.bat	2009-03-21 03:45:42 -05:00
-@@ -14,5 +14,5 @@
- REM You should have received a copy of the GNU General Public License
- REM along with this program; if not, write to the Free Software
- REM Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
--cmake -G "Visual Studio 9 2008 Win64"
-+cmake -G "Visual Studio 9 2008 Win64" -DCMAKE_BUILD_TYPE=%1

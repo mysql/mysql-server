@@ -115,7 +115,7 @@ trx_undo_mem_create(
 	ulint		id,	/* in: slot index within rseg */
 	ulint		type,	/* in: type of the log: TRX_UNDO_INSERT or
 				TRX_UNDO_UPDATE */
-	dulint		trx_id,	/* in: id of the trx for which the undo log
+	trx_id_t	trx_id,	/* in: id of the trx for which the undo log
 				is created */
 	const XID*	xid,	/* in: X/Open XA transaction identification*/
 	ulint		page_no,/* in: undo log header page number */
@@ -129,11 +129,12 @@ static
 ulint
 trx_undo_insert_header_reuse(
 /*=========================*/
-				/* out: undo log header byte offset on page */
-	page_t*	undo_page,	/* in: insert undo log segment header page,
-				x-latched */
-	dulint	trx_id,		/* in: transaction id */
-	mtr_t*	mtr);		/* in: mtr */
+					/* out: undo log header byte
+					offset on page */
+	page_t*		undo_page,	/* in/out: insert undo log segment
+					header page, x-latched */
+	trx_id_t	trx_id,		/* in: transaction id */
+	mtr_t*		mtr);		/* in: mtr */
 /**************************************************************************
 If an update undo log can be discarded immediately, this function frees the
 space, resetting the page to the proper state for caching. */
@@ -514,9 +515,9 @@ UNIV_INLINE
 void
 trx_undo_header_create_log(
 /*=======================*/
-	page_t* undo_page,	/* in: undo log header page */
-	dulint	trx_id,		/* in: transaction id */
-	mtr_t*	mtr)		/* in: mtr */
+	const page_t*	undo_page,	/* in: undo log header page */
+	trx_id_t	trx_id,		/* in: transaction id */
+	mtr_t*		mtr)		/* in: mtr */
 {
 	mlog_write_initial_log_record(undo_page, MLOG_UNDO_HDR_CREATE, mtr);
 
@@ -534,13 +535,14 @@ static
 ulint
 trx_undo_header_create(
 /*===================*/
-				/* out: header byte offset on page */
-	page_t*	undo_page,	/* in: undo log segment header page,
-				x-latched; it is assumed that there are
-				TRX_UNDO_LOG_XA_HDR_SIZE bytes free space
-				on it */
-	dulint	trx_id,		/* in: transaction id */
-	mtr_t*	mtr)		/* in: mtr */
+					/* out: header byte offset on page */
+	page_t*		undo_page,	/* in/out: undo log segment
+					header page, x-latched; it is
+					assumed that there is
+					TRX_UNDO_LOG_XA_HDR_SIZE bytes
+					free space on it */
+	trx_id_t	trx_id,		/* in: transaction id */
+	mtr_t*		mtr)		/* in: mtr */
 {
 	trx_upagef_t*	page_hdr;
 	trx_usegf_t*	seg_hdr;
@@ -685,9 +687,9 @@ UNIV_INLINE
 void
 trx_undo_insert_header_reuse_log(
 /*=============================*/
-	page_t* undo_page,	/* in: undo log header page */
-	dulint	trx_id,		/* in: transaction id */
-	mtr_t*	mtr)		/* in: mtr */
+	const page_t*	undo_page,	/* in: undo log header page */
+	trx_id_t	trx_id,		/* in: transaction id */
+	mtr_t*		mtr)		/* in: mtr */
 {
 	mlog_write_initial_log_record(undo_page, MLOG_UNDO_HDR_REUSE, mtr);
 
@@ -710,7 +712,7 @@ trx_undo_parse_page_header(
 	page_t*	page,	/* in: page or NULL */
 	mtr_t*	mtr)	/* in: mtr or NULL */
 {
-	dulint	trx_id;
+	trx_id_t	trx_id;
 
 	ptr = mach_dulint_parse_compressed(ptr, end_ptr, &trx_id);
 
@@ -739,11 +741,12 @@ static
 ulint
 trx_undo_insert_header_reuse(
 /*=========================*/
-				/* out: undo log header byte offset on page */
-	page_t*	undo_page,	/* in: insert undo log segment header page,
-				x-latched */
-	dulint	trx_id,		/* in: transaction id */
-	mtr_t*	mtr)		/* in: mtr */
+					/* out: undo log header byte
+					offset on page */
+	page_t*		undo_page,	/* in/out: insert undo log segment
+					header page, x-latched */
+	trx_id_t	trx_id,		/* in: transaction id */
+	mtr_t*		mtr)		/* in: mtr */
 {
 	trx_upagef_t*	page_hdr;
 	trx_usegf_t*	seg_hdr;
@@ -1064,7 +1067,7 @@ trx_undo_truncate_end(
 /*==================*/
 	trx_t*		trx,	/* in: transaction whose undo log it is */
 	trx_undo_t*	undo,	/* in: undo log */
-	dulint		limit)	/* in: all undo records with undo number
+	undo_no_t	limit)	/* in: all undo records with undo number
 				>= this value should be truncated */
 {
 	page_t*		undo_page;
@@ -1137,15 +1140,17 @@ UNIV_INTERN
 void
 trx_undo_truncate_start(
 /*====================*/
-	trx_rseg_t* rseg,	/* in: rollback segment */
-	ulint	space,		/* in: space id of the log */
-	ulint	hdr_page_no,	/* in: header page number */
-	ulint	hdr_offset,	/* in: header offset on the page */
-	dulint	limit)		/* in: all undo pages with undo numbers <
-				this value should be truncated; NOTE that
-				the function only frees whole pages; the
-				header page is not freed, but emptied, if
-				all the records there are < limit */
+	trx_rseg_t*	rseg,		/* in: rollback segment */
+	ulint		space,		/* in: space id of the log */
+	ulint		hdr_page_no,	/* in: header page number */
+	ulint		hdr_offset,	/* in: header offset on the page */
+	undo_no_t	limit)		/* in: all undo pages with
+					undo numbers < this value
+					should be truncated; NOTE that
+					the function only frees whole
+					pages; the header page is not
+					freed, but emptied, if all the
+					records there are < limit */
 {
 	page_t*		undo_page;
 	trx_undo_rec_t* rec;
@@ -1270,7 +1275,7 @@ trx_undo_mem_create_at_db_start(
 	trx_undo_t*	undo;
 	ulint		type;
 	ulint		state;
-	dulint		trx_id;
+	trx_id_t	trx_id;
 	ulint		offset;
 	fil_addr_t	last_addr;
 	page_t*		last_page;
@@ -1443,7 +1448,7 @@ trx_undo_mem_create(
 	ulint		id,	/* in: slot index within rseg */
 	ulint		type,	/* in: type of the log: TRX_UNDO_INSERT or
 				TRX_UNDO_UPDATE */
-	dulint		trx_id,	/* in: id of the trx for which the undo log
+	trx_id_t	trx_id,	/* in: id of the trx for which the undo log
 				is created */
 	const XID*	xid,	/* in: X/Open transaction identification */
 	ulint		page_no,/* in: undo log header page number */
@@ -1498,7 +1503,7 @@ void
 trx_undo_mem_init_for_reuse(
 /*========================*/
 	trx_undo_t*	undo,	/* in: undo log to init */
-	dulint		trx_id,	/* in: id of the trx for which the undo log
+	trx_id_t	trx_id,	/* in: id of the trx for which the undo log
 				is created */
 	const XID*	xid,	/* in: X/Open XA transaction identification*/
 	ulint		offset)	/* in: undo log header byte offset on page */
@@ -1557,7 +1562,7 @@ trx_undo_create(
 	trx_rseg_t*	rseg,	/* in: rollback segment memory copy */
 	ulint		type,	/* in: type of the log: TRX_UNDO_INSERT or
 				TRX_UNDO_UPDATE */
-	dulint		trx_id,	/* in: id of the trx for which the undo log
+	trx_id_t	trx_id,	/* in: id of the trx for which the undo log
 				is created */
 	const XID*	xid,	/* in: X/Open transaction identification*/
 	trx_undo_t**	undo,	/* out: the new undo log object, undefined
@@ -1627,7 +1632,7 @@ trx_undo_reuse_cached(
 	trx_rseg_t*	rseg,	/* in: rollback segment memory object */
 	ulint		type,	/* in: type of the log: TRX_UNDO_INSERT or
 				TRX_UNDO_UPDATE */
-	dulint		trx_id,	/* in: id of the trx for which the undo log
+	trx_id_t	trx_id,	/* in: id of the trx for which the undo log
 				is used */
 	const XID*	xid,	/* in: X/Open XA transaction identification */
 	mtr_t*		mtr)	/* in: mtr */

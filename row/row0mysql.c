@@ -30,6 +30,7 @@ Created 9/17/2000 Heikki Tuuri
 #endif
 
 #include "row0ins.h"
+#include "row0merge.h"
 #include "row0sel.h"
 #include "row0upd.h"
 #include "row0row.h"
@@ -561,8 +562,7 @@ handle_new_error:
 		      "InnoDB: If the mysqld server crashes"
 		      " after the startup or when\n"
 		      "InnoDB: you dump the tables, look at\n"
-		      "InnoDB: http://dev.mysql.com/doc/refman/5.1/en/"
-		      "forcing-recovery.html"
+		      "InnoDB: " REFMAN "forcing-recovery.html"
 		      " for help.\n", stderr);
 		break;
 	default:
@@ -735,9 +735,8 @@ UNIV_INTERN
 void
 row_update_prebuilt_trx(
 /*====================*/
-					/* out: prebuilt dtuple */
-	row_prebuilt_t*	prebuilt,	/* in: prebuilt struct in MySQL
-					handle */
+	row_prebuilt_t*	prebuilt,	/* in/out: prebuilt struct
+					in MySQL handle */
 	trx_t*		trx)		/* in: transaction handle */
 {
 	if (trx->magic_n != TRX_MAGIC_N) {
@@ -1061,8 +1060,7 @@ row_insert_for_mysql(
 			"InnoDB: the MySQL datadir, or have you"
 			" used DISCARD TABLESPACE?\n"
 			"InnoDB: Look from\n"
-			"InnoDB: http://dev.mysql.com/doc/refman/5.1/en/"
-			"innodb-troubleshooting.html\n"
+			"InnoDB: " REFMAN "innodb-troubleshooting.html\n"
 			"InnoDB: how you can resolve the problem.\n",
 			prebuilt->table->name);
 		return(DB_ERROR);
@@ -1297,8 +1295,7 @@ row_update_for_mysql(
 			"InnoDB: the MySQL datadir, or have you"
 			" used DISCARD TABLESPACE?\n"
 			"InnoDB: Look from\n"
-			"InnoDB: http://dev.mysql.com/doc/refman/5.1/en/"
-			"innodb-troubleshooting.html\n"
+			"InnoDB: " REFMAN "innodb-troubleshooting.html\n"
 			"InnoDB: how you can resolve the problem.\n",
 			prebuilt->table->name);
 		return(DB_ERROR);
@@ -1463,9 +1460,9 @@ row_unlock_for_mysql(
 
 	if (prebuilt->new_rec_locks >= 1) {
 
-		rec_t*		rec;
+		const rec_t*	rec;
 		dict_index_t*	index;
-		dulint		rec_trx_id;
+		trx_id_t	rec_trx_id;
 		mtr_t		mtr;
 
 		mtr_start(&mtr);
@@ -1494,7 +1491,7 @@ row_unlock_for_mysql(
 
 		/* If the record has been modified by this
 		transaction, do not unlock it. */
-		ut_a(index->type & DICT_CLUSTERED);
+		ut_a(dict_index_is_clust(index));
 
 		if (index->trx_id_offset) {
 			rec_trx_id = trx_read_trx_id(rec
@@ -1619,7 +1616,9 @@ UNIV_INTERN
 ibool
 row_table_got_default_clust_index(
 /*==============================*/
-	const dict_table_t*	table)
+					/* out: TRUE if the clustered index
+					was generated automatically */
+	const dict_table_t*	table)	/* in: table */
 {
 	const dict_index_t*	clust_index;
 
@@ -1635,7 +1634,9 @@ UNIV_INTERN
 ulint
 row_get_mysql_key_number_for_index(
 /*===============================*/
-	const dict_index_t*	index)
+					/* out: the key number used
+					inside MySQL */
+	const dict_index_t*	index)	/* in: index */
 {
 	const dict_index_t*	ind;
 	ulint			i;
@@ -1913,9 +1914,8 @@ err_exit:
 		      " and DROP TABLE will\n"
 		      "InnoDB: succeed.\n"
 		      "InnoDB: You can look for further help from\n"
-		      "InnoDB: "
-		      "http://dev.mysql.com/doc/refman/5.1/en/"
-		      "innodb-troubleshooting.html\n", stderr);
+		      "InnoDB: " REFMAN "innodb-troubleshooting.html\n",
+		      stderr);
 
 		/* We may also get err == DB_ERROR if the .ibd file for the
 		table already exists */
@@ -3082,8 +3082,7 @@ row_drop_table_for_mysql(
 		      "InnoDB: MySQL database directory"
 		      " from another database?\n"
 		      "InnoDB: You can look for further help from\n"
-		      "InnoDB: http://dev.mysql.com/doc/refman/5.1/en/"
-		      "innodb-troubleshooting.html\n",
+		      "InnoDB: " REFMAN "innodb-troubleshooting.html\n",
 		      stderr);
 		goto funct_exit;
 	}
@@ -3661,8 +3660,7 @@ row_rename_table_for_mysql(
 		      "InnoDB: MySQL database directory"
 		      " from another database?\n"
 		      "InnoDB: You can look for further help from\n"
-		      "InnoDB: http://dev.mysql.com/doc/refman/5.1/en/"
-		      "innodb-troubleshooting.html\n",
+		      "InnoDB: " REFMAN "innodb-troubleshooting.html\n",
 		      stderr);
 		goto funct_exit;
 	} else if (table->ibd_file_missing) {
@@ -3674,8 +3672,7 @@ row_rename_table_for_mysql(
 		fputs(" does not have an .ibd file"
 		      " in the database directory.\n"
 		      "InnoDB: You can look for further help from\n"
-		      "InnoDB: http://dev.mysql.com/doc/refman/5.1/en/"
-		      "innodb-troubleshooting.html\n",
+		      "InnoDB: " REFMAN "innodb-troubleshooting.html\n",
 		      stderr);
 		goto funct_exit;
 	} else if (new_is_tmp) {
@@ -3827,8 +3824,7 @@ end:
 			      "InnoDB: Have you deleted the .frm file"
 			      " and not used DROP TABLE?\n"
 			      "InnoDB: You can look for further help from\n"
-			      "InnoDB: http://dev.mysql.com/doc/refman/5.1/en/"
-			      "innodb-troubleshooting.html\n"
+			      "InnoDB: " REFMAN "innodb-troubleshooting.html\n"
 			      "InnoDB: If table ", stderr);
 			ut_print_name(stderr, trx, TRUE, new_name);
 			fputs(" is a temporary table #sql..., then"
@@ -3950,6 +3946,14 @@ row_scan_and_check_index(
 
 	*n_rows = 0;
 
+	if (!row_merge_is_index_usable(prebuilt->trx, index)) {
+		/* A newly created index may lack some delete-marked
+		records that may exist in the read view of
+		prebuilt->trx.  Thus, such indexes must not be
+		accessed by consistent read. */
+		return(is_ok);
+	}
+
 	buf = mem_alloc(UNIV_PAGE_SIZE);
 	heap = mem_heap_create(100);
 
@@ -3957,6 +3961,8 @@ row_scan_and_check_index(
 	in scanning the index entries */
 
 	prebuilt->index = index;
+	/* row_merge_is_index_usable() was already checked above. */
+	prebuilt->index_usable = TRUE;
 	prebuilt->sql_stat_start = TRUE;
 	prebuilt->template_type = ROW_MYSQL_DUMMY_TEMPLATE;
 	prebuilt->n_template = 0;
@@ -3976,7 +3982,17 @@ loop:
 		}
 		cnt = 1000;
 	}
-	if (ret != DB_SUCCESS) {
+
+	switch (ret) {
+	case DB_SUCCESS:
+		break;
+	default:
+		ut_print_timestamp(stderr);
+		fputs("  InnoDB: Warning: CHECK TABLE on ", stderr);
+		dict_index_name_print(stderr, prebuilt->trx, index);
+		fprintf(stderr, " returned %lu\n", ret);
+		/* fall through (this error is ignored by CHECK TABLE) */
+	case DB_END_OF_INDEX:
 func_exit:
 		mem_free(buf);
 		mem_heap_free(heap);
@@ -4100,8 +4116,7 @@ row_check_table_for_mysql(
 			"InnoDB: the MySQL datadir, or have you"
 			" used DISCARD TABLESPACE?\n"
 			"InnoDB: Look from\n"
-			"InnoDB: http://dev.mysql.com/doc/refman/5.1/en/"
-			"innodb-troubleshooting.html\n"
+			"InnoDB: " REFMAN "innodb-troubleshooting.html\n"
 			"InnoDB: how you can resolve the problem.\n",
 			table->name);
 		return(DB_ERROR);

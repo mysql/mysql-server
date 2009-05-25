@@ -255,14 +255,16 @@ UNIV_INLINE
 ulint
 dtype_get_mtype(
 /*============*/
-	const dtype_t*	type);
+				/* out: SQL main data type */
+	const dtype_t*	type);	/* in: data type */
 /*************************************************************************
 Gets the precise data type. */
 UNIV_INLINE
 ulint
 dtype_get_prtype(
 /*=============*/
-	const dtype_t*	type);
+				/* out: precise data type */
+	const dtype_t*	type);	/* in: data type */
 #ifndef UNIV_HOTBACKUP
 /*************************************************************************
 Compute the mbminlen and mbmaxlen members of a data type structure. */
@@ -310,7 +312,9 @@ UNIV_INLINE
 ulint
 dtype_get_len(
 /*==========*/
-	const dtype_t*	type);
+				/* out: fixed length of the type, in bytes,
+				or 0 if variable-length */
+	const dtype_t*	type);	/* in: data type */
 #ifndef UNIV_HOTBACKUP
 /*************************************************************************
 Gets the minimum length of a character, in bytes. */
@@ -352,7 +356,8 @@ dtype_get_fixed_size_low(
 	ulint	prtype,		/* in: precise type */
 	ulint	len,		/* in: length */
 	ulint	mbminlen,	/* in: minimum length of a multibyte char */
-	ulint	mbmaxlen);	/* in: maximum length of a multibyte char */
+	ulint	mbmaxlen,	/* in: maximum length of a multibyte char */
+	ulint	comp);		/* in: nonzero=ROW_FORMAT=COMPACT  */
 #ifndef UNIV_HOTBACKUP
 /***************************************************************************
 Returns the minimum size of a data type. */
@@ -386,7 +391,8 @@ dtype_get_sql_null_size(
 /*====================*/
 				/* out: SQL null storage size
 				in ROW_FORMAT=REDUNDANT */
-	const dtype_t*	type);	/* in: type */
+	const dtype_t*	type,	/* in: type */
+	ulint		comp);	/* in: nonzero=ROW_FORMAT=COMPACT  */
 #ifndef UNIV_HOTBACKUP
 /**************************************************************************
 Reads to a type the stored information which determines its alphabetical

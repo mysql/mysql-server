@@ -104,10 +104,11 @@ ulint
 dict_col_get_fixed_size(
 /*====================*/
 					/* out: fixed size, or 0 */
-	const dict_col_t*	col)	/* in: column */
+	const dict_col_t*	col,	/* in: column */
+	ulint			comp)	/* in: nonzero=ROW_FORMAT=COMPACT  */
 {
 	return(dtype_get_fixed_size_low(col->mtype, col->prtype, col->len,
-					col->mbminlen, col->mbmaxlen));
+					col->mbminlen, col->mbmaxlen, comp));
 }
 /***************************************************************************
 Returns the ROW_FORMAT=REDUNDANT stored SQL NULL size of a column.
@@ -118,9 +119,10 @@ dict_col_get_sql_null_size(
 /*=======================*/
 					/* out: SQL null storage size
 					in ROW_FORMAT=REDUNDANT */
-	const dict_col_t*	col)	/* in: column */
+	const dict_col_t*	col,	/* in: column */
+	ulint			comp)	/* in: nonzero=ROW_FORMAT=COMPACT  */
 {
-	return(dict_col_get_fixed_size(col));
+	return(dict_col_get_fixed_size(col, comp));
 }
 
 /*************************************************************************
@@ -129,7 +131,9 @@ UNIV_INLINE
 ulint
 dict_col_get_no(
 /*============*/
-	const dict_col_t*	col)
+					/* out: col->ind, table column
+					position (starting from 0) */
+	const dict_col_t*	col)	/* in: column */
 {
 	ut_ad(col);
 
@@ -241,6 +245,26 @@ dict_index_is_ibuf(
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 
 	return(UNIV_UNLIKELY(index->type & DICT_IBUF));
+}
+
+/************************************************************************
+Check whether the index is a secondary index or the insert buffer tree. */
+UNIV_INLINE
+ulint
+dict_index_is_sec_or_ibuf(
+/*======================*/
+					/* out: nonzero for insert buffer,
+					zero for other indexes */
+	const dict_index_t*	index)	/* in: index */
+{
+	ulint	type;
+
+	ut_ad(index);
+	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
+
+	type = index->type;
+
+	return(UNIV_LIKELY(!(type & DICT_CLUSTERED) || (type & DICT_IBUF)));
 }
 
 /************************************************************************
@@ -568,7 +592,9 @@ UNIV_INLINE
 const dict_col_t*
 dict_field_get_col(
 /*===============*/
-	const dict_field_t*	field)
+					/* out: field->col,
+					pointer to the table column */
+	const dict_field_t*	field)	/* in: index field */
 {
 	ut_ad(field);
 
