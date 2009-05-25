@@ -16,8 +16,7 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/*************************************************************************//**
-@file ut/ut0auxconf_sizeof_pthread_t.c
+/*****************************************************************************
 This program should compile and when run, print a single line like:
 #define SIZEOF_PTHREAD_T %d
 
