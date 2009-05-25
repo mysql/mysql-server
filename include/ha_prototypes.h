@@ -16,14 +16,18 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
+/***********************************************************************
+Prototypes for global functions in ha_innodb.cc that are called by
+InnoDB C code
+
+Created 5/11/2006 Osku Salerma
+************************************************************************/
+
 #ifndef HA_INNODB_PROTOTYPES_H
 #define HA_INNODB_PROTOTYPES_H
 
 #include "trx0types.h"
 #include "m_ctype.h" /* CHARSET_INFO */
-
-/* Prototypes for global functions in ha_innodb.cc that are called by
-InnoDB's C-code. */
 
 /*************************************************************************
 Wrapper around MySQL's copy_and_convert function.

@@ -17,6 +17,12 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 *****************************************************************************/
 
 /***********************************************************************
+A double-linked list
+
+Created 4/26/2006 Osku Salerma
+************************************************************************/
+
+/***********************************************************************
 A double-linked list. This differs from the one in ut0lst.h in that in this
 one, each list node contains a pointer to the data, whereas the one in
 ut0lst.h uses a strategy where the list pointers are embedded in the data
