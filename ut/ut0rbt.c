@@ -660,7 +660,6 @@ static
 void
 rbt_remove_node_and_rebalance(
 /*==========================*/
-						/* out: NONE */
 	ib_rbt_t*		tree,		/* in: rb tree */
 	ib_rbt_node_t*		node)		/* in: node to remove */
 {
