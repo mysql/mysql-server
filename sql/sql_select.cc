@@ -13855,7 +13855,7 @@ SORT_FIELD *make_unireg_sortorder(ORDER *order, uint *length,
       pos->field= ((Item_sum*) item)->get_tmp_table_field();
     else if (item->type() == Item::COPY_STR_ITEM)
     {						// Blob patch
-      pos->item= ((Item_copy_string*) item)->item;
+      pos->item= ((Item_copy*) item)->get_item();
     }
     else
       pos->item= *order->item;
@@ -14926,7 +14926,7 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
       pos= item;
       if (item->field->flags & BLOB_FLAG)
       {
-	if (!(pos= new Item_copy_string(pos)))
+	if (!(pos= Item_copy::create(pos)))
 	  goto err;
        /*
          Item_copy_string::copy for function can call 
@@ -14980,7 +14980,7 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
 	 on how the value is to be used: In some cases this may be an
 	 argument in a group function, like: IF(ISNULL(col),0,COUNT(*))
       */
-      if (!(pos=new Item_copy_string(pos)))
+      if (!(pos= Item_copy::create(pos)))
 	goto err;
       if (i < border)                           // HAVING, ORDER and GROUP BY
       {
@@ -15033,8 +15033,8 @@ copy_fields(TMP_TABLE_PARAM *param)
     (*ptr->do_copy)(ptr);
 
   List_iterator_fast<Item> it(param->copy_funcs);
-  Item_copy_string *item;
-  while ((item = (Item_copy_string*) it++))
+  Item_copy *item;
+  while ((item = (Item_copy*) it++))
     item->copy();
 }
 
