@@ -53,7 +53,8 @@ row_ext_create(
 
 /************************************************************************
 Looks up a column prefix of an externally stored column.
-@return	column prefix, or NULL if the column is not stored externally, or pointer to field_ref_zero if the BLOB pointer is unset */
+@return column prefix, or NULL if the column is not stored externally,
+or pointer to field_ref_zero if the BLOB pointer is unset */
 UNIV_INLINE
 const byte*
 row_ext_lookup_ith(
@@ -64,7 +65,8 @@ row_ext_lookup_ith(
 					at most REC_MAX_INDEX_COL_LEN */
 /************************************************************************
 Looks up a column prefix of an externally stored column.
-@return	column prefix, or NULL if the column is not stored externally, or pointer to field_ref_zero if the BLOB pointer is unset */
+@return column prefix, or NULL if the column is not stored externally,
+or pointer to field_ref_zero if the BLOB pointer is unset */
 UNIV_INLINE
 const byte*
 row_ext_lookup(

@@ -285,12 +285,13 @@ btr_page_get_split_rec_to_right(
 				or NULL if tuple should be first */
 /*****************************************************************
 Splits an index page to halves and inserts the tuple. It is assumed
-that mtr holds an x-latch to the index tree. NOTE: the tree x-latch
-is released within this function! NOTE that the operation of this
-function must always succeed, we cannot reverse it: therefore
-enough free disk space must be guaranteed to be available before
+that mtr holds an x-latch to the index tree. NOTE: the tree x-latch is
+released within this function! NOTE that the operation of this
+function must always succeed, we cannot reverse it: therefore enough
+free disk space (2 pages) must be guaranteed to be available before
 this function is called.
-@return	inserted record; NOTE: the tree x-latch is released! NOTE: 2 free disk pages must be available! */
+
+@return inserted record */
 UNIV_INTERN
 rec_t*
 btr_page_split_and_insert(

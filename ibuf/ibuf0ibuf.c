@@ -288,7 +288,10 @@ ibuf_exit(void)
 /**********************************************************************
 Returns TRUE if the current OS thread is performing an insert buffer
 routine.
-@return	TRUE if inside an insert buffer routine: for instance, a read-ahead of non-ibuf pages is then forbidden */
+
+For instance, a read-ahead of non-ibuf pages is forbidden by threads
+that are executing an insert buffer routine.
+@return TRUE if inside an insert buffer routine */
 UNIV_INTERN
 ibool
 ibuf_inside(void)
@@ -343,7 +346,8 @@ ibuf_tree_root_get(
 #ifdef UNIV_IBUF_COUNT_DEBUG
 /**********************************************************************
 Gets the ibuf count for a given page.
-@return	number of entries in the insert buffer currently buffered for this page */
+@return number of entries in the insert buffer currently buffered for
+this page */
 UNIV_INTERN
 ulint
 ibuf_count_get(
@@ -688,7 +692,9 @@ ibuf_bitmap_page_no_calc(
 /************************************************************************
 Gets the ibuf bitmap page where the bits describing a given file page are
 stored.
-@return	bitmap page where the file page is mapped, that is, the bitmap page containing the descriptor bits for the file page; the bitmap page is x-latched */
+@return bitmap page where the file page is mapped, that is, the bitmap
+page containing the descriptor bits for the file page; the bitmap page
+is x-latched */
 static
 page_t*
 ibuf_bitmap_get_map_page(
@@ -1158,7 +1164,11 @@ ibuf_dummy_index_free(
 /*************************************************************************
 Builds the entry to insert into a non-clustered index when we have the
 corresponding record in an ibuf index.
-@return	own: entry to insert to a non-clustered index; NOTE that as we copy pointers to fields in ibuf_rec, the caller must hold a latch to the ibuf_rec page as long as the entry is used! */
+
+NOTE that as we copy pointers to fields in ibuf_rec, the caller must
+hold a latch to the ibuf_rec page as long as the entry is used!
+
+@return own: entry to insert to a non-clustered index */
 UNIV_INLINE
 dtuple_t*
 ibuf_build_entry_pre_4_1_x(
@@ -1206,7 +1216,11 @@ ibuf_build_entry_pre_4_1_x(
 /*************************************************************************
 Builds the entry to insert into a non-clustered index when we have the
 corresponding record in an ibuf index.
-@return	own: entry to insert to a non-clustered index; NOTE that as we copy pointers to fields in ibuf_rec, the caller must hold a latch to the ibuf_rec page as long as the entry is used! */
+
+NOTE that as we copy pointers to fields in ibuf_rec, the caller must
+hold a latch to the ibuf_rec page as long as the entry is used!
+
+@return own: entry to insert to a non-clustered index */
 static
 dtuple_t*
 ibuf_build_entry_from_ibuf_rec(
@@ -1287,7 +1301,8 @@ ibuf_build_entry_from_ibuf_rec(
 /************************************************************************
 Returns the space taken by a stored non-clustered index entry if converted to
 an index record.
-@return	size of index record in bytes + an upper limit of the space taken in the page directory */
+@return size of index record in bytes + an upper limit of the space
+taken in the page directory */
 static
 ulint
 ibuf_rec_get_volume(
@@ -1379,7 +1394,11 @@ ibuf_rec_get_volume(
 /*************************************************************************
 Builds the tuple to insert to an ibuf tree when we have an entry for a
 non-clustered index.
-@return	own: entry to insert into an ibuf index tree; NOTE that the original entry must be kept because we copy pointers to its fields */
+
+NOTE that the original entry must be kept because we copy pointers to
+its fields.
+
+@return	own: entry to insert into an ibuf index tree */
 static
 dtuple_t*
 ibuf_entry_build(
@@ -1912,7 +1931,8 @@ ibuf_free_excess_pages(void)
 
 /*************************************************************************
 Reads page numbers from a leaf in an ibuf tree.
-@return	a lower limit for the combined volume of records which will be merged */
+@return a lower limit for the combined volume of records which will be
+merged */
 static
 ulint
 ibuf_get_merge_page_nos(
@@ -2084,7 +2104,9 @@ ibuf_get_merge_page_nos(
 
 /*************************************************************************
 Contracts insert buffer trees by reading pages to the buffer pool.
-@return	a lower limit for the combined size in bytes of entries which will be merged from ibuf trees to the pages read, 0 if ibuf is empty */
+@return a lower limit for the combined size in bytes of entries which
+will be merged from ibuf trees to the pages read, 0 if ibuf is
+empty */
 static
 ulint
 ibuf_contract_ext(
@@ -2163,7 +2185,9 @@ ibuf_is_empty:
 
 /*************************************************************************
 Contracts insert buffer trees by reading pages to the buffer pool.
-@return	a lower limit for the combined size in bytes of entries which will be merged from ibuf trees to the pages read, 0 if ibuf is empty */
+@return a lower limit for the combined size in bytes of entries which
+will be merged from ibuf trees to the pages read, 0 if ibuf is
+empty */
 UNIV_INTERN
 ulint
 ibuf_contract(
@@ -2179,7 +2203,9 @@ ibuf_contract(
 
 /*************************************************************************
 Contracts insert buffer trees by reading pages to the buffer pool.
-@return	a lower limit for the combined size in bytes of entries which will be merged from ibuf trees to the pages read, 0 if ibuf is empty */
+@return a lower limit for the combined size in bytes of entries which
+will be merged from ibuf trees to the pages read, 0 if ibuf is
+empty */
 UNIV_INTERN
 ulint
 ibuf_contract_for_n_pages(
@@ -2254,7 +2280,9 @@ ibuf_contract_after_insert(
 /*************************************************************************
 Gets an upper limit for the combined size of entries buffered in the insert
 buffer for a given page.
-@return	upper limit for the volume of buffered inserts for the index page, in bytes; we may also return UNIV_PAGE_SIZE, if the entries for the index page span on several pages in the insert buffer */
+@return upper limit for the volume of buffered inserts for the index
+page, in bytes; UNIV_PAGE_SIZE, if the entries for the index page span
+several pages in the insert buffer */
 static
 ulint
 ibuf_get_volume_buffered(

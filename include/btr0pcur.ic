@@ -140,7 +140,8 @@ btr_pcur_get_rec(
 
 /******************************************************************
 Gets the up_match value for a pcur after a search.
-@return	number of matched fields at the cursor or to the right if search mode was PAGE_CUR_GE, otherwise undefined */
+@return number of matched fields at the cursor or to the right if
+search mode was PAGE_CUR_GE, otherwise undefined */
 UNIV_INLINE
 ulint
 btr_pcur_get_up_match(
@@ -161,7 +162,8 @@ btr_pcur_get_up_match(
 
 /******************************************************************
 Gets the low_match value for a pcur after a search.
-@return	number of matched fields at the cursor or to the right if search mode was PAGE_CUR_LE, otherwise undefined */
+@return number of matched fields at the cursor or to the right if
+search mode was PAGE_CUR_LE, otherwise undefined */
 UNIV_INLINE
 ulint
 btr_pcur_get_low_match(

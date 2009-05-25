@@ -134,7 +134,8 @@ btr_pcur_open_at_index_side(
 	mtr_t*		mtr);		/*!< in: mtr */
 /******************************************************************
 Gets the up_match value for a pcur after a search.
-@return	number of matched fields at the cursor or to the right if search mode was PAGE_CUR_GE, otherwise undefined */
+@return number of matched fields at the cursor or to the right if
+search mode was PAGE_CUR_GE, otherwise undefined */
 UNIV_INLINE
 ulint
 btr_pcur_get_up_match(
@@ -142,7 +143,8 @@ btr_pcur_get_up_match(
 	btr_pcur_t*	cursor); /*!< in: memory buffer for persistent cursor */
 /******************************************************************
 Gets the low_match value for a pcur after a search.
-@return	number of matched fields at the cursor or to the right if search mode was PAGE_CUR_LE, otherwise undefined */
+@return number of matched fields at the cursor or to the right if
+search mode was PAGE_CUR_LE, otherwise undefined */
 UNIV_INLINE
 ulint
 btr_pcur_get_low_match(
@@ -210,7 +212,9 @@ infimum;
 GREATER than the user record which was the predecessor of the supremum.
 (4) cursor was positioned before the first or after the last in an empty tree:
 restores to before first or after the last in the tree.
-@return	TRUE if the cursor position was stored when it was on a user record and it can be restored on a user record whose ordering fields are identical to the ones of the original user record */
+@return TRUE if the cursor position was stored when it was on a user
+record and it can be restored on a user record whose ordering fields
+are identical to the ones of the original user record */
 UNIV_INTERN
 ibool
 btr_pcur_restore_position(

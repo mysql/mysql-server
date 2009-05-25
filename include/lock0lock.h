@@ -418,7 +418,8 @@ lock_clust_rec_read_check_and_lock_alt(
 	que_thr_t*		thr);	/*!< in: query thread */
 /*************************************************************************
 Checks that a record is seen in a consistent read.
-@return	TRUE if sees, or FALSE if an earlier version of the record should be retrieved */
+@return TRUE if sees, or FALSE if an earlier version of the record
+should be retrieved */
 UNIV_INTERN
 ibool
 lock_clust_rec_cons_read_sees(
@@ -430,7 +431,14 @@ lock_clust_rec_cons_read_sees(
 	read_view_t*	view);	/*!< in: consistent read view */
 /*************************************************************************
 Checks that a non-clustered index record is seen in a consistent read.
-@return	TRUE if certainly sees, or FALSE if an earlier version of the clustered index record might be needed: NOTE that a non-clustered index page contains so little information on its modifications that also in the case FALSE, the present version of rec may be the right, but we must check this from the clustered index record */
+
+NOTE that a non-clustered index page contains so little information on
+its modifications that also in the case FALSE, the present version of
+rec may be the right, but we must check this from the clustered index
+record.
+
+@return TRUE if certainly sees, or FALSE if an earlier version of the
+clustered index record might be needed */
 UNIV_INTERN
 ulint
 lock_sec_rec_cons_read_sees(
@@ -537,17 +545,22 @@ lock_rec_hash(
 /**************************************************************************
 Looks for a set bit in a record lock bitmap. Returns ULINT_UNDEFINED,
 if none found.
-@return	bit index == heap number of the record, or ULINT_UNDEFINED if none found */
+@return bit index == heap number of the record, or ULINT_UNDEFINED if
+none found */
 UNIV_INTERN
 ulint
 lock_rec_find_set_bit(
 /*==================*/
-	const lock_t*	lock);	/*!< in: record lock with at least one bit set */
+	const lock_t*	lock);	/*!< in: record lock with at least one
+				bit set */
 
 /*************************************************************************
 Gets the source table of an ALTER TABLE transaction.  The table must be
 covered by an IX or IS table lock.
-@return	the source table of transaction, if it is covered by an IX or IS table lock; dest if there is no source table, and NULL if the transaction is locking more than two tables or an inconsistency is found */
+@return the source table of transaction, if it is covered by an IX or
+IS table lock; dest if there is no source table, and NULL if the
+transaction is locking more than two tables or an inconsistency is
+found */
 UNIV_INTERN
 dict_table_t*
 lock_get_src_table(
@@ -559,7 +572,8 @@ lock_get_src_table(
 Determine if the given table is exclusively "owned" by the given
 transaction, i.e., transaction holds LOCK_IX and possibly LOCK_AUTO_INC
 on the table.
-@return	TRUE if table is only locked by trx, with LOCK_IX, and possibly LOCK_AUTO_INC */
+@return TRUE if table is only locked by trx, with LOCK_IX, and
+possibly LOCK_AUTO_INC */
 UNIV_INTERN
 ibool
 lock_is_table_exclusive(
@@ -661,7 +675,7 @@ lock_get_trx_id(
 Gets the mode of a lock in a human readable string.
 The string should not be free()'d or modified.
 @return	lock mode */
-
+UNIV_INTERN
 const char*
 lock_get_mode_str(
 /*==============*/
@@ -671,7 +685,7 @@ lock_get_mode_str(
 Gets the type of a lock in a human readable string.
 The string should not be free()'d or modified.
 @return	lock type */
-
+UNIV_INTERN
 const char*
 lock_get_type_str(
 /*==============*/
@@ -690,7 +704,7 @@ lock_get_table_id(
 Gets the name of the table on which the lock is.
 The string should not be free()'d or modified.
 @return	name of the table */
-
+UNIV_INTERN
 const char*
 lock_get_table_name(
 /*================*/
@@ -699,7 +713,7 @@ lock_get_table_name(
 /***********************************************************************
 For a record lock, gets the index on which the lock is.
 @return	index */
-
+UNIV_INTERN
 const dict_index_t*
 lock_rec_get_index(
 /*===============*/
@@ -709,7 +723,7 @@ lock_rec_get_index(
 For a record lock, gets the name of the index on which the lock is.
 The string should not be free()'d or modified.
 @return	name of the index */
-
+UNIV_INTERN
 const char*
 lock_rec_get_index_name(
 /*====================*/

@@ -34,7 +34,8 @@ buffer buf_pool if it is not already there. Sets the io_fix flag and sets
 an exclusive lock on the buffer frame. The flag is cleared and the x-lock
 released by the i/o-handler thread. Does a random read-ahead if it seems
 sensible.
-@return	number of page read requests issued: this can be > 1 if read-ahead occurred */
+@return number of page read requests issued: this can be greater than
+1 if read-ahead occurred */
 UNIV_INTERN
 ulint
 buf_read_page(

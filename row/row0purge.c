@@ -100,7 +100,8 @@ row_purge_reposition_pcur(
 
 /***************************************************************
 Removes a delete marked clustered index record if possible.
-@return	TRUE if success, or if not found, or if modified after the delete marking */
+@return TRUE if success, or if not found, or if modified after the
+delete marking */
 static
 ibool
 row_purge_remove_clust_if_poss_low(
@@ -485,7 +486,8 @@ skip_secondaries:
 
 /***************************************************************
 Parses the row reference and other info in a modify undo log record.
-@return	TRUE if purge operation required: NOTE that then the CALLER must unfreeze data dictionary! */
+@return TRUE if purge operation required: NOTE that then the CALLER
+must unfreeze data dictionary! */
 static
 ibool
 row_purge_parse_undo_rec(

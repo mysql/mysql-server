@@ -111,7 +111,8 @@ heap freeing. */
 NOTE: Use the corresponding macros instead of this function. Creates a
 memory heap. For debugging purposes, takes also the file name and line as
 arguments.
-@return	own: memory heap, NULL if did not succeed (only possible for MEM_HEAP_BTR_SEARCH type heaps) */
+@return own: memory heap, NULL if did not succeed (only possible for
+MEM_HEAP_BTR_SEARCH type heaps) */
 UNIV_INLINE
 mem_heap_t*
 mem_heap_create_func(
@@ -147,7 +148,8 @@ mem_heap_zalloc(
 				<= MEM_MAX_ALLOC_IN_BUF */
 /*******************************************************************
 Allocates n bytes of memory from a memory heap.
-@return	allocated storage, NULL if did not succeed (only possible for MEM_HEAP_BTR_SEARCH type heaps) */
+@return allocated storage, NULL if did not succeed (only possible for
+MEM_HEAP_BTR_SEARCH type heaps) */
 UNIV_INLINE
 void*
 mem_heap_alloc(

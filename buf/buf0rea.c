@@ -64,7 +64,10 @@ Low-level function which reads a page asynchronously from a file to the
 buffer buf_pool if it is not already there, in which case does nothing.
 Sets the io_fix flag and sets an exclusive lock on the buffer frame. The
 flag is cleared and the x-lock released by an i/o-handler thread.
-@return	1 if a read request was queued, 0 if the page already resided in buf_pool, or if the page is in the doublewrite buffer blocks in which case it is never read into the pool, or if the tablespace does not exist or is being dropped */
+@return 1 if a read request was queued, 0 if the page already resided
+in buf_pool, or if the page is in the doublewrite buffer blocks in
+which case it is never read into the pool, or if the tablespace does
+not exist or is being dropped */
 static
 ulint
 buf_read_page_low(
@@ -176,7 +179,9 @@ end up waiting for these latches! NOTE 2: the calling thread must want
 access to the page given: this rule is set to prevent unintended read-aheads
 performed by ibuf routines, a situation which could result in a deadlock if
 the OS does not support asynchronous i/o.
-@return	number of page read requests issued; NOTE that if we read ibuf pages, it may happen that the page at the given page number does not get read even if we return a value > 0! */
+@return number of page read requests issued; NOTE that if we read ibuf
+pages, it may happen that the page at the given page number does not
+get read even if we return a positive value! */
 static
 ulint
 buf_read_ahead_random(
@@ -326,7 +331,8 @@ buffer buf_pool if it is not already there. Sets the io_fix flag and sets
 an exclusive lock on the buffer frame. The flag is cleared and the x-lock
 released by the i/o-handler thread. Does a random read-ahead if it seems
 sensible.
-@return	number of page read requests issued: this can be > 1 if read-ahead occurred */
+@return number of page read requests issued: this can be greater than
+1 if read-ahead occurred */
 UNIV_INTERN
 ulint
 buf_read_page(

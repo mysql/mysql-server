@@ -111,7 +111,8 @@ accessible via bpage.
 The caller must hold buf_pool_mutex and buf_page_get_mutex(bpage) and
 release these two mutexes after the call.  No other
 buf_page_get_mutex() may be held when calling this function.
-@return	BUF_LRU_FREED if freed, BUF_LRU_CANNOT_RELOCATE or BUF_LRU_NOT_FREED otherwise. */
+@return BUF_LRU_FREED if freed, BUF_LRU_CANNOT_RELOCATE or
+BUF_LRU_NOT_FREED otherwise. */
 UNIV_INTERN
 enum buf_lru_free_block_status
 buf_LRU_free_block(

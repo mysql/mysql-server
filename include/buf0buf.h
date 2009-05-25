@@ -331,9 +331,12 @@ buf_page_make_young(
 /*================*/
 	buf_page_t*	bpage);	/*!< in: buffer block of a file page */
 /************************************************************************
-Returns TRUE if the page can be found in the buffer pool hash table. NOTE
-that it is possible that the page is not yet read from disk, though.
-@return	TRUE if found from page hash table, NOTE that the page is not necessarily yet read from disk! */
+Returns TRUE if the page can be found in the buffer pool hash table.
+
+NOTE that it is possible that the page is not yet read from disk,
+though.
+
+@return	TRUE if found in the page hash table */
 UNIV_INLINE
 ibool
 buf_page_peek(

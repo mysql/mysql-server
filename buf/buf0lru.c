@@ -110,7 +110,8 @@ the object will be freed and buf_pool_zip_mutex will be released.
 If a compressed page or a compressed-only block descriptor is freed,
 other compressed pages or compressed-only block descriptors may be
 relocated.
-@return	the new state of the block (BUF_BLOCK_ZIP_FREE if the state was BUF_BLOCK_ZIP_PAGE, or BUF_BLOCK_REMOVE_HASH otherwise) */
+@return the new state of the block (BUF_BLOCK_ZIP_FREE if the state
+was BUF_BLOCK_ZIP_PAGE, or BUF_BLOCK_REMOVE_HASH otherwise) */
 static
 enum buf_page_state
 buf_LRU_block_remove_hashed_page(
@@ -1315,7 +1316,8 @@ accessible via bpage.
 The caller must hold buf_pool_mutex and buf_page_get_mutex(bpage) and
 release these two mutexes after the call.  No other
 buf_page_get_mutex() may be held when calling this function.
-@return	BUF_LRU_FREED if freed, BUF_LRU_CANNOT_RELOCATE or BUF_LRU_NOT_FREED otherwise. */
+@return BUF_LRU_FREED if freed, BUF_LRU_CANNOT_RELOCATE or
+BUF_LRU_NOT_FREED otherwise. */
 UNIV_INTERN
 enum buf_lru_free_block_status
 buf_LRU_free_block(
@@ -1633,7 +1635,8 @@ the object will be freed and buf_pool_zip_mutex will be released.
 If a compressed page or a compressed-only block descriptor is freed,
 other compressed pages or compressed-only block descriptors may be
 relocated.
-@return	the new state of the block (BUF_BLOCK_ZIP_FREE if the state was BUF_BLOCK_ZIP_PAGE, or BUF_BLOCK_REMOVE_HASH otherwise) */
+@return the new state of the block (BUF_BLOCK_ZIP_FREE if the state
+was BUF_BLOCK_ZIP_PAGE, or BUF_BLOCK_REMOVE_HASH otherwise) */
 static
 enum buf_page_state
 buf_LRU_block_remove_hashed_page(

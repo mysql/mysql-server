@@ -49,7 +49,7 @@ Created 2/6/1997 Heikki Tuuri
 Finds out if an active transaction has inserted or modified a secondary
 index record. NOTE: the kernel mutex is temporarily released in this
 function!
-@return	NULL if committed, else the active transaction; NOTE that the kernel mutex is temporarily released! */
+@return NULL if committed, else the active transaction */
 UNIV_INTERN
 trx_t*
 row_vers_impl_x_locked_off_kernel(

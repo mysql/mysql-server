@@ -200,7 +200,10 @@ ibuf_should_try(
 /**********************************************************************
 Returns TRUE if the current OS thread is performing an insert buffer
 routine.
-@return	TRUE if inside an insert buffer routine: for instance, a read-ahead of non-ibuf pages is then forbidden */
+
+For instance, a read-ahead of non-ibuf pages is forbidden by threads
+that are executing an insert buffer routine.
+@return TRUE if inside an insert buffer routine */
 UNIV_INTERN
 ibool
 ibuf_inside(void);
@@ -288,7 +291,9 @@ ibuf_delete_for_discarded_space(
 	ulint	space);	/*!< in: space id */
 /*************************************************************************
 Contracts insert buffer trees by reading pages to the buffer pool.
-@return	a lower limit for the combined size in bytes of entries which will be merged from ibuf trees to the pages read, 0 if ibuf is empty */
+@return a lower limit for the combined size in bytes of entries which
+will be merged from ibuf trees to the pages read, 0 if ibuf is
+empty */
 UNIV_INTERN
 ulint
 ibuf_contract(
@@ -298,7 +303,9 @@ ibuf_contract(
 			to complete */
 /*************************************************************************
 Contracts insert buffer trees by reading pages to the buffer pool.
-@return	a lower limit for the combined size in bytes of entries which will be merged from ibuf trees to the pages read, 0 if ibuf is empty */
+@return a lower limit for the combined size in bytes of entries which
+will be merged from ibuf trees to the pages read, 0 if ibuf is
+empty */
 UNIV_INTERN
 ulint
 ibuf_contract_for_n_pages(
@@ -325,7 +332,8 @@ ibuf_parse_bitmap_init(
 #ifdef UNIV_IBUF_COUNT_DEBUG
 /**********************************************************************
 Gets the ibuf count for a given page.
-@return	number of entries in the insert buffer currently buffered for this page */
+@return number of entries in the insert buffer currently buffered for
+this page */
 UNIV_INTERN
 ulint
 ibuf_count_get(

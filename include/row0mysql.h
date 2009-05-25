@@ -50,7 +50,8 @@ row_mysql_prebuilt_free_blob_heap(
 /***********************************************************************
 Stores a >= 5.0.3 format true VARCHAR length to dest, in the MySQL row
 format.
-@return	pointer to the data, we skip the 1 or 2 bytes at the start that are used to store the len */
+@return pointer to the data, we skip the 1 or 2 bytes at the start
+that are used to store the len */
 UNIV_INTERN
 byte*
 row_mysql_store_true_var_len(
@@ -61,8 +62,9 @@ row_mysql_store_true_var_len(
 /***********************************************************************
 Reads a >= 5.0.3 format true VARCHAR length, in the MySQL row format, and
 returns a pointer to the data.
-@return	pointer to the data, we skip the 1 or 2 bytes at the start that are used to store the len */
-
+@return pointer to the data, we skip the 1 or 2 bytes at the start
+that are used to store the len */
+UNIV_INTERN
 const byte*
 row_mysql_read_true_varchar(
 /*========================*/
@@ -90,7 +92,7 @@ row_mysql_store_blob_ref(
 /***********************************************************************
 Reads a reference to a BLOB in the MySQL format.
 @return	pointer to BLOB data */
-
+UNIV_INTERN
 const byte*
 row_mysql_read_blob_ref(
 /*====================*/
@@ -135,7 +137,8 @@ row_mysql_store_col_in_innobase_format(
 	ulint		comp);		/*!< in: nonzero=compact format */
 /********************************************************************
 Handles user errors and lock waits detected by the database engine.
-@return	TRUE if it was a lock wait and we should continue running the query thread */
+@return TRUE if it was a lock wait and we should continue running the
+query thread */
 UNIV_INTERN
 ibool
 row_mysql_handle_errors(

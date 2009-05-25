@@ -227,7 +227,9 @@ que_node_get_parent(
 /**************************************************************************
 Checks if graph, trx, or session is in a state where the query thread should
 be stopped.
-@return	TRUE if should be stopped; NOTE that if the peek is made without reserving the kernel mutex, then another peek with the mutex reserved is necessary before deciding the actual stopping */
+@return TRUE if should be stopped; NOTE that if the peek is made
+without reserving the kernel mutex, then another peek with the mutex
+reserved is necessary before deciding the actual stopping */
 UNIV_INLINE
 ibool
 que_thr_peek_stop(

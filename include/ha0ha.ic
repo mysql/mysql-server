@@ -98,7 +98,8 @@ ha_chain_get_first(
 
 /*****************************************************************
 Looks for an element in a hash table.
-@return	pointer to the first hash table node in chain having the fold number, NULL if not found */
+@return pointer to the first hash table node in chain having the fold
+number, NULL if not found */
 UNIV_INLINE
 ha_node_t*
 ha_search(
@@ -126,7 +127,8 @@ ha_search(
 
 /*****************************************************************
 Looks for an element in a hash table.
-@return	pointer to the data of the first hash table node in chain having the fold number, NULL if not found */
+@return pointer to the data of the first hash table node in chain
+having the fold number, NULL if not found */
 UNIV_INLINE
 void*
 ha_search_and_get_data(

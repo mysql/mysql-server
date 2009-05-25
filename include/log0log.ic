@@ -135,7 +135,8 @@ log_block_set_data_len(
 
 /****************************************************************
 Gets a log block first mtr log record group offset.
-@return	first mtr log record group byte offset from the block start, 0 if none */
+@return first mtr log record group byte offset from the block start, 0
+if none */
 UNIV_INLINE
 ulint
 log_block_get_first_rec_group(

@@ -252,7 +252,9 @@ Tries to update a record on a page in an index tree. It is assumed that mtr
 holds an x-latch on the page. The operation does not succeed if there is too
 little space on the page or if the update would result in too empty a page,
 so that tree compression is recommended.
-@return	DB_SUCCESS, or DB_OVERFLOW if the updated record does not fit, DB_UNDERFLOW if the page would become too empty, or DB_ZIP_OVERFLOW if there is not enough space left on the compressed page */
+@return DB_SUCCESS, or DB_OVERFLOW if the updated record does not fit,
+DB_UNDERFLOW if the page would become too empty, or DB_ZIP_OVERFLOW if
+there is not enough space left on the compressed page */
 UNIV_INTERN
 ulint
 btr_cur_optimistic_update(
@@ -540,7 +542,8 @@ btr_free_externally_stored_field(
 /***********************************************************************
 Copies the prefix of an externally stored field of a record.  The
 clustered index record must be protected by a lock or a page latch.
-@return	the length of the copied field, or 0 if the column is being or has been deleted */
+@return the length of the copied field, or 0 if the column was being
+or has been deleted */
 UNIV_INTERN
 ulint
 btr_copy_externally_stored_field_prefix(

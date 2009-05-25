@@ -94,7 +94,8 @@ trx_sys_mark_upgraded_to_multiple_tablespaces(void);
 /*===============================================*/
 /********************************************************************
 Determines if a page number is located inside the doublewrite buffer.
-@return	TRUE if the location is inside the two blocks of the doublewrite buffer */
+@return TRUE if the location is inside the two blocks of the
+doublewrite buffer */
 UNIV_INTERN
 ibool
 trx_doublewrite_page_inside(

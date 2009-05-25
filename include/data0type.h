@@ -315,7 +315,8 @@ dtype_get_len(
 #ifndef UNIV_HOTBACKUP
 /*************************************************************************
 Gets the minimum length of a character, in bytes.
-@return	minimum length of a char, in bytes, or 0 if this is not a character type */
+@return minimum length of a char, in bytes, or 0 if this is not a
+character type */
 UNIV_INLINE
 ulint
 dtype_get_mbminlen(
@@ -323,7 +324,8 @@ dtype_get_mbminlen(
 	const dtype_t*	type);	/*!< in: type */
 /*************************************************************************
 Gets the maximum length of a character, in bytes.
-@return	maximum length of a char, in bytes, or 0 if this is not a character type */
+@return maximum length of a char, in bytes, or 0 if this is not a
+character type */
 UNIV_INLINE
 ulint
 dtype_get_mbmaxlen(

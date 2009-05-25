@@ -314,7 +314,8 @@ fil_get_space_id_for_table(
 Reads data from a space to a buffer. Remember that the possible incomplete
 blocks at the end of file are ignored: they are not taken into account when
 calculating the byte offset within a space.
-@return	DB_SUCCESS, or DB_TABLESPACE_DELETED if we are trying to do i/o on a tablespace which does not exist */
+@return DB_SUCCESS, or DB_TABLESPACE_DELETED if we are trying to do
+i/o on a tablespace which does not exist */
 UNIV_INLINE
 ulint
 fil_read(
@@ -342,7 +343,8 @@ fil_read(
 Writes data to a space from a buffer. Remember that the possible incomplete
 blocks at the end of file are ignored: they are not taken into account when
 calculating the byte offset within a space.
-@return	DB_SUCCESS, or DB_TABLESPACE_DELETED if we are trying to do i/o on a tablespace which does not exist */
+@return DB_SUCCESS, or DB_TABLESPACE_DELETED if we are trying to do
+i/o on a tablespace which does not exist */
 UNIV_INLINE
 ulint
 fil_write(
@@ -412,7 +414,8 @@ fil_space_get_by_name(
 #ifndef UNIV_HOTBACKUP
 /***********************************************************************
 Returns the version number of a tablespace, -1 if not found.
-@return	version number, -1 if the tablespace does not exist in the memory cache */
+@return version number, -1 if the tablespace does not exist in the
+memory cache */
 UNIV_INTERN
 ib_int64_t
 fil_space_get_version(
@@ -793,7 +796,11 @@ fil_node_close_file(
 /************************************************************************
 Tries to close a file in the LRU list. The caller must hold the fil_sys
 mutex.
-@return	TRUE if success, FALSE if should retry later; since i/o's generally complete in < 100 ms, and as InnoDB writes at most 128 pages from the buffer pool in a batch, and then immediately flushes the files, there is a good chance that the next time we find a suitable node from the LRU list */
+@return TRUE if success, FALSE if should retry later; since i/o's
+generally complete in < 100 ms, and as InnoDB writes at most 128 pages
+from the buffer pool in a batch, and then immediately flushes the
+files, there is a good chance that the next time we find a suitable
+node from the LRU list */
 static
 ibool
 fil_try_to_close_file_in_LRU(
@@ -1921,7 +1928,8 @@ created does not exist, then we create the directory, too.
 
 Note that ibbackup --apply-log sets fil_path_to_mysql_datadir to point to the
 datadir that we should use in replaying the file operations.
-@return	end of log record, or NULL if the record was not completely contained between ptr and end_ptr */
+@return end of log record, or NULL if the record was not completely
+contained between ptr and end_ptr */
 UNIV_INTERN
 byte*
 fil_op_log_parse_or_replay(
@@ -3298,7 +3306,8 @@ func_exit:
 A fault-tolerant function that tries to read the next file name in the
 directory. We retry 100 times if os_file_readdir_next_file() returns -1. The
 idea is to read as much good data as we can and jump over bad data.
-@return	0 if ok, -1 if error even after the retries, 1 if at the end of the directory */
+@return 0 if ok, -1 if error even after the retries, 1 if at the end
+of the directory */
 static
 int
 fil_file_readdir_next_file(
@@ -4137,7 +4146,8 @@ fil_report_invalid_page_access(
 
 /************************************************************************
 Reads or writes data. This operation is asynchronous (aio).
-@return	DB_SUCCESS, or DB_TABLESPACE_DELETED if we are trying to do i/o on a tablespace which does not exist */
+@return DB_SUCCESS, or DB_TABLESPACE_DELETED if we are trying to do
+i/o on a tablespace which does not exist */
 UNIV_INTERN
 ulint
 fil_io(
@@ -4702,7 +4712,8 @@ fil_page_set_type(
 
 /*************************************************************************
 Gets the file page type.
-@return	type; NOTE that if the type has not been written to page, the return value not defined */
+@return type; NOTE that if the type has not been written to page, the
+return value not defined */
 UNIV_INTERN
 ulint
 fil_page_get_type(

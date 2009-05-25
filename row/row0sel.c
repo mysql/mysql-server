@@ -130,7 +130,8 @@ are alphabetically the same as the corresponding columns in the clustered
 index record.
 NOTE: the comparison is NOT done as a binary comparison, but character
 fields are compared with collation!
-@return	TRUE if the secondary record is equal to the corresponding fields in the clustered record, when compared with collation */
+@return TRUE if the secondary record is equal to the corresponding
+fields in the clustered record, when compared with collation */
 static
 ibool
 row_sel_sec_rec_is_for_clust_rec(
@@ -1049,7 +1050,10 @@ row_sel_open_pcur(
 
 /*************************************************************************
 Restores a stored pcur position to a table index.
-@return	TRUE if the cursor should be moved to the next record after we return from this function (moved to the previous, in the case of a descending cursor) without processing again the current cursor record */
+@return TRUE if the cursor should be moved to the next record after we
+return from this function (moved to the previous, in the case of a
+descending cursor) without processing again the current cursor
+record */
 static
 ibool
 row_sel_restore_pcur_pos(
@@ -2660,7 +2664,8 @@ Convert a row in the Innobase format to a row in the MySQL format.
 Note that the template in prebuilt may advise us to copy only a few
 columns to mysql_rec, other columns are left blank. All columns may not
 be needed in the query.
-@return	TRUE if success, FALSE if could not allocate memory for a BLOB (though we may also assert in that case) */
+@return TRUE if success, FALSE if could not allocate memory for a BLOB
+(though we may also assert in that case) */
 static
 ibool
 row_sel_store_mysql_rec(
@@ -3007,7 +3012,8 @@ err_exit:
 Restores cursor position after it has been stored. We have to take into
 account that the record cursor was positioned on may have been deleted.
 Then we may have to move the cursor one step up or down.
-@return	TRUE if we may need to process the record the cursor is now positioned on (i.e. we should not go to the next record yet) */
+@return TRUE if we may need to process the record the cursor is now
+positioned on (i.e. we should not go to the next record yet) */
 static
 ibool
 sel_restore_position_for_mysql(
@@ -3246,7 +3252,8 @@ MySQL. This function opens a cursor, and also implements fetch next
 and fetch prev. NOTE that if we do a search with a full key value
 from a unique index (ROW_SEL_EXACT), then we will not store the cursor
 position and fetch next or fetch prev must not be tried to the cursor!
-@return	DB_SUCCESS, DB_RECORD_NOT_FOUND, DB_END_OF_INDEX, DB_DEADLOCK, DB_LOCK_TABLE_FULL, DB_CORRUPTION, or DB_TOO_BIG_RECORD */
+@return DB_SUCCESS, DB_RECORD_NOT_FOUND, DB_END_OF_INDEX, DB_DEADLOCK,
+DB_LOCK_TABLE_FULL, DB_CORRUPTION, or DB_TOO_BIG_RECORD */
 UNIV_INTERN
 ulint
 row_search_for_mysql(
@@ -4662,7 +4669,8 @@ row_search_autoinc_get_rec(
 
 /***********************************************************************
 Read the max AUTOINC value from an index.
-@return	DB_SUCCESS if all OK else error code, DB_RECORD_NOT_FOUND if column name can't be found in index */
+@return DB_SUCCESS if all OK else error code, DB_RECORD_NOT_FOUND if
+column name can't be found in index */
 UNIV_INTERN
 ulint
 row_search_max_autoinc(

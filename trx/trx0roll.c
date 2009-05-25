@@ -231,7 +231,8 @@ which are stored in memory. If a lock is 'implicit', that is, a new inserted
 row holds a lock where the lock information is carried by the trx id stored in
 the row, these locks are naturally released in the rollback. Savepoints which
 were set after this savepoint are deleted.
-@return	if no savepoint of the name found then DB_NO_SAVEPOINT, otherwise DB_SUCCESS */
+@return if no savepoint of the name found then DB_NO_SAVEPOINT,
+otherwise DB_SUCCESS */
 UNIV_INTERN
 ulint
 trx_rollback_to_savepoint_for_mysql(
@@ -352,7 +353,8 @@ trx_savepoint_for_mysql(
 /***********************************************************************
 Releases only the named savepoint. Savepoints which were set after this
 savepoint are left as is.
-@return	if no savepoint of the name found then DB_NO_SAVEPOINT, otherwise DB_SUCCESS */
+@return if no savepoint of the name found then DB_NO_SAVEPOINT,
+otherwise DB_SUCCESS */
 UNIV_INTERN
 ulint
 trx_release_savepoint_for_mysql(
@@ -379,7 +381,8 @@ trx_release_savepoint_for_mysql(
 /***********************************************************************
 Determines if this transaction is rolling back an incomplete transaction
 in crash recovery.
-@return	TRUE if trx is an incomplete transaction that is being rolled back in crash recovery */
+@return TRUE if trx is an incomplete transaction that is being rolled
+back in crash recovery */
 UNIV_INTERN
 ibool
 trx_is_recv(
@@ -869,7 +872,8 @@ as a single stack of records ordered by their undo numbers. Inserts the
 undo number of the popped undo record to the array of currently processed
 undo numbers in the transaction. When the query thread finishes processing
 of this undo record, it must be released with trx_undo_rec_release.
-@return	undo log record copied to heap, NULL if none left, or if the undo number of the top record would be less than the limit */
+@return undo log record copied to heap, NULL if none left, or if the
+undo number of the top record would be less than the limit */
 UNIV_INTERN
 trx_undo_rec_t*
 trx_roll_pop_top_rec_of_trx(

@@ -315,7 +315,8 @@ mem_heap_printf(
 
 /*******************************************************************
 Creates a memory heap block where data can be allocated.
-@return	own: memory heap block, NULL if did not succeed (only possible for MEM_HEAP_BTR_SEARCH type heaps) */
+@return own: memory heap block, NULL if did not succeed (only possible
+for MEM_HEAP_BTR_SEARCH type heaps) */
 UNIV_INTERN
 mem_block_t*
 mem_heap_create_block(
@@ -409,7 +410,8 @@ mem_heap_create_block(
 
 /*******************************************************************
 Adds a new block to a memory heap.
-@return	created block, NULL if did not succeed (only possible for MEM_HEAP_BTR_SEARCH type heaps) */
+@return created block, NULL if did not succeed (only possible for
+MEM_HEAP_BTR_SEARCH type heaps) */
 UNIV_INTERN
 mem_block_t*
 mem_heap_add_block(
