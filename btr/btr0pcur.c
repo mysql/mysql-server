@@ -33,12 +33,12 @@ Created 2/23/1996 Heikki Tuuri
 #include "trx0trx.h"
 
 /******************************************************************
-Allocates memory for a persistent cursor object and initializes the cursor. */
+Allocates memory for a persistent cursor object and initializes the cursor.
+@return	own: persistent cursor */
 UNIV_INTERN
 btr_pcur_t*
 btr_pcur_create_for_mysql(void)
 /*============================*/
-				/* out, own: persistent cursor */
 {
 	btr_pcur_t*	pcur;
 
@@ -56,7 +56,7 @@ UNIV_INTERN
 void
 btr_pcur_free_for_mysql(
 /*====================*/
-	btr_pcur_t*	cursor)	/* in, own: persistent cursor */
+	btr_pcur_t*	cursor)	/*!< in, own: persistent cursor */
 {
 	if (cursor->old_rec_buf != NULL) {
 
@@ -87,8 +87,8 @@ UNIV_INTERN
 void
 btr_pcur_store_position(
 /*====================*/
-	btr_pcur_t*	cursor, /* in: persistent cursor */
-	mtr_t*		mtr)	/* in: mtr */
+	btr_pcur_t*	cursor, /*!< in: persistent cursor */
+	mtr_t*		mtr)	/*!< in: mtr */
 {
 	page_cur_t*	page_cursor;
 	buf_block_t*	block;
@@ -163,9 +163,9 @@ UNIV_INTERN
 void
 btr_pcur_copy_stored_position(
 /*==========================*/
-	btr_pcur_t*	pcur_receive,	/* in: pcur which will receive the
+	btr_pcur_t*	pcur_receive,	/*!< in: pcur which will receive the
 					position info */
-	btr_pcur_t*	pcur_donate)	/* in: pcur from which the info is
+	btr_pcur_t*	pcur_donate)	/*!< in: pcur from which the info is
 					copied */
 {
 	if (pcur_receive->old_rec_buf) {
@@ -198,19 +198,15 @@ infimum;
 (3) cursor was positioned on the page supremum: restores to the first record
 GREATER than the user record which was the predecessor of the supremum.
 (4) cursor was positioned before the first or after the last in an empty tree:
-restores to before first or after the last in the tree. */
+restores to before first or after the last in the tree.
+@return	TRUE if the cursor position was stored when it was on a user record and it can be restored on a user record whose ordering fields are identical to the ones of the original user record */
 UNIV_INTERN
 ibool
 btr_pcur_restore_position(
 /*======================*/
-					/* out: TRUE if the cursor position
-					was stored when it was on a user record
-					and it can be restored on a user record
-					whose ordering fields are identical to
-					the ones of the original user record */
-	ulint		latch_mode,	/* in: BTR_SEARCH_LEAF, ... */
-	btr_pcur_t*	cursor,		/* in: detached persistent cursor */
-	mtr_t*		mtr)		/* in: mtr */
+	ulint		latch_mode,	/*!< in: BTR_SEARCH_LEAF, ... */
+	btr_pcur_t*	cursor,		/*!< in: detached persistent cursor */
+	mtr_t*		mtr)		/*!< in: mtr */
 {
 	dict_index_t*	index;
 	dtuple_t*	tuple;
@@ -361,8 +357,8 @@ UNIV_INTERN
 void
 btr_pcur_release_leaf(
 /*==================*/
-	btr_pcur_t*	cursor, /* in: persistent cursor */
-	mtr_t*		mtr)	/* in: mtr */
+	btr_pcur_t*	cursor, /*!< in: persistent cursor */
+	mtr_t*		mtr)	/*!< in: mtr */
 {
 	buf_block_t*	block;
 
@@ -387,9 +383,9 @@ UNIV_INTERN
 void
 btr_pcur_move_to_next_page(
 /*=======================*/
-	btr_pcur_t*	cursor,	/* in: persistent cursor; must be on the
+	btr_pcur_t*	cursor,	/*!< in: persistent cursor; must be on the
 				last record of the current page */
-	mtr_t*		mtr)	/* in: mtr */
+	mtr_t*		mtr)	/*!< in: mtr */
 {
 	ulint		next_page_no;
 	ulint		space;
@@ -442,9 +438,9 @@ UNIV_INTERN
 void
 btr_pcur_move_backward_from_page(
 /*=============================*/
-	btr_pcur_t*	cursor,	/* in: persistent cursor, must be on the first
+	btr_pcur_t*	cursor,	/*!< in: persistent cursor, must be on the first
 				record of the current page */
-	mtr_t*		mtr)	/* in: mtr */
+	mtr_t*		mtr)	/*!< in: mtr */
 {
 	ulint		prev_page_no;
 	ulint		space;
@@ -513,16 +509,15 @@ btr_pcur_move_backward_from_page(
 
 /*************************************************************
 Moves the persistent cursor to the previous record in the tree. If no records
-are left, the cursor stays 'before first in tree'. */
+are left, the cursor stays 'before first in tree'.
+@return	TRUE if the cursor was not before first in tree */
 UNIV_INTERN
 ibool
 btr_pcur_move_to_prev(
 /*==================*/
-				/* out: TRUE if the cursor was not before first
-				in tree */
-	btr_pcur_t*	cursor,	/* in: persistent cursor; NOTE that the
+	btr_pcur_t*	cursor,	/*!< in: persistent cursor; NOTE that the
 				function may release the page latch */
-	mtr_t*		mtr)	/* in: mtr */
+	mtr_t*		mtr)	/*!< in: mtr */
 {
 	ut_ad(cursor->pos_state == BTR_PCUR_IS_POSITIONED);
 	ut_ad(cursor->latch_mode != BTR_NO_LATCHES);
@@ -557,14 +552,14 @@ UNIV_INTERN
 void
 btr_pcur_open_on_user_rec(
 /*======================*/
-	dict_index_t*	index,		/* in: index */
-	const dtuple_t*	tuple,		/* in: tuple on which search done */
-	ulint		mode,		/* in: PAGE_CUR_L, ... */
-	ulint		latch_mode,	/* in: BTR_SEARCH_LEAF or
+	dict_index_t*	index,		/*!< in: index */
+	const dtuple_t*	tuple,		/*!< in: tuple on which search done */
+	ulint		mode,		/*!< in: PAGE_CUR_L, ... */
+	ulint		latch_mode,	/*!< in: BTR_SEARCH_LEAF or
 					BTR_MODIFY_LEAF */
-	btr_pcur_t*	cursor,		/* in: memory buffer for persistent
+	btr_pcur_t*	cursor,		/*!< in: memory buffer for persistent
 					cursor */
-	mtr_t*		mtr)		/* in: mtr */
+	mtr_t*		mtr)		/*!< in: mtr */
 {
 	btr_pcur_open(index, tuple, mode, latch_mode, cursor, mtr);
 

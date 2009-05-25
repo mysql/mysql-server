@@ -47,13 +47,13 @@ Created 2/25/1997 Heikki Tuuri
 
 /*******************************************************************
 Removes a clustered index record. The pcur in node was positioned on the
-record, now it is detached. */
+record, now it is detached.
+@return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 static
 ulint
 row_undo_ins_remove_clust_rec(
 /*==========================*/
-				/* out: DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-	undo_node_t*	node)	/* in: undo node */
+	undo_node_t*	node)	/*!< in: undo node */
 {
 	btr_cur_t*	btr_cur;
 	ibool		success;
@@ -132,18 +132,17 @@ retry:
 }
 
 /*******************************************************************
-Removes a secondary index entry if found. */
+Removes a secondary index entry if found.
+@return	DB_SUCCESS, DB_FAIL, or DB_OUT_OF_FILE_SPACE */
 static
 ulint
 row_undo_ins_remove_sec_low(
 /*========================*/
-				/* out: DB_SUCCESS, DB_FAIL, or
-				DB_OUT_OF_FILE_SPACE */
-	ulint		mode,	/* in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE,
+	ulint		mode,	/*!< in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE,
 				depending on whether we wish optimistic or
 				pessimistic descent down the index tree */
-	dict_index_t*	index,	/* in: index */
-	dtuple_t*	entry)	/* in: index entry to remove */
+	dict_index_t*	index,	/*!< in: index */
+	dtuple_t*	entry)	/*!< in: index entry to remove */
 {
 	btr_pcur_t		pcur;
 	btr_cur_t*		btr_cur;
@@ -200,14 +199,14 @@ func_exit:
 
 /*******************************************************************
 Removes a secondary index entry from the index if found. Tries first
-optimistic, then pessimistic descent down the tree. */
+optimistic, then pessimistic descent down the tree.
+@return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 static
 ulint
 row_undo_ins_remove_sec(
 /*====================*/
-				/* out: DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-	dict_index_t*	index,	/* in: index */
-	dtuple_t*	entry)	/* in: index entry to insert */
+	dict_index_t*	index,	/*!< in: index */
+	dtuple_t*	entry)	/*!< in: index entry to insert */
 {
 	ulint	err;
 	ulint	n_tries	= 0;
@@ -247,7 +246,7 @@ static
 void
 row_undo_ins_parse_undo_rec(
 /*========================*/
-	undo_node_t*	node)	/* in/out: row undo node */
+	undo_node_t*	node)	/*!< in/out: row undo node */
 {
 	dict_index_t*	clust_index;
 	byte*		ptr;
@@ -295,13 +294,13 @@ Undoes a fresh insert of a row to a table. A fresh insert means that
 the same clustered index unique key did not have any record, even delete
 marked, at the time of the insert.  InnoDB is eager in a rollback:
 if it figures out that an index record will be removed in the purge
-anyway, it will remove it in the rollback. */
+anyway, it will remove it in the rollback.
+@return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 UNIV_INTERN
 ulint
 row_undo_ins(
 /*=========*/
-				/* out: DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-	undo_node_t*	node)	/* in: row undo node */
+	undo_node_t*	node)	/*!< in: row undo node */
 {
 	ut_ad(node);
 	ut_ad(node->state == UNDO_NODE_INSERT);

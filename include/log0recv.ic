@@ -25,12 +25,12 @@ Created 9/20/1997 Heikki Tuuri
 #include "univ.i"
 
 /***********************************************************************
-Returns TRUE if recovery is currently running. */
+Returns TRUE if recovery is currently running.
+@return	recv_recovery_on */
 UNIV_INLINE
 ibool
 recv_recovery_is_on(void)
 /*=====================*/
-				/* out: recv_recovery_on */
 {
 	return(UNIV_UNLIKELY(recv_recovery_on));
 }
@@ -39,12 +39,12 @@ recv_recovery_is_on(void)
 extern ibool	recv_recovery_from_backup_on;
 
 /***********************************************************************
-Returns TRUE if recovery from backup is currently running. */
+Returns TRUE if recovery from backup is currently running.
+@return	recv_recovery_from_backup_on */
 UNIV_INLINE
 ibool
 recv_recovery_from_backup_is_on(void)
 /*=================================*/
-				/* out: recv_recovery_from_backup_on */
 {
 	return(recv_recovery_from_backup_on);
 }

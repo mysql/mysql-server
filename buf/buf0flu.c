@@ -45,25 +45,24 @@ Created 11/11/1995 Heikki Tuuri
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /**********************************************************************
-Validates the flush list. */
+Validates the flush list.
+@return	TRUE if ok */
 static
 ibool
 buf_flush_validate_low(void);
 /*========================*/
-		/* out: TRUE if ok */
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
 /**********************************************************************
 Insert a block in the flush_rbt and returns a pointer to its
 predecessor or NULL if no predecessor. The ordering is maintained
-on the basis of the <oldest_modification, space, offset> key. */
+on the basis of the <oldest_modification, space, offset> key.
+@return	pointer to the predecessor or NULL if no predecessor. */
 static
 buf_page_t*
 buf_flush_insert_in_flush_rbt(
 /*==========================*/
-				/* out: pointer to the predecessor or
-				NULL if no predecessor. */
-	buf_page_t*	bpage)	/* in: bpage to be inserted. */
+	buf_page_t*	bpage)	/*!< in: bpage to be inserted. */
 {
 	buf_page_t*		prev = NULL;
 	const ib_rbt_node_t*	c_node;
@@ -92,7 +91,7 @@ static
 void
 buf_flush_delete_from_flush_rbt(
 /*============================*/
-	buf_page_t*	bpage)	/* in: bpage to be removed. */
+	buf_page_t*	bpage)	/*!< in: bpage to be removed. */
 {
 
 	ibool	ret = FALSE;
@@ -110,17 +109,14 @@ This comparison is used to maintian ordering of blocks in the
 buf_pool->flush_rbt.
 Note that for the purpose of flush_rbt, we only need to order blocks
 on the oldest_modification. The other two fields are used to uniquely
-identify the blocks. */
+identify the blocks.
+@return	 < 0 if b2 < b1, 0 if b2 == b1, > 0 if b2 > b1 */
 static
 int
 buf_flush_block_cmp(
 /*================*/
-					/* out:
-					< 0 if b2 < b1,
-					0 if b2 == b1,
-					> 0 if b2 > b1 */
-	const void*	p1,		/* in: block1 */
-	const void*	p2)		/* in: block2 */
+	const void*	p1,		/*!< in: block1 */
+	const void*	p2)		/*!< in: block2 */
 {
 	int		ret;
 
@@ -195,7 +191,7 @@ UNIV_INTERN
 void
 buf_flush_insert_into_flush_list(
 /*=============================*/
-	buf_block_t*	block)	/* in/out: block which is modified */
+	buf_block_t*	block)	/*!< in/out: block which is modified */
 {
 	ut_ad(buf_pool_mutex_own());
 	ut_ad((UT_LIST_GET_FIRST(buf_pool->flush_list) == NULL)
@@ -230,7 +226,7 @@ UNIV_INTERN
 void
 buf_flush_insert_sorted_into_flush_list(
 /*====================================*/
-	buf_block_t*	block)	/* in/out: block which is modified */
+	buf_block_t*	block)	/*!< in/out: block which is modified */
 {
 	buf_page_t*	prev_b;
 	buf_page_t*	b;
@@ -282,13 +278,13 @@ buf_flush_insert_sorted_into_flush_list(
 
 /************************************************************************
 Returns TRUE if the file page block is immediately suitable for replacement,
-i.e., the transition FILE_PAGE => NOT_USED allowed. */
+i.e., the transition FILE_PAGE => NOT_USED allowed.
+@return	TRUE if can replace immediately */
 UNIV_INTERN
 ibool
 buf_flush_ready_for_replace(
 /*========================*/
-				/* out: TRUE if can replace immediately */
-	buf_page_t*	bpage)	/* in: buffer control block, must be
+	buf_page_t*	bpage)	/*!< in: buffer control block, must be
 				buf_page_in_file(bpage) and in the LRU list */
 {
 	ut_ad(buf_pool_mutex_own());
@@ -314,15 +310,15 @@ buf_flush_ready_for_replace(
 }
 
 /************************************************************************
-Returns TRUE if the block is modified and ready for flushing. */
+Returns TRUE if the block is modified and ready for flushing.
+@return	TRUE if can flush immediately */
 UNIV_INLINE
 ibool
 buf_flush_ready_for_flush(
 /*======================*/
-				/* out: TRUE if can flush immediately */
-	buf_page_t*	bpage,	/* in: buffer control block, must be
+	buf_page_t*	bpage,	/*!< in: buffer control block, must be
 				buf_page_in_file(bpage) */
-	enum buf_flush	flush_type)/* in: BUF_FLUSH_LRU or BUF_FLUSH_LIST */
+	enum buf_flush	flush_type)/*!< in: BUF_FLUSH_LRU or BUF_FLUSH_LIST */
 {
 	ut_a(buf_page_in_file(bpage));
 	ut_ad(buf_pool_mutex_own());
@@ -356,7 +352,7 @@ UNIV_INTERN
 void
 buf_flush_remove(
 /*=============*/
-	buf_page_t*	bpage)	/* in: pointer to the block in question */
+	buf_page_t*	bpage)	/*!< in: pointer to the block in question */
 {
 	ut_ad(buf_pool_mutex_own());
 	ut_ad(mutex_own(buf_page_get_mutex(bpage)));
@@ -405,8 +401,8 @@ UNIV_INTERN
 void
 buf_flush_relocate_on_flush_list(
 /*=============================*/
-	buf_page_t*	bpage,	/* in/out: control block being moved */
-	buf_page_t*	dpage)	/* in/out: destination block */
+	buf_page_t*	bpage,	/*!< in/out: control block being moved */
+	buf_page_t*	dpage)	/*!< in/out: destination block */
 {
 	buf_page_t* prev;
 	buf_page_t* prev_b = NULL;
@@ -460,7 +456,7 @@ UNIV_INTERN
 void
 buf_flush_write_complete(
 /*=====================*/
-	buf_page_t*	bpage)	/* in: pointer to the block in question */
+	buf_page_t*	bpage)	/*!< in: pointer to the block in question */
 {
 	enum buf_flush	flush_type;
 
@@ -747,7 +743,7 @@ static
 void
 buf_flush_post_to_doublewrite_buf(
 /*==============================*/
-	buf_page_t*	bpage)	/* in: buffer block to write */
+	buf_page_t*	bpage)	/*!< in: buffer block to write */
 {
 	ulint	zip_size;
 try_again:
@@ -805,9 +801,9 @@ UNIV_INTERN
 void
 buf_flush_init_for_writing(
 /*=======================*/
-	byte*		page,		/* in/out: page */
-	void*		page_zip_,	/* in/out: compressed page, or NULL */
-	ib_uint64_t	newest_lsn)	/* in: newest modification lsn
+	byte*		page,		/*!< in/out: page */
+	void*		page_zip_,	/*!< in/out: compressed page, or NULL */
+	ib_uint64_t	newest_lsn)	/*!< in: newest modification lsn
 					to the page */
 {
 	ut_ad(page);
@@ -886,7 +882,7 @@ static
 void
 buf_flush_write_block_low(
 /*======================*/
-	buf_page_t*	bpage)	/* in: buffer block to write */
+	buf_page_t*	bpage)	/*!< in: buffer block to write */
 {
 	ulint	zip_size	= buf_page_get_zip_size(bpage);
 	page_t*	frame		= NULL;
@@ -977,8 +973,8 @@ static
 void
 buf_flush_page(
 /*===========*/
-	buf_page_t*	bpage,		/* in: buffer control block */
-	enum buf_flush	flush_type)	/* in: BUF_FLUSH_LRU
+	buf_page_t*	bpage,		/*!< in: buffer control block */
+	enum buf_flush	flush_type)	/*!< in: BUF_FLUSH_LRU
 					or BUF_FLUSH_LIST */
 {
 	mutex_t*	block_mutex;
@@ -1081,15 +1077,15 @@ buf_flush_page(
 }
 
 /***************************************************************
-Flushes to disk all flushable pages within the flush area. */
+Flushes to disk all flushable pages within the flush area.
+@return	number of pages flushed */
 static
 ulint
 buf_flush_try_neighbors(
 /*====================*/
-					/* out: number of pages flushed */
-	ulint		space,		/* in: space id */
-	ulint		offset,		/* in: page offset */
-	enum buf_flush	flush_type)	/* in: BUF_FLUSH_LRU or
+	ulint		space,		/*!< in: space id */
+	ulint		offset,		/*!< in: page offset */
+	enum buf_flush	flush_type)	/*!< in: BUF_FLUSH_LRU or
 					BUF_FLUSH_LIST */
 {
 	buf_page_t*	bpage;
@@ -1176,23 +1172,20 @@ This utility flushes dirty blocks from the end of the LRU list or flush_list.
 NOTE 1: in the case of an LRU flush the calling thread may own latches to
 pages: to avoid deadlocks, this function must be written so that it cannot
 end up waiting for these latches! NOTE 2: in the case of a flush list flush,
-the calling thread is not allowed to own any latches on pages! */
+the calling thread is not allowed to own any latches on pages!
+@return	number of blocks for which the write request was queued; ULINT_UNDEFINED if there was a flush of the same type already running */
 UNIV_INTERN
 ulint
 buf_flush_batch(
 /*============*/
-					/* out: number of blocks for which the
-					write request was queued;
-					ULINT_UNDEFINED if there was a flush
-					of the same type already running */
-	enum buf_flush	flush_type,	/* in: BUF_FLUSH_LRU or
+	enum buf_flush	flush_type,	/*!< in: BUF_FLUSH_LRU or
 					BUF_FLUSH_LIST; if BUF_FLUSH_LIST,
 					then the caller must not own any
 					latches on pages */
-	ulint		min_n,		/* in: wished minimum mumber of blocks
+	ulint		min_n,		/*!< in: wished minimum mumber of blocks
 					flushed (it is not guaranteed that the
 					actual number is that big, though) */
-	ib_uint64_t	lsn_limit)	/* in the case BUF_FLUSH_LIST all
+	ib_uint64_t	lsn_limit)	/*!< in the case BUF_FLUSH_LIST all
 					blocks whose oldest_modification is
 					smaller than this should be flushed
 					(if their number does not exceed
@@ -1335,7 +1328,7 @@ UNIV_INTERN
 void
 buf_flush_wait_batch_end(
 /*=====================*/
-	enum buf_flush	type)	/* in: BUF_FLUSH_LRU or BUF_FLUSH_LIST */
+	enum buf_flush	type)	/*!< in: BUF_FLUSH_LRU or BUF_FLUSH_LIST */
 {
 	ut_ad((type == BUF_FLUSH_LRU) || (type == BUF_FLUSH_LIST));
 
@@ -1345,13 +1338,12 @@ buf_flush_wait_batch_end(
 /**********************************************************************
 Gives a recommendation of how many blocks should be flushed to establish
 a big enough margin of replaceable blocks near the end of the LRU list
-and in the free list. */
+and in the free list.
+@return	number of blocks which should be flushed from the end of the LRU list */
 static
 ulint
 buf_flush_LRU_recommendation(void)
 /*==============================*/
-			/* out: number of blocks which should be flushed
-			from the end of the LRU list */
 {
 	buf_page_t*	bpage;
 	ulint		n_replaceable;
@@ -1423,12 +1415,12 @@ buf_flush_free_margin(void)
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /**********************************************************************
-Validates the flush list. */
+Validates the flush list.
+@return	TRUE if ok */
 static
 ibool
 buf_flush_validate_low(void)
 /*========================*/
-		/* out: TRUE if ok */
 {
 	buf_page_t*		bpage;
 	const ib_rbt_node_t*	rnode = NULL;
@@ -1473,12 +1465,12 @@ buf_flush_validate_low(void)
 }
 
 /**********************************************************************
-Validates the flush list. */
+Validates the flush list.
+@return	TRUE if ok */
 UNIV_INTERN
 ibool
 buf_flush_validate(void)
 /*====================*/
-		/* out: TRUE if ok */
 {
 	ibool	ret;
 

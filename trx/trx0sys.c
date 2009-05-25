@@ -121,14 +121,13 @@ or create a table. */
 static	file_format_t	file_format_max;
 
 /********************************************************************
-Determines if a page number is located inside the doublewrite buffer. */
+Determines if a page number is located inside the doublewrite buffer.
+@return	TRUE if the location is inside the two blocks of the doublewrite buffer */
 UNIV_INTERN
 ibool
 trx_doublewrite_page_inside(
 /*========================*/
-				/* out: TRUE if the location is inside
-				the two blocks of the doublewrite buffer */
-	ulint	page_no)	/* in: page number */
+	ulint	page_no)	/*!< in: page number */
 {
 	if (trx_doublewrite == NULL) {
 
@@ -156,7 +155,7 @@ static
 void
 trx_doublewrite_init(
 /*=================*/
-	byte*	doublewrite)	/* in: pointer to the doublewrite buf
+	byte*	doublewrite)	/*!< in: pointer to the doublewrite buf
 				header on trx sys page */
 {
 	trx_doublewrite = mem_alloc(sizeof(trx_doublewrite_t));
@@ -403,7 +402,7 @@ UNIV_INTERN
 void
 trx_sys_doublewrite_init_or_restore_pages(
 /*======================================*/
-	ibool	restore_corrupt_pages)	/* in: TRUE=restore pages */
+	ibool	restore_corrupt_pages)	/*!< in: TRUE=restore pages */
 {
 	byte*	buf;
 	byte*	read_buf;
@@ -605,13 +604,13 @@ leave_func:
 }
 
 /********************************************************************
-Checks that trx is in the trx list. */
+Checks that trx is in the trx list.
+@return	TRUE if is in */
 UNIV_INTERN
 ibool
 trx_in_trx_list(
 /*============*/
-			/* out: TRUE if is in */
-	trx_t*	in_trx)	/* in: trx */
+	trx_t*	in_trx)	/*!< in: trx */
 {
 	trx_t*	trx;
 
@@ -662,11 +661,11 @@ UNIV_INTERN
 void
 trx_sys_update_mysql_binlog_offset(
 /*===============================*/
-	const char*	file_name,/* in: MySQL log file name */
-	ib_int64_t	offset,	/* in: position in that log file */
-	ulint		field,	/* in: offset of the MySQL log info field in
+	const char*	file_name,/*!< in: MySQL log file name */
+	ib_int64_t	offset,	/*!< in: position in that log file */
+	ulint		field,	/*!< in: offset of the MySQL log info field in
 				the trx sys header */
-	mtr_t*		mtr)	/* in: mtr */
+	mtr_t*		mtr)	/*!< in: mtr */
 {
 	trx_sysf_t*	sys_header;
 
@@ -819,13 +818,13 @@ trx_sys_print_mysql_master_log_pos(void)
 }
 
 /********************************************************************
-Looks for a free slot for a rollback segment in the trx system file copy. */
+Looks for a free slot for a rollback segment in the trx system file copy.
+@return	slot index or ULINT_UNDEFINED if not found */
 UNIV_INTERN
 ulint
 trx_sysf_rseg_find_free(
 /*====================*/
-			/* out: slot index or ULINT_UNDEFINED if not found */
-	mtr_t*	mtr)	/* in: mtr */
+	mtr_t*	mtr)	/*!< in: mtr */
 {
 	trx_sysf_t*	sys_header;
 	ulint		page_no;
@@ -855,7 +854,7 @@ static
 void
 trx_sysf_create(
 /*============*/
-	mtr_t*	mtr)	/* in: mtr */
+	mtr_t*	mtr)	/*!< in: mtr */
 {
 	trx_sysf_t*	sys_header;
 	ulint		slot_no;
@@ -1032,14 +1031,14 @@ trx_sys_create(void)
 }
 
 /*********************************************************************
-Update the file format tag. */
+Update the file format tag.
+@return	always TRUE */
 static
 ibool
 trx_sys_file_format_max_write(
 /*==========================*/
-					/* out: always TRUE */
-	ulint		format_id,	/* in: file format id */
-	const char**	name)		/* out: max file format name, can
+	ulint		format_id,	/*!< in: file format id */
+	const char**	name)		/*!< out: max file format name, can
 					be NULL */
 {
 	mtr_t		mtr;
@@ -1074,13 +1073,12 @@ trx_sys_file_format_max_write(
 }
 
 /*********************************************************************
-Read the file format tag. */
+Read the file format tag.
+@return	the file format or ULINT_UNDEFINED if not set. */
 static
 ulint
 trx_sys_file_format_max_read(void)
 /*==============================*/
-				/* out: the file format or
-				ULINT_UNDEFINED if not set. */
 {
 	mtr_t			mtr;
 	const byte*		ptr;
@@ -1113,13 +1111,13 @@ trx_sys_file_format_max_read(void)
 }
 
 /*********************************************************************
-Get the name representation of the file format from its id. */
+Get the name representation of the file format from its id.
+@return	pointer to the name */
 UNIV_INTERN
 const char*
 trx_sys_file_format_id_to_name(
 /*===========================*/
-				/* out: pointer to the name */
-	const ulint	id)	/* in: id of the file format */
+	const ulint	id)	/*!< in: id of the file format */
 {
 	ut_a(id < FILE_FORMAT_NAME_N);
 
@@ -1128,13 +1126,13 @@ trx_sys_file_format_id_to_name(
 
 /*********************************************************************
 Check for the max file format tag stored on disk. Note: If max_format_id
-is == DICT_TF_FORMAT_MAX + 1 then we only print a warning. */
+is == DICT_TF_FORMAT_MAX + 1 then we only print a warning.
+@return	DB_SUCCESS or error code */
 UNIV_INTERN
 ulint
 trx_sys_file_format_max_check(
 /*==========================*/
-				/* out: DB_SUCCESS or error code */
-	ulint	max_format_id)	/* in: max format id to check */
+	ulint	max_format_id)	/*!< in: max format id to check */
 {
 	ulint	format_id;
 
@@ -1182,14 +1180,14 @@ trx_sys_file_format_max_check(
 
 /*********************************************************************
 Set the file format id unconditionally except if it's already the
-same value. */
+same value.
+@return	TRUE if value updated */
 UNIV_INTERN
 ibool
 trx_sys_file_format_max_set(
 /*========================*/
-					/* out: TRUE if value updated */
-	ulint		format_id,	/* in: file format id */
-	const char**	name)		/* out: max file format name or
+	ulint		format_id,	/*!< in: file format id */
+	const char**	name)		/*!< out: max file format name or
 					NULL if not needed. */
 {
 	ibool		ret = FALSE;
@@ -1231,15 +1229,14 @@ trx_sys_file_format_tag_init(void)
 
 /************************************************************************
 Update the file format tag in the system tablespace only if the given
-format id is greater than the known max id. */
+format id is greater than the known max id.
+@return	TRUE if format_id was bigger than the known max id */
 UNIV_INTERN
 ibool
 trx_sys_file_format_max_upgrade(
 /*============================*/
-					/* out: TRUE if format_id was
-					bigger than the known max id */
-	const char**	name,		/* out: max file format name */
-	ulint		format_id)	/* in: file format identifier */
+	const char**	name,		/*!< out: max file format name */
+	ulint		format_id)	/*!< in: file format identifier */
 {
 	ibool		ret = FALSE;
 
@@ -1260,12 +1257,12 @@ trx_sys_file_format_max_upgrade(
 }
 
 /*********************************************************************
-Get the name representation of the file format from its id. */
+Get the name representation of the file format from its id.
+@return	pointer to the max format name */
 UNIV_INTERN
 const char*
 trx_sys_file_format_max_get(void)
 /*=============================*/
-				/* out: pointer to the max format name */
 {
 	return(file_format_max.name);
 }
@@ -1304,7 +1301,7 @@ UNIV_INTERN
 void
 trx_sys_print_mysql_binlog_offset_from_page(
 /*========================================*/
-	const byte*	page)	/* in: buffer containing the trx
+	const byte*	page)	/*!< in: buffer containing the trx
 				system header page, i.e., page number
 				TRX_SYS_PAGE_NO in the tablespace */
 {

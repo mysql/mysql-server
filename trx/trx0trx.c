@@ -56,8 +56,8 @@ UNIV_INTERN
 void
 trx_set_detailed_error(
 /*===================*/
-	trx_t*		trx,	/* in: transaction struct */
-	const char*	msg)	/* in: detailed error message */
+	trx_t*		trx,	/*!< in: transaction struct */
+	const char*	msg)	/*!< in: detailed error message */
 {
 	ut_strlcpy(trx->detailed_error, msg, sizeof(trx->detailed_error));
 }
@@ -69,21 +69,21 @@ UNIV_INTERN
 void
 trx_set_detailed_error_from_file(
 /*=============================*/
-	trx_t*	trx,	/* in: transaction struct */
-	FILE*	file)	/* in: file to read message from */
+	trx_t*	trx,	/*!< in: transaction struct */
+	FILE*	file)	/*!< in: file to read message from */
 {
 	os_file_read_string(file, trx->detailed_error,
 			    sizeof(trx->detailed_error));
 }
 
 /********************************************************************
-Creates and initializes a transaction object. */
+Creates and initializes a transaction object.
+@return	own: the transaction */
 UNIV_INTERN
 trx_t*
 trx_create(
 /*=======*/
-			/* out, own: the transaction */
-	sess_t*	sess)	/* in: session */
+	sess_t*	sess)	/*!< in: session */
 {
 	trx_t*	trx;
 
@@ -187,12 +187,12 @@ trx_create(
 }
 
 /************************************************************************
-Creates a transaction object for MySQL. */
+Creates a transaction object for MySQL.
+@return	own: transaction object */
 UNIV_INTERN
 trx_t*
 trx_allocate_for_mysql(void)
 /*========================*/
-				/* out, own: transaction object */
 {
 	trx_t*	trx;
 
@@ -214,12 +214,12 @@ trx_allocate_for_mysql(void)
 }
 
 /************************************************************************
-Creates a transaction object for background operations by the master thread. */
+Creates a transaction object for background operations by the master thread.
+@return	own: transaction object */
 UNIV_INTERN
 trx_t*
 trx_allocate_for_background(void)
 /*=============================*/
-				/* out, own: transaction object */
 {
 	trx_t*	trx;
 
@@ -238,7 +238,7 @@ UNIV_INTERN
 void
 trx_search_latch_release_if_reserved(
 /*=================================*/
-	trx_t*	   trx) /* in: transaction */
+	trx_t*	   trx) /*!< in: transaction */
 {
 	if (trx->has_search_latch) {
 		rw_lock_s_unlock(&btr_search_latch);
@@ -253,7 +253,7 @@ UNIV_INTERN
 void
 trx_free(
 /*=====*/
-	trx_t*	trx)	/* in, own: trx object */
+	trx_t*	trx)	/*!< in, own: trx object */
 {
 	ut_ad(mutex_own(&kernel_mutex));
 
@@ -339,7 +339,7 @@ UNIV_INTERN
 void
 trx_free_for_mysql(
 /*===============*/
-	trx_t*	trx)	/* in, own: trx object */
+	trx_t*	trx)	/*!< in, own: trx object */
 {
 	mutex_enter(&kernel_mutex);
 
@@ -360,7 +360,7 @@ UNIV_INTERN
 void
 trx_free_for_background(
 /*====================*/
-	trx_t*	trx)	/* in, own: trx object */
+	trx_t*	trx)	/*!< in, own: trx object */
 {
 	mutex_enter(&kernel_mutex);
 
@@ -378,7 +378,7 @@ static
 void
 trx_list_insert_ordered(
 /*====================*/
-	trx_t*	trx)	/* in: trx handle */
+	trx_t*	trx)	/*!< in: trx handle */
 {
 	trx_t*	trx2;
 
@@ -599,12 +599,12 @@ trx_lists_init_at_db_start(void)
 
 /**********************************************************************
 Assigns a rollback segment to a transaction in a round-robin fashion.
-Skips the SYSTEM rollback segment if another is available. */
+Skips the SYSTEM rollback segment if another is available.
+@return	assigned rollback segment id */
 UNIV_INLINE
 ulint
 trx_assign_rseg(void)
 /*=================*/
-			/* out: assigned rollback segment id */
 {
 	trx_rseg_t*	rseg	= trx_sys->latest_rseg;
 
@@ -632,14 +632,14 @@ loop:
 }
 
 /********************************************************************
-Starts a new transaction. */
+Starts a new transaction.
+@return	TRUE */
 UNIV_INTERN
 ibool
 trx_start_low(
 /*==========*/
-			/* out: TRUE */
-	trx_t*	trx,	/* in: transaction */
-	ulint	rseg_id)/* in: rollback segment id; if ULINT_UNDEFINED
+	trx_t*	trx,	/*!< in: transaction */
+	ulint	rseg_id)/*!< in: rollback segment id; if ULINT_UNDEFINED
 			is passed, the system chooses the rollback segment
 			automatically in a round-robin fashion */
 {
@@ -683,14 +683,14 @@ trx_start_low(
 }
 
 /********************************************************************
-Starts a new transaction. */
+Starts a new transaction.
+@return	TRUE */
 UNIV_INTERN
 ibool
 trx_start(
 /*======*/
-			/* out: TRUE */
-	trx_t*	trx,	/* in: transaction */
-	ulint	rseg_id)/* in: rollback segment id; if ULINT_UNDEFINED
+	trx_t*	trx,	/*!< in: transaction */
+	ulint	rseg_id)/*!< in: rollback segment id; if ULINT_UNDEFINED
 			is passed, the system chooses the rollback segment
 			automatically in a round-robin fashion */
 {
@@ -719,7 +719,7 @@ UNIV_INTERN
 void
 trx_commit_off_kernel(
 /*==================*/
-	trx_t*	trx)	/* in: transaction */
+	trx_t*	trx)	/*!< in: transaction */
 {
 	page_t*		update_hdr_page;
 	ib_uint64_t	lsn		= 0;
@@ -954,7 +954,7 @@ UNIV_INTERN
 void
 trx_cleanup_at_db_startup(
 /*======================*/
-	trx_t*	trx)	/* in: transaction */
+	trx_t*	trx)	/*!< in: transaction */
 {
 	if (trx->insert_undo != NULL) {
 
@@ -972,13 +972,13 @@ trx_cleanup_at_db_startup(
 /************************************************************************
 Assigns a read view for a consistent read query. All the consistent reads
 within the same transaction will get the same read view, which is created
-when this function is first called for a new started transaction. */
+when this function is first called for a new started transaction.
+@return	consistent read view */
 UNIV_INTERN
 read_view_t*
 trx_assign_read_view(
 /*=================*/
-			/* out: consistent read view */
-	trx_t*	trx)	/* in: active transaction */
+	trx_t*	trx)	/*!< in: active transaction */
 {
 	ut_ad(trx->conc_state == TRX_ACTIVE);
 
@@ -1005,8 +1005,8 @@ static
 void
 trx_handle_commit_sig_off_kernel(
 /*=============================*/
-	trx_t*		trx,		/* in: transaction */
-	que_thr_t**	next_thr)	/* in/out: next query thread to run;
+	trx_t*		trx,		/*!< in: transaction */
+	que_thr_t**	next_thr)	/*!< in/out: next query thread to run;
 					if the value which is passed in is
 					a pointer to a NULL pointer, then the
 					calling function can start running
@@ -1051,7 +1051,7 @@ UNIV_INTERN
 void
 trx_end_lock_wait(
 /*==============*/
-	trx_t*	trx)	/* in: transaction */
+	trx_t*	trx)	/*!< in: transaction */
 {
 	que_thr_t*	thr;
 
@@ -1078,7 +1078,7 @@ static
 void
 trx_lock_wait_to_suspended(
 /*=======================*/
-	trx_t*	trx)	/* in: transaction in the TRX_QUE_LOCK_WAIT state */
+	trx_t*	trx)	/*!< in: transaction in the TRX_QUE_LOCK_WAIT state */
 {
 	que_thr_t*	thr;
 
@@ -1105,7 +1105,7 @@ static
 void
 trx_sig_reply_wait_to_suspended(
 /*============================*/
-	trx_t*	trx)	/* in: transaction */
+	trx_t*	trx)	/*!< in: transaction */
 {
 	trx_sig_t*	sig;
 	que_thr_t*	thr;
@@ -1131,15 +1131,15 @@ trx_sig_reply_wait_to_suspended(
 
 /*********************************************************************
 Checks the compatibility of a new signal with the other signals in the
-queue. */
+queue.
+@return	TRUE if the signal can be queued */
 static
 ibool
 trx_sig_is_compatible(
 /*==================*/
-			/* out: TRUE if the signal can be queued */
-	trx_t*	trx,	/* in: trx handle */
-	ulint	type,	/* in: signal type */
-	ulint	sender)	/* in: TRX_SIG_SELF or TRX_SIG_OTHER_SESS */
+	trx_t*	trx,	/*!< in: trx handle */
+	ulint	type,	/*!< in: signal type */
+	ulint	sender)	/*!< in: TRX_SIG_SELF or TRX_SIG_OTHER_SESS */
 {
 	trx_sig_t*	sig;
 
@@ -1209,16 +1209,16 @@ UNIV_INTERN
 void
 trx_sig_send(
 /*=========*/
-	trx_t*		trx,		/* in: trx handle */
-	ulint		type,		/* in: signal type */
-	ulint		sender,		/* in: TRX_SIG_SELF or
+	trx_t*		trx,		/*!< in: trx handle */
+	ulint		type,		/*!< in: signal type */
+	ulint		sender,		/*!< in: TRX_SIG_SELF or
 					TRX_SIG_OTHER_SESS */
-	que_thr_t*	receiver_thr,	/* in: query thread which wants the
+	que_thr_t*	receiver_thr,	/*!< in: query thread which wants the
 					reply, or NULL; if type is
 					TRX_SIG_END_WAIT, this must be NULL */
-	trx_savept_t*	savept,		/* in: possible rollback savepoint, or
+	trx_savept_t*	savept,		/*!< in: possible rollback savepoint, or
 					NULL */
-	que_thr_t**	next_thr)	/* in/out: next query thread to run;
+	que_thr_t**	next_thr)	/*!< in/out: next query thread to run;
 					if the value which is passed in is
 					a pointer to a NULL pointer, then the
 					calling function can start running
@@ -1296,7 +1296,7 @@ UNIV_INTERN
 void
 trx_end_signal_handling(
 /*====================*/
-	trx_t*	trx)	/* in: trx */
+	trx_t*	trx)	/*!< in: trx */
 {
 	ut_ad(mutex_own(&kernel_mutex));
 	ut_ad(trx->handling_signals == TRUE);
@@ -1317,8 +1317,8 @@ UNIV_INTERN
 void
 trx_sig_start_handle(
 /*=================*/
-	trx_t*		trx,		/* in: trx handle */
-	que_thr_t**	next_thr)	/* in/out: next query thread to run;
+	trx_t*		trx,		/*!< in: trx handle */
+	que_thr_t**	next_thr)	/*!< in/out: next query thread to run;
 					if the value which is passed in is
 					a pointer to a NULL pointer, then the
 					calling function can start running
@@ -1423,8 +1423,8 @@ UNIV_INTERN
 void
 trx_sig_reply(
 /*==========*/
-	trx_sig_t*	sig,		/* in: signal */
-	que_thr_t**	next_thr)	/* in/out: next query thread to run;
+	trx_sig_t*	sig,		/*!< in: signal */
+	que_thr_t**	next_thr)	/*!< in/out: next query thread to run;
 					if the value which is passed in is
 					a pointer to a NULL pointer, then the
 					calling function can start running
@@ -1457,8 +1457,8 @@ UNIV_INTERN
 void
 trx_sig_remove(
 /*===========*/
-	trx_t*		trx,	/* in: trx handle */
-	trx_sig_t*	sig)	/* in, own: signal */
+	trx_t*		trx,	/*!< in: trx handle */
+	trx_sig_t*	sig)	/*!< in, own: signal */
 {
 	ut_ad(trx && sig);
 	ut_ad(mutex_own(&kernel_mutex));
@@ -1474,13 +1474,13 @@ trx_sig_remove(
 }
 
 /*************************************************************************
-Creates a commit command node struct. */
+Creates a commit command node struct.
+@return	own: commit node struct */
 UNIV_INTERN
 commit_node_t*
 commit_node_create(
 /*===============*/
-				/* out, own: commit node struct */
-	mem_heap_t*	heap)	/* in: mem heap where created */
+	mem_heap_t*	heap)	/*!< in: mem heap where created */
 {
 	commit_node_t*	node;
 
@@ -1492,13 +1492,13 @@ commit_node_create(
 }
 
 /***************************************************************
-Performs an execution step for a commit type node in a query graph. */
+Performs an execution step for a commit type node in a query graph.
+@return	query thread to run next, or NULL */
 UNIV_INTERN
 que_thr_t*
 trx_commit_step(
 /*============*/
-				/* out: query thread to run next, or NULL */
-	que_thr_t*	thr)	/* in: query thread */
+	que_thr_t*	thr)	/*!< in: query thread */
 {
 	commit_node_t*	node;
 	que_thr_t*	next_thr;
@@ -1540,13 +1540,13 @@ trx_commit_step(
 }
 
 /**************************************************************************
-Does the transaction commit for MySQL. */
+Does the transaction commit for MySQL.
+@return	DB_SUCCESS or error number */
 UNIV_INTERN
 ulint
 trx_commit_for_mysql(
 /*=================*/
-			/* out: DB_SUCCESS or error number */
-	trx_t*	trx)	/* in: trx handle */
+	trx_t*	trx)	/*!< in: trx handle */
 {
 	/* Because we do not do the commit by sending an Innobase
 	sig to the transaction, we must here make sure that trx has been
@@ -1571,13 +1571,13 @@ trx_commit_for_mysql(
 
 /**************************************************************************
 If required, flushes the log to disk if we called trx_commit_for_mysql()
-with trx->flush_log_later == TRUE. */
+with trx->flush_log_later == TRUE.
+@return	0 or error number */
 UNIV_INTERN
 ulint
 trx_commit_complete_for_mysql(
 /*==========================*/
-			/* out: 0 or error number */
-	trx_t*	trx)	/* in: trx handle */
+	trx_t*	trx)	/*!< in: trx handle */
 {
 	ib_uint64_t	lsn	= trx->commit_lsn;
 
@@ -1622,7 +1622,7 @@ UNIV_INTERN
 void
 trx_mark_sql_stat_end(
 /*==================*/
-	trx_t*	trx)	/* in: trx handle */
+	trx_t*	trx)	/*!< in: trx handle */
 {
 	ut_a(trx);
 
@@ -1642,9 +1642,9 @@ UNIV_INTERN
 void
 trx_print(
 /*======*/
-	FILE*	f,		/* in: output stream */
-	trx_t*	trx,		/* in: transaction */
-	ulint	max_query_len)	/* in: max query length to print, or 0 to
+	FILE*	f,		/*!< in: output stream */
+	trx_t*	trx,		/*!< in: transaction */
+	ulint	max_query_len)	/*!< in: max query length to print, or 0 to
 				   use the default max length */
 {
 	ibool	newline;
@@ -1751,14 +1751,14 @@ trx_print(
 /***********************************************************************
 Compares the "weight" (or size) of two transactions. Transactions that
 have edited non-transactional tables are considered heavier than ones
-that have not. */
+that have not.
+@return	<0, 0 or >0; similar to strcmp(3) */
 UNIV_INTERN
 int
 trx_weight_cmp(
 /*===========*/
-				/* out: <0, 0 or >0; similar to strcmp(3) */
-	const trx_t*	a,	/* in: the first transaction to be compared */
-	const trx_t*	b)	/* in: the second transaction to be compared */
+	const trx_t*	a,	/*!< in: the first transaction to be compared */
+	const trx_t*	b)	/*!< in: the second transaction to be compared */
 {
 	ibool	a_notrans_edit;
 	ibool	b_notrans_edit;
@@ -1805,7 +1805,7 @@ UNIV_INTERN
 void
 trx_prepare_off_kernel(
 /*===================*/
-	trx_t*	trx)	/* in: transaction */
+	trx_t*	trx)	/*!< in: transaction */
 {
 	page_t*		update_hdr_page;
 	trx_rseg_t*	rseg;
@@ -1910,13 +1910,13 @@ trx_prepare_off_kernel(
 }
 
 /**************************************************************************
-Does the transaction prepare for MySQL. */
+Does the transaction prepare for MySQL.
+@return	0 or error number */
 UNIV_INTERN
 ulint
 trx_prepare_for_mysql(
 /*==================*/
-			/* out: 0 or error number */
-	trx_t*	trx)	/* in: trx handle */
+	trx_t*	trx)	/*!< in: trx handle */
 {
 	/* Because we do not do the prepare by sending an Innobase
 	sig to the transaction, we must here make sure that trx has been
@@ -1941,15 +1941,14 @@ trx_prepare_for_mysql(
 
 /**************************************************************************
 This function is used to find number of prepared transactions and
-their transaction objects for a recovery. */
+their transaction objects for a recovery.
+@return	number of prepared transactions stored in xid_list */
 UNIV_INTERN
 int
 trx_recover_for_mysql(
 /*==================*/
-				/* out: number of prepared transactions
-				stored in xid_list */
-	XID*	xid_list,	/* in/out: prepared transactions */
-	ulint	len)		/* in: number of slots in xid_list */
+	XID*	xid_list,	/*!< in/out: prepared transactions */
+	ulint	len)		/*!< in: number of slots in xid_list */
 {
 	trx_t*	trx;
 	ulint	count = 0;
@@ -2013,13 +2012,13 @@ trx_recover_for_mysql(
 
 /***********************************************************************
 This function is used to find one X/Open XA distributed transaction
-which is in the prepared state */
+which is in the prepared state
+@return	trx or NULL */
 UNIV_INTERN
 trx_t*
 trx_get_trx_by_xid(
 /*===============*/
-			/* out: trx or NULL */
-	XID*	xid)	/* in: X/Open XA transaction identification */
+	XID*	xid)	/*!< in: X/Open XA transaction identification */
 {
 	trx_t*	trx;
 

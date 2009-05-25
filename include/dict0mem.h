@@ -86,53 +86,53 @@ combination of types */
 #endif
 
 /**************************************************************************
-Creates a table memory object. */
+Creates a table memory object.
+@return	own: table object */
 UNIV_INTERN
 dict_table_t*
 dict_mem_table_create(
 /*==================*/
-					/* out, own: table object */
-	const char*	name,		/* in: table name */
-	ulint		space,		/* in: space where the clustered index
+	const char*	name,		/*!< in: table name */
+	ulint		space,		/*!< in: space where the clustered index
 					of the table is placed; this parameter
 					is ignored if the table is made
 					a member of a cluster */
-	ulint		n_cols,		/* in: number of columns */
-	ulint		flags);		/* in: table flags */
+	ulint		n_cols,		/*!< in: number of columns */
+	ulint		flags);		/*!< in: table flags */
 /********************************************************************
 Free a table memory object. */
 UNIV_INTERN
 void
 dict_mem_table_free(
 /*================*/
-	dict_table_t*	table);		/* in: table */
+	dict_table_t*	table);		/*!< in: table */
 /**************************************************************************
 Adds a column definition to a table. */
 UNIV_INTERN
 void
 dict_mem_table_add_col(
 /*===================*/
-	dict_table_t*	table,	/* in: table */
-	mem_heap_t*	heap,	/* in: temporary memory heap, or NULL */
-	const char*	name,	/* in: column name, or NULL */
-	ulint		mtype,	/* in: main datatype */
-	ulint		prtype,	/* in: precise type */
-	ulint		len);	/* in: precision */
+	dict_table_t*	table,	/*!< in: table */
+	mem_heap_t*	heap,	/*!< in: temporary memory heap, or NULL */
+	const char*	name,	/*!< in: column name, or NULL */
+	ulint		mtype,	/*!< in: main datatype */
+	ulint		prtype,	/*!< in: precise type */
+	ulint		len);	/*!< in: precision */
 /**************************************************************************
-Creates an index memory object. */
+Creates an index memory object.
+@return	own: index object */
 UNIV_INTERN
 dict_index_t*
 dict_mem_index_create(
 /*==================*/
-					/* out, own: index object */
-	const char*	table_name,	/* in: table name */
-	const char*	index_name,	/* in: index name */
-	ulint		space,		/* in: space where the index tree is
+	const char*	table_name,	/*!< in: table name */
+	const char*	index_name,	/*!< in: index name */
+	ulint		space,		/*!< in: space where the index tree is
 					placed, ignored if the index is of
 					the clustered type */
-	ulint		type,		/* in: DICT_UNIQUE,
+	ulint		type,		/*!< in: DICT_UNIQUE,
 					DICT_CLUSTERED, ... ORed */
-	ulint		n_fields);	/* in: number of fields */
+	ulint		n_fields);	/*!< in: number of fields */
 /**************************************************************************
 Adds a field definition to an index. NOTE: does not take a copy
 of the column name if the field is a column. The memory occupied
@@ -141,9 +141,9 @@ UNIV_INTERN
 void
 dict_mem_index_add_field(
 /*=====================*/
-	dict_index_t*	index,		/* in: index */
-	const char*	name,		/* in: column name */
-	ulint		prefix_len);	/* in: 0 or the column prefix length
+	dict_index_t*	index,		/*!< in: index */
+	const char*	name,		/*!< in: column name */
+	ulint		prefix_len);	/*!< in: 0 or the column prefix length
 					in a MySQL index like
 					INDEX (textcol(25)) */
 /**************************************************************************
@@ -152,14 +152,14 @@ UNIV_INTERN
 void
 dict_mem_index_free(
 /*================*/
-	dict_index_t*	index);	/* in: index */
+	dict_index_t*	index);	/*!< in: index */
 /**************************************************************************
-Creates and initializes a foreign constraint memory object. */
+Creates and initializes a foreign constraint memory object.
+@return	own: foreign constraint struct */
 UNIV_INTERN
 dict_foreign_t*
 dict_mem_foreign_create(void);
 /*=========================*/
-				/* out, own: foreign constraint struct */
 
 /* Data structure for a column in a table */
 struct dict_col_struct{

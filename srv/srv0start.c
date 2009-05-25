@@ -120,14 +120,14 @@ static char*	srv_monitor_file_name;
 
 /*************************************************************************
 Convert a numeric string that optionally ends in G or M, to a number
-containing megabytes. */
+containing megabytes.
+@return	next character in string */
 static
 char*
 srv_parse_megabytes(
 /*================*/
-			/* out: next character in string */
-	char*	str,	/* in: string containing a quantity in bytes */
-	ulint*	megs)	/* out: the number in megabytes */
+	char*	str,	/*!< in: string containing a quantity in bytes */
+	ulint*	megs)	/*!< out: the number in megabytes */
 {
 	char*	endp;
 	ulint	size;
@@ -154,13 +154,13 @@ srv_parse_megabytes(
 
 /*************************************************************************
 Reads the data files and their sizes from a character string given in
-the .cnf file. */
+the .cnf file.
+@return	TRUE if ok, FALSE on parse error */
 UNIV_INTERN
 ibool
 srv_parse_data_file_paths_and_sizes(
 /*================================*/
-			/* out: TRUE if ok, FALSE on parse error */
-	char*	str)	/* in/out: the data file path string */
+	char*	str)	/*!< in/out: the data file path string */
 {
 	char*	input_str;
 	char*	path;
@@ -338,13 +338,13 @@ srv_parse_data_file_paths_and_sizes(
 
 /*************************************************************************
 Reads log group home directories from a character string given in
-the .cnf file. */
+the .cnf file.
+@return	TRUE if ok, FALSE on parse error */
 UNIV_INTERN
 ibool
 srv_parse_log_group_home_dirs(
 /*==========================*/
-			/* out: TRUE if ok, FALSE on parse error */
-	char*	str)	/* in/out: character string */
+	char*	str)	/*!< in/out: character string */
 {
 	char*	input_str;
 	char*	path;
@@ -428,13 +428,13 @@ srv_free_paths_and_sizes(void)
 
 #ifndef UNIV_HOTBACKUP
 /************************************************************************
-I/o-handler thread function. */
+I/o-handler thread function.
+@return	OS_THREAD_DUMMY_RETURN */
 static
 os_thread_ret_t
 io_handler_thread(
 /*==============*/
-			/* out: OS_THREAD_DUMMY_RETURN */
-	void*	arg)	/* in: pointer to the number of the segment in
+	void*	arg)	/*!< in: pointer to the number of the segment in
 			the aio array */
 {
 	ulint	segment;
@@ -477,7 +477,7 @@ UNIV_INTERN
 void
 srv_normalize_path_for_win(
 /*=======================*/
-	char*	str __attribute__((unused)))	/* in/out: null-terminated
+	char*	str __attribute__((unused)))	/*!< in/out: null-terminated
 						character string */
 {
 #ifdef __WIN__
@@ -492,14 +492,13 @@ srv_normalize_path_for_win(
 
 /*************************************************************************
 Adds a slash or a backslash to the end of a string if it is missing
-and the string is not empty. */
+and the string is not empty.
+@return	string which has the separator if the string is not empty */
 UNIV_INTERN
 char*
 srv_add_path_separator_if_needed(
 /*=============================*/
-			/* out: string which has the separator if the
-			string is not empty */
-	char*	str)	/* in: null-terminated character string */
+	char*	str)	/*!< in: null-terminated character string */
 {
 	char*	out_str;
 	ulint	len	= ut_strlen(str);
@@ -520,48 +519,46 @@ srv_add_path_separator_if_needed(
 #ifndef UNIV_HOTBACKUP
 /*************************************************************************
 Calculates the low 32 bits when a file size which is given as a number
-database pages is converted to the number of bytes. */
+database pages is converted to the number of bytes.
+@return	low 32 bytes of file size when expressed in bytes */
 static
 ulint
 srv_calc_low32(
 /*===========*/
-				/* out: low 32 bytes of file size when
-				expressed in bytes */
-	ulint	file_size)	/* in: file size in database pages */
+	ulint	file_size)	/*!< in: file size in database pages */
 {
 	return(0xFFFFFFFFUL & (file_size << UNIV_PAGE_SIZE_SHIFT));
 }
 
 /*************************************************************************
 Calculates the high 32 bits when a file size which is given as a number
-database pages is converted to the number of bytes. */
+database pages is converted to the number of bytes.
+@return	high 32 bytes of file size when expressed in bytes */
 static
 ulint
 srv_calc_high32(
 /*============*/
-				/* out: high 32 bytes of file size when
-				expressed in bytes */
-	ulint	file_size)	/* in: file size in database pages */
+	ulint	file_size)	/*!< in: file size in database pages */
 {
 	return(file_size >> (32 - UNIV_PAGE_SIZE_SHIFT));
 }
 
 /*************************************************************************
-Creates or opens the log files and closes them. */
+Creates or opens the log files and closes them.
+@return	DB_SUCCESS or error code */
 static
 ulint
 open_or_create_log_file(
 /*====================*/
-					/* out: DB_SUCCESS or error code */
-	ibool	create_new_db,		/* in: TRUE if we should create a
+	ibool	create_new_db,		/*!< in: TRUE if we should create a
 					new database */
-	ibool*	log_file_created,	/* out: TRUE if new log file
+	ibool*	log_file_created,	/*!< out: TRUE if new log file
 					created */
-	ibool	log_file_has_been_opened,/* in: TRUE if a log file has been
+	ibool	log_file_has_been_opened,/*!< in: TRUE if a log file has been
 					opened before: then it is an error
 					to try to create another log file */
-	ulint	k,			/* in: log group number */
-	ulint	i)			/* in: log file number in group */
+	ulint	k,			/*!< in: log group number */
+	ulint	i)			/*!< in: log file number in group */
 {
 	ibool	ret;
 	ulint	size;
@@ -700,25 +697,25 @@ open_or_create_log_file(
 }
 
 /*************************************************************************
-Creates or opens database data files and closes them. */
+Creates or opens database data files and closes them.
+@return	DB_SUCCESS or error code */
 static
 ulint
 open_or_create_data_files(
 /*======================*/
-					/* out: DB_SUCCESS or error code */
-	ibool*		create_new_db,	/* out: TRUE if new database should be
+	ibool*		create_new_db,	/*!< out: TRUE if new database should be
 					created */
 #ifdef UNIV_LOG_ARCHIVE
-	ulint*		min_arch_log_no,/* out: min of archived log
+	ulint*		min_arch_log_no,/*!< out: min of archived log
 					numbers in data files */
-	ulint*		max_arch_log_no,/* out: max of archived log
+	ulint*		max_arch_log_no,/*!< out: max of archived log
 					numbers in data files */
 #endif /* UNIV_LOG_ARCHIVE */
-	ib_uint64_t*	min_flushed_lsn,/* out: min of flushed lsn
+	ib_uint64_t*	min_flushed_lsn,/*!< out: min of flushed lsn
 					values in data files */
-	ib_uint64_t*	max_flushed_lsn,/* out: max of flushed lsn
+	ib_uint64_t*	max_flushed_lsn,/*!< out: max of flushed lsn
 					values in data files */
-	ulint*		sum_of_new_sizes)/* out: sum of sizes of the
+	ulint*		sum_of_new_sizes)/*!< out: sum of sizes of the
 					new files added */
 {
 	ibool	ret;
@@ -973,12 +970,12 @@ skip_size_check:
 
 /********************************************************************
 Starts InnoDB and creates a new database if database files
-are not found and the user wants. */
+are not found and the user wants.
+@return	DB_SUCCESS or error code */
 UNIV_INTERN
 int
 innobase_start_or_create_for_mysql(void)
 /*====================================*/
-				/* out: DB_SUCCESS or error code */
 {
 	buf_pool_t*	ret;
 	ibool		create_new_db;
@@ -1879,12 +1876,12 @@ innobase_start_or_create_for_mysql(void)
 }
 
 /********************************************************************
-Shuts down the InnoDB database. */
+Shuts down the InnoDB database.
+@return	DB_SUCCESS or error code */
 UNIV_INTERN
 int
 innobase_shutdown_for_mysql(void)
 /*=============================*/
-				/* out: DB_SUCCESS or error code */
 {
 	ulint	i;
 #ifdef __NETWARE__

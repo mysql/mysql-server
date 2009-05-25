@@ -35,14 +35,14 @@ Created 3/14/1997 Heikki Tuuri
 #include "row0types.h"
 
 /************************************************************************
-Creates a purge node to a query graph. */
+Creates a purge node to a query graph.
+@return	own: purge node */
 UNIV_INTERN
 purge_node_t*
 row_purge_node_create(
 /*==================*/
-				/* out, own: purge node */
-	que_thr_t*	parent,	/* in: parent node, i.e., a thr node */
-	mem_heap_t*	heap);	/* in: memory heap where created */
+	que_thr_t*	parent,	/*!< in: parent node, i.e., a thr node */
+	mem_heap_t*	heap);	/*!< in: memory heap where created */
 /***************************************************************
 Determines if it is possible to remove a secondary index entry.
 Removal is possible if the secondary index entry does not refer to any
@@ -56,25 +56,24 @@ this function first returns TRUE and then FALSE, if a user transaction
 inserts a record that the secondary index entry would refer to.
 However, in that case, the user transaction would also re-insert the
 secondary index entry after purge has removed it and released the leaf
-page latch. */
+page latch.
+@return	TRUE if the secondary index record can be purged */
 UNIV_INTERN
 ibool
 row_purge_poss_sec(
 /*===============*/
-				/* out: TRUE if the secondary index
-				record can be purged */
-	purge_node_t*	node,	/* in/out: row purge node */
-	dict_index_t*	index,	/* in: secondary index */
-	const dtuple_t*	entry);	/* in: secondary index entry */
+	purge_node_t*	node,	/*!< in/out: row purge node */
+	dict_index_t*	index,	/*!< in: secondary index */
+	const dtuple_t*	entry);	/*!< in: secondary index entry */
 /***************************************************************
 Does the purge operation for a single undo log record. This is a high-level
-function used in an SQL execution graph. */
+function used in an SQL execution graph.
+@return	query thread to run next or NULL */
 UNIV_INTERN
 que_thr_t*
 row_purge_step(
 /*===========*/
-				/* out: query thread to run next or NULL */
-	que_thr_t*	thr);	/* in: query thread */
+	que_thr_t*	thr);	/*!< in: query thread */
 
 /* Purge node structure */
 

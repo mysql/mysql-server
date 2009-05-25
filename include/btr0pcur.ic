@@ -24,13 +24,13 @@ Created 2/23/1996 Heikki Tuuri
 
 
 /*************************************************************
-Gets the rel_pos field for a cursor whose position has been stored. */
+Gets the rel_pos field for a cursor whose position has been stored.
+@return	BTR_PCUR_ON, ... */
 UNIV_INLINE
 ulint
 btr_pcur_get_rel_pos(
 /*=================*/
-					/* out: BTR_PCUR_ON, ... */
-	const btr_pcur_t*	cursor)	/* in: persistent cursor */
+	const btr_pcur_t*	cursor)	/*!< in: persistent cursor */
 {
 	ut_ad(cursor);
 	ut_ad(cursor->old_rec);
@@ -47,8 +47,8 @@ UNIV_INLINE
 void
 btr_pcur_set_mtr(
 /*=============*/
-	btr_pcur_t*	cursor,	/* in: persistent cursor */
-	mtr_t*		mtr)	/* in, own: mtr */
+	btr_pcur_t*	cursor,	/*!< in: persistent cursor */
+	mtr_t*		mtr)	/*!< in, own: mtr */
 {
 	ut_ad(cursor);
 
@@ -56,13 +56,13 @@ btr_pcur_set_mtr(
 }
 
 /*************************************************************
-Gets the mtr field for a pcur. */
+Gets the mtr field for a pcur.
+@return	mtr */
 UNIV_INLINE
 mtr_t*
 btr_pcur_get_mtr(
 /*=============*/
-				/* out: mtr */
-	btr_pcur_t*	cursor)	/* in: persistent cursor */
+	btr_pcur_t*	cursor)	/*!< in: persistent cursor */
 {
 	ut_ad(cursor);
 
@@ -71,40 +71,38 @@ btr_pcur_get_mtr(
 
 #ifdef UNIV_DEBUG
 /*************************************************************
-Returns the btr cursor component of a persistent cursor. */
+Returns the btr cursor component of a persistent cursor.
+@return	pointer to btr cursor component */
 UNIV_INLINE
 btr_cur_t*
 btr_pcur_get_btr_cur(
 /*=================*/
-					/* out: pointer to
-					btr cursor component */
-	const btr_pcur_t*	cursor)	/* in: persistent cursor */
+	const btr_pcur_t*	cursor)	/*!< in: persistent cursor */
 {
 	const btr_cur_t*	btr_cur = &cursor->btr_cur;
 	return((btr_cur_t*) btr_cur);
 }
 
 /*************************************************************
-Returns the page cursor component of a persistent cursor. */
+Returns the page cursor component of a persistent cursor.
+@return	pointer to page cursor component */
 UNIV_INLINE
 page_cur_t*
 btr_pcur_get_page_cur(
 /*==================*/
-					/* out: pointer to page cursor
-					component */
-	const btr_pcur_t*	cursor)	/* in: persistent cursor */
+	const btr_pcur_t*	cursor)	/*!< in: persistent cursor */
 {
 	return(btr_cur_get_page_cur(btr_pcur_get_btr_cur(cursor)));
 }
 #endif /* UNIV_DEBUG */
 /*************************************************************
-Returns the page of a persistent cursor. */
+Returns the page of a persistent cursor.
+@return	pointer to the page */
 UNIV_INLINE
 page_t*
 btr_pcur_get_page(
 /*==============*/
-				/* out: pointer to the page */
-	btr_pcur_t*	cursor)	/* in: persistent cursor */
+	btr_pcur_t*	cursor)	/*!< in: persistent cursor */
 {
 	ut_ad(cursor->pos_state == BTR_PCUR_IS_POSITIONED);
 
@@ -112,13 +110,13 @@ btr_pcur_get_page(
 }
 
 /*************************************************************
-Returns the buffer block of a persistent cursor. */
+Returns the buffer block of a persistent cursor.
+@return	pointer to the block */
 UNIV_INLINE
 buf_block_t*
 btr_pcur_get_block(
 /*===============*/
-				/* out: pointer to the block */
-	btr_pcur_t*	cursor)	/* in: persistent cursor */
+	btr_pcur_t*	cursor)	/*!< in: persistent cursor */
 {
 	ut_ad(cursor->pos_state == BTR_PCUR_IS_POSITIONED);
 
@@ -126,13 +124,13 @@ btr_pcur_get_block(
 }
 
 /*************************************************************
-Returns the record of a persistent cursor. */
+Returns the record of a persistent cursor.
+@return	pointer to the record */
 UNIV_INLINE
 rec_t*
 btr_pcur_get_rec(
 /*=============*/
-				/* out: pointer to the record */
-	btr_pcur_t*	cursor)	/* in: persistent cursor */
+	btr_pcur_t*	cursor)	/*!< in: persistent cursor */
 {
 	ut_ad(cursor->pos_state == BTR_PCUR_IS_POSITIONED);
 	ut_ad(cursor->latch_mode != BTR_NO_LATCHES);
@@ -141,15 +139,13 @@ btr_pcur_get_rec(
 }
 
 /******************************************************************
-Gets the up_match value for a pcur after a search. */
+Gets the up_match value for a pcur after a search.
+@return	number of matched fields at the cursor or to the right if search mode was PAGE_CUR_GE, otherwise undefined */
 UNIV_INLINE
 ulint
 btr_pcur_get_up_match(
 /*==================*/
-				/* out: number of matched fields at the cursor
-				or to the right if search mode was PAGE_CUR_GE,
-				otherwise undefined */
-	btr_pcur_t*	cursor) /* in: memory buffer for persistent cursor */
+	btr_pcur_t*	cursor) /*!< in: memory buffer for persistent cursor */
 {
 	btr_cur_t*	btr_cursor;
 
@@ -164,15 +160,13 @@ btr_pcur_get_up_match(
 }
 
 /******************************************************************
-Gets the low_match value for a pcur after a search. */
+Gets the low_match value for a pcur after a search.
+@return	number of matched fields at the cursor or to the right if search mode was PAGE_CUR_LE, otherwise undefined */
 UNIV_INLINE
 ulint
 btr_pcur_get_low_match(
 /*===================*/
-				/* out: number of matched fields at the cursor
-				or to the right if search mode was PAGE_CUR_LE,
-				otherwise undefined */
-	btr_pcur_t*	cursor) /* in: memory buffer for persistent cursor */
+	btr_pcur_t*	cursor) /*!< in: memory buffer for persistent cursor */
 {
 	btr_cur_t*	btr_cursor;
 
@@ -192,7 +186,7 @@ UNIV_INLINE
 ibool
 btr_pcur_is_after_last_on_page(
 /*===========================*/
-	const btr_pcur_t*	cursor)	/* in: persistent cursor */
+	const btr_pcur_t*	cursor)	/*!< in: persistent cursor */
 {
 	ut_ad(cursor->pos_state == BTR_PCUR_IS_POSITIONED);
 	ut_ad(cursor->latch_mode != BTR_NO_LATCHES);
@@ -207,7 +201,7 @@ UNIV_INLINE
 ibool
 btr_pcur_is_before_first_on_page(
 /*=============================*/
-	const btr_pcur_t*	cursor)	/* in: persistent cursor */
+	const btr_pcur_t*	cursor)	/*!< in: persistent cursor */
 {
 	ut_ad(cursor->pos_state == BTR_PCUR_IS_POSITIONED);
 	ut_ad(cursor->latch_mode != BTR_NO_LATCHES);
@@ -221,7 +215,7 @@ UNIV_INLINE
 ibool
 btr_pcur_is_on_user_rec(
 /*====================*/
-	const btr_pcur_t*	cursor)	/* in: persistent cursor */
+	const btr_pcur_t*	cursor)	/*!< in: persistent cursor */
 {
 	ut_ad(cursor->pos_state == BTR_PCUR_IS_POSITIONED);
 	ut_ad(cursor->latch_mode != BTR_NO_LATCHES);
@@ -242,8 +236,8 @@ UNIV_INLINE
 ibool
 btr_pcur_is_before_first_in_tree(
 /*=============================*/
-	btr_pcur_t*	cursor,	/* in: persistent cursor */
-	mtr_t*		mtr)	/* in: mtr */
+	btr_pcur_t*	cursor,	/*!< in: persistent cursor */
+	mtr_t*		mtr)	/*!< in: mtr */
 {
 	ut_ad(cursor->pos_state == BTR_PCUR_IS_POSITIONED);
 	ut_ad(cursor->latch_mode != BTR_NO_LATCHES);
@@ -263,8 +257,8 @@ UNIV_INLINE
 ibool
 btr_pcur_is_after_last_in_tree(
 /*===========================*/
-	btr_pcur_t*	cursor,	/* in: persistent cursor */
-	mtr_t*		mtr)	/* in: mtr */
+	btr_pcur_t*	cursor,	/*!< in: persistent cursor */
+	mtr_t*		mtr)	/*!< in: mtr */
 {
 	ut_ad(cursor->pos_state == BTR_PCUR_IS_POSITIONED);
 	ut_ad(cursor->latch_mode != BTR_NO_LATCHES);
@@ -283,7 +277,7 @@ UNIV_INLINE
 void
 btr_pcur_move_to_next_on_page(
 /*==========================*/
-	btr_pcur_t*	cursor)	/* in/out: persistent cursor */
+	btr_pcur_t*	cursor)	/*!< in/out: persistent cursor */
 {
 	ut_ad(cursor->pos_state == BTR_PCUR_IS_POSITIONED);
 	ut_ad(cursor->latch_mode != BTR_NO_LATCHES);
@@ -299,7 +293,7 @@ UNIV_INLINE
 void
 btr_pcur_move_to_prev_on_page(
 /*==========================*/
-	btr_pcur_t*	cursor)	/* in/out: persistent cursor */
+	btr_pcur_t*	cursor)	/*!< in/out: persistent cursor */
 {
 	ut_ad(cursor->pos_state == BTR_PCUR_IS_POSITIONED);
 	ut_ad(cursor->latch_mode != BTR_NO_LATCHES);
@@ -315,8 +309,8 @@ UNIV_INLINE
 void
 btr_pcur_move_to_last_on_page(
 /*==========================*/
-	btr_pcur_t*	cursor,	/* in: persistent cursor */
-	mtr_t*		mtr)	/* in: mtr */
+	btr_pcur_t*	cursor,	/*!< in: persistent cursor */
+	mtr_t*		mtr)	/*!< in: mtr */
 {
 	UT_NOT_USED(mtr);
 	ut_ad(cursor->latch_mode != BTR_NO_LATCHES);
@@ -329,16 +323,15 @@ btr_pcur_move_to_last_on_page(
 
 /*************************************************************
 Moves the persistent cursor to the next user record in the tree. If no user
-records are left, the cursor ends up 'after last in tree'. */
+records are left, the cursor ends up 'after last in tree'.
+@return	TRUE if the cursor moved forward, ending on a user record */
 UNIV_INLINE
 ibool
 btr_pcur_move_to_next_user_rec(
 /*===========================*/
-				/* out: TRUE if the cursor moved forward,
-				ending on a user record */
-	btr_pcur_t*	cursor,	/* in: persistent cursor; NOTE that the
+	btr_pcur_t*	cursor,	/*!< in: persistent cursor; NOTE that the
 				function may release the page latch */
-	mtr_t*		mtr)	/* in: mtr */
+	mtr_t*		mtr)	/*!< in: mtr */
 {
 	ut_ad(cursor->pos_state == BTR_PCUR_IS_POSITIONED);
 	ut_ad(cursor->latch_mode != BTR_NO_LATCHES);
@@ -366,16 +359,15 @@ loop:
 
 /*************************************************************
 Moves the persistent cursor to the next record in the tree. If no records are
-left, the cursor stays 'after last in tree'. */
+left, the cursor stays 'after last in tree'.
+@return	TRUE if the cursor was not after last in tree */
 UNIV_INLINE
 ibool
 btr_pcur_move_to_next(
 /*==================*/
-				/* out: TRUE if the cursor was not after last
-				in tree */
-	btr_pcur_t*	cursor,	/* in: persistent cursor; NOTE that the
+	btr_pcur_t*	cursor,	/*!< in: persistent cursor; NOTE that the
 				function may release the page latch */
-	mtr_t*		mtr)	/* in: mtr */
+	mtr_t*		mtr)	/*!< in: mtr */
 {
 	ut_ad(cursor->pos_state == BTR_PCUR_IS_POSITIONED);
 	ut_ad(cursor->latch_mode != BTR_NO_LATCHES);
@@ -409,7 +401,7 @@ UNIV_INLINE
 void
 btr_pcur_commit(
 /*============*/
-	btr_pcur_t*	pcur)	/* in: persistent cursor */
+	btr_pcur_t*	pcur)	/*!< in: persistent cursor */
 {
 	ut_a(pcur->pos_state == BTR_PCUR_IS_POSITIONED);
 
@@ -426,8 +418,8 @@ UNIV_INLINE
 void
 btr_pcur_commit_specify_mtr(
 /*========================*/
-	btr_pcur_t*	pcur,	/* in: persistent cursor */
-	mtr_t*		mtr)	/* in: mtr to commit */
+	btr_pcur_t*	pcur,	/*!< in: persistent cursor */
+	mtr_t*		mtr)	/*!< in: mtr to commit */
 {
 	ut_a(pcur->pos_state == BTR_PCUR_IS_POSITIONED);
 
@@ -444,7 +436,7 @@ UNIV_INLINE
 void
 btr_pcur_detach(
 /*============*/
-	btr_pcur_t*	pcur)	/* in: persistent cursor */
+	btr_pcur_t*	pcur)	/*!< in: persistent cursor */
 {
 	ut_a(pcur->pos_state == BTR_PCUR_IS_POSITIONED);
 
@@ -454,13 +446,13 @@ btr_pcur_detach(
 }
 
 /******************************************************************
-Tests if a cursor is detached: that is the latch mode is BTR_NO_LATCHES. */
+Tests if a cursor is detached: that is the latch mode is BTR_NO_LATCHES.
+@return	TRUE if detached */
 UNIV_INLINE
 ibool
 btr_pcur_is_detached(
 /*=================*/
-				/* out: TRUE if detached */
-	btr_pcur_t*	pcur)	/* in: persistent cursor */
+	btr_pcur_t*	pcur)	/*!< in: persistent cursor */
 {
 	if (pcur->latch_mode == BTR_NO_LATCHES) {
 
@@ -476,7 +468,7 @@ UNIV_INLINE
 void
 btr_pcur_init(
 /*==========*/
-	btr_pcur_t*	pcur)	/* in: persistent cursor */
+	btr_pcur_t*	pcur)	/*!< in: persistent cursor */
 {
 	pcur->old_stored = BTR_PCUR_OLD_NOT_STORED;
 	pcur->old_rec_buf = NULL;
@@ -490,17 +482,17 @@ UNIV_INLINE
 void
 btr_pcur_open(
 /*==========*/
-	dict_index_t*	index,	/* in: index */
-	const dtuple_t*	tuple,	/* in: tuple on which search done */
-	ulint		mode,	/* in: PAGE_CUR_L, ...;
+	dict_index_t*	index,	/*!< in: index */
+	const dtuple_t*	tuple,	/*!< in: tuple on which search done */
+	ulint		mode,	/*!< in: PAGE_CUR_L, ...;
 				NOTE that if the search is made using a unique
 				prefix of a record, mode should be
 				PAGE_CUR_LE, not PAGE_CUR_GE, as the latter
 				may end up on the previous page from the
 				record! */
-	ulint		latch_mode,/* in: BTR_SEARCH_LEAF, ... */
-	btr_pcur_t*	cursor, /* in: memory buffer for persistent cursor */
-	mtr_t*		mtr)	/* in: mtr */
+	ulint		latch_mode,/*!< in: BTR_SEARCH_LEAF, ... */
+	btr_pcur_t*	cursor, /*!< in: memory buffer for persistent cursor */
+	mtr_t*		mtr)	/*!< in: mtr */
 {
 	btr_cur_t*	btr_cursor;
 
@@ -529,24 +521,24 @@ UNIV_INLINE
 void
 btr_pcur_open_with_no_init(
 /*=======================*/
-	dict_index_t*	index,	/* in: index */
-	const dtuple_t*	tuple,	/* in: tuple on which search done */
-	ulint		mode,	/* in: PAGE_CUR_L, ...;
+	dict_index_t*	index,	/*!< in: index */
+	const dtuple_t*	tuple,	/*!< in: tuple on which search done */
+	ulint		mode,	/*!< in: PAGE_CUR_L, ...;
 				NOTE that if the search is made using a unique
 				prefix of a record, mode should be
 				PAGE_CUR_LE, not PAGE_CUR_GE, as the latter
 				may end up on the previous page of the
 				record! */
-	ulint		latch_mode,/* in: BTR_SEARCH_LEAF, ...;
+	ulint		latch_mode,/*!< in: BTR_SEARCH_LEAF, ...;
 				NOTE that if has_search_latch != 0 then
 				we maybe do not acquire a latch on the cursor
 				page, but assume that the caller uses his
 				btr search latch to protect the record! */
-	btr_pcur_t*	cursor, /* in: memory buffer for persistent cursor */
-	ulint		has_search_latch,/* in: latch mode the caller
+	btr_pcur_t*	cursor, /*!< in: memory buffer for persistent cursor */
+	ulint		has_search_latch,/*!< in: latch mode the caller
 				currently has on btr_search_latch:
 				RW_S_LATCH, or 0 */
-	mtr_t*		mtr)	/* in: mtr */
+	mtr_t*		mtr)	/*!< in: mtr */
 {
 	btr_cur_t*	btr_cursor;
 
@@ -572,13 +564,13 @@ UNIV_INLINE
 void
 btr_pcur_open_at_index_side(
 /*========================*/
-	ibool		from_left,	/* in: TRUE if open to the low end,
+	ibool		from_left,	/*!< in: TRUE if open to the low end,
 					FALSE if to the high end */
-	dict_index_t*	index,		/* in: index */
-	ulint		latch_mode,	/* in: latch mode */
-	btr_pcur_t*	pcur,		/* in: cursor */
-	ibool		do_init,	/* in: TRUE if should be initialized */
-	mtr_t*		mtr)		/* in: mtr */
+	dict_index_t*	index,		/*!< in: index */
+	ulint		latch_mode,	/*!< in: latch mode */
+	btr_pcur_t*	pcur,		/*!< in: cursor */
+	ibool		do_init,	/*!< in: TRUE if should be initialized */
+	mtr_t*		mtr)		/*!< in: mtr */
 {
 	pcur->latch_mode = latch_mode;
 
@@ -607,10 +599,10 @@ UNIV_INLINE
 void
 btr_pcur_open_at_rnd_pos(
 /*=====================*/
-	dict_index_t*	index,		/* in: index */
-	ulint		latch_mode,	/* in: BTR_SEARCH_LEAF, ... */
-	btr_pcur_t*	cursor,		/* in/out: B-tree pcur */
-	mtr_t*		mtr)		/* in: mtr */
+	dict_index_t*	index,		/*!< in: index */
+	ulint		latch_mode,	/*!< in: BTR_SEARCH_LEAF, ... */
+	btr_pcur_t*	cursor,		/*!< in/out: B-tree pcur */
+	mtr_t*		mtr)		/*!< in: mtr */
 {
 	/* Initialize the cursor */
 
@@ -634,7 +626,7 @@ UNIV_INLINE
 void
 btr_pcur_close(
 /*===========*/
-	btr_pcur_t*	cursor)	/* in: persistent cursor */
+	btr_pcur_t*	cursor)	/*!< in: persistent cursor */
 {
 	if (cursor->old_rec_buf != NULL) {
 

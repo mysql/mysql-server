@@ -99,16 +99,16 @@ UNIV_INTERN
 void
 rbt_free(
 /*=====*/
-	ib_rbt_t*	tree);			/* in: rb tree to free */
+	ib_rbt_t*	tree);			/*!< in: rb tree to free */
 /************************************************************************
-Create an instance of a red black tree */
+Create an instance of a red black tree
+@return	rb tree instance */
 UNIV_INTERN
 ib_rbt_t*
 rbt_create(
 /*=======*/
-						/* out: rb tree instance */
-	size_t		sizeof_value,		/* in: size in bytes */
-	ib_rbt_compare	compare);		/* in: comparator */
+	size_t		sizeof_value,		/*!< in: size in bytes */
+	ib_rbt_compare	compare);		/*!< in: comparator */
 /************************************************************************
 Delete a node from the red black tree, identified by key */
 UNIV_INTERN
@@ -120,185 +120,174 @@ rbt_delete(
 	const void*	key);			/* in: key to delete */
 /************************************************************************
 Remove a node from the red black tree, NOTE: This function will not delete
-the node instance, THAT IS THE CALLERS RESPONSIBILITY.*/
+the node instance, THAT IS THE CALLERS RESPONSIBILITY.
+@return	the deleted node with the const. */
 UNIV_INTERN
 ib_rbt_node_t*
 rbt_remove_node(
 /*============*/
-						/* out: the deleted node
-						with the const.*/
-	ib_rbt_t*	tree,			/* in: rb tree */
+	ib_rbt_t*	tree,			/*!< in: rb tree */
 	const ib_rbt_node_t*
-			node);			/* in: node to delete, this
+			node);			/*!< in: node to delete, this
 						is a fudge and declared const
 						because the caller has access
 						only to const nodes.*/
 /************************************************************************
 Return a node from the red black tree, identified by
-key, NULL if not found */
+key, NULL if not found
+@return	node if found else return NULL */
 UNIV_INTERN
 const ib_rbt_node_t*
 rbt_lookup(
 /*=======*/
-						/* out: node if found else
-						return NULL*/
-	const ib_rbt_t*	tree,			/* in: rb tree to search */
-	const void*	key);			/* in: key to lookup */
+	const ib_rbt_t*	tree,			/*!< in: rb tree to search */
+	const void*	key);			/*!< in: key to lookup */
 /************************************************************************
-Add data to the red black tree, identified by key (no dups yet!)*/
+Add data to the red black tree, identified by key (no dups yet!)
+@return	inserted node */
 UNIV_INTERN
 const ib_rbt_node_t*
 rbt_insert(
 /*=======*/
-						/* out: inserted node */
-	ib_rbt_t*	tree,			/* in: rb tree */
-	const void*	key,			/* in: key for ordering */
-	const void*	value);			/* in: data that will be
+	ib_rbt_t*	tree,			/*!< in: rb tree */
+	const void*	key,			/*!< in: key for ordering */
+	const void*	value);			/*!< in: data that will be
 						copied to the node.*/
 /************************************************************************
-Add a new node to the tree, useful for data that is pre-sorted.*/
+Add a new node to the tree, useful for data that is pre-sorted.
+@return	appended node */
 UNIV_INTERN
 const ib_rbt_node_t*
 rbt_add_node(
 /*=========*/
-						/* out: appended node */
-	ib_rbt_t*	tree,			/* in: rb tree */
-	ib_rbt_bound_t*	parent,			/* in: parent */
-	const void*	value);			/* in: this value is copied
+	ib_rbt_t*	tree,			/*!< in: rb tree */
+	ib_rbt_bound_t*	parent,			/*!< in: parent */
+	const void*	value);			/*!< in: this value is copied
 						to the node */
 /************************************************************************
-Return the left most data node in the tree*/
+Return the left most data node in the tree
+@return	left most node */
 UNIV_INTERN
 const ib_rbt_node_t*
 rbt_first(
 /*======*/
-						/* out: left most node */
-	const ib_rbt_t*	tree);			/* in: rb tree */
+	const ib_rbt_t*	tree);			/*!< in: rb tree */
 /************************************************************************
-Return the right most data node in the tree*/
+Return the right most data node in the tree
+@return	right most node */
 UNIV_INTERN
 const ib_rbt_node_t*
 rbt_last(
 /*=====*/
-						/* out: right most node */
-	const ib_rbt_t*	tree);			/* in: rb tree */
+	const ib_rbt_t*	tree);			/*!< in: rb tree */
 /************************************************************************
-Return the next node from current.*/
+Return the next node from current.
+@return	successor node to current that is passed in. */
 UNIV_INTERN
 const ib_rbt_node_t*
 rbt_next(
 /*=====*/
-						/* out: successor node to
-						current that is passed in.*/
-	const ib_rbt_t*	tree,			/* in: rb tree */
+	const ib_rbt_t*	tree,			/*!< in: rb tree */
 	const ib_rbt_node_t*			/* in: current node */
 			current);
 /************************************************************************
-Return the prev node from current.*/
+Return the prev node from current.
+@return	precedessor node to current that is passed in */
 UNIV_INTERN
 const ib_rbt_node_t*
 rbt_prev(
 /*=====*/
-						/* out: precedessor node to
-						current that is passed in */
-	const ib_rbt_t*	tree,			/* in: rb tree */
+	const ib_rbt_t*	tree,			/*!< in: rb tree */
 	const ib_rbt_node_t*			/* in: current node */
 			current);
 /************************************************************************
-Find the node that has the lowest key that is >= key.*/
+Find the node that has the lowest key that is >= key.
+@return	node that satisfies the lower bound constraint or NULL */
 UNIV_INTERN
 const ib_rbt_node_t*
 rbt_lower_bound(
 /*============*/
-						/* out: node that satisfies
-						the lower bound constraint or
-						NULL */
-	const ib_rbt_t*	tree,			/* in: rb tree */
-	const void*	key);			/* in: key to search */
+	const ib_rbt_t*	tree,			/*!< in: rb tree */
+	const void*	key);			/*!< in: key to search */
 /************************************************************************
-Find the node that has the greatest key that is <= key.*/
+Find the node that has the greatest key that is <= key.
+@return	node that satisifies the upper bound constraint or NULL */
 UNIV_INTERN
 const ib_rbt_node_t*
 rbt_upper_bound(
 /*============*/
-						/* out: node that satisifies
-						the upper bound constraint or
-						NULL */
-	const ib_rbt_t*	tree,			/* in: rb tree */
-	const void*	key);			/* in: key to search */
+	const ib_rbt_t*	tree,			/*!< in: rb tree */
+	const void*	key);			/*!< in: key to search */
 /************************************************************************
 Search for the key, a node will be retuned in parent.last, whether it
 was found or not. If not found then parent.last will contain the
-parent node for the possibly new key otherwise the matching node.*/
+parent node for the possibly new key otherwise the matching node.
+@return	result of last comparison */
 UNIV_INTERN
 int
 rbt_search(
 /*=======*/
-						/* out: result of last
-						comparison */
-	const ib_rbt_t*	tree,			/* in: rb tree */
-	ib_rbt_bound_t*	parent,			/* in: search bounds */
-	const void*	key);			/* in: key to search */
+	const ib_rbt_t*	tree,			/*!< in: rb tree */
+	ib_rbt_bound_t*	parent,			/*!< in: search bounds */
+	const void*	key);			/*!< in: key to search */
 /************************************************************************
 Search for the key, a node will be retuned in parent.last, whether it
 was found or not. If not found then parent.last will contain the
-parent node for the possibly new key otherwise the matching node.*/
+parent node for the possibly new key otherwise the matching node.
+@return	result of last comparison */
 UNIV_INTERN
 int
 rbt_search_cmp(
 /*===========*/
-						/* out: result of last
-						comparison */
-	const ib_rbt_t*	tree,			/* in: rb tree */
-	ib_rbt_bound_t*	parent,			/* in: search bounds */
-	const void*	key,			/* in: key to search */
-	ib_rbt_compare	compare);		/* in: comparator */
+	const ib_rbt_t*	tree,			/*!< in: rb tree */
+	ib_rbt_bound_t*	parent,			/*!< in: search bounds */
+	const void*	key,			/*!< in: key to search */
+	ib_rbt_compare	compare);		/*!< in: comparator */
 /************************************************************************
-Clear the tree, deletes (and free's) all the nodes.*/
+Clear the tree, deletes (and free's) all the nodes. */
 UNIV_INTERN
 void
 rbt_clear(
 /*======*/
-	ib_rbt_t*	tree);			/* in: rb tree */
+	ib_rbt_t*	tree);			/*!< in: rb tree */
 /************************************************************************
-Merge the node from dst into src. Return the number of nodes merged.*/
+Merge the node from dst into src. Return the number of nodes merged.
+@return	no. of recs merged */
 UNIV_INTERN
 ulint
 rbt_merge_uniq(
 /*===========*/
-						/* out: no. of recs merged */
-	ib_rbt_t*	dst,			/* in: dst rb tree */
-	const ib_rbt_t*	src);			/* in: src rb tree */
+	ib_rbt_t*	dst,			/*!< in: dst rb tree */
+	const ib_rbt_t*	src);			/*!< in: src rb tree */
 /************************************************************************
 Merge the node from dst into src. Return the number of nodes merged.
 Delete the nodes from src after copying node to dst. As a side effect
 the duplicates will be left untouched in the src, since we don't support
 duplicates (yet). NOTE: src and dst must be similar, the function doesn't
-check for this condition (yet).*/
+check for this condition (yet).
+@return	no. of recs merged */
 UNIV_INTERN
 ulint
 rbt_merge_uniq_destructive(
 /*=======================*/
-						/* out: no. of recs merged */
-	ib_rbt_t*	dst,			/* in: dst rb tree */
-	ib_rbt_t*	src);			/* in: src rb tree */
+	ib_rbt_t*	dst,			/*!< in: dst rb tree */
+	ib_rbt_t*	src);			/*!< in: src rb tree */
 /************************************************************************
 Verify the integrity of the RB tree. For debugging. 0 failure else height
-of tree (in count of black nodes).*/
+of tree (in count of black nodes).
+@return	TRUE if OK FALSE if tree invalid. */
 UNIV_INTERN
 ibool
 rbt_validate(
 /*=========*/
-						/* out: TRUE if OK
-						FALSE if tree invalid.*/
-	const ib_rbt_t*	tree);			/* in: tree to validate */
+	const ib_rbt_t*	tree);			/*!< in: tree to validate */
 /************************************************************************
-Iterate over the tree in depth first order.*/
+Iterate over the tree in depth first order. */
 UNIV_INTERN
 void
 rbt_print(
 /*======*/
-	const ib_rbt_t*		tree,		/* in: tree to traverse */
-	ib_rbt_print_node	print);		/* in: print function */
+	const ib_rbt_t*		tree,		/*!< in: tree to traverse */
+	ib_rbt_print_node	print);		/*!< in: print function */
 
 #endif /* INNOBASE_UT0RBT_H */

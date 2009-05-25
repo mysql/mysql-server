@@ -39,14 +39,14 @@ typedef struct ib_vector_struct ib_vector_t;
 */
 
 /********************************************************************
-Create a new vector with the given initial size. */
+Create a new vector with the given initial size.
+@return	vector */
 UNIV_INTERN
 ib_vector_t*
 ib_vector_create(
 /*=============*/
-				/* out: vector */
-	mem_heap_t*	heap,	/* in: heap */
-	ulint		size);	/* in: initial size */
+	mem_heap_t*	heap,	/*!< in: heap */
+	ulint		size);	/*!< in: initial size */
 
 /********************************************************************
 Push a new element to the vector, increasing its size if necessary. */
@@ -54,36 +54,36 @@ UNIV_INTERN
 void
 ib_vector_push(
 /*===========*/
-	ib_vector_t*	vec,	/* in: vector */
-	void*		elem);	/* in: data element */
+	ib_vector_t*	vec,	/*!< in: vector */
+	void*		elem);	/*!< in: data element */
 
 /********************************************************************
-Get the number of elements in the vector. */
+Get the number of elements in the vector.
+@return	number of elements in vector */
 UNIV_INLINE
 ulint
 ib_vector_size(
 /*===========*/
-				/* out: number of elements in vector */
-	const ib_vector_t*	vec);	/* in: vector */
+	const ib_vector_t*	vec);	/*!< in: vector */
 
 /********************************************************************
-Test whether a vector is empty or not. */
+Test whether a vector is empty or not.
+@return	TRUE if empty */
 UNIV_INLINE
 ibool
 ib_vector_is_empty(
 /*===============*/
-				/* out: TRUE if empty */
-	const ib_vector_t*	vec);	/* in: vector */
+	const ib_vector_t*	vec);	/*!< in: vector */
 
 /********************************************************************
-Get the n'th element. */
+Get the n'th element.
+@return	n'th element */
 UNIV_INLINE
 void*
 ib_vector_get(
 /*==========*/
-				/* out: n'th element */
-	ib_vector_t*	vec,	/* in: vector */
-	ulint		n);	/* in: element index to get */
+	ib_vector_t*	vec,	/*!< in: vector */
+	ulint		n);	/*!< in: element index to get */
 
 /********************************************************************
 Remove the last element from the vector. */
@@ -91,7 +91,7 @@ UNIV_INLINE
 void*
 ib_vector_pop(
 /*==========*/
-	ib_vector_t*	vec);	/* in: vector */
+	ib_vector_t*	vec);	/*!< in: vector */
 
 /********************************************************************
 Free the underlying heap of the vector. Note that vec is invalid
@@ -100,7 +100,7 @@ UNIV_INLINE
 void
 ib_vector_free(
 /*===========*/
-	ib_vector_t*	vec);	/* in,own: vector */
+	ib_vector_t*	vec);	/*!< in,own: vector */
 
 /* See comment at beginning of file. */
 struct ib_vector_struct {

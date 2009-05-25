@@ -33,12 +33,12 @@ processing.
 typedef struct ib_wqueue_struct ib_wqueue_t;
 
 /********************************************************************
-Create a new work queue. */
+Create a new work queue.
+@return	work queue */
 UNIV_INTERN
 ib_wqueue_t*
 ib_wqueue_create(void);
 /*===================*/
-			/* out: work queue */
 
 /********************************************************************
 Free a work queue. */
@@ -46,7 +46,7 @@ UNIV_INTERN
 void
 ib_wqueue_free(
 /*===========*/
-	ib_wqueue_t*	wq);	/* in: work queue */
+	ib_wqueue_t*	wq);	/*!< in: work queue */
 
 /********************************************************************
 Add a work item to the queue. */
@@ -54,19 +54,19 @@ UNIV_INTERN
 void
 ib_wqueue_add(
 /*==========*/
-	ib_wqueue_t*	wq,	/* in: work queue */
-	void*		item,	/* in: work item */
-	mem_heap_t*	heap);	/* in: memory heap to use for allocating the
+	ib_wqueue_t*	wq,	/*!< in: work queue */
+	void*		item,	/*!< in: work item */
+	mem_heap_t*	heap);	/*!< in: memory heap to use for allocating the
 				list node */
 
 /********************************************************************
-Wait for a work item to appear in the queue. */
+Wait for a work item to appear in the queue.
+@return	work item */
 UNIV_INTERN
 void*
 ib_wqueue_wait(
 /*===========*/
-				/* out: work item */
-	ib_wqueue_t*	wq);	/* in: work queue */
+	ib_wqueue_t*	wq);	/*!< in: work queue */
 
 /* Work queue. */
 struct ib_wqueue_struct {

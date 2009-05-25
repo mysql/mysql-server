@@ -168,29 +168,28 @@ parameter was initially written as 0. */
 
 /*******************************************************************
 Starts a mini-transaction and creates a mini-transaction handle
-and buffer in the memory buffer given by the caller. */
+and buffer in the memory buffer given by the caller.
+@return	mtr buffer which also acts as the mtr handle */
 UNIV_INLINE
 mtr_t*
 mtr_start(
 /*======*/
-			/* out: mtr buffer which also acts as
-			the mtr handle */
-	mtr_t*	mtr);	/* in: memory buffer for the mtr buffer */
+	mtr_t*	mtr);	/*!< in: memory buffer for the mtr buffer */
 /*******************************************************************
 Commits a mini-transaction. */
 UNIV_INTERN
 void
 mtr_commit(
 /*=======*/
-	mtr_t*	mtr);	/* in: mini-transaction */
+	mtr_t*	mtr);	/*!< in: mini-transaction */
 /**************************************************************
-Sets and returns a savepoint in mtr. */
+Sets and returns a savepoint in mtr.
+@return	savepoint */
 UNIV_INLINE
 ulint
 mtr_set_savepoint(
 /*==============*/
-			/* out: savepoint */
-	mtr_t*	mtr);	/* in: mtr */
+	mtr_t*	mtr);	/*!< in: mtr */
 /**************************************************************
 Releases the latches stored in an mtr memo down to a savepoint.
 NOTE! The mtr must not have made changes to buffer pages after the
@@ -199,8 +198,8 @@ UNIV_INTERN
 void
 mtr_rollback_to_savepoint(
 /*======================*/
-	mtr_t*	mtr,		/* in: mtr */
-	ulint	savepoint);	/* in: savepoint */
+	mtr_t*	mtr,		/*!< in: mtr */
+	ulint	savepoint);	/*!< in: savepoint */
 #ifndef UNIV_HOTBACKUP
 /**************************************************************
 Releases the (index tree) s-latch stored in an mtr memo after a
@@ -209,48 +208,48 @@ UNIV_INLINE
 void
 mtr_release_s_latch_at_savepoint(
 /*=============================*/
-	mtr_t*		mtr,		/* in: mtr */
-	ulint		savepoint,	/* in: savepoint */
-	rw_lock_t*	lock);		/* in: latch to release */
+	mtr_t*		mtr,		/*!< in: mtr */
+	ulint		savepoint,	/*!< in: savepoint */
+	rw_lock_t*	lock);		/*!< in: latch to release */
 #else /* !UNIV_HOTBACKUP */
 # define mtr_release_s_latch_at_savepoint(mtr,savepoint,lock) ((void) 0)
 #endif /* !UNIV_HOTBACKUP */
 /*******************************************************************
-Gets the logging mode of a mini-transaction. */
+Gets the logging mode of a mini-transaction.
+@return	logging mode: MTR_LOG_NONE, ... */
 UNIV_INLINE
 ulint
 mtr_get_log_mode(
 /*=============*/
-			/* out: logging mode: MTR_LOG_NONE, ... */
-	mtr_t*	mtr);	/* in: mtr */
+	mtr_t*	mtr);	/*!< in: mtr */
 /*******************************************************************
-Changes the logging mode of a mini-transaction. */
+Changes the logging mode of a mini-transaction.
+@return	old mode */
 UNIV_INLINE
 ulint
 mtr_set_log_mode(
 /*=============*/
-			/* out: old mode */
-	mtr_t*	mtr,	/* in: mtr */
-	ulint	mode);	/* in: logging mode: MTR_LOG_NONE, ... */
+	mtr_t*	mtr,	/*!< in: mtr */
+	ulint	mode);	/*!< in: logging mode: MTR_LOG_NONE, ... */
 /************************************************************
-Reads 1 - 4 bytes from a file page buffered in the buffer pool. */
+Reads 1 - 4 bytes from a file page buffered in the buffer pool.
+@return	value read */
 UNIV_INTERN
 ulint
 mtr_read_ulint(
 /*===========*/
-				/* out: value read */
-	const byte*	ptr,	/* in: pointer from where to read */
-	ulint		type,	/* in: MLOG_1BYTE, MLOG_2BYTES, MLOG_4BYTES */
-	mtr_t*		mtr);	/* in: mini-transaction handle */
+	const byte*	ptr,	/*!< in: pointer from where to read */
+	ulint		type,	/*!< in: MLOG_1BYTE, MLOG_2BYTES, MLOG_4BYTES */
+	mtr_t*		mtr);	/*!< in: mini-transaction handle */
 /************************************************************
-Reads 8 bytes from a file page buffered in the buffer pool. */
+Reads 8 bytes from a file page buffered in the buffer pool.
+@return	value read */
 UNIV_INTERN
 dulint
 mtr_read_dulint(
 /*============*/
-				/* out: value read */
-	const byte*	ptr,	/* in: pointer from where to read */
-	mtr_t*		mtr);	/* in: mini-transaction handle */
+	const byte*	ptr,	/*!< in: pointer from where to read */
+	mtr_t*		mtr);	/*!< in: mini-transaction handle */
 #ifndef UNIV_HOTBACKUP
 /*************************************************************************
 This macro locks an rw-lock in s-mode. */
@@ -267,10 +266,10 @@ UNIV_INLINE
 void
 mtr_s_lock_func(
 /*============*/
-	rw_lock_t*	lock,	/* in: rw-lock */
-	const char*	file,	/* in: file name */
-	ulint		line,	/* in: line number */
-	mtr_t*		mtr);	/* in: mtr */
+	rw_lock_t*	lock,	/*!< in: rw-lock */
+	const char*	file,	/*!< in: file name */
+	ulint		line,	/*!< in: line number */
+	mtr_t*		mtr);	/*!< in: mtr */
 /*************************************************************************
 NOTE! Use the macro above!
 Locks a lock in x-mode. */
@@ -278,10 +277,10 @@ UNIV_INLINE
 void
 mtr_x_lock_func(
 /*============*/
-	rw_lock_t*	lock,	/* in: rw-lock */
-	const char*	file,	/* in: file name */
-	ulint		line,	/* in: line number */
-	mtr_t*		mtr);	/* in: mtr */
+	rw_lock_t*	lock,	/*!< in: rw-lock */
+	const char*	file,	/*!< in: file name */
+	ulint		line,	/*!< in: line number */
+	mtr_t*		mtr);	/*!< in: mtr */
 #endif /* !UNIV_HOTBACKUP */
 
 /*******************************************************
@@ -290,39 +289,39 @@ UNIV_INTERN
 void
 mtr_memo_release(
 /*=============*/
-	mtr_t*	mtr,	/* in: mtr */
-	void*	object,	/* in: object */
-	ulint	type);	/* in: object type: MTR_MEMO_S_LOCK, ... */
+	mtr_t*	mtr,	/*!< in: mtr */
+	void*	object,	/*!< in: object */
+	ulint	type);	/*!< in: object type: MTR_MEMO_S_LOCK, ... */
 #ifdef UNIV_DEBUG
 # ifndef UNIV_HOTBACKUP
 /**************************************************************
-Checks if memo contains the given item. */
+Checks if memo contains the given item.
+@return	TRUE if contains */
 UNIV_INLINE
 ibool
 mtr_memo_contains(
 /*==============*/
-				/* out: TRUE if contains */
-	mtr_t*		mtr,	/* in: mtr */
-	const void*	object,	/* in: object to search */
-	ulint		type);	/* in: type of object */
+	mtr_t*		mtr,	/*!< in: mtr */
+	const void*	object,	/*!< in: object to search */
+	ulint		type);	/*!< in: type of object */
 
 /**************************************************************
-Checks if memo contains the given page. */
+Checks if memo contains the given page.
+@return	TRUE if contains */
 UNIV_INTERN
 ibool
 mtr_memo_contains_page(
 /*===================*/
-				/* out: TRUE if contains */
-	mtr_t*		mtr,	/* in: mtr */
-	const byte*	ptr,	/* in: pointer to buffer frame */
-	ulint		type);	/* in: type of object */
+	mtr_t*		mtr,	/*!< in: mtr */
+	const byte*	ptr,	/*!< in: pointer to buffer frame */
+	ulint		type);	/*!< in: type of object */
 /*************************************************************
 Prints info of an mtr handle. */
 UNIV_INTERN
 void
 mtr_print(
 /*======*/
-	mtr_t*	mtr);	/* in: mtr */
+	mtr_t*	mtr);	/*!< in: mtr */
 # else /* !UNIV_HOTBACKUP */
 #  define mtr_memo_contains(mtr, object, type)		TRUE
 #  define mtr_memo_contains_page(mtr, ptr, type)	TRUE
@@ -333,22 +332,22 @@ mtr_print(
 #define	MTR_BUF_MEMO_SIZE	200	/* number of slots in memo */
 
 /*******************************************************************
-Returns the log object of a mini-transaction buffer. */
+Returns the log object of a mini-transaction buffer.
+@return	log */
 UNIV_INLINE
 dyn_array_t*
 mtr_get_log(
 /*========*/
-			/* out: log */
-	mtr_t*	mtr);	/* in: mini-transaction */
+	mtr_t*	mtr);	/*!< in: mini-transaction */
 /*******************************************************
 Pushes an object to an mtr memo stack. */
 UNIV_INLINE
 void
 mtr_memo_push(
 /*==========*/
-	mtr_t*	mtr,	/* in: mtr */
-	void*	object,	/* in: object */
-	ulint	type);	/* in: object type: MTR_MEMO_S_LOCK, ... */
+	mtr_t*	mtr,	/*!< in: mtr */
+	void*	object,	/*!< in: object */
+	ulint	type);	/*!< in: object type: MTR_MEMO_S_LOCK, ... */
 
 
 /* Type definition of a mini-transaction memo stack slot. */

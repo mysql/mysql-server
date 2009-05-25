@@ -25,14 +25,14 @@ Created 12/19/1997 Heikki Tuuri
 #include "que0que.h"
 
 /*************************************************************************
-Gets the plan node for the nth table in a join. */
+Gets the plan node for the nth table in a join.
+@return	plan node */
 UNIV_INLINE
 plan_t*
 sel_node_get_nth_plan(
 /*==================*/
-				/* out: plan node */
-	sel_node_t*	node,	/* in: select node */
-	ulint		i)	/* in: get ith plan node */
+	sel_node_t*	node,	/*!< in: select node */
+	ulint		i)	/*!< in: get ith plan node */
 {
 	ut_ad(i < node->n_tables);
 
@@ -47,19 +47,19 @@ UNIV_INLINE
 void
 sel_node_reset_cursor(
 /*==================*/
-	sel_node_t*	node)	/* in: select node */
+	sel_node_t*	node)	/*!< in: select node */
 {
 	node->state = SEL_NODE_OPEN;
 }
 
 /**************************************************************************
-Performs an execution step of an open or close cursor statement node. */
+Performs an execution step of an open or close cursor statement node.
+@return	query thread to run next or NULL */
 UNIV_INLINE
 que_thr_t*
 open_step(
 /*======*/
-				/* out: query thread to run next or NULL */
-	que_thr_t*	thr)	/* in: query thread */
+	que_thr_t*	thr)	/*!< in: query thread */
 {
 	sel_node_t*	sel_node;
 	open_node_t*	node;

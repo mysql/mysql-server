@@ -41,9 +41,9 @@ static
 const void*
 ha_storage_get(
 /*===========*/
-	ha_storage_t*	storage,	/* in: hash storage */
-	const void*	data,		/* in: data to check for */
-	ulint		data_len)	/* in: data length */
+	ha_storage_t*	storage,	/*!< in: hash storage */
+	const void*	data,		/*!< in: data to check for */
+	ulint		data_len)	/*!< in: data length */
 {
 	ha_storage_node_t*	node;
 	ulint			fold;
@@ -86,10 +86,10 @@ UNIV_INTERN
 const void*
 ha_storage_put_memlim(
 /*==================*/
-	ha_storage_t*	storage,	/* in/out: hash storage */
-	const void*	data,		/* in: data to store */
-	ulint		data_len,	/* in: data length */
-	ulint		memlim)		/* in: memory limit to obey */
+	ha_storage_t*	storage,	/*!< in/out: hash storage */
+	const void*	data,		/*!< in: data to store */
+	ulint		data_len,	/*!< in: data length */
+	ulint		memlim)		/*!< in: memory limit to obey */
 {
 	void*			raw;
 	ha_storage_node_t*	node;

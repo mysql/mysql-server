@@ -25,14 +25,14 @@ Created 5/20/1997 Heikki Tuuri
 #include "ut0rnd.h"
 
 /****************************************************************
-Gets the nth cell in a hash table. */
+Gets the nth cell in a hash table.
+@return	pointer to cell */
 UNIV_INLINE
 hash_cell_t*
 hash_get_nth_cell(
 /*==============*/
-				/* out: pointer to cell */
-	hash_table_t*	table,	/* in: hash table */
-	ulint		n)	/* in: cell index */
+	hash_table_t*	table,	/*!< in: hash table */
+	ulint		n)	/*!< in: cell index */
 {
 	ut_ad(n < table->n_cells);
 
@@ -45,47 +45,47 @@ UNIV_INLINE
 void
 hash_table_clear(
 /*=============*/
-	hash_table_t*	table)	/* in/out: hash table */
+	hash_table_t*	table)	/*!< in/out: hash table */
 {
 	memset(table->array, 0x0,
 	       table->n_cells * sizeof(*table->array));
 }
 
 /*****************************************************************
-Returns the number of cells in a hash table. */
+Returns the number of cells in a hash table.
+@return	number of cells */
 UNIV_INLINE
 ulint
 hash_get_n_cells(
 /*=============*/
-				/* out: number of cells */
-	hash_table_t*	table)	/* in: table */
+	hash_table_t*	table)	/*!< in: table */
 {
 	return(table->n_cells);
 }
 
 /******************************************************************
-Calculates the hash value from a folded value. */
+Calculates the hash value from a folded value.
+@return	hashed value */
 UNIV_INLINE
 ulint
 hash_calc_hash(
 /*===========*/
-				/* out: hashed value */
-	ulint		fold,	/* in: folded value */
-	hash_table_t*	table)	/* in: hash table */
+	ulint		fold,	/*!< in: folded value */
+	hash_table_t*	table)	/*!< in: hash table */
 {
 	return(ut_hash_ulint(fold, table->n_cells));
 }
 
 #ifndef UNIV_HOTBACKUP
 /****************************************************************
-Gets the mutex index for a fold value in a hash table. */
+Gets the mutex index for a fold value in a hash table.
+@return	mutex number */
 UNIV_INLINE
 ulint
 hash_get_mutex_no(
 /*==============*/
-				/* out: mutex number */
-	hash_table_t*	table,	/* in: hash table */
-	ulint		fold)	/* in: fold */
+	hash_table_t*	table,	/*!< in: hash table */
+	ulint		fold)	/*!< in: fold */
 {
 	ut_ad(ut_is_2pow(table->n_mutexes));
 	return(ut_2pow_remainder(hash_calc_hash(fold, table),
@@ -93,14 +93,14 @@ hash_get_mutex_no(
 }
 
 /****************************************************************
-Gets the nth heap in a hash table. */
+Gets the nth heap in a hash table.
+@return	mem heap */
 UNIV_INLINE
 mem_heap_t*
 hash_get_nth_heap(
 /*==============*/
-				/* out: mem heap */
-	hash_table_t*	table,	/* in: hash table */
-	ulint		i)	/* in: index of the heap */
+	hash_table_t*	table,	/*!< in: hash table */
+	ulint		i)	/*!< in: index of the heap */
 {
 	ut_ad(i < table->n_mutexes);
 
@@ -108,14 +108,14 @@ hash_get_nth_heap(
 }
 
 /****************************************************************
-Gets the heap for a fold value in a hash table. */
+Gets the heap for a fold value in a hash table.
+@return	mem heap */
 UNIV_INLINE
 mem_heap_t*
 hash_get_heap(
 /*==========*/
-				/* out: mem heap */
-	hash_table_t*	table,	/* in: hash table */
-	ulint		fold)	/* in: fold */
+	hash_table_t*	table,	/*!< in: hash table */
+	ulint		fold)	/*!< in: fold */
 {
 	ulint	i;
 
@@ -129,14 +129,14 @@ hash_get_heap(
 }
 
 /****************************************************************
-Gets the nth mutex in a hash table. */
+Gets the nth mutex in a hash table.
+@return	mutex */
 UNIV_INLINE
 mutex_t*
 hash_get_nth_mutex(
 /*===============*/
-				/* out: mutex */
-	hash_table_t*	table,	/* in: hash table */
-	ulint		i)	/* in: index of the mutex */
+	hash_table_t*	table,	/*!< in: hash table */
+	ulint		i)	/*!< in: index of the mutex */
 {
 	ut_ad(i < table->n_mutexes);
 
@@ -144,14 +144,14 @@ hash_get_nth_mutex(
 }
 
 /****************************************************************
-Gets the mutex for a fold value in a hash table. */
+Gets the mutex for a fold value in a hash table.
+@return	mutex */
 UNIV_INLINE
 mutex_t*
 hash_get_mutex(
 /*===========*/
-				/* out: mutex */
-	hash_table_t*	table,	/* in: hash table */
-	ulint		fold)	/* in: fold */
+	hash_table_t*	table,	/*!< in: hash table */
+	ulint		fold)	/*!< in: fold */
 {
 	ulint	i;
 

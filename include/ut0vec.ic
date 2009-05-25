@@ -17,26 +17,26 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 *****************************************************************************/
 
 /********************************************************************
-Get number of elements in vector. */
+Get number of elements in vector.
+@return	number of elements in vector */
 UNIV_INLINE
 ulint
 ib_vector_size(
 /*===========*/
-				/* out: number of elements in vector */
-	const ib_vector_t*	vec)	/* in: vector */
+	const ib_vector_t*	vec)	/*!< in: vector */
 {
 	return(vec->used);
 }
 
 /********************************************************************
-Get n'th element. */
+Get n'th element.
+@return	n'th element */
 UNIV_INLINE
 void*
 ib_vector_get(
 /*==========*/
-				/* out: n'th element */
-	ib_vector_t*	vec,	/* in: vector */
-	ulint		n)	/* in: element index to get */
+	ib_vector_t*	vec,	/*!< in: vector */
+	ulint		n)	/*!< in: element index to get */
 {
 	ut_a(n < vec->used);
 
@@ -44,13 +44,13 @@ ib_vector_get(
 }
 
 /********************************************************************
-Remove the last element from the vector. */
+Remove the last element from the vector.
+@return	last vector element */
 UNIV_INLINE
 void*
 ib_vector_pop(
 /*==========*/
-				/* out: last vector element */
-	ib_vector_t*    vec)    /* in/out: vector */
+	ib_vector_t*    vec)    /*!< in/out: vector */
 {
 	void*           elem;
 
@@ -71,19 +71,19 @@ UNIV_INLINE
 void
 ib_vector_free(
 /*===========*/
-	ib_vector_t*    vec)    /* in, own: vector */
+	ib_vector_t*    vec)    /*!< in, own: vector */
 {
 	mem_heap_free(vec->heap);
 }
 
 /********************************************************************
-Test whether a vector is empty or not. */
+Test whether a vector is empty or not.
+@return	TRUE if empty */
 UNIV_INLINE
 ibool
 ib_vector_is_empty(
 /*===============*/
-					/* out: TRUE if empty */
-	const ib_vector_t*	vec)	/* in: vector */
+	const ib_vector_t*	vec)	/*!< in: vector */
 {
 	return(ib_vector_size(vec) == 0);
 }

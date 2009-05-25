@@ -32,16 +32,14 @@ Created 8/18/1994 Heikki Tuuri
 #include "buf0types.h"
 
 /*****************************************************************
-Looks for an element in a hash table. */
+Looks for an element in a hash table.
+@return	pointer to the data of the first hash table node in chain having the fold number, NULL if not found */
 UNIV_INLINE
 void*
 ha_search_and_get_data(
 /*===================*/
-				/* out: pointer to the data of the first hash
-				table node in chain having the fold number,
-				NULL if not found */
-	hash_table_t*	table,	/* in: hash table */
-	ulint		fold);	/* in: folded value of the searched data */
+	hash_table_t*	table,	/*!< in: hash table */
+	ulint		fold);	/*!< in: folded value of the searched data */
 /*************************************************************
 Looks for an element when we know the pointer to the data and updates
 the pointer to data if found. */
@@ -49,13 +47,13 @@ UNIV_INTERN
 void
 ha_search_and_update_if_found_func(
 /*===============================*/
-	hash_table_t*	table,	/* in: hash table */
-	ulint		fold,	/* in: folded value of the searched data */
-	void*		data,	/* in: pointer to the data */
+	hash_table_t*	table,	/*!< in: hash table */
+	ulint		fold,	/*!< in: folded value of the searched data */
+	void*		data,	/*!< in: pointer to the data */
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
-	buf_block_t*	new_block,/* in: block containing new_data */
+	buf_block_t*	new_block,/*!< in: block containing new_data */
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
-	void*		new_data);/* in: new pointer to the data */
+	void*		new_data);/*!< in: new pointer to the data */
 
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 # define ha_search_and_update_if_found(table,fold,data,new_block,new_data) \
@@ -66,18 +64,18 @@ ha_search_and_update_if_found_func(
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 /*****************************************************************
 Creates a hash table with >= n array cells. The actual number of cells is
-chosen to be a prime number slightly bigger than n. */
+chosen to be a prime number slightly bigger than n.
+@return	own: created table */
 UNIV_INTERN
 hash_table_t*
 ha_create_func(
 /*===========*/
-				/* out, own: created table */
-	ulint	n,		/* in: number of array cells */
+	ulint	n,		/*!< in: number of array cells */
 #ifdef UNIV_SYNC_DEBUG
-	ulint	mutex_level,	/* in: level of the mutexes in the latching
+	ulint	mutex_level,	/*!< in: level of the mutexes in the latching
 				order: this is used in the debug version */
 #endif /* UNIV_SYNC_DEBUG */
-	ulint	n_mutexes);	/* in: number of mutexes to protect the
+	ulint	n_mutexes);	/*!< in: number of mutexes to protect the
 				hash table: must be a power of 2 */
 #ifdef UNIV_SYNC_DEBUG
 # define ha_create(n_c,n_m,level) ha_create_func(n_c,level,n_m)
@@ -91,27 +89,26 @@ UNIV_INTERN
 void
 ha_clear(
 /*=====*/
-	hash_table_t*	table);	/* in, own: hash table */
+	hash_table_t*	table);	/*!< in, own: hash table */
 
 /*****************************************************************
 Inserts an entry into a hash table. If an entry with the same fold number
 is found, its node is updated to point to the new data, and no new node
-is inserted. */
+is inserted.
+@return	TRUE if succeed, FALSE if no more memory could be allocated */
 UNIV_INTERN
 ibool
 ha_insert_for_fold_func(
 /*====================*/
-				/* out: TRUE if succeed, FALSE if no more
-				memory could be allocated */
-	hash_table_t*	table,	/* in: hash table */
-	ulint		fold,	/* in: folded value of data; if a node with
+	hash_table_t*	table,	/*!< in: hash table */
+	ulint		fold,	/*!< in: folded value of data; if a node with
 				the same fold value already exists, it is
 				updated to point to the same data, and no new
 				node is created! */
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
-	buf_block_t*	block,	/* in: buffer block containing the data */
+	buf_block_t*	block,	/*!< in: buffer block containing the data */
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
-	void*		data);	/* in: data, must not be NULL */
+	void*		data);	/*!< in: data, must not be NULL */
 
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 # define ha_insert_for_fold(t,f,b,d) ha_insert_for_fold_func(t,f,b,d)
@@ -125,21 +122,21 @@ UNIV_INTERN
 void
 ha_delete(
 /*======*/
-	hash_table_t*	table,	/* in: hash table */
-	ulint		fold,	/* in: folded value of data */
-	void*		data);	/* in: data, must not be NULL and must exist
+	hash_table_t*	table,	/*!< in: hash table */
+	ulint		fold,	/*!< in: folded value of data */
+	void*		data);	/*!< in: data, must not be NULL and must exist
 				in the hash table */
 /*************************************************************
 Looks for an element when we know the pointer to the data and deletes
-it from the hash table if found. */
+it from the hash table if found.
+@return	TRUE if found */
 UNIV_INLINE
 ibool
 ha_search_and_delete_if_found(
 /*==========================*/
-				/* out: TRUE if found */
-	hash_table_t*	table,	/* in: hash table */
-	ulint		fold,	/* in: folded value of the searched data */
-	void*		data);	/* in: pointer to the data */
+	hash_table_t*	table,	/*!< in: hash table */
+	ulint		fold,	/*!< in: folded value of the searched data */
+	void*		data);	/*!< in: pointer to the data */
 #ifndef UNIV_HOTBACKUP
 /*********************************************************************
 Removes from the chain determined by fold all nodes whose data pointer
@@ -148,27 +145,27 @@ UNIV_INTERN
 void
 ha_remove_all_nodes_to_page(
 /*========================*/
-	hash_table_t*	table,	/* in: hash table */
-	ulint		fold,	/* in: fold value */
-	const page_t*	page);	/* in: buffer page */
+	hash_table_t*	table,	/*!< in: hash table */
+	ulint		fold,	/*!< in: fold value */
+	const page_t*	page);	/*!< in: buffer page */
 /*****************************************************************
-Validates a given range of the cells in hash table. */
+Validates a given range of the cells in hash table.
+@return	TRUE if ok */
 UNIV_INTERN
 ibool
 ha_validate(
 /*========*/
-					/* out: TRUE if ok */
-	hash_table_t*	table,		/* in: hash table */
-	ulint		start_index,	/* in: start index */
-	ulint		end_index);	/* in: end index */
+	hash_table_t*	table,		/*!< in: hash table */
+	ulint		start_index,	/*!< in: start index */
+	ulint		end_index);	/*!< in: end index */
 /*****************************************************************
 Prints info of a hash table. */
 UNIV_INTERN
 void
 ha_print_info(
 /*==========*/
-	FILE*		file,	/* in: file where to print */
-	hash_table_t*	table);	/* in: hash table */
+	FILE*		file,	/*!< in: file where to print */
+	hash_table_t*	table);	/*!< in: hash table */
 #endif /* !UNIV_HOTBACKUP */
 
 /* The hash table external chain node */
