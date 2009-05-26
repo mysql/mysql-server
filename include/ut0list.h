@@ -144,25 +144,25 @@ ib_list_get_last(
 
 /* List. */
 struct ib_list_struct {
-	ib_list_node_t*		first;		/* first node */
-	ib_list_node_t*		last;		/* last node */
-	ibool			is_heap_list;	/* TRUE if this list was
+	ib_list_node_t*		first;		/*!< first node */
+	ib_list_node_t*		last;		/*!< last node */
+	ibool			is_heap_list;	/*!< TRUE if this list was
 						allocated through a heap */
 };
 
 /* A list node. */
 struct ib_list_node_struct {
-	ib_list_node_t*		prev;		/* previous node */
-	ib_list_node_t*		next;		/* next node */
-	void*			data;		/* user data */
+	ib_list_node_t*		prev;		/*!< previous node */
+	ib_list_node_t*		next;		/*!< next node */
+	void*			data;		/*!< user data */
 };
 
 /* Quite often, the only additional piece of data you need is the per-item
 memory heap, so we have this generic struct available to use in those
 cases. */
 struct ib_list_helper_struct {
-	mem_heap_t*	heap;		/* memory heap */
-	void*		data;		/* user data */
+	mem_heap_t*	heap;		/*!< memory heap */
+	void*		data;		/*!< user data */
 };
 
 #ifndef UNIV_NONINL

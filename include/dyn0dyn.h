@@ -30,11 +30,13 @@ Created 2/5/1996 Heikki Tuuri
 #include "ut0lst.h"
 #include "mem0mem.h"
 
+/** A block in a dynamically allocated array */
 typedef struct dyn_block_struct		dyn_block_t;
+/** Dynamically allocated array */
 typedef dyn_block_t			dyn_array_t;
 
 
-/* This is the initial 'payload' size of a dynamic array;
+/** This is the initial 'payload' size of a dynamic array;
 this must be > MLOG_BUF_MARGIN + 30! */
 #define	DYN_ARRAY_DATA_SIZE	512
 
@@ -154,24 +156,27 @@ dyn_push_string(
 
 /*#################################################################*/
 
-/* NOTE! Do not use the fields of the struct directly: the definition
+/** @brief A block in a dynamically allocated array.
+NOTE! Do not access the fields of the struct directly: the definition
 appears here only for the compiler to know its size! */
 struct dyn_block_struct{
-	mem_heap_t*	heap;	/* in the first block this is != NULL
+	mem_heap_t*	heap;	/*!< in the first block this is != NULL
 				if dynamic allocation has been needed */
-	ulint		used;	/* number of data bytes used in this block */
+	ulint		used;	/*!< number of data bytes used in this block;
+				DYN_BLOCK_FULL_FLAG is set when the block
+				becomes full */
 	byte		data[DYN_ARRAY_DATA_SIZE];
-				/* storage for array elements */
+				/*!< storage for array elements */
 	UT_LIST_BASE_NODE_T(dyn_block_t) base;
-				/* linear list of dyn blocks: this node is
+				/*!< linear list of dyn blocks: this node is
 				used only in the first block */
 	UT_LIST_NODE_T(dyn_block_t) list;
-				/* linear list node: used in all blocks */
+				/*!< linear list node: used in all blocks */
 #ifdef UNIV_DEBUG
-	ulint		buf_end;/* only in the debug version: if dyn array is
-				opened, this is the buffer end offset, else
-				this is 0 */
-	ulint		magic_n;
+	ulint		buf_end;/*!< only in the debug version: if dyn
+				array is opened, this is the buffer
+				end offset, else this is 0 */
+	ulint		magic_n;/*!< magic number (DYN_BLOCK_MAGIC_N) */
 #endif
 };
 

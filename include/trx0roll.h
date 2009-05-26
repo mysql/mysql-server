@@ -282,51 +282,57 @@ trx_roll_savepoints_free(
 					if this is NULL, free all savepoints
 					of trx */
 
-/* A cell in the array used during a rollback and a purge */
+/** A cell of trx_undo_arr_struct; used during a rollback and a purge */
 struct	trx_undo_inf_struct{
-	trx_id_t	trx_no;	/* transaction number: not defined during
+	trx_id_t	trx_no;	/*!< transaction number: not defined during
 				a rollback */
-	undo_no_t	undo_no;/* undo number of an undo record */
-	ibool		in_use;	/* TRUE if the cell is in use */
+	undo_no_t	undo_no;/*!< undo number of an undo record */
+	ibool		in_use;	/*!< TRUE if the cell is in use */
 };
 
-/* During a rollback and a purge, undo numbers of undo records currently being
+/** During a rollback and a purge, undo numbers of undo records currently being
 processed are stored in this array */
 
 struct trx_undo_arr_struct{
-	ulint		n_cells;	/* number of cells in the array */
-	ulint		n_used;		/* number of cells currently in use */
-	trx_undo_inf_t*	infos;		/* the array of undo infos */
-	mem_heap_t*	heap;		/* memory heap from which allocated */
+	ulint		n_cells;	/*!< number of cells in the array */
+	ulint		n_used;		/*!< number of cells currently in use */
+	trx_undo_inf_t*	infos;		/*!< the array of undo infos */
+	mem_heap_t*	heap;		/*!< memory heap from which allocated */
 };
 
-/* Rollback command node in a query graph */
+/** Rollback node states */
+enum roll_node_state {
+	ROLL_NODE_SEND = 1,	/*!< about to send a rollback signal to
+				the transaction */
+	ROLL_NODE_WAIT		/*!< rollback signal sent to the transaction,
+				waiting for completion */
+};
+
+/** Rollback command node in a query graph */
 struct roll_node_struct{
-	que_common_t	common;	/* node type: QUE_NODE_ROLLBACK */
-	ulint		state;	/* node execution state */
-	ibool		partial;/* TRUE if we want a partial rollback */
-	trx_savept_t	savept;	/* savepoint to which to roll back, in the
-				case of a partial rollback */
+	que_common_t		common;	/*!< node type: QUE_NODE_ROLLBACK */
+	enum roll_node_state	state;	/*!< node execution state */
+	ibool			partial;/*!< TRUE if we want a partial
+					rollback */
+	trx_savept_t		savept;	/*!< savepoint to which to
+					roll back, in the case of a
+					partial rollback */
 };
 
-/* A savepoint set with SQL's "SAVEPOINT savepoint_id" command */
+/** A savepoint set with SQL's "SAVEPOINT savepoint_id" command */
 struct trx_named_savept_struct{
-	char*		name;		/* savepoint name */
-	trx_savept_t	savept;		/* the undo number corresponding to
+	char*		name;		/*!< savepoint name */
+	trx_savept_t	savept;		/*!< the undo number corresponding to
 					the savepoint */
 	ib_int64_t	mysql_binlog_cache_pos;
-					/* the MySQL binlog cache position
+					/*!< the MySQL binlog cache position
 					corresponding to this savepoint, not
 					defined if the MySQL binlogging is not
 					enabled */
 	UT_LIST_NODE_T(trx_named_savept_t)
-			trx_savepoints;	/* the list of savepoints of a
+			trx_savepoints;	/*!< the list of savepoints of a
 					transaction */
 };
-
-/* Rollback node states */
-#define ROLL_NODE_SEND	1
-#define ROLL_NODE_WAIT	2
 
 #ifndef UNIV_NONINL
 #include "trx0roll.ic"

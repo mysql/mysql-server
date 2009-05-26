@@ -1082,7 +1082,7 @@ log_io_complete(
 		return;
 	}
 
-	ut_error;	/* We currently use synchronous writing of the
+	ut_error;	/*!< We currently use synchronous writing of the
 			logs and cannot end up here! */
 
 	if (srv_unix_file_flush_method != SRV_UNIX_O_DSYNC
@@ -1405,7 +1405,7 @@ loop:
 	log_sys->n_pending_writes++;
 
 	group = UT_LIST_GET_FIRST(log_sys->log_groups);
-	group->n_pending_writes++;	/* We assume here that we have only
+	group->n_pending_writes++;	/*!< We assume here that we have only
 					one log group! */
 
 	os_event_reset(log_sys->no_flush_event);

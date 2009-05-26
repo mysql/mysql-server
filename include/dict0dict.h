@@ -1103,43 +1103,45 @@ and unique key errors */
 extern FILE*	dict_foreign_err_file;
 extern mutex_t	dict_foreign_err_mutex; /* mutex protecting the buffers */
 
-extern dict_sys_t*	dict_sys;	/* the dictionary system */
+/** the dictionary system */
+extern dict_sys_t*	dict_sys;
+/** the data dictionary rw-latch protecting dict_sys */
 extern rw_lock_t	dict_operation_lock;
 
 /* Dictionary system struct */
 struct dict_sys_struct{
-	mutex_t		mutex;		/* mutex protecting the data
+	mutex_t		mutex;		/*!< mutex protecting the data
 					dictionary; protects also the
 					disk-based dictionary system tables;
 					this mutex serializes CREATE TABLE
 					and DROP TABLE, as well as reading
 					the dictionary data for a table from
 					system tables */
-	dulint		row_id;		/* the next row id to assign;
+	dulint		row_id;		/*!< the next row id to assign;
 					NOTE that at a checkpoint this
 					must be written to the dict system
 					header and flushed to a file; in
 					recovery this must be derived from
 					the log records */
-	hash_table_t*	table_hash;	/* hash table of the tables, based
+	hash_table_t*	table_hash;	/*!< hash table of the tables, based
 					on name */
-	hash_table_t*	table_id_hash;	/* hash table of the tables, based
+	hash_table_t*	table_id_hash;	/*!< hash table of the tables, based
 					on id */
 	UT_LIST_BASE_NODE_T(dict_table_t)
-			table_LRU;	/* LRU list of tables */
-	ulint		size;		/* varying space in bytes occupied
+			table_LRU;	/*!< LRU list of tables */
+	ulint		size;		/*!< varying space in bytes occupied
 					by the data dictionary table and
 					index objects */
-	dict_table_t*	sys_tables;	/* SYS_TABLES table */
-	dict_table_t*	sys_columns;	/* SYS_COLUMNS table */
-	dict_table_t*	sys_indexes;	/* SYS_INDEXES table */
-	dict_table_t*	sys_fields;	/* SYS_FIELDS table */
+	dict_table_t*	sys_tables;	/*!< SYS_TABLES table */
+	dict_table_t*	sys_columns;	/*!< SYS_COLUMNS table */
+	dict_table_t*	sys_indexes;	/*!< SYS_INDEXES table */
+	dict_table_t*	sys_fields;	/*!< SYS_FIELDS table */
 };
 #endif /* !UNIV_HOTBACKUP */
 
-/* dummy index for ROW_FORMAT=REDUNDANT supremum and infimum records */
+/** dummy index for ROW_FORMAT=REDUNDANT supremum and infimum records */
 extern dict_index_t*	dict_ind_redundant;
-/* dummy index for ROW_FORMAT=COMPACT supremum and infimum records */
+/** dummy index for ROW_FORMAT=COMPACT supremum and infimum records */
 extern dict_index_t*	dict_ind_compact;
 
 /**********************************************************************//**

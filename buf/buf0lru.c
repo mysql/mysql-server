@@ -49,7 +49,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "log0recv.h"
 #include "srv0srv.h"
 
-/* The number of blocks from the LRU_old pointer onward, including the block
+/** The number of blocks from the LRU_old pointer onward, including the block
 pointed to, must be 3/8 of the whole LRU list length, except that the
 tolerance defined below is allowed. Note that the tolerance must be small
 enough such that for even the BUF_LRU_OLD_MIN_LEN long LRU list, the
@@ -57,19 +57,19 @@ LRU_old pointer is not allowed to point to either end of the LRU list. */
 
 #define BUF_LRU_OLD_TOLERANCE	20
 
-/* The whole LRU list length is divided by this number to determine an
+/** The whole LRU list length is divided by this number to determine an
 initial segment in buf_LRU_get_recent_limit */
 
 #define BUF_LRU_INITIAL_RATIO	8
 
-/* When dropping the search hash index entries before deleting an ibd
+/** When dropping the search hash index entries before deleting an ibd
 file, we build a local array of pages belonging to that tablespace
 in the buffer pool. Following is the size of that array. */
 #define BUF_LRU_DROP_SEARCH_HASH_SIZE	1024
 
-/* If we switch on the InnoDB monitor because there are too few available
+/** If we switch on the InnoDB monitor because there are too few available
 frames in the buffer pool, we set this to TRUE */
-UNIV_INTERN ibool	buf_lru_switched_on_innodb_mon	= FALSE;
+static ibool	buf_lru_switched_on_innodb_mon	= FALSE;
 
 /******************************************************************//**
 These statistics are not 'of' LRU but 'for' LRU.  We keep count of I/O
@@ -80,28 +80,32 @@ uncompressed frame (meaning we can evict dirty blocks as well).  From
 the regular LRU, we will evict the entire block (i.e.: both the
 uncompressed and compressed data), which must be clean. */
 
-/* Number of intervals for which we keep the history of these stats.
+/* @{ */
+
+/** Number of intervals for which we keep the history of these stats.
 Each interval is 1 second, defined by the rate at which
 srv_error_monitor_thread() calls buf_LRU_stat_update(). */
 #define BUF_LRU_STAT_N_INTERVAL 50
 
-/* Co-efficient with which we multiply I/O operations to equate them
+/** Co-efficient with which we multiply I/O operations to equate them
 with page_zip_decompress() operations. */
 #define BUF_LRU_IO_TO_UNZIP_FACTOR 50
 
-/* Sampled values buf_LRU_stat_cur.
+/** Sampled values buf_LRU_stat_cur.
 Protected by buf_pool_mutex.  Updated by buf_LRU_stat_update(). */
 static buf_LRU_stat_t		buf_LRU_stat_arr[BUF_LRU_STAT_N_INTERVAL];
-/* Cursor to buf_LRU_stat_arr[] that is updated in a round-robin fashion. */
+/** Cursor to buf_LRU_stat_arr[] that is updated in a round-robin fashion. */
 static ulint			buf_LRU_stat_arr_ind;
 
-/* Current operation counters.  Not protected by any mutex.  Cleared
+/** Current operation counters.  Not protected by any mutex.  Cleared
 by buf_LRU_stat_update(). */
 UNIV_INTERN buf_LRU_stat_t	buf_LRU_stat_cur;
 
-/* Running sum of past values of buf_LRU_stat_cur.
+/** Running sum of past values of buf_LRU_stat_cur.
 Updated by buf_LRU_stat_update().  Protected by buf_pool_mutex. */
 UNIV_INTERN buf_LRU_stat_t	buf_LRU_stat_sum;
+
+/* @} */
 
 /******************************************************************//**
 Takes a block out of the LRU list and page hash table.

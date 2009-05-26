@@ -29,9 +29,9 @@ Created 1/8/1996 Heikki Tuuri
 #include "dict0dict.ic"
 #endif
 
-/* dummy index for ROW_FORMAT=REDUNDANT supremum and infimum records */
+/** dummy index for ROW_FORMAT=REDUNDANT supremum and infimum records */
 UNIV_INTERN dict_index_t*	dict_ind_redundant;
-/* dummy index for ROW_FORMAT=COMPACT supremum and infimum records */
+/** dummy index for ROW_FORMAT=COMPACT supremum and infimum records */
 UNIV_INTERN dict_index_t*	dict_ind_compact;
 
 #ifndef UNIV_HOTBACKUP
@@ -57,25 +57,27 @@ UNIV_INTERN dict_index_t*	dict_ind_compact;
 
 #include <ctype.h>
 
-/* the dictionary system */
+/** the dictionary system */
 UNIV_INTERN dict_sys_t*	dict_sys	= NULL;
 
-/* table create, drop, etc. reserve this in X-mode; implicit or
+/** @brief the data dictionary rw-latch protecting dict_sys
+
+table create, drop, etc. reserve this in X-mode; implicit or
 backround operations purge, rollback, foreign key checks reserve this
 in S-mode; we cannot trust that MySQL protects implicit or background
 operations a table drop since MySQL does not know of them; therefore
 we need this; NOTE: a transaction which reserves this must keep book
-on the mode in trx->dict_operation_lock_mode */
+on the mode in trx_struct::dict_operation_lock_mode */
 UNIV_INTERN rw_lock_t	dict_operation_lock;
 
-#define	DICT_HEAP_SIZE		100	/* initial memory heap size when
+#define	DICT_HEAP_SIZE		100	/*!< initial memory heap size when
 					creating a table or index object */
-#define DICT_POOL_PER_TABLE_HASH 512	/* buffer pool max size per table
+#define DICT_POOL_PER_TABLE_HASH 512	/*!< buffer pool max size per table
 					hash table fixed size in bytes */
-#define DICT_POOL_PER_VARYING	4	/* buffer pool max size per data
+#define DICT_POOL_PER_VARYING	4	/*!< buffer pool max size per data
 					dictionary varying size in bytes */
 
-/* Identifies generated InnoDB foreign key names */
+/** Identifies generated InnoDB foreign key names */
 static char	dict_ibfk[] = "_ibfk_";
 
 /*******************************************************************//**
@@ -2559,7 +2561,7 @@ dict_foreign_add_to_cache(
 /*********************************************************************//**
 Scans from pointer onwards. Stops if is at the start of a copy of
 'string' where characters are compared without case sensitivity, and
-only outside `` or "" quotes. Stops also at '\0'.
+only outside `` or "" quotes. Stops also at NUL.
 @return	scanned up to this */
 static
 const char*
@@ -2933,8 +2935,8 @@ dict_skip_word(
 /*********************************************************************//**
 Removes MySQL comments from an SQL string. A comment is either
 (a) '#' to the end of the line,
-(b) '--<space>' to the end of the line, or
-(c) '<slash><asterisk>' till the next '<asterisk><slash>' (like the familiar
+(b) '--[space]' to the end of the line, or
+(c) '[slash][asterisk]' till the next '[asterisk][slash]' (like the familiar
 C comment syntax).
 @return own: SQL string stripped from comments; the caller must free
 this with mem_free()! */
@@ -3017,9 +3019,9 @@ scan_more:
 }
 
 /*********************************************************************//**
-Finds the highest <number> for foreign key constraints of the table. Looks
+Finds the highest [number] for foreign key constraints of the table. Looks
 only at the >= 4.0.18-format id's, which are of the form
-databasename/tablename_ibfk_<number>.
+databasename/tablename_ibfk_[number].
 @return	highest number, 0 if table has no new format foreign key constraints */
 static
 ulint
@@ -3183,8 +3185,8 @@ dict_create_foreign_constraints_low(
 	}
 
 	/* Starting from 4.0.18 and 4.1.2, we generate foreign key id's in the
-	format databasename/tablename_ibfk_<number>, where <number> is local
-	to the table; look for the highest <number> for table_to_alter, so
+	format databasename/tablename_ibfk_[number], where [number] is local
+	to the table; look for the highest [number] for table_to_alter, so
 	that we can assign to new constraints higher numbers. */
 
 	/* If we are altering a temporary table, the table name after ALTER

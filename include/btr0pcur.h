@@ -462,8 +462,8 @@ btr_pcur_move_to_prev_on_page(
 selects, updates, and deletes. */
 
 struct btr_pcur_struct{
-	btr_cur_t	btr_cur;	/* a B-tree cursor */
-	ulint		latch_mode;	/* see TODO note below!
+	btr_cur_t	btr_cur;	/*!< a B-tree cursor */
+	ulint		latch_mode;	/*!< see TODO note below!
 					BTR_SEARCH_LEAF, BTR_MODIFY_LEAF,
 					BTR_MODIFY_TREE, or BTR_NO_LATCHES,
 					depending on the latching state of
@@ -474,28 +474,28 @@ struct btr_pcur_struct{
 					detached; it can be restored to
 					attached if the old position was
 					stored in old_rec */
-	ulint		old_stored;	/* BTR_PCUR_OLD_STORED
+	ulint		old_stored;	/*!< BTR_PCUR_OLD_STORED
 					or BTR_PCUR_OLD_NOT_STORED */
-	rec_t*		old_rec;	/* if cursor position is stored,
+	rec_t*		old_rec;	/*!< if cursor position is stored,
 					contains an initial segment of the
 					latest record cursor was positioned
 					either on, before, or after */
-	ulint		old_n_fields;	/* number of fields in old_rec */
-	ulint		rel_pos;	/* BTR_PCUR_ON, BTR_PCUR_BEFORE, or
+	ulint		old_n_fields;	/*!< number of fields in old_rec */
+	ulint		rel_pos;	/*!< BTR_PCUR_ON, BTR_PCUR_BEFORE, or
 					BTR_PCUR_AFTER, depending on whether
 					cursor was on, before, or after the
 					old_rec record */
 	buf_block_t*	block_when_stored;/* buffer block when the position was
 					stored */
-	ib_uint64_t	modify_clock;	/* the modify clock value of the
+	ib_uint64_t	modify_clock;	/*!< the modify clock value of the
 					buffer block when the cursor position
 					was stored */
-	ulint		pos_state;	/* see TODO note below!
+	ulint		pos_state;	/*!< see TODO note below!
 					BTR_PCUR_IS_POSITIONED,
 					BTR_PCUR_WAS_POSITIONED,
 					BTR_PCUR_NOT_POSITIONED */
-	ulint		search_mode;	/* PAGE_CUR_G, ... */
-	trx_t*		trx_if_known;	/* the transaction, if we know it;
+	ulint		search_mode;	/*!< PAGE_CUR_G, ... */
+	trx_t*		trx_if_known;	/*!< the transaction, if we know it;
 					otherwise this field is not defined;
 					can ONLY BE USED in error prints in
 					fatal assertion failures! */
@@ -503,12 +503,12 @@ struct btr_pcur_struct{
 	/* NOTE that the following fields may possess dynamically allocated
 	memory which should be freed if not needed anymore! */
 
-	mtr_t*		mtr;		/* NULL, or this field may contain
+	mtr_t*		mtr;		/*!< NULL, or this field may contain
 					a mini-transaction which holds the
 					latch on the cursor page */
-	byte*		old_rec_buf;	/* NULL, or a dynamically allocated
+	byte*		old_rec_buf;	/*!< NULL, or a dynamically allocated
 					buffer for old_rec */
-	ulint		buf_size;	/* old_rec_buf size if old_rec_buf
+	ulint		buf_size;	/*!< old_rec_buf size if old_rec_buf
 					is not NULL */
 };
 

@@ -450,8 +450,8 @@ dtype_new_read_for_order_and_null_size()
 sym_tab_add_null_lit() */
 
 struct dtype_struct{
-	unsigned	mtype:8;	/* main data type */
-	unsigned	prtype:24;	/* precise type; MySQL data
+	unsigned	mtype:8;	/*!< main data type */
+	unsigned	prtype:24;	/*!< precise type; MySQL data
 					type, charset code, flags to
 					indicate nullability,
 					signedness, whether this is a
@@ -461,7 +461,7 @@ struct dtype_struct{
 
 	/* the remaining fields do not affect alphabetical ordering: */
 
-	unsigned	len:16;		/* length; for MySQL data this
+	unsigned	len:16;		/*!< length; for MySQL data this
 					is field->pack_length(),
 					except that for a >= 5.0.3
 					type true VARCHAR this is the
@@ -470,9 +470,9 @@ struct dtype_struct{
 					the string, MySQL uses 1 or 2
 					bytes to store the string length) */
 #ifndef UNIV_HOTBACKUP
-	unsigned	mbminlen:2;	/* minimum length of a
+	unsigned	mbminlen:2;	/*!< minimum length of a
 					character, in bytes */
-	unsigned	mbmaxlen:3;	/* maximum length of a
+	unsigned	mbmaxlen:3;	/*!< maximum length of a
 					character, in bytes */
 #endif /* !UNIV_HOTBACKUP */
 };

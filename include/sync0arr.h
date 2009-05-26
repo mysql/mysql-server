@@ -31,11 +31,15 @@ Created 9/5/1995 Heikki Tuuri
 #include "ut0mem.h"
 #include "os0thread.h"
 
+/** Synchronization wait array cell */
 typedef struct sync_cell_struct		sync_cell_t;
+/** Synchronization wait array */
 typedef struct sync_array_struct	sync_array_t;
 
-#define SYNC_ARRAY_OS_MUTEX	1
-#define SYNC_ARRAY_MUTEX	2
+/** Parameters for sync_array_create() @{ */
+#define SYNC_ARRAY_OS_MUTEX	1	/*!< protected by os_mutex_t */
+#define SYNC_ARRAY_MUTEX	2	/*!< protected by mutex_t */
+/* @} */
 
 /*******************************************************************//**
 Creates a synchronization wait array. It is protected by a mutex

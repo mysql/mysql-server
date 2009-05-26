@@ -23,7 +23,9 @@ The dynamically allocated array
 Created 2/5/1996 Heikki Tuuri
 *******************************************************/
 
+/** Value of dyn_block_struct::magic_n */
 #define DYN_BLOCK_MAGIC_N	375767
+/** Flag for dyn_block_struct::used that indicates a full block */
 #define DYN_BLOCK_FULL_FLAG	0x1000000UL
 
 /************************************************************//**

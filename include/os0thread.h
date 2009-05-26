@@ -44,11 +44,11 @@ can wait inside InnoDB */
 
 #ifdef __WIN__
 typedef void*			os_thread_t;
-typedef ulint			os_thread_id_t;	/* In Windows the thread id
+typedef ulint			os_thread_id_t;	/*!< In Windows the thread id
 						is an unsigned long int */
 #else
 typedef pthread_t		os_thread_t;
-typedef os_thread_t		os_thread_id_t;	/* In Unix we use the thread
+typedef os_thread_t		os_thread_id_t;	/*!< In Unix we use the thread
 						handle itself as the id of
 						the thread */
 #endif

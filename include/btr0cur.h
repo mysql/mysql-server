@@ -589,57 +589,69 @@ btr_push_update_extern_fields(
 
 /*######################################################################*/
 
-/* In the pessimistic delete, if the page data size drops below this
+/** In the pessimistic delete, if the page data size drops below this
 limit, merging it to a neighbor is tried */
-
 #define BTR_CUR_PAGE_COMPRESS_LIMIT	(UNIV_PAGE_SIZE / 2)
 
-/* A slot in the path array. We store here info on a search path down the
+/** A slot in the path array. We store here info on a search path down the
 tree. Each slot contains data on a single level of the tree. */
 
 typedef struct btr_path_struct	btr_path_t;
 struct btr_path_struct{
-	ulint	nth_rec;	/* index of the record
+	ulint	nth_rec;	/*!< index of the record
 				where the page cursor stopped on
 				this level (index in alphabetical
 				order); value ULINT_UNDEFINED
 				denotes array end */
-	ulint	n_recs;		/* number of records on the page */
+	ulint	n_recs;		/*!< number of records on the page */
 };
 
-#define BTR_PATH_ARRAY_N_SLOTS	250	/* size of path array (in slots) */
+#define BTR_PATH_ARRAY_N_SLOTS	250	/*!< size of path array (in slots) */
 
-/* The tree cursor: the definition appears here only for the compiler
+/** Values for the flag documenting the used search method */
+enum btr_cur_method {
+	BTR_CUR_HASH = 1,	/*!< successful shortcut using
+				the hash index */
+	BTR_CUR_HASH_FAIL,	/*!< failure using hash, success using
+				binary search: the misleading hash
+				reference is stored in the field
+				hash_node, and might be necessary to
+				update */
+	BTR_CUR_BINARY,		/*!< success using the binary search */
+	BTR_CUR_INSERT_TO_IBUF,	/*!< performed the intended insert to
+				the insert buffer */
+};
+
+/** The tree cursor: the definition appears here only for the compiler
 to know struct size! */
-
 struct btr_cur_struct {
-	dict_index_t*	index;		/* index where positioned */
-	page_cur_t	page_cur;	/* page cursor */
-	buf_block_t*	left_block;	/* this field is used to store
+	dict_index_t*	index;		/*!< index where positioned */
+	page_cur_t	page_cur;	/*!< page cursor */
+	buf_block_t*	left_block;	/*!< this field is used to store
 					a pointer to the left neighbor
 					page, in the cases
 					BTR_SEARCH_PREV and
 					BTR_MODIFY_PREV */
 	/*------------------------------*/
-	que_thr_t*	thr;		/* this field is only used when
-					btr_cur_search_... is called for an
-					index entry insertion: the calling
-					query thread is passed here to be
+	que_thr_t*	thr;		/*!< this field is only used
+					when btr_cur_search_to_nth_level
+					is called for an index entry
+					insertion: the calling query
+					thread is passed here to be
 					used in the insert buffer */
 	/*------------------------------*/
-	/* The following fields are used in btr_cur_search... to pass
-	information: */
-	ulint		flag;		/* BTR_CUR_HASH, BTR_CUR_HASH_FAIL,
-					BTR_CUR_BINARY, or
-					BTR_CUR_INSERT_TO_IBUF */
-	ulint		tree_height;	/* Tree height if the search is done
+	/** The following fields are used in
+	btr_cur_search_to_nth_level to pass information: */
+	/* @{ */
+	enum btr_cur_method	flag;	/*!< Search method used */
+	ulint		tree_height;	/*!< Tree height if the search is done
 					for a pessimistic insert or update
 					operation */
-	ulint		up_match;	/* If the search mode was PAGE_CUR_LE,
+	ulint		up_match;	/*!< If the search mode was PAGE_CUR_LE,
 					the number of matched fields to the
 					the first user record to the right of
 					the cursor record after
-					btr_cur_search_...;
+					btr_cur_search_to_nth_level;
 					for the mode PAGE_CUR_GE, the matched
 					fields to the first user record AT THE
 					CURSOR or to the right of it;
@@ -649,86 +661,88 @@ struct btr_cur_struct {
 					record if that record is on a
 					different leaf page! (See the note in
 					row_ins_duplicate_key.) */
-	ulint		up_bytes;	/* number of matched bytes to the
+	ulint		up_bytes;	/*!< number of matched bytes to the
 					right at the time cursor positioned;
 					only used internally in searches: not
 					defined after the search */
-	ulint		low_match;	/* if search mode was PAGE_CUR_LE,
+	ulint		low_match;	/*!< if search mode was PAGE_CUR_LE,
 					the number of matched fields to the
 					first user record AT THE CURSOR or
 					to the left of it after
-					btr_cur_search_...;
+					btr_cur_search_to_nth_level;
 					NOT defined for PAGE_CUR_GE or any
 					other search modes; see also the NOTE
 					in up_match! */
-	ulint		low_bytes;	/* number of matched bytes to the
+	ulint		low_bytes;	/*!< number of matched bytes to the
 					right at the time cursor positioned;
 					only used internally in searches: not
 					defined after the search */
-	ulint		n_fields;	/* prefix length used in a hash
+	ulint		n_fields;	/*!< prefix length used in a hash
 					search if hash_node != NULL */
-	ulint		n_bytes;	/* hash prefix bytes if hash_node !=
+	ulint		n_bytes;	/*!< hash prefix bytes if hash_node !=
 					NULL */
-	ulint		fold;		/* fold value used in the search if
+	ulint		fold;		/*!< fold value used in the search if
 					flag is BTR_CUR_HASH */
 	/*------------------------------*/
-	btr_path_t*	path_arr;	/* in estimating the number of
+	/* @} */
+	btr_path_t*	path_arr;	/*!< in estimating the number of
 					rows in range, we store in this array
 					information of the path through
 					the tree */
 };
 
-/* Values for the flag documenting the used search method */
-#define BTR_CUR_HASH		1	/* successful shortcut using the hash
-					index */
-#define BTR_CUR_HASH_FAIL	2	/* failure using hash, success using
-					binary search: the misleading hash
-					reference is stored in the field
-					hash_node, and might be necessary to
-					update */
-#define BTR_CUR_BINARY		3	/* success using the binary search */
-#define BTR_CUR_INSERT_TO_IBUF	4	/* performed the intended insert to
-					the insert buffer */
-
-/* If pessimistic delete fails because of lack of file space,
-there is still a good change of success a little later: try this many times,
-and sleep this many microseconds in between */
+/** If pessimistic delete fails because of lack of file space, there
+is still a good change of success a little later.  Try this many
+times. */
 #define BTR_CUR_RETRY_DELETE_N_TIMES	100
+/** If pessimistic delete fails because of lack of file space, there
+is still a good change of success a little later.  Sleep this many
+microseconds between retries. */
 #define BTR_CUR_RETRY_SLEEP_TIME	50000
 
-/* The reference in a field for which data is stored on a different page.
+/** The reference in a field for which data is stored on a different page.
 The reference is at the end of the 'locally' stored part of the field.
 'Locally' means storage in the index record.
 We store locally a long enough prefix of each column so that we can determine
 the ordering parts of each index record without looking into the externally
 stored part. */
-
-/*--------------------------------------*/
-#define BTR_EXTERN_SPACE_ID		0	/* space id where stored */
-#define BTR_EXTERN_PAGE_NO		4	/* page no where stored */
-#define BTR_EXTERN_OFFSET		8	/* offset of BLOB header
+/*-------------------------------------- @{ */
+#define BTR_EXTERN_SPACE_ID		0	/*!< space id where stored */
+#define BTR_EXTERN_PAGE_NO		4	/*!< page no where stored */
+#define BTR_EXTERN_OFFSET		8	/*!< offset of BLOB header
 						on that page */
-#define BTR_EXTERN_LEN			12	/* 8 bytes containing the
+#define BTR_EXTERN_LEN			12	/*!< 8 bytes containing the
 						length of the externally
 						stored part of the BLOB.
 						The 2 highest bits are
 						reserved to the flags below. */
-/*--------------------------------------*/
+/*-------------------------------------- @} */
 /* #define BTR_EXTERN_FIELD_REF_SIZE	20 // moved to btr0types.h */
 
-/* The highest bit of BTR_EXTERN_LEN (i.e., the highest bit of the byte
-at lowest address) is set to 1 if this field does not 'own' the externally
-stored field; only the owner field is allowed to free the field in purge!
-If the 2nd highest bit is 1 then it means that the externally stored field
-was inherited from an earlier version of the row. In rollback we are not
-allowed to free an inherited external field. */
-
+/** The most significant bit of BTR_EXTERN_LEN (i.e., the most
+significant bit of the byte at smallest address) is set to 1 if this
+field does not 'own' the externally stored field; only the owner field
+is allowed to free the field in purge! */
 #define BTR_EXTERN_OWNER_FLAG		128
+/** If the second most significant bit of BTR_EXTERN_LEN (i.e., the
+second most significant bit of the byte at smallest address) is 1 then
+it means that the externally stored field was inherited from an
+earlier version of the row.  In rollback we are not allowed to free an
+inherited external field. */
 #define BTR_EXTERN_INHERITED_FLAG	64
 
+/** Number of searches down the B-tree in btr_cur_search_to_nth_level(). */
 extern ulint	btr_cur_n_non_sea;
+/** Number of successful adaptive hash index lookups in
+btr_cur_search_to_nth_level(). */
 extern ulint	btr_cur_n_sea;
+/** Old value of btr_cur_n_non_sea.  Copied by
+srv_refresh_innodb_monitor_stats().  Referenced by
+srv_printf_innodb_monitor(). */
 extern ulint	btr_cur_n_non_sea_old;
+/** Old value of btr_cur_n_sea.  Copied by
+srv_refresh_innodb_monitor_stats().  Referenced by
+srv_printf_innodb_monitor(). */
 extern ulint	btr_cur_n_sea_old;
 #endif /* !UNIV_HOTBACKUP */
 

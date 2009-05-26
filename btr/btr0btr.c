@@ -2355,7 +2355,7 @@ btr_lift_page_up(
 	page_t*		page		= buf_block_get_frame(block);
 	ulint		root_page_no;
 	buf_block_t*	blocks[BTR_MAX_LEVELS];
-	ulint		n_blocks;	/* last used index in blocks[] */
+	ulint		n_blocks;	/*!< last used index in blocks[] */
 	ulint		i;
 
 	ut_ad(btr_page_get_prev(page, mtr) == FIL_NULL);

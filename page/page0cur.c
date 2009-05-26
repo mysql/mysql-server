@@ -958,13 +958,13 @@ page_cur_insert_rec_low(
 {
 	byte*		insert_buf;
 	ulint		rec_size;
-	page_t*		page;		/* the relevant page */
-	rec_t*		last_insert;	/* cursor position at previous
+	page_t*		page;		/*!< the relevant page */
+	rec_t*		last_insert;	/*!< cursor position at previous
 					insert */
-	rec_t*		free_rec;	/* a free record that was reused,
+	rec_t*		free_rec;	/*!< a free record that was reused,
 					or NULL */
-	rec_t*		insert_rec;	/* inserted record */
-	ulint		heap_no;	/* heap number of the inserted
+	rec_t*		insert_rec;	/*!< inserted record */
+	ulint		heap_no;	/*!< heap number of the inserted
 					record */
 
 	ut_ad(rec_offs_validate(rec, index, offsets));
@@ -1222,13 +1222,13 @@ page_cur_insert_rec_zip(
 {
 	byte*		insert_buf;
 	ulint		rec_size;
-	page_t*		page;		/* the relevant page */
-	rec_t*		last_insert;	/* cursor position at previous
+	page_t*		page;		/*!< the relevant page */
+	rec_t*		last_insert;	/*!< cursor position at previous
 					insert */
-	rec_t*		free_rec;	/* a free record that was reused,
+	rec_t*		free_rec;	/*!< a free record that was reused,
 					or NULL */
-	rec_t*		insert_rec;	/* inserted record */
-	ulint		heap_no;	/* heap number of the inserted
+	rec_t*		insert_rec;	/*!< inserted record */
+	ulint		heap_no;	/*!< heap number of the inserted
 					record */
 	page_zip_des_t*	page_zip;
 

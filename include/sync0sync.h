@@ -44,7 +44,7 @@ Created 9/5/1995 Heikki Tuuri
 extern my_bool	timed_mutexes;
 
 #ifdef HAVE_WINDOWS_ATOMICS
-typedef LONG lock_word_t;	/* On Windows, InterlockedExchange operates
+typedef LONG lock_word_t;	/*!< On Windows, InterlockedExchange operates
 				on LONG variable */
 #else
 typedef byte lock_word_t;
@@ -493,78 +493,79 @@ or row lock! */
 Do not use its fields directly! The structure used in the spin lock
 implementation of a mutual exclusion semaphore. */
 
+/** InnoDB mutex */
 struct mutex_struct {
-	os_event_t	event;	/* Used by sync0arr.c for the wait queue */
-	volatile lock_word_t	lock_word;	/* lock_word is the target
+	os_event_t	event;	/*!< Used by sync0arr.c for the wait queue */
+	volatile lock_word_t	lock_word;	/*!< lock_word is the target
 				of the atomic test-and-set instruction when
 				atomic operations are enabled. */
 
 #if !defined(HAVE_ATOMIC_BUILTINS)
 	os_fast_mutex_t
-		os_fast_mutex;	/* We use this OS mutex in place of lock_word
+		os_fast_mutex;	/*!< We use this OS mutex in place of lock_word
 				when atomic operations are not enabled */
 #endif
-	ulint	waiters;	/* This ulint is set to 1 if there are (or
+	ulint	waiters;	/*!< This ulint is set to 1 if there are (or
 				may be) threads waiting in the global wait
 				array for this mutex to be released.
 				Otherwise, this is 0. */
-	UT_LIST_NODE_T(mutex_t)	list; /* All allocated mutexes are put into
+	UT_LIST_NODE_T(mutex_t)	list; /*!< All allocated mutexes are put into
 				a list.	Pointers to the next and prev. */
 #ifdef UNIV_SYNC_DEBUG
-	const char*	file_name;	/* File where the mutex was locked */
-	ulint	line;		/* Line where the mutex was locked */
-	ulint	level;		/* Level in the global latching order */
+	const char*	file_name;	/*!< File where the mutex was locked */
+	ulint	line;		/*!< Line where the mutex was locked */
+	ulint	level;		/*!< Level in the global latching order */
 #endif /* UNIV_SYNC_DEBUG */
-	const char*	cfile_name;/* File name where mutex created */
-	ulint		cline;	/* Line where created */
+	const char*	cfile_name;/*!< File name where mutex created */
+	ulint		cline;	/*!< Line where created */
 #ifdef UNIV_DEBUG
-	os_thread_id_t thread_id; /* The thread id of the thread
+	os_thread_id_t thread_id; /*!< The thread id of the thread
 				which locked the mutex. */
-	ulint		magic_n;
+	ulint		magic_n;	/*!< MUTEX_MAGIC_N */
+/** Value of mutex_struct::magic_n */
 # define MUTEX_MAGIC_N	(ulint)979585
 #endif /* UNIV_DEBUG */
-	ulong		count_os_wait; /* count of os_wait */
+	ulong		count_os_wait;	/*!< count of os_wait */
 #ifdef UNIV_DEBUG
-	ulong		count_using; /* count of times mutex used */
-	ulong		count_spin_loop; /* count of spin loops */
-	ulong		count_spin_rounds; /* count of spin rounds */
-	ulong		count_os_yield; /* count of os_wait */
-	ulonglong	lspent_time; /* mutex os_wait timer msec */
-	ulonglong	lmax_spent_time; /* mutex os_wait timer msec */
-	const char*	cmutex_name;/* mutex name */
-	ulint		mutex_type;/* 0 - usual mutex 1 - rw_lock mutex	 */
+	ulong		count_using;	/*!< count of times mutex used */
+	ulong		count_spin_loop; /*!< count of spin loops */
+	ulong		count_spin_rounds;/*!< count of spin rounds */
+	ulong		count_os_yield;	/*!< count of os_wait */
+	ulonglong	lspent_time;	/*!< mutex os_wait timer msec */
+	ulonglong	lmax_spent_time;/*!< mutex os_wait timer msec */
+	const char*	cmutex_name;	/*!< mutex name */
+	ulint		mutex_type;	/*!< 0=usual mutex, 1=rw_lock mutex */
 #endif /* UNIV_DEBUG */
 };
 
-/* The global array of wait cells for implementation of the databases own
-mutexes and read-write locks. Appears here for debugging purposes only! */
+/** The global array of wait cells for implementation of the databases own
+mutexes and read-write locks. */
+extern sync_array_t*	sync_primary_wait_array;/* Appears here for
+						debugging purposes only! */
 
-extern sync_array_t*	sync_primary_wait_array;
-
-/* Constant determining how long spin wait is continued before suspending
+/** Constant determining how long spin wait is continued before suspending
 the thread. A value 600 rounds on a 1995 100 MHz Pentium seems to correspond
 to 20 microseconds. */
 
 #define	SYNC_SPIN_ROUNDS	srv_n_spin_wait_rounds
 
-/* The number of system calls made in this module. Intended for performance
-monitoring. */
-
+/** The number of mutex_exit calls. Intended for performance monitoring. */
 extern	ib_int64_t	mutex_exit_count;
 
 #ifdef UNIV_SYNC_DEBUG
-/* Latching order checks start when this is set TRUE */
+/** Latching order checks start when this is set TRUE */
 extern ibool	sync_order_checks_on;
 #endif /* UNIV_SYNC_DEBUG */
 
-/* This variable is set to TRUE when sync_init is called */
+/** This variable is set to TRUE when sync_init is called */
 extern ibool	sync_initialized;
 
-/* Global list of database mutexes (not OS mutexes) created. */
+/** Global list of database mutexes (not OS mutexes) created. */
 typedef UT_LIST_BASE_NODE_T(mutex_t)  ut_list_base_node_t;
+/** Global list of database mutexes (not OS mutexes) created. */
 extern ut_list_base_node_t  mutex_list;
 
-/* Mutex protecting the mutex_list variable */
+/** Mutex protecting the mutex_list variable */
 extern mutex_t mutex_list_mutex;
 
 

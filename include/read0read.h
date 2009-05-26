@@ -120,33 +120,33 @@ read_cursor_set_for_mysql(
 	trx_t*		trx,	/*!< in: transaction where cursor is set */
 	cursor_view_t*	curview);/*!< in: consistent cursor view to be set */
 
-/* Read view lists the trx ids of those transactions for which a consistent
+/** Read view lists the trx ids of those transactions for which a consistent
 read should not see the modifications to the database. */
 
 struct read_view_struct{
-	ulint		type;	/* VIEW_NORMAL, VIEW_HIGH_GRANULARITY */
-	undo_no_t	undo_no;/* ut_dulint_zero or if type is
+	ulint		type;	/*!< VIEW_NORMAL, VIEW_HIGH_GRANULARITY */
+	undo_no_t	undo_no;/*!< ut_dulint_zero or if type is
 				VIEW_HIGH_GRANULARITY
 				transaction undo_no when this high-granularity
 				consistent read view was created */
 	trx_id_t	low_limit_no;
-				/* The view does not need to see the undo
+				/*!< The view does not need to see the undo
 				logs for transactions whose transaction number
 				is strictly smaller (<) than this value: they
 				can be removed in purge if not needed by other
 				views */
 	trx_id_t	low_limit_id;
-				/* The read should not see any transaction
+				/*!< The read should not see any transaction
 				with trx id >= this value. In other words,
 				this is the "high water mark". */
 	trx_id_t	up_limit_id;
-				/* The read should see all trx ids which
+				/*!< The read should see all trx ids which
 				are strictly smaller (<) than this value.
 				In other words,
 				this is the "low water mark". */
 	ulint		n_trx_ids;
-				/* Number of cells in the trx_ids array */
-	trx_id_t*	trx_ids;/* Additional trx ids which the read should
+				/*!< Number of cells in the trx_ids array */
+	trx_id_t*	trx_ids;/*!< Additional trx ids which the read should
 				not see: typically, these are the active
 				transactions at the time when the read is
 				serialized, except the reading transaction
@@ -155,34 +155,35 @@ struct read_view_struct{
 				between the "low" and "high" water marks,
 				that is, up_limit_id and low_limit_id. */
 	trx_id_t	creator_trx_id;
-				/* trx id of creating transaction, or
+				/*!< trx id of creating transaction, or
 				ut_dulint_zero used in purge */
 	UT_LIST_NODE_T(read_view_t) view_list;
-				/* List of read views in trx_sys */
+				/*!< List of read views in trx_sys */
 };
 
-/* Read view types */
-#define VIEW_NORMAL		1	/* Normal consistent read view
+/** Read view types @{ */
+#define VIEW_NORMAL		1	/*!< Normal consistent read view
 					where transaction does not see changes
 					made by active transactions except
 					creating transaction. */
-#define VIEW_HIGH_GRANULARITY	2	/* High-granularity read view where
+#define VIEW_HIGH_GRANULARITY	2	/*!< High-granularity read view where
 					transaction does not see changes
 					made by active transactions and own
 					changes after a point in time when this
 					read view was created. */
+/* @} */
 
-/* Implement InnoDB framework to support consistent read views in
+/** Implement InnoDB framework to support consistent read views in
 cursors. This struct holds both heap where consistent read view
 is allocated and pointer to a read view. */
 
 struct cursor_view_struct{
 	mem_heap_t*	heap;
-				/* Memory heap for the cursor view */
+				/*!< Memory heap for the cursor view */
 	read_view_t*	read_view;
-				/* Consistent read view of the cursor*/
+				/*!< Consistent read view of the cursor*/
 	ulint		n_mysql_tables_in_use;
-				/* number of Innobase tables used in the
+				/*!< number of Innobase tables used in the
 				processing of this cursor */
 };
 

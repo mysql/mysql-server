@@ -27,35 +27,43 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 #pragma interface			/* gcc class implementation */
 #endif
 
+/** InnoDB table share */
 typedef struct st_innobase_share {
-  THR_LOCK lock;
-  pthread_mutex_t mutex;
-  const char* table_name;
-  uint use_count;
-  void* table_name_hash;
+	THR_LOCK	lock;		/*!< MySQL lock protecting
+					this structure */
+	const char*	table_name;	/*!< InnoDB table name */
+	uint		use_count;	/*!< reference count,
+					incremented in get_share()
+					and decremented in free_share() */
+	void*		table_name_hash;/*!< hash table chain node */
 } INNOBASE_SHARE;
 
 
+/** InnoDB B-tree index */
 struct dict_index_struct;
+/** Prebuilt structures in an Innobase table handle used within MySQL */
 struct row_prebuilt_struct;
 
+/** InnoDB B-tree index */
 typedef struct dict_index_struct dict_index_t;
+/** Prebuilt structures in an Innobase table handle used within MySQL */
 typedef struct row_prebuilt_struct row_prebuilt_t;
 
-/* The class defining a handle to an Innodb table */
+/** The class defining a handle to an Innodb table */
 class ha_innobase: public handler
 {
-	row_prebuilt_t*	prebuilt;	/* prebuilt struct in InnoDB, used
+	row_prebuilt_t*	prebuilt;	/*!< prebuilt struct in InnoDB, used
 					to save CPU time with prebuilt data
 					structures*/
-	THD*		user_thd;	/* the thread handle of the user
+	THD*		user_thd;	/*!< the thread handle of the user
 					currently using the handle; this is
 					set in external_lock function */
 	THR_LOCK_DATA	lock;
-	INNOBASE_SHARE	*share;
+	INNOBASE_SHARE*	share;		/*!< information for MySQL
+					table locking */
 
-	uchar*		upd_buff;	/* buffer used in updates */
-	uchar*		key_val_buff;	/* buffer used in converting
+	uchar*		upd_buff;	/*!< buffer used in updates */
+	uchar*		key_val_buff;	/*!< buffer used in converting
 					search key values from MySQL format
 					to Innodb format */
 	ulong		upd_and_key_val_buff_len;
@@ -63,13 +71,13 @@ class ha_innobase: public handler
 					two buffers */
 	Table_flags	int_table_flags;
 	uint		primary_key;
-	ulong		start_of_scan;	/* this is set to 1 when we are
+	ulong		start_of_scan;	/*!< this is set to 1 when we are
 					starting a table scan but have not
 					yet fetched any row, else 0 */
 	uint		last_match_mode;/* match mode of the latest search:
 					ROW_SEL_EXACT, ROW_SEL_EXACT_PREFIX,
 					or undefined */
-	uint		num_write_row;	/* number of write_row() calls */
+	uint		num_write_row;	/*!< number of write_row() calls */
 
 	uint store_key_val_for_row(uint keynr, char* buff, uint buff_len,
                                    const uchar* record);

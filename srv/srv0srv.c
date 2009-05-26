@@ -246,14 +246,14 @@ UNIV_INTERN ulint srv_buf_pool_wait_free = 0;
 pool to the disk */
 UNIV_INTERN ulint srv_buf_pool_flushed = 0;
 
-/* variable to count the number of buffer pool reads that led to the
+/** Number of buffer pool reads that led to the
 reading of a disk page */
 UNIV_INTERN ulint srv_buf_pool_reads = 0;
 
-/* variable to count the number of sequential read-aheads */
+/** Number of sequential read-aheads */
 UNIV_INTERN ulint srv_read_ahead_seq = 0;
 
-/* variable to count the number of random read-aheads */
+/** Number of random read-aheads */
 UNIV_INTERN ulint srv_read_ahead_rnd = 0;
 
 /* structure to pass status variables to MySQL */
@@ -293,17 +293,17 @@ UNIV_INTERN ulint	srv_conc_n_waiting_threads = 0;
 
 typedef struct srv_conc_slot_struct	srv_conc_slot_t;
 struct srv_conc_slot_struct{
-	os_event_t			event;		/* event to wait */
-	ibool				reserved;	/* TRUE if slot
+	os_event_t			event;		/*!< event to wait */
+	ibool				reserved;	/*!< TRUE if slot
 							reserved */
-	ibool				wait_ended;	/* TRUE when another
+	ibool				wait_ended;	/*!< TRUE when another
 							thread has already set
 							the event and the
 							thread in this slot is
 							free to proceed; but
 							reserved may still be
 							TRUE at that point */
-	UT_LIST_NODE_T(srv_conc_slot_t)	srv_conc_queue;	/* queue node */
+	UT_LIST_NODE_T(srv_conc_slot_t)	srv_conc_queue;	/*!< queue node */
 };
 
 /* queue of threads waiting to get in */
@@ -578,17 +578,17 @@ Unix.*/
 
 /* Thread slot in the thread table */
 struct srv_slot_struct{
-	os_thread_id_t	id;		/* thread id */
-	os_thread_t	handle;		/* thread handle */
-	unsigned	type:3;		/* thread type: user, utility etc. */
-	unsigned	in_use:1;	/* TRUE if this slot is in use */
-	unsigned	suspended:1;	/* TRUE if the thread is waiting
+	os_thread_id_t	id;		/*!< thread id */
+	os_thread_t	handle;		/*!< thread handle */
+	unsigned	type:3;		/*!< thread type: user, utility etc. */
+	unsigned	in_use:1;	/*!< TRUE if this slot is in use */
+	unsigned	suspended:1;	/*!< TRUE if the thread is waiting
 					for the event of this slot */
-	ib_time_t	suspend_time;	/* time when the thread was
+	ib_time_t	suspend_time;	/*!< time when the thread was
 					suspended */
-	os_event_t	event;		/* event used in suspending the
+	os_event_t	event;		/*!< event used in suspending the
 					thread when it has nothing to do */
-	que_thr_t*	thr;		/* suspended query thread (only
+	que_thr_t*	thr;		/*!< suspended query thread (only
 					used for MySQL threads) */
 };
 

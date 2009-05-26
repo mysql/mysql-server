@@ -49,10 +49,9 @@ on 1/27/1998 */
 #include "eval0eval.h"
 
 #ifdef UNIV_SQL_DEBUG
-/* If the following is set TRUE, the lexer will print the SQL string
+/** If the following is set TRUE, the lexer will print the SQL string
 as it tokenizes it */
-
-ibool	pars_print_lexed	= FALSE;
+UNIV_INTERN ibool	pars_print_lexed	= FALSE;
 #endif /* UNIV_SQL_DEBUG */
 
 /* Global variable used while parsing a single procedure or query : the code is
@@ -93,9 +92,8 @@ UNIV_INTERN pars_res_word_t	pars_share_token = {PARS_SHARE_TOKEN};
 UNIV_INTERN pars_res_word_t	pars_unique_token = {PARS_UNIQUE_TOKEN};
 UNIV_INTERN pars_res_word_t	pars_clustered_token = {PARS_CLUSTERED_TOKEN};
 
-/* Global variable used to denote the '*' in SELECT * FROM.. */
-#define PARS_STAR_DENOTER	12345678
-UNIV_INTERN ulint	pars_star_denoter	= PARS_STAR_DENOTER;
+/** Global variable used to denote the '*' in SELECT * FROM.. */
+UNIV_INTERN ulint	pars_star_denoter	= 12345678;
 
 
 /*********************************************************************//**

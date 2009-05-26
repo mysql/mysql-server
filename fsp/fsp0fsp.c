@@ -1252,7 +1252,7 @@ fsp_try_extend_data_file(
 		at a time, but for bigger tablespaces more. It is not
 		enough to extend always by one extent, because some
 		extents are frag page extents. */
-		ulint	extent_size;	/* one megabyte, in pages */
+		ulint	extent_size;	/*!< one megabyte, in pages */
 
 		if (!zip_size) {
 			extent_size = FSP_EXTENT_SIZE;
@@ -2534,10 +2534,10 @@ fseg_alloc_free_page_low(
 	dulint		seg_id;
 	ulint		used;
 	ulint		reserved;
-	xdes_t*		descr;		/* extent of the hinted page */
-	ulint		ret_page;	/* the allocated page offset, FIL_NULL
+	xdes_t*		descr;		/*!< extent of the hinted page */
+	ulint		ret_page;	/*!< the allocated page offset, FIL_NULL
 					if could not be allocated */
-	xdes_t*		ret_descr;	/* the extent of the allocated page */
+	xdes_t*		ret_descr;	/*!< the extent of the allocated page */
 	ibool		frag_page_allocated = FALSE;
 	ibool		success;
 	ulint		n;

@@ -34,53 +34,55 @@ Created 10/25/1995 Heikki Tuuri
 #include "ut0byte.h"
 #include "os0file.h"
 
-/* When mysqld is run, the default directory "." is the mysqld datadir, but in
-ibbackup we must set it explicitly; the patgh must NOT contain the trailing
-'/' or '\' */
+/** When mysqld is run, the default directory "." is the mysqld datadir,
+but in the MySQL Embedded Server Library and ibbackup it is not the default
+directory, and we must set the base file path explicitly */
 extern const char*	fil_path_to_mysql_datadir;
 
-/* Initial size of a single-table tablespace in pages */
+/** Initial size of a single-table tablespace in pages */
 #define FIL_IBD_FILE_INITIAL_SIZE	4
 
-/* 'null' (undefined) page offset in the context of file spaces */
+/** 'null' (undefined) page offset in the context of file spaces */
 #define	FIL_NULL	ULINT32_UNDEFINED
 
 /* Space address data type; this is intended to be used when
 addresses accurate to a byte are stored in file pages. If the page part
 of the address is FIL_NULL, the address is considered undefined. */
 
-typedef	byte	fil_faddr_t;	/* 'type' definition in C: an address
+typedef	byte	fil_faddr_t;	/*!< 'type' definition in C: an address
 				stored in a file page is a string of bytes */
 #define FIL_ADDR_PAGE	0	/* first in address is the page offset */
 #define	FIL_ADDR_BYTE	4	/* then comes 2-byte byte offset within page*/
 
 #define	FIL_ADDR_SIZE	6	/* address size is 6 bytes */
 
-/* A struct for storing a space address FIL_ADDR, when it is used
+/** A struct for storing a space address FIL_ADDR, when it is used
 in C program data structures. */
 
 typedef struct fil_addr_struct	fil_addr_t;
+/** File space address */
 struct fil_addr_struct{
-	ulint	page;		/* page number within a space */
-	ulint	boffset;	/* byte offset within the page */
+	ulint	page;		/*!< page number within a space */
+	ulint	boffset;	/*!< byte offset within the page */
 };
 
-/* Null file address */
+/** The null file address */
 extern fil_addr_t	fil_addr_null;
 
-/* The byte offsets on a file page for various variables */
-#define FIL_PAGE_SPACE_OR_CHKSUM 0	/* in < MySQL-4.0.14 space id the
+/** The byte offsets on a file page for various variables @{ */
+#define FIL_PAGE_SPACE_OR_CHKSUM 0	/*!< in < MySQL-4.0.14 space id the
 					page belongs to (== 0) but in later
 					versions the 'new' checksum of the
 					page */
-#define FIL_PAGE_OFFSET		4	/* page offset inside space */
-#define FIL_PAGE_PREV		8	/* if there is a 'natural' predecessor
-					of the page, its offset.
-					Otherwise FIL_NULL.
-					This field is not set on BLOB pages,
-					which are stored as a singly-linked
-					list.  See also FIL_PAGE_NEXT. */
-#define FIL_PAGE_NEXT		12	/* if there is a 'natural' successor
+#define FIL_PAGE_OFFSET		4	/*!< page offset inside space */
+#define FIL_PAGE_PREV		8	/*!< if there is a 'natural'
+					predecessor of the page, its
+					offset.  Otherwise FIL_NULL.
+					This field is not set on BLOB
+					pages, which are stored as a
+					singly-linked list.  See also
+					FIL_PAGE_NEXT. */
+#define FIL_PAGE_NEXT		12	/*!< if there is a 'natural' successor
 					of the page, its offset.
 					Otherwise FIL_NULL.
 					B-tree index pages
@@ -90,9 +92,9 @@ extern fil_addr_t	fil_addr_null;
 					FIL_PAGE_PREV and FIL_PAGE_NEXT
 					in the collation order of the
 					smallest user record on each page. */
-#define FIL_PAGE_LSN		16	/* lsn of the end of the newest
+#define FIL_PAGE_LSN		16	/*!< lsn of the end of the newest
 					modification log record to the page */
-#define	FIL_PAGE_TYPE		24	/* file page type: FIL_PAGE_INDEX,...,
+#define	FIL_PAGE_TYPE		24	/*!< file page type: FIL_PAGE_INDEX,...,
 					2 bytes.
 
 					The contents of this field can only
@@ -107,44 +109,50 @@ extern fil_addr_t	fil_addr_null;
 					MySQL/InnoDB 5.1.7 or later, the
 					contents of this field is valid
 					for all uncompressed pages. */
-#define FIL_PAGE_FILE_FLUSH_LSN	26	/* this is only defined for the
+#define FIL_PAGE_FILE_FLUSH_LSN	26	/*!< this is only defined for the
 					first page in a data file: the file
 					has been flushed to disk at least up
 					to this lsn */
-#define FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID  34 /* starting from 4.1.x this
+#define FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID  34 /*!< starting from 4.1.x this
 					contains the space id of the page */
-#define FIL_PAGE_DATA		38	/* start of the data on the page */
-
-/* File page trailer */
-#define FIL_PAGE_END_LSN_OLD_CHKSUM 8	/* the low 4 bytes of this are used
+#define FIL_PAGE_DATA		38	/*!< start of the data on the page */
+/* @} */
+/** File page trailer @{ */
+#define FIL_PAGE_END_LSN_OLD_CHKSUM 8	/*!< the low 4 bytes of this are used
 					to store the page checksum, the
 					last 4 bytes should be identical
 					to the last 4 bytes of FIL_PAGE_LSN */
-#define FIL_PAGE_DATA_END	8
+#define FIL_PAGE_DATA_END	8	/*!< size of the page trailer */
+/* @} */
 
-/* File page types (values of FIL_PAGE_TYPE) */
-#define FIL_PAGE_INDEX		17855	/* B-tree node */
-#define FIL_PAGE_UNDO_LOG	2	/* Undo log page */
-#define FIL_PAGE_INODE		3	/* Index node */
-#define FIL_PAGE_IBUF_FREE_LIST	4	/* Insert buffer free list */
+/** File page types (values of FIL_PAGE_TYPE) @{ */
+#define FIL_PAGE_INDEX		17855	/*!< B-tree node */
+#define FIL_PAGE_UNDO_LOG	2	/*!< Undo log page */
+#define FIL_PAGE_INODE		3	/*!< Index node */
+#define FIL_PAGE_IBUF_FREE_LIST	4	/*!< Insert buffer free list */
 /* File page types introduced in MySQL/InnoDB 5.1.7 */
-#define FIL_PAGE_TYPE_ALLOCATED	0	/* Freshly allocated page */
-#define FIL_PAGE_IBUF_BITMAP	5	/* Insert buffer bitmap */
-#define FIL_PAGE_TYPE_SYS	6	/* System page */
-#define FIL_PAGE_TYPE_TRX_SYS	7	/* Transaction system data */
-#define FIL_PAGE_TYPE_FSP_HDR	8	/* File space header */
-#define FIL_PAGE_TYPE_XDES	9	/* Extent descriptor page */
-#define FIL_PAGE_TYPE_BLOB	10	/* Uncompressed BLOB page */
-#define FIL_PAGE_TYPE_ZBLOB	11	/* First compressed BLOB page */
-#define FIL_PAGE_TYPE_ZBLOB2	12	/* Subsequent compressed BLOB page */
+#define FIL_PAGE_TYPE_ALLOCATED	0	/*!< Freshly allocated page */
+#define FIL_PAGE_IBUF_BITMAP	5	/*!< Insert buffer bitmap */
+#define FIL_PAGE_TYPE_SYS	6	/*!< System page */
+#define FIL_PAGE_TYPE_TRX_SYS	7	/*!< Transaction system data */
+#define FIL_PAGE_TYPE_FSP_HDR	8	/*!< File space header */
+#define FIL_PAGE_TYPE_XDES	9	/*!< Extent descriptor page */
+#define FIL_PAGE_TYPE_BLOB	10	/*!< Uncompressed BLOB page */
+#define FIL_PAGE_TYPE_ZBLOB	11	/*!< First compressed BLOB page */
+#define FIL_PAGE_TYPE_ZBLOB2	12	/*!< Subsequent compressed BLOB page */
+/* @} */
 
-/* Space types */
-#define FIL_TABLESPACE		501
-#define FIL_LOG			502
+/** Space types @{ */
+#define FIL_TABLESPACE		501	/*!< tablespace */
+#define FIL_LOG			502	/*!< redo log */
+/* @} */
 
+/** The number of fsyncs done to the log */
 extern ulint	fil_n_log_flushes;
 
+/** Number of pending redo log flushes */
 extern ulint	fil_n_pending_log_flushes;
+/** Number of pending tablespace flushes */
 extern ulint	fil_n_pending_tablespace_flushes;
 
 

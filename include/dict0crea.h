@@ -132,8 +132,8 @@ dict_create_add_foreigns_to_dictionary(
 /* Table create node structure */
 
 struct tab_node_struct{
-	que_common_t	common;	/* node type: QUE_NODE_TABLE_CREATE */
-	dict_table_t*	table;	/* table to create, built as a memory data
+	que_common_t	common;	/*!< node type: QUE_NODE_TABLE_CREATE */
+	dict_table_t*	table;	/*!< table to create, built as a memory data
 				structure with dict_mem_... functions */
 	ins_node_t*	tab_def; /* child node which does the insert of
 				the table definition; the row to be inserted
@@ -146,9 +146,9 @@ struct tab_node_struct{
 				a successful table creation */
 	/*----------------------*/
 	/* Local storage for this graph node */
-	ulint		state;	/* node execution state */
-	ulint		col_no;	/* next column definition to insert */
-	mem_heap_t*	heap;	/* memory heap used as auxiliary storage */
+	ulint		state;	/*!< node execution state */
+	ulint		col_no;	/*!< next column definition to insert */
+	mem_heap_t*	heap;	/*!< memory heap used as auxiliary storage */
 };
 
 /* Table create node states */
@@ -161,8 +161,8 @@ struct tab_node_struct{
 /* Index create node struct */
 
 struct ind_node_struct{
-	que_common_t	common;	/* node type: QUE_NODE_INDEX_CREATE */
-	dict_index_t*	index;	/* index to create, built as a memory data
+	que_common_t	common;	/*!< node type: QUE_NODE_INDEX_CREATE */
+	dict_index_t*	index;	/*!< index to create, built as a memory data
 				structure with dict_mem_... functions */
 	ins_node_t*	ind_def; /* child node which does the insert of
 				the index definition; the row to be inserted
@@ -175,12 +175,12 @@ struct ind_node_struct{
 				a successful index creation */
 	/*----------------------*/
 	/* Local storage for this graph node */
-	ulint		state;	/* node execution state */
+	ulint		state;	/*!< node execution state */
 	ulint		page_no;/* root page number of the index */
-	dict_table_t*	table;	/* table which owns the index */
+	dict_table_t*	table;	/*!< table which owns the index */
 	dtuple_t*	ind_row;/* index definition row built */
 	ulint		field_no;/* next field definition to insert */
-	mem_heap_t*	heap;	/* memory heap used as auxiliary storage */
+	mem_heap_t*	heap;	/*!< memory heap used as auxiliary storage */
 };
 
 /* Index create node states */

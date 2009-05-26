@@ -489,21 +489,6 @@ func_exit:
 	return(cmp);
 }
 
-/**********************************************************************//**
-Merge sort the tuple buffer in main memory. */
-static
-void
-row_merge_tuple_sort(
-/*=================*/
-	ulint			n_field,/*!< in: number of fields */
-	row_merge_dup_t*	dup,	/*!< in/out: for reporting duplicates */
-	const dfield_t**	tuples,	/*!< in/out: tuples */
-	const dfield_t**	aux,	/*!< in/out: work area */
-	ulint			low,	/*!< in: lower bound of the
-					sorting area, inclusive */
-	ulint			high)	/*!< in: upper bound of the
-					sorting area, exclusive */
-{
 /** Wrapper for row_merge_tuple_sort() to inject some more context to
 UT_SORT_FUNCTION_BODY().
 @param a	array of tuples that being sorted
@@ -519,6 +504,21 @@ UT_SORT_FUNCTION_BODY().
 @return	1, 0, -1 if a is greater, equal, less, respectively, than b */
 #define row_merge_tuple_cmp_ctx(a,b) row_merge_tuple_cmp(n_field, a, b, dup)
 
+/**********************************************************************//**
+Merge sort the tuple buffer in main memory. */
+static
+void
+row_merge_tuple_sort(
+/*=================*/
+	ulint			n_field,/*!< in: number of fields */
+	row_merge_dup_t*	dup,	/*!< in/out: for reporting duplicates */
+	const dfield_t**	tuples,	/*!< in/out: tuples */
+	const dfield_t**	aux,	/*!< in/out: work area */
+	ulint			low,	/*!< in: lower bound of the
+					sorting area, inclusive */
+	ulint			high)	/*!< in: upper bound of the
+					sorting area, exclusive */
+{
 	UT_SORT_FUNCTION_BODY(row_merge_tuple_sort_ctx,
 			      tuples, aux, low, high, row_merge_tuple_cmp_ctx);
 }
@@ -1305,42 +1305,6 @@ func_exit:
 	return(err);
 }
 
-/*************************************************************//**
-Merge two blocks of linked lists on disk and write a bigger block.
-@return	DB_SUCCESS or error code */
-static
-ulint
-row_merge_blocks(
-/*=============*/
-	const dict_index_t*	index,	/*!< in: index being created */
-	merge_file_t*		file,	/*!< in/out: file containing
-					index entries */
-	row_merge_block_t*	block,	/*!< in/out: 3 buffers */
-	ulint*			foffs0,	/*!< in/out: offset of first
-					source list in the file */
-	ulint*			foffs1,	/*!< in/out: offset of second
-					source list in the file */
-	merge_file_t*		of,	/*!< in/out: output file */
-	TABLE*			table)	/*!< in/out: MySQL table, for
-					reporting erroneous key value
-					if applicable */
-{
-	mem_heap_t*	heap;	/* memory heap for offsets0, offsets1 */
-
-	mrec_buf_t	buf[3];	/* buffer for handling split mrec in block[] */
-	const byte*	b0;	/* pointer to block[0] */
-	const byte*	b1;	/* pointer to block[1] */
-	byte*		b2;	/* pointer to block[2] */
-	const mrec_t*	mrec0;	/* merge rec, points to block[0] or buf[0] */
-	const mrec_t*	mrec1;	/* merge rec, points to block[1] or buf[1] */
-	ulint*		offsets0;/* offsets of mrec0 */
-	ulint*		offsets1;/* offsets of mrec1 */
-
-	heap = row_merge_heap_create(index, &offsets0, &offsets1);
-
-	/* Write a record and read the next record.  Split the output
-	file in two halves, which can be merged on the following pass. */
-
 /** Write a record via buffer 2 and read the next record to buffer N.
 @param N	number of the buffer (0 or 1)
 @param AT_END	statement to execute at end of input */
@@ -1363,6 +1327,42 @@ row_merge_blocks(
 			AT_END;						\
 		}							\
 	} while (0)
+
+/*************************************************************//**
+Merge two blocks of linked lists on disk and write a bigger block.
+@return	DB_SUCCESS or error code */
+static
+ulint
+row_merge_blocks(
+/*=============*/
+	const dict_index_t*	index,	/*!< in: index being created */
+	merge_file_t*		file,	/*!< in/out: file containing
+					index entries */
+	row_merge_block_t*	block,	/*!< in/out: 3 buffers */
+	ulint*			foffs0,	/*!< in/out: offset of first
+					source list in the file */
+	ulint*			foffs1,	/*!< in/out: offset of second
+					source list in the file */
+	merge_file_t*		of,	/*!< in/out: output file */
+	TABLE*			table)	/*!< in/out: MySQL table, for
+					reporting erroneous key value
+					if applicable */
+{
+	mem_heap_t*	heap;	/*!< memory heap for offsets0, offsets1 */
+
+	mrec_buf_t	buf[3];	/*!< buffer for handling split mrec in block[] */
+	const byte*	b0;	/*!< pointer to block[0] */
+	const byte*	b1;	/*!< pointer to block[1] */
+	byte*		b2;	/*!< pointer to block[2] */
+	const mrec_t*	mrec0;	/*!< merge rec, points to block[0] or buf[0] */
+	const mrec_t*	mrec1;	/*!< merge rec, points to block[1] or buf[1] */
+	ulint*		offsets0;/* offsets of mrec0 */
+	ulint*		offsets1;/* offsets of mrec1 */
+
+	heap = row_merge_heap_create(index, &offsets0, &offsets1);
+
+	/* Write a record and read the next record.  Split the output
+	file in two halves, which can be merged on the following pass. */
 
 	if (!row_merge_read(file->fd, *foffs0, &block[0])
 	    || !row_merge_read(file->fd, *foffs1, &block[1])) {
@@ -1447,10 +1447,10 @@ row_merge(
 					reporting erroneous key value
 					if applicable */
 {
-	ulint		foffs0;	/* first input offset */
-	ulint		foffs1;	/* second input offset */
-	ulint		error;	/* error code */
-	merge_file_t	of;	/* output file */
+	ulint		foffs0;	/*!< first input offset */
+	ulint		foffs1;	/*!< second input offset */
+	ulint		error;	/*!< error code */
+	merge_file_t	of;	/*!< output file */
 
 	UNIV_MEM_ASSERT_W(block[0], 3 * sizeof block[0]);
 	ut_ad(half > 0);
@@ -1510,7 +1510,7 @@ row_merge_sort(
 					reporting erroneous key value
 					if applicable */
 {
-	ulint	blksz;	/* block size */
+	ulint	blksz;	/*!< block size */
 
 	for (blksz = 1; blksz < file->offset; blksz *= 2) {
 		ulint	half;
@@ -2142,9 +2142,9 @@ row_merge_create_index_graph(
 	dict_table_t*	table,		/*!< in: table */
 	dict_index_t*	index)		/*!< in: index */
 {
-	ind_node_t*	node;		/* Index creation node */
-	mem_heap_t*	heap;		/* Memory heap */
-	que_thr_t*	thr;		/* Query thread */
+	ind_node_t*	node;		/*!< Index creation node */
+	mem_heap_t*	heap;		/*!< Memory heap */
+	que_thr_t*	thr;		/*!< Query thread */
 	ulint		err;
 
 	ut_ad(trx);

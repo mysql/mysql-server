@@ -901,7 +901,7 @@ que_thr_dec_refer_count(
 			break;
 
 		default:
-			ut_error;	/* not used in MySQL */
+			ut_error;	/*!< not used in MySQL */
 		}
 	}
 
