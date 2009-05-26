@@ -39,6 +39,7 @@ try
         var parts = args.Item(i).split('=');
         switch (parts[0])
         {
+            case "WITH_COMMUNITY_FEATURES":
             case "WITH_ARCHIVE_STORAGE_ENGINE":
             case "WITH_BERKELEY_STORAGE_ENGINE":
             case "WITH_BLACKHOLE_STORAGE_ENGINE":
