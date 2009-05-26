@@ -117,12 +117,33 @@ void Dbtup::initOpConnection(Operationrec* regOperPtr)
 }
 
 static
-inline
 bool
-operator>(const Local_key& key1, const Local_key& key2)
+operator>(const Local_key& key1, const Dbtup::ScanOp& op)
 {
-  return key1.m_page_no > key2.m_page_no ||
-    (key1.m_page_no == key2.m_page_no && key1.m_page_idx > key2.m_page_idx);
+  Local_key key2 = op.m_scanPos.m_key;
+  int gth0 = int(key1.m_page_no) - int(key2.m_page_no);
+  int gth1 = int(key1.m_page_idx) - int(key2.m_page_idx);
+  if (gth0 > 0 || (gth0 == 0 && gth1 > 0))
+  {
+    return true;
+  }
+  if (gth0 < 0 || (gth0 == 0 && gth1 < 0))
+  {
+    return false;
+  }
+
+  /**
+   * key are equal...need to look at scan state
+   */
+  switch(op.m_state){
+  case Dbtup::ScanOp::Next:
+    /**
+     * This row-id has already been scanned
+     */
+    return false;
+  default:
+    return true;
+  }
 }
 
 void
@@ -158,9 +179,8 @@ Dbtup::dealloc_tuple(Signal* signal,
     ScanOpPtr scanOp;
     c_scanOpPool.getPtr(scanOp, lcpScan_ptr_i);
     Local_key rowid = regOperPtr->m_tuple_location;
-    Local_key scanpos = scanOp.p->m_scanPos.m_key;
     rowid.m_page_no = page->frag_page_id;
-    if (rowid > scanpos)
+    if (rowid > *scanOp.p)
     {
       jam();
       extra_bits = Tuple_header::LCP_KEEP; // Note REMOVE FREE
@@ -344,9 +364,8 @@ Dbtup::commit_operation(Signal* signal,
     ScanOpPtr scanOp;
     c_scanOpPool.getPtr(scanOp, lcpScan_ptr_i);
     Local_key rowid = regOperPtr->m_tuple_location;
-    Local_key scanpos = scanOp.p->m_scanPos.m_key;
     rowid.m_page_no = pagePtr.p->frag_page_id;
-    if(rowid > scanpos)
+    if (rowid > *scanOp.p)
     {
       jam();
        copy_bits |= Tuple_header::LCP_SKIP;
