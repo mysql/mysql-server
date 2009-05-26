@@ -1466,11 +1466,12 @@ int runSR_DD_2(NDBT_Context* ctx, NDBT_Step* step)
   int result = NDBT_OK;
   Uint32 loops = ctx->getNumLoops();
   Uint32 rows = ctx->getNumRecords();
-  int count;
   NdbRestarter restarter;
   NdbBackup backup(GETNDB(step)->getNodeId()+1);
   bool lcploop = ctx->getProperty("LCP", (unsigned)0);
   bool all = ctx->getProperty("ALL", (unsigned)0);
+  int error = (int)ctx->getProperty("ERROR", (unsigned)0);
+  rows = ctx->getProperty("ROWS", rows);
 
   Uint32 i = 1;
   Uint32 backupId;
@@ -1478,7 +1479,10 @@ int runSR_DD_2(NDBT_Context* ctx, NDBT_Step* step)
   int val[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
   int lcp = DumpStateOrd::DihMinTimeBetweenLCP;
 
-  int startFrom = 0;
+  if (error)
+  {
+    restarter.insertErrorInAllNodes(error);
+  }
 
   HugoTransactions hugoTrans(*ctx->getTab());
   while(i<=loops && result != NDBT_FAILED)
@@ -1501,11 +1505,10 @@ int runSR_DD_2(NDBT_Context* ctx, NDBT_Step* step)
     else
     {
       ndbout << "Crashing cluster" << endl;
-      ctx->setProperty("StopAbort", 1000 + rand() % (3000 - 1000));
+      ctx->setProperty("StopAbort", 3000 + rand() % (10000 - 3000));
     }
 
     Uint64 end = NdbTick_CurrentMillisecond() + 11000;
-    Uint32 row = startFrom;
     do {
       if (hugoTrans.loadTable(pNdb, rows) != 0)
 	break;
@@ -1529,7 +1532,11 @@ int runSR_DD_2(NDBT_Context* ctx, NDBT_Step* step)
     CHECK(restarter.waitClusterNoStart() == 0);
     CHECK(restarter.startAll() == 0);
     CHECK(restarter.waitClusterStarted() == 0);
-    
+    if (error)
+    {
+      restarter.insertErrorInAllNodes(error);
+    }
+
     ndbout << "Starting backup..." << flush;
     CHECK(backup.start(backupId) == 0);
     ndbout << "done" << endl;
@@ -1541,6 +1548,11 @@ int runSR_DD_2(NDBT_Context* ctx, NDBT_Step* step)
     CHECK(hugoTrans.clearTable(pNdb,
                                NdbScanOperation::SF_TupScan, cnt) == 0);
     i++;
+  }
+
+  if (error)
+  {
+    restarter.insertErrorInAllNodes(0);
   }
   
   ndbout << "runSR_DD_2 finished" << endl;  
@@ -1927,6 +1939,16 @@ TESTCASE("basic", "")
   INITIALIZER(runCreateAllTables);
   STEP(runBasic);
   FINALIZER(runDropAllTables);
+}
+TESTCASE("Bug41915", "")
+{
+  TC_PROPERTY("ALL", 1);
+  TC_PROPERTY("ERROR", 5053);
+  TC_PROPERTY("ROWS", 30);
+  INITIALIZER(runWaitStarted);
+  STEP(runStopper);
+  STEP(runSR_DD_2);
+  FINALIZER(runClearTable);
 }
 NDBT_TESTSUITE_END(testSystemRestart);
 

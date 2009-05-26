@@ -3206,6 +3206,8 @@ private:
 
   /* For debugging, dump the contents of a tuple. */
   void dump_tuple(const KeyReqStruct* req_struct, const Tablerec* tabPtrP);
+
+  void handle_lcp_keep(Signal*, Fragrecord*, ScanOp*, Uint32 rowid);
 };
 
 #if 0
