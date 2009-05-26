@@ -13,15 +13,12 @@ Created 3/26/1996 Heikki Tuuri
 
 #include "trx0types.h"
 #include "mtr0mtr.h"
-#include "mtr0log.h"
 #include "ut0byte.h"
 #include "mem0mem.h"
 #include "sync0sync.h"
 #include "ut0lst.h"
 #include "buf0buf.h"
 #include "fil0fil.h"
-#include "fut0lst.h"
-#include "fsp0fsp.h"
 #include "read0types.h"
 
 /* In a MySQL replication slave, in crash recovery we store the master log
@@ -302,6 +299,7 @@ trx_sys_print_mysql_master_log_pos(void);
 
 /* Space id and page no where the trx system file copy resides */
 #define	TRX_SYS_SPACE	0	/* the SYSTEM tablespace */
+#include "fsp0fsp.h"
 #define	TRX_SYS_PAGE_NO	FSP_TRX_SYS_PAGE_NO
 
 /* The offset of the transaction system header on the page */
