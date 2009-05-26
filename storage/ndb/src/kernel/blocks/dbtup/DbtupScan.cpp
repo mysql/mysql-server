@@ -273,6 +273,22 @@ Dbtup::execACC_CHECK_SCAN(Signal* signal)
         signal, signalLength, JBB);
     return;     // stop
   }
+
+  const bool lcp = (scan.m_bits & ScanOp::SCAN_LCP);
+  Uint32 lcp_list = fragPtr.p->m_lcp_keep_list;
+
+  if (lcp && lcp_list != RNIL)
+  {
+    jam();
+    /**
+     * Handle lcp keep list already here
+     *   So that scan state is not alterer
+     *   if lcp_keep rows are found in ScanOp::First
+     */
+    handle_lcp_keep(signal, fragPtr.p, scanPtr.p, lcp_list);
+    return;
+  }
+
   if (scan.m_state == ScanOp::First) {
     jam();
     scanFirst(signal, scanPtr);
@@ -624,7 +640,14 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
   Uint32 size = table.m_offsets[mm].m_fix_header_size;
 
   if (lcp && lcp_list != RNIL)
-    goto found_lcp_keep;
+  {
+    jam();
+    /**
+     * Handle lcp keep list here to, due to scanCont
+     */
+    handle_lcp_keep(signal, fragPtr.p, scanPtr.p, lcp_list);
+    return false;
+  }
 
   switch(pos.m_get){
   case ScanPos::Get_next_tuple:
@@ -1024,11 +1047,21 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
   signal->theData[1] = scanPtr.i;
   sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
   return false;
+}
 
-found_lcp_keep:
+void
+Dbtup::handle_lcp_keep(Signal* signal,
+                       Fragrecord* fragPtrP,
+                       ScanOp* scanPtrP,
+                       Uint32 lcp_list)
+{
+  TablerecPtr tablePtr;
+  tablePtr.i = scanPtrP->m_tableId;
+  ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
+
   Local_key tmp;
   tmp.assref(lcp_list);
-  tmp.m_page_no = getRealpid(fragPtr.p, tmp.m_page_no);
+  tmp.m_page_no = getRealpid(fragPtrP, tmp.m_page_no);
   
   Ptr<Page> pagePtr;
   c_page_pool.getPtr(pagePtr, tmp.m_page_no);
@@ -1045,19 +1078,19 @@ found_lcp_keep:
     jam();
     setChecksum(ptr, tablePtr.p);
   }
-  
+
   NextScanConf* const conf = (NextScanConf*)signal->getDataPtrSend();
-  conf->scanPtr = scan.m_userPtr;
+  conf->scanPtr = scanPtrP->m_userPtr;
   conf->accOperationPtr = (Uint32)-1;
-  conf->fragId = frag.fragmentId;
+  conf->fragId = fragPtrP->fragmentId;
   conf->localKey[0] = lcp_list;
   conf->localKey[1] = 0;
   conf->localKeyLength = 1;
   conf->gci = 0;
-  Uint32 blockNo = refToMain(scan.m_userRef);
+  Uint32 blockNo = refToMain(scanPtrP->m_userRef);
   EXECUTE_DIRECT(blockNo, GSN_NEXT_SCANCONF, signal, 7);
   
-  fragPtr.p->m_lcp_keep_list = next;
+  fragPtrP->m_lcp_keep_list = next;
   ptr->m_header_bits |= Tuple_header::FREED; // RESTORE free flag
   if (headerbits & Tuple_header::FREED)
   {
@@ -1065,13 +1098,12 @@ found_lcp_keep:
         tablePtr.p->m_attributes[MM].m_no_of_dynamic)
     {
       jam();
-      free_var_rec(fragPtr.p, tablePtr.p, &tmp, pagePtr);
+      free_var_rec(fragPtrP, tablePtr.p, &tmp, pagePtr);
     } else {
       jam();
-      free_fix_rec(fragPtr.p, tablePtr.p, &tmp, (Fix_page*)pagePtr.p);
+      free_fix_rec(fragPtrP, tablePtr.p, &tmp, (Fix_page*)pagePtr.p);
     }
   }
-  return false;
 }
 
 void
