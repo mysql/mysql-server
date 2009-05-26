@@ -12405,6 +12405,12 @@ void Dblqh::execLCP_PREPARE_CONF(Signal* signal)
 	SET_ERROR_INSERT_VALUE(5027);
 	sendSignalWithDelay(reference(), GSN_START_RECREQ, signal, 10000, 1);
       }
+      else if (ERROR_INSERTED(5053))
+      {
+        BlockReference backupRef = calcInstanceBlockRef(BACKUP);
+        sendSignalWithDelay(backupRef, GSN_BACKUP_FRAGMENT_REQ, signal,
+                            150, BackupFragmentReq::SignalLength);
+      }
       else
       {
         BlockReference backupRef = calcInstanceBlockRef(BACKUP);
