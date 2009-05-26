@@ -35,10 +35,10 @@ Created 3/26/1996 Heikki Tuuri
 #include "usr0sess.h"
 #include "fil0fil.h"
 
-/* The global data structure coordinating a purge */
+/** The global data structure coordinating a purge */
 extern trx_purge_t*	purge_sys;
 
-/* A dummy undo record used as a return value when we have a whole undo log
+/** A dummy undo record used as a return value when we have a whole undo log
 which needs no purge */
 extern trx_undo_rec_t	trx_purge_dummy_rec;
 
@@ -115,60 +115,60 @@ void
 trx_purge_sys_print(void);
 /*======================*/
 
-/* The control structure used in the purge operation */
+/** The control structure used in the purge operation */
 struct trx_purge_struct{
-	ulint		state;		/* Purge system state */
-	sess_t*		sess;		/* System session running the purge
+	ulint		state;		/*!< Purge system state */
+	sess_t*		sess;		/*!< System session running the purge
 					query */
-	trx_t*		trx;		/* System transaction running the purge
+	trx_t*		trx;		/*!< System transaction running the purge
 					query: this trx is not in the trx list
 					of the trx system and it never ends */
-	que_t*		query;		/* The query graph which will do the
+	que_t*		query;		/*!< The query graph which will do the
 					parallelized purge operation */
-	rw_lock_t	latch;		/* The latch protecting the purge view.
+	rw_lock_t	latch;		/*!< The latch protecting the purge view.
 					A purge operation must acquire an
 					x-latch here for the instant at which
 					it changes the purge view: an undo
 					log operation can prevent this by
 					obtaining an s-latch here. */
-	read_view_t*	view;		/* The purge will not remove undo logs
+	read_view_t*	view;		/*!< The purge will not remove undo logs
 					which are >= this view (purge view) */
-	mutex_t		mutex;		/* Mutex protecting the fields below */
-	ulint		n_pages_handled;/* Approximate number of undo log
+	mutex_t		mutex;		/*!< Mutex protecting the fields below */
+	ulint		n_pages_handled;/*!< Approximate number of undo log
 					pages processed in purge */
-	ulint		handle_limit;	/* Target of how many pages to get
+	ulint		handle_limit;	/*!< Target of how many pages to get
 					processed in the current purge */
 	/*------------------------------*/
 	/* The following two fields form the 'purge pointer' which advances
 	during a purge, and which is used in history list truncation */
 
-	trx_id_t	purge_trx_no;	/* Purge has advanced past all
+	trx_id_t	purge_trx_no;	/*!< Purge has advanced past all
 					transactions whose number is less
 					than this */
-	undo_no_t	purge_undo_no;	/* Purge has advanced past all records
+	undo_no_t	purge_undo_no;	/*!< Purge has advanced past all records
 					whose undo number is less than this */
 	/*-----------------------------*/
-	ibool		next_stored;	/* TRUE if the info of the next record
+	ibool		next_stored;	/*!< TRUE if the info of the next record
 					to purge is stored below: if yes, then
 					the transaction number and the undo
 					number of the record are stored in
 					purge_trx_no and purge_undo_no above */
-	trx_rseg_t*	rseg;		/* Rollback segment for the next undo
+	trx_rseg_t*	rseg;		/*!< Rollback segment for the next undo
 					record to purge */
-	ulint		page_no;	/* Page number for the next undo
+	ulint		page_no;	/*!< Page number for the next undo
 					record to purge, page number of the
 					log header, if dummy record */
-	ulint		offset;		/* Page offset for the next undo
+	ulint		offset;		/*!< Page offset for the next undo
 					record to purge, 0 if the dummy
 					record */
-	ulint		hdr_page_no;	/* Header page of the undo log where
+	ulint		hdr_page_no;	/*!< Header page of the undo log where
 					the next record to purge belongs */
-	ulint		hdr_offset;	/* Header byte offset on the page */
+	ulint		hdr_offset;	/*!< Header byte offset on the page */
 	/*-----------------------------*/
-	trx_undo_arr_t*	arr;		/* Array of transaction numbers and
+	trx_undo_arr_t*	arr;		/*!< Array of transaction numbers and
 					undo numbers of the undo records
 					currently under processing in purge */
-	mem_heap_t*	heap;		/* Temporary storage used during a
+	mem_heap_t*	heap;		/*!< Temporary storage used during a
 					purge: can be emptied after purge
 					completes */
 };

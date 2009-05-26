@@ -44,17 +44,18 @@ Created 3/26/1996 Heikki Tuuri
 #include "lock0lock.h"
 #include "pars0pars.h"
 
-/* This many pages must be undone before a truncate is tried within rollback */
+/** This many pages must be undone before a truncate is tried within
+rollback */
 #define TRX_ROLL_TRUNC_THRESHOLD	1
 
-/* In crash recovery, the current trx to be rolled back */
+/** In crash recovery, the current trx to be rolled back */
 static trx_t*		trx_roll_crash_recv_trx	= NULL;
 
-/* In crash recovery we set this to the undo n:o of the current trx to be
+/** In crash recovery we set this to the undo n:o of the current trx to be
 rolled back. Then we can print how many % the rollback has progressed. */
 static ib_int64_t	trx_roll_max_undo_no;
 
-/* Auxiliary variable which tells the previous progress % we printed */
+/** Auxiliary variable which tells the previous progress % we printed */
 static ulint		trx_roll_progress_printed_pct;
 
 /*******************************************************************//**

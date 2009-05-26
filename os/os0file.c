@@ -46,9 +46,11 @@ Unix; the value of os_innodb_umask is initialized in ha_innodb.cc to
 my_umask */
 
 #ifndef __WIN__
+/** Umask for creating files */
 UNIV_INTERN ulint	os_innodb_umask
 			= S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP;
 #else
+/** Umask for creating files */
 UNIV_INTERN ulint	os_innodb_umask		= 0;
 #endif
 
@@ -69,93 +71,105 @@ UNIV_INTERN os_mutex_t	os_file_seek_mutexes[OS_FILE_N_SEEK_MUTEXES];
 /* In simulated aio, merge at most this many consecutive i/os */
 #define OS_AIO_MERGE_N_CONSECUTIVE	64
 
-/* If this flag is TRUE, then we will use the native aio of the
+/** If this flag is TRUE, then we will use the native aio of the
 OS (provided we compiled Innobase with it in), otherwise we will
 use simulated aio we build below with threads */
 
 UNIV_INTERN ibool	os_aio_use_native_aio	= FALSE;
 
+/** Flag: enable debug printout for asynchronous i/o */
 UNIV_INTERN ibool	os_aio_print_debug	= FALSE;
 
-/* The aio array slot structure */
+/** The asynchronous i/o array slot structure */
 typedef struct os_aio_slot_struct	os_aio_slot_t;
 
+/** The asynchronous i/o array slot structure */
 struct os_aio_slot_struct{
-	ibool		is_read;	/* TRUE if a read operation */
-	ulint		pos;		/* index of the slot in the aio
+	ibool		is_read;	/*!< TRUE if a read operation */
+	ulint		pos;		/*!< index of the slot in the aio
 					array */
-	ibool		reserved;	/* TRUE if this slot is reserved */
-	time_t		reservation_time;/* time when reserved */
-	ulint		len;		/* length of the block to read or
+	ibool		reserved;	/*!< TRUE if this slot is reserved */
+	time_t		reservation_time;/*!< time when reserved */
+	ulint		len;		/*!< length of the block to read or
 					write */
-	byte*		buf;		/* buffer used in i/o */
-	ulint		type;		/* OS_FILE_READ or OS_FILE_WRITE */
-	ulint		offset;		/* 32 low bits of file offset in
+	byte*		buf;		/*!< buffer used in i/o */
+	ulint		type;		/*!< OS_FILE_READ or OS_FILE_WRITE */
+	ulint		offset;		/*!< 32 low bits of file offset in
 					bytes */
-	ulint		offset_high;	/* 32 high bits of file offset */
-	os_file_t	file;		/* file where to read or write */
-	const char*	name;		/* file name or path */
-	ibool		io_already_done;/* used only in simulated aio:
+	ulint		offset_high;	/*!< 32 high bits of file offset */
+	os_file_t	file;		/*!< file where to read or write */
+	const char*	name;		/*!< file name or path */
+	ibool		io_already_done;/*!< used only in simulated aio:
 					TRUE if the physical i/o already
 					made and only the slot message
 					needs to be passed to the caller
 					of os_aio_simulated_handle */
-	fil_node_t*	message1;	/* message which is given by the */
-	void*		message2;	/* the requester of an aio operation
+	fil_node_t*	message1;	/*!< message which is given by the */
+	void*		message2;	/*!< the requester of an aio operation
 					and which can be used to identify
 					which pending aio operation was
 					completed */
 #ifdef WIN_ASYNC_IO
-	os_event_t	event;		/* event object we need in the
+	os_event_t	event;		/*!< event object we need in the
 					OVERLAPPED struct */
-	OVERLAPPED	control;	/* Windows control block for the
+	OVERLAPPED	control;	/*!< Windows control block for the
 					aio request */
 #endif
 };
 
-/* The aio array structure */
+/** The asynchronous i/o array structure */
 typedef struct os_aio_array_struct	os_aio_array_t;
 
+/** The asynchronous i/o array structure */
 struct os_aio_array_struct{
-	os_mutex_t	mutex;	  /* the mutex protecting the aio array */
-	os_event_t	not_full; /* The event which is set to the signaled
-				  state when there is space in the aio
-				  outside the ibuf segment */
-	os_event_t	is_empty; /* The event which is set to the signaled
-				  state when there are no pending i/os
-				  in this array */
-	ulint		n_slots;  /* Total number of slots in the aio array.
-				  This must be divisible by n_threads. */
-	ulint		n_segments;/* Number of segments in the aio array of
-				  pending aio requests. A thread can wait
-				  separately for any one of the segments. */
-	ulint		n_reserved;/* Number of reserved slots in the
-				  aio array outside the ibuf segment */
-	os_aio_slot_t*	slots;	  /* Pointer to the slots in the array */
+	os_mutex_t	mutex;	/*!< the mutex protecting the aio array */
+	os_event_t	not_full;
+				/*!< The event which is set to the
+				signaled state when there is space in
+				the aio outside the ibuf segment */
+	os_event_t	is_empty;
+				/*!< The event which is set to the
+				signaled state when there are no
+				pending i/os in this array */
+	ulint		n_slots;/*!< Total number of slots in the aio
+				array.  This must be divisible by
+				n_threads. */
+	ulint		n_segments;
+				/*!< Number of segments in the aio
+				array of pending aio requests. A
+				thread can wait separately for any one
+				of the segments. */
+	ulint		n_reserved;
+				/*!< Number of reserved slots in the
+				aio array outside the ibuf segment */
+	os_aio_slot_t*	slots;	/*!< Pointer to the slots in the array */
 #ifdef __WIN__
 	os_native_event_t* native_events;
-				  /* Pointer to an array of OS native event
-				  handles where we copied the handles from
-				  slots, in the same order. This can be used
-				  in WaitForMultipleObjects; used only in
-				  Windows */
+				/*!< Pointer to an array of OS native
+				event handles where we copied the
+				handles from slots, in the same
+				order. This can be used in
+				WaitForMultipleObjects; used only in
+				Windows */
 #endif
 };
 
-/* Array of events used in simulated aio */
+/** Array of events used in simulated aio */
 static os_event_t*	os_aio_segment_wait_events	= NULL;
 
-/* The aio arrays for non-ibuf i/o and ibuf i/o, as well as sync aio. These
-are NULL when the module has not yet been initialized. */
-static os_aio_array_t*	os_aio_read_array	= NULL;
-static os_aio_array_t*	os_aio_write_array	= NULL;
-static os_aio_array_t*	os_aio_ibuf_array	= NULL;
-static os_aio_array_t*	os_aio_log_array	= NULL;
-static os_aio_array_t*	os_aio_sync_array	= NULL;
+/** The aio arrays for non-ibuf i/o and ibuf i/o, as well as sync aio. These
+are NULL when the module has not yet been initialized. @{ */
+static os_aio_array_t*	os_aio_read_array	= NULL;	/*!< Reads */
+static os_aio_array_t*	os_aio_write_array	= NULL;	/*!< Writes */
+static os_aio_array_t*	os_aio_ibuf_array	= NULL;	/*!< Insert buffer */
+static os_aio_array_t*	os_aio_log_array	= NULL;	/*!< Redo log */
+static os_aio_array_t*	os_aio_sync_array	= NULL;	/*!< Synchronous I/O */
+/* @} */
 
+/** Number of asynchronous I/O segments.  Set by os_aio_init(). */
 static ulint	os_aio_n_segments	= ULINT_UNDEFINED;
 
-/* If the following is TRUE, read i/o handler threads try to
+/** If the following is TRUE, read i/o handler threads try to
 wait until a batch of new read requests have been posted */
 static ibool	os_aio_recommend_sleep_for_read_threads	= FALSE;
 #endif /* !UNIV_HOTBACKUP */
@@ -172,12 +186,16 @@ UNIV_INTERN time_t	os_last_printout;
 UNIV_INTERN ibool	os_has_said_disk_full	= FALSE;
 
 #ifndef UNIV_HOTBACKUP
-/* The mutex protecting the following counts of pending I/O operations */
+/** The mutex protecting the following counts of pending I/O operations */
 static os_mutex_t	os_file_count_mutex;
 #endif /* !UNIV_HOTBACKUP */
+/** Number of pending os_file_pread() operations */
 UNIV_INTERN ulint	os_file_n_pending_preads  = 0;
+/** Number of pending os_file_pwrite() operations */
 UNIV_INTERN ulint	os_file_n_pending_pwrites = 0;
+/** Number of pending write operations */
 UNIV_INTERN ulint	os_n_pending_writes = 0;
+/** Number of pending read operations */
 UNIV_INTERN ulint	os_n_pending_reads = 0;
 
 /***********************************************************************//**
@@ -908,7 +926,7 @@ try_again:
 			  NULL,	/* default security attributes */
 			  create_flag,
 			  attributes,
-			  NULL);	/* no template file */
+			  NULL);	/*!< no template file */
 
 	if (file == INVALID_HANDLE_VALUE) {
 		*success = FALSE;
@@ -1029,7 +1047,7 @@ os_file_create_simple_no_error_handling(
 	} else if (access_type == OS_FILE_READ_ALLOW_DELETE) {
 		access = GENERIC_READ;
 		share_mode = FILE_SHARE_DELETE | FILE_SHARE_READ
-			| FILE_SHARE_WRITE;	/* A backup program has to give
+			| FILE_SHARE_WRITE;	/*!< A backup program has to give
 						mysqld the maximum freedom to
 						do what it likes with the
 						file */
@@ -1044,7 +1062,7 @@ os_file_create_simple_no_error_handling(
 			  NULL,	/* default security attributes */
 			  create_flag,
 			  attributes,
-			  NULL);	/* no template file */
+			  NULL);	/*!< no template file */
 
 	if (file == INVALID_HANDLE_VALUE) {
 		*success = FALSE;
@@ -1244,7 +1262,7 @@ try_again:
 			  NULL,	/* default security attributes */
 			  create_flag,
 			  attributes,
-			  NULL);	/* no template file */
+			  NULL);	/*!< no template file */
 
 	if (file == INVALID_HANDLE_VALUE) {
 		*success = FALSE;

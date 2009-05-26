@@ -354,17 +354,17 @@ mtr_memo_push(
 /* Type definition of a mini-transaction memo stack slot. */
 typedef	struct mtr_memo_slot_struct	mtr_memo_slot_t;
 struct mtr_memo_slot_struct{
-	ulint	type;	/* type of the stored object (MTR_MEMO_S_LOCK, ...) */
-	void*	object;	/* pointer to the object */
+	ulint	type;	/*!< type of the stored object (MTR_MEMO_S_LOCK, ...) */
+	void*	object;	/*!< pointer to the object */
 };
 
 /* Mini-transaction handle and buffer */
 struct mtr_struct{
 #ifdef UNIV_DEBUG
-	ulint		state;	/* MTR_ACTIVE, MTR_COMMITTING, MTR_COMMITTED */
+	ulint		state;	/*!< MTR_ACTIVE, MTR_COMMITTING, MTR_COMMITTED */
 #endif
-	dyn_array_t	memo;	/* memo stack for locks etc. */
-	dyn_array_t	log;	/* mini-transaction log */
+	dyn_array_t	memo;	/*!< memo stack for locks etc. */
+	dyn_array_t	log;	/*!< mini-transaction log */
 	ibool		modifications;
 				/* TRUE if the mtr made modifications to
 				buffer pool pages */

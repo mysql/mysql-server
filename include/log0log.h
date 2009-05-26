@@ -34,20 +34,27 @@ Created 12/9/1995 Heikki Tuuri
 #include "sync0rw.h"
 #endif /* !UNIV_HOTBACKUP */
 
+/** Redo log buffer */
 typedef struct log_struct	log_t;
+/** Redo log group */
 typedef struct log_group_struct	log_group_t;
 
 #ifdef UNIV_DEBUG
+/** Flag: write to log file? */
 extern	ibool	log_do_write;
+/** Flag: enable debug output when writing to the log? */
 extern	ibool	log_debug_writes;
 #else /* UNIV_DEBUG */
+/** Write to log */
 # define log_do_write TRUE
 #endif /* UNIV_DEBUG */
 
-/* Wait modes for log_write_up_to */
+/** Wait modes for log_write_up_to @{ */
 #define LOG_NO_WAIT		91
 #define LOG_WAIT_ONE_GROUP	92
 #define	LOG_WAIT_ALL_GROUPS	93
+/* @} */
+/** Maximum number of log groups in log_group_struct::checkpoint_buf */
 #define LOG_MAX_N_GROUPS	32
 
 #ifndef UNIV_HOTBACKUP
@@ -588,7 +595,7 @@ extern log_t*	log_sys;
 #define	LOG_CHECKPOINT_ARCHIVED_LSN	24
 #define	LOG_CHECKPOINT_GROUP_ARRAY	32
 
-/* For each value < LOG_MAX_N_GROUPS the following 8 bytes: */
+/* For each value smaller than LOG_MAX_N_GROUPS the following 8 bytes: */
 
 #define LOG_CHECKPOINT_ARCHIVED_FILE_NO	0
 #define LOG_CHECKPOINT_ARCHIVED_OFFSET	4
@@ -656,76 +663,78 @@ extern log_t*	log_sys;
 #define LOG_GROUP_OK		301
 #define LOG_GROUP_CORRUPTED	302
 
-/* Log group consists of a number of log files, each of the same size; a log
+/** Log group consists of a number of log files, each of the same size; a log
 group is implemented as a space in the sense of the module fil0fil. */
-
 struct log_group_struct{
 	/* The following fields are protected by log_sys->mutex */
-	ulint		id;		/* log group id */
-	ulint		n_files;	/* number of files in the group */
-	ulint		file_size;	/* individual log file size in bytes,
+	ulint		id;		/*!< log group id */
+	ulint		n_files;	/*!< number of files in the group */
+	ulint		file_size;	/*!< individual log file size in bytes,
 					including the log file header */
-	ulint		space_id;	/* file space which implements the log
+	ulint		space_id;	/*!< file space which implements the log
 					group */
-	ulint		state;		/* LOG_GROUP_OK or
+	ulint		state;		/*!< LOG_GROUP_OK or
 					LOG_GROUP_CORRUPTED */
-	ib_uint64_t	lsn;		/* lsn used to fix coordinates within
+	ib_uint64_t	lsn;		/*!< lsn used to fix coordinates within
 					the log group */
-	ulint		lsn_offset;	/* the offset of the above lsn */
-	ulint		n_pending_writes;/* number of currently pending flush
+	ulint		lsn_offset;	/*!< the offset of the above lsn */
+	ulint		n_pending_writes;/*!< number of currently pending flush
 					writes for this log group */
-	byte**		file_header_bufs;/* buffers for each file header in the
-					group */
-	/*-----------------------------*/
-	byte**		archive_file_header_bufs;/* buffers for each file
+	byte**		file_header_bufs;/*!< buffers for each file
 					header in the group */
-	ulint		archive_space_id;/* file space which implements the log
-					group archive */
-	ulint		archived_file_no;/* file number corresponding to
+	/*-----------------------------*/
+	byte**		archive_file_header_bufs;/*!< buffers for each file
+					header in the group */
+	ulint		archive_space_id;/*!< file space which
+					implements the log group
+					archive */
+	ulint		archived_file_no;/*!< file number corresponding to
 					log_sys->archived_lsn */
-	ulint		archived_offset;/* file offset corresponding to
+	ulint		archived_offset;/*!< file offset corresponding to
 					log_sys->archived_lsn, 0 if we have
 					not yet written to the archive file
 					number archived_file_no */
-	ulint		next_archived_file_no;/* during an archive write,
+	ulint		next_archived_file_no;/*!< during an archive write,
 					until the write is completed, we
 					store the next value for
 					archived_file_no here: the write
 					completion function then sets the new
 					value to ..._file_no */
-	ulint		next_archived_offset; /* like the preceding field */
+	ulint		next_archived_offset; /*!< like the preceding field */
 	/*-----------------------------*/
-	ib_uint64_t	scanned_lsn;	/* used only in recovery: recovery scan
+	ib_uint64_t	scanned_lsn;	/*!< used only in recovery: recovery scan
 					succeeded up to this lsn in this log
 					group */
-	byte*		checkpoint_buf;	/* checkpoint header is written from
+	byte*		checkpoint_buf;	/*!< checkpoint header is written from
 					this buffer to the group */
 	UT_LIST_NODE_T(log_group_t)
-			log_groups;	/* list of log groups */
+			log_groups;	/*!< list of log groups */
 };
 
+/** Redo log buffer */
 struct log_struct{
-	byte		pad[64];	/* padding to prevent other memory
+	byte		pad[64];	/*!< padding to prevent other memory
 					update hotspots from residing on the
 					same memory cache line */
-	ib_uint64_t	lsn;		/* log sequence number */
-	ulint		buf_free;	/* first free offset within the log
+	ib_uint64_t	lsn;		/*!< log sequence number */
+	ulint		buf_free;	/*!< first free offset within the log
 					buffer */
 #ifndef UNIV_HOTBACKUP
-	mutex_t		mutex;		/* mutex protecting the log */
+	mutex_t		mutex;		/*!< mutex protecting the log */
 #endif /* !UNIV_HOTBACKUP */
-	byte*		buf;		/* log buffer */
-	ulint		buf_size;	/* log buffer size in bytes */
-	ulint		max_buf_free;	/* recommended maximum value of
+	byte*		buf;		/*!< log buffer */
+	ulint		buf_size;	/*!< log buffer size in bytes */
+	ulint		max_buf_free;	/*!< recommended maximum value of
 					buf_free, after which the buffer is
 					flushed */
-	ulint		old_buf_free;	/* value of buf free when log was
+	ulint		old_buf_free;	/*!< value of buf free when log was
 					last time opened; only in the debug
 					version */
-	ib_uint64_t	old_lsn;	/* value of lsn when log was last time
-					opened; only in the debug version */
+	ib_uint64_t	old_lsn;	/*!< value of lsn when log was
+					last time opened; only in the
+					debug version */
 	ibool		check_flush_or_checkpoint;
-					/* this is set to TRUE when there may
+					/*!< this is set to TRUE when there may
 					be need to flush the log buffer, or
 					preflush buffer pool pages, or make
 					a checkpoint; this MUST be TRUE when
@@ -734,12 +743,12 @@ struct log_struct{
 					peeked at by log_free_check(), which
 					does not reserve the log mutex */
 	UT_LIST_BASE_NODE_T(log_group_t)
-			log_groups;	/* log groups */
+			log_groups;	/*!< log groups */
 
 #ifndef UNIV_HOTBACKUP
-	/* The fields involved in the log buffer flush */
+	/** The fields involved in the log buffer flush @{ */
 
-	ulint		buf_next_to_write;/* first offset in the log buffer
+	ulint		buf_next_to_write;/*!< first offset in the log buffer
 					where the byte content may not exist
 					written to file, e.g., the start
 					offset of a log record catenated
@@ -747,44 +756,46 @@ struct log_struct{
 					operation is completed to all the log
 					groups */
 	ib_uint64_t	written_to_some_lsn;
-					/* first log sequence number not yet
+					/*!< first log sequence number not yet
 					written to any log group; for this to
 					be advanced, it is enough that the
 					write i/o has been completed for any
 					one log group */
 	ib_uint64_t	written_to_all_lsn;
-					/* first log sequence number not yet
+					/*!< first log sequence number not yet
 					written to some log group; for this to
 					be advanced, it is enough that the
 					write i/o has been completed for all
 					log groups */
-	ib_uint64_t	write_lsn;	/* end lsn for the current running
+	ib_uint64_t	write_lsn;	/*!< end lsn for the current running
 					write */
-	ulint		write_end_offset;/* the data in buffer has been written
-					up to this offset when the current
-					write ends: this field will then
-					be copied to buf_next_to_write */
-	ib_uint64_t	current_flush_lsn;/* end lsn for the current running
+	ulint		write_end_offset;/*!< the data in buffer has
+					been written up to this offset
+					when the current write ends:
+					this field will then be copied
+					to buf_next_to_write */
+	ib_uint64_t	current_flush_lsn;/*!< end lsn for the current running
 					write + flush operation */
 	ib_uint64_t	flushed_to_disk_lsn;
-					/* how far we have written the log
+					/*!< how far we have written the log
 					AND flushed to disk */
-	ulint		n_pending_writes;/* number of currently pending flushes
-					or writes */
+	ulint		n_pending_writes;/*!< number of currently
+					pending flushes or writes */
 	/* NOTE on the 'flush' in names of the fields below: starting from
 	4.0.14, we separate the write of the log file and the actual fsync()
 	or other method to flush it to disk. The names below shhould really
 	be 'flush_or_write'! */
-	os_event_t	no_flush_event;	/* this event is in the reset state
+	os_event_t	no_flush_event;	/*!< this event is in the reset state
 					when a flush or a write is running;
 					a thread should wait for this without
 					owning the log mutex, but NOTE that
 					to set or reset this event, the
 					thread MUST own the log mutex! */
-	ibool		one_flushed;	/* during a flush, this is first FALSE
-					and becomes TRUE when one log group
-					has been written or flushed */
-	os_event_t	one_flushed_event;/* this event is reset when the
+	ibool		one_flushed;	/*!< during a flush, this is
+					first FALSE and becomes TRUE
+					when one log group has been
+					written or flushed */
+	os_event_t	one_flushed_event;/*!< this event is reset when the
 					flush or write has not yet completed
 					for any log group; e.g., this means
 					that a transaction has been committed
@@ -793,100 +804,110 @@ struct log_struct{
 					but NOTE that to set or reset this
 					event, the thread MUST own the log
 					mutex! */
-	ulint		n_log_ios;	/* number of log i/os initiated thus
+	ulint		n_log_ios;	/*!< number of log i/os initiated thus
 					far */
-	ulint		n_log_ios_old;	/* number of log i/o's at the
+	ulint		n_log_ios_old;	/*!< number of log i/o's at the
 					previous printout */
-	time_t		last_printout_time;/* when log_print was last time
+	time_t		last_printout_time;/*!< when log_print was last time
 					called */
+	/* @} */
 
-	/* Fields involved in checkpoints */
-	ulint		log_group_capacity; /* capacity of the log group; if
+	/** Fields involved in checkpoints @{ */
+	ulint		log_group_capacity; /*!< capacity of the log group; if
 					the checkpoint age exceeds this, it is
 					a serious error because it is possible
 					we will then overwrite log and spoil
 					crash recovery */
 	ulint		max_modified_age_async;
-					/* when this recommended value for lsn
-					- buf_pool_get_oldest_modification()
-					is exceeded, we start an asynchronous
-					preflush of pool pages */
+					/*!< when this recommended
+					value for lsn -
+					buf_pool_get_oldest_modification()
+					is exceeded, we start an
+					asynchronous preflush of pool pages */
 	ulint		max_modified_age_sync;
-					/* when this recommended value for lsn
-					- buf_pool_get_oldest_modification()
-					is exceeded, we start a synchronous
-					preflush of pool pages */
+					/*!< when this recommended
+					value for lsn -
+					buf_pool_get_oldest_modification()
+					is exceeded, we start a
+					synchronous preflush of pool pages */
 	ulint		adm_checkpoint_interval;
-					/* administrator-specified checkpoint
+					/*!< administrator-specified checkpoint
 					interval in terms of log growth in
 					bytes; the interval actually used by
 					the database can be smaller */
 	ulint		max_checkpoint_age_async;
-					/* when this checkpoint age is exceeded
-					we start an asynchronous writing of a
-					new checkpoint */
+					/*!< when this checkpoint age
+					is exceeded we start an
+					asynchronous writing of a new
+					checkpoint */
 	ulint		max_checkpoint_age;
-					/* this is the maximum allowed value
+					/*!< this is the maximum allowed value
 					for lsn - last_checkpoint_lsn when a
 					new query step is started */
 	ib_uint64_t	next_checkpoint_no;
-					/* next checkpoint number */
+					/*!< next checkpoint number */
 	ib_uint64_t	last_checkpoint_lsn;
-					/* latest checkpoint lsn */
+					/*!< latest checkpoint lsn */
 	ib_uint64_t	next_checkpoint_lsn;
-					/* next checkpoint lsn */
+					/*!< next checkpoint lsn */
 	ulint		n_pending_checkpoint_writes;
-					/* number of currently pending
+					/*!< number of currently pending
 					checkpoint writes */
-	rw_lock_t	checkpoint_lock;/* this latch is x-locked when a
+	rw_lock_t	checkpoint_lock;/*!< this latch is x-locked when a
 					checkpoint write is running; a thread
 					should wait for this without owning
 					the log mutex */
 #endif /* !UNIV_HOTBACKUP */
-	byte*		checkpoint_buf;	/* checkpoint header is read to this
+	byte*		checkpoint_buf;	/*!< checkpoint header is read to this
 					buffer */
+	/* @} */
 #ifdef UNIV_LOG_ARCHIVE
-	/* Fields involved in archiving */
-	ulint		archiving_state;/* LOG_ARCH_ON, LOG_ARCH_STOPPING
+	/** Fields involved in archiving @{ */
+	ulint		archiving_state;/*!< LOG_ARCH_ON, LOG_ARCH_STOPPING
 					LOG_ARCH_STOPPED, LOG_ARCH_OFF */
-	ib_uint64_t	archived_lsn;	/* archiving has advanced to this
+	ib_uint64_t	archived_lsn;	/*!< archiving has advanced to this
 					lsn */
 	ulint		max_archived_lsn_age_async;
-					/* recommended maximum age of
+					/*!< recommended maximum age of
 					archived_lsn, before we start
 					asynchronous copying to the archive */
 	ulint		max_archived_lsn_age;
-					/* maximum allowed age for
+					/*!< maximum allowed age for
 					archived_lsn */
-	ib_uint64_t	next_archived_lsn;/* during an archive write,
+	ib_uint64_t	next_archived_lsn;/*!< during an archive write,
 					until the write is completed, we
 					store the next value for
 					archived_lsn here: the write
 					completion function then sets the new
 					value to archived_lsn */
-	ulint		archiving_phase;/* LOG_ARCHIVE_READ or
+	ulint		archiving_phase;/*!< LOG_ARCHIVE_READ or
 					LOG_ARCHIVE_WRITE */
 	ulint		n_pending_archive_ios;
-					/* number of currently pending reads
+					/*!< number of currently pending reads
 					or writes in archiving */
-	rw_lock_t	archive_lock;	/* this latch is x-locked when an
+	rw_lock_t	archive_lock;	/*!< this latch is x-locked when an
 					archive write is running; a thread
 					should wait for this without owning
 					the log mutex */
-	ulint		archive_buf_size;/* size of archive_buf */
-	byte*		archive_buf;	/* log segment is written to the
+	ulint		archive_buf_size;/*!< size of archive_buf */
+	byte*		archive_buf;	/*!< log segment is written to the
 					archive from this buffer */
-	os_event_t	archiving_on;	/* if archiving has been stopped,
+	os_event_t	archiving_on;	/*!< if archiving has been stopped,
 					a thread can wait for this event to
 					become signaled */
+	/* @} */
 #endif /* UNIV_LOG_ARCHIVE */
 };
 
+#ifdef UNIV_LOG_ARCHIVE
+/** Archiving state @{ */
 #define LOG_ARCH_ON		71
 #define LOG_ARCH_STOPPING	72
 #define LOG_ARCH_STOPPING2	73
 #define LOG_ARCH_STOPPED	74
 #define LOG_ARCH_OFF		75
+/* @} */
+#endif /* UNIV_LOG_ARCHIVE */
 
 #ifndef UNIV_NONINL
 #include "log0log.ic"

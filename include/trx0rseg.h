@@ -136,13 +136,13 @@ trx_rseg_create(
 /* The rollback segment memory object */
 struct trx_rseg_struct{
 	/*--------------------------------------------------------*/
-	ulint		id;	/* rollback segment id == the index of
+	ulint		id;	/*!< rollback segment id == the index of
 				its slot in the trx system file copy */
-	mutex_t		mutex;	/* mutex protecting the fields in this
+	mutex_t		mutex;	/*!< mutex protecting the fields in this
 				struct except id; NOTE that the latching
 				order must always be kernel mutex ->
 				rseg mutex */
-	ulint		space;	/* space where the rollback segment is
+	ulint		space;	/*!< space where the rollback segment is
 				header is placed */
 	ulint		zip_size;/* compressed page size of space
 				in bytes, or 0 for uncompressed spaces */
@@ -165,14 +165,14 @@ struct trx_rseg_struct{
 					/* List of insert undo log segments
 					cached for fast reuse */
 	/*--------------------------------------------------------*/
-	ulint		last_page_no;	/* Page number of the last not yet
+	ulint		last_page_no;	/*!< Page number of the last not yet
 					purged log header in the history list;
 					FIL_NULL if all list purged */
-	ulint		last_offset;	/* Byte offset of the last not yet
+	ulint		last_offset;	/*!< Byte offset of the last not yet
 					purged log header */
-	trx_id_t	last_trx_no;	/* Transaction number of the last not
+	trx_id_t	last_trx_no;	/*!< Transaction number of the last not
 					yet purged log */
-	ibool		last_del_marks;	/* TRUE if the last not yet purged log
+	ibool		last_del_marks;	/*!< TRUE if the last not yet purged log
 					needs purging */
 	/*--------------------------------------------------------*/
 	UT_LIST_NODE_T(trx_rseg_t) rseg_list;

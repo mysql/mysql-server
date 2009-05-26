@@ -37,8 +37,8 @@ Created 8/22/1994 Heikki Tuuri
 #include "page0page.h"
 
 /*************************************************************//**
-Creates a hash table with >= n array cells. The actual number of cells is
-chosen to be a prime number slightly bigger than n.
+Creates a hash table with at least n array cells.  The actual number
+of cells is chosen to be a prime number slightly bigger than n.
 @return	own: created table */
 UNIV_INTERN
 hash_table_t*
@@ -57,6 +57,7 @@ ha_create_func(
 	ulint		i;
 #endif /* !UNIV_HOTBACKUP */
 
+	ut_ad(ut_is_2pow(n));
 	table = hash_create(n);
 
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
@@ -278,7 +279,7 @@ UNIV_INTERN
 void
 ha_search_and_update_if_found_func(
 /*===============================*/
-	hash_table_t*	table,	/*!< in: hash table */
+	hash_table_t*	table,	/*!< in/out: hash table */
 	ulint		fold,	/*!< in: folded value of the searched data */
 	void*		data,	/*!< in: pointer to the data */
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG

@@ -43,10 +43,10 @@ Created 3/26/1996 Heikki Tuuri
 #include "srv0que.h"
 #include "os0thread.h"
 
-/* The global data structure coordinating a purge */
+/** The global data structure coordinating a purge */
 UNIV_INTERN trx_purge_t*	purge_sys = NULL;
 
-/* A dummy undo record used as a return value when we have a whole undo log
+/** A dummy undo record used as a return value when we have a whole undo log
 which needs no purge */
 UNIV_INTERN trx_undo_rec_t	trx_purge_dummy_rec;
 

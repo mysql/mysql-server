@@ -137,12 +137,12 @@ buf_flush_validate(void);
 /*====================*/
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
-/* When buf_flush_free_margin is called, it tries to make this many blocks
+/** When buf_flush_free_margin is called, it tries to make this many blocks
 available to replacement in the free list and at the end of the LRU list (to
 make sure that a read-ahead batch can be read efficiently in a single
 sweep). */
-
 #define BUF_FLUSH_FREE_BLOCK_MARGIN	(5 + BUF_READ_AHEAD_AREA)
+/** Extra margin to apply above BUF_FLUSH_FREE_BLOCK_MARGIN */
 #define BUF_FLUSH_EXTRA_MARGIN		(BUF_FLUSH_FREE_BLOCK_MARGIN / 4 + 100)
 #endif /* !UNIV_HOTBACKUP */
 

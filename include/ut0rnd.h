@@ -30,7 +30,7 @@ Created 1/20/1994 Heikki Tuuri
 
 #include "ut0byte.h"
 
-/* The 'character code' for end of field or string (used
+/** The 'character code' for end of field or string (used
 in folding records */
 #define UT_END_OF_FIELD		257
 

@@ -44,10 +44,10 @@ Created 3/26/1996 Heikki Tuuri
 #include "trx0xa.h"
 #include "ha_prototypes.h"
 
-/* Dummy session used currently in MySQL interface */
+/** Dummy session used currently in MySQL interface */
 UNIV_INTERN sess_t*		trx_dummy_sess = NULL;
 
-/* Number of transactions currently allocated for MySQL: protected by
+/** Number of transactions currently allocated for MySQL: protected by
 the kernel mutex */
 UNIV_INTERN ulint	trx_n_mysql_transactions = 0;
 

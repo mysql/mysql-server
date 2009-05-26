@@ -40,49 +40,54 @@ Created 3/26/1996 Heikki Tuuri
 #include "log0log.h"
 #include "os0file.h"
 
-/* The file format tag structure with id and name. */
+/** The file format tag structure with id and name. */
 struct file_format_struct {
-	ulint		id;		/* id of the file format */
-	const char*	name;		/* text representation of the
+	ulint		id;		/*!< id of the file format */
+	const char*	name;		/*!< text representation of the
 					file format */
-	mutex_t		mutex;		/* covers changes to the above
+	mutex_t		mutex;		/*!< covers changes to the above
 					fields */
 };
 
+/** The file format tag */
 typedef struct file_format_struct	file_format_t;
 
-/* The transaction system */
+/** The transaction system */
 UNIV_INTERN trx_sys_t*		trx_sys		= NULL;
+/** The doublewrite buffer */
 UNIV_INTERN trx_doublewrite_t*	trx_doublewrite = NULL;
 
-/* The following is set to TRUE when we are upgrading from the old format data
-files to the new >= 4.1.x format multiple tablespaces format data files */
-
+/** The following is set to TRUE when we are upgrading from pre-4.1
+format data files to the multiple tablespaces format data files */
 UNIV_INTERN ibool	trx_doublewrite_must_reset_space_ids	= FALSE;
 
-/* The following is TRUE when we are using the database in the new format,
-i.e., we have successfully upgraded, or have created a new database
-installation */
-
+/** The following is TRUE when we are using the database in the
+post-4.1 format, i.e., we have successfully upgraded, or have created
+a new database installation */
 UNIV_INTERN ibool	trx_sys_multiple_tablespace_format	= FALSE;
 
-/* In a MySQL replication slave, in crash recovery we store the master log
-file name and position here. We have successfully got the updates to InnoDB
-up to this position. If .._pos is -1, it means no crash recovery was needed,
-or there was no master log position info inside InnoDB. */
-
+/** In a MySQL replication slave, in crash recovery we store the master log
+file name and position here. */
+/* @{ */
+/** Master binlog file name */
 UNIV_INTERN char	trx_sys_mysql_master_log_name[TRX_SYS_MYSQL_LOG_NAME_LEN];
+/** Master binlog file position.  We have successfully got the updates
+up to this position.  -1 means that no crash recovery was needed, or
+there was no master log position info inside InnoDB.*/
 UNIV_INTERN ib_int64_t	trx_sys_mysql_master_log_pos	= -1;
+/* @} */
 
-/* If this MySQL server uses binary logging, after InnoDB has been inited
+/** If this MySQL server uses binary logging, after InnoDB has been inited
 and if it has done a crash recovery, we store the binlog file name and position
-here. If .._pos is -1, it means there was no binlog position info inside
-InnoDB. */
-
+here. */
+/* @{ */
+/** Binlog file name */
 UNIV_INTERN char	trx_sys_mysql_bin_log_name[TRX_SYS_MYSQL_LOG_NAME_LEN];
+/** Binlog file position, or -1 if unknown */
 UNIV_INTERN ib_int64_t	trx_sys_mysql_bin_log_pos	= -1;
+/* @} */
 
-/* List of animal names representing file format. */
+/** List of animal names representing file format. */
 static const char*	file_format_name_map[] = {
 	"Antelope",
 	"Barracuda",
@@ -112,11 +117,11 @@ static const char*	file_format_name_map[] = {
 	"Zebra"
 };
 
-/* The number of elements in the file format name array. */
+/** The number of elements in the file format name array. */
 static const ulint	FILE_FORMAT_NAME_N
 	= sizeof(file_format_name_map) / sizeof(file_format_name_map[0]);
 
-/* This is used to track the maximum file format id known to InnoDB. It's
+/** This is used to track the maximum file format id known to InnoDB. It's
 updated via SET GLOBAL innodb_file_format_check = 'x' or when we open
 or create a table. */
 static	file_format_t	file_format_max;

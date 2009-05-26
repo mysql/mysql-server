@@ -77,9 +77,9 @@ ib_wqueue_wait(
 
 /* Work queue. */
 struct ib_wqueue_struct {
-	mutex_t		mutex;	/* mutex protecting everything */
-	ib_list_t*	items;	/* work item list */
-	os_event_t	event;	/* event we use to signal additions to list */
+	mutex_t		mutex;	/*!< mutex protecting everything */
+	ib_list_t*	items;	/*!< work item list */
+	os_event_t	event;	/*!< event we use to signal additions to list */
 };
 
 #endif

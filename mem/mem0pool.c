@@ -90,28 +90,28 @@ and for the adaptive index. Thus, for each individual transaction, its locks
 can occupy at most about the size of the buffer frame of memory in the common
 pool, and after that its locks will grow into the buffer pool. */
 
-/* Mask used to extract the free bit from area->size */
+/** Mask used to extract the free bit from area->size */
 #define MEM_AREA_FREE	1
 
-/* The smallest memory area total size */
+/** The smallest memory area total size */
 #define MEM_AREA_MIN_SIZE	(2 * MEM_AREA_EXTRA_SIZE)
 
 
-/* Data structure for a memory pool. The space is allocated using the buddy
+/** Data structure for a memory pool. The space is allocated using the buddy
 algorithm, where free list i contains areas of size 2 to power i. */
 struct mem_pool_struct{
-	byte*		buf;		/* memory pool */
-	ulint		size;		/* memory common pool size */
-	ulint		reserved;	/* amount of currently allocated
+	byte*		buf;		/*!< memory pool */
+	ulint		size;		/*!< memory common pool size */
+	ulint		reserved;	/*!< amount of currently allocated
 					memory */
-	mutex_t		mutex;		/* mutex protecting this struct */
+	mutex_t		mutex;		/*!< mutex protecting this struct */
 	UT_LIST_BASE_NODE_T(mem_area_t)
-			free_list[64];	/* lists of free memory areas: an
+			free_list[64];	/*!< lists of free memory areas: an
 					area is put to the list whose number
 					is the 2-logarithm of the area size */
 };
 
-/* The common memory pool */
+/** The common memory pool */
 UNIV_INTERN mem_pool_t*	mem_comm_pool	= NULL;
 
 /* We use this counter to check that the mem pool mutex does not leak;

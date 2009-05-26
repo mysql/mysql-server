@@ -56,15 +56,18 @@ compressed page format. */
 /* The infimum and supremum records are omitted from the compressed page.
 On compress, we compare that the records are there, and on uncompress we
 restore the records. */
+/** Extra bytes of an infimum record */
 static const byte infimum_extra[] = {
 	0x01,			/* info_bits=0, n_owned=1 */
 	0x00, 0x02		/* heap_no=0, status=2 */
 	/* ?, ?	*/		/* next=(first user rec, or supremum) */
 };
+/** Data bytes of an infimum record */
 static const byte infimum_data[] = {
 	0x69, 0x6e, 0x66, 0x69,
 	0x6d, 0x75, 0x6d, 0x00	/* "infimum\0" */
 };
+/** Extra bytes and data bytes of a supremum record */
 static const byte supremum_extra_data[] = {
 	/* 0x0?, */		/* info_bits=0, n_owned=1..8 */
 	0x00, 0x0b,		/* heap_no=1, status=3 */
@@ -74,10 +77,13 @@ static const byte supremum_extra_data[] = {
 };
 
 /** Assert that a block of memory is filled with zero bytes.
-Compare at most sizeof(field_ref_zero) bytes. */
+Compare at most sizeof(field_ref_zero) bytes.
+@param b	in: memory block
+@param s	in: size of the memory block, in bytes */
 #define ASSERT_ZERO(b, s) \
 	ut_ad(!memcmp(b, field_ref_zero, ut_min(s, sizeof field_ref_zero)))
-/** Assert that a BLOB pointer is filled with zero bytes. */
+/** Assert that a BLOB pointer is filled with zero bytes.
+@param b	in: BLOB pointer */
 #define ASSERT_ZERO_BLOB(b) \
 	ut_ad(!memcmp(b, field_ref_zero, sizeof field_ref_zero))
 
@@ -107,8 +113,12 @@ page_zip_fail_func(
 
 	return(res);
 }
+/** Wrapper for page_zip_fail_func()
+@param fmt_args	in: printf(3) format string and arguments */
 # define page_zip_fail(fmt_args) page_zip_fail_func fmt_args
 #else /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
+/** Dummy wrapper for page_zip_fail_func()
+@param fmt_args	ignored: printf(3) format string and arguments */
 # define page_zip_fail(fmt_args) /* empty */
 #endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
 
@@ -678,23 +688,25 @@ page_zip_set_alloc(
 }
 
 #if 0 || defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+/** Symbol for enabling compression and decompression diagnostics */
 # define PAGE_ZIP_COMPRESS_DBG
 #endif
 
 #ifdef PAGE_ZIP_COMPRESS_DBG
-/* Set this variable in a debugger to enable
+/** Set this variable in a debugger to enable
 excessive logging in page_zip_compress(). */
 UNIV_INTERN ibool	page_zip_compress_dbg;
-/* Set this variable in a debugger to enable
+/** Set this variable in a debugger to enable
 binary logging of the data passed to deflate().
 When this variable is nonzero, it will act
 as a log file name generator. */
 UNIV_INTERN unsigned	page_zip_compress_log;
 
 /**********************************************************************//**
-Wrapper for deflate().  Log the operation if page_zip_compress_dbg is set. */
+Wrapper for deflate().  Log the operation if page_zip_compress_dbg is set.
+@return	deflate() status: Z_OK, Z_BUF_ERROR, ... */
 static
-ibool
+int
 page_zip_compress_deflate(
 /*======================*/
 	FILE*		logfile,/*!< in: log file, or NULL */
@@ -717,11 +729,20 @@ page_zip_compress_deflate(
 
 /* Redefine deflate(). */
 # undef deflate
+/** Debug wrapper for the zlib compression routine deflate().
+Log the operation if page_zip_compress_dbg is set.
+@param strm	in/out: compressed stream
+@param flush	in: flushing method
+@return		deflate() status: Z_OK, Z_BUF_ERROR, ... */
 # define deflate(strm, flush) page_zip_compress_deflate(logfile, strm, flush)
+/** Declaration of the logfile parameter */
 # define FILE_LOGFILE FILE* logfile,
+/** The logfile parameter */
 # define LOGFILE logfile,
 #else /* PAGE_ZIP_COMPRESS_DBG */
+/** Empty declaration of the logfile parameter */
 # define FILE_LOGFILE
+/** Missing logfile parameter */
 # define LOGFILE
 #endif /* PAGE_ZIP_COMPRESS_DBG */
 
@@ -1112,12 +1133,12 @@ page_zip_compress(
 	z_stream	c_stream;
 	int		err;
 	ulint		n_fields;/* number of index fields needed */
-	byte*		fields;	/* index field information */
-	byte*		buf;	/* compressed payload of the page */
+	byte*		fields;	/*!< index field information */
+	byte*		buf;	/*!< compressed payload of the page */
 	byte*		buf_end;/* end of buf */
 	ulint		n_dense;
 	ulint		slot_size;/* amount of uncompressed bytes per record */
-	const rec_t**	recs;	/* dense page directory, sorted by address */
+	const rec_t**	recs;	/*!< dense page directory, sorted by address */
 	mem_heap_t*	heap;
 	ulint		trx_id_col;
 	ulint*		offsets	= NULL;
@@ -2794,7 +2815,7 @@ page_zip_decompress(
 {
 	z_stream	d_stream;
 	dict_index_t*	index	= NULL;
-	rec_t**		recs;	/* dense page directory, sorted by address */
+	rec_t**		recs;	/*!< dense page directory, sorted by address */
 	ulint		n_dense;/* number of user records on the page */
 	ulint		trx_id_col = ULINT_UNDEFINED;
 	mem_heap_t*	heap;

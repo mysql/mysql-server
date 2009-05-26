@@ -86,7 +86,9 @@ UNIV_INTERN
 int
 innobase_shutdown_for_mysql(void);
 /*=============================*/
+/** Log sequence number at shutdown */
 extern	ib_uint64_t	srv_shutdown_lsn;
+/** Log sequence number immediately after startup */
 extern	ib_uint64_t	srv_start_lsn;
 
 #ifdef __NETWARE__
@@ -94,27 +96,39 @@ void set_panic_flag_for_netware(void);
 #endif
 
 #ifdef HAVE_DARWIN_THREADS
+/** TRUE if the F_FULLFSYNC option is available */
 extern	ibool	srv_have_fullfsync;
 #endif
 
+/** TRUE if the server is being started */
 extern	ibool	srv_is_being_started;
+/** TRUE if the server was successfully started */
 extern	ibool	srv_was_started;
+/** TRUE if the server is being started, before rolling back any
+incomplete transactions */
 extern	ibool	srv_startup_is_before_trx_rollback_phase;
-extern	ibool	srv_is_being_shut_down;
 
+/** TRUE if a raw partition is in use */
 extern	ibool	srv_start_raw_disk_in_use;
 
-/* At a shutdown the value first climbs from 0 to SRV_SHUTDOWN_CLEANUP
-and then to SRV_SHUTDOWN_LAST_PHASE, and so on */
 
-extern	ulint	srv_shutdown_state;
+/** Shutdown state */
+enum srv_shutdown_state {
+	SRV_SHUTDOWN_NONE = 0,	/*!< Database running normally */
+	SRV_SHUTDOWN_CLEANUP,	/*!< Cleaning up in
+				logs_empty_and_mark_files_at_shutdown() */
+	SRV_SHUTDOWN_LAST_PHASE,/*!< Last phase after ensuring that
+				the buffer pool can be freed: flush
+				all file spaces and close all files */
+	SRV_SHUTDOWN_EXIT_THREADS/*!< Exit all threads */
+};
 
-#define SRV_SHUTDOWN_CLEANUP	   1
-#define SRV_SHUTDOWN_LAST_PHASE	   2
-#define SRV_SHUTDOWN_EXIT_THREADS  3
+/** At a shutdown this value climbs from SRV_SHUTDOWN_NONE to
+SRV_SHUTDOWN_CLEANUP and then to SRV_SHUTDOWN_LAST_PHASE, and so on */
+extern	enum srv_shutdown_state	srv_shutdown_state;
 #endif /* !UNIV_HOTBACKUP */
 
-/* Log 'spaces' have id's >= this */
+/** Log 'spaces' have id's >= this */
 #define SRV_LOG_SPACE_FIRST_ID		0xFFFFFFF0UL
 
 #endif

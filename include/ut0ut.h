@@ -342,6 +342,9 @@ ut_snprintf(
 	const char*	fmt,	/*!< in: format */
 	...);			/*!< in: format values */
 #else
+/**********************************************************************//**
+A wrapper for snprintf(3), formatted output conversion into
+a limited buffer. */
 # define ut_snprintf	snprintf
 #endif /* __WIN__ */
 

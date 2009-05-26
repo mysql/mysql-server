@@ -38,9 +38,9 @@ Created 9/6/1995 Heikki Tuuri
 
 /* Type definition for an operating system mutex struct */
 struct os_mutex_struct{
-	os_event_t	event;	/* Used by sync0arr.c for queing threads */
-	void*		handle;	/* OS handle to mutex */
-	ulint		count;	/* we use this counter to check
+	os_event_t	event;	/*!< Used by sync0arr.c for queing threads */
+	void*		handle;	/*!< OS handle to mutex */
+	ulint		count;	/*!< we use this counter to check
 				that the same thread does not
 				recursively lock the mutex: we
 				do not assume that the OS mutex
@@ -50,19 +50,21 @@ struct os_mutex_struct{
 				/* list of all 'slow' OS mutexes created */
 };
 
-/* Mutex protecting counts and the lists of OS mutexes and events */
+/** Mutex protecting counts and the lists of OS mutexes and events */
 UNIV_INTERN os_mutex_t	os_sync_mutex;
+/** TRUE if os_sync_mutex has been initialized */
 static ibool		os_sync_mutex_inited	= FALSE;
+/** TRUE when os_sync_free() is being executed */
 static ibool		os_sync_free_called	= FALSE;
 
-/* This is incremented by 1 in os_thread_create and decremented by 1 in
+/** This is incremented by 1 in os_thread_create and decremented by 1 in
 os_thread_exit */
 UNIV_INTERN ulint	os_thread_count		= 0;
 
-/* The list of all events created */
+/** The list of all events created */
 static UT_LIST_BASE_NODE_T(os_event_struct_t)	os_event_list;
 
-/* The list of all OS 'slow' mutexes */
+/** The list of all OS 'slow' mutexes */
 static UT_LIST_BASE_NODE_T(os_mutex_str_t)	os_mutex_list;
 
 UNIV_INTERN ulint	os_event_count		= 0;
@@ -509,7 +511,7 @@ os_event_wait_multiple(
 				       FALSE,	   /* Wait for any 1 event */
 				       INFINITE); /* Infinite wait time
 						  limit */
-	ut_a(index >= WAIT_OBJECT_0);	/* NOTE: Pointless comparision */
+	ut_a(index >= WAIT_OBJECT_0);	/* NOTE: Pointless comparison */
 	ut_a(index < WAIT_OBJECT_0 + n);
 
 	if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS) {

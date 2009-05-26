@@ -74,27 +74,29 @@ wait array for the sake of diagnostics and also to avoid infinite
 wait The error_monitor thread scans the global wait array to signal
 any waiting threads who have missed the signal. */
 
-/* A cell where an individual thread may wait suspended
+/** A cell where an individual thread may wait suspended
 until a resource is released. The suspending is implemented
 using an operating system event semaphore. */
 struct sync_cell_struct {
-	void*		wait_object;	/* pointer to the object the
+	void*		wait_object;	/*!< pointer to the object the
 					thread is waiting for; if NULL
 					the cell is free for use */
-	mutex_t*	old_wait_mutex;	/* the latest wait mutex in cell */
-	rw_lock_t*	old_wait_rw_lock;/* the latest wait rw-lock in cell */
-	ulint		request_type;	/* lock type requested on the
+	mutex_t*	old_wait_mutex;	/*!< the latest wait mutex in cell */
+	rw_lock_t*	old_wait_rw_lock;
+					/*!< the latest wait rw-lock
+					in cell */
+	ulint		request_type;	/*!< lock type requested on the
 					object */
-	const char*	file;		/* in debug version file where
+	const char*	file;		/*!< in debug version file where
 					requested */
-	ulint		line;		/* in debug version line where
+	ulint		line;		/*!< in debug version line where
 					requested */
-	os_thread_id_t	thread;		/* thread id of this waiting
+	os_thread_id_t	thread;		/*!< thread id of this waiting
 					thread */
-	ibool		waiting;	/* TRUE if the thread has already
+	ibool		waiting;	/*!< TRUE if the thread has already
 					called sync_array_event_wait
 					on this cell */
-	ib_int64_t	signal_count;	/* We capture the signal_count
+	ib_int64_t	signal_count;	/*!< We capture the signal_count
 					of the wait_object when we
 					reset the event. This value is
 					then passed on to os_event_wait
@@ -102,7 +104,7 @@ struct sync_cell_struct {
 					has not been signalled in the
 					period between the reset and
 					wait call. */
-	time_t		reservation_time;/* time when the thread reserved
+	time_t		reservation_time;/*!< time when the thread reserved
 					the wait cell */
 };
 
@@ -111,26 +113,28 @@ for an event allocated for the array without owning the
 protecting mutex (depending on the case: OS or database mutex), but
 all changes (set or reset) to the state of the event must be made
 while owning the mutex. */
+
+/** Synchronization array */
 struct sync_array_struct {
-	ulint		n_reserved;	/* number of currently reserved
+	ulint		n_reserved;	/*!< number of currently reserved
 					cells in the wait array */
-	ulint		n_cells;	/* number of cells in the
+	ulint		n_cells;	/*!< number of cells in the
 					wait array */
-	sync_cell_t*	array;		/* pointer to wait array */
-	ulint		protection;	/* this flag tells which
+	sync_cell_t*	array;		/*!< pointer to wait array */
+	ulint		protection;	/*!< this flag tells which
 					mutex protects the data */
-	mutex_t		mutex;		/* possible database mutex
+	mutex_t		mutex;		/*!< possible database mutex
 					protecting this data structure */
-	os_mutex_t	os_mutex;	/* Possible operating system mutex
+	os_mutex_t	os_mutex;	/*!< Possible operating system mutex
 					protecting the data structure.
 					As this data structure is used in
 					constructing the database mutex,
 					to prevent infinite recursion
 					in implementation, we fall back to
 					an OS mutex. */
-	ulint		sg_count;	/* count of how many times an
+	ulint		sg_count;	/*!< count of how many times an
 					object has been signalled */
-	ulint		res_count;	/* count of cell reservations
+	ulint		res_count;	/*!< count of cell reservations
 					since creation of the array */
 };
 

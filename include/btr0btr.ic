@@ -29,7 +29,11 @@ Created 6/2/1994 Heikki Tuuri
 #include "mtr0log.h"
 #include "page0zip.h"
 
-#define BTR_MAX_NODE_LEVEL	50	/* used in debug checking */
+#define BTR_MAX_NODE_LEVEL	50	/*!< Maximum B-tree page level
+					(not really a hard limit).
+					Used in debug assertions
+					in btr_page_set_level and
+					btr_page_get_level_low */
 
 /**************************************************************//**
 Gets a buffer page and declares its latching order level. */

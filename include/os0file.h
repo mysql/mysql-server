@@ -34,49 +34,63 @@ Created 10/21/1995 Heikki Tuuri
 #include <time.h>
 #endif
 
+/** File node of a tablespace or the log data space */
 typedef	struct fil_node_struct	fil_node_t;
 
 #ifdef UNIV_DO_FLUSH
 extern ibool	os_do_not_call_flush_at_each_write;
 #endif /* UNIV_DO_FLUSH */
 extern ibool	os_has_said_disk_full;
+/** Flag: enable debug printout for asynchronous i/o */
 extern ibool	os_aio_print_debug;
 
+/** Number of pending os_file_pread() operations */
 extern ulint	os_file_n_pending_preads;
+/** Number of pending os_file_pwrite() operations */
 extern ulint	os_file_n_pending_pwrites;
 
+/** Number of pending read operations */
 extern ulint	os_n_pending_reads;
+/** Number of pending write operations */
 extern ulint	os_n_pending_writes;
 
 #ifdef __WIN__
 
-/* We define always WIN_ASYNC_IO, and check at run-time whether
+/** We define always WIN_ASYNC_IO, and check at run-time whether
    the OS actually supports it: Win 95 does not, NT does. */
 #define WIN_ASYNC_IO
 
+/** Use unbuffered I/O */
 #define UNIV_NON_BUFFERED_IO
 
 #endif
 
 #ifdef __WIN__
+/** File handle */
 #define os_file_t	HANDLE
+/** Convert a C file descriptor to a native file handle
+@param fd	file descriptor
+@return		native file handle */
 #define OS_FILE_FROM_FD(fd) (HANDLE) _get_osfhandle(fd)
 #else
+/** File handle */
 typedef int	os_file_t;
+/** Convert a C file descriptor to a native file handle
+@param fd	file descriptor
+@return		native file handle */
 #define OS_FILE_FROM_FD(fd) fd
 #endif
 
+/** Umask for creating files */
 extern ulint	os_innodb_umask;
 
-/* If this flag is TRUE, then we will use the native aio of the
+/** If this flag is TRUE, then we will use the native aio of the
 OS (provided we compiled Innobase with it in), otherwise we will
 use simulated aio we build below with threads */
 
 extern ibool	os_aio_use_native_aio;
 
-#define OS_FILE_SECTOR_SIZE		512
-
-/* The next value should be smaller or equal to the smallest sector size used
+/** The next value should be smaller or equal to the smallest sector size used
 on any disk. A log block is required to be a portion of disk which is written
 so that if the start and the end of a block get written to disk, then the
 whole block gets written. This should be true even in most cases of a crash:
@@ -85,7 +99,7 @@ log. */
 
 #define OS_FILE_LOG_BLOCK_SIZE		512
 
-/* Options for file_create */
+/** Options for file_create @{ */
 #define	OS_FILE_OPEN			51
 #define	OS_FILE_CREATE			52
 #define OS_FILE_OVERWRITE		53
@@ -101,12 +115,14 @@ log. */
 /* Options for file_create */
 #define	OS_FILE_AIO			61
 #define	OS_FILE_NORMAL			62
+/* @} */
 
-/* Types for file create */
+/** Types for file create @{ */
 #define	OS_DATA_FILE			100
 #define OS_LOG_FILE			101
+/* @} */
 
-/* Error codes from os_file_get_last_error */
+/** Error codes from os_file_get_last_error @{ */
 #define	OS_FILE_NOT_FOUND		71
 #define	OS_FILE_DISK_FULL		72
 #define	OS_FILE_ALREADY_EXISTS		73
@@ -115,23 +131,25 @@ log. */
 						to become available again */
 #define	OS_FILE_SHARING_VIOLATION	76
 #define	OS_FILE_ERROR_NOT_SPECIFIED	77
+/* @} */
 
-/* Types for aio operations */
+/** Types for aio operations @{ */
 #define OS_FILE_READ	10
 #define OS_FILE_WRITE	11
 
 #define OS_FILE_LOG	256	/* This can be ORed to type */
+/* @} */
 
-#define OS_AIO_N_PENDING_IOS_PER_THREAD 32	/* Win NT does not allow more
+#define OS_AIO_N_PENDING_IOS_PER_THREAD 32	/*!< Win NT does not allow more
 						than 64 */
 
-/* Modes for aio operations */
-#define OS_AIO_NORMAL	21	/* Normal asynchronous i/o not for ibuf
+/** Modes for aio operations @{ */
+#define OS_AIO_NORMAL	21	/*!< Normal asynchronous i/o not for ibuf
 				pages or ibuf bitmap pages */
-#define OS_AIO_IBUF	22	/* Asynchronous i/o for ibuf pages or ibuf
+#define OS_AIO_IBUF	22	/*!< Asynchronous i/o for ibuf pages or ibuf
 				bitmap pages */
-#define OS_AIO_LOG	23	/* Asynchronous i/o for the log */
-#define OS_AIO_SYNC	24	/* Asynchronous i/o where the calling thread
+#define OS_AIO_LOG	23	/*!< Asynchronous i/o for the log */
+#define OS_AIO_SYNC	24	/*!< Asynchronous i/o where the calling thread
 				will itself wait for the i/o to complete,
 				doing also the job of the i/o-handler thread;
 				can be used for any pages, ibuf or non-ibuf.
@@ -141,16 +159,18 @@ log. */
 				the file seek and read or write, causing a
 				bottleneck for parallelism. */
 
-#define OS_AIO_SIMULATED_WAKE_LATER	512 /* This can be ORed to mode
+#define OS_AIO_SIMULATED_WAKE_LATER	512 /*!< This can be ORed to mode
 				in the call of os_aio(...),
 				if the caller wants to post several i/o
 				requests in a batch, and only after that
 				wake the i/o-handler thread; this has
 				effect only in simulated aio */
-#define OS_WIN31	1
-#define OS_WIN95	2
-#define OS_WINNT	3
-#define OS_WIN2000	4
+/* @} */
+
+#define OS_WIN31	1	/*!< Microsoft Windows 3.x */
+#define OS_WIN95	2	/*!< Microsoft Windows 95 */
+#define OS_WINNT	3	/*!< Microsoft Windows NT 3.x */
+#define OS_WIN2000	4	/*!< Microsoft Windows 2000 */
 
 extern ulint	os_n_file_reads;
 extern ulint	os_n_file_writes;
@@ -174,19 +194,19 @@ bigger than 4000 bytes */
 
 /* Struct used in fetching information of a file in a directory */
 struct os_file_stat_struct{
-	char		name[OS_FILE_MAX_PATH];	/* path to a file */
-	os_file_type_t	type;			/* file type */
-	ib_int64_t	size;			/* file size */
-	time_t		ctime;			/* creation time */
-	time_t		mtime;			/* modification time */
-	time_t		atime;			/* access time */
+	char		name[OS_FILE_MAX_PATH];	/*!< path to a file */
+	os_file_type_t	type;			/*!< file type */
+	ib_int64_t	size;			/*!< file size */
+	time_t		ctime;			/*!< creation time */
+	time_t		mtime;			/*!< modification time */
+	time_t		atime;			/*!< access time */
 };
 typedef struct os_file_stat_struct	os_file_stat_t;
 
 #ifdef __WIN__
-typedef HANDLE	os_file_dir_t;	/* directory stream */
+typedef HANDLE	os_file_dir_t;	/*!< directory stream */
 #else
-typedef DIR*	os_file_dir_t;	/* directory stream */
+typedef DIR*	os_file_dir_t;	/*!< directory stream */
 #endif
 
 /***********************************************************************//**

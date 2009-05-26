@@ -36,26 +36,23 @@ Created 11/5/1995 Heikki Tuuri
 #include "trx0sys.h"
 #include "os0file.h"
 #include "srv0start.h"
+#include "srv0srv.h"
 
-extern ulint srv_read_ahead_rnd;
-extern ulint srv_read_ahead_seq;
-extern ulint srv_buf_pool_reads;
-
-/* The size in blocks of the area where the random read-ahead algorithm counts
+/** The size in blocks of the area where the random read-ahead algorithm counts
 the accessed pages when deciding whether to read-ahead */
 #define	BUF_READ_AHEAD_RANDOM_AREA	BUF_READ_AHEAD_AREA
 
-/* There must be at least this many pages in buf_pool in the area to start
+/** There must be at least this many pages in buf_pool in the area to start
 a random read-ahead */
 #define BUF_READ_AHEAD_RANDOM_THRESHOLD	(5 + buf_read_ahead_random_area / 8)
 
-/* The linear read-ahead area size */
+/** The linear read-ahead area size */
 #define	BUF_READ_AHEAD_LINEAR_AREA	BUF_READ_AHEAD_AREA
 
-/* The linear read-ahead threshold */
+/** The linear read-ahead threshold */
 #define LINEAR_AREA_THRESHOLD_COEF	5 / 8
 
-/* If there are buf_pool->curr_size per the number below pending reads, then
+/** If there are buf_pool->curr_size per the number below pending reads, then
 read-ahead is not done: this is to prevent flooding the buffer pool with
 i/o-fixed buffer blocks */
 #define BUF_READ_AHEAD_PEND_LIMIT	2

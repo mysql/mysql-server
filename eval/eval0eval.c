@@ -33,11 +33,11 @@ Created 12/29/1997 Heikki Tuuri
 #include "data0data.h"
 #include "row0sel.h"
 
-/* The RND function seed */
+/** The RND function seed */
 static ulint	eval_rnd	= 128367121;
 
-/* Dummy adress used when we should allocate a buffer of size 0 in
-the function below */
+/** Dummy adress used when we should allocate a buffer of size 0 in
+eval_node_alloc_val_buf */
 
 static byte	eval_dummy;
 

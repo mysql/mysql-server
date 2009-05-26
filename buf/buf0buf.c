@@ -240,21 +240,21 @@ the read requests for the whole area.
 */
 
 #ifndef UNIV_HOTBACKUP
-/* Value in microseconds */
+/** Value in microseconds */
 static const int WAIT_FOR_READ	= 5000;
 
-/* The buffer buf_pool of the database */
+/** The buffer buf_pool of the database */
 UNIV_INTERN buf_pool_t*	buf_pool = NULL;
 
-/* mutex protecting the buffer pool struct and control blocks, except the
+/** mutex protecting the buffer pool struct and control blocks, except the
 read-write lock in them */
 UNIV_INTERN mutex_t		buf_pool_mutex;
-/* mutex protecting the control blocks of compressed-only pages
+/** mutex protecting the control blocks of compressed-only pages
 (of type buf_page_t, not buf_block_t) */
 UNIV_INTERN mutex_t		buf_pool_zip_mutex;
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
-static ulint	buf_dbg_counter	= 0; /* This is used to insert validation
+static ulint	buf_dbg_counter	= 0; /*!< This is used to insert validation
 					operations in excution in the
 					debug version */
 /** Flag to forbid the release of the buffer pool mutex.
@@ -262,18 +262,18 @@ Protected by buf_pool_mutex. */
 UNIV_INTERN ulint		buf_pool_mutex_exit_forbidden = 0;
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 #ifdef UNIV_DEBUG
-/* If this is set TRUE, the program prints info whenever
+/** If this is set TRUE, the program prints info whenever
 read-ahead or flush occurs */
 UNIV_INTERN ibool		buf_debug_prints = FALSE;
 #endif /* UNIV_DEBUG */
 
-/* A chunk of buffers.  The buffer pool is allocated in chunks. */
+/** A chunk of buffers.  The buffer pool is allocated in chunks. */
 struct buf_chunk_struct{
-	ulint		mem_size;	/* allocated size of the chunk */
-	ulint		size;		/* size of frames[] and blocks[] */
-	void*		mem;		/* pointer to the memory area which
+	ulint		mem_size;	/*!< allocated size of the chunk */
+	ulint		size;		/*!< size of frames[] and blocks[] */
+	void*		mem;		/*!< pointer to the memory area which
 					was allocated for the frames */
-	buf_block_t*	blocks;		/* array of buffer control blocks */
+	buf_block_t*	blocks;		/*!< array of buffer control blocks */
 };
 #endif /* !UNIV_HOTBACKUP */
 
@@ -1471,7 +1471,7 @@ buf_pool_resize(void)
 }
 
 /********************************************************************//**
-Moves to the block to the start of the LRU list if there is a danger
+Moves the block to the start of the LRU list if there is a danger
 that the block would drift out of the buffer pool. */
 UNIV_INLINE
 void

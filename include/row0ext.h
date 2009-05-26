@@ -80,12 +80,12 @@ row_ext_lookup(
 	ulint*			len);	/*!< out: length of prefix, in bytes,
 					at most REC_MAX_INDEX_COL_LEN */
 
-/* Prefixes of externally stored columns */
+/** Prefixes of externally stored columns */
 struct row_ext_struct{
-	ulint		n_ext;	/* number of externally stored columns */
-	const ulint*	ext;	/* col_no's of externally stored columns */
-	byte*		buf;	/* backing store of the column prefix cache */
-	ulint		len[1];	/* prefix lengths; 0 if not cached */
+	ulint		n_ext;	/*!< number of externally stored columns */
+	const ulint*	ext;	/*!< col_no's of externally stored columns */
+	byte*		buf;	/*!< backing store of the column prefix cache */
+	ulint		len[1];	/*!< prefix lengths; 0 if not cached */
 };
 
 #ifndef UNIV_NONINL

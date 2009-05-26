@@ -25,12 +25,12 @@ Created 7/19/1997 Heikki Tuuri
 
 #include "ibuf0ibuf.h"
 
-/* Number of bits describing a single page */
+/** Number of bits describing a single page */
 #define IBUF_BITS_PER_PAGE	4
 #if IBUF_BITS_PER_PAGE % 2
 # error "IBUF_BITS_PER_PAGE must be an even number!"
 #endif
-/* The start address for an insert buffer bitmap page bitmap */
+/** The start address for an insert buffer bitmap page bitmap */
 #define IBUF_BITMAP		PAGE_DATA
 
 #ifdef UNIV_NONINL
@@ -161,10 +161,10 @@ level 2 i/o. However, if an OS thread does the i/o handling for itself, i.e.,
 it uses synchronous aio, it can access any pages, as long as it obeys the
 access order rules. */
 
-/* Buffer pool size per the maximum insert buffer size */
+/** Buffer pool size per the maximum insert buffer size */
 #define IBUF_POOL_SIZE_PER_MAX_SIZE	2
 
-/* Table name for the insert buffer. */
+/** Table name for the insert buffer. */
 #define IBUF_TABLE_NAME		"SYS_IBUF_TABLE"
 
 /** Operations that can currently be buffered. */
@@ -173,14 +173,16 @@ UNIV_INTERN ibuf_use_t	ibuf_use		= IBUF_USE_INSERT;
 /** The insert buffer control structure */
 UNIV_INTERN ibuf_t*	ibuf			= NULL;
 
+/** Counter for ibuf_should_try() */
 UNIV_INTERN ulint	ibuf_flush_count	= 0;
 
 #ifdef UNIV_IBUF_COUNT_DEBUG
-/* Dimensions for the ibuf_count array */
+/** Number of tablespaces in the ibuf_counts array */
 #define IBUF_COUNT_N_SPACES	4
+/** Number of pages within each tablespace in the ibuf_counts array */
 #define IBUF_COUNT_N_PAGES	130000
 
-/* Buffered entry counts for file pages, used in debugging */
+/** Buffered entry counts for file pages, used in debugging */
 static ulint	ibuf_counts[IBUF_COUNT_N_SPACES][IBUF_COUNT_N_PAGES];
 
 /******************************************************************//**
@@ -207,43 +209,52 @@ ibuf_count_check(
 }
 #endif
 
-/* Offsets in bits for the bits describing a single page in the bitmap */
-#define	IBUF_BITMAP_FREE	0
-#define IBUF_BITMAP_BUFFERED	2
-#define IBUF_BITMAP_IBUF	3	/* TRUE if page is a part of the ibuf
-					tree, excluding the root page, or is
-					in the free list of the ibuf */
+/** Offsets in bits for the bits describing a single page in the bitmap */
+/* @{ */
+#define	IBUF_BITMAP_FREE	0	/*!< Bits indicating the
+					amount of free space */
+#define IBUF_BITMAP_BUFFERED	2	/*!< TRUE if there are buffered
+					changes for the page */
+#define IBUF_BITMAP_IBUF	3	/*!< TRUE if page is a part of
+					the ibuf tree, excluding the
+					root page, or is in the free
+					list of the ibuf */
+/* @} */
 
-/* The mutex used to block pessimistic inserts to ibuf trees */
+/** The mutex used to block pessimistic inserts to ibuf trees */
 static mutex_t	ibuf_pessimistic_insert_mutex;
 
-/* The mutex protecting the insert buffer structs */
+/** The mutex protecting the insert buffer structs */
 static mutex_t	ibuf_mutex;
 
-/* The mutex protecting the insert buffer bitmaps */
+/** The mutex protecting the insert buffer bitmaps */
 static mutex_t	ibuf_bitmap_mutex;
 
-/* The area in pages from which contract looks for page numbers for merge */
+/** The area in pages from which contract looks for page numbers for merge */
 #define	IBUF_MERGE_AREA			8
 
-/* Inside the merge area, pages which have at most 1 per this number less
+/** Inside the merge area, pages which have at most 1 per this number less
 buffered entries compared to maximum volume that can buffered for a single
 page are merged along with the page whose buffer became full */
 #define IBUF_MERGE_THRESHOLD		4
 
-/* In ibuf_contract at most this number of pages is read to memory in one
+/** In ibuf_contract at most this number of pages is read to memory in one
 batch, in order to merge the entries for them in the insert buffer */
 #define	IBUF_MAX_N_PAGES_MERGED		IBUF_MERGE_AREA
 
-/* If the combined size of the ibuf trees exceeds ibuf->max_size by this
+/** If the combined size of the ibuf trees exceeds ibuf->max_size by this
 many pages, we start to contract it in connection to inserts there, using
 non-synchronous contract */
 #define IBUF_CONTRACT_ON_INSERT_NON_SYNC	0
 
-/* Same as above, but use synchronous contract */
+/** If the combined size of the ibuf trees exceeds ibuf->max_size by this
+many pages, we start to contract it in connection to inserts there, using
+synchronous contract */
 #define IBUF_CONTRACT_ON_INSERT_SYNC		5
 
-/* Same as above, but no insert is done, only contract is called */
+/** If the combined size of the ibuf trees exceeds ibuf->max_size by
+this many pages, we start to contract it synchronous contract, but do
+not insert */
 #define IBUF_CONTRACT_DO_NOT_INSERT		10
 
 /* TODO: how to cope with drop table if there are records in the insert

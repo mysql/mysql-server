@@ -66,32 +66,43 @@ Created 10/16/1994 Heikki Tuuri
 #include "zlib.h"
 
 #ifdef UNIV_DEBUG
-/* If the following is set to TRUE, this module prints a lot of
+/** If the following is set to TRUE, this module prints a lot of
 trace information of individual record operations */
 UNIV_INTERN ibool	btr_cur_print_record_ops = FALSE;
 #endif /* UNIV_DEBUG */
 
+/** Number of searches down the B-tree in btr_cur_search_to_nth_level(). */
 UNIV_INTERN ulint	btr_cur_n_non_sea	= 0;
+/** Number of successful adaptive hash index lookups in
+btr_cur_search_to_nth_level(). */
 UNIV_INTERN ulint	btr_cur_n_sea		= 0;
+/** Old value of btr_cur_n_non_sea.  Copied by
+srv_refresh_innodb_monitor_stats().  Referenced by
+srv_printf_innodb_monitor(). */
 UNIV_INTERN ulint	btr_cur_n_non_sea_old	= 0;
+/** Old value of btr_cur_n_sea.  Copied by
+srv_refresh_innodb_monitor_stats().  Referenced by
+srv_printf_innodb_monitor(). */
 UNIV_INTERN ulint	btr_cur_n_sea_old	= 0;
 
-/* In the optimistic insert, if the insert does not fit, but this much space
+/** In the optimistic insert, if the insert does not fit, but this much space
 can be released by page reorganize, then it is reorganized */
-
 #define BTR_CUR_PAGE_REORGANIZE_LIMIT	(UNIV_PAGE_SIZE / 32)
 
-/* The structure of a BLOB part header */
+/** The structure of a BLOB part header */
+/* @{ */
 /*--------------------------------------*/
-#define BTR_BLOB_HDR_PART_LEN		0	/* BLOB part len on this
+#define BTR_BLOB_HDR_PART_LEN		0	/*!< BLOB part len on this
 						page */
-#define BTR_BLOB_HDR_NEXT_PAGE_NO	4	/* next BLOB part page no,
+#define BTR_BLOB_HDR_NEXT_PAGE_NO	4	/*!< next BLOB part page no,
 						FIL_NULL if none */
 /*--------------------------------------*/
-#define BTR_BLOB_HDR_SIZE		8
+#define BTR_BLOB_HDR_SIZE		8	/*!< Size of a BLOB
+						part header, in bytes */
+/* @} */
 #endif /* !UNIV_HOTBACKUP */
 
-/* A BLOB field reference full of zero, for use in assertions and tests.
+/** A BLOB field reference full of zero, for use in assertions and tests.
 Initially, BLOB field references are set to zero, in
 dtuple_convert_big_rec(). */
 UNIV_INTERN const byte field_ref_zero[BTR_EXTERN_FIELD_REF_SIZE];
