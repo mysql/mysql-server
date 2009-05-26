@@ -332,11 +332,11 @@ page_cur_parse_delete_rec(
 	dict_index_t*	index,	/*!< in: record descriptor */
 	mtr_t*		mtr);	/*!< in: mtr or NULL */
 
-/* Index page cursor */
+/** Index page cursor */
 
 struct page_cur_struct{
-	byte*		rec;	/* pointer to a record on page */
-	buf_block_t*	block;	/* pointer to the block containing rec */
+	byte*		rec;	/*!< pointer to a record on page */
+	buf_block_t*	block;	/*!< pointer to the block containing rec */
 };
 
 #ifndef UNIV_NONINL

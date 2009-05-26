@@ -619,12 +619,12 @@ ha_innobase::add_index(
 	KEY*	key_info,	/*!< in: Indexes to be created */
 	uint	num_of_keys)	/*!< in: Number of indexes to be created */
 {
-	dict_index_t**	index;		/* Index to be created */
-	dict_table_t*	innodb_table;	/* InnoDB table in dictionary */
-	dict_table_t*	indexed_table;	/* Table where indexes are created */
-	merge_index_def_t* index_defs;	/* Index definitions */
-	mem_heap_t*     heap;		/* Heap for index definitions */
-	trx_t*		trx;		/* Transaction */
+	dict_index_t**	index;		/*!< Index to be created */
+	dict_table_t*	innodb_table;	/*!< InnoDB table in dictionary */
+	dict_table_t*	indexed_table;	/*!< Table where indexes are created */
+	merge_index_def_t* index_defs;	/*!< Index definitions */
+	mem_heap_t*     heap;		/*!< Heap for index definitions */
+	trx_t*		trx;		/*!< Transaction */
 	ulint		num_of_idx;
 	ulint		num_created	= 0;
 	ibool		dict_locked	= FALSE;
@@ -1122,8 +1122,8 @@ ha_innobase::final_drop_index(
 /*==========================*/
 	TABLE*	table)		/*!< in: Table where indexes are dropped */
 {
-	dict_index_t*	index;		/* Index to be dropped */
-	trx_t*		trx;		/* Transaction */
+	dict_index_t*	index;		/*!< Index to be dropped */
+	trx_t*		trx;		/*!< Transaction */
 	int		err;
 
 	DBUG_ENTER("ha_innobase::final_drop_index");

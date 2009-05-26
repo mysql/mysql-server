@@ -30,14 +30,15 @@ Created September 22, 2007 Vasil Dimov
 
 #include "univ.i"
 
-/* This value is used by default by ha_storage_create(). More memory
+/** This value is used by default by ha_storage_create(). More memory
 is allocated later when/if it is needed. */
 #define HA_STORAGE_DEFAULT_HEAP_BYTES	1024
 
-/* This value is used by default by ha_storage_create(). It is a
+/** This value is used by default by ha_storage_create(). It is a
 constant per ha_storage's lifetime. */
 #define HA_STORAGE_DEFAULT_HASH_CELLS	4096
 
+/** Hash storage */
 typedef struct ha_storage_struct	ha_storage_t;
 
 /*******************************************************************//**
@@ -62,7 +63,7 @@ become more than "memlim" then "data" is not added and NULL is returned.
 To disable this behavior "memlim" can be set to 0, which stands for
 "no limit".
 @return	pointer to the copy */
-
+UNIV_INTERN
 const void*
 ha_storage_put_memlim(
 /*==================*/
@@ -97,6 +98,7 @@ If the same string is already present, then pointer to it is returned.
 Strings are considered to be equal if strcmp(str1, str2) == 0.
 @param storage	in/out: hash storage
 @param str	in: string to put
+@param memlim	in: memory limit to obey
 @return		pointer to the copy of the string */
 #define ha_storage_put_str_memlim(storage, str, memlim)	\
 	((const char*) ha_storage_put_memlim((storage), (str),	\

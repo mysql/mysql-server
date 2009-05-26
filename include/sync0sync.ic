@@ -141,7 +141,7 @@ mutex_get_waiters(
 /*==============*/
 	const mutex_t*	mutex)	/*!< in: mutex */
 {
-	const volatile ulint*	ptr;	/* declared volatile to ensure that
+	const volatile ulint*	ptr;	/*!< declared volatile to ensure that
 					the value is read from memory */
 	ut_ad(mutex);
 

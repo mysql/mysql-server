@@ -104,15 +104,15 @@ Convert to the old format for convenience. The structure as well as its
 element names follow the definition of ImgDelayDescr in delayimp.h. */
 struct InternalImgDelayDescr
 {
-	DWORD		grAttrs;	/* attributes */
-	LPCSTR		szName;		/* pointer to dll name */
-	HMODULE*	phmod;		/* address of module handle */
-	PImgThunkData	pIAT;		/* address of the IAT */
-	PCImgThunkData	pINT;		/* address of the INT */
-	PCImgThunkData	pBoundIAT;	/* address of the optional bound IAT */
-	PCImgThunkData	pUnloadIAT;	/* address of optional copy of
+	DWORD		grAttrs;	/*!< attributes */
+	LPCSTR		szName;		/*!< pointer to dll name */
+	HMODULE*	phmod;		/*!< address of module handle */
+	PImgThunkData	pIAT;		/*!< address of the IAT */
+	PCImgThunkData	pINT;		/*!< address of the INT */
+	PCImgThunkData	pBoundIAT;	/*!< address of the optional bound IAT */
+	PCImgThunkData	pUnloadIAT;	/*!< address of optional copy of
 					   original IAT */
-	DWORD		dwTimeStamp;	/* 0 if not bound,
+	DWORD		dwTimeStamp;	/*!< 0 if not bound,
 					   otherwise date/time stamp of DLL
 					   bound to (Old BIND) */
 };
@@ -120,11 +120,11 @@ struct InternalImgDelayDescr
 typedef struct map_hash_chain_struct	map_hash_chain_t;
 
 struct map_hash_chain_struct {
-	char*			symbol;	/* pointer to a symbol */
-	ulint			value;	/* address of the symbol */
-	map_hash_chain_t*	next;	/* pointer to the next cell
+	char*			symbol;	/*!< pointer to a symbol */
+	ulint			value;	/*!< address of the symbol */
+	map_hash_chain_t*	next;	/*!< pointer to the next cell
 					in the same folder. */
-	map_hash_chain_t*	chain;	/* a linear chain used for
+	map_hash_chain_t*	chain;	/*!< a linear chain used for
 					cleanup. */
 };
 

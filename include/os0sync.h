@@ -39,52 +39,65 @@ Created 9/6/1995 Heikki Tuuri
 
 #ifdef __WIN__
 
+/** Native mutex */
 #define os_fast_mutex_t CRITICAL_SECTION
 
+/** Native event */
 typedef HANDLE		os_native_event_t;
 
+/** Operating system event */
 typedef struct os_event_struct	os_event_struct_t;
+/** Operating system event handle */
 typedef os_event_struct_t*	os_event_t;
 
+/** An asynchronous signal sent between threads */
 struct os_event_struct {
 	os_native_event_t		  handle;
-					/* Windows event */
+					/*!< Windows event */
 	UT_LIST_NODE_T(os_event_struct_t) os_event_list;
-					/* list of all created events */
+					/*!< list of all created events */
 };
 #else
+/** Native mutex */
 typedef pthread_mutex_t	os_fast_mutex_t;
 
+/** Operating system event */
 typedef struct os_event_struct	os_event_struct_t;
+/** Operating system event handle */
 typedef os_event_struct_t*	os_event_t;
 
+/** An asynchronous signal sent between threads */
 struct os_event_struct {
-	os_fast_mutex_t	os_mutex;	/* this mutex protects the next
+	os_fast_mutex_t	os_mutex;	/*!< this mutex protects the next
 					fields */
-	ibool		is_set;		/* this is TRUE when the event is
+	ibool		is_set;		/*!< this is TRUE when the event is
 					in the signaled state, i.e., a thread
 					does not stop if it tries to wait for
 					this event */
-	ib_int64_t	signal_count;	/* this is incremented each time
+	ib_int64_t	signal_count;	/*!< this is incremented each time
 					the event becomes signaled */
-	pthread_cond_t	cond_var;	/* condition variable is used in
+	pthread_cond_t	cond_var;	/*!< condition variable is used in
 					waiting for the event */
 	UT_LIST_NODE_T(os_event_struct_t) os_event_list;
-					/* list of all created events */
+					/*!< list of all created events */
 };
 #endif
 
+/** Operating system mutex */
 typedef struct os_mutex_struct	os_mutex_str_t;
+/** Operating system mutex handle */
 typedef os_mutex_str_t*		os_mutex_t;
 
+/** Denotes an infinite delay for os_event_wait_time() */
 #define OS_SYNC_INFINITE_TIME	((ulint)(-1))
 
+/** Return value of os_event_wait_time() when the time is exceeded */
 #define OS_SYNC_TIME_EXCEEDED	1
 
-/* Mutex protecting counts and the event and OS 'slow' mutex lists */
+/** Mutex protecting counts and the event and OS 'slow' mutex lists */
 extern os_mutex_t	os_sync_mutex;
 
-/* This is incremented by 1 in os_thread_create and decremented by 1 in
+/** This is incremented by 1 in os_thread_create and decremented by 1 in
 os_thread_exit */
 extern ulint		os_thread_count;
 

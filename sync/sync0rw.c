@@ -133,29 +133,33 @@ wait_ex_event:	A thread may only wait on the wait_ex_event after it has
 */
 
 
-/* number of spin waits on rw-latches,
+/** number of spin waits on rw-latches,
 resulted during shared (read) locks */
 UNIV_INTERN ib_int64_t	rw_s_spin_wait_count	= 0;
+/** number of spin loop rounds on rw-latches,
+resulted during shared (read) locks */
 UNIV_INTERN ib_int64_t	rw_s_spin_round_count	= 0;
 
-/* number of OS waits on rw-latches,
+/** number of OS waits on rw-latches,
 resulted during shared (read) locks */
 UNIV_INTERN ib_int64_t	rw_s_os_wait_count	= 0;
 
-/* number of unlocks (that unlock shared locks),
+/** number of unlocks (that unlock shared locks),
 set only when UNIV_SYNC_PERF_STAT is defined */
 UNIV_INTERN ib_int64_t	rw_s_exit_count		= 0;
 
-/* number of spin waits on rw-latches,
+/** number of spin waits on rw-latches,
 resulted during exclusive (write) locks */
 UNIV_INTERN ib_int64_t	rw_x_spin_wait_count	= 0;
+/** number of spin loop rounds on rw-latches,
+resulted during exclusive (write) locks */
 UNIV_INTERN ib_int64_t	rw_x_spin_round_count	= 0;
 
-/* number of OS waits on rw-latches,
+/** number of OS waits on rw-latches,
 resulted during exclusive (write) locks */
 UNIV_INTERN ib_int64_t	rw_x_os_wait_count	= 0;
 
-/* number of unlocks (that unlock exclusive locks),
+/** number of unlocks (that unlock exclusive locks),
 set only when UNIV_SYNC_PERF_STAT is defined */
 UNIV_INTERN ib_int64_t	rw_x_exit_count		= 0;
 
@@ -367,7 +371,7 @@ rw_lock_s_lock_spin(
 
 	ut_ad(rw_lock_validate(lock));
 
-	rw_s_spin_wait_count++;	/* Count calls to this function */
+	rw_s_spin_wait_count++;	/*!< Count calls to this function */
 lock_loop:
 
 	/* Spin waiting for the writer field to become free */
@@ -600,8 +604,8 @@ rw_lock_x_lock_func(
 	const char*	file_name,/*!< in: file name where lock requested */
 	ulint		line)	/*!< in: line where requested */
 {
-	ulint	index;	/* index of the reserved wait cell */
-	ulint	i;	/* spin round count */
+	ulint	index;	/*!< index of the reserved wait cell */
+	ulint	i;	/*!< spin round count */
 	ibool   spinning = FALSE;
 
 	ut_ad(rw_lock_validate(lock));

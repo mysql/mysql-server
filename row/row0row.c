@@ -933,9 +933,9 @@ row_raw_format_str(
 Formats the raw data in "data" (in InnoDB on-disk format) using
 "dict_field" and writes the result to "buf".
 Not more than "buf_size" bytes are written to "buf".
-The result is always '\0'-terminated (provided buf_size > 0) and the
+The result is always NUL-terminated (provided buf_size is positive) and the
 number of bytes that were written to "buf" is returned (including the
-terminating '\0').
+terminating NUL).
 @return	number of bytes that were written */
 UNIV_INTERN
 ulint

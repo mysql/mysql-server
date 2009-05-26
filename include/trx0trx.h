@@ -38,10 +38,10 @@ Created 3/26/1996 Heikki Tuuri
 #include "trx0xa.h"
 #include "ut0vec.h"
 
-/* Dummy session used currently in MySQL interface */
+/** Dummy session used currently in MySQL interface */
 extern sess_t*	trx_dummy_sess;
 
-/* Number of transactions currently allocated for MySQL: protected by
+/** Number of transactions currently allocated for MySQL: protected by
 the kernel mutex */
 extern ulint	trx_n_mysql_transactions;
 
@@ -442,18 +442,18 @@ trx_get_que_state_str(
 
 /* Signal to a transaction */
 struct trx_sig_struct{
-	unsigned	type:3;		/* signal type */
-	unsigned	sender:1;	/* TRX_SIG_SELF or
+	unsigned	type:3;		/*!< signal type */
+	unsigned	sender:1;	/*!< TRX_SIG_SELF or
 					TRX_SIG_OTHER_SESS */
-	que_thr_t*	receiver;	/* non-NULL if the sender of the signal
+	que_thr_t*	receiver;	/*!< non-NULL if the sender of the signal
 					wants reply after the operation induced
 					by the signal is completed */
-	trx_savept_t	savept;		/* possible rollback savepoint */
+	trx_savept_t	savept;		/*!< possible rollback savepoint */
 	UT_LIST_NODE_T(trx_sig_t)
-			signals;	/* queue of pending signals to the
+			signals;	/*!< queue of pending signals to the
 					transaction */
 	UT_LIST_NODE_T(trx_sig_t)
-			reply_signals;	/* list of signals for which the sender
+			reply_signals;	/*!< list of signals for which the sender
 					transaction is waiting a reply */
 };
 
@@ -467,17 +467,17 @@ struct trx_struct{
 	ulint		magic_n;
 	/* All the next fields are protected by the kernel mutex, except the
 	undo logs which are protected by undo_mutex */
-	const char*	op_info;	/* English text describing the
+	const char*	op_info;	/*!< English text describing the
 					current operation, or an empty
 					string */
-	unsigned	is_purge:1;	/* 0=user transaction, 1=purge */
-	unsigned	is_recovered:1;	/* 0=normal transaction,
+	unsigned	is_purge:1;	/*!< 0=user transaction, 1=purge */
+	unsigned	is_recovered:1;	/*!< 0=normal transaction,
 					1=recovered, must be rolled back */
-	unsigned	conc_state:2;	/* state of the trx from the point
+	unsigned	conc_state:2;	/*!< state of the trx from the point
 					of view of concurrency control:
 					TRX_ACTIVE, TRX_COMMITTED_IN_MEMORY,
 					... */
-	unsigned	que_state:2;	/* valid when conc_state == TRX_ACTIVE:
+	unsigned	que_state:2;	/*!< valid when conc_state == TRX_ACTIVE:
 					TRX_QUE_RUNNING, TRX_QUE_LOCK_WAIT,
 					... */
 	unsigned	isolation_level:2;/* TRX_ISO_REPEATABLE_READ, ... */
@@ -492,7 +492,7 @@ struct trx_struct{
 					for secondary indexes when we decide
 					if we can use the insert buffer for
 					them, we set this FALSE */
-	unsigned	support_xa:1;	/* normally we do the XA two-phase
+	unsigned	support_xa:1;	/*!< normally we do the XA two-phase
 					commit steps, but by setting this to
 					FALSE, one can save CPU time and about
 					150 bytes in the undo log size as then
@@ -508,8 +508,8 @@ struct trx_struct{
 					in that case we must flush the log
 					in trx_commit_complete_for_mysql() */
 	unsigned	dict_operation:2;/**< @see enum trx_dict_op */
-	unsigned	duplicates:2;	/* TRX_DUP_IGNORE | TRX_DUP_REPLACE */
-	unsigned	active_trans:2;	/* 1 - if a transaction in MySQL
+	unsigned	duplicates:2;	/*!< TRX_DUP_IGNORE | TRX_DUP_REPLACE */
+	unsigned	active_trans:2;	/*!< 1 - if a transaction in MySQL
 					is active. 2 - if prepare_commit_mutex
 					was taken */
 	unsigned	has_search_latch:1;
@@ -526,21 +526,21 @@ struct trx_struct{
 					/* 0, RW_S_LATCH, or RW_X_LATCH:
 					the latch mode trx currently holds
 					on dict_operation_lock */
-	time_t		start_time;	/* time the trx object was created
+	time_t		start_time;	/*!< time the trx object was created
 					or the state last time became
 					TRX_ACTIVE */
-	trx_id_t	id;		/* transaction id */
-	XID		xid;		/* X/Open XA transaction
+	trx_id_t	id;		/*!< transaction id */
+	XID		xid;		/*!< X/Open XA transaction
 					identification to identify a
 					transaction branch */
-	trx_id_t	no;		/* transaction serialization number ==
+	trx_id_t	no;		/*!< transaction serialization number ==
 					max trx id when the transaction is
 					moved to COMMITTED_IN_MEMORY state */
-	ib_uint64_t	commit_lsn;	/* lsn at the time of the commit */
-	trx_id_t	table_id;	/* Table to drop iff dict_operation
+	ib_uint64_t	commit_lsn;	/*!< lsn at the time of the commit */
+	trx_id_t	table_id;	/*!< Table to drop iff dict_operation
 					is TRUE, or ut_dulint_zero. */
 	/*------------------------------*/
-	void*		mysql_thd;	/* MySQL thread handle corresponding
+	void*		mysql_thd;	/*!< MySQL thread handle corresponding
 					to this trx, or NULL */
 	char**		mysql_query_str;/* pointer to the field in mysqld_thd
 					which contains the pointer to the
@@ -584,48 +584,48 @@ struct trx_struct{
 					here is > 0, we decrement this by 1 */
 	/*------------------------------*/
 	UT_LIST_NODE_T(trx_t)
-			trx_list;	/* list of transactions */
+			trx_list;	/*!< list of transactions */
 	UT_LIST_NODE_T(trx_t)
-			mysql_trx_list;	/* list of transactions created for
+			mysql_trx_list;	/*!< list of transactions created for
 					MySQL */
 	/*------------------------------*/
-	ulint		error_state;	/* 0 if no error, otherwise error
+	ulint		error_state;	/*!< 0 if no error, otherwise error
 					number; NOTE That ONLY the thread
 					doing the transaction is allowed to
 					set this field: this is NOT protected
 					by the kernel mutex */
-	const dict_index_t*error_info;	/* if the error number indicates a
+	const dict_index_t*error_info;	/*!< if the error number indicates a
 					duplicate key error, a pointer to
 					the problematic index is stored here */
-	ulint		error_key_num;	/* if the index creation fails to a
+	ulint		error_key_num;	/*!< if the index creation fails to a
 					duplicate key error, a mysql key
 					number of that index is stored here */
-	sess_t*		sess;		/* session of the trx, NULL if none */
-	que_t*		graph;		/* query currently run in the session,
+	sess_t*		sess;		/*!< session of the trx, NULL if none */
+	que_t*		graph;		/*!< query currently run in the session,
 					or NULL if none; NOTE that the query
 					belongs to the session, and it can
 					survive over a transaction commit, if
 					it is a stored procedure with a COMMIT
 					WORK statement, for instance */
-	ulint		n_active_thrs;	/* number of active query threads */
+	ulint		n_active_thrs;	/*!< number of active query threads */
 	que_t*		graph_before_signal_handling;
 					/* value of graph when signal handling
 					for this trx started: this is used to
 					return control to the original query
 					graph for error processing */
-	trx_sig_t	sig;		/* one signal object can be allocated
+	trx_sig_t	sig;		/*!< one signal object can be allocated
 					in this space, avoiding mem_alloc */
 	UT_LIST_BASE_NODE_T(trx_sig_t)
-			signals;	/* queue of processed or pending
+			signals;	/*!< queue of processed or pending
 					signals to the trx */
 	UT_LIST_BASE_NODE_T(trx_sig_t)
-			reply_signals;	/* list of signals sent by the query
+			reply_signals;	/*!< list of signals sent by the query
 					threads of this trx for which a thread
 					is waiting for a reply; if this trx is
 					killed, the reply requests in the list
 					must be canceled */
 	/*------------------------------*/
-	lock_t*		wait_lock;	/* if trx execution state is
+	lock_t*		wait_lock;	/*!< if trx execution state is
 					TRX_QUE_LOCK_WAIT, this points to
 					the lock request, otherwise this is
 					NULL */
@@ -635,21 +635,21 @@ struct trx_struct{
 					if another transaction chooses this
 					transaction as a victim in deadlock
 					resolution, it sets this to TRUE */
-	time_t		wait_started;	/* lock wait started at this time */
+	time_t		wait_started;	/*!< lock wait started at this time */
 	UT_LIST_BASE_NODE_T(que_thr_t)
-			wait_thrs;	/* query threads belonging to this
+			wait_thrs;	/*!< query threads belonging to this
 					trx that are in the QUE_THR_LOCK_WAIT
 					state */
-	ulint		deadlock_mark;	/* a mark field used in deadlock
+	ulint		deadlock_mark;	/*!< a mark field used in deadlock
 					checking algorithm.  This must be
 					in its own machine word, because
 					it can be changed by other
 					threads while holding kernel_mutex. */
 	/*------------------------------*/
-	mem_heap_t*	lock_heap;	/* memory heap for the locks of the
+	mem_heap_t*	lock_heap;	/*!< memory heap for the locks of the
 					transaction */
 	UT_LIST_BASE_NODE_T(lock_t)
-			trx_locks;	/* locks reserved by the transaction */
+			trx_locks;	/*!< locks reserved by the transaction */
 	/*------------------------------*/
 	mem_heap_t*	global_read_view_heap;
 					/* memory heap for the global read
@@ -657,7 +657,7 @@ struct trx_struct{
 	read_view_t*	global_read_view;
 					/* consistent read view associated
 					to a transaction or NULL */
-	read_view_t*	read_view;	/* consistent read view used in the
+	read_view_t*	read_view;	/*!< consistent read view used in the
 					transaction or NULL, this read view
 					if defined can be normal read view
 					associated to a transaction (i.e.
@@ -665,16 +665,16 @@ struct trx_struct{
 					associated to a cursor */
 	/*------------------------------*/
 	UT_LIST_BASE_NODE_T(trx_named_savept_t)
-			trx_savepoints;	/* savepoints set with SAVEPOINT ...,
+			trx_savepoints;	/*!< savepoints set with SAVEPOINT ...,
 					oldest first */
 	/*------------------------------*/
-	mutex_t		undo_mutex;	/* mutex protecting the fields in this
+	mutex_t		undo_mutex;	/*!< mutex protecting the fields in this
 					section (down to undo_no_arr), EXCEPT
 					last_sql_stat_start, which can be
 					accessed only when we know that there
 					cannot be any activity in the undo
 					logs! */
-	undo_no_t	undo_no;	/* next undo log record number to
+	undo_no_t	undo_no;	/*!< next undo log record number to
 					assign; since the undo log is
 					private for a transaction, this
 					is a simple ascending sequence
@@ -686,22 +686,22 @@ struct trx_struct{
 					was started: in case of an error, trx
 					is rolled back down to this undo
 					number; see note at undo_mutex! */
-	trx_rseg_t*	rseg;		/* rollback segment assigned to the
+	trx_rseg_t*	rseg;		/*!< rollback segment assigned to the
 					transaction, or NULL if not assigned
 					yet */
-	trx_undo_t*	insert_undo;	/* pointer to the insert undo log, or
+	trx_undo_t*	insert_undo;	/*!< pointer to the insert undo log, or
 					NULL if no inserts performed yet */
-	trx_undo_t*	update_undo;	/* pointer to the update undo log, or
+	trx_undo_t*	update_undo;	/*!< pointer to the update undo log, or
 					NULL if no update performed yet */
-	undo_no_t	roll_limit;	/* least undo number to undo during
+	undo_no_t	roll_limit;	/*!< least undo number to undo during
 					a rollback */
-	ulint		pages_undone;	/* number of undo log pages undone
+	ulint		pages_undone;	/*!< number of undo log pages undone
 					since the last undo log truncation */
-	trx_undo_arr_t*	undo_no_arr;	/* array of undo numbers of undo log
+	trx_undo_arr_t*	undo_no_arr;	/*!< array of undo numbers of undo log
 					records which are currently processed
 					by a rollback operation */
 	/*------------------------------*/
-	ulint		n_autoinc_rows;	/* no. of AUTO-INC rows required for
+	ulint		n_autoinc_rows;	/*!< no. of AUTO-INC rows required for
 					an SQL statement. This is useful for
 					multi-row INSERTs */
 	ib_vector_t*    autoinc_locks;  /* AUTOINC locks held by this
@@ -710,7 +710,7 @@ struct trx_struct{
 					vector needs to be freed explicitly
 					when the trx_t instance is desrtoyed */
 	/*------------------------------*/
-	char detailed_error[256];	/* detailed error message for last
+	char detailed_error[256];	/*!< detailed error message for last
 					error, or empty. */
 };
 
@@ -787,15 +787,21 @@ Multiple flags can be combined with bitwise OR. */
 #define TRX_SIG_OTHER_SESS	1	/* sent by another session (which
 					must hold rights to this) */
 
-/* Commit command node in a query graph */
-struct commit_node_struct{
-	que_common_t	common;	/* node type: QUE_NODE_COMMIT */
-	ulint		state;	/* node execution state */
+/** Commit node states */
+enum commit_node_state {
+	COMMIT_NODE_SEND = 1,	/*!< about to send a commit signal to
+				the transaction */
+	COMMIT_NODE_WAIT	/*!< commit signal sent to the transaction,
+				waiting for completion */
 };
 
-/* Commit node states */
-#define COMMIT_NODE_SEND	1
-#define COMMIT_NODE_WAIT	2
+/** Commit command node in a query graph */
+struct commit_node_struct{
+	que_common_t	common;	/*!< node type: QUE_NODE_COMMIT */
+	enum commit_node_state
+			state;	/*!< node execution state */
+};
+
 
 
 #ifndef UNIV_NONINL

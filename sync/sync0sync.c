@@ -164,57 +164,67 @@ Q.E.D. */
 
 /* Number of spin waits on mutexes: for performance monitoring */
 
-/* round=one iteration of a spin loop */
-UNIV_INTERN ib_int64_t	mutex_spin_round_count		= 0;
-UNIV_INTERN ib_int64_t	mutex_spin_wait_count		= 0;
-UNIV_INTERN ib_int64_t	mutex_os_wait_count		= 0;
+/** The number of iterations in the mutex_spin_wait() spin loop.
+Intended for performance monitoring. */
+static ib_int64_t	mutex_spin_round_count		= 0;
+/** The number of mutex_spin_wait() calls.  Intended for
+performance monitoring. */
+static ib_int64_t	mutex_spin_wait_count		= 0;
+/** The number of OS waits in mutex_spin_wait().  Intended for
+performance monitoring. */
+static ib_int64_t	mutex_os_wait_count		= 0;
+/** The number of mutex_exit() calls. Intended for performance
+monitoring. */
 UNIV_INTERN ib_int64_t	mutex_exit_count		= 0;
 
-/* The global array of wait cells for implementation of the database's own
+/** The global array of wait cells for implementation of the database's own
 mutexes and read-write locks */
 UNIV_INTERN sync_array_t*	sync_primary_wait_array;
 
-/* This variable is set to TRUE when sync_init is called */
+/** This variable is set to TRUE when sync_init is called */
 UNIV_INTERN ibool	sync_initialized	= FALSE;
 
-
+/** An acquired mutex or rw-lock and its level in the latching order */
 typedef struct sync_level_struct	sync_level_t;
+/** Mutexes or rw-locks held by a thread */
 typedef struct sync_thread_struct	sync_thread_t;
 
 #ifdef UNIV_SYNC_DEBUG
-/* The latch levels currently owned by threads are stored in this data
+/** The latch levels currently owned by threads are stored in this data
 structure; the size of this array is OS_THREAD_MAX_N */
 
 UNIV_INTERN sync_thread_t*	sync_thread_level_arrays;
 
-/* Mutex protecting sync_thread_level_arrays */
+/** Mutex protecting sync_thread_level_arrays */
 UNIV_INTERN mutex_t		sync_thread_mutex;
 #endif /* UNIV_SYNC_DEBUG */
 
-/* Global list of database mutexes (not OS mutexes) created. */
+/** Global list of database mutexes (not OS mutexes) created. */
 UNIV_INTERN ut_list_base_node_t  mutex_list;
 
-/* Mutex protecting the mutex_list variable */
+/** Mutex protecting the mutex_list variable */
 UNIV_INTERN mutex_t mutex_list_mutex;
 
 #ifdef UNIV_SYNC_DEBUG
-/* Latching order checks start when this is set TRUE */
+/** Latching order checks start when this is set TRUE */
 UNIV_INTERN ibool	sync_order_checks_on	= FALSE;
 #endif /* UNIV_SYNC_DEBUG */
 
+/** Mutexes or rw-locks held by a thread */
 struct sync_thread_struct{
-	os_thread_id_t	id;	/* OS thread id */
-	sync_level_t*	levels;	/* level array for this thread; if this is NULL
-				this slot is unused */
+	os_thread_id_t	id;	/*!< OS thread id */
+	sync_level_t*	levels;	/*!< level array for this thread; if
+				this is NULL this slot is unused */
 };
 
-/* Number of slots reserved for each OS thread in the sync level array */
+/** Number of slots reserved for each OS thread in the sync level array */
 #define SYNC_THREAD_N_LEVELS	10000
 
+/** An acquired mutex or rw-lock and its level in the latching order */
 struct sync_level_struct{
-	void*	latch;	/* pointer to a mutex or an rw-lock; NULL means that
+	void*	latch;	/*!< pointer to a mutex or an rw-lock; NULL means that
 			the slot is empty */
-	ulint	level;	/* level of the latch in the latching order */
+	ulint	level;	/*!< level of the latch in the latching order */
 };
 
 /******************************************************************//**

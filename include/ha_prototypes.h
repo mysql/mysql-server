@@ -52,9 +52,9 @@ Formats the raw data in "data" (in InnoDB on-disk format) that is of
 type DATA_(CHAR|VARCHAR|MYSQL|VARMYSQL) using "charset_coll" and writes
 the result to "buf". The result is converted to "system_charset_info".
 Not more than "buf_size" bytes are written to "buf".
-The result is always '\0'-terminated (provided buf_size > 0) and the
+The result is always NUL-terminated (provided buf_size > 0) and the
 number of bytes that were written to "buf" is returned (including the
-terminating '\0').
+terminating NUL).
 @return	number of bytes that were written */
 UNIV_INTERN
 ulint
@@ -77,8 +77,8 @@ innobase_invalidate_query_cache(
 	trx_t*		trx,		/*!< in: transaction which
 					modifies the table */
 	const char*	full_name,	/*!< in: concatenation of
-					database name, null char '\0',
-					table name, null char '\0';
+					database name, null char NUL,
+					table name, null char NUL;
 					NOTE that in Windows this is
 					always in LOWER CASE! */
 	ulint		full_name_len);	/*!< in: full name length where

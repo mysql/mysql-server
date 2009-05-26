@@ -28,37 +28,37 @@ Created 7/19/1997 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 #include "buf0lru.h"
 
+/** Counter for ibuf_should_try() */
 extern ulint	ibuf_flush_count;
 
-/* If this number is n, an index page must contain at least the page size
-per n bytes of free space for ibuf to try to buffer inserts to this page.
-If there is this much of free space, the corresponding bits are set in the
-ibuf bitmap. */
+/** An index page must contain at least UNIV_PAGE_SIZE /
+IBUF_PAGE_SIZE_PER_FREE_SPACE bytes of free space for ibuf to try to
+buffer inserts to this page.  If there is this much of free space, the
+corresponding bits are set in the ibuf bitmap. */
 #define IBUF_PAGE_SIZE_PER_FREE_SPACE	32
 
-/* Insert buffer struct */
-
+/** Insert buffer struct */
 struct ibuf_struct{
-	ulint		size;		/* current size of the ibuf index
+	ulint		size;		/*!< current size of the ibuf index
 					tree, in pages */
-	ulint		max_size;	/* recommended maximum size of the
+	ulint		max_size;	/*!< recommended maximum size of the
 					ibuf index tree, in pages */
-	ulint		seg_size;	/* allocated pages of the file
+	ulint		seg_size;	/*!< allocated pages of the file
 					segment containing ibuf header and
 					tree */
-	ibool		empty;		/* after an insert to the ibuf tree
+	ibool		empty;		/*!< after an insert to the ibuf tree
 					is performed, this is set to FALSE,
 					and if a contract operation finds
 					the tree empty, this is set to
 					TRUE */
-	ulint		free_list_len;	/* length of the free list */
-	ulint		height;		/* tree height */
-	dict_index_t*	index;		/* insert buffer index */
+	ulint		free_list_len;	/*!< length of the free list */
+	ulint		height;		/*!< tree height */
+	dict_index_t*	index;		/*!< insert buffer index */
 
-	ulint		n_inserts;	/* number of inserts made to
+	ulint		n_inserts;	/*!< number of inserts made to
 					the insert buffer */
-	ulint		n_merges;	/* number of pages merged */
-	ulint		n_merged_recs;	/* number of records merged */
+	ulint		n_merges;	/*!< number of pages merged */
+	ulint		n_merged_recs;	/*!< number of records merged */
 };
 
 /************************************************************************//**

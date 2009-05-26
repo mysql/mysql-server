@@ -78,43 +78,56 @@ Created 2/16/1996 Heikki Tuuri
 # include "row0mysql.h"
 # include "btr0pcur.h"
 
-/* Log sequence number immediately after startup */
+/** Log sequence number immediately after startup */
 UNIV_INTERN ib_uint64_t	srv_start_lsn;
-/* Log sequence number at shutdown */
+/** Log sequence number at shutdown */
 UNIV_INTERN ib_uint64_t	srv_shutdown_lsn;
 
 #ifdef HAVE_DARWIN_THREADS
 # include <sys/utsname.h>
+/** TRUE if the F_FULLFSYNC option is available */
 UNIV_INTERN ibool	srv_have_fullfsync = FALSE;
 #endif
 
+/** TRUE if a raw partition is in use */
 UNIV_INTERN ibool	srv_start_raw_disk_in_use = FALSE;
 
+/** TRUE if the server is being started, before rolling back any
+incomplete transactions */
 UNIV_INTERN ibool	srv_startup_is_before_trx_rollback_phase = FALSE;
+/** TRUE if the server is being started */
 UNIV_INTERN ibool	srv_is_being_started = FALSE;
+/** TRUE if the server was successfully started */
 UNIV_INTERN ibool	srv_was_started = FALSE;
+/** TRUE if innobase_start_or_create_for_mysql() has been called */
 static ibool	srv_start_has_been_called = FALSE;
 
-/* At a shutdown the value first climbs to SRV_SHUTDOWN_CLEANUP
-and then to SRV_SHUTDOWN_LAST_PHASE */
-UNIV_INTERN ulint		srv_shutdown_state = 0;
+/** At a shutdown this value climbs from SRV_SHUTDOWN_NONE to
+SRV_SHUTDOWN_CLEANUP and then to SRV_SHUTDOWN_LAST_PHASE, and so on */
+UNIV_INTERN enum srv_shutdown_state	srv_shutdown_state = SRV_SHUTDOWN_NONE;
 
+/** Files comprising the system tablespace */
 static os_file_t	files[1000];
 
+/** Mutex protecting the ios count */
 static mutex_t		ios_mutex;
+/** Count of I/O operations in io_handler_thread() */
 static ulint		ios;
 
+/** io_handler_thread parameters for thread identification */
 static ulint		n[SRV_MAX_N_IO_THREADS + 5];
+/** io_handler_thread identifiers */
 static os_thread_id_t	thread_ids[SRV_MAX_N_IO_THREADS + 5];
 
-/* We use this mutex to test the return value of pthread_mutex_trylock
+/** We use this mutex to test the return value of pthread_mutex_trylock
    on successful locking. HP-UX does NOT return 0, though Linux et al do. */
 static os_fast_mutex_t	srv_os_test_mutex;
 
-/* Name of srv_monitor_file */
+/** Name of srv_monitor_file */
 static char*	srv_monitor_file_name;
 #endif /* !UNIV_HOTBACKUP */
 
+/** */
 #define SRV_N_PENDING_IOS_PER_THREAD	OS_AIO_N_PENDING_IOS_PER_THREAD
 #define SRV_MAX_N_PENDING_SYNC_IOS	100
 
@@ -1880,7 +1893,7 @@ innobase_shutdown_for_mysql(void)
 	}
 
 #ifdef __NETWARE__
-	if(!panic_shutdown)
+	if (!panic_shutdown)
 #endif
 		logs_empty_and_mark_files_at_shutdown();
 

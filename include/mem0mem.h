@@ -356,7 +356,7 @@ mem_validate_all_blocks(void);
 struct mem_block_info_struct {
 	ulint	magic_n;/* magic number for debugging */
 	char	file_name[8];/* file name where the mem heap was created */
-	ulint	line;	/* line number where the mem heap was created */
+	ulint	line;	/*!< line number where the mem heap was created */
 	UT_LIST_BASE_NODE_T(mem_block_t) base; /* In the first block in the
 			the list this is the base node of the list of blocks;
 			in subsequent blocks this is undefined */
@@ -364,12 +364,12 @@ struct mem_block_info_struct {
 			and prev in the list. The first block allocated
 			to the heap is also the first block in this list,
 			though it also contains the base node of the list. */
-	ulint	len;	/* physical length of this block in bytes */
-	ulint	type;	/* type of heap: MEM_HEAP_DYNAMIC, or
+	ulint	len;	/*!< physical length of this block in bytes */
+	ulint	type;	/*!< type of heap: MEM_HEAP_DYNAMIC, or
 			MEM_HEAP_BUF possibly ORed to MEM_HEAP_BTR_SEARCH */
-	ulint	free;	/* offset in bytes of the first free position for
+	ulint	free;	/*!< offset in bytes of the first free position for
 			user data in the block */
-	ulint	start;	/* the value of the struct field 'free' at the
+	ulint	start;	/*!< the value of the struct field 'free' at the
 			creation of the block */
 #ifndef UNIV_HOTBACKUP
 	void*	free_block;

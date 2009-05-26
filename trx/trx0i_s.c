@@ -67,11 +67,12 @@ now, then 39th chunk would accommodate 1677416425 rows and all chunks
 would accommodate 3354832851 rows. */
 #define MEM_CHUNKS_IN_TABLE_CACHE	39
 
-/* The following are some testing auxiliary macros. Do not enable them
+/** The following are some testing auxiliary macros. Do not enable them
 in a production environment. */
+/* @{ */
 
 #if 0
-/* If this is enabled then lock folds will always be different
+/** If this is enabled then lock folds will always be different
 resulting in equal rows being put in a different cells of the hash
 table. Checking for duplicates will be flawed because different
 fold will be calculated when a row is searched in the hash table. */
@@ -79,7 +80,7 @@ fold will be calculated when a row is searched in the hash table. */
 #endif
 
 #if 0
-/* This effectively kills the search-for-duplicate-before-adding-a-row
+/** This effectively kills the search-for-duplicate-before-adding-a-row
 function, but searching in the hash is still performed. It will always
 be assumed that lock is not present and insertion will be performed in
 the hash table. */
@@ -87,29 +88,36 @@ the hash table. */
 #endif
 
 #if 0
-/* This aggressively repeats adding each row many times. Depending on
+/** This aggressively repeats adding each row many times. Depending on
 the above settings this may be noop or may result in lots of rows being
 added. */
 #define TEST_ADD_EACH_LOCKS_ROW_MANY_TIMES
 #endif
 
 #if 0
-/* Very similar to TEST_NO_LOCKS_ROW_IS_EVER_EQUAL_TO_LOCK_T but hash
+/** Very similar to TEST_NO_LOCKS_ROW_IS_EVER_EQUAL_TO_LOCK_T but hash
 table search is not performed at all. */
 #define TEST_DO_NOT_CHECK_FOR_DUPLICATE_ROWS
 #endif
 
 #if 0
-/* Do not insert each row into the hash table, duplicates may appear
+/** Do not insert each row into the hash table, duplicates may appear
 if this is enabled, also if this is enabled searching into the hash is
 noop because it will be empty. */
 #define TEST_DO_NOT_INSERT_INTO_THE_HASH_TABLE
 #endif
+/* @} */
 
+/** Memory limit passed to ha_storage_put_memlim().
+@param cache	hash storage
+@return		maximum allowed allocation size */
 #define MAX_ALLOWED_FOR_STORAGE(cache)		\
 	(TRX_I_S_MEM_LIMIT			\
 	 - (cache)->mem_allocd)
 
+/** Memory limit in table_cache_create_empty_row().
+@param cache	hash storage
+@return		maximum allowed allocation size */
 #define MAX_ALLOWED_FOR_ALLOC(cache)		\
 	(TRX_I_S_MEM_LIMIT			\
 	 - (cache)->mem_allocd			\
@@ -459,8 +467,8 @@ fill_trx_row(
 
 /*******************************************************************//**
 Format the nth field of "rec" and put it in "buf". The result is always
-'\0'-terminated. Returns the number of bytes that were written to "buf"
-(including the terminating '\0').
+NUL-terminated. Returns the number of bytes that were written to "buf"
+(including the terminating NUL).
 @return	end of the result */
 static
 ulint
@@ -1050,8 +1058,15 @@ add_trx_relevant_locks_to_cache(
 	return(TRUE);
 }
 
+/** The minimum time that a cache must not be updated after it has been
+read for the last time; measured in microseconds. We use this technique
+to ensure that SELECTs which join several INFORMATION SCHEMA tables read
+the same version of the cache. */
+#define CACHE_MIN_IDLE_TIME_US	100000 /* 0.1 sec */
+
 /*******************************************************************//**
-Checks if the cache can safely be updated. */
+Checks if the cache can safely be updated.
+@return	TRUE if can be updated */
 static
 ibool
 can_cache_be_updated(
@@ -1059,12 +1074,6 @@ can_cache_be_updated(
 	trx_i_s_cache_t*	cache)	/*!< in: cache */
 {
 	ullint	now;
-
-/* The minimum time that a cache must not be updated after it has been
-read for the last time; measured in microseconds. We use this technique
-to ensure that SELECTs which join several INFORMATION SCHEMA tables read
-the same version of the cache. */
-#define CACHE_MIN_IDLE_TIME_US	100000 /* 0.1 sec */
 
 	/* Here we read cache->last_read without acquiring its mutex
 	because last_read is only updated when a shared rw lock on the

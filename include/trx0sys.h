@@ -43,28 +43,38 @@ Created 3/26/1996 Heikki Tuuri
 #include "read0types.h"
 #include "page0types.h"
 
-/* In a MySQL replication slave, in crash recovery we store the master log
-file name and position here. We have successfully got the updates to InnoDB
-up to this position. If .._pos is -1, it means no crash recovery was needed,
-or there was no master log position info inside InnoDB. */
-
+/** In a MySQL replication slave, in crash recovery we store the master log
+file name and position here. */
+/* @{ */
+/** Master binlog file name */
 extern char		trx_sys_mysql_master_log_name[];
+/** Master binlog file position.  We have successfully got the updates
+up to this position.  -1 means that no crash recovery was needed, or
+there was no master log position info inside InnoDB.*/
 extern ib_int64_t	trx_sys_mysql_master_log_pos;
+/* @} */
 
-/* If this MySQL server uses binary logging, after InnoDB has been inited
+/** If this MySQL server uses binary logging, after InnoDB has been inited
 and if it has done a crash recovery, we store the binlog file name and position
-here. If .._pos is -1, it means there was no binlog position info inside
-InnoDB. */
-
+here. */
+/* @{ */
+/** Binlog file name */
 extern char		trx_sys_mysql_bin_log_name[];
+/** Binlog file position, or -1 if unknown */
 extern ib_int64_t	trx_sys_mysql_bin_log_pos;
+/* @} */
 
-/* The transaction system */
+/** The transaction system */
 extern trx_sys_t*	trx_sys;
 
-/* Doublewrite system */
+/** Doublewrite system */
 extern trx_doublewrite_t*	trx_doublewrite;
+/** The following is set to TRUE when we are upgrading from pre-4.1
+format data files to the multiple tablespaces format data files */
 extern ibool			trx_doublewrite_must_reset_space_ids;
+/** The following is TRUE when we are using the database in the
+post-4.1 format, i.e., we have successfully upgraded, or have created
+a new database installation */
 extern ibool			trx_sys_multiple_tablespace_format;
 
 /****************************************************************//**
@@ -389,154 +399,178 @@ trx_sys_print_mysql_binlog_offset_from_page(
 /* The offset of the transaction system header on the page */
 #define	TRX_SYS		FSEG_PAGE_DATA
 
-/* Transaction system header */
-/*-------------------------------------------------------------*/
-#define	TRX_SYS_TRX_ID_STORE	0	/* the maximum trx id or trx number
-					modulo TRX_SYS_TRX_ID_UPDATE_MARGIN
+/** Transaction system header */
+/*------------------------------------------------------------- @{ */
+#define	TRX_SYS_TRX_ID_STORE	0	/*!< the maximum trx id or trx
+					number modulo
+					TRX_SYS_TRX_ID_UPDATE_MARGIN
 					written to a file page by any
 					transaction; the assignment of
-					transaction ids continues from this
-					number rounded up by .._MARGIN plus
-					.._MARGIN when the database is
+					transaction ids continues from
+					this number rounded up by
+					TRX_SYS_TRX_ID_UPDATE_MARGIN
+					plus
+					TRX_SYS_TRX_ID_UPDATE_MARGIN
+					when the database is
 					started */
-#define TRX_SYS_FSEG_HEADER	8	/* segment header for the tablespace
-					segment the trx system is created
-					into */
+#define TRX_SYS_FSEG_HEADER	8	/*!< segment header for the
+					tablespace segment the trx
+					system is created into */
 #define	TRX_SYS_RSEGS		(8 + FSEG_HEADER_SIZE)
-					/* the start of the array of rollback
-					segment specification slots */
-/*-------------------------------------------------------------*/
+					/*!< the start of the array of
+					rollback segment specification
+					slots */
+/*------------------------------------------------------------- @} */
 
-/* Max number of rollback segments: the number of segment specification slots
-in the transaction system array; rollback segment id must fit in one byte,
-therefore 256; each slot is currently 8 bytes in size */
+/** Maximum number of rollback segments: the number of segment
+specification slots in the transaction system array; rollback segment
+id must fit in one byte, therefore 256; each slot is currently 8 bytes
+in size */
 #define	TRX_SYS_N_RSEGS		256
 
+/** Maximum length of MySQL binlog file name, in bytes.
+@see trx_sys_mysql_master_log_name
+@see trx_sys_mysql_bin_log_name */
 #define TRX_SYS_MYSQL_LOG_NAME_LEN	512
+/** Contents of TRX_SYS_MYSQL_LOG_MAGIC_N_FLD */
 #define TRX_SYS_MYSQL_LOG_MAGIC_N	873422344
 
 #if UNIV_PAGE_SIZE < 4096
 # error "UNIV_PAGE_SIZE < 4096"
 #endif
-/* The offset of the MySQL replication info in the trx system header;
+/** The offset of the MySQL replication info in the trx system header;
 this contains the same fields as TRX_SYS_MYSQL_LOG_INFO below */
 #define TRX_SYS_MYSQL_MASTER_LOG_INFO	(UNIV_PAGE_SIZE - 2000)
 
-/* The offset of the MySQL binlog offset info in the trx system header */
+/** The offset of the MySQL binlog offset info in the trx system header */
 #define TRX_SYS_MYSQL_LOG_INFO		(UNIV_PAGE_SIZE - 1000)
-#define	TRX_SYS_MYSQL_LOG_MAGIC_N_FLD	0	/* magic number which shows
+#define	TRX_SYS_MYSQL_LOG_MAGIC_N_FLD	0	/*!< magic number which is
+						TRX_SYS_MYSQL_LOG_MAGIC_N
 						if we have valid data in the
-						MySQL binlog info; the value
-						is ..._MAGIC_N if yes */
-#define TRX_SYS_MYSQL_LOG_OFFSET_HIGH	4	/* high 4 bytes of the offset
+						MySQL binlog info */
+#define TRX_SYS_MYSQL_LOG_OFFSET_HIGH	4	/*!< high 4 bytes of the offset
 						within that file */
-#define TRX_SYS_MYSQL_LOG_OFFSET_LOW	8	/* low 4 bytes of the offset
+#define TRX_SYS_MYSQL_LOG_OFFSET_LOW	8	/*!< low 4 bytes of the offset
 						within that file */
-#define TRX_SYS_MYSQL_LOG_NAME		12	/* MySQL log file name */
+#define TRX_SYS_MYSQL_LOG_NAME		12	/*!< MySQL log file name */
 
 #ifndef UNIV_HOTBACKUP
-/* The offset of the doublewrite buffer header on the trx system header page */
+/** Doublewrite buffer */
+/* @{ */
+/** The offset of the doublewrite buffer header on the trx system header page */
 #define TRX_SYS_DOUBLEWRITE		(UNIV_PAGE_SIZE - 200)
 /*-------------------------------------------------------------*/
-#define TRX_SYS_DOUBLEWRITE_FSEG	0	/* fseg header of the fseg
+#define TRX_SYS_DOUBLEWRITE_FSEG	0	/*!< fseg header of the fseg
 						containing the doublewrite
 						buffer */
 #define TRX_SYS_DOUBLEWRITE_MAGIC	FSEG_HEADER_SIZE
-						/* 4-byte magic number which
+						/*!< 4-byte magic number which
 						shows if we already have
 						created the doublewrite
 						buffer */
 #define TRX_SYS_DOUBLEWRITE_BLOCK1	(4 + FSEG_HEADER_SIZE)
-						/* page number of the
+						/*!< page number of the
 						first page in the first
 						sequence of 64
 						(= FSP_EXTENT_SIZE) consecutive
 						pages in the doublewrite
 						buffer */
 #define TRX_SYS_DOUBLEWRITE_BLOCK2	(8 + FSEG_HEADER_SIZE)
-						/* page number of the
+						/*!< page number of the
 						first page in the second
 						sequence of 64 consecutive
 						pages in the doublewrite
 						buffer */
-#define TRX_SYS_DOUBLEWRITE_REPEAT	12	/* we repeat the above 3
-						numbers so that if the trx
-						sys header is half-written
-						to disk, we still may be able
-						to recover the information */
+#define TRX_SYS_DOUBLEWRITE_REPEAT	12	/*!< we repeat
+						TRX_SYS_DOUBLEWRITE_MAGIC,
+						TRX_SYS_DOUBLEWRITE_BLOCK1,
+						TRX_SYS_DOUBLEWRITE_BLOCK2
+						so that if the trx sys
+						header is half-written
+						to disk, we still may
+						be able to recover the
+						information */
+/** If this is not yet set to TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED_N,
+we must reset the doublewrite buffer, because starting from 4.1.x the
+space id of a data page is stored into
+FIL_PAGE_ARCH_LOG_NO_OR_SPACE_NO. */
 #define TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED (24 + FSEG_HEADER_SIZE)
-						/* If this is not yet set to
-						.._N, we must reset the
-						doublewrite buffer, because
-						starting from 4.1.x the space
-						id of a data page is stored to
-					FIL_PAGE_ARCH_LOG_NO_OR_SPACE_NO */
+
 /*-------------------------------------------------------------*/
+/** Contents of TRX_SYS_DOUBLEWRITE_MAGIC */
 #define TRX_SYS_DOUBLEWRITE_MAGIC_N	536853855
+/** Contents of TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED */
 #define TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED_N 1783657386
 
-
+/** Size of the doublewrite block in pages */
 #define TRX_SYS_DOUBLEWRITE_BLOCK_SIZE	FSP_EXTENT_SIZE
+/* @} */
 
-/* The offset of the file format tag on the trx system header page */
+/** File format tag */
+/* @{ */
+/** The offset of the file format tag on the trx system header page
+(TRX_SYS_PAGE_NO of TRX_SYS_SPACE) */
 #define TRX_SYS_FILE_FORMAT_TAG		(UNIV_PAGE_SIZE - 16)
 
-/* We use these random constants to reduce the probability of reading
-garbage (from previous versions) that maps to an actual format id. We
-use these as bit masks at the time of  reading and writing from/to disk. */
+/** Contents of TRX_SYS_FILE_FORMAT_TAG when valid.  The file format
+identifier is added to this constant. */
 #define TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_LOW	3645922177UL
+/** Contents of TRX_SYS_FILE_FORMAT_TAG+4 when valid */
 #define TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_HIGH	2745987765UL
+/* @} */
 
-/* Doublewrite control struct */
+/** Doublewrite control struct */
 struct trx_doublewrite_struct{
-	mutex_t	mutex;		/* mutex protecting the first_free field and
+	mutex_t	mutex;		/*!< mutex protecting the first_free field and
 				write_buf */
-	ulint	block1;		/* the page number of the first
+	ulint	block1;		/*!< the page number of the first
 				doublewrite block (64 pages) */
-	ulint	block2;		/* page number of the second block */
-	ulint	first_free;	/* first free position in write_buf measured
+	ulint	block2;		/*!< page number of the second block */
+	ulint	first_free;	/*!< first free position in write_buf measured
 				in units of UNIV_PAGE_SIZE */
-	byte*	write_buf;	/* write buffer used in writing to the
+	byte*	write_buf;	/*!< write buffer used in writing to the
 				doublewrite buffer, aligned to an
 				address divisible by UNIV_PAGE_SIZE
 				(which is required by Windows aio) */
-	byte*	write_buf_unaligned; /* pointer to write_buf, but unaligned */
+	byte*	write_buf_unaligned;
+				/*!< pointer to write_buf, but unaligned */
 	buf_page_t**
-		buf_block_arr;	/* array to store pointers to the buffer
+		buf_block_arr;	/*!< array to store pointers to the buffer
 				blocks which have been cached to write_buf */
 };
 
-/* The transaction system central memory data structure; protected by the
+/** The transaction system central memory data structure; protected by the
 kernel mutex */
 struct trx_sys_struct{
-	trx_id_t	max_trx_id;	/* The smallest number not yet
+	trx_id_t	max_trx_id;	/*!< The smallest number not yet
 					assigned as a transaction id or
 					transaction number */
 	UT_LIST_BASE_NODE_T(trx_t) trx_list;
-					/* List of active and committed in
+					/*!< List of active and committed in
 					memory transactions, sorted on trx id,
 					biggest first */
 	UT_LIST_BASE_NODE_T(trx_t) mysql_trx_list;
-					/* List of transactions created
+					/*!< List of transactions created
 					for MySQL */
 	UT_LIST_BASE_NODE_T(trx_rseg_t) rseg_list;
-					/* List of rollback segment objects */
-	trx_rseg_t*	latest_rseg;	/* Latest rollback segment in the
+					/*!< List of rollback segment
+					objects */
+	trx_rseg_t*	latest_rseg;	/*!< Latest rollback segment in the
 					round-robin assignment of rollback
 					segments to transactions */
 	trx_rseg_t*	rseg_array[TRX_SYS_N_RSEGS];
-					/* Pointer array to rollback segments;
-					NULL if slot not in use */
-	ulint		rseg_history_len;/* Length of the TRX_RSEG_HISTORY
+					/*!< Pointer array to rollback
+					segments; NULL if slot not in use */
+	ulint		rseg_history_len;/*!< Length of the TRX_RSEG_HISTORY
 					list (update undo logs for committed
 					transactions), protected by
 					rseg->mutex */
 	UT_LIST_BASE_NODE_T(read_view_t) view_list;
-					/* List of read views sorted on trx no,
-					biggest first */
+					/*!< List of read views sorted
+					on trx no, biggest first */
 };
 
-/* When a trx id which is zero modulo this number (which must be a power of
+/** When a trx id which is zero modulo this number (which must be a power of
 two) is assigned, the field TRX_SYS_TRX_ID_STORE on the transaction system
 page is updated */
 #define TRX_SYS_TRX_ID_WRITE_MARGIN	256

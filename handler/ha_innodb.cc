@@ -336,8 +336,9 @@ static
 int
 innobase_rollback_by_xid(
 /*=====================*/
-	handlerton* hton,
-	XID	*xid);	/*!< in: X/Open XA transaction identification */
+	handlerton*	hton,	/*!< in: InnoDB handlerton */
+	XID*		xid);	/*!< in: X/Open XA transaction
+				identification */
 /*******************************************************************//**
 Create a consistent view for a cursor based on current transaction
 which is created if the corresponding MySQL thread still lacks one.
@@ -1136,9 +1137,9 @@ Formats the raw data in "data" (in InnoDB on-disk format) that is of
 type DATA_(CHAR|VARCHAR|MYSQL|VARMYSQL) using "charset_coll" and writes
 the result to "buf". The result is converted to "system_charset_info".
 Not more than "buf_size" bytes are written to "buf".
-The result is always '\0'-terminated (provided buf_size > 0) and the
+The result is always NUL-terminated (provided buf_size > 0) and the
 number of bytes that were written to "buf" is returned (including the
-terminating '\0').
+terminating NUL).
 @return	number of bytes that were written */
 extern "C" UNIV_INTERN
 ulint
@@ -1503,7 +1504,7 @@ innobase_query_caching_of_table_permitted(
 				store a result to the query cache or
 				retrieve it */
 	char*	full_name,	/*!< in: concatenation of database name,
-				the null character '\0', and the table
+				the null character NUL, and the table
 				name */
 	uint	full_name_len,	/*!< in: length of the full name, i.e.
 				len(dbname) + len(tablename) + 1 */
@@ -1606,8 +1607,8 @@ innobase_invalidate_query_cache(
 	trx_t*		trx,		/*!< in: transaction which
 					modifies the table */
 	const char*	full_name,	/*!< in: concatenation of
-					database name, null char '\0',
-					table name, null char '\0';
+					database name, null char NUL,
+					table name, null char NUL;
 					NOTE that in Windows this is
 					always in LOWER CASE! */
 	ulint		full_name_len)	/*!< in: full name length where
@@ -1864,7 +1865,7 @@ innobase_init(
 /*==========*/
 	void	*p)	/*!< in: InnoDB handlerton */
 {
-	static char	current_dir[3];		/* Set if using current lib */
+	static char	current_dir[3];		/*!< Set if using current lib */
 	int		err;
 	bool		ret;
 	char		*default_path;
@@ -8243,7 +8244,6 @@ static INNOBASE_SHARE* get_share(const char* table_name)
 			    innobase_open_tables, fold, share);
 
 		thr_lock_init(&share->lock);
-		pthread_mutex_init(&share->mutex,MY_MUTEX_INIT_FAST);
 	}
 
 	share->use_count++;
@@ -8274,7 +8274,6 @@ static void free_share(INNOBASE_SHARE* share)
 		HASH_DELETE(INNOBASE_SHARE, table_name_hash,
 			    innobase_open_tables, fold, share);
 		thr_lock_delete(&share->lock);
-		pthread_mutex_destroy(&share->mutex);
 		my_free(share, MYF(0));
 
 		/* TODO: invoke HASH_MIGRATE if innobase_open_tables
@@ -8781,7 +8780,7 @@ ha_innobase::register_query_cache_table(
 /*====================================*/
 	THD*		thd,		/*!< in: user thread handle */
 	char*		table_key,	/*!< in: concatenation of database name,
-					the null character '\0',
+					the null character NUL,
 					and the table name */
 	uint		key_length,	/*!< in: length of the full name, i.e.
 					len(dbname) + len(tablename) + 1 */
@@ -8832,9 +8831,9 @@ innobase_get_at_most_n_mbchars(
 	ulint data_len,		/*!< in: length of the string in bytes */
 	const char* str)	/*!< in: character string */
 {
-	ulint char_length;	/* character length in bytes */
-	ulint n_chars;		/* number of characters in prefix */
-	CHARSET_INFO* charset;	/* charset used in the field */
+	ulint char_length;	/*!< character length in bytes */
+	ulint n_chars;		/*!< number of characters in prefix */
+	CHARSET_INFO* charset;	/*!< charset used in the field */
 
 	charset = get_charset((uint) charset_id, MYF(MY_WME));
 
@@ -9042,8 +9041,9 @@ static
 int
 innobase_rollback_by_xid(
 /*=====================*/
-        handlerton *hton,
-	XID	*xid)	/*!< in: X/Open XA transaction identification */
+	handlerton*	hton,	/*!< in: InnoDB handlerton */
+	XID*		xid)	/*!< in: X/Open XA transaction
+				identification */
 {
 	trx_t*	trx;
 

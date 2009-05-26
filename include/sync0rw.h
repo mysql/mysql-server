@@ -73,20 +73,36 @@ To modify the debug info list of an rw-lock, this mutex has to be
 
 acquired in addition to the mutex protecting the lock. */
 extern mutex_t		rw_lock_debug_mutex;
-extern os_event_t	rw_lock_debug_event;	/* If deadlock detection does
+extern os_event_t	rw_lock_debug_event;	/*!< If deadlock detection does
 					not get immediately the mutex it
 					may wait for this event */
-extern ibool		rw_lock_debug_waiters;	/* This is set to TRUE, if
+extern ibool		rw_lock_debug_waiters;	/*!< This is set to TRUE, if
 					there may be waiters for the event */
 #endif /* UNIV_SYNC_DEBUG */
 
+/** number of spin waits on rw-latches,
+resulted during exclusive (write) locks */
 extern	ib_int64_t	rw_s_spin_wait_count;
+/** number of spin loop rounds on rw-latches,
+resulted during exclusive (write) locks */
 extern	ib_int64_t	rw_s_spin_round_count;
+/** number of unlocks (that unlock shared locks),
+set only when UNIV_SYNC_PERF_STAT is defined */
 extern	ib_int64_t	rw_s_exit_count;
+/** number of OS waits on rw-latches,
+resulted during shared (read) locks */
 extern	ib_int64_t	rw_s_os_wait_count;
+/** number of spin waits on rw-latches,
+resulted during shared (read) locks */
 extern	ib_int64_t	rw_x_spin_wait_count;
+/** number of spin loop rounds on rw-latches,
+resulted during shared (read) locks */
 extern	ib_int64_t	rw_x_spin_round_count;
+/** number of OS waits on rw-latches,
+resulted during exclusive (write) locks */
 extern	ib_int64_t	rw_x_os_wait_count;
+/** number of unlocks (that unlock exclusive locks),
+set only when UNIV_SYNC_PERF_STAT is defined */
 extern	ib_int64_t	rw_x_exit_count;
 
 /******************************************************************//**
@@ -477,18 +493,20 @@ rw_lock_debug_print(
 #endif /* UNIV_SYNC_DEBUG */
 
 /* NOTE! The structure appears here only for the compiler to know its size.
-Do not use its fields directly! The structure used in the spin lock
-implementation of a read-write lock. Several threads may have a shared lock
-simultaneously in this lock, but only one writer may have an exclusive lock,
-in which case no shared locks are allowed. To prevent starving of a writer
-blocked by readers, a writer may queue for x-lock by decrementing lock_word:
-no new readers will be let in while the thread waits for readers to exit. */
+Do not use its fields directly! */
 
+/** The structure used in the spin lock implementation of a read-write
+lock. Several threads may have a shared lock simultaneously in this
+lock, but only one writer may have an exclusive lock, in which case no
+shared locks are allowed. To prevent starving of a writer blocked by
+readers, a writer may queue for x-lock by decrementing lock_word: no
+new readers will be let in while the thread waits for readers to
+exit. */
 struct rw_lock_struct {
 	volatile lint	lock_word;
-				/* Holds the state of the lock. */
-	volatile ulint	waiters;/* 1: there are waiters */
-	volatile ibool	recursive;/* Default value FALSE which means the lock
+				/*!< Holds the state of the lock. */
+	volatile ulint	waiters;/*!< 1: there are waiters */
+	volatile ibool	recursive;/*!< Default value FALSE which means the lock
 				is non-recursive. The value is typically set
 				to TRUE making normal rw_locks recursive. In
 				case of asynchronous IO, when a non-zero
@@ -501,59 +519,60 @@ struct rw_lock_struct {
 				This flag must be reset in x_unlock
 				functions before incrementing the lock_word */
 	volatile os_thread_id_t	writer_thread;
-				/* Thread id of writer thread. Is only
+				/*!< Thread id of writer thread. Is only
 				guaranteed to have sane and non-stale
 				value iff recursive flag is set. */
-	os_event_t	event;	/* Used by sync0arr.c for thread queueing */
+	os_event_t	event;	/*!< Used by sync0arr.c for thread queueing */
 	os_event_t	wait_ex_event;
-				/* Event for next-writer to wait on. A thread
+				/*!< Event for next-writer to wait on. A thread
 				must decrement lock_word before waiting. */
 #ifndef INNODB_RW_LOCKS_USE_ATOMICS
-	mutex_t	mutex;		/* The mutex protecting rw_lock_struct */
+	mutex_t	mutex;		/*!< The mutex protecting rw_lock_struct */
 #endif /* INNODB_RW_LOCKS_USE_ATOMICS */
 
 	UT_LIST_NODE_T(rw_lock_t) list;
-				/* All allocated rw locks are put into a
+				/*!< All allocated rw locks are put into a
 				list */
 #ifdef UNIV_SYNC_DEBUG
 	UT_LIST_BASE_NODE_T(rw_lock_debug_t) debug_list;
-				/* In the debug version: pointer to the debug
+				/*!< In the debug version: pointer to the debug
 				info list of the lock */
-	ulint	level;		/* Level in the global latching order. */
+	ulint	level;		/*!< Level in the global latching order. */
 #endif /* UNIV_SYNC_DEBUG */
-	ulint count_os_wait;	/* Count of os_waits. May not be accurate */
-	const char*	cfile_name;/* File name where lock created */
+	ulint count_os_wait;	/*!< Count of os_waits. May not be accurate */
+	const char*	cfile_name;/*!< File name where lock created */
         /* last s-lock file/line is not guaranteed to be correct */
-	const char*	last_s_file_name;/* File name where last s-locked */
-	const char*	last_x_file_name;/* File name where last x-locked */
+	const char*	last_s_file_name;/*!< File name where last s-locked */
+	const char*	last_x_file_name;/*!< File name where last x-locked */
 	ibool		writer_is_wait_ex;
-				/* This is TRUE if the writer field is
+				/*!< This is TRUE if the writer field is
 				RW_LOCK_WAIT_EX; this field is located far
 				from the memory update hotspot fields which
 				are at the start of this struct, thus we can
 				peek this field without causing much memory
 				bus traffic */
-	unsigned	cline:14;	/* Line where created */
-	unsigned	last_s_line:14;	/* Line number where last time s-locked */
-	unsigned	last_x_line:14;	/* Line number where last time x-locked */
-	ulint	magic_n;
+	unsigned	cline:14;	/*!< Line where created */
+	unsigned	last_s_line:14;	/*!< Line number where last time s-locked */
+	unsigned	last_x_line:14;	/*!< Line number where last time x-locked */
+	ulint	magic_n;	/*!< RW_LOCK_MAGIC_N */
 };
 
+/** Value of rw_lock_struct::magic_n */
 #define	RW_LOCK_MAGIC_N	22643
 
 #ifdef UNIV_SYNC_DEBUG
-/* The structure for storing debug info of an rw-lock */
+/** The structure for storing debug info of an rw-lock */
 struct	rw_lock_debug_struct {
 
-	os_thread_id_t thread_id;  /* The thread id of the thread which
+	os_thread_id_t thread_id;  /*!< The thread id of the thread which
 				locked the rw-lock */
-	ulint	pass;		/* Pass value given in the lock operation */
-	ulint	lock_type;	/* Type of the lock: RW_LOCK_EX,
+	ulint	pass;		/*!< Pass value given in the lock operation */
+	ulint	lock_type;	/*!< Type of the lock: RW_LOCK_EX,
 				RW_LOCK_SHARED, RW_LOCK_WAIT_EX */
-	const char*	file_name;/* File name where the lock was obtained */
-	ulint	line;		/* Line where the rw-lock was locked */
+	const char*	file_name;/*!< File name where the lock was obtained */
+	ulint	line;		/*!< Line where the rw-lock was locked */
 	UT_LIST_NODE_T(rw_lock_debug_t) list;
-				/* Debug structs are linked in a two-way
+				/*!< Debug structs are linked in a two-way
 				list */
 };
 #endif /* UNIV_SYNC_DEBUG */

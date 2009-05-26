@@ -33,28 +33,36 @@ Created 12/18/1995 Heikki Tuuri
 #include "ut0byte.h"
 #include "page0types.h"
 
-/* If records are inserted in order, there are the following
+/** If records are inserted in order, there are the following
 flags to tell this (their type is made byte for the compiler
 to warn if direction and hint parameters are switched in
 fseg_alloc_free_page): */
-#define	FSP_UP		((byte)111)	/* alphabetically upwards */
-#define	FSP_DOWN	((byte)112)	/* alphabetically downwards */
-#define	FSP_NO_DIR	((byte)113)	/* no order */
+/* @{ */
+#define	FSP_UP		((byte)111)	/*!< alphabetically upwards */
+#define	FSP_DOWN	((byte)112)	/*!< alphabetically downwards */
+#define	FSP_NO_DIR	((byte)113)	/*!< no order */
+/* @} */
 
-/* File space extent size (one megabyte) in pages */
+/** File space extent size (one megabyte) in pages */
 #define	FSP_EXTENT_SIZE		(1 << (20 - UNIV_PAGE_SIZE_SHIFT))
 
-/* On a page of any file segment, data may be put starting from this offset: */
+/** On a page of any file segment, data may be put starting from this
+offset */
 #define FSEG_PAGE_DATA		FIL_PAGE_DATA
 
-/* File segment header which points to the inode describing the file segment */
+/** File segment header which points to the inode describing the file
+segment */
+/* @{ */
+/** Data type for file segment header */
 typedef	byte	fseg_header_t;
 
-#define FSEG_HDR_SPACE		0	/* space id of the inode */
-#define FSEG_HDR_PAGE_NO	4	/* page number of the inode */
-#define FSEG_HDR_OFFSET		8	/* byte offset of the inode */
+#define FSEG_HDR_SPACE		0	/*!< space id of the inode */
+#define FSEG_HDR_PAGE_NO	4	/*!< page number of the inode */
+#define FSEG_HDR_OFFSET		8	/*!< byte offset of the inode */
 
-#define FSEG_HEADER_SIZE	10
+#define FSEG_HEADER_SIZE	10	/*!< Length of the file system
+					header, in bytes */
+/* @} */
 
 /**********************************************************************//**
 Initializes the file space system. */

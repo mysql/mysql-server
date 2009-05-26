@@ -164,8 +164,8 @@ trx_undo_page_set_next_prev_and_add(
 					written on this undo page. */
 	mtr_t*		mtr)		/*!< in: mtr */
 {
-	ulint		first_free;	/* offset within undo_page */
-	ulint		end_of_rec;	/* offset within undo_page */
+	ulint		first_free;	/*!< offset within undo_page */
+	ulint		end_of_rec;	/*!< offset within undo_page */
 	byte*		ptr_to_first_free;
 					/* pointer within undo_page
 					that points to the next free

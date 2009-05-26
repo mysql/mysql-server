@@ -30,24 +30,26 @@ Created 6/9/1994 Heikki Tuuri
 #include "os0file.h"
 #include "ut0lst.h"
 
+/** Memory area header */
 typedef struct mem_area_struct	mem_area_t;
+/** Memory pool */
 typedef struct mem_pool_struct	mem_pool_t;
 
-/* The common memory pool */
+/** The common memory pool */
 extern mem_pool_t*	mem_comm_pool;
 
-/* Memory area header */
+/** Memory area header */
 
 struct mem_area_struct{
-	ulint		size_and_free;	/* memory area size is obtained by
+	ulint		size_and_free;	/*!< memory area size is obtained by
 					anding with ~MEM_AREA_FREE; area in
 					a free list if ANDing with
 					MEM_AREA_FREE results in nonzero */
 	UT_LIST_NODE_T(mem_area_t)
-			free_list;	/* free list node */
+			free_list;	/*!< free list node */
 };
 
-/* Each memory area takes this many extra bytes for control information */
+/** Each memory area takes this many extra bytes for control information */
 #define MEM_AREA_EXTRA_SIZE	(ut_calc_align(sizeof(struct mem_area_struct),\
 			UNIV_MEM_ALIGNMENT))
 

@@ -54,10 +54,10 @@ static ibool		mem_hash_initialized		= FALSE;
 typedef struct mem_hash_node_struct mem_hash_node_t;
 struct mem_hash_node_struct {
 	UT_LIST_NODE_T(mem_hash_node_t)
-				list;	/* hash list node */
-	mem_heap_t*		heap;	/* memory heap */
+				list;	/*!< hash list node */
+	mem_heap_t*		heap;	/*!< memory heap */
 	const char*		file_name;/* file where heap was created*/
-	ulint			line;	/* file line of creation */
+	ulint			line;	/*!< file line of creation */
 	ulint			nth_heap;/* this is the nth heap created */
 	UT_LIST_NODE_T(mem_hash_node_t)
 				all_list;/* list of all created heaps */

@@ -34,18 +34,19 @@ Created 11/19/1996 Heikki Tuuri
 #include "trx0types.h"
 #include "ut0vec.h"
 
-/* Type of the user functions. The first argument is always InnoDB-supplied
+/** Type of the user functions. The first argument is always InnoDB-supplied
 and varies in type, while 'user_arg' is a user-supplied argument. The
 meaning of the return type also varies. See the individual use cases, e.g.
 the FETCH statement, for details on them. */
 typedef void* (*pars_user_func_cb_t)(void* arg, void* user_arg);
 
+/** If the following is set TRUE, the parser will emit debugging
+information */
 extern int	yydebug;
 
-/* If the following is set TRUE, the lexer will print the SQL string
-as it tokenizes it */
-
 #ifdef UNIV_SQL_DEBUG
+/** If the following is set TRUE, the lexer will print the SQL string
+as it tokenizes it */
 extern ibool	pars_print_lexed;
 #endif /* UNIV_SQL_DEBUG */
 
@@ -583,154 +584,156 @@ pars_info_get_bound_id(
 	const char*		name);	/*!< in: bound id name to find */
 
 
-/* Extra information supplied for pars_sql(). */
+/** Extra information supplied for pars_sql(). */
 struct pars_info_struct {
-	mem_heap_t*	heap;		/* our own memory heap */
+	mem_heap_t*	heap;		/*!< our own memory heap */
 
-	ib_vector_t*	funcs;		/* user functions, or NUll
+	ib_vector_t*	funcs;		/*!< user functions, or NUll
 					(pars_user_func_t*) */
-	ib_vector_t*	bound_lits;	/* bound literals, or NULL
+	ib_vector_t*	bound_lits;	/*!< bound literals, or NULL
 					(pars_bound_lit_t*) */
-	ib_vector_t*	bound_ids;	/* bound ids, or NULL
+	ib_vector_t*	bound_ids;	/*!< bound ids, or NULL
 					(pars_bound_id_t*) */
 
-	ibool		graph_owns_us;	/* if TRUE (which is the default),
+	ibool		graph_owns_us;	/*!< if TRUE (which is the default),
 					que_graph_free() will free us */
 };
 
-/* User-supplied function and argument. */
+/** User-supplied function and argument. */
 struct pars_user_func_struct {
-	const char*		name;		/* function name */
-	pars_user_func_cb_t	func;		/* function address */
-	void*			arg;		/* user-supplied argument */
+	const char*		name;	/*!< function name */
+	pars_user_func_cb_t	func;	/*!< function address */
+	void*			arg;	/*!< user-supplied argument */
 };
 
-/* Bound literal. */
+/** Bound literal. */
 struct pars_bound_lit_struct {
-	const char*	name;		/* name */
-	const void*	address;	/* address */
-	ulint		length;		/* length of data */
-	ulint		type;		/* type, e.g. DATA_FIXBINARY */
-	ulint		prtype;		/* precise type, e.g. DATA_UNSIGNED */
+	const char*	name;		/*!< name */
+	const void*	address;	/*!< address */
+	ulint		length;		/*!< length of data */
+	ulint		type;		/*!< type, e.g. DATA_FIXBINARY */
+	ulint		prtype;		/*!< precise type, e.g. DATA_UNSIGNED */
 };
 
-/* Bound id. */
+/** Bound identifier. */
 struct pars_bound_id_struct {
-	const char*	name;		/* name */
-	const char*	id;		/* id */
+	const char*	name;		/*!< name */
+	const char*	id;		/*!< identifier */
 };
 
-/* Struct used to denote a reserved word in a parsing tree */
+/** Struct used to denote a reserved word in a parsing tree */
 struct pars_res_word_struct{
-	int	code;	/* the token code for the reserved word from
+	int	code;	/*!< the token code for the reserved word from
 			pars0grm.h */
 };
 
-/* A predefined function or operator node in a parsing tree; this construct
+/** A predefined function or operator node in a parsing tree; this construct
 is also used for some non-functions like the assignment ':=' */
 struct func_node_struct{
-	que_common_t	common;	/* type: QUE_NODE_FUNC */
-	int		func;	/* token code of the function name */
-	ulint		class;	/* class of the function */
-	que_node_t*	args;	/* argument(s) of the function */
+	que_common_t	common;	/*!< type: QUE_NODE_FUNC */
+	int		func;	/*!< token code of the function name */
+	ulint		class;	/*!< class of the function */
+	que_node_t*	args;	/*!< argument(s) of the function */
 	UT_LIST_NODE_T(func_node_t) cond_list;
-				/* list of comparison conditions; defined
+				/*!< list of comparison conditions; defined
 				only for comparison operator nodes except,
 				presently, for OPT_SCROLL_TYPE ones */
 	UT_LIST_NODE_T(func_node_t) func_node_list;
-				/* list of function nodes in a parsed
+				/*!< list of function nodes in a parsed
 				query graph */
 };
 
-/* An order-by node in a select */
+/** An order-by node in a select */
 struct order_node_struct{
-	que_common_t	common;	/* type: QUE_NODE_ORDER */
-	sym_node_t*	column;	/* order-by column */
-	ibool		asc;	/* TRUE if ascending, FALSE if descending */
+	que_common_t	common;	/*!< type: QUE_NODE_ORDER */
+	sym_node_t*	column;	/*!< order-by column */
+	ibool		asc;	/*!< TRUE if ascending, FALSE if descending */
 };
 
-/* Procedure definition node */
+/** Procedure definition node */
 struct proc_node_struct{
-	que_common_t	common;		/* type: QUE_NODE_PROC */
-	sym_node_t*	proc_id;	/* procedure name symbol in the symbol
+	que_common_t	common;		/*!< type: QUE_NODE_PROC */
+	sym_node_t*	proc_id;	/*!< procedure name symbol in the symbol
 					table of this same procedure */
-	sym_node_t*	param_list;	/* input and output parameters */
-	que_node_t*	stat_list;	/* statement list */
-	sym_tab_t*	sym_tab;	/* symbol table of this procedure */
+	sym_node_t*	param_list;	/*!< input and output parameters */
+	que_node_t*	stat_list;	/*!< statement list */
+	sym_tab_t*	sym_tab;	/*!< symbol table of this procedure */
 };
 
-/* elsif-element node */
+/** elsif-element node */
 struct elsif_node_struct{
-	que_common_t	common;		/* type: QUE_NODE_ELSIF */
-	que_node_t*	cond;		/* if condition */
-	que_node_t*	stat_list;	/* statement list */
+	que_common_t	common;		/*!< type: QUE_NODE_ELSIF */
+	que_node_t*	cond;		/*!< if condition */
+	que_node_t*	stat_list;	/*!< statement list */
 };
 
-/* if-statement node */
+/** if-statement node */
 struct if_node_struct{
-	que_common_t	common;		/* type: QUE_NODE_IF */
-	que_node_t*	cond;		/* if condition */
-	que_node_t*	stat_list;	/* statement list */
-	que_node_t*	else_part;	/* else-part statement list */
-	elsif_node_t*	elsif_list;	/* elsif element list */
+	que_common_t	common;		/*!< type: QUE_NODE_IF */
+	que_node_t*	cond;		/*!< if condition */
+	que_node_t*	stat_list;	/*!< statement list */
+	que_node_t*	else_part;	/*!< else-part statement list */
+	elsif_node_t*	elsif_list;	/*!< elsif element list */
 };
 
-/* while-statement node */
+/** while-statement node */
 struct while_node_struct{
-	que_common_t	common;		/* type: QUE_NODE_WHILE */
-	que_node_t*	cond;		/* while condition */
-	que_node_t*	stat_list;	/* statement list */
+	que_common_t	common;		/*!< type: QUE_NODE_WHILE */
+	que_node_t*	cond;		/*!< while condition */
+	que_node_t*	stat_list;	/*!< statement list */
 };
 
-/* for-loop-statement node */
+/** for-loop-statement node */
 struct for_node_struct{
-	que_common_t	common;		/* type: QUE_NODE_FOR */
-	sym_node_t*	loop_var;	/* loop variable: this is the
+	que_common_t	common;		/*!< type: QUE_NODE_FOR */
+	sym_node_t*	loop_var;	/*!< loop variable: this is the
 					dereferenced symbol from the
 					variable declarations, not the
 					symbol occurrence in the for loop
 					definition */
-	que_node_t*	loop_start_limit;/* initial value of loop variable */
-	que_node_t*	loop_end_limit;	/* end value of loop variable */
-	lint		loop_end_value;	/* evaluated value for the end value:
+	que_node_t*	loop_start_limit;/*!< initial value of loop variable */
+	que_node_t*	loop_end_limit;	/*!< end value of loop variable */
+	lint		loop_end_value;	/*!< evaluated value for the end value:
 					it is calculated only when the loop
 					is entered, and will not change within
 					the loop */
-	que_node_t*	stat_list;	/* statement list */
+	que_node_t*	stat_list;	/*!< statement list */
 };
 
-/* exit statement node */
+/** exit statement node */
 struct exit_node_struct{
-	que_common_t	common;		/* type: QUE_NODE_EXIT */
+	que_common_t	common;		/*!< type: QUE_NODE_EXIT */
 };
 
-/* return-statement node */
+/** return-statement node */
 struct return_node_struct{
-	que_common_t	common;		/* type: QUE_NODE_RETURN */
+	que_common_t	common;		/*!< type: QUE_NODE_RETURN */
 };
 
-/* Assignment statement node */
+/** Assignment statement node */
 struct assign_node_struct{
-	que_common_t	common;		/* type: QUE_NODE_ASSIGNMENT */
-	sym_node_t*	var;		/* variable to set */
-	que_node_t*	val;		/* value to assign */
+	que_common_t	common;		/*!< type: QUE_NODE_ASSIGNMENT */
+	sym_node_t*	var;		/*!< variable to set */
+	que_node_t*	val;		/*!< value to assign */
 };
 
-/* Column assignment node */
+/** Column assignment node */
 struct col_assign_node_struct{
-	que_common_t	common;		/* type: QUE_NODE_COL_ASSIGN */
-	sym_node_t*	col;		/* column to set */
-	que_node_t*	val;		/* value to assign */
+	que_common_t	common;		/*!< type: QUE_NODE_COL_ASSIGN */
+	sym_node_t*	col;		/*!< column to set */
+	que_node_t*	val;		/*!< value to assign */
 };
 
-/* Classes of functions */
-#define PARS_FUNC_ARITH		1	/* +, -, *, / */
-#define	PARS_FUNC_LOGICAL	2
-#define PARS_FUNC_CMP		3
-#define	PARS_FUNC_PREDEFINED	4	/* TO_NUMBER, SUBSTR, ... */
-#define	PARS_FUNC_AGGREGATE	5	/* COUNT, DISTINCT, SUM */
-#define	PARS_FUNC_OTHER		6	/* these are not real functions,
+/** Classes of functions */
+/* @{ */
+#define PARS_FUNC_ARITH		1	/*!< +, -, *, / */
+#define	PARS_FUNC_LOGICAL	2	/*!< AND, OR, NOT */
+#define PARS_FUNC_CMP		3	/*!< comparison operators */
+#define	PARS_FUNC_PREDEFINED	4	/*!< TO_NUMBER, SUBSTR, ... */
+#define	PARS_FUNC_AGGREGATE	5	/*!< COUNT, DISTINCT, SUM */
+#define	PARS_FUNC_OTHER		6	/*!< these are not real functions,
 					e.g., := */
+/* @} */
 
 #ifndef UNIV_NONINL
 #include "pars0pars.ic"

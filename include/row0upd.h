@@ -351,29 +351,29 @@ row_upd_index_parse(
 
 /* Update vector field */
 struct upd_field_struct{
-	unsigned	field_no:16;	/* field number in an index, usually
+	unsigned	field_no:16;	/*!< field number in an index, usually
 					the clustered index, but in updating
 					a secondary index record in btr0cur.c
 					this is the position in the secondary
 					index */
 #ifndef UNIV_HOTBACKUP
-	unsigned	orig_len:16;	/* original length of the locally
+	unsigned	orig_len:16;	/*!< original length of the locally
 					stored part of an externally stored
 					column, or 0 */
-	que_node_t*	exp;		/* expression for calculating a new
+	que_node_t*	exp;		/*!< expression for calculating a new
 					value: it refers to column values and
 					constants in the symbol table of the
 					query graph */
 #endif /* !UNIV_HOTBACKUP */
-	dfield_t	new_val;	/* new value for the column */
+	dfield_t	new_val;	/*!< new value for the column */
 };
 
 /* Update vector structure */
 struct upd_struct{
-	ulint		info_bits;	/* new value of info bits to record;
+	ulint		info_bits;	/*!< new value of info bits to record;
 					default is 0 */
-	ulint		n_fields;	/* number of update fields */
-	upd_field_t*	fields;		/* array of update fields */
+	ulint		n_fields;	/*!< number of update fields */
+	upd_field_t*	fields;		/*!< array of update fields */
 };
 
 #ifndef UNIV_HOTBACKUP
@@ -381,7 +381,7 @@ struct upd_struct{
 of a row */
 
 struct upd_node_struct{
-	que_common_t	common;	/* node type: QUE_NODE_UPDATE */
+	que_common_t	common;	/*!< node type: QUE_NODE_UPDATE */
 	ibool		is_delete;/* TRUE if delete, FALSE if update */
 	ibool		searched_update;
 				/* TRUE if searched update, FALSE if
@@ -397,16 +397,16 @@ struct upd_node_struct{
 				or ... SET NULL for foreign keys */
 	mem_heap_t*	cascade_heap;/* NULL or a mem heap where the cascade
 				node is created */
-	sel_node_t*	select;	/* query graph subtree implementing a base
+	sel_node_t*	select;	/*!< query graph subtree implementing a base
 				table cursor: the rows returned will be
 				updated */
-	btr_pcur_t*	pcur;	/* persistent cursor placed on the clustered
+	btr_pcur_t*	pcur;	/*!< persistent cursor placed on the clustered
 				index record which should be updated or
 				deleted; the cursor is stored in the graph
 				of 'select' field above, except in the case
 				of the MySQL interface */
-	dict_table_t*	table;	/* table where updated */
-	upd_t*		update;	/* update vector for the row */
+	dict_table_t*	table;	/*!< table where updated */
+	upd_t*		update;	/*!< update vector for the row */
 	ulint		update_n_fields;
 				/* when this struct is used to implement
 				a cascade operation for foreign keys, we store
@@ -425,18 +425,18 @@ struct upd_node_struct{
 				UPD_NODE_NO_SIZE_CHANGE, ORed */
 	/*----------------------*/
 	/* Local storage for this graph node */
-	ulint		state;	/* node execution state */
-	dict_index_t*	index;	/* NULL, or the next index whose record should
+	ulint		state;	/*!< node execution state */
+	dict_index_t*	index;	/*!< NULL, or the next index whose record should
 				be updated */
-	dtuple_t*	row;	/* NULL, or a copy (also fields copied to
+	dtuple_t*	row;	/*!< NULL, or a copy (also fields copied to
 				heap) of the row to update; this must be reset
 				to NULL after a successful update */
-	row_ext_t*	ext;	/* NULL, or prefixes of the externally
+	row_ext_t*	ext;	/*!< NULL, or prefixes of the externally
 				stored columns in the old row */
 	dtuple_t*	upd_row;/* NULL, or a copy of the updated row */
 	row_ext_t*	upd_ext;/* NULL, or prefixes of the externally
 				stored columns in upd_row */
-	mem_heap_t*	heap;	/* memory heap used as auxiliary storage;
+	mem_heap_t*	heap;	/*!< memory heap used as auxiliary storage;
 				this must be emptied after a successful
 				update */
 	/*----------------------*/

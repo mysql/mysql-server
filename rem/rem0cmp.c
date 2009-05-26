@@ -708,17 +708,17 @@ cmp_rec_rec_simple(
 	const ulint*		offsets2,/*!< in: rec_get_offsets(rec2, ...) */
 	const dict_index_t*	index)	/*!< in: data dictionary index */
 {
-	ulint		rec1_f_len;	/* length of current field in rec1 */
-	const byte*	rec1_b_ptr;	/* pointer to the current byte
+	ulint		rec1_f_len;	/*!< length of current field in rec1 */
+	const byte*	rec1_b_ptr;	/*!< pointer to the current byte
 					in rec1 field */
-	ulint		rec1_byte;	/* value of current byte to be
+	ulint		rec1_byte;	/*!< value of current byte to be
 					compared in rec1 */
-	ulint		rec2_f_len;	/* length of current field in rec2 */
-	const byte*	rec2_b_ptr;	/* pointer to the current byte
+	ulint		rec2_f_len;	/*!< length of current field in rec2 */
+	const byte*	rec2_b_ptr;	/*!< pointer to the current byte
 					in rec2 field */
-	ulint		rec2_byte;	/* value of current byte to be
+	ulint		rec2_byte;	/*!< value of current byte to be
 					compared in rec2 */
-	ulint		cur_field;	/* current field number */
+	ulint		cur_field;	/*!< current field number */
 	ulint		n_uniq;
 
 	n_uniq = dict_index_get_n_unique(index);

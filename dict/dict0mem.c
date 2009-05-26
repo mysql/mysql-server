@@ -37,7 +37,7 @@ Created 1/8/1996 Heikki Tuuri
 # include "lock0lock.h"
 #endif /* !UNIV_HOTBACKUP */
 
-#define	DICT_HEAP_SIZE		100	/* initial memory heap size when
+#define	DICT_HEAP_SIZE		100	/*!< initial memory heap size when
 					creating a table or index object */
 
 /**********************************************************************//**
@@ -108,7 +108,7 @@ dict_mem_table_free(
 }
 
 /****************************************************************//**
-Append 'name' to 'col_names' (@see dict_table_t::col_names).
+Append 'name' to 'col_names'.  @see dict_table_t::col_names
 @return	new column names array */
 static
 const char*

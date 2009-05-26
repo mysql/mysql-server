@@ -410,7 +410,7 @@ hash_mutex_exit_all(
 #endif /* !UNIV_HOTBACKUP */
 
 struct hash_cell_struct{
-	void*	node;	/* hash chain node, NULL if none */
+	void*	node;	/*!< hash chain node, NULL if none */
 };
 
 /* The hash table structure */
@@ -422,13 +422,13 @@ struct hash_table_struct {
 # endif /* !UNIV_HOTBACKUP */
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 	ulint		n_cells;/* number of cells in the hash table */
-	hash_cell_t*	array;	/* pointer to cell array */
+	hash_cell_t*	array;	/*!< pointer to cell array */
 #ifndef UNIV_HOTBACKUP
 	ulint		n_mutexes;/* if mutexes != NULL, then the number of
 				mutexes, must be a power of 2 */
 	mutex_t*	mutexes;/* NULL, or an array of mutexes used to
 				protect segments of the hash table */
-	mem_heap_t**	heaps;	/* if this is non-NULL, hash chain nodes for
+	mem_heap_t**	heaps;	/*!< if this is non-NULL, hash chain nodes for
 				external chaining can be allocated from these
 				memory heaps; there are then n_mutexes many of
 				these heaps */
