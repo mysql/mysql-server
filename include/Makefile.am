@@ -15,7 +15,7 @@
 # Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
 # MA 02111-1307, USA
 
-BUILT_SOURCES =		$(HEADERS_GEN_MAKE) link_sources
+BUILT_SOURCES =		$(HEADERS_GEN_MAKE) link_sources probes_mysql_nodtrace.h
 HEADERS_GEN_CONFIGURE =		mysql_version.h
 HEADERS_GEN_MAKE =		my_config.h
 HEADERS_ABI =		mysql.h mysql_com.h mysql_time.h \
@@ -40,8 +40,7 @@ noinst_HEADERS =	config-win.h config-netware.h my_bit.h \
 			my_vle.h my_user.h my_atomic.h atomic/nolock.h \
 			atomic/rwlock.h atomic/x86-gcc.h atomic/x86-msvc.h \
                         atomic/solaris.h \
-			atomic/gcc_builtins.h my_libwrap.h my_stacktrace.h \
-			probes_mysql.h probes_mysql_nodtrace.h
+			atomic/gcc_builtins.h my_libwrap.h my_stacktrace.h
 
 EXTRA_DIST =        mysql.h.pp mysql/plugin.h.pp probes_mysql.d.base 
 
@@ -77,7 +76,7 @@ probes_mysql.d:
 DTRACEPROVIDER = probes_mysql.d
 if HAVE_DTRACE
 BUILT_SOURCES += probes_mysql_dtrace.h
-CLEANFILES += probes_mysql_dtrace.h
+CLEANFILES += $(DTRACEPROVIDER)
 
 # Fake for creating the probes file. If we are building a separate directory
 # then we copy the probes from the source location and use that
