@@ -4559,7 +4559,7 @@ void select_connection(struct st_command *command)
   };
   check_command_args(command, command->first_argument, connection_args,
                      sizeof(connection_args)/sizeof(struct command_arg),
-                     ',');
+                     ' ');
 
   DBUG_PRINT("info", ("changing connection: %s", ds_connection.str));
   select_connection_name(ds_connection.str);
