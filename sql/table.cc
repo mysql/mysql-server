@@ -779,7 +779,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   strpos=disk_buff+6;
 
   if (!(rec_per_key= (ulong*) alloc_root(&share->mem_root,
-					 sizeof(ulong*)*key_parts)))
+                                         sizeof(ulong)*key_parts)))
     goto err;
 
   for (i=0 ; i < keys ; i++, keyinfo++)
