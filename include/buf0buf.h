@@ -36,7 +36,7 @@ Created 11/5/1995 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 #include "os0proc.h"
 
-/** Modes for buf_page_get_gen */
+/** @name Modes for buf_page_get_gen */
 /* @{ */
 #define BUF_GET			10	/*!< get always */
 #define	BUF_GET_IF_IN_POOL	11	/*!< get if in pool */
@@ -47,7 +47,7 @@ Created 11/5/1995 Heikki Tuuri
 					not to set a latch, and it
 					should be used with care */
 /* @} */
-/** Modes for buf_page_get_known_nowait */
+/** @name Modes for buf_page_get_known_nowait */
 /* @{ */
 #define BUF_MAKE_YOUNG	51		/*!< Move the block to the
 					start of the LRU list if there
@@ -1036,10 +1036,12 @@ buf_get_free_list_len(void);
 for compressed and uncompressed frames */
 
 struct buf_page_struct{
-	/** None of the following bit-fields must be modified without
-	holding buf_page_get_mutex() [block->mutex or buf_pool_zip_mutex],
-	since they can be stored in the same machine word.  Some of them are
-	additionally protected by buf_pool_mutex. */
+	/** @name General fields
+	None of these bit-fields must be modified without holding
+	buf_page_get_mutex() [buf_block_struct::mutex or
+	buf_pool_zip_mutex], since they can be stored in the same
+	machine word.  Some of these fields are additionally protected
+	by buf_pool_mutex. */
 	/* @{ */
 
 	unsigned	space:32;	/*!< tablespace id; also protected
@@ -1084,8 +1086,8 @@ struct buf_page_struct{
 	ibool		in_zip_hash;	/*!< TRUE if in buf_pool->zip_hash */
 #endif /* UNIV_DEBUG */
 
-	/** @defgroup buf_page_flush Page flushing fields; protected
-	by buf_pool_mutex */
+	/** @name Page flushing fields
+	All these are protected by buf_pool_mutex. */
 	/* @{ */
 
 	UT_LIST_NODE_T(buf_page_t) list;
@@ -1094,11 +1096,11 @@ struct buf_page_struct{
 					buf_pool_mutex, in one of the
 					following lists in buf_pool:
 
-					BUF_BLOCK_NOT_USED:	free
-					BUF_BLOCK_FILE_PAGE:	flush_list
-					BUF_BLOCK_ZIP_DIRTY:	flush_list
-					BUF_BLOCK_ZIP_PAGE:	zip_clean
-					BUF_BLOCK_ZIP_FREE:	zip_free[] */
+					- BUF_BLOCK_NOT_USED:	free
+					- BUF_BLOCK_FILE_PAGE:	flush_list
+					- BUF_BLOCK_ZIP_DIRTY:	flush_list
+					- BUF_BLOCK_ZIP_PAGE:	zip_clean
+					- BUF_BLOCK_ZIP_FREE:	zip_free[] */
 #ifdef UNIV_DEBUG
 	ibool		in_flush_list;	/*!< TRUE if in buf_pool->flush_list;
 					when buf_pool_mutex is free, the
@@ -1124,10 +1126,9 @@ struct buf_page_struct{
 					on disk; zero if all
 					modifications are on disk */
 	/* @} */
-	/** @defgroup buf_LRU LRU replacement algorithm */
-	/** @ingroup buf_LRU
-	protected by buf_pool_mutex only (not buf_pool_zip_mutex or
-	buf_block_struct::mutex) */
+	/** @name LRU replacement algorithm fields
+	These fields are protected by buf_pool_mutex only (not
+	buf_pool_zip_mutex or buf_block_struct::mutex). */
 	/* @{ */
 
 	UT_LIST_NODE_T(buf_page_t) LRU;
@@ -1158,11 +1159,11 @@ struct buf_page_struct{
 					purposes without holding any
 					mutex or latch */
 	/* @} */
-#ifdef UNIV_DEBUG_FILE_ACCESSES
+# ifdef UNIV_DEBUG_FILE_ACCESSES
 	ibool		file_page_was_freed;
 					/*!< this is set to TRUE when fsp
 					frees a page in buffer pool */
-#endif /* UNIV_DEBUG_FILE_ACCESSES */
+# endif /* UNIV_DEBUG_FILE_ACCESSES */
 #endif /* !UNIV_HOTBACKUP */
 };
 
@@ -1170,7 +1171,7 @@ struct buf_page_struct{
 
 struct buf_block_struct{
 
-	/** @defgroup buf_block_general General fields */
+	/** @name General fields */
 	/* @{ */
 
 	buf_page_t	page;		/*!< page information; this must
@@ -1211,7 +1212,7 @@ struct buf_block_struct{
 					but this flag is not set because
 					we do not keep track of all pages */
 	/* @} */
-	/** @defgroup buf_block_search Optimistic search field */
+	/** @name Optimistic search field */
 	/* @{ */
 
 	ib_uint64_t	modify_clock;	/*!< this clock is incremented every
@@ -1226,9 +1227,8 @@ struct buf_block_struct{
 					bufferfixed, or (2) the thread has an
 					x-latch on the block */
 	/* @} */
-	/** @defgroup buf_block_hash Hash search fields */
-	/** @ingroup buf_block_hash
-	NOTE that the first 4 fields are NOT protected by any semaphore! */
+	/** @name Hash search fields (unprotected)
+	NOTE that these fields are NOT protected by any semaphore! */
 	/* @{ */
 
 	ulint		n_hash_helps;	/*!< counter which controls building
@@ -1243,11 +1243,11 @@ struct buf_block_struct{
 					indexed in the hash index */
 	/* @} */
 
-	/** @ingroup buf_block_hash
+	/** @name Hash search fields
 	These 6 fields may only be modified when we have
 	an x-latch on btr_search_latch AND
-	a) we are holding an s-latch or x-latch on buf_block_struct::lock or
-	b) we know that buf_block_struct::buf_fix_count == 0.
+	- we are holding an s-latch or x-latch on buf_block_struct::lock or
+	- we know that buf_block_struct::buf_fix_count == 0.
 
 	An exception to this is when we init or create a page
 	in the buffer pool in buf0buf.c. */
@@ -1274,15 +1274,15 @@ struct buf_block_struct{
 	dict_index_t*	index;		/*!< Index for which the adaptive
 					hash index has been created. */
 	/* @} */
-	/** Debug fields */
+# ifdef UNIV_SYNC_DEBUG
+	/** @name Debug fields */
 	/* @{ */
-#ifdef UNIV_SYNC_DEBUG
 	rw_lock_t	debug_latch;	/*!< in the debug version, each thread
 					which bufferfixes the block acquires
 					an s-latch here; so we can use the
 					debug utilities in sync0rw */
-#endif
 	/* @} */
+# endif
 #endif /* !UNIV_HOTBACKUP */
 };
 
@@ -1300,6 +1300,7 @@ Compute the hash fold value for blocks in buf_pool->zip_hash. */
 #define BUF_POOL_ZIP_FOLD_PTR(ptr) ((ulint) (ptr) / UNIV_PAGE_SIZE)
 #define BUF_POOL_ZIP_FOLD(b) BUF_POOL_ZIP_FOLD_PTR((b)->frame)
 #define BUF_POOL_ZIP_FOLD_BPAGE(b) BUF_POOL_ZIP_FOLD((buf_block_t*) (b))
+/* @} */
 
 /** @brief The buffer pool structure.
 
@@ -1308,7 +1309,7 @@ directory (buf) to see it. Do not use from outside! */
 
 struct buf_pool_struct{
 
-	/** @defgroup buf_pool_general General fields */
+	/** @name General fields */
 	/* @{ */
 
 	ulint		n_chunks;	/*!< number of buffer pool chunks */
@@ -1346,7 +1347,7 @@ struct buf_pool_struct{
 	ulint		n_pages_created_old;/*!< number of pages created in
 					the pool with no read */
 	/* @} */
-	/** @defgroup buf_pool_flush Page flushing algorithm fields */
+	/** @name Page flushing algorithm fields */
 	/* @{ */
 
 	UT_LIST_BASE_NODE_T(buf_page_t) flush_list;
@@ -1381,7 +1382,7 @@ struct buf_pool_struct{
 					allocated */
 
 	/* @} */
-	/** @defgroup buf_LRU LRU replacement algorithm */
+	/** @name LRU replacement algorithm fields */
 	/* @{ */
 
 	UT_LIST_BASE_NODE_T(buf_page_t) free;
@@ -1408,7 +1409,10 @@ struct buf_pool_struct{
 					unzip_LRU list */
 
 	/* @} */
-	/** @defgroup buf_buddy Buddy allocator of compressed pages */
+	/** @name Buddy allocator fields
+	The buddy allocator is used for allocating compressed page
+	frames and buf_page_t descriptors of blocks that exist
+	in the buffer pool only in compressed form. */
 	/* @{ */
 	UT_LIST_BASE_NODE_T(buf_page_t)	zip_clean;
 					/*!< unmodified compressed pages */
@@ -1430,8 +1434,8 @@ extern mutex_t	buf_pool_mutex;
 (of type buf_page_t, not buf_block_t) */
 extern mutex_t	buf_pool_zip_mutex;
 
-/** Accessors for buf_pool_mutex.  Use these instead of accessing
-buf_pool_mutex directly. */
+/** @name Accessors for buf_pool_mutex.
+Use these instead of accessing buf_pool_mutex directly. */
 /* @{ */
 
 /** Test if buf_pool_mutex is owned. */
