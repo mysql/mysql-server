@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/buf0flu.h
 The database buffer pool flush algorithm
 
 Created 11/5/1995 Heikki Tuuri
@@ -31,14 +32,14 @@ Created 11/5/1995 Heikki Tuuri
 #include "mtr0types.h"
 #include "buf0types.h"
 
-/************************************************************************
+/********************************************************************//**
 Remove a block from the flush list of modified blocks. */
 UNIV_INTERN
 void
 buf_flush_remove(
 /*=============*/
 	buf_page_t*	bpage);	/*!< in: pointer to the block in question */
-/***********************************************************************
+/*******************************************************************//**
 Relocates a buffer control block on the flush_list.
 Note that it is assumed that the contents of bpage has already been
 copied to dpage. */
@@ -48,14 +49,14 @@ buf_flush_relocate_on_flush_list(
 /*=============================*/
 	buf_page_t*	bpage,	/*!< in/out: control block being moved */
 	buf_page_t*	dpage);	/*!< in/out: destination block */
-/************************************************************************
+/********************************************************************//**
 Updates the flush system data structures when a write is completed. */
 UNIV_INTERN
 void
 buf_flush_write_complete(
 /*=====================*/
 	buf_page_t*	bpage);	/*!< in: pointer to the block in question */
-/*************************************************************************
+/*********************************************************************//**
 Flushes pages from the end of the LRU list if there is too small
 a margin of replaceable pages there. */
 UNIV_INTERN
@@ -63,7 +64,7 @@ void
 buf_flush_free_margin(void);
 /*=======================*/
 #endif /* !UNIV_HOTBACKUP */
-/************************************************************************
+/********************************************************************//**
 Initializes a page for writing to the tablespace. */
 UNIV_INTERN
 void
@@ -74,13 +75,14 @@ buf_flush_init_for_writing(
 	ib_uint64_t	newest_lsn);	/*!< in: newest modification lsn
 					to the page */
 #ifndef UNIV_HOTBACKUP
-/***********************************************************************
+/*******************************************************************//**
 This utility flushes dirty blocks from the end of the LRU list or flush_list.
 NOTE 1: in the case of an LRU flush the calling thread may own latches to
 pages: to avoid deadlocks, this function must be written so that it cannot
 end up waiting for these latches! NOTE 2: in the case of a flush list flush,
 the calling thread is not allowed to own any latches on pages!
-@return	number of blocks for which the write request was queued; ULINT_UNDEFINED if there was a flush of the same type already running */
+@return number of blocks for which the write request was queued;
+ULINT_UNDEFINED if there was a flush of the same type already running */
 UNIV_INTERN
 ulint
 buf_flush_batch(
@@ -97,14 +99,14 @@ buf_flush_batch(
 					smaller than this should be flushed
 					(if their number does not exceed
 					min_n), otherwise ignored */
-/**********************************************************************
+/******************************************************************//**
 Waits until a flush batch of the given type ends */
 UNIV_INTERN
 void
 buf_flush_wait_batch_end(
 /*=====================*/
 	enum buf_flush	type);	/*!< in: BUF_FLUSH_LRU or BUF_FLUSH_LIST */
-/************************************************************************
+/********************************************************************//**
 This function should be called at a mini-transaction commit, if a page was
 modified in it. Puts the block to the list of modified blocks, if it not
 already in it. */
@@ -114,7 +116,7 @@ buf_flush_note_modification(
 /*========================*/
 	buf_block_t*	block,	/*!< in: block which is modified */
 	mtr_t*		mtr);	/*!< in: mtr */
-/************************************************************************
+/********************************************************************//**
 This function should be called when recovery has modified a buffer page. */
 UNIV_INLINE
 void
@@ -125,7 +127,7 @@ buf_flush_recv_note_modification(
 					set of mtr's */
 	ib_uint64_t	end_lsn);	/*!< in: end lsn of the last mtr in the
 					set of mtr's */
-/************************************************************************
+/********************************************************************//**
 Returns TRUE if the file page block is immediately suitable for replacement,
 i.e., transition FILE_PAGE => NOT_USED allowed.
 @return	TRUE if can replace immediately */
@@ -136,7 +138,7 @@ buf_flush_ready_for_replace(
 	buf_page_t*	bpage);	/*!< in: buffer control block, must be
 				buf_page_in_file(bpage) and in the LRU list */
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
-/**********************************************************************
+/******************************************************************//**
 Validates the flush list.
 @return	TRUE if ok */
 UNIV_INTERN
@@ -145,7 +147,7 @@ buf_flush_validate(void);
 /*====================*/
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
-/************************************************************************
+/********************************************************************//**
 Initialize the red-black tree to speed up insertions into the flush_list
 during recovery process. Should be called at the start of recovery
 process before any page has been read/written. */
@@ -154,19 +156,19 @@ void
 buf_flush_init_flush_rbt(void);
 /*==========================*/
 
-/************************************************************************
+/********************************************************************//**
 Frees up the red-black tree. */
 UNIV_INTERN
 void
 buf_flush_free_flush_rbt(void);
 /*==========================*/
 
-/* When buf_flush_free_margin is called, it tries to make this many blocks
+/** When buf_flush_free_margin is called, it tries to make this many blocks
 available to replacement in the free list and at the end of the LRU list (to
 make sure that a read-ahead batch can be read efficiently in a single
 sweep). */
-
 #define BUF_FLUSH_FREE_BLOCK_MARGIN	(5 + BUF_READ_AHEAD_AREA)
+/** Extra margin to apply above BUF_FLUSH_FREE_BLOCK_MARGIN */
 #define BUF_FLUSH_EXTRA_MARGIN		(BUF_FLUSH_FREE_BLOCK_MARGIN / 4 + 100)
 #endif /* !UNIV_HOTBACKUP */
 

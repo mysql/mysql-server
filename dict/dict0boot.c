@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file dict/dict0boot.c
 Data dictionary creation and booting
 
 Created 4/18/1996 Heikki Tuuri
@@ -39,7 +40,7 @@ Created 4/18/1996 Heikki Tuuri
 #include "log0recv.h"
 #include "os0file.h"
 
-/**************************************************************************
+/**********************************************************************//**
 Gets a pointer to the dictionary header and x-latches its page.
 @return	pointer to the dictionary header, page x-latched */
 UNIV_INTERN
@@ -60,7 +61,7 @@ dict_hdr_get(
 	return(header);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Returns a new table, index, or tree id.
 @return	the new id */
 UNIV_INTERN
@@ -89,7 +90,7 @@ dict_hdr_get_new_id(
 	return(id);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Writes the current value of the row id counter to the dictionary header file
 page. */
 UNIV_INTERN
@@ -114,7 +115,7 @@ dict_hdr_flush_row_id(void)
 	mtr_commit(&mtr);
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Creates the file page for the dictionary header. This function is
 called only at the database creation.
 @return	TRUE if succeed */
@@ -217,7 +218,7 @@ dict_hdr_create(
 	return(TRUE);
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Initializes the data dictionary memory structures when the database is
 started. This function is also called when the data dictionary is created. */
 UNIV_INTERN
@@ -429,7 +430,7 @@ dict_boot(void)
 	mutex_exit(&(dict_sys->mutex));
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Inserts the basic system table data into themselves in the database
 creation. */
 static
@@ -440,7 +441,7 @@ dict_insert_initial_data(void)
 	/* Does nothing yet */
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Creates and initializes the data dictionary at the database creation. */
 UNIV_INTERN
 void

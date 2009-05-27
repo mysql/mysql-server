@@ -16,7 +16,14 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/***********************************************************************
+/*******************************************************************//**
+@file include/ut0wqueue.h
+A work queue
+
+Created 4/26/2006 Osku Salerma
+************************************************************************/
+
+/*******************************************************************//**
 A Work queue. Threads can add work items to the queue and other threads can
 wait for work items to be available and take them off the queue for
 processing.
@@ -32,7 +39,7 @@ processing.
 
 typedef struct ib_wqueue_struct ib_wqueue_t;
 
-/********************************************************************
+/****************************************************************//**
 Create a new work queue.
 @return	work queue */
 UNIV_INTERN
@@ -40,7 +47,7 @@ ib_wqueue_t*
 ib_wqueue_create(void);
 /*===================*/
 
-/********************************************************************
+/****************************************************************//**
 Free a work queue. */
 UNIV_INTERN
 void
@@ -48,7 +55,7 @@ ib_wqueue_free(
 /*===========*/
 	ib_wqueue_t*	wq);	/*!< in: work queue */
 
-/********************************************************************
+/****************************************************************//**
 Add a work item to the queue. */
 UNIV_INTERN
 void
@@ -59,7 +66,7 @@ ib_wqueue_add(
 	mem_heap_t*	heap);	/*!< in: memory heap to use for allocating the
 				list node */
 
-/********************************************************************
+/****************************************************************//**
 Wait for a work item to appear in the queue.
 @return	work item */
 UNIV_INTERN
@@ -70,9 +77,9 @@ ib_wqueue_wait(
 
 /* Work queue. */
 struct ib_wqueue_struct {
-	mutex_t		mutex;	/* mutex protecting everything */
-	ib_list_t*	items;	/* work item list */
-	os_event_t	event;	/* event we use to signal additions to list */
+	mutex_t		mutex;	/*!< mutex protecting everything */
+	ib_list_t*	items;	/*!< work item list */
+	os_event_t	event;	/*!< event we use to signal additions to list */
 };
 
 #endif

@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file pars/pars0opt.c
 Simple SQL optimizer
 
 Created 12/21/1997 Heikki Tuuri
@@ -47,7 +48,7 @@ Created 12/21/1997 Heikki Tuuri
 #define OPT_SCROLL_COND	4
 
 
-/***********************************************************************
+/*******************************************************************//**
 Inverts a comparison operator.
 @return	the equivalent operator when the order of the arguments is switched */
 static
@@ -73,7 +74,7 @@ opt_invert_cmp_op(
 	return(0);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Checks if the value of an expression can be calculated BEFORE the nth table
 in a join is accessed. If this is the case, it can possibly be used in an
 index search for the nth table.
@@ -133,7 +134,7 @@ opt_check_exp_determined_before(
 	return(FALSE);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Looks in a comparison condition if a column value is already restricted by
 it BEFORE the nth table is accessed.
 @return	expression restricting the value of the column, or NULL if not known */
@@ -228,7 +229,7 @@ opt_look_for_col_in_comparison_before(
 	return(NULL);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Looks in a search condition if a column value is already restricted by the
 search condition BEFORE the nth table is accessed. Takes into account that
 if we will fetch in an ascending order, we cannot utilize an upper limit for
@@ -304,7 +305,7 @@ opt_look_for_col_in_cond_before(
 	return(exp);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Calculates the goodness for an index according to a select node. The
 goodness is 4 times the number of first fields in index whose values we
 already know exactly in the query. If we have a comparison condition for
@@ -388,7 +389,7 @@ opt_calc_index_goodness(
 	return(goodness);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Calculates the number of matched fields based on an index goodness.
 @return	number of excatly or partially matched fields */
 UNIV_INLINE
@@ -400,7 +401,7 @@ opt_calc_n_fields_from_goodness(
 	return(((goodness % 1024) + 2) / 4);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Converts a comparison operator to the corresponding search mode PAGE_CUR_GE,
 ...
 @return	search mode */
@@ -437,7 +438,7 @@ opt_op_to_search_mode(
 	return(0);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Determines if a node is an argument node of a function node.
 @return	TRUE if is an argument */
 static
@@ -463,7 +464,7 @@ opt_is_arg(
 	return(FALSE);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Decides if the fetching of rows should be made in a descending order, and
 also checks that the chosen query plan produces a result which satisfies
 the order-by. */
@@ -515,7 +516,7 @@ opt_check_order_by(
 	}
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Optimizes a select. Decides which indexes to tables to use. The tables
 are accessed in the order that they were written to the FROM part in the
 select statement. */
@@ -611,10 +612,12 @@ opt_search_plan_for_table(
 	btr_pcur_init(&(plan->clust_pcur));
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Looks at a comparison condition and decides if it can, and need, be tested for
 a table AFTER the table has been accessed.
-@return	OPT_NOT_COND if not for this table, else OPT_END_COND, OPT_TEST_COND, or OPT_SCROLL_COND, where the last means that the condition need not be tested, except when scroll cursors are used */
+@return OPT_NOT_COND if not for this table, else OPT_END_COND,
+OPT_TEST_COND, or OPT_SCROLL_COND, where the last means that the
+condition need not be tested, except when scroll cursors are used */
 static
 ulint
 opt_classify_comparison(
@@ -702,7 +705,7 @@ opt_classify_comparison(
 	return(OPT_TEST_COND);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Recursively looks for test conditions for a table in a join. */
 static
 void
@@ -747,7 +750,7 @@ opt_find_test_conds(
 	}
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Normalizes a list of comparison conditions so that a column of the table
 appears on the left side of the comparison if possible. This is accomplished
 by switching the arguments of the operator. */
@@ -789,7 +792,7 @@ opt_normalize_cmp_conds(
 	}
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Finds out the search condition conjuncts we can, and need, to test as the ith
 table in a join is accessed. The search tuple can eliminate the need to test
 some conjuncts. */
@@ -817,7 +820,7 @@ opt_determine_and_normalize_test_conds(
 	ut_a(UT_LIST_GET_LEN(plan->end_conds) >= plan->n_exact_match);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Looks for occurrences of the columns of the table in the query subgraph and
 adds them to the list of columns if an occurrence of the same column does not
 already exist in the list. If the column is already in the list, puts a value
@@ -926,7 +929,7 @@ opt_find_all_cols(
 	}
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Looks for occurrences of the columns of the table in conditions which are
 not yet determined AFTER the join operation has fetched a row in the ith
 table. The values for these column must be copied to dynamic memory for
@@ -974,7 +977,7 @@ opt_find_copy_cols(
 	}
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Classifies the table columns according to whether we use the column only while
 holding the latch on the page, or whether we have to copy the column value to
 dynamic memory. Puts the first occurrence of a column to either list in the
@@ -1018,7 +1021,7 @@ opt_classify_cols(
 			  sel_node->search_cond);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Fills in the info in plan which is used in accessing a clustered index
 record. The columns must already be classified for the plan node. */
 static
@@ -1090,7 +1093,7 @@ opt_clust_access(
 	}
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Optimizes a select. Decides which indexes to tables to use. The tables
 are accessed in the order that they were written to the FROM part in the
 select statement. */
@@ -1165,7 +1168,7 @@ opt_search_plan(
 #endif
 }
 
-/************************************************************************
+/********************************************************************//**
 Prints info of a query plan. */
 UNIV_INTERN
 void

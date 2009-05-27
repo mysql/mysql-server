@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/log0recv.ic
 Recovery
 
 Created 9/20/1997 Heikki Tuuri
@@ -24,7 +25,7 @@ Created 9/20/1997 Heikki Tuuri
 
 #include "univ.i"
 
-/***********************************************************************
+/*******************************************************************//**
 Returns TRUE if recovery is currently running.
 @return	recv_recovery_on */
 UNIV_INLINE
@@ -36,9 +37,10 @@ recv_recovery_is_on(void)
 }
 
 #ifdef UNIV_LOG_ARCHIVE
+/** TRUE when applying redo log records from an archived log file */
 extern ibool	recv_recovery_from_backup_on;
 
-/***********************************************************************
+/*******************************************************************//**
 Returns TRUE if recovery from backup is currently running.
 @return	recv_recovery_from_backup_on */
 UNIV_INLINE

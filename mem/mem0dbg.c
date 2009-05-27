@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/************************************************************************
+/********************************************************************//**
+@file mem/mem0dbg.c
 The memory management: the debug code. This is not a compilation module,
 but is included in mem0mem.* !
 
@@ -53,10 +54,10 @@ static ibool		mem_hash_initialized		= FALSE;
 typedef struct mem_hash_node_struct mem_hash_node_t;
 struct mem_hash_node_struct {
 	UT_LIST_NODE_T(mem_hash_node_t)
-				list;	/* hash list node */
-	mem_heap_t*		heap;	/* memory heap */
+				list;	/*!< hash list node */
+	mem_heap_t*		heap;	/*!< memory heap */
 	const char*		file_name;/* file where heap was created*/
-	ulint			line;	/* file line of creation */
+	ulint			line;	/*!< file line of creation */
 	ulint			nth_heap;/* this is the nth heap created */
 	UT_LIST_NODE_T(mem_hash_node_t)
 				all_list;/* list of all created heaps */
@@ -133,7 +134,7 @@ mem_field_trailer_get_check(byte* field)
 #endif /* UNIV_MEM_DEBUG */
 
 #ifndef UNIV_HOTBACKUP
-/**********************************************************************
+/******************************************************************//**
 Initializes the memory system. */
 UNIV_INTERN
 void
@@ -172,7 +173,7 @@ mem_init(
 #endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_MEM_DEBUG
-/**********************************************************************
+/******************************************************************//**
 Initializes an allocated memory field in the debug version. */
 UNIV_INTERN
 void
@@ -219,7 +220,7 @@ mem_field_init(
 	mem_init_buf(usr_buf, n);
 }
 
-/**********************************************************************
+/******************************************************************//**
 Erases an allocated memory field in the debug version. */
 UNIV_INTERN
 void
@@ -246,7 +247,7 @@ mem_field_erase(
 	mem_erase_buf(buf, MEM_SPACE_NEEDED(n));
 }
 
-/*******************************************************************
+/***************************************************************//**
 Initializes a buffer to a random combination of hex BA and BE.
 Used to initialize allocated memory. */
 UNIV_INTERN
@@ -272,7 +273,7 @@ mem_init_buf(
 	UNIV_MEM_INVALID(buf, n);
 }
 
-/*******************************************************************
+/***************************************************************//**
 Initializes a buffer to a random combination of hex DE and AD.
 Used to erase freed memory. */
 UNIV_INTERN
@@ -280,7 +281,7 @@ void
 mem_erase_buf(
 /*==========*/
 	byte*	buf,	/*!< in: pointer to buffer */
-	ulint	 n)	 /*!< in: length of buffer */
+	ulint	n)	/*!< in: length of buffer */
 {
 	byte*	ptr;
 
@@ -297,7 +298,7 @@ mem_erase_buf(
 	UNIV_MEM_FREE(buf, n);
 }
 
-/*******************************************************************
+/***************************************************************//**
 Inserts a created memory heap to the hash table of current allocated
 memory heaps. */
 UNIV_INTERN
@@ -335,7 +336,7 @@ mem_hash_insert(
 	mutex_exit(&mem_hash_mutex);
 }
 
-/*******************************************************************
+/***************************************************************//**
 Removes a memory heap (which is going to be freed by the caller)
 from the list of live memory heaps. Returns the size of the heap
 in terms of how much memory in bytes was allocated for the user of
@@ -416,7 +417,7 @@ mem_hash_remove(
 #endif /* UNIV_MEM_DEBUG */
 
 #if defined UNIV_MEM_DEBUG || defined UNIV_DEBUG
-/*******************************************************************
+/***************************************************************//**
 Checks a memory heap for consistency and prints the contents if requested.
 Outputs the sum of sizes of buffers given to the user (only in
 the debug version), the physical size of the heap and the number of
@@ -591,7 +592,7 @@ completed:
 	*error = FALSE;
 }
 
-/******************************************************************
+/**************************************************************//**
 Prints the contents of a memory heap. */
 static
 void
@@ -616,7 +617,7 @@ mem_heap_print(
 	ut_a(!error);
 }
 
-/******************************************************************
+/**************************************************************//**
 Validates the contents of a memory heap.
 @return	TRUE if ok */
 UNIV_INTERN
@@ -645,7 +646,7 @@ mem_heap_validate(
 #endif /* UNIV_MEM_DEBUG || UNIV_DEBUG */
 
 #ifdef UNIV_DEBUG
-/******************************************************************
+/**************************************************************//**
 Checks that an object is a memory heap (or a block of it).
 @return	TRUE if ok */
 UNIV_INTERN
@@ -661,7 +662,7 @@ mem_heap_check(
 #endif /* UNIV_DEBUG */
 
 #ifdef UNIV_MEM_DEBUG
-/*********************************************************************
+/*****************************************************************//**
 TRUE if no memory is currently allocated.
 @return	TRUE if no heaps exist */
 UNIV_INTERN
@@ -699,7 +700,7 @@ mem_all_freed(void)
 	}
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Validates the dynamic memory allocation system.
 @return	TRUE if error */
 UNIV_INTERN
@@ -774,7 +775,7 @@ mem_validate_no_assert(void)
 	return(error);
 }
 
-/****************************************************************
+/************************************************************//**
 Validates the dynamic memory
 @return	TRUE if ok */
 UNIV_INTERN
@@ -788,7 +789,7 @@ mem_validate(void)
 }
 #endif /* UNIV_MEM_DEBUG */
 
-/****************************************************************
+/************************************************************//**
 Tries to find neigboring memory allocation blocks and dumps to stderr
 the neighborhood of a given pointer. */
 UNIV_INTERN
@@ -897,7 +898,7 @@ mem_analyze_corruption(
 }
 
 #ifndef UNIV_HOTBACKUP
-/*********************************************************************
+/*****************************************************************//**
 Prints information of dynamic memory usage and currently allocated
 memory heaps or buffers. Can only be used in the debug version. */
 static
@@ -1001,7 +1002,7 @@ next_heap:
 #endif
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Prints information of dynamic memory usage and currently allocated memory
 heaps or buffers. Can only be used in the debug version. */
 UNIV_INTERN
@@ -1012,7 +1013,7 @@ mem_print_info(void)
 	mem_print_info_low(TRUE);
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Prints information of dynamic memory usage and currently allocated memory
 heaps or buffers since the last ..._print_info or..._print_new_info. */
 UNIV_INTERN

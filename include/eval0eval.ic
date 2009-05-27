@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/eval0eval.ic
 SQL evaluator: evaluates simple data structures, like expressions, in
 a query graph
 
@@ -27,14 +28,14 @@ Created 12/29/1997 Heikki Tuuri
 #include "rem0cmp.h"
 #include "pars0grm.h"
 
-/*********************************************************************
+/*****************************************************************//**
 Evaluates a function node. */
 UNIV_INTERN
 void
 eval_func(
 /*======*/
 	func_node_t*	func_node);	/*!< in: function node */
-/*********************************************************************
+/*****************************************************************//**
 Allocate a buffer from global dynamic memory for a value of a que_node.
 NOTE that this memory must be explicitly freed when the query graph is
 freed. If the node already has allocated buffer, that buffer is freed
@@ -51,7 +52,7 @@ eval_node_alloc_val_buf(
 	ulint		size);	/*!< in: buffer size */
 
 
-/*********************************************************************
+/*****************************************************************//**
 Allocates a new buffer if needed.
 @return	pointer to buffer */
 UNIV_INLINE
@@ -79,7 +80,7 @@ eval_node_ensure_val_buf(
 	return(data);
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Evaluates a symbol table symbol. */
 UNIV_INLINE
 void
@@ -99,7 +100,7 @@ eval_sym(
 	}
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Evaluates an expression. */
 UNIV_INLINE
 void
@@ -117,7 +118,7 @@ eval_exp(
 	eval_func(exp_node);
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Sets an integer value as the value of an expression node. */
 UNIV_INLINE
 void
@@ -142,7 +143,7 @@ eval_node_set_int_val(
 	mach_write_to_4(data, (ulint)val);
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Gets an integer non-SQL null value from an expression node.
 @return	integer value */
 UNIV_INLINE
@@ -160,7 +161,7 @@ eval_node_get_int_val(
 	return((int)mach_read_from_4(dfield_get_data(dfield)));
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Gets a iboolean value from a query node.
 @return	iboolean value */
 UNIV_INLINE
@@ -181,7 +182,7 @@ eval_node_get_ibool_val(
 	return(mach_read_from_1(data));
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Sets a iboolean value as the value of a function node. */
 UNIV_INLINE
 void
@@ -208,7 +209,7 @@ eval_node_set_ibool_val(
 	mach_write_to_1(data, val);
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Copies a binary string value as the value of a query graph node. Allocates a
 new buffer if necessary. */
 UNIV_INLINE
@@ -232,7 +233,7 @@ eval_node_copy_and_alloc_val(
 	ut_memcpy(data, str, len);
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Copies a query node value to another node. */
 UNIV_INLINE
 void

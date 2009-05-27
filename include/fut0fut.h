@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/**********************************************************************
+/******************************************************************//**
+@file include/fut0fut.h
 File-based utilities
 
 Created 12/13/1995 Heikki Tuuri
@@ -31,9 +32,10 @@ Created 12/13/1995 Heikki Tuuri
 #include "fil0fil.h"
 #include "mtr0mtr.h"
 
-/************************************************************************
+/********************************************************************//**
 Gets a pointer to a file address and latches the page.
-@return	pointer to a byte in a frame; the file page in the frame is bufferfixed and latched */
+@return pointer to a byte in a frame; the file page in the frame is
+bufferfixed and latched */
 UNIV_INLINE
 byte*
 fut_get_ptr(

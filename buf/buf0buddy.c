@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file buf/buf0buddy.c
 Binary buddy allocator for compressed pages
 
 Created December 2006 by Marko Makela
@@ -44,7 +45,7 @@ static ulint buf_buddy_n_frames;
 Protected by buf_pool_mutex. */
 UNIV_INTERN buf_buddy_stat_t buf_buddy_stat[BUF_BUDDY_SIZES + 1];
 
-/**************************************************************************
+/**********************************************************************//**
 Get the offset of the buddy of a compressed page frame.
 @return	the buddy relative of page */
 UNIV_INLINE
@@ -66,7 +67,7 @@ buf_buddy_get(
 	}
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Add a block to the head of the appropriate buddy free list. */
 UNIV_INLINE
 void
@@ -92,7 +93,7 @@ buf_buddy_add_to_free(
 #endif /* UNIV_DEBUG_VALGRIND */
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Remove a block from the appropriate buddy free list. */
 UNIV_INLINE
 void
@@ -122,7 +123,7 @@ buf_buddy_remove_from_free(
 #endif /* UNIV_DEBUG_VALGRIND */
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Try to allocate a block from buf_pool->zip_free[].
 @return	allocated block, or NULL if buf_pool->zip_free[] was empty */
 static
@@ -175,7 +176,7 @@ buf_buddy_alloc_zip(
 	return(bpage);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Deallocate a buffer frame of UNIV_PAGE_SIZE. */
 static
 void
@@ -214,7 +215,7 @@ buf_buddy_block_free(
 	ut_d(buf_buddy_n_frames--);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Allocate a buffer block to the buddy allocator. */
 static
 void
@@ -240,7 +241,7 @@ buf_buddy_block_register(
 	ut_d(buf_buddy_n_frames++);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Allocate a block from a bigger object.
 @return	allocated block */
 static
@@ -280,7 +281,7 @@ buf_buddy_alloc_from(
 	return(buf);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Allocate a block.  The thread calling this function must hold
 buf_pool_mutex and must not hold buf_pool_zip_mutex or any block->mutex.
 The buf_pool_mutex may only be released and reacquired if lru != NULL.
@@ -340,7 +341,7 @@ func_exit:
 	return(block);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Try to relocate the control block of a compressed page.
 @return	TRUE if relocated */
 static
@@ -396,7 +397,7 @@ buf_buddy_relocate_block(
 	return(TRUE);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Try to relocate a block.
 @return	TRUE if relocated */
 static
@@ -504,7 +505,7 @@ success:
 	return(FALSE);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Deallocate a block. */
 UNIV_INTERN
 void

@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/buf0rea.h
 The database buffer read
 
 Created 11/5/1995 Heikki Tuuri
@@ -28,13 +29,14 @@ Created 11/5/1995 Heikki Tuuri
 #include "univ.i"
 #include "buf0types.h"
 
-/************************************************************************
+/********************************************************************//**
 High-level function which reads a page asynchronously from a file to the
 buffer buf_pool if it is not already there. Sets the io_fix flag and sets
 an exclusive lock on the buffer frame. The flag is cleared and the x-lock
 released by the i/o-handler thread. Does a random read-ahead if it seems
 sensible.
-@return	number of page read requests issued: this can be > 1 if read-ahead occurred */
+@return number of page read requests issued: this can be greater than
+1 if read-ahead occurred */
 UNIV_INTERN
 ulint
 buf_read_page(
@@ -42,7 +44,7 @@ buf_read_page(
 	ulint	space,	/*!< in: space id */
 	ulint	zip_size,/*!< in: compressed page size in bytes, or 0 */
 	ulint	offset);/*!< in: page number */
-/************************************************************************
+/********************************************************************//**
 Applies linear read-ahead if in the buf_pool the page is a border page of
 a linear read-ahead area and all the pages in the area have been accessed.
 Does not read any page if the read-ahead mechanism is not activated. Note
@@ -74,7 +76,7 @@ buf_read_ahead_linear(
 	ulint	zip_size,/*!< in: compressed page size in bytes, or 0 */
 	ulint	offset);/*!< in: page number of a page; NOTE: the current thread
 			must want access to this page (see NOTE 3 above) */
-/************************************************************************
+/********************************************************************//**
 Issues read requests for pages which the ibuf module wants to read in, in
 order to contract the insert buffer tree. Technically, this function is like
 a read-ahead function. */
@@ -101,7 +103,7 @@ buf_read_ibuf_merge_pages(
 					array */
 	ulint		n_stored);	/*!< in: number of elements
 					in the arrays */
-/************************************************************************
+/********************************************************************//**
 Issues read requests for pages which recovery wants to read in. */
 UNIV_INTERN
 void

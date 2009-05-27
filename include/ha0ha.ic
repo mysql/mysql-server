@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/************************************************************************
+/********************************************************************//**
+@file include/ha0ha.ic
 The hash table with external chains
 
 Created 8/18/1994 Heikki Tuuri
@@ -25,7 +26,7 @@ Created 8/18/1994 Heikki Tuuri
 #include "ut0rnd.h"
 #include "mem0mem.h"
 
-/***************************************************************
+/***********************************************************//**
 Deletes a hash node. */
 UNIV_INTERN
 void
@@ -34,7 +35,7 @@ ha_delete_hash_node(
 	hash_table_t*	table,		/*!< in: hash table */
 	ha_node_t*	del_node);	/*!< in: node to be deleted */
 
-/**********************************************************************
+/******************************************************************//**
 Gets a hash node data.
 @return	pointer to the data */
 UNIV_INLINE
@@ -46,7 +47,7 @@ ha_node_get_data(
 	return(node->data);
 }
 
-/**********************************************************************
+/******************************************************************//**
 Sets hash node data. */
 UNIV_INLINE
 void
@@ -65,12 +66,20 @@ ha_node_set_data_func(
 }
 
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
+/** Sets hash node data.
+@param n	in: hash chain node
+@param b	in: buffer block containing the data
+@param d	in: pointer to the data */
 # define ha_node_set_data(n,b,d) ha_node_set_data_func(n,b,d)
 #else /* UNIV_AHI_DEBUG || UNIV_DEBUG */
+/** Sets hash node data.
+@param n	in: hash chain node
+@param b	in: buffer block containing the data
+@param d	in: pointer to the data */
 # define ha_node_set_data(n,b,d) ha_node_set_data_func(n,d)
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 
-/**********************************************************************
+/******************************************************************//**
 Gets the next node in a hash chain.
 @return	next node, NULL if none */
 UNIV_INLINE
@@ -82,7 +91,7 @@ ha_chain_get_next(
 	return(node->next);
 }
 
-/**********************************************************************
+/******************************************************************//**
 Gets the first node in a hash chain.
 @return	first node, NULL if none */
 UNIV_INLINE
@@ -96,9 +105,10 @@ ha_chain_get_first(
 	       hash_get_nth_cell(table, hash_calc_hash(fold, table))->node);
 }
 
-/*****************************************************************
+/*************************************************************//**
 Looks for an element in a hash table.
-@return	pointer to the first hash table node in chain having the fold number, NULL if not found */
+@return pointer to the first hash table node in chain having the fold
+number, NULL if not found */
 UNIV_INLINE
 ha_node_t*
 ha_search(
@@ -124,9 +134,10 @@ ha_search(
 	return(NULL);
 }
 
-/*****************************************************************
+/*************************************************************//**
 Looks for an element in a hash table.
-@return	pointer to the data of the first hash table node in chain having the fold number, NULL if not found */
+@return pointer to the data of the first hash table node in chain
+having the fold number, NULL if not found */
 UNIV_INLINE
 void*
 ha_search_and_get_data(
@@ -152,7 +163,7 @@ ha_search_and_get_data(
 	return(NULL);
 }
 
-/*************************************************************
+/*********************************************************//**
 Looks for an element when we know the pointer to the data.
 @return	pointer to the hash table node, NULL if not found in the table */
 UNIV_INLINE
@@ -181,7 +192,7 @@ ha_search_with_data(
 	return(NULL);
 }
 
-/*************************************************************
+/*********************************************************//**
 Looks for an element when we know the pointer to the data, and deletes
 it from the hash table, if found.
 @return	TRUE if found */

@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file os/os0thread.c
 The interface to the operating system thread control primitives
 
 Created 9/8/1995 Heikki Tuuri
@@ -35,7 +36,7 @@ Created 9/8/1995 Heikki Tuuri
 #include "srv0srv.h"
 #include "os0sync.h"
 
-/*******************************************************************
+/***************************************************************//**
 Compares two thread ids for equality.
 @return	TRUE if equal */
 UNIV_INTERN
@@ -60,7 +61,7 @@ os_thread_eq(
 #endif
 }
 
-/********************************************************************
+/****************************************************************//**
 Converts an OS thread id to a ulint. It is NOT guaranteed that the ulint is
 unique for the thread though!
 @return	thread identifier as a number */
@@ -80,7 +81,7 @@ os_thread_pf(
 #endif
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Returns the thread identifier of current thread. Currently the thread
 identifier in Unix is the thread handle itself. Note that in HP-UX
 pthread_t is a struct of 3 fields.
@@ -97,7 +98,7 @@ os_thread_get_curr_id(void)
 #endif
 }
 
-/********************************************************************
+/****************************************************************//**
 Creates a new thread of execution. The execution starts from
 the function given. The start function takes a void* parameter
 and returns an ulint.
@@ -212,7 +213,7 @@ os_thread_create(
 #endif
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Exits the current thread. */
 UNIV_INTERN
 void
@@ -236,7 +237,7 @@ os_thread_exit(
 #endif
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Returns handle to the current thread.
 @return	current thread handle */
 UNIV_INTERN
@@ -251,7 +252,7 @@ os_thread_get_curr(void)
 #endif
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Advises the os to give up remainder of the thread's time slice. */
 UNIV_INTERN
 void
@@ -272,7 +273,7 @@ os_thread_yield(void)
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/*********************************************************************
+/*****************************************************************//**
 The thread sleeps at least the time given in microseconds. */
 UNIV_INTERN
 void
@@ -295,7 +296,7 @@ os_thread_sleep(
 }
 
 #ifndef UNIV_HOTBACKUP
-/**********************************************************************
+/******************************************************************//**
 Sets a thread priority. */
 UNIV_INTERN
 void
@@ -324,7 +325,7 @@ os_thread_set_priority(
 #endif
 }
 
-/**********************************************************************
+/******************************************************************//**
 Gets a thread priority.
 @return	priority */
 UNIV_INTERN
@@ -356,7 +357,7 @@ os_thread_get_priority(
 #endif
 }
 
-/**********************************************************************
+/******************************************************************//**
 Gets the last operating system error code for the calling thread.
 @return	last error on Windows, 0 otherwise */
 UNIV_INTERN

@@ -23,7 +23,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/sync0rw.h
 The read-write lock (for threads, not for database transactions)
 
 Created 9/11/1995 Heikki Tuuri
@@ -72,23 +73,39 @@ To modify the debug info list of an rw-lock, this mutex has to be
 
 acquired in addition to the mutex protecting the lock. */
 extern mutex_t		rw_lock_debug_mutex;
-extern os_event_t	rw_lock_debug_event;	/* If deadlock detection does
+extern os_event_t	rw_lock_debug_event;	/*!< If deadlock detection does
 					not get immediately the mutex it
 					may wait for this event */
-extern ibool		rw_lock_debug_waiters;	/* This is set to TRUE, if
+extern ibool		rw_lock_debug_waiters;	/*!< This is set to TRUE, if
 					there may be waiters for the event */
 #endif /* UNIV_SYNC_DEBUG */
 
+/** number of spin waits on rw-latches,
+resulted during exclusive (write) locks */
 extern	ib_int64_t	rw_s_spin_wait_count;
+/** number of spin loop rounds on rw-latches,
+resulted during exclusive (write) locks */
 extern	ib_int64_t	rw_s_spin_round_count;
+/** number of unlocks (that unlock shared locks),
+set only when UNIV_SYNC_PERF_STAT is defined */
 extern	ib_int64_t	rw_s_exit_count;
+/** number of OS waits on rw-latches,
+resulted during shared (read) locks */
 extern	ib_int64_t	rw_s_os_wait_count;
+/** number of spin waits on rw-latches,
+resulted during shared (read) locks */
 extern	ib_int64_t	rw_x_spin_wait_count;
+/** number of spin loop rounds on rw-latches,
+resulted during shared (read) locks */
 extern	ib_int64_t	rw_x_spin_round_count;
+/** number of OS waits on rw-latches,
+resulted during exclusive (write) locks */
 extern	ib_int64_t	rw_x_os_wait_count;
+/** number of unlocks (that unlock exclusive locks),
+set only when UNIV_SYNC_PERF_STAT is defined */
 extern	ib_int64_t	rw_x_exit_count;
 
-/**********************************************************************
+/******************************************************************//**
 Creates, or rather, initializes an rw-lock object in a specified memory
 location (which must be appropriately aligned). The rw-lock is initialized
 to the non-locked state. Explicit freeing of the rw-lock with rw_lock_free
@@ -106,7 +123,7 @@ is necessary only if the memory block containing it is freed. */
 	rw_lock_create_func((L), __FILE__, __LINE__)
 #endif /* UNIV_DEBUG */
 
-/**********************************************************************
+/******************************************************************//**
 Creates, or rather, initializes an rw-lock object in a specified memory
 location (which must be appropriately aligned). The rw-lock is initialized
 to the non-locked state. Explicit freeing of the rw-lock with rw_lock_free
@@ -124,7 +141,7 @@ rw_lock_create_func(
 #endif /* UNIV_DEBUG */
 	const char*	cfile_name,	/*!< in: file name where created */
 	ulint 		cline);		/*!< in: file line where created */
-/**********************************************************************
+/******************************************************************//**
 Calling this function is obligatory only if the memory buffer containing
 the rw-lock is freed. Removes an rw-lock object from the global list. The
 rw-lock is checked to be in the non-locked state. */
@@ -134,7 +151,7 @@ rw_lock_free(
 /*=========*/
 	rw_lock_t*	lock);	/*!< in: rw-lock */
 #ifdef UNIV_DEBUG
-/**********************************************************************
+/******************************************************************//**
 Checks that the rw-lock has been initialized and that there are no
 simultaneous shared and exclusive locks.
 @return	TRUE */
@@ -144,25 +161,25 @@ rw_lock_validate(
 /*=============*/
 	rw_lock_t*	lock);	/*!< in: rw-lock */
 #endif /* UNIV_DEBUG */
-/******************************************************************
+/**************************************************************//**
 NOTE! The following macros should be used in rw s-locking, not the
 corresponding function. */
 
 #define rw_lock_s_lock(M)	rw_lock_s_lock_func(\
 		(M), 0, __FILE__, __LINE__)
-/******************************************************************
+/**************************************************************//**
 NOTE! The following macros should be used in rw s-locking, not the
 corresponding function. */
 
 #define rw_lock_s_lock_gen(M, P)	rw_lock_s_lock_func(\
 		(M), (P), __FILE__, __LINE__)
-/******************************************************************
+/**************************************************************//**
 NOTE! The following macros should be used in rw s-locking, not the
 corresponding function. */
 
 #define rw_lock_s_lock_nowait(M, F, L)    rw_lock_s_lock_low(\
 					  (M), 0, (F), (L))
-/**********************************************************************
+/******************************************************************//**
 Low-level function which tries to lock an rw-lock in s-mode. Performs no
 spinning.
 @return	TRUE if success */
@@ -176,7 +193,7 @@ rw_lock_s_lock_low(
 				passed to another thread to unlock */
 	const char*	file_name, /*!< in: file name where lock requested */
 	ulint		line);	/*!< in: line where requested */
-/**********************************************************************
+/******************************************************************//**
 NOTE! Use the corresponding macro, not directly this function, except if
 you supply the file name and line number. Lock an rw-lock in shared mode
 for the current thread. If the rw-lock is locked in exclusive mode, or
@@ -192,7 +209,7 @@ rw_lock_s_lock_func(
 				be passed to another thread to unlock */
 	const char*	file_name,/*!< in: file name where lock requested */
 	ulint		line);	/*!< in: line where requested */
-/**********************************************************************
+/******************************************************************//**
 NOTE! Use the corresponding macro, not directly this function! Lock an
 rw-lock in exclusive mode for the current thread if the lock can be
 obtained immediately.
@@ -204,7 +221,7 @@ rw_lock_x_lock_func_nowait(
 	rw_lock_t*	lock,	/*!< in: pointer to rw-lock */
 	const char*	file_name,/*!< in: file name where lock requested */
 	ulint		line);	/*!< in: line where requested */
-/**********************************************************************
+/******************************************************************//**
 Releases a shared mode lock. */
 UNIV_INLINE
 void
@@ -221,29 +238,29 @@ rw_lock_s_unlock_func(
 #else
 # define rw_lock_s_unlock_gen(L, P)	rw_lock_s_unlock_func(L)
 #endif
-/***********************************************************************
+/*******************************************************************//**
 Releases a shared mode lock. */
 #define rw_lock_s_unlock(L)		rw_lock_s_unlock_gen(L, 0)
 
-/******************************************************************
+/**************************************************************//**
 NOTE! The following macro should be used in rw x-locking, not the
 corresponding function. */
 
 #define rw_lock_x_lock(M)	rw_lock_x_lock_func(\
 		(M), 0, __FILE__, __LINE__)
-/******************************************************************
+/**************************************************************//**
 NOTE! The following macro should be used in rw x-locking, not the
 corresponding function. */
 
 #define rw_lock_x_lock_gen(M, P)	rw_lock_x_lock_func(\
 		(M), (P), __FILE__, __LINE__)
-/******************************************************************
+/**************************************************************//**
 NOTE! The following macros should be used in rw x-locking, not the
 corresponding function. */
 
 #define rw_lock_x_lock_nowait(M)	rw_lock_x_lock_func_nowait(\
 		(M), __FILE__, __LINE__)
-/**********************************************************************
+/******************************************************************//**
 NOTE! Use the corresponding macro, not directly this function! Lock an
 rw-lock in exclusive mode for the current thread. If the rw-lock is locked
 in shared or exclusive mode, or there is an exclusive lock request waiting,
@@ -261,7 +278,7 @@ rw_lock_x_lock_func(
 				be passed to another thread to unlock */
 	const char*	file_name,/*!< in: file name where lock requested */
 	ulint		line);	/*!< in: line where requested */
-/**********************************************************************
+/******************************************************************//**
 Releases an exclusive mode lock. */
 UNIV_INLINE
 void
@@ -278,11 +295,11 @@ rw_lock_x_unlock_func(
 #else
 # define rw_lock_x_unlock_gen(L, P)	rw_lock_x_unlock_func(L)
 #endif
-/***********************************************************************
+/*******************************************************************//**
 Releases an exclusive mode lock. */
 #define rw_lock_x_unlock(L)		rw_lock_x_unlock_gen(L, 0)
 
-/**********************************************************************
+/******************************************************************//**
 Low-level function which locks an rw-lock in s-mode when we know that it
 is possible and none else is currently accessing the rw-lock structure.
 Then we can do the locking without reserving the mutex. */
@@ -293,7 +310,7 @@ rw_lock_s_lock_direct(
 	rw_lock_t*	lock,		/*!< in/out: rw-lock */
 	const char*	file_name,	/*!< in: file name where requested */
 	ulint		line);		/*!< in: line where lock requested */
-/**********************************************************************
+/******************************************************************//**
 Low-level function which locks an rw-lock in x-mode when we know that it
 is not locked and none else is currently accessing the rw-lock structure.
 Then we can do the locking without reserving the mutex. */
@@ -304,7 +321,7 @@ rw_lock_x_lock_direct(
 	rw_lock_t*	lock,		/*!< in/out: rw-lock */
 	const char*	file_name,	/*!< in: file name where requested */
 	ulint		line);		/*!< in: line where lock requested */
-/**********************************************************************
+/******************************************************************//**
 This function is used in the insert buffer to move the ownership of an
 x-latch on a buffer frame to the current thread. The x-latch was set by
 the buffer read operation and it protected the buffer frame while the
@@ -318,7 +335,7 @@ rw_lock_x_lock_move_ownership(
 /*==========================*/
 	rw_lock_t*	lock);	/*!< in: lock which was x-locked in the
 				buffer read */
-/**********************************************************************
+/******************************************************************//**
 Releases a shared mode lock when we know there are no waiters and none
 else will access the lock during the time this function is executed. */
 UNIV_INLINE
@@ -326,7 +343,7 @@ void
 rw_lock_s_unlock_direct(
 /*====================*/
 	rw_lock_t*	lock);	/*!< in/out: rw-lock */
-/**********************************************************************
+/******************************************************************//**
 Releases an exclusive mode lock when we know there are no waiters, and
 none else will access the lock durint the time this function is executed. */
 UNIV_INLINE
@@ -334,7 +351,7 @@ void
 rw_lock_x_unlock_direct(
 /*====================*/
 	rw_lock_t*	lock);	/*!< in/out: rw-lock */
-/**********************************************************************
+/******************************************************************//**
 Returns the value of writer_count for the lock. Does not reserve the lock
 mutex, so the caller must be sure it is not changed during the call.
 @return	value of writer_count */
@@ -343,7 +360,7 @@ ulint
 rw_lock_get_x_lock_count(
 /*=====================*/
 	const rw_lock_t*	lock);	/*!< in: rw-lock */
-/************************************************************************
+/********************************************************************//**
 Check if there are threads waiting for the rw-lock.
 @return	1 if waiters, 0 otherwise */
 UNIV_INLINE
@@ -351,7 +368,7 @@ ulint
 rw_lock_get_waiters(
 /*================*/
 	const rw_lock_t*	lock);	/*!< in: rw-lock */
-/**********************************************************************
+/******************************************************************//**
 Returns the write-status of the lock - this function made more sense
 with the old rw_lock implementation.
 @return	RW_LOCK_NOT_LOCKED, RW_LOCK_EX, RW_LOCK_WAIT_EX */
@@ -360,7 +377,7 @@ ulint
 rw_lock_get_writer(
 /*===============*/
 	const rw_lock_t*	lock);	/*!< in: rw-lock */
-/**********************************************************************
+/******************************************************************//**
 Returns the number of readers.
 @return	number of readers */
 UNIV_INLINE
@@ -368,7 +385,7 @@ ulint
 rw_lock_get_reader_count(
 /*=====================*/
 	const rw_lock_t*	lock);	/*!< in: rw-lock */
-/**********************************************************************
+/******************************************************************//**
 Decrements lock_word the specified amount if it is greater than 0.
 This is used by both s_lock and x_lock operations.
 @return	TRUE if decr occurs */
@@ -378,7 +395,7 @@ rw_lock_lock_word_decr(
 /*===================*/
 	rw_lock_t*	lock,		/*!< in/out: rw-lock */
 	ulint		amount);	/*!< in: amount to decrement */
-/**********************************************************************
+/******************************************************************//**
 Increments lock_word the specified amount and returns new value.
 @return	lock->lock_word after increment */
 UNIV_INLINE
@@ -387,7 +404,7 @@ rw_lock_lock_word_incr(
 /*===================*/
 	rw_lock_t*	lock,		/*!< in/out: rw-lock */
 	ulint		amount);	/*!< in: amount to increment */
-/**********************************************************************
+/******************************************************************//**
 This function sets the lock->writer_thread and lock->recursive fields.
 For platforms where we are using atomic builtins instead of lock->mutex
 it sets the lock->writer_thread field using atomics to ensure memory
@@ -404,7 +421,7 @@ rw_lock_set_writer_id_and_recursion_flag(
 	ibool		recursive);	/*!< in: TRUE if recursion
 					allowed */
 #ifdef UNIV_SYNC_DEBUG
-/**********************************************************************
+/******************************************************************//**
 Checks if the thread has locked the rw-lock in the specified mode, with
 the pass value == 0. */
 UNIV_INTERN
@@ -415,7 +432,7 @@ rw_lock_own(
 	ulint		lock_type);	/*!< in: lock type: RW_LOCK_SHARED,
 					RW_LOCK_EX */
 #endif /* UNIV_SYNC_DEBUG */
-/**********************************************************************
+/******************************************************************//**
 Checks if somebody has locked the rw-lock in the specified mode. */
 UNIV_INTERN
 ibool
@@ -425,21 +442,21 @@ rw_lock_is_locked(
 	ulint		lock_type);	/*!< in: lock type: RW_LOCK_SHARED,
 					RW_LOCK_EX */
 #ifdef UNIV_SYNC_DEBUG
-/*******************************************************************
+/***************************************************************//**
 Prints debug info of an rw-lock. */
 UNIV_INTERN
 void
 rw_lock_print(
 /*==========*/
 	rw_lock_t*	lock);	/*!< in: rw-lock */
-/*******************************************************************
+/***************************************************************//**
 Prints debug info of currently locked rw-locks. */
 UNIV_INTERN
 void
 rw_lock_list_print_info(
 /*====================*/
 	FILE*	file);		/*!< in: file where to print */
-/*******************************************************************
+/***************************************************************//**
 Returns the number of currently locked rw-locks.
 Works only in the debug version.
 @return	number of locked rw-locks */
@@ -450,7 +467,7 @@ rw_lock_n_locked(void);
 
 /*#####################################################################*/
 
-/**********************************************************************
+/******************************************************************//**
 Acquires the debug mutex. We cannot use the mutex defined in sync0sync,
 because the debug mutex is also acquired in sync0arr while holding the OS
 mutex protecting the sync array, and the ordinary mutex_enter might
@@ -460,13 +477,13 @@ UNIV_INTERN
 void
 rw_lock_debug_mutex_enter(void);
 /*==========================*/
-/**********************************************************************
+/******************************************************************//**
 Releases the debug mutex. */
 UNIV_INTERN
 void
 rw_lock_debug_mutex_exit(void);
 /*==========================*/
-/*************************************************************************
+/*********************************************************************//**
 Prints info of a debug struct. */
 UNIV_INTERN
 void
@@ -476,18 +493,20 @@ rw_lock_debug_print(
 #endif /* UNIV_SYNC_DEBUG */
 
 /* NOTE! The structure appears here only for the compiler to know its size.
-Do not use its fields directly! The structure used in the spin lock
-implementation of a read-write lock. Several threads may have a shared lock
-simultaneously in this lock, but only one writer may have an exclusive lock,
-in which case no shared locks are allowed. To prevent starving of a writer
-blocked by readers, a writer may queue for x-lock by decrementing lock_word:
-no new readers will be let in while the thread waits for readers to exit. */
+Do not use its fields directly! */
 
+/** The structure used in the spin lock implementation of a read-write
+lock. Several threads may have a shared lock simultaneously in this
+lock, but only one writer may have an exclusive lock, in which case no
+shared locks are allowed. To prevent starving of a writer blocked by
+readers, a writer may queue for x-lock by decrementing lock_word: no
+new readers will be let in while the thread waits for readers to
+exit. */
 struct rw_lock_struct {
 	volatile lint	lock_word;
-				/* Holds the state of the lock. */
-	volatile ulint	waiters;/* 1: there are waiters */
-	volatile ibool	recursive;/* Default value FALSE which means the lock
+				/*!< Holds the state of the lock. */
+	volatile ulint	waiters;/*!< 1: there are waiters */
+	volatile ibool	recursive;/*!< Default value FALSE which means the lock
 				is non-recursive. The value is typically set
 				to TRUE making normal rw_locks recursive. In
 				case of asynchronous IO, when a non-zero
@@ -500,59 +519,60 @@ struct rw_lock_struct {
 				This flag must be reset in x_unlock
 				functions before incrementing the lock_word */
 	volatile os_thread_id_t	writer_thread;
-				/* Thread id of writer thread. Is only
+				/*!< Thread id of writer thread. Is only
 				guaranteed to have sane and non-stale
 				value iff recursive flag is set. */
-	os_event_t	event;	/* Used by sync0arr.c for thread queueing */
+	os_event_t	event;	/*!< Used by sync0arr.c for thread queueing */
 	os_event_t	wait_ex_event;
-				/* Event for next-writer to wait on. A thread
+				/*!< Event for next-writer to wait on. A thread
 				must decrement lock_word before waiting. */
 #ifndef INNODB_RW_LOCKS_USE_ATOMICS
-	mutex_t	mutex;		/* The mutex protecting rw_lock_struct */
+	mutex_t	mutex;		/*!< The mutex protecting rw_lock_struct */
 #endif /* INNODB_RW_LOCKS_USE_ATOMICS */
 
 	UT_LIST_NODE_T(rw_lock_t) list;
-				/* All allocated rw locks are put into a
+				/*!< All allocated rw locks are put into a
 				list */
 #ifdef UNIV_SYNC_DEBUG
 	UT_LIST_BASE_NODE_T(rw_lock_debug_t) debug_list;
-				/* In the debug version: pointer to the debug
+				/*!< In the debug version: pointer to the debug
 				info list of the lock */
-	ulint	level;		/* Level in the global latching order. */
+	ulint	level;		/*!< Level in the global latching order. */
 #endif /* UNIV_SYNC_DEBUG */
-	ulint count_os_wait;	/* Count of os_waits. May not be accurate */
-	const char*	cfile_name;/* File name where lock created */
+	ulint count_os_wait;	/*!< Count of os_waits. May not be accurate */
+	const char*	cfile_name;/*!< File name where lock created */
         /* last s-lock file/line is not guaranteed to be correct */
-	const char*	last_s_file_name;/* File name where last s-locked */
-	const char*	last_x_file_name;/* File name where last x-locked */
+	const char*	last_s_file_name;/*!< File name where last s-locked */
+	const char*	last_x_file_name;/*!< File name where last x-locked */
 	ibool		writer_is_wait_ex;
-				/* This is TRUE if the writer field is
+				/*!< This is TRUE if the writer field is
 				RW_LOCK_WAIT_EX; this field is located far
 				from the memory update hotspot fields which
 				are at the start of this struct, thus we can
 				peek this field without causing much memory
 				bus traffic */
-	unsigned	cline:14;	/* Line where created */
-	unsigned	last_s_line:14;	/* Line number where last time s-locked */
-	unsigned	last_x_line:14;	/* Line number where last time x-locked */
-	ulint	magic_n;
+	unsigned	cline:14;	/*!< Line where created */
+	unsigned	last_s_line:14;	/*!< Line number where last time s-locked */
+	unsigned	last_x_line:14;	/*!< Line number where last time x-locked */
+	ulint	magic_n;	/*!< RW_LOCK_MAGIC_N */
 };
 
+/** Value of rw_lock_struct::magic_n */
 #define	RW_LOCK_MAGIC_N	22643
 
 #ifdef UNIV_SYNC_DEBUG
-/* The structure for storing debug info of an rw-lock */
+/** The structure for storing debug info of an rw-lock */
 struct	rw_lock_debug_struct {
 
-	os_thread_id_t thread_id;  /* The thread id of the thread which
+	os_thread_id_t thread_id;  /*!< The thread id of the thread which
 				locked the rw-lock */
-	ulint	pass;		/* Pass value given in the lock operation */
-	ulint	lock_type;	/* Type of the lock: RW_LOCK_EX,
+	ulint	pass;		/*!< Pass value given in the lock operation */
+	ulint	lock_type;	/*!< Type of the lock: RW_LOCK_EX,
 				RW_LOCK_SHARED, RW_LOCK_WAIT_EX */
-	const char*	file_name;/* File name where the lock was obtained */
-	ulint	line;		/* Line where the rw-lock was locked */
+	const char*	file_name;/*!< File name where the lock was obtained */
+	ulint	line;		/*!< Line where the rw-lock was locked */
 	UT_LIST_NODE_T(rw_lock_debug_t) list;
-				/* Debug structs are linked in a two-way
+				/*!< Debug structs are linked in a two-way
 				list */
 };
 #endif /* UNIV_SYNC_DEBUG */

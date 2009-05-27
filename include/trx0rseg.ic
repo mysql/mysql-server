@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/trx0rseg.ic
 Rollback segment
 
 Created 3/26/1996 Heikki Tuuri
@@ -24,7 +25,7 @@ Created 3/26/1996 Heikki Tuuri
 
 #include "srv0srv.h"
 
-/**********************************************************************
+/******************************************************************//**
 Gets a rollback segment header.
 @return	rollback segment header, page x-latched */
 UNIV_INLINE
@@ -48,7 +49,7 @@ trx_rsegf_get(
 	return(header);
 }
 
-/**********************************************************************
+/******************************************************************//**
 Gets a newly created rollback segment header.
 @return	rollback segment header, page x-latched */
 UNIV_INLINE
@@ -72,7 +73,7 @@ trx_rsegf_get_new(
 	return(header);
 }
 
-/*******************************************************************
+/***************************************************************//**
 Gets the file page number of the nth undo log slot.
 @return	page number of the undo log segment */
 UNIV_INLINE
@@ -94,7 +95,7 @@ trx_rsegf_get_nth_undo(
 			      + n * TRX_RSEG_SLOT_SIZE, MLOG_4BYTES, mtr));
 }
 
-/*******************************************************************
+/***************************************************************//**
 Sets the file page number of the nth undo log slot. */
 UNIV_INLINE
 void
@@ -116,7 +117,7 @@ trx_rsegf_set_nth_undo(
 			 page_no, MLOG_4BYTES, mtr);
 }
 
-/********************************************************************
+/****************************************************************//**
 Looks for a free slot for an undo log segment.
 @return	slot index or ULINT_UNDEFINED if not found */
 UNIV_INLINE

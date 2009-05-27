@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file row/row0row.c
 General row routines
 
 Created 4/20/1996 Heikki Tuuri
@@ -46,7 +47,7 @@ Created 4/20/1996 Heikki Tuuri
 #include "read0read.h"
 #include "ut0mem.h"
 
-/*************************************************************************
+/*********************************************************************//**
 Gets the offset of trx id field, in bytes relative to the origin of
 a clustered index record.
 @return	offset of DATA_TRX_ID */
@@ -75,10 +76,12 @@ row_get_trx_id_offset(
 	return(offset);
 }
 
-/*********************************************************************
+/*****************************************************************//**
 When an insert or purge to a table is performed, this function builds
 the entry to be inserted into or purged from an index on the table.
-@return	index entry which should be inserted or purged, or NULL if the externally stored columns in the clustered index record are unavailable and ext != NULL */
+@return index entry which should be inserted or purged, or NULL if the
+externally stored columns in the clustered index record are
+unavailable and ext != NULL */
 UNIV_INTERN
 dtuple_t*
 row_build_index_entry(
@@ -163,7 +166,7 @@ row_build_index_entry(
 	return(entry);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 An inverse function to row_build_index_entry. Builds a row from a
 record in a clustered index.
 @return	own: row built; see the NOTE below! */
@@ -306,9 +309,10 @@ row_build(
 	return(row);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Converts an index record to a typed data tuple.
-@return	index entry built; does not set info_bits, and the data fields in the entry will point directly to rec */
+@return index entry built; does not set info_bits, and the data fields
+in the entry will point directly to rec */
 UNIV_INTERN
 dtuple_t*
 row_rec_to_index_entry_low(
@@ -363,7 +367,7 @@ row_rec_to_index_entry_low(
 	return(entry);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Converts an index record to a typed data tuple. NOTE that externally
 stored (often big) fields are NOT copied to heap.
 @return	own: index entry built; see the NOTE below! */
@@ -415,7 +419,7 @@ row_rec_to_index_entry(
 	return(entry);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Builds from a secondary index record a row reference with which we can
 search the clustered index record.
 @return	own: row reference built; see the NOTE below! */
@@ -526,7 +530,7 @@ row_build_row_ref(
 	return(ref);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Builds from a secondary index record a row reference with which we can
 search the clustered index record. */
 UNIV_INTERN
@@ -639,7 +643,7 @@ notfound:
 	}
 }
 
-/***********************************************************************
+/*******************************************************************//**
 From a row build a row reference with which we can search the clustered
 index record. */
 UNIV_INTERN
@@ -700,7 +704,7 @@ row_build_row_ref_from_row(
 	ut_ad(dtuple_check_typed(ref));
 }
 
-/*******************************************************************
+/***************************************************************//**
 Searches the clustered index record for a row, if we have the row reference.
 @return	TRUE if found */
 UNIV_INTERN
@@ -743,7 +747,7 @@ row_search_on_row_ref(
 	return(TRUE);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Fetches the clustered index record for a secondary index record. The latches
 on the secondary index record are preserved.
 @return	record or NULL, if no record found */
@@ -785,7 +789,7 @@ row_get_clust_rec(
 	return(clust_rec);
 }
 
-/*******************************************************************
+/***************************************************************//**
 Searches an index record.
 @return	whether the record was found or buffered */
 UNIV_INTERN
@@ -820,6 +824,11 @@ row_search_index_entry(
 	case BTR_CUR_DELETE_IBUF:
 	case BTR_CUR_INSERT_TO_IBUF:
 		return(ROW_BUFFERED);
+
+	case BTR_CUR_HASH:
+	case BTR_CUR_HASH_FAIL:
+	case BTR_CUR_BINARY:
+		break;
 	}
 
 	low_match = btr_pcur_get_low_match(pcur);
@@ -841,7 +850,7 @@ row_search_index_entry(
 
 #include <my_sys.h>
 
-/***********************************************************************
+/*******************************************************************//**
 Formats the raw data in "data" (in InnoDB on-disk format) that is of
 type DATA_INT using "prtype" and writes the result to "buf".
 If the data is in unknown format, then nothing is written to "buf",
@@ -895,7 +904,7 @@ row_raw_format_int(
 	return(ut_min(ret, buf_size));
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Formats the raw data in "data" (in InnoDB on-disk format) that is of
 type DATA_(CHAR|VARCHAR|MYSQL|VARMYSQL) using "prtype" and writes the
 result to "buf".
@@ -949,13 +958,13 @@ row_raw_format_str(
 					  buf, buf_size));
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Formats the raw data in "data" (in InnoDB on-disk format) using
 "dict_field" and writes the result to "buf".
 Not more than "buf_size" bytes are written to "buf".
-The result is always '\0'-terminated (provided buf_size > 0) and the
+The result is always NUL-terminated (provided buf_size is positive) and the
 number of bytes that were written to "buf" is returned (including the
-terminating '\0').
+terminating NUL).
 @return	number of bytes that were written */
 UNIV_INTERN
 ulint

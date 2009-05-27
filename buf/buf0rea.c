@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file buf/buf0rea.c
 The database buffer read
 
 Created 11/5/1995 Heikki Tuuri
@@ -35,36 +36,36 @@ Created 11/5/1995 Heikki Tuuri
 #include "trx0sys.h"
 #include "os0file.h"
 #include "srv0start.h"
+#include "srv0srv.h"
 
-extern ulint srv_read_ahead_rnd;
-extern ulint srv_read_ahead_seq;
-extern ulint srv_buf_pool_reads;
-
-/* The size in blocks of the area where the random read-ahead algorithm counts
+/** The size in blocks of the area where the random read-ahead algorithm counts
 the accessed pages when deciding whether to read-ahead */
 #define	BUF_READ_AHEAD_RANDOM_AREA	BUF_READ_AHEAD_AREA
 
-/* There must be at least this many pages in buf_pool in the area to start
+/** There must be at least this many pages in buf_pool in the area to start
 a random read-ahead */
 #define BUF_READ_AHEAD_RANDOM_THRESHOLD	(5 + buf_read_ahead_random_area / 8)
 
-/* The linear read-ahead area size */
+/** The linear read-ahead area size */
 #define	BUF_READ_AHEAD_LINEAR_AREA	BUF_READ_AHEAD_AREA
 
-/* The linear read-ahead threshold */
+/** The linear read-ahead threshold */
 #define LINEAR_AREA_THRESHOLD_COEF	5 / 8
 
-/* If there are buf_pool->curr_size per the number below pending reads, then
+/** If there are buf_pool->curr_size per the number below pending reads, then
 read-ahead is not done: this is to prevent flooding the buffer pool with
 i/o-fixed buffer blocks */
 #define BUF_READ_AHEAD_PEND_LIMIT	2
 
-/************************************************************************
+/********************************************************************//**
 Low-level function which reads a page asynchronously from a file to the
 buffer buf_pool if it is not already there, in which case does nothing.
 Sets the io_fix flag and sets an exclusive lock on the buffer frame. The
 flag is cleared and the x-lock released by an i/o-handler thread.
-@return	1 if a read request was queued, 0 if the page already resided in buf_pool, or if the page is in the doublewrite buffer blocks in which case it is never read into the pool, or if the tablespace does not exist or is being dropped */
+@return 1 if a read request was queued, 0 if the page already resided
+in buf_pool, or if the page is in the doublewrite buffer blocks in
+which case it is never read into the pool, or if the tablespace does
+not exist or is being dropped */
 static
 ulint
 buf_read_page_low(
@@ -166,7 +167,7 @@ buf_read_page_low(
 	return(1);
 }
 
-/************************************************************************
+/********************************************************************//**
 Applies a random read-ahead in buf_pool if there are at least a threshold
 value of accessed pages from the random read-ahead area. Does not read any
 page, not even the one at the position (space, offset), if the read-ahead
@@ -176,7 +177,9 @@ end up waiting for these latches! NOTE 2: the calling thread must want
 access to the page given: this rule is set to prevent unintended read-aheads
 performed by ibuf routines, a situation which could result in a deadlock if
 the OS does not support asynchronous i/o.
-@return	number of page read requests issued; NOTE that if we read ibuf pages, it may happen that the page at the given page number does not get read even if we return a value > 0! */
+@return number of page read requests issued; NOTE that if we read ibuf
+pages, it may happen that the page at the given page number does not
+get read even if we return a positive value! */
 static
 ulint
 buf_read_ahead_random(
@@ -320,13 +323,14 @@ read_ahead:
 	return(count);
 }
 
-/************************************************************************
+/********************************************************************//**
 High-level function which reads a page asynchronously from a file to the
 buffer buf_pool if it is not already there. Sets the io_fix flag and sets
 an exclusive lock on the buffer frame. The flag is cleared and the x-lock
 released by the i/o-handler thread. Does a random read-ahead if it seems
 sensible.
-@return	number of page read requests issued: this can be > 1 if read-ahead occurred */
+@return number of page read requests issued: this can be greater than
+1 if read-ahead occurred */
 UNIV_INTERN
 ulint
 buf_read_page(
@@ -370,7 +374,7 @@ buf_read_page(
 	return(count + count2);
 }
 
-/************************************************************************
+/********************************************************************//**
 Applies linear read-ahead if in the buf_pool the page is a border page of
 a linear read-ahead area and all the pages in the area have been accessed.
 Does not read any page if the read-ahead mechanism is not activated. Note
@@ -637,7 +641,7 @@ buf_read_ahead_linear(
 	return(count);
 }
 
-/************************************************************************
+/********************************************************************//**
 Issues read requests for pages which the ibuf module wants to read in, in
 order to contract the insert buffer tree. Technically, this function is like
 a read-ahead function. */
@@ -715,7 +719,7 @@ tablespace_deleted:
 #endif /* UNIV_DEBUG */
 }
 
-/************************************************************************
+/********************************************************************//**
 Issues read requests for pages which recovery wants to read in. */
 UNIV_INTERN
 void
