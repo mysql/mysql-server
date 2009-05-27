@@ -209,7 +209,7 @@ ibuf_count_check(
 }
 #endif
 
-/** Offsets in bits for the bits describing a single page in the bitmap */
+/** @name Offsets to the per-page bits in the insert buffer bitmap */
 /* @{ */
 #define	IBUF_BITMAP_FREE	0	/*!< Bits indicating the
 					amount of free space */
