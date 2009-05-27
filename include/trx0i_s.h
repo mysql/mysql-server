@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/trx0i_s.h
 INFORMATION SCHEMA innodb_trx, innodb_locks and
 innodb_lock_waits tables cache structures and public
 functions.
@@ -31,82 +32,109 @@ Created July 17, 2007 Vasil Dimov
 #include "trx0types.h"
 #include "ut0ut.h"
 
-/* the maximum amount of memory that can be consumed by innodb_trx,
+/** The maximum amount of memory that can be consumed by innodb_trx,
 innodb_locks and innodb_lock_waits information schema tables. */
 #define TRX_I_S_MEM_LIMIT		16777216 /* 16 MiB */
 
-/* the maximum length of a string that can be stored in
+/** The maximum length of a string that can be stored in
 i_s_locks_row_t::lock_data */
 #define TRX_I_S_LOCK_DATA_MAX_LEN	8192
 
-/* the maximum length of a string that can be stored in
+/** The maximum length of a string that can be stored in
 i_s_trx_row_t::trx_query */
 #define TRX_I_S_TRX_QUERY_MAX_LEN	1024
 
+/** A row of INFORMATION_SCHEMA.innodb_locks */
 typedef struct i_s_locks_row_struct	i_s_locks_row_t;
+/** A row of INFORMATION_SCHEMA.innodb_trx */
+typedef struct i_s_trx_row_struct i_s_trx_row_t;
+/** A row of INFORMATION_SCHEMA.innodb_lock_waits */
+typedef struct i_s_lock_waits_row_struct i_s_lock_waits_row_t;
+
+/** Objects of trx_i_s_cache_t::locks_hash */
 typedef struct i_s_hash_chain_struct	i_s_hash_chain_t;
 
-/* Objects of this type are added to the hash table
+/** Objects of this type are added to the hash table
 trx_i_s_cache_t::locks_hash */
 struct i_s_hash_chain_struct {
-	i_s_locks_row_t*	value;
-	i_s_hash_chain_t*	next;
+	i_s_locks_row_t*	value;	/*!< row of
+					INFORMATION_SCHEMA.innodb_locks*/
+	i_s_hash_chain_t*	next;	/*!< next item in the hash chain */
 };
 
-/* This structure represents INFORMATION_SCHEMA.innodb_locks row */
+/** This structure represents INFORMATION_SCHEMA.innodb_locks row */
 struct i_s_locks_row_struct {
-	ullint		lock_trx_id;
-	const char*	lock_mode;
-	const char*	lock_type;
-	const char*	lock_table;
-	const char*	lock_index;
-	ulint		lock_space;
-	ulint		lock_page;
-	ulint		lock_rec;
-	const char*	lock_data;
+	ullint		lock_trx_id;	/*!< transaction identifier */
+	const char*	lock_mode;	/*!< lock mode from
+					lock_get_mode_str() */
+	const char*	lock_type;	/*!< lock type from
+					lock_get_type_str() */
+	const char*	lock_table;	/*!< table name from
+					lock_get_table_name() */
+	const char*	lock_index;	/*!< index name from
+					lock_rec_get_index_name() */
+	/** Information for record locks.  All these are
+	ULINT_UNDEFINED for table locks. */
+	/* @{ */
+	ulint		lock_space;	/*!< tablespace identifier */
+	ulint		lock_page;	/*!< page number within the_space */
+	ulint		lock_rec;	/*!< heap number of the record
+					on the page */
+	const char*	lock_data;	/*!< (some) content of the record */
+	/* @} */
 
-	/* The following are auxiliary and not included in the table */
+	/** The following are auxiliary and not included in the table */
+	/* @{ */
 	ullint		lock_table_id;
-	i_s_hash_chain_t hash_chain; /* this object is added to the hash
-				    table
-				    trx_i_s_cache_t::locks_hash */
+					/*!< table identifier from
+					lock_get_table_id */
+	i_s_hash_chain_t hash_chain;	/*!< hash table chain node for
+					trx_i_s_cache_t::locks_hash */
+	/* @} */
 };
 
-/* This structure represents INFORMATION_SCHEMA.innodb_trx row */
-typedef struct i_s_trx_row_struct {
-	ullint			trx_id;
-	const char*		trx_state;
-	ib_time_t		trx_started;
+/** This structure represents INFORMATION_SCHEMA.innodb_trx row */
+struct i_s_trx_row_struct {
+	ullint			trx_id;		/*!< transaction identifier */
+	const char*		trx_state;	/*!< transaction state from
+						trx_get_que_state_str() */
+	ib_time_t		trx_started;	/*!< trx_struct::start_time */
 	const i_s_locks_row_t*	requested_lock_row;
+						/*!< pointer to a row
+						in innodb_locks if trx
+						is waiting, or NULL */
 	ib_time_t		trx_wait_started;
-	ullint			trx_weight;
+						/*!< trx_struct::wait_started */
+	ullint			trx_weight;	/*!< TRX_WEIGHT() */
 	ulint			trx_mysql_thread_id;
-	const char*		trx_query;
-} i_s_trx_row_t;
+						/*!< thd_get_thread_id() */
+	const char*		trx_query;	/*!< MySQL statement being
+						executed in the transaction */
+};
 
-/* This structure represents INFORMATION_SCHEMA.innodb_lock_waits row */
-typedef struct i_s_lock_waits_row_struct {
-	const i_s_locks_row_t*	requested_lock_row;
-	const i_s_locks_row_t*	blocking_lock_row;
-} i_s_lock_waits_row_t;
+/** This structure represents INFORMATION_SCHEMA.innodb_lock_waits row */
+struct i_s_lock_waits_row_struct {
+	const i_s_locks_row_t*	requested_lock_row;	/*!< requested lock */
+	const i_s_locks_row_t*	blocking_lock_row;	/*!< blocking lock */
+};
 
-/* This type is opaque and is defined in trx/trx0i_s.c */
+/** Cache of INFORMATION_SCHEMA table data */
 typedef struct trx_i_s_cache_struct	trx_i_s_cache_t;
 
-/* Auxiliary enum used by functions that need to select one of the
+/** Auxiliary enum used by functions that need to select one of the
 INFORMATION_SCHEMA tables */
 enum i_s_table {
-	I_S_INNODB_TRX,
-	I_S_INNODB_LOCKS,
-	I_S_INNODB_LOCK_WAITS
+	I_S_INNODB_TRX,		/*!< INFORMATION_SCHEMA.innodb_trx */
+	I_S_INNODB_LOCKS,	/*!< INFORMATION_SCHEMA.innodb_locks */
+	I_S_INNODB_LOCK_WAITS	/*!< INFORMATION_SCHEMA.innodb_lock_waits */
 };
 
-/* This is the intermediate buffer where data needed to fill the
+/** This is the intermediate buffer where data needed to fill the
 INFORMATION SCHEMA tables is fetched and later retrieved by the C++
 code in handler/i_s.cc. */
 extern trx_i_s_cache_t*	trx_i_s_cache;
 
-/***********************************************************************
+/*******************************************************************//**
 Initialize INFORMATION SCHEMA trx related cache. */
 UNIV_INTERN
 void
@@ -114,7 +142,7 @@ trx_i_s_cache_init(
 /*===============*/
 	trx_i_s_cache_t*	cache);	/*!< out: cache to init */
 
-/***********************************************************************
+/*******************************************************************//**
 Issue a shared/read lock on the tables cache. */
 UNIV_INTERN
 void
@@ -122,7 +150,7 @@ trx_i_s_cache_start_read(
 /*=====================*/
 	trx_i_s_cache_t*	cache);	/*!< in: cache */
 
-/***********************************************************************
+/*******************************************************************//**
 Release a shared/read lock on the tables cache. */
 UNIV_INTERN
 void
@@ -130,7 +158,7 @@ trx_i_s_cache_end_read(
 /*===================*/
 	trx_i_s_cache_t*	cache);	/*!< in: cache */
 
-/***********************************************************************
+/*******************************************************************//**
 Issue an exclusive/write lock on the tables cache. */
 UNIV_INTERN
 void
@@ -138,7 +166,7 @@ trx_i_s_cache_start_write(
 /*======================*/
 	trx_i_s_cache_t*	cache);	/*!< in: cache */
 
-/***********************************************************************
+/*******************************************************************//**
 Release an exclusive/write lock on the tables cache. */
 UNIV_INTERN
 void
@@ -147,7 +175,7 @@ trx_i_s_cache_end_write(
 	trx_i_s_cache_t*	cache);	/*!< in: cache */
 
 
-/***********************************************************************
+/*******************************************************************//**
 Retrieves the number of used rows in the cache for a given
 INFORMATION SCHEMA table.
 @return	number of rows */
@@ -158,7 +186,7 @@ trx_i_s_cache_get_rows_used(
 	trx_i_s_cache_t*	cache,	/*!< in: cache */
 	enum i_s_table		table);	/*!< in: which table */
 
-/***********************************************************************
+/*******************************************************************//**
 Retrieves the nth row in the cache for a given INFORMATION SCHEMA
 table.
 @return	row */
@@ -170,7 +198,7 @@ trx_i_s_cache_get_nth_row(
 	enum i_s_table		table,	/*!< in: which table */
 	ulint			n);	/*!< in: row number */
 
-/***********************************************************************
+/*******************************************************************//**
 Update the transactions cache if it has not been read for some time.
 @return	0 - fetched, 1 - not */
 UNIV_INTERN
@@ -179,7 +207,7 @@ trx_i_s_possibly_fetch_data_into_cache(
 /*===================================*/
 	trx_i_s_cache_t*	cache);	/*!< in/out: cache */
 
-/***********************************************************************
+/*******************************************************************//**
 Returns TRUE if the data in the cache is truncated due to the memory
 limit posed by TRX_I_S_MEM_LIMIT.
 @return	TRUE if truncated */
@@ -189,12 +217,12 @@ trx_i_s_cache_is_truncated(
 /*=======================*/
 	trx_i_s_cache_t*	cache);	/*!< in: cache */
 
-/* The maximum length of a resulting lock_id_size in
-trx_i_s_create_lock_id(), not including the terminating '\0'.
+/** The maximum length of a resulting lock_id_size in
+trx_i_s_create_lock_id(), not including the terminating NUL.
 ":%lu:%lu:%lu" -> 63 chars */
 #define TRX_I_S_LOCK_ID_MAX_LEN	(TRX_ID_MAX_LEN + 63)
 
-/***********************************************************************
+/*******************************************************************//**
 Crafts a lock id string from a i_s_locks_row_t object. Returns its
 second argument. This function aborts if there is not enough space in
 lock_id. Be sure to provide at least TRX_I_S_LOCK_ID_MAX_LEN + 1 if you

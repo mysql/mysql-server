@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/que0que.ic
 Query graph
 
 Created 5/27/1996 Heikki Tuuri
@@ -24,7 +25,7 @@ Created 5/27/1996 Heikki Tuuri
 
 #include "usr0sess.h"
 
-/***************************************************************************
+/***********************************************************************//**
 Gets the trx of a query thread. */
 UNIV_INLINE
 trx_t*
@@ -37,7 +38,7 @@ thr_get_trx(
 	return(thr->graph->trx);
 }
 
-/***************************************************************************
+/***********************************************************************//**
 Gets the first thr in a fork. */
 UNIV_INLINE
 que_thr_t*
@@ -48,7 +49,7 @@ que_fork_get_first_thr(
 	return(UT_LIST_GET_FIRST(fork->thrs));
 }
 
-/***************************************************************************
+/***********************************************************************//**
 Gets the child node of the first thr in a fork. */
 UNIV_INLINE
 que_node_t*
@@ -63,7 +64,7 @@ que_fork_get_child(
 	return(thr->child);
 }
 
-/***************************************************************************
+/***********************************************************************//**
 Gets the type of a graph node. */
 UNIV_INLINE
 ulint
@@ -76,7 +77,7 @@ que_node_get_type(
 	return(((que_common_t*)node)->type);
 }
 
-/***************************************************************************
+/***********************************************************************//**
 Gets pointer to the value dfield of a graph node. */
 UNIV_INLINE
 dfield_t*
@@ -89,7 +90,7 @@ que_node_get_val(
 	return(&(((que_common_t*)node)->val));
 }
 
-/***************************************************************************
+/***********************************************************************//**
 Gets the value buffer size of a graph node.
 @return	val buffer size, not defined if val.data == NULL in node */
 UNIV_INLINE
@@ -103,7 +104,7 @@ que_node_get_val_buf_size(
 	return(((que_common_t*)node)->val_buf_size);
 }
 
-/***************************************************************************
+/***********************************************************************//**
 Sets the value buffer size of a graph node. */
 UNIV_INLINE
 void
@@ -117,7 +118,7 @@ que_node_set_val_buf_size(
 	((que_common_t*)node)->val_buf_size = size;
 }
 
-/***************************************************************************
+/***********************************************************************//**
 Sets the parent of a graph node. */
 UNIV_INLINE
 void
@@ -131,7 +132,7 @@ que_node_set_parent(
 	((que_common_t*)node)->parent = parent;
 }
 
-/***************************************************************************
+/***********************************************************************//**
 Gets pointer to the value data type field of a graph node. */
 UNIV_INLINE
 dtype_t*
@@ -144,7 +145,7 @@ que_node_get_data_type(
 	return(dfield_get_type(&((que_common_t*) node)->val));
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Catenates a query graph node to a list of them, possible empty list.
 @return	one-way list of nodes */
 UNIV_INLINE
@@ -177,7 +178,7 @@ que_node_list_add_last(
 	return(node_list);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Gets the next list node in a list of query graph nodes.
 @return	next node in a list of nodes */
 UNIV_INLINE
@@ -189,7 +190,7 @@ que_node_get_next(
 	return(((que_common_t*)node)->brother);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Gets a query graph node list length.
 @return	length, for NULL list 0 */
 UNIV_INLINE
@@ -212,7 +213,7 @@ que_node_list_get_len(
 	return(len);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Gets the parent node of a query graph node.
 @return	parent node or NULL */
 UNIV_INLINE
@@ -224,10 +225,12 @@ que_node_get_parent(
 	return(((que_common_t*)node)->parent);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Checks if graph, trx, or session is in a state where the query thread should
 be stopped.
-@return	TRUE if should be stopped; NOTE that if the peek is made without reserving the kernel mutex, then another peek with the mutex reserved is necessary before deciding the actual stopping */
+@return TRUE if should be stopped; NOTE that if the peek is made
+without reserving the kernel mutex, then another peek with the mutex
+reserved is necessary before deciding the actual stopping */
 UNIV_INLINE
 ibool
 que_thr_peek_stop(
@@ -251,7 +254,7 @@ que_thr_peek_stop(
 	return(FALSE);
 }
 
-/***************************************************************************
+/***********************************************************************//**
 Returns TRUE if the query graph is for a SELECT statement.
 @return	TRUE if a select */
 UNIV_INLINE

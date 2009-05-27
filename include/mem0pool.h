@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/mem0pool.h
 The lowest-level memory management
 
 Created 6/9/1994 Heikki Tuuri
@@ -29,28 +30,30 @@ Created 6/9/1994 Heikki Tuuri
 #include "os0file.h"
 #include "ut0lst.h"
 
+/** Memory area header */
 typedef struct mem_area_struct	mem_area_t;
+/** Memory pool */
 typedef struct mem_pool_struct	mem_pool_t;
 
-/* The common memory pool */
+/** The common memory pool */
 extern mem_pool_t*	mem_comm_pool;
 
-/* Memory area header */
+/** Memory area header */
 
 struct mem_area_struct{
-	ulint		size_and_free;	/* memory area size is obtained by
+	ulint		size_and_free;	/*!< memory area size is obtained by
 					anding with ~MEM_AREA_FREE; area in
 					a free list if ANDing with
 					MEM_AREA_FREE results in nonzero */
 	UT_LIST_NODE_T(mem_area_t)
-			free_list;	/* free list node */
+			free_list;	/*!< free list node */
 };
 
-/* Each memory area takes this many extra bytes for control information */
+/** Each memory area takes this many extra bytes for control information */
 #define MEM_AREA_EXTRA_SIZE	(ut_calc_align(sizeof(struct mem_area_struct),\
 			UNIV_MEM_ALIGNMENT))
 
-/************************************************************************
+/********************************************************************//**
 Creates a memory pool.
 @return	memory pool */
 UNIV_INTERN
@@ -58,7 +61,7 @@ mem_pool_t*
 mem_pool_create(
 /*============*/
 	ulint	size);	/*!< in: pool size in bytes */
-/************************************************************************
+/********************************************************************//**
 Allocates memory from a pool. NOTE: This low-level function should only be
 used in mem0mem.*!
 @return	own: allocated memory buffer */
@@ -72,7 +75,7 @@ mem_area_alloc(
 				out: allocated size in bytes (greater than
 				or equal to the requested size) */
 	mem_pool_t*	pool);	/*!< in: memory pool */
-/************************************************************************
+/********************************************************************//**
 Frees memory to a pool. */
 UNIV_INTERN
 void
@@ -81,7 +84,7 @@ mem_area_free(
 	void*		ptr,	/*!< in, own: pointer to allocated memory
 				buffer */
 	mem_pool_t*	pool);	/*!< in: memory pool */
-/************************************************************************
+/********************************************************************//**
 Returns the amount of reserved memory.
 @return	reserved mmeory in bytes */
 UNIV_INTERN
@@ -89,19 +92,19 @@ ulint
 mem_pool_get_reserved(
 /*==================*/
 	mem_pool_t*	pool);	/*!< in: memory pool */
-/************************************************************************
+/********************************************************************//**
 Reserves the mem pool mutex. */
 UNIV_INTERN
 void
 mem_pool_mutex_enter(void);
 /*======================*/
-/************************************************************************
+/********************************************************************//**
 Releases the mem pool mutex. */
 UNIV_INTERN
 void
 mem_pool_mutex_exit(void);
 /*=====================*/
-/************************************************************************
+/********************************************************************//**
 Validates a memory pool.
 @return	TRUE if ok */
 UNIV_INTERN
@@ -109,7 +112,7 @@ ibool
 mem_pool_validate(
 /*==============*/
 	mem_pool_t*	pool);	/*!< in: memory pool */
-/************************************************************************
+/********************************************************************//**
 Prints info of a memory pool. */
 UNIV_INTERN
 void

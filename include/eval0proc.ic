@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/eval0proc.ic
 Executes SQL stored procedures and their control structures
 
 Created 1/20/1998 Heikki Tuuri
@@ -26,7 +27,7 @@ Created 1/20/1998 Heikki Tuuri
 #include "que0que.h"
 #include "eval0eval.h"
 
-/**************************************************************************
+/**********************************************************************//**
 Performs an execution step of a procedure node.
 @return	query thread to run next or NULL */
 UNIV_INLINE
@@ -61,7 +62,7 @@ proc_step(
 	return(thr);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Performs an execution step of a procedure call node.
 @return	query thread to run next or NULL */
 UNIV_INLINE

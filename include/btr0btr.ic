@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/btr0btr.ic
 The B-tree
 
 Created 6/2/1994 Heikki Tuuri
@@ -28,9 +29,13 @@ Created 6/2/1994 Heikki Tuuri
 #include "mtr0log.h"
 #include "page0zip.h"
 
-#define BTR_MAX_NODE_LEVEL	50	/* used in debug checking */
+#define BTR_MAX_NODE_LEVEL	50	/*!< Maximum B-tree page level
+					(not really a hard limit).
+					Used in debug assertions
+					in btr_page_set_level and
+					btr_page_get_level_low */
 
-/******************************************************************
+/**************************************************************//**
 Gets a buffer page and declares its latching order level. */
 UNIV_INLINE
 buf_block_t*
@@ -55,7 +60,7 @@ btr_block_get(
 	return(block);
 }
 
-/******************************************************************
+/**************************************************************//**
 Gets a buffer page and declares its latching order level. */
 UNIV_INLINE
 page_t*
@@ -72,7 +77,7 @@ btr_page_get(
 						 mode, mtr)));
 }
 
-/******************************************************************
+/**************************************************************//**
 Sets the index id field of a page. */
 UNIV_INLINE
 void
@@ -96,7 +101,7 @@ btr_page_set_index_id(
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/******************************************************************
+/**************************************************************//**
 Gets the index id field of a page.
 @return	index id */
 UNIV_INLINE
@@ -109,7 +114,7 @@ btr_page_get_index_id(
 }
 
 #ifndef UNIV_HOTBACKUP
-/************************************************************
+/********************************************************//**
 Gets the node level field in an index page.
 @return	level, leaf level == 0 */
 UNIV_INLINE
@@ -129,7 +134,7 @@ btr_page_get_level_low(
 	return(level);
 }
 
-/************************************************************
+/********************************************************//**
 Gets the node level field in an index page.
 @return	level, leaf level == 0 */
 UNIV_INLINE
@@ -145,7 +150,7 @@ btr_page_get_level(
 	return(btr_page_get_level_low(page));
 }
 
-/************************************************************
+/********************************************************//**
 Sets the node level field in an index page. */
 UNIV_INLINE
 void
@@ -171,7 +176,7 @@ btr_page_set_level(
 	}
 }
 
-/************************************************************
+/********************************************************//**
 Gets the next index page number.
 @return	next page number */
 UNIV_INLINE
@@ -189,7 +194,7 @@ btr_page_get_next(
 	return(mach_read_from_4(page + FIL_PAGE_NEXT));
 }
 
-/************************************************************
+/********************************************************//**
 Sets the next index page field. */
 UNIV_INLINE
 void
@@ -211,7 +216,7 @@ btr_page_set_next(
 	}
 }
 
-/************************************************************
+/********************************************************//**
 Gets the previous index page number.
 @return	prev page number */
 UNIV_INLINE
@@ -226,7 +231,7 @@ btr_page_get_prev(
 	return(mach_read_from_4(page + FIL_PAGE_PREV));
 }
 
-/************************************************************
+/********************************************************//**
 Sets the previous index page field. */
 UNIV_INLINE
 void
@@ -248,7 +253,7 @@ btr_page_set_prev(
 	}
 }
 
-/******************************************************************
+/**************************************************************//**
 Gets the child node file address in a node pointer.
 @return	child node address */
 UNIV_INLINE
@@ -283,7 +288,7 @@ btr_node_ptr_get_child_page_no(
 	return(page_no);
 }
 
-/******************************************************************
+/**************************************************************//**
 Releases the latches on a leaf page and bufferunfixes it. */
 UNIV_INLINE
 void

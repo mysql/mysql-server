@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/row0umod.h
 Undo modify of a row
 
 Created 2/27/1997 Heikki Tuuri
@@ -33,7 +34,7 @@ Created 2/27/1997 Heikki Tuuri
 #include "row0types.h"
 #include "mtr0mtr.h"
 
-/***************************************************************
+/***********************************************************//**
 Undoes a modify operation on a row of a table.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN

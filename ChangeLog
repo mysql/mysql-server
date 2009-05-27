@@ -1,3 +1,10 @@
+2009-05-27	The InnoDB Team
+
+	* Doxyfile:
+	Allow the extraction of documentation from the code base with the
+	Doxygen tool.  Convert and add many (but not yet all) comments to
+	Doxygen format.
+
 2009-05-19	The InnoDB Team
 
 	* btr/btr0btr.c, btr/btr0cur.c, lock/lock0lock.c,

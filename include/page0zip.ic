@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/page0zip.ic
 Compressed page interface
 
 Created June 2005 by Marko Makela
@@ -108,7 +109,7 @@ In summary, the compressed page looks like this:
 /* 'deleted' flag */
 #define PAGE_ZIP_DIR_SLOT_DEL	0x8000
 
-/**************************************************************************
+/**********************************************************************//**
 Determine the size of a compressed page in bytes.
 @return	size in bytes */
 UNIV_INLINE
@@ -130,7 +131,7 @@ page_zip_get_size(
 
 	return(size);
 }
-/**************************************************************************
+/**********************************************************************//**
 Set the size of a compressed page in bytes. */
 UNIV_INLINE
 void
@@ -156,7 +157,7 @@ page_zip_set_size(
 }
 
 #ifndef UNIV_HOTBACKUP
-/**************************************************************************
+/**********************************************************************//**
 Determine if a record is so big that it needs to be stored externally.
 @return	FALSE if the entire record can be stored locally on the page */
 UNIV_INLINE
@@ -197,7 +198,7 @@ page_zip_rec_needs_ext(
 #endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_DEBUG
-/**************************************************************************
+/**********************************************************************//**
 Validate a compressed page descriptor.
 @return	TRUE if ok */
 UNIV_INLINE
@@ -219,9 +220,10 @@ page_zip_simple_validate(
 }
 #endif /* UNIV_DEBUG */
 
-/**************************************************************************
+/**********************************************************************//**
 Determine if the length of the page trailer.
-@return	length of the page trailer, in bytes, not including the terminating zero byte of the modification log */
+@return length of the page trailer, in bytes, not including the
+terminating zero byte of the modification log */
 UNIV_INLINE
 ibool
 page_zip_get_trailer_len(
@@ -257,9 +259,10 @@ page_zip_get_trailer_len(
 	       + page_zip->n_blobs * BTR_EXTERN_FIELD_REF_SIZE);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Determine how big record can be inserted without recompressing the page.
-@return	a positive number indicating the maximum size of a record whose insertion is guaranteed to succeed, or zero or negative */
+@return a positive number indicating the maximum size of a record
+whose insertion is guaranteed to succeed, or zero or negative */
 UNIV_INLINE
 lint
 page_zip_max_ins_size(
@@ -287,7 +290,7 @@ page_zip_max_ins_size(
 	       - (REC_N_NEW_EXTRA_BYTES - 2));
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Determine if enough space is available in the modification log.
 @return	TRUE if enough space is available */
 UNIV_INLINE
@@ -329,7 +332,7 @@ page_zip_available(
 			   < page_zip_get_size(page_zip)));
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Initialize a compressed page descriptor. */
 UNIV_INLINE
 void
@@ -341,7 +344,7 @@ page_zip_des_init(
 	memset(page_zip, 0, sizeof *page_zip);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Write a log record of writing to the uncompressed header portion of a page. */
 UNIV_INTERN
 void
@@ -351,7 +354,7 @@ page_zip_write_header_log(
 	ulint		length,	/*!< in: length of the data */
 	mtr_t*		mtr);	/*!< in: mini-transaction */
 
-/**************************************************************************
+/**********************************************************************//**
 Write data to the uncompressed header portion of a page.  The data must
 already have been written to the uncompressed page.
 However, the data portion of the uncompressed page may differ from

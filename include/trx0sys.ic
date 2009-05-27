@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/trx0sys.ic
 Transaction system
 
 Created 3/26/1996 Heikki Tuuri
@@ -43,14 +44,14 @@ typedef byte	trx_sysf_rseg_t;
 /* Size of a rollback segment specification slot */
 #define TRX_SYS_RSEG_SLOT_SIZE	8
 
-/*********************************************************************
+/*****************************************************************//**
 Writes the value of max_trx_id to the file based trx system header. */
 UNIV_INTERN
 void
 trx_sys_flush_max_trx_id(void);
 /*==========================*/
 
-/*******************************************************************
+/***************************************************************//**
 Checks if a page address is the trx sys header page.
 @return	TRUE if trx sys header page */
 UNIV_INLINE
@@ -68,7 +69,7 @@ trx_sys_hdr_page(
 	return(FALSE);
 }
 
-/*******************************************************************
+/***************************************************************//**
 Gets the pointer in the nth slot of the rseg array.
 @return	pointer to rseg object, NULL if slot not in use */
 UNIV_INLINE
@@ -84,7 +85,7 @@ trx_sys_get_nth_rseg(
 	return(sys->rseg_array[n]);
 }
 
-/*******************************************************************
+/***************************************************************//**
 Sets the pointer in the nth slot of the rseg array. */
 UNIV_INLINE
 void
@@ -100,7 +101,7 @@ trx_sys_set_nth_rseg(
 	sys->rseg_array[n] = rseg;
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Gets a pointer to the transaction system header and x-latches its page.
 @return	pointer to system header, page x-latched. */
 UNIV_INLINE
@@ -123,7 +124,7 @@ trx_sysf_get(
 	return(header);
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Gets the space of the nth rollback segment slot in the trx system
 file copy.
 @return	space id */
@@ -144,7 +145,7 @@ trx_sysf_rseg_get_space(
 			      + TRX_SYS_RSEG_SPACE, MLOG_4BYTES, mtr));
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Gets the page number of the nth rollback segment slot in the trx system
 header.
 @return	page number, FIL_NULL if slot unused */
@@ -165,7 +166,7 @@ trx_sysf_rseg_get_page_no(
 			      + TRX_SYS_RSEG_PAGE_NO, MLOG_4BYTES, mtr));
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Sets the space id of the nth rollback segment slot in the trx system
 file copy. */
 UNIV_INLINE
@@ -188,7 +189,7 @@ trx_sysf_rseg_set_space(
 			 MLOG_4BYTES, mtr);
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Sets the page number of the nth rollback segment slot in the trx system
 header. */
 UNIV_INLINE
@@ -213,7 +214,7 @@ trx_sysf_rseg_set_page_no(
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/*********************************************************************
+/*****************************************************************//**
 Writes a trx id to an index page. In case that the id size changes in
 some future version, this function should be used instead of
 mach_write_... */
@@ -231,7 +232,7 @@ trx_write_trx_id(
 }
 
 #ifndef UNIV_HOTBACKUP
-/*********************************************************************
+/*****************************************************************//**
 Reads a trx id from an index page. In case that the id size changes in
 some future version, this function should be used instead of
 mach_read_...
@@ -248,7 +249,7 @@ trx_read_trx_id(
 	return(mach_read_from_6(ptr));
 }
 
-/********************************************************************
+/****************************************************************//**
 Looks for the trx handle with the given id in trx_list.
 @return	the trx handle or NULL if not found */
 UNIV_INLINE
@@ -275,7 +276,7 @@ trx_get_on_id(
 	return(NULL);
 }
 
-/********************************************************************
+/****************************************************************//**
 Returns the minumum trx id in trx list. This is the smallest id for which
 the trx can possibly be active. (But, you must look at the trx->conc_state to
 find out if the minimum trx id transaction itself is active, or already
@@ -300,7 +301,7 @@ trx_list_get_min_trx_id(void)
 	return(trx->id);
 }
 
-/********************************************************************
+/****************************************************************//**
 Checks if a transaction with the given id is active.
 @return	TRUE if active */
 UNIV_INLINE
@@ -338,7 +339,7 @@ trx_is_active(
 	return(FALSE);
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Allocates a new transaction id.
 @return	new, allocated trx id */
 UNIV_INLINE
@@ -370,7 +371,7 @@ trx_sys_get_new_trx_id(void)
 	return(id);
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Allocates a new transaction number.
 @return	new, allocated trx number */
 UNIV_INLINE

@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file row/row0vers.c
 Row versions
 
 Created 2/6/1997 Heikki Tuuri
@@ -45,11 +46,11 @@ Created 2/6/1997 Heikki Tuuri
 #include "read0read.h"
 #include "lock0lock.h"
 
-/*********************************************************************
+/*****************************************************************//**
 Finds out if an active transaction has inserted or modified a secondary
 index record. NOTE: the kernel mutex is temporarily released in this
 function!
-@return	NULL if committed, else the active transaction; NOTE that the kernel mutex is temporarily released! */
+@return NULL if committed, else the active transaction */
 UNIV_INTERN
 trx_t*
 row_vers_impl_x_locked_off_kernel(
@@ -296,7 +297,7 @@ exit_func:
 	return(trx);
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Finds out if we must preserve a delete marked earlier version of a clustered
 index record, because it is >= the purge view.
 @return	TRUE if earlier version should be preserved */
@@ -326,7 +327,7 @@ row_vers_must_preserve_del_marked(
 	return(FALSE);
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Finds out if a version of the record, where the version >= the current
 purge view, should have ientry as its secondary index entry. We check
 if there is any not delete marked version of the record where the trx
@@ -468,7 +469,7 @@ row_vers_old_has_index_entry(
 	}
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Constructs the version of a clustered index record which a consistent
 read should see. We assume that the trx id stored in rec is such that
 the consistent read should not see rec in its present version.
@@ -601,7 +602,7 @@ row_vers_build_for_consistent_read(
 	return(err);
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Constructs the last committed version of a clustered index record,
 which should be seen by a semi-consistent read.
 @return	DB_SUCCESS or DB_MISSING_HISTORY */

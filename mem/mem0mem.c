@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/************************************************************************
+/********************************************************************//**
+@file mem/mem0mem.c
 The memory management
 
 Created 6/9/1994 Heikki Tuuri
@@ -97,7 +98,7 @@ UT_LIST_BASE_NODE_T(mem_block_t)	mem_block_list;
 
 #endif
 
-/**************************************************************************
+/**********************************************************************//**
 Duplicates a NUL-terminated string, allocated from a memory heap.
 @return	own: a copy of the string */
 UNIV_INTERN
@@ -110,7 +111,7 @@ mem_heap_strdup(
 	return(mem_heap_dup(heap, str, strlen(str) + 1));
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Duplicate a block of data, allocated from a memory heap.
 @return	own: a copy of the data */
 UNIV_INTERN
@@ -124,7 +125,7 @@ mem_heap_dup(
 	return(memcpy(mem_heap_alloc(heap, len), data, len));
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Concatenate two memory blocks and return the result, using a memory heap.
 @return	own: the result */
 UNIV_INTERN
@@ -145,7 +146,7 @@ mem_heap_cat(
 	return(res);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Concatenate two strings and return the result, using a memory heap.
 @return	own: the result */
 UNIV_INTERN
@@ -171,7 +172,7 @@ mem_heap_strcat(
 }
 
 
-/********************************************************************
+/****************************************************************//**
 Helper function for mem_heap_printf.
 @return	length of formatted string, including terminating NUL */
 static
@@ -280,7 +281,7 @@ mem_heap_printf_low(
 	return(len);
 }
 
-/********************************************************************
+/****************************************************************//**
 A simple (s)printf replacement that dynamically allocates the space for the
 formatted string from the given heap. This supports a very limited set of
 the printf syntax: types 's' and 'u' and length modifier 'l' (which is
@@ -313,9 +314,10 @@ mem_heap_printf(
 	return(str);
 }
 
-/*******************************************************************
+/***************************************************************//**
 Creates a memory heap block where data can be allocated.
-@return	own: memory heap block, NULL if did not succeed (only possible for MEM_HEAP_BTR_SEARCH type heaps) */
+@return own: memory heap block, NULL if did not succeed (only possible
+for MEM_HEAP_BTR_SEARCH type heaps) */
 UNIV_INTERN
 mem_block_t*
 mem_heap_create_block(
@@ -421,9 +423,10 @@ mem_heap_create_block(
 	return(block);
 }
 
-/*******************************************************************
+/***************************************************************//**
 Adds a new block to a memory heap.
-@return	created block, NULL if did not succeed (only possible for MEM_HEAP_BTR_SEARCH type heaps) */
+@return created block, NULL if did not succeed (only possible for
+MEM_HEAP_BTR_SEARCH type heaps) */
 UNIV_INTERN
 mem_block_t*
 mem_heap_add_block(
@@ -475,7 +478,7 @@ mem_heap_add_block(
 	return(new_block);
 }
 
-/**********************************************************************
+/******************************************************************//**
 Frees a block from a memory heap. */
 UNIV_INTERN
 void
@@ -536,7 +539,7 @@ mem_heap_block_free(
 }
 
 #ifndef UNIV_HOTBACKUP
-/**********************************************************************
+/******************************************************************//**
 Frees the free_block field from a memory heap. */
 UNIV_INTERN
 void
@@ -554,7 +557,7 @@ mem_heap_free_block_free(
 #endif /* !UNIV_HOTBACKUP */
 
 #ifdef MEM_PERIODIC_CHECK
-/**********************************************************************
+/******************************************************************//**
 Goes through the list of all allocated mem blocks, checks their magic
 numbers, and reports possible corruption. */
 UNIV_INTERN

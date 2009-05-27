@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/*******************************************************************
+/***************************************************************//**
+@file ut/ut0rnd.c
 Random numbers and hashing
 
 Created 5/11/1994 Heikki Tuuri
@@ -28,15 +29,17 @@ Created 5/11/1994 Heikki Tuuri
 #include "ut0rnd.ic"
 #endif
 
-/* These random numbers are used in ut_find_prime */
+/** These random numbers are used in ut_find_prime */
+/*@{*/
 #define	UT_RANDOM_1	1.0412321
 #define	UT_RANDOM_2	1.1131347
 #define UT_RANDOM_3	1.0132677
+/*@}*/
 
-
+/** Seed value of ut_rnd_gen_ulint(). */
 UNIV_INTERN ulint	ut_rnd_ulint_counter = 65654363;
 
-/***************************************************************
+/***********************************************************//**
 Looks for a prime number slightly greater than the given argument.
 The prime is chosen so that it is not near any power of 2.
 @return	prime */

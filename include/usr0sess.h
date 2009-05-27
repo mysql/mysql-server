@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/usr0sess.h
 Sessions
 
 Created 6/25/1996 Heikki Tuuri
@@ -35,14 +36,14 @@ Created 6/25/1996 Heikki Tuuri
 #include "data0data.h"
 #include "rem0rec.h"
 
-/*************************************************************************
+/*********************************************************************//**
 Opens a session.
 @return	own: session object */
 UNIV_INTERN
 sess_t*
 sess_open(void);
 /*============*/
-/*************************************************************************
+/*********************************************************************//**
 Closes a session, freeing the memory occupied by it, if it is in a state
 where it should be closed.
 @return	TRUE if closed */
@@ -54,14 +55,14 @@ sess_try_close(
 
 /* The session handle. All fields are protected by the kernel mutex */
 struct sess_struct{
-	ulint		state;		/* state of the session */
-	trx_t*		trx;		/* transaction object permanently
+	ulint		state;		/*!< state of the session */
+	trx_t*		trx;		/*!< transaction object permanently
 					assigned for the session: the
 					transaction instance designated by the
 					trx id changes, but the memory
 					structure is preserved */
 	UT_LIST_BASE_NODE_T(que_t)
-			graphs;		/* query graphs belonging to this
+			graphs;		/*!< query graphs belonging to this
 					session */
 };
 

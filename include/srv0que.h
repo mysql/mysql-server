@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/srv0que.h
 Server query execution
 
 Created 6/5/1996 Heikki Tuuri
@@ -28,7 +29,7 @@ Created 6/5/1996 Heikki Tuuri
 #include "univ.i"
 #include "que0types.h"
 
-/**************************************************************************
+/**********************************************************************//**
 Checks if there is work to do in the server task queue. If there is, the
 thread starts processing a task. Before leaving, it again checks the task
 queue and picks a new task if any exists. This is called by a SRV_WORKER
@@ -37,7 +38,7 @@ UNIV_INTERN
 void
 srv_que_task_queue_check(void);
 /*==========================*/
-/**************************************************************************
+/**********************************************************************//**
 Performs round-robin on the server tasks. This is called by a SRV_WORKER
 thread every second or so.
 @return	the new (may be == thr) query thread to run */
@@ -46,7 +47,7 @@ que_thr_t*
 srv_que_round_robin(
 /*================*/
 	que_thr_t*	thr);	/*!< in: query thread */
-/**************************************************************************
+/**********************************************************************//**
 Enqueues a task to server task queue and releases a worker thread, if
 there exists one suspended. */
 UNIV_INTERN
@@ -54,7 +55,7 @@ void
 srv_que_task_enqueue(
 /*=================*/
 	que_thr_t*	thr);	/*!< in: query thread */
-/**************************************************************************
+/**********************************************************************//**
 Enqueues a task to server task queue and releases a worker thread, if
 there exists one suspended. */
 UNIV_INTERN

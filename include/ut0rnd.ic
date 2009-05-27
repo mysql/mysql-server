@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************************
+/**************************************************************//**
+@file include/ut0rnd.ic
 Random numbers and hashing
 
 Created 5/30/1994 Heikki Tuuri
@@ -34,9 +35,10 @@ Created 5/30/1994 Heikki Tuuri
 #define UT_XOR_RND1		187678878
 #define UT_XOR_RND2		143537923
 
+/** Seed value of ut_rnd_gen_ulint() */
 extern	ulint	 ut_rnd_ulint_counter;
 
-/************************************************************
+/********************************************************//**
 This is used to set the random number seed. */
 UNIV_INLINE
 void
@@ -47,7 +49,7 @@ ut_rnd_set_seed(
 	ut_rnd_ulint_counter = seed;
 }
 
-/************************************************************
+/********************************************************//**
 The following function generates a series of 'random' ulint integers.
 @return	the next 'random' number */
 UNIV_INLINE
@@ -71,7 +73,7 @@ ut_rnd_gen_next_ulint(
 	return(rnd);
 }
 
-/************************************************************
+/********************************************************//**
 The following function generates 'random' ulint integers which
 enumerate the value space of ulint integers in a pseudo random
 fashion. Note that the same integer is repeated always after
@@ -94,7 +96,7 @@ ut_rnd_gen_ulint(void)
 	return(rnd);
 }
 
-/************************************************************
+/********************************************************//**
 Generates a random integer from a given interval.
 @return	the 'random' number */
 UNIV_INLINE
@@ -118,7 +120,7 @@ ut_rnd_interval(
 	return(low + (rnd % (high - low + 1)));
 }
 
-/*************************************************************
+/*********************************************************//**
 Generates a random iboolean value.
 @return	the random value */
 UNIV_INLINE
@@ -138,7 +140,7 @@ ut_rnd_gen_ibool(void)
 	return(FALSE);
 }
 
-/***********************************************************
+/*******************************************************//**
 The following function generates a hash value for a ulint integer
 to a hash table of size table_size, which should be a prime
 or some random number for the hash table to work reliably.
@@ -155,7 +157,7 @@ ut_hash_ulint(
 	return(key % table_size);
 }
 
-/*****************************************************************
+/*************************************************************//**
 Folds a pair of ulints.
 @return	folded value */
 UNIV_INLINE
@@ -169,7 +171,7 @@ ut_fold_ulint_pair(
 		^ UT_HASH_RANDOM_MASK) + n2);
 }
 
-/*****************************************************************
+/*************************************************************//**
 Folds a dulint.
 @return	folded value */
 UNIV_INLINE
@@ -182,7 +184,7 @@ ut_fold_dulint(
 				  ut_dulint_get_high(d)));
 }
 
-/*****************************************************************
+/*************************************************************//**
 Folds a character string ending in the null character.
 @return	folded value */
 UNIV_INLINE
@@ -203,7 +205,7 @@ ut_fold_string(
 	return(fold);
 }
 
-/*****************************************************************
+/*************************************************************//**
 Folds a binary string.
 @return	folded value */
 UNIV_INLINE

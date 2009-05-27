@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file log/log0recv.c
 Recovery
 
 Created 9/20/1997 Heikki Tuuri
@@ -50,31 +51,40 @@ Created 9/20/1997 Heikki Tuuri
 # include "sync0sync.h"
 #else /* !UNIV_HOTBACKUP */
 
-/* This is set to FALSE if the backup was originally taken with the
+/** This is set to FALSE if the backup was originally taken with the
 ibbackup --include regexp option: then we do not want to create tables in
 directories which were not included */
 UNIV_INTERN ibool	recv_replay_file_ops	= TRUE;
 #endif /* !UNIV_HOTBACKUP */
 
-/* Log records are stored in the hash table in chunks at most of this size;
+/** Log records are stored in the hash table in chunks at most of this size;
 this must be less than UNIV_PAGE_SIZE as it is stored in the buffer pool */
 #define RECV_DATA_BLOCK_SIZE	(MEM_MAX_ALLOC_IN_BUF - sizeof(recv_data_t))
 
-/* Read-ahead area in applying log records to file pages */
+/** Read-ahead area in applying log records to file pages */
 #define RECV_READ_AHEAD_AREA	32
 
+/** The recovery system */
 UNIV_INTERN recv_sys_t*	recv_sys = NULL;
+/** TRUE when applying redo log records during crash recovery; FALSE
+otherwise.  Note that this is FALSE while a background thread is
+rolling back incomplete transactions. */
 UNIV_INTERN ibool	recv_recovery_on = FALSE;
 #ifdef UNIV_LOG_ARCHIVE
+/** TRUE when applying redo log records from an archived log file */
 UNIV_INTERN ibool	recv_recovery_from_backup_on = FALSE;
 #endif /* UNIV_LOG_ARCHIVE */
 
 #ifndef UNIV_HOTBACKUP
+/** TRUE when recv_init_crash_recovery() has been called. */
 UNIV_INTERN ibool	recv_needed_recovery = FALSE;
 
+/** TRUE if buf_page_is_corrupted() should check if the log sequence
+number (FIL_PAGE_LSN) is in the future.  Initially FALSE, and set by
+recv_recovery_from_checkpoint_start_func(). */
 UNIV_INTERN ibool	recv_lsn_checks_on = FALSE;
 
-/* There are two conditions under which we scan the logs, the first
+/** There are two conditions under which we scan the logs, the first
 is normal startup and the second is when we do a recovery from an
 archive.
 This flag is set if we are doing a scan from the last checkpoint during
@@ -82,56 +92,61 @@ startup. If we find log entries that were written after the last checkpoint
 we know that the server was not cleanly shutdown. We must then initialize
 the crash recovery environment before attempting to store these entries in
 the log hash table. */
-UNIV_INTERN ibool	recv_log_scan_is_startup_type = FALSE;
+static ibool		recv_log_scan_is_startup_type = FALSE;
 
-/* If the following is TRUE, the buffer pool file pages must be invalidated
+/** If the following is TRUE, the buffer pool file pages must be invalidated
 after recovery and no ibuf operations are allowed; this becomes TRUE if
 the log record hash table becomes too full, and log records must be merged
 to file pages already before the recovery is finished: in this case no
 ibuf operations are allowed, as they could modify the pages read in the
-buffer pool before the pages have been recovered to the up-to-date state */
+buffer pool before the pages have been recovered to the up-to-date state.
 
-/* Recovery is running and no operations on the log files are allowed
-yet: the variable name is misleading */
-
+TRUE means that recovery is running and no operations on the log files
+are allowed yet: the variable name is misleading. */
 UNIV_INTERN ibool	recv_no_ibuf_operations = FALSE;
+/** TRUE when the redo log is being backed up */
 # define recv_is_making_a_backup		FALSE
+/** TRUE when recovering from a backed up redo log file */
 # define recv_is_from_backup			FALSE
 #else /* !UNIV_HOTBACKUP */
 # define recv_needed_recovery			FALSE
+/** TRUE when the redo log is being backed up */
 UNIV_INTERN ibool	recv_is_making_a_backup = FALSE;
+/** TRUE when recovering from a backed up redo log file */
 UNIV_INTERN ibool	recv_is_from_backup	= FALSE;
 # define buf_pool_get_curr_size() (5 * 1024 * 1024)
 #endif /* !UNIV_HOTBACKUP */
-/* The following counter is used to decide when to print info on
+/** The following counter is used to decide when to print info on
 log scan */
-UNIV_INTERN ulint	recv_scan_print_counter	= 0;
+static ulint	recv_scan_print_counter	= 0;
 
-UNIV_INTERN ulint	recv_previous_parsed_rec_type	= 999999;
-UNIV_INTERN ulint	recv_previous_parsed_rec_offset	= 0;
-UNIV_INTERN ulint	recv_previous_parsed_rec_is_multi = 0;
+/** The type of the previous parsed redo log record */
+static ulint	recv_previous_parsed_rec_type	= 999999;
+/** The offset of the previous parsed redo log record */
+static ulint	recv_previous_parsed_rec_offset	= 0;
+/** The 'multi' flag of the previous parsed redo log record */
+static ulint	recv_previous_parsed_rec_is_multi = 0;
 
+/** Maximum page number encountered in the redo log */
 UNIV_INTERN ulint	recv_max_parsed_page_no		= 0;
 
-/* This many frames must be left free in the buffer pool when we scan
+/** This many frames must be left free in the buffer pool when we scan
 the log and store the scanned log records in the buffer pool: we will
 use these free frames to read in pages when we start applying the
 log records to the database.
 This is the default value. If the actual size of the buffer pool is
 larger than 10 MB we'll set this value to 512. */
-
 UNIV_INTERN ulint	recv_n_pool_free_frames		= 256;
 
-/* The maximum lsn we see for a page during the recovery process. If this
+/** The maximum lsn we see for a page during the recovery process. If this
 is bigger than the lsn we are able to scan up to, that is an indication that
 the recovery failed and the database may be corrupt. */
-
 UNIV_INTERN ib_uint64_t	recv_max_page_lsn;
 
 /* prototypes */
 
 #ifndef UNIV_HOTBACKUP
-/***********************************************************
+/*******************************************************//**
 Initialize crash recovery environment. Can be called iff
 recv_needed_recovery == FALSE. */
 static
@@ -140,7 +155,7 @@ recv_init_crash_recovery(void);
 /*===========================*/
 #endif /* !UNIV_HOTBACKUP */
 
-/************************************************************
+/********************************************************//**
 Creates the recovery system. */
 UNIV_INTERN
 void
@@ -160,7 +175,7 @@ recv_sys_create(void)
 	recv_sys->addr_hash = NULL;
 }
 
-/************************************************************
+/********************************************************//**
 Inits the recovery system for a recovery operation. */
 UNIV_INTERN
 void
@@ -217,7 +232,7 @@ recv_sys_init(
 	mutex_exit(&(recv_sys->mutex));
 }
 
-/************************************************************
+/********************************************************//**
 Empties the hash table when it has been fully processed. */
 static
 void
@@ -245,7 +260,7 @@ recv_sys_empty_hash(void)
 
 #ifndef UNIV_HOTBACKUP
 # ifndef UNIV_LOG_DEBUG
-/************************************************************
+/********************************************************//**
 Frees the recovery system. */
 static
 void
@@ -269,7 +284,7 @@ recv_sys_free(void)
 }
 # endif /* UNIV_LOG_DEBUG */
 
-/************************************************************
+/********************************************************//**
 Truncates possible corrupted or extra records from a log group. */
 static
 void
@@ -369,7 +384,7 @@ recv_truncate_group(
 	}
 }
 
-/************************************************************
+/********************************************************//**
 Copies the log segment between group->recovered_lsn and recovered_lsn from the
 most up-to-date log group to group, so that it contains the latest log data. */
 static
@@ -420,7 +435,7 @@ recv_copy_group(
 	}
 }
 
-/************************************************************
+/********************************************************//**
 Copies a log segment from the most up-to-date log group to the other log
 groups, so that they all contain the latest log data. Also writes the info
 about the latest checkpoint to the groups, and inits the fields in the group
@@ -489,7 +504,7 @@ recv_synchronize_groups(
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/***************************************************************************
+/***********************************************************************//**
 Checks the consistency of the checkpoint info
 @return	TRUE if ok */
 static
@@ -519,7 +534,7 @@ recv_check_cp_is_consistent(
 }
 
 #ifndef UNIV_HOTBACKUP
-/************************************************************
+/********************************************************//**
 Looks for the maximum consistent checkpoint from the log groups.
 @return	error code or DB_SUCCESS */
 static
@@ -619,7 +634,7 @@ not_consistent:
 	return(DB_SUCCESS);
 }
 #else /* !UNIV_HOTBACKUP */
-/***********************************************************************
+/*******************************************************************//**
 Reads the checkpoint info needed in hot backup.
 @return	TRUE if success */
 UNIV_INTERN
@@ -691,11 +706,12 @@ recv_read_cp_info_for_backup(
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/**********************************************************
-Checks the 4-byte checksum to the trailer checksum field of a log block.
-We also accept a log block in the old format < InnoDB-3.23.52 where the
-checksum field contains the log block number.
-@return	TRUE if ok, or if the log block may be in the format of InnoDB version < 3.23.52 */
+/******************************************************//**
+Checks the 4-byte checksum to the trailer checksum field of a log
+block.  We also accept a log block in the old format before
+InnoDB-3.23.52 where the checksum field contains the log block number.
+@return TRUE if ok, or if the log block may be in the format of InnoDB
+version predating 3.23.52 */
 static
 ibool
 log_block_checksum_is_ok_or_old_format(
@@ -727,7 +743,7 @@ log_block_checksum_is_ok_or_old_format(
 }
 
 #ifdef UNIV_HOTBACKUP
-/***********************************************************************
+/*******************************************************************//**
 Scans the log segment and n_bytes_scanned is set to the length of valid
 log scanned. */
 UNIV_INTERN
@@ -818,7 +834,7 @@ recv_scan_log_seg_for_backup(
 }
 #endif /* UNIV_HOTBACKUP */
 
-/***********************************************************************
+/*******************************************************************//**
 Tries to parse a single log record body and also applies it to a page if
 specified. File ops are parsed, but not applied in this function.
 @return	log record end, NULL if not a complete record */
@@ -1142,7 +1158,7 @@ recv_parse_or_apply_log_rec_body(
 	return(ptr);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Calculates the fold value of a page file address: used in inserting or
 searching for a log record in the hash table.
 @return	folded value */
@@ -1156,7 +1172,7 @@ recv_fold(
 	return(ut_fold_ulint_pair(space, page_no));
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Calculates the hash value of a page file address: used in inserting or
 searching for a log record in the hash table.
 @return	folded value */
@@ -1170,7 +1186,7 @@ recv_hash(
 	return(hash_calc_hash(recv_fold(space, page_no), recv_sys->addr_hash));
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Gets the hashed file address struct for a page.
 @return	file address struct, NULL if not found from the hash table */
 static
@@ -1197,7 +1213,7 @@ recv_get_fil_addr_struct(
 	return(recv_addr);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Adds a new log record to the hash table of log records. */
 static
 void
@@ -1282,7 +1298,7 @@ recv_add_to_hash_table(
 	*prev_field = NULL;
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Copies the log record body from recv to buf. */
 static
 void
@@ -1314,7 +1330,7 @@ recv_data_copy_to_buf(
 	}
 }
 
-/****************************************************************************
+/************************************************************************//**
 Applies the hashed log records to the page, if the page lsn is less than the
 lsn of a log record. This can be called when a buffer page has just been
 read in, or also for a page already in the buffer pool. */
@@ -1324,10 +1340,10 @@ recv_recover_page_func(
 /*===================*/
 #ifndef UNIV_HOTBACKUP
 	ibool		just_read_in,
-				/*!< in: TRUE if the i/o-handler calls this for
-				a freshly read page */
+				/*!< in: TRUE if the i/o handler calls
+				this for a freshly read page */
 #endif /* !UNIV_HOTBACKUP */
-	buf_block_t*	block)	/*!< in: buffer block */
+	buf_block_t*	block)	/*!< in/out: buffer block */
 {
 	page_t*		page;
 	recv_addr_t*	recv_addr;
@@ -1521,7 +1537,7 @@ recv_recover_page_func(
 }
 
 #ifndef UNIV_HOTBACKUP
-/***********************************************************************
+/*******************************************************************//**
 Reads in pages which have hashed log records, from an area around a given
 page number.
 @return	number of pages found */
@@ -1569,7 +1585,7 @@ recv_read_in_area(
 	return(n);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Empties the hash table of stored log records, applying them to appropriate
 pages. */
 UNIV_INTERN
@@ -1718,7 +1734,7 @@ loop:
 	mutex_exit(&(recv_sys->mutex));
 }
 #else /* !UNIV_HOTBACKUP */
-/***********************************************************************
+/*******************************************************************//**
 Applies log records in the hash table to a backup. */
 UNIV_INTERN
 void
@@ -1866,7 +1882,7 @@ skip_this_recv_addr:
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/***********************************************************************
+/*******************************************************************//**
 Tries to parse a single log record and returns its length.
 @return	length of the record, or 0 if the record was not complete */
 static
@@ -1936,7 +1952,7 @@ recv_parse_log_rec(
 	return(new_ptr - ptr);
 }
 
-/***********************************************************
+/*******************************************************//**
 Calculates the new value for lsn when more data is added to the log. */
 static
 ib_uint64_t
@@ -1963,7 +1979,7 @@ recv_calc_lsn_on_data_add(
 }
 
 #ifdef UNIV_LOG_DEBUG
-/***********************************************************
+/*******************************************************//**
 Checks that the parser recognizes incomplete initial segments of a log
 record as incomplete. */
 static
@@ -1986,7 +2002,7 @@ recv_check_incomplete_log_recs(
 }
 #endif /* UNIV_LOG_DEBUG */
 
-/***********************************************************
+/*******************************************************//**
 Prints diagnostic info of corrupt log. */
 static
 void
@@ -2041,7 +2057,7 @@ recv_report_corrupt_log(
 	fflush(stderr);
 }
 
-/***********************************************************
+/*******************************************************//**
 Parses log records from a buffer and stores them to a hash table to wait
 merging to file pages.
 @return	currently always returns FALSE */
@@ -2283,7 +2299,7 @@ loop:
 	goto loop;
 }
 
-/***********************************************************
+/*******************************************************//**
 Adds data from a new log block to the parsing buffer of recv_sys if
 recv_sys->parse_start_lsn is non-zero.
 @return	TRUE if more data added */
@@ -2358,7 +2374,7 @@ recv_sys_add_to_parsing_buf(
 	return(TRUE);
 }
 
-/***********************************************************
+/*******************************************************//**
 Moves the parsing buffer data left to the buffer start. */
 static
 void
@@ -2373,12 +2389,13 @@ recv_sys_justify_left_parsing_buf(void)
 	recv_sys->recovered_offset = 0;
 }
 
-/***********************************************************
+/*******************************************************//**
 Scans log from a buffer and stores new log data to the parsing buffer.
 Parses and hashes the log records if new data found.  Unless
 UNIV_HOTBACKUP is defined, this function will apply log records
 automatically when the hash table becomes full.
-@return	TRUE if limit_lsn has been reached, or not able to scan any more in this log group */
+@return TRUE if limit_lsn has been reached, or not able to scan any
+more in this log group */
 UNIV_INTERN
 ibool
 recv_scan_log_recs(
@@ -2598,7 +2615,7 @@ recv_scan_log_recs(
 }
 
 #ifndef UNIV_HOTBACKUP
-/***********************************************************
+/*******************************************************//**
 Scans log from a buffer and stores new log data to the parsing buffer. Parses
 and hashes the log records if new data found. */
 static
@@ -2644,7 +2661,7 @@ recv_group_scan_log_recs(
 #endif /* UNIV_DEBUG */
 }
 
-/***********************************************************
+/*******************************************************//**
 Initialize crash recovery environment. Can be called iff
 recv_needed_recovery == FALSE. */
 static
@@ -2685,7 +2702,7 @@ recv_init_crash_recovery(void)
 	}
 }
 
-/************************************************************
+/********************************************************//**
 Recovers from a checkpoint. When this function returns, the database is able
 to start processing of new user transactions, but the function
 recv_recovery_from_checkpoint_finish should be called later to complete
@@ -2696,7 +2713,8 @@ ulint
 recv_recovery_from_checkpoint_start_func(
 /*=====================================*/
 #ifdef UNIV_LOG_ARCHIVE
-	ulint		type,		/*!< in: LOG_CHECKPOINT or LOG_ARCHIVE */
+	ulint		type,		/*!< in: LOG_CHECKPOINT or
+					LOG_ARCHIVE */
 	ib_uint64_t	limit_lsn,	/*!< in: recover up to this lsn
 					if possible */
 #endif /* UNIV_LOG_ARCHIVE */
@@ -2721,10 +2739,14 @@ recv_recovery_from_checkpoint_start_func(
 
 #ifdef UNIV_LOG_ARCHIVE
 	ut_ad(type != LOG_CHECKPOINT || limit_lsn == IB_ULONGLONG_MAX);
+/** TRUE when recovering from a checkpoint */
 # define TYPE_CHECKPOINT	(type == LOG_CHECKPOINT)
+/** Recover up to this log sequence number */
 # define LIMIT_LSN		limit_lsn
 #else /* UNIV_LOG_ARCHIVE */
+/** TRUE when recovering from a checkpoint */
 # define TYPE_CHECKPOINT	1
+/** Recover up to this log sequence number */
 # define LIMIT_LSN		IB_ULONGLONG_MAX
 #endif /* UNIV_LOG_ARCHIVE */
 
@@ -3050,7 +3072,7 @@ recv_recovery_from_checkpoint_start_func(
 #undef LIMIT_LSN
 }
 
-/************************************************************
+/********************************************************//**
 Completes recovery from a checkpoint. */
 UNIV_INTERN
 void
@@ -3122,7 +3144,7 @@ recv_recovery_from_checkpoint_finish(void)
 	}
 }
 
-/**********************************************************
+/******************************************************//**
 Resets the logs. The contents of log files will be lost! */
 UNIV_INTERN
 void
@@ -3194,7 +3216,7 @@ recv_reset_logs(
 #endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_HOTBACKUP
-/**********************************************************
+/******************************************************//**
 Creates new log files after a backup has been restored. */
 UNIV_INTERN
 void
@@ -3286,7 +3308,7 @@ recv_reset_log_files_for_backup(
 #endif /* UNIV_HOTBACKUP */
 
 #ifdef UNIV_LOG_ARCHIVE
-/**********************************************************
+/******************************************************//**
 Reads from the archive of a log group and performs recovery.
 @return	TRUE if no more complete consistent archive files */
 static
@@ -3476,7 +3498,7 @@ ask_again:
 	return(FALSE);
 }
 
-/************************************************************
+/********************************************************//**
 Recovers from archived log files, and also from log files, if they exist.
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
@@ -3592,7 +3614,7 @@ recv_recovery_from_archive_start(
 	return(DB_SUCCESS);
 }
 
-/************************************************************
+/********************************************************//**
 Completes recovery from archive. */
 UNIV_INTERN
 void

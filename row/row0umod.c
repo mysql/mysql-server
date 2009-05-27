@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file row/row0umod.c
 Undo modify of a row
 
 Created 2/27/1997 Heikki Tuuri
@@ -57,7 +58,7 @@ delete marked clustered index record was delete unmarked and possibly also
 some of its fields were changed. Now, it is possible that the delete marked
 version has become obsolete at the time the undo is started. */
 
-/***************************************************************
+/***********************************************************//**
 Checks if also the previous version of the clustered index record was
 modified or inserted by the same transaction, and its undo number is such
 that it should be undone in the same rollback.
@@ -87,7 +88,7 @@ row_undo_mod_undo_also_prev_vers(
 	return(ut_dulint_cmp(trx->roll_limit, *undo_no) <= 0);
 }
 
-/***************************************************************
+/***********************************************************//**
 Undoes a modify in a clustered index record.
 @return	DB_SUCCESS, DB_FAIL, or error code: we may run out of file space */
 static
@@ -141,7 +142,7 @@ row_undo_mod_clust_low(
 	return(err);
 }
 
-/***************************************************************
+/***********************************************************//**
 Removes a clustered index record after undo if possible.
 @return	DB_SUCCESS, DB_FAIL, or error code: we may run out of file space */
 static
@@ -203,7 +204,7 @@ row_undo_mod_remove_clust_low(
 	return(err);
 }
 
-/***************************************************************
+/***********************************************************//**
 Undoes a modify in a clustered index record. Sets also the node state for the
 next round of undo.
 @return	DB_SUCCESS or error code: we may run out of file space */
@@ -292,7 +293,7 @@ row_undo_mod_clust(
 	return(err);
 }
 
-/***************************************************************
+/***********************************************************//**
 Delete marks or removes a secondary index entry if found.
 @return	DB_SUCCESS, DB_FAIL, or DB_OUT_OF_FILE_SPACE */
 static
@@ -404,7 +405,7 @@ func_exit:
 	return(err);
 }
 
-/***************************************************************
+/***********************************************************//**
 Delete marks or removes a secondary index entry if found.
 NOTE that if we updated the fields of a delete-marked secondary index record
 so that alphabetically they stayed the same, e.g., 'abc' -> 'aBc', we cannot
@@ -436,7 +437,7 @@ row_undo_mod_del_mark_or_remove_sec(
 	return(err);
 }
 
-/***************************************************************
+/***********************************************************//**
 Delete unmarks a secondary index entry which must be found. It might not be
 delete-marked at the moment, but it does not harm to unmark it anyway. We also
 need to update the fields of the secondary index record if we updated its
@@ -544,7 +545,7 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 	return(err);
 }
 
-/***************************************************************
+/***********************************************************//**
 Undoes a modify in secondary indexes when undo record type is UPD_DEL.
 @return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 static
@@ -597,7 +598,7 @@ row_undo_mod_upd_del_sec(
 	return(err);
 }
 
-/***************************************************************
+/***********************************************************//**
 Undoes a modify in secondary indexes when undo record type is DEL_MARK.
 @return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 static
@@ -642,7 +643,7 @@ row_undo_mod_del_mark_sec(
 	return(DB_SUCCESS);
 }
 
-/***************************************************************
+/***********************************************************//**
 Undoes a modify in secondary indexes when undo record type is UPD_EXIST.
 @return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 static
@@ -728,7 +729,7 @@ row_undo_mod_upd_exist_sec(
 	return(DB_SUCCESS);
 }
 
-/***************************************************************
+/***********************************************************//**
 Parses the row reference and other info in a modify undo log record. */
 static
 void
@@ -788,7 +789,7 @@ row_undo_mod_parse_undo_rec(
 	node->cmpl_info = cmpl_info;
 }
 
-/***************************************************************
+/***********************************************************//**
 Undoes a modify operation on a row of a table.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN

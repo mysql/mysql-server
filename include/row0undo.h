@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/row0undo.h
 Row undo
 
 Created 1/8/1997 Heikki Tuuri
@@ -35,7 +36,7 @@ Created 1/8/1997 Heikki Tuuri
 #include "que0types.h"
 #include "row0types.h"
 
-/************************************************************************
+/********************************************************************//**
 Creates a row undo node to a query graph.
 @return	own: undo node */
 UNIV_INTERN
@@ -45,18 +46,19 @@ row_undo_node_create(
 	trx_t*		trx,	/*!< in: transaction */
 	que_thr_t*	parent,	/*!< in: parent node, i.e., a thr node */
 	mem_heap_t*	heap);	/*!< in: memory heap where created */
-/***************************************************************
+/***********************************************************//**
 Looks for the clustered index record when node has the row reference.
 The pcur in node is used in the search. If found, stores the row to node,
 and stores the position of pcur, and detaches it. The pcur must be closed
 by the caller in any case.
-@return	TRUE if found; NOTE the node->pcur must be closed by the caller, regardless of the return value */
+@return TRUE if found; NOTE the node->pcur must be closed by the
+caller, regardless of the return value */
 UNIV_INTERN
 ibool
 row_undo_search_clust_to_pcur(
 /*==========================*/
 	undo_node_t*	node);	/*!< in: row undo node */
-/***************************************************************
+/***********************************************************//**
 Undoes a row operation in a table. This is a high-level function used
 in SQL execution graphs.
 @return	query thread to run next or NULL */
@@ -81,50 +83,56 @@ just in the case where the transaction modified the same record several times
 and another thread is currently doing the undo for successive versions of
 that index record. */
 
-/* Undo node structure */
+/** Execution state of an undo node */
+enum undo_exec {
+	UNDO_NODE_FETCH_NEXT = 1,	/*!< we should fetch the next
+					undo log record */
+	UNDO_NODE_PREV_VERS,		/*!< the roll ptr to previous
+					version of a row is stored in
+					node, and undo should be done
+					based on it */
+	UNDO_NODE_INSERT,		/*!< undo a fresh insert of a
+					row to a table */
+	UNDO_NODE_MODIFY		/*!< undo a modify operation
+					(DELETE or UPDATE) on a row
+					of a table */
+};
 
+/** Undo node structure */
 struct undo_node_struct{
-	que_common_t	common;	/* node type: QUE_NODE_UNDO */
-	ulint		state;	/* node execution state */
-	trx_t*		trx;	/* trx for which undo is done */
-	roll_ptr_t	roll_ptr;/* roll pointer to undo log record */
-	trx_undo_rec_t*	undo_rec;/* undo log record */
-	undo_no_t	undo_no;/* undo number of the record */
-	ulint		rec_type;/* undo log record type: TRX_UNDO_INSERT_REC,
+	que_common_t	common;	/*!< node type: QUE_NODE_UNDO */
+	enum undo_exec	state;	/*!< node execution state */
+	trx_t*		trx;	/*!< trx for which undo is done */
+	roll_ptr_t	roll_ptr;/*!< roll pointer to undo log record */
+	trx_undo_rec_t*	undo_rec;/*!< undo log record */
+	undo_no_t	undo_no;/*!< undo number of the record */
+	ulint		rec_type;/*!< undo log record type: TRX_UNDO_INSERT_REC,
 				... */
-	roll_ptr_t	new_roll_ptr; /* roll ptr to restore to clustered index
+	roll_ptr_t	new_roll_ptr;
+				/*!< roll ptr to restore to clustered index
 				record */
-	trx_id_t	new_trx_id; /* trx id to restore to clustered index
+	trx_id_t	new_trx_id; /*!< trx id to restore to clustered index
 				record */
-	btr_pcur_t	pcur;	/* persistent cursor used in searching the
+	btr_pcur_t	pcur;	/*!< persistent cursor used in searching the
 				clustered index record */
-	dict_table_t*	table;	/* table where undo is done */
-	ulint		cmpl_info;/* compiler analysis of an update */
-	upd_t*		update;	/* update vector for a clustered index
+	dict_table_t*	table;	/*!< table where undo is done */
+	ulint		cmpl_info;/*!< compiler analysis of an update */
+	upd_t*		update;	/*!< update vector for a clustered index
 				record */
-	dtuple_t*	ref;	/* row reference to the next row to handle */
-	dtuple_t*	row;	/* a copy (also fields copied to heap) of the
+	dtuple_t*	ref;	/*!< row reference to the next row to handle */
+	dtuple_t*	row;	/*!< a copy (also fields copied to heap) of the
 				row to handle */
-	row_ext_t*	ext;	/* NULL, or prefixes of the externally
+	row_ext_t*	ext;	/*!< NULL, or prefixes of the externally
 				stored columns of the row */
-	dtuple_t*	undo_row;/* NULL, or the row after undo */
-	row_ext_t*	undo_ext;/* NULL, or prefixes of the externally
+	dtuple_t*	undo_row;/*!< NULL, or the row after undo */
+	row_ext_t*	undo_ext;/*!< NULL, or prefixes of the externally
 				stored columns of undo_row */
-	dict_index_t*	index;	/* the next index whose record should be
+	dict_index_t*	index;	/*!< the next index whose record should be
 				handled */
-	mem_heap_t*	heap;	/* memory heap used as auxiliary storage for
+	mem_heap_t*	heap;	/*!< memory heap used as auxiliary storage for
 				row; this must be emptied after undo is tried
 				on a row */
 };
-
-/* Execution states for an undo node */
-#define	UNDO_NODE_FETCH_NEXT	1	/* we should fetch the next undo log
-					record */
-#define	UNDO_NODE_PREV_VERS	2	/* the roll ptr to previous version of
-					a row is stored in node, and undo
-					should be done based on it */
-#define UNDO_NODE_INSERT	3
-#define UNDO_NODE_MODIFY	4
 
 
 #ifndef UNIV_NONINL

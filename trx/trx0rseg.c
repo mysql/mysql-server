@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file trx/trx0rseg.c
 Rollback segment
 
 Created 3/26/1996 Heikki Tuuri
@@ -33,7 +34,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "srv0srv.h"
 #include "trx0purge.h"
 
-/**********************************************************************
+/******************************************************************//**
 Looks for a rollback segment, based on the rollback segment id.
 @return	rollback segment */
 UNIV_INTERN
@@ -55,7 +56,7 @@ trx_rseg_get_on_id(
 	return(rseg);
 }
 
-/********************************************************************
+/****************************************************************//**
 Creates a rollback segment header. This function is called only when
 a new rollback segment is created in the database.
 @return	page number of the created segment, FIL_NULL if fail */
@@ -130,7 +131,7 @@ trx_rseg_header_create(
 	return(page_no);
 }
 
-/***************************************************************************
+/***********************************************************************//**
 Creates and initializes a rollback segment object. The values for the
 fields are read from the header. The object is inserted to the rseg
 list of the trx system object and a pointer is inserted in the rseg
@@ -206,7 +207,7 @@ trx_rseg_mem_create(
 	return(rseg);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Creates the memory copies for rollback segments and initializes the
 rseg list and array in trx_sys at a database startup. */
 UNIV_INTERN
@@ -243,7 +244,7 @@ trx_rseg_list_and_array_init(
 	}
 }
 
-/********************************************************************
+/****************************************************************//**
 Creates a new rollback segment to the database.
 @return	the created segment object, NULL if fail */
 UNIV_INTERN

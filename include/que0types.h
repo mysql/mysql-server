@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/que0types.h
 Query graph global types
 
 Created 5/27/1996 Heikki Tuuri
@@ -43,10 +44,10 @@ typedef struct que_common_struct	que_common_t;
 substruct must be 'common' */
 
 struct que_common_struct{
-	ulint		type;	/* query node type */
-	que_node_t*	parent;	/* back pointer to parent node, or NULL */
+	ulint		type;	/*!< query node type */
+	que_node_t*	parent;	/*!< back pointer to parent node, or NULL */
 	que_node_t*	brother;/* pointer to a possible brother node */
-	dfield_t	val;	/* evaluated value for an expression */
+	dfield_t	val;	/*!< evaluated value for an expression */
 	ulint		val_buf_size;
 				/* buffer size for the evaluated value data,
 				if the buffer has been allocated dynamically:

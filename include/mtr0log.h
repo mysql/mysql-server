@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/mtr0log.h
 Mini-transaction logging routines
 
 Created 12/7/1995 Heikki Tuuri
@@ -30,7 +31,7 @@ Created 12/7/1995 Heikki Tuuri
 #include "dict0types.h"
 
 #ifndef UNIV_HOTBACKUP
-/************************************************************
+/********************************************************//**
 Writes 1 - 4 bytes to a file page buffered in the buffer pool.
 Writes the corresponding log record to the mini-transaction log. */
 UNIV_INTERN
@@ -41,7 +42,7 @@ mlog_write_ulint(
 	ulint	val,	/*!< in: value to write */
 	byte	type,	/*!< in: MLOG_1BYTE, MLOG_2BYTES, MLOG_4BYTES */
 	mtr_t*	mtr);	/*!< in: mini-transaction handle */
-/************************************************************
+/********************************************************//**
 Writes 8 bytes to a file page buffered in the buffer pool.
 Writes the corresponding log record to the mini-transaction log. */
 UNIV_INTERN
@@ -51,7 +52,7 @@ mlog_write_dulint(
 	byte*	ptr,	/*!< in: pointer where to write */
 	dulint	val,	/*!< in: value to write */
 	mtr_t*	mtr);	/*!< in: mini-transaction handle */
-/************************************************************
+/********************************************************//**
 Writes a string to a file page buffered in the buffer pool. Writes the
 corresponding log record to the mini-transaction log. */
 UNIV_INTERN
@@ -62,7 +63,7 @@ mlog_write_string(
 	const byte*	str,	/*!< in: string to write */
 	ulint		len,	/*!< in: string length */
 	mtr_t*		mtr);	/*!< in: mini-transaction handle */
-/************************************************************
+/********************************************************//**
 Logs a write of a string to a file page buffered in the buffer pool.
 Writes the corresponding log record to the mini-transaction log. */
 UNIV_INTERN
@@ -72,7 +73,7 @@ mlog_log_string(
 	byte*	ptr,	/*!< in: pointer written to */
 	ulint	len,	/*!< in: string length */
 	mtr_t*	mtr);	/*!< in: mini-transaction handle */
-/************************************************************
+/********************************************************//**
 Writes initial part of a log record consisting of one-byte item
 type and four-byte space and page numbers. */
 UNIV_INTERN
@@ -84,7 +85,7 @@ mlog_write_initial_log_record(
 				modification is made */
 	byte		type,	/*!< in: log item type: MLOG_1BYTE, ... */
 	mtr_t*		mtr);	/*!< in: mini-transaction handle */
-/************************************************************
+/********************************************************//**
 Writes a log record about an .ibd file create/delete/rename.
 @return	new value of log_ptr */
 UNIV_INLINE
@@ -97,7 +98,7 @@ mlog_write_initial_log_record_for_file_op(
 	ulint	page_no,/*!< in: page number (not relevant currently) */
 	byte*	log_ptr,/*!< in: pointer to mtr log which has been opened */
 	mtr_t*	mtr);	/*!< in: mtr */
-/************************************************************
+/********************************************************//**
 Catenates 1 - 4 bytes to the mtr log. */
 UNIV_INLINE
 void
@@ -106,7 +107,7 @@ mlog_catenate_ulint(
 	mtr_t*	mtr,	/*!< in: mtr */
 	ulint	val,	/*!< in: value to write */
 	ulint	type);	/*!< in: MLOG_1BYTE, MLOG_2BYTES, MLOG_4BYTES */
-/************************************************************
+/********************************************************//**
 Catenates n bytes to the mtr log. */
 UNIV_INTERN
 void
@@ -115,7 +116,7 @@ mlog_catenate_string(
 	mtr_t*		mtr,	/*!< in: mtr */
 	const byte*	str,	/*!< in: string to write */
 	ulint		len);	/*!< in: string length */
-/************************************************************
+/********************************************************//**
 Catenates a compressed ulint to mlog. */
 UNIV_INLINE
 void
@@ -123,7 +124,7 @@ mlog_catenate_ulint_compressed(
 /*===========================*/
 	mtr_t*	mtr,	/*!< in: mtr */
 	ulint	val);	/*!< in: value to write */
-/************************************************************
+/********************************************************//**
 Catenates a compressed dulint to mlog. */
 UNIV_INLINE
 void
@@ -131,7 +132,7 @@ mlog_catenate_dulint_compressed(
 /*============================*/
 	mtr_t*	mtr,	/*!< in: mtr */
 	dulint	val);	/*!< in: value to write */
-/************************************************************
+/********************************************************//**
 Opens a buffer to mlog. It must be closed with mlog_close.
 @return	buffer, NULL if log mode MTR_LOG_NONE */
 UNIV_INLINE
@@ -141,7 +142,7 @@ mlog_open(
 	mtr_t*	mtr,	/*!< in: mtr */
 	ulint	size);	/*!< in: buffer size in bytes; MUST be
 			smaller than DYN_ARRAY_DATA_SIZE! */
-/************************************************************
+/********************************************************//**
 Closes a buffer opened to mlog. */
 UNIV_INLINE
 void
@@ -149,7 +150,7 @@ mlog_close(
 /*=======*/
 	mtr_t*	mtr,	/*!< in: mtr */
 	byte*	ptr);	/*!< in: buffer space from ptr up was not used */
-/************************************************************
+/********************************************************//**
 Writes the initial part of a log record (3..11 bytes).
 If the implementation of this function is changed, all
 size parameters to mlog_open() should be adjusted accordingly!
@@ -169,7 +170,7 @@ mlog_write_initial_log_record_fast(
 # define mlog_write_initial_log_record(ptr,type,mtr) ((void) 0)
 # define mlog_write_initial_log_record_fast(ptr,type,log_ptr,mtr) ((void) 0)
 #endif /* !UNIV_HOTBACKUP */
-/************************************************************
+/********************************************************//**
 Parses an initial log record written by mlog_write_initial_log_record.
 @return	parsed record end, NULL if not a complete record */
 UNIV_INTERN
@@ -181,7 +182,7 @@ mlog_parse_initial_log_record(
 	byte*	type,	/*!< out: log record type: MLOG_1BYTE, ... */
 	ulint*	space,	/*!< out: space id */
 	ulint*	page_no);/*!< out: page number */
-/************************************************************
+/********************************************************//**
 Parses a log record written by mlog_write_ulint or mlog_write_dulint.
 @return	parsed record end, NULL if not a complete record */
 UNIV_INTERN
@@ -193,7 +194,7 @@ mlog_parse_nbytes(
 	byte*	end_ptr,/*!< in: buffer end */
 	byte*	page,	/*!< in: page where to apply the log record, or NULL */
 	void*	page_zip);/*!< in/out: compressed page, or NULL */
-/************************************************************
+/********************************************************//**
 Parses a log record written by mlog_write_string.
 @return	parsed record end, NULL if not a complete record */
 UNIV_INTERN
@@ -206,7 +207,7 @@ mlog_parse_string(
 	void*	page_zip);/*!< in/out: compressed page, or NULL */
 
 #ifndef UNIV_HOTBACKUP
-/************************************************************
+/********************************************************//**
 Opens a buffer for mlog, writes the initial log record and,
 if needed, the field lengths of an index.  Reserves space
 for further log entries.  The log entry must be closed with
@@ -224,7 +225,7 @@ mlog_open_and_write_index(
 				(if 0, calls mlog_close() and returns NULL) */
 #endif /* !UNIV_HOTBACKUP */
 
-/************************************************************
+/********************************************************//**
 Parses a log record written by mlog_open_and_write_index.
 @return	parsed record end, NULL if not a complete record */
 UNIV_INTERN

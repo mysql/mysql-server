@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file handler/i_s.cc
 InnoDB INFORMATION SCHEMA tables interface to MySQL.
 
 Created July 18, 2007 Vasil Dimov
@@ -111,7 +112,7 @@ bool schema_table_store_record(THD *thd, TABLE *table);
 void localtime_to_TIME(MYSQL_TIME *to, struct tm *from);
 bool check_global_access(THD *thd, ulong want_access);
 
-/***********************************************************************
+/*******************************************************************//**
 Common function to fill any of the dynamic tables:
 INFORMATION_SCHEMA.innodb_trx
 INFORMATION_SCHEMA.innodb_locks
@@ -125,7 +126,7 @@ trx_i_s_common_fill_table(
 	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
 	COND*		cond);	/*!< in: condition (not used) */
 
-/***********************************************************************
+/*******************************************************************//**
 Unbind a dynamic INFORMATION_SCHEMA table.
 @return	0 on success */
 static
@@ -134,7 +135,7 @@ i_s_common_deinit(
 /*==============*/
 	void*	p);	/*!< in/out: table schema object */
 
-/***********************************************************************
+/*******************************************************************//**
 Auxiliary function to store time_t value in MYSQL_TYPE_DATETIME
 field.
 @return	0 on success */
@@ -162,7 +163,7 @@ field_store_time_t(
 	return(field->store_time(&my_time, MYSQL_TIMESTAMP_DATETIME));
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Auxiliary function to store char* value in MYSQL_TYPE_STRING field.
 @return	0 on success */
 static
@@ -189,7 +190,7 @@ field_store_string(
 	return(ret);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Auxiliary function to store ulint value in MYSQL_TYPE_LONGLONG field.
 If the value is ULINT_UNDEFINED then the field it set to NULL.
 @return	0 on success */
@@ -293,7 +294,7 @@ static ST_FIELD_INFO	innodb_trx_fields_info[] =
 	END_OF_ST_FIELD_INFO
 };
 
-/***********************************************************************
+/*******************************************************************//**
 Read data from cache buffer and fill the INFORMATION_SCHEMA.innodb_trx
 table with it.
 @return	0 on success */
@@ -378,7 +379,7 @@ fill_innodb_trx_from_cache(
 	DBUG_RETURN(0);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Bind the dynamic table INFORMATION_SCHEMA.innodb_trx
 @return	0 on success */
 static
@@ -550,7 +551,7 @@ static ST_FIELD_INFO	innodb_locks_fields_info[] =
 	END_OF_ST_FIELD_INFO
 };
 
-/***********************************************************************
+/*******************************************************************//**
 Read data from cache buffer and fill the INFORMATION_SCHEMA.innodb_locks
 table with it.
 @return	0 on success */
@@ -658,7 +659,7 @@ fill_innodb_locks_from_cache(
 	DBUG_RETURN(0);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Bind the dynamic table INFORMATION_SCHEMA.innodb_locks
 @return	0 on success */
 static
@@ -770,7 +771,7 @@ static ST_FIELD_INFO	innodb_lock_waits_fields_info[] =
 	END_OF_ST_FIELD_INFO
 };
 
-/***********************************************************************
+/*******************************************************************//**
 Read data from cache buffer and fill the
 INFORMATION_SCHEMA.innodb_lock_waits table with it.
 @return	0 on success */
@@ -841,7 +842,7 @@ fill_innodb_lock_waits_from_cache(
 	DBUG_RETURN(0);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Bind the dynamic table INFORMATION_SCHEMA.innodb_lock_waits
 @return	0 on success */
 static
@@ -911,7 +912,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_lock_waits =
 	STRUCT_FLD(__reserved1, NULL)
 };
 
-/***********************************************************************
+/*******************************************************************//**
 Common function to fill any of the dynamic tables:
 INFORMATION_SCHEMA.innodb_trx
 INFORMATION_SCHEMA.innodb_locks
@@ -1072,7 +1073,7 @@ static ST_FIELD_INFO	i_s_cmp_fields_info[] =
 };
 
 
-/***********************************************************************
+/*******************************************************************//**
 Fill the dynamic table information_schema.innodb_cmp or
 innodb_cmp_reset.
 @return	0 on success, 1 on failure */
@@ -1130,7 +1131,7 @@ i_s_cmp_fill_low(
 	DBUG_RETURN(status);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Fill the dynamic table information_schema.innodb_cmp.
 @return	0 on success, 1 on failure */
 static
@@ -1144,7 +1145,7 @@ i_s_cmp_fill(
 	return(i_s_cmp_fill_low(thd, tables, cond, FALSE));
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Fill the dynamic table information_schema.innodb_cmp_reset.
 @return	0 on success, 1 on failure */
 static
@@ -1158,7 +1159,7 @@ i_s_cmp_reset_fill(
 	return(i_s_cmp_fill_low(thd, tables, cond, TRUE));
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Bind the dynamic table information_schema.innodb_cmp.
 @return	0 on success */
 static
@@ -1176,7 +1177,7 @@ i_s_cmp_init(
 	DBUG_RETURN(0);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Bind the dynamic table information_schema.innodb_cmp_reset.
 @return	0 on success */
 static
@@ -1340,7 +1341,7 @@ static ST_FIELD_INFO	i_s_cmpmem_fields_info[] =
 	END_OF_ST_FIELD_INFO
 };
 
-/***********************************************************************
+/*******************************************************************//**
 Fill the dynamic table information_schema.innodb_cmpmem or
 innodb_cmpmem_reset.
 @return	0 on success, 1 on failure */
@@ -1396,7 +1397,7 @@ i_s_cmpmem_fill_low(
 	DBUG_RETURN(status);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Fill the dynamic table information_schema.innodb_cmpmem.
 @return	0 on success, 1 on failure */
 static
@@ -1410,7 +1411,7 @@ i_s_cmpmem_fill(
 	return(i_s_cmpmem_fill_low(thd, tables, cond, FALSE));
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Fill the dynamic table information_schema.innodb_cmpmem_reset.
 @return	0 on success, 1 on failure */
 static
@@ -1424,7 +1425,7 @@ i_s_cmpmem_reset_fill(
 	return(i_s_cmpmem_fill_low(thd, tables, cond, TRUE));
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Bind the dynamic table information_schema.innodb_cmpmem.
 @return	0 on success */
 static
@@ -1442,7 +1443,7 @@ i_s_cmpmem_init(
 	DBUG_RETURN(0);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Bind the dynamic table information_schema.innodb_cmpmem_reset.
 @return	0 on success */
 static
@@ -1559,7 +1560,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_cmpmem_reset =
 	STRUCT_FLD(__reserved1, NULL)
 };
 
-/***********************************************************************
+/*******************************************************************//**
 Unbind a dynamic INFORMATION_SCHEMA table.
 @return	0 on success */
 static

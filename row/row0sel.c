@@ -23,7 +23,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/*******************************************************
+/***************************************************//**
+@file row/row0sel.c
 Select
 
 Created 12/19/1997 Heikki Tuuri
@@ -74,7 +75,7 @@ to que_run_threads: this is to allow canceling runaway queries */
 #define	SEL_EXHAUSTED	1
 #define SEL_RETRY	2
 
-/************************************************************************
+/********************************************************************//**
 Returns TRUE if the user-defined column in a secondary index record
 is alphabetically the same as the corresponding BLOB column in the clustered
 index record.
@@ -124,13 +125,14 @@ row_sel_sec_rec_is_for_blob(
 	return(!cmp_data_data(mtype, prtype, buf, len, sec_field, sec_len));
 }
 
-/************************************************************************
+/********************************************************************//**
 Returns TRUE if the user-defined column values in a secondary index record
 are alphabetically the same as the corresponding columns in the clustered
 index record.
 NOTE: the comparison is NOT done as a binary comparison, but character
 fields are compared with collation!
-@return	TRUE if the secondary record is equal to the corresponding fields in the clustered record, when compared with collation */
+@return TRUE if the secondary record is equal to the corresponding
+fields in the clustered record, when compared with collation */
 static
 ibool
 row_sel_sec_rec_is_for_clust_rec(
@@ -234,7 +236,7 @@ func_exit:
 	return(is_equal);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Creates a select node struct.
 @return	own: select node struct */
 UNIV_INTERN
@@ -254,7 +256,7 @@ sel_node_create(
 	return(node);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Frees the memory private to a select node when a query graph is freed,
 does not free the heap where the node was originally created. */
 UNIV_INTERN
@@ -280,7 +282,7 @@ sel_node_free_private(
 	}
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Evaluates the values in a select list. If there are aggregate functions,
 their argument value is added to the aggregate total. */
 UNIV_INLINE
@@ -300,7 +302,7 @@ sel_eval_select_list(
 	}
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Assigns the values in the select list to the possible into-variables in
 SELECT ... INTO ... */
 UNIV_INLINE
@@ -329,7 +331,7 @@ sel_assign_into_var_values(
 	}
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Resets the aggregate value totals in the select list of an aggregate type
 query. */
 UNIV_INLINE
@@ -353,7 +355,7 @@ sel_reset_aggregate_vals(
 	node->aggregate_already_fetched = FALSE;
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Copies the input variable values when an explicit cursor is opened. */
 UNIV_INLINE
 void
@@ -374,7 +376,7 @@ row_sel_copy_input_variable_vals(
 	}
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Fetches the column values from a record. */
 static
 void
@@ -453,7 +455,7 @@ row_sel_fetch_columns(
 	}
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Allocates a prefetch buffer for a column when prefetch is first time done. */
 static
 void
@@ -477,7 +479,7 @@ sel_col_prefetch_buf_alloc(
 	}
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Frees a prefetch buffer for a column, including the dynamically allocated
 memory for data stored there. */
 UNIV_INTERN
@@ -499,7 +501,7 @@ sel_col_prefetch_buf_free(
 	}
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Pops the column values for a prefetched, cached row from the column prefetch
 buffers and places them to the val fields in the column nodes. */
 static
@@ -561,7 +563,7 @@ next_col:
 	plan->first_prefetched++;
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Pushes the column values for a prefetched, cached row to the column prefetch
 buffers from the val fields in the column nodes. */
 UNIV_INLINE
@@ -633,7 +635,7 @@ next_col:
 	}
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Builds a previous version of a clustered index record for a consistent read
 @return	DB_SUCCESS or error code */
 static
@@ -668,7 +670,7 @@ row_sel_build_prev_vers(
 	return(err);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Builds the last committed version of a clustered index record for a
 semi-consistent read.
 @return	DB_SUCCESS or error code */
@@ -703,7 +705,7 @@ row_sel_build_committed_vers_for_mysql(
 	return(err);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Tests the conditions which determine when the index segment we are searching
 through has been exhausted.
 @return	TRUE if row passed the tests */
@@ -741,7 +743,7 @@ row_sel_test_end_conds(
 	return(TRUE);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Tests the other conditions.
 @return	TRUE if row passed the tests */
 UNIV_INLINE
@@ -769,7 +771,7 @@ row_sel_test_other_conds(
 	return(TRUE);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Retrieves the clustered index record corresponding to a record in a
 non-clustered index. Does the necessary locking.
 @return	DB_SUCCESS or error code */
@@ -933,7 +935,7 @@ err_exit:
 	return(err);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Sets a lock on a record.
 @return	DB_SUCCESS or error code */
 UNIV_INLINE
@@ -972,7 +974,7 @@ sel_set_rec_lock(
 	return(err);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Opens a pcur to a table index. */
 static
 void
@@ -1047,9 +1049,12 @@ row_sel_open_pcur(
 	plan->pcur_is_open = TRUE;
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Restores a stored pcur position to a table index.
-@return	TRUE if the cursor should be moved to the next record after we return from this function (moved to the previous, in the case of a descending cursor) without processing again the current cursor record */
+@return TRUE if the cursor should be moved to the next record after we
+return from this function (moved to the previous, in the case of a
+descending cursor) without processing again the current cursor
+record */
 static
 ibool
 row_sel_restore_pcur_pos(
@@ -1139,7 +1144,7 @@ row_sel_restore_pcur_pos(
 	return(TRUE);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Resets a plan cursor to a closed state. */
 UNIV_INLINE
 void
@@ -1153,7 +1158,7 @@ plan_reset_cursor(
 	plan->n_rows_prefetched = 0;
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Tries to do a shortcut to fetch a clustered index record with a unique key,
 using the hash index if possible (not always).
 @return	SEL_FOUND, SEL_EXHAUSTED, SEL_RETRY */
@@ -1255,7 +1260,7 @@ func_exit:
 	return(ret);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Performs a select step.
 @return	DB_SUCCESS or error code */
 static
@@ -1956,7 +1961,7 @@ func_exit:
 	return(err);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Performs a select step. This is a high-level function used in SQL execution
 graphs.
 @return	query thread to run next or NULL */
@@ -2058,7 +2063,7 @@ row_sel_step(
 	return(thr);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Performs a fetch for a cursor.
 @return	query thread to run next or NULL */
 UNIV_INTERN
@@ -2121,7 +2126,7 @@ fetch_step(
 	return(thr);
 }
 
-/********************************************************************
+/****************************************************************//**
 Sample callback function for fetch that prints each row.
 @return	always returns non-NULL */
 UNIV_INTERN
@@ -2165,7 +2170,7 @@ row_fetch_print(
 	return((void*)42);
 }
 
-/********************************************************************
+/****************************************************************//**
 Callback function for fetch that stores an unsigned 4 byte integer to the
 location pointed. The column's type must be DATA_INT, DATA_UNSIGNED, length
 = 4.
@@ -2195,7 +2200,7 @@ row_fetch_store_uint4(
 	return(NULL);
 }
 
-/***************************************************************
+/***********************************************************//**
 Prints a row in a select result.
 @return	query thread to run next or NULL */
 UNIV_INTERN
@@ -2258,7 +2263,7 @@ row_printf_step(
 	return(thr);
 }
 
-/********************************************************************
+/****************************************************************//**
 Converts a key value stored in MySQL format to an Innobase dtuple. The last
 field of the key value may be just a prefix of a fixed length field: hence
 the parameter key_len. But currently we do not allow search keys where the
@@ -2462,7 +2467,7 @@ row_sel_convert_mysql_key_to_innobase(
 	dtuple_set_n_fields(tuple, n_fields);
 }
 
-/******************************************************************
+/**************************************************************//**
 Stores the row id to the prebuilt struct. */
 static
 void
@@ -2500,7 +2505,7 @@ row_sel_store_row_id_to_prebuilt(
 	ut_memcpy(prebuilt->row_id, data, len);
 }
 
-/******************************************************************
+/**************************************************************//**
 Stores a non-SQL-NULL field in the MySQL format. The counterpart of this
 function is row_mysql_store_col_in_innobase_format() in row0mysql.c. */
 static
@@ -2655,12 +2660,13 @@ row_sel_field_store_in_mysql_format(
 	}
 }
 
-/******************************************************************
+/**************************************************************//**
 Convert a row in the Innobase format to a row in the MySQL format.
 Note that the template in prebuilt may advise us to copy only a few
 columns to mysql_rec, other columns are left blank. All columns may not
 be needed in the query.
-@return	TRUE if success, FALSE if could not allocate memory for a BLOB (though we may also assert in that case) */
+@return TRUE if success, FALSE if could not allocate memory for a BLOB
+(though we may also assert in that case) */
 static
 ibool
 row_sel_store_mysql_rec(
@@ -2784,7 +2790,7 @@ row_sel_store_mysql_rec(
 	return(TRUE);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Builds a previous version of a clustered index record for a consistent read
 @return	DB_SUCCESS or error code */
 static
@@ -2819,7 +2825,7 @@ row_sel_build_prev_vers_for_mysql(
 	return(err);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Retrieves the clustered index record corresponding to a record in a
 non-clustered index. Does the necessary locking. Used in the MySQL
 interface.
@@ -3003,11 +3009,12 @@ err_exit:
 	return(err);
 }
 
-/************************************************************************
+/********************************************************************//**
 Restores cursor position after it has been stored. We have to take into
 account that the record cursor was positioned on may have been deleted.
 Then we may have to move the cursor one step up or down.
-@return	TRUE if we may need to process the record the cursor is now positioned on (i.e. we should not go to the next record yet) */
+@return TRUE if we may need to process the record the cursor is now
+positioned on (i.e. we should not go to the next record yet) */
 static
 ibool
 sel_restore_position_for_mysql(
@@ -3070,7 +3077,7 @@ sel_restore_position_for_mysql(
 	return(TRUE);
 }
 
-/************************************************************************
+/********************************************************************//**
 Pops a cached row for MySQL from the fetch cache. */
 UNIV_INLINE
 void
@@ -3120,7 +3127,7 @@ row_sel_pop_cached_row_for_mysql(
 	}
 }
 
-/************************************************************************
+/********************************************************************//**
 Pushes a row for MySQL to the fetch cache. */
 UNIV_INLINE
 void
@@ -3169,7 +3176,7 @@ row_sel_push_cache_row_for_mysql(
 	prebuilt->n_fetch_cached++;
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Tries to do a shortcut to fetch a clustered index record with a unique key,
 using the hash index if possible (not always). We assume that the search
 mode is PAGE_CUR_GE, it is a consistent read, there is a read view in trx,
@@ -3240,13 +3247,14 @@ row_sel_try_search_shortcut_for_mysql(
 	return(SEL_FOUND);
 }
 
-/************************************************************************
+/********************************************************************//**
 Searches for rows in the database. This is used in the interface to
 MySQL. This function opens a cursor, and also implements fetch next
 and fetch prev. NOTE that if we do a search with a full key value
 from a unique index (ROW_SEL_EXACT), then we will not store the cursor
 position and fetch next or fetch prev must not be tried to the cursor!
-@return	DB_SUCCESS, DB_RECORD_NOT_FOUND, DB_END_OF_INDEX, DB_DEADLOCK, DB_LOCK_TABLE_FULL, DB_CORRUPTION, or DB_TOO_BIG_RECORD */
+@return DB_SUCCESS, DB_RECORD_NOT_FOUND, DB_END_OF_INDEX, DB_DEADLOCK,
+DB_LOCK_TABLE_FULL, DB_CORRUPTION, or DB_TOO_BIG_RECORD */
 UNIV_INTERN
 ulint
 row_search_for_mysql(
@@ -4540,7 +4548,7 @@ func_exit:
 	return(err);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Checks if MySQL at the moment is allowed for this table to retrieve a
 consistent read result, or store it to the query cache.
 @return	TRUE if storing or retrieving from the query cache is permitted */
@@ -4596,7 +4604,7 @@ row_search_check_if_query_cache_permitted(
 	return(ret);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Read the AUTOINC column from the current row. If the value is less than
 0 and the type is not unsigned then we reset the value to 0.
 @return	value read from the column */
@@ -4639,7 +4647,7 @@ row_search_autoinc_read_column(
 	return(value);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Get the last row.
 @return	current rec or NULL */
 static
@@ -4660,9 +4668,10 @@ row_search_autoinc_get_rec(
 	return(NULL);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Read the max AUTOINC value from an index.
-@return	DB_SUCCESS if all OK else error code, DB_RECORD_NOT_FOUND if column name can't be found in index */
+@return DB_SUCCESS if all OK else error code, DB_RECORD_NOT_FOUND if
+column name can't be found in index */
 UNIV_INTERN
 ulint
 row_search_max_autoinc(

@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/row0ins.h
 Insert into a table
 
 Created 4/20/1996 Heikki Tuuri
@@ -32,11 +33,12 @@ Created 4/20/1996 Heikki Tuuri
 #include "trx0types.h"
 #include "row0types.h"
 
-/*******************************************************************
+/***************************************************************//**
 Checks if foreign key constraint fails for an index entry. Sets shared locks
 which lock either the success or the failure of the constraint. NOTE that
 the caller must have a shared latch on dict_foreign_key_check_lock.
-@return	DB_SUCCESS, DB_LOCK_WAIT, DB_NO_REFERENCED_ROW, or DB_ROW_IS_REFERENCED */
+@return DB_SUCCESS, DB_LOCK_WAIT, DB_NO_REFERENCED_ROW, or
+DB_ROW_IS_REFERENCED */
 UNIV_INTERN
 ulint
 row_ins_check_foreign_constraint(
@@ -51,7 +53,7 @@ row_ins_check_foreign_constraint(
 				table, else the referenced table */
 	dtuple_t*	entry,	/*!< in: index entry for index */
 	que_thr_t*	thr);	/*!< in: query thread */
-/*************************************************************************
+/*********************************************************************//**
 Creates an insert node struct.
 @return	own: insert node struct */
 UNIV_INTERN
@@ -61,7 +63,7 @@ ins_node_create(
 	ulint		ins_type,	/*!< in: INS_VALUES, ... */
 	dict_table_t*	table,		/*!< in: table where to insert */
 	mem_heap_t*	heap);		/*!< in: mem heap where created */
-/*************************************************************************
+/*********************************************************************//**
 Sets a new row to insert for an INS_DIRECT node. This function is only used
 if we have constructed the row separately, which is a rare case; this
 function is quite slow. */
@@ -71,7 +73,7 @@ ins_node_set_new_row(
 /*=================*/
 	ins_node_t*	node,	/*!< in: insert node */
 	dtuple_t*	row);	/*!< in: new row (or first row) for the node */
-/*******************************************************************
+/***************************************************************//**
 Inserts an index entry to index. Tries first optimistic, then pessimistic
 descent down the tree. If the entry matches enough to a delete marked record,
 performs the insert by updating or delete unmarking the delete marked
@@ -86,7 +88,7 @@ row_ins_index_entry(
 	ulint		n_ext,	/*!< in: number of externally stored columns */
 	ibool		foreign,/*!< in: TRUE=check foreign key constraints */
 	que_thr_t*	thr);	/*!< in: query thread */
-/***************************************************************
+/***********************************************************//**
 Inserts a row to a table. This is a high-level function used in
 SQL execution graphs.
 @return	query thread to run next or NULL */
@@ -95,7 +97,7 @@ que_thr_t*
 row_ins_step(
 /*=========*/
 	que_thr_t*	thr);	/*!< in: query thread */
-/***************************************************************
+/***********************************************************//**
 Creates an entry template for each index of a table. */
 UNIV_INTERN
 void
@@ -106,23 +108,23 @@ ins_node_create_entry_list(
 /* Insert node structure */
 
 struct ins_node_struct{
-	que_common_t	common;	/* node type: QUE_NODE_INSERT */
+	que_common_t	common;	/*!< node type: QUE_NODE_INSERT */
 	ulint		ins_type;/* INS_VALUES, INS_SEARCHED, or INS_DIRECT */
-	dtuple_t*	row;	/* row to insert */
-	dict_table_t*	table;	/* table where to insert */
-	sel_node_t*	select;	/* select in searched insert */
+	dtuple_t*	row;	/*!< row to insert */
+	dict_table_t*	table;	/*!< table where to insert */
+	sel_node_t*	select;	/*!< select in searched insert */
 	que_node_t*	values_list;/* list of expressions to evaluate and
 				insert in an INS_VALUES insert */
-	ulint		state;	/* node execution state */
-	dict_index_t*	index;	/* NULL, or the next index where the index
+	ulint		state;	/*!< node execution state */
+	dict_index_t*	index;	/*!< NULL, or the next index where the index
 				entry should be inserted */
-	dtuple_t*	entry;	/* NULL, or entry to insert in the index;
+	dtuple_t*	entry;	/*!< NULL, or entry to insert in the index;
 				after a successful insert of the entry,
 				this should be reset to NULL */
 	UT_LIST_BASE_NODE_T(dtuple_t)
 			entry_list;/* list of entries, one for each index */
 	byte*		row_id_buf;/* buffer for the row id sys field in row */
-	trx_id_t	trx_id;	/* trx id or the last trx which executed the
+	trx_id_t	trx_id;	/*!< trx id or the last trx which executed the
 				node */
 	byte*		trx_id_buf;/* buffer for the trx id sys field in row */
 	mem_heap_t*	entry_sys_heap;
