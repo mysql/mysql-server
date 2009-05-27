@@ -5649,3 +5649,6 @@ ER_XA_RBTIMEOUT XA106
 	eng "XA_RBTIMEOUT: Transaction branch was rolled back: took too long"
 ER_XA_RBDEADLOCK XA102
 	eng "XA_RBDEADLOCK: Transaction branch was rolled back: deadlock was detected"
+
+ER_FUNC_INEXISTENT_NAME_COLLISION 42000 
+	eng "FUNCTION %s does not exist. Check the 'Function Name Parsing and Resolution' section in the Reference Manual"

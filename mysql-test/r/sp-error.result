@@ -1520,3 +1520,13 @@ CALL p1((SELECT * FROM t1))|
 ERROR 21000: Subquery returns more than 1 row
 DROP PROCEDURE IF EXISTS p1|
 DROP TABLE t1|
+CREATE TABLE t1 (a INT, b INT);
+INSERT INTO t1 VALUES (1,1), (2,2);
+SELECT MAX (a) FROM t1 WHERE b = 999999;
+ERROR 42000: FUNCTION test.MAX does not exist. Check the 'Function Name Parsing and Resolution' section in the Reference Manual
+SELECT AVG (a) FROM t1 WHERE b = 999999;
+AVG (a)
+NULL
+SELECT non_existent (a) FROM t1 WHERE b = 999999;
+ERROR 42000: FUNCTION test.non_existent does not exist
+DROP TABLE t1;
