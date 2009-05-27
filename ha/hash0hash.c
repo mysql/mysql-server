@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file ha/hash0hash.c
 The simple hash table utility
 
 Created 5/20/1997 Heikki Tuuri
@@ -30,7 +31,7 @@ Created 5/20/1997 Heikki Tuuri
 #include "mem0mem.h"
 
 #ifndef UNIV_HOTBACKUP
-/****************************************************************
+/************************************************************//**
 Reserves the mutex for a fold value in a hash table. */
 UNIV_INTERN
 void
@@ -42,7 +43,7 @@ hash_mutex_enter(
 	mutex_enter(hash_get_mutex(table, fold));
 }
 
-/****************************************************************
+/************************************************************//**
 Releases the mutex for a fold value in a hash table. */
 UNIV_INTERN
 void
@@ -54,7 +55,7 @@ hash_mutex_exit(
 	mutex_exit(hash_get_mutex(table, fold));
 }
 
-/****************************************************************
+/************************************************************//**
 Reserves all the mutexes of a hash table, in an ascending order. */
 UNIV_INTERN
 void
@@ -70,7 +71,7 @@ hash_mutex_enter_all(
 	}
 }
 
-/****************************************************************
+/************************************************************//**
 Releases all the mutexes of a hash table. */
 UNIV_INTERN
 void
@@ -87,7 +88,7 @@ hash_mutex_exit_all(
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/*****************************************************************
+/*************************************************************//**
 Creates a hash table with >= n array cells. The actual number of cells is
 chosen to be a prime number slightly bigger than n.
 @return	own: created table */
@@ -126,7 +127,7 @@ hash_create(
 	return(table);
 }
 
-/*****************************************************************
+/*************************************************************//**
 Frees a hash table. */
 UNIV_INTERN
 void
@@ -143,7 +144,7 @@ hash_table_free(
 }
 
 #ifndef UNIV_HOTBACKUP
-/*****************************************************************
+/*************************************************************//**
 Creates a mutex array to protect a hash table. */
 UNIV_INTERN
 void

@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file pars/pars0pars.c
 SQL parser
 
 Created 11/19/1996 Heikki Tuuri
@@ -48,10 +49,9 @@ on 1/27/1998 */
 #include "eval0eval.h"
 
 #ifdef UNIV_SQL_DEBUG
-/* If the following is set TRUE, the lexer will print the SQL string
+/** If the following is set TRUE, the lexer will print the SQL string
 as it tokenizes it */
-
-ibool	pars_print_lexed	= FALSE;
+UNIV_INTERN ibool	pars_print_lexed	= FALSE;
 #endif /* UNIV_SQL_DEBUG */
 
 /* Global variable used while parsing a single procedure or query : the code is
@@ -92,12 +92,11 @@ UNIV_INTERN pars_res_word_t	pars_share_token = {PARS_SHARE_TOKEN};
 UNIV_INTERN pars_res_word_t	pars_unique_token = {PARS_UNIQUE_TOKEN};
 UNIV_INTERN pars_res_word_t	pars_clustered_token = {PARS_CLUSTERED_TOKEN};
 
-/* Global variable used to denote the '*' in SELECT * FROM.. */
-#define PARS_STAR_DENOTER	12345678
-UNIV_INTERN ulint	pars_star_denoter	= PARS_STAR_DENOTER;
+/** Global variable used to denote the '*' in SELECT * FROM.. */
+UNIV_INTERN ulint	pars_star_denoter	= 12345678;
 
 
-/*************************************************************************
+/*********************************************************************//**
 Determines the class of a function code.
 @return	function class: PARS_FUNC_ARITH, ... */
 static
@@ -142,7 +141,7 @@ pars_func_get_class(
 	}
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Parses an operator or predefined function expression.
 @return	own: function node in a query tree */
 static
@@ -171,7 +170,7 @@ pars_func_low(
 	return(node);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Parses a function expression.
 @return	own: function node in a query tree */
 UNIV_INTERN
@@ -184,7 +183,7 @@ pars_func(
 	return(pars_func_low(((pars_res_word_t*)res_word)->code, arg));
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Parses an operator expression.
 @return	own: function node in a query tree */
 UNIV_INTERN
@@ -205,7 +204,7 @@ pars_op(
 	return(pars_func_low(func, arg1));
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Parses an ORDER BY clause. Order by a single column only is supported.
 @return	own: order-by node in a query tree */
 UNIV_INTERN
@@ -233,7 +232,7 @@ pars_order_by(
 	return(node);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Determine if a data type is a built-in string data type of the InnoDB
 SQL parser.
 @return	TRUE if string data type */
@@ -252,7 +251,7 @@ pars_is_string_type(
 	return(FALSE);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Resolves the data type of a function in an expression. The argument data
 types must already be resolved. */
 static
@@ -345,7 +344,7 @@ pars_resolve_func_data_type(
 	}
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Resolves the meaning of variables in an expression and the data types of
 functions. It is an error if some identifier cannot be resolved here. */
 static
@@ -435,7 +434,7 @@ pars_resolve_exp_variables_and_types(
 			que_node_get_data_type(node));
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Resolves the meaning of variables in an expression list. It is an error if
 some identifier cannot be resolved here. Resolves also the data types of
 functions. */
@@ -454,7 +453,7 @@ pars_resolve_exp_list_variables_and_types(
 	}
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Resolves the columns in an expression. */
 static
 void
@@ -535,7 +534,7 @@ pars_resolve_exp_columns(
 	}
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Resolves the meaning of columns in an expression list. */
 static
 void
@@ -552,7 +551,7 @@ pars_resolve_exp_list_columns(
 	}
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Retrieves the table definition for a table name id. */
 static
 void
@@ -575,7 +574,7 @@ pars_retrieve_table_def(
 	ut_a(sym_node->table);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Retrieves the table definitions for a list of table name ids.
 @return	number of tables */
 static
@@ -602,7 +601,7 @@ pars_retrieve_table_list_defs(
 	return(count);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Adds all columns to the select list if the query is SELECT * FROM ... */
 static
 void
@@ -639,7 +638,7 @@ pars_select_all_columns(
 	}
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Parses a select list; creates a query graph node for the whole SELECT
 statement.
 @return	own: select node in a query tree */
@@ -662,7 +661,7 @@ pars_select_list(
 	return(node);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Checks if the query is an aggregate query, in which case the selct list must
 contain only aggregate function items. */
 static
@@ -705,7 +704,7 @@ pars_check_aggregate(
 	}
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Parses a select statement.
 @return	own: select node in a query tree */
 UNIV_INTERN
@@ -788,7 +787,7 @@ pars_select_statement(
 	return(select_node);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Parses a cursor declaration.
 @return	sym_node */
 UNIV_INTERN
@@ -809,7 +808,7 @@ pars_cursor_declaration(
 	return(sym_node);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Parses a function declaration.
 @return	sym_node */
 UNIV_INTERN
@@ -829,7 +828,7 @@ pars_function_declaration(
 	return(sym_node);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Parses a delete or update statement start.
 @return	own: update node in a query tree */
 UNIV_INTERN
@@ -853,7 +852,7 @@ pars_update_statement_start(
 	return(node);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Parses a column assignment in an update.
 @return	column assignment node */
 UNIV_INTERN
@@ -875,7 +874,7 @@ pars_column_assignment(
 	return(node);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Processes an update node assignment list. */
 static
 void
@@ -962,7 +961,7 @@ pars_process_assign_list(
 	node->cmpl_info = changes_ord_field | changes_field_size;
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Parses an update or delete statement.
 @return	own: update node in a query tree */
 UNIV_INTERN
@@ -1048,7 +1047,7 @@ pars_update_statement(
 	return(node);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Parses an insert statement.
 @return	own: update node in a query tree */
 UNIV_INTERN
@@ -1105,7 +1104,7 @@ pars_insert_statement(
 	return(node);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Set the type of a dfield. */
 static
 void
@@ -1155,7 +1154,7 @@ pars_set_dfield_type(
 	}
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Parses a variable declaration.
 @return	own: symbol table node of type SYM_VAR */
 UNIV_INTERN
@@ -1176,7 +1175,7 @@ pars_variable_declaration(
 	return(node);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Parses a procedure parameter declaration.
 @return	own: symbol table node of type SYM_VAR */
 UNIV_INTERN
@@ -1198,7 +1197,7 @@ pars_parameter_declaration(
 	return(node);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Sets the parent field in a query node list. */
 static
 void
@@ -1219,7 +1218,7 @@ pars_set_parent_in_list(
 	}
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Parses an elsif element.
 @return	elsif node */
 UNIV_INTERN
@@ -1244,7 +1243,7 @@ pars_elsif_element(
 	return(node);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Parses an if-statement.
 @return	if-statement node */
 UNIV_INTERN
@@ -1295,7 +1294,7 @@ pars_if_statement(
 	return(node);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Parses a while-statement.
 @return	while-statement node */
 UNIV_INTERN
@@ -1322,7 +1321,7 @@ pars_while_statement(
 	return(node);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Parses a for-loop-statement.
 @return	for-statement node */
 UNIV_INTERN
@@ -1358,7 +1357,7 @@ pars_for_statement(
 	return(node);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Parses an exit statement.
 @return	exit statement node */
 UNIV_INTERN
@@ -1374,7 +1373,7 @@ pars_exit_statement(void)
 	return(node);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Parses a return-statement.
 @return	return-statement node */
 UNIV_INTERN
@@ -1391,7 +1390,7 @@ pars_return_statement(void)
 	return(node);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Parses an assignment statement.
 @return	assignment statement node */
 UNIV_INTERN
@@ -1419,7 +1418,7 @@ pars_assignment_statement(
 	return(node);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Parses a procedure call.
 @return	function node */
 UNIV_INTERN
@@ -1438,7 +1437,7 @@ pars_procedure_call(
 	return(node);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Parses a fetch statement. into_list or user_func (but not both) must be
 non-NULL.
 @return	fetch statement node */
@@ -1490,7 +1489,7 @@ pars_fetch_statement(
 	return(node);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Parses an open or close cursor statement.
 @return	fetch statement node */
 UNIV_INTERN
@@ -1520,7 +1519,7 @@ pars_open_statement(
 	return(node);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Parses a row_printf-statement.
 @return	row_printf-statement node */
 UNIV_INTERN
@@ -1542,7 +1541,7 @@ pars_row_printf_statement(
 	return(node);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Parses a commit statement.
 @return	own: commit node struct */
 UNIV_INTERN
@@ -1553,7 +1552,7 @@ pars_commit_statement(void)
 	return(commit_node_create(pars_sym_tab_global->heap));
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Parses a rollback statement.
 @return	own: rollback node struct */
 UNIV_INTERN
@@ -1564,7 +1563,7 @@ pars_rollback_statement(void)
 	return(roll_node_create(pars_sym_tab_global->heap));
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Parses a column definition at a table creation.
 @return	column sym table node */
 UNIV_INTERN
@@ -1595,7 +1594,7 @@ pars_column_def(
 	return(sym_node);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Parses a table creation operation.
 @return	table create subgraph */
 UNIV_INTERN
@@ -1657,7 +1656,7 @@ pars_create_table(
 	return(node);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Parses an index creation operation.
 @return	index create subgraph */
 UNIV_INTERN
@@ -1714,7 +1713,7 @@ pars_create_index(
 	return(node);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Parses a procedure definition.
 @return	query fork node */
 UNIV_INTERN
@@ -1761,7 +1760,7 @@ pars_procedure_definition(
 	return(fork);
 }
 
-/*****************************************************************
+/*************************************************************//**
 Parses a stored procedure call, when this is not within another stored
 procedure, that is, the client issues a procedure call directly.
 In MySQL/InnoDB, stored InnoDB procedures are invoked via the
@@ -1778,7 +1777,7 @@ pars_stored_procedure_call(
 	return(NULL);
 }
 
-/*****************************************************************
+/*************************************************************//**
 Retrieves characters to the lexical analyzer. */
 UNIV_INTERN
 void
@@ -1826,7 +1825,7 @@ pars_get_lex_chars(
 	pars_sym_tab_global->next_char_pos += len;
 }
 
-/*****************************************************************
+/*************************************************************//**
 Called by yyparse on error. */
 UNIV_INTERN
 void
@@ -1842,7 +1841,7 @@ yyerror(
 	ut_error;
 }
 
-/*****************************************************************
+/*************************************************************//**
 Parses an SQL string returning the query graph.
 @return	own: the query graph */
 UNIV_INTERN
@@ -1891,7 +1890,7 @@ pars_sql(
 	return(graph);
 }
 
-/**********************************************************************
+/******************************************************************//**
 Completes a query graph by adding query thread and fork nodes
 above it and prepares the graph for running. The fork created is of
 type QUE_FORK_MYSQL_INTERFACE.
@@ -1922,7 +1921,7 @@ pars_complete_graph_for_exec(
 	return(thr);
 }
 
-/********************************************************************
+/****************************************************************//**
 Create parser info struct.
 @return	own: info struct */
 UNIV_INTERN
@@ -1946,18 +1945,18 @@ pars_info_create(void)
 	return(info);
 }
 
-/********************************************************************
+/****************************************************************//**
 Free info struct and everything it contains. */
 UNIV_INTERN
 void
 pars_info_free(
 /*===========*/
-	pars_info_t*	info)	/*!< in: info struct */
+	pars_info_t*	info)	/*!< in, own: info struct */
 {
 	mem_heap_free(info->heap);
 }
 
-/********************************************************************
+/****************************************************************//**
 Add bound literal. */
 UNIV_INTERN
 void
@@ -1990,7 +1989,7 @@ pars_info_add_literal(
 	ib_vector_push(info->bound_lits, pbl);
 }
 
-/********************************************************************
+/****************************************************************//**
 Equivalent to pars_info_add_literal(info, name, str, strlen(str),
 DATA_VARCHAR, DATA_ENGLISH). */
 UNIV_INTERN
@@ -2005,7 +2004,7 @@ pars_info_add_str_literal(
 			      DATA_VARCHAR, DATA_ENGLISH);
 }
 
-/********************************************************************
+/****************************************************************//**
 Equivalent to:
 
 char buf[4];
@@ -2028,7 +2027,7 @@ pars_info_add_int4_literal(
 	pars_info_add_literal(info, name, buf, 4, DATA_INT, 0);
 }
 
-/********************************************************************
+/****************************************************************//**
 Equivalent to:
 
 char buf[8];
@@ -2052,7 +2051,7 @@ pars_info_add_dulint_literal(
 	pars_info_add_literal(info, name, buf, 8, DATA_FIXBINARY, 0);
 }
 
-/********************************************************************
+/****************************************************************//**
 Add user function. */
 UNIV_INTERN
 void
@@ -2080,7 +2079,7 @@ pars_info_add_function(
 	ib_vector_push(info->funcs, puf);
 }
 
-/********************************************************************
+/****************************************************************//**
 Add bound id. */
 UNIV_INTERN
 void
@@ -2106,7 +2105,7 @@ pars_info_add_id(
 	ib_vector_push(info->bound_ids, bid);
 }
 
-/********************************************************************
+/****************************************************************//**
 Get user function with the given name.
 @return	user func, or NULL if not found */
 UNIV_INTERN
@@ -2136,7 +2135,7 @@ pars_info_get_user_func(
 	return(NULL);
 }
 
-/********************************************************************
+/****************************************************************//**
 Get bound literal with the given name.
 @return	bound literal, or NULL if not found */
 UNIV_INTERN
@@ -2166,7 +2165,7 @@ pars_info_get_bound_lit(
 	return(NULL);
 }
 
-/********************************************************************
+/****************************************************************//**
 Get bound id with the given name.
 @return	bound id, or NULL if not found */
 UNIV_INTERN

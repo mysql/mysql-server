@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/trx0types.h
 Transaction system global type definitions
 
 Created 3/26/1996 Heikki Tuuri
@@ -37,46 +38,71 @@ Created 3/26/1996 Heikki Tuuri
 the terminating '\0'. */
 #define TRX_ID_MAX_LEN		17
 
-/* Memory objects */
+/** Memory objects */
+/* @{ */
+/** Transaction */
 typedef struct trx_struct	trx_t;
+/** Transaction system */
 typedef struct trx_sys_struct	trx_sys_t;
+/** Doublewrite information */
 typedef struct trx_doublewrite_struct	trx_doublewrite_t;
+/** Signal */
 typedef struct trx_sig_struct	trx_sig_t;
+/** Rollback segment */
 typedef struct trx_rseg_struct	trx_rseg_t;
+/** Transaction undo log */
 typedef struct trx_undo_struct	trx_undo_t;
+/** Array of undo numbers of undo records being rolled back or purged */
 typedef struct trx_undo_arr_struct trx_undo_arr_t;
+/** A cell of trx_undo_arr_t */
 typedef struct trx_undo_inf_struct trx_undo_inf_t;
+/** The control structure used in the purge operation */
 typedef struct trx_purge_struct	trx_purge_t;
+/** Rollback command node in a query graph */
 typedef struct roll_node_struct	roll_node_t;
+/** Commit command node in a query graph */
 typedef struct commit_node_struct commit_node_t;
+/** SAVEPOINT command node in a query graph */
 typedef struct trx_named_savept_struct trx_named_savept_t;
+/* @} */
 
-/* Rollback contexts */
+/** Rollback contexts */
 enum trx_rb_ctx {
-	RB_NONE = 0,	/* no rollback */
-	RB_NORMAL,	/* normal rollback */
-	RB_RECOVERY,	/* rolling back an incomplete transaction,
+	RB_NONE = 0,	/*!< no rollback */
+	RB_NORMAL,	/*!< normal rollback */
+	RB_RECOVERY,	/*!< rolling back an incomplete transaction,
 			in crash recovery */
 };
 
+/** Transaction identifier (DB_TRX_ID, DATA_TRX_ID) */
 typedef dulint	trx_id_t;
+/** Rollback pointer (DB_ROLL_PTR, DATA_ROLL_PTR) */
 typedef dulint	roll_ptr_t;
+/** Undo number */
 typedef dulint	undo_no_t;
 
-/* Transaction savepoint */
+/** Transaction savepoint */
 typedef struct trx_savept_struct trx_savept_t;
+/** Transaction savepoint */
 struct trx_savept_struct{
-	undo_no_t	least_undo_no;	/* least undo number to undo */
+	undo_no_t	least_undo_no;	/*!< least undo number to undo */
 };
 
-/* File objects */
+/** File objects */
+/* @{ */
+/** Transaction system header */
 typedef byte	trx_sysf_t;
+/** Rollback segment header */
 typedef byte	trx_rsegf_t;
+/** Undo segment header */
 typedef byte	trx_usegf_t;
+/** Undo log header */
 typedef byte	trx_ulogf_t;
+/** Undo log page header */
 typedef byte	trx_upagef_t;
 
-/* Undo log record */
+/** Undo log record */
 typedef	byte	trx_undo_rec_t;
+/* @} */
 
 #endif

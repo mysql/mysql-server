@@ -23,7 +23,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file sync/sync0rw.c
 The read-write lock (for thread synchronization)
 
 Created 9/11/1995 Heikki Tuuri
@@ -132,29 +133,33 @@ wait_ex_event:	A thread may only wait on the wait_ex_event after it has
 */
 
 
-/* number of spin waits on rw-latches,
+/** number of spin waits on rw-latches,
 resulted during shared (read) locks */
 UNIV_INTERN ib_int64_t	rw_s_spin_wait_count	= 0;
+/** number of spin loop rounds on rw-latches,
+resulted during shared (read) locks */
 UNIV_INTERN ib_int64_t	rw_s_spin_round_count	= 0;
 
-/* number of OS waits on rw-latches,
+/** number of OS waits on rw-latches,
 resulted during shared (read) locks */
 UNIV_INTERN ib_int64_t	rw_s_os_wait_count	= 0;
 
-/* number of unlocks (that unlock shared locks),
+/** number of unlocks (that unlock shared locks),
 set only when UNIV_SYNC_PERF_STAT is defined */
 UNIV_INTERN ib_int64_t	rw_s_exit_count		= 0;
 
-/* number of spin waits on rw-latches,
+/** number of spin waits on rw-latches,
 resulted during exclusive (write) locks */
 UNIV_INTERN ib_int64_t	rw_x_spin_wait_count	= 0;
+/** number of spin loop rounds on rw-latches,
+resulted during exclusive (write) locks */
 UNIV_INTERN ib_int64_t	rw_x_spin_round_count	= 0;
 
-/* number of OS waits on rw-latches,
+/** number of OS waits on rw-latches,
 resulted during exclusive (write) locks */
 UNIV_INTERN ib_int64_t	rw_x_os_wait_count	= 0;
 
-/* number of unlocks (that unlock exclusive locks),
+/** number of unlocks (that unlock exclusive locks),
 set only when UNIV_SYNC_PERF_STAT is defined */
 UNIV_INTERN ib_int64_t	rw_x_exit_count		= 0;
 
@@ -174,13 +179,13 @@ UNIV_INTERN os_event_t		rw_lock_debug_event;
 /* This is set to TRUE, if there may be waiters for the event */
 UNIV_INTERN ibool		rw_lock_debug_waiters;
 
-/**********************************************************************
+/******************************************************************//**
 Creates a debug info struct. */
 static
 rw_lock_debug_t*
 rw_lock_debug_create(void);
 /*======================*/
-/**********************************************************************
+/******************************************************************//**
 Frees a debug info struct. */
 static
 void
@@ -188,7 +193,7 @@ rw_lock_debug_free(
 /*===============*/
 	rw_lock_debug_t* info);
 
-/**********************************************************************
+/******************************************************************//**
 Creates a debug info struct.
 @return	own: debug info struct */
 static
@@ -199,7 +204,7 @@ rw_lock_debug_create(void)
 	return((rw_lock_debug_t*) mem_alloc(sizeof(rw_lock_debug_t)));
 }
 
-/**********************************************************************
+/******************************************************************//**
 Frees a debug info struct. */
 static
 void
@@ -211,7 +216,7 @@ rw_lock_debug_free(
 }
 #endif /* UNIV_SYNC_DEBUG */
 
-/**********************************************************************
+/******************************************************************//**
 Creates, or rather, initializes an rw-lock object in a specified memory
 location (which must be appropriately aligned). The rw-lock is initialized
 to the non-locked state. Explicit freeing of the rw-lock with rw_lock_free
@@ -286,7 +291,7 @@ rw_lock_create_func(
 	mutex_exit(&rw_lock_list_mutex);
 }
 
-/**********************************************************************
+/******************************************************************//**
 Calling this function is obligatory only if the memory buffer containing
 the rw-lock is freed. Removes an rw-lock object from the global list. The
 rw-lock is checked to be in the non-locked state. */
@@ -323,7 +328,7 @@ rw_lock_free(
 }
 
 #ifdef UNIV_DEBUG
-/**********************************************************************
+/******************************************************************//**
 Checks that the rw-lock has been initialized and that there are no
 simultaneous shared and exclusive locks.
 @return	TRUE */
@@ -346,7 +351,7 @@ rw_lock_validate(
 }
 #endif /* UNIV_DEBUG */
 
-/**********************************************************************
+/******************************************************************//**
 Lock an rw-lock in shared mode for the current thread. If the rw-lock is
 locked in exclusive mode, or there is an exclusive lock request waiting,
 the function spins a preset time (controlled by SYNC_SPIN_ROUNDS), waiting
@@ -366,7 +371,7 @@ rw_lock_s_lock_spin(
 
 	ut_ad(rw_lock_validate(lock));
 
-	rw_s_spin_wait_count++;	/* Count calls to this function */
+	rw_s_spin_wait_count++;	/*!< Count calls to this function */
 lock_loop:
 
 	/* Spin waiting for the writer field to become free */
@@ -438,7 +443,7 @@ lock_loop:
 	}
 }
 
-/**********************************************************************
+/******************************************************************//**
 This function is used in the insert buffer to move the ownership of an
 x-latch on a buffer frame to the current thread. The x-latch was set by
 the buffer read operation and it protected the buffer frame while the
@@ -458,7 +463,7 @@ rw_lock_x_lock_move_ownership(
 	rw_lock_set_writer_id_and_recursion_flag(lock, TRUE);
 }
 
-/**********************************************************************
+/******************************************************************//**
 Function for the next writer to call. Waits for readers to exit.
 The caller must have already decremented lock_word by X_LOCK_DECR. */
 UNIV_INLINE
@@ -526,7 +531,7 @@ rw_lock_x_lock_wait(
 	rw_x_spin_round_count += i;
 }
 
-/**********************************************************************
+/******************************************************************//**
 Low-level function for acquiring an exclusive lock.
 @return	RW_LOCK_NOT_LOCKED if did not succeed, RW_LOCK_EX if success. */
 UNIV_INLINE
@@ -580,7 +585,7 @@ rw_lock_x_lock_low(
 	return(TRUE);
 }
 
-/**********************************************************************
+/******************************************************************//**
 NOTE! Use the corresponding macro, not directly this function! Lock an
 rw-lock in exclusive mode for the current thread. If the rw-lock is locked
 in shared or exclusive mode, or there is an exclusive lock request waiting,
@@ -599,8 +604,8 @@ rw_lock_x_lock_func(
 	const char*	file_name,/*!< in: file name where lock requested */
 	ulint		line)	/*!< in: line where requested */
 {
-	ulint	index;	/* index of the reserved wait cell */
-	ulint	i;	/* spin round count */
+	ulint	index;	/*!< index of the reserved wait cell */
+	ulint	i;	/*!< spin round count */
 	ibool   spinning = FALSE;
 
 	ut_ad(rw_lock_validate(lock));
@@ -682,7 +687,7 @@ lock_loop:
 }
 
 #ifdef UNIV_SYNC_DEBUG
-/**********************************************************************
+/******************************************************************//**
 Acquires the debug mutex. We cannot use the mutex defined in sync0sync,
 because the debug mutex is also acquired in sync0arr while holding the OS
 mutex protecting the sync array, and the ordinary mutex_enter might
@@ -711,7 +716,7 @@ loop:
 	goto loop;
 }
 
-/**********************************************************************
+/******************************************************************//**
 Releases the debug mutex. */
 UNIV_INTERN
 void
@@ -726,7 +731,7 @@ rw_lock_debug_mutex_exit(void)
 	}
 }
 
-/**********************************************************************
+/******************************************************************//**
 Inserts the debug information for an rw-lock. */
 UNIV_INTERN
 void
@@ -762,7 +767,7 @@ rw_lock_add_debug_info(
 	}
 }
 
-/**********************************************************************
+/******************************************************************//**
 Removes a debug information struct for an rw-lock. */
 UNIV_INTERN
 void
@@ -808,7 +813,7 @@ rw_lock_remove_debug_info(
 #endif /* UNIV_SYNC_DEBUG */
 
 #ifdef UNIV_SYNC_DEBUG
-/**********************************************************************
+/******************************************************************//**
 Checks if the thread has locked the rw-lock in the specified mode, with
 the pass value == 0.
 @return	TRUE if locked */
@@ -849,7 +854,7 @@ rw_lock_own(
 }
 #endif /* UNIV_SYNC_DEBUG */
 
-/**********************************************************************
+/******************************************************************//**
 Checks if somebody has locked the rw-lock in the specified mode.
 @return	TRUE if locked */
 UNIV_INTERN
@@ -881,7 +886,7 @@ rw_lock_is_locked(
 }
 
 #ifdef UNIV_SYNC_DEBUG
-/*******************************************************************
+/***************************************************************//**
 Prints debug info of currently locked rw-locks. */
 UNIV_INTERN
 void
@@ -935,7 +940,7 @@ rw_lock_list_print_info(
 	mutex_exit(&rw_lock_list_mutex);
 }
 
-/*******************************************************************
+/***************************************************************//**
 Prints debug info of an rw-lock. */
 UNIV_INTERN
 void
@@ -974,7 +979,7 @@ rw_lock_print(
 	}
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Prints info of a debug struct. */
 UNIV_INTERN
 void
@@ -1004,7 +1009,7 @@ rw_lock_debug_print(
 	putc('\n', stderr);
 }
 
-/*******************************************************************
+/***************************************************************//**
 Returns the number of currently locked rw-locks. Works only in the debug
 version.
 @return	number of locked rw-locks */

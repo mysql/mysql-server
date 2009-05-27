@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/row0uins.h
 Fresh insert undo
 
 Created 2/25/1997 Heikki Tuuri
@@ -33,7 +34,7 @@ Created 2/25/1997 Heikki Tuuri
 #include "row0types.h"
 #include "mtr0mtr.h"
 
-/***************************************************************
+/***********************************************************//**
 Undoes a fresh insert of a row to a table. A fresh insert means that
 the same clustered index unique key did not have any record, even delete
 marked, at the time of the insert.  InnoDB is eager in a rollback:

@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file row/row0ext.c
 Caching of externally stored column prefixes
 
 Created September 2006 Marko Makela
@@ -30,7 +31,7 @@ Created September 2006 Marko Makela
 
 #include "btr0cur.h"
 
-/************************************************************************
+/********************************************************************//**
 Fills the column prefix cache of an externally stored column. */
 static
 void
@@ -66,7 +67,7 @@ row_ext_cache_fill(
 	}
 }
 
-/************************************************************************
+/********************************************************************//**
 Creates a cache of column prefixes of externally stored columns.
 @return	own: column prefix cache */
 UNIV_INTERN

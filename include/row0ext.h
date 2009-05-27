@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/row0ext.h
 Caching of externally stored column prefixes
 
 Created September 2006 Marko Makela
@@ -30,7 +31,7 @@ Created September 2006 Marko Makela
 #include "data0types.h"
 #include "mem0mem.h"
 
-/************************************************************************
+/********************************************************************//**
 Creates a cache of column prefixes of externally stored columns.
 @return	own: column prefix cache */
 UNIV_INTERN
@@ -51,9 +52,10 @@ row_ext_create(
 	ulint		zip_size,/*!< compressed page size in bytes, or 0 */
 	mem_heap_t*	heap);	/*!< in: heap where created */
 
-/************************************************************************
+/********************************************************************//**
 Looks up a column prefix of an externally stored column.
-@return	column prefix, or NULL if the column is not stored externally, or pointer to field_ref_zero if the BLOB pointer is unset */
+@return column prefix, or NULL if the column is not stored externally,
+or pointer to field_ref_zero if the BLOB pointer is unset */
 UNIV_INLINE
 const byte*
 row_ext_lookup_ith(
@@ -62,9 +64,10 @@ row_ext_lookup_ith(
 	ulint			i,	/*!< in: index of ext->ext[] */
 	ulint*			len);	/*!< out: length of prefix, in bytes,
 					at most REC_MAX_INDEX_COL_LEN */
-/************************************************************************
+/********************************************************************//**
 Looks up a column prefix of an externally stored column.
-@return	column prefix, or NULL if the column is not stored externally, or pointer to field_ref_zero if the BLOB pointer is unset */
+@return column prefix, or NULL if the column is not stored externally,
+or pointer to field_ref_zero if the BLOB pointer is unset */
 UNIV_INLINE
 const byte*
 row_ext_lookup(
@@ -77,12 +80,12 @@ row_ext_lookup(
 	ulint*			len);	/*!< out: length of prefix, in bytes,
 					at most REC_MAX_INDEX_COL_LEN */
 
-/* Prefixes of externally stored columns */
+/** Prefixes of externally stored columns */
 struct row_ext_struct{
-	ulint		n_ext;	/* number of externally stored columns */
-	const ulint*	ext;	/* col_no's of externally stored columns */
-	byte*		buf;	/* backing store of the column prefix cache */
-	ulint		len[1];	/* prefix lengths; 0 if not cached */
+	ulint		n_ext;	/*!< number of externally stored columns */
+	const ulint*	ext;	/*!< col_no's of externally stored columns */
+	byte*		buf;	/*!< backing store of the column prefix cache */
+	ulint		len[1];	/*!< prefix lengths; 0 if not cached */
 };
 
 #ifndef UNIV_NONINL

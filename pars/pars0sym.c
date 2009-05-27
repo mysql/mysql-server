@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file pars/pars0sym.c
 SQL parser symbol table
 
 Created 12/15/1997 Heikki Tuuri
@@ -37,7 +38,7 @@ Created 12/15/1997 Heikki Tuuri
 #include "eval0eval.h"
 #include "row0sel.h"
 
-/**********************************************************************
+/******************************************************************//**
 Creates a symbol table for a single stored procedure or query.
 @return	own: symbol table */
 UNIV_INTERN
@@ -58,7 +59,7 @@ sym_tab_create(
 	return(sym_tab);
 }
 
-/**********************************************************************
+/******************************************************************//**
 Frees the memory allocated dynamically AFTER parsing phase for variables
 etc. in the symbol table. Does not free the mem heap where the table was
 originally created. Frees also SQL explicit cursor definitions. */
@@ -96,7 +97,7 @@ sym_tab_free_private(
 	}
 }
 
-/**********************************************************************
+/******************************************************************//**
 Adds an integer literal to a symbol table.
 @return	symbol table node */
 UNIV_INTERN
@@ -136,7 +137,7 @@ sym_tab_add_int_lit(
 	return(node);
 }
 
-/**********************************************************************
+/******************************************************************//**
 Adds a string literal to a symbol table.
 @return	symbol table node */
 UNIV_INTERN
@@ -183,7 +184,7 @@ sym_tab_add_str_lit(
 	return(node);
 }
 
-/**********************************************************************
+/******************************************************************//**
 Add a bound literal to a symbol table.
 @return	symbol table node */
 UNIV_INTERN
@@ -259,7 +260,7 @@ sym_tab_add_bound_lit(
 	return(node);
 }
 
-/**********************************************************************
+/******************************************************************//**
 Adds an SQL null literal to a symbol table.
 @return	symbol table node */
 UNIV_INTERN
@@ -294,7 +295,7 @@ sym_tab_add_null_lit(
 	return(node);
 }
 
-/**********************************************************************
+/******************************************************************//**
 Adds an identifier to a symbol table.
 @return	symbol table node */
 UNIV_INTERN
@@ -330,7 +331,7 @@ sym_tab_add_id(
 	return(node);
 }
 
-/**********************************************************************
+/******************************************************************//**
 Add a bound identifier to a symbol table.
 @return	symbol table node */
 UNIV_INTERN

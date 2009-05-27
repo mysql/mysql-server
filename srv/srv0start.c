@@ -23,7 +23,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/************************************************************************
+/********************************************************************//**
+@file srv/srv0start.c
 Starts the InnoDB database server
 
 Created 2/16/1996 Heikki Tuuri
@@ -77,48 +78,61 @@ Created 2/16/1996 Heikki Tuuri
 # include "row0mysql.h"
 # include "btr0pcur.h"
 
-/* Log sequence number immediately after startup */
+/** Log sequence number immediately after startup */
 UNIV_INTERN ib_uint64_t	srv_start_lsn;
-/* Log sequence number at shutdown */
+/** Log sequence number at shutdown */
 UNIV_INTERN ib_uint64_t	srv_shutdown_lsn;
 
 #ifdef HAVE_DARWIN_THREADS
 # include <sys/utsname.h>
+/** TRUE if the F_FULLFSYNC option is available */
 UNIV_INTERN ibool	srv_have_fullfsync = FALSE;
 #endif
 
+/** TRUE if a raw partition is in use */
 UNIV_INTERN ibool	srv_start_raw_disk_in_use = FALSE;
 
+/** TRUE if the server is being started, before rolling back any
+incomplete transactions */
 UNIV_INTERN ibool	srv_startup_is_before_trx_rollback_phase = FALSE;
+/** TRUE if the server is being started */
 UNIV_INTERN ibool	srv_is_being_started = FALSE;
+/** TRUE if the server was successfully started */
 UNIV_INTERN ibool	srv_was_started = FALSE;
+/** TRUE if innobase_start_or_create_for_mysql() has been called */
 static ibool	srv_start_has_been_called = FALSE;
 
-/* At a shutdown the value first climbs to SRV_SHUTDOWN_CLEANUP
-and then to SRV_SHUTDOWN_LAST_PHASE */
-UNIV_INTERN ulint		srv_shutdown_state = 0;
+/** At a shutdown this value climbs from SRV_SHUTDOWN_NONE to
+SRV_SHUTDOWN_CLEANUP and then to SRV_SHUTDOWN_LAST_PHASE, and so on */
+UNIV_INTERN enum srv_shutdown_state	srv_shutdown_state = SRV_SHUTDOWN_NONE;
 
+/** Files comprising the system tablespace */
 static os_file_t	files[1000];
 
+/** Mutex protecting the ios count */
 static mutex_t		ios_mutex;
+/** Count of I/O operations in io_handler_thread() */
 static ulint		ios;
 
+/** io_handler_thread parameters for thread identification */
 static ulint		n[SRV_MAX_N_IO_THREADS + 5];
+/** io_handler_thread identifiers */
 static os_thread_id_t	thread_ids[SRV_MAX_N_IO_THREADS + 5];
 
-/* We use this mutex to test the return value of pthread_mutex_trylock
+/** We use this mutex to test the return value of pthread_mutex_trylock
    on successful locking. HP-UX does NOT return 0, though Linux et al do. */
 static os_fast_mutex_t	srv_os_test_mutex;
 
-/* Name of srv_monitor_file */
+/** Name of srv_monitor_file */
 static char*	srv_monitor_file_name;
 #endif /* !UNIV_HOTBACKUP */
 
+/** */
 #define SRV_N_PENDING_IOS_PER_THREAD	OS_AIO_N_PENDING_IOS_PER_THREAD
 #define SRV_MAX_N_PENDING_SYNC_IOS	100
 
 
-/*************************************************************************
+/*********************************************************************//**
 Convert a numeric string that optionally ends in G or M, to a number
 containing megabytes.
 @return	next character in string */
@@ -152,7 +166,7 @@ srv_parse_megabytes(
 	return(str);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Reads the data files and their sizes from a character string given in
 the .cnf file.
 @return	TRUE if ok, FALSE on parse error */
@@ -336,7 +350,7 @@ srv_parse_data_file_paths_and_sizes(
 	return(TRUE);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Reads log group home directories from a character string given in
 the .cnf file.
 @return	TRUE if ok, FALSE on parse error */
@@ -408,7 +422,7 @@ srv_parse_log_group_home_dirs(
 	return(TRUE);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Frees the memory allocated by srv_parse_data_file_paths_and_sizes()
 and srv_parse_log_group_home_dirs(). */
 UNIV_INTERN
@@ -427,7 +441,7 @@ srv_free_paths_and_sizes(void)
 }
 
 #ifndef UNIV_HOTBACKUP
-/************************************************************************
+/********************************************************************//**
 I/o-handler thread function.
 @return	OS_THREAD_DUMMY_RETURN */
 static
@@ -471,7 +485,7 @@ io_handler_thread(
 #define SRV_PATH_SEPARATOR	'/'
 #endif
 
-/*************************************************************************
+/*********************************************************************//**
 Normalizes a directory path for Windows: converts slashes to backslashes. */
 UNIV_INTERN
 void
@@ -490,7 +504,7 @@ srv_normalize_path_for_win(
 #endif
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Adds a slash or a backslash to the end of a string if it is missing
 and the string is not empty.
 @return	string which has the separator if the string is not empty */
@@ -517,7 +531,7 @@ srv_add_path_separator_if_needed(
 }
 
 #ifndef UNIV_HOTBACKUP
-/*************************************************************************
+/*********************************************************************//**
 Calculates the low 32 bits when a file size which is given as a number
 database pages is converted to the number of bytes.
 @return	low 32 bytes of file size when expressed in bytes */
@@ -530,7 +544,7 @@ srv_calc_low32(
 	return(0xFFFFFFFFUL & (file_size << UNIV_PAGE_SIZE_SHIFT));
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Calculates the high 32 bits when a file size which is given as a number
 database pages is converted to the number of bytes.
 @return	high 32 bytes of file size when expressed in bytes */
@@ -543,7 +557,7 @@ srv_calc_high32(
 	return(file_size >> (32 - UNIV_PAGE_SIZE_SHIFT));
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Creates or opens the log files and closes them.
 @return	DB_SUCCESS or error code */
 static
@@ -696,7 +710,7 @@ open_or_create_log_file(
 	return(DB_SUCCESS);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Creates or opens database data files and closes them.
 @return	DB_SUCCESS or error code */
 static
@@ -968,7 +982,7 @@ skip_size_check:
 	return(DB_SUCCESS);
 }
 
-/********************************************************************
+/****************************************************************//**
 Starts InnoDB and creates a new database if database files
 are not found and the user wants.
 @return	DB_SUCCESS or error code */
@@ -1875,7 +1889,7 @@ innobase_start_or_create_for_mysql(void)
 	return((int) DB_SUCCESS);
 }
 
-/********************************************************************
+/****************************************************************//**
 Shuts down the InnoDB database.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
@@ -1916,7 +1930,7 @@ innobase_shutdown_for_mysql(void)
 	}
 
 #ifdef __NETWARE__
-	if(!panic_shutdown)
+	if (!panic_shutdown)
 #endif
 		logs_empty_and_mark_files_at_shutdown();
 

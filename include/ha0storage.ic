@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/ha0storage.ic
 Hash storage.
 Provides a data structure that stores chunks of data in
 its own storage, avoiding duplicates.
@@ -29,22 +30,24 @@ Created September 24, 2007 Vasil Dimov
 #include "hash0hash.h"
 #include "mem0mem.h"
 
+/** Hash storage for strings */
 struct ha_storage_struct {
-	mem_heap_t*	heap;	/* storage from which memory is
+	mem_heap_t*	heap;	/*!< memory heap from which memory is
 				allocated */
-	hash_table_t*	hash;	/* hash table used to avoid
+	hash_table_t*	hash;	/*!< hash table used to avoid
 				duplicates */
 };
 
-/* Objects of this type are put in the hash */
+/** Objects of this type are stored in ha_storage_t */
 typedef struct ha_storage_node_struct ha_storage_node_t;
+/** Objects of this type are stored in ha_storage_struct */
 struct ha_storage_node_struct {
-	ulint			data_len;/* length of the data */
-	const void*		data;	/* pointer to data */
-	ha_storage_node_t*	next;	/* next node in hash chain */
+	ulint			data_len;/*!< length of the data */
+	const void*		data;	/*!< pointer to data */
+	ha_storage_node_t*	next;	/*!< next node in hash chain */
 };
 
-/***********************************************************************
+/*******************************************************************//**
 Creates a hash storage. If any of the parameters is 0, then a default
 value is used.
 @return	own: hash storage */
@@ -83,7 +86,7 @@ ha_storage_create(
 	return(storage);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Empties a hash storage, freeing memory occupied by data chunks.
 This invalidates any pointers previously returned by ha_storage_put().
 The hash storage is not invalidated itself and can be used again. */
@@ -108,16 +111,15 @@ ha_storage_empty(
 	(*storage)->hash = temp_storage.hash;
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Frees a hash storage and everything it contains, it cannot be used after
 this call.
-This invalidates any pointers previously returned by ha_storage_put().
- */
+This invalidates any pointers previously returned by ha_storage_put(). */
 UNIV_INLINE
 void
 ha_storage_free(
 /*============*/
-	ha_storage_t*	storage)	/*!< in/out: hash storage */
+	ha_storage_t*	storage)	/*!< in, own: hash storage */
 {
 	/* order is important because the pointer storage->hash is
 	within the heap */
@@ -125,7 +127,7 @@ ha_storage_free(
 	mem_heap_free(storage->heap);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Gets the size of the memory used by a storage.
 @return	bytes used */
 UNIV_INLINE

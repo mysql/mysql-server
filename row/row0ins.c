@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file row/row0ins.c
 Insert into a table
 
 Created 4/20/1996 Heikki Tuuri
@@ -51,7 +52,7 @@ Created 4/20/1996 Heikki Tuuri
 #define	ROW_INS_NEXT	2
 
 
-/*************************************************************************
+/*********************************************************************//**
 Creates an insert node struct.
 @return	own: insert node struct */
 UNIV_INTERN
@@ -86,7 +87,7 @@ ins_node_create(
 	return(node);
 }
 
-/***************************************************************
+/***********************************************************//**
 Creates an entry template for each index of a table. */
 UNIV_INTERN
 void
@@ -112,7 +113,7 @@ ins_node_create_entry_list(
 	}
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Adds system field buffers to a row. */
 static
 void
@@ -167,7 +168,7 @@ row_ins_alloc_sys_fields(
 	dfield_set_data(dfield, ptr, DATA_ROLL_PTR_LEN);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Sets a new row to insert for an INS_DIRECT node. This function is only used
 if we have constructed the row separately, which is a rare case; this
 function is quite slow. */
@@ -200,7 +201,7 @@ ins_node_set_new_row(
 	node->trx_id = ut_dulint_zero;
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Does an insert operation by updating a delete-marked existing record
 in the index. This situation can occur if the delete-marked record is
 kept in the index for consistent reads.
@@ -271,7 +272,7 @@ func_exit:
 	return(err);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Does an insert operation by delete unmarking and updating a delete marked
 existing record in the index. This situation can occur if the delete marked
 record is kept in the index for consistent reads.
@@ -343,7 +344,7 @@ row_ins_clust_index_entry_by_modify(
 	return(err);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Returns TRUE if in a cascaded update/delete an ancestor node of node
 updates (not DELETE, but UPDATE) table.
 @return	TRUE if an ancestor updates table */
@@ -376,7 +377,7 @@ row_ins_cascade_ancestor_updates_table(
 	return(FALSE);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Returns the number of ancestor UPDATE or DELETE nodes of a
 cascaded update/delete node.
 @return	number of ancestors */
@@ -402,10 +403,13 @@ row_ins_cascade_n_ancestors(
 	return(n_ancestors);
 }
 
-/**********************************************************************
+/******************************************************************//**
 Calculates the update vector node->cascade->update for a child table in
 a cascaded update.
-@return	number of fields in the calculated update vector; the value can also be 0 if no foreign key fields changed; the returned value is ULINT_UNDEFINED if the column type in the child table is too short to fit the new value in the parent table: that means the update fails */
+@return number of fields in the calculated update vector; the value
+can also be 0 if no foreign key fields changed; the returned value is
+ULINT_UNDEFINED if the column type in the child table is too short to
+fit the new value in the parent table: that means the update fails */
 static
 ulint
 row_ins_cascade_calc_update_vec(
@@ -583,7 +587,7 @@ row_ins_cascade_calc_update_vec(
 	return(n_fields_updated);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Set detailed error message associated with foreign key errors for
 the given transaction. */
 static
@@ -609,7 +613,7 @@ row_ins_set_detailed(
 	mutex_exit(&srv_misc_tmpfile_mutex);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Reports a foreign key error associated with an update or a delete of a
 parent table index entry. */
 static
@@ -665,7 +669,7 @@ row_ins_foreign_report_err(
 	mutex_exit(&dict_foreign_err_mutex);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Reports a foreign key error to dict_foreign_err_file when we are trying
 to add an index entry to a child table. Note that the adding may be the result
 of an update, too. */
@@ -723,7 +727,7 @@ row_ins_foreign_report_add_err(
 	mutex_exit(&dict_foreign_err_mutex);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Invalidate the query cache for the given table. */
 static
 void
@@ -748,7 +752,7 @@ row_ins_invalidate_query_cache(
 	mem_free(buf);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Perform referential actions or checks when a parent row is deleted or updated
 and the constraint had an ON DELETE or ON UPDATE condition which was not
 RESTRICT.
@@ -1114,7 +1118,7 @@ nonstandard_exit_func:
 	return(err);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Sets a shared lock on a record. Used in locking possible duplicate key
 records and also in checking foreign key constraints.
 @return	DB_SUCCESS or error code */
@@ -1145,7 +1149,7 @@ row_ins_set_shared_rec_lock(
 	return(err);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Sets a exclusive lock on a record. Used in locking possible duplicate key
 records
 @return	DB_SUCCESS or error code */
@@ -1176,7 +1180,7 @@ row_ins_set_exclusive_rec_lock(
 	return(err);
 }
 
-/*******************************************************************
+/***************************************************************//**
 Checks if foreign key constraint fails for an index entry. Sets shared locks
 which lock either the success or the failure of the constraint. NOTE that
 the caller must have a shared latch on dict_operation_lock.
@@ -1498,7 +1502,7 @@ exit_func:
 	return(err);
 }
 
-/*******************************************************************
+/***************************************************************//**
 Checks if foreign key constraints fail for an index entry. If index
 is not mentioned in any constraint, this function does nothing,
 Otherwise does searches to the indexes of referenced tables and
@@ -1580,7 +1584,7 @@ row_ins_check_foreign_constraints(
 	return(DB_SUCCESS);
 }
 
-/*******************************************************************
+/***************************************************************//**
 Checks if a unique key violation to rec would occur at the index entry
 insert.
 @return	TRUE if error */
@@ -1632,7 +1636,7 @@ row_ins_dupl_error_with_rec(
 	return(!rec_get_deleted_flag(rec, rec_offs_comp(offsets)));
 }
 
-/*******************************************************************
+/***************************************************************//**
 Scans a unique non-clustered index at a given index entry to determine
 whether a uniqueness violation has occurred for the key value of the entry.
 Set shared locks on possible duplicate records.
@@ -1756,11 +1760,13 @@ row_ins_scan_sec_index_for_duplicate(
 	return(err);
 }
 
-/*******************************************************************
+/***************************************************************//**
 Checks if a unique key violation error would occur at an index entry
 insert. Sets shared locks on possible duplicate records. Works only
 for a clustered index!
-@return	DB_SUCCESS if no error, DB_DUPLICATE_KEY if error, DB_LOCK_WAIT if we have to wait for a lock on a possible duplicate record */
+@return DB_SUCCESS if no error, DB_DUPLICATE_KEY if error,
+DB_LOCK_WAIT if we have to wait for a lock on a possible duplicate
+record */
 static
 ulint
 row_ins_duplicate_error_in_clust(
@@ -1895,13 +1901,15 @@ func_exit:
 	return(err);
 }
 
-/*******************************************************************
+/***************************************************************//**
 Checks if an index entry has long enough common prefix with an existing
 record so that the intended insert of the entry must be changed to a modify of
 the existing record. In the case of a clustered index, the prefix must be
 n_unique fields long, and in the case of a secondary index, all fields must be
 equal.
-@return	0 if no update, ROW_INS_PREV if previous should be updated; currently we do the search so that only the low_match record can match enough to the search tuple, not the next record */
+@return 0 if no update, ROW_INS_PREV if previous should be updated;
+currently we do the search so that only the low_match record can match
+enough to the search tuple, not the next record */
 UNIV_INLINE
 ulint
 row_ins_must_modify(
@@ -1933,7 +1941,7 @@ row_ins_must_modify(
 	return(0);
 }
 
-/*******************************************************************
+/***************************************************************//**
 Tries to insert an index entry to an index. If the index is clustered
 and a record with the same unique key is found, the other record is
 necessarily marked deleted by a committed transaction, or a unique key
@@ -1942,7 +1950,8 @@ existing record, and we must write an undo log record on the delete
 marked record. If the index is secondary, and a record with exactly the
 same fields is found, the other record is necessarily marked deleted.
 It is then unmarked. Otherwise, the entry is just inserted to the index.
-@return	DB_SUCCESS, DB_LOCK_WAIT, DB_FAIL if pessimistic retry needed, or error code */
+@return DB_SUCCESS, DB_LOCK_WAIT, DB_FAIL if pessimistic retry needed,
+or error code */
 static
 ulint
 row_ins_index_entry_low(
@@ -2123,7 +2132,7 @@ function_exit:
 	return(err);
 }
 
-/*******************************************************************
+/***************************************************************//**
 Inserts an index entry to index. Tries first optimistic, then pessimistic
 descent down the tree. If the entry matches enough to a delete marked record,
 performs the insert by updating or delete unmarking the delete marked
@@ -2166,7 +2175,7 @@ row_ins_index_entry(
 	return(err);
 }
 
-/***************************************************************
+/***********************************************************//**
 Sets the values of the dtuple fields in entry from the values of appropriate
 columns in row. */
 static
@@ -2218,9 +2227,10 @@ row_ins_index_entry_set_vals(
 	}
 }
 
-/***************************************************************
+/***********************************************************//**
 Inserts a single index entry to the table.
-@return	DB_SUCCESS if operation successfully completed, else error code or DB_LOCK_WAIT */
+@return DB_SUCCESS if operation successfully completed, else error
+code or DB_LOCK_WAIT */
 static
 ulint
 row_ins_index_entry_step(
@@ -2241,7 +2251,7 @@ row_ins_index_entry_step(
 	return(err);
 }
 
-/***************************************************************
+/***********************************************************//**
 Allocates a row id for row and inits the node->index field. */
 UNIV_INLINE
 void
@@ -2267,7 +2277,7 @@ row_ins_alloc_row_id_step(
 	dict_sys_write_row_id(node->row_id_buf, row_id);
 }
 
-/***************************************************************
+/***********************************************************//**
 Gets a row to insert from the values list. */
 UNIV_INLINE
 void
@@ -2300,7 +2310,7 @@ row_ins_get_row_from_values(
 	}
 }
 
-/***************************************************************
+/***********************************************************//**
 Gets a row to insert from the select list. */
 UNIV_INLINE
 void
@@ -2331,9 +2341,10 @@ row_ins_get_row_from_select(
 	}
 }
 
-/***************************************************************
+/***********************************************************//**
 Inserts a row to a table.
-@return	DB_SUCCESS if operation successfully completed, else error code or DB_LOCK_WAIT */
+@return DB_SUCCESS if operation successfully completed, else error
+code or DB_LOCK_WAIT */
 static
 ulint
 row_ins(
@@ -2385,7 +2396,7 @@ row_ins(
 	return(DB_SUCCESS);
 }
 
-/***************************************************************
+/***********************************************************//**
 Inserts a row to a table. This is a high-level function used in SQL execution
 graphs.
 @return	query thread to run next or NULL */

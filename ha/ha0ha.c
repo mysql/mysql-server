@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/************************************************************************
+/********************************************************************//**
+@file ha/ha0ha.c
 The hash table with external chains
 
 Created 8/22/1994 Heikki Tuuri
@@ -35,9 +36,9 @@ Created 8/22/1994 Heikki Tuuri
 #endif /* UNIV_SYNC_DEBUG */
 #include "page0page.h"
 
-/*****************************************************************
-Creates a hash table with >= n array cells. The actual number of cells is
-chosen to be a prime number slightly bigger than n.
+/*************************************************************//**
+Creates a hash table with at least n array cells.  The actual number
+of cells is chosen to be a prime number slightly bigger than n.
 @return	own: created table */
 UNIV_INTERN
 hash_table_t*
@@ -56,6 +57,7 @@ ha_create_func(
 	ulint		i;
 #endif /* !UNIV_HOTBACKUP */
 
+	ut_ad(ut_is_2pow(n));
 	table = hash_create(n);
 
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
@@ -88,7 +90,7 @@ ha_create_func(
 	return(table);
 }
 
-/*****************************************************************
+/*************************************************************//**
 Empties a hash table and frees the memory heaps. */
 UNIV_INTERN
 void
@@ -120,7 +122,7 @@ ha_clear(
 	}
 }
 
-/*****************************************************************
+/*************************************************************//**
 Inserts an entry into a hash table. If an entry with the same fold number
 is found, its node is updated to point to the new data, and no new node
 is inserted.
@@ -226,7 +228,7 @@ ha_insert_for_fold_func(
 	return(TRUE);
 }
 
-/***************************************************************
+/***********************************************************//**
 Deletes a hash node. */
 UNIV_INTERN
 void
@@ -248,7 +250,7 @@ ha_delete_hash_node(
 	HASH_DELETE_AND_COMPACT(ha_node_t, next, table, del_node);
 }
 
-/*****************************************************************
+/*************************************************************//**
 Deletes an entry from a hash table. */
 UNIV_INTERN
 void
@@ -270,14 +272,14 @@ ha_delete(
 	ha_delete_hash_node(table, node);
 }
 
-/*************************************************************
+/*********************************************************//**
 Looks for an element when we know the pointer to the data, and updates
 the pointer to data, if found. */
 UNIV_INTERN
 void
 ha_search_and_update_if_found_func(
 /*===============================*/
-	hash_table_t*	table,	/*!< in: hash table */
+	hash_table_t*	table,	/*!< in/out: hash table */
 	ulint		fold,	/*!< in: folded value of the searched data */
 	void*		data,	/*!< in: pointer to the data */
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
@@ -311,7 +313,7 @@ ha_search_and_update_if_found_func(
 }
 
 #ifndef UNIV_HOTBACKUP
-/*********************************************************************
+/*****************************************************************//**
 Removes from the chain determined by fold all nodes whose data pointer
 points to the page given. */
 UNIV_INTERN
@@ -357,7 +359,7 @@ ha_remove_all_nodes_to_page(
 #endif
 }
 
-/*****************************************************************
+/*************************************************************//**
 Validates a given range of the cells in hash table.
 @return	TRUE if ok */
 UNIV_INTERN
@@ -402,7 +404,7 @@ ha_validate(
 	return(ok);
 }
 
-/*****************************************************************
+/*************************************************************//**
 Prints info of a hash table. */
 UNIV_INTERN
 void

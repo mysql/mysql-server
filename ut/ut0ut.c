@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/*******************************************************************
+/***************************************************************//**
+@file ut/ut0ut.c
 Various utilities for Innobase.
 
 Created 5/11/1994 Heikki Tuuri
@@ -38,17 +39,18 @@ Created 5/11/1994 Heikki Tuuri
 # include "mysql_com.h" /* NAME_LEN */
 #endif /* UNIV_HOTBACKUP */
 
+/** A constant to prevent the compiler from optimizing ut_delay() away. */
 UNIV_INTERN ibool	ut_always_false	= FALSE;
 
 #ifdef __WIN__
-/*********************************************************************
+/*****************************************************************//**
 NOTE: The Windows epoch starts from 1601/01/01 whereas the Unix
 epoch starts from 1970/1/1. For selection of constant see:
 http://support.microsoft.com/kb/167296/ */
 #define WIN_TO_UNIX_DELTA_USEC  ((ib_int64_t) 11644473600000000ULL)
 
 
-/*********************************************************************
+/*****************************************************************//**
 This is the Windows version of gettimeofday(2).
 @return	0 if all OK else -1 */
 static
@@ -86,10 +88,12 @@ ut_gettimeofday(
 	return(0);
 }
 #else
+/** An alias for gettimeofday(2).  On Microsoft Windows, we have to
+reimplement this function. */
 #define	ut_gettimeofday		gettimeofday
 #endif
 
-/************************************************************
+/********************************************************//**
 Gets the high 32 bits in a ulint. That is makes a shift >> 32,
 but since there seem to be compiler bugs in both gcc and Visual C++,
 we do this by a special conversion.
@@ -109,7 +113,7 @@ ut_get_high32(
 	return((ulint)i);
 }
 
-/**************************************************************
+/**********************************************************//**
 Returns system time. We do not specify the format of the time returned:
 the only way to manipulate it is to use the function ut_difftime.
 @return	system time */
@@ -121,7 +125,7 @@ ut_time(void)
 	return(time(NULL));
 }
 
-/**************************************************************
+/**********************************************************//**
 Returns system time.
 Upon successful completion, the value 0 is returned; otherwise the
 value -1 is returned and the global variable errno is set to indicate the
@@ -163,7 +167,7 @@ ut_usectime(
 	return(ret);
 }
 
-/**************************************************************
+/**********************************************************//**
 Returns the number of microseconds since epoch. Similar to
 time(3), the return value is also stored in *tloc, provided
 that tloc is non-NULL.
@@ -188,7 +192,7 @@ ut_time_us(
 	return(us);
 }
 
-/**************************************************************
+/**********************************************************//**
 Returns the difference of two times in seconds.
 @return	time2 - time1 expressed in seconds */
 UNIV_INTERN
@@ -201,7 +205,7 @@ ut_difftime(
 	return(difftime(time2, time1));
 }
 
-/**************************************************************
+/**********************************************************//**
 Prints a timestamp to a file. */
 UNIV_INTERN
 void
@@ -244,7 +248,7 @@ ut_print_timestamp(
 #endif
 }
 
-/**************************************************************
+/**********************************************************//**
 Sprintfs a timestamp to a buffer, 13..14 chars plus terminating NUL. */
 UNIV_INTERN
 void
@@ -288,7 +292,7 @@ ut_sprintf_timestamp(
 }
 
 #ifdef UNIV_HOTBACKUP
-/**************************************************************
+/**********************************************************//**
 Sprintfs a timestamp to a buffer with no spaces and with ':' characters
 replaced by '_'. */
 UNIV_INTERN
@@ -332,7 +336,7 @@ ut_sprintf_timestamp_without_extra_chars(
 #endif
 }
 
-/**************************************************************
+/**********************************************************//**
 Returns current year, month, day. */
 UNIV_INTERN
 void
@@ -371,7 +375,7 @@ ut_get_year_month_day(
 #endif /* UNIV_HOTBACKUP */
 
 #ifndef UNIV_HOTBACKUP
-/*****************************************************************
+/*************************************************************//**
 Runs an idle loop on CPU. The argument gives the desired delay
 in microseconds on 100 MHz Pentium + Visual C++.
 @return	dummy value */
@@ -397,7 +401,7 @@ ut_delay(
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/*****************************************************************
+/*************************************************************//**
 Prints the contents of a memory buffer in hex and ascii. */
 UNIV_INTERN
 void
@@ -430,7 +434,7 @@ ut_print_buf(
 	putc(';', file);
 }
 
-/*****************************************************************
+/*************************************************************//**
 Calculates fast the number rounded up to the nearest power of 2.
 @return	first power of 2 which is >= n */
 UNIV_INTERN
@@ -452,7 +456,7 @@ ut_2_power_up(
 	return(res);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Outputs a NUL-terminated file name, quoted with apostrophes. */
 UNIV_INTERN
 void
@@ -478,7 +482,7 @@ done:
 	putc('\'', f);
 }
 #ifndef UNIV_HOTBACKUP
-/**************************************************************************
+/**********************************************************************//**
 Outputs a fixed-length string, quoted as an SQL identifier.
 If the string contains a slash '/', the string will be
 output as two identifiers separated by a period (.),
@@ -496,7 +500,7 @@ ut_print_name(
 	ut_print_namel(f, trx, table_id, name, strlen(name));
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Outputs a fixed-length string, quoted as an SQL identifier.
 If the string contains a slash '/', the string will be
 output as two identifiers separated by a period (.),
@@ -525,7 +529,7 @@ ut_print_namel(
 	fwrite(buf, 1, bufend - buf, f);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Catenate files. */
 UNIV_INTERN
 void
@@ -554,10 +558,11 @@ ut_copy_file(
 
 #ifdef __WIN__
 # include <stdarg.h>
-/**************************************************************************
+/**********************************************************************//**
 A substitute for snprintf(3), formatted output conversion into
 a limited buffer.
-@return	number of characters that would have been printed if the size were unlimited, not including the terminating '\0'. */
+@return number of characters that would have been printed if the size
+were unlimited, not including the terminating '\0'. */
 UNIV_INTERN
 int
 ut_snprintf(

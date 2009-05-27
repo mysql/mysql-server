@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file page/page0zip.c
 Compressed page interface
 
 Created June 2005 by Marko Makela
@@ -55,15 +56,18 @@ compressed page format. */
 /* The infimum and supremum records are omitted from the compressed page.
 On compress, we compare that the records are there, and on uncompress we
 restore the records. */
+/** Extra bytes of an infimum record */
 static const byte infimum_extra[] = {
 	0x01,			/* info_bits=0, n_owned=1 */
 	0x00, 0x02		/* heap_no=0, status=2 */
 	/* ?, ?	*/		/* next=(first user rec, or supremum) */
 };
+/** Data bytes of an infimum record */
 static const byte infimum_data[] = {
 	0x69, 0x6e, 0x66, 0x69,
 	0x6d, 0x75, 0x6d, 0x00	/* "infimum\0" */
 };
+/** Extra bytes and data bytes of a supremum record */
 static const byte supremum_extra_data[] = {
 	/* 0x0?, */		/* info_bits=0, n_owned=1..8 */
 	0x00, 0x0b,		/* heap_no=1, status=3 */
@@ -73,10 +77,13 @@ static const byte supremum_extra_data[] = {
 };
 
 /** Assert that a block of memory is filled with zero bytes.
-Compare at most sizeof(field_ref_zero) bytes. */
+Compare at most sizeof(field_ref_zero) bytes.
+@param b	in: memory block
+@param s	in: size of the memory block, in bytes */
 #define ASSERT_ZERO(b, s) \
 	ut_ad(!memcmp(b, field_ref_zero, ut_min(s, sizeof field_ref_zero)))
-/** Assert that a BLOB pointer is filled with zero bytes. */
+/** Assert that a BLOB pointer is filled with zero bytes.
+@param b	in: BLOB pointer */
 #define ASSERT_ZERO_BLOB(b) \
 	ut_ad(!memcmp(b, field_ref_zero, sizeof field_ref_zero))
 
@@ -85,7 +92,7 @@ independently of any UNIV_ debugging conditions. */
 #if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
 # include <stdarg.h>
 __attribute__((format (printf, 1, 2)))
-/**************************************************************************
+/**********************************************************************//**
 Report a failure to decompress or compress.
 @return	number of characters printed */
 static
@@ -106,13 +113,17 @@ page_zip_fail_func(
 
 	return(res);
 }
+/** Wrapper for page_zip_fail_func()
+@param fmt_args	in: printf(3) format string and arguments */
 # define page_zip_fail(fmt_args) page_zip_fail_func fmt_args
 #else /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
+/** Dummy wrapper for page_zip_fail_func()
+@param fmt_args	ignored: printf(3) format string and arguments */
 # define page_zip_fail(fmt_args) /* empty */
 #endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
 
 #ifndef UNIV_HOTBACKUP
-/**************************************************************************
+/**********************************************************************//**
 Determine the guaranteed free space on an empty page.
 @return	minimum payload size on the page */
 UNIV_INTERN
@@ -137,7 +148,7 @@ page_zip_empty_size(
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/*****************************************************************
+/*************************************************************//**
 Gets the size of the compressed page trailer (the dense page directory),
 including deleted records (the free list).
 @return	length of dense page directory, in bytes */
@@ -154,7 +165,7 @@ page_zip_dir_size(
 	return(size);
 }
 
-/*****************************************************************
+/*************************************************************//**
 Gets the size of the compressed page trailer (the dense page directory),
 only including user records (excluding the free list).
 @return	length of dense page directory comprising existing records, in bytes */
@@ -170,7 +181,7 @@ page_zip_dir_user_size(
 	return(size);
 }
 
-/*****************************************************************
+/*************************************************************//**
 Find the slot of the given record in the dense page directory.
 @return	dense directory slot, or NULL if record not found */
 UNIV_INLINE
@@ -193,7 +204,7 @@ page_zip_dir_find_low(
 	return(NULL);
 }
 
-/*****************************************************************
+/*************************************************************//**
 Find the slot of the given non-free record in the dense page directory.
 @return	dense directory slot, or NULL if record not found */
 UNIV_INLINE
@@ -212,7 +223,7 @@ page_zip_dir_find(
 				     offset));
 }
 
-/*****************************************************************
+/*************************************************************//**
 Find the slot of the given free record in the dense page directory.
 @return	dense directory slot, or NULL if record not found */
 UNIV_INLINE
@@ -231,9 +242,10 @@ page_zip_dir_find_free(
 				     offset));
 }
 
-/*****************************************************************
+/*************************************************************//**
 Read a given slot in the dense page directory.
-@return	record offset on the uncompressed page, possibly ORed with PAGE_ZIP_DIR_SLOT_DEL or PAGE_ZIP_DIR_SLOT_OWNED */
+@return record offset on the uncompressed page, possibly ORed with
+PAGE_ZIP_DIR_SLOT_DEL or PAGE_ZIP_DIR_SLOT_OWNED */
 UNIV_INLINE
 ulint
 page_zip_dir_get(
@@ -249,7 +261,7 @@ page_zip_dir_get(
 }
 
 #ifndef UNIV_HOTBACKUP
-/**************************************************************************
+/**********************************************************************//**
 Write a log record of compressing an index page. */
 static
 void
@@ -314,7 +326,7 @@ page_zip_compress_write_log(
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/**********************************************************
+/******************************************************//**
 Determine how many externally stored columns are contained
 in existing records with smaller heap_no than rec. */
 static
@@ -363,7 +375,7 @@ page_zip_get_n_prev_extern(
 	return(n_ext);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Encode the length of a fixed-length column.
 @return	buf + length of encoded val */
 static
@@ -391,7 +403,7 @@ page_zip_fixed_field_encode(
 	return(buf);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Write the index information for the compressed page.
 @return	used size of buf */
 static
@@ -519,7 +531,7 @@ page_zip_fields_encode(
 	return((ulint) (buf - buf_start));
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Populate the dense page directory from the sparse directory. */
 static
 void
@@ -635,7 +647,7 @@ page_zip_dir_encode(
 	ut_a(i + PAGE_HEAP_NO_USER_LOW == n_heap);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Allocate memory for zlib. */
 static
 void*
@@ -648,7 +660,7 @@ page_zip_malloc(
 	return(mem_heap_alloc(opaque, items * size));
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Deallocate memory for zlib. */
 static
 void
@@ -659,7 +671,7 @@ page_zip_free(
 {
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Configure the zlib allocator to use the given memory heap. */
 UNIV_INTERN
 void
@@ -676,23 +688,25 @@ page_zip_set_alloc(
 }
 
 #if 0 || defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+/** Symbol for enabling compression and decompression diagnostics */
 # define PAGE_ZIP_COMPRESS_DBG
 #endif
 
 #ifdef PAGE_ZIP_COMPRESS_DBG
-/* Set this variable in a debugger to enable
+/** Set this variable in a debugger to enable
 excessive logging in page_zip_compress(). */
 UNIV_INTERN ibool	page_zip_compress_dbg;
-/* Set this variable in a debugger to enable
+/** Set this variable in a debugger to enable
 binary logging of the data passed to deflate().
 When this variable is nonzero, it will act
 as a log file name generator. */
 UNIV_INTERN unsigned	page_zip_compress_log;
 
-/**************************************************************************
-Wrapper for deflate().  Log the operation if page_zip_compress_dbg is set. */
+/**********************************************************************//**
+Wrapper for deflate().  Log the operation if page_zip_compress_dbg is set.
+@return	deflate() status: Z_OK, Z_BUF_ERROR, ... */
 static
-ibool
+int
 page_zip_compress_deflate(
 /*======================*/
 	FILE*		logfile,/*!< in: log file, or NULL */
@@ -715,15 +729,24 @@ page_zip_compress_deflate(
 
 /* Redefine deflate(). */
 # undef deflate
+/** Debug wrapper for the zlib compression routine deflate().
+Log the operation if page_zip_compress_dbg is set.
+@param strm	in/out: compressed stream
+@param flush	in: flushing method
+@return		deflate() status: Z_OK, Z_BUF_ERROR, ... */
 # define deflate(strm, flush) page_zip_compress_deflate(logfile, strm, flush)
+/** Declaration of the logfile parameter */
 # define FILE_LOGFILE FILE* logfile,
+/** The logfile parameter */
 # define LOGFILE logfile,
 #else /* PAGE_ZIP_COMPRESS_DBG */
+/** Empty declaration of the logfile parameter */
 # define FILE_LOGFILE
+/** Missing logfile parameter */
 # define LOGFILE
 #endif /* PAGE_ZIP_COMPRESS_DBG */
 
-/**************************************************************************
+/**********************************************************************//**
 Compress the records of a node pointer page.
 @return	Z_OK, or a zlib error code */
 static
@@ -788,7 +811,7 @@ page_zip_compress_node_ptrs(
 	return(err);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Compress the records of a leaf node of a secondary index.
 @return	Z_OK, or a zlib error code */
 static
@@ -832,7 +855,7 @@ page_zip_compress_sec(
 	return(err);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Compress a record of a leaf node of a clustered index that contains
 externally stored columns.
 @return	Z_OK, or a zlib error code */
@@ -960,7 +983,7 @@ page_zip_compress_clust_ext(
 	return(Z_OK);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Compress the records of a leaf node of a clustered index.
 @return	Z_OK, or a zlib error code */
 static
@@ -1093,9 +1116,10 @@ func_exit:
 	return(err);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Compress a page.
-@return	TRUE on success, FALSE on failure; page_zip will be left intact on failure. */
+@return TRUE on success, FALSE on failure; page_zip will be left
+intact on failure. */
 UNIV_INTERN
 ibool
 page_zip_compress(
@@ -1109,12 +1133,12 @@ page_zip_compress(
 	z_stream	c_stream;
 	int		err;
 	ulint		n_fields;/* number of index fields needed */
-	byte*		fields;	/* index field information */
-	byte*		buf;	/* compressed payload of the page */
+	byte*		fields;	/*!< index field information */
+	byte*		buf;	/*!< compressed payload of the page */
 	byte*		buf_end;/* end of buf */
 	ulint		n_dense;
 	ulint		slot_size;/* amount of uncompressed bytes per record */
-	const rec_t**	recs;	/* dense page directory, sorted by address */
+	const rec_t**	recs;	/*!< dense page directory, sorted by address */
 	mem_heap_t*	heap;
 	ulint		trx_id_col;
 	ulint*		offsets	= NULL;
@@ -1390,7 +1414,7 @@ err_exit:
 	return(TRUE);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Compare two page directory entries.
 @return	positive if rec1 > rec2 */
 UNIV_INLINE
@@ -1403,7 +1427,7 @@ page_zip_dir_cmp(
 	return(rec1 > rec2);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Sort the dense page directory by address (heap_no). */
 static
 void
@@ -1418,7 +1442,7 @@ page_zip_dir_sort(
 			      page_zip_dir_cmp);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Deallocate the index information initialized by page_zip_fields_decode(). */
 static
 void
@@ -1434,7 +1458,7 @@ page_zip_fields_free(
 	}
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Read the index information for the compressed page.
 @return	own: dummy index describing the page, or NULL on error */
 static
@@ -1550,7 +1574,7 @@ page_zip_fields_decode(
 	return(index);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Populate the sparse page directory from the dense directory.
 @return	TRUE on success, FALSE on failure */
 static
@@ -1647,7 +1671,7 @@ page_zip_dir_decode(
 	return(TRUE);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Initialize the REC_N_NEW_EXTRA_BYTES of each record.
 @return	TRUE on success, FALSE on failure */
 static
@@ -1744,7 +1768,7 @@ page_zip_set_extra_bytes(
 	return(TRUE);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Apply the modification log to a record containing externally stored
 columns.  Do not copy the fields that are stored separately.
 @return	pointer to modification log, or NULL on failure */
@@ -1833,7 +1857,7 @@ page_zip_apply_log_ext(
 	return(data);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Apply the modification log to an uncompressed page.
 Do not copy the fields that are stored separately.
 @return	pointer to end of modification log, or NULL on failure */
@@ -2034,7 +2058,7 @@ page_zip_apply_log(
 	}
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Decompress the records of a node pointer page.
 @return	TRUE on success, FALSE on failure */
 static
@@ -2227,7 +2251,7 @@ zlib_done:
 	return(TRUE);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Decompress the records of a leaf node of a secondary index.
 @return	TRUE on success, FALSE on failure */
 static
@@ -2368,7 +2392,7 @@ zlib_done:
 	return(TRUE);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Decompress a record of a leaf node of a clustered index that contains
 externally stored columns.
 @return	TRUE on success */
@@ -2477,7 +2501,7 @@ page_zip_decompress_clust_ext(
 	return(TRUE);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Compress the records of a leaf node of a clustered index.
 @return	TRUE on success, FALSE on failure */
 static
@@ -2776,7 +2800,7 @@ zlib_done:
 	return(TRUE);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Decompress a page.  This function should tolerate errors on the compressed
 page.  Instead of letting assertions fail, it will return FALSE if an
 inconsistency is detected.
@@ -2791,7 +2815,7 @@ page_zip_decompress(
 {
 	z_stream	d_stream;
 	dict_index_t*	index	= NULL;
-	rec_t**		recs;	/* dense page directory, sorted by address */
+	rec_t**		recs;	/*!< dense page directory, sorted by address */
 	ulint		n_dense;/* number of user records on the page */
 	ulint		trx_id_col = ULINT_UNDEFINED;
 	mem_heap_t*	heap;
@@ -2966,7 +2990,7 @@ err_exit:
 }
 
 #ifdef UNIV_ZIP_DEBUG
-/**************************************************************************
+/**********************************************************************//**
 Dump a block of memory on the standard error stream. */
 static
 void
@@ -3002,7 +3026,7 @@ page_zip_hexdump_func(
 /* Flag: make page_zip_validate() compare page headers only */
 UNIV_INTERN ibool	page_zip_validate_header_only = FALSE;
 
-/**************************************************************************
+/**********************************************************************//**
 Check that the compressed and decompressed pages match.
 @return	TRUE if valid, FALSE if not */
 UNIV_INTERN
@@ -3139,7 +3163,7 @@ func_exit:
 	return(valid);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Check that the compressed and decompressed pages match.
 @return	TRUE if valid, FALSE if not */
 UNIV_INTERN
@@ -3155,7 +3179,7 @@ page_zip_validate(
 #endif /* UNIV_ZIP_DEBUG */
 
 #ifdef UNIV_DEBUG
-/**************************************************************************
+/**********************************************************************//**
 Assert that the compressed and decompressed page headers match.
 @return	TRUE */
 static
@@ -3176,7 +3200,7 @@ page_zip_header_cmp(
 }
 #endif /* UNIV_DEBUG */
 
-/**************************************************************************
+/**********************************************************************//**
 Write a record on the compressed page that contains externally stored
 columns.  The data must already have been written to the uncompressed page.
 @return	end of modification log */
@@ -3298,7 +3322,7 @@ page_zip_write_rec_ext(
 	return(data);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Write an entire record on the compressed page.  The data must already
 have been written to the uncompressed page. */
 UNIV_INTERN
@@ -3486,7 +3510,7 @@ page_zip_write_rec(
 #endif /* UNIV_ZIP_DEBUG */
 }
 
-/***************************************************************
+/***********************************************************//**
 Parses a log record of writing a BLOB pointer of a record.
 @return	end of log record or NULL */
 UNIV_INTERN
@@ -3545,7 +3569,7 @@ corrupt:
 	return(ptr + (2 + 2 + BTR_EXTERN_FIELD_REF_SIZE));
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Write a BLOB pointer of a record on the leaf page of a clustered index.
 The information must already have been updated on the uncompressed page. */
 UNIV_INTERN
@@ -3629,7 +3653,7 @@ page_zip_write_blob_ptr(
 	}
 }
 
-/***************************************************************
+/***********************************************************//**
 Parses a log record of writing the node pointer of a record.
 @return	end of log record or NULL */
 UNIV_INTERN
@@ -3706,7 +3730,7 @@ corrupt:
 	return(ptr + (2 + 2 + REC_NODE_PTR_SIZE));
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Write the node pointer of a record on a non-leaf compressed page. */
 UNIV_INTERN
 void
@@ -3773,7 +3797,7 @@ page_zip_write_node_ptr(
 	}
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Write the trx_id and roll_ptr of a record on a B-tree leaf node page. */
 UNIV_INTERN
 void
@@ -3848,7 +3872,7 @@ columns if the space is reallocated for a smaller record. */
 UNIV_INTERN ibool	page_zip_clear_rec_disable;
 #endif /* UNIV_ZIP_DEBUG */
 
-/**************************************************************************
+/**********************************************************************//**
 Clear an area on the uncompressed and compressed page, if possible. */
 static
 void
@@ -3954,7 +3978,7 @@ page_zip_clear_rec(
 #endif /* UNIV_ZIP_DEBUG */
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Write the "deleted" flag of a record on a compressed page.  The flag must
 already have been written on the uncompressed page. */
 UNIV_INTERN
@@ -3978,7 +4002,7 @@ page_zip_rec_set_deleted(
 #endif /* UNIV_ZIP_DEBUG */
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Write the "owned" flag of a record on a compressed page.  The n_owned field
 must already have been written on the uncompressed page. */
 UNIV_INTERN
@@ -3999,7 +4023,7 @@ page_zip_rec_set_owned(
 	}
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Insert a record to the dense page directory. */
 UNIV_INTERN
 void
@@ -4077,7 +4101,7 @@ page_zip_dir_insert(
 	mach_write_to_2(slot_rec - PAGE_ZIP_DIR_SLOT_SIZE, page_offset(rec));
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Shift the dense page directory and the array of BLOB pointers
 when a record is deleted. */
 UNIV_INTERN
@@ -4175,7 +4199,7 @@ skip_blobs:
 	page_zip_clear_rec(page_zip, rec, index, offsets);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Add a slot to the dense page directory. */
 UNIV_INTERN
 void
@@ -4231,7 +4255,7 @@ page_zip_dir_add_slot(
 	memmove(stored - PAGE_ZIP_DIR_SLOT_SIZE, stored, dir - stored);
 }
 
-/***************************************************************
+/***********************************************************//**
 Parses a log record of writing to the header of a page.
 @return	end of log record or NULL */
 UNIV_INTERN
@@ -4290,7 +4314,7 @@ corrupt:
 }
 
 #ifndef UNIV_HOTBACKUP
-/**************************************************************************
+/**********************************************************************//**
 Write a log record of writing to the uncompressed header portion of a page. */
 UNIV_INTERN
 void
@@ -4326,7 +4350,7 @@ page_zip_write_header_log(
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/**************************************************************************
+/**********************************************************************//**
 Reorganize and compress a page.  This is a low-level operation for
 compressed pages, to be used when page_zip_compress() fails.
 On success, a redo log entry MLOG_ZIP_PAGE_COMPRESS will be written.
@@ -4335,7 +4359,8 @@ IMPORTANT: if page_zip_reorganize() is invoked on a leaf page of a
 non-clustered index, the caller must update the insert buffer free
 bits in the same mini-transaction in such a way that the modification
 will be redo-logged.
-@return	TRUE on success, FALSE on failure; page and page_zip will be left intact on failure. */
+@return TRUE on success, FALSE on failure; page and page_zip will be
+left intact on failure. */
 UNIV_INTERN
 ibool
 page_zip_reorganize(
@@ -4418,7 +4443,7 @@ page_zip_reorganize(
 }
 
 #ifndef UNIV_HOTBACKUP
-/**************************************************************************
+/**********************************************************************//**
 Copy the records of a page byte for byte.  Do not copy the page header
 or trailer, except those B-tree header fields that are directly
 related to the storage of records.  Also copy PAGE_MAX_TRX_ID.
@@ -4512,7 +4537,7 @@ page_zip_copy_recs(
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/**************************************************************************
+/**********************************************************************//**
 Parses a log record of compressing an index page.
 @return	end of log record or NULL */
 UNIV_INTERN
@@ -4572,7 +4597,7 @@ corrupt:
 	return(ptr + 8 + size + trailer_size);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Calculate the compressed page checksum.
 @return	page checksum */
 UNIV_INTERN

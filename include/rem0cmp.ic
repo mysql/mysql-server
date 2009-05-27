@@ -16,13 +16,14 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/***********************************************************************
+/*******************************************************************//**
+@file include/rem0cmp.ic
 Comparison services for records
 
 Created 7/1/1994 Heikki Tuuri
 ************************************************************************/
 
-/*****************************************************************
+/*************************************************************//**
 This function is used to compare two data fields for which we know the
 data type.
 @return	1, 0, -1, if data1 is greater, equal, less than data2, respectively */
@@ -42,10 +43,11 @@ cmp_data_data(
 	return(cmp_data_data_slow(mtype, prtype, data1, len1, data2, len2));
 }
 
-/*****************************************************************
+/*************************************************************//**
 This function is used to compare two dfields where at least the first
 has its data type field set.
-@return	1, 0, -1, if dfield1 is greater, equal, less than dfield2, respectively */
+@return 1, 0, -1, if dfield1 is greater, equal, less than dfield2,
+respectively */
 UNIV_INLINE
 int
 cmp_dfield_dfield(
@@ -66,10 +68,11 @@ cmp_dfield_dfield(
 			     dfield_get_len(dfield2)));
 }
 
-/*****************************************************************
+/*************************************************************//**
 This function is used to compare two physical records. Only the common
 first fields are compared.
-@return	1, 0 , -1 if rec1 is greater, equal, less, respectively, than rec2; only the common first fields are compared */
+@return 1, 0 , -1 if rec1 is greater, equal, less, respectively, than
+rec2; only the common first fields are compared */
 UNIV_INLINE
 int
 cmp_rec_rec(

@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/**********************************************************************
+/******************************************************************//**
+@file mach/mach0data.c
 Utilities for converting data from the database file
 to the machine format.
 
@@ -29,7 +30,7 @@ Created 11/28/1995 Heikki Tuuri
 #include "mach0data.ic"
 #endif
 
-/*************************************************************
+/*********************************************************//**
 Reads a ulint in a compressed form if the log record fully contains it.
 @return	pointer to end of the stored field, NULL if not complete */
 UNIV_INTERN
@@ -92,7 +93,7 @@ mach_parse_compressed(
 	}
 }
 
-/*************************************************************
+/*********************************************************//**
 Reads a dulint in a compressed form if the log record fully contains it.
 @return	pointer to end of the stored field, NULL if not complete */
 UNIV_INTERN

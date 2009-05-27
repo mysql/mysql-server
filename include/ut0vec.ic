@@ -16,7 +16,14 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/********************************************************************
+/*******************************************************************//**
+@file include/ut0vec.ic
+A vector of pointers to data items
+
+Created 4/6/2006 Osku Salerma
+************************************************************************/
+
+/****************************************************************//**
 Get number of elements in vector.
 @return	number of elements in vector */
 UNIV_INLINE
@@ -28,7 +35,7 @@ ib_vector_size(
 	return(vec->used);
 }
 
-/********************************************************************
+/****************************************************************//**
 Get n'th element.
 @return	n'th element */
 UNIV_INLINE
@@ -43,7 +50,7 @@ ib_vector_get(
 	return(vec->data[n]);
 }
 
-/********************************************************************
+/****************************************************************//**
 Remove the last element from the vector.
 @return	last vector element */
 UNIV_INLINE
@@ -64,7 +71,7 @@ ib_vector_pop(
 	return(elem);
 }
 
-/********************************************************************
+/****************************************************************//**
 Free the underlying heap of the vector. Note that vec is invalid
 after this call. */
 UNIV_INLINE
@@ -76,7 +83,7 @@ ib_vector_free(
 	mem_heap_free(vec->heap);
 }
 
-/********************************************************************
+/****************************************************************//**
 Test whether a vector is empty or not.
 @return	TRUE if empty */
 UNIV_INLINE

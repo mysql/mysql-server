@@ -16,12 +16,20 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
+/*******************************************************************//**
+@file include/ut0vec.h
+A vector of pointers to data items
+
+Created 4/6/2006 Osku Salerma
+************************************************************************/
+
 #ifndef IB_VECTOR_H
 #define IB_VECTOR_H
 
 #include "univ.i"
 #include "mem0mem.h"
 
+/** An automatically resizing vector data type. */
 typedef struct ib_vector_struct ib_vector_t;
 
 /* An automatically resizing vector datatype with the following properties:
@@ -38,7 +46,7 @@ typedef struct ib_vector_struct ib_vector_t;
  relatively small or short-lived uses.
 */
 
-/********************************************************************
+/****************************************************************//**
 Create a new vector with the given initial size.
 @return	vector */
 UNIV_INTERN
@@ -48,7 +56,7 @@ ib_vector_create(
 	mem_heap_t*	heap,	/*!< in: heap */
 	ulint		size);	/*!< in: initial size */
 
-/********************************************************************
+/****************************************************************//**
 Push a new element to the vector, increasing its size if necessary. */
 UNIV_INTERN
 void
@@ -57,7 +65,7 @@ ib_vector_push(
 	ib_vector_t*	vec,	/*!< in: vector */
 	void*		elem);	/*!< in: data element */
 
-/********************************************************************
+/****************************************************************//**
 Get the number of elements in the vector.
 @return	number of elements in vector */
 UNIV_INLINE
@@ -66,7 +74,7 @@ ib_vector_size(
 /*===========*/
 	const ib_vector_t*	vec);	/*!< in: vector */
 
-/********************************************************************
+/****************************************************************//**
 Test whether a vector is empty or not.
 @return	TRUE if empty */
 UNIV_INLINE
@@ -75,7 +83,7 @@ ib_vector_is_empty(
 /*===============*/
 	const ib_vector_t*	vec);	/*!< in: vector */
 
-/********************************************************************
+/****************************************************************//**
 Get the n'th element.
 @return	n'th element */
 UNIV_INLINE
@@ -85,7 +93,7 @@ ib_vector_get(
 	ib_vector_t*	vec,	/*!< in: vector */
 	ulint		n);	/*!< in: element index to get */
 
-/********************************************************************
+/****************************************************************//**
 Remove the last element from the vector. */
 UNIV_INLINE
 void*
@@ -93,7 +101,7 @@ ib_vector_pop(
 /*==========*/
 	ib_vector_t*	vec);	/*!< in: vector */
 
-/********************************************************************
+/****************************************************************//**
 Free the underlying heap of the vector. Note that vec is invalid
 after this call. */
 UNIV_INLINE
@@ -102,12 +110,12 @@ ib_vector_free(
 /*===========*/
 	ib_vector_t*	vec);	/*!< in,own: vector */
 
-/* See comment at beginning of file. */
+/** An automatically resizing vector data type. */
 struct ib_vector_struct {
-	mem_heap_t*	heap;	/* heap */
-	void**		data;	/* data elements */
-	ulint		used;	/* number of elements currently used */
-	ulint		total;	/* number of elements allocated */
+	mem_heap_t*	heap;	/*!< heap */
+	void**		data;	/*!< data elements */
+	ulint		used;	/*!< number of elements currently used */
+	ulint		total;	/*!< number of elements allocated */
 };
 
 #ifndef UNIV_NONINL

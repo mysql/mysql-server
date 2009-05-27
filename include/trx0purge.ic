@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/trx0purge.ic
 Purge old versions
 
 Created 3/26/1996 Heikki Tuuri
@@ -24,7 +25,7 @@ Created 3/26/1996 Heikki Tuuri
 
 #include "trx0undo.h"
 
-/************************************************************************
+/********************************************************************//**
 Calculates the file address of an undo log header when we have the file
 address of its history list node.
 @return	file address of the log */
