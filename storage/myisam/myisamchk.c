@@ -287,8 +287,8 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   { "key_buffer_size", OPT_KEY_BUFFER_SIZE, "",
     (uchar**) &check_param.use_buffers, (uchar**) &check_param.use_buffers, 0,
-    GET_ULONG, REQUIRED_ARG, (long) USE_BUFFER_INIT, (long) MALLOC_OVERHEAD,
-    (long) ~0L, (long) MALLOC_OVERHEAD, (long) IO_SIZE, 0},
+    GET_ULL, REQUIRED_ARG, USE_BUFFER_INIT, MALLOC_OVERHEAD,
+    SIZE_T_MAX, MALLOC_OVERHEAD,  IO_SIZE, 0},
   { "key_cache_block_size", OPT_KEY_CACHE_BLOCK_SIZE,  "",
     (uchar**) &opt_key_cache_block_size,
     (uchar**) &opt_key_cache_block_size, 0,
@@ -1102,7 +1102,7 @@ static int myisamchk(MI_CHECK *param, char * filename)
       {
 	if (param->testflag & (T_EXTEND | T_MEDIUM))
 	  VOID(init_key_cache(dflt_key_cache,opt_key_cache_block_size,
-                              param->use_buffers, 0, 0));
+                              (size_t) param->use_buffers, 0, 0));
 	VOID(init_io_cache(&param->read_cache,datafile,
 			   (uint) param->read_buffer_length,
 			   READ_CACHE,
@@ -1525,8 +1525,8 @@ static int mi_sort_records(MI_CHECK *param,
   if (share->state.key_root[sort_key] == HA_OFFSET_ERROR)
     DBUG_RETURN(0);				/* Nothing to do */
 
-  init_key_cache(dflt_key_cache, opt_key_cache_block_size, param->use_buffers,
-                 0, 0);
+  init_key_cache(dflt_key_cache, opt_key_cache_block_size,
+                 (size_t) param->use_buffers, 0, 0);
   if (init_io_cache(&info->rec_cache,-1,(uint) param->write_buffer_length,
 		   WRITE_CACHE,share->pack.header_length,1,
 		   MYF(MY_WME | MY_WAIT_IF_FULL)))
