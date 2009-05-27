@@ -502,7 +502,7 @@ deallocate prepare stmt;
 create table t1 (a varchar(20));
 insert into t1 values ('foo');
 prepare stmt FROM 'SELECT char_length (a) FROM t1';
-ERROR 42000: FUNCTION test.char_length does not exist
+ERROR 42000: FUNCTION test.char_length does not exist. Check the 'Function Name Parsing and Resolution' section in the Reference Manual
 drop table t1;
 prepare stmt from "SELECT SQL_CALC_FOUND_ROWS 'foo' UNION SELECT 'bar' LIMIT 0";
 execute stmt;
@@ -1147,7 +1147,7 @@ End of 4.1 tests.
 create table t1 (a varchar(20));
 insert into t1 values ('foo');
 prepare stmt FROM 'SELECT char_length (a) FROM t1';
-ERROR 42000: FUNCTION test.char_length does not exist
+ERROR 42000: FUNCTION test.char_length does not exist. Check the 'Function Name Parsing and Resolution' section in the Reference Manual
 drop table t1;
 create table t1 (a char(3) not null, b char(3) not null,
 c char(3) not null, primary key  (a, b, c));

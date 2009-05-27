@@ -265,6 +265,22 @@ bool is_keyword(const char *name, uint len)
   return get_hash_symbol(name,len,0)!=0;
 }
 
+/**
+  Check if name is a sql function
+
+    @param name      checked name
+
+    @return is this a lex native function or not
+    @retval 0         name is a function
+    @retval 1         name isn't a function
+*/
+
+bool is_lex_native_function(const LEX_STRING *name)
+{
+  DBUG_ASSERT(name != NULL);
+  return (get_hash_symbol(name->str, (uint) name->length, 1) != 0);
+}
+
 /* make a copy of token before ptr and set yytoklen */
 
 static LEX_STRING get_token(Lex_input_stream *lip, uint skip, uint length)

@@ -5968,8 +5968,7 @@ simple_expr:
                   Reusing ER_SP_DOES_NOT_EXIST have a message consistent with
                   the case when a default database exist, see below.
                 */
-                my_error(ER_SP_DOES_NOT_EXIST, MYF(0),
-                         "FUNCTION", $1.str);
+                my_missing_function_error ($1, $1.str);
                 MYSQL_YYABORT;
               }
               
