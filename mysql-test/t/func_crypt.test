@@ -56,3 +56,15 @@ explain extended select password('idkfa '), old_password('idkfa');
 select encrypt('1234','_.');
 
 # End of 4.1 tests
+
+--echo #
+--echo # Bug #44767: invalid memory reads in password() and old_password() 
+--echo #             functions
+--echo #
+
+CREATE TABLE t1(c1 MEDIUMBLOB);
+INSERT INTO t1 VALUES (REPEAT('a', 1024));
+SELECT OLD_PASSWORD(c1), PASSWORD(c1) FROM t1;
+DROP TABLE t1;
+
+--echo End of 5.0 tests
