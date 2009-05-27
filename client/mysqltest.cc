@@ -280,6 +280,7 @@ enum enum_commands {
   Q_SEND_QUIT, Q_CHANGE_USER, Q_MKDIR, Q_RMDIR,
   Q_LIST_FILES, Q_LIST_FILES_WRITE_FILE, Q_LIST_FILES_APPEND_FILE,
   Q_SEND_SHUTDOWN, Q_SHUTDOWN_SERVER,
+  Q_MOVE_FILE,
 
   Q_UNKNOWN,			       /* Unknown command.   */
   Q_COMMENT,			       /* Comments, ignored. */
@@ -376,6 +377,7 @@ const char *command_names[]=
   "list_files_append_file",
   "send_shutdown",
   "shutdown_server",
+  "move_file",
 
   0
 };
@@ -1807,7 +1809,7 @@ void check_result()
           log_file.file_name(), reject_file, errno);
 
     show_diff(NULL, result_file_name, reject_file);
-    die(mess);
+    die("%s", mess);
     break;
   }
   default: /* impossible */
@@ -2895,6 +2897,42 @@ void do_copy_file(struct st_command *command)
   DBUG_PRINT("info", ("Copy %s to %s", ds_from_file.str, ds_to_file.str));
   error= (my_copy(ds_from_file.str, ds_to_file.str,
                   MYF(MY_DONT_OVERWRITE_FILE)) != 0);
+  handle_command_error(command, error);
+  dynstr_free(&ds_from_file);
+  dynstr_free(&ds_to_file);
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  SYNOPSIS
+  do_move_file
+  command	command handle
+
+  DESCRIPTION
+  move_file <from_file> <to_file>
+  Move <from_file> to <to_file>
+*/
+
+void do_move_file(struct st_command *command)
+{
+  int error;
+  static DYNAMIC_STRING ds_from_file;
+  static DYNAMIC_STRING ds_to_file;
+  const struct command_arg move_file_args[] = {
+    { "from_file", ARG_STRING, TRUE, &ds_from_file, "Filename to move from" },
+    { "to_file", ARG_STRING, TRUE, &ds_to_file, "Filename to move to" }
+  };
+  DBUG_ENTER("do_move_file");
+
+  check_command_args(command, command->first_argument,
+                     move_file_args,
+                     sizeof(move_file_args)/sizeof(struct command_arg),
+                     ' ');
+
+  DBUG_PRINT("info", ("Move %s to %s", ds_from_file.str, ds_to_file.str));
+  error= (my_rename(ds_from_file.str, ds_to_file.str,
+                    MYF(0)) != 0);
   handle_command_error(command, error);
   dynstr_free(&ds_from_file);
   dynstr_free(&ds_to_file);
@@ -7691,6 +7729,7 @@ int main(int argc, char **argv)
       case Q_CHANGE_USER: do_change_user(command); break;
       case Q_CAT_FILE: do_cat_file(command); break;
       case Q_COPY_FILE: do_copy_file(command); break;
+      case Q_MOVE_FILE: do_move_file(command); break;
       case Q_CHMOD_FILE: do_chmod_file(command); break;
       case Q_PERL: do_perl(command); break;
       case Q_DELIMITER:

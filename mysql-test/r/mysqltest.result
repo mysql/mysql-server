@@ -545,6 +545,8 @@ mysqltest: At line 1: Failed to open file 'non_existing_file'
 mysqltest: At line 1: Missing required argument 'filename' to command 'file_exists'
 mysqltest: At line 1: Missing required argument 'from_file' to command 'copy_file'
 mysqltest: At line 1: Missing required argument 'to_file' to command 'copy_file'
+mysqltest: At line 1: Missing required argument 'from_file' to command 'move_file'
+mysqltest: At line 1: Missing required argument 'to_file' to command 'move_file'
 mysqltest: At line 1: Missing required argument 'mode' to command 'chmod'
 mysqltest: At line 1: You must write a 4 digit octal number for mode
 mysqltest: At line 1: You must write a 4 digit octal number for mode
