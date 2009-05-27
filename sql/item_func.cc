@@ -5802,6 +5802,14 @@ Item_func_sp::func_name() const
 }
 
 
+int my_missing_function_error(const LEX_STRING &token, const char *func_name)
+{
+  if (token.length && is_lex_native_function (&token))
+    return my_error(ER_FUNC_INEXISTENT_NAME_COLLISION, MYF(0), func_name);
+  else
+    return my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION", func_name);
+}
+
 
 /**
   @brief Initialize the result field by creating a temporary dummy table
@@ -5834,7 +5842,7 @@ Item_func_sp::init_result_field(THD *thd)
   if (!(m_sp= sp_find_routine(thd, TYPE_ENUM_FUNCTION, m_name,
                                &thd->sp_func_cache, TRUE)))
   {
-    my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION", m_name->m_qname.str);
+    my_missing_function_error (m_name->m_name, m_name->m_qname.str);
     context->process_error(thd);
     DBUG_RETURN(TRUE);
   }
