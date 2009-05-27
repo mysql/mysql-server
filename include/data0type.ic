@@ -28,7 +28,8 @@ Created 1/16/1996 Heikki Tuuri
 # include "ha_prototypes.h"
 
 /*********************************************************************//**
-Gets the MySQL charset-collation code for MySQL string types. */
+Gets the MySQL charset-collation code for MySQL string types.
+@return	MySQL charset-collation code */
 UNIV_INLINE
 ulint
 dtype_get_charset_coll(
