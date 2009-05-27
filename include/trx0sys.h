@@ -29,13 +29,11 @@ Created 3/26/1996 Heikki Tuuri
 #include "univ.i"
 
 #include "trx0types.h"
-#include "fsp0fsp.h"
+#include "fsp0types.h"
 #include "fil0fil.h"
-#include "fut0lst.h"
 #include "buf0buf.h"
 #ifndef UNIV_HOTBACKUP
 #include "mtr0mtr.h"
-#include "mtr0log.h"
 #include "ut0byte.h"
 #include "mem0mem.h"
 #include "sync0sync.h"
@@ -72,6 +70,8 @@ extern trx_doublewrite_t*	trx_doublewrite;
 /** The following is set to TRUE when we are upgrading from pre-4.1
 format data files to the multiple tablespaces format data files */
 extern ibool			trx_doublewrite_must_reset_space_ids;
+/** Set to TRUE when the doublewrite buffer is being created */
+extern ibool			trx_doublewrite_buf_is_being_created;
 /** The following is TRUE when we are using the database in the
 post-4.1 format, i.e., we have successfully upgraded, or have created
 a new database installation */
@@ -394,6 +394,7 @@ trx_sys_print_mysql_binlog_offset_from_page(
 
 /* Space id and page no where the trx system file copy resides */
 #define	TRX_SYS_SPACE	0	/* the SYSTEM tablespace */
+#include "fsp0fsp.h"
 #define	TRX_SYS_PAGE_NO	FSP_TRX_SYS_PAGE_NO
 
 /* The offset of the transaction system header on the page */

@@ -24,6 +24,7 @@ Created 3/26/1996 Heikki Tuuri
 *******************************************************/
 
 #include "srv0srv.h"
+#include "mtr0log.h"
 
 /******************************************************************//**
 Gets a rollback segment header.
