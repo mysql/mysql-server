@@ -1684,7 +1684,7 @@ int ha_myisam::info(uint flag)
     if (share->key_parts)
       memcpy((char*) table->key_info[0].rec_per_key,
 	     (char*) misam_info.rec_per_key,
-	     sizeof(table->key_info[0].rec_per_key)*share->key_parts);
+             sizeof(table->key_info[0].rec_per_key[0])*share->key_parts);
     raid_type= misam_info.raid_type;
     raid_chunks= misam_info.raid_chunks;
     raid_chunksize= misam_info.raid_chunksize;
