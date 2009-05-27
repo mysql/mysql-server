@@ -278,7 +278,8 @@ dtype_get_mblen(
 	ulint*	mbmaxlen);	/*!< out: maximum length of a
 				multi-byte character */
 /*********************************************************************//**
-Gets the MySQL charset-collation code for MySQL string types. */
+Gets the MySQL charset-collation code for MySQL string types.
+@return	MySQL charset-collation code */
 UNIV_INLINE
 ulint
 dtype_get_charset_coll(
@@ -286,7 +287,8 @@ dtype_get_charset_coll(
 	ulint	prtype);/*!< in: precise data type */
 /*********************************************************************//**
 Forms a precise type from the < 4.1.2 format precise type plus the
-charset-collation code. */
+charset-collation code.
+@return precise type, including the charset-collation code */
 UNIV_INTERN
 ulint
 dtype_form_prtype(
