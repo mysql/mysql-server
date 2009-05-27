@@ -1390,3 +1390,5 @@ extern void lex_end(LEX *lex);
 extern int MYSQLlex(void *arg, void *yythd);
 extern char *skip_rear_comments(CHARSET_INFO *cs, char *begin, char *end);
 
+extern bool is_lex_native_function(const LEX_STRING *name);
+int my_missing_function_error(const LEX_STRING &token, const char *name);

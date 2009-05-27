@@ -2138,6 +2138,7 @@ void TABLE_LIST::hide_view_error(THD *thd)
   /* Hide "Unknown column" or "Unknown function" error */
   if (thd->net.last_errno == ER_BAD_FIELD_ERROR ||
       thd->net.last_errno == ER_SP_DOES_NOT_EXIST ||
+      thd->net.last_errno == ER_FUNC_INEXISTENT_NAME_COLLISION ||
       thd->net.last_errno == ER_PROCACCESS_DENIED_ERROR ||
       thd->net.last_errno == ER_COLUMNACCESS_DENIED_ERROR ||
       thd->net.last_errno == ER_TABLEACCESS_DENIED_ERROR ||

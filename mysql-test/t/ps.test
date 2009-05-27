@@ -530,7 +530,7 @@ deallocate prepare stmt;
 #
 create table t1 (a varchar(20)); 
 insert into t1 values ('foo'); 
---error 1305
+--error ER_FUNC_INEXISTENT_NAME_COLLISION
 prepare stmt FROM 'SELECT char_length (a) FROM t1'; 
 drop table t1;
 
@@ -1239,7 +1239,7 @@ drop table t1;
 #
 create table t1 (a varchar(20)); 
 insert into t1 values ('foo'); 
---error 1305
+--error ER_FUNC_INEXISTENT_NAME_COLLISION
 prepare stmt FROM 'SELECT char_length (a) FROM t1'; 
 drop table t1;
 
