@@ -57,7 +57,7 @@ ha_create_func(
 	ulint		i;
 #endif /* !UNIV_HOTBACKUP */
 
-	ut_ad(ut_is_2pow(n));
+	ut_ad(ut_is_2pow(n_mutexes));
 	table = hash_create(n);
 
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
