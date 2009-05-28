@@ -1852,15 +1852,17 @@ Dbtup::disk_restart_alloc_extent(Uint32 tableId, Uint32 fragId,
   if (tabPtr.p->tableStatus == DEFINED)
   {
     getFragmentrec(fragPtr, fragId, tabPtr.p);
-    if (fragPtr.p->m_undo_complete & Fragrecord::UC_CREATE)
-    {
-      jam();
-      return -1;
-    }
 
     if (!fragPtr.isNull())
     {
       jam();
+
+      if (fragPtr.p->m_undo_complete & Fragrecord::UC_CREATE)
+      {
+        jam();
+        return -1;
+      }
+
       Disk_alloc_info& alloc= fragPtr.p->m_disk_alloc_info;
       
       Ptr<Extent_info> ext;
