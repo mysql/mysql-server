@@ -4151,6 +4151,41 @@ Item_func_set_user_var::check(bool use_result_field)
 }
 
 
+/**
+  @brief Evaluate and store item's result.
+  This function is invoked on "SELECT ... INTO @var ...".
+  
+  @param    item    An item to get value from.
+*/
+
+void Item_func_set_user_var::save_item_result(Item *item)
+{
+  DBUG_ENTER("Item_func_set_user_var::save_item_result");
+
+  switch (cached_result_type) {
+  case REAL_RESULT:
+    save_result.vreal= item->val_result();
+    break;
+  case INT_RESULT:
+    save_result.vint= item->val_int_result();
+    unsigned_flag= item->unsigned_flag;
+    break;
+  case STRING_RESULT:
+    save_result.vstr= item->str_result(&value);
+    break;
+  case DECIMAL_RESULT:
+    save_result.vdec= item->val_decimal_result(&decimal_buff);
+    break;
+  case ROW_RESULT:
+  default:
+    // Should never happen
+    DBUG_ASSERT(0);
+    break;
+  }
+  DBUG_VOID_RETURN;
+}
+
+
 /*
   This functions is invoked on SET @variable or @variable:= expression.
 
