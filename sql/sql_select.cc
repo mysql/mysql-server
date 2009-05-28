@@ -2172,6 +2172,14 @@ JOIN::destroy()
   cond_equal= 0;
 
   cleanup(1);
+ /* Cleanup items referencing temporary table columns */
+  if (!tmp_all_fields3.is_empty())
+  {
+    List_iterator_fast<Item> it(tmp_all_fields3);
+    Item *item;
+    while ((item= it++))
+      item->cleanup();
+  }
   if (exec_tmp_table1)
     free_tmp_table(thd, exec_tmp_table1);
   if (exec_tmp_table2)

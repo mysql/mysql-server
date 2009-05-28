@@ -3971,6 +3971,10 @@ static void test_fetch_date()
 
   myheader("test_fetch_date");
 
+  /* Will not work if sql_mode is NO_ZERO_DATE (implicit if TRADITIONAL) /*/
+  rc= mysql_query(mysql, "SET SQL_MODE=''");
+  myquery(rc);
+
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_bind_result");
   myquery(rc);
 
@@ -4684,6 +4688,9 @@ static void test_stmt_close()
 
   /* set AUTOCOMMIT to ON*/
   mysql_autocommit(lmysql, TRUE);
+
+  rc= mysql_query(lmysql, "SET SQL_MODE = ''");
+  myquery(rc);
 
   rc= mysql_query(lmysql, "DROP TABLE IF EXISTS test_stmt_close");
   myquery(rc);
@@ -11855,6 +11862,9 @@ static void test_bug6058()
 
   myheader("test_bug6058");
 
+  rc= mysql_query(mysql, "SET SQL_MODE=''");
+  myquery(rc);
+
   stmt_text= "SELECT CAST('0000-00-00' AS DATE)";
 
   rc= mysql_real_query(mysql, stmt_text, (uint) strlen(stmt_text));
@@ -13025,6 +13035,9 @@ static void test_bug8378()
   }
   if (!opt_silent)
     fprintf(stdout, " OK");
+
+  rc= mysql_query(lmysql, "SET SQL_MODE=''");
+  myquery(rc);
 
   len= mysql_real_escape_string(lmysql, out, TEST_BUG8378_IN, 4);
 
@@ -16056,6 +16069,11 @@ static void test_bug31669()
   rc= mysql_query(mysql, query);
   myquery(rc);
 
+  strxmov(query, "GRANT ALL PRIVILEGES ON *.* TO '", user, "'@'localhost' IDENTIFIED BY "
+                 "'", buff, "' WITH GRANT OPTION", NullS);
+  rc= mysql_query(mysql, query);
+  myquery(rc);
+
   rc= mysql_query(mysql, "FLUSH PRIVILEGES");
   myquery(rc);
 
@@ -16093,7 +16111,7 @@ static void test_bug31669()
   strxmov(query, "DELETE FROM mysql.user WHERE User='", user, "'", NullS);
   rc= mysql_query(mysql, query);
   myquery(rc);
-  DIE_UNLESS(mysql_affected_rows(mysql) == 1);
+  DIE_UNLESS(mysql_affected_rows(mysql) == 2);
 #endif
 
   DBUG_VOID_RETURN;

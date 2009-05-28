@@ -503,6 +503,11 @@ int mysql_multi_delete_prepare(THD *thd)
       }
     }
   }
+  /*
+    Reset the exclude flag to false so it doesn't interfare
+    with further calls to unique_table
+  */
+  lex->select_lex.exclude_from_table_unique_test= FALSE;
   DBUG_RETURN(FALSE);
 }
 
@@ -538,11 +543,24 @@ multi_delete::initialize_tables(JOIN *join)
     DBUG_RETURN(1);
 
   table_map tables_to_delete_from=0;
+  delete_while_scanning= 1;
   for (walk= delete_tables; walk; walk= walk->next_local)
+  {
     tables_to_delete_from|= walk->table->map;
+    if (delete_while_scanning &&
+        unique_table(thd, walk, join->tables_list, false))
+    {
+      /*
+        If the table we are going to delete from appears
+        in join, we need to defer delete. So the delete
+        doesn't interfers with the scaning of results.
+      */
+      delete_while_scanning= 0;
+    }
+  }
+
 
   walk= delete_tables;
-  delete_while_scanning= 1;
   for (JOIN_TAB *tab=join->join_tab, *end=join->join_tab+join->tables;
        tab < end;
        tab++)

@@ -552,8 +552,9 @@ int PROFILING::fill_statistics_info(THD *thd, TABLE_LIST *tables, Item *cond)
         The order of these fields is set by the  query_profile_statistics_info
         array.
       */
-      table->field[0]->store((ulonglong) query->profiling_query_id);
-      table->field[1]->store((ulonglong) seq); /* the step in the sequence */
+      table->field[0]->store((ulonglong) query->profiling_query_id, TRUE);
+      /* the step in the sequence */
+      table->field[1]->store((ulonglong) seq, TRUE);
       /*
         This entry, n, has a point in time, T(n), and a status phrase, S(n).
         The status phrase S(n) describes the period of time that begins at

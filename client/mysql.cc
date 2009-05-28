@@ -140,7 +140,7 @@ static my_bool info_flag=0,ignore_errors=0,wait_flag=0,quick=0,
 	       tty_password= 0, opt_nobeep=0, opt_reconnect=1,
 	       default_charset_used= 0, opt_secure_auth= 0,
                default_pager_set= 0, opt_sigint_ignore= 0,
-               show_warnings= 0;
+               show_warnings= 0, ignore_spaces= 0;
 static volatile int executing_query= 0, interrupted_query= 0;
 static my_bool preserve_comments= 0;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
@@ -1350,8 +1350,9 @@ static struct my_option my_long_options[] =
   {"no-named-commands", 'g',
    "Named commands are disabled. Use \\* form only, or use named commands only in the beginning of a line ending with a semicolon (;) Since version 10.9 the client now starts with this option ENABLED by default! Disable with '-G'. Long format commands still work from the first line. WARNING: option deprecated; use --disable-named-commands instead.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"ignore-spaces", 'i', "Ignore space after function names.", 0, 0, 0,
-   GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"ignore-spaces", 'i', "Ignore space after function names.",
+   (gptr*) &ignore_spaces, (gptr*) &ignore_spaces, 0, GET_BOOL, NO_ARG, 0, 0,
+   0, 0, 0, 0},
   {"local-infile", OPT_LOCAL_INFILE, "Enable/disable LOAD DATA LOCAL INFILE.",
    (gptr*) &opt_local_infile,
    (gptr*) &opt_local_infile, 0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
@@ -1749,6 +1750,10 @@ static int get_options(int argc, char **argv)
   }
   if (tty_password)
     opt_password= get_tty_password(NullS);
+
+  if (ignore_spaces)
+    connect_flag|= CLIENT_IGNORE_SPACE;
+
   return(0);
 }
 

@@ -3681,5 +3681,28 @@ DROP VIEW v1;
 DROP TABLE t1;
 
 --echo # -----------------------------------------------------------------
+--echo # -- Bug#40825: Error 1356 while selecting from a view 
+--echo # --            with a "HAVING" clause though query works
+--echo # -----------------------------------------------------------------
+--echo
+
+CREATE TABLE t1 (c INT);
+
+--echo
+
+CREATE VIEW v1 (view_column) AS SELECT c AS alias FROM t1 HAVING alias;
+SHOW CREATE VIEW v1;
+SELECT * FROM v1;
+
+--echo
+
+DROP VIEW v1;
+DROP TABLE t1;
+
+--echo
+--echo # -- End of test case for Bug#40825
+--echo
+
+--echo # -----------------------------------------------------------------
 --echo # -- End of 5.0 tests.
 --echo # -----------------------------------------------------------------
