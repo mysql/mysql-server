@@ -583,9 +583,21 @@ int restartAllNodesError9999(NdbRestarter& _restarter,
   
   g_info << _restart->m_name <<  endl;
 
+  int val[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 } ;
+  CHECK(_restarter.dumpStateAllNodes(val, 2) == 0,
+        "failed to set RestartOnErrorInsert");
+
+  CHECK(_restarter.insertErrorInAllNodes(932) == 0,
+        "Failed to set error 932 (auto-restart on arbit error)");
+
   // Restart with error insert
   CHECK(_restarter.insertErrorInAllNodes(9999) == 0,
 	"Could not restart all nodes ");
+
+  CHECK(_restarter.waitClusterNoStart() == 0,
+        "Failed to wait not started");
+
+  _restarter.startAll();
 
   return NDBT_OK;
 }
