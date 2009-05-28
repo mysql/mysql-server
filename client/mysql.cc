@@ -1949,7 +1949,7 @@ static COMMANDS *find_command(char *name,char cmd_char)
     */
     if (strstr(name, "\\g") || (strstr(name, delimiter) &&
                                 !(strlen(name) >= 9 &&
-                                  !my_strnncoll(charset_info,
+                                  !my_strnncoll(&my_charset_latin1,
                                                 (uchar*) name, 9,
                                                 (const uchar*) "delimiter",
                                                 9))))
@@ -1970,7 +1970,7 @@ static COMMANDS *find_command(char *name,char cmd_char)
   {
     if (commands[i].func &&
 	((name &&
-	  !my_strnncoll(charset_info,(uchar*)name,len,
+	  !my_strnncoll(&my_charset_latin1, (uchar*)name, len,
 				     (uchar*)commands[i].name,len) &&
 	  !commands[i].name[len] &&
 	  (!end || (end && commands[i].takes_params))) ||
