@@ -1324,9 +1324,15 @@ int runBug25554(NDBT_Context* ctx, NDBT_Step* step)
 int runBug25984(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbRestarter restarter;
+  Ndb* pNdb = GETNDB(step);
+
+  NdbDictionary::Table tab = * ctx->getTab();
+  NdbDictionary::Dictionary* pDict = GETNDB(step)->getDictionary();
 
   if (restarter.getNumDbNodes() < 2)
     return NDBT_OK;
+
+  pDict->dropTable(tab.getName());
 
   if (restarter.restartAll(true, true, true))
     return NDBT_FAILED;
@@ -1340,6 +1346,14 @@ int runBug25984(NDBT_Context* ctx, NDBT_Step* step)
   if (restarter.waitClusterStarted())
     return NDBT_FAILED;
 
+  int res = pDict->createTable(tab);
+  if (res)
+  {
+    return NDBT_FAILED;
+  }
+  HugoTransactions trans(* pDict->getTable(tab.getName()));
+  trans.loadTable(pNdb, ctx->getNumRecords());
+                         
   int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };    
   int master = restarter.getMasterNodeId();
   int victim = restarter.getRandomNodeOtherNodeGroup(master, rand());
@@ -1359,6 +1373,8 @@ int runBug25984(NDBT_Context* ctx, NDBT_Step* step)
     
     if (restarter.insertErrorInNode(victim, 7191))
       return NDBT_FAILED;
+
+    trans.scanUpdateRecords(pNdb, ctx->getNumRecords());
     
     if (restarter.startNodes(&victim, 1))
       return NDBT_FAILED;
@@ -1375,6 +1391,8 @@ int runBug25984(NDBT_Context* ctx, NDBT_Step* step)
   if (restarter.waitClusterStarted())
     return NDBT_FAILED;
 
+  trans.scanUpdateRecords(pNdb, ctx->getNumRecords());
+
   restarter.restartOneDbNode(victim, false, true, true);
   for (Uint32 i = 0; i<1; i++)
   {
@@ -1387,7 +1405,9 @@ int runBug25984(NDBT_Context* ctx, NDBT_Step* step)
     
     if (restarter.insertErrorInNode(victim, 7016))
       return NDBT_FAILED;
-    
+  
+    trans.scanUpdateRecords(pNdb, ctx->getNumRecords());
+  
     if (restarter.startNodes(&victim, 1))
       return NDBT_FAILED;
 
