@@ -723,6 +723,8 @@ sub run_worker ($) {
       delete($test->{'comment'});
       delete($test->{'logfile'});
 
+      $test->{worker} = $thread_num if $opt_parallel > 1;
+
       run_testcase($test);
       #$test->{result}= 'MTR_RES_PASSED';
       # Send it back, now with results set
