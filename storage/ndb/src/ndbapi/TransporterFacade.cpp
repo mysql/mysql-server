@@ -2030,9 +2030,6 @@ SignalSender::sendSignal(Uint16 nodeId, const SimpleSignal * s){
     return SEND_OK;
   }
 
-  assert(getNodeInfo(nodeId).m_api_reg_conf == true ||
-         s->readSignalNumber() == GSN_API_REGREQ);
-  
   SendStatus ss = 
     theFacade->theTransporterRegistry->prepareSend(&s->header,
                                                    1, // JBB
@@ -2042,6 +2039,8 @@ SignalSender::sendSignal(Uint16 nodeId, const SimpleSignal * s){
 
   if (ss == SEND_OK)
   {
+    assert(getNodeInfo(nodeId).m_api_reg_conf == true ||
+           s->readSignalNumber() == GSN_API_REGREQ);
     theFacade->forceSend(m_blockNo);
   }
 
