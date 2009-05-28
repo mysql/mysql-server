@@ -233,7 +233,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
 
   ulong *rec_per_key;
   if (!(rec_per_key= (ulong*) alloc_root(&outparam->mem_root,
-					 sizeof(ulong*)*key_parts)))
+                                         sizeof(ulong)*key_parts)))
     goto err;
 
   for (i=0 ; i < keys ; i++, keyinfo++)

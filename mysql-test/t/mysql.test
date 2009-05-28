@@ -341,4 +341,11 @@ EOF
 
 remove_file $MYSQLTEST_VARDIR/tmp/bug31060.sql;
 
+#
+# Bug #39101: client -i (--ignore-spaces) option does not seem to work
+#
+--exec $MYSQL -i -e "SELECT COUNT (*)"
+--exec $MYSQL --ignore-spaces -e "SELECT COUNT (*)"
+--exec $MYSQL -b -i -e "SELECT COUNT (*)"
+
 --echo End of 5.0 tests
