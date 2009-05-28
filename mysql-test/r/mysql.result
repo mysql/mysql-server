@@ -198,5 +198,5 @@ COUNT (*)
 1
 COUNT (*)
 1
-ERROR 2005 (HY000) at line 1: Unknown MySQL server host 'invalid_hostname' (1)
+ERROR 2005 (HY000) at line 1: Unknown MySQL server host 'invalid_hostname' (errno)
 End of 5.0 tests
