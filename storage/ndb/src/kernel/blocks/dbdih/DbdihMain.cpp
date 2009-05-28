@@ -9745,7 +9745,12 @@ Dbdih::resetReplicaSr(TabRecordPtr tabPtr){
 	     * A COMPLETELY NEW REPLICA. WE WILL SET THE CREATE GCI TO BE THE 
 	     * NEXT GCI TO BE EXECUTED.                                       
 	     *--------_----------------------------------------------------- */
-	    const Uint32 nextCrashed = noCrashedReplicas + 1;
+            if (noCrashedReplicas + 1 == MAX_CRASHED_REPLICAS)
+            {
+              jam();
+              packCrashedReplicas(replicaPtr);
+            }
+	    const Uint32 nextCrashed = replicaPtr.p->noCrashedReplicas + 1;
 	    replicaPtr.p->noCrashedReplicas = nextCrashed;
 	    arrGuardErr(nextCrashed, MAX_CRASHED_REPLICAS, NDBD_EXIT_MAX_CRASHED_REPLICAS);
 	    replicaPtr.p->createGci[nextCrashed] = newestRestorableGCI + 1;
