@@ -5,10 +5,10 @@
 
 // Initialize the ydb library globals.  
 // Called when the ydb library is loaded.
-void toku_ydb_init(void);
+int toku_ydb_init(void);
 
 // Called when the ydb library is unloaded.
-void toku_ydb_destroy(void);
+int toku_ydb_destroy(void);
 
 // Called to use dlmalloc functions.
 void setup_dlmalloc(void) __attribute__((__visibility__("default")));

@@ -4796,25 +4796,50 @@ int toku_brt_truncate (BRT brt) {
     return r;
 }
 
-static void toku_brt_lock_init(void) {
-    toku_pwrite_lock_init();
-    toku_logger_lock_init();
-    toku_leaflock_init();
+static int
+toku_brt_lock_init(void) {
+    int r = 0;
+    if (r==0)
+        r = toku_pwrite_lock_init();
+    if (r==0)
+        r = toku_logger_lock_init();
+    if (r==0)
+        r = toku_leaflock_init();
+    return r;
 }
 
-static void toku_brt_lock_destroy(void) {
-    toku_pwrite_lock_destroy();
-    toku_logger_lock_destroy();
-    toku_leaflock_destroy();
+static int
+toku_brt_lock_destroy(void) {
+    int r = 0;
+    if (r==0) 
+        r = toku_pwrite_lock_destroy();
+    if (r==0) 
+        r = toku_logger_lock_destroy();
+    if (r==0) 
+        r = toku_leaflock_destroy();
+    return r;
 }
 
-void toku_brt_init(void (*ydb_lock_callback)(void), void (*ydb_unlock_callback)(void)) {
-    toku_brt_lock_init();
-    toku_checkpoint_init(ydb_lock_callback, ydb_unlock_callback);
+int toku_brt_init(void (*ydb_lock_callback)(void), void (*ydb_unlock_callback)(void)) {
+    int r = 0;
+    //Portability must be initialized first
+    if (r==0) 
+        r = toku_portability_init();
+    if (r==0) 
+        r = toku_brt_lock_init();
+    if (r==0) 
+        r = toku_checkpoint_init(ydb_lock_callback, ydb_unlock_callback);
+    return r;
 }
 
-void toku_brt_destroy(void) {
-    toku_brt_lock_destroy();
+int toku_brt_destroy(void) {
+    int r = 0;
+    if (r==0) 
+        r = toku_brt_lock_destroy();
+    //Portability must be cleaned up last
+    if (r==0) 
+        r = toku_portability_destroy();
+    return r;
 }
 
 //Return TRUE if empty, FALSE if not empty.

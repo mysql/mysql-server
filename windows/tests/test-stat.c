@@ -1,4 +1,4 @@
-#include <toku_portability.h>
+#include <test.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -15,7 +15,7 @@ void test_stat(char *dirname, int result, int ex_errno) {
     if (r!=0) assert(errno == ex_errno);
 }
 
-int main(void) {
+int test_main(int argc, char *argv[]) {
     int r;
 
     test_stat(".", 0, 0);

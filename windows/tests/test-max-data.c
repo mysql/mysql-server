@@ -4,10 +4,10 @@
 #include <inttypes.h>
 #include <unistd.h>
 #include <assert.h>
-#include <toku_portability.h>
+#include <test.h>
 #include <toku_os.h>
 
-int main(void) {
+int test_main(int argc, char *argv[]) {
     uint64_t maxdata;
     int r = toku_os_get_max_process_data_size(&maxdata);
     assert(r == 0);

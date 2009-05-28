@@ -129,6 +129,9 @@ int toku_set_func_free    (void (*)(void*));
 int toku_set_func_pwrite (ssize_t (*pwrite_fun)(int, const void *, size_t, toku_off_t));
 int toku_set_func_write (ssize_t (*pwrite_fun)(int, const void *, size_t));
 
+int toku_portability_init    (void);
+int toku_portability_destroy (void);
+
 #if defined __cplusplus
 };
 #endif

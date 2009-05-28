@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
-#include <toku_portability.h>
+#include <test.h>
 #include "toku_os.h"
 
 int verbose;
@@ -17,7 +17,7 @@ void testit(int64_t i, int base) {
     assert(i == o);
 }
 
-int main(int argc, char *argv[]) {
+int test_main(int argc, char *argv[]) {
     int i;
     int64_t n;
     int64_t o;

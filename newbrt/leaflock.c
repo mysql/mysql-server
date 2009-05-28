@@ -72,14 +72,15 @@ leaflock_pool_unlock(void) {
     int r = toku_pthread_mutex_unlock(&pool_mutex); assert(r==0);
 }
 
-void
+int
 toku_leaflock_init(void) {
     int r = toku_pthread_mutex_init(&pool_mutex, NULL);
     assert(r == 0);
     free_list = NULL;
+    return r;
 }
 
-void
+int
 toku_leaflock_destroy(void) {
     leaflock_pool_lock();
     int r;
@@ -92,6 +93,7 @@ toku_leaflock_destroy(void) {
     }
     leaflock_pool_unlock();
     r = toku_pthread_mutex_destroy(&pool_mutex); assert(r == 0);
+    return r;
 }
 
 int

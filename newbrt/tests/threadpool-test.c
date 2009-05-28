@@ -1,3 +1,5 @@
+#include <toku_portability.h>
+#include "test.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -6,7 +8,6 @@
 #include <errno.h>
 #include <malloc.h>
 
-#include <toku_portability.h>
 #include "toku_os.h"
 #include "toku_pthread.h"
 #include "threadpool.h"
@@ -83,7 +84,7 @@ usage (void) {
 }
 
 int
-main(int argc, const char *argv[]) {
+test_main (int argc, const char *argv[]) {
     int max_threads = 1;
 #if defined(__linux__)
     int do_malloc_fail = 0;

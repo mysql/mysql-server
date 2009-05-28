@@ -230,7 +230,7 @@ ifneq ($(CYGWIN),)
 	    CRUNTIME=MTd
 	endif
 	endif
-        ALWAYS_LINK=$(LIBPORTABILITY) $(TOKUROOT)windows/lib/$(CRUNTIME)/pthreadVC2.lib $(TOKUROOT)windows/lib/$(CRUNTIME)/zlib.lib Ws2_32.lib psapi.lib
+        ALWAYS_LINK=$(LIBPORTABILITY) $(TOKUROOT)windows/lib/$(CRUNTIME)/zlib.lib Ws2_32.lib psapi.lib
         LINK=#Empty
         BINOUTPUT=-Fe
         OOUTPUT=-Fo
@@ -393,11 +393,11 @@ $(NOIPO_YDB) $(IPO_YDB): $(@D)*.[ch]
 endif
 
 ifeq ($(OS_CHOICE),windows)
-PTHREAD_LIB=$(TOKUROOT)windows/lib/$(CRUNTIME)/pthreadVC2.dll
+PTHREAD_LIB=$(TOKUROOT)lib/pthreadVC2.dll
 PTHREAD_LOCAL=$(notdir $(PTHREAD_LIB))
 
 $(PTHREAD_LOCAL): $(PTHREAD_LIB)
-	cp $< $@
+	cp -u $< $@
 else
 PTHREAD_LOCAL=
 endif

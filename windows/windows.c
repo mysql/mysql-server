@@ -20,6 +20,40 @@
 #include <fcntl.h>
 #include <Crtdbg.h>
 
+static int
+toku_malloc_init(void) {
+    int r = 0;
+    //Set the heap (malloc/free/realloc) to use the low fragmentation mode.
+    ULONG  HeapFragValue = 2;
+
+    int success;
+    success = HeapSetInformation(GetProcessHeap(),
+                           HeapCompatibilityInformation,
+                           &HeapFragValue,
+                           sizeof(HeapFragValue));
+    //if (success==0) //Do some error output if necessary.
+    if (!success)
+        r = GetLastError();
+    return r;
+}
+
+int
+toku_portability_init(void) {
+    int r = 0;
+    if (r==0)
+        r = toku_malloc_init();
+    if (r==0)
+        r = toku_pthread_win32_init();
+    return r;
+}
+
+int
+toku_portability_destroy(void) {
+    int r = 0;
+    if (r==0)
+        r = toku_pthread_win32_destroy();
+    return r;
+}
 
 int
 toku_os_get_file_size(int fildes, int64_t *sizep) {

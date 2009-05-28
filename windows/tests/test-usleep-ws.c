@@ -4,7 +4,6 @@
 #include <fcntl.h>
 #include <windows.h>
 #include <winsock.h>
-int verbose;
 
 int usleep(SOCKET s, unsigned int useconds) {
     fd_set dummy;
@@ -16,7 +15,10 @@ int usleep(SOCKET s, unsigned int useconds) {
     return select(0, 0, 0, &dummy, &tv);
 }
 
-int main(int argc, char *argv[]) {
+#include <test.h>
+int verbose;
+
+int test_main(int argc, char *argv[]) {
     int i;
     int n = 1;
     WSADATA wsadata;

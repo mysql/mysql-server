@@ -65,8 +65,8 @@ struct __toku_db_env_internal {
    Ephemeral locking
 
    ********************************************************* */
-void toku_ydb_lock_init(void);
-void toku_ydb_lock_destroy(void);
+int toku_ydb_lock_init(void);
+int toku_ydb_lock_destroy(void);
 void toku_ydb_lock(void);
 void toku_ydb_unlock(void);
 

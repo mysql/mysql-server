@@ -14,6 +14,29 @@
 #include <assert.h>
 #include <toku_portability.h>
 #include "toku_os.h"
+#include <malloc.h>
+
+static int
+toku_mallopt_init(void) {
+    int r = mallopt(M_MMAP_THRESHOLD, 1024*64); // 64K and larger should be malloced with mmap().
+    return r;
+}
+
+int
+toku_portability_init(void) {
+    int r = 0;
+    if (r==0) {
+        int success = toku_mallopt_init(); //mallopt returns 1 on success, 0 on error
+        assert(success);
+    }
+    return r;
+}
+
+int
+toku_portability_destroy(void) {
+    int r = 0;
+    return r;
+}
 
 int
 toku_os_getpid(void) {

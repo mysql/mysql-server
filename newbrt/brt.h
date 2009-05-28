@@ -141,10 +141,10 @@ int toku_brt_stat64 (BRT, TOKUTXN,
 		     u_int64_t *fsize  /* the size of the underlying file                                                 */
 		     );
 
-void toku_brt_init(void (*ydb_lock_callback)(void), void (*ydb_unlock_callback)(void));
-void toku_brt_destroy(void);
-void toku_pwrite_lock_init(void);
-void toku_pwrite_lock_destroy(void);
+int toku_brt_init(void (*ydb_lock_callback)(void), void (*ydb_unlock_callback)(void));
+int toku_brt_destroy(void);
+int toku_pwrite_lock_init(void);
+int toku_pwrite_lock_destroy(void);
 
 void toku_maybe_truncate_cachefile (CACHEFILE cf, u_int64_t size_used);
 // Effect: truncate file if overallocated by at least 32MiB

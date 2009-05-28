@@ -1,3 +1,4 @@
+#include <test.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -6,7 +7,7 @@
 
 int verbose;
 
-int main(int argc, char *argv[]) {
+int test_main(int argc, char *argv[]) {
     int i;
     int n = 1;
 

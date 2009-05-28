@@ -1,7 +1,7 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
-#include <toku_portability.h>
+#include <test.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -36,7 +36,7 @@ check_snprintf(int i) {
 }
 
 
-int main(void) {
+int test_main(int argc, char *argv[]) {
     int i;
     for (i = 0; i < 8; i++) {
         check_snprintf(i);

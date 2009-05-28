@@ -1,8 +1,9 @@
+#include <test.h>
 #include <stdio.h>
 #include <assert.h>
 #include <toku_time.h>
 
-int main(void) {
+int test_main(int argc, char *argv[]) {
     int r;
     struct timeval tv;
     struct timezone tz;
