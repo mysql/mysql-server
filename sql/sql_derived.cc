@@ -179,6 +179,7 @@ exit:
     {
       if (thd->is_error() &&
           (thd->main_da.sql_errno() == ER_BAD_FIELD_ERROR ||
+          thd->main_da.sql_errno() == ER_FUNC_INEXISTENT_NAME_COLLISION ||
           thd->main_da.sql_errno() == ER_SP_DOES_NOT_EXIST))
       {
         thd->clear_error();

@@ -67,7 +67,7 @@ my_which ()
   ret=0
   for file
   do
-    for dir in "$PATH"
+    for dir in $PATH
     do
       if [ -f "$dir/$file" ]
       then

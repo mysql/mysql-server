@@ -6177,3 +6177,6 @@ ER_TOO_LONG_TABLE_COMMENT
 ER_TOO_LONG_FIELD_COMMENT
   eng "Comment for field '%-.64s' is too long (max = %lu)"
   por "Comentário para o campo '%-.64s' é longo demais (max = %lu)"
+
+ER_FUNC_INEXISTENT_NAME_COLLISION 42000 
+  eng "FUNCTION %s does not exist. Check the 'Function Name Parsing and Resolution' section in the Reference Manual"
