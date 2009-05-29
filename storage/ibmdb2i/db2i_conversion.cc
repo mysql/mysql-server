@@ -1085,7 +1085,7 @@ int32 ha_ibmdb2i::convertMySQLtoDB2(Field* field, const DB2Field& db2Field, char
                   if (bytesToStore)
                     memcpy(db2Buf, dataToStore, bytesToStore);
                   if (bytesToPad)
-                    wmemset((wchar_t*)(db2Buf + bytesToStore), 0x0020, bytesToPad/2);
+                    memset16((db2Buf + bytesToStore), 0x0020, bytesToPad/2);
                 }
                 else
                 {
@@ -1108,7 +1108,7 @@ int32 ha_ibmdb2i::convertMySQLtoDB2(Field* field, const DB2Field& db2Field, char
                     bytesToStore = db2BytesToStore;
                   }
                   if (db2BytesToStore < maxDb2BytesToStore) // If need to pad
-                    wmemset((wchar_t*)(db2Buf + db2BytesToStore), 0x0020, (maxDb2BytesToStore - db2BytesToStore)/2);
+                    memset16((db2Buf + db2BytesToStore), 0x0020, (maxDb2BytesToStore - db2BytesToStore)/2);
                 }
 
                 if (db2FieldType == QMY_VARGRAPHIC)
