@@ -103,7 +103,7 @@ if (!opt_silent) \
 
 static void print_error(const char *msg);
 static void print_st_error(MYSQL_STMT *stmt, const char *msg);
-static void client_disconnect(void);
+static void client_disconnect(MYSQL* mysql, my_bool drop_db);
 
 
 /*
@@ -271,10 +271,20 @@ mysql_simple_prepare(MYSQL *mysql_arg, const char *query)
 }
 
 
-/* Connect to the server */
+/**
+   Connect to the server with options given by arguments to this application,
+   stored in global variables opt_host, opt_user, opt_password, opt_db, 
+   opt_port and opt_unix_socket.
 
-static void client_connect(ulong flag)
+   @param flag[in]           client_flag passed on to mysql_real_connect
+   @param protocol[in]       MYSQL_PROTOCOL_* to use for this connection
+   @param auto_reconnect[in] set to 1 for auto reconnect
+   
+   @return pointer to initialized and connected MYSQL object
+*/
+static MYSQL* client_connect(ulong flag, uint protocol, my_bool auto_reconnect)
 {
+  MYSQL* mysql;
   int  rc;
   static char query[MAX_TEST_QUERY_LENGTH];
   myheader_r("client_connect");
@@ -291,6 +301,7 @@ static void client_connect(ulong flag)
   }
   /* enable local infile, in non-binary builds often disabled by default */
   mysql_options(mysql, MYSQL_OPT_LOCAL_INFILE, 0);
+  mysql_options(mysql, MYSQL_OPT_PROTOCOL, &protocol);
 
   if (!(mysql_real_connect(mysql, opt_host, opt_user,
                            opt_password, opt_db ? opt_db:"test", opt_port,
@@ -302,7 +313,7 @@ static void client_connect(ulong flag)
     fprintf(stdout, "\n Check the connection options using --help or -?\n");
     exit(1);
   }
-  mysql->reconnect= 1;
+  mysql->reconnect= auto_reconnect;
 
   if (!opt_silent)
     fprintf(stdout, "OK");
@@ -329,12 +340,14 @@ static void client_connect(ulong flag)
 
   if (!opt_silent)
     fprintf(stdout, "OK");
+
+  return mysql;
 }
 
 
 /* Close the connection */
 
-static void client_disconnect()
+static void client_disconnect(MYSQL* mysql, my_bool drop_db)
 {
   static char query[MAX_TEST_QUERY_LENGTH];
 
@@ -342,13 +355,16 @@ static void client_disconnect()
 
   if (mysql)
   {
-    if (!opt_silent)
-      fprintf(stdout, "\n dropping the test database '%s' ...", current_db);
-    strxmov(query, "DROP DATABASE IF EXISTS ", current_db, NullS);
+    if (drop_db)
+    {
+      if (!opt_silent)
+        fprintf(stdout, "\n dropping the test database '%s' ...", current_db);
+      strxmov(query, "DROP DATABASE IF EXISTS ", current_db, NullS);
 
-    mysql_query(mysql, query);
-    if (!opt_silent)
-      fprintf(stdout, "OK");
+      mysql_query(mysql, query);
+      if (!opt_silent)
+        fprintf(stdout, "OK");
+    }
 
     if (!opt_silent)
       fprintf(stdout, "\n closing the connection ...");
@@ -2464,6 +2480,9 @@ static void test_ps_query_cache()
 
   myheader("test_ps_query_cache");
 
+  rc= mysql_query(mysql, "SET SQL_MODE=''");
+  myquery(rc);
+
   /* prepare the table */
 
   rc= mysql_query(mysql, "drop table if exists t1");
@@ -2506,6 +2525,9 @@ static void test_ps_query_cache()
         mysql_close(lmysql);
         DIE_UNLESS(0);
       }
+      rc= mysql_query(lmysql, "SET SQL_MODE=''");
+      myquery(rc);
+
       if (!opt_silent)
         fprintf(stdout, "OK");
     }
@@ -4240,6 +4262,10 @@ static void test_fetch_date()
 
   myheader("test_fetch_date");
 
+  /* Will not work if sql_mode is NO_ZERO_DATE (implicit if TRADITIONAL) /*/
+  rc= mysql_query(mysql, "SET SQL_MODE=''");
+  myquery(rc);
+
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_bind_result");
   myquery(rc);
 
@@ -4953,6 +4979,9 @@ static void test_stmt_close()
 
   /* set AUTOCOMMIT to ON*/
   mysql_autocommit(lmysql, TRUE);
+
+  rc= mysql_query(lmysql, "SET SQL_MODE = ''");
+  myquery(rc);
 
   rc= mysql_query(lmysql, "DROP TABLE IF EXISTS test_stmt_close");
   myquery(rc);
@@ -12088,6 +12117,9 @@ static void test_bug6058()
 
   myheader("test_bug6058");
 
+  rc= mysql_query(mysql, "SET SQL_MODE=''");
+  myquery(rc);
+
   stmt_text= "SELECT CAST('0000-00-00' AS DATE)";
 
   rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
@@ -13302,6 +13334,9 @@ static void test_bug8378()
   }
   if (!opt_silent)
     fprintf(stdout, "OK");
+
+  rc= mysql_query(lmysql, "SET SQL_MODE=''");
+  myquery(rc);
 
   len= mysql_real_escape_string(lmysql, out, TEST_BUG8378_IN, 4);
 
@@ -16390,7 +16425,22 @@ static void test_change_user()
   myquery(rc);
 
   sprintf(buff,
+          "grant select on %s.* to %s@'localhost' identified by '%s'",
+          db,
+          user_pw,
+          pw);
+  rc= mysql_query(mysql, buff);
+  myquery(rc);
+
+  sprintf(buff,
           "grant select on %s.* to %s@'%%'",
+          db,
+          user_no_pw);
+  rc= mysql_query(mysql, buff);
+  myquery(rc);
+
+  sprintf(buff,
+          "grant select on %s.* to %s@'localhost'",
           db,
           user_no_pw);
   rc= mysql_query(mysql, buff);
@@ -16549,6 +16599,14 @@ static void test_change_user()
   myquery(rc);
 
   sprintf(buff, "drop user %s@'%%'", user_no_pw);
+  rc= mysql_query(mysql, buff);
+  myquery(rc);
+
+  sprintf(buff, "drop user %s@'localhost'", user_pw);
+  rc= mysql_query(mysql, buff);
+  myquery(rc);
+
+  sprintf(buff, "drop user %s@'localhost'", user_no_pw);
   rc= mysql_query(mysql, buff);
   myquery(rc);
 
@@ -17220,6 +17278,11 @@ static void test_bug31669()
   rc= mysql_query(mysql, query);
   myquery(rc);
 
+  strxmov(query, "GRANT ALL PRIVILEGES ON *.* TO '", user, "'@'localhost' IDENTIFIED BY "
+                 "'", buff, "' WITH GRANT OPTION", NullS);
+  rc= mysql_query(mysql, query);
+  myquery(rc);
+
   rc= mysql_query(mysql, "FLUSH PRIVILEGES");
   myquery(rc);
 
@@ -17257,7 +17320,7 @@ static void test_bug31669()
   strxmov(query, "DELETE FROM mysql.user WHERE User='", user, "'", NullS);
   rc= mysql_query(mysql, query);
   myquery(rc);
-  DIE_UNLESS(mysql_affected_rows(mysql) == 1);
+  DIE_UNLESS(mysql_affected_rows(mysql) == 2);
 #endif
 
   DBUG_VOID_RETURN;
@@ -17469,6 +17532,9 @@ static void test_wl4166_2()
 
   myheader("test_wl4166_2");
 
+  rc= mysql_query(mysql, "SET SQL_MODE=''");
+  myquery(rc);
+
   rc= mysql_query(mysql, "drop table if exists t1");
   myquery(rc);
   rc= mysql_query(mysql, "create table t1 (c_int int, d_date date)");
@@ -17657,6 +17723,100 @@ static void test_bug40365(void)
       DIE_UNLESS(tm[i].day == 0);
   }
   mysql_stmt_close(stmt);
+
+  DBUG_VOID_RETURN;
+}
+
+
+/**
+  Subtest for Bug#43560. Verifies that a loss of connection on the server side
+  is handled well by the mysql_stmt_execute() call, i.e., no SIGSEGV due to
+  a vio socket that is cleared upon closed connection.
+
+  Assumes the presence of the close_conn_after_stmt_execute debug feature in
+  the server. Verifies that it is connected to a debug server before proceeding
+  with the test.
+ */
+static void test_bug43560(void)
+{
+  MYSQL*       conn;
+  uint         rc;
+  MYSQL_STMT   *stmt= 0;
+  MYSQL_BIND   bind;
+  my_bool      is_null= 0;
+  char         buffer[256];
+  const uint   BUFSIZE= sizeof(buffer);
+  const char*  values[] = {"eins", "zwei", "drei", "viele", NULL};
+  const char   insert_str[] = "INSERT INTO t1 (c2) VALUES (?)";
+  unsigned long length;
+  
+  DBUG_ENTER("test_bug43560");
+  myheader("test_bug43560");
+
+  /* Make sure we only run against a debug server. */
+  if (!strstr(mysql->server_version, "debug"))
+  {
+    fprintf(stdout, "Skipping test_bug43560: server not DEBUG version\n");
+    DBUG_VOID_RETURN;
+  }
+
+  /*
+    Set up a separate connection for this test to avoid messing up the
+    general MYSQL object used in other subtests. Use TCP protocol to avoid
+    problems with the buffer semantics of AF_UNIX, and turn off auto reconnect.
+  */
+  conn= client_connect(0, MYSQL_PROTOCOL_TCP, 0);
+
+  rc= mysql_query(conn, "DROP TABLE IF EXISTS t1");
+  myquery(rc);
+  rc= mysql_query(conn,
+    "CREATE TABLE t1 (c1 INT PRIMARY KEY AUTO_INCREMENT, c2 CHAR(10))");
+  myquery(rc);
+
+  stmt= mysql_stmt_init(conn);
+  check_stmt(stmt);
+  rc= mysql_stmt_prepare(stmt, insert_str, strlen(insert_str));
+  check_execute(stmt, rc);
+
+  bind.buffer_type= MYSQL_TYPE_STRING;
+  bind.buffer_length= BUFSIZE;
+  bind.buffer= buffer;
+  bind.is_null= &is_null;
+  bind.length= &length;
+  rc= mysql_stmt_bind_param(stmt, &bind);
+  check_execute(stmt, rc);
+
+  /* First execute; should succeed. */
+  strncpy(buffer, values[0], BUFSIZE);
+  length= strlen(buffer);
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  /* 
+    Set up the server to close this session's server-side socket after
+    next execution of prep statement.
+  */
+  rc= mysql_query(conn,"SET SESSION debug='+d,close_conn_after_stmt_execute'");
+  myquery(rc);
+
+  /* Second execute; should fail due to socket closed during execution. */
+  strncpy(buffer, values[1], BUFSIZE);
+  length= strlen(buffer);
+  rc= mysql_stmt_execute(stmt);
+  DIE_UNLESS(rc && mysql_stmt_errno(stmt) == CR_SERVER_LOST);
+
+  /* 
+    Third execute; should fail (connection already closed), or SIGSEGV in
+    case of a Bug#43560 type regression in which case the whole test fails.
+  */
+  strncpy(buffer, values[2], BUFSIZE);
+  length= strlen(buffer);
+  rc= mysql_stmt_execute(stmt);
+  DIE_UNLESS(rc && mysql_stmt_errno(stmt) == CR_SERVER_LOST);
+
+  client_disconnect(conn, 0);
+  rc= mysql_query(mysql, "DROP TABLE t1");
+  myquery(rc);
 
   DBUG_VOID_RETURN;
 }
@@ -18090,6 +18250,7 @@ static struct my_tests_st my_tests[]= {
   { "test_wl4166_2", test_wl4166_2 },
   { "test_bug38486", test_bug38486 },
   { "test_bug40365", test_bug40365 },
+  { "test_bug43560", test_bug43560 },
 #ifdef HAVE_QUERY_CACHE
   { "test_bug36326", test_bug36326 },
 #endif
@@ -18218,7 +18379,8 @@ int main(int argc, char **argv)
                         (char**) embedded_server_groups))
     DIE("Can't initialize MySQL server");
 
-  client_connect(0);       /* connect to server */
+  /* connect to server with no flags, default protocol, auto reconnect true */
+  mysql= client_connect(0, MYSQL_PROTOCOL_DEFAULT, 1);
 
   total_time= 0;
   for (iter_count= 1; iter_count <= opt_count; iter_count++)
@@ -18248,7 +18410,7 @@ int main(int argc, char **argv)
 	  fprintf(stderr, "\n\nGiven test not found: '%s'\n", *argv);
 	  fprintf(stderr, "See legal test names with %s -T\n\nAborting!\n",
 		  my_progname);
-	  client_disconnect();
+	  client_disconnect(mysql, 1);
 	  free_defaults(defaults_argv);
 	  exit(1);
 	}
@@ -18261,7 +18423,7 @@ int main(int argc, char **argv)
     /* End of tests */
   }
 
-  client_disconnect();    /* disconnect from server */
+  client_disconnect(mysql, 1);    /* disconnect from server */
 
   free_defaults(defaults_argv);
   print_test_output();

@@ -143,7 +143,8 @@ static my_bool ignore_errors=0,wait_flag=0,quick=0,
 	       tty_password= 0, opt_nobeep=0, opt_reconnect=1,
 	       default_charset_used= 0, opt_secure_auth= 0,
                default_pager_set= 0, opt_sigint_ignore= 0,
-               show_warnings= 0, executing_query= 0, interrupted_query= 0;
+               show_warnings= 0, executing_query= 0, interrupted_query= 0,
+               ignore_spaces= 0;
 static my_bool debug_info_flag, debug_check_flag;
 static my_bool column_types_flag;
 static my_bool preserve_comments= 0;
@@ -1183,7 +1184,12 @@ int main(int argc,char *argv[])
         histfile= 0;
       }
     }
-    if (histfile)
+
+    /* We used to suggest setting MYSQL_HISTFILE=/dev/null. */
+    if (histfile && strncmp(histfile, "/dev/null", 10) == 0)
+      histfile= NULL;
+
+    if (histfile && histfile[0])
     {
       if (verbose)
 	tee_fprintf(stdout, "Reading history-file %s\n",histfile);
@@ -1218,7 +1224,8 @@ sig_handler mysql_end(int sig)
 {
   mysql_close(&mysql);
 #ifdef HAVE_READLINE
-  if (!status.batch && !quick && !opt_html && !opt_xml && histfile)
+  if (!status.batch && !quick && !opt_html && !opt_xml &&
+      histfile && histfile[0])
   {
     /* write-history */
     if (verbose)
@@ -1345,7 +1352,7 @@ static struct my_option my_long_options[] =
   {"debug", '#', "Output debug log", (uchar**) &default_dbug_option,
    (uchar**) &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"debug-check", OPT_DEBUG_CHECK, "Check memory and open file usage at exit .",
+  {"debug-check", OPT_DEBUG_CHECK, "Check memory and open file usage at exit.",
    (uchar**) &debug_check_flag, (uchar**) &debug_check_flag, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"debug-info", 'T', "Print some debug info at exit.", (uchar**) &debug_info_flag,
@@ -1372,8 +1379,9 @@ static struct my_option my_long_options[] =
   {"no-named-commands", 'g',
    "Named commands are disabled. Use \\* form only, or use named commands only in the beginning of a line ending with a semicolon (;) Since version 10.9 the client now starts with this option ENABLED by default! Disable with '-G'. Long format commands still work from the first line. WARNING: option deprecated; use --disable-named-commands instead.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"ignore-spaces", 'i', "Ignore space after function names.", 0, 0, 0,
-   GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"ignore-spaces", 'i', "Ignore space after function names.",
+   (uchar**) &ignore_spaces, (uchar**) &ignore_spaces, 0, GET_BOOL, NO_ARG, 0, 0,
+   0, 0, 0, 0},
   {"local-infile", OPT_LOCAL_INFILE, "Enable/disable LOAD DATA LOCAL INFILE.",
    (uchar**) &opt_local_infile,
    (uchar**) &opt_local_infile, 0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
@@ -1794,6 +1802,10 @@ static int get_options(int argc, char **argv)
     my_end_arg= MY_CHECK_ERROR | MY_GIVE_INFO;
   if (debug_check_flag)
     my_end_arg= MY_CHECK_ERROR;
+
+  if (ignore_spaces)
+    connect_flag|= CLIENT_IGNORE_SPACE;
+
   return(0);
 }
 
@@ -3381,9 +3393,12 @@ print_table_data_html(MYSQL_RES *result)
   {
     while((field = mysql_fetch_field(result)))
     {
-      tee_fprintf(PAGER, "<TH>%s</TH>", (field->name ? 
-					 (field->name[0] ? field->name : 
-					  " &nbsp; ") : "NULL"));
+      tee_fputs("<TH>", PAGER);
+      if (field->name && field->name[0])
+        xmlencode_print(field->name, field->name_length);
+      else
+        tee_fputs(field->name ? " &nbsp; " : "NULL", PAGER);
+      tee_fputs("</TH>", PAGER);
     }
     (void) tee_fputs("</TR>", PAGER);
   }
@@ -3396,7 +3411,7 @@ print_table_data_html(MYSQL_RES *result)
     for (uint i=0; i < mysql_num_fields(result); i++)
     {
       (void) tee_fputs("<TD>", PAGER);
-      safe_put_field(cur[i],lengths[i]);
+      xmlencode_print(cur[i], lengths[i]);
       (void) tee_fputs("</TD>", PAGER);
     }
     (void) tee_fputs("</TR>", PAGER);

@@ -2143,9 +2143,6 @@ bool Item_func_rand::fix_fields(THD *thd,Item **ref)
     if (!rand && !(rand= (struct rand_struct*)
                    thd->stmt_arena->alloc(sizeof(*rand))))
       return TRUE;
-
-    if (args[0]->const_item())
-      seed_random (args[0]);
   }
   else
   {
@@ -2175,8 +2172,21 @@ void Item_func_rand::update_used_tables()
 double Item_func_rand::val_real()
 {
   DBUG_ASSERT(fixed == 1);
-  if (arg_count && !args[0]->const_item())
-    seed_random (args[0]);
+  if (arg_count)
+  {
+    if (!args[0]->const_item())
+      seed_random(args[0]);
+    else if (first_eval)
+    {
+      /*
+        Constantness of args[0] may be set during JOIN::optimize(), if arg[0]
+        is a field item of "constant" table. Thus, we have to evaluate
+        seed_random() for constant arg there but not at the fix_fields method.
+      */
+      first_eval= FALSE;
+      seed_random(args[0]);
+    }
+  }
   return my_rnd(rand);
 }
 
@@ -4178,6 +4188,41 @@ Item_func_set_user_var::check(bool use_result_field)
 
 
 /**
+  @brief Evaluate and store item's result.
+  This function is invoked on "SELECT ... INTO @var ...".
+  
+  @param    item    An item to get value from.
+*/
+
+void Item_func_set_user_var::save_item_result(Item *item)
+{
+  DBUG_ENTER("Item_func_set_user_var::save_item_result");
+
+  switch (cached_result_type) {
+  case REAL_RESULT:
+    save_result.vreal= item->val_result();
+    break;
+  case INT_RESULT:
+    save_result.vint= item->val_int_result();
+    unsigned_flag= item->unsigned_flag;
+    break;
+  case STRING_RESULT:
+    save_result.vstr= item->str_result(&value);
+    break;
+  case DECIMAL_RESULT:
+    save_result.vdec= item->val_decimal_result(&decimal_buff);
+    break;
+  case ROW_RESULT:
+  default:
+    // Should never happen
+    DBUG_ASSERT(0);
+    break;
+  }
+  DBUG_VOID_RETURN;
+}
+
+
+/**
   This functions is invoked on
   SET \@variable or \@variable:= expression.
 
@@ -4835,10 +4880,20 @@ bool Item_func_get_system_var::is_written_to_binlog()
 }
 
 
+void Item_func_get_system_var::update_null_value()
+{
+  THD *thd= current_thd;
+  int save_no_errors= thd->no_errors;
+  thd->no_errors= TRUE;
+  Item::update_null_value();
+  thd->no_errors= save_no_errors;
+}
+
+
 void Item_func_get_system_var::fix_length_and_dec()
 {
   char *cptr;
-  maybe_null=0;
+  maybe_null= TRUE;
   max_length= 0;
 
   if (var->check_type(var_type))

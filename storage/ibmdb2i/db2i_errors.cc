@@ -52,7 +52,7 @@ static const char* engineErrors[MAX_MSGSTRING] =
   {"Error opening codeset conversion from %.64s to %.64s (errno = %d)"},      
   {"Invalid %-.10s name '%-.128s'"},                                          
   {"Unsupported move from '%-.128s' to '%-.128s' on RENAME TABLE statement"}, 
-  {"Unsupported schema '%-.128s' specified on RENAME TABLE statement"},       
+  {"The %-.64s character set is not supported."},       
   {"Auto_increment is not allowed for a partitioned table"},                  
   {"Character set conversion error due to unknown encoding scheme %d"},       
   {""}, 

@@ -1,0 +1,4 @@
+create table t1 (c char(1) character set armscii8) engine=ibmdb2i;
+ERROR HY000: Can't create table 'test.t1' (errno: 2504)
+create table t1 (c char(1) character set eucjpms ) engine=ibmdb2i;
+ERROR HY000: Can't create table 'test.t1' (errno: 2504)
