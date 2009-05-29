@@ -3198,26 +3198,24 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
 }
 
 
-/*
+/**
   Store routine level grants in the privilege tables
 
-  SYNOPSIS
-    mysql_routine_grant()
-    thd			Thread handle
-    table_list		List of routines to give grant
-    is_proc             true indicates routine list are procedures
-    user_list		List of users to give grant
-    rights		Table level grant
-    revoke_grant	Set to 1 if this is a REVOKE command
+  @param thd Thread handle
+  @param table_list List of routines to give grant
+  @param is_proc Is this a list of procedures?
+  @param user_list List of users to give grant
+  @param rights Table level grant
+  @param revoke_grant Is this is a REVOKE command?
 
-  RETURN
-    0	ok
-    1	error
+  @return
+    @retval FALSE Success.
+    @retval TRUE An error occurred.
 */
 
 bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
 			 List <LEX_USER> &user_list, ulong rights,
-			 bool revoke_grant, bool no_error)
+			 bool revoke_grant, bool write_to_binlog)
 {
   List_iterator <LEX_USER> str_list (user_list);
   LEX_USER *Str, *tmp_Str;
@@ -3228,22 +3226,20 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
 
   if (!initialized)
   {
-    if (!no_error)
-      my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0),
-               "--skip-grant-tables");
+    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0),
+             "--skip-grant-tables");
     DBUG_RETURN(TRUE);
   }
   if (rights & ~PROC_ACLS)
   {
-    if (!no_error)
-      my_message(ER_ILLEGAL_GRANT_FOR_TABLE, ER(ER_ILLEGAL_GRANT_FOR_TABLE),
-        	 MYF(0));
+    my_message(ER_ILLEGAL_GRANT_FOR_TABLE, ER(ER_ILLEGAL_GRANT_FOR_TABLE),
+               MYF(0));
     DBUG_RETURN(TRUE);
   }
 
   if (!revoke_grant)
   {
-    if (sp_exist_routines(thd, table_list, is_proc, no_error)<0)
+    if (sp_exist_routines(thd, table_list, is_proc))
       DBUG_RETURN(TRUE);
   }
 
@@ -3324,9 +3320,8 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
     {
       if (revoke_grant)
       {
-        if (!no_error)
-          my_error(ER_NONEXISTING_PROC_GRANT, MYF(0),
-		   Str->user.str, Str->host.str, table_name);
+        my_error(ER_NONEXISTING_PROC_GRANT, MYF(0),
+	         Str->user.str, Str->host.str, table_name);
 	result= TRUE;
 	continue;
       }
@@ -3351,15 +3346,13 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
   }
   thd->mem_root= old_root;
   pthread_mutex_unlock(&acl_cache->lock);
-  if (!result && !no_error)
+
+  if (write_to_binlog)
   {
     write_bin_log(thd, TRUE, thd->query, thd->query_length);
   }
 
   rw_unlock(&LOCK_grant);
-
-  if (!result && !no_error)
-    my_ok(thd);
 
   /* Tables are automatically closed */
   DBUG_RETURN(result);
@@ -6157,21 +6150,20 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
 }
 
 
-/*
+/**
   Grant EXECUTE,ALTER privilege for a stored procedure
 
-  SYNOPSIS
-    sp_grant_privileges()
-    thd                         The current thread.
-    db				DB of the stored procedure
-    name			Name of the stored procedure
+  @param thd The current thread.
+  @param sp_db
+  @param sp_name
+  @param is_proc
 
-  RETURN
-    0           OK.
-    < 0         Error. Error message not yet sent.
+  @return
+    @retval FALSE Success
+    @retval TRUE An error occured. Error message not yet sent.
 */
 
-int sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
+bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
                          bool is_proc)
 {
   Security_context *sctx= thd->security_ctx;
@@ -6181,6 +6173,7 @@ int sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
   bool result;
   ACL_USER *au;
   char passwd_buff[SCRAMBLED_PASSWORD_CHAR_LENGTH+1];
+  Dummy_error_handler error_handler;
   DBUG_ENTER("sp_grant_privileges");
 
   if (!(combo=(LEX_USER*) thd->alloc(sizeof(st_lex_user))))
@@ -6231,8 +6224,11 @@ int sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
     }
     else
     {
-      my_error(ER_PASSWD_LENGTH, MYF(0), SCRAMBLED_PASSWORD_CHAR_LENGTH);
-      return -1;
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          ER_PASSWD_LENGTH,
+                          ER(ER_PASSWD_LENGTH),
+                          SCRAMBLED_PASSWORD_CHAR_LENGTH);
+      return TRUE;
     }
     combo->password.str= passwd_buff;
   }
@@ -6248,8 +6244,14 @@ int sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
   thd->lex->ssl_type= SSL_TYPE_NOT_SPECIFIED;
   bzero((char*) &thd->lex->mqh, sizeof(thd->lex->mqh));
 
+  /*
+    Only care about whether the operation failed or succeeded
+    as all errors will be handled later.
+  */
+  thd->push_internal_handler(&error_handler);
   result= mysql_routine_grant(thd, tables, is_proc, user_list,
-  				DEFAULT_CREATE_PROC_ACLS, 0, 1);
+                              DEFAULT_CREATE_PROC_ACLS, FALSE, FALSE);
+  thd->pop_internal_handler();
   DBUG_RETURN(result);
 }
 

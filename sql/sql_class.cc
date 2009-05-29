@@ -674,31 +674,40 @@ THD::THD()
 
 void THD::push_internal_handler(Internal_error_handler *handler)
 {
-  /*
-    TODO: The current implementation is limited to 1 handler at a time only.
-    THD and sp_rcontext need to be modified to use a common handler stack.
-  */
-  DBUG_ASSERT(m_internal_handler == NULL);
-  m_internal_handler= handler;
+  if (m_internal_handler)
+  {
+    handler->m_prev_internal_handler= m_internal_handler;
+    m_internal_handler= handler;
+  }
+  else
+  {
+    m_internal_handler= handler;
+  }
 }
 
 
 bool THD::handle_error(uint sql_errno, const char *message,
                        MYSQL_ERROR::enum_warning_level level)
 {
-  if (m_internal_handler)
+  if (!m_internal_handler)
+    return FALSE;
+
+  for (Internal_error_handler *error_handler= m_internal_handler;
+       error_handler;
+       error_handler= m_internal_handler->m_prev_internal_handler)
   {
-    return m_internal_handler->handle_error(sql_errno, message, level, this);
+    if (error_handler->handle_error(sql_errno, message, level, this))
+    return TRUE;
   }
 
-  return FALSE;                                 // 'FALSE', as per coding style
+  return FALSE;
 }
 
 
 void THD::pop_internal_handler()
 {
   DBUG_ASSERT(m_internal_handler != NULL);
-  m_internal_handler= NULL;
+  m_internal_handler= m_internal_handler->m_prev_internal_handler;
 }
 
 extern "C"
