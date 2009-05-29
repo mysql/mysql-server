@@ -1036,7 +1036,10 @@ show_system_thread(enum_thread_type thread)
 class Internal_error_handler
 {
 protected:
-  Internal_error_handler() {}
+  Internal_error_handler() :
+    m_prev_internal_handler(NULL)
+  {}
+
   virtual ~Internal_error_handler() {}
 
 public:
@@ -1069,6 +1072,28 @@ public:
                             const char *message,
                             MYSQL_ERROR::enum_warning_level level,
                             THD *thd) = 0;
+private:
+  Internal_error_handler *m_prev_internal_handler;
+  friend class THD;
+};
+
+
+/**
+  Implements the trivial error handler which cancels all error states
+  and prevents an SQLSTATE to be set.
+*/
+
+class Dummy_error_handler : public Internal_error_handler
+{
+public:
+  bool handle_error(uint sql_errno,
+                    const char *message,
+                    MYSQL_ERROR::enum_warning_level level,
+                    THD *thd)
+  {
+    /* Ignore error */
+    return TRUE;
+  }
 };
 
 
@@ -2210,6 +2235,9 @@ public:
   thd_scheduler scheduler;
 
 public:
+  inline Internal_error_handler *get_internal_handler()
+  { return m_internal_handler; }
+
   /**
     Add an internal error handler to the thread execution context.
     @param handler the exception handler to add

@@ -3883,7 +3883,9 @@ end_with_restore_list:
         res= mysql_routine_grant(thd, all_tables,
                                  lex->type == TYPE_ENUM_PROCEDURE, 
                                  lex->users_list, grants,
-                                 lex->sql_command == SQLCOM_REVOKE, 0);
+                                 lex->sql_command == SQLCOM_REVOKE, TRUE);
+        if (!res)
+          my_ok(thd);
       }
       else
       {
