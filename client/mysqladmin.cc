@@ -232,6 +232,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     opt_count_iterations= 1;
     break;
   case 'p':
+    if (argument == disabled_my_option)
+      argument= (char*) "";			// Don't require password
     if (argument)
     {
       char *start=argument;
@@ -677,10 +679,16 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
 	pos=argv[1];
 	for (;;)
 	{
-	  if (mysql_kill(mysql,(ulong) atol(pos)))
+          /* We don't use mysql_kill(), since it only handles 32-bit IDs. */
+          char buff[26], *out; /* "KILL " + max 20 digs + NUL */
+          out= strxmov(buff, "KILL ", NullS);
+          ullstr(strtoull(pos, NULL, 0), out);
+
+          if (mysql_query(mysql, buff))
 	  {
-	    my_printf_error(0, "kill failed on %ld; error: '%s'", error_flags,
-			    atol(pos), mysql_error(mysql));
+            /* out still points to just the number */
+	    my_printf_error(0, "kill failed on %s; error: '%s'", error_flags,
+			    out, mysql_error(mysql));
 	    error=1;
 	  }
 	  if (!(pos=strchr(pos,',')))
