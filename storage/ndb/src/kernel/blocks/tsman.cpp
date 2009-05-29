@@ -1510,7 +1510,7 @@ Tsman::Tablespace::Tablespace(Tsman* ts, const CreateFilegroupImplReq* req)
   m_tablespace_id = req->filegroup_id;
   m_version = req->filegroup_version;
   
-  m_extent_size = DIV(req->tablespace.extent_size, File_formats::NDB_PAGE_SIZE);}
+  m_extent_size = (Uint32)DIV(req->tablespace.extent_size, File_formats::NDB_PAGE_SIZE);}
 
 Tsman::Datafile::Datafile(const struct CreateFileImplReq* req)
 {
