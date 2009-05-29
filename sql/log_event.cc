@@ -7862,10 +7862,11 @@ Table_map_log_event::Table_map_log_event(THD *thd, TABLE *tbl, ulong tid,
 
   /*
     Now set the size of the data to the size of the field metadata array
-    plus one or two bytes for number of elements in the field metadata array.
+    plus one or three bytes (see pack.c:net_store_length) for number of 
+    elements in the field metadata array.
   */
   if (m_field_metadata_size > 255)
-    m_data_size+= m_field_metadata_size + 2; 
+    m_data_size+= m_field_metadata_size + 3; 
   else
     m_data_size+= m_field_metadata_size + 1; 
 
@@ -9312,7 +9313,7 @@ Incident_log_event::print(FILE *file,
 
   Write_on_release_cache cache(&print_event_info->head_cache, file);
   print_header(&cache, print_event_info, FALSE);
-  my_b_printf(&cache, "\n# Incident: %s", description());
+  my_b_printf(&cache, "\n# Incident: %s\nRELOAD DATABASE; # Shall generate syntax error\n", description());
 }
 #endif
 

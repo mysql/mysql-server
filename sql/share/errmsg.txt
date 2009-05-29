@@ -6076,7 +6076,7 @@ ER_SLAVE_INCIDENT
 ER_NO_PARTITION_FOR_GIVEN_VALUE_SILENT
         eng "Table has no partition for some existing values"
 ER_BINLOG_UNSAFE_STATEMENT
-        eng "Statement is not safe to log in statement format."
+        eng "Statement may not be safe to log in statement format."
         swe "Detta är inte säkert att logga i statement-format."
 ER_SLAVE_FATAL_ERROR
         eng "Fatal error: %s"

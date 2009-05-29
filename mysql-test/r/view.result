@@ -3700,6 +3700,25 @@ ERROR 42000: Key 'c2' doesn't exist in table 'v1'
 DROP VIEW v1;
 DROP TABLE t1;
 # -----------------------------------------------------------------
+# -- Bug#40825: Error 1356 while selecting from a view 
+# --            with a "HAVING" clause though query works
+# -----------------------------------------------------------------
+
+CREATE TABLE t1 (c INT);
+
+CREATE VIEW v1 (view_column) AS SELECT c AS alias FROM t1 HAVING alias;
+SHOW CREATE VIEW v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`c` AS `view_column` from `t1` having `view_column`	latin1	latin1_swedish_ci
+SELECT * FROM v1;
+view_column
+
+DROP VIEW v1;
+DROP TABLE t1;
+
+# -- End of test case for Bug#40825
+
+# -----------------------------------------------------------------
 # -- End of 5.0 tests.
 # -----------------------------------------------------------------
 DROP DATABASE IF EXISTS `d-1`;
@@ -3817,6 +3836,14 @@ call p();
 call p();
 drop view a;
 drop procedure p;
+#
+# Bug #44860: ALTER TABLE on view crashes server
+#
+CREATE TABLE t1 (a INT);
+CREATE VIEW v1 AS SELECT a FROM t1;
+ALTER TABLE v1;
+DROP VIEW v1;
+DROP TABLE t1;
 # -----------------------------------------------------------------
 # -- End of 5.1 tests.
 # -----------------------------------------------------------------

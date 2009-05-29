@@ -936,6 +936,7 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
 #ifdef HAVE_OPENSSL
     Vio *vio=thd->net.vio;
     SSL *ssl= (SSL*) vio->ssl_arg;
+    X509 *cert;
 #endif
 
     /*
@@ -964,8 +965,11 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
       */
       if (vio_type(vio) == VIO_TYPE_SSL &&
 	  SSL_get_verify_result(ssl) == X509_V_OK &&
-	  SSL_get_peer_certificate(ssl))
+	  (cert= SSL_get_peer_certificate(ssl)))
+      {
 	user_access= acl_user->access;
+        X509_free(cert);
+      }
       break;
     case SSL_TYPE_SPECIFIED: /* Client should have specified attrib */
       /*
@@ -974,7 +978,6 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
 	If cipher name is specified, we compare it to actual cipher in
 	use.
       */
-      X509 *cert;
       if (vio_type(vio) != VIO_TYPE_SSL ||
 	  SSL_get_verify_result(ssl) != X509_V_OK)
 	break;
@@ -1014,6 +1017,7 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
             sql_print_information("X509 issuer mismatch: should be '%s' "
 			      "but is '%s'", acl_user->x509_issuer, ptr);
           free(ptr);
+          X509_free(cert);
           user_access=NO_ACCESS;
           break;
         }
@@ -1033,12 +1037,15 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
             sql_print_information("X509 subject mismatch: should be '%s' but is '%s'",
                             acl_user->x509_subject, ptr);
           free(ptr);
+          X509_free(cert);
           user_access=NO_ACCESS;
           break;
         }
         user_access= acl_user->access;
         free(ptr);
       }
+      /* Deallocate the X509 certificate. */
+      X509_free(cert);
       break;
 #else  /* HAVE_OPENSSL */
     default:

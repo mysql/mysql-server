@@ -2472,8 +2472,9 @@ longlong_from_string_with_check (CHARSET_INFO *cs, const char *cptr, char *end)
     TODO: Give error if we wanted a signed integer and we got an unsigned
     one
   */
-  if (err > 0 ||
-      (end != org_end && !check_if_only_end_space(cs, end, org_end)))
+  if (!current_thd->no_errors &&
+      (err > 0 ||
+       (end != org_end && !check_if_only_end_space(cs, end, org_end))))
   {
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_TRUNCATED_WRONG_VALUE,
@@ -3268,8 +3269,56 @@ Item_param::set_param_type_and_swap_value(Item_param *src)
 }
 
 /****************************************************************************
+  Item_copy
+****************************************************************************/
+Item_copy *Item_copy::create (Item *item)
+{
+  switch (item->result_type())
+  {
+    case STRING_RESULT:
+      return new Item_copy_string (item);
+    case REAL_RESULT: 
+      return new Item_copy_float (item);
+    case INT_RESULT:
+      return item->unsigned_flag ? 
+        new Item_copy_uint (item) : new Item_copy_int (item);
+    case DECIMAL_RESULT:
+      return new Item_copy_decimal (item);
+
+    case ROW_RESULT:
+      DBUG_ASSERT (0);
+  }
+  /* should not happen */
+  return NULL;
+}
+
+/****************************************************************************
   Item_copy_string
 ****************************************************************************/
+
+double Item_copy_string::val_real()
+{
+  int err_not_used;
+  char *end_not_used;
+  return (null_value ? 0.0 :
+          my_strntod(str_value.charset(), (char*) str_value.ptr(),
+                     str_value.length(), &end_not_used, &err_not_used));
+}
+
+longlong Item_copy_string::val_int()
+{
+  int err;
+  return null_value ? LL(0) : my_strntoll(str_value.charset(),str_value.ptr(),
+                                          str_value.length(),10, (char**) 0,
+                                          &err); 
+}
+
+
+int Item_copy_string::save_in_field(Field *field, bool no_conversions)
+{
+  return save_str_value_in_field(field, &str_value);
+}
+
 
 void Item_copy_string::copy()
 {
@@ -3293,9 +3342,160 @@ my_decimal *Item_copy_string::val_decimal(my_decimal *decimal_value)
 {
   // Item_copy_string is used without fix_fields call
   if (null_value)
-    return 0;
+    return (my_decimal *) 0;
   string2my_decimal(E_DEC_FATAL_ERROR, &str_value, decimal_value);
   return (decimal_value);
+}
+
+
+/****************************************************************************
+  Item_copy_int
+****************************************************************************/
+
+void Item_copy_int::copy()
+{
+  cached_value= item->val_int();
+  null_value=item->null_value;
+}
+
+static int save_int_value_in_field (Field *field, longlong nr, 
+                                    bool null_value, bool unsigned_flag);
+
+int Item_copy_int::save_in_field(Field *field, bool no_conversions)
+{
+  return save_int_value_in_field(field, cached_value, 
+                                 null_value, unsigned_flag);
+}
+
+
+String *Item_copy_int::val_str(String *str)
+{
+  if (null_value)
+    return (String *) 0;
+
+  str->set(cached_value, &my_charset_bin);
+  return str;
+}
+
+
+my_decimal *Item_copy_int::val_decimal(my_decimal *decimal_value)
+{
+  if (null_value)
+    return (my_decimal *) 0;
+
+  int2my_decimal(E_DEC_FATAL_ERROR, cached_value, unsigned_flag, decimal_value);
+  return decimal_value;
+}
+
+
+/****************************************************************************
+  Item_copy_uint
+****************************************************************************/
+
+String *Item_copy_uint::val_str(String *str)
+{
+  if (null_value)
+    return (String *) 0;
+
+  str->set((ulonglong) cached_value, &my_charset_bin);
+  return str;
+}
+
+
+/****************************************************************************
+  Item_copy_float
+****************************************************************************/
+
+String *Item_copy_float::val_str(String *str)
+{
+  if (null_value)
+    return (String *) 0;
+  else
+  {
+    double nr= val_real();
+    str->set_real(nr,decimals, &my_charset_bin);
+    return str;
+  }
+}
+
+
+my_decimal *Item_copy_float::val_decimal(my_decimal *decimal_value)
+{
+  if (null_value)
+    return (my_decimal *) 0;
+  else
+  {
+    double nr= val_real();
+    double2my_decimal(E_DEC_FATAL_ERROR, nr, decimal_value);
+    return decimal_value;
+  }
+}
+
+
+int Item_copy_float::save_in_field(Field *field, bool no_conversions)
+{
+  if (null_value)
+    return set_field_to_null(field);
+  field->set_notnull();
+  return field->store(cached_value);
+}
+
+
+/****************************************************************************
+  Item_copy_decimal
+****************************************************************************/
+
+int Item_copy_decimal::save_in_field(Field *field, bool no_conversions)
+{
+  if (null_value)
+    return set_field_to_null(field);
+  field->set_notnull();
+  return field->store_decimal(&cached_value);
+}
+
+
+String *Item_copy_decimal::val_str(String *result)
+{
+  if (null_value)
+    return (String *) 0;
+  result->set_charset(&my_charset_bin);
+  my_decimal2string(E_DEC_FATAL_ERROR, &cached_value, 0, 0, 0, result);
+  return result;
+}
+
+
+double Item_copy_decimal::val_real()
+{
+  if (null_value)
+    return 0.0;
+  else
+  {
+    double result;
+    my_decimal2double(E_DEC_FATAL_ERROR, &cached_value, &result);
+    return result;
+  }
+}
+
+
+longlong Item_copy_decimal::val_int()
+{
+  if (null_value)
+    return LL(0);
+  else
+  {
+    longlong result;
+    my_decimal2int(E_DEC_FATAL_ERROR, &cached_value, unsigned_flag, &result);
+    return result;
+  }
+}
+
+
+void Item_copy_decimal::copy()
+{
+  my_decimal *nr= item->val_decimal(&cached_value);
+  if (nr && nr != &cached_value)
+    memcpy (&cached_value, nr, sizeof (my_decimal)); 
+  null_value= item->null_value;
 }
 
 
@@ -3390,14 +3590,12 @@ static void mark_as_dependent(THD *thd, SELECT_LEX *last, SELECT_LEX *current,
   current->mark_as_dependent(last);
   if (thd->lex->describe & DESCRIBE_EXTENDED)
   {
-    char warn_buff[MYSQL_ERRMSG_SIZE];
-    sprintf(warn_buff, ER(ER_WARN_FIELD_RESOLVED),
-            db_name, (db_name[0] ? "." : ""),
-            table_name, (table_name [0] ? "." : ""),
-            resolved_item->field_name,
-	    current->select_number, last->select_number);
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
-		 ER_WARN_FIELD_RESOLVED, warn_buff);
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+		 ER_WARN_FIELD_RESOLVED, ER(ER_WARN_FIELD_RESOLVED),
+                 db_name, (db_name[0] ? "." : ""),
+                 table_name, (table_name [0] ? "." : ""),
+                 resolved_item->field_name,
+                 current->select_number, last->select_number);
   }
 }
 
@@ -4875,7 +5073,10 @@ int Item_null::save_safe_in_field(Field *field)
 /*
   This implementation can lose str_value content, so if the
   Item uses str_value to store something, it should
-  reimplement it's ::save_in_field() as Item_string, for example, does
+  reimplement it's ::save_in_field() as Item_string, for example, does.
+
+  Note: all Item_XXX::val_str(str) methods must NOT rely on the fact that
+  str != str_value. For example, see fix for bug #44743.
 */
 
 int Item::save_in_field(Field *field, bool no_conversions)
@@ -4945,14 +5146,19 @@ int Item_uint::save_in_field(Field *field, bool no_conversions)
   return Item_int::save_in_field(field, no_conversions);
 }
 
-
-int Item_int::save_in_field(Field *field, bool no_conversions)
+static int save_int_value_in_field (Field *field, longlong nr, 
+                                    bool null_value, bool unsigned_flag)
 {
-  longlong nr=val_int();
   if (null_value)
     return set_field_to_null(field);
   field->set_notnull();
   return field->store(nr, unsigned_flag);
+}
+
+
+int Item_int::save_in_field(Field *field, bool no_conversions)
+{
+  return save_int_value_in_field (field, val_int(), null_value, unsigned_flag);
 }
 
 
@@ -5812,7 +6018,8 @@ void Item_ref::print(String *str, enum_query_type query_type)
         !table_name && name && alias_name_used)
     {
       THD *thd= current_thd;
-      append_identifier(thd, str, name, (uint) strlen(name));
+      append_identifier(thd, str, (*ref)->real_item()->name,
+                        (*ref)->real_item()->name_length);
     }
     else
       (*ref)->print(str, query_type);

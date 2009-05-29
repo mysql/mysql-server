@@ -389,6 +389,13 @@ void init_slave_skip_errors(const char* arg)
   DBUG_VOID_RETURN;
 }
 
+static void set_thd_in_use_temporary_tables(Relay_log_info *rli)
+{
+  TABLE *table;
+
+  for (table= rli->save_temporary_tables ; table ; table= table->next)
+    table->in_use= rli->sql_thd;
+}
 
 int terminate_slave_threads(Master_info* mi,int thread_mask,bool skip_lock)
 {
@@ -2668,12 +2675,19 @@ err:
   LOAD DATA INFILE.
  */
 static 
-int check_temp_dir(char* tmp_dir, char *tmp_file)
+int check_temp_dir(char* tmp_file)
 {
   int fd;
   MY_DIR *dirp;
+  char tmp_dir[FN_REFLEN];
+  size_t tmp_dir_size;
 
   DBUG_ENTER("check_temp_dir");
+
+  /*
+    Get the directory from the temporary file.
+  */
+  dirname_part(tmp_dir, tmp_file, &tmp_dir_size);
 
   /*
     Check if the directory exists.
@@ -2750,6 +2764,7 @@ pthread_handler_t handle_slave_sql(void *arg)
   }
   thd->init_for_queries();
   thd->temporary_tables = rli->save_temporary_tables; // restore temp tables
+  set_thd_in_use_temporary_tables(rli);   // (re)set sql_thd in use for saved temp tables
   pthread_mutex_lock(&LOCK_thread_count);
   threads.append(thd);
   pthread_mutex_unlock(&LOCK_thread_count);
@@ -2830,7 +2845,7 @@ log '%s' at position %s, relay log '%s' position: %s", RPL_LOG_NAME,
                     llstr(rli->group_master_log_pos,llbuff),rli->group_relay_log_name,
                     llstr(rli->group_relay_log_pos,llbuff1));
 
-  if (check_temp_dir(slave_load_tmpdir, rli->slave_patternload_file))
+  if (check_temp_dir(rli->slave_patternload_file))
   {
     rli->report(ERROR_LEVEL, thd->main_da.sql_errno(), 
                 "Unable to use slave's temporary directory %s - %s", 
@@ -2996,6 +3011,7 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
   DBUG_ASSERT(rli->sql_thd == thd);
   THD_CHECK_SENTRY(thd);
   rli->sql_thd= 0;
+  set_thd_in_use_temporary_tables(rli);  // (re)set sql_thd in use for saved temp tables
   pthread_mutex_lock(&LOCK_thread_count);
   THD_CHECK_SENTRY(thd);
   delete thd;
