@@ -439,4 +439,21 @@ SELECT CASE c1 WHEN c1 + 1 THEN 1 END, ABS(AVG(c0)) FROM t1;
 
 DROP TABLE t1;
 
+#
+# Bug #44399: crash with statement using TEXT columns, aggregates, GROUP BY, 
+# and HAVING
+#
+
+CREATE TABLE t1(a TEXT, b INT, c INT UNSIGNED, d DECIMAL(12,2), e REAL);
+INSERT INTO t1 VALUES('iynfj', 1, 1, 1, 1);
+INSERT INTO t1 VALUES('innfj', 2, 2, 2, 2);
+SELECT SUM( DISTINCT a ) FROM t1 GROUP BY a HAVING a IN ( AVG( 1 ), 1 + a);
+SELECT SUM( DISTINCT b ) FROM t1 GROUP BY b HAVING b IN ( AVG( 1 ), 1 + b);
+SELECT SUM( DISTINCT c ) FROM t1 GROUP BY c HAVING c IN ( AVG( 1 ), 1 + c);
+SELECT SUM( DISTINCT d ) FROM t1 GROUP BY d HAVING d IN ( AVG( 1 ), 1 + d);
+SELECT SUM( DISTINCT e ) FROM t1 GROUP BY e HAVING e IN ( AVG( 1 ), 1 + e);
+SELECT SUM( DISTINCT e ) FROM t1 GROUP BY b,c,d HAVING (b,c,d) IN 
+  ((AVG( 1 ), 1 + c, 1 + d), (AVG( 1 ), 2 + c, 2 + d));
+DROP TABLE t1;
+
 --echo End of 5.1 tests

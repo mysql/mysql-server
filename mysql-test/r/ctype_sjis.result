@@ -209,3 +209,13 @@ SET NAMES sjis;
 SELECT HEX('ç≤ìëÅ@å\') FROM DUAL;
 HEX('ç≤ìëÅ@å\')
 8DB2939181408C5C
+# Start of 5.1 tests
+Bug#44352 UPPER/LOWER function doesn't work correctly on cp932 and sjis environment.
+CREATE TABLE t1 (a varchar(16)) character set sjis;
+INSERT INTO t1 VALUES (0x8372835E),(0x8352835E);
+SELECT hex(a), hex(lower(a)), hex(upper(a)) FROM t1 ORDER BY binary(a);
+hex(a)	hex(lower(a))	hex(upper(a))
+8352835E	8352835E	8352835E
+8372835E	8372835E	8372835E
+DROP TABLE t1;
+# End of 5.1 tests

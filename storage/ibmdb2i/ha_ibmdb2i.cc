@@ -2273,7 +2273,12 @@ int ha_ibmdb2i::create(const char *name, TABLE *table_arg,
   
   if (isTemporary)
     query.append(STRING_WITH_LEN(" ON COMMIT PRESERVE ROWS "));
-    
+  
+  if (create_info->alias)
+    generateAndAppendRCDFMT(create_info->alias, query);
+  else if (((TABLE_LIST*)(thd->lex->select_lex.table_list.first))->table_name)  
+    generateAndAppendRCDFMT((char*)((TABLE_LIST*)(thd->lex->select_lex.table_list.first))->table_name, query);
+        
   DBUG_PRINT("ha_ibmdb2i::create", ("Sent to DB2: %s",query.c_ptr()));
   SqlStatementStream sqlStream(query.length());
   sqlStream.addStatement(query,fileSortSequence,fileSortSequenceLibrary);

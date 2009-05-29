@@ -818,7 +818,7 @@ int mysql_update(THD *thd,
   if (error < 0)
   {
     char buff[STRING_BUFFER_USUAL_SIZE];
-    sprintf(buff, ER(ER_UPDATE_INFO), (ulong) found, (ulong) updated,
+    my_snprintf(buff, sizeof(buff), ER(ER_UPDATE_INFO), (ulong) found, (ulong) updated,
 	    (ulong) thd->cuted_fields);
     thd->row_count_func=
       (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated;
@@ -1031,7 +1031,6 @@ reopen_tables:
         DBUG_RETURN(TRUE);
       }
 
-      table->mark_columns_needed_for_update();
       DBUG_PRINT("info",("setting table `%s` for update", tl->alias));
       /*
         If table will be updated we should not downgrade lock for it and
@@ -1275,12 +1274,40 @@ int multi_update::prepare(List<Item> &not_used_values,
   }
 
   /*
+    We gather the set of columns read during evaluation of SET expression in
+    TABLE::tmp_set by pointing TABLE::read_set to it and then restore it after
+    setup_fields().
+  */
+  for (table_ref= leaves; table_ref; table_ref= table_ref->next_leaf)
+  {
+    TABLE *table= table_ref->table;
+    if (tables_to_update & table->map)
+    {
+      DBUG_ASSERT(table->read_set == &table->def_read_set);
+      table->read_set= &table->tmp_set;
+      bitmap_clear_all(table->read_set);
+    }
+  }
+
+  /*
     We have to check values after setup_tables to get covering_keys right in
     reference tables
   */
 
-  if (setup_fields(thd, 0, *values, MARK_COLUMNS_READ, 0, 0))
-    DBUG_RETURN(1);
+  int error= setup_fields(thd, 0, *values, MARK_COLUMNS_READ, 0, 0);
+
+  for (table_ref= leaves; table_ref; table_ref= table_ref->next_leaf)
+  {
+    TABLE *table= table_ref->table;
+    if (tables_to_update & table->map)
+    {
+      table->read_set= &table->def_read_set;
+      bitmap_union(table->read_set, &table->tmp_set);
+    }
+  }
+  
+  if (error)
+    DBUG_RETURN(1);    
 
   /*
     Save tables beeing updated in update_tables
@@ -1375,6 +1402,8 @@ int multi_update::prepare(List<Item> &not_used_values,
     a row in this table will never be read twice. This is true under
     the following conditions:
 
+    - No column is both written to and read in SET expressions.
+
     - We are doing a table scan and the data is in a separate file (MyISAM) or
       if we don't update a clustered key.
 
@@ -1388,6 +1417,9 @@ int multi_update::prepare(List<Item> &not_used_values,
 
   WARNING
     This code is a bit dependent of how make_join_readinfo() works.
+
+    The field table->tmp_set is used for keeping track of which fields are
+    read during evaluation of the SET expression. See multi_update::prepare.
 
   RETURN
     0		Not safe to update
@@ -1409,6 +1441,8 @@ static bool safe_update_on_fly(THD *thd, JOIN_TAB *join_tab,
   case JT_REF_OR_NULL:
     return !is_key_used(table, join_tab->ref.key, table->write_set);
   case JT_ALL:
+    if (bitmap_is_overlapping(&table->tmp_set, table->write_set))
+      return FALSE;
     /* If range search on index */
     if (join_tab->quick)
       return !join_tab->quick->is_keys_used(table->write_set);
@@ -1464,17 +1498,18 @@ multi_update::initialize_tables(JOIN *join)
     ORDER     group;
     TMP_TABLE_PARAM *tmp_param;
 
-    table->mark_columns_needed_for_update();
     if (ignore)
       table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
     if (table == main_table)			// First table in join
     {
       if (safe_update_on_fly(thd, join->join_tab, table_ref, all_tables))
       {
-	table_to_update= main_table;		// Update table on the fly
+        table->mark_columns_needed_for_update();
+	table_to_update= table;			// Update table on the fly
 	continue;
       }
     }
+    table->mark_columns_needed_for_update();
     table->prepare_for_position();
 
     /*
@@ -2066,8 +2101,8 @@ bool multi_update::send_eof()
 
   id= thd->arg_of_last_insert_id_function ?
     thd->first_successful_insert_id_in_prev_stmt : 0;
-  sprintf(buff, ER(ER_UPDATE_INFO), (ulong) found, (ulong) updated,
-	  (ulong) thd->cuted_fields);
+  my_snprintf(buff, sizeof(buff), ER(ER_UPDATE_INFO),
+              (ulong) found, (ulong) updated, (ulong) thd->cuted_fields);
   thd->row_count_func=
     (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated;
   ::my_ok(thd, (ulong) thd->row_count_func, id, buff);

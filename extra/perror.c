@@ -115,7 +115,7 @@ static void usage(void)
 {
   print_version();
   puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\nand you are welcome to modify and redistribute it under the GPL license\n");
-  printf("Print a description for a system error code or an error code from\na MyISAM/ISAM/BDB table handler.\n");
+  printf("Print a description for a system error code or a MySQL error code.\n");
   printf("If you want to get the error for a negative error code, you should use\n-- before the first error code to tell perror that there was no more options.\n\n");
   printf("Usage: %s [OPTIONS] [ERRORCODE [ERRORCODE...]]\n",my_progname);
   my_print_help(my_long_options);

@@ -1162,6 +1162,15 @@ ROLLBACK;
 --error 1305
 ROLLBACK TO SAVEPOINT s4;
 
+#
+# Bug#39793 Foreign keys not constructed when column has a '#' in a comment or default value
+#
+
+#This statement should be written on a single line for proper testing
+CREATE TABLE t1 (f1 INTEGER PRIMARY KEY COMMENT 'My ID#', f2 INTEGER DEFAULT NULL, f3 CHAR(10) DEFAULT 'My ID#', CONSTRAINT f2_ref FOREIGN KEY (f2) REFERENCES t1 (f1)) ENGINE=INNODB;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
 --echo End of 5.0 tests
 
 # Fix for BUG#19243 "wrong LAST_INSERT_ID() after ON DUPLICATE KEY
@@ -1524,6 +1533,33 @@ DROP TABLE t1;
 
 eval
 CREATE TABLE t1 (c1 INT, c2 INT, c3 INT, KEY (c3), KEY (c2, c3))
+  ENGINE=$engine_type;
+INSERT INTO t1 VALUES (1,1,1), (1,1,1), (1,1,2), (1,1,1), (1,1,2);
+
+SELECT 1 FROM (SELECT COUNT(DISTINCT c1) 
+                 FROM t1 WHERE c2 IN (1, 1) AND c3 = 2 GROUP BY c2) x;
+EXPLAIN 
+SELECT 1 FROM (SELECT COUNT(DISTINCT c1) 
+                 FROM t1 WHERE c2 IN (1, 1) AND c3 = 2 GROUP BY c2) x;
+
+DROP TABLE t1;
+
+eval
+CREATE TABLE t1 (c1 REAL, c2 REAL, c3 REAL, KEY (c3), KEY (c2, c3))
+  ENGINE=$engine_type;
+INSERT INTO t1 VALUES (1,1,1), (1,1,1), (1,1,2), (1,1,1), (1,1,2);
+
+SELECT 1 FROM (SELECT COUNT(DISTINCT c1) 
+                 FROM t1 WHERE c2 IN (1, 1) AND c3 = 2 GROUP BY c2) x;
+EXPLAIN 
+SELECT 1 FROM (SELECT COUNT(DISTINCT c1) 
+                 FROM t1 WHERE c2 IN (1, 1) AND c3 = 2 GROUP BY c2) x;
+
+DROP TABLE t1;
+
+eval
+CREATE TABLE t1 (c1 DECIMAL(12,2), c2 DECIMAL(12,2), c3 DECIMAL(12,2), 
+  KEY (c3), KEY (c2, c3))
   ENGINE=$engine_type;
 INSERT INTO t1 VALUES (1,1,1), (1,1,1), (1,1,2), (1,1,1), (1,1,2);
 
