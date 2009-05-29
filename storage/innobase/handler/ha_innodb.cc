@@ -101,6 +101,7 @@ static long innobase_mirrored_log_groups, innobase_log_files_in_group,
 	innobase_additional_mem_pool_size, innobase_file_io_threads,
 	innobase_lock_wait_timeout, innobase_force_recovery,
 	innobase_open_files, innobase_autoinc_lock_mode;
+static ulong innobase_commit_concurrency = 0;
 
 static long long innobase_buffer_pool_size, innobase_log_file_size;
 
@@ -165,6 +166,38 @@ static handler *innobase_create_handler(handlerton *hton,
 
 static const char innobase_hton_name[]= "InnoDB";
 
+/*****************************************************************
+Check for a valid value of innobase_commit_concurrency. */
+static
+int
+innobase_commit_concurrency_validate(
+/*=================================*/
+						/* out: 0 for valid
+						innodb_commit_concurrency */
+	THD*				thd,	/* in: thread handle */
+	struct st_mysql_sys_var*	var,	/* in: pointer to system
+						variable */
+	void*				save,	/* out: immediate result
+						for update function */
+	struct st_mysql_value*		value)	/* in: incoming string */
+{
+	long long	intbuf;
+	ulong		commit_concurrency;
+
+	DBUG_ENTER("innobase_commit_concurrency_validate");
+
+	if (value->val_int(value, &intbuf)) {
+		/* The value is NULL. That is invalid. */
+		DBUG_RETURN(1);
+	}
+
+	*reinterpret_cast<ulong*>(save) = commit_concurrency
+		= static_cast<ulong>(intbuf);
+
+	/* Allow the value to be updated, as long as it remains zero
+	or nonzero. */
+	DBUG_RETURN(!(!commit_concurrency == !innobase_commit_concurrency));
+}
 
 static MYSQL_THDVAR_BOOL(support_xa, PLUGIN_VAR_OPCMDARG,
   "Enable InnoDB support for the XA two-phase commit",
@@ -1951,11 +1984,11 @@ innobase_commit(
 		Note, the position is current because of
 		prepare_commit_mutex */
 retry:
-		if (srv_commit_concurrency > 0) {
+		if (innobase_commit_concurrency > 0) {
 			pthread_mutex_lock(&commit_cond_m);
 			commit_threads++;
 
-			if (commit_threads > srv_commit_concurrency) {
+			if (commit_threads > innobase_commit_concurrency) {
 				commit_threads--;
 				pthread_cond_wait(&commit_cond,
 					&commit_cond_m);
@@ -1972,7 +2005,7 @@ retry:
 
 		innobase_commit_low(trx);
 
-		if (srv_commit_concurrency > 0) {
+		if (innobase_commit_concurrency > 0) {
 			pthread_mutex_lock(&commit_cond_m);
 			commit_threads--;
 			pthread_cond_signal(&commit_cond);
@@ -6012,7 +6045,7 @@ ha_innobase::info(
 		nor the CHECK TABLE time, nor the UPDATE or INSERT time. */
 
 		if (os_file_get_status(path,&stat_info)) {
-			stats.create_time = stat_info.ctime;
+			stats.create_time = (ulong) stat_info.ctime;
 		}
 	}
 
@@ -8289,10 +8322,10 @@ static MYSQL_SYSVAR_LONGLONG(buffer_pool_size, innobase_buffer_pool_size,
   "The size of the memory buffer InnoDB uses to cache data and indexes of its tables.",
   NULL, NULL, 8*1024*1024L, 1024*1024L, LONGLONG_MAX, 1024*1024L);
 
-static MYSQL_SYSVAR_ULONG(commit_concurrency, srv_commit_concurrency,
+static MYSQL_SYSVAR_ULONG(commit_concurrency, innobase_commit_concurrency,
   PLUGIN_VAR_RQCMDARG,
   "Helps in performance tuning in heavily concurrent environments.",
-  NULL, NULL, 0, 0, 1000, 0);
+  innobase_commit_concurrency_validate, NULL, 0, 0, 1000, 0);
 
 static MYSQL_SYSVAR_ULONG(concurrency_tickets, srv_n_free_tickets_to_enter,
   PLUGIN_VAR_RQCMDARG,

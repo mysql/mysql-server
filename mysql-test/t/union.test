@@ -1089,4 +1089,16 @@ CREATE TABLE t2 AS SELECT d FROM t1 UNION SELECT d FROM t1;
 SHOW FIELDS FROM t2;
 DROP TABLE t1, t2;
 
+#
+# Bug#43612 crash with explain extended, union, order by
+#
+CREATE TABLE t1(a INT);
+EXPLAIN EXTENDED
+SELECT a FROM t1
+UNION
+SELECT a FROM t1
+ORDER BY a;
+DROP TABLE t1;
+
+
 --echo End of 5.0 tests

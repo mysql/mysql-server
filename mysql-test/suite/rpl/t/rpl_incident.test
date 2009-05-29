@@ -14,42 +14,13 @@ REPLACE INTO t1 VALUES (4);
 SELECT * FROM t1;
 
 connection slave;
-source include/wait_for_slave_sql_to_stop.inc;
+# Wait until SQL thread stops with error LOST_EVENT on master
+let $slave_sql_errno= 1590;
+source include/wait_for_slave_sql_error.inc;
 
 # The 4 should not be inserted into the table, since the incident log
 # event should have stop the slave.
 --echo **** On Slave ****
-#### BEGIN DEBUG INFO ADDED BY SVEN 2008-07-18 -- SEE BUG#38077 ####
-let $tables= query_get_value(SHOW TABLES, Tables_in_test, 1);
-if (`SELECT '$tables' != 't1'`)
-{
-  --echo **** TEST CASE BUG! PRINTING DEBUG INFO! ****
-  --echo **** Dear developer, if you see this in the output of a test
-  --echo **** case run, please add all the information below as a
-  --echo **** comment to BUG#38077. If it's a pushbuild failure, please
-  --echo **** include a link to the push page.
-  --echo **** Thank you! /Sven
-  SHOW BINLOG EVENTS;
-  --echo **** master binlog ****
-  --error 0,1
-  --exec $MYSQL_BINLOG --hexdump $MYSQLTEST_VARDIR/log/master-bin.000001
-  --echo **** slave binlog ****
-  --error 0,1
-  --exec $MYSQL_BINLOG --hexdump $MYSQLTEST_VARDIR/log/slave-bin.000001
-  --echo **** slave status ****
-  query_vertical SHOW SLAVE STATUS;
-  --echo **** slave's master status ****
-  SHOW MASTER STATUS;
-  --echo **** slave binlog events ****
-  --echo [on master]
-  connection master;
-  --echo **** master status ****
-  SHOW MASTER STATUS;
-  --echo **** master binlog events ****
-  SHOW BINLOG EVENTS;
-  exit;
-}
-#### END DEBUG INFO ####
 SELECT * FROM t1;
 
 --replace_result $MASTER_MYPORT MASTER_PORT

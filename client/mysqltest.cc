@@ -5665,11 +5665,11 @@ static struct my_option my_long_options[] =
   {"sp-protocol", OPT_SP_PROTOCOL, "Use stored procedures for select",
    (uchar**) &sp_protocol, (uchar**) &sp_protocol, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+#include "sslopt-longopts.h"
   {"tail-lines", OPT_TAIL_LINES,
    "Number of lines of the resul to include in a failure report",
    (uchar**) &opt_tail_lines, (uchar**) &opt_tail_lines, 0,
    GET_INT, REQUIRED_ARG, 0, 0, 10000, 0, 0, 0},
-#include "sslopt-longopts.h"
   {"test-file", 'x', "Read test from/in this file (default stdin).",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"timer-file", 'm', "File where the timing in micro seconds is stored.",
@@ -5803,6 +5803,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   }
   case 'p':
+    if (argument == disabled_my_option)
+      argument= (char*) "";			// Don't require password
     if (argument)
     {
       my_free(opt_pass, MYF(MY_ALLOW_ZERO_PTR));

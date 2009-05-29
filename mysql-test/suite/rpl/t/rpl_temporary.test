@@ -22,6 +22,77 @@ call mtr.add_suppression("Slave: Can\'t find record in \'user\' Error_code: 1032
 
 sync_with_master;
 reset master;
+
+# ##################################################################
+# BUG#41725: slave crashes when inserting into temporary table after
+#            stop/start slave
+#
+#  This test checks that both reported issues (assertion failure and
+#  crash) go away. It is implemented as follows:
+#    
+#    case 1: assertion failure
+#      i) create and insert into temporary table on master
+#     ii) sync slave with master
+#    iii) stop and restart slave
+#     iv) insert into master another value
+#      v) sync slave with master
+#
+#
+#    case 2: crash (SIGSEV)
+#      i) create and insert into temporary table on master (insert
+#         produces warnings)
+#     ii) sync slave with master
+#    iii) stop and restart slave
+#     iv) insert into master more values
+#      v) sync slave with master
+
+# case 1: Assertion in Field_string::store() failed because current 
+#         thread reference differed from table->in_use after slave 
+#         restart
+
+connection master;
+
+disable_warnings;
+DROP TABLE IF EXISTS t1;
+enable_warnings;
+
+CREATE TEMPORARY TABLE t1 (a char(1));
+INSERT INTO t1 VALUES ('a');
+sync_slave_with_master;
+
+source include/stop_slave.inc;
+source include/start_slave.inc;
+
+connection master;
+INSERT INTO t1 VALUES ('b');
+sync_slave_with_master;
+
+# case 2: crash on sp_rcontext::find_handler because it used 
+#         reference to invalid THD object after slave restart
+
+connection master;
+
+disable_warnings;
+DROP TABLE IF EXISTS t1;
+enable_warnings;
+CREATE TEMPORARY TABLE `t1`(`a` tinyint,`b` char(1))engine=myisam;
+INSERT INTO `t1` set `a`=128,`b`='128';
+
+sync_slave_with_master;
+
+source include/stop_slave.inc;
+source include/start_slave.inc;
+
+connection master;
+INSERT INTO `t1` set `a`=128,`b`='128';
+sync_slave_with_master;
+
+# cleanup
+
+connection master;
+DROP TABLE t1;
+sync_slave_with_master;
+
 connection master;
 
 connect (con1,localhost,root,,);

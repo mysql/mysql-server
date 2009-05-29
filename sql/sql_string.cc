@@ -328,6 +328,9 @@ bool String::copy(const char *str, uint32 arg_length,
 		  CHARSET_INFO *from_cs, CHARSET_INFO *to_cs, uint *errors)
 {
   uint32 offset;
+  
+  DBUG_ASSERT(str != Ptr);
+  
   if (!needs_conversion(arg_length, from_cs, to_cs, &offset))
   {
     *errors= 0;

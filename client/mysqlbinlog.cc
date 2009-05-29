@@ -1226,6 +1226,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     one_database = 1;
     break;
   case 'p':
+    if (argument == disabled_my_option)
+      argument= (char*) "";                     // Don't require password
     if (argument)
     {
       my_free(pass,MYF(MY_ALLOW_ZERO_PTR));
@@ -1529,8 +1531,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
       If reading from a remote host, ensure the temp_buf for the
       Log_event class is pointing to the incoming stream.
     */
-    if (remote_opt)
-      ev->register_temp_buf((char*) net->read_pos + 1); 
+    ev->register_temp_buf((char *) net->read_pos + 1);
 
     Log_event_type type= ev->get_type_code();
     if (glob_description_event->binlog_version >= 3 ||
