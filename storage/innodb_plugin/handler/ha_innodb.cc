@@ -43,35 +43,35 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 /* Include necessary InnoDB headers */
 extern "C" {
-#include "../storage/innobase/include/univ.i"
-#include "../storage/innobase/include/btr0sea.h"
-#include "../storage/innobase/include/os0file.h"
-#include "../storage/innobase/include/os0thread.h"
-#include "../storage/innobase/include/srv0start.h"
-#include "../storage/innobase/include/srv0srv.h"
-#include "../storage/innobase/include/trx0roll.h"
-#include "../storage/innobase/include/trx0trx.h"
-#include "../storage/innobase/include/trx0sys.h"
-#include "../storage/innobase/include/mtr0mtr.h"
-#include "../storage/innobase/include/row0ins.h"
-#include "../storage/innobase/include/row0mysql.h"
-#include "../storage/innobase/include/row0sel.h"
-#include "../storage/innobase/include/row0upd.h"
-#include "../storage/innobase/include/log0log.h"
-#include "../storage/innobase/include/lock0lock.h"
-#include "../storage/innobase/include/dict0crea.h"
-#include "../storage/innobase/include/btr0cur.h"
-#include "../storage/innobase/include/btr0btr.h"
-#include "../storage/innobase/include/fsp0fsp.h"
-#include "../storage/innobase/include/sync0sync.h"
-#include "../storage/innobase/include/fil0fil.h"
-#include "../storage/innobase/include/trx0xa.h"
-#include "../storage/innobase/include/row0merge.h"
-#include "../storage/innobase/include/thr0loc.h"
-#include "../storage/innobase/include/dict0boot.h"
-#include "../storage/innobase/include/ha_prototypes.h"
-#include "../storage/innobase/include/ut0mem.h"
-#include "../storage/innobase/include/ibuf0ibuf.h"
+#include "univ.i"
+#include "btr0sea.h"
+#include "os0file.h"
+#include "os0thread.h"
+#include "srv0start.h"
+#include "srv0srv.h"
+#include "trx0roll.h"
+#include "trx0trx.h"
+#include "trx0sys.h"
+#include "mtr0mtr.h"
+#include "row0ins.h"
+#include "row0mysql.h"
+#include "row0sel.h"
+#include "row0upd.h"
+#include "log0log.h"
+#include "lock0lock.h"
+#include "dict0crea.h"
+#include "btr0cur.h"
+#include "btr0btr.h"
+#include "fsp0fsp.h"
+#include "sync0sync.h"
+#include "fil0fil.h"
+#include "trx0xa.h"
+#include "row0merge.h"
+#include "thr0loc.h"
+#include "dict0boot.h"
+#include "ha_prototypes.h"
+#include "ut0mem.h"
+#include "ibuf0ibuf.h"
 }
 
 #include "ha_innodb.h"
@@ -9787,7 +9787,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   NULL
 };
 
-mysql_declare_plugin(innobase)
+mysql_declare_plugin(innodb_plugin)
 {
   MYSQL_STORAGE_ENGINE_PLUGIN,
   &innobase_storage_engine,
