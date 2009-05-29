@@ -195,6 +195,8 @@ ifeq ($(CC),icc)
         SKIP_WARNING += $(ICC_NOWARN)11000  # Disable message about multi-file optimization
         SKIP_WARNING += $(ICC_NOWARN)11000  # Disable message about single-file optimization
         SKIP_WARNING += $(ICC_NOWARN)11005  # Disable message about creating object file
+        SKIP_WARNING += $(ICC_NOWARN)188    # Disable message about 0 used for enum
+        SKIP_WARNING += $(ICC_NOWARN)1011   # Disable message about missing return with an abort
     else
 	#Linux
         ICC_NOWARN=-diag-disable #Need the space
