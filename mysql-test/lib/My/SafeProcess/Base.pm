@@ -83,6 +83,13 @@ sub exit_status {
   };
 }
 
+# threads.pm may not exist everywhere, so use only on Windows.
+
+use if $^O eq "MSWin32", "threads";
+use if $^O eq "MSWin32", "threads::shared";
+
+my $win32_spawn_lock :shared;
+
 
 #
 # Create a new process
@@ -103,6 +110,8 @@ sub create_process {
   my $open_mode= $opts{append} ? ">>" : ">";
 
   if ($^O eq "MSWin32"){
+
+    lock($win32_spawn_lock);
 
     #printf STDERR "stdin %d, stdout %d, stderr %d\n",
     #    fileno STDIN, fileno STDOUT, fileno STDERR;

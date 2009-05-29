@@ -433,6 +433,16 @@ bool is_keyword(const char *name, uint len)
   return get_hash_symbol(name,len,0)!=0;
 }
 
+/**
+  Check if name is a sql function
+
+    @param name      checked name
+
+    @return is this a native function or not
+    @retval 0         name is a function
+    @retval 1         name isn't a function
+*/
+
 bool is_lex_native_function(const LEX_STRING *name)
 {
   DBUG_ASSERT(name != NULL);

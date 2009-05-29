@@ -404,7 +404,8 @@ typedef struct st_mi_check_param
   my_off_t keydata,totaldata,key_blocks,start_check_pos;
   ha_rows total_records,total_deleted;
   ha_checksum record_checksum,glob_crc;
-  ulong	use_buffers,read_buffer_length,write_buffer_length,
+  ulonglong use_buffers;
+  ulong read_buffer_length,write_buffer_length,
 	sort_buffer_length,sort_key_blocks;
   uint out_flag,warning_printed,error_printed,verbose;
   uint opt_sort_key,total_files,max_level;

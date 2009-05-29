@@ -28,32 +28,36 @@ sub msg {
  # print "### unique($$) - ", join(" ", @_), "\n";
 }
 
-my $file;
+my $dir;
 
 if(!IS_WINDOWS)
 {
-  $file= "/tmp/mysql-test-ports";
+  $dir= "/tmp/mysql-unique-ids";
 }
 else
 {
-  $file= $ENV{'TEMP'}."/mysql-test-ports";
-}
-  
-
-my %mtr_unique_ids;
-
-END {
-  my $allocated_id= $mtr_unique_ids{$$};
-  if (defined $allocated_id)
+  # Try to use machine-wide directory location for unique IDs,
+  # $ALLUSERSPROFILE . IF it is not available, fallback to $TEMP
+  # which is typically a per-user temporary directory
+  if (exists $ENV{'ALLUSERSPROFILE'} && -w $ENV{'ALLUSERSPROFILE'})
   {
-    mtr_release_unique_id($allocated_id);
+    $dir= $ENV{'ALLUSERSPROFILE'}."/mysql-unique-ids";
   }
-  delete $mtr_unique_ids{$$};
+  else
+  {
+    $dir= $ENV{'TEMP'}."/mysql-unique-ids";
+  }
+}
+
+my $mtr_unique_fh = undef;
+
+END
+{
+  mtr_release_unique_id();
 }
 
 #
-# Get a unique, numerical ID, given a file name (where all
-# requested IDs are stored), a minimum and a maximum value.
+# Get a unique, numerical ID in a specified range.
 #
 # If no unique ID within the specified parameters can be
 # obtained, return undef.
@@ -61,135 +65,63 @@ END {
 sub mtr_get_unique_id($$) {
   my ($min, $max)= @_;;
 
-  msg("get, '$file', $min-$max");
+  msg("get $min-$max, $$");
 
-  die "Can only get one unique id per process!" if $mtr_unique_ids{$$};
+  die "Can only get one unique id per process!" if defined $mtr_unique_fh;
 
-  my $ret = undef;
-  my $changed = 0;
 
-  if(eval("readlink '$file'") || eval("readlink '$file.sem'")) {
-    die 'lock file is a symbolic link';
-  }
+  # Make sure our ID directory exists
+  if (! -d $dir)
+  {
+    # If there is a file with the reserved
+    # directory name, just delete the file.
+    if (-e $dir)
+    {
+      unlink($dir);
+    }
 
-  chmod 0777, "$file.sem";
-  open SEM, ">", "$file.sem" or die "can't write to $file.sem";
-  flock SEM, LOCK_EX or die "can't lock $file.sem";
-  if(! -e $file) {
-    open FILE, ">", $file or die "can't create $file";
-    close FILE;
-  }
+    mkdir $dir;
+    chmod 0777, $dir;
 
-  msg("HAVE THE LOCK");
-
-  if(eval("readlink '$file'") || eval("readlink '$file.sem'")) {
-    die 'lock file is a symbolic link';
-  }
-
-  chmod 0777, $file;
-  open FILE, "+<", $file or die "can't open $file";
-  #select undef,undef,undef,0.2;
-  seek FILE, 0, 0;
-  my %taken = ();
-  while(<FILE>) {
-    chomp;
-    my ($id, $pid) = split / /;
-    $taken{$id} = $pid;
-    msg("taken: $id, $pid");
-    # Check if process with given pid is alive
-    if(!process_alive($pid)) {
-      print "Removing slot $id used by missing process $pid\n";
-      msg("Removing slot $id used by missing process $pid");
-      delete $taken{$id};
-      $changed++;
+    if(! -d $dir)
+    {
+      die "can't make directory $dir";
     }
   }
-  for(my $i=$min; $i<=$max; ++$i) {
-    if(! exists $taken{$i}) {
-      $ret = $i;
-      $taken{$i} = $$;
-      $changed++;
-      # Remember the id this process got
-      $mtr_unique_ids{$$}= $i;
-      msg(" got $i"); 
-      last;
+
+
+  my $fh;
+  for(my $id = $min; $id <= $max; $id++)
+  {
+    open( $fh, ">$dir/$id");
+    chmod 0666, "$dir/$id";
+    # Try to lock the file exclusively. If lock succeeds, we're done.
+    if (flock($fh, LOCK_EX|LOCK_NB))
+    {
+      # Store file handle - we would need it to release the ID (==unlock the file)
+      $mtr_unique_fh = $fh;
+      return $id;
+    }
+    else
+    {
+      close $fh;
     }
   }
-  if($changed) {
-    seek FILE, 0, 0;
-    truncate FILE, 0 or die "can't truncate $file";
-    for my $k (keys %taken) {
-      print FILE $k . ' ' . $taken{$k} . "\n";
-    }
-  }
-  close FILE;
-
-  msg("RELEASING THE LOCK");
-  flock SEM, LOCK_UN or warn "can't unlock $file.sem";
-  close SEM;
-
-  return $ret;
+  return undef;
 }
 
 
 #
 # Release a unique ID.
 #
-sub mtr_release_unique_id($) {
-  my ($myid)= @_;
-
-  msg("release, $myid");
-
-
-  if(eval("readlink '$file'") || eval("readlink '$file.sem'")) {
-    die 'lock file is a symbolic link';
-  }
-
-  open SEM, ">", "$file.sem" or die "can't write to $file.sem";
-  flock SEM, LOCK_EX or die "can't lock $file.sem";
-
-  msg("HAVE THE LOCK");
-
-  if(eval("readlink '$file'") || eval("readlink '$file.sem'")) {
-    die 'lock file is a symbolic link';
-  }
-
-  if(! -e $file) {
-    open FILE, ">", $file or die "can't create $file";
-    close FILE;
-  }
-  open FILE, "+<", $file or die "can't open $file";
-  #select undef,undef,undef,0.2;
-  seek FILE, 0, 0;
-  my %taken = ();
-  while(<FILE>) {
-    chomp;
-    my ($id, $pid) = split / /;
-    msg(" taken, $id $pid");
-    $taken{$id} = $pid;
-  }
-
-  if ($taken{$myid} != $$)
+sub mtr_release_unique_id()
+{
+  msg("release $$");
+  if (defined $mtr_unique_fh)
   {
-    msg(" The unique id for this process does not match pid");
+    close $mtr_unique_fh;
+    $mtr_unique_fh = undef;
   }
-
-
-  msg(" removing $myid");
-  delete $taken{$myid};
-  seek FILE, 0, 0;
-  truncate FILE, 0 or die "can't truncate $file";
-  for my $k (keys %taken) {
-    print FILE $k . ' ' . $taken{$k} . "\n";
-  }
-  close FILE;
-
-  msg("RELEASE THE LOCK");
-
-  flock SEM, LOCK_UN or warn "can't unlock $file.sem";
-  close SEM;
-
-  delete $mtr_unique_ids{$$};
 }
 
 
