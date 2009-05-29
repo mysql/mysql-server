@@ -5314,7 +5314,7 @@ compare_tables(TABLE *table,
       create_info->used_fields & HA_CREATE_USED_ENGINE ||
       create_info->used_fields & HA_CREATE_USED_CHARSET ||
       create_info->used_fields & HA_CREATE_USED_DEFAULT_CHARSET ||
-      create_info->used_fields & HA_CREATE_USED_ROW_FORMAT ||
+      (table->s->row_type != create_info->row_type) ||
       create_info->used_fields & HA_CREATE_USED_PACK_KEYS ||
       create_info->used_fields & HA_CREATE_USED_MAX_ROWS ||
       (alter_info->flags & (ALTER_RECREATE | ALTER_FOREIGN_KEY)) ||
@@ -6307,7 +6307,10 @@ view_err:
   }
 
   if (create_info->row_type == ROW_TYPE_NOT_USED)
+  {
     create_info->row_type= table->s->row_type;
+    create_info->used_fields |= HA_CREATE_USED_ROW_FORMAT;
+  }
 
   DBUG_PRINT("info", ("old type: %s  new type: %s",
              ha_resolve_storage_engine_name(old_db_type),
