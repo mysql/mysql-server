@@ -687,8 +687,9 @@ public:
    * MT LQH.  LCP runs separately in each instance number.
    * BACKUP uses instance key 1 (real instance 0 or 1).
   */
+  STATIC_CONST( UserBackupInstanceKey = 1 );
   Uint32 instanceKey(BackupRecordPtr ptr) {
-    return ptr.p->is_lcp() ? instance() : 1;
+    return ptr.p->is_lcp() ? instance() : UserBackupInstanceKey;
   }
 };
 

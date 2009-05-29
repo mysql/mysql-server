@@ -11802,7 +11802,7 @@ static uint get_no_fragments(ulonglong max_rows)
 #endif
   ulonglong acc_fragment_size= 512*1024*1024;
 #if MYSQL_VERSION_ID >= 50100
-  return uint(max_rows*acc_row_size)/acc_fragment_size+1;
+  return uint((max_rows*acc_row_size)/acc_fragment_size)+1;
 #else
   return ((max_rows*acc_row_size)/acc_fragment_size+1
 	  +1/*correct rounding*/)/2;

@@ -3231,7 +3231,7 @@ Qmgr::sendApiRegConf(Signal *signal, Uint32 node)
       jam();
       apiRegConf->nodeState.dynamicId = dynamicId;
     } else {
-      apiRegConf->nodeState.dynamicId = -dynamicId;
+      apiRegConf->nodeState.dynamicId = (Uint32)-dynamicId;
     }
   }
   NodeVersionInfo info = getNodeVersionInfo();
