@@ -6561,13 +6561,13 @@ NdbRecord::Attr::put_mysqld_bitfield(char *dst_row, const char *src_buffer) cons
     Uint32 mask= ((1 << remaining_bits) - 1) << shift;
     bits= (bits << shift) & mask;
     dst_row[nullbit_byte_offset]=
-      (dst_row[nullbit_byte_offset] & ~mask) | bits;
+      Uint8((dst_row[nullbit_byte_offset] & ~mask) | bits);
     if (shift + remaining_bits > 8)
     {
       mask>>= 8;
       bits>>= 8;
       dst_row[nullbit_byte_offset+1]=
-        (dst_row[nullbit_byte_offset+1] & ~mask) | bits;
+        Uint8((dst_row[nullbit_byte_offset+1] & ~mask) | bits);
     }
   }
 }

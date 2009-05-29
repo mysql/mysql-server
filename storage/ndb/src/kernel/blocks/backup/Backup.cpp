@@ -679,10 +679,10 @@ void Backup::execDBINFO_SCANREQ(Signal *signal)
       dbinfo_write_row_column_uint32(&r, ptr.p->masterRef);
       dbinfo_write_row_column_uint32(&r, ptr.p->clientRef);
       dbinfo_write_row_column_uint32(&r, ptr.p->slaveState.getState());
-      dbinfo_write_row_column_uint32(&r, ptr.p->noOfBytes);
-      dbinfo_write_row_column_uint32(&r, ptr.p->noOfRecords);
-      dbinfo_write_row_column_uint32(&r, ptr.p->noOfLogBytes);
-      dbinfo_write_row_column_uint32(&r, ptr.p->noOfLogRecords);
+      dbinfo_write_row_column_uint32(&r, (Uint32)ptr.p->noOfBytes); // TODO
+      dbinfo_write_row_column_uint32(&r, (Uint32)ptr.p->noOfRecords); // TODO
+      dbinfo_write_row_column_uint32(&r, (Uint32)ptr.p->noOfLogBytes); // TODO
+      dbinfo_write_row_column_uint32(&r, (Uint32)ptr.p->noOfLogRecords); //TODO
       dbinfo_write_row_column_uint32(&r, ptr.p->errorCode);
       dbinfo_send_row(signal, r, rl, req.apiTxnId, req.senderRef);
     }
@@ -695,7 +695,7 @@ void Backup::execDBINFO_SCANREQ(Signal *signal)
     dbinfo_write_row_column_uint32(&r, 4*m_words_written_this_period);
     dbinfo_write_row_column_uint32(&r, m_overflow_disk_write);
     dbinfo_write_row_column_uint32(&r, m_reset_delay_used);
-    dbinfo_write_row_column_uint32(&r, m_reset_disk_speed_time);
+    dbinfo_write_row_column_uint32(&r, 0); // Uninteresting m_reset_disk_speed_time);
     dbinfo_write_row_column_uint32(&r, c_backupPool.getSize());
     dbinfo_write_row_column_uint32(&r, c_backupFilePool.getSize());
     dbinfo_write_row_column_uint32(&r, c_tablePool.getSize());
@@ -4234,7 +4234,7 @@ Backup::OperationRecord::fragComplete(Uint32 tableId, Uint32 fragNo, bool fill_r
     foot->SectionLength = htonl(footSz);
     foot->TableId       = htonl(tableId);
     foot->FragmentNo    = htonl(fragNo);
-    foot->NoOfRecords   = htonl(noOfRecords);
+    foot->NoOfRecords   = htonl(Uint32(noOfRecords)); // TODO
     foot->Checksum      = htonl(0);
 
     if (sz != footSz + 1)
@@ -5255,7 +5255,8 @@ Backup::execABORT_BACKUP_ORD(Signal* signal)
 #ifdef DEBUG_ABORT
       ndbout_c("---- Forward to master nodeId = %u", getMasterNodeId());
 #endif
-      BlockReference ref = numberToRef(BACKUP, instanceKey(ptr), getMasterNodeId());
+      BlockReference ref = numberToRef(BACKUP, UserBackupInstanceKey, 
+                                       getMasterNodeId());
       sendSignal(ref, GSN_ABORT_BACKUP_ORD, 
 		 signal, AbortBackupOrd::SignalLength, JBB);
       return;

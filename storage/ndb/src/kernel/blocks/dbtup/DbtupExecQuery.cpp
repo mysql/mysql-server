@@ -1530,7 +1530,6 @@ int Dbtup::handleInsertReq(Signal* signal,
   }
   else 
   {
-    int ret;
     if (ERROR_INSERTED(4020))
     {
       goto size_change_error;
@@ -2156,7 +2155,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	    if (TattrNoOfWords <= 2) {
               if (TattrNoOfWords == 1) {
                 // arithmetic conversion if big-endian
-                TdataForUpdate[1] = *(Int64*)&TregMemBuffer[theRegister + 2];
+                TdataForUpdate[1] = (Uint32)*(Int64*)&TregMemBuffer[theRegister + 2];
                 TdataForUpdate[2] = 0;
               }
 	      if (TregType == 0) {
