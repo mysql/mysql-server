@@ -3138,7 +3138,7 @@ ConfigInfo::getStatus(const Properties * section, const char* fname) const {
 
 Uint32
 ConfigInfo::getFlags(const Properties* section, const char* fname) const {
-  return getInfoInt(section, fname, "Flags");
+  return (Uint32)getInfoInt(section, fname, "Flags");
 }
 
 /****************************************************************************

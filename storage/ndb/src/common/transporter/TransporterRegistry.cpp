@@ -187,7 +187,7 @@ TransporterRegistry::allocate_send_buffers(Uint64 total_send_buffer)
   send_buffer_pages += nTransporters;
 
   m_send_buffer_memory =
-    new unsigned char[send_buffer_pages * SendBufferPage::PGSIZE];
+    new unsigned char[UintPtr(send_buffer_pages * SendBufferPage::PGSIZE)];
   if (m_send_buffer_memory == NULL)
   {
     ndbout << "Unable to allocate "
