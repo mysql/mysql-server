@@ -202,4 +202,10 @@ Ssl_cipher	RC4-SHA
 select 'is still running; no cipher request crashed the server' as result from dual;
 result
 is still running; no cipher request crashed the server
+GRANT SELECT ON test.* TO bug42158@localhost REQUIRE X509;
+FLUSH PRIVILEGES;
+SHOW STATUS LIKE 'Ssl_cipher';
+Variable_name	Value
+Ssl_cipher	DHE-RSA-AES256-SHA
+DROP USER bug42158@localhost;
 End of 5.1 tests

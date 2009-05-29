@@ -89,3 +89,34 @@ c1	c2
 	First
 DROP TABLE t1;
 # End of 5.0 tests
+#
+# Bug #44743: Join in combination with concat does not always work
+#
+CREATE TABLE t1 (
+a VARCHAR(100) NOT NULL DEFAULT '0',
+b VARCHAR(2) NOT NULL DEFAULT '',
+c VARCHAR(2) NOT NULL DEFAULT '',
+d TEXT NOT NULL,
+PRIMARY KEY (a, b, c),
+KEY (a)
+) DEFAULT CHARSET=utf8;
+INSERT INTO t1 VALUES ('gui_A', 'a', 'b', 'str1'),
+('gui_AB', 'a', 'b', 'str2'), ('gui_ABC', 'a', 'b', 'str3');
+CREATE TABLE t2 (
+a VARCHAR(100) NOT NULL DEFAULT '',
+PRIMARY KEY (a)
+) DEFAULT CHARSET=latin1;
+INSERT INTO t2 VALUES ('A'), ('AB'), ('ABC');
+SELECT CONCAT('gui_', t2.a), t1.d FROM t2 
+LEFT JOIN t1 ON t1.a = CONCAT('gui_', t2.a) AND t1.b = 'a' AND t1.c = 'b';
+CONCAT('gui_', t2.a)	d
+gui_A	str1
+gui_AB	str2
+gui_ABC	str3
+EXPLAIN SELECT CONCAT('gui_', t2.a), t1.d FROM t2 
+LEFT JOIN t1 ON t1.a = CONCAT('gui_', t2.a) AND t1.b = 'a' AND t1.c = 'b';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	index	NULL	PRIMARY	102	NULL	3	Using index
+1	SIMPLE	t1	eq_ref	PRIMARY,a	PRIMARY	318	func,const,const	1	
+DROP TABLE t1, t2;
+# End of 5.1 tests

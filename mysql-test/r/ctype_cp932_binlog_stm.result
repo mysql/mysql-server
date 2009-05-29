@@ -46,4 +46,12 @@ master-bin.000001	1137	Query	1	1216	use `test`; DROP TABLE t4
 End of 5.0 tests
 SHOW BINLOG EVENTS FROM 364;
 ERROR HY000: Error when executing command SHOW BINLOG EVENTS: Wrong offset or I/O error
+Bug#44352 UPPER/LOWER function doesn't work correctly on cp932 and sjis environment.
+CREATE TABLE t1 (a varchar(16)) character set cp932;
+INSERT INTO t1 VALUES (0x8372835E),(0x8352835E);
+SELECT hex(a), hex(lower(a)), hex(upper(a)) FROM t1 ORDER BY binary(a);
+hex(a)	hex(lower(a))	hex(upper(a))
+8352835E	8352835E	8352835E
+8372835E	8372835E	8372835E
+DROP TABLE t1;
 End of 5.1 tests

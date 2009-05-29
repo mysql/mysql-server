@@ -746,5 +746,56 @@ private:
       free_root(&conversionBufferMemroot, MYF(0));
     }    
   }
- 
+  
+  
+/**
+  Generate a valid RCDFMT name based on the name of the table.
+  
+  The RCDFMT name is devised by munging the name of the table,
+  uppercasing all ascii alpha-numeric characters and replacing all other
+  characters with underscores until up to ten characters have been generated.
+    
+  @param tableName  The name of the table, as given on the MySQL
+                    CREATE TABLE statement
+  @param[out] query  The string to receive the generated RCDFMT name
+*/
+  static void generateAndAppendRCDFMT(const char* tableName, String& query)
+  {
+    char rcdfmt[11];
+    
+    // The RCDFMT name must begin with an alpha character.
+    // We enforce this by skipping to the first alpha character in the table
+    // name. If no alpha character exists, we use 'X' for the RCDFMT name;
+    
+    while (*tableName &&
+           (!my_isascii(*tableName) ||
+            !my_isalpha(system_charset_info, *tableName)))
+    {
+      tableName += my_mbcharlen(system_charset_info, *tableName);
+    }
+    
+    if (unlikely(!(*tableName)))
+    { 
+      rcdfmt[0]= 'X';
+      rcdfmt[1]= 0;
+    }
+    else
+    {
+      int r= 0;
+      while ((r < sizeof(rcdfmt)-1) && *tableName)
+      {
+        if (my_isascii(*tableName) &&
+            my_isalnum(system_charset_info, *tableName))
+          rcdfmt[r] = my_toupper(system_charset_info, *tableName);
+        else
+          rcdfmt[r] = '_';
+        
+        ++r;
+        tableName += my_mbcharlen(system_charset_info, *tableName);
+      }
+      rcdfmt[r]= 0;
+    }
+    query.append(STRING_WITH_LEN(" RCDFMT "));
+    query.append(rcdfmt);
+  }
 };

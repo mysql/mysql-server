@@ -67,7 +67,7 @@ my_which ()
   ret=0
   for file
   do
-    for dir in "$PATH"
+    for dir in $PATH
     do
       if [ -f "$dir/$file" ]
       then
@@ -391,8 +391,8 @@ then
   fi
   # Change the err log to the right user, if it is in use
   if [ $want_syslog -eq 0 ]; then
-    touch $err_log
-    chown $user $err_log
+    touch "$err_log"
+    chown $user "$err_log"
   fi
   if test -n "$open_files"
   then
@@ -509,9 +509,9 @@ fi
 #
 # If there exists an old pid file, check if the daemon is already running
 # Note: The switches to 'ps' may depend on your operating system
-if test -f $pid_file
+if test -f "$pid_file"
 then
-  PID=`cat $pid_file`
+  PID=`cat "$pid_file"`
   if @CHECK_PID@
   then
     if @FIND_PROC@
@@ -520,8 +520,8 @@ then
       exit 1
     fi
   fi
-  rm -f $pid_file
-  if test -f $pid_file
+  rm -f "$pid_file"
+  if test -f "$pid_file"
   then
     log_error "Fatal error: Can't remove the pid file:
 $pid_file
@@ -563,11 +563,11 @@ test -n "$NOHUP_NICENESS" && cmd="$cmd < /dev/null"
 log_notice "Starting $MYSQLD daemon with databases from $DATADIR"
 while true
 do
-  rm -f $safe_mysql_unix_port $pid_file	# Some extra safety
+  rm -f $safe_mysql_unix_port "$pid_file"	# Some extra safety
 
   eval_log_error "$cmd"
 
-  if test ! -f $pid_file		# This is removed if normal shutdown
+  if test ! -f "$pid_file"		# This is removed if normal shutdown
   then
     break
   fi
