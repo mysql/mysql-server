@@ -349,6 +349,14 @@ remove_file $MYSQLTEST_VARDIR/tmp/bug31060.sql;
 --exec $MYSQL --ignore-spaces -e "SELECT COUNT (*)"
 --exec $MYSQL -b -i -e "SELECT COUNT (*)"
 
+#
+# Bug#37268 'binary' character set makes CLI-internal commands case sensitive
+#
+--replace_regex /\([0-9]*\)/(errno)/
+--error 1
+--exec $MYSQL --default-character-set=binary test -e "CONNECT test invalid_hostname" 2>&1
+--exec $MYSQL --default-character-set=binary test -e "DELIMITER //" 2>&1
+
 --echo End of 5.0 tests
 
 #
