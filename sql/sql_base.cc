@@ -1541,7 +1541,7 @@ void close_temporary_tables(THD *thd)
       thd->variables.character_set_client= system_charset_info;
       Query_log_event qinfo(thd, s_query.ptr(),
                             s_query.length() - 1 /* to remove trailing ',' */,
-                            0, FALSE, THD::NOT_KILLED);
+                            0, FALSE, 0);
       thd->variables.character_set_client= cs_save;
       mysql_bin_log.write(&qinfo);
       thd->variables.pseudo_thread_id= save_pseudo_thread_id;
@@ -4015,9 +4015,10 @@ retry:
         /* this DELETE FROM is needed even with row-based binlogging */
         end = strxmov(strmov(query, "DELETE FROM `"),
                       share->db.str,"`.`",share->table_name.str,"`", NullS);
+        int errcode= query_error_code(thd, TRUE);
         thd->binlog_query(THD::STMT_QUERY_TYPE,
                           query, (ulong)(end-query),
-                          FALSE, FALSE, THD::NOT_KILLED);
+                          FALSE, FALSE, errcode);
         my_free(query, MYF(0));
       }
       else

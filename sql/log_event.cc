@@ -2316,19 +2316,16 @@ Query_log_event::Query_log_event()
       query_length      - size of the  `query_arg' array
       using_trans       - there is a modified transactional table
       suppress_use      - suppress the generation of 'USE' statements
-      killed_status_arg - an optional with default to THD::KILLED_NO_VALUE
-                          if the value is different from the default, the arg
-                          is set to the current thd->killed value.
-                          A caller might need to masquerade thd->killed with
-                          THD::NOT_KILLED.
+      errcode           - the error code of the query
+      
   DESCRIPTION
   Creates an event for binlogging
-  The value for local `killed_status' can be supplied by caller.
+  The value for `errcode' should be supplied by caller.
 */
 Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
 				 ulong query_length, bool using_trans,
-				 bool suppress_use,
-                                 THD::killed_state killed_status_arg)
+				 bool suppress_use, int errcode)
+
   :Log_event(thd_arg,
              (thd_arg->thread_specific_used ? LOG_EVENT_THREAD_SPECIFIC_F :
               0) |
@@ -2349,22 +2346,7 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
 {
   time_t end_time;
 
-  if (killed_status_arg == THD::KILLED_NO_VALUE)
-    killed_status_arg= thd_arg->killed;
-  error_code=
-    (killed_status_arg == THD::NOT_KILLED) ?
-    (thd_arg->is_error() ? thd_arg->main_da.sql_errno() : 0) :
-    ((thd_arg->system_thread & SYSTEM_THREAD_DELAYED_INSERT) ? 0 :
-     thd_arg->killed_errno());
-
-  /* thd_arg->main_da.sql_errno() might be ER_SERVER_SHUTDOWN or
-     ER_QUERY_INTERRUPTED, So here we need to make sure that
-     error_code is not set to these errors when specified NOT_KILLED
-     by the caller
-  */
-  if ((killed_status_arg == THD::NOT_KILLED) &&
-      (error_code == ER_SERVER_SHUTDOWN || error_code == ER_QUERY_INTERRUPTED))
-    error_code= 0;
+  error_code= errcode;
 
   time(&end_time);
   exec_time = (ulong) (end_time  - thd_arg->start_time);
@@ -6619,9 +6601,9 @@ Execute_load_query_log_event(THD *thd_arg, const char* query_arg,
                              uint fn_pos_end_arg,
                              enum_load_dup_handling dup_handling_arg,
                              bool using_trans, bool suppress_use,
-                             THD::killed_state killed_err_arg):
+                             int errcode):
   Query_log_event(thd_arg, query_arg, query_length_arg, using_trans,
-                  suppress_use, killed_err_arg),
+                  suppress_use, errcode),
   file_id(thd_arg->file_id), fn_pos_start(fn_pos_start_arg),
   fn_pos_end(fn_pos_end_arg), dup_handling(dup_handling_arg)
 {
