@@ -1655,7 +1655,7 @@ bool change_password(THD *thd, const char *host, const char *user,
                   new_password));
     thd->clear_error();
     thd->binlog_query(THD::MYSQL_QUERY_TYPE, buff, query_length,
-                      FALSE, FALSE, THD::NOT_KILLED);
+                      FALSE, FALSE, 0);
   }
 end:
   close_thread_tables(thd);

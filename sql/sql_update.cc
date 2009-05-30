@@ -795,11 +795,15 @@ int mysql_update(THD *thd,
   {
     if (mysql_bin_log.is_open())
     {
+      int errcode= 0;
       if (error < 0)
         thd->clear_error();
+      else
+        errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
+
       if (thd->binlog_query(THD::ROW_QUERY_TYPE,
                             thd->query, thd->query_length,
-                            transactional_table, FALSE, killed_status) &&
+                            transactional_table, FALSE, errcode) &&
           transactional_table)
       {
         error=1;				// Rollback update
@@ -1847,9 +1851,10 @@ void multi_update::abort()
         got caught and if happens later the killed error is written
         into repl event.
       */
+      int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
       thd->binlog_query(THD::ROW_QUERY_TYPE,
                         thd->query, thd->query_length,
-                        transactional_tables, FALSE);
+                        transactional_tables, FALSE, errcode);
     }
     thd->transaction.all.modified_non_trans_table= TRUE;
   }
@@ -2075,11 +2080,14 @@ bool multi_update::send_eof()
   {
     if (mysql_bin_log.is_open())
     {
+      int errcode= 0;
       if (local_error == 0)
         thd->clear_error();
+      else
+        errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
       if (thd->binlog_query(THD::ROW_QUERY_TYPE,
                             thd->query, thd->query_length,
-                            transactional_tables, FALSE, killed_status) &&
+                            transactional_tables, FALSE, errcode) &&
           trans_safe)
       {
 	local_error= 1;				// Rollback update

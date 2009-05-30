@@ -3658,7 +3658,7 @@ show_query_type(THD::enum_binlog_query_type qtype)
 */
 int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
                       ulong query_len, bool is_trans, bool suppress_use,
-                      THD::killed_state killed_status_arg)
+                      int errcode)
 {
   DBUG_ENTER("THD::binlog_query");
   DBUG_PRINT("enter", ("qtype: %s  query: '%s'",
@@ -3725,7 +3725,7 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
      */
     {
       Query_log_event qinfo(this, query_arg, query_len, is_trans, suppress_use,
-                            killed_status_arg);
+                            errcode);
       qinfo.flags|= LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F;
       /*
         Binlog table maps will be irrelevant after a Query_log_event
