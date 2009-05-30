@@ -1914,7 +1914,7 @@ public:
   int binlog_query(enum_binlog_query_type qtype,
                    char const *query, ulong query_len,
                    bool is_trans, bool suppress_use,
-                   THD::killed_state killed_err_arg= THD::KILLED_NO_VALUE);
+                   int errcode);
 #endif
 
   /*
