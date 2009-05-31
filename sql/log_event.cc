@@ -1953,7 +1953,10 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli,
             ::exec_event(), then the companion SET also have so we
             don't need to reset_one_shot_variables().
   */
-  if (db_ok(thd->db, replicate_do_db, replicate_ignore_db))
+  if (!strncmp(query_arg, "BEGIN", q_len_arg) ||
+      !strncmp(query_arg, "COMMIT", q_len_arg) ||
+      !strncmp(query_arg, "ROLLBACK", q_len_arg) ||
+      db_ok(thd->db, replicate_do_db, replicate_ignore_db))
   {
     thd->set_time((time_t)when);
     thd->query_length= q_len_arg;
