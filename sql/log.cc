@@ -1502,7 +1502,8 @@ static int binlog_commit(handlerton *hton, THD *thd, bool all)
               YESNO(thd->transaction.stmt.modified_non_trans_table)));
   if (!in_transaction || all)
   {
-    Query_log_event qev(thd, STRING_WITH_LEN("COMMIT"), TRUE, FALSE);
+    Query_log_event qev(thd, STRING_WITH_LEN("COMMIT"),
+                        TRUE, TRUE, THD::KILLED_NO_VALUE);
     qev.error_code= 0; // see comment in MYSQL_LOG::write(THD, IO_CACHE)
     error= binlog_end_trans(thd, trx_data, &qev, all);
     goto end;
@@ -1557,7 +1558,8 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
       transactional table in that statement as well, which needs to be
       rolled back on the slave.
     */
-    Query_log_event qev(thd, STRING_WITH_LEN("ROLLBACK"), TRUE, FALSE);
+    Query_log_event qev(thd, STRING_WITH_LEN("ROLLBACK"),
+                        TRUE, TRUE, THD::KILLED_NO_VALUE);
     qev.error_code= 0; // see comment in MYSQL_LOG::write(THD, IO_CACHE)
     error= binlog_end_trans(thd, trx_data, &qev, all);
   }
@@ -4370,7 +4372,7 @@ bool MYSQL_BIN_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event)
         transaction is either a BEGIN..COMMIT block or a single
         statement in autocommit mode.
       */
-      Query_log_event qinfo(thd, STRING_WITH_LEN("BEGIN"), TRUE, FALSE);
+      Query_log_event qinfo(thd, STRING_WITH_LEN("BEGIN"), TRUE, TRUE);
       /*
         Imagine this is rollback due to net timeout, after all
         statements of the transaction succeeded. Then we want a
