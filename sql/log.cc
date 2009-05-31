@@ -159,7 +159,7 @@ static int binlog_commit(THD *thd, bool all)
   if (all || !(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
   {
     Query_log_event qev(thd, STRING_WITH_LEN("COMMIT"),
-                        TRUE, FALSE, THD::KILLED_NO_VALUE);
+                        TRUE, TRUE, THD::KILLED_NO_VALUE);
     qev.error_code= 0; // see comment in MYSQL_LOG::write(THD, IO_CACHE)
     DBUG_RETURN(binlog_end_trans(thd, trans_log, &qev));
   }
@@ -204,7 +204,7 @@ static int binlog_rollback(THD *thd, bool all)
   if (unlikely(thd->transaction.all.modified_non_trans_table))
   {
     Query_log_event qev(thd, STRING_WITH_LEN("ROLLBACK"),
-                        TRUE, FALSE, THD::KILLED_NO_VALUE);
+                        TRUE, TRUE, THD::KILLED_NO_VALUE);
     qev.error_code= 0; // see comment in MYSQL_LOG::write(THD, IO_CACHE)
     error= binlog_end_trans(thd, trans_log, &qev);
   }
@@ -2094,7 +2094,7 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event)
       statement in autocommit mode.
     */
     Query_log_event qinfo(thd, STRING_WITH_LEN("BEGIN"),
-                          TRUE, FALSE, THD::KILLED_NO_VALUE);
+                          TRUE, TRUE, THD::KILLED_NO_VALUE);
     /*
       Imagine this is rollback due to net timeout, after all
       statements of the transaction succeeded. Then we want a

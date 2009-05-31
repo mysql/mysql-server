@@ -12,10 +12,10 @@ show binlog events from 98;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	use `test`; create table t1 (a int) engine=innodb
 master-bin.000001	#	Query	1	#	use `test`; create table t2 (a int) engine=innodb
-master-bin.000001	#	Query	1	#	use `test`; BEGIN
+master-bin.000001	#	Query	1	#	BEGIN
 master-bin.000001	#	Query	1	#	use `test`; insert t1 values (5)
 master-bin.000001	#	Xid	1	#	COMMIT /* XID */
-master-bin.000001	#	Query	1	#	use `test`; BEGIN
+master-bin.000001	#	Query	1	#	BEGIN
 master-bin.000001	#	Query	1	#	use `test`; insert t2 values (5)
 master-bin.000001	#	Xid	1	#	COMMIT /* XID */
 drop table t1,t2;
@@ -27,7 +27,7 @@ drop table t1;
 show binlog events in 'master-bin.000001' from 98;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	use `test`; create table t1 (n int) engine=innodb
-master-bin.000001	#	Query	1	#	use `test`; BEGIN
+master-bin.000001	#	Query	1	#	BEGIN
 master-bin.000001	#	Query	1	#	use `test`; insert into t1 values(100 + 4)
 master-bin.000001	#	Query	1	#	use `test`; insert into t1 values(99 + 4)
 master-bin.000001	#	Query	1	#	use `test`; insert into t1 values(98 + 4)
@@ -147,7 +147,7 @@ show binlog events from 0;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	4	Format_desc	1	98	Server version, Binlog ver: 4
 master-bin.000001	98	Query	1	197	use `test`; create table t1(n int) engine=innodb
-master-bin.000001	197	Query	1	265	use `test`; BEGIN
+master-bin.000001	197	Query	1	265	BEGIN
 master-bin.000001	265	Query	1	353	use `test`; insert into t1 values (1)
 master-bin.000001	353	Query	1	441	use `test`; insert into t1 values (2)
 master-bin.000001	441	Query	1	529	use `test`; insert into t1 values (3)
@@ -161,7 +161,7 @@ show binlog events from 0;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	4	Format_desc	1	98	Server version, Binlog ver: 4
 master-bin.000001	98	Query	1	198	use `test`; create table t1 (a int) engine=innodb
-master-bin.000001	198	Query	1	266	use `test`; BEGIN
+master-bin.000001	198	Query	1	266	BEGIN
 master-bin.000001	266	Query	1	357	use `test`; insert into t1 values( 400 )
 master-bin.000001	357	Query	1	448	use `test`; insert into t1 values( 399 )
 master-bin.000001	448	Query	1	539	use `test`; insert into t1 values( 398 )
