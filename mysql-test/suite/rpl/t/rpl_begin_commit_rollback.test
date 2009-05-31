@@ -1,0 +1,125 @@
+source include/master-slave.inc;
+source include/have_innodb.inc;
+source include/have_binlog_format_statement.inc;
+
+disable_warnings;
+DROP DATABASE IF EXISTS db1;
+enable_warnings;
+
+CREATE DATABASE db1;
+
+use db1;
+
+CREATE TABLE db1.t1 (a INT) ENGINE=InnoDB;
+CREATE TABLE db1.t2 (s CHAR(255)) ENGINE=MyISAM;
+
+sync_slave_with_master;
+source include/stop_slave.inc;
+connection master;
+echo [on master];
+
+DELIMITER //;
+CREATE PROCEDURE db1.p1 ()
+BEGIN
+  INSERT INTO t1 VALUES (1);
+  INSERT INTO t1 VALUES (2);
+  INSERT INTO t1 VALUES (3);
+  INSERT INTO t1 VALUES (4);
+  INSERT INTO t1 VALUES (5);
+END//
+
+CREATE PROCEDURE db1.p2 ()
+BEGIN
+  INSERT INTO t1 VALUES (6);
+  INSERT INTO t1 VALUES (7);
+  INSERT INTO t1 VALUES (8);
+  INSERT INTO t1 VALUES (9);
+  INSERT INTO t1 VALUES (10);
+  INSERT INTO t2 VALUES ('executed db1.p2()');
+END//
+DELIMITER ;//
+
+INSERT INTO db1.t2 VALUES ('before call db1.p1()');
+
+# Note: the master_log_pos is set to be the position of the BEGIN + 1,
+# so before fix of BUG#43263 if the BEGIN is ignored, then all the
+# INSERTS in p1 will be replicated in AUTOCOMMIT=1 mode and the slave
+# SQL thread will stop right before the first INSERT. After fix of
+# BUG#43263, BEGIN will not be ignored by the replication db rules,
+# and then the whole transaction will be executed before slave SQL
+# stop.
+let $master_pos= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $master_pos= `SELECT $master_pos + 1`;
+
+use test;
+BEGIN;
+CALL db1.p1();
+COMMIT;
+
+# The position where the following START SLAVE UNTIL will stop at
+let $master_end_trans_pos= query_get_value(SHOW MASTER STATUS, Position, 1);
+
+INSERT INTO db1.t2 VALUES ('after call db1.p1()');
+SELECT * FROM db1.t1;
+SELECT * FROM db1.t2;
+
+connection slave;
+echo [on slave];
+
+replace_result $master_pos MASTER_POS;
+eval start slave until master_log_file='master-bin.000001', master_log_pos=$master_pos;
+source include/wait_for_slave_sql_to_stop.inc;
+let $slave_sql_stop_pos= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1);
+let $result= query_get_value(SELECT $slave_sql_stop_pos - $master_end_trans_pos as result, result, 1);
+
+--echo #
+--echo # If we got non-zero here, then we're suffering BUG#43263
+--echo #
+eval SELECT $result as 'Must be 0';
+SELECT * from db1.t1;
+SELECT * from db1.t2;
+
+connection master;
+echo [on master];
+
+INSERT INTO db1.t2 VALUES ('before call db1.p2()');
+
+# See comments above.
+let $master_pos= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $master_pos= `SELECT $master_pos + 1`;
+
+BEGIN;
+CALL db1.p2();
+disable_warnings;
+ROLLBACK;
+enable_warnings;
+let $master_end_trans_pos= query_get_value(SHOW MASTER STATUS, Position, 1);
+
+INSERT INTO db1.t2 VALUES ('after call db1.p2()');
+SELECT * FROM db1.t1;
+SELECT * FROM db1.t2;
+
+connection slave;
+echo [on slave];
+
+replace_result $master_pos MASTER_POS;
+eval start slave until master_log_file='master-bin.000001', master_log_pos=$master_pos;
+source include/wait_for_slave_sql_to_stop.inc;
+
+let $slave_sql_stop_pos= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1);
+let $result= query_get_value(SELECT $slave_sql_stop_pos - $master_end_trans_pos as result, result, 1);
+
+--echo #
+--echo # If we got non-zero here, then we're suffering BUG#43263
+--echo #
+eval SELECT $result as 'Must be 0';
+SELECT * from db1.t1;
+SELECT * from db1.t2;
+
+--echo #
+--echo # Clean up
+--echo #
+connection master;
+DROP DATABASE db1;
+connection slave;
+DROP DATABASE db1;
