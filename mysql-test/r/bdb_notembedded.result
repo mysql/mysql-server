@@ -24,18 +24,18 @@ show binlog events;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 f	n	Format_desc	1	n	Server ver: VERSION, Binlog ver: 4
 f	n	Query	1	n	use `test`; create table bug16206 (a int) engine=         bdb
-f	n	Query	1	n	use `test`; BEGIN
+f	n	Query	1	n	BEGIN
 f	n	Query	1	n	use `test`; insert into bug16206 values(0)
-f	n	Query	1	n	use `test`; COMMIT
-f	n	Query	1	n	use `test`; BEGIN
+f	n	Query	1	n	COMMIT
+f	n	Query	1	n	BEGIN
 f	n	Query	1	n	use `test`; insert into bug16206 values(1)
-f	n	Query	1	n	use `test`; COMMIT
-f	n	Query	1	n	use `test`; BEGIN
+f	n	Query	1	n	COMMIT
+f	n	Query	1	n	BEGIN
 f	n	Query	1	n	use `test`; insert into bug16206 values(2)
-f	n	Query	1	n	use `test`; COMMIT
-f	n	Query	1	n	use `test`; BEGIN
+f	n	Query	1	n	COMMIT
+f	n	Query	1	n	BEGIN
 f	n	Query	1	n	use `test`; insert into bug16206 values(3)
-f	n	Query	1	n	use `test`; COMMIT
+f	n	Query	1	n	COMMIT
 drop table bug16206;
 set autocommit=0;
 End of 5.0 tests
