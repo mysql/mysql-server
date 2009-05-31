@@ -1460,10 +1460,13 @@ void write_bin_log(THD *thd, bool clear_error,
 {
   if (mysql_bin_log.is_open())
   {
+    int errcode= 0;
     if (clear_error)
       thd->clear_error();
+    else
+      errcode= query_error_code(thd, TRUE);
     thd->binlog_query(THD::STMT_QUERY_TYPE,
-                      query, query_length, FALSE, FALSE, THD::NOT_KILLED);
+                      query, query_length, FALSE, FALSE, errcode);
   }
 }
 
@@ -6180,7 +6183,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       {
         thd->clear_error();
         Query_log_event qinfo(thd, thd->query, thd->query_length,
-                              0, FALSE, THD::NOT_KILLED);
+                              0, FALSE, 0);
         mysql_bin_log.write(&qinfo);
       }
       my_ok(thd);

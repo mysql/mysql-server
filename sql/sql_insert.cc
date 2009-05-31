@@ -863,6 +863,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     {
       if (mysql_bin_log.is_open())
       {
+        int errcode= 0;
 	if (error <= 0)
         {
 	  /*
@@ -877,6 +878,9 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 	  /* todo: consider removing */
 	  thd->clear_error();
 	}
+        else
+          errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
+        
 	/* bug#22725:
 
 	A query which per-row-loop can not be interrupted with
@@ -893,7 +897,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 	if (thd->binlog_query(THD::ROW_QUERY_TYPE,
 			      thd->query, thd->query_length,
 			      transactional_table, FALSE,
-			      (error>0) ? thd->killed : THD::NOT_KILLED) &&
+			      errcode) &&
 	    transactional_table)
         {
 	  error=1;
@@ -2667,6 +2671,12 @@ bool Delayed_insert::handle_inserts(void)
         thd.variables.time_zone = row->time_zone;
       }
 
+      /* if the delayed insert was killed, the killed status is
+         ignored while binlogging */
+      int errcode= 0;
+      if (thd.killed == THD::NOT_KILLED)
+        errcode= query_error_code(&thd, TRUE);
+      
       /*
         If the query has several rows to insert, only the first row will come
         here. In row-based binlogging, this means that the first row will be
@@ -2677,7 +2687,7 @@ bool Delayed_insert::handle_inserts(void)
       */
       thd.binlog_query(THD::ROW_QUERY_TYPE,
                        row->query.str, row->query.length,
-                       FALSE, FALSE);
+                       FALSE, FALSE, errcode);
 
       thd.time_zone_used = backup_time_zone_used;
       thd.variables.time_zone = backup_time_zone;
@@ -3194,11 +3204,14 @@ bool select_insert::send_eof()
   */
   if (mysql_bin_log.is_open())
   {
+    int errcode= 0;
     if (!error)
       thd->clear_error();
+    else
+      errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
     thd->binlog_query(THD::ROW_QUERY_TYPE,
                       thd->query, thd->query_length,
-                      trans_table, FALSE, killed_status);
+                      trans_table, FALSE, errcode);
   }
   table->file->ha_release_auto_increment();
 
@@ -3265,8 +3278,11 @@ void select_insert::abort() {
     if (thd->transaction.stmt.modified_non_trans_table)
     {
         if (mysql_bin_log.is_open())
+        {
+          int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
           thd->binlog_query(THD::ROW_QUERY_TYPE, thd->query, thd->query_length,
-                            transactional_table, FALSE);
+                            transactional_table, FALSE, errcode);
+        }
         if (!thd->current_stmt_binlog_row_based && !can_rollback_data())
           thd->transaction.all.modified_non_trans_table= TRUE;
 	if (changed)
@@ -3658,10 +3674,14 @@ select_create::binlog_show_create_table(TABLE **tables, uint count)
   DBUG_ASSERT(result == 0); /* store_create_info() always return 0 */
 
   if (mysql_bin_log.is_open())
+  {
+    int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
     thd->binlog_query(THD::STMT_QUERY_TYPE,
                       query.ptr(), query.length(),
                       /* is_trans */ TRUE,
-                      /* suppress_use */ FALSE);
+                      /* suppress_use */ FALSE,
+                      errcode);
+  }
 }
 
 void select_create::store_values(List<Item> &values)

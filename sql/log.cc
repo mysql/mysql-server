@@ -1502,9 +1502,7 @@ static int binlog_commit(handlerton *hton, THD *thd, bool all)
               YESNO(thd->transaction.stmt.modified_non_trans_table)));
   if (!in_transaction || all)
   {
-    Query_log_event qev(thd, STRING_WITH_LEN("COMMIT"),
-                        TRUE, TRUE, THD::KILLED_NO_VALUE);
-    qev.error_code= 0; // see comment in MYSQL_LOG::write(THD, IO_CACHE)
+    Query_log_event qev(thd, STRING_WITH_LEN("COMMIT"), TRUE, TRUE, 0);
     error= binlog_end_trans(thd, trx_data, &qev, all);
     goto end;
   }
@@ -1558,9 +1556,7 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
       transactional table in that statement as well, which needs to be
       rolled back on the slave.
     */
-    Query_log_event qev(thd, STRING_WITH_LEN("ROLLBACK"),
-                        TRUE, TRUE, THD::KILLED_NO_VALUE);
-    qev.error_code= 0; // see comment in MYSQL_LOG::write(THD, IO_CACHE)
+    Query_log_event qev(thd, STRING_WITH_LEN("ROLLBACK"), TRUE, TRUE, 0);
     error= binlog_end_trans(thd, trx_data, &qev, all);
   }
   else if (all && !thd->transaction.all.modified_non_trans_table ||
@@ -1608,10 +1604,11 @@ static int binlog_savepoint_set(handlerton *hton, THD *thd, void *sv)
 
   binlog_trans_log_savepos(thd, (my_off_t*) sv);
   /* Write it to the binary log */
-  
+
+  int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
   int const error=
     thd->binlog_query(THD::STMT_QUERY_TYPE,
-                      thd->query, thd->query_length, TRUE, FALSE);
+                      thd->query, thd->query_length, TRUE, FALSE, errcode);
   DBUG_RETURN(error);
 }
 
@@ -1627,9 +1624,10 @@ static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
   if (unlikely(thd->transaction.all.modified_non_trans_table || 
                (thd->options & OPTION_KEEP_LOG)))
   {
+    int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
     int error=
       thd->binlog_query(THD::STMT_QUERY_TYPE,
-                        thd->query, thd->query_length, TRUE, FALSE);
+                        thd->query, thd->query_length, TRUE, FALSE, errcode);
     DBUG_RETURN(error);
   }
   binlog_trans_log_truncate(thd, *(my_off_t*)sv);
@@ -4329,6 +4327,35 @@ int MYSQL_BIN_LOG::write_cache(IO_CACHE *cache, bool lock_log, bool sync_log)
   return 0;                                     // All OK
 }
 
+/*
+  Helper function to get the error code of the query to be binlogged.
+ */
+int query_error_code(THD *thd, bool not_killed)
+{
+  int error;
+  
+  if (not_killed)
+  {
+    error= thd->is_error() ? thd->main_da.sql_errno() : 0;
+
+    /* thd->main_da.sql_errno() might be ER_SERVER_SHUTDOWN or
+       ER_QUERY_INTERRUPTED, So here we need to make sure that error
+       is not set to these errors when specified not_killed by the
+       caller.
+    */
+    if (error == ER_SERVER_SHUTDOWN || error == ER_QUERY_INTERRUPTED)
+      error= 0;
+  }
+  else
+  {
+    /* killed status for DELAYED INSERT thread should never be used */
+    DBUG_ASSERT(!(thd->system_thread & SYSTEM_THREAD_DELAYED_INSERT));
+    error= thd->killed_errno();
+  }
+
+  return error;
+}
+
 /**
   Write a cached log entry to the binary log.
   - To support transaction over replication, we wrap the transaction
@@ -4372,19 +4399,8 @@ bool MYSQL_BIN_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event)
         transaction is either a BEGIN..COMMIT block or a single
         statement in autocommit mode.
       */
-      Query_log_event qinfo(thd, STRING_WITH_LEN("BEGIN"), TRUE, TRUE);
-      /*
-        Imagine this is rollback due to net timeout, after all
-        statements of the transaction succeeded. Then we want a
-        zero-error code in BEGIN.  In other words, if there was a
-        really serious error code it's already in the statement's
-        events, there is no need to put it also in this internally
-        generated event, and as this event is generated late it would
-        lead to false alarms.
+      Query_log_event qinfo(thd, STRING_WITH_LEN("BEGIN"), TRUE, TRUE, 0);
 
-        This is safer than thd->clear_error() against kills at shutdown.
-      */
-      qinfo.error_code= 0;
       /*
         Now this Query_log_event has artificial log_pos 0. It must be
         adjusted to reflect the real position in the log. Not doing it
