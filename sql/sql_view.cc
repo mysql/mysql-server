@@ -661,8 +661,9 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     buff.append(STRING_WITH_LEN(" AS "));
     buff.append(views->source.str, views->source.length);
 
+    int errcode= query_error_code(thd, TRUE);
     thd->binlog_query(THD::STMT_QUERY_TYPE,
-                      buff.ptr(), buff.length(), FALSE, FALSE, THD::NOT_KILLED);
+                      buff.ptr(), buff.length(), FALSE, FALSE, errcode);
   }
 
   VOID(pthread_mutex_unlock(&LOCK_open));
