@@ -1363,7 +1363,7 @@ Uint32 BackupFile::buffer_get_ptr_ahead(void **p_buf_ptr, Uint32 size, Uint32 nm
 	   */
           // Move to the start of data to be read
           azseek(&m_file, sizeof(m_fileHeader), SEEK_SET);
-          r = azread(&m_file, (char *)buffer_data_start - file_left_entry_data, file_left_entry_data, &error);
+          r = azread(&m_file, (char *)buffer_data_start - file_left_entry_data, Uint32(file_left_entry_data), &error);
           //move back
           azseek(&m_file, sizeof(m_fileHeader), SEEK_SET);
         }
