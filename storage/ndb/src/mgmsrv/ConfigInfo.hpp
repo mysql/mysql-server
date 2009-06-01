@@ -45,7 +45,13 @@
  */
 class ConfigInfo {
 public:
-  enum Type        { CI_BOOL, CI_INT, CI_INT64, CI_STRING, CI_SECTION };
+  enum Type        { CI_BOOL,
+                     CI_INT,
+                     CI_INT64,
+                     CI_STRING,
+                     CI_ENUM, // String externaly, int internally
+                     CI_SECTION
+  };
   enum Status      { CI_USED,            ///< Active
 		     CI_DEPRICATED,      ///< Can be, but shouldn't
 		     CI_NOTIMPLEMENTED,  ///< Is ignored.
@@ -55,6 +61,11 @@ public:
   enum Flags {
     CI_UPDATEABLE = 1, // Parameter can be updated
     CI_CHECK_WRITABLE = 2 // Path given by parameter should be writable
+  };
+
+  struct Typelib {
+    const char* name;
+    Uint32 value;
   };
 
   /**
@@ -94,8 +105,16 @@ public:
       UintPtr      _section_type; // if _type = CI_SECTION
       /** NOTE must be UintPtr to be of same size as _default */
     };
-    const char*    _min;
-    const char*    _max;
+    union {
+      struct {
+        const char* _min;
+        const char* _max;
+      };
+      struct {  // If _type == CI_ENUM
+        const Typelib* _typelib;
+        UintPtr _unused;
+      };
+    };
   };
 
   class ParamInfoIter {
@@ -155,6 +174,10 @@ public:
    *   @note Result is not defined if section/name are wrong!
    */
   bool verify(const Properties* secti, const char* fname, Uint64 value) const;
+  bool verify_enum(const Properties * section, const char* fname,
+                   const char* value, Uint32& value_int) const;
+  void get_enum_values(const Properties * section, const char* fname,
+                       BaseString& err) const;
   static const char* nameToAlias(const char*);
   static const char* getAlias(const char*);
   bool isSection(const char*) const;

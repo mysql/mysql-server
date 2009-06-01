@@ -62,6 +62,7 @@
 #define CFG_DB_LCP_INTERVAL           120
 #define CFG_DB_GCP_INTERVAL           121
 #define CFG_DB_ARBIT_TIMEOUT          122
+#define CFG_DB_ARBIT_METHOD           142
 
 #define CFG_DB_WATCHDOG_INTERVAL      123
 #define CFG_DB_STOP_ON_ERROR          124
@@ -251,5 +252,9 @@
 #define CONNECTION_TYPE_SHM           1
 #define CONNECTION_TYPE_SCI           2
 #define CONNECTION_TYPE_OSE           3 /* Removed. */
+
+#define ARBIT_METHOD_DISABLED         0
+#define ARBIT_METHOD_DEFAULT          1
+#define ARBIT_METHOD_WAITEXTERNAL     2
 
 #endif
