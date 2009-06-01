@@ -2311,6 +2311,12 @@ extern void turn_parser_debug_on();
 SQL_CRYPT *get_crypt_for_frm(void);
 #endif
 
+/* password.c */
+extern "C" void my_make_scrambled_password_323(char *to, const char *password,
+                                               size_t pass_len);
+extern "C" void my_make_scrambled_password(char *to, const char *password,
+                                           size_t pass_len);
+
 #include "sql_view.h"
 
 /* Some inline functions for more speed */
