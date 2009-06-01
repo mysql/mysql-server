@@ -440,7 +440,7 @@ byte*
 mlog_open_and_write_index(
 /*======================*/
 	mtr_t*		mtr,	/*!< in: mtr */
-	byte*		rec,	/*!< in: index record or page */
+	const byte*	rec,	/*!< in: index record or page */
 	dict_index_t*	index,	/*!< in: record descriptor */
 	byte		type,	/*!< in: log item type */
 	ulint		size)	/*!< in: requested buffer size in bytes

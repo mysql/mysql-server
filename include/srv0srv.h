@@ -42,7 +42,7 @@ Created 10/10/1995 Heikki Tuuri
 
 extern const char*	srv_main_thread_op_info;
 
-/* Prefix used by MySQL to indicate pre-5.1 table name encoding */
+/** Prefix used by MySQL to indicate pre-5.1 table name encoding */
 extern const char	srv_mysql50_table_name_prefix[9];
 
 /* When this event is set the lock timeout and InnoDB monitor
@@ -81,14 +81,16 @@ extern char*	srv_data_home;
 extern char*	srv_arch_dir;
 #endif /* UNIV_LOG_ARCHIVE */
 
-/* store to its own file each table created by an user; data
+/** store to its own file each table created by an user; data
 dictionary tables are in the system tablespace 0 */
 extern my_bool	srv_file_per_table;
-/* The file format to use on new *.ibd files. */
+/** The file format to use on new *.ibd files. */
 extern ulint	srv_file_format;
-/* Whether to check file format during startup.*/
+/** Whether to check file format during startup.  A value of
+DICT_TF_FORMAT_MAX + 1 means no checking ie. FALSE.  The default is to
+set it to the highest format we support. */
 extern ulint	srv_check_file_format_at_startup;
-/* Place locks to records only i.e. do not use next-key locking except
+/** Place locks to records only i.e. do not use next-key locking except
 on duplicate key checking and foreign key checking */
 extern ibool	srv_locks_unsafe_for_binlog;
 #endif /* !UNIV_HOTBACKUP */
@@ -533,10 +535,10 @@ void
 srv_export_innodb_status(void);
 /*==========================*/
 
-/* Thread slot in the thread table */
+/** Thread slot in the thread table */
 typedef struct srv_slot_struct	srv_slot_t;
 
-/* Thread table is an array of slots */
+/** Thread table is an array of slots */
 typedef srv_slot_t	srv_table_t;
 
 /** Status variables to be passed to MySQL */
