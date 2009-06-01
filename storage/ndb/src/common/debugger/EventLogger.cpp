@@ -400,6 +400,14 @@ void getTextArbitResult(QQQQ) {
       BaseString::snprintf(m_text, m_text_len,
 			   "Network partitioning - no arbitrator configured");
       break;
+    case ArbitCode::WinWaitExternal:{
+      char buf[8*4*2+1];
+      sd->mask.getText(buf);
+      BaseString::snprintf(m_text, m_text_len,
+			   "Continuing after wait for external arbitration, "
+                           "nodes: %s", buf);
+      break;
+    }
     default:
       ArbitCode::getErrText(code, errText, sizeof(errText));
       BaseString::snprintf(m_text, m_text_len,
