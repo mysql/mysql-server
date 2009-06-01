@@ -106,15 +106,10 @@ public:
       /** NOTE must be UintPtr to be of same size as _default */
     };
     union {
-      struct {
-        const char* _min;
-        const char* _max;
-      };
-      struct {  // If _type == CI_ENUM
-        const Typelib* _typelib;
-        UintPtr _unused;
-      };
+      const char* _min;
+      const Typelib* _typelib; // If _type == CI_ENUM
     };
+    const char* _max;
   };
 
   class ParamInfoIter {
