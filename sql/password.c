@@ -137,16 +137,35 @@ void hash_password(ulong *result, const char *password, uint password_len)
     Create password to be stored in user database from raw string
     Used for pre-4.1 password handling
   SYNOPSIS
-    make_scrambled_password_323()
+    my_make_scrambled_password_323()
     to        OUT store scrambled password here
     password  IN  user-supplied password
+    pass_len  IN  length of password string
+*/
+
+void my_make_scrambled_password_323(char *to, const char *password,
+                                    size_t pass_len)
+{
+  ulong hash_res[2];
+  hash_password(hash_res, password, (uint) pass_len);
+  sprintf(to, "%08lx%08lx", hash_res[0], hash_res[1]);
+}
+
+
+/*
+  Wrapper around my_make_scrambled_password_323() to maintain client lib ABI
+  compatibility.
+  In server code usage of my_make_scrambled_password_323() is preferred to
+  avoid strlen().
+  SYNOPSIS
+    make_scrambled_password_323()
+    to        OUT store scrambled password here
+    password  IN  NULL-terminated string with user-supplied password
 */
 
 void make_scrambled_password_323(char *to, const char *password)
 {
-  ulong hash_res[2];
-  hash_password(hash_res, password, (uint) strlen(password));
-  sprintf(to, "%08lx%08lx", hash_res[0], hash_res[1]);
+  my_make_scrambled_password_323(to, password, strlen(password));
 }
 
 
@@ -383,20 +402,21 @@ my_crypt(char *to, const uchar *s1, const uchar *s2, uint len)
     The result of this function is used as return value from PASSWORD() and
     is stored in the database.
   SYNOPSIS
-    make_scrambled_password()
+    my_make_scrambled_password()
     buf       OUT buffer of size 2*SHA1_HASH_SIZE + 2 to store hex string
-    password  IN  NULL-terminated password string
+    password  IN  password string
+    pass_len  IN  length of password string
 */
 
-void
-make_scrambled_password(char *to, const char *password)
+void my_make_scrambled_password(char *to, const char *password,
+                                size_t pass_len)
 {
   SHA1_CONTEXT sha1_context;
   uint8 hash_stage2[SHA1_HASH_SIZE];
 
   mysql_sha1_reset(&sha1_context);
   /* stage 1: hash password */
-  mysql_sha1_input(&sha1_context, (uint8 *) password, (uint) strlen(password));
+  mysql_sha1_input(&sha1_context, (uint8 *) password, (uint) pass_len);
   mysql_sha1_result(&sha1_context, (uint8 *) to);
   /* stage 2: hash stage1 output */
   mysql_sha1_reset(&sha1_context);
@@ -408,6 +428,23 @@ make_scrambled_password(char *to, const char *password)
   octet2hex(to, (const char*) hash_stage2, SHA1_HASH_SIZE);
 }
   
+
+/*
+  Wrapper around my_make_scrambled_password() to maintain client lib ABI
+  compatibility.
+  In server code usage of my_make_scrambled_password() is preferred to
+  avoid strlen().
+  SYNOPSIS
+    make_scrambled_password()
+    buf       OUT buffer of size 2*SHA1_HASH_SIZE + 2 to store hex string
+    password  IN  NULL-terminated password string
+*/
+
+void make_scrambled_password(char *to, const char *password)
+{
+  my_make_scrambled_password(to, password, strlen(password));
+}
+
 
 /*
     Produce an obscure octet sequence from password and random
