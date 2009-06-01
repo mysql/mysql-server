@@ -42,6 +42,12 @@ size_t vio_read(Vio * vio, uchar* buf, size_t size)
   /* Ensure nobody uses vio_read_buff and vio_read simultaneously */
   DBUG_ASSERT(vio->read_end == vio->read_pos);
 
+  /*
+    Callers of 'vio_read' checks "errno" even if no system function
+    failed, to avoid false positives "errno" must be reset
+  */
+  my_socket_set_errno(0);
+
   r = my_recv(vio->sd, buf, size, 0);
 
 #ifndef DBUG_OFF
