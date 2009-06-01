@@ -64,6 +64,7 @@ typedef int64_t toku_off_t;
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/time.h>
+#include <sys/stat.h>
 
 #else
 
