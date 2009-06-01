@@ -49,7 +49,7 @@ static inline int my_socket_errno()
 
 static inline void my_socket_set_errno(int error)
 {
-  errno= 0;
+  errno= error;
 }
 
 static inline my_socket my_socket_create(int domain, int type, int protocol)
