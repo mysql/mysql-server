@@ -97,7 +97,7 @@ UNIV_INTERN ibool	srv_error_monitor_active = FALSE;
 
 UNIV_INTERN const char*	srv_main_thread_op_info = "";
 
-/* Prefix used by MySQL to indicate pre-5.1 table name encoding */
+/** Prefix used by MySQL to indicate pre-5.1 table name encoding */
 UNIV_INTERN const char	srv_mysql50_table_name_prefix[9] = "#mysql50#";
 
 /* Server parameters which are read from the initfile */
@@ -110,12 +110,12 @@ UNIV_INTERN char*	srv_data_home	= NULL;
 UNIV_INTERN char*	srv_arch_dir	= NULL;
 #endif /* UNIV_LOG_ARCHIVE */
 
-/* store to its own file each table created by an user; data
+/** store to its own file each table created by an user; data
 dictionary tables are in the system tablespace 0 */
 UNIV_INTERN my_bool	srv_file_per_table;
-/* The file format to use on new *.ibd files. */
+/** The file format to use on new *.ibd files. */
 UNIV_INTERN ulint	srv_file_format = 0;
-/* Whether to check file format during startup a value of 
+/** Whether to check file format during startup.  A value of
 DICT_TF_FORMAT_MAX + 1 means no checking ie. FALSE.  The default is to
 set it to the highest format we support. */
 UNIV_INTERN ulint	srv_check_file_format_at_startup = DICT_TF_FORMAT_MAX;
@@ -123,7 +123,7 @@ UNIV_INTERN ulint	srv_check_file_format_at_startup = DICT_TF_FORMAT_MAX;
 #if DICT_TF_FORMAT_51
 # error "DICT_TF_FORMAT_51 must be 0!"
 #endif
-/* Place locks to records only i.e. do not use next-key locking except
+/** Place locks to records only i.e. do not use next-key locking except
 on duplicate key checking and foreign key checking */
 UNIV_INTERN ibool	srv_locks_unsafe_for_binlog = FALSE;
 
