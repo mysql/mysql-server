@@ -10092,15 +10092,16 @@ text_or_password:
 	| PASSWORD '(' TEXT_STRING ')'
 	  {
 	    $$= $3.length ? YYTHD->variables.old_passwords ?
-	        Item_func_old_password::alloc(YYTHD, $3.str) :
-	        Item_func_password::alloc(YYTHD, $3.str) :
+	        Item_func_old_password::alloc(YYTHD, $3.str, $3.length) :
+	        Item_func_password::alloc(YYTHD, $3.str, $3.length) :
 	      $3.str;
             if ($$ == NULL)
               MYSQL_YYABORT;
 	  }
 	| OLD_PASSWORD '(' TEXT_STRING ')'
 	  {
-	    $$= $3.length ? Item_func_old_password::alloc(YYTHD, $3.str) :
+	    $$= $3.length ? Item_func_old_password::alloc(YYTHD, $3.str, 
+							  $3.length) :
 	      $3.str;
             if ($$ == NULL)
               MYSQL_YYABORT;
@@ -10545,7 +10546,7 @@ grant_user:
                  (char *) YYTHD->alloc(SCRAMBLED_PASSWORD_CHAR_LENGTH_323+1);
                if (buff == NULL)
                  MYSQL_YYABORT;
-               make_scrambled_password_323(buff, $4.str);
+               my_make_scrambled_password_323(buff, $4.str, $4.length);
                $1->password.str= buff;
                $1->password.length= SCRAMBLED_PASSWORD_CHAR_LENGTH_323;
              }
@@ -10555,7 +10556,7 @@ grant_user:
                  (char *) YYTHD->alloc(SCRAMBLED_PASSWORD_CHAR_LENGTH+1);
                if (buff == NULL)
                  MYSQL_YYABORT;
-               make_scrambled_password(buff, $4.str);
+               my_make_scrambled_password(buff, $4.str, $4.length);
                $1->password.str= buff;
                $1->password.length= SCRAMBLED_PASSWORD_CHAR_LENGTH;
              }
