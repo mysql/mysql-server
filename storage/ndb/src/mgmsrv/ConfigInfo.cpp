@@ -227,6 +227,15 @@ const DepricationTransform f_deprication[] = {
 };
 #endif /* NDB_MGMAPI */
 
+static
+const ConfigInfo::Typelib arbit_method_typelib[] = {
+  { "Disabled", ARBIT_METHOD_DISABLED },
+  { "Default", ARBIT_METHOD_DEFAULT },
+  { "WaitExternal", ARBIT_METHOD_WAITEXTERNAL },
+  { 0, 0 }
+};
+
+
 /**
  * The default constructors create objects with suitable values for the
  * configuration parameters. 
@@ -1224,6 +1233,19 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "3000",
     "10",
     STR_VALUE(MAX_INT_RNIL) },
+
+  {
+    CFG_DB_ARBIT_METHOD,
+    "Arbitration",
+    DB_TOKEN,
+    "How to perform arbitration to avoid \"split brain\" when node(s) fail",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_ENUM,
+    UNDEFINED,
+    (const char*)arbit_method_typelib,
+    0
+  },
 
   {
     CFG_NODE_DATADIR,
@@ -2828,6 +2850,16 @@ ConfigInfo::ConfigInfo()
       case CI_SECTION:
 	pinfo.put("SectionType", (Uint32)UintPtr(param._default));
 	break;
+      case CI_ENUM:
+      {
+        Properties values(true); // case insensitive
+        // Put the list of allowed enum values in pinfo
+        for (const Typelib* entry = param._typelib;
+             entry->name != 0; entry++)
+          values.put(entry->name, entry->value);
+        require(pinfo.put("values", &values));
+        // fallthrough
+      }
       case CI_STRING:
         if(param._default == MANDATORY)
           pinfo.put("Mandatory", (Uint32)1);
@@ -2862,6 +2894,7 @@ ConfigInfo::ConfigInfo()
         {
 	  case CI_SECTION:
 	    break;
+	  case CI_ENUM:
 	  case CI_STRING:
 	    require(p->put(param._fname, param._default));
 	    break;
@@ -3106,6 +3139,39 @@ ConfigInfo::verify(const Properties * section, const char* fname,
     return false;
 }
 
+
+bool
+ConfigInfo::verify_enum(const Properties * section, const char* fname,
+                        const char* value, Uint32& value_int) const {
+  const Properties * p;
+  const Properties * values;
+  require(section->get(fname, &p));
+  require(p->get("values", &values));
+
+  if (values->get(value, &value_int))
+    return true;
+  return false;
+}
+
+
+void
+ConfigInfo::get_enum_values(const Properties * section, const char* fname,
+                      BaseString& list) const {
+  const Properties * p;
+  const Properties * values;
+  require(section->get(fname, &p));
+  require(p->get("values", &values));
+
+  const char* separator = "";
+  Properties::Iterator it(values);
+  for (const char* name = it.first(); name != NULL; name = it.next())
+  {
+    list.appfmt("%s%s", separator, name);
+    separator = " ";
+  }
+}
+
+
 ConfigInfo::Type 
 ConfigInfo::getType(const Properties * section, const char* fname) const {
   return (ConfigInfo::Type) getInfoInt(section, fname, "Type");
@@ -3190,6 +3256,7 @@ public:
       fprintf(m_out, "\n");
       break;
 
+    case ConfigInfo::CI_ENUM:
     case ConfigInfo::CI_STRING:
       fprintf(m_out, "%s (String)\n", param_name);
       fprintf(m_out, "%s\n", info.getDescription(section, param_name));
@@ -3309,6 +3376,7 @@ public:
       pairs.put("max", buf.c_str());
     break;
 
+    case ConfigInfo::CI_ENUM:
     case ConfigInfo::CI_STRING:
       pairs.put("type", "string");
 
@@ -3648,6 +3716,7 @@ applyDefaultValues(InitConfigFileParser::Context & ctx,
       (void) ctx.m_info->getStatus(ctx.m_currentInfo, name);
       if(!ctx.m_currentSection->contains(name)){
 	switch (ctx.m_info->getType(ctx.m_currentInfo, name)){
+	case ConfigInfo::CI_ENUM:
 	case ConfigInfo::CI_INT:
 	case ConfigInfo::CI_BOOL:{
 	  Uint32 val = 0;
@@ -3672,7 +3741,7 @@ applyDefaultValues(InitConfigFileParser::Context & ctx,
 	}
 	case ConfigInfo::CI_SECTION:
 	  break;
-	}
+        }
       }
 #ifndef DBUG_OFF
       else
@@ -3691,6 +3760,7 @@ applyDefaultValues(InitConfigFileParser::Context & ctx,
           DBUG_PRINT("info",("%s=%lld",name,val));
           break;
         }
+        case ConfigInfo::CI_ENUM:
         case ConfigInfo::CI_STRING:{
           const char * val;
           ::require(ctx.m_currentSection->get(name, &val));
