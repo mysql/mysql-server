@@ -862,6 +862,9 @@ int ha_tokudb::open_secondary_table(DB** ptr, KEY* key_info, const char* name, i
         my_errno = error;
         goto cleanup;
     }
+    //
+    // TODO: make sure that with clustering keys, DB_YESOVERWRITE IS ALWAYS SET
+    //
     *key_type = key_info->flags & HA_NOSAME ? DB_NOOVERWRITE : DB_YESOVERWRITE;
     (*ptr)->set_bt_compare(*ptr, tokudb_cmp_dbt_key);    
     
@@ -2507,21 +2510,30 @@ int ha_tokudb::update_primary_key(DB_TXN * trans, bool primary_key_changed, cons
     if (primary_key_changed) {
         // Primary key changed or we are updating a key that can have duplicates.
         // Delete the old row and add a new one
-        if (!(error = remove_key(trans, primary_key, old_row, old_key))) {
-            if (!(error = pack_row(&row, new_row, primary_key))) {
-                if ((error = share->file->put(share->file, trans, new_key, &row, share->key_type[primary_key]))) {
-                    // Probably a duplicated key; restore old key and row if needed
-                    last_dup_key = primary_key;
-                }
-            }
+        error = remove_key(trans, primary_key, old_row, old_key);
+        if (error) { goto cleanup; }
+
+        error = pack_row(&row, new_row, primary_key);
+        if (error) { goto cleanup; }
+
+        error = share->file->put(share->file, trans, new_key, &row, share->key_type[primary_key]);
+        if (error) { 
+            last_dup_key = primary_key;
+            goto cleanup; 
         }
     } 
     else {
         // Primary key didn't change;  just update the row data
-        if (!(error = pack_row(&row, new_row, primary_key))) {
-            error = share->file->put(share->file, trans, new_key, &row, 0);
-        }
+        error = pack_row(&row, new_row, primary_key);
+        if (error) { goto cleanup; }
+
+        //
+        // we can use DB_YESOVERWRITE because we know we are overwriting the old row
+        //
+        error = share->file->put(share->file, trans, new_key, &row, DB_YESOVERWRITE);
+        if (error) { goto cleanup; }
     }
+cleanup:
     TOKUDB_DBUG_RETURN(error);
 }
 
@@ -2614,17 +2626,26 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
     }
     // Update all other keys
     for (uint keynr = 0; keynr < table_share->keys; keynr++) {
+        bool secondary_key_changed = key_cmp(keynr, old_row, new_row);
         if (keynr == primary_key) {
             continue;
         }
         if (table->key_info[keynr].flags & HA_CLUSTERING ||
-            key_cmp(keynr, old_row, new_row) || 
+            secondary_key_changed || 
             primary_key_changed
             ) 
         {
             u_int32_t put_flags;
-            if ((error = remove_key(txn, keynr, old_row, &old_prim_key))) {
-                goto cleanup;
+            //
+            // only remove the old value if the key has changed 
+            // if the key has not changed (in case of clustering keys, 
+            // then we overwrite  the old value)
+            // 
+            if (secondary_key_changed || primary_key_changed) {
+                error = remove_key(txn, keynr, old_row, &old_prim_key);
+                if (error) {
+                    goto cleanup;
+                }
             }
             create_dbt_key_from_table(&key, keynr, key_buff2, new_row, &has_null), 
             put_flags = share->key_type[keynr];
@@ -2635,6 +2656,11 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
                 if ((error = pack_row(&row, (const uchar *) new_row, keynr))){
                    goto cleanup;
                 }
+                //
+                // make sure that for clustering keys, we are using DB_YESOVERWRITE,
+                // therefore making this put an overwrite if the key has not changed
+                //
+                assert(put_flags & DB_YESOVERWRITE);
                 error = share->key_file[keynr]->put(
                     share->key_file[keynr], 
                     txn,
@@ -2754,15 +2780,13 @@ int ha_tokudb::remove_key(DB_TXN * trans, uint keynr, const uchar * record, DBT 
 //      0 on success
 //      error otherwise
 //
-int ha_tokudb::remove_keys(DB_TXN * trans, const uchar * record, DBT * prim_key, key_map * keys) {
+int ha_tokudb::remove_keys(DB_TXN * trans, const uchar * record, DBT * prim_key) {
     int result = 0;
     for (uint keynr = 0; keynr < table_share->keys + test(hidden_primary_key); keynr++) {
-        if (keys->is_set(keynr)) {
-            int new_error = remove_key(trans, keynr, record, prim_key);
-            if (new_error) {
-                result = new_error;     // Return last error
-                break;          // Let rollback correct things
-            }
+        int new_error = remove_key(trans, keynr, record, prim_key);
+        if (new_error) {
+            result = new_error;     // Return last error
+            break;          // Let rollback correct things
         }
     }
     return result;
@@ -2800,7 +2824,7 @@ int ha_tokudb::delete_row(const uchar * record) {
     /* Subtransactions may be used in order to retry the delete in
        case we get a DB_LOCK_DEADLOCK error. */
     DB_TXN *sub_trans = transaction;
-    error = remove_keys(sub_trans, record, &prim_key, &keys);
+    error = remove_keys(sub_trans, record, &prim_key);
     if (error) {
         DBUG_PRINT("error", ("Got error %d", error));
     }

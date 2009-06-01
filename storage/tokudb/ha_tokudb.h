@@ -245,7 +245,7 @@ private:
     DBT *create_dbt_key_from_table(DBT * key, uint keynr, uchar * buff, const uchar * record, bool* has_null, int key_length = MAX_KEY_LENGTH);
     DBT *pack_key(DBT * key, uint keynr, uchar * buff, const uchar * key_ptr, uint key_length, uchar inf_byte);
     int remove_key(DB_TXN * trans, uint keynr, const uchar * record, DBT * prim_key);
-    int remove_keys(DB_TXN * trans, const uchar * record, DBT * prim_key, key_map * keys);
+    int remove_keys(DB_TXN * trans, const uchar * record, DBT * prim_key);
     int key_cmp(uint keynr, const uchar * old_row, const uchar * new_row);
     int update_primary_key(DB_TXN * trans, bool primary_key_changed, const uchar * old_row, DBT * old_key, const uchar * new_row, DBT * prim_key);
     int handle_cursor_error(int error, int err_to_return, uint keynr);
