@@ -68,6 +68,234 @@ static void wait_for_kill_signal(THD *thd)
 #endif
 
 
+/**
+  @brief Helper function for explain_filename
+*/
+static char* add_identifier(char *to_p, const char * end_p,
+                           const char* name, uint name_len, int errcode)
+{
+  uint res;
+  uint errors;
+  const char *conv_name;
+  char tmp_name[FN_REFLEN];
+  char conv_string[FN_REFLEN];
+
+  DBUG_ENTER("add_identifier");
+  if (!name[name_len])
+    conv_name= name;
+  else
+  {
+    strnmov(tmp_name, name, name_len);
+    tmp_name[name_len]= 0;
+    conv_name= tmp_name;
+  }
+  res= strconvert(&my_charset_filename, conv_name, system_charset_info,
+                  conv_string, FN_REFLEN, &errors);
+  if (!res || errors)
+    conv_name= name;
+  else
+  {
+    DBUG_PRINT("info", ("conv '%s' -> '%s'", conv_name, conv_string));
+    conv_name= conv_string;
+  }
+
+  if (errcode)
+    to_p+= my_snprintf(to_p, end_p - to_p, ER(errcode), conv_name);
+  else
+    to_p+= my_snprintf(to_p, end_p - to_p, "`%s`", conv_name);
+  return to_p;
+}
+
+
+/**
+  @brief Explain a path name by split it to database, table etc.
+  
+  @details Break down the path name to its logic parts
+  (database, table, partition, subpartition).
+  filename_to_tablename cannot be used on partitions, due to the #P# part.
+  There can be up to 6 '#', #P# for partition, #SP# for subpartition
+  and #TMP# or #REN# for temporary or renamed partitions.
+  This should be used when something should be presented to a user in a
+  diagnostic, error etc. when it would be useful to know what a particular
+  file [and directory] means. Such as SHOW ENGINE STATUS, error messages etc.
+
+   @param      from         Path name in my_charset_filename
+                            Null terminated in my_charset_filename, normalized
+                            to use '/' as directory separation character.
+   @param      to           Explained name in system_charset_info
+   @param      to_length    Size of to buffer
+   @param      explain_mode Requested output format.
+                            EXPLAIN_ALL_VERBOSE ->
+                            [Database `db`, ]Table `tbl`[,[ Temporary| Renamed]
+                            Partition `p` [, Subpartition `sp`]]
+                            EXPLAIN_PARTITIONS_VERBOSE -> `db`.`tbl`
+                            [[ Temporary| Renamed] Partition `p`
+                            [, Subpartition `sp`]]
+                            EXPLAIN_PARTITIONS_AS_COMMENT -> `db`.`tbl` |*
+                            [,[ Temporary| Renamed] Partition `p`
+                            [, Subpartition `sp`]] *|
+                            (| is really a /, and it is all in one line)
+
+   @retval     Length of returned string
+*/
+
+uint explain_filename(const char *from,
+                      char *to,
+                      uint to_length,
+                      enum_explain_filename_mode explain_mode)
+{
+  uint res= 0;
+  char *to_p= to;
+  char *end_p= to_p + to_length;
+  const char *db_name= NULL;
+  int  db_name_len= 0;
+  const char *table_name;
+  int  table_name_len= 0;
+  const char *part_name= NULL;
+  int  part_name_len= 0;
+  const char *subpart_name= NULL;
+  int  subpart_name_len= 0;
+  enum enum_file_name_type {NORMAL, TEMP, RENAMED} name_type= NORMAL;
+  const char *tmp_p;
+  DBUG_ENTER("explain_filename");
+  DBUG_PRINT("enter", ("from '%s'", from));
+  tmp_p= from;
+  table_name= from;
+  /*
+    If '/' then take last directory part as database.
+    '/' is the directory separator, not FN_LIB_CHAR
+  */
+  while ((tmp_p= strchr(tmp_p, '/')))
+  {
+    db_name= table_name;
+    /* calculate the length */
+    db_name_len= tmp_p - db_name;
+    tmp_p++;
+    table_name= tmp_p;
+  }
+  tmp_p= table_name;
+  while (!res && (tmp_p= strchr(tmp_p, '#')))
+  {
+    tmp_p++;
+    switch (tmp_p[0]) {
+    case 'P':
+    case 'p':
+      if (tmp_p[1] == '#')
+        part_name= tmp_p + 2;
+      else
+        res= 1;
+      tmp_p+= 2;
+      break;
+    case 'S':
+    case 's':
+      if ((tmp_p[1] == 'P' || tmp_p[1] == 'p') && tmp_p[2] == '#')
+      {
+        part_name_len= tmp_p - part_name - 1;
+        subpart_name= tmp_p + 3;
+      }
+      else
+        res= 2;
+      tmp_p+= 3;
+      break;
+    case 'T':
+    case 't':
+      if ((tmp_p[1] == 'M' || tmp_p[1] == 'm') &&
+          (tmp_p[2] == 'P' || tmp_p[2] == 'p') &&
+          tmp_p[3] == '#' && !tmp_p[4])
+        name_type= TEMP;
+      else
+        res= 3;
+      tmp_p+= 4;
+      break;
+    case 'R':
+    case 'r':
+      if ((tmp_p[1] == 'E' || tmp_p[1] == 'e') &&
+          (tmp_p[2] == 'N' || tmp_p[2] == 'n') &&
+          tmp_p[3] == '#' && !tmp_p[4])
+        name_type= RENAMED;
+      else
+        res= 4;
+      tmp_p+= 4;
+      break;
+    default:
+      res= 5;
+    }
+  }
+  if (res)
+  {
+    /* Better to give something back if we fail parsing, than nothing at all */
+    DBUG_PRINT("info", ("Error in explain_filename: %u", res));
+    sql_print_warning("Invalid (old?) table or database name '%s'", from);
+    DBUG_RETURN(my_snprintf(to, to_length,
+                            "<result %u when explaining filename '%s'>",
+                            res, from));
+  }
+  if (part_name)
+  {
+    table_name_len= part_name - table_name - 3;
+    if (subpart_name)
+      subpart_name_len= strlen(subpart_name);
+    else
+      part_name_len= strlen(part_name);
+    if (name_type != NORMAL)
+    {
+      if (subpart_name)
+        subpart_name_len-= 5;
+      else
+        part_name_len-= 5;
+    }
+  }
+  if (db_name)
+  {
+    if (explain_mode == EXPLAIN_ALL_VERBOSE)
+    {
+      to_p= add_identifier(to_p, end_p, db_name, db_name_len,
+                           ER_DATABASE_NAME);
+      to_p= strnmov(to_p, ", ", end_p - to_p);
+    }
+    else
+    {
+      to_p= add_identifier(to_p, end_p, db_name, db_name_len, 0);
+      to_p= strnmov(to_p, ".", end_p - to_p);
+    }
+  }
+  if (explain_mode == EXPLAIN_ALL_VERBOSE)
+    to_p= add_identifier(to_p, end_p, table_name, table_name_len,
+                         ER_TABLE_NAME);
+  else
+    to_p= add_identifier(to_p, end_p, table_name, table_name_len, 0);
+  if (part_name)
+  {
+    if (explain_mode == EXPLAIN_PARTITIONS_AS_COMMENT)
+      to_p= strnmov(to_p, " /* ", end_p - to_p);
+    else if (explain_mode == EXPLAIN_PARTITIONS_VERBOSE)
+      to_p= strnmov(to_p, " ", end_p - to_p);
+    else
+      to_p= strnmov(to_p, ", ", end_p - to_p);
+    if (name_type != NORMAL)
+    {
+      if (name_type == TEMP)
+        to_p= strnmov(to_p, ER(ER_TEMPORARY_NAME), end_p - to_p);
+      else
+        to_p= strnmov(to_p, ER(ER_RENAMED_NAME), end_p - to_p);
+      to_p= strnmov(to_p, " ", end_p - to_p);
+    }
+    to_p= add_identifier(to_p, end_p, part_name, part_name_len,
+                         ER_PARTITION_NAME);
+    if (subpart_name)
+    {
+      to_p= strnmov(to_p, ", ", end_p - to_p);
+      to_p= add_identifier(to_p, end_p, subpart_name, subpart_name_len,
+                           ER_SUBPARTITION_NAME);
+    }
+    if (explain_mode == EXPLAIN_PARTITIONS_AS_COMMENT)
+      to_p= strnmov(to_p, " */", end_p - to_p);
+  }
+  DBUG_PRINT("exit", ("to '%s'", to));
+  DBUG_RETURN(to_p - to);
+}
+
+
 /*
   Translate a file name to a table name (WL #1324).
 
