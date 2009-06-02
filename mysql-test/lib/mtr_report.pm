@@ -221,8 +221,8 @@ sub mtr_report_test ($) {
 }
 
 
-sub mtr_report_stats ($) {
-  my $tests= shift;
+sub mtr_report_stats ($;$) {
+  my ($tests, $dont_error)= @_;
 
   # ----------------------------------------------------------------------
   # Find out how we where doing
@@ -374,7 +374,7 @@ sub mtr_report_stats ($) {
 
   if ( $tot_failed != 0 || $found_problems)
   {
-    mtr_error("there were failing test cases");
+    mtr_error("there were failing test cases") unless $dont_error;
   }
 }
 

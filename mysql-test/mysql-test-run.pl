@@ -528,6 +528,8 @@ sub run_test_server ($$$) {
 	    elsif ($opt_max_test_fail > 0 and
 		   $num_failed_test >= $opt_max_test_fail) {
 	      $suite_timeout_proc->kill();
+	      push(@$completed, $result);
+	      mtr_report_stats($completed, 1);
 	      mtr_report("Too many tests($num_failed_test) failed!",
 			 "Terminating...");
 	      return undef;
@@ -659,6 +661,7 @@ sub run_test_server ($$$) {
     # ----------------------------------------------------
     if ( ! $suite_timeout_proc->wait_one(0) )
     {
+      mtr_report_stats($completed, 1);
       mtr_report("Test suite timeout! Terminating...");
       return undef;
     }
