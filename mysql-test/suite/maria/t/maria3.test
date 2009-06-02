@@ -109,6 +109,30 @@ alter table t1 row_format=DYNAMIC;
 show create table t1;
 drop table t1;
 
+#
+# MySQL Bug#39200: optimize table does not recognize ROW_FORMAT=COMPRESSED
+#
+
+create table t1 (a int) transactional=0 row_format=FIXED;
+show create table t1;
+alter table t1 transactional=1;
+show create table t1;
+alter table t1 transactional=0;
+show create table t1;
+drop table t1;
+
+#
+# MySQL Bug#39200: optimize table does not recognize ROW_FORMAT=COMPRESSED
+#
+
+create table t1 (a int) transactional=0 row_format=FIXED;
+show create table t1;
+alter table t1 transactional=1;
+show create table t1;
+alter table t1 transactional=0;
+show create table t1;
+drop table t1;
+
 # CHECK TABLE was reporting
 # "Size of datafile is: 0         Should be: 16384"
 #
