@@ -1958,8 +1958,8 @@ void Item_func_round::fix_length_and_dec()
   unsigned_flag= args[0]->unsigned_flag;
   if (!args[1]->const_item())
   {
-    max_length= args[0]->max_length;
     decimals= args[0]->decimals;
+    max_length= float_length(decimals);
     if (args[0]->result_type() == DECIMAL_RESULT)
     {
       max_length++;
@@ -1979,8 +1979,8 @@ void Item_func_round::fix_length_and_dec()
 
   if (args[0]->decimals == NOT_FIXED_DEC)
   {
-    max_length= args[0]->max_length;
     decimals= min(decimals_to_set, NOT_FIXED_DEC);
+    max_length= float_length(decimals);
     hybrid_type= REAL_RESULT;
     return;
   }
