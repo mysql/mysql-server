@@ -1,0 +1,123 @@
+.\"     Title: \fBmysql_fix_privilege_tables\fR
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.70.1 <http://docbook.sf.net/>
+.\"      Date: 03/31/2009
+.\"    Manual: MySQL Database System
+.\"    Source: MySQL 5.1
+.\"
+.TH "\fBMYSQL_FIX_PRIVILE" "1" "03/31/2009" "MySQL 5.1" "MySQL Database System"
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.SH "NAME"
+mysql_fix_privilege_tables \- upgrade MySQL system tables
+.SH "SYNOPSIS"
+.HP 52
+\fBmysql_fix_privilege_tables \-\-password=\fR\fB\fIroot_password\fR\fR
+.SH "DESCRIPTION"
+.PP
+Some releases of MySQL introduce changes to the structure of the system tables in the
+mysql
+database to add new privileges or support new features. When you update to a new version of MySQL, you should update your system tables as well to make sure that their structure is up to date. Otherwise, there might be capabilities that you cannot take advantage of. First, make a backup of your
+mysql
+database, and then use the following procedure.
+.sp
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+\fBNote\fR
+.PP
+As of MySQL 5.1.7,
+\fBmysql_fix_privilege_tables\fR
+is superseded by
+\fBmysql_upgrade\fR, which should be used instead. See
+\fBmysql_upgrade\fR(1).
+.PP
+On Unix or Unix\-like systems, update the system tables by running the
+\fBmysql_fix_privilege_tables\fR
+script:
+.sp
+.RS 3n
+.nf
+shell> \fBmysql_fix_privilege_tables\fR
+.fi
+.RE
+.PP
+You must run this script while the server is running. It attempts to connect to the server running on the local host as
+root. If your
+root
+account requires a password, indicate the password on the command line like this:
+.sp
+.RS 3n
+.nf
+shell> \fBmysql_fix_privilege_tables \-\-password=\fR\fB\fIroot_password\fR\fR
+.fi
+.RE
+.PP
+The
+\fBmysql_fix_privilege_tables\fR
+script performs any actions necessary to convert your system tables to the current format. You might see some
+Duplicate column name
+warnings as it runs; you can ignore them.
+.PP
+After running the script, stop the server and restart it so that it uses any changes that were made to the system tables.
+.PP
+On Windows systems, MySQL distributions include a
+\fImysql_fix_privilege_tables.sql\fR
+SQL script that you can run using the
+\fBmysql\fR
+client. For example, if your MySQL installation is located at
+\fIC:\\Program Files\\MySQL\\MySQL Server 5.1\fR, the commands look like this:
+.sp
+.RS 3n
+.nf
+C:\\> \fBcd "C:\\Program Files\\MySQL\\MySQL Server 5.1"\fR
+C:\\> \fBbin\\mysql \-u root \-p mysql\fR
+mysql> \fBSOURCE share/mysql_fix_privilege_tables.sql\fR
+.fi
+.RE
+.sp
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+\fBNote\fR
+.PP
+Prior to version 5.1.17, this script is found in the
+\fIscripts\fR
+directory.
+.PP
+The
+\fBmysql\fR
+command will prompt you for the
+root
+password; enter it when prompted.
+.PP
+If your installation is located in some other directory, adjust the path names appropriately.
+.PP
+As with the Unix procedure, you might see some
+Duplicate column name
+warnings as
+\fBmysql\fR
+processes the statements in the
+\fImysql_fix_privilege_tables.sql\fR
+script; you can ignore them.
+.PP
+After running the script, stop the server and restart it.
+.SH "COPYRIGHT"
+.PP
+Copyright 2007\-2008 MySQL AB, 2009 Sun Microsystems, Inc.
+.PP
+This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
+.PP
+This documentation is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+.PP
+You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110\-1301 USA or see http://www.gnu.org/licenses/.
+.SH "SEE ALSO"
+For more information, please refer to the MySQL Reference Manual,
+which may already be installed locally and which is also available
+online at http://dev.mysql.com/doc/.
+.SH AUTHOR
+MySQL AB (http://www.mysql.com/).

@@ -1,0 +1,265 @@
+.\"     Title: \fBmysqlhotcopy\fR
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.70.1 <http://docbook.sf.net/>
+.\"      Date: 03/31/2009
+.\"    Manual: MySQL Database System
+.\"    Source: MySQL 5.1
+.\"
+.TH "\fBMYSQLHOTCOPY\fR" "1" "03/31/2009" "MySQL 5.1" "MySQL Database System"
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.SH "NAME"
+mysqlhotcopy \- a database backup program
+.SH "SYNOPSIS"
+.HP 23
+\fBmysqlhotcopy \fR\fB\fIarguments\fR\fR
+.SH "DESCRIPTION"
+.PP
+\fBmysqlhotcopy\fR
+is a Perl script that was originally written and contributed by Tim Bunce. It uses
+LOCK TABLES,
+FLUSH TABLES, and
+cp
+or
+scp
+to make a database backup quickly. It is the fastest way to make a backup of the database or single tables, but it can be run only on the same machine where the database directories are located.
+\fBmysqlhotcopy\fR
+works only for backing up
+MyISAM
+and
+ARCHIVE
+tables. It runs on Unix and NetWare.
+.sp
+.RS 3n
+.nf
+shell> \fBmysqlhotcopy \fR\fB\fIdb_name\fR\fR\fB [\fR\fB\fI/path/to/new_directory\fR\fR\fB]\fR
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+shell> \fBmysqlhotcopy \fR\fB\fIdb_name_1\fR\fR\fB ... \fR\fB\fIdb_name_n\fR\fR\fB \fR\fB\fI/path/to/new_directory\fR\fR
+.fi
+.RE
+.PP
+Back up tables in the given database that match a regular expression:
+.sp
+.RS 3n
+.nf
+shell> \fBmysqlhotcopy \fR\fB\fIdb_name\fR\fR\fB./\fR\fB\fIregex\fR\fR\fB/\fR
+.fi
+.RE
+.PP
+The regular expression for the table name can be negated by prefixing it with a tilde (\(lq~\(rq):
+.sp
+.RS 3n
+.nf
+shell> \fBmysqlhotcopy \fR\fB\fIdb_name\fR\fR\fB./~\fR\fB\fIregex\fR\fR\fB/\fR
+.fi
+.RE
+.PP
+\fBmysqlhotcopy\fR
+supports the following options:
+.TP 3n
+\(bu
+\fB\-\-help\fR,
+\fB\-?\fR
+.sp
+Display a help message and exit.
+.TP 3n
+\(bu
+\fB\-\-addtodest\fR
+.sp
+Do not rename target directory (if it exists); merely add files to it.
+.TP 3n
+\(bu
+\fB\-\-allowold\fR
+.sp
+Do not abort if a target exists; rename it by adding an
+_old
+suffix.
+.TP 3n
+\(bu
+\fB\-\-checkpoint=\fR\fB\fIdb_name\fR\fR\fB.\fR\fB\fItbl_name\fR\fR
+.sp
+Insert checkpoint entries into the specified database
+\fIdb_name\fR
+and table
+\fItbl_name\fR.
+.TP 3n
+\(bu
+\fB\-\-chroot=\fR\fB\fIpath\fR\fR
+.sp
+Base directory of the
+\fBchroot\fR
+jail in which
+\fBmysqld\fR
+operates. The
+\fIpath\fR
+value should match that of the
+\fB\-\-chroot\fR
+option given to
+\fBmysqld\fR.
+.TP 3n
+\(bu
+\fB\-\-debug\fR
+.sp
+Enable debug output.
+.TP 3n
+\(bu
+\fB\-\-dryrun\fR,
+\fB\-n\fR
+.sp
+Report actions without performing them.
+.TP 3n
+\(bu
+\fB\-\-flushlog\fR
+.sp
+Flush logs after all tables are locked.
+.TP 3n
+\(bu
+\fB\-\-host=\fR\fB\fIhost_name\fR\fR,
+\fB\-h \fR\fB\fIhost_name\fR\fR
+.sp
+The host name of the local host to use for making a TCP/IP connection to the local server. By default, the connection is made to
+localhost
+using a Unix socket file.
+.TP 3n
+\(bu
+\fB\-\-keepold\fR
+.sp
+Do not delete previous (renamed) target when done.
+.TP 3n
+\(bu
+\fB\-\-method=\fR\fB\fIcommand\fR\fR
+.sp
+The method for copying files (cp
+or
+scp).
+.TP 3n
+\(bu
+\fB\-\-noindices\fR
+.sp
+Do not include full index files in the backup. This makes the backup smaller and faster. The indexes for reloaded tables can be reconstructed later with
+\fBmyisamchk \-rq\fR.
+.TP 3n
+\(bu
+\fB\-\-password=\fR\fB\fIpassword\fR\fR,
+\fB\-p\fR\fB\fIpassword\fR\fR
+.sp
+The password to use when connecting to the server. Note that the password value is not optional for this option, unlike for other MySQL programs. You can use an option file to avoid giving the password on the command line.
+.sp
+Specifying a password on the command line should be considered insecure. See
+Section\ 5.5.6.2, \(lqEnd\-User Guidelines for Password Security\(rq.
+.TP 3n
+\(bu
+\fB\-\-port=\fR\fB\fIport_num\fR\fR,
+\fB\-P \fR\fB\fIport_num\fR\fR
+.sp
+The TCP/IP port number to use when connecting to the local server.
+.TP 3n
+\(bu
+\fB\-\-quiet\fR,
+\fB\-q\fR
+.sp
+Be silent except for errors.
+.TP 3n
+\(bu
+\fB\-\-record_log_pos=\fR\fB\fIdb_name\fR\fR\fB.\fR\fB\fItbl_name\fR\fR
+.sp
+Record master and slave status in the specified database
+\fIdb_name\fR
+and table
+\fItbl_name\fR.
+.TP 3n
+\(bu
+\fB\-\-regexp=\fR\fB\fIexpr\fR\fR
+.sp
+Copy all databases with names that match the given regular expression.
+.TP 3n
+\(bu
+\fB\-\-resetmaster\fR
+.sp
+Reset the binary log after locking all the tables.
+.TP 3n
+\(bu
+\fB\-\-resetslave\fR
+.sp
+Reset the
+\fImaster.info\fR
+file after locking all the tables.
+.TP 3n
+\(bu
+\fB\-\-socket=\fR\fB\fIpath\fR\fR,
+\fB\-S \fR\fB\fIpath\fR\fR
+.sp
+The Unix socket file to use for the connection.
+.TP 3n
+\(bu
+\fB\-\-suffix=\fR\fB\fIstr\fR\fR
+.sp
+The suffix for names of copied databases.
+.TP 3n
+\(bu
+\fB\-\-tmpdir=\fR\fB\fIpath\fR\fR
+.sp
+The temporary directory. The default is
+\fI/tmp\fR.
+.TP 3n
+\(bu
+\fB\-\-user=\fR\fB\fIuser_name\fR\fR,
+\fB\-u \fR\fB\fIuser_name\fR\fR
+.sp
+The MySQL user name to use when connecting to the server.
+.sp
+.RE
+.PP
+\fBmysqlhotcopy\fR
+reads the
+[client]
+and
+[mysqlhotcopy]
+option groups from option files.
+.PP
+To execute
+\fBmysqlhotcopy\fR, you must have access to the files for the tables that you are backing up, the
+SELECT
+privilege for those tables, the
+RELOAD
+privilege (to be able to execute
+FLUSH TABLES), and the
+LOCK TABLES
+privilege (to be able to lock the tables).
+.PP
+Use
+perldoc
+for additional
+\fBmysqlhotcopy\fR
+documentation, including information about the structure of the tables needed for the
+\fB\-\-checkpoint\fR
+and
+\fB\-\-record_log_pos\fR
+options:
+.sp
+.RS 3n
+.nf
+shell> \fBperldoc mysqlhotcopy\fR
+.fi
+.RE
+.SH "COPYRIGHT"
+.PP
+Copyright 2007\-2008 MySQL AB, 2009 Sun Microsystems, Inc.
+.PP
+This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
+.PP
+This documentation is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+.PP
+You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110\-1301 USA or see http://www.gnu.org/licenses/.
+.SH "SEE ALSO"
+For more information, please refer to the MySQL Reference Manual,
+which may already be installed locally and which is also available
+online at http://dev.mysql.com/doc/.
+.SH AUTHOR
+MySQL AB (http://www.mysql.com/).

@@ -1,0 +1,190 @@
+.\"     Title: \fBmysql_upgrade\fR
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.70.1 <http://docbook.sf.net/>
+.\"      Date: 03/31/2009
+.\"    Manual: MySQL Database System
+.\"    Source: MySQL 5.1
+.\"
+.TH "\fBMYSQL_UPGRADE\fR" "1" "03/31/2009" "MySQL 5.1" "MySQL Database System"
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.SH "NAME"
+mysql_upgrade \- check tables for MySQL upgrade
+.SH "SYNOPSIS"
+.HP 24
+\fBmysql_upgrade [\fR\fB\fIoptions\fR\fR\fB]\fR
+.SH "DESCRIPTION"
+.PP
+\fBmysql_upgrade\fR
+should be executed each time you upgrade MySQL. It checks all tables in all databases for incompatibilities with the current version of MySQL Server. If a table is found to have a possible incompatibility, it is checked. If any problems are found, the table is repaired.
+\fBmysql_upgrade\fR
+also upgrades the system tables so that you can take advantage of new privileges or capabilities that might have been added.
+.PP
+All checked and repaired tables are marked with the current MySQL version number. This ensures that next time you run
+\fBmysql_upgrade\fR
+with the same version of the server, it can tell whether there is any need to check or repair the table again.
+.PP
+\fBmysql_upgrade\fR
+also saves the MySQL version number in a file named
+\fImysql_upgrade_info\fR
+in the data directory. This is used to quickly check if all tables have been checked for this release so that table\-checking can be skipped. To ignore this file, use the
+\fB\-\-force\fR
+option.
+.sp
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+\fBCaution\fR
+.PP
+Some upgrade incompatibilities may require special handling
+\fIbefore\fR
+you upgrade your MySQL installation and run
+\fBmysql_upgrade\fR. See
+Section\ 2.12.1, \(lqUpgrading MySQL\(rq, for instructions on determining whether any such incompatibilities apply to your installation and how to handle them.
+.PP
+To check and repair tables and to upgrade the system tables,
+\fBmysql_upgrade\fR
+executes the following commands:
+.sp
+.RS 3n
+.nf
+mysqlcheck \-\-check\-upgrade \-\-all\-databases \-\-auto\-repair
+mysql_fix_privilege_tables
+mysqlcheck \-\-all\-databases \-\-check\-upgrade \-\-fix\-db\-names \-\-fix\-table\-names
+.fi
+.RE
+.sp
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+\fBNote\fR
+.PP
+Prior to MySQL 5.1.31,
+\fBmysql_upgrade\fR
+does not run the third command, which is necessary to re\-encode database or table names that contain non\-alphanumeric characters. (They still appear after the upgrade with the
+#mysql50#
+prefix described in
+Section\ 8.2.3, \(lqMapping of Identifiers to File Names\(rq.) If you have such database or table names, execute the third command manually after executing
+\fBmysql_upgrade\fR.
+.PP
+\fBmysql_upgrade\fR
+supersedes the older
+\fBmysql_fix_privilege_tables\fR
+script. In MySQL 5.1.7,
+\fBmysql_upgrade \fR
+was added as a shell script and worked only for Unix systems. As of MySQL 5.1.10,
+\fBmysql_upgrade\fR
+is an executable binary and is available on all systems. On systems older than those supporting
+\fBmysql_upgrade\fR, you can execute the
+\fBmysqlcheck\fR
+command manually, and then upgrade your system tables as described in
+\fBmysql_fix_privilege_tables\fR(1).
+.PP
+If you install MySQL from RPM packages on Linux, you must install the server and client RPMs.
+\fBmysql_upgrade\fR
+is included in the server RPM but requires the client RPM because the latter includes
+\fBmysqlcheck\fR. (See
+Section\ 2.4, \(lqInstalling MySQL from RPM Packages on Linux\(rq.)
+.PP
+For details about what is checked, see the description of the
+FOR UPGRADE
+option of the
+CHECK TABLE
+statement (see
+Section\ 12.5.2.3, \(lqCHECK TABLE Syntax\(rq).
+.PP
+To use
+\fBmysql_upgrade\fR, make sure that the server is running, and then invoke it like this:
+.sp
+.RS 3n
+.nf
+shell> \fBmysql_upgrade [\fR\fB\fIoptions\fR\fR\fB]\fR
+.fi
+.RE
+.PP
+After running
+\fBmysql_upgrade\fR, stop the server and restart it so that it uses any changes that were made to the system tables.
+.PP
+\fBmysql_upgrade\fR
+reads options from the command line and from the
+[mysql_upgrade]
+group in option files. It supports the options in the following list. Other options are passed to
+\fBmysqlcheck\fR
+and to
+\fBmysql_fix_privilege_tables\fR. For example, it might be necessary to specify the
+\fB\-\-password[=\fR\fB\fIpassword\fR\fR\fB]\fR
+option.
+.TP 3n
+\(bu
+\fB\-\-help\fR
+.sp
+Display a short help message and exit.
+.TP 3n
+\(bu
+\fB\-\-basedir=\fR\fB\fIpath\fR\fR
+.sp
+The path to the MySQL installation directory.
+.TP 3n
+\(bu
+\fB\-\-datadir=\fR\fB\fIpath\fR\fR
+.sp
+The path to the data directory.
+.TP 3n
+\(bu
+\fB\-\-debug\-check\fR
+.sp
+Print some debugging information when the program exits. This option was added in MySQL 5.1.21.
+.TP 3n
+\(bu
+\fB\-\-debug\-info\fR,
+\fB\-T\fR
+.sp
+Print debugging information and memory and CPU usage statistics when the program exits. This option was added in MySQL 5.1.21.
+.TP 3n
+\(bu
+\fB\-\-force\fR
+.sp
+Force execution of
+\fBmysqlcheck\fR
+even if
+\fBmysql_upgrade\fR
+has already been executed for the current version of MySQL. (In other words, this option causes the
+\fImysql_upgrade_info\fR
+file to be ignored.)
+.TP 3n
+\(bu
+\fB\-\-tmpdir=\fR\fB\fIpath\fR\fR,
+\fB\-t \fR\fB\fIpath\fR\fR
+.sp
+The path name of the directory to use for creating temporary files. This option was added in MySQL 5.1.25.
+.TP 3n
+\(bu
+\fB\-\-user=\fR\fB\fIuser_name\fR\fR,
+\fB\-u \fR\fB\fIuser_name\fR\fR
+.sp
+The MySQL user name to use when connecting to the server. The default user name is
+root.
+.TP 3n
+\(bu
+\fB\-\-verbose\fR
+.sp
+Verbose mode. Print more information about what the program does.
+.SH "COPYRIGHT"
+.PP
+Copyright 2007\-2008 MySQL AB, 2009 Sun Microsystems, Inc.
+.PP
+This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
+.PP
+This documentation is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+.PP
+You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110\-1301 USA or see http://www.gnu.org/licenses/.
+.SH "SEE ALSO"
+For more information, please refer to the MySQL Reference Manual,
+which may already be installed locally and which is also available
+online at http://dev.mysql.com/doc/.
+.SH AUTHOR
+MySQL AB (http://www.mysql.com/).

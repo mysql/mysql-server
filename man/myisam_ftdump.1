@@ -1,0 +1,151 @@
+.\"     Title: \fBmyisam_ftdump\fR
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.70.1 <http://docbook.sf.net/>
+.\"      Date: 03/31/2009
+.\"    Manual: MySQL Database System
+.\"    Source: MySQL 5.1
+.\"
+.TH "\fBMYISAM_FTDUMP\fR" "1" "03/31/2009" "MySQL 5.1" "MySQL Database System"
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.SH "NAME"
+myisam_ftdump \- display full\-text index information
+.SH "SYNOPSIS"
+.HP 43
+\fBmyisam_ftdump [\fR\fB\fIoptions\fR\fR\fB] \fR\fB\fItbl_name\fR\fR\fB \fR\fB\fIindex_num\fR\fR
+.SH "DESCRIPTION"
+.PP
+\fBmyisam_ftdump\fR
+displays information about
+FULLTEXT
+indexes in
+MyISAM
+tables. It reads the
+MyISAM
+index file directly, so it must be run on the server host where the table is located
+.PP
+Invoke
+\fBmyisam_ftdump\fR
+like this:
+.sp
+.RS 3n
+.nf
+shell> \fBmyisam_ftdump [\fR\fB\fIoptions\fR\fR\fB] \fR\fB\fItbl_name\fR\fR\fB \fR\fB\fIindex_num\fR\fR
+.fi
+.RE
+.PP
+The
+\fItbl_name\fR
+argument should be the name of a
+MyISAM
+table. You can also specify a table by naming its index file (the file with the
+\fI.MYI\fR
+suffix). If you do not invoke
+\fBmyisam_ftdump\fR
+in the directory where the table files are located, the table or index file name must be preceded by the path name to the table's database directory. Index numbers begin with 0.
+.PP
+Example: Suppose that the
+test
+database contains a table named
+mytexttablel
+that has the following definition:
+.sp
+.RS 3n
+.nf
+CREATE TABLE mytexttable
+(
+  id   INT NOT NULL,
+  txt  TEXT NOT NULL,
+  PRIMARY KEY (id),
+  FULLTEXT (txt)
+);
+.fi
+.RE
+.PP
+The index on
+id
+is index 0 and the
+FULLTEXT
+index on
+txt
+is index 1. If your working directory is the
+test
+database directory, invoke
+\fBmyisam_ftdump\fR
+as follows:
+.sp
+.RS 3n
+.nf
+shell> \fBmyisam_ftdump mytexttable 1\fR
+.fi
+.RE
+.PP
+If the path name to the
+test
+database directory is
+\fI/usr/local/mysql/data/test\fR, you can also specify the table name argument using that path name. This is useful if you do not invoke
+\fBmyisam_ftdump\fR
+in the database directory:
+.sp
+.RS 3n
+.nf
+shell> \fBmyisam_ftdump /usr/local/mysql/data/test/mytexttable 1\fR
+.fi
+.RE
+.PP
+\fBmyisam_ftdump\fR
+understands the following options:
+.TP 3n
+\(bu
+\fB\-\-help\fR,
+\fB\-h\fR
+\fB\-?\fR
+.sp
+Display a help message and exit.
+.TP 3n
+\(bu
+\fB\-\-count\fR,
+\fB\-c\fR
+.sp
+Calculate per\-word statistics (counts and global weights).
+.TP 3n
+\(bu
+\fB\-\-dump\fR,
+\fB\-d\fR
+.sp
+Dump the index, including data offsets and word weights.
+.TP 3n
+\(bu
+\fB\-\-length\fR,
+\fB\-l\fR
+.sp
+Report the length distribution.
+.TP 3n
+\(bu
+\fB\-\-stats\fR,
+\fB\-s\fR
+.sp
+Report global index statistics. This is the default operation if no other operation is specified.
+.TP 3n
+\(bu
+\fB\-\-verbose\fR,
+\fB\-v\fR
+.sp
+Verbose mode. Print more output about what the program does.
+.SH "COPYRIGHT"
+.PP
+Copyright 2007\-2008 MySQL AB, 2009 Sun Microsystems, Inc.
+.PP
+This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
+.PP
+This documentation is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+.PP
+You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110\-1301 USA or see http://www.gnu.org/licenses/.
+.SH "SEE ALSO"
+For more information, please refer to the MySQL Reference Manual,
+which may already be installed locally and which is also available
+online at http://dev.mysql.com/doc/.
+.SH AUTHOR
+MySQL AB (http://www.mysql.com/).

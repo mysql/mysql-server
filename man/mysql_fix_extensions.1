@@ -1,0 +1,62 @@
+.\"     Title: \fBmysql_fix_extensions\fR
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.70.1 <http://docbook.sf.net/>
+.\"      Date: 03/31/2009
+.\"    Manual: MySQL Database System
+.\"    Source: MySQL 5.1
+.\"
+.TH "\fBMYSQL_FIX_EXTENSI" "1" "03/31/2009" "MySQL 5.1" "MySQL Database System"
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.SH "NAME"
+mysql_fix_extensions \- normalize table file name extensions
+.SH "SYNOPSIS"
+.HP 30
+\fBmysql_fix_extensions \fR\fB\fIdata_dir\fR\fR
+.SH "DESCRIPTION"
+.PP
+\fBmysql_fix_extensions\fR
+converts the extensions for
+MyISAM
+(or
+ISAM) table files to their canonical forms. It looks for files with extensions matching any lettercase variant of
+\fI.frm\fR,
+\fI.myd\fR,
+\fI.myi\fR,
+\fI.isd\fR, and
+\fI.ism\fR
+and renames them to have extensions of
+\fI.frm\fR,
+\fI.MYD\fR,
+\fI.MYI\fR,
+\fI.ISD\fR, and
+\fI.ISM\fR, respectively. This can be useful after transferring the files from a system with case\-insensitive file names (such as Windows) to a system with case\-sensitive file names.
+.PP
+Invoke
+\fBmysql_fix_extensions\fR
+like this, where
+\fIdata_dir\fR
+is the path name to the MySQL data directory.
+.sp
+.RS 3n
+.nf
+shell> \fBmysql_fix_extensions \fR\fB\fIdata_dir\fR\fR
+.fi
+.RE
+.SH "COPYRIGHT"
+.PP
+Copyright 2007\-2008 MySQL AB, 2009 Sun Microsystems, Inc.
+.PP
+This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
+.PP
+This documentation is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+.PP
+You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110\-1301 USA or see http://www.gnu.org/licenses/.
+.SH "SEE ALSO"
+For more information, please refer to the MySQL Reference Manual,
+which may already be installed locally and which is also available
+online at http://dev.mysql.com/doc/.
+.SH AUTHOR
+MySQL AB (http://www.mysql.com/).

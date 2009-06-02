@@ -1,0 +1,137 @@
+.\"     Title: \fBcomp_err\fR
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.70.1 <http://docbook.sf.net/>
+.\"      Date: 03/31/2009
+.\"    Manual: MySQL Database System
+.\"    Source: MySQL 5.1
+.\"
+.TH "\fBCOMP_ERR\fR" "1" "03/31/2009" "MySQL 5.1" "MySQL Database System"
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.SH "NAME"
+comp_err \- compile MySQL error message file
+.SH "SYNOPSIS"
+.HP 19
+\fBcomp_err [\fR\fB\fIoptions\fR\fR\fB]\fR
+.SH "DESCRIPTION"
+.PP
+\fBcomp_err\fR
+creates the
+\fIerrmsg.sys\fR
+file that is used by
+\fBmysqld\fR
+to determine the error messages to display for different error codes.
+\fBcomp_err\fR
+normally is run automatically when MySQL is built. It compiles the
+\fIerrmsg.sys\fR
+file from the plaintext file located at
+\fIsql/share/errmsg.txt\fR
+in MySQL source distributions.
+.PP
+\fBcomp_err\fR
+also generates
+\fImysqld_error.h\fR,
+\fImysqld_ername.h\fR, and
+\fIsql_state.h\fR
+header files.
+.PP
+For more information about how error messages are defined, see the MySQL Internals Manual.
+.PP
+Invoke
+\fBcomp_err\fR
+like this:
+.sp
+.RS 3n
+.nf
+shell> \fBcomp_err [\fR\fB\fIoptions\fR\fR\fB]\fR
+.fi
+.RE
+.PP
+\fBcomp_err\fR
+understands the options described in the following list.
+.TP 3n
+\(bu
+\fB\-\-help\fR,
+\fB\-?\fR
+.sp
+Display a help message and exit.
+.TP 3n
+\(bu
+\fB\-\-charset=\fR\fB\fIpath\fR\fR\fB, \-C \fR\fB\fIpath\fR\fR
+.sp
+The character set directory. The default is
+\fI../sql/share/charsets\fR.
+.TP 3n
+\(bu
+\fB\-\-debug=\fR\fB\fIdebug_options\fR\fR\fB, \-# \fR\fB\fIdebug_options\fR\fR
+.sp
+Write a debugging log. The
+\fIdebug_options\fR
+string often is
+\'d:t:O,\fIfile_name\fR'. The default is
+\'d:t:O,/tmp/comp_err.trace'.
+.TP 3n
+\(bu
+\fB\-\-debug\-info\fR,
+\fB\-T\fR
+.sp
+Print some debugging information when the program exits.
+.TP 3n
+\(bu
+\fB\-\-header_file=\fR\fB\fIfile_name\fR\fR\fB, \-H \fR\fB\fIfile_name\fR\fR
+.sp
+The name of the error header file. The default is
+\fImysqld_error.h\fR.
+.TP 3n
+\(bu
+\fB\-\-in_file=\fR\fB\fIfile_name\fR\fR\fB, \-F \fR\fB\fIfile_name\fR\fR
+.sp
+The name of the input file. The default is
+\fI../sql/share/errmsg.txt\fR.
+.TP 3n
+\(bu
+\fB\-\-name_file=\fR\fB\fIfile_name\fR\fR\fB, \-N \fR\fB\fIfile_name\fR\fR
+.sp
+The name of the error name file. The default is
+\fImysqld_ername.h\fR.
+.TP 3n
+\(bu
+\fB\-\-out_dir=\fR\fB\fIpath\fR\fR\fB, \-D \fR\fB\fIpath\fR\fR
+.sp
+The name of the output base directory. The default is
+\fI../sql/share/\fR.
+.TP 3n
+\(bu
+\fB\-\-out_file=\fR\fB\fIfile_name\fR\fR\fB, \-O \fR\fB\fIfile_name\fR\fR
+.sp
+The name of the output file. The default is
+\fIerrmsg.sys\fR.
+.TP 3n
+\(bu
+\fB\-\-statefile=\fR\fB\fIfile_name\fR\fR\fB, \-S \fR\fB\fIfile_name\fR\fR
+.sp
+The name for the SQLSTATE header file. The default is
+\fIsql_state.h\fR.
+.TP 3n
+\(bu
+\fB\-\-version\fR,
+\fB\-V\fR
+.sp
+Display version information and exit.
+.SH "COPYRIGHT"
+.PP
+Copyright 2007\-2008 MySQL AB, 2009 Sun Microsystems, Inc.
+.PP
+This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
+.PP
+This documentation is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+.PP
+You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110\-1301 USA or see http://www.gnu.org/licenses/.
+.SH "SEE ALSO"
+For more information, please refer to the MySQL Reference Manual,
+which may already be installed locally and which is also available
+online at http://dev.mysql.com/doc/.
+.SH AUTHOR
+MySQL AB (http://www.mysql.com/).
