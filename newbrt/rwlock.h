@@ -71,9 +71,6 @@ static inline void rwlock_read_lock(RWLOCK rwlock, toku_pthread_mutex_t *mutex) 
 }
 
 
-// TODO: #1398  Get rid of this hack.
-#ifdef  BRT_LEVEL_STRADDLE_CALLBACK_LOGIC_NOT_READY
-
 // preferentially obtain a read lock (ignore request for write lock)
 // expects: mutex is locked
 
@@ -83,7 +80,6 @@ static inline void rwlock_prefer_read_lock(RWLOCK rwlock, toku_pthread_mutex_t *
     else
 	rwlock_read_lock(rwlock, mutex);
 }
-#endif
 
 
 // release a read lock

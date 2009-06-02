@@ -8,6 +8,7 @@ extern "C" {
 #include "pthread.h"
 #include <toku_time.h>
 
+#define USE_PTHREADS_WIN32_RWLOCKS 0
 int toku_pthread_win32_init(void);
 int toku_pthread_win32_destroy(void);
 
@@ -17,8 +18,18 @@ typedef pthread_mutexattr_t     toku_pthread_mutexattr_t;
 typedef pthread_mutex_t         toku_pthread_mutex_t;
 typedef pthread_condattr_t      toku_pthread_condattr_t;
 typedef pthread_cond_t          toku_pthread_cond_t;
+#if USE_PTHREADS_WIN32_RWLOCKS
 typedef pthread_rwlock_t        toku_pthread_rwlock_t;
 typedef pthread_rwlockattr_t    toku_pthread_rwlockattr_t;
+#else
+#include <rwlock.h>
+typedef struct toku_pthread_rwlock_struct {
+    struct rwlock rwlock;
+    toku_pthread_mutex_t mutex;
+} toku_pthread_rwlock_t;
+typedef struct toku_pthread_rwlockattr_struct {
+} toku_pthread_rwlockattr_t;
+#endif
 //typedef struct timespec         toku_timespec_t; //Already defined in toku_time.h
 
 
@@ -78,36 +89,6 @@ typedef struct toku_pthread_win32_funcs_struct {
 
 extern toku_pthread_win32_funcs pthread_win32;
 
-
-static inline int
-toku_pthread_rwlock_init(toku_pthread_rwlock_t *__restrict rwlock, const toku_pthread_rwlockattr_t *__restrict attr) {
-    return pthread_win32.pthread_rwlock_init(rwlock, attr);
-}
-
-static inline int
-toku_pthread_rwlock_destroy(toku_pthread_rwlock_t *rwlock) {
-    return pthread_win32.pthread_rwlock_destroy(rwlock);
-}
-
-static inline int
-toku_pthread_rwlock_rdlock(toku_pthread_rwlock_t *rwlock) {
-    return pthread_win32.pthread_rwlock_rdlock(rwlock);
-}
-
-static inline int
-toku_pthread_rwlock_rdunlock(toku_pthread_rwlock_t *rwlock) {
-    return pthread_win32.pthread_rwlock_unlock(rwlock);
-}
-
-static inline int
-toku_pthread_rwlock_wrlock(toku_pthread_rwlock_t *rwlock) {
-    return pthread_win32.pthread_rwlock_wrlock(rwlock);
-}
-
-static inline int
-toku_pthread_rwlock_wrunlock(toku_pthread_rwlock_t *rwlock) {
-    return pthread_win32.pthread_rwlock_unlock(rwlock);
-}
 
 int toku_pthread_yield(void);
 
@@ -200,6 +181,102 @@ static inline
 int toku_pthread_cond_broadcast(toku_pthread_cond_t *cond) {
     return pthread_win32.pthread_cond_broadcast(cond);
 }
+
+#if USE_PTHREADS_WIN32_RWLOCKS
+static inline int
+toku_pthread_rwlock_init(toku_pthread_rwlock_t *__restrict rwlock, const toku_pthread_rwlockattr_t *__restrict attr) {
+    return pthread_win32.pthread_rwlock_init(rwlock, attr);
+}
+
+static inline int
+toku_pthread_rwlock_destroy(toku_pthread_rwlock_t *rwlock) {
+    return pthread_win32.pthread_rwlock_destroy(rwlock);
+}
+
+static inline int
+toku_pthread_rwlock_rdlock(toku_pthread_rwlock_t *rwlock) {
+    return pthread_win32.pthread_rwlock_rdlock(rwlock);
+}
+
+static inline int
+toku_pthread_rwlock_rdunlock(toku_pthread_rwlock_t *rwlock) {
+    return pthread_win32.pthread_rwlock_unlock(rwlock);
+}
+
+static inline int
+toku_pthread_rwlock_wrlock(toku_pthread_rwlock_t *rwlock) {
+    return pthread_win32.pthread_rwlock_wrlock(rwlock);
+}
+
+static inline int
+toku_pthread_rwlock_wrunlock(toku_pthread_rwlock_t *rwlock) {
+    return pthread_win32.pthread_rwlock_unlock(rwlock);
+}
+#else
+static inline int
+toku_pthread_rwlock_init(toku_pthread_rwlock_t *__restrict rwlock, const toku_pthread_rwlockattr_t *__restrict attr) {
+    int r = 0;
+    if (attr!=NULL) r = EINVAL;
+    if (r==0)
+        r = toku_pthread_mutex_init(&rwlock->mutex, NULL);
+    if (r==0)
+        rwlock_init(&rwlock->rwlock);
+    return r;
+}
+
+static inline int
+toku_pthread_rwlock_destroy(toku_pthread_rwlock_t *rwlock) {
+    int r = 0;
+    rwlock_destroy(&rwlock->rwlock);
+    r = toku_pthread_mutex_destroy(&rwlock->mutex);
+    return r;
+}
+
+static inline int
+toku_pthread_rwlock_rdlock(toku_pthread_rwlock_t *rwlock) {
+    int r = 0;
+    r = toku_pthread_mutex_lock(&rwlock->mutex);
+    assert(r==0);
+    //We depend on recursive read locks.
+    rwlock_prefer_read_lock(&rwlock->rwlock, &rwlock->mutex);
+    r = toku_pthread_mutex_unlock(&rwlock->mutex);
+    assert(r==0);
+    return r;
+}
+
+static inline int
+toku_pthread_rwlock_rdunlock(toku_pthread_rwlock_t *rwlock) {
+    int r = 0;
+    r = toku_pthread_mutex_lock(&rwlock->mutex);
+    assert(r==0);
+    rwlock_read_unlock(&rwlock->rwlock);
+    r = toku_pthread_mutex_unlock(&rwlock->mutex);
+    assert(r==0);
+    return r;
+}
+
+static inline int
+toku_pthread_rwlock_wrlock(toku_pthread_rwlock_t *rwlock) {
+    int r = 0;
+    r = toku_pthread_mutex_lock(&rwlock->mutex);
+    assert(r==0);
+    rwlock_write_lock(&rwlock->rwlock, &rwlock->mutex);
+    r = toku_pthread_mutex_unlock(&rwlock->mutex);
+    assert(r==0);
+    return r;
+}
+
+static inline int
+toku_pthread_rwlock_wrunlock(toku_pthread_rwlock_t *rwlock) {
+    int r = 0;
+    r = toku_pthread_mutex_lock(&rwlock->mutex);
+    assert(r==0);
+    rwlock_write_unlock(&rwlock->rwlock);
+    r = toku_pthread_mutex_unlock(&rwlock->mutex);
+    assert(r==0);
+    return r;
+}
+#endif
 
 int
 initialize_pthread_functions();
