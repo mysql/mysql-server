@@ -177,3 +177,96 @@ BitmaskImpl::parseMask(unsigned size, Uint32 data[], const char * src)
   }
   return cnt;
 }
+
+template <unsigned size>
+BaseString BitmaskPOD<size>::getText()
+{
+  char buf[32*size+1];
+  return BitmaskImpl::getText(size, rep.data, buf);
+}
+
+#define VARS \
+  const char* delimiter = "";         \
+  unsigned i, found = 0, MAX_BITS = 8 * size; \
+  BaseString to
+
+template <unsigned size>
+BaseString BitmaskPOD<size>::getPrettyText()
+{
+  VARS;
+  for (i = 0; i < MAX_BITS; i++)
+  {
+    if (get(i))
+    {
+      to.appfmt("%s%d", delimiter, i);
+      found++;
+      if (found < count() - 1)
+        delimiter = ", ";
+      else
+        delimiter = " and ";
+    }
+  }
+  return to;
+}
+
+template <unsigned size>
+BaseString BitmaskPOD<size>::getPrettyTextShort()
+{
+  VARS;
+  for (i = 0; i < MAX_BITS; i++)
+  {
+    if (get(i))
+    {
+      to.appfmt("%s%d", delimiter, i);
+      delimiter = ",";
+    }
+  }
+  return to;
+}
+
+#ifdef TEST_BITMASK
+#include <NdbTap.hpp>
+
+typedef Bitmask<8UL> Bitmask8;
+
+TAPTEST(Bitmask)
+{
+    int i, found;
+    Bitmask8 b;
+    OK(b.isclear());
+    
+    int MAX_BITS = 32 * b.Size;
+    for (i = 0; i < MAX_BITS; i++)
+    {
+      if (i > 60)
+        continue;
+      switch(i)
+      {
+      case 2:case 3:case 5:case 7:case 11:case 13:case 17:case 19:case 23:
+      case 29:case 31:case 37:case 41:case 43:
+        break;
+      default:;
+        b.set(i);
+      }
+    }
+    for (found = i = 0; i < MAX_BITS; i++)
+      found+=(int)b.get(i);
+    OK(found == b.count());
+    OK(found == 47);
+    printf("getText: %s\n",b.getText().c_str());
+    OK(b.getText() == 
+        "0000000000000000000000000000000000000000000000001ffff5df5f75d753");
+    printf("getPrettyText: %s\n",b.getPrettyText().c_str());
+    OK(b.getPrettyText() == 
+        "0, 1, 4, 6, 8, 9, 10, 12, 14, 15, 16, 18, 20, 21, 22, 24, 25, 26, "
+        "27, 28, 30, 32, 33, 34, 35, 36, 38, 39, 40, 42, 44, 45, 46, 47, "
+        "48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59 and 60")
+    printf("getPrettyTextShort: %s\n",b.getPrettyTextShort().c_str());
+    OK(b.getPrettyTextShort() ==
+        "0,1,4,6,8,9,10,12,14,15,16,18,20,21,22,24,25,26,27,28,30,32,"
+        "33,34,35,36,38,39,40,42,44,45,46,47,48,49,50,51,52,53,54,55,"
+        "56,57,58,59,60")    
+    return 1; // OK
+}
+
+#endif
