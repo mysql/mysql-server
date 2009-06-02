@@ -2253,6 +2253,16 @@ char *fn_rext(char *name);
 #if defined MYSQL_SERVER || defined INNODB_COMPATIBILITY_HOOKS
 uint strconvert(CHARSET_INFO *from_cs, const char *from,
                 CHARSET_INFO *to_cs, char *to, uint to_length, uint *errors);
+/* depends on errmsg.txt Database `db`, Table `t` ... */
+#define EXPLAIN_FILENAME_MAX_EXTRA_LENGTH 63
+enum enum_explain_filename_mode
+{
+  EXPLAIN_ALL_VERBOSE= 0,
+  EXPLAIN_PARTITIONS_VERBOSE,
+  EXPLAIN_PARTITIONS_AS_COMMENT
+};
+uint explain_filename(const char *from, char *to, uint to_length,
+                      enum_explain_filename_mode explain_mode);
 uint filename_to_tablename(const char *from, char *to, uint to_length);
 uint tablename_to_filename(const char *from, char *to, uint to_length);
 uint check_n_cut_mysql50_prefix(const char *from, char *to, uint to_length);
