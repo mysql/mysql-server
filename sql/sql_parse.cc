@@ -6038,7 +6038,7 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
     */
     char buf[32];
     my_snprintf(buf, sizeof(buf), "TIMESTAMP(%s)", length);
-    WARN_DEPRECATED(thd, "5.2", buf, "'TIMESTAMP'");
+    WARN_DEPRECATED(thd, "6.0", buf, "'TIMESTAMP'");
   }
 
   if (!(new_field= new Create_field()) ||
