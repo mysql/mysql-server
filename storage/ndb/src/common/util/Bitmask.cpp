@@ -131,7 +131,6 @@ BitmaskImpl::parseMask(unsigned size, Uint32 data[], const char * src)
     list[i].trim();
     if (list[i].empty())
       continue;
-    unsigned num = 0;
     char * delim = (char*)strchr(list[i].c_str(), '-');
     unsigned first = 0;
     unsigned last = 0;
@@ -210,7 +209,7 @@ template <unsigned size>
 BaseString BitmaskPOD<size>::getPrettyTextShort()
 {
   const char* delimiter = "";
-  unsigned i, found = 0, MAX_BITS = 8 * size;
+  unsigned i, MAX_BITS = 8 * size;
   BaseString to;
   for (i = 0; i < MAX_BITS; i++)
   {
@@ -226,12 +225,10 @@ BaseString BitmaskPOD<size>::getPrettyTextShort()
 #ifdef TEST_BITMASK
 #include <NdbTap.hpp>
 
-typedef Bitmask<8UL> Bitmask8;
-
 TAPTEST(Bitmask)
 {
-    int i, found;
-    Bitmask8 b;
+    unsigned i, found;
+    Bitmask<8> b;
     OK(b.isclear());
     
     int MAX_BITS = 32 * b.Size;
@@ -253,19 +250,21 @@ TAPTEST(Bitmask)
     OK(found == b.count());
     OK(found == 47);
     printf("getText: %s\n",b.getText().c_str());
-    OK(b.getText() == 
+    OK(b.getText() ==
         "0000000000000000000000000000000000000000000000001ffff5df5f75d753");
     printf("getPrettyText: %s\n",b.getPrettyText().c_str());
-    OK(b.getPrettyText() == 
+    OK(b.getPrettyText() ==
         "0, 1, 4, 6, 8, 9, 10, 12, 14, 15, 16, 18, 20, 21, 22, 24, 25, 26, "
         "27, 28, 30, 32, 33, 34, 35, 36, 38, 39, 40, 42, 44, 45, 46, 47, "
-        "48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59 and 60")
+       "48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59 and 60");
     printf("getPrettyTextShort: %s\n",b.getPrettyTextShort().c_str());
     OK(b.getPrettyTextShort() ==
         "0,1,4,6,8,9,10,12,14,15,16,18,20,21,22,24,25,26,27,28,30,32,"
         "33,34,35,36,38,39,40,42,44,45,46,47,48,49,50,51,52,53,54,55,"
-        "56,57,58,59,60")    
+       "56,57,58,59,60");
     return 1; // OK
 }
+
+template struct BitmaskPOD<8>;
 
 #endif
