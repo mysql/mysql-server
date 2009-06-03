@@ -26323,7 +26323,8 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
     Uint32 tmp = 0;
     for (Uint32 i = 0; i<hm.HashMapBuckets; i++)
     {
-      map_ptr.p->m_map[i] = hm.HashMapValues[i];
+      ndbrequire(hm.HashMapValues[i] < 256);
+      map_ptr.p->m_map[i] = (Uint8)hm.HashMapValues[i];
       if (hm.HashMapValues[i] > tmp)
         tmp = hm.HashMapValues[i];
     }
