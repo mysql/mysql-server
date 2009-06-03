@@ -20,7 +20,6 @@
 #define NDB_BITMASK_H
 
 #include <ndb_global.h>
-#include <BaseString.hpp>
 
 /**
  * Bitmask implementation.  Size (in 32-bit words) is given explicitly
@@ -509,9 +508,9 @@ public:
    *
    * getPrettyText is based on nodes2str() in ConfigManager.cpp()
    */
-  BaseString getText();
-  BaseString getPrettyText();
-  BaseString getPrettyTextShort();
+  class BaseString getText();
+  class BaseString getPrettyText();
+  class BaseString getPrettyTextShort();
 
   /**
    * start of static members
