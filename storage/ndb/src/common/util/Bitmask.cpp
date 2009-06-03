@@ -178,14 +178,14 @@ BitmaskImpl::parseMask(unsigned size, Uint32 data[], const char * src)
 }
 
 template <unsigned size>
-BaseString BitmaskPOD<size>::getText()
+class BaseString BitmaskPOD<size>::getText()
 {
   char buf[32*size+1];
   return BitmaskImpl::getText(size, rep.data, buf);
 }
 
 template <unsigned size>
-BaseString BitmaskPOD<size>::getPrettyText()
+class BaseString BitmaskPOD<size>::getPrettyText()
 {
   const char* delimiter = "";
   unsigned i, found = 0, MAX_BITS = 8 * size;
@@ -206,7 +206,7 @@ BaseString BitmaskPOD<size>::getPrettyText()
 }
 
 template <unsigned size>
-BaseString BitmaskPOD<size>::getPrettyTextShort()
+class BaseString BitmaskPOD<size>::getPrettyTextShort()
 {
   const char* delimiter = "";
   unsigned i, MAX_BITS = 8 * size;
@@ -231,7 +231,7 @@ TAPTEST(Bitmask)
     Bitmask<8> b;
     OK(b.isclear());
     
-    int MAX_BITS = 32 * b.Size;
+    unsigned MAX_BITS = 32 * b.Size;
     for (i = 0; i < MAX_BITS; i++)
     {
       if (i > 60)
