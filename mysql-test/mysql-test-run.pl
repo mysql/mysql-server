@@ -313,7 +313,7 @@ sub main {
 
   #######################################################################
   my $num_tests= @$tests;
-  if ( not defined $opt_parallel ) {
+  if ( $opt_parallel eq "auto" ) {
     # Try to find a suitable value for number of workers
     my $sys_info= My::SysInfo->new();
 
@@ -795,7 +795,7 @@ sub command_line_setup {
              'vs-config'                => \$opt_vs_config,
 
 	     # Max number of parallel threads to use
-	     'parallel=i'               => \$opt_parallel,
+	     'parallel=s'               => \$opt_parallel,
 
              # Config file to use as template for all tests
 	     'defaults-file=s'          => \&collect_option,
@@ -1135,9 +1135,9 @@ sub command_line_setup {
   # --------------------------------------------------------------------------
   # Check parallel value
   # --------------------------------------------------------------------------
-  if ($opt_parallel < 1)
+  if ($opt_parallel ne "auto" && $opt_parallel < 1)
   {
-    mtr_error("0 or negative parallel value makes no sense, use positive number");
+    mtr_error("0 or negative parallel value makes no sense, use 'auto' or positive number");
   }
 
   # --------------------------------------------------------------------------
@@ -5202,6 +5202,7 @@ Misc options
   fast                  Run as fast as possible, dont't wait for servers
                         to shutdown etc.
   parallel=N            Run tests in N parallel threads (default=1)
+                        Use parallel=auto for auto-setting of N
   repeat=N              Run each test N number of times
   retry=N               Retry tests that fail N times, limit number of failures
                         to $opt_retry_failure
