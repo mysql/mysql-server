@@ -210,6 +210,9 @@ typedef struct st_join_table {
   JOIN		*join;
   /** Bitmap of nested joins this table is part of */
   nested_join_map embedding_map;
+  
+  //psergey-todo: more justified place
+  bool eliminated;
 
   void cleanup();
   inline bool is_using_loose_index_scan()

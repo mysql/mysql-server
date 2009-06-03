@@ -1626,6 +1626,8 @@ typedef struct st_nested_join
     Before each use the counters are zeroed by reset_nj_counters.
   */
   uint              counter;
+  /* Tables left after elimination */
+  uint              n_tables;
   nested_join_map   nj_map;          /* Bit used to identify this nested join*/
 } NESTED_JOIN;
 
