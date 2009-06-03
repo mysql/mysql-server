@@ -42,6 +42,11 @@
 #define TMP_ENGINE_HTON myisam_hton
 #endif
 
+#define FT_KEYPART   (MAX_REF_PARTS+10)
+/* Values in optimize */
+#define KEY_OPTIMIZE_EXISTS		1
+#define KEY_OPTIMIZE_REF_OR_NULL	2
+
 const char *join_type_str[]={ "UNKNOWN","system","const","eq_ref","ref",
 			      "MAYBE_REF","ALL","range","index","fulltext",
 			      "ref_or_null","unique_subquery","index_subquery",
@@ -2468,6 +2473,304 @@ static ha_rows get_quick_record_count(THD *thd, SQL_SELECT *select,
   DBUG_RETURN(HA_POS_ERROR);			/* This shouldn't happend */
 }
 
+
+bool has_eq_ref_access_candidate(TABLE *table, table_map can_refer_to_these)
+{
+  KEYUSE *keyuse= table->reginfo.join_tab->keyuse;
+  if (keyuse)
+  {
+    /*
+      walk through all of the KEYUSE elements and
+       - locate unique keys
+       - check if we have eq_ref access for them
+          TODO any other reqs?
+      loops are constructed like in best_access_path
+    */
+    while (keyuse->table == table)
+    {
+      uint key= keyuse->key;
+      key_part_map bound_parts=0;
+      bool ft_key= test(keyuse->keypart == FT_KEYPART); 
+
+      do  /* For each keypart and each way to read it */
+      {
+        if (!(keyuse->used_tables & ~can_refer_to_these) &&
+            !(keyuse->optimize & KEY_OPTIMIZE_REF_OR_NULL))
+        {
+          bound_parts |= keyuse->keypart_map;
+        }
+        keyuse++;
+      } while (keyuse->table && keyuse->key == key);
+
+      KEY *keyinfo= table->key_info + key;
+      if (!ft_key &&
+          ((keyinfo->flags & (HA_NOSAME | HA_NULL_PART_KEY)) == HA_NOSAME) &&
+          bound_parts == PREV_BITS(key_part_map, keyinfo->key_parts))
+      {
+        return TRUE;
+      }
+    }
+  }
+  return FALSE;
+}
+
+
+static void mark_table_as_eliminated(JOIN *join, TABLE *table, uint *const_tbl_count, 
+                                      table_map *const_tables)
+{
+  JOIN_TAB *tab= table->reginfo.join_tab;
+  if (!(*const_tables & tab->table->map))
+  {
+    DBUG_PRINT("info", ("Eliminated table %s", table->alias));
+    tab->type= JT_CONST;
+    tab->eliminated= TRUE;
+    *const_tables |= table->map;
+    join->const_table_map|= table->map;
+    set_position(join, (*const_tbl_count)++, tab, (KEYUSE*)0);
+  }
+}
+
+
+/*
+  Now on to traversal. There can be a situation like this:
+
+    FROM t1 
+         LEFT JOIN t2 ON cond(t1,t2)
+         LEFT JOIN t3 ON cond(..., possibly-t2)  // <--(*)
+         LEFT JOIN t4 ON cond(..., possibly-t2)
+
+  Besides that, simplify_joins() may have created back references, so when
+  we're e.g. looking at outer join (*) we need to look both forward and
+  backward to check if there are any references in preceding/following
+  outer joins'
+
+  TODO would it create only following-sibling references or
+  preceding-sibling as well?
+    And if not, should we rely on that?
+    
+*/
+
+int
+eliminate_tables_for_join_list(JOIN *join, List<TABLE_LIST> *join_list, 
+                               table_map used_tables_elsewhere, 
+                               uint *const_tbl_count, table_map *const_tables)
+{
+  List_iterator<TABLE_LIST> it(*join_list);
+  table_map used_tables_on_right[MAX_TABLES]; // todo change to alloca
+  table_map used_tables_on_left;
+  TABLE_LIST *tbl;
+  int i, n_tables;
+  int eliminated=0;
+
+  /* Collect the reverse-bitmap-array */
+  for (i=0; (tbl= it++); i++)
+  {
+    used_tables_on_right[i]= 0;
+    if (tbl->on_expr)
+      used_tables_on_right[i]= tbl->on_expr->used_tables();
+    if (tbl->nested_join)
+      used_tables_on_right[i]= tbl->nested_join->used_tables;
+  }
+  n_tables= i;
+
+  for (i= n_tables - 2; i > 0; i--)
+    used_tables_on_right[i] |= used_tables_on_right[i+1];
+  
+  it.rewind();
+  
+  /* Walk through tables and join nests and see if we can eliminate them */
+  used_tables_on_left= 0;
+  i= 1;
+  while ((tbl= it++))
+  {
+    table_map tables_used_outside= used_tables_on_left |
+                                   used_tables_on_right[i] |
+                                   used_tables_elsewhere;
+    table_map cur_tables;
+
+    if (tbl->nested_join)
+    {
+      DBUG_ASSERT(tbl->on_expr); 
+      /*
+        There can be cases where table removal is applicable for tables
+        within the outer join but not for the outer join itself. Ask to
+        remove the children first.
+
+        TODO: NoHopelessEliminationAttempts: the below call can return 
+        information about whether it would make any sense to try removing 
+        this entire outer join nest.
+      */
+      int eliminated_in_children= 
+        eliminate_tables_for_join_list(join, &tbl->nested_join->join_list,
+                                       tables_used_outside,
+                                       const_tbl_count, const_tables);
+      tbl->nested_join->n_tables -=eliminated_in_children; 
+      cur_tables= tbl->nested_join->used_tables;
+      if (!(cur_tables & tables_used_outside))
+      {
+        /* 
+          Check if all embedded tables together can produce at most one
+          record combination. This is true when
+           - each of them has one_match(outer-tables) property
+             (this is a stronger condition than all of them together having
+              this property but that's irrelevant here)
+           - there are no outer joins among them
+             (except for the case  of outer join which has all inner tables
+              to be constant and is guaranteed to produce only one record.
+              that record will be null-complemented)
+        */
+        bool one_match= TRUE;
+        List_iterator<TABLE_LIST> it2(tbl->nested_join->join_list);
+        TABLE_LIST *inner;
+        while ((inner= it2++))
+        {
+          /*
+            Bail out if we see an outer join (TODO: handle the above
+            null-complemntated-rows-only case)
+          */
+          if (inner->on_expr)
+          {
+            one_match= FALSE;
+            break;
+          }
+
+          if (inner->table && // <-- to be removed after NoHopelessEliminationAttempts
+              !has_eq_ref_access_candidate(inner->table,
+                                           ~tbl->nested_join->used_tables))
+          {
+            one_match= FALSE;
+            break;
+          }
+        }
+        if (one_match)
+        {
+          it2.rewind();
+          while ((inner= it2++))
+          {
+            mark_table_as_eliminated(join, inner->table, const_tbl_count, 
+                                     const_tables);
+          }
+          eliminated += tbl->nested_join->join_list.elements;
+          //psergey-todo: do we need to do anything about removing the join
+          //nest?
+        }
+        else
+        {
+          eliminated += eliminated_in_children;
+        }
+      }
+    }
+    else if (tbl->on_expr)
+    {
+      cur_tables= tbl->on_expr->used_tables();
+      /* Check and remove */
+      if (!(tbl->table->map & tables_used_outside) && 
+          has_eq_ref_access_candidate(tbl->table, (table_map)-1))
+      {
+        mark_table_as_eliminated(join, tbl->table, const_tbl_count, 
+                                 const_tables);
+        eliminated += 1;
+      }
+    }
+
+    /* Update bitmap of tables we've seen on the left */
+    i++;
+    used_tables_on_left |= cur_tables;
+  }
+  return eliminated;
+}
+
+
+/*
+  Perform table elimination based on outer join
+
+  SELECT * FROM t1 LEFT JOIN 
+    (t2 JOIN t3) ON t3.primary_key=t1.col AND 
+                    t4.primary_key= t2.col
+
+  CRITERIA FOR REMOVING ONE OJ NEST
+    we can't rely on sole presense of eq_refs. Because if we do, we'll miss
+    things like this:
+
+    SELECT * FROM flights LEFT JOIN 
+      (pax as S1 JOIN pax as S2 ON S2.id=S1.spouse AND s1.id=s2.spouse)
+  
+   (no-polygamy schema/query but there can be many couples on the flight)
+   ..
+  
+  REMOVAL PROCESS
+    We can remove an inner side of an outer join if it there is a warranty
+    that it will produce not more than one record:
+
+     ... t1 LEFT JOIN t2 ON (t2.unique_key = expr) ...
+
+    For nested outer joins:
+    - The process naturally occurs bottom-up (in order to remove an
+      outer-join we need to analyze its contents)
+    - If we failed to remove an outer join nest, it makes no sense to 
+      try removing its ancestors, as the 
+         ot LEFT JOIN it ON cond
+      pair may possibly produce two records (one record via match and
+      another one as access-method record).
+
+  Q: If we haven't removed an OUTER JOIN, does it make sense to attempt
+  removing its ancestors? 
+  A: No as the innermost outer join will produce two records => no ancestor 
+  outer join nest will be able to provide the max_fanout==1 guarantee.
+
+  psergey-todo: .
+*/
+
+static void eliminate_tables(JOIN *join, uint *const_tbl_count, table_map *const_tables)
+{
+  Item *item;
+  table_map used_tables;
+  DBUG_ENTER("eliminate_tables");
+  if (!join->outer_join)
+    DBUG_VOID_RETURN;
+
+  /* Find the tables that are referred to from WHERE/HAVING */
+  used_tables= (join->conds?  join->conds->used_tables() : 0) | 
+               (join->having? join->having->used_tables() : 0);
+  
+  /* Add tables referred to from the select list */
+  List_iterator<Item> it(join->fields_list);
+  while ((item= it++))
+    used_tables |= item->used_tables();
+ 
+  /* Add tables referred to from ORDER BY and GROUP BY lists */
+  ORDER *all_lists[]= { join->order, join->group_list};
+  for (int i=0; i < 2; i++)
+  {
+    for (ORDER *cur_list= all_lists[i]; cur_list; cur_list= cur_list->next)
+      used_tables |= (*(cur_list->item))->used_tables();
+  }
+  
+  THD* thd= join->thd;
+  if (join->select_lex == &thd->lex->select_lex)
+  {
+    /* Multi-table UPDATE and DELETE: don't eliminate the tables we modify: */
+    used_tables |= thd->table_map_for_update;
+
+    /* Multi-table UPDATE: don't eliminate tables referred from SET statement */
+    if (thd->lex->sql_command == SQLCOM_UPDATE_MULTI)
+    {
+      List_iterator<Item> it2(thd->lex->value_list);
+      while ((item= it2++))
+        used_tables |= item->used_tables();
+    }
+  }
+
+  if (((1 << join->tables) - 1) & ~used_tables)
+  {
+    /* There are some time tables that we probably could eliminate */
+    eliminate_tables_for_join_list(join, join->join_list, used_tables,
+                                   const_tbl_count, const_tables);
+  }
+  DBUG_VOID_RETURN;
+}
+
+
 /*
    This structure is used to collect info on potentially sargable
    predicates in order to check whether they become sargable after
@@ -2823,6 +3126,10 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
     }
   }
 
+  //psergey-todo: table elimination
+  eliminate_tables(join, &const_count, &found_const_table_map);
+  //:psergey-todo
+
   /* Calc how many (possible) matched records in each table */
 
   for (s=stat ; s < stat_end ; s++)
@@ -2956,9 +3263,6 @@ typedef struct key_field_t {
   bool         *cond_guard; /* See KEYUSE::cond_guard */
 } KEY_FIELD;
 
-/* Values in optimize */
-#define KEY_OPTIMIZE_EXISTS		1
-#define KEY_OPTIMIZE_REF_OR_NULL	2
 
 /**
   Merge new key definitions to old ones, remove those not used in both.
@@ -3563,7 +3867,6 @@ add_key_part(DYNAMIC_ARRAY *keyuse_array,KEY_FIELD *key_field)
 }
 
 
-#define FT_KEYPART   (MAX_REF_PARTS+10)
 
 static void
 add_ft_keys(DYNAMIC_ARRAY *keyuse_array,
@@ -6021,7 +6324,7 @@ make_outerjoin_info(JOIN *join)
       }
       if (!tab->first_inner)  
         tab->first_inner= nested_join->first_nested;
-      if (++nested_join->counter < nested_join->join_list.elements)
+      if (++nested_join->counter < nested_join->n_tables)
         break;
       /* Table tab is the last inner table for nested join. */
       nested_join->first_nested->last_inner= tab;
@@ -8575,6 +8878,8 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
       conds= simplify_joins(join, &nested_join->join_list, conds, top);
       used_tables= nested_join->used_tables;
       not_null_tables= nested_join->not_null_tables;  
+      /* The following two might become unequal after table elimination: */
+      nested_join->n_tables= nested_join->join_list.elements;
     }
     else
     {
@@ -8733,7 +9038,7 @@ static uint build_bitmap_for_nested_joins(List<TABLE_LIST> *join_list,
             with anything)
         2. we could run out bits in nested_join_map otherwise.
       */
-      if (nested_join->join_list.elements != 1)
+      if (nested_join->n_tables != 1)
       {
         nested_join->nj_map= (nested_join_map) 1 << first_unused++;
         first_unused= build_bitmap_for_nested_joins(&nested_join->join_list,
@@ -8894,7 +9199,7 @@ static bool check_interleaving_with_nj(JOIN_TAB *next_tab)
       join->cur_embedding_map |= next_emb->nested_join->nj_map;
     }
     
-    if (next_emb->nested_join->join_list.elements !=
+    if (next_emb->nested_join->n_tables !=
         next_emb->nested_join->counter)
       break;
 
@@ -8928,7 +9233,7 @@ static void restore_prev_nj_state(JOIN_TAB *last)
   {
     if (!(--last_emb->nested_join->counter))
       join->cur_embedding_map&= ~last_emb->nested_join->nj_map;
-    else if (last_emb->nested_join->join_list.elements-1 ==
+    else if (last_emb->nested_join->n_tables-1 ==
              last_emb->nested_join->counter) 
       join->cur_embedding_map|= last_emb->nested_join->nj_map;
     else
@@ -16202,6 +16507,14 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       tmp3.length(0);
 
       quick_type= -1;
+
+      //psergey-todo:
+      if (tab->eliminated)
+      {
+        used_tables|=table->map;
+        continue;
+      }
+
       item_list.empty();
       /* id */
       item_list.push_back(new Item_uint((uint32)
