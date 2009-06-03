@@ -136,8 +136,9 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
     Uint32 size;
   };
   BoundInfo boundInfo[2][MaxIndexAttributes];
-  const unsigned dstSize = 1024 * MAX_XFRM_MULTIPLY;
-  Uint32 xfrmData[dstSize];
+  const unsigned dstSize = MaxAttrDataSize;
+  // use some static buffer (they are only used within a timeslice)
+  Uint32* const xfrmData = c_dataBuffer;
   Uint32 dstPos = 0;
   // largest attrId seen plus one
   Uint32 maxAttrId[2] = { 0, 0 };
