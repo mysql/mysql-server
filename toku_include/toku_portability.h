@@ -65,6 +65,9 @@ typedef int64_t toku_off_t;
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/stat.h>
+#if __FreeBSD__
+#include <stdarg.h>
+#endif
 
 #else
 
