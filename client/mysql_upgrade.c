@@ -234,7 +234,7 @@ get_one_option(int optid, const struct my_option *opt,
 
   case 'p':
     if (argument == disabled_my_option)
-      argument= (char*) "";			// Don't require password
+      argument= (char*) "";			/* Don't require password */
     tty_password= 1;
     add_option= FALSE;
     if (argument)
