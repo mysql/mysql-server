@@ -861,3 +861,19 @@ select * from t1 where  (c2 < 'b' AND c1 <> 'g')  OR  (c2 <> 'a' AND c1 <> 'd');
 c1	c2
 ddd	jg
 drop table t1;
+drop table if exists t1;
+create table t1 (
+a int unsigned,
+b varchar(1024) not null,
+primary key using hash (a),
+index x1 (b)
+) engine = ndbcluster
+default charset = utf8
+collate = utf8_unicode_ci;
+insert into t1 values (1,'a'),(2,'y'),(3,'z');
+select * from t1 where b = 'b';
+a	b
+select * from t1 where b = 'a';
+a	b
+1	a
+drop table t1;
