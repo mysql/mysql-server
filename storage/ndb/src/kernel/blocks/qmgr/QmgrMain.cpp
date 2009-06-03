@@ -41,10 +41,6 @@
 
 #include <ndb_version.h>
 
-#ifdef DEBUG_ARBIT
-#include <NdbOut.hpp>
-#endif
-
 //#define DEBUG_QMGR_START
 #ifdef DEBUG_QMGR_START
 #include <DebuggerNames.hpp>
@@ -315,21 +311,21 @@ void Qmgr::execSTTOR(Signal* signal)
     return;
   case 7:
     cactivateApiCheck = 1;
-    /**
-     * Start arbitration thread.  This could be done as soon as
-     * we have all nodes (or a winning majority).
-     */
     if (cpresident == getOwnNodeId())
     {
-      if (arbitRec.m_disabled == false)
-      {
-	jam();
-	handleArbitStart(signal);
-      }
-      else
-      {
-	jam();
-	infoEvent("Arbitration disabled");
+      switch(arbitRec.method){
+      case ArbitRec::DISABLED:
+        break;
+
+      case ArbitRec::METHOD_EXTERNAL:
+      case ArbitRec::METHOD_DEFAULT:
+        /**
+         * Start arbitration thread.  This could be done as soon as
+         * we have all nodes (or a winning majority).
+         */
+        jam();
+        handleArbitStart(signal);
+        break;
       }
     }
     break;
@@ -2352,11 +2348,13 @@ void Qmgr::initData(Signal* signal)
   
   Uint32 hbDBDB = 1500;
   Uint32 arbitTimeout = 1000;
+  Uint32 arbitMethod = ARBIT_METHOD_DEFAULT;
   c_restartPartialTimeout = 30000;
   c_restartPartionedTimeout = 60000;
   c_restartFailureTimeout = ~0;
   ndb_mgm_get_int_parameter(p, CFG_DB_HEARTBEAT_INTERVAL, &hbDBDB);
   ndb_mgm_get_int_parameter(p, CFG_DB_ARBIT_TIMEOUT, &arbitTimeout);
+  ndb_mgm_get_int_parameter(p, CFG_DB_ARBIT_METHOD, &arbitMethod);
   ndb_mgm_get_int_parameter(p, CFG_DB_START_PARTIAL_TIMEOUT, 
 			    &c_restartPartialTimeout);
   ndb_mgm_get_int_parameter(p, CFG_DB_START_PARTITION_TIMEOUT,
@@ -2381,8 +2379,8 @@ void Qmgr::initData(Signal* signal)
 
   setHbDelay(hbDBDB);
   setArbitTimeout(arbitTimeout);
-  
-  arbitRec.m_disabled = false;
+
+  arbitRec.method = (ArbitRec::Method)arbitMethod;
   arbitRec.state = ARBIT_NULL;          // start state for all nodes
   arbitRec.apiMask[0].clear();          // prepare for ARBIT_CFG
 
@@ -2409,13 +2407,12 @@ void Qmgr::initData(Signal* signal)
     execARBIT_CFG(signal);
   }
 
-  if (sum == 0)
+  if (arbitRec.method == ArbitRec::METHOD_DEFAULT &&
+      sum == 0)
   {
     jam();
-    /**
-     * Disabled arbitration
-     */
-    arbitRec.m_disabled = true;
+    infoEvent("Arbitration disabled, all API nodes have rank 0");
+    arbitRec.method = ArbitRec::DISABLED;
   }
 
   setNodeInfo(getOwnNodeId()).m_mysql_version = NDB_MYSQL_VERSION_D;
@@ -3231,7 +3228,7 @@ Qmgr::sendApiRegConf(Signal *signal, Uint32 node)
       jam();
       apiRegConf->nodeState.dynamicId = dynamicId;
     } else {
-      apiRegConf->nodeState.dynamicId = (Uint32)-dynamicId;
+      apiRegConf->nodeState.dynamicId = (Uint32)(-(Int32)dynamicId);
     }
   }
   NodeVersionInfo info = getNodeVersionInfo();
@@ -3776,15 +3773,19 @@ void Qmgr::execPREP_FAILCONF(Signal* signal)
     return;
   }
 
-  if (arbitRec.m_disabled == false)
-  {
+  switch(arbitRec.method){
+  case ArbitRec::DISABLED:
+    jam();
+    // No arbitration -> immediately commit the failed nodes
+    sendCommitFailReq(signal);
+    break;
+
+  case ArbitRec::METHOD_EXTERNAL:
+  case ArbitRec::METHOD_DEFAULT:
     jam();
     handleArbitCheck(signal);
-  }
-  else
-  {
-    jam();
-    sendCommitFailReq(signal);
+    break;
+
   }
   return;
 }//Qmgr::execPREP_FAILCONF()
@@ -4784,6 +4785,7 @@ void
 Qmgr::runArbitThread(Signal* signal)
 {
 #ifdef DEBUG_ARBIT
+  char buf[256];
   NdbNodeBitmask ndbMask;
   computeArbitNdbMask(ndbMask);
   ndbout << "arbit thread:";
@@ -4791,11 +4793,14 @@ Qmgr::runArbitThread(Signal* signal)
   ndbout << " newstate=" << arbitRec.newstate;
   ndbout << " thread=" << arbitRec.thread;
   ndbout << " node=" << arbitRec.node;
-  ndbout << " ticket=" << arbitRec.ticket.getText();
-  ndbout << " ndbmask=" << ndbMask.getText();
+  arbitRec.ticket.getText(buf, sizeof(buf));
+  ndbout << " ticket=" << buf;
+  ndbMask.getText(buf);
+  ndbout << " ndbmask=" << buf;
   ndbout << " sendcount=" << arbitRec.sendCount;
   ndbout << " recvcount=" << arbitRec.recvCount;
-  ndbout << " recvmask=" << arbitRec.recvMask.getText();
+  arbitRec.recvMask.getText(buf);
+  ndbout << " recvmask=" << buf;
   ndbout << " code=" << arbitRec.code;
   ndbout << endl;
 #endif
@@ -4895,22 +4900,45 @@ Qmgr::stateArbitFind(Signal* signal)
     arbitRec.code = 0;
     arbitRec.newstate = false;
   }
-  NodeRecPtr aPtr;
-  for (unsigned rank = 1; rank <= 2; rank++) {
-    jam();
-    aPtr.i = 0;
-    const unsigned stop = NodeBitmask::NotFound;
-    while ((aPtr.i = arbitRec.apiMask[rank].find(aPtr.i + 1)) != stop) {
+
+  switch (arbitRec.method){
+  case ArbitRec::METHOD_EXTERNAL:
+  {
+    // Don't select any API node as arbitrator
+    arbitRec.node = 0;
+    arbitRec.state = ARBIT_PREP1;
+    arbitRec.newstate = true;
+    stateArbitPrep(signal);
+    return;
+    break;
+  }
+
+  case ArbitRec::METHOD_DEFAULT:
+  {
+    NodeRecPtr aPtr;
+    // Select the best available API node as arbitrator
+    for (unsigned rank = 1; rank <= 2; rank++) {
       jam();
-      ptrAss(aPtr, nodeRec);
-      if (aPtr.p->phase != ZAPI_ACTIVE)
-	continue;
-      arbitRec.node = aPtr.i;
-      arbitRec.state = ARBIT_PREP1;
-      arbitRec.newstate = true;
-      stateArbitPrep(signal);
-      return;
+      aPtr.i = 0;
+      const unsigned stop = NodeBitmask::NotFound;
+      while ((aPtr.i = arbitRec.apiMask[rank].find(aPtr.i + 1)) != stop) {
+        jam();
+        ptrAss(aPtr, nodeRec);
+        if (aPtr.p->phase != ZAPI_ACTIVE)
+          continue;
+        arbitRec.node = aPtr.i;
+        arbitRec.state = ARBIT_PREP1;
+        arbitRec.newstate = true;
+        stateArbitPrep(signal);
+        return;
+      }
     }
+    return;
+    break;
+  }
+
+  default:
+    ndbrequire(false);
   }
 }
 
@@ -5085,41 +5113,60 @@ Qmgr::stateArbitStart(Signal* signal)
     arbitRec.code = 0;
     arbitRec.newstate = false;
   }
-  if (! arbitRec.sendCount) {
+
+  switch (arbitRec.method){
+  case ArbitRec::METHOD_EXTERNAL:
     jam();
-    BlockReference blockRef = calcApiClusterMgrBlockRef(arbitRec.node);
-    ArbitSignalData* sd = (ArbitSignalData*)&signal->theData[0];
-    sd->sender = getOwnNodeId();
-    sd->code = 0;
-    sd->node = arbitRec.node;
-    sd->ticket = arbitRec.ticket;
-    sd->mask.clear();
-    sendSignal(blockRef, GSN_ARBIT_STARTREQ, signal,
-      ArbitSignalData::SignalLength, JBB);
-    arbitRec.sendCount = 1;
-    arbitRec.setTimestamp();		// send time
+    ndbrequire(arbitRec.node == 0); // No arbitrator selected
+
+    // Don't start arbitrator in API node => ARBIT_RUN
+    arbitRec.state = ARBIT_RUN;
+    arbitRec.newstate = true;
     return;
-  }
-  if (arbitRec.recvCount) {
-    jam();
-    reportArbitEvent(signal, NDB_LE_ArbitState);
-    if (arbitRec.code == ArbitCode::ApiStart) {
+    break;
+
+  case ArbitRec::METHOD_DEFAULT:
+    if (! arbitRec.sendCount) {
       jam();
-      arbitRec.state = ARBIT_RUN;
+      BlockReference blockRef = calcApiClusterMgrBlockRef(arbitRec.node);
+      ArbitSignalData* sd = (ArbitSignalData*)&signal->theData[0];
+      sd->sender = getOwnNodeId();
+      sd->code = 0;
+      sd->node = arbitRec.node;
+      sd->ticket = arbitRec.ticket;
+      sd->mask.clear();
+      sendSignal(blockRef, GSN_ARBIT_STARTREQ, signal,
+                 ArbitSignalData::SignalLength, JBB);
+      arbitRec.sendCount = 1;
+      arbitRec.setTimestamp();		// send time
+      return;
+    }
+    if (arbitRec.recvCount) {
+      jam();
+      reportArbitEvent(signal, NDB_LE_ArbitState);
+      if (arbitRec.code == ArbitCode::ApiStart) {
+        jam();
+        arbitRec.state = ARBIT_RUN;
+        arbitRec.newstate = true;
+        return;
+      }
+      arbitRec.state = ARBIT_INIT;
       arbitRec.newstate = true;
       return;
     }
-    arbitRec.state = ARBIT_INIT;
-    arbitRec.newstate = true;
-    return;
-  }
-  if (arbitRec.getTimediff() > getArbitTimeout()) {
-    jam();
-    arbitRec.code = ArbitCode::ErrTimeout;
-    reportArbitEvent(signal, NDB_LE_ArbitState);
-    arbitRec.state = ARBIT_INIT;
-    arbitRec.newstate = true;
-    return;
+    if (arbitRec.getTimediff() > getArbitTimeout()) {
+      jam();
+      arbitRec.code = ArbitCode::ErrTimeout;
+      reportArbitEvent(signal, NDB_LE_ArbitState);
+      arbitRec.state = ARBIT_INIT;
+      arbitRec.newstate = true;
+      return;
+    }
+    break;
+
+  default:
+    ndbrequire(false);
+    break;
   }
 }
 
@@ -5206,44 +5253,87 @@ Qmgr::stateArbitChoose(Signal* signal)
     arbitRec.code = 0;
     arbitRec.newstate = false;
   }
-  if (! arbitRec.sendCount) {
-    jam();
-    BlockReference blockRef = calcApiClusterMgrBlockRef(arbitRec.node);
-    ArbitSignalData* sd = (ArbitSignalData*)&signal->theData[0];
-    sd->sender = getOwnNodeId();
-    sd->code = 0;
-    sd->node = arbitRec.node;
-    sd->ticket = arbitRec.ticket;
-    computeArbitNdbMask(sd->mask);
-    sendSignal(blockRef, GSN_ARBIT_CHOOSEREQ, signal,
-      ArbitSignalData::SignalLength, JBA);
-    arbitRec.sendCount = 1;
-    arbitRec.setTimestamp();		// send time
-    return;
-  }
-  if (arbitRec.recvCount) {
-    jam();
-    reportArbitEvent(signal, NDB_LE_ArbitResult);
-    if (arbitRec.code == ArbitCode::WinChoose) {
+
+  switch(arbitRec.method){
+  case ArbitRec::METHOD_EXTERNAL:
+  {
+    if (! arbitRec.sendCount) {
       jam();
+      ndbrequire(arbitRec.node == 0); // No arbitrator selected
+      // Don't send CHOOSE to anyone, just wait for timeout to expire
+      arbitRec.sendCount = 1;
+      arbitRec.setTimestamp();
+      return;
+    }
+
+    if (arbitRec.getTimediff() > getArbitTimeout()) {
+      jam();
+      // Arbitration timeout has expired
+      ndbrequire(arbitRec.node == 0); // No arbitrator selected
+
+      NodeBitmask nodes;
+      computeArbitNdbMask(nodes);
+      arbitRec.code = ArbitCode::WinWaitExternal;
+      reportArbitEvent(signal, NDB_LE_ArbitResult, nodes);
+
       sendCommitFailReq(signal);        // start commit of failed nodes
       arbitRec.state = ARBIT_INIT;
       arbitRec.newstate = true;
       return;
     }
-    arbitRec.state = ARBIT_CRASH;
-    arbitRec.newstate = true;
-    stateArbitCrash(signal);		// do it at once
-    return;
+    break;
   }
-  if (arbitRec.getTimediff() > getArbitTimeout()) {
-    jam();
-    arbitRec.code = ArbitCode::ErrTimeout;
-    reportArbitEvent(signal, NDB_LE_ArbitState);
-    arbitRec.state = ARBIT_CRASH;
-    arbitRec.newstate = true;
-    stateArbitCrash(signal);		// do it at once
-    return;
+
+  case ArbitRec::METHOD_DEFAULT:
+  {
+    if (! arbitRec.sendCount) {
+      jam();
+      const BlockReference blockRef = calcApiClusterMgrBlockRef(arbitRec.node);
+      ArbitSignalData* sd = (ArbitSignalData*)&signal->theData[0];
+      sd->sender = getOwnNodeId();
+      sd->code = 0;
+      sd->node = arbitRec.node;
+      sd->ticket = arbitRec.ticket;
+      computeArbitNdbMask(sd->mask);
+      sendSignal(blockRef, GSN_ARBIT_CHOOSEREQ, signal,
+                 ArbitSignalData::SignalLength, JBA);
+      arbitRec.sendCount = 1;
+      arbitRec.setTimestamp();		// send time
+      return;
+    }
+
+    if (arbitRec.recvCount) {
+      jam();
+      reportArbitEvent(signal, NDB_LE_ArbitResult);
+      if (arbitRec.code == ArbitCode::WinChoose) {
+        jam();
+        sendCommitFailReq(signal);        // start commit of failed nodes
+        arbitRec.state = ARBIT_INIT;
+        arbitRec.newstate = true;
+        return;
+      }
+      arbitRec.state = ARBIT_CRASH;
+      arbitRec.newstate = true;
+      stateArbitCrash(signal);		// do it at once
+      return;
+    }
+
+    if (arbitRec.getTimediff() > getArbitTimeout()) {
+      jam();
+      // Arbitration timeout has expired
+      arbitRec.code = ArbitCode::ErrTimeout;
+      reportArbitEvent(signal, NDB_LE_ArbitState);
+      arbitRec.state = ARBIT_CRASH;
+      arbitRec.newstate = true;
+      stateArbitCrash(signal);		// do it at once
+      return;
+    }
+    break;
+  }
+
+  default:
+    ndbrequire(false);
+    break;
   }
 }
 
@@ -5357,14 +5447,15 @@ Qmgr::computeArbitNdbMask(NdbNodeBitmask& aMask)
  * where sender (word 0) is event type.
  */
 void
-Qmgr::reportArbitEvent(Signal* signal, Ndb_logevent_type type)
+Qmgr::reportArbitEvent(Signal* signal, Ndb_logevent_type type,
+                       const NodeBitmask mask)
 {
   ArbitSignalData* sd = (ArbitSignalData*)&signal->theData[0];
   sd->sender = type;
   sd->code = arbitRec.code | (arbitRec.state << 16);
   sd->node = arbitRec.node;
   sd->ticket = arbitRec.ticket;
-  sd->mask.clear();
+  sd->mask = mask;
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal,
     ArbitSignalData::SignalLength, JBB);
 }

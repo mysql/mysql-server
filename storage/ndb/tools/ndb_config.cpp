@@ -51,8 +51,6 @@ static int g_xml = 0;
 
 const char *load_default_groups[]= { "mysql_cluster",0 };
 
-int g_print_full_config;
-
 typedef ndb_mgm_configuration_iterator Iter;
 
 static struct my_option my_long_options[] =
