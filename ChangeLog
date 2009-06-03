@@ -1,3 +1,10 @@
+2009-06-03	The InnoDB Team
+
+	* dict/dict0dict.c, mysql-test/t/innodb_mysql.test,
+	mysql-test/r/innodb_mysql.result:
+	Fix Bug#39793 Foreign keys not constructed when column
+	has a '#' in a comment or default value
+
 2009-05-27	The InnoDB Team
 
 	* Doxyfile:

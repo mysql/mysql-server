@@ -219,7 +219,6 @@ mlog_write_initial_log_record_fast(
 		}
 	}
 
-
 	mach_write_to_1(log_ptr, type);
 	log_ptr++;
 	log_ptr += mach_write_compressed(log_ptr, space);
