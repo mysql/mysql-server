@@ -185,15 +185,12 @@ BaseString BitmaskPOD<size>::getText()
   return BitmaskImpl::getText(size, rep.data, buf);
 }
 
-#define VARS \
-  const char* delimiter = "";         \
-  unsigned i, found = 0, MAX_BITS = 8 * size; \
-  BaseString to
-
 template <unsigned size>
 BaseString BitmaskPOD<size>::getPrettyText()
 {
-  VARS;
+  const char* delimiter = "";
+  unsigned i, found = 0, MAX_BITS = 8 * size;
+  BaseString to;
   for (i = 0; i < MAX_BITS; i++)
   {
     if (get(i))
@@ -212,7 +209,9 @@ BaseString BitmaskPOD<size>::getPrettyText()
 template <unsigned size>
 BaseString BitmaskPOD<size>::getPrettyTextShort()
 {
-  VARS;
+  const char* delimiter = "";
+  unsigned i, found = 0, MAX_BITS = 8 * size;
+  BaseString to;
   for (i = 0; i < MAX_BITS; i++)
   {
     if (get(i))
