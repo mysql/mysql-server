@@ -1,8 +1,9 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # create the Makefile from the Makefile.tokutek template and some
 # command line parameters
 
+shopt -s compat31
 
 tokudb=/usr/local/tokudb
 tokudb_version=`basename $tokudb`
