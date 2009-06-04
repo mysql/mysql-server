@@ -1009,6 +1009,9 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize)
   param.out_flag= 0;
   strmov(fixed_name,file->filename);
 
+  // Release latches since this can take a long time
+  ha_release_temporary_latches(thd);
+
   // Don't lock tables if we have used LOCK TABLE
   if (!thd->locked_tables && 
       mi_lock_database(file, table->s->tmp_table ? F_EXTRA_LCK : F_WRLCK))
