@@ -1,9 +1,10 @@
+#include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
+#include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/stat.h>
-#include <sys/thr.h>
 #include <sys/resource.h>
 #include "toku_portability.h"
 #include "toku_os_types.h"
@@ -24,6 +25,8 @@ toku_os_getpid(void) {
     return getpid();
 }
 
+#if __FreeBSD__
+
 int
 toku_os_gettid(void) {
     long tid;
@@ -31,6 +34,8 @@ toku_os_gettid(void) {
     assert(r == 0);
     return tid;
 }
+
+#endif
 
 int
 toku_os_get_number_processors(void) {
@@ -77,6 +82,8 @@ toku_os_get_unique_file_id(int fildes, struct fileid *id) {
     return r;
 }
 
+#if defined(LOCK_EX)
+
 int
 toku_os_lock_file(char *name) {
     int r;
@@ -100,6 +107,8 @@ toku_os_unlock_file(int fildes) {
     return r;
 }
 
+#endif
+
 int
 toku_os_mkdir(const char *pathname, mode_t mode) {
     int r = mkdir(pathname, mode);
@@ -122,11 +131,8 @@ toku_os_get_process_times(struct timeval *usertime, struct timeval *kerneltime) 
 
 int
 toku_os_initialize_settings(int UU(verbosity)) {
-    int r = 0;
-    static int initialized = 0;
-    assert(initialized==0);
-    initialized=1;
-    return r;
+    verbosity = verbosity;
+    return 0;
 }
 
 #if __linux__

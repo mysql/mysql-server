@@ -64,7 +64,7 @@ endif
 OPT_OPTFLAGS = -O3 -finline-functions
 DBG_OPTFLAGS = -O0
 
-SYSTEM = $(shell uname -s | tr [A-Z] [a-z])
+SYSTEM = $(shell uname -s | tr [:upper:] [:lower:])
 
 ifeq ($(VERBOSE),2)
 VERBVERBOSE=-v
@@ -96,7 +96,11 @@ endif
 WALL      = -Wall -Wextra -Wcast-align -Wbad-function-cast -Wno-missing-noreturn
 
 FORMAT    = -Wmissing-format-attribute
+ifeq ($(SYSTEM),sunos)
+VISIBILITY=
+else
 VISIBILITY= -fvisibility=hidden
+endif
 FPICFLAGS = -fPIC
 SHADOW    = -Wshadow
 SYMBOLS   = -g3 -ggdb3
@@ -301,6 +305,9 @@ endif
 # Need XOPEN_SOURCE=600 to get strtoll()
 ifeq ($(SYSTEM),linux)
 CPPFLAGS+=-D_SVID_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -D_XOPEN_SOURCE=600
+endif
+ifeq ($(SYSTEM),sunos)
+CPPFLAGS+=-D_LARGEFILE64_SOURCE
 endif
 
 #TODO: Fix this up if we want to keep using CIL.
