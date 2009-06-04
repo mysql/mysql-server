@@ -10226,6 +10226,9 @@ free_tmp_table(THD *thd, TABLE *entry)
   save_proc_info=thd->proc_info;
   thd_proc_info(thd, "removing tmp table");
 
+  // Release latches since this can take a long time
+  ha_release_temporary_latches(thd);
+
   if (entry->file)
   {
     if (entry->db_stat)
@@ -10274,6 +10277,10 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
     table->file->print_error(error,MYF(0));
     DBUG_RETURN(1);
   }
+
+  // Release latches since this can take a long time
+  ha_release_temporary_latches(thd);
+
   new_table= *table;
   new_table.s= &new_table.share_not_to_be_used;
   new_table.s->db_type= DB_TYPE_MYISAM;
