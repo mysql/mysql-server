@@ -267,23 +267,23 @@ usage() if ($infile !~ /(.+)\.d$/);
 # If the system has native support for DTrace, we'll use that binary instead.
 #
 if (-x '/usr/sbin/dtrace' && !$force) {
-	open(my $dt, '-|', "/usr/sbin/dtrace -C -h -s $infile -o /dev/stdout")
+	open(DTRACE, "-| /usr/sbin/dtrace -C -h -s $infile -o /dev/stdout")
 	    or die "can't invoke dtrace(1M)";
 
-	while (<$dt>) {
+	while (<DTRACE>) {
 		emit_dtrace($_);
 	}
 
-	close($dt);
+	close(DTRACE);
 
 	exit(0);
 }
 
 emit_prologue($infile);
 
-open(my $d, '<', $infile) or die "couldn't open $infile";
-@lines = <$d>;
-close($d);
+open(D, "< $infile") or die "couldn't open $infile";
+@lines = <D>;
+close(D);
 
 while (1) {
 	my $nl = 0;
