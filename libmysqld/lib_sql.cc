@@ -142,6 +142,8 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
   if (!skip_check)
     result= thd->is_error() ? -1 : 0;
 
+  thd->mysys_var= 0;
+
 #if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
   thd->profiling.finish_current_query();
 #endif
@@ -634,6 +636,7 @@ void *create_embedded_thd(int client_flag)
 
   thread_count++;
   threads.append(thd);
+  thd->mysys_var= 0;
   return thd;
 err:
   delete(thd);
