@@ -3021,9 +3021,12 @@ page_zip_hexdump_func(
 	}
 }
 
+/** Dump a block of memory on the standard error stream.
+@param buf	in: data
+@param size	in: length of the data, in bytes */
 #define page_zip_hexdump(buf, size) page_zip_hexdump_func(#buf, buf, size)
 
-/* Flag: make page_zip_validate() compare page headers only */
+/** Flag: make page_zip_validate() compare page headers only */
 UNIV_INTERN ibool	page_zip_validate_header_only = FALSE;
 
 /**********************************************************************//**
@@ -3864,7 +3867,7 @@ page_zip_write_trx_id_and_roll_ptr(
 }
 
 #ifdef UNIV_ZIP_DEBUG
-/* Set this variable in a debugger to disable page_zip_clear_rec().
+/** Set this variable in a debugger to disable page_zip_clear_rec().
 The only observable effect should be the compression ratio due to
 deleted records not being zeroed out.  In rare cases, there can be
 page_zip_validate() failures on the node_ptr, trx_id and roll_ptr
