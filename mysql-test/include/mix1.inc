@@ -1171,6 +1171,16 @@ CREATE TABLE t1 (f1 INTEGER PRIMARY KEY COMMENT 'My ID#', f2 INTEGER DEFAULT NUL
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
+--echo #
+--echo # Bug #36995: valgrind error in remove_const during subquery executions
+--echo #
+
+create table t1 (a bit(1) not null,b int) engine=myisam;
+create table t2 (c int) engine=innodb;
+explain
+select b from t1 where a not in (select b from t1,t2 group by a) group by a;
+DROP TABLE t1,t2;
+
 --echo End of 5.0 tests
 
 # Fix for BUG#19243 "wrong LAST_INSERT_ID() after ON DUPLICATE KEY
