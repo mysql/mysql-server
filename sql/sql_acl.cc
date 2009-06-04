@@ -5911,6 +5911,7 @@ int sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
     DBUG_RETURN(TRUE);
 
   thd->lex->ssl_type= SSL_TYPE_NOT_SPECIFIED;
+  thd->lex->ssl_cipher= thd->lex->x509_subject= thd->lex->x509_issuer= 0;
   bzero((char*) &thd->lex->mqh, sizeof(thd->lex->mqh));
 
   result= mysql_routine_grant(thd, tables, is_proc, user_list,
