@@ -264,7 +264,8 @@ ulint
 fseg_n_reserved_pages_low(
 /*======================*/
 	fseg_inode_t*	header,	/*!< in: segment inode */
-	ulint*		used,	/*!< out: number of pages used (<= reserved) */
+	ulint*		used,	/*!< out: number of pages used (not
+				more than reserved) */
 	mtr_t*		mtr);	/*!< in: mtr handle */
 /********************************************************************//**
 Marks a page used. The page must reside within the extents of the given
@@ -2337,7 +2338,8 @@ ulint
 fseg_n_reserved_pages_low(
 /*======================*/
 	fseg_inode_t*	inode,	/*!< in: segment inode */
-	ulint*		used,	/*!< out: number of pages used (<= reserved) */
+	ulint*		used,	/*!< out: number of pages used (not
+				more than reserved) */
 	mtr_t*		mtr)	/*!< in: mtr handle */
 {
 	ulint	ret;
