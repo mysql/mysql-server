@@ -35,7 +35,7 @@
   asm volatile (LOCK "; xadd %0, %1;" : "+r" (v) , "+m" (*a))
 #endif
 #define make_atomic_swap_body(S)				\
-  asm volatile ("; xchg %0, %1;" : "+r" (v) , "+m" (*a))
+  asm volatile ("; xchg %0, %1;" : "+q" (v) , "+m" (*a))
 #define make_atomic_cas_body(S)					\
   asm volatile (LOCK "; cmpxchg %3, %0; setz %2;"		\
                : "+m" (*a), "+a" (*cmp), "=q" (ret): "r" (set))
