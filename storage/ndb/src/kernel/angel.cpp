@@ -50,7 +50,7 @@ handler_sigusr1(int signum)
   g_eventLogger->info("Angel received ndbd startup failure count %u.", failed_startups);
 }
 
-void
+static void
 angel_exit(int code)
 {
 #ifdef HAVE_gcov
