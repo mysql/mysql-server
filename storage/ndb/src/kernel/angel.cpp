@@ -50,6 +50,16 @@ handler_sigusr1(int signum)
   g_eventLogger->info("Angel received ndbd startup failure count %u.", failed_startups);
 }
 
+void
+angel_exit(int code)
+{
+#ifdef HAVE_gcov
+  exit(code);
+#else
+  _exit(code);
+#endif
+}
+
 
 // These are used already before fork if fetch_configuration() fails
 // (e.g. Unable to alloc node id).  Set them to something reasonable.
@@ -311,7 +321,7 @@ angel_run(const char* connect_str,
       case NRT_Default:
         g_eventLogger->info("Angel shutting down");
         reportShutdown(theConfig, 0, 0);
-        exit(0);
+        angel_exit(0);
         break;
       case NRT_NoStart_Restart:
         theConfig->setInitialStart(false);
@@ -333,7 +343,7 @@ angel_run(const char* connect_str,
            * Error shutdown && stopOnError()
            */
           reportShutdown(theConfig, error_exit, 0);
-          exit(0);
+          angel_exit(0);
         }
         // Fall-through
       case NRT_DoStart_Restart:
@@ -359,7 +369,7 @@ angel_run(const char* connect_str,
          * Error shutdown && stopOnError()
          */
         reportShutdown(theConfig, error_exit, 0);
-        exit(0);
+        angel_exit(0);
       }
     }
 
@@ -375,7 +385,7 @@ angel_run(const char* connect_str,
       g_eventLogger->alert("Ndbd has failed %u consecutive startups. "
                            "Not restarting", failed_startups);
       reportShutdown(theConfig, error_exit, 0);
-      exit(0);
+      angel_exit(0);
     }
     failed_startup_flag=false;
     reportShutdown(theConfig, error_exit, 1);
