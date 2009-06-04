@@ -68,10 +68,10 @@ buf_LRU_buf_pool_running_out(void);
 These are low-level functions
 #########################################################################*/
 
-/* Minimum LRU list length for which the LRU_old pointer is defined */
-
+/** Minimum LRU list length for which the LRU_old pointer is defined */
 #define BUF_LRU_OLD_MIN_LEN	80
 
+/** Maximum LRU list search length in buf_flush_LRU_recommendation() */
 #define BUF_LRU_FREE_SEARCH_LEN		(5 + 2 * BUF_READ_AHEAD_AREA)
 
 /******************************************************************//**
@@ -227,18 +227,18 @@ buf_LRU_print(void);
 /*===============*/
 #endif /* UNIV_DEBUG_PRINT || UNIV_DEBUG || UNIV_BUF_DEBUG */
 
-/******************************************************************//**
+/** @brief Statistics for selecting the LRU list for eviction.
+
 These statistics are not 'of' LRU but 'for' LRU.  We keep count of I/O
 and page_zip_decompress() operations.  Based on the statistics we decide
 if we want to evict from buf_pool->unzip_LRU or buf_pool->LRU. */
-
-/** Statistics for selecting the LRU list for eviction. */
 struct buf_LRU_stat_struct
 {
 	ulint	io;	/**< Counter of buffer pool I/O operations. */
 	ulint	unzip;	/**< Counter of page_zip_decompress operations. */
 };
 
+/** Statistics for selecting the LRU list for eviction. */
 typedef struct buf_LRU_stat_struct buf_LRU_stat_t;
 
 /** Current operation counters.  Not protected by any mutex.

@@ -242,7 +242,7 @@ buf_page_get_known_nowait(
 Given a tablespace id and page number tries to get that page. If the
 page is not in the buffer pool it is not loaded and NULL is returned.
 Suitable for using when holding the kernel mutex. */
-
+UNIV_INTERN
 const buf_block_t*
 buf_page_try_get_func(
 /*==================*/
@@ -252,6 +252,12 @@ buf_page_try_get_func(
 	ulint		line,	/*!< in: line where called */
 	mtr_t*		mtr);	/*!< in: mini-transaction */
 
+/** Tries to get a page. If the page is not in the buffer pool it is
+not loaded.  Suitable for using when holding the kernel mutex.
+@param space_id	in: tablespace id
+@param page_no	in: page number
+@param mtr	in: mini-transaction
+@return		the page if in buffer pool, NULL if not */
 #define buf_page_try_get(space_id, page_no, mtr)	\
 	buf_page_try_get_func(space_id, page_no, __FILE__, __LINE__, mtr);
 
@@ -928,10 +934,16 @@ buf_pointer_is_block_field(
 /*=======================*/
 	const void*		ptr);	/*!< in: pointer not
 					dereferenced */
-#define buf_pool_is_block_mutex(m)	\
-		buf_pointer_is_block_field((void *)(m))
-#define buf_pool_is_block_lock(l)	\
-		buf_pointer_is_block_field((void *)(l))
+/** Find out if a pointer corresponds to a buf_block_t::mutex.
+@param m	in: mutex candidate
+@return		TRUE if m is a buf_block_t::mutex */
+#define buf_pool_is_block_mutex(m)			\
+	buf_pointer_is_block_field((const void*)(m))
+/** Find out if a pointer corresponds to a buf_block_t::lock.
+@param l	in: rw-lock candidate
+@return		TRUE if l is a buf_block_t::lock */
+#define buf_pool_is_block_lock(l)			\
+	buf_pointer_is_block_field((const void*)(l))
 
 #if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
 /*********************************************************************//**
