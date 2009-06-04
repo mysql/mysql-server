@@ -449,6 +449,8 @@ BitmaskImpl::getText(unsigned size, const Uint32 data[], char* buf)
   return org;
 }
 
+class BaseString;
+
 /**
  * Bitmasks.  The size is number of 32-bit words (Uint32).
  * Unused bits in the last word must be zero.
@@ -508,9 +510,9 @@ public:
    *
    * getPrettyText is based on nodes2str() in ConfigManager.cpp()
    */
-  class BaseString getText();
-  class BaseString getPrettyText();
-  class BaseString getPrettyTextShort();
+  BaseString getText();
+  BaseString getPrettyText();
+  BaseString getPrettyTextShort();
 
   /**
    * start of static members
