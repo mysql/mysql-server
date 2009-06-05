@@ -1888,7 +1888,7 @@ rl_character_len (c, pos)
 
   uc = (unsigned char)c;
 
-  if (META_CHAR (uc))
+  if (META_CHAR (c))
     return ((_rl_output_meta_chars == 0) ? 4 : 1);
 
   if (uc == '\t')
