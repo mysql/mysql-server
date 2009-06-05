@@ -126,6 +126,8 @@ extern ulint	srv_lock_table_size;
 
 extern ulint	srv_n_file_io_threads;
 extern ulint	srv_read_ahead_factor;
+extern ulint	srv_n_read_io_threads;
+extern ulint	srv_n_write_io_threads;
 
 #ifdef UNIV_LOG_ARCHIVE
 extern ibool	srv_log_archive_on;
@@ -218,7 +220,7 @@ extern mutex_t*	kernel_mutex_temp;/* mutex protecting the server, trx structs,
 				same DRAM page as other hotspot semaphores */
 #define kernel_mutex (*kernel_mutex_temp)
 
-#define SRV_MAX_N_IO_THREADS	100
+#define SRV_MAX_N_IO_THREADS	130
 
 /* Array of English strings describing the current state of an
 i/o handler thread */
