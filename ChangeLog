@@ -9,7 +9,7 @@
 
 	* Doxyfile:
 	Allow the extraction of documentation from the code base with the
-	Doxygen tool.  Convert and add many (but not yet all) comments to
+	Doxygen tool. Convert and add many (but not yet all) comments to
 	Doxygen format.
 
 2009-05-19	The InnoDB Team
@@ -20,7 +20,7 @@
 	page/page0zip.c, page/page0page.c:
 	Write updates of PAGE_MAX_TRX_ID to the redo log and add debug
 	assertions for checking that PAGE_MAX_TRX_ID is valid on leaf
-	pages of secondary indexes and the insert buffer B-tree.  This bug
+	pages of secondary indexes and the insert buffer B-tree. This bug
 	could cause failures in secondary index lookups in consistent
 	reads right after crash recovery.
 
@@ -50,7 +50,7 @@
 
 	* row/row0mysql.c:
 	When scanning indexes, report in the error log any error codes
-	returned by the search function.  These error codes will still be
+	returned by the search function. These error codes will still be
 	ignored in CHECK TABLE.
 
 2009-04-23	The InnoDB Team
