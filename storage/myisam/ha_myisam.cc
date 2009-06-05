@@ -1807,7 +1807,7 @@ int ha_myisam::info(uint flag)
     if (share->key_parts)
       memcpy((char*) table->key_info[0].rec_per_key,
 	     (char*) misam_info.rec_per_key,
-	     sizeof(table->key_info[0].rec_per_key[0])*share->key_parts);
+             sizeof(table->key_info[0].rec_per_key[0])*share->key_parts);
     if (share->tmp_table == NO_TMP_TABLE)
       pthread_mutex_unlock(&share->mutex);
 
