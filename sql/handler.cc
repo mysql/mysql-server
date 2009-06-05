@@ -1073,6 +1073,13 @@ int ha_commit_trans(THD *thd, bool all)
     user, or an implicit commit issued by a DDL.
   */
   THD_TRANS *trans= all ? &thd->transaction.all : &thd->transaction.stmt;
+  /*
+    "real" is a nick name for a transaction for which a commit will
+    make persistent changes. E.g. a 'stmt' transaction inside a 'all'
+    transation is not 'real': even though it's possible to commit it,
+    the changes are not durable as they might be rolled back if the
+    enclosing 'all' transaction is rolled back.
+  */
   bool is_real_trans= all || thd->transaction.all.ha_list == 0;
   Ha_trx_info *ha_info= trans->ha_list;
   my_xid xid= thd->transaction.xid_state.xid.get_my_xid();
@@ -1184,16 +1191,9 @@ end:
     if (rw_trans)
       start_waiting_global_read_lock(thd);
   }
-  else if (all)
-  {
-    /*
-      A COMMIT of an empty transaction. There may be savepoints.
-      Destroy them. If the transaction is not empty
-      savepoints are cleared in ha_commit_one_phase()
-      or ha_rollback_trans().
-    */
+  /* Free resources and perform other cleanup even for 'empty' transactions. */
+  else if (is_real_trans)
     thd->transaction.cleanup();
-  }
 #endif /* USING_TRANSACTIONS */
   DBUG_RETURN(error);
 }
@@ -1206,6 +1206,13 @@ int ha_commit_one_phase(THD *thd, bool all)
 {
   int error=0;
   THD_TRANS *trans=all ? &thd->transaction.all : &thd->transaction.stmt;
+  /*
+    "real" is a nick name for a transaction for which a commit will
+    make persistent changes. E.g. a 'stmt' transaction inside a 'all'
+    transation is not 'real': even though it's possible to commit it,
+    the changes are not durable as they might be rolled back if the
+    enclosing 'all' transaction is rolled back.
+  */
   bool is_real_trans=all || thd->transaction.all.ha_list == 0;
   Ha_trx_info *ha_info= trans->ha_list, *ha_info_next;
   DBUG_ENTER("ha_commit_one_phase");
@@ -1227,8 +1234,6 @@ int ha_commit_one_phase(THD *thd, bool all)
     }
     trans->ha_list= 0;
     trans->no_2pc=0;
-    if (is_real_trans)
-      thd->transaction.xid_state.xid.null();
     if (all)
     {
 #ifdef HAVE_QUERY_CACHE
@@ -1236,8 +1241,9 @@ int ha_commit_one_phase(THD *thd, bool all)
         query_cache.invalidate(thd->transaction.changed_tables);
 #endif
       thd->variables.tx_isolation=thd->session_tx_isolation;
-      thd->transaction.cleanup();
     }
+    if (is_real_trans)
+      thd->transaction.cleanup();
   }
 #endif /* USING_TRANSACTIONS */
   DBUG_RETURN(error);
@@ -1249,6 +1255,13 @@ int ha_rollback_trans(THD *thd, bool all)
   int error=0;
   THD_TRANS *trans=all ? &thd->transaction.all : &thd->transaction.stmt;
   Ha_trx_info *ha_info= trans->ha_list, *ha_info_next;
+  /*
+    "real" is a nick name for a transaction for which a commit will
+    make persistent changes. E.g. a 'stmt' transaction inside a 'all'
+    transation is not 'real': even though it's possible to commit it,
+    the changes are not durable as they might be rolled back if the
+    enclosing 'all' transaction is rolled back.
+  */
   bool is_real_trans=all || thd->transaction.all.ha_list == 0;
   DBUG_ENTER("ha_rollback_trans");
 
@@ -1294,18 +1307,13 @@ int ha_rollback_trans(THD *thd, bool all)
     }
     trans->ha_list= 0;
     trans->no_2pc=0;
-    if (is_real_trans)
-    {
-      if (thd->transaction_rollback_request)
-        thd->transaction.xid_state.rm_error= thd->main_da.sql_errno();
-      else
-        thd->transaction.xid_state.xid.null();
-    }
+    if (is_real_trans && thd->transaction_rollback_request)
+      thd->transaction.xid_state.rm_error= thd->main_da.sql_errno();
     if (all)
       thd->variables.tx_isolation=thd->session_tx_isolation;
   }
   /* Always cleanup. Even if there nht==0. There may be savepoints. */
-  if (all)
+  if (is_real_trans)
     thd->transaction.cleanup();
 #endif /* USING_TRANSACTIONS */
   if (all)
