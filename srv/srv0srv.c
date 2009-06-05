@@ -175,6 +175,13 @@ UNIV_INTERN ulint	srv_lock_table_size	= ULINT_MAX;
 
 UNIV_INTERN ulint	srv_n_file_io_threads	= ULINT_MAX;
 
+/* User settable value of the number of pages that InnoDB will tolerate
+within a 64 page extent even if they are accessed out of order or have
+not been accessed at all. This number (which varies from 0 to 64) is
+indicative of the slack that we have when deciding about linear
+readahead. */
+UNIV_INTERN ulint	srv_read_ahead_factor	= 8;
+
 #ifdef UNIV_LOG_ARCHIVE
 UNIV_INTERN ibool		srv_log_archive_on	= FALSE;
 UNIV_INTERN ibool		srv_archive_recovery	= 0;

@@ -125,6 +125,7 @@ extern ulint	srv_mem_pool_size;
 extern ulint	srv_lock_table_size;
 
 extern ulint	srv_n_file_io_threads;
+extern ulint	srv_read_ahead_factor;
 
 #ifdef UNIV_LOG_ARCHIVE
 extern ibool	srv_log_archive_on;
