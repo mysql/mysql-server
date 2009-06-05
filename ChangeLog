@@ -1,5 +1,16 @@
 2009-06-05	The InnoDB Team
 
+	* handler/ha_innodb.cc, include/os0file.h, include/srv0srv.h,
+	os/os0file.c, srv/srv0srv.c, srv/srv0start.c:
+	Enable functionality to have multiple background IO helper threads.
+	Expose new configure knobs innodb_read_io_threads and
+	innodb_write_io_threads and deprecate innodb_file_io_threads (this
+	parameter was relevant only on windows). Internally this allows
+	multiple segments for read and write IO request arrays where one
+	thread works on one segement.
+
+2009-06-05	The InnoDB Team
+
 	* buf/buf0lru.c, buf/buf0rea.c, handler/ha_innodb.cc,
 	include/srv0srv.h, srv/srv0srv.c:
 	Fix a bug in linear read ahead:
