@@ -1165,12 +1165,12 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   }
   case COM_STMT_EXECUTE:
   {
-    mysql_stmt_execute(thd, packet, packet_length);
+    mysqld_stmt_execute(thd, packet, packet_length);
     break;
   }
   case COM_STMT_FETCH:
   {
-    mysql_stmt_fetch(thd, packet, packet_length);
+    mysqld_stmt_fetch(thd, packet, packet_length);
     break;
   }
   case COM_STMT_SEND_LONG_DATA:
@@ -1180,17 +1180,17 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   }
   case COM_STMT_PREPARE:
   {
-    mysql_stmt_prepare(thd, packet, packet_length);
+    mysqld_stmt_prepare(thd, packet, packet_length);
     break;
   }
   case COM_STMT_CLOSE:
   {
-    mysql_stmt_close(thd, packet);
+    mysqld_stmt_close(thd, packet);
     break;
   }
   case COM_STMT_RESET:
   {
-    mysql_stmt_reset(thd, packet);
+    mysqld_stmt_reset(thd, packet);
     break;
   }
   case COM_QUERY:
@@ -5739,7 +5739,7 @@ mysql_new_select(LEX *lex, bool move_down)
   /*
     Don't evaluate this subquery during statement prepare even if
     it's a constant one. The flag is switched off in the end of
-    mysql_stmt_prepare.
+    mysqld_stmt_prepare.
   */
   if (thd->stmt_arena->is_stmt_prepare())
     select_lex->uncacheable|= UNCACHEABLE_PREPARE;
