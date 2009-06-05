@@ -1,3 +1,19 @@
+2009-06-05	The InnoDB Team
+
+	* buf/buf0lru.c, buf/buf0rea.c, handler/ha_innodb.cc,
+	include/srv0srv.h, srv/srv0srv.c:
+	Fix a bug in linear read ahead:
+	  1) Take into account access pattern when deciding whether or not to
+	    do linear read ahead.
+	  2) Expose a knob innodb_read_ahead_factor = [0-64] default (8),
+	    dynamic, global to control linear read ahead behvior. This is the
+	    value of the number of pages that InnoDB will tolerate within a
+	    64 page extent even if they are accessed out of order or have
+	    not been accessed at all. This number (which varies from 0 to 64)
+	    is indicative of the slack that we have when deciding about linear
+	    readahead.
+	  3) Disable random read ahead. Keep the code for now.
+
 2009-06-03	The InnoDB Team
 
 	* dict/dict0dict.c, mysql-test/t/innodb_mysql.test,
