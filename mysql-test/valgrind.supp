@@ -422,9 +422,22 @@
    obj:/lib*/ld-*.so
    obj:/lib*/ld-*.so
    obj:/lib*/libdl-*.so
-   fun:_dl_close
+   fun:dlclose
    fun:_ZL15free_plugin_memP12st_plugin_dl
    fun:_ZL13plugin_dl_delPK19st_mysql_lex_string
+}
+
+{
+   dlclose memory loss from plugin variant 5
+   Memcheck:Leak
+   fun:malloc
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/libdl-*.so
+   fun:dlclose
+   fun:_ZL15free_plugin_memP12st_plugin_dl
 }
 
 {
