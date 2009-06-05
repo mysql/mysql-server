@@ -1413,14 +1413,14 @@ enum enum_schema_tables get_schema_table_idx(ST_SCHEMA_TABLE *schema_table);
 
 /* sql_prepare.cc */
 
-void mysql_stmt_prepare(THD *thd, const char *packet, uint packet_length);
-void mysql_stmt_execute(THD *thd, char *packet, uint packet_length);
-void mysql_stmt_close(THD *thd, char *packet);
+void mysqld_stmt_prepare(THD *thd, const char *packet, uint packet_length);
+void mysqld_stmt_execute(THD *thd, char *packet, uint packet_length);
+void mysqld_stmt_close(THD *thd, char *packet);
 void mysql_sql_stmt_prepare(THD *thd);
 void mysql_sql_stmt_execute(THD *thd);
 void mysql_sql_stmt_close(THD *thd);
-void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length);
-void mysql_stmt_reset(THD *thd, char *packet);
+void mysqld_stmt_fetch(THD *thd, char *packet, uint packet_length);
+void mysqld_stmt_reset(THD *thd, char *packet);
 void mysql_stmt_get_longdata(THD *thd, char *pos, ulong packet_length);
 void reinit_stmt_before_use(THD *thd, LEX *lex);
 
