@@ -415,10 +415,40 @@
 }
 
 {
-   dlopen / ptread_cancel_init memory loss on Suse Linux 10.3 32/64 bit
+   dlclose memory loss from plugin variant 4
+   Memcheck:Leak
+   fun:malloc
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/libdl-*.so
+   fun:_dl_close
+   fun:_ZL15free_plugin_memP12st_plugin_dl
+   fun:_ZL13plugin_dl_delPK19st_mysql_lex_string
+}
+
+{
+   dlopen / ptread_cancel_init memory loss on Suse Linux 10.3 32/64 bit ver 1
    Memcheck:Leak
    fun:*alloc
    obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/libc-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/libc-*.so
+   fun:__libc_dlopen_mode
+   fun:pthread_cancel_init
+   fun:_Unwind_ForcedUnwind
+}
+
+{
+   dlopen / ptread_cancel_init memory loss on Suse Linux 10.3 32/64 bit ver 2
+   Memcheck:Leak
+   fun:*alloc
    obj:/lib*/ld-*.so
    obj:/lib*/ld-*.so
    obj:/lib*/ld-*.so

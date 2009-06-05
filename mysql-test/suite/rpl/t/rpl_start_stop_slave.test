@@ -1,3 +1,5 @@
+# Slow test, don't run during staging part
+-- source include/not_staging.inc
 source include/master-slave.inc;
 
 #

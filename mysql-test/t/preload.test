@@ -2,6 +2,9 @@
 # Testing of PRELOAD
 #
 
+# Slow test, don't run during staging part
+-- source include/not_staging.inc
+
 --disable_warnings
 drop table if exists t1, t2;
 --enable_warnings

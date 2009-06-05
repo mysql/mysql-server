@@ -282,8 +282,8 @@ static bool libevent_init(void)
   killed_threads= 0;
   kill_pool_threads= FALSE;
 
-  pthread_mutex_init(&LOCK_event_loop, NULL);
-  pthread_mutex_init(&LOCK_thd_add, NULL);
+  pthread_mutex_init(&LOCK_event_loop, MY_MUTEX_INIT_FAST);
+  pthread_mutex_init(&LOCK_thd_add, MY_MUTEX_INIT_FAST);
 
   /* set up sockets used to add new thds to the event pool */
   if (init_socketpair(thd_add_pair))

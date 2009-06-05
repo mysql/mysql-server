@@ -3,6 +3,7 @@
 
 -- source include/have_ssl.inc
 -- source include/have_compress.inc
+-- source include/not_staging.inc
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc

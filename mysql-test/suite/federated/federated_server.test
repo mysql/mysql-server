@@ -1,5 +1,8 @@
 # WL #3031 This test tests the new servers table as well as
 # if federated can utilise the servers table
+
+# Slow test, don't run during staging part
+-- source include/not_staging.inc
 -- source federated.inc
 
 connection slave;

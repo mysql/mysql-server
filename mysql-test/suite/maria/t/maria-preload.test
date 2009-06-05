@@ -2,6 +2,8 @@
 # Testing of PRELOAD
 #
 
+# Slow test, don't run during staging part
+-- source include/not_staging.inc
 -- source include/have_maria.inc
 
 --disable_warnings

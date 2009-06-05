@@ -140,6 +140,7 @@ our $exe_mysqltest;
 our $exe_libtool;
 
 our $opt_big_test= 0;
+our $opt_staging_run= 0;
 
 our @opt_combinations;
 
@@ -844,6 +845,7 @@ sub command_line_setup {
              'skip-combinations'        => \&collect_option,
              'experimental=s'           => \$opt_experimental,
 	     'skip-im'                  => \&ignore_option,
+             'staging-run'              => \$opt_staging_run,
 
              # Specify ports
 	     'build-thread|mtr-build-thread=i' => \$opt_build_thread,
@@ -1252,12 +1254,13 @@ sub command_line_setup {
   }
 
   # --------------------------------------------------------------------------
-  # Big test flags
+  # Big test and staging_run flags
   # --------------------------------------------------------------------------
    if ( $opt_big_test )
    {
      $ENV{'BIG_TEST'}= 1;
    }
+  $ENV{'STAGING_RUN'}= $opt_staging_run;
 
   # --------------------------------------------------------------------------
   # Gcov flag
@@ -5234,7 +5237,7 @@ Options to control what engine/variation to run
   skip-ssl              Dont start server with support for ssl connections
   vs-config             Visual Studio configuration used to create executables
                         (default: MTR_VS_CONFIG environment variable)
-
+  parallel=#            How many parallell test should be run
   config|defaults-file=<config template> Use fixed config template for all
                         tests
   defaults_extra_file=<config template> Extra config template to add to
@@ -5276,6 +5279,8 @@ Options to control what test suites or cases to run
                         The default is: "$DEFAULT_SUITES"
   skip-rpl              Skip the replication test cases.
   big-test              Also run tests marked as "big"
+  staging-run           Run a limited number of tests (no slow tests). Used
+                        for running staging trees with valgrind.
 
 Options that specify ports
 
