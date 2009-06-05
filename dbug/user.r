@@ -32,6 +32,7 @@
 .\"           === Set line length
 .\".ll 6.5i
 .TL
+.warn 0
 D B U G
 .P 0
 C Program Debugging Package
