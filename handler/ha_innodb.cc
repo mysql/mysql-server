@@ -2416,7 +2416,7 @@ ha_innobase::innobase_initialize_autoinc()
 
 	} else if (error == DB_RECORD_NOT_FOUND) {
 		ut_print_timestamp(stderr);
-		fprintf(stderr, "  InnoDB: Error: MySQL and InnoDB data "
+		fprintf(stderr, "  InnoDB: MySQL and InnoDB data "
 			"dictionaries are out of sync.\n"
 			"InnoDB: Unable to find the AUTOINC column %s in the "
 			"InnoDB table %s.\n"
@@ -2426,7 +2426,8 @@ ha_innobase::innobase_initialize_autoinc()
 			"generation.\n"
 			"InnoDB: You can either set the next AUTOINC value "
 			"explicitly using ALTER TABLE\n"
-			"InnoDB: or fix the data dictionary.\n",
+			"InnoDB: or fix the data dictionary by recreating "
+			"the table.\n",
 			col_name, index->table->name);
 
 		auto_inc = 0xFFFFFFFFFFFFFFFFULL;
