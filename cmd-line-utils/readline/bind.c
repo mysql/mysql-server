@@ -699,8 +699,10 @@ rl_function_of_keyseq (keyseq, map, type)
 
   for (i = 0; keyseq && keyseq[i]; i++)
     {
-      unsigned char ic = keyseq[i];
+      unsigned char uc = keyseq[i];
+      int ic;
 
+      ic= uc;
       if (META_CHAR (ic) && _rl_convert_meta_chars_to_ascii)
 	{
 	  if (map[ESC].type == ISKMAP)
