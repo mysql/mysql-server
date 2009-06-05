@@ -1340,23 +1340,25 @@ static int run_tool(const char *tool_path, DYNAMIC_STRING *ds_res, ...)
   not present.
 */
 
-int diff_check()
+int diff_check(const char *diff_name)
 {
- char buf[512]= {0};
- FILE *res_file;
- const char *cmd = "diff -v";
- int have_diff = 0;
+  char buf[512]= {0};
+  FILE *res_file;
+  char cmd[128];
+  my_snprintf (cmd, sizeof(cmd), "%s -v", diff_name);
+  int have_diff = 0;
 
   if (!(res_file= popen(cmd, "r")))
     die("popen(\"%s\", \"r\") failed", cmd);
 
-/* if diff is not present, nothing will be in stdout to increment have_diff */
+  /* if diff is not present, nothing will be in
+   * stdout to increment have_diff */
   if (fgets(buf, sizeof(buf), res_file))
   {
     have_diff += 1;
   } 
- pclose(res_file);
- return have_diff;
+  pclose(res_file);
+  return have_diff;
 }
 
 /*
@@ -1377,28 +1379,33 @@ void show_diff(DYNAMIC_STRING* ds,
 {
 
   DYNAMIC_STRING ds_tmp;
-  int have_diff = 0;
+  const char *diff_name = 0;
 
   if (init_dynamic_string(&ds_tmp, "", 256, 256))
     die("Out of memory");
-  
+
   /* determine if we have diff on Windows
-     needs special processing due to return values
-     on that OS
-     This test is only done on Windows since it's only needed there
-     in order to correctly detect non-availibility of 'diff', and
-     the way it's implemented does not work with default 'diff' on Solaris.
-  */
+    needs special processing due to return values
+    on that OS
+    This test is only done on Windows since it's only needed there
+    in order to correctly detect non-availibility of 'diff', and
+    the way it's implemented does not work with default 'diff' on Solaris.
+    */
 #ifdef __WIN__
-  have_diff = diff_check();
+  if (diff_check("diff"))
+    diff_name = "diff";
+  else if (diff_check("mtrdiff"))
+    diff_name = "mtrdiff";
+  else
+    diff_name = 0;
 #else
-  have_diff = 1;
+  diff_name = "diff";           // Otherwise always assume it's called diff
 #endif
 
-  if (have_diff)
+  if (diff_name)
   {
     /* First try with unified diff */
-    if (run_tool("diff",
+    if (run_tool(diff_name,
                  &ds_tmp, /* Get output from diff in ds_tmp */
                  "-u",
                  filename1,
@@ -1409,7 +1416,7 @@ void show_diff(DYNAMIC_STRING* ds,
       dynstr_set(&ds_tmp, "");
 
       /* Fallback to context diff with "diff -c" */
-      if (run_tool("diff",
+      if (run_tool(diff_name,
                    &ds_tmp, /* Get output from diff in ds_tmp */
                    "-c",
                    filename1,
@@ -1417,42 +1424,42 @@ void show_diff(DYNAMIC_STRING* ds,
                    "2>&1",
                    NULL) > 1) /* Most "diff" tools return >1 if error */
       {
-        have_diff= 0;
-      }  
+        diff_name= 0;
+      }
     }
   }
 
-if (!(have_diff))
+  if (!(diff_name))
   {
     /*
       Fallback to dump both files to result file and inform
       about installing "diff"
-    */
-      
-      dynstr_set(&ds_tmp, "");
+      */
 
-      dynstr_append(&ds_tmp,
-"\n"
-"The two files differ but it was not possible to execute 'diff' in\n"
-"order to show only the difference, tried both 'diff -u' or 'diff -c'.\n"
-"Instead the whole content of the two files was shown for you to diff manually. ;)\n\n"
-"To get a better report you should install 'diff' on your system, which you\n"
-"for example can get from http://www.gnu.org/software/diffutils/diffutils.html\n"
+    dynstr_set(&ds_tmp, "");
+
+    dynstr_append(&ds_tmp,
+      "\n"
+      "The two files differ but it was not possible to execute 'diff' in\n"
+      "order to show only the difference, tried both 'diff -u' or 'diff -c'.\n"
+      "Instead the whole content of the two files was shown for you to diff manually. ;)\n\n"
+      "To get a better report you should install 'diff' on your system, which you\n"
+      "for example can get from http://www.gnu.org/software/diffutils/diffutils.html\n"
 #ifdef __WIN__
-"or http://gnuwin32.sourceforge.net/packages/diffutils.htm\n"
+      "or http://gnuwin32.sourceforge.net/packages/diffutils.htm\n"
 #endif
-"\n");
+      "\n");
 
-      dynstr_append(&ds_tmp, " --- ");
-      dynstr_append(&ds_tmp, filename1);
-      dynstr_append(&ds_tmp, " >>>\n");
-      cat_file(&ds_tmp, filename1);
-      dynstr_append(&ds_tmp, "<<<\n --- ");
-      dynstr_append(&ds_tmp, filename1);
-      dynstr_append(&ds_tmp, " >>>\n");
-      cat_file(&ds_tmp, filename2);
-      dynstr_append(&ds_tmp, "<<<<\n");
-  } 
+    dynstr_append(&ds_tmp, " --- ");
+    dynstr_append(&ds_tmp, filename1);
+    dynstr_append(&ds_tmp, " >>>\n");
+    cat_file(&ds_tmp, filename1);
+    dynstr_append(&ds_tmp, "<<<\n --- ");
+    dynstr_append(&ds_tmp, filename1);
+    dynstr_append(&ds_tmp, " >>>\n");
+    cat_file(&ds_tmp, filename2);
+    dynstr_append(&ds_tmp, "<<<<\n");
+  }
 
   if (ds)
   {
@@ -1464,7 +1471,7 @@ if (!(have_diff))
     /* Print diff directly to stdout */
     fprintf(stderr, "%s\n", ds_tmp.str);
   }
- 
+
   dynstr_free(&ds_tmp);
 
 }
