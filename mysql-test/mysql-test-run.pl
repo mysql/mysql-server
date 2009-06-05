@@ -313,7 +313,7 @@ sub main {
 
   #######################################################################
   my $num_tests= @$tests;
-  if ( not defined $opt_parallel ) {
+  if ( $opt_parallel eq "auto" ) {
     # Try to find a suitable value for number of workers
     my $sys_info= My::SysInfo->new();
 
@@ -528,6 +528,8 @@ sub run_test_server ($$$) {
 	    elsif ($opt_max_test_fail > 0 and
 		   $num_failed_test >= $opt_max_test_fail) {
 	      $suite_timeout_proc->kill();
+	      push(@$completed, $result);
+	      mtr_report_stats($completed, 1);
 	      mtr_report("Too many tests($num_failed_test) failed!",
 			 "Terminating...");
 	      return undef;
@@ -659,6 +661,7 @@ sub run_test_server ($$$) {
     # ----------------------------------------------------
     if ( ! $suite_timeout_proc->wait_one(0) )
     {
+      mtr_report_stats($completed, 1);
       mtr_report("Test suite timeout! Terminating...");
       return undef;
     }
@@ -722,6 +725,8 @@ sub run_worker ($) {
       # reusing them from previous test
       delete($test->{'comment'});
       delete($test->{'logfile'});
+
+      $test->{worker} = $thread_num if $opt_parallel > 1;
 
       run_testcase($test);
       #$test->{result}= 'MTR_RES_PASSED';
@@ -790,7 +795,7 @@ sub command_line_setup {
              'vs-config'                => \$opt_vs_config,
 
 	     # Max number of parallel threads to use
-	     'parallel=i'               => \$opt_parallel,
+	     'parallel=s'               => \$opt_parallel,
 
              # Config file to use as template for all tests
 	     'defaults-file=s'          => \&collect_option,
@@ -1130,9 +1135,9 @@ sub command_line_setup {
   # --------------------------------------------------------------------------
   # Check parallel value
   # --------------------------------------------------------------------------
-  if ($opt_parallel < 1)
+  if ($opt_parallel ne "auto" && $opt_parallel < 1)
   {
-    mtr_error("0 or negative parallel value makes no sense, use positive number");
+    mtr_error("0 or negative parallel value makes no sense, use 'auto' or positive number");
   }
 
   # --------------------------------------------------------------------------
@@ -5197,6 +5202,7 @@ Misc options
   fast                  Run as fast as possible, dont't wait for servers
                         to shutdown etc.
   parallel=N            Run tests in N parallel threads (default=1)
+                        Use parallel=auto for auto-setting of N
   repeat=N              Run each test N number of times
   retry=N               Retry tests that fail N times, limit number of failures
                         to $opt_retry_failure
