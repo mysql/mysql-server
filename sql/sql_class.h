@@ -1464,6 +1464,14 @@ public:
     {
       changed_tables= 0;
       savepoints= 0;
+      /*
+        If rm_error is raised, it means that this piece of a distributed
+        transaction has failed and must be rolled back. But the user must
+        rollback it explicitly, so don't start a new distributed XA until
+        then.
+      */
+      if (!xid_state.rm_error)
+        xid_state.xid.null();
 #ifdef USING_TRANSACTIONS
       free_root(&mem_root,MYF(MY_KEEP_PREALLOC));
 #endif
