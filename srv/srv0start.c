@@ -1007,6 +1007,7 @@ innobase_start_or_create_for_mysql(void)
 	ulint		tablespace_size_in_header;
 	ulint		err;
 	ulint		i;
+	ulint		io_limit;
 	my_bool		srv_file_per_table_original_value
 		= srv_file_per_table;
 	mtr_t		mtr;
@@ -1265,26 +1266,34 @@ innobase_start_or_create_for_mysql(void)
 		return(DB_ERROR);
 	}
 
-	/* Restrict the maximum number of file i/o threads */
-	if (srv_n_file_io_threads > SRV_MAX_N_IO_THREADS) {
-
-		srv_n_file_io_threads = SRV_MAX_N_IO_THREADS;
+	/* If user has set the value of innodb_file_io_threads then
+	we'll emit a message telling the user that this parameter
+	is now deprecated. */
+	if (srv_n_file_io_threads != 4) {
+		fprintf(stderr, "InnoDB: Warning:"
+			" innodb_file_io_threads is deprecated."
+			" Please use innodb_read_io_threads and"
+			" innodb_write_io_threads instead\n");
 	}
 
+	/* Now overwrite the value on srv_n_file_io_threads */
+	srv_n_file_io_threads = 2 + srv_n_read_io_threads
+				+ srv_n_write_io_threads;
+
+	ut_a(srv_n_file_io_threads <= SRV_MAX_N_IO_THREADS);
+
+	/* TODO: Investigate if SRV_N_PENDING_IOS_PER_THREAD (32) limit
+	still applies to windows. */
 	if (!os_aio_use_native_aio) {
-		/* In simulated aio we currently have use only for 4 threads */
-		srv_n_file_io_threads = 4;
-
-		os_aio_init(8 * SRV_N_PENDING_IOS_PER_THREAD
-			    * srv_n_file_io_threads,
-			    srv_n_file_io_threads,
-			    SRV_MAX_N_PENDING_SYNC_IOS);
+		io_limit = 8 * SRV_N_PENDING_IOS_PER_THREAD;
 	} else {
-		os_aio_init(SRV_N_PENDING_IOS_PER_THREAD
-			    * srv_n_file_io_threads,
-			    srv_n_file_io_threads,
-			    SRV_MAX_N_PENDING_SYNC_IOS);
+		io_limit = SRV_N_PENDING_IOS_PER_THREAD;
 	}
+
+	os_aio_init(io_limit,
+		    srv_n_read_io_threads,
+		    srv_n_write_io_threads,
+		    SRV_MAX_N_PENDING_SYNC_IOS);
 
 	fil_init(srv_file_per_table ? 50000 : 5000,
 		 srv_max_n_open_files);
