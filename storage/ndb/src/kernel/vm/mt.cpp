@@ -3236,6 +3236,11 @@ thr_init(struct thr_repository* rep, struct thr_data *selfptr, unsigned int cnt,
   selfptr->m_first_free = 0;
   selfptr->m_first_unused = 0;
   
+  {
+    char buf[100];
+    BaseString::snprintf(buf, sizeof(buf), "jbalock thr: %u", thr_no);
+    register_lock(&selfptr->m_jba_write_lock, buf);
+  }
   selfptr->m_jba_head.m_read_index = 0;
   selfptr->m_jba_head.m_write_index = 0;
   selfptr->m_jba.m_head = &selfptr->m_jba_head;
