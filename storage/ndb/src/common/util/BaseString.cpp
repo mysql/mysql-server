@@ -485,9 +485,13 @@ BaseString
 BaseString::getText(unsigned size, const Uint32 data[])
 {
   BaseString to;
-  char buf[32*size+1];
-  BitmaskImpl::getText(size, data, buf);
-  to.append(buf);
+  char * buf = (char*)malloc(32*size+1);
+  if (buf)
+  {
+    BitmaskImpl::getText(size, data, buf);
+    to.append(buf);
+    free(buf);
+  }
   return to;
 }
 
