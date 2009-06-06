@@ -124,6 +124,17 @@ drop table t1;
 
 --echo End of 5.0 tests
 
+#
+# Bug#44672: Assertion failed: thd->transaction.xid_state.xid.is_null()
+#
+
+xa start 'a';
+xa end 'a';
+xa rollback 'a';
+xa start 'a';
+xa end 'a';
+xa rollback 'a';
+
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
 
