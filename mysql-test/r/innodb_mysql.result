@@ -1420,6 +1420,18 @@ t1	CREATE TABLE `t1` (
   CONSTRAINT `f2_ref` FOREIGN KEY (`f2`) REFERENCES `t1` (`f1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLE t1;
+#
+# Bug #36995: valgrind error in remove_const during subquery executions
+#
+create table t1 (a bit(1) not null,b int) engine=myisam;
+create table t2 (c int) engine=innodb;
+explain
+select b from t1 where a not in (select b from t1,t2 group by a) group by a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	1	
+DROP TABLE t1,t2;
 End of 5.0 tests
 CREATE TABLE `t2` (
 `k` int(11) NOT NULL auto_increment,
