@@ -7992,6 +7992,7 @@ static my_bool create_tailoring(CHARSET_INFO *cs, void *(*alloc)(size_t))
 static my_bool my_coll_init_uca(CHARSET_INFO *cs, void *(*alloc)(size_t))
 {
   cs->pad_char= ' ';
+  cs->ctype= my_charset_utf8_unicode_ci.ctype;
   return create_tailoring(cs, alloc);
 }
 
