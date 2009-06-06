@@ -716,9 +716,9 @@ static void setup_one_conversion_function(THD *thd, Item_param *param,
     prepared statement, parameter markers are replaced with variable names.
     Example:
     @verbatim
-     mysql_stmt_prepare("UPDATE t1 SET a=a*1.25 WHERE a=?")
+     mysqld_stmt_prepare("UPDATE t1 SET a=a*1.25 WHERE a=?")
        --> general logs gets [Prepare] UPDATE t1 SET a*1.25 WHERE a=?"
-     mysql_stmt_execute(stmt);
+     mysqld_stmt_execute(stmt);
        --> general and binary logs get
                              [Execute] UPDATE t1 SET a*1.25 WHERE a=1"
     @endverbatim
@@ -2056,11 +2056,11 @@ static bool init_param_array(Prepared_statement *stmt)
     to the client, otherwise an error message is set in THD.
 */
 
-void mysql_stmt_prepare(THD *thd, const char *packet, uint packet_length)
+void mysqld_stmt_prepare(THD *thd, const char *packet, uint packet_length)
 {
   Prepared_statement *stmt;
   bool error;
-  DBUG_ENTER("mysql_stmt_prepare");
+  DBUG_ENTER("mysqld_stmt_prepare");
 
   DBUG_PRINT("prep_query", ("%s", packet));
 
@@ -2423,7 +2423,7 @@ static void reset_stmt_params(Prepared_statement *stmt)
     client, otherwise an error message is set in THD.
 */
 
-void mysql_stmt_execute(THD *thd, char *packet_arg, uint packet_length)
+void mysqld_stmt_execute(THD *thd, char *packet_arg, uint packet_length)
 {
   uchar *packet= (uchar*)packet_arg; // GCC 4.0.1 workaround
   ulong stmt_id= uint4korr(packet);
@@ -2433,7 +2433,7 @@ void mysql_stmt_execute(THD *thd, char *packet_arg, uint packet_length)
   uchar *packet_end= packet + packet_length;
   Prepared_statement *stmt;
   bool open_cursor;
-  DBUG_ENTER("mysql_stmt_execute");
+  DBUG_ENTER("mysqld_stmt_execute");
 
   packet+= 9;                               /* stmt_id + 5 bytes of flags */
 
@@ -2444,7 +2444,7 @@ void mysql_stmt_execute(THD *thd, char *packet_arg, uint packet_length)
   {
     char llbuf[22];
     my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0), sizeof(llbuf),
-             llstr(stmt_id, llbuf), "mysql_stmt_execute");
+             llstr(stmt_id, llbuf), "mysqld_stmt_execute");
     DBUG_VOID_RETURN;
   }
 
@@ -2525,7 +2525,7 @@ void mysql_sql_stmt_execute(THD *thd)
   @param packet_length      Length of packet
 */
 
-void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length)
+void mysqld_stmt_fetch(THD *thd, char *packet, uint packet_length)
 {
   /* assume there is always place for 8-16 bytes */
   ulong stmt_id= uint4korr(packet);
@@ -2533,7 +2533,7 @@ void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length)
   Prepared_statement *stmt;
   Statement stmt_backup;
   Server_side_cursor *cursor;
-  DBUG_ENTER("mysql_stmt_fetch");
+  DBUG_ENTER("mysqld_stmt_fetch");
 
   /* First of all clear possible warnings from the previous command */
   mysql_reset_thd_for_next_command(thd);
@@ -2542,7 +2542,7 @@ void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length)
   {
     char llbuf[22];
     my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0), sizeof(llbuf),
-             llstr(stmt_id, llbuf), "mysql_stmt_fetch");
+             llstr(stmt_id, llbuf), "mysqld_stmt_fetch");
     DBUG_VOID_RETURN;
   }
 
@@ -2583,9 +2583,9 @@ void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length)
 
     This function resets statement to the state it was right after prepare.
     It can be used to:
-    - clear an error happened during mysql_stmt_send_long_data
+    - clear an error happened during mysqld_stmt_send_long_data
     - cancel long data stream for all placeholders without
-      having to call mysql_stmt_execute.
+      having to call mysqld_stmt_execute.
     - close an open cursor
     Sends 'OK' packet in case of success (statement was reset)
     or 'ERROR' packet (unrecoverable error/statement not found/etc).
@@ -2594,12 +2594,12 @@ void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length)
   @param packet             Packet with stmt id
 */
 
-void mysql_stmt_reset(THD *thd, char *packet)
+void mysqld_stmt_reset(THD *thd, char *packet)
 {
   /* There is always space for 4 bytes in buffer */
   ulong stmt_id= uint4korr(packet);
   Prepared_statement *stmt;
-  DBUG_ENTER("mysql_stmt_reset");
+  DBUG_ENTER("mysqld_stmt_reset");
 
   /* First of all clear possible warnings from the previous command */
   mysql_reset_thd_for_next_command(thd);
@@ -2609,7 +2609,7 @@ void mysql_stmt_reset(THD *thd, char *packet)
   {
     char llbuf[22];
     my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0), sizeof(llbuf),
-             llstr(stmt_id, llbuf), "mysql_stmt_reset");
+             llstr(stmt_id, llbuf), "mysqld_stmt_reset");
     DBUG_VOID_RETURN;
   }
 
@@ -2617,7 +2617,7 @@ void mysql_stmt_reset(THD *thd, char *packet)
 
   /*
     Clear parameters from data which could be set by
-    mysql_stmt_send_long_data() call.
+    mysqld_stmt_send_long_data() call.
   */
   reset_stmt_params(stmt);
 
@@ -2638,12 +2638,12 @@ void mysql_stmt_reset(THD *thd, char *packet)
     we don't send any reply to this command.
 */
 
-void mysql_stmt_close(THD *thd, char *packet)
+void mysqld_stmt_close(THD *thd, char *packet)
 {
   /* There is always space for 4 bytes in packet buffer */
   ulong stmt_id= uint4korr(packet);
   Prepared_statement *stmt;
-  DBUG_ENTER("mysql_stmt_close");
+  DBUG_ENTER("mysqld_stmt_close");
 
   thd->main_da.disable_status();
 
@@ -2742,7 +2742,7 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
     stmt->state= Query_arena::ERROR;
     stmt->last_errno= ER_WRONG_ARGUMENTS;
     sprintf(stmt->last_error, ER(ER_WRONG_ARGUMENTS),
-            "mysql_stmt_send_long_data");
+            "mysqld_stmt_send_long_data");
     DBUG_VOID_RETURN;
   }
 #endif
@@ -3166,7 +3166,7 @@ Prepared_statement::set_parameters(String *expanded_query,
   if (res)
   {
     my_error(ER_WRONG_ARGUMENTS, MYF(0),
-             is_sql_ps ? "EXECUTE" : "mysql_stmt_execute");
+             is_sql_ps ? "EXECUTE" : "mysqld_stmt_execute");
     reset_stmt_params(this);
   }
   return res;
@@ -3621,11 +3621,11 @@ error:
 }
 
 
-/** Common part of DEALLOCATE PREPARE and mysql_stmt_close. */
+/** Common part of DEALLOCATE PREPARE and mysqld_stmt_close. */
 
 void Prepared_statement::deallocate()
 {
-  /* We account deallocate in the same manner as mysql_stmt_close */
+  /* We account deallocate in the same manner as mysqld_stmt_close */
   status_var_increment(thd->status_var.com_stmt_close);
   /* Statement map calls delete stmt on erase */
   thd->stmt_map.erase(this);
