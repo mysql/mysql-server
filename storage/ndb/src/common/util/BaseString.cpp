@@ -481,6 +481,55 @@ BaseString::snprintf(char *str, size_t size, const char *format, ...)
   return(ret);
 }
 
+BaseString
+BaseString::getText(unsigned size, const Uint32 data[])
+{
+  BaseString to;
+  char buf[32*size+1];
+  BitmaskImpl::getText(size, data, buf);
+  to.append(buf);
+  return to;
+}
+
+BaseString
+BaseString::getPrettyText(unsigned size, const Uint32 data[])
+{
+  const char* delimiter = "";
+  unsigned i, found = 0, MAX_BITS = 8 * size;
+  BaseString to;
+  for (i = 0; i < MAX_BITS; i++)
+  {
+    if (BitmaskImpl::get(size, data, i))
+    {
+      to.appfmt("%s%d", delimiter, i);
+      found++;
+      if (found < BitmaskImpl::count(size, data) - 1)
+        delimiter = ", ";
+      else
+        delimiter = " and ";
+    }
+  }
+  return to;
+}
+
+BaseString
+BaseString::getPrettyTextShort(unsigned size, const Uint32 data[])
+{
+  const char* delimiter = "";
+  unsigned i, MAX_BITS = 8 * size;
+  BaseString to;
+  for (i = 0; i < MAX_BITS; i++)
+  {
+    if (BitmaskImpl::get(size, data, i))
+    {
+      to.appfmt("%s%d", delimiter, i);
+      delimiter = ",";
+    }
+  }
+  return to;
+}
+
+
 
 #ifdef TEST_BASE_STRING
 
