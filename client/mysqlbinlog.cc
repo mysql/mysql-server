@@ -681,6 +681,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
 {
   char ll_buff[21];
   Log_event_type ev_type= ev->get_type_code();
+  my_bool destroy_evt= TRUE;
   DBUG_ENTER("process_event");
   print_event_info->short_form= short_form;
   Exit_status retval= OK_CONTINUE;
@@ -871,12 +872,63 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       break;
     }
     case TABLE_MAP_EVENT:
+    {
+      Table_map_log_event *map= ((Table_map_log_event *)ev);
+      if (shall_skip_database(map->get_db_name()))
+      {
+        print_event_info->m_table_map_ignored.set_table(map->get_table_id(), map);
+        destroy_evt= FALSE;
+        goto end;
+      }
+    }
     case WRITE_ROWS_EVENT:
     case DELETE_ROWS_EVENT:
     case UPDATE_ROWS_EVENT:
     case PRE_GA_WRITE_ROWS_EVENT:
     case PRE_GA_DELETE_ROWS_EVENT:
     case PRE_GA_UPDATE_ROWS_EVENT:
+    {
+      if (ev_type != TABLE_MAP_EVENT)
+      {
+        Rows_log_event *e= (Rows_log_event*) ev;
+        Table_map_log_event *ignored_map= 
+          print_event_info->m_table_map_ignored.get_table(e->get_table_id());
+        bool skip_event= (ignored_map != NULL);
+
+        /* 
+           end of statement check:
+             i) destroy/free ignored maps
+            ii) if skip event, flush cache now
+         */
+        if (e->get_flags(Rows_log_event::STMT_END_F))
+        {
+          /* 
+            Now is safe to clear ignored map (clear_tables will also
+            delete original table map events stored in the map).
+          */
+          if (print_event_info->m_table_map_ignored.count() > 0)
+            print_event_info->m_table_map_ignored.clear_tables();
+
+          /* 
+             One needs to take into account an event that gets
+             filtered but was last event in the statement. If this is
+             the case, previous rows events that were written into
+             IO_CACHEs still need to be copied from cache to
+             result_file (as it would happen in ev->print(...) if
+             event was not skipped).
+          */
+          if (skip_event)
+          {
+            if ((copy_event_cache_to_file_and_reinit(&print_event_info->head_cache, result_file) ||
+                copy_event_cache_to_file_and_reinit(&print_event_info->body_cache, result_file)))
+              goto err;
+          }
+        }
+
+        /* skip the event check */
+        if (skip_event)
+          goto end;
+      }
       /*
         These events must be printed in base64 format, if printed.
         base64 format requires a FD event to be safe, so if no FD
@@ -900,6 +952,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
         goto err;
       }
       /* FALL THROUGH */
+    }
     default:
       ev->print(result_file, print_event_info);
     }
@@ -919,7 +972,8 @@ end:
   {
     if (remote_opt)
       ev->temp_buf= 0;
-    delete ev;
+    if (destroy_evt) /* destroy it later if not set (ignored table map) */
+      delete ev;
   }
   DBUG_RETURN(retval);
 }
