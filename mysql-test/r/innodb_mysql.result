@@ -2120,4 +2120,21 @@ a	b
 4	14
 5	5
 DROP TABLE t1, t2, t3, t4;
+#
+# Bug#44886: SIGSEGV in test_if_skip_sort_order() -
+#            uninitialized variable used as subscript 
+#
+CREATE TABLE t1 (a INT, b INT, c INT, d INT, PRIMARY KEY (b), KEY (a,c))
+ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1,1,1,0);
+CREATE TABLE t2 (a INT, b INT, e INT, KEY (e)) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (1,1,2);
+CREATE TABLE t3 (a INT, b INT) ENGINE=MyISAM;
+INSERT INTO t3 VALUES (1, 1);
+SELECT * FROM t1, t2, t3
+WHERE t1.a = t3.a AND (t1.b = t3.b OR t1.d) AND t2.b = t1.b AND t2.e = 2
+GROUP BY t1.b;
+a	b	c	d	a	b	e	a	b
+1	1	1	0	1	1	2	1	1
+DROP TABLE t1, t2, t3;
 End of 5.1 tests
