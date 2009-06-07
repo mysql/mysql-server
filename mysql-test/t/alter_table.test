@@ -1000,4 +1000,22 @@ ALTER TABLE t1 MODIFY b ENUM('a', 'z', 'b', 'c') NOT NULL;
 SELECT * FROM t1;
 DROP TABLE t1;
 
+#
+# Test for ALTER column DROP DEFAULT
+#
+
+SET @save_sql_mode=@@sql_mode;
+SET sql_mode=strict_all_tables;
+
+CREATE TABLE t1 (a int NOT NULL default 42);
+INSERT INTO t1 values ();
+SELECT * FROM t1;
+ALTER TABLE t1 ALTER COLUMN a DROP DEFAULT;
+--error 1364
+INSERT INTO t1 values ();
+INSERT INTO t1 (a) VALUES (11);
+SELECT * FROM t1 ORDER BY a;
+DROP TABLE t1;
+SET @@sql_mode=@save_sql_mode;
+
 --echo End of 5.1 tests
