@@ -12658,7 +12658,10 @@ static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
          one row).  The sorting doesn't matter.
         */
         if (key_part == key_part_end && reverse == 0)
+        {
+          *used_key_parts= 0;
           DBUG_RETURN(1);
+        }
       }
       else
         DBUG_RETURN(0);
@@ -13155,7 +13158,8 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
             select_limit= table_records;
           if (group)
           {
-            rec_per_key= keyinfo->rec_per_key[used_key_parts-1];
+            rec_per_key= used_key_parts ? keyinfo->rec_per_key[used_key_parts-1]
+                                        : 1;
             set_if_bigger(rec_per_key, 1);
             /*
               With a grouping query each group containing on average
