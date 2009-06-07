@@ -2586,7 +2586,7 @@ eliminate_tables_for_join_list(JOIN *join, List<TABLE_LIST> *join_list,
     table_map tables_used_outside= used_tables_on_left |
                                    used_tables_on_right[i] |
                                    used_tables_elsewhere;
-    table_map cur_tables;
+    table_map cur_tables= 0;
 
     if (tbl->nested_join)
     {
