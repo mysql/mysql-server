@@ -3,9 +3,6 @@
 #include <unistd.h>
 #include <assert.h>
 #include <string.h>
-#if defined(__linux__)
-#include <bits/wordsize.h>
-#endif
 #include "toku_os.h"
 
 int main(int argc, char *argv[]) {
@@ -26,18 +23,10 @@ int main(int argc, char *argv[]) {
     uint64_t maxdata;
     int r = toku_os_get_max_process_data_size(&maxdata);
     assert(r == 0);
-    if (verbose) printf("maxdata=%"PRIu64"\n", maxdata);
+    if (verbose) printf("maxdata=%"PRIu64" 0x%"PRIx64"\n", maxdata, maxdata);
 
     // check the data size
-#if defined(__linux__)
-    #if __WORDSIZE == 64
-        assert(maxdata > (1ULL << 32));
-    #elif __WORDSIZE == 32
-        assert(maxdata < (1ULL << 32));
-    #else
-        #error
-    #endif
-#elif __x86_64__
+#if __x86_64__
     assert(maxdata > (1ULL << 32));
 #elif __i386__
     assert(maxdata < (1ULL << 32));
