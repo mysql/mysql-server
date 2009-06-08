@@ -1370,7 +1370,8 @@ public:
   /* remote (peer) port */
   uint16 peer_port;
   time_t     start_time, user_time;
-  ulonglong  connect_utime, thr_create_utime; // track down slow pthread_create
+  // track down slow pthread_create
+  ulonglong  prior_thr_create_utime, thr_create_utime;
   ulonglong  start_utime, utime_after_lock;
   
   thr_lock_type update_lock_default;
