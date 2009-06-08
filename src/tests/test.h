@@ -4,7 +4,7 @@
 
 #include <string.h>
 #include <stdlib.h>
-#include <stdint.h>
+#include <toku_stdint.h>
 #include <stdio.h>
 #include <db.h>
 #include <assert.h>

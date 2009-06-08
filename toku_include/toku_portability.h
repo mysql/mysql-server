@@ -26,8 +26,7 @@ extern "C" {
 #define __attribute__(x)      /* Nothing */
 #endif
 
-#include "stdint.h"
-#include "inttypes.h"
+#include "toku_stdint.h"
 
 #ifndef TOKU_OFF_T_DEFINED
 #define TOKU_OFF_T_DEFINED
@@ -47,9 +46,7 @@ typedef int64_t toku_off_t;
 #if defined(__ICC)
 // Intel linux
 
-#include <stdint.h>
-#include <inttypes.h>
-
+#include <toku_stdint.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/time.h>
@@ -59,8 +56,7 @@ typedef int64_t toku_off_t;
 #elif defined(__GNUC__)
 // GCC linux
 
-#include <stdint.h>
-#include <inttypes.h>
+#include <toku_stdint.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/time.h>

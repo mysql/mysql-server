@@ -16,7 +16,7 @@
 #include <errno.h>
 #include <assert.h>
 #include <stdlib.h>
-#include <stdint.h>
+#include <toku_stdint.h>
 #include <string.h>
 typedef toku_range *OMTVALUE;
 #include "../../newbrt/omt.h"

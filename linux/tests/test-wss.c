@@ -2,8 +2,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <string.h>
-#include <stdint.h>
-#include <inttypes.h>
+#include <toku_stdint.h>
 #include <toku_os.h>
 
 const int nbuffers = 1000;

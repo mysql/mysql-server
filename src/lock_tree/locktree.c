@@ -12,7 +12,7 @@
 #include <locktree.h>
 #include <ydb-internal.h>
 #include <brt-internal.h>
-#include <stdint.h>
+#include <toku_stdint.h>
 
 /* TODO: Yoni should check that all asserts make sense instead of panic,
          and all early returns make sense instead of panic,
