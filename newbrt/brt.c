@@ -195,8 +195,10 @@ static enum reactivity
 get_leaf_reactivity (BRTNODE node) {
     assert(node->height==0);
     unsigned int size = toku_serialize_brtnode_size(node);
-    if (size     > node->nodesize) return RE_FISSIBLE;
-    if ((size*4) < node->nodesize) return RE_FUSIBLE;
+    if (size     > node->nodesize && toku_omt_size(node->u.l.buffer) > 1) 
+        return RE_FISSIBLE;
+    if ((size*4) < node->nodesize)     
+        return RE_FUSIBLE;
     return RE_STABLE;
 }
 
@@ -649,7 +651,7 @@ toku_brtheader_free (struct brt_header *h) {
 }
 
 static void
-initialize_empty_brtnode (BRT t, BRTNODE n, BLOCKNUM nodename, int height)
+initialize_empty_brtnode (BRT t, BRTNODE n, BLOCKNUM nodename, int height, size_t suggest_mpsize)
 // Effect: Fill in N as an empty brtnode.
 {
     n->tag = TYP_BRTNODE;
@@ -680,7 +682,10 @@ initialize_empty_brtnode (BRT t, BRTNODE n, BLOCKNUM nodename, int height)
         r = toku_leaflock_borrow(&n->u.l.leaflock);
         assert(r==0);
         {
-            u_int32_t mpsize = mp_pool_size_for_nodesize(n->nodesize);
+            // mpsize = max(suggest_mpsize, mp_pool_size_for_nodesize)
+            size_t mpsize = mp_pool_size_for_nodesize(n->nodesize);
+            if (mpsize < suggest_mpsize) 
+                mpsize = suggest_mpsize;
             void *mp = toku_malloc(mpsize);
             assert(mp);
             toku_mempool_init(&n->u.l.buffer_mempool, mp, mpsize);
@@ -711,7 +716,7 @@ brt_init_new_root(BRT brt, BRTNODE nodea, BRTNODE nodeb, DBT splitk, CACHEKEY *r
     newroot->ever_been_written = 0;
     toku_log_changeunnamedroot(logger, (LSN*)0, 0, toku_cachefile_filenum(brt->cf), *rootp, newroot_diskoff);
     *rootp=newroot_diskoff;
-    initialize_empty_brtnode (brt, newroot, newroot_diskoff, new_height);
+    initialize_empty_brtnode (brt, newroot, newroot_diskoff, new_height, 0);
     //printf("new_root %lld %d %lld %lld\n", newroot_diskoff, newroot->height, nodea->thisnodename, nodeb->thisnodename);
     newroot->u.n.n_children=2;
     MALLOC_N(3, newroot->u.n.childinfos);
@@ -749,7 +754,7 @@ brt_init_new_root(BRT brt, BRTNODE nodea, BRTNODE nodeb, DBT splitk, CACHEKEY *r
 }
 
 // logs the memory allocation, but not the creation of the new node
-int toku_create_new_brtnode (BRT t, BRTNODE *result, int height) {
+int toku_create_new_brtnode (BRT t, BRTNODE *result, int height, size_t mpsize) {
     TAGMALLOC(BRTNODE, n);
     int r;
     BLOCKNUM name;
@@ -757,7 +762,7 @@ int toku_create_new_brtnode (BRT t, BRTNODE *result, int height) {
     assert(n);
     assert(t->h->nodesize>0);
     n->ever_been_written = 0;
-    initialize_empty_brtnode(t, n, name, height);
+    initialize_empty_brtnode(t, n, name, height, mpsize);
     *result = n;
     assert(n->nodesize>0);
     //    n->brt            = t;
@@ -791,7 +796,7 @@ brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk)
 
     assert(node->height==0);
     assert(t->h->nodesize>=node->nodesize); /* otherwise we might be in trouble because the nodesize shrank. */
-    toku_create_new_brtnode(t, &B, 0);
+    toku_create_new_brtnode(t, &B, 0, toku_mempool_get_size(&node->u.l.buffer_mempool));
     assert(B->nodesize>0);
     assert(node->nodesize>0);
     //printf("%s:%d A is at %lld\n", __FILE__, __LINE__, A->thisnodename);
@@ -940,7 +945,7 @@ brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *spl
     assert(node->height>0);
     assert(node->u.n.n_children>=2); // Otherwise, how do we split?  We need at least two children to split. */
     assert(t->h->nodesize>=node->nodesize); /* otherwise we might be in trouble because the nodesize shrank. */
-    toku_create_new_brtnode(t, &B, node->height);
+    toku_create_new_brtnode(t, &B, node->height, 0);
     MALLOC_N(n_children_in_b+1, B->u.n.childinfos);
     MALLOC_N(n_children_in_b, B->u.n.childkeys);
     B->u.n.n_children   =n_children_in_b;
@@ -2770,7 +2775,7 @@ static int setup_initial_brt_root_node (BRT t, BLOCKNUM blocknum) {
     assert(node);
     node->ever_been_written = 0;
     //printf("%s:%d\n", __FILE__, __LINE__);
-    initialize_empty_brtnode(t, node, blocknum, 0);
+    initialize_empty_brtnode(t, node, blocknum, 0, 0);
     //    node->brt = t;
     if (0) {
         printf("%s:%d for tree %p node %p mdict_create--> %p\n", __FILE__, __LINE__, t, node, node->u.l.buffer);

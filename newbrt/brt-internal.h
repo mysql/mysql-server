@@ -281,7 +281,7 @@ struct brt_cursor {
 };
 
 // logs the memory allocation, but not the creation of the new node
-int toku_create_new_brtnode (BRT t, BRTNODE *result, int height);
+int toku_create_new_brtnode (BRT t, BRTNODE *result, int height, size_t mpsize);
 int toku_unpin_brtnode (BRT brt, BRTNODE node);
 unsigned int toku_brtnode_which_child (BRTNODE node , DBT *k, DBT *d, BRT t);
 

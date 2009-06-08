@@ -3113,12 +3113,12 @@ db_put_check_size_constraints(DB *db, DBT *key, DBT *val) {
     u_int32_t limit;
 
     if (dupsort) {
-        limit = nodesize / (2*BRT_FANOUT-1);
-        if (key->size + val->size >= limit)
+        limit = nodesize / BRT_FANOUT;
+        if (key->size + val->size > limit)
             r = toku_ydb_do_error(db->dbenv, EINVAL, "The largest (key + val) item allowed is %u bytes", limit-1);
     } else {
-        limit = nodesize / (3*BRT_FANOUT-1);
-        if (key->size >= limit || val->size >= limit)
+        limit = nodesize / BRT_FANOUT;
+        if (key->size > limit || val->size > nodesize)
             r = toku_ydb_do_error(db->dbenv, EINVAL, "The largest key or val item allowed is %u bytes", limit-1);
     }
     return r;
