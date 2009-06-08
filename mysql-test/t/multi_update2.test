@@ -2,13 +2,26 @@
 # Test of update statement that uses many tables.
 #
 
---disable_warnings
-DROP TABLE IF EXISTS t1,t2;
---enable_warnings
+#
+# If we are running with
+# - Valgrind           -> $VALGRIND_TEST <> 0
+# - debug tracing      -> @@debug LIKE '%trace%'
+# the resource consumtion (storage space needed, runtime) will be extreme.
+# Therefore we require that option "big" is set.
+#
+
+if (`SELECT ($VALGRIND_TEST <> 0 OR @@debug LIKE '%trace%') AND '$BIG_TEST' = ''`)
+{
+  --skip Need "big" when running with Valgrind or debug
+}
 
 #
 # Bug#1820 Rows not deleted from second table on multi-table delete
 #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1,t2;
+--enable_warnings
 
 CREATE TABLE t1 ( a INT NOT NULL, b INT NOT NULL) ;
 --echo # The protocolling of many inserts into t1 is suppressed.
