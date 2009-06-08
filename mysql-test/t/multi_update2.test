@@ -5,14 +5,33 @@
 #
 # If we are running with
 # - Valgrind           -> $VALGRIND_TEST <> 0
-# - debug tracing      -> @@debug LIKE '%trace%'
-# the resource consumtion (storage space needed, runtime) will be extreme.
-# Therefore we require that option "big" is set.
+# - debug tracing      -> @@session.debug LIKE '%trace%'
+# the resource consumption (storage space needed, runtime) will be extreme.
+# Therefore we require that the option "--big-test" is also set.
 #
 
-if (`SELECT ($VALGRIND_TEST <> 0 OR @@debug LIKE '%trace%') AND '$BIG_TEST' = ''`)
+let $need_big= 0;
+--disable_query_log
+--error 0,ER_UNKNOWN_SYSTEM_VARIABLE
+SET @aux = @@session.debug;
+if (!$mysql_errno)
 {
-  --skip Need "big" when running with Valgrind or debug
+  # We have returncode 0 = the server system variable @@session.debug exists.
+  # But we only need "--big-test" in case of tracing.
+  if (`SELECT @@session.debug LIKE '%trace%'`)
+  {
+    let $need_big= 1;
+  }
+}
+--enable_query_log
+if ($VALGRIND_TEST)
+{
+  # We are running with Valgrind
+  inc $need_big;
+}
+if (`SELECT '$BIG_TEST' = '' AND $need_big = 1`)
+{
+  --skip Need "--big-test" when running with the option "--debug" or "--valgrind"
 }
 
 #
