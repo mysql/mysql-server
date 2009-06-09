@@ -1642,8 +1642,8 @@ int handler::update_auto_increment()
   thd->prev_insert_id= thd->next_insert_id;
 
   if ((nr= table->next_number_field->val_int()) != 0 ||
-      table->auto_increment_field_not_null &&
-      thd->variables.sql_mode & MODE_NO_AUTO_VALUE_ON_ZERO)
+      (table->auto_increment_field_not_null &&
+      thd->variables.sql_mode & MODE_NO_AUTO_VALUE_ON_ZERO))
   {
     /* Mark that we didn't generate a new value **/
     auto_increment_column_changed=0;

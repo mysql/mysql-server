@@ -652,8 +652,8 @@ Item_sum_hybrid::fix_fields(THD *thd, Item **ref)
     return TRUE;
 
   // 'item' can be changed during fix_fields
-  if (!item->fixed &&
-      item->fix_fields(thd, args) ||
+  if ((!item->fixed &&
+      item->fix_fields(thd, args)) ||
       (item= args[0])->check_cols(1))
     return TRUE;
   decimals=item->decimals;
@@ -969,8 +969,8 @@ void Item_sum_distinct::fix_length_and_dec()
     integers each <= 2^32.
   */
   if (table_field_type == MYSQL_TYPE_INT24 ||
-      table_field_type >= MYSQL_TYPE_TINY &&
-      table_field_type <= MYSQL_TYPE_LONG)
+      (table_field_type >= MYSQL_TYPE_TINY &&
+      table_field_type <= MYSQL_TYPE_LONG))
   {
     val.traits= Hybrid_type_traits_fast_decimal::instance();
     break;
@@ -2608,8 +2608,8 @@ bool Item_sum_count_distinct::setup(THD *thd)
       enum enum_field_types f_type= f->type();
       tree_key_length+= f->pack_length();
       if ((f_type == MYSQL_TYPE_VARCHAR) ||
-          !f->binary() && (f_type == MYSQL_TYPE_STRING ||
-                           f_type == MYSQL_TYPE_VAR_STRING))
+          (!f->binary() && (f_type == MYSQL_TYPE_STRING ||
+                           f_type == MYSQL_TYPE_VAR_STRING)))
       {
         all_binary= FALSE;
         break;

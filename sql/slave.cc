@@ -1334,7 +1334,8 @@ static int init_strvar_from_file(char *var, int max_size, IO_CACHE *f,
 	up to and including newline.
       */
       int c;
-      while (((c=my_b_get(f)) != '\n' && c != my_b_EOF));
+      while (((c=my_b_get(f)) != '\n' && c != my_b_EOF))
+      {}
     }
     return 0;
   }
