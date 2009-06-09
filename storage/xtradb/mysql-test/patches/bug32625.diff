@@ -1,0 +1,10 @@
+--- mysql-test/t/type_bit_innodb.test.orig	2008-10-07 11:32:32.000000000 +0300
++++ mysql-test/t/type_bit_innodb.test	2008-10-07 11:56:40.000000000 +0300
+@@ -40,6 +40,7 @@
+ create table t1 (a bit) engine=innodb;
+ insert into t1 values (b'0'), (b'1'), (b'000'), (b'100'), (b'001');
+ select hex(a) from t1;
++--replace_regex /entry '(.*)' for/entry '' for/
+ --error ER_DUP_ENTRY
+ alter table t1 add unique (a);
+ drop table t1;
