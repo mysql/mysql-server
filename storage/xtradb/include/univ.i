@@ -210,7 +210,7 @@ operations (very slow); also UNIV_DEBUG must be defined */
 #define UNIV_BTR_DEBUG				/* check B-tree links */
 #define UNIV_LIGHT_MEM_DEBUG			/* light memory debugging */
 
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
 /* The following sets all new allocated memory to zero before use:
 this can be used to eliminate unnecessary Purify warnings, but note that
 it also masks many bugs Purify could detect. For detailed Purify analysis it

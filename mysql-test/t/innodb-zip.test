@@ -105,7 +105,11 @@ drop table t1;
 --error ER_TOO_BIG_ROWSIZE
 CREATE TABLE t1(c TEXT, PRIMARY KEY (c(440)))
 ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1 CHARSET=ASCII;
-CREATE TABLE t1(c TEXT, PRIMARY KEY (c(439)))
+# The maximum key size for a compressed row actually depends on the
+# version of libz used, as account must be taken for the maximum
+# compressed size of a key, and this differs between libz
+# versions. Some libz versions allow a size of 439, some only 438.
+CREATE TABLE t1(c TEXT, PRIMARY KEY (c(438)))
 ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1 CHARSET=ASCII;
 INSERT INTO t1 VALUES(REPEAT('A',512)),(REPEAT('B',512));
 DROP TABLE t1;

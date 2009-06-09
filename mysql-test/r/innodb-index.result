@@ -1,3 +1,4 @@
+SET @save_innodb_file_format_check=@@global.innodb_file_format_check;
 create table t1(a int not null, b int, c char(10) not null, d varchar(20)) engine = innodb;
 insert into t1 values (5,5,'oo','oo'),(4,4,'tr','tr'),(3,4,'ad','ad'),(2,3,'ak','ak');
 commit;
@@ -47,6 +48,7 @@ t1	CREATE TABLE `t1` (
   KEY `b` (`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 CREATE TABLE `t1#1`(a INT PRIMARY KEY) ENGINE=InnoDB;
+call mtr.add_suppression(" table `test`\\.`t1#[12]` already exists in InnoDB internal");
 alter table t1 add unique index (c), add index (d);
 ERROR HY000: Table 'test.t1#1' already exists
 rename table `t1#1` to `t1#2`;
@@ -1132,3 +1134,4 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLE t2;
 DROP TABLE t1;
+SET GLOBAL innodb_file_format_check=@save_innodb_file_format_check;

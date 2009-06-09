@@ -357,6 +357,8 @@ rw_lock_get_x_lock_count(
 	rw_lock_t*	lock);	/* in: rw-lock */
 /************************************************************************
 Accessor functions for rw lock. */
+
+#ifdef INNODB_RW_LOCKS_USE_ATOMICS
 UNIV_INLINE
 ulint
 rw_lock_get_s_waiters(
@@ -372,6 +374,14 @@ ulint
 rw_lock_get_wx_waiters(
 /*================*/
 	rw_lock_t*	lock);
+#else /* !INNODB_RW_LOCKS_USE_ATOMICS */
+UNIV_INLINE
+ulint
+rw_lock_get_waiters(
+/*==================*/
+	rw_lock_t*	lock);
+#endif /* INNODB_RW_LOCKS_USE_ATOMICS */
+
 UNIV_INLINE
 ulint
 rw_lock_get_writer(
@@ -488,6 +498,7 @@ rw_lock_debug_print(
 	rw_lock_debug_t*	info);	/* in: debug struct */
 #endif /* UNIV_SYNC_DEBUG */
 
+/*
 #ifndef INNODB_RW_LOCKS_USE_ATOMICS
 #error INNODB_RW_LOCKS_USE_ATOMICS is not defined. Do you use enough new GCC or compatibles?
 #error Or do you use exact options for CFLAGS?
@@ -495,6 +506,7 @@ rw_lock_debug_print(
 #error e.g. (for Sparc_64): "-m64 -mcpu=v9"
 #error Otherwise, this build may be slower than normal version.
 #endif
+*/
 
 /* NOTE! The structure appears here only for the compiler to know its size.
 Do not use its fields directly! The structure used in the spin lock

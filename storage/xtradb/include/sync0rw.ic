@@ -68,6 +68,8 @@ rw_lock_remove_debug_info(
 
 /************************************************************************
 Accessor functions for rw lock. */
+
+#ifdef INNODB_RW_LOCKS_USE_ATOMICS
 UNIV_INLINE
 ulint
 rw_lock_get_s_waiters(
@@ -93,23 +95,32 @@ rw_lock_get_wx_waiters(
 {
 	return(lock->wait_ex_waiters);
 }
+#else /* !INNODB_RW_LOCKS_USE_ATOMICS */
+UNIV_INLINE
+ulint
+rw_lock_get_waiters(
+/*================*/
+				/* out: 1 if waiters, 0 otherwise */
+	rw_lock_t*	lock)	/* in: rw-lock */
+{
+	return(lock->waiters);
+}
+#endif /* INNODB_RW_LOCKS_USE_ATOMICS */
+
 
 /************************************************************************
 Sets lock->waiters to 1. It is not an error if lock->waiters is already
 1. On platforms where ATOMIC builtins are used this function enforces a
 memory barrier. */
+#ifdef INNODB_RW_LOCKS_USE_ATOMICS
 UNIV_INLINE
 void
 rw_lock_set_s_waiter_flag(
 /*====================*/
 	rw_lock_t*	lock)	/* in: rw-lock */
 {
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
 	// os_compare_and_swap(&lock->s_waiters, 0, 1);
 	__sync_lock_test_and_set(&lock->s_waiters, 1);
-#else /* INNODB_RW_LOCKS_USE_ATOMICS */
-	lock->s_waiters = 1;
-#endif /* INNODB_RW_LOCKS_USE_ATOMICS */
 }
 UNIV_INLINE
 void
@@ -117,12 +128,8 @@ rw_lock_set_x_waiter_flag(
 /*====================*/
 	rw_lock_t*	lock)	/* in: rw-lock */
 {
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
 	// os_compare_and_swap(&lock->x_waiters, 0, 1);
 	__sync_lock_test_and_set(&lock->x_waiters, 1);
-#else /* INNODB_RW_LOCKS_USE_ATOMICS */
-	lock->x_waiters = 1;
-#endif /* INNODB_RW_LOCKS_USE_ATOMICS */
 }
 UNIV_INLINE
 void
@@ -130,30 +137,34 @@ rw_lock_set_wx_waiter_flag(
 /*====================*/
 	rw_lock_t*	lock)	/* in: rw-lock */
 {
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
 	// os_compare_and_swap(&lock->wait_ex_waiters, 0, 1);
 	__sync_lock_test_and_set(&lock->wait_ex_waiters, 1);
-#else /* INNODB_RW_LOCKS_USE_ATOMICS */
-	lock->wait_ex_waiters = 1;
-#endif /* INNODB_RW_LOCKS_USE_ATOMICS */
 }
+#else /* !INNODB_RW_LOCKS_USE_ATOMICS */
+UNIV_INLINE
+void
+rw_lock_set_waiter_flag(
+/*====================*/
+	rw_lock_t*	lock)	/* in: rw-lock */
+{
+	lock->waiters = 1;
+}
+#endif /* INNODB_RW_LOCKS_USE_ATOMICS */
 
 /************************************************************************
 Resets lock->waiters to 0. It is not an error if lock->waiters is already
 0. On platforms where ATOMIC builtins are used this function enforces a
 memory barrier. */
+#ifdef INNODB_RW_LOCKS_USE_ATOMICS
+
 UNIV_INLINE
 void
 rw_lock_reset_s_waiter_flag(
 /*======================*/
 	rw_lock_t*	lock)	/* in: rw-lock */
 {
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
 	// os_compare_and_swap(&lock->s_waiters, 1, 0);
 	__sync_lock_test_and_set(&lock->s_waiters, 0);
-#else /* INNODB_RW_LOCKS_USE_ATOMICS */
-	lock->s_waiters = 0;
-#endif /* INNODB_RW_LOCKS_USE_ATOMICS */
 }
 UNIV_INLINE
 void
@@ -161,12 +172,8 @@ rw_lock_reset_x_waiter_flag(
 /*======================*/
 	rw_lock_t*	lock)	/* in: rw-lock */
 {
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
 	// os_compare_and_swap(&lock->x_waiters, 1, 0);
 	__sync_lock_test_and_set(&lock->x_waiters, 0);
-#else /* INNODB_RW_LOCKS_USE_ATOMICS */
-	lock->x_waiters = 0;
-#endif /* INNODB_RW_LOCKS_USE_ATOMICS */
 }
 UNIV_INLINE
 void
@@ -174,13 +181,19 @@ rw_lock_reset_wx_waiter_flag(
 /*======================*/
 	rw_lock_t*	lock)	/* in: rw-lock */
 {
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
 	// os_compare_and_swap(&lock->wait_ex_waiters, 1, 0);
 	__sync_lock_test_and_set(&lock->wait_ex_waiters, 0);
-#else /* INNODB_RW_LOCKS_USE_ATOMICS */
-	lock->wait_ex_waiters = 0;
-#endif /* INNODB_RW_LOCKS_USE_ATOMICS */
 }
+#else /* !INNODB_RW_LOCKS_USE_ATOMICS */
+UNIV_INLINE
+void
+rw_lock_reset_waiter_flag(
+/*======================*/
+	rw_lock_t*	lock)	/* in: rw-lock */
+{
+	lock->waiters = 0;
+}
+#endif /* INNODB_RW_LOCKS_USE_ATOMICS */
 
 /**********************************************************************
 Returns the write-status of the lock - this function made more sense
