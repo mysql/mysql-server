@@ -817,7 +817,6 @@ CREATE PROCEDURE sp11() insert into mysql.t1 values('a');
 --replace_column 13 created 14 modified
 SELECT security_type from mysql.proc where specific_name='sp11';
 
-let $MASTER_MYSOCK= query_get_value(SHOW VARIABLES LIKE 'socket', Value, 1);
 --replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
 connect (u_1, localhost, user_1, , db_storedproc);
 --source suite/funcs_1/include/show_connection.inc
