@@ -2640,8 +2640,8 @@ bool Item_sum_count_distinct::setup(THD *thd)
       enum enum_field_types f_type= f->type();
       tree_key_length+= f->pack_length();
       if ((f_type == MYSQL_TYPE_VARCHAR) ||
-          !f->binary() && (f_type == MYSQL_TYPE_STRING ||
-                           f_type == MYSQL_TYPE_VAR_STRING))
+          (!f->binary() && (f_type == MYSQL_TYPE_STRING ||
+                           f_type == MYSQL_TYPE_VAR_STRING)))
       {
         all_binary= FALSE;
         break;

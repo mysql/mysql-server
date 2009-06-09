@@ -791,8 +791,8 @@ Log_event::do_shall_skip(Relay_log_info *rli)
                       (ulong) server_id, (ulong) ::server_id,
                       rli->replicate_same_server_id,
                       rli->slave_skip_counter));
-  if (server_id == ::server_id && !rli->replicate_same_server_id ||
-      rli->slave_skip_counter == 1 && rli->is_in_group())
+  if ((server_id == ::server_id && !rli->replicate_same_server_id) ||
+      (rli->slave_skip_counter == 1 && rli->is_in_group()))
     return EVENT_SKIP_IGNORE;
   else if (rli->slave_skip_counter > 0)
     return EVENT_SKIP_COUNT;
@@ -2733,7 +2733,8 @@ void Query_log_event::print_query_header(IO_CACHE* file,
 
   if (!(flags & LOG_EVENT_SUPPRESS_USE_F) && db)
   {
-    if ((different_db= memcmp(print_event_info->db, db, db_len + 1)))
+    different_db= memcmp(print_event_info->db, db, db_len + 1);
+    if (different_db)
       memcpy(print_event_info->db, db, db_len + 1);
     if (db[0] && different_db) 
       my_b_printf(file, "use %s%s\n", db, print_event_info->delimiter);
@@ -6897,8 +6898,8 @@ Rows_log_event::Rows_log_event(THD *thd_arg, TABLE *tbl_arg, ulong tid,
     solution, to be able to terminate a started statement in the
     binary log: the extraneous events will be removed in the future.
    */
-  DBUG_ASSERT(tbl_arg && tbl_arg->s && tid != ~0UL ||
-              !tbl_arg && !cols && tid == ~0UL);
+  DBUG_ASSERT((tbl_arg && tbl_arg->s && tid != ~0UL) ||
+              (!tbl_arg && !cols && tid == ~0UL));
 
   if (thd_arg->options & OPTION_NO_FOREIGN_KEY_CHECKS)
       set_flags(NO_FOREIGN_KEY_CHECKS_F);
@@ -7090,7 +7091,7 @@ int Rows_log_event::do_add_row_data(uchar *row_data, size_t length)
 #endif
 
   DBUG_ASSERT(m_rows_buf <= m_rows_cur);
-  DBUG_ASSERT(!m_rows_buf || m_rows_end && m_rows_buf < m_rows_end);
+  DBUG_ASSERT(!m_rows_buf || (m_rows_end && m_rows_buf < m_rows_end));
   DBUG_ASSERT(m_rows_cur <= m_rows_end);
 
   /* The cast will always work since m_rows_cur <= m_rows_end */
