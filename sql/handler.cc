@@ -2291,8 +2291,8 @@ int handler::update_auto_increment()
   DBUG_ASSERT(next_insert_id >= auto_inc_interval_for_cur_row.minimum());
 
   if ((nr= table->next_number_field->val_int()) != 0 ||
-      table->auto_increment_field_not_null &&
-      thd->variables.sql_mode & MODE_NO_AUTO_VALUE_ON_ZERO)
+      (table->auto_increment_field_not_null &&
+      thd->variables.sql_mode & MODE_NO_AUTO_VALUE_ON_ZERO))
   {
     /*
       Update next_insert_id if we had already generated a value in this
