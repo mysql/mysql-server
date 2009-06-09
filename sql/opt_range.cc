@@ -2032,7 +2032,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
   quick=0;
   needed_reg.clear_all();
   quick_keys.clear_all();
-  if ((specialflag & SPECIAL_SAFE_MODE) && ! force_quick_range ||
+  if (((specialflag & SPECIAL_SAFE_MODE) && ! force_quick_range) ||
       !limit)
     DBUG_RETURN(0); /* purecov: inspected */
   if (keys_to_use.is_clear_all())
@@ -2462,8 +2462,8 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
 
   DBUG_PRINT("info", ("index_merge scans cost %g", imerge_cost));
   if (imerge_too_expensive || (imerge_cost > read_time) ||
-      (non_cpk_scan_records+cpk_scan_records >= param->table->file->records) &&
-      read_time != DBL_MAX)
+      ((non_cpk_scan_records+cpk_scan_records >= param->table->file->records) &&
+      read_time != DBL_MAX))
   {
     /*
       Bail out if it is obvious that both index_merge and ROR-union will be
@@ -6490,7 +6490,7 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
     goto err;
   quick->records= records;
 
-  if (cp_buffer_from_ref(thd,ref) && thd->is_fatal_error ||
+  if ((cp_buffer_from_ref(thd,ref) && thd->is_fatal_error) ||
       !(range= new(alloc) QUICK_RANGE()))
     goto err;                                   // out of memory
 
@@ -7342,7 +7342,7 @@ int QUICK_RANGE_SELECT::cmp_prev(QUICK_RANGE *range_arg)
 
   cmp= key_cmp(key_part_info, (byte*) range_arg->min_key,
                range_arg->min_length);
-  if (cmp > 0 || cmp == 0 && !(range_arg->flag & NEAR_MIN))
+  if (cmp > 0 || (cmp == 0 && !(range_arg->flag & NEAR_MIN)))
     return 0;
   return 1;                                     // outside of range
 }
@@ -9395,7 +9395,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min_in_range()
       /* Compare the found key with max_key. */
       int cmp_res= key_cmp(index_info->key_part, max_key,
                            real_prefix_len + min_max_arg_len);
-      if (!((cur_range->flag & NEAR_MAX) && (cmp_res == -1) ||
+      if (!(((cur_range->flag & NEAR_MAX) && (cmp_res == -1)) ||
             (cmp_res <= 0)))
       {
         result = HA_ERR_KEY_NOT_FOUND;
@@ -9511,7 +9511,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_max_in_range()
       /* Compare the found key with min_key. */
       int cmp_res= key_cmp(index_info->key_part, min_key,
                            real_prefix_len + min_max_arg_len);
-      if (!((cur_range->flag & NEAR_MIN) && (cmp_res == 1) ||
+      if (!(((cur_range->flag & NEAR_MIN) && (cmp_res == 1)) ||
             (cmp_res >= 0)))
         continue;
     }

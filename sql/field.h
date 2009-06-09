@@ -170,7 +170,7 @@ public:
     memcpy(ptr, ptr + l_offset, pack_length());
     if (null_ptr)
       *null_ptr= ((*null_ptr & (uchar) ~null_bit) |
-		  null_ptr[l_offset] & null_bit);
+		  (null_ptr[l_offset] & null_bit));
   }
   virtual bool binary() const { return 1; }
   virtual bool zero_pack() const { return 1; }
