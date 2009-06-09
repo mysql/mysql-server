@@ -4463,8 +4463,8 @@ int Item_func_set_user_var::save_in_field(Field *field, bool no_conversions,
   update();
 
   if (result_type() == STRING_RESULT ||
-      result_type() == REAL_RESULT &&
-      field->result_type() == STRING_RESULT)
+      (result_type() == REAL_RESULT &&
+      field->result_type() == STRING_RESULT))
   {
     String *result;
     CHARSET_INFO *cs= collation.collation;

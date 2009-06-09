@@ -4780,8 +4780,9 @@ void handle_connection_in_main_thread(THD *thd)
   safe_mutex_assert_owner(&LOCK_thread_count);
   thread_cache_size=0;			// Safety
   threads.append(thd);
-  (void) pthread_mutex_unlock(&LOCK_thread_count);
-  handle_one_connection((void*) thd);
+  pthread_mutex_unlock(&LOCK_thread_count);
+  thd->start_utime= my_micro_time();
+  handle_one_connection(thd);
 }
 
 
@@ -4806,7 +4807,7 @@ void create_thread_to_handle_connection(THD *thd)
     thread_created++;
     threads.append(thd);
     DBUG_PRINT("info",(("creating thread %lu"), thd->thread_id));
-    thd->connect_utime= thd->start_utime= my_micro_time();
+    thd->prior_thr_create_utime= thd->start_utime= my_micro_time();
     if ((error=pthread_create(&thd->real_id,&connection_attrib,
                               handle_one_connection,
                               (void*) thd)))
