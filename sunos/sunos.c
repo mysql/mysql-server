@@ -3,6 +3,7 @@
 #include <string.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <thread.h>
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/resource.h>
@@ -32,6 +33,17 @@ toku_os_gettid(void) {
     long tid;
     int r = thr_self(&tid);
     assert(r == 0);
+    return tid;
+}
+
+#endif
+
+#if __sun__
+
+int
+toku_os_gettid(void) {
+    thread_t tid;
+    tid = thr_self();
     return tid;
 }
 
