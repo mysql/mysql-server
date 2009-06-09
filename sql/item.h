@@ -2203,6 +2203,10 @@ public:
     if (!depended_from) 
       (*ref)->update_used_tables(); 
   }
+  bool const_item() const 
+  {
+    return (*ref)->const_item();
+  }
   table_map not_null_tables() const { return (*ref)->not_null_tables(); }
   void set_result_field(Field *field)	{ result_field= field; }
   bool is_result_field() { return 1; }

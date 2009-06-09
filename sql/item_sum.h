@@ -255,6 +255,12 @@ protected:
   */
   Item **orig_args, *tmp_orig_args[2];
   table_map used_tables_cache;
+  
+  /*
+    TRUE <=> We've managed to calculate the value of this Item in
+    opt_sum_query(), hence it can be considered constant at all subsequent
+    steps.
+  */
   bool forced_const;
 
 public:  
@@ -341,6 +347,14 @@ public:
   virtual const char *func_name() const= 0;
   virtual Item *result_item(Field *field)
     { return new Item_field(field); }
+  /*
+    Return bitmap of tables that are needed to evaluate the item.
+
+    The implementation takes into account the used strategy: items resolved
+    at optimization phase report 0.
+    Items that depend on the number of rows only, e.g. COUNT(*) will report
+    zero, but will still false from const_item().
+  */
   table_map used_tables() const { return used_tables_cache; }
   void update_used_tables ();
   void cleanup() 
