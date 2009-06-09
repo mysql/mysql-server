@@ -41,7 +41,6 @@ let $message= ####### Testcase for mix of db and table level: #######;
         grant SELECT,INSERT on priv2_db.* to test_noprivs@localhost;
         show grants for test_noprivs@localhost;
 
-        let $MASTER_MYSOCK= query_get_value(SHOW VARIABLES LIKE 'socket', Value, 1);
 	--replace_result $MASTER_MYPORT MASTER_MYPORT $MASTER_MYSOCK MASTER_MYSOCK
 	connect (yes_privs,localhost,test_yesprivs,PWD,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 	use priv1_db;

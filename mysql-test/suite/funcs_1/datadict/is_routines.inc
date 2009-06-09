@@ -179,7 +179,6 @@ GRANT EXECUTE ON db_datadict_2.* TO 'testuser2'@'localhost';
 FLUSH PRIVILEGES;
 
 --echo # Establish connection testuser1 (user=testuser1)
-let $MASTER_MYSOCK= query_get_value(SHOW VARIABLES LIKE 'socket', Value, 1);
 --replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
 connect (testuser1, localhost, testuser1, , db_datadict);
 --replace_column 16 "YYYY-MM-DD hh:mm:ss" 17 "YYYY-MM-DD hh:mm:ss"
