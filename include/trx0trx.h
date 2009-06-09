@@ -497,10 +497,12 @@ struct trx_struct{
 					FALSE, one can save CPU time and about
 					150 bytes in the undo log size as then
 					we skip XA steps */
-	unsigned	flush_log_later:1;/* when we commit the transaction
-					in MySQL's binlog write, we will
-					flush the log to disk later in
-					a separate call */
+	unsigned	flush_log_later:1;/* In 2PC, we hold the
+					prepare_commit mutex across
+					both phases. In that case, we
+					defer flush of the logs to disk
+					until after we release the
+					mutex. */
 	unsigned	must_flush_log_later:1;/* this flag is set to TRUE in
 					trx_commit_off_kernel() if
 					flush_log_later was TRUE, and there
