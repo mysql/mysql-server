@@ -130,7 +130,6 @@ WHERE table_schema = 'db_datadict' ORDER BY table_name;
 let $my_show = SHOW TABLES FROM db_datadict;
 
 --echo # Establish connection testuser1 (user=testuser1)
-let $MASTER_MYSOCK= query_get_value(SHOW VARIABLES LIKE 'socket', Value, 1);
 --replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
 connect (testuser1, localhost, testuser1, , db_datadict);
 # tb2 is not granted to anyone
