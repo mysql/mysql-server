@@ -1419,8 +1419,8 @@ longlong Item_func_truth::val_int()
 
 bool Item_in_optimizer::fix_left(THD *thd, Item **ref)
 {
-  if (!args[0]->fixed && args[0]->fix_fields(thd, args) ||
-      !cache && !(cache= Item_cache::get_cache(args[0])))
+  if ((!args[0]->fixed && args[0]->fix_fields(thd, args)) ||
+      (!cache && !(cache= Item_cache::get_cache(args[0]))))
     return 1;
 
   cache->setup(args[0]);
@@ -2934,8 +2934,8 @@ int cmp_longlong(void *cmp_arg,
       One of the args is unsigned and is too big to fit into the 
       positive signed range. Report no match.
     */  
-    if (a->unsigned_flag && ((ulonglong) a->val) > (ulonglong) LONGLONG_MAX ||
-        b->unsigned_flag && ((ulonglong) b->val) > (ulonglong) LONGLONG_MAX)
+    if ((a->unsigned_flag && ((ulonglong) a->val) > (ulonglong) LONGLONG_MAX) ||
+        (b->unsigned_flag && ((ulonglong) b->val) > (ulonglong) LONGLONG_MAX))
       return a->unsigned_flag ? 1 : -1;
     /*
       Although the signedness differs both args can fit into the signed 
