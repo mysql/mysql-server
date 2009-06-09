@@ -300,14 +300,14 @@ set @@rand_seed1=10000000,@@rand_seed2=1000000;
 select ROUND(RAND(),5);
 ROUND(RAND(),5)
 0.02887
-show variables like '%alloc%';
+show variables where variable_name in ('query_alloc_block_size', 'query_prealloc_size', 'range_alloc_block_size', 'transaction_alloc_block_size', 'transaction_prealloc_size');
 Variable_name	Value
 query_alloc_block_size	8192
 query_prealloc_size	8192
 range_alloc_block_size	4096
 transaction_alloc_block_size	8192
 transaction_prealloc_size	4096
-select * from information_schema.session_variables where variable_name like '%alloc%' order by 1;
+select * from information_schema.session_variables where variable_name in ('query_alloc_block_size', 'query_prealloc_size', 'range_alloc_block_size', 'transaction_alloc_block_size', 'transaction_prealloc_size') order by 1;
 VARIABLE_NAME	VARIABLE_VALUE
 QUERY_ALLOC_BLOCK_SIZE	8192
 QUERY_PREALLOC_SIZE	8192
@@ -322,14 +322,14 @@ set @@transaction_prealloc_size=1024*21-1;
 select @@query_alloc_block_size;
 @@query_alloc_block_size
 17408
-show variables like '%alloc%';
+show variables where variable_name in ('query_alloc_block_size', 'query_prealloc_size', 'range_alloc_block_size', 'transaction_alloc_block_size', 'transaction_prealloc_size');
 Variable_name	Value
 query_alloc_block_size	17408
 query_prealloc_size	18432
 range_alloc_block_size	16384
 transaction_alloc_block_size	19456
 transaction_prealloc_size	20480
-select * from information_schema.session_variables where variable_name like '%alloc%' order by 1;
+select * from information_schema.session_variables where variable_name in ('query_alloc_block_size', 'query_prealloc_size', 'range_alloc_block_size', 'transaction_alloc_block_size', 'transaction_prealloc_size') order by 1;
 VARIABLE_NAME	VARIABLE_VALUE
 QUERY_ALLOC_BLOCK_SIZE	17408
 QUERY_PREALLOC_SIZE	18432
@@ -339,14 +339,14 @@ TRANSACTION_PREALLOC_SIZE	20480
 set @@range_alloc_block_size=default;
 set @@query_alloc_block_size=default, @@query_prealloc_size=default;
 set transaction_alloc_block_size=default, @@transaction_prealloc_size=default;
-show variables like '%alloc%';
+show variables where variable_name in ('query_alloc_block_size', 'query_prealloc_size', 'range_alloc_block_size', 'transaction_alloc_block_size', 'transaction_prealloc_size');
 Variable_name	Value
 query_alloc_block_size	8192
 query_prealloc_size	8192
 range_alloc_block_size	4096
 transaction_alloc_block_size	8192
 transaction_prealloc_size	4096
-select * from information_schema.session_variables where variable_name like '%alloc%' order by 1;
+select * from information_schema.session_variables where variable_name in ('query_alloc_block_size', 'query_prealloc_size', 'range_alloc_block_size', 'transaction_alloc_block_size', 'transaction_prealloc_size') order by 1;
 VARIABLE_NAME	VARIABLE_VALUE
 QUERY_ALLOC_BLOCK_SIZE	8192
 QUERY_PREALLOC_SIZE	8192
