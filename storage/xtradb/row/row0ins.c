@@ -54,7 +54,7 @@ Created 4/20/1996 Heikki Tuuri
 This prototype is copied from /mysql/sql/ha_innodb.cc.
 Invalidates the MySQL query cache for the table.
 NOTE that the exact prototype of this function has to be in
-/innobase/row/row0ins.c! */
+/xtradb/row/row0ins.c! */
 extern
 void
 innobase_invalidate_query_cache(
