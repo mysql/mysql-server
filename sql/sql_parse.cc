@@ -1238,7 +1238,7 @@ pthread_handler_t handle_one_connection(void *arg)
       decrease_user_connections(thd->user_connect);
 
     if (thd->killed ||
-        net->vio && net->error && net->report_error)
+        (net->vio && net->error && net->report_error))
     {
       statistic_increment(aborted_threads, &LOCK_status);
     }
@@ -2366,11 +2366,11 @@ void log_slow_statement(THD *thd)
     if ((thd->start_time > thd->time_after_lock && 
          (ulong) (thd->start_time - thd->time_after_lock) >
 	thd->variables.long_query_time) ||
-        (thd->server_status &
+        ((thd->server_status &
 	  (SERVER_QUERY_NO_INDEX_USED | SERVER_QUERY_NO_GOOD_INDEX_USED)) &&
         opt_log_queries_not_using_indexes &&
         /* == SQLCOM_END unless this is a SHOW command */
-        thd->lex->orig_sql_command == SQLCOM_END)
+        thd->lex->orig_sql_command == SQLCOM_END))
     {
       thd_proc_info(thd, "logging slow query");
       thd->status_var.long_query_count++;
@@ -2676,8 +2676,8 @@ mysql_execute_command(THD *thd)
     variables, but for now this is probably good enough.
     Don't reset warnings when executing a stored routine.
   */
-  if ((all_tables || &lex->select_lex != lex->all_selects_list ||
-       lex->sroutines.records) && !thd->spcont ||
+  if (((all_tables || &lex->select_lex != lex->all_selects_list ||
+       lex->sroutines.records) && !thd->spcont) ||
       lex->time_zone_tables_used)
     mysql_reset_errors(thd, 0);
 
@@ -5641,7 +5641,7 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
 
   if (schema_db)
   {
-    if (!(sctx->master_access & FILE_ACL) && (want_access & FILE_ACL) ||
+    if ((!(sctx->master_access & FILE_ACL) && (want_access & FILE_ACL)) ||
         (want_access & ~(SELECT_ACL | EXTRA_ACL | FILE_ACL)))
     {
       if (!no_errors)
@@ -5678,7 +5678,7 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
     DBUG_RETURN(FALSE);
   }
   if (((want_access & ~sctx->master_access) & ~(DB_ACLS | EXTRA_ACL)) ||
-      ! db && dont_check_global_grants)
+      (! db && dont_check_global_grants))
   {						// We can never grant this
     DBUG_PRINT("error",("No possible access"));
     if (!no_errors)
@@ -6029,10 +6029,10 @@ bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table)
   {
     if (access & want_access)
     {
-      if (!check_access(thd, access, table->db,
+      if ((!check_access(thd, access, table->db,
                         &table->grant.privilege, 0, 1,
                         test(table->schema_table)) &&
-          !grant_option || !check_grant(thd, access, table, 0, 1, 1))
+          !grant_option) || !check_grant(thd, access, table, 0, 1, 1))
         DBUG_RETURN(0);
     }
   }
@@ -7710,12 +7710,12 @@ bool multi_update_precheck(THD *thd, TABLE_LIST *tables)
     else if ((check_access(thd, UPDATE_ACL, table->db,
                            &table->grant.privilege, 0, 1,
                            test(table->schema_table)) ||
-              grant_option &&
-              check_grant(thd, UPDATE_ACL, table, 0, 1, 1)) &&
+              (grant_option &&
+              check_grant(thd, UPDATE_ACL, table, 0, 1, 1))) &&
              (check_access(thd, SELECT_ACL, table->db,
                            &table->grant.privilege, 0, 0,
                            test(table->schema_table)) ||
-              grant_option && check_grant(thd, SELECT_ACL, table, 0, 1, 0)))
+              (grant_option && check_grant(thd, SELECT_ACL, table, 0, 1, 0))))
       DBUG_RETURN(TRUE);
 
     table->table_in_first_from_clause= 1;
@@ -7735,7 +7735,7 @@ bool multi_update_precheck(THD *thd, TABLE_LIST *tables)
 	if (check_access(thd, SELECT_ACL, table->db,
 			 &table->grant.privilege, 0, 0,
                          test(table->schema_table)) ||
-	    grant_option && check_grant(thd, SELECT_ACL, table, 0, 1, 0))
+	    (grant_option && check_grant(thd, SELECT_ACL, table, 0, 1, 0)))
 	  DBUG_RETURN(TRUE);
       }
     }
@@ -7961,7 +7961,7 @@ static bool check_show_create_table_access(THD *thd, TABLE_LIST *table)
   return check_access(thd, SELECT_ACL | EXTRA_ACL, table->db,
                       &table->grant.privilege, 0, 0,
                       test(table->schema_table)) ||
-         grant_option && check_grant(thd, SELECT_ACL, table, 2, UINT_MAX, 0);
+         (grant_option && check_grant(thd, SELECT_ACL, table, 2, UINT_MAX, 0));
 }
 
 
