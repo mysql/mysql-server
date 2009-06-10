@@ -774,6 +774,74 @@ inline void unpack_var_field(
     memcpy(to_mysql+mysql_length_bytes, from_tokudb_data, from_tokudb_data_len);
 }
 
+uchar* pack_toku_field_blob(
+    uchar* to_tokudb,
+    const uchar* from_mysql,
+    Field* field
+    )
+{
+    u_int32_t len_bytes = field->row_pack_length();
+    u_int32_t length = 0;
+    uchar* data_ptr = NULL;
+    memcpy(to_tokudb, from_mysql, len_bytes);
+
+    switch (len_bytes) {
+    case (1):
+        length = (u_int32_t)(*from_mysql);
+        break;
+    case (2):
+        length = uint2korr(from_mysql);
+        break;
+    case (3):
+        length = uint3korr(from_mysql);
+        break;
+    case (4):
+        length = uint4korr(from_mysql);
+        break;
+    default:
+        assert(false);
+    }
+
+    if (length > 0) {
+        memcpy_fixed((uchar *)(&data_ptr), from_mysql + len_bytes, sizeof(uchar*));
+        memcpy(to_tokudb + len_bytes, data_ptr, length);
+    }
+    return (to_tokudb + len_bytes + length);
+}
+
+const uchar* unpack_toku_field_blob(
+    uchar *to_mysql, 
+    const uchar* from_tokudb,
+    Field* field
+    )
+{
+    u_int32_t len_bytes = field->row_pack_length();
+    u_int32_t length = 0;
+    const uchar* data_ptr = NULL;
+    memcpy(to_mysql, from_tokudb, len_bytes);
+
+    switch (len_bytes) {
+    case (1):
+        length = (u_int32_t)(*from_tokudb);
+        break;
+    case (2):
+        length = uint2korr(from_tokudb);
+        break;
+    case (3):
+        length = uint3korr(from_tokudb);
+        break;
+    case (4):
+        length = uint4korr(from_tokudb);
+        break;
+    default:
+        assert(false);
+    }
+    data_ptr = from_tokudb + len_bytes;
+    memcpy(to_mysql + len_bytes, (uchar *)(&data_ptr), sizeof(uchar *));
+    return (from_tokudb + len_bytes + length);
+}
+
+
 ha_tokudb::ha_tokudb(handlerton * hton, TABLE_SHARE * table_arg):handler(hton, table_arg) 
     // flags defined in sql\handler.h
 {
@@ -1533,9 +1601,10 @@ int ha_tokudb::pack_row(
 
     for (uint i = 0; i < share->num_blobs; i++) {
         Field* field = table->field[share->blob_fields[i]];
-        var_field_data_ptr = field->pack(
+        var_field_data_ptr = pack_toku_field_blob(
             var_field_data_ptr,
-            record + field_offset(field, table)
+            record + field_offset(field, table),
+            field
             );
     }
 
@@ -1576,9 +1645,10 @@ int ha_tokudb::unpack_blobs(
     buff= blob_buff;
     for (uint i = 0; i < share->num_blobs; i++) {
         Field* field = table->field[share->blob_fields[i]];
-        buff = field->unpack(
+        buff = unpack_toku_field_blob(
             record + field_offset(field, table),
-            buff
+            buff,
+            field
             );
     }
 
