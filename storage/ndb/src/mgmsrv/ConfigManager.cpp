@@ -41,27 +41,6 @@ _require(bool v, const char* expr, const char* file, int line)
 }
 #define require(v)  _require((v), #v, __FILE__, __LINE__)
 
-
-static void
-nodes2str(const NodeBitmask nodes, BaseString& to)
-{
-  unsigned found = 0;
-  const char* delimiter = "";
-  for (int i = 1; i < MAX_NODES; i++)
-  {
-    if (nodes.get(i))
-    {
-      to.appfmt("%s%d", delimiter, i);
-      found++;
-      if (found < nodes.count() - 1)
-        delimiter = ", ";
-      else
-        delimiter = " and ";
-    }
-  }
-}
-
-
 extern "C" const char* opt_connect_str;
 
 ConfigManager::ConfigManager(const MgmtSrvr::MgmtOpts& opts,
@@ -1996,7 +1975,7 @@ ConfigManager::get_packed_config(ndb_mgm_node_type nodetype,
       error.assign("The cluster configuration is not yet confirmed "
                    "by all defined management servers. "
                    "This management server is still waiting for node ");
-      nodes2str(not_started, error);
+      error.append(BaseString::getPrettyText(not_started));
       error.append(" to connect.");
       return false;
     }
