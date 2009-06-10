@@ -139,7 +139,7 @@ NdbScanOperation::handleScanGetValuesOldApi()
   /* Handle old API-defined scan getValue(s) */
   assert(m_scanUsingOldApi);
 
-  if (theReceiver.theFirstRecAttr != NULL) 
+  if (getReceiver(0).theFirstRecAttr != NULL) 
   {
     /* theReceiver has a list of RecAttrs which the user
      * wants to read.  Traverse it, adding signals to the
@@ -149,7 +149,7 @@ NdbScanOperation::handleScanGetValuesOldApi()
      * Once these are added to the signal train, all other handling
      * is exactly the same as for normal NdbRecord 'extra GetValues'
      */
-    const NdbRecAttr* recAttrToRead = theReceiver.theFirstRecAttr;
+    const NdbRecAttr* recAttrToRead = getReceiver(0).theFirstRecAttr;
 
     while(recAttrToRead != NULL)
     {
@@ -404,7 +404,7 @@ NdbScanOperation::generatePackedReadAIs(const NdbRecord *result_record,
     columnCount++;
   }
 
-  theReceiver.m_record.m_column_count= columnCount;
+  getReceiver(0).m_record.m_column_count= columnCount;
 
   int result= 0;
 
@@ -1758,7 +1758,7 @@ NdbScanOperation::nextResult(const char ** out_row_ptr,
 
   if ((res = nextResultNdbRecord(*out_row_ptr, fetchAllowed, forceSend)) == 0) {
     NdbBlob* tBlob= theBlobList;
-    NdbRecAttr *getvalue_recattr= theReceiver.theFirstRecAttr;
+    NdbRecAttr *getvalue_recattr= getReceiver(0).theFirstRecAttr;
     if (((UintPtr)tBlob | (UintPtr)getvalue_recattr) != 0)
     {
       Uint32 idx= m_current_api_receiver;
@@ -2250,7 +2250,7 @@ int NdbScanOperation::prepareSendScan(Uint32 aTC_ConnectPtr,
   /**
    * Prepare all receivers
    */
-  theReceiver.prepareSend();
+  getReceiver(0).prepareSend();
   bool keyInfo = m_keyInfo;
   Uint32 key_size= keyInfo ? m_attribute_record->m_keyLenInWords : 0;
 
@@ -2261,7 +2261,7 @@ int NdbScanOperation::prepareSendScan(Uint32 aTC_ConnectPtr,
   ScanTabReq * req = CAST_PTR(ScanTabReq, theSCAN_TABREQ->getDataPtrSend());
   Uint32 batch_size = req->first_batch_size; // User specified
   Uint32 batch_byte_size, first_batch_size;
-  theReceiver.calculate_batch_size(key_size,
+  getReceiver(0).calculate_batch_size(key_size,
                                    theParallelism,
                                    batch_size,
                                    batch_byte_size,
@@ -2291,7 +2291,7 @@ int NdbScanOperation::prepareSendScan(Uint32 aTC_ConnectPtr,
   
   /* Calculate the extra bytes needed per row for extra getValues */
   Uint32 extra_size= 0;
-  if (theReceiver.theFirstRecAttr != NULL)
+  if (getReceiver(0).theFirstRecAttr != NULL)
     extra_size= calcGetValueSize();
   
   assert(theParallelism > 0);
@@ -2314,7 +2314,7 @@ int NdbScanOperation::prepareSendScan(Uint32 aTC_ConnectPtr,
     m_receivers[i]->do_setup_ndbrecord(m_attribute_record, batch_size,
                                        key_size, m_read_range_no,
                                        rowsize, buf,
-                                       theReceiver.m_record.m_column_count);
+                                       getReceiver(0).m_record.m_column_count);
     buf+= bufsize;
   }
 
@@ -2347,7 +2347,7 @@ Uint32
 NdbScanOperation::calcGetValueSize()
 {
   Uint32 size= 0;
-  const NdbRecAttr *ra= theReceiver.theFirstRecAttr;
+  const NdbRecAttr *ra= getReceiver(0).theFirstRecAttr;
   while (ra != NULL)
   {
     size+= sizeof(Uint32) + ra->getColumn()->getSizeInBytes();
@@ -2677,12 +2677,12 @@ NdbScanOperation::takeOverScanOpNdbRecord(OperationType opType,
      * Apart from taking over the row lock, we also support reading again,
      * though typical usage will probably use an empty mask to read nothing.
      */
-    op->theReceiver.getValues(record, row);
+    op->getReceiver(0).getValues(record, row);
   }
   else if (opType == DeleteRequest && row != NULL)
   {
     /* Delete with a 'pre-read' - prepare the Receiver */
-    op->theReceiver.getValues(record, row);
+    op->getReceiver(0).getValues(record, row);
   }
 
 
@@ -2818,7 +2818,7 @@ NdbScanOperation::getValue_NdbRecord_scan(const NdbColumnImpl* attrInfo,
     DBUG_RETURN(NULL);
 
   theInitialReadSize= theTotalCurrAI_Len - AttrInfo::SectionSizeInfoLength;
-  ra= theReceiver.getValue(attrInfo, aValue);
+  ra= getReceiver(0).getValue(attrInfo, aValue);
   if (!ra)
   {
     setErrorCodeAbort(4000);
@@ -2849,7 +2849,7 @@ NdbScanOperation::getValue_NdbRecAttr_scan(const NdbColumnImpl* attrInfo,
     m_no_disk_flag &= 
       (attrInfo->m_storageType == NDB_STORAGETYPE_MEMORY);
   
-    recAttr = theReceiver.getValue(attrInfo, aValue);
+    recAttr = getReceiver(0).getValue(attrInfo, aValue);
     
     if (recAttr != NULL)
       theErrorLine++;
@@ -2867,7 +2867,7 @@ NdbScanOperation::getValue_NdbRecAttr_scan(const NdbColumnImpl* attrInfo,
 }
 
 NdbRecAttr*
-NdbScanOperation::getValue_impl(const NdbColumnImpl *attrInfo, char *aValue)
+NdbScanOperation::getValue_impl(const NdbColumnImpl *attrInfo, char *aValue, int recNo)
 {
   if (theStatus == UseNdbRecord)
     return getValue_NdbRecord_scan(attrInfo, aValue);

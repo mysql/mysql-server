@@ -159,7 +159,7 @@ NdbOperation::doSend(int aNodeId, Uint32 lastFlag)
                                      theTupKeyLen);
     const Uint32 inlineAIOffset = Uint32(tcKeyReq->attrInfo -(Uint32*)tcKeyReq);
     const Uint32 inlineAILength= MIN(TcKeyReq::MaxAttrInfo, 
-                                     theTotalCurrAI_Len);
+                                     static_cast<Uint32>(theTotalCurrAI_Len));
     
     Uint32 numSecs= 1;
     GenericSectionPtr secs[2];
@@ -273,7 +273,6 @@ NdbOperation::prepareSend(Uint32 aTC_ConnectPtr,
       {
 	getValue(NdbDictionary::Column::FRAGMENT);
 	tTotalCurrAI_Len = theTotalCurrAI_Len;
-	assert(theTotalCurrAI_Len);
       }
       else if (tOpType != DeleteRequest)
       {
@@ -404,9 +403,12 @@ NdbOperation::prepareSend(Uint32 aTC_ConnectPtr,
     theCurrentATTRINFO->setLength(theAI_LenInCurrAI);
   }//if
   theTotalCurrAI_Len= tTotalCurrAI_Len;
+  LEN_CHANGE;
 
   theStatus = WaitResponse;
-  theReceiver.prepareSend();
+  for(int i = 0; i<=maxRec; i++){
+    getReceiver(i).prepareSend();
+  }
   return 0;
 }//NdbOperation::prepareSend()
 
@@ -670,7 +672,9 @@ NdbOperation::prepareSendInterpreted()
     theFirstATTRINFO->setData(tFinalReadSize, 7);
     theFirstATTRINFO->setData(tSubroutineSize, 8);  
   }//if
-  theReceiver.prepareSend();
+  for(int i = 0; i<=maxRec; i++){
+    getReceiver(i).prepareSend();
+  }
   return 0;
 }//NdbOperation::prepareSendInterpreted()
 
@@ -859,7 +863,10 @@ NdbOperation::buildSignalsNdbRecord(Uint32 aTC_ConnectPtr,
       readMask.set(attrId);
       requestedCols++;
     }
-    theReceiver.m_record.m_column_count= requestedCols;
+    for(int i = 0; i<=maxRec; i++){
+      getReceiver(i).m_record.m_column_count= requestedCols;
+    }
+    // theReceiver.m_record.m_column_count= requestedCols;
 
     /* Are there any columns to read via NdbRecord? */
     if (requestedCols > 0)
@@ -895,7 +902,7 @@ NdbOperation::buildSignalsNdbRecord(Uint32 aTC_ConnectPtr,
      * header + inline data
      * Disk flag set when getValues were processed.
      */
-    const NdbRecAttr *ra= theReceiver.theFirstRecAttr;
+    const NdbRecAttr *ra= getReceiver(0).theFirstRecAttr;
     while (ra)
     {
       res= insertATTRINFOHdr_NdbRecord(ra->attrId(), 0);
@@ -1253,8 +1260,9 @@ NdbOperation::prepareSendNdbRecord(AbortOption ao)
   TcKeyReq::setDirtyFlag(tcKeyReq->requestInfo, theDirtyIndicator);
 
   theStatus= WaitResponse;
-  theReceiver.prepareSend();
-
+  for(int i = 0; i<=maxRec; i++){
+    getReceiver(i).prepareSend();
+  }
   return 0;
 }
 
@@ -1445,6 +1453,7 @@ NdbOperation::insertATTRINFOHdr_NdbRecord(Uint32 attrId,
    */
 
   theTotalCurrAI_Len++;
+  LEN_CHANGE;
 
   if (! attrInfoRemain)
   {
@@ -1483,6 +1492,7 @@ NdbOperation::insertATTRINFOData_NdbRecord(const char *value,
    * No ATTRINFO signal train is sent.
    */
   theTotalCurrAI_Len+= (byteSize+3)/4;
+  LEN_CHANGE;
 
   while (byteSize > attrInfoRemain*4)
   {
@@ -1568,7 +1578,9 @@ NdbOperation::receiveTCKEYREF( NdbApiSignal* aSignal)
   }
 
   theStatus = Finished;
-  theReceiver.m_received_result_length = ~0;
+  for(int i = 0; i<=maxRec; i++){
+    getReceiver(i).m_received_result_length = ~0;
+  }
 
   // not dirty read
   if(! (theOperationType == ReadRequest && theDirtyIndicator))
@@ -1581,7 +1593,7 @@ NdbOperation::receiveTCKEYREF( NdbApiSignal* aSignal)
    * If TCKEYCONF has arrived
    *   op has completed (maybe trans has completed)
    */
-  if(theReceiver.m_expected_result_length)
+  if(getReceiver(0).m_expected_result_length)
   {
     return theNdbCon->OpCompleteFailure(this);
   }

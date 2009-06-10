@@ -379,7 +379,8 @@ NdbOperation::setReadLockMode(LockMode lockMode)
  * Remark:        Define an attribute to retrieve in query.
  *****************************************************************************/
 NdbRecAttr*
-NdbOperation::getValue_impl(const NdbColumnImpl* tAttrInfo, char* aValue)
+NdbOperation::getValue_impl(const NdbColumnImpl* tAttrInfo, char* aValue, 
+			    int recNo)
 {
   NdbRecAttr* tRecAttr;
   if ((tAttrInfo != NULL) &&
@@ -418,7 +419,7 @@ NdbOperation::getValue_impl(const NdbColumnImpl* tAttrInfo, char* aValue)
       /************************************************************************
        * Get a Receive Attribute object and link it into the operation object.
        ***********************************************************************/
-      if((tRecAttr = theReceiver.getValue(tAttrInfo, aValue)) != 0){
+      if((tRecAttr = getReceiver(recNo).getValue(tAttrInfo, aValue)) != 0){
 	theErrorLine++;
 	return tRecAttr;
       } else {  
@@ -439,7 +440,7 @@ NdbOperation::getValue_impl(const NdbColumnImpl* tAttrInfo, char* aValue)
 }
 
 NdbRecAttr*
-NdbOperation::getValue_NdbRecord(const NdbColumnImpl* tAttrInfo, char* aValue)
+NdbOperation::getValue_NdbRecord(const NdbColumnImpl* tAttrInfo, char* aValue, int recNo)
 {
   NdbRecAttr* tRecAttr;
 
@@ -449,7 +450,7 @@ NdbOperation::getValue_NdbRecord(const NdbColumnImpl* tAttrInfo, char* aValue)
     For getValue with NdbRecord operations, we just allocate the NdbRecAttr,
     the signal data will be constructed later.
   */
-  if((tRecAttr = theReceiver.getValue(tAttrInfo, aValue)) != 0) {
+  if((tRecAttr = getReceiver(recNo).getValue(tAttrInfo, aValue)) != 0) {
     theErrorLine++;
     return tRecAttr;
   } else {
@@ -947,6 +948,7 @@ NdbOperation::insertATTRINFO( Uint32 aData )
   tTotCurrAILen++;
   tAI_LenInCurrAI++;
   theTotalCurrAI_Len = tTotCurrAILen;
+  LEN_CHANGE;
   theAI_LenInCurrAI = tAI_LenInCurrAI;
   theATTRINFOptr = tAttrPtr;
   return 0;
@@ -1011,6 +1013,7 @@ NdbOperation::insertATTRINFOloop(register const Uint32* aDataPtr,
   }//while
   theATTRINFOptr = tAttrPtr;
   theTotalCurrAI_Len = tTotCurrAILen;
+  LEN_CHANGE;
   theAI_LenInCurrAI = tAI_LenInCurrAI;
   return 0;
 
