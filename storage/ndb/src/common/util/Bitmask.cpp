@@ -221,8 +221,6 @@ TAPTEST(Bitmask)
     return 1; // OK
 }
 
-template struct BitmaskPOD<8>;
-
 #endif
 
 template struct BitmaskPOD<8>;
