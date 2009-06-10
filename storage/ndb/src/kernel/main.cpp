@@ -202,7 +202,7 @@ int main(int argc, char** argv)
 #endif
 
   int res = ndbd_run(opt_foreground);
-  _exit(res);
+  ndbd_exit(res);
   return res;
 }
 

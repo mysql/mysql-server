@@ -21,6 +21,7 @@
 
 #include <ndb_global.h>
 #include <Vector.hpp>
+#include "Bitmask.hpp"
 
 /**
  * @class BaseString
@@ -201,6 +202,38 @@ public:
     *key_length = str->length();
     return str->c_str();
   }
+
+  template<unsigned size>
+  static BaseString getText(const Bitmask<size>& mask) {
+    return BaseString::getText(size, mask.rep.data);
+  }
+
+  template<unsigned size>
+  static BaseString getPrettyText(const Bitmask<size>& mask) {
+    return BaseString::getPrettyText(size, mask.rep.data);
+  }
+  template<unsigned size>
+  static BaseString getPrettyTextShort(const Bitmask<size>& mask) {
+    return BaseString::getPrettyTextShort(size, mask.rep.data);
+  }
+
+  template<unsigned size>
+  static BaseString getText(const BitmaskPOD<size>& mask) {
+    return BaseString::getText(size, mask.rep.data);
+  }
+
+  template<unsigned size>
+  static BaseString getPrettyText(const BitmaskPOD<size>& mask) {
+    return BaseString::getPrettyText(size, mask.rep.data);
+  }
+  template<unsigned size>
+  static BaseString getPrettyTextShort(const BitmaskPOD<size>& mask) {
+    return BaseString::getPrettyTextShort(size, mask.rep.data);
+  }
+
+  static BaseString getText(unsigned size, const Uint32 data[]);
+  static BaseString getPrettyText(unsigned size, const Uint32 data[]);
+  static BaseString getPrettyTextShort(unsigned size, const Uint32 data[]);
 
 private:
   char* m_chr;

@@ -20,7 +20,6 @@
 #define NDB_BITMASK_H
 
 #include <ndb_global.h>
-#include <BaseString.hpp>
 
 /**
  * Bitmask implementation.  Size (in 32-bit words) is given explicitly
@@ -499,19 +498,6 @@ public:
    * assign <em>this</em> according to <em>src/em>
    */
   void assign(unsigned sz, const Uint32 src[]);
-
-  /**
-   * getText - non-static getText(const Uint32 data[], char* buf);
-   * eg:
-   * getText: 000000000000000000000000000000000000000000000000000000000015d753
-   * getPrettyText:      0, 1, 4, 6, 8, 9, 10, 12, 14, 15, 16, 18 and 20
-   * getPrettyTextShort: 0,1,4,6,8,9,10,12,14,15,16,18,20
-   *
-   * getPrettyText is based on nodes2str() in ConfigManager.cpp()
-   */
-  BaseString getText();
-  BaseString getPrettyText();
-  BaseString getPrettyTextShort();
 
   /**
    * start of static members
