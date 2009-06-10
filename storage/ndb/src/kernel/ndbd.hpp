@@ -17,5 +17,6 @@
 #define NDBD_HPP
 
 int ndbd_run(bool foreground);
+void ndbd_exit(int code);
 
 #endif
