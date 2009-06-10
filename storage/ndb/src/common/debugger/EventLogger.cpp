@@ -972,7 +972,7 @@ void getTextStartReport(QQQQ) {
   for (int i = 0; i < 4; i++ )
   {
     nodebms[i].assign(sz, theData + 4 + (i * sz));
-    bstrings[i] = nodebms[i].getPrettyText();
+    bstrings[i] = BaseString::getPrettyText(nodebms[i]);
     cstrs[i] = bstrings[i].c_str();
   }
   switch(theData[1]){
