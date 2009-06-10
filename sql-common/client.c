@@ -477,6 +477,9 @@ HANDLE create_shared_memory(MYSQL *mysql,NET *net, uint connect_timeout)
   DWORD error_code = 0;
   DWORD event_access_rights= SYNCHRONIZE | EVENT_MODIFY_STATE;
   char *shared_memory_base_name = mysql->options.shared_memory_base_name;
+  static const char *name_prefixes[] = {"","Global\\"};
+  const char *prefix;
+  int i;
 
   /*
      get enough space base-name + '_' + longest suffix we might ever send
@@ -491,9 +494,18 @@ HANDLE create_shared_memory(MYSQL *mysql,NET *net, uint connect_timeout)
     shared_memory_base_name is unique value for each server
     unique_part is uniquel value for each object (events and file-mapping)
   */
-  suffix_pos = strxmov(tmp, "Global\\", shared_memory_base_name, "_", NullS);
-  strmov(suffix_pos, "CONNECT_REQUEST");
-  if (!(event_connect_request= OpenEvent(event_access_rights, FALSE, tmp)))
+  for (i = 0; i< array_elements(name_prefixes); i++)
+  {
+    prefix= name_prefixes[i];
+    suffix_pos = strxmov(tmp, prefix , shared_memory_base_name, "_", NullS);
+    strmov(suffix_pos, "CONNECT_REQUEST");
+    event_connect_request= OpenEvent(event_access_rights, FALSE, tmp);
+    if (event_connect_request)
+    {
+      break;
+    }
+  }
+  if (!event_connect_request)
   {
     error_allow = CR_SHARED_MEMORY_CONNECT_REQUEST_ERROR;
     goto err;
@@ -545,7 +557,7 @@ HANDLE create_shared_memory(MYSQL *mysql,NET *net, uint connect_timeout)
     unique_part is uniquel value for each object (events and file-mapping)
     number_of_connection is number of connection between server and client
   */
-  suffix_pos = strxmov(tmp, "Global\\", shared_memory_base_name, "_", connect_number_char,
+  suffix_pos = strxmov(tmp, prefix , shared_memory_base_name, "_", connect_number_char,
 		       "_", NullS);
   strmov(suffix_pos, "DATA");
   if ((handle_file_map = OpenFileMapping(FILE_MAP_WRITE,FALSE,tmp)) == NULL)
