@@ -67,20 +67,6 @@ of the 32-bit x86 assembler in mutex operations. */
 #  define UNIV_MUST_NOT_INLINE
 # endif
 
-/* When on Solaris, gcc, and 32-bit disable inlining */
-
-# if defined(__GNUC__) && defined(UNIV_SOLARIS) && defined(__i386__)
-#  undef  UNIV_MUST_NOT_INLINE
-#  define UNIV_MUST_NOT_INLINE
-# endif
-
-/* When on Mac OS X, gcc, and 32-bit x86 disable inlining */
-
-# if defined(__GNUC__) && defined(__APPLE__) && defined (__MACH__) && defined(__i386__)
-#  undef  UNIV_MUST_NOT_INLINE
-#  define UNIV_MUST_NOT_INLINE
-# endif
-
 # ifdef HAVE_PREAD
 #  define HAVE_PWRITE
 # endif
