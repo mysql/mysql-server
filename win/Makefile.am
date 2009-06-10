@@ -20,3 +20,4 @@ EXTRA_DIST = build-vs71.bat build-vs8.bat build-vs8_x64.bat build-vs9.bat \
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
+             mysql_manifest.cmake create_manifest.js create_def_file.js
