@@ -966,82 +966,79 @@ void getTextSingleUser(QQQQ) {
 void getTextStartReport(QQQQ) {
   Uint32 time = theData[2];
   Uint32 sz = theData[3];
-  NodeBitmask nodebms[4];
-  BaseString bstrings[4];
-  const char *cstrs[4];
-  for (int i = 0; i < 4; i++ )
-  {
-    nodebms[i].assign(sz, theData + 4 + (i * sz));
-    bstrings[i] = BaseString::getPrettyText(nodebms[i]);
-    cstrs[i] = bstrings[i].c_str();
-  }
+  BaseString 
+    bstr0 = BaseString::getPrettyText(sz, theData + 4 + (0 * sz)), 
+    bstr1 = BaseString::getPrettyText(sz, theData + 4 + (1 * sz)), 
+    bstr2 = BaseString::getPrettyText(sz, theData + 4 + (2 * sz)), 
+    bstr3 = BaseString::getPrettyText(sz, theData + 4 + (3 * sz));
+
   switch(theData[1]){
   case 1: // Wait initial
     BaseString::snprintf
       (m_text, m_text_len,
        "Initial start, waiting for %s to connect, "
        " nodes [ all: %s connected: %s no-wait: %s ]",
-       cstrs[3], cstrs[0], cstrs[1], cstrs[2]);
+       bstr3.c_str(), bstr0.c_str(), bstr1.c_str(), bstr2.c_str());
     break;
   case 2: // Wait partial
     BaseString::snprintf
       (m_text, m_text_len,
        "Waiting until nodes: %s connects, "
        "nodes [ all: %s connected: %s no-wait: %s ]",
-       cstrs[3], cstrs[0], cstrs[1], cstrs[2]);
+       bstr3.c_str(), bstr0.c_str(), bstr1.c_str(), bstr2.c_str());
     break;
   case 3: // Wait partial timeout
     BaseString::snprintf
       (m_text, m_text_len,
        "Waiting %u sec for nodes %s to connect, "
        "nodes [ all: %s connected: %s no-wait: %s ]",
-       time, cstrs[3], cstrs[0], cstrs[1], cstrs[2]);
+       time, bstr3.c_str(), bstr0.c_str(), bstr1.c_str(), bstr2.c_str());
     break;
   case 4: // Wait partioned
     BaseString::snprintf
       (m_text, m_text_len,
        "Waiting for non partitioned start, "
        "nodes [ all: %s connected: %s missing: %s no-wait: %s ]",
-       cstrs[0], cstrs[1], cstrs[3], cstrs[2]);
+       bstr0.c_str(), bstr1.c_str(), bstr3.c_str(), bstr2.c_str());
     break;
   case 5:
     BaseString::snprintf
       (m_text, m_text_len,
        "Waiting %u sec for non partitioned start, "
        "nodes [ all: %s connected: %s missing: %s no-wait: %s ]",
-       time, cstrs[0], cstrs[1], cstrs[3], cstrs[2]);
+       time, bstr0.c_str(), bstr1.c_str(), bstr3.c_str(), bstr2.c_str());
     break;
   case 0x8000: // Do initial
     BaseString::snprintf
       (m_text, m_text_len,
        "Initial start with nodes %s [ missing: %s no-wait: %s ]",
-       cstrs[1], cstrs[3], cstrs[2]);
+       bstr1.c_str(), bstr3.c_str(), bstr2.c_str());
     break;
   case 0x8001: // Do start
     BaseString::snprintf
       (m_text, m_text_len,
        "Start with all nodes %s",
-       cstrs[1]);
+       bstr1.c_str());
     break;
   case 0x8002: // Do partial
     BaseString::snprintf
       (m_text, m_text_len,
        "Start with nodes %s [ missing: %s no-wait: %s ]",
-       cstrs[1], cstrs[3], cstrs[2]);
+       bstr1.c_str(), bstr3.c_str(), bstr2.c_str());
     break;
   case 0x8003: // Do partioned
     BaseString::snprintf
       (m_text, m_text_len,
        "Start potentially partitioned with nodes %s "
        " [ missing: %s no-wait: %s ]",
-       cstrs[1], cstrs[3], cstrs[2]);
+       bstr1.c_str(), bstr3.c_str(), bstr2.c_str());
     break;
   default:
     BaseString::snprintf
       (m_text, m_text_len,
        "Unknown startreport: 0x%x [ %s %s %s %s ]", 
        theData[1],
-       cstrs[0], cstrs[1], cstrs[2], cstrs[3]);
+       bstr0.c_str(), bstr1.c_str(), bstr2.c_str(), bstr3.c_str());
   }
 }
 void getTextMTSignalStatistics(QQQQ) {
