@@ -76,12 +76,11 @@ extern "C" {
 
 #include "ha_innodb.h"
 #include "i_s.h"
-#include "handler0vars.h"
 
 #ifndef MYSQL_SERVER
 /* This is needed because of Bug #3596.  Let us hope that pthread_mutex_t
 is defined the same in both builds: the MySQL server and the InnoDB plugin. */
-extern pthread_mutex_t LOCK_thread_count;
+extern MYSQL_PLUGIN_IMPORT pthread_mutex_t LOCK_thread_count;
 
 #if MYSQL_VERSION_ID < 50124
 /* this is defined in mysql_priv.h inside #ifdef MYSQL_SERVER
@@ -104,13 +103,9 @@ static bool innodb_inited = 0;
 
 /* In the Windows plugin, the return value of current_thd is
 undefined.  Map it to NULL. */
-#if defined MYSQL_DYNAMIC_PLUGIN && defined __WIN__
-# undef current_thd
-# define current_thd NULL
-# define EQ_CURRENT_THD(thd) TRUE
-#else /* MYSQL_DYNAMIC_PLUGIN && __WIN__ */
-# define EQ_CURRENT_THD(thd) ((thd) == current_thd)
-#endif /* MYSQL_DYNAMIC_PLUGIN && __WIN__ */
+
+#define EQ_CURRENT_THD(thd) ((thd) == current_thd)
+
 
 static struct handlerton* innodb_hton_ptr;
 
@@ -985,6 +980,7 @@ innobase_get_charset(
 }
 
 #if defined (__WIN__) && defined (MYSQL_DYNAMIC_PLUGIN)
+extern MYSQL_PLUGIN_IMPORT MY_TMPDIR mysql_tmpdir_list;
 /*******************************************************************//**
 Map an OS error to an errno value. The OS error number is stored in
 _doserrno and the mapped value is stored in errno) */
