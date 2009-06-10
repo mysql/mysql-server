@@ -49,8 +49,12 @@ NdbReceiver::~NdbReceiver()
 }
 
 int
-NdbReceiver::init(ReceiverType type, bool useRec, void* owner)
+NdbReceiver::init(ReceiverType type, bool useRec, void* owner, Ndb *aNdb)
 {
+  if(m_ndb==NULL){
+    assert(aNdb!=NULL);
+    m_ndb = aNdb;
+  }
   theMagicNumber = 0x11223344;
   m_type = type;
   m_using_ndb_record= useRec;

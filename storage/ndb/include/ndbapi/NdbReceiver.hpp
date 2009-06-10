@@ -17,7 +17,9 @@
 #define NdbReceiver_H
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL  // Not part of public interface
 
+#include <ndb_global.h>
 #include <ndb_types.h>
+
 
 class Ndb;
 class NdbTransaction;
@@ -31,6 +33,7 @@ class NdbReceiver
   friend class NdbIndexOperation;
   friend class NdbIndexScanOperation;
   friend class NdbTransaction;
+  friend int spjTest(int argc, char** argv);
 
 public:
   enum ReceiverType	{ NDB_UNINITIALIZED,
@@ -39,12 +42,12 @@ public:
 			  NDB_INDEX_OPERATION = 3
   };
   
-  NdbReceiver(Ndb *aNdb);
-  int init(ReceiverType type, bool useRec, void* owner);
+  NdbReceiver(Ndb *aNdb=NULL);
+  int init(ReceiverType type, bool useRec, void* owner, Ndb *aNdb=NULL);
   void release();
   ~NdbReceiver();
   
-  Uint32 getId(){
+  Uint32 getId() const{
     return m_id;
   }
 

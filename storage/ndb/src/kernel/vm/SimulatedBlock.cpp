@@ -433,7 +433,7 @@ SimulatedBlock::sendSignal(BlockReference ref,
   signal->header.theVerId_signalNumber = gsn;
   signal->header.theReceiversBlockNumber = recBlock;
   signal->header.m_noOfSections = 0;
-
+  //assert(gsn!=GSN_TRANSID_AI);
   check_sections(signal, noOfSections);
   
   Uint32 tSignalId = signal->header.theSignalId;
@@ -533,6 +533,7 @@ SimulatedBlock::sendSignal(NodeReceiverGroup rg,
   signal->header.theSendersSignalId = tSignalId;
   signal->header.theSendersBlockRef = reference();
   signal->header.m_noOfSections = 0;
+  //assert(gsn!=GSN_TRANSID_AI);
 
   check_sections(signal, noOfSections);
 
@@ -627,6 +628,7 @@ SimulatedBlock::sendSignal(BlockReference ref,
 			   LinearSectionPtr ptr[3],
 			   Uint32 noOfSections) const {
   
+  //assert(gsn!=GSN_TRANSID_AI || noOfSections>0);
   BlockReference sendBRef = reference();
   
   Uint32 recBlock = refToBlock(ref);
@@ -734,7 +736,7 @@ SimulatedBlock::sendSignal(NodeReceiverGroup rg,
 			   JobBufferLevel jobBuffer,
 			   LinearSectionPtr ptr[3],
 			   Uint32 noOfSections) const {
-  
+  //assert(gsn!=GSN_TRANSID_AI || noOfSections>0);
   Uint32 tSignalId = signal->header.theSignalId;
   Uint32 tTrace    = signal->getTrace();
   Uint32 tFragInfo = signal->header.m_fragmentInfo;
@@ -856,6 +858,7 @@ SimulatedBlock::sendSignal(BlockReference ref,
 
   Uint32 noOfSections = sections->m_cnt;
   BlockReference sendBRef = reference();
+  //assert(gsn!=GSN_TRANSID_AI || noOfSections>0);
 
   Uint32 recBlock = refToBlock(ref);
   Uint32 recNode   = refToNode(ref);
@@ -961,6 +964,7 @@ SimulatedBlock::sendSignal(NodeReceiverGroup rg,
 			   SectionHandle * sections) const {
 
   Uint32 noOfSections = sections->m_cnt;
+  //assert(gsn!=GSN_TRANSID_AI || noOfSections>0);
   Uint32 tSignalId = signal->header.theSignalId;
   Uint32 tTrace    = signal->getTrace();
   Uint32 tFragInfo = signal->header.m_fragmentInfo;
@@ -1095,6 +1099,7 @@ SimulatedBlock::sendSignalNoRelease(BlockReference ref,
    */
 
   Uint32 noOfSections = sections->m_cnt;
+  //assert(gsn!=GSN_TRANSID_AI || noOfSections>0);
   BlockReference sendBRef = reference();
 
   Uint32 recBlock = refToBlock(ref);
@@ -1209,6 +1214,7 @@ SimulatedBlock::sendSignalNoRelease(NodeReceiverGroup rg,
    */
 
   Uint32 noOfSections = sections->m_cnt;
+  //assert(gsn!=GSN_TRANSID_AI || noOfSections>0);
   Uint32 tSignalId = signal->header.theSignalId;
   Uint32 tTrace    = signal->getTrace();
   Uint32 tFragInfo = signal->header.m_fragmentInfo;

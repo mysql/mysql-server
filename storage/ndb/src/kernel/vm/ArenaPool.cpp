@@ -90,6 +90,7 @@ ArenaAllocator::release(ArenaHead& ah)
   {
     curr.p = m_pool.getPtr(curr.i);
     Uint32 next = static_cast<ArenaBlock*>(curr.p)->m_next_block;
+    ndbout << "ArenaAllocator::release() releasing block=" << curr.p << endl;
     m_pool.release(curr);
     curr.i = next;
   }
@@ -135,6 +136,8 @@ ArenaPool::seize(ArenaHead & ah, Ptr<void>& ptr)
     block->m_data[pos+off] = ~(Uint32)m_record_info.m_type_id;
 
     ah.m_first_free = pos + sz;
+    ndbout << "ArenaPool::seize() allocating i=" << ptr.i 
+	   << " block=" << block << endl;
     return true;
   }
   else
