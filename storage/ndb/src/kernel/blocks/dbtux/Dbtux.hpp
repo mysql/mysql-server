@@ -116,7 +116,19 @@ private:
   // sizes are in words (Uint32)
   STATIC_CONST( MaxIndexFragments = MAX_FRAG_PER_NODE );
   STATIC_CONST( MaxIndexAttributes = MAX_ATTRIBUTES_IN_INDEX );
-  STATIC_CONST( MaxAttrDataSize = 2048 );
+  /*
+   * Allow space for per-attribute overhead (at least bound type and
+   * attribute header) and key data xfrm-ed.  execTUX_BOUND_INFO unpacks
+   * all in same buffer so double the size.  The xfrm should disappear
+   * in 7.x wl#4163.
+   */
+  STATIC_CONST( MaxAttrDataSize =
+      (
+        4 * MAX_ATTRIBUTES_IN_INDEX +
+        MAX_KEY_SIZE_IN_WORDS * MAX_XFRM_MULTIPLY
+      ) * 2
+  );
+
 public:
   STATIC_CONST( DescPageSize = 256 );
 private:

@@ -400,6 +400,14 @@ void getTextArbitResult(QQQQ) {
       BaseString::snprintf(m_text, m_text_len,
 			   "Network partitioning - no arbitrator configured");
       break;
+    case ArbitCode::WinWaitExternal:{
+      char buf[8*4*2+1];
+      sd->mask.getText(buf);
+      BaseString::snprintf(m_text, m_text_len,
+			   "Continuing after wait for external arbitration, "
+                           "nodes: %s", buf);
+      break;
+    }
     default:
       ArbitCode::getErrText(code, errText, sizeof(errText));
       BaseString::snprintf(m_text, m_text_len,
@@ -958,84 +966,79 @@ void getTextSingleUser(QQQQ) {
 void getTextStartReport(QQQQ) {
   Uint32 time = theData[2];
   Uint32 sz = theData[3];
-  char mask1[100];
-  char mask2[100];
-  char mask3[100];
-  char mask4[100];
-  BitmaskImpl::getText(sz, theData + 4 + (0 * sz), mask1);
-  BitmaskImpl::getText(sz, theData + 4 + (1 * sz), mask2);
-  BitmaskImpl::getText(sz, theData + 4 + (2 * sz), mask3);
-  BitmaskImpl::getText(sz, theData + 4 + (3 * sz), mask4);
+  BaseString 
+    bstr0 = BaseString::getPrettyText(sz, theData + 4 + (0 * sz)), 
+    bstr1 = BaseString::getPrettyText(sz, theData + 4 + (1 * sz)), 
+    bstr2 = BaseString::getPrettyText(sz, theData + 4 + (2 * sz)), 
+    bstr3 = BaseString::getPrettyText(sz, theData + 4 + (3 * sz));
+
   switch(theData[1]){
   case 1: // Wait initial
     BaseString::snprintf
       (m_text, m_text_len,
        "Initial start, waiting for %s to connect, "
        " nodes [ all: %s connected: %s no-wait: %s ]",
-       mask4, mask1, mask2, mask3);
+       bstr3.c_str(), bstr0.c_str(), bstr1.c_str(), bstr2.c_str());
     break;
   case 2: // Wait partial
     BaseString::snprintf
       (m_text, m_text_len,
        "Waiting until nodes: %s connects, "
        "nodes [ all: %s connected: %s no-wait: %s ]",
-       mask4, mask1, mask2, mask3);
+       bstr3.c_str(), bstr0.c_str(), bstr1.c_str(), bstr2.c_str());
     break;
   case 3: // Wait partial timeout
     BaseString::snprintf
       (m_text, m_text_len,
        "Waiting %u sec for nodes %s to connect, "
        "nodes [ all: %s connected: %s no-wait: %s ]",
-       
-       time, mask4, mask1, mask2, mask3);
+       time, bstr3.c_str(), bstr0.c_str(), bstr1.c_str(), bstr2.c_str());
     break;
   case 4: // Wait partioned
     BaseString::snprintf
       (m_text, m_text_len,
        "Waiting for non partitioned start, "
        "nodes [ all: %s connected: %s missing: %s no-wait: %s ]",
-       
-       mask1, mask2, mask4, mask3);
+       bstr0.c_str(), bstr1.c_str(), bstr3.c_str(), bstr2.c_str());
     break;
   case 5:
     BaseString::snprintf
       (m_text, m_text_len,
        "Waiting %u sec for non partitioned start, "
        "nodes [ all: %s connected: %s missing: %s no-wait: %s ]",
-       
-       time, mask1, mask2, mask4, mask3);
+       time, bstr0.c_str(), bstr1.c_str(), bstr3.c_str(), bstr2.c_str());
     break;
   case 0x8000: // Do initial
     BaseString::snprintf
       (m_text, m_text_len,
        "Initial start with nodes %s [ missing: %s no-wait: %s ]",
-       mask2, mask4, mask3);
+       bstr1.c_str(), bstr3.c_str(), bstr2.c_str());
     break;
   case 0x8001: // Do start
     BaseString::snprintf
       (m_text, m_text_len,
        "Start with all nodes %s",
-       mask2);
+       bstr1.c_str());
     break;
   case 0x8002: // Do partial
     BaseString::snprintf
       (m_text, m_text_len,
        "Start with nodes %s [ missing: %s no-wait: %s ]",
-       mask2, mask4, mask3);
+       bstr1.c_str(), bstr3.c_str(), bstr2.c_str());
     break;
   case 0x8003: // Do partioned
     BaseString::snprintf
       (m_text, m_text_len,
        "Start potentially partitioned with nodes %s "
        " [ missing: %s no-wait: %s ]",
-       mask2, mask4, mask3);
+       bstr1.c_str(), bstr3.c_str(), bstr2.c_str());
     break;
   default:
     BaseString::snprintf
       (m_text, m_text_len,
        "Unknown startreport: 0x%x [ %s %s %s %s ]", 
        theData[1],
-       mask1, mask2, mask3, mask4);
+       bstr0.c_str(), bstr1.c_str(), bstr2.c_str(), bstr3.c_str());
   }
 }
 void getTextMTSignalStatistics(QQQQ) {
@@ -1315,4 +1318,3 @@ destroy_event_logger(class EventLogger ** g_eventLogger)
   delete *g_eventLogger;
   *g_eventLogger = 0;
 }
-

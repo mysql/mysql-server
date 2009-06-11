@@ -12726,9 +12726,13 @@ int ha_ndbcluster::alter_table_phase3(THD *thd, TABLE *table)
 bool set_up_tablespace(st_alter_tablespace *alter_info,
                        NdbDictionary::Tablespace *ndb_ts)
 {
-  // TODO check that extent_size < 2^32
+  if (alter_info->extent_size >= (Uint64(1) << 32))
+  {
+    // TODO set correct error
+    return TRUE;
+  }
   ndb_ts->setName(alter_info->tablespace_name);
-  ndb_ts->setExtentSize(alter_info->extent_size);
+  ndb_ts->setExtentSize(Uint32(alter_info->extent_size));
   ndb_ts->setDefaultLogfileGroup(alter_info->logfile_group_name);
   return FALSE;
 }
@@ -12750,9 +12754,14 @@ bool set_up_datafile(st_alter_tablespace *alter_info,
 bool set_up_logfile_group(st_alter_tablespace *alter_info,
                           NdbDictionary::LogfileGroup *ndb_lg)
 {
-  // TODO check that undo-buffer-size < 2^32
+  if (alter_info->undo_buffer_size >= (Uint64(1) << 32))
+  {
+    // TODO set correct error
+    return TRUE;
+  }
+
   ndb_lg->setName(alter_info->logfile_group_name);
-  ndb_lg->setUndoBufferSize(alter_info->undo_buffer_size);
+  ndb_lg->setUndoBufferSize(Uint32(alter_info->undo_buffer_size));
   return FALSE;
 }
 

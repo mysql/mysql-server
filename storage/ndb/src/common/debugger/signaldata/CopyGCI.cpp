@@ -17,6 +17,7 @@
 */
 
 #include <signaldata/CopyGCIReq.hpp>
+#include <BaseString.hpp>
 
 static
 void

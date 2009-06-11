@@ -1649,7 +1649,8 @@ void Dblqh::execLQHFRAGREQ(Signal* signal)
   initFragrec(signal, tabptr.i, req->fragId, copyType);
   fragptr.p->startGci = req->startGci;
   fragptr.p->newestGci = req->startGci;
-  fragptr.p->tableType = tabptr.p->tableType;
+  ndbrequire(tabptr.p->tableType < 256);
+  fragptr.p->tableType = (Uint8)tabptr.p->tableType;
 
   {
     NdbLogPartInfo lpinfo(instance());
