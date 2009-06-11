@@ -42,6 +42,8 @@ extern trx_sys_t*	trx_sys;
 
 /* Doublewrite system */
 extern trx_doublewrite_t*	trx_doublewrite;
+/* Set to TRUE when the doublewrite buffer is being created */
+extern ibool			trx_doublewrite_buf_is_being_created;
 extern ibool			trx_doublewrite_must_reset_space_ids;
 extern ibool			trx_sys_multiple_tablespace_format;
 
