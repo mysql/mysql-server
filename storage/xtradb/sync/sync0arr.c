@@ -331,15 +331,8 @@ sync_cell_get_event(
 		return(((mutex_t *) cell->wait_object)->event);
 	} else if (type == RW_LOCK_WAIT_EX) {
 		return(((rw_lock_t *) cell->wait_object)->wait_ex_event);
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
-	} else if (type == RW_LOCK_SHARED) {
-		return(((rw_lock_t *) cell->wait_object)->s_event);
-	} else { /* RW_LOCK_EX */
-		return(((rw_lock_t *) cell->wait_object)->x_event);
-#else
 	} else { /* RW_LOCK_SHARED and RW_LOCK_EX wait on the same event */
 		return(((rw_lock_t *) cell->wait_object)->event);
-#endif
 	}
 }
 
@@ -483,7 +476,7 @@ sync_array_cell_print(
 
 	fprintf(file,
 		"--Thread %lu has waited at %s line %lu"
-		" for %.2f seconds the semaphore:\n",
+		" for %#.5g seconds the semaphore:\n",
 		(ulong) os_thread_pf(cell->thread), cell->file,
 		(ulong) cell->line,
 		difftime(time(NULL), cell->reservation_time));
@@ -510,7 +503,7 @@ sync_array_cell_print(
 		   || type == RW_LOCK_WAIT_EX
 		   || type == RW_LOCK_SHARED) {
 
-		fputs(type == RW_LOCK_SHARED ? "S-lock on" : "X-lock on", file);
+		fputs(type == RW_LOCK_EX ? "X-lock on" : "S-lock on", file);
 
 		rwlock = cell->old_wait_rw_lock;
 
@@ -530,21 +523,12 @@ sync_array_cell_print(
 		}
 
 		fprintf(file,
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
-			"number of readers %lu, s_waiters flag %lu, x_waiters flag %lu, "
-#else
 			"number of readers %lu, waiters flag %lu, "
-#endif
                         "lock_word: %lx\n"
 			"Last time read locked in file %s line %lu\n"
 			"Last time write locked in file %s line %lu\n",
 			(ulong) rw_lock_get_reader_count(rwlock),
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
-			(ulong) rwlock->s_waiters,
-			(ulong) (rwlock->x_waiters || rwlock->wait_ex_waiters),
-#else
 			(ulong) rwlock->waiters,
-#endif
 			rwlock->lock_word,
 			rwlock->last_s_file_name,
 			(ulong) rwlock->last_s_line,

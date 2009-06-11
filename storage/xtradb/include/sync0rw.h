@@ -357,31 +357,11 @@ rw_lock_get_x_lock_count(
 	rw_lock_t*	lock);	/* in: rw-lock */
 /************************************************************************
 Accessor functions for rw lock. */
-
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
-UNIV_INLINE
-ulint
-rw_lock_get_s_waiters(
-/*==================*/
-	rw_lock_t*	lock);
-UNIV_INLINE
-ulint
-rw_lock_get_x_waiters(
-/*==================*/
-	rw_lock_t*	lock);
-UNIV_INLINE
-ulint
-rw_lock_get_wx_waiters(
-/*================*/
-	rw_lock_t*	lock);
-#else /* !INNODB_RW_LOCKS_USE_ATOMICS */
 UNIV_INLINE
 ulint
 rw_lock_get_waiters(
-/*==================*/
+/*================*/
 	rw_lock_t*	lock);
-#endif /* INNODB_RW_LOCKS_USE_ATOMICS */
-
 UNIV_INLINE
 ulint
 rw_lock_get_writer(
@@ -498,16 +478,6 @@ rw_lock_debug_print(
 	rw_lock_debug_t*	info);	/* in: debug struct */
 #endif /* UNIV_SYNC_DEBUG */
 
-/*
-#ifndef INNODB_RW_LOCKS_USE_ATOMICS
-#error INNODB_RW_LOCKS_USE_ATOMICS is not defined. Do you use enough new GCC or compatibles?
-#error Or do you use exact options for CFLAGS?
-#error e.g. (for x86_32): "-m32 -march=i586 -mtune=i686"
-#error e.g. (for Sparc_64): "-m64 -mcpu=v9"
-#error Otherwise, this build may be slower than normal version.
-#endif
-*/
-
 /* NOTE! The structure appears here only for the compiler to know its size.
 Do not use its fields directly! The structure used in the spin lock
 implementation of a read-write lock. Several threads may have a shared lock
@@ -519,16 +489,7 @@ no new readers will be let in while the thread waits for readers to exit. */
 struct rw_lock_struct {
 	volatile lint	lock_word;
 				/* Holds the state of the lock. */
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
-	volatile ulint	s_waiters;	/* 1: there are waiters (s_lock) */
-	volatile ulint	x_waiters;	/* 1: there are waiters (x_lock) */
-	volatile ulint	wait_ex_waiters;	/* 1: there are waiters (wait_ex) */
-	volatile ulint	reader_count;	/* Number of readers who have locked this
- 				lock in the shared mode */
-	volatile ulint	writer;
-#else
 	volatile ulint	waiters;/* 1: there are waiters */
-#endif
 	volatile ibool	recursive;/* Default value FALSE which means the lock
 				is non-recursive. The value is typically set
 				to TRUE making normal rw_locks recursive. In
@@ -545,16 +506,7 @@ struct rw_lock_struct {
 				/* Thread id of writer thread. Is only
 				guaranteed to have sane and non-stale
 				value iff recursive flag is set. */
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
-	volatile ulint	writer_count;	/* Number of times the same thread has
- 				recursively locked the lock in the exclusive
- 				mode */
-			/* Used by sync0arr.c for thread queueing */
-	os_event_t	s_event;	/* Used for s_lock */
-	os_event_t	x_event;	/* Used for x_lock */
-#else
 	os_event_t	event;	/* Used by sync0arr.c for thread queueing */
-#endif
 	os_event_t	wait_ex_event;
 				/* Event for next-writer to wait on. A thread
 				must decrement lock_word before waiting. */
@@ -576,7 +528,7 @@ struct rw_lock_struct {
         /* last s-lock file/line is not guaranteed to be correct */
 	const char*	last_s_file_name;/* File name where last s-locked */
 	const char*	last_x_file_name;/* File name where last x-locked */
-	volatile ibool		writer_is_wait_ex;
+	ibool		writer_is_wait_ex;
 				/* This is TRUE if the writer field is
 				RW_LOCK_WAIT_EX; this field is located far
 				from the memory update hotspot fields which

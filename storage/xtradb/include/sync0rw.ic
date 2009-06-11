@@ -68,34 +68,6 @@ rw_lock_remove_debug_info(
 
 /************************************************************************
 Accessor functions for rw lock. */
-
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
-UNIV_INLINE
-ulint
-rw_lock_get_s_waiters(
-/*================*/
-				/* out: 1 if waiters, 0 otherwise */
-	rw_lock_t*	lock)	/* in: rw-lock */
-{
-	return(lock->s_waiters);
-}
-UNIV_INLINE
-ulint
-rw_lock_get_x_waiters(
-/*================*/
-	rw_lock_t*	lock)
-{
-	return(lock->x_waiters);
-}
-UNIV_INLINE
-ulint
-rw_lock_get_wx_waiters(
-/*================*/
-	rw_lock_t*      lock)
-{
-	return(lock->wait_ex_waiters);
-}
-#else /* !INNODB_RW_LOCKS_USE_ATOMICS */
 UNIV_INLINE
 ulint
 rw_lock_get_waiters(
@@ -105,95 +77,40 @@ rw_lock_get_waiters(
 {
 	return(lock->waiters);
 }
-#endif /* INNODB_RW_LOCKS_USE_ATOMICS */
-
 
 /************************************************************************
 Sets lock->waiters to 1. It is not an error if lock->waiters is already
 1. On platforms where ATOMIC builtins are used this function enforces a
 memory barrier. */
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
-UNIV_INLINE
-void
-rw_lock_set_s_waiter_flag(
-/*====================*/
-	rw_lock_t*	lock)	/* in: rw-lock */
-{
-	// os_compare_and_swap(&lock->s_waiters, 0, 1);
-	__sync_lock_test_and_set(&lock->s_waiters, 1);
-}
-UNIV_INLINE
-void
-rw_lock_set_x_waiter_flag(
-/*====================*/
-	rw_lock_t*	lock)	/* in: rw-lock */
-{
-	// os_compare_and_swap(&lock->x_waiters, 0, 1);
-	__sync_lock_test_and_set(&lock->x_waiters, 1);
-}
-UNIV_INLINE
-void
-rw_lock_set_wx_waiter_flag(
-/*====================*/
-	rw_lock_t*	lock)	/* in: rw-lock */
-{
-	// os_compare_and_swap(&lock->wait_ex_waiters, 0, 1);
-	__sync_lock_test_and_set(&lock->wait_ex_waiters, 1);
-}
-#else /* !INNODB_RW_LOCKS_USE_ATOMICS */
 UNIV_INLINE
 void
 rw_lock_set_waiter_flag(
 /*====================*/
 	rw_lock_t*	lock)	/* in: rw-lock */
 {
+#ifdef INNODB_RW_LOCKS_USE_ATOMICS
+	os_compare_and_swap(&lock->waiters, 0, 1);
+#else /* INNODB_RW_LOCKS_USE_ATOMICS */
 	lock->waiters = 1;
-}
 #endif /* INNODB_RW_LOCKS_USE_ATOMICS */
+}
 
 /************************************************************************
 Resets lock->waiters to 0. It is not an error if lock->waiters is already
 0. On platforms where ATOMIC builtins are used this function enforces a
 memory barrier. */
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
-
-UNIV_INLINE
-void
-rw_lock_reset_s_waiter_flag(
-/*======================*/
-	rw_lock_t*	lock)	/* in: rw-lock */
-{
-	// os_compare_and_swap(&lock->s_waiters, 1, 0);
-	__sync_lock_test_and_set(&lock->s_waiters, 0);
-}
-UNIV_INLINE
-void
-rw_lock_reset_x_waiter_flag(
-/*======================*/
-	rw_lock_t*	lock)	/* in: rw-lock */
-{
-	// os_compare_and_swap(&lock->x_waiters, 1, 0);
-	__sync_lock_test_and_set(&lock->x_waiters, 0);
-}
-UNIV_INLINE
-void
-rw_lock_reset_wx_waiter_flag(
-/*======================*/
-	rw_lock_t*	lock)	/* in: rw-lock */
-{
-	// os_compare_and_swap(&lock->wait_ex_waiters, 1, 0);
-	__sync_lock_test_and_set(&lock->wait_ex_waiters, 0);
-}
-#else /* !INNODB_RW_LOCKS_USE_ATOMICS */
 UNIV_INLINE
 void
 rw_lock_reset_waiter_flag(
 /*======================*/
 	rw_lock_t*	lock)	/* in: rw-lock */
 {
+#ifdef INNODB_RW_LOCKS_USE_ATOMICS
+	os_compare_and_swap(&lock->waiters, 1, 0);
+#else /* INNODB_RW_LOCKS_USE_ATOMICS */
 	lock->waiters = 0;
-}
 #endif /* INNODB_RW_LOCKS_USE_ATOMICS */
+}
 
 /**********************************************************************
 Returns the write-status of the lock - this function made more sense
@@ -204,17 +121,6 @@ rw_lock_get_writer(
 /*===============*/
 	rw_lock_t*	lock)
 {
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
-	if (lock->writer == RW_LOCK_NOT_LOCKED) {
-		return(RW_LOCK_NOT_LOCKED);
-	}
-
-	if (lock->writer_is_wait_ex) {
-		return(RW_LOCK_WAIT_EX);
-	} else {
-		return(RW_LOCK_EX);
-	}
-#else
 	lint lock_word = lock->lock_word;
 	if(lock_word > 0) {
 		/* return NOT_LOCKED in s-lock state, like the writer
@@ -226,7 +132,6 @@ rw_lock_get_writer(
                 ut_ad(lock_word > -X_LOCK_DECR);
 		return(RW_LOCK_WAIT_EX);
 	}
-#endif
 }
 
 /**********************************************************************
@@ -237,9 +142,6 @@ rw_lock_get_reader_count(
 /*=====================*/
 	rw_lock_t*	lock)
 {
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
-	return(lock->reader_count);
-#else
 	lint lock_word = lock->lock_word;
 	if(lock_word > 0) {
 		/* s-locked, no x-waiters */
@@ -249,7 +151,6 @@ rw_lock_get_reader_count(
 		return((ulint)(-lock_word));
 	}
 	return(0);
-#endif
 }
 
 #ifndef INNODB_RW_LOCKS_USE_ATOMICS
@@ -273,16 +174,12 @@ rw_lock_get_x_lock_count(
 				/* out: value of writer_count */
 	rw_lock_t*	lock)	/* in: rw-lock */
 {
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
-	return(lock->writer_count);
-#else
 	lint lock_copy = lock->lock_word;
 	/* If there is a reader, lock_word is not divisible by X_LOCK_DECR */
 	if(lock_copy > 0 || (-lock_copy) % X_LOCK_DECR != 0) {
 		return(0);
 	}
 	return(((-lock_copy) / X_LOCK_DECR) + 1);
-#endif
 }
 
 /**********************************************************************
@@ -420,26 +317,11 @@ rw_lock_s_lock_low(
 	const char*	file_name, /* in: file name where lock requested */
 	ulint		line)	/* in: line where requested */
 {
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
-	if (UNIV_LIKELY(rw_lock_get_writer(lock) == RW_LOCK_NOT_LOCKED)) {
-		/* try s-lock */
-		if(__sync_sub_and_fetch(&(lock->lock_word),1) <= 0) {
-			/* fail */
-			__sync_fetch_and_add(&(lock->lock_word),1);
-			return(FALSE);  /* locking did not succeed */
-		}
-		/* success */
-		__sync_fetch_and_add(&(lock->reader_count),1);
-	} else {
-		return(FALSE);  /* locking did not succeed */
-	}
-#else
 	/* TODO: study performance of UNIV_LIKELY branch prediction hints. */
 	if (!rw_lock_lock_word_decr(lock, 1)) {
 		/* Locking did not succeed */
 		return(FALSE);
 	}
-#endif
 
 #ifdef UNIV_SYNC_DEBUG
 	rw_lock_add_debug_info(lock, pass, RW_LOCK_SHARED, file_name, line);
@@ -464,17 +346,10 @@ rw_lock_s_lock_direct(
 	const char*	file_name,	/* in: file name where requested */
 	ulint		line)		/* in: line where lock requested */
 {
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
-	ut_ad(rw_lock_get_writer(lock) == RW_LOCK_NOT_LOCKED);
-	ut_ad(rw_lock_get_reader_count(lock) == 0);
-
-	__sync_fetch_and_add(&(lock->reader_count),1);
-#else
 	ut_ad(lock->lock_word == X_LOCK_DECR);
 
 	/* Indicate there is a new reader by decrementing lock_word */
 	lock->lock_word--;
-#endif
 
 	lock->last_s_file_name = file_name;
 	lock->last_s_line = line;
@@ -497,17 +372,9 @@ rw_lock_x_lock_direct(
 	ulint		line)		/* in: line where lock requested */
 {
 	ut_ad(rw_lock_validate(lock));
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
-	ut_ad(rw_lock_get_reader_count(lock) == 0);
-	ut_ad(rw_lock_get_writer(lock) == RW_LOCK_NOT_LOCKED);
-
-	lock->writer = RW_LOCK_EX;
-	__sync_fetch_and_add(&(lock->writer_count),1);
-#else
 	ut_ad(lock->lock_word == X_LOCK_DECR);
 
 	lock->lock_word -= X_LOCK_DECR;
-#endif
 	lock->writer_thread = os_thread_get_curr_id();
 	lock->recursive = TRUE;
 
@@ -581,56 +448,7 @@ rw_lock_x_lock_func_nowait(
 	ibool success;
 
 #ifdef INNODB_RW_LOCKS_USE_ATOMICS
-	success = FALSE;
-	if ((lock->reader_count == 0)
-			&& rw_lock_get_writer(lock) == RW_LOCK_NOT_LOCKED) {
-retry_x_lock:
-		/* try x-lock */
-		if(__sync_sub_and_fetch(&(lock->lock_word),
-				X_LOCK_DECR) == 0) {
-			/* success */
-			/* try to lock writer */
-			if(__sync_lock_test_and_set(&(lock->writer),RW_LOCK_EX)
-					== RW_LOCK_NOT_LOCKED) {
-				/* success */
-				lock->writer_thread = curr_thread;
-				lock->recursive = TRUE;
-				lock->writer_is_wait_ex = FALSE;
-				/* next function may work as memory barrier */
-			relock:
-				__sync_fetch_and_add(&(lock->writer_count),1);
-
-#ifdef UNIV_SYNC_DEBUG
-				rw_lock_add_debug_info(lock, 0, RW_LOCK_EX, file_name, line);
-#endif
-
-				lock->last_x_file_name = file_name;
-				lock->last_x_line = line;
-
-				ut_ad(rw_lock_validate(lock));
-
-				return(TRUE);
-			} else {
-				/* x-unlock */
-				__sync_fetch_and_add(&(lock->lock_word),
-					X_LOCK_DECR);
-			}
-		} else {
-			/* fail (x-lock) */
-			if (__sync_fetch_and_add(&(lock->lock_word),X_LOCK_DECR)
-					== 0)
-				goto retry_x_lock;
-		}
-	}
-
-	if (lock->recursive
-			&& os_thread_eq(lock->writer_thread, curr_thread)) {
-		goto relock;
-	}
-
-	//ut_ad(rw_lock_validate(lock));
-
-	return(FALSE);
+	success = os_compare_and_swap(&(lock->lock_word), X_LOCK_DECR, 0);
 #else
 
 	success = FALSE;
@@ -641,6 +459,7 @@ retry_x_lock:
 	}
 	mutex_exit(&(lock->mutex));
 
+#endif
 	if (success) {
 		rw_lock_set_writer_id_and_recursion_flag(lock, TRUE);
 
@@ -667,7 +486,6 @@ retry_x_lock:
 	ut_ad(rw_lock_validate(lock));
 
 	return(TRUE);
-#endif
 }
 
 /**********************************************************************
@@ -683,31 +501,6 @@ rw_lock_s_unlock_func(
 #endif
 	)
 {
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
-	ibool	last	= FALSE;
-
-	ut_a(lock->reader_count > 0);
-
-	/* unlock lock_word */
-	__sync_fetch_and_add(&(lock->lock_word),1);
-
-	if(__sync_sub_and_fetch(&(lock->reader_count),1) == 0) {
-		last = TRUE;
-	}
-
-#ifdef UNIV_SYNC_DEBUG
-	rw_lock_remove_debug_info(lock, pass, RW_LOCK_SHARED);
-#endif
-
-	if (UNIV_UNLIKELY(last && __sync_lock_test_and_set(&lock->wait_ex_waiters, 0))) {
-		os_event_set(lock->wait_ex_event);
-		sync_array_object_signalled(sync_primary_wait_array);
-	}
-	else if (UNIV_UNLIKELY(last && __sync_lock_test_and_set(&lock->x_waiters, 0))) {
-		os_event_set(lock->x_event);
-		sync_array_object_signalled(sync_primary_wait_array);
-	}
-#else
 	ut_ad((lock->lock_word % X_LOCK_DECR) != 0);
 
 #ifdef UNIV_SYNC_DEBUG
@@ -724,7 +517,6 @@ rw_lock_s_unlock_func(
 		sync_array_object_signalled(sync_primary_wait_array);
 
 	}
-#endif
 
 	ut_ad(rw_lock_validate(lock));
 
@@ -742,19 +534,6 @@ rw_lock_s_unlock_direct(
 /*====================*/
 	rw_lock_t*	lock)	/* in: rw-lock */
 {
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
-	ut_ad(lock->reader_count > 0);
-
-	__sync_sub_and_fetch(&(lock->reader_count),1);
-
-#ifdef UNIV_SYNC_DEBUG
-	rw_lock_remove_debug_info(lock, 0, RW_LOCK_SHARED);
-#endif
-
-	ut_ad(!lock->s_waiters);
-	ut_ad(!lock->x_waiters);
-	ut_ad(!lock->wait_ex_waiters);
-#else
 	ut_ad(lock->lock_word < X_LOCK_DECR);
 
 #ifdef UNIV_SYNC_DEBUG
@@ -765,7 +544,6 @@ rw_lock_s_unlock_direct(
 	lock->lock_word++;
 
 	ut_ad(!lock->waiters);
-#endif
 	ut_ad(rw_lock_validate(lock));
 #ifdef UNIV_SYNC_PERF_STAT
 	rw_s_exit_count++;
@@ -785,49 +563,6 @@ rw_lock_x_unlock_func(
 #endif
 	)
 {
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
-	ibool	last	= FALSE;
-	ibool	s_sg	= FALSE;
-	ibool	x_sg	= FALSE;
-
-	ut_ad(lock->writer_count > 0);
-
-	if(__sync_sub_and_fetch(&(lock->writer_count),1) == 0) {
-		last = TRUE;
-	}
-
-	if (last) {
-		/* unlock lock_word */
-		__sync_fetch_and_add(&(lock->lock_word),X_LOCK_DECR);
-
-		lock->recursive = FALSE;
-		/* FIXME: It is a value of bad manners for pthread.
-		          But we shouldn't keep an ID of not-owner. */
-		lock->writer_thread = -1;
-		__sync_lock_test_and_set(&(lock->writer),RW_LOCK_NOT_LOCKED);
-	}
-
-#ifdef UNIV_SYNC_DEBUG
-	rw_lock_remove_debug_info(lock, pass, RW_LOCK_EX);
-#endif
-	if (last) {
-		if(__sync_lock_test_and_set(&lock->s_waiters, 0)){
-			s_sg = TRUE;
-		}
-		if(__sync_lock_test_and_set(&lock->x_waiters, 0)){
-			x_sg = TRUE;
-		}
-	}
-
-	if (UNIV_UNLIKELY(s_sg)) {
-		os_event_set(lock->s_event);
-		sync_array_object_signalled(sync_primary_wait_array);
-	}
-	if (UNIV_UNLIKELY(x_sg)) {
-		os_event_set(lock->x_event);
-		sync_array_object_signalled(sync_primary_wait_array);
-	}
-#else
 	ut_ad((lock->lock_word % X_LOCK_DECR) == 0);
 
 	/* lock->recursive flag also indicates if lock->writer_thread is
@@ -858,7 +593,6 @@ rw_lock_x_unlock_func(
 		}
 	}
 
-#endif
 	ut_ad(rw_lock_validate(lock));
 
 #ifdef UNIV_SYNC_PERF_STAT
@@ -878,19 +612,6 @@ rw_lock_x_unlock_direct(
 	/* Reset the exclusive lock if this thread no longer has an x-mode
 	lock */
 
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
-	if(__sync_sub_and_fetch(&(lock->writer_count),1) == 0) {
-		lock->writer = RW_LOCK_NOT_LOCKED;
-	}
-
-#ifdef UNIV_SYNC_DEBUG
-	rw_lock_remove_debug_info(lock, 0, RW_LOCK_EX);
-#endif
-
-	ut_ad(!lock->s_waiters);
-	ut_ad(!lock->x_waiters);
-	ut_ad(!lock->wait_ex_waiters);
-#else
 	ut_ad((lock->lock_word % X_LOCK_DECR) == 0);
 
 #ifdef UNIV_SYNC_DEBUG
@@ -906,7 +627,6 @@ rw_lock_x_unlock_direct(
 	lock->lock_word += X_LOCK_DECR;
 
 	ut_ad(!lock->waiters);
-#endif
 	ut_ad(rw_lock_validate(lock));
 
 #ifdef UNIV_SYNC_PERF_STAT

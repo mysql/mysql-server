@@ -24,6 +24,16 @@
 --source include/big_test.inc
 
 --echo #
+--echo # We need big packets.
+--echo #
+connect (con1, localhost, root,,);
+connection con1;
+SET @old_global_max_allowed_packet=@@global.max_allowed_packet;
+SET @@global.max_allowed_packet= 1024*1024*1024;
+connect (con2, localhost, root,,);
+connection con2;
+
+--echo #
 --echo # Preparatory cleanup.
 --echo #
 --disable_warnings
@@ -34,11 +44,6 @@ DROP TABLE IF EXISTS t1;
 --echo # We need a fixed timestamp to avoid varying results.
 --echo #
 SET timestamp=1000000000;
-
---echo #
---echo # We need big packets.
---echo #
-SET @@global.max_allowed_packet= 1024*1024*1024;
 
 --echo #
 --echo # Delete all existing binary logs.
@@ -122,9 +127,14 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 --echo #
 DROP TABLE t1;
 
+connection con1;
+SET @@global.max_allowed_packet=@old_global_max_allowed_packet;
+
 --echo remove_file \$MYSQLTEST_VARDIR/$mysqlbinlog_output
 #
 # NOTE: If you want to see the *huge* mysqlbinlog output, disable next line:
 #
 --remove_file $MYSQLTEST_VARDIR/$mysqlbinlog_output
 
+disconnect con1
+disconnect con2

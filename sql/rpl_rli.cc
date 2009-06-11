@@ -23,11 +23,6 @@
 
 static int count_relay_log_space(Relay_log_info* rli);
 
-// Defined in slave.cc
-int init_intvar_from_file(int* var, IO_CACHE* f, int default_val);
-int init_strvar_from_file(char *var, int max_size, IO_CACHE *f,
-			  const char *default_val);
-
 
 Relay_log_info::Relay_log_info()
   :Slave_reporting_capability("SQL"),

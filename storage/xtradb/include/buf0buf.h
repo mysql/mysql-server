@@ -1104,11 +1104,11 @@ struct buf_block_struct{
 					a block is in the unzip_LRU list
 					if page.state == BUF_BLOCK_FILE_PAGE
 					and page.zip.data != NULL */
-//#ifdef UNIV_DEBUG
+#ifdef UNIV_DEBUG
 	ibool		in_unzip_LRU_list;/* TRUE if the page is in the
 					decompressed LRU list;
 					used in debugging */
-//#endif /* UNIV_DEBUG */
+#endif /* UNIV_DEBUG */
 	byte*		frame;		/* pointer to buffer frame which
 					is of size UNIV_PAGE_SIZE, and
 					aligned to an address divisible by
@@ -1316,12 +1316,6 @@ struct buf_pool_struct{
 /* mutex protecting the buffer pool struct and control blocks, except the
 read-write lock in them */
 extern mutex_t	buf_pool_mutex;
-extern mutex_t	LRU_list_mutex;
-extern mutex_t	flush_list_mutex;
-extern rw_lock_t	page_hash_latch;
-extern mutex_t	free_list_mutex;
-extern mutex_t	zip_free_mutex;
-extern mutex_t	zip_hash_mutex;
 /* mutex protecting the control blocks of compressed-only pages
 (of type buf_page_t, not buf_block_t) */
 extern mutex_t	buf_pool_zip_mutex;

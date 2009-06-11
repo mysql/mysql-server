@@ -250,17 +250,7 @@ rw_lock_create_func(
 #endif /* INNODB_RW_LOCKS_USE_ATOMICS */
 
 	lock->lock_word = X_LOCK_DECR;
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
-	lock->s_waiters = 0;
-	lock->x_waiters = 0;
-	lock->wait_ex_waiters = 0;
-	lock->writer = RW_LOCK_NOT_LOCKED;
-	lock->writer_count = 0;
-	lock->reader_count = 0;
-	lock->writer_is_wait_ex = FALSE;
-#else
 	lock->waiters = 0;
-#endif
 
 	/* We set this value to signify that lock->writer_thread
 	contains garbage at initialization and cannot be used for
@@ -283,12 +273,7 @@ rw_lock_create_func(
 	lock->last_x_file_name = "not yet reserved";
 	lock->last_s_line = 0;
 	lock->last_x_line = 0;
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
-	lock->s_event = os_event_create(NULL);
-	lock->x_event = os_event_create(NULL);
-#else
 	lock->event = os_event_create(NULL);
-#endif
 	lock->wait_ex_event = os_event_create(NULL);
 
 	mutex_enter(&rw_lock_list_mutex);
@@ -314,15 +299,7 @@ rw_lock_free(
 	rw_lock_t*	lock)	/* in: rw-lock */
 {
 	ut_ad(rw_lock_validate(lock));
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
-	ut_a(rw_lock_get_writer(lock) == RW_LOCK_NOT_LOCKED);
-	ut_a(rw_lock_get_s_waiters(lock) == 0);
-	ut_a(rw_lock_get_x_waiters(lock) == 0);
-	ut_a(rw_lock_get_wx_waiters(lock) == 0);
-	ut_a(rw_lock_get_reader_count(lock) == 0);
-#else
 	ut_a(lock->lock_word == X_LOCK_DECR);
-#endif
 
 	lock->magic_n = 0;
 
@@ -331,12 +308,7 @@ rw_lock_free(
 #endif /* INNODB_RW_LOCKS_USE_ATOMICS */
 
 	mutex_enter(&rw_lock_list_mutex);
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
-	os_event_free(lock->s_event);
-	os_event_free(lock->x_event);
-#else
 	os_event_free(lock->event);
-#endif
 
 	os_event_free(lock->wait_ex_event);
 
@@ -364,23 +336,12 @@ rw_lock_validate(
 {
 	ut_a(lock);
 
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
-	ut_a(lock->magic_n == RW_LOCK_MAGIC_N);
-
-	ulint waiters = rw_lock_get_s_waiters(lock);
-	ut_a(waiters == 0 || waiters == 1);
-	waiters = rw_lock_get_x_waiters(lock);
-	ut_a(waiters == 0 || waiters == 1);
-	waiters = rw_lock_get_wx_waiters(lock);
-	ut_a(waiters == 0 || waiters == 1);
-#else
 	ulint waiters = rw_lock_get_waiters(lock);
 	lint lock_word = lock->lock_word;
 
 	ut_a(lock->magic_n == RW_LOCK_MAGIC_N);
 	ut_a(waiters == 0 || waiters == 1);
 	ut_a(lock_word > -X_LOCK_DECR ||(-lock_word) % X_LOCK_DECR == 0);
-#endif
 
 	return(TRUE);
 }
@@ -410,12 +371,7 @@ rw_lock_s_lock_spin(
 lock_loop:
 
 	/* Spin waiting for the writer field to become free */
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
-	while (i < SYNC_SPIN_ROUNDS
-	       && rw_lock_get_writer(lock) != RW_LOCK_NOT_LOCKED) {
-#else
 	while (i < SYNC_SPIN_ROUNDS && lock->lock_word <= 0) {
-#endif
 		if (srv_spin_wait_delay) {
 			ut_delay(ut_rnd_interval(0, srv_spin_wait_delay));
 		}
@@ -456,29 +412,12 @@ lock_loop:
 
 		/* Set waiters before checking lock_word to ensure wake-up
                 signal is sent. This may lead to some unnecessary signals. */
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
-		rw_lock_set_s_waiter_flag(lock);
-#else
 		rw_lock_set_waiter_flag(lock);
-#endif
 
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
-		for (i = 0; i < 4; i++) {
-#endif
 		if (TRUE == rw_lock_s_lock_low(lock, pass, file_name, line)) {
 			sync_array_free_cell(sync_primary_wait_array, index);
 			return; /* Success */
 		}
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
-		}
-
-		/* If wait_ex_waiter stalls, wakes it. */
-		if (lock->reader_count == 0
-		    && __sync_lock_test_and_set(&lock->wait_ex_waiters, 0)) {
-			os_event_set(lock->wait_ex_event);
-			sync_array_object_signalled(sync_primary_wait_array);
-		}
-#endif
 
 		if (srv_print_latch_waits) {
 			fprintf(stderr,
@@ -517,12 +456,7 @@ rw_lock_x_lock_move_ownership(
 {
 	ut_ad(rw_lock_is_locked(lock, RW_LOCK_EX));
 
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
-	lock->writer_thread = os_thread_get_curr_id();
-	lock->recursive = TRUE;
-#else
 	rw_lock_set_writer_id_and_recursion_flag(lock, TRUE);
-#endif
 }
 
 /**********************************************************************
@@ -596,11 +530,7 @@ rw_lock_x_lock_wait(
 /**********************************************************************
 Low-level function for acquiring an exclusive lock. */
 UNIV_INLINE
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
-ulint
-#else
 ibool
-#endif
 rw_lock_x_lock_low(
 /*===============*/
 				/* out: RW_LOCK_NOT_LOCKED if did
@@ -613,90 +543,6 @@ rw_lock_x_lock_low(
 {
 	os_thread_id_t	curr_thread	= os_thread_get_curr_id();
 
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
-retry_writer:
-	/* try to lock writer */
-	if(__sync_lock_test_and_set(&(lock->writer),RW_LOCK_EX)
-			== RW_LOCK_NOT_LOCKED) {
-		/* success */
-		/* obtain RW_LOCK_WAIT_EX right */
-		lock->writer_thread = curr_thread;
-		lock->recursive = pass ? FALSE : TRUE;
-		lock->writer_is_wait_ex = TRUE;
-		/* atomic operation may be safer about memory order. */
-		__sync_synchronize();
-#ifdef UNIV_SYNC_DEBUG
-		rw_lock_add_debug_info(lock, pass, RW_LOCK_WAIT_EX,
-					file_name, line);
-#endif
-	}
-
-	if (!os_thread_eq(lock->writer_thread, curr_thread)) {
-		return(RW_LOCK_NOT_LOCKED);
-	}
-
-	switch(rw_lock_get_writer(lock)) {
-	    case RW_LOCK_WAIT_EX:
-		/* have right to try x-lock */
-retry_x_lock:
-		/* try x-lock */
-		if(__sync_sub_and_fetch(&(lock->lock_word),
-				X_LOCK_DECR) == 0) {
-			/* success */
-			lock->recursive = pass ? FALSE : TRUE;
-			lock->writer_is_wait_ex = FALSE;
-			__sync_fetch_and_add(&(lock->writer_count),1);
-
-#ifdef UNIV_SYNC_DEBUG
-			rw_lock_remove_debug_info(lock, pass, RW_LOCK_WAIT_EX);
-			rw_lock_add_debug_info(lock, pass, RW_LOCK_EX,
-						file_name, line);
-#endif
-
-			lock->last_x_file_name = file_name;
-			lock->last_x_line = line;
-
-			/* Locking succeeded, we may return */
-			return(RW_LOCK_EX);
-		} else if(__sync_fetch_and_add(&(lock->lock_word),
-				X_LOCK_DECR) == 0) {
-			/* retry x-lock */
-			goto retry_x_lock;
-		}
-
-		/* There are readers, we have to wait */
-		return(RW_LOCK_WAIT_EX);
-
-		break;
-
-	    case RW_LOCK_EX:
-		/* already have x-lock */
-		if (lock->recursive && (pass == 0)) {
-			__sync_fetch_and_add(&(lock->writer_count),1);
-
-#ifdef UNIV_SYNC_DEBUG
-			rw_lock_add_debug_info(lock, pass, RW_LOCK_EX, file_name,
-						line);
-#endif
-
-			lock->last_x_file_name = file_name;
-			lock->last_x_line = line;
-
-			/* Locking succeeded, we may return */
-			return(RW_LOCK_EX);
-		}
-
-		return(RW_LOCK_NOT_LOCKED);
-
-		break;
-
-	    default: /* RW_LOCK_NOT_LOCKED? maybe impossible */
-		goto retry_writer;
-	}
-
-	/* Locking did not succeed */
-	return(RW_LOCK_NOT_LOCKED);
-#else
 	if (rw_lock_lock_word_decr(lock, X_LOCK_DECR)) {
 
 		/* lock->recursive also tells us if the writer_thread
@@ -734,7 +580,6 @@ retry_x_lock:
 	lock->last_x_line = (unsigned int) line;
 
 	return(TRUE);
-#endif
 }
 
 /**********************************************************************
@@ -759,55 +604,18 @@ rw_lock_x_lock_func(
 	ulint	index;	/* index of the reserved wait cell */
 	ulint	i;	/* spin round count */
 	ibool   spinning = FALSE;
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
-	ulint	state = RW_LOCK_NOT_LOCKED;	/* lock state acquired */
-	ulint	prev_state = RW_LOCK_NOT_LOCKED;
-#endif
 
 	ut_ad(rw_lock_validate(lock));
 
 	i = 0;
 
 lock_loop:
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
-	prev_state = state;
-	state = rw_lock_x_lock_low(lock, pass, file_name, line);
 
-lock_loop_2:
-	if (state != prev_state) i=0; /* if progress, reset counter. */
-
-	if (state == RW_LOCK_EX) {
-#else
 	if (rw_lock_x_lock_low(lock, pass, file_name, line)) {
-#endif
 		rw_x_spin_round_count += i;
 
 		return;	/* Locking succeeded */
 
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
-	} else if (state == RW_LOCK_WAIT_EX) {
-
-		if (!spinning) {
-			spinning = TRUE;
-			rw_x_spin_wait_count++;
-		}
-
-		/* Spin waiting for the reader count field to become zero */
-		while (i < SYNC_SPIN_ROUNDS
-		       && lock->lock_word != X_LOCK_DECR) {
-			if (srv_spin_wait_delay) {
-				ut_delay(ut_rnd_interval(0,
-							 srv_spin_wait_delay));
-			}
-
-			i++;
-		}
-		if (i == SYNC_SPIN_ROUNDS) {
-			os_thread_yield();
-		} else {
-			goto lock_loop;
-		}
-#endif
 	} else {
 
                 if (!spinning) {
@@ -817,11 +625,7 @@ lock_loop_2:
 
 		/* Spin waiting for the lock_word to become free */
 		while (i < SYNC_SPIN_ROUNDS
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
-		       && rw_lock_get_writer(lock) != RW_LOCK_NOT_LOCKED) {
-#else
 		       && lock->lock_word <= 0) {
-#endif
 			if (srv_spin_wait_delay) {
 				ut_delay(ut_rnd_interval(0,
 							 srv_spin_wait_delay));
@@ -848,46 +652,18 @@ lock_loop_2:
 
 	sync_array_reserve_cell(sync_primary_wait_array,
 				lock,
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
-				(state == RW_LOCK_WAIT_EX)
-				 ? RW_LOCK_WAIT_EX : RW_LOCK_EX,
-#else
 				RW_LOCK_EX,
-#endif
 				file_name, line,
 				&index);
 
 	/* Waiters must be set before checking lock_word, to ensure signal
 	is sent. This could lead to a few unnecessary wake-up signals. */
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
-	if (state == RW_LOCK_WAIT_EX) {
-		rw_lock_set_wx_waiter_flag(lock);
-	} else {
-		rw_lock_set_x_waiter_flag(lock);
-	}
-#else
 	rw_lock_set_waiter_flag(lock);
-#endif
 
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
-	for (i = 0; i < 4; i++) {
-		prev_state = state;
-		state = rw_lock_x_lock_low(lock, pass, file_name, line);
-		if (state == RW_LOCK_EX) {
-			sync_array_free_cell(sync_primary_wait_array, index);
-			return; /* Locking succeeded */
-		} else if (state != prev_state) {
-			/* retry! */
-			sync_array_free_cell(sync_primary_wait_array, index);
-			goto lock_loop_2;
-		}
-	}
-#else
 	if (rw_lock_x_lock_low(lock, pass, file_name, line)) {
 		sync_array_free_cell(sync_primary_wait_array, index);
 		return; /* Locking succeeded */
 	}
-#endif
 
 	if (srv_print_latch_waits) {
 		fprintf(stderr,
@@ -1138,24 +914,11 @@ rw_lock_list_print_info(
 
 			fprintf(file, "RW-LOCK: %p ", (void*) lock);
 
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
-			if (rw_lock_get_s_waiters(lock)) {
-				fputs(" s_waiters for the lock exist", file);
-			}
-			if (rw_lock_get_x_waiters(lock)) {
-				fputs(" x_waiters for the lock exist", file);
-			}
-			if (rw_lock_get_wx_waiters(lock)) {
-				fputs(" wait_ex_waiters for the lock exist", file);
-			}
-			putc('\n', file);
-#else
 			if (rw_lock_get_waiters(lock)) {
 				fputs(" Waiters for the lock exist\n", file);
 			} else {
 				putc('\n', file);
 			}
-#endif
 
 			info = UT_LIST_GET_FIRST(lock->debug_list);
 			while (info != NULL) {
@@ -1194,24 +957,11 @@ rw_lock_print(
 #endif
 	if (lock->lock_word != X_LOCK_DECR) {
 
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
-		if (rw_lock_get_s_waiters(lock)) {
-			fputs(" s_waiters for the lock exist", stderr);
-		}
-		if (rw_lock_get_x_waiters(lock)) {
-			fputs(" x_waiters for the lock exist", stderr);
-		}
-		if (rw_lock_get_wx_waiters(lock)) {
-			fputs(" wait_ex_waiters for the lock exist", stderr);
-		}
-		putc('\n', stderr);
-#else
 		if (rw_lock_get_waiters(lock)) {
 			fputs(" Waiters for the lock exist\n", stderr);
 		} else {
 			putc('\n', stderr);
 		}
-#endif
 
 		info = UT_LIST_GET_FIRST(lock->debug_list);
 		while (info != NULL) {
