@@ -1,0 +1,12 @@
+MYSQL_STORAGE_ENGINE([ibmdb2i], [], [IBM DB2 for i Storage Engine],
+        [IBM DB2 for i Storage Engine], [max,max-no-ndb])
+MYSQL_PLUGIN_DYNAMIC([ibmdb2i], [ha_ibmdb2i.la])
+
+AC_CHECK_HEADER([qlgusr.h],
+        # qlgusr.h is just one of the headers from the i5/OS PASE environment; the
+        # EBCDIC headers are in /QIBM/include, and have to be converted to ASCII
+        # before cpp gets to them
+        [:],
+        # Missing PASE environment, can't build this engine
+        [mysql_plugin_ibmdb2i=no
+        with_plugin_ibmdb2i=no])

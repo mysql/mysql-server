@@ -52,17 +52,23 @@ SET @@local.server_id = 4;
 ERROR HY000: Variable 'server_id' is a GLOBAL variable and should be set with SET GLOBAL
 '#------------------FN_DYNVARS_144_05-----------------------#'
 SET @@global.server_id = -1;
+Warnings:
+Warning	1292	Truncated incorrect server_id value: '-1'
 SELECT @@global.server_id;
 @@global.server_id
 0
 SET @@global.server_id = -2147483648;
+Warnings:
+Warning	1292	Truncated incorrect server_id value: '-2147483648'
 SELECT @@global.server_id;
 @@global.server_id
 0
 SET @@global.server_id = 2147483649*2;
+Warnings:
+Warning	1292	Truncated incorrect server_id value: '4294967298'
 SELECT @@global.server_id;
 @@global.server_id
-4294967298
+4294967295
 SET @@global.server_id = 65530.34.;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.' at line 1
 SET @@global.server_id = '125';

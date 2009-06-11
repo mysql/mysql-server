@@ -22,3 +22,52 @@ Qcache_queries_in_cache	0
 set global query_cache_size= 0;
 use test;
 drop table t1;
+SET @old_concurrent_insert= @@GLOBAL.concurrent_insert;
+SET @old_query_cache_size= @@GLOBAL.query_cache_size;
+DROP TABLE IF EXISTS t1, t2;
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT);
+INSERT INTO t1 VALUES (1),(2),(3);
+SET GLOBAL concurrent_insert= 1;
+SET GLOBAL query_cache_size= 1024*512;
+SET GLOBAL query_cache_type= ON;
+# Switch to connection con1
+SET SESSION debug='+d,wait_after_query_cache_invalidate';
+# Send concurrent insert, will wait in the query cache table invalidate
+INSERT INTO t1 VALUES (4);
+# Switch to connection default
+# Wait for concurrent insert to reach the debug point
+# Switch to connection con2
+# Send SELECT that shouldn't be cached
+SELECT * FROM t1;
+a
+1
+2
+3
+# Switch to connection default
+# Notify the concurrent insert to proceed
+SELECT ID FROM INFORMATION_SCHEMA.PROCESSLIST
+WHERE STATE = 'wait_after_query_cache_invalidate' INTO @thread_id;
+KILL QUERY @thread_id;
+# Switch to connection con1
+# Gather insert result
+SHOW STATUS LIKE "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	0
+# Test that it's cacheable
+SELECT * FROM t1;
+a
+1
+2
+3
+4
+SHOW STATUS LIKE "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	1
+# Disconnect
+# Restore defaults
+RESET QUERY CACHE;
+DROP TABLE t1,t2;
+SET GLOBAL concurrent_insert= DEFAULT;
+SET GLOBAL query_cache_size= DEFAULT;
+SET GLOBAL query_cache_type= DEFAULT;

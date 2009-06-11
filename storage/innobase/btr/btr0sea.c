@@ -1105,12 +1105,20 @@ btr_search_drop_page_hash_when_freed(
 	page = buf_page_get_gen(space, page_no, RW_S_LATCH, NULL,
 				BUF_GET_IF_IN_POOL, __FILE__, __LINE__,
 				&mtr);
+	/* Because the buffer pool mutex was released by
+	buf_page_peek_if_search_hashed(), it is possible that the
+	block was removed from the buffer pool by another thread
+	before buf_page_get_gen() got a chance to acquire the buffer
+	pool mutex again.  Thus, we must check for a NULL return. */
+
+	if (UNIV_LIKELY(page != NULL)) {
 
 #ifdef UNIV_SYNC_DEBUG
-	buf_page_dbg_add_level(page, SYNC_TREE_NODE_FROM_HASH);
+		buf_page_dbg_add_level(page, SYNC_TREE_NODE_FROM_HASH);
 #endif /* UNIV_SYNC_DEBUG */
 
-	btr_search_drop_page_hash_index(page);
+		btr_search_drop_page_hash_index(page);
+	}
 
 	mtr_commit(&mtr);
 }

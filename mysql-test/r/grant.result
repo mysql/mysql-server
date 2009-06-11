@@ -164,7 +164,7 @@ Warnings:
 Warning	1364	Field 'ssl_cipher' doesn't have a default value
 Warning	1364	Field 'x509_issuer' doesn't have a default value
 Warning	1364	Field 'x509_subject' doesn't have a default value
-insert into mysql.db (host, db, user, select_priv) values 
+insert into mysql.db (host, db, user, select_priv) values
 ('localhost', 'a%', 'test11', 'Y'), ('localhost', 'ab%', 'test11', 'Y');
 alter table mysql.db order by db asc;
 flush privileges;
@@ -264,7 +264,7 @@ drop user mysqltest_1@localhost;
 SET NAMES koi8r;
 CREATE DATABASE бд;
 USE бд;
-CREATE TABLE таб (кол int);
+CREATE TABLE таб (кол INT);
 GRANT SELECT ON бд.* TO юзер@localhost;
 SHOW GRANTS FOR юзер@localhost;
 Grants for юзер@localhost
@@ -383,21 +383,21 @@ grant update (a) on mysqltest_1.t1 to mysqltest_3@localhost;
 grant select (b) on mysqltest_1.t2 to mysqltest_3@localhost;
 grant select (c) on mysqltest_2.t1 to mysqltest_3@localhost;
 grant update (d) on mysqltest_2.t2 to mysqltest_3@localhost;
-SELECT * FROM INFORMATION_SCHEMA.COLUMN_PRIVILEGES 
-WHERE GRANTEE = '''mysqltest_3''@''localhost''' 
-ORDER BY TABLE_NAME,COLUMN_NAME,PRIVILEGE_TYPE;
+SELECT * FROM INFORMATION_SCHEMA.COLUMN_PRIVILEGES
+WHERE GRANTEE = '''mysqltest_3''@''localhost'''
+ ORDER BY TABLE_NAME,COLUMN_NAME,PRIVILEGE_TYPE;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
 'mysqltest_3'@'localhost'	NULL	mysqltest_1	t1	a	UPDATE	NO
 'mysqltest_3'@'localhost'	NULL	mysqltest_2	t1	c	SELECT	NO
 'mysqltest_3'@'localhost'	NULL	mysqltest_1	t2	b	SELECT	NO
 'mysqltest_3'@'localhost'	NULL	mysqltest_2	t2	d	UPDATE	NO
 SELECT * FROM INFORMATION_SCHEMA.TABLE_PRIVILEGES
-WHERE GRANTEE = '''mysqltest_3''@''localhost''' 
-ORDER BY TABLE_NAME,PRIVILEGE_TYPE;
+WHERE GRANTEE = '''mysqltest_3''@''localhost'''
+ ORDER BY TABLE_NAME,PRIVILEGE_TYPE;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
 SELECT * from INFORMATION_SCHEMA.SCHEMA_PRIVILEGES
-WHERE GRANTEE = '''mysqltest_3''@''localhost''' 
-ORDER BY TABLE_SCHEMA,PRIVILEGE_TYPE;
+WHERE GRANTEE = '''mysqltest_3''@''localhost'''
+ ORDER BY TABLE_SCHEMA,PRIVILEGE_TYPE;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
 SELECT * from INFORMATION_SCHEMA.USER_PRIVILEGES
 WHERE GRANTEE = '''mysqltest_3''@''localhost'''
@@ -459,7 +459,7 @@ Privilege	Context	Comment
 Alter	Tables	To alter the table
 Alter routine	Functions,Procedures	To alter or drop stored functions/procedures
 Create	Databases,Tables,Indexes	To create new databases and tables
-Create routine	Functions,Procedures	To use CREATE FUNCTION/PROCEDURE
+Create routine	Databases	To use CREATE FUNCTION/PROCEDURE
 Create temporary tables	Databases	To use CREATE TEMPORARY TABLE
 Create view	Tables	To create new views
 Create user	Server Admin	To create new users
@@ -884,11 +884,11 @@ flush privileges;
 drop table t2;
 drop table t1;
 CREATE DATABASE mysqltest3;
-use mysqltest3;
+USE mysqltest3;
 CREATE TABLE t_nn (c1 INT);
 CREATE VIEW  v_nn AS SELECT * FROM t_nn;
 CREATE DATABASE mysqltest2;
-use mysqltest2;
+USE mysqltest2;
 CREATE TABLE t_nn (c1 INT);
 CREATE VIEW  v_nn AS SELECT * FROM t_nn;
 CREATE VIEW  v_yn AS SELECT * FROM t_nn;
@@ -958,7 +958,7 @@ DROP TABLE mysqltest3.t_nn;
 DROP DATABASE mysqltest3;
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'mysqltest_1'@'localhost';
 DROP USER 'mysqltest_1'@'localhost';
-use test;
+USE test;
 create user mysqltest1_thisisreallytoolong;
 ERROR HY000: String 'mysqltest1_thisisreallytoolong' is too long for user name (should be no longer than 16)
 CREATE DATABASE mysqltest1;
@@ -1196,16 +1196,16 @@ DROP DATABASE mysqltest1;
 DROP DATABASE mysqltest2;
 DROP USER mysqltest_1@localhost;
 DROP USER mysqltest_2@localhost;
-use test;
+USE test;
 CREATE TABLE t1 (f1 int, f2 int);
 INSERT INTO t1 VALUES(1,1), (2,2);
 CREATE DATABASE db27878;
 GRANT UPDATE(f1) ON t1 TO 'mysqltest_1'@'localhost';
 GRANT SELECT ON `test`.* TO 'mysqltest_1'@'localhost';
 GRANT ALL ON db27878.* TO 'mysqltest_1'@'localhost';
-use db27878;
+USE db27878;
 CREATE SQL SECURITY INVOKER VIEW db27878.v1 AS SELECT * FROM test.t1;
-use db27878;
+USE db27878;
 UPDATE v1 SET f2 = 4;
 ERROR HY000: View 'db27878.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 SELECT * FROM test.t1;
@@ -1217,7 +1217,7 @@ REVOKE SELECT ON `test`.* FROM 'mysqltest_1'@'localhost';
 REVOKE ALL ON db27878.* FROM 'mysqltest_1'@'localhost';
 DROP USER mysqltest_1@localhost;
 DROP DATABASE db27878;
-use test;
+USE test;
 DROP TABLE t1;
 #
 #  Bug#33275 Server crash when creating temporary table mysql.user
@@ -1355,6 +1355,6 @@ Warnings:
 Warning	1403	There is no such grant defined for user 'userbug33464' on host 'localhost' on routine 'fn2'
 DROP PROCEDURE sp3;
 DROP USER 'userbug33464'@'localhost';
-use test;
+USE test;
 DROP DATABASE dbbug33464;
 SET @@global.log_bin_trust_function_creators= @old_log_bin_trust_function_creators;

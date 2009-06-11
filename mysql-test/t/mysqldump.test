@@ -1647,6 +1647,36 @@ DROP TABLE t1,t2;
 --replace_regex /-- [^D][^u][^m][^p].*// /\/\*!.*// / on [0-9 :-]+/ on DATE/
 --exec $MYSQL_DUMP test
 
+--echo #
+--echo # Bug #42635: mysqldump includes views that were excluded using 
+--echo #   the --ignore-table option
+--echo #
+
+create database db42635;
+use db42635;
+create table t1 (id int);
+create view db42635.v1 (c) as select * from db42635.t1;
+create view db42635.v2 (c) as select * from db42635.t1;
+--exec $MYSQL_DUMP --skip-comments --ignore-table=db42635.v1 db42635
+use test;
+drop database db42635;
+
+--echo #
+--echo # Bug#33550 mysqldump 4.0 compatibility broken
+--echo #
+
+SET NAMES utf8;
+CREATE TABLE `straße` ( f1 INT );
+--exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --skip-comments --default-character-set=utf8 --compatible=mysql323 test
+--exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --skip-comments --default-character-set=latin1 --compatible=mysql323 test
+DROP TABLE `straße`;
+
+CREATE TABLE `כדשגכחךלדגכחשךדגחכךלדגכ` ( f1 INT );
+--exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --skip-comments --default-character-set=utf8 --compatible=mysql323 test
+--error 2
+--exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --skip-comments --default-character-set=latin1 --compatible=mysql323 test
+DROP TABLE `כדשגכחךלדגכחשךדגחכךלדגכ`;
+SET NAMES latin1;
 
 --echo #
 --echo # End of 5.0 tests
@@ -1920,6 +1950,7 @@ DROP DATABASE mysqldump_test_db;
 --echo
 
 # We reset concurrent_inserts value to whatever it was at the start of the test
+# This line must be executed _after_ all test cases.
 SET @@GLOBAL.CONCURRENT_INSERT = @OLD_CONCURRENT_INSERT;
 
 

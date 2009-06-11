@@ -265,6 +265,12 @@ ulint srv_read_ahead_seq = 0;
 /* variable to count the number of random read-aheads */
 ulint srv_read_ahead_rnd = 0;
 
+/* An option to enable the fix for "Bug#43660 SHOW INDEXES/ANALYZE does
+NOT update cardinality for indexes of InnoDB table". By default we are
+running with the fix disabled because MySQL 5.1 is frozen for such
+behavioral changes. */
+char srv_use_legacy_cardinality_algorithm = TRUE;
+
 /* structure to pass status variables to MySQL */
 export_struc export_vars;
 

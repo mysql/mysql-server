@@ -141,9 +141,9 @@ select * from ti1 order by b /* must be (2),(3) */;
 b
 2
 3
-*** slave must stop
+*** slave must stop (Trying to delete a referenced foreing key)
 Last_SQL_Error
-0
+1451
 select * from ti1 order by b /* must be (1),(2),(3) - not deleted */;
 b
 1
@@ -159,7 +159,7 @@ set global slave_exec_mode='STRICT';
 *** conspire future problem
 delete from ti1 where b=3;
 insert into ti2 set a=3, b=3 /* offending write event */;
-*** slave must stop
+*** slave must stop (Trying to insert an invalid foreign key)
 Last_SQL_Error
 1452
 select * from ti2 order by b /* must be (2,2) */;
@@ -179,7 +179,7 @@ a	b
 *** conspiring query
 insert into ti1 set b=1;
 insert into ti1 set b=1 /* offending write event */;
-*** slave must stop
+*** slave must stop (Trying to insert a dupliacte key)
 Last_SQL_Error
 1062
 set foreign_key_checks= 0;
@@ -195,32 +195,32 @@ INSERT INTO t2 VALUES (-1),(-2),(-3);
 DELETE FROM t1 WHERE a = -2;
 DELETE FROM t2 WHERE a = -2;
 DELETE FROM t1 WHERE a = -2;
-*** slave must stop
+*** slave must stop (Key was not found)
 Last_SQL_Error
 1032
 set global slave_exec_mode='IDEMPOTENT';
 start slave sql_thread;
 set global slave_exec_mode='STRICT';
 DELETE FROM t2 WHERE a = -2;
-*** slave must stop
+*** slave must stop (Key was not found)
 Last_SQL_Error
-0
+1032
 set global slave_exec_mode='IDEMPOTENT';
 start slave sql_thread;
 set global slave_exec_mode='STRICT';
 UPDATE t1 SET a = 1 WHERE a = -1;
 UPDATE t2 SET a = 1 WHERE a = -1;
 UPDATE t1 SET a = 1 WHERE a = -1;
-*** slave must stop
+*** slave must stop (Key was not found)
 Last_SQL_Error
 1032
 set global slave_exec_mode='IDEMPOTENT';
 start slave sql_thread;
 set global slave_exec_mode='STRICT';
 UPDATE t2 SET a = 1 WHERE a = -1;
-*** slave must stop
+*** slave must stop (Key was not found)
 Last_SQL_Error
-0
+1032
 set global slave_exec_mode='IDEMPOTENT';
 start slave sql_thread;
 SET @@global.slave_exec_mode= @old_slave_exec_mode;

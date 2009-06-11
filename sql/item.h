@@ -1092,7 +1092,7 @@ inline void Item_sp_variable::make_field(Send_field *field)
   if (name)
     it->set_name(name, (uint) strlen(name), system_charset_info);
   else
-    it->set_name(m_name.str, m_name.length, system_charset_info);
+    it->set_name(m_name.str, (uint) m_name.length, system_charset_info);
   it->make_field(field);
 }
 
@@ -1303,6 +1303,8 @@ bool agg_item_collations(DTCollation &c, const char *name,
                          Item **items, uint nitems, uint flags, int item_sep);
 bool agg_item_collations_for_comparison(DTCollation &c, const char *name,
                                         Item **items, uint nitems, uint flags);
+bool agg_item_set_converter(DTCollation &coll, const char *fname,
+                            Item **args, uint nargs, uint flags, int item_sep);
 bool agg_item_charsets(DTCollation &c, const char *name,
                        Item **items, uint nitems, uint flags, int item_sep);
 

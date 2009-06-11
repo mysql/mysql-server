@@ -760,13 +760,13 @@ static bool insert_params_with_log(Prepared_statement *stmt, uchar *null_array,
     Item_param *param= *it;
     if (param->state != Item_param::LONG_DATA_VALUE)
     {
-      if (is_param_null(null_array, it - begin))
+      if (is_param_null(null_array, (uint) (it - begin)))
         param->set_null();
       else
       {
         if (read_pos >= data_end)
           DBUG_RETURN(1);
-        param->set_param_func(param, &read_pos, data_end - read_pos);
+        param->set_param_func(param, &read_pos, (uint) (data_end - read_pos));
         if (param->state == Item_param::NO_VALUE)
           DBUG_RETURN(1);
       }
@@ -798,13 +798,13 @@ static bool insert_params(Prepared_statement *stmt, uchar *null_array,
     Item_param *param= *it;
     if (param->state != Item_param::LONG_DATA_VALUE)
     {
-      if (is_param_null(null_array, it - begin))
+      if (is_param_null(null_array, (uint) (it - begin)))
         param->set_null();
       else
       {
         if (read_pos >= data_end)
           DBUG_RETURN(1);
-        param->set_param_func(param, &read_pos, data_end - read_pos);
+        param->set_param_func(param, &read_pos, (uint) (data_end - read_pos));
         if (param->state == Item_param::NO_VALUE)
           DBUG_RETURN(1);
       }

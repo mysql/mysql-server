@@ -253,7 +253,7 @@ void Lex_input_stream::body_utf8_append_literal(THD *thd,
   {
     thd->convert_string(&utf_txt,
                         &my_charset_utf8_general_ci,
-                        txt->str, txt->length,
+                        txt->str, (uint) txt->length,
                         txt_cs);
   }
   else
@@ -348,6 +348,7 @@ void lex_start(THD *thd)
   lex->nest_level=0 ;
   lex->allow_sum_func= 0;
   lex->in_sum_func= NULL;
+  lex->protect_against_global_read_lock= FALSE;
   /*
     ok, there must be a better solution for this, long-term
     I tried "bzero" in the sql_yacc.yy code, but that for
@@ -435,7 +436,7 @@ bool is_keyword(const char *name, uint len)
 bool is_lex_native_function(const LEX_STRING *name)
 {
   DBUG_ASSERT(name != NULL);
-  return (get_hash_symbol(name->str, name->length, 1) != 0);
+  return (get_hash_symbol(name->str, (uint) name->length, 1) != 0);
 }
 
 /* make a copy of token before ptr and set yytoklen */
@@ -711,6 +712,53 @@ static inline uint int_token(const char *str,uint length)
   while (*cmp && *cmp++ == *str++) ;
   return ((uchar) str[-1] <= (uchar) cmp[-1]) ? smaller : bigger;
 }
+
+
+/**
+  Given a stream that is advanced to the first contained character in 
+  an open comment, consume the comment.  Optionally, if we are allowed, 
+  recurse so that we understand comments within this current comment.
+
+  At this level, we do not support version-condition comments.  We might 
+  have been called with having just passed one in the stream, though.  In 
+  that case, we probably want to tolerate mundane comments inside.  Thus,
+  the case for recursion.
+
+  @retval  Whether EOF reached before comment is closed.
+*/
+bool consume_comment(Lex_input_stream *lip, int remaining_recursions_permitted)
+{
+  reg1 uchar c;
+  while (! lip->eof())
+  {
+    c= lip->yyGet();
+
+    if (remaining_recursions_permitted > 0)
+    {
+      if ((c == '/') && (lip->yyPeek() == '*'))
+      {
+        lip->yySkip(); /* Eat asterisk */
+        consume_comment(lip, remaining_recursions_permitted-1);
+        continue;
+      }
+    }
+
+    if (c == '*')
+    {
+      if (lip->yyPeek() == '/')
+      {
+        lip->yySkip(); /* Eat slash */
+        return FALSE;
+      }
+    }
+
+    if (c == '\n')
+      lip->yylineno++;
+  }
+
+  return TRUE;
+}
+
 
 /*
   MYSQLlex remember the following states from the following MYSQLlex()
@@ -1074,7 +1122,7 @@ int MYSQLlex(void *arg, void *yythd)
       if (c != '.')
       {					// Found complete integer number.
         yylval->lex_str=get_token(lip, 0, lip->yyLength());
-	return int_token(yylval->lex_str.str,yylval->lex_str.length);
+	return int_token(yylval->lex_str.str, (uint) yylval->lex_str.length);
       }
       // fall through
     case MY_LEX_REAL:			// Incomplete real number
@@ -1204,6 +1252,8 @@ int MYSQLlex(void *arg, void *yythd)
       /* Reject '/' '*', since we might need to turn off the echo */
       lip->yyUnget();
 
+      lip->save_in_comment_state();
+
       if (lip->yyPeekn(2) == '!')
       {
         lip->in_comment= DISCARD_COMMENT;
@@ -1246,11 +1296,17 @@ int MYSQLlex(void *arg, void *yythd)
             /* Expand the content of the special comment as real code */
             lip->set_echo(TRUE);
             state=MY_LEX_START;
-            break;
+            break;  /* Do not treat contents as a comment.  */
+          }
+          else
+          {
+            comment_closed= ! consume_comment(lip, 1);
+            /* version allowed to have one level of comment inside. */
           }
         }
         else
         {
+          /* Not a version comment. */
           state=MY_LEX_START;
           lip->set_echo(TRUE);
           break;
@@ -1261,38 +1317,30 @@ int MYSQLlex(void *arg, void *yythd)
         lip->in_comment= PRESERVE_COMMENT;
         lip->yySkip();                  // Accept /
         lip->yySkip();                  // Accept *
+        comment_closed= ! consume_comment(lip, 0);
+        /* regular comments can have zero comments inside. */
       }
       /*
         Discard:
         - regular '/' '*' comments,
         - special comments '/' '*' '!' for a future version,
         by scanning until we find a closing '*' '/' marker.
-        Note: There is no such thing as nesting comments,
-        the first '*' '/' sequence seen will mark the end.
+
+        Nesting regular comments isn't allowed.  The first 
+        '*' '/' returns the parser to the previous state.
+
+        /#!VERSI oned containing /# regular #/ is allowed #/
+
+		Inside one versioned comment, another versioned comment
+		is treated as a regular discardable comment.  It gets
+		no special parsing.
       */
-      comment_closed= FALSE;
-      while (! lip->eof())
-      {
-        c= lip->yyGet();
-        if (c == '*')
-        {
-          if (lip->yyPeek() == '/')
-          {
-            lip->yySkip();
-            comment_closed= TRUE;
-            state = MY_LEX_START;
-            break;
-          }
-        }
-        else if (c == '\n')
-          lip->yylineno++;
-      }
+
       /* Unbalanced comments with a missing '*' '/' are a syntax error */
       if (! comment_closed)
         return (ABORT_SYM);
       state = MY_LEX_START;             // Try again
-      lip->in_comment= NO_COMMENT;
-      lip->set_echo(TRUE);
+      lip->restore_in_comment_state();
       break;
     case MY_LEX_END_LONG_COMMENT:
       if ((lip->in_comment != NO_COMMENT) && lip->yyPeek() == '/')
@@ -1559,6 +1607,7 @@ void st_select_lex::init_query()
   exclude_from_table_unique_test= no_wrap_view_item= FALSE;
   nest_level= 0;
   link_next= 0;
+  lock_option= TL_READ_DEFAULT;
 }
 
 void st_select_lex::init_select()
@@ -1977,8 +2026,8 @@ void st_select_lex::print_order(String *str,
     if (order->counter_used)
     {
       char buffer[20];
-      uint length= my_snprintf(buffer, 20, "%d", order->counter);
-      str->append(buffer, length);
+      size_t length= my_snprintf(buffer, 20, "%d", order->counter);
+      str->append(buffer, (uint) length);
     }
     else
       (*order->item)->print(str, query_type);

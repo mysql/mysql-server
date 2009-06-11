@@ -363,6 +363,7 @@ static void usage(void)
   -#, --debug=...     Output debug log. Often this is 'd:t:o,filename'.\n");
 #endif
   printf("\
+  -H, --HELP          Display this help and exit.\n\
   -?, --help          Display this help and exit.\n\
   -O, --set-variable var=option.\n\
                       Change the value of a variable. Please note that\n\
@@ -1305,7 +1306,7 @@ static void descript(MI_CHECK *param, register MI_INFO *info, char * name)
 	  share->base.max_key_file_length != HA_OFFSET_ERROR)
 	printf("Max datafile length: %13s  Max keyfile length: %13s\n",
 	       llstr(share->base.max_data_file_length-1,llbuff),
-	       llstr(share->base.max_key_file_length-1,llbuff2));
+               ullstr(share->base.max_key_file_length - 1, llbuff2));
     }
   }
 

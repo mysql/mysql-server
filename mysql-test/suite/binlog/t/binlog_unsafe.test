@@ -8,6 +8,7 @@
 # executed cannot be determined (e.g., INSERT DELAYED).  Such
 # statements should be marked unsafe.  All unsafe statements should
 # give a warning.
+# Yet the warning/error message isn't issued when SQL_LOG_BIN is turned off.
 #
 # This test verifies that a warning is generated for statements that
 # should be unsafe, when they are executed under statement mode
@@ -32,14 +33,20 @@
 # We try to insert the variables that should not be unsafe into a
 # table, and verify that *no* warning is issued.
 #
-#
+# Execute a unsafe statement calling a trigger or stored function
+# or neither when SQL_LOG_BIN is turned ON, a warning/error should be issued
+# Execute a unsafe statement calling a trigger or stored function
+# or neither when @@SQL_LOG_BIN is turned OFF,
+# no warning/error is issued
+
 # ==== Related bugs and worklogs ====
 #
 # WL#3339: Issue warnings when statement-based replication may fail
 # BUG#31168: @@hostname does not replicate
 # BUG#34732: mysqlbinlog does not print default values for auto_increment variables
 # BUG#34768: nondeterministic INSERT using LIMIT logged in stmt mode if binlog_format=mixed
-#
+# BUG#41980, SBL, INSERT .. SELECT .. LIMIT = ERROR, even when @@SQL_LOG_BIN is 0
+# BUG#42640: mysqld crashes when unsafe statements are executed (STRICT_TRANS_TABLES mode)
 #
 # ==== Related test cases ====
 #
@@ -271,3 +278,114 @@ INSERT INTO t1 VALUES ('a','b');
 UPDATE t1 SET b = '%s%s%s%s%s%s%s%s%s%s%s%s%s%s' WHERE a = 'a' LIMIT 1;
 DROP TABLE t1;
 
+#
+#For bug#41980, SBL, INSERT .. SELECT .. LIMIT = ERROR, even when @@SQL_LOG_BIN is 0 
+#
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+--enable_warnings
+CREATE TABLE t1(i INT PRIMARY KEY);
+CREATE TABLE t2(i INT PRIMARY KEY);
+CREATE TABLE t3(i INT, ch CHAR(50));
+
+--echo "Should issue message Statement is not safe to log in statement format."
+INSERT INTO t1 SELECT * FROM t2 LIMIT 1;
+
+DELIMITER |;
+CREATE FUNCTION func6()
+RETURNS INT
+BEGIN
+  INSERT INTO t1 VALUES (10);
+  INSERT INTO t1 VALUES (11);
+  INSERT INTO t1 VALUES (12);
+  RETURN 0;
+END|
+DELIMITER ;|
+--echo "Should issue message Statement is not safe to log in statement format only once"
+INSERT INTO t3 VALUES(func6(), UUID());
+
+--echo "Check whether SET @@SQL_LOG_BIN = 0/1 doesn't work in substatements"
+DELIMITER |;
+CREATE FUNCTION fun_check_log_bin() RETURNS INT
+BEGIN
+  SET @@SQL_LOG_BIN = 0;
+  INSERT INTO t1 VALUES(@@global.sync_binlog);
+  RETURN 100;
+END|
+DELIMITER ;|
+--echo "One unsafe warning should be issued in the following statement"
+SELECT fun_check_log_bin();
+--echo "SQL_LOG_BIN should be ON still"
+SHOW VARIABLES LIKE "SQL_LOG_BIN";
+
+set @save_log_bin = @@SESSION.SQL_LOG_BIN;
+set @@SESSION.SQL_LOG_BIN = 0;
+--echo "Should NOT have any warning message issued in the following statements"
+INSERT INTO t1 SELECT * FROM t2 LIMIT 1;
+DROP TABLE t1,t2;
+
+--echo "Should NOT have any warning message issued in the following func7() and trig"
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a CHAR(40));
+CREATE TABLE trigger_table (a CHAR(7));
+DELIMITER |;
+CREATE FUNCTION func7()
+RETURNS INT
+BEGIN
+  INSERT INTO t1 VALUES (@@global.sync_binlog);
+  INSERT INTO t1 VALUES (@@session.insert_id);
+  INSERT INTO t2 SELECT UUID();
+  INSERT INTO t2 VALUES (@@session.sql_mode);
+  INSERT INTO t2 VALUES (@@global.init_slave);
+  RETURN 0;
+END|
+DELIMITER ;|
+SHOW VARIABLES LIKE "SQL_LOG_BIN";
+SELECT func7();
+
+--echo ---- Insert from trigger ----
+
+DELIMITER |;
+CREATE TRIGGER trig
+BEFORE INSERT ON trigger_table
+FOR EACH ROW
+BEGIN
+  INSERT INTO t1 VALUES (@@global.sync_binlog);
+  INSERT INTO t1 VALUES (@@session.insert_id);
+  INSERT INTO t1 VALUES (@@global.auto_increment_increment);
+  INSERT INTO t2 SELECT UUID();
+  INSERT INTO t2 VALUES (@@session.sql_mode);
+  INSERT INTO t2 VALUES (@@global.init_slave);
+  INSERT INTO t2 VALUES (@@hostname);
+END|
+DELIMITER ;|
+
+INSERT INTO trigger_table VALUES ('bye.');
+
+#clean up
+DROP FUNCTION fun_check_log_bin;
+DROP FUNCTION func6;
+DROP FUNCTION func7;
+DROP TRIGGER  trig;
+DROP TABLE t1, t2, t3, trigger_table;
+set @@SESSION.SQL_LOG_BIN = @save_log_bin;
+
+#
+# For BUG#42640: mysqld crashes when unsafe statements are executed (STRICT_TRANS_TABLES mode)
+#
+SET @save_sql_mode = @@SESSION.SQL_MODE;
+SET @@SESSION.SQL_MODE = STRICT_ALL_TABLES;
+
+CREATE TABLE t1(i INT PRIMARY KEY);
+CREATE TABLE t2(i INT PRIMARY KEY);
+
+INSERT INTO t1 SELECT * FROM t2 LIMIT 1;
+INSERT INTO t1 VALUES(@@global.sync_binlog);
+
+UPDATE t1 SET i = 999 LIMIT 1;
+DELETE FROM t1 LIMIT 1;
+
+DROP TABLE t1, t2;
+SET @@SESSION.SQL_MODE = @save_sql_mode;
+--echo "End of tests"

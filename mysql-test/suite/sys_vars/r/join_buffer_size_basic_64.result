@@ -71,7 +71,7 @@ SELECT @@global.join_buffer_size=8200 OR @@global.join_buffer_size= 8228;
 1
 SET @@global.join_buffer_size = -1024;
 Warnings:
-Warning	1292	Truncated incorrect join_buffer_size value: '0'
+Warning	1292	Truncated incorrect join_buffer_size value: '-1024'
 SELECT @@global.join_buffer_size=8200 OR @@global.join_buffer_size= 8228;
 @@global.join_buffer_size=8200 OR @@global.join_buffer_size= 8228
 1
@@ -103,7 +103,7 @@ SELECT @@session.join_buffer_size=8200 OR @@session.join_buffer_size= 8228;
 1
 SET @@session.join_buffer_size = -2;
 Warnings:
-Warning	1292	Truncated incorrect join_buffer_size value: '0'
+Warning	1292	Truncated incorrect join_buffer_size value: '-2'
 SELECT @@session.join_buffer_size=8200 OR @@session.join_buffer_size= 8228;
 @@session.join_buffer_size=8200 OR @@session.join_buffer_size= 8228
 1

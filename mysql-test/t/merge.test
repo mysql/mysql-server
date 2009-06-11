@@ -1418,8 +1418,6 @@ TABLE_SCHEMA = 'test' and TABLE_NAME='tm1';
 
 DROP TABLE tm1;
 
---echo End of 5.1 tests
-
 #
 # Bug#36006 - Optimizer does table scan for select count(*)
 #
@@ -1435,4 +1433,106 @@ EXPLAIN SELECT COUNT(*) FROM t1;
 EXPLAIN SELECT COUNT(*) FROM t4;
 DROP TABLE t1, t2, t3, t4;
 
+#
+# BUG#39185 - Cardinality for merge tables calculated incorrectly.
+#
+CREATE TABLE t1(a INT, KEY(a));
+INSERT INTO t1 VALUES(0),(1),(2),(3),(4);
+ANALYZE TABLE t1;
+CREATE TABLE m1(a INT, KEY(a)) ENGINE=MERGE UNION=(t1);
+SELECT CARDINALITY FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA='test' AND TABLE_NAME='m1'; 
+SELECT CARDINALITY FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA='test' AND TABLE_NAME='m1'; 
+SELECT CARDINALITY FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA='test' AND TABLE_NAME='m1'; 
+SELECT CARDINALITY FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA='test' AND TABLE_NAME='m1'; 
+DROP TABLE t1, m1;
+
+--echo #
+--echo # Bug #40675 MySQL 5.1 crash with index merge algorithm and Merge tables
+--echo #
+
+--echo # create MYISAM table t1 and insert values into it
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(1);
+
+--echo # create MYISAM table t2 and insert values into it
+CREATE TABLE t2(a INT, b INT, dummy CHAR(16) DEFAULT '', KEY(a), KEY(b));
+INSERT INTO t2(a,b) VALUES
+(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),
+(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),
+(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),
+(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),
+(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),
+(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),
+(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),
+(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),
+(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),
+(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),
+(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),
+(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),
+(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),
+(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),
+(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),
+(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),
+(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),
+(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),
+(1,2);
+
+--echo # Create the merge table t3
+CREATE TABLE t3(a INT, b INT, dummy CHAR(16) DEFAULT '', KEY(a), KEY(b))
+ENGINE=MERGE UNION=(t2) INSERT_METHOD=FIRST;
+
+--echo # Lock tables t1 and t3 for write
+LOCK TABLES t1 WRITE, t3 WRITE;
+
+--echo # Insert values into the merge table t3
+INSERT INTO t3(a,b) VALUES(1,2);
+
+--echo # select from the join of t2 and t3 (The merge table)
+SELECT t3.a FROM t1,t3 WHERE t3.b=2 AND t3.a=1;
+
+--echo # Unlock the tables
+UNLOCK TABLES;
+
+--echo # drop the created tables
+DROP TABLE t1, t2, t3;
+
+#
+# Bug #41305 server crashes when inserting duplicate row into a merge table
+#
+--echo # insert duplicate value in child table while merge table doesn't have key
+create table t1 (
+        col1 int(10),
+        primary key (col1)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+CREATE TABLE m1 (
+  col1 int(10) NOT NULL
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 INSERT_METHOD=LAST UNION=(t1);
+
+insert into m1 (col1) values (1);
+--error ER_DUP_ENTRY
+insert into m1 (col1) values (1);
+
+drop table m1, t1;
+
+#
+#Bug #44040   MySQL allows creating a MERGE table upon VIEWs but crashes 
+#when using it
+#
+
+CREATE TABLE t1 (
+        col1 INT(10)
+) ENGINE=MyISAM  DEFAULT CHARSET=latin1;
+
+CREATE VIEW v1 as SELECT * FROM t1;
+CREATE TABLE m1 (
+        col1 INT(10)
+)ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 INSERT_METHOD=LAST UNION=(v1);
+
+--echo #Select should detect that the child table is a view and fail.
+--error ER_WRONG_MRG_TABLE
+SELECT * FROM m1;
+
+DROP VIEW v1;
+DROP TABLE m1, t1;
 --echo End of 5.1 tests

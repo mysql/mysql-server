@@ -105,13 +105,10 @@ String *Item_func_md5::val_str(String *str)
   str->set_charset(&my_charset_bin);
   if (sptr)
   {
-    my_MD5_CTX context;
     uchar digest[16];
 
     null_value=0;
-    my_MD5Init (&context);
-    my_MD5Update (&context,(uchar *) sptr->ptr(), sptr->length());
-    my_MD5Final (digest, &context);
+    MY_MD5_HASH(digest,(uchar *) sptr->ptr(), sptr->length());
     if (str->alloc(32))				// Ensure that memory is free
     {
       null_value=1;
@@ -507,17 +504,21 @@ String *Item_func_des_encrypt::val_str(String *str)
      string marking change of string length.
   */
 
-  tail=  (8-(res_length) % 8);			// 1..8 marking extra length
+  tail= 8 - (res_length % 8);                   // 1..8 marking extra length
   res_length+=tail;
+  tmp_arg.realloc(res_length);
+  tmp_arg.length(0);
+  tmp_arg.append(res->ptr(), res->length());
   code= ER_OUT_OF_RESOURCES;
-  if (tail && res->append(append_str, tail) || tmp_value.alloc(res_length+1))
+  if (tmp_arg.append(append_str, tail) || tmp_value.alloc(res_length+1))
     goto error;
-  (*res)[res_length-1]=tail;			// save extra length
+  tmp_arg[res_length-1]=tail;                   // save extra length
+  tmp_value.realloc(res_length+1);
   tmp_value.length(res_length+1);
   tmp_value[0]=(char) (128 | key_number);
   // Real encryption
   bzero((char*) &ivec,sizeof(ivec));
-  DES_ede3_cbc_encrypt((const uchar*) (res->ptr()),
+  DES_ede3_cbc_encrypt((const uchar*) (tmp_arg.ptr()),
 		       (uchar*) (tmp_value.ptr()+1),
 		       res_length,
 		       &keyschedule.ks1,
@@ -1692,10 +1693,10 @@ String *Item_func_encrypt::val_str(String *str)
     String *salt_str=args[1]->val_str(&tmp_value);
     if ((null_value= (args[1]->null_value || salt_str->length() < 2)))
       return 0;
-    salt_ptr= salt_str->c_ptr();
+    salt_ptr= salt_str->c_ptr_safe();
   }
   pthread_mutex_lock(&LOCK_crypt);
-  char *tmp= crypt(res->c_ptr(),salt_ptr);
+  char *tmp= crypt(res->c_ptr_safe(),salt_ptr);
   if (!tmp)
   {
     pthread_mutex_unlock(&LOCK_crypt);
@@ -1741,7 +1742,7 @@ String *Item_func_encode::val_str(String *str)
 
   null_value=0;
   res=copy_if_not_alloced(str,res,res->length());
-  SQL_CRYPT sql_crypt(password->ptr());
+  SQL_CRYPT sql_crypt(password->ptr(), password->length());
   sql_crypt.init();
   sql_crypt.encode((char*) res->ptr(),res->length());
   res->set_charset(&my_charset_bin);
@@ -1770,7 +1771,7 @@ String *Item_func_decode::val_str(String *str)
 
   null_value=0;
   res=copy_if_not_alloced(str,res,res->length());
-  SQL_CRYPT sql_crypt(password->ptr());
+  SQL_CRYPT sql_crypt(password->ptr(), password->length());
   sql_crypt.init();
   sql_crypt.decode((char*) res->ptr(),res->length());
   return res;
@@ -1830,17 +1831,17 @@ bool Item_func_user::init(const char *user, const char *host)
   if (user)
   {
     CHARSET_INFO *cs= str_value.charset();
-    uint res_length= (strlen(user)+strlen(host)+2) * cs->mbmaxlen;
+    size_t res_length= (strlen(user)+strlen(host)+2) * cs->mbmaxlen;
 
-    if (str_value.alloc(res_length))
+    if (str_value.alloc((uint) res_length))
     {
       null_value=1;
       return TRUE;
     }
 
-    res_length=cs->cset->snprintf(cs, (char*)str_value.ptr(), res_length,
+    res_length=cs->cset->snprintf(cs, (char*)str_value.ptr(), (uint) res_length,
                                   "%s@%s", user, host);
-    str_value.length(res_length);
+    str_value.length((uint) res_length);
     str_value.mark_as_const();
   }
   return FALSE;
@@ -2544,7 +2545,7 @@ String *Item_func_rpad::val_str(String *str)
     memcpy(to,ptr_pad,(size_t) pad_byte_length);
     to+= pad_byte_length;
   }
-  res->length(to- (char*) res->ptr());
+  res->length((uint) (to- (char*) res->ptr()));
   return (res);
 
  err:
@@ -2812,7 +2813,7 @@ String *Item_func_charset::val_str(String *str)
 
   CHARSET_INFO *cs= args[0]->collation.collation; 
   null_value= 0;
-  str->copy(cs->csname, strlen(cs->csname),
+  str->copy(cs->csname, (uint) strlen(cs->csname),
 	    &my_charset_latin1, collation.collation, &dummy_errors);
   return str;
 }
@@ -2824,7 +2825,7 @@ String *Item_func_collation::val_str(String *str)
   CHARSET_INFO *cs= args[0]->collation.collation; 
 
   null_value= 0;
-  str->copy(cs->name, strlen(cs->name),
+  str->copy(cs->name, (uint) strlen(cs->name),
 	    &my_charset_latin1, collation.collation, &dummy_errors);
   return str;
 }

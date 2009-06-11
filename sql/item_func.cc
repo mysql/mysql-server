@@ -2716,7 +2716,7 @@ longlong Item_func_find_in_set::val_int()
   int diff;
   if ((diff=buffer->length() - find->length()) >= 0)
   {
-    my_wc_t wc;
+    my_wc_t wc= 0;
     CHARSET_INFO *cs= cmp_collation.collation;
     const char *str_begin= buffer->ptr();
     const char *str_end= buffer->ptr();
@@ -2739,7 +2739,7 @@ longlong Item_func_find_in_set::val_int()
           if (is_last_item && !is_separator)
             str_end= substr_end;
           if (!my_strnncoll(cs, (const uchar *) str_begin,
-                            str_end - str_begin,
+                            (uint) (str_end - str_begin),
                             find_str, find_str_len))
             return (longlong) position;
           else
@@ -4825,7 +4825,7 @@ Item_func_get_system_var(sys_var *var_arg, enum_var_type var_type_arg,
   component(*component_arg), cache_present(0)
 {
   /* set_name() will allocate the name */
-  set_name(name_arg, name_len_arg, system_charset_info);
+  set_name(name_arg, (uint) name_len_arg, system_charset_info);
 }
 
 
@@ -4837,7 +4837,9 @@ bool Item_func_get_system_var::is_written_to_binlog()
 
 void Item_func_get_system_var::fix_length_and_dec()
 {
+  char *cptr;
   maybe_null=0;
+  max_length= 0;
 
   if (var->check_type(var_type))
   {
@@ -4867,8 +4869,14 @@ void Item_func_get_system_var::fix_length_and_dec()
       break;
     case SHOW_CHAR:
     case SHOW_CHAR_PTR:
+      pthread_mutex_lock(&LOCK_global_system_variables);
+      cptr= var->show_type() == SHOW_CHAR_PTR ? 
+        *(char**) var->value_ptr(current_thd, var_type, &component) :
+        (char*) var->value_ptr(current_thd, var_type, &component);
+      if (cptr)
+        max_length= strlen(cptr) * system_charset_info->mbmaxlen;
+      pthread_mutex_unlock(&LOCK_global_system_variables);
       collation.set(system_charset_info, DERIVATION_SYSCONST);
-      max_length= MAX_BLOB_WIDTH;
       decimals=NOT_FIXED_DEC;
       break;
     case SHOW_BOOL:
@@ -5371,7 +5379,10 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
     if (item->type() == Item::REF_ITEM)
       args[i]= item= *((Item_ref *)item)->ref;
     if (item->type() != Item::FIELD_ITEM)
-      key=NO_SUCH_KEY;
+    {
+      my_error(ER_WRONG_ARGUMENTS, MYF(0), "AGAINST");
+      return TRUE;
+    }
   }
   /*
     Check that all columns come from the same table.

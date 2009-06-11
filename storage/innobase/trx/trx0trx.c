@@ -192,8 +192,6 @@ trx_create(
 
 	trx->n_autoinc_rows = 0;
 
-	trx_reset_new_rec_lock_info(trx);
-
 	return(trx);
 }
 
@@ -930,8 +928,8 @@ trx_commit_off_kernel(
 		mutex_enter(&kernel_mutex);
 	}
 
-	/* Free savepoints */
-	trx_roll_savepoints_free(trx, NULL);
+	/* Free all savepoints */
+	trx_roll_free_all_savepoints(trx);
 
 	trx->conc_state = TRX_NOT_STARTED;
 	trx->rseg = NULL;

@@ -2784,26 +2784,26 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 select max(key1) from t1 where key1 <= 0.6158;
 max(key1)
-0.61580002307892
+0.615800023078918
 select max(key2) from t2 where key2 <= 1.6158;
 max(key2)
-1.6158000230789
+1.61580002307892
 select min(key1) from t1 where key1 >= 0.3762;
 min(key1)
-0.37619999051094
+0.376199990510941
 select min(key2) from t2 where key2 >= 1.3762;
 min(key2)
-1.3761999607086
+1.37619996070862
 select max(key1), min(key2) from t1, t2
 where key1 <= 0.6158 and key2 >= 1.3762;
 max(key1)	min(key2)
-0.61580002307892	1.3761999607086
+0.615800023078918	1.37619996070862
 select max(key1) from t1 where key1 <= 0.6158 and rand() + 0.5 >= 0.5;
 max(key1)
-0.61580002307892
+0.615800023078918
 select min(key1) from t1 where key1 >= 0.3762 and rand() + 0.5 >= 0.5;
 min(key1)
-0.37619999051094
+0.376199990510941
 DROP TABLE t1,t2;
 CREATE TABLE t1 (i BIGINT UNSIGNED NOT NULL);
 INSERT INTO t1 VALUES (10);
@@ -4373,6 +4373,19 @@ f3	f4	count
 1	abc	1
 1	def	2
 drop table t1, t2, t3;
+CREATE TABLE t1 (a INT KEY, b INT);
+INSERT INTO t1 VALUES (1,1), (2,2), (3,3), (4,4);
+EXPLAIN EXTENDED SELECT a, b FROM t1 WHERE a > 1 AND a = b LIMIT 2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	3	100.00	Using where
+Warnings:
+Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`b` = `test`.`t1`.`a`) and (`test`.`t1`.`a` > 1)) limit 2
+EXPLAIN EXTENDED SELECT a, b FROM t1 WHERE a > 1 AND b = a LIMIT 2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	3	100.00	Using where
+Warnings:
+Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`a` = `test`.`t1`.`b`) and (`test`.`t1`.`a` > 1)) limit 2
+DROP TABLE t1;
 End of 5.0 tests
 create table t1(a INT, KEY (a));
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
@@ -4416,4 +4429,32 @@ date_nokey
 Warnings:
 Warning	1292	Incorrect date value: '10:41:7' for column 'date_nokey' at row 1
 DROP TABLE A,C;
+CREATE TABLE t1 (a INT NOT NULL, b INT);
+INSERT INTO t1 VALUES (1, 1);
+EXPLAIN EXTENDED SELECT * FROM t1 WHERE (a=a AND a=a) OR b > 2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+Warnings:
+Note	1003	select '1' AS `a`,'1' AS `b` from `test`.`t1` where 1
+SELECT * FROM t1 WHERE (a=a AND a=a) OR b > 2;
+a	b
+1	1
+DROP TABLE t1;
+CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL, c INT NOT NULL);
+EXPLAIN EXTENDED SELECT * FROM t1 WHERE (a=a AND b=b AND c=c) OR b > 20;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
+Warnings:
+Note	1003	select '0' AS `a`,'0' AS `b`,'0' AS `c` from `test`.`t1` where 1
+EXPLAIN EXTENDED SELECT * FROM t1 WHERE (a=a AND a=a AND b=b) OR b > 20;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
+Warnings:
+Note	1003	select '0' AS `a`,'0' AS `b`,'0' AS `c` from `test`.`t1` where 1
+EXPLAIN EXTENDED SELECT * FROM t1 WHERE (a=a AND b=b AND a=a) OR b > 20;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
+Warnings:
+Note	1003	select '0' AS `a`,'0' AS `b`,'0' AS `c` from `test`.`t1` where 1
+DROP TABLE t1;
 End of 5.1 tests

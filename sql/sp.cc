@@ -936,10 +936,13 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
         ret= SP_INTERNAL_ERROR;
         goto done;
       }
-
+      /* restore sql_mode when binloging */
+      thd->variables.sql_mode= saved_mode;
       /* Such a statement can always go directly to binlog, no trans cache */
       thd->binlog_query(THD::MYSQL_QUERY_TYPE,
-                        log_query.c_ptr(), log_query.length(), FALSE, FALSE);
+                        log_query.c_ptr(), log_query.length(),
+                        FALSE, FALSE, THD::NOT_KILLED);
+      thd->variables.sql_mode= 0;
     }
 
   }

@@ -144,6 +144,7 @@ static char *remove_end_comment(char *ptr);
   RETURN
     0  ok
     1  given cinf_file doesn't exist
+    2  out of memory
 
     The global variable 'my_defaults_group_suffix' is updated with value for
     --defaults_group_suffix
@@ -151,7 +152,7 @@ static char *remove_end_comment(char *ptr);
 
 int my_search_option_files(const char *conf_file, int *argc, char ***argv,
                            uint *args_used, Process_option_func func,
-                           void *func_ctx)
+                           void *func_ctx, const char **default_directories)
 {
   const char **dirs, *forced_default_file, *forced_extra_defaults;
   int error= 0;
@@ -182,7 +183,7 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
     /* Handle --defaults-group-suffix= */
     uint i;
     const char **extra_groups;
-    const uint instance_len= strlen(my_defaults_group_suffix); 
+    const size_t instance_len= strlen(my_defaults_group_suffix); 
     struct handle_option_ctx *ctx= (struct handle_option_ctx*) func_ctx;
     char *ptr;
     TYPELIB *group= ctx->group;
@@ -190,16 +191,16 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
     if (!(extra_groups= 
 	  (const char**)alloc_root(ctx->alloc,
                                    (2*group->count+1)*sizeof(char*))))
-      goto err;
+      DBUG_RETURN(2);
     
     for (i= 0; i < group->count; i++)
     {
-      uint len;
+      size_t len;
       extra_groups[i]= group->type_names[i]; /** copy group */
       
       len= strlen(extra_groups[i]);
-      if (!(ptr= alloc_root(ctx->alloc, len+instance_len+1)))
-	goto err;
+      if (!(ptr= alloc_root(ctx->alloc, (uint) (len+instance_len+1))))
+       DBUG_RETURN(2);
       
       extra_groups[i+group->count]= ptr;
       
@@ -254,12 +255,11 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
     }
   }
 
-  DBUG_RETURN(error);
+  DBUG_RETURN(0);
 
 err:
   fprintf(stderr,"Fatal error in defaults handling. Program aborted\n");
-  exit(1);
-  return 0;					/* Keep compiler happy */
+  DBUG_RETURN(1);
 }
 
 
@@ -359,9 +359,8 @@ int get_defaults_options(int argc, char **argv,
   return org_argc - argc;
 }
 
-
 /*
-  Read options from configurations files
+  Wrapper around my_load_defaults() for interface compatibility.
 
   SYNOPSIS
     load_defaults()
@@ -371,6 +370,35 @@ int get_defaults_options(int argc, char **argv,
 				Points to an null terminated array of pointers
     argc			Pointer to argc of original program
     argv			Pointer to argv of original program
+
+  NOTES
+
+    This function is NOT thread-safe as it uses a global pointer internally.
+    See also notes for my_load_defaults().
+
+  RETURN
+    0 ok
+    1 The given conf_file didn't exists
+*/
+int load_defaults(const char *conf_file, const char **groups,
+                  int *argc, char ***argv)
+{
+  return my_load_defaults(conf_file, groups, argc, argv, &default_directories);
+}
+
+/*
+  Read options from configurations files
+
+  SYNOPSIS
+    my_load_defaults()
+    conf_file			Basename for configuration file to search for.
+    				If this is a path, then only this file is read.
+    groups			Which [group] entrys to read.
+				Points to an null terminated array of pointers
+    argc			Pointer to argc of original program
+    argv			Pointer to argv of original program
+    default_directories         Pointer to a location where a pointer to the list
+                                of default directories will be stored
 
   IMPLEMENTATION
 
@@ -386,13 +414,18 @@ int get_defaults_options(int argc, char **argv,
     that was put in *argv
 
    RETURN
-     0	ok
-     1	The given conf_file didn't exists
+     - If successful, 0 is returned. If 'default_directories' is not NULL,
+     a pointer to the array of default directory paths is stored to a location
+     it points to. That stored value must be passed to my_search_option_files()
+     later.
+     
+     - 1 is returned if the given conf_file didn't exist. In this case, the
+     value pointed to by default_directories is undefined.
 */
 
 
-int load_defaults(const char *conf_file, const char **groups,
-                  int *argc, char ***argv)
+int my_load_defaults(const char *conf_file, const char **groups,
+                  int *argc, char ***argv, const char ***default_directories)
 {
   DYNAMIC_ARRAY args;
   TYPELIB group;
@@ -402,10 +435,11 @@ int load_defaults(const char *conf_file, const char **groups,
   MEM_ROOT alloc;
   char *ptr,**res;
   struct handle_option_ctx ctx;
+  const char **dirs;
   DBUG_ENTER("load_defaults");
 
   init_alloc_root(&alloc,512,0);
-  if ((default_directories= init_default_directories(&alloc)) == NULL)
+  if ((dirs= init_default_directories(&alloc)) == NULL)
     goto err;
   /*
     Check if the user doesn't want any default option processing
@@ -426,6 +460,8 @@ int load_defaults(const char *conf_file, const char **groups,
     (*argc)--;
     *argv=res;
     *(MEM_ROOT*) ptr= alloc;			/* Save alloc root for free */
+    if (default_directories)
+      *default_directories= dirs;
     DBUG_RETURN(0);
   }
 
@@ -444,7 +480,8 @@ int load_defaults(const char *conf_file, const char **groups,
   ctx.group= &group;
 
   error= my_search_option_files(conf_file, argc, argv, &args_used,
-                                handle_default_option, (void *) &ctx);
+                                handle_default_option, (void *) &ctx,
+                                dirs);
   /*
     Here error contains <> 0 only if we have a fully specified conf_file
     or a forced default file
@@ -490,6 +527,10 @@ int load_defaults(const char *conf_file, const char **groups,
     puts("");
     exit(0);
   }
+
+  if (error == 0 && default_directories)
+    *default_directories= dirs;
+
   DBUG_RETURN(error);
 
  err:
@@ -895,15 +936,11 @@ void my_print_default_files(const char *conf_file)
     fputs(conf_file,stdout);
   else
   {
-    /*
-      If default_directories is already initialized, use it.  Otherwise,
-      use a private MEM_ROOT.
-    */
-    const char **dirs = default_directories;
+    const char **dirs;
     MEM_ROOT alloc;
     init_alloc_root(&alloc,512,0);
 
-    if (!dirs && (dirs= init_default_directories(&alloc)) == NULL)
+    if ((dirs= init_default_directories(&alloc)) == NULL)
     {
       fputs("Internal error initializing default directories list", stdout);
     }
@@ -970,7 +1007,7 @@ void print_defaults(const char *conf_file, const char **groups)
 static int add_directory(MEM_ROOT *alloc, const char *dir, const char **dirs)
 {
   char buf[FN_REFLEN];
-  uint len;
+  size_t len;
   char *p;
   my_bool err __attribute__((unused));
 
@@ -1004,14 +1041,14 @@ static size_t my_get_system_windows_directory(char *buffer, size_t size)
                                              "GetSystemWindowsDirectoryA");
 
   if (func_ptr)
-    return func_ptr(buffer, size);
+    return func_ptr(buffer, (uint) size);
 
   /*
     Windows NT 4.0 Terminal Server Edition:  
     To retrieve the shared Windows directory, call GetSystemDirectory and
     trim the "System32" element from the end of the returned path.
   */
-  count= GetSystemDirectory(buffer, size);
+  count= GetSystemDirectory(buffer, (uint) size);
   if (count > 8 && stricmp(buffer+(count-8), "\\System32") == 0)
   {
     count-= 8;
@@ -1090,7 +1127,7 @@ static const char **init_default_directories(MEM_ROOT *alloc)
   errors += add_directory(alloc, "/etc/mysql/", dirs);
 
 #if defined(DEFAULT_SYSCONFDIR)
-  if (DEFAULT_SYSCONFDIR != "")
+  if (DEFAULT_SYSCONFDIR[0])
     errors += add_directory(alloc, DEFAULT_SYSCONFDIR, dirs);
 #endif /* DEFAULT_SYSCONFDIR */
 

@@ -72,7 +72,7 @@ delimiter ;//
 CALL sp1_thisisaveryverylongname234872934_thisisaveryverylongnameabcde( 'abc' );
 
 --replace_column 5 <modified> 6 <created>
-SHOW PROCEDURE STATUS;
+SHOW PROCEDURE STATUS WHERE db = 'db_storedproc';
 
 --disable_warnings
 DROP PROCEDURE IF EXISTS sp1;
@@ -90,7 +90,7 @@ delimiter ;//
 CALL sp1( 34 );
 
 --replace_column 5 <modified> 6 <created>
-SHOW PROCEDURE STATUS;
+SHOW PROCEDURE STATUS WHERE db = 'db_storedproc';
 
 --disable_warnings
 DROP PROCEDURE IF EXISTS sp1;
@@ -108,7 +108,7 @@ delimiter ;//
 CALL sp1( 34 );
 
 --replace_column 5 <modified> 6 <created>
-SHOW PROCEDURE STATUS;
+SHOW PROCEDURE STATUS WHERE db = 'db_storedproc';
 
 --disable_warnings
 DROP PROCEDURE IF EXISTS sp1;
@@ -126,7 +126,7 @@ delimiter ;//
 CALL sp1( 34 );
 
 --replace_column 5 <modified> 6 <created>
-SHOW PROCEDURE STATUS;
+SHOW PROCEDURE STATUS WHERE db = 'db_storedproc';
 
 --disable_warnings
 DROP PROCEDURE IF EXISTS sp1;
@@ -191,9 +191,9 @@ BEGIN
 END//
 delimiter ;//
 --replace_column 5 <modified> 6 <created>
-SHOW PROCEDURE STATUS;
+SHOW PROCEDURE STATUS WHERE db = 'db_storedproc';
 --replace_column 5 <modified> 6 <created>
-SHOW FUNCTION STATUS;
+SHOW FUNCTION STATUS WHERE db = 'db_storedproc';
 
 let $test_value = 1.7976931348623157493578e+308;
 --source suite/funcs_1/storedproc/param_check.inc
@@ -245,7 +245,7 @@ delimiter ;//
 CALL sp1( "value1" );
 
 --replace_column 5 <modified> 6 <created>
-SHOW PROCEDURE STATUS;
+SHOW PROCEDURE STATUS WHERE db = 'db_storedproc';
 
 --disable_warnings
 DROP PROCEDURE IF EXISTS sp1;
@@ -262,7 +262,7 @@ delimiter ;//
 CALL sp1( "value1, value1" );
 
 --replace_column 5 <modified> 6 <created>
-SHOW PROCEDURE STATUS;
+SHOW PROCEDURE STATUS WHERE db = 'db_storedproc';
 
 --disable_warnings
 DROP PROCEDURE IF EXISTS sp1;
@@ -279,7 +279,7 @@ delimiter ;//
 CALL sp1( "value1" );
 
 --replace_column 5 <modified> 6 <created>
-SHOW PROCEDURE STATUS;
+SHOW PROCEDURE STATUS WHERE db = 'db_storedproc';
 
 --disable_warnings
 DROP PROCEDURE IF EXISTS sp1;

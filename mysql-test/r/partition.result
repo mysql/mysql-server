@@ -1,5 +1,9 @@
 SET @old_general_log= @@global.general_log;
 drop table if exists t1, t2;
+CREATE TABLE t1 (a INT, FOREIGN KEY (a) REFERENCES t0 (a))
+ENGINE=MyISAM
+PARTITION BY HASH (a);
+ERROR HY000: Foreign key clause is not yet supported in conjunction with partitioning
 CREATE TABLE t1 (
 pk INT NOT NULL AUTO_INCREMENT,
 PRIMARY KEY (pk)
@@ -1907,5 +1911,18 @@ select count(*) from t1;
 count(*)
 288
 drop table t1;
+#
+# Bug#42944: partition not pruned correctly
+#
+CREATE TABLE t1 (a int) PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100),
+PARTITION p1 VALUES LESS THAN (200),
+PARTITION p2 VALUES LESS THAN (300),
+PARTITION p3 VALUES LESS THAN MAXVALUE);
+INSERT INTO t1 VALUES (10), (100), (200), (300), (400);
+EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a>=200;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p2,p3	ALL	NULL	NULL	NULL	NULL	3	Using where
+DROP TABLE t1;
 End of 5.1 tests
 SET @@global.general_log= @old_general_log;
