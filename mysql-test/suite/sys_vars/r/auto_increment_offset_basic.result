@@ -55,13 +55,13 @@ SELECT @@session.auto_increment_offset;
 '#------------------FN_DYNVARS_002_05-----------------------#'
 SET @@global.auto_increment_offset = 0;
 Warnings:
-Warning	1292	Truncated incorrect auto-increment-offset value: '0'
+Warning	1292	Truncated incorrect auto_increment_offset value: '0'
 SELECT @@global.auto_increment_offset;
 @@global.auto_increment_offset
 1
 SET @@global.auto_increment_offset = -1024;
 Warnings:
-Warning	1292	Truncated incorrect auto-increment-offset value: '0'
+Warning	1292	Truncated incorrect auto_increment_offset value: '-1024'
 SELECT @@global.auto_increment_offset;
 @@global.auto_increment_offset
 1
@@ -88,13 +88,13 @@ SELECT @@global.auto_increment_offset;
 65535
 SET @@session.auto_increment_offset = 0;
 Warnings:
-Warning	1292	Truncated incorrect auto-increment-offset value: '0'
+Warning	1292	Truncated incorrect auto_increment_offset value: '0'
 SELECT @@session.auto_increment_offset;
 @@session.auto_increment_offset
 1
 SET @@session.auto_increment_offset = -2;
 Warnings:
-Warning	1292	Truncated incorrect auto-increment-offset value: '0'
+Warning	1292	Truncated incorrect auto_increment_offset value: '-2'
 SELECT @@session.auto_increment_offset;
 @@session.auto_increment_offset
 1
@@ -139,7 +139,7 @@ SELECT @@global.auto_increment_offset;
 1
 SET @@global.auto_increment_offset = FALSE;
 Warnings:
-Warning	1292	Truncated incorrect auto-increment-offset value: '0'
+Warning	1292	Truncated incorrect auto_increment_offset value: '0'
 SELECT @@global.auto_increment_offset;
 @@global.auto_increment_offset
 1

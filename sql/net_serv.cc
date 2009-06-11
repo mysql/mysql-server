@@ -250,7 +250,7 @@ static int net_data_is_ready(my_socket sd)
 
   tv.tv_sec= tv.tv_usec= 0;
 
-  if ((res= select(sd+1, &sfds, NULL, NULL, &tv)) < 0)
+  if ((res= select((int) (sd + 1), &sfds, NULL, NULL, &tv)) < 0)
     return 0;
   else
     return test(res ? FD_ISSET(sd, &sfds) : 0);
@@ -443,7 +443,7 @@ net_write_command(NET *net,uchar command,
 		  const uchar *header, size_t head_len,
 		  const uchar *packet, size_t len)
 {
-  ulong length=len+1+head_len;			/* 1 extra byte for command */
+  size_t length=len+1+head_len;			/* 1 extra byte for command */
   uchar buff[NET_HEADER_SIZE+1];
   uint header_size=NET_HEADER_SIZE+1;
   int rc;
@@ -517,7 +517,7 @@ net_write_buff(NET *net, const uchar *packet, ulong len)
 {
   ulong left_length;
   if (net->compress && net->max_packet > MAX_PACKET_LENGTH)
-    left_length= MAX_PACKET_LENGTH - (net->write_pos - net->buff);
+    left_length= (ulong) (MAX_PACKET_LENGTH - (net->write_pos - net->buff));
   else
     left_length= (ulong) (net->buff_end - net->write_pos);
 

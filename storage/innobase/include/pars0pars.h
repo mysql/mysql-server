@@ -684,7 +684,7 @@ struct for_node_struct{
 					definition */
 	que_node_t*	loop_start_limit;/* initial value of loop variable */
 	que_node_t*	loop_end_limit;	/* end value of loop variable */
-	int		loop_end_value;	/* evaluated value for the end value:
+	lint		loop_end_value;	/* evaluated value for the end value:
 					it is calculated only when the loop
 					is entered, and will not change within
 					the loop */

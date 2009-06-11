@@ -76,7 +76,7 @@ SELECT @@global.max_allowed_packet;
 1024
 SET @@global.max_allowed_packet = -1024;
 Warnings:
-Warning	1292	Truncated incorrect max_allowed_packet value: '0'
+Warning	1292	Truncated incorrect max_allowed_packet value: '-1024'
 SELECT @@global.max_allowed_packet;
 @@global.max_allowed_packet
 1024

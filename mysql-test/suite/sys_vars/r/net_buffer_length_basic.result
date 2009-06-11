@@ -50,7 +50,7 @@ SELECT @@global.net_buffer_length;
 1024
 SET @@global.net_buffer_length = -1024;
 Warnings:
-Warning	1292	Truncated incorrect net_buffer_length value: '0'
+Warning	1292	Truncated incorrect net_buffer_length value: '-1024'
 SELECT @@global.net_buffer_length;
 @@global.net_buffer_length
 1024

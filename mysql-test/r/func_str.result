@@ -1351,10 +1351,10 @@ cast(rtrim(ltrim('  20.06 ')) as decimal(19,2))
 20.06
 select conv("18383815659218730760",10,10) + 0;
 conv("18383815659218730760",10,10) + 0
-1.8383815659219e+19
+1.83838156592187e+19
 select "18383815659218730760" + 0;
 "18383815659218730760" + 0
-1.8383815659219e+19
+1.83838156592187e+19
 CREATE TABLE t1 (code varchar(10));
 INSERT INTO t1 VALUES ('a12'), ('A12'), ('a13');
 SELECT ASCII(code), code FROM t1 WHERE code='A12';
@@ -2519,4 +2519,24 @@ def					format(a, 2)	253	49	4	Y	0	31	8
 format(a, 2)
 1.33
 drop table t1;
+CREATE TABLE t1 (c DATE, aa VARCHAR(30));
+INSERT INTO t1 VALUES ('2008-12-31','aaaaaa');
+SELECT DATE_FORMAT(c, GET_FORMAT(DATE, 'eur')) h, CONCAT(UPPER(aa),', ', aa) i FROM t1;
+h	i
+31.12.2008	AAAAAA, aaaaaa
+DROP TABLE t1;
 End of 5.0 tests
+drop table if exists t1;
+create table t1(f1 tinyint default null)engine=myisam;
+insert into t1 values (-1),(null);
+explain select 1 as a from t1,(select decode(f1,f1) as b from t1) a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	Using join buffer
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	
+explain select 1 as a from t1,(select encode(f1,f1) as b from t1) a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	Using join buffer
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	
+drop table t1;

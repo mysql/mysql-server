@@ -61,7 +61,7 @@ SELECT @@global.myisam_sort_buffer_size  ;
 4
 SET @@global.myisam_sort_buffer_size   = -1024;
 Warnings:
-Warning	1292	Truncated incorrect myisam_sort_buffer_size value: '0'
+Warning	1292	Truncated incorrect myisam_sort_buffer_size value: '-1024'
 SELECT @@global.myisam_sort_buffer_size  ;
 @@global.myisam_sort_buffer_size
 4
@@ -102,7 +102,7 @@ SELECT @@session.myisam_sort_buffer_size  ;
 4
 SET @@session.myisam_sort_buffer_size   = -2;
 Warnings:
-Warning	1292	Truncated incorrect myisam_sort_buffer_size value: '0'
+Warning	1292	Truncated incorrect myisam_sort_buffer_size value: '-2'
 SELECT @@session.myisam_sort_buffer_size  ;
 @@session.myisam_sort_buffer_size
 4

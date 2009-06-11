@@ -1,7 +1,10 @@
 
 # The server need to be started in $MYSQLTEST_VARDIR since it
 # uses ../../std_data/
--- source include/uses_vardir.inc
+--source include/uses_vardir.inc
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
 
 #
 # This test is a bit tricky as we can't use backup table to overwrite an old
@@ -57,6 +60,9 @@ unlock tables;
 connection con1;
 reap;
 drop table t5;
+connection default;
+disconnect con1;
+disconnect con2;
 remove_file $MYSQLTEST_VARDIR/tmp/t1.MYD;
 remove_file $MYSQLTEST_VARDIR/tmp/t2.MYD;
 remove_file $MYSQLTEST_VARDIR/tmp/t3.MYD;
@@ -67,6 +73,7 @@ remove_file $MYSQLTEST_VARDIR/tmp/t2.frm;
 remove_file $MYSQLTEST_VARDIR/tmp/t3.frm;
 remove_file $MYSQLTEST_VARDIR/tmp/t4.frm;
 remove_file $MYSQLTEST_VARDIR/tmp/t5.frm;
+
 
 # End of 4.1 tests
 # End of 5.0 tests
@@ -87,4 +94,11 @@ DROP    TABLE `t+1`;
 RESTORE TABLE `t+1` FROM '../../tmp';
 SELECT * FROM `t+1`;
 DROP    TABLE `t+1`;
+#
+remove_file $MYSQLTEST_VARDIR/tmp/t@002b1.frm;
+remove_file $MYSQLTEST_VARDIR/tmp/t@002b1.MYD;
+
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc
 

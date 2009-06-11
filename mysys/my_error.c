@@ -252,11 +252,16 @@ const char **my_error_unregister(int first, int last)
 
 void my_error_unregister_all(void)
 {
-  struct my_err_head    *list, *next;
-  for (list= my_errmsgs_globerrs.meh_next; list; list= next)
+  struct my_err_head *cursor, *saved_next;
+
+  for (cursor= my_errmsgs_globerrs.meh_next; cursor != NULL; cursor= saved_next)
   {
-    next= list->meh_next;
-    my_free((uchar*) list, MYF(0));
+    /* We need this ptr, but we're about to free its container, so save it. */
+    saved_next= cursor->meh_next;
+
+    my_free((uchar*) cursor, MYF(0));
   }
+  my_errmsgs_globerrs.meh_next= NULL;  /* Freed in first iteration above. */
+
   my_errmsgs_list= &my_errmsgs_globerrs;
 }

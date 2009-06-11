@@ -328,7 +328,7 @@ static my_bool my_read_charset_file(const char *filename, myf myflags)
 {
   uchar *buf;
   int  fd;
-  uint len, tmp_len;
+  size_t len, tmp_len;
   MY_STAT stat_info;
   
   if (!my_stat(filename, &stat_info, MYF(myflags)) ||
@@ -494,29 +494,40 @@ static CHARSET_INFO *get_internal_charset(uint cs_number, myf flags)
 {
   char  buf[FN_REFLEN];
   CHARSET_INFO *cs;
-  /*
-    To make things thread safe we are not allowing other threads to interfere
-    while we may changing the cs_info_table
-  */
-  pthread_mutex_lock(&THR_LOCK_charset);
+
   if ((cs= all_charsets[cs_number]))
   {
-    if (!(cs->state & MY_CS_COMPILED) && !(cs->state & MY_CS_LOADED))
+    if (cs->state & MY_CS_READY)  /* if CS is already initialized */
+        return cs;
+
+    /*
+      To make things thread safe we are not allowing other threads to interfere
+      while we may changing the cs_info_table
+    */
+    pthread_mutex_lock(&THR_LOCK_charset);
+
+    if (!(cs->state & (MY_CS_COMPILED|MY_CS_LOADED))) /* if CS is not in memory */
     {
       strxmov(get_charsets_dir(buf), cs->csname, ".xml", NullS);
       my_read_charset_file(buf,flags);
     }
-    cs= (cs->state & MY_CS_AVAILABLE) ? cs : NULL;
-  }
-  if (cs && !(cs->state & MY_CS_READY))
-  {
-    if ((cs->cset->init && cs->cset->init(cs, cs_alloc)) ||
-        (cs->coll->init && cs->coll->init(cs, cs_alloc)))
-      cs= NULL;
+
+    if (cs->state & MY_CS_AVAILABLE)
+    {
+      if (!(cs->state & MY_CS_READY))
+      {
+        if ((cs->cset->init && cs->cset->init(cs, cs_alloc)) ||
+            (cs->coll->init && cs->coll->init(cs, cs_alloc)))
+          cs= NULL;
+        else
+          cs->state|= MY_CS_READY;
+      }
+    }
     else
-      cs->state|= MY_CS_READY;
+      cs= NULL;
+
+    pthread_mutex_unlock(&THR_LOCK_charset);
   }
-  pthread_mutex_unlock(&THR_LOCK_charset);
   return cs;
 }
 

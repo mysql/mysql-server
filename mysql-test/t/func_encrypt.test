@@ -88,3 +88,18 @@ select hex(des_decrypt(des_encrypt("hello","hidden")));
 explain extended select des_decrypt(des_encrypt("hello",4),'password2'), des_decrypt(des_encrypt("hello","hidden"));
 
 # End of 4.1 tests
+
+#
+# Bug#44365 valgrind warnings with encrypt() function
+#
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1 (f1 smallint(6) default null, f2  mediumtext character set utf8)
+engine=myisam default charset=latin1;
+insert into t1 values (null,'contraction\'s');
+insert into t1 values (-15818,'requirement\'s');
+--disable_result_log
+select encrypt(f1,f2) as a from t1,(select encrypt(f1,f2) as b from t1) a;
+--enable_result_log
+drop table t1;

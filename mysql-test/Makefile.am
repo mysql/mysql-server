@@ -71,17 +71,17 @@ SUBDIRS =	lib/My/SafeProcess
 EXTRA_DIST =	README \
 		valgrind.supp \
 		$(test_SCRIPTS) \
-		$(nobase_test_DATA)
+		$(nobase_test_DATA) 
 
 # List of directories containing test + result files and the
 # related test data files that should be copied
-TEST_DIRS = t r include std_data std_data/parts \
+TEST_DIRS = t r include std_data std_data/parts collections \
 	std_data/ndb_backup50 std_data/ndb_backup51 \
 	std_data/ndb_backup51_data_be std_data/ndb_backup51_data_le \
 	std_data/funcs_1 \
 	extra/binlog_tests/ extra/rpl_tests \
 	suite/binlog suite/binlog/t suite/binlog/r suite/binlog/std_data \
-	suite/bugs/data suite/bugs/t suite/bugs/r \
+	suite/bugs suite/bugs/data suite/bugs/t suite/bugs/r \
 	suite/federated \
 	suite/funcs_1 suite/funcs_1/bitdata \
 	suite/funcs_1/include suite/funcs_1/lib suite/funcs_1/r \
@@ -90,7 +90,7 @@ TEST_DIRS = t r include std_data std_data/parts \
 	suite/funcs_2 suite/funcs_2/charset suite/funcs_2/data \
 	suite/funcs_2/include suite/funcs_2/lib suite/funcs_2/r \
 	suite/funcs_2/t \
-	suite/jp suite/jp/t suite/jp/r suite/jp/std_data \
+	suite/jp suite/jp/t suite/jp/r suite/jp/std_data suite/jp/include \
 	suite/manual/t suite/manual/r \
 	suite/ndb_team suite/ndb_team/t suite/ndb_team/r \
 	suite/rpl suite/rpl/data suite/rpl/include suite/rpl/r \

@@ -728,3 +728,16 @@ unlock tables;
 drop table t1;
 handler t1 read a next;
 ERROR 42S02: Unknown table 't1' in HANDLER
+drop table if exists t1;
+create table t1 (a int);
+insert into t1 values (1);
+handler t1 open;
+alter table t1 engine=memory;
+handler t1 read a next;
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+handler t1 close;
+drop table t1;
+USE information_schema;
+HANDLER COLUMNS OPEN;
+ERROR HY000: Incorrect usage of HANDLER OPEN and information_schema
+USE test;

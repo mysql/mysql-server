@@ -1382,9 +1382,9 @@ int Old_rows_log_event::get_data_size()
                   (m_rows_cur - m_rows_buf););
   int data_size= ROWS_HEADER_LEN;
   data_size+= no_bytes_in_map(&m_cols);
-  data_size+= end - buf;
+  data_size+= (uint) (end - buf);
 
-  data_size+= (m_rows_cur - m_rows_buf);
+  data_size+= (uint) (m_rows_cur - m_rows_buf);
   return data_size;
 }
 

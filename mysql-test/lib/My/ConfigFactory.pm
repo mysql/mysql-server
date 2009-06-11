@@ -116,8 +116,8 @@ sub fix_tmpdir {
 
 sub fix_log_error {
   my ($self, $config, $group_name, $group)= @_;
-  my $dir= dirname($group->value('datadir'));
-  return "$dir/mysqld.err";
+  my $dir= $self->{ARGS}->{vardir};
+  return "$dir/log/$group_name.err";
 }
 
 sub fix_log {
@@ -203,7 +203,7 @@ my @mysqld_rules=
  { '#host' => \&fix_host },
  { 'port' => \&fix_port },
  { 'socket' => \&fix_socket },
- { 'log-error' => \&fix_log_error },
+ { '#log-error' => \&fix_log_error },
  { 'log' => \&fix_log },
  { 'log-slow-queries' => \&fix_log_slow_queries },
  { '#user' => sub { return shift->{ARGS}->{user} || ""; } },
@@ -389,7 +389,7 @@ sub post_check_embedded_group {
 
   my @no_copy =
     (
-     'log-error', # Embedded server writes stderr to mysqltest's log file
+     '#log-error', # Embedded server writes stderr to mysqltest's log file
      'slave-net-timeout', # Embedded server are not build with replication
     );
 

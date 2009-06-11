@@ -65,7 +65,7 @@ SELECT @@global.group_concat_max_len;
 4
 SET @@global.group_concat_max_len = -1024;
 Warnings:
-Warning	1292	Truncated incorrect group_concat_max_len value: '0'
+Warning	1292	Truncated incorrect group_concat_max_len value: '-1024'
 SELECT @@global.group_concat_max_len;
 @@global.group_concat_max_len
 4
@@ -91,7 +91,7 @@ SELECT @@session.group_concat_max_len;
 4
 SET @@session.group_concat_max_len = -2;
 Warnings:
-Warning	1292	Truncated incorrect group_concat_max_len value: '0'
+Warning	1292	Truncated incorrect group_concat_max_len value: '-2'
 SELECT @@session.group_concat_max_len;
 @@session.group_concat_max_len
 4

@@ -5614,7 +5614,7 @@ ER_SP_WRONG_NAME 42000
         eng "Incorrect routine name '%-.192s'"
         ger "Ungültiger Routinenname '%-.192s'"
 ER_TABLE_NEEDS_UPGRADE
-        eng "Table upgrade required. Please do \"REPAIR TABLE `%-.32s`\" to fix it!"
+        eng "Table upgrade required. Please do \"REPAIR TABLE `%-.32s`\" or dump/reload to fix it!"
         ger "Tabellenaktualisierung erforderlich. Bitte zum Reparieren \"REPAIR TABLE `%-.32s`\" eingeben!"
 ER_SP_NO_AGGREGATE 42000
         eng "AGGREGATE is not supported for stored functions"
@@ -5775,9 +5775,9 @@ ER_PARTITION_MGMT_ON_NONPARTITIONED
         ger "Partitionsverwaltung einer nicht partitionierten Tabelle ist nicht möglich"
         swe "Partitioneringskommando på en opartitionerad tabell är inte möjligt"
 ER_FOREIGN_KEY_ON_PARTITIONED
-        eng "Foreign key condition is not yet supported in conjunction with partitioning"
+        eng "Foreign key clause is not yet supported in conjunction with partitioning"
         ger "Fremdschlüssel-Beschränkungen sind im Zusammenhang mit Partitionierung nicht zulässig"
-        swe "Foreign key villkor är inte ännu implementerad i kombination med partitionering"
+        swe "Foreign key klausul är inte ännu implementerad i kombination med partitionering"
 ER_DROP_PARTITION_NON_EXISTENT
         eng "Error in list of partitions to %-.64s"
         ger "Fehler in der Partitionsliste bei %-.64s"
@@ -5791,13 +5791,13 @@ ER_COALESCE_ONLY_ON_HASH_PARTITION
         ger "COALESCE PARTITION kann nur auf HASH- oder KEY-Partitionen benutzt werden"
         swe "COALESCE PARTITION kan bara användas på HASH/KEY partitioner"
 ER_REORG_HASH_ONLY_ON_SAME_NO
-        eng "REORGANISE PARTITION can only be used to reorganise partitions not to change their numbers"
+        eng "REORGANIZE PARTITION can only be used to reorganize partitions not to change their numbers"
         ger "REORGANIZE PARTITION kann nur zur Reorganisation von Partitionen verwendet werden, nicht, um ihre Nummern zu ändern"
-        swe "REORGANISE PARTITION kan bara användas för att omorganisera partitioner, inte för att ändra deras antal"
+        swe "REORGANIZE PARTITION kan bara användas för att omorganisera partitioner, inte för att ändra deras antal"
 ER_REORG_NO_PARAM_ERROR
-        eng "REORGANISE PARTITION without parameters can only be used on auto-partitioned tables using HASH PARTITIONs"
+        eng "REORGANIZE PARTITION without parameters can only be used on auto-partitioned tables using HASH PARTITIONs"
         ger "REORGANIZE PARTITION ohne Parameter kann nur für auto-partitionierte Tabellen verwendet werden, die HASH-Partitionierung benutzen"
-        swe "REORGANISE PARTITION utan parametrar kan bara användas på auto-partitionerade tabeller som använder HASH partitionering"
+        swe "REORGANIZE PARTITION utan parametrar kan bara användas på auto-partitionerade tabeller som använder HASH partitionering"
 ER_ONLY_ON_RANGE_LIST_PARTITION
         eng "%-.64s PARTITION can only be used on RANGE/LIST partitions"
         ger "%-.64s PARTITION kann nur für RANGE- oder LIST-Partitionen verwendet werden"
@@ -5815,7 +5815,7 @@ ER_COALESCE_PARTITION_NO_PARTITION
         ger "Zumindest eine Partition muss mit COALESCE PARTITION zusammengefügt werden"
         swe "Åtminstone en partition måste slås ihop vid COALESCE PARTITION"
 ER_REORG_PARTITION_NOT_EXIST
-        eng "More partitions to reorganise than there are partitions"
+        eng "More partitions to reorganize than there are partitions"
         ger "Es wurde versucht, mehr Partitionen als vorhanden zu reorganisieren"
         swe "Fler partitioner att reorganisera än det finns partitioner"
 ER_SAME_NAME_PARTITION
@@ -5827,7 +5827,7 @@ ER_NO_BINLOG_ERROR
         ger "Es es nicht erlaubt, bei diesem Befehl binlog abzuschalten"
         swe "Det är inte tillåtet att stänga av binlog på detta kommando"
 ER_CONSECUTIVE_REORG_PARTITIONS
-        eng "When reorganising a set of partitions they must be in consecutive order"
+        eng "When reorganizing a set of partitions they must be in consecutive order"
         ger "Bei der Reorganisation eines Satzes von Partitionen müssen diese in geordneter Reihenfolge vorliegen"
         swe "När ett antal partitioner omorganiseras måste de vara i konsekutiv ordning"
 ER_REORG_OUTSIDE_RANGE
@@ -6154,3 +6154,26 @@ WARN_PLUGIN_BUSY
 
 ER_VARIABLE_IS_READONLY
   eng "%s variable '%s' is read-only. Use SET %s to assign the value"
+
+ER_WARN_ENGINE_TRANSACTION_ROLLBACK
+  eng "Storage engine %s does not support rollback for this statement. Transaction rolled back and must be restarted"
+
+ER_SLAVE_HEARTBEAT_FAILURE
+  eng "Unexpected master's heartbeat data: %s"
+ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE
+  eng "The requested value for the heartbeat period %s %s"
+
+ER_NDB_REPLICATION_SCHEMA_ERROR
+        eng "Bad schema for mysql.ndb_replication table. Message: %-.64s"
+ER_CONFLICT_FN_PARSE_ERROR
+        eng "Error in parsing conflict function. Message: %-.64s"
+ER_EXCEPTIONS_WRITE_ERROR
+        eng "Write to exceptions table failed. Message: %-.128s""
+
+ER_TOO_LONG_TABLE_COMMENT
+  eng "Comment for table '%-.64s' is too long (max = %lu)"
+  por "Comentário para a tabela '%-.64s' é longo demais (max = %lu)"
+
+ER_TOO_LONG_FIELD_COMMENT
+  eng "Comment for field '%-.64s' is too long (max = %lu)"
+  por "Comentário para o campo '%-.64s' é longo demais (max = %lu)"

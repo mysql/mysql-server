@@ -9,7 +9,7 @@ AC_CANONICAL_SYSTEM
 # remember to also update version.c in ndb
 #
 # When changing major version number please also check switch statement
-# in client/mysqlbinlog.cc:check_master_version().
+# in mysqlbinlog::check_master_version().
 AM_INIT_AUTOMAKE(mysql, 5.4.1-beta)
 AM_CONFIG_HEADER([include/config.h:config.h.in])
 
@@ -36,6 +36,7 @@ MYSQL_NUMERIC_VERSION=`echo $MYSQL_NO_DASH_VERSION | sed -e "s|[[a-z]][[a-z0-9]]
 MYSQL_BASE_VERSION=`echo $MYSQL_NUMERIC_VERSION | sed -e "s|\.[[^.]]*$||"`
 MYSQL_VERSION_ID=`echo $MYSQL_NUMERIC_VERSION | \
     awk -F. '{printf "%d%0.2d%0.2d", $1, $2, $3}'`
+MYSQL_COPYRIGHT_YEAR=`date '+%Y'`
 
 # Add previous major version for debian package upgrade path
 MYSQL_PREVIOUS_BASE_VERSION=5.0
@@ -71,6 +72,7 @@ AC_SUBST(MYSQL_NO_DASH_VERSION)
 AC_SUBST(MYSQL_BASE_VERSION)
 AC_SUBST(MYSQL_VERSION_ID)
 AC_SUBST(MYSQL_PREVIOUS_BASE_VERSION)
+AC_SUBST(MYSQL_COPYRIGHT_YEAR)
 AC_SUBST(PROTOCOL_VERSION)
 AC_DEFINE_UNQUOTED([PROTOCOL_VERSION], [$PROTOCOL_VERSION],
                    [mysql client protocol version])
@@ -816,7 +818,7 @@ AC_TYPE_SIZE_T
 AC_HEADER_DIRENT
 AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
-AC_CHECK_HEADERS(fcntl.h float.h floatingpoint.h ieeefp.h limits.h \
+AC_CHECK_HEADERS(fcntl.h fenv.h float.h floatingpoint.h ieeefp.h limits.h \
  memory.h pwd.h select.h \
  stdlib.h stddef.h \
  strings.h string.h synch.h sys/mman.h sys/socket.h netinet/in.h arpa/inet.h \
@@ -839,19 +841,17 @@ AC_CHECK_LIB(nsl_r, gethostbyname_r, [],
   AC_CHECK_LIB(nsl, gethostbyname_r))
 AC_CHECK_FUNC(gethostbyname_r)
 
-AC_CHECK_FUNC(setsockopt, , AC_CHECK_LIB(socket, setsockopt))
-AC_CHECK_FUNC(yp_get_default_domain, ,
-  AC_CHECK_LIB(nsl, yp_get_default_domain))
-AC_CHECK_FUNC(p2open, , AC_CHECK_LIB(gen, p2open))
+AC_SEARCH_LIBS(setsockopt, socket)
 # This may get things to compile even if bind-8 is installed
-AC_CHECK_FUNC(bind, , AC_CHECK_LIB(bind, bind))
+AC_SEARCH_LIBS(bind, bind)
 # Check if crypt() exists in libc or libcrypt, sets LIBS if needed
 AC_SEARCH_LIBS(crypt, crypt, AC_DEFINE(HAVE_CRYPT, 1, [crypt]))
 # See if we need a library for address lookup.
 AC_SEARCH_LIBS(inet_aton, [socket nsl resolv])
 
 # For the sched_yield() function on Solaris
-AC_CHECK_FUNC(sched_yield, , AC_CHECK_LIB(posix4, sched_yield))
+AC_SEARCH_LIBS(sched_yield, posix4, 
+  AC_DEFINE(HAVE_SCHED_YIELD, 1, [sched_yield]))
 
 MYSQL_CHECK_ZLIB_WITH_COMPRESS
 
@@ -973,7 +973,7 @@ AC_MSG_RESULT([$USE_PSTACK])
 # Check for gtty if termio.h doesn't exists
 if test "$ac_cv_header_termio_h" = "no" -a "$ac_cv_header_termios_h" = "no"
 then
-  AC_CHECK_FUNC(gtty, , AC_CHECK_LIB(compat, gtty))
+  AC_SEARCH_LIBS(gtty, compat)
 fi
 
 # We make a special variable for non-threaded version of LIBS to avoid
@@ -2083,7 +2083,7 @@ AC_FUNC_VPRINTF
 
 AC_CHECK_FUNCS(alarm bcmp bfill bmove bsearch bzero \
   chsize cuserid fchmod fcntl \
-  fconvert fdatasync finite fpresetsticky fpsetmask fsync ftruncate \
+  fconvert fdatasync fesetround finite fpresetsticky fpsetmask fsync ftruncate \
   getcwd gethostbyaddr_r gethostbyname_r getpass getpassphrase getpwnam \
   getpwuid getrlimit getrusage getwd index initgroups isnan \
   localtime_r gethrtime gmtime_r \
@@ -2128,6 +2128,27 @@ esac
 AC_MSG_CHECKING(for isinf in <math.h>)
 AC_TRY_LINK([#include <math.h>], [float f = 0.0; int r = isinf(f); return r],
   AC_MSG_RESULT(yes)
+  AC_MSG_CHECKING(whether isinf() is safe to use in C code)
+  AC_TRY_RUN([
+#include <math.h>
+int main()
+{
+  double a= 10.0;
+  double b= 1e308;
+
+  return !isinf(a * b);
+}
+],
+  [AC_MSG_RESULT(yes)],
+  [AC_MSG_RESULT(no)
+   AC_DEFINE([HAVE_BROKEN_ISINF], [1],
+             [Define to 1 if isinf() uses 80-bit register for intermediate values])
+  ],
+  [
+# Let's be optimistic when cross-compiling, since the only compiler known
+# to be affected by this isinf() bug is GCC 4.3 on 32-bit x86.
+   AC_MSG_RESULT([[cross-compiling, assuming 'yes']])
+  ])
   AC_MSG_CHECKING(whether isinf() can be used in C++ code)
   AC_LANG_SAVE
   AC_LANG_CPLUSPLUS

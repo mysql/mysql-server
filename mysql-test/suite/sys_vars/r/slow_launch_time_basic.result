@@ -36,6 +36,8 @@ SELECT @@global.slow_launch_time;
 65536
 '#--------------------FN_DYNVARS_150_04-------------------------#'
 SET @@global.slow_launch_time = -1;
+Warnings:
+Warning	1292	Truncated incorrect slow_launch_time value: '-1'
 SELECT @@global.slow_launch_time;
 @@global.slow_launch_time
 0
@@ -57,6 +59,8 @@ SELECT @@global.slow_launch_time;
 @@global.slow_launch_time
 31536000
 SET @@global.slow_launch_time = -1024;
+Warnings:
+Warning	1292	Truncated incorrect slow_launch_time value: '-1024'
 SELECT @@global.slow_launch_time;
 @@global.slow_launch_time
 0

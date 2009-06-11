@@ -128,6 +128,7 @@ static bool wait_for_relay_log_space(Relay_log_info* rli);
 static inline bool io_slave_killed(THD* thd,Master_info* mi);
 static inline bool sql_slave_killed(THD* thd,Relay_log_info* rli);
 static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type);
+static void print_slave_skip_errors(void);
 static int safe_connect(THD* thd, MYSQL* mysql, Master_info* mi);
 static int safe_reconnect(THD* thd, MYSQL* mysql, Master_info* mi,
                           bool suppress_warnings);
@@ -142,8 +143,8 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi);
 static Log_event* next_event(Relay_log_info* rli);
 static int queue_event(Master_info* mi,const char* buf,ulong event_len);
 static int terminate_slave_thread(THD *thd,
-                                  pthread_mutex_t* term_lock,
-                                  pthread_cond_t* term_cond,
+                                  pthread_mutex_t *term_lock,
+                                  pthread_cond_t *term_cond,
                                   volatile uint *slave_running,
                                   bool skip_lock);
 static bool check_io_slave_killed(THD *thd, Master_info *mi, const char *info);
@@ -232,6 +233,15 @@ int init_slave()
   active_mi= new Master_info;
 
   /*
+    If --slave-skip-errors=... was not used, the string value for the
+    system variable has not been set up yet. Do it now.
+  */
+  if (!use_slave_mask)
+  {
+    print_slave_skip_errors();
+  }
+
+  /*
     If master_host is not specified, try to read it from the master_info file.
     If master_host is specified, create the master_info file if it doesn't
     exists.
@@ -311,7 +321,7 @@ static void print_slave_skip_errors(void)
     char *bend= buff + sizeof(slave_skip_error_names);
     int  errnum;
 
-    for (errnum= 1; errnum < MAX_SLAVE_ERROR; errnum++)
+    for (errnum= 0; errnum < MAX_SLAVE_ERROR; errnum++)
     {
       if (bitmap_is_set(&slave_error_mask, errnum))
       {
@@ -361,6 +371,7 @@ void init_slave_skip_errors(const char* arg)
   if (!my_strnncoll(system_charset_info,(uchar*)arg,4,(const uchar*)"all",4))
   {
     bitmap_set_all(&slave_error_mask);
+    print_slave_skip_errors();
     DBUG_VOID_RETURN;
   }
   for (p= arg ; *p; )
@@ -388,22 +399,22 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool skip_lock)
   int error,force_all = (thread_mask & SLAVE_FORCE_ALL);
   pthread_mutex_t *sql_lock = &mi->rli.run_lock, *io_lock = &mi->run_lock;
 
-  if ((thread_mask & (SLAVE_IO|SLAVE_FORCE_ALL)))
+  if (thread_mask & (SLAVE_IO|SLAVE_FORCE_ALL))
   {
     DBUG_PRINT("info",("Terminating IO thread"));
     mi->abort_slave=1;
-    if ((error=terminate_slave_thread(mi->io_thd,io_lock,
+    if ((error=terminate_slave_thread(mi->io_thd, io_lock,
                                       &mi->stop_cond,
                                       &mi->slave_running,
                                       skip_lock)) &&
         !force_all)
       DBUG_RETURN(error);
   }
-  if ((thread_mask & (SLAVE_SQL|SLAVE_FORCE_ALL)))
+  if (thread_mask & (SLAVE_SQL|SLAVE_FORCE_ALL))
   {
     DBUG_PRINT("info",("Terminating SQL thread"));
     mi->rli.abort_slave=1;
-    if ((error=terminate_slave_thread(mi->rli.sql_thd,sql_lock,
+    if ((error=terminate_slave_thread(mi->rli.sql_thd, sql_lock,
                                       &mi->rli.stop_cond,
                                       &mi->rli.slave_running,
                                       skip_lock)) &&
@@ -441,29 +452,44 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool skip_lock)
           the condition. In this case, it is assumed that the calling
           function acquires the lock before calling this function.
 
-   @retval 0 All OK
+   @retval 0 All OK ER_SLAVE_NOT_RUNNING otherwise.
+
+   @note  If the executing thread has to acquire term_lock (skip_lock
+          is false), the negative running status does not represent
+          any issue therefore no error is reported.
+
  */
 static int
 terminate_slave_thread(THD *thd,
-                       pthread_mutex_t* term_lock,
-                       pthread_cond_t* term_cond,
+                       pthread_mutex_t *term_lock,
+                       pthread_cond_t *term_cond,
                        volatile uint *slave_running,
                        bool skip_lock)
 {
-  int error;
-
   DBUG_ENTER("terminate_slave_thread");
-
   if (!skip_lock)
+  {
     pthread_mutex_lock(term_lock);
-
-  safe_mutex_assert_owner(term_lock);
-
+  }
+  else
+  {
+    safe_mutex_assert_owner(term_lock);
+  }
   if (!*slave_running)
   {
     if (!skip_lock)
+    {
+      /*
+        if run_lock (term_lock) is acquired locally then either
+        slave_running status is fine
+      */
       pthread_mutex_unlock(term_lock);
-    DBUG_RETURN(ER_SLAVE_NOT_RUNNING);
+      DBUG_RETURN(0);
+    }
+    else
+    {
+      DBUG_RETURN(ER_SLAVE_NOT_RUNNING);
+    }
   }
   DBUG_ASSERT(thd != 0);
   THD_CHECK_SENTRY(thd);
@@ -475,6 +501,7 @@ terminate_slave_thread(THD *thd,
 
   while (*slave_running)                        // Should always be true
   {
+    int error;
     DBUG_PRINT("loop", ("killing slave thread"));
 
     pthread_mutex_lock(&thd->LOCK_delete);
@@ -616,7 +643,7 @@ int start_slave_threads(bool need_slave_mutex, bool wait_for_start,
                              &mi->rli.slave_running, &mi->rli.slave_run_id,
                              mi, 0);
     if (error)
-      terminate_slave_threads(mi, thread_mask & SLAVE_IO, 0);
+      terminate_slave_threads(mi, thread_mask & SLAVE_IO, !need_slave_mutex);
   }
   DBUG_RETURN(error);
 }
@@ -687,6 +714,9 @@ static bool sql_slave_killed(THD* thd, Relay_log_info* rli)
   DBUG_ASSERT(rli->slave_running == 1);// tracking buffer overrun
   if (abort_loop || thd->killed || rli->abort_slave)
   {
+    if (rli->abort_slave && rli->is_in_group() &&
+        thd->transaction.all.modified_non_trans_table)
+      DBUG_RETURN(0);
     /*
       If we are in an unsafe situation (stopping could corrupt replication),
       we give one minute to the slave SQL thread of grace before really
@@ -2626,12 +2656,48 @@ err:
     delete the mi structure leading to a crash! (see BUG#25306 for details)
    */ 
   pthread_cond_broadcast(&mi->stop_cond);       // tell the world we are done
+  DBUG_EXECUTE_IF("simulate_slave_delay_at_terminate_bug38694", sleep(5););
   pthread_mutex_unlock(&mi->run_lock);
   my_thread_end();
   pthread_exit(0);
   DBUG_RETURN(0);                               // Can't return anything here
 }
 
+/*
+  Check the temporary directory used by commands like
+  LOAD DATA INFILE.
+ */
+static 
+int check_temp_dir(char* tmp_dir, char *tmp_file)
+{
+  int fd;
+  MY_DIR *dirp;
+
+  DBUG_ENTER("check_temp_dir");
+
+  /*
+    Check if the directory exists.
+   */
+  if (!(dirp=my_dir(tmp_dir,MYF(MY_WME))))
+    DBUG_RETURN(1);
+  my_dirend(dirp);
+
+  /*
+    Check permissions to create a file.
+   */
+  if ((fd= my_create(tmp_file, CREATE_MODE,
+                     O_WRONLY | O_BINARY | O_EXCL | O_NOFOLLOW,
+                     MYF(MY_WME))) < 0)
+  DBUG_RETURN(1);
+
+  /*
+    Clean up.
+   */
+  my_close(fd, MYF(0));
+  my_delete(tmp_file, MYF(0));
+
+  DBUG_RETURN(0);
+}
 
 /**
   Slave SQL thread entry point.
@@ -2678,7 +2744,8 @@ pthread_handler_t handle_slave_sql(void *arg)
     */
     pthread_cond_broadcast(&rli->start_cond);
     pthread_mutex_unlock(&rli->run_lock);
-    sql_print_error("Failed during slave thread initialization");
+    rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR, 
+                "Failed during slave thread initialization");
     goto err;
   }
   thd->init_for_queries();
@@ -2722,9 +2789,9 @@ pthread_handler_t handle_slave_sql(void *arg)
                          rli->group_relay_log_pos,
                          1 /*need data lock*/, &errmsg,
                          1 /*look for a description_event*/))
-  {
-    sql_print_error("Error initializing relay log position: %s",
-                    errmsg);
+  { 
+    rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR, 
+                "Error initializing relay log position: %s", errmsg);
     goto err;
   }
   THD_CHECK_SENTRY(thd);
@@ -2763,14 +2830,22 @@ log '%s' at position %s, relay log '%s' position: %s", RPL_LOG_NAME,
                     llstr(rli->group_master_log_pos,llbuff),rli->group_relay_log_name,
                     llstr(rli->group_relay_log_pos,llbuff1));
 
+  if (check_temp_dir(slave_load_tmpdir, rli->slave_patternload_file))
+  {
+    rli->report(ERROR_LEVEL, thd->main_da.sql_errno(), 
+                "Unable to use slave's temporary directory %s - %s", 
+                slave_load_tmpdir, thd->main_da.message());
+    goto err;
+  }
+
   /* execute init_slave variable */
   if (sys_init_slave.value_length)
   {
     execute_init_command(thd, &sys_init_slave, &LOCK_sys_init_slave);
     if (thd->is_slave_error)
     {
-      sql_print_error("\
-Slave SQL thread aborted. Can't execute init_slave query");
+      rli->report(ERROR_LEVEL, thd->main_da.sql_errno(), 
+                  "Slave SQL thread aborted. Can't execute init_slave query");
       goto err;
     }
   }
@@ -2820,10 +2895,20 @@ Slave SQL thread aborted. Can't execute init_slave query");
                       thd->main_da.sql_errno(), last_errno));
           if (last_errno == 0)
           {
+            /*
+ 	      This function is reporting an error which was not reported
+ 	      while executing exec_relay_log_event().
+ 	    */ 
             rli->report(ERROR_LEVEL, thd->main_da.sql_errno(), errmsg);
           }
           else if (last_errno != thd->main_da.sql_errno())
           {
+            /*
+             * An error was reported while executing exec_relay_log_event()
+             * however the error code differs from what is in the thread.
+             * This function prints out more information to help finding
+             * what caused the problem.
+             */  
             sql_print_error("Slave (additional info): %s Error_code: %d",
                             errmsg, thd->main_da.sql_errno());
           }
@@ -2921,6 +3006,7 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
   delete the mi structure leading to a crash! (see BUG#25306 for details)
  */ 
   pthread_cond_broadcast(&rli->stop_cond);
+  DBUG_EXECUTE_IF("simulate_slave_delay_at_terminate_bug38694", sleep(5););
   pthread_mutex_unlock(&rli->run_lock);  // tell the world we are done
   
   my_thread_end();

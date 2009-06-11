@@ -39,7 +39,7 @@ const char * NEAR globerrs[GLOBERRS]=
   "Can't change dir to '%s' (Errcode: %d)",
   "Warning: '%s' had %d links",
   "Warning: %d files and %d streams is left open\n",
-  "Disk is full writing '%s' (Errcode: %d). Waiting for someone to free space... Retry in %d secs",
+  "Disk is full writing '%s' (Errcode: %d). Waiting for someone to free space... (Expect up to %d secs delay for server to continue after freeing disk space)",
   "Can't create directory '%s' (Errcode: %d)",
   "Character set '%s' is not a compiled character set and is not specified in the '%s' file",
   "Out of resources when opening file '%s' (Errcode: %d)",
@@ -92,3 +92,17 @@ void init_glob_errs()
   EE(EE_FILE_NOT_CLOSED) = "File '%s' (fileno: %d) was not closed";
 }
 #endif
+
+void wait_for_free_space(const char *filename, int errors)
+{
+  if (errors == 0)
+    my_error(EE_DISK_FULL,MYF(ME_BELL | ME_NOREFRESH),
+             filename,my_errno,MY_WAIT_FOR_USER_TO_FIX_PANIC);
+  if (!(errors % MY_WAIT_GIVE_USER_A_MESSAGE))
+    my_printf_error(EE_DISK_FULL,
+                    "Retry in %d secs. Message reprinted in %d secs",
+                    MYF(ME_BELL | ME_NOREFRESH),
+                    MY_WAIT_FOR_USER_TO_FIX_PANIC,
+                    MY_WAIT_GIVE_USER_A_MESSAGE * MY_WAIT_FOR_USER_TO_FIX_PANIC );
+  VOID(sleep(MY_WAIT_FOR_USER_TO_FIX_PANIC));
+}

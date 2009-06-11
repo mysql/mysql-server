@@ -74,19 +74,16 @@ Last_SQL_Error
 drop table t1;
 create table t1(a int primary key);
 insert into t1 values (1),(2);
-delete from t1 where @@server_id=1;
-Warnings:
-Warning	1592	Statement is not safe to log in statement format.
+SET SQL_LOG_BIN=0;
+delete from t1;
+SET SQL_LOG_BIN=1;
 set sql_mode=strict_trans_tables;
-insert into t1 values (7), (8), (9);
+insert into t1 values (1), (2), (3);
 [on slave]
 select * from t1;
 a
 1
 2
-7
-8
-9
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -128,3 +125,66 @@ Last_SQL_Errno	0
 Last_SQL_Error	
 ==== Clean Up ====
 drop table t1;
+==== Using Innodb ====
+SET SQL_LOG_BIN=0;
+CREATE TABLE t1(id INT NOT NULL PRIMARY KEY, data INT) Engine=InnoDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int(11) NOT NULL,
+  `data` int(11) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SET SQL_LOG_BIN=1;
+CREATE TABLE t1(id INT NOT NULL PRIMARY KEY, data INT) Engine=InnoDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int(11) NOT NULL,
+  `data` int(11) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+INSERT INTO t1 VALUES(1, 1);
+INSERT INTO t1 VALUES(2, 1);
+INSERT INTO t1 VALUES(3, 1);
+INSERT INTO t1 VALUES(4, 1);
+SET SQL_LOG_BIN=0;
+DELETE FROM t1 WHERE id = 4;
+SET SQL_LOG_BIN=1;
+UPDATE t1 SET id= id + 3, data = 2;
+
+**** We cannot execute a select as there are differences in the 
+**** behavior between STMT and RBR.
+==== Using MyIsam ====
+SET SQL_LOG_BIN=0;
+CREATE TABLE t2(id INT NOT NULL PRIMARY KEY, data INT) Engine=MyIsam;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` int(11) NOT NULL,
+  `data` int(11) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SET SQL_LOG_BIN=1;
+CREATE TABLE t2(id INT NOT NULL PRIMARY KEY, data INT) Engine=MyIsam;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` int(11) NOT NULL,
+  `data` int(11) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+INSERT INTO t2 VALUES(1, 1);
+INSERT INTO t2 VALUES(2, 1);
+INSERT INTO t2 VALUES(3, 1);
+INSERT INTO t2 VALUES(5, 1);
+SET SQL_LOG_BIN=0;
+DELETE FROM t2 WHERE id = 5;
+SET SQL_LOG_BIN=1;
+UPDATE t2 SET id= id + 3, data = 2;
+
+**** We cannot execute a select as there are differences in the 
+**** behavior between STMT and RBR.
+==== Clean Up ====
+DROP TABLE t1;
+DROP TABLE t2;

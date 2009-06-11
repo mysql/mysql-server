@@ -27,9 +27,9 @@ socket		= @MYSQL_UNIX_ADDR@
 port		= @MYSQL_TCP_PORT@
 socket		= @MYSQL_UNIX_ADDR@
 skip-locking
-key_buffer = 16M
+key_buffer_size = 16M
 max_allowed_packet = 1M
-table_cache = 64
+table_open_cache = 64
 sort_buffer_size = 512K
 net_buffer_length = 8K
 read_buffer_size = 256K
@@ -43,9 +43,6 @@ myisam_sort_buffer_size = 8M
 # (via the "enable-named-pipe" option) will render mysqld useless!
 # 
 #skip-networking
-
-# Disable Federated by default
-skip-federated
 
 # Replication Master Server (default)
 # binary logging is required for replication
@@ -122,7 +119,6 @@ server-id	= 1
 #innodb_data_home_dir = @localstatedir@/
 #innodb_data_file_path = ibdata1:10M:autoextend
 #innodb_log_group_home_dir = @localstatedir@/
-#innodb_log_arch_dir = @localstatedir@/
 # You can set .._buffer_pool_size up to 50 - 80 %
 # of RAM but beware of setting memory usage too high
 #innodb_buffer_pool_size = 16M
@@ -142,14 +138,8 @@ no-auto-rehash
 # Remove the next comment character if you are not familiar with SQL
 #safe-updates
 
-[isamchk]
-key_buffer = 20M
-sort_buffer_size = 20M
-read_buffer = 2M
-write_buffer = 2M
-
 [myisamchk]
-key_buffer = 20M
+key_buffer_size = 20M
 sort_buffer_size = 20M
 read_buffer = 2M
 write_buffer = 2M

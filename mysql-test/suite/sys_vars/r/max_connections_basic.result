@@ -39,7 +39,7 @@ SELECT @@global.max_connections;
 '#--------------------FN_DYNVARS_074_04-------------------------#'
 SET @@global.max_connections = -1;
 Warnings:
-Warning	1292	Truncated incorrect max_connections value: '0'
+Warning	1292	Truncated incorrect max_connections value: '-1'
 SELECT @@global.max_connections;
 @@global.max_connections
 1
@@ -56,7 +56,7 @@ SELECT @@global.max_connections;
 100000
 SET @@global.max_connections = -1024;
 Warnings:
-Warning	1292	Truncated incorrect max_connections value: '0'
+Warning	1292	Truncated incorrect max_connections value: '-1024'
 SELECT @@global.max_connections;
 @@global.max_connections
 1

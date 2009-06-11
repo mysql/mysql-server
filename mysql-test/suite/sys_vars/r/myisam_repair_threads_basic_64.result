@@ -61,7 +61,7 @@ SELECT @@global.myisam_repair_threads ;
 1
 SET @@global.myisam_repair_threads  = -1024;
 Warnings:
-Warning	1292	Truncated incorrect myisam_repair_threads value: '0'
+Warning	1292	Truncated incorrect myisam_repair_threads value: '-1024'
 SELECT @@global.myisam_repair_threads ;
 @@global.myisam_repair_threads
 1
@@ -102,7 +102,7 @@ SELECT @@session.myisam_repair_threads ;
 1
 SET @@session.myisam_repair_threads  = -2;
 Warnings:
-Warning	1292	Truncated incorrect myisam_repair_threads value: '0'
+Warning	1292	Truncated incorrect myisam_repair_threads value: '-2'
 SELECT @@session.myisam_repair_threads ;
 @@session.myisam_repair_threads
 1

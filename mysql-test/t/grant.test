@@ -3,6 +3,9 @@
 # Grant tests not performed with embedded server
 -- source include/not_embedded.inc
 
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
 SET @old_log_bin_trust_function_creators= @@global.log_bin_trust_function_creators;
 SET GLOBAL log_bin_trust_function_creators = 1;
 
@@ -81,7 +84,7 @@ delete from mysql.db where user='mysqltest_1';
 delete from mysql.tables_priv where user='mysqltest_1';
 delete from mysql.columns_priv where user='mysqltest_1';
 flush privileges;
---error 1141
+--error ER_NONEXISTING_GRANT
 show grants for mysqltest_1@localhost;
 
 #
@@ -119,15 +122,15 @@ drop table t1;
 #
 # Test some error conditions
 #
---error  1221
+--error ER_WRONG_USAGE
 GRANT FILE on mysqltest.*  to mysqltest_1@localhost;
-select 1;	# To test that the previous command didn't cause problems
+select 1;     # To test that the previous command didn't cause problems
 
 #
-# Bug #4898: User privileges depending on ORDER BY Settings of table db
+# Bug#4898 User privileges depending on ORDER BY Settings of table db
 #
 insert into mysql.user (host, user) values ('localhost', 'test11');
-insert into mysql.db (host, db, user, select_priv) values 
+insert into mysql.db (host, db, user, select_priv) values
 ('localhost', 'a%', 'test11', 'Y'), ('localhost', 'ab%', 'test11', 'Y');
 alter table mysql.db order by db asc;
 flush privileges;
@@ -139,7 +142,7 @@ delete from mysql.user where user='test11';
 delete from mysql.db where user='test11';
 
 #
-# Bug#6123: GRANT USAGE inserts useless Db row
+# Bug#6123 GRANT USAGE inserts useless Db row
 #
 create database mysqltest1;
 grant usage on mysqltest1.* to test6123 identified by 'magic123';
@@ -148,7 +151,7 @@ delete from mysql.user where user='test6123';
 drop database mysqltest1;
 
 #
-# Test for 'drop user', 'revoke privileges, grant' 
+# Test for 'drop user', 'revoke privileges, grant'
 #
 
 create table t1 (a int);
@@ -163,7 +166,7 @@ grant select(a) on test.t1 to drop_user@localhost;
 show grants for drop_user@localhost;
 
 #
-# Bug3086
+# Bug#3086 SHOW GRANTS doesn't follow ANSI_QUOTES
 #
 set sql_mode=ansi_quotes;
 show grants for drop_user@localhost;
@@ -181,7 +184,7 @@ show grants for drop_user@localhost;
 revoke all privileges, grant option from drop_user@localhost;
 show grants for drop_user@localhost;
 drop user drop_user@localhost;
---error 1269
+--error ER_REVOKE_GRANTS
 revoke all privileges, grant option from drop_user@localhost;
 
 grant select(a) on test.t1 to drop_user1@localhost;
@@ -191,10 +194,10 @@ grant select on *.* to drop_user4@localhost;
 # Drop user now implicitly revokes all privileges.
 drop user drop_user1@localhost, drop_user2@localhost, drop_user3@localhost,
 drop_user4@localhost;
---error 1269
+--error ER_REVOKE_GRANTS
 revoke all privileges, grant option from drop_user1@localhost, drop_user2@localhost,
 drop_user3@localhost, drop_user4@localhost;
---error 1396
+--error ER_CANNOT_USER
 drop user drop_user1@localhost, drop_user2@localhost, drop_user3@localhost,
 drop_user4@localhost;
 drop table t1;
@@ -204,12 +207,12 @@ show grants for mysqltest_1@localhost;
 drop user mysqltest_1@localhost;
 
 #
-# Bug #3403 Wrong encodin in SHOW GRANTS output
+# Bug#3403 Wrong encoding in SHOW GRANTS output
 #
 SET NAMES koi8r;
 CREATE DATABASE ÂÄ;
 USE ÂÄ;
-CREATE TABLE ÔÁÂ (ËÏÌ int);
+CREATE TABLE ÔÁÂ (ËÏÌ INT);
 
 GRANT SELECT ON ÂÄ.* TO ÀÚÅÒ@localhost;
 SHOW GRANTS FOR ÀÚÅÒ@localhost;
@@ -230,7 +233,7 @@ DROP DATABASE ÂÄ;
 SET NAMES latin1;
 
 #
-# Bug #5831: REVOKE ALL PRIVILEGES, GRANT OPTION does not revoke everything
+# Bug#5831 REVOKE ALL PRIVILEGES, GRANT OPTION does not revoke everything
 #
 USE test;
 CREATE TABLE t1 (a int );
@@ -299,7 +302,7 @@ DROP DATABASE testdb9;
 DROP DATABASE testdb10;
 
 #
-# Bug #6932: a problem with 'revoke ALL PRIVILEGES'
+# Bug#6932 a problem with 'revoke ALL PRIVILEGES'
 #
 
 create table t1(a int, b int, c int, d int);
@@ -313,7 +316,7 @@ drop user grant_user@localhost;
 drop table t1;
 
 #
-# Bug#7391: Cross-database multi-table UPDATE security problem
+# Bug#7391 Cross-database multi-table UPDATE security problem
 #
 create database mysqltest_1;
 create database mysqltest_2;
@@ -322,36 +325,36 @@ create table mysqltest_1.t2 select 1 b, 2 r;
 create table mysqltest_2.t1 select 1 c, 2 s;
 create table mysqltest_2.t2 select 1 d, 2 t;
 
-#test the column privileges
+# test the column privileges
 grant update (a) on mysqltest_1.t1 to mysqltest_3@localhost;
 grant select (b) on mysqltest_1.t2 to mysqltest_3@localhost;
 grant select (c) on mysqltest_2.t1 to mysqltest_3@localhost;
 grant update (d) on mysqltest_2.t2 to mysqltest_3@localhost;
 connect (conn1,localhost,mysqltest_3,,);
 connection conn1;
-SELECT * FROM INFORMATION_SCHEMA.COLUMN_PRIVILEGES 
- WHERE GRANTEE = '''mysqltest_3''@''localhost''' 
+SELECT * FROM INFORMATION_SCHEMA.COLUMN_PRIVILEGES
+ WHERE GRANTEE = '''mysqltest_3''@''localhost'''
  ORDER BY TABLE_NAME,COLUMN_NAME,PRIVILEGE_TYPE;
 SELECT * FROM INFORMATION_SCHEMA.TABLE_PRIVILEGES
- WHERE GRANTEE = '''mysqltest_3''@''localhost''' 
+ WHERE GRANTEE = '''mysqltest_3''@''localhost'''
  ORDER BY TABLE_NAME,PRIVILEGE_TYPE;
 SELECT * from INFORMATION_SCHEMA.SCHEMA_PRIVILEGES
- WHERE GRANTEE = '''mysqltest_3''@''localhost''' 
+ WHERE GRANTEE = '''mysqltest_3''@''localhost'''
  ORDER BY TABLE_SCHEMA,PRIVILEGE_TYPE;
 SELECT * from INFORMATION_SCHEMA.USER_PRIVILEGES
  WHERE GRANTEE = '''mysqltest_3''@''localhost'''
  ORDER BY TABLE_CATALOG,PRIVILEGE_TYPE;
---error 1143
+--error ER_COLUMNACCESS_DENIED_ERROR
 update mysqltest_1.t1, mysqltest_1.t2 set q=10 where b=1;
---error 1143
+--error ER_COLUMNACCESS_DENIED_ERROR
 update mysqltest_1.t2, mysqltest_2.t2 set d=20 where d=1;
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 update mysqltest_1.t1, mysqltest_2.t2 set d=20 where d=1;
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 update mysqltest_2.t1, mysqltest_1.t2 set c=20 where b=1;
---error 1143
+--error ER_COLUMNACCESS_DENIED_ERROR
 update mysqltest_2.t1, mysqltest_2.t2 set d=10 where s=2;
-#the following two should work
+# the following two should work
 update mysqltest_1.t1, mysqltest_2.t2 set a=10,d=10;
 update mysqltest_1.t1, mysqltest_2.t1 set a=20 where c=20;
 connection master;
@@ -362,7 +365,7 @@ revoke all on mysqltest_1.t2 from mysqltest_3@localhost;
 revoke all on mysqltest_2.t1 from mysqltest_3@localhost;
 revoke all on mysqltest_2.t2 from mysqltest_3@localhost;
 
-#test the db/table level privileges
+# test the db/table level privileges
 grant all on mysqltest_2.* to mysqltest_3@localhost;
 grant select on *.* to mysqltest_3@localhost;
 # Next grant is needed to trigger bug#7391. Do not optimize!
@@ -374,17 +377,17 @@ connection conn2;
 use mysqltest_1;
 update mysqltest_2.t1, mysqltest_2.t2 set c=500,d=600;
 # the following failed before, should fail now.
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 update mysqltest_1.t1, mysqltest_1.t2 set a=100,b=200;
 use mysqltest_2;
-#the following used to succeed, it must fail now.
---error 1142
+# the following used to succeed, it must fail now.
+--error ER_TABLEACCESS_DENIED_ERROR
 update mysqltest_1.t1, mysqltest_1.t2 set a=100,b=200;
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 update mysqltest_2.t1, mysqltest_1.t2 set c=100,b=200;
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 update mysqltest_1.t1, mysqltest_2.t2 set a=100,d=200;
-#lets see the result
+# lets see the result
 connection master;
 select t1.*,t2.* from mysqltest_1.t1,mysqltest_1.t2;
 select t1.*,t2.* from mysqltest_2.t1,mysqltest_2.t2;
@@ -396,6 +399,7 @@ delete from mysql.columns_priv where user="mysqltest_3";
 flush privileges;
 drop database mysqltest_1;
 drop database mysqltest_2;
+disconnect conn2;
 
 #
 # just SHOW PRIVILEGES test
@@ -403,7 +407,7 @@ drop database mysqltest_2;
 SHOW PRIVILEGES;
 
 #
-# Rights for renaming test (Bug #3270)
+# Rights for renaming test (Bug#3270)
 #
 connect (root,localhost,root,,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 connection root;
@@ -414,16 +418,18 @@ create table mysqltest.t1 (a int,b int,c int);
 grant all on mysqltest.t1 to mysqltest_1@localhost;
 connect (user1,localhost,mysqltest_1,,mysqltest,$MASTER_MYPORT,$MASTER_MYSOCK);
 connection user1;
--- error 1142
+-- error ER_TABLEACCESS_DENIED_ERROR
 alter table t1 rename t2;
 disconnect user1;
 connection root;
 revoke all privileges on mysqltest.t1 from mysqltest_1@localhost;
 delete from mysql.user where user=_binary'mysqltest_1';
 drop database mysqltest;
+connection default;
+disconnect root;
 
 #
-# check all new table priveleges
+# check all new table privileges
 #
 CREATE USER dummy@localhost;
 CREATE DATABASE mysqltest;
@@ -488,7 +494,7 @@ REVOKE ALL PRIVILEGES, GRANT OPTION FROM dummy@localhost;
 DROP USER dummy@localhost;
 DROP DATABASE mysqltest;
 #
-# Bug #11330: Entry in tables_priv with host = '' causes crash
+# Bug#11330 Entry in tables_priv with host = '' causes crash
 #
 connection default;
 use mysql;
@@ -499,7 +505,7 @@ flush privileges;
 use test;
 
 #
-# Bug #10892 user variables not auto cast for comparisons
+# Bug#10892 user variables not auto cast for comparisons
 # Check that we don't get illegal mix of collations
 #
 set @user123="non-existent";
@@ -518,18 +524,18 @@ show grants for root@localhost;
 set names latin1;
 
 #
-# Bug #15598 Server crashes in specific case during setting new password
+# Bug#15598 Server crashes in specific case during setting new password
 # - Caused by a user with host ''
 #
 create user mysqltest_7@;
 set password for mysqltest_7@ = password('systpass');
 show grants for mysqltest_7@;
 drop user mysqltest_7@;
---error 1141
+--error ER_NONEXISTING_GRANT
 show grants for mysqltest_7@;
 
 #
-# Bug#14385: GRANT and mapping to correct user account problems
+# Bug#14385 GRANT and mapping to correct user account problems
 #
 create database mysqltest;
 use mysqltest;
@@ -545,7 +551,7 @@ flush privileges;
 drop database mysqltest;
 
 #
-# Bug #27515: DROP previlege is not required for RENAME TABLE
+# Bug#27515 DROP previlege is not required for RENAME TABLE
 #
 connection master;
 create database db27515;
@@ -556,7 +562,7 @@ grant insert, create on db27515.t2 to user27515@localhost;
 
 connect (conn27515, localhost, user27515, , db27515);
 connection conn27515;
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 rename table t1 to t2;
 disconnect conn27515;
 
@@ -568,7 +574,7 @@ drop database db27515;
 --echo End of 4.1 tests
 
 #
-# Bug #16297 In memory grant tables not flushed when users's hostname is ""
+# Bug#16297 In memory grant tables not flushed when users's hostname is ""
 #
 use test;
 create table t1 (a int);
@@ -585,11 +591,11 @@ create user mysqltest_8;
 create user mysqltest_8@host8;
 
 # Try to create them again
---error 1396
+--error ER_CANNOT_USER
 create user mysqltest_8@'';
---error 1396
+--error ER_CANNOT_USER
 create user mysqltest_8;
---error 1396
+--error ER_CANNOT_USER
 create user mysqltest_8@host8;
 
 select user, QUOTE(host) from mysql.user where user="mysqltest_8";
@@ -684,44 +690,43 @@ flush privileges;
 show grants for mysqltest_8@'';
 show grants for mysqltest_8;
 drop user mysqltest_8@'';
---error 1141
+--error ER_NONEXISTING_GRANT
 show grants for mysqltest_8@'';
 show grants for mysqltest_8;
 select * from  information_schema.user_privileges
 where grantee like "'mysqltest_8'%";
 drop user mysqltest_8;
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
---error 1045
+--error ER_ACCESS_DENIED_ERROR
 connect (conn6,localhost,mysqltest_8,,);
 connection master;
---error 1141
+--error ER_NONEXISTING_GRANT
 show grants for mysqltest_8;
 drop user mysqltest_8@host8;
---error 1141
+--error ER_NONEXISTING_GRANT
 show grants for mysqltest_8@host8;
 
 # Restore the anonymous users.
 insert into mysql.user select * from t2;
 flush privileges;
 drop table t2;
-
 drop table t1;
 
 #
-# Bug#20214: Incorrect error when user calls SHOW CREATE VIEW on non
-#            privileged view
+# Bug#20214 Incorrect error when user calls SHOW CREATE VIEW on non
+#           privileged view
 #
 
 connection master;
 
 CREATE DATABASE mysqltest3;
-use mysqltest3;
+USE mysqltest3;
 
 CREATE TABLE t_nn (c1 INT);
 CREATE VIEW  v_nn AS SELECT * FROM t_nn;
 
 CREATE DATABASE mysqltest2;
-use mysqltest2;
+USE mysqltest2;
 
 CREATE TABLE t_nn (c1 INT);
 CREATE VIEW  v_nn AS SELECT * FROM t_nn;
@@ -743,23 +748,17 @@ SHOW CREATE VIEW  mysqltest2.v_nn;
 --error ER_TABLEACCESS_DENIED_ERROR
 SHOW CREATE TABLE mysqltest2.v_nn;
 
-
-
 # fail because of missing SHOW VIEW
 --error ER_TABLEACCESS_DENIED_ERROR
 SHOW CREATE VIEW  mysqltest2.v_yn;
 --error ER_TABLEACCESS_DENIED_ERROR
 SHOW CREATE TABLE mysqltest2.v_yn;
 
-
-
 # succeed (despite of missing SELECT, having SHOW VIEW bails us out)
 SHOW CREATE TABLE mysqltest2.v_ny;
 
 # succeed (despite of missing SELECT, having SHOW VIEW bails us out)
 SHOW CREATE VIEW  mysqltest2.v_ny;
-
-
 
 # fail because of missing (specific or generic) SELECT
 --error ER_TABLEACCESS_DENIED_ERROR
@@ -769,15 +768,11 @@ SHOW CREATE TABLE mysqltest3.t_nn;
 --error ER_TABLEACCESS_DENIED_ERROR
 SHOW CREATE VIEW  mysqltest3.t_nn;
 
-
-
 # fail because of missing missing (specific or generic) SELECT (and SHOW VIEW)
 --error ER_TABLEACCESS_DENIED_ERROR
 SHOW CREATE VIEW  mysqltest3.v_nn;
 --error ER_TABLEACCESS_DENIED_ERROR
 SHOW CREATE TABLE mysqltest3.v_nn;
-
-
 
 # succeed thanks to generic SELECT
 SHOW CREATE TABLE mysqltest2.t_nn;
@@ -786,17 +781,13 @@ SHOW CREATE TABLE mysqltest2.t_nn;
 --error ER_WRONG_OBJECT
 SHOW CREATE VIEW  mysqltest2.t_nn;
 
-
-
 # succeed, have SELECT and SHOW VIEW
 SHOW CREATE VIEW mysqltest2.v_yy;
 
 # succeed, have SELECT and SHOW VIEW
 SHOW CREATE TABLE mysqltest2.v_yy;
 
-
-
-#clean-up
+# clean-up
 connection master;
 
 # succeed, we're root
@@ -809,38 +800,33 @@ SHOW CREATE TABLE mysqltest2.t_nn;
 --error ER_WRONG_OBJECT
 SHOW CREATE VIEW mysqltest2.t_nn;
 
-
-
 DROP VIEW  mysqltest2.v_nn;
 DROP VIEW  mysqltest2.v_yn;
 DROP VIEW  mysqltest2.v_ny;
 DROP VIEW  mysqltest2.v_yy;
-
 DROP TABLE mysqltest2.t_nn;
-
 DROP DATABASE mysqltest2;
-
-
-
 DROP VIEW  mysqltest3.v_nn;
 DROP TABLE mysqltest3.t_nn;
-
 DROP DATABASE mysqltest3;
-
+disconnect mysqltest_1;
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'mysqltest_1'@'localhost';
 DROP USER 'mysqltest_1'@'localhost';
 
 # restore the original database
-use test;
+USE test;
+connection default;
+disconnect master;
+
 
 #
-# Bug #10668: CREATE USER does not enforce username length limit
+# Bug#10668 CREATE USER does not enforce username length limit
 #
 --error ER_WRONG_STRING_LENGTH
 create user mysqltest1_thisisreallytoolong;
 
 #
-# Test for BUG#16899: Possible buffer overflow in handling of DEFINER-clause.
+# Test for Bug#16899 Possible buffer overflow in handling of DEFINER-clause.
 #
 # These checks are intended to ensure that appropriate errors are risen when
 # illegal user name or hostname is specified in user-clause of GRANT/REVOKE
@@ -848,7 +834,7 @@ create user mysqltest1_thisisreallytoolong;
 #
 
 #
-# Bug #22369: Alter table rename combined with other alterations causes lost tables
+# Bug#22369 Alter table rename combined with other alterations causes lost tables
 #
 CREATE DATABASE mysqltest1;
 CREATE TABLE mysqltest1.t1 (
@@ -968,7 +954,7 @@ REVOKE EXECUTE ON PROCEDURE t1 FROM some_user_name@1234567890abcdefghij123456789
 
 
 #
-# BUG#23556: TRUNCATE TABLE still maps to DELETE
+# Bug#23556 TRUNCATE TABLE still maps to DELETE
 #
 CREATE USER bug23556@localhost;
 CREATE DATABASE bug23556;
@@ -1000,8 +986,12 @@ DROP TABLE t1;
 USE test;
 DROP DATABASE bug23556;
 DROP USER bug23556@localhost;
+connection default;
+disconnect bug23556;
+
+
 #
-# Bug #6774: Replication fails with Wrong usage of DB GRANT and GLOBAL PRIVILEGES
+# Bug#6774 Replication fails with Wrong usage of DB GRANT and GLOBAL PRIVILEGES
 #
 # Check if GRANT ... ON * ... fails when no database is selected
 connect (con1, localhost, root,,*NO-ONE*);
@@ -1013,7 +1003,7 @@ connection default;
 
 
 #
-# BUG#9504: Stored procedures: execute privilege doesn't make 'use database'
+# Bug#9504 Stored procedures: execute privilege doesn't make 'use database'
 # okay.
 #
 
@@ -1038,8 +1028,8 @@ CREATE PROCEDURE mysqltest2.p_inv() SQL SECURITY INVOKER
   SELECT 1;
 
 CREATE FUNCTION mysqltest3.f_def() RETURNS INT SQL SECURITY DEFINER
-  RETURN 1;                                                        
-                                                                   
+  RETURN 1;
+
 CREATE FUNCTION mysqltest4.f_inv() RETURNS INT SQL SECURITY INVOKER
   RETURN 1;
 
@@ -1095,7 +1085,7 @@ DROP USER mysqltest_1@localhost;
 
 
 #
-# BUG#27337: Privileges are not restored properly.
+# Bug#27337 Privileges are not restored properly.
 #
 # Actually, the patch for this bugs fixes two problems. So, here are two test
 # cases.
@@ -1157,7 +1147,7 @@ DROP DATABASE mysqltest2;
 
 DROP USER mysqltest_1@localhost;
 
-# Test case 2: priveleges are not checked properly for prepared statements.
+# Test case 2: privileges are not checked properly for prepared statements.
 
 # Prepare.
 
@@ -1230,6 +1220,7 @@ EXECUTE stmt2;
 --echo
 --echo ---> connection: default
 
+--disconnect bug27337_con1
 --disconnect bug27337_con2
 
 DROP DATABASE mysqltest1;
@@ -1239,21 +1230,21 @@ DROP USER mysqltest_1@localhost;
 DROP USER mysqltest_2@localhost;
 
 #
-# Bug#27878: Unchecked privileges on a view referring to a table from another 
-#            database.
+# Bug#27878 Unchecked privileges on a view referring to a table from another
+#           database.
 #
-use test;
+USE test;
 CREATE TABLE t1 (f1 int, f2 int);
 INSERT INTO t1 VALUES(1,1), (2,2);
 CREATE DATABASE db27878;
 GRANT UPDATE(f1) ON t1 TO 'mysqltest_1'@'localhost';
 GRANT SELECT ON `test`.* TO 'mysqltest_1'@'localhost';
 GRANT ALL ON db27878.* TO 'mysqltest_1'@'localhost';
-use db27878;
+USE db27878;
 CREATE SQL SECURITY INVOKER VIEW db27878.v1 AS SELECT * FROM test.t1;
 connect (user1,localhost,mysqltest_1,,test);
 connection user1;
-use db27878;
+USE db27878;
 --error 1356
 UPDATE v1 SET f2 = 4;
 SELECT * FROM test.t1;
@@ -1264,7 +1255,7 @@ REVOKE SELECT ON `test`.* FROM 'mysqltest_1'@'localhost';
 REVOKE ALL ON db27878.* FROM 'mysqltest_1'@'localhost';
 DROP USER mysqltest_1@localhost;
 DROP DATABASE db27878;
-use test;
+USE test;
 DROP TABLE t1;
 
 --echo #
@@ -1273,8 +1264,10 @@ DROP TABLE t1;
 CREATE TEMPORARY TABLE mysql.user (id INT);
 FLUSH PRIVILEGES;
 DROP TABLE mysql.user;
+
+
 #
-# Bug #33201 Crash occurs when granting update privilege on one column of a view
+# Bug#33201 Crash occurs when granting update privilege on one column of a view
 #
 drop table if exists test;
 drop function if exists test_function;
@@ -1305,7 +1298,7 @@ SET PASSWORD FOR CURRENT_USER() = PASSWORD("");
 --echo End of 5.0 tests
 
 #
-# Bug#21432: Database/Table name limited to 64 bytes, not chars, problems with multi-byte
+# Bug#21432 Database/Table name limited to 64 bytes, not chars, problems with multi-byte
 #
 set names utf8;
 grant select on test.* to ÑŽÐ·ÐµÑ€_ÑŽÐ·ÐµÑ€@localhost;
@@ -1317,7 +1310,7 @@ grant select on test.* to Ð¾Ñ‡ÐµÐ½ÑŒ_Ð´Ð»Ð¸Ð½Ð½Ñ‹Ð¹_ÑŽÐ·ÐµÑ€@localhost;
 set names default;
 
 #
-# Bug #20901 - CREATE privilege is enough to insert into a table
+# Bug#20901 CREATE privilege is enough to insert into a table
 #
 
 create database mysqltest;
@@ -1329,7 +1322,7 @@ create table t1 (i INT);
 connect (user1,localhost,mysqltest,,mysqltest);
 connection user1;
 # show we don't have INSERT
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 insert into t1 values (1);
 # show we have CREATE
 create table t2 (i INT);
@@ -1348,11 +1341,11 @@ insert into t2 values (1);
 
 
 # CREATE IF NOT EXISTS...SELECT, t1 exists, no INSERT, must fail
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 create table if not exists t1 select * from t2;
 
 # CREATE IF NOT EXISTS...SELECT, no t3 yet, no INSERT, must fail
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 create table if not exists t3 select * from t2;
 
 # CREATE IF NOT EXISTS...SELECT, t4 exists, have INSERT, must succeed
@@ -1366,7 +1359,7 @@ create table if not exists t5 select * from t2;
 create table t6 select * from t2;
 
 # CREATE...SELECT, no t7 yet, no INSERT, must fail
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 create table t7 select * from t2;
 
 # CREATE...SELECT, t4 exists, have INSERT, must still fail (exists)
@@ -1374,7 +1367,7 @@ create table t7 select * from t2;
 create table t4 select * from t2;
 
 # CREATE...SELECT, t1 exists, no INSERT, must fail
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 create table t1 select * from t2;
 
 
@@ -1394,7 +1387,7 @@ use test;
 
 
 #
-# Bug #16470 crash on grant if old grant tables
+# Bug#16470 crash on grant if old grant tables
 #
 --echo FLUSH PRIVILEGES without procs_priv table.
 RENAME TABLE mysql.procs_priv TO mysql.procs_gone;
@@ -1415,7 +1408,7 @@ FLUSH PRIVILEGES;
 
 
 #
-# Bug#33464: DROP FUNCTION caused a crash.
+# Bug#33464 DROP FUNCTION caused a crash.
 #
 CREATE DATABASE dbbug33464;
 CREATE USER 'userbug33464'@'localhost';
@@ -1472,8 +1465,11 @@ DROP PROCEDURE sp3;
 --error 0, ER_CANNOT_USER
 DROP USER 'userbug33464'@'localhost';
 
-use test;
+USE test;
 DROP DATABASE dbbug33464;
 
 
 SET @@global.log_bin_trust_function_creators= @old_log_bin_trust_function_creators;
+
+# Wait till we reached the initial number of concurrent sessions
+--source include/wait_until_count_sessions.inc

@@ -10,4 +10,4 @@
 #
 ##############################################################################
 
-rpl_binlog_corruption : BUG#41793 2008-12-30 sven rpl_binlog_corruption disabled in main (needs new mtr)
+rpl_cross_version      : BUG#42311 2009-03-27 joro rpl_cross_version fails on macosx

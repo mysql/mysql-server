@@ -2386,7 +2386,8 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
           objects are not allowed so don't use ROR-intersection for
           table deletes.
         */
-        if ((thd->lex->sql_command != SQLCOM_DELETE))
+        if ((thd->lex->sql_command != SQLCOM_DELETE) && 
+             optimizer_flag(thd, OPTIMIZER_SWITCH_INDEX_MERGE))
         {
           /*
             Get best non-covering ROR-intersection plan and prepare data for
@@ -2410,25 +2411,28 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
       }
       else
       {
-        /* Try creating index_merge/ROR-union scan. */
-        SEL_IMERGE *imerge;
-        TABLE_READ_PLAN *best_conj_trp= NULL, *new_conj_trp;
-        LINT_INIT(new_conj_trp); /* no empty index_merge lists possible */
-        DBUG_PRINT("info",("No range reads possible,"
-                           " trying to construct index_merge"));
-        List_iterator_fast<SEL_IMERGE> it(tree->merges);
-        while ((imerge= it++))
+        if (optimizer_flag(thd, OPTIMIZER_SWITCH_INDEX_MERGE))
         {
-          new_conj_trp= get_best_disjunct_quick(&param, imerge, best_read_time);
-          if (new_conj_trp)
-            set_if_smaller(param.table->quick_condition_rows, 
-                           new_conj_trp->records);
-          if (!best_conj_trp || (new_conj_trp && new_conj_trp->read_cost <
-                                 best_conj_trp->read_cost))
-            best_conj_trp= new_conj_trp;
+          /* Try creating index_merge/ROR-union scan. */
+          SEL_IMERGE *imerge;
+          TABLE_READ_PLAN *best_conj_trp= NULL, *new_conj_trp;
+          LINT_INIT(new_conj_trp); /* no empty index_merge lists possible */
+          DBUG_PRINT("info",("No range reads possible,"
+                             " trying to construct index_merge"));
+          List_iterator_fast<SEL_IMERGE> it(tree->merges);
+          while ((imerge= it++))
+          {
+            new_conj_trp= get_best_disjunct_quick(&param, imerge, best_read_time);
+            if (new_conj_trp)
+              set_if_smaller(param.table->quick_condition_rows, 
+                             new_conj_trp->records);
+            if (!best_conj_trp || (new_conj_trp && new_conj_trp->read_cost <
+                                   best_conj_trp->read_cost))
+              best_conj_trp= new_conj_trp;
+          }
+          if (best_conj_trp)
+            best_trp= best_conj_trp;
         }
-        if (best_conj_trp)
-          best_trp= best_conj_trp;
       }
     }
 
@@ -3767,11 +3771,19 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
                         "full table scan, bailing out"));
     DBUG_RETURN(NULL);
   }
-  if (all_scans_rors)
+
+  /* 
+    If all scans happen to be ROR, proceed to generate a ROR-union plan (it's 
+    guaranteed to be cheaper than non-ROR union), unless ROR-unions are
+    disabled in @@optimizer_switch
+  */
+  if (all_scans_rors && 
+      optimizer_flag(param->thd, OPTIMIZER_SWITCH_INDEX_MERGE_UNION))
   {
     roru_read_plans= (TABLE_READ_PLAN**)range_scans;
     goto skip_to_ror_scan;
   }
+
   if (cpk_scan)
   {
     /*
@@ -3785,8 +3797,11 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
   imerge_cost += get_sweep_read_cost(param, non_cpk_scan_records);
   DBUG_PRINT("info",("index_merge cost with rowid-to-row scan: %g",
                      imerge_cost));
-  if (imerge_cost > read_time)
+  if (imerge_cost > read_time || 
+      !optimizer_flag(param->thd, OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION))
+  {
     goto build_ror_index_merge;
+  }
 
   /* Add Unique operations cost */
   unique_calc_buff_size=
@@ -3822,7 +3837,9 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
   }
 
 build_ror_index_merge:
-  if (!all_scans_ror_able || param->thd->lex->sql_command == SQLCOM_DELETE)
+  if (!all_scans_ror_able || 
+      param->thd->lex->sql_command == SQLCOM_DELETE ||
+      !optimizer_flag(param->thd, OPTIMIZER_SWITCH_INDEX_MERGE_UNION))
     DBUG_RETURN(imerge_trp);
 
   /* Ok, it is possible to build a ROR-union, try it. */
@@ -4495,7 +4512,8 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
   double min_cost= DBL_MAX;
   DBUG_ENTER("get_best_ror_intersect");
 
-  if ((tree->n_ror_scans < 2) || !param->table->file->stats.records)
+  if ((tree->n_ror_scans < 2) || !param->table->file->stats.records ||
+      !optimizer_flag(param->thd, OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT))
     DBUG_RETURN(NULL);
 
   /*
@@ -4684,6 +4702,9 @@ TRP_ROR_INTERSECT *get_best_covering_ror_intersect(PARAM *param,
   ROR_SCAN_INFO **ror_scan_mark;
   ROR_SCAN_INFO **ror_scans_end= tree->ror_scans_end;
   DBUG_ENTER("get_best_covering_ror_intersect");
+
+  if (!optimizer_flag(param->thd, OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT))
+    DBUG_RETURN(NULL);
 
   for (ROR_SCAN_INFO **scan= tree->ror_scans; scan != ror_scans_end; ++scan)
     (*scan)->key_components=
@@ -9239,32 +9260,37 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
   */
   KEY *cur_index_info= table->key_info;
   KEY *cur_index_info_end= cur_index_info + table->s->keys;
-  KEY_PART_INFO *cur_part= NULL;
-  KEY_PART_INFO *end_part; /* Last part for loops. */
-  /* Last index part. */
-  KEY_PART_INFO *last_part= NULL;
-  KEY_PART_INFO *first_non_group_part= NULL;
-  KEY_PART_INFO *first_non_infix_part= NULL;
-  uint key_infix_parts= 0;
-  uint cur_group_key_parts= 0;
-  uint cur_group_prefix_len= 0;
   /* Cost-related variables for the best index so far. */
   double best_read_cost= DBL_MAX;
   ha_rows best_records= 0;
   SEL_ARG *best_index_tree= NULL;
   ha_rows best_quick_prefix_records= 0;
   uint best_param_idx= 0;
-  double cur_read_cost= DBL_MAX;
-  ha_rows cur_records;
+
+  const uint pk= param->table->s->primary_key;
   SEL_ARG *cur_index_tree= NULL;
   ha_rows cur_quick_prefix_records= 0;
   uint cur_param_idx=MAX_KEY;
-  key_map cur_used_key_parts;
-  uint pk= param->table->s->primary_key;
 
   for (uint cur_index= 0 ; cur_index_info != cur_index_info_end ;
        cur_index_info++, cur_index++)
   {
+    KEY_PART_INFO *cur_part;
+    KEY_PART_INFO *end_part; /* Last part for loops. */
+    /* Last index part. */
+    KEY_PART_INFO *last_part;
+    KEY_PART_INFO *first_non_group_part;
+    KEY_PART_INFO *first_non_infix_part;
+    uint key_infix_parts;
+    uint cur_group_key_parts= 0;
+    uint cur_group_prefix_len= 0;
+    double cur_read_cost;
+    ha_rows cur_records;
+    key_map used_key_parts_map;
+    uint cur_key_infix_len= 0;
+    uchar cur_key_infix[MAX_KEY_LENGTH];
+    uint cur_used_key_parts;
+    
     /* Check (B1) - if current index is covering. */
     if (!table->covering_keys.is_set(cur_index))
       goto next_index;
@@ -9334,7 +9360,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
     else if (join->select_distinct)
     {
       select_items_it.rewind();
-      cur_used_key_parts.clear_all();
+      used_key_parts_map.clear_all();
       uint max_key_part= 0;
       while ((item= select_items_it++))
       {
@@ -9345,13 +9371,13 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
           Check if this attribute was already present in the select list.
           If it was present, then its corresponding key part was alredy used.
         */
-        if (cur_used_key_parts.is_set(key_part_nr))
+        if (used_key_parts_map.is_set(key_part_nr))
           continue;
         if (key_part_nr < 1 || key_part_nr > join->fields_list.elements)
           goto next_index;
         cur_part= cur_index_info->key_part + key_part_nr - 1;
         cur_group_prefix_len+= cur_part->store_length;
-        cur_used_key_parts.set_bit(key_part_nr);
+        used_key_parts_map.set_bit(key_part_nr);
         ++cur_group_key_parts;
         max_key_part= max(max_key_part,key_part_nr);
       }
@@ -9363,7 +9389,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
       */
       ulonglong all_parts, cur_parts;
       all_parts= (1<<max_key_part) - 1;
-      cur_parts= cur_used_key_parts.to_ulonglong() >> 1;
+      cur_parts= used_key_parts_map.to_ulonglong() >> 1;
       if (all_parts != cur_parts)
         goto next_index;
     }
@@ -9413,7 +9439,8 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
                                                         &dummy);
         if (!get_constant_key_infix(cur_index_info, index_range_tree,
                                     first_non_group_part, min_max_arg_part,
-                                    last_part, thd, key_infix, &key_infix_len,
+                                    last_part, thd, cur_key_infix, 
+                                    &cur_key_infix_len,
                                     &first_non_infix_part))
           goto next_index;
       }
@@ -9467,9 +9494,9 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
     }
 
     /* If we got to this point, cur_index_info passes the test. */
-    key_infix_parts= key_infix_len ?
+    key_infix_parts= cur_key_infix_len ? (uint) 
                      (first_non_infix_part - first_non_group_part) : 0;
-    used_key_parts= cur_group_key_parts + key_infix_parts;
+    cur_used_key_parts= cur_group_key_parts + key_infix_parts;
 
     /* Compute the cost of using this index. */
     if (tree)
@@ -9481,7 +9508,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
       cur_quick_prefix_records= check_quick_select(param, cur_param_idx,
                                                     cur_index_tree, TRUE);
     }
-    cost_group_min_max(table, cur_index_info, used_key_parts,
+    cost_group_min_max(table, cur_index_info, cur_used_key_parts,
                        cur_group_key_parts, tree, cur_index_tree,
                        cur_quick_prefix_records, have_min, have_max,
                        &cur_read_cost, &cur_records);
@@ -9492,7 +9519,6 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
     */
     if (cur_read_cost < best_read_cost - (DBL_EPSILON * cur_read_cost))
     {
-      DBUG_ASSERT(tree != 0 || cur_param_idx == MAX_KEY);
       index_info= cur_index_info;
       index= cur_index;
       best_read_cost= cur_read_cost;
@@ -9502,11 +9528,13 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
       best_param_idx= cur_param_idx;
       group_key_parts= cur_group_key_parts;
       group_prefix_len= cur_group_prefix_len;
+      key_infix_len= cur_key_infix_len;
+      if (key_infix_len)
+        memcpy (key_infix, cur_key_infix, sizeof (key_infix));
+      used_key_parts= cur_used_key_parts;
     }
 
-  next_index:
-    cur_group_key_parts= 0;
-    cur_group_prefix_len= 0;
+  next_index:;
   }
   if (!index_info) /* No usable index found. */
     DBUG_RETURN(NULL);

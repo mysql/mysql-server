@@ -51,10 +51,10 @@ Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
 unlock tables;
 drop table t1;
-use mysql;
+USE mysql;
 LOCK TABLES columns_priv WRITE, db WRITE, host WRITE, user WRITE;
 FLUSH TABLES;
-use mysql;
+USE mysql;
 SELECT user.Select_priv FROM user, db WHERE user.user = db.user LIMIT 1;
 OPTIMIZE TABLES columns_priv, db, host, user;
 Table	Op	Msg_type	Msg_text
@@ -65,7 +65,7 @@ mysql.user	optimize	status	OK
 UNLOCK TABLES;
 Select_priv
 N
-use test;
+USE test;
 use test;
 CREATE TABLE t1 (c1 int);
 LOCK TABLE t1 WRITE;
@@ -96,45 +96,66 @@ alter table t1 auto_increment=0;
 alter table t1 auto_increment=0;
 unlock tables;
 drop table t1;
-CREATE TABLE t1 (
-a int(11) unsigned default NULL,
-b varchar(255) default NULL,
-UNIQUE KEY a (a),
-KEY b (b)
-);
-INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3);
-CREATE TABLE t2 SELECT * FROM t1;
-CREATE TABLE t3 SELECT * FROM t1;
-# test altering of columns that multiupdate doesn't use
-# normal mode
-# PS mode
-# test altering of columns that multiupdate uses
-# normal mode
-# PS mode
-DROP TABLE t1, t2, t3;
-CREATE TABLE t1( a INT, b INT );
-INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3), (4, 4);
-# 1. test regular tables
-# 1.1. test altering of columns that multiupdate doesn't use
-# 1.1.1. normal mode
-# 1.1.2. PS mode
-# 1.2. test altering of columns that multiupdate uses
-# 1.2.1. normal mode
-# 1.2.2. PS mode
-ALTER TABLE t1 ADD COLUMN a INT;
-# 2. test UNIONs
-# 2.1. test altering of columns that multiupdate doesn't use
-# 2.1.1. normal mode
-# 2.1.2. PS mode
-# 2.2. test altering of columns that multiupdate uses
-# 2.2.1. normal mode
-# 2.2.2. PS mode
-DROP TABLE t1;
+create table t1 (a int);
+create table t2 like t1;
+# con1
+lock tables t1 write;
+# con2
+flush tables with read lock;
+# con5
+# global read lock is taken
+# con3
+select * from t2 for update;
+# waiting for release of read lock
+# con4
+# would hang and later cause a deadlock
+flush tables t2;
+# clean up
+unlock tables;
+unlock tables;
+a
+drop table t1,t2;
+#
+# Lightweight version:
+# Ensure that the wait for a GRL is done before opening tables.
+#
+create table t1 (a int);
+create table t2 like t1;
+#
+# UPDATE
+#
+# default
+flush tables with read lock;
+# con1
+update t2 set a = 1;
+# default
+# statement is waiting for release of read lock
+# con2
+flush table t2;
+# default
+unlock tables;
+# con1
+#
+# LOCK TABLES .. WRITE
+#
+# default
+flush tables with read lock;
+# con1
+lock tables t2 write;
+# default
+# statement is waiting for release of read lock
+# con2
+flush table t2;
+# default
+unlock tables;
+# con1
+unlock tables;
+drop table t1,t2;
 End of 5.0 tests
 create table t1 (i int);
 lock table t1 read;
-update t1 set i= 10;;
-select * from t1;;
+update t1 set i= 10;
+select * from t1;
 kill query ID;
 i
 ERROR 70100: Query execution was interrupted

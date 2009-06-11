@@ -400,16 +400,16 @@ prepare stmt3 from ' lock tables t1 read ' ;
 ERROR HY000: This command is not supported in the prepared statement protocol yet
 prepare stmt3 from ' unlock tables ' ;
 ERROR HY000: This command is not supported in the prepared statement protocol yet
-prepare stmt1 from ' load data infile ''data.txt''
-into table t1 fields terminated by ''\t'' ';
+prepare stmt1 from ' load data infile ''<MYSQLTEST_VARDIR>/tmp/data.txt''
+     into table t1 fields terminated by ''\t'' ';
 ERROR HY000: This command is not supported in the prepared statement protocol yet
-prepare stmt1 from ' select * into outfile ''data.txt'' from t1 ';
+prepare stmt1 from ' select * into outfile ''<MYSQLTEST_VARDIR>/tmp/data.txt'' from t1 ';
 execute stmt1 ;
 prepare stmt1 from ' optimize table t1 ' ;
 prepare stmt1 from ' analyze table t1 ' ;
 prepare stmt1 from ' checksum table t1 ' ;
 prepare stmt1 from ' repair table t1 ' ;
-prepare stmt1 from ' restore table t1 from ''data.txt'' ' ;
+prepare stmt1 from ' restore table t1 from ''<MYSQLTEST_VARDIR>/tmp/data.txt'' ' ;
 ERROR HY000: This command is not supported in the prepared statement protocol yet
 prepare stmt1 from ' handler t1 open ';
 ERROR HY000: This command is not supported in the prepared statement protocol yet

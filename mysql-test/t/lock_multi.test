@@ -1,4 +1,8 @@
 -- source include/not_embedded.inc
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
 --disable_warnings
 drop table if exists t1,t2;
 --enable_warnings
@@ -14,14 +18,18 @@ create table t1(n int);
 insert into t1 values (1);
 lock tables t1 write;
 connection writer;
-send update low_priority t1 set n = 4;
+send
+update low_priority t1 set n = 4;
 connection reader;
+# Sleep a bit till the update of connection writer is in work and hangs
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
   where state = "Locked" and info = "update low_priority t1 set n = 4";
 --source include/wait_condition.inc
-send select n from t1;
+send
+select n from t1;
 connection locker;
+# Sleep a bit till the select of connection reader is in work and hangs
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
   where state = "Locked" and info = "select n from t1";
@@ -38,8 +46,10 @@ create table t1(n int);
 insert into t1 values (1);
 lock tables t1 read;
 connection writer;
-send update low_priority t1 set n = 4;
+send
+update low_priority t1 set n = 4;
 connection reader;
+# Sleep a bit till the update of connection writer is in work and hangs
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
   where state = "Locked" and info = "update low_priority t1 set n = 4";
@@ -72,7 +82,7 @@ drop table t1;
 drop table t2;
 
 #
-# Test problem when using locks on many tables and droping a table that
+# Test problem when using locks on many tables and dropping a table that
 # is to-be-locked by another thread
 #
 #
@@ -81,7 +91,8 @@ create table t1 (a int);
 create table t2 (a int);
 lock table t1 write, t2 write;
 connection reader;
-send insert t1 select * from t2;
+send
+insert t1 select * from t2;
 connection locker;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
@@ -89,7 +100,7 @@ let $wait_condition=
 --source include/wait_condition.inc
 drop table t2;
 connection reader;
---error 1146
+--error ER_NO_SUCH_TABLE
 reap;
 connection locker;
 drop table t1;
@@ -103,15 +114,17 @@ create table t1 (a int);
 create table t2 (a int);
 lock table t1 write, t2 write, t1 as t1_2 write, t2 as t2_2 write;
 connection reader;
-send insert t1 select * from t2;
+send
+insert t1 select * from t2;
 connection locker;
+# Sleep a bit till the insert of connection reader is in work and hangs
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
   where state = "Locked" and info = "insert t1 select * from t2";
 --source include/wait_condition.inc
 drop table t2;
 connection reader;
---error 1146
+--error ER_NO_SUCH_TABLE
 reap;
 connection locker;
 drop table t1;
@@ -120,7 +133,7 @@ drop table t1;
 --echo End of 4.1 tests
 
 #
-# BUG#9998 - MySQL client hangs on USE "database"
+# Bug#9998 MySQL client hangs on USE "database"
 #
 create table t1(a int);
 lock tables t1 write;
@@ -131,26 +144,28 @@ unlock tables;
 drop table t1;
 
 #
-# Bug#16986 - Deadlock condition with MyISAM tables
+# Bug#16986 Deadlock condition with MyISAM tables
 #
 
 # Need a matching user in mysql.user for multi-table select
 --source include/add_anonymous_users.inc
 
 connection locker;
-use mysql;
+USE mysql;
 LOCK TABLES columns_priv WRITE, db WRITE, host WRITE, user WRITE;
 FLUSH TABLES;
 #
 connection reader;
-use mysql;
-#NOTE:  This must be a multi-table select, otherwise the deadlock will not occur
-send SELECT user.Select_priv FROM user, db WHERE user.user = db.user LIMIT 1;
+USE mysql;
+# Note:  This must be a multi-table select, otherwise the deadlock will not occur
+send
+SELECT user.Select_priv FROM user, db WHERE user.user = db.user LIMIT 1;
 #
 connection locker;
+# Sleep a bit till the select of connection reader is in work and hangs
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info = 
+  where state = "Waiting for table" and info =
   "SELECT user.Select_priv FROM user, db WHERE user.user = db.user LIMIT 1";
 --source include/wait_condition.inc
 # Make test case independent from earlier grants.
@@ -160,7 +175,7 @@ UNLOCK TABLES;
 #
 connection reader;
 reap;
-use test;
+USE test;
 #
 connection locker;
 use test;
@@ -175,9 +190,11 @@ LOCK TABLE t1 WRITE;
 #
 # This waits until t1 is unlocked.
 connection locker;
-send FLUSH TABLES WITH READ LOCK;
+send
+FLUSH TABLES WITH READ LOCK;
 #
 connection writer;
+# Sleep a bit till the flush of connection locker is in work and hangs
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
   where state = "Flushing tables" and info = "FLUSH TABLES WITH READ LOCK";
@@ -202,15 +219,17 @@ LOCK TABLE t1 WRITE;
 #
 # This waits until t1 is unlocked.
 connection locker;
-send FLUSH TABLES WITH READ LOCK;
+send
+FLUSH TABLES WITH READ LOCK;
 #
 # This must not block.
 connection writer;
+# Sleep a bit till the flush of connection locker is in work and hangs
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
   where state = "Flushing tables" and info = "FLUSH TABLES WITH READ LOCK";
 --source include/wait_condition.inc
---error 1100
+--error ER_TABLE_NOT_LOCKED
 CREATE TABLE t2 AS SELECT * FROM t1;
 UNLOCK TABLES;
 #
@@ -225,7 +244,7 @@ DROP TABLE t1;
 --source include/delete_anonymous_users.inc
 
 #
-# Bug#19815 - CREATE/RENAME/DROP DATABASE can deadlock on a global read lock
+# Bug#19815 CREATE/RENAME/DROP DATABASE can deadlock on a global read lock
 #
 connect (con1,localhost,root,,);
 connect (con2,localhost,root,,);
@@ -237,11 +256,13 @@ FLUSH TABLES WITH READ LOCK;
 # With bug in place: acquire LOCK_mysql_create_table and
 # wait in wait_if_global_read_lock().
 connection con2;
-send DROP DATABASE mysqltest_1;
+send
+DROP DATABASE mysqltest_1;
 #
 # With bug in place: try to acquire LOCK_mysql_create_table...
 # When fixed: Reject dropping db because of the read lock.
 connection con1;
+# Wait a bit so that the session con2 is in state "Waiting for release of readlock"
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
   where state = "Waiting for release of readlock"
@@ -263,7 +284,7 @@ disconnect con2;
 DROP DATABASE mysqltest_1;
 
 #
-# Bug #17264: MySQL Server freeze
+# Bug#17264 MySQL Server freeze
 #
 connection locker;
 # Disable warnings to allow test to run also without InnoDB
@@ -272,14 +293,18 @@ create table t1 (f1 int(12) unsigned not null auto_increment, primary key(f1)) e
 --enable_warnings
 lock tables t1 write;
 connection writer;
-send alter table t1 auto_increment=0;
+send
+alter table t1 auto_increment=0;
 connection reader;
+# Wait till connection writer is blocked
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
   where state = "Locked" and info = "alter table t1 auto_increment=0";
 --source include/wait_condition.inc
-send alter table t1 auto_increment=0;
+send
+alter table t1 auto_increment=0;
 connection locker;
+# Wait till connection reader is blocked
 let $wait_condition=
   select count(*) = 2 from information_schema.processlist
   where state = "Locked" and info = "alter table t1 auto_increment=0";
@@ -293,344 +318,154 @@ connection locker;
 drop table t1;
 
 #
-# Bug #38691: segfault/abort in ``UPDATE ...JOIN'' while
-#             ``FLUSH TABLES WITH READ LOCK''
+# Bug#43230: SELECT ... FOR UPDATE can hang with FLUSH TABLES WITH READ LOCK indefinitely
 #
 
---connection default
-CREATE TABLE t1 (
-  a int(11) unsigned default NULL,
-  b varchar(255) default NULL,
-  UNIQUE KEY a (a),
-  KEY b (b)
-);
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+connect (con3,localhost,root,,);
+connect (con4,localhost,root,,);
+connect (con5,localhost,root,,);
 
-INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3);
-CREATE TABLE t2 SELECT * FROM t1;
-CREATE TABLE t3 SELECT * FROM t1;
+create table t1 (a int);
+create table t2 like t1;
 
---echo # test altering of columns that multiupdate doesn't use
-
---echo # normal mode
-
---disable_query_log
-let $i = 100;
-while ($i) {
---dec $i
-
---connection writer
-  send UPDATE t2 INNER JOIN (t1 JOIN t3 USING(a)) USING(a)
-         SET a = NULL WHERE t1.b <> t2.b;
-
---connection locker
-  ALTER TABLE t2 ADD COLUMN (c INT);
-  ALTER TABLE t2 DROP COLUMN c;
-
---connection writer
+connection con1;
+--echo # con1
+lock tables t1 write;
+connection con2;
+--echo # con2
+send flush tables with read lock;
+connection con5;
+--echo # con5
+let $show_statement= SHOW PROCESSLIST;
+let $field= State;
+let $condition= = 'Flushing tables';
+--source include/wait_show_condition.inc
+--echo # global read lock is taken
+connection con3;
+--echo # con3
+send select * from t2 for update;
+connection con5;
+let $show_statement= SHOW PROCESSLIST;
+let $field= State;
+let $condition= = 'Waiting for release of readlock';
+--source include/wait_show_condition.inc
+--echo # waiting for release of read lock
+connection con4;
+--echo # con4
+--echo # would hang and later cause a deadlock
+flush tables t2;
+connection con1;
+--echo # clean up
+unlock tables;
+connection con2;
 --reap
-}
-
---echo # PS mode
-
---connection writer
-PREPARE stmt FROM 'UPDATE t2 INNER JOIN (t1 JOIN t3 USING(a)) USING(a)
-                     SET a = NULL WHERE t1.b <> t2.b';
-
-let $i = 100;
-while ($i) {
---dec $i
-
---connection writer
---send EXECUTE stmt
-
---connection locker
-  ALTER TABLE t2 ADD COLUMN (c INT);
-  ALTER TABLE t2 DROP COLUMN c;
-
---connection writer
+unlock tables;
+connection con3;
 --reap
-}
---enable_query_log
+connection default;
+disconnect con5;
+disconnect con4;
+disconnect con3;
+disconnect con2;
+disconnect con1;
 
+drop table t1,t2;
 
---echo # test altering of columns that multiupdate uses
+--echo #
+--echo # Lightweight version:
+--echo # Ensure that the wait for a GRL is done before opening tables.
+--echo #
 
---echo # normal mode
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
 
---connection default
+create table t1 (a int);
+create table t2 like t1;
 
---disable_query_log
-let $i = 100;
-while ($i) {
-  dec $i;
+--echo #
+--echo # UPDATE
+--echo #
 
---connection locker
---error 0,1060
-  ALTER TABLE t2 ADD COLUMN a int(11) unsigned default NULL;
-  UPDATE t2 SET a=b;
-
---connection writer
---send UPDATE t2 INNER JOIN (t1 JOIN t3 USING(a)) USING(a) SET a = NULL WHERE t1.b <> t2.b
-
---connection locker
---error 0,1091
-  ALTER TABLE t2 DROP COLUMN a;
-
---connection writer
---error 0,1054
---reap
-}
---enable_query_log
-
---echo # PS mode
-
---disable_query_log
-let $i = 100;
-while ($i) {
-  dec $i;
-
---connection locker
---error 0,1060
-  ALTER TABLE t2 ADD COLUMN a int(11) unsigned default NULL;
-  UPDATE t2 SET a=b;
-
---connection writer
-  PREPARE stmt FROM 'UPDATE t2 INNER JOIN (t1 JOIN t3 USING(a)) USING(a) SET a = NULL WHERE t1.b <> t2.b';
---send EXECUTE stmt
-
---connection locker
---error 0,1091
-  ALTER TABLE t2 DROP COLUMN a;
-
---connection writer
---error 0,1054
+connection default;
+--echo # default
+flush tables with read lock;
+connection con1;
+--echo # con1
+send update t2 set a = 1;
+connection default;
+--echo # default
+let $show_statement= SHOW PROCESSLIST;
+let $field= State;
+let $condition= = 'Waiting for release of readlock';
+--source include/wait_show_condition.inc
+--echo # statement is waiting for release of read lock
+connection con2;
+--echo # con2
+flush table t2;
+connection default;
+--echo # default
+unlock tables;
+connection con1;
+--echo # con1
 --reap
 
-}
---enable_query_log
---connection default
-DROP TABLE t1, t2, t3;
+--echo #
+--echo # LOCK TABLES .. WRITE
+--echo #
 
-#
-# Bug#38499: flush tables and multitable table update with derived table cause 
-#            crash
-#
-
-CREATE TABLE t1( a INT, b INT );
-INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3), (4, 4);
-
---echo # 1. test regular tables
---echo # 1.1. test altering of columns that multiupdate doesn't use
---echo # 1.1.1. normal mode
-
---disable_query_log
-let $i = 100;
-while ($i) {
---dec $i
-
---connection writer
-  send UPDATE t1, (SELECT 1 FROM t1 t1i) d SET a = 0 WHERE 1=0;
-
---connection locker
-  ALTER TABLE t1 ADD COLUMN (c INT);
-  ALTER TABLE t1 DROP COLUMN c;
-
---connection writer
+connection default;
+--echo # default
+flush tables with read lock;
+connection con1;
+--echo # con1
+send lock tables t2 write;
+connection default;
+--echo # default
+let $show_statement= SHOW PROCESSLIST;
+let $field= State;
+let $condition= = 'Waiting for release of readlock';
+--source include/wait_show_condition.inc
+--echo # statement is waiting for release of read lock
+connection con2;
+--echo # con2
+flush table t2;
+connection default;
+--echo # default
+unlock tables;
+connection con1;
+--echo # con1
 --reap
-}
+unlock tables;
 
---echo # 1.1.2. PS mode
+connection default;
+disconnect con2;
+disconnect con1;
 
---connection writer
-PREPARE stmt FROM 'UPDATE t1, (SELECT 1 FROM t1 t1i) d SET a = 0 WHERE 1=0';
+drop table t1,t2;
 
-let $i = 100;
-while ($i) {
---dec $i
-
---connection writer
---send EXECUTE stmt
-
---connection locker
-  ALTER TABLE t1 ADD COLUMN (c INT);
-  ALTER TABLE t1 DROP COLUMN c;
-
---connection writer
---reap
-}
---enable_query_log
-
---echo # 1.2. test altering of columns that multiupdate uses
---echo # 1.2.1. normal mode
-
---connection default
-
---disable_query_log
-let $i = 100;
-while ($i) {
-  dec $i;
-
---connection locker
---error 0,1060
-  ALTER TABLE t1 ADD COLUMN a int(11) unsigned default NULL;
-  UPDATE t1 SET a=b;
-
---connection writer
---send UPDATE t1, (SELECT 1 FROM t1 t1i) d SET a = 0 WHERE 1=0;
-
---connection locker
---error 0,1091
-  ALTER TABLE t1 DROP COLUMN a;
-
---connection writer
---error 0,1054 # unknown column error
---reap
-}
---enable_query_log
-
---echo # 1.2.2. PS mode
-
---disable_query_log
-let $i = 100;
-while ($i) {
-  dec $i;
-
---connection locker
---error 0,1060
-  ALTER TABLE t1 ADD COLUMN a INT;
-  UPDATE t1 SET a=b;
-
---connection writer
-  PREPARE stmt FROM 'UPDATE t1, (SELECT 1 FROM t1 t1i) d SET a = 0 WHERE 1=0';
---send EXECUTE stmt
-
---connection locker
---error 0,1091
-  ALTER TABLE t1 DROP COLUMN a;
-
---connection writer
---error 0,1054 # Unknown column 'a' in 'field list'
---reap
-}
---enable_query_log
---connection default
-ALTER TABLE t1 ADD COLUMN a INT;
-
---echo # 2. test UNIONs
---echo # 2.1. test altering of columns that multiupdate doesn't use
---echo # 2.1.1. normal mode
-
---disable_query_log
-let $i = 100;
-while ($i) {
---dec $i
-
---connection writer
-  send UPDATE t1, ((SELECT 1 FROM t1 t1i) UNION (SELECT 2 FROM t1 t1ii)) e SET a = 0 WHERE 1=0;
-
---connection locker
-  ALTER TABLE t1 ADD COLUMN (c INT);
-  ALTER TABLE t1 DROP COLUMN c;
-
---connection writer
---reap
-}
-
---echo # 2.1.2. PS mode
-
---connection writer
-PREPARE stmt FROM 'UPDATE t1, ((SELECT 1 FROM t1 t1i) UNION (SELECT 2 FROM t1 t1ii)) e SET a = 0 WHERE 1=0';
-
-let $i = 100;
-while ($i) {
---dec $i
-
---connection writer
---send EXECUTE stmt
-
---connection locker
-  ALTER TABLE t1 ADD COLUMN (c INT);
-  ALTER TABLE t1 DROP COLUMN c;
-
---connection writer
---reap
-}
---enable_query_log
-
---echo # 2.2. test altering of columns that multiupdate uses
---echo # 2.2.1. normal mode
-
---connection default
-
---disable_query_log
-let $i = 100;
-while ($i) {
-  dec $i;
-
---connection locker
---error 0,1060
-  ALTER TABLE t1 ADD COLUMN a int(11) unsigned default NULL;
-  UPDATE t1 SET a=b;
-
---connection writer
---send UPDATE t1, ((SELECT 1 FROM t1 t1i) UNION (SELECT 2 FROM t1 t1ii)) e SET a = 0 WHERE 1=0;
-
---connection locker
---error 0,1091
-  ALTER TABLE t1 DROP COLUMN a;
-
---connection writer
---error 0,1054 # Unknown column 'a' in 'field list'
---reap
-}
---enable_query_log
-
---echo # 2.2.2. PS mode
-
---disable_query_log
-let $i = 100;
-while ($i) {
-  dec $i;
-
---connection locker
---error 0,1060
-  ALTER TABLE t1 ADD COLUMN a INT;
-  UPDATE t1 SET a=b;
-
---connection writer
-  PREPARE stmt FROM 'UPDATE t1, ((SELECT 1 FROM t1 t1i) UNION (SELECT 2 FROM t1 t1ii)) e SET a = 0 WHERE 1=0';
---send EXECUTE stmt
-
---connection locker
---error 0,1091
-  ALTER TABLE t1 DROP COLUMN a;
-
---connection writer
---error 0,1054 # Unknown column 'a' in 'field list'
---reap
-}
---enable_query_log
---connection default
-DROP TABLE t1;
 
 --echo End of 5.0 tests
 
 
 #
-# Bug #21281 "Pending write lock is incorrectly removed when its
-#             statement being KILLed"
+# Bug#21281 Pending write lock is incorrectly removed when its
+#           statement being KILLed
 #
 create table t1 (i int);
 connection locker;
 lock table t1 read;
 connection writer;
---send update t1 set i= 10;
+send
+update t1 set i= 10;
 connection reader;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
   where state = "Locked" and info = "update t1 set i= 10";
 --source include/wait_condition.inc
---send select * from t1;
+send
+select * from t1;
 connection default;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
@@ -642,7 +477,7 @@ eval kill query $ID;
 connection reader;
 --reap
 connection writer;
---error ER_QUERY_INTERRUPTED 
+--error ER_QUERY_INTERRUPTED
 --reap
 connection locker;
 unlock tables;
@@ -650,7 +485,7 @@ connection default;
 drop table t1;
 
 #
-# Bug#25856 - HANDLER table OPEN in one connection lock DROP TABLE in another one
+# Bug#25856 HANDLER table OPEN in one connection lock DROP TABLE in another one
 #
 --disable_warnings
 drop table if exists t1;
@@ -658,11 +493,18 @@ drop table if exists t1;
 create table t1 (a int) ENGINE=MEMORY;
 --echo --> client 2
 connection locker;
---error 1031
+--error ER_ILLEGAL_HA
 handler t1 open;
 --echo --> client 1
 connection default;
 drop table t1;
+
+
+# Disconnect sessions used in many subtests above
+disconnect locker;
+disconnect reader;
+disconnect writer;
+
 
 #
 # Bug#32395 Alter table under a impending global read lock causes a server crash
@@ -764,7 +606,7 @@ disconnect flush;
 drop table t1;
 
 #
-# Bug#30331: Table_locks_waited shows inaccurate values
+# Bug#30331 Table_locks_waited shows inaccurate values
 #
 
 --disable_warnings
@@ -794,3 +636,7 @@ eval SET @tlwb= SUBSTRING_INDEX('$tlwb', '	', -1);
 select @tlwa < @tlwb;
 
 --echo End of 5.1 tests
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc
+

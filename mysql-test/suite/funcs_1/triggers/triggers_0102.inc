@@ -458,7 +458,9 @@ let $message= Testcase 3.5.2.1/2/3:;
 	create trigger trig_db2.trig2 before insert on trig_db2.t1
 		for each row set @test_var3='trig2';
 	select trigger_schema, trigger_name, event_object_table
-		from information_schema.triggers order by trigger_name;
+        from information_schema.triggers
+        where trigger_schema like 'trig_db%'
+        order by trigger_name;
 
 	set @test_var1= '', @test_var2= '', @test_var3= '';
 	insert into t1 (f1,f2) values ('insert to db1 t1 from db1',352);
