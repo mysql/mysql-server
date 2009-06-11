@@ -24,7 +24,10 @@
 #include "common.hpp"
 #include "CPCD.hpp"
 
+#ifndef _WIN32
 #include <pwd.h>
+#endif
+
 #ifdef HAVE_GETRLIMIT
 #include <sys/resource.h>
 #endif
@@ -87,7 +90,6 @@ CPCD::Process::monitor() {
     break;
   case RUNNING:
     if(!isRunning()){
-      m_cpcd->report(m_id, CPCEvent::ET_PROC_STATE_STOPPED);
       if(m_processType == TEMPORARY){
 	m_status = STOPPED;
       } else {
@@ -371,7 +373,6 @@ CPCD::Process::start() {
       break;
     default: /* Parent */
       logger.debug("Started temporary %d : pid=%d", m_id, pid);
-      m_cpcd->report(m_id, CPCEvent::ET_PROC_STATE_RUNNING);
       break;
     }
     break;
@@ -412,7 +413,6 @@ CPCD::Process::start() {
       return -1;
       break;
     default: /* Parent */
-      m_cpcd->report(m_id, CPCEvent::ET_PROC_STATE_RUNNING);
       break;
     }
     break;

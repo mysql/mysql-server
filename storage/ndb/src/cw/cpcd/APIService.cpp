@@ -1,6 +1,7 @@
 /*
-   Copyright (C) 2003 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (C) 2003-2008 MySQL AB, 2009 Sun Microsystems Inc.
+
+   All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -227,8 +228,6 @@ CPCDAPISession::loadFile(){
     }
   }
 }
-
-static const int g_TimeOut = 1000;
 
 void
 CPCDAPISession::defineProcess(Parser_t::Context & /* unused */, 
