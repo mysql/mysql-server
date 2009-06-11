@@ -1,0 +1,116 @@
+/*****************************************************************************
+
+Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
+/******************************************************
+Transaction undo log record
+
+Created 3/26/1996 Heikki Tuuri
+*******************************************************/
+
+/**************************************************************************
+Reads from an undo log record the record type. */
+UNIV_INLINE
+ulint
+trx_undo_rec_get_type(
+/*==================*/
+					/* out: record type */
+	trx_undo_rec_t*	undo_rec)	/* in: undo log record */
+{
+	return(mach_read_from_1(undo_rec + 2) & (TRX_UNDO_CMPL_INFO_MULT - 1));
+}
+
+/**************************************************************************
+Reads from an undo log record the record compiler info. */
+UNIV_INLINE
+ulint
+trx_undo_rec_get_cmpl_info(
+/*=======================*/
+					/* out: compiler info */
+	trx_undo_rec_t*	undo_rec)	/* in: undo log record */
+{
+	return(mach_read_from_1(undo_rec + 2) / TRX_UNDO_CMPL_INFO_MULT);
+}
+
+/**************************************************************************
+Returns TRUE if an undo log record contains an extern storage field. */
+UNIV_INLINE
+ibool
+trx_undo_rec_get_extern_storage(
+/*============================*/
+					/* out: TRUE if extern */
+	trx_undo_rec_t*	undo_rec)	/* in: undo log record */
+{
+	if (mach_read_from_1(undo_rec + 2) & TRX_UNDO_UPD_EXTERN) {
+
+		return(TRUE);
+	}
+
+	return(FALSE);
+}
+
+/**************************************************************************
+Reads the undo log record number. */
+UNIV_INLINE
+dulint
+trx_undo_rec_get_undo_no(
+/*=====================*/
+					/* out: undo no */
+	trx_undo_rec_t*	undo_rec)	/* in: undo log record */
+{
+	byte*	ptr;
+
+	ptr = undo_rec + 3;
+
+	return(mach_dulint_read_much_compressed(ptr));
+}
+
+/**************************************************************************
+Returns the start of the undo record data area. */
+UNIV_INLINE
+byte*
+trx_undo_rec_get_ptr(
+/*=================*/
+					/* out: compiler info */
+	trx_undo_rec_t*	undo_rec,	/* in: undo log record */
+	dulint		undo_no)	/* in: undo no read from node */
+{
+	return (((byte*) undo_rec) + 3
+		+ mach_dulint_get_much_compressed_size(undo_no));
+}
+
+/***************************************************************************
+Copies the undo record to the heap. */
+UNIV_INLINE
+trx_undo_rec_t*
+trx_undo_rec_copy(
+/*==============*/
+					/* out, own: copy of undo log record */
+	trx_undo_rec_t*	undo_rec,	/* in: undo log record */
+	mem_heap_t*	heap)		/* in: heap where copied */
+{
+	ulint		len;
+	trx_undo_rec_t*	rec_copy;
+
+	len = mach_read_from_2(undo_rec)
+		- ut_align_offset(undo_rec, UNIV_PAGE_SIZE);
+	rec_copy = mem_heap_alloc(heap, len);
+
+	ut_memcpy(rec_copy, undo_rec, len);
+
+	return(rec_copy);
+}

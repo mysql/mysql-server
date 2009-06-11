@@ -464,3 +464,52 @@ process_flags:
 err:
   return (size_t) -1;
 }
+
+int init_strvar_from_file(char *var, int max_size, IO_CACHE *f,
+                          const char *default_val)
+{
+  uint length;
+  DBUG_ENTER("init_strvar_from_file");
+
+  if ((length=my_b_gets(f,var, max_size)))
+  {
+    char* last_p = var + length -1;
+    if (*last_p == '\n')
+      *last_p = 0; /* if we stopped on newline, kill it */
+    else
+    {
+      /*
+        If we truncated a line or stopped on last char, remove all chars
+        up to and including newline.
+      */
+      int c;
+      while (((c=my_b_get(f)) != '\n' && c != my_b_EOF))
+        ;
+    }
+    DBUG_RETURN(0);
+  }
+  else if (default_val)
+  {
+    strmake(var,  default_val, max_size-1);
+    DBUG_RETURN(0);
+  }
+  DBUG_RETURN(1);
+}
+
+int init_intvar_from_file(int* var, IO_CACHE* f, int default_val)
+{
+  char buf[32];
+  DBUG_ENTER("init_intvar_from_file");
+
+  if (my_b_gets(f, buf, sizeof(buf)))
+  {
+    *var = atoi(buf);
+    DBUG_RETURN(0);
+  }
+  else if (default_val)
+  {
+    *var = default_val;
+    DBUG_RETURN(0);
+  }
+  DBUG_RETURN(1);
+}

@@ -9313,3 +9313,29 @@ st_print_event_info::st_print_event_info()
   open_cached_file(&body_cache, NULL, NULL, 0, flags);
 }
 #endif
+
+#if defined(MYSQL_SERVER)
+/*
+  Access to the current replication position.
+
+  There is a dummy replacement for this in the embedded library that returns
+  FALSE; this is used by XtraDB to allow it to access replication stuff while
+  still being able to use the same plugin in both stand-alone and embedded.
+*/
+bool rpl_get_position_info(const char **log_file_name, ulonglong *log_pos,
+                           const char **group_relay_log_name,
+                           ulonglong *relay_log_pos)
+{
+#if defined(EMBEDDED_LIBRARY) || !defined(HAVE_REPLICATION)
+  return FALSE;
+#else
+  const Relay_log_info *rli= &(active_mi->rli);
+  *log_file_name= rli->group_master_log_name;
+  *log_pos= rli->group_master_log_pos +
+    (rli->future_event_relay_log_pos - rli->group_relay_log_pos);
+  *group_relay_log_name= rli->group_relay_log_name;
+  *relay_log_pos= rli->future_event_relay_log_pos;
+  return TRUE;
+#endif
+}
+#endif

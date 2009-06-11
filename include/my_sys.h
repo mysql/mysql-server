@@ -791,6 +791,9 @@ extern size_t my_b_gets(IO_CACHE *info, char *to, size_t max_length);
 extern my_off_t my_b_filelength(IO_CACHE *info);
 extern size_t my_b_printf(IO_CACHE *info, const char* fmt, ...);
 extern size_t my_b_vprintf(IO_CACHE *info, const char* fmt, va_list ap);
+extern int init_strvar_from_file(char *var, int max_size, IO_CACHE *f,
+                                 const char *default_val);
+extern int init_intvar_from_file(int* var, IO_CACHE* f, int default_val);
 extern my_bool open_cached_file(IO_CACHE *cache,const char *dir,
 				 const char *prefix, size_t cache_size,
 				 myf cache_myflags);

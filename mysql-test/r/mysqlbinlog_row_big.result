@@ -1,4 +1,9 @@
 #
+# We need big packets.
+#
+SET @old_global_max_allowed_packet=@@global.max_allowed_packet;
+SET @@global.max_allowed_packet= 1024*1024*1024;
+#
 # Preparatory cleanup.
 #
 DROP TABLE IF EXISTS t1;
@@ -6,10 +11,6 @@ DROP TABLE IF EXISTS t1;
 # We need a fixed timestamp to avoid varying results.
 #
 SET timestamp=1000000000;
-#
-# We need big packets.
-#
-SET @@global.max_allowed_packet= 1024*1024*1024;
 #
 # Delete all existing binary logs.
 #
@@ -71,4 +72,5 @@ FLUSH LOGS;
 # Cleanup.
 #
 DROP TABLE t1;
+SET @@global.max_allowed_packet=@old_global_max_allowed_packet;
 remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_big_1.out
