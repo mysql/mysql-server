@@ -61,3 +61,5 @@ SET GLOBAL innodb_stats_sample_pages=16;
 ANALYZE TABLE innodb_analyze;
 
 DROP TABLE innodb_analyze;
+
+SET GLOBAL innodb_stats_sample_pages=DEFAULT;
