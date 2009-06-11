@@ -9620,7 +9620,7 @@ static MYSQL_SYSVAR_STR(log_group_home_dir, innobase_log_group_home_dir,
 static MYSQL_SYSVAR_ULONG(max_dirty_pages_pct, srv_max_buf_pool_modified_pct,
   PLUGIN_VAR_RQCMDARG,
   "Percentage of dirty pages allowed in bufferpool.",
-  NULL, NULL, 90, 0, 100, 0);
+  NULL, NULL, 75, 0, 99, 0);
 
 static MYSQL_SYSVAR_ULONG(max_purge_lag, srv_max_purge_lag,
   PLUGIN_VAR_RQCMDARG,
@@ -9662,7 +9662,7 @@ static MYSQL_SYSVAR_ULONG(replication_delay, srv_replication_delay,
 static MYSQL_SYSVAR_LONG(additional_mem_pool_size, innobase_additional_mem_pool_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Size of a memory pool InnoDB uses to store data dictionary information and other internal data structures.",
-  NULL, NULL, 1*1024*1024L, 512*1024L, LONG_MAX, 1024);
+  NULL, NULL, 8*1024*1024L, 512*1024L, LONG_MAX, 1024);
 
 static MYSQL_SYSVAR_ULONG(autoextend_increment, srv_auto_extend_increment,
   PLUGIN_VAR_RQCMDARG,
@@ -9672,7 +9672,7 @@ static MYSQL_SYSVAR_ULONG(autoextend_increment, srv_auto_extend_increment,
 static MYSQL_SYSVAR_LONGLONG(buffer_pool_size, innobase_buffer_pool_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "The size of the memory buffer InnoDB uses to cache data and indexes of its tables.",
-  NULL, NULL, 8*1024*1024L, 5*1024*1024L, LONGLONG_MAX, 1024*1024L);
+  NULL, NULL, 128*1024*1024L, 5*1024*1024L, LONGLONG_MAX, 1024*1024L);
 
 static MYSQL_SYSVAR_ULONG(commit_concurrency, innobase_commit_concurrency,
   PLUGIN_VAR_RQCMDARG,
@@ -9692,12 +9692,12 @@ static MYSQL_SYSVAR_LONG(file_io_threads, innobase_file_io_threads,
 static MYSQL_SYSVAR_ULONG(read_io_threads, innobase_read_io_threads,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Number of background read I/O threads in InnoDB.",
-  NULL, NULL, 1, 1, 64, 0);
+  NULL, NULL, 4, 1, 64, 0);
 
 static MYSQL_SYSVAR_ULONG(write_io_threads, innobase_write_io_threads,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Number of background write I/O threads in InnoDB.",
-  NULL, NULL, 1, 1, 64, 0);
+  NULL, NULL, 4, 1, 64, 0);
 
 static MYSQL_SYSVAR_LONG(force_recovery, innobase_force_recovery,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -9707,7 +9707,7 @@ static MYSQL_SYSVAR_LONG(force_recovery, innobase_force_recovery,
 static MYSQL_SYSVAR_LONG(log_buffer_size, innobase_log_buffer_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "The size of the buffer which InnoDB uses to write log to the log files on disk.",
-  NULL, NULL, 1024*1024L, 256*1024L, LONG_MAX, 1024);
+  NULL, NULL, 8*1024*1024L, 256*1024L, LONG_MAX, 1024);
 
 static MYSQL_SYSVAR_LONGLONG(log_file_size, innobase_log_file_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
