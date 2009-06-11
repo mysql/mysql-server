@@ -55,7 +55,7 @@ static int get_or_create_user_conn(THD *thd, const char *user,
 				   USER_RESOURCES *mqh)
 {
   int return_val= 0;
-  uint temp_len, user_len;
+  size_t temp_len, user_len;
   char temp_user[USER_HOST_BUFF_SIZE];
   struct  user_conn *uc;
 

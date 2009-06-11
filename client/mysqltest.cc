@@ -1316,7 +1316,7 @@ void log_msg(const char *fmt, ...)
 void cat_file(DYNAMIC_STRING* ds, const char* filename)
 {
   int fd;
-  uint len;
+  size_t len;
   char buff[512];
 
   if ((fd= my_open(filename, O_RDONLY, MYF(0))) < 0)
@@ -1445,6 +1445,7 @@ static int run_tool(const char *tool_path, DYNAMIC_STRING *ds_res, ...)
   Test if diff is present.  This is needed on Windows systems
   as the OS returns 1 whether diff is successful or if it is
   not present.
+  Takes name of diff program as argument
   
   We run diff -v and look for output in stdout.
   We don't redirect stderr to stdout to make for a simplified check
@@ -1452,11 +1453,12 @@ static int run_tool(const char *tool_path, DYNAMIC_STRING *ds_res, ...)
   not present.
 */
 
-int diff_check()
+int diff_check (const char *diff_name)
 {
     char buf[512]= {0};
     FILE *res_file;
-    const char *cmd = "diff -v";
+    char cmd[128];
+    my_snprintf (cmd, sizeof(cmd), "%s -v", diff_name);
     int have_diff = 0;
 
     if (!(res_file= popen(cmd, "r")))
@@ -1488,7 +1490,7 @@ void show_diff(DYNAMIC_STRING* ds,
                const char* filename1, const char* filename2)
 {
   DYNAMIC_STRING ds_tmp;
-  int have_diff = 0;
+  const char *diff_name = 0;
 
   if (init_dynamic_string(&ds_tmp, "", 256, 256))
     die("Out of memory");
@@ -1501,15 +1503,20 @@ void show_diff(DYNAMIC_STRING* ds,
      the way it's implemented does not work with default 'diff' on Solaris.
   */
 #ifdef __WIN__
-  have_diff = diff_check();
+  if (diff_check("diff"))
+    diff_name = "diff";
+  else if (diff_check("mtrdiff"))
+    diff_name = "mtrdiff";
+  else
+    diff_name = 0;
 #else
-  have_diff = 1;
+  diff_name = "diff";		// Otherwise always assume it's called diff
 #endif
 
-  if (have_diff)
+  if (diff_name)
   {
     /* First try with unified diff */
-    if (run_tool("diff",
+    if (run_tool(diff_name,
                  &ds_tmp, /* Get output from diff in ds_tmp */
                  "-u",
                  filename1,
@@ -1520,7 +1527,7 @@ void show_diff(DYNAMIC_STRING* ds,
       dynstr_set(&ds_tmp, "");
 
       /* Fallback to context diff with "diff -c" */
-      if (run_tool("diff",
+      if (run_tool(diff_name,
                    &ds_tmp, /* Get output from diff in ds_tmp */
                    "-c",
                    filename1,
@@ -1531,20 +1538,20 @@ void show_diff(DYNAMIC_STRING* ds,
 	dynstr_set(&ds_tmp, "");
 
 	/* Fallback to simple diff with "diff" */
-	if (run_tool("diff",
+	if (run_tool(diff_name,
 		     &ds_tmp, /* Get output from diff in ds_tmp */
 		     filename1,
 		     filename2,
 		     "2>&1",
 		     NULL) > 1) /* Most "diff" tools return >1 if error */
 	    {
-		have_diff= 0;
+		diff_name= 0;
 	    }
       }
     }
   }  
 
-  if (! have_diff)
+  if (! diff_name)
   {
     /*
       Fallback to dump both files to result file and inform
@@ -1614,7 +1621,7 @@ int compare_files2(File fd, const char* filename2)
 {
   int error= RESULT_OK;
   File fd2;
-  uint len, len2;
+  size_t len, len2;
   char buff[512], buff2[512];
 
   if ((fd2= my_open(filename2, O_RDONLY, MYF(0))) < 0)
@@ -2653,7 +2660,8 @@ void do_exec(struct st_command *command)
       log_msg("exec of '%s' failed, error: %d, status: %d, errno: %d",
               ds_cmd.str, error, status, errno);
       dynstr_free(&ds_cmd);
-      die("command \"%s\" failed", command->first_argument);
+      die("command \"%s\" failed\n\nOutput from before failure:\n%s\n",
+          command->first_argument, ds_res.str);
     }
 
     DBUG_PRINT("info",
@@ -4647,6 +4655,10 @@ void safe_connect(MYSQL* mysql, const char *name, const char *host,
   int failed_attempts= 0;
 
   DBUG_ENTER("safe_connect");
+
+  verbose_msg("Connecting to server %s:%d (socket %s) as '%s'"
+              ", connection '%s', attempt %d ...", 
+              host, port, sock, user, name, failed_attempts);
   while(!mysql_real_connect(mysql, host,user, pass, db, port, sock,
                             CLIENT_MULTI_STATEMENTS | CLIENT_REMEMBER_OPTIONS))
   {
@@ -4678,6 +4690,7 @@ void safe_connect(MYSQL* mysql, const char *name, const char *host,
     }
     failed_attempts++;
   }
+  verbose_msg("... Connected.");
   DBUG_VOID_RETURN;
 }
 
@@ -7156,7 +7169,7 @@ void init_re_comp(my_regex_t *re, const char* str)
     char erbuf[100];
     int len= my_regerror(err, re, erbuf, sizeof(erbuf));
     die("error %s, %d/%d `%s'\n",
-	re_eprint(err), len, (int)sizeof(erbuf), erbuf);
+	re_eprint(err), (int)len, (int)sizeof(erbuf), erbuf);
   }
 }
 
@@ -7212,7 +7225,7 @@ int match_re(my_regex_t *re, char *str)
     char erbuf[100];
     int len= my_regerror(err, re, erbuf, sizeof(erbuf));
     die("error %s, %d/%d `%s'\n",
-	re_eprint(err), len, (int)sizeof(erbuf), erbuf);
+	re_eprint(err), (int)len, (int)sizeof(erbuf), erbuf);
   }
   return 0;
 }
@@ -7511,8 +7524,12 @@ int main(int argc, char **argv)
   parse_args(argc, argv);
 
   log_file.open(opt_logdir, result_file_name, ".log");
+  verbose_msg("Logging to '%s'.", log_file.file_name());
   if (opt_mark_progress)
+  {
     progress_file.open(opt_logdir, result_file_name, ".progress");
+    verbose_msg("Tracing progress in '%s'.", progress_file.file_name());
+  }
 
   var_set_int("$PS_PROTOCOL", ps_protocol);
   var_set_int("$SP_PROTOCOL", sp_protocol);
@@ -7521,6 +7538,8 @@ int main(int argc, char **argv)
 
   DBUG_PRINT("info",("result_file: '%s'",
                      result_file_name ? result_file_name : ""));
+  verbose_msg("Results saved in '%s'.", 
+              result_file_name ? result_file_name : "");
   if (mysql_server_init(embedded_server_arg_count,
 			embedded_server_args,
 			(char**) embedded_server_groups))
@@ -7591,6 +7610,7 @@ int main(int argc, char **argv)
     open_file(opt_include);
   }
 
+  verbose_msg("Start processing test commands from '%s' ...", cur_file->file_name);
   while (!read_command(&command) && !abort_flag)
   {
     int current_line_inc = 1, processed = 0;
@@ -7908,6 +7928,7 @@ int main(int argc, char **argv)
   log_file.close();
 
   start_lineno= 0;
+  verbose_msg("... Done processing test commands.");
 
   if (parsing_disabled)
     die("Test ended with parsing disabled");
@@ -7958,6 +7979,7 @@ int main(int argc, char **argv)
   if (!command_executed && result_file_name)
     die("No queries executed but result file found!");
 
+  verbose_msg("Test has succeeded!");
   timer_output();
   /* Yes, if we got this far the test has suceeded! Sakila smiles */
   cleanup_and_exit(0);

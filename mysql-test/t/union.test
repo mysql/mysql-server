@@ -105,17 +105,25 @@ SELECT a INTO @v FROM (
   SELECT a FROM t1
 ) alias;
 
-SELECT a INTO OUTFILE 'union.out.file' FROM (
-  SELECT a FROM t1
-  UNION
-  SELECT a FROM t1 WHERE 0
-) alias;
+--let $outfile = $MYSQLTEST_VARDIR/tmp/union.out.file
+--error 0,1
+--remove_file $outfile
 
-SELECT a INTO DUMPFILE 'union.out.file2' FROM (
+--replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
+eval SELECT a INTO OUTFILE '$outfile' FROM (
   SELECT a FROM t1
   UNION
   SELECT a FROM t1 WHERE 0
 ) alias;
+--remove_file $outfile
+
+--replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
+eval SELECT a INTO DUMPFILE '$outfile' FROM (
+  SELECT a FROM t1
+  UNION
+  SELECT a FROM t1 WHERE 0
+) alias;
+--remove_file $outfile
 
 #
 # INTO will not be allowed in subqueries in version 5.1 and above.
@@ -126,27 +134,42 @@ SELECT a FROM (
   SELECT a INTO @v FROM t1
 ) alias;
 
-SELECT a FROM (
+--replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
+eval SELECT a FROM (
   SELECT a FROM t1
   UNION
-  SELECT a INTO OUTFILE 'union.out.file3' FROM t1
+  SELECT a INTO OUTFILE '$outfile' FROM t1
 ) alias;
+--remove_file $outfile
 
-SELECT a FROM (
+--replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
+eval SELECT a FROM (
   SELECT a FROM t1
   UNION
-  SELECT a INTO DUMPFILE 'union.out.file4' FROM t1
+  SELECT a INTO DUMPFILE '$outfile' FROM t1
 ) alias;
+--remove_file $outfile
 
 SELECT a FROM t1 UNION SELECT a INTO @v FROM t1;
-SELECT a FROM t1 UNION SELECT a INTO OUTFILE 'union.out.file5' FROM t1;
-SELECT a FROM t1 UNION SELECT a INTO OUTFILE 'union.out.file6' FROM t1;
+
+--replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
+eval SELECT a FROM t1 UNION SELECT a INTO OUTFILE '$outfile' FROM t1;
+--remove_file $outfile
+
+--replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
+eval SELECT a FROM t1 UNION SELECT a INTO DUMPFILE '$outfile' FROM t1;
+--remove_file $outfile
+
 --error ER_WRONG_USAGE
 SELECT a INTO @v FROM t1 UNION SELECT a FROM t1;
+
+--replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
 --error ER_WRONG_USAGE
-SELECT a INTO OUTFILE 'union.out.file7' FROM t1 UNION SELECT a FROM t1;
+eval SELECT a INTO OUTFILE '$outfile' FROM t1 UNION SELECT a FROM t1;
+
+--replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
 --error ER_WRONG_USAGE
-SELECT a INTO DUMPFILE 'union.out.file8' FROM t1 UNION SELECT a FROM t1;
+eval SELECT a INTO DUMPFILE '$outfile' FROM t1 UNION SELECT a FROM t1;
 
 DROP TABLE t1;
 
@@ -1051,4 +1074,19 @@ SELECT * FROM (SELECT * FROM (SELECT NULL)a) b UNION SELECT a FROM t1;
 DESC t6;
 
 DROP TABLE t1, t2, t3, t4, t5, t6;
+
+#
+# Bug #43432: Union on floats does unnecessary rounding
+#
+
+CREATE TABLE t1 (f FLOAT(9,6));
+CREATE TABLE t2 AS SELECT f FROM t1 UNION SELECT f FROM t1;
+SHOW FIELDS FROM t2;
+DROP TABLE t1, t2;
+
+CREATE TABLE t1(d DOUBLE(9,6));
+CREATE TABLE t2 AS SELECT d FROM t1 UNION SELECT d FROM t1;
+SHOW FIELDS FROM t2;
+DROP TABLE t1, t2;
+
 --echo End of 5.0 tests

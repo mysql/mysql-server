@@ -412,6 +412,7 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
   if (!(ret= db_repository->create_event(thd, parse_data, if_not_exists)))
   {
     Event_queue_element *new_element;
+    bool dropped= 0;
 
     if (!(new_element= new Event_queue_element()))
       ret= TRUE;                                // OOM
@@ -419,8 +420,9 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
                                                    parse_data->name,
                                                    new_element)))
     {
-      db_repository->drop_event(thd, parse_data->dbname, parse_data->name,
-                                TRUE);
+      if (!db_repository->drop_event(thd, parse_data->dbname, parse_data->name,
+                                     TRUE))
+        dropped= 1;
       delete new_element;
     }
     else
@@ -429,6 +431,12 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
       bool created;
       if (event_queue)
         event_queue->create_event(thd, new_element, &created);
+    }
+    /*
+      binlog the create event unless it's been successfully dropped
+    */
+    if (!dropped)
+    {
       /* Binlog the create event. */
       DBUG_ASSERT(thd->query && thd->query_length);
       write_bin_log(thd, TRUE, thd->query, thd->query_length);
@@ -694,7 +702,7 @@ send_show_create_event(THD *thd, Event_timed *et, Protocol *protocol)
                                                          &sql_mode))
     DBUG_RETURN(TRUE);
 
-  field_list.push_back(new Item_empty_string("sql_mode", sql_mode.length));
+  field_list.push_back(new Item_empty_string("sql_mode", (uint) sql_mode.length));
 
   tz_name= et->time_zone->get_name();
 

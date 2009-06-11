@@ -2901,8 +2901,9 @@ row_sel_get_clust_rec_for_mysql(
 func_exit:
 	*out_rec = clust_rec;
 
-	if (prebuilt->select_lock_type == LOCK_X) {
-		/* We may use the cursor in update: store its position */
+	if (prebuilt->select_lock_type != LOCK_NONE) {
+		/* We may use the cursor in update or in unlock_row():
+		store its position */
 
 		btr_pcur_store_position(prebuilt->clust_pcur, mtr);
 	}
@@ -3303,13 +3304,7 @@ row_search_for_mysql(
 	is set or session is using a READ COMMITED isolation level. Then
 	we are able to remove the record locks set here on an individual
 	row. */
-
-	if ((srv_locks_unsafe_for_binlog
-	     || trx->isolation_level == TRX_ISO_READ_COMMITTED)
-	    && prebuilt->select_lock_type != LOCK_NONE) {
-
-		trx_reset_new_rec_lock_info(trx);
-	}
+	prebuilt->new_rec_locks = 0;
 
 	/*-------------------------------------------------------------*/
 	/* PHASE 1: Try to pop the row from the prefetch cache */
@@ -3951,6 +3946,12 @@ no_gap_lock:
 		switch (err) {
 			rec_t*	old_vers;
 		case DB_SUCCESS:
+			if (srv_locks_unsafe_for_binlog
+			    || trx->isolation_level == TRX_ISO_READ_COMMITTED) {
+				/* Note that a record of
+				prebuilt->index was locked. */
+				prebuilt->new_rec_locks = 1;
+			}
 			break;
 		case DB_LOCK_WAIT:
 			if (UNIV_LIKELY(prebuilt->row_read_type
@@ -3981,7 +3982,7 @@ no_gap_lock:
 			if (UNIV_LIKELY(trx->wait_lock != NULL)) {
 				lock_cancel_waiting_and_release(
 					trx->wait_lock);
-				trx_reset_new_rec_lock_info(trx);
+				prebuilt->new_rec_locks = 0;
 			} else {
 				mutex_exit(&kernel_mutex);
 
@@ -3993,6 +3994,9 @@ no_gap_lock:
 							  ULINT_UNDEFINED,
 							  &heap);
 				err = DB_SUCCESS;
+				/* Note that a record of
+				prebuilt->index was locked. */
+				prebuilt->new_rec_locks = 1;
 				break;
 			}
 			mutex_exit(&kernel_mutex);
@@ -4142,6 +4146,15 @@ requires_clust_rec:
 			goto next_rec;
 		}
 
+		if ((srv_locks_unsafe_for_binlog
+		     || trx->isolation_level == TRX_ISO_READ_COMMITTED)
+		    && prebuilt->select_lock_type != LOCK_NONE) {
+			/* Note that both the secondary index record
+			and the clustered index record were locked. */
+			ut_ad(prebuilt->new_rec_locks == 1);
+			prebuilt->new_rec_locks = 2;
+		}
+
 		if (UNIV_UNLIKELY(rec_get_deleted_flag(clust_rec, comp))) {
 
 			/* The record is delete marked: we can skip it */
@@ -4267,13 +4280,7 @@ next_rec:
 		prebuilt->row_read_type = ROW_READ_TRY_SEMI_CONSISTENT;
 	}
 	did_semi_consistent_read = FALSE;
-
-	if (UNIV_UNLIKELY(srv_locks_unsafe_for_binlog
-			  || trx->isolation_level == TRX_ISO_READ_COMMITTED)
-	    && prebuilt->select_lock_type != LOCK_NONE) {
-
-		trx_reset_new_rec_lock_info(trx);
-	}
+	prebuilt->new_rec_locks = 0;
 
 	/*-------------------------------------------------------------*/
 	/* PHASE 5: Move the cursor to the next index record */
@@ -4379,7 +4386,7 @@ lock_wait_or_error:
 			rec_loop we will again try to set a lock, and
 			new_rec_lock_info in trx will be right at the end. */
 
-			trx_reset_new_rec_lock_info(trx);
+			prebuilt->new_rec_locks = 0;
 		}
 
 		mode = pcur->search_mode;

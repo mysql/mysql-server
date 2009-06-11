@@ -262,7 +262,7 @@ static MYSQL_STMT *STDCALL
 mysql_simple_prepare(MYSQL *mysql_arg, const char *query)
 {
   MYSQL_STMT *stmt= mysql_stmt_init(mysql_arg);
-  if (stmt && mysql_stmt_prepare(stmt, query, strlen(query)))
+  if (stmt && mysql_stmt_prepare(stmt, query, (uint) strlen(query)))
   {
     mysql_stmt_close(stmt);
     return 0;
@@ -723,6 +723,7 @@ static void do_verify_prepare_field(MYSQL_RES *result,
 {
   MYSQL_FIELD *field;
   CHARSET_INFO *cs;
+  ulonglong expected_field_length;
 
   if (!(field= mysql_fetch_field_direct(result, no)))
   {
@@ -731,6 +732,8 @@ static void do_verify_prepare_field(MYSQL_RES *result,
   }
   cs= get_charset(field->charsetnr, 0);
   DIE_UNLESS(cs);
+  if ((expected_field_length= length * cs->mbmaxlen) > UINT_MAX32)
+    expected_field_length= UINT_MAX32;
   if (!opt_silent)
   {
     fprintf(stdout, "\n field[%d]:", no);
@@ -745,8 +748,8 @@ static void do_verify_prepare_field(MYSQL_RES *result,
       fprintf(stdout, "\n    org_table:`%s`\t(expected: `%s`)",
               field->org_table, org_table);
     fprintf(stdout, "\n    database :`%s`\t(expected: `%s`)", field->db, db);
-    fprintf(stdout, "\n    length   :`%lu`\t(expected: `%lu`)",
-            field->length, length * cs->mbmaxlen);
+    fprintf(stdout, "\n    length   :`%lu`\t(expected: `%llu`)",
+            field->length, expected_field_length);
     fprintf(stdout, "\n    maxlength:`%ld`", field->max_length);
     fprintf(stdout, "\n    charsetnr:`%d`", field->charsetnr);
     fprintf(stdout, "\n    default  :`%s`\t(expected: `%s`)",
@@ -782,11 +785,11 @@ static void do_verify_prepare_field(MYSQL_RES *result,
     as utf8. Field length is calculated as number of characters * maximum
     number of bytes a character can occupy.
   */
-  if (length && field->length != length * cs->mbmaxlen)
+  if (length && (field->length != expected_field_length))
   {
-    fprintf(stderr, "Expected field length: %d,  got length: %d\n",
-            (int) (length * cs->mbmaxlen), (int) field->length);
-    DIE_UNLESS(field->length == length * cs->mbmaxlen);
+    fprintf(stderr, "Expected field length: %llu,  got length: %lu\n",
+            expected_field_length, field->length);
+    DIE_UNLESS(field->length == expected_field_length);
   }
   if (def)
     DIE_UNLESS(strcmp(field->def, def) == 0);
@@ -16552,61 +16555,6 @@ static void test_change_user()
   DBUG_VOID_RETURN;
 }
 
-#ifdef HAVE_SPATIAL
-/**
-  Bug#37956 memory leak and / or crash with geometry and prepared statements! 
-*/
-
-static void test_bug37956(void)
-{
-  const char *query="select point(?,?)";
-  MYSQL_STMT *stmt=NULL;
-  ulong val=0;
-  MYSQL_BIND bind_param[2];
-  unsigned char buff[2]= { 134, 211 };
-  DBUG_ENTER("test_bug37956");
-  myheader("test_bug37956");
-
-  stmt= mysql_simple_prepare(mysql, query);
-  check_stmt(stmt);
-
-  val=1;
-  mysql_stmt_attr_set(stmt, STMT_ATTR_UPDATE_MAX_LENGTH, (void *)&val);
-  val=CURSOR_TYPE_READ_ONLY;
-  mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, (void *)&val);
-  val=0;
-  mysql_stmt_attr_set(stmt, STMT_ATTR_PREFETCH_ROWS, (void *)&val);
-
-  memset(bind_param, 0, sizeof(bind_param));
-  bind_param[0].buffer_type=MYSQL_TYPE_TINY;
-  bind_param[0].buffer= (void *)buff;
-  bind_param[0].is_null=NULL;
-  bind_param[0].error=NULL;
-  bind_param[0].is_unsigned=1;
-  bind_param[1].buffer_type=MYSQL_TYPE_TINY;
-  bind_param[1].buffer= (void *)(buff+1);
-  bind_param[1].is_null=NULL;
-  bind_param[1].error=NULL;
-  bind_param[1].is_unsigned=1;
-
-  if (mysql_stmt_bind_param(stmt, bind_param))
-  {
-    mysql_stmt_close(stmt);
-    DIE_UNLESS(0);
-  }
-
-  if (mysql_stmt_execute(stmt))
-  {
-    mysql_stmt_close(stmt);
-    DBUG_VOID_RETURN;
-  }
-  /* Should never reach here: execution returns an error. */
-  mysql_stmt_close(stmt);
-  DIE_UNLESS(0);
-  DBUG_VOID_RETURN;
-}
-#endif
-
 /*
   Bug#27592 (stack overrun when storing datetime value using prepared statements)
 */
@@ -17768,6 +17716,69 @@ static void test_bug36326()
 
 #endif
 
+/**
+  Bug#41078: With CURSOR_TYPE_READ_ONLY mysql_stmt_fetch() returns short
+             string value.
+*/
+
+static void test_bug41078(void)
+{
+  uint         rc;
+  MYSQL_STMT   *stmt= 0;
+  MYSQL_BIND   param, result;
+  ulong        cursor_type= CURSOR_TYPE_READ_ONLY;
+  ulong        len;
+  char         str[64];
+  const char   param_str[]= "abcdefghijklmn";
+  my_bool      is_null, error;
+
+  DBUG_ENTER("test_bug41078");
+
+  rc= mysql_query(mysql, "SET NAMES UTF8");
+  myquery(rc);
+
+  stmt= mysql_simple_prepare(mysql, "SELECT ?");
+  check_stmt(stmt);
+  verify_param_count(stmt, 1);
+
+  rc= mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, &cursor_type);
+  check_execute(stmt, rc);
+  
+  bzero(&param, sizeof(param));
+  param.buffer_type= MYSQL_TYPE_STRING;
+  param.buffer= (void *) param_str;
+  len= sizeof(param_str) - 1;
+  param.length= &len;
+
+  rc= mysql_stmt_bind_param(stmt, &param);
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  bzero(&result, sizeof(result));
+  result.buffer_type= MYSQL_TYPE_STRING;
+  result.buffer= str;
+  result.buffer_length= sizeof(str);
+  result.is_null= &is_null;
+  result.length= &len;
+  result.error=  &error;
+  
+  rc= mysql_stmt_bind_result(stmt, &result);
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_store_result(stmt);
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_fetch(stmt);
+  check_execute(stmt, rc);
+
+  DIE_UNLESS(len == sizeof(param_str) - 1 && !strcmp(str, param_str));
+
+  mysql_stmt_close(stmt);
+
+  DBUG_VOID_RETURN;
+}
 
 /*
   Read and parse arguments and MySQL options from my.cnf
@@ -18079,12 +18090,10 @@ static struct my_tests_st my_tests[]= {
   { "test_wl4166_2", test_wl4166_2 },
   { "test_bug38486", test_bug38486 },
   { "test_bug40365", test_bug40365 },
-#ifdef HAVE_SPATIAL
-  { "test_bug37956", test_bug37956 },
-#endif
 #ifdef HAVE_QUERY_CACHE
   { "test_bug36326", test_bug36326 },
 #endif
+  { "test_bug41078", test_bug41078 },
   { 0, 0 }
 };
 

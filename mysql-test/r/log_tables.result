@@ -56,7 +56,7 @@ general_log	CREATE TABLE `general_log` (
   `event_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `user_host` mediumtext NOT NULL,
   `thread_id` int(11) NOT NULL,
-  `server_id` int(11) NOT NULL,
+  `server_id` int(10) unsigned NOT NULL,
   `command_type` varchar(64) NOT NULL,
   `argument` mediumtext NOT NULL
 ) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='General log'
@@ -65,7 +65,7 @@ Field	Type	Null	Key	Default	Extra
 event_time	timestamp	NO		CURRENT_TIMESTAMP	on update CURRENT_TIMESTAMP
 user_host	mediumtext	NO		NULL	
 thread_id	int(11)	NO		NULL	
-server_id	int(11)	NO		NULL	
+server_id	int(10) unsigned	NO		NULL	
 command_type	varchar(64)	NO		NULL	
 argument	mediumtext	NO		NULL	
 show create table mysql.slow_log;
@@ -80,7 +80,7 @@ slow_log	CREATE TABLE `slow_log` (
   `db` varchar(512) NOT NULL,
   `last_insert_id` int(11) NOT NULL,
   `insert_id` int(11) NOT NULL,
-  `server_id` int(11) NOT NULL,
+  `server_id` int(10) unsigned NOT NULL,
   `sql_text` mediumtext NOT NULL
 ) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='Slow log'
 show fields from mysql.slow_log;
@@ -94,7 +94,7 @@ rows_examined	int(11)	NO		NULL
 db	varchar(512)	NO		NULL	
 last_insert_id	int(11)	NO		NULL	
 insert_id	int(11)	NO		NULL	
-server_id	int(11)	NO		NULL	
+server_id	int(10) unsigned	NO		NULL	
 sql_text	mediumtext	NO		NULL	
 flush logs;
 flush tables;
@@ -167,7 +167,7 @@ general_log	CREATE TABLE `general_log` (
   `event_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `user_host` mediumtext NOT NULL,
   `thread_id` int(11) NOT NULL,
-  `server_id` int(11) NOT NULL,
+  `server_id` int(10) unsigned NOT NULL,
   `command_type` varchar(64) NOT NULL,
   `argument` mediumtext NOT NULL
 ) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='General log'
@@ -183,7 +183,7 @@ slow_log	CREATE TABLE `slow_log` (
   `db` varchar(512) NOT NULL,
   `last_insert_id` int(11) NOT NULL,
   `insert_id` int(11) NOT NULL,
-  `server_id` int(11) NOT NULL,
+  `server_id` int(10) unsigned NOT NULL,
   `sql_text` mediumtext NOT NULL
 ) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='Slow log'
 alter table mysql.general_log engine=myisam;
@@ -194,7 +194,7 @@ general_log	CREATE TABLE `general_log` (
   `event_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `user_host` mediumtext NOT NULL,
   `thread_id` int(11) NOT NULL,
-  `server_id` int(11) NOT NULL,
+  `server_id` int(10) unsigned NOT NULL,
   `command_type` varchar(64) NOT NULL,
   `argument` mediumtext NOT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='General log'
@@ -210,7 +210,7 @@ slow_log	CREATE TABLE `slow_log` (
   `db` varchar(512) NOT NULL,
   `last_insert_id` int(11) NOT NULL,
   `insert_id` int(11) NOT NULL,
-  `server_id` int(11) NOT NULL,
+  `server_id` int(10) unsigned NOT NULL,
   `sql_text` mediumtext NOT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Slow log'
 set global general_log='ON';
@@ -268,7 +268,7 @@ CREATE TABLE `general_log` (
 ON UPDATE CURRENT_TIMESTAMP,
 `user_host` mediumtext NOT NULL,
 `thread_id` int(11) NOT NULL,
-`server_id` int(11) NOT NULL,
+`server_id` int(10) unsigned NOT NULL,
 `command_type` varchar(64) NOT NULL,
 `argument` mediumtext NOT NULL
 ) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='General log';
@@ -283,7 +283,7 @@ ON UPDATE CURRENT_TIMESTAMP,
 `db` varchar(512) NOT NULL,
 `last_insert_id` int(11) NOT NULL,
 `insert_id` int(11) NOT NULL,
-`server_id` int(11) NOT NULL,
+`server_id` int(10) unsigned NOT NULL,
 `sql_text` mediumtext NOT NULL
 ) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='Slow log';
 set global general_log='ON';

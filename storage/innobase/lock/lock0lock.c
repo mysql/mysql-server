@@ -681,7 +681,10 @@ lock_is_table_exclusive(
 	lock_t*	lock;
 	ibool	ok	= FALSE;
 
-	ut_ad(table && trx);
+	ut_ad(table);
+	ut_ad(trx);
+
+	lock_mutex_enter_kernel();
 
 	for (lock = UT_LIST_GET_FIRST(table->locks);
 	     lock;
@@ -689,7 +692,7 @@ lock_is_table_exclusive(
 		if (lock->trx != trx) {
 			/* A lock on the table is held
 			by some other transaction. */
-			return(FALSE);
+			goto not_ok;
 		}
 
 		if (!(lock_get_type(lock) & LOCK_TABLE)) {
@@ -706,10 +709,15 @@ lock_is_table_exclusive(
 			auto_increment lock. */
 			break;
 		default:
+not_ok:
 			/* Other table locks than LOCK_IX are not allowed. */
-			return(FALSE);
+			ok = FALSE;
+			goto func_exit;
 		}
 	}
+
+func_exit:
+	lock_mutex_exit_kernel();
 
 	return(ok);
 }
@@ -1962,12 +1970,6 @@ lock_rec_lock_fast(
 	if (lock == NULL) {
 		if (!impl) {
 			lock_rec_create(mode, rec, index, trx);
-
-			if (srv_locks_unsafe_for_binlog
-			    || trx->isolation_level
-			    == TRX_ISO_READ_COMMITTED) {
-				trx_register_new_rec_lock(trx, index);
-			}
 		}
 
 		return(TRUE);
@@ -1991,11 +1993,6 @@ lock_rec_lock_fast(
 
 		if (!lock_rec_get_nth_bit(lock, heap_no)) {
 			lock_rec_set_nth_bit(lock, heap_no);
-			if (srv_locks_unsafe_for_binlog
-			    || trx->isolation_level
-			    == TRX_ISO_READ_COMMITTED) {
-				trx_register_new_rec_lock(trx, index);
-			}
 		}
 	}
 
@@ -2050,22 +2047,12 @@ lock_rec_lock_slow(
 		enough already granted on the record, we have to wait. */
 
 		err = lock_rec_enqueue_waiting(mode, rec, index, thr);
-
-		if (srv_locks_unsafe_for_binlog
-		    || trx->isolation_level == TRX_ISO_READ_COMMITTED) {
-			trx_register_new_rec_lock(trx, index);
-		}
 	} else {
 		if (!impl) {
 			/* Set the requested lock on the record */
 
 			lock_rec_add_to_queue(LOCK_REC | mode, rec, index,
 					      trx);
-			if (srv_locks_unsafe_for_binlog
-			    || trx->isolation_level
-			    == TRX_ISO_READ_COMMITTED) {
-				trx_register_new_rec_lock(trx, index);
-			}
 		}
 
 		err = DB_SUCCESS;
@@ -3664,6 +3651,7 @@ lock_table_has_to_wait_in_queue(
 	dict_table_t*	table;
 	lock_t*		lock;
 
+	ut_ad(mutex_own(&kernel_mutex));
 	ut_ad(lock_get_wait(wait_lock));
 
 	table = wait_lock->un_member.tab_lock.table;

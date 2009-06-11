@@ -1,3 +1,5 @@
+set @max_allowed_packet=@@global.max_allowed_packet;
+set @net_buffer_length=@@global.net_buffer_length;
 set global max_allowed_packet=100;
 Warnings:
 Warning	1292	Truncated incorrect max_allowed_packet value: '100'
@@ -23,3 +25,5 @@ len
 select length(repeat('a',2000));
 length(repeat('a',2000))
 2000
+set global max_allowed_packet=@max_allowed_packet;
+set global net_buffer_length=@net_buffer_length;

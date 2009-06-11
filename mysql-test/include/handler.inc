@@ -479,6 +479,7 @@ handler t1 open;
 --echo --> client 1
 connection default;
 drop table t1;
+disconnect con2;
 
 #
 # Bug#30632 HANDLER read failure causes hang
@@ -692,3 +693,38 @@ unlock tables;
 drop table t1;
 --error ER_UNKNOWN_TABLE
 handler t1 read a next;
+
+#
+# Bug#41110: crash with handler command when used concurrently with alter table
+# Bug#41112: crash in mysql_ha_close_table/get_lock_data with alter table
+#
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1 (a int);
+insert into t1 values (1);
+handler t1 open;
+connect(con1,localhost,root,,);
+send alter table t1 engine=memory;
+connection default;
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "rename result table" and info = "alter table t1 engine=memory";
+--source include/wait_condition.inc
+--error ER_ILLEGAL_HA
+handler t1 read a next;
+handler t1 close;
+connection con1;
+--reap
+drop table t1;
+disconnect con1;
+connection default;
+
+#
+# Bug#44151 using handler commands on information_schema tables crashes server
+#
+USE information_schema;
+--error ER_WRONG_USAGE
+HANDLER COLUMNS OPEN;
+USE test;

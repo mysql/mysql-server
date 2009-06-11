@@ -3,32 +3,51 @@
 # We verify that we did not introduce a deadlock.
 # This is intended to mimick how mysqldump and innobackup work.
 
--- source include/have_log_bin.inc
+--source include/have_log_bin.inc
 
 # And it requires InnoDB
--- source include/have_log_bin.inc
--- source include/have_innodb.inc
+--source include/have_log_bin.inc
+--source include/have_innodb.inc
 
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+
+--echo # Establish connection con1 (user=root)
 connect (con1,localhost,root,,);
+--echo # Establish connection con2 (user=root)
 connect (con2,localhost,root,,);
 
 # FLUSH TABLES WITH READ LOCK should block writes to binlog too
+--echo # Switch to connection con1
 connection con1;
-create table t1 (a int) engine=innodb;
-reset master;
-set autocommit=0;
-insert t1 values (1);
+CREATE TABLE t1 (a INT) ENGINE=innodb;
+RESET MASTER;
+SET AUTOCOMMIT=0;
+INSERT t1 VALUES (1);
+--echo # Switch to connection con2
 connection con2;
-flush tables with read lock;
-show master status;
+FLUSH TABLES WITH READ LOCK;
+SHOW MASTER STATUS;
+--echo # Switch to connection con1
 connection con1;
-send commit;
+send COMMIT;
+--echo # Switch to connection con2
 connection con2;
 sleep 1;
-show master status;
-unlock tables;
+SHOW MASTER STATUS;
+UNLOCK TABLES;
+--echo # Switch to connection con1
 connection con1;
 reap;
-drop table t1;
-set autocommit=1;
+DROP TABLE t1;
+SET AUTOCOMMIT=1;
+
+--echo # Switch to connection default and close connections con1 and con2
+connection default;
+disconnect con1;
+disconnect con2;
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc
 

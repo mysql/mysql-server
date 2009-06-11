@@ -225,3 +225,21 @@ aberration
 
 DROP PROCEDURE IF EXISTS test.p1;
 DROP TABLE test.t1;
+**** Resetting master and slave ****
+include/stop_slave.inc
+RESET SLAVE;
+RESET MASTER;
+include/start_slave.inc
+SELECT repeat('x',20) INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/bug_39701.data';
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (t text);
+CREATE PROCEDURE p(file varchar(4096)) 
+BEGIN
+INSERT INTO t1 VALUES (LOAD_FILE(file));
+END|
+include/stop_slave.inc
+CALL p('MYSQLTEST_VARDIR/tmp/bug_39701.data');
+include/start_slave.inc
+Comparing tables master:test.t1 and slave:test.t1
+DROP TABLE t1;
+DROP PROCEDURE p;

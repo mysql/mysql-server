@@ -49,7 +49,7 @@ const char *VER= "14.14";
 #define MAX_COLUMN_LENGTH	     1024
 
 /* Buffer to hold 'version' and 'version_comment' */
-#define MAX_SERVER_VERSION_LENGTH     128
+static char *server_version= NULL;
 
 /* Array of options to pass to libemysqld */
 #define MAX_SERVER_ARGS               64
@@ -114,6 +114,8 @@ extern "C" {
 
 #define PROMPT_CHAR '\\'
 #define DEFAULT_DELIMITER ";"
+
+#define MAX_BATCH_BUFFER_SIZE (1024L * 1024L)
 
 typedef struct st_status
 {
@@ -246,11 +248,11 @@ typedef struct {
 
 static COMMANDS commands[] = {
   { "?",      '?', com_help,   1, "Synonym for `help'." },
-  { "clear",  'c', com_clear,  0, "Clear command."},
+  { "clear",  'c', com_clear,  0, "Clear the current input statement."},
   { "connect",'r', com_connect,1,
     "Reconnect to the server. Optional arguments are db and host." },
   { "delimiter", 'd', com_delimiter,    1,
-    "Set statement delimiter. NOTE: Takes the rest of the line as new delimiter." },
+    "Set statement delimiter." },
 #ifdef USE_POPEN
   { "edit",   'e', com_edit,   0, "Edit command with $EDITOR."},
 #endif
@@ -1045,7 +1047,7 @@ static void fix_history(String *final_command);
 
 static COMMANDS *find_command(char *name,char cmd_name);
 static bool add_line(String &buffer,char *line,char *in_string,
-                     bool *ml_comment);
+                     bool *ml_comment, bool truncated);
 static void remove_cntrl(String &buffer);
 static void print_table_data(MYSQL_RES *result);
 static void print_table_data_html(MYSQL_RES *result);
@@ -1117,7 +1119,7 @@ int main(int argc,char *argv[])
     exit(1);
   }
   if (status.batch && !status.line_buff &&
-      !(status.line_buff=batch_readline_init(opt_max_allowed_packet+512,stdin)))
+      !(status.line_buff= batch_readline_init(MAX_BATCH_BUFFER_SIZE, stdin)))
   {
     free_defaults(defaults_argv);
     my_end(0);
@@ -1198,7 +1200,7 @@ int main(int argc,char *argv[])
 #endif
   sprintf(buff, "%s",
 #ifndef NOT_YET
-	  "Type 'help;' or '\\h' for help. Type '\\c' to clear the buffer.\n");
+	  "Type 'help;' or '\\h' for help. Type '\\c' to clear the current input statement.\n");
 #else
 	  "Type 'help [[%]function name[%]]' to get help on usage of function.\n");
 #endif
@@ -1234,6 +1236,7 @@ sig_handler mysql_end(int sig)
   glob_buffer.free();
   old_buffer.free();
   processed_prompt.free();
+  my_free(server_version,MYF(MY_ALLOW_ZERO_PTR));
   my_free(opt_password,MYF(MY_ALLOW_ZERO_PTR));
   my_free(opt_mysql_unix_port,MYF(MY_ALLOW_ZERO_PTR));
   my_free(histfile,MYF(MY_ALLOW_ZERO_PTR));
@@ -1810,13 +1813,14 @@ static int read_and_execute(bool interactive)
   ulong line_number=0;
   bool ml_comment= 0;  
   COMMANDS *com;
+  bool truncated= 0;
   status.exit_status=1;
   
   for (;;)
   {
     if (!interactive)
     {
-      line=batch_readline(status.line_buff);
+      line=batch_readline(status.line_buff, &truncated);
       /*
         Skip UTF8 Byte Order Marker (BOM) 0xEFBBBF.
         Editors like "notepad" put this marker in
@@ -1913,7 +1917,7 @@ static int read_and_execute(bool interactive)
 #endif
       continue;
     }
-    if (add_line(glob_buffer,line,&in_string,&ml_comment))
+    if (add_line(glob_buffer,line,&in_string,&ml_comment, truncated))
       break;
   }
   /* if in batch mode, send last query even if it doesn't end with \g or go */
@@ -1999,7 +2003,7 @@ static COMMANDS *find_command(char *name,char cmd_char)
 
 
 static bool add_line(String &buffer,char *line,char *in_string,
-                     bool *ml_comment)
+                     bool *ml_comment, bool truncated)
 {
   uchar inchar;
   char buff[80], *pos, *out;
@@ -2245,8 +2249,23 @@ static bool add_line(String &buffer,char *line,char *in_string,
   }
   if (out != line || !buffer.is_empty())
   {
-    *out++='\n';
     uint length=(uint) (out-line);
+
+    if (!truncated &&
+        (length < 9 || 
+         my_strnncoll (charset_info, 
+                       (uchar *)line, 9, (const uchar *) "delimiter", 9)))
+    {
+      /* 
+        Don't add a new line in case there's a DELIMITER command to be 
+        added to the glob buffer (e.g. on processing a line like 
+        "<command>;DELIMITER <non-eof>") : similar to how a new line is 
+        not added in the case when the DELIMITER is the first command 
+        entered with an empty glob buffer. 
+      */
+      *out++='\n';
+      length++;
+    }
     if (buffer.length() + length >= buffer.alloced_length())
       buffer.realloc(buffer.length()+length+IO_SIZE);
     if ((!*ml_comment || preserve_comments) && buffer.append(line, length))
@@ -2648,7 +2667,7 @@ static void get_current_db()
       (res= mysql_use_result(&mysql)))
   {
     MYSQL_ROW row= mysql_fetch_row(res);
-    if (row[0])
+    if (row && row[0])
       current_db= my_strdup(row[0], MYF(MY_WME));
     mysql_free_result(res);
   }
@@ -2855,7 +2874,7 @@ com_charset(String *buffer __attribute__((unused)), char *line)
   param= get_arg(buff, 0);
   if (!param || !*param)
   {
-    return put_info("Usage: \\C char_setname | charset charset_name", 
+    return put_info("Usage: \\C charset_name | charset charset_name", 
 		    INFO_ERROR, 0);
   }
   new_cs= get_charset_by_csname(param, MY_CS_PRIMARY, MYF(MY_WME));
@@ -3907,7 +3926,7 @@ static int com_source(String *buffer, char *line)
     return put_info(buff, INFO_ERROR, 0);
   }
 
-  if (!(line_buff=batch_readline_init(opt_max_allowed_packet+512,sql_file)))
+  if (!(line_buff= batch_readline_init(MAX_BATCH_BUFFER_SIZE, sql_file)))
   {
     my_fclose(sql_file,MYF(0));
     return put_info("Can't initialize batch_readline", INFO_ERROR, 0);
@@ -4347,15 +4366,10 @@ select_limit, max_join_size);
 static const char *
 server_version_string(MYSQL *con)
 {
-  static char buf[MAX_SERVER_VERSION_LENGTH] = "";
-
   /* Only one thread calls this, so no synchronization is needed */
-  if (buf[0] == '\0')
+  if (server_version == NULL)
   {
-    char *bufp = buf;
     MYSQL_RES *result;
-
-    bufp= strnmov(buf, mysql_get_server_info(con), sizeof buf);
 
     /* "limit 1" is protection against SQL_SELECT_LIMIT=0 */
     if (!mysql_query(con, "select @@version_comment limit 1") &&
@@ -4364,17 +4378,32 @@ server_version_string(MYSQL *con)
       MYSQL_ROW cur = mysql_fetch_row(result);
       if (cur && cur[0])
       {
-        bufp = strxnmov(bufp, sizeof buf - (bufp - buf), " ", cur[0], NullS);
+        /* version, space, comment, \0 */
+        size_t len= strlen(mysql_get_server_info(con)) + strlen(cur[0]) + 2;
+
+        if ((server_version= (char *) my_malloc(len, MYF(MY_WME))))
+        {
+          char *bufp;
+          bufp = strmov(server_version, mysql_get_server_info(con));
+          bufp = strmov(bufp, " ");
+          (void) strmov(bufp, cur[0]);
+        }
       }
       mysql_free_result(result);
     }
 
-    /* str*nmov doesn't guarantee NUL-termination */
-    if (bufp == buf + sizeof buf)
-      buf[sizeof buf - 1] = '\0';
+    /*
+      If for some reason we didn't get a version_comment, we'll
+      keep things simple.
+    */
+
+    if (server_version == NULL)
+    {
+      server_version= strdup(mysql_get_server_info(con));
+    }
   }
 
-  return buf;
+  return server_version ? server_version : "";
 }
 
 static int

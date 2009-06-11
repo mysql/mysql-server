@@ -2045,13 +2045,15 @@ restart:
         }
         else
         {
+          size_t block_mem_offset;
           /* There are some never used blocks, take first of them */
           DBUG_ASSERT(keycache->blocks_used <
                       (ulong) keycache->disk_blocks);
           block= &keycache->block_root[keycache->blocks_used];
+          block_mem_offset= 
+           ((size_t) keycache->blocks_used) * keycache->key_cache_block_size;
           block->buffer= ADD_TO_PTR(keycache->block_mem,
-                                    ((ulong) keycache->blocks_used*
-                                     keycache->key_cache_block_size),
+                                    block_mem_offset,
                                     uchar*);
           keycache->blocks_used++;
           DBUG_ASSERT(!block->next_used);
@@ -2405,7 +2407,7 @@ static void read_block(KEY_CACHE *keycache,
                        BLOCK_LINK *block, uint read_length,
                        uint min_length, my_bool primary)
 {
-  uint got_length;
+  size_t got_length;
 
   /* On entry cache_lock is locked */
 

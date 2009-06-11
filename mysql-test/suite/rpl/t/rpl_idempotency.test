@@ -208,7 +208,7 @@ select * from ti1 order by b /* must be (2),(3) */;
 
 # foreign key: row is referenced
 
---echo *** slave must stop
+--echo *** slave must stop (Trying to delete a referenced foreing key)
 connection slave;
 source include/wait_for_slave_sql_to_stop.inc;
 
@@ -242,7 +242,7 @@ delete from ti1 where b=3;
 connection master;
 insert into ti2 set a=3, b=3 /* offending write event */;
 
---echo *** slave must stop
+--echo *** slave must stop (Trying to insert an invalid foreign key)
 connection slave;
 source include/wait_for_slave_sql_to_stop.inc;
 
@@ -281,7 +281,7 @@ insert into ti1 set b=1;
 connection master;
 insert into ti1 set b=1 /* offending write event */;
 
---echo *** slave must stop
+--echo *** slave must stop (Trying to insert a dupliacte key)
 connection slave;
 source include/wait_for_slave_sql_to_stop.inc;
 
@@ -316,7 +316,7 @@ DELETE FROM t2 WHERE a = -2;
 connection master;
 DELETE FROM t1 WHERE a = -2;
 
---echo *** slave must stop
+--echo *** slave must stop (Key was not found)
 connection slave;
 source include/wait_for_slave_sql_to_stop.inc;
 
@@ -333,8 +333,8 @@ sync_slave_with_master;
 set global slave_exec_mode='STRICT';
 
 connection master;
-DELETE FROM t2 WHERE a = -2;
---echo *** slave must stop
+DELETE FROM t2 WHERE a = -2; 
+--echo *** slave must stop (Key was not found)
 connection slave;
 source include/wait_for_slave_sql_to_stop.inc;
 
@@ -356,7 +356,7 @@ UPDATE t2 SET a = 1 WHERE a = -1;
 connection master;
 UPDATE t1 SET a = 1 WHERE a = -1;
 
---echo *** slave must stop
+--echo *** slave must stop (Key was not found)
 connection slave;
 source include/wait_for_slave_sql_to_stop.inc;
 
@@ -376,7 +376,7 @@ set global slave_exec_mode='STRICT';
 connection master;
 UPDATE t2 SET a = 1 WHERE a = -1;
 
---echo *** slave must stop
+--echo *** slave must stop (Key was not found)
 connection slave;
 source include/wait_for_slave_sql_to_stop.inc;
 

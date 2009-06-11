@@ -430,14 +430,11 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
                                 MYF(MY_WME | MY_ZEROFILL));
   /* Historical Requirement */
   plugin->data= hton; // shortcut for the future
-  if (plugin->plugin->init)
+  if (plugin->plugin->init && plugin->plugin->init(hton))
   {
-    if (plugin->plugin->init(hton))
-    {
-      sql_print_error("Plugin '%s' init function returned error.",
-                      plugin->name.str);
-      goto err;
-    }
+    sql_print_error("Plugin '%s' init function returned error.",
+                    plugin->name.str);
+    goto err;  
   }
 
   /*
@@ -464,17 +461,13 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
         if (idx == (int) DB_TYPE_DEFAULT)
         {
           sql_print_warning("Too many storage engines!");
-          DBUG_RETURN(1);
+          goto err_deinit;
         }
         if (hton->db_type != DB_TYPE_UNKNOWN)
           sql_print_warning("Storage engine '%s' has conflicting typecode. "
                             "Assigning value %d.", plugin->plugin->name, idx);
         hton->db_type= (enum legacy_db_type) idx;
       }
-      installed_htons[hton->db_type]= hton;
-      tmp= hton->savepoint_offset;
-      hton->savepoint_offset= savepoint_alloc_size;
-      savepoint_alloc_size+= tmp;
 
       /*
         In case a plugin is uninstalled and re-installed later, it should
@@ -495,11 +488,14 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
         {
           sql_print_error("Too many plugins loaded. Limit is %lu. "
                           "Failed on '%s'", (ulong) MAX_HA, plugin->name.str);
-          goto err;
+          goto err_deinit;
         }
         hton->slot= total_ha++;
       }
-
+      installed_htons[hton->db_type]= hton;
+      tmp= hton->savepoint_offset;
+      hton->savepoint_offset= savepoint_alloc_size;
+      savepoint_alloc_size+= tmp;
       hton2plugin[hton->slot]=plugin;
       if (hton->prepare)
         total_ha_2pc++;
@@ -531,7 +527,18 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
   };
 
   DBUG_RETURN(0);
+
+err_deinit:
+  /* 
+    Let plugin do its inner deinitialization as plugin->init() 
+    was successfully called before.
+  */
+  if (plugin->plugin->deinit)
+    (void) plugin->plugin->deinit(NULL);
+          
 err:
+  my_free((uchar*) hton, MYF(0));
+  plugin->data= NULL;
   DBUG_RETURN(1);
 }
 
@@ -1178,6 +1185,16 @@ end:
     if (rw_trans)
       start_waiting_global_read_lock(thd);
   }
+  else if (all)
+  {
+    /*
+      A COMMIT of an empty transaction. There may be savepoints.
+      Destroy them. If the transaction is not empty
+      savepoints are cleared in ha_commit_one_phase()
+      or ha_rollback_trans().
+    */
+    thd->transaction.cleanup();
+  }
 #endif /* USING_TRANSACTIONS */
   DBUG_RETURN(error);
 }
@@ -1286,11 +1303,11 @@ int ha_rollback_trans(THD *thd, bool all)
         thd->transaction.xid_state.xid.null();
     }
     if (all)
-    {
       thd->variables.tx_isolation=thd->session_tx_isolation;
-      thd->transaction.cleanup();
-    }
   }
+  /* Always cleanup. Even if there nht==0. There may be savepoints. */
+  if (all)
+    thd->transaction.cleanup();
 #endif /* USING_TRANSACTIONS */
   if (all)
     thd->transaction_rollback_request= FALSE;
@@ -2926,7 +2943,7 @@ uint handler::get_dup_key(int error)
   if (error == HA_ERR_FOUND_DUPP_KEY || error == HA_ERR_FOREIGN_DUPLICATE_KEY ||
       error == HA_ERR_FOUND_DUPP_UNIQUE || error == HA_ERR_NULL_IN_SPATIAL ||
       error == HA_ERR_DROP_INDEX_FK)
-    info(HA_STATUS_ERRKEY | HA_STATUS_NO_LOCK);
+    table->file->info(HA_STATUS_ERRKEY | HA_STATUS_NO_LOCK);
   DBUG_RETURN(table->file->errkey);
 }
 

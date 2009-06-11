@@ -522,7 +522,7 @@ select conv(255 AS p1, 10 AS p2, 16 AS p3);
 ERROR 42000: Incorrect parameters in the call to native function 'conv'
 select atan(10);
 atan(10)
-1.4711276743037
+1.47112767430373
 select atan(10 AS p1);
 ERROR 42000: Incorrect parameters in the call to native function 'atan'
 select atan(10 p1);
@@ -533,7 +533,7 @@ select atan(10 "p1");
 ERROR 42000: Incorrect parameters in the call to native function 'atan'
 select atan(10, 20);
 atan(10, 20)
-0.46364760900081
+0.463647609000806
 select atan(10 AS p1, 20);
 ERROR 42000: Incorrect parameters in the call to native function 'atan'
 select atan(10 p1, 20);
@@ -615,3 +615,6 @@ UPDATE t3 SET a4={d '1789-07-14'} WHERE a1=0;
 SELECT a1, a4 FROM t2 WHERE a4 LIKE {fn UCASE('1789-07-14')};
 a1	a4
 DROP TABLE t1, t2, t3;
+#
+# End of 5.1 tests
+#
