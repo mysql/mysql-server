@@ -155,7 +155,7 @@ select * from t2;
 drop table t2,t4,t3,t1;
 
 -- let charset = utf8
--- source include/innodb-index.inc
+-- source suite/innodb/include/innodb-index.inc
 
 create table t1(a int not null, b int) engine = innodb;
 insert into t1 values (1,1),(1,1),(1,1),(1,1);
