@@ -20,7 +20,10 @@
 
 #include "common.hpp"
 #include <logger/Logger.hpp>
+
+#ifndef _WIN32
 #include <pwd.h>
+#endif
 
 #include <Properties.hpp>
 #include <BaseString.hpp>

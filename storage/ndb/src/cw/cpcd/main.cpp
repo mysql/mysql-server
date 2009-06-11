@@ -1,6 +1,7 @@
 /*
-   Copyright (C) 2003 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (C) 2003-2008 MySQL AB, 2009 Sun Microsystems Inc.
+
+   All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +17,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <ndb_global.h>	/* Needed for mkdir(2) */
+#include <ndb_global.h>
 #include <my_sys.h>
 #include <my_getopt.h>
 #include <mysql_version.h>
@@ -70,11 +71,29 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 }
 
 static CPCD * g_cpcd = 0;
-#if 0
-extern "C" static void sig_child(int signo, siginfo_t*, void*);
-#endif
 
-const char *progname = "ndb_cpcd";
+
+static bool
+create_directory(const char* dir)
+{
+#ifdef _WIN32
+  if (CreateDirectory(dir, NULL) == 0)
+  {
+    logger.warning("Failed to create directory '%s', error: %d",
+                     dir, GetLastError());
+    return false;
+  }
+#else
+  if (mkdir(dir, S_IRWXU | S_IRGRP | S_IROTH) != 0)
+  {
+    logger.warning("Failed to create directory '%s', error: %d",
+                    dir, errno);
+    return false;
+  }
+#endif
+  return true;
+}
+
 
 int main(int argc, char** argv){
   const char *load_default_groups[]= { "ndb_cpcd",0 };
@@ -89,7 +108,7 @@ int main(int argc, char** argv){
     exit(1);
   }
 
-  logger.setCategory(progname);
+  logger.setCategory("ndb_cpcd");
   logger.enable(Logger::LL_ALL);
 
   if(debug)
@@ -113,25 +132,34 @@ int main(int argc, char** argv){
 
   logger.info("Starting");
 
+#if defined SIGPIPE && !defined _WIN32
+  (void)signal(SIGPIPE, SIG_IGN);
+#endif
+#ifdef SIGCHLD
+  /* Only "poll" for child to be alive, never use 'wait' */
+  (void)signal(SIGCHLD, SIG_IGN);
+#endif
+
   CPCD cpcd;
   g_cpcd = &cpcd;
-  
-  /* XXX This will probably not work on !unix */
-  int err = mkdir(work_dir, S_IRWXU | S_IRGRP | S_IROTH);
-  if(err != 0) {
-    switch(errno) {
-    case EEXIST:
-      break;
-    default:
-      fprintf(stderr, "Cannot mkdir %s: %s\n", work_dir, strerror(errno));
+
+  /* Create working directory unless it already exists */
+  if (access(work_dir, F_OK))
+  {
+    logger.info("Working directory '%s' does not exist, trying "
+                "to create it", work_dir);
+    if (!create_directory(work_dir))
+    {
+      logger.error("Failed to create working directory, terminating!");
       exit(1);
     }
   }
 
   if(strlen(work_dir) > 0){
+    int err;
     logger.debug("Changing dir to '%s'", work_dir);
-    if((err = chdir(work_dir)) != 0){
-      fprintf(stderr, "Cannot chdir %s: %s\n", work_dir, strerror(errno));
+    if((err = my_setwd(work_dir, MYF(0))) != 0){
+      logger.error("Cannot change directory to '%s', terminating!", work_dir);
       exit(1);
     }
   }
@@ -151,36 +179,10 @@ int main(int argc, char** argv){
 
   ss->startServer();
 
-  {  
-    signal(SIGPIPE, SIG_IGN);
-    signal(SIGCHLD, SIG_IGN);
-#if 0
-    struct sigaction act;
-    act.sa_handler = 0;
-    act.sa_sigaction = sig_child;
-    sigemptyset(&act.sa_mask);
-    act.sa_flags = SA_SIGINFO;
-    sigaction(SIGCHLD, &act, 0);
-#endif
-  }
-  
   logger.debug("Start completed");
-  while(true) NdbSleep_MilliSleep(1000);
-  
+  while(true)
+    NdbSleep_MilliSleep(1000);
+
   delete ss;
   return 0;
 }
-
-#if 0
-extern "C" 
-void 
-sig_child(int signo, siginfo_t* info, void*){
-  printf("signo: %d si_signo: %d si_errno: %d si_code: %d si_pid: %d\n",
-	 signo, 
-	 info->si_signo,
-	 info->si_errno,
-	 info->si_code,
-	 info->si_pid);
-  
-}
-#endif
