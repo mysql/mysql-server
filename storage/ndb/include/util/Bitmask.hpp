@@ -500,6 +500,9 @@ public:
   void assign(unsigned sz, const Uint32 src[]);
 
   /**
+   * start of static members
+   */
+  /**
    * get - Check if bit n is set.
    */
   static bool get(const Uint32 data[], unsigned n);

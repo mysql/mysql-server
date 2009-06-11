@@ -105,6 +105,7 @@ public:
     LoseChoose = 47,            // negative reply
     LoseNorun = 48,             // arbitrator required but not running
     LoseNocfg = 49,             // arbitrator required but none configured
+    WinWaitExternal = 50,       // continue after external arbitration wait
 
     // general error codes
     ErrTicket = 91,             // invalid arbitrator-ticket
