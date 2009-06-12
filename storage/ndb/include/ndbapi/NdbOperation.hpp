@@ -25,7 +25,6 @@
 #include "NdbReceiver.hpp"
 #include "NdbDictionary.hpp"
 #include "Ndb.hpp"
-//#include <NdbOut.hpp>
 
 class Ndb;
 class NdbApiSignal;
@@ -37,55 +36,6 @@ class NdbBlob;
 class TcKeyReq;
 class NdbRecord;
 class NdbInterpretedCode;
-
-class CheckInt{
-public:
-  CheckInt(Uint32 val=0):mVal(val){
-    //assert(mVal!=11);
-  }
-  CheckInt(CheckInt& that):mVal(that.mVal){
-    //assert(mVal!=11);
-  }
-  CheckInt& operator=(CheckInt& that){
-    mVal = that.mVal;
-    assert(mVal!=11);
-    return *this;
-  }
-  CheckInt& operator=(Uint32 val){
-    mVal = val;
-    //assert(mVal!=11);
-    return *this;
-  }
-  CheckInt& operator+=(Uint32 val){
-    mVal += val;
-    //assert(mVal!=11);
-    return *this;
-  }
-  CheckInt& operator++(){ //prefix
-    ++mVal;
-    //assert(mVal!=11);
-    return *this;
-  }
-  CheckInt operator++(int dummy){ //postfix
-    ++mVal;
-    //assert(mVal!=11);
-    return CheckInt(mVal-1);
-  }
-  operator  Uint32() const{
-    //assert(mVal!=11);
-    return mVal;
-  }
-private:
-  Uint32 mVal;
-};
-
-/*#define LEN_CHANGE do{ndbout << "Changing theTotalCurrAI_Len to "	\
-		     << static_cast<Uint32>(theTotalCurrAI_Len)	\
-		     << " in " << __FILE__ << ":" << __LINE__ \
-			     << " this=" << this << endl;     \
-			     }while(false)*/
-#define LEN_CHANGE ;
-  
 
 /**
  * @class NdbOperation
@@ -103,7 +53,7 @@ class NdbOperation
   friend class NdbReceiver;
   friend class NdbBlob;
 #endif
-  mutable int maxRec;
+
 public:
   /** 
    * @name Define Standard Operation Type
@@ -419,9 +369,9 @@ public:
    *                    the attribute, or a NULL pointer 
    *                    (indicating error).
    */
-  NdbRecAttr* getValue(const char* anAttrName, char* aValue = 0, int recNo=0);
-  NdbRecAttr* getValue(Uint32 anAttrId, char* aValue = 0, int recNo=0);
-  NdbRecAttr* getValue(const NdbDictionary::Column*, char* val = 0, int recNo=0);
+  NdbRecAttr* getValue(const char* anAttrName, char* aValue = 0);
+  NdbRecAttr* getValue(Uint32 anAttrId, char* aValue = 0);
+  NdbRecAttr* getValue(const NdbDictionary::Column*, char* val = 0);
   
   /**
    * Define an attribute to set or update in query.
@@ -1138,7 +1088,7 @@ protected:
 public:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   const NdbOperation* next() const;
-  const NdbRecAttr* getFirstRecAttr(int recNo=0) const;
+  const NdbRecAttr* getFirstRecAttr() const;
 
   void* getCustomData() const { return m_customData; }
   void setCustomData(void* p) { m_customData = p; }
@@ -1316,8 +1266,8 @@ protected:
 ******************************************************************************/
 
   virtual int equal_impl(const NdbColumnImpl*,const char* aValue);
-  virtual NdbRecAttr* getValue_impl(const NdbColumnImpl*, char* aValue = 0, int recNo=0);
-  NdbRecAttr* getValue_NdbRecord(const NdbColumnImpl* tAttrInfo, char* aValue, int recNo=0);
+  virtual NdbRecAttr* getValue_impl(const NdbColumnImpl*, char* aValue = 0);
+  NdbRecAttr* getValue_NdbRecord(const NdbColumnImpl* tAttrInfo, char* aValue);
   int setValue(const NdbColumnImpl* anAttrObject, const char* aValue);
   NdbBlob* getBlobHandle(NdbTransaction* aCon, const NdbColumnImpl* anAttrObject);
   NdbBlob* getBlobHandle(NdbTransaction* aCon, const NdbColumnImpl* anAttrObject) const;
@@ -1358,17 +1308,7 @@ protected:
   int	      insertCall(Uint32 aCall);
   int	      insertBranch(Uint32 aBranch);
 
-  /*void setMaxRec(int newMax){
-    assert(newMax<receiverCount);
-    for(int i = maxRec; i<=newMax; i++){
-      getReceiver(i).init(NdbReceiver::NDB_OPERATION, false, this, theNdb);
-    }
-    if(maxRec<newMax){
-      maxRec = newMax;
-    }
-    }*/
-
-  Uint32 ptr2int(int recNo=0) const { return getReceiver(recNo).getId(); };
+  Uint32 ptr2int() { return theReceiver.getId(); };
 
   // get table or index key from prepared signals
   int getKeyFromTCREQ(Uint32* data, Uint32 & size);
@@ -1381,11 +1321,7 @@ protected:
 
   Type m_type;
 
-  static const int receiverCount = 10;
-  NdbReceiver theReceivers[receiverCount];
-  //NdbReceiver mReceiver;
-
-  //virtual NdbReceiver& getReceiver(){return theReceiver;}
+  NdbReceiver theReceiver;
 
   NdbError theError;			// Errorcode	       
   int 	   theErrorLine;		// Error line       
@@ -1402,7 +1338,7 @@ protected:
 
   NdbApiSignal*	   theFirstATTRINFO;	// The first ATTRINFO signal object 
   NdbApiSignal*	   theCurrentATTRINFO;	// The current ATTRINFO signal object  
-  CheckInt	   theTotalCurrAI_Len;	// The total number of attribute info
+  Uint32	   theTotalCurrAI_Len;	// The total number of attribute info
   		      			// words currently defined    
   Uint32	   theAI_LenInCurrAI;	// The number of words defined in the
 		      		     	// current ATTRINFO signal
@@ -1548,25 +1484,6 @@ protected:
   Uint32 repack_read(Uint32 len);
 
   bool m_isLinked;
-
-  NdbReceiver& getReceiver(int recNo=0){
-    if(recNo>maxRec){
-      assert(recNo<receiverCount);
-      /*for(int i = maxRec; i<=recNo; i++){
-	theReceivers[i].init(NdbReceiver::NDB_OPERATION, false, this, theNdb);
-	}*/
-      maxRec = recNo;
-    }
-    return theReceivers[recNo];
-  }
-
-  const NdbReceiver& getReceiver(int recNo=0) const{
-    if(recNo>maxRec){
-      assert(recNo<receiverCount);
-      maxRec = recNo;
-    }
-    return  theReceivers[recNo];
-  }
 };
 
 #ifdef NDB_NO_DROPPED_SIGNAL
@@ -1647,9 +1564,9 @@ NdbOperation::next() const
 
 inline
 const NdbRecAttr*
-NdbOperation::getFirstRecAttr(int recNo) const 
+NdbOperation::getFirstRecAttr() const 
 {
-  return getReceiver(recNo).theFirstRecAttr;
+  return theReceiver.theFirstRecAttr;
 }
 
 /******************************************************************************

@@ -1506,7 +1506,6 @@ Dbspj::getNodes(Signal* signal, BuildKeyReq& dst, Uint32 tableId)
 
   dst.fragId = conf->fragId;
   dst.fragDistKey = (Tdata2 >> 16) & 255;
-  //dst.receiverRef = numberToRef(DBLQH, instanceKey, 2);
   dst.receiverRef = numberToRef(DBLQH, instanceKey, nodeId);
 
   return 0;

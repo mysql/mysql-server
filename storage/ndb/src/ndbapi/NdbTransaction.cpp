@@ -2416,7 +2416,7 @@ NdbTransaction::readTuple(const NdbRecord *key_rec, const char *key_row,
   }
 
   /* Setup the record/row for receiving the results. */
-  op->getReceiver(0).getValues(result_rec, result_row);
+  op->theReceiver.getValues(result_rec, result_row);
 
   return op;
 }
@@ -2523,7 +2523,7 @@ NdbTransaction::deleteTuple(const NdbRecord *key_rec,
   if (result_row != NULL) // readBeforeDelete
   {
     /* Setup the record/row for receiving the results. */
-    op->getReceiver(0).getValues(result_rec, result_row);
+    op->theReceiver.getValues(result_rec, result_row);
   }
 
   return op;
@@ -2723,8 +2723,8 @@ NdbTransaction::report_node_failure(Uint32 id){
   Uint32 count = 0;
   while(tmp != 0)
   {
-    if(tmp->getReceiver(0).m_expected_result_length == len && 
-       tmp->getReceiver(0).m_received_result_length == 0)
+    if(tmp->theReceiver.m_expected_result_length == len && 
+       tmp->theReceiver.m_received_result_length == 0)
     {
       count++;
       tmp->theError.code = 4119;

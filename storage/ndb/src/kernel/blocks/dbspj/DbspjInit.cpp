@@ -22,24 +22,13 @@
 #define DEBUG(x) { ndbout << "SPJ::" << x << endl; }
 
 
-class Local{
-  SimulatedBlock* const mBlock;
-public:
-  Local(SimulatedBlock* block)
-    :mBlock(block){
-    //jamEntryBlock(mBlock);
-    jamBlock(mBlock);
-    abort();
-  }
-};
-
 Dbspj::Dbspj(Block_context& ctx, Uint32 instanceNumber):
   SimulatedBlock(DBSPJ, ctx, instanceNumber),
   m_scan_request_hash(m_request_pool),
   m_lookup_request_hash(m_request_pool)
 {
   BLOCK_CONSTRUCTOR(Dbspj);
-  //Local loc(this);
+
   addRecSignal(GSN_DUMP_STATE_ORD, &Dbspj::execDUMP_STATE_ORD);
   addRecSignal(GSN_READ_CONFIG_REQ, &Dbspj::execREAD_CONFIG_REQ);
   addRecSignal(GSN_STTOR, &Dbspj::execSTTOR);

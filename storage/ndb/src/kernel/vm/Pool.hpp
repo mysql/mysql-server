@@ -21,8 +21,6 @@
 
 #include <ndb_global.h>
 #include <kernel_types.h>
-#include <blocks/record_types.hpp>
-#include <NdbOut.hpp>
 
 /**
  * Type bits
@@ -213,7 +211,6 @@ public:
    */
   void release(Ptr<T>);
 private:
-  Uint32 m_typeId;
   P m_pool;
 };
 
@@ -229,7 +226,6 @@ void
 RecordPool<T, P>::init(Uint32 type_id, const Pool_context& pc)
 {
   T tmp;
-  m_typeId = type_id;
   const char * off_base = (char*)&tmp;
   const char * off_next = (char*)&tmp.nextPool;
   const char * off_magic = (char*)&tmp.m_magic;
@@ -248,7 +244,6 @@ void
 RecordPool<T, P>::wo_pool_init(Uint32 type_id, const Pool_context& pc)
 {
   T tmp;
-  m_typeId = type_id;
   const char * off_base = (char*)&tmp;
   const char * off_magic = (char*)&tmp.m_magic;
   
@@ -346,9 +341,6 @@ RecordPool<T, P>::seize(Ptr<T> & ptr)
   bool ret = m_pool.seize(tmp);
   if(likely(ret))
   {
-    if(m_typeId == RT_SPJ_TREENODE){
-      ndbout << "Allocating TreeNode with i=" << tmp.i << endl; 
-    }
     ptr.i = tmp.i;
     ptr.p = static_cast<T*>(tmp.p);
   }
@@ -364,9 +356,6 @@ RecordPool<T, P>::seize(ArenaHead & ah, Ptr<T> & ptr)
   bool ret = m_pool.seize(ah, tmp);
   if(likely(ret))
   {
-    if(m_typeId == RT_SPJ_TREENODE){
-      ndbout << "Allocating TreeNode with i=" << tmp.i << endl; 
-    }
     ptr.i = tmp.i;
     ptr.p = static_cast<T*>(tmp.p);
   }
@@ -378,9 +367,6 @@ inline
 void
 RecordPool<T, P>::release(Uint32 i)
 {
-  if(m_typeId == RT_SPJ_TREENODE){
-    ndbout << "Releasing TreeNode with i=" << i << endl; 
-  }
   Ptr<void> ptr;
   ptr.i = i;
   ptr.p = m_pool.getPtr(i);
@@ -392,9 +378,6 @@ inline
 void
 RecordPool<T, P>::release(Ptr<T> ptr)
 {
-  if(m_typeId == RT_SPJ_TREENODE){
-    ndbout << "Releasing TreeNode with i=" << ptr.i << endl; 
-  }
   Ptr<void> tmp;
   tmp.i = ptr.i;
   tmp.p = ptr.p;
