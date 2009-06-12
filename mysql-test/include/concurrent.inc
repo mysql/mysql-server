@@ -11,6 +11,11 @@
 #   $engine_type                     storage engine to be tested
 #
 # Last update:
+# 2009-02-13 HH "Release_lock("hello")" is now also successful when delivering NULL,
+#               replaced two sleeps by wait_condition. The last two "sleep 1" have not been
+#               replaced as all tried wait conditions leaded to nondeterministic results, especially
+#               to succeeding concurrent updates. To replace the sleeps there should be some time
+#               planned (or internal knowledge of the server may help).
 # 2006-08-02 ML test refactored
 #               old name was t/innodb_concurrent.test
 #               main code went into include/concurrent.inc
@@ -20,8 +25,9 @@
 #               new wrapper t/concurrent_innodb_safelog.test
 #
 
-connection default;
+--source include/not_embedded.inc
 
+connection default;
 #
 # Show prerequisites for this test.
 #
@@ -50,8 +56,6 @@ GRANT USAGE ON test.* TO mysqltest@localhost;
 #
 # Preparatory cleanup.
 #
-DO release_lock("hello");
-DO release_lock("hello2");
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
@@ -86,13 +90,14 @@ drop table if exists t1;
       connection thread2;
       --echo ** Start transaction for thread 2
       begin;
-      --echo ** Update will cause a table scan and a new ULL  will 
+      --echo ** Update will cause a table scan and a new ULL  will
       --echo ** be created and blocked on the first row where tipo=11.
       send update t1 set eta=1+get_lock("hello",10)*0 where tipo=11;
-      sleep 1;
 
   --echo ** connection thread1
   connection thread1;
+  let $wait_condition= select count(*)= 1 from information_schema.processlist where state= 'User lock';
+  --source include/wait_condition.inc
   --echo ** Start new transaction for thread 1
   begin;
   --echo ** Update on t1 will cause a table scan which will be blocked because
@@ -111,7 +116,9 @@ drop table if exists t1;
   }
   --echo ** Release user level name lock from thread 1. This will cause the ULL
   --echo ** on thread 2 to end its wait.
-  select release_lock("hello");
+# Due to Bug#32782 User lock hash fails to find lock, which probably also cause Bug#39484 (main.concurrent_innodb_safelog fails sporadically) the success of the following
+# is also guaranteed for NULL. Replaced SELECT by DO (no result).
+  DO release_lock("hello");
   --echo ** Table is now updated with a new eta on tipo=22 for thread 1.
   select * from t1;
 
@@ -119,7 +126,9 @@ drop table if exists t1;
       connection thread2;
       --echo ** Release the lock and collect result from update on thread 2
       reap;
-      select release_lock("hello");
+# Due to Bug#32782 User lock hash fails to find lock, which probably also cause Bug#39484 (main.concurrent_innodb_safelog fails sporadically) the success of the following
+# is also guaranteed for NULL. Replaced SELECT by DO (no result).
+      DO release_lock("hello");
       --echo ** Table should have eta updates where tipo=11 but updates made by
       --echo ** thread 1 shouldn't be visible yet.
       select * from t1;
@@ -183,10 +192,11 @@ drop table t1;
       --echo ** This will cause a hang on the first row where tipo=1 until the
       --echo ** blocking ULL is released.
       send update t1 set eta=1+get_lock("hello",10)*0 where tipo=1;
-      sleep 1;
 
-  --echo ** connection thread1
+--echo ** connection thread1
   connection thread1;
+  let $wait_condition= select count(*)= 1 from information_schema.processlist where state= 'User lock';
+  --source include/wait_condition.inc
   --echo ** Start transaction on thread 1
   begin;
   --echo ** Update on t1 will cause a table scan which will be blocked because
@@ -204,7 +214,9 @@ drop table t1;
     update t1 set tipo=1 where tipo=2;
   }
   --echo ** Release ULL. This will release the next waiting ULL on thread 2.
-  select release_lock("hello");
+# Due to Bug#32782 User lock hash fails to find lock, which probably also cause Bug#39484 (main.concurrent_innodb_safelog fails sporadically)the success of the following
+# is also guaranteed for NULL. Replaced SELECT by DO (no result).
+  DO release_lock("hello");
   --echo ** The table should still be updated with updates for thread 1 only:
   select * from t1;
 
@@ -212,7 +224,9 @@ drop table t1;
       connection thread2;
       --echo ** Release the lock and collect result from thread 2:
       reap;
-      select release_lock("hello");
+# Due to Bug#32782 User lock hash fails to find lock, which probably also cause Bug#39484 (main.concurrent_innodb_safelog fails sporadically) the success of the following
+# is also guaranteed for NULL. Replaced SELECT by DO (no result).
+      DO release_lock("hello");
       --echo ** Seen from thread 2 the table should have been updated on four
       --echo ** places.
       select * from t1;
@@ -264,15 +278,18 @@ drop table t1;
       --echo ** Update will create a table scan which creates a ULL where a=2;
       --echo ** this will hang waiting on thread 1.
       send update t1 set b=10+get_lock(concat("hello",a),10)*0 where a=2;
-      sleep 1;
 
   --echo ** connection thread1
   connection thread1;
+  let $wait_condition= select count(*)= 1 from information_schema.processlist where state= 'User lock';
+  --source include/wait_condition.inc
   --echo ** Insert new values to t1 from thread 1; this created an implicit
   --echo ** commit since there are no on-going transactions.
   insert into t1 values (1,1);
   --echo ** Release the ULL (thread 2 updates will finish).
-  select release_lock("hello2");
+# Due to Bug#32782 User lock hash fails to find lock, which probably also cause Bug#39484 (main.concurrent_innodb_safelog fails sporadically) the success of the following
+# is also guaranteed for NULL. Replaced SELECT by DO (no result).
+  DO release_lock("hello2");
   --echo ** ..but thread 1 will still see t1 as if nothing has happend:
   select * from t1;
 
@@ -280,7 +297,9 @@ drop table t1;
       connection thread2;
       --echo ** Collect results from thread 2 and release the lock.
       reap;
-      select release_lock("hello2");
+# Due to Bug#32782 User lock hash fails to find lock, which probably also cause Bug#39484 (main.concurrent_innodb_safelog fails sporadically) the success of the following
+# is also guaranteed for NULL. Replaced SELECT by DO (no result).
+      DO release_lock("hello2");
       --echo ** The table should look like the original+updates for thread 2,
       --echo ** and consist of new rows:
       select * from t1;
@@ -534,6 +553,9 @@ drop table t1;
       connection thread2;
       begin;
       send delete from t1 where tipo=2;
+# The sleep has not been replaced as all tried wait conditions leaded to sporadically
+# succeding update in the following thread. Also the used status variables '%lock%' and
+# 'innodb_deleted_rows' and infos in processlist where not sucessful.
       sleep 1;
 
   --echo ** connection thread1
@@ -594,8 +616,11 @@ drop table t1;
       connection thread2;
       begin;
       send delete from t1 where tipo=2;
+# The sleep has not been replaced as all tried wait conditions leaded to sporadically
+# succeding update in the following thread. Also the used status variables '%lock%' and
+# 'innodb_deleted_rows' and infos in processlist where not sucessful.
       sleep 1;
-  
+ 
   --echo ** connection thread1
   connection thread1;
   begin;

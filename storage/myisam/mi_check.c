@@ -1,4 +1,6 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/*
+   Copyright (C) 2000-2006 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /* Describe, check and repair of MyISAM tables */
 
@@ -660,7 +663,7 @@ void mi_collect_stats_nonulls_first(HA_KEYSEG *keyseg, ulonglong *notnull,
                                     uchar *key)
 {
   uint first_null, kp;
-  first_null= ha_find_null(keyseg, key) - keyseg;
+  first_null= (uint) (ha_find_null(keyseg, key) - keyseg);
   /*
     All prefix tuples that don't include keypart_{first_null} are not-null
     tuples (and all others aren't), increment counters for them.
@@ -716,7 +719,7 @@ int mi_collect_stats_nonulls_next(HA_KEYSEG *keyseg, ulonglong *notnull,
   seg= keyseg + diffs[0] - 1;
 
   /* Find first NULL in last_key */
-  first_null_seg= ha_find_null(seg, last_key + diffs[1]) - keyseg;
+  first_null_seg= (uint) (ha_find_null(seg, last_key + diffs[1]) - keyseg);
   for (kp= 0; kp < first_null_seg; kp++)
     notnull[kp]++;
 
@@ -3952,7 +3955,7 @@ static int sort_ft_key_write(MI_SORT_PARAM *sort_param, const void *a)
       key_block++;
     sort_info->key_block=key_block;
     sort_param->keyinfo=& sort_info->info->s->ft2_keyinfo;
-    ft_buf->count=(ft_buf->buf - p)/val_len;
+    ft_buf->count=(uint) (ft_buf->buf - p)/val_len;
 
     /* flushing buffer to second-level tree */
     for (error=0; !error && p < ft_buf->buf; p+= val_len)

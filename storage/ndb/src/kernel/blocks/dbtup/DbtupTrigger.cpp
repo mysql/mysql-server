@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 #define DBTUP_C
@@ -231,12 +234,14 @@ Dbtup::execDROP_TRIG_IMPL_REQ(Signal* signal)
 /*                                                                  */
 /* ---------------------------------------------------------------- */
 bool
-Dbtup::createTrigger(Tablerec* table, const CreateTrigImplReq* req)
+Dbtup::createTrigger(Tablerec* table,
+                     const CreateTrigImplReq* req)
 {
   if (ERROR_INSERTED(4003)) {
     CLEAR_ERROR_INSERT_VALUE;
     return false;
   }
+
   const Uint32 tinfo = req->triggerInfo;
   TriggerType::Value ttype = TriggerInfo::getTriggerType(tinfo);
   TriggerActionTime::Value ttime = TriggerInfo::getTriggerActionTime(tinfo);
@@ -282,6 +287,9 @@ Dbtup::createTrigger(Tablerec* table, const CreateTrigImplReq* req)
 
     // Set trigger id
     tptr.p->triggerId = req->triggerId;
+    tptr.p->oldTriggerIds[0] = req->upgradeExtra[0];
+    tptr.p->oldTriggerIds[1] = req->upgradeExtra[1];
+    tptr.p->oldTriggerIds[2] = req->upgradeExtra[2];
 
     // Set index id
     tptr.p->indexId = req->indexId;
@@ -844,36 +852,27 @@ Dbtup::check_fire_suma(const KeyReqStruct *req_struct,
   return false;
 }
 
+Uint32
+Dbtup::getOldTriggerId(const TupTriggerData* trigPtrP,
+                       Uint32 op_type)
+{
+  switch(op_type){
+  case ZINSERT:
+    return trigPtrP->oldTriggerIds[0];
+  case ZUPDATE:
+    return trigPtrP->oldTriggerIds[1];
+  case ZDELETE:
+    return trigPtrP->oldTriggerIds[2];
+  }
+  ndbrequire(false);
+  return RNIL;
+}
+
 void Dbtup::executeTrigger(KeyReqStruct *req_struct,
                            TupTriggerData* const trigPtr,
                            Operationrec* const regOperPtr,
                            bool disk)
 {
-  /**
-   * The block below does not work together with GREP.
-   * I have 2 db nodes (2 replicas) -> one node group.
-   * I want to have FIRETRIG_ORD sent to all SumaParticipants,
-   * from all nodes in the node group described above. However, 
-   * only one of the nodes in the node group actually sends the
-   *  FIRE_TRIG_ORD, and the other node enters this "hack" below.
-   * I don't really know what the code snippet below does, but it
-   * does not work with GREP the way Lars and I want it.
-   * We need to have triggers fired from both the primary and the
-   * backup replica, not only the primary as it is now.
-   * 
-   * Note: In Suma, I have changed triggers to be created with
-   * setMonitorReplicas(true).
-   * /Johan
-   *
-   * See RT 709
-   */
-  // XXX quick fix to NR, should fix in LQHKEYREQ instead
-  /*  
-      if (refToBlock(req_struct->TC_ref) == DBLQH) {
-      jam();
-      return;
-      }
-  */
   Signal* signal= req_struct->signal;
   BlockReference ref = trigPtr->m_receiverRef;
   Uint32* const keyBuffer = &cinBuffer[0];
@@ -948,12 +947,27 @@ out:
 //--------------------------------------------------------------------
   bool executeDirect;
   bool longsignal = false;
+  Uint32 triggerId = trigPtr->triggerId;
   TrigAttrInfo* const trigAttrInfo = (TrigAttrInfo *)signal->getDataPtrSend();
   trigAttrInfo->setConnectionPtr(req_struct->TC_index);
   trigAttrInfo->setTriggerId(trigPtr->triggerId);
 
   switch(triggerType) {
   case (TriggerType::SECONDARY_INDEX):
+  {
+    jam();
+    /**
+     * Handle stupid 6.3 which uses one triggerId per operation type
+     */
+    Uint32 node = refToNode(req_struct->TC_ref);
+    if (unlikely(node && getNodeInfo(node).m_version < MAKE_VERSION(6,4,0)))
+    {
+      jam();
+      triggerId = getOldTriggerId(trigPtr, regOperPtr->op_struct.op_type);
+      trigAttrInfo->setTriggerId(triggerId);
+    }
+    // fall-through
+  }
   case (TriggerType::REORG_TRIGGER):
     jam();
     ref = req_struct->TC_ref;
@@ -1024,7 +1038,7 @@ out:
   FireTrigOrd* const fireTrigOrd = (FireTrigOrd *)signal->getDataPtrSend();
 
   fireTrigOrd->setConnectionPtr(req_struct->TC_index);
-  fireTrigOrd->setTriggerId(trigPtr->triggerId);
+  fireTrigOrd->setTriggerId(triggerId);
   fireTrigOrd->fragId= regFragPtr.p->fragmentId;
 
   switch(regOperPtr->op_struct.op_type) {
@@ -1032,13 +1046,13 @@ out:
     jam();
     fireTrigOrd->m_triggerEvent = TriggerEvent::TE_INSERT;
     break;
-  case(ZDELETE):
-    jam();
-    fireTrigOrd->m_triggerEvent = TriggerEvent::TE_DELETE;
-    break;
   case(ZUPDATE):
     jam();
     fireTrigOrd->m_triggerEvent = TriggerEvent::TE_UPDATE;
+    break;
+  case(ZDELETE):
+    jam();
+    fireTrigOrd->m_triggerEvent = TriggerEvent::TE_DELETE;
     break;
   default:
     ndbrequire(false);

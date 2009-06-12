@@ -11,7 +11,12 @@
 #
 
 --source include/have_log_bin.inc
+
+# The test is disabled for windows due to 
+# Bug #42879 CHANGE MASTER RELAY_LOG_FILE=path fails on windows
+# Todo: release it from not_windows
 --source include/not_windows.inc
+
 #
 # Bug#31240 load data infile replication between (4.0 or 4.1) and 5.1 fails
 #

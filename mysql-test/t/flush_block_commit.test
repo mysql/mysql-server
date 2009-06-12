@@ -4,74 +4,106 @@
 # This is intended to mimick how mysqldump and innobackup work.
 
 # And it requires InnoDB
--- source include/have_innodb.inc
+--source include/have_innodb.inc
 
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+--echo # Establish connection con1 (user=root)
 connect (con1,localhost,root,,);
+--echo # Establish connection con2 (user=root)
 connect (con2,localhost,root,,);
+--echo # Establish connection con3 (user=root)
 connect (con3,localhost,root,,);
+--echo # Switch to connection con1
 connection con1;
 
 --disable_warnings
-drop table if exists t1;
+DROP TABLE IF EXISTS t1;
 --enable_warnings
-create table t1 (a int) engine=innodb;
+CREATE TABLE t1 (a INT) ENGINE=innodb;
 
 # blocks COMMIT ?
 
-begin;
-insert into t1 values(1);
+BEGIN;
+INSERT INTO t1 VALUES(1);
+--echo # Switch to connection con2
 connection con2;
-flush tables with read lock;
-select * from t1;
+FLUSH TABLES WITH READ LOCK;
+SELECT * FROM t1;
+--echo # Switch to connection con1
 connection con1;
-send commit; # blocked by con2
+send COMMIT; # blocked by con2
 sleep 1;
+--echo # Switch to connection con2
 connection con2;
-select * from t1; # verify con1 was blocked and data did not move
-unlock tables;
+SELECT * FROM t1; # verify con1 was blocked and data did not move
+UNLOCK TABLES;
+--echo # Switch to connection con1
 connection con1;
 reap;
 
 # No deadlock ?
 
+--echo # Switch to connection con1
 connection con1;
-begin;
-select * from t1 for update;
+BEGIN;
+SELECT * FROM t1 FOR UPDATE;
+--echo # Switch to connection con2
 connection con2;
-begin;
-send select * from t1 for update; # blocked by con1
+BEGIN;
+send SELECT * FROM t1 FOR UPDATE; # blocked by con1
 sleep 1;
+--echo # Switch to connection con3
 connection con3;
-send flush tables with read lock; # blocked by con2
+send FLUSH TABLES WITH READ LOCK; # blocked by con2
+--echo # Switch to connection con1
 connection con1;
-commit; # should not be blocked by con3
+COMMIT; # should not be blocked by con3
+--echo # Switch to connection con2
 connection con2;
 reap;
+--echo # Switch to connection con3
 connection con3;
 reap;
-unlock tables;
+UNLOCK TABLES;
 
-# BUG#6732 FLUSH TABLES WITH READ LOCK + COMMIT hangs later FLUSH TABLES
-# WITH READ LOCK
+# Bug#6732 FLUSH TABLES WITH READ LOCK + COMMIT hangs later FLUSH TABLES
+#          WITH READ LOCK
 
+--echo # Switch to connection con2
 connection con2;
-commit; # unlock InnoDB row locks to allow insertions
+COMMIT; # unlock InnoDB row locks to allow insertions
+--echo # Switch to connection con1
 connection con1;
-begin;
-insert into t1 values(10);
-flush tables with read lock;
-commit;
-unlock tables;
+BEGIN;
+INSERT INTO t1 VALUES(10);
+FLUSH TABLES WITH READ LOCK;
+COMMIT;
+UNLOCK TABLES;
+--echo # Switch to connection con2
 connection con2;
-flush tables with read lock; # bug caused hang here
-unlock tables;
+FLUSH TABLES WITH READ LOCK; # bug caused hang here
+UNLOCK TABLES;
 
-# BUG#7358 SHOW CREATE DATABASE fails if open transaction
+# Bug#7358 SHOW CREATE DATABASE fails if open transaction
 
-begin;
-select * from t1;
-show create database test;
+BEGIN;
+SELECT * FROM t1;
+SHOW CREATE DATABASE test;
 
-drop table t1;
+DROP TABLE t1;
+
+
+# Cleanup
+--echo # Switch to connection default and close connections con1, con2, con3
+connection default;
+disconnect con1;
+disconnect con2;
+disconnect con3;
 
 # End of 4.1 tests
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc
+

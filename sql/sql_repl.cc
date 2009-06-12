@@ -1,4 +1,6 @@
-/* Copyright (C) 2000-2006 MySQL AB & Sasha
+/*
+   Copyright (C) 2000-2006 MySQL AB & Sasha
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include "mysql_priv.h"
 #ifdef HAVE_REPLICATION
@@ -205,7 +208,7 @@ void adjust_linfo_offsets(my_off_t purge_offset)
 
 bool log_in_use(const char* log_name)
 {
-  int log_name_len = strlen(log_name) + 1;
+  size_t log_name_len = strlen(log_name) + 1;
   THD *tmp;
   bool result = 0;
 
@@ -1500,8 +1503,8 @@ int cmp_master_pos(const char* log_file_name1, ulonglong log_pos1,
 		   const char* log_file_name2, ulonglong log_pos2)
 {
   int res;
-  uint log_file_name1_len=  strlen(log_file_name1);
-  uint log_file_name2_len=  strlen(log_file_name2);
+  size_t log_file_name1_len=  strlen(log_file_name1);
+  size_t log_file_name2_len=  strlen(log_file_name2);
 
   //  We assume that both log names match up to '.'
   if (log_file_name1_len == log_file_name2_len)
@@ -1821,7 +1824,7 @@ int log_loaded_block(IO_CACHE* file)
       lf_info->last_pos_in_file >= my_b_get_pos_in_file(file))
     DBUG_RETURN(0);
   
-  for (block_len= my_b_get_bytes_in_buffer(file); block_len > 0;
+  for (block_len= (uint) (my_b_get_bytes_in_buffer(file)); block_len > 0;
        buffer += min(block_len, max_event_size),
        block_len -= min(block_len, max_event_size))
   {

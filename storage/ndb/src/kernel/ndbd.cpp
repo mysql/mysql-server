@@ -307,7 +307,7 @@ childExit(int code, Uint32 currentStartPhase)
   fprintf(child_info_file_w, "\n");
   fclose(child_info_file_r);
   fclose(child_info_file_w);
-  _exit(code);
+  ndbd_exit(code);
 #else
   {
     Configuration* theConfig=globalEmulatorData.theConfiguration;
@@ -316,7 +316,7 @@ childExit(int code, Uint32 currentStartPhase)
     case NRT_Default:
       g_eventLogger->info("Angel shutting down");
       reportShutdown(theConfig, 0, 0, currentStartPhase);
-      _exit(0);
+      ndbd_exit(0);
       break;
     case NRT_NoStart_Restart:
       theConfig->setInitialStart(false);
@@ -337,7 +337,7 @@ childExit(int code, Uint32 currentStartPhase)
          * Error shutdown && stopOnError()
          */
         reportShutdown(theConfig, 1, 0, currentStartPhase);
-        _exit(0);
+        ndbd_exit(0);
       }
       // Fall-through
     case NRT_DoStart_Restart:
@@ -364,7 +364,7 @@ childExit(int code, Uint32 currentStartPhase)
     if (reportShutdown(theConfig, 0, 1, currentStartPhase))
     {
       g_eventLogger->error("unable to shutdown");
-      _exit(1);
+      ndbd_exit(1);
     }
     g_eventLogger->info("Ndb has terminated.  code=%d", code);
     if (code == NRT_NoStart_Restart)
@@ -504,6 +504,16 @@ catchsigs(bool foreground){
 #endif
 }
 
+void
+ndbd_exit(int code)
+{
+// gcov will not produce results when using _exit
+#ifdef HAVE_gcov
+  exit(code);
+#else
+  _exit(code);
+#endif
+}
 
 int
 ndbd_run(bool foreground)
@@ -589,21 +599,21 @@ ndbd_run(bool foreground)
   globalTransporterRegistry.startReceiving();
   if (!globalTransporterRegistry.start_service(*globalEmulatorData.m_socket_server)){
     ndbout_c("globalTransporterRegistry.start_service() failed");
-    _exit(-1);
+    ndbd_exit(-1);
   }
 
   // Re-use the mgm handle as a transporter
   if(!globalTransporterRegistry.connect_client(
 		 theConfig->get_config_retriever()->get_mgmHandlePtr()))
-      ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG,
-		"Connection to mgmd terminated before setup was complete",
-		"StopOnError missing");
+      ERROR_SET(fatal, NDBD_EXIT_CONNECTION_SETUP_FAILED,
+                "Failed to convert mgm connection to a transporter",
+                __FILE__);
 
   NdbThread* pTrp = globalTransporterRegistry.start_clients();
   if (pTrp == 0)
   {
     ndbout_c("globalTransporterRegistry.start_clients() failed");
-    _exit(-1);
+    ndbd_exit(-1);
   }
 
   NdbThread* pSockServ = globalEmulatorData.m_socket_server->startServer();

@@ -1,4 +1,6 @@
-/* Copyright (C) 2000 MySQL AB
+/*
+   Copyright (C) 2000 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /*
   This is a replacement of new/delete operators to be used when compiling
@@ -46,8 +49,9 @@ void operator delete[] (void *ptr) throw ()
 
 C_MODE_START
 
-int __cxa_pure_virtual() {
-  assert("Pure virtual method called." == "Aborted");
+int __cxa_pure_virtual()
+{
+  assert(! "Aborted: pure virtual method called.");
   return 0;
 }
 

@@ -1,4 +1,6 @@
-/* Copyright (C) 2001 MySQL AB
+/*
+   Copyright (C) 2001 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /*
   Function to handle quick removal of duplicates
@@ -130,7 +133,7 @@ static double get_merge_buffers_cost(uint *buff_elems, uint elem_size,
     total_buf_elems+= *pbuf;
   *last= total_buf_elems;
 
-  int n_buffers= last - first + 1;
+  size_t n_buffers= last - first + 1;
 
   /* Using log2(n)=log(n)/log(2) formula */
   return 2*((double)total_buf_elems*elem_size) / IO_SIZE +

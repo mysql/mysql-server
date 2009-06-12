@@ -1,4 +1,6 @@
-/* Copyright (C) 2004 MySQL AB
+/*
+   Copyright (C) 2004 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 /*
@@ -77,14 +80,29 @@ static void message(const char* fmt, ...)
 
 static void die(const char* fmt, ...)
 {
+  DWORD last_err= GetLastError();
   va_list args;
   fprintf(stderr, "%s: FATAL ERROR, ", safe_process_name);
   va_start(args, fmt);
   vfprintf(stderr, fmt, args);
   fprintf(stderr, "\n");
   va_end(args);
-  if (int last_err= GetLastError())
-    fprintf(stderr, "error: %d, %s\n", last_err, strerror(last_err));
+  if (last_err)
+  {
+    char *message_text;
+    if (FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_ALLOCATE_BUFFER
+        |FORMAT_MESSAGE_IGNORE_INSERTS, NULL, last_err , 0, (LPSTR)&message_text,
+        0, NULL))
+    {
+      fprintf(stderr,"error: %d, %s\n",last_err, message_text);
+      LocalFree(message_text);
+    }
+    else
+    {
+      /* FormatMessage failed, print error code only */
+      fprintf(stderr,"error:%d\n", last_err);
+    }
+  }
   fflush(stderr);
   exit(1);
 }
@@ -244,22 +262,37 @@ int main(int argc, const char** argv )
     the JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE flag, making sure it will be
     terminated when the last handle to it is closed(which is owned by
     this process).
+
+    If breakaway from job fails on some reason, fallback is to create a
+    new process group. Process groups also allow to kill process and its 
+    descedants, subject to some restrictions (processes have to run within
+    the same console,and must not ignore CTRL_BREAK)
   */
-  if (CreateProcess(NULL, (LPSTR)child_args,
+  DWORD create_flags[]= {CREATE_BREAKAWAY_FROM_JOB, CREATE_NEW_PROCESS_GROUP, 0};
+  BOOL process_created= FALSE;
+  BOOL jobobject_assigned= FALSE;
+
+  for (int i=0; i < sizeof(create_flags)/sizeof(create_flags[0]); i++)
+  { 
+    process_created= CreateProcess(NULL, (LPSTR)child_args,
                     NULL,
                     NULL,
                     TRUE, /* inherit handles */
-                    CREATE_SUSPENDED | CREATE_BREAKAWAY_FROM_JOB,
+                    CREATE_SUSPENDED | create_flags[i],
                     NULL,
                     NULL,
                     &si,
-                    &process_info) == 0)
-    die("CreateProcess failed");
+                    &process_info);
+    if (process_created)
+    {
+     jobobject_assigned= AssignProcessToJobObject(job_handle, process_info.hProcess);
+     break;
+    }
+  }
 
-  if (AssignProcessToJobObject(job_handle, process_info.hProcess) == 0)
+  if (!process_created)
   {
-    TerminateProcess(process_info.hProcess, 200);
-    die("AssignProcessToJobObject failed");
+    die("CreateProcess failed");
   }
   ResumeThread(process_info.hThread);
   CloseHandle(process_info.hThread);
@@ -297,6 +330,13 @@ int main(int argc, const char** argv )
     message("TerminateJobObject failed");
   CloseHandle(job_handle);
   message("Job terminated and closed");
+
+  if (!jobobject_assigned)
+  {
+    GenerateConsoleCtrlEvent(CTRL_BREAK_EVENT, process_info.dwProcessId);
+    TerminateProcess(process_info.hProcess, 202);
+  }
+
   if (wait_res != WAIT_OBJECT_0 + CHILD)
   {
     /* The child has not yet returned, wait for it */

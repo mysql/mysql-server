@@ -1,4 +1,6 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/*
+   Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /* Defines for Win32 to make it compatible for MySQL */
 
@@ -231,13 +234,6 @@ typedef uint rf_SetTimer;
 #define inline __inline
 #endif /* __cplusplus */
 
-inline double rint(double nr)
-{
-  double f = floor(nr);
-  double c = ceil(nr);
-  return (((c-nr) >= (nr-f)) ? f :c);
-}
-
 #ifdef _WIN64
 #define ulonglong2double(A) ((double) (ulonglong) (A))
 #define my_off_t2double(A)  ((double) (my_off_t) (A))
@@ -292,7 +288,6 @@ inline ulonglong double2ulonglong(double d)
 #define HAVE_FLOAT_H
 #define HAVE_LIMITS_H
 #define HAVE_STDDEF_H
-#define HAVE_RINT		/* defined in this file */
 #define NO_FCNTL_NONBLOCK	/* No FCNTL */
 #define HAVE_ALLOCA
 #define HAVE_STRPBRK

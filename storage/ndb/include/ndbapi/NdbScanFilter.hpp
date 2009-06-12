@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef NDB_SCAN_FILTER_HPP
 #define NDB_SCAN_FILTER_HPP
@@ -91,7 +94,7 @@ public:
     COND_AND_EQ_MASK = 8,  ///< (bit & mask) == mask
     COND_AND_NE_MASK = 9,  ///< (bit & mask) != mask (incl. NULL)
     COND_AND_EQ_ZERO = 10, ///< (bit & mask) == 0
-    COND_AND_NE_ZERO = 11, ///< (bit & mask) != 0 (incl. NULL)
+    COND_AND_NE_ZERO = 11  ///< (bit & mask) != 0 (incl. NULL)
   };
 
   /** 

@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <ndb_global.h>
 #include <my_pthread.h>
@@ -812,10 +815,6 @@ TransporterFacade::configure(NodeId nodeId,
                                         * theTransporterRegistry))
     DBUG_RETURN(false);
 
-  // Open connection between MGM servers
-  if (!do_connect_mgm(nodeId, conf))
-    DBUG_RETURN(false);
-
   // Configure cluster manager
   theClusterMgr->configure(conf);
 
@@ -880,6 +879,10 @@ TransporterFacade::configure(NodeId nodeId,
 #ifdef API_TRACE
   signalLogger.logOn(true, 0, SignalLoggerManager::LogInOut);
 #endif
+
+  // Open connection between MGM servers
+  if (!do_connect_mgm(nodeId, conf))
+    DBUG_RETURN(false);
   
   DBUG_RETURN(true);
 }
@@ -2027,9 +2030,6 @@ SignalSender::sendSignal(Uint16 nodeId, const SimpleSignal * s){
     return SEND_OK;
   }
 
-  assert(getNodeInfo(nodeId).m_api_reg_conf == true ||
-         s->readSignalNumber() == GSN_API_REGREQ);
-  
   SendStatus ss = 
     theFacade->theTransporterRegistry->prepareSend(&s->header,
                                                    1, // JBB
@@ -2039,6 +2039,8 @@ SignalSender::sendSignal(Uint16 nodeId, const SimpleSignal * s){
 
   if (ss == SEND_OK)
   {
+    assert(getNodeInfo(nodeId).m_api_reg_conf == true ||
+           s->readSignalNumber() == GSN_API_REGREQ);
     theFacade->forceSend(m_blockNo);
   }
 

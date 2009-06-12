@@ -1,12 +1,10 @@
-/* Copyright (C) 2000-2004 MySQL AB
+/*
+   Copyright (C) 2000-2004 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
-   the Free Software Foundation.
-
-   There are special exceptions to the terms and conditions of the GPL as it
-   is applied to this software. View the full text of the exception in file
-   EXCEPTIONS-CLIENT in the directory of this software distribution.
+   the Free Software Foundation; version 2 of the License.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -15,7 +13,10 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+
+
+*/
 
 #include <my_global.h>
 #include <my_sys.h>
@@ -1617,7 +1618,7 @@ mysql_hex_string(char *to, const char *from, ulong length)
 ulong STDCALL
 mysql_escape_string(char *to,const char *from,ulong length)
 {
-  return escape_string_for_mysql(default_charset_info, to, 0, from, length);
+  return (uint) escape_string_for_mysql(default_charset_info, to, 0, from, length);
 }
 
 ulong STDCALL
@@ -1625,8 +1626,8 @@ mysql_real_escape_string(MYSQL *mysql, char *to,const char *from,
 			 ulong length)
 {
   if (mysql->server_status & SERVER_STATUS_NO_BACKSLASH_ESCAPES)
-    return escape_quotes_for_mysql(mysql->charset, to, 0, from, length);
-  return escape_string_for_mysql(mysql->charset, to, 0, from, length);
+    return (uint) escape_quotes_for_mysql(mysql->charset, to, 0, from, length);
+  return (uint) escape_string_for_mysql(mysql->charset, to, 0, from, length);
 }
 
 void STDCALL
@@ -3833,13 +3834,13 @@ static void fetch_float_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
 #undef NOT_FIXED_DEC
     {
       /*
-        The 14 below is to ensure that the server and client has the same
+        DBL_DIG below is to ensure that the server and client has the same
         precisions. This will ensure that on the same machine you get the
         same value as a string independent of the protocol you use.
       */
       sprintf(buff, "%-*.*g", (int) min(sizeof(buff)-1,
                                         param->buffer_length),
-	      min(14,width), value);
+              min(DBL_DIG, width), value);
       end= strcend(buff, ' ');
       *end= 0;
     }

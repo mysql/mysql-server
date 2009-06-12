@@ -19,6 +19,24 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 DROP TABLE t1;
+CREATE DATABASE `TESTDB`;
+USE `TESTDB`;
+CREATE FUNCTION test_fn() RETURNS INTEGER
+BEGIN
+DECLARE rId bigint;
+RETURN rId;
+END
+//
+CREATE FUNCTION test_fn2() RETURNS INTEGER
+BEGIN
+DECLARE rId bigint;
+RETURN rId;
+END
+//
+DROP FUNCTION `TESTDB`.`test_fn`;
+DROP FUNCTION `testdb`.`test_fn2`;
+USE test;
+DROP DATABASE `TESTDB`;
 End of 5.0 tests.
 drop procedure if exists proc_1;
 create procedure proc_1() install plugin my_plug soname '\\root\\some_plugin.dll';

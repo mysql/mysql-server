@@ -1,4 +1,6 @@
-/* Copyright (C) 2004-2005 MySQL AB
+/*
+   Copyright (C) 2004-2005 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 #define MYSQL_LEX 1
@@ -1728,7 +1731,7 @@ Table_triggers_list::change_table_name_in_triggers(THD *thd,
   List_iterator_fast<LEX_STRING> it_def(definitions_list);
   List_iterator_fast<LEX_STRING> it_on_table_name(on_table_names_list);
   List_iterator_fast<ulonglong> it_mode(definition_modes_list);
-  uint on_q_table_name_len, before_on_len;
+  size_t on_q_table_name_len, before_on_len;
   String buff;
 
   DBUG_ASSERT(definitions_list.elements == on_table_names_list.elements &&

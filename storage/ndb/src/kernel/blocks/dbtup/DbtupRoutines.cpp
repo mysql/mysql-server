@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 #define DBTUP_C
@@ -399,10 +402,18 @@ int Dbtup::readAttributes(KeyReqStruct *req_struct,
     } 
     else if(attributeId & AttributeHeader::PSEUDO) 
     {
-      Uint32 sz = read_pseudo(inBuffer, inBufIndex,
-                              req_struct,
-                              (Uint32*)outBuffer);
-      inBufIndex += sz;
+      int sz = read_pseudo(inBuffer, inBufIndex,
+                           req_struct,
+                           (Uint32*)outBuffer);
+      if (likely(sz >= 0))
+      {
+        inBufIndex += Uint32(sz);
+      }
+      else
+      {
+        terrorCode = -sz;
+        return -1;
+      }
     } 
     else 
     {
@@ -1940,25 +1951,45 @@ Dbtup::varsize_updater(Uint32* in_buffer,
   Uint32 size_in_bytes = ahIn.getByteSize();
   vsize_in_words= (size_in_bytes + 3) >> 2;
   max_var_size= AttributeDescriptor::getSizeInBytes(attr_descriptor);
+  Uint32 arrayType = AttributeDescriptor::getArrayType(attr_descriptor);
   new_index= index_buf + vsize_in_words + 1;
+
+  Uint32 dataLen = size_in_bytes;
+  const Uint8 * src = (const Uint8*)&in_buffer[index_buf + 1];
   
-  if (new_index <= in_buf_len && vsize_in_words <= max_var_size) {
+  if (new_index <= in_buf_len && size_in_bytes <= max_var_size)
+  {
     if (!null_ind) {
       jam();
-      *len_offset_ptr= var_attr_pos+size_in_bytes;
-      req_struct->in_buf_index= new_index;
-      
-      ndbrequire(var_attr_pos+size_in_bytes <= check_offset);
-      memcpy(var_data_start+var_attr_pos, &in_buffer[index_buf + 1],
-	     size_in_bytes);
-      return true;
-    }
 
+      if (arrayType == NDB_ARRAYTYPE_SHORT_VAR)
+      {
+        dataLen = 1 + src[0];
+      }
+      else if (arrayType == NDB_ARRAYTYPE_MEDIUM_VAR)
+      {
+        dataLen = 2 + src[0] + 256 * Uint32(src[1]);
+      }
+            
+      if (dataLen == size_in_bytes) 
+      {
+        *len_offset_ptr= var_attr_pos+size_in_bytes;
+        req_struct->in_buf_index= new_index;
+        
+        ndbrequire(var_attr_pos+size_in_bytes <= check_offset);
+        memcpy(var_data_start+var_attr_pos, src, size_in_bytes);
+        return true;
+      }
+      jam();
+      terrorCode= ZAI_INCONSISTENCY_ERROR;
+      return false;
+    }
+    
     jam();
     terrorCode= ZNOT_NULL_ATTR;
     return false;
   }
-
+  
   jam();
   terrorCode= ZAI_INCONSISTENCY_ERROR;
   return false;
@@ -2269,7 +2300,7 @@ Dbtup::updateDynVarSizeNULLable(Uint32* inBuffer,
   }
 }
 
-Uint32 
+int
 Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
                    KeyReqStruct *req_struct,
                    Uint32* outBuf)
@@ -2292,7 +2323,7 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
     return read_lcp(inBuffer, inPos, req_struct, outBuf);
   case AttributeHeader::READ_PACKED:
   case AttributeHeader::READ_ALL:
-    return read_packed(inBuffer, inPos, req_struct, outBuf);
+    return (int)read_packed(inBuffer, inPos, req_struct, outBuf);
   case AttributeHeader::FRAGMENT:
     outBuffer[1] = fragptr.p->fragmentId;
     sz = 1;
@@ -2406,7 +2437,7 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
     break;
   }
   default:
-    return 0;
+    return -ZATTRIBUTE_ID_ERROR;
   }
   
   AttributeHeader::init(outBuffer, attrId, sz << 2);

@@ -1,4 +1,6 @@
-/* Copyright (C) 2002-2006 MySQL AB
+/*
+   Copyright (C) 2002-2006 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /* Classes to support the SET command */
 
@@ -31,7 +34,7 @@ typedef struct system_variables SV;
 typedef struct my_locale_st MY_LOCALE;
 
 extern TYPELIB bool_typelib, delay_key_write_typelib, sql_mode_typelib,
-  slave_exec_mode_typelib;
+  optimizer_switch_typelib, slave_exec_mode_typelib;
 
 typedef int (*sys_check_func)(THD *,  set_var *);
 typedef bool (*sys_update_func)(THD *, set_var *);
@@ -531,6 +534,20 @@ public:
   bool check_update_type(Item_result type) { return 0; }
 };
 
+
+class sys_var_thd_optimizer_switch :public sys_var_thd_enum
+{
+public:
+  sys_var_thd_optimizer_switch(sys_var_chain *chain, const char *name_arg, 
+                               ulong SV::*offset_arg)
+    :sys_var_thd_enum(chain, name_arg, offset_arg, &optimizer_switch_typelib)
+  {}
+  bool check(THD *thd, set_var *var);
+  void set_default(THD *thd, enum_var_type type);
+  uchar *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
+  static bool symbolic_mode_representation(THD *thd, ulonglong sql_mode,
+                                           LEX_STRING *rep);
+};
 
 extern void fix_sql_mode_var(THD *thd, enum_var_type type);
 

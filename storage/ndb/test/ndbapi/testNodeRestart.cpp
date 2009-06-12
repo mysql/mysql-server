@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <NDBT.hpp>
 #include <NDBT_Test.hpp>
@@ -1321,9 +1324,15 @@ int runBug25554(NDBT_Context* ctx, NDBT_Step* step)
 int runBug25984(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbRestarter restarter;
+  Ndb* pNdb = GETNDB(step);
+
+  NdbDictionary::Table tab = * ctx->getTab();
+  NdbDictionary::Dictionary* pDict = GETNDB(step)->getDictionary();
 
   if (restarter.getNumDbNodes() < 2)
     return NDBT_OK;
+
+  pDict->dropTable(tab.getName());
 
   if (restarter.restartAll(true, true, true))
     return NDBT_FAILED;
@@ -1337,6 +1346,14 @@ int runBug25984(NDBT_Context* ctx, NDBT_Step* step)
   if (restarter.waitClusterStarted())
     return NDBT_FAILED;
 
+  int res = pDict->createTable(tab);
+  if (res)
+  {
+    return NDBT_FAILED;
+  }
+  HugoTransactions trans(* pDict->getTable(tab.getName()));
+  trans.loadTable(pNdb, ctx->getNumRecords());
+                         
   int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };    
   int master = restarter.getMasterNodeId();
   int victim = restarter.getRandomNodeOtherNodeGroup(master, rand());
@@ -1356,6 +1373,8 @@ int runBug25984(NDBT_Context* ctx, NDBT_Step* step)
     
     if (restarter.insertErrorInNode(victim, 7191))
       return NDBT_FAILED;
+
+    trans.scanUpdateRecords(pNdb, ctx->getNumRecords());
     
     if (restarter.startNodes(&victim, 1))
       return NDBT_FAILED;
@@ -1372,6 +1391,8 @@ int runBug25984(NDBT_Context* ctx, NDBT_Step* step)
   if (restarter.waitClusterStarted())
     return NDBT_FAILED;
 
+  trans.scanUpdateRecords(pNdb, ctx->getNumRecords());
+
   restarter.restartOneDbNode(victim, false, true, true);
   for (Uint32 i = 0; i<1; i++)
   {
@@ -1384,7 +1405,9 @@ int runBug25984(NDBT_Context* ctx, NDBT_Step* step)
     
     if (restarter.insertErrorInNode(victim, 7016))
       return NDBT_FAILED;
-    
+  
+    trans.scanUpdateRecords(pNdb, ctx->getNumRecords());
+  
     if (restarter.startNodes(&victim, 1))
       return NDBT_FAILED;
 
@@ -3663,6 +3686,78 @@ runBug43888(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+#define CHECK(b, m) { int _xx = b; if (!(_xx)) { \
+  ndbout << "ERR: "<< m \
+           << "   " << "File: " << __FILE__ \
+           << " (Line: " << __LINE__ << ")" << "- " << _xx << endl; \
+  return NDBT_FAILED; } }
+
+int
+runBug44952(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter res;
+  NdbDictionary::Dictionary* pDict = GETNDB(step)->getDictionary();
+
+  const int codes [] = {
+    5051, 5052, 5053, 0
+  };
+
+  int randomId = myRandom48(res.getNumDbNodes());
+  int nodeId = res.getDbNodeId(randomId);
+
+  int loops = ctx->getNumLoops();
+  const int val[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 } ;
+  for (int l = 0; l < loops; l++)
+  {
+    int randomId = myRandom48(res.getNumDbNodes());
+    int nodeId = res.getDbNodeId(randomId);
+
+    ndbout_c("killing node %u error 5051 loop %u/%u", nodeId, l+1, loops);
+    CHECK(res.dumpStateOneNode(nodeId, val, 2) == 0,
+          "failed to set RestartOnErrorInsert");
+
+    CHECK(res.insertErrorInNode(nodeId, 5051) == 0,
+          "failed to insert error 5051");
+
+    while (res.waitNodesNoStart(&nodeId, 1, 1 /* seconds */) != 0)
+    {
+      pDict->forceGCPWait();
+    }
+
+    ndbout_c("killing node %u during restart error 5052", nodeId);
+    for (int j = 0; j < 3; j++)
+    {
+      ndbout_c("loop: %d - killing node %u during restart error 5052",
+               j, nodeId);
+      int val[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 } ;
+      CHECK(res.dumpStateOneNode(nodeId, val, 2) == 0,
+            "failed to set RestartOnErrorInsert");
+
+      CHECK(res.insertErrorInNode(nodeId, 5052) == 0,
+            "failed to set error insert");
+
+      NdbSleep_SecSleep(3); // ...
+
+      CHECK(res.startNodes(&nodeId, 1) == 0,
+            "failed to start node");
+
+      NdbSleep_SecSleep(3);
+
+      CHECK(res.waitNodesNoStart(&nodeId, 1) == 0,
+            "waitNodesNoStart failed");
+    }
+
+    CHECK(res.startNodes(&nodeId, 1) == 0,
+          "failed to start node");
+
+    CHECK(res.waitNodesStarted(&nodeId, 1) == 0,
+          "waitNodesStarted failed");
+  }
+
+  ctx->stopTest();
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
 	 "Test that one node at a time can be stopped and then restarted "\
@@ -4148,6 +4243,17 @@ TESTCASE("Bug43224", ""){
 }
 TESTCASE("Bug43888", ""){
   INITIALIZER(runBug43888);
+}
+TESTCASE("Bug44952",
+	 "Test that we can execute the restart RestartNFDuringNR loop\n" \
+	 "number of times"){
+  INITIALIZER(runCheckAllNodesStarted);
+  INITIALIZER(runLoadTable);
+  STEP(runBug44952);
+  STEP(runPkUpdateUntilStopped);
+  STEP(runScanUpdateUntilStopped);
+  FINALIZER(runScanReadVerify);
+  FINALIZER(runClearTable);
 }
 NDBT_TESTSUITE_END(testNodeRestart);
 

@@ -1,4 +1,6 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/*
+   Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include "mysql_priv.h"
 #include "sp_head.h"
@@ -527,8 +530,8 @@ Event_parse_data::init_definer(THD *thd)
 
   const char *definer_user= thd->lex->definer->user.str;
   const char *definer_host= thd->lex->definer->host.str;
-  int definer_user_len= thd->lex->definer->user.length;
-  int definer_host_len= thd->lex->definer->host.length;
+  size_t  definer_user_len= thd->lex->definer->user.length;
+  size_t  definer_host_len= thd->lex->definer->host.length;
 
   DBUG_PRINT("info",("init definer_user thd->mem_root: 0x%lx  "
                      "definer_user: 0x%lx", (long) thd->mem_root,

@@ -1,17 +1,19 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/*
+   Copyright (C) 2000-2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
 
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-  You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
 /**
@@ -6505,6 +6507,11 @@ static int create_ndb_column(THD *thd,
   // Set nullable and pk
   col.setNullable(field->maybe_null());
   col.setPrimaryKey(field->flags & PRI_KEY_FLAG);
+  if ((field->flags & FIELD_IN_PART_FUNC_FLAG) != 0)
+  {
+    col.setPartitionKey(TRUE);
+  }
+
   // Set autoincrement
   if (field->flags & AUTO_INCREMENT_FLAG) 
   {
@@ -11795,7 +11802,7 @@ static uint get_no_fragments(ulonglong max_rows)
 #endif
   ulonglong acc_fragment_size= 512*1024*1024;
 #if MYSQL_VERSION_ID >= 50100
-  return uint(max_rows*acc_row_size)/acc_fragment_size+1;
+  return uint((max_rows*acc_row_size)/acc_fragment_size)+1;
 #else
   return ((max_rows*acc_row_size)/acc_fragment_size+1
 	  +1/*correct rounding*/)/2;
@@ -12719,9 +12726,13 @@ int ha_ndbcluster::alter_table_phase3(THD *thd, TABLE *table)
 bool set_up_tablespace(st_alter_tablespace *alter_info,
                        NdbDictionary::Tablespace *ndb_ts)
 {
-  // TODO check that extent_size < 2^32
+  if (alter_info->extent_size >= (Uint64(1) << 32))
+  {
+    // TODO set correct error
+    return TRUE;
+  }
   ndb_ts->setName(alter_info->tablespace_name);
-  ndb_ts->setExtentSize(alter_info->extent_size);
+  ndb_ts->setExtentSize(Uint32(alter_info->extent_size));
   ndb_ts->setDefaultLogfileGroup(alter_info->logfile_group_name);
   return FALSE;
 }
@@ -12743,9 +12754,14 @@ bool set_up_datafile(st_alter_tablespace *alter_info,
 bool set_up_logfile_group(st_alter_tablespace *alter_info,
                           NdbDictionary::LogfileGroup *ndb_lg)
 {
-  // TODO check that undo-buffer-size < 2^32
+  if (alter_info->undo_buffer_size >= (Uint64(1) << 32))
+  {
+    // TODO set correct error
+    return TRUE;
+  }
+
   ndb_lg->setName(alter_info->logfile_group_name);
-  ndb_lg->setUndoBufferSize(alter_info->undo_buffer_size);
+  ndb_lg->setUndoBufferSize(Uint32(alter_info->undo_buffer_size));
   return FALSE;
 }
 

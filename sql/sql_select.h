@@ -1,4 +1,6 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/*
+   Copyright (C) 2000-2006 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 /**
@@ -729,3 +732,9 @@ bool error_if_full_join(JOIN *join);
 int report_error(TABLE *table, int error);
 int safe_index_read(JOIN_TAB *tab);
 COND *remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value);
+
+inline bool optimizer_flag(THD *thd, uint flag)
+{ 
+  return (thd->variables.optimizer_switch & flag);
+}
+

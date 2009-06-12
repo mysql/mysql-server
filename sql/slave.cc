@@ -1,4 +1,6 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/*
+   Copyright (C) 2000-2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 /**
@@ -2678,6 +2681,41 @@ err:
   DBUG_RETURN(0);                               // Can't return anything here
 }
 
+/*
+  Check the temporary directory used by commands like
+  LOAD DATA INFILE.
+ */
+static 
+int check_temp_dir(char* tmp_dir, char *tmp_file)
+{
+  int fd;
+  MY_DIR *dirp;
+
+  DBUG_ENTER("check_temp_dir");
+
+  /*
+    Check if the directory exists.
+   */
+  if (!(dirp=my_dir(tmp_dir,MYF(MY_WME))))
+    DBUG_RETURN(1);
+  my_dirend(dirp);
+
+  /*
+    Check permissions to create a file.
+   */
+  if ((fd= my_create(tmp_file, CREATE_MODE,
+                     O_WRONLY | O_BINARY | O_EXCL | O_NOFOLLOW,
+                     MYF(MY_WME))) < 0)
+  DBUG_RETURN(1);
+
+  /*
+    Clean up.
+   */
+  my_close(fd, MYF(0));
+  my_delete(tmp_file, MYF(0));
+
+  DBUG_RETURN(0);
+}
 
 /**
   Slave SQL thread entry point.
@@ -2808,6 +2846,14 @@ pthread_handler_t handle_slave_sql(void *arg)
 log '%s' at position %s, relay log '%s' position: %s", RPL_LOG_NAME,
                     llstr(rli->group_master_log_pos,llbuff),rli->group_relay_log_name,
                     llstr(rli->group_relay_log_pos,llbuff1));
+
+  if (check_temp_dir(slave_load_tmpdir, rli->slave_patternload_file))
+  {
+    rli->report(ERROR_LEVEL, thd->main_da.sql_errno(), 
+                "Unable to use slave's temporary directory %s - %s", 
+                slave_load_tmpdir, thd->main_da.message());
+    goto err;
+  }
 
   /* execute init_slave variable */
   if (sys_init_slave.value_length)

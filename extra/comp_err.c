@@ -1,4 +1,6 @@
-/* Copyright (C) 2004 MySQL AB
+/*
+   Copyright (C) 2004 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /*
   Written by Anjuta Widenius
@@ -660,7 +663,7 @@ static ha_checksum checksum_format_specifier(const char* msg)
       case 'u':
       case 'x':
       case 's':
-        chksum= my_checksum(chksum, start, p-start);
+        chksum= my_checksum(chksum, start, (uint) (p - start));
         start= 0; /* Not in format specifier anymore */
         break;
 

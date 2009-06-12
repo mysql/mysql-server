@@ -1,4 +1,6 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/*
+   Copyright (C) 2000-2006 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /**
   @file
@@ -204,7 +207,7 @@ void insert_symbols()
   for (cur= symbols; i<array_elements(symbols); cur++, i++){
     hash_lex_struct *root= 
       get_hash_struct_by_len(&root_by_len,cur->length,&max_len);
-    insert_into_hash(root,cur->name,0,i,0);
+    insert_into_hash(root,cur->name,0,(uint) i,0);
   }
 }
 
@@ -516,7 +519,7 @@ static SYMBOL *get_hash_symbol(const char *s,\n\
           res= symbols+ires;\n\
         else\n\
           res= sql_functions-ires-1;\n\
-        register uint count= cur_str-s;\n\
+		  register uint count= (uint) (cur_str - s);\n\
         return lex_casecmp(cur_str,res->name+count,len-count) ? 0 : res;\n\
       }\n\
 \n\
@@ -545,7 +548,7 @@ static SYMBOL *get_hash_symbol(const char *s,\n\
         register int16 ires= (int16)(cur_struct>>16);\n\
         if (ires==array_elements(symbols)) return 0;\n\
         register SYMBOL *res= symbols+ires;\n\
-        register uint count= cur_str-s;\n\
+		register uint count= (uint) (cur_str - s);\n\
         return lex_casecmp(cur_str,res->name+count,len-count)!=0 ? 0 : res;\n\
       }\n\
 \n\

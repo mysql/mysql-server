@@ -1,4 +1,6 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/*
+   Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /**
   @defgroup Semantic_Analysis Semantic Analysis
@@ -689,6 +692,15 @@ public:
   int cur_pos_in_select_list;
 
   List<udf_func>     udf_list;                  /* udf function calls stack */
+
+  /**
+    Per sub-query locking strategy.
+    Note: This variable might interfer with the corresponding statement-level
+    variable Lex::lock_option because on how different parser rules depend
+    on eachother.
+  */
+  thr_lock_type lock_option;
+
   /* 
     This is a copy of the original JOIN USING list that comes from
     the parser. The parser :
@@ -1360,7 +1372,7 @@ public:
   /** Get the utf8-body length. */
   uint get_body_utf8_length()
   {
-    return m_body_utf8_ptr - m_body_utf8;
+    return (uint) (m_body_utf8_ptr - m_body_utf8);
   }
 
   void body_utf8_start(THD *thd, const char *begin_ptr);

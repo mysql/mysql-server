@@ -1,4 +1,6 @@
-/* Copyright (C) 2000-2005 MySQL AB & Innobase Oy
+/*
+   Copyright (C) 2000-2005 MySQL AB & Innobase Oy
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -6,12 +8,13 @@
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	 See the
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307	 USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /* This file defines the InnoDB handler: the interface between MySQL and InnoDB
 NOTE: You can only use noninlined InnoDB functions in this file, because we
@@ -952,6 +955,12 @@ innobase_next_autoinc(
 
 	/* Should never be 0. */
 	ut_a(increment > 0);
+
+	/* According to MySQL documentation, if the offset is greater than
+	the increment then the offset is ignored. */
+	if (offset > increment) {
+		offset = 0;
+	}
 
 	if (max_value <= current) {
 		next_value = max_value;
@@ -3312,8 +3321,8 @@ build_template(
 				goto include_field;
 			}
 
-                        if (bitmap_is_set(table->read_set, i) ||
-                            bitmap_is_set(table->write_set, i)) {
+			if (bitmap_is_set(table->read_set, i) ||
+			    bitmap_is_set(table->write_set, i)) {
 				/* This field is needed in the query */
 
 				goto include_field;
@@ -3405,7 +3414,7 @@ skip_field:
 }
 
 /************************************************************************
-Get the upper limit of the MySQL integral type. */
+Get the upper limit of the MySQL integral and floating-point type. */
 
 ulonglong
 ha_innobase::innobase_get_int_col_max_value(
@@ -3416,7 +3425,7 @@ ha_innobase::innobase_get_int_col_max_value(
 
 	switch(field->key_type()) {
 	/* TINY */
-        case HA_KEYTYPE_BINARY:
+	case HA_KEYTYPE_BINARY:
 		max_value = 0xFFULL;
 		break;
 	case HA_KEYTYPE_INT8:
@@ -3430,7 +3439,7 @@ ha_innobase::innobase_get_int_col_max_value(
 		max_value = 0x7FFFULL;
 		break;
 	/* MEDIUM */
-    	case HA_KEYTYPE_UINT24:
+	case HA_KEYTYPE_UINT24:
 		max_value = 0xFFFFFFULL;
 		break;
 	case HA_KEYTYPE_INT24:
@@ -3444,11 +3453,19 @@ ha_innobase::innobase_get_int_col_max_value(
 		max_value = 0x7FFFFFFFULL;
 		break;
 	/* BIG */
-    	case HA_KEYTYPE_ULONGLONG:
+	case HA_KEYTYPE_ULONGLONG:
 		max_value = 0xFFFFFFFFFFFFFFFFULL;
 		break;
 	case HA_KEYTYPE_LONGLONG:
 		max_value = 0x7FFFFFFFFFFFFFFFULL;
+		break;
+	case HA_KEYTYPE_FLOAT:
+		/* We use the maximum as per IEEE754-2008 standard, 2^24 */
+		max_value = 0x1000000ULL;
+		break;
+	case HA_KEYTYPE_DOUBLE:
+		/* We use the maximum as per IEEE754-2008 standard, 2^53 */
+		max_value = 0x20000000000000ULL;
 		break;
 	default:
 		ut_error;
@@ -3772,7 +3789,7 @@ no_commit:
 			will be 0 if get_auto_increment() was not called.*/
 
 			if (auto_inc <= col_max_value
-			    && auto_inc > prebuilt->autoinc_last_value) {
+			    && auto_inc >= prebuilt->autoinc_last_value) {
 set_max_autoinc:
 				ut_a(prebuilt->autoinc_increment > 0);
 
@@ -4252,7 +4269,6 @@ convert_search_mode_to_innobase(
 	case HA_READ_MBR_WITHIN:
 	case HA_READ_MBR_DISJOINT:
 	case HA_READ_MBR_EQUAL:
-		my_error(ER_TABLE_CANT_HANDLE_SPKEYS, MYF(0));
 		return(PAGE_CUR_UNSUPP);
 	/* do not use "default:" in order to produce a gcc warning:
 	enumeration value '...' not handled in switch
@@ -5803,7 +5819,7 @@ ha_innobase::records_in_range(
 						      mode2);
 	} else {
 
-		n_rows = 0;
+		n_rows = HA_POS_ERROR;
 	}
 
 	dtuple_free_for_mysql(heap1);
@@ -6506,7 +6522,7 @@ ha_innobase::get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
 	    f_key_info.referenced_key_name = thd_make_lex_string(
 		    thd, f_key_info.referenced_key_name,
 		    foreign->referenced_index->name,
-		    strlen(foreign->referenced_index->name), 1);
+		    (uint) strlen(foreign->referenced_index->name), 1);
           }
           else
             f_key_info.referenced_key_name= 0;
@@ -7119,7 +7135,7 @@ innodb_show_status(
 
 	bool result = FALSE;
 
-	if (stat_print(thd, innobase_hton_name, strlen(innobase_hton_name),
+	if (stat_print(thd, innobase_hton_name, (uint) strlen(innobase_hton_name),
 			STRING_WITH_LEN(""), str, flen)) {
 		result= TRUE;
 	}
@@ -7149,7 +7165,7 @@ innodb_mutex_show_status(
 	ulint	  rw_lock_count_os_yield= 0;
 	ulonglong rw_lock_wait_time= 0;
 #endif /* UNIV_DEBUG */
-	uint	  hton_name_len= strlen(innobase_hton_name), buf1len, buf2len;
+	uint	  hton_name_len= (uint) strlen(innobase_hton_name), buf1len, buf2len;
 	DBUG_ENTER("innodb_mutex_show_status");
 
 	mutex_enter_noninline(&mutex_list_mutex);
@@ -7193,9 +7209,9 @@ innodb_mutex_show_status(
 			rw_lock_wait_time += mutex->lspent_time;
 		}
 #else /* UNIV_DEBUG */
-		buf1len= my_snprintf(buf1, sizeof(buf1), "%s:%lu",
+		buf1len= (uint) my_snprintf(buf1, sizeof(buf1), "%s:%lu",
 				     mutex->cfile_name, (ulong) mutex->cline);
-		buf2len= my_snprintf(buf2, sizeof(buf2), "os_waits=%lu",
+		buf2len= (uint) my_snprintf(buf2, sizeof(buf2), "os_waits=%lu",
 				     mutex->count_os_wait);
 
 		if (stat_print(thd, innobase_hton_name,
@@ -7651,11 +7667,13 @@ ha_innobase::get_auto_increment(
 
 		prebuilt->autoinc_last_value = next_value;
 
-		ut_a(prebuilt->autoinc_last_value >= *first_value);
-
-		/* Update the table autoinc variable */
-		dict_table_autoinc_update_if_greater(
-			prebuilt->table, prebuilt->autoinc_last_value);
+		if (prebuilt->autoinc_last_value < *first_value) {
+			*first_value = (~(ulonglong) 0);
+		} else {
+			/* Update the table autoinc variable */
+			dict_table_autoinc_update_if_greater(
+				prebuilt->table, prebuilt->autoinc_last_value);
+		}
 	} else {
 		/* This will force write_row() into attempting an update
 		of the table's AUTOINC counter. */
@@ -7708,7 +7726,7 @@ ha_innobase::get_error_message(int error, String *buf)
 {
 	trx_t*	trx = check_trx_exists(ha_thd());
 
-	buf->copy(trx->detailed_error, strlen(trx->detailed_error),
+	buf->copy(trx->detailed_error, (uint) strlen(trx->detailed_error),
 		system_charset_info);
 
 	return FALSE;

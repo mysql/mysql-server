@@ -1,5 +1,6 @@
 # -*- cperl -*-
 # Copyright (C) 2004-2006 MySQL AB
+#  All rights reserved. Use is subject to license terms.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -12,7 +13,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 package My::SafeProcess;
 
@@ -117,6 +118,7 @@ sub new {
   my $output   = delete($opts{'output'});
   my $error    = delete($opts{'error'});
   my $verbose  = delete($opts{'verbose'});
+  my $nocore   = delete($opts{'nocore'});
   my $host     = delete($opts{'host'});
   my $shutdown = delete($opts{'shutdown'});
   my $user_data= delete($opts{'user_data'});
@@ -137,6 +139,7 @@ sub new {
   push(@safe_args, $safe_script) if defined $safe_script;
 
   push(@safe_args, "--verbose") if $verbose > 0;
+  push(@safe_args, "--nocore") if $nocore;
 
   # Point the safe_process at the right parent if running on cygwin
   push(@safe_args, "--parent-pid=".Cygwin::pid_to_winpid($$)) if IS_CYGWIN;

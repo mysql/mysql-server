@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 #include <TransporterRegistry.hpp>
@@ -42,6 +45,7 @@ Transporter::Transporter(TransporterRegistry &t_reg,
     isServer(lNodeId==serverNodeId),
     m_packer(_signalId, _checksum), m_max_send_buffer(max_send_buffer),
     m_overload_limit(0xFFFFFFFF), isMgmConnection(_isMgmConnection),
+    m_connected(false),
     m_type(_type),
     m_transporter_registry(t_reg)
 {
@@ -71,7 +75,6 @@ Transporter::Transporter(TransporterRegistry &t_reg,
   checksumUsed    = _checksum;
   signalIdUsed    = _signalId;
 
-  m_connected     = false;
   m_timeOutMillis = 30000;
 
   m_connect_address.s_addr= 0;
@@ -131,21 +134,17 @@ Transporter::connect_server(NDB_SOCKET_TYPE sockfd) {
   DBUG_ENTER("Transporter::connect_server");
 
   if(m_connected)
-  {
-    DBUG_RETURN(false); // TODO assert(0);
-  }
-  
-  get_callback_obj()->reset_send_buffer(remoteNodeId);
+    DBUG_RETURN(false);
 
+  // Cache the connect address
   my_socket_connect_address(sockfd, &m_connect_address);
 
-  bool res = connect_server_impl(sockfd);
-  if(res){
-    m_connected  = true;
-    m_errorCount = 0;
-  }
+  if (!connect_server_impl(sockfd))
+    DBUG_RETURN(false);
 
-  DBUG_RETURN(res);
+  m_connected  = true;
+
+  DBUG_RETURN(true);
 }
 
 
@@ -201,8 +200,6 @@ Transporter::connect_client(NDB_SOCKET_TYPE sockfd) {
 
   DBUG_PRINT("info",("server port: %d, isMgmConnection: %d",
                      m_s_port, isMgmConnection));
-
-  get_callback_obj()->reset_send_buffer(remoteNodeId);
 
   // Send "hello"
   DBUG_PRINT("info", ("Sending own nodeid: %d and transporter type: %d",
@@ -268,23 +265,21 @@ Transporter::connect_client(NDB_SOCKET_TYPE sockfd) {
   // Cache the connect address
   my_socket_connect_address(sockfd, &m_connect_address);
 
-  bool res = connect_client_impl(sockfd);
-  if (res)
-  {
-    m_connected  = true;
-    m_errorCount = 0;
-  }
-  DBUG_RETURN(res);
+  if (!connect_client_impl(sockfd))
+    DBUG_RETURN(false);
+
+  m_connected = true;
+
+  DBUG_RETURN(true);
 }
 
 void
 Transporter::doDisconnect() {
 
   if(!m_connected)
-    return; //assert(0); TODO will fail
+    return;
 
-  m_connected= false;
+  m_connected = false;
 
-  get_callback_obj()->reset_send_buffer(remoteNodeId);
   disconnectImpl();
 }

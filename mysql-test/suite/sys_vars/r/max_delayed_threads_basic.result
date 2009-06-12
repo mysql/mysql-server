@@ -76,10 +76,14 @@ SELECT @@session.max_delayed_threads;
 16383
 '#------------------FN_DYNVARS_075_05-----------------------#'
 SET @@global.max_delayed_threads = -1024;
+Warnings:
+Warning	1292	Truncated incorrect max_delayed_threads value: '-1024'
 SELECT @@global.max_delayed_threads;
 @@global.max_delayed_threads
 0
 SET @@global.max_delayed_threads = -1;
+Warnings:
+Warning	1292	Truncated incorrect max_delayed_threads value: '-1'
 SELECT @@global.max_delayed_threads;
 @@global.max_delayed_threads
 0

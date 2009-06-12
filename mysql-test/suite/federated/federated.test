@@ -1942,6 +1942,28 @@ DROP TABLE t1;
 connection master;
 DROP TABLE t1;
 
+--echo #
+--echo # BUG#21360 - mysqldump error on federated tables
+--echo #
+connection slave;
+--echo #Switch to Connection Slave
+CREATE TABLE t1(id VARCHAR(20) NOT NULL, PRIMARY KEY(id));
+INSERT INTO  t1 VALUES ('text1'),('text2'),('text3'),('text4');
+
+connection master;
+--echo #Switch to Connection Master
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval CREATE TABLE t1(id VARCHAR(20) NOT NULL, PRIMARY KEY(id)) ENGINE=FEDERATED 
+  CONNECTION='mysql://root@127.0.0.1:$SLAVE_MYPORT/test/t1';
+--echo # Dump table t1 using mysqldump tool
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+--exec $MYSQL_DUMP --compact test t1
+DROP TABLE t1;
+
+connection slave;
+--echo #Switch to Connection Slave
+DROP TABLE t1;
+
 connection default;
 
 --echo End of 5.0 tests

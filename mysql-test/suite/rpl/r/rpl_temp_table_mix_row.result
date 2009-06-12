@@ -1,0 +1,26 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+==== Initialize ====
+[on master]
+CREATE TABLE t1 (a CHAR(48));
+CREATE TEMPORARY TABLE t1_tmp1(a INT);
+INSERT INTO t1 VALUES (UUID());
+[on slave]
+==== Verify results on slave ====
+SHOW STATUS LIKE "Slave_open_temp_tables";
+Variable_name	Value
+Slave_open_temp_tables	1
+[on master]
+[on slave]
+==== Verify results on slave ====
+SHOW STATUS LIKE "Slave_open_temp_tables";
+Variable_name	Value
+Slave_open_temp_tables	0
+==== Clean up ====
+[on master]
+DROP TABLE t1;
+[on slave]

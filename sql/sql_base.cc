@@ -1,4 +1,6 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/*
+   Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 /* Basic functions needed by many modules */
@@ -1440,7 +1443,8 @@ void close_temporary_tables(THD *thd)
   if (!thd->temporary_tables)
     return;
 
-  if (!mysql_bin_log.is_open() || thd->current_stmt_binlog_row_based)
+  if (!mysql_bin_log.is_open() || 
+      (thd->current_stmt_binlog_row_based && thd->variables.binlog_format == BINLOG_FORMAT_ROW))
   {
     TABLE *tmp_next;
     for (table= thd->temporary_tables; table; table= tmp_next)

@@ -81,7 +81,7 @@ SELECT @@global.read_buffer_size= 8200 OR @@global.read_buffer_size= 8228 ;
 1
 SET @@global.read_buffer_size = -1024;
 Warnings:
-Warning	1292	Truncated incorrect read_buffer_size value: '0'
+Warning	1292	Truncated incorrect read_buffer_size value: '-1024'
 SELECT @@global.read_buffer_size= 8200 OR @@global.read_buffer_size= 8228 ;
 @@global.read_buffer_size= 8200 OR @@global.read_buffer_size= 8228
 1
@@ -109,7 +109,7 @@ SELECT @@session.read_buffer_size= 8200 OR @@session.read_buffer_size= 8228 ;
 1
 SET @@session.read_buffer_size = -2;
 Warnings:
-Warning	1292	Truncated incorrect read_buffer_size value: '0'
+Warning	1292	Truncated incorrect read_buffer_size value: '-2'
 SELECT @@session.read_buffer_size= 8200 OR @@session.read_buffer_size= 8228 ;
 @@session.read_buffer_size= 8200 OR @@session.read_buffer_size= 8228
 1
@@ -155,15 +155,11 @@ SELECT @@global.read_buffer_size= 8200 OR @@global.read_buffer_size= 8228 ;
 'Bug: FN_DYNVARS_138_08- Errors are not coming on assigning TRUE/FALSE to variable'
 '#---------------------FN_DYNVARS_138_09----------------------#'
 SET @@global.read_buffer_size = 9000;
-Warnings:
-Warning	1292	Truncated incorrect read_buffer_size value: '9000'
 SELECT @@read_buffer_size = @@global.read_buffer_size;
 @@read_buffer_size = @@global.read_buffer_size
 0
 '#---------------------FN_DYNVARS_138_10----------------------#'
 SET @@read_buffer_size = 9000;
-Warnings:
-Warning	1292	Truncated incorrect read_buffer_size value: '9000'
 SELECT @@read_buffer_size = @@local.read_buffer_size;
 @@read_buffer_size = @@local.read_buffer_size
 1
@@ -172,8 +168,6 @@ SELECT @@local.read_buffer_size = @@session.read_buffer_size;
 1
 '#---------------------FN_DYNVARS_138_11----------------------#'
 SET read_buffer_size = 9100;
-Warnings:
-Warning	1292	Truncated incorrect read_buffer_size value: '9100'
 SELECT @@read_buffer_size= 8200 OR @@read_buffer_size= 8228 ;
 @@read_buffer_size= 8200 OR @@read_buffer_size= 8228
 1

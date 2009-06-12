@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,13 +13,15 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef __UTIL_BASESTRING_HPP_INCLUDED__
 #define __UTIL_BASESTRING_HPP_INCLUDED__
 
 #include <ndb_global.h>
 #include <Vector.hpp>
+#include "Bitmask.hpp"
 
 /**
  * @class BaseString
@@ -188,6 +192,49 @@ public:
   static int snprintf(char *str, size_t size, const char *format, ...)
     ATTRIBUTE_FORMAT(printf, 3, 4);
   static int vsnprintf(char *str, size_t size, const char *format, va_list ap);
+
+  /**
+   * Return pointer and length for key to use when BaseString is
+   * used as Key in HashMap
+   */
+  static const void* get_key(const void* key, size_t* key_length) {
+    const BaseString* str = (const BaseString*)key;
+    *key_length = str->length();
+    return str->c_str();
+  }
+
+  template<unsigned size>
+  static BaseString getText(const Bitmask<size>& mask) {
+    return BaseString::getText(size, mask.rep.data);
+  }
+
+  template<unsigned size>
+  static BaseString getPrettyText(const Bitmask<size>& mask) {
+    return BaseString::getPrettyText(size, mask.rep.data);
+  }
+  template<unsigned size>
+  static BaseString getPrettyTextShort(const Bitmask<size>& mask) {
+    return BaseString::getPrettyTextShort(size, mask.rep.data);
+  }
+
+  template<unsigned size>
+  static BaseString getText(const BitmaskPOD<size>& mask) {
+    return BaseString::getText(size, mask.rep.data);
+  }
+
+  template<unsigned size>
+  static BaseString getPrettyText(const BitmaskPOD<size>& mask) {
+    return BaseString::getPrettyText(size, mask.rep.data);
+  }
+  template<unsigned size>
+  static BaseString getPrettyTextShort(const BitmaskPOD<size>& mask) {
+    return BaseString::getPrettyTextShort(size, mask.rep.data);
+  }
+
+  static BaseString getText(unsigned size, const Uint32 data[]);
+  static BaseString getPrettyText(unsigned size, const Uint32 data[]);
+  static BaseString getPrettyTextShort(unsigned size, const Uint32 data[]);
+
 private:
   char* m_chr;
   unsigned m_len;

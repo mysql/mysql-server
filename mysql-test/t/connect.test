@@ -9,10 +9,13 @@
 # of the log tables (which are CSV-based). By connect mysql; show tables;
 --source include/have_csv.inc
 
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+
 --disable_warnings
 drop table if exists t1,t2;
 --enable_warnings
-
 
 #connect (con1,localhost,root,,"");
 #show tables;
@@ -22,11 +25,15 @@ connect (con2,localhost,root,,test);
 show tables;
 
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
---error 1045
+--error ER_ACCESS_DENIED_ERROR
 connect (fail_con,localhost,root,z,test2);
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
---error 1045
+--error ER_ACCESS_DENIED_ERROR
 connect (fail_con,localhost,root,z,);
+
+connection default;
+disconnect con1;
+disconnect con2;
 
 grant ALL on *.* to test@localhost identified by "gambling";
 grant ALL on *.* to test@127.0.0.1 identified by "gambling";
@@ -39,19 +46,22 @@ show tables;
 connect (con4,localhost,test,gambling,test);
 show tables;
 
+connection default;
+disconnect con3;
+disconnect con4;
+
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
---error 1045
+--error ER_ACCESS_DENIED_ERROR
 connect (fail_con,localhost,test,,test2);
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
---error 1045
+--error ER_ACCESS_DENIED_ERROR
 connect (fail_con,localhost,test,,"");
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
---error 1045
+--error ER_ACCESS_DENIED_ERROR
 connect (fail_con,localhost,test,zorro,test2);
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
---error 1045
+--error ER_ACCESS_DENIED_ERROR
 connect (fail_con,localhost,test,zorro,);
-
 
 # check if old password version also works
 update mysql.user set password=old_password("gambling2") where user=_binary"test";
@@ -61,54 +71,56 @@ connect (con10,localhost,test,gambling2,);
 connect (con5,localhost,test,gambling2,mysql);
 connection con5;
 set password="";
---error 1372
+--error ER_PASSWD_LENGTH
 set password='gambling3';
 set password=old_password('gambling3');
 show tables;
 connect (con6,localhost,test,gambling3,test);
 show tables;
 
+connection default;
+disconnect con10;
+disconnect con5;
+disconnect con6;
+
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
---error 1045
+--error ER_ACCESS_DENIED_ERROR
 connect (fail_con,localhost,test,,test2);
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
---error 1045
+--error ER_ACCESS_DENIED_ERROR
 connect (fail_con,localhost,test,,);
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
---error 1045
+--error ER_ACCESS_DENIED_ERROR
 connect (fail_con,localhost,test,zorro,test2);
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
---error 1045
+--error ER_ACCESS_DENIED_ERROR
 connect (fail_con,localhost,test,zorro,);
 
 
 # remove user 'test' so that other tests which may use 'test'
 # do not depend on this test.
-
 delete from mysql.user where user=_binary"test";
 flush privileges;
 
 #
-# Bug#12517: Clear user variables and replication events before 
-#            closing temp tables in thread cleanup.
+# Bug#12517 Clear user variables and replication events before
+#           closing temp tables in thread cleanup.
 connect (con7,localhost,root,,test);
 connection con7;
+let $connection_id= `select connection_id()`;
 create table t1 (id integer not null auto_increment primary key);
 create temporary table t2(id integer not null auto_increment primary key);
 set @id := 1;
 delete from t1 where id like @id;
-disconnect con7;
---sleep 5
 connection default;
+disconnect con7;
+# Wait till the session con7 is disconnected
+let $wait_condition =
+  SELECT COUNT(*) = 0
+  FROM information_schema.processlist
+  WHERE  id = '$connection_id';
+--source include/wait_condition.inc
 drop table t1;
-
---disconnect con1
---disconnect con2
---disconnect con3
---disconnect con4
---disconnect con5
---disconnect con6
---disconnect con10
 
 --echo # ------------------------------------------------------------------
 --echo # -- End of 4.1 tests
@@ -147,7 +159,7 @@ let $wait_condition =
 --echo # -- Check that we allow exactly three user connections, no matter how
 --echo # -- many threads are running.
 
---echo 
+--echo
 --echo # -- Connecting (1)...
 let $con_name = con_1;
 let $con_user_name = mysqltest_u1;
@@ -237,7 +249,7 @@ DROP USER mysqltest_u1@localhost;
 
 ###########################################################################
 
---echo # -- Bug#35074: max_used_connections is not correct. 
+--echo # -- Bug#35074: max_used_connections is not correct.
 --echo
 
 FLUSH STATUS;
@@ -250,11 +262,7 @@ SHOW STATUS LIKE 'max_used_connections';
 SET GLOBAL event_scheduler = ON;
 
 --echo # -- Waiting for Event Scheduler to start...
-let $wait_condition =
-  SELECT COUNT(*) = 1
-  FROM information_schema.processlist
-  WHERE user = 'event_scheduler';
---source include/wait_condition.inc
+--source include/running_event_scheduler.inc
 
 # NOTE: We should use a new connection here instead of reconnect in order to
 # avoid races (we can not for sure when the connection being disconnected is
@@ -278,11 +286,7 @@ SHOW STATUS LIKE 'max_used_connections';
 SET GLOBAL event_scheduler = OFF;
 
 --echo # -- Waiting for Event Scheduler to stop...
-let $wait_condition =
-  SELECT COUNT(*) = 0
-  FROM information_schema.processlist
-  WHERE user = 'event_scheduler';
---source include/wait_condition.inc
+--source include/no_running_events.inc
 
 --echo
 --echo # -- End of Bug#35074.
@@ -291,3 +295,7 @@ let $wait_condition =
 --echo # ------------------------------------------------------------------
 --echo # -- End of 5.1 tests
 --echo # ------------------------------------------------------------------
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc
+

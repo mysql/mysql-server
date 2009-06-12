@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 #include <ndb_global.h>
@@ -271,7 +274,6 @@ ErrorBundle ErrorCodes[] = {
   { 788,  DMEC, TR, "Missing schema operation at takeover of schema transaction" },
   { 809,  DMEC, IE, "809" },
   { 812,  DMEC, IE, "812" },
-  { 829,  DMEC, IE, "829" },
   { 833,  DMEC, IE, "833" },
   { 871,  DMEC, IE, "871" },
   { 882,  DMEC, IE, "882" },
@@ -307,6 +309,7 @@ ErrorBundle ErrorCodes[] = {
   { 299,  DMEC, AE, "Operation not allowed or aborted due to single user mode" },
   { 763,  DMEC, AE, "Alter table requires cluster nodes to have exact same version" },
   { 823,  DMEC, AE, "Too much attrinfo from application in tuple manager" },
+  { 829,  DMEC, AE, "Corrupt data received for insert/update" },
   { 831,  DMEC, AE, "Too many nullable/bitfields in table definition" },
   { 876,  DMEC, AE, "876" },
   { 877,  DMEC, AE, "877" },
@@ -567,7 +570,7 @@ ErrorBundle ErrorCodes[] = {
   { 4324, DMEC, AE, "Attempt to define distribution group when not prepared to" },
   { 4325, DMEC, AE, "Distribution Group set on table but not defined on first attribute" },
   { 4326, DMEC, AE, "Distribution Group with erroneus number of bits" },
-  { 4327, DMEC, AE, "Distribution Group with 1 byte attribute is not allowed" },
+  { 4327, DMEC, AE, "Distribution key is only supported on part of primary key" },
   { 4328, DMEC, AE, "Disk memory attributes not yet supported" },
   { 4329, DMEC, AE, "Variable stored attributes not yet supported" },
   { 4340, DMEC, AE, "Result or attribute record must be a base table ndbrecord, not an index ndbrecord" },

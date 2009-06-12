@@ -143,10 +143,12 @@ set names koi8r|
 
 #  - Dump mysqltest1;
 
+--let $views_dump1 = $MYSQLTEST_VARDIR/tmp/ddl_i18n_koi8r.views.mysqltest1.sql
+
 --echo
 --echo ---> Dumping mysqltest1 to ddl_i18n_koi8r.views.mysqltest1.sql
 
---exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --databases mysqltest1 > $MYSQLTEST_VARDIR/tmp/ddl_i18n_koi8r.views.mysqltest1.sql
+--exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --databases mysqltest1 > $views_dump1
 
 #   - Clean mysqltest1;
 
@@ -161,7 +163,9 @@ DROP DATABASE mysqltest1|
 --echo
 
 --echo ---> Restoring mysqltest1...
---exec $MYSQL test < $MYSQLTEST_VARDIR/tmp/ddl_i18n_koi8r.views.mysqltest1.sql
+--exec $MYSQL test < $views_dump1
+
+--remove_file $views_dump1
 
 #
 # Third-round checks.
@@ -398,6 +402,9 @@ set names koi8r|
 
 #  - Dump mysqltest1, mysqltest2;
 
+--let $sp_dump1 = $MYSQLTEST_VARDIR/tmp/ddl_i18n_koi8r.sp.mysqltest1.sql
+--let $sp_dump2 = $MYSQLTEST_VARDIR/tmp/ddl_i18n_koi8r.sp.mysqltest2.sql
+
 --echo
 --echo ---> Dump of mysqltest1
 
@@ -406,7 +413,7 @@ set names koi8r|
 --echo
 --echo ---> Dumping mysqltest1 to ddl_i18n_koi8r.sp.mysqltest1.sql
 
---exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --compact --routines --databases mysqltest1 > $MYSQLTEST_VARDIR/tmp/ddl_i18n_koi8r.sp.mysqltest1.sql
+--exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --compact --routines --databases mysqltest1 > $sp_dump1
 
 --echo
 --echo ---> Dump of mysqltest2
@@ -416,7 +423,7 @@ set names koi8r|
 --echo
 --echo ---> Dumping mysqltest2 to ddl_i18n_koi8r.sp.mysqltest2.sql
 
---exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --compact --routines --databases mysqltest2 > $MYSQLTEST_VARDIR/tmp/ddl_i18n_koi8r.sp.mysqltest2.sql
+--exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --compact --routines --databases mysqltest2 > $sp_dump2
 
 #   - Clean mysqltest1, mysqltest2;
 
@@ -432,10 +439,13 @@ DROP DATABASE mysqltest2|
 --echo
 
 --echo ---> Restoring mysqltest1...
---exec $MYSQL test < $MYSQLTEST_VARDIR/tmp/ddl_i18n_koi8r.sp.mysqltest1.sql
+--exec $MYSQL test < $sp_dump1
 
 --echo ---> Restoring mysqltest2...
---exec $MYSQL test < $MYSQLTEST_VARDIR/tmp/ddl_i18n_koi8r.sp.mysqltest2.sql
+--exec $MYSQL test < $sp_dump2
+
+--remove_file $sp_dump1
+--remove_file $sp_dump2
 
 #
 # Third-round checks.
@@ -669,6 +679,9 @@ use mysqltest1|
 
 #  - Dump mysqltest1, mysqltest2;
 
+--let $triggers_dump1 = $MYSQLTEST_VARDIR/tmp/ddl_i18n_koi8r.triggers.mysqltest1.sql
+--let $triggers_dump2 = $MYSQLTEST_VARDIR/tmp/ddl_i18n_koi8r.triggers.mysqltest2.sql
+
 --echo
 --echo ---> Dump of mysqltest1
 
@@ -677,7 +690,7 @@ use mysqltest1|
 --echo
 --echo ---> Dumping mysqltest1 to ddl_i18n_koi8r.triggers.mysqltest1.sql
 
---exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --compact --triggers --databases mysqltest1 > $MYSQLTEST_VARDIR/tmp/ddl_i18n_koi8r.triggers.mysqltest1.sql
+--exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --compact --triggers --databases mysqltest1 > $triggers_dump1
 
 --echo
 --echo ---> Dump of mysqltest2
@@ -687,7 +700,7 @@ use mysqltest1|
 --echo
 --echo ---> Dumping mysqltest2 to ddl_i18n_koi8r.triggers.mysqltest2.sql
 
---exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --compact --triggers --databases mysqltest2 > $MYSQLTEST_VARDIR/tmp/ddl_i18n_koi8r.triggers.mysqltest2.sql
+--exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --compact --triggers --databases mysqltest2 > $triggers_dump2
 
 #   - Clean mysqltest1, mysqltest2;
 
@@ -703,10 +716,13 @@ DROP DATABASE mysqltest2|
 --echo
 
 --echo ---> Restoring mysqltest1...
---exec $MYSQL test < $MYSQLTEST_VARDIR/tmp/ddl_i18n_koi8r.triggers.mysqltest1.sql
+--exec $MYSQL test < $triggers_dump1
 
 --echo ---> Restoring mysqltest2...
---exec $MYSQL test < $MYSQLTEST_VARDIR/tmp/ddl_i18n_koi8r.triggers.mysqltest2.sql
+--exec $MYSQL test < $triggers_dump2
+
+--remove_file $triggers_dump1
+--remove_file $triggers_dump2
 
 #
 # Third-round checks.
@@ -924,6 +940,9 @@ set names koi8r|
 
 #  - Dump mysqltest1, mysqltest2;
 
+--let $events_dump1 = $MYSQLTEST_VARDIR/tmp/ddl_i18n_koi8r.events.mysqltest1.sql
+--let $events_dump2 = $MYSQLTEST_VARDIR/tmp/ddl_i18n_koi8r.events.mysqltest2.sql
+
 --echo
 --echo ---> Dump of mysqltest1
 
@@ -932,7 +951,7 @@ set names koi8r|
 --echo
 --echo ---> Dumping mysqltest1 to ddl_i18n_koi8r.events.mysqltest1.sql
 
---exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --compact --events --databases mysqltest1 > $MYSQLTEST_VARDIR/tmp/ddl_i18n_koi8r.events.mysqltest1.sql
+--exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --compact --events --databases mysqltest1 > $events_dump1
 
 --echo
 --echo ---> Dump of mysqltest2
@@ -942,7 +961,7 @@ set names koi8r|
 --echo
 --echo ---> Dumping mysqltest2 to ddl_i18n_koi8r.events.mysqltest2.sql
 
---exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --compact --events --databases mysqltest2 > $MYSQLTEST_VARDIR/tmp/ddl_i18n_koi8r.events.mysqltest2.sql
+--exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --compact --events --databases mysqltest2 > $events_dump2
 
 #   - Clean mysqltest1, mysqltest2;
 
@@ -958,10 +977,13 @@ DROP DATABASE mysqltest2|
 --echo
 
 --echo ---> Restoring mysqltest1...
---exec $MYSQL test < $MYSQLTEST_VARDIR/tmp/ddl_i18n_koi8r.events.mysqltest1.sql
+--exec $MYSQL test < $events_dump1
 
 --echo ---> Restoring mysqltest2...
---exec $MYSQL test < $MYSQLTEST_VARDIR/tmp/ddl_i18n_koi8r.events.mysqltest2.sql
+--exec $MYSQL test < $events_dump2
+
+--remove_file $events_dump1
+--remove_file $events_dump2
 
 #
 # Third-round checks.

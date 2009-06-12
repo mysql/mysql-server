@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <ndb_global.h>
 
@@ -345,6 +348,22 @@ InitConfigFileParser::storeNameValuePair(Context& ctx,
   case ConfigInfo::CI_STRING:
     require(ctx.m_currentSection->put(pname, value));
     break;
+
+  case ConfigInfo::CI_ENUM:{
+    Uint32 value_int;
+    if (!m_info->verify_enum(ctx.m_currentInfo, fname, value, value_int)) {
+      BaseString values;
+      m_info->get_enum_values(ctx.m_currentInfo, fname, values);
+      ctx.reportError("Illegal value '%s' for parameter %s. "
+		      "Legal values are: '%s'", value, fname,
+                      values.c_str());
+      return false;
+    }
+    ndbout_c("storing enum value %d for %s", value_int, pname);
+    require(ctx.m_currentSection->put(pname, value_int));
+    break;
+  }
+
   case ConfigInfo::CI_SECTION:
     abort();
   }
@@ -583,7 +602,7 @@ InitConfigFileParser::Context::reportError(const char * fmt, ...){
   if (fmt != 0)
     BaseString::vsnprintf(buf, sizeof(buf)-1, fmt, ap);
   va_end(ap);
-  g_eventLogger->error("at line %d: %s\n",
+  g_eventLogger->error("at line %d: %s",
                        m_lineno, buf);
 
   //m_currentSection->print();
@@ -598,7 +617,7 @@ InitConfigFileParser::Context::reportWarning(const char * fmt, ...){
   if (fmt != 0)
     BaseString::vsnprintf(buf, sizeof(buf)-1, fmt, ap);
   va_end(ap);
-  g_eventLogger->warning("at line %d: %s\n",
+  g_eventLogger->warning("at line %d: %s",
                          m_lineno, buf);
 }
 
@@ -790,12 +809,13 @@ InitConfigFileParser::parse_mycnf()
 	opt.value = (uchar**)malloc(sizeof(Int64));
 	opt.var_type = GET_LL;
 	break;
+      case ConfigInfo::CI_ENUM:
       case ConfigInfo::CI_STRING: 
 	opt.value = (uchar**)malloc(sizeof(char *));
 	opt.var_type = GET_STR;
 	break;
       default:
-	continue;
+        continue;
       }
       opt.name = param._fname;
       opt.id = 256;

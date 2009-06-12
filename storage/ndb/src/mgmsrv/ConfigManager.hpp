@@ -26,6 +26,7 @@
 
 #include <SignalSender.hpp>
 #include <NodeBitmask.hpp>
+#include <HashMap.hpp>
 
 #include <signaldata/ConfigChange.hpp>
 
@@ -36,6 +37,7 @@ class ConfigManager : public MgmtThread {
   NdbMutex *m_config_mutex;
   const Config * m_config;
   const Config * m_new_config;
+  BaseString m_packed_config; // base64 packed
 
   ConfigRetriever m_config_retriever;
 
@@ -174,6 +176,24 @@ class ConfigManager : public MgmtThread {
   MutexVector<NodeId> m_exclude_nodes;
   void handle_exclude_nodes(void);
 
+  class DynamicPorts {
+    struct NodePair {
+      int node1;
+      int node2;
+      NodePair(int n1, int n2) : node1(n1), node2(n2) {};
+    };
+    HashMap<NodePair, int> m_ports;
+    bool check(int& node1, int& node2) const;
+  public:
+
+    bool set(int node1, int node2, int value);
+    bool get(int node1, int node2, int* value) const;
+
+    // Write all known dynamic ports into the config
+    bool set_in_config(Config* config);
+
+  } m_dynamic_ports;
+
 public:
   ConfigManager(const MgmtSrvr::MgmtOpts&,
                 const char* configdir);
@@ -197,6 +217,10 @@ public:
 
   static Config* load_config(const char* config_filename, bool mycnf,
                              BaseString& msg);
+
+  bool set_dynamic_port(int node1, int node2, int value, BaseString& msg);
+  bool get_dynamic_port(int node1, int node2, int *value,
+                        BaseString& msg) const;
 
 };
 

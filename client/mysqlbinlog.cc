@@ -1,4 +1,6 @@
-/* Copyright (C) 2001-2004 MySQL AB
+/*
+   Copyright (C) 2001-2004 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /* 
 
@@ -129,7 +132,7 @@ static Exit_status safe_connect();
 class Load_log_processor
 {
   char target_dir_name[FN_REFLEN];
-  int target_dir_name_len;
+  size_t target_dir_name_len;
 
   /*
     When we see first event corresponding to some LOAD DATA statement in
@@ -286,9 +289,9 @@ public:
   File prepare_new_file_for_old_format(Load_log_event *le, char *filename);
   Exit_status load_old_format_file(NET* net, const char *server_fname,
                                    uint server_fname_len, File file);
-  Exit_status process_first_event(const char *bname, uint blen,
+  Exit_status process_first_event(const char *bname, size_t blen,
                                   const uchar *block,
-                                  uint block_len, uint file_id,
+                                  size_t block_len, uint file_id,
                                   Create_file_log_event *ce);
 };
 
@@ -306,7 +309,7 @@ public:
 File Load_log_processor::prepare_new_file_for_old_format(Load_log_event *le,
 							 char *filename)
 {
-  uint len;
+  size_t len;
   char *tail;
   File file;
   
@@ -320,7 +323,7 @@ File Load_log_processor::prepare_new_file_for_old_format(Load_log_event *le,
     return -1;
   }
   
-  le->set_fname_outside_temp_buf(filename,len+strlen(tail));
+  le->set_fname_outside_temp_buf(filename,len+(uint) strlen(tail));
   
   return file;
 }
@@ -412,9 +415,9 @@ Exit_status Load_log_processor::load_old_format_file(NET* net,
   @retval OK_CONTINUE No error, the program should continue.
 */
 Exit_status Load_log_processor::process_first_event(const char *bname,
-                                                    uint blen,
+                                                    size_t blen,
                                                     const uchar *block,
-                                                    uint block_len,
+                                                    size_t block_len,
                                                     uint file_id,
                                                     Create_file_log_event *ce)
 {
@@ -457,7 +460,7 @@ Exit_status Load_log_processor::process_first_event(const char *bname,
   }
 
   if (ce)
-    ce->set_fname_outside_temp_buf(fname, strlen(fname));
+    ce->set_fname_outside_temp_buf(fname, (uint) strlen(fname));
 
   if (my_write(file, (uchar*)block, block_len, MYF(MY_WME|MY_NABP)))
   {
@@ -1193,7 +1196,7 @@ static my_time_t convert_str_to_timestamp(const char* str)
   long dummy_my_timezone;
   my_bool dummy_in_dst_time_gap;
   /* We require a total specification (date AND time) */
-  if (str_to_datetime(str, strlen(str), &l_time, 0, &was_cut) !=
+  if (str_to_datetime(str, (uint) strlen(str), &l_time, 0, &was_cut) !=
       MYSQL_TIMESTAMP_DATETIME || was_cut)
   {
     error("Incorrect date and time argument: %s", str);

@@ -1,4 +1,6 @@
-/* Copyright (C) 2004-2006 MySQL AB
+/*
+   Copyright (C) 2004-2006 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef MGMAPI_CONFIG_PARAMTERS_H
 #define MGMAPI_CONFIG_PARAMTERS_H
@@ -59,6 +62,7 @@
 #define CFG_DB_LCP_INTERVAL           120
 #define CFG_DB_GCP_INTERVAL           121
 #define CFG_DB_ARBIT_TIMEOUT          122
+#define CFG_DB_ARBIT_METHOD           142
 
 #define CFG_DB_WATCHDOG_INTERVAL      123
 #define CFG_DB_STOP_ON_ERROR          124
@@ -248,5 +252,9 @@
 #define CONNECTION_TYPE_SHM           1
 #define CONNECTION_TYPE_SCI           2
 #define CONNECTION_TYPE_OSE           3 /* Removed. */
+
+#define ARBIT_METHOD_DISABLED         0
+#define ARBIT_METHOD_DEFAULT          1
+#define ARBIT_METHOD_WAITEXTERNAL     2
 
 #endif

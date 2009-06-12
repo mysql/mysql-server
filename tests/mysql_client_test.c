@@ -1,4 +1,6 @@
-/* Copyright (C) 2003-2004 MySQL AB
+/*
+   Copyright (C) 2003-2004 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /***************************************************************************
  This is a test sample to test the new features in MySQL client-server
@@ -262,7 +265,7 @@ static MYSQL_STMT *STDCALL
 mysql_simple_prepare(MYSQL *mysql_arg, const char *query)
 {
   MYSQL_STMT *stmt= mysql_stmt_init(mysql_arg);
-  if (stmt && mysql_stmt_prepare(stmt, query, strlen(query)))
+  if (stmt && mysql_stmt_prepare(stmt, query, (uint) strlen(query)))
   {
     mysql_stmt_close(stmt);
     return 0;
@@ -723,6 +726,7 @@ static void do_verify_prepare_field(MYSQL_RES *result,
 {
   MYSQL_FIELD *field;
   CHARSET_INFO *cs;
+  ulonglong expected_field_length;
 
   if (!(field= mysql_fetch_field_direct(result, no)))
   {
@@ -731,6 +735,8 @@ static void do_verify_prepare_field(MYSQL_RES *result,
   }
   cs= get_charset(field->charsetnr, 0);
   DIE_UNLESS(cs);
+  if ((expected_field_length= length * cs->mbmaxlen) > UINT_MAX32)
+    expected_field_length= UINT_MAX32;
   if (!opt_silent)
   {
     fprintf(stdout, "\n field[%d]:", no);
@@ -745,8 +751,8 @@ static void do_verify_prepare_field(MYSQL_RES *result,
       fprintf(stdout, "\n    org_table:`%s`\t(expected: `%s`)",
               field->org_table, org_table);
     fprintf(stdout, "\n    database :`%s`\t(expected: `%s`)", field->db, db);
-    fprintf(stdout, "\n    length   :`%lu`\t(expected: `%lu`)",
-            field->length, length * cs->mbmaxlen);
+    fprintf(stdout, "\n    length   :`%lu`\t(expected: `%llu`)",
+            field->length, expected_field_length);
     fprintf(stdout, "\n    maxlength:`%ld`", field->max_length);
     fprintf(stdout, "\n    charsetnr:`%d`", field->charsetnr);
     fprintf(stdout, "\n    default  :`%s`\t(expected: `%s`)",
@@ -782,11 +788,11 @@ static void do_verify_prepare_field(MYSQL_RES *result,
     as utf8. Field length is calculated as number of characters * maximum
     number of bytes a character can occupy.
   */
-  if (length && field->length != length * cs->mbmaxlen)
+  if (length && (field->length != expected_field_length))
   {
-    fprintf(stderr, "Expected field length: %d,  got length: %d\n",
-            (int) (length * cs->mbmaxlen), (int) field->length);
-    DIE_UNLESS(field->length == length * cs->mbmaxlen);
+    fprintf(stderr, "Expected field length: %llu,  got length: %lu\n",
+            expected_field_length, field->length);
+    DIE_UNLESS(field->length == expected_field_length);
   }
   if (def)
     DIE_UNLESS(strcmp(field->def, def) == 0);
@@ -17768,6 +17774,69 @@ static void test_bug36326()
 
 #endif
 
+/**
+  Bug#41078: With CURSOR_TYPE_READ_ONLY mysql_stmt_fetch() returns short
+             string value.
+*/
+
+static void test_bug41078(void)
+{
+  uint         rc;
+  MYSQL_STMT   *stmt= 0;
+  MYSQL_BIND   param, result;
+  ulong        cursor_type= CURSOR_TYPE_READ_ONLY;
+  ulong        len;
+  char         str[64];
+  const char   param_str[]= "abcdefghijklmn";
+  my_bool      is_null, error;
+
+  DBUG_ENTER("test_bug41078");
+
+  rc= mysql_query(mysql, "SET NAMES UTF8");
+  myquery(rc);
+
+  stmt= mysql_simple_prepare(mysql, "SELECT ?");
+  check_stmt(stmt);
+  verify_param_count(stmt, 1);
+
+  rc= mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, &cursor_type);
+  check_execute(stmt, rc);
+  
+  bzero(&param, sizeof(param));
+  param.buffer_type= MYSQL_TYPE_STRING;
+  param.buffer= (void *) param_str;
+  len= sizeof(param_str) - 1;
+  param.length= &len;
+
+  rc= mysql_stmt_bind_param(stmt, &param);
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  bzero(&result, sizeof(result));
+  result.buffer_type= MYSQL_TYPE_STRING;
+  result.buffer= str;
+  result.buffer_length= sizeof(str);
+  result.is_null= &is_null;
+  result.length= &len;
+  result.error=  &error;
+  
+  rc= mysql_stmt_bind_result(stmt, &result);
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_store_result(stmt);
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_fetch(stmt);
+  check_execute(stmt, rc);
+
+  DIE_UNLESS(len == sizeof(param_str) - 1 && !strcmp(str, param_str));
+
+  mysql_stmt_close(stmt);
+
+  DBUG_VOID_RETURN;
+}
 
 /*
   Read and parse arguments and MySQL options from my.cnf
@@ -18085,6 +18154,7 @@ static struct my_tests_st my_tests[]= {
 #ifdef HAVE_QUERY_CACHE
   { "test_bug36326", test_bug36326 },
 #endif
+  { "test_bug41078", test_bug41078 },
   { 0, 0 }
 };
 

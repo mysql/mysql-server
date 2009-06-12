@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef NdbDictionaryImpl_H
 #define NdbDictionaryImpl_H
@@ -553,20 +556,29 @@ public:
       Uint32 m_gsn;
       NdbTableImpl* m_impl;
     };
-    bool m_transOn;
+    enum State {
+      NotStarted,
+      Started,
+      Committed,
+      Aborted
+    };
+    State m_state;
+    NdbError m_error;
     Uint32 m_transId;   // API
     Uint32 m_transKey;  // DICT
     Vector<Op> m_op;
     Tx() :
-      m_transOn(false),
+      m_state(NotStarted),
       m_transId(0),
       m_transKey(0)
-    {}
+    {
+      m_error.code = 0;
+    }
     Uint32 transId() const {
-      return m_transOn ? m_transId : 0;
+      return (m_state == Started) ? m_transId : 0;
     }
     Uint32 transKey() const {
-      return m_transOn ? m_transKey : 0;
+      return (m_state == Started) ? m_transKey : 0;
     }
     Uint32 requestFlags() const {
       Uint32 flags = 0;
@@ -851,7 +863,8 @@ public:
 
   int beginSchemaTrans();
   int endSchemaTrans(Uint32 flags);
-  bool hasSchemaTrans() const { return m_tx.m_transOn; }
+  bool hasSchemaTrans() const
+    { return (m_tx.m_state == NdbDictInterface::Tx::Started); }
   NdbDictInterface::Tx m_tx;
 
   const NdbError & getNdbError() const;

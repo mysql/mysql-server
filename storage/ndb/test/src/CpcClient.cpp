@@ -1,4 +1,7 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003-2008 MySQL AB, 2009 Sun Microsystems Inc.
+
+   All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +14,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <ndb_global.h>
 
@@ -80,33 +84,6 @@ static void printprop(const Properties &p) {
 }
 #endif
 
-void
-SimpleCpcClient::cmd_stop(char *arg) {
-  Properties p;
-  Vector<Process> proc_list;
-
-  list_processes(proc_list, p);
-  bool stopped = false;
-
-  for(size_t i = 0; i < proc_list.size(); i++) {
-    if(strcmp(proc_list[i].m_name.c_str(), arg) == 0) {
-      stopped = true;
-      Properties reply;
-      stop_process(proc_list[i].m_id, reply);
-
-      Uint32 status;
-      reply.get("status", &status);
-      if(status != 0) {
-	BaseString msg;
-	reply.get("errormessage", msg);
-	ndbout << "Stop failed: " << msg << endl;
-      }
-    }
-  }
-  
-  if(!stopped)
-    ndbout << "No such process" << endl;
-}
 
 int
 SimpleCpcClient::stop_process(Uint32 id, Properties& reply){
@@ -141,33 +118,6 @@ SimpleCpcClient::stop_process(Uint32 id, Properties& reply){
   return status;
 }
 
-void
-SimpleCpcClient::cmd_start(char *arg) {
-  Properties p;
-  Vector<Process> proc_list;
-  list_processes(proc_list, p);
-  bool startped = false;
-
-  for(size_t i = 0; i < proc_list.size(); i++) {
-    if(strcmp(proc_list[i].m_name.c_str(), arg) == 0) {
-      startped = true;
-
-      Properties reply;
-      start_process(proc_list[i].m_id, reply);
-
-      Uint32 status;
-      reply.get("status", &status);
-      if(status != 0) {
-	BaseString msg;
-	reply.get("errormessage", msg);
-	ndbout << "Start failed: " << msg << endl;
-      }
-    }
-  }
-  
-  if(!startped)
-    ndbout << "No such process" << endl;
-}
 
 int
 SimpleCpcClient::start_process(Uint32 id, Properties& reply){
@@ -255,16 +205,6 @@ printproc(SimpleCpcClient::Process & p) {
   ndbout.println("");
 }
 
-void
-SimpleCpcClient::cmd_list(char *arg) {
-  Properties p;
-  Vector<Process> proc_list;
-  list_processes(proc_list, p);
-
-  for(size_t i = 0; i < proc_list.size(); i++) {
-    printproc(proc_list[i]);
-  }
-}
 
 static int
 convert(const Properties & src, SimpleCpcClient::Process & dst){
@@ -431,14 +371,6 @@ SimpleCpcClient::list_processes(Vector<Process> &procs, Properties& reply) {
   return 0;
 }
 
-void
-SimpleCpcClient::cmd_help(char *arg) {
-  ndbout
-    << "HELP				Print help text" << endl
-    << "LIST				List processes" << endl
-    << "START				Start process" << endl
-    << "STOP				Stop process" << endl;
-}
 
 SimpleCpcClient::SimpleCpcClient(const char *_host, int _port) {
   host = strdup(_host);
@@ -546,13 +478,6 @@ SimpleCpcClient::cpc_call(const char *cmd,
 			  const ParserRow_t *reply_syntax) {
   cpc_send(cmd, args);
 
-#if 0
-  Parser_t::Context ctx;
-  ParserDummy session(cpc_sock);
-  Parser_t parser(reply_syntax, *cpc_in, true, true, true);
-  const Properties *ret = parser.parse(ctx, session);
-  return ret;
-#endif
   const Properties *ret;
   cpc_recv(reply_syntax, &ret);
   return ret;

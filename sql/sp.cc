@@ -1,4 +1,6 @@
-/* Copyright (C) 2002 MySQL AB
+/*
+   Copyright (C) 2002 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include "mysql_priv.h"
 #include "sp.h"
@@ -936,10 +939,12 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
         ret= SP_INTERNAL_ERROR;
         goto done;
       }
-
+      /* restore sql_mode when binloging */
+      thd->variables.sql_mode= saved_mode;
       /* Such a statement can always go directly to binlog, no trans cache */
       thd->binlog_query(THD::MYSQL_QUERY_TYPE,
                         log_query.c_ptr(), log_query.length(), FALSE, FALSE);
+      thd->variables.sql_mode= 0;
     }
 
   }

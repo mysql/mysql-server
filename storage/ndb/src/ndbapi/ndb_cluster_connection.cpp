@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <ndb_global.h>
 #include <my_pthread.h>
@@ -280,15 +283,13 @@ const char *Ndb_cluster_connection::get_latest_error_msg() const
  */
 
 Ndb_cluster_connection_impl::
-Ndb_cluster_connection_impl(const char *
-                            connect_string,
+Ndb_cluster_connection_impl(const char * connect_string,
                             Ndb_cluster_connection *main_connection)
   : Ndb_cluster_connection(*this),
     m_main_connection(main_connection),
     m_optimized_node_selection(1),
     m_name(0),
     m_run_connect_thread(0),
-    m_event_add_drop_mutex(0),
     m_latest_trans_gci(0),
     m_first_ndb_object(0),
     m_latest_error_msg(),
@@ -340,10 +341,8 @@ Ndb_cluster_connection_impl(const char *
   }
   NdbMutex_Unlock(g_ndb_connection_mutex);
 
-  if (!m_event_add_drop_mutex)
-    m_event_add_drop_mutex= NdbMutex_Create();
+  m_event_add_drop_mutex= NdbMutex_Create();
   m_new_delete_ndb_mutex = NdbMutex_Create();
-
 
   m_connect_thread= 0;
   m_connect_callback= 0;
@@ -381,9 +380,6 @@ Ndb_cluster_connection_impl(const char *
     m_transporter_facade=
       new TransporterFacade(m_main_connection->m_impl.m_globalDictCache);
   }
-
-
-
 
   DBUG_VOID_RETURN;
 }
@@ -464,8 +460,10 @@ Ndb_cluster_connection_impl::~Ndb_cluster_connection_impl()
 
   if (m_event_add_drop_mutex)
     NdbMutex_Destroy(m_event_add_drop_mutex);
+  m_event_add_drop_mutex = 0;
 
-  NdbMutex_Destroy(m_new_delete_ndb_mutex);
+  if (m_new_delete_ndb_mutex)
+    NdbMutex_Destroy(m_new_delete_ndb_mutex);
   m_new_delete_ndb_mutex = 0;
   
   DBUG_VOID_RETURN;

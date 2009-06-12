@@ -1,4 +1,6 @@
-/* Copyright (C) 2004 MySQL AB
+/*
+   Copyright (C) 2004 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #if defined(__GNUC__) && defined(USE_PRAGMA_IMPLEMENTATION)
 #pragma implementation
@@ -163,7 +166,7 @@ static bool start_process(Instance_options *instance_options,
 
   int cmdlen= 0;
   for (int i= 0; instance_options->argv[i] != 0; i++)
-    cmdlen+= strlen(instance_options->argv[i]) + 3;
+    cmdlen+= (uint) strlen(instance_options->argv[i]) + 3;
   cmdlen++;   /* make room for the null */
 
   char *cmdline= new char[cmdlen];

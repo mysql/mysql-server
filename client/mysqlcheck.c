@@ -1,4 +1,6 @@
-/* Copyright (C) 2000 MySQL AB
+/*
+   Copyright (C) 2000 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /* By Jani Tolonen, 2001-04-20, MySQL Development Team */
 
@@ -353,7 +356,7 @@ static int get_options(int *argc, char ***argv)
 
   if (!what_to_do)
   {
-    int pnlen = strlen(my_progname);
+    size_t pnlen= strlen(my_progname);
 
     if (pnlen < 6) /* name too short */
       what_to_do = DO_CHECK;
@@ -452,7 +455,8 @@ static int process_selected_tables(char *db, char **table_names, int tables)
       space is for more readable output in logs and in case of error
     */	  
     char *table_names_comma_sep, *end;
-    int i, tot_length = 0;
+    size_t tot_length= 0;
+    int             i= 0;
 
     for (i = 0; i < tables; i++)
       tot_length+= fixed_name_length(*(table_names + i)) + 2;
@@ -468,7 +472,7 @@ static int process_selected_tables(char *db, char **table_names, int tables)
       *end++= ',';
     }
     *--end = 0;
-    handle_request_for_tables(table_names_comma_sep + 1, tot_length - 1);
+    handle_request_for_tables(table_names_comma_sep + 1, (uint) (tot_length - 1));
     my_free(table_names_comma_sep, MYF(0));
   }
   else
@@ -490,7 +494,7 @@ static uint fixed_name_length(const char *name)
     else if (*p == '.')
       extra_length+= 2;
   }
-  return (p - name) + extra_length;
+  return (uint) ((p - name) + extra_length);
 }
 
 

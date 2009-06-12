@@ -1,4 +1,6 @@
-/* Copyright (C) 2003-2006 MySQL AB
+/*
+   Copyright (C) 2003-2006 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #if defined(__GNUC__) && defined(USE_PRAGMA_IMPLEMENTATION)
 #pragma implementation
@@ -86,6 +89,7 @@ const char *Options::Main::bind_address= NULL; /* No default value */
 uint Options::Main::monitoring_interval= DEFAULT_MONITORING_INTERVAL;
 uint Options::Main::port_number= DEFAULT_PORT;
 my_bool Options::Main::mysqld_safe_compatible= FALSE;
+const char **Options::default_directories= NULL;
 
 /* Options::User_management */
 
@@ -103,7 +107,7 @@ const char *Options::Debug::config_str= "d:t:i:O,im.trace";
 #endif
 
 static const char * const ANGEL_PID_FILE_SUFFIX= ".angel.pid";
-static const int ANGEL_PID_FILE_SUFFIX_LEN= strlen(ANGEL_PID_FILE_SUFFIX);
+static const int ANGEL_PID_FILE_SUFFIX_LEN= (uint) strlen(ANGEL_PID_FILE_SUFFIX);
 
 /*
   List of options, accepted by the instance manager.
@@ -439,7 +443,8 @@ int Options::load(int argc, char **argv)
   log_info("Loading config file '%s'...",
            (const char *) Main::config_file);
 
-  load_defaults(Main::config_file, default_groups, &argc, &saved_argv);
+  my_load_defaults(Main::config_file, default_groups, &argc,
+                   &saved_argv, &default_directories);
 
   if ((handle_options(&argc, &saved_argv, my_long_options, get_one_option)))
     return ERR_INVALID_USAGE;

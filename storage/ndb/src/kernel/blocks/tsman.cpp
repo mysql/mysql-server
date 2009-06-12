@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include "tsman.hpp"
 #include "pgman.hpp"
@@ -721,8 +724,13 @@ Tsman::execFSCLOSECONF(Signal* signal)
   
   if (ptr.p->m_state == Datafile::FS_CREATING)
   {
-    Page_cache_client pgman(this, m_pgman);
-    pgman.free_data_file(signal, ptr.p->m_file_no);  
+    if (ptr.p->m_file_no != RNIL)
+    {
+      jam();
+      Page_cache_client pgman(this, m_pgman);
+      pgman.free_data_file(signal, ptr.p->m_file_no);
+    }
+
     CreateFileImplConf* conf= (CreateFileImplConf*)signal->getDataPtr();
     conf->senderData = senderData;
     conf->senderRef = reference();
@@ -1502,7 +1510,7 @@ Tsman::Tablespace::Tablespace(Tsman* ts, const CreateFilegroupImplReq* req)
   m_tablespace_id = req->filegroup_id;
   m_version = req->filegroup_version;
   
-  m_extent_size = DIV(req->tablespace.extent_size, File_formats::NDB_PAGE_SIZE);}
+  m_extent_size = (Uint32)DIV(req->tablespace.extent_size, File_formats::NDB_PAGE_SIZE);}
 
 Tsman::Datafile::Datafile(const struct CreateFileImplReq* req)
 {

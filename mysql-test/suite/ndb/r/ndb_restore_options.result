@@ -68,9 +68,6 @@ a	b	c	d
 ***********************
 Backing up created data
 ***********************
-CREATE TEMPORARY TABLE test.backup_info (id INT, backup_id INT) ENGINE = HEAP;
-LOAD DATA INFILE 'DUMP_FILE' INTO TABLE test.backup_info FIELDS TERMINATED BY ',';
-DROP TABLE test.backup_info;
 drop table db1.tab1, db1.tab2, db2.tab1, db2.tab2;
 **************************************
 Check various include/exclude variants

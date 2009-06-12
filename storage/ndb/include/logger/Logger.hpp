@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef Logger_H
 #define Logger_H
@@ -231,7 +234,7 @@ public:
    */
   virtual void alert(const char* pMsg, ...) const
     ATTRIBUTE_FORMAT(printf, 2, 3);
-  virtual void alert(BaseString &pMsg) const { alert(pMsg.c_str()); };
+  virtual void alert(BaseString &pMsg) const { alert("%s", pMsg.c_str()); };
   
   /**
    * Log a critical message.
@@ -240,7 +243,7 @@ public:
    */
   virtual void critical(const char* pMsg, ...) const
     ATTRIBUTE_FORMAT(printf, 2, 3);
-  virtual void critical(BaseString &pMsg) const { critical(pMsg.c_str()); };
+  virtual void critical(BaseString &pMsg) const { critical("%s", pMsg.c_str()); };
 
   /**
    * Log an error message.
@@ -249,7 +252,7 @@ public:
    */
   virtual void error(const char* pMsg, ...) const
     ATTRIBUTE_FORMAT(printf, 2, 3);
-  virtual void error(BaseString &pMsg) const { error(pMsg.c_str()); };
+  virtual void error(BaseString &pMsg) const { error("%s", pMsg.c_str()); };
 
   /**
    * Log a warning message.
@@ -258,7 +261,7 @@ public:
    */
   virtual void warning(const char* pMsg, ...) const
     ATTRIBUTE_FORMAT(printf, 2, 3);
-  virtual void warning(BaseString &pMsg) const { warning(pMsg.c_str()); };
+  virtual void warning(BaseString &pMsg) const { warning("%s", pMsg.c_str()); };
 
   /**
    * Log an info message.
@@ -267,7 +270,7 @@ public:
    */
   virtual void info(const char* pMsg, ...) const
     ATTRIBUTE_FORMAT(printf, 2, 3);
-  virtual void info(BaseString &pMsg) const { info(pMsg.c_str()); };
+  virtual void info(BaseString &pMsg) const { info("%s", pMsg.c_str()); };
 
   /**
    * Log a debug message.
@@ -276,7 +279,7 @@ public:
    */
   virtual void debug(const char* pMsg, ...) const
     ATTRIBUTE_FORMAT(printf, 2, 3);
-  virtual void debug(BaseString &pMsg) const { debug(pMsg.c_str()); };
+  virtual void debug(BaseString &pMsg) const { debug("%s", pMsg.c_str()); };
 
   /*
    * Set repeat frequency, 0 means disable special repeated message handling

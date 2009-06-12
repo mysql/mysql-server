@@ -1,4 +1,6 @@
-/* Copyright (C) 2000 MySQL AB
+/*
+   Copyright (C) 2000 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include "mysys_priv.h"
 #include "mysys_err.h"
@@ -59,7 +62,7 @@ size_t my_pread(File Filedes, uchar *Buffer, size_t Count, my_off_t offset,
     pthread_mutex_lock(&my_file_info[Filedes].mutex);
     readbytes= (uint) -1;
     error= (lseek(Filedes, offset, MY_SEEK_SET) == (my_off_t) -1 ||
-	    (readbytes= read(Filedes, Buffer, Count)) != Count);
+	    (readbytes= read(Filedes, Buffer, (uint) Count)) != Count);
     pthread_mutex_unlock(&my_file_info[Filedes].mutex);
 #else
     if ((error= ((readbytes= pread(Filedes, Buffer, Count, offset)) != Count)))
@@ -136,7 +139,7 @@ size_t my_pwrite(int Filedes, const uchar *Buffer, size_t Count,
     writenbytes= (size_t) -1;
     pthread_mutex_lock(&my_file_info[Filedes].mutex);
     error= (lseek(Filedes, offset, MY_SEEK_SET) != (my_off_t) -1 &&
-            (writenbytes = write(Filedes, Buffer, Count)) == Count);
+            (writenbytes = write(Filedes, Buffer, (uint) Count)) == Count);
     pthread_mutex_unlock(&my_file_info[Filedes].mutex);
     if (error)
       break;
@@ -161,10 +164,8 @@ size_t my_pwrite(int Filedes, const uchar *Buffer, size_t Count,
     if ((my_errno == ENOSPC || my_errno == EDQUOT) &&
         (MyFlags & MY_WAIT_IF_FULL))
     {
-      if (!(errors++ % MY_WAIT_GIVE_USER_A_MESSAGE))
-	my_error(EE_DISK_FULL,MYF(ME_BELL | ME_NOREFRESH),
-		 my_filename(Filedes),my_errno,MY_WAIT_FOR_USER_TO_FIX_PANIC);
-      VOID(sleep(MY_WAIT_FOR_USER_TO_FIX_PANIC));
+      wait_for_free_space(my_filename(Filedes), errors);
+      errors++;
       continue;
     }
     if ((writenbytes && writenbytes != (size_t) -1) || my_errno == EINTR)

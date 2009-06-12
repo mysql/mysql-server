@@ -1,4 +1,6 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/*
+   Copyright (C) 2000-2006 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 	/* Functions to compressed records */
 
@@ -255,7 +258,7 @@ my_bool _mi_read_pack_info(MI_INFO *info, pbool fix_keys)
 	       MYF(MY_HOLD_ON_ERROR));
   /* Fix the table addresses in the tree heads. */
   {
-    long diff=PTR_BYTE_DIFF(decode_table,share->decode_tables);
+    my_ptrdiff_t diff=PTR_BYTE_DIFF(decode_table,share->decode_tables);
     share->decode_tables=decode_table;
     for (i=0 ; i < trees ; i++)
       share->decode_trees[i].table=ADD_TO_PTR(share->decode_trees[i].table,

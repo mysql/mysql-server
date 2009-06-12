@@ -1,4 +1,6 @@
-/* Copyright 2005-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/*
+   Copyright 2005-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /*
   This file is a container for general functionality related
@@ -320,9 +323,9 @@ int get_parts_for_update(const uchar *old_data, uchar *new_data,
   if (new_data == rec0)
 #endif
   {
-    if (unlikely(error= part_info->get_partition_id(part_info,
+    if (unlikely((error= part_info->get_partition_id(part_info,
                                                     new_part_id,
-                                                    new_func_value)))
+                                                     new_func_value)) != 0))
     {
       DBUG_RETURN(error);
     }
