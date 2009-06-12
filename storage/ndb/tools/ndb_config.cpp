@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /**
  * ndb_config --nodes --query=nodeid --type=ndbd --host=local1
@@ -47,8 +50,6 @@ static int g_configinfo = 0;
 static int g_xml = 0;
 
 const char *load_default_groups[]= { "mysql_cluster",0 };
-
-int g_print_full_config;
 
 typedef ndb_mgm_configuration_iterator Iter;
 
@@ -494,7 +495,7 @@ ConnectionTypeApply::apply(const Iter& iter)
   return 0;
 }
 
-ndb_mgm_configuration*
+static ndb_mgm_configuration*
 fetch_configuration()
 {  
   ndb_mgm_configuration* conf = 0;
@@ -556,11 +557,12 @@ noconnect:
 
 extern EventLogger *g_eventLogger;
 
-ndb_mgm_configuration*
+static ndb_mgm_configuration*
 load_configuration()
 {
   g_eventLogger->removeAllHandlers();
   g_eventLogger->createConsoleHandler(ndberr);
+  g_eventLogger->setCategory("ndb_config");
   InitConfigFileParser parser;
   if (g_config_file)
   {
@@ -570,6 +572,7 @@ load_configuration()
     Config* conf = parser.parseConfig(g_config_file);
     if (conf)
       return conf->m_configValues;
+    return 0;
   }
   
   if (g_verbose)

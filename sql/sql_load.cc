@@ -1,4 +1,6 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/*
+   Copyright (C) 2000-2006 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,14 +13,15 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 /* Copy data from a textfile to table */
-
 #include "mysql_priv.h"
 #include <my_dir.h>
 #include <m_ctype.h>
+#include "rpl_mi.h"
 #include "sql_repl.h"
 #include "sp_head.h"
 #include "sql_trigger.h"
@@ -310,8 +313,31 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 	is_fifo = 1;
 #endif
 
-      if (opt_secure_file_priv &&
-          strncmp(opt_secure_file_priv, name, strlen(opt_secure_file_priv)))
+      if (thd->slave_thread)
+      {
+#if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
+        if (strncmp(active_mi->rli.slave_patternload_file, name, 
+            active_mi->rli.slave_patternload_file_size))
+        {
+          /*
+            LOAD DATA INFILE in the slave SQL Thread can only read from 
+            --slave-load-tmpdir". This should never happen. Please, report a bug.
+           */
+
+          sql_print_error("LOAD DATA INFILE in the slave SQL Thread can only read from --slave-load-tmpdir. " \
+                          "Please, report a bug.");
+          my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--slave-load-tmpdir");
+          DBUG_RETURN(TRUE);
+        }
+#else
+        /*
+          This is impossible and should never happen.
+        */
+        DBUG_ASSERT(FALSE); 
+#endif
+      }
+      else if (opt_secure_file_priv &&
+               strncmp(opt_secure_file_priv, name, strlen(opt_secure_file_priv)))
       {
         /* Read only allowed from within dir specified by secure_file_priv */
         my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--secure-file-priv");
@@ -534,8 +560,8 @@ static bool write_execute_load_query_log_event(THD *thd,
 {
   Execute_load_query_log_event
     e(thd, thd->query, thd->query_length,
-      (char*)thd->lex->fname_start - (char*)thd->query,
-      (char*)thd->lex->fname_end - (char*)thd->query,
+      (uint) ((char*)thd->lex->fname_start - (char*)thd->query),
+      (uint) ((char*)thd->lex->fname_end - (char*)thd->query),
       (duplicates == DUP_REPLACE) ? LOAD_DUP_REPLACE :
       (ignore ? LOAD_DUP_IGNORE : LOAD_DUP_ERROR),
       transactional_table, FALSE, killed_err_arg);

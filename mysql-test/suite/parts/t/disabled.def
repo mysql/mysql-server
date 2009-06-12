@@ -1,3 +1,7 @@
-partition_basic_ndb            : Bug#19899 Crashing the server
 # http://dev.mysql.com/doc/refman/5.1/en/mysql-cluster-limitations-syntax.html
 partition_syntax_ndb           : Bug#36735 Not supported
+partition_mgm_lc1_ndb          : bug#44919 - incorrect testcases
+part_supported_sql_func_ndb    : bug#44919 - incorrect testcases 
+partition_basic_ndb            : bug#44919 - incorrect testcases
+partition_engine_ndb           : bug#44919 - incorrect testcases
+partition_mgm_lc0_ndb          : bug#44919 - incorrect testcases

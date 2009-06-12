@@ -1,4 +1,6 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/*
+   Copyright (C) 2000-2006 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 #ifdef USE_PRAGMA_IMPLEMENTATION
@@ -62,7 +65,7 @@ static void mi_check_print_msg(MI_CHECK *param,	const char* msg_type,
 {
   THD* thd = (THD*)param->thd;
   Protocol *protocol= thd->protocol;
-  uint length, msg_length;
+  size_t length, msg_length;
   char msgbuf[MI_MAX_MSG_BUF];
   char name[NAME_LEN*2+2];
 
@@ -1557,7 +1560,7 @@ bool ha_myisam::check_and_repair(THD *thd)
   old_query_length= thd->query_length;
   pthread_mutex_lock(&LOCK_thread_count);
   thd->query=        table->s->table_name.str;
-  thd->query_length= table->s->table_name.length;
+  thd->query_length= (uint) table->s->table_name.length;
   pthread_mutex_unlock(&LOCK_thread_count);
 
   if ((marked_crashed= mi_is_crashed(file)) || check(thd, &check_opt))
@@ -1753,7 +1756,7 @@ int ha_myisam::info(uint flag)
     if (share->key_parts)
       memcpy((char*) table->key_info[0].rec_per_key,
 	     (char*) misam_info.rec_per_key,
-	     sizeof(table->key_info[0].rec_per_key)*share->key_parts);
+	     sizeof(table->key_info[0].rec_per_key[0])*share->key_parts);
     if (share->tmp_table == NO_TMP_TABLE)
       pthread_mutex_unlock(&share->mutex);
 
@@ -1788,6 +1791,8 @@ int ha_myisam::info(uint flag)
 int ha_myisam::extra(enum ha_extra_function operation)
 {
   if ((specialflag & SPECIAL_SAFE_MODE) && operation == HA_EXTRA_KEYREAD)
+    return 0;
+  if (operation == HA_EXTRA_MMAP && !opt_myisam_use_mmap)
     return 0;
   return mi_extra(file, operation, 0);
 }
@@ -2151,6 +2156,15 @@ my_bool ha_myisam::register_query_cache_table(THD *thd, char *table_name,
       DBUG_RETURN(FALSE);
     }
   }
+
+  /*
+    This query execution might have started after the query cache was flushed
+    by a concurrent INSERT. In this case, don't cache this statement as the
+    data file length difference might not be visible yet if the tables haven't
+    been unlocked by the concurrent insert thread.
+  */
+  if (file->state->uncacheable)
+    DBUG_RETURN(FALSE);
 
   /* It is ok to try to cache current statement. */
   DBUG_RETURN(TRUE);

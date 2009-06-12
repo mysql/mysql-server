@@ -1,4 +1,6 @@
-/* Copyright (C) 2004-2006 MySQL AB
+/*
+   Copyright (C) 2004-2006 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include "mysql_priv.h"
 #include "events.h"
@@ -694,7 +697,7 @@ send_show_create_event(THD *thd, Event_timed *et, Protocol *protocol)
                                                          &sql_mode))
     DBUG_RETURN(TRUE);
 
-  field_list.push_back(new Item_empty_string("sql_mode", sql_mode.length));
+  field_list.push_back(new Item_empty_string("sql_mode", (uint) sql_mode.length));
 
   tz_name= et->time_zone->get_name();
 

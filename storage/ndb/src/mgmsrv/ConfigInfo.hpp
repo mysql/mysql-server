@@ -1,4 +1,6 @@
-/* Copyright (C) 2003-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* 
+   Copyright (C) 2003-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef ConfigInfo_H
 #define ConfigInfo_H
@@ -42,11 +45,27 @@
  */
 class ConfigInfo {
 public:
-  enum Type        { CI_BOOL, CI_INT, CI_INT64, CI_STRING, CI_SECTION };
+  enum Type        { CI_BOOL,
+                     CI_INT,
+                     CI_INT64,
+                     CI_STRING,
+                     CI_ENUM, // String externaly, int internally
+                     CI_SECTION
+  };
   enum Status      { CI_USED,            ///< Active
 		     CI_DEPRICATED,      ///< Can be, but shouldn't
 		     CI_NOTIMPLEMENTED,  ///< Is ignored.
 		     CI_INTERNAL         ///< Not configurable by the user
+  };
+
+  enum Flags {
+    CI_UPDATEABLE = 1, // Parameter can be updated
+    CI_CHECK_WRITABLE = 2 // Path given by parameter should be writable
+  };
+
+  struct Typelib {
+    const char* name;
+    Uint32 value;
   };
 
   /**
@@ -71,7 +90,7 @@ public:
     /* Short textual description/documentation for entry. */
     const char*    _description;
     Status         _status;
-    bool           _updateable;    
+    Uint32         _flags;
     Type           _type;          
     /**
      * Default value, minimum value (if any), and maximum value (if any).
@@ -86,8 +105,11 @@ public:
       UintPtr      _section_type; // if _type = CI_SECTION
       /** NOTE must be UintPtr to be of same size as _default */
     };
-    const char*    _min;
-    const char*    _max;
+    union {
+      const char* _min;
+      const Typelib* _typelib; // If _type == CI_ENUM
+    };
+    const char* _max;
   };
 
   class ParamInfoIter {
@@ -147,6 +169,10 @@ public:
    *   @note Result is not defined if section/name are wrong!
    */
   bool verify(const Properties* secti, const char* fname, Uint64 value) const;
+  bool verify_enum(const Properties * section, const char* fname,
+                   const char* value, Uint32& value_int) const;
+  void get_enum_values(const Properties * section, const char* fname,
+                       BaseString& err) const;
   static const char* nameToAlias(const char*);
   static const char* getAlias(const char*);
   bool isSection(const char*) const;
@@ -157,6 +183,7 @@ public:
   Uint64       getMin(const Properties * section, const char* fname) const;
   Uint64       getMax(const Properties * section, const char* fname) const;
   Uint64 getDefault(const Properties * section, const char* fname) const;
+  Uint32 getFlags(const Properties* section, const char* fname) const;
   const char* getDefaultString(const Properties * section,
                                const char* fname) const;
   bool getMandatory(const Properties * section, const char* fname) const;

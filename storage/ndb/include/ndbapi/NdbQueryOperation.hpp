@@ -1,0 +1,209 @@
+/* Copyright (C) 2009 Sun Microsystems Inc
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+
+#ifndef NdbQueryOperation_H
+#define NdbQueryOperation_H
+
+#include <ndb_types.h>
+
+class NdbError;
+class NdbTransaction;
+class NdbQueryOperation;
+class NdbRecAttr;
+
+/**
+ * NdbQuery are create when a NdbQueryDefinition is submitted for
+ * execution.
+ *
+ * It is associated with a collection of NdbQueryOperation which 
+ * are instantiated (1::1) to reflect the NdbQueryOperationDef objects
+ * which the NdbQueryDef consists of.
+ */
+class NdbQuery
+{
+public:
+
+  // get NdbQueryOperation being the root of a linked operation
+  NdbQueryOperation* getRootOperation() const;
+
+  Uint32 getNoOfOperations() const;
+
+  // Get a specific NdbQueryOperation by ident specified
+  // when the NdbQueryOperationDef was created.
+  NdbQueryOperation* getQueryOperation(const char* ident) const;
+  NdbQueryOperation* getQueryOperation(Uint32 ident) const;
+//NdbQueryOperation* getQueryOperation(const NdbQueryOperationDef* def) const;
+
+
+  Uint32 getNoOfParameters() const;
+  const NdbParamOperand* getParameter(const char* name) const;
+  const NdbParamOperand* getParameter(Uint32 num) const;
+
+
+  /**
+   * Get the next tuple(s) from the global cursor on the query.
+   *
+   * Result row / columns will be updated in the respective result handlers
+   * as previously specified on each NdbQueryOperation either by assigning a
+   * NdbRecord/rowBuffer or assigning NdbRecAttr to each column to be retrieved.
+   * 
+   * @param fetchAllowed  If set to false, then fetching is disabled
+   * @param forceSend If true send will occur immediately (see @ref secAdapt)
+   *
+   * When fetchAllowed is set to false,
+   * the NDB API will not request new batches from the NDB Kernel when
+   * all received rows have been exhausted, but will instead return 2
+   * from nextResult(), indicating that new batches must be
+   * requested. You must then call nextResult with fetchAllowed = true
+   * in order to contact the NDB Kernel for more records, after taking over
+   * locks as appropriate.
+   *
+   * @note: All result returned from a NdbQuery are handled as scan results
+   *       in a cursor like interface.(Even single tuple 'lookup' operations!)
+   *  - After ::execute() the current position of the result set is 'before'
+   *    the first row. There is no valid data yet in the 'RecAttr'
+   *    or NdbRecord associated with the NdbQueryOperation!
+   *  - ::nextResult() is required to retrieve the first row. This may
+   *    also cause any error / status info assicioated with the result set
+   *    iself to be returned (Like 'NoData', posible type conversion errors,
+   *    or constraint violations associated with each specific row in the
+   *    result set.)
+   *
+   * @return 
+   * -  -1: if unsuccessful,<br>
+   * -   0: if another tuple was received, and<br> 
+   * -   1: if there are no more tuples to scan.
+   * -   2: if there are no more cached records in NdbApi
+   */
+  int nextResult(bool fetchAllowed = true, bool forceSend = false);
+
+  /**
+   * Get NdbTransaction object for this query operation
+   */
+  NdbTransaction* getNdbTransaction() const;
+
+  /**
+   * Close query
+   */
+  void close(bool forceSend = false, bool release = false);
+
+  /** 
+   * @name Error Handling
+   * @{
+   */
+
+  /**
+   * Get error object with information about the latest error.
+   *
+   * @return An error object with information about the latest error.
+   */
+  const NdbError& getNdbError() const;
+};
+
+
+
+
+class NdbQueryOperation
+{
+public:
+  // Collection of get'ers to navigate in root, parent/child hierarchy
+  NdbQueryOperation* getRootOperation() const;
+  // assert(getRootOperation()->getNoOfParentOperations() == 0);
+
+  Uint32 getNoOfParentOperations() const;
+  NdbQueryOperation* getParentOperation(Uint32 i) const;
+
+  Uint32 getNoOfChildOperations() const;
+  NdbQueryOperation* getChildOperation(Uint32 i) const;
+
+  const NdbQueryOperationDef* getQueryOperationDef() const;
+
+
+  /**
+   * Defines a retrieval operation of an attribute value.
+   * The NDB API allocate memory for the NdbRecAttr object that
+   * will hold the returned attribute value. 
+   *
+   * @note Note that it is the applications responsibility
+   *       to allocate enough memory for aValue (if non-NULL).
+   *       The buffer aValue supplied by the application must be
+   *       aligned appropriately.  The buffer is used directly
+   *       (avoiding a copy penalty) only if it is aligned on a
+   *       4-byte boundary and the attribute size in bytes
+   *       (i.e. NdbRecAttr::attrSize times NdbRecAttr::arraySize is
+   *       a multiple of 4).
+   *
+   * @note There are three versions of NdbOperation::getValue with
+   *       slightly different parameters.
+   *
+   * @note This method does not fetch the attribute value from 
+   *       the database!  The NdbRecAttr object returned by this method 
+   *       is <em>not</em> readable/printable before the 
+   *       transaction has been executed with NdbTransaction::execute.
+   *
+   * @param anAttrName  Attribute name 
+   * @param aValue      If this is non-NULL, then the attribute value 
+   *                    will be returned in this parameter.<br>
+   *                    If NULL, then the attribute value will only 
+   *                    be stored in the returned NdbRecAttr object.
+   * @return            An NdbRecAttr object to hold the value of 
+   *                    the attribute, or a NULL pointer 
+   *                    (indicating error).
+   */
+  NdbRecAttr* getValue(const char* anAttrName, char* aValue = 0);
+  NdbRecAttr* getValue(Uint32 anAttrId, char* aValue = 0);
+  NdbRecAttr* getValue(const NdbDictionary::Column*, char* aValue = 0);
+
+  /**
+   * Retrieval of entire or partial rows may also be specified. For partial
+   * retrieval a bitmask should supplied.
+   *
+   * The behaviour of mixing NdbRecord retrieval style with NdbRecAttr is
+   * is undefined - It should probably not be allowed.
+   *
+   * @param rec  Is a pointer to a NdbRecord specifying the byte layout of the
+   *             result row.
+   *
+   * @resBuffer  Defines a buffer sufficient large to hold the result row.
+   *
+   * @bufRef     Refers a pointer which will be updated to refer the current result row
+   *             for this operand.
+   *
+   * @param  result_mask defines as subset of attributes to read. 
+   *         The column is only affected if 'mask[attrId >> 3]  & (1<<(attrId & 7))' is set
+   */
+  int setResultRowBuf (const NdbRecord *rec,
+                       char* resBuffer,
+                       const unsigned char* result_mask = 0);
+
+  int setResultRowRef (const NdbRecord* rec,
+                       char* & bufRef,
+                       const unsigned char* result_mask = 0);
+
+  // TODO: define how BLOB/CLOB should be retrieved.
+  // ... Replicate ::getBlobHandle() from NdbOperation class?
+
+
+  // Result handling for this NdbQueryOperation
+  bool isRowNULL() const;    // Row associated with Operation is NULL value?
+
+  bool isRowChanged() const; // Prev ::nextResult() on NdbQuery retrived a new
+                             // value for this NdbQueryOperation
+
+};
+
+
+
+#endif

@@ -27,6 +27,7 @@ set @my_slow_launch_time          =@@global.slow_launch_time;
 set @my_storage_engine            =@@global.storage_engine;
 set @my_thread_cache_size         =@@global.thread_cache_size;
 set @my_max_allowed_packet        =@@global.max_allowed_packet;
+set @my_join_buffer_size          =@@global.join_buffer_size;
 set @`test`=1;
 select @test, @`test`, @TEST, @`TEST`, @"teSt";
 @test	@`test`	@TEST	@`TEST`	@"teSt"
@@ -299,59 +300,107 @@ set @@rand_seed1=10000000,@@rand_seed2=1000000;
 select ROUND(RAND(),5);
 ROUND(RAND(),5)
 0.02887
-show variables like '%alloc%';
+
+==+ Testing %alloc% system variables +==
+==+ NOTE:  These values *must* be a multiple of 1024 +==
+==+ Other values will be rounded down to nearest multiple +==
+
+==+ Show initial values +==
+SHOW VARIABLES WHERE variable_name IN ('range_alloc_block_size',
+'query_alloc_block_size', 'query_prealloc_size',
+'transaction_alloc_block_size', 'transaction_prealloc_size');
 Variable_name	Value
 query_alloc_block_size	8192
 query_prealloc_size	8192
 range_alloc_block_size	4096
 transaction_alloc_block_size	8192
 transaction_prealloc_size	4096
-select * from information_schema.session_variables where variable_name like '%alloc%' order by 1;
+==+ information_schema data +==
+SELECT * FROM information_schema.session_variables 
+WHERE variable_name IN ('range_alloc_block_size',
+'query_alloc_block_size', 'query_prealloc_size',
+'transaction_alloc_block_size', 'transaction_prealloc_size') ORDER BY 1;
 VARIABLE_NAME	VARIABLE_VALUE
 QUERY_ALLOC_BLOCK_SIZE	8192
 QUERY_PREALLOC_SIZE	8192
 RANGE_ALLOC_BLOCK_SIZE	4096
 TRANSACTION_ALLOC_BLOCK_SIZE	8192
 TRANSACTION_PREALLOC_SIZE	4096
-set @@range_alloc_block_size=1024*16;
+Testing values that are multiples of 1024
+set @@range_alloc_block_size=1024*15+1024;
+set @@query_alloc_block_size=1024*15+1024*2;
+set @@query_prealloc_size=1024*18-1024;
+set @@transaction_alloc_block_size=1024*21-1024*1;
+set @@transaction_prealloc_size=1024*21-2048;
+==+ Check manipulated values ==+
+select @@query_alloc_block_size;
+@@query_alloc_block_size
+17408
+SHOW VARIABLES WHERE variable_name IN ('range_alloc_block_size',
+'query_alloc_block_size', 'query_prealloc_size',
+'transaction_alloc_block_size', 'transaction_prealloc_size');
+Variable_name	Value
+query_alloc_block_size	17408
+query_prealloc_size	17408
+range_alloc_block_size	16384
+transaction_alloc_block_size	20480
+transaction_prealloc_size	19456
+==+ information_schema data +==
+SELECT * FROM information_schema.session_variables
+WHERE variable_name IN ('range_alloc_block_size',
+'query_alloc_block_size', 'query_prealloc_size',
+'transaction_alloc_block_size', 'transaction_prealloc_size') ORDER BY 1;
+VARIABLE_NAME	VARIABLE_VALUE
+QUERY_ALLOC_BLOCK_SIZE	17408
+QUERY_PREALLOC_SIZE	17408
+RANGE_ALLOC_BLOCK_SIZE	16384
+TRANSACTION_ALLOC_BLOCK_SIZE	20480
+TRANSACTION_PREALLOC_SIZE	19456
+==+ Manipulate variable values +==
+Testing values that are not 1024 multiples
+set @@range_alloc_block_size=1024*16+1023;
 set @@query_alloc_block_size=1024*17+2;
-set @@query_prealloc_size=1024*18;
+set @@query_prealloc_size=1024*18-1023;
 set @@transaction_alloc_block_size=1024*20-1;
 set @@transaction_prealloc_size=1024*21-1;
 select @@query_alloc_block_size;
 @@query_alloc_block_size
 17408
-show variables like '%alloc%';
+==+ Check manipulated values ==+
+SHOW VARIABLES WHERE variable_name IN ('range_alloc_block_size',
+'query_alloc_block_size', 'query_prealloc_size',
+'transaction_alloc_block_size', 'transaction_prealloc_size');
 Variable_name	Value
 query_alloc_block_size	17408
-query_prealloc_size	18432
+query_prealloc_size	17408
 range_alloc_block_size	16384
 transaction_alloc_block_size	19456
 transaction_prealloc_size	20480
-select * from information_schema.session_variables where variable_name like '%alloc%' order by 1;
+==+ information_schema data +==
+SELECT * FROM information_schema.session_variables 
+WHERE variable_name IN ('range_alloc_block_size',
+'query_alloc_block_size', 'query_prealloc_size',
+'transaction_alloc_block_size', 'transaction_prealloc_size') ORDER BY 1;
 VARIABLE_NAME	VARIABLE_VALUE
 QUERY_ALLOC_BLOCK_SIZE	17408
-QUERY_PREALLOC_SIZE	18432
+QUERY_PREALLOC_SIZE	17408
 RANGE_ALLOC_BLOCK_SIZE	16384
 TRANSACTION_ALLOC_BLOCK_SIZE	19456
 TRANSACTION_PREALLOC_SIZE	20480
+==+ Set values back to the default values +==
 set @@range_alloc_block_size=default;
 set @@query_alloc_block_size=default, @@query_prealloc_size=default;
 set transaction_alloc_block_size=default, @@transaction_prealloc_size=default;
-show variables like '%alloc%';
+==+ Check the values now that they are reset +==
+SHOW VARIABLES WHERE variable_name IN ('range_alloc_block_size',
+'query_alloc_block_size', 'query_prealloc_size',
+'transaction_alloc_block_size', 'transaction_prealloc_size');
 Variable_name	Value
 query_alloc_block_size	8192
 query_prealloc_size	8192
 range_alloc_block_size	4096
 transaction_alloc_block_size	8192
 transaction_prealloc_size	4096
-select * from information_schema.session_variables where variable_name like '%alloc%' order by 1;
-VARIABLE_NAME	VARIABLE_VALUE
-QUERY_ALLOC_BLOCK_SIZE	8192
-QUERY_PREALLOC_SIZE	8192
-RANGE_ALLOC_BLOCK_SIZE	4096
-TRANSACTION_ALLOC_BLOCK_SIZE	8192
-TRANSACTION_PREALLOC_SIZE	4096
 SELECT @@version LIKE 'non-existent';
 @@version LIKE 'non-existent'
 0
@@ -705,7 +754,7 @@ VARIABLE_NAME	VARIABLE_VALUE
 MYISAM_DATA_POINTER_SIZE	7
 SET GLOBAL table_open_cache=-1;
 Warnings:
-Warning	1292	Truncated incorrect table_open_cache value: '0'
+Warning	1292	Truncated incorrect table_open_cache value: '-1'
 SHOW VARIABLES LIKE 'table_open_cache';
 Variable_name	Value
 table_open_cache	1
@@ -970,6 +1019,11 @@ show variables like 'hostname';
 Variable_name	Value
 hostname	#
 End of 5.0 tests
+set join_buffer_size=1;
+Warnings:
+Warning	1292	Truncated incorrect join_buffer_size value: '1'
+set @save_join_buffer_size=@@join_buffer_size;
+set join_buffer_size=@save_join_buffer_size;
 set global binlog_cache_size         =@my_binlog_cache_size;
 set global connect_timeout           =@my_connect_timeout;
 set global delayed_insert_timeout    =@my_delayed_insert_timeout;
@@ -1000,6 +1054,7 @@ set global slow_launch_time          =@my_slow_launch_time;
 set global storage_engine            =@my_storage_engine;
 set global thread_cache_size         =@my_thread_cache_size;
 set global max_allowed_packet        =@my_max_allowed_packet;
+set global join_buffer_size          =@my_join_buffer_size;
 show global variables where Variable_name='table_definition_cache' or
 Variable_name='table_lock_wait_timeout';
 Variable_name	Value
@@ -1341,3 +1396,75 @@ SET @@session.thread_stack= 7;
 ERROR HY000: Variable 'thread_stack' is a read only variable
 SET @@global.thread_stack= 7;
 ERROR HY000: Variable 'thread_stack' is a read only variable
+SELECT @@global.expire_logs_days INTO @old_eld;
+SET GLOBAL expire_logs_days = -1;
+Warnings:
+Warning	1292	Truncated incorrect expire_logs_days value: '-1'
+needs to've been adjusted (0)
+SELECT @@global.expire_logs_days;
+@@global.expire_logs_days
+0
+SET GLOBAL expire_logs_days = 11;
+SET @old_mode=@@sql_mode;
+SET SESSION sql_mode = 'TRADITIONAL';
+SET GLOBAL expire_logs_days = 100;
+ERROR 42000: Variable 'expire_logs_days' can't be set to the value of '100'
+needs to be unchanged (11)
+SELECT @@global.expire_logs_days;
+@@global.expire_logs_days
+11
+SET SESSION sql_mode = @old_mode;
+SET GLOBAL expire_logs_days = 100;
+Warnings:
+Warning	1292	Truncated incorrect expire_logs_days value: '100'
+needs to've been adjusted (99)
+SELECT @@global.expire_logs_days;
+@@global.expire_logs_days
+99
+SET GLOBAL expire_logs_days = 11;
+SET GLOBAL expire_logs_days = 99;
+needs to pass with no warnings (99)
+SELECT @@global.expire_logs_days;
+@@global.expire_logs_days
+99
+SET GLOBAL expire_logs_days = @old_eld;
+SET GLOBAL auto_increment_offset=-1;
+Warnings:
+Warning	1292	Truncated incorrect auto_increment_offset value: '-1'
+SET GLOBAL auto_increment_offset=0;
+Warnings:
+Warning	1292	Truncated incorrect auto_increment_offset value: '0'
+select @@storage_engine;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					@@storage_engine	253	6	6	N	1	31	8
+@@storage_engine
+MyISAM
+SET @old_server_id = @@GLOBAL.server_id;
+SET GLOBAL server_id = (1 << 32) - 1;
+SELECT @@GLOBAL.server_id;
+@@GLOBAL.server_id
+4294967295
+SET GLOBAL server_id = (1 << 32);
+Warnings:
+Warning	1292	Truncated incorrect server_id value: '4294967296'
+SELECT @@GLOBAL.server_id;
+@@GLOBAL.server_id
+4294967295
+SET GLOBAL server_id = (1 << 60);
+Warnings:
+Warning	1292	Truncated incorrect server_id value: '1152921504606846976'
+SELECT @@GLOBAL.server_id;
+@@GLOBAL.server_id
+4294967295
+SET GLOBAL server_id = 0;
+SELECT @@GLOBAL.server_id;
+@@GLOBAL.server_id
+0
+SET GLOBAL server_id = -1;
+Warnings:
+Warning	1292	Truncated incorrect server_id value: '-1'
+SELECT @@GLOBAL.server_id;
+@@GLOBAL.server_id
+0
+SET GLOBAL server_id = @old_server_id;
+End of 5.1 tests

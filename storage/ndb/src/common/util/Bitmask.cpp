@@ -1,4 +1,6 @@
-/* Copyright (C) 2004-2005 MySQL AB
+/*
+   Copyright (C) 2004-2005 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <Bitmask.hpp>
 #include <NdbOut.hpp>
@@ -128,7 +131,6 @@ BitmaskImpl::parseMask(unsigned size, Uint32 data[], const char * src)
     list[i].trim();
     if (list[i].empty())
       continue;
-    unsigned num = 0;
     char * delim = (char*)strchr(list[i].c_str(), '-');
     unsigned first = 0;
     unsigned last = 0;
@@ -174,3 +176,51 @@ BitmaskImpl::parseMask(unsigned size, Uint32 data[], const char * src)
   }
   return cnt;
 }
+
+#ifdef TEST_BITMASK
+#include <NdbTap.hpp>
+
+TAPTEST(Bitmask)
+{
+    unsigned i, found;
+    Bitmask<8> b;
+    OK(b.isclear());
+    
+    unsigned MAX_BITS = 32 * b.Size;
+    for (i = 0; i < MAX_BITS; i++)
+    {
+      if (i > 60)
+        continue;
+      switch(i)
+      {
+      case 2:case 3:case 5:case 7:case 11:case 13:case 17:case 19:case 23:
+      case 29:case 31:case 37:case 41:case 43:
+        break;
+      default:;
+        b.set(i);
+      }
+    }
+    for (found = i = 0; i < MAX_BITS; i++)
+      found+=(int)b.get(i);
+    OK(found == b.count());
+    OK(found == 47);
+    printf("getText: %s\n", BaseString::getText(b).c_str());
+    OK(BaseString::getText(b) ==
+        "0000000000000000000000000000000000000000000000001ffff5df5f75d753");
+    printf("getPrettyText: %s\n", BaseString::getPrettyText(b).c_str());
+    OK(BaseString::getPrettyText(b) ==
+        "0, 1, 4, 6, 8, 9, 10, 12, 14, 15, 16, 18, 20, 21, 22, 24, 25, 26, "
+        "27, 28, 30, 32, 33, 34, 35, 36, 38, 39, 40, 42, 44, 45, 46, 47, "
+       "48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59 and 60");
+    printf("getPrettyTextShort: %s\n",
+           BaseString::getPrettyTextShort(b).c_str());
+    OK(BaseString::getPrettyTextShort(b) ==
+        "0,1,4,6,8,9,10,12,14,15,16,18,20,21,22,24,25,26,27,28,30,32,"
+        "33,34,35,36,38,39,40,42,44,45,46,47,48,49,50,51,52,53,54,55,"
+       "56,57,58,59,60");
+    return 1; // OK
+}
+
+#endif
+
+template struct BitmaskPOD<8>;

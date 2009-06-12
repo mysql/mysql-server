@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <my_global.h>
 #include "Backup.hpp"
@@ -676,10 +679,10 @@ void Backup::execDBINFO_SCANREQ(Signal *signal)
       dbinfo_write_row_column_uint32(&r, ptr.p->masterRef);
       dbinfo_write_row_column_uint32(&r, ptr.p->clientRef);
       dbinfo_write_row_column_uint32(&r, ptr.p->slaveState.getState());
-      dbinfo_write_row_column_uint32(&r, ptr.p->noOfBytes);
-      dbinfo_write_row_column_uint32(&r, ptr.p->noOfRecords);
-      dbinfo_write_row_column_uint32(&r, ptr.p->noOfLogBytes);
-      dbinfo_write_row_column_uint32(&r, ptr.p->noOfLogRecords);
+      dbinfo_write_row_column_uint32(&r, (Uint32)ptr.p->noOfBytes); // TODO
+      dbinfo_write_row_column_uint32(&r, (Uint32)ptr.p->noOfRecords); // TODO
+      dbinfo_write_row_column_uint32(&r, (Uint32)ptr.p->noOfLogBytes); // TODO
+      dbinfo_write_row_column_uint32(&r, (Uint32)ptr.p->noOfLogRecords); //TODO
       dbinfo_write_row_column_uint32(&r, ptr.p->errorCode);
       dbinfo_send_row(signal, r, rl, req.apiTxnId, req.senderRef);
     }
@@ -692,7 +695,7 @@ void Backup::execDBINFO_SCANREQ(Signal *signal)
     dbinfo_write_row_column_uint32(&r, 4*m_words_written_this_period);
     dbinfo_write_row_column_uint32(&r, m_overflow_disk_write);
     dbinfo_write_row_column_uint32(&r, m_reset_delay_used);
-    dbinfo_write_row_column_uint32(&r, m_reset_disk_speed_time);
+    dbinfo_write_row_column_uint32(&r, 0); // Uninteresting m_reset_disk_speed_time);
     dbinfo_write_row_column_uint32(&r, c_backupPool.getSize());
     dbinfo_write_row_column_uint32(&r, c_backupFilePool.getSize());
     dbinfo_write_row_column_uint32(&r, c_tablePool.getSize());
@@ -4231,7 +4234,7 @@ Backup::OperationRecord::fragComplete(Uint32 tableId, Uint32 fragNo, bool fill_r
     foot->SectionLength = htonl(footSz);
     foot->TableId       = htonl(tableId);
     foot->FragmentNo    = htonl(fragNo);
-    foot->NoOfRecords   = htonl(noOfRecords);
+    foot->NoOfRecords   = htonl(Uint32(noOfRecords)); // TODO
     foot->Checksum      = htonl(0);
 
     if (sz != footSz + 1)
@@ -5252,7 +5255,8 @@ Backup::execABORT_BACKUP_ORD(Signal* signal)
 #ifdef DEBUG_ABORT
       ndbout_c("---- Forward to master nodeId = %u", getMasterNodeId());
 #endif
-      BlockReference ref = numberToRef(BACKUP, instanceKey(ptr), getMasterNodeId());
+      BlockReference ref = numberToRef(BACKUP, UserBackupInstanceKey, 
+                                       getMasterNodeId());
       sendSignal(ref, GSN_ABORT_BACKUP_ORD, 
 		 signal, AbortBackupOrd::SignalLength, JBB);
       return;

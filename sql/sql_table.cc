@@ -1,4 +1,6 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/*
+   Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /* drop and alter of tables */
 
@@ -84,7 +87,7 @@ static void wait_for_kill_signal(THD *thd)
 uint filename_to_tablename(const char *from, char *to, uint to_length)
 {
   uint errors;
-  uint res;
+  size_t res;
   DBUG_ENTER("filename_to_tablename");
   DBUG_PRINT("enter", ("from '%s'", from));
 
@@ -224,7 +227,7 @@ uint build_table_filename(char *buff, size_t bufflen, const char *db,
   char *end = buff + bufflen;
   /* Don't add FN_ROOTDIR if mysql_data_home already includes it */
   char *pos = strnmov(buff, mysql_data_home, bufflen);
-  int rootdir_len= strlen(FN_ROOTDIR);
+  size_t rootdir_len= strlen(FN_ROOTDIR);
   if (pos - rootdir_len >= buff &&
       memcmp(pos - rootdir_len, FN_ROOTDIR, rootdir_len) != 0)
     pos= strnmov(pos, FN_ROOTDIR, end - pos);
@@ -273,7 +276,7 @@ uint build_tmptable_filename(THD* thd, char *buff, size_t bufflen)
     my_casedn_str(files_charset_info, p);
   }
 
-  uint length= unpack_filename(buff, buff);
+  size_t length= unpack_filename(buff, buff);
   DBUG_PRINT("exit", ("buff: '%s'", buff));
   DBUG_RETURN(length);
 }
@@ -1999,7 +2002,7 @@ void calculate_interval_lengths(CHARSET_INFO *cs, TYPELIB *interval,
   for (pos= interval->type_names, len= interval->type_lengths;
        *pos ; pos++, len++)
   {
-    uint length= cs->cset->numchars(cs, *pos, *pos + *len);
+    size_t length= cs->cset->numchars(cs, *pos, *pos + *len);
     *tot_length+= length;
     set_if_bigger(*max_length, (uint32)length);
   }
@@ -2328,7 +2331,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
         DBUG_ASSERT(comma_length > 0);
         for (uint i= 0; (tmp= int_it++); i++)
         {
-          uint lengthsp;
+          size_t lengthsp;
           if (String::needs_conversion(tmp->length(), tmp->charset(),
                                        cs, &dummy))
           {
@@ -3329,7 +3332,7 @@ bool mysql_create_table_no_lock(THD *thd,
       if (key->type == Key::FOREIGN_KEY &&
           !part_info->is_auto_partitioned)
       {
-        my_error(ER_CANNOT_ADD_FOREIGN, MYF(0));
+        my_error(ER_FOREIGN_KEY_ON_PARTITIONED, MYF(0));
         goto err;
       }
     }
@@ -4248,7 +4251,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
               (!(alter_info->flags & ALTER_ALL_PARTITION)))
           {
             char buff[FN_REFLEN + MYSQL_ERRMSG_SIZE];
-            uint length;
+            size_t length;
             DBUG_PRINT("admin", ("sending non existent partition error"));
             protocol->prepare_for_resend();
             protocol->store(table_name, system_charset_info);
@@ -4309,7 +4312,14 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
           view_checksum(thd, table) == HA_ADMIN_WRONG_CHECKSUM)
         push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
                      ER_VIEW_CHECKSUM, ER(ER_VIEW_CHECKSUM));
-      result_code= HA_ADMIN_CORRUPT;
+      if (thd->main_da.is_error() && 
+          (thd->main_da.sql_errno() == ER_NO_SUCH_TABLE ||
+           thd->main_da.sql_errno() == ER_FILE_NOT_FOUND))
+        /* A missing table is just issued as a failed command */
+        result_code= HA_ADMIN_FAILED;
+      else
+        /* Default failure code is corrupt table */
+        result_code= HA_ADMIN_CORRUPT;
       goto send_result;
     }
 
@@ -4330,7 +4340,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     {
       /* purecov: begin inspected */
       char buff[FN_REFLEN + MYSQL_ERRMSG_SIZE];
-      uint length;
+      size_t length;
       DBUG_PRINT("admin", ("sending error message"));
       protocol->prepare_for_resend();
       protocol->store(table_name, system_charset_info);
@@ -4448,7 +4458,7 @@ send_result_message:
     case HA_ADMIN_NOT_IMPLEMENTED:
       {
        char buf[MYSQL_ERRMSG_SIZE];
-       uint length=my_snprintf(buf, sizeof(buf),
+       size_t length=my_snprintf(buf, sizeof(buf),
 				ER(ER_CHECK_NOT_IMPLEMENTED), operator_name);
 	protocol->store(STRING_WITH_LEN("note"), system_charset_info);
 	protocol->store(buf, length, system_charset_info);
@@ -4458,7 +4468,7 @@ send_result_message:
     case HA_ADMIN_NOT_BASE_TABLE:
       {
         char buf[MYSQL_ERRMSG_SIZE];
-        uint length= my_snprintf(buf, sizeof(buf),
+        size_t length= my_snprintf(buf, sizeof(buf),
                                  ER(ER_BAD_TABLE_ERROR), table_name);
         protocol->store(STRING_WITH_LEN("note"), system_charset_info);
         protocol->store(buf, length, system_charset_info);
@@ -4586,7 +4596,7 @@ send_result_message:
     case HA_ADMIN_NEEDS_ALTER:
     {
       char buf[MYSQL_ERRMSG_SIZE];
-      uint length;
+      size_t length;
 
       protocol->store(STRING_WITH_LEN("error"), system_charset_info);
       length=my_snprintf(buf, sizeof(buf), ER(ER_TABLE_NEEDS_UPGRADE),
@@ -4599,7 +4609,7 @@ send_result_message:
     default:				// Probably HA_ADMIN_INTERNAL_ERROR
       {
         char buf[MYSQL_ERRMSG_SIZE];
-        uint length=my_snprintf(buf, sizeof(buf),
+        size_t length=my_snprintf(buf, sizeof(buf),
                                 "Unknown - internal error %d during operation",
                                 result_code);
         protocol->store(STRING_WITH_LEN("error"), system_charset_info);
@@ -4651,7 +4661,7 @@ err:
 bool mysql_backup_table(THD* thd, TABLE_LIST* table_list)
 {
   DBUG_ENTER("mysql_backup_table");
-  WARN_DEPRECATED(thd, "5.2", "BACKUP TABLE",
+  WARN_DEPRECATED(thd, "6.0", "BACKUP TABLE",
                   "MySQL Administrator (mysqldump, mysql)");
   DBUG_RETURN(mysql_admin_table(thd, table_list, 0,
 				"backup", TL_READ, 0, 0, 0, 0,
@@ -4662,7 +4672,7 @@ bool mysql_backup_table(THD* thd, TABLE_LIST* table_list)
 bool mysql_restore_table(THD* thd, TABLE_LIST* table_list)
 {
   DBUG_ENTER("mysql_restore_table");
-  WARN_DEPRECATED(thd, "5.2", "RESTORE TABLE",
+  WARN_DEPRECATED(thd, "6.0", "RESTORE TABLE",
                   "MySQL Administrator (mysqldump, mysql)");
   DBUG_RETURN(mysql_admin_table(thd, table_list, 0,
 				"restore", TL_WRITE, 1, 1, 0,

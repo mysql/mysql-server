@@ -1,4 +1,6 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/*
+   Copyright 2000-2008 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /* mysqldump.c  - Dump a tables contents and format to an ASCII file
 **
@@ -806,7 +809,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       opt_set_charset= 0;
       opt_compatible_mode_str= argument;
       opt_compatible_mode= find_set(&compatible_mode_typelib,
-                                    argument, strlen(argument),
+                                    argument, (uint) strlen(argument),
                                     &err_ptr, &err_len);
       if (err_len)
       {
@@ -1483,7 +1486,8 @@ static int connect_to_db(char *host, char *user,char *passwd)
     DB_error(&mysql_connection, "when trying to connect");
     DBUG_RETURN(1);
   }
-  if (mysql_get_server_version(&mysql_connection) < 40100)
+  if ((mysql_get_server_version(&mysql_connection) < 40100) ||
+      (opt_compatible_mode & 3))
   {
     /* Don't dump SET NAMES with a pre-4.1 server (bug#7997).  */
     opt_set_charset= 0;
@@ -2429,11 +2433,11 @@ static uint get_table_structure(char *table, char *db, char *table_type,
 
       row= mysql_fetch_row(result);
 
-      fprintf(sql_file,
-              "SET @saved_cs_client     = @@character_set_client;\n"
-              "SET character_set_client = utf8;\n"
+      fprintf(sql_file, (opt_compatible_mode & 3) ? "%s;\n" :
+              "/*!40101 SET @saved_cs_client     = @@character_set_client */;\n"
+              "/*!40101 SET character_set_client = utf8 */;\n"
               "%s;\n"
-              "SET character_set_client = @saved_cs_client;\n",
+              "/*!40101 SET character_set_client = @saved_cs_client */;\n",
               row[1]);
 
       check_io(sql_file);
@@ -4595,7 +4599,8 @@ char check_if_ignore_table(const char *table_name, char *table_type)
     */
     if (!opt_no_data &&
         (!my_strcasecmp(&my_charset_latin1, table_type, "MRG_MyISAM") ||
-         !strcmp(table_type,"MRG_ISAM")))
+         !strcmp(table_type,"MRG_ISAM") ||
+         !strcmp(table_type,"FEDERATED")))
       result= IGNORE_DATA;
   }
   mysql_free_result(res);

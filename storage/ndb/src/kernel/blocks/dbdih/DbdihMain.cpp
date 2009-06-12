@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #define DBDIH_C
 #include <ndb_global.h>
@@ -3569,7 +3572,10 @@ Dbdih::nr_start_fragment(Signal* signal,
   Uint32 idx = prevLcpNo(replicaPtr.p->nextLcp);
   for(i = 0; i<MAX_LCP_USED; i++, idx = prevLcpNo(idx))
   {
-    printf("scanning idx: %d lcpId: %d", idx, replicaPtr.p->lcpId[idx]);
+    printf("scanning idx: %d lcpId: %d crashed replicas: %u %s", 
+           idx, replicaPtr.p->lcpId[idx],
+           replicaPtr.p->noCrashedReplicas,
+           replicaPtr.p->lcpStatus[idx] == ZVALID ? "VALID" : "NOT VALID");
     if (replicaPtr.p->lcpStatus[idx] == ZVALID) 
     {
       Uint32 stopGci = replicaPtr.p->maxGciStarted[idx];
@@ -10465,7 +10471,12 @@ Dbdih::resetReplicaSr(TabRecordPtr tabPtr){
 	     * A COMPLETELY NEW REPLICA. WE WILL SET THE CREATE GCI TO BE THE 
 	     * NEXT GCI TO BE EXECUTED.                                       
 	     *--------_----------------------------------------------------- */
-	    const Uint32 nextCrashed = noCrashedReplicas + 1;
+            if (noCrashedReplicas + 1 == MAX_CRASHED_REPLICAS)
+            {
+              jam();
+              packCrashedReplicas(replicaPtr);
+            }
+	    const Uint32 nextCrashed = replicaPtr.p->noCrashedReplicas + 1;
 	    replicaPtr.p->noCrashedReplicas = nextCrashed;
 	    arrGuardErr(nextCrashed, MAX_CRASHED_REPLICAS, NDBD_EXIT_MAX_CRASHED_REPLICAS);
 	    replicaPtr.p->createGci[nextCrashed] = newestRestorableGCI + 1;
@@ -14967,11 +14978,15 @@ void Dbdih::readReplica(RWFragment* rf, ReplicaRecordPtr readReplicaPtr)
   /*       THAT ARE NO LONGER VALID DUE TO MOVING RESTART GCI BACKWARDS.    */
   /* ---------------------------------------------------------------------- */
   removeTooNewCrashedReplicas(readReplicaPtr);
-  /* ---------------------------------------------------------------------- */
-  /*       WE WILL REMOVE ANY OCCURRENCES OF REPLICAS THAT HAVE CRASHED     */
-  /*       THAT ARE NO LONGER VALID SINCE THEY ARE NO LONGER RESTORABLE.    */
-  /* ---------------------------------------------------------------------- */
-  removeOldCrashedReplicas(readReplicaPtr);
+
+  /**
+   * Don't remove crashed replicas here,
+   *   as 1) this will disable optimized NR
+   *         if oldestRestorableGCI > GCI needed for local LCP's
+   *      2) This is anyway done during LCP, which will be run during SR
+   */
+  //removeOldCrashedReplicas(readReplicaPtr);
+  
   /* --------------------------------------------------------------------- */
   // We set the last GCI of the replica that was alive before the node
   // crashed last time. We set it to the last GCI which the node participated in.

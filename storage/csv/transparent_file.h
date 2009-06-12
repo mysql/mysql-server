@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -23,8 +26,8 @@ class Transparent_file
   File filedes;
   uchar *buff;  /* in-memory window to the file or mmaped area */
   /* current window sizes */
-  off_t lower_bound;
-  off_t upper_bound;
+  my_off_t lower_bound;
+  my_off_t upper_bound;
   uint buff_size;
 
 public:
@@ -34,8 +37,8 @@ public:
 
   void init_buff(File filedes_arg);
   uchar *ptr();
-  off_t start();
-  off_t end();
-  char get_value (off_t offset);
-  off_t read_next();
+  my_off_t start();
+  my_off_t end();
+  char get_value (my_off_t offset);
+  my_off_t read_next();
 };

@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <ndb_global.h>
 #include <my_sys.h>
@@ -405,18 +408,6 @@ void Dbdict::execCONTINUEB(Signal* signal)
     jam();
     sendGetTabResponse(signal);
     break;
-#ifdef VM_TRACE
-  case 6103: // search for it
-    jam();
-    {
-      Uint32* data = &signal->theData[0];
-      Uint32 masterRef = data[1];
-      memmove(&data[0], &data[2], SchemaTransImplConf::SignalLength << 2);
-      sendSignal(masterRef, GSN_SCHEMA_TRANS_IMPL_CONF, signal,
-                 SchemaTransImplConf::SignalLength, JBB);
-    }
-    break;
-#endif
   case ZWAIT_SUBSTARTSTOP:
     jam();
     wait_substartstop(signal, signal->theData[1]);
@@ -430,6 +421,16 @@ void Dbdict::execCONTINUEB(Signal* signal)
   }
   break;
 #ifdef ERROR_INSERT
+  case 6103: // search for it
+    jam();
+    {
+      Uint32* data = &signal->theData[0];
+      Uint32 masterRef = data[1];
+      memmove(&data[0], &data[2], SchemaTransImplConf::SignalLength << 2);
+      sendSignal(masterRef, GSN_SCHEMA_TRANS_IMPL_CONF, signal,
+                 SchemaTransImplConf::SignalLength, JBB);
+    }
+    break;
   case 9999:
     ERROR_INSERTED(signal->theData[1]);
     CRASH_INSERTION(ERROR_INSERT_VALUE);
@@ -4576,6 +4577,31 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
     tablePtr.p->primaryTableId = c_tableDesc.PrimaryTableId;
     tablePtr.p->indexState = (TableRecord::IndexState)c_tableDesc.IndexState;
     tablePtr.p->triggerId = c_tableDesc.CustomTriggerId;
+
+    if (c_tableDesc.InsertTriggerId != RNIL ||
+        c_tableDesc.UpdateTriggerId != RNIL ||
+        c_tableDesc.DeleteTriggerId != RNIL)
+    {
+      jam();
+      /**
+       * Upgrade...unique index
+       */
+      ndbrequire(tablePtr.p->isUniqueIndex());
+      ndbrequire(c_tableDesc.CustomTriggerId == RNIL);
+      ndbrequire(c_tableDesc.InsertTriggerId != RNIL);
+      ndbrequire(c_tableDesc.UpdateTriggerId != RNIL);
+      ndbrequire(c_tableDesc.DeleteTriggerId != RNIL);
+      ndbout_c("table: %u UPGRADE saving (%u/%u/%u)",
+               tablePtr.i,
+               c_tableDesc.InsertTriggerId,
+               c_tableDesc.UpdateTriggerId,
+               c_tableDesc.DeleteTriggerId);
+      tablePtr.p->triggerId = c_tableDesc.InsertTriggerId;
+      tablePtr.p->m_upgrade_trigger_handling.m_upgrade = true;
+      tablePtr.p->m_upgrade_trigger_handling.insertTriggerId = c_tableDesc.InsertTriggerId;
+      tablePtr.p->m_upgrade_trigger_handling.updateTriggerId = c_tableDesc.UpdateTriggerId;
+      tablePtr.p->m_upgrade_trigger_handling.deleteTriggerId = c_tableDesc.DeleteTriggerId;
+    }
   }
   else
   {
@@ -5623,6 +5649,9 @@ Dbdict::sendLQHADDATTRREQ(Signal* signal,
 
   TableRecordPtr tabPtr;
   c_tableRecordPool.getPtr(tabPtr, createTabPtr.p->m_request.tableId);
+
+  const bool isHashIndex = tabPtr.p->isHashIndex();
+
   LqhAddAttrReq * const req = (LqhAddAttrReq*)signal->getDataPtrSend();
   Uint32 i = 0;
   for(i = 0; i<LqhAddAttrReq::MAX_ATTRIBUTES && attributePtrI != RNIL; i++){
@@ -5646,6 +5675,28 @@ Dbdict::sendLQHADDATTRREQ(Signal* signal,
       }
       entry.attrId |= (primaryAttrId << 16);
     }
+
+    if (attrPtr.p->nextList == RNIL && isHashIndex)
+    {
+      jam();
+      /**
+       * Nasty code to handle upgrade of unique index(es)
+       *   If unique index is "old" rewrite it to new format
+       */
+      char tmp[MAX_TAB_NAME_SIZE];
+      ConstRope name(c_rope_pool, attrPtr.p->attributeName);
+      name.copy(tmp);
+      ndbrequire(memcmp(tmp, "NDB$PK", sizeof("NDB$PK")) == 0);
+      Uint32 at = AttributeDescriptor::getArrayType(entry.attrDescriptor);
+      if (at == NDB_ARRAYTYPE_MEDIUM_VAR)
+      {
+        jam();
+        AttributeDescriptor::clearArrayType(entry.attrDescriptor);
+        AttributeDescriptor::setArrayType(entry.attrDescriptor, 
+                                          NDB_ARRAYTYPE_NONE_VAR);
+      }
+    }
+
     attributePtrI = attrPtr.p->nextList;
   }
   req->lqhFragPtr = createTabPtr.p->m_lqhFragPtr;
@@ -10310,6 +10361,19 @@ Dbdict::createIndex_toCreateTable(Signal* signal, SchemaOpPtr op_ptr)
 	  AttributeDescriptor::getArrayType(desc) != NDB_ARRAYTYPE_FIXED)
       {
 	key_type = NDB_ARRAYTYPE_MEDIUM_VAR;
+        if (NDB_VERSION_D >= MAKE_VERSION(7,1,0))
+        {
+          jam();
+          /**
+           * We can only set this new array type "globally" if 
+           *   version >= X, this to allow down-grade(s) within minor versions
+           *   if unique index has been added in newer version
+           *
+           * There is anyway nasty code sendLQHADDATTRREQ to handle the
+           *   "local" variant of this
+           */
+          key_type = NDB_ARRAYTYPE_NONE_VAR;
+        }
 	break;
       }
     }
@@ -16384,9 +16448,36 @@ Dbdict::send_create_trig_req(Signal* signal,
   req->receiverRef = triggerPtr.p->receiverRef;
   req->attributeMask = triggerPtr.p->attributeMask;
 
+  {
+    /**
+     * Handle the upgrade...
+     */
+    Uint32 tmp[3];
+    tmp[0] = triggerPtr.p->triggerId;
+    tmp[1] = triggerPtr.p->triggerId;
+    tmp[2] = triggerPtr.p->triggerId;
+
+    TableRecordPtr indexPtr;
+    if (triggerPtr.p->indexId != RNIL)
+    {
+      jam();
+      c_tableRecordPool.getPtr(indexPtr, triggerPtr.p->indexId);
+      if (indexPtr.p->m_upgrade_trigger_handling.m_upgrade)
+      {
+        jam();
+        tmp[0] = indexPtr.p->m_upgrade_trigger_handling.insertTriggerId;
+        tmp[1] = indexPtr.p->m_upgrade_trigger_handling.updateTriggerId;
+        tmp[2] = indexPtr.p->m_upgrade_trigger_handling.deleteTriggerId;
+      }
+    }
+    req->upgradeExtra[0] = tmp[0];
+    req->upgradeExtra[1] = tmp[1];
+    req->upgradeExtra[2] = tmp[2];
+  }
+
   BlockReference ref = createTriggerPtr.p->m_block_list[0];
   sendSignal(ref, GSN_CREATE_TRIG_IMPL_REQ, signal,
-             CreateTrigImplReq::SignalLength, JBB);
+             CreateTrigImplReq::SignalLengthLocal, JBB);
 }
 
 // CreateTrigger: MISC
@@ -17859,7 +17950,16 @@ void Dbdict::check_takeover_replies(Signal* signal)
     pending_trans = c_schemaTransList.next(trans_ptr);
   }
 
-  masterNodePtr.p->recoveryState = NodeRecord::RS_NORMAL;
+  /* 
+     Initialize all node recovery states 
+  */
+  for (unsigned i = 1; i < MAX_NDB_NODES; i++) {
+    jam();
+    NodeRecordPtr nodePtr;
+    c_nodes.getPtr(nodePtr, i);
+    nodePtr.p->recoveryState = NodeRecord::RS_NORMAL;
+  }
+
   pending_trans = c_schemaTransList.first(trans_ptr);
   while (pending_trans)
   {
@@ -17875,7 +17975,6 @@ void Dbdict::check_takeover_replies(Signal* signal)
       {
         jam();
         c_nodes.getPtr(nodePtr, i);
-        nodePtr.p->recoveryState = NodeRecord::RS_NORMAL;
 #ifdef VM_TRACE
         ndbout_c("Node %u had %u operations, master has %u",i , nodePtr.p->takeOverConf.op_count, masterNodePtr.p->takeOverConf.op_count);
 #endif        
@@ -17892,7 +17991,6 @@ void Dbdict::check_takeover_replies(Signal* signal)
 #ifdef VM_TRACE
             ndbout_c("Node %u had no operations for  transaction %u, ignore it when aborting", i, trans_ptr.p->trans_key);
 #endif
-            nodePtr.p->recoveryState = NodeRecord::RS_PARTIAL_ROLLBACK;
             nodePtr.p->start_op = 0;
             nodePtr.p->start_op_state = SchemaOp::OS_PARSED;
           }
@@ -22257,6 +22355,9 @@ Dbdict::seizeSchemaTrans(SchemaTransPtr& trans_ptr)
     c_opRecordSequence = trans_key;
     return true;
   }
+#ifdef MARTIN
+  ndbout_c("Dbdict::seizeSchemaTrans: Failed to seize schema trans");
+#endif
   return false;
 }
 
@@ -23304,7 +23405,7 @@ Dbdict::check_partial_trans_abort_parse_next(SchemaTransPtr trans_ptr,
         jam();
         c_nodes.getPtr(nodePtr, i);
 #ifdef VM_TRACE
-        ndbout_c("Checking node %u(%u), %u<%u", nodePtr.i, nodePtr.p->recoveryState, nodePtr.p->start_op, op_ptr.p->op_key);
+        ndbout_c("Checking node %u(%u), %u(%u)<%u", nodePtr.i, nodePtr.p->recoveryState, nodePtr.p->start_op, nodePtr.p->start_op_state, op_ptr.p->op_key);
 #endif
         if (nodePtr.p->recoveryState == NodeRecord::RS_PARTIAL_ROLLBACK &&
             //nodePtr.p->start_op_state == SchemaOp::OS_PARSED &&
@@ -23461,13 +23562,15 @@ Dbdict::check_partial_trans_abort_prepare_next(SchemaTransPtr trans_ptr,
       {
         c_nodes.getPtr(nodePtr, i);
 #ifdef VM_TRACE
-        ndbout_c("Checking node %u(%u), %u<%u", nodePtr.i, nodePtr.p->recoveryState, nodePtr.p->start_op, op_ptr.p->op_key);
+        ndbout_c("Checking node %u(%u), %u(%u)<%u", nodePtr.i, nodePtr.p->recoveryState, nodePtr.p->start_op, nodePtr.p->start_op_state, op_ptr.p->op_key);
 #endif
         if (nodePtr.p->recoveryState == NodeRecord::RS_PARTIAL_ROLLBACK &&
+            (nodePtr.p->start_op_state == SchemaOp::OS_PARSED &&
+              nodePtr.p->start_op <= op_ptr.p->op_key) ||
             (nodePtr.p->start_op_state == SchemaOp::OS_PREPARED &&
               nodePtr.p->start_op < op_ptr.p->op_key) ||
             (nodePtr.p->start_op_state == SchemaOp::OS_ABORTED_PREPARE &&
-             nodePtr.p->start_op > op_ptr.p->op_key))
+             nodePtr.p->start_op >= op_ptr.p->op_key))
                
         {
 #ifdef VM_TRACE
@@ -24857,7 +24960,8 @@ Dbdict::slave_run_flush(Signal *signal,
     else
     {
       jam();
-      ndbrequire(trans_ptr.p->m_state == SchemaTrans::TS_STARTED);
+      ndbrequire(trans_ptr.p->m_state == SchemaTrans::TS_STARTED ||
+                 trans_ptr.p->m_state == SchemaTrans::TS_ABORTING_PARSE);
       trans_ptr.p->m_state = SchemaTrans::TS_FLUSH_PREPARE;
     }
     do_flush = trans_ptr.p->m_flush_prepare;
@@ -26219,7 +26323,8 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
     Uint32 tmp = 0;
     for (Uint32 i = 0; i<hm.HashMapBuckets; i++)
     {
-      map_ptr.p->m_map[i] = hm.HashMapValues[i];
+      ndbrequire(hm.HashMapValues[i] < 256);
+      map_ptr.p->m_map[i] = (Uint8)hm.HashMapValues[i];
       if (hm.HashMapValues[i] > tmp)
         tmp = hm.HashMapValues[i];
     }

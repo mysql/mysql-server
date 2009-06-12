@@ -1,4 +1,6 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/*
+   Copyright (C) 2000-2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include "mysql_priv.h"
 
@@ -103,6 +106,11 @@ int init_relay_log_info(Relay_log_info* rli,
   rli->log_space_total= 0;
   rli->tables_to_lock= 0;
   rli->tables_to_lock_count= 0;
+
+  fn_format(rli->slave_patternload_file, PREFIX_SQL_LOAD, slave_load_tmpdir, "",
+            MY_PACK_FILENAME | MY_UNPACK_FILENAME |
+            MY_RETURN_REAL_PATH);
+  rli->slave_patternload_file_size= strlen(rli->slave_patternload_file);
 
   /*
     The relay log will now be opened, as a SEQ_READ_APPEND IO_CACHE.

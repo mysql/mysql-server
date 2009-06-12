@@ -1,4 +1,6 @@
-/* Copyright (C) 2000 MySQL AB
+/*
+   Copyright (C) 2000 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /*
   Code for handling strings with can grow dynamicly.
@@ -25,7 +28,7 @@
 my_bool init_dynamic_string(DYNAMIC_STRING *str, const char *init_str,
 			    size_t init_alloc, size_t alloc_increment)
 {
-  uint length;
+  size_t length;
   DBUG_ENTER("init_dynamic_string");
 
   if (!alloc_increment)
@@ -100,7 +103,7 @@ my_bool dynstr_append_mem(DYNAMIC_STRING *str, const char *append,
   char *new_ptr;
   if (str->length+length >= str->max_length)
   {
-    uint new_length=(str->length+length+str->alloc_increment)/
+    size_t new_length=(str->length+length+str->alloc_increment)/
       str->alloc_increment;
     new_length*=str->alloc_increment;
     if (!(new_ptr=(char*) my_realloc(str->str,new_length,MYF(MY_WME))))
@@ -160,12 +163,12 @@ my_bool dynstr_append_os_quoted(DYNAMIC_STRING *str, const char *append, ...)
     /* Search for quote in each string and replace with escaped quote */
     while(*(next_pos= strcend(cur_pos, quote_str[0])) != '\0')
     {
-      ret&= dynstr_append_mem(str, cur_pos, next_pos - cur_pos);
+      ret&= dynstr_append_mem(str, cur_pos, (uint) (next_pos - cur_pos));
       ret&= dynstr_append_mem(str ,"\\", 1);
       ret&= dynstr_append_mem(str, quote_str, quote_len);
       cur_pos= next_pos + 1;
     }
-    ret&= dynstr_append_mem(str, cur_pos, next_pos - cur_pos);
+    ret&= dynstr_append_mem(str, cur_pos, (uint) (next_pos - cur_pos));
     append= va_arg(dirty_text, char *);
   }
   va_end(dirty_text);

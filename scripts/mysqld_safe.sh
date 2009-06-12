@@ -18,7 +18,7 @@ niceness=0
 logging=init
 want_syslog=0
 syslog_tag=
-user=@MYSQLD_USER@
+user='@MYSQLD_USER@'
 pid_file=
 err_log=
 
@@ -64,9 +64,10 @@ my_which ()
 {
   save_ifs="${IFS-UNSET}"
   IFS=:
+  ret=0
   for file
   do
-    for dir in $PATH
+    for dir in "$PATH"
     do
       if [ -f "$dir/$file" ]
       then
@@ -74,15 +75,18 @@ my_which ()
         continue 2
       fi
     done
-    return 1  # Failure, didn't find file in path
+
+	ret=1  #signal an error
+	break
   done
+
   if [ "$save_ifs" = UNSET ]
   then
     unset IFS
   else
     IFS="$save_ifs"
   fi
-  return 0  # Success
+  return $ret  # Success
 }
 
 log_generic () {
@@ -212,19 +216,30 @@ fi
 
 MY_PWD=`pwd`
 # Check for the directories we would expect from a binary release install
-if test -f "$relpkgdata"/english/errmsg.sys -a -x ./bin/mysqld
+if test -n "$MY_BASEDIR_VERSION" -a -d "$MY_BASEDIR_VERSION"
 then
-  MY_BASEDIR_VERSION=$MY_PWD		# Where bin, share and data are
-  ledir=$MY_BASEDIR_VERSION/bin		# Where mysqld is
+  # BASEDIR is already overridden on command line.  Do not re-set.
+
+  # Use BASEDIR to discover le.
+  if test -x "$MY_BASEDIR_VERSION/libexec/mysqld"
+  then
+    ledir="$MY_BASEDIR_VERSION/libexec"
+  else
+    ledir="$MY_BASEDIR_VERSION/bin"
+  fi
+elif test -f "$relpkgdata"/english/errmsg.sys -a -x "$MY_PWD/bin/mysqld"
+then
+  MY_BASEDIR_VERSION="$MY_PWD"		# Where bin, share and data are
+  ledir="$MY_PWD/bin"			# Where mysqld is
 # Check for the directories we would expect from a source install
-elif test -f "$relpkgdata"/english/errmsg.sys -a -x ./libexec/mysqld
+elif test -f "$relpkgdata"/english/errmsg.sys -a -x "$MY_PWD/libexec/mysqld"
 then
-  MY_BASEDIR_VERSION=$MY_PWD		# Where libexec, share and var are
-  ledir=$MY_BASEDIR_VERSION/libexec	# Where mysqld is
+  MY_BASEDIR_VERSION="$MY_PWD"		# Where libexec, share and var are
+  ledir="$MY_PWD/libexec"		# Where mysqld is
 # Since we didn't find anything, used the compiled-in defaults
 else
-  MY_BASEDIR_VERSION=@prefix@
-  ledir=@libexecdir@
+  MY_BASEDIR_VERSION='@prefix@'
+  ledir='@libexecdir@'
 fi
 
 
@@ -274,7 +289,10 @@ export MYSQL_HOME
 
 # Get first arguments from the my.cnf file, groups [mysqld] and [mysqld_safe]
 # and then merge with the command line arguments
-if test -x ./bin/my_print_defaults
+if test -x "$MY_BASEDIR_VERSION/bin/my_print_defaults"
+then
+  print_defaults="$MY_BASEDIR_VERSION/bin/my_print_defaults"
+elif test -x ./bin/my_print_defaults
 then
   print_defaults="./bin/my_print_defaults"
 elif test -x @bindir@/my_print_defaults
@@ -399,7 +417,7 @@ then
   MYSQLD=mysqld
 fi
 
-if test ! -x $ledir/$MYSQLD
+if test ! -x "$ledir/$MYSQLD"
 then
   log_error "The file $ledir/$MYSQLD
 does not exist or is not executable. Please cd to the mysql installation
@@ -411,7 +429,7 @@ fi
 
 if test -z "$pid_file"
 then
-  pid_file=$DATADIR/`@HOSTNAME@`.pid
+  pid_file="$DATADIR/`@HOSTNAME@`.pid"
 else
   case "$pid_file" in
     /* ) ;;

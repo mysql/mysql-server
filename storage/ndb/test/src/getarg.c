@@ -473,6 +473,7 @@ arg_match_long(struct getargs *args, size_t num_args,
 
     default:
 	abort ();
+	return ARG_ERR_BAD_ARG;
     }
 }
 

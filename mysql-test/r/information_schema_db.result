@@ -200,7 +200,7 @@ Field	Type	Null	Key	Default	Extra
 f1	char(4)	YES		NULL	
 show create view v2;
 View	Create View	character_set_client	collation_connection
-v2	CREATE ALGORITHM=UNDEFINED DEFINER=`testdb_2`@`localhost` SQL SECURITY DEFINER VIEW `test`.`v2` AS select `v1`.`f1` AS `f1` from `testdb_1`.`v1`	latin1	latin1_swedish_ci
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`testdb_2`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `v1`.`f1` AS `f1` from `testdb_1`.`v1`	latin1	latin1_swedish_ci
 show create view testdb_1.v1;
 ERROR 42000: SHOW VIEW command denied to user 'testdb_2'@'localhost' for table 'v1'
 select table_name from information_schema.columns a 

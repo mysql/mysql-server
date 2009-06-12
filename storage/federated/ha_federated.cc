@@ -1,17 +1,20 @@
-/* Copyright (C) 2004 MySQL AB
+/*
+   Copyright (C) 2004 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
 
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-  You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /*
 
@@ -505,7 +508,7 @@ int federated_done(void *p)
         in sql_show.cc except that quoting always occurs.
 */
 
-static bool append_ident(String *string, const char *name, uint length,
+static bool append_ident(String *string, const char *name, size_t length,
                          const char quote_char)
 {
   bool result;
@@ -515,7 +518,7 @@ static bool append_ident(String *string, const char *name, uint length,
 
   if (quote_char)
   {
-    string->reserve(length * 2 + 2);
+    string->reserve((uint) length * 2 + 2);
     if ((result= string->append(&quote_char, 1, system_charset_info)))
       goto err;
 
@@ -533,7 +536,7 @@ static bool append_ident(String *string, const char *name, uint length,
     result= string->append(&quote_char, 1, system_charset_info);
   }
   else
-    result= string->append(name, length, system_charset_info);
+    result= string->append(name, (uint) length, system_charset_info);
 
 err:
   DBUG_RETURN(result);
@@ -543,7 +546,7 @@ err:
 static int parse_url_error(FEDERATED_SHARE *share, TABLE *table, int error_num)
 {
   char buf[FEDERATED_QUERY_BUFFER_SIZE];
-  int buf_len;
+  size_t buf_len;
   DBUG_ENTER("ha_federated parse_url_error");
 
   buf_len= min(table->s->connect_string.length,
@@ -721,7 +724,7 @@ static int parse_url(MEM_ROOT *mem_root, FEDERATED_SHARE *share, TABLE *table,
     {
       share->connection_string[share->table_name - share->connection_string]= '\0';
       share->table_name++;
-      share->table_name_length= strlen(share->table_name);
+      share->table_name_length= (uint) strlen(share->table_name);
 
       DBUG_PRINT("info", 
                  ("internal format, parsed table_name share->connection_string \
@@ -1489,7 +1492,7 @@ static FEDERATED_SHARE *get_share(const char *table_name, TABLE *table)
   pthread_mutex_lock(&federated_mutex);
 
   tmp_share.share_key= table_name;
-  tmp_share.share_key_length= strlen(table_name);
+  tmp_share.share_key_length= (uint) strlen(table_name);
   if (parse_url(&mem_root, &tmp_share, table, 0))
     goto error;
 
@@ -2161,7 +2164,7 @@ int ha_federated::update_row(const uchar *old_data, uchar *new_data)
   {
     if (bitmap_is_set(table->write_set, (*field)->field_index))
     {
-      uint field_name_length= strlen((*field)->field_name);
+      size_t field_name_length= strlen((*field)->field_name);
       append_ident(&update_string, (*field)->field_name, field_name_length,
                    ident_quote_char);
       update_string.append(STRING_WITH_LEN(" = "));
@@ -2187,7 +2190,7 @@ int ha_federated::update_row(const uchar *old_data, uchar *new_data)
 
     if (bitmap_is_set(table->read_set, (*field)->field_index))
     {
-      uint field_name_length= strlen((*field)->field_name);
+      size_t field_name_length= strlen((*field)->field_name);
       append_ident(&where_string, (*field)->field_name, field_name_length,
                    ident_quote_char);
       if (field_in_record_is_null(table, *field, (char*) old_data))
@@ -3158,7 +3161,7 @@ int ha_federated::real_connect()
 }
 
 
-int ha_federated::real_query(const char *query, uint length)
+int ha_federated::real_query(const char *query, size_t length)
 {
   int rc= 0;
   DBUG_ENTER("ha_federated::real_query");
@@ -3169,7 +3172,7 @@ int ha_federated::real_query(const char *query, uint length)
   if (!query || !length)
     goto end;
 
-  rc= mysql_real_query(mysql, query, length);
+  rc= mysql_real_query(mysql, query, (uint) length);
   
 end:
   DBUG_RETURN(rc);

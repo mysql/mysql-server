@@ -11,9 +11,6 @@ insert into t1 values(127, -128, 255, 32767, -32768, 65535, 8388607, -8388608,
 *********************************
 * Backup the int type
 *********************************
-CREATE TEMPORARY TABLE test.backup_info (id INT, backup_id INT) ENGINE = HEAP;
-LOAD DATA INFILE 'DUMP_FILE' INTO TABLE test.backup_info FIELDS TERMINATED BY ',';
-DROP TABLE test.backup_info;
 ************************************
 * Restore  the int type not promoted
 ************************************
@@ -108,9 +105,6 @@ repeat('h', 20), repeat('i', 200), repeat('j', 1500));
 *********************************
 * Backup the char and binary type
 *********************************
-CREATE TEMPORARY TABLE test.backup_info (id INT, backup_id INT) ENGINE = HEAP;
-LOAD DATA INFILE 'DUMP_FILE' INTO TABLE test.backup_info FIELDS TERMINATED BY ',';
-DROP TABLE test.backup_info;
 ************************************************
 * Restore the char and binary type not promoted
 ************************************************

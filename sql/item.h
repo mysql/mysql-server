@@ -1,4 +1,6 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/*
+   Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 #ifdef USE_PRAGMA_INTERFACE
@@ -1095,7 +1098,7 @@ inline void Item_sp_variable::make_field(Send_field *field)
   if (name)
     it->set_name(name, (uint) strlen(name), system_charset_info);
   else
-    it->set_name(m_name.str, m_name.length, system_charset_info);
+    it->set_name(m_name.str, (uint) m_name.length, system_charset_info);
   it->make_field(field);
 }
 
@@ -1306,6 +1309,8 @@ bool agg_item_collations(DTCollation &c, const char *name,
                          Item **items, uint nitems, uint flags, int item_sep);
 bool agg_item_collations_for_comparison(DTCollation &c, const char *name,
                                         Item **items, uint nitems, uint flags);
+bool agg_item_set_converter(DTCollation &coll, const char *fname,
+                            Item **args, uint nargs, uint flags, int item_sep);
 bool agg_item_charsets(DTCollation &c, const char *name,
                        Item **items, uint nitems, uint flags, int item_sep);
 

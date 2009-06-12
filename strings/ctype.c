@@ -1,4 +1,6 @@
-/* Copyright (C) 2000 MySQL AB
+/*
+   Copyright (C) 2000 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <my_global.h>
 #include <m_ctype.h>
@@ -39,7 +42,7 @@
   
 */
 
-static char *mstr(char *str,const char *src,uint l1,uint l2)
+static char *mstr(char *str,const char *src,size_t l1,size_t l2)
 {
   l1= l1<l2 ? l1 : l2;
   memcpy(str,src,l1);
@@ -143,7 +146,7 @@ typedef struct my_cs_file_info
 
 
 
-static int fill_uchar(uchar *a,uint size,const char *str, uint len)
+static int fill_uchar(uchar *a,uint size,const char *str, size_t len)
 {
   uint i= 0;
   const char *s, *b, *e=str+len;

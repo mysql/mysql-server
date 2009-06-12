@@ -1,4 +1,6 @@
-/* Copyright (C) 2002-2006 MySQL AB
+/*
+   Copyright (C) 2002-2006 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef _spatial_h
 #define _spatial_h
@@ -281,7 +284,7 @@ public:
                                    uint32 len, String *res);
   int as_wkt(String *wkt, const char **end)
   {
-    uint32 len= get_class_info()->m_name.length;
+    uint32 len= (uint) get_class_info()->m_name.length;
     if (wkt->reserve(len + 2, 512))
       return 1;
     wkt->qs_append(get_class_info()->m_name.str, len);

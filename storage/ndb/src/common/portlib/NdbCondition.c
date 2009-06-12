@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 #include <ndb_global.h>
@@ -175,10 +178,18 @@ NdbCondition_WaitTimeoutAbs(struct NdbCondition* p_cond,
                             NdbMutex* p_mutex,
                             const struct timespec * abstime)
 {
+#ifdef NDB_WIN
+  struct timespec tmp = *abstime;
+#endif
+
   if (p_cond == NULL || p_mutex == NULL)
     return 1;
 
+#ifdef NDB_WIN
+  return pthread_cond_timedwait(&p_cond->cond, p_mutex, &tmp);
+#else
   return pthread_cond_timedwait(&p_cond->cond, p_mutex, abstime);
+#endif
 }
 
 int 

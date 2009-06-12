@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 #define DBTUP_C
@@ -1527,19 +1530,18 @@ int Dbtup::handleInsertReq(Signal* signal,
   }
   else 
   {
-    int ret;
     if (ERROR_INSERTED(4020))
     {
       goto size_change_error;
     }
 
     if (regTabPtr->need_shrink() && cmp[0] != cmp[1] &&
-	unlikely(ret = handle_size_change_after_update(req_struct,
-						       base,
-						       regOperPtr.p,
-						       regFragPtr,
-						       regTabPtr,
-						       sizes)))
+	unlikely(handle_size_change_after_update(req_struct,
+                                                 base,
+                                                 regOperPtr.p,
+                                                 regFragPtr,
+                                                 regTabPtr,
+                                                 sizes) != 0))
     {
       goto size_change_error;
     }
@@ -2186,7 +2188,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	    if (TattrNoOfWords <= 2) {
               if (TattrNoOfWords == 1) {
                 // arithmetic conversion if big-endian
-                TdataForUpdate[1] = *(Int64*)&TregMemBuffer[theRegister + 2];
+                TdataForUpdate[1] = (Uint32)*(Int64*)&TregMemBuffer[theRegister + 2];
                 TdataForUpdate[2] = 0;
               }
 	      if (TregType == 0) {
