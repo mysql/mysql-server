@@ -21,9 +21,6 @@
 
 #include <ndb_global.h>
 #include <logger/Logger.hpp>
-#if 0
-#include <getarg.h>
-#endif
 
 extern int debug;
 
