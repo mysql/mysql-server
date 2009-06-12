@@ -158,11 +158,11 @@ public:
 private:
   union {
     QN_LookupNode qn;
-    Uint32 _data1[25];
+    Uint32 queryData[25];
   };
   union {
     QN_LookupParameters p;
-    Uint32 _data4[25];
+    Uint32 paramData[25];
   };
 };
 
@@ -217,15 +217,15 @@ LookupOp::LookupOp(const NdbOperation* pOp,
   AttributeHeader::init(p.optional + 1, AttributeHeader::READ_ALL,
 			pTab->getNoOfColumns());
   // Set length of oprional part (projection)
-  QueryNode::setOpLen(p.len, QueryNode::QN_LOOKUP, p.NodeSize + 2);
+  QueryNodeParameters::setOpLen(p.len, QueryNodeParameters::QN_LOOKUP, p.NodeSize + 2);
 }
 
 void LookupOp::serializeOp(Vector<Uint32>& vec) const{
-  push_back(vec, _data1, QueryNode::getLength(qn.len));
+  push_back(vec, queryData, QueryNode::getLength(qn.len));
 }
 
 void LookupOp::serializeParam(Vector<Uint32>& vec) const{
-  push_back(vec, _data4, QueryNode::getLength(p.len));
+  push_back(vec, paramData, QueryNodeParameters::getLength(p.len));
 }
 
 
@@ -419,7 +419,7 @@ int spjTest(int argc, char** argv){
      */
     AttributeHeader::init(p1.optional + 2, AttributeHeader::READ_ANY_VALUE,
                           0);
-    QueryNode::setOpLen(p1.len, QueryNode::QN_SCAN_FRAG, p1.NodeSize + 3);
+    QueryNodeParams::setOpLen(p1.len, QueryNodeParams::QN_SCAN_FRAG, p1.NodeSize + 3);
 
 
     union {
@@ -452,7 +452,7 @@ int spjTest(int argc, char** argv){
      * correlation value
      */
     AttributeHeader::init(p2.optional+2, AttributeHeader::READ_ANY_VALUE, 0);
-    QueryNode::setOpLen(p2.len, QueryNode::QN_LOOKUP, p2.NodeSize + 3);
+    QueryNodeParams::setOpLen(p2.len, QueryNodeParams::QN_LOOKUP, p2.NodeSize + 3);
 
 
     union {
@@ -470,8 +470,8 @@ int spjTest(int argc, char** argv){
 
     dump("treeSpec: ", treeSpec, "\n");
 
-    push_back(paramSpec, _data4, QueryNode::getLength(p1.len));
-    push_back(paramSpec, _data5, QueryNode::getLength(p2.len));
+    push_back(paramSpec, _data4, QueryNodeParams::getLength(p1.len));
+    push_back(paramSpec, _data5, QueryNodeParams::getLength(p2.len));
 
     dump("paramSpec: ", paramSpec, "\n");
 
