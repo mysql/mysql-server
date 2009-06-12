@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 #include "atrt.hpp"
@@ -104,6 +107,11 @@ do_change_version(atrt_config& config, SqlResultSet& command,
   }
   BaseString suffix(proc.m_proc.m_path.substr(strlen(old_prefix)));
   proc.m_proc.m_path.assign(new_prefix).append(suffix);
+  if (process_args && strlen(process_args))
+  {
+    proc.m_proc.m_args.append(" ");
+    proc.m_proc.m_args.append(process_args);
+  }
 
   ndbout << proc << endl;
 

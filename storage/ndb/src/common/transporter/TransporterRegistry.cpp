@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <ndb_global.h>
 #include <my_pthread.h>
@@ -184,7 +187,7 @@ TransporterRegistry::allocate_send_buffers(Uint64 total_send_buffer)
   send_buffer_pages += nTransporters;
 
   m_send_buffer_memory =
-    new unsigned char[send_buffer_pages * SendBufferPage::PGSIZE];
+    new unsigned char[UintPtr(send_buffer_pages * SendBufferPage::PGSIZE)];
   if (m_send_buffer_memory == NULL)
   {
     ndbout << "Unable to allocate "
@@ -1338,6 +1341,13 @@ TransporterRegistry::do_connect(NodeId node_id)
   }
   DBUG_ENTER("TransporterRegistry::do_connect");
   DBUG_PRINT("info",("performStates[%d]=CONNECTING",node_id));
+
+  /*
+    No one else should be using the transporter now, reset
+    its send buffer
+   */
+  callbackObj->reset_send_buffer(node_id);
+
   curr_state= CONNECTING;
   DBUG_VOID_RETURN;
 }
@@ -1374,6 +1384,16 @@ TransporterRegistry::report_connect(NodeId node_id)
 {
   DBUG_ENTER("TransporterRegistry::report_connect");
   DBUG_PRINT("info",("performStates[%d]=CONNECTED",node_id));
+
+  /*
+    The send buffers was reset when this connection
+    was set to CONNECTING. In order to make sure no stray
+    signals has been written to the send buffer since then
+    call 'reset_send_buffer' with the "should_be_empty" flag
+    set
+  */
+  callbackObj->reset_send_buffer(node_id, true);
+
   performStates[node_id] = CONNECTED;
 #if defined(HAVE_EPOLL_CREATE)
   if (likely(m_epoll_fd != -1))
@@ -1823,7 +1843,7 @@ NDB_SOCKET_TYPE TransporterRegistry::connect_ndb_mgmd(NdbMgmHandle *h)
 
   if ( h==NULL || *h == NULL )
   {
-    g_eventLogger->error("%s: %d", __FILE__, __LINE__);
+    g_eventLogger->error("Mgm handle is NULL (%s:%d)", __FILE__, __LINE__);
     DBUG_RETURN(sockfd);
   }
 
@@ -1843,11 +1863,10 @@ NDB_SOCKET_TYPE TransporterRegistry::connect_ndb_mgmd(NdbMgmHandle *h)
 				   m_transporter_interface[i].m_s_service_port,
 				   &mgm_reply) < 0)
     {
-      DBUG_PRINT("error", ("Failed to set dynamic port"));
-      g_eventLogger->error("Error: %s: %d",
-                           ndb_mgm_get_latest_error_desc(*h),
-                           ndb_mgm_get_latest_error(*h));
-      g_eventLogger->error("%s: %d", __FILE__, __LINE__);
+      g_eventLogger->error("Could not set dynamic port for %d->%d (%s:%d)",
+                           localNodeId,
+                           m_transporter_interface[i].m_remote_nodeId,
+                           __FILE__, __LINE__);
       ndb_mgm_destroy_handle(h);
       DBUG_RETURN(sockfd);
     }
@@ -1861,11 +1880,8 @@ NDB_SOCKET_TYPE TransporterRegistry::connect_ndb_mgmd(NdbMgmHandle *h)
   sockfd= ndb_mgm_convert_to_transporter(h);
   if (!my_socket_valid(sockfd))
   {
-    DBUG_PRINT("error", ("Failed to convert to transporter"));
-    g_eventLogger->error("Error: %s: %d",
-                         ndb_mgm_get_latest_error_desc(*h),
-                         ndb_mgm_get_latest_error(*h));
-    g_eventLogger->error("%s: %d", __FILE__, __LINE__);
+    g_eventLogger->error("Failed to convert to transporter (%s: %d)",
+                         __FILE__, __LINE__);
     ndb_mgm_destroy_handle(h);
   }
   DBUG_RETURN(sockfd);
@@ -2047,9 +2063,16 @@ TransporterRegistry::has_data_to_send(NodeId node)
 }
 
 void
-TransporterRegistry::reset_send_buffer(NodeId node)
+TransporterRegistry::reset_send_buffer(NodeId node, bool should_be_empty)
 {
   assert(m_use_default_send_buffer);
+
+  // Make sure that buffer is already empty if the "should_be_empty"
+  // flag is set. This is done to quickly catch any stray signals
+  // written to the send buffer while not being connected
+  if (should_be_empty && !has_data_to_send(node))
+    return;
+  assert(!should_be_empty);
 
   SendBuffer *b = m_send_buffers + node;
   SendBufferPage *page = b->m_first_page;

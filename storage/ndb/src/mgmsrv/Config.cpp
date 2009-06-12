@@ -1,4 +1,6 @@
-/* Copyright (C) 2003-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* 
+   Copyright (C) 2003-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,13 +13,16 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include "Config.hpp"
 
 #include <mgmapi.h>
 #include <NdbOut.hpp>
 #include "ConfigInfo.hpp"
+
+#include <HashMap.hpp>
 
 static void require(bool b)
 {
@@ -301,16 +306,16 @@ add_diff(const char* name, const char* key,
 static void
 compare_value(const char* name, const char* key,
               const ConfigInfo::ParamInfo* pinfo,
-              ndb_mgm_configuration_iterator& it,
-              ndb_mgm_configuration_iterator& it2,
+              ConfigValues::ConstIterator& it,
+              ConfigValues::ConstIterator& it2,
               Properties& diff)
 {
   Uint32 pid= pinfo->_paramId;
   {
     Uint32 val;
-    if (it.get(pid, &val) == 0) {
+    if (it.get(pid, &val) == true) {
       Uint32 val2;
-      if (it2.get(pid, &val2) == 0) {
+      if (it2.get(pid, &val2) == true) {
         if (val != val2){
           Properties info(true);
           info.put("Type", DT_DIFF);
@@ -336,9 +341,9 @@ compare_value(const char* name, const char* key,
 
   {
     Uint64 val;
-    if (it.get(pid, &val) == 0) {
+    if (it.get(pid, &val) == true) {
       Uint64 val2;
-      if (it2.get(pid, &val2) == 0) {
+      if (it2.get(pid, &val2) == true) {
         if (val != val2) {
           Properties info(true);
           info.put("Type", DT_DIFF);
@@ -364,9 +369,9 @@ compare_value(const char* name, const char* key,
 
   {
     const char* val;
-    if (it.get(pid, &val) == 0) {
+    if (it.get(pid, &val) == true) {
       const char* val2;
-      if (it2.get(pid, &val2) == 0) {
+      if (it2.get(pid, &val2) == true) {
         if (strcmp(val, val2)) {
           Properties info(true);
           info.put("Type", DT_DIFF);
@@ -405,7 +410,7 @@ diff_system(const Config* a, const Config* b, Properties& diff)
                                        CFG_SECTION_SYSTEM);
   while((pinfo= param_iter.next())) {
     /*  Loop through the section and compare values */
-    compare_value("SYSTEM", "", pinfo, itA, itB, diff);
+    compare_value("SYSTEM", "", pinfo, itA.m_config, itB.m_config, diff);
   }
 }
 
@@ -467,15 +472,39 @@ diff_nodes(const Config* a, const Config* b, Properties& diff)
     ConfigInfo::ParamInfoIter param_iter(g_info, CFG_SECTION_NODE, nodeType);
     while((pinfo= param_iter.next())) {
       /*  Loop through the section and compare values */
-      compare_value(name.c_str(), key.c_str(), pinfo, itA, itB, diff);
+      compare_value(name.c_str(), key.c_str(), pinfo,
+                    itA.m_config, itB.m_config, diff);
     }
   }
 }
 
 
+struct NodePair {
+  Uint32 nodeId1;
+  Uint32 nodeId2;
+  NodePair(Uint32 n1, Uint32 n2) : nodeId1(n1), nodeId2(n2) {};
+};
+
 static void
 diff_connections(const Config* a, const Config* b, Properties& diff)
 {
+  // Build lookup table to make it a quick operation to check
+  // if a given connection(with "primary key" NodeId1+NodeId2)
+  // exists in other config, in such case return the section number
+  // so that the section can be retrieved quickly
+  HashMap<NodePair, Uint32> lookup;
+  {
+    Uint32 nodeId1, nodeId2;
+    ConfigIter itB(b, CFG_SECTION_CONNECTION);
+    for(; itB.valid(); itB.next())
+    {
+      require(itB.get(CFG_CONNECTION_NODE_1, &nodeId1) == 0);
+      require(itB.get(CFG_CONNECTION_NODE_2, &nodeId2) == 0);
+
+      require(lookup.insert(NodePair(nodeId1, nodeId2), itB.m_sectionNo));
+    }
+  }
+
   ConfigIter itA(a, CFG_SECTION_CONNECTION);
 
   for(;itA.valid(); itA.next())
@@ -494,24 +523,9 @@ diff_connections(const Config* a, const Config* b, Properties& diff)
     BaseString key;
     key.assfmt("NodeId1=%d;NodeId2=%d", nodeId1_A, nodeId2_A);
 
-    /* Find the connecton in other config */
-    ConfigIter itB(b, CFG_SECTION_CONNECTION);
-    bool found= false;
-    Uint32 nodeId1_B, nodeId2_B;
-    while(itB.get(CFG_CONNECTION_NODE_1, &nodeId1_B) == 0 &&
-          itB.get(CFG_CONNECTION_NODE_2, &nodeId2_B) == 0)
-    {
-      if (nodeId1_A == nodeId1_B && nodeId2_A == nodeId2_B)
-      {
-        found= true;
-        break;
-      }
-
-      if(itB.next() != 0)
-        break;
-    }
-
-    if (!found)
+    /* Lookup connection and get section no if it exists */
+    Uint32 sectionNo;
+    if (!lookup.search(NodePair(nodeId1_A, nodeId2_A), sectionNo))
     {
       // A connection has been removed
       Properties info(true);
@@ -524,6 +538,15 @@ diff_connections(const Config* a, const Config* b, Properties& diff)
       continue;
     }
 
+    /* Open the connection section in other config */
+    ConfigValues::ConstIterator itB(b->m_configValues->m_config);
+    require(itB.openSection(CFG_SECTION_CONNECTION, sectionNo) == true);
+
+    Uint32 nodeId1_B, nodeId2_B;
+    require(itB.get(CFG_CONNECTION_NODE_1, &nodeId1_B) == true);
+    require(itB.get(CFG_CONNECTION_NODE_2, &nodeId2_B) == true);
+    require(nodeId1_A == nodeId1_B && nodeId2_A == nodeId2_B);
+
     // Check each possible configuration value
     const ConfigInfo::ParamInfo* pinfo= NULL;
     ConfigInfo::ParamInfoIter param_iter(g_info,
@@ -531,7 +554,7 @@ diff_connections(const Config* a, const Config* b, Properties& diff)
                                          connectionType);
     while((pinfo= param_iter.next())) {
       /*  Loop through the section and compare values */
-      compare_value(name.c_str(), key.c_str(), pinfo, itA, itB, diff);
+      compare_value(name.c_str(), key.c_str(), pinfo, itA.m_config, itB, diff);
     }
   }
 }

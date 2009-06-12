@@ -849,7 +849,7 @@ struct trp_callback : public TransporterCallbackKernel
   Uint32 get_bytes_to_send_iovec(NodeId node, struct iovec *dst, Uint32 max);
   Uint32 bytes_sent(NodeId node, Uint32 bytes);
   bool has_data_to_send(NodeId node);
-  void reset_send_buffer(NodeId node);
+  void reset_send_buffer(NodeId node, bool should_be_empty);
 };
 
 extern trp_callback g_trp_callback;             // Forward declaration
@@ -1840,7 +1840,7 @@ trp_callback::has_data_to_send(NodeId node)
 }
 
 void
-trp_callback::reset_send_buffer(NodeId node)
+trp_callback::reset_send_buffer(NodeId node, bool should_be_empty)
 {
   struct thr_repository *rep = &g_thr_repository;
   thr_repository::send_buffer * sb = g_thr_repository.m_send_buffers+node;
@@ -1855,6 +1855,7 @@ trp_callback::reset_send_buffer(NodeId node)
     Uint32 count = get_bytes_to_send_iovec(node, v, sizeof(v)/sizeof(v[0]));
     if (count == 0)
       break;
+    assert(!should_be_empty); // Got data when it should be empty
     int bytes = 0;
     for (Uint32 i = 0; i < count; i++)
       bytes += v[i].iov_len;
@@ -3236,6 +3237,11 @@ thr_init(struct thr_repository* rep, struct thr_data *selfptr, unsigned int cnt,
   selfptr->m_first_free = 0;
   selfptr->m_first_unused = 0;
   
+  {
+    char buf[100];
+    BaseString::snprintf(buf, sizeof(buf), "jbalock thr: %u", thr_no);
+    register_lock(&selfptr->m_jba_write_lock, buf);
+  }
   selfptr->m_jba_head.m_read_index = 0;
   selfptr->m_jba_head.m_write_index = 0;
   selfptr->m_jba.m_head = &selfptr->m_jba_head;

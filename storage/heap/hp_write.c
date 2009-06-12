@@ -1,4 +1,6 @@
-/* Copyright (C) 2000-2002, 2004-2006 MySQL AB
+/*
+   Copyright (C) 2000-2002, 2004-2006 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /* Write a record to heap-databas */
 
@@ -69,7 +72,7 @@ int heap_write(HP_INFO *info, const uchar *record)
 err:
   if (my_errno == HA_ERR_FOUND_DUPP_KEY)
     DBUG_PRINT("info",("Duplicate key: %d", (int) (keydef - share->keydef)));
-  info->errkey= keydef - share->keydef;
+  info->errkey= (int) (keydef - share->keydef);
   /*
     We don't need to delete non-inserted key from rb-tree.  Also, if
     we got ENOMEM, the key wasn't inserted, so don't try to delete it

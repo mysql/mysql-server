@@ -56,3 +56,14 @@ ADD_LIBRARY(ndbgeneral STATIC
 	    ndbinfo.c
 )
 TARGET_LINK_LIBRARIES(ndbgeneral zlib)
+
+ADD_EXECUTABLE(BaseString-t BaseString.cpp)
+SET_TARGET_PROPERTIES(BaseString-t
+                      PROPERTIES COMPILE_FLAGS "-DTEST_BASE_STRING")
+TARGET_LINK_LIBRARIES(BaseString-t ndbgeneral)
+
+ADD_EXECUTABLE(Bitmask-t Bitmask.cpp)
+SET_TARGET_PROPERTIES(Bitmask-t
+                      PROPERTIES COMPILE_FLAGS "-DTEST_BITMASK")
+TARGET_LINK_LIBRARIES(Bitmask-t ndbgeneral)
+

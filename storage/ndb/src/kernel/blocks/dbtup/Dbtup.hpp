@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef DBTUP_H
 #define DBTUP_H
@@ -850,6 +853,11 @@ struct TupTriggerData {
    * properly.
    */
   Uint32 triggerId;
+
+  /**
+   * In 6.3 there is one trigger per operation
+   */
+  Uint32 oldTriggerIds[3]; // INS/UPD/DEL
 
   /**
    * Index id is needed for ordered index.
@@ -2401,7 +2409,7 @@ private:
 //------------------------------------------------------------------
   bool nullFlagCheck(KeyReqStruct *req_struct, Uint32  attrDes2);
   bool disk_nullFlagCheck(KeyReqStruct *req_struct, Uint32 attrDes2);
-  Uint32 read_pseudo(const Uint32 *, Uint32, KeyReqStruct*, Uint32*);
+  int read_pseudo(const Uint32 *, Uint32, KeyReqStruct*, Uint32*);
   Uint32 read_packed(const Uint32 *, Uint32, KeyReqStruct*, Uint32*);
   Uint32 update_packed(KeyReqStruct*, const Uint32* src);
 
@@ -2489,11 +2497,13 @@ private:
                   TriggerActionTime::Value ttime,
                   TriggerEvent::Value tevent);
 
-  bool createTrigger(Tablerec* table, const CreateTrigImplReq* req);
+  bool createTrigger(Tablerec*, const CreateTrigImplReq* req);
 
   Uint32 dropTrigger(Tablerec* table,
 		     const DropTrigImplReq* req,
 		     BlockNumber sender);
+
+  Uint32 getOldTriggerId(const TupTriggerData*, Uint32 op);
 
   void
   checkImmediateTriggersAfterInsert(KeyReqStruct *req_struct,
@@ -3243,6 +3253,7 @@ private:
   void check_page_map(Fragrecord*);
   bool find_page_id_in_list(Fragrecord*, Uint32 pid);
 #endif
+  void handle_lcp_keep(Signal*, Fragrecord*, ScanOp*, Uint32 rowid);
 };
 
 #if 0

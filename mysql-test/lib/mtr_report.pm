@@ -1,18 +1,19 @@
 # -*- cperl -*-
 # Copyright 2004-2008 MySQL AB, 2008 Sun Microsystems, Inc.
-# 
+#  All rights reserved. Use is subject to license terms.
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; version 2 of the License.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 # This is a library file used by the Perl version of mysql-test-run,
 # and is part of the translation of the Bourne shell script with the
@@ -69,6 +70,8 @@ sub _mtr_report_test_name ($) {
 
   print _name(), _timestamp();
   printf "%-40s ", $tname;
+
+  return $tname;
 }
 
 
@@ -105,20 +108,48 @@ sub mtr_report_test_passed ($) {
 
 sub mtr_report_test ($) {
   my ($tinfo)= @_;
-  _mtr_report_test_name($tinfo);
+  my $test_name = _mtr_report_test_name($tinfo);
 
   my $comment=  $tinfo->{'comment'};
   my $logfile=  $tinfo->{'logfile'};
   my $warnings= $tinfo->{'warnings'};
   my $result=   $tinfo->{'result'};
+  my $retry=    $tinfo->{'retries'} ? "retry-" : "";
 
   if ($result eq 'MTR_RES_FAILED'){
 
     my $timest = format_time();
+    my $fail = "fail";
+
+    if ( $::opt_experimental )
+    {
+      # Find out if this test case is an experimental one, so we can treat
+      # the failure as an expected failure instead of a regression.
+      for my $exp ( @$::experimental_test_cases ) {
+        if ( $exp ne $test_name ) {
+          # if the expression is not the name of this test case, but has
+          # an asterisk at the end, determine if the characters up to
+          # but excluding the asterisk are the same
+          if ( $exp ne "" && substr($exp, -1, 1) eq "*" ) {
+            $exp = substr($exp, 0, length($exp) - 1);
+            if ( substr($test_name, 0, length($exp)) ne $exp ) {
+              # no match, try next entry
+              next;
+            }
+            # if yes, fall through to set the exp-fail status
+          } else {
+            # no match, try next entry
+            next;
+          }
+        }
+        $fail = "exp-fail";
+        last;
+      }
+    }
 
     if ( $warnings )
     {
-      mtr_report("[ fail ]  Found warnings/errors in server log file!");
+      mtr_report("[ $retry$fail ]  Found warnings/errors in server log file!");
       mtr_report("        Test ended at $timest");
       mtr_report($warnings);
       return;
@@ -126,14 +157,14 @@ sub mtr_report_test ($) {
     my $timeout= $tinfo->{'timeout'};
     if ( $timeout )
     {
-      mtr_report("[ fail ]  timeout after $timeout seconds");
+      mtr_report("[ $retry$fail ]  timeout after $timeout seconds");
       mtr_report("        Test ended at $timest");
       mtr_report("\n$tinfo->{'comment'}");
       return;
     }
     else
     {
-      mtr_report("[ fail ]\n        Test ended at $timest");
+      mtr_report("[ $retry$fail ]\n        Test ended at $timest");
     }
 
     if ( $logfile )
@@ -176,7 +207,7 @@ sub mtr_report_test ($) {
   {
     my $timer_str= $tinfo->{timer} || "";
     $tot_real_time += ($timer_str/1000);
-    mtr_report("[ pass ] ", sprintf("%5s", $timer_str));
+    mtr_report("[ ${retry}pass ] ", sprintf("%5s", $timer_str));
 
     # Show any problems check-testcase found
     if ( defined $tinfo->{'check'} )

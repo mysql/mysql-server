@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef NdbTransaction_H
 #define NdbTransaction_H
@@ -31,7 +34,7 @@ class NdbApiSignal;
 class Ndb;
 class NdbBlob;
 class NdbInterpretedCode;
-class NdbQueryDefinition;
+class NdbQueryDef;
 class NdbQuery;
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
@@ -822,23 +825,19 @@ public:
 
 
   /**
-   * Add a prepared NdbQueryDefinition to transaction for execution.
+   * Add a prepared NdbQueryDef to transaction for execution.
    *
-   * If the NdbQueryDefinition contains bindings to parameters,
-   * (built with NdbQueryBilder::paramValue()) The value of these
-   * parameters are specified in the param. struct referred by 'param'.
-   *
-   * The mask, if != NULL, defines a subset of attributes to read, update, or
-   * insert. Only if (mask[attrId >> 3] & (1<<(attrId & 7))) is set is the
-   * column affected. The mask is copied by the methods, so need not remain
-   * valid after the call returns.
+   * If the NdbQueryDef contains parameters,
+   * (built with NdbQueryBilder::paramValue()) the value of these
+   * parameters are specified in the 'param' array. Parameter values
+   * Should be supplied in the same order as the related paramValue's
+   * was created.
    */
 
   NdbQuery*
-  buildQueryOperation(const NdbQueryDefinition* query,
-                      const char* param, char *result_row,
-                      NdbOperation::LockMode lock_mode= NdbOperation::LM_Read,
-                      const unsigned char *result_mask= 0);
+  createQuery(const NdbQueryDef* query,
+              const void* const param[],
+              NdbOperation::LockMode lock_mode= NdbOperation::LM_Read);
 
 
 

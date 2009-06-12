@@ -1,23 +1,23 @@
-############# mysql-test\t\sql_low_priority_updates_func.test #################
-#                                                                             #
-# Variable Name: sql_low_priority_updates                                     #
-# Scope: GLOBAL & SESSION                                                     #
-# Access Type: Dynamic                                                        #
-# Data Type: BOOLEAN                                                          #
-# Default Value: 1 TRUE                                                       #
-# Values:       1 TRUE, 0 FALSE                                               #
-#                                                                             #
-#                                                                             #
-# Creation Date: 2008-02-25                                                   #
-# Author:  Sharique Abdullah                                                  #
-#                                                                             #
-# Description: Test Cases of Dynamic System Variable  sql_low_priority_updates#
-#              that checks behavior of this variable in the following ways    #
-#              * Functionality based on different values                      #
-#                                                                             #
-# Reference: http://dev.mysql.com/doc/refman/5.1/en/set-option.html           #
-#                                                                             #
-###############################################################################
+################################################################################
+#                                                                              #
+# Variable Name: sql_low_priority_updates                                      #
+# Scope: GLOBAL & SESSION                                                      #
+# Access Type: Dynamic                                                         #
+# Data Type: BOOLEAN                                                           #
+# Default Value: 1 TRUE                                                        #
+# Values:       1 TRUE, 0 FALSE                                                #
+#                                                                              #
+#                                                                              #
+# Creation Date: 2008-02-25                                                    #
+# Author:  Sharique Abdullah                                                   #
+#                                                                              #
+# Description: Test Cases of Dynamic System Variable  sql_low_priority_updates #
+#              that checks behavior of this variable in the following ways     #
+#              * Functionality based on different values                       #
+#                                                                              #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/set-option.html            #
+#                                                                              #
+################################################################################
 
 --source include/not_embedded.inc
 
@@ -85,6 +85,9 @@ delimiter ;|
 --echo ** Connection con0 **
 connection con0;
 
+let $wait_condition = SELECT COUNT(*) > 0 FROM information_schema.processlist WHERE state='Locked' AND info LIKE  'UPDATE t1 SET a = CONCAT(a,"-updated")';
+--source include/wait_condition.inc
+
 --echo ** Asynchronous Execution **
 delimiter |;
 
@@ -98,9 +101,8 @@ delimiter ;|
 --echo ** Connection default **
 connection default;
 
---echo Sleeping for 1 secs
---sleep 1
-
+let $wait_condition= SELECT count(*) = 2 FROM information_schema.processlist WHERE state LIKE 'Locked';
+--source include/wait_condition.inc
 UNLOCK TABLES;
 
 --echo ** Connection con0 **
@@ -153,6 +155,9 @@ delimiter ;|
 --echo ** Connection con0 **
 connection con0;
 
+let $wait_condition = SELECT COUNT(*) > 0 FROM information_schema.processlist WHERE state='Locked' AND info LIKE  'UPDATE t1 SET a = CONCAT(a,"-updated")';
+--source include/wait_condition.inc
+
 --echo ** Asynchronous Execution **
 delimiter |;
 
@@ -166,9 +171,8 @@ delimiter ;|
 --echo ** Connection default **
 connection default;
 
---echo Sleeping for 1 secs
---sleep 1
-
+let $wait_condition= SELECT count(*) = 2 FROM information_schema.processlist WHERE state LIKE 'Locked';
+--source include/wait_condition.inc
 UNLOCK TABLES;
 
 --echo ** Connection con0 **

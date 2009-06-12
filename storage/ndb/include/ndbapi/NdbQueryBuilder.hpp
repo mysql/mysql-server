@@ -17,10 +17,10 @@
 #define NdbQueryBuilder_H
 
 #include <ndb_types.h>
+#include "NdbDictionary.hpp"
 
 class Ndb;
 class NdbError;
-
 
 /**
  *
@@ -28,19 +28,28 @@ class NdbError;
  * to specify lookup keys, bounds or filters in the query tree.
  */
 class NdbQueryOperand  // A base class specifying a single value
-{};
+{
+public:
+  // Column which this operand relates to
+  const NdbDictionary::Column* getColumn() const;
+};
 
 // A NdbQueryOperand is either of these:
 class NdbConstOperand  : public NdbQueryOperand {};
-class NdbParamOperand  : public NdbQueryOperand {};
 class NdbLinkedOperand : public NdbQueryOperand {};
 
+class NdbParamOperand  : public NdbQueryOperand {
+public:
+
+  const char* getName() const;
+  Uint32 getIndex() const;
+};
 
 class NdbQueryIndexBound
 {
-  const NdbQueryOperand * low_key[];  // NULL terminated
+  const NdbQueryOperand* const low_key[];  // NULL terminated
   bool low_inclusive;
-  const NdbQueryOperand * high_key[]; // NULL terminated
+  const NdbQueryOperand* const high_key[]; // NULL terminated
   bool high_inclusive;
 };
 
@@ -48,14 +57,20 @@ class NdbQueryIndexBound
 class NdbQueryOperationDef
 {
 public:
-  Uint32 getNoOfDependencyOperations() const;
-  const NdbQueryOperationDef* getDependencyOperation(Uint32 i) const;
+  Uint32 getNoOfParentOperations() const;
+  const NdbQueryOperationDef* getParentOperation(Uint32 i) const;
 
-  Uint32 getNoOfDependentOperations() const;
-  const NdbQueryOperationDef* getDepedentOperation(Uint32 i) const;
+  Uint32 getNoOfChildOperations() const;
+  const NdbQueryOperationDef* getChildOperation(Uint32 i) const;
 
   const NdbQueryOperationDef* getRootOperation() const;
-  // assert(getRootOperation()->getNoOfDependencyOperations() == 0);
+  // assert(getRootOperation()->getNoOfParentOperations() == 0);
+
+  /**
+   * Get table object for this operation
+   */
+  const NdbDictionary::Table* getTable() const;
+
 };
 
 class NdbQueryLookupOperationDef    : public NdbQueryOperationDef {};
@@ -68,14 +83,14 @@ class NdbQueryIndexScanOperationDef : public NdbQueryScanOperationDef {};
 
 /**
  *
- * The Query builder constructs a NdbQueryDefinition which is a collection of
+ * The Query builder constructs a NdbQueryDef which is a collection of
  * (possibly linked) NdbQueryOperationDefs
  * Each NdbQueryOperationDef may use NdbQueryOperands to specify keys and bounds.
  *
  * LIFETIME:
  * - All NdbQueryOperand and NdbQueryOperationDef objects created in the 
  *   context of a NdbQueryBuilder has a lifetime restricted by:
- *    1. The NdbQueryDefinition created by the ::prepare() methode.
+ *    1. The NdbQueryDef created by the ::prepare() methode.
  *    2. The NdbQueryBuilder *if* the builder is destructed before the
  *       query was prepared.
 
@@ -84,9 +99,9 @@ class NdbQueryIndexScanOperationDef : public NdbQueryScanOperationDef {};
  *   we need a reference to the same value/node during the 
  *   build phase.
  *
- * - The NdbQueryDefinition produced by the ::prepare() method has a lifetime 
+ * - The NdbQueryDef produced by the ::prepare() method has a lifetime 
  *   determined by the Ndb object, or until it is explicit released by
- *   NdbQueryDefinition::release()
+ *   NdbQueryDef::release()
  *  
  */
 class NdbQueryBuilder 
@@ -96,7 +111,7 @@ public:
  ~NdbQueryBuilder();
 
    
-  class NdbQueryDefinition *prepare();    // Complete building a queryTree from 'this' NdbQueryBuilder
+  class NdbQueryDef* prepare();    // Complete building a queryTree from 'this' NdbQueryBuilder
 
   // NdbQueryOperand builders:
   // ::constValue constructors variants, considder to added/removed variants
@@ -108,44 +123,39 @@ public:
   NdbConstOperand* constValue(Uint64 value); 
 
   // ::paramValue()
-  // - 'offs' is offset within a struct of parameters where the 
-  //   parameter value will be located whenever the produced 
-  //   NdbQueryDefinition is ::executed(). Base address of this parameter
-  //   struct will be supplied as an argument when the NdbQueryDefinition 
-  //   is appended to a NdbTransaction. (NdbTransaction::buildQueryOperation()).
-  NdbParamOperand* paramValue(int offs);        // Parameterized
+  NdbParamOperand* paramValue(const char* name = 0);  // Parameterized
 
-  NdbLinkedOperand* linkedValue(const NdbQueryOperationDef*, const char *attr); // Linked value
+  NdbLinkedOperand* linkedValue(const NdbQueryOperationDef*, const char* attr); // Linked value
 
 
   // NdbQueryOperationDef builders:
   //
   // Common argument 'ident' may be used to identify each NdbQueryOperationDef with a name.
   // This may later be used to find the corresponding NdbQueryOperation instance when
-  // the NdbQueryDefinition is executed. 
+  // the NdbQueryDef is executed. 
   // Each NdbQueryOperationDef will also be assigned an numeric ident (starting from 0)
   // as an alternative way of locating the NdbQueryOperation.
   
   NdbQueryLookupOperationDef* readTuple(
                                 const NdbDictionary::Table*,    // Primary key lookup
 				const NdbQueryOperand* keys[],  // Terminated by NULL element 
-                                const char *ident = 0);
+                                const char* ident = 0);
 
   NdbQueryLookupOperationDef* readTuple(
                                 const NdbDictionary::Index*,    // Unique key lookup w/ index
 			        const NdbDictionary::Table*,
 				const NdbQueryOperand* keys[],  // Terminated by NULL element 
-                                const char *ident = 0);
+                                const char* ident = 0);
 
   NdbQueryTableScanOperationDef* scanTable(
                                 const NdbDictionary::Table*,
-                                const char *ident = 0);
+                                const char* ident = 0);
 
   NdbQueryIndexScanOperationDef* scanIndex(
                                 const NdbDictionary::Index*, 
 	                        const NdbDictionary::Table*,
-                                const NdbQueryIndexBound *bound = 0,
-                                const char *ident = 0);
+                                const NdbQueryIndexBound* bound = 0,
+                                const char* ident = 0);
 
 
   /** 
@@ -158,7 +168,7 @@ public:
    *
    * @return An error object with information about the latest error.
    */
-  const NdbError & getNdbError() const;
+  const NdbError& getNdbError() const;
 
   /** 
    * Get the method number where the latest error occured.
@@ -178,25 +188,48 @@ private:
   NdbQueryBuilder* m_next;
 ********/
 private:
-  Ndb *ndb;
+  Ndb* ndb;
 };
 
 /**
- * NdbQueryDefinition represents a ::prepare()'d object from NdbQueryBuilder.
+ * NdbQueryDef represents a ::prepare()'d object from NdbQueryBuilder.
  *
- * The NdbQueryDefinition is reusable in the sense that it may be executed multiple
+ * The NdbQueryDef is reusable in the sense that it may be executed multiple
  * times. Its lifetime is defined by the Ndb object which it was created with,
  * or it may be explicitely released() when no longer required.
  *
- * A NdbQueryDefinition is scheduled for execution by appending it to an open 
+ * The NdbQueryDef *must* be keept alive until the last thread
+ * which executing a query based on this NdbQueryDef has completed execution 
+ * *and* result handling. Used from multiple threads this implies either:
+ *
+ *  - Keep the NdbQueryDef until all threads terminates.
+ *  - Implement reference counting on the NdbQueryDef.
+ *  - Use the supplied copy constructor to give each thread its own copy
+ *    of the NdbQueryDef.
+ *
+ * A NdbQueryDef is scheduled for execution by appending it to an open 
  * transaction - optionally together with a set of parameters specifying 
  * the actuall values required by ::execute() (ie. Lookup an bind keys).
  *
  */
-class NdbQueryDefinition
+class NdbQueryDef
 {
-  // Remove this NdbQueryDefinition.
-  void release();
+private:
+  // C'tor is private - only NdbQueryBuilder::prepare() is allowed to construct a new NdbQueryDef
+  NdbQueryDef();
+  friend NdbQueryDef* NdbQueryBuilder::prepare();
+
+public:
+  ~NdbQueryDef();
+
+  // Copy construction of the NdbQueryDef IS defined.
+  // May be convenient to take a copy when the same query is used from
+  // multiple threads.
+  NdbQueryDef(const NdbQueryDef& other);
+  NdbQueryDef& operator = (const NdbQueryDef& other);
+
+  // Remove this NdbQueryDef.
+//void release();    Just delete it instead ?
 };
 
 

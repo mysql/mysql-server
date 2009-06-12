@@ -35,7 +35,7 @@ SELECT @@global.connect_timeout;
 2
 SET @@global.connect_timeout = -1024;
 Warnings:
-Warning	1292	Truncated incorrect connect_timeout value: '0'
+Warning	1292	Truncated incorrect connect_timeout value: '-1024'
 SELECT @@global.connect_timeout;
 @@global.connect_timeout
 2

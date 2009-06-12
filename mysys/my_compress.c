@@ -1,4 +1,6 @@
-/* Copyright (C) 2000 MySQL AB
+/*
+   Copyright (C) 2000 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /* Written by Sinisa Milivojevic <sinisa@mysql.com> */
 
@@ -67,7 +70,7 @@ uchar *my_compress_alloc(const uchar *packet, size_t *len, size_t *complen)
   if (!(compbuf= (uchar *) my_malloc(*complen, MYF(MY_WME))))
     return 0;					/* Not enough memory */
 
-  tmp_complen= *complen;
+  tmp_complen= (uint) *complen;
   res= compress((Bytef*) compbuf, &tmp_complen, (Bytef*) packet, (uLong) *len);
   *complen=    tmp_complen;
 
@@ -118,7 +121,7 @@ my_bool my_uncompress(uchar *packet, size_t len, size_t *complen)
     if (!compbuf)
       DBUG_RETURN(1);				/* Not enough memory */
 
-    tmp_complen= *complen;
+    tmp_complen= (uint) *complen;
     error= uncompress((Bytef*) compbuf, &tmp_complen, (Bytef*) packet,
                       (uLong) len);
     *complen= tmp_complen;

@@ -1,4 +1,6 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/*
+   Copyright (C) 2000-2006 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 /*
@@ -240,16 +243,16 @@ bool mysql_create_frm(THD *thd, const char *file_name,
                                               create_info->comment.length, 60);
   if (tmp_len < create_info->comment.length)
   {
-    (void) my_snprintf(buff, sizeof(buff), "Too long comment for table '%s'",
-                       table);
     if ((thd->variables.sql_mode &
          (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES)))
     {
-      my_message(ER_UNKNOWN_ERROR, buff, MYF(0));
+      my_error(ER_TOO_LONG_TABLE_COMMENT, MYF(0), table, tmp_len);
       goto err;
     }
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                        ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR), buff);
+                        ER_TOO_LONG_TABLE_COMMENT,
+                        ER(ER_TOO_LONG_TABLE_COMMENT),
+                        table, tmp_len);
     create_info->comment.length= tmp_len;
   }
 
@@ -663,17 +666,16 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
                                                      255);
     if (tmp_len < field->comment.length)
     {
-      char buff[128];
-      (void) my_snprintf(buff,sizeof(buff), "Too long comment for field '%s'",
-                         field->field_name);
       if ((current_thd->variables.sql_mode &
 	   (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES)))
       {
-        my_message(ER_UNKNOWN_ERROR, buff, MYF(0));
+        my_error(ER_TOO_LONG_FIELD_COMMENT, MYF(0), field->field_name, tmp_len);
 	DBUG_RETURN(1);
       }
       push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                          ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR), buff);
+                          ER_TOO_LONG_FIELD_COMMENT,
+                          ER(ER_TOO_LONG_FIELD_COMMENT),
+                          field->field_name, tmp_len);
       field->comment.length= tmp_len;
     }
 

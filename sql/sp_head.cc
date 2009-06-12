@@ -1,4 +1,6 @@
-/* Copyright 2002-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/*
+   Copyright 2002-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include "mysql_priv.h"
 #ifdef USE_PRAGMA_IMPLEMENTATION
@@ -956,6 +959,8 @@ subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str)
   qbuf.length(0);
   cur= query_str->str;
   prev_pos= res= 0;
+  thd->query_name_consts= 0;
+  
   for (Item_splocal **splocal= sp_vars_uses.front(); 
        splocal < sp_vars_uses.back(); splocal++)
   {
@@ -989,6 +994,8 @@ subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str)
     res|= qbuf.append(')');
     if (res)
       break;
+      
+    thd->query_name_consts++;
   }
   res|= qbuf.append(cur + prev_pos, query_str->length - prev_pos);
   if (res)
@@ -2855,6 +2862,7 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
       *nextp= m_ip+1;
     thd->query= query;
     thd->query_length= query_length;
+    thd->query_name_consts= 0;
 
     if (!thd->is_error())
       thd->main_da.reset_diagnostics_area();

@@ -1,4 +1,6 @@
-/* Copyright (C) 2000 MySQL AB
+/*
+   Copyright (C) 2000 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /* my_setwd() and my_getwd() works with intern_filenames !! */
 
@@ -55,7 +58,7 @@ int my_getwd(char * buf, size_t size, myf MyFlags)
   else
   {
 #if defined(HAVE_GETCWD)
-    if (!getcwd(buf,size-2) && MyFlags & MY_WME)
+    if (!getcwd(buf,(uint) (size-2)) && MyFlags & MY_WME)
     {
       my_errno=errno;
       my_error(EE_GETWD,MYF(ME_BELL+ME_WAITTANG),errno);

@@ -42,6 +42,11 @@ static inline int my_socket_errno()
   return WSAGetLastError();
 }
 
+static inline void my_socket_set_errno(int error)
+{
+  WSASetLastError(error);
+}
+
 static inline my_socket my_socket_create(int domain, int type, int protocol)
 {
   my_socket s;

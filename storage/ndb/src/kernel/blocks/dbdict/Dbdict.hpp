@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef DBDICT_H
 #define DBDICT_H
@@ -224,7 +227,7 @@ public:
    * on disk.  Index trigger ids are volatile.
    */
   struct TableRecord {
-    TableRecord(){}
+    TableRecord(){ m_upgrade_trigger_handling.m_upgrade = false;}
     Uint32 maxRowsLow;
     Uint32 maxRowsHigh;
     Uint32 minRowsLow;
@@ -356,6 +359,20 @@ public:
     /**   Trigger ids of index (volatile data) */
     Uint32 triggerId;      // ordered index (1)
     Uint32 buildTriggerId; // temp during build
+
+    struct UpgradeTriggerHandling
+    {
+      /**
+       * In 6.3 (and prior) 3 triggers was created for each unique index
+       *  in 6.4 these has been merged to 1
+       *  but...we need to maintain these during an upgrade situation
+       *  puh
+       */
+      bool m_upgrade;
+      Uint32 insertTriggerId;
+      Uint32 updateTriggerId;
+      Uint32 deleteTriggerId;
+    } m_upgrade_trigger_handling;
     
     Uint32 noOfNullBits;
     

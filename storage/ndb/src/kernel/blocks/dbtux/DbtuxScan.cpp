@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #define DBTUX_SCAN_CPP
 #include "Dbtux.hpp"
@@ -133,8 +136,9 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
     Uint32 size;
   };
   BoundInfo boundInfo[2][MaxIndexAttributes];
-  const unsigned dstSize = 1024 * MAX_XFRM_MULTIPLY;
-  Uint32 xfrmData[dstSize];
+  const unsigned dstSize = MaxAttrDataSize;
+  // use some static buffer (they are only used within a timeslice)
+  Uint32* const xfrmData = c_dataBuffer;
   Uint32 dstPos = 0;
   // largest attrId seen plus one
   Uint32 maxAttrId[2] = { 0, 0 };

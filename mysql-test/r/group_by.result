@@ -1691,3 +1691,15 @@ FROM t1;
 ERROR 21000: Subquery returns more than 1 row
 DROP TABLE t1;
 SET @@sql_mode = @old_sql_mode;
+SET @old_sql_mode = @@sql_mode;
+SET @@sql_mode='ONLY_FULL_GROUP_BY';
+CREATE TABLE t1(i INT);
+INSERT INTO t1 VALUES (1), (10);
+SELECT COUNT(i) FROM t1;
+COUNT(i)
+2
+SELECT COUNT(i) FROM t1 WHERE i > 1;
+COUNT(i)
+1
+DROP TABLE t1;
+SET @@sql_mode = @old_sql_mode;

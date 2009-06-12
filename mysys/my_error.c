@@ -1,4 +1,6 @@
-/* Copyright (C) 2000 MySQL AB
+/*
+   Copyright (C) 2000 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include "mysys_priv.h"
 #include "mysys_err.h"
@@ -252,11 +255,16 @@ const char **my_error_unregister(int first, int last)
 
 void my_error_unregister_all(void)
 {
-  struct my_err_head    *list, *next;
-  for (list= my_errmsgs_globerrs.meh_next; list; list= next)
+  struct my_err_head *cursor, *saved_next;
+
+  for (cursor= my_errmsgs_globerrs.meh_next; cursor != NULL; cursor= saved_next)
   {
-    next= list->meh_next;
-    my_free((uchar*) list, MYF(0));
+    /* We need this ptr, but we're about to free its container, so save it. */
+    saved_next= cursor->meh_next;
+
+    my_free((uchar*) cursor, MYF(0));
   }
+  my_errmsgs_globerrs.meh_next= NULL;  /* Freed in first iteration above. */
+
   my_errmsgs_list= &my_errmsgs_globerrs;
 }

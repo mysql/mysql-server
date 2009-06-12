@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <ndb_global.h>
 
@@ -455,7 +458,6 @@ void
 MgmApiSession::get_nodeid(Parser_t::Context &,
 			  const class Properties &args)
 {
-  const char *cmd= "get nodeid reply";
   Uint32 version, nodeid= 0, nodetype= 0xff;
   Uint32 timeout= 20;  // default seconds timeout
   const char * transporter;
@@ -481,10 +483,11 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
   /* for backwards compatability keep track if client uses new protocol */
   log_event_version= args.get("log_event", &log_event);
 
+  m_output->println("get nodeid reply");
+
   endian_check.l = 1;
   if(endian 
      && strcmp(endian,(endian_check.c[sizeof(long)-1])?"big":"little")!=0) {
-    m_output->println(cmd);
     m_output->println("result: Node does not have the same endianness as the management server.");
     m_output->println("");
     return;
@@ -500,7 +503,6 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
     compatible = ndbCompatible_mgmt_ndb(NDB_VERSION, version);
     break;
   default:
-    m_output->println(cmd);
     m_output->println("result: unknown nodetype %d", nodetype);
     m_output->println("");
     return;
@@ -510,7 +512,6 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
   SOCKET_SIZE_TYPE addrlen= sizeof(addr);
   int r = my_getpeername(m_socket, (struct sockaddr*)&addr, &addrlen);
   if (r != 0 ) {
-    m_output->println(cmd);
     m_output->println("result: getpeername(" MY_SOCKET_FORMAT   \
                       ") failed, err= %d",
                       MY_SOCKET_FORMAT_VALUE(m_socket), r);
@@ -551,7 +552,6 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
       const char *str;
       alias= ndb_mgm_get_node_type_alias_string((enum ndb_mgm_node_type)
 						nodetype, &str);
-      m_output->println(cmd);
       m_output->println("result: %s", error_string.c_str());
       /* only use error_code protocol if client knows about it */
       if (log_event_version)
@@ -571,7 +571,6 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
   }
 #endif
   
-  m_output->println(cmd);
   m_output->println("nodeid: %u", tmp);
   m_output->println("result: Ok");
   m_output->println("");
@@ -806,7 +805,6 @@ MgmApiSession::getClusterLogLevel(Parser<MgmApiSession>::Context &			, Propertie
 void
 MgmApiSession::setClusterLogLevel(Parser<MgmApiSession>::Context &,
 				  Properties const &args) {
-  const char *reply= "set cluster loglevel reply";
   Uint32 node, level, cat;
   BaseString errorString;
   DBUG_ENTER("MgmApiSession::setClusterLogLevel");
@@ -816,8 +814,9 @@ MgmApiSession::setClusterLogLevel(Parser<MgmApiSession>::Context &,
 
   DBUG_PRINT("enter",("node=%d, category=%d, level=%d", node, cat, level));
 
+  m_output->println("set cluster loglevel reply");
+
   if(level > NDB_MGM_MAX_LOGLEVEL) {
-    m_output->println(reply);
     m_output->println("result: Invalid loglevel %d", level);
     m_output->println("");
     DBUG_VOID_RETURN;
@@ -829,7 +828,6 @@ MgmApiSession::setClusterLogLevel(Parser<MgmApiSession>::Context &,
   m_mgmsrv.m_event_listner.lock();
   if (m_mgmsrv.m_event_listner[0].m_logLevel.setLogLevel(category,level))
   {
-    m_output->println(reply);
     m_output->println("result: Invalid category %d", category);
     m_output->println("");
     m_mgmsrv.m_event_listner.unlock();
@@ -842,7 +840,6 @@ MgmApiSession::setClusterLogLevel(Parser<MgmApiSession>::Context &,
     m_mgmsrv.m_event_listner.update_max_log_level(tmp);
   }
 
-  m_output->println(reply);
   m_output->println("result: Ok");
   m_output->println("");
   DBUG_VOID_RETURN;

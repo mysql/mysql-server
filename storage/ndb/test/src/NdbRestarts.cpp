@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <NdbRestarts.hpp>
 #include <NDBT.hpp>
@@ -580,9 +583,21 @@ int restartAllNodesError9999(NdbRestarter& _restarter,
   
   g_info << _restart->m_name <<  endl;
 
+  int val[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 } ;
+  CHECK(_restarter.dumpStateAllNodes(val, 2) == 0,
+        "failed to set RestartOnErrorInsert");
+
+  CHECK(_restarter.insertErrorInAllNodes(932) == 0,
+        "Failed to set error 932 (auto-restart on arbit error)");
+
   // Restart with error insert
   CHECK(_restarter.insertErrorInAllNodes(9999) == 0,
 	"Could not restart all nodes ");
+
+  CHECK(_restarter.waitClusterNoStart() == 0,
+        "Failed to wait not started");
+
+  _restarter.startAll();
 
   return NDBT_OK;
 }

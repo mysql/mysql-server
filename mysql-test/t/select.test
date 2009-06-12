@@ -3769,4 +3769,20 @@ SELECT date_nokey FROM C
 
 DROP TABLE A,C;
 
+#
+# Bug #42957: no results from 
+# select where .. (col=col and col=col) or ... (false expression)
+#
+CREATE TABLE t1 (a INT NOT NULL, b INT);
+INSERT INTO t1 VALUES (1, 1);
+EXPLAIN EXTENDED SELECT * FROM t1 WHERE (a=a AND a=a) OR b > 2;
+SELECT * FROM t1 WHERE (a=a AND a=a) OR b > 2;
+DROP TABLE t1;
+
+CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL, c INT NOT NULL);
+EXPLAIN EXTENDED SELECT * FROM t1 WHERE (a=a AND b=b AND c=c) OR b > 20;
+EXPLAIN EXTENDED SELECT * FROM t1 WHERE (a=a AND a=a AND b=b) OR b > 20;
+EXPLAIN EXTENDED SELECT * FROM t1 WHERE (a=a AND b=b AND a=a) OR b > 20;
+DROP TABLE t1;
+
 --echo End of 5.1 tests

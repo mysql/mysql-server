@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef ATTRIBUTE_DESCRIPTOR_HPP
 #define ATTRIBUTE_DESCRIPTOR_HPP
@@ -47,6 +50,8 @@ public:
   static Uint32 getPrimaryKey(const Uint32 &);
   static Uint32 getDynamic(const Uint32 &);
   static Uint32 getDiskBased(const Uint32 &);
+
+  static void clearArrayType(Uint32 &);
 
   Uint32 m_data;
 };
@@ -117,6 +122,13 @@ void
 AttributeDescriptor::setArrayType(Uint32 & desc, Uint32 arrayType){
   assert(arrayType <= AD_ARRAY_TYPE_MASK);
   desc |= (arrayType << AD_ARRAY_TYPE_SHIFT);
+}
+
+inline
+void
+AttributeDescriptor::clearArrayType(Uint32 & desc)
+{
+  desc &= ~Uint32(AD_ARRAY_TYPE_MASK << AD_ARRAY_TYPE_SHIFT);
 }
 
 inline
