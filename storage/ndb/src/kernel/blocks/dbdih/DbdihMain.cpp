@@ -13203,7 +13203,7 @@ void Dbdih::crashSystemAtGcpStop(Signal* signal, bool local)
       signal->theData[0] = 2305;
       sendSignal(rg, GSN_DUMP_STATE_ORD, signal, 1, JBB);
       
-      infoEvent("Detected GCP stop(%d)...sending kill to %s", 
+      warningEvent("Detected GCP stop(%d)...sending kill to %s", 
                 m_gcp_save.m_master.m_state, c_GCP_SAVEREQ_Counter.getText());
       ndbout_c("Detected GCP stop(%d)...sending kill to %s", 
                m_gcp_save.m_master.m_state, c_GCP_SAVEREQ_Counter.getText());
@@ -13215,7 +13215,7 @@ void Dbdih::crashSystemAtGcpStop(Signal* signal, bool local)
       /**
        * We're waiting for a COPY_GCICONF
        */
-      infoEvent("Detected GCP stop(%d)...sending kill to %s", 
+      warningEvent("Detected GCP stop(%d)...sending kill to %s", 
                 m_gcp_save.m_master.m_state, c_COPY_GCIREQ_Counter.getText());
       ndbout_c("Detected GCP stop(%d)...sending kill to %s", 
                m_gcp_save.m_master.m_state, c_COPY_GCIREQ_Counter.getText());
@@ -13265,7 +13265,7 @@ void Dbdih::crashSystemAtGcpStop(Signal* signal, bool local)
     /**
      * We're waiting for a GCP PREPARE CONF
      */
-      infoEvent("Detected GCP stop(%d)...sending kill to %s", 
+      warningEvent("Detected GCP stop(%d)...sending kill to %s", 
                 m_micro_gcp.m_state, c_GCP_PREPARE_Counter.getText());
       ndbout_c("Detected GCP stop(%d)...sending kill to %s", 
                m_micro_gcp.m_state, c_GCP_PREPARE_Counter.getText());
@@ -13292,7 +13292,7 @@ void Dbdih::crashSystemAtGcpStop(Signal* signal, bool local)
     }
     case MicroGcp::M_GCP_COMMIT:
     {
-      infoEvent("Detected GCP stop(%d)...sending kill to %s", 
+      warningEvent("Detected GCP stop(%d)...sending kill to %s", 
                 m_micro_gcp.m_state, c_GCP_COMMIT_Counter.getText());
       ndbout_c("Detected GCP stop(%d)...sending kill to %s", 
                m_micro_gcp.m_state, c_GCP_COMMIT_Counter.getText());
