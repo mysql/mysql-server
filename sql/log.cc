@@ -2065,6 +2065,9 @@ bool MYSQL_QUERY_LOG::write(time_t event_time, const char *user_host,
   /* Test if someone closed between the is_open test and lock */
   if (is_open())
   {
+    /* for testing output of timestamp and thread id */
+    DBUG_EXECUTE_IF("reset_log_last_time", last_time= 0;);
+
     /* Note that my_b_write() assumes it knows the length for this */
       if (event_time != last_time)
       {
@@ -2073,7 +2076,7 @@ bool MYSQL_QUERY_LOG::write(time_t event_time, const char *user_host,
         localtime_r(&event_time, &start);
 
         time_buff_len= my_snprintf(local_time_buff, MAX_TIME_SIZE,
-                                   "%02d%02d%02d %2d:%02d:%02d",
+                                   "%02d%02d%02d %2d:%02d:%02d\t",
                                    start.tm_year % 100, start.tm_mon + 1,
                                    start.tm_mday, start.tm_hour,
                                    start.tm_min, start.tm_sec);
