@@ -1,6 +1,7 @@
 /*
-   Copyright (C) 2003 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (C) 2003-2008 MySQL AB, 2009 Sun Microsystems Inc.
+
+   All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -43,30 +44,6 @@ enum ProcessStatus {
 enum ProcessType {
   PERMANENT = 0,
   TEMPORARY = 1
-};
-
-struct CPCEvent {
-  enum EventType {
-    ET_USER_CONNECT,
-    ET_USER_DISCONNECT,
-    
-    ET_PROC_USER_DEFINE,    // Defined proc
-    ET_PROC_USER_UNDEFINE,  // Undefined proc
-    ET_PROC_USER_START,     // Proc ordered to start
-    ET_PROC_USER_STOP,      // Proc ordered to stop
-    ET_PROC_STATE_RUNNING,  // exec returned(?) ok 
-    ET_PROC_STATE_STOPPED   // detected that proc is ! running
-  };
-
-  int m_proc;
-  time_t m_time;
-  EventType m_type;
-};
-
-struct EventSubscriber {
-  virtual void report(const CPCEvent &) = 0;
-  EventSubscriber() {}
-  virtual ~EventSubscriber() {}
 };
 
 /**
@@ -374,19 +351,12 @@ public:
   /** The list of processes. Should not be used directly */
   MutexVector<Process *> m_processes;
 
-  /** Register event subscriber */
-  void do_register(EventSubscriber * sub);
-  EventSubscriber* do_unregister(EventSubscriber * sub);
-  
 private:
   friend class Process;  
   bool notifyChanges();
   int findUniqueId();
   BaseString m_procfile;
   Monitor *m_monitor;
-  
-  void report(int id, CPCEvent::EventType);
-  MutexVector<EventSubscriber *> m_subscribers;
 };
 
 #endif
