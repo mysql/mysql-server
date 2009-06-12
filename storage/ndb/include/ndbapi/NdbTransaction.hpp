@@ -31,7 +31,7 @@ class NdbApiSignal;
 class Ndb;
 class NdbBlob;
 class NdbInterpretedCode;
-class NdbQueryDefinition;
+class NdbQueryDef;
 class NdbQuery;
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
@@ -822,23 +822,19 @@ public:
 
 
   /**
-   * Add a prepared NdbQueryDefinition to transaction for execution.
+   * Add a prepared NdbQueryDef to transaction for execution.
    *
-   * If the NdbQueryDefinition contains bindings to parameters,
-   * (built with NdbQueryBilder::paramValue()) The value of these
-   * parameters are specified in the param. struct referred by 'param'.
-   *
-   * The mask, if != NULL, defines a subset of attributes to read, update, or
-   * insert. Only if (mask[attrId >> 3] & (1<<(attrId & 7))) is set is the
-   * column affected. The mask is copied by the methods, so need not remain
-   * valid after the call returns.
+   * If the NdbQueryDef contains parameters,
+   * (built with NdbQueryBilder::paramValue()) the value of these
+   * parameters are specified in the 'param' array. Parameter values
+   * Should be supplied in the same order as the related paramValue's
+   * was created.
    */
 
   NdbQuery*
-  buildQueryOperation(const NdbQueryDefinition* query,
-                      const char* param, char *result_row,
-                      NdbOperation::LockMode lock_mode= NdbOperation::LM_Read,
-                      const unsigned char *result_mask= 0);
+  createQuery(const NdbQueryDef* query,
+              const void* const param[],
+              NdbOperation::LockMode lock_mode= NdbOperation::LM_Read);
 
 
 
