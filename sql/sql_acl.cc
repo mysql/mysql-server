@@ -5696,6 +5696,7 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
   List_iterator <LEX_USER> user_list(list);
   TABLE_LIST tables[GRANT_TABLES];
   bool some_users_deleted= FALSE;
+  ulong old_sql_mode= thd->variables.sql_mode;
   DBUG_ENTER("mysql_drop_user");
 
   /*
@@ -5708,6 +5709,8 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
   /* DROP USER may be skipped on replication client. */
   if ((result= open_grant_tables(thd, tables)))
     DBUG_RETURN(result != 1);
+
+  thd->variables.sql_mode&= ~MODE_PAD_CHAR_TO_FULL_LENGTH;
 
   rw_wrlock(&LOCK_grant);
   VOID(pthread_mutex_lock(&acl_cache->lock));
@@ -5741,6 +5744,7 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
 
   rw_unlock(&LOCK_grant);
   close_thread_tables(thd);
+  thd->variables.sql_mode= old_sql_mode;
   DBUG_RETURN(result);
 }
 
