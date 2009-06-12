@@ -1,4 +1,6 @@
-/* Copyright (C) 2000 MySQL AB
+/*
+   Copyright (C) 2000 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /**
   @file
@@ -431,7 +434,7 @@ net_write_command(NET *net,uchar command,
 		  const uchar *header, size_t head_len,
 		  const uchar *packet, size_t len)
 {
-  ulong length=len+1+head_len;			/* 1 extra byte for command */
+  size_t length=len+1+head_len;			/* 1 extra byte for command */
   uchar buff[NET_HEADER_SIZE+1];
   uint header_size=NET_HEADER_SIZE+1;
   DBUG_ENTER("net_write_command");
@@ -497,7 +500,7 @@ net_write_buff(NET *net, const uchar *packet, ulong len)
 {
   ulong left_length;
   if (net->compress && net->max_packet > MAX_PACKET_LENGTH)
-    left_length= MAX_PACKET_LENGTH - (net->write_pos - net->buff);
+    left_length= (ulong) (MAX_PACKET_LENGTH - (net->write_pos - net->buff));
   else
     left_length= (ulong) (net->buff_end - net->write_pos);
 

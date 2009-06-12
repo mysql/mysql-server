@@ -1,4 +1,7 @@
-/* Copyright (C) 2000-2004 MySQL AB
+/*
+   Copyright (C) 2000-2004 MySQL AB
+    All rights reserved. Use is subject to license terms.
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; version 2 of the License.
@@ -10,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 /* HANDLER ... commands - direct access to ISAM */
@@ -160,6 +164,9 @@ static void mysql_ha_close_table(THD *thd, TABLE_LIST *tables,
     table->query_id= thd->query_id;
     table->open_by_handler= 0;
   }
+
+  /* Mark table as closed, ready for re-open if necessary. */
+  tables->table= NULL;
 }
 
 /*
@@ -177,8 +184,7 @@ static void mysql_ha_close_table(THD *thd, TABLE_LIST *tables,
     'reopen' is set when a handler table is to be re-opened. In this case,
     'tables' is the pointer to the hashed TABLE_LIST object which has been
     saved on the original open.
-    'reopen' is also used to suppress the sending of an 'ok' message or
-    error messages.
+    'reopen' is also used to suppress the sending of an 'ok' message.
 
   RETURN
     FALSE OK
@@ -214,8 +220,7 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
                     strlen(tables->alias) + 1))
     {
       DBUG_PRINT("info",("duplicate '%s'", tables->alias));
-      if (! reopen)
-        my_error(ER_NONUNIQ_TABLE, MYF(0), tables->alias);
+      my_error(ER_NONUNIQ_TABLE, MYF(0), tables->alias);
       goto err;
     }
   }
@@ -259,8 +264,7 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
   /* There can be only one table in '*tables'. */
   if (! (tables->table->file->ha_table_flags() & HA_CAN_SQL_HANDLER))
   {
-    if (! reopen)
-      my_error(ER_ILLEGAL_HA, MYF(0), tables->alias);
+    my_error(ER_ILLEGAL_HA, MYF(0), tables->alias);
     goto err;
   }
 
@@ -479,8 +483,7 @@ retry:
 
   if (need_reopen)
   {
-    mysql_ha_close_table(thd, tables, FALSE);
-    hash_tables->table= NULL;
+    mysql_ha_close_table(thd, hash_tables, FALSE);
     /*
       The lock might have been aborted, we need to manually reset
       thd->some_tables_deleted because handler's tables are closed
@@ -761,11 +764,7 @@ void mysql_ha_flush(THD *thd)
   {
     hash_tables= (TABLE_LIST*) hash_element(&thd->handler_tables_hash, i);
     if (hash_tables->table && hash_tables->table->needs_reopen_or_name_lock())
-    {
       mysql_ha_close_table(thd, hash_tables, TRUE);
-      /* Mark table as closed, ready for re-open. */
-      hash_tables->table= NULL;
-    }
   }
 
   DBUG_VOID_RETURN;

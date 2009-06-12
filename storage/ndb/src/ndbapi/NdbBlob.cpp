@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <Ndb.hpp>
 #include <NdbDictionaryImpl.hpp>
@@ -495,7 +498,9 @@ inline Uint32
 NdbBlob::getPartNumber(Uint64 pos)
 {
   assert(thePartSize != 0 && pos >= theInlineSize);
-  return (pos - theInlineSize) / thePartSize;
+  Uint64 partNo = (pos - theInlineSize) / thePartSize;
+  assert(partNo < (Uint64(1) << 32));
+  return Uint32(partNo);
 }
 
 inline Uint32
@@ -1101,11 +1106,11 @@ NdbBlob::prepareSetHeadInlineValue()
   theHead.length = theLength;
   if (unlikely(theBlobVersion == NDB_BLOB_V1)) {
     if (theLength < theInlineSize)
-      memset(theInlineData + theLength, 0, theInlineSize - theLength);
+      memset(theInlineData + theLength, 0, size_t(theInlineSize - theLength));
   } else {
     // the 2 length bytes are not counted in length
     if (theLength < theInlineSize)
-      theHead.varsize = (theHeadSize - 2) + theLength;
+      theHead.varsize = (theHeadSize - 2) + Uint32(theLength);
     else
       theHead.varsize = (theHeadSize - 2) + theInlineSize;
     theHead.pkid = 0; // wl3717_todo not yet
@@ -1411,12 +1416,12 @@ NdbBlob::readDataPrivate(char* buf, Uint32& bytes)
   assert(thePos <= theLength);
   Uint64 pos = thePos;
   if (bytes > theLength - pos)
-    bytes = theLength - pos;
+    bytes = Uint32(theLength - pos);
   Uint32 len = bytes;
   if (len > 0) {
     // inline part
     if (pos < theInlineSize) {
-      Uint32 n = theInlineSize - pos;
+      Uint32 n = theInlineSize - Uint32(pos);
       if (n > len)
         n = len;
       memcpy(buf, theInlineData + pos, n);
@@ -1435,7 +1440,7 @@ NdbBlob::readDataPrivate(char* buf, Uint32& bytes)
     // partial first block
     if (off != 0) {
       DBUG_PRINT("info", ("partial first block pos=%llu len=%u", pos, len));
-      Uint32 part = (pos - theInlineSize) / thePartSize;
+      Uint32 part = getPartNumber(pos);
       Uint16 sz = 0;
       if (readPart(thePartBuf.data, part, sz) == -1)
         DBUG_RETURN(-1);
@@ -1456,7 +1461,7 @@ NdbBlob::readDataPrivate(char* buf, Uint32& bytes)
     assert((pos - theInlineSize) % thePartSize == 0);
     // complete blocks in the middle
     if (len >= thePartSize) {
-      Uint32 part = (pos - theInlineSize) / thePartSize;
+      Uint32 part = getPartNumber(pos);
       Uint32 count = len / thePartSize;
       if (readParts(buf, part, count) == -1)
         DBUG_RETURN(-1);
@@ -1470,7 +1475,7 @@ NdbBlob::readDataPrivate(char* buf, Uint32& bytes)
     // partial last block
     DBUG_PRINT("info", ("partial last block pos=%llu len=%u", pos, len));
     assert((pos - theInlineSize) % thePartSize == 0 && len < thePartSize);
-    Uint32 part = (pos - theInlineSize) / thePartSize;
+    Uint32 part = getPartNumber(pos);
     Uint16 sz = 0;
     if (readPart(thePartBuf.data, part, sz) == -1)
       DBUG_RETURN(-1);
@@ -1523,7 +1528,7 @@ NdbBlob::writeDataPrivate(const char* buf, Uint32 bytes)
   if (len > 0) {
     // inline part
     if (pos < theInlineSize) {
-      Uint32 n = theInlineSize - pos;
+      Uint32 n = theInlineSize - Uint32(pos);
       if (n > len)
         n = len;
       memcpy(theInlineData + pos, buf, n);
@@ -1546,7 +1551,7 @@ NdbBlob::writeDataPrivate(const char* buf, Uint32 bytes)
       // flush writes to guarantee correct read
       if (executePendingBlobWrites() == -1)
         DBUG_RETURN(-1);
-      Uint32 part = (pos - theInlineSize) / thePartSize;
+      Uint32 part = getPartNumber(pos);
       Uint16 sz = 0;
       if (readPart(thePartBuf.data, part, sz) == -1)
         DBUG_RETURN(-1);
@@ -1575,7 +1580,7 @@ NdbBlob::writeDataPrivate(const char* buf, Uint32 bytes)
     assert((pos - theInlineSize) % thePartSize == 0);
     // complete blocks in the middle
     if (len >= thePartSize) {
-      Uint32 part = (pos - theInlineSize) / thePartSize;
+      Uint32 part = getPartNumber(pos);
       Uint32 count = len / thePartSize;
       for (unsigned i = 0; i < count; i++) {
         if (part + i < getPartCount()) {
@@ -1596,7 +1601,7 @@ NdbBlob::writeDataPrivate(const char* buf, Uint32 bytes)
     // partial last block
     DBUG_PRINT("info", ("partial last block pos=%llu len=%u", pos, len));
     assert((pos - theInlineSize) % thePartSize == 0 && len < thePartSize);
-    Uint32 part = (pos - theInlineSize) / thePartSize;
+    Uint32 part = getPartNumber(pos);
     if (theLength > pos + len) {
       // flush writes to guarantee correct read
       if (executePendingBlobWrites() == -1)

@@ -1,4 +1,6 @@
-/* Copyright 2007 MySQL AB. All rights reserved.
+/*
+   Copyright 2007 MySQL AB. All rights reserved.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include "mysql_priv.h"
 #include "rpl_rli.h"
@@ -297,21 +300,16 @@ unpack_row(Relay_log_info const *rli,
 /**
   Fills @c table->record[0] with default values.
 
-  First @c empty_record() is called and then, additionally, fields are
-  initialized explicitly with a call to @c set_default().
-
-  For optimization reasons, the explicit initialization can be skipped for
-  first @c skip fields. This is useful if later we are going to fill these 
-  fields from other source (e.g. from a Rows replication event).
-
-  If @c check is true, fields are explicitly initialized only if they have
-  default value or can be NULL. Otherwise error is reported.
+  First @c restore_record() is called to restore the default values for
+  record concerning the given table. Then, if @c check is true, 
+  a check is performed to see if fields are have default value or can 
+  be NULL. Otherwise error is reported.
  
   @param table  Table whose record[0] buffer is prepared. 
-  @param skip   Number of columns for which default value initialization 
+  @param skip   Number of columns for which default/nullable check 
                 should be skipped.
-  @param check  Indicates if errors should be checked when setting default
-                values.
+  @param check  Indicates if errors should be raised when checking 
+                default/nullable field properties.
                 
   @returns 0 on success or a handler level error code
  */ 
@@ -321,25 +319,28 @@ int prepare_record(TABLE *const table,
   DBUG_ENTER("prepare_record");
 
   int error= 0;
-  empty_record(table);
+  restore_record(table, s->default_values);
 
-  if (skip >= table->s->fields)  // nothing to do
+  /*
+     This skip should be revisited in 6.0, because in 6.0 RBR one 
+     can have holes in the row (as the grain of the writeset is 
+     the column and not the entire row).
+   */
+  if (skip >= table->s->fields || !check)
     DBUG_RETURN(0);
 
-  /* Explicit initialization of fields */
+  /* Checking if exists default/nullable fields in the default values. */
 
   for (Field **field_ptr= table->field+skip ; *field_ptr ; ++field_ptr)
   {
     uint32 const mask= NOT_NULL_FLAG | NO_DEFAULT_VALUE_FLAG;
     Field *const f= *field_ptr;
 
-    if (check && ((f->flags & mask) == mask))
+    if (((f->flags & mask) == mask))
     {
       my_error(ER_NO_DEFAULT_FOR_FIELD, MYF(0), f->field_name);
       error = HA_ERR_ROWS_EVENT_APPLY;
     }
-    else
-      f->set_default();
   }
 
   DBUG_RETURN(error);

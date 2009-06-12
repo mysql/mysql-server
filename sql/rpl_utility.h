@@ -1,4 +1,6 @@
-/* Copyright (C) 2006 MySQL AB
+/*
+   Copyright (C) 2006 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef RPL_UTILITY_H
 #define RPL_UTILITY_H
@@ -294,12 +297,14 @@ namespace {
 }
 #endif
 
+// NB. number of printed bit values is limited to sizeof(buf) - 1
 #define DBUG_PRINT_BITSET(N,FRM,BS)                \
   do {                                             \
     char buf[256];                                 \
-    for (uint i = 0 ; i < (BS)->n_bits ; ++i)      \
+    uint i;                                        \
+    for (i = 0 ; i < min(sizeof(buf) - 1, (BS)->n_bits) ; i++) \
       buf[i] = bitmap_is_set((BS), i) ? '1' : '0'; \
-    buf[(BS)->n_bits] = '\0';                      \
+    buf[i] = '\0';                                 \
     DBUG_PRINT((N), ((FRM), buf));                 \
   } while (0)
 

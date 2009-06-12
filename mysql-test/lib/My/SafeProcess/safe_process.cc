@@ -1,4 +1,6 @@
-/* Copyright (C) 2008 MySQL AB
+/*
+   Copyright (C) 2008 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 /*
@@ -45,6 +48,8 @@
 
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <sys/time.h>
+#include <sys/resource.h>
 #include <unistd.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -149,7 +154,8 @@ int main(int argc, char* const argv[] )
   char* const* child_argv= 0;
   pid_t own_pid= getpid();
   pid_t parent_pid= getppid();
-
+  bool nocore = false;
+  
   /* Install signal handlers */
   signal(SIGTERM, handle_signal);
   signal(SIGINT,  handle_signal);
@@ -181,6 +187,9 @@ int main(int argc, char* const argv[] )
         start++; /* Step past = */
         if ((parent_pid= atoi(start)) == 0)
           die("Invalid value '%s' passed to --parent-id", start);
+      } else if ( strcmp(arg, "--nocore") == 0 )
+      {
+        nocore = true;	// Don't allow the process to dump core
       }
       else
         die("Unknown option: %s", arg);
@@ -218,6 +227,15 @@ int main(int argc, char* const argv[] )
     // it and any childs(that hasn't changed group themself)
     setpgid(0, 0);
 
+    if (nocore)
+    {
+      struct rlimit corelim = { 0, 0 };
+      if (setrlimit (RLIMIT_CORE, &corelim) < 0)
+      {
+        message("setrlimit failed, errno=%d", errno);
+      }
+    }
+    
     // Signal that child is ready
     buf= 37;
     write(pfd[1], &buf, 1);

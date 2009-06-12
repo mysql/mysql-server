@@ -1,4 +1,6 @@
-/* Copyright (C) 1995-2002 MySQL AB
+/*
+   Copyright (C) 1995-2002 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /**********************************************************************
 This file contains the implementation of error and warnings related
@@ -251,7 +254,7 @@ bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
     protocol->store(warning_level_names[err->level].str,
 		    warning_level_names[err->level].length, system_charset_info);
     protocol->store((uint32) err->code);
-    protocol->store(err->msg, strlen(err->msg), system_charset_info);
+    protocol->store(err->msg, (uint) strlen(err->msg), system_charset_info);
     if (protocol->write())
       DBUG_RETURN(TRUE);
   }

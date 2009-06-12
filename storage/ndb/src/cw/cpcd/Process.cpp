@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <ndb_global.h>
 
@@ -21,7 +24,10 @@
 #include "common.hpp"
 #include "CPCD.hpp"
 
+#ifndef _WIN32
 #include <pwd.h>
+#endif
+
 #ifdef HAVE_GETRLIMIT
 #include <sys/resource.h>
 #endif
@@ -84,7 +90,6 @@ CPCD::Process::monitor() {
     break;
   case RUNNING:
     if(!isRunning()){
-      m_cpcd->report(m_id, CPCEvent::ET_PROC_STATE_STOPPED);
       if(m_processType == TEMPORARY){
 	m_status = STOPPED;
       } else {
@@ -368,7 +373,6 @@ CPCD::Process::start() {
       break;
     default: /* Parent */
       logger.debug("Started temporary %d : pid=%d", m_id, pid);
-      m_cpcd->report(m_id, CPCEvent::ET_PROC_STATE_RUNNING);
       break;
     }
     break;
@@ -409,7 +413,6 @@ CPCD::Process::start() {
       return -1;
       break;
     default: /* Parent */
-      m_cpcd->report(m_id, CPCEvent::ET_PROC_STATE_RUNNING);
       break;
     }
     break;

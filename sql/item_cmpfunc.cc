@@ -1,4 +1,6 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/*
+   Copyright (C) 2000-2006 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 /**
@@ -549,7 +552,8 @@ int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
 	my_error(ER_OPERAND_COLUMNS, MYF(0), (*a)->element_index(i)->cols());
 	return 1;
       }
-      comparators[i].set_cmp_func(owner, (*a)->addr(i), (*b)->addr(i));
+      if (comparators[i].set_cmp_func(owner, (*a)->addr(i), (*b)->addr(i)))
+        return 1;
     }
     break;
   }
@@ -893,6 +897,16 @@ int Arg_comparator::set_cmp_func(Item_bool_func2 *owner_arg,
     func= &Arg_comparator::compare_datetime;
     get_value_func= &get_time_value;
     return 0;
+  }
+  else if (type == STRING_RESULT &&
+           (*a)->result_type() == STRING_RESULT &&
+           (*b)->result_type() == STRING_RESULT)
+  {
+    DTCollation coll;
+    coll.set((*a)->collation.collation);
+    if (agg_item_set_converter(coll, owner_arg->func_name(),
+                               b, 1, MY_COLL_CMP_CONV, 1))
+      return 1;
   }
 
   return set_compare_func(owner_arg, type);

@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef QMGR_H
 #define QMGR_H
@@ -37,8 +40,6 @@
 #include "timer.hpp"
 
 #ifdef QMGR_C
-
-#define NO_REG_APP 1
 
 /* Delay values, ms -----------------------------*/
 #define ZDELAY_REGREQ 1000
@@ -178,6 +179,14 @@ public:
 
   struct ArbitRec {
     ArbitRec() {}
+
+    enum Method {
+      DISABLED = ARBIT_METHOD_DISABLED, // Arbitration disabled
+      METHOD_DEFAULT = ARBIT_METHOD_DEFAULT, // Default arbitration
+      // Delay commit to give "external" time to arbitrate
+      METHOD_EXTERNAL = ARBIT_METHOD_WAITEXTERNAL
+    } method;
+
     ArbitState state;		// state
     bool newstate;		// flag to initialize new state
     unsigned thread;		// identifies a continueB "thread"
@@ -187,7 +196,6 @@ public:
     NdbNodeBitmask newMask;	// new nodes to process in RUN state
     Uint8 sendCount;		// control send/recv of signals
     Uint8 recvCount;
-    Uint8 m_disabled;
     NdbNodeBitmask recvMask;	// left to recv
     Uint32 code;		// code field from signal
     Uint32 failureNr;            // cfailureNr at arbitration start
@@ -374,7 +382,8 @@ private:
   void stateArbitCrash(Signal* signal);
   void computeArbitNdbMask(NodeBitmask& aMask);
   void computeArbitNdbMask(NdbNodeBitmask& aMask);
-  void reportArbitEvent(Signal* signal, Ndb_logevent_type type);
+  void reportArbitEvent(Signal* signal, Ndb_logevent_type type,
+                        const NodeBitmask mask = NodeBitmask());
 
   // Initialisation
   void initData();
@@ -448,10 +457,10 @@ private:
   bool cHbSent;
   NDB_TICKS clatestTransactionCheck;
 
-  class Timer interface_check_timer;
-  class Timer hb_check_timer;
-  class Timer hb_send_timer;
-  class Timer hb_api_timer;
+  Timer interface_check_timer;
+  Timer hb_check_timer;
+  Timer hb_send_timer;
+  Timer hb_api_timer;
 
 
   Uint16 cfailedNodes[MAX_NDB_NODES];

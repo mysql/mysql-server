@@ -1,4 +1,6 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/*
+   Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /** @file handler.cc
 
@@ -429,14 +432,11 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
                                 MYF(MY_WME | MY_ZEROFILL));
   /* Historical Requirement */
   plugin->data= hton; // shortcut for the future
-  if (plugin->plugin->init)
+  if (plugin->plugin->init && plugin->plugin->init(hton))
   {
-    if (plugin->plugin->init(hton))
-    {
-      sql_print_error("Plugin '%s' init function returned error.",
-                      plugin->name.str);
-      goto err;
-    }
+    sql_print_error("Plugin '%s' init function returned error.",
+                    plugin->name.str);
+    goto err;  
   }
 
   /*
@@ -463,17 +463,13 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
         if (idx == (int) DB_TYPE_DEFAULT)
         {
           sql_print_warning("Too many storage engines!");
-          DBUG_RETURN(1);
+          goto err_deinit;
         }
         if (hton->db_type != DB_TYPE_UNKNOWN)
           sql_print_warning("Storage engine '%s' has conflicting typecode. "
                             "Assigning value %d.", plugin->plugin->name, idx);
         hton->db_type= (enum legacy_db_type) idx;
       }
-      installed_htons[hton->db_type]= hton;
-      tmp= hton->savepoint_offset;
-      hton->savepoint_offset= savepoint_alloc_size;
-      savepoint_alloc_size+= tmp;
 
       /*
         In case a plugin is uninstalled and re-installed later, it should
@@ -494,11 +490,14 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
         {
           sql_print_error("Too many plugins loaded. Limit is %lu. "
                           "Failed on '%s'", (ulong) MAX_HA, plugin->name.str);
-          goto err;
+          goto err_deinit;
         }
         hton->slot= total_ha++;
       }
-
+      installed_htons[hton->db_type]= hton;
+      tmp= hton->savepoint_offset;
+      hton->savepoint_offset= savepoint_alloc_size;
+      savepoint_alloc_size+= tmp;
       hton2plugin[hton->slot]=plugin;
       if (hton->prepare)
         total_ha_2pc++;
@@ -530,7 +529,18 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
   };
 
   DBUG_RETURN(0);
+
+err_deinit:
+  /* 
+    Let plugin do its inner deinitialization as plugin->init() 
+    was successfully called before.
+  */
+  if (plugin->plugin->deinit)
+    (void) plugin->plugin->deinit(NULL);
+          
 err:
+  my_free((uchar*) hton, MYF(0));
+  plugin->data= NULL;
   DBUG_RETURN(1);
 }
 
@@ -2938,7 +2948,7 @@ uint handler::get_dup_key(int error)
   if (error == HA_ERR_FOUND_DUPP_KEY || error == HA_ERR_FOREIGN_DUPLICATE_KEY ||
       error == HA_ERR_FOUND_DUPP_UNIQUE || error == HA_ERR_NULL_IN_SPATIAL ||
       error == HA_ERR_DROP_INDEX_FK)
-    info(HA_STATUS_ERRKEY | HA_STATUS_NO_LOCK);
+    table->file->info(HA_STATUS_ERRKEY | HA_STATUS_NO_LOCK);
   DBUG_RETURN(table->file->errkey);
 }
 
@@ -4630,9 +4640,9 @@ int handler::ha_write_row(uchar *buf)
 
   mark_trx_read_write();
 
-  if (unlikely(error= write_row(buf)))
+  if (unlikely((error= write_row(buf)) != 0))
     DBUG_RETURN(error);
-  if (unlikely(error= binlog_log_row(table, 0, buf, log_func)))
+  if (unlikely((error= binlog_log_row(table, 0, buf, log_func)) != 0))
     DBUG_RETURN(error); /* purecov: inspected */
   DBUG_RETURN(0);
 }
@@ -4651,9 +4661,9 @@ int handler::ha_update_row(const uchar *old_data, uchar *new_data)
 
   mark_trx_read_write();
 
-  if (unlikely(error= update_row(old_data, new_data)))
+  if (unlikely((error= update_row(old_data, new_data)) != 0))
     return error;
-  if (unlikely(error= binlog_log_row(table, old_data, new_data, log_func)))
+  if (unlikely((error= binlog_log_row(table, old_data, new_data, log_func))!=0))
     return error;
   return 0;
 }
@@ -4665,14 +4675,14 @@ int handler::ha_delete_row(const uchar *buf, bool will_batch)
 
   mark_trx_read_write();
 
-    if (will_batch)
+  if (will_batch)
   {
-    if (unlikely(error= bulk_delete_row(buf)))
+    if (unlikely((error= bulk_delete_row(buf)) != 0))
       return error;
   }
-  else if (unlikely(error= delete_row(buf)))
+  else if (unlikely((error= delete_row(buf)) != 0))
     return error;
-  if (unlikely(error= binlog_log_row(table, buf, 0, log_func)))
+  if (unlikely((error= binlog_log_row(table, buf, 0, log_func)) != 0))
     return error;
   return 0;
 }

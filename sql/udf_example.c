@@ -1,4 +1,6 @@
-/* Copyright (C) 2002 MySQL AB
+/*
+   Copyright (C) 2002 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /*
 ** example file of UDF (user definable functions) that are dynamicly loaded
@@ -1099,7 +1102,7 @@ char * is_const(UDF_INIT *initid, UDF_ARGS *args __attribute__((unused)),
     sprintf(result, "not const");
   }
   *is_null= 0;
-  *length= strlen(result);
+  *length= (uint) strlen(result);
   return result;
 }
 
@@ -1133,7 +1136,7 @@ char * check_const_len(UDF_INIT *initid, UDF_ARGS *args __attribute__((unused)),
                 char *is_null, char *error __attribute__((unused)))
 {
   strmov(result, initid->ptr);
-  *length= strlen(result);
+  *length= (uint) strlen(result);
   *is_null= 0;
   return result;
 }

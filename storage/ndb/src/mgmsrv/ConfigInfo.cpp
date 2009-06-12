@@ -1,4 +1,6 @@
-/* Copyright (C) 2003-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* 
+   Copyright (C) 2003-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <ndb_global.h>
 #ifndef NDB_MGMAPI
@@ -96,7 +99,6 @@ static bool fixNodeHostname(InitConfigFileParser::Context & ctx, const char * da
 static bool fixHostname(InitConfigFileParser::Context & ctx, const char * data);
 static bool fixNodeId(InitConfigFileParser::Context & ctx, const char * data);
 static bool fixDepricated(InitConfigFileParser::Context & ctx, const char *);
-static bool saveInConfigValues(InitConfigFileParser::Context & ctx, const char *);
 static bool fixFileSystemPath(InitConfigFileParser::Context & ctx, const char * data);
 static bool fixBackupDataDir(InitConfigFileParser::Context & ctx, const char * data);
 static bool fixShmUniqueId(InitConfigFileParser::Context & ctx, const char * data);
@@ -172,20 +174,6 @@ ConfigInfo::m_SectionRules[] = {
   { "SHM",  checkTCPConstraints, "HostName2" },
   
   { "*",    checkMandatory, 0 }
-  
-#if 0
-  /**
-   * Moved to saveSectionsInConfigValues
-   *   Which is run *after* all sections are parsed
-   */
-  ,{ DB_TOKEN,   saveInConfigValues, 0 },
-  { API_TOKEN,  saveInConfigValues, 0 },
-  { MGM_TOKEN,  saveInConfigValues, 0 },
-
-  { "TCP",  saveInConfigValues, 0 },
-  { "SHM",  saveInConfigValues, 0 },
-  { "SCI",  saveInConfigValues, 0 }
-#endif
 };
 const int ConfigInfo::m_NoOfRules = sizeof(m_SectionRules)/sizeof(SectionRule);
 
@@ -241,6 +229,15 @@ const DepricationTransform f_deprication[] = {
   { 0, 0, 0, 0, 0}
 };
 #endif /* NDB_MGMAPI */
+
+static
+const ConfigInfo::Typelib arbit_method_typelib[] = {
+  { "Disabled", ARBIT_METHOD_DISABLED },
+  { "Default", ARBIT_METHOD_DEFAULT },
+  { "WaitExternal", ARBIT_METHOD_WAITEXTERNAL },
+  { 0, 0 }
+};
+
 
 /**
  * The default constructors create objects with suitable values for the
@@ -434,7 +431,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "HostName",
     DB_TOKEN,
     "Name of computer for this node",
-    ConfigInfo::CI_INTERNAL,
+    ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_STRING,
     "localhost",
@@ -495,7 +492,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    MANDATORY,
+    "2",
     "1",
     "4" },
 
@@ -1094,7 +1091,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    "0",
+    UNDEFINED,
     "20",
     STR_VALUE(MAX_INT_RNIL) },
   
@@ -1241,12 +1238,25 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(MAX_INT_RNIL) },
 
   {
+    CFG_DB_ARBIT_METHOD,
+    "Arbitration",
+    DB_TOKEN,
+    "How to perform arbitration to avoid \"split brain\" when node(s) fail",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_ENUM,
+    UNDEFINED,
+    (const char*)arbit_method_typelib,
+    0
+  },
+
+  {
     CFG_NODE_DATADIR,
     "DataDir",
     DB_TOKEN,
     "Data directory for this node",
     ConfigInfo::CI_USED,
-    false,
+    CI_CHECK_WRITABLE,
     ConfigInfo::CI_STRING,
     ".",
     0, 0 },
@@ -1257,7 +1267,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     DB_TOKEN,
     "Path to directory where the "DB_TOKEN_PRINT" node stores its data (directory must exist)",
     ConfigInfo::CI_USED,
-    false,
+    CI_CHECK_WRITABLE,
     ConfigInfo::CI_STRING,
     UNDEFINED,
     0, 0 },
@@ -1391,7 +1401,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     DB_TOKEN,
     "Path to where to store backups",
     ConfigInfo::CI_USED,
-    false,
+    CI_CHECK_WRITABLE,
     ConfigInfo::CI_STRING,
     UNDEFINED,
     0, 0 },
@@ -1685,7 +1695,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     DB_TOKEN,
     "Path to directory where the "DB_TOKEN_PRINT" node stores its disk-data/undo-files",
     ConfigInfo::CI_USED,
-    false,
+    CI_CHECK_WRITABLE,
     ConfigInfo::CI_STRING,
     UNDEFINED,
     0, 0 },
@@ -1696,7 +1706,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     DB_TOKEN,
     "Path to directory where the "DB_TOKEN_PRINT" node stores its disk-data-files",
     ConfigInfo::CI_USED,
-    false,
+    CI_CHECK_WRITABLE,
     ConfigInfo::CI_STRING,
     UNDEFINED,
     0, 0 },
@@ -1707,7 +1717,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     DB_TOKEN,
     "Path to directory where the "DB_TOKEN_PRINT" node stores its disk-undo-files",
     ConfigInfo::CI_USED,
-    false,
+    CI_CHECK_WRITABLE,
     ConfigInfo::CI_STRING,
     UNDEFINED,
     0, 0 },
@@ -1779,7 +1789,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "HostName",
     API_TOKEN,
     "Name of computer for this node",
-    ConfigInfo::CI_INTERNAL,
+    ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_STRING,
     "",
@@ -1917,7 +1927,6 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(MAX_INT_RNIL)
   },
 
-
   /****************************************************************************
    * MGM
    ***************************************************************************/
@@ -1951,7 +1960,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "HostName",
     MGM_TOKEN,
     "Name of computer for this node",
-    ConfigInfo::CI_INTERNAL,
+    ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_STRING,
     "",
@@ -1963,7 +1972,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     MGM_TOKEN,
     "Data directory for this node",
     ConfigInfo::CI_USED,
-    false,
+    CI_CHECK_WRITABLE,
     ConfigInfo::CI_STRING,
     "",
     0, 0 },
@@ -2330,7 +2339,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "Number of unsent bytes that must be in the send buffer before the\n"
     "connection is considered overloaded",
     ConfigInfo::CI_USED,
-    "false",
+    false,
     ConfigInfo::CI_INT,
     "0",
     "0",
@@ -2519,7 +2528,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "Number of unsent bytes that must be in the send buffer before the\n"
     "connection is considered overloaded",
     ConfigInfo::CI_USED,
-    "false",
+    false,
     ConfigInfo::CI_INT,
     "0",
     "0",
@@ -2746,7 +2755,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "Number of unsent bytes that must be in the send buffer before the\n"
     "connection is considered overloaded",
     ConfigInfo::CI_USED,
-    "false",
+    0,
     ConfigInfo::CI_INT,
     "0",
     "0",
@@ -2797,7 +2806,7 @@ ConfigInfo::ConfigInfo()
     pinfo.put("Id",          param._paramId);
     pinfo.put("Fname",       param._fname);
     pinfo.put("Description", param._description);
-    pinfo.put("Updateable",  param._updateable);
+    pinfo.put("Flags",       param._flags);
     pinfo.put("Type",        param._type);
     pinfo.put("Status",      param._status);
 
@@ -2843,6 +2852,16 @@ ConfigInfo::ConfigInfo()
       case CI_SECTION:
 	pinfo.put("SectionType", (Uint32)UintPtr(param._default));
 	break;
+      case CI_ENUM:
+      {
+        Properties values(true); // case insensitive
+        // Put the list of allowed enum values in pinfo
+        for (const Typelib* entry = param._typelib;
+             entry->name != 0; entry++)
+          values.put(entry->name, entry->value);
+        require(pinfo.put("values", &values));
+        // fallthrough
+      }
       case CI_STRING:
         if(param._default == MANDATORY)
           pinfo.put("Mandatory", (Uint32)1);
@@ -2877,6 +2896,7 @@ ConfigInfo::ConfigInfo()
         {
 	  case CI_SECTION:
 	    break;
+	  case CI_ENUM:
 	  case CI_STRING:
 	    require(p->put(param._fname, param._default));
 	    break;
@@ -3054,7 +3074,6 @@ ConfigInfo::getAlias(const char * section) {
   return 0;
 }
 
-
 const char*
 ConfigInfo::sectionName(Uint32 section_type, Uint32 type) const {
 
@@ -3105,6 +3124,25 @@ ConfigInfo::sectionName(Uint32 section_type, Uint32 type) const {
   return "<unknown section>";
 }
 
+const ConfigInfo::AliasPair
+section2PrimaryKeys[]={
+  {API_TOKEN, "NodeId"},
+  {DB_TOKEN,  "NodeId"},
+  {MGM_TOKEN, "NodeId"},
+  {"TCP", "NodeId1,NodeId2"},
+  {"SCI", "NodeId1,NodeId2"},
+  {"SHM", "NodeId1,NodeId2"},
+  {0, 0}
+};
+
+static const char*
+sectionPrimaryKeys(const char * name) {
+  for (int i = 0; section2PrimaryKeys[i].name != 0; i++)
+    if(!strcasecmp(name, section2PrimaryKeys[i].name))
+      return section2PrimaryKeys[i].alias;
+  return 0;
+}
+
 bool
 ConfigInfo::verify(const Properties * section, const char* fname, 
 		   Uint64 value) const {
@@ -3121,6 +3159,39 @@ ConfigInfo::verify(const Properties * section, const char* fname,
     return false;
 }
 
+
+bool
+ConfigInfo::verify_enum(const Properties * section, const char* fname,
+                        const char* value, Uint32& value_int) const {
+  const Properties * p;
+  const Properties * values;
+  require(section->get(fname, &p));
+  require(p->get("values", &values));
+
+  if (values->get(value, &value_int))
+    return true;
+  return false;
+}
+
+
+void
+ConfigInfo::get_enum_values(const Properties * section, const char* fname,
+                      BaseString& list) const {
+  const Properties * p;
+  const Properties * values;
+  require(section->get(fname, &p));
+  require(p->get("values", &values));
+
+  const char* separator = "";
+  Properties::Iterator it(values);
+  for (const char* name = it.first(); name != NULL; name = it.next())
+  {
+    list.appfmt("%s%s", separator, name);
+    separator = " ";
+  }
+}
+
+
 ConfigInfo::Type 
 ConfigInfo::getType(const Properties * section, const char* fname) const {
   return (ConfigInfo::Type) getInfoInt(section, fname, "Type");
@@ -3129,6 +3200,11 @@ ConfigInfo::getType(const Properties * section, const char* fname) const {
 ConfigInfo::Status
 ConfigInfo::getStatus(const Properties * section, const char* fname) const {
   return (ConfigInfo::Status) getInfoInt(section, fname, "Status");
+}
+
+Uint32
+ConfigInfo::getFlags(const Properties* section, const char* fname) const {
+  return (Uint32)getInfoInt(section, fname, "Flags");
 }
 
 /****************************************************************************
@@ -3147,7 +3223,8 @@ public:
   virtual void start() {}
   virtual void end() {}
 
-  virtual void section_start(const char* name, const char* alias) {}
+  virtual void section_start(const char* name, const char* alias,
+                             const char* primarykeys = NULL) {}
   virtual void section_end(const char* name) {}
 
   virtual void parameter(const char* section_name,
@@ -3162,7 +3239,8 @@ public:
   PrettyPrinter(FILE* out = stdout) : ConfigPrinter(out) {}
   virtual ~PrettyPrinter() {}
 
-  virtual void section_start(const char* name, const char* alias) {
+  virtual void section_start(const char* name, const char* alias,
+                             const char* primarykeys = NULL) {
     fprintf(m_out, "****** %s ******\n\n", name);
   }
 
@@ -3205,6 +3283,7 @@ public:
       fprintf(m_out, "\n");
       break;
 
+    case ConfigInfo::CI_ENUM:
     case ConfigInfo::CI_STRING:
       fprintf(m_out, "%s (String)\n", param_name);
       fprintf(m_out, "%s\n", info.getDescription(section, param_name));
@@ -3271,9 +3350,12 @@ public:
     print_xml("/configvariables", pairs, false);
   }
 
-  virtual void section_start(const char* name, const char* alias) {
+  virtual void section_start(const char* name, const char* alias,
+                             const char* primarykeys = NULL) {
     Properties pairs;
     pairs.put("name", alias ? alias : name);
+    if (primarykeys)
+      pairs.put("primarykeys", primarykeys);
     print_xml("section", pairs, false);
     m_indent++;
   }
@@ -3324,6 +3406,7 @@ public:
       pairs.put("max", buf.c_str());
     break;
 
+    case ConfigInfo::CI_ENUM:
     case ConfigInfo::CI_STRING:
       pairs.put("type", "string");
 
@@ -3336,6 +3419,16 @@ public:
     case ConfigInfo::CI_SECTION:
       return; // Don't print anything for the section itself
     }
+
+    // Get "check" flag(s)
+    Uint32 flags = info.getFlags(section, param_name);
+    buf.clear();
+    if (flags & ConfigInfo::CI_CHECK_WRITABLE)
+      buf.append("writable");
+
+    if (buf.length())
+      pairs.put("check", buf.c_str());
+
     print_xml("param", pairs);
   }
 };
@@ -3379,8 +3472,9 @@ void ConfigInfo::print_impl(const char* section_filter,
     if (is_internal_section(sec))
       continue; // Skip whole section
 
-    printer.section_start(s, nameToAlias(s));
-
+    const char* section_alias = nameToAlias(s);
+    printer.section_start(s, section_alias, sectionPrimaryKeys(s));
+ 
     /* Iterate through all parameters in section */
     Properties::Iterator it(sec);
     for (const char* n = it.first(); n != NULL; n = it.next()) {
@@ -3391,6 +3485,27 @@ void ConfigInfo::print_impl(const char* section_filter,
       printer.parameter(s, sec, n, *this);
     }
     printer.section_end(s);
+
+    // Print [<section> DEFAULT] for all sections but SYSTEM
+    if (strcmp(s, "SYSTEM") == 0)
+      continue; // Skip SYSTEM section
+
+    BaseString default_section_name;
+    default_section_name.assfmt("%s %s",
+                                section_alias ? section_alias : s,
+                                "DEFAULT");
+    printer.section_start(s, default_section_name.c_str());
+
+    /* Iterate through all parameters in section */
+    for (const char* n = it.first(); n != NULL; n = it.next()) {
+      // Skip entries with different F- and P-names
+      if (getStatus(sec, n) == ConfigInfo::CI_INTERNAL) continue;
+      if (getStatus(sec, n) == ConfigInfo::CI_DEPRICATED) continue;
+      if (getStatus(sec, n) == ConfigInfo::CI_NOTIMPLEMENTED) continue;
+      printer.parameter(s, sec, n, *this);
+    }
+    printer.section_end(s);
+
   }
   printer.end();
 }
@@ -3663,6 +3778,7 @@ applyDefaultValues(InitConfigFileParser::Context & ctx,
       (void) ctx.m_info->getStatus(ctx.m_currentInfo, name);
       if(!ctx.m_currentSection->contains(name)){
 	switch (ctx.m_info->getType(ctx.m_currentInfo, name)){
+	case ConfigInfo::CI_ENUM:
 	case ConfigInfo::CI_INT:
 	case ConfigInfo::CI_BOOL:{
 	  Uint32 val = 0;
@@ -3687,7 +3803,7 @@ applyDefaultValues(InitConfigFileParser::Context & ctx,
 	}
 	case ConfigInfo::CI_SECTION:
 	  break;
-	}
+        }
       }
 #ifndef DBUG_OFF
       else
@@ -3706,6 +3822,7 @@ applyDefaultValues(InitConfigFileParser::Context & ctx,
           DBUG_PRINT("info",("%s=%lld",name,val));
           break;
         }
+        case ConfigInfo::CI_ENUM:
         case ConfigInfo::CI_STRING:{
           const char * val;
           ::require(ctx.m_currentSection->get(name, &val));
@@ -4883,6 +5000,18 @@ ConfigInfo::ParamInfoIter::next(void) {
 }
 
 
+static bool
+is_name_in_list(const char* name, Vector<BaseString>& list)
+{
+  for (Uint32 i = 0; i<list.size(); i++)
+  {
+    if (strstr(name, list[i].c_str()))
+      return true;
+  }
+  return false;
+}
+
+
 static
 bool
 saveSectionsInConfigValues(Vector<ConfigInfo::ConfigRuleSection>& notused,
@@ -4897,19 +5026,61 @@ saveSectionsInConfigValues(Vector<ConfigInfo::ConfigRuleSection>& notused,
   sections.split(list, ",");
 
   Properties::Iterator it(ctx.m_config);
+
+  {
+    // Estimate size of Properties when saved as ConfigValues
+    // and expand ConfigValues to that size in order to avoid
+    // the need of allocating memory and copying from new to old
+    Uint32 keys = 0, data_sz = 0;
+    for (const char * name = it.first(); name != 0; name = it.next())
+    {
+      PropertiesType pt;
+      if (is_name_in_list(name, list) &&
+          ctx.m_config->getTypeOf(name, &pt) &&
+          pt == PropertiesType_Properties)
+      {
+        const Properties* tmp;
+        require(ctx.m_config->get(name, &tmp) != 0);
+
+        keys += 2; // openSection(key + no)
+        keys += 1; // CFG_TYPE_OF_SECTION
+
+        Properties::Iterator it2(tmp);
+        for (const char * name2 = it2.first(); name2 != 0; name2 = it2.next())
+        {
+          keys++;
+          require(tmp->getTypeOf(name2, &pt) != 0);
+          switch(pt){
+          case PropertiesType_char:
+            const char* value;
+            require(tmp->get(name2, &value) != 0);
+            data_sz += 1 + ((strlen(value) + 3) / 4);
+            break;
+
+          case PropertiesType_Uint32:
+            data_sz += 1;
+            break;
+
+          case PropertiesType_Uint64:
+            data_sz += 2;
+            break;
+
+          case PropertiesType_Properties:
+          default:
+            require(false);
+            break;
+          }
+        }
+      }
+    }
+
+    ctx.m_configValues.expand(keys, data_sz);
+  }
+
   for (const char * name = it.first(); name != 0; name = it.next())
   {
     PropertiesType pt;
-    bool match = false;
-    for (Uint32 i = 0; i<list.size(); i++)
-    {
-      if (strstr(name, list[i].c_str()))
-      {
-        match = true;
-        break;
-      }
-    }
-    if (match &&
+    if (is_name_in_list(name, list) &&
         ctx.m_config->getTypeOf(name, &pt) &&
         pt == PropertiesType_Properties)
     {
@@ -4923,6 +5094,7 @@ saveSectionsInConfigValues(Vector<ConfigInfo::ConfigRuleSection>& notused,
       saveInConfigValues(ctx, 0);
     }
   }
+
   return true;
 }
 

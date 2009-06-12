@@ -1,4 +1,6 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/*
+   Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 /**
@@ -4685,10 +4688,14 @@ bool flush_error_log()
       uchar buf[IO_SIZE];
 
       freopen(err_temp,"a+",stderr);
+      setbuf(stderr, NULL);
       (void) my_delete(err_renamed, MYF(0));
       my_rename(log_error_file,err_renamed,MYF(0));
       if (freopen(log_error_file,"a+",stdout))
+      {
         freopen(log_error_file,"a+",stderr);
+        setbuf(stderr, NULL);
+      }
 
       if ((fd = my_open(err_temp, O_RDONLY, MYF(0))) >= 0)
       {
@@ -4704,7 +4711,10 @@ bool flush_error_log()
 #else
    my_rename(log_error_file,err_renamed,MYF(0));
    if (freopen(log_error_file,"a+",stdout))
+   {
      freopen(log_error_file,"a+",stderr);
+     setbuf(stderr, NULL);
+   }
    else
      result= 1;
 #endif

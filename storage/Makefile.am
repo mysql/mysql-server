@@ -1,4 +1,5 @@
 # Copyright (C) 2005-2006 MySQL AB
+#  All rights reserved. Use is subject to license terms.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -11,7 +12,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 # Process this file with automake to create Makefile.in
 
@@ -20,6 +21,7 @@ AUTOMAKE_OPTIONS =	foreign
 # These are built from source in the Docs directory
 EXTRA_DIST =		
 SUBDIRS = @mysql_se_dirs@
+DIST_SUBDIRS = @mysql_se_distdirs@
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

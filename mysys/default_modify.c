@@ -1,4 +1,6 @@
-/* Copyright (C) 2005 MySQL AB
+/*
+   Copyright (C) 2005 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include "my_global.h"
 #include "mysys_priv.h"
@@ -68,11 +71,9 @@ int modify_defaults_file(const char *file_location, const char *option,
   FILE *cnf_file;
   MY_STAT file_stat;
   char linebuff[BUFF_SIZE], *src_ptr, *dst_ptr, *file_buffer;
-  size_t opt_len= 0, optval_len= 0, sect_len;
+  size_t opt_len= 0, optval_len= 0, sect_len, new_opt_len, reserve_extended;
   uint nr_newlines= 0, buffer_size;
   my_bool in_section= FALSE, opt_applied= 0;
-  uint reserve_extended;
-  uint new_opt_len;
   int reserve_occupied= 0;
   DBUG_ENTER("modify_defaults_file");
 

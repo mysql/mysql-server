@@ -1,17 +1,20 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
 
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-  You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /*
   Please read ha_exmple.cc before reading this file.
@@ -70,7 +73,7 @@ typedef struct st_federated_share {
   int share_key_length;
   ushort port;
 
-  uint table_name_length, server_name_length, connect_string_length, use_count;
+  size_t table_name_length, server_name_length, connect_string_length, use_count;
   pthread_mutex_t mutex;
   THR_LOCK lock;
 } FEDERATED_SHARE;
@@ -113,7 +116,7 @@ private:
                                      uint key_len,
                                      ha_rkey_function find_flag,
                                      MYSQL_RES **result);
-  int real_query(const char *query, uint length);
+  int real_query(const char *query, size_t length);
   int real_connect();
 public:
   ha_federated(handlerton *hton, TABLE_SHARE *table_arg);

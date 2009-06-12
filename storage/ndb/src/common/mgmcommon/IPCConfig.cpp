@@ -1,4 +1,6 @@
-/* Copyright (C) 2003-2008 MySQL AB, Sun Microsystems Inc.
+/* 
+   Copyright (C) 2003-2008 MySQL AB, Sun Microsystems Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <ndb_global.h>
 #include <IPCConfig.hpp>
@@ -86,7 +89,7 @@ IPCConfig::configureTransporters(Uint32 nodeId,
     ndb_mgm_configuration_iterator iter(config, CFG_SECTION_NODE);
     if (tr.get_transporter(i) && iter.find(CFG_NODE_ID, i))
     {
-      // Transporter exist in TransporterResgistry but not
+      // Transporter exist in TransporterRegistry but not
       // in configuration
       ndbout_c("The connection to node %d could not "
                "be removed at this time", i);

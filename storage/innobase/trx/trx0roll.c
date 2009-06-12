@@ -185,7 +185,25 @@ trx_rollback_last_sql_stat_for_mysql(
 }
 
 /***********************************************************************
-Frees savepoint structs. */
+Frees a single savepoint struct. */
+
+void
+trx_roll_savepoint_free(
+/*=====================*/
+	trx_t*			trx,	/* in: transaction handle */
+	trx_named_savept_t*	savep)	/* in: savepoint to free */
+{
+	ut_a(savep != NULL);
+	ut_a(UT_LIST_GET_LEN(trx->trx_savepoints) > 0);
+
+	UT_LIST_REMOVE(trx_savepoints, trx->trx_savepoints, savep);
+	mem_free(savep->name);
+	mem_free(savep);
+}
+
+/***********************************************************************
+Frees savepoint structs starting from savep, if savep == NULL then
+free all savepoints. */
 
 void
 trx_roll_savepoints_free(
@@ -206,9 +224,7 @@ trx_roll_savepoints_free(
 	while (savep != NULL) {
 		next_savep = UT_LIST_GET_NEXT(trx_savepoints, savep);
 
-		UT_LIST_REMOVE(trx_savepoints, trx->trx_savepoints, savep);
-		mem_free(savep->name);
-		mem_free(savep);
+		trx_roll_savepoint_free(trx, savep);
 
 		savep = next_savep;
 	}
@@ -343,8 +359,8 @@ trx_savepoint_for_mysql(
 }
 
 /***********************************************************************
-Releases a named savepoint. Savepoints which
-were set after this savepoint are deleted. */
+Releases only the named savepoint. Savepoints which were set after this
+savepoint are left as is. */
 
 ulint
 trx_release_savepoint_for_mysql(
@@ -360,31 +376,16 @@ trx_release_savepoint_for_mysql(
 
 	savep = UT_LIST_GET_FIRST(trx->trx_savepoints);
 
+	/* Search for the savepoint by name and free if found. */
 	while (savep != NULL) {
 		if (0 == ut_strcmp(savep->name, savepoint_name)) {
-			/* Found */
-			break;
+			trx_roll_savepoint_free(trx, savep);
+			return(DB_SUCCESS);
 		}
 		savep = UT_LIST_GET_NEXT(trx_savepoints, savep);
 	}
 
-	if (savep == NULL) {
-
-		return(DB_NO_SAVEPOINT);
-	}
-
-	/* We can now free all savepoints strictly later than this one */
-
-	trx_roll_savepoints_free(trx, savep);
-
-	/* Now we can free this savepoint too */
-
-	UT_LIST_REMOVE(trx_savepoints, trx->trx_savepoints, savep);
-
-	mem_free(savep->name);
-	mem_free(savep);
-
-	return(DB_SUCCESS);
+	return(DB_NO_SAVEPOINT);
 }
 
 /***********************************************************************

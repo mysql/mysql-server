@@ -1,4 +1,6 @@
-/* Copyright (C) 2004 MySQL AB
+/*
+   Copyright (C) 2004 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #define DBTUP_C
 #define DBTUP_DISK_ALLOC_CPP
@@ -1849,15 +1852,17 @@ Dbtup::disk_restart_alloc_extent(Uint32 tableId, Uint32 fragId,
   if (tabPtr.p->tableStatus == DEFINED)
   {
     getFragmentrec(fragPtr, fragId, tabPtr.p);
-    if (fragPtr.p->m_undo_complete & Fragrecord::UC_CREATE)
-    {
-      jam();
-      return -1;
-    }
 
     if (!fragPtr.isNull())
     {
       jam();
+
+      if (fragPtr.p->m_undo_complete & Fragrecord::UC_CREATE)
+      {
+        jam();
+        return -1;
+      }
+
       Disk_alloc_info& alloc= fragPtr.p->m_disk_alloc_info;
       
       Ptr<Extent_info> ext;

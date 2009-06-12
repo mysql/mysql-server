@@ -268,6 +268,7 @@ show status like 'Com%function';
 #
 connect (root, localhost, root,,test);
 connection root;
+let $root_connection_id= `select connection_id()`;
 --disable_warnings
 create database db37908;
 --enable_warnings
@@ -282,6 +283,7 @@ delimiter ;|
 
 connect (user1,localhost,mysqltest_1,,test);
 connection user1;
+let $user1_connection_id= `select connection_id()`;
 
 --error ER_TABLEACCESS_DENIED_ERROR
 select * from db37908.t1;
@@ -300,8 +302,12 @@ drop procedure proc37908;
 drop function func37908;
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_1@localhost;
 DROP USER mysqltest_1@localhost;
-# Wait till we reached the initial number of concurrent sessions
---source include/wait_until_count_sessions.inc
+# Wait till the sessions user1 and root are disconnected
+let $wait_condition =
+  SELECT COUNT(*) = 0
+  FROM information_schema.processlist
+  WHERE  id in ('$root_connection_id','$user1_connection_id');
+--source include/wait_condition.inc
 
 #
 # Bug#41131 "Questions" fails to increment - ignores statements instead stored procs

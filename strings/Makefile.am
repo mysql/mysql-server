@@ -1,17 +1,18 @@
 # Copyright (C) 2000-2006 MySQL AB
-# 
+#  All rights reserved. Use is subject to license terms.
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; version 2 of the License.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 # This file is public domain and comes with NO WARRANTY of any kind
 
@@ -65,7 +66,8 @@ EXTRA_DIST 	= ctype-big5.c ctype-cp932.c ctype-czech.c ctype-eucjpms.c ctype-euc
 			bmove_upp-sparc.s strappend-sparc.s strend-sparc.s \
 			strinstr-sparc.s strmake-sparc.s strmov-sparc.s \
 			strnmov-sparc.s strstr-sparc.s strxmov-sparc.s \
-			t_ctype.h my_strchr.c CMakeLists.txt
+			t_ctype.h my_strchr.c CMakeLists.txt \
+			CHARSET_INFO.txt
 
 conf_to_src_SOURCES = conf_to_src.c 
 conf_to_src_LDADD= libmystringslt.la

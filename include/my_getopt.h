@@ -1,4 +1,6 @@
-/* Copyright (C) 2002-2004 MySQL AB
+/*
+   Copyright (C) 2002-2004 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef _my_getopt_h
 #define _my_getopt_h
@@ -72,7 +75,7 @@ extern void my_cleanup_options(const struct my_option *options);
 extern void my_print_help(const struct my_option *options);
 extern void my_print_variables(const struct my_option *options);
 extern void my_getopt_register_get_addr(uchar ** (*func_addr)(const char *, uint,
-							   const struct my_option *));
+                                        const struct my_option *, int *));
 
 ulonglong getopt_ull_limit_value(ulonglong num, const struct my_option *optp,
                                  my_bool *fix);

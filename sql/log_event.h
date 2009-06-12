@@ -1,4 +1,6 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/*
+   Copyright (C) 2000-2006 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /**
   @addtogroup Replication
@@ -46,6 +49,8 @@
 #include "rpl_record.h"
 #include "rpl_reporting.h"
 #endif
+
+#define PREFIX_SQL_LOAD "SQL_LOAD-"
 
 /**
    Either assert or return an error.
@@ -3336,7 +3341,7 @@ public:
   virtual Log_event_type get_type_code() { return TABLE_MAP_EVENT; }
   virtual bool is_valid() const { return m_memory != NULL; /* we check malloc */ }
 
-  virtual int get_data_size() { return m_data_size; } 
+  virtual int get_data_size() { return (uint) m_data_size; } 
 #ifndef MYSQL_CLIENT
   virtual int save_field_metadata();
   virtual bool write_data_header(IO_CACHE *file);
@@ -3919,7 +3924,7 @@ public:
     return m_incident > INCIDENT_NONE && m_incident < INCIDENT_COUNT;
   }
   virtual int get_data_size() {
-    return INCIDENT_HEADER_LEN + 1 + m_message.length;
+    return INCIDENT_HEADER_LEN + 1 + (uint) m_message.length;
   }
 
 private:

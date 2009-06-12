@@ -1,4 +1,6 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/*
+   Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /* sql_yacc.yy */
 
@@ -4448,7 +4451,7 @@ create_table_option:
         | TYPE_SYM opt_equal storage_engines
           {
             Lex->create_info.db_type= $3;
-            WARN_DEPRECATED(yythd, "5.2", "TYPE=storage_engine",
+            WARN_DEPRECATED(yythd, "6.0", "TYPE=storage_engine",
                             "'ENGINE=storage_engine'");
             Lex->create_info.used_fields|= HA_CREATE_USED_ENGINE;
           }
@@ -6616,7 +6619,8 @@ select_option:
           {
             if (check_simple_select())
               MYSQL_YYABORT;
-            Lex->lock_option= TL_READ_HIGH_PRIORITY;
+            Lex->lock_option=  TL_READ_HIGH_PRIORITY;
+            Lex->current_select->lock_option= TL_READ_HIGH_PRIORITY;
           }
         | DISTINCT         { Select->options|= SELECT_DISTINCT; }
         | SQL_SMALL_RESULT { Select->options|= SELECT_SMALL_RESULT; }
@@ -6662,6 +6666,7 @@ select_lock_type:
           {
             LEX *lex=Lex;
             lex->current_select->set_lock_for_tables(TL_WRITE);
+            lex->current_select->lock_option= TL_WRITE;
             lex->safe_to_cache_query=0;
           }
         | LOCK_SYM IN_SYM SHARE_SYM MODE_SYM
@@ -6669,6 +6674,7 @@ select_lock_type:
             LEX *lex=Lex;
             lex->current_select->
               set_lock_for_tables(TL_READ_WITH_SHARED_LOCKS);
+            lex->current_select->lock_option= TL_READ_WITH_SHARED_LOCKS;
             lex->safe_to_cache_query=0;
           }
         ;
@@ -9389,6 +9395,11 @@ drop:
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
             sp_name *spname;
+            if ($4.str && check_db_name(&$4))
+            {
+               my_error(ER_WRONG_DB_NAME, MYF(0), $4.str);
+               MYSQL_YYABORT;
+            }
             if (lex->sphead)
             {
               my_error(ER_SP_NO_DROP_SP, MYF(0), "FUNCTION");
@@ -9997,7 +10008,7 @@ show_param:
         | opt_full PLUGIN_SYM
           {
             LEX *lex= Lex;
-            WARN_DEPRECATED(yythd, "5.2", "SHOW PLUGIN", "'SHOW PLUGINS'");
+            WARN_DEPRECATED(yythd, "6.0", "SHOW PLUGIN", "'SHOW PLUGINS'");
             lex->sql_command= SQLCOM_SHOW_PLUGINS;
             if (prepare_schema_table(YYTHD, lex, 0, SCH_PLUGINS))
               MYSQL_YYABORT;
@@ -10066,7 +10077,7 @@ show_param:
           {
             LEX *lex=Lex;
             lex->sql_command= SQLCOM_SHOW_STORAGE_ENGINES;
-            WARN_DEPRECATED(yythd, "5.2", "SHOW TABLE TYPES", "'SHOW [STORAGE] ENGINES'");
+            WARN_DEPRECATED(yythd, "6.0", "SHOW TABLE TYPES", "'SHOW [STORAGE] ENGINES'");
             if (prepare_schema_table(YYTHD, lex, 0, SCH_ENGINES))
               MYSQL_YYABORT;
           }
@@ -10127,7 +10138,7 @@ show_param:
               my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), "InnoDB");
               MYSQL_YYABORT;
             }
-            WARN_DEPRECATED(yythd, "5.2", "SHOW INNODB STATUS", "'SHOW ENGINE INNODB STATUS'");
+            WARN_DEPRECATED(yythd, "6.0", "SHOW INNODB STATUS", "'SHOW ENGINE INNODB STATUS'");
           }
         | MUTEX_SYM STATUS_SYM
           {
@@ -10139,7 +10150,7 @@ show_param:
               my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), "InnoDB");
               MYSQL_YYABORT;
             }
-            WARN_DEPRECATED(yythd, "5.2", "SHOW MUTEX STATUS", "'SHOW ENGINE INNODB MUTEX'");
+            WARN_DEPRECATED(yythd, "6.0", "SHOW MUTEX STATUS", "'SHOW ENGINE INNODB MUTEX'");
           }
         | opt_full PROCESSLIST_SYM
           { Lex->sql_command= SQLCOM_SHOW_PROCESSLIST;}
@@ -10534,7 +10545,7 @@ load:
         | LOAD TABLE_SYM table_ident FROM MASTER_SYM
           {
             LEX *lex=Lex;
-            WARN_DEPRECATED(yythd, "5.2", "LOAD TABLE FROM MASTER",
+            WARN_DEPRECATED(yythd, "6.0", "LOAD TABLE FROM MASTER",
                             "MySQL Administrator (mysqldump, mysql)");
             if (lex->sphead)
             {
@@ -10581,7 +10592,7 @@ load_data:
         | FROM MASTER_SYM
           {
             Lex->sql_command = SQLCOM_LOAD_MASTER_DATA;
-            WARN_DEPRECATED(yythd, "5.2", "LOAD DATA FROM MASTER",
+            WARN_DEPRECATED(yythd, "6.0", "LOAD DATA FROM MASTER",
                             "mysqldump or future "
                             "BACKUP/RESTORE DATABASE facility");
           }
@@ -13035,6 +13046,18 @@ subselect_start:
 subselect_end:
           {
             LEX *lex=Lex;
+            /*
+              Set the required lock level for the tables associated with the
+              current sub-select. This will overwrite previous lock options set
+              using st_select_lex::add_table_to_list in any of the following
+              rules: single_multi, table_wild_one, load_data, table_alias_ref,
+              table_factor.
+              The default lock level is TL_READ_DEFAULT but it can be modified
+              with query options specific for a certain (sub-)SELECT.
+            */
+            lex->current_select->
+              set_lock_for_tables(lex->current_select->lock_option);
+
             lex->pop_context();
             SELECT_LEX *child= lex->current_select;
             lex->current_select = lex->current_select->return_after_parsing();

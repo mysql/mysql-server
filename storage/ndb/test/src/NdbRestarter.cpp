@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <NdbRestarter.hpp>
 #include <NdbOut.hpp>
@@ -821,6 +824,58 @@ NdbRestarter::checkClusterAlive(const int * deadnodes, int num_nodes)
     if (ndbNodes[n].node_status != NDB_MGM_NODE_STATUS_STARTED)
       return ndbNodes[n].node_id;
   }
+  
+  return 0;
+}
+
+int
+NdbRestarter::rollingRestart(Uint32 flags)
+{
+  if (getStatus() != 0)
+    return -1;
+  
+  NdbNodeBitmask ng_mask;
+  NdbNodeBitmask restart_nodes;
+  Vector<int> nodes;
+  for(size_t i = 0; i < ndbNodes.size(); i++)
+  { 
+    if (ng_mask.get(ndbNodes[i].node_group) == false)
+    {
+      ng_mask.set(ndbNodes[i].node_group);
+      nodes.push_back(ndbNodes[i].node_id);
+      restart_nodes.set(ndbNodes[i].node_id);
+    }
+  }
+
+loop:  
+  if (ndb_mgm_restart2(handle, nodes.size(), nodes.getBase(),
+                       (flags & NRRF_INITIAL) != 0, 
+                       (flags & NRRF_NOSTART) != 0,
+                       (flags & NRRF_ABORT) != 0 || true) <= 0)
+  {
+    return -1;
+  }
+  
+  if (waitNodesNoStart(nodes.getBase(), nodes.size()))
+    return -1;
+
+  if (startNodes(nodes.getBase(), nodes.size()))
+    return -1;
+
+  if (waitClusterStarted())
+    return -1;
+
+  nodes.clear();
+  for (Uint32 i = 0; i<ndbNodes.size(); i++)
+  {
+    if (restart_nodes.get(ndbNodes[i].node_id) == false)
+    {
+      nodes.push_back(ndbNodes[i].node_id);
+      restart_nodes.set(ndbNodes[i].node_id);
+    }
+  }
+  if (nodes.size())
+    goto loop;
   
   return 0;
 }

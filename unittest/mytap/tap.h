@@ -1,4 +1,6 @@
-/* Copyright (C) 2006 MySQL AB
+/*
+   Copyright (C) 2006 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,10 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-   Library for providing TAP support for testing C and C++ was written
-   by Mats Kindahl <mats@mysql.com>.
 */
 
 #ifndef TAP_H
@@ -62,6 +62,24 @@ extern "C" {
 #endif
 
 /**
+   Defines whether "big" tests should be skipped.
+
+   This variable is set by plan() function unless MYTAP_CONFIG environment
+   variable is set to the string "big".  It is supposed to be used as
+
+   @code
+   if (skip_big_tests) {
+     skip(1, "Big test skipped");
+   } else {
+     ok(life_universe_and_everything() == 42, "The answer is CORRECT");
+   }
+   @endcode
+
+   @see SKIP_BIG_TESTS
+*/
+extern int skip_big_tests;
+
+/**
   @defgroup MyTAP_API MyTAP API
 
   MySQL support for performing unit tests according to TAP.
@@ -81,10 +99,15 @@ extern "C" {
    that generate a core, so if you want to override these signals, do
    it <em>after</em> you have called the plan() function.
 
-   @param count The planned number of tests to run. 
+   It will also set skip_big_tests variable if MYTAP_CONFIG environment
+   variable is defined.
+
+   @see skip_big_tests
+
+   @param count The planned number of tests to run.
 */
 
-void plan(int count);
+void plan(int const count);
 
 
 /**
@@ -103,7 +126,7 @@ void plan(int count);
                which case nothing is printed.
 */
 
-void ok(int pass, char const *fmt, ...)
+void ok(int const pass, char const *fmt, ...)
   __attribute__((format(printf,2,3)));
 
 
@@ -135,7 +158,7 @@ void ok(int pass, char const *fmt, ...)
    @param reason     A reason for skipping the tests
  */
 
-void skip(int how_many, char const *reason, ...)
+void skip(int how_many, char const *const reason, ...)
     __attribute__((format(printf,2,3)));
 
 
@@ -158,6 +181,24 @@ void skip(int how_many, char const *reason, ...)
 
 #define SKIP_BLOCK_IF(SKIP_IF_TRUE, COUNT, REASON) \
   if (SKIP_IF_TRUE) skip((COUNT),(REASON)); else
+
+
+/**
+   Helper macro to skip a group of "big" tests. It is used in the following
+   manner:
+
+   @code
+   SKIP_BIG_TESTS(1)
+   {
+     ok(life_universe_and_everything() == 42, "The answer is CORRECT");
+   }
+   @endcode
+
+   @see skip_big_tests
+ */
+
+#define SKIP_BIG_TESTS(COUNT) \
+  if (skip_big_tests) skip((COUNT), "big test"); else
 
 
 /**

@@ -1,4 +1,6 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/*
+   Copyright (C) 2000-2006 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /* maintaince of mysql databases */
 
@@ -845,7 +848,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
         bool old= (find_type(argv[0], &command_typelib, 2) ==
                    ADMIN_OLD_PASSWORD);
 #ifdef __WIN__
-        uint pw_len= strlen(pw);
+        uint pw_len= (uint) strlen(pw);
         if (pw_len > 1 && pw[0] == '\'' && pw[pw_len-1] == '\'')
           printf("Warning: single quotes were not trimmed from the password by"
                  " your command\nline client, as you might have expected.\n");

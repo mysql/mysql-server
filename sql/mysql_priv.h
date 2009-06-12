@@ -1,4 +1,6 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/*
+   Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /**
   @file
@@ -294,16 +297,12 @@ enum open_table_mode
 */
 #define TABLE_DEF_CACHE_MIN     256
 
-/* 
- Value of 9236 discovered through binary search 2006-09-26 on Ubuntu Dapper
- Drake, libc6 2.3.6-0ubuntu2, Linux kernel 2.6.15-27-686, on x86.  (Added 
- 100 bytes as reasonable buffer against growth and other environments'
- requirements.)
-
- Feel free to raise this by the smallest amount you can to get the
- "execution_constants" test to pass.
- */
-#define STACK_MIN_SIZE          12000   ///< Abort if less stack during eval.
+/*
+  Stack reservation.
+  Feel free to raise this by the smallest amount you can to get the
+  "execution_constants" test to pass.
+*/
+#define STACK_MIN_SIZE          16000   // Abort if less stack during eval.
 
 #define STACK_MIN_SIZE_FOR_OPEN 1024*80
 #define STACK_BUFF_ALLOC        352     ///< For stack overrun checks
@@ -542,6 +541,20 @@ enum open_table_mode
 #define MODE_HIGH_NOT_PRECEDENCE	(MODE_NO_AUTO_CREATE_USER*2)
 #define MODE_NO_ENGINE_SUBSTITUTION     (MODE_HIGH_NOT_PRECEDENCE*2)
 #define MODE_PAD_CHAR_TO_FULL_LENGTH    (ULL(1) << 31)
+
+/* @@optimizer_switch flags. These must be in sync with optimizer_switch_typelib */
+#define OPTIMIZER_SWITCH_INDEX_MERGE 1
+#define OPTIMIZER_SWITCH_INDEX_MERGE_UNION 2
+#define OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION 4
+#define OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT 8
+#define OPTIMIZER_SWITCH_LAST 16
+
+/* The following must be kept in sync with optimizer_switch_str in mysqld.cc */
+#define OPTIMIZER_SWITCH_DEFAULT (OPTIMIZER_SWITCH_INDEX_MERGE | \
+                                  OPTIMIZER_SWITCH_INDEX_MERGE_UNION | \
+                                  OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION | \
+                                  OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT)
+
 
 /*
   Replication uses 8 bytes to store SQL_MODE in the binary log. The day you
@@ -1417,14 +1430,14 @@ enum enum_schema_tables get_schema_table_idx(ST_SCHEMA_TABLE *schema_table);
 
 /* sql_prepare.cc */
 
-void mysql_stmt_prepare(THD *thd, const char *packet, uint packet_length);
-void mysql_stmt_execute(THD *thd, char *packet, uint packet_length);
-void mysql_stmt_close(THD *thd, char *packet);
+void mysqld_stmt_prepare(THD *thd, const char *packet, uint packet_length);
+void mysqld_stmt_execute(THD *thd, char *packet, uint packet_length);
+void mysqld_stmt_close(THD *thd, char *packet);
 void mysql_sql_stmt_prepare(THD *thd);
 void mysql_sql_stmt_execute(THD *thd);
 void mysql_sql_stmt_close(THD *thd);
-void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length);
-void mysql_stmt_reset(THD *thd, char *packet);
+void mysqld_stmt_fetch(THD *thd, char *packet, uint packet_length);
+void mysqld_stmt_reset(THD *thd, char *packet);
 void mysql_stmt_get_longdata(THD *thd, char *pos, ulong packet_length);
 void reinit_stmt_before_use(THD *thd, LEX *lex);
 
@@ -1852,6 +1865,10 @@ extern enum_field_types agg_field_type(Item **items, uint nitems);
 /* strfunc.cc */
 ulonglong find_set(TYPELIB *lib, const char *x, uint length, CHARSET_INFO *cs,
 		   char **err_pos, uint *err_len, bool *set_warning);
+ulonglong find_set_from_flags(TYPELIB *lib, uint default_name,
+                              ulonglong cur_set, ulonglong default_set,
+                              const char *str, uint length, CHARSET_INFO *cs,
+                              char **err_pos, uint *err_len, bool *set_warning);
 uint find_type(const TYPELIB *lib, const char *find, uint length,
                bool part_match);
 uint find_type2(const TYPELIB *lib, const char *find, uint length,
@@ -2075,6 +2092,9 @@ extern SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 extern SHOW_COMP_OPTION have_crypt;
 extern SHOW_COMP_OPTION have_compress;
 
+extern int orig_argc;
+extern char **orig_argv;
+extern const char *load_default_groups[];
 
 #ifndef __WIN__
 extern pthread_t signal_thread;
@@ -2439,7 +2459,8 @@ extern "C" void unireg_abort(int exit_code) __attribute__((noreturn));
 void kill_delayed_threads(void);
 bool check_stack_overrun(THD *thd, long margin, uchar *dummy);
 #else
-#define unireg_abort(exit_code) DBUG_RETURN(exit_code)
+extern "C" void unireg_clear(int exit_code);
+#define unireg_abort(exit_code) do { unireg_clear(exit_code); DBUG_RETURN(exit_code); } while(0)
 inline void kill_delayed_threads(void) {}
 #define check_stack_overrun(A, B, C) 0
 #endif

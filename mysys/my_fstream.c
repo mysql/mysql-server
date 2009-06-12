@@ -1,4 +1,6 @@
-/* Copyright (C) 2000 MySQL AB
+/*
+   Copyright (C) 2000 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /* USE_MY_STREAM isn't set because we can't thrust my_fclose! */
 
@@ -131,10 +134,8 @@ size_t my_fwrite(FILE *stream, const uchar *Buffer, size_t Count, myf MyFlags)
       if ((errno == ENOSPC || errno == EDQUOT) &&
           (MyFlags & MY_WAIT_IF_FULL))
       {
-        if (!(errors++ % MY_WAIT_GIVE_USER_A_MESSAGE))
-          my_error(EE_DISK_FULL,MYF(ME_BELL | ME_NOREFRESH),
-                   "[stream]",my_errno,MY_WAIT_FOR_USER_TO_FIX_PANIC);
-        VOID(sleep(MY_WAIT_FOR_USER_TO_FIX_PANIC));
+        wait_for_free_space("[stream]", errors);
+        errors++;
         VOID(my_fseek(stream,seekptr,MY_SEEK_SET,MYF(0)));
         continue;
       }

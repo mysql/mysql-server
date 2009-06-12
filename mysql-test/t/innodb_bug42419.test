@@ -1,0 +1,78 @@
+#
+# Testcase for InnoDB
+# Bug#42419 Server crash with "Pure virtual method called" on two concurrent connections
+#
+
+--source include/not_embedded.inc
+--source include/have_innodb.inc
+
+let $innodb_lock_wait_timeout= query_get_value(SHOW VARIABLES LIKE 'innodb_lock_wait_timeout%', Value, 1);
+if (`SELECT $innodb_lock_wait_timeout < 10`)
+{
+   --echo # innodb_lock_wait_timeout must be >= 10 seconds
+   --echo # so that this test can work all time fine on an overloaded testing box
+   SHOW VARIABLES LIKE 'innodb_lock_wait_timeout';
+   exit;
+}
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+# First session
+connection default;
+
+
+--enable_warnings
+CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b INT) ENGINE = InnoDB;
+
+INSERT INTO t1 VALUES (1,1),(2,2),(3,3);
+COMMIT;
+SET AUTOCOMMIT = 0;
+
+CREATE TEMPORARY TABLE t1_tmp ( b INT );
+
+INSERT INTO t1_tmp (b) SELECT b FROM t1 WHERE a = 3;
+INSERT INTO t1_tmp (b) SELECT b FROM t1 WHERE a = 2;
+
+# Second session
+connect (user2,localhost,root,,,$MASTER_MYPORT,$MASTER_MYSOCK);
+
+SET AUTOCOMMIT = 0;
+
+CREATE TEMPORARY TABLE t2_tmp ( a int, new_a int );
+INSERT INTO t2_tmp VALUES (1,51),(2,52),(3,53);
+
+UPDATE t1 SET a = (SELECT new_a FROM t2_tmp WHERE t2_tmp.a = t1.a) WHERE a = 1;
+send
+UPDATE t1 SET a = (SELECT new_a FROM t2_tmp WHERE t2_tmp.a = t1.a) WHERE a = 2;
+
+# The last update will wait for a lock held by the first session
+
+# First session
+connection default;
+
+# Poll till the UPDATE of the second session waits for lock
+let $show_statement= SHOW PROCESSLIST;
+let $field= State;
+let $condition= = 'Updating';
+--source include/wait_show_condition.inc
+
+# If the testing box is overloadeded and innodb_lock_wait_timeout is too small
+# we might get here ER_LOCK_WAIT_TIMEOUT.
+--error ER_LOCK_DEADLOCK
+INSERT INTO t1_tmp (b) SELECT b FROM t1 WHERE a = 1;
+
+# Second session
+connection user2;
+--echo Reap the server message for connection user2 UPDATE t1 ...
+reap;
+
+# The server crashed when executing this UPDATE or the succeeding SQL command.
+UPDATE t1 SET a = (SELECT new_a FROM t2_tmp WHERE t2_tmp.a = t1.a) WHERE a = 3;
+
+connection default;
+disconnect user2;
+DROP TABLE t1;
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc
