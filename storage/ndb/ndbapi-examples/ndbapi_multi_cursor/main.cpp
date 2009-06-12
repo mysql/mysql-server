@@ -25,9 +25,10 @@
 #include <iostream>
 #include <stdio.h>
 #include <time.h>
+#include <assert.h>
 
 #include "NdbQueryBuilder.hpp"
-//#include "NdbQueryOperation.hpp"
+#include "NdbQueryOperation.hpp"
 
 /**
  * Helper debugging macros
@@ -263,11 +264,11 @@ int testQueryBuilder(Ndb &myNdb)
   NdbQueryBuilder myBuilder(&myNdb);
 
   /* qt1 is 'const defined' */
-  NdbQueryDefinition *q1 = 0;
+  NdbQueryDef* q1 = 0;
   {
-    NdbQueryBuilder *qb = &myBuilder; //myDict->getQueryBuilder();
+    NdbQueryBuilder* qb = &myBuilder; //myDict->getQueryBuilder();
 
-    const NdbQueryOperand *managerKey[] =  // Manager is indexed om {"dept_no", "emp_no"}
+    const NdbQueryOperand* managerKey[] =  // Manager is indexed om {"dept_no", "emp_no"}
     {  qb->constValue("d005"),             // dept_no = "d005"
        qb->constValue(110567),             // emp_no  = 110567
        0
@@ -279,26 +280,18 @@ int testQueryBuilder(Ndb &myNdb)
     if (q1 == NULL) APIERROR(qb->getNdbError());
   }
 
-  /* qt2 is specified to use a parameter as 
-   * declared in 'struct p2'
-   */
-  struct p2                     // Define param struct for qt2,
-  {                             // Which is managers key {"dept_no", "emp_no"}
-    char   dept_no[1+4+1];
-    Uint32 emp_no;
-  };
-
-  NdbQueryDefinition *q2 = 0;
+  NdbQueryDef* q2 = 0;
   {
-    NdbQueryBuilder *qb = &myBuilder; //myDict->getQueryBuilder();
+    NdbQueryBuilder* qb = &myBuilder; //myDict->getQueryBuilder();
 
-    const NdbQueryOperand *managerKey[] =       // Manager is indexed om {"dept_no", "emp_no"}
-    {  qb->paramValue(offsetof(p2, dept_no)),   // dept_no = 
-       qb->paramValue(offsetof(p2, emp_no)),    // emp_no  = 110567
+    // Manager key defined as parameter 
+    const NdbQueryOperand* managerKey[] =       // Manager is indexed om {"dept_no", "emp_no"}
+    {  qb->paramValue(),         // dept_no parameter,
+       qb->paramValue("emp"),    // emp_no parameter - param naming is optional
        0
     };
     // Lookup on a single tuple with key define by 'managerKey' param. tuple
-    const NdbQueryLookupOperationDef *readManager = qb->readTuple(manager, managerKey);
+    const NdbQueryLookupOperationDef* readManager = qb->readTuple(manager, managerKey);
     if (readManager == NULL) APIERROR(myNdb.getNdbError());
 
     q2 = qb->prepare();
@@ -306,11 +299,11 @@ int testQueryBuilder(Ndb &myNdb)
   }
 
 /**** UNFINISHED...
-  NdbQueryDefinition *q3 = 0;
+  NdbQueryDef* q3 = 0;
   {
-    NdbQueryBuilder *qb = &myBuilder; //myDict->getQueryBuilder();
+    NdbQueryBuilder* qb = &myBuilder; //myDict->getQueryBuilder();
 
-    const NdbQueryIndexBound *managerBound =       // Manager is indexed om {"dept_no", "emp_no"}
+    const NdbQueryIndexBound* managerBound =       // Manager is indexed om {"dept_no", "emp_no"}
     {  ....
     };
     // Lookup on a single tuple with key define by 'managerKey' param. tuple
@@ -325,24 +318,39 @@ int testQueryBuilder(Ndb &myNdb)
 
   ///////////////////////////////////////////////////
   // q2 may later be executed as:
-  // (Possibly multiple ::execute() or multiple NdbQueryDefinition instances 
+  // (Possibly multiple ::execute() or multiple NdbQueryDef instances 
   // within the same NdbTransaction::execute(). )
   ////////////////////////////////////////////////////
-  p2 param = {"d005",110567};
-  ManagerRow managerRow;
-  memset (&managerRow, 0, sizeof(managerRow));
+  char* dept_no = "d005";
+  Uint32 emp_no = 132323;
+  void* paramList[] = {&dept_no, &emp_no};
 
-  NdbTransaction *myTransaction= myNdb.startTransaction();
+  NdbTransaction* myTransaction= myNdb.startTransaction();
   if (myTransaction == NULL) APIERROR(myNdb.getNdbError());
 
-  NdbQuery *myQuery = myTransaction->buildQueryOperation(
-                                         q2, (char*)&param,
-                                         (char*)&managerRow);
+  NdbQuery* myQuery = myTransaction->createQuery(q2, paramList);
   if (myQuery == NULL)
     APIERROR(myTransaction->getNdbError());
 
+  ManagerRow managerRow;
+  memset (&managerRow, 0, sizeof(managerRow));
+
+  // Specify result handling NdbRecord style - need the (single) NdbQueryOperation:
+  assert(myQuery->getNoOfOperations()==1);
+  assert (myQuery->getQueryOperation((Uint32)0) == myQuery->getRootOperation());
+  NdbQueryOperation* op = myQuery->getQueryOperation((Uint32)0);
+
+  op->setResultRowBuf(rowManagerRecord, (char*)&managerRow);
+
   if (myTransaction->execute( NdbTransaction::NoCommit ) == -1)
     APIERROR(myTransaction->getNdbError());
+
+  // All NdbQuery operations are handled as scans with cursor placed 'before'
+  // first record: Fetch next to retrieve result:
+  if (myQuery->nextResult() != 0)
+    APIERROR(myQuery->getNdbError());
+
+  // NOW: Result is available in 'managerRow' buffer
 
   myNdb.closeTransaction(myTransaction);
   myTransaction = 0;
@@ -356,13 +364,13 @@ int testQueryBuilder(Ndb &myNdb)
    * select * from dept_manager join employees using(emp_no)
    *  where dept_no = 'd005' and emp_no = 110567;
    */
-  NdbQueryDefinition *q4 = 0;
+  NdbQueryDef* q4 = 0;
   {
-    NdbQueryBuilder *qb = &myBuilder; //myDict->getQueryBuilder();
+    NdbQueryBuilder* qb = &myBuilder; //myDict->getQueryBuilder();
 
-    const NdbQueryOperand *managerKey[] =       // Manager is indexed om {"dept_no", "emp_no"}
-    {  qb->paramValue(offsetof(p2, dept_no)), // dept_no = 
-       qb->paramValue(offsetof(p2, emp_no)),  // emp_no  = 110567
+    const NdbQueryOperand* managerKey[] =       // Manager is indexed om {"dept_no", "emp_no"}
+    {  qb->paramValue(),         // dept_no parameter,
+       qb->paramValue("emp"),    // emp_no parameter - param naming is optional
        0
     };
     // Lookup a single tuple with key define by 'managerKey' param. tuple
@@ -373,11 +381,11 @@ int testQueryBuilder(Ndb &myNdb)
     //    A linked value is used to let employee lookup refer values
     //    from the parent operation on manger.
 
-    const NdbQueryOperand *empJoinKey[] =         // Employee is indexed om {"emp_no"}
+    const NdbQueryOperand* empJoinKey[] =         // Employee is indexed om {"emp_no"}
     {  qb->linkedValue(readManager, "emp_no"),  // where '= readManger.emp_no'
        0
     };
-    const NdbQueryLookupOperationDef *readEmployee = qb->readTuple(employee, empJoinKey);
+    const NdbQueryLookupOperationDef* readEmployee = qb->readTuple(employee, empJoinKey);
     if (readEmployee == NULL) APIERROR(myNdb.getNdbError());
 
     q4 = qb->prepare();
