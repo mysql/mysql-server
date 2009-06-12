@@ -38,7 +38,7 @@ NdbIndexOperation::NdbIndexOperation(Ndb* aNdb) :
   /**
    * Change receiver type
    */
-  getReceiver(0).init(NdbReceiver::NDB_INDEX_OPERATION, false, this);
+  theReceiver.init(NdbReceiver::NDB_INDEX_OPERATION, false, this);
 }
 
 NdbIndexOperation::~NdbIndexOperation()

@@ -59,7 +59,6 @@ NdbOperation::initInterpreter(){
   theInterpretIndicator = 1;
 
   theTotalCurrAI_Len = AttrInfo::SectionSizeInfoLength;
-  LEN_CHANGE;
 }
 
 bool

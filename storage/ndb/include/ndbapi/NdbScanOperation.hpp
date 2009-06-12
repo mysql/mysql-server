@@ -465,8 +465,7 @@ protected:
                    NdbOperation::Type aType = NdbOperation::TableScan);
   virtual ~NdbScanOperation();
 
-  virtual NdbRecAttr* getValue_impl(const NdbColumnImpl*, char* aValue = 0, 
-				    int recNo=0);
+  virtual NdbRecAttr* getValue_impl(const NdbColumnImpl*, char* aValue = 0);
   NdbRecAttr* getValue_NdbRecord_scan(const NdbColumnImpl*, char* aValue);
   NdbRecAttr* getValue_NdbRecAttr_scan(const NdbColumnImpl*, char* aValue);
 
