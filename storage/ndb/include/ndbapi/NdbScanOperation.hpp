@@ -566,6 +566,10 @@ protected:
    * old NdbScanFilter Api
    */
   NdbInterpretedCode* m_interpretedCodeOldApi;
+
+private:
+  NdbScanOperation(const NdbScanOperation&); // Not impl.
+  NdbScanOperation&operator=(const NdbScanOperation&);
 };
 
 inline

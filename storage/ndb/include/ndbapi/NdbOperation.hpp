@@ -1443,6 +1443,10 @@ protected:
   friend struct Ndb_free_list_t<NdbOperation>;
 
   Uint32 repack_read(Uint32 len);
+
+private:
+  NdbOperation(const NdbOperation&); // Not impl.
+  NdbOperation&operator=(const NdbOperation&);
 };
 
 #ifdef NDB_NO_DROPPED_SIGNAL

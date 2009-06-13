@@ -300,6 +300,9 @@ private:
   Uint16* m_getVarValue;
 
   friend struct Ndb_free_list_t<NdbRecAttr>;
+
+  NdbRecAttr(const NdbRecAttr&); // Not impl.
+  NdbRecAttr&operator=(const NdbRecAttr&);
 };
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
