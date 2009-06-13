@@ -656,6 +656,9 @@ protected:
   
   ScanPruningState m_pruneState;
   Uint32 m_pruningKey;  // Can be distr key hash or actual partition id.
+private:
+  NdbScanOperation(const NdbScanOperation&); // Not impl.
+  NdbScanOperation&operator=(const NdbScanOperation&);
 };
 
 inline

@@ -174,6 +174,9 @@ private:
   friend class Ndb_cluster_connection_impl;
   class Ndb_cluster_connection_impl & m_impl;
   Ndb_cluster_connection(Ndb_cluster_connection_impl&);
+
+  Ndb_cluster_connection(const Ndb_cluster_connection&); // Not impl.
+  Ndb_cluster_connection& operator=(const Ndb_cluster_connection&);
 };
 
 #endif
