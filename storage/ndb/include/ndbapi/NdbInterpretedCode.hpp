@@ -657,6 +657,8 @@ private:
   static int compareMetaInfo(const void *a, 
                              const void *b);
 
+  NdbInterpretedCode(const NdbInterpretedCode&); // Not impl.
+  NdbInterpretedCode&operator=(const NdbInterpretedCode&);
 };
 #endif
 
