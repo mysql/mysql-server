@@ -1081,6 +1081,9 @@ private:
 
   friend class HugoOperations;
   friend struct Ndb_free_list_t<NdbTransaction>;
+
+  NdbTransaction(const NdbTransaction&); // Not impl.
+  NdbTransaction&operator=(const NdbTransaction&);
 };
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL

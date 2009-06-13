@@ -264,6 +264,9 @@ private:
   ~NdbEventOperation();
   class NdbEventOperationImpl &m_impl;
   NdbEventOperation(NdbEventOperationImpl& impl);
+
+  NdbEventOperation(const NdbEventOperation&); // Not impl.
+  NdbEventOperation&operator=(const NdbEventOperation&);
 };
 
 typedef void (* NdbEventCallback)(NdbEventOperation*, Ndb*, void*);

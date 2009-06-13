@@ -303,9 +303,11 @@ private:
   OldApiScanBoundInfo lowBound;
   OldApiScanBoundInfo highBound;
 
-  
-
   friend struct Ndb_free_list_t<NdbIndexScanOperation>;
+
+private:
+  NdbIndexScanOperation(const NdbIndexScanOperation&); // Not impl.
+  NdbIndexScanOperation&operator=(const NdbIndexScanOperation&);
 };
 
 inline
