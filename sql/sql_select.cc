@@ -16937,18 +16937,28 @@ static void print_join(THD *thd,
     *t= ti++;
 
   DBUG_ASSERT(tables->elements >= 1);
-  //pserey:TODO check!
+  /*
+    Assert that the first table in the list isn't eliminated (if it was we
+    would have skipped the entire join nest)
+  */
+  DBUG_ASSERT(!eliminated_tables || 
+              !((*table)->table && ((*table)->table->map & eliminated_tables) ||
+                (*table)->nested_join && !((*table)->nested_join->used_tables &
+                                       ~eliminated_tables)));
   (*table)->print(thd, eliminated_tables, str, query_type);
 
   TABLE_LIST **end= table + tables->elements;
   for (TABLE_LIST **tbl= table + 1; tbl < end; tbl++)
   {
     TABLE_LIST *curr= *tbl;
-    // psergey-todo-todo: 
-    //  base table: check 
-    if (curr->table && (curr->table->map & eliminated_tables) ||
-        curr->nested_join && !(curr->nested_join->used_tables &
-                               ~eliminated_tables))
+    /*
+       The (*) check guards againist the case of printing the query for
+       CREATE VIEW. There we'll have nested_join->used_tables==0.
+    */
+    if (eliminated_tables &&  // (*)
+        (curr->table && (curr->table->map & eliminated_tables) ||
+         curr->nested_join && !(curr->nested_join->used_tables &
+                                ~eliminated_tables)))
     {
       continue;
     }
