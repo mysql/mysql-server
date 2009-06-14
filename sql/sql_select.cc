@@ -2386,6 +2386,10 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
   }
   else
   {
+    // psergey{
+    if (select_options & SELECT_DESCRIBE)
+      free_join= 0;
+    // }psergey
     if (!(join= new JOIN(thd, fields, select_options, result)))
 	DBUG_RETURN(TRUE);
     thd_proc_info(thd, "init");
@@ -2523,7 +2527,7 @@ static void mark_table_as_eliminated(JOIN *join, TABLE *table, uint *const_tbl_c
   {
     DBUG_PRINT("info", ("Eliminated table %s", table->alias));
     tab->type= JT_CONST;
-    tab->eliminated= TRUE;
+    join->eliminated_tables |= table->map;
     *const_tables |= table->map;
     join->const_table_map|= table->map;
     set_position(join, (*const_tbl_count)++, tab, (KEYUSE*)0);
@@ -2726,6 +2730,10 @@ static void eliminate_tables(JOIN *join, uint *const_tbl_count, table_map *const
   Item *item;
   table_map used_tables;
   DBUG_ENTER("eliminate_tables");
+  
+  join->eliminated_tables= 0;
+  
+  /* MWL#17 is only about outer join elimination, so: */
   if (!join->outer_join)
     DBUG_VOID_RETURN;
 
@@ -6060,6 +6068,7 @@ JOIN::make_simple_join(JOIN *parent, TABLE *tmp_table)
   tables= 1;
   const_tables= 0;
   const_table_map= 0;
+  eliminated_tables= 0;
   tmp_table_param.field_count= tmp_table_param.sum_func_count=
     tmp_table_param.func_count= 0;
   tmp_table_param.copy_field= tmp_table_param.copy_field_end=0;
@@ -16509,7 +16518,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       quick_type= -1;
 
       //psergey-todo:
-      if (tab->eliminated)
+      if (table->map & join->eliminated_tables)
       {
         used_tables|=table->map;
         continue;
@@ -16912,6 +16921,7 @@ bool mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
 */
 
 static void print_join(THD *thd,
+                       table_map eliminated_tables,
                        String *str,
                        List<TABLE_LIST> *tables,
                        enum_query_type query_type)
@@ -16927,12 +16937,22 @@ static void print_join(THD *thd,
     *t= ti++;
 
   DBUG_ASSERT(tables->elements >= 1);
-  (*table)->print(thd, str, query_type);
+  //pserey:TODO check!
+  (*table)->print(thd, eliminated_tables, str, query_type);
 
   TABLE_LIST **end= table + tables->elements;
   for (TABLE_LIST **tbl= table + 1; tbl < end; tbl++)
   {
     TABLE_LIST *curr= *tbl;
+    // psergey-todo-todo: 
+    //  base table: check 
+    if (curr->table && (curr->table->map & eliminated_tables) ||
+        curr->nested_join && !(curr->nested_join->used_tables &
+                               ~eliminated_tables))
+    {
+      continue;
+    }
+
     if (curr->outer_join)
     {
       /* MySQL converts right to left joins */
@@ -16942,7 +16962,7 @@ static void print_join(THD *thd,
       str->append(STRING_WITH_LEN(" straight_join "));
     else
       str->append(STRING_WITH_LEN(" join "));
-    curr->print(thd, str, query_type);
+    curr->print(thd, eliminated_tables, str, query_type);
     if (curr->on_expr)
     {
       str->append(STRING_WITH_LEN(" on("));
@@ -16996,12 +17016,13 @@ Index_hint::print(THD *thd, String *str)
   @param str   string where table should be printed
 */
 
-void TABLE_LIST::print(THD *thd, String *str, enum_query_type query_type)
+void TABLE_LIST::print(THD *thd, table_map eliminated_tables, String *str, 
+                       enum_query_type query_type)
 {
   if (nested_join)
   {
     str->append('(');
-    print_join(thd, str, &nested_join->join_list, query_type);
+    print_join(thd, eliminated_tables, str, &nested_join->join_list, query_type);
     str->append(')');
   }
   else
@@ -17143,7 +17164,7 @@ void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
   {
     str->append(STRING_WITH_LEN(" from "));
     /* go through join tree */
-    print_join(thd, str, &top_join_list, query_type);
+    print_join(thd, join->eliminated_tables, str, &top_join_list, query_type);
   }
   else if (where)
   {

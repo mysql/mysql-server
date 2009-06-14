@@ -17,6 +17,7 @@ create table t3 (a int primary key, b int)
 
 --echo # This will be  eliminated:
 explain select t1.a from t1 left join t2 on t2.a=t1.a;
+explain extended select t1.a from t1 left join t2 on t2.a=t1.a;
 
 select t1.a from t1 left join t2 on t2.a=t1.a;
 
@@ -39,7 +40,7 @@ explain select t1.a from t1 left join (t2 join t3) on t2.a=t1.a and t3.a=t1.a;
 explain select t1.a from t1 left join (t2 join t3 on t2.b=t3.b) on t2.a=t1.a and t3.a=t1.a;
 
 --echo # Elimination when done within an outer join nest:
-explain
+explain extended
 select t0.*
 from
   t0 left join (t1 left join (t2 join t3 on t2.b=t3.b) on t2.a=t1.a and

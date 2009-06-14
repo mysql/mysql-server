@@ -211,9 +211,6 @@ typedef struct st_join_table {
   /** Bitmap of nested joins this table is part of */
   nested_join_map embedding_map;
   
-  //psergey-todo: more justified place
-  bool eliminated;
-
   void cleanup();
   inline bool is_using_loose_index_scan()
   {
@@ -289,6 +286,8 @@ public:
   */
   bool     resume_nested_loop;
   table_map const_table_map,found_const_table_map;
+
+  table_map eliminated_tables;
   /*
      Bitmap of all inner tables from outer joins
   */
