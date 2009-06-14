@@ -2731,7 +2731,7 @@ static void eliminate_tables(JOIN *join, uint *const_tbl_count, table_map *const
   table_map used_tables;
   DBUG_ENTER("eliminate_tables");
   
-  join->eliminated_tables= 0;
+  DBUG_ASSERT(join->eliminated_tables == 0);
   
   /* MWL#17 is only about outer join elimination, so: */
   if (!join->outer_join)
@@ -16888,7 +16888,7 @@ bool mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
     unit->fake_select_lex->options|= SELECT_DESCRIBE;
     if (!(res= unit->prepare(thd, result, SELECT_NO_UNLOCK | SELECT_DESCRIBE)))
       res= unit->exec();
-    res|= unit->cleanup();
+    //psergey-move: res|= unit->cleanup();
   }
   else
   {
@@ -17164,7 +17164,7 @@ void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
   {
     str->append(STRING_WITH_LEN(" from "));
     /* go through join tree */
-    print_join(thd, join->eliminated_tables, str, &top_join_list, query_type);
+    print_join(thd, join? join->eliminated_tables: 0, str, &top_join_list, query_type);
   }
   else if (where)
   {

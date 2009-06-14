@@ -427,6 +427,7 @@ public:
     table= 0;
     tables= 0;
     const_tables= 0;
+    eliminated_tables= 0;
     join_list= 0;
     sort_and_group= 0;
     first_record= 0;
