@@ -20,7 +20,7 @@
 #define NdbScanOperation_H
 
 #include <strings.h>
-#include <NdbOperation.hpp>
+#include "NdbOperation.hpp"
 
 class NdbBlob;
 class NdbResultSet;

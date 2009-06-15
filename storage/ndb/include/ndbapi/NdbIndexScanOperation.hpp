@@ -19,7 +19,7 @@
 #ifndef NdbIndexScanOperation_H
 #define NdbIndexScanOperation_H
 
-#include <NdbScanOperation.hpp>
+#include "NdbScanOperation.hpp"
 
 /**
  * @class NdbIndexScanOperation
