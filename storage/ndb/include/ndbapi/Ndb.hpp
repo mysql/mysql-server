@@ -970,10 +970,10 @@
 #define Ndb_H
 
 #include <ndb_types.h>
-#include <ndbapi_limits.h>
-#include <ndb_cluster_connection.hpp>
-#include <NdbError.hpp>
-#include <NdbDictionary.hpp>
+#include "ndbapi_limits.h"
+#include "ndb_cluster_connection.hpp"
+#include "NdbError.hpp"
+#include "NdbDictionary.hpp"
 
 class NdbObjectIdMap;
 class NdbOperation;
