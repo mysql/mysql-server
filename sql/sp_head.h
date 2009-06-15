@@ -311,7 +311,7 @@ public:
   bool
   show_create_routine(THD *thd, int type);
 
-  void
+  int
   add_instr(sp_instr *instr);
 
   inline uint
@@ -347,7 +347,7 @@ public:
   restore_lex(THD *thd);
 
   /// Put the instruction on the backpatch list, associated with the label.
-  void
+  int
   push_backpatch(sp_instr *, struct sp_label *);
 
   /// Update all instruction with this label in the backpatch list to
@@ -356,11 +356,11 @@ public:
   backpatch(struct sp_label *);
 
   /// Start a new cont. backpatch level. If 'i' is NULL, the level is just incr.
-  void
+  int
   new_cont_backpatch(sp_instr_opt_meta *i);
 
   /// Add an instruction to the current level
-  void
+  int
   add_cont_backpatch(sp_instr_opt_meta *i);
 
   /// Backpatch (and pop) the current level to the current position.
