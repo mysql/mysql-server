@@ -326,7 +326,7 @@ public:
   // Conditions
   //
 
-  void
+  int
   push_cond(LEX_STRING *name, sp_cond_type_t *val);
 
   inline void
@@ -368,7 +368,7 @@ public:
   // Cursors
   //
 
-  void
+  int
   push_cursor(LEX_STRING *name);
 
   my_bool
