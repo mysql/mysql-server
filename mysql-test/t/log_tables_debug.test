@@ -32,11 +32,12 @@ SET @@global.general_log_file = 'bug45387_general.log';
 SET SESSION debug='+d,reset_log_last_time';
 
 let CONN_ID= `SELECT CONNECTION_ID()`;
+FLUSH LOGS;
 
 # reset log settings
 SET @@global.general_log = @old_general_log;
 SET @@global.general_log_file = @old_general_log_file;
-SET SESSION debug='';
+SET SESSION debug='-d,reset_log_last_time';
 
 perl;
   # get the relevant info from the surrounding perl invocation
@@ -52,14 +53,20 @@ perl;
       break;
     }
   }
-  close(FILE);
 
   # print the result
   if ($found == $conn_id) {
     print "Bug#45387: ID match.\n";
   } else {
     print "Bug#45387: Expected ID '$conn_id', found '$found' in log file.\n";
-  }
+    print "Contents of log file:\n";
+    seek(FILE, 0, 0);
+    while($line= <FILE>) {
+      print $line;
+    }
+  }   
+
+  close(FILE);
 EOF
 
 --remove_file $MYSQLD_DATADIR/bug45387_general.log
