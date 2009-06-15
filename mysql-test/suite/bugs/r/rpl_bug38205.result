@@ -1,0 +1,56 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+create table t1i(n int primary key) engine=innodb;
+create table t2m(n int primary key) engine=myisam;
+begin;
+insert into t1i values (1);
+insert into t1i values (2);
+insert into t1i values (3);
+commit;
+begin;
+insert into t1i values (5);
+begin;
+insert into t1i values (4);
+insert into t2m values (1);
+update t1i set n = 5 where n = 4;
+commit;
+zero
+0
+*** kill sql thread ***
+rollback;
+*** sql thread is *not* running: No ***
+*** the prove: the killed slave has not finished the current transaction ***
+three
+3
+one
+1
+zero
+0
+delete from t2m;
+start slave sql_thread;
+delete from t1i;
+delete from t2m;
+begin;
+insert into t1i values (5);
+begin;
+insert into t1i values (4);
+update t1i set n = 5 where n = 4;
+commit;
+zero
+0
+stop slave sql_thread;
+rollback;
+*** sql thread is *not* running: No ***
+*** the prove: the stopped slave has rolled back the current transaction ***
+zero
+0
+zero
+0
+one
+1
+start slave sql_thread;
+drop table t1i, t2m;

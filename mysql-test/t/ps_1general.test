@@ -70,71 +70,71 @@ prepare stmt1 from ' select 1 as my_col ' ;
 # prepare with parameter
 prepare stmt1 from ' select ? as my_col ' ;
 # prepare must fail (incomplete statements/wrong syntax)
---error 1064
+--error ER_PARSE_ERROR
 prepare ;
---error 1064
+--error ER_PARSE_ERROR
 prepare stmt1 ;
---error 1064
+--error ER_PARSE_ERROR
 prepare stmt1 from ;
---error 1064
+--error ER_PARSE_ERROR
 prepare_garbage stmt1 from ' select 1 ' ;
---error 1064
+--error ER_PARSE_ERROR
 prepare stmt1 from_garbage ' select 1 ' ;
---error 1064
+--error ER_PARSE_ERROR
 prepare stmt1 from ' select_garbage 1 ' ;
---error 1064
+--error ER_PARSE_ERROR
 prepare from ' select 1 ' ;
---error 1064
+--error ER_PARSE_ERROR
 prepare stmt1 ' select 1 ' ;
---error 1064
+--error ER_PARSE_ERROR
 prepare ? from ' select ? as my_col ' ;
 # statement in variable
 set @arg00='select 1 as my_col';
 prepare stmt1 from @arg00;
 # prepare must fail (query variable is empty)
 set @arg00='';
---error 1065
+--error ER_EMPTY_QUERY
 prepare stmt1 from @arg00;
 set @arg00=NULL;
 # prepare must fail (query variable is NULL)
---error 1064
+--error ER_PARSE_ERROR
 prepare stmt1 from @arg01;
 
 prepare stmt1 from ' select * from t1 where a <= 2 ' ;
 # prepare must fail (column x does not exist)
---error 1054
+--error ER_BAD_FIELD_ERROR
 prepare stmt1 from ' select * from t1 where x <= 2 ' ;
 # cases derived from client_test.c: test_null()
 # prepare must fail (column x does not exist)
---error 1054
+--error ER_BAD_FIELD_ERROR
 prepare stmt1 from ' insert into t1(a,x) values(?,?) ' ;
---error 1054
+--error ER_BAD_FIELD_ERROR
 prepare stmt1 from ' insert into t1(x,a) values(?,?) ' ;
 --disable_warnings
 drop table if exists not_exist ;
 --enable_warnings
 # prepare must fail (table does not exist)
---error 1146
+--error ER_NO_SUCH_TABLE
 prepare stmt1 from ' select * from not_exist where a <= 2 ' ;
 
 # case derived from client_test.c: test_prepare_syntax()
 # prepare must fail (incomplete statement)
---error 1064
+--error ER_PARSE_ERROR
 prepare stmt1 from ' insert into t1 values(? ' ;
---error 1064
+--error ER_PARSE_ERROR
 prepare stmt1 from ' select a, b from t1
                      where a=? and where ' ;
 
 ################ EXECUTE ################
 # execute must fail (statement never_prepared never prepared)
---error 1243
+--error ER_UNKNOWN_STMT_HANDLER
 execute never_prepared ;
 # execute must fail (prepare stmt1 just failed,
 #         but there was a successful prepare of stmt1 before)
 prepare stmt1 from ' select * from t1 where a <= 2 ' ;
---error 1146
+--error ER_NO_SUCH_TABLE
 prepare stmt1 from ' select * from not_exist where a <= 2 ' ;
---error 1243
+--error ER_UNKNOWN_STMT_HANDLER
 execute stmt1 ;
 
 # drop the table between prepare and execute
@@ -149,7 +149,7 @@ prepare stmt2 from ' select * from t5 ' ;
 execute stmt2 ;
 drop table t5 ;
 # execute must fail (table was dropped after prepare)
---error 1146
+--error ER_NO_SUCH_TABLE
 execute stmt2 ;
 # cases derived from client_test.c: test_select_prepare()
 # 1. drop + create table (same column names/types/order) 
@@ -230,24 +230,24 @@ set @arg01='two' ;
 prepare stmt1 from ' select * from t1 where a <= ? ' ;
 execute stmt1 using @arg00;
 # execute must fail (too small number of parameters)
---error 1210
+--error ER_WRONG_ARGUMENTS
 execute stmt1 ;
 # execute must fail (too big number of parameters)
---error 1210
+--error ER_WRONG_ARGUMENTS
 execute stmt1 using @arg00, @arg01;
 # execute must fail (parameter is not set)
 execute stmt1 using @not_set;
 
 ################ DEALLOCATE ################
 # deallocate must fail (the statement 'never_prepared' was never prepared)
---error 1243
+--error ER_UNKNOWN_STMT_HANDLER
 deallocate prepare never_prepared ;
 # deallocate must fail (prepare stmt1 just failed,
 #         but there was a successful prepare before)
 prepare stmt1 from ' select * from t1 where a <= 2 ' ;
---error 1146
+--error ER_NO_SUCH_TABLE
 prepare stmt1 from ' select * from not_exist where a <= 2 ' ;
---error 1243
+--error ER_UNKNOWN_STMT_HANDLER
 deallocate prepare stmt1;
 create table t5
 (
@@ -345,7 +345,7 @@ drop table if exists t5;
 prepare stmt1 from ' drop table if exists t5 ' ;
 execute stmt1 ;
 prepare stmt1 from ' drop table t5 ' ;
---error 1051
+--error ER_BAD_TABLE_ERROR
 execute stmt1 ;
 
 ## SELECT @@version
@@ -432,7 +432,7 @@ drop database mysqltest ;
 prepare stmt3 from ' describe t2 ';
 execute stmt3;
 drop table t2 ;
---error 1146
+--error ER_NO_SUCH_TABLE
 execute stmt3;
 ## lock/unlock
 --error ER_UNSUPPORTED_PS
@@ -440,18 +440,29 @@ prepare stmt3 from ' lock tables t1 read ' ;
 --error ER_UNSUPPORTED_PS
 prepare stmt3 from ' unlock tables ' ;
 ## Load/Unload table contents
+
+--let $datafile = $MYSQLTEST_VARDIR/tmp/data.txt
+--error 0,1
+--remove_file $datafile
+
+--replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
 --error ER_UNSUPPORTED_PS
-prepare stmt1 from ' load data infile ''data.txt''
-into table t1 fields terminated by ''\t'' ';
-prepare stmt1 from ' select * into outfile ''data.txt'' from t1 ';
-execute stmt1 ;
+eval prepare stmt1 from ' load data infile ''$datafile''
+     into table t1 fields terminated by ''\t'' ';
+--replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
+eval prepare stmt1 from ' select * into outfile ''$datafile'' from t1 ';
+     execute stmt1 ;
 ## 
 prepare stmt1 from ' optimize table t1 ' ;
 prepare stmt1 from ' analyze table t1 ' ;
 prepare stmt1 from ' checksum table t1 ' ;
 prepare stmt1 from ' repair table t1 ' ;
+
+--replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
 --error ER_UNSUPPORTED_PS
-prepare stmt1 from ' restore table t1 from ''data.txt'' ' ;
+eval prepare stmt1 from ' restore table t1 from ''$datafile'' ' ;
+--remove_file $datafile
+
 ## handler
 --error ER_UNSUPPORTED_PS
 prepare stmt1 from ' handler t1 open ';
@@ -566,7 +577,7 @@ drop table if exists new_t2;
 --enable_warnings
 prepare stmt3 from ' rename table t2 to new_t2 ';
 execute stmt3;
---error 1050
+--error ER_TABLE_EXISTS_ERROR
 execute stmt3;
 rename table new_t2 to t2;
 drop table t2;
@@ -577,13 +588,13 @@ create table t5 (a int) ;
 # rename must fail, t7 does not exist
 # Clean up the filename here because embedded server reports whole path
 --replace_result $MYSQLTEST_VARDIR . mysqld.1/data/ '' t7.frm t7
---error 1017
+--error ER_FILE_NOT_FOUND
 execute stmt1 ;
 create table t7 (a int) ;
 # rename, t5 -> t6 and t7 -> t8
 execute stmt1 ;
 # rename must fail, t5 and t7 does not exist t6 and t8 already exist
---error 1050
+--error ER_TABLE_EXISTS_ERROR
 execute stmt1 ;
 rename table t6 to t5, t8 to t7 ;
 # rename, t5 -> t6 and t7 -> t8

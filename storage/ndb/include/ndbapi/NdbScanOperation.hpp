@@ -19,7 +19,7 @@
 #ifndef NdbScanOperation_H
 #define NdbScanOperation_H
 
-#include <NdbOperation.hpp>
+#include "NdbOperation.hpp"
 
 class NdbBlob;
 class NdbResultSet;
@@ -655,6 +655,9 @@ protected:
   
   ScanPruningState m_pruneState;
   Uint32 m_pruningKey;  // Can be distr key hash or actual partition id.
+private:
+  NdbScanOperation(const NdbScanOperation&); // Not impl.
+  NdbScanOperation&operator=(const NdbScanOperation&);
 };
 
 inline
