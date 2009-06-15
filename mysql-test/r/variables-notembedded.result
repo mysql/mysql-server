@@ -11,7 +11,7 @@ Variable_name	Value
 slave_load_tmpdir	SLAVE_LOAD_TMPDIR
 show variables like 'slave_skip_errors';
 Variable_name	Value
-slave_skip_errors	3,100,137,643,1752
+slave_skip_errors	0,3,100,137,643,1752
 ---- Clean Up ----
 set global slave_net_timeout=default;
 set global sql_slave_skip_counter= 0;
@@ -98,12 +98,12 @@ ERROR HY000: Variable 'slave_load_tmpdir' is a read only variable
 #
 SHOW VARIABLES like 'slave_skip_errors';
 Variable_name	Value
-slave_skip_errors	3,100,137,643,1752
+slave_skip_errors	0,3,100,137,643,1752
 SELECT @@session.slave_skip_errors;
 ERROR HY000: Variable 'slave_skip_errors' is a GLOBAL variable
 SELECT @@global.slave_skip_errors;
 @@global.slave_skip_errors
-3,100,137,643,1752
+0,3,100,137,643,1752
 SET @@session.slave_skip_errors= 7;
 ERROR HY000: Variable 'slave_skip_errors' is a read only variable
 SET @@global.slave_skip_errors= 7;
