@@ -33,7 +33,7 @@ endif
 benchdir_root=		$(prefix)
 testdir =	        $(benchdir_root)/mysql-test
 EXTRA_SCRIPTS = 	mysql-test-run-shell.sh install_test_db.sh valgrind.supp $(PRESCRIPTS)
-EXTRA_DIST = 		$(EXTRA_SCRIPTS) suite
+EXTRA_DIST = 		$(EXTRA_SCRIPTS) suite collections
 GENSCRIPTS =		mysql-test-run-shell mysql-test-run install_test_db mtr
 PRESCRIPTS =		mysql-test-run.pl mysql-stress-test.pl
 test_SCRIPTS = 		$(GENSCRIPTS) $(PRESCRIPTS)
@@ -80,6 +80,7 @@ install-data-local:
 		$(DESTDIR)$(testdir)/std_data/ndb_backup50_data_be \
 		$(DESTDIR)$(testdir)/std_data/ndb_backup50_data_le \
 		$(DESTDIR)$(testdir)/lib \
+                $(DESTDIR)$(testdir)/collections \
 		$(DESTDIR)$(testdir)/std_data/funcs_1
 	$(INSTALL_DATA) $(srcdir)/README $(DESTDIR)$(testdir)
 	-$(INSTALL_DATA) $(srcdir)/t/*.def $(DESTDIR)$(testdir)/t
