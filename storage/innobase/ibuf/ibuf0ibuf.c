@@ -2992,6 +2992,13 @@ ibuf_delete_rec(
 	success = btr_pcur_restore_position(BTR_MODIFY_TREE, pcur, mtr);
 
 	if (!success) {
+		if (fil_space_get_version(space) == -1) {
+			/* The tablespace has been dropped.  It is possible
+			that another thread has deleted the insert buffer
+			entry.  Do not complain. */
+			goto commit_and_exit;
+		}
+
 		fprintf(stderr,
 			"InnoDB: ERROR: Submit the output to"
 			" http://bugs.mysql.com\n"
@@ -3018,11 +3025,7 @@ ibuf_delete_rec(
 		fprintf(stderr, "InnoDB: ibuf tree ok\n");
 		fflush(stderr);
 
-		btr_pcur_close(pcur);
-
-		mutex_exit(&ibuf_mutex);
-
-		return(TRUE);
+		goto func_exit;
 	}
 
 	root = ibuf_tree_root_get(ibuf_data, 0, mtr);
@@ -3033,15 +3036,15 @@ ibuf_delete_rec(
 
 #ifdef UNIV_IBUF_DEBUG
 	ibuf_count_set(space, page_no, ibuf_count_get(space, page_no) - 1);
-#else
-	UT_NOT_USED(space);
 #endif
 	ibuf_data_sizes_update(ibuf_data, root, mtr);
 
 	ut_ad(ibuf_validate_low());
 
+commit_and_exit:
 	btr_pcur_commit_specify_mtr(pcur, mtr);
 
+func_exit:
 	btr_pcur_close(pcur);
 
 	mutex_exit(&ibuf_mutex);

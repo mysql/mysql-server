@@ -48,6 +48,20 @@ select * from `txu#p#p1`;
 drop table `txu@0023p@0023p1`;
 drop table `txu#p#p1`;
 
+--echo #
+--echo # Bug#37631 Incorrect key file for table after upgrading from 5.0 to 5.1
+--echo #
+--echo # copy table created using mysql4.0 into the data dir
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+copy_file std_data/bug37631.frm $MYSQLD_DATADIR/test/t1.frm;
+copy_file std_data/bug37631.MYD $MYSQLD_DATADIR/test/t1.MYD;
+copy_file std_data/bug37631.MYI $MYSQLD_DATADIR/test/t1.MYI;
+--echo # check the table created using mysql 4.0
+CHECK TABLE t1;
+--echo # query the table created using mysql 4.0
+SELECT * FROM t1;
+DROP TABLE t1;
+
 #
 # Check if old tables work
 #
@@ -89,3 +103,35 @@ show create table `a-b-c`.`t1`;
 drop database `a-b-c`;
 drop database `tabc`;
 
+#
+# Bug#43385 Cannot ALTER DATABASE ... UPGRADE DATA DIRECTORY NAME when Views exist
+#
+let $MYSQLD_DATADIR= `select @@datadir`;
+--mkdir $MYSQLD_DATADIR/a-b-c
+use `#mysql50#a-b-c`;
+create table t1(f1 char(10));
+
+--write_file $MYSQLD_DATADIR/a-b-c/v1.frm
+TYPE=VIEW
+query=select `a`.`f1` AS `f1` from `a-b-c`.`t1` `a` join `information_schema`.`tables` `b` where (convert(`a`.`f1` using utf8) = `b`.`TABLE_NAME`)
+md5=068271f1c657fe115e497856ca0fa493
+updatable=0
+algorithm=0
+definer_user=root
+definer_host=localhost
+suid=2
+with_check_option=0
+timestamp=2009-04-10 11:53:37
+create-version=1
+source=select f1 from `a-b-c`.t1 a, information_schema.tables b\nwhere a.f1 = b.table_name
+EOF
+
+show databases like '%a-b-c%';
+ALTER DATABASE `#mysql50#a-b-c` UPGRADE DATA DIRECTORY NAME;
+show databases like '%a-b-c%';
+show create view `a-b-c`.v1;
+--disable_ps_protocol
+select * from `a-b-c`.v1;
+--enable_ps_protocol
+drop database `a-b-c`;
+use test;
