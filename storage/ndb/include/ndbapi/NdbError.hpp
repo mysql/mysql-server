@@ -19,7 +19,7 @@
 #ifndef NDB_ERROR_HPP
 #define NDB_ERROR_HPP
 
-#include <ndberror.h>
+#include "ndberror.h"
 
 /**
  * @struct NdbError
