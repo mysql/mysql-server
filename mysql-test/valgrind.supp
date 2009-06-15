@@ -631,3 +631,13 @@
    fun:malloc
    fun:inet_ntoa
 }
+
+#
+# Some problem inside glibc on Ubuntu 9.04, x86 (but not amd64)
+#
+{
+   Mem loss inside nptl_pthread_exit_hack_handler
+   Memcheck:Leak
+   ...
+   fun:nptl_pthread_exit_hack_handler 
+}
