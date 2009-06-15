@@ -20,7 +20,7 @@
 #define NdbInterpretedCode_H
 
 #include <ndb_types.h>
-#include <ndbapi_limits.h>
+#include "ndbapi_limits.h"
 
 #include "NdbDictionary.hpp"
 #include "NdbError.hpp"
