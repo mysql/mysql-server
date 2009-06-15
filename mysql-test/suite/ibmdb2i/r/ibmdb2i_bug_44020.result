@@ -1,0 +1,11 @@
+create schema `A12345_@$#`;
+create table `A12345_@$#`.t1 (i int) engine=ibmdb2i;
+show create table `A12345_@$#`.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT NULL
+) ENGINE=IBMDB2I DEFAULT CHARSET=latin1
+select * from `A12345_@$#`.t1;
+i
+drop table `A12345_@$#`.t1;
+drop schema `A12345_@$#`;

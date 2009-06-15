@@ -55,6 +55,8 @@ SET @@local.slave_transaction_retries = 4;
 ERROR HY000: Variable 'slave_transaction_retries' is a GLOBAL variable and should be set with SET GLOBAL
 '#------------------FN_DYNVARS_149_05-----------------------#'
 SET @@global.slave_transaction_retries = -1;
+Warnings:
+Warning	1292	Truncated incorrect slave_transaction_retries value: '-1'
 SELECT @@global.slave_transaction_retries;
 @@global.slave_transaction_retries
 0

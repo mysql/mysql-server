@@ -36,4 +36,10 @@ select 1;
 #execute stmt1;
 #deallocate prepare stmt1;
 
+#
+# Bug#43835: SHOW VARIABLES does not include 0 for slave_skip_errors
+#
+
+SHOW VARIABLES like 'slave_skip_errors';
+
 # End of 5.1 tests

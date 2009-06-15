@@ -1514,4 +1514,25 @@ insert into m1 (col1) values (1);
 insert into m1 (col1) values (1);
 
 drop table m1, t1;
+
+#
+#Bug #44040   MySQL allows creating a MERGE table upon VIEWs but crashes 
+#when using it
+#
+
+CREATE TABLE t1 (
+        col1 INT(10)
+) ENGINE=MyISAM  DEFAULT CHARSET=latin1;
+
+CREATE VIEW v1 as SELECT * FROM t1;
+CREATE TABLE m1 (
+        col1 INT(10)
+)ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 INSERT_METHOD=LAST UNION=(v1);
+
+--echo #Select should detect that the child table is a view and fail.
+--error ER_WRONG_MRG_TABLE
+SELECT * FROM m1;
+
+DROP VIEW v1;
+DROP TABLE m1, t1;
 --echo End of 5.1 tests
