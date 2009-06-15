@@ -20,9 +20,9 @@
 #define NDB_SCAN_FILTER_HPP
 
 #include <ndb_types.h>
-#include <ndbapi_limits.h>
+#include "ndbapi_limits.h"
 
-#include <NdbInterpretedCode.hpp>
+#include "NdbInterpretedCode.hpp"
 
 /**
  * @class NdbScanFilter

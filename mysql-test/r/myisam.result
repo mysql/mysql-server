@@ -2226,4 +2226,30 @@ Key Start Len Index   Type
 1   2     30  multip. varchar              
 2   33    30  multip. char NULL            
 DROP TABLE t1;
+CREATE TABLE t1 (
+c INT,
+d bit(1),
+e INT,
+f VARCHAR(1),
+g BIT(1),
+h BIT(1),
+KEY (h, d, e, g)
+);
+INSERT INTO t1 VALUES
+(  3, 1, 1, 'a', 0, 0 ),
+(  3, 1, 5, 'a', 0, 0 ),
+( 10, 1, 2, 'a', 0, 1 ),
+( 10, 1, 3, 'a', 0, 1 ),
+( 10, 1, 4, 'a', 0, 1 );
+SELECT f FROM t1 WHERE d = 1 AND e = 2 AND g = 0 AND h = 1;
+f
+a
+SELECT h+0, d + 0, e, g + 0 FROM t1;
+h+0	d + 0	e	g + 0
+0	1	1	0
+0	1	5	0
+1	1	2	0
+1	1	3	0
+1	1	4	0
+DROP TABLE t1;
 End of 5.1 tests

@@ -19,7 +19,7 @@
 #ifndef NdbIndexScanOperation_H
 #define NdbIndexScanOperation_H
 
-#include <NdbScanOperation.hpp>
+#include "NdbScanOperation.hpp"
 
 /**
  * @class NdbIndexScanOperation
@@ -354,6 +354,10 @@ private:
   NdbRecAttr* currentRangeOldApi;
 
   friend struct Ndb_free_list_t<NdbIndexScanOperation>;
+
+private:
+  NdbIndexScanOperation(const NdbIndexScanOperation&); // Not impl.
+  NdbIndexScanOperation&operator=(const NdbIndexScanOperation&);
 };
 
 inline

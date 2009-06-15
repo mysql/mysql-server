@@ -1922,6 +1922,19 @@ insert into t1 select s1 from t1 where s1=3;
 select count(*) from t1;
 drop table t1;
 
+
+--echo #
+--echo # Bug#42944: partition not pruned correctly
+--echo #
+CREATE TABLE t1 (a int) PARTITION BY RANGE (a)
+  (PARTITION p0 VALUES LESS THAN (100),
+   PARTITION p1 VALUES LESS THAN (200),
+   PARTITION p2 VALUES LESS THAN (300),
+   PARTITION p3 VALUES LESS THAN MAXVALUE);
+INSERT INTO t1 VALUES (10), (100), (200), (300), (400);
+EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a>=200;
+DROP TABLE t1;
+
 --echo End of 5.1 tests
 
 
