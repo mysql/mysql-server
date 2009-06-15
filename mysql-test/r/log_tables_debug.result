@@ -9,9 +9,10 @@ SET @old_slow_query_log_file= @@global.slow_query_log_file;
 SET @@global.general_log = ON;
 SET @@global.general_log_file = 'bug45387_general.log';
 SET SESSION debug='+d,reset_log_last_time';
+FLUSH LOGS;
 SET @@global.general_log = @old_general_log;
 SET @@global.general_log_file = @old_general_log_file;
-SET SESSION debug='';
+SET SESSION debug='-d,reset_log_last_time';
 Bug#45387: ID match.
 End of 5.1 tests
 #
