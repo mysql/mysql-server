@@ -555,4 +555,28 @@ a
 1
 2
 drop table t0, t1, t2, t3;
+#
+# BUG#44810: index merge and order by with low sort_buffer_size 
+# crashes server!
+#
+CREATE TABLE t1(a VARCHAR(128),b VARCHAR(128),KEY(A),KEY(B));
+INSERT INTO t1 VALUES (REPEAT('a',128),REPEAT('b',128));
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+SET SESSION sort_buffer_size=1;
+Warnings:
+Warning	1292	Truncated incorrect sort_buffer_size value: '1'
+EXPLAIN 
+SELECT * FROM t1 FORCE INDEX(a,b) WHERE a LIKE 'a%' OR b LIKE 'b%' 
+ORDER BY a,b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	a,b	a,b	131,131	NULL	64	Using sort_union(a,b); Using where; Using filesort
+SELECT * FROM t1 FORCE INDEX(a,b) WHERE a LIKE 'a%' OR b LIKE 'b%' 
+ORDER BY a,b;
+SET SESSION sort_buffer_size=DEFAULT;
+DROP TABLE t1;
 End of 5.0 tests
