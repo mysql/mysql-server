@@ -503,4 +503,30 @@ where exists (select 1 from t2, t3
 
 drop table t0, t1, t2, t3;
 
+--echo #
+--echo # BUG#44810: index merge and order by with low sort_buffer_size 
+--echo # crashes server!
+--echo #
+CREATE TABLE t1(a VARCHAR(128),b VARCHAR(128),KEY(A),KEY(B));
+INSERT INTO t1 VALUES (REPEAT('a',128),REPEAT('b',128));
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+SET SESSION sort_buffer_size=1;
+EXPLAIN 
+SELECT * FROM t1 FORCE INDEX(a,b) WHERE a LIKE 'a%' OR b LIKE 'b%' 
+  ORDER BY a,b;
+# we don't actually care about the result : we're checking if it crashes
+--disable_result_log
+SELECT * FROM t1 FORCE INDEX(a,b) WHERE a LIKE 'a%' OR b LIKE 'b%' 
+  ORDER BY a,b;
+--enable_result_log
+
+SET SESSION sort_buffer_size=DEFAULT;
+DROP TABLE t1;
+
+
 --echo End of 5.0 tests
