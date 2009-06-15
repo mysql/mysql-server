@@ -664,7 +664,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     buff.append(views->source.str, views->source.length);
 
     thd->binlog_query(THD::STMT_QUERY_TYPE,
-                      buff.ptr(), buff.length(), FALSE, FALSE);
+                      buff.ptr(), buff.length(), FALSE, FALSE, THD::NOT_KILLED);
   }
 
   VOID(pthread_mutex_unlock(&LOCK_open));
@@ -1914,6 +1914,7 @@ int view_checksum(THD *thd, TABLE_LIST *view)
 
   Parameters:
     thd        thread handler
+    new_db     new name of database
     new_name   new name of view
     view       view
 
@@ -1923,6 +1924,7 @@ int view_checksum(THD *thd, TABLE_LIST *view)
 */
 bool
 mysql_rename_view(THD *thd,
+                  const char *new_db,
                   const char *new_name,
                   TABLE_LIST *view)
 {
@@ -1961,16 +1963,16 @@ mysql_rename_view(THD *thd,
       goto err;
 
     /* rename view and it's backups */
-    if (rename_in_schema_file(thd, view->db, view->table_name, new_name))
+    if (rename_in_schema_file(thd, view->db, view->table_name, new_db, new_name))
       goto err;
 
     dir.str= dir_buff;
     dir.length= build_table_filename(dir_buff, sizeof(dir_buff) - 1,
-                                     view->db, "", "", 0);
+                                     new_db, "", "", 0);
 
     pathstr.str= path_buff;
     pathstr.length= build_table_filename(path_buff, sizeof(path_buff) - 1,
-                                      view->db, new_name, reg_ext, 0);
+                                         new_db, new_name, reg_ext, 0);
 
     file.str= pathstr.str + dir.length;
     file.length= pathstr.length - dir.length;
@@ -1979,7 +1981,7 @@ mysql_rename_view(THD *thd,
                                    (uchar*)&view_def, view_parameters))
     {
       /* restore renamed view in case of error */
-      rename_in_schema_file(thd, view->db, new_name, view->table_name);
+      rename_in_schema_file(thd, new_db, new_name, view->db, view->table_name);
       goto err;
     }
   } else

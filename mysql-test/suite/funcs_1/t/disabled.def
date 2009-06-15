@@ -10,5 +10,6 @@
 #
 ##############################################################################
 
-ndb_views:		Bug #40860 funcs_1.ndb_views fail
-charset_collation_1:	wrong result
+charset_collation_1: Bug#38346, Bug#40209, Bug#40545, Bug#40618
+charset_collation_2: Bug#38346, Bug#40209, Bug#40545, Bug#40618
+charset_collation_3: Bug#38346, Bug#40209, Bug#40545, Bug#40618
