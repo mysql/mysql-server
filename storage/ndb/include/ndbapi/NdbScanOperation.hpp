@@ -19,7 +19,7 @@
 #ifndef NdbScanOperation_H
 #define NdbScanOperation_H
 
-#include <NdbOperation.hpp>
+#include "NdbOperation.hpp"
 
 class NdbBlob;
 class NdbResultSet;

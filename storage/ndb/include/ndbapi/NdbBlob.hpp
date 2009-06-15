@@ -20,9 +20,9 @@
 #define NdbBlob_H
 
 #include <ndb_types.h>
-#include <NdbDictionary.hpp>
-#include <NdbTransaction.hpp>
-#include <NdbError.hpp>
+#include "NdbDictionary.hpp"
+#include "NdbTransaction.hpp"
+#include "NdbError.hpp"
 
 class Ndb;
 class NdbTransaction;
