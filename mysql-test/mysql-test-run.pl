@@ -1763,7 +1763,8 @@ sub environment_setup {
   if ($mysql_version_id >= 50100) {
     my $lib_example_plugin=
       mtr_file_exists(vs_config_dirs('storage/example', 'ha_example.dll'),
-		      "$basedir/storage/example/.libs/ha_example.so",);
+		      "$basedir/storage/example/.libs/ha_example.so",
+		      "$basedir/lib/mysql/plugin/ha_example.so",);
     $ENV{'EXAMPLE_PLUGIN'}=
       ($lib_example_plugin ? basename($lib_example_plugin) : "");
     $ENV{'EXAMPLE_PLUGIN_OPT'}= "--plugin-dir=".
