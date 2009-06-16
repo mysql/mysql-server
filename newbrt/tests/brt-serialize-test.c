@@ -42,8 +42,8 @@ static void test_serialize(void) {
     BNC_SUBTREE_ESTIMATES(&sn, 1).nkeys = random() + (((long long)random())<<32);
     BNC_SUBTREE_ESTIMATES(&sn, 0).dsize = random() + (((long long)random())<<32);
     BNC_SUBTREE_ESTIMATES(&sn, 1).dsize = random() + (((long long)random())<<32);
-    BNC_SUBTREE_ESTIMATES(&sn, 0).exact = random()%2;
-    BNC_SUBTREE_ESTIMATES(&sn, 1).exact = random()%2;
+    BNC_SUBTREE_ESTIMATES(&sn, 0).exact = (BOOL)(random()%2 != 0);
+    BNC_SUBTREE_ESTIMATES(&sn, 1).exact = (BOOL)(random()%2 != 0);
     r = toku_fifo_create(&BNC_BUFFER(&sn,0)); assert(r==0);
     r = toku_fifo_create(&BNC_BUFFER(&sn,1)); assert(r==0);
     r = toku_fifo_enq(BNC_BUFFER(&sn,0), "a", 2, "aval", 5, BRT_NONE, (TXNID)0);   assert(r==0);    sn.local_fingerprint += randval*toku_calc_fingerprint_cmd(BRT_NONE, (TXNID)0, "a", 2, "aval", 5);

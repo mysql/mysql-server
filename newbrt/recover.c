@@ -58,7 +58,7 @@ struct backward_scan_state {
     int n_live_txns;
     LSN min_live_txn;
 };
-static struct backward_scan_state initial_bss = {0,{0},0,{0}};
+static struct backward_scan_state initial_bss = {BS_INIT,{0},0,{0}};
 
 static void
 toku_recover_commit (LSN UU(lsn), TXNID UU(txnid)) {
@@ -339,7 +339,7 @@ static int toku_recover_backward_begin_checkpoint (struct logtype_begin_checkpoi
     case BS_SAW_CKPT:
 	return 0; // ignore it
     }
-    fprintf(stderr, "%s: %d Unknown checkpoint state %d\n", __FILE__, __LINE__, bs->bs);
+    fprintf(stderr, "%s: %d Unknown checkpoint state %d\n", __FILE__, __LINE__, (int)bs->bs);
     abort();
 }
 
@@ -360,7 +360,7 @@ static int toku_recover_backward_end_checkpoint (struct logtype_end_checkpoint *
     case BS_SAW_CKPT:
 	return 0;
     }
-    fprintf(stderr, "%s: %d Unknown checkpoint state %d\n", __FILE__, __LINE__, bs->bs);
+    fprintf(stderr, "%s: %d Unknown checkpoint state %d\n", __FILE__, __LINE__, (int)bs->bs);
     abort();
 }
 
@@ -395,7 +395,7 @@ static int toku_recover_backward_xstillopen (struct logtype_xstillopen *l, struc
     case BS_SAW_CKPT:
 	return 0; // ignore live txns from older checkpoints
     }
-    fprintf(stderr, "%s: %d Unknown checkpoint state %d\n", __FILE__, __LINE__, bs->bs);
+    fprintf(stderr, "%s: %d Unknown checkpoint state %d\n", __FILE__, __LINE__, (int)bs->bs);
     abort();
 }
 
@@ -421,7 +421,7 @@ static int toku_recover_backward_xbegin (struct logtype_xbegin *l, struct backwa
 	    return 0;
 	}
     }
-    fprintf(stderr, "%s: %d Unknown checkpoint state %d\n", __FILE__, __LINE__, bs->bs);
+    fprintf(stderr, "%s: %d Unknown checkpoint state %d\n", __FILE__, __LINE__, (int)bs->bs);
     abort();
 }
 

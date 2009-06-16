@@ -330,9 +330,10 @@ translation_update_size_on_disk (struct translation *t) {
 // We cannot free the disk space allocated to this blocknum if it is still in use by the given translation table.
 static inline BOOL
 translation_prevents_freeing(struct translation *t, BLOCKNUM b, struct block_translation_pair *old_pair) {
-    BOOL r = t->block_translation &&
-             b.b < t->smallest_never_used_blocknum.b &&
-             old_pair->u.diskoff == t->block_translation[b.b].u.diskoff;
+    BOOL r = (BOOL)
+        (t->block_translation &&
+         b.b < t->smallest_never_used_blocknum.b &&
+         old_pair->u.diskoff == t->block_translation[b.b].u.diskoff);
     return r;
 }
 
@@ -345,8 +346,9 @@ blocknum_realloc_on_disk_internal (BLOCK_TABLE bt, BLOCKNUM b, DISKOFF size, DIS
     struct block_translation_pair old_pair = t->block_translation[b.b];
 PRNTF("old", b.b, old_pair.size, old_pair.u.diskoff, bt);
     //Free the old block if it is not still in use by the checkpoint in progress or the previous checkpoint
-    BOOL cannot_free = (!for_checkpoint && translation_prevents_freeing(&bt->inprogress,   b, &old_pair)) ||
-                                           translation_prevents_freeing(&bt->checkpointed, b, &old_pair);
+    BOOL cannot_free = (BOOL)
+        ((!for_checkpoint && translation_prevents_freeing(&bt->inprogress,   b, &old_pair)) ||
+         translation_prevents_freeing(&bt->checkpointed, b, &old_pair));
     if (!cannot_free && old_pair.u.diskoff!=diskoff_unused) {
 PRNTF("Freed", b.b, old_pair.size, old_pair.u.diskoff, bt);
         block_allocator_free_block(bt->block_allocator, old_pair.u.diskoff);
@@ -521,8 +523,9 @@ PRNTF("free_blocknum", b.b, t->block_translation[b.b].size, t->block_translation
     //If the size is 0, no disk block has ever been assigned to this blocknum.
     if (old_pair.size > 0) {
         //Free the old block if it is not still in use by the checkpoint in progress or the previous checkpoint
-        BOOL cannot_free = translation_prevents_freeing(&bt->inprogress,   b, &old_pair) ||
-                           translation_prevents_freeing(&bt->checkpointed, b, &old_pair);
+        BOOL cannot_free = (BOOL)
+            (translation_prevents_freeing(&bt->inprogress,   b, &old_pair) ||
+             translation_prevents_freeing(&bt->checkpointed, b, &old_pair));
         if (!cannot_free) {
 PRNTF("free_blocknum_free", b.b, old_pair.size, old_pair.u.diskoff, bt);
             block_allocator_free_block(bt->block_allocator, old_pair.u.diskoff);
