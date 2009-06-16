@@ -2710,13 +2710,12 @@ String *Item_func_conv_charset::val_str(String *str)
     return null_value ? 0 : &str_value;
   /* 
     Here we don't pass 'str' as a parameter to args[0]->val_str()
-    as 'str' may points to 'str_value' (e.g. see Item::save_in_field()),
+    as 'str' may point to 'str_value' (e.g. see Item::save_in_field()),
     which we use below to convert string. 
     Use argument's 'str_value' instead.
   */
-  String *arg= args[0]->val_str(&args[0]->str_value);;
+  String *arg= args[0]->val_str(&args[0]->str_value);
   uint dummy_errors;
-  arg= args[0]->val_str(&args[0]->str_value);  
   if (!arg)
   {
     null_value=1;
