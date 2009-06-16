@@ -1,4 +1,4 @@
-#!@PERL@
+#!/usr/bin/perl
 # Copyright (C) 2001, 2003 MySQL AB
 #
 # This library is free software; you can redistribute it and/or
