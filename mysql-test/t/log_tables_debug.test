@@ -18,7 +18,7 @@ SET @old_slow_query_log_file= @@global.slow_query_log_file;
 
 
 --echo #
---echo # Bug#45387 Information about statement id for prepared 
+--echo # Bug#45387 Information about statement id for prepared
 --echo #           statements missed from general log
 --echo #
 
@@ -28,7 +28,7 @@ let MYSQLD_DATADIR= `SELECT @@datadir`;
 SET @@global.general_log = ON;
 SET @@global.general_log_file = 'bug45387_general.log';
 
-# turn on output of timestamps on all log file entries, 
+# turn on output of timestamps on all log file entries
 SET SESSION debug='+d,reset_log_last_time';
 
 let CONN_ID= `SELECT CONNECTION_ID()`;
@@ -37,7 +37,7 @@ FLUSH LOGS;
 # reset log settings
 SET @@global.general_log = @old_general_log;
 SET @@global.general_log_file = @old_general_log_file;
-SET SESSION debug='-d,reset_log_last_time';
+SET SESSION debug='-d';
 
 perl;
   # get the relevant info from the surrounding perl invocation
@@ -45,10 +45,10 @@ perl;
   $conn_id= $ENV{'CONN_ID'};
 
   # loop through the log file looking for the stmt querying for conn id
-  open(FILE, "$datadir/bug45387_general.log") or 
+  open(FILE, "$datadir/bug45387_general.log") or
     die("Unable to read log file $datadir/bug45387_general.log: $!\n");
   while(<FILE>) {
-    if (/\d{6} \d\d:\d\d:\d\d[ \t]+(\d+)[ \t]+Query[ \t]+SELECT CONNECTION_ID/) {
+    if (/\d{6}\s+\d+:\d+:\d+[ \t]+(\d+)[ \t]+Query[ \t]+SELECT CONNECTION_ID/) {
       $found= $1;
       break;
     }
@@ -64,7 +64,7 @@ perl;
     while($line= <FILE>) {
       print $line;
     }
-  }   
+  }
 
   close(FILE);
 EOF
@@ -92,4 +92,3 @@ if(!$fixed_bug38124)
    eval SET @@global.slow_query_log_file = '$my_var';
    --enable_query_log
 }
-
