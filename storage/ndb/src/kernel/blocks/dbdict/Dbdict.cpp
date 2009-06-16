@@ -2452,7 +2452,6 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
   c_triggerRecordPool.setSize(c_maxNoOfTriggers);
 
   c_opSectionBufferPool.setSize(1024); // units OpSectionSegmentSize
-  c_schemaOpPool.setSize(MAX_SCHEMA_OPERATIONS);
   c_schemaOpHash.setSize(MAX_SCHEMA_OPERATIONS);
   c_schemaTransPool.setSize(MAX_SCHEMA_TRANSACTIONS);
   c_schemaTransHash.setSize(2);
@@ -2473,21 +2472,28 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
   c_filegroup_pool.init(RT_DBDICT_FILEGROUP, pc);
 
   // new OpRec pools
-  c_createTableRecPool.setSize(32);
-  c_dropTableRecPool.setSize(32);
+  /**
+   * one mysql index can be 2 ndb indexes
+   */
+  /**
+   * TODO: Use arena-allocator for schema-transactions
+   */
+  c_createTableRecPool.setSize(1 + 2 * MAX_INDEXES);
+  c_dropTableRecPool.setSize(1 + 2 * MAX_INDEXES);
   c_alterTableRecPool.setSize(32);
-  c_createTriggerRecPool.setSize(32);
-  c_dropTriggerRecPool.setSize(32);
-  c_createIndexRecPool.setSize(32);
-  c_dropIndexRecPool.setSize(32);
-  c_alterIndexRecPool.setSize(32);
-  c_buildIndexRecPool.setSize(32);
+  c_createTriggerRecPool.setSize(4 * 2 * MAX_INDEXES);
+  c_dropTriggerRecPool.setSize(3 * 2 * MAX_INDEXES);
+  c_createIndexRecPool.setSize(2*MAX_INDEXES);
+  c_dropIndexRecPool.setSize(2 * MAX_INDEXES);
+  c_alterIndexRecPool.setSize(2 * MAX_INDEXES);
+  c_buildIndexRecPool.setSize(2 * 2 * MAX_INDEXES);
   c_createFilegroupRecPool.setSize(32);
   c_createFileRecPool.setSize(32);
   c_dropFilegroupRecPool.setSize(32);
   c_dropFileRecPool.setSize(32);
   c_createHashMapRecPool.setSize(32);
   c_copyDataRecPool.setSize(32);
+  c_schemaOpPool.setSize(1 + 32 * MAX_INDEXES);
 
   c_hash_map_hash.setSize(4);
   c_hash_map_pool.setSize(32);
@@ -2495,7 +2501,7 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
 
   c_createNodegroupRecPool.setSize(2);
   c_dropNodegroupRecPool.setSize(2);
-
+  
   c_opRecordPool.setSize(256);   // XXX need config params
   c_opCreateEvent.setSize(2);
   c_opSubEvent.setSize(2);
