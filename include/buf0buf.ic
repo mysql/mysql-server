@@ -780,29 +780,6 @@ buf_page_address_fold(
 }
 
 /********************************************************************//**
-This function is used to get info if there is an io operation
-going on on a buffer page.
-@return	TRUE if io going on */
-UNIV_INLINE
-ibool
-buf_page_io_query(
-/*==============*/
-	buf_page_t*	bpage)	/*!< in: buf_pool block, must be bufferfixed */
-{
-	ibool	io_fixed;
-
-	buf_pool_mutex_enter();
-
-	ut_ad(buf_page_in_file(bpage));
-	ut_ad(bpage->buf_fix_count > 0);
-
-	io_fixed = buf_page_get_io_fix(bpage) != BUF_IO_NONE;
-	buf_pool_mutex_exit();
-
-	return(io_fixed);
-}
-
-/********************************************************************//**
 Gets the youngest modification log sequence number for a frame.
 Returns zero if not file page or no modification occurred yet.
 @return	newest modification to page */
