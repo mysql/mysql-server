@@ -142,9 +142,9 @@ os_atomic_increment(
 #elif HAVE_SOLARIS_ATOMIC
 	return ((lint)atomic_add_long_nv((volatile ulong_t *)ptr, amount));
 #elif WIN_ATOMICS32
-        return ((lint)InterlockedExchangeAdd(ptr, amount));
+        return ((lint)InterlockedExchangeAdd(ptr, amount) + amount);
 #elif WIN_ATOMICS64
-        return ((lint)InterlockedExchangeAdd64(ptr, amount));
+        return ((lint)InterlockedExchangeAdd64(ptr, amount) + amount);
 #else
 #error "Need support for atomic ops"
 #endif
