@@ -2959,22 +2959,28 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
 
   /* Read tables with 0 or 1 rows (system tables) */
   join->const_table_map= 0;
+  
+  eliminate_tables(join, &const_count, &found_const_table_map);
+  join->const_table_map= found_const_table_map;
 
   for (POSITION *p_pos=join->positions, *p_end=p_pos+const_count;
        p_pos < p_end ;
        p_pos++)
   {
-    int tmp;
     s= p_pos->table;
-    s->type=JT_SYSTEM;
-    join->const_table_map|=s->table->map;
-    if ((tmp=join_read_const_table(s, p_pos)))
+    if (! (s->table->map & join->eliminated_tables))
     {
-      if (tmp > 0)
-	goto error;		// Fatal error
+      int tmp;
+      s->type=JT_SYSTEM;
+      join->const_table_map|=s->table->map;
+      if ((tmp=join_read_const_table(s, p_pos)))
+      {
+        if (tmp > 0)
+          goto error;		// Fatal error
+      }
+      else
+        found_const_table_map|= s->table->map;
     }
-    else
-      found_const_table_map|= s->table->map;
   }
 
   /* loop until no more const tables are found */
@@ -2999,7 +3005,8 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
         substitution of a const table the key value happens to be null
         then we can state that there are no matches for this equi-join.
       */  
-      if ((keyuse= s->keyuse) && *s->on_expr_ref && !s->embedding_map)
+      if ((keyuse= s->keyuse) && *s->on_expr_ref && !s->embedding_map &&
+         !(table->map & join->eliminated_tables))
       {
         /* 
           When performing an outer join operation if there are no matching rows
@@ -3135,7 +3142,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
   }
 
   //psergey-todo: table elimination
-  eliminate_tables(join, &const_count, &found_const_table_map);
+  //eliminate_tables(join, &const_count, &found_const_table_map);
   //:psergey-todo
 
   /* Calc how many (possible) matched records in each table */
@@ -16517,7 +16524,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 
       quick_type= -1;
 
-      //psergey-todo:
+      /* Don't show eliminated tables */
       if (table->map & join->eliminated_tables)
       {
         used_tables|=table->map;
