@@ -1676,9 +1676,6 @@ lookup:
 		return(NULL);
 	}
 
-	block_mutex = buf_page_get_mutex(bpage);
-	mutex_enter(block_mutex);
-
 	switch (buf_page_get_state(bpage)) {
 	case BUF_BLOCK_NOT_USED:
 	case BUF_BLOCK_READY_FOR_USE:
@@ -1689,9 +1686,14 @@ lookup:
 		break;
 	case BUF_BLOCK_ZIP_PAGE:
 	case BUF_BLOCK_ZIP_DIRTY:
+		block_mutex = &buf_pool_zip_mutex;
+		mutex_enter(block_mutex);
 		bpage->buf_fix_count++;
 		break;
 	case BUF_BLOCK_FILE_PAGE:
+		block_mutex = &((buf_block_t*) bpage)->mutex;
+		mutex_enter(block_mutex);
+
 		/* Discard the uncompressed page frame if possible. */
 		if (buf_LRU_free_block(bpage, FALSE, NULL)
 		    == BUF_LRU_FREED) {
