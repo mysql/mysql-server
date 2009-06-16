@@ -1,3 +1,19 @@
+2009-06-11	The InnoDB Team
+
+	* handler/ha_innodb.cc, mysql-test/innodb.result, srv/srv0srv.c:
+	Change the following defaults:
+	max_dirty_pages_pct: from 90 to 75, max allowed from 100 to 99
+	additional_mem_pool_size: from 1 to 8 MB
+	buffer_pool_size: from 8 to 128 MB
+	log_buffer_size: from 1 to 8 MB
+	read_io_threads/write_io_threads: from 1 to 4
+
+2009-06-09	The InnoDB Team
+
+	* handler/ha_innodb.cc, include/trx0trx.h, trx/trx0trx.c:
+	Enable Group Commit functionality that was broken in 5.0 when
+	distributed transactions were introduced.
+
 2009-06-05	The InnoDB Team
 
 	* handler/ha_innodb.cc, include/os0file.h, include/srv0srv.h,
