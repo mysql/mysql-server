@@ -957,15 +957,6 @@ buf_frame_get_page_zip(
 	const byte*	ptr);	/*!< in: pointer to the page */
 #endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
 /********************************************************************//**
-This function is used to get info if there is an io operation
-going on on a buffer page.
-@return	TRUE if io going on */
-UNIV_INLINE
-ibool
-buf_page_io_query(
-/*==============*/
-	buf_page_t*	bpage);	/*!< in: pool block, must be bufferfixed */
-/********************************************************************//**
 Function which inits a page for read to the buffer buf_pool. If the page is
 (1) already in buf_pool, or
 (2) if we specify to read only ibuf pages and the page is not an ibuf page, or
