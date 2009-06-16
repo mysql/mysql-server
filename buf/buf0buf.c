@@ -2182,10 +2182,10 @@ wait_until_unfixed:
 
 		block->page.buf_fix_count = 1;
 		buf_block_set_io_fix(block, BUF_IO_READ);
-		buf_pool->n_pend_unzip++;
 		rw_lock_x_lock(&block->lock);
 		mutex_exit(&block->mutex);
 		mutex_exit(&buf_pool_zip_mutex);
+		buf_pool->n_pend_unzip++;
 
 		buf_buddy_free(bpage, sizeof *bpage);
 
@@ -2203,10 +2203,10 @@ wait_until_unfixed:
 		/* Unfix and unlatch the block. */
 		buf_pool_mutex_enter();
 		mutex_enter(&block->mutex);
-		buf_pool->n_pend_unzip--;
 		block->page.buf_fix_count--;
 		buf_block_set_io_fix(block, BUF_IO_NONE);
 		mutex_exit(&block->mutex);
+		buf_pool->n_pend_unzip--;
 		rw_lock_x_unlock(&block->lock);
 
 		if (UNIV_UNLIKELY(!success)) {
