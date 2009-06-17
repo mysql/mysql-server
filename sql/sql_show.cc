@@ -601,7 +601,7 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
   if (open_normal_and_derived_tables(thd, table_list, 0))
   {
     if (!table_list->view ||
-        thd->is_error() && thd->main_da.sql_errno() != ER_VIEW_INVALID)
+        (thd->is_error() && thd->main_da.sql_errno() != ER_VIEW_INVALID))
       DBUG_RETURN(TRUE);
 
     /*
@@ -3238,10 +3238,10 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
       if lookup value is empty string then
       it's impossible table name or db name
     */
-    if (lookup_field_vals.db_value.str &&
-        !lookup_field_vals.db_value.str[0] ||
-        lookup_field_vals.table_value.str &&
-        !lookup_field_vals.table_value.str[0])
+    if ((lookup_field_vals.db_value.str &&
+         !lookup_field_vals.db_value.str[0]) ||
+        (lookup_field_vals.table_value.str &&
+         !lookup_field_vals.table_value.str[0]))
     {
       error= 0;
       goto err;
@@ -4116,10 +4116,10 @@ bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
                                                 TYPE_ENUM_PROCEDURE))
     return 0;
 
-  if (lex->sql_command == SQLCOM_SHOW_STATUS_PROC &&
-      proc_table->field[2]->val_int() == TYPE_ENUM_PROCEDURE ||
-      lex->sql_command == SQLCOM_SHOW_STATUS_FUNC &&
-      proc_table->field[2]->val_int() == TYPE_ENUM_FUNCTION ||
+  if ((lex->sql_command == SQLCOM_SHOW_STATUS_PROC &&
+      proc_table->field[2]->val_int() == TYPE_ENUM_PROCEDURE) ||
+      (lex->sql_command == SQLCOM_SHOW_STATUS_FUNC &&
+      proc_table->field[2]->val_int() == TYPE_ENUM_FUNCTION) ||
       (sql_command_flags[lex->sql_command] & CF_STATUS_COMMAND) == 0)
   {
     restore_record(table, s->default_values);

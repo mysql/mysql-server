@@ -1192,12 +1192,12 @@ static void acl_update_user(const char *user, const char *host,
   for (uint i=0 ; i < acl_users.elements ; i++)
   {
     ACL_USER *acl_user=dynamic_element(&acl_users,i,ACL_USER*);
-    if (!acl_user->user && !user[0] ||
-	acl_user->user && !strcmp(user,acl_user->user))
+    if ((!acl_user->user && !user[0]) ||
+	(acl_user->user && !strcmp(user,acl_user->user)))
     {
-      if (!acl_user->host.hostname && !host[0] ||
-	  acl_user->host.hostname &&
-	  !my_strcasecmp(system_charset_info, host, acl_user->host.hostname))
+      if ((!acl_user->host.hostname && !host[0]) ||
+	  (acl_user->host.hostname &&
+	  !my_strcasecmp(system_charset_info, host, acl_user->host.hostname)))
       {
 	acl_user->access=privileges;
 	if (mqh->specified_limits & USER_RESOURCES::QUERIES_PER_HOUR)
@@ -1275,16 +1275,16 @@ static void acl_update_db(const char *user, const char *host, const char *db,
   for (uint i=0 ; i < acl_dbs.elements ; i++)
   {
     ACL_DB *acl_db=dynamic_element(&acl_dbs,i,ACL_DB*);
-    if (!acl_db->user && !user[0] ||
-	acl_db->user &&
-	!strcmp(user,acl_db->user))
+    if ((!acl_db->user && !user[0]) ||
+	(acl_db->user &&
+	!strcmp(user,acl_db->user)))
     {
-      if (!acl_db->host.hostname && !host[0] ||
-	  acl_db->host.hostname &&
-          !strcmp(host, acl_db->host.hostname))
+      if ((!acl_db->host.hostname && !host[0]) ||
+	  (acl_db->host.hostname &&
+          !strcmp(host, acl_db->host.hostname)))
       {
-	if (!acl_db->db && !db[0] ||
-	    acl_db->db && !strcmp(db,acl_db->db))
+	if ((!acl_db->db && !db[0]) ||
+	    (acl_db->db && !strcmp(db,acl_db->db)))
 	{
 	  if (privileges)
 	    acl_db->access=privileges;
@@ -1493,8 +1493,8 @@ bool acl_check_host(const char *host, const char *ip)
     return 0;
   VOID(pthread_mutex_lock(&acl_cache->lock));
 
-  if (host && hash_search(&acl_check_hosts,(uchar*) host,strlen(host)) ||
-      ip && hash_search(&acl_check_hosts,(uchar*) ip, strlen(ip)))
+  if ((host && hash_search(&acl_check_hosts,(uchar*) host,strlen(host))) ||
+      (ip && hash_search(&acl_check_hosts,(uchar*) ip, strlen(ip))))
   {
     VOID(pthread_mutex_unlock(&acl_cache->lock));
     return 0;					// Found host
@@ -1711,8 +1711,8 @@ find_acl_user(const char *host, const char *user, my_bool exact)
                        host,
                        acl_user->host.hostname ? acl_user->host.hostname :
                        ""));
-    if (!acl_user->user && !user[0] ||
-	acl_user->user && !strcmp(user,acl_user->user))
+    if ((!acl_user->user && !user[0]) ||
+	(acl_user->user && !strcmp(user,acl_user->user)))
     {
       if (exact ? !my_strcasecmp(system_charset_info, host,
                                  acl_user->host.hostname ?
@@ -5319,16 +5319,13 @@ static int handle_grant_struct(uint struct_no, bool drop,
   uint elements;
   const char *user;
   const char *host;
-  ACL_USER *acl_user;
-  ACL_DB *acl_db;
-  GRANT_NAME *grant_name;
+  ACL_USER *acl_user= NULL;
+  ACL_DB *acl_db= NULL;
+  GRANT_NAME *grant_name= NULL;
   DBUG_ENTER("handle_grant_struct");
   DBUG_PRINT("info",("scan struct: %u  search: '%s'@'%s'",
                      struct_no, user_from->user.str, user_from->host.str));
 
-  LINT_INIT(acl_user);
-  LINT_INIT(acl_db);
-  LINT_INIT(grant_name);
   LINT_INIT(user);
   LINT_INIT(host);
 

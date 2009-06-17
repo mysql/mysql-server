@@ -806,7 +806,7 @@ void multi_delete::abort()
 
   /* the error was handled or nothing deleted and no side effects return */
   if (error_handled ||
-      !thd->transaction.stmt.modified_non_trans_table && !deleted)
+      (!thd->transaction.stmt.modified_non_trans_table && !deleted))
     DBUG_VOID_RETURN;
 
   /* Something already deleted so we have to invalidate cache */
