@@ -141,9 +141,9 @@ KILL QUERY @flush_thread_id;
 ** and finally release the mutex. The threads will continue to wait
 ** until a broadcast signal reaches them causing both threads to 
 ** come alive and check the condition.
-SELECT SQL_NO_CACHE id FROM information_schema.processlist WHERE state='wait_in_query_cache_insert' LIMIT 1 INTO @thread_id;
+SELECT SQL_NO_CACHE id FROM information_schema.processlist WHERE state='wait_in_query_cache_insert' ORDER BY id ASC LIMIT 1 INTO @thread_id;
 KILL QUERY @thread_id;
-SELECT SQL_NO_CACHE id FROM information_schema.processlist WHERE state='wait_in_query_cache_insert' LIMIT 1 INTO @thread_id;
+SELECT SQL_NO_CACHE id FROM information_schema.processlist WHERE state='wait_in_query_cache_insert' ORDER BY id DESC LIMIT 1 INTO @thread_id;
 KILL QUERY @thread_id;
 **
 ** Finally signal the DELETE statement on THD1 one last time.
