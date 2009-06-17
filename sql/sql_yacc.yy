@@ -3943,7 +3943,7 @@ alter_list_item:
               MYSQL_YYABORT;
             }
             if (check_table_name($3->table.str,$3->table.length) ||
-                $3->db.str && check_db_name($3->db.str))
+                ($3->db.str && check_db_name($3->db.str)))
             {
               my_error(ER_WRONG_TABLE_NAME, MYF(0), $3->table.str);
               MYSQL_YYABORT;
@@ -4094,8 +4094,8 @@ slave_until:
 	| UNTIL_SYM slave_until_opts
           {
             LEX *lex=Lex;
-            if ((lex->mi.log_file_name || lex->mi.pos) &&
-                (lex->mi.relay_log_name || lex->mi.relay_log_pos) ||
+            if (((lex->mi.log_file_name || lex->mi.pos) &&
+                (lex->mi.relay_log_name || lex->mi.relay_log_pos)) ||
                 !((lex->mi.log_file_name && lex->mi.pos) ||
                   (lex->mi.relay_log_name && lex->mi.relay_log_pos)))
             {

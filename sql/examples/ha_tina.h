@@ -29,7 +29,7 @@ typedef struct st_tina_share {
   THR_LOCK lock;
 } TINA_SHARE;
 
-typedef struct tina_set {
+struct tina_set {
 	off_t begin;
 	off_t end;
 };
