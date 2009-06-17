@@ -2971,8 +2971,7 @@ ha_innobase::innobase_initialize_autoinc()
 	dict_index_t*	index;
 	ulonglong	auto_inc;
 	const char*	col_name;
-	ulint		error = DB_SUCCESS;
-	dict_table_t*	innodb_table = prebuilt->table;
+	ulint		error;
 
 	col_name = table->found_next_number_field->field_name;
 	index = innobase_get_index(table->s->next_number_index);
@@ -2980,22 +2979,40 @@ ha_innobase::innobase_initialize_autoinc()
 	/* Execute SELECT MAX(col_name) FROM TABLE; */
 	error = row_search_max_autoinc(index, col_name, &auto_inc);
 
-	if (error == DB_SUCCESS) {
+	switch (error) {
+	case DB_SUCCESS:
 
-		/* At the this stage we dont' know the increment
+		/* At the this stage we don't know the increment
 		or the offset, so use default inrement of 1. */
 		++auto_inc;
+		break;
 
-		dict_table_autoinc_initialize(innodb_table, auto_inc);
-
-	} else {
+	case DB_RECORD_NOT_FOUND:
 		ut_print_timestamp(stderr);
-		fprintf(stderr, "  InnoDB: Error: (%lu) Couldn't read "
-			"the MAX(%s) autoinc value from the "
-			"index (%s).\n", error, col_name, index->name);
+		fprintf(stderr, "  InnoDB: MySQL and InnoDB data "
+			"dictionaries are out of sync.\n"
+			"InnoDB: Unable to find the AUTOINC column %s in the "
+			"InnoDB table %s.\n"
+			"InnoDB: We set the next AUTOINC column value to the "
+			"maximum possible value,\n"
+			"InnoDB: in effect disabling the AUTOINC next value "
+			"generation.\n"
+			"InnoDB: You can either set the next AUTOINC value "
+			"explicitly using ALTER TABLE\n"
+			"InnoDB: or fix the data dictionary by recreating "
+			"the table.\n",
+			col_name, index->table->name);
+
+		auto_inc = 0xFFFFFFFFFFFFFFFFULL;
+		break;
+
+	default:
+		return(error);
 	}
 
-	return(error);
+	dict_table_autoinc_initialize(prebuilt->table, auto_inc);
+
+	return(DB_SUCCESS);
 }
 
 /*****************************************************************//**
@@ -3213,7 +3230,6 @@ retry:
 		if (dict_table_autoinc_read(prebuilt->table) == 0) {
 
 			error = innobase_initialize_autoinc();
-			/* Should always succeed! */
 			ut_a(error == DB_SUCCESS);
 		}
 
