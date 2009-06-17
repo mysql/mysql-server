@@ -473,13 +473,14 @@ static TABLE_SHARE
 
     @todo Rework alternative ways to deal with ER_NO_SUCH TABLE.
   */
-  if (share || thd->is_error() && thd->main_da.sql_errno() != ER_NO_SUCH_TABLE)
+  if (share || (thd->is_error() && thd->main_da.sql_errno() != ER_NO_SUCH_TABLE))
 
     DBUG_RETURN(share);
 
   /* Table didn't exist. Check if some engine can provide it */
-  if ((tmp= ha_create_table_from_engine(thd, table_list->db,
-                                        table_list->table_name)) < 0)
+  tmp= ha_create_table_from_engine(thd, table_list->db,
+                                   table_list->table_name);
+  if (tmp < 0)
   {
     /*
       No such table in any engine.
@@ -1431,11 +1432,10 @@ static inline uint  tmpkeyval(THD *thd, TABLE *table)
 void close_temporary_tables(THD *thd)
 {
   TABLE *table;
-  TABLE *next;
+  TABLE *next= NULL;
   TABLE *prev_table;
   /* Assume thd->options has OPTION_QUOTE_SHOW_CREATE */
   bool was_quote_show= TRUE;
-  LINT_INIT(next);
 
   if (!thd->temporary_tables)
     return;
@@ -2617,8 +2617,8 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
             distance >  0 - we have lock mode higher then we require
             distance == 0 - we have lock mode exactly which we need
           */
-          if (best_distance < 0 && distance > best_distance ||
-              distance >= 0 && distance < best_distance)
+          if ((best_distance < 0 && distance > best_distance) ||
+              (distance >= 0 && distance < best_distance))
           {
             best_distance= distance;
             best_table= table;
@@ -6413,8 +6413,7 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
     (and not an item that happens to have a name).
   */
   bool is_ref_by_name= 0;
-  uint unaliased_counter;
-  LINT_INIT(unaliased_counter);                 // Dependent on found_unaliased
+  uint unaliased_counter= 0;
 
   *resolution= NOT_RESOLVED;
 
@@ -7439,7 +7438,7 @@ bool setup_fields(THD *thd, Item **ref_pointer_array,
   thd->lex->current_select->cur_pos_in_select_list= 0;
   while ((item= it++))
   {
-    if (!item->fixed && item->fix_fields(thd, it.ref()) ||
+    if ((!item->fixed && item->fix_fields(thd, it.ref())) ||
 	(item= *(it.ref()))->check_cols(1))
     {
       thd->lex->current_select->is_item_list_lookup= save_is_item_list_lookup;
@@ -7753,8 +7752,8 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
 
     DBUG_ASSERT(tables->is_leaf_for_name_resolution());
 
-    if (table_name && my_strcasecmp(table_alias_charset, table_name,
-                                    tables->alias) ||
+    if ((table_name && my_strcasecmp(table_alias_charset, table_name,
+                                    tables->alias)) ||
         (db_name && strcmp(tables->db,db_name)))
       continue;
 
@@ -7785,8 +7784,8 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
        information_schema table, or a nested table reference. See the comment
        for TABLE_LIST.
     */
-    if (!(table && !tables->view && (table->grant.privilege & SELECT_ACL) ||
-          tables->view && (tables->grant.privilege & SELECT_ACL)) &&
+    if (!((table && !tables->view && (table->grant.privilege & SELECT_ACL)) ||
+          (tables->view && (tables->grant.privilege & SELECT_ACL))) &&
         !any_privileges)
     {
       field_iterator.set(tables);
@@ -7840,7 +7839,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
       */
       if (any_privileges)
       {
-        DBUG_ASSERT(tables->field_translation == NULL && table ||
+        DBUG_ASSERT((tables->field_translation == NULL && table) ||
                     tables->is_natural_join);
         DBUG_ASSERT(item->type() == Item::FIELD_ITEM);
         Item_field *fld= (Item_field*) item;
@@ -7979,7 +7978,7 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
   if (*conds)
   {
     thd->where="where clause";
-    if (!(*conds)->fixed && (*conds)->fix_fields(thd, conds) ||
+    if ((!(*conds)->fixed && (*conds)->fix_fields(thd, conds)) ||
 	(*conds)->check_cols(1))
       goto err_no_arena;
   }
@@ -7999,8 +7998,8 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
       {
         /* Make a join an a expression */
         thd->where="on clause";
-        if (!embedded->on_expr->fixed &&
-            embedded->on_expr->fix_fields(thd, &embedded->on_expr) ||
+        if ((!embedded->on_expr->fixed &&
+            embedded->on_expr->fix_fields(thd, &embedded->on_expr)) ||
 	    embedded->on_expr->check_cols(1))
 	  goto err_no_arena;
         select_lex->cond_count++;
@@ -8155,8 +8154,8 @@ fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
                                      enum trg_event_type event)
 {
   return (fill_record(thd, fields, values, ignore_errors) ||
-          triggers && triggers->process_triggers(thd, event,
-                                                 TRG_ACTION_BEFORE, TRUE));
+          (triggers && triggers->process_triggers(thd, event,
+                                                 TRG_ACTION_BEFORE, TRUE)));
 }
 
 
@@ -8250,8 +8249,8 @@ fill_record_n_invoke_before_triggers(THD *thd, Field **ptr,
                                      enum trg_event_type event)
 {
   return (fill_record(thd, ptr, values, ignore_errors) ||
-          triggers && triggers->process_triggers(thd, event,
-                                                 TRG_ACTION_BEFORE, TRUE));
+          (triggers && triggers->process_triggers(thd, event,
+                                                 TRG_ACTION_BEFORE, TRUE)));
 }
 
 

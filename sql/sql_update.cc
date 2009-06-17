@@ -1814,7 +1814,7 @@ void multi_update::abort()
 {
   /* the error was handled or nothing deleted and no side effects return */
   if (error_handled ||
-      !thd->transaction.stmt.modified_non_trans_table && !updated)
+      (!thd->transaction.stmt.modified_non_trans_table && !updated))
     return;
 
   /* Something already updated so we have to invalidate cache */
