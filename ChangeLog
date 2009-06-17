@@ -1,5 +1,10 @@
 2009-06-17	The InnoDB Team
 
+	* row/row0merge.c:
+	Fix Bug#45426 UNIV_DEBUG build cause assertion error at CREATE INDEX
+
+2009-06-17	The InnoDB Team
+
 	* mysql-test/innodb_bug45357.result, mysql-test/innodb_bug45357.test,
 	row/row0mysql.c:
 	Fix Bug#45357 5.1.35 crashes with Failing assertion: index->type &
