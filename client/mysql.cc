@@ -115,7 +115,7 @@ extern "C" {
 #define PROMPT_CHAR '\\'
 #define DEFAULT_DELIMITER ";"
 
-#define MAX_BATCH_BUFFER_SIZE (1024L * 1024L)
+#define MAX_BATCH_BUFFER_SIZE (1024L * 1024L * 1024L)
 
 typedef struct st_status
 {
