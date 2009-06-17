@@ -416,7 +416,10 @@ String *Item_func_spatial_collection::val_str(String *str)
     else
     {
       enum Geometry::wkbType wkb_type;
-      const char *data= res->ptr() + 4/*SRID*/ + 1;
+      const uint data_offset= 4/*SRID*/ + 1;
+      if (res->length() < data_offset + sizeof(uint32))
+        goto err;
+      const char *data= res->ptr() + data_offset;
 
       /*
 	In the case of named collection we must check that items
@@ -439,7 +442,7 @@ String *Item_func_spatial_collection::val_str(String *str)
 	break;
 
       case Geometry::wkb_linestring:
-	if (str->append(data, POINT_DATA_SIZE, 512))
+	if (len < POINT_DATA_SIZE || str->append(data, POINT_DATA_SIZE, 512))
 	  goto err;
 	break;
       case Geometry::wkb_polygon:
@@ -448,11 +451,15 @@ String *Item_func_spatial_collection::val_str(String *str)
 	double x1, y1, x2, y2;
 	const char *org_data= data;
 
-	if (len < 4 + 2 * POINT_DATA_SIZE)
+	if (len < 4)
 	  goto err;
 
 	n_points= uint4korr(data);
 	data+= 4;
+
+        if (n_points < 2 || len < 4 + n_points * POINT_DATA_SIZE)
+          goto err;
+        
 	float8get(x1, data);
 	data+= SIZEOF_STORED_DOUBLE;
 	float8get(y1, data);
