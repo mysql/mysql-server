@@ -1,3 +1,17 @@
+2009-06-17	The InnoDB Team
+
+	* mysql-test/innodb_bug45357.result, mysql-test/innodb_bug45357.test,
+	row/row0mysql.c:
+	Fix Bug#45357 5.1.35 crashes with Failing assertion: index->type &
+	DICT_CLUSTERED
+
+2009-06-17	The InnoDB Team
+
+	* handler/ha_innodb.cc, mysql-test/innodb-autoinc.result,
+	mysql-test/innodb-autoinc.test:
+	Fix Bug#44030 Error: (1500) Couldn't read the MAX(ID) autoinc value
+	from the index (PRIMARY)
+
 2009-06-11	The InnoDB Team
 
 	* handler/ha_innodb.cc, mysql-test/innodb.result, srv/srv0srv.c:
