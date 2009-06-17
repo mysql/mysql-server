@@ -661,7 +661,7 @@ int MYSQLlex(void *arg, void *yythd)
       else
 #endif
       {
-        for (result_state= c; ident_map[c= yyGet()]; result_state|= c);
+        for (result_state= c; ident_map[c= yyGet()]; result_state|= c) ;
         /* If there were non-ASCII characters, mark that we must convert */
         result_state= result_state & 0x80 ? IDENT_QUOTED : IDENT;
       }
@@ -673,7 +673,7 @@ int MYSQLlex(void *arg, void *yythd)
           If we find a space then this can't be an identifier. We notice this
           below by checking start != lex->ptr.
         */
-        for (; state_map[c] == MY_LEX_SKIP ; c= yyGet());
+        for (; state_map[c] == MY_LEX_SKIP ; c= yyGet()) ;
       }
       if (start == lip->ptr && c == '.' && ident_map[yyPeek()])
 	lip->next_state=MY_LEX_IDENT_SEP;
@@ -782,7 +782,7 @@ int MYSQLlex(void *arg, void *yythd)
       else
 #endif
       {
-        for (result_state=0; ident_map[c= yyGet()]; result_state|= c);
+        for (result_state=0; ident_map[c= yyGet()]; result_state|= c) ;
         /* If there were non-ASCII characters, mark that we must convert */
         result_state= result_state & 0x80 ? IDENT_QUOTED : IDENT;
       }
@@ -872,7 +872,7 @@ int MYSQLlex(void *arg, void *yythd)
 
     case MY_LEX_BIN_NUMBER:           // Found b'bin-string'
       yyGet();                                // Skip '
-      while ((c= yyGet()) == '0' || c == '1');
+      while ((c= yyGet()) == '0' || c == '1') ;
       length= (uint) (lip->ptr - lip->tok_start);    // Length of bin-num + 3
       if (c != '\'')
       return(ABORT_SYM);              // Illegal hex constant
@@ -1080,7 +1080,7 @@ int MYSQLlex(void *arg, void *yythd)
 	[(global | local | session) .]variable_name
       */
       
-      for (result_state= 0; ident_map[c= yyGet()]; result_state|= c);
+      for (result_state= 0; ident_map[c= yyGet()]; result_state|= c) ;
       /* If there were non-ASCII characters, mark that we must convert */
       result_state= result_state & 0x80 ? IDENT_QUOTED : IDENT;
       
@@ -1670,7 +1670,7 @@ void st_select_lex::print_limit(THD *thd, String *str)
        item->substype() == Item_subselect::ALL_SUBS))
   {
     DBUG_ASSERT(!item->fixed ||
-                select_limit->val_int() == LL(1) && offset_limit == 0);
+                (select_limit->val_int() == LL(1) && offset_limit == 0));
     return;
   }
 
