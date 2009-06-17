@@ -16963,9 +16963,9 @@ static void print_join(THD *thd,
        CREATE VIEW. There we'll have nested_join->used_tables==0.
     */
     if (eliminated_tables &&  // (*)
-        (curr->table && (curr->table->map & eliminated_tables) ||
-         curr->nested_join && !(curr->nested_join->used_tables &
-                                ~eliminated_tables)))
+        ((curr->table && (curr->table->map & eliminated_tables)) ||
+         (curr->nested_join && !(curr->nested_join->used_tables &
+                                ~eliminated_tables))))
     {
       continue;
     }
