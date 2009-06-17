@@ -1507,10 +1507,6 @@ bool DTCollation::aggregate(DTCollation &dt, uint flags)
       {
         set(dt);
       }
-      else
-      {
-        // Do nothing
-      }
     }
     else if ((flags & MY_COLL_ALLOW_SUPERSET_CONV) &&
              left_is_superset(this, &dt))

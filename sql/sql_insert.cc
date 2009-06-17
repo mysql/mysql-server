@@ -301,9 +301,7 @@ static int check_update_fields(THD *thd, TABLE_LIST *insert_table_list,
                                List<Item> &update_fields, table_map *map)
 {
   TABLE *table= insert_table_list->table;
-  my_bool timestamp_mark;
-
-  LINT_INIT(timestamp_mark);
+  my_bool timestamp_mark= 0;
 
   if (table->timestamp_field)
   {
@@ -393,7 +391,7 @@ void upgrade_lock_type(THD *thd, thr_lock_type *lock_type,
                        bool is_multi_insert)
 {
   if (duplic == DUP_UPDATE ||
-      duplic == DUP_REPLACE && *lock_type == TL_WRITE_CONCURRENT_INSERT)
+      (duplic == DUP_REPLACE && *lock_type == TL_WRITE_CONCURRENT_INSERT))
   {
     *lock_type= TL_WRITE_DEFAULT;
     return;
@@ -858,8 +856,9 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       */
       query_cache_invalidate3(thd, table_list, 1);
     }
-    if (changed && error <= 0 || thd->transaction.stmt.modified_non_trans_table
-	|| was_insert_delayed)
+    if ((changed && error <= 0) ||
+        thd->transaction.stmt.modified_non_trans_table ||
+        was_insert_delayed)
     {
       if (mysql_bin_log.is_open())
       {
@@ -3186,7 +3185,8 @@ bool select_insert::send_eof()
   table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
   table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
 
-  if (changed= (info.copied || info.deleted || info.updated))
+  changed= (info.copied || info.deleted || info.updated);
+  if (changed)
   {
     /*
       We must invalidate the table in the query cache before binlog writing
