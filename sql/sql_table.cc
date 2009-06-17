@@ -982,8 +982,8 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
     }
     /* Don't pack rows in old tables if the user has requested this */
     if ((sql_field->flags & BLOB_FLAG) ||
-	sql_field->sql_type == MYSQL_TYPE_VARCHAR &&
-	create_info->row_type != ROW_TYPE_FIXED)
+	(sql_field->sql_type == MYSQL_TYPE_VARCHAR &&
+	create_info->row_type != ROW_TYPE_FIXED))
       (*db_options)|= HA_OPTION_PACK_RECORD;
     it2.rewind();
   }
@@ -1422,7 +1422,7 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 	    sql_field->sql_type == MYSQL_TYPE_VARCHAR ||
 	    sql_field->pack_flag & FIELDFLAG_BLOB)))
       {
-	if (column_nr == 0 && (sql_field->pack_flag & FIELDFLAG_BLOB) ||
+	if ((column_nr == 0 && (sql_field->pack_flag & FIELDFLAG_BLOB)) ||
             sql_field->sql_type == MYSQL_TYPE_VARCHAR)
 	  key_info->flags|= HA_BINARY_PACK_KEY | HA_VAR_LENGTH_KEY;
 	else
@@ -3954,9 +3954,9 @@ view_err:
   }
   else if (mysql_rename_table(new_db_type,new_db,tmp_name,new_db,
 			      new_alias) ||
-           (new_name != table_name || new_db != db) && // we also do rename
+           ((new_name != table_name || new_db != db) && // we also do rename
            Table_triggers_list::change_table_name(thd, db, table_name,
-                                                  new_db, new_alias))
+                                                  new_db, new_alias)))
        
   {						// Try to get everything back
     error=1;

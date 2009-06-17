@@ -2987,10 +2987,10 @@ bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
                                                 TYPE_ENUM_PROCEDURE))
     return 0;
 
-  if (lex->orig_sql_command == SQLCOM_SHOW_STATUS_PROC &&
-      proc_table->field[2]->val_int() == TYPE_ENUM_PROCEDURE ||
-      lex->orig_sql_command == SQLCOM_SHOW_STATUS_FUNC &&
-      proc_table->field[2]->val_int() == TYPE_ENUM_FUNCTION ||
+  if ((lex->orig_sql_command == SQLCOM_SHOW_STATUS_PROC &&
+      proc_table->field[2]->val_int() == TYPE_ENUM_PROCEDURE) ||
+      (lex->orig_sql_command == SQLCOM_SHOW_STATUS_FUNC &&
+      proc_table->field[2]->val_int() == TYPE_ENUM_FUNCTION) ||
       lex->orig_sql_command == SQLCOM_END)
   {
     restore_record(table, s->default_values);
