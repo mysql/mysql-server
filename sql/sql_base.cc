@@ -1556,7 +1556,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
           it can not be cloned. Emit an error for an unsupported behaviour.
         */
 	if (table->query_id == thd->query_id ||
-            thd->prelocked_mode && table->query_id)
+            (thd->prelocked_mode && table->query_id))
 	{
 	  my_error(ER_CANT_REOPEN_TABLE, MYF(0), table->alias);
 	  DBUG_RETURN(0);
@@ -1610,8 +1610,8 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
             distance >  0 - we have lock mode higher then we require
             distance == 0 - we have lock mode exactly which we need
           */
-          if (best_distance < 0 && distance > best_distance ||
-              distance >= 0 && distance < best_distance)
+          if ((best_distance < 0 && distance > best_distance) ||
+              (distance >= 0 && distance < best_distance))
           {
             best_distance= distance;
             best_table= table;
@@ -2298,8 +2298,8 @@ bool table_is_used(TABLE *table, bool wait_for_name_lock)
          search= (TABLE*) hash_next(&open_cache, (byte*) key,
                                     key_length, &state))
     {
-      if (search->locked_by_name && wait_for_name_lock ||
-	  search->is_name_opened() && search->needs_reopen_or_name_lock())
+      if ((search->locked_by_name && wait_for_name_lock) ||
+	  (search->is_name_opened() && search->needs_reopen_or_name_lock()))
 	return 1;				// Table is used
     }
   } while ((table=table->next));
@@ -5142,7 +5142,7 @@ bool setup_fields(THD *thd, Item **ref_pointer_array,
   thd->lex->current_select->cur_pos_in_select_list= 0;
   while ((item= it++))
   {
-    if (!item->fixed && item->fix_fields(thd, it.ref()) ||
+    if ((!item->fixed && item->fix_fields(thd, it.ref())) ||
 	(item= *(it.ref()))->check_cols(1))
     {
       thd->lex->current_select->is_item_list_lookup= save_is_item_list_lookup;
@@ -5476,16 +5476,16 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
 
     DBUG_ASSERT(tables->is_leaf_for_name_resolution());
 
-    if (table_name && my_strcasecmp(table_alias_charset, table_name,
-                                    tables->alias) ||
+    if ((table_name && my_strcasecmp(table_alias_charset, table_name,
+                                    tables->alias)) ||
         (db_name && strcmp(tables->db,db_name)))
       continue;
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     /* Ensure that we have access rights to all fields to be inserted. */
-    if (!((table && !tables->view && (table->grant.privilege & SELECT_ACL) ||
-           tables->view && (tables->grant.privilege & SELECT_ACL))) &&
-        !any_privileges)
+    if (!((table && !tables->view && (table->grant.privilege & SELECT_ACL)) ||
+         (tables->view && (tables->grant.privilege & SELECT_ACL))) &&
+         !any_privileges)
     {
       field_iterator.set(tables);
       if (check_grant_all_columns(thd, SELECT_ACL, &field_iterator))
@@ -5539,7 +5539,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
       */
       if (any_privileges)
       {
-        DBUG_ASSERT(tables->field_translation == NULL && table ||
+        DBUG_ASSERT((tables->field_translation == NULL && table) ||
                     tables->is_natural_join);
         DBUG_ASSERT(item->type() == Item::FIELD_ITEM);
         Item_field *fld= (Item_field*) item;
@@ -5684,7 +5684,7 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
   if (*conds)
   {
     thd->where="where clause";
-    if (!(*conds)->fixed && (*conds)->fix_fields(thd, conds) ||
+    if ((!(*conds)->fixed && (*conds)->fix_fields(thd, conds)) ||
 	(*conds)->check_cols(1))
       goto err_no_arena;
   }
@@ -5704,8 +5704,8 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
       {
         /* Make a join an a expression */
         thd->where="on clause";
-        if (!embedded->on_expr->fixed &&
-            embedded->on_expr->fix_fields(thd, &embedded->on_expr) ||
+        if ((!embedded->on_expr->fixed &&
+            embedded->on_expr->fix_fields(thd, &embedded->on_expr)) ||
 	    embedded->on_expr->check_cols(1))
 	  goto err_no_arena;
         select_lex->cond_count++;
@@ -5860,8 +5860,8 @@ fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
                                      enum trg_event_type event)
 {
   return (fill_record(thd, fields, values, ignore_errors) ||
-          triggers && triggers->process_triggers(thd, event,
-                                                 TRG_ACTION_BEFORE, TRUE));
+          (triggers && triggers->process_triggers(thd, event,
+                                                 TRG_ACTION_BEFORE, TRUE)));
 }
 
 
@@ -5955,8 +5955,8 @@ fill_record_n_invoke_before_triggers(THD *thd, Field **ptr,
                                      enum trg_event_type event)
 {
   return (fill_record(thd, ptr, values, ignore_errors) ||
-          triggers && triggers->process_triggers(thd, event,
-                                                 TRG_ACTION_BEFORE, TRUE));
+          (triggers && triggers->process_triggers(thd, event,
+                                                 TRG_ACTION_BEFORE, TRUE)));
 }
 
 
