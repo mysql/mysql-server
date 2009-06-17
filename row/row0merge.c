@@ -849,7 +849,14 @@ err_exit:
 	avail_size = block[1] - b;
 	memcpy(*buf, b, avail_size);
 	*mrec = *buf + extra_size;
-	rec_offs_make_valid(*mrec, index, offsets);
+#ifdef UNIV_DEBUG
+	/* We cannot invoke rec_offs_make_valid() here, because there
+	are no REC_N_NEW_EXTRA_BYTES between extra_size and data_size.
+	Similarly, rec_offs_validate() would fail, because it invokes
+	rec_get_status(). */
+	offsets[2] = (ulint) *mrec;
+	offsets[3] = (ulint) index;
+#endif /* UNIV_DEBUG */
 
 	if (!row_merge_read(fd, ++(*foffs), block)) {
 
