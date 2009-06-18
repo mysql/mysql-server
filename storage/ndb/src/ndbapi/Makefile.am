@@ -42,6 +42,7 @@ libndbapi_la_SOURCES = \
         NdbOperationInt.cpp     \
         NdbOperationDefine.cpp  \
         NdbOperationExec.cpp    \
+	NdbQueryOperation.cpp \
         NdbScanOperation.cpp    NdbScanFilter.cpp \
         NdbIndexOperation.cpp   \
         NdbEventOperation.cpp   \

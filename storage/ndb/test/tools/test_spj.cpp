@@ -15,6 +15,11 @@
 
 /*
 
+treeSpec: 005f000a 00060001 00000008 00000007 00000001 00020002 babe0003 000a0001 0000000b 00000007 00000001 00000001 00000002 00020001 00020000 00020002 babe0003 000a0001 0000000b 00000007 00000001 00010001 00000002 00020001 00020000 00020002 babe0003 000a0001 0000000b 00000007 00000001 00020001 00000002 00020001 00020000 00020002 babe0003 000a0001 0000000b 00000007 00000001 00030001 00000002 00020001 00020000 00020002 babe0003 000a0001 0000000b 00000007 00000001 00040001 00000002 00020001 00020000 00020002 babe0003 000a0001 0000000b 00000007 00000001 00050001 00000002 00020001 00020000 00020002 babe0003 000a0001 0000000b 00000007 00000001 00060001 00000002 00020001 00020000 00020002 babe0003 000a0001 0000000b 00000007 00000001 00070001 00000002 00020001 00020000 00020002 babe0003 00080001 00000003 00000007 00000001 00080001 00000002 00020001 00020000 
+paramSpec: 00050001 00000001 00000080 00000001 fff00006 00050001 00000001 00000084 00000001 fff00006 00050001 00000001 00000088 00000001 fff00006 00050001 00000001 0000008c 00000001 fff00006 00050001 00000001 00000090 00000001 fff00006 00050001 00000001 00000094 00000001 fff00006 00050001 00000001 00000098 00000001 fff00006 00050001 00000001 0000009c 00000001 fff00006 00050001 00000001 000000a0 00000001 fff00006 00050001 00000001 000000a4 00000001 fff00006 
+
+
+
 Retreived T
 treeSpec: 000f0002 00060001 00000008 00000007 00000001 00020002 babe0003 00080001 00000003 00000007 00000001 00000001 00000002 00020001 00020000 
 paramSpec: 00050001 00000001 00010000 00000001 fff00006 00050001 00000001 00020000 00000001 fff00006 
@@ -30,6 +35,9 @@ paramSpec: 00050001 00000001 00010000 00000001 fff00006 00050001 00000001 000200
 #include <HugoOperations.hpp>
 #include <kernel/signaldata/QueryTree.hpp>
 #include <kernel/AttributeHeader.hpp>
+#include <NdbQueryOperation.hpp>
+// 'impl' classes is needed for prototype only.
+#include <NdbQueryOperationImpl.hpp>
 
 typedef uchar* gptr;
 static Uint32 storeCompactList(Uint32 * dst, const Vector<Uint32> & src);
@@ -88,7 +96,7 @@ public:
     op->m_isLinked = true;
   }
   static Uint32 getOpPtr(const NdbOperation* op, int recNo=0){
-    return op->ptr2int(recNo);
+    return op->ptr2int();
   }
   static Uint32 getTransPtr(NdbScanOperation* op){
     return ha_ndbcluster::getTransPtr(op->theNdbCon);
@@ -98,9 +106,9 @@ public:
 
 class ResultSet{
 public:
-  ResultSet(NdbOperation* pOp, int recNo){
+  ResultSet(NdbQueryOperation* op, const NdbDictionary::Table *pTab){
     for(int i=0; i<attrCount; i++){
-      mRecAttrs[i] = pOp->getValue(attrNames[i], NULL, recNo);
+      mRecAttrs[i] = op->getValue(pTab->getColumn(attrNames[i]));
     }
   }
 
@@ -155,6 +163,9 @@ public:
   void serializeParam(Vector<Uint32>& vec) const;
   int getOpLen() const {return QueryNode::getLength(qn.len);}
   int getParamLen() const {return QueryNodeParameters::getLength(p.len);}
+  void setResultData(Uint32 resultIVal){
+    p.resultData = resultIVal;
+  }
 private:
   union {
     QN_LookupNode qn;
@@ -210,7 +221,7 @@ LookupOp::LookupOp(const NdbOperation* pOp,
   // Has projection for child op.
   p.requestInfo = DABits::PI_ATTR_LIST;
   // Define a receiver object for this op.
-  p.resultData = NdbScanFilterImpl::getOpPtr(pOp, nodeNo);
+  //p.resultData = NdbScanFilterImpl::getOpPtr(pOp, nodeNo);
   //p1.resultData = 0x10000; // NdbScanFilterImpl::getOpPtr(pOp);
   // Define a result projection to include *all* attributes.
   p.optional[0] = 1; // Length of user projecttion
@@ -245,7 +256,6 @@ void LookupOp::serializeParam(Vector<Uint32>& vec) const{
  insert into T values (4,5,1,1,1,1);
 
 */
-
 int spjTest(int argc, char** argv){
   NDB_INIT(argv[0]);
 
@@ -317,7 +327,7 @@ int spjTest(int argc, char** argv){
     /*LookupOp look1(pOp, false, 0);
       LookupOp look2(pOp, true, 1);*/
 
-    const int nNodes = 10;
+    const int nNodes = 2;
     LookupOp* node[nNodes];
     int totLen = 0;
     for(int i=0; i<nNodes; i++){
@@ -331,6 +341,21 @@ int spjTest(int argc, char** argv){
 
     push_back(treeSpec, _data3, 1);
     
+    NdbQuery query(MyNdb);
+    NdbQueryOperation root(query, *pOp);
+    query.getImpl().setRootOperation(&root);
+    NdbQueryOperation* currOp = &root;
+    const ResultSet* rSet[nNodes];
+    rSet[0] = new ResultSet(&root, pTab);
+    node[0]->setResultData(root.getImpl().getResultPtr());
+    for(int i=1; i<nNodes; i++){
+      NdbQueryOperation* newOp = new NdbQueryOperation(query, *pOp);
+      currOp->getImpl().setFirstChild(newOp);
+      currOp = newOp;
+      rSet[i] = new ResultSet(newOp, pTab);
+      node[i]->setResultData(newOp->getImpl().getResultPtr());
+    }
+
     for(int i=0; i<nNodes; i++){
       node[i]->serializeOp(treeSpec);
     }
@@ -347,12 +372,11 @@ int spjTest(int argc, char** argv){
     NdbScanFilterImpl::add(pOp, paramSpec.getBase(), paramSpec.size());
     NdbScanFilterImpl::setIsLinkedFlag(pOp);
 
-    const ResultSet* rSet[nNodes];
-    for(int i=0; i<nNodes; i++){
-      rSet[i] = new ResultSet(pOp, i);
-    }
+    query.getImpl().prepareSend();
+    extern NdbQueryImpl* queryImpl; 
+    queryImpl = &query.getImpl();
     pTrans->execute(NoCommit);
-     
+    queryImpl = NULL;
     /*if (pTrans->getNdbError().classification == NdbError::NoDataFound){
       ndbout << "No data found" << endl;
     }else{
@@ -362,7 +386,6 @@ int spjTest(int argc, char** argv){
     for(int i=0; i<nNodes; i++){
       rSet[i]->print();
     }
-
   }
   else if (_scan != 0)
   {
@@ -419,7 +442,7 @@ int spjTest(int argc, char** argv){
      */
     AttributeHeader::init(p1.optional + 2, AttributeHeader::READ_ANY_VALUE,
                           0);
-    QueryNodeParams::setOpLen(p1.len, QueryNodeParams::QN_SCAN_FRAG, p1.NodeSize + 3);
+    QueryNodeParameters::setOpLen(p1.len, QueryNodeParameters::QN_SCAN_FRAG, p1.NodeSize + 3);
 
 
     union {
@@ -452,7 +475,7 @@ int spjTest(int argc, char** argv){
      * correlation value
      */
     AttributeHeader::init(p2.optional+2, AttributeHeader::READ_ANY_VALUE, 0);
-    QueryNodeParams::setOpLen(p2.len, QueryNodeParams::QN_LOOKUP, p2.NodeSize + 3);
+    QueryNodeParameters::setOpLen(p2.len, QueryNodeParameters::QN_LOOKUP, p2.NodeSize + 3);
 
 
     union {
@@ -470,8 +493,8 @@ int spjTest(int argc, char** argv){
 
     dump("treeSpec: ", treeSpec, "\n");
 
-    push_back(paramSpec, _data4, QueryNodeParams::getLength(p1.len));
-    push_back(paramSpec, _data5, QueryNodeParams::getLength(p2.len));
+    push_back(paramSpec, _data4, QueryNodeParameters::getLength(p1.len));
+    push_back(paramSpec, _data5, QueryNodeParameters::getLength(p2.len));
 
     dump("paramSpec: ", paramSpec, "\n");
 

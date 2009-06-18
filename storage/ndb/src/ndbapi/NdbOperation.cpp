@@ -40,10 +40,8 @@
  * Remark:        Creat an object of NdbOperation. 
  ****************************************************************************/
 NdbOperation::NdbOperation(Ndb* aNdb, NdbOperation::Type aType) :
-  maxRec(0),
   m_type(aType),
-  //theReceiver(aNdb),
-  //mReceiver(aNdb),
+  theReceiver(aNdb),
   theErrorLine(0),
   theNdb(aNdb),
   //theTable(aTable),
@@ -84,10 +82,7 @@ NdbOperation::NdbOperation(Ndb* aNdb, NdbOperation::Type aType) :
   m_abortOption(-1),
   m_noErrorPropagation(false)
 {
-  for(int i = 0; i<receiverCount; i++){
-    assert(!getReceiver(i).init(NdbReceiver::NDB_OPERATION, false, this, aNdb));
-  }
-//getReceiver(0).init(NdbReceiver::NDB_OPERATION, false, this, aNdb);
+  theReceiver.init(NdbReceiver::NDB_OPERATION, false, this, aNdb);
   theError.code = 0;
   m_customData = NULL;
   m_isLinked = false;
@@ -152,7 +147,6 @@ NdbOperation::setErrorCodeAbort(int anErrorCode) const
 int
 NdbOperation::init(const NdbTableImpl* tab, NdbTransaction* myConnection,
                    bool useRec){
-  maxRec = 0;
   NdbApiSignal* tSignal;
   theStatus		= Init;
   theError.code		= 0;
@@ -173,7 +167,6 @@ NdbOperation::init(const NdbTableImpl* tab, NdbTransaction* myConnection,
   theNoOfTupKeyLeft = tab->getNoOfPrimaryKeys();
 
   theTotalCurrAI_Len	= 0;
-  LEN_CHANGE;
   theAI_LenInCurrAI	= 0;
   theStartIndicator	= 0;
   theCommitIndicator	= 0;
@@ -209,16 +202,10 @@ NdbOperation::init(const NdbTableImpl* tab, NdbTransaction* myConnection,
   tcKeyReq->scanInfo = 0;
   theKEYINFOptr = &tcKeyReq->keyInfo[0];
   theATTRINFOptr = &tcKeyReq->attrInfo[0];
-  for(int i = 0; i<receiverCount; i++){
-    if(getReceiver(i).init(NdbReceiver::NDB_OPERATION, useRec, this)){
-      // theReceiver sets the error code of its owner
-      return -1;
-    }
+  if (theReceiver.init(NdbReceiver::NDB_OPERATION, useRec, this))
+  {
+    return -1;
   }
-  // if (theReceiver.init(NdbReceiver::NDB_OPERATION, useRec, this))
-  // {
-  //   return -1;
-  // }
   m_customData = NULL;
   return 0;
 }
@@ -246,9 +233,7 @@ NdbOperation::release()
     theNdb->releaseNdbBlob(tSaveBlob);
   }
   theBlobList = NULL;
-  for(int i = 0; i<=maxRec; i++){
-    getReceiver(i).release();
-  }
+  theReceiver.release();
 }
 
 void
@@ -319,22 +304,22 @@ NdbOperation::postExecuteRelease()
 }
 
 NdbRecAttr*
-NdbOperation::getValue(const char* anAttrName, char* aValue, int recNo)
+NdbOperation::getValue(const char* anAttrName, char* aValue)
 {
-  return getValue_impl(m_currentTable->getColumn(anAttrName), aValue, recNo);
+  return getValue_impl(m_currentTable->getColumn(anAttrName), aValue);
 }
 
 NdbRecAttr*
-NdbOperation::getValue(Uint32 anAttrId, char* aValue, int recNo)
+NdbOperation::getValue(Uint32 anAttrId, char* aValue)
 {
-  return getValue_impl(m_currentTable->getColumn(anAttrId), aValue, recNo);
+  return getValue_impl(m_currentTable->getColumn(anAttrId), aValue);
 }
 
 NdbRecAttr*
-NdbOperation::getValue(const NdbDictionary::Column* col, char* aValue, int recNo)
+NdbOperation::getValue(const NdbDictionary::Column* col, char* aValue)
 {
   if (theStatus != UseNdbRecord)
-    return getValue_impl(&NdbColumnImpl::getImpl(*col), aValue, recNo);
+    return getValue_impl(&NdbColumnImpl::getImpl(*col), aValue);
   
   setErrorCodeAbort(4508);
   /* GetValue not allowed for NdbRecord defined operation */

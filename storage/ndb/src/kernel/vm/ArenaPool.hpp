@@ -18,6 +18,7 @@
 
 #include "Pool.hpp"
 #include "RWPool.hpp"
+#include <NdbOut.hpp>
 
 /** JW: Raw block to be allocated by ArenaAllocator?*/
 struct ArenaBlock
