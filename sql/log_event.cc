@@ -3330,8 +3330,8 @@ void Start_log_event_v3::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
       my_b_printf(&cache," at startup");
     my_b_printf(&cache, "\n");
     if (flags & LOG_EVENT_BINLOG_IN_USE_F)
-      my_b_printf(&cache, "# Warning: this binlog was not closed properly. "
-                  "Most probably mysqld crashed writing it.\n");
+      my_b_printf(&cache, "# Warning: this binlog is either in use or was not "
+                  "closed properly.\n");
   }
   if (!is_artificial_event() && created)
   {
