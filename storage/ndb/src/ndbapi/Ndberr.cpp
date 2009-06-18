@@ -22,6 +22,8 @@
 #include "NdbDictionaryImpl.hpp"
 #include <NdbOperation.hpp>
 #include <NdbTransaction.hpp>
+#include "NdbQueryBuilder.hpp"
+#include "NdbQueryOperation.hpp"
 #include <NdbBlob.hpp>
 #include "NdbEventOperationImpl.hpp"
 
@@ -86,6 +88,20 @@ NdbEventOperationImpl::getNdbError() const {
 const
 NdbError &
 NdbDictInterface::getNdbError() const {
+  update(m_error);
+  return m_error;
+}
+
+const
+NdbError &
+NdbQueryBuilder::getNdbError() const {
+  update(m_error);
+  return m_error;
+}
+
+const
+NdbError &
+NdbQuery::getNdbError() const {
   update(m_error);
   return m_error;
 }

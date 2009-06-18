@@ -1,4 +1,6 @@
-/* Copyright (C) 2009 Sun Microsystems Inc
+/*
+   Copyright (C) 2009 Sun Microsystems Inc
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,10 +20,15 @@
 
 #include <ndb_types.h>
 
-class NdbError;
+#include "NdbDictionary.hpp"
+#include "NdbError.hpp"
+
 class NdbTransaction;
+class NdbParamOperand;
 class NdbQueryOperation;
+class NdbQueryOperationDef;
 class NdbRecAttr;
+class NdbRecord;
 
 /**
  * NdbQuery are create when a NdbQueryDefinition is submitted for
@@ -34,7 +41,6 @@ class NdbRecAttr;
 class NdbQuery
 {
 public:
-
   // get NdbQueryOperation being the root of a linked operation
   NdbQueryOperation* getRootOperation() const;
 
@@ -110,6 +116,9 @@ public:
    * @return An error object with information about the latest error.
    */
   const NdbError& getNdbError() const;
+
+private:
+  NdbError m_error;
 };
 
 
@@ -119,6 +128,8 @@ class NdbQueryOperation
 {
 public:
   // Collection of get'ers to navigate in root, parent/child hierarchy
+  NdbQuery* getQuery() const;
+
   NdbQueryOperation* getRootOperation() const;
   // assert(getRootOperation()->getNoOfParentOperations() == 0);
 
