@@ -261,7 +261,7 @@ int testQueryBuilder(Ndb &myNdb)
    * Main purpose is to examplify how NdbQueryBuilder is used to prepare
    * reusable query object - no ::execute() is performed yet.
    */
-  NdbQueryBuilder myBuilder(&myNdb);
+  NdbQueryBuilder myBuilder(myNdb);
 
   /* qt1 is 'const defined' */
   NdbQueryDef* q1 = 0;
@@ -278,6 +278,12 @@ int testQueryBuilder(Ndb &myNdb)
 
     q1 = qb->prepare();
     if (q1 == NULL) APIERROR(qb->getNdbError());
+
+    // Some operations are intentionally disallowed through private declaration 
+//  delete readManager;
+//  NdbQueryLookupOperationDef illegalAssign = *readManager;
+//  NdbQueryLookupOperationDef *illegalCopy1 = new NdbQueryLookupOperationDef(*readManager);
+//  NdbQueryLookupOperationDef illegalCopy2(*readManager);
   }
 
   NdbQueryDef* q2 = 0;
