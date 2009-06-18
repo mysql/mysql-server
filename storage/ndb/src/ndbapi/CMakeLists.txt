@@ -44,6 +44,8 @@ ADD_LIBRARY(ndbapi STATIC
             NdbScanOperation.cpp
             NdbScanFilter.cpp
             NdbIndexOperation.cpp
+            NdbQueryBuilder.cpp
+            NdbQueryOperation.cpp
             NdbApiSignal.cpp
             NdbRecAttr.cpp
             NdbUtil.cpp

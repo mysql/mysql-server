@@ -392,6 +392,7 @@ public:
     Uint32 m_currentNodePtrI;
     Uint32 m_cnt_active;       // No of "running" nodes
     ArenaHead m_arena;
+    Uint32 m_readLen; 
 
     enum RequestBits
     {
