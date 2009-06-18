@@ -32,6 +32,9 @@ class NdbReceiver
 {
   friend class Ndb;
   friend class NdbOperation;
+  friend class NdbQueryImpl;
+  friend class NdbQueryOperation;
+  friend class NdbQueryOperationImpl;
   friend class NdbScanOperation;
   friend class NdbIndexOperation;
   friend class NdbIndexScanOperation;

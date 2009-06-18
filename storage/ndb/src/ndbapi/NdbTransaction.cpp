@@ -24,6 +24,7 @@
 #include <NdbIndexScanOperation.hpp>
 #include <NdbIndexOperation.hpp>
 #include <NdbDictionaryImpl.hpp>
+#include <NdbQueryOperationImpl.hpp>
 #include "NdbApiSignal.hpp"
 #include "TransporterFacade.hpp"
 #include "API.hpp"
@@ -1883,7 +1884,6 @@ Remark:
 int			
 NdbTransaction::receiveTCKEYCONF(const TcKeyConf * keyConf, Uint32 aDataLength)
 {
-  NdbReceiver* tOp;
   const Uint32 tTemp = keyConf->confInfo;
   /***************************************************************************
 Check that we are expecting signals from this transaction and that it
@@ -1898,17 +1898,26 @@ from other transactions.
     const Uint32* tPtr = (Uint32 *)&keyConf->operations[0];
     Uint32 tNoComp = theNoOfOpCompleted;
     for (Uint32 i = 0; i < tNoOfOperations ; i++) {
-      tOp = theNdb->void2rec(theNdb->int2void(*tPtr++));
+      void* const mappedObj = theNdb->void2rec(theNdb->int2void(*tPtr++));
       const Uint32 tAttrInfoLen = *tPtr++;
-      if (tOp && tOp->checkMagicNumber()) {
-	Uint32 done = tOp->execTCOPCONF(tAttrInfoLen);
+      NdbReceiver* const tOp = reinterpret_cast<NdbReceiver*>(mappedObj);
+      NdbQueryImpl* const queryImpl 
+	  = reinterpret_cast<NdbQueryImpl*>(mappedObj);
+      const bool isReceiver = tOp->checkMagicNumber();
+	/* TODO: Use a better mechanism than magic numbers to decide if 
+	 this is an NdbReceiver or ab NdbQueryImpl.*/
+      if(mappedObj && (isReceiver || queryImpl->checkMagicNumber())){
+	Uint32 done = isReceiver ? tOp->execTCOPCONF(tAttrInfoLen) :
+	  queryImpl->execTCOPCONF(tAttrInfoLen) ;
 	if(tAttrInfoLen > TcKeyConf::DirtyReadBit){
 	  Uint32 node = tAttrInfoLen & (~TcKeyConf::DirtyReadBit);
 	  NdbNodeBitmask::set(m_db_nodes, node);
 	  if(NdbNodeBitmask::get(m_failed_db_nodes, node) && !done)
 	  {
 	    done = 1;
-	    tOp->setErrorCode(4119);
+	    if(isReceiver){
+	      tOp->setErrorCode(4119);
+	    }
 	    theCompletionStatus = CompletedFailure;
 	    theReturnStatus = NdbTransaction::ReturnFailure;
 	  }	    
@@ -2169,6 +2178,8 @@ NdbTransaction::OpCompleteSuccess()
   Uint32 tNoSent = theNoOfOpSent;
   tNoComp++;
   theNoOfOpCompleted = tNoComp;
+  ndbout << "NdbTransaction::OpCompleteSuccess() tNoComp=" << tNoComp 
+	 << " tNoSent=" << tNoSent << endl;
   if (tNoComp == tNoSent) { // Last operation completed
     return 0;
   } else if (tNoComp < tNoSent) {

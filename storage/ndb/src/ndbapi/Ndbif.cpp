@@ -398,6 +398,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
   case GSN_TRANSID_AI:{
     tFirstDataPtr = int2void(tFirstData);
     NdbReceiver* tRec;
+    ndbout << "Ndb::handleReceivedSignal() received TRANSID_AI" << endl; 
     if (tFirstDataPtr && (tRec = void2rec(tFirstDataPtr)) && 
 	tRec->checkMagicNumber() && (tCon = tRec->getTransaction()) &&
 	tCon->checkState_TransId(((const TransIdAI*)tDataPtr)->transId)){
@@ -977,6 +978,7 @@ Remark:   One transaction has been completed.
 void	
 Ndb::completedTransaction(NdbTransaction* aCon)
 {
+  ndbout << "Ndb::completedTransaction() id=" << aCon->getTransactionId() << endl;
   Uint32 tTransArrayIndex = aCon->theTransArrayIndex;
   Uint32 tNoSentTransactions = theNoOfSentTransactions;
   Uint32 tNoCompletedTransactions = theNoOfCompletedTransactions;

@@ -17,11 +17,19 @@
 #define NdbQueryOperation_H
 
 #include <ndb_types.h>
+// TODO: Remove this. Needed for result prototype only.
+#include <NdbOperation.hpp>
 
 class NdbError;
+class NdbParamOperand;
 class NdbTransaction;
 class NdbQueryOperation;
 class NdbRecAttr;
+class NdbQueryOperationDef;
+
+/** Opaque implementation classes*/
+class NdbQueryImpl;
+class NdbQueryOperationImpl;
 
 /**
  * NdbQuery are create when a NdbQueryDefinition is submitted for
@@ -34,6 +42,7 @@ class NdbRecAttr;
 class NdbQuery
 {
 public:
+  NdbQuery(Ndb& ndb);
 
   // get NdbQueryOperation being the root of a linked operation
   NdbQueryOperation* getRootOperation() const;
@@ -110,6 +119,14 @@ public:
    * @return An error object with information about the latest error.
    */
   const NdbError& getNdbError() const;
+
+  /** Getter method.*/
+  NdbQueryImpl& getImpl(){return *m_pimpl;}
+  /** Getter method.*/
+  const NdbQueryImpl& getImpl() const{return *m_pimpl;}
+private:
+  /** Opaque implementation class instance.*/
+  NdbQueryImpl* m_pimpl;
 };
 
 
@@ -118,6 +135,8 @@ public:
 class NdbQueryOperation
 {
 public:
+  NdbQueryOperation(NdbQuery& query, NdbOperation& operation);
+
   // Collection of get'ers to navigate in root, parent/child hierarchy
   NdbQueryOperation* getRootOperation() const;
   // assert(getRootOperation()->getNoOfParentOperations() == 0);
@@ -164,7 +183,7 @@ public:
    */
   NdbRecAttr* getValue(const char* anAttrName, char* aValue = 0);
   NdbRecAttr* getValue(Uint32 anAttrId, char* aValue = 0);
-  NdbRecAttr* getValue(const NdbDictionary::Column*, char* aValue = 0);
+  NdbRecAttr* getValue(const NdbDictionary::Column* column, char* aValue = 0);
 
   /**
    * Retrieval of entire or partial rows may also be specified. For partial
@@ -202,6 +221,21 @@ public:
   bool isRowChanged() const; // Prev ::nextResult() on NdbQuery retrived a new
                              // value for this NdbQueryOperation
 
+ /** Getter method.*/
+  NdbQuery& getQuery();
+
+  /** Getter method.*/
+  const NdbQuery& getQuery() const;
+
+  /** Getter method.*/
+  NdbQueryOperationImpl& getImpl(){return *m_pimpl;}
+
+  /** Getter method.*/
+  const NdbQueryOperationImpl& getImpl() const{return *m_pimpl;}
+
+private:
+  /** Opaque implementation class instance.*/
+  NdbQueryOperationImpl* m_pimpl;
 };
 
 
