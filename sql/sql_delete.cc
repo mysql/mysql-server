@@ -408,7 +408,7 @@ cleanup:
                                         thd->query, thd->query_length,
                                         is_trans, FALSE, errcode);
 
-      if (log_result && transactional_table)
+      if (log_result)
       {
 	error=1;
       }
