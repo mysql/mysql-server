@@ -5018,7 +5018,6 @@ convert_search_mode_to_innobase(
 	case HA_READ_MBR_WITHIN:
 	case HA_READ_MBR_DISJOINT:
 	case HA_READ_MBR_EQUAL:
-		my_error(ER_TABLE_CANT_HANDLE_SPKEYS, MYF(0));
 		return(PAGE_CUR_UNSUPP);
 	/* do not use "default:" in order to produce a gcc warning:
 	enumeration value '...' not handled in switch
@@ -6720,6 +6719,7 @@ innobase_rename_table(
 	int	error;
 	char*	norm_to;
 	char*	norm_from;
+	DBUG_ENTER("innobase_rename_table");
 
 	if (lower_case_table_names) {
 		srv_lower_case_table_names = TRUE;
@@ -6747,6 +6747,7 @@ innobase_rename_table(
 	if (error != DB_SUCCESS) {
 		FILE* ef = dict_foreign_err_file;
 
+		DBUG_PRINT("info", ("rename failed: %d", error));
 		fputs("InnoDB: Renaming table ", ef);
 		ut_print_name(ef, trx, TRUE, norm_from);
 		fputs(" to ", ef);
@@ -6767,7 +6768,7 @@ innobase_rename_table(
 	my_free(norm_to, MYF(0));
 	my_free(norm_from, MYF(0));
 
-	return error;
+	DBUG_RETURN(error);
 }
 /*************************************************************************
 Renames an InnoDB table. */
@@ -6900,7 +6901,7 @@ ha_innobase::records_in_range(
 						      mode2);
 	} else {
 
-		n_rows = 0;
+		n_rows = HA_POS_ERROR;
 	}
 
 	mem_heap_free(heap);
@@ -7614,7 +7615,7 @@ ha_innobase::get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
 	    f_key_info.referenced_key_name = thd_make_lex_string(
 		    thd, f_key_info.referenced_key_name,
 		    foreign->referenced_index->name,
-		    strlen(foreign->referenced_index->name), 1);
+		    (uint) strlen(foreign->referenced_index->name), 1);
           }
           else
             f_key_info.referenced_key_name= 0;
@@ -8227,7 +8228,7 @@ innodb_show_status(
 
 	bool result = FALSE;
 
-	if (stat_print(thd, innobase_hton_name, strlen(innobase_hton_name),
+	if (stat_print(thd, innobase_hton_name, (uint) strlen(innobase_hton_name),
 			STRING_WITH_LEN(""), str, flen)) {
 		result= TRUE;
 	}
@@ -8258,7 +8259,7 @@ innodb_mutex_show_status(
 	ulint	  rw_lock_count_os_yield= 0;
 	ulonglong rw_lock_wait_time= 0;
 #endif /* UNIV_DEBUG */
-	uint	  hton_name_len= strlen(innobase_hton_name), buf1len, buf2len;
+	uint	  hton_name_len= (uint) strlen(innobase_hton_name), buf1len, buf2len;
 	DBUG_ENTER("innodb_mutex_show_status");
 	DBUG_ASSERT(hton == innodb_hton_ptr);
 
@@ -8302,9 +8303,9 @@ innodb_mutex_show_status(
 			rw_lock_wait_time += mutex->lspent_time;
 		}
 #else /* UNIV_DEBUG */
-		buf1len= my_snprintf(buf1, sizeof(buf1), "%s:%lu",
+		buf1len= (uint) my_snprintf(buf1, sizeof(buf1), "%s:%lu",
 				     mutex->cfile_name, (ulong) mutex->cline);
-		buf2len= my_snprintf(buf2, sizeof(buf2), "os_waits=%lu",
+		buf2len= (uint) my_snprintf(buf2, sizeof(buf2), "os_waits=%lu",
 				     mutex->count_os_wait);
 
 		if (stat_print(thd, innobase_hton_name,
@@ -8860,7 +8861,7 @@ ha_innobase::get_error_message(int error, String *buf)
 {
 	trx_t*	trx = check_trx_exists(ha_thd());
 
-	buf->copy(trx->detailed_error, strlen(trx->detailed_error),
+	buf->copy(trx->detailed_error, (uint) strlen(trx->detailed_error),
 		system_charset_info);
 
 	return(FALSE);
@@ -9294,31 +9295,49 @@ ha_innobase::check_if_incompatible_data(
 	HA_CREATE_INFO*	info,
 	uint		table_changes)
 {
+	enum row_type row_type, info_row_type;
+	DBUG_ENTER("ha_innobase::check_if_incompatible_data");
+
 	if (table_changes != IS_EQUAL_YES) {
 
-		return(COMPATIBLE_DATA_NO);
+		DBUG_PRINT("info", ("table_changes != IS_EQUAL_YES "
+				    "-> COMPATIBLE_DATA_NO"));
+		DBUG_RETURN(COMPATIBLE_DATA_NO);
 	}
 
 	/* Check that auto_increment value was not changed */
 	if ((info->used_fields & HA_CREATE_USED_AUTO) &&
 		info->auto_increment_value != 0) {
 
-		return(COMPATIBLE_DATA_NO);
+		DBUG_PRINT("info", ("auto_increment_value changed -> "
+				    "COMPATIBLE_DATA_NO"));
+		DBUG_RETURN(COMPATIBLE_DATA_NO);
 	}
 
 	/* Check that row format didn't change */
+	row_type = get_row_type();
+	info_row_type = info->row_type;
+	/* Default is compact. */
+	if (info_row_type == ROW_TYPE_DEFAULT)
+		info_row_type = ROW_TYPE_COMPACT;
 	if ((info->used_fields & HA_CREATE_USED_ROW_FORMAT) &&
-	    get_row_type() != info->row_type) {
+	    row_type != info_row_type) {
 
-		return(COMPATIBLE_DATA_NO);
+		DBUG_PRINT("info", ("get_row_type()=%d != info->row_type=%d -> "
+				    "COMPATIBLE_DATA_NO",
+				    row_type, info->row_type));
+		DBUG_RETURN(COMPATIBLE_DATA_NO);
 	}
 
 	/* Specifying KEY_BLOCK_SIZE requests a rebuild of the table. */
 	if (info->used_fields & HA_CREATE_USED_KEY_BLOCK_SIZE) {
-		return(COMPATIBLE_DATA_NO);
+		DBUG_PRINT("info", ("HA_CREATE_USED_KEY_BLOCK_SIZE -> "
+				    "COMPATIBLE_DATA_NO"));
+		DBUG_RETURN(COMPATIBLE_DATA_NO);
 	}
 
-	return(COMPATIBLE_DATA_YES);
+	DBUG_PRINT("info", (" -> COMPATIBLE_DATA_YES"));
+	DBUG_RETURN(COMPATIBLE_DATA_YES);
 }
 
 /****************************************************************

@@ -1356,6 +1356,18 @@ sub command_line_setup {
 	       join(" ", @valgrind_args), "\"");
   }
 
+  # InnoDB does not bother to do individual de-allocations at exit. Instead it
+  # relies on a custom allocator to track every allocation, and frees all at
+  # once during exit.
+  # In XtraDB, an option use-sys-malloc is introduced (and on by default) to
+  # disable this (for performance). But this exposes Valgrind to all the
+  # missing de-allocations, so we need to disable it to at least get
+  # meaningful leak checking for the rest of the server.
+  if ($opt_valgrind_mysqld)
+  {
+    push(@opt_extra_mysqld_opt, "--loose-skip-innodb-use-sys-malloc");
+  }
+
   mtr_report("Checking supported features...");
 
   check_ndbcluster_support(\%mysqld_variables);

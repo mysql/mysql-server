@@ -133,10 +133,10 @@ from Makefile.in->ut0auxconf.h */
 # endif /* HAVE_ATOMIC_PTHREAD_T */
 #endif /* HAVE_GCC_ATOMIC_BUILTINS */
 
-/* We only try to do explicit inlining of functions with gcc and
-Microsoft Visual C++ */
+/* Enable explicit inlining of functions only for compilers known to
+support it. */
 
-# if !defined(__GNUC__)
+# if !defined(__GNUC__) && !defined(__SUNPRO_C)
 #  undef  UNIV_MUST_NOT_INLINE			/* Remove compiler warning */
 #  define UNIV_MUST_NOT_INLINE
 # endif
