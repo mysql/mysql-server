@@ -2076,6 +2076,25 @@ case "$mysql_cv_sys_os" in
         # unsupported priority values are passed to pthread_setschedprio.
         # Since the only supported value is 1, treat it as inexistent.
     ;;
+ SunOS) # Bug#42599 error: `pthread_setschedprio' was not declared in this scope
+        # In some installations, the pthread.h header used by GCC does not
+        # declare the pthread_setscheprio prototype, but the function is
+        # implemented. Since the function is used in C++ code, ensure that
+        # the function prototype is present.
+     AC_MSG_CHECKING([whether pthread_setschedprio is declared])
+     AC_LANG_PUSH([C++])
+     AC_COMPILE_IFELSE([
+       AC_LANG_PROGRAM([#include <pthread.h>],
+                      [(void)(pthread_setschedprio);])],
+       [ac_cv_func_pthread_setschedprio=yes],
+       [ac_cv_func_pthread_setschedprio=no])
+     AC_LANG_POP([C++])
+     AC_MSG_RESULT([$ac_cv_func_pthread_setschedprio])
+     if test "$ac_cv_func_pthread_setschedprio" = yes; then
+       AC_DEFINE(HAVE_PTHREAD_SETSCHEDPRIO, 1,
+                 [Define to 1 if you have the `pthread_setschedprio' function.])
+     fi
+    ;;
  *) AC_CHECK_FUNCS(pthread_setschedprio)
     ;;
 esac
