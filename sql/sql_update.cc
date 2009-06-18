@@ -803,8 +803,7 @@ int mysql_update(THD *thd,
 
       if (thd->binlog_query(THD::ROW_QUERY_TYPE,
                             thd->query, thd->query_length,
-                            transactional_table, FALSE, errcode) &&
-          transactional_table)
+                            transactional_table, FALSE, errcode))
       {
         error=1;				// Rollback update
       }
@@ -2087,8 +2086,7 @@ bool multi_update::send_eof()
         errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
       if (thd->binlog_query(THD::ROW_QUERY_TYPE,
                             thd->query, thd->query_length,
-                            transactional_tables, FALSE, errcode) &&
-          trans_safe)
+                            transactional_tables, FALSE, errcode))
       {
 	local_error= 1;				// Rollback update
       }
