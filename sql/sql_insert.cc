@@ -896,8 +896,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 	if (thd->binlog_query(THD::ROW_QUERY_TYPE,
 			      thd->query, thd->query_length,
 			      transactional_table, FALSE,
-			      errcode) &&
-	    transactional_table)
+			      errcode))
         {
 	  error=1;
 	}
