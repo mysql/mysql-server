@@ -2432,7 +2432,7 @@ bool lock_table_name_if_not_cached(THD *thd, const char *db,
 
 bool check_if_table_exists(THD *thd, TABLE_LIST *table, bool *exists)
 {
-  char path[FN_REFLEN];
+  char path[FN_REFLEN + 1];
   int rc;
   DBUG_ENTER("check_if_table_exists");
 
@@ -2649,7 +2649,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
       real fix will be made after definition cache will be made)
     */
     {
-      char path[FN_REFLEN];
+      char path[FN_REFLEN + 1];
       enum legacy_db_type not_used;
       build_table_filename(path, sizeof(path) - 1,
                            table_list->db, table_list->table_name, reg_ext, 0);
@@ -6340,7 +6340,7 @@ find_field_in_tables(THD *thd, Item_ident *item,
       (report_error == REPORT_ALL_ERRORS ||
        report_error == REPORT_EXCEPT_NON_UNIQUE))
   {
-    char buff[NAME_LEN*2+1];
+    char buff[NAME_LEN*2 + 2];
     if (db && db[0])
     {
       strxnmov(buff,sizeof(buff)-1,db,".",table_name,NullS);

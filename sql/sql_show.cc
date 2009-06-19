@@ -2819,8 +2819,8 @@ make_table_name_list(THD *thd, List<LEX_STRING> *table_names, LEX *lex,
                      LOOKUP_FIELD_VALUES *lookup_field_vals,
                      bool with_i_schema, LEX_STRING *db_name)
 {
-  char path[FN_REFLEN];
-  build_table_filename(path, sizeof(path), db_name->str, "", "", 0);
+  char path[FN_REFLEN + 1];
+  build_table_filename(path, sizeof(path) - 1, db_name->str, "", "", 0);
   if (!lookup_field_vals->wild_table_value &&
       lookup_field_vals->table_value.str)
   {
@@ -2982,8 +2982,8 @@ static int fill_schema_table_names(THD *thd, TABLE *table,
   else
   {
     enum legacy_db_type not_used;
-    char path[FN_REFLEN];
-    (void) build_table_filename(path, sizeof(path), db_name->str, 
+    char path[FN_REFLEN + 1];
+    (void) build_table_filename(path, sizeof(path) - 1, db_name->str, 
                                 table_name->str, reg_ext, 0);
     switch (mysql_frm_type(thd, path, &not_used)) {
     case FRMTYPE_ERROR:
@@ -3470,7 +3470,7 @@ int fill_schema_schemata(THD *thd, TABLE_LIST *tables, COND *cond)
     MY_STAT stat_info;
     if (!lookup_field_vals.db_value.str[0])
       DBUG_RETURN(0);
-    path_len= build_table_filename(path, sizeof(path),
+    path_len= build_table_filename(path, sizeof(path) - 1,
                                    lookup_field_vals.db_value.str, "", "", 0);
     path[path_len-1]= 0;
     if (!my_stat(path,&stat_info,MYF(0)))

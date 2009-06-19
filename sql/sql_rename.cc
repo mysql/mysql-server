@@ -244,7 +244,7 @@ do_rename(THD *thd, TABLE_LIST *ren_table, char *new_db, char *new_table_name,
           char *new_table_alias, bool skip_error)
 {
   int rc= 1;
-  char name[FN_REFLEN];
+  char name[FN_REFLEN + 1];
   const char *new_alias, *old_alias;
   frm_type_enum frm_type;
   enum legacy_db_type table_type;
@@ -263,14 +263,14 @@ do_rename(THD *thd, TABLE_LIST *ren_table, char *new_db, char *new_table_name,
   }
   DBUG_ASSERT(new_alias);
 
-  build_table_filename(name, sizeof(name),
+  build_table_filename(name, sizeof(name) - 1,
                        new_db, new_alias, reg_ext, 0);
   if (!access(name,F_OK))
   {
     my_error(ER_TABLE_EXISTS_ERROR, MYF(0), new_alias);
     DBUG_RETURN(1);			// This can't be skipped
   }
-  build_table_filename(name, sizeof(name),
+  build_table_filename(name, sizeof(name) - 1,
                        ren_table->db, old_alias, reg_ext, 0);
 
   frm_type= mysql_frm_type(thd, name, &table_type);

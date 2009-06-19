@@ -1664,7 +1664,6 @@ static void network_init(void)
       opt_enable_named_pipe)
   {
     
-    pipe_name[sizeof(pipe_name)-1]= 0;		/* Safety if too long string */
     strxnmov(pipe_name, sizeof(pipe_name)-1, "\\\\.\\pipe\\",
 	     mysqld_unix_port, NullS);
     bzero((char*) &saPipeSecurity, sizeof(saPipeSecurity));
