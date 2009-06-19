@@ -2732,7 +2732,7 @@ static int com_server_help(String *buffer __attribute__((unused)),
 {
   MYSQL_ROW cur;
   const char *server_cmd= buffer->ptr();
-  char cmd_buf[100];
+  char cmd_buf[100 + 1];
   MYSQL_RES *result;
   int error;
   
