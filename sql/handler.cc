@@ -3582,7 +3582,7 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
   int error;
   uchar *frmblob;
   size_t frmlen;
-  char path[FN_REFLEN];
+  char path[FN_REFLEN + 1];
   HA_CREATE_INFO create_info;
   TABLE table;
   TABLE_SHARE share;
@@ -3601,7 +3601,7 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
     frmblob and frmlen are set, write the frm to disk
   */
 
-  build_table_filename(path, FN_REFLEN-1, db, name, "", 0);
+  build_table_filename(path, sizeof(path) - 1, db, name, "", 0);
   // Save the frm file
   error= writefrm(path, frmblob, frmlen);
   my_free(frmblob, MYF(0));
@@ -4778,7 +4778,7 @@ fl_log_iterator_buffer_init(struct handler_iterator *iterator)
   if ((ptr= (uchar*)my_malloc(ALIGN_SIZE(sizeof(fl_buff)) +
                              ((ALIGN_SIZE(sizeof(LEX_STRING)) +
                                sizeof(enum log_status) +
-                               + FN_REFLEN) *
+                               + FN_REFLEN + 1) *
                               (uint) dirp->number_off_files),
                              MYF(0))) == 0)
   {
@@ -4806,7 +4806,7 @@ fl_log_iterator_buffer_init(struct handler_iterator *iterator)
     name_ptr= strxnmov(buff->names[buff->entries].str= name_ptr,
                        FN_REFLEN, fl_dir, file->name, NullS);
     buff->names[buff->entries].length= (name_ptr -
-                                        buff->names[buff->entries].str) - 1;
+                                        buff->names[buff->entries].str);
     buff->statuses[buff->entries]= st;
     buff->entries++;
   }

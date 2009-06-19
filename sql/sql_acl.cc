@@ -2995,8 +2995,8 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     {
       if (!(rights & CREATE_ACL))
       {
-        char buf[FN_REFLEN];
-        build_table_filename(buf, sizeof(buf), table_list->db,
+        char buf[FN_REFLEN + 1];
+        build_table_filename(buf, sizeof(buf) - 1, table_list->db,
                              table_list->table_name, reg_ext, 0);
         fn_format(buf, buf, "", "", MY_UNPACK_FILENAME  | MY_RESOLVE_SYMLINKS |
                                     MY_RETURN_REAL_PATH | MY_APPEND_EXT);

@@ -956,7 +956,7 @@ bool LOGGER::slow_log_print(THD *thd, const char *query, uint query_length,
   bool error= FALSE;
   Log_event_handler **current_handler;
   bool is_command= FALSE;
-  char user_host_buff[MAX_USER_HOST_SIZE];
+  char user_host_buff[MAX_USER_HOST_SIZE + 1];
   Security_context *sctx= thd->security_ctx;
   uint user_host_len= 0;
   ulonglong query_utime, lock_utime;
@@ -1022,7 +1022,7 @@ bool LOGGER::general_log_write(THD *thd, enum enum_server_command command,
 {
   bool error= FALSE;
   Log_event_handler **current_handler= general_log_handler_list;
-  char user_host_buff[MAX_USER_HOST_SIZE];
+  char user_host_buff[MAX_USER_HOST_SIZE + 1];
   Security_context *sctx= thd->security_ctx;
   ulong id;
   uint user_host_len= 0;
