@@ -806,28 +806,44 @@ brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk)
     toku_verify_all_in_mempool(node);
 
     u_int32_t n_leafentries = toku_omt_size(node->u.l.buffer);
-    u_int32_t break_at = 0;
+    u_int32_t split_at = 0;
     {
         OMTVALUE *MALLOC_N(n_leafentries, leafentries);
         assert(leafentries);
         toku_omt_iterate(node->u.l.buffer, fill_buf, leafentries);
-        break_at = 0;
+        split_at = 0;
         {
             u_int32_t i;
-            u_int32_t sumlesizes=0;
-            for (i=0; i<n_leafentries; i++) sumlesizes += leafentry_disksize(leafentries[i]);
-            u_int32_t sumsofar=0;
-            // split in half if not sequentially inserted
-            // otherwise put 1/128th in the new node
-            u_int32_t f = 2; // 1/2
-            if (node->u.l.seqinsert*2 >= n_leafentries) f = 128; // 1/128
+            u_int64_t sumlesizes=0, sumsofar;
+            for (i=0; i<n_leafentries; i++) 
+                sumlesizes += leafentry_disksize(leafentries[i]);
+
+            // try splitting near the right edge if the node experiences sequential
+            // insertions for at least half of the leaf entries and the current
+            // node size is not too big.  
+            if (node->u.l.seqinsert*2 >= n_leafentries && node->nodesize*2 >= sumlesizes) {
+                // split near the right edge
+                sumsofar = 0;
+                for (i=n_leafentries-1; i>0; i--) {
+                    assert(toku_mempool_inrange(&node->u.l.buffer_mempool, leafentries[i], leafentry_memsize(leafentries[i])));
+                    sumsofar += leafentry_disksize(leafentries[i]);
+                    if (sumlesizes - sumsofar <= node->nodesize) {
+                        split_at = i;
+                        break;
+                    }
+                }
+            }
             node->u.l.seqinsert = 0;
-            for (i=n_leafentries-1; i>0; i--) {
-                assert(toku_mempool_inrange(&node->u.l.buffer_mempool, leafentries[i], leafentry_memsize(leafentries[i])));
-                sumsofar += leafentry_disksize(leafentries[i]);
-                if (sumsofar*f >= sumlesizes) {
-                    break_at = i;
-                    break;
+            if (split_at == 0) {
+                // split in half
+                sumsofar = 0;
+                for (i=n_leafentries-1; i>0; i--) {
+                    assert(toku_mempool_inrange(&node->u.l.buffer_mempool, leafentries[i], leafentry_memsize(leafentries[i])));
+                    sumsofar += leafentry_disksize(leafentries[i]);
+                    if (sumsofar >= sumlesizes/2) {
+                        split_at = i;
+                        break;
+                    }
                 }
             }
         }
@@ -839,8 +855,8 @@ brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk)
             u_int32_t diff_fp = 0;
             u_int32_t diff_size = 0;
 	    struct subtree_estimates diff_est = zero_estimates;
-	    LEAFENTRY *MALLOC_N(n_leafentries-break_at, free_us);
-            for (i=break_at; i<n_leafentries; i++) {
+	    LEAFENTRY *MALLOC_N(n_leafentries-split_at, free_us);
+            for (i=split_at; i<n_leafentries; i++) {
 		LEAFENTRY prevle = (i>0) ? leafentries[i-1] : 0;
                 LEAFENTRY oldle = leafentries[i];
                 LEAFENTRY newle = toku_mempool_malloc(&B->u.l.buffer_mempool, leafentry_memsize(oldle), 1);
@@ -866,11 +882,11 @@ brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk)
                 diff_fp += toku_le_crc(oldle);
                 diff_size += OMT_ITEM_OVERHEAD + leafentry_disksize(oldle);
                 memcpy(newle, oldle, leafentry_memsize(oldle));
-		free_us[i-break_at] = oldle; // don't free the old leafentries yet, since we compare them in the other iterations of the loops
+		free_us[i-split_at] = oldle; // don't free the old leafentries yet, since we compare them in the other iterations of the loops
                 leafentries[i] = newle;
 	    }
-            for (i=break_at; i<n_leafentries; i++) {
-		LEAFENTRY oldle = free_us[i-break_at];
+            for (i=split_at; i<n_leafentries; i++) {
+		LEAFENTRY oldle = free_us[i-split_at];
                 toku_mempool_mfree(&node->u.l.buffer_mempool, oldle, leafentry_memsize(oldle));
 	    }
 	    toku_free(free_us);
@@ -882,8 +898,8 @@ brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk)
 	    add_estimates     (&B->u.l.leaf_stats,    &diff_est);
 	    //printf("%s:%d After subtracint and adding got %lu and %lu\n", __FILE__, __LINE__, node->u.l.leaf_stats.dsize, B->u.l.leaf_stats.dsize);
         }
-        if ((r = toku_omt_create_from_sorted_array(&B->u.l.buffer,    leafentries+break_at, n_leafentries-break_at))) return r;
-        if ((r = toku_omt_create_steal_sorted_array(&node->u.l.buffer, &leafentries,          break_at, n_leafentries))) return r;
+        if ((r = toku_omt_create_from_sorted_array(&B->u.l.buffer,    leafentries+split_at, n_leafentries-split_at))) return r;
+        if ((r = toku_omt_create_steal_sorted_array(&node->u.l.buffer, &leafentries,          split_at, n_leafentries))) return r;
         assert(leafentries==NULL);
 
         toku_verify_all_in_mempool(node);
