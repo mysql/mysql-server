@@ -55,8 +55,11 @@ dep depend:	dummy.cpp
 
 #------------------------------------------------------------------------------
 
+.depend:
+	touch $@
+
 # read local dependencies
-include	.depend
+-include	.depend
 
 #------------------------------------------------------------------------------
 # DO NOT DELETE

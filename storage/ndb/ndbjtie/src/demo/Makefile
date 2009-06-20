@@ -95,8 +95,11 @@ run.test:	demo_test
 
 #------------------------------------------------------------------------------
 
+.depend:
+	touch $@
+
 # read local dependencies
-include	.depend
+-include	.depend
 
 #------------------------------------------------------------------------------
 # DO NOT DELETE
