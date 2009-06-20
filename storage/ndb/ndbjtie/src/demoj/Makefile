@@ -119,8 +119,11 @@ run.test:	$(JAVA_SRC)/test/DemojTest.class
 
 #------------------------------------------------------------------------------
 
+.depend:
+	touch $@
+
 # read local dependencies
-include	.depend
+-include	.depend
 
 #------------------------------------------------------------------------------
 # DO NOT DELETE

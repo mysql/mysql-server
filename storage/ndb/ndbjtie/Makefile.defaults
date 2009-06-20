@@ -170,17 +170,13 @@ prf:
 		LDFLAGS='$(LDFLAGS.prf)' \
 		all
 
-# always need a .depend file
 clean:
 	rm -rf $(CLEAN) .tmp
-	touch .depend
 
-# always need a .depend file
 # library-archiving removes .o files with empty .depend file,
 # so, better delete it only as part of clobber
 clobber:	clean
 	rm -rf $(CLOBBER) .depend
-	touch .depend
 
 # always need a .depend file
 distclean:	clobber
