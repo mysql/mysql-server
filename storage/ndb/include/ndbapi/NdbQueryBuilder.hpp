@@ -331,6 +331,8 @@ public:
   NdbQueryDef(const NdbQueryDef& other);
   NdbQueryDef& operator = (const NdbQueryDef& other);
 
+  const NdbQueryOperationDef* getRootOperation() const;
+
   // Remove this NdbQueryDef.
 //void release();    Just delete it instead ?
 };

@@ -1071,6 +1071,7 @@ class Ndb
   friend class Ndb_cluster_connection_impl;
   friend class Ndb_internal;
   friend class NdbScanFilterImpl;
+  friend class NdbQueryImpl;
 #endif
 
 public:

@@ -19,9 +19,7 @@
 #define NdbQueryOperation_H
 
 #include <ndb_types.h>
-
 #include "NdbDictionary.hpp"
-#include "NdbError.hpp"
 
 class NdbTransaction;
 class NdbParamOperand;
@@ -29,6 +27,11 @@ class NdbQueryOperation;
 class NdbQueryOperationDef;
 class NdbRecAttr;
 class NdbRecord;
+
+/** Opaque implementation classes */
+class NdbQueryImpl;
+class NdbQueryOperationImpl;
+
 
 /**
  * NdbQuery are create when a NdbQueryDefinition is submitted for
@@ -40,7 +43,25 @@ class NdbRecord;
  */
 class NdbQuery
 {
+protected:
+  // Only constructable through executing a NdbQueryDef 
+  NdbQuery(NdbQueryImpl *pimpl);
+  ~NdbQuery();
+
 public:
+  // Factory method which instantiate a query from its definition
+  static NdbQuery*
+  buildQuery(Ndb& ndb, const NdbQueryDef& queryDef);
+
+  ////////////////////////////////////////////////////////
+  // START: TEMP HACK for Jans result set coding until we
+  // have a usable 'queryDef'
+  static NdbQuery*
+  buildQuery(Ndb& ndb);
+
+  // END Jans hack.
+  /////////////////////////////////////////////////
+
   // get NdbQueryOperation being the root of a linked operation
   NdbQueryOperation* getRootOperation() const;
 
@@ -117,18 +138,39 @@ public:
    */
   const NdbError& getNdbError() const;
 
+  // Get object implementing NdbQuery interface 
+  NdbQueryImpl& getImpl() const {return *m_pimpl;}
+
 private:
-  NdbError m_error;
-};
+  /** Opaque implementation NdbQuery interface.*/
+  NdbQueryImpl* const m_pimpl;
+
+}; // class NdbQuery
 
 
 
 
 class NdbQueryOperation
 {
+protected:
+  // Only constructable through executing a NdbQueryDef 
+  NdbQueryOperation(NdbQueryOperationImpl *pimpl);
+  ~NdbQueryOperation();
+
 public:
+  //////////////////////////////////////////
+  // START Jans temp hack for result prototype
+  // TODO: Remove this C'tor. Needed for result prototype only.
+  //NdbQueryOperation(NdbQuery& query, class NdbOperation& operation);
+
+  // Jan: To be (temp) used instead of above C'tor:
+  static NdbQueryOperation*
+  buildQueryOperation(NdbQuery& query, class NdbOperation& operation);
+
+  // End: Hack
+  //////////////////////////////////////////////
+
   // Collection of get'ers to navigate in root, parent/child hierarchy
-  NdbQuery* getQuery() const;
 
   NdbQueryOperation* getRootOperation() const;
   // assert(getRootOperation()->getNoOfParentOperations() == 0);
@@ -140,6 +182,10 @@ public:
   NdbQueryOperation* getChildOperation(Uint32 i) const;
 
   const NdbQueryOperationDef* getQueryOperationDef() const;
+
+  // Get the entire query object which this operation is part of
+  NdbQuery& getQuery() const;
+
 
 
   /**
@@ -156,7 +202,7 @@ public:
    *       (i.e. NdbRecAttr::attrSize times NdbRecAttr::arraySize is
    *       a multiple of 4).
    *
-   * @note There are three versions of NdbOperation::getValue with
+   * @note There are three versions of NdbQueryOperation::getValue with
    *       slightly different parameters.
    *
    * @note This method does not fetch the attribute value from 
@@ -213,7 +259,14 @@ public:
   bool isRowChanged() const; // Prev ::nextResult() on NdbQuery retrived a new
                              // value for this NdbQueryOperation
 
-};
+  // Get object implementing NdbQueryOperation interface 
+  NdbQueryOperationImpl& getImpl() const {return *m_pimpl;}
+
+private:
+  // Opaque implementation class instance.
+  NdbQueryOperationImpl* const m_pimpl;
+
+}; // class NdbQueryOperation
 
 
 
