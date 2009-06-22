@@ -1672,6 +1672,7 @@ lookup:
 
 	if (UNIV_UNLIKELY(!bpage->zip.data)) {
 		/* There is no compressed page. */
+err_exit:
 		buf_pool_mutex_exit();
 		return(NULL);
 	}
@@ -1682,14 +1683,13 @@ lookup:
 	case BUF_BLOCK_MEMORY:
 	case BUF_BLOCK_REMOVE_HASH:
 	case BUF_BLOCK_ZIP_FREE:
-		ut_error;
 		break;
 	case BUF_BLOCK_ZIP_PAGE:
 	case BUF_BLOCK_ZIP_DIRTY:
 		block_mutex = &buf_pool_zip_mutex;
 		mutex_enter(block_mutex);
 		bpage->buf_fix_count++;
-		break;
+		goto got_block;
 	case BUF_BLOCK_FILE_PAGE:
 		block_mutex = &((buf_block_t*) bpage)->mutex;
 		mutex_enter(block_mutex);
@@ -1704,9 +1704,13 @@ lookup:
 
 		buf_block_buf_fix_inc((buf_block_t*) bpage,
 				      __FILE__, __LINE__);
-		break;
+		goto got_block;
 	}
 
+	ut_error;
+	goto err_exit;
+
+got_block:
 	must_read = buf_page_get_io_fix(bpage) == BUF_IO_READ;
 
 	buf_pool_mutex_exit();
