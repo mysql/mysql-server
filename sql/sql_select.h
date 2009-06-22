@@ -51,6 +51,7 @@ typedef struct keyuse_t {
     NULL  - Otherwise (the source equality can't be turned off)
   */
   bool *cond_guard;
+  bool usable;
 } KEYUSE;
 
 class store_key;

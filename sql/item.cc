@@ -1915,6 +1915,30 @@ void Item_field::reset_field(Field *f)
   name= (char*) f->field_name;
 }
 
+bool Item_field::check_column_usage_processor(uchar *arg)
+{
+  Field_processor_info* info=(Field_processor_info*)arg;
+  if (used_tables() & ~info->allowed_tables)
+    return FALSE;
+
+  if (field->table == info->table)
+  {
+    if (!(field->part_of_key.is_set(info->keyno)))
+       return TRUE;
+
+    KEY *key= &field->table->key_info[info->keyno];
+    for (uint part= 0; part < key->key_parts; part++)
+    {
+      if (field->field_index == key->key_part[part].field->field_index)
+      {
+        info->needed_key_parts |= key_part_map(1) << part;
+        break;
+      }
+    }
+  }
+  return FALSE;
+}
+
 const char *Item_ident::full_name() const
 {
   char *tmp;
@@ -3380,7 +3404,7 @@ static void mark_as_dependent(THD *thd, SELECT_LEX *last, SELECT_LEX *current,
   /* store pointer on SELECT_LEX from which item is dependent */
   if (mark_item)
     mark_item->depended_from= last;
-  current->mark_as_dependent(last);
+  current->mark_as_dependent(last, resolved_item);
   if (thd->lex->describe & DESCRIBE_EXTENDED)
   {
     char warn_buff[MYSQL_ERRMSG_SIZE];

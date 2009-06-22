@@ -888,6 +888,8 @@ public:
   virtual bool reset_query_id_processor(uchar *query_id_arg) { return 0; }
   virtual bool is_expensive_processor(uchar *arg) { return 0; }
   virtual bool register_field_in_read_map(uchar *arg) { return 0; }
+  virtual bool check_column_usage_processor(uchar *arg) { return 0; }
+  virtual bool mark_as_eliminated_processor(uchar *arg) { return 0; }
   /*
     Check if a partition function is allowed
     SYNOPSIS
@@ -1011,6 +1013,14 @@ public:
   bool eq_by_collation(Item *item, bool binary_cmp, CHARSET_INFO *cs); 
 };
 
+
+typedef struct  
+{
+  table_map allowed_tables;
+  TABLE *table;
+  uint keyno;
+  uint needed_key_parts;
+} Field_processor_info;
 
 class sp_head;
 
@@ -1477,6 +1487,7 @@ public:
   bool find_item_in_field_list_processor(uchar *arg);
   bool register_field_in_read_map(uchar *arg);
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_column_usage_processor(uchar *arg);
   void cleanup();
   bool result_as_longlong()
   {

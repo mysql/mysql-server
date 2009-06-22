@@ -1778,7 +1778,7 @@ void st_select_lex_unit::exclude_tree()
     'last' should be reachable from this st_select_lex_node
 */
 
-void st_select_lex::mark_as_dependent(st_select_lex *last)
+void st_select_lex::mark_as_dependent(st_select_lex *last, Item *dependency)
 {
   /*
     Mark all selects from resolved to 1 before select where was
@@ -1804,6 +1804,8 @@ void st_select_lex::mark_as_dependent(st_select_lex *last)
     }
   is_correlated= TRUE;
   this->master_unit()->item->is_correlated= TRUE;
+  if (dependency)
+    this->master_unit()->item->refers_to.push_back(dependency);
 }
 
 bool st_select_lex_node::set_braces(bool value)      { return 1; }
