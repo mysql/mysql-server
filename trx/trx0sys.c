@@ -89,6 +89,7 @@ UNIV_INTERN char	trx_sys_mysql_bin_log_name[TRX_SYS_MYSQL_LOG_NAME_LEN];
 /** Binlog file position, or -1 if unknown */
 UNIV_INTERN ib_int64_t	trx_sys_mysql_bin_log_pos	= -1;
 /* @} */
+#endif /* !UNIV_HOTBACKUP */
 
 /** List of animal names representing file format. */
 static const char*	file_format_name_map[] = {
@@ -124,6 +125,7 @@ static const char*	file_format_name_map[] = {
 static const ulint	FILE_FORMAT_NAME_N
 	= sizeof(file_format_name_map) / sizeof(file_format_name_map[0]);
 
+#ifndef UNIV_HOTBACKUP
 /** This is used to track the maximum file format id known to InnoDB. It's
 updated via SET GLOBAL innodb_file_format_check = 'x' or when we open
 or create a table. */
@@ -1332,4 +1334,202 @@ trx_sys_print_mysql_binlog_offset_from_page(
 			+ TRX_SYS_MYSQL_LOG_NAME);
 	}
 }
+
+
+/* THESE ARE COPIED FROM NON-HOTBACKUP PART OF THE INNODB SOURCE TREE
+   (This code duplicaton should be fixed at some point!)
+*/
+
+#define	TRX_SYS_SPACE	0	/* the SYSTEM tablespace */
+/* The offset of the file format tag on the trx system header page */
+#define TRX_SYS_FILE_FORMAT_TAG		(UNIV_PAGE_SIZE - 16)
+/* We use these random constants to reduce the probability of reading
+garbage (from previous versions) that maps to an actual format id. We
+use these as bit masks at the time of  reading and writing from/to disk. */
+#define TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_LOW	3645922177UL
+#define TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_HIGH	2745987765UL
+
+/* END OF COPIED DEFINITIONS */
+
+
+/*****************************************************************//**
+Reads the file format id from the first system table space file.
+Even if the call succeeds and returns TRUE, the returned format id
+may be ULINT_UNDEFINED signalling that the format id was not present
+in the data file.
+@return TRUE if call succeeds */
+UNIV_INTERN
+ibool
+trx_sys_read_file_format_id(
+/*========================*/
+	const char *pathname,  /*!< in: pathname of the first system
+				        table space file */
+	ulint *format_id)      /*!< out: file format of the system table
+				         space */
+{
+	os_file_t	file;
+	ibool		success;
+	byte		buf[UNIV_PAGE_SIZE * 2];
+	page_t*		page = ut_align(buf, UNIV_PAGE_SIZE);
+	const byte*	ptr;
+	dulint		file_format_id;
+
+	*format_id = ULINT_UNDEFINED;
+	
+	file = os_file_create_simple_no_error_handling(
+		pathname,
+		OS_FILE_OPEN,
+		OS_FILE_READ_ONLY,
+		&success
+	);
+	if (!success) {
+		/* The following call prints an error message */
+		os_file_get_last_error(TRUE);
+        
+		ut_print_timestamp(stderr);
+        
+		fprintf(stderr,
+"  ibbackup: Error: trying to read system tablespace file format,\n"
+"  ibbackup: but could not open the tablespace file %s!\n",
+			pathname
+		);
+		return(FALSE);
+	}
+
+	/* Read the page on which file format is stored */
+
+	success = os_file_read_no_error_handling(
+		file, page, TRX_SYS_PAGE_NO * UNIV_PAGE_SIZE, 0, UNIV_PAGE_SIZE
+	);
+	if (!success) {
+		/* The following call prints an error message */
+		os_file_get_last_error(TRUE);
+        
+		ut_print_timestamp(stderr);
+        
+		fprintf(stderr,
+"  ibbackup: Error: trying to read system table space file format,\n"
+"  ibbackup: but failed to read the tablespace file %s!\n",
+			pathname
+		);
+		os_file_close(file);
+		return(FALSE);
+	}
+	os_file_close(file);
+
+	/* get the file format from the page */
+	ptr = page + TRX_SYS_FILE_FORMAT_TAG;
+	file_format_id = mach_read_from_8(ptr);
+
+	*format_id = file_format_id.low - TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_LOW;
+
+	if (file_format_id.high != TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_HIGH
+	    || *format_id >= FILE_FORMAT_NAME_N) {
+
+		/* Either it has never been tagged, or garbage in it. */
+		*format_id = ULINT_UNDEFINED;
+		return(TRUE);
+	}
+	
+	return(TRUE);
+}
+
+
+/*****************************************************************//**
+Reads the file format id from the given per-table data file.
+@return TRUE if call succeeds */
+UNIV_INTERN
+ibool
+trx_sys_read_pertable_file_format_id(
+/*=================================*/
+	const char *pathname,  /*!< in: pathname of a per-table
+				        datafile */
+	ulint *format_id)      /*!< out: file format of the per-table
+				         data file */
+{
+	os_file_t	file;
+	ibool		success;
+	byte		buf[UNIV_PAGE_SIZE * 2];
+	page_t*		page = ut_align(buf, UNIV_PAGE_SIZE);
+	const byte*	ptr;
+	ib_uint32_t	flags;
+
+	*format_id = ULINT_UNDEFINED;
+	
+	file = os_file_create_simple_no_error_handling(
+		pathname,
+		OS_FILE_OPEN,
+		OS_FILE_READ_ONLY,
+		&success
+	);
+	if (!success) {
+		/* The following call prints an error message */
+		os_file_get_last_error(TRUE);
+        
+		ut_print_timestamp(stderr);
+        
+		fprintf(stderr,
+"  ibbackup: Error: trying to read per-table tablespace format,\n"
+"  ibbackup: but could not open the tablespace file %s!\n",
+			pathname
+		);
+		return(FALSE);
+	}
+
+	/* Read the first page of the per-table datafile */
+
+	success = os_file_read_no_error_handling(
+		file, page, 0, 0, UNIV_PAGE_SIZE
+	);
+	if (!success) {
+		/* The following call prints an error message */
+		os_file_get_last_error(TRUE);
+        
+		ut_print_timestamp(stderr);
+        
+		fprintf(stderr,
+"  ibbackup: Error: trying to per-table data file format,\n"
+"  ibbackup: but failed to read the tablespace file %s!\n",
+			pathname
+		);
+		os_file_close(file);
+		return(FALSE);
+	}
+	os_file_close(file);
+
+	/* get the file format from the page */
+	ptr = page + 54;
+	flags = mach_read_from_4(ptr);
+	if (flags == 0) {
+		/* file format is Antelope */
+		*format_id = 0;
+		return (TRUE);
+	} else if (flags & 1) {
+		/* tablespace flags are ok */
+		*format_id = (flags / 32) % 128;
+		return (TRUE);
+	} else {
+		/* bad tablespace flags */
+		return(FALSE);
+	}
+}
+
+
+/*****************************************************************//**
+Get the name representation of the file format from its id.
+@return	pointer to the name */
+UNIV_INTERN
+const char*
+trx_sys_file_format_id_to_name(
+/*===========================*/
+	const ulint	id)	/*!< in: id of the file format */
+{
+	if (!(id < FILE_FORMAT_NAME_N)) {
+		/* unknown id */
+		return ("Unknown");
+	}
+
+	return(file_format_name_map[id]);
+}
+
 #endif /* !UNIV_HOTBACKUP */
