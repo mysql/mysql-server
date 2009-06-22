@@ -388,6 +388,40 @@ trx_sys_print_mysql_binlog_offset_from_page(
 	const byte*	page);	/*!< in: buffer containing the trx
 				system header page, i.e., page number
 				TRX_SYS_PAGE_NO in the tablespace */
+/*****************************************************************//**
+Reads the file format id from the first system table space file.
+Even if the call succeeds and returns TRUE, the returned format id
+may be ULINT_UNDEFINED signalling that the format id was not present
+in the data file.
+@return TRUE if call succeeds */
+UNIV_INTERN
+ibool
+trx_sys_read_file_format_id(
+/*========================*/
+	const char *pathname,	/*!< in: pathname of the first system
+				table space file */
+	ulint *format_id);	/*!< out: file format of the system table
+				space */
+/*****************************************************************//**
+Reads the file format id from the given per-table data file.
+@return TRUE if call succeeds */
+UNIV_INTERN
+ibool
+trx_sys_read_pertable_file_format_id(
+/*=================================*/
+	const char *pathname,	/*!< in: pathname of a per-table
+				datafile */
+	ulint *format_id);	/*!< out: file format of the per-table
+				data file */
+/*****************************************************************//**
+Get the name representation of the file format from its id.
+@return	pointer to the name */
+UNIV_INTERN
+const char*
+trx_sys_file_format_id_to_name(
+/*===========================*/
+	const ulint	id);	/*!< in: id of the file format */
+
 #endif /* !UNIV_HOTBACKUP */
 /* The automatically created system rollback segment has this id */
 #define TRX_SYS_SYSTEM_RSEG_ID	0
