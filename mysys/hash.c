@@ -89,7 +89,7 @@ _my_hash_init(HASH *hash, uint growth_size, CHARSET_INFO *charset,
   hash->flags=flags;
   hash->charset=charset;
   DBUG_RETURN(my_init_dynamic_array_ci(&hash->array, 
-                                       sizeof(HASH_LINK), size, 0));
+                                       sizeof(HASH_LINK), size, growth_size));
 }
 
 
