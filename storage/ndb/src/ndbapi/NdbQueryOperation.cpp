@@ -365,8 +365,7 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(
   m_operation(*((NdbOperation*)NULL))
 { 
   assert(m_id != NdbObjectIdMap::InvalidId);
-  m_receiver.init(NdbReceiver::NDB_OPERATION, false, &m_operation, 
-		  m_queryImpl.getNdbTransaction()->getNdb());
+  m_receiver.init(NdbReceiver::NDB_OPERATION, false, &m_operation);
 }
 
 ///////////////////////////////////////////////////////////
@@ -385,8 +384,7 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(NdbQueryImpl& queryImpl,
   m_operation(operation)
 { 
   assert(m_id != NdbObjectIdMap::InvalidId);
-  m_receiver.init(NdbReceiver::NDB_OPERATION, false, &operation, 
-		  m_queryImpl.getNdbTransaction()->getNdb());
+  m_receiver.init(NdbReceiver::NDB_OPERATION, false, &operation);
 }
 
 // Temp factory for Jan - will be removed later

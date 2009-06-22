@@ -22,7 +22,6 @@
 #include "NdbQueryBuilder.hpp"
 #include "NdbDictionary.hpp"
 
-#define dynamic_cast reinterpret_cast
 /**
  * Implementation of all QueryBuilder objects are completely hidden from
  * both the API interface and other internals in the NDBAPI using the

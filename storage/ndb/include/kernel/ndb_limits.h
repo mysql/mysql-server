@@ -19,8 +19,6 @@
 #ifndef NDB_LIMITS_H
 #define NDB_LIMITS_H
 
-#define API_TRACE
-
 #define RNIL    0xffffff00
 
 /**

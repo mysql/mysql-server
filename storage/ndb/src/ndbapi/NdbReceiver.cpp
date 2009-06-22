@@ -53,12 +53,8 @@ NdbReceiver::~NdbReceiver()
 }
 
 int
-NdbReceiver::init(ReceiverType type, bool useRec, void* owner, Ndb *aNdb)
+NdbReceiver::init(ReceiverType type, bool useRec, void* owner)
 {
-  if(m_ndb==NULL){
-    assert(aNdb!=NULL);
-    m_ndb = aNdb;
-  }
   theMagicNumber = 0x11223344;
   m_type = type;
   m_using_ndb_record= useRec;
@@ -621,7 +617,6 @@ NdbReceiver::getScanAttrData(const char * & data, Uint32 & size, Uint32 & pos) c
 
   return 0;
 }
-
 
 int
 NdbReceiver::execTRANSID_AI(const Uint32* aDataPtr, Uint32 aLength)

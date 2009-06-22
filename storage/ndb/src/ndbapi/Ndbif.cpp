@@ -398,7 +398,9 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
     }
   case GSN_TRANSID_AI:{
     tFirstDataPtr = int2void(tFirstData);
+#ifdef JW_TEST
     ndbout << "Ndb::handleReceivedSignal() received TRANSID_AI" << endl; 
+#endif
     Uint32 com;
     if (tFirstDataPtr){
       NdbReceiver* const tRec = void2rec(tFirstDataPtr);
@@ -1014,7 +1016,9 @@ Remark:   One transaction has been completed.
 void	
 Ndb::completedTransaction(NdbTransaction* aCon)
 {
+#ifdef JW_TEST
   ndbout << "Ndb::completedTransaction() id=" << aCon->getTransactionId() << endl;
+#endif
   Uint32 tTransArrayIndex = aCon->theTransArrayIndex;
   Uint32 tNoSentTransactions = theNoOfSentTransactions;
   Uint32 tNoCompletedTransactions = theNoOfCompletedTransactions;

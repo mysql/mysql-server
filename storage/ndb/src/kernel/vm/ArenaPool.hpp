@@ -18,9 +18,7 @@
 
 #include "Pool.hpp"
 #include "RWPool.hpp"
-#include <NdbOut.hpp>
 
-/** JW: Raw block to be allocated by ArenaAllocator?*/
 struct ArenaBlock
 {
   Uint32 m_magic;
@@ -38,8 +36,6 @@ struct ArenaBlock
   }
 };
 
-/** JW: Keeps track of all allocated blocks within one Arena.
-    These will then be release all at once.*/
 struct ArenaHead
 {
   ArenaHead() {
@@ -59,8 +55,6 @@ struct ArenaHead
 
 class ArenaPool; // forward
 
-/** JW: Allocator for allocating ArenaBlock objects to ArenaHeads from 
-    internal pool.*/
 class ArenaAllocator
 {
   RWPool m_pool;
@@ -74,8 +68,6 @@ public:
   void release(ArenaHead&);
 };
 
-/** JW: Allocator for allocating a specific type of application objects within 
-    blocks allocated by an ArenaAllocator.*/
 class ArenaPool
 {
 public:
@@ -96,7 +88,6 @@ private:
   ArenaAllocator * m_allocator;
 };
 
-/** JW: Pair of ArenaHead and ArenaPool.*/
 class LocalArenaPoolImpl
 {
   ArenaHead & m_head;
@@ -126,7 +117,6 @@ ArenaPool::release(Ptr<void> ptr)
   Uint32 type_id = m_record_info.m_type_id;
   Uint32 magic_val = * (record_ptr + off);
 
-  ndbout << "ArenaPool::release() releasing i=" << ptr.i << endl;
   if (likely(magic_val == ~type_id))
   {
     * (record_ptr + off) = 0;

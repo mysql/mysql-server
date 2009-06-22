@@ -2178,8 +2178,10 @@ NdbTransaction::OpCompleteSuccess()
   Uint32 tNoSent = theNoOfOpSent;
   tNoComp++;
   theNoOfOpCompleted = tNoComp;
+#ifdef JW_TEST
   ndbout << "NdbTransaction::OpCompleteSuccess() tNoComp=" << tNoComp 
 	 << " tNoSent=" << tNoSent << endl;
+#endif
   if (tNoComp == tNoSent) { // Last operation completed
     return 0;
   } else if (tNoComp < tNoSent) {
