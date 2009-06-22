@@ -24,18 +24,11 @@ class NdbQueryImpl{
   friend class NdbQuery;
 public:
   STATIC_CONST (MAGIC = 0xdeadface);
-  NdbQueryImpl(Ndb& ndb):
-    m_magic(MAGIC),
-    m_id(ndb.theImpl->theNdbObjectIdMap.map(this)),
-    m_ndb(ndb),
-    m_rootOperation(NULL),
-    m_msgCount(0){
-    assert(m_id != NdbObjectIdMap::InvalidId);
-  }
-  
+  explicit NdbQueryImpl(NdbTransaction& trans);
+
   ~NdbQueryImpl(){
     if (m_id != NdbObjectIdMap::InvalidId) {
-      m_ndb.theImpl->theNdbObjectIdMap.unmap(m_id, this);
+      m_transaction.getNdb()->theImpl->theNdbObjectIdMap.unmap(m_id, this);
     }
   }
 
@@ -44,26 +37,41 @@ public:
   
   void prepareSend() const;
   void release() const;
-  Ndb& getNdb() const {return m_ndb;}
-  bool execTCOPCONF(Uint32 len) const;
+  NdbTransaction& getTransaction() const {return m_transaction;}
+
+  bool countTCKEYCONF(){
+    m_missingConfRefs--;
+    m_missingTransidAIs++;
+    return m_missingTransidAIs==0 && m_missingConfRefs == 0;
+  }
+
+  bool countTCKEYREF(){
+    m_missingConfRefs--;
+    return m_missingTransidAIs==0 && m_missingConfRefs == 0;
+  }
+
+  bool countTRANSID_AI(){
+    m_missingTransidAIs--;
+    return m_missingTransidAIs==0 && m_missingConfRefs == 0;
+  }
+
   bool checkMagicNumber() const { return m_magic == MAGIC;}
   Uint32 ptr2int() const {return m_id;}
   bool allRepliesReceived(){
     return ++m_msgCount == 2;
   }
+  
 private:
   const Uint32 m_magic;
   const Uint32 m_id;
-  Ndb& m_ndb;
-  NdbQueryOperation* m_rootOperation;  
-  /** Total number of operations in this query.*/
-  int m_noOfOperations;
-  /** Number of TCKEYCONF messages received.*/
-  int m_noOfTcKeyConfs; 
-  /** Number of TCKEYREF messages received.*/
-  int m_noOfTcKeyRefs; 
-  /** Number of TRANSID_AI messages received.*/
-  int m_noOfTransIdAI; 
+  NdbTransaction& m_transaction;
+  NdbQueryOperation* m_rootOperation;
+  /** Each operation should yiedl either a TCKEYCONF or a TCKEYREF message.
+   This is the no of such messages pending.*/
+  int m_missingConfRefs;
+  /** We should receive the same number of  TCKEYCONF and TRANSID_AI messages.
+   This is the (possibly negative) no of such messages pending.*/
+  int m_missingTransidAIs;
 };
 
 /** This class contains data members for NdbQueryOperation, such that these
@@ -113,9 +121,9 @@ private:
   NdbQuery& m_query;
   /** TODO:Only used for result processing prototype purposes. To be removed.*/
   NdbOperation& m_operation;
-  NdbQueryOperationImpl(NdbQuery& query, NdbOperation& operation):
+  explicit NdbQueryOperationImpl(NdbQuery& query, NdbOperation& operation):
     m_magic(MAGIC),
-    m_id(query.getImpl().getNdb().theImpl->theNdbObjectIdMap.map(this)),
+    m_id(query.getImpl().getTransaction().getNdb()->theImpl->theNdbObjectIdMap.map(this)),
     m_child(NULL),
     m_receiver(&query.getImpl().getNdb()),
     m_query(query),
@@ -128,7 +136,7 @@ private:
 
   ~NdbQueryOperationImpl(){
     if (m_id != NdbObjectIdMap::InvalidId) {
-      query.getImpl().getNdb().theImpl->theNdbObjectIdMap.unmap(m_id, this);
+      query.getImpl().getTransaction().getNdb()->theImpl->theNdbObjectIdMap.unmap(m_id, this);
     }
   }
 
