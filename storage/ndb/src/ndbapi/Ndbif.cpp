@@ -1455,7 +1455,8 @@ NdbTransaction::sendTC_COMMIT_ACK(TransporterFacade *tp,
 }
 
 int
-NdbImpl::send_event_report(Uint32 *data, Uint32 length)
+NdbImpl::send_event_report(bool has_lock,
+                           Uint32 *data, Uint32 length)
 {
   NdbApiSignal aSignal(m_ndb.theMyRef);
   TransporterFacade *tp = m_transporter_facade;
@@ -1465,15 +1466,29 @@ NdbImpl::send_event_report(Uint32 *data, Uint32 length)
   aSignal.theLength               = length;
   memcpy((char *)aSignal.getDataPtrSend(), (char *)data, length*4);
 
+
+  int ret = 0;
+  if (!has_lock)
+  {
+    tp->lock_mutex();
+  }
   Uint32 tNode;
   Ndb_cluster_connection_node_iter node_iter;
   m_ndb_cluster_connection.init_get_next_node(node_iter);
   while ((tNode= m_ndb_cluster_connection.get_next_node(node_iter)))
   {
-    if(tp->get_node_alive(tNode)){
+    if(tp->get_node_alive(tNode))
+    {
       tp->sendSignal(&aSignal, tNode);
-      return 0;
+      goto done;
     }
   }
-  return 1;
+  
+  ret = 1;
+done:
+  if (!has_lock)
+  {
+    tp->unlock_mutex();
+  }
+  return ret;
 }
