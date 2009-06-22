@@ -148,15 +148,9 @@ Ndb::NDB_connect(Uint32 tNode)
 //***************************************************************************
   
   int	         tReturnCode;
-  TransporterFacade *tp = theImpl->m_transporter_facade;
 
   DBUG_ENTER("Ndb::NDB_connect");
 
-  bool nodeAvail = tp->get_node_alive(tNode);
-  if(nodeAvail == false){
-    DBUG_RETURN(0);
-  }
-  
   NdbTransaction * tConArray = theConnectionArray[tNode];
   if (tConArray != NULL) {
     DBUG_RETURN(2);
@@ -211,6 +205,18 @@ Ndb::NDB_connect(Uint32 tNode)
       // no need to retry with other node
       DBUG_RETURN(-1);
     }
+
+    /**
+     * If node was dead, report 0...
+     *
+     * Btw, the sendRecSignal-method should taken out and shot
+     */
+    switch(tReturnCode){
+    case -2:
+    case -3:
+      DBUG_RETURN(0);
+    }
+
     DBUG_RETURN(3);
   }//if
 }//Ndb::NDB_connect()
