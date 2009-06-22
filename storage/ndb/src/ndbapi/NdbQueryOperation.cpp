@@ -62,12 +62,24 @@ const NdbQuery& NdbQueryOperation::getQuery() const{
 };
 
 
+NdbQueryImpl::NdbQueryImpl(Ndb& ndb):
+    m_magic(MAGIC),
+    m_id(ndb.theImpl->theNdbObjectIdMap.map(this)),
+    m_ndb(ndb),
+    m_rootOperation(NULL),
+    m_missingConfRefs(0),
+    m_missingTransidAIs(0){
+    assert(m_id != NdbObjectIdMap::InvalidId);
+}
+ 
+
 void NdbQueryImpl::prepareSend() const{
   // TODO: Fix for cases with siblings.
   NdbQueryOperation* curr = m_rootOperation;
   while(curr!=NULL){
     curr->getImpl().prepareSend();
     curr = curr->getChildOperation(0);
+    m_missingConfRefs++;
   }
 }
 
@@ -80,7 +92,8 @@ void NdbQueryImpl::release() const{
   }
 }
 
-bool NdbQueryImpl::execTCOPCONF(Uint32 len) const{
+bool NdbQueryImpl::execTCOPCONF(Uint32 len){
+  m_missingConfRefs++;
   // TODO: Fix for cases with siblings.
   Uint32 expectedLen = 0;
   NdbQueryOperation* curr = m_rootOperation;
@@ -96,5 +109,5 @@ bool NdbQueryImpl::execTCOPCONF(Uint32 len) const{
 
 bool NdbQueryOperationImpl::execTRANSID_AI(const Uint32* ptr, Uint32 len){
   m_receiver.execTRANSID_AI(ptr, len);
-  return m_query.receivedTRANSID_AI();
+  return m_query.countTRANSID_AI();
 }

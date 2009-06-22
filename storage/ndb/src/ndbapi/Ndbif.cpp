@@ -397,12 +397,17 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
     }
   case GSN_TRANSID_AI:{
     tFirstDataPtr = int2void(tFirstData);
-    NdbReceiver* tRec;
+    NdbReceiver* const tRec = void2rec(tFirstDataPtr);
+    NdbQueryOperationImpl* opImpl 
+      = reinterpret_cast<NdbQueryOperationImpl*>(tFirstDataPtr);
     ndbout << "Ndb::handleReceivedSignal() received TRANSID_AI" << endl; 
-    if (tFirstDataPtr && (tRec = void2rec(tFirstDataPtr)) && 
-	tRec->checkMagicNumber() && (tCon = tRec->getTransaction()) &&
+    Uint32 com;
+    if (tFirstDataPtr){
+      const bool isReceiver = tOp->checkMagicNumber();
+      tCon = isReceiver ? tRec->getTransaction() 
+	: opImpl->
+      if(tRec->checkMagicNumber() && (tCon = tRec->getTransaction()) &&
 	tCon->checkState_TransId(((const TransIdAI*)tDataPtr)->transId)){
-      Uint32 com;
       if(aSignal->m_noOfSections > 0){
 	com = tRec->execTRANSID_AI(ptr[0].p, ptr[0].sz);
       } else {

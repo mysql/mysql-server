@@ -69,18 +69,19 @@ protected:
 
 private:
   const NdbDictionary::Column* m_column;
-
 }; // class NdbQueryOperandImpl
 
 
-class NdbLinkedOperandImpl : public NdbLinkedOperand, NdbQueryOperandImpl
+class NdbLinkedOperandImpl :
+  public NdbLinkedOperand,
+  public NdbQueryOperandImpl
 {
   friend class NdbQueryBuilder;  // Allow privat access from builder interface
 
 private:
   virtual ~NdbLinkedOperandImpl() {};
   NdbLinkedOperandImpl (const NdbQueryOperationDef* parent, const char* attr)
-   : NdbLinkedOperand(), NdbQueryOperandImpl(),
+   : NdbLinkedOperand(this), NdbQueryOperandImpl(),
      m_parent(parent), m_attr(attr)
   {};
 
@@ -89,7 +90,9 @@ private:
 }; // class NdbLinkedOperandImpl
 
 
-class NdbParamOperandImpl : public NdbParamOperand, NdbQueryOperandImpl
+class NdbParamOperandImpl :
+  public NdbParamOperand,
+  public NdbQueryOperandImpl
 {
   friend class NdbQueryBuilder;  // Allow privat access from builder interface
 
@@ -103,7 +106,7 @@ public:
 private:
   virtual ~NdbParamOperandImpl() {};
   NdbParamOperandImpl (const char* name)
-   : NdbParamOperand(), NdbQueryOperandImpl(),
+   : NdbParamOperand(this), NdbQueryOperandImpl(),
      m_name(name)
   {};
 
@@ -115,7 +118,9 @@ private:
 // Pure virtual baseclass for ConstOperand.
 // Each specific const datatype has its own subclass.
 /////////////////////////////////////////////////////
-class NdbConstOperandImpl : public NdbConstOperand, NdbQueryOperandImpl
+class NdbConstOperandImpl :
+  public NdbConstOperand,
+  public NdbQueryOperandImpl
 {
   friend class NdbQueryBuilder;  // Allow privat access from builder interface
 public:
@@ -125,7 +130,7 @@ public:
 protected:
   virtual ~NdbConstOperandImpl() {};
   NdbConstOperandImpl ()
-   : NdbConstOperand(), NdbQueryOperandImpl()
+   : NdbConstOperand(this), NdbQueryOperandImpl()
   {};
 }; // class NdbConstOperandImpl
 
@@ -232,8 +237,9 @@ private:
 }; // class NdbQueryOperationDefImpl
 
 
-class NdbQueryLookupOperationDefImpl 
- : public NdbQueryLookupOperationDef,  NdbQueryOperationDefImpl
+class NdbQueryLookupOperationDefImpl :
+  public NdbQueryLookupOperationDef,
+  public NdbQueryOperationDefImpl
 {
   friend class NdbQueryBuilder;  // Allow privat access from builder interface
 
@@ -248,7 +254,7 @@ private:
                            const NdbDictionary::Table* table,
                            const NdbQueryOperand* const keys[],
                            const char* ident)
-   : NdbQueryLookupOperationDef(), NdbQueryOperationDefImpl(table,ident),
+   : NdbQueryLookupOperationDef(this), NdbQueryOperationDefImpl(table,ident),
      m_index(0), m_keys(keys)
   {};
   NdbQueryLookupOperationDefImpl (
@@ -256,18 +262,20 @@ private:
                            const NdbDictionary::Table* table,
                            const NdbQueryOperand* const keys[],
                            const char* ident)
-   : NdbQueryLookupOperationDef(), NdbQueryOperationDefImpl(table,ident),
+   : NdbQueryLookupOperationDef(this), NdbQueryOperationDefImpl(table,ident),
      m_index(index), m_keys(keys)
   {};
 
+private:
   const NdbDictionary::Index* const m_index;
   const NdbQueryOperand* const *m_keys;
 }; // class NdbQueryLookupOperationDefImpl
 
 
-class NdbQueryScanOperationDefImpl : public NdbQueryOperationDefImpl
+class NdbQueryScanOperationDefImpl :
+  public NdbQueryOperationDefImpl
 {
-protected:
+public:
   virtual ~NdbQueryScanOperationDefImpl() {};
   NdbQueryScanOperationDefImpl (
                            const NdbDictionary::Table* table,
@@ -276,7 +284,9 @@ protected:
   {};
 }; // class NdbQueryScanOperationDefImpl
 
-class NdbQueryTableScanOperationDefImpl : public NdbQueryTableScanOperationDef,  NdbQueryScanOperationDefImpl
+class NdbQueryTableScanOperationDefImpl :
+  public NdbQueryTableScanOperationDef,
+  public NdbQueryScanOperationDefImpl
 {
   friend class NdbQueryBuilder;  // Allow privat access from builder interface
 
@@ -285,12 +295,14 @@ private:
   NdbQueryTableScanOperationDefImpl (
                            const NdbDictionary::Table* table,
                            const char* ident)
-  : NdbQueryTableScanOperationDef(), NdbQueryScanOperationDefImpl(table,ident)
+  : NdbQueryTableScanOperationDef(this), NdbQueryScanOperationDefImpl(table,ident)
   {};
 }; // class NdbQueryTableScanOperationDefImpl
 
 
-class NdbQueryIndexScanOperationDefImpl : public NdbQueryIndexScanOperationDef, NdbQueryScanOperationDefImpl
+class NdbQueryIndexScanOperationDefImpl :
+  public NdbQueryIndexScanOperationDef,
+  public NdbQueryScanOperationDefImpl
 {
   friend class NdbQueryBuilder;  // Allow privat access from builder interface
 
@@ -305,10 +317,11 @@ private:
                            const NdbDictionary::Table* table,
                            const NdbQueryIndexBound* bound,
                            const char* ident)
-  : NdbQueryIndexScanOperationDef(), NdbQueryScanOperationDefImpl(table,ident),
+  : NdbQueryIndexScanOperationDef(this), NdbQueryScanOperationDefImpl(table,ident),
     m_index(index), m_bound(bound)
   {};
 
+private:
   const NdbDictionary::Index* const m_index;
   const NdbQueryIndexBound* const m_bound;
 }; // class NdbQueryIndexScanOperationDefImpl
@@ -331,16 +344,16 @@ private:
 NdbQueryDef::NdbQueryDef()
 {}
 
-NdbQueryOperand::NdbQueryOperand()
+NdbQueryOperand::NdbQueryOperand(NdbQueryOperandImpl* pimpl) : m_pimpl(pimpl)
+{ assert(pimpl!=NULL); }
+NdbConstOperand::NdbConstOperand(NdbQueryOperandImpl* pimpl) : NdbQueryOperand(pimpl)
 {}
-NdbConstOperand::NdbConstOperand() : NdbQueryOperand()
+NdbParamOperand::NdbParamOperand(NdbQueryOperandImpl* pimpl) : NdbQueryOperand(pimpl)
 {}
-NdbParamOperand::NdbParamOperand() : NdbQueryOperand()
-{}
-NdbLinkedOperand::NdbLinkedOperand() : NdbQueryOperand()
+NdbLinkedOperand::NdbLinkedOperand(NdbQueryOperandImpl* pimpl) : NdbQueryOperand(pimpl)
 {}
 
-// D'tor, all virtual
+// D'tors
 NdbQueryOperand::~NdbQueryOperand()
 {}
 NdbConstOperand::~NdbConstOperand()
@@ -354,45 +367,27 @@ NdbLinkedOperand::~NdbLinkedOperand()
  * Get'ers for NdbQueryOperand...Impl object.
  * Functions overridden to supply 'impl' casted to the correct '...OperandImpl' type
  * for each available interface class.
- */ 
-inline static
-NdbQueryOperandImpl& getImpl(NdbQueryOperand* op)
-{ assert (dynamic_cast<NdbQueryOperandImpl*>(op));
-  return *dynamic_cast<NdbQueryOperandImpl*>(op);
+ */
+inline NdbQueryOperandImpl&
+NdbQueryOperand::getImpl() const
+{ return *m_pimpl; // Asserted != NULL in C'tor
 }
 inline static
-NdbConstOperandImpl& getImpl(NdbConstOperand* op)
-{ return *static_cast<NdbConstOperandImpl*>(op);
+NdbQueryOperandImpl& getImpl(const NdbQueryOperand* op)
+{ return op->getImpl();
 }
 inline static
-NdbParamOperandImpl& getImpl(NdbParamOperand* op)
-{ return *static_cast<NdbParamOperandImpl*>(op);
+NdbConstOperandImpl& getImpl(const NdbConstOperand* op)
+{ return static_cast<NdbConstOperandImpl&>(op->getImpl());
 }
 inline static
-NdbLinkedOperandImpl& getImpl(NdbLinkedOperand* op)
-{ return *static_cast<NdbLinkedOperandImpl*>(op);
-}
-
-/////// const covariants of above ::getImpl's ///////////
-
-inline static
-const NdbQueryOperandImpl& getImpl(const NdbQueryOperand* op)
-{ assert (dynamic_cast<const NdbQueryOperandImpl*>(op));
-  return *dynamic_cast<const NdbQueryOperandImpl*>(op);
+NdbParamOperandImpl& getImpl(const NdbParamOperand* op)
+{ return static_cast<NdbParamOperandImpl&>(op->getImpl());
 }
 inline static
-const NdbConstOperandImpl& getImpl(const NdbConstOperand* op)
-{ return *static_cast<const NdbConstOperandImpl*>(op);
+NdbLinkedOperandImpl& getImpl(const NdbLinkedOperand* op)
+{ return static_cast<NdbLinkedOperandImpl&>(op->getImpl());
 }
-inline static
-const NdbParamOperandImpl& getImpl(const NdbParamOperand* op)
-{ return *static_cast<const NdbParamOperandImpl*>(op);
-}
-inline static
-const NdbLinkedOperandImpl& getImpl(const NdbLinkedOperand* op)
-{ return *static_cast<const NdbLinkedOperandImpl*>(op);
-}
-
 
 const NdbDictionary::Column*
 NdbQueryOperand::getColumn() const
@@ -415,19 +410,19 @@ NdbParamOperand::getEnum() const
 /****************************************************************************
  * Glue layer between NdbQueryOperationDef interface and its Impl'ementation.
  ****************************************************************************/
-NdbQueryOperationDef::NdbQueryOperationDef()
+NdbQueryOperationDef::NdbQueryOperationDef(NdbQueryOperationDefImpl *pimpl) : m_pimpl(pimpl)
+{ assert(pimpl!=NULL); }
+NdbQueryLookupOperationDef::NdbQueryLookupOperationDef(NdbQueryOperationDefImpl *pimpl) : NdbQueryOperationDef(pimpl) 
 {}
-NdbQueryLookupOperationDef::NdbQueryLookupOperationDef() : NdbQueryOperationDef() 
+NdbQueryScanOperationDef::NdbQueryScanOperationDef(NdbQueryOperationDefImpl *pimpl) : NdbQueryOperationDef(pimpl) 
 {}
-NdbQueryScanOperationDef::NdbQueryScanOperationDef() : NdbQueryOperationDef() 
+NdbQueryTableScanOperationDef::NdbQueryTableScanOperationDef(NdbQueryOperationDefImpl *pimpl) : NdbQueryScanOperationDef(pimpl) 
 {}
-NdbQueryTableScanOperationDef::NdbQueryTableScanOperationDef() : NdbQueryScanOperationDef() 
-{}
-NdbQueryIndexScanOperationDef::NdbQueryIndexScanOperationDef() : NdbQueryScanOperationDef() 
+NdbQueryIndexScanOperationDef::NdbQueryIndexScanOperationDef(NdbQueryOperationDefImpl *pimpl) : NdbQueryScanOperationDef(pimpl) 
 {}
 
 
-// D'tor, all virtual
+// D'tors
 NdbQueryOperationDef::~NdbQueryOperationDef()
 {}
 NdbQueryLookupOperationDef::~NdbQueryLookupOperationDef()
@@ -445,42 +440,25 @@ NdbQueryIndexScanOperationDef::~NdbQueryIndexScanOperationDef()
  * Functions overridden to supply 'impl' casted to the correct '...DefImpl' type
  * for each available interface class.
  */ 
-inline static
-NdbQueryLookupOperationDefImpl& getImpl(NdbQueryLookupOperationDef* op)
-{ return *static_cast<NdbQueryLookupOperationDefImpl*>(op);
+NdbQueryOperationDefImpl&
+NdbQueryOperationDef::getImpl() const
+{ return *m_pimpl;  // Asserted != NULL in C'tor
 }
 inline static
-NdbQueryTableScanOperationDefImpl& getImpl(NdbQueryTableScanOperationDef* op)
-{ return *static_cast<NdbQueryTableScanOperationDefImpl*>(op);
+NdbQueryOperationDefImpl& getImpl(const NdbQueryOperationDef* op)
+{ return op->getImpl();
 }
 inline static
-NdbQueryIndexScanOperationDefImpl& getImpl(NdbQueryIndexScanOperationDef* op)
-{ return *static_cast<NdbQueryIndexScanOperationDefImpl*>(op);
+NdbQueryLookupOperationDefImpl& getImpl(const NdbQueryLookupOperationDef* op)
+{ return static_cast<NdbQueryLookupOperationDefImpl&>(op->getImpl());
 }
 inline static
-NdbQueryOperationDefImpl& getImpl(NdbQueryOperationDef* op)
-{ assert (dynamic_cast<NdbQueryOperationDefImpl*>(op));
-  return *dynamic_cast<NdbQueryOperationDefImpl*>(op);
-}
-
-/////// const covariants of above ::getImpl's ///////////
-
-inline static
-const NdbQueryLookupOperationDefImpl& getImpl(const NdbQueryLookupOperationDef* op)
-{ return *static_cast<const NdbQueryLookupOperationDefImpl*>(op);
+NdbQueryTableScanOperationDefImpl& getImpl(const NdbQueryTableScanOperationDef* op)
+{ return static_cast<NdbQueryTableScanOperationDefImpl&>(op->getImpl());
 }
 inline static
-const NdbQueryTableScanOperationDefImpl& getImpl(const NdbQueryTableScanOperationDef* op)
-{ return *static_cast<const NdbQueryTableScanOperationDefImpl*>(op);
-}
-inline static
-const NdbQueryIndexScanOperationDefImpl& getImpl(const NdbQueryIndexScanOperationDef* op)
-{ return *static_cast<const NdbQueryIndexScanOperationDefImpl*>(op);
-}
-inline static
-const NdbQueryOperationDefImpl& getImpl(const NdbQueryOperationDef* op)
-{ assert (dynamic_cast<const NdbQueryOperationDefImpl*>(op));
-  return *dynamic_cast<const NdbQueryOperationDefImpl*>(op);
+NdbQueryIndexScanOperationDefImpl& getImpl(const NdbQueryIndexScanOperationDef* op)
+{ return static_cast<NdbQueryIndexScanOperationDefImpl&>(op->getImpl());
 }
 
 
@@ -599,7 +577,7 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Table* table,    // Primary key 
   if (table)
   {
     NdbQueryLookupOperationDefImpl* op =
-       new NdbQueryLookupOperationDefImpl(table,keys,ident);
+      new NdbQueryLookupOperationDefImpl(table,keys,ident);
     return op;
   }
 
@@ -615,8 +593,8 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Index* index,    // Unique key l
 {
   if (index && table)
   {
-    NdbQueryLookupOperationDefImpl* op = 0;
-    op = new NdbQueryLookupOperationDefImpl(index,table,keys,ident);
+    NdbQueryLookupOperationDefImpl* op = 
+      new NdbQueryLookupOperationDefImpl(index,table,keys,ident);
     return op;
   }
 //  setOperationErrorCodeAbort(4271);
@@ -628,8 +606,8 @@ NdbQueryTableScanOperationDef*
 NdbQueryBuilder::scanTable(const NdbDictionary::Table* table,
                            const char* ident)
 {
-  NdbQueryTableScanOperationDefImpl* op = 0;
-  op = new NdbQueryTableScanOperationDefImpl(table,ident);
+  NdbQueryTableScanOperationDefImpl* op =
+    new NdbQueryTableScanOperationDefImpl(table,ident);
 
   return op;
 }
@@ -641,8 +619,8 @@ NdbQueryBuilder::scanIndex(const NdbDictionary::Index* index,
                            const NdbQueryIndexBound* bound,
                            const char* ident)
 {
-  NdbQueryIndexScanOperationDefImpl* op = 0;
-  op = new NdbQueryIndexScanOperationDefImpl(index,table,bound,ident);
+  NdbQueryIndexScanOperationDefImpl* op =
+    new NdbQueryIndexScanOperationDefImpl(index,table,bound,ident);
 
   return op;
 }
@@ -656,7 +634,6 @@ NdbQueryBuilder::prepare()
 }
 
 
-
 #if 0
 /**********************************************
  * Simple hack for module test & experimenting
@@ -668,6 +645,20 @@ int
 main(int argc, const char** argv)
 {
   printf("Hello, I am the unit test for NdbQueryBuilder\n");
+
+  printf("sizeof(NdbQueryOperationDef): %d\n", sizeof(NdbQueryOperationDef));
+  printf("sizeof(NdbQueryLookupOperationDef): %d\n", sizeof(NdbQueryLookupOperationDef));
+
+  // Assert that interfaces *only* contain the pimpl pointer:
+  assert (sizeof(NdbQueryOperationDef) == sizeof(NdbQueryOperationDefImpl*));
+  assert (sizeof(NdbQueryLookupOperationDef) == sizeof(NdbQueryOperationDefImpl*));
+  assert (sizeof(NdbQueryTableScanOperationDef) == sizeof(NdbQueryOperationDefImpl*));
+  assert (sizeof(NdbQueryIndexScanOperationDef) == sizeof(NdbQueryOperationDefImpl*));
+
+  assert (sizeof(NdbQueryOperand) == sizeof(NdbQueryOperandImpl*));
+  assert (sizeof(NdbConstOperand) == sizeof(NdbQueryOperandImpl*));
+  assert (sizeof(NdbParamOperand) == sizeof(NdbQueryOperandImpl*));
+  assert (sizeof(NdbLinkedOperand) == sizeof(NdbQueryOperandImpl*));
 
   Ndb *myNdb = 0;
   NdbQueryBuilder myBuilder(*myNdb);

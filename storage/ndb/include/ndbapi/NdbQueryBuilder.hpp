@@ -25,6 +25,9 @@
 
 class Ndb;
 
+class NdbQueryOperandImpl;
+class NdbQueryOperationDefImpl;
+
 
 /**
  * This is the API interface for building a (composite) query definition,
@@ -52,31 +55,34 @@ class NdbQueryOperand  // A base class specifying a single value
 public:
   // Column which this operand relates to
   const NdbDictionary::Column* getColumn() const;
+  NdbQueryOperandImpl& getImpl() const;
 
 protected:
   // Enforce object creation through NdbQueryBuilder factory 
-  NdbQueryOperand();
-  virtual ~NdbQueryOperand();
+  NdbQueryOperand(NdbQueryOperandImpl* pimpl);
+  ~NdbQueryOperand();
 
 private:
   // Copying disallowed:
   NdbQueryOperand(const NdbQueryOperand& other);
   NdbQueryOperand& operator = (const NdbQueryOperand& other);
+
+  NdbQueryOperandImpl* const m_pimpl;
 };
 
 // A NdbQueryOperand is either of these:
 class NdbConstOperand  : public NdbQueryOperand
 {
 protected:
-  NdbConstOperand();
-  virtual ~NdbConstOperand();
+  NdbConstOperand(NdbQueryOperandImpl* pimpl);
+  ~NdbConstOperand();
 };
 
 class NdbLinkedOperand : public NdbQueryOperand
 {
 protected:
-  NdbLinkedOperand();
-  virtual ~NdbLinkedOperand();
+  NdbLinkedOperand(NdbQueryOperandImpl* pimpl);
+  ~NdbLinkedOperand();
 };
 
 class NdbParamOperand  : public NdbQueryOperand {
@@ -85,8 +91,8 @@ public:
   Uint32 getEnum() const;
 
 protected:
-  NdbParamOperand();
-  virtual ~NdbParamOperand();
+  NdbParamOperand(NdbQueryOperandImpl* pimpl);
+  ~NdbParamOperand();
 };
 
 
@@ -119,17 +125,19 @@ public:
    * Get table object for this operation
    */
   const NdbDictionary::Table* getTable() const;
+  NdbQueryOperationDefImpl& getImpl() const;
 
 protected:
   // Enforce object creation through NdbQueryBuilder factory 
-  NdbQueryOperationDef();
-  virtual ~NdbQueryOperationDef();
+  NdbQueryOperationDef(NdbQueryOperationDefImpl *pimpl);
+  ~NdbQueryOperationDef();
 
 private:
   // Copying disallowed:
   NdbQueryOperationDef(const NdbQueryOperationDef& other);
   NdbQueryOperationDef& operator = (const NdbQueryOperationDef& other);
 
+  NdbQueryOperationDefImpl* const m_pimpl;
 }; // class NdbQueryOperationDef
 
 
@@ -143,32 +151,32 @@ public:
 
 protected:
   // Enforce object creation through NdbQueryBuilder factory 
-  NdbQueryLookupOperationDef();
-  virtual ~NdbQueryLookupOperationDef();
+  NdbQueryLookupOperationDef(NdbQueryOperationDefImpl *pimpl);
+  ~NdbQueryLookupOperationDef();
 }; // class NdbQueryLookupOperationDef
 
 class NdbQueryScanOperationDef : public NdbQueryOperationDef  // Base class for scans
 {
 protected:
   // Enforce object creation through NdbQueryBuilder factory 
-  NdbQueryScanOperationDef();
-  virtual ~NdbQueryScanOperationDef();
+  NdbQueryScanOperationDef(NdbQueryOperationDefImpl *pimpl);
+  ~NdbQueryScanOperationDef();
 }; // class NdbQueryScanOperationDef
 
 class NdbQueryTableScanOperationDef : public NdbQueryScanOperationDef
 {
 protected:
   // Enforce object creation through NdbQueryBuilder factory 
-  NdbQueryTableScanOperationDef();
-  virtual ~NdbQueryTableScanOperationDef();
+  NdbQueryTableScanOperationDef(NdbQueryOperationDefImpl *pimpl);
+  ~NdbQueryTableScanOperationDef();
 }; // class NdbQueryTableScanOperationDef
 
 class NdbQueryIndexScanOperationDef : public NdbQueryScanOperationDef
 {
 protected:
   // Enforce object creation through NdbQueryBuilder factory 
-  NdbQueryIndexScanOperationDef();
-  virtual ~NdbQueryIndexScanOperationDef();
+  NdbQueryIndexScanOperationDef(NdbQueryOperationDefImpl *pimpl);
+  ~NdbQueryIndexScanOperationDef();
 }; // class NdbQueryIndexScanOperationDef
 
 
