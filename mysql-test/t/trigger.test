@@ -2370,4 +2370,30 @@ drop trigger trg1;
 drop trigger trg2;
 drop table t1, t2;
 
+#
+# Bug#44653: Server crash noticed when executing random queries with partitions.
+#
+CREATE TABLE t1 ( a INT, b INT );
+CREATE TABLE t2 ( a INT AUTO_INCREMENT KEY, b INT );
+
+INSERT INTO t1 (a) VALUES (1);
+
+delimiter //;
+CREATE TRIGGER tr1
+BEFORE INSERT ON t2
+FOR EACH ROW 
+BEGIN 
+  UPDATE a_nonextisting_table SET a = 1;
+END//
+delimiter ;//
+
+--disable_abort_on_error
+CREATE TABLE IF NOT EXISTS t2 ( a INT, b INT ) SELECT a, b FROM t1;
+--enable_abort_on_error
+
+# Caused failed assertion
+SELECT * FROM t2;
+
+DROP TABLE t1, t2;
+
 --echo End of 5.1 tests.
