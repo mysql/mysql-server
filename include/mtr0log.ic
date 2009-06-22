@@ -23,7 +23,6 @@ Mini-transaction logging routines
 Created 12/7/1995 Heikki Tuuri
 *******************************************************/
 
-#ifndef UNIV_HOTBACKUP
 #include "mach0data.h"
 #include "ut0lst.h"
 #include "buf0buf.h"
@@ -73,6 +72,7 @@ mlog_close(
 	dyn_array_close(mlog, ptr);
 }
 
+#ifndef UNIV_HOTBACKUP
 /********************************************************//**
 Catenates 1 - 4 bytes to the mtr log. The value is not compressed. */
 UNIV_INLINE
