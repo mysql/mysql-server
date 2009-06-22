@@ -18,6 +18,7 @@
 #ifndef NdbQueryBuilder_H
 #define NdbQueryBuilder_H
 
+#include <stdlib.h>
 #include <ndb_types.h>
 
 #include "NdbError.hpp"
@@ -98,6 +99,7 @@ protected:
 
 class NdbQueryIndexBound
 {
+public:
   const NdbQueryOperand* const low_key[];  // NULL terminated
   bool low_inclusive;
   const NdbQueryOperand* const high_key[]; // NULL terminated
@@ -330,6 +332,8 @@ public:
   // multiple threads.
   NdbQueryDef(const NdbQueryDef& other);
   NdbQueryDef& operator = (const NdbQueryDef& other);
+
+  const NdbQueryOperationDef* getRootOperation() const;
 
   // Remove this NdbQueryDef.
 //void release();    Just delete it instead ?

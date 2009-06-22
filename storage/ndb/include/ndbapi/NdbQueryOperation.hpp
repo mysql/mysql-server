@@ -20,21 +20,29 @@
 
 #include <ndb_types.h>
 // TODO: Remove this. Needed for result prototype only.
-#include <NdbOperation.hpp>
+//#include <NdbOperation.hpp>
 
 #include "NdbDictionary.hpp"
-#include "NdbError.hpp"
 
-class NdbTransaction;
+class Ndb;
+class NdbError;
+class NdbOperation;
 class NdbParamOperand;
+class NdbQueryDef;
 class NdbQueryOperation;
 class NdbQueryOperationDef;
 class NdbRecAttr;
+class NdbTransaction;
 
 /** Opaque implementation classes*/
 class NdbQueryImpl;
 class NdbQueryOperationImpl;
 class NdbRecord;
+
+/** Opaque implementation classes */
+class NdbQueryImpl;
+class NdbQueryOperationImpl;
+
 
 /**
  * NdbQuery are create when a NdbQueryDefinition is submitted for
@@ -46,8 +54,24 @@ class NdbRecord;
  */
 class NdbQuery
 {
+protected:
+  // Only constructable through executing a NdbQueryDef 
+  NdbQuery(NdbQueryImpl *pimpl);
+  ~NdbQuery();
+
 public:
-  NdbQuery(Ndb& ndb);
+  // Factory method which instantiate a query from its definition
+  static NdbQuery*
+  buildQuery(NdbTransaction& trans, const NdbQueryDef& queryDef);
+
+  ////////////////////////////////////////////////////////
+  // START: TEMP HACK for Jans result set coding until we
+  // have a usable 'queryDef'
+  static NdbQuery*
+  buildQuery(NdbTransaction& trans);
+
+  // END Jans hack.
+  /////////////////////////////////////////////////
 
   // get NdbQueryOperation being the root of a linked operation
   NdbQueryOperation* getRootOperation() const;
@@ -125,24 +149,40 @@ public:
    */
   const NdbError& getNdbError() const;
 
-  /** Getter method.*/
+  /** Get object implementing NdbQuery interface.*/
   NdbQueryImpl& getImpl(){return *m_pimpl;}
-  /** Getter method.*/
+  /** Get object implementing NdbQuery interface.*/
   const NdbQueryImpl& getImpl() const{return *m_pimpl;}
 private:
-  /** Opaque implementation class instance.*/
-  NdbQueryImpl* m_pimpl;
-  // TODO: Move into impl class.
-  NdbError m_error;
-};
+  /** Opaque implementation NdbQuery interface.*/
+  NdbQueryImpl* const m_pimpl;
+
+}; // class NdbQuery
 
 
 
 
 class NdbQueryOperation
 {
+protected:
+  // Only constructable through executing a NdbQueryDef 
+  NdbQueryOperation(NdbQueryOperationImpl *pimpl);
+  ~NdbQueryOperation();
+
 public:
-  NdbQueryOperation(NdbQuery& query, NdbOperation& operation);
+  //////////////////////////////////////////
+  // START Jans temp hack for result prototype
+  // TODO: Remove this C'tor. Needed for result prototype only.
+  //NdbQueryOperation(NdbQuery& query, class NdbOperation& operation);
+
+  // Jan: To be (temp) used instead of above C'tor:
+  static NdbQueryOperation*
+  buildQueryOperation(NdbQueryImpl& queryImpl, class NdbOperation& operation);
+
+  // End: Hack
+  //////////////////////////////////////////////
+
+  // Collection of get'ers to navigate in root, parent/child hierarchy
 
   NdbQueryOperation* getRootOperation() const;
   // assert(getRootOperation()->getNoOfParentOperations() == 0);
@@ -154,6 +194,10 @@ public:
   NdbQueryOperation* getChildOperation(Uint32 i) const;
 
   const NdbQueryOperationDef* getQueryOperationDef() const;
+
+  // Get the entire query object which this operation is part of
+  NdbQuery& getQuery() const;
+
 
 
   /**
@@ -170,7 +214,7 @@ public:
    *       (i.e. NdbRecAttr::attrSize times NdbRecAttr::arraySize is
    *       a multiple of 4).
    *
-   * @note There are three versions of NdbOperation::getValue with
+   * @note There are three versions of NdbQueryOperation::getValue with
    *       slightly different parameters.
    *
    * @note This method does not fetch the attribute value from 
@@ -189,7 +233,8 @@ public:
    */
   NdbRecAttr* getValue(const char* anAttrName, char* aValue = 0);
   NdbRecAttr* getValue(Uint32 anAttrId, char* aValue = 0);
-  NdbRecAttr* getValue(const NdbDictionary::Column* column, char* aValue = 0);
+  NdbRecAttr* getValue(const NdbDictionary::Column* column, 
+		       char* aValue = 0);
 
   /**
    * Retrieval of entire or partial rows may also be specified. For partial
@@ -227,22 +272,17 @@ public:
   bool isRowChanged() const; // Prev ::nextResult() on NdbQuery retrived a new
                              // value for this NdbQueryOperation
 
- /** Getter method.*/
-  NdbQuery& getQuery();
-
-  /** Getter method.*/
-  const NdbQuery& getQuery() const;
-
-  /** Getter method.*/
+  /** Get object implementing NdbQueryOperation interface.*/
   NdbQueryOperationImpl& getImpl(){return *m_pimpl;}
 
-  /** Getter method.*/
+  /** Get object implementing NdbQueryOperation interface.*/
   const NdbQueryOperationImpl& getImpl() const{return *m_pimpl;}
 
 private:
-  /** Opaque implementation class instance.*/
-  NdbQueryOperationImpl* m_pimpl;
-};
+  // Opaque implementation class instance.
+  NdbQueryOperationImpl* const m_pimpl;
+
+}; // class NdbQueryOperation
 
 
 

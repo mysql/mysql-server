@@ -1072,6 +1072,7 @@ class Ndb
   friend class Ndb_internal;
   friend class NdbScanFilterImpl;
   friend class NdbQueryImpl;
+  friend class NdbQueryOperationImpl;
 #endif
 
 public:

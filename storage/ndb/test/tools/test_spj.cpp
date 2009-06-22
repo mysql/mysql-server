@@ -341,15 +341,17 @@ int spjTest(int argc, char** argv){
 
     push_back(treeSpec, _data3, 1);
     
-    NdbQuery query(MyNdb);
-    NdbQueryOperation root(query, *pOp);
-    query.getImpl().setRootOperation(&root);
-    NdbQueryOperation* currOp = &root;
+    NdbQuery* const query = NdbQueryImpl::buildQuery(*pTrans);
+    NdbQueryOperation* const root 
+      = NdbQueryOperationImpl::buildQueryOperation(query->getImpl(), *pOp);
+    query->getImpl().setRootOperation(root);
+    NdbQueryOperation* currOp = root;
     const ResultSet* rSet[nNodes];
-    rSet[0] = new ResultSet(&root, pTab);
-    node[0]->setResultData(root.getImpl().getResultPtr());
+    rSet[0] = new ResultSet(root, pTab);
+    node[0]->setResultData(root->getImpl().getResultPtr());
     for(int i=1; i<nNodes; i++){
-      NdbQueryOperation* newOp = new NdbQueryOperation(query, *pOp);
+      NdbQueryOperation* newOp = 
+	NdbQueryOperationImpl::buildQueryOperation(query->getImpl(), *pOp);
       currOp->getImpl().setFirstChild(newOp);
       currOp = newOp;
       rSet[i] = new ResultSet(newOp, pTab);
@@ -372,11 +374,11 @@ int spjTest(int argc, char** argv){
     NdbScanFilterImpl::add(pOp, paramSpec.getBase(), paramSpec.size());
     NdbScanFilterImpl::setIsLinkedFlag(pOp);
 
-    query.getImpl().prepareSend();
-    extern NdbQueryImpl* queryImpl; 
-    queryImpl = &query.getImpl();
+    query->getImpl().prepareSend();
+    // extern NdbQueryImpl* queryImpl; 
+    pOp->setQueryImpl(&query->getImpl());
     pTrans->execute(NoCommit);
-    queryImpl = NULL;
+    // queryImpl = NULL;
     /*if (pTrans->getNdbError().classification == NdbError::NoDataFound){
       ndbout << "No data found" << endl;
     }else{
