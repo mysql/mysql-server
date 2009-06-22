@@ -3462,11 +3462,11 @@ send_report:
   data[1]= m_total_alloc-m_free_data_sz;
   data[2]= m_total_alloc;
   data[3]= 0;
-  data[4]= (Uint32)(apply_gci & ~(Uint32)0);
+  data[4]= (Uint32)(apply_gci);
   data[5]= (Uint32)(apply_gci >> 32);
-  data[6]= (Uint32)(latest_gci & ~(Uint32)0);
+  data[6]= (Uint32)(latest_gci);
   data[7]= (Uint32)(latest_gci >> 32);
-  Ndb_internal::send_event_report(m_ndb, data,8);
+  Ndb_internal::send_event_report(true, m_ndb, data,8);
 #ifdef VM_TRACE
   assert(m_total_alloc >= m_free_data_sz);
 #endif
