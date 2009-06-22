@@ -5113,7 +5113,7 @@ Options to control what test suites or cases to run
   skip-rpl              Skip the replication test cases.
   big-test              Also run tests marked as "big"
   enable-disabled       Run also tests marked as disabled
-  print_testcases       Don't run the tests but print details about all the
+  print-testcases       Don't run the tests but print details about all the
                         selected tests, in the order they would be run.
 
 Options that specify ports
