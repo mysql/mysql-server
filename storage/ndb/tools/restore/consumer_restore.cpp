@@ -811,7 +811,7 @@ BackupRestore::report_started(unsigned backup_id, unsigned node_id)
     data[0]= NDB_LE_RestoreStarted;
     data[1]= backup_id;
     data[2]= node_id;
-    Ndb_internal::send_event_report(m_ndb, data, 3);
+    Ndb_internal::send_event_report(false /* has lock */, m_ndb, data, 3);
   }
   return true;
 }
@@ -830,7 +830,7 @@ BackupRestore::report_meta_data(unsigned backup_id, unsigned node_id)
     data[5]= m_n_logfilegroup;
     data[6]= m_n_datafile;
     data[7]= m_n_undofile;
-    Ndb_internal::send_event_report(m_ndb, data, 8);
+    Ndb_internal::send_event_report(false /* has lock */, m_ndb, data, 8);
   }
   return true;
 }
@@ -847,7 +847,7 @@ BackupRestore::report_data(unsigned backup_id, unsigned node_id)
     data[4]= 0;
     data[5]= (Uint32)(m_dataBytes & 0xFFFFFFFF);
     data[6]= (Uint32)((m_dataBytes >> 32) & 0xFFFFFFFF);
-    Ndb_internal::send_event_report(m_ndb, data, 7);
+    Ndb_internal::send_event_report(false /* has lock */, m_ndb, data, 7);
   }
   return true;
 }
@@ -865,7 +865,7 @@ BackupRestore::report_log(unsigned backup_id, unsigned node_id)
     data[4]= 0;
     data[5]= (Uint32)(m_logBytes & 0xFFFFFFFF);
     data[6]= (Uint32)((m_logBytes >> 32) & 0xFFFFFFFF);
-    Ndb_internal::send_event_report(m_ndb, data, 7);
+    Ndb_internal::send_event_report(false /* has lock */, m_ndb, data, 7);
   }
   return true;
 }
@@ -879,7 +879,7 @@ BackupRestore::report_completed(unsigned backup_id, unsigned node_id)
     data[0]= NDB_LE_RestoreCompleted;
     data[1]= backup_id;
     data[2]= node_id;
-    Ndb_internal::send_event_report(m_ndb, data, 3);
+    Ndb_internal::send_event_report(false /* has lock */, m_ndb, data, 3);
   }
   return true;
 }
