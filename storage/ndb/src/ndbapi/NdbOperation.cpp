@@ -83,7 +83,7 @@ NdbOperation::NdbOperation(Ndb* aNdb, NdbOperation::Type aType) :
   m_noErrorPropagation(false),
   m_queryImpl(NULL)
 {
-  theReceiver.init(NdbReceiver::NDB_OPERATION, false, this, aNdb);
+  theReceiver.init(NdbReceiver::NDB_OPERATION, false, this);
   theError.code = 0;
   m_customData = NULL;
   m_isLinked = false;

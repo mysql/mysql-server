@@ -48,8 +48,8 @@ public:
 			  NDB_INDEX_OPERATION = 3
   };
   
-  NdbReceiver(Ndb *aNdb=NULL);
-  int init(ReceiverType type, bool useRec, void* owner, Ndb *aNdb=NULL);
+  NdbReceiver(Ndb *aNdb);
+  int init(ReceiverType type, bool useRec, void* owner);
   void release();
   ~NdbReceiver();
   

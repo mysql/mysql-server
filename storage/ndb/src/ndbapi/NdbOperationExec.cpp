@@ -163,7 +163,7 @@ NdbOperation::doSend(int aNodeId, Uint32 lastFlag)
                                      theTupKeyLen);
     const Uint32 inlineAIOffset = Uint32(tcKeyReq->attrInfo -(Uint32*)tcKeyReq);
     const Uint32 inlineAILength= MIN(TcKeyReq::MaxAttrInfo, 
-                                     static_cast<Uint32>(theTotalCurrAI_Len));
+                                     theTotalCurrAI_Len);
     
     Uint32 numSecs= 1;
     GenericSectionPtr secs[2];
@@ -278,6 +278,7 @@ NdbOperation::prepareSend(Uint32 aTC_ConnectPtr,
       {
 	getValue(NdbDictionary::Column::FRAGMENT);
 	tTotalCurrAI_Len = theTotalCurrAI_Len;
+	assert(theTotalCurrAI_Len);
       }
       else if (tOpType != DeleteRequest)
       {
