@@ -23,7 +23,7 @@
 #include <NdbOperation.hpp>
 #include <NdbTransaction.hpp>
 #include "NdbQueryBuilder.hpp"
-#include "NdbQueryOperation.hpp"
+#include "NdbQueryOperationImpl.hpp"
 #include <NdbBlob.hpp>
 #include "NdbEventOperationImpl.hpp"
 
@@ -101,7 +101,7 @@ NdbQueryBuilder::getNdbError() const {
 
 const
 NdbError &
-NdbQuery::getNdbError() const {
+NdbQueryImpl::getNdbError() const {
   update(m_error);
   return m_error;
 }

@@ -36,6 +36,7 @@ class NdbBlob;
 class TcKeyReq;
 class NdbRecord;
 class NdbInterpretedCode;
+class NdbQueryImpl;
 
 /**
  * @class NdbOperation
@@ -1064,6 +1065,11 @@ public:
     void * customData;
   };
 
+  /* TODO: Remove reference to NdbQueryImpl. Only needed for SPJ result 
+     prototype.*/
+  void setQueryImpl(NdbQueryImpl* queryImpl){
+    m_queryImpl = queryImpl;
+  }
 
 protected:
 /******************************************************************************
@@ -1485,6 +1491,11 @@ protected:
   Uint32 repack_read(Uint32 len);
 
   bool m_isLinked;
+
+  /* TODO: Remove pointer to NdbQueryImpl. Only needed for SPJ result 
+     prototype.*/
+  NdbQueryImpl* m_queryImpl;
+  
 };
 
 #ifdef NDB_NO_DROPPED_SIGNAL

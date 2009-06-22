@@ -27,6 +27,7 @@
 #include <NdbScanOperation.hpp>
 #include <NdbRecAttr.hpp>
 #include <NdbReceiver.hpp>
+#include <NdbQueryOperationImpl.hpp>
 #include "API.hpp"
 #include "NdbEventOperationImpl.hpp"
 
@@ -397,48 +398,66 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
     }
   case GSN_TRANSID_AI:{
     tFirstDataPtr = int2void(tFirstData);
-    NdbReceiver* const tRec = void2rec(tFirstDataPtr);
-    NdbQueryOperationImpl* opImpl 
-      = reinterpret_cast<NdbQueryOperationImpl*>(tFirstDataPtr);
     ndbout << "Ndb::handleReceivedSignal() received TRANSID_AI" << endl; 
     Uint32 com;
     if (tFirstDataPtr){
-      const bool isReceiver = tOp->checkMagicNumber();
+      NdbReceiver* const tRec = void2rec(tFirstDataPtr);
+      NdbQueryOperationImpl* opImpl 
+	= reinterpret_cast<NdbQueryOperationImpl*>(tFirstDataPtr);
+      const bool isReceiver = tRec->checkMagicNumber();
+      if(!isReceiver || opImpl->checkMagicNumber()){
+	return;
+      }
       tCon = isReceiver ? tRec->getTransaction() 
-	: opImpl->
-      if(tRec->checkMagicNumber() && (tCon = tRec->getTransaction()) &&
-	tCon->checkState_TransId(((const TransIdAI*)tDataPtr)->transId)){
-      if(aSignal->m_noOfSections > 0){
-	com = tRec->execTRANSID_AI(ptr[0].p, ptr[0].sz);
-      } else {
-	com = tRec->execTRANSID_AI(tDataPtr + TransIdAI::HeaderLength, 
-				   tLen - TransIdAI::HeaderLength);
-      }
-
-      if(com == 0)
-	return;
-      
-      switch(tRec->getType()){
-      case NdbReceiver::NDB_OPERATION:
-      case NdbReceiver::NDB_INDEX_OPERATION:
-	if(tCon->OpCompleteSuccess() != -1){
-	  completedTransaction(tCon);
+	: opImpl->getQuery().getNdbTransaction();
+      if((tCon!=NULL) &&
+	 tCon->checkState_TransId(((const TransIdAI*)tDataPtr)->transId)){
+	if(aSignal->m_noOfSections > 0){
+	  if(isReceiver){
+	    com = tRec->execTRANSID_AI(ptr[0].p, ptr[0].sz);
+	  }else{
+	    com = opImpl->execTRANSID_AI(ptr[0].p, ptr[0].sz);
+	  }
+	} else {
+	  assert(isReceiver);
+	  com = tRec->execTRANSID_AI(tDataPtr + TransIdAI::HeaderLength, 
+				     tLen - TransIdAI::HeaderLength);
 	}
-	return;
-      case NdbReceiver::NDB_SCANRECEIVER:
-	tCon->theScanningOp->receiver_delivered(tRec);
-	theImpl->theWaiter.m_state = (((WaitSignalType) tWaitState) == WAIT_SCAN ? 
-				      (Uint32) NO_WAIT : tWaitState);
+
+	if(com == 0)
+	  return;
+
+	if(!isReceiver){
+	  if(tCon->OpCompleteSuccess() != -1){
+	    completedTransaction(tCon);
+	  }
+	  return;
+	}
+	
+	switch(tRec->getType()){
+	case NdbReceiver::NDB_OPERATION:
+	case NdbReceiver::NDB_INDEX_OPERATION:
+	  if(tCon->OpCompleteSuccess() != -1){
+	    completedTransaction(tCon);
+	  }
+	  return;
+	case NdbReceiver::NDB_SCANRECEIVER:
+	  tCon->theScanningOp->receiver_delivered(tRec);
+	  theImpl->theWaiter.m_state = (((WaitSignalType) tWaitState) == WAIT_SCAN ? 
+					(Uint32) NO_WAIT : tWaitState);
+	  break;
+	default:
+	  goto InvalidSignal;
+	}
 	break;
-      default:
-	goto InvalidSignal;
+      } else {
+	/**
+	 * This is ok as transaction can have been aborted before TRANSID_AI
+	 * arrives (if TUP on  other node than TC)
+	 */
+	return;
       }
-      break;
-    } else {
-      /**
-       * This is ok as transaction can have been aborted before TRANSID_AI
-       * arrives (if TUP on  other node than TC)
-       */
+    } else{ // if((tFirstDataPtr)
       return;
     }
   }
@@ -507,19 +526,31 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
       if (tFirstDataPtr == 0) goto InvalidSignal;
 
       tOp = void2rec_op(tFirstDataPtr);
-      if (tOp->checkMagicNumber() == 0) {
+      NdbQueryOperationImpl* opImpl 
+	= reinterpret_cast<NdbQueryOperationImpl*>(tFirstDataPtr);
+      const bool isReceiver = tOp->checkMagicNumber();
+
+      if (isReceiver) {
 	tCon = tOp->theNdbCon;
-	if (tCon != NULL) {
-	  if (tCon->theSendStatus == NdbTransaction::sendTC_OP) {
+      } else if(opImpl->checkMagicNumber()) {
+	tCon = opImpl->getQuery().getNdbTransaction();
+      } else{ 
+	goto InvalidSignal;
+      }
+      if (tCon != NULL) {
+	if (tCon->theSendStatus == NdbTransaction::sendTC_OP) {
+	  if(isReceiver){
 	    tReturnCode = tOp->receiveTCKEYREF(aSignal);
-	    if (tReturnCode != -1) {
-	      completedTransaction(tCon);
-	      return;
-	    }//if
-	    break;
+	  } else {
+	    tReturnCode = opImpl->getQuery().getImpl().countTCKEYREF();
+	  }
+	  if (tReturnCode != -1) {
+	    completedTransaction(tCon);
+	    return;
 	  }//if
+	  break;
 	}//if
-      } //if
+      }//if
       goto InvalidSignal;
       return;
     } 

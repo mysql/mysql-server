@@ -344,6 +344,12 @@ private:
 NdbQueryDef::NdbQueryDef()
 {}
 
+const NdbQueryOperationDef*
+NdbQueryDef::getRootOperation() const
+{
+  return NULL;  // FIXME
+}
+
 NdbQueryOperand::NdbQueryOperand(NdbQueryOperandImpl* pimpl) : m_pimpl(pimpl)
 { assert(pimpl!=NULL); }
 NdbConstOperand::NdbConstOperand(NdbQueryOperandImpl* pimpl) : NdbQueryOperand(pimpl)

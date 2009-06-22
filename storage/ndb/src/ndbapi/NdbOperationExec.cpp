@@ -235,7 +235,6 @@ NdbOperation::doSendNdbRecord(int aNodeId)
   return tp->sendSignal(theTCREQ, aNodeId, &secs[0], numSecs);
 }
 
-NdbQueryImpl* queryImpl = NULL; 
 
 /***************************************************************************
 int prepareSend(Uint32 aTC_ConnectPtr,
@@ -308,10 +307,10 @@ NdbOperation::prepareSend(Uint32 aTC_ConnectPtr,
   tcKeyReq->apiConnectPtr      = aTC_ConnectPtr;
   /* TODO: Remove reference to NdbQueryImpl. Only needed for SPJ result 
      prototype.*/
-  if(queryImpl==NULL){
+  if(m_queryImpl==NULL){
     tcKeyReq->apiOperationPtr    = ptr2int();
   }else{
-    tcKeyReq->apiOperationPtr = queryImpl->ptr2int();
+    tcKeyReq->apiOperationPtr = m_queryImpl->ptr2int();
   }
   // Check if too much attrinfo have been defined
   if (tTotalCurrAI_Len > TcKeyReq::MaxTotalAttrInfo){
