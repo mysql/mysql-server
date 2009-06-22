@@ -266,21 +266,32 @@ sub shutdown {
     }
   }
 
+  # Calculate timeout to use
+  my $timeout = $shutdown_timeout * scalar(@processes);
+  _verbose(" timeout: $timeout");
+
+  # Calculate time when to end nice shutdown
+  my $max_time = time() + $timeout;
+  _verbose(" max_time: $max_time");
+
   my @kill_processes= ();
 
   # Wait max shutdown_timeout seconds for those process
   # that has been shutdown
   foreach my $proc (@processes){
     next unless $proc->{WAS_SHUTDOWN};
-    my $ret= $proc->wait_one($shutdown_timeout);
+
+    $timeout = $max_time - time();
+    $timeout = 0 if ($timeout < 0);
+    _verbose(" timeout: $timeout");
+
+    my $ret= $proc->wait_one($timeout);
     if ($ret != 0) {
       push(@kill_processes, $proc);
     }
-    # Only wait for the first process with shutdown timeout
-    $shutdown_timeout= 0;
   }
 
-  # Wait infinitely for those process
+  # Wait infinitely for those processes
   # that has been killed
   foreach my $proc (@processes){
     next if $proc->{WAS_SHUTDOWN};
