@@ -422,12 +422,7 @@ ibuf_init_at_db_start(void)
 	grow in size, as the references on the upper levels of the tree can
 	change */
 
-        /* The default for ibuf_max_size is calculated from the requested
-           buffer pool size srv_buf_pool_size, not the actual size as returned
-           by buf_pool_get_curr_size(). The latter can differ from the former
-           by one page due to alignment requirements, and we do not want a
-           user-visible variable like INNODB_IBUF_MAX_SIZE to vary at random. */
-	ibuf->max_size = ut_min( srv_buf_pool_size / UNIV_PAGE_SIZE
+	ibuf->max_size = ut_min( buf_pool_get_curr_size() / UNIV_PAGE_SIZE
 		/ IBUF_POOL_SIZE_PER_MAX_SIZE, (ulint) srv_ibuf_max_size / UNIV_PAGE_SIZE);
 
 	srv_ibuf_max_size = (long long) ibuf->max_size * UNIV_PAGE_SIZE;

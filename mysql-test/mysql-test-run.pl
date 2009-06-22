@@ -224,7 +224,7 @@ my $opt_strace_client;
 our $opt_user = "root";
 
 my $opt_valgrind= 0;
-my $opt_valgrind_mysqld= 0;
+our $opt_valgrind_mysqld= 0;
 my $opt_valgrind_mysqltest= 0;
 my @default_valgrind_args= ("--show-reachable=yes");
 my @valgrind_args;
