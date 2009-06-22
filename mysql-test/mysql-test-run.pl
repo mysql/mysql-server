@@ -231,6 +231,7 @@ our $opt_skip_ndbcluster= 0;
 
 my $exe_ndbd;
 my $exe_ndb_mgmd;
+my $exe_ndb_mgm;
 my $exe_ndb_waiter;
 
 our $debug_compiled_binaries;
@@ -730,6 +731,10 @@ sub run_worker ($) {
     }
     elsif ($line eq 'BYE'){
       mtr_report("Server said BYE");
+
+      # Stop all servers "nicely" before child exit
+      stop_all_servers($opt_shutdown_timeout);
+
       exit(0);
     }
     else {
@@ -1551,6 +1556,11 @@ sub executable_setup () {
 		  ["storage/ndb/src/mgmsrv", "libexec", "sbin", "bin"],
 		  "ndb_mgmd");
 
+    $exe_ndb_mgm=
+      my_find_bin($basedir,
+                  ["storage/ndb/src/mgmclient", "libexec", "sbin", "bin"],
+                  "ndb_mgm");
+
     $exe_ndb_waiter=
       my_find_bin($basedir,
 		  ["storage/ndb/tools/", "bin"],
@@ -2340,6 +2350,7 @@ sub ndb_mgmd_start ($$) {
      error         => $path_ndb_mgmd_log,
      append        => 1,
      verbose       => $opt_verbose,
+     shutdown      => sub { ndb_mgmd_stop($ndb_mgmd) },
     );
   mtr_verbose("Started $ndb_mgmd->{proc}");
 
@@ -2383,6 +2394,7 @@ sub ndbd_start {
      error         => $path_ndbd_log,
      append        => 1,
      verbose       => $opt_verbose,
+     shutdown      => sub { ndbd_stop($ndbd) },
     );
   mtr_verbose("Started $proc");
 
@@ -3929,6 +3941,36 @@ sub run_sh_script {
 }
 
 
+sub ndbd_stop {
+  # Intentionally left empty, ndbd nodes will be shutdown
+  # by sending "shutdown" to ndb_mgmd
+}
+
+
+sub ndb_mgmd_stop{
+  my $ndb_mgmd= shift or die "usage: ndb_mgmd_stop(<ndb_mgm>)";
+
+  my $args;
+
+  my $host=$ndb_mgmd->value('HostName');
+  my $port=$ndb_mgmd->value('PortNumber');
+  mtr_verbose("Stopping cluster '$host:$port'");
+
+  mtr_init_args(\$args);
+  mtr_add_arg($args, "--ndb-connectstring=%s:%s", $host,$port);
+  mtr_add_arg($args, "-e");
+  mtr_add_arg($args, "shutdown");
+
+  My::SafeProcess->run
+    (
+     name          => "ndb_mgm shutdown $host:$port",
+     path          => $exe_ndb_mgm,
+     args          => \$args,
+     output         => "/dev/null",
+    );
+}
+
+
 sub mysqld_stop {
   my $mysqld= shift or die "usage: mysqld_stop(<mysqld>)";
 
@@ -4138,12 +4180,14 @@ sub mysqld_start ($$) {
 }
 
 
-sub stop_all_servers () {
+sub stop_all_servers ($) {
+  # Default timeout zero -> just zap servers
+  my $timeout = shift || 0;
 
   mtr_verbose("Stopping all servers...");
 
   # Kill all started servers
-  My::SafeProcess::shutdown(0, # shutdown timeout 0 => kill
+  My::SafeProcess::shutdown($timeout,
 			    started(all_servers()));
 
   # Remove pidfiles
