@@ -87,7 +87,7 @@ probes_mysql_dtrace.h: $(DTRACEPROVIDER)
 endif
 
 probes_mysql_nodtrace.h: $(DTRACEPROVIDER)
-	$(top_srcdir)/scripts/dheadgen.pl -f $(DTRACEPROVIDER) > $@
+	@PERL@ $(top_srcdir)/scripts/dheadgen.pl -f $(DTRACEPROVIDER) > $@
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
