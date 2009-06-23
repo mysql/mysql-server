@@ -668,7 +668,7 @@ static int end_slave_on_walk(Master_info* mi, uchar* /*unused*/)
 
 
 /*
-  Free all resources used by slave
+  Release slave threads at time of executing shutdown.
 
   SYNOPSIS
     end_slave()
@@ -694,14 +694,31 @@ void end_slave()
       once multi-master code is ready.
     */
     terminate_slave_threads(active_mi,SLAVE_FORCE_ALL);
-    end_master_info(active_mi);
-    delete active_mi;
-    active_mi= 0;
   }
   pthread_mutex_unlock(&LOCK_active_mi);
   DBUG_VOID_RETURN;
 }
 
+/**
+   Free all resources used by slave threads at time of executing shutdown.
+   The routine must be called after all possible users of @c active_mi
+   have left.
+
+   SYNOPSIS
+     close_active_mi()
+
+*/
+void close_active_mi()
+{
+  pthread_mutex_lock(&LOCK_active_mi);
+  if (active_mi)
+  {
+    end_master_info(active_mi);
+    delete active_mi;
+    active_mi= 0;
+  }
+  pthread_mutex_unlock(&LOCK_active_mi);
+}
 
 static bool io_slave_killed(THD* thd, Master_info* mi)
 {
