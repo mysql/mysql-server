@@ -8136,7 +8136,7 @@ mysqld_get_one_option(int optid,
     if (!slave_warning_issued)                 //only show the warning once
     {
       slave_warning_issued = true;   
-      WARN_DEPRECATED(NULL, "5.2", "for replication startup options", 
+      WARN_DEPRECATED(NULL, "6.0", "for replication startup options", 
         "'CHANGE MASTER'");
     }
     break;
