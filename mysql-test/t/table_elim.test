@@ -3,6 +3,7 @@
 #
 --disable_warnings
 drop table if exists t0, t1, t2, t3;
+drop view if exists v1, v2;
 --enable_warnings
 
 create table t1 (a int);
@@ -56,3 +57,71 @@ explain select count(1) from t1 left join t2 on t2.a=t1.a group by t2.a;
 
 drop table t0, t1, t2, t3;
 
+# This will stand for elim_facts
+create table t0 ( id integer, primary key (id));
+
+# Attribute1, non-versioned
+create table t1 (
+  id integer,
+  attr1 integer,
+  primary key (id),
+  key (attr1)
+);
+
+# Attribute2, time-versioned
+create table t2 (
+  id integer,
+  attr2 integer,
+  fromdate date,
+  primary key (id, fromdate),
+  key (attr2,fromdate)
+);
+
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+insert into t0 select A.id + 10*B.id from t0 A, t0 B where B.id > 0;
+
+insert into t1 select id, id from t0;
+insert into t2 select id, id, date_add('2009-06-22', interval id day) from t0;
+insert into t2 select id, id+1, date_add('2008-06-22', interval id day) from t0;
+
+create view v1 as
+select 
+  F.id, A1.attr1, A2.attr2
+from 
+  t0 F 
+  left join t1 A1 on A1.id=F.id
+  left join t2 A2 on A2.id=F.id and 
+                     A2.fromdate=(select MAX(fromdate) from
+                                  t2 where id=A2.id);
+create view v2 as
+select 
+  F.id, A1.attr1, A2.attr2
+from 
+  t0 F 
+  left join t1 A1 on A1.id=F.id
+  left join t2 A2 on A2.id=F.id and 
+                     A2.fromdate=(select MAX(fromdate) from
+                                  t2 where id=F.id);
+
+--echo This should use one table:
+explain select id from v1 where id=2;
+--echo This should use one table:
+explain extended select id from v1 where id in (1,2,3,4);
+--echo This should use facts and A1 tables:
+explain extended select id from v1 where attr1 between 12 and 14;
+--echo This should use facts, A2 and its subquery:
+explain extended select id from v1 where attr2 between 12 and 14;
+
+# Repeat for v2: 
+
+--echo This should use one table:
+explain select id from v2 where id=2;
+--echo This should use one table:
+explain extended select id from v2 where id in (1,2,3,4);
+--echo This should use facts and A1 tables:
+explain extended select id from v2 where attr1 between 12 and 14;
+--echo This should use facts, A2 and its subquery:
+explain extended select id from v2 where attr2 between 12 and 14;
+
+drop view v1, v2;
+drop table t0, t1, t2;

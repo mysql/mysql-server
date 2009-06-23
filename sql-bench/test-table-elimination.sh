@@ -78,7 +78,7 @@ do_many($dbh,$server->create("elim_attr1",
 			     ["primary key (id)",
                               "key (attr1)"]));
 
-# Attribute1, time-versioned
+# Attribute2, time-versioned
 do_many($dbh,$server->create("elim_attr2",
 			     ["id integer",
                               "attr2 integer",

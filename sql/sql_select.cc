@@ -4047,6 +4047,7 @@ add_ft_keys(DYNAMIC_ARRAY *keyuse_array,
   keyuse.used_tables=cond_func->key_item()->used_tables();
   keyuse.optimize= 0;
   keyuse.keypart_map= 0;
+  keyuse.usable= TRUE;
   VOID(insert_dynamic(keyuse_array,(uchar*) &keyuse));
 }
 
