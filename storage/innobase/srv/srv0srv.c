@@ -422,28 +422,28 @@ FILE*	srv_misc_tmpfile;
 ulint	srv_main_thread_process_no	= 0;
 ulint	srv_main_thread_id		= 0;
 
-// The following count work done by srv_master_thread.
+/* The following count work done by srv_master_thread. */
 
-// Iterations by the 'once per second' loop.
+/* Iterations by the 'once per second' loop */
 ulint   srv_main_1_second_loops         = 0;
-// Calls to sleep by the 'once per second' loop.
+/* Calls to sleep by the 'once per second' loop */
 ulint   srv_main_sleeps                 = 0;
-// Iterations by the 'once per 10 seconds' loop.
+/* Iterations by the 'once per 10 seconds' loop */
 ulint   srv_main_10_second_loops        = 0;
-// Iterations of the loop bounded by the 'background_loop' label.
+/* Iterations of the loop bounded by the 'background_loop' label */
 ulint   srv_main_background_loops       = 0;
-// Iterations of the loop bounded by the 'flush_loop' label.
+/* Iterations of the loop bounded by the 'flush_loop' label */
 ulint   srv_main_flush_loops            = 0;
-// Calls to log_buffer_flush_to_disk.
+/* Calls to log_buffer_flush_to_disk */
 ulint   srv_sync_flush                  = 0;
-// Calls to log_buffer_flush_maybe_sync.
+/* Calls to log_buffer_flush_maybe_sync */
 ulint   srv_async_flush                 = 0;
 
-// Number of microseconds threads wait because of
-// innodb_thread_concurrency
+/* Number of microseconds threads wait because of
+innodb_thread_concurrency */
 static ib_longlong srv_thread_wait_mics = 0;
 
-// Number of microseconds for spinlock delay
+/* Number of microseconds for spinlock delay */
 static ib_longlong srv_timed_spin_delay = 0;
 
 /*
