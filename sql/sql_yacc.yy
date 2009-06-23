@@ -4392,7 +4392,7 @@ create_table_option:
         | TYPE_SYM opt_equal storage_engines
           {
             Lex->create_info.db_type= $3;
-            WARN_DEPRECATED(yythd, "5.2", "TYPE=storage_engine",
+            WARN_DEPRECATED(yythd, "6.0", "TYPE=storage_engine",
                             "'ENGINE=storage_engine'");
             Lex->create_info.used_fields|= HA_CREATE_USED_ENGINE;
           }
@@ -9869,7 +9869,7 @@ show_param:
         | opt_full PLUGIN_SYM
           {
             LEX *lex= Lex;
-            WARN_DEPRECATED(yythd, "5.2", "SHOW PLUGIN", "'SHOW PLUGINS'");
+            WARN_DEPRECATED(yythd, "6.0", "SHOW PLUGIN", "'SHOW PLUGINS'");
             lex->sql_command= SQLCOM_SHOW_PLUGINS;
             if (prepare_schema_table(YYTHD, lex, 0, SCH_PLUGINS))
               MYSQL_YYABORT;
@@ -9938,7 +9938,7 @@ show_param:
           {
             LEX *lex=Lex;
             lex->sql_command= SQLCOM_SHOW_STORAGE_ENGINES;
-            WARN_DEPRECATED(yythd, "5.2", "SHOW TABLE TYPES", "'SHOW [STORAGE] ENGINES'");
+            WARN_DEPRECATED(yythd, "6.0", "SHOW TABLE TYPES", "'SHOW [STORAGE] ENGINES'");
             if (prepare_schema_table(YYTHD, lex, 0, SCH_ENGINES))
               MYSQL_YYABORT;
           }
@@ -9999,7 +9999,7 @@ show_param:
               my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), "InnoDB");
               MYSQL_YYABORT;
             }
-            WARN_DEPRECATED(yythd, "5.2", "SHOW INNODB STATUS", "'SHOW ENGINE INNODB STATUS'");
+            WARN_DEPRECATED(yythd, "6.0", "SHOW INNODB STATUS", "'SHOW ENGINE INNODB STATUS'");
           }
         | MUTEX_SYM STATUS_SYM
           {
@@ -10011,7 +10011,7 @@ show_param:
               my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), "InnoDB");
               MYSQL_YYABORT;
             }
-            WARN_DEPRECATED(yythd, "5.2", "SHOW MUTEX STATUS", "'SHOW ENGINE INNODB MUTEX'");
+            WARN_DEPRECATED(yythd, "6.0", "SHOW MUTEX STATUS", "'SHOW ENGINE INNODB MUTEX'");
           }
         | opt_full PROCESSLIST_SYM
           { Lex->sql_command= SQLCOM_SHOW_PROCESSLIST;}
@@ -10406,7 +10406,7 @@ load:
         | LOAD TABLE_SYM table_ident FROM MASTER_SYM
           {
             LEX *lex=Lex;
-            WARN_DEPRECATED(yythd, "5.2", "LOAD TABLE FROM MASTER",
+            WARN_DEPRECATED(yythd, "6.0", "LOAD TABLE FROM MASTER",
                             "MySQL Administrator (mysqldump, mysql)");
             if (lex->sphead)
             {
@@ -10453,7 +10453,7 @@ load_data:
         | FROM MASTER_SYM
           {
             Lex->sql_command = SQLCOM_LOAD_MASTER_DATA;
-            WARN_DEPRECATED(yythd, "5.2", "LOAD DATA FROM MASTER",
+            WARN_DEPRECATED(yythd, "6.0", "LOAD DATA FROM MASTER",
                             "mysqldump or future "
                             "BACKUP/RESTORE DATABASE facility");
           }

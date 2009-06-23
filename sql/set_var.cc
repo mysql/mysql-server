@@ -3682,7 +3682,7 @@ bool sys_var_thd_storage_engine::update(THD *thd, set_var *var)
 
 void sys_var_thd_table_type::warn_deprecated(THD *thd)
 {
-  WARN_DEPRECATED(thd, "5.2", "@@table_type", "'@@storage_engine'");
+  WARN_DEPRECATED(thd, "6.0", "@@table_type", "'@@storage_engine'");
 }
 
 void sys_var_thd_table_type::set_default(THD *thd, enum_var_type type)
@@ -3944,7 +3944,7 @@ bool process_key_caches(process_key_cache_t func)
 
 void sys_var_trust_routine_creators::warn_deprecated(THD *thd)
 {
-  WARN_DEPRECATED(thd, "5.2", "@@log_bin_trust_routine_creators",
+  WARN_DEPRECATED(thd, "6.0", "@@log_bin_trust_routine_creators",
                       "'@@log_bin_trust_function_creators'");
 }
 
