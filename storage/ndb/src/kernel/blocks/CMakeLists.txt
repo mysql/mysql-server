@@ -30,6 +30,7 @@ ADD_SUBDIRECTORY(dbutil)
 ADD_SUBDIRECTORY(suma)
 ADD_SUBDIRECTORY(dbtux)
 ADD_SUBDIRECTORY(dbinfo)
+ADD_SUBDIRECTORY(dbspj)
 
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_kernel.cmake)
 
