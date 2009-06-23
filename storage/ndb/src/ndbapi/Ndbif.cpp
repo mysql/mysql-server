@@ -48,7 +48,6 @@
 #include <NdbTick.h>
 
 #include <EventLogger.hpp>
-#define JW_TEST
 
 /******************************************************************************
  * int init( int aNrOfCon, int aNrOfOp );
@@ -399,16 +398,12 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
     }
   case GSN_TRANSID_AI:{
     tFirstDataPtr = int2void(tFirstData);
-#ifdef JW_TEST
-    ndbout << "Ndb::handleReceivedSignal() received TRANSID_AI" << endl; 
-#endif
     if (tFirstDataPtr){
       NdbReceiver* const tRec = void2rec(tFirstDataPtr);
       NdbQueryOperationImpl* const queryOpImpl 
 	= reinterpret_cast<NdbQueryOperationImpl*>(tFirstDataPtr);
       const bool isReceiver = tRec->checkMagicNumber();
       if(!isReceiver && !queryOpImpl->checkMagicNumber()){
-	ndbout << "GSN_TRANSID_AI #1" << endl;
 	return;
       }
       tCon = isReceiver ? tRec->getTransaction() 
@@ -418,14 +413,11 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
 	Uint32 com;
 	if(aSignal->m_noOfSections > 0){
 	  if(isReceiver){
-	    ndbout << "GSN_TRANSID_AI #2" << endl;
 	    com = tRec->execTRANSID_AI(ptr[0].p, ptr[0].sz);
 	  }else{
-	    ndbout << "GSN_TRANSID_AI #3" << endl;
 	    com = queryOpImpl->execTRANSID_AI(ptr[0].p, ptr[0].sz);
 	  }
 	} else {
-	  ndbout << "GSN_TRANSID_AI #4" << endl;
 	  assert(isReceiver);
 	  com = tRec->execTRANSID_AI(tDataPtr + TransIdAI::HeaderLength, 
 				     tLen - TransIdAI::HeaderLength);
@@ -436,7 +428,6 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
 
 	if(!isReceiver){
 	  if(tCon->OpCompleteSuccess() != -1){
-	    ndbout << "GSN_TRANSID_AI #5" << endl;
 	    completedTransaction(tCon);
 	  }
 	  return;
@@ -446,7 +437,6 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
 	case NdbReceiver::NDB_OPERATION:
 	case NdbReceiver::NDB_INDEX_OPERATION:
 	  if(tCon->OpCompleteSuccess() != -1){
-	    ndbout << "GSN_TRANSID_AI #6" << endl;
 	    completedTransaction(tCon);
 	  }
 	  return;
@@ -532,36 +522,28 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
   case GSN_TCKEYREF:
     {
       tFirstDataPtr = int2void(tFirstData);
-      ndbout << "GSN_TCKEYREF #0" << endl;
       if (tFirstDataPtr == 0) goto InvalidSignal;
 
       tOp = void2rec_op(tFirstDataPtr);
-      NdbQueryOperationImpl* queryOpImpl 
+      NdbQueryOperationImpl* const queryOpImpl 
 	= reinterpret_cast<NdbQueryOperationImpl*>(tFirstDataPtr);
       const bool isNdbOperation = tOp->checkMagicNumber()==0;
 
       if (isNdbOperation) {
-	ndbout << "GSN_TCKEYREF #1" << endl;
 	tCon = tOp->theNdbCon;
       } else if(queryOpImpl->checkMagicNumber()) {
-	ndbout << "GSN_TCKEYREF #2" << endl;
 	tCon = queryOpImpl->getQuery().getNdbTransaction();
       } else{ 
-	ndbout << "GSN_TCKEYREF #3" << endl;
 	goto InvalidSignal;
       }
       if (tCon != NULL) {
-	ndbout << "GSN_TCKEYREF #4" << endl;
 	if (tCon->theSendStatus == NdbTransaction::sendTC_OP) {
 	  if(isNdbOperation){
-	    ndbout << "GSN_TCKEYREF #5" << endl;
 	    tReturnCode = tOp->receiveTCKEYREF(aSignal);
 	  } else {
-	    ndbout << "GSN_TCKEYREF #6" << endl;
 	    tReturnCode = queryOpImpl->getQuery().getImpl().countTCKEYREF();
 	  }
 	  if (tReturnCode != -1) {
-	    ndbout << "GSN_TCKEYREF #7" << endl;
 	    completedTransaction(tCon);
 	    return;
 	  }//if
@@ -1031,9 +1013,6 @@ Remark:   One transaction has been completed.
 void	
 Ndb::completedTransaction(NdbTransaction* aCon)
 {
-#ifdef JW_TEST
-  ndbout << "Ndb::completedTransaction() id=" << aCon->getTransactionId() << endl;
-#endif
   Uint32 tTransArrayIndex = aCon->theTransArrayIndex;
   Uint32 tNoSentTransactions = theNoOfSentTransactions;
   Uint32 tNoCompletedTransactions = theNoOfCompletedTransactions;
