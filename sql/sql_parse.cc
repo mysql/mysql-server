@@ -1560,14 +1560,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     break;
   }
 
-  /* If commit fails, we should be able to reset the OK status. */
-  thd->main_da.can_overwrite_status= TRUE;
-  ha_autocommit_or_rollback(thd, thd->is_error());
-  thd->main_da.can_overwrite_status= FALSE;
-
-  thd->transaction.stmt.reset();
-
-
   /* report error issued during command execution */
   if (thd->killed_errno())
   {
@@ -1579,6 +1571,13 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     thd->killed= THD::NOT_KILLED;
     thd->mysys_var->abort= 0;
   }
+
+  /* If commit fails, we should be able to reset the OK status. */
+  thd->main_da.can_overwrite_status= TRUE;
+  ha_autocommit_or_rollback(thd, thd->is_error());
+  thd->main_da.can_overwrite_status= FALSE;
+
+  thd->transaction.stmt.reset();
 
   net_end_statement(thd);
   query_cache_end_of_result(thd);
