@@ -4231,11 +4231,28 @@ bool sys_var_thd_dbug::check(THD *thd, set_var *var)
 
 bool sys_var_thd_dbug::update(THD *thd, set_var *var)
 {
-  if (var->type == OPT_GLOBAL)
-    DBUG_SET_INITIAL(var ? var->value->str_value.c_ptr() : "");
-  else
-    DBUG_SET(var ? var->value->str_value.c_ptr() : "");
+#ifndef DBUG_OFF
+  const char *command= var ? var->value->str_value.c_ptr() : "";
 
+  if (var->type == OPT_GLOBAL)
+    DBUG_SET_INITIAL(command);
+  else
+  {
+    if (_db_is_pushed_())
+    {
+      /* We have already a local state done with DBUG_PUSH; Modify the state */
+      DBUG_SET(command);
+    }
+    else
+    {
+      /*
+        We are sharing the state with the global state;
+        Create a local state for this thread.
+      */
+      DBUG_PUSH(command);
+    }
+  }
+#endif
   return 0;
 }
 
