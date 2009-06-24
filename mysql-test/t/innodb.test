@@ -6,7 +6,9 @@
 # Use innodb_mysql.[test|result] files instead.                       #
 #                                                                     #
 # If nevertheless you need to make some changes here, please, forward #
-# your commit message To: dev@innodb.com Cc: dev-innodb@mysql.com     #
+# your commit message                                                 #
+# To: innodb_dev_ww@oracle.com                                        #
+# Cc: dev-innodb@mysql.com                                            #
 # (otherwise your changes may be erased).                             #
 #                                                                     #
 #######################################################################
@@ -16,6 +18,10 @@
 #
 # Small basic test with ignore
 #
+
+-- disable_query_log
+SET @innodb_thread_concurrency_orig = @@innodb_thread_concurrency;
+-- enable_query_log
 
 --disable_warnings
 drop table if exists t1,t2,t3,t4;
@@ -2524,6 +2530,8 @@ DROP TABLE bug35537;
 DISCONNECT c1;
 CONNECTION default;
 
+SET GLOBAL innodb_thread_concurrency = @innodb_thread_concurrency_orig;
+
 #######################################################################
 #                                                                     #
 # Please, DO NOT TOUCH this file as well as the innodb.result file.   #
@@ -2532,7 +2540,9 @@ CONNECTION default;
 # Use innodb_mysql.[test|result] files instead.                       #
 #                                                                     #
 # If nevertheless you need to make some changes here, please, forward #
-# your commit message To: dev@innodb.com Cc: dev-innodb@mysql.com     #
+# your commit message                                                 #
+# To: innodb_dev_ww@oracle.com                                        #
+# Cc: dev-innodb@mysql.com                                            #
 # (otherwise your changes may be erased).                             #
 #                                                                     #
 #######################################################################
