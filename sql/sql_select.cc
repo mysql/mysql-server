@@ -2477,7 +2477,9 @@ static ha_rows get_quick_record_count(THD *thd, SQL_SELECT *select,
   DBUG_RETURN(HA_POS_ERROR);			/* This shouldn't happend */
 }
 
-
+/********************************************************************
+ * Table elimination code starts
+ ********************************************************************/
 typedef struct st_keyuse_w_needed_reg
 {
   KEYUSE *first;
@@ -2849,6 +2851,9 @@ static void eliminate_tables(JOIN *join, uint *const_tbl_count, table_map *const
   DBUG_VOID_RETURN;
 }
 
+/********************************************************************
+ * Table elimination code ends
+ ********************************************************************/
 
 /*
    This structure is used to collect info on potentially sargable
