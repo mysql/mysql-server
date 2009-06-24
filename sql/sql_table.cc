@@ -2468,8 +2468,10 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
       executing a prepared statement for the second time.
     */
     sql_field->length= sql_field->char_length;
-    if (!sql_field->charset)
+
+    if (sql_field->charset == NULL)
       sql_field->charset= create_info->default_table_charset;
+
     /*
       table_charset is set in ALTER TABLE if we want change character set
       for all varchar/char columns.
@@ -5470,8 +5472,8 @@ compare_tables(TABLE *table,
   Field **f_ptr, *field;
   uint changes= 0, tmp;
   uint key_count;
-  List_iterator_fast<Create_field> new_field_it, tmp_new_field_it;
-  Create_field *new_field, *tmp_new_field;
+  List_iterator_fast<Create_field> tmp_new_field_it;
+  Create_field *tmp_new_field;
   KEY_PART_INFO *key_part;
   KEY_PART_INFO *end;
   THD *thd= table->in_use;
@@ -5497,6 +5499,9 @@ compare_tables(TABLE *table,
     pass it to mysql_prepare_create_table, then use the result
     to evaluate possibility of fast ALTER TABLE, and then
     destroy the copy.
+
+    We shouldn't need to refer later in the function to alter_info 
+    after this step.
   */
   Alter_info tmp_alter_info(*alter_info, thd->mem_root);
   uint db_options= 0; /* not used */
@@ -5508,6 +5513,7 @@ compare_tables(TABLE *table,
                                  table->file, key_info_buffer,
                                  &key_count, 0))
     DBUG_RETURN(1);
+
   /* Allocate result buffers. */
   if (! (*index_drop_buffer=
          (uint*) thd->alloc(sizeof(uint) * table->s->keys)) ||
@@ -5541,7 +5547,7 @@ compare_tables(TABLE *table,
     prior to 5.0 branch.
     See BUG#6236.
   */
-  if (table->s->fields != alter_info->create_list.elements ||
+  if (table->s->fields != tmp_alter_info.create_list.elements ||
       table->s->db_type() != create_info->db_type ||
       table->s->tmp_table ||
       create_info->used_fields & HA_CREATE_USED_ENGINE ||
@@ -5550,7 +5556,7 @@ compare_tables(TABLE *table,
       (table->s->row_type != create_info->row_type) ||
       create_info->used_fields & HA_CREATE_USED_PACK_KEYS ||
       create_info->used_fields & HA_CREATE_USED_MAX_ROWS ||
-      (alter_info->flags & (ALTER_RECREATE | ALTER_FOREIGN_KEY)) ||
+      (tmp_alter_info.flags & (ALTER_RECREATE | ALTER_FOREIGN_KEY)) ||
       order_num ||
       !table->s->mysql_version ||
       (table->s->frm_version < FRM_VER_TRUE_VARCHAR && varchar))
@@ -5563,22 +5569,19 @@ compare_tables(TABLE *table,
     Use transformed info to evaluate possibility of fast ALTER TABLE
     but use the preserved field to persist modifications.
   */
-  new_field_it.init(alter_info->create_list);
   tmp_new_field_it.init(tmp_alter_info.create_list);
 
   /*
     Go through fields and check if the original ones are compatible
     with new table.
   */
-  for (f_ptr= table->field, new_field= new_field_it++,
-       tmp_new_field= tmp_new_field_it++;
+
+
+  for (f_ptr= table->field, tmp_new_field= tmp_new_field_it++;
        (field= *f_ptr);
-       f_ptr++, new_field= new_field_it++,
-       tmp_new_field= tmp_new_field_it++)
+       f_ptr++, tmp_new_field= tmp_new_field_it++)
   {
-    /* Make sure we have at least the default charset in use. */
-    if (!new_field->charset)
-      new_field->charset= create_info->default_table_charset;
+    DBUG_ASSERT(tmp_new_field->charset != NULL);
 
     /* Check that NULL behavior is same for old and new fields */
     if ((tmp_new_field->flags & NOT_NULL_FLAG) !=
