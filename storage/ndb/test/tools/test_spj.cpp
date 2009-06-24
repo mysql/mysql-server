@@ -352,7 +352,7 @@ int spjTest(int argc, char** argv){
     for(int i=1; i<nNodes; i++){
       NdbQueryOperation* newOp = 
 	NdbQueryOperationImpl::buildQueryOperation(query->getImpl(), *pOp);
-      currOp->getImpl().setFirstChild(newOp);
+      currOp->getImpl().addChild(*newOp);
       currOp = newOp;
       rSet[i] = new ResultSet(newOp, pTab);
       node[i]->setResultData(newOp->getImpl().ptr2int());

@@ -326,24 +326,23 @@ NdbQueryImpl::getNdbTransaction() const
   return &m_transaction;  // FIXME
 }
 
-void 
-NdbQueryImpl::prepareSend() const{
-  // TODO: Fix for cases with siblings.
-  NdbQueryOperation* curr = m_rootOperation;
-  while(curr!=NULL){
-    curr->getImpl().prepareSend();
-    curr = curr->getChildOperation(0);
-  }
+bool 
+NdbQueryImpl::isComplete(){
+  // TODO: generalize for non-tree operation graphs
+    return m_tcKeyConfReceived && 
+      m_rootOperation->isComplete();
 }
 
 void 
-NdbQueryImpl::release() const{
-  // TODO: Fix for cases with siblings.
-  NdbQueryOperation* curr = m_rootOperation;
-  while(curr!=NULL){
-    curr->getImpl().release();
-    curr = curr->getChildOperation(0);
-  }
+NdbQueryImpl::prepareSend(){
+  // TODO: Fix for cases with non-tree graphs.
+  m_rootOperation->prepareSend();
+}
+
+void 
+NdbQueryImpl::release(){
+  // TODO: Fix for cases with non-tree graphs.
+  m_rootOperation->release();
 }
 
 ////////////////////////////////////////////////////
@@ -357,9 +356,9 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(
   m_magic(MAGIC),
   m_id(queryImpl.getNdbTransaction()->getNdb()->theImpl
        ->theNdbObjectIdMap.map(this)),
-  m_child(NULL),
   m_receiver(queryImpl.getNdbTransaction()->getNdb()),
   m_queryImpl(queryImpl),
+  m_state(State_Initial),
   m_operation(*((NdbOperation*)NULL))
 { 
   assert(m_id != NdbObjectIdMap::InvalidId);
@@ -376,9 +375,9 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(NdbQueryImpl& queryImpl,
   m_magic(MAGIC),
   m_id(queryImpl.getNdbTransaction()->getNdb()->theImpl
        ->theNdbObjectIdMap.map(this)),
-  m_child(NULL),
   m_receiver(queryImpl.getNdbTransaction()->getNdb()),
   m_queryImpl(queryImpl),
+  m_state(State_Initial),
   m_operation(operation)
 { 
   assert(m_id != NdbObjectIdMap::InvalidId);
@@ -406,25 +405,25 @@ NdbQueryOperationImpl::getRootOperation() const
 Uint32
 NdbQueryOperationImpl::getNoOfParentOperations() const
 {
-  return 0;  // FIXME
+  return m_parents.size();
 }
 
 NdbQueryOperation*
 NdbQueryOperationImpl::getParentOperation(Uint32 i) const
 {
-  return NULL;  // FIXME
+  return m_parents[i];
 }
+
 Uint32 
 NdbQueryOperationImpl::getNoOfChildOperations() const
 {
-  return 0;  // FIXME
+  return m_children.size();
 }
 
 NdbQueryOperation* 
 NdbQueryOperationImpl::getChildOperation(Uint32 i) const
 {
-  assert(i==0);
-  return m_child;
+  return m_children[i];
 }
 
 const NdbQueryOperationDef* 
@@ -500,8 +499,119 @@ NdbQueryOperationImpl::isRowChanged() const
   return false;  // FIXME
 }
 
+void NdbQueryOperationImpl::prepareSend(){
+  /** TODO: fix for non-tree graphs.*/
+  m_receiver.prepareSend();
+  for(unsigned int i = 0; i<m_children.size(); i++){
+    m_children[i]->prepareSend();
+  }
+}
+
+void NdbQueryOperationImpl::release(){
+  /** TODO: fix for non-tree graphs.*/
+  m_receiver.release();
+  for(unsigned int i = 0; i<m_children.size(); i++){
+    m_children[i]->release();
+  }
+}
+
+
+
 bool 
 NdbQueryOperationImpl::execTRANSID_AI(const Uint32* ptr, Uint32 len){
+  if(m_state!=State_Initial){
+    ndbout << "NdbQueryOperationImpl::execTRANSID_AI(): unexpected state "
+	   << *this << endl;
+    assert(false);
+    return false;
+  }
   m_receiver.execTRANSID_AI(ptr, len);
-  return m_queryImpl.countTRANSID_AI();
+  bool done = true;
+  unsigned int i = 0;
+  while(done && i<m_children.size()){
+    done = m_children[i]->m_state == State_Complete;
+    i++;
+  }
+  if(done){
+    m_state = State_Complete;
+    for(unsigned int j = 0; j < m_parents.size(); j++){
+      m_parents[j]->handleCompletedChild();
+    }
+    return m_queryImpl.isComplete();
+  }else{
+    m_state = State_WaitForChildren;
+    return false;
+  }
+}
+
+bool 
+NdbQueryOperationImpl::execTCKEYREF(){
+  if(m_state!=State_Initial){
+    ndbout << "NdbQueryOperationImpl::execTCKEYREF(): unexpected state "
+	   << *this << endl;
+    return false;
+  }
+  m_state = State_Complete;
+  for(unsigned int i = 0; i < m_parents.size(); i++){
+    m_parents[i]->handleCompletedChild();
+  }
+  return m_queryImpl.isComplete();
+}
+
+void
+NdbQueryOperationImpl::handleCompletedChild(){
+  switch(m_state){
+  case State_Initial:
+    break;
+  case State_WaitForChildren:
+    {
+      bool done = true;
+      unsigned int i = 0;
+      while(done && i<m_children.size()){
+	done = m_children[i]->m_state == State_Complete;
+	i++;
+      }
+      if(done){
+	m_state = State_Complete;
+	for(unsigned int j = 0; j < m_parents.size(); j++){
+	  m_parents[j]->handleCompletedChild();
+	}
+      }
+    }
+    break;
+  default:
+    ndbout << "NdbQueryOperationImpl::handleCompletedChild(): unexpected state "
+	   << *this << endl;
+    assert(false);
+  }
+}
+
+/** For debugging.*/
+NdbOut& operator<<(NdbOut& out, const NdbQueryOperationImpl& op){
+  out << "[ this: " << op
+      << "  m_magic: " << op.m_magic 
+      << "  m_id: " << op.m_id;
+  for(unsigned int i = 0; i<op.m_parents.size(); i++){
+    out << "m_parents[" << i << "]" << op.m_parents[i]; 
+  }
+  for(unsigned int i = 0; i<op.m_children.size(); i++){
+    out << "m_children[" << i << "]" << op.m_children[i]; 
+  }
+  out << "  m_queryImpl: " << &op.m_queryImpl
+      << "  m_state: ";
+  switch(op.m_state){
+  case NdbQueryOperationImpl::State_Initial: 
+    out << "State_Initial";
+    break;
+  case NdbQueryOperationImpl::State_WaitForChildren: 
+    out << "State_WaitForChildren";
+    break;
+  case NdbQueryOperationImpl::State_Complete: 
+    out << "State_Complete";
+    break;
+  default:
+    out << "<Illegal enum>" << op.m_state;
+  }
+  out << " ]";
+  return out;
 }

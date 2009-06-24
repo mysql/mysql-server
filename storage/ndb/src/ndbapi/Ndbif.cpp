@@ -541,7 +541,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
 	  if(isNdbOperation){
 	    tReturnCode = tOp->receiveTCKEYREF(aSignal);
 	  } else {
-	    tReturnCode = queryOpImpl->getQuery().getImpl().countTCKEYREF();
+	    tReturnCode = queryOpImpl->getImpl().execTCKEYREF();
 	  }
 	  if (tReturnCode != -1) {
 	    completedTransaction(tCon);

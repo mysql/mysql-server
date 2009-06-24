@@ -1908,7 +1908,7 @@ from other transactions.
 	 this is an NdbReceiver or ab NdbQueryImpl.*/
       if(mappedObj && (isReceiver || queryImpl->checkMagicNumber())){
 	Uint32 done = isReceiver ? tOp->execTCOPCONF(tAttrInfoLen) :
-	  queryImpl->countTCKEYCONF();
+	  queryImpl->execTCKEYCONF();
 	if(tAttrInfoLen > TcKeyConf::DirtyReadBit){
 	  Uint32 node = tAttrInfoLen & (~TcKeyConf::DirtyReadBit);
 	  NdbNodeBitmask::set(m_db_nodes, node);
