@@ -22429,7 +22429,9 @@ BEGIN
 END//
 delimiter ;//
 
+--disable_warnings
 CALL sp70_n(-1e+40);
+--enable_warnings
 eval CALL sp70_n( $minus_40 );
 
 
@@ -22445,7 +22447,9 @@ BEGIN
 END//
 delimiter ;//
 
+--disable_warnings
 CALL sp71_nu(1.00e+40);
+--enable_warnings
 eval CALL sp71_nu( $plus_40 );
 
 
@@ -22461,7 +22465,9 @@ BEGIN
 END//
 delimiter ;//
 
+--disable_warnings
 CALL sp72_nuz(1.00e+40);
+--enable_warnings
 eval CALL sp72_nuz( $plus_40 );
 
 
@@ -22477,7 +22483,9 @@ BEGIN
 END//
 delimiter ;//
 
+--disable_warnings
 CALL sp73_n_z(1.00e+40);
+--enable_warnings
 eval CALL sp73_n_z( $plus_40 );
 
 
