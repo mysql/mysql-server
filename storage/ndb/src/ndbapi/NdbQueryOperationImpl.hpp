@@ -51,7 +51,8 @@ public:
   /** Set an NdbQueryOperation to be the root of a linked operation */
   // LATER: root and *all* NdbQueryOperations will be constructed 
   // together with NdbQuery itself in :.buildQuery()
-  void setRootOperation(NdbQueryOperation* root) {m_rootOperation = root;};
+  void setRootOperation(NdbQueryOperation* root) {
+    m_rootOperation = &root->getImpl();};
   //// END: TEMP hacks
   //////////////////////////////////////////////////
   
@@ -78,37 +79,18 @@ public:
 
   const NdbError& getNdbError() const;
 
-  bool countTCKEYCONF(){
-    ndbout << "countTCKEYCONF() m_missingConfRefs=" << m_missingConfRefs 
-	   << " m_missingTransidAIs=" << m_missingTransidAIs << endl;
-    m_missingConfRefs--;
-    m_missingTransidAIs++;
-    return m_missingTransidAIs==0 && m_missingConfRefs == 0;
+  /** Process TCKEYCONF message. Return true if query is complete.*/
+  bool execTCKEYCONF(){
+    m_tcKeyConfReceived = true;
+    return isComplete();
   }
 
-  bool countTCKEYREF(){
-    ndbout << "countTCKEYREF() m_missingConfRefs=" << m_missingConfRefs 
-	   << " m_missingTransidAIs=" << m_missingTransidAIs << endl;
-    m_missingConfRefs--;
-    return m_missingTransidAIs==0 && m_missingConfRefs == 0;
-  }
+  /** Check if all expected signals have been received.*/
+  bool isComplete();
 
-  bool countTRANSID_AI(){
-    ndbout << "countTRANSID_AI() m_missingConfRefs=" << m_missingConfRefs 
-	   << " m_missingTransidAIs=" << m_missingTransidAIs << endl;
-    m_missingTransidAIs--;
-    return m_missingTransidAIs==0 && m_missingConfRefs == 0;
-  }
+  void prepareSend();
 
-  bool isComplete(){
-    // TODO: generalize for non-tree child graphs
-    return m_tcKeyConfReceived && 
-      (m_rootOperation==NULL || m_rootOperation->isComplete());
-  }
-
-  void prepareSend() const;
-
-  void release() const;
+  void release();
 
   bool checkMagicNumber() const { return m_magic == MAGIC;}
   Uint32 ptr2int() const {return m_id;}
@@ -118,7 +100,7 @@ private:
   const Uint32 m_id;
   NdbError m_error;
   NdbTransaction& m_transaction;
-  NdbQueryOperation* m_rootOperation;
+  NdbQueryOperationImpl* m_rootOperation;
   bool m_tcKeyConfReceived; 
   /** Each operation should yiedl either a TCKEYCONF or a TCKEYREF message.
    This is the no of such messages pending.*/
@@ -128,11 +110,16 @@ private:
   //int m_missingTransidAIs;
 }; // class QueryImpl
 
+// Compiler settings require explicit instantiation.
+template class Vector<NdbQueryOperationImpl*>;
+
 /** This class contains data members for NdbQueryOperation, such that these
  * do not need to exposed in NdbQueryOperation.hpp. This class may be 
  * changed without forcing the curstomer to recompile his application.*/
 class NdbQueryOperationImpl : public NdbQueryOperation {
   friend class NdbQueryImpl;
+  /** For debugging.*/
+  friend NdbOut& operator<<(NdbOut& out, const NdbQueryOperationImpl&);
 public:
   STATIC_CONST (MAGIC = 0xfade1234);
 
@@ -175,14 +162,6 @@ public:
     return m_receiver.getId();
     };*/
 
-  void prepareSend(){
-    m_receiver.prepareSend();
-  }
-  
-  void release(){
-    m_receiver.release();
-  }
-
   Uint32 getExpectedResultLength() const{
     return m_receiver.m_expected_result_length;
   }
@@ -194,22 +173,35 @@ public:
 
   // To become obsolete as NdbQueryImpl::buildQuery() should
   // construct all QueryOperations
-  void setFirstChild(NdbQueryOperation* child){
-    m_child = child;
+  void addChild(NdbQueryOperation& child){
+    m_children.push_back(&child.getImpl());
+    child.getImpl().m_parents.push_back(this);
   }
   // End: Hack
   //////////////////////////////////////////////
 
-  /** Process result data for this operation.*/
+  /** Process result data for this operation. Return true if query complete.*/
   bool execTRANSID_AI(const Uint32* ptr, Uint32 len);
   
-  /** Process absence of result data for this operation.*/
-  bool NdbQueryOperationImpl::execTCKEYREF();
+  /** Process absence of result data for this operation. 
+   * Return true if query complete.*/
+  bool execTCKEYREF();
 
+  /** Check if this operation and all descendants are complete.*/
+  bool isComplete(){
+    return m_state==State_Complete;
+  }
+
+  void prepareSend();
+
+  void release();
+
+  /** Return I-value for putting in objetc map.*/
   Uint32 ptr2int() const {
     return m_id;
   }
   
+  /** Verify magic number.*/
   bool checkMagicNumber() const { 
     return m_magic == MAGIC;
   }
@@ -224,10 +216,14 @@ private:
     /** Operation and all children are done.*/
     State_Complete
   };
+  /** For verifying pointers to this class.*/
   const Uint32 m_magic;
+  /** I-value for object maps.*/
   const Uint32 m_id;
-  /** First child of this operation.*/
-  NdbQueryOperation* m_firstChild;
+  /** Parents of this operation.*/
+  Vector<NdbQueryOperationImpl*> m_parents;
+  /** Children of this operation.*/
+  Vector<NdbQueryOperationImpl*> m_children;
   /** For processing results from this operation.*/
   NdbReceiver m_receiver;
   /** NdbQuery to which this operation belongs. */
@@ -248,6 +244,12 @@ private:
     }
   }
 
+  /** A child operation is complete. 
+   * Set this as complete if all children are complete.*/
+  void handleCompletedChild();
+
 }; // class NdbQueryOperationImpl
+
+
 
 #endif
