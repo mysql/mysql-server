@@ -590,4 +590,31 @@ select extractvalue('<a></a>','"b"/a');
 --error ER_UNKNOWN_ERROR
 select extractvalue('<a></a>','(1)/a');
 
+#
+# Bug#43183 ExctractValue() brings result list in missorder
+#
+CREATE TABLE IF NOT EXISTS t1 (
+  id int(10) unsigned NOT NULL AUTO_INCREMENT,
+  xml text,
+  PRIMARY KEY (id)
+) ENGINE=MyISAM;
+
+INSERT INTO t1 (id, xml) VALUES
+(15, '<?xml version="1.0"?><bla name="blubb"></bla>'),
+(14, '<xml version="kaputt">');
+
+
+SELECT
+extractvalue( xml, '/bla/@name' ),
+extractvalue( xml, '/bla/@name' )
+FROM t1 ORDER BY t1.id;
+
+
+SELECT
+UpdateXML(xml, '/bla/@name', 'test'),
+UpdateXML(xml, '/bla/@name', 'test')
+FROM t1 ORDER BY t1.id;
+
+DROP TABLE t1;
+
 --echo End of 5.1 tests
