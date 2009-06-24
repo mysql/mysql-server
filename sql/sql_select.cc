@@ -13459,6 +13459,7 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
   {
     select->cleanup();				// filesort did select
     tab->select= 0;
+    table->quick_keys.clear_all();  // as far as we cleanup select->quick
   }
   tab->select_cond=0;
   tab->last_inner= 0;
