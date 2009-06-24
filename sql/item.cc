@@ -1935,8 +1935,9 @@ bool Item_field::check_column_usage_processor(uchar *arg)
         break;
       }
     }
+    return FALSE;
   }
-  return FALSE;
+  return TRUE;
 }
 
 const char *Item_ident::full_name() const
