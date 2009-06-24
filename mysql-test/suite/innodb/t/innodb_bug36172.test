@@ -4,6 +4,7 @@
 
 -- source include/not_embedded.inc
 -- source include/have_innodb.inc
+-- source suite/innodb/include/have_innodb_plugin.inc
 
 SET storage_engine=InnoDB;
 
