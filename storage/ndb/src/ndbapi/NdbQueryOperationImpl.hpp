@@ -100,6 +100,12 @@ public:
     return m_missingTransidAIs==0 && m_missingConfRefs == 0;
   }
 
+  bool isComplete(){
+    // TODO: generalize for non-tree child graphs
+    return m_tcKeyConfReceived && 
+      (m_rootOperation==NULL || m_rootOperation->isComplete());
+  }
+
   void prepareSend() const;
 
   void release() const;
@@ -113,12 +119,13 @@ private:
   NdbError m_error;
   NdbTransaction& m_transaction;
   NdbQueryOperation* m_rootOperation;
+  bool m_tcKeyConfReceived; 
   /** Each operation should yiedl either a TCKEYCONF or a TCKEYREF message.
    This is the no of such messages pending.*/
-  int m_missingConfRefs;
+  //int m_missingConfRefs;
   /** We should receive the same number of  TCKEYCONF and TRANSID_AI messages.
    This is the (possibly negative) no of such messages pending.*/
-  int m_missingTransidAIs;
+  //int m_missingTransidAIs;
 }; // class QueryImpl
 
 /** This class contains data members for NdbQueryOperation, such that these
@@ -164,9 +171,9 @@ public:
    * for this operation. 
    * @return The I-value.
    */
-  Uint32 getResultPtr() const {
+  /*Uint32 getResultPtr() const {
     return m_receiver.getId();
-  };
+    };*/
 
   void prepareSend(){
     m_receiver.prepareSend();
@@ -193,9 +200,12 @@ public:
   // End: Hack
   //////////////////////////////////////////////
 
-
+  /** Process result data for this operation.*/
   bool execTRANSID_AI(const Uint32* ptr, Uint32 len);
   
+  /** Process absence of result data for this operation.*/
+  bool NdbQueryOperationImpl::execTCKEYREF();
+
   Uint32 ptr2int() const {
     return m_id;
   }
@@ -205,14 +215,25 @@ public:
   }
 
 private:
+  /** State of the operation (in terms of pending messages.) */
+  enum State{
+    /** Awaiting TCKEYREF or TRANSID_AI for this operation.*/
+    State_Initial,
+    /** This operation is done, but its children are not.*/
+    State_WaitForChildren,
+    /** Operation and all children are done.*/
+    State_Complete
+  };
   const Uint32 m_magic;
   const Uint32 m_id;
   /** First child of this operation.*/
-  NdbQueryOperation* m_child;
+  NdbQueryOperation* m_firstChild;
   /** For processing results from this operation.*/
   NdbReceiver m_receiver;
   /** NdbQuery to which this operation belongs. */
   NdbQueryImpl& m_queryImpl;
+  /** Progress of operation.*/
+  State m_state;
   /** TODO:Only used for result processing prototype purposes. To be removed.*/
   NdbOperation& m_operation;
   explicit NdbQueryOperationImpl(NdbQueryImpl& queryImpl, 

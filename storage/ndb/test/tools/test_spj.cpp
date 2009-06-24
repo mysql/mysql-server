@@ -348,14 +348,14 @@ int spjTest(int argc, char** argv){
     NdbQueryOperation* currOp = root;
     const ResultSet* rSet[nNodes];
     rSet[0] = new ResultSet(root, pTab);
-    node[0]->setResultData(root->getImpl().getResultPtr());
+    node[0]->setResultData(root->getImpl().ptr2int());
     for(int i=1; i<nNodes; i++){
       NdbQueryOperation* newOp = 
 	NdbQueryOperationImpl::buildQueryOperation(query->getImpl(), *pOp);
       currOp->getImpl().setFirstChild(newOp);
       currOp = newOp;
       rSet[i] = new ResultSet(newOp, pTab);
-      node[i]->setResultData(newOp->getImpl().getResultPtr());
+      node[i]->setResultData(newOp->getImpl().ptr2int());
     }
 
     for(int i=0; i<nNodes; i++){

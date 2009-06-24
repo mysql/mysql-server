@@ -218,8 +218,7 @@ NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans):
   m_error(),
   m_transaction(trans),
   m_rootOperation(NULL),
-  m_missingConfRefs(0),
-  m_missingTransidAIs(0)
+  m_tcKeyConfReceived(false)
 {
   assert(m_id != NdbObjectIdMap::InvalidId);
 }
@@ -231,8 +230,7 @@ NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans, const NdbQueryDef& queryDef):
   m_error(),
   m_transaction(trans),
   m_rootOperation(NULL),
-  m_missingConfRefs(0),
-  m_missingTransidAIs(0)
+  m_tcKeyConfReceived(false)
 {
   assert(m_id != NdbObjectIdMap::InvalidId);
 
@@ -325,7 +323,7 @@ NdbQueryImpl::close(bool forceSend, bool release)
 NdbTransaction*
 NdbQueryImpl::getNdbTransaction() const
 {
-  return NULL;  // FIXME
+  return &m_transaction;  // FIXME
 }
 
 void 
