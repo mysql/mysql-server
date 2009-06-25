@@ -799,8 +799,6 @@ NdbReceiver::execTRANSID_AI(const Uint32* aDataPtr, Uint32 aLength)
     /* Move onto next row in scan buffer */
     m_record.m_row+= m_record.m_row_offset;
   }
-  ndbout << "NdbReceiver::execTRANSID_AI() actualLength=" << tmp
-	 << " exepectedLength=" << exp << endl;
   return (tmp == exp || (exp > TcKeyConf::DirtyReadBit) ? 1 : 0);
 }
 

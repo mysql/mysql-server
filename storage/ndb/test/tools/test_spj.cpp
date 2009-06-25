@@ -251,9 +251,9 @@ void LookupOp::serializeParam(Vector<Uint32>& vec) const{
  c0 int unsigned not null, c1 int unsigned not null, primary key(a,b))
  engine = ndb;
 
- insert into T values (1,1,2,3,1,1);
- insert into T values (3,2,4,5,1,1);
- insert into T values (4,5,1,1,1,1);
+ insert into T values (1,1,3,11,1,1);
+ insert into T values (11,3,4,5,1,1);
+ insert into T values (5,4,1,1,1,1);
 
 */
 int spjTest(int argc, char** argv){
@@ -327,7 +327,7 @@ int spjTest(int argc, char** argv){
     /*LookupOp look1(pOp, false, 0);
       LookupOp look2(pOp, true, 1);*/
 
-    const int nNodes = 2;
+    const int nNodes = 5;
     LookupOp* node[nNodes];
     int totLen = 0;
     for(int i=0; i<nNodes; i++){

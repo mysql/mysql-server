@@ -524,12 +524,16 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
       tFirstDataPtr = int2void(tFirstData);
       if (tFirstDataPtr == 0) goto InvalidSignal;
 
-      tOp = void2rec_op(tFirstDataPtr);
+      const bool isNdbOperation = 
+	void2rec(tFirstDataPtr)->checkMagicNumber();
       NdbQueryOperationImpl* const queryOpImpl 
 	= reinterpret_cast<NdbQueryOperationImpl*>(tFirstDataPtr);
-      const bool isNdbOperation = tOp->checkMagicNumber()==0;
 
       if (isNdbOperation) {
+	tOp = void2rec_op(tFirstDataPtr);
+	/* NB! NdbOperation::checkMagicNumber() returns 0 if it *is* 
+	* an NdbOperation.*/
+	assert(tOp->checkMagicNumber()==0); 
 	tCon = tOp->theNdbCon;
       } else if(queryOpImpl->checkMagicNumber()) {
 	tCon = queryOpImpl->getQuery().getNdbTransaction();

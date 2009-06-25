@@ -81,6 +81,8 @@ public:
 
   /** Process TCKEYCONF message. Return true if query is complete.*/
   bool execTCKEYCONF(){
+    ndbout << "NdbQueryImpl::execTCKEYCONF() isComplete()= " 
+	   << isComplete() << endl;
     m_tcKeyConfReceived = true;
     return isComplete();
   }
