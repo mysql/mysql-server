@@ -2253,6 +2253,9 @@ ha_innobase::open(
 
 	((row_prebuilt_t*)innobase_prebuilt)->mysql_row_len =
 							table->s->reclength;
+	((row_prebuilt_t*)innobase_prebuilt)->default_rec
+		= table->s->default_values;
+	ut_ad(table->s->default_values);
 
 	/* Looks like MySQL-3.23 sometimes has primary key number != 0 */
 
