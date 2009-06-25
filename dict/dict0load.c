@@ -223,7 +223,7 @@ loop:
 			/* The table definition was corrupt if there
 			is no index */
 
-			if (dict_table_get_first_index(table)) {
+			if (srv_stats_auto_update && dict_table_get_first_index(table)) {
 				dict_update_statistics_low(table, TRUE);
 			}
 

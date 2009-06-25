@@ -1102,6 +1102,12 @@ dict_table_get_index_on_name_and_min_id(
 				/* out: index, NULL if does not exist */
 	dict_table_t*	table,	/* in: table */
 	const char*	name);	/* in: name of the index to find */
+
+UNIV_INTERN
+void
+dict_table_LRU_trim(
+/*================*/
+	dict_table_t*	self);
 /* Buffers for storing detailed information about the latest foreign key
 and unique key errors */
 extern FILE*	dict_foreign_err_file;

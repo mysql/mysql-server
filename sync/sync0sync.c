@@ -1081,6 +1081,12 @@ sync_thread_add_level(
 	case SYNC_TRX_SYS_HEADER:
 	case SYNC_FILE_FORMAT_TAG:
 	case SYNC_DOUBLEWRITE:
+	case SYNC_BUF_LRU_LIST:
+	case SYNC_BUF_FLUSH_LIST:
+	case SYNC_BUF_PAGE_HASH:
+	case SYNC_BUF_FREE_LIST:
+	case SYNC_BUF_ZIP_FREE:
+	case SYNC_BUF_ZIP_HASH:
 	case SYNC_BUF_POOL:
 	case SYNC_SEARCH_SYS:
 	case SYNC_SEARCH_SYS_CONF:
@@ -1107,7 +1113,7 @@ sync_thread_add_level(
 		/* Either the thread must own the buffer pool mutex
 		(buf_pool_mutex), or it is allowed to latch only ONE
 		buffer block (block->mutex or buf_pool_zip_mutex). */
-		ut_a((sync_thread_levels_contain(array, SYNC_BUF_POOL)
+		ut_a((sync_thread_levels_contain(array, SYNC_BUF_LRU_LIST)
 		      && sync_thread_levels_g(array, SYNC_BUF_BLOCK - 1))
 		     || sync_thread_levels_g(array, SYNC_BUF_BLOCK));
 		break;

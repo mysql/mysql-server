@@ -1184,6 +1184,9 @@ dict_create_or_check_foreign_constraint_tables(void)
 		/* Foreign constraint system tables have already been
 		created, and they are ok */
 
+		table1->n_mysql_handles_opened = 1; /* for pin */
+		table2->n_mysql_handles_opened = 1; /* for pin */
+
 		mutex_exit(&(dict_sys->mutex));
 
 		return(DB_SUCCESS);
@@ -1264,6 +1267,11 @@ dict_create_or_check_foreign_constraint_tables(void)
 	}
 
 	trx_commit_for_mysql(trx);
+
+	table1 = dict_table_get_low("SYS_FOREIGN");
+	table2 = dict_table_get_low("SYS_FOREIGN_COLS");
+	table1->n_mysql_handles_opened = 1; /* for pin */
+	table2->n_mysql_handles_opened = 1; /* for pin */
 
 	row_mysql_unlock_data_dictionary(trx);
 

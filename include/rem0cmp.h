@@ -177,10 +177,11 @@ cmp_rec_rec_with_match(
 				matched fields; when the function returns,
 				contains the value the for current
 				comparison */
-	ulint*		matched_bytes);/* in/out: number of already matched
+	ulint*		matched_bytes, /* in/out: number of already matched
 				bytes within the first field not completely
 				matched; when the function returns, contains
 				the value for the current comparison */
+	ulint		stats_method);
 /*****************************************************************
 This function is used to compare two physical records. Only the common
 first fields are compared. */

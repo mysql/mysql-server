@@ -12,3 +12,8 @@ If by any chance Makefile.in and ./configure are regenerated and thus
 the hack from Makefile.in wiped away then the "real" check from plug.in
 will take over.
 */
+/* This is temprary fix for http://bugs.mysql.com/43740 */
+/* force to enable */
+#ifdef HAVE_GCC_ATOMIC_BUILTINS
+#define HAVE_ATOMIC_PTHREAD_T
+#endif

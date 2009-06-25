@@ -3202,7 +3202,9 @@ btr_estimate_number_of_different_key_vals(
 	ulint		n_cols;
 	ulint		matched_fields;
 	ulint		matched_bytes;
+	ib_int64_t	n_recs	= 0;
 	ib_int64_t*	n_diff;
+	ib_int64_t*	n_not_nulls;
 	ullint		n_sample_pages; /* number of pages to sample */
 	ulint		not_empty_flag	= 0;
 	ulint		total_external_size = 0;
@@ -3215,12 +3217,17 @@ btr_estimate_number_of_different_key_vals(
 	ulint		offsets_next_rec_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets_rec	= offsets_rec_;
 	ulint*		offsets_next_rec= offsets_next_rec_;
+	ulint		stats_method	= srv_stats_method;
 	rec_offs_init(offsets_rec_);
 	rec_offs_init(offsets_next_rec_);
 
 	n_cols = dict_index_get_n_unique(index);
 
 	n_diff = mem_zalloc((n_cols + 1) * sizeof(ib_int64_t));
+
+	if (stats_method == SRV_STATS_METHOD_IGNORE_NULLS) {
+		n_not_nulls = mem_zalloc((n_cols + 1) * sizeof(ib_int64_t));
+	}
 
 	/* It makes no sense to test more pages than are contained
 	in the index, thus we lower the number if it is too high */
@@ -3260,6 +3267,20 @@ btr_estimate_number_of_different_key_vals(
 		}
 
 		while (rec != supremum) {
+			/* count recs */
+			if (stats_method == SRV_STATS_METHOD_IGNORE_NULLS) {
+				n_recs++;
+				for (j = 0; j <= n_cols; j++) {
+					ulint	f_len;
+					rec_get_nth_field(rec, offsets_rec,
+							  j, &f_len);
+					if (f_len == UNIV_SQL_NULL)
+						break;
+
+					n_not_nulls[j]++;
+				}
+			}
+
 			rec_t*	next_rec = page_rec_get_next(rec);
 			if (next_rec == supremum) {
 				break;
@@ -3274,7 +3295,7 @@ btr_estimate_number_of_different_key_vals(
 			cmp_rec_rec_with_match(rec, next_rec,
 					       offsets_rec, offsets_next_rec,
 					       index, &matched_fields,
-					       &matched_bytes);
+					       &matched_bytes, srv_stats_method);
 
 			for (j = matched_fields + 1; j <= n_cols; j++) {
 				/* We add one if this index record has
@@ -3359,9 +3380,21 @@ btr_estimate_number_of_different_key_vals(
 		}
 
 		index->stat_n_diff_key_vals[j] += add_on;
+
+		/* revision for 'nulls_ignored' */
+		if (stats_method == SRV_STATS_METHOD_IGNORE_NULLS) {
+			if (!n_not_nulls[j])
+				n_not_nulls[j] = 1;
+			index->stat_n_diff_key_vals[j] =
+				index->stat_n_diff_key_vals[j] * n_recs
+					/ n_not_nulls[j];
+		}
 	}
 
 	mem_free(n_diff);
+	if (stats_method == SRV_STATS_METHOD_IGNORE_NULLS) {
+		mem_free(n_not_nulls);
+	}
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
@@ -3733,7 +3766,8 @@ btr_blob_free(
 
 	mtr_commit(mtr);
 
-	buf_pool_mutex_enter();
+	//buf_pool_mutex_enter();
+	mutex_enter(&LRU_list_mutex);
 	mutex_enter(&block->mutex);
 
 	/* Only free the block if it is still allocated to
@@ -3744,17 +3778,22 @@ btr_blob_free(
 	    && buf_block_get_space(block) == space
 	    && buf_block_get_page_no(block) == page_no) {
 
-		if (buf_LRU_free_block(&block->page, all, NULL)
+		if (buf_LRU_free_block(&block->page, all, NULL, TRUE)
 		    != BUF_LRU_FREED
-		    && all && block->page.zip.data) {
+		    && all && block->page.zip.data
+		    /* Now, buf_LRU_free_block() may release mutex temporarily */
+		    && buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE
+		    && buf_block_get_space(block) == space
+		    && buf_block_get_page_no(block) == page_no) {
 			/* Attempt to deallocate the uncompressed page
 			if the whole block cannot be deallocted. */
 
-			buf_LRU_free_block(&block->page, FALSE, NULL);
+			buf_LRU_free_block(&block->page, FALSE, NULL, TRUE);
 		}
 	}
 
-	buf_pool_mutex_exit();
+	//buf_pool_mutex_exit();
+	mutex_exit(&LRU_list_mutex);
 	mutex_exit(&block->mutex);
 }
 

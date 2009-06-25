@@ -12,3 +12,5 @@ INSTALL PLUGIN INNODB_BUFFER_POOL_PAGES SONAME 'ha_innodb.so';
 INSTALL PLUGIN INNODB_BUFFER_POOL_PAGES_BLOB SONAME 'ha_innodb.so';
 INSTALL PLUGIN INNODB_BUFFER_POOL_PAGES_INDEX SONAME 'ha_innodb.so';
 INSTALL PLUGIN innodb_rseg SONAME 'ha_innodb.so';
+INSTALL PLUGIN innodb_table_stats SONAME 'ha_innodb.so';
+INSTALL PLUGIN innodb_index_stats SONAME 'ha_innodb.so';

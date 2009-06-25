@@ -1526,6 +1526,26 @@ log_buffer_flush_to_disk(void)
 }
 
 /********************************************************************
+Flush the log buffer. Force it to disk depending on the value of
+innodb_flush_log_at_trx_commit. */
+UNIV_INTERN
+void
+log_buffer_flush_maybe_sync(void)
+/*=============================*/
+{
+	ib_uint64_t	lsn;
+
+	mutex_enter(&(log_sys->mutex));
+
+	lsn = log_sys->lsn;
+
+	mutex_exit(&(log_sys->mutex));
+
+	/* Force log buffer to disk when innodb_flush_log_at_trx_commit = 1. */
+	log_write_up_to(lsn, LOG_WAIT_ALL_GROUPS,
+			srv_flush_log_at_trx_commit == 1 ? TRUE : FALSE);
+}
+/********************************************************************
 Tries to establish a big enough margin of free space in the log buffer, such
 that a new log entry can be catenated without an immediate need for a flush. */
 static

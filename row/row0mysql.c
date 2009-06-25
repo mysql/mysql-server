@@ -854,6 +854,9 @@ row_update_statistics_if_needed(
 
 	table->stat_modified_counter = counter + 1;
 
+	if (!srv_stats_auto_update)
+		return;
+
 	/* Calculate new statistics if 1 / 16 of table has been modified
 	since the last time a statistics batch was run, or if
 	stat_modified_counter > 2 000 000 000 (to avoid wrap-around).

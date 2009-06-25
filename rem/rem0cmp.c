@@ -892,10 +892,11 @@ cmp_rec_rec_with_match(
 				matched fields; when the function returns,
 				contains the value the for current
 				comparison */
-	ulint*		matched_bytes) /* in/out: number of already matched
+	ulint*		matched_bytes, /* in/out: number of already matched
 				bytes within the first field not completely
 				matched; when the function returns, contains
 				the value for the current comparison */
+	ulint		stats_method)
 {
 #ifndef UNIV_HOTBACKUP
 	ulint		rec1_n_fields;	/* the number of fields in rec */
@@ -989,7 +990,11 @@ cmp_rec_rec_with_match(
 
 				if (rec1_f_len == rec2_f_len) {
 
-					goto next_field;
+					if (stats_method == SRV_STATS_METHOD_NULLS_EQUAL) {
+						goto next_field;
+					} else {
+						ret = -1;
+					}
 
 				} else if (rec2_f_len == UNIV_SQL_NULL) {
 
