@@ -16699,10 +16699,11 @@ static void print_join(THD *thd,
   {
     TABLE_LIST *curr= *tbl;
     /*
-       The (*) check guards againist the case of printing the query for
-       CREATE VIEW. There we'll have nested_join->used_tables==0.
+      The "eliminated_tables &&" check guards againist the case of 
+      printing the query for CREATE VIEW. We do that without having run 
+      JOIN::optimize() and so will have nested_join->used_tables==0.
     */
-    if (eliminated_tables &&  // (*)
+    if (eliminated_tables &&
         ((curr->table && (curr->table->map & eliminated_tables)) ||
          (curr->nested_join && !(curr->nested_join->used_tables &
                                 ~eliminated_tables))))

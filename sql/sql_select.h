@@ -300,7 +300,8 @@ public:
   */
   bool     resume_nested_loop;
   table_map const_table_map,found_const_table_map;
-
+  
+  /* Tables removed by table elimination. Set to 0 before the elimination. */
   table_map eliminated_tables;
   /*
      Bitmap of all inner tables from outer joins

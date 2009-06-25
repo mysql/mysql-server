@@ -17,33 +17,34 @@
 
 /*
   OVERVIEW
-    The module has one entry point - eliminate_tables() function, which one 
-    needs to call (once) sometime after update_ref_and_keys() but before the
-    join optimization.  
-    eliminate_tables() operates over the JOIN structures. Logically, it
-    removes the right sides of outer join nests. Physically, it changes the
-    following members:
 
-    * Eliminated tables are marked as constant and moved to the front of the
-      join order.
-    * In addition to this, they are recorded in JOIN::eliminated_tables bitmap.
+  The module has one entry point - eliminate_tables() function, which one 
+  needs to call (once) sometime after update_ref_and_keys() but before the
+  join optimization.  
+  eliminate_tables() operates over the JOIN structures. Logically, it
+  removes the right sides of outer join nests. Physically, it changes the
+  following members:
 
-    * All join nests have their NESTED_JOIN::n_tables updated to discount
-      the eliminated tables
+  * Eliminated tables are marked as constant and moved to the front of the
+    join order.
+  * In addition to this, they are recorded in JOIN::eliminated_tables bitmap.
 
-    * Items that became disused because they were in the ON expression of an 
-      eliminated outer join are notified by means of the Item tree walk which 
-      calls Item::mark_as_eliminated_processor for every item
-      - At the moment the only Item that cares is Item_subselect with its 
-        Item_subselect::eliminated flag which is used by EXPLAIN code to
-        check if the subquery should be shown in EXPLAIN.
+  * All join nests have their NESTED_JOIN::n_tables updated to discount
+    the eliminated tables
 
-    Table elimination is intended to be done on every PS re-execution.
+  * Items that became disused because they were in the ON expression of an 
+    eliminated outer join are notified by means of the Item tree walk which 
+    calls Item::mark_as_eliminated_processor for every item
+    - At the moment the only Item that cares is Item_subselect with its 
+      Item_subselect::eliminated flag which is used by EXPLAIN code to
+      check if the subquery should be shown in EXPLAIN.
+
+  Table elimination is redone on every PS re-execution.
 */
 
 static int
 eliminate_tables_for_join_list(JOIN *join, List<TABLE_LIST> *join_list,
-                               table_map used_tables_elsewhere, 
+                               table_map tables_used_elsewhere, 
                                uint *const_tbl_count, table_map *const_tables);
 static bool table_has_one_match(TABLE *table, table_map bound_tables);
 static void 
@@ -65,42 +66,33 @@ extra_keyuses_bind_all_keyparts(table_map bound_tables, TABLE *table,
       const_tables    INOUT  Bitmap of constant tables
 
   DESCRIPTION
+    This function is the entry point for table elimination. 
+    The idea behind table elimination is that if we have an outer join:
    
-   TODO fix comment
+      SELECT * FROM t1 LEFT JOIN 
+        (t2 JOIN t3) ON t3.primary_key=t1.col AND 
+                        t4.primary_key=t2.col
+    such that
+
+    1. columns of the inner tables are not used anywhere ouside the outer
+       join (not in WHERE, not in GROUP/ORDER BY clause, not in select list 
+       etc etc), and
+    2. inner side of the outer join is guaranteed to produce at most one
+       record combination for each record combination of outer tables.
+    
+    then the inner side of the outer join can be removed from the query.
+    This is because it will always produce one matching record (either a
+    real match or a NULL-complemented record combination), and since there
+    are no references to columns of the inner tables anywhere, it doesn't
+    matter which record combination it was.
+
+    This function primary handles checking #1. It collects a bitmap of
+    tables that are not used in select list/GROUP BY/ORDER BY/HAVING/etc and
+    thus can possibly be eliminated.
   
-    SELECT * FROM t1 LEFT JOIN 
-      (t2 JOIN t3) ON t3.primary_key=t1.col AND 
-                      t4.primary_key= t2.col
+  SIDE EFFECTS
+    See the OVERVIEW section at the top of this file.
 
-  CRITERIA FOR REMOVING ONE OJ NEST
-    we can't rely on sole presense of eq_refs. Because if we do, we'll miss
-    things like this:
-
-    SELECT * FROM flights LEFT JOIN 
-      (pax as S1 JOIN pax as S2 ON S2.id=S1.spouse AND s1.id=s2.spouse)
-  
-   (no-polygamy schema/query but there can be many couples on the flight)
-   ..
-  
-  REMOVAL PROCESS
-    We can remove an inner side of an outer join if it there is a warranty
-    that it will produce not more than one record:
-
-     ... t1 LEFT JOIN t2 ON (t2.unique_key = expr) ...
-
-    For nested outer joins:
-    - The process naturally occurs bottom-up (in order to remove an
-      outer-join we need to analyze its contents)
-    - If we failed to remove an outer join nest, it makes no sense to 
-      try removing its ancestors, as the 
-         ot LEFT JOIN it ON cond
-      pair may possibly produce two records (one record via match and
-      another one as access-method record).
-
-  Q: If we haven't removed an OUTER JOIN, does it make sense to attempt
-  removing its ancestors? 
-  A: No as the innermost outer join will produce two records => no ancestor 
-  outer join nest will be able to provide the max_fanout==1 guarantee.
 */
 
 void eliminate_tables(JOIN *join, uint *const_tbl_count, 
@@ -112,7 +104,7 @@ void eliminate_tables(JOIN *join, uint *const_tbl_count,
   
   DBUG_ASSERT(join->eliminated_tables == 0);
   
-  /* MWL#17 is only about outer join elimination, so: */
+  /* If there are no outer joins, we have nothing to eliminate: */
   if (!join->outer_join)
     DBUG_VOID_RETURN;
 
@@ -150,7 +142,7 @@ void eliminate_tables(JOIN *join, uint *const_tbl_count,
 
   if (((1 << join->tables) - 1) & ~used_tables)
   {
-    /* There are some time tables that we probably could eliminate */
+    /* There are some tables that we probably could eliminate. Try it. */
     eliminate_tables_for_join_list(join, join->join_list, used_tables,
                                    const_tbl_count, const_tables);
   }
@@ -161,37 +153,70 @@ void eliminate_tables(JOIN *join, uint *const_tbl_count,
 
 
 /*
-  Now on to traversal. There can be a situation like this:
+  Perform table elimination in a given join list
 
-    FROM t1 
-         LEFT JOIN t2 ON cond(t1,t2)
-         LEFT JOIN t3 ON cond(..., possibly-t2)  // <--(*)
-         LEFT JOIN t4 ON cond(..., possibly-t2)
+  SYNOPSIS
+    eliminate_tables_for_join_list()
+      join                    The join
+      join_list               Join list to work on 
+      tables_used_elsewhere   Bitmap of tables that are referred to from
+                              somewhere outside of the join list (e.g.
+                              select list, HAVING, etc).
+      const_tbl_count  INOUT  Number of constant tables (eliminated tables 
+                              are considered constant)
+      const_tables     INOUT  Bitmap of constant tables.
 
-  Besides that, simplify_joins() may have created back references, so when
-  we're e.g. looking at outer join (*) we need to look both forward and
-  backward to check if there are any references in preceding/following
-  outer joins'
+  DESCRIPTION
+  Try eliminating members of the given join list (and its children,
+  recursively).
 
-  TODO would it create only following-sibling references or
-  preceding-sibling as well?
-    And if not, should we rely on that?
-    
+  Search for tables to be eliminated is performed on recursive descent,
+  while the elimination is done on ascent. 
+  
+  DESCENT AND NO-REFERENCES CHECK
+  The descent part is needed because of the following: consider a join list
+  
+   t0 LEFT JOIN 
+    (t1 
+     LEFT JOIN t2 ON cond1(t1,t2)   
+     LEFT JOIN t3 ON cond2(..., possibly-t2)                 (*)
+     LEFT JOIN t4 ON cond3(..., possibly-t2, possibly-t3)
+    ) ON cond4
+
+  Suppose we're looking at whether we can eliminate outer join marked with
+  (*), in other words, table t3. Before we can do that, we need to 
+  1. Check that there are no references to table t3 in cond4 (in general:
+     all ON expressions of embedding outer joins, this explains the need for
+     descent)
+  2. Check that there are no references to table t3 in its following-siblings,
+     in this example, in cond3.
+  3. Although SQL language doesn't allow referring to table t3 from cond1, 
+     simplify_joins() may create such back-references, so we'll also need to 
+     check if t3's preceding-siblings have ON expressions with references
+     from t3.
+  
+  ASCENT AND THE ELIMINATION
+  The removal is done in a bottom-up way because we can consider an outer
+  join nest for elimination only after we have successfully eliminated all 
+  of its children outer joins. 
+
+  RETURN
+    Number of tables that have been eliminated
 */
 
 static int
 eliminate_tables_for_join_list(JOIN *join, List<TABLE_LIST> *join_list,
-                               table_map used_tables_elsewhere, 
+                               table_map tables_used_elsewhere, 
                                uint *const_tbl_count, table_map *const_tables)
 {
   List_iterator<TABLE_LIST> it(*join_list);
-  table_map used_tables_on_right[MAX_TABLES]; // todo change to alloca
-  table_map used_tables_on_left;
+  table_map used_tables_on_right[MAX_TABLES];
+  table_map tables_used_on_left;
   TABLE_LIST *tbl;
   int i, n_tables;
   int eliminated=0;
 
-  /* Collect the reverse-bitmap-array */
+  /* Collect used_tables_on_right array */
   for (i=0; (tbl= it++); i++)
   {
     used_tables_on_right[i]= 0;
@@ -201,20 +226,18 @@ eliminate_tables_for_join_list(JOIN *join, List<TABLE_LIST> *join_list,
       used_tables_on_right[i]= tbl->nested_join->used_tables;
   }
   n_tables= i;
-
   for (i= n_tables - 2; i > 0; i--)
     used_tables_on_right[i] |= used_tables_on_right[i+1];
   
-  it.rewind();
-  
-  /* Walk through tables and join nests and see if we can eliminate them */
-  used_tables_on_left= 0;
   i= 1;
+  it.rewind();
+  tables_used_on_left= 0;
+  /* For each member of the join list, check if we can eliminate it */
   while ((tbl= it++))
   {
-    table_map tables_used_outside= used_tables_on_left |
+    table_map tables_used_outside= tables_used_on_left |
                                    used_tables_on_right[i] |
-                                   used_tables_elsewhere;
+                                   tables_used_elsewhere;
     table_map cur_tables= 0;
 
     if (tbl->nested_join)
@@ -293,7 +316,6 @@ eliminate_tables_for_join_list(JOIN *join, List<TABLE_LIST> *join_list,
     else if (tbl->on_expr)
     {
       cur_tables= tbl->on_expr->used_tables();
-      /* Check and remove */
       if (!(tbl->table->map & tables_used_outside) && 
           table_has_one_match(tbl->table, (table_map)-1))
       {
@@ -304,9 +326,8 @@ eliminate_tables_for_join_list(JOIN *join, List<TABLE_LIST> *join_list,
       }
     }
 
-    /* Update bitmap of tables we've seen on the left */
     i++;
-    used_tables_on_left |= cur_tables;
+    tables_used_on_left |= cur_tables;
   }
   return eliminated;
 }
@@ -337,7 +358,7 @@ void mark_table_as_eliminated(JOIN *join, TABLE *table, uint *const_tbl_count,
 
 
 /*
-  Check the table will produce at most one matching record
+  Check if the table will produce at most one matching record
 
   SYNOPSIS
     table_has_one_match()
@@ -345,8 +366,23 @@ void mark_table_as_eliminated(JOIN *join, TABLE *table, uint *const_tbl_count,
       bound_tables   Tables that should be considered bound.
 
   DESCRIPTION
-    Check if the given table will produce at most one matching record for 
-    each record combination of tables in bound_tables.
+    Check if table will produce at most one matching record for each record 
+    combination of tables in bound_tables bitmap.
+
+    The check is based on ref analysis data, KEYUSE structures. We're
+    handling two cases:
+
+    1. Table has a UNIQUE KEY(uk_col_1, ... uk_col_N), and for each uk_col_i
+       there is a KEYUSE that represents a limitation in form
+
+         table.uk_col_i = func(bound_tables)                           (X)
+
+    2. Same as above but we also handle limitations in form 
+
+         table.uk_col_i = func(bound_tables, uk_col_j1, ... uk_col_j2) (XX)
+
+       where values of uk_col_jN are known to be bound because for them we
+       have an equality of form (X) or (XX).
 
   RETURN 
     TRUE   Yes, at most one match
@@ -358,13 +394,6 @@ static bool table_has_one_match(TABLE *table, table_map bound_tables)
   KEYUSE *keyuse= table->reginfo.join_tab->keyuse;
   if (keyuse)
   {
-    /*
-      Walk through all of the KEYUSE elements and
-       - locate unique keys
-       - check if we have eq_ref access for them
-          TODO any other reqs?
-      loops are constructed like in best_access_path
-    */
     while (keyuse->table == table)
     {
       uint key= keyuse->key;
@@ -415,14 +444,17 @@ typedef struct st_keyuse_w_needed_reg
 
 
 /*
+  Check if KEYUSE elemements with unusable==TRUE bind all parts of the key
+
   SYNOPSIS
+
     extra_keyuses_bind_all_keyparts()
       bound_tables   Tables which can be considered constants
       table          Table we're examining
       key_start      Start of KEYUSE array with elements describing the key
                      of interest
       key_end        End of the array + 1
-      n_keyuses      Number
+      n_keyuses      Number of elements in the array that have unusable==TRUE
       bound_parts    Key parts whose values are known to be bound.
 
   DESCRIPTION
@@ -442,6 +474,10 @@ extra_keyuses_bind_all_keyparts(table_map bound_tables, TABLE *table,
                                 KEYUSE *key_start, KEYUSE *key_end, 
                                 uint n_keyuses, table_map bound_parts)
 {
+  /*
+    Current implementation needs some keyparts to be already bound to start
+    inferences: 
+  */
   if (n_keyuses && bound_parts)
   {
     KEY *keyinfo= table->key_info + key_start->key; 
@@ -450,7 +486,8 @@ extra_keyuses_bind_all_keyparts(table_map bound_tables, TABLE *table,
                                                 n_keyuses)))
       return FALSE;
     uint n_uses=0;
-    /* First, collect an array<keyuse, key_parts_it_depends_on>*/
+
+    /* First, collect an array<keyuse, key_parts_it_depends_on> */
     for (KEYUSE *k= key_start; k!=key_end; k++)
     {
       if (!k->usable && !(k->used_tables & ~bound_tables))
@@ -466,14 +503,17 @@ extra_keyuses_bind_all_keyparts(table_map bound_tables, TABLE *table,
       }
     }
 
-    /* Now compute transitive closure */
+    /* 
+      Now, repeatedly walk through the <keyuse, key_parts_it_depends_on> and
+      see if we can find an elements that depend only on bound parts and
+      hence make one more part bound.
+    */
     uint n_bounded;
     do 
     {
       n_bounded= 0;
       for (uint i=0; i< n_uses; i++)
       {
-        /* needed_parts is covered by what is already bound*/
         if (!(uses[i].dependency_parts & ~bound_parts))
         {
           bound_parts|= key_part_map(1) << uses[i].keyuse->keypart;
