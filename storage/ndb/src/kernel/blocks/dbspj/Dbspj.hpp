@@ -237,7 +237,7 @@ public:
       /**
        * SCAN_FRAGCONF is received
        */
-      SF_STARTED = 2,
+      SF_STARTED = 2
     };
 
     Uint32 m_scan_state;     // Only valid is TreeNodeState >= TN_ACTIVE
