@@ -110,7 +110,8 @@ private:
   /** We should receive the same number of  TCKEYCONF and TRANSID_AI messages.
    This is the (possibly negative) no of such messages pending.*/
   //int m_missingTransidAIs;
-}; // class QueryImpl
+}; // class NdbQueryImpl
+
 
 // Compiler settings require explicit instantiation.
 template class Vector<NdbQueryOperationImpl*>;

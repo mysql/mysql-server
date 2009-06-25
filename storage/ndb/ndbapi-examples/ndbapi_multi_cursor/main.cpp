@@ -20,6 +20,8 @@
  **************************************************************/
 
 
+#include <mysql.h>
+#include <mysqld_error.h>
 #include <NdbApi.hpp>
 // Used for cout
 #include <iostream>
@@ -37,6 +39,9 @@
   std::cout << "Error in " << __FILE__ << ", line: " << __LINE__ \
             << ", code: " << code \
             << ", msg: " << msg << "." << std::endl
+#define MYSQLERROR(mysql) { \
+  PRINT_ERROR(mysql_errno(&mysql),mysql_error(&mysql)); \
+  exit(-1); }
 #define APIERROR(error) { \
   PRINT_ERROR((error).code,(error).message); \
   exit(-1); }
@@ -46,7 +51,7 @@
 /**
  * Define NDB_CONNECT_STRING if you don't connect through the default localhost:1186
  */
-  #define NDB_CONNECT_STRING "fimafeng08:1"
+  #define NDB_CONNECT_STRING "loki43:2360"
 
 
 
@@ -112,6 +117,143 @@ struct SalaryRow
 };
 
 
+ NdbQuery*
+ NdbTransaction::createQuery(const NdbQueryDef* def,
+              const void* const param[],
+              NdbOperation::LockMode lock_mode)
+{
+  NdbQuery* query = NdbQuery::buildQuery(*this, *def);
+
+  return query;
+}
+
+const char* employeeDef = 
+"CREATE TABLE employees ("
+"    emp_no      INT             NOT NULL,"
+"    birth_date  DATE            NOT NULL,"
+"    first_name  VARCHAR(14)     NOT NULL,"
+"    last_name   VARCHAR(16)     NOT NULL,"
+"    gender      ENUM ('M','F')  NOT NULL,  "  
+"    hire_date   DATE            NOT NULL,"
+"    PRIMARY KEY (emp_no))"
+" ENGINE=NDB";
+
+const char* departmentsDef = 
+"CREATE TABLE departments ("
+"    dept_no     CHAR(4)         NOT NULL,"
+"    dept_name   VARCHAR(40)     NOT NULL,"
+"    PRIMARY KEY (dept_no),"
+"    UNIQUE  KEY (dept_name))"
+" ENGINE=NDB";
+
+const char* dept_managerDef = 
+"CREATE TABLE dept_manager ("
+"   dept_no      CHAR(4)         NOT NULL,"
+"   emp_no       INT             NOT NULL,"
+"   from_date    DATE            NOT NULL,"
+"   to_date      DATE            NOT NULL,"
+"   KEY         (emp_no),"
+"   KEY         (dept_no),"
+"   FOREIGN KEY (emp_no)  REFERENCES employees (emp_no)    ON DELETE CASCADE,"
+"   FOREIGN KEY (dept_no) REFERENCES departments (dept_no) ON DELETE CASCADE,"
+"   PRIMARY KEY (emp_no,dept_no))"
+" ENGINE=NDB";
+
+const char* dept_empDef = 
+"CREATE TABLE dept_emp ("
+"    emp_no      INT             NOT NULL,"
+"    dept_no     CHAR(4)         NOT NULL,"
+"    from_date   DATE            NOT NULL,"
+"    to_date     DATE            NOT NULL,"
+"    KEY         (emp_no),"
+"    KEY         (dept_no),"
+"    FOREIGN KEY (emp_no)  REFERENCES employees   (emp_no)  ON DELETE CASCADE,"
+"    FOREIGN KEY (dept_no) REFERENCES departments (dept_no) ON DELETE CASCADE,"
+"    PRIMARY KEY (emp_no,dept_no))"
+" ENGINE=NDB";
+
+const char* titlesDef =
+"CREATE TABLE titles ("
+"    emp_no      INT             NOT NULL,"
+"    title       VARCHAR(50)     NOT NULL,"
+"    from_date   DATE            NOT NULL,"
+"    to_date     DATE,"
+"    KEY         (emp_no),"
+"    FOREIGN KEY (emp_no) REFERENCES employees (emp_no) ON DELETE CASCADE,"
+"    PRIMARY KEY (emp_no,title, from_date))"
+" ENGINE=NDB";
+
+const char* salariesDef =
+"CREATE TABLE salaries ("
+"    emp_no      INT             NOT NULL,"
+"    salary      INT             NOT NULL,"
+"    from_date   DATE            NOT NULL,"
+"    to_date     DATE            NOT NULL,"
+"    KEY         (emp_no),"
+"    FOREIGN KEY (emp_no) REFERENCES employees (emp_no) ON DELETE CASCADE,"
+"    PRIMARY KEY (emp_no, from_date))"
+" ENGINE=NDB";
+
+
+int createEmployeeDb()
+{
+  /**************************************************************
+   * Connect to mysql server and create testDB                  *
+   **************************************************************/
+  if (true)
+  {
+    MYSQL mysql;
+    if ( !mysql_init(&mysql) ) {
+      std::cout << "mysql_init failed\n";
+      exit(-1);
+    }
+//    mysql_options(&mysql, MYSQL_READ_DEFAULT_FILE, "/home/oa136780/mysql/mysql-5.1-telco-7.0-spj/install/config/my.cnf");
+
+    const char *mysqld_sock = "/tmp/mysql.sock";
+    if ( !mysql_real_connect(&mysql, "loki43", "root", "", "",
+			     4401, NULL, 0) )
+      return 0;
+
+    printf("Mysql connected\n");
+    mysql_query(&mysql, "DROP DATABASE employees");
+    printf("Dropped existing employees DB\n");
+    mysql_query(&mysql, "CREATE DATABASE employees");
+    mysql_commit(&mysql);
+    printf("Created new employees DB\n");
+
+    if (mysql_query(&mysql, "USE employees") != 0) MYSQLERROR(mysql);
+    mysql_commit(&mysql);
+    printf("USE employees DB\n");
+
+    if (mysql_query(&mysql, employeeDef) != 0) MYSQLERROR(mysql);
+    mysql_commit(&mysql);
+    printf("Created 'employee' table\n");
+
+    if (mysql_query(&mysql, departmentsDef) != 0) MYSQLERROR(mysql);
+    mysql_commit(&mysql);
+    printf("Created 'departments' table\n");
+
+    if (mysql_query(&mysql, dept_managerDef) != 0) MYSQLERROR(mysql);
+    mysql_commit(&mysql);
+    printf("Created 'dept_manager' table\n");
+
+    if (mysql_query(&mysql, dept_empDef) != 0) MYSQLERROR(mysql);
+    mysql_commit(&mysql);
+    printf("Created 'dept_emp' table\n");
+
+    if (mysql_query(&mysql, titlesDef) != 0) MYSQLERROR(mysql);
+    mysql_commit(&mysql);
+    printf("Created 'titles' table\n");
+
+    if (mysql_query(&mysql, salariesDef) != 0) MYSQLERROR(mysql);
+    mysql_commit(&mysql);
+    printf("Created 'salaries' table\n");
+
+    mysql_close(&mysql);
+  }
+
+  return 1;
+}
 
 /**************************************************************
  * Initialise NdbRecord structures for table and index access *
@@ -139,10 +281,10 @@ static void init_ndbrecord_info(Ndb &myNdb)
   if (manager_to_date == NULL) APIERROR(myDict->getNdbError());
 
   const NdbDictionary::RecordSpecification mngSpec[] = {
-//    NdbDictionary::RecordSpecification(manager_dept_no,   offsetof(ManagerRow, dept_no)),
-//    NdbDictionary::RecordSpecification(manager_emp_no,    offsetof(ManagerRow, emp_no)),
-//    NdbDictionary::RecordSpecification(manager_from_date, offsetof(ManagerRow, from_date)),
-//    NdbDictionary::RecordSpecification(manager_to_date,   offsetof(ManagerRow, to_date)),
+      NdbDictionary::RecordSpecification(manager_dept_no,   offsetof(ManagerRow, dept_no)),
+      NdbDictionary::RecordSpecification(manager_emp_no,    offsetof(ManagerRow, emp_no)),
+      NdbDictionary::RecordSpecification(manager_from_date, offsetof(ManagerRow, from_date)),
+      NdbDictionary::RecordSpecification(manager_to_date,   offsetof(ManagerRow, to_date)),
   };
 
   pkeyManagerRecord = 
@@ -171,14 +313,12 @@ static void init_ndbrecord_info(Ndb &myNdb)
   if (employee_gender == NULL) APIERROR(myDict->getNdbError());
 
   const NdbDictionary::RecordSpecification empSpec[] = {
-/****
       NdbDictionary::RecordSpecification(employee_emp_no,     offsetof(EmployeeRow, emp_no)),
       NdbDictionary::RecordSpecification(employee_birth_date, offsetof(EmployeeRow, birth_date)),
       NdbDictionary::RecordSpecification(employee_first_name, offsetof(EmployeeRow, first_name)),
       NdbDictionary::RecordSpecification(employee_last_name,  offsetof(EmployeeRow, last_name)),
       NdbDictionary::RecordSpecification(employee_gender,     offsetof(EmployeeRow, gender)),
       NdbDictionary::RecordSpecification(employee_hire_date,  offsetof(EmployeeRow, hire_date)),
-****/
   };
 
   pkeyEmployeeRecord = 
@@ -202,12 +342,10 @@ static void init_ndbrecord_info(Ndb &myNdb)
   if (salary_to_date == NULL) APIERROR(myDict->getNdbError());
 
   const NdbDictionary::RecordSpecification salarySpec[] = {
-/****
       NdbDictionary::RecordSpecification(salary_emp_no,    offsetof(SalaryRow, emp_no)),
       NdbDictionary::RecordSpecification(salary_from_date, offsetof(SalaryRow, from_date)),
       NdbDictionary::RecordSpecification(salary_salary,    offsetof(SalaryRow, salary)),
       NdbDictionary::RecordSpecification(salary_to_date,   offsetof(SalaryRow, to_date))
-***/
   };
 
   // Lookup Primary key for salaries table
@@ -233,7 +371,7 @@ static void init_ndbrecord_info(Ndb &myNdb)
  * Simple example of intended usage of the new (SPJ) QueryBuilder API.
  *
  * STATUS:
- *   Compilable code, but neither link nor execute.
+ *   Compilable code, NdbQueryBuilder do some semantics checks.
  *
  */
 
@@ -264,6 +402,7 @@ int testQueryBuilder(Ndb &myNdb)
   NdbQueryBuilder myBuilder(myNdb);
 
   /* qt1 is 'const defined' */
+  printf("q1\n");
   NdbQueryDef* q1 = 0;
   {
     NdbQueryBuilder* qb = &myBuilder; //myDict->getQueryBuilder();
@@ -274,7 +413,7 @@ int testQueryBuilder(Ndb &myNdb)
        0
     };
     const NdbQueryLookupOperationDef *readManager = qb->readTuple(manager, managerKey);
-    if (readManager == NULL) APIERROR(myNdb.getNdbError());
+    if (readManager == NULL) APIERROR(qb->getNdbError());
 
     q1 = qb->prepare();
     if (q1 == NULL) APIERROR(qb->getNdbError());
@@ -286,6 +425,7 @@ int testQueryBuilder(Ndb &myNdb)
 //  NdbQueryLookupOperationDef illegalCopy2(*readManager);
   }
 
+  printf("q2\n");
   NdbQueryDef* q2 = 0;
   {
     NdbQueryBuilder* qb = &myBuilder; //myDict->getQueryBuilder();
@@ -298,13 +438,14 @@ int testQueryBuilder(Ndb &myNdb)
     };
     // Lookup on a single tuple with key define by 'managerKey' param. tuple
     const NdbQueryLookupOperationDef* readManager = qb->readTuple(manager, managerKey);
-    if (readManager == NULL) APIERROR(myNdb.getNdbError());
+    if (readManager == NULL) APIERROR(qb->getNdbError());
 
     q2 = qb->prepare();
     if (q2 == NULL) APIERROR(qb->getNdbError());
   }
 
 /**** UNFINISHED...
+  printf("q3\n");
   NdbQueryDef* q3 = 0;
   {
     NdbQueryBuilder* qb = &myBuilder; //myDict->getQueryBuilder();
@@ -314,7 +455,7 @@ int testQueryBuilder(Ndb &myNdb)
     };
     // Lookup on a single tuple with key define by 'managerKey' param. tuple
     const NdbQueryScanNode *scanManager = qb->scanIndex(manager, managerKey);
-    if (scanManager == NULL) APIERROR(myNdb.getNdbError());
+    if (scanManager == NULL) APIERROR(qb->getNdbError());
 
     q3 = qb->prepare();
     if (q3 == NULL) APIERROR(qb->getNdbError());
@@ -341,19 +482,21 @@ int testQueryBuilder(Ndb &myNdb)
   ManagerRow managerRow;
   memset (&managerRow, 0, sizeof(managerRow));
 
+/*******
   // Specify result handling NdbRecord style - need the (single) NdbQueryOperation:
   assert(myQuery->getNoOfOperations()==1);
-  assert (myQuery->getQueryOperation((Uint32)0) == myQuery->getRootOperation());
   NdbQueryOperation* op = myQuery->getQueryOperation((Uint32)0);
 
   op->setResultRowBuf(rowManagerRecord, (char*)&managerRow);
 
   if (myTransaction->execute( NdbTransaction::NoCommit ) == -1)
     APIERROR(myTransaction->getNdbError());
+******/
 
   // All NdbQuery operations are handled as scans with cursor placed 'before'
   // first record: Fetch next to retrieve result:
-  if (myQuery->nextResult() != 0)
+  int res = myQuery->nextResult();
+  if (res == -1)
     APIERROR(myQuery->getNdbError());
 
   // NOW: Result is available in 'managerRow' buffer
@@ -370,6 +513,7 @@ int testQueryBuilder(Ndb &myNdb)
    * select * from dept_manager join employees using(emp_no)
    *  where dept_no = 'd005' and emp_no = 110567;
    */
+  printf("q4\n");
   NdbQueryDef* q4 = 0;
   {
     NdbQueryBuilder* qb = &myBuilder; //myDict->getQueryBuilder();
@@ -381,7 +525,7 @@ int testQueryBuilder(Ndb &myNdb)
     };
     // Lookup a single tuple with key define by 'managerKey' param. tuple
     const NdbQueryLookupOperationDef *readManager = qb->readTuple(manager, managerKey);
-    if (readManager == NULL) APIERROR(myNdb.getNdbError());
+    if (readManager == NULL) APIERROR(qb->getNdbError());
 
     // THEN: employee table is joined:
     //    A linked value is used to let employee lookup refer values
@@ -392,7 +536,7 @@ int testQueryBuilder(Ndb &myNdb)
        0
     };
     const NdbQueryLookupOperationDef* readEmployee = qb->readTuple(employee, empJoinKey);
-    if (readEmployee == NULL) APIERROR(myNdb.getNdbError());
+    if (readEmployee == NULL) APIERROR(qb->getNdbError());
 
     q4 = qb->prepare();
     if (q4 == NULL) APIERROR(qb->getNdbError());
@@ -420,8 +564,13 @@ main(int argc, const char** argv){
 //printf("sizeof(NdbOperation): %d\n", sizeof(NdbOperation));
 //printf("sizeof(NdbScanOperation): %d\n", sizeof(NdbScanOperation));
 //printf("sizeof(NdbIndexScanOperation): %d\n", sizeof(NdbIndexScanOperation));
-  
-//printf("offset: %d\n", offsetof(NdbOperation, NdbOperation::m_type));
+  //printf("offset: %d\n", offsetof(NdbOperation, NdbOperation::m_type));
+
+
+  if (!createEmployeeDb())
+  {  std::cout << "Create of employee DB failed" << std::endl;
+     exit(-1);
+  }
 
   if (cluster_connection.connect(4, 5, 1))
   {
@@ -439,10 +588,13 @@ main(int argc, const char** argv){
     APIERROR(myNdb.getNdbError());
     exit(-1);
   }
+  std::cout << "Connected to Cluster\n";
+
 
   /*******************************************
    * Check table existence                   *
    *******************************************/
+  if (true)
   {
     bool has_tables = true;
     const NdbDictionary::Dictionary* myDict= myNdb.getDictionary();

@@ -55,9 +55,9 @@ NdbQuery::getQueryOperation(const char* ident) const
 }
 
 NdbQueryOperation*
-NdbQuery::getQueryOperation(Uint32 ident) const
+NdbQuery::getQueryOperation(Uint32 index) const
 {
-  return m_pimpl->getQueryOperation(ident);
+  return m_pimpl->getQueryOperation(index);
 }
 
 Uint32
@@ -285,7 +285,7 @@ NdbQueryImpl::getQueryOperation(const char* ident) const
 }
 
 NdbQueryOperation*
-NdbQueryImpl::getQueryOperation(Uint32 ident) const
+NdbQueryImpl::getQueryOperation(Uint32 index) const
 {
   return NULL; // FIXME
 }
@@ -475,6 +475,13 @@ NdbQueryOperationImpl::setResultRowBuf (
                        char* resBuffer,
                        const unsigned char* result_mask)
 {
+/***
+  if (rec->tableId != m_table->tableId)
+  {
+    setErrorCode(4287);
+    return -1;
+  }
+***/
   return 0; // FIXME
 }
 
@@ -484,6 +491,13 @@ NdbQueryOperationImpl::setResultRowRef (
                        char* & bufRef,
                        const unsigned char* result_mask)
 {
+/***
+  if (rec->tableId != m_table->tableId)
+  {
+    setErrorCode(4287);
+    return -1;
+  }
+***/
   return 0; // FIXME
 }
 
