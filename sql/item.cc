@@ -1915,17 +1915,22 @@ void Item_field::reset_field(Field *f)
   name= (char*) f->field_name;
 }
 
+
 bool Item_field::check_column_usage_processor(uchar *arg)
 {
   Field_processor_info* info=(Field_processor_info*)arg;
+
+  /* It is ok if this is a column of an allowed table: */
   if (used_tables() & ~info->allowed_tables)
     return FALSE;
 
   if (field->table == info->table)
   {
+    /* It is not ok to use columns that are not part of the key of interest: */
     if (!(field->part_of_key.is_set(info->keyno)))
        return TRUE;
-
+    
+    /* Find which key part we're using and mark it in needed_key_parts */
     KEY *key= &field->table->key_info[info->keyno];
     for (uint part= 0; part < key->key_parts; part++)
     {
@@ -1935,9 +1940,16 @@ bool Item_field::check_column_usage_processor(uchar *arg)
         break;
       }
     }
+    return FALSE;
   }
-  return FALSE;
+
+  /* 
+    We get here when this refers to a table that's neither the table of
+    interest, nor one of the allowed tables. 
+  */
+  return TRUE;
 }
+
 
 const char *Item_ident::full_name() const
 {

@@ -250,7 +250,7 @@ bool Item_subselect::walk(Item_processor processor, bool walk_subquery,
       if (lex->having && (lex->having)->walk(processor, walk_subquery,
                                              argument))
         return 1;
-      /* TODO: why doesn't this walk the OUTER JOINs' ON expressions */
+      /* TODO: why does this walk WHERE/HAVING but not ON expressions of outer joins? */
 
       while ((item=li++))
       {

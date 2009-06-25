@@ -1905,3 +1905,4 @@ sql/share/swedish
 sql/share/ukrainian
 libmysqld/examples/mysqltest.cc
 extra/libevent/event-config.h
+libmysqld/opt_table_elimination.cc

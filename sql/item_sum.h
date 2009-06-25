@@ -351,9 +351,10 @@ public:
     Return bitmap of tables that are needed to evaluate the item.
 
     The implementation takes into account the used strategy: items resolved
-    at optimization phase report 0.
-    Items that depend on the number of rows only, e.g. COUNT(*) will report
-    zero, but will still false from const_item().
+    at optimization phase will report 0.
+    Items that depend on the number of join output records, but not columns
+    of any particular table (like COUNT(*)) will report 0 from used_tables(),
+    but will still return false from const_item().
   */
   table_map used_tables() const { return used_tables_cache; }
   void update_used_tables ();
