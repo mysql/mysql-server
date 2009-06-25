@@ -989,7 +989,7 @@ Dbspj::execTRANSID_AI(Signal* signal)
   row.m_src_node_ptrI = treeNodePtr.i;
   row.m_src_node_no = treeNodePtr.p->m_node_no;
   row.m_row_data.m_section.m_header = (RowRef::Header*)tmp;
-  row.m_row_data.m_section.m_dataPtr = dataPtr;
+  row.m_row_data.m_section.m_dataPtr.assign(dataPtr);
   row.m_src_correlation = getColData32(row.m_row_data.m_section, cnt - 1);
 
   ndbrequire(treeNodePtr.p->m_info&&treeNodePtr.p->m_info->m_execTRANSID_AI);
