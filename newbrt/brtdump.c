@@ -251,10 +251,21 @@ interactive_help(void) {
     fprintf(stderr, "help\n");
     fprintf(stderr, "header\n");
     fprintf(stderr, "node NUMBER\n");
-    fprintf(stderr, "bx [OFFSET]\n");
+    fprintf(stderr, "bx OFFSET | block_translation OFFSET\n");
+    fprintf(stderr, "dumpdata 0|1\n");
     fprintf(stderr, "fragmentation\n");
     fprintf(stderr, "file OFFSET SIZE\n");
     fprintf(stderr, "quit\n");
+}
+
+static uint64_t
+getuint64(const char *f) {
+    if (strncmp(f, "0x", 2) == 0 || strncmp(f, "0X", 2) == 0)
+        return strtoull(f, 0, 16);
+    else if (strncmp(f, "0", 1) == 0)
+        return strtoull(f, 0, 8);
+    else
+        return strtoull(f, 0, 10);
 }
 
 int 
@@ -298,27 +309,20 @@ main (int argc, const char *argv[]) {
                 toku_brtheader_free(h);
                 dump_header(f, &h);
             } else if (strcmp(fields[0], "node") == 0 && nfields == 2) {
-                BLOCKNUM off = make_blocknum(strtoll(fields[1], NULL, 10));
+                BLOCKNUM off = make_blocknum(getuint64(fields[1]));
                 dump_node(f, off, h);
             } else if (strcmp(fields[0], "dumpdata") == 0 && nfields == 2) {
                 dump_data = strtol(fields[1], NULL, 10);
 	    } else if (strcmp(fields[0], "block_translation") == 0 || strcmp(fields[0], "bx") == 0) {
      	        u_int64_t offset = 0;
 	        if (nfields == 2)
-		    offset = strtoll(fields[1], NULL, 10);
+		    offset = getuint64(fields[1]);
 	        dump_block_translation(h, offset);
 	    } else if (strcmp(fields[0], "fragmentation") == 0) {
 	        dump_fragmentation(f, h);
             } else if (strcmp(fields[0], "file") == 0 && nfields == 3) {
-                u_int64_t offset, size;
-                if (strncmp(fields[1], "0x", 2) == 0)
-                    offset = strtoll(fields[1], NULL, 16);
-                else
-                    offset = strtoll(fields[1], NULL, 10);
-                if (strncmp(fields[2], "0x", 2) == 0)
-                    size = strtoll(fields[2], NULL, 16);
-                else
-                    size = strtoll(fields[2], NULL, 10);
+                u_int64_t offset = getuint64(fields[1]);
+                u_int64_t size = getuint64(fields[2]);
                 dump_file(f, offset, size);
             } else if (strcmp(fields[0], "quit") == 0 || strcmp(fields[0], "q") == 0) {
                 break;
