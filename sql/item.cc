@@ -2771,8 +2771,8 @@ bool Item_param::set_from_user_var(THD *thd, const user_var_entry *entry)
       CHARSET_INFO *tocs= thd->variables.collation_connection;
       uint32 dummy_offset;
 
-      value.cs_info.character_set_of_placeholder= 
-        value.cs_info.character_set_client= fromcs;
+      value.cs_info.character_set_of_placeholder= fromcs;
+      value.cs_info.character_set_client= thd->variables.character_set_client;
       /*
         Setup source and destination character sets so that they
         are different only if conversion is necessary: this will
