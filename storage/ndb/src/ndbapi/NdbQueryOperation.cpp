@@ -519,6 +519,8 @@ void NdbQueryOperationImpl::release(){
 
 bool 
 NdbQueryOperationImpl::execTRANSID_AI(const Uint32* ptr, Uint32 len){
+  ndbout << "NdbQueryOperationImpl::execTRANSID_AI(): *this="
+	 << *this << endl;  
   if(m_state!=State_Initial){
     ndbout << "NdbQueryOperationImpl::execTRANSID_AI(): unexpected state "
 	   << *this << endl;
@@ -546,6 +548,8 @@ NdbQueryOperationImpl::execTRANSID_AI(const Uint32* ptr, Uint32 len){
 
 bool 
 NdbQueryOperationImpl::execTCKEYREF(){
+  ndbout << "NdbQueryOperationImpl::execTCKEYREF(): *this="
+	 << *this << endl;  
   if(m_state!=State_Initial){
     ndbout << "NdbQueryOperationImpl::execTCKEYREF(): unexpected state "
 	   << *this << endl;
@@ -588,14 +592,14 @@ NdbQueryOperationImpl::handleCompletedChild(){
 
 /** For debugging.*/
 NdbOut& operator<<(NdbOut& out, const NdbQueryOperationImpl& op){
-  out << "[ this: " << op
+  out << "[ this: " << &op
       << "  m_magic: " << op.m_magic 
       << "  m_id: " << op.m_id;
   for(unsigned int i = 0; i<op.m_parents.size(); i++){
-    out << "m_parents[" << i << "]" << op.m_parents[i]; 
+    out << "  m_parents[" << i << "]" << op.m_parents[i]; 
   }
   for(unsigned int i = 0; i<op.m_children.size(); i++){
-    out << "m_children[" << i << "]" << op.m_children[i]; 
+    out << "  m_children[" << i << "]" << op.m_children[i]; 
   }
   out << "  m_queryImpl: " << &op.m_queryImpl
       << "  m_state: ";

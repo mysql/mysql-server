@@ -100,9 +100,9 @@ protected:
 class NdbQueryIndexBound
 {
 public:
-  const NdbQueryOperand* const low_key[];  // NULL terminated
+  const NdbQueryOperand* const *low_key;  // 'Pointer to array of pointers', NULL terminated
   bool low_inclusive;
-  const NdbQueryOperand* const high_key[]; // NULL terminated
+  const NdbQueryOperand* const *high_key; // 'Pointer to array of pointers', NULL terminated
   bool high_inclusive;
 };
 
