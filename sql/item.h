@@ -731,7 +731,11 @@ public:
   virtual bool val_bool_result() { return val_bool(); }
   virtual bool is_null_result() { return is_null(); }
 
-  /* bit map of tables used by item */
+  /* 
+    Bitmap of tables used by item
+    (note: if you need to check dependencies on individual columns, check out
+     check_column_usage_processor)
+  */
   virtual table_map used_tables() const { return (table_map) 0L; }
   /*
     Return table map of tables that can't be NULL tables (tables that are
@@ -1013,7 +1017,7 @@ public:
   bool eq_by_collation(Item *item, bool binary_cmp, CHARSET_INFO *cs); 
 };
 
-
+/* Data for Item::check_column_usage_processor */
 typedef struct  
 {
   table_map allowed_tables;
@@ -1021,6 +1025,7 @@ typedef struct
   uint keyno;
   uint needed_key_parts;
 } Field_processor_info;
+
 
 class sp_head;
 

@@ -42,11 +42,6 @@
 #define TMP_ENGINE_HTON myisam_hton
 #endif
 
-#define FT_KEYPART   (MAX_REF_PARTS+10)
-/* Values in optimize */
-#define KEY_OPTIMIZE_EXISTS		1
-#define KEY_OPTIMIZE_REF_OR_NULL	2
-
 const char *join_type_str[]={ "UNKNOWN","system","const","eq_ref","ref",
 			      "MAYBE_REF","ALL","range","index","fulltext",
 			      "ref_or_null","unique_subquery","index_subquery",
@@ -65,7 +60,6 @@ static bool update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,
                                 table_map table_map, SELECT_LEX *select_lex,
                                 st_sargable_param **sargables);
 static int sort_keyuse(KEYUSE *a,KEYUSE *b);
-static void set_position(JOIN *join,uint index,JOIN_TAB *table,KEYUSE *key);
 static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
 			       table_map used_tables);
 static bool choose_plan(JOIN *join,table_map join_tables);
@@ -2386,10 +2380,13 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
   }
   else
   {
-    // psergey{
+    /*
+      When in EXPLAIN, delay deleting the joins so that they are still
+      available when we're producing EXPLAIN EXTENDED warning text.
+    */
     if (select_options & SELECT_DESCRIBE)
       free_join= 0;
-    // }psergey
+
     if (!(join= new JOIN(thd, fields, select_options, result)))
 	DBUG_RETURN(TRUE);
     thd_proc_info(thd, "init");
@@ -2477,383 +2474,6 @@ static ha_rows get_quick_record_count(THD *thd, SQL_SELECT *select,
   DBUG_RETURN(HA_POS_ERROR);			/* This shouldn't happend */
 }
 
-/********************************************************************
- * Table elimination code starts
- ********************************************************************/
-typedef struct st_keyuse_w_needed_reg
-{
-  KEYUSE *first;
-  key_part_map second;
-  
-} Keyuse_w_needed_reg;
-
-static
-bool has_eq_ref_access_candidate(TABLE *table, table_map can_refer_to_these)
-{
-  KEYUSE *keyuse= table->reginfo.join_tab->keyuse;
-  if (keyuse)
-  {
-    /*
-      walk through all of the KEYUSE elements and
-       - locate unique keys
-       - check if we have eq_ref access for them
-          TODO any other reqs?
-      loops are constructed like in best_access_path
-    */
-    while (keyuse->table == table)
-    {
-      uint key= keyuse->key;
-      key_part_map bound_parts=0;
-      uint n_unusable=0;
-      bool ft_key= test(keyuse->keypart == FT_KEYPART);
-      KEY *keyinfo= table->key_info + key; 
-      KEYUSE *key_start = keyuse;
-      
-      do  /* For each keypart and each way to read it */
-      {
-        if (keyuse->usable)
-        {
-          if(!(keyuse->used_tables & ~can_refer_to_these) &&
-             !(keyuse->optimize & KEY_OPTIMIZE_REF_OR_NULL))
-          {
-            bound_parts |= keyuse->keypart_map;
-          }
-        }
-        else
-          n_unusable++;
-        keyuse++;
-      } while (keyuse->table == table && keyuse->key == key);
-      
-      if (ft_key || ((keyinfo->flags & (HA_NOSAME | HA_NULL_PART_KEY)) 
-                     != HA_NOSAME))
-      { 
-        continue; 
-      }
-
-      if (bound_parts == PREV_BITS(key_part_map, keyinfo->key_parts))
-        return TRUE;
-      /* 
-        Ok, usable keyuse elements didn't help us. Try making use of
-        unusable KEYUSEs (psergey-todo: sane comments:)
-      */
-      if (n_unusable && bound_parts)
-      {
-        /*
-          Check if unusable KEYUSE elements cause all parts of key to be
-          bound. An unusable keyuse element makes a key part bound when it
-          represents the following:
-
-            keyXpartY=func(bound_columns, preceding_tables)
-
-          .
-        */
-        Keyuse_w_needed_reg *uses;
-        if (!(uses= (Keyuse_w_needed_reg*)my_alloca(sizeof(Keyuse_w_needed_reg)*n_unusable)))
-          return FALSE;
-        uint n_uses=0;
-        for (KEYUSE *k= key_start; k!=keyuse; k++)
-        {
-          if (!k->usable && !(k->used_tables & ~can_refer_to_these))
-          {
-            //Walk k->val and check which key parts it depends on.
-            Field_processor_info fp= {can_refer_to_these, table, k->key, 0};
-            if (!k->val->walk(&Item::check_column_usage_processor, FALSE, 
-                              (uchar*)&fp))
-            {
-              uses[n_uses].first= k;
-              uses[n_uses].second= fp.needed_key_parts;
-              n_uses++;
-            }
-          }
-        }
-        /* Now compute transitive closure */
-        uint n_bounded;
-        do 
-        {
-          n_bounded= 0;
-          for (uint i=0; i< n_uses; i++)
-          {
-            /* needed_parts is covered by what is already bound*/
-            if (!(uses[i].second & ~bound_parts))
-            {
-              bound_parts|= key_part_map(1) << uses[i].first->keypart;
-              n_bounded++;
-            }
-            if (bound_parts == PREV_BITS(key_part_map, keyinfo->key_parts))
-              return TRUE;
-          }
-        } while (n_bounded != 0);
-      }
-    }
-  }
-  return FALSE;
-}
-
-
-static void mark_table_as_eliminated(JOIN *join, TABLE *table, uint *const_tbl_count, 
-                                      table_map *const_tables)
-{
-  JOIN_TAB *tab= table->reginfo.join_tab;
-  if (!(*const_tables & tab->table->map))
-  {
-    DBUG_PRINT("info", ("Eliminated table %s", table->alias));
-    tab->type= JT_CONST;
-    join->eliminated_tables |= table->map;
-    *const_tables |= table->map;
-    join->const_table_map|= table->map;
-    set_position(join, (*const_tbl_count)++, tab, (KEYUSE*)0);
-  }
-}
-
-
-/*
-  Now on to traversal. There can be a situation like this:
-
-    FROM t1 
-         LEFT JOIN t2 ON cond(t1,t2)
-         LEFT JOIN t3 ON cond(..., possibly-t2)  // <--(*)
-         LEFT JOIN t4 ON cond(..., possibly-t2)
-
-  Besides that, simplify_joins() may have created back references, so when
-  we're e.g. looking at outer join (*) we need to look both forward and
-  backward to check if there are any references in preceding/following
-  outer joins'
-
-  TODO would it create only following-sibling references or
-  preceding-sibling as well?
-    And if not, should we rely on that?
-    
-*/
-
-int
-eliminate_tables_for_join_list(JOIN *join, List<TABLE_LIST> *join_list, 
-                               table_map used_tables_elsewhere, 
-                               uint *const_tbl_count, table_map *const_tables)
-{
-  List_iterator<TABLE_LIST> it(*join_list);
-  table_map used_tables_on_right[MAX_TABLES]; // todo change to alloca
-  table_map used_tables_on_left;
-  TABLE_LIST *tbl;
-  int i, n_tables;
-  int eliminated=0;
-
-  /* Collect the reverse-bitmap-array */
-  for (i=0; (tbl= it++); i++)
-  {
-    used_tables_on_right[i]= 0;
-    if (tbl->on_expr)
-      used_tables_on_right[i]= tbl->on_expr->used_tables();
-    if (tbl->nested_join)
-      used_tables_on_right[i]= tbl->nested_join->used_tables;
-  }
-  n_tables= i;
-
-  for (i= n_tables - 2; i > 0; i--)
-    used_tables_on_right[i] |= used_tables_on_right[i+1];
-  
-  it.rewind();
-  
-  /* Walk through tables and join nests and see if we can eliminate them */
-  used_tables_on_left= 0;
-  i= 1;
-  while ((tbl= it++))
-  {
-    table_map tables_used_outside= used_tables_on_left |
-                                   used_tables_on_right[i] |
-                                   used_tables_elsewhere;
-    table_map cur_tables= 0;
-
-    if (tbl->nested_join)
-    {
-      DBUG_ASSERT(tbl->on_expr); 
-      /*
-        There can be cases where table removal is applicable for tables
-        within the outer join but not for the outer join itself. Ask to
-        remove the children first.
-
-        TODO: NoHopelessEliminationAttempts: the below call can return 
-        information about whether it would make any sense to try removing 
-        this entire outer join nest.
-      */
-      int eliminated_in_children= 
-        eliminate_tables_for_join_list(join, &tbl->nested_join->join_list,
-                                       tables_used_outside,
-                                       const_tbl_count, const_tables);
-      tbl->nested_join->n_tables -=eliminated_in_children; 
-      cur_tables= tbl->nested_join->used_tables;
-      if (!(cur_tables & tables_used_outside))
-      {
-        /* 
-          Check if all embedded tables together can produce at most one
-          record combination. This is true when
-           - each of them has one_match(outer-tables) property
-             (this is a stronger condition than all of them together having
-              this property but that's irrelevant here)
-           - there are no outer joins among them
-             (except for the case  of outer join which has all inner tables
-              to be constant and is guaranteed to produce only one record.
-              that record will be null-complemented)
-        */
-        bool one_match= TRUE;
-        List_iterator<TABLE_LIST> it2(tbl->nested_join->join_list);
-        TABLE_LIST *inner;
-        while ((inner= it2++))
-        {
-          /*
-            Bail out if we see an outer join (TODO: handle the above
-            null-complemntated-rows-only case)
-          */
-          if (inner->on_expr)
-          {
-            one_match= FALSE;
-            break;
-          }
-
-          if (inner->table && // <-- to be removed after NoHopelessEliminationAttempts
-              !has_eq_ref_access_candidate(inner->table,
-                                           ~tbl->nested_join->used_tables))
-          {
-            one_match= FALSE;
-            break;
-          }
-        }
-        if (one_match)
-        {
-          it2.rewind();
-          while ((inner= it2++))
-          {
-            mark_table_as_eliminated(join, inner->table, const_tbl_count, 
-                                     const_tables);
-          }
-          eliminated += tbl->nested_join->join_list.elements;
-          //psergey-todo: do we need to do anything about removing the join
-          //nest?
-          tbl->on_expr->walk(&Item::mark_as_eliminated_processor, FALSE, NULL);
-        }
-        else
-        {
-          eliminated += eliminated_in_children;
-        }
-      }
-    }
-    else if (tbl->on_expr)
-    {
-      cur_tables= tbl->on_expr->used_tables();
-      /* Check and remove */
-      if (!(tbl->table->map & tables_used_outside) && 
-          has_eq_ref_access_candidate(tbl->table, (table_map)-1))
-      {
-        mark_table_as_eliminated(join, tbl->table, const_tbl_count, 
-                                 const_tables);
-        tbl->on_expr->walk(&Item::mark_as_eliminated_processor, FALSE, NULL);
-        eliminated += 1;
-      }
-    }
-
-    /* Update bitmap of tables we've seen on the left */
-    i++;
-    used_tables_on_left |= cur_tables;
-  }
-  return eliminated;
-}
-
-
-/*
-  Perform table elimination based on outer join
-
-  SELECT * FROM t1 LEFT JOIN 
-    (t2 JOIN t3) ON t3.primary_key=t1.col AND 
-                    t4.primary_key= t2.col
-
-  CRITERIA FOR REMOVING ONE OJ NEST
-    we can't rely on sole presense of eq_refs. Because if we do, we'll miss
-    things like this:
-
-    SELECT * FROM flights LEFT JOIN 
-      (pax as S1 JOIN pax as S2 ON S2.id=S1.spouse AND s1.id=s2.spouse)
-  
-   (no-polygamy schema/query but there can be many couples on the flight)
-   ..
-  
-  REMOVAL PROCESS
-    We can remove an inner side of an outer join if it there is a warranty
-    that it will produce not more than one record:
-
-     ... t1 LEFT JOIN t2 ON (t2.unique_key = expr) ...
-
-    For nested outer joins:
-    - The process naturally occurs bottom-up (in order to remove an
-      outer-join we need to analyze its contents)
-    - If we failed to remove an outer join nest, it makes no sense to 
-      try removing its ancestors, as the 
-         ot LEFT JOIN it ON cond
-      pair may possibly produce two records (one record via match and
-      another one as access-method record).
-
-  Q: If we haven't removed an OUTER JOIN, does it make sense to attempt
-  removing its ancestors? 
-  A: No as the innermost outer join will produce two records => no ancestor 
-  outer join nest will be able to provide the max_fanout==1 guarantee.
-
-  psergey-todo: .
-*/
-
-static void eliminate_tables(JOIN *join, uint *const_tbl_count, table_map *const_tables)
-{
-  Item *item;
-  table_map used_tables;
-  DBUG_ENTER("eliminate_tables");
-  
-  DBUG_ASSERT(join->eliminated_tables == 0);
-  
-  /* MWL#17 is only about outer join elimination, so: */
-  if (!join->outer_join)
-    DBUG_VOID_RETURN;
-
-  /* Find the tables that are referred to from WHERE/HAVING */
-  used_tables= (join->conds?  join->conds->used_tables() : 0) | 
-               (join->having? join->having->used_tables() : 0);
-  
-  /* Add tables referred to from the select list */
-  List_iterator<Item> it(join->fields_list);
-  while ((item= it++))
-    used_tables |= item->used_tables();
- 
-  /* Add tables referred to from ORDER BY and GROUP BY lists */
-  ORDER *all_lists[]= { join->order, join->group_list};
-  for (int i=0; i < 2; i++)
-  {
-    for (ORDER *cur_list= all_lists[i]; cur_list; cur_list= cur_list->next)
-      used_tables |= (*(cur_list->item))->used_tables();
-  }
-  
-  THD* thd= join->thd;
-  if (join->select_lex == &thd->lex->select_lex)
-  {
-    /* Multi-table UPDATE and DELETE: don't eliminate the tables we modify: */
-    used_tables |= thd->table_map_for_update;
-
-    /* Multi-table UPDATE: don't eliminate tables referred from SET statement */
-    if (thd->lex->sql_command == SQLCOM_UPDATE_MULTI)
-    {
-      List_iterator<Item> it2(thd->lex->value_list);
-      while ((item= it2++))
-        used_tables |= item->used_tables();
-    }
-  }
-
-  if (((1 << join->tables) - 1) & ~used_tables)
-  {
-    /* There are some time tables that we probably could eliminate */
-    eliminate_tables_for_join_list(join, join->join_list, used_tables,
-                                   const_tbl_count, const_tables);
-  }
-  DBUG_VOID_RETURN;
-}
-
-/********************************************************************
- * Table elimination code ends
- ********************************************************************/
 
 /*
    This structure is used to collect info on potentially sargable
@@ -3219,10 +2839,6 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
     }
   }
 
-  //psergey-todo: table elimination
-  //eliminate_tables(join, &const_count, &found_const_table_map);
-  //:psergey-todo
-
   /* Calc how many (possible) matched records in each table */
 
   for (s=stat ; s < stat_end ; s++)
@@ -3354,7 +2970,7 @@ typedef struct key_field_t {
   */
   bool          null_rejecting; 
   bool         *cond_guard; /* See KEYUSE::cond_guard */
-  bool          usable;
+  bool          usable; /* See KEYUSE::usable */
 } KEY_FIELD;
 
 
@@ -4428,8 +4044,7 @@ add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab)
 
 /** Save const tables first as used tables. */
 
-static void
-set_position(JOIN *join,uint idx,JOIN_TAB *table,KEYUSE *key)
+void set_position(JOIN *join,uint idx,JOIN_TAB *table,KEYUSE *key)
 {
   join->positions[idx].table= table;
   join->positions[idx].key=key;
@@ -17021,7 +16636,6 @@ bool mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
     unit->fake_select_lex->options|= SELECT_DESCRIBE;
     if (!(res= unit->prepare(thd, result, SELECT_NO_UNLOCK | SELECT_DESCRIBE)))
       res= unit->exec();
-    //psergey-move: res|= unit->cleanup();
   }
   else
   {

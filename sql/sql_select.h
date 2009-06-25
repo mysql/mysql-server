@@ -28,6 +28,11 @@
 #include "procedure.h"
 #include <myisam.h>
 
+#define FT_KEYPART   (MAX_REF_PARTS+10)
+/* Values in optimize */
+#define KEY_OPTIMIZE_EXISTS		1
+#define KEY_OPTIMIZE_REF_OR_NULL	2
+
 typedef struct keyuse_t {
   TABLE *table;
   Item	*val;				/**< or value if no field */
@@ -51,6 +56,14 @@ typedef struct keyuse_t {
     NULL  - Otherwise (the source equality can't be turned off)
   */
   bool *cond_guard;
+  /*
+    TRUE  <=> This keyuse can be used to construct key access.
+    FALSE <=> Otherwise. Currently unusable KEYUSEs represent equalities
+              where one table column refers to another one, like this:
+                t.keyXpartA=func(t.keyXpartB)
+              This equality cannot be used for index access but is useful
+              for table elimination.
+  */
   bool usable;
 } KEYUSE;
 
@@ -734,9 +747,13 @@ bool error_if_full_join(JOIN *join);
 int report_error(TABLE *table, int error);
 int safe_index_read(JOIN_TAB *tab);
 COND *remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value);
+void set_position(JOIN *join,uint idx,JOIN_TAB *table,KEYUSE *key);
 
 inline bool optimizer_flag(THD *thd, uint flag)
 { 
   return (thd->variables.optimizer_switch & flag);
 }
+
+void eliminate_tables(JOIN *join, uint *const_tbl_count, 
+                      table_map *const_tables);
 
