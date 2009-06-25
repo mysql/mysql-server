@@ -140,7 +140,7 @@ struct SegmentedSectionPtrPOD
 
   void setNull() { p = 0;}
   bool isNull() const { return p == 0;}
-  inline SegmentedSectionPtrPOD& operator=(struct SegmentedSectionPtr&);
+  inline SegmentedSectionPtrPOD& assign(struct SegmentedSectionPtr&);
 };
 
 struct SegmentedSectionPtr {
@@ -163,7 +163,7 @@ struct SegmentedSectionPtr {
 
 inline
 SegmentedSectionPtrPOD&
-SegmentedSectionPtrPOD::operator=(struct SegmentedSectionPtr& src)
+SegmentedSectionPtrPOD::assign(struct SegmentedSectionPtr& src)
 {
   this->i = src.i;
   this->p = src.p;
