@@ -1,4 +1,4 @@
--- source include/have_log_bin.inc
+-- source include/have_binlog_format_mixed_or_statement.inc
 -- source include/have_gbk.inc
 
 SET NAMES gbk;
