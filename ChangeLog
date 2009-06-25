@@ -1,5 +1,15 @@
 2009-06-25	The InnoDB Team
 
+	* handler/ha_innodb.cc,
+	mysql-test/innodb_bug42101.test,
+	mysql-test/innodb_bug42101.result,
+	mysql-test/innodb_bug42101-nonzero.test,
+	mysql-test/innodb_bug42101-nonzero.result:
+	Fix Bug#45749 Race condition in SET GLOBAL
+	innodb_commit_concurrency=DEFAULT
+
+2009-06-25	The InnoDB Team
+
 	* dict/dict0dict.c:
 	When an index column cannot be found in the table during index
 	creation, display additional diagnostic before an assertion failure.
