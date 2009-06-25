@@ -1242,9 +1242,10 @@ int ha_commit_one_phase(THD *thd, bool all)
 #endif
       thd->variables.tx_isolation=thd->session_tx_isolation;
     }
-    if (is_real_trans)
-      thd->transaction.cleanup();
   }
+  /* Free resources and perform other cleanup even for 'empty' transactions. */
+  if (is_real_trans)
+    thd->transaction.cleanup();
 #endif /* USING_TRANSACTIONS */
   DBUG_RETURN(error);
 }
