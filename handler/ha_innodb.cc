@@ -6247,7 +6247,7 @@ ha_innobase::create(
 	/* Our function row_get_mysql_key_number_for_index assumes
 	the primary key is always number 0, if it exists */
 
-	DBUG_ASSERT(primary_key_no == -1 || primary_key_no == 0);
+	ut_a(primary_key_no == -1 || primary_key_no == 0);
 
 	/* Create the keys */
 
