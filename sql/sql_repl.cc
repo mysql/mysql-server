@@ -1043,6 +1043,7 @@ int reset_slave(THD *thd, Master_info* mi)
      Reset errors (the idea is that we forget about the
      old master).
   */
+  mi->clear_error();
   mi->rli.clear_error();
   mi->rli.clear_until_condition();
 
