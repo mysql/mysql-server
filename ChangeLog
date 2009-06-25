@@ -1,3 +1,11 @@
+2009-06-25	The InnoDB Team
+
+	* dict/dict0dict.c:
+	When an index column cannot be found in the table during index
+	creation, display additional diagnostic before an assertion failure.
+	This does NOT fix Bug #44571 InnoDB Plugin crashes on ADD INDEX,
+	but it helps understand the reason of the crash.
+
 2009-06-17	The InnoDB Team
 
 	* row/row0merge.c:
