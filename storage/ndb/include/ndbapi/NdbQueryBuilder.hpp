@@ -26,6 +26,7 @@
 
 class Ndb;
 
+class NdbQueryBuilderImpl;
 class NdbQueryOperandImpl;
 class NdbQueryOperationDefImpl;
 
@@ -213,7 +214,6 @@ public:
   NdbQueryBuilder(Ndb&);    // Or getQueryBuilder() from Ndb..
  ~NdbQueryBuilder();
 
-   
   class NdbQueryDef* prepare();    // Complete building a queryTree from 'this' NdbQueryBuilder
 
   // NdbQueryOperand builders:
@@ -274,27 +274,11 @@ public:
    */
   const NdbError& getNdbError() const;
 
-  /** 
-   * Get the method number where the latest error occured.
-   * 
-   * @return Line number where latest error occured.
-   */
-//int getNdbErrorLine();
-
-/*** LIKELY TO BE REMOVED:
-  void next(NdbQueryBuilder* next)      // Set next pointer
-  { m_next = next; };
-		      
-  NdbQueryBuilder*  next()              // Get next pointer
-  { return m_next; };
-		
-private:
-  NdbQueryBuilder* m_next;
-********/
+  NdbQueryBuilderImpl& getImpl() const;
 
 private:
-  Ndb& m_ndb;
-  NdbError m_error;
+  NdbQueryBuilderImpl* const m_pimpl;
+
 }; // class NdbQueryBuilder
 
 /**
@@ -321,7 +305,7 @@ private:
 class NdbQueryDef
 {
 protected:
-  // C'tor is private - only NdbQueryBuilder::prepare() is allowed to construct a new NdbQueryDef
+  // C'tor is protected - only NdbQueryBuilder::prepare() is allowed to construct a new NdbQueryDef
   NdbQueryDef();
 
 public:
@@ -335,8 +319,20 @@ public:
 
   const NdbQueryOperationDef* getRootOperation() const;
 
-  // Remove this NdbQueryDef.
+//Uint32 getNoOfOperations() const;
+
+  // Get a specific NdbQueryOperationDef by ident specified
+  // when the NdbQueryOperationDef was created.
+//NdbQueryOperationDef* getQueryOperationDef(const char* ident) const;
+//NdbQueryOperationDef* getQueryOperationDef(Uint32 index) const;
+
+  // Remove this NdbQueryDef including operation and operands it contains
 //void release();    Just delete it instead ?
+
+//class NdbQueryDefImpl& getImpl() const;
+
+private:
+//class NdbQueryDefImpl* const m_pimpl;
 };
 
 

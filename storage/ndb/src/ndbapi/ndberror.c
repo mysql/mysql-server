@@ -95,6 +95,7 @@ static const char* empty_string = "";
  * 4500 - ""
  * 4600 - ""
  * 4700 - "" Event
+ * 4800 - API, QueryBuilder
  * 5000 - Management server
  */
 
@@ -719,6 +720,17 @@ ErrorBundle ErrorCodes[] = {
   { 2810, DMEC, TR, "No space left on the device" },
   { 2811, DMEC, TR, "Error with file permissions, please check file system" },
   { 2815, DMEC, TR, "Error in reading files, please check file system" },
+
+  /**
+   * NdbQueryBuilder API errors
+   */
+  { 4800, DMEC, AE, "Required argument is NULL" },
+  { 4801, DMEC, AE, "All required 'key' values was not specified" },
+  { 4802, DMEC, AE, "Too many 'key' values was specified" },
+  { 4803, DMEC, AE, "Incompatible datatype specified in operand argument" },
+  { 4804, DMEC, AE, "Unknown 'parent' specified in linkedValue" },
+  { 4805, DMEC, AE, "Unknown 'column' specified in linkedValue" },
+
 
   { NO_CONTACT_WITH_PROCESS, DMEC, AE,
     "No contact with the process (dead ?)."},

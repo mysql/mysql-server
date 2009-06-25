@@ -39,11 +39,6 @@ class NdbQueryImpl;
 class NdbQueryOperationImpl;
 class NdbRecord;
 
-/** Opaque implementation classes */
-class NdbQueryImpl;
-class NdbQueryOperationImpl;
-
-
 /**
  * NdbQuery are create when a NdbQueryDefinition is submitted for
  * execution.
@@ -81,7 +76,7 @@ public:
   // Get a specific NdbQueryOperation by ident specified
   // when the NdbQueryOperationDef was created.
   NdbQueryOperation* getQueryOperation(const char* ident) const;
-  NdbQueryOperation* getQueryOperation(Uint32 ident) const;
+  NdbQueryOperation* getQueryOperation(Uint32 index) const;
 //NdbQueryOperation* getQueryOperation(const NdbQueryOperationDef* def) const;
 
 

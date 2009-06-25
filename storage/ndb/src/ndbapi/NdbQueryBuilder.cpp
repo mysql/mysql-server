@@ -17,9 +17,11 @@
 */
 
 #include <ndb_global.h>
+#include <Vector.hpp>
 
 #include "Ndb.hpp"
 #include "NdbQueryBuilder.hpp"
+#include "NdbQueryBuilderImpl.hpp"
 #include "NdbDictionary.hpp"
 
 /**
@@ -36,12 +38,10 @@
  * Impl object, all 'final' Impl objects inherit its interface class.
  * As all 'Impl' object 'is a' interface object:
  *   - C++ auto downcasting may be used to get the interface object.
- *   - No explicit 'pimpl ptr' required in the interface. Impl object
- *     available by casting the interface obj. to its Impl class.
  *   - Impl classes does not have to be friend of the interface classes.
  *
  * ::getImpl() functions has been defined for convenient access 
- * all available interface classes.
+ * to all available interface classes.
  *
  * CODE STATUS:
  *   Except for creating the Query objects, the NdbQueryBuilder factory
@@ -50,9 +50,32 @@
  * 
  */
 
+static void
+setErrorCode(NdbQueryBuilderImpl* qb, int aErrorCode)
+{ qb->setErrorCode(aErrorCode);
+}
+
+static void
+setErrorCode(NdbQueryBuilder* qb, int aErrorCode)
+{ qb->getImpl().setErrorCode(aErrorCode);
+}
+
+
+//////////////////////////////////////////////////////////////////
+// Convenient macro for returning specific errorcodes if
+// 'cond' does not evaluate to true.
+//////////////////////////////////////////////////////////////////
+#define returnErrIf(cond,err)		\
+  if (unlikely((cond)))			\
+  { ::setErrorCode(this,err);		\
+    return NULL;			\
+  }
+
+
 //////////////////////////////////////////////
 // Implementation of NdbQueryOperand interface
 //////////////////////////////////////////////
+
 
 // Baseclass for the QueryOperand implementation
 class NdbQueryOperandImpl
@@ -61,13 +84,19 @@ public:
   const NdbDictionary::Column* getColumn() const
   { return m_column; };
 
+  virtual int bindOperand(const NdbDictionary::Column* column,
+                           NdbQueryOperationDefImpl* operation)
+  { m_column = column;
+    return 0;
+  }
+
 protected:
   virtual ~NdbQueryOperandImpl() {};
   NdbQueryOperandImpl()
   : m_column(0) {}
 
 private:
-  const NdbDictionary::Column* m_column;
+  const NdbDictionary::Column* m_column;  // Initial NULL, assigned w/ bindOperand()
 }; // class NdbQueryOperandImpl
 
 
@@ -77,15 +106,20 @@ class NdbLinkedOperandImpl :
 {
   friend class NdbQueryBuilder;  // Allow privat access from builder interface
 
+public:
+  virtual int bindOperand(const NdbDictionary::Column* column,
+                          NdbQueryOperationDefImpl* operation);
+
 private:
   virtual ~NdbLinkedOperandImpl() {};
-  NdbLinkedOperandImpl (const NdbQueryOperationDef* parent, const char* attr)
+  NdbLinkedOperandImpl (const NdbQueryOperationDef* parent, 
+                        const NdbDictionary::Column* column)
    : NdbLinkedOperand(this), NdbQueryOperandImpl(),
-     m_parent(parent), m_attr(attr)
+     m_parent(&parent->getImpl()), m_column(column)
   {};
 
-  const NdbQueryOperationDef* const m_parent;
-  const char* const m_attr;
+  NdbQueryOperationDefImpl* const m_parent;
+  const NdbDictionary::Column* const m_column;
 }; // class NdbLinkedOperandImpl
 
 
@@ -126,6 +160,11 @@ public:
   virtual size_t getLength() const = 0;
   virtual const void* getAddr() const = 0;
 
+  virtual int bindOperand(const NdbDictionary::Column* column,
+                          NdbQueryOperationDefImpl* operation);
+
+  virtual NdbDictionary::Column::Type getType() const = 0;
+
 protected:
   virtual ~NdbConstOperandImpl() {};
   NdbConstOperandImpl ()
@@ -143,6 +182,7 @@ public:
   NdbInt32ConstOperandImpl (Int32 value) : NdbConstOperandImpl(), m_value(value) {};
   size_t getLength()    const { return sizeof(m_value); };
   const void* getAddr() const { return &m_value; };
+  NdbDictionary::Column::Type getType() const { return NdbDictionary::Column::Int; };
 private:
   const Int32 m_value;
 };
@@ -153,6 +193,7 @@ public:
   NdbUint32ConstOperandImpl (Uint32 value) : NdbConstOperandImpl(), m_value(value) {};
   size_t getLength()    const { return sizeof(m_value); };
   const void* getAddr() const { return &m_value; };
+  NdbDictionary::Column::Type getType() const { return NdbDictionary::Column::Unsigned; };
 private:
   const Uint32 m_value;
 };
@@ -163,6 +204,7 @@ public:
   NdbInt64ConstOperandImpl (Int64 value) : NdbConstOperandImpl(), m_value(value) {};
   size_t getLength()    const { return sizeof(m_value); };
   const void* getAddr() const { return &m_value; };
+  NdbDictionary::Column::Type getType() const { return NdbDictionary::Column::Bigint; };
 private:
   const Int64 m_value;
 };
@@ -173,6 +215,7 @@ public:
   NdbUint64ConstOperandImpl (Uint64 value) : NdbConstOperandImpl(), m_value(value) {};
   size_t getLength()    const { return sizeof(m_value); };
   const void* getAddr() const { return &m_value; };
+  NdbDictionary::Column::Type getType() const { return NdbDictionary::Column::Bigunsigned; };
 private:
   const Uint64 m_value;
 };
@@ -183,6 +226,7 @@ public:
   NdbCharConstOperandImpl (const char* value) : NdbConstOperandImpl(), m_value(value) {};
   size_t getLength()    const { return strlen(m_value); };
   const void* getAddr() const { return m_value; };
+  NdbDictionary::Column::Type getType() const { return NdbDictionary::Column::Char; };
 private:
   const char* const m_value;
 };
@@ -196,6 +240,7 @@ public:
 
   size_t getLength()    const { return m_length; };
   const void* getAddr() const { return m_value; };
+  NdbDictionary::Column::Type getType() const { return NdbDictionary::Column::Undefined; };
 private:
   const void* const m_value;
   const size_t m_length;
@@ -223,16 +268,25 @@ public:
   const NdbDictionary::Table* getTable() const
   { return m_table; };
 
+  void addParent(NdbQueryOperationDefImpl *);
+  void addChild(NdbQueryOperationDefImpl *);
+
 protected:
   virtual ~NdbQueryOperationDefImpl() {};
   NdbQueryOperationDefImpl (
                            const NdbDictionary::Table* table,
                            const char* ident)
-   : m_table(table), m_ident(ident) {};
+   : m_table(table), m_ident(ident),
+     m_parent(), m_child()
+ {};
 
 private:
   const NdbDictionary::Table* const m_table;
   const char* const m_ident;
+
+  Vector<NdbQueryOperationDefImpl*> m_parent;
+  Vector<NdbQueryOperationDefImpl*> m_child;
+
 }; // class NdbQueryOperationDefImpl
 
 
@@ -326,28 +380,44 @@ private:
 }; // class NdbQueryIndexScanOperationDefImpl
 
 
+
+
 class NdbQueryDefImpl : public NdbQueryDef
 {
+public:
+  NdbQueryDefImpl();
+  ~NdbQueryDefImpl();
+
+
 private:
+  Vector<NdbQueryOperationDefImpl*> m_operation;
+//Vector<NdbParamOperand*> m_paramOperand;
+//Vector<NdbConstOperand*> m_constOperand;
+//Vector<NdbLinkedOperand*> m_linkedOperand;
 }; // class NdbQueryDefImpl
 
-/**
- * class NdbQueryBuilder is not (yet?) hidden in a pimpl object.
- *
- */
-// class NdbQueryBuilderImpl : public NdbQueryBuilder {};
 
-/*************************************************************************
- * Glue layer between NdbQueryOperand interface and its Impl'ementation.
- ************************************************************************/
+///////////////////////////////////////////////////
+/////// End 'Impl' class declarations /////////////
+///////////////////////////////////////////////////
+
 NdbQueryDef::NdbQueryDef()
 {}
+NdbQueryDef::~NdbQueryDef()
+{}
+
 
 const NdbQueryOperationDef*
 NdbQueryDef::getRootOperation() const
 {
   return NULL;  // FIXME
 }
+
+
+
+/*************************************************************************
+ * Glue layer between NdbQueryOperand interface and its Impl'ementation.
+ ************************************************************************/
 
 NdbQueryOperand::NdbQueryOperand(NdbQueryOperandImpl* pimpl) : m_pimpl(pimpl)
 { assert(pimpl!=NULL); }
@@ -509,11 +579,23 @@ NdbQueryLookupOperationDef::getIndex() const
  * Implementation of NdbQueryBuilder factory
  ******************************************/
 NdbQueryBuilder::NdbQueryBuilder(Ndb& ndb)
-: m_ndb(ndb), m_error()
+: m_pimpl(new NdbQueryBuilderImpl(ndb))
 {}
 
 NdbQueryBuilder::~NdbQueryBuilder()
-{}
+{ delete m_pimpl;
+}
+
+inline NdbQueryBuilderImpl&
+NdbQueryBuilder::getImpl() const
+{ return *m_pimpl;
+}
+
+const NdbError&
+NdbQueryBuilder::getNdbError() const
+{
+  return m_pimpl->getNdbError();
+}
 
 //////////////////////////////////////////////////
 // Implements different const datatypes by further
@@ -522,37 +604,57 @@ NdbQueryBuilder::~NdbQueryBuilder()
 NdbConstOperand* 
 NdbQueryBuilder::constValue(const char* value)
 {
+  returnErrIf(value==0,4800);
   NdbConstOperandImpl* constOp = new NdbCharConstOperandImpl(value);
+  returnErrIf(constOp==0,4000);
+
+  m_pimpl->m_constOperand.push_back(constOp);
   return constOp;
 }
 NdbConstOperand* 
 NdbQueryBuilder::constValue(const void* value, size_t length)
 {
+  returnErrIf(value==0 && length>0,4800);
   NdbConstOperandImpl* constOp = new NdbGenericConstOperandImpl(value,length);
+  returnErrIf(constOp==0,4000);
+
+  m_pimpl->m_constOperand.push_back(constOp);
   return constOp;
 }
 NdbConstOperand* 
 NdbQueryBuilder::constValue(Int32 value)
 {
   NdbConstOperandImpl* constOp = new NdbInt32ConstOperandImpl(value);
+  returnErrIf(constOp==0,4000);
+
+  m_pimpl->m_constOperand.push_back(constOp);
   return constOp;
 }
 NdbConstOperand* 
 NdbQueryBuilder::constValue(Uint32 value)
 {
   NdbConstOperandImpl* constOp = new NdbUint32ConstOperandImpl(value);
+  returnErrIf(constOp==0,4000);
+
+  m_pimpl->m_constOperand.push_back(constOp);
   return constOp;
 }
 NdbConstOperand* 
 NdbQueryBuilder::constValue(Int64 value)
 {
   NdbConstOperandImpl* constOp = new NdbInt64ConstOperandImpl(value);
+  returnErrIf(constOp==0,4000);
+
+  m_pimpl->m_constOperand.push_back(constOp);
   return constOp;
 }
 NdbConstOperand* 
 NdbQueryBuilder::constValue(Uint64 value)
 {
   NdbConstOperandImpl* constOp = new NdbUint64ConstOperandImpl(value);
+  returnErrIf(constOp==0,4000);
+
+  m_pimpl->m_constOperand.push_back(constOp);
   return constOp;
 }
 
@@ -560,17 +662,29 @@ NdbParamOperand*
 NdbQueryBuilder::paramValue(const char* name)
 {
   NdbParamOperandImpl* paramOp = new NdbParamOperandImpl(name);
+  returnErrIf(paramOp==0,4000);
+
+  m_pimpl->m_paramOperand.push_back(paramOp);
   return paramOp;
 }
 
 NdbLinkedOperand* 
 NdbQueryBuilder::linkedValue(const NdbQueryOperationDef* parent, const char* attr)
 {
-  if (parent && attr)
-  { NdbLinkedOperandImpl* linkedOp = new NdbLinkedOperandImpl(parent,attr);
-    return linkedOp;
-  }
-  return NULL;
+  returnErrIf(parent==0 || attr==0, 4800);  // Required non-NULL arguments
+
+  // Parent should be a OperationDef contained in this query builder context
+  returnErrIf(!m_pimpl->contains(&parent->getImpl()), 4804); // Unknown parent
+
+  // 'attr' should refer a column from the underlying table in parent:
+  const NdbDictionary::Column* column = parent->getTable()->getColumn(attr);
+  returnErrIf(column==0, 4805); // Unknown column
+
+  NdbLinkedOperandImpl* linkedOp = new NdbLinkedOperandImpl(parent,column);
+  returnErrIf(linkedOp==0, 4000);
+
+  m_pimpl->m_linkedOperand.push_back(linkedOp);
+  return linkedOp;
 }
 
 
@@ -579,16 +693,51 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Table* table,    // Primary key 
                            const NdbQueryOperand* const keys[],  // Terminated by NULL element 
                            const char* ident)
 {
-  if (table)
-  {
-    NdbQueryLookupOperationDefImpl* op =
-      new NdbQueryLookupOperationDefImpl(table,keys,ident);
-    return op;
-  }
+  if (m_pimpl->hasError())
+    return NULL;
 
-//  setOperationErrorCodeAbort(4271);
-  return NULL;
+  int i;
+  returnErrIf(table==0 || keys==0, 4800);  // Required non-NULL arguments
+
+  // All column values being part of primary key should be specified:
+  int keyfields = table->getNoOfPrimaryKeys();
+  int colcount = table->getNoOfColumns();
+
+  // Check: keys[] are specified for all fields in PK
+  for (i=0; i<keyfields; ++i)
+  {
+    returnErrIf(keys[i]==NULL, 4801);  // A 'Key' value is undefineds
+  }
+  // Check for propper NULL termination of keys[] spec
+  returnErrIf(keys[keyfields]!=NULL, 4802);
+
+  NdbQueryLookupOperationDefImpl* op =
+    new NdbQueryLookupOperationDefImpl(table,keys,ident);
+  returnErrIf(op==0, 4000);
+
+  int keyindex = 0;
+  for (i=0; i<colcount; ++i)
+  {
+    const NdbDictionary::Column *col = table->getColumn(i);
+    if (col->getPrimaryKey())
+    {
+      int error = keys[keyindex]->getImpl().bindOperand(col,op);
+      if (unlikely(error))
+      { m_pimpl->setErrorCode(error);
+        delete op;
+        return NULL;
+      }
+
+      keyindex++;
+      if (keyindex >= keyfields)
+        break;  // Seen all PK fields
+    }
+  }
+  
+  m_pimpl->m_operation.push_back(op);
+  return op;
 }
+
 
 NdbQueryLookupOperationDef*
 NdbQueryBuilder::readTuple(const NdbDictionary::Index* index,    // Unique key lookup w/ index
@@ -596,14 +745,16 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Index* index,    // Unique key l
                            const NdbQueryOperand* const keys[],  // Terminated by NULL element 
                            const char* ident)
 {
-  if (index && table)
-  {
-    NdbQueryLookupOperationDefImpl* op = 
-      new NdbQueryLookupOperationDefImpl(index,table,keys,ident);
-    return op;
-  }
-//  setOperationErrorCodeAbort(4271);
-  return NULL;
+  if (m_pimpl->hasError())
+    return NULL;
+  returnErrIf(table==0 || index==0 || keys==0, 4800);  // Required non-NULL arguments
+
+  NdbQueryLookupOperationDefImpl* op = 
+    new NdbQueryLookupOperationDefImpl(index,table,keys,ident);
+  returnErrIf(op==0, 4000);
+
+  m_pimpl->m_operation.push_back(op);
+  return op;
 }
 
 
@@ -611,9 +762,15 @@ NdbQueryTableScanOperationDef*
 NdbQueryBuilder::scanTable(const NdbDictionary::Table* table,
                            const char* ident)
 {
+  if (m_pimpl->hasError())
+    return NULL;
+  returnErrIf(table==0, 4800);  // Required non-NULL arguments
+
   NdbQueryTableScanOperationDefImpl* op =
     new NdbQueryTableScanOperationDefImpl(table,ident);
+  returnErrIf(op==0, 4000);
 
+  m_pimpl->m_operation.push_back(op);
   return op;
 }
 
@@ -624,19 +781,145 @@ NdbQueryBuilder::scanIndex(const NdbDictionary::Index* index,
                            const NdbQueryIndexBound* bound,
                            const char* ident)
 {
+  if (m_pimpl->hasError())
+    return NULL;
+  returnErrIf(table==0 || index==0 || bound==0, 4800);  // Required non-NULL arguments
+
   NdbQueryIndexScanOperationDefImpl* op =
     new NdbQueryIndexScanOperationDefImpl(index,table,bound,ident);
+  returnErrIf(op==0, 4000);
 
+  m_pimpl->m_operation.push_back(op);
   return op;
 }
-
-
 
 NdbQueryDef*
 NdbQueryBuilder::prepare()
 {
-  return new NdbQueryDefImpl();
+  return m_pimpl->prepare();
 }
+
+////////////////////////////////////////
+// The (hidden) Impl of NdbQueryBuilder
+////////////////////////////////////////
+
+NdbQueryBuilderImpl::NdbQueryBuilderImpl(Ndb& ndb)
+: m_ndb(ndb), m_error(), m_operation(),
+  m_paramOperand(), m_constOperand(), m_linkedOperand()
+{}
+
+NdbQueryBuilderImpl::~NdbQueryBuilderImpl()
+{
+  // FIXME: Delete all operand and operator in Vector's
+}
+
+
+bool 
+NdbQueryBuilderImpl::contains(const NdbQueryOperationDefImpl* opDef)
+{
+  for (int i=0; i<m_operation.size(); ++i)
+  { if (m_operation[i] == opDef)
+      return true;
+  }
+  return false;
+}
+
+NdbQueryDef*
+NdbQueryBuilderImpl::prepare()
+{
+  int i;
+
+/****
+  // FIXME: Build parent/child operation references
+  //        Install named OperationDef's in HashMap
+  for (i = 0; i<m_operation.size(); ++i)
+  { const NdbQueryOperationDef *def = m_operation[i];
+  }
+****/
+
+  NdbQueryDef* def = new NdbQueryDefImpl();
+  returnErrIf(def==0, 4000);
+
+  // TODO: Copy or handover of below Operand and Operations to NdbQueryDef:
+
+  m_operation.clear();
+  m_paramOperand.clear();
+  m_constOperand.clear();
+  m_linkedOperand.clear();
+
+  return def;
+}
+
+
+
+void
+NdbQueryOperationDefImpl::addParent(NdbQueryOperationDefImpl *operation)
+{
+  for (int i=0; i<m_parent.size(); ++i)
+  { if (m_parent[i] == operation)
+      return;
+  }
+  m_parent.push_back(operation);
+}
+
+void
+NdbQueryOperationDefImpl::addChild(NdbQueryOperationDefImpl *operation)
+{
+  for (int i=0; i<m_child.size(); ++i)
+  { if (m_child[i] == operation)
+      return;
+  }
+  m_child.push_back(operation);
+}
+
+
+int
+NdbLinkedOperandImpl::bindOperand(
+                           const NdbDictionary::Column* column,
+                           NdbQueryOperationDefImpl* operation)
+{
+  NdbDictionary::Column::Type type = column->getType();
+  if (type != m_column->getType())
+    return 4803;  // Incompatible datatypes
+
+  // TODO? Check length if Char, and prec,scale if decimal type
+
+  // Register parent/child relations
+  this->m_parent->addChild(operation);
+  operation->addParent(this->m_parent);
+
+  return NdbQueryOperandImpl::bindOperand(column,operation);
+}
+
+
+int
+NdbConstOperandImpl::bindOperand(
+                           const NdbDictionary::Column* column,
+                           NdbQueryOperationDefImpl* operation)
+{
+  NdbDictionary::Column::Type type = column->getType();
+  if (type != this->getType())
+    return 4803;  // Incompatible datatypes
+
+  // TODO? Check length if Char, and prec,scale if decimal type
+
+  return NdbQueryOperandImpl::bindOperand(column,operation);
+}
+
+
+NdbQueryDefImpl::NdbQueryDefImpl()
+{}
+NdbQueryDefImpl::~NdbQueryDefImpl()
+{
+  // FIXME: Release elements in Vector<>
+}
+
+
+// Instantiate Vector templates
+template class Vector<NdbQueryOperationDefImpl*>;
+template class Vector<NdbParamOperandImpl*>;
+template class Vector<NdbConstOperandImpl*>;
+template class Vector<NdbLinkedOperandImpl*>;
 
 
 #if 0

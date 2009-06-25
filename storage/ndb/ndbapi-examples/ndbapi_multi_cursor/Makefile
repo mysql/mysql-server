@@ -8,14 +8,15 @@ DEBUG =
 LDFLAGS = -g -m64
 TOP_SRCDIR = ../../../..
 INCLUDE_DIR = $(TOP_SRCDIR)/storage/ndb/include
-LIB_DIR = -L$(TOP_SRCDIR)/storage/ndb/src/.libs
+LIB_DIR = -L$(TOP_SRCDIR)/storage/ndb/src/.libs \
+          -L$(TOP_SRCDIR)/libmysql_r/.libs
 SYS_LIB = 
 
 $(TARGET): $(OBJS)
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(LIB_DIR) $(OBJS) -lrt -lndbclient $(SYS_LIB) -o $(TARGET)
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(LIB_DIR) $(OBJS) -lrt -lndbclient -lmysqlclient_r $(SYS_LIB) -o $(TARGET)
 
 $(TARGET).quantify: $(OBJS)
-	quantify $(CXX) $(CXXFLAGS) $(LDFLAGS) $(LIB_DIR) $(OBJS) -lrt -lndbclient $(SYS_LIB) -o $(TARGET)
+	quantify $(CXX) $(CXXFLAGS) $(LDFLAGS) $(LIB_DIR) $(OBJS) -lrt -lndbclient -lmysqlclient_r $(SYS_LIB) -o $(TARGET)
 
 
 $(OBJS): $(SRCS)
