@@ -67,6 +67,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <mysys_err.h>
 #include <mysql/plugin.h>
 
+/** @file ha_innodb.cc */
+
 /* Include necessary InnoDB headers */
 extern "C" {
 #include "univ.i"
@@ -227,7 +229,6 @@ static handler *innobase_create_handler(handlerton *hton,
                                         MEM_ROOT *mem_root);
 
 /************************************************************//**
-@file handler/ha_innodb.cc
 Validate the file format name and return its corresponding id.
 @return	valid file format id */
 static
