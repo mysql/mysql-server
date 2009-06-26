@@ -544,16 +544,20 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
 	if (tCon->theSendStatus == NdbTransaction::sendTC_OP) {
 	  if(isNdbOperation){
 	    tReturnCode = tOp->receiveTCKEYREF(aSignal);
+	    if (tReturnCode != -1) {
+	      completedTransaction(tCon);
+	      return;
+	    }//if
 	  } else {
-	    tReturnCode = queryOpImpl->getImpl().execTCKEYREF();
-	  }
-	  if (tReturnCode != -1) {
-	    completedTransaction(tCon);
-	    return;
+	    if(queryOpImpl->execTCKEYREF() &&
+	       tCon->OpCompleteFailure(&queryOpImpl->getOperation()) != -1){
+	      completedTransaction(tCon);
+	      return;
+	    }//if 
 	  }//if
 	  break;
 	}//if
-      }//if
+      }//if (tCon != NULL)
       goto InvalidSignal;
       return;
     } 

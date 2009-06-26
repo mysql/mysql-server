@@ -633,3 +633,4 @@ NdbOut& operator<<(NdbOut& out, const NdbQueryOperationImpl& op){
   out << " ]";
   return out;
 }
+ 

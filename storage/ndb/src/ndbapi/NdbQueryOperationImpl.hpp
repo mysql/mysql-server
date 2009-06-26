@@ -180,6 +180,10 @@ public:
     m_children.push_back(&child.getImpl());
     child.getImpl().m_parents.push_back(this);
   }
+
+  NdbOperation& getOperation() const{
+    return m_operation;
+  }
   // End: Hack
   //////////////////////////////////////////////
 
