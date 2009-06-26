@@ -213,7 +213,8 @@ NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans):
   m_error(),
   m_transaction(trans),
   m_operations(),
-  m_tcKeyConfReceived(false)
+  m_tcKeyConfReceived(false),
+  m_pendingOperations(0)
 {
   assert(m_id != NdbObjectIdMap::InvalidId);
 }
@@ -225,11 +226,12 @@ NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans, const NdbQueryDef& queryDef):
   m_error(),
   m_transaction(trans),
   m_operations(),
-  m_tcKeyConfReceived(false)
+  m_tcKeyConfReceived(false),
+  m_pendingOperations(0)
 {
   assert(m_id != NdbObjectIdMap::InvalidId);
 
-  for (int i=0; i<queryDef.getNoOfOperations(); ++i)
+  for (Uint32 i=0; i<queryDef.getNoOfOperations(); ++i)
   {
     const NdbQueryOperationDef* def = queryDef.getQueryOperation(i);
     assert(def!=NULL);
@@ -237,7 +239,7 @@ NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans, const NdbQueryDef& queryDef):
     NdbQueryOperationImpl* op = new NdbQueryOperationImpl(*this, def);
 
     // Fill in operations parent refs, and append it as child of its parents
-    for (int p=0; p<def->getNoOfParentOperations(); ++p)
+    for (Uint32 p=0; p<def->getNoOfParentOperations(); ++p)
     { 
       const NdbQueryOperationDef* parent = def->getParentOperation(p);
       int ix = queryDef.getQueryOperationIx(parent);
@@ -256,7 +258,7 @@ NdbQueryImpl::~NdbQueryImpl()
     m_transaction.getNdb()->theImpl->theNdbObjectIdMap.unmap(m_id, this);
   }
 
-  for (int i=0; i<m_operations.size(); ++i)
+  for (Uint32 i=0; i<m_operations.size(); ++i)
   { delete m_operations[i];
   }
 }
@@ -328,23 +330,19 @@ NdbQueryImpl::getNdbTransaction() const
   return &m_transaction;  // FIXME
 }
 
-bool 
-NdbQueryImpl::isComplete(){
-  // TODO: generalize for non-tree operation graphs
-    return m_tcKeyConfReceived && 
-      m_operations[0]->isComplete();
-}
-
 void 
 NdbQueryImpl::prepareSend(){
-  // TODO: Fix for cases with non-tree graphs.
-  m_operations[0]->prepareSend();
+  m_pendingOperations = m_operations.size();
+  for(Uint32 i = 0; i < m_operations.size(); i++){
+      m_operations[i]->prepareSend();
+  }
 }
 
 void 
 NdbQueryImpl::release(){
-  // TODO: Fix for cases with non-tree graphs.
-  m_operations[0]->release();
+  for(Uint32 i = 0; i < m_operations.size(); i++){
+      m_operations[i]->release();
+  }
 }
 
 ////////////////////////////////////////////////////
@@ -388,6 +386,7 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(NdbQueryImpl& queryImpl,
 { 
   assert(m_id != NdbObjectIdMap::InvalidId);
   m_receiver.init(NdbReceiver::NDB_OPERATION, false, &operation);
+  queryImpl.addQueryOperation(this);
 }
 
 // Temp factory for Jan - will be removed later
@@ -514,19 +513,11 @@ NdbQueryOperationImpl::isRowChanged() const
 }
 
 void NdbQueryOperationImpl::prepareSend(){
-  /** TODO: fix for non-tree graphs.*/
   m_receiver.prepareSend();
-  for(unsigned int i = 0; i<m_children.size(); i++){
-    m_children[i]->prepareSend();
-  }
 }
 
 void NdbQueryOperationImpl::release(){
-  /** TODO: fix for non-tree graphs.*/
   m_receiver.release();
-  for(unsigned int i = 0; i<m_children.size(); i++){
-    m_children[i]->release();
-  }
 }
 
 
@@ -553,7 +544,7 @@ NdbQueryOperationImpl::execTRANSID_AI(const Uint32* ptr, Uint32 len){
     for(unsigned int j = 0; j < m_parents.size(); j++){
       m_parents[j]->handleCompletedChild();
     }
-    return m_queryImpl.isComplete();
+    return m_queryImpl.countCompletedOperation();
   }else{
     m_state = State_WaitForChildren;
     return false;
@@ -573,7 +564,7 @@ NdbQueryOperationImpl::execTCKEYREF(){
   for(unsigned int i = 0; i < m_parents.size(); i++){
     m_parents[i]->handleCompletedChild();
   }
-  return m_queryImpl.isComplete();
+  return m_queryImpl.countCompletedOperation();
 }
 
 void
@@ -594,6 +585,7 @@ NdbQueryOperationImpl::handleCompletedChild(){
 	for(unsigned int j = 0; j < m_parents.size(); j++){
 	  m_parents[j]->handleCompletedChild();
 	}
+	m_queryImpl.countCompletedOperation();
       }
     }
     break;

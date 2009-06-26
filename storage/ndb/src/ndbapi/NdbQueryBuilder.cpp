@@ -818,8 +818,8 @@ NdbQueryBuilderImpl::NdbQueryBuilderImpl(Ndb& ndb)
 
 NdbQueryBuilderImpl::~NdbQueryBuilderImpl()
 {
-  int i;
- 
+  Uint32 i;
+
   // Delete all operand and operator in Vector's
   for (i=0; i<m_operations.size(); ++i)
   { delete &m_operations[i]->getImpl();
@@ -839,7 +839,7 @@ NdbQueryBuilderImpl::~NdbQueryBuilderImpl()
 bool 
 NdbQueryBuilderImpl::contains(const NdbQueryOperationDef* opDef)
 {
-  for (int i=0; i<m_operations.size(); ++i)
+  for (Uint32 i=0; i<m_operations.size(); ++i)
   { if (m_operations[i] == opDef)
       return true;
   }
@@ -850,8 +850,6 @@ NdbQueryBuilderImpl::contains(const NdbQueryOperationDef* opDef)
 NdbQueryDef*
 NdbQueryBuilderImpl::prepare()
 {
-  int i;
-
 /****
   // FIXME: Install named OperationDef's in HashMap
   for (i = 0; i<m_operation.size(); ++i)
@@ -881,7 +879,7 @@ NdbQueryDefImpl::NdbQueryDefImpl(const NdbQueryBuilderImpl& builder)
 NdbQueryDefImpl::~NdbQueryDefImpl()
 {
   // Release all NdbQueryOperations
-  for (int i=0; i<m_operations.size(); ++i)
+  for (Uint32 i=0; i<m_operations.size(); ++i)
   { delete &m_operations[i]->getImpl();
   }
 }
@@ -892,7 +890,7 @@ NdbQueryDefImpl::~NdbQueryDefImpl()
 void
 NdbQueryOperationDefImpl::addParent(const NdbQueryOperationDef *opDef)
 {
-  for (int i=0; i<m_parents.size(); ++i)
+  for (Uint32 i=0; i<m_parents.size(); ++i)
   { if (m_parents[i] == opDef)
       return;
   }
@@ -902,7 +900,7 @@ NdbQueryOperationDefImpl::addParent(const NdbQueryOperationDef *opDef)
 void
 NdbQueryOperationDefImpl::addChild(const NdbQueryOperationDef *opDef)
 {
-  for (int i=0; i<m_children.size(); ++i)
+  for (Uint32 i=0; i<m_children.size(); ++i)
   { if (m_children[i] == opDef)
       return;
   }

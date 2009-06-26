@@ -80,35 +80,42 @@ public:
 
   /** Process TCKEYCONF message. Return true if query is complete.*/
   bool execTCKEYCONF(){
-    ndbout << "NdbQueryImpl::execTCKEYCONF() isComplete()= " 
-	   << isComplete() << endl;
+    ndbout << "NdbQueryImpl::execTCKEYCONF()  m_pendingOperations=" 
+	   << m_pendingOperations << endl;
     m_tcKeyConfReceived = true;
-    return isComplete();
+    return m_pendingOperations==0;
   }
 
-  /** Check if all expected signals have been received.*/
-  bool isComplete();
+  /** Record that an operation is complete.
+   * @return True if query is complete.*/
+  bool countCompletedOperation(){
+    return --m_pendingOperations==0 && m_tcKeyConfReceived;
+  }
 
+  /** Prepare NdbReceiver objects for receiving the first results batch.*/
   void prepareSend();
 
+  /** Release all NdbReceiver instances.*/
   void release();
 
   bool checkMagicNumber() const { return m_magic == MAGIC;}
   Uint32 ptr2int() const {return m_id;}
   
 private:
+  /** For verifying pointers to this class.*/
   const Uint32 m_magic;
+  /** I-value for object maps.*/
   const Uint32 m_id;
+  /** Possible error status of this query.*/
   NdbError m_error;
+  /** Transaction in which this query instance executes.*/
   NdbTransaction& m_transaction;
+  /** The operations constituting this query.*/
   Vector<NdbQueryOperationImpl*> m_operations;
-  bool m_tcKeyConfReceived; 
-  /** Each operation should yiedl either a TCKEYCONF or a TCKEYREF message.
-   This is the no of such messages pending.*/
-  //int m_missingConfRefs;
-  /** We should receive the same number of  TCKEYCONF and TRANSID_AI messages.
-   This is the (possibly negative) no of such messages pending.*/
-  //int m_missingTransidAIs;
+  /** True if a TCKEYCONF message has been received for this query.*/
+  bool m_tcKeyConfReceived;
+  /** Number of operations not yest completed.*/
+  int m_pendingOperations;
 }; // class NdbQueryImpl
 
 
@@ -190,11 +197,6 @@ public:
   /** Process absence of result data for this operation. 
    * Return true if query complete.*/
   bool execTCKEYREF();
-
-  /** Check if this operation and all descendants are complete.*/
-  bool isComplete(){
-    return m_state==State_Complete;
-  }
 
   void prepareSend();
 
