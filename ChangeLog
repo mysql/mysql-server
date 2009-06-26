@@ -60,7 +60,7 @@
 	innodb_write_io_threads and deprecate innodb_file_io_threads (this
 	parameter was relevant only on windows). Internally this allows
 	multiple segments for read and write IO request arrays where one
-	thread works on one segement.
+	thread works on one segment.
 
 2009-06-05	The InnoDB Team
 
@@ -70,7 +70,7 @@
 	  1) Take into account access pattern when deciding whether or not to
 	    do linear read ahead.
 	  2) Expose a knob innodb_read_ahead_factor = [0-64] default (8),
-	    dynamic, global to control linear read ahead behvior. This is the
+	    dynamic, global to control linear read ahead behavior. This is the
 	    value of the number of pages that InnoDB will tolerate within a
 	    64 page extent even if they are accessed out of order or have
 	    not been accessed at all. This number (which varies from 0 to 64)
