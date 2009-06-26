@@ -28,6 +28,12 @@ SOURCE=`pwd`
 CP="cp -p"
 MV="mv"
 
+# There are platforms, notably OS X on Intel (x86 + x86_64),
+# for which "uname" does not provide sufficient information.
+# The value of CFLAGS as used during compilation is the most exact info
+# we can get - after all, we care about _what_ we built, not _where_ we did it.
+cflags="@CFLAGS@"
+
 STRIP=1
 DEBUG=0
 SILENT=0
@@ -71,10 +77,44 @@ system=`echo $system | sed -e 's/linux-gnu/linux/g'`
 system=`echo $system | sed -e 's/solaris2.\([0-9]*\)/solaris\1/g'`
 system=`echo $system | sed -e 's/sco3.2v\(.*\)/openserver\1/g'`
 
+# Get the "machine", which really is the CPU architecture (including the size).
+# The precedence is:
+# 1) use an explicit argument, if given;
+# 2) use platform-specific fixes, if there are any (see bug#37808);
+# 3) stay with the default (determined during "configure", using predefined macros).
 if [ x"$MACHINE" != x"" ] ; then
   machine=$MACHINE
+else
+  case $system in
+    osx* )
+      # Extract "XYZ" from CFLAGS "... -arch XYZ ...", or empty!
+      cflag_arch=`echo "$cflags" | sed -n -e 's=.* -arch \([^ ]*\) .*=\1=p'`
+      case "$cflag_arch" in
+        i386 )    case $system in
+                    osx10.4 )  machine=i686 ;; # Used a different naming
+                    * )        machine=x86 ;;
+                  esac ;;
+        x86_64 )  machine=x86_64 ;;
+        ppc )     ;;  # No treatment needed with PPC
+        ppc64 )   ;;
+        * ) # No matching compiler flag? "--platform" is needed
+            if [ x"$PLATFORM" != x"" ] ; then
+              :  # See below: "$PLATFORM" will take precedence anyway
+            elif [ "$system" = "osx10.3" -a -z "$cflag_arch" ] ; then
+              :  # Special case of OS X 10.3, which is PPC-32 only and doesn't use "-arch"
+            else
+              echo "On system '$system' only specific '-arch' values are expected."
+              echo "It is taken from the 'CFLAGS' whose value is:"
+              echo "$cflags"
+              echo "'-arch $cflag_arch' is unexpected, and no '--platform' was given: ABORT"
+              exit 1
+            fi ;;
+      esac  # "$cflag_arch"
+      ;;
+  esac  # $system
 fi
 
+# Combine OS and CPU to the "platform". Again, an explicit argument takes precedence.
 if [ x"$PLATFORM" != x"" ] ; then
   platform="$PLATFORM"
 else
@@ -117,10 +157,10 @@ which_1 ()
     do
       for file in $d/$cmd
       do
-	if [ -x $file -a ! -d $file ] ; then
-	  echo $file
-	  exit 0
-	fi
+        if [ -x $file -a ! -d $file ] ; then
+          echo $file
+          exit 0
+        fi
       done
     done
   done
@@ -354,7 +394,7 @@ if [ $BASE_SYSTEM = "netware" ] ; then
         $BASE/support-files/mysql-log-rotate \
         $BASE/support-files/binary-configure \
         $BASE/support-files/build-tags \
-	$BASE/support-files/MySQL-shared-compat.spec \
+        $BASE/support-files/MySQL-shared-compat.spec \
         $BASE/support-files/ndb-config-2-node.ini \
         $BASE/INSTALL-BINARY
 fi
