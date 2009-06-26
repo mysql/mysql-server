@@ -261,7 +261,7 @@ Ndbfs::execREAD_CONFIG_REQ(Signal* signal)
     theIdleBoundFiles.push_back(createAsyncFile(true /* bound */));
   }
 
-  Uint32 threadpool = 8;
+  Uint32 threadpool = 2;
   ndb_mgm_get_int_parameter(p, CFG_DB_THREAD_POOL, &threadpool);
 
   // Create IoThreads
