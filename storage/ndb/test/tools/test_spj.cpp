@@ -344,7 +344,7 @@ int spjTest(int argc, char** argv){
     NdbQuery* const query = NdbQueryImpl::buildQuery(*pTrans);
     NdbQueryOperation* const root 
       = NdbQueryOperationImpl::buildQueryOperation(query->getImpl(), *pOp);
-    query->getImpl().setRootOperation(root);
+    //query->getImpl().setRootOperation(root);
     NdbQueryOperation* currOp = root;
     const ResultSet* rSet[nNodes];
     rSet[0] = new ResultSet(root, pTab);
