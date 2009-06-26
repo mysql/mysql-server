@@ -1756,7 +1756,7 @@ esac
 
 # Build optimized or debug version ?
 # First check for gcc and g++
-if test "$ac_cv_prog_gcc" = "yes"
+if test "$GCC" = "yes"
 then
   DEBUG_CFLAGS="-g"
   DEBUG_OPTIMIZE_CC="-O"
@@ -1764,9 +1764,16 @@ then
 else
   DEBUG_CFLAGS="-g"
   DEBUG_OPTIMIZE_CC=""
-  OPTIMIZE_CFLAGS="-O"
+  case $SYSTEM_TYPE in                               
+    *solaris*)
+      OPTIMIZE_CFLAGS="-O1"
+      ;;
+    *)
+      OPTIMIZE_CFLAGS="-O"
+      ;;
+  esac
 fi
-if test "$ac_cv_prog_cxx_g" = "yes"
+if test "$GXX" = "yes"
 then
   DEBUG_CXXFLAGS="-g"
   DEBUG_OPTIMIZE_CXX="-O"
@@ -1774,7 +1781,14 @@ then
 else
   DEBUG_CXXFLAGS="-g"
   DEBUG_OPTIMIZE_CXX=""
-  OPTIMIZE_CXXFLAGS="-O"
+  case $SYSTEM_TYPE in
+    *solaris*)
+      OPTIMIZE_CXXFLAGS="-O1"
+      ;;
+    *)
+      OPTIMIZE_CXXFLAGS="-O"
+      ;;
+  esac
 fi
 
 if expr "$SYSTEM_TYPE" : ".*netware.*" > /dev/null; then
