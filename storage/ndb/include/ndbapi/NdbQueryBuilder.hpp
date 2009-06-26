@@ -26,6 +26,7 @@
 
 class Ndb;
 
+class NdbQueryDefImpl;
 class NdbQueryBuilderImpl;
 class NdbQueryOperandImpl;
 class NdbQueryOperationDefImpl;
@@ -120,9 +121,6 @@ public:
 
   Uint32 getNoOfChildOperations() const;
   const NdbQueryOperationDef* getChildOperation(Uint32 i) const;
-
-  const NdbQueryOperationDef* getRootOperation() const;
-  // assert(getRootOperation()->getNoOfParentOperations() == 0);
 
   /**
    * Get table object for this operation
@@ -306,7 +304,7 @@ class NdbQueryDef
 {
 protected:
   // C'tor is protected - only NdbQueryBuilder::prepare() is allowed to construct a new NdbQueryDef
-  NdbQueryDef();
+  NdbQueryDef(NdbQueryDefImpl* pimpl);
 
 public:
   ~NdbQueryDef();
@@ -317,14 +315,15 @@ public:
   NdbQueryDef(const NdbQueryDef& other);
   NdbQueryDef& operator = (const NdbQueryDef& other);
 
-  const NdbQueryOperationDef* getRootOperation() const;
-
-//Uint32 getNoOfOperations() const;
+  Uint32 getNoOfOperations() const;
 
   // Get a specific NdbQueryOperationDef by ident specified
   // when the NdbQueryOperationDef was created.
-//NdbQueryOperationDef* getQueryOperationDef(const char* ident) const;
-//NdbQueryOperationDef* getQueryOperationDef(Uint32 index) const;
+  const NdbQueryOperationDef* getQueryOperation(const char* ident) const;
+  const NdbQueryOperationDef* getQueryOperation(Uint32 index) const;
+
+  // Get the ordinal position of a operation within this queryDef
+  int getQueryOperationIx(const NdbQueryOperationDef*) const;
 
   // Remove this NdbQueryDef including operation and operands it contains
 //void release();    Just delete it instead ?
@@ -332,7 +331,7 @@ public:
 //class NdbQueryDefImpl& getImpl() const;
 
 private:
-//class NdbQueryDefImpl* const m_pimpl;
+  NdbQueryDefImpl* const m_pimpl;
 };
 
 

@@ -22,16 +22,30 @@
 
 
 #include <Vector.hpp>
+#include "NdbQueryBuilder.hpp"
 
-class NdbQueryOperationDefImpl;
-class NdbParamOperandImpl;
-class NdbConstOperandImpl;
-class NdbLinkedOperandImpl;
+class NdbQueryBuilderImpl;
+
+class NdbQueryDefImpl : public NdbQueryDef
+{
+  friend class NdbQueryDef;
+
+public:
+  NdbQueryDefImpl(const NdbQueryBuilderImpl& builder);
+  ~NdbQueryDefImpl();
+
+private:
+  Vector<const NdbQueryOperationDef*> m_operations;
+//Vector<NdbParamOperand*> m_paramOperand;
+//Vector<NdbConstOperand*> m_constOperand;
+//Vector<NdbLinkedOperand*> m_linkedOperand;
+}; // class NdbQueryDefImpl
 
 
 class NdbQueryBuilderImpl
 {
   friend class NdbQueryBuilder;
+  friend NdbQueryDefImpl::NdbQueryDefImpl(const NdbQueryBuilderImpl& builder);
 
 public:
   ~NdbQueryBuilderImpl();
@@ -50,15 +64,15 @@ private:
   bool hasError() const
   { return (m_error.code!=0); }
 
-  bool contains(const NdbQueryOperationDefImpl*);
+  bool contains(const NdbQueryOperationDef*);
 
   Ndb& m_ndb;
   NdbError m_error;
 
-  Vector<NdbQueryOperationDefImpl*> m_operation;
-  Vector<NdbParamOperandImpl*> m_paramOperand;
-  Vector<NdbConstOperandImpl*> m_constOperand;
-  Vector<NdbLinkedOperandImpl*> m_linkedOperand;
+  Vector<const NdbQueryOperationDef*> m_operations;
+  Vector<const NdbParamOperand*> m_paramOperands;
+  Vector<const NdbConstOperand*> m_constOperands;
+  Vector<const NdbLinkedOperand*> m_linkedOperands;
 
 }; // class NdbQueryBuilderImpl
 

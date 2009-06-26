@@ -463,48 +463,6 @@ int testQueryBuilder(Ndb &myNdb)
 *****/
 
 
-  ///////////////////////////////////////////////////
-  // q2 may later be executed as:
-  // (Possibly multiple ::execute() or multiple NdbQueryDef instances 
-  // within the same NdbTransaction::execute(). )
-  ////////////////////////////////////////////////////
-  char* dept_no = "d005";
-  Uint32 emp_no = 132323;
-  void* paramList[] = {&dept_no, &emp_no};
-
-  NdbTransaction* myTransaction= myNdb.startTransaction();
-  if (myTransaction == NULL) APIERROR(myNdb.getNdbError());
-
-  NdbQuery* myQuery = myTransaction->createQuery(q2, paramList);
-  if (myQuery == NULL)
-    APIERROR(myTransaction->getNdbError());
-
-  ManagerRow managerRow;
-  memset (&managerRow, 0, sizeof(managerRow));
-
-/*******
-  // Specify result handling NdbRecord style - need the (single) NdbQueryOperation:
-  assert(myQuery->getNoOfOperations()==1);
-  NdbQueryOperation* op = myQuery->getQueryOperation((Uint32)0);
-
-  op->setResultRowBuf(rowManagerRecord, (char*)&managerRow);
-
-  if (myTransaction->execute( NdbTransaction::NoCommit ) == -1)
-    APIERROR(myTransaction->getNdbError());
-******/
-
-  // All NdbQuery operations are handled as scans with cursor placed 'before'
-  // first record: Fetch next to retrieve result:
-  int res = myQuery->nextResult();
-  if (res == -1)
-    APIERROR(myQuery->getNdbError());
-
-  // NOW: Result is available in 'managerRow' buffer
-
-  myNdb.closeTransaction(myTransaction);
-  myTransaction = 0;
-
-
   /* Composite operations building real *trees* aka. linked operations.
    * (First part is identical to building 'qt2' above)
    *
@@ -540,7 +498,73 @@ int testQueryBuilder(Ndb &myNdb)
 
     q4 = qb->prepare();
     if (q4 == NULL) APIERROR(qb->getNdbError());
+
+    assert (q4->getNoOfOperations() == 2);
+    assert (q4->getQueryOperation((Uint32)0) == readManager);
+    assert (q4->getQueryOperation((Uint32)1) == readEmployee);
+//  assert (q4->getQueryOperation((Uint32)2) == NULL);
+
+    assert (q4->getQueryOperation((Uint32)0)->getNoOfParentOperations() == 0);
+//  assert (q4->getQueryOperation((Uint32)0)->getParentOperation((Uint32)0) == NULL);
+    assert (q4->getQueryOperation((Uint32)0)->getNoOfChildOperations() == 1);
+    assert (q4->getQueryOperation((Uint32)0)->getChildOperation((Uint32)0) == readEmployee);
+    assert (q4->getQueryOperation((Uint32)1)->getNoOfParentOperations() == 1);
+    assert (q4->getQueryOperation((Uint32)1)->getParentOperation((Uint32)0) == readManager);
+    assert (q4->getQueryOperation((Uint32)1)->getNoOfChildOperations() == 0);
+//  assert (q4->getQueryOperation((Uint32)1)->getChildOperation((Uint32)0) == NULL);
   }
+
+  ///////////////////////////////////////////////////
+  // q4 may later be executed as:
+  // (Possibly multiple ::execute() or multiple NdbQueryDef instances 
+  // within the same NdbTransaction::execute(). )
+  ////////////////////////////////////////////////////
+  char* dept_no = "d005";
+  Uint32 emp_no = 132323;
+  void* paramList[] = {&dept_no, &emp_no};
+
+  NdbTransaction* myTransaction= myNdb.startTransaction();
+  if (myTransaction == NULL) APIERROR(myNdb.getNdbError());
+
+  NdbQuery* myQuery = myTransaction->createQuery(q4, paramList);
+  if (myQuery == NULL)
+    APIERROR(myTransaction->getNdbError());
+
+  assert (myQuery->getNoOfOperations() == 2);
+
+  assert (myQuery->getQueryOperation((Uint32)0)->getNoOfParentOperations() == 0);
+//assert (myQuery->getQueryOperation((Uint32)0)->getParentOperation((Uint32)0) == NULL);
+  assert (myQuery->getQueryOperation((Uint32)0)->getNoOfChildOperations() == 1);
+  assert (myQuery->getQueryOperation((Uint32)0)->getChildOperation((Uint32)0) == myQuery->getQueryOperation((Uint32)1));
+  assert (myQuery->getQueryOperation((Uint32)1)->getNoOfParentOperations() == 1);
+  assert (myQuery->getQueryOperation((Uint32)1)->getParentOperation((Uint32)0) == myQuery->getQueryOperation((Uint32)0));
+  assert (myQuery->getQueryOperation((Uint32)1)->getNoOfChildOperations() == 0);
+//assert (myQuery->getQueryOperation((Uint32)1)->getChildOperation((Uint32)0) == NULL);
+
+/*******
+  ManagerRow managerRow;
+  memset (&managerRow, 0, sizeof(managerRow));
+
+  // Specify result handling NdbRecord style - need the (single) NdbQueryOperation:
+  assert(myQuery->getNoOfOperations()==1);
+  NdbQueryOperation* op = myQuery->getQueryOperation((Uint32)0);
+
+  op->setResultRowBuf(rowManagerRecord, (char*)&managerRow);
+
+  if (myTransaction->execute( NdbTransaction::NoCommit ) == -1)
+    APIERROR(myTransaction->getNdbError());
+******/
+
+  // All NdbQuery operations are handled as scans with cursor placed 'before'
+  // first record: Fetch next to retrieve result:
+  int res = myQuery->nextResult();
+  if (res == -1)
+    APIERROR(myQuery->getNdbError());
+
+  // NOW: Result is available in 'managerRow' buffer
+
+  myNdb.closeTransaction(myTransaction);
+  myTransaction = 0;
 
   return 0;
 }

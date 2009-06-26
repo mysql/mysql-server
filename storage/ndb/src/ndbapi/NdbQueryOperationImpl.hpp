@@ -23,8 +23,9 @@
 #include "NdbQueryBuilder.hpp"
 #include "NdbImpl.hpp"
 #include "NdbError.hpp"
-#include <ObjectMap.hpp>
 #include "NdbTransaction.hpp"
+#include <ObjectMap.hpp>
+#include <Vector.hpp>
 #include <NdbOut.hpp>
 
 class NdbQueryImpl : public NdbQuery {
@@ -51,14 +52,12 @@ public:
   /** Set an NdbQueryOperation to be the root of a linked operation */
   // LATER: root and *all* NdbQueryOperations will be constructed 
   // together with NdbQuery itself in :.buildQuery()
-  void setRootOperation(NdbQueryOperation* root) {
-    m_rootOperation = &root->getImpl();};
+  void addQueryOperation(NdbQueryOperation* op) {
+    m_operations.push_back(&op->getImpl());
+  }
   //// END: TEMP hacks
   //////////////////////////////////////////////////
   
-  // get NdbQueryOperation being the root of a linked operation
-  NdbQueryOperation* getRootOperation() const;
-
   Uint32 getNoOfOperations() const;
 
   // Get a specific NdbQueryOperation by ident specified
@@ -102,7 +101,7 @@ private:
   const Uint32 m_id;
   NdbError m_error;
   NdbTransaction& m_transaction;
-  NdbQueryOperationImpl* m_rootOperation;
+  Vector<NdbQueryOperationImpl*> m_operations;
   bool m_tcKeyConfReceived; 
   /** Each operation should yiedl either a TCKEYCONF or a TCKEYREF message.
    This is the no of such messages pending.*/
@@ -126,8 +125,6 @@ class NdbQueryOperationImpl : public NdbQueryOperation {
 public:
   STATIC_CONST (MAGIC = 0xfade1234);
 
-
-  NdbQueryOperation* getRootOperation() const;
 
   Uint32 getNoOfParentOperations() const;
   NdbQueryOperation* getParentOperation(Uint32 i) const;
@@ -243,11 +240,10 @@ private:
 				 const NdbQueryOperationDef* def);
   explicit NdbQueryOperationImpl(NdbQueryImpl& queryImpl, 
 				 NdbOperation& operation);
-
   ~NdbQueryOperationImpl(){
     if (m_id != NdbObjectIdMap::InvalidId) {
       m_queryImpl.getNdbTransaction()->getNdb()->theImpl
-	->theNdbObjectIdMap.unmap(m_id, this);
+       ->theNdbObjectIdMap.unmap(m_id, this);
     }
   }
 
