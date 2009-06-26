@@ -9834,7 +9834,7 @@ TYPELIB innobase_stats_method_typelib=
   innobase_stats_method_names, NULL
 };
 static MYSQL_SYSVAR_ENUM(stats_method, srv_stats_method,
-  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  PLUGIN_VAR_RQCMDARG,
   "Specifies how InnoDB index statistics collection code should threat NULLs. "
   "Possible values of name are same to for 'myisam_stats_method'. "
   "This is startup parameter.",

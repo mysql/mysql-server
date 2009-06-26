@@ -2645,8 +2645,11 @@ loop:
 					bpage = UT_LIST_GET_FIRST(buf_pool->flush_list);
 
 					while (bpage != NULL) {
-						level += log_sys->max_checkpoint_age
-							 - (lsn - bpage->oldest_modification);
+						ib_uint64_t	oldest_modification = bpage->oldest_modification;
+						if (oldest_modification != 0) {
+							level += log_sys->max_checkpoint_age
+								 - (lsn - oldest_modification);
+						}
 						bpage = UT_LIST_GET_NEXT(flush_list, bpage);
 					}
 
@@ -2663,7 +2666,7 @@ loop:
 					if(bpl)
 						n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST,
 									bpl,
-									IB_ULONGLONG_MAX);
+									oldest_lsn + (lsn - lsn_old));
 
 					/*
 					fprintf(stderr,
