@@ -2418,6 +2418,7 @@ pthread_handler_t handle_slave_io(void *arg)
 
   pthread_detach_this_thread();
   thd->thread_stack= (char*) &thd; // remember where our stack is
+  mi->clear_error();
   if (init_slave_thread(thd, SLAVE_THD_IO))
   {
     pthread_cond_broadcast(&mi->start_cond);
@@ -2532,6 +2533,7 @@ requesting master dump") ||
         goto connected;
       });
 
+    DBUG_ASSERT(mi->last_error().number == 0);
     while (!io_slave_killed(thd,mi))
     {
       ulong event_len;
@@ -3731,6 +3733,7 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
 
   if (!slave_was_killed)
   {
+    mi->clear_error(); // clear possible left over reconnect error
     if (reconnect)
     {
       if (!suppress_warnings && global_system_variables.log_warnings)

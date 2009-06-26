@@ -174,3 +174,26 @@ start slave;
 show status like 'slave_open_temp_tables';
 Variable_name	Value
 Slave_open_temp_tables	1
+stop slave;
+reset slave;
+*** errno must be zero: 0 ***
+change master to master_user='impossible_user_name';
+start slave;
+ONE
+1
+include/stop_slave.inc
+change master to master_user='root';
+include/start_slave.inc
+*** last errno must be  zero: 0 ***
+*** last error must be blank:  ***
+include/stop_slave.inc
+change master to master_user='impossible_user_name';
+start slave;
+ONE
+1
+include/stop_slave.inc
+reset slave;
+*** io  last errno must be  zero: 0  ***
+*** io  last error must be blank:   ***
+*** sql last errno must be  zero: 0 ***
+*** sql last error must be blank:  ***

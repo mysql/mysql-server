@@ -9,7 +9,7 @@ EXECUTE stmt1 USING @var1;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1(f1 blob)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES('ƒ\0')
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES(0x8300)
 SELECT HEX(f1) FROM t1;
 HEX(f1)
 8300
@@ -29,22 +29,22 @@ HEX(s1)	HEX(s2)	d
 466F6F2773206120426172	ED40ED41ED42	47.93
 DROP PROCEDURE bug18293|
 DROP TABLE t4|
-SHOW BINLOG EVENTS FROM 369|
+SHOW BINLOG EVENTS FROM 370|
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	369	Query	1	535	use `test`; CREATE TABLE t4 (s1 CHAR(50) CHARACTER SET latin1,
+master-bin.000001	370	Query	1	536	use `test`; CREATE TABLE t4 (s1 CHAR(50) CHARACTER SET latin1,
 s2 CHAR(50) CHARACTER SET cp932,
 d DECIMAL(10,2))
-master-bin.000001	535	Query	1	784	use `test`; CREATE DEFINER=`root`@`localhost` PROCEDURE `bug18293`(IN ins1 CHAR(50),
+master-bin.000001	536	Query	1	785	use `test`; CREATE DEFINER=`root`@`localhost` PROCEDURE `bug18293`(IN ins1 CHAR(50),
 IN ins2 CHAR(50) CHARACTER SET cp932,
 IN ind DECIMAL(10,2))
 BEGIN
 INSERT INTO t4 VALUES (ins1, ins2, ind);
 END
-master-bin.000001	784	Query	1	1048	use `test`; INSERT INTO t4 VALUES ( NAME_CONST('ins1',_latin1 0x466F6F2773206120426172 COLLATE 'latin1_swedish_ci'),  NAME_CONST('ins2',_cp932 0xED40ED41ED42 COLLATE 'cp932_japanese_ci'),  NAME_CONST('ind',47.93))
-master-bin.000001	1048	Query	1	1137	use `test`; DROP PROCEDURE bug18293
-master-bin.000001	1137	Query	1	1216	use `test`; DROP TABLE t4
+master-bin.000001	785	Query	1	1049	use `test`; INSERT INTO t4 VALUES ( NAME_CONST('ins1',_latin1 0x466F6F2773206120426172 COLLATE 'latin1_swedish_ci'),  NAME_CONST('ins2',_cp932 0xED40ED41ED42 COLLATE 'cp932_japanese_ci'),  NAME_CONST('ind',47.93))
+master-bin.000001	1049	Query	1	1138	use `test`; DROP PROCEDURE bug18293
+master-bin.000001	1138	Query	1	1217	use `test`; DROP TABLE t4
 End of 5.0 tests
-SHOW BINLOG EVENTS FROM 364;
+SHOW BINLOG EVENTS FROM 365;
 ERROR HY000: Error when executing command SHOW BINLOG EVENTS: Wrong offset or I/O error
 Bug#44352 UPPER/LOWER function doesn't work correctly on cp932 and sjis environment.
 CREATE TABLE t1 (a varchar(16)) character set cp932;
