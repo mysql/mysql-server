@@ -117,11 +117,6 @@ NdbQueryOperation::buildQueryOperation(NdbQueryImpl& queryImpl,
   return NdbQueryOperationImpl::buildQueryOperation(queryImpl, operation);
 }
 
-NdbQueryOperation* NdbQuery::getRootOperation() const
-{
-  return m_pimpl->getRootOperation();
-}
-
 Uint32
 NdbQueryOperation::getNoOfParentOperations() const
 {
@@ -217,7 +212,7 @@ NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans):
   m_id(trans.getNdb()->theImpl->theNdbObjectIdMap.map(this)),
   m_error(),
   m_transaction(trans),
-  m_rootOperation(NULL),
+  m_operations(),
   m_tcKeyConfReceived(false)
 {
   assert(m_id != NdbObjectIdMap::InvalidId);
@@ -229,19 +224,29 @@ NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans, const NdbQueryDef& queryDef):
   m_id(trans.getNdb()->theImpl->theNdbObjectIdMap.map(this)),
   m_error(),
   m_transaction(trans),
-  m_rootOperation(NULL),
+  m_operations(),
   m_tcKeyConfReceived(false)
 {
   assert(m_id != NdbObjectIdMap::InvalidId);
 
-  const NdbQueryOperationDef* def = queryDef.getRootOperation();
-  if (def != NULL)
+  for (int i=0; i<queryDef.getNoOfOperations(); ++i)
   {
-    NdbQueryOperationImpl* op = new NdbQueryOperationImpl(*this, def);
-    m_rootOperation = op;
+    const NdbQueryOperationDef* def = queryDef.getQueryOperation(i);
+    assert(def!=NULL);
 
-    // TODO: Instantiate NdbQueryOperationImpl's for
-    // entire operation three.
+    NdbQueryOperationImpl* op = new NdbQueryOperationImpl(*this, def);
+
+    // Fill in operations parent refs, and append it as child of its parents
+    for (int p=0; p<def->getNoOfParentOperations(); ++p)
+    { 
+      const NdbQueryOperationDef* parent = def->getParentOperation(p);
+      int ix = queryDef.getQueryOperationIx(parent);
+      assert (ix >=0 && ix < i);
+      op->m_parents.push_back(m_operations[ix]);
+      m_operations[ix]->m_children.push_back(op);
+    }
+
+    m_operations.push_back(op);
   }
 }
 
@@ -249,6 +254,10 @@ NdbQueryImpl::~NdbQueryImpl()
 {
   if (m_id != NdbObjectIdMap::InvalidId) {
     m_transaction.getNdb()->theImpl->theNdbObjectIdMap.unmap(m_id, this);
+  }
+
+  for (int i=0; i<m_operations.size(); ++i)
+  { delete m_operations[i];
   }
 }
 
@@ -265,17 +274,10 @@ NdbQueryImpl::buildQuery(NdbTransaction& trans)  // TEMP hack to be removed
   return new NdbQueryImpl(trans);
 }
 
-
-NdbQueryOperation*
-NdbQueryImpl::getRootOperation() const
-{
-  return m_rootOperation;
-}
-
 Uint32
 NdbQueryImpl::getNoOfOperations() const
 {
-  return 0;  // FIXME
+  return m_operations.size();
 }
 
 NdbQueryOperation*
@@ -287,7 +289,7 @@ NdbQueryImpl::getQueryOperation(const char* ident) const
 NdbQueryOperation*
 NdbQueryImpl::getQueryOperation(Uint32 index) const
 {
-  return NULL; // FIXME
+  return m_operations[index];
 }
 
 Uint32
@@ -330,19 +332,19 @@ bool
 NdbQueryImpl::isComplete(){
   // TODO: generalize for non-tree operation graphs
     return m_tcKeyConfReceived && 
-      m_rootOperation->isComplete();
+      m_operations[0]->isComplete();
 }
 
 void 
 NdbQueryImpl::prepareSend(){
   // TODO: Fix for cases with non-tree graphs.
-  m_rootOperation->prepareSend();
+  m_operations[0]->prepareSend();
 }
 
 void 
 NdbQueryImpl::release(){
   // TODO: Fix for cases with non-tree graphs.
-  m_rootOperation->release();
+  m_operations[0]->release();
 }
 
 ////////////////////////////////////////////////////
@@ -356,6 +358,8 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(
   m_magic(MAGIC),
   m_id(queryImpl.getNdbTransaction()->getNdb()->theImpl
        ->theNdbObjectIdMap.map(this)),
+  m_parents(def->getNoOfParentOperations()),
+  m_children(def->getNoOfChildOperations()),
   m_receiver(queryImpl.getNdbTransaction()->getNdb()),
   m_queryImpl(queryImpl),
   m_state(State_Initial),
@@ -375,6 +379,8 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(NdbQueryImpl& queryImpl,
   m_magic(MAGIC),
   m_id(queryImpl.getNdbTransaction()->getNdb()->theImpl
        ->theNdbObjectIdMap.map(this)),
+  m_parents(),
+  m_children(),
   m_receiver(queryImpl.getNdbTransaction()->getNdb()),
   m_queryImpl(queryImpl),
   m_state(State_Initial),
@@ -395,12 +401,6 @@ NdbQueryOperationImpl::buildQueryOperation(NdbQueryImpl& queryImpl,
 }
 // END temp code
 //////////////////////////////////////////////////////////
-
-NdbQueryOperation*
-NdbQueryOperationImpl::getRootOperation() const
-{
-  return m_queryImpl.getRootOperation();
-}
 
 Uint32
 NdbQueryOperationImpl::getNoOfParentOperations() const
@@ -462,7 +462,7 @@ NdbQueryOperationImpl::getValue(
   /* This code will only work for the lookup example in test_spj.cpp.
    */
   assert(aValue==NULL);
-  /*if(getQuery().getRootOperation()==this){
+  /*if(getQuery().getQueryOperation(0)==this){
     m_operation->getValue(column);
     }*/
   return m_receiver.getValue(&NdbColumnImpl::getImpl(*column), aValue);

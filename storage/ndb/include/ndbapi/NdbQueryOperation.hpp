@@ -68,9 +68,6 @@ public:
   // END Jans hack.
   /////////////////////////////////////////////////
 
-  // get NdbQueryOperation being the root of a linked operation
-  NdbQueryOperation* getRootOperation() const;
-
   Uint32 getNoOfOperations() const;
 
   // Get a specific NdbQueryOperation by ident specified
@@ -178,9 +175,6 @@ public:
   //////////////////////////////////////////////
 
   // Collection of get'ers to navigate in root, parent/child hierarchy
-
-  NdbQueryOperation* getRootOperation() const;
-  // assert(getRootOperation()->getNoOfParentOperations() == 0);
 
   Uint32 getNoOfParentOperations() const;
   NdbQueryOperation* getParentOperation(Uint32 i) const;
