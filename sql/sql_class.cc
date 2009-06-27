@@ -27,6 +27,7 @@
 
 #include "mysql_priv.h"
 #include "rpl_rli.h"
+#include "rpl_filter.h"
 #include "rpl_record.h"
 #include "slave.h"
 #include <my_bitmap.h>
@@ -3684,7 +3685,8 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
     we should print a warning.
   */
   if (sql_log_bin_toplevel && lex->is_stmt_unsafe() &&
-      variables.binlog_format == BINLOG_FORMAT_STMT)
+      variables.binlog_format == BINLOG_FORMAT_STMT && 
+      binlog_filter->db_ok(this->db))
   {
    /*
      A warning can be elevated a error when STRICT sql mode.
