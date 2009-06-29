@@ -54,39 +54,6 @@
   #define NDB_CONNECT_STRING "loki43:2360"
 
 
-
-/* Clunky statics for shared NdbRecord stuff */
-static const NdbDictionary::Table  *manager;
-static const NdbDictionary::Column *manager_dept_no;
-static const NdbDictionary::Column *manager_emp_no;
-static const NdbDictionary::Column *manager_from_date;
-static const NdbDictionary::Column *manager_to_date;
-
-static const NdbDictionary::Table  *employee;
-static const NdbDictionary::Column *employee_emp_no;
-static const NdbDictionary::Column *employee_birth_date;
-static const NdbDictionary::Column *employee_first_name;
-static const NdbDictionary::Column *employee_last_name;
-static const NdbDictionary::Column *employee_gender;
-static const NdbDictionary::Column *employee_hire_date;
-
-static const NdbDictionary::Table  *salary;
-static const NdbDictionary::Column *salary_emp_no;
-static const NdbDictionary::Column *salary_salary;
-static const NdbDictionary::Column *salary_from_date;
-static const NdbDictionary::Column *salary_to_date;
-
-static  NdbRecord *pkeyManagerRecord;
-static  NdbRecord *rowManagerRecord;
-
-static  NdbRecord *pkeyEmployeeRecord;
-static  NdbRecord *rowEmployeeRecord;
-
-static  NdbRecord *pkeySalaryRecord;
-static  NdbRecord *indexSalaryRecord;
-static  NdbRecord *rowSalaryRecord;
-
-
 /*****************************************************
 ** Defines record structure for the rows in our tables
 ******************************************************/
@@ -255,6 +222,7 @@ int createEmployeeDb()
   return 1;
 }
 
+#if 0
 /**************************************************************
  * Initialise NdbRecord structures for table and index access *
  **************************************************************/
@@ -268,104 +236,25 @@ static void init_ndbrecord_info(Ndb &myNdb)
   if (!employee || !manager || !salary) 
     APIERROR(myDict->getNdbError());
 
-  ////////////////////////////////////////////////
-  // Prepare NdbRecords for MANAGER table
-  ////////////////////////////////////////////////
-  manager_dept_no = manager->getColumn("dept_no");
-  if (manager_dept_no == NULL) APIERROR(myDict->getNdbError());
-  manager_emp_no = manager->getColumn("emp_no");
-  if (manager_emp_no == NULL) APIERROR(myDict->getNdbError());
-  manager_from_date = manager->getColumn("from_date");
-  if (manager_from_date == NULL) APIERROR(myDict->getNdbError());
-  manager_to_date = manager->getColumn("to_date");
-  if (manager_to_date == NULL) APIERROR(myDict->getNdbError());
-
-  const NdbDictionary::RecordSpecification mngSpec[] = {
-      NdbDictionary::RecordSpecification(manager_dept_no,   offsetof(ManagerRow, dept_no)),
-      NdbDictionary::RecordSpecification(manager_emp_no,    offsetof(ManagerRow, emp_no)),
-      NdbDictionary::RecordSpecification(manager_from_date, offsetof(ManagerRow, from_date)),
-      NdbDictionary::RecordSpecification(manager_to_date,   offsetof(ManagerRow, to_date)),
-  };
-
-  pkeyManagerRecord = 
-    myDict->createRecord(manager, mngSpec, 2, sizeof(mngSpec[0]));
-  if (pkeyManagerRecord == NULL) APIERROR(myDict->getNdbError());
-
-  rowManagerRecord = 
-    myDict->createRecord(manager, mngSpec, 4, sizeof(mngSpec[0]));
+  rowManagerRecord = manager->getDefaultRecord();
   if (rowManagerRecord == NULL) APIERROR(myDict->getNdbError());
 
-
-  ////////////////////////////////////////////////
-  // Prepare NdbRecords for EMPLOYEE table
-  ////////////////////////////////////////////////
-  employee_emp_no = employee->getColumn("emp_no");
-  if (employee_emp_no == NULL) APIERROR(myDict->getNdbError());
-  employee_birth_date = employee->getColumn("birth_date");
-  if (employee_birth_date == NULL) APIERROR(myDict->getNdbError());
-  employee_first_name = employee->getColumn("first_name");
-  if (employee_first_name == NULL) APIERROR(myDict->getNdbError());
-  employee_last_name = employee->getColumn("last_name");
-  if (employee_last_name == NULL) APIERROR(myDict->getNdbError());
-  employee_gender = employee->getColumn("gender");
-  if (employee_gender == NULL) APIERROR(myDict->getNdbError());
-  employee_hire_date = employee->getColumn("hire_date");
-  if (employee_gender == NULL) APIERROR(myDict->getNdbError());
-
-  const NdbDictionary::RecordSpecification empSpec[] = {
-      NdbDictionary::RecordSpecification(employee_emp_no,     offsetof(EmployeeRow, emp_no)),
-      NdbDictionary::RecordSpecification(employee_birth_date, offsetof(EmployeeRow, birth_date)),
-      NdbDictionary::RecordSpecification(employee_first_name, offsetof(EmployeeRow, first_name)),
-      NdbDictionary::RecordSpecification(employee_last_name,  offsetof(EmployeeRow, last_name)),
-      NdbDictionary::RecordSpecification(employee_gender,     offsetof(EmployeeRow, gender)),
-      NdbDictionary::RecordSpecification(employee_hire_date,  offsetof(EmployeeRow, hire_date)),
-  };
-
-  pkeyEmployeeRecord = 
-    myDict->createRecord(employee, empSpec, 1, sizeof(empSpec[0]));
-  if (pkeyEmployeeRecord == NULL) APIERROR(myDict->getNdbError());
-
-  rowEmployeeRecord = 
-    myDict->createRecord(employee, empSpec, 6, sizeof(empSpec[0]));
+  rowEmployeeRecord = employee->getDefaultRecord();
   if (rowEmployeeRecord == NULL) APIERROR(myDict->getNdbError());
 
-  ////////////////////////////////////////////////
-  // Prepare NdbRecords for SALARIES table
-  ////////////////////////////////////////////////
-  salary_emp_no = salary->getColumn("emp_no");
-  if (salary_emp_no == NULL) APIERROR(myDict->getNdbError());
-  salary_salary = salary->getColumn("salary");
-  if (salary_salary == NULL) APIERROR(myDict->getNdbError());
-  salary_from_date = salary->getColumn("from_date");
-  if (salary_from_date == NULL) APIERROR(myDict->getNdbError());
-  salary_to_date = salary->getColumn("to_date");
-  if (salary_to_date == NULL) APIERROR(myDict->getNdbError());
-
-  const NdbDictionary::RecordSpecification salarySpec[] = {
-      NdbDictionary::RecordSpecification(salary_emp_no,    offsetof(SalaryRow, emp_no)),
-      NdbDictionary::RecordSpecification(salary_from_date, offsetof(SalaryRow, from_date)),
-      NdbDictionary::RecordSpecification(salary_salary,    offsetof(SalaryRow, salary)),
-      NdbDictionary::RecordSpecification(salary_to_date,   offsetof(SalaryRow, to_date))
-  };
+  rowSalaryRecord = salary->getDefaultRecord();
+  if (rowSalaryRecord == NULL) APIERROR(myDict->getNdbError());
 
   // Lookup Primary key for salaries table
   const NdbDictionary::Index *myPIndex= myDict->getIndex("PRIMARY", "salaries");
   if (myPIndex == NULL)
     APIERROR(myDict->getNdbError());
 
-  pkeySalaryRecord = 
-    myDict->createRecord(salary, salarySpec, 2, sizeof(salarySpec[0]));
-  if (pkeySalaryRecord == NULL) APIERROR(myDict->getNdbError());
-
-  rowSalaryRecord = 
-    myDict->createRecord(salary, salarySpec, 4, sizeof(salarySpec[0]));
-  if (rowSalaryRecord == NULL) APIERROR(myDict->getNdbError());
-
-  indexSalaryRecord = 
-    myDict->createRecord(myPIndex, salarySpec, 2, sizeof(salarySpec[0]));
+  indexSalaryRecord = myPIndex->getDefaultRecord();
   if (indexSalaryRecord == NULL) APIERROR(myDict->getNdbError());
 }
-  
+#endif
+
 
 /**
  * Simple example of intended usage of the new (SPJ) QueryBuilder API.
@@ -541,19 +430,19 @@ int testQueryBuilder(Ndb &myNdb)
   assert (myQuery->getQueryOperation((Uint32)1)->getNoOfChildOperations() == 0);
 //assert (myQuery->getQueryOperation((Uint32)1)->getChildOperation((Uint32)0) == NULL);
 
-/*******
   ManagerRow managerRow;
   memset (&managerRow, 0, sizeof(managerRow));
+  const NdbRecord* rowManagerRecord = manager->getDefaultRecord();
+  if (rowManagerRecord == NULL) APIERROR(myDict->getNdbError());
 
   // Specify result handling NdbRecord style - need the (single) NdbQueryOperation:
-  assert(myQuery->getNoOfOperations()==1);
+  assert(myQuery->getNoOfOperations()==2);
   NdbQueryOperation* op = myQuery->getQueryOperation((Uint32)0);
 
   op->setResultRowBuf(rowManagerRecord, (char*)&managerRow);
 
   if (myTransaction->execute( NdbTransaction::NoCommit ) == -1)
     APIERROR(myTransaction->getNdbError());
-******/
 
   // All NdbQuery operations are handled as scans with cursor placed 'before'
   // first record: Fetch next to retrieve result:
@@ -653,8 +542,6 @@ main(int argc, const char** argv){
     }
     std::cout << "All tables in 'employees' DB was found" << std::endl;
   }
-
-  init_ndbrecord_info(myNdb);
 
   testQueryBuilder(myNdb);
 
