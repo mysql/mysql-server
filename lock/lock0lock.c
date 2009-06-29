@@ -4736,6 +4736,7 @@ lock_rec_validate_page(
 	ulint		nth_lock	= 0;
 	ulint		nth_bit		= 0;
 	ulint		i;
+	ulint		zip_size;
 	mtr_t		mtr;
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
@@ -4746,8 +4747,9 @@ lock_rec_validate_page(
 
 	mtr_start(&mtr);
 
-	block = buf_page_get(space, fil_space_get_zip_size(space),
-			     page_no, RW_X_LATCH, &mtr);
+	zip_size = fil_space_get_zip_size(space);
+	ut_ad(zip_size != ULINT_UNDEFINED);
+	block = buf_page_get(space, zip_size, page_no, RW_X_LATCH, &mtr);
 	buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
 
 	page = block->frame;
