@@ -1,3 +1,10 @@
+2009-06-29	The InnoDB Team
+
+	* handler/handler0alter.cc:
+	Start the user transaction prebuilt->trx if it was not started
+	before adding or dropping an index.  Without this fix, the
+	table could be locked outside an active transaction.
+
 2009-06-25	The InnoDB Team
 
 	* handler/ha_innodb.cc,
