@@ -9345,11 +9345,12 @@ innodb_file_format_name_validate(
 
 		if (format_id <= DICT_TF_FORMAT_MAX) {
 
-			*(uint*) save = format_id;
+			*static_cast<const char**>(save) = file_format_input;
 			return(0);
 		}
 	}
 
+	*static_cast<const char**>(save) = NULL;
 	return(1);
 }
 
@@ -9368,13 +9369,24 @@ innodb_file_format_name_update(
 	const void*			save)		/*!< in: immediate result
 							from check function */
 {
+	const char* format_name;
+
 	ut_a(var_ptr != NULL);
 	ut_a(save != NULL);
-	ut_a((*(const uint*) save) <= DICT_TF_FORMAT_MAX);
 
-	srv_file_format = *(const uint*) save;
+	format_name = *static_cast<const char*const*>(save);
 
-	*(const char**) var_ptr
+	if (format_name) {
+		uint	format_id;
+
+		format_id = innobase_file_format_name_lookup(format_name);
+
+		if (format_id <= DICT_TF_FORMAT_MAX) {
+			srv_file_format = format_id;
+		}
+	}
+
+	*static_cast<const char**>(var_ptr)
 		= trx_sys_file_format_id_to_name(srv_file_format);
 }
 
@@ -9415,14 +9427,7 @@ innodb_file_format_check_validate(
 		} else if (innobase_file_format_check_validate(
 				file_format_input)) {
 
-			uint	format_id;
-
-			format_id = innobase_file_format_name_lookup(
-				file_format_input);
-
-			ut_a(format_id <= DICT_TF_FORMAT_MAX);
-
-			*(uint*) save = format_id;
+			*static_cast<const char**>(save) = file_format_input;
 
 			return(0);
 
@@ -9436,6 +9441,7 @@ innodb_file_format_check_validate(
 		}
 	}
 
+	*static_cast<const char**>(save) = NULL;
 	return(1);
 }
 
@@ -9454,19 +9460,39 @@ innodb_file_format_check_update(
 	const void*			save)		/*!< in: immediate result
 							from check function */
 {
-	uint	format_id;
+	const char*	format_name_in;
+	const char**	format_name_out;
+	uint		format_id;
 
 	ut_a(save != NULL);
 	ut_a(var_ptr != NULL);
 
-	format_id = *(const uint*) save;
+	format_name_in = *static_cast<const char*const*>(save);
+
+	if (!format_name_in) {
+
+		return;
+	}
+
+	format_id = innobase_file_format_name_lookup(format_name_in);
+
+	if (format_id > DICT_TF_FORMAT_MAX) {
+		/* DEFAULT is "on", which is invalid at runtime. */
+		push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+				    ER_WRONG_ARGUMENTS,
+				    "Ignoring SET innodb_file_format=%s",
+				    format_name_in);
+		return;
+	}
+
+	format_name_out = static_cast<const char**>(var_ptr);
 
 	/* Update the max format id in the system tablespace. */
-	if (trx_sys_file_format_max_set(format_id, (const char**) var_ptr)) {
+	if (trx_sys_file_format_max_set(format_id, format_name_out)) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
 			" [Info] InnoDB: the file format in the system "
-			"tablespace is now set to %s.\n", *(char**) var_ptr);
+			"tablespace is now set to %s.\n", *format_name_out);
 	}
 }
 
