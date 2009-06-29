@@ -2527,7 +2527,8 @@ row_sel_store_mysql_rec(
 			mysql_rec[templ->mysql_null_byte_offset] |=
 					(byte) (templ->mysql_null_bit_mask);
 			memcpy(mysql_rec + templ->mysql_col_offset,
-			       prebuilt->default_rec + templ->mysql_col_offset,
+			       (const byte*) prebuilt->default_rec 
+                               + templ->mysql_col_offset,
 			       templ->mysql_col_len);
 		}
 	} 
