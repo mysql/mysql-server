@@ -751,6 +751,14 @@ buf_read_recv_pages(
 	ulint		i;
 
 	zip_size = fil_space_get_zip_size(space);
+
+	if (UNIV_UNLIKELY(zip_size == ULINT_UNDEFINED)) {
+		/* It is a single table tablespace and the .ibd file is
+		missing: do nothing */
+
+		return;
+	}
+
 	tablespace_version = fil_space_get_version(space);
 
 	for (i = 0; i < n_stored; i++) {
