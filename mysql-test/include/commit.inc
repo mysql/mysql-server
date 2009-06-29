@@ -669,7 +669,7 @@ call p_verify_status_increment(1, 0, 1, 0);
 insert t1 set a=3;
 call p_verify_status_increment(2, 2, 2, 2);
 savepoint a;
-call p_verify_status_increment(1, 0, 0, 0);
+call p_verify_status_increment(1, 0, 1, 0);
 insert t1 set a=4;
 call p_verify_status_increment(2, 2, 2, 2);
 release savepoint a;

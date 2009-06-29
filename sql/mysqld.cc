@@ -983,6 +983,7 @@ static void close_connections(void)
   }
   (void) pthread_mutex_unlock(&LOCK_thread_count);
 
+  close_active_mi();
   DBUG_PRINT("quit",("close_connections thread"));
   DBUG_VOID_RETURN;
 }
