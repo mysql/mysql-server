@@ -1,5 +1,11 @@
 2009-06-29	The InnoDB Team
 
+	* buf/buf0buf.c, buf/buf0rea.c, lock/lock0lock.c:
+	Tolerate missing tablespaces during crash recovery and when
+	printing information on locks.
+
+2009-06-29	The InnoDB Team
+
 	* buf/buf0buf.c:
 	Fix a race condition when reading buf_fix_count.
 	Currently, it is not being protected by the buffer pool mutex,

@@ -4499,6 +4499,20 @@ loop:
 			ulint	zip_size= fil_space_get_zip_size(space);
 			ulint	page_no = lock->un_member.rec_lock.page_no;
 
+			if (UNIV_UNLIKELY(zip_size == ULINT_UNDEFINED)) {
+
+				/* It is a single table tablespace and
+				the .ibd file is missing (TRUNCATE
+				TABLE probably stole the locks): just
+				print the lock without attempting to
+				load the page in the buffer pool. */
+
+				fprintf(file, "RECORD LOCKS on"
+					" non-existing space %lu\n",
+					(ulong) space);
+				goto print_rec;
+			}
+
 			lock_mutex_exit_kernel();
 			innobase_mysql_end_print_arbitrary_thd();
 
@@ -4517,6 +4531,7 @@ loop:
 			goto loop;
 		}
 
+print_rec:
 		lock_rec_print(file, lock);
 	} else {
 		ut_ad(lock_get_type_low(lock) & LOCK_TABLE);
