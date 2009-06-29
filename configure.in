@@ -603,10 +603,11 @@ AC_SUBST(NOINST_LDFLAGS)
 # Check if we are using Linux and a glibc compiled with static nss
 # (this is true on the MySQL build machines to avoid NSS problems)
 #
+AC_CHECK_TOOL([NM], [nm]) 
 
 if test "$TARGET_LINUX" = "true" -a "$static_nss" = ""
 then
-  tmp=`nm /usr/lib*/libc.a  | grep _nss_files_getaliasent_r`
+  tmp=`$NM ${other_libc_lib:-/usr/lib*}/libc.a | grep _nss_files_getaliasent_r1`
   if test -n "$tmp"
   then
      STATIC_NSS_FLAGS="-lc -lnss_files -lnss_dns -lresolv"
