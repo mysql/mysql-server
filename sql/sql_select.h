@@ -57,14 +57,14 @@ typedef struct keyuse_t {
   */
   bool *cond_guard;
   /*
-    TRUE  <=> This keyuse can be used to construct key access.
-    FALSE <=> Otherwise. Currently unusable KEYUSEs represent equalities
+    1  <=> This keyuse can be used to construct key access.
+    0 <=> Otherwise. Currently unusable KEYUSEs represent equalities
               where one table column refers to another one, like this:
                 t.keyXpartA=func(t.keyXpartB)
               This equality cannot be used for index access but is useful
               for table elimination.
   */
-  bool usable;
+  int usable;
 } KEYUSE;
 
 class store_key;
@@ -299,7 +299,12 @@ public:
     fetching data from a cursor
   */
   bool     resume_nested_loop;
-  table_map const_table_map,found_const_table_map;
+  table_map const_table_map;
+  /*
+    Constant tables for which we have found a row (as opposed to those for
+    which we didn't).
+  */
+  table_map found_const_table_map;
   
   /* Tables removed by table elimination. Set to 0 before the elimination. */
   table_map eliminated_tables;
@@ -548,6 +553,10 @@ public:
     return (unit == &thd->lex->unit && (unit->fake_select_lex == 0 ||
                                         select_lex == unit->fake_select_lex));
   }
+  inline table_map all_tables_map()
+  {
+    return (table_map(1) << tables) - 1;
+  }
 private:
   bool make_simple_join(JOIN *join, TABLE *tmp_table);
 };
@@ -755,6 +764,5 @@ inline bool optimizer_flag(THD *thd, uint flag)
   return (thd->variables.optimizer_switch & flag);
 }
 
-void eliminate_tables(JOIN *join, uint *const_tbl_count, 
-                      table_map *const_tables);
+void eliminate_tables(JOIN *join);
 

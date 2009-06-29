@@ -125,3 +125,36 @@ explain extended select id from v2 where attr2 between 12 and 14;
 
 drop view v1, v2;
 drop table t0, t1, t2;
+
+#
+# Tests for the code that uses t.keypartX=func(t.keypartY) equalities to
+# make table elimination inferences
+#
+create table t1 (a int);
+insert into t1 values (0),(1),(2),(3);
+
+create table t2 (pk1 int, pk2 int, pk3 int, col int, primary key(pk1, pk2, pk3));
+insert into t2 select a,a,a,a from t1;
+
+--echo This must use only t1:
+explain select t1.* from t1 left join t2 on t2.pk1=t1.a and 
+                                            t2.pk2=t2.pk1+1 and
+                                            t2.pk3=t2.pk2+1;
+
+--echo This must use only t1:
+explain select t1.* from t1 left join t2 on t2.pk1=t1.a and 
+                                            t2.pk3=t2.pk1+1 and
+                                            t2.pk2=t2.pk3+1;
+
+--echo This must use both:
+explain select t1.* from t1 left join t2 on t2.pk1=t1.a and 
+                                            t2.pk3=t2.pk1+1 and
+                                            t2.pk2=t2.pk3+t2.col;
+
+--echo This must use only t1:
+explain select t1.* from t1 left join t2 on t2.pk2=t1.a and 
+                                            t2.pk1=t2.pk2+1 and
+                                            t2.pk3=t2.pk1;
+
+drop table t1, t2;
+

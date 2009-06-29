@@ -1616,7 +1616,10 @@ public:
 typedef struct st_nested_join
 {
   List<TABLE_LIST>  join_list;       /* list of elements in the nested join */
-  table_map         used_tables;     /* bitmap of tables in the nested join */
+  /* 
+    Bitmap of tables within this nested join (including those embedded within
+    its children). Eliminated tables are still in the bitmap */
+  table_map         used_tables;
   table_map         not_null_tables; /* tables that rejects nulls           */
   struct st_join_table *first_nested;/* the first nested table in the plan  */
   /* 
@@ -1625,6 +1628,8 @@ typedef struct st_nested_join
     2. check_interleaving_with_nj/restore_prev_nj_state (these are called
        by the join optimizer. 
     Before each use the counters are zeroed by reset_nj_counters.
+    Meaning, in both cases: number of base tables within this nested join and
+    its children. Eliminated tables are not counted.
   */
   uint              counter;
   /* Tables left after elimination */

@@ -2653,12 +2653,13 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
                             ~outer_join, join->select_lex, &sargables))
       goto error;
 
-  /* Read tables with 0 or 1 rows (system tables) */
   join->const_table_map= 0;
-  
-  eliminate_tables(join, &const_count, &found_const_table_map);
-  join->const_table_map= found_const_table_map;
+  join->const_tables= const_count;
+  eliminate_tables(join);
+  const_count= join->const_tables;
+  found_const_table_map= join->const_table_map;
 
+  /* Read tables with 0 or 1 rows (system tables) */
   for (POSITION *p_pos=join->positions, *p_end=p_pos+const_count;
        p_pos < p_end ;
        p_pos++)
@@ -2761,7 +2762,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
 	{
 	  start_keyuse=keyuse;
 	  key=keyuse->key;
-	  if (keyuse->usable)
+	  if (keyuse->usable == 1)
             s->keys.set_bit(key);               // QQ: remove this ?
 
 	  refs=0;
@@ -2769,7 +2770,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
 	  eq_part.clear_all();
 	  do
 	  {
-            if (keyuse->usable && keyuse->val->type() != Item::NULL_ITEM && 
+            if (keyuse->usable==1 && keyuse->val->type() != Item::NULL_ITEM && 
                 !keyuse->optimize)
 	    {
 	      if (!((~found_const_table_map) & keyuse->used_tables))
@@ -3601,7 +3602,12 @@ add_key_part(DYNAMIC_ARRAY *keyuse_array,KEY_FIELD *key_field)
 	  keyuse.optimize= key_field->optimize & KEY_OPTIMIZE_REF_OR_NULL;
           keyuse.null_rejecting= key_field->null_rejecting;
           keyuse.cond_guard= key_field->cond_guard;
-          keyuse.usable= key_field->usable;
+          if (!(keyuse.usable= key_field->usable))
+          {
+            /* The following will have special meanings: */
+            keyuse.keypart_map= 0;
+            keyuse.used_tables= 0;
+          }
 	  VOID(insert_dynamic(keyuse_array,(uchar*) &keyuse));
 	}
       }
@@ -3668,7 +3674,7 @@ add_ft_keys(DYNAMIC_ARRAY *keyuse_array,
   keyuse.used_tables=cond_func->key_item()->used_tables();
   keyuse.optimize= 0;
   keyuse.keypart_map= 0;
-  keyuse.usable= TRUE;
+  keyuse.usable= 1;
   VOID(insert_dynamic(keyuse_array,(uchar*) &keyuse));
 }
 
@@ -3686,7 +3692,7 @@ sort_keyuse(KEYUSE *a,KEYUSE *b)
 
   // Usable ones go before the unusable
   if (a->usable != b->usable)
-    return (int)a->usable - (int)b->usable;
+    return (int)b->usable - (int)a->usable;
 
   // Place const values before other ones
   if ((res= test((a->used_tables & ~OUTER_REF_TABLE_BIT)) -
@@ -3898,7 +3904,7 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
     found_eq_constant=0;
     for (i=0 ; i < keyuse->elements-1 ; i++,use++)
     {
-      if (use->usable && !use->used_tables && 
+      if (use->usable == 1 && !use->used_tables && 
           use->optimize != KEY_OPTIMIZE_REF_OR_NULL)
 	use->table->const_key_parts[use->key]|= use->keypart_map;
       if (use->keypart != FT_KEYPART)
@@ -3923,7 +3929,7 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
       /* Save ptr to first use */
       if (!use->table->reginfo.join_tab->keyuse)
 	use->table->reginfo.join_tab->keyuse=save_pos;
-      if (use->usable)
+      if (use->usable == 1)
         use->table->reginfo.join_tab->checked_keys.set_bit(use->key);
       save_pos++;
     }
@@ -3954,7 +3960,7 @@ static void optimize_keyuse(JOIN *join, DYNAMIC_ARRAY *keyuse_array)
       To avoid bad matches, we don't make ref_table_rows less than 100.
     */
     keyuse->ref_table_rows= ~(ha_rows) 0;	// If no ref
-    if (keyuse->usable && keyuse->used_tables &
+    if (keyuse->usable == 1 && keyuse->used_tables &
 	(map= (keyuse->used_tables & ~join->const_table_map &
 	       ~OUTER_REF_TABLE_BIT)))
     {
@@ -4146,7 +4152,7 @@ best_access_path(JOIN      *join,
             if 1. expression doesn't refer to forward tables
                2. we won't get two ref-or-null's
           */
-          if (keyuse->usable && 
+          if (keyuse->usable == 1&& 
               !(remaining_tables & keyuse->used_tables) &&
               !(ref_or_null_part && (keyuse->optimize &
                                      KEY_OPTIMIZE_REF_OR_NULL)))
@@ -5601,7 +5607,7 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
     */
     do
     {
-      if (!(~used_tables & keyuse->used_tables))
+      if (!(~used_tables & keyuse->used_tables) && keyuse->usable == 1)
       {
 	if (keyparts == keyuse->keypart &&
 	    !(found_part_ref_or_null & keyuse->optimize))
@@ -5652,7 +5658,7 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
     for (i=0 ; i < keyparts ; keyuse++,i++)
     {
       while (keyuse->keypart != i || ((~used_tables) & keyuse->used_tables) ||
-             !keyuse->usable)
+             !(keyuse->usable == 1))
       {
 	keyuse++;				/* Skip other parts */
       }
@@ -8985,6 +8991,20 @@ static void restore_prev_nj_state(JOIN_TAB *last)
   JOIN *join= last->join;
   while (last_emb)
   {
+    /*
+      psergey-elim: (nevermind)
+      new_prefix= cur_prefix & ~last;
+      if (!(new_prefix & cur_table_map)) // removed last inner table 
+      {
+        join->cur_embedding_map&= ~last_emb->nested_join->nj_map;
+      }
+      else (current)
+      {
+        // Won't hurt doing it all the time:
+        join->cur_embedding_map |= ...;
+      }
+      else
+    */
     if (!(--last_emb->nested_join->counter))
       join->cur_embedding_map&= ~last_emb->nested_join->nj_map;
     else if (last_emb->nested_join->n_tables-1 ==
@@ -16685,13 +16705,13 @@ static void print_join(THD *thd,
 
   DBUG_ASSERT(tables->elements >= 1);
   /*
-    Assert that the first table in the list isn't eliminated (if it was we
-    would have skipped the entire join nest)
+    Assert that the first table in the list isn't eliminated. This comes from
+    the fact that the first table can't be inner table of an outer join.
   */
   DBUG_ASSERT(!eliminated_tables || 
               !((*table)->table && ((*table)->table->map & eliminated_tables) ||
                 (*table)->nested_join && !((*table)->nested_join->used_tables &
-                                       ~eliminated_tables)));
+                                           ~eliminated_tables)));
   (*table)->print(thd, eliminated_tables, str, query_type);
 
   TABLE_LIST **end= table + tables->elements;
