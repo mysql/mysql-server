@@ -363,7 +363,7 @@ int check_user(THD *thd, enum enum_server_command command,
   if (opt_secure_auth_local && passwd_len == SCRAMBLE_LENGTH_323)
   {
     net_printf_error(thd, ER_NOT_SUPPORTED_AUTH_MODE);
-    mysql_log.write(thd, COM_CONNECT, ER(ER_NOT_SUPPORTED_AUTH_MODE));
+    mysql_log.write(thd, COM_CONNECT, "%s", ER(ER_NOT_SUPPORTED_AUTH_MODE));
     DBUG_RETURN(-1);
   }
   if (passwd_len != 0 &&
@@ -500,7 +500,7 @@ int check_user(THD *thd, enum enum_server_command command,
   else if (res == 2) // client gave short hash, server has long hash
   {
     net_printf_error(thd, ER_NOT_SUPPORTED_AUTH_MODE);
-    mysql_log.write(thd,COM_CONNECT,ER(ER_NOT_SUPPORTED_AUTH_MODE));
+    mysql_log.write(thd,COM_CONNECT,"%s",ER(ER_NOT_SUPPORTED_AUTH_MODE));
     DBUG_RETURN(-1);
   }
   net_printf_error(thd, ER_ACCESS_DENIED_ERROR,
