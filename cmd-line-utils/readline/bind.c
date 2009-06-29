@@ -79,7 +79,7 @@ static int _rl_read_init_file PARAMS((const char *, int));
 static int glean_key_from_name PARAMS((char *));
 static int find_boolean_var PARAMS((const char *));
 
-static char *_rl_get_string_variable_value PARAMS((const char *));
+static const char *_rl_get_string_variable_value PARAMS((const char *));
 static int substring_member_of_array PARAMS((char *, const char **));
 
 static int currently_reading_init_file;
@@ -442,7 +442,7 @@ rl_translate_keyseq (seq, array, len)
 {
   register int i, c, l, temp;
 
-  for (i = l = 0; c = seq[i]; i++)
+  for (i = l = 0; (c = seq[i]); i++)
     {
       if (c == '\\')
 	{
@@ -776,7 +776,8 @@ _rl_read_file (filename, sizep)
   file_size = (size_t)finfo.st_size;
 
   /* check for overflow on very large files */
-  if (file_size != finfo.st_size || file_size + 1 < file_size)
+if ((sizeof(off_t) > sizeof(size_t) && finfo.st_size > (off_t)(size_t)~0) ||  
+    file_size + 1 < file_size)
     {
       if (file >= 0)
 	close (file);
@@ -807,7 +808,7 @@ _rl_read_file (filename, sizep)
 /* Re-read the current keybindings file. */
 int
 rl_re_read_init_file (count, ignore)
-     int count, ignore;
+     int count __attribute__((unused)), ignore __attribute__((unused));
 {
   int r;
   r = rl_read_init_file ((const char *)NULL);
@@ -1031,7 +1032,7 @@ parser_if (args)
 /* Invert the current parser state if there is anything on the stack. */
 static int
 parser_else (args)
-     char *args;
+     char *args __attribute__((unused));
 {
   register int i;
 
@@ -1062,7 +1063,7 @@ parser_else (args)
    _rl_parsing_conditionalized_out from the stack. */
 static int
 parser_endif (args)
-     char *args;
+     char *args __attribute__((unused));
 {
   if (if_stack_depth)
     _rl_parsing_conditionalized_out = if_stack[--if_stack_depth];
@@ -1185,7 +1186,7 @@ rl_parse_and_bind (string)
     {
       int passc = 0;
 
-      for (i = 1; c = string[i]; i++)
+      for (i = 1; (c = string[i]); i++)
 	{
 	  if (passc)
 	    {
@@ -1276,7 +1277,7 @@ rl_parse_and_bind (string)
       int delimiter, passc;
 
       delimiter = string[i++];
-      for (passc = 0; c = string[i]; i++)
+      for (passc = 0; (c = string[i]); i++)
 	{
 	  if (passc)
 	    {
@@ -1436,7 +1437,7 @@ static struct {
 #if defined (VISIBLE_STATS)
   { "visible-stats",		&rl_visible_stats,		0 },
 #endif /* VISIBLE_STATS */
-  { (char *)NULL, (int *)NULL }
+  { (char *)NULL, (int *)NULL, 0 }
 };
 
 static int
@@ -1505,7 +1506,7 @@ static struct {
   { "editing-mode",	V_STRING,	sv_editmode },
   { "isearch-terminators", V_STRING,	sv_isrchterm },
   { "keymap",		V_STRING,	sv_keymap },
-  { (char *)NULL,	0 }
+  { (char *)NULL,	0,              (_rl_sv_func_t*)NULL }
 };
 
 static int
@@ -1532,7 +1533,7 @@ bool_to_int (value)
 		(value[0] == '1' && value[1] == '\0'));
 }
 
-char *
+const char *
 rl_variable_value (name)
      const char *name;
 {
@@ -1799,7 +1800,7 @@ rl_set_keymap_from_edit_mode ()
 #endif /* VI_MODE */
 }
 
-char *
+const char *
 rl_get_keymap_name_from_edit_mode ()
 {
   if (rl_editing_mode == emacs_mode)
@@ -2048,7 +2049,7 @@ rl_function_dumper (print_readably)
 
   fprintf (rl_outstream, "\n");
 
-  for (i = 0; name = names[i]; i++)
+  for (i = 0; (name = names[i]); i++)
     {
       rl_command_func_t *function;
       char **invokers;
@@ -2108,7 +2109,7 @@ rl_function_dumper (print_readably)
    the output in such a way that it can be read back in. */
 int
 rl_dump_functions (count, key)
-     int count, key;
+     int count __attribute__((unused)), key __attribute__((unused));
 {
   if (rl_dispatching)
     fprintf (rl_outstream, "\r\n");
@@ -2188,7 +2189,7 @@ rl_macro_dumper (print_readably)
 
 int
 rl_dump_macros (count, key)
-     int count, key;
+     int count __attribute__((unused)), key __attribute__((unused));
 {
   if (rl_dispatching)
     fprintf (rl_outstream, "\r\n");
@@ -2197,12 +2198,13 @@ rl_dump_macros (count, key)
   return (0);
 }
 
-static char *
+static const char *
 _rl_get_string_variable_value (name)
      const char *name;
 {
   static char numbuf[32];
-  char *ret;
+  const char *ret;
+  char *tmp;
 
   if (_rl_stricmp (name, "bell-style") == 0)
     {
@@ -2230,11 +2232,11 @@ _rl_get_string_variable_value (name)
     {
       if (_rl_isearch_terminators == 0)
 	return 0;
-      ret = _rl_untranslate_macro_value (_rl_isearch_terminators);
-      if (ret)
+      tmp = _rl_untranslate_macro_value (_rl_isearch_terminators);
+      if (tmp)
 	{
-	  strncpy (numbuf, ret, sizeof (numbuf) - 1);
-	  free (ret);
+	  strncpy (numbuf, tmp, sizeof (numbuf) - 1);
+	  free (tmp);
 	  numbuf[sizeof(numbuf) - 1] = '\0';
 	}
       else
@@ -2257,7 +2259,7 @@ rl_variable_dumper (print_readably)
      int print_readably;
 {
   int i;
-  char *v;
+  const char *v;
 
   for (i = 0; boolean_varlist[i].name; i++)
     {
@@ -2286,7 +2288,7 @@ rl_variable_dumper (print_readably)
    the output in such a way that it can be read back in. */
 int
 rl_dump_variables (count, key)
-     int count, key;
+     int count __attribute__((unused)), key __attribute__((unused));
 {
   if (rl_dispatching)
     fprintf (rl_outstream, "\r\n");

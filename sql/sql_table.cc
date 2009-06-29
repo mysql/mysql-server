@@ -4780,7 +4780,7 @@ send_result_message:
           const char *err_msg= thd->main_da.message();
           if (!thd->vio_ok())
           {
-            sql_print_error(err_msg);
+            sql_print_error("%s", err_msg);
           }
           else
           {
