@@ -23,6 +23,7 @@ Created 10/16/1994 Heikki Tuuri
 #include "btr0cur.ic"
 #endif
 
+#include "mtr0log.h"
 #include "page0page.h"
 #include "rem0rec.h"
 #include "rem0cmp.h"

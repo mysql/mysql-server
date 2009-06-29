@@ -7071,6 +7071,12 @@ bool show_create_trigger(THD *thd, const sp_name *trg_name)
   if (!lst)
     return TRUE;
 
+  if (check_table_access(thd, TRIGGER_ACL, lst, 1, TRUE))
+  {
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "TRIGGER");
+    return TRUE;
+  }
+
   /*
     Open the table by name in order to load Table_triggers_list object.
 

@@ -3098,7 +3098,10 @@ bool select_insert::send_data(List<Item> &values)
   store_values(values);
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
   if (thd->is_error())
+  {
+    table->auto_increment_field_not_null= FALSE;
     DBUG_RETURN(1);
+  }
   if (table_list)                               // Not CREATE ... SELECT
   {
     switch (table_list->view_check_option(thd, info.ignore)) {

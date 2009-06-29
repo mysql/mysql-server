@@ -668,7 +668,7 @@ static int end_slave_on_walk(Master_info* mi, uchar* /*unused*/)
 
 
 /*
-  Free all resources used by slave
+  Release slave threads at time of executing shutdown.
 
   SYNOPSIS
     end_slave()
@@ -694,14 +694,31 @@ void end_slave()
       once multi-master code is ready.
     */
     terminate_slave_threads(active_mi,SLAVE_FORCE_ALL);
-    end_master_info(active_mi);
-    delete active_mi;
-    active_mi= 0;
   }
   pthread_mutex_unlock(&LOCK_active_mi);
   DBUG_VOID_RETURN;
 }
 
+/**
+   Free all resources used by slave threads at time of executing shutdown.
+   The routine must be called after all possible users of @c active_mi
+   have left.
+
+   SYNOPSIS
+     close_active_mi()
+
+*/
+void close_active_mi()
+{
+  pthread_mutex_lock(&LOCK_active_mi);
+  if (active_mi)
+  {
+    end_master_info(active_mi);
+    delete active_mi;
+    active_mi= 0;
+  }
+  pthread_mutex_unlock(&LOCK_active_mi);
+}
 
 static bool io_slave_killed(THD* thd, Master_info* mi)
 {
@@ -2401,6 +2418,7 @@ pthread_handler_t handle_slave_io(void *arg)
 
   pthread_detach_this_thread();
   thd->thread_stack= (char*) &thd; // remember where our stack is
+  mi->clear_error();
   if (init_slave_thread(thd, SLAVE_THD_IO))
   {
     pthread_cond_broadcast(&mi->start_cond);
@@ -2515,6 +2533,7 @@ requesting master dump") ||
         goto connected;
       });
 
+    DBUG_ASSERT(mi->last_error().number == 0);
     while (!io_slave_killed(thd,mi))
     {
       ulong event_len;
@@ -3714,6 +3733,7 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
 
   if (!slave_was_killed)
   {
+    mi->clear_error(); // clear possible left over reconnect error
     if (reconnect)
     {
       if (!suppress_warnings && global_system_variables.log_warnings)
