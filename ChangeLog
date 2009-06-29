@@ -1,5 +1,12 @@
 2009-06-29	The InnoDB Team
 
+	* buf/buf0buf.c:
+	Fix a race condition when reading buf_fix_count.
+	Currently, it is not being protected by the buffer pool mutex,
+	but by the block mutex.
+
+2009-06-29	The InnoDB Team
+
 	* handler/handler0alter.cc:
 	Start the user transaction prebuilt->trx if it was not started
 	before adding or dropping an index.  Without this fix, the

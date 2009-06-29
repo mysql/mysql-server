@@ -2085,12 +2085,15 @@ loop2:
 	case BUF_BLOCK_ZIP_PAGE:
 	case BUF_BLOCK_ZIP_DIRTY:
 		bpage = &block->page;
+		/* Protect bpage->buf_fix_count. */
+		mutex_enter(&buf_pool_zip_mutex);
 
 		if (bpage->buf_fix_count
 		    || buf_page_get_io_fix(bpage) != BUF_IO_NONE) {
 			/* This condition often occurs when the buffer
 			is not buffer-fixed, but I/O-fixed by
 			buf_page_init_for_read(). */
+			mutex_exit(&buf_pool_zip_mutex);
 wait_until_unfixed:
 			/* The block is buffer-fixed or I/O-fixed.
 			Try again later. */
@@ -2102,6 +2105,7 @@ wait_until_unfixed:
 
 		/* Allocate an uncompressed page. */
 		buf_pool_mutex_exit();
+		mutex_exit(&buf_pool_zip_mutex);
 
 		block = buf_LRU_get_free_block(0);
 		ut_a(block);
