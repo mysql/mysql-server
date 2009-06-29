@@ -147,7 +147,7 @@ static int send_file(THD *thd)
   if (errmsg)
   {
     sql_print_error("Failed in send_file() %s", errmsg);
-    DBUG_PRINT("error", (errmsg));
+    DBUG_PRINT("error", ("%s", errmsg));
   }
   DBUG_RETURN(error);
 }
