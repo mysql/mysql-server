@@ -75,7 +75,7 @@ static int _rl_isearch_cleanup PARAMS((_rl_search_cxt *, int));
 static char *last_isearch_string;
 static int last_isearch_string_len;
 
-static char *default_isearch_terminators = "\033\012";
+static const char *default_isearch_terminators = "\033\012";
 
 _rl_search_cxt *
 _rl_scxt_alloc (type, flags)
@@ -119,7 +119,7 @@ _rl_scxt_alloc (type, flags)
 void
 _rl_scxt_dispose (cxt, flags)
      _rl_search_cxt *cxt;
-     int flags;
+     int flags __attribute__((unused));
 {
   FREE (cxt->search_string);
   FREE (cxt->allocated_line);
@@ -154,7 +154,7 @@ rl_forward_search_history (sign, key)
 static void
 rl_display_search (search_string, reverse_p, where)
      char *search_string;
-     int reverse_p, where;
+     int reverse_p, where __attribute__((unused));
 {
   char *message;
   int msglen, searchlen;
@@ -614,7 +614,7 @@ _rl_isearch_cleanup (cxt, r)
    backwards. */
 static int
 rl_search_history (direction, invoking_key)
-     int direction, invoking_key;
+     int direction, invoking_key __attribute__((unused));
 {
   _rl_search_cxt *cxt;		/* local for now, but saved globally */
   int c, r;
