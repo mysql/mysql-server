@@ -252,49 +252,8 @@ private:
 // Implementation of NdbQueryOperation interface
 ////////////////////////////////////////////////
 
-class NdbQueryOperationDefImpl
-{
-public:
-  Uint32 getNoOfParentOperations() const
-  { return m_parents.size(); };
-
-  const NdbQueryOperationDef* getParentOperation(Uint32 i) const
-  { return m_parents[i]; };
-
-  Uint32 getNoOfChildOperations() const
-  { return m_children.size(); };
-
-  const NdbQueryOperationDef* getChildOperation(Uint32 i) const
-  { return m_children[i]; };
-
-  const NdbDictionary::Table* getTable() const
-  { return m_table; };
-
-  void addParent(const NdbQueryOperationDef *);
-  void addChild(const NdbQueryOperationDef *);
-
-protected:
-  virtual ~NdbQueryOperationDefImpl() {};
-  friend NdbQueryBuilderImpl::~NdbQueryBuilderImpl();
-  friend NdbQueryDefImpl::~NdbQueryDefImpl();
-
-  NdbQueryOperationDefImpl (
-                           const NdbDictionary::Table* table,
-                           const char* ident)
-   : m_table(table), m_ident(ident),
-     m_parents(), m_children()
- {};
-
-private:
-  const NdbDictionary::Table* const m_table;
-  const char* const m_ident;
-
-  // parent / child vectors are indexes into m_operation vector
-  // which contains the real pointers to parent/child operations
-  Vector<const NdbQueryOperationDef*> m_parents;
-  Vector<const NdbQueryOperationDef*> m_children;
-
-}; // class NdbQueryOperationDefImpl
+// Common Baseclass 'class NdbQueryOperationDefImp' is 
+// defined in "NdbQueryBuilderImpl.hpp"
 
 
 class NdbQueryLookupOperationDefImpl :
@@ -313,16 +272,18 @@ private:
   NdbQueryLookupOperationDefImpl (
                            const NdbDictionary::Table* table,
                            const NdbQueryOperand* const keys[],
-                           const char* ident)
-   : NdbQueryLookupOperationDef(this), NdbQueryOperationDefImpl(table,ident),
+                           const char* ident,
+                           Uint32      ix)
+   : NdbQueryLookupOperationDef(this), NdbQueryOperationDefImpl(table,ident,ix),
      m_index(0), m_keys(keys)
   {};
   NdbQueryLookupOperationDefImpl (
                            const NdbDictionary::Index* index,
                            const NdbDictionary::Table* table,
                            const NdbQueryOperand* const keys[],
-                           const char* ident)
-   : NdbQueryLookupOperationDef(this), NdbQueryOperationDefImpl(table,ident),
+                           const char* ident,
+                           Uint32      ix)
+   : NdbQueryLookupOperationDef(this), NdbQueryOperationDefImpl(table,ident,ix),
      m_index(index), m_keys(keys)
   {};
 
@@ -339,8 +300,9 @@ public:
   virtual ~NdbQueryScanOperationDefImpl() {};
   NdbQueryScanOperationDefImpl (
                            const NdbDictionary::Table* table,
-                           const char* ident)
-  : NdbQueryOperationDefImpl(table,ident)
+                           const char* ident,
+                           Uint32      ix)
+  : NdbQueryOperationDefImpl(table,ident,ix)
   {};
 }; // class NdbQueryScanOperationDefImpl
 
@@ -354,8 +316,9 @@ private:
   virtual ~NdbQueryTableScanOperationDefImpl() {};
   NdbQueryTableScanOperationDefImpl (
                            const NdbDictionary::Table* table,
-                           const char* ident)
-  : NdbQueryTableScanOperationDef(this), NdbQueryScanOperationDefImpl(table,ident)
+                           const char* ident,
+                           Uint32      ix)
+  : NdbQueryTableScanOperationDef(this), NdbQueryScanOperationDefImpl(table,ident,ix)
   {};
 }; // class NdbQueryTableScanOperationDefImpl
 
@@ -376,8 +339,9 @@ private:
                            const NdbDictionary::Index* index,
                            const NdbDictionary::Table* table,
                            const NdbQueryIndexBound* bound,
-                           const char* ident)
-  : NdbQueryIndexScanOperationDef(this), NdbQueryScanOperationDefImpl(table,ident),
+                           const char* ident,
+                           Uint32      ix)
+  : NdbQueryIndexScanOperationDef(this), NdbQueryScanOperationDefImpl(table,ident,ix),
     m_index(index), m_bound(bound)
   {};
 
@@ -411,17 +375,6 @@ const NdbQueryOperationDef*
 NdbQueryDef::getQueryOperation(const char* ident) const
 { return NULL;  // FIXME
 }
-
-int
-NdbQueryDef::getQueryOperationIx(const NdbQueryOperationDef* opDef) const
-{
-  for (int i=0; i<m_pimpl->m_operations.size(); ++i)
-  { if (m_pimpl->m_operations[i] == opDef)
-      return i;
-  }
-  return -1;
-}
-
 
 /*************************************************************************
  * Glue layer between NdbQueryOperand interface and its Impl'ementation.
@@ -720,7 +673,8 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Table* table,    // Primary key 
   returnErrIf(keys[keyfields]!=NULL, 4802);
 
   NdbQueryLookupOperationDefImpl* op =
-    new NdbQueryLookupOperationDefImpl(table,keys,ident);
+    new NdbQueryLookupOperationDefImpl(table,keys,ident,
+                                       m_pimpl->m_operations.size());
   returnErrIf(op==0, 4000);
 
   int keyindex = 0;
@@ -758,7 +712,8 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Index* index,    // Unique key l
   returnErrIf(table==0 || index==0 || keys==0, 4800);  // Required non-NULL arguments
 
   NdbQueryLookupOperationDefImpl* op = 
-    new NdbQueryLookupOperationDefImpl(index,table,keys,ident);
+    new NdbQueryLookupOperationDefImpl(index,table,keys,ident,
+                                       m_pimpl->m_operations.size());
   returnErrIf(op==0, 4000);
 
   m_pimpl->m_operations.push_back(op);
@@ -775,7 +730,8 @@ NdbQueryBuilder::scanTable(const NdbDictionary::Table* table,
   returnErrIf(table==0, 4800);  // Required non-NULL arguments
 
   NdbQueryTableScanOperationDefImpl* op =
-    new NdbQueryTableScanOperationDefImpl(table,ident);
+    new NdbQueryTableScanOperationDefImpl(table,ident,
+                                          m_pimpl->m_operations.size());
   returnErrIf(op==0, 4000);
 
   m_pimpl->m_operations.push_back(op);
@@ -794,7 +750,8 @@ NdbQueryBuilder::scanIndex(const NdbDictionary::Index* index,
   returnErrIf(table==0 || index==0 || bound==0, 4800);  // Required non-NULL arguments
 
   NdbQueryIndexScanOperationDefImpl* op =
-    new NdbQueryIndexScanOperationDefImpl(index,table,bound,ident);
+    new NdbQueryIndexScanOperationDefImpl(index,table,bound,ident,
+                                          m_pimpl->m_operations.size());
   returnErrIf(op==0, 4000);
 
   m_pimpl->m_operations.push_back(op);

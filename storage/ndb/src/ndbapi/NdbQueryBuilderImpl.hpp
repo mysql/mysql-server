@@ -23,8 +23,13 @@
 
 #include <Vector.hpp>
 #include "NdbQueryBuilder.hpp"
+#include "NdbDictionary.hpp"
 
+
+// Forward declared
 class NdbQueryBuilderImpl;
+
+
 
 class NdbQueryDefImpl : public NdbQueryDef
 {
@@ -76,6 +81,57 @@ private:
 
 }; // class NdbQueryBuilderImpl
 
+
+
+class NdbQueryOperationDefImpl
+{
+public:
+  // Get the ordinal position of this operation within the query
+  Uint32 getQueryOperationIx() const
+  { return m_ix; };
+
+  Uint32 getNoOfParentOperations() const
+  { return m_parents.size(); };
+
+  const NdbQueryOperationDef* getParentOperation(Uint32 i) const
+  { return m_parents[i]; };
+
+  Uint32 getNoOfChildOperations() const
+  { return m_children.size(); };
+
+  const NdbQueryOperationDef* getChildOperation(Uint32 i) const
+  { return m_children[i]; };
+
+  const NdbDictionary::Table* getTable() const
+  { return m_table; };
+
+  void addParent(const NdbQueryOperationDef *);
+  void addChild(const NdbQueryOperationDef *);
+
+protected:
+  virtual ~NdbQueryOperationDefImpl() {};
+  friend NdbQueryBuilderImpl::~NdbQueryBuilderImpl();
+  friend NdbQueryDefImpl::~NdbQueryDefImpl();
+
+  NdbQueryOperationDefImpl (
+                           const NdbDictionary::Table* table,
+                           const char* ident,
+                           Uint32      ix)
+   : m_table(table), m_ident(ident), m_ix(ix),
+     m_parents(), m_children()
+ {};
+
+private:
+  const NdbDictionary::Table* const m_table;
+  const char* const m_ident; // Optional name specified by aplication
+  const Uint32 m_ix;         // Index if this operation within operation array
+
+  // parent / child vectors contains dependencies as defined
+  // with linkedValues
+  Vector<const NdbQueryOperationDef*> m_parents;
+  Vector<const NdbQueryOperationDef*> m_children;
+
+}; // class NdbQueryOperationDefImpl
 
 
 #endif

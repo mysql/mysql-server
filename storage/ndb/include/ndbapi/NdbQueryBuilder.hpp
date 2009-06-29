@@ -322,9 +322,6 @@ public:
   const NdbQueryOperationDef* getQueryOperation(const char* ident) const;
   const NdbQueryOperationDef* getQueryOperation(Uint32 index) const;
 
-  // Get the ordinal position of a operation within this queryDef
-  int getQueryOperationIx(const NdbQueryOperationDef*) const;
-
   // Remove this NdbQueryDef including operation and operands it contains
 //void release();    Just delete it instead ?
 

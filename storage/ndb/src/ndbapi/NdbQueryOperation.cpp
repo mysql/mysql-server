@@ -20,7 +20,7 @@
 #include "NdbQueryOperationImpl.hpp"
 #include <ndb_global.h>
 #include "NdbQueryBuilder.hpp"
-#include "NdbDictionaryImpl.hpp"
+#include "NdbQueryBuilderImpl.hpp"
 
 
 NdbQuery::NdbQuery(NdbQueryImpl *pimpl):
@@ -242,8 +242,8 @@ NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans, const NdbQueryDef& queryDef):
     for (Uint32 p=0; p<def->getNoOfParentOperations(); ++p)
     { 
       const NdbQueryOperationDef* parent = def->getParentOperation(p);
-      int ix = queryDef.getQueryOperationIx(parent);
-      assert (ix >=0 && ix < i);
+      Uint32 ix = parent->getImpl().getQueryOperationIx();
+      assert (ix < m_operations.size());
       op->m_parents.push_back(m_operations[ix]);
       m_operations[ix]->m_children.push_back(op);
     }
