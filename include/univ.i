@@ -170,6 +170,7 @@ command. Not tested on Windows. */
 #define UNIV_COMPILE_TEST_FUNCS
 */
 
+#if 0
 #define UNIV_DEBUG_VALGRIND			/* Enable extra
 						Valgrind instrumentation */
 #define UNIV_DEBUG_PRINT			/* Enable the compilation of
@@ -180,7 +181,6 @@ command. Not tested on Windows. */
 						debugging without UNIV_DEBUG */
 #define UNIV_DEBUG				/* Enable ut_ad() assertions
 						and disable UNIV_INLINE */
-#if 0
 #define UNIV_DEBUG_FILE_ACCESSES		/* Debug .ibd file access
 						(field file_page_was_freed
 						in buf_page_t) */
