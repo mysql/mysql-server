@@ -4352,7 +4352,7 @@ void Load_log_event::print(FILE* file_arg, PRINT_EVENT_INFO* print_event_info,
     {
       if (i)
 	my_b_printf(&cache, ",");
-      my_b_printf(&cache, field);
+      my_b_printf(&cache, "%s", field);
 	  
       field += field_lens[i]  + 1;
     }
@@ -6680,7 +6680,7 @@ void Execute_load_query_log_event::print(FILE* file,
   {
     my_b_write(&cache, (uchar*) query, fn_pos_start);
     my_b_printf(&cache, " LOCAL INFILE \'");
-    my_b_printf(&cache, local_fname);
+    my_b_printf(&cache, "%s", local_fname);
     my_b_printf(&cache, "\'");
     if (dup_handling == LOAD_DUP_REPLACE)
       my_b_printf(&cache, " REPLACE");

@@ -689,8 +689,8 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
     Format events are not concerned by --offset and such, we always need to
     read them to be able to process the wanted events.
   */
-  if ((rec_count >= offset) &&
-      ((my_time_t)(ev->when) >= start_datetime) ||
+  if (((rec_count >= offset) &&
+       ((my_time_t)(ev->when) >= start_datetime)) ||
       (ev_type == FORMAT_DESCRIPTION_EVENT))
   {
     if (ev_type != FORMAT_DESCRIPTION_EVENT)
