@@ -1,5 +1,12 @@
 2009-06-29	The InnoDB Team
 
+	* handler/ha_innodb.cc, mysql-test/innodb_file_format.test,
+	mysql-test/innodb_file_format.result:
+	Do not crash on SET GLOBAL innodb_file_format=DEFAULT
+	or SET GLOBAL innodb_file_format_check=DEFAULT.
+
+2009-06-29	The InnoDB Team
+
 	* buf/buf0buf.c, buf/buf0rea.c, lock/lock0lock.c:
 	Tolerate missing tablespaces during crash recovery and when
 	printing information on locks.
