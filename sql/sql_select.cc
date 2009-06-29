@@ -11019,7 +11019,14 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
     empty_record(table);
     if (table->group && join->tmp_table_param.sum_func_count &&
         table->s->keys && !table->file->inited)
-      table->file->ha_index_init(0, 0);
+    {
+      int tmp_error;
+      if ((tmp_error= table->file->ha_index_init(0, 0)))
+      {
+        table->file->print_error(tmp_error, MYF(0)); /* purecov: inspected */
+        DBUG_RETURN(-1);                             /* purecov: inspected */
+      }
+    }
   }
   /* Set up select_end */
   Next_select_func end_select= setup_end_select_func(join);
@@ -11810,7 +11817,11 @@ join_read_key(JOIN_TAB *tab)
 
   if (!table->file->inited)
   {
-    table->file->ha_index_init(tab->ref.key, tab->sorted);
+    if ((error= table->file->ha_index_init(tab->ref.key, tab->sorted)))
+    {
+      table->file->print_error(error, MYF(0));/* purecov: inspected */
+      return 1;                               /* purecov: inspected */
+    }
   }
   if (cmp_buffer_with_ref(tab) ||
       (table->status & (STATUS_GARBAGE | STATUS_NO_PARENT | STATUS_NULL_ROW)))
@@ -11859,8 +11870,14 @@ join_read_always_key(JOIN_TAB *tab)
 
   /* Initialize the index first */
   if (!table->file->inited)
-    table->file->ha_index_init(tab->ref.key, tab->sorted);
- 
+  {
+    if ((error= table->file->ha_index_init(tab->ref.key, tab->sorted)))
+    {
+      table->file->print_error(error, MYF(0));/* purecov: inspected */
+      return(1);                              /* purecov: inspected */
+    }
+  }
+
   /* Perform "Late NULLs Filtering" (see internals manual for explanations) */
   for (uint i= 0 ; i < tab->ref.key_parts ; i++)
   {
@@ -11895,7 +11912,13 @@ join_read_last_key(JOIN_TAB *tab)
   TABLE *table= tab->table;
 
   if (!table->file->inited)
-    table->file->ha_index_init(tab->ref.key, tab->sorted);
+  {
+    if ((error= table->file->ha_index_init(tab->ref.key, tab->sorted)))
+    {
+      table->file->print_error(error, MYF(0));/* purecov: inspected */
+      return(1);                              /* purecov: inspected */
+    }
+  }
   if (cp_buffer_from_ref(tab->join->thd, table, &tab->ref))
     return -1;
   if ((error=table->file->index_read_last_map(table->record[0],
@@ -11999,7 +12022,7 @@ join_init_read_record(JOIN_TAB *tab)
 static int
 join_read_first(JOIN_TAB *tab)
 {
-  int error;
+  int error= 0;
   TABLE *table=tab->table;
   if (!table->key_read && table->covering_keys.is_set(tab->index) &&
       !table->no_keyread)
@@ -12014,8 +12037,10 @@ join_read_first(JOIN_TAB *tab)
   tab->read_record.index=tab->index;
   tab->read_record.record=table->record[0];
   if (!table->file->inited)
-    table->file->ha_index_init(tab->index, tab->sorted);
-  if ((error=tab->table->file->index_first(tab->table->record[0])))
+    error= table->file->ha_index_init(tab->index, tab->sorted);
+  if (!error)
+    error= table->file->prepare_index_scan();
+  if (error || (error=tab->table->file->index_first(tab->table->record[0])))
   {
     if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
       report_error(table, error);
@@ -12039,7 +12064,7 @@ static int
 join_read_last(JOIN_TAB *tab)
 {
   TABLE *table=tab->table;
-  int error;
+  int error= 0;
   if (!table->key_read && table->covering_keys.is_set(tab->index) &&
       !table->no_keyread)
   {
@@ -12053,8 +12078,10 @@ join_read_last(JOIN_TAB *tab)
   tab->read_record.index=tab->index;
   tab->read_record.record=table->record[0];
   if (!table->file->inited)
-    table->file->ha_index_init(tab->index, 1);
-  if ((error= tab->table->file->index_last(tab->table->record[0])))
+    error= table->file->ha_index_init(tab->index, 1);
+  if (!error)
+    error= table->file->prepare_index_scan();
+  if (error || (error= tab->table->file->index_last(tab->table->record[0])))
     return report_error(table, error);
   return 0;
 }
@@ -12076,8 +12103,12 @@ join_ft_read_first(JOIN_TAB *tab)
   int error;
   TABLE *table= tab->table;
 
-  if (!table->file->inited)
-    table->file->ha_index_init(tab->ref.key, 1);
+  if (!table->file->inited &&
+      (error= table->file->ha_index_init(tab->ref.key, 1)))
+  {
+    table->file->print_error(error, MYF(0));  /* purecov: inspected */
+    return(1);                                /* purecov: inspected */
+  }
 #if NOT_USED_YET
   /* as ft-key doesn't use store_key's, see also FT_SELECT::init() */
   if (cp_buffer_from_ref(tab->join->thd, table, &tab->ref))
@@ -12474,11 +12505,16 @@ end_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
   copy_funcs(join->tmp_table_param.items_to_copy);
   if ((error=table->file->ha_write_row(table->record[0])))
   {
-    if (create_internal_tmp_table_from_heap(join->thd, table, &join->tmp_table_param,
-				error, 0))
+    if (create_internal_tmp_table_from_heap(join->thd, table,
+                                            &join->tmp_table_param,
+                                            error, 0))
       DBUG_RETURN(NESTED_LOOP_ERROR);            // Not a table_is_full error
     /* Change method to update rows */
-    table->file->ha_index_init(0, 0);
+    if ((error= table->file->ha_index_init(0, 0)))
+    {
+      table->file->print_error(error, MYF(0));/* purecov: inspected */
+      DBUG_RETURN(NESTED_LOOP_ERROR);         /* purecov: inspected */
+    }
     join->join_tab[join->tables-1].next_select=end_unique_update;
   }
   join->send_records++;

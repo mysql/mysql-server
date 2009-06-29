@@ -33,6 +33,7 @@
 #include <my_getopt.h>
 #include <m_string.h>
 #include <mysqld_error.h>
+#include <my_handler.h>
 
 #define VER "2.1"
 #define MAX_TEST_QUERY_LENGTH 300 /* MAX QUERY BUFFER LENGTH */
@@ -789,8 +790,10 @@ static void do_verify_prepare_field(MYSQL_RES *result,
   */
   if (length && (field->length != expected_field_length))
   {
+    fflush(stdout);
     fprintf(stderr, "Expected field length: %llu,  got length: %lu\n",
             expected_field_length, field->length);
+    fflush(stderr);
     DIE_UNLESS(field->length == expected_field_length);
   }
   if (def)
@@ -7809,8 +7812,9 @@ static void test_explain_bug()
                          "", "", NAME_CHAR_LEN*MAX_KEY, 0);
   }
 
+  /* The length of this may verify between MariaDB versions (1024 / 2048) */
   verify_prepare_field(result, 7, "ref", "", MYSQL_TYPE_VAR_STRING,
-                       "", "", "", NAME_CHAR_LEN*16, 0);
+                       "", "", "", NAME_CHAR_LEN * HA_MAX_KEY_SEG, 0);
 
   verify_prepare_field(result, 8, "rows", "", MYSQL_TYPE_LONGLONG,
                        "", "", "", 10, 0);

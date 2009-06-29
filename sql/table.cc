@@ -2448,7 +2448,7 @@ File create_frm(THD *thd, const char *name, const char *db,
 
   if ((file= my_create(name, CREATE_MODE, create_flags, MYF(0))) >= 0)
   {
-    uint key_length, tmp_key_length;
+    ulong key_length, tmp_key_length;
     uint tmp;
     bzero((char*) fileinfo,64);
     /* header */

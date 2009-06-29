@@ -2102,8 +2102,8 @@ int handler::read_first_row(uchar * buf, uint primary_key)
   else
   {
     /* Find the first row through the primary key */
-    (void) ha_index_init(primary_key, 0);
-    error=index_first(buf);
+    if (!(error = ha_index_init(primary_key, 0)))
+      error= index_first(buf);
     (void) ha_index_end();
   }
   DBUG_RETURN(error);

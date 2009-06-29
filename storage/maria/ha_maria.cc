@@ -1130,14 +1130,21 @@ int ha_maria::restore(THD * thd, HA_CHECK_OPT *check_opt)
 
 err:
   {
-    HA_CHECK param;
-    maria_chk_init(&param);
-    param.thd= thd;
-    param.op_name= "restore";
-    param.db_name= table->s->db.str;
-    param.table_name= table->s->table_name.str;
-    param.testflag= 0;
-    _ma_check_print_error(&param, errmsg, my_errno);
+    /*
+      Don't allocate param on stack here as this may be huge and it's
+      also allocated by repair()
+    */
+    HA_CHECK *param;
+    if (!(param= (HA_CHECK*) my_malloc(sizeof(*param), MYF(MY_WME | MY_FAE))))
+      DBUG_RETURN(error);
+    maria_chk_init(param);
+    param->thd= thd;
+    param->op_name= "restore";
+    param->db_name= table->s->db.str;
+    param->table_name= table->s->table_name.str;
+    param->testflag= 0;
+    _ma_check_print_error(param, errmsg, my_errno);
+    my_free(param, MYF(0));
     DBUG_RETURN(error);
   }
 }

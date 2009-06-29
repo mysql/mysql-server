@@ -1184,6 +1184,8 @@ public:
     inited=NONE;
     DBUG_RETURN(index_end());
   }
+  /* This is called after index_init() if we need to do a index scan */
+  virtual int prepare_index_scan() { return 0; }
   int ha_rnd_init(bool scan)
   {
     int result;

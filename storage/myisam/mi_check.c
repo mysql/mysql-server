@@ -4629,8 +4629,9 @@ void update_key_parts(MI_KEYDEF *keyinfo, ulong *rec_per_key_part,
       let's ensure it is not
     */
     set_if_bigger(tmp,1);
-    if (tmp >= (ulonglong) ~(ulong) 0)
-      tmp=(ulonglong) ~(ulong) 0;
+    /* Keys are stored as 32 byte int's; Ensure we don't get an overflow */
+    if (tmp >= (ulonglong) ~(uint32) 0)
+      tmp=(ulonglong) ~(uint32) 0;
 
     *rec_per_key_part=(ulong) tmp;
     rec_per_key_part++;
