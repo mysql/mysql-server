@@ -159,20 +159,28 @@ void eliminate_tables(JOIN *join)
   SYNOPSIS
     eliminate_tables_for_list()
       join                    The join
+      leaves_arr          OUT Store here an array of leaf (base) tables that 
+                              are descendants of the join_list, and increment 
+                              the pointer to point right above the array.
       join_list               Join list to work on 
+      its_outer_join          TRUE <=> join_list is an inner side of an outer
+                                       join 
+                              FALSE <=> otherwise (this is top-level join list)
+      tables_in_list          Bitmap of tables embedded in the join_list.
       tables_used_elsewhere   Bitmap of tables that are referred to from
                               somewhere outside of the join list (e.g.
                               select list, HAVING, etc).
+
   DESCRIPTION
+    Perform table elimination for a join list.
+    Try eliminating children nests first.
+    The "all tables in join nest can produce only one matching record
+    combination" property checking is modeled after constant table detection,
+    plus we reuse info attempts to eliminate child join nests.
 
   RETURN
     Number of children left after elimination. 0 means everything was
     eliminated.
-
-//    TRUE   The entire join list can be eliminated (caller should remove)
-//    FALSE  Otherwise
-   number of tables that were eliminated (compare this with total number of
-   tables in the join_list to tell if the entire join was eliminated)
 */
 static uint
 eliminate_tables_for_list(JOIN *join, TABLE **leaves_arr,
@@ -361,13 +369,6 @@ static bool table_has_one_match(TABLE *table, table_map bound_tables,
 }
 
 
-typedef struct st_keyuse_w_needed_reg
-{
-  KEYUSE *keyuse;
-  key_part_map dependency_parts;
-} Keyuse_w_needed_reg;
-
-
 /*
   Check if KEYUSE elemements with unusable==TRUE bind all parts of the key
 
@@ -449,52 +450,6 @@ extra_keyuses_bind_all_keyparts(table_map bound_tables, TABLE *table,
     } while (bound_more_parts);
   }
   return FALSE;
-#if 0
-    Keyuse_w_needed_reg *uses;
-    if (!(uses= (Keyuse_w_needed_reg*)my_alloca(sizeof(Keyuse_w_needed_reg)*
-                                                n_keyuses)))
-      return FALSE;
-    uint n_uses=0;
-
-    /* First, collect an array<keyuse, key_parts_it_depends_on> */
-    for (KEYUSE *k= key_start; k!=key_end; k++)
-    {
-      if (!k->usable && !(k->used_tables & ~bound_tables))
-      {
-        Field_processor_info fp= {bound_tables, table, k->key, 0};
-        if (!k->val->walk(&Item::check_column_usage_processor, FALSE, 
-                          (uchar*)&fp))
-        {
-          uses[n_uses].keyuse= k;
-          uses[n_uses].dependency_parts= fp.needed_key_parts;
-          n_uses++;
-        }
-      }
-    }
-
-    /* 
-      Now, repeatedly walk through the <keyuse, key_parts_it_depends_on> and
-      see if we can find an elements that depend only on bound parts and
-      hence make one more part bound.
-    */
-    uint n_bounded;
-    do 
-    {
-      n_bounded= 0;
-      for (uint i=0; i< n_uses; i++)
-      {
-        if (!(uses[i].dependency_parts & ~bound_parts))
-        {
-          table_map old= bound_parts;
-          bound_parts|= key_part_map(1) << uses[i].keyuse->keypart;
-          if (old != bound_parts)
-            n_bounded++;
-        }
-        if (bound_parts == PREV_BITS(key_part_map, keyinfo->key_parts))
-          return TRUE;
-      }
-    } while (n_bounded != 0);
-#endif 
 }
 
 
