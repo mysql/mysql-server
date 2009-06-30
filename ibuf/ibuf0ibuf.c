@@ -1159,13 +1159,12 @@ ibuf_dummy_index_add_col(
 			   dict_table_get_nth_col(index->table, i), len);
 }
 /********************************************************************//**
-Deallocates a dummy index for inserting a record to a non-clustered index.
-*/
+Deallocates a dummy index for inserting a record to a non-clustered index. */
 static
 void
 ibuf_dummy_index_free(
 /*==================*/
-	dict_index_t*	index)	/*!< in: dummy index */
+	dict_index_t*	index)	/*!< in, own: dummy index */
 {
 	dict_table_t*	table = index->table;
 
