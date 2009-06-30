@@ -196,47 +196,6 @@ os_event_create(
 	return(event);
 }
 
-#ifdef __WIN__
-/*********************************************************//**
-Creates an auto-reset event semaphore, i.e., an event which is automatically
-reset when a single thread is released. Works only in Windows.
-@return	the event handle */
-UNIV_INTERN
-os_event_t
-os_event_create_auto(
-/*=================*/
-	const char*	name)	/*!< in: the name of the event, if NULL
-				the event is created without a name */
-{
-	os_event_t event;
-
-	event = ut_malloc(sizeof(struct os_event_struct));
-
-	event->handle = CreateEvent(NULL, /* No security attributes */
-				    FALSE, /* Auto-reset */
-				    FALSE, /* Initial state nonsignaled */
-				    (LPCTSTR) name);
-
-	if (!event->handle) {
-		fprintf(stderr,
-			"InnoDB: Could not create a Windows auto"
-			" event semaphore; Windows error %lu\n",
-			(ulong) GetLastError());
-	}
-
-	/* Put to the list of events */
-	os_mutex_enter(os_sync_mutex);
-
-	UT_LIST_ADD_FIRST(os_event_list, os_event_list, event);
-
-	os_event_count++;
-
-	os_mutex_exit(os_sync_mutex);
-
-	return(event);
-}
-#endif
-
 /**********************************************************//**
 Sets an event semaphore to the signaled state: lets waiting threads
 proceed. */
