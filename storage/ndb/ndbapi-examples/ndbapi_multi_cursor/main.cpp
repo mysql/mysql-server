@@ -455,6 +455,32 @@ int testQueryBuilder(Ndb &myNdb)
   myNdb.closeTransaction(myTransaction);
   myTransaction = 0;
 
+  // Example: ::readTuple() using Index for unique key lookup
+  printf("q5\n");
+
+  NdbQueryDef* q5 = 0;
+  {
+    NdbQueryBuilder* qb = &myBuilder; //myDict->getQueryBuilder();
+
+    // Lookup Primary key for manager table
+    const NdbDictionary::Index *myPIndex= myDict->getIndex("PRIMARY", manager->getName());
+    if (myPIndex == NULL)
+      APIERROR(myDict->getNdbError());
+
+    // Manager index-key defined as parameter, NB: Reversed order compared to hash key
+    const NdbQueryOperand* managerKey[] =  // Manager PK index is {"emp_no","dept_no", }
+    {  qb->constValue(110567),             // emp_no  = 110567
+       qb->constValue("d005"),             // dept_no = "d005"
+       0
+    };
+    // Lookup on a single tuple with key define by 'managerKey' param. tuple
+    const NdbQueryLookupOperationDef* readManager = qb->readTuple(myPIndex, manager, managerKey);
+    if (readManager == NULL) APIERROR(qb->getNdbError());
+
+    q5 = qb->prepare();
+    if (q5 == NULL) APIERROR(qb->getNdbError());
+  }
+
   return 0;
 }
 

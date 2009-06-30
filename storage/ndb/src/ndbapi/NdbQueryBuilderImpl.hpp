@@ -105,6 +105,9 @@ public:
   const NdbDictionary::Table* getTable() const
   { return m_table; };
 
+  const char* getName() const
+  { return m_ident; };
+
   void addParent(const NdbQueryOperationDef *);
   void addChild(const NdbQueryOperationDef *);
 

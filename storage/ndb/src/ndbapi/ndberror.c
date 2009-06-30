@@ -730,6 +730,7 @@ ErrorBundle ErrorCodes[] = {
   { 4803, DMEC, AE, "Incompatible datatype specified in operand argument" },
   { 4804, DMEC, AE, "Unknown 'parent' specified in linkedValue" },
   { 4805, DMEC, AE, "Unknown 'column' specified in linkedValue" },
+  { 4806, DMEC, AE, "Specified 'index' does not belong to specified 'table'" },
 
 
   { NO_CONTACT_WITH_PROCESS, DMEC, AE,
