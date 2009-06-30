@@ -1920,10 +1920,6 @@ bool Item_field::check_column_usage_processor(uchar *arg)
 {
   Field_processor_info* info=(Field_processor_info*)arg;
 
-  /* It is ok if this is a column of an allowed table: */
-  if (used_tables() & ~info->allowed_tables)
-    return FALSE;
-
   if (field->table == info->table)
   {
     /* It is not ok to use columns that are not part of the key of interest: */
@@ -1936,18 +1932,17 @@ bool Item_field::check_column_usage_processor(uchar *arg)
     {
       if (field->field_index == key->key_part[part].field->field_index)
       {
+        if (part == info->forbidden_part)
+          return TRUE;
         info->needed_key_parts |= key_part_map(1) << part;
         break;
       }
     }
     return FALSE;
   }
-
-  /* 
-    We get here when this refers to a table that's neither the table of
-    interest, nor one of the allowed tables. 
-  */
-  return TRUE;
+  else
+    info->used_tables |= this->used_tables();
+  return FALSE;
 }
 
 

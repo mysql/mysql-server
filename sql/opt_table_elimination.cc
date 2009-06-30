@@ -166,9 +166,8 @@ void eliminate_tables(JOIN *join)
   DESCRIPTION
 
   RETURN
-    Number of base tables left after elimination. 0 means everything was
-    eliminated. Tables that belong to the
-    children of this join nest are also counted.
+    Number of children left after elimination. 0 means everything was
+    eliminated.
 
 //    TRUE   The entire join list can be eliminated (caller should remove)
 //    FALSE  Otherwise
@@ -188,7 +187,7 @@ eliminate_tables_for_list(JOIN *join, TABLE **leaves_arr,
   table_map tables_used_on_left= 0;
   TABLE **cur_table= leaves_arr;
   bool children_have_multiple_matches= FALSE;
-  uint base_tables= 0;
+  uint remaining_children= 0;
 
   while ((tbl= it++))
   {
@@ -209,8 +208,9 @@ eliminate_tables_for_list(JOIN *join, TABLE **leaves_arr,
         {
           mark_as_eliminated(join, tbl);
         }
+        else
+          remaining_children++;
         tbl->nested_join->n_tables= n;
-        base_tables += n;
       }
       else
       {
@@ -222,7 +222,7 @@ eliminate_tables_for_list(JOIN *join, TABLE **leaves_arr,
           mark_as_eliminated(join, tbl);
         }
         else 
-          base_tables++;
+          remaining_children++;
       }
       tables_used_on_left |= tbl->on_expr->used_tables();
       children_have_multiple_matches= children_have_multiple_matches ||  
@@ -231,7 +231,7 @@ eliminate_tables_for_list(JOIN *join, TABLE **leaves_arr,
     else
     {
       DBUG_ASSERT(!tbl->nested_join);
-      base_tables++;
+      remaining_children++;
     }
 
     if (tbl->table)
@@ -271,10 +271,10 @@ eliminate_tables_for_list(JOIN *join, TABLE **leaves_arr,
         This join_list can be eliminated. Signal about this to the caller by
         returning number of tables.
       */
-      base_tables= 0;
+      remaining_children= 0;
     }
   }
-  return base_tables;
+  return remaining_children;
 }
 
 
@@ -330,7 +330,7 @@ static bool table_has_one_match(TABLE *table, table_map bound_tables,
       
       do  /* For each keypart and each way to read it */
       {
-        if (keyuse->usable == 1)
+        if (keyuse->type == KEYUSE_USABLE)
         {
           if(!(keyuse->used_tables & ~bound_tables) &&
              !(keyuse->optimize & KEY_OPTIMIZE_REF_OR_NULL))
@@ -400,12 +400,56 @@ extra_keyuses_bind_all_keyparts(table_map bound_tables, TABLE *table,
                                 uint n_keyuses, table_map bound_parts)
 {
   /*
-    Current implementation needs some keyparts to be already bound to start
-    inferences: 
+    We need 
+     - some 'unusable' KEYUSE elements to work on
+     - some keyparts to be already bound to start inferences: 
   */
   if (n_keyuses && bound_parts)
   {
-    KEY *keyinfo= table->key_info + key_start->key; 
+    KEY *keyinfo= table->key_info + key_start->key;
+    bool bound_more_parts;
+    do 
+    {
+      bound_more_parts= FALSE;
+      for (KEYUSE *k= key_start; k!=key_end; k++)
+      {
+        if (k->type == KEYUSE_UNKNOWN)
+        {
+          Field_processor_info fp= {table, k->key, k->keypart, 0, 0};
+          if (k->val->walk(&Item::check_column_usage_processor, FALSE, 
+                            (uchar*)&fp))
+            k->type= KEYUSE_NO_BIND;
+          else
+          {
+            k->used_tables= fp.used_tables;
+            k->keypart_map= fp.needed_key_parts;
+            k->type= KEYUSE_BIND;
+          }
+        }
+        
+        if (k->type == KEYUSE_BIND)
+        {
+          /*
+            If this is a binding keyuse, such that
+             - all tables it refers to are bound,
+             - all parts it refers to are bound
+             - but the key part it binds is not itself bound
+          */
+          if (!(k->used_tables & ~bound_tables) && 
+              !(k->keypart_map & ~bound_parts) && 
+              !(bound_parts & key_part_map(1) << k->keypart))
+          {
+            bound_parts|= key_part_map(1) << k->keypart;
+            if (bound_parts == PREV_BITS(key_part_map, keyinfo->key_parts))
+              return TRUE;
+            bound_more_parts= TRUE;
+          }
+        }
+      }
+    } while (bound_more_parts);
+  }
+  return FALSE;
+#if 0
     Keyuse_w_needed_reg *uses;
     if (!(uses= (Keyuse_w_needed_reg*)my_alloca(sizeof(Keyuse_w_needed_reg)*
                                                 n_keyuses)))
@@ -450,8 +494,7 @@ extra_keyuses_bind_all_keyparts(table_map bound_tables, TABLE *table,
           return TRUE;
       }
     } while (n_bounded != 0);
-  }
-  return FALSE;
+#endif 
 }
 
 

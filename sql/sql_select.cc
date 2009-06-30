@@ -2762,7 +2762,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
 	{
 	  start_keyuse=keyuse;
 	  key=keyuse->key;
-	  if (keyuse->usable == 1)
+	  if (keyuse->type == KEYUSE_USABLE)
             s->keys.set_bit(key);               // QQ: remove this ?
 
 	  refs=0;
@@ -2770,8 +2770,8 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
 	  eq_part.clear_all();
 	  do
 	  {
-            if (keyuse->usable==1 && keyuse->val->type() != Item::NULL_ITEM && 
-                !keyuse->optimize)
+            if (keyuse->type == KEYUSE_USABLE && 
+                keyuse->val->type() != Item::NULL_ITEM && !keyuse->optimize)
 	    {
 	      if (!((~found_const_table_map) & keyuse->used_tables))
 		const_ref.set_bit(keyuse->keypart);
@@ -2971,7 +2971,7 @@ typedef struct key_field_t {
   */
   bool          null_rejecting; 
   bool         *cond_guard; /* See KEYUSE::cond_guard */
-  bool          usable; /* See KEYUSE::usable */
+  enum keyuse_type type; /* See KEYUSE::type */
 } KEY_FIELD;
 
 
@@ -3069,7 +3069,7 @@ merge_key_fields(KEY_FIELD *start,KEY_FIELD *new_fields,KEY_FIELD *end,
               be, too (TODO: shouldn't that apply to the above
               null_rejecting and optimize attributes?)
             */
-            DBUG_ASSERT(old->usable == new_fields->usable);
+            DBUG_ASSERT(old->type == new_fields->type);
 	  }
 	}
 	else if (old->eq_func && new_fields->eq_func &&
@@ -3085,12 +3085,13 @@ merge_key_fields(KEY_FIELD *start,KEY_FIELD *new_fields,KEY_FIELD *end,
           old->null_rejecting= (old->null_rejecting &&
                                 new_fields->null_rejecting);
           // "t.key_col=const" predicates are always usable
-          DBUG_ASSERT(old->usable && new_fields->usable);
+          DBUG_ASSERT(old->type == KEYUSE_USABLE && 
+                      new_fields->type == KEYUSE_USABLE);
 	}
 	else if (old->eq_func && new_fields->eq_func &&
-		 ((new_fields->usable && old->val->const_item() && 
-                   old->val->is_null()) || 
-                 ((old->usable && new_fields->val->is_null()))))
+		 ((new_fields->type == KEYUSE_USABLE && 
+                   old->val->const_item() && old->val->is_null()) || 
+                 ((old->type == KEYUSE_USABLE && new_fields->val->is_null()))))
                 /* TODO ^ why is the above asymmetric, why const_item()? */
 	{
 	  /* field = expression OR field IS NULL */
@@ -3181,9 +3182,6 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
       if (!((value[i])->used_tables() & (field->table->map | RAND_TABLE_BIT)))
         optimizable=1;
     }
-    // psergey-tbl-elim:
-    // if (!optimizable)
-    //  return;
     if (!(usable_tables & field->table->map))
     {
       if (!eq_func || (*value)->type() != Item::NULL_ITEM ||
@@ -3290,7 +3288,7 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
   (*key_fields)->val=		*value;
   (*key_fields)->level=		and_level;
   (*key_fields)->optimize=	exists_optimize;
-  (*key_fields)->usable=	optimizable;
+  (*key_fields)->type=	        optimizable? KEYUSE_USABLE : KEYUSE_UNKNOWN;
   /*
     If the condition has form "tbl.keypart = othertbl.field" and 
     othertbl.field can be NULL, there will be no matches if othertbl.field 
@@ -3602,12 +3600,7 @@ add_key_part(DYNAMIC_ARRAY *keyuse_array,KEY_FIELD *key_field)
 	  keyuse.optimize= key_field->optimize & KEY_OPTIMIZE_REF_OR_NULL;
           keyuse.null_rejecting= key_field->null_rejecting;
           keyuse.cond_guard= key_field->cond_guard;
-          if (!(keyuse.usable= key_field->usable))
-          {
-            /* The following will have special meanings: */
-            keyuse.keypart_map= 0;
-            keyuse.used_tables= 0;
-          }
+          keyuse.type= key_field->type;
 	  VOID(insert_dynamic(keyuse_array,(uchar*) &keyuse));
 	}
       }
@@ -3674,7 +3667,7 @@ add_ft_keys(DYNAMIC_ARRAY *keyuse_array,
   keyuse.used_tables=cond_func->key_item()->used_tables();
   keyuse.optimize= 0;
   keyuse.keypart_map= 0;
-  keyuse.usable= 1;
+  keyuse.type= KEYUSE_USABLE;
   VOID(insert_dynamic(keyuse_array,(uchar*) &keyuse));
 }
 
@@ -3691,8 +3684,10 @@ sort_keyuse(KEYUSE *a,KEYUSE *b)
     return (int) (a->keypart - b->keypart);
 
   // Usable ones go before the unusable
-  if (a->usable != b->usable)
-    return (int)b->usable - (int)a->usable;
+  int a_ok= test(a->type == KEYUSE_USABLE);
+  int b_ok= test(b->type == KEYUSE_USABLE);
+  if (a_ok != b_ok)
+    return a_ok? -1 : 1;
 
   // Place const values before other ones
   if ((res= test((a->used_tables & ~OUTER_REF_TABLE_BIT)) -
@@ -3904,7 +3899,7 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
     found_eq_constant=0;
     for (i=0 ; i < keyuse->elements-1 ; i++,use++)
     {
-      if (use->usable == 1 && !use->used_tables && 
+      if (use->type == KEYUSE_USABLE && !use->used_tables && 
           use->optimize != KEY_OPTIMIZE_REF_OR_NULL)
 	use->table->const_key_parts[use->key]|= use->keypart_map;
       if (use->keypart != FT_KEYPART)
@@ -3929,7 +3924,7 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
       /* Save ptr to first use */
       if (!use->table->reginfo.join_tab->keyuse)
 	use->table->reginfo.join_tab->keyuse=save_pos;
-      if (use->usable == 1)
+      if (use->type == KEYUSE_USABLE)
         use->table->reginfo.join_tab->checked_keys.set_bit(use->key);
       save_pos++;
     }
@@ -3960,7 +3955,7 @@ static void optimize_keyuse(JOIN *join, DYNAMIC_ARRAY *keyuse_array)
       To avoid bad matches, we don't make ref_table_rows less than 100.
     */
     keyuse->ref_table_rows= ~(ha_rows) 0;	// If no ref
-    if (keyuse->usable == 1 && keyuse->used_tables &
+    if (keyuse->type == KEYUSE_USABLE && keyuse->used_tables &
 	(map= (keyuse->used_tables & ~join->const_table_map &
 	       ~OUTER_REF_TABLE_BIT)))
     {
@@ -4152,7 +4147,7 @@ best_access_path(JOIN      *join,
             if 1. expression doesn't refer to forward tables
                2. we won't get two ref-or-null's
           */
-          if (keyuse->usable == 1&& 
+          if (keyuse->type == KEYUSE_USABLE && 
               !(remaining_tables & keyuse->used_tables) &&
               !(ref_or_null_part && (keyuse->optimize &
                                      KEY_OPTIMIZE_REF_OR_NULL)))
@@ -5607,7 +5602,8 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
     */
     do
     {
-      if (!(~used_tables & keyuse->used_tables) && keyuse->usable == 1)
+      if (!(~used_tables & keyuse->used_tables) && 
+          keyuse->type == KEYUSE_USABLE)
       {
 	if (keyparts == keyuse->keypart &&
 	    !(found_part_ref_or_null & keyuse->optimize))
@@ -5658,7 +5654,7 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
     for (i=0 ; i < keyparts ; keyuse++,i++)
     {
       while (keyuse->keypart != i || ((~used_tables) & keyuse->used_tables) ||
-             !(keyuse->usable == 1))
+             !(keyuse->type == KEYUSE_USABLE))
       {
 	keyuse++;				/* Skip other parts */
       }
@@ -16709,9 +16705,9 @@ static void print_join(THD *thd,
     the fact that the first table can't be inner table of an outer join.
   */
   DBUG_ASSERT(!eliminated_tables || 
-              !((*table)->table && ((*table)->table->map & eliminated_tables) ||
-                (*table)->nested_join && !((*table)->nested_join->used_tables &
-                                           ~eliminated_tables)));
+              !(((*table)->table && ((*table)->table->map & eliminated_tables)) ||
+                ((*table)->nested_join && !((*table)->nested_join->used_tables &
+                                           ~eliminated_tables))));
   (*table)->print(thd, eliminated_tables, str, query_type);
 
   TABLE_LIST **end= table + tables->elements;

@@ -33,6 +33,40 @@
 #define KEY_OPTIMIZE_EXISTS		1
 #define KEY_OPTIMIZE_REF_OR_NULL	2
 
+/* KEYUSE element types */
+enum keyuse_type
+{
+  /* 
+    val refers to the same table, this is either KEYUSE_BIND or KEYUSE_NO_BIND
+    type, we didn't determine which one yet.
+  */
+  KEYUSE_UNKNOWN= 0,
+  /* 
+    'regular' keyuse, i.e. it represents one of the following
+      * t.keyXpartY = func(constants, other-tables)
+      * t.keyXpartY IS NULL 
+      * t.keyXpartY = func(constants, other-tables) OR t.keyXpartY IS NULL 
+    and can be used to construct ref acces
+  */
+  KEYUSE_USABLE,
+  /*
+    The keyuse represents a condition in form: 
+      
+      t.uniq_keyXpartY = func(other parts of uniq_keyX)
+    
+    This can't be used to construct uniq_keyX but we could use it to determine
+    that the table will produce at most one match.
+  */
+  KEYUSE_BIND,
+  /*
+    Keyuse that's not usable for ref access and doesn't meet the criteria of
+    KEYUSE_BIND. Examples:
+      t.keyXpartY = func(t.keyXpartY)
+      t.keyXpartY = func(column of t that's not covered by keyX)
+  */
+  KEYUSE_NO_BIND
+};
+
 typedef struct keyuse_t {
   TABLE *table;
   Item	*val;				/**< or value if no field */
@@ -64,7 +98,7 @@ typedef struct keyuse_t {
               This equality cannot be used for index access but is useful
               for table elimination.
   */
-  int usable;
+  enum keyuse_type type;
 } KEYUSE;
 
 class store_key;

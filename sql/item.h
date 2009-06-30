@@ -1018,11 +1018,14 @@ public:
 };
 
 /* Data for Item::check_column_usage_processor */
-typedef struct  
+typedef struct 
 {
-  table_map allowed_tables;
-  TABLE *table;
-  uint keyno;
+  TABLE *table;         /* Table of interest */
+  uint keyno;           /* Index of interest */
+  uint forbidden_part;  /* key part which one is not allowed to refer to */
+  /* [Set by processor] used tables, besides the table of interest */
+  table_map used_tables; 
+  /* [Set by processor] Parts of index of interest that expression refers to */
   uint needed_key_parts;
 } Field_processor_info;
 
