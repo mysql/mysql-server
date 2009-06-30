@@ -3721,6 +3721,7 @@ fseg_validate_low(
 	return(TRUE);
 }
 
+#ifdef UNIV_DEBUG
 /*******************************************************************//**
 Validates a segment.
 @return	TRUE if ok */
@@ -3748,6 +3749,7 @@ fseg_validate(
 
 	return(ret);
 }
+#endif /* UNIV_DEBUG */
 
 /*******************************************************************//**
 Writes info of a segment. */

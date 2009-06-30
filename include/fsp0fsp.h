@@ -330,6 +330,7 @@ void
 fsp_print(
 /*======*/
 	ulint	space);	/*!< in: space id */
+#ifdef UNIV_DEBUG
 /*******************************************************************//**
 Validates a segment.
 @return	TRUE if ok */
@@ -338,7 +339,8 @@ ibool
 fseg_validate(
 /*==========*/
 	fseg_header_t*	header, /*!< in: segment header */
-	mtr_t*		mtr2);	/*!< in: mtr */
+	mtr_t*		mtr);	/*!< in: mtr */
+#endif /* UNIV_DEBUG */
 #ifdef UNIV_BTR_PRINT
 /*******************************************************************//**
 Writes info of a segment. */
