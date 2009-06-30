@@ -25,13 +25,13 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 /***********************************************************************
 
 Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
-Copyright (c) 2009, Percona
+Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
-by Percona. Those modifications are
+by Percona Inc.. Those modifications are
 gratefully acknowledged and are described briefly in the InnoDB
-documentation. The contributions by Percona are incorporated with their
-permission, and subject to the conditions contained in the file
+documentation. The contributions by Percona Inc. are incorporated with
+their permission, and subject to the conditions contained in the file
 COPYING.Percona.
 
 This program is free software; you can redistribute it and/or modify it
