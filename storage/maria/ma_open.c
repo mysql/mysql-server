@@ -256,15 +256,16 @@ MARIA_HA *maria_clone(MARIA_SHARE *share, int mode)
 MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
 {
   int kfile,open_mode,save_errno;
-  uint i,j,len,errpos,head_length,base_pos,info_length,keys, realpath_err,
+  uint i,j,len,errpos,head_length,base_pos,keys, realpath_err,
     key_parts,unique_key_parts,fulltext_keys,uniques;
+  size_t info_length;
   char name_buff[FN_REFLEN], org_name[FN_REFLEN], index_name[FN_REFLEN],
        data_name[FN_REFLEN];
   uchar *disk_cache, *disk_pos, *end_pos;
   MARIA_HA info,*m_info,*old_info;
   MARIA_SHARE share_buff,*share;
-  double rec_per_key_part[HA_MAX_POSSIBLE_KEY*HA_MAX_KEY_SEG];
-  ulong  nulls_per_key_part[HA_MAX_POSSIBLE_KEY*HA_MAX_KEY_SEG];
+  double *rec_per_key_part;
+  ulong  *nulls_per_key_part;
   my_off_t key_root[HA_MAX_POSSIBLE_KEY];
   ulonglong max_key_file_length, max_data_file_length;
   my_bool versioning= 1;
@@ -294,8 +295,6 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
   {
     share= &share_buff;
     bzero((uchar*) &share_buff,sizeof(share_buff));
-    share_buff.state.rec_per_key_part=   rec_per_key_part;
-    share_buff.state.nulls_per_key_part= nulls_per_key_part;
     share_buff.state.key_root=key_root;
     share_buff.pagecache= multi_pagecache_search((uchar*) name_buff,
 						 (uint) strlen(name_buff),
@@ -360,11 +359,27 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
 
     info_length=mi_uint2korr(share->state.header.header_length);
     base_pos= mi_uint2korr(share->state.header.base_pos);
-    if (!(disk_cache= (uchar*) my_alloca(info_length+128)))
+
+    /*
+      Allocate space for header information and for data that is too
+      big to keep on stack
+    */
+    if (!my_multi_malloc(MY_WME,
+                         &disk_cache, info_length+128,
+                         &rec_per_key_part,
+                         (sizeof(*rec_per_key_part) * HA_MAX_POSSIBLE_KEY *
+                          HA_MAX_KEY_SEG),
+                         &nulls_per_key_part,
+                         (sizeof(*nulls_per_key_part) * HA_MAX_POSSIBLE_KEY *
+                          HA_MAX_KEY_SEG),
+                         NullS))
     {
       my_errno=ENOMEM;
       goto err;
     }
+    share_buff.state.rec_per_key_part=   rec_per_key_part;
+    share_buff.state.nulls_per_key_part= nulls_per_key_part;
+
     end_pos=disk_cache+info_length;
     errpos= 3;
     if (my_pread(kfile, disk_cache, info_length, 0L, MYF(MY_NABP)))
@@ -783,7 +798,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
 					(keys ? MARIA_INDEX_BLOCK_MARGIN *
 					 share->block_size * keys : 0));
     share->block_size= share->base.block_size;
-    my_afree(disk_cache);
+    my_free(disk_cache, MYF(0));
     _ma_setup_functions(share);
     if ((*share->once_init)(share, info.dfile.file))
       goto err;
@@ -926,9 +941,7 @@ err:
     my_free(share,MYF(0));
     /* fall through */
   case 3:
-    /* fall through */
-  case 2:
-    my_afree(disk_cache);
+    my_free(disk_cache, MYF(0));
     /* fall through */
   case 1:
     VOID(my_close(kfile,MYF(0)));
