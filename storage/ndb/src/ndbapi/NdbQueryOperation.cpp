@@ -327,7 +327,7 @@ NdbQueryImpl::close(bool forceSend, bool release)
 NdbTransaction*
 NdbQueryImpl::getNdbTransaction() const
 {
-  return &m_transaction;  // FIXME
+  return &m_transaction;
 }
 
 void 

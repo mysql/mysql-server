@@ -23,6 +23,7 @@
 #include "NdbQueryBuilder.hpp"
 #include "NdbQueryBuilderImpl.hpp"
 #include "NdbDictionary.hpp"
+#include "NdbDictionaryImpl.hpp"
 
 /**
  * Implementation of all QueryBuilder objects are completely hidden from
@@ -117,11 +118,11 @@ private:
   NdbLinkedOperandImpl (const NdbQueryOperationDef* parent, 
                         const NdbDictionary::Column* column)
    : NdbLinkedOperand(this), NdbQueryOperandImpl(),
-     m_parent(parent), m_column(column)
+     m_parentOperation(parent), m_parentColumn(column)
   {};
 
-  const NdbQueryOperationDef* const m_parent;
-  const NdbDictionary::Column* const m_column;
+  const NdbQueryOperationDef* const m_parentOperation;
+  const NdbDictionary::Column* const m_parentColumn;
 }; // class NdbLinkedOperandImpl
 
 
@@ -373,7 +374,18 @@ NdbQueryDef::getQueryOperation(Uint32 index) const
 
 const NdbQueryOperationDef*
 NdbQueryDef::getQueryOperation(const char* ident) const
-{ return NULL;  // FIXME
+{
+  if (ident==NULL)
+    return NULL;
+
+  Uint32 sz = m_pimpl->m_operations.size();
+  const NdbQueryOperationDef* const* opDefs = m_pimpl->m_operations.getBase();
+  for(Uint32 i = 0; i<sz; i++, opDefs++){
+    const char* opName = (*opDefs)->getImpl().getName();
+    if(opName!=NULL && strcmp(opName, ident) == 0)
+      return *opDefs;
+  }
+  return NULL;
 }
 
 /*************************************************************************
@@ -654,10 +666,10 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Table* table,    // Primary key 
                            const NdbQueryOperand* const keys[],  // Terminated by NULL element 
                            const char* ident)
 {
+  int i;
   if (m_pimpl->hasError())
     return NULL;
 
-  int i;
   returnErrIf(table==0 || keys==0, 4800);  // Required non-NULL arguments
 
   // All column values being part of primary key should be specified:
@@ -707,14 +719,41 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Index* index,    // Unique key l
                            const NdbQueryOperand* const keys[],  // Terminated by NULL element 
                            const char* ident)
 {
+  int i;
+
   if (m_pimpl->hasError())
     return NULL;
   returnErrIf(table==0 || index==0 || keys==0, 4800);  // Required non-NULL arguments
+
+  // TODO: Restrict to only table_version_major() mismatch?
+  returnErrIf(NdbIndexImpl::getImpl(*index).m_table_id != table->getObjectId() ||
+              NdbIndexImpl::getImpl(*index).m_table_version != table->getObjectVersion(), 4806);
+
+  // Check: keys[] are specified for all fields in 'index'
+  int inxfields = index->getNoOfColumns();
+  for (i=0; i<inxfields; ++i)
+  {
+    returnErrIf(keys[i]==NULL, 4801);  // A 'Key' value is undefineds
+  }
+  // Check for propper NULL termination of keys[] spec
+  returnErrIf(keys[inxfields]!=NULL, 4802);
 
   NdbQueryLookupOperationDefImpl* op = 
     new NdbQueryLookupOperationDefImpl(index,table,keys,ident,
                                        m_pimpl->m_operations.size());
   returnErrIf(op==0, 4000);
+
+  // Bind to Column and check type compatibility
+  for (i=0; i<inxfields; ++i)
+  {
+    const NdbDictionary::Column *col = index->getColumn(i);
+    int error = keys[i]->getImpl().bindOperand(col,op);
+    if (unlikely(error))
+    { m_pimpl->setErrorCode(error);
+      delete op;
+      return NULL;
+    }
+  }
 
   m_pimpl->m_operations.push_back(op);
   return op;
@@ -748,6 +787,10 @@ NdbQueryBuilder::scanIndex(const NdbDictionary::Index* index,
   if (m_pimpl->hasError())
     return NULL;
   returnErrIf(table==0 || index==0 || bound==0, 4800);  // Required non-NULL arguments
+
+  // TODO: Restrict to only table_version_major() mismatch?
+  returnErrIf(NdbIndexImpl::getImpl(*index).m_table_id != table->getObjectId() ||
+              NdbIndexImpl::getImpl(*index).m_table_version != table->getObjectVersion(), 4806);
 
   NdbQueryIndexScanOperationDefImpl* op =
     new NdbQueryIndexScanOperationDefImpl(index,table,bound,ident,
@@ -807,13 +850,6 @@ NdbQueryBuilderImpl::contains(const NdbQueryOperationDef* opDef)
 NdbQueryDef*
 NdbQueryBuilderImpl::prepare()
 {
-/****
-  // FIXME: Install named OperationDef's in HashMap
-  for (i = 0; i<m_operation.size(); ++i)
-  { const NdbQueryOperationDef *def = m_operations[i];
-  }
-****/
-
   NdbQueryDefImpl* def = new NdbQueryDefImpl(*this);
   returnErrIf(def==0, 4000);
 
@@ -871,14 +907,14 @@ NdbLinkedOperandImpl::bindOperand(
                            NdbQueryOperationDef* operation)
 {
   NdbDictionary::Column::Type type = column->getType();
-  if (type != m_column->getType())
+  if (type != m_parentColumn->getType())
     return 4803;  // Incompatible datatypes
 
   // TODO? Check length if Char, and prec,scale if decimal type
 
   // Register parent/child relations
-  this->m_parent->getImpl().addChild(operation);
-  operation->getImpl().addParent(this->m_parent);
+  this->m_parentOperation->getImpl().addChild(operation);
+  operation->getImpl().addParent(this->m_parentOperation);
 
   return NdbQueryOperandImpl::bindOperand(column,operation);
 }
