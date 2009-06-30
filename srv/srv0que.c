@@ -32,37 +32,6 @@ Created 6/5/1996 Heikki Tuuri
 #include "que0que.h"
 
 /**********************************************************************//**
-Checks if there is work to do in the server task queue. If there is, the
-thread starts processing a task. Before leaving, it again checks the task
-queue and picks a new task if any exists. This is called by a SRV_WORKER
-thread. */
-UNIV_INTERN
-void
-srv_que_task_queue_check(void)
-/*==========================*/
-{
-	que_thr_t*	thr;
-
-	for (;;) {
-		mutex_enter(&kernel_mutex);
-
-		thr = UT_LIST_GET_FIRST(srv_sys->tasks);
-
-		if (thr == NULL) {
-			mutex_exit(&kernel_mutex);
-
-			return;
-		}
-
-		UT_LIST_REMOVE(queue, srv_sys->tasks, thr);
-
-		mutex_exit(&kernel_mutex);
-
-		que_run_threads(thr);
-	}
-}
-
-/**********************************************************************//**
 Enqueues a task to server task queue and releases a worker thread, if there
 is a suspended one. */
 UNIV_INTERN
