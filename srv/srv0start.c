@@ -1162,19 +1162,21 @@ innobase_start_or_create_for_mysql(void)
 	os_aio_use_native_aio = FALSE;
 
 #ifdef __WIN__
-	if (os_get_os_version() == OS_WIN95
-	    || os_get_os_version() == OS_WIN31
-	    || os_get_os_version() == OS_WINNT) {
-
+	switch (os_get_os_version()) {
+	case OS_WIN95:
+	case OS_WIN31:
+	case OS_WINNT:
 		/* On Win 95, 98, ME, Win32 subsystem for Windows 3.1,
 		and NT use simulated aio. In NT Windows provides async i/o,
 		but when run in conjunction with InnoDB Hot Backup, it seemed
 		to corrupt the data files. */
 
 		os_aio_use_native_aio = FALSE;
-	} else {
+		break;
+	default:
 		/* On Win 2000 and XP use async i/o */
 		os_aio_use_native_aio = TRUE;
+		break;
 	}
 #endif
 	if (srv_file_flush_method_str == NULL) {
