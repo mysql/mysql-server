@@ -1644,6 +1644,43 @@ os_file_close(
 #endif
 }
 
+#ifdef UNIV_HOTBACKUP
+/***********************************************************************//**
+Closes a file handle.
+@return	TRUE if success */
+UNIV_INTERN
+ibool
+os_file_close_no_error_handling(
+/*============================*/
+	os_file_t	file)	/*!< in, own: handle to a file */
+{
+#ifdef __WIN__
+	BOOL	ret;
+
+	ut_a(file);
+
+	ret = CloseHandle(file);
+
+	if (ret) {
+		return(TRUE);
+	}
+
+	return(FALSE);
+#else
+	int	ret;
+
+	ret = close(file);
+
+	if (ret == -1) {
+
+		return(FALSE);
+	}
+
+	return(TRUE);
+#endif
+}
+#endif /* UNIV_HOTBACKUP */
+
 /***********************************************************************//**
 Gets a file size.
 @return	TRUE if success */
