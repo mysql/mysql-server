@@ -5630,6 +5630,7 @@ cleanup:
 int ha_tokudb::delete_all_rows() {
     TOKUDB_DBUG_ENTER("delete_all_rows");
     int error = 0;
+    uint curr_num_DBs = 0;
 
     //
     // prelock so we know right away if there are any potential
@@ -5641,7 +5642,7 @@ int ha_tokudb::delete_all_rows() {
     }
 
     // truncate all dictionaries
-    uint curr_num_DBs = table->s->keys + test(hidden_primary_key);
+    curr_num_DBs = table->s->keys + test(hidden_primary_key);
     for (uint i = 0; i < curr_num_DBs; i++) {
         DB *db = share->key_file[i];
         u_int32_t row_count = 0;
