@@ -425,14 +425,6 @@ os_file_close(
 /*==========*/
 	os_file_t	file);	/*!< in, own: handle to a file */
 /***********************************************************************//**
-Closes a file handle.
-@return	TRUE if success */
-UNIV_INTERN
-ibool
-os_file_close_no_error_handling(
-/*============================*/
-	os_file_t	file);	/*!< in, own: handle to a file */
-/***********************************************************************//**
 Gets a file size.
 @return	TRUE if success */
 UNIV_INTERN
