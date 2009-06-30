@@ -3768,32 +3768,6 @@ lock_table(
 }
 
 /*********************************************************************//**
-Checks if there are any locks set on the table.
-@return	TRUE if there are lock(s) */
-UNIV_INTERN
-ibool
-lock_is_on_table(
-/*=============*/
-	dict_table_t*	table)	/*!< in: database table in dictionary cache */
-{
-	ibool	ret;
-
-	ut_ad(table);
-
-	lock_mutex_enter_kernel();
-
-	if (UT_LIST_GET_LAST(table->locks)) {
-		ret = TRUE;
-	} else {
-		ret = FALSE;
-	}
-
-	lock_mutex_exit_kernel();
-
-	return(ret);
-}
-
-/*********************************************************************//**
 Checks if a waiting table lock request still has to wait in a queue.
 @return	TRUE if still has to wait */
 static
@@ -3932,22 +3906,6 @@ lock_rec_unlock(
 
 		lock = lock_rec_get_next(heap_no, lock);
 	}
-
-	mutex_exit(&kernel_mutex);
-}
-
-/*********************************************************************//**
-Releases a table lock.
-Releases possible other transactions waiting for this lock. */
-UNIV_INTERN
-void
-lock_table_unlock(
-/*==============*/
-	lock_t*	lock)	/*!< in: lock */
-{
-	mutex_enter(&kernel_mutex);
-
-	lock_table_dequeue(lock);
 
 	mutex_exit(&kernel_mutex);
 }
