@@ -333,7 +333,7 @@ man realloc in Linux, 2004:
 
        realloc()  changes the size of the memory block pointed to
        by ptr to size bytes.  The contents will be  unchanged  to
-       the minimum of the old and new sizes; newly allocated mem­
+       the minimum of the old and new sizes; newly allocated mem-
        ory will be uninitialized.  If ptr is NULL,  the	 call  is
        equivalent  to malloc(size); if size is equal to zero, the
        call is equivalent to free(ptr).	 Unless ptr is	NULL,  it
