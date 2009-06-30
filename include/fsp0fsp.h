@@ -269,20 +269,6 @@ fseg_free_page(
 	ulint		space,	/*!< in: space id */
 	ulint		page,	/*!< in: page offset */
 	mtr_t*		mtr);	/*!< in: mtr handle */
-/*******************************************************************//**
-Frees a segment. The freeing is performed in several mini-transactions,
-so that there is no danger of bufferfixing too many buffer pages. */
-UNIV_INTERN
-void
-fseg_free(
-/*======*/
-	ulint	space,	/*!< in: space id */
-	ulint	zip_size,/*!< in: compressed page size in bytes
-			or 0 for uncompressed pages */
-	ulint	page_no,/*!< in: page number where the segment header is
-			placed */
-	ulint	offset);/*!< in: byte offset of the segment header on that
-			page */
 /**********************************************************************//**
 Frees part of a segment. This function can be used to free a segment
 by repeatedly calling this function in different mini-transactions.
