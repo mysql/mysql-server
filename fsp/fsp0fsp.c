@@ -3566,45 +3566,6 @@ fseg_free_step_not_header(
 	return(FALSE);
 }
 
-/*******************************************************************//**
-Frees a segment. The freeing is performed in several mini-transactions,
-so that there is no danger of bufferfixing too many buffer pages. */
-UNIV_INTERN
-void
-fseg_free(
-/*======*/
-	ulint	space,	/*!< in: space id */
-	ulint	zip_size,/*!< in: compressed page size in bytes
-			or 0 for uncompressed pages */
-	ulint	page_no,/*!< in: page number where the segment header is
-			placed */
-	ulint	offset) /*!< in: byte offset of the segment header on that
-			page */
-{
-	mtr_t		mtr;
-	ibool		finished;
-	fseg_header_t*	header;
-	fil_addr_t	addr;
-
-	addr.page = page_no;
-	addr.boffset = offset;
-
-	for (;;) {
-		mtr_start(&mtr);
-
-		header = fut_get_ptr(space, zip_size, addr, RW_X_LATCH, &mtr);
-
-		finished = fseg_free_step(header, &mtr);
-
-		mtr_commit(&mtr);
-
-		if (finished) {
-
-			return;
-		}
-	}
-}
-
 /**********************************************************************//**
 Returns the first extent descriptor for a segment. We think of the extent
 lists of the segment catenated in the order FSEG_FULL -> FSEG_NOT_FULL
