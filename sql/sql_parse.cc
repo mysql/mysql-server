@@ -1350,7 +1350,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       if (check_access(thd, CREATE_ACL, db.str , 0, 1, 0,
                        is_schema_db(db.str)))
 	break;
-      general_log_print(thd, command, packet);
+      general_log_print(thd, command, "%.*s", db.length, db.str);
       bzero(&create_info, sizeof(create_info));
       mysql_create_db(thd, (lower_case_table_names == 2 ? alias.str : db.str),
                       &create_info, 0);
@@ -1375,7 +1375,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
                    ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
 	break;
       }
-      general_log_write(thd, command, db.str, db.length);
+      general_log_write(thd, command, "%.*s", db.length, db.str);
       mysql_rm_db(thd, db.str, 0, 0);
       break;
     }
