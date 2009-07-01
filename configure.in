@@ -9,8 +9,8 @@ AC_CANONICAL_SYSTEM
 # remember to also update version.c in ndb
 #
 # When changing major version number please also check switch statement
-# in mysqlbinlog::check_master_version().
-AM_INIT_AUTOMAKE(mysql, 5.4.1-beta)
+# in client/mysqlbinlog.cc:check_master_version().
+AM_INIT_AUTOMAKE(mysql, 5.4.2-beta)
 AM_CONFIG_HEADER([include/config.h:config.h.in])
 
 PROTOCOL_VERSION=10

@@ -385,9 +385,10 @@ innodb_data_file_path = ibdata1:10M:autoextend
 #innodb_data_home_dir = <directory>
 
 # Number of IO threads to use for async IO operations. This value is
-# hardcoded to 4 on Unix, but on Windows disk I/O may benefit from a
+# hardcoded to 8 on Unix, but on Windows disk I/O may benefit from a
 # larger number.
-innodb_file_io_threads = 4
+innodb_write_io_threads = 8
+innodb_read_io_threads = 8
 
 # If you run into InnoDB tablespace corruption, setting this to a nonzero
 # value will likely help you to dump your tables. Start from value 1 and
