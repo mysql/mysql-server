@@ -4406,16 +4406,22 @@ mark_non_agg_field:
       Fields from outer selects added to the aggregate function
       outer_fields list as its unknown at the moment whether it's
       aggregated or not.
+      We're using either the select lex of the cached table (if present)
+      or the field's resolution context. context->select_lex is 
+      safe for use because it's either the SELECT we want to use 
+      (the current level) or a stub added by non-SELECT queries.
     */
+    SELECT_LEX *select_lex= cached_table ? 
+      cached_table->select_lex : context->select_lex;
     if (!thd->lex->in_sum_func)
-      cached_table->select_lex->full_group_by_flag|= NON_AGG_FIELD_USED;
+      select_lex->full_group_by_flag|= NON_AGG_FIELD_USED;
     else
     {
       if (outer_fixed)
         thd->lex->in_sum_func->outer_fields.push_back(this);
       else if (thd->lex->in_sum_func->nest_level !=
           thd->lex->current_select->nest_level)
-        cached_table->select_lex->full_group_by_flag|= NON_AGG_FIELD_USED;
+        select_lex->full_group_by_flag|= NON_AGG_FIELD_USED;
     }
   }
   return FALSE;
