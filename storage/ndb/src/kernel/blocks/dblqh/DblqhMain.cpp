@@ -3654,7 +3654,8 @@ int Dblqh::saveAttrInfoInSection(const Uint32* dataPtr, Uint32 len)
     return ZGET_ATTRINBUF_ERROR;
   }//if
 
-  regTcPtr->currTupAiLen+= len;
+  if (regTcPtr->m_flags & TcConnectionrec::OP_SAVEATTRINFO)
+    regTcPtr->currTupAiLen += len;
   
   return ZOK;
 } // saveAttrInfoInSection
@@ -4282,7 +4283,6 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   if (saveAttrInfo)
     regTcPtr->m_flags|= TcConnectionrec::OP_SAVEATTRINFO;
   
-  
   /* Handle any AttrInfo we received with the LQHKEYREQ */
   if (regTcPtr->currReclenAi != 0)
   {
@@ -4313,7 +4313,8 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
         return;
       }
         
-      regTcPtr->currTupAiLen= TreclenAiLqhkey;
+      if (saveAttrInfo)
+        regTcPtr->currTupAiLen= TreclenAiLqhkey;
     }
   }//if
 
@@ -10515,7 +10516,10 @@ void Dblqh::initScanTc(const ScanFragReq* req,
   tcConnectptr.p->m_scan_curr_range_no = 0;
   tcConnectptr.p->m_dealloc = 0;
   tcConnectptr.p->activeCreat = Fragrecord::AC_NORMAL;
-  tcConnectptr.p->m_flags = 0;
+  // set TcConnectionrec::OP_SAVEATTRINFO so that a
+  // "old" scan (short signals) update currTupAiLen which is checked
+  // in scanAttrinfoLab
+  tcConnectptr.p->m_flags = TcConnectionrec::OP_SAVEATTRINFO;
   TablerecPtr tTablePtr;
   tTablePtr.i = tabptr.p->primaryTableId;
   ptrCheckGuard(tTablePtr, ctabrecFileSize, tablerec);
