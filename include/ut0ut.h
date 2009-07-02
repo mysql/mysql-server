@@ -40,6 +40,21 @@ Created 1/20/1994 Heikki Tuuri
 /** Time stamp */
 typedef time_t	ib_time_t;
 
+#if defined(IB_HAVE_PAUSE_INSTRUCTION)
+   /* According to the gcc info page, asm volatile means that the
+   instruction has important side-effects and must not be removed.
+   Also asm volatile may trigger a memory barrier (spilling all registers
+   to memory). */
+#  define UT_RELAX_CPU() __asm__ __volatile__ ("pause")
+#elif defined(HAVE_ATOMIC_BUILTINS)
+#  define UT_RELAX_CPU() do { \
+     volatile lint	volatile_var; \
+     os_compare_and_swap_lint(&volatile_var, 0, 1); \
+   } while (0)
+#else
+#  define UT_RELAX_CPU() ((void)0) /* avoid warning for an empty statement */
+#endif
+
 /*********************************************************************//**
 Delays execution for at most max_wait_us microseconds or returns earlier
 if cond becomes true.
