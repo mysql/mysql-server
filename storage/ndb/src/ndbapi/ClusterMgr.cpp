@@ -70,6 +70,7 @@ ClusterMgr::ClusterMgr(TransporterFacade & _facade):
   noOfConnectedNodes= 0;
   theClusterMgrThread= 0;
   m_connect_count = 0;
+  m_auto_reconnect = -1;
   m_cluster_state = CS_waiting_for_clean_cache;
   DBUG_VOID_RETURN;
 }
@@ -138,7 +139,7 @@ void
 ClusterMgr::doStop( ){
   DBUG_ENTER("ClusterMgr::doStop");
   NdbMutex_Lock(clusterMgrThreadMutex);
-  if(theStop){
+  if(theStop == 1){
     NdbMutex_Unlock(clusterMgrThreadMutex);
     DBUG_VOID_RETURN;
   }
@@ -573,6 +574,11 @@ ClusterMgr::reportNodeFailed(NodeId nodeId, bool disconnect){
       theFacade.m_globalDictCache->unlock();
       m_connect_count ++;
       m_cluster_state = CS_waiting_for_clean_cache;
+    }
+
+    if (m_auto_reconnect == 0)
+    {
+      theStop = 2;
     }
   }
   theNode.nfCompleteRep = false;

@@ -149,6 +149,13 @@ public:
   int get_latest_error() const;
   const char *get_latest_error_msg() const;
 
+  /**
+   * Enable/disable auto-reconnect
+   * @param value 0 = false, 1 = true
+   */
+  void set_auto_reconnect(int value);
+  int get_auto_reconnect() const;
+
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   int get_no_ready();
   const char *get_connectstring(char *buf, int buf_sz) const;
