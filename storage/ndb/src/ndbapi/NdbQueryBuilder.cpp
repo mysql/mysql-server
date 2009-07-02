@@ -16,14 +16,15 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "NdbQueryBuilderImpl.hpp"
 #include <ndb_global.h>
 #include <Vector.hpp>
 
 #include "Ndb.hpp"
-#include "NdbQueryBuilder.hpp"
-#include "NdbQueryBuilderImpl.hpp"
 #include "NdbDictionary.hpp"
+#include "NdbOut.hpp"
 #include "NdbDictionaryImpl.hpp"
+#include "signaldata/QueryTree.hpp"
 
 /**
  * Implementation of all QueryBuilder objects are completely hidden from
@@ -72,6 +73,13 @@ setErrorCode(NdbQueryBuilder* qb, int aErrorCode)
     return NULL;			\
   }
 
+/** The type of an operand. This corresponds to the set of subclasses
+ * of NdbQueryOperand.*/
+enum OperandKind{
+  OperandKind_Linked,
+  OperandKind_Param,
+  OperandKind_Const
+};
 
 //////////////////////////////////////////////
 // Implementation of NdbQueryOperand interface
@@ -90,16 +98,24 @@ public:
   { m_column = column;
     return 0;
   }
-
+  
+  OperandKind getKind() const{
+    return m_kind;
+  }
 protected:
-  virtual ~NdbQueryOperandImpl() {};
+  virtual ~NdbQueryOperandImpl()=0;
   friend NdbQueryBuilderImpl::~NdbQueryBuilderImpl();
 
-  NdbQueryOperandImpl()
-  : m_column(0) {}
+  NdbQueryOperandImpl(OperandKind kind)
+    : m_column(0),
+      m_kind(kind)
+  {}
 
 private:
   const NdbDictionary::Column* m_column;  // Initial NULL, assigned w/ bindOperand()
+  /** This is used to tell the type of an NdbQueryOperand. This allow safe
+   * downcasting to a subclass.*/
+  const OperandKind m_kind;
 }; // class NdbQueryOperandImpl
 
 
@@ -113,11 +129,18 @@ public:
   virtual int bindOperand(const NdbDictionary::Column* column,
                           NdbQueryOperationDef* operation);
 
+  const NdbDictionary::Column* getParentColumn() const {
+    return m_parentColumn;
+  }
+
+  const NdbQueryOperationDef* getParentOperation() const {
+    return m_parentOperation;
+  }
 private:
   virtual ~NdbLinkedOperandImpl() {};
   NdbLinkedOperandImpl (const NdbQueryOperationDef* parent, 
                         const NdbDictionary::Column* column)
-   : NdbLinkedOperand(this), NdbQueryOperandImpl(),
+   : NdbLinkedOperand(this), NdbQueryOperandImpl(OperandKind_Linked),
      m_parentOperation(parent), m_parentColumn(column)
   {};
 
@@ -142,7 +165,7 @@ public:
 private:
   virtual ~NdbParamOperandImpl() {};
   NdbParamOperandImpl (const char* name)
-   : NdbParamOperand(this), NdbQueryOperandImpl(),
+   : NdbParamOperand(this), NdbQueryOperandImpl(OperandKind_Param),
      m_name(name)
   {};
 
@@ -171,7 +194,7 @@ public:
 protected:
   virtual ~NdbConstOperandImpl() {};
   NdbConstOperandImpl ()
-   : NdbConstOperand(this), NdbQueryOperandImpl()
+   : NdbConstOperand(this), NdbQueryOperandImpl(OperandKind_Const)
   {};
 }; // class NdbConstOperandImpl
 
@@ -268,6 +291,8 @@ public:
   const NdbDictionary::Index* getIndex() const
   { return m_index; };
 
+  virtual void serializeOperation(Uint32Buffer& serializedDef) const;
+
 private:
   virtual ~NdbQueryLookupOperationDefImpl() {};
   NdbQueryLookupOperationDefImpl (
@@ -287,8 +312,9 @@ private:
    : NdbQueryLookupOperationDef(this), NdbQueryOperationDefImpl(table,ident,ix),
      m_index(index), m_keys(keys)
   {};
-
+  
 private:
+  virtual void updateSPJProjection(NdbQueryOperationDefImpl& parent) const;
   const NdbDictionary::Index* const m_index;
   const NdbQueryOperand* const *m_keys;
 }; // class NdbQueryLookupOperationDefImpl
@@ -298,7 +324,7 @@ class NdbQueryScanOperationDefImpl :
   public NdbQueryOperationDefImpl
 {
 public:
-  virtual ~NdbQueryScanOperationDefImpl() {};
+  virtual ~NdbQueryScanOperationDefImpl()=0;
   NdbQueryScanOperationDefImpl (
                            const NdbDictionary::Table* table,
                            const char* ident,
@@ -313,6 +339,8 @@ class NdbQueryTableScanOperationDefImpl :
 {
   friend class NdbQueryBuilder;  // Allow privat access from builder interface
 
+public:
+  virtual void serializeOperation(Uint32Buffer& serializedDef) const;
 private:
   virtual ~NdbQueryTableScanOperationDefImpl() {};
   NdbQueryTableScanOperationDefImpl (
@@ -321,6 +349,11 @@ private:
                            Uint32      ix)
   : NdbQueryTableScanOperationDef(this), NdbQueryScanOperationDefImpl(table,ident,ix)
   {};
+
+  virtual void updateSPJProjection(NdbQueryOperationDefImpl& parent) const {
+    // TODO: implement this;
+    assert(false);
+  }
 }; // class NdbQueryTableScanOperationDefImpl
 
 
@@ -334,6 +367,7 @@ public:
   const NdbDictionary::Index* getIndex() const
   { return m_index; };
 
+  virtual void serializeOperation(Uint32Buffer& serializedDef) const;
 private:
   virtual ~NdbQueryIndexScanOperationDefImpl() {};
   NdbQueryIndexScanOperationDefImpl (
@@ -346,6 +380,10 @@ private:
     m_index(index), m_bound(bound)
   {};
 
+  virtual void updateSPJProjection(NdbQueryOperationDefImpl& parent) const {
+    // TODO: implement this;
+    assert(false);
+  }
 private:
   const NdbDictionary::Index* const m_index;
   const NdbQueryIndexBound* const m_bound;
@@ -388,6 +426,11 @@ NdbQueryDef::getQueryOperation(const char* ident) const
   return NULL;
 }
 
+NdbQueryDefImpl& 
+NdbQueryDef::getImpl() const{
+  return *m_pimpl;
+}
+
 /*************************************************************************
  * Glue layer between NdbQueryOperand interface and its Impl'ementation.
  ************************************************************************/
@@ -409,6 +452,8 @@ NdbConstOperand::~NdbConstOperand()
 NdbParamOperand::~NdbParamOperand()
 {}
 NdbLinkedOperand::~NdbLinkedOperand()
+{}
+NdbQueryOperandImpl::~NdbQueryOperandImpl()
 {}
 
 /**
@@ -480,6 +525,10 @@ NdbQueryScanOperationDef::~NdbQueryScanOperationDef()
 NdbQueryTableScanOperationDef::~NdbQueryTableScanOperationDef()
 {}
 NdbQueryIndexScanOperationDef::~NdbQueryIndexScanOperationDef()
+{}
+NdbQueryOperationDefImpl::~NdbQueryOperationDefImpl()
+{}
+NdbQueryScanOperationDefImpl::~NdbQueryScanOperationDefImpl()
 {}
 
 
@@ -867,7 +916,30 @@ NdbQueryBuilderImpl::prepare()
 NdbQueryDefImpl::NdbQueryDefImpl(const NdbQueryBuilderImpl& builder)
  : NdbQueryDef(this), 
    m_operations(builder.m_operations)
-{}
+{
+  for(Uint32 i = 0; i<m_operations.size(); i++){
+    m_operations[i]->getImpl().computeSPJProjection();
+  }
+  /* Sets size to 1, such that serialization of operation 0 will start from 
+   * offset 1, leaving space for the length field.*/
+  m_serializedDef.get(0); 
+  for(Uint32 i = 0; i<m_operations.size(); i++){
+    m_operations[i]->getImpl().serializeOperation(m_serializedDef);
+  }
+  // Set length and number of nodes in tree.
+  QueryTree::setCntLen(m_serializedDef.get(0), 
+		       m_operations.size(),
+		       m_serializedDef.getSize());
+#ifdef TRACE_SERIALIZATION
+  ndbout << "Serialized tree : ";
+  for(Uint32 i = 0; i < m_serializedDef.getSize(); i++){
+    char buf[12];
+    sprintf(buf, "%.8x", m_serializedDef.get(i));
+    ndbout << buf << " ";
+  }
+  ndbout << endl;
+#endif
+}
 
 NdbQueryDefImpl::~NdbQueryDefImpl()
 {
@@ -876,8 +948,6 @@ NdbQueryDefImpl::~NdbQueryDefImpl()
   { delete &m_operations[i]->getImpl();
   }
 }
-
-
 
 
 void
@@ -900,6 +970,12 @@ NdbQueryOperationDefImpl::addChild(const NdbQueryOperationDef *opDef)
   m_children.push_back(opDef);
 }
 
+void
+NdbQueryOperationDefImpl::computeSPJProjection(){
+  for(Uint32 i = 0; i<getNoOfChildOperations(); i++){
+    getChildOperation(i)->getImpl().updateSPJProjection(*this);
+  }
+}
 
 int
 NdbLinkedOperandImpl::bindOperand(
@@ -907,7 +983,7 @@ NdbLinkedOperandImpl::bindOperand(
                            NdbQueryOperationDef* operation)
 {
   NdbDictionary::Column::Type type = column->getType();
-  if (type != m_parentColumn->getType())
+  if (type != getParentColumn()->getType())
     return 4803;  // Incompatible datatypes
 
   // TODO? Check length if Char, and prec,scale if decimal type
@@ -934,15 +1010,191 @@ NdbConstOperandImpl::bindOperand(
   return NdbQueryOperandImpl::bindOperand(column,operation);
 }
 
+/** This class is used for serializing sequences of 16 bit integers,
+ * where the first 16 bit integer specifies the length of the sequence.
+ */
+class Uint16Sequence{
+public:
+  explicit Uint16Sequence(Uint32Slice buffer):
+    m_buffer(buffer),
+    m_length(0){}
 
+  /** Add an item to the sequence.*/
+  void append(Uint16 value){
+    if((m_length & 1) == 1){
+      m_buffer.get((m_length+1)/2) = value;
+    }else{
+      m_buffer.get(m_length/2) |=  value<<16;
+    }
+    m_length++;
+  }
+  
+  /** End the sequence and set the length */
+  int finish(){
+    assert(m_length<=0xffff);
+    if(m_length>0){
+      m_buffer.get(0) |= m_length;
+      if((m_length & 1) == 0){
+	m_buffer.get(m_length/2) |= 0xBABE<<16;
+      }
+      return m_length/2+1;
+    }else{
+      return 0;
+    }
+  };
+private:
+  /** Should not be copied.*/
+  Uint16Sequence(Uint16Sequence&);
+  /** Should not be copied.*/
+  Uint16Sequence& operator=(Uint16Sequence&);
+  Uint32Slice m_buffer;
+  int m_length;
+};
 
+/* Update the projection that the parent operation will send to the SPJ
+ * block, such that it includes the attributes that this operation needs
+ * to be instantiated.*/
+void 
+NdbQueryLookupOperationDefImpl
+::updateSPJProjection(NdbQueryOperationDefImpl& parent) const {
+  const NdbQueryOperand* op = m_keys[0];
+  int keyNo = 0;
+  while(op!=NULL){
+    if(op->getImpl().getKind()==OperandKind_Linked){
+      const NdbLinkedOperandImpl& linkedOp 
+	= ::getImpl(static_cast<const NdbLinkedOperand*>(op));
+      /* Check if this linked operand refers to the current parent.*/
+      if(&linkedOp.getParentOperation()->getImpl()==&parent){
+	bool found = false;
+	Uint32 i = 0;
+	while(!found && i<parent.getSPJProjection().size()){
+	  found = parent.getSPJProjection()[i]==linkedOp.getParentColumn();
+	  i++;
+	}
+	// Add the column if it is not there already.
+	if(!found){
+	  parent.getSPJProjection().push_back(linkedOp.getParentColumn());
+	}
+      }
+    }
+    op = m_keys[++keyNo];
+  }
+}
+
+// Find offset (in 32-bit words) of field within struct QN_LookupNode.
+#define POS_IN_LOOKUP(field) (offsetof(QN_LookupNode, field)/sizeof(Uint32)) 
+
+void
+NdbQueryLookupOperationDefImpl
+::serializeOperation(Uint32Buffer& serializedDef) const{
+  Uint32Slice lookupNode(serializedDef, serializedDef.getSize());
+  lookupNode.get(POS_IN_LOOKUP(tableId)) 
+    = NdbQueryOperationDefImpl::getTable()->getObjectId();
+  lookupNode.get(POS_IN_LOOKUP(tableVersion))
+    = NdbQueryOperationDefImpl::getTable()->getObjectVersion();
+  if(NdbQueryOperationDefImpl::getNoOfChildOperations()==0){
+    lookupNode.get(POS_IN_LOOKUP(requestInfo)) = 0;
+  }else{
+    lookupNode.get(POS_IN_LOOKUP(requestInfo)) = DABits::NI_LINKED_ATTR;
+  }
+  Uint32Slice optional(lookupNode, POS_IN_LOOKUP(optional));
+  int optPos = 0;
+  if(NdbQueryOperationDefImpl::getNoOfParentOperations()>0){
+    // Make list of parent nodes.
+    lookupNode.get(POS_IN_LOOKUP(requestInfo)) 
+      |= DABits::NI_HAS_PARENT | DABits::NI_KEY_LINKED;
+    Uint16Sequence parentSeq(optional);
+    // Multiple parents not yet supported.
+    assert(NdbQueryOperationDefImpl::getNoOfParentOperations()==1);
+    for(Uint32 i = 0; 
+	i < NdbQueryOperationDefImpl::getNoOfParentOperations(); 
+	i++){
+      parentSeq.append(NdbQueryOperationDefImpl::getParentOperation(i)
+		       ->getImpl().getQueryOperationIx());
+    }
+    optPos = parentSeq.finish();
+    int totalLinkedOperands = 0;
+    int foundLinkedOperands = 0;
+    int linkCnt = 0;
+    /* Iterate over the set of parents and add references to those columns 
+     * that we need from the parent result tuple that is sent to the SPJ 
+     * block.*/
+    for(Uint32 parentNo = 0; 
+	parentNo < NdbQueryOperationDefImpl::getNoOfParentOperations(); 
+	parentNo++){
+      const NdbQueryOperationDef& parent 
+	= *NdbQueryOperationDefImpl::getParentOperation(parentNo);
+      int keyNo = 0;
+      const NdbQueryOperand* op = m_keys[0];
+      while(op!=NULL){
+	if(op->getImpl().getKind()==OperandKind_Linked){
+	  totalLinkedOperands++;
+	  const NdbLinkedOperandImpl& linkedOp 
+	    = ::getImpl(static_cast<const NdbLinkedOperand*>(op));
+	  /* Check if this linked operand refers to the current parent.*/
+	  if(linkedOp.getParentOperation()==
+	     NdbQueryOperationDefImpl::getParentOperation(parentNo)){
+	    for (Uint32 i = 0; 
+		 i<parent.getImpl().getSPJProjection().size(); 
+		 i++){
+	      if(linkedOp.getParentColumn()==
+		 parent.getImpl().getSPJProjection()[i]){
+		optional.get(optPos+linkCnt+1) = QueryPattern::col(i);
+		foundLinkedOperands++;
+	      }
+	    }
+	    linkCnt++;
+	  }
+	}
+	op = m_keys[++keyNo];
+      }
+    }
+    optional.get(optPos) = linkCnt;
+    optPos += linkCnt+1;
+    assert(totalLinkedOperands==foundLinkedOperands);
+  }
+  /* Add the projection that should be send to the SPJ block such that 
+   * child operations can be instantiated.*/
+  Uint16Sequence spjProjSeq(Uint32Slice(optional, optPos));
+  for(Uint32 i = 0; i<getSPJProjection().size(); i++){
+    spjProjSeq.append(getSPJProjection()[i]->getColumnNo());
+  }
+  optPos += spjProjSeq.finish();
+  const int length = sizeof(QN_LookupNode)/sizeof(Uint32) + optPos - 1;
+  // Set node length and type.
+  QueryNode::setOpLen(lookupNode.get(POS_IN_LOOKUP(len)), 
+		      QueryNode::QN_LOOKUP, length);
+#ifdef TRACE_SERIALIZATION
+  ndbout << "Serialized node " << getQueryOperationIx() << " : ";
+  for(int i = 0; i < length; i++){
+    char buf[12];
+    sprintf(buf, "%.8x", lookupNode.get(i));
+    ndbout << buf << " ";
+  }
+  ndbout << endl;
+#endif
+}
+
+void 
+NdbQueryTableScanOperationDefImpl
+::serializeOperation(Uint32Buffer& serializedDef) const{
+  // TODO:Implement this
+  assert(false);
+}
+
+void 
+NdbQueryIndexScanOperationDefImpl
+::serializeOperation(Uint32Buffer& serializedDef) const{
+  // TODO:Implement this
+  assert(false);
+}
 
 // Instantiate Vector templates
 template class Vector<const NdbQueryOperationDef*>;
 template class Vector<const NdbParamOperand*>;
 template class Vector<const NdbConstOperand*>;
 template class Vector<const NdbLinkedOperand*>;
-
+template class Vector<const NdbDictionary::Column*>;
 
 #if 0
 /**********************************************

@@ -25,6 +25,7 @@
 #include <NdbIndexOperation.hpp>
 #include <NdbDictionaryImpl.hpp>
 #include <NdbQueryOperationImpl.hpp>
+#include <NdbQueryBuilder.hpp>
 #include "NdbApiSignal.hpp"
 #include "TransporterFacade.hpp"
 #include "API.hpp"
@@ -2757,4 +2758,13 @@ NdbTransaction::report_node_failure(Uint32 id){
     }
   }
   return 0;
+}
+
+NdbQuery*
+NdbTransaction::createQuery(const NdbQueryDef* def,
+			    const void* const param[],
+			    NdbOperation::LockMode lock_mode)
+{
+  NdbQuery* query = NdbQuery::buildQuery(*this, *def);
+  return query;
 }
