@@ -339,6 +339,16 @@ runCreateAllTables(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 int
+runCreateOneTable(NDBT_Context* ctx, NDBT_Step* step)
+{
+  // Table is already created...
+  // so we just add it to table_list
+  table_list.push_back(BaseString(ctx->getTab()->getName()));
+
+  return NDBT_OK;
+}
+
+int
 runLoadAll(NDBT_Context* ctx, NDBT_Step* step)
 {
   Ndb* pNdb = GETNDB(step);
@@ -378,9 +388,14 @@ runBasic(NDBT_Context* ctx, NDBT_Step* step)
       case 0:
         trans.loadTable(pNdb, records);
         trans.scanUpdateRecords(pNdb, records);
+        trans.pkUpdateRecords(pNdb, records);
         break;
       case 1:
         trans.scanUpdateRecords(pNdb, records);
+        // TODO make pkInterpretedUpdateRecords work on any table
+        // (or check if it does)
+        if (strcmp(tab->getName(), "T1") == 0)
+          trans.pkInterpretedUpdateRecords(pNdb, records);
         trans.clearTable(pNdb, records/2);
         trans.loadTable(pNdb, records/2);
         break;
@@ -463,7 +478,7 @@ TESTCASE("Upgrade_FS",
   STEP(runUpgrade_Traffic);
 }
 TESTCASE("Upgrade_Traffic",
-	 "Test that one node in each nodegroup can be upgrade simultaneously")
+	 "Test upgrade with traffic, all tables and restart --initial")
 {
   INITIALIZER(runCheckStarted);
   INITIALIZER(runCreateAllTables);
@@ -471,11 +486,28 @@ TESTCASE("Upgrade_Traffic",
   STEP(runBasic);
 }
 TESTCASE("Upgrade_Traffic_FS",
-	 "Test that one node in each nodegroup can be upgrade simultaneously")
+	 "Test upgrade with traffic, all tables and restart using FS")
 {
   TC_PROPERTY("KeepFS", 1);
   INITIALIZER(runCheckStarted);
   INITIALIZER(runCreateAllTables);
+  STEP(runUpgrade_Traffic);
+  STEP(runBasic);
+}
+TESTCASE("Upgrade_Traffic_one",
+	 "Test upgrade with traffic, *one* table and restart --initial")
+{
+  INITIALIZER(runCheckStarted);
+  INITIALIZER(runCreateOneTable);
+  STEP(runUpgrade_Traffic);
+  STEP(runBasic);
+}
+TESTCASE("Upgrade_Traffic_FS_one",
+	 "Test upgrade with traffic, all tables and restart using FS")
+{
+  TC_PROPERTY("KeepFS", 1);
+  INITIALIZER(runCheckStarted);
+  INITIALIZER(runCreateOneTable);
   STEP(runUpgrade_Traffic);
   STEP(runBasic);
 }
