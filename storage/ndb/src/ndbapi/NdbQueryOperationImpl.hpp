@@ -20,7 +20,7 @@
 #define NdbQueryOperationImpl_H
 
 #include "NdbQueryOperation.hpp"
-#include "NdbQueryBuilder.hpp"
+#include "NdbQueryBuilderImpl.hpp"
 #include "NdbImpl.hpp"
 #include "NdbError.hpp"
 #include "NdbTransaction.hpp"
@@ -92,6 +92,11 @@ public:
     return --m_pendingOperations==0 && m_tcKeyConfReceived;
   }
 
+  /**TODO: Remove this method. Only needed by testSerialize() test code.*/
+  Uint32Buffer& getSerialized(){
+    return m_serializedParams;
+  }
+
   /** Prepare NdbReceiver objects for receiving the first results batch.*/
   void prepareSend();
 
@@ -116,11 +121,10 @@ private:
   bool m_tcKeyConfReceived;
   /** Number of operations not yest completed.*/
   int m_pendingOperations;
+  /** Serialized representation of parameters. To be sent in TCKEYREQ*/
+  Uint32Buffer m_serializedParams;
 }; // class NdbQueryImpl
 
-
-// Compiler settings require explicit instantiation.
-template class Vector<NdbQueryOperationImpl*>;
 
 /** This class contains data members for NdbQueryOperation, such that these
  * do not need to exposed in NdbQueryOperation.hpp. This class may be 
@@ -198,11 +202,12 @@ public:
    * Return true if query complete.*/
   bool execTCKEYREF();
 
-  void prepareSend();
+  void prepareSend(Uint32Buffer& serializedParams);
 
   void release();
 
-  /** Return I-value for putting in objetc map.*/
+  /* TODO: Remove this method. Only needed in spj_test.cpp.*/
+  /** Return I-value for putting in object map.*/
   Uint32 ptr2int() const {
     return m_id;
   }
@@ -226,6 +231,11 @@ private:
   const Uint32 m_magic;
   /** I-value for object maps.*/
   const Uint32 m_id;
+  /** The (transaction independent ) definition from which this instance
+   * was created.*/
+  const NdbQueryOperationDefImpl& m_operationDef;
+  /* TODO: replace m_children and m_parents with navigation via 
+   * m_operationDef.getParentOperation() etc.*/
   /** Parents of this operation.*/
   Vector<NdbQueryOperationImpl*> m_parents;
   /** Children of this operation.*/

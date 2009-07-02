@@ -26,6 +26,11 @@ paramSpec: 00050001 00000001 00010000 00000001 fff00006 00050001 00000001 000200
 ^C
  */
 
+//#include <iostream>
+#include <stdio.h>
+#include <time.h>
+#include <assert.h>
+#include <mysqld_error.h>
 
 #include <ndb_global.h>
 #include <ndb_opts.h>
@@ -38,6 +43,8 @@ paramSpec: 00050001 00000001 00010000 00000001 fff00006 00050001 00000001 000200
 #include <NdbQueryOperation.hpp>
 // 'impl' classes is needed for prototype only.
 #include <NdbQueryOperationImpl.hpp>
+#include "NdbQueryBuilderImpl.hpp"
+
 
 typedef uchar* gptr;
 static Uint32 storeCompactList(Uint32 * dst, const Vector<Uint32> & src);
@@ -154,6 +161,7 @@ LookupQuery::LookupQuery(Ndb& ndb, const NdbDictionary::Table * pTab,
 }
 */
 
+
 class LookupOp{
 public:
   explicit LookupOp(const NdbOperation* pOp,
@@ -224,7 +232,7 @@ LookupOp::LookupOp(const NdbOperation* pOp,
   //p.resultData = NdbScanFilterImpl::getOpPtr(pOp, nodeNo);
   //p1.resultData = 0x10000; // NdbScanFilterImpl::getOpPtr(pOp);
   // Define a result projection to include *all* attributes.
-  p.optional[0] = 1; // Length of user projecttion
+  p.optional[0] = 1; // Length of user projection
   AttributeHeader::init(p.optional + 1, AttributeHeader::READ_ALL,
 			pTab->getNoOfColumns());
   // Set length of oprional part (projection)
@@ -327,7 +335,7 @@ int spjTest(int argc, char** argv){
     /*LookupOp look1(pOp, false, 0);
       LookupOp look2(pOp, true, 1);*/
 
-    const int nNodes = 5;
+    const int nNodes = 2;
     LookupOp* node[nNodes];
     int totLen = 0;
     for(int i=0; i<nNodes; i++){
@@ -511,9 +519,161 @@ int spjTest(int argc, char** argv){
   return NDBT_ProgramExit(NDBT_OK);
 }
 
+/**
+ * Helper debugging macros
+ */
+/*#define PRINT_ERROR(code,msg)					 \
+  std::cout << "Error in " << __FILE__ << ", line: " << __LINE__ \
+            << ", code: " << code \
+            << ", msg: " << msg << "." << std::endl*/
+#define PRINT_ERROR(code,msg) \
+  fprintf(stdout, "Error in %s, line: %d, code: %d, msg: %s.\n", \
+	  __FILE__, __LINE__, code, msg); 
+#define MYSQLERROR(mysql) { \
+  PRINT_ERROR(mysql_errno(&mysql),mysql_error(&mysql)); \
+  exit(-1); }
+#define APIERROR(error) { \
+  PRINT_ERROR((error).code,(error).message); \
+  exit(-1); }
+
+
+
+
+int testSerialize(int argc, char** argv){
+  NDB_INIT(argv[0]);
+
+  const char *load_default_groups[]= { "mysql_cluster",0 };
+  load_defaults("my",load_default_groups,&argc,&argv);
+  int ho_error;
+#ifndef DBUG_OFF
+  opt_debug= "d:t:O,/tmp/ndb_desc.trace";
+#endif
+  if ((ho_error=handle_options(&argc, &argv, my_long_options,
+			       ndb_std_get_one_option)))
+    return NDBT_ProgramExit(NDBT_WRONGARGS);
+
+  Ndb_cluster_connection con(opt_connect_str);
+  if(con.connect(12, 5, 1) != 0)
+  {
+    ndbout << "Unable to connect to management server." << endl;
+    return NDBT_ProgramExit(NDBT_FAILED);
+  }
+
+  int res = con.wait_until_ready(30,30);
+  if (res != 0)
+  {
+    ndbout << "Cluster nodes not ready in 30 seconds." << endl;
+    return NDBT_ProgramExit(NDBT_FAILED);
+  }
+
+  Ndb myNdb(&con, _dbname);
+  if(myNdb.init() != 0){
+    ERR(myNdb.getNdbError());
+    return NDBT_ProgramExit(NDBT_FAILED);
+  }
+
+  NdbDictionary::Dictionary*  const myDict = myNdb.getDictionary();
+  const NdbDictionary::Table* const tab = myDict->getTable("T");
+
+  if (tab==NULL) 
+    APIERROR(myDict->getNdbError());
+
+  NdbQueryBuilder myBuilder(myNdb);
+
+  NdbQueryBuilder* qb = &myBuilder; //myDict->getQueryBuilder();
+
+  /* Dummy for now at least. Key is really set with  ndbOperation->equal().*/
+  const NdbQueryOperand* rootKey[] = 
+    {  qb->constValue(11), //a
+       qb->constValue(3), // b
+       0
+    };
+  // Lookup a 'root' tuple.
+  const NdbQueryLookupOperationDef *readRoot = qb->readTuple(tab, rootKey);
+  if (readRoot == NULL) APIERROR(qb->getNdbError());
+
+  /* Link to another lookup on the same table: 
+     WHERE tup1.a = tup0.b0 AND tup1.b = tup0.a0
+   */
+  const NdbQueryOperand* linkKey[] = 
+    {  qb->linkedValue(readRoot, "b0"),
+       qb->linkedValue(readRoot, "a0"),
+       0
+    };
+  const NdbQueryLookupOperationDef* readLinked = qb->readTuple(tab, linkKey);
+  if (readLinked == NULL) APIERROR(qb->getNdbError());
+
+  NdbQueryDef* queryDef = qb->prepare();
+  if (queryDef == NULL) APIERROR(qb->getNdbError());
+
+  assert (queryDef->getNoOfOperations() == 2);
+  assert (queryDef->getQueryOperation((Uint32)0) == readRoot);
+  assert (queryDef->getQueryOperation((Uint32)1) == readLinked);
+  assert (queryDef->getQueryOperation((Uint32)0)->getNoOfParentOperations() 
+	  == 0);
+  assert (queryDef->getQueryOperation((Uint32)0)->getNoOfChildOperations() 
+	  == 1);
+  assert (queryDef->getQueryOperation((Uint32)0)->getChildOperation((Uint32)0) 
+	  == readLinked);
+  assert (queryDef->getQueryOperation((Uint32)1)->getNoOfParentOperations() 
+	  == 1);
+  assert (queryDef->getQueryOperation((Uint32)1)->getParentOperation((Uint32)0) 
+	  == readRoot);
+  assert (queryDef->getQueryOperation((Uint32)1)->getNoOfChildOperations() 
+	  == 0);
+
+  HugoOperations hugoOps(* tab);
+  NdbTransaction* myTransaction= myNdb.startTransaction();
+  if (myTransaction == NULL) APIERROR(myNdb.getNdbError());
+
+  NdbOperation* ndbOperation = myTransaction->getNdbOperation(tab);
+  ndbOperation->readTuple(NdbOperation::LM_Dirty);
+  // Set keys for root lookup.
+  ndbOperation->equal("a", 11);
+  ndbOperation->equal("b", 3);
+
+  // Instantiate NdbQuery for this transaction.
+  NdbQuery* query = myTransaction->createQuery(queryDef, NULL);
+
+  /* Read all attributes from result tuples.*/
+  const Uint32 nNodes = query->getNoOfOperations();
+  const ResultSet** resultSet = new const ResultSet*[nNodes];
+  for(Uint32 i = 0; i<nNodes; i++){
+    resultSet[i] = new ResultSet(query->getQueryOperation(i), tab);
+  }
+
+  /* Serialize query tree and parameters.*/
+  query->getImpl().prepareSend();
+
+  Uint32* const tree = new Uint32[queryDef->getImpl().getSerialized().getSize()];
+  for(Uint32 i = 0; i<queryDef->getImpl().getSerialized().getSize(); i++){
+    tree[i] = queryDef->getImpl().getSerialized().get(i);
+  }
+  const int paramSize = query->getImpl().getSerialized().getSize();
+  Uint32* const params = new Uint32[paramSize];
+  for(Uint32 i = 0; i<paramSize; i++){
+    params[i] = query->getImpl().getSerialized().get(i);
+  }
+
+  /* Copy serialized data into ATTRINFO.*/
+  NdbScanFilterImpl::add(ndbOperation, tree, queryDef->getImpl().getSerialized().getSize());
+  NdbScanFilterImpl::add(ndbOperation, params, paramSize);
+  NdbScanFilterImpl::setIsLinkedFlag(ndbOperation);
+
+  // Add link to 
+  ndbOperation->setQueryImpl(&query->getImpl());
+  myTransaction->execute(NoCommit);
+  // Print results.
+  for(int i=0; i<nNodes; i++){
+    resultSet[i]->print();
+  }
+
+  return 0;
+};
 
 int main(int argc, char** argv){
-  return spjTest(argc, argv);
+  //return spjTest(argc, argv);
+  return testSerialize(argc, argv);
 }
 /**
  * Store list of 16-bit integers put into 32-bit integers

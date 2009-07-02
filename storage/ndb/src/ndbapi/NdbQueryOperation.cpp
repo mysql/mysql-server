@@ -21,7 +21,8 @@
 #include <ndb_global.h>
 #include "NdbQueryBuilder.hpp"
 #include "NdbQueryBuilderImpl.hpp"
-
+#include "signaldata/QueryTree.hpp"
+#include "AttributeHeader.hpp"
 
 NdbQuery::NdbQuery(NdbQueryImpl *pimpl):
   m_pimpl(pimpl)
@@ -334,8 +335,17 @@ void
 NdbQueryImpl::prepareSend(){
   m_pendingOperations = m_operations.size();
   for(Uint32 i = 0; i < m_operations.size(); i++){
-      m_operations[i]->prepareSend();
+      m_operations[i]->prepareSend(m_serializedParams);
   }
+#ifdef TRACE_SERIALIZATION
+  ndbout << "Serialized params for all : ";
+  for(Uint32 i = 0; i < m_serializedParams.getSize(); i++){
+    char buf[12];
+    sprintf(buf, "%.8x", m_serializedParams.get(i));
+    ndbout << buf << " ";
+  }
+  ndbout << endl;
+#endif
 }
 
 void 
@@ -356,6 +366,7 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(
   m_magic(MAGIC),
   m_id(queryImpl.getNdbTransaction()->getNdb()->theImpl
        ->theNdbObjectIdMap.map(this)),
+  m_operationDef(def->getImpl()),
   m_parents(def->getNoOfParentOperations()),
   m_children(def->getNoOfChildOperations()),
   m_receiver(queryImpl.getNdbTransaction()->getNdb()),
@@ -377,6 +388,7 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(NdbQueryImpl& queryImpl,
   m_magic(MAGIC),
   m_id(queryImpl.getNdbTransaction()->getNdb()->theImpl
        ->theNdbObjectIdMap.map(this)),
+  m_operationDef(*reinterpret_cast<NdbQueryOperationDefImpl*>(NULL)),
   m_parents(),
   m_children(),
   m_receiver(queryImpl.getNdbTransaction()->getNdb()),
@@ -512,8 +524,35 @@ NdbQueryOperationImpl::isRowChanged() const
   return false;  // FIXME
 }
 
-void NdbQueryOperationImpl::prepareSend(){
+#define POS_IN_LOOKUP_PARAM(field) \
+(offsetof(QN_LookupParameters, field)/sizeof(Uint32)) 
+
+
+void NdbQueryOperationImpl::prepareSend(Uint32Buffer& serializedParams){
   m_receiver.prepareSend();
+  Uint32Slice lookupParams(serializedParams, serializedParams.getSize());
+  lookupParams.get(POS_IN_LOOKUP_PARAM(requestInfo)) = DABits::PI_ATTR_LIST;
+  lookupParams.get(POS_IN_LOOKUP_PARAM(resultData)) = m_id;
+  Uint32Slice optional(lookupParams, POS_IN_LOOKUP_PARAM(optional));
+  // TODO: Fix this such that we get desired projection and not just all fields.
+  optional.get(0) = 1; // Length of user projection
+  AttributeHeader::init(&optional.get(1), 
+			AttributeHeader::READ_ALL,
+			m_operationDef.getTable()->getNoOfColumns());
+  // TODO: Implement for scans as well.
+  QueryNodeParameters::setOpLen(lookupParams.get(POS_IN_LOOKUP_PARAM(len)),
+				QueryNodeParameters::QN_LOOKUP,
+				lookupParams.getSize());
+#ifdef TRACE_SERIALIZATION
+  ndbout << "Serialized params for node " 
+	 << m_operationDef.getQueryOperationIx() << " : ";
+  for(Uint32 i = 0; i < lookupParams.getSize(); i++){
+    char buf[12];
+    sprintf(buf, "%.8x", lookupParams.get(i));
+    ndbout << buf << " ";
+  }
+  ndbout << endl;
+#endif
 }
 
 void NdbQueryOperationImpl::release(){
@@ -626,3 +665,6 @@ NdbOut& operator<<(NdbOut& out, const NdbQueryOperationImpl& op){
   return out;
 }
  
+// Compiler settings require explicit instantiation.
+template class Vector<NdbQueryOperationImpl*>;
+

@@ -325,7 +325,7 @@ public:
   // Remove this NdbQueryDef including operation and operands it contains
 //void release();    Just delete it instead ?
 
-//class NdbQueryDefImpl& getImpl() const;
+  NdbQueryDefImpl& getImpl() const;
 
 private:
   NdbQueryDefImpl* const m_pimpl;

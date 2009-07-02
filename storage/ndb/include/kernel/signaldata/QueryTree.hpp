@@ -16,6 +16,7 @@
 #ifndef NDB_QUERY_TREE_HPP
 #define NDB_QUERY_TREE_HPP
 
+#include <ndb_global.h>
 #include <ndb_types.h>
 
 struct QueryNode  // Effectively used as a base class for QN_xxxNode

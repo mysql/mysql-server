@@ -45,6 +45,8 @@ public:
 
   Vector<T>& operator=(const Vector<T>&);
 
+  /** Does deep copy.*/
+  Vector(const Vector&); 
   /**
    * Shallow equal (i.e does memcmp)
    */
@@ -76,6 +78,26 @@ Vector<T>::Vector(int i){
   m_size = 0;
   m_arraySize = i;
   m_incSize = 50;
+}
+
+template<class T>
+Vector<T>::Vector(const Vector& src):
+  m_items(new T[src.m_size]),
+  m_size(src.m_size),
+  m_incSize(src.m_incSize),
+  m_arraySize(src.m_size)
+  
+{
+  if (unlikely(m_items == NULL)){
+    errno = ENOMEM;
+    m_size = 0;
+    m_arraySize = 0;
+    m_incSize = 0;
+    return;
+  }
+  for(Uint32 i = 0; i < m_size; i++){
+    m_items[i] = src.m_items[i];
+  }
 }
 
 template<class T>
