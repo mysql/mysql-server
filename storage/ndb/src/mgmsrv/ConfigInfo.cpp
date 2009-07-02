@@ -1777,6 +1777,20 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   },
 
 
+  {
+    CFG_AUTO_RECONNECT,
+    "AutoReconnect",
+    "API",
+    "Specifies if an api node should reconnect when fully disconnected from cluster",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_BOOL,
+    "true",
+    "false",
+    "true"
+  },
+
+
   /****************************************************************************
    * MGM
    ***************************************************************************/

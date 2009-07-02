@@ -222,6 +222,7 @@
 #define CFG_MAX_SCAN_BATCH_SIZE       800
 #define CFG_BATCH_BYTE_SIZE           801
 #define CFG_BATCH_SIZE                802
+#define CFG_AUTO_RECONNECT            803
 
 /**
  * Internal
