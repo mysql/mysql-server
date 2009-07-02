@@ -8086,7 +8086,7 @@ MY_COLLATION_HANDLER my_collation_ucs2_uca_handler =
 CHARSET_INFO my_charset_ucs2_unicode_ci=
 {
     128,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "ucs2",		/* cs name    */
     "ucs2_unicode_ci",	/* name         */
     "",			/* comment      */
@@ -8118,7 +8118,7 @@ CHARSET_INFO my_charset_ucs2_unicode_ci=
 CHARSET_INFO my_charset_ucs2_icelandic_uca_ci=
 {
     129,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "ucs2",		/* cs name    */
     "ucs2_icelandic_ci",/* name         */
     "",			/* comment      */
@@ -8150,7 +8150,7 @@ CHARSET_INFO my_charset_ucs2_icelandic_uca_ci=
 CHARSET_INFO my_charset_ucs2_latvian_uca_ci=
 {
     130,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "ucs2",		/* cs name    */
     "ucs2_latvian_ci",	/* name         */
     "",			/* comment      */
@@ -8182,7 +8182,7 @@ CHARSET_INFO my_charset_ucs2_latvian_uca_ci=
 CHARSET_INFO my_charset_ucs2_romanian_uca_ci=
 {
     131,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "ucs2",		/* cs name    */
     "ucs2_romanian_ci",	/* name         */
     "",			/* comment      */
@@ -8214,7 +8214,7 @@ CHARSET_INFO my_charset_ucs2_romanian_uca_ci=
 CHARSET_INFO my_charset_ucs2_slovenian_uca_ci=
 {
     132,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "ucs2",		/* cs name    */
     "ucs2_slovenian_ci",/* name         */
     "",			/* comment      */
@@ -8246,7 +8246,7 @@ CHARSET_INFO my_charset_ucs2_slovenian_uca_ci=
 CHARSET_INFO my_charset_ucs2_polish_uca_ci=
 {
     133,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "ucs2",		/* cs name    */
     "ucs2_polish_ci",	/* name         */
     "",			/* comment      */
@@ -8278,7 +8278,7 @@ CHARSET_INFO my_charset_ucs2_polish_uca_ci=
 CHARSET_INFO my_charset_ucs2_estonian_uca_ci=
 {
     134,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "ucs2",		/* cs name    */
     "ucs2_estonian_ci",	/* name         */
     "",			/* comment      */
@@ -8310,7 +8310,7 @@ CHARSET_INFO my_charset_ucs2_estonian_uca_ci=
 CHARSET_INFO my_charset_ucs2_spanish_uca_ci=
 {
     135,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "ucs2",		/* cs name    */
     "ucs2_spanish_ci",	/* name         */
     "",			/* comment      */
@@ -8342,7 +8342,7 @@ CHARSET_INFO my_charset_ucs2_spanish_uca_ci=
 CHARSET_INFO my_charset_ucs2_swedish_uca_ci=
 {
     136,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "ucs2",		/* cs name    */
     "ucs2_swedish_ci",	/* name         */
     "",			/* comment      */
@@ -8374,7 +8374,7 @@ CHARSET_INFO my_charset_ucs2_swedish_uca_ci=
 CHARSET_INFO my_charset_ucs2_turkish_uca_ci=
 {
     137,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "ucs2",		/* cs name    */
     "ucs2_turkish_ci",	/* name         */
     "",			/* comment      */
@@ -8406,7 +8406,7 @@ CHARSET_INFO my_charset_ucs2_turkish_uca_ci=
 CHARSET_INFO my_charset_ucs2_czech_uca_ci=
 {
     138,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "ucs2",		/* cs name    */
     "ucs2_czech_ci",	/* name         */
     "",			/* comment      */
@@ -8439,7 +8439,7 @@ CHARSET_INFO my_charset_ucs2_czech_uca_ci=
 CHARSET_INFO my_charset_ucs2_danish_uca_ci=
 {
     139,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "ucs2",		/* cs name    */
     "ucs2_danish_ci",	/* name         */
     "",			/* comment      */
@@ -8471,7 +8471,7 @@ CHARSET_INFO my_charset_ucs2_danish_uca_ci=
 CHARSET_INFO my_charset_ucs2_lithuanian_uca_ci=
 {
     140,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "ucs2",		/* cs name    */
     "ucs2_lithuanian_ci",/* name         */
     "",			/* comment      */
@@ -8503,7 +8503,7 @@ CHARSET_INFO my_charset_ucs2_lithuanian_uca_ci=
 CHARSET_INFO my_charset_ucs2_slovak_uca_ci=
 {
     141,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "ucs2",		/* cs name    */
     "ucs2_slovak_ci",	/* name         */
     "",			/* comment      */
@@ -8535,7 +8535,7 @@ CHARSET_INFO my_charset_ucs2_slovak_uca_ci=
 CHARSET_INFO my_charset_ucs2_spanish2_uca_ci=
 {
     142,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "ucs2",		/* cs name    */
     "ucs2_spanish2_ci",	/* name         */
     "",			/* comment      */
@@ -8568,7 +8568,7 @@ CHARSET_INFO my_charset_ucs2_spanish2_uca_ci=
 CHARSET_INFO my_charset_ucs2_roman_uca_ci=
 {
     143,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "ucs2",		/* cs name    */
     "ucs2_roman_ci",	/* name         */
     "",			/* comment      */
@@ -8601,7 +8601,7 @@ CHARSET_INFO my_charset_ucs2_roman_uca_ci=
 CHARSET_INFO my_charset_ucs2_persian_uca_ci=
 {
     144,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "ucs2",		/* cs name    */
     "ucs2_persian_ci",	/* name         */
     "",			/* comment      */
@@ -8634,7 +8634,7 @@ CHARSET_INFO my_charset_ucs2_persian_uca_ci=
 CHARSET_INFO my_charset_ucs2_esperanto_uca_ci=
 {
     145,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "ucs2",		/* cs name    */
     "ucs2_esperanto_ci",/* name         */
     "",			/* comment      */
@@ -8667,7 +8667,7 @@ CHARSET_INFO my_charset_ucs2_esperanto_uca_ci=
 CHARSET_INFO my_charset_ucs2_hungarian_uca_ci=
 {
     146,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "ucs2",		/* cs name    */
     "ucs2_hungarian_ci",/* name         */
     "",			/* comment      */

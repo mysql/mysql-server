@@ -405,3 +405,23 @@ my_charset_is_8bit_pure_ascii(CHARSET_INFO *cs)
   }
   return 1;
 }
+
+
+/*
+  Shared function between conf_to_src and mysys.
+  Check if a 8bit character set is compatible with
+  ascii on the range 0x00..0x7F.
+*/
+my_bool
+my_charset_is_ascii_compatible(CHARSET_INFO *cs)
+{
+  uint i;
+  if (!cs->tab_to_uni)
+    return 1;
+  for (i= 0; i < 128; i++)
+  {
+    if (cs->tab_to_uni[i] != i)
+      return 0;
+  }
+  return 1;
+}

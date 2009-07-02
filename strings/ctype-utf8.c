@@ -4204,7 +4204,7 @@ static MY_CHARSET_HANDLER my_charset_filename_handler=
 CHARSET_INFO my_charset_filename=
 {
     17,0,0,             /* number       */
-    MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_HIDDEN,
+    MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_HIDDEN|MY_CS_NONASCII,
     "filename",         /* cs name      */
     "filename",         /* name         */
     "",                 /* comment      */

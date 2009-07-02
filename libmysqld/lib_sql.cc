@@ -1124,6 +1124,7 @@ bool Protocol_text::store_null()
   return false;
 }
 
+
 bool Protocol::net_store_data(const uchar *from, size_t length)
 {
   char *field_buf;
@@ -1141,6 +1142,30 @@ bool Protocol::net_store_data(const uchar *from, size_t length)
   ++next_field;
   ++next_mysql_field;
   return FALSE;
+}
+
+
+bool Protocol::net_store_data(const uchar *from, size_t length,
+                              CHARSET_INFO *from_cs, CHARSET_INFO *to_cs)
+{
+  uint conv_length= to_cs->mbmaxlen * length / from_cs->mbminlen;
+  uint dummy_error;
+  char *field_buf;
+  if (!thd->mysql)            // bootstrap file handling
+    return false;
+
+  if (!(field_buf= (char*) alloc_root(alloc, conv_length + sizeof(uint) + 1)))
+    return true;
+  *next_field= field_buf + sizeof(uint);
+  length= copy_and_convert(*next_field, conv_length, to_cs,
+                           (const char*) from, length, from_cs, &dummy_error);
+  *(uint *) field_buf= length;
+  (*next_field)[length]= 0;
+  if (next_mysql_field->max_length < length)
+    next_mysql_field->max_length= length;
+  ++next_field;
+  ++next_mysql_field;
+  return false;
 }
 
 #if defined(_MSC_VER) && _MSC_VER < 1400
