@@ -21,7 +21,7 @@ char *nameb="b.db";
 
 
 static void
-do_x1_shutdown (BOOL do_commit)
+do_x1_shutdown (BOOL do_commit, BOOL do_abort)
 {
     int r;
     system("rm -rf " ENVDIR);
@@ -46,6 +46,8 @@ do_x1_shutdown (BOOL do_commit)
     //printf("opened\n");
     if (do_commit) {
 	r = txn->commit(txn, 0);                                                        CKERR(r);
+    } else if (do_abort) {
+        r = txn->abort(txn);                                                            CKERR(r);
     }
     //printf("shutdown\n");
     abort();
@@ -151,7 +153,7 @@ do_test (void) {
     do_test_internal(FALSE);
 }
 
-BOOL do_commit=FALSE, do_abort=FALSE, do_recover_committed=FALSE,  do_recover_aborted=FALSE;
+BOOL do_commit=FALSE, do_abort=FALSE, do_explicit_abort=FALSE, do_recover_committed=FALSE,  do_recover_aborted=FALSE;
 
 static void
 x1_parse_args (int argc, char *argv[]) {
@@ -164,10 +166,12 @@ x1_parse_args (int argc, char *argv[]) {
 	} else if (strcmp(argv[0],"-q")==0) {
 	    verbose--;
 	    if (verbose<0) verbose=0;
-	} else if (strcmp(argv[0],"--abort")==0) {
-	    do_abort=1;
 	} else if (strcmp(argv[0],"--commit")==0) {
 	    do_commit=1;
+	} else if (strcmp(argv[0],"--abort")==0) {
+	    do_abort=1;
+	} else if (strcmp(argv[0],"--explicit-abort")==0) {
+	    do_explicit_abort=1;
 	} else if (strcmp(argv[0],"--recover-committed")==0) {
 	    do_recover_committed=1;
 	} else if (strcmp(argv[0],"--recover-aborted")==0) {
@@ -175,7 +179,7 @@ x1_parse_args (int argc, char *argv[]) {
 	} else if (strcmp(argv[0], "-h")==0) {
 	    resultcode=0;
 	do_usage:
-	    fprintf(stderr, "Usage:\n%s [-v|-q]* [-h] {--abort | --commit | --recover-committed | --recover-aborted } \n", cmd);
+	    fprintf(stderr, "Usage:\n%s [-v|-q]* [-h] {--commit | --abort | --explicit-abort | --recover-committed | --recover-aborted } \n", cmd);
 	    exit(resultcode);
 	} else {
 	    fprintf(stderr, "Unknown arg: %s\n", argv[0]);
@@ -189,6 +193,7 @@ x1_parse_args (int argc, char *argv[]) {
 	int n_specified=0;
 	if (do_commit)            n_specified++;
 	if (do_abort)             n_specified++;
+	if (do_explicit_abort)             n_specified++;
 	if (do_recover_committed)  n_specified++;
 	if (do_recover_aborted)   n_specified++;
 	if (n_specified>1) {
@@ -204,9 +209,11 @@ test_main (int argc, char *argv[])
 {
     x1_parse_args(argc, argv);
     if (do_commit) {
-	do_x1_shutdown (TRUE);
+	do_x1_shutdown (TRUE, FALSE);
     } else if (do_abort) {
-	do_x1_shutdown (FALSE);
+	do_x1_shutdown (FALSE, FALSE);
+    } else if (do_explicit_abort) {
+        do_x1_shutdown(FALSE, TRUE);
     } else if (do_recover_committed) {
 	do_x1_recover(TRUE);
     } else if (do_recover_aborted) {
