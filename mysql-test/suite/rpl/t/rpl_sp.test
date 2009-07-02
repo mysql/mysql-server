@@ -642,3 +642,6 @@ drop procedure ` mysqltestbug36570_p2`;
 drop function mysqltestbug36570_f1;
 --echo End of 5.0 tests
 --echo End of 5.1 tests
+
+# Cleanup
+sync_slave_with_master;
