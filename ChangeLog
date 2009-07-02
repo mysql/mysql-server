@@ -1,3 +1,9 @@
+2009-07-02	The InnoDB Team
+
+	* include/ut0ut.h, plug.in, ut/ut0ut.c:
+	Use the PAUSE instruction inside the spinloop if it is available,
+	Thanks to Mikael Ronstrom <mikael@mysql.com>.
+
 2009-06-29	The InnoDB Team
 
 	* handler/ha_innodb.cc, mysql-test/innodb_file_format.test,

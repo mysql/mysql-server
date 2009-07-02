@@ -391,6 +391,7 @@ ut_delay(
 
 	for (i = 0; i < delay * 50; i++) {
 		j += i;
+		UT_RELAX_CPU();
 	}
 
 	if (ut_always_false) {
