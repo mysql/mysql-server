@@ -384,6 +384,11 @@ static int32 convertTextDesc(const int32 inType, const int32 outType, const char
         strcpy(outDesc,"IBM-1256");
         DBUG_RETURN(0);
       }
+      else if (strcmp("macce", inDescOverride) == 0)
+      {
+        strcpy(outDesc,"IBM-1282");
+        DBUG_RETURN(0);
+      }
     }
     else if (outType == Qlg_TypeAS400CCSID)
     {
