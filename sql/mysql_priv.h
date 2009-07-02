@@ -264,7 +264,7 @@ protected:
 #define MAX_ACCEPT_RETRY	10	// Test accept this many times
 #define MAX_FIELDS_BEFORE_HASH	32
 #define USER_VARS_HASH_SIZE     16
-#define TABLE_OPEN_CACHE_MIN    64
+#define TABLE_OPEN_CACHE_MIN    400
 #define TABLE_OPEN_CACHE_DEFAULT 400
 #define TABLE_DEF_CACHE_DEFAULT 400
 /**
@@ -280,7 +280,7 @@ protected:
   for now the only solution is to ensure that the table definition
   cache can contain at least all tables of a given statement.
 */
-#define TABLE_DEF_CACHE_MIN     256
+#define TABLE_DEF_CACHE_MIN     400
 
 /*
   Stack reservation.
