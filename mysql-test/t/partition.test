@@ -1976,6 +1976,17 @@ SELECT b, c FROM t1 WHERE b = 1 GROUP BY b, c;
 
 DROP TABLE t1;
 
+--echo #
+--echo # Bug #45807: crash accessing partitioned table and sql_mode 
+--echo #   contains ONLY_FULL_GROUP_BY
+--echo #
+
+SET SESSION SQL_MODE='ONLY_FULL_GROUP_BY';
+CREATE TABLE t1(id INT,KEY(id)) ENGINE=MYISAM 
+  PARTITION BY HASH(id) PARTITIONS 2;
+DROP TABLE t1;
+SET SESSION SQL_MODE=DEFAULT;
+
 --echo End of 5.1 tests
 
 SET @@global.general_log= @old_general_log;
