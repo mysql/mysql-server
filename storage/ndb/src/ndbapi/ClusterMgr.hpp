@@ -90,6 +90,7 @@ public:
   Uint32        getNoOfConnectedNodes() const;
   void          hb_received(NodeId);
 
+  int m_auto_reconnect;
   Uint32        m_connect_count;
 private:
   Uint32        m_max_api_reg_req_interval;
