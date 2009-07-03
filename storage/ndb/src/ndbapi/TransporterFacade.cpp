@@ -863,6 +863,17 @@ TransporterFacade::configure(NodeId nodeId,
     m_batch_size= batch_size;
   }
 
+  Uint32 auto_reconnect=1;
+  iter.get(CFG_AUTO_RECONNECT, &auto_reconnect);
+
+  /**
+   * Keep value it set before connect (overriding config)
+   */
+  if (theClusterMgr->m_auto_reconnect == -1)
+  {
+    theClusterMgr->m_auto_reconnect = auto_reconnect;
+  }
+  
   // Configure timeouts
   Uint32 timeout = 120000;
   for (iter.first(); iter.valid(); iter.next())
@@ -2047,7 +2058,6 @@ SignalSender::sendSignal(Uint16 nodeId, const SimpleSignal * s){
   return ss;
 }
 
-
 Uint32*
 SignalSectionIterator::getNextWords(Uint32& sz)
 {
@@ -2315,3 +2325,15 @@ int main(int arg, char** argv)
   return 0;
 }
 #endif
+
+void
+TransporterFacade::set_auto_reconnect(int val)
+{
+  theClusterMgr->m_auto_reconnect = val;
+}
+
+int
+TransporterFacade::get_auto_reconnect() const
+{
+  return theClusterMgr->m_auto_reconnect;
+}
