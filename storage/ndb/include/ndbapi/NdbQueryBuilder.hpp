@@ -99,15 +99,6 @@ protected:
 };
 
 
-class NdbQueryIndexBound
-{
-public:
-  const NdbQueryOperand* const *low_key;  // 'Pointer to array of pointers', NULL terminated
-  bool low_inclusive;
-  const NdbQueryOperand* const *high_key; // 'Pointer to array of pointers', NULL terminated
-  bool high_inclusive;
-};
-
 
 /**
  * NdbQueryOperationDef defines an operation on a single NDB table
@@ -181,6 +172,40 @@ protected:
 }; // class NdbQueryIndexScanOperationDef
 
 
+/**
+ * class NdbQueryIndexBound is an argument container for defining
+ * a NdbQueryIndexScanOperationDef.
+ * The contents of this object is copied into the
+ * NdbQueryIndexScanOperationDef and does not have to be 
+ * persistent after the NdbQueryBuilder::scanIndex() call
+ */
+class NdbQueryIndexBound
+{
+public:
+  // C'tor for an equal bound:
+  NdbQueryIndexBound(const NdbQueryOperand* const *eqKey)
+   : m_low(eqKey), m_lowInclusive(true), m_high(eqKey), m_highInclusive(true)
+  {};
+
+  // C'tor for a normal range including low & high limit:
+  NdbQueryIndexBound(const NdbQueryOperand* const *low,
+                     const NdbQueryOperand* const *high)
+   : m_low(low), m_lowInclusive(true), m_high(high), m_highInclusive(true)
+  {};
+
+  // Complete C'tor where limits might be exluded:
+  NdbQueryIndexBound(const NdbQueryOperand* const *low,  bool lowIncl,
+                     const NdbQueryOperand* const *high, bool highIncl)
+   : m_low(low), m_lowInclusive(lowIncl), m_high(high), m_highInclusive(highIncl)
+  {}
+
+private:
+  friend class NdbQueryIndexScanOperationDefImpl;
+  const NdbQueryOperand* const *m_low;  // 'Pointer to array of pointers', NULL terminated
+  const bool m_lowInclusive;
+  const NdbQueryOperand* const *m_high; // 'Pointer to array of pointers', NULL terminated
+  const bool m_highInclusive;
+};
 
 
 /**

@@ -481,6 +481,38 @@ int testQueryBuilder(Ndb &myNdb)
     if (q5 == NULL) APIERROR(qb->getNdbError());
   }
 
+  // Example: ::readTuple() using Index for unique key lookup
+  printf("q6\n");
+
+  NdbQueryDef* q6 = 0;
+  {
+    NdbQueryBuilder* qb = &myBuilder; //myDict->getQueryBuilder();
+
+    // Lookup Primary key for manager table
+    const NdbDictionary::Index *myPIndex= myDict->getIndex("PRIMARY", manager->getName());
+    if (myPIndex == NULL)
+      APIERROR(myDict->getNdbError());
+
+    const NdbQueryOperand* low[] =  // Manager PK index is {"emp_no","dept_no", }
+    {  qb->constValue(110567),      // emp_no  = 110567
+       0
+    };
+    const NdbQueryOperand* high[] =  // Manager PK index is {"emp_no","dept_no", }
+    {  qb->constValue("illegal key"),
+       0
+    };
+    const NdbQueryIndexBound  bound        (low, NULL);   // emp_no = [110567, oo]
+    const NdbQueryIndexBound  bound_illegal(low, high);   // 'high' is char type -> illegal
+    const NdbQueryIndexBound  boundEq(low);
+
+    // Lookup on a single tuple with key define by 'managerKey' param. tuple
+    const NdbQueryScanOperationDef* scanManager = qb->scanIndex(myPIndex, manager, &boundEq);
+    if (scanManager == NULL) APIERROR(qb->getNdbError());
+
+    q6 = qb->prepare();
+    if (q6 == NULL) APIERROR(qb->getNdbError());
+  }
+
   return 0;
 }
 
