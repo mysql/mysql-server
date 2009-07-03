@@ -2716,8 +2716,9 @@ void Item_func_case::fix_length_and_dec()
       agg_num_lengths(args[i + 1]);
     if (else_expr_num != -1) 
       agg_num_lengths(args[else_expr_num]);
-    max_length= my_decimal_precision_to_length(max_length + decimals, decimals,
-                                               unsigned_flag);
+    max_length= my_decimal_precision_to_length_no_truncation(max_length +
+                                                             decimals, decimals,
+                                                             unsigned_flag);
   }
 }
 
