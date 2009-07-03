@@ -414,6 +414,7 @@ private:
   bool temporaryTables;
   bool m_logging;
   NDBT_DriverType m_driverType;
+  bool m_noddl;
 };
 
 

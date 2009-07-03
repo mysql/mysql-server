@@ -197,21 +197,42 @@ int create_index(NDBT_Context* ctx, int indxNum,
 
   pIdx.setStoredIndex(logged);
   ndbout << ") ";
-  if (pNdb->getDictionary()->createIndex(pIdx) != 0){
-    attr->indexCreated = false;
-    ndbout << "FAILED!" << endl;
-    const NdbError err = pNdb->getDictionary()->getNdbError();
-    ERR(err);
-    if (err.classification == NdbError::ApplicationError)
-      return SKIP_INDEX;
+  bool noddl= ctx->getProperty("NoDDL");
 
-    if (err.status == NdbError::TemporaryError)
-      return SKIP_INDEX;
-    
-    return NDBT_FAILED;
-  } else {
-    ndbout << "OK!" << endl;
-    attr->indexCreated = true;
+  if (noddl)
+  {
+    const NdbDictionary::Index* idx= pNdb->
+      getDictionary()->getIndex(pIdx.getName(), pTab->getName());
+
+    if (!idx)
+    {
+      ndbout << "Failed - Index does not exist and DDL not allowed" << endl;
+      return NDBT_FAILED;
+    }
+    else
+    {
+      attr->indexCreated = false;
+      // TODO : Check index definition is ok
+    }
+  }
+  else
+  {
+    if (pNdb->getDictionary()->createIndex(pIdx) != 0){
+      attr->indexCreated = false;
+      ndbout << "FAILED!" << endl;
+      const NdbError err = pNdb->getDictionary()->getNdbError();
+      ERR(err);
+      if (err.classification == NdbError::ApplicationError)
+        return SKIP_INDEX;
+      
+      if (err.status == NdbError::TemporaryError)
+        return SKIP_INDEX;
+      
+      return NDBT_FAILED;
+    } else {
+      ndbout << "OK!" << endl;
+      attr->indexCreated = true;
+    }
   }
   return result;
 }
@@ -337,7 +358,8 @@ int createPkIndex(NDBT_Context* ctx, NDBT_Step* step){
   Ndb* pNdb = GETNDB(step);
 
   bool logged = ctx->getProperty("LoggedIndexes", 1);
-
+  bool noddl= ctx->getProperty("NoDDL");
+  
   // Create index    
   BaseString::snprintf(pkIdxName, 255, "IDC_PK_%s", pTab->getName());
   if (orderedIndex)
@@ -363,11 +385,30 @@ int createPkIndex(NDBT_Context* ctx, NDBT_Step* step){
   
   pIdx.setStoredIndex(logged);
   ndbout << ") ";
-  if (pNdb->getDictionary()->createIndex(pIdx) != 0){
-    ndbout << "FAILED!" << endl;
-    const NdbError err = pNdb->getDictionary()->getNdbError();
-    ERR(err);
-    return NDBT_FAILED;
+  if (noddl)
+  {
+    const NdbDictionary::Index* idx= pNdb->
+      getDictionary()->getIndex(pkIdxName, pTab->getName());
+    
+    if (!idx)
+    {
+      ndbout << "Failed - Index does not exist and DDL not allowed" << endl;
+      ERR(pNdb->getDictionary()->getNdbError());
+      return NDBT_FAILED;
+    }
+    else
+    {
+      // TODO : Check index definition is ok
+    }
+  }
+  else
+  {
+    if (pNdb->getDictionary()->createIndex(pIdx) != 0){
+      ndbout << "FAILED!" << endl;
+      const NdbError err = pNdb->getDictionary()->getNdbError();
+      ERR(err);
+      return NDBT_FAILED;
+    }
   }
 
   ndbout << "OK!" << endl;
@@ -378,15 +419,20 @@ int createPkIndex_Drop(NDBT_Context* ctx, NDBT_Step* step){
   const NdbDictionary::Table* pTab = ctx->getTab();
   Ndb* pNdb = GETNDB(step);
 
+  bool noddl= ctx->getProperty("NoDDL");
+
   // Drop index
-  ndbout << "Dropping index " << pkIdxName << " ";
-  if (pNdb->getDictionary()->dropIndex(pkIdxName, 
-				       pTab->getName()) != 0){
-    ndbout << "FAILED!" << endl;
-    ERR(pNdb->getDictionary()->getNdbError());
-    return NDBT_FAILED;
-  } else {
-    ndbout << "OK!" << endl;
+  if (!noddl)
+  {
+    ndbout << "Dropping index " << pkIdxName << " ";
+    if (pNdb->getDictionary()->dropIndex(pkIdxName, 
+                                         pTab->getName()) != 0){
+      ndbout << "FAILED!" << endl;
+      ERR(pNdb->getDictionary()->getNdbError());
+      return NDBT_FAILED;
+    } else {
+      ndbout << "OK!" << endl;
+    }
   }
   
   return NDBT_OK;
@@ -886,6 +932,17 @@ int runSystemRestart1(NDBT_Context* ctx, NDBT_Step* step){
 }
 
 #define CHECK2(b, t) if(!b){ g_err << __LINE__ << ": " << t << endl; break;}
+#define CHECKOKORTIMEOUT(e, t) { int rc= (e);        \
+    if (rc != 0) {                                      \
+      if (rc == 266) {                                  \
+        g_err << "Timeout : retries left : "            \
+              << timeoutRetries                         \
+              << endl;                                  \
+        continue;                                       \
+      }                                                 \
+      g_err << __LINE__ << ": " << (t) << endl; break;  \
+    } }
+
 
 int
 runMixed1(NDBT_Context* ctx, NDBT_Step* step){
@@ -894,6 +951,7 @@ runMixed1(NDBT_Context* ctx, NDBT_Step* step){
   Ndb* pNdb = GETNDB(step);
   HugoOperations hugoOps(*ctx->getTab());
 
+  /* Old, rather ineffective testcase which nonetheless passes on 6.3 */
 
   do {
     // TC1
@@ -948,6 +1006,413 @@ runMixed1(NDBT_Context* ctx, NDBT_Step* step){
   hugoOps.closeTransaction(pNdb);
   return NDBT_FAILED;
 }
+
+
+
+int
+runMixedUpdateInterleaved(Ndb* pNdb,
+                          HugoOperations& hugoOps,
+                          int outOfRangeRec,
+                          int testSize,
+                          bool commit,
+                          bool abort,
+                          int pkFailRec,
+                          int ixFailRec,
+                          bool invertFail,
+                          AbortOption ao,
+                          int whatToUpdate,
+                          int updatesValue,
+                          bool ixFirst)
+{
+  Uint32 execRc= 0;
+  if ((pkFailRec != -1) || (ixFailRec != -1))
+  {
+    execRc= 626;
+  }
+  
+  bool updateViaPk= whatToUpdate & 1;
+  bool updateViaIx= whatToUpdate & 2;
+
+  int ixOpNum= (ixFirst?0:1);
+  int pkOpNum= (ixFirst?1:0);
+
+  int timeoutRetries= 3;
+
+  while (timeoutRetries--)
+  {
+    CHECK2(hugoOps.startTransaction(pNdb) == 0, "startTransaction");
+    for (int i=0; i < testSize; i++)
+    {
+      /* invertFail causes all issued reads *except* the fail record number
+       * to fail
+       */
+      int indxKey= ((i == ixFailRec)^invertFail)? outOfRangeRec : i;
+      int pkKey= ((i == pkFailRec)^invertFail)? outOfRangeRec : i;
+      
+      for (int opNum=0; opNum < 2; opNum++)
+      {
+        if (opNum == ixOpNum)
+        {
+          if (updateViaIx)
+          {
+            CHECK2(hugoOps.indexUpdateRecord(pNdb, pkIdxName, indxKey, 1, updatesValue) == 0,
+                   "indexUpdateRecord");
+          }
+          else
+          {
+            CHECK2(hugoOps.indexReadRecords(pNdb, pkIdxName, indxKey) == 0, "indexReadRecords");
+          }
+        }
+        
+        if (opNum == pkOpNum)
+        {
+          if (updateViaPk)
+          {
+            CHECK2(hugoOps.pkUpdateRecord(pNdb, pkKey, 1, updatesValue) == 0, 
+                   "pkUpdateRecord");
+          }
+          else
+          {
+            CHECK2(hugoOps.pkReadRecord(pNdb, pkKey) == 0, "pkReadRecord");
+          }
+        }
+      }
+    }
+    if (commit)
+    {
+      int rc= hugoOps.execute_Commit(pNdb, ao);
+      if (rc == 266)
+      {
+        /* Timeout */
+        g_err << "Timeout : retries left=" << timeoutRetries << endl;
+        hugoOps.closeTransaction(pNdb);
+        continue;
+      }
+      CHECK2(rc == execRc, "execute_Commit");
+      NdbError err= hugoOps.getTransaction()->getNdbError();
+      CHECK2(err.code == execRc, "getNdbError");
+    }
+    else
+    {
+      int rc= hugoOps.execute_NoCommit(pNdb, ao);
+      if (rc == 266)
+      {
+        /* Timeout */
+        g_err << "Timeout : retries left=" << timeoutRetries << endl;
+        hugoOps.closeTransaction(pNdb);
+        continue;
+      }
+      CHECK2(rc == execRc, "execute_NoCommit");
+      NdbError err= hugoOps.getTransaction()->getNdbError();
+      CHECK2(err.code == execRc, "getNdbError");
+      if (execRc && (ao == AO_IgnoreError))
+      {
+        /* Transaction should still be open, let's commit it */
+        CHECK2(hugoOps.execute_Commit(pNdb, ao) == 0, "executeCommit");
+      }
+      else if (abort)
+      {
+        CHECK2(hugoOps.execute_Rollback(pNdb) == 0, "executeRollback");
+      }
+    }
+    CHECK2(hugoOps.closeTransaction(pNdb) == 0, "closeTransaction");
+    
+    return 1;
+  }
+
+  hugoOps.closeTransaction(pNdb);
+  return 0;
+}
+
+
+
+int
+runMixed2(NDBT_Context* ctx, NDBT_Step* step){
+  Ndb* pNdb = GETNDB(step);
+  HugoOperations hugoOps(*ctx->getTab());
+
+  int numRecordsInTable= ctx->getNumRecords();
+  const int maxTestSize= 10000;
+  int testSize= MIN(numRecordsInTable, maxTestSize);
+
+  /* Avoid overloading Send Buffers */
+  Uint32 rowSize=  NdbDictionary::getRecordRowLength(ctx->getTab()->getDefaultRecord());
+  Uint32 dataXfer= 2 * rowSize * testSize;
+  const Uint32 MaxDataXfer= 500000; // 0.5M
+
+  if (dataXfer > MaxDataXfer)
+  {
+    testSize= MIN((int)(MaxDataXfer/rowSize), testSize);
+  }
+
+  g_err << "testSize= " << testSize << endl;
+  g_err << "rowSize= " << rowSize << endl;
+
+  int updatesValue= 1;
+  const int maxTimeoutRetries= 3; 
+
+  do {
+    // TC0
+    {
+      bool ok= false;
+      int timeoutRetries= maxTimeoutRetries;
+      while (timeoutRetries--)
+      {
+        g_err << "TC0 : indexRead, pkread, Commit" << endl;
+        CHECK2(hugoOps.startTransaction(pNdb) == 0, "startTransaction");
+        CHECK2(hugoOps.indexReadRecords(pNdb, pkIdxName, 0, false, testSize) == 0, "indexReadRecords");
+        CHECK2(hugoOps.pkReadRecord(pNdb, 0, testSize) == 0, "pkReadRecord");
+        CHECKOKORTIMEOUT(hugoOps.execute_Commit(pNdb), "executeCommit");
+        CHECK2(hugoOps.closeTransaction(pNdb) == 0, "closeTransaction");
+        
+        ok= true;
+        break;
+      }
+      if (!ok) { break; };
+    }
+    
+    
+    // TC1
+    {
+      bool ok= false;
+      int timeoutRetries= maxTimeoutRetries;
+      while (timeoutRetries--)
+      {
+        g_err << "TC1 : pkRead, indexRead, Commit" << endl;
+        CHECK2(hugoOps.startTransaction(pNdb) == 0, "startTransaction");
+        CHECK2(hugoOps.pkReadRecord(pNdb, 0, testSize) == 0, "pkReadRecord");
+        CHECK2(hugoOps.indexReadRecords(pNdb, pkIdxName, 0, false, testSize) == 0, "indexReadRecords");
+        CHECKOKORTIMEOUT(hugoOps.execute_Commit(pNdb), "executeCommit");
+        CHECK2(hugoOps.closeTransaction(pNdb) == 0, "closeTransaction");
+        
+        ok= true;
+        break;
+      }
+      if (!ok) { break; };
+    }
+    
+    // TC2
+    {
+      bool ok= false;
+      int timeoutRetries= maxTimeoutRetries;
+      while (timeoutRetries--)
+      {
+        g_err << "TC2 : pkRead, indexRead, NoCommit, Commit" << endl;
+        CHECK2(hugoOps.startTransaction(pNdb) == 0, "startTransaction");
+        CHECK2(hugoOps.pkReadRecord(pNdb, 0, testSize) == 0, "pkReadRecord");
+        CHECK2(hugoOps.indexReadRecords(pNdb, pkIdxName, 0, false, testSize) == 0,
+               "indexReadRecords");
+        CHECKOKORTIMEOUT(hugoOps.execute_NoCommit(pNdb), "executeNoCommit");
+        CHECK2(hugoOps.execute_Commit(pNdb) == 0, "executeCommit");
+        CHECK2(hugoOps.closeTransaction(pNdb) == 0, "closeTransaction");
+        ok= true;
+        break;
+      }
+      if (!ok) { break; };
+    }
+    
+    // TC3
+    {
+      bool ok= false;
+      int timeoutRetries= maxTimeoutRetries;
+      while (timeoutRetries--)
+      {
+        g_err << "TC3 : pkRead, pkRead, Commit" << endl;
+        CHECK2(hugoOps.startTransaction(pNdb) == 0, "startTransaction ");
+        CHECK2(hugoOps.pkReadRecord(pNdb, 0, testSize) == 0, "pkReadRecords ");
+        CHECK2(hugoOps.pkReadRecord(pNdb, 0, testSize) == 0, "pkReadRecords ");
+        CHECKOKORTIMEOUT(hugoOps.execute_Commit(pNdb), "executeCommit");
+        CHECK2(hugoOps.closeTransaction(pNdb) == 0, "closeTransaction ");
+        ok= true;
+        break;
+      }
+      if (!ok) { break; };
+    }
+    
+    // TC4
+    {
+      bool ok= false;
+      int timeoutRetries= maxTimeoutRetries;
+      while (timeoutRetries--)
+      {
+        g_err << "TC4 : indexRead, indexRead, Commit" << endl;
+        CHECK2(hugoOps.startTransaction(pNdb) == 0, "startTransaction ");
+        CHECK2(hugoOps.indexReadRecords(pNdb, pkIdxName, 0, false, testSize) == 0, "indexReadRecords");
+        CHECK2(hugoOps.indexReadRecords(pNdb, pkIdxName, 0, false, testSize) == 0, "indexReadRecords");
+        CHECKOKORTIMEOUT(hugoOps.execute_Commit(pNdb), "executeCommit");
+        CHECK2(hugoOps.closeTransaction(pNdb) == 0, "closeTransaction ");
+        ok= true;
+        break;
+      }
+      if (!ok) { break; };
+    }
+    
+    // TC5
+    {
+      bool ok= false;
+      int timeoutRetries= maxTimeoutRetries;
+      while (timeoutRetries--)
+      {
+        g_err << "TC5 : indexRead, pkUpdate, Commit" << endl;
+        CHECK2(hugoOps.startTransaction(pNdb) == 0, "startTransaction");
+        CHECK2(hugoOps.indexReadRecords(pNdb, pkIdxName, 0, false, testSize) == 0, "indexReadRecords");
+        CHECK2(hugoOps.pkUpdateRecord(pNdb, 0, testSize, updatesValue++) == 0, "pkUpdateRecord");
+        CHECKOKORTIMEOUT(hugoOps.execute_Commit(pNdb), "executeCommit");
+        CHECK2(hugoOps.closeTransaction(pNdb) == 0, "closeTransaction");
+        ok= true;
+        break;
+      }
+      if (!ok) { break; };
+    }
+    
+    // TC6
+    {
+      bool ok= false;
+      int timeoutRetries= maxTimeoutRetries;
+      while (timeoutRetries--)
+      {
+        g_err << "TC6 : pkUpdate, indexRead, Commit" << endl;
+        CHECK2(hugoOps.startTransaction(pNdb) == 0, "startTransaction");
+        CHECK2(hugoOps.pkUpdateRecord(pNdb, 0, testSize, updatesValue++) == 0, "pkUpdateRecord");
+        CHECK2(hugoOps.indexReadRecords(pNdb, pkIdxName, 0, false, testSize) == 0, "indexReadRecords");
+        CHECKOKORTIMEOUT(hugoOps.execute_Commit(pNdb), "executeCommit");
+        CHECK2(hugoOps.closeTransaction(pNdb) == 0, "closeTransaction");
+        ok= true;
+        break;
+      }
+      if (!ok) { break; };
+    }
+    
+    // TC7
+    {
+      bool ok= false;
+      int timeoutRetries= maxTimeoutRetries;
+      while (timeoutRetries--)
+      {
+        g_err << "TC7 : pkRead, indexUpdate, Commit" << endl;
+        CHECK2(hugoOps.startTransaction(pNdb) == 0, "startTransaction");
+        CHECK2(hugoOps.pkReadRecord(pNdb, 0, testSize) == 0, "pkReadRecord");
+        CHECK2(hugoOps.indexUpdateRecord(pNdb, pkIdxName, 0, testSize, updatesValue++) == 0,
+               "indexReadRecords");
+        CHECKOKORTIMEOUT(hugoOps.execute_Commit(pNdb), "executeCommit");
+        CHECK2(hugoOps.closeTransaction(pNdb) == 0, "closeTransaction");
+        ok= true;
+        break;
+      }
+      if (!ok) { break; };
+    }
+    
+    // TC8
+    {
+      bool ok= false;
+      int timeoutRetries= maxTimeoutRetries;
+      while (timeoutRetries--)
+      {
+        g_err << "TC8 : indexUpdate, pkRead, Commit" << endl;
+        CHECK2(hugoOps.startTransaction(pNdb) == 0, "startTransaction ");
+        CHECK2(hugoOps.indexUpdateRecord(pNdb, pkIdxName, 0, testSize, updatesValue++) == 0, 
+               "indexReadRecords ");
+        CHECK2(hugoOps.pkReadRecord(pNdb, 0, testSize) == 0, "pkReadRecords ");
+        CHECKOKORTIMEOUT(hugoOps.execute_Commit(pNdb), "executeCommit");
+        CHECK2(hugoOps.closeTransaction(pNdb) == 0, "closeTransaction ");
+        ok= true;
+        break;
+      }
+      if (!ok) { break; };
+    }
+
+    for (int ao=0; ao < 2; ao++)
+    {
+      AbortOption abortOption= ao?AO_IgnoreError:AbortOnError;
+      
+      for (int exType=0; exType < 3; exType++)
+      {
+        bool commit= (exType == 1);
+        bool abort= (exType == 2);
+        
+        const char* exTypeStr= ((exType == 0) ? "NoCommit" : 
+                                (exType == 1) ? "Commit" : 
+                                "Abort");
+        
+        for (int failType= 0; failType < 4; failType++)
+        {
+          for (int failPos= 0; failPos < 2; failPos++)
+          {
+            int failRec= (failPos == 0)? 0 : testSize -1;
+            int pkFailRec= -1;
+            int ixFailRec= -1;
+            if (failType)
+            {
+              if (failType & 1)
+                pkFailRec= failRec;
+              if (failType & 2)
+                ixFailRec= failRec;
+            }
+            
+            for (int invFail= 0; 
+                 invFail < ((failType==0)?1:2); 
+                 invFail++)
+            {
+              bool invertFail= (invFail)?true:false;
+              const char* failTypeStr= ((failType==0)? "None" : 
+                                        ((failType==1)? "Pk": 
+                                         ((failType==2)?"Ix": "Both")));
+              for (int updateVia= 0; updateVia < 3; updateVia++)
+              {
+                const char* updateViaStr= ((updateVia == 0)? "None" : 
+                                           (updateVia == 1)? "Pk" :
+                                           (updateVia == 2)? "Ix" :
+                                           "Both");
+                for (int updateOrder= 0; updateOrder < 2; updateOrder++)
+                {
+                  bool updateIxFirst= (updateOrder == 0);
+                  g_err << endl
+                        << "AbortOption : " << (ao?"IgnoreError":"AbortOnError") << endl
+                        << "ExecType : " << exTypeStr << endl
+                        << "Failtype : " << failTypeStr << endl
+                        << "Failpos : " << ((failPos == 0)? "Early" : "Late") << endl
+                        << "Failure scenarios : " << (invFail?"All but one":"one") << endl
+                        << "UpdateVia : " << updateViaStr << endl
+                        << "Order : " << (updateIxFirst? "Index First" : "Pk first") << endl;
+                  bool ok= false;
+                  do
+                  {
+                    g_err << "Mixed read/update interleaved" << endl;
+                    CHECK2(runMixedUpdateInterleaved(pNdb, hugoOps, numRecordsInTable, testSize, 
+                                                     commit,  // Commit 
+                                                     abort, // Abort 
+                                                     pkFailRec,    // PkFail
+                                                     ixFailRec,   // IxFail
+                                                     invertFail, // Invertfail
+                                                     abortOption,
+                                                     updateVia,
+                                                     updatesValue++,
+                                                     updateIxFirst),
+                         "TC4");
+                    
+                    ok= true;
+                  } while (false);
+                  
+                  if (!ok)
+                  {
+                    hugoOps.closeTransaction(pNdb);
+                    return NDBT_FAILED;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    return NDBT_OK;
+  } while (false);
+  
+  hugoOps.closeTransaction(pNdb);
+  return NDBT_FAILED;
+}
+
 
 int
 runBuildDuring(NDBT_Context* ctx, NDBT_Step* step){
@@ -1138,13 +1603,33 @@ runUniqueNullTransactions(NDBT_Context* ctx, NDBT_Step* step){
     return NDBT_FAILED;
   }
   
-  if (pNdb->getDictionary()->createIndex(pIdx) != 0){
-    ndbout << "FAILED!" << endl;
-    const NdbError err = pNdb->getDictionary()->getNdbError();
-    ERR(err);
-    return NDBT_FAILED;
+  bool noddl= ctx->getProperty("NoDDL");
+  if (noddl)
+  {
+    const NdbDictionary::Index* idx= pNdb->
+      getDictionary()->getIndex(pIdx.getName(), pTab->getName());
+    
+    if (!idx)
+    {
+      ndbout << "Failed - Index does not exist and DDL not allowed" << endl;
+      ERR(pNdb->getDictionary()->getNdbError());
+      return NDBT_FAILED;
+    }
+    else
+    {
+      // TODO : Check index definition is ok
+    }
   }
-  
+  else
+  {
+    if (pNdb->getDictionary()->createIndex(pIdx) != 0){
+      ndbout << "FAILED!" << endl;
+      const NdbError err = pNdb->getDictionary()->getNdbError();
+      ERR(err);
+      return NDBT_FAILED;
+    }
+  }
+
   int result = NDBT_OK;
 
   HugoTransactions hugoTrans(*ctx->getTab());
@@ -1690,6 +2175,16 @@ TESTCASE("MixedTransaction",
   INITIALIZER(createPkIndex);
   INITIALIZER(runLoadTable);
   STEP(runMixed1);
+  FINALIZER(createPkIndex_Drop);
+  FINALIZER(runClearTable);
+}
+TESTCASE("MixedTransaction2", 
+	 "Test mixing of index and normal operations with batching"){ 
+  TC_PROPERTY("LoggedIndexes", (unsigned)0);
+  INITIALIZER(runClearTable);
+  INITIALIZER(createPkIndex);
+  INITIALIZER(runLoadTable);
+  STEP(runMixed2);
   FINALIZER(createPkIndex_Drop);
   FINALIZER(runClearTable);
 }
