@@ -452,11 +452,45 @@ Field *Item_func::tmp_table_field(TABLE *table)
     return make_string_field(table);
     break;
   case DECIMAL_RESULT:
-    field= new Field_new_decimal(my_decimal_precision_to_length(decimal_precision(),
-                                                                decimals,
-                                                                unsigned_flag),
-                                 maybe_null, name, decimals, unsigned_flag);
+  {
+    uint8 dec= decimals;
+    uint8 intg= decimal_precision() - dec;
+    uint32 len= max_length;
+
+    /*
+      Trying to put too many digits overall in a DECIMAL(prec,dec)
+      will always throw a warning. We must limit dec to
+      DECIMAL_MAX_SCALE however to prevent an assert() later.
+    */
+
+    if (dec > 0)
+    {
+      int overflow;
+
+      dec= min(dec, DECIMAL_MAX_SCALE);
+
+      /*
+        If the value still overflows the field with the corrected dec,
+        we'll throw out decimals rather than integers. This is still
+        bad and of course throws a truncation warning.
+      */
+
+      const int required_length=
+        my_decimal_precision_to_length(intg + dec, dec,
+                                                     unsigned_flag);
+
+      overflow= required_length - len;
+
+      if (overflow > 0)
+        dec= max(0, dec - overflow);            // too long, discard fract
+      else
+        /* Corrected value fits. */
+        len= required_length;
+    }
+
+    field= new Field_new_decimal(len, maybe_null, name, dec, unsigned_flag);
     break;
+  }
   case ROW_RESULT:
   default:
     // This case should never be chosen
@@ -545,8 +579,8 @@ void Item_func::count_decimal_length()
     set_if_smaller(unsigned_flag, args[i]->unsigned_flag);
   }
   int precision= min(max_int_part + decimals, DECIMAL_MAX_PRECISION);
-  max_length= my_decimal_precision_to_length(precision, decimals,
-                                             unsigned_flag);
+  max_length= my_decimal_precision_to_length_no_truncation(precision, decimals,
+                                                           unsigned_flag);
 }
 
 
@@ -1141,16 +1175,15 @@ void Item_func_additive_op::result_precision()
   decimals= max(args[0]->decimals, args[1]->decimals);
   int arg1_int= args[0]->decimal_precision() - args[0]->decimals;
   int arg2_int= args[1]->decimal_precision() - args[1]->decimals;
-  int est_prec= max(arg1_int, arg2_int) + 1 + decimals;
-  int precision= min(est_prec, DECIMAL_MAX_PRECISION);
+  int precision= max(arg1_int, arg2_int) + 1 + decimals;
 
   /* Integer operations keep unsigned_flag if one of arguments is unsigned */
   if (result_type() == INT_RESULT)
     unsigned_flag= args[0]->unsigned_flag | args[1]->unsigned_flag;
   else
     unsigned_flag= args[0]->unsigned_flag & args[1]->unsigned_flag;
-  max_length= my_decimal_precision_to_length(precision, decimals,
-                                             unsigned_flag);
+  max_length= my_decimal_precision_to_length_no_truncation(precision, decimals,
+                                                           unsigned_flag);
 }
 
 
@@ -1255,7 +1288,8 @@ void Item_func_mul::result_precision()
   decimals= min(args[0]->decimals + args[1]->decimals, DECIMAL_MAX_SCALE);
   uint est_prec = args[0]->decimal_precision() + args[1]->decimal_precision();
   uint precision= min(est_prec, DECIMAL_MAX_PRECISION);
-  max_length= my_decimal_precision_to_length(precision, decimals,unsigned_flag);
+  max_length= my_decimal_precision_to_length_no_truncation(precision, decimals,
+                                                           unsigned_flag);
 }
 
 
@@ -1311,8 +1345,8 @@ void Item_func_div::result_precision()
   else
     unsigned_flag= args[0]->unsigned_flag & args[1]->unsigned_flag;
   decimals= min(args[0]->decimals + prec_increment, DECIMAL_MAX_SCALE);
-  max_length= my_decimal_precision_to_length(precision, decimals,
-                                             unsigned_flag);
+  max_length= my_decimal_precision_to_length_no_truncation(precision, decimals,
+                                                           unsigned_flag);
 }
 
 
@@ -1999,8 +2033,9 @@ void Item_func_round::fix_length_and_dec()
 
     precision-= decimals_delta - length_increase;
     decimals= min(decimals_to_set, DECIMAL_MAX_SCALE);
-    max_length= my_decimal_precision_to_length(precision, decimals,
-                                               unsigned_flag);
+    max_length= my_decimal_precision_to_length_no_truncation(precision,
+                                                             decimals,
+                                                             unsigned_flag);
     break;
   }
   default:
@@ -2243,8 +2278,9 @@ void Item_func_min_max::fix_length_and_dec()
     }
   }
   else if ((cmp_type == DECIMAL_RESULT) || (cmp_type == INT_RESULT))
-    max_length= my_decimal_precision_to_length(max_int_part+decimals, decimals,
-                                            unsigned_flag);
+    max_length= my_decimal_precision_to_length_no_truncation(max_int_part +
+                                                             decimals, decimals,
+                                                             unsigned_flag);
   cached_field_type= agg_field_type(args, arg_count);
 }
 
