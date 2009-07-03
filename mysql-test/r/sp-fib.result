@@ -10,24 +10,17 @@ declare c cursor for select f from t3 order by f desc limit 2;
 open c;
 fetch c into y;
 fetch c into x;
-close c;
 insert into t3 values (x+y);
 call fib(n-1);
+## Close the cursor AFTER the recursion to ensure that the stack
+## frame is somewhat intact.
+close c;
 end;
 end if;
 end|
 set @@max_sp_recursion_depth= 20|
 insert into t3 values (0), (1)|
-call fib(3)|
-select * from t3 order by f asc|
-f
-0
-1
-1
-2
-delete from t3|
-insert into t3 values (0), (1)|
-call fib(10)|
+call fib(4)|
 select * from t3 order by f asc|
 f
 0
@@ -35,12 +28,6 @@ f
 1
 2
 3
-5
-8
-13
-21
-34
-55
 drop table t3|
 drop procedure fib|
 set @@max_sp_recursion_depth= 0|
