@@ -2215,8 +2215,10 @@ Item_decimal::Item_decimal(const char *str_arg, uint length,
   name= (char*) str_arg;
   decimals= (uint8) decimal_value.frac;
   fixed= 1;
-  max_length= my_decimal_precision_to_length(decimal_value.intg + decimals,
-                                             decimals, unsigned_flag);
+  max_length= my_decimal_precision_to_length_no_truncation(decimal_value.intg +
+                                                           decimals,
+                                                           decimals,
+                                                           unsigned_flag);
 }
 
 Item_decimal::Item_decimal(longlong val, bool unsig)
@@ -2224,8 +2226,10 @@ Item_decimal::Item_decimal(longlong val, bool unsig)
   int2my_decimal(E_DEC_FATAL_ERROR, val, unsig, &decimal_value);
   decimals= (uint8) decimal_value.frac;
   fixed= 1;
-  max_length= my_decimal_precision_to_length(decimal_value.intg + decimals,
-                                             decimals, unsigned_flag);
+  max_length= my_decimal_precision_to_length_no_truncation(decimal_value.intg +
+                                                           decimals,
+                                                           decimals,
+                                                           unsigned_flag);
 }
 
 
@@ -2234,8 +2238,10 @@ Item_decimal::Item_decimal(double val, int precision, int scale)
   double2my_decimal(E_DEC_FATAL_ERROR, val, &decimal_value);
   decimals= (uint8) decimal_value.frac;
   fixed= 1;
-  max_length= my_decimal_precision_to_length(decimal_value.intg + decimals,
-                                             decimals, unsigned_flag);
+  max_length= my_decimal_precision_to_length_no_truncation(decimal_value.intg +
+                                                           decimals,
+                                                           decimals,
+                                                           unsigned_flag);
 }
 
 
@@ -2255,8 +2261,10 @@ Item_decimal::Item_decimal(my_decimal *value_par)
   my_decimal2decimal(value_par, &decimal_value);
   decimals= (uint8) decimal_value.frac;
   fixed= 1;
-  max_length= my_decimal_precision_to_length(decimal_value.intg + decimals,
-                                             decimals, unsigned_flag);
+  max_length= my_decimal_precision_to_length_no_truncation(decimal_value.intg +
+                                                           decimals,
+                                                           decimals,
+                                                           unsigned_flag);
 }
 
 
@@ -2266,8 +2274,8 @@ Item_decimal::Item_decimal(const char *bin, int precision, int scale)
                     &decimal_value, precision, scale);
   decimals= (uint8) decimal_value.frac;
   fixed= 1;
-  max_length= my_decimal_precision_to_length(precision, decimals,
-                                             unsigned_flag);
+  max_length= my_decimal_precision_to_length_no_truncation(precision, decimals,
+                                                           unsigned_flag);
 }
 
 
@@ -2322,8 +2330,10 @@ void Item_decimal::set_decimal_value(my_decimal *value_par)
   my_decimal2decimal(value_par, &decimal_value);
   decimals= (uint8) decimal_value.frac;
   unsigned_flag= !decimal_value.sign();
-  max_length= my_decimal_precision_to_length(decimal_value.intg + decimals,
-                                             decimals, unsigned_flag);
+  max_length= my_decimal_precision_to_length_no_truncation(decimal_value.intg +
+                                                           decimals,
+                                                           decimals,
+                                                           unsigned_flag);
 }
 
 
@@ -2553,8 +2563,9 @@ void Item_param::set_decimal(const char *str, ulong length)
   str2my_decimal(E_DEC_FATAL_ERROR, str, &decimal_value, &end);
   state= DECIMAL_VALUE;
   decimals= decimal_value.frac;
-  max_length= my_decimal_precision_to_length(decimal_value.precision(),
-                                             decimals, unsigned_flag);
+  max_length=
+    my_decimal_precision_to_length_no_truncation(decimal_value.precision(),
+                                                 decimals, unsigned_flag);
   maybe_null= 0;
   DBUG_VOID_RETURN;
 }
@@ -2712,8 +2723,9 @@ bool Item_param::set_from_user_var(THD *thd, const user_var_entry *entry)
       my_decimal2decimal(ent_value, &decimal_value);
       state= DECIMAL_VALUE;
       decimals= ent_value->frac;
-      max_length= my_decimal_precision_to_length(ent_value->precision(),
-                                                 decimals, unsigned_flag);
+      max_length=
+        my_decimal_precision_to_length_no_truncation(ent_value->precision(),
+                                                     decimals, unsigned_flag);
       item_type= Item::DECIMAL_ITEM;
       break;
     }
@@ -6931,8 +6943,9 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
     int item_prec = max(prev_decimal_int_part, item_int_part) + decimals;
     int precision= min(item_prec, DECIMAL_MAX_PRECISION);
     unsigned_flag&= item->unsigned_flag;
-    max_length= my_decimal_precision_to_length(precision, decimals,
-                                               unsigned_flag);
+    max_length= my_decimal_precision_to_length_no_truncation(precision,
+                                                             decimals,
+                                                             unsigned_flag);
   }
 
   switch (Field::result_merge_type(fld_type))
