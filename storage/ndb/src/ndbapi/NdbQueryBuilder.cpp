@@ -95,7 +95,9 @@ public:
 
   virtual int bindOperand(const NdbDictionary::Column* column,
                           NdbQueryOperationDef* operation)
-  { m_column = column;
+  { if (m_column  && m_column != column)
+      return 4807;  // Already bounded to a different column
+    m_column = column;
     return 0;
   }
   
@@ -296,27 +298,22 @@ public:
 private:
   virtual ~NdbQueryLookupOperationDefImpl() {};
   NdbQueryLookupOperationDefImpl (
-                           const NdbDictionary::Table* table,
-                           const NdbQueryOperand* const keys[],
-                           const char* ident,
-                           Uint32      ix)
-   : NdbQueryLookupOperationDef(this), NdbQueryOperationDefImpl(table,ident,ix),
-     m_index(0), m_keys(keys)
-  {};
-  NdbQueryLookupOperationDefImpl (
                            const NdbDictionary::Index* index,
                            const NdbDictionary::Table* table,
                            const NdbQueryOperand* const keys[],
                            const char* ident,
-                           Uint32      ix)
-   : NdbQueryLookupOperationDef(this), NdbQueryOperationDefImpl(table,ident,ix),
-     m_index(index), m_keys(keys)
-  {};
+                           Uint32      ix);
+  NdbQueryLookupOperationDefImpl (
+                           const NdbDictionary::Table* table,
+                           const NdbQueryOperand* const keys[],
+                           const char* ident,
+                           Uint32      ix);
   
 private:
   virtual void updateSPJProjection(NdbQueryOperationDefImpl& parent) const;
   const NdbDictionary::Index* const m_index;
-  const NdbQueryOperand* const *m_keys;
+  const NdbQueryOperand* m_keys[MAX_ATTRIBUTES_IN_INDEX+1];
+
 }; // class NdbQueryLookupOperationDefImpl
 
 
@@ -375,10 +372,7 @@ private:
                            const NdbDictionary::Table* table,
                            const NdbQueryIndexBound* bound,
                            const char* ident,
-                           Uint32      ix)
-  : NdbQueryIndexScanOperationDef(this), NdbQueryScanOperationDefImpl(table,ident,ix),
-    m_index(index), m_bound(bound)
-  {};
+                           Uint32      ix);
 
   virtual void updateSPJProjection(NdbQueryOperationDefImpl& parent) const {
     // TODO: implement this;
@@ -386,7 +380,13 @@ private:
   }
 private:
   const NdbDictionary::Index* const m_index;
-  const NdbQueryIndexBound* const m_bound;
+//const NdbQueryIndexBound* const m_bound;
+  struct bound {  // Limiting 'bound ' definition
+    const NdbQueryOperand* low[MAX_ATTRIBUTES_IN_INDEX+1];
+    const NdbQueryOperand* high[MAX_ATTRIBUTES_IN_INDEX+1];
+    bool lowIncl, highIncl;
+    bool eqBound;  // True if 'low == high'
+  } m_bound;
 }; // class NdbQueryIndexScanOperationDefImpl
 
 
@@ -835,7 +835,7 @@ NdbQueryBuilder::scanIndex(const NdbDictionary::Index* index,
 {
   if (m_pimpl->hasError())
     return NULL;
-  returnErrIf(table==0 || index==0 || bound==0, 4800);  // Required non-NULL arguments
+  returnErrIf(table==0 || index==0, 4800);  // Required non-NULL arguments
 
   // TODO: Restrict to only table_version_major() mismatch?
   returnErrIf(NdbIndexImpl::getImpl(*index).m_table_id != table->getObjectId() ||
@@ -845,6 +845,36 @@ NdbQueryBuilder::scanIndex(const NdbDictionary::Index* index,
     new NdbQueryIndexScanOperationDefImpl(index,table,bound,ident,
                                           m_pimpl->m_operations.size());
   returnErrIf(op==0, 4000);
+
+  int i;
+  int inxfields = index->getNoOfColumns();
+  for (i=0; i<inxfields; ++i)
+  {
+    if (op->m_bound.low[i] == NULL)
+      break;
+    const NdbDictionary::Column *col = index->getColumn(i);
+    int error = op->m_bound.low[i]->getImpl().bindOperand(col,op);
+    if (unlikely(error))
+    { m_pimpl->setErrorCode(error);
+      delete op;
+      return NULL;
+    }
+  }
+  if (!op->m_bound.eqBound)
+  {
+    for (i=0; i<inxfields; ++i)
+    {
+      if (op->m_bound.high[i] == NULL)
+        break;
+      const NdbDictionary::Column *col = index->getColumn(i);
+      int error = op->m_bound.high[i]->getImpl().bindOperand(col,op);
+      if (unlikely(error))
+      { m_pimpl->setErrorCode(error);
+        delete op;
+        return NULL;
+      }
+    }
+  }
 
   m_pimpl->m_operations.push_back(op);
   return op;
@@ -946,6 +976,85 @@ NdbQueryDefImpl::~NdbQueryDefImpl()
   // Release all NdbQueryOperations
   for (Uint32 i=0; i<m_operations.size(); ++i)
   { delete &m_operations[i]->getImpl();
+  }
+}
+
+
+NdbQueryLookupOperationDefImpl::NdbQueryLookupOperationDefImpl (
+                           const NdbDictionary::Table* table,
+                           const NdbQueryOperand* const keys[],
+                           const char* ident,
+                           Uint32      ix)
+ : NdbQueryLookupOperationDef(this), NdbQueryOperationDefImpl(table,ident,ix),
+   m_index(0)
+{
+  int i;
+  for (i=0; i<=MAX_ATTRIBUTES_IN_INDEX; ++i)
+  { m_keys[i] = keys[i];
+    if (m_keys[i] == NULL)
+      break;
+  }
+  assert (m_keys[i] == NULL);
+}
+
+NdbQueryLookupOperationDefImpl::NdbQueryLookupOperationDefImpl (
+                           const NdbDictionary::Index* index,
+                           const NdbDictionary::Table* table,
+                           const NdbQueryOperand* const keys[],
+                           const char* ident,
+                           Uint32      ix)
+ : NdbQueryLookupOperationDef(this), NdbQueryOperationDefImpl(table,ident,ix),
+   m_index(index)
+{
+  int i;
+  for (i=0; i<=MAX_ATTRIBUTES_IN_INDEX; ++i)
+  { m_keys[i] = keys[i];
+    if (m_keys[i] == NULL)
+      break;
+  }
+  assert (m_keys[i] == NULL);
+}
+
+
+NdbQueryIndexScanOperationDefImpl::NdbQueryIndexScanOperationDefImpl (
+                           const NdbDictionary::Index* index,
+                           const NdbDictionary::Table* table,
+                           const NdbQueryIndexBound* bound,
+                           const char* ident,
+                           Uint32      ix)
+: NdbQueryIndexScanOperationDef(this), NdbQueryScanOperationDefImpl(table,ident,ix),
+  m_index(index), m_bound()
+{
+  if (bound!=NULL) {
+
+    if (bound->m_low!=NULL) {
+      int i;
+      for (i=0; i<=MAX_ATTRIBUTES_IN_INDEX; ++i)
+      { m_bound.low[i] = bound->m_low[i];
+        if (m_bound.low[i] == NULL)
+          break;
+      }
+      assert (m_bound.low[i] == NULL);
+    }
+    if (bound->m_high!=NULL) {
+      int i;
+      for (i=0; i<=MAX_ATTRIBUTES_IN_INDEX; ++i)
+      { m_bound.high[i] = bound->m_high[i];
+        if (m_bound.high[i] == NULL)
+          break;
+      }
+      assert (m_bound.high[i] == NULL);
+    }
+    m_bound.lowIncl = bound->m_lowInclusive;
+    m_bound.highIncl = bound->m_highInclusive;
+    m_bound.eqBound = (bound->m_low==bound->m_high && bound->m_low!=NULL);
+  }
+  else {
+    m_bound.low[0] = NULL;
+    m_bound.high[0] = NULL;
+    m_bound.lowIncl = true;
+    m_bound.highIncl = true;
+    m_bound.eqBound = false;
   }
 }
 

@@ -731,6 +731,7 @@ ErrorBundle ErrorCodes[] = {
   { 4804, DMEC, AE, "Unknown 'parent' specified in linkedValue" },
   { 4805, DMEC, AE, "Unknown 'column' specified in linkedValue" },
   { 4806, DMEC, AE, "Specified 'index' does not belong to specified 'table'" },
+  { 4807, DMEC, AE, "Can't use same operand value to specify different column values" },
 
 
   { NO_CONTACT_WITH_PROCESS, DMEC, AE,
