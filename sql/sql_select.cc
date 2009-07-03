@@ -9087,13 +9087,17 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
         +1: for decimal point
       */
 
-      overflow= my_decimal_precision_to_length(intg + dec, dec,
-                                               item->unsigned_flag) - len;
+      const int required_length=
+        my_decimal_precision_to_length(intg + dec, dec,
+                                                     item->unsigned_flag);
+
+      overflow= required_length - len;
 
       if (overflow > 0)
         dec= max(0, dec - overflow);            // too long, discard fract
       else
-        len -= item->decimals - dec;            // corrected value fits
+        /* Corrected value fits. */
+        len= required_length;
     }
 
     new_field= new Field_new_decimal(len, maybe_null, item->name,

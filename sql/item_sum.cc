@@ -786,8 +786,9 @@ void Item_sum_sum::fix_length_and_dec()
   {
     /* SUM result can't be longer than length(arg) + length(MAX_ROWS) */
     int precision= args[0]->decimal_precision() + DECIMAL_LONGLONG_DIGITS;
-    max_length= my_decimal_precision_to_length(precision, decimals,
-                                               unsigned_flag);
+    max_length= my_decimal_precision_to_length_no_truncation(precision,
+                                                             decimals,
+                                                             unsigned_flag);
     curr_dec_buff= 0;
     hybrid_type= DECIMAL_RESULT;
     my_decimal_set_zero(dec_buffs);
@@ -1217,8 +1218,9 @@ void Item_sum_avg::fix_length_and_dec()
   {
     int precision= args[0]->decimal_precision() + prec_increment;
     decimals= min(args[0]->decimals + prec_increment, DECIMAL_MAX_SCALE);
-    max_length= my_decimal_precision_to_length(precision, decimals,
-                                               unsigned_flag);
+    max_length= my_decimal_precision_to_length_no_truncation(precision,
+                                                             decimals,
+                                                             unsigned_flag);
     f_precision= min(precision+DECIMAL_LONGLONG_DIGITS, DECIMAL_MAX_PRECISION);
     f_scale=  args[0]->decimals;
     dec_bin_size= my_decimal_get_binary_size(f_precision, f_scale);
@@ -1418,8 +1420,9 @@ void Item_sum_variance::fix_length_and_dec()
   {
     int precision= args[0]->decimal_precision()*2 + prec_increment;
     decimals= min(args[0]->decimals + prec_increment, DECIMAL_MAX_SCALE);
-    max_length= my_decimal_precision_to_length(precision, decimals,
-                                               unsigned_flag);
+    max_length= my_decimal_precision_to_length_no_truncation(precision,
+                                                             decimals,
+                                                             unsigned_flag);
 
     break;
   }
