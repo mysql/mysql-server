@@ -50,11 +50,14 @@ MYSQL_PLUGIN_ACTIONS(innodb_plugin,  [
 		CFLAGS="$CFLAGS -DUNIV_SOLARIS";;
   esac
   INNODB_DYNAMIC_CFLAGS="-DMYSQL_DYNAMIC_PLUGIN"
-  case "$target_cpu" in
-	x86_64)
+  case "$target_cpu---$target_os" in
+	x86_64---*)
 		# The AMD64 ABI forbids absolute addresses in shared libraries
 		;;
-	*86)
+	*---solaris*|*---SunOS*)
+		# Shared objects must be linked from PIC code on Solaris.
+		;;
+	*86---)
 		# Use absolute addresses on IA-32
 		INNODB_DYNAMIC_CFLAGS="$INNODB_DYNAMIC_CFLAGS -prefer-non-pic"
 		;;
