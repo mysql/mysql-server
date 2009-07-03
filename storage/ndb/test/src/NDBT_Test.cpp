@@ -775,6 +775,7 @@ NDBT_TestSuite::NDBT_TestSuite(const char* pname):name(pname){
    createAllTables = false;
    temporaryTables = false;
    nologging = false;
+   noddl= false;
 }
 
 
@@ -867,26 +868,48 @@ int NDBT_TestSuite::executeAll(Ndb_cluster_connection& con,
 	const NdbDictionary::Table* pTab = NDBT_Tables::getTable(t);
 	const NdbDictionary::Table* pTab2 = pDict->getTable(pTab->getName());
 	
-	if(pTab2 != 0 && pDict->dropTable(pTab->getName()) != 0)
-	{
-	  numTestsFail++;
-	  numTestsExecuted++;
-	  g_err << "ERROR0: Failed to drop table " << pTab->getName() << endl;
-	  tests[i]->saveTestResult(pTab, FAILED_TO_CREATE);
-	  continue;
-	}
-      
-	if (NDBT_Tables::createTable(&ndb, pTab->getName(), 
-                                     nologging, false,
-				     g_create_hook, this) != 0) {
-	  numTestsFail++;
-	  numTestsExecuted++;
-	  g_err << "ERROR1: Failed to create table " << pTab->getName()
-		<< pDict->getNdbError() << endl;
-	  tests[i]->saveTestResult(pTab, FAILED_TO_CREATE);
-	  continue;
-	}
-	pTab2 = pDict->getTable(pTab->getName());
+        if (noddl)
+        {
+          if (!pTab2)
+          {
+            numTestsFail++;
+            numTestsExecuted++;
+            g_err << "ERROR : Table not defined and DDL not allowed " 
+                  << pTab->getName() << endl;
+            g_err << "Required schema : " << *((NDBT_Table*)pTab) << endl;
+            tests[i]->saveTestResult(pTab, FAILED_TO_CREATE);
+            continue;
+          }
+          else
+          {
+            /* TODO : Check that table in DB is sufficiently similar to 
+             * what we expect
+             */
+          }
+        }
+        else
+        {
+          if(pTab2 != 0 && pDict->dropTable(pTab->getName()) != 0)
+          {
+            numTestsFail++;
+            numTestsExecuted++;
+            g_err << "ERROR0: Failed to drop table " << pTab->getName() << endl;
+            tests[i]->saveTestResult(pTab, FAILED_TO_CREATE);
+            continue;
+          }
+          
+          if (NDBT_Tables::createTable(&ndb, pTab->getName(), 
+                                       nologging, false,
+                                       g_create_hook, this) != 0) {
+            numTestsFail++;
+            numTestsExecuted++;
+            g_err << "ERROR1: Failed to create table " << pTab->getName()
+                  << pDict->getNdbError() << endl;
+            tests[i]->saveTestResult(pTab, FAILED_TO_CREATE);
+            continue;
+          }
+          pTab2 = pDict->getTable(pTab->getName());
+        }
 
 	ctx->addTab(pTab2);
       }
@@ -896,6 +919,7 @@ int NDBT_TestSuite::executeAll(Ndb_cluster_connection& con,
       if(remote_mgm != NULL)
 	ctx->setRemoteMgm(remote_mgm);
       ctx->setSuite(this);
+      ctx->setProperty("NoDDL", (Uint32)noddl);
       
       const NdbDictionary::Table** tables= ctx->getTables();
 
@@ -909,10 +933,13 @@ int NDBT_TestSuite::executeAll(Ndb_cluster_connection& con,
       
       if(result == NDBT_OK)
       {
-	for(t = 0; tables[t] != 0; t++)
-	{ 
-	  pDict->dropTable(tables[t]->getName());
-	}
+        if (!noddl)
+        {
+          for(t = 0; tables[t] != 0; t++)
+          { 
+            pDict->dropTable(tables[t]->getName());
+          }
+        }
       }
       
       delete ctx;
@@ -990,6 +1017,7 @@ NDBT_TestSuite::executeOneCtx(Ndb_cluster_connection& con,
       if(remote_mgm != NULL)
         ctx->setRemoteMgm(remote_mgm);
       ctx->setSuite(this);
+      ctx->setProperty("NoDDL", (Uint32) noddl);
     
       result = tests[t]->execute(ctx);
       if (result != NDBT_OK)
@@ -1062,28 +1090,51 @@ void NDBT_TestSuite::execute(Ndb_cluster_connection& con,
 
     NdbDictionary::Dictionary* pDict = ndb->getDictionary();
     const NdbDictionary::Table* pTab2 = pDict->getTable(pTab->getName());
-    if (createTable == true){
-
-      if(pTab2 != 0 && pDict->dropTable(pTab->getName()) != 0){
-	numTestsFail++;
-	numTestsExecuted++;
-	g_err << "ERROR0: Failed to drop table " << pTab->getName() << endl;
-	tests[t]->saveTestResult(pTab, FAILED_TO_CREATE);
-	continue;
+    if (noddl)
+    {
+      if (!pTab2)
+      {
+        numTestsFail++;
+        numTestsExecuted++;
+        g_err << "ERROR : Table not defined and DDL not allowed " 
+              << pTab->getName() << endl;
+        g_err << "Required schema : " << *((NDBT_Table*)pTab) << endl;
+        tests[t]->saveTestResult(pTab, FAILED_TO_CREATE);
+        continue;
       }
-      
-      if (NDBT_Tables::createTable(ndb, pTab->getName(), nologging, false,
-                                   g_create_hook, this) != 0) {
-	numTestsFail++;
-	numTestsExecuted++;
-	g_err << "ERROR1: Failed to create table " << pTab->getName()
-              << pDict->getNdbError() << endl;
-	tests[t]->saveTestResult(pTab, FAILED_TO_CREATE);
-	continue;
+      else
+      {
+        /* TODO : Check that table in DB is sufficiently similar to 
+         * what we expect
+         */
       }
-      pTab2 = pDict->getTable(pTab->getName());
-    } else if(!pTab2) {
-      pTab2 = pTab;
+    }
+    else
+    {
+      if (createTable)
+      {
+        if(pTab2 != 0 && pDict->dropTable(pTab->getName()) != 0){
+          numTestsFail++;
+          numTestsExecuted++;
+          g_err << "ERROR0: Failed to drop table " << pTab->getName() << endl;
+          tests[t]->saveTestResult(pTab, FAILED_TO_CREATE);
+          continue;
+        }
+        
+        if (NDBT_Tables::createTable(ndb, pTab->getName(), nologging, false,
+                                     g_create_hook, this) != 0) {
+          numTestsFail++;
+          numTestsExecuted++;
+          g_err << "ERROR1: Failed to create table " << pTab->getName()
+                << pDict->getNdbError() << endl;
+          tests[t]->saveTestResult(pTab, FAILED_TO_CREATE);
+          continue;
+        }
+        pTab2 = pDict->getTable(pTab->getName());
+      } else if(!pTab2) {
+        // Weird -  used in testDict?
+        pTab2 = pTab;
+      }
     } 
     
     ctx = new NDBT_Context(con);
@@ -1093,6 +1144,7 @@ void NDBT_TestSuite::execute(Ndb_cluster_connection& con,
     if(remote_mgm != NULL)
       ctx->setRemoteMgm(remote_mgm);
     ctx->setSuite(this);
+    ctx->setProperty("NoDDL", (Uint32) noddl);
     
     result = tests[t]->execute(ctx);
     tests[t]->saveTestResult(pTab, result);
@@ -1102,7 +1154,10 @@ void NDBT_TestSuite::execute(Ndb_cluster_connection& con,
       numTestsOk++;
     numTestsExecuted++;
 
-    if (result == NDBT_OK && createTable == true && createAllTables == false){
+    if (result == NDBT_OK && 
+        createTable == true && 
+        createAllTables == false &&
+        !noddl){
       pDict->dropTable(pTab->getName());
     }
     
@@ -1194,6 +1249,7 @@ static int opt_verbose;
 static int opt_seed = 0;
 static int opt_nologging = 0;
 static int opt_temporary = 0;
+static int opt_noddl = 0;
 
 static struct my_option my_long_options[] =
 {
@@ -1234,6 +1290,9 @@ static struct my_option my_long_options[] =
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "nologging", 0, "Create table(s) wo/ logging",
     (uchar **) &opt_nologging, (uchar **) &opt_nologging, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "noddl", 0, "Don't create/drop tables as part of running tests",
+    (uchar**) &opt_noddl, (uchar**) &opt_noddl, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -1315,6 +1374,7 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
   timer = opt_timer;
   nologging = opt_nologging;
   temporaryTables = opt_temporary;
+  noddl = opt_noddl;
 
   Ndb_cluster_connection con;
   if(con.connect(12, 5, 1))
@@ -1355,18 +1415,36 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
       {
 	const char *tab_name=  m_tables_in_test[i].c_str();
 	const NdbDictionary::Table* pTab = pDict->getTable(tab_name);
-	if (pTab && pDict->dropTable(tab_name) != 0)
-	{
-	  g_err << "ERROR0: Failed to drop table " << tab_name
-		<< pDict->getNdbError() << endl;
-	  return NDBT_ProgramExit(NDBT_FAILED);
-	}
-	if(NDBT_Tables::createTable(&ndb, tab_name, nologging) != 0)
-	{
-	  g_err << "ERROR1: Failed to create table " << tab_name
-		<< pDict->getNdbError() << endl;
-	  return NDBT_ProgramExit(NDBT_FAILED);
-	}
+	if (noddl)
+        {
+          if (!pTab)
+          {
+            g_err << "ERROR : Table " << tab_name
+                  << " does not exist and DDL not allowed" << endl;
+            return NDBT_ProgramExit(NDBT_FAILED);
+          }
+          else
+          {
+            /* TODO : Check that table in DB is sufficiently similar to 
+             * what we expect
+             */
+          }
+        }
+        else
+        { 
+          if (pTab && pDict->dropTable(tab_name) != 0)
+          {
+            g_err << "ERROR0: Failed to drop table " << tab_name
+                  << pDict->getNdbError() << endl;
+            return NDBT_ProgramExit(NDBT_FAILED);
+          }
+          if(NDBT_Tables::createTable(&ndb, tab_name, nologging) != 0)
+          {
+            g_err << "ERROR1: Failed to create table " << tab_name
+                  << pDict->getNdbError() << endl;
+            return NDBT_ProgramExit(NDBT_FAILED);
+          }
+        }
       }
     }
   }
@@ -1383,7 +1461,9 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
     res = report(opt_testname);
   }
 
-  if (res == NDBT_OK && createAllTables == true)
+  if (res == NDBT_OK && 
+      createAllTables == true &&
+      !noddl)
   {
     Ndb ndb(&con, "TEST_DB");
     ndb.init(1024);

@@ -402,6 +402,7 @@ private:
   bool createAllTables;
   bool temporaryTables;
   bool nologging;
+  bool noddl;
 };
 
 
