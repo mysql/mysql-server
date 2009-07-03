@@ -918,6 +918,9 @@ bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
     Set-up the TABLE_LIST object to be a list with a single table
     Set the object to zero to create NULL pointers and set alias
     and real name to table name and get database name from file name.
+    TODO: Consider generalizing or refactoring Lex::add_table_to_list() so
+    it can be used in all places where we create TABLE_LIST objects.
+    Also consider creating appropriate constructors for TABLE_LIST.
   */
 
   bzero((void*)&tables, sizeof(TABLE_LIST));
@@ -925,6 +928,13 @@ bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
   tables.table= table;
   tables.next_local= 0;
   tables.next_name_resolution_table= 0;
+  /*
+    Cache the table in Item_fields. All the tables can be cached except
+    the trigger pseudo table.
+  */
+  tables.cacheable_table= TRUE;
+  context= thd->lex->current_context();
+  tables.select_lex= context->select_lex;
   strmov(db_name_string, table->s->normalized_path.str);
   dir_length= dirname_length(db_name_string);
   db_name_string[dir_length - 1]= 0;
@@ -932,7 +942,6 @@ bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
   db_name= &db_name_string[home_dir_length];
   tables.db= db_name;
 
-  context= thd->lex->current_context();
   table->map= 1; //To ensure correct calculation of const item
   table->get_fields_in_item_tree= TRUE;
   save_table_list= context->table_list;
@@ -965,7 +974,7 @@ bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
   save_use_only_table_context= thd->lex->use_only_table_context;
   thd->lex->use_only_table_context= TRUE;
   
-  error= func_expr->fix_fields(thd, (Item**)0);
+  error= func_expr->fix_fields(thd, (Item**)&func_expr);
 
   thd->lex->use_only_table_context= save_use_only_table_context;
 
