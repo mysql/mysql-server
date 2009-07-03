@@ -764,6 +764,17 @@ TransporterFacade::init(Uint32 nodeId, const ndb_mgm_configuration* props)
   if (!iter.get(CFG_BATCH_SIZE, &batch_size)) {
     m_batch_size= batch_size;
   }
+
+  Uint32 auto_reconnect=1;
+  iter.get(CFG_AUTO_RECONNECT, &auto_reconnect);
+
+  /**
+   * Keep value it set before connect (overriding config)
+   */
+  if (theClusterMgr->m_auto_reconnect == -1)
+  {
+    theClusterMgr->m_auto_reconnect = auto_reconnect;
+  }
   
   Uint32 timeout = 120000;
   iter.first();
@@ -1591,4 +1602,16 @@ SignalSender::sendSignal(Uint16 nodeId, const SimpleSignal * s){
   }
 
   return ss;
+}
+
+void
+TransporterFacade::set_auto_reconnect(int val)
+{
+  theClusterMgr->m_auto_reconnect = val;
+}
+
+int
+TransporterFacade::get_auto_reconnect() const
+{
+  return theClusterMgr->m_auto_reconnect;
 }

@@ -153,6 +153,8 @@ public:
   // heart beat received from a node (e.g. a signal came)
   void hb_received(NodeId n);
 
+  void set_auto_reconnect(int val);
+  int get_auto_reconnect() const;
 private:
   void init_cond_wait_queue();
   struct CondWaitQueueElement {
