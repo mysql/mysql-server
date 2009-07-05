@@ -3028,6 +3028,49 @@ cleanup:
 
 
 //
+// Notification that a range query getting all elements that equal a key
+//  to take place. Will pre acquire read lock
+// Returns:
+//      0 on success
+//      error otherwise
+//
+int ha_tokudb::prepare_index_key_scan( const uchar * key, uint key_len ) {
+    int error = 0;
+    DBT start_key, end_key;
+    pack_key(&start_key, active_index, key_buff, key, key_len, COL_NEG_INF);
+    pack_key(&end_key, active_index, key_buff, key, key_len, COL_POS_INF);
+
+    error = share->key_file[active_index]->pre_acquire_read_lock(
+        share->key_file[active_index], 
+        transaction, 
+        &start_key, 
+        share->key_file[active_index]->dbt_neg_infty(), 
+        &end_key, 
+        share->key_file[active_index]->dbt_pos_infty()
+        );
+    if (error){ 
+        goto cleanup; 
+    }
+
+    range_lock_grabbed = true;
+    error = 0;
+cleanup:
+    if (error) {
+        last_cursor_error = error;
+        //
+        // cursor should be initialized here, but in case it is not, we still check
+        //
+        if (cursor) {
+            cursor->c_close(cursor);
+            cursor = NULL;
+        }
+    }
+    return error;
+}
+
+
+
+//
 // Initializes local cursor on DB with index keynr
 // Parameters:
 //          keynr - key (index) number
