@@ -1995,7 +1995,6 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   pthread_mutex_unlock(&LOCK_open);
   thd->thread_specific_used|= tmp_table_deleted;
   error= 0;
-  thd->no_warnings_for_error= 0;
   if (wrong_tables.length())
   {
     if (!foreign_key_error)
@@ -2057,6 +2056,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
 err_with_placeholders:
   unlock_table_names(thd, tables, (TABLE_LIST*) 0);
   pthread_mutex_unlock(&LOCK_open);
+  thd->no_warnings_for_error= 0;
   DBUG_RETURN(error);
 }
 
