@@ -1884,25 +1884,6 @@ static ulong read_event(MYSQL* mysql, Master_info *mi, bool* suppress_warnings)
   DBUG_RETURN(len - 1);
 }
 
-
-int check_expected_error(THD* thd, Relay_log_info const *rli,
-                         int expected_error)
-{
-  DBUG_ENTER("check_expected_error");
-
-  switch (expected_error) {
-  case ER_NET_READ_ERROR:
-  case ER_NET_ERROR_ON_WRITE:
-  case ER_QUERY_INTERRUPTED:
-  case ER_SERVER_SHUTDOWN:
-  case ER_NEW_ABORTING_CONNECTION:
-    DBUG_RETURN(1);
-  default:
-    DBUG_RETURN(0);
-  }
-}
-
-
 /*
   Check if the current error is of temporary nature of not.
   Some errors are temporary in nature, such as
