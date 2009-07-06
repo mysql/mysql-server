@@ -28,32 +28,32 @@
 #include <Vector.hpp>
 #include <NdbOut.hpp>
 
-class NdbQueryImpl : public NdbQuery {
+class NdbQueryImpl {
 private:
   // Only constructable from factory ::buildQuery();
   explicit NdbQueryImpl(NdbTransaction& trans, 
-			const NdbQueryDef& queryDef);
+			const NdbQueryDefImpl& queryDef);
 
   ~NdbQueryImpl();
 public:
   STATIC_CONST (MAGIC = 0xdeadface);
 
   // Factory method which instantiate a query from its definition
-  static NdbQuery*
-  buildQuery(NdbTransaction& trans, const NdbQueryDef& queryDef);
+  static NdbQueryImpl*
+  buildQuery(NdbTransaction& trans, const NdbQueryDefImpl& queryDef);
 
   ///////////////////////////////////////////////////
   // START: Temp hacks for Jans result set coding 
   explicit NdbQueryImpl(NdbTransaction& trans);  // TEMP, will be removed
 
-  static NdbQuery*
+  static NdbQueryImpl*
   buildQuery(NdbTransaction& trans);
 
   /** Set an NdbQueryOperation to be the root of a linked operation */
   // LATER: root and *all* NdbQueryOperations will be constructed 
   // together with NdbQuery itself in :.buildQuery()
-  void addQueryOperation(NdbQueryOperation* op) {
-    m_operations.push_back(&op->getImpl());
+  void addQueryOperation(NdbQueryOperationImpl* op) {
+    m_operations.push_back(op);
   }
   //// END: TEMP hacks
   //////////////////////////////////////////////////
@@ -62,9 +62,9 @@ public:
 
   // Get a specific NdbQueryOperation by ident specified
   // when the NdbQueryOperationDef was created.
-  NdbQueryOperation* getQueryOperation(const char* ident) const;
-  NdbQueryOperation* getQueryOperation(Uint32 ident) const;
-//NdbQueryOperation* getQueryOperation(const NdbQueryOperationDef* def) const;
+  NdbQueryOperationImpl& getQueryOperation(Uint32 ident) const;
+  NdbQueryOperationImpl* getQueryOperation(const char* ident) const;
+//NdbQueryOperationImpl* getQueryOperation(const NdbQueryOperationDef* def) const;
 
   Uint32 getNoOfParameters() const;
   const NdbParamOperand* getParameter(const char* name) const;
@@ -106,7 +106,15 @@ public:
   bool checkMagicNumber() const { return m_magic == MAGIC;}
   Uint32 ptr2int() const {return m_id;}
   
+  const NdbQuery& getInterface() const
+  { return m_interface; }
+
+  NdbQuery& getInterface()
+  { return m_interface; }
+
 private:
+  NdbQuery m_interface;
+
   /** For verifying pointers to this class.*/
   const Uint32 m_magic;
   /** I-value for object maps.*/
@@ -128,8 +136,8 @@ private:
 
 /** This class contains data members for NdbQueryOperation, such that these
  * do not need to exposed in NdbQueryOperation.hpp. This class may be 
- * changed without forcing the curstomer to recompile his application.*/
-class NdbQueryOperationImpl : public NdbQueryOperation {
+ * changed without forcing the customer to recompile his application.*/
+class NdbQueryOperationImpl {
   friend class NdbQueryImpl;
   /** For debugging.*/
   friend NdbOut& operator<<(NdbOut& out, const NdbQueryOperationImpl&);
@@ -138,15 +146,15 @@ public:
 
 
   Uint32 getNoOfParentOperations() const;
-  NdbQueryOperation* getParentOperation(Uint32 i) const;
+  NdbQueryOperationImpl& getParentOperation(Uint32 i) const;
 
   Uint32 getNoOfChildOperations() const;
-  NdbQueryOperation* getChildOperation(Uint32 i) const;
+  NdbQueryOperationImpl& getChildOperation(Uint32 i) const;
 
-  const NdbQueryOperationDef* getQueryOperationDef() const;
+  const NdbQueryOperationDefImpl& getQueryOperationDef() const;
 
   // Get the entire query object which this operation is part of
-  NdbQuery& getQuery() const;
+  NdbQueryImpl& getQuery() const;
 
   NdbRecAttr* getValue(const char* anAttrName, char* aValue);
   NdbRecAttr* getValue(Uint32 anAttrId, char* aValue);
@@ -184,9 +192,9 @@ public:
 
   // To become obsolete as NdbQueryImpl::buildQuery() should
   // construct all QueryOperations
-  void addChild(NdbQueryOperation& child){
-    m_children.push_back(&child.getImpl());
-    child.getImpl().m_parents.push_back(this);
+  void addChild(NdbQueryOperationImpl& child){
+    m_children.push_back(&child);
+    child.m_parents.push_back(this);
   }
 
   NdbOperation& getOperation() const{
@@ -217,7 +225,14 @@ public:
     return m_magic == MAGIC;
   }
 
+  const NdbQueryOperation& getInterface() const
+  { return m_interface; }
+  NdbQueryOperation& getInterface()
+  { return m_interface; }
+
 private:
+  NdbQueryOperation m_interface;
+
   /** State of the operation (in terms of pending messages.) */
   enum State{
     /** Awaiting TCKEYREF or TRANSID_AI for this operation.*/
@@ -249,7 +264,7 @@ private:
   /** TODO:Only used for result processing prototype purposes. To be removed.*/
   NdbOperation& m_operation;
   explicit NdbQueryOperationImpl(NdbQueryImpl& queryImpl, 
-				 const NdbQueryOperationDef* def);
+				 const NdbQueryOperationDefImpl& def);
   explicit NdbQueryOperationImpl(NdbQueryImpl& queryImpl, 
 				 NdbOperation& operation);
   ~NdbQueryOperationImpl(){

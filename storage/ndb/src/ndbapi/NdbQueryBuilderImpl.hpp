@@ -28,6 +28,10 @@
 
 // Forward declared
 class NdbQueryBuilderImpl;
+class NdbQueryOperationDefImpl;
+class NdbParamOperandImpl;
+class NdbConstOperandImpl;
+class NdbLinkedOperandImpl;
 
 /** An extensible array, used for holding serialized representaions of
  * queries and parameters.*/
@@ -86,19 +90,35 @@ private:
 
 
 
-class NdbQueryDefImpl : public NdbQueryDef
+class NdbQueryDefImpl
 {
   friend class NdbQueryDef;
 
 public:
   NdbQueryDefImpl(const NdbQueryBuilderImpl& builder);
   ~NdbQueryDefImpl();
+
+  Uint32 getNoOfOperations() const
+  { return m_operations.size(); }
+
+  // Get a specific NdbQueryOperationDef by ident specified
+  // when the NdbQueryOperationDef was created.
+  const NdbQueryOperationDefImpl& getQueryOperation(Uint32 index) const
+  { return *m_operations[index]; } 
+
+  const NdbQueryOperationDefImpl* getQueryOperation(const char* ident) const;
+
+  const NdbQueryDef& getInterface() const
+  { return m_interface; }
+
   /**TODO: Remove this method. Only needed by testSerialize() test code.*/
   Uint32Buffer& getSerialized(){
     return m_serializedDef;
   }
 private:
-  Vector<const NdbQueryOperationDef*> m_operations;
+  NdbQueryDef m_interface;
+
+  Vector<NdbQueryOperationDefImpl*> m_operations;
 //Vector<NdbParamOperand*> m_paramOperand;
 //Vector<NdbConstOperand*> m_constOperand;
 //Vector<NdbLinkedOperand*> m_linkedOperand;
@@ -117,7 +137,7 @@ public:
   ~NdbQueryBuilderImpl();
   NdbQueryBuilderImpl(Ndb& ndb);
 
-  class NdbQueryDef* prepare();
+  const NdbQueryDefImpl* prepare();
 
   const NdbError& getNdbError() const;
 
@@ -130,15 +150,15 @@ private:
   bool hasError() const
   { return (m_error.code!=0); }
 
-  bool contains(const NdbQueryOperationDef*);
+  bool contains(const NdbQueryOperationDefImpl*);
 
   Ndb& m_ndb;
   NdbError m_error;
 
-  Vector<const NdbQueryOperationDef*> m_operations;
-  Vector<const NdbParamOperand*> m_paramOperands;
-  Vector<const NdbConstOperand*> m_constOperands;
-  Vector<const NdbLinkedOperand*> m_linkedOperands;
+  Vector<NdbQueryOperationDefImpl*> m_operations;
+  Vector<NdbParamOperandImpl*> m_paramOperands;
+  Vector<NdbConstOperandImpl*> m_constOperands;
+  Vector<NdbLinkedOperandImpl*> m_linkedOperands;
 
 }; // class NdbQueryBuilderImpl
 
@@ -154,29 +174,33 @@ public:
   Uint32 getNoOfParentOperations() const
   { return m_parents.size(); };
 
-  const NdbQueryOperationDef* getParentOperation(Uint32 i) const
-  { return m_parents[i]; };
+  const NdbQueryOperationDefImpl& getParentOperation(Uint32 i) const
+  { return *m_parents[i]; };
 
   Uint32 getNoOfChildOperations() const
   { return m_children.size(); };
 
-  const NdbQueryOperationDef* getChildOperation(Uint32 i) const
-  { return m_children[i]; };
+  const NdbQueryOperationDefImpl& getChildOperation(Uint32 i) const
+  { return *m_children[i]; };
 
-  const NdbDictionary::Table* getTable() const
+  const NdbDictionary::Table& getTable() const
   { return m_table; };
 
   const char* getName() const
   { return m_ident; };
 
-  void addParent(const NdbQueryOperationDef *);
-  void addChild(const NdbQueryOperationDef *);
+  void addParent(NdbQueryOperationDefImpl *);
+  void addChild(NdbQueryOperationDefImpl *);
+
+  virtual const NdbQueryOperationDef& getInterface() const = 0; 
 
   /** Make a serialized representation of this operation, corresponding to
-   * the struct QueryNode type.*/
+   * the struct QueryNode type.
+   */
   virtual void serializeOperation(Uint32Buffer& serializedTree) const = 0;
   /** Find the projection that should be sent to the SPJ block. This should
-   * contain the attributes needed to instantiate all child operations.*/
+   * contain the attributes needed to instantiate all child operations.
+   */
   void computeSPJProjection();
   Vector<const NdbDictionary::Column*>& getSPJProjection(){
     return m_spjProjection;
@@ -192,7 +216,7 @@ protected:
   friend NdbQueryDefImpl::~NdbQueryDefImpl();
 
   NdbQueryOperationDefImpl (
-                           const NdbDictionary::Table* table,
+                           const NdbDictionary::Table& table,
                            const char* ident,
                            Uint32      ix)
    : m_table(table), m_ident(ident), m_ix(ix),
@@ -202,16 +226,17 @@ protected:
 private:
   /** Update the projection that the parent operation will send to the SPJ
    * block, such that it includes the attributes that this operation needs
-   * to be instantiated.*/
+   * to be instantiated.
+   */
   virtual void updateSPJProjection(NdbQueryOperationDefImpl& parent) const = 0;
-  const NdbDictionary::Table* const m_table;
+  const NdbDictionary::Table& m_table;
   const char* const m_ident; // Optional name specified by aplication
   const Uint32 m_ix;         // Index if this operation within operation array
 
   // parent / child vectors contains dependencies as defined
   // with linkedValues
-  Vector<const NdbQueryOperationDef*> m_parents;
-  Vector<const NdbQueryOperationDef*> m_children;
+  Vector<NdbQueryOperationDefImpl*> m_parents;
+  Vector<NdbQueryOperationDefImpl*> m_children;
   Vector<const NdbDictionary::Column*> m_spjProjection;
 }; // class NdbQueryOperationDefImpl
 

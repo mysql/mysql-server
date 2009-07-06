@@ -26,6 +26,7 @@
 
 class Ndb;
 
+class NdbQueryDef;
 class NdbQueryDefImpl;
 class NdbQueryBuilderImpl;
 class NdbQueryOperandImpl;
@@ -43,7 +44,7 @@ class NdbQueryOperationDefImpl;
  *
  * Construction of these objects are through the NdbQueryBuilder factory.
  * To enforce this restriction, c'tor, d'tor operator
- * for the NdbQuery objects has been declared 'protected'.
+ * for the NdbQuery objects has been declared 'private'.
  * NdbQuery objects should not be copied - Copy constructor and assignment
  * operand has been private declared to enforce this restriction.
  *
@@ -62,7 +63,7 @@ public:
 
 protected:
   // Enforce object creation through NdbQueryBuilder factory 
-  NdbQueryOperand(NdbQueryOperandImpl* pimpl);
+  NdbQueryOperand(NdbQueryOperandImpl& impl);
   ~NdbQueryOperand();
 
 private:
@@ -70,21 +71,23 @@ private:
   NdbQueryOperand(const NdbQueryOperand& other);
   NdbQueryOperand& operator = (const NdbQueryOperand& other);
 
-  NdbQueryOperandImpl* const m_pimpl;
+  NdbQueryOperandImpl& m_impl;
 };
 
 // A NdbQueryOperand is either of these:
-class NdbConstOperand  : public NdbQueryOperand
+class NdbConstOperand : public NdbQueryOperand
 {
-protected:
-  NdbConstOperand(NdbQueryOperandImpl* pimpl);
+private:
+  friend class NdbConstOperandImpl;
+  NdbConstOperand(NdbQueryOperandImpl& impl);
   ~NdbConstOperand();
 };
 
 class NdbLinkedOperand : public NdbQueryOperand
 {
-protected:
-  NdbLinkedOperand(NdbQueryOperandImpl* pimpl);
+private:
+  friend class NdbLinkedOperandImpl;
+  NdbLinkedOperand(NdbQueryOperandImpl& impl);
   ~NdbLinkedOperand();
 };
 
@@ -93,8 +96,9 @@ public:
   const char* getName() const;
   Uint32 getEnum() const;
 
-protected:
-  NdbParamOperand(NdbQueryOperandImpl* pimpl);
+private:
+  friend class NdbParamOperandImpl;
+  NdbParamOperand(NdbQueryOperandImpl& impl);
   ~NdbParamOperand();
 };
 
@@ -121,7 +125,7 @@ public:
 
 protected:
   // Enforce object creation through NdbQueryBuilder factory 
-  NdbQueryOperationDef(NdbQueryOperationDefImpl *pimpl);
+  NdbQueryOperationDef(NdbQueryOperationDefImpl& impl);
   ~NdbQueryOperationDef();
 
 private:
@@ -129,7 +133,7 @@ private:
   NdbQueryOperationDef(const NdbQueryOperationDef& other);
   NdbQueryOperationDef& operator = (const NdbQueryOperationDef& other);
 
-  NdbQueryOperationDefImpl* const m_pimpl;
+  NdbQueryOperationDefImpl& m_impl;
 }; // class NdbQueryOperationDef
 
 
@@ -141,9 +145,10 @@ public:
    */
   const NdbDictionary::Index* getIndex() const;
 
-protected:
-  // Enforce object creation through NdbQueryBuilder factory 
-  NdbQueryLookupOperationDef(NdbQueryOperationDefImpl *pimpl);
+private:
+  // Enforce object creation through NdbQueryBuilder factory
+  friend class NdbQueryLookupOperationDefImpl;
+  NdbQueryLookupOperationDef(NdbQueryOperationDefImpl& impl);
   ~NdbQueryLookupOperationDef();
 }; // class NdbQueryLookupOperationDef
 
@@ -151,23 +156,25 @@ class NdbQueryScanOperationDef : public NdbQueryOperationDef  // Base class for 
 {
 protected:
   // Enforce object creation through NdbQueryBuilder factory 
-  NdbQueryScanOperationDef(NdbQueryOperationDefImpl *pimpl);
+  NdbQueryScanOperationDef(NdbQueryOperationDefImpl& impl);
   ~NdbQueryScanOperationDef();
 }; // class NdbQueryScanOperationDef
 
 class NdbQueryTableScanOperationDef : public NdbQueryScanOperationDef
 {
-protected:
+private:
   // Enforce object creation through NdbQueryBuilder factory 
-  NdbQueryTableScanOperationDef(NdbQueryOperationDefImpl *pimpl);
+  friend class NdbQueryTableScanOperationDefImpl;
+  NdbQueryTableScanOperationDef(NdbQueryOperationDefImpl& impl);
   ~NdbQueryTableScanOperationDef();
 }; // class NdbQueryTableScanOperationDef
 
 class NdbQueryIndexScanOperationDef : public NdbQueryScanOperationDef
 {
-protected:
+private:
   // Enforce object creation through NdbQueryBuilder factory 
-  NdbQueryIndexScanOperationDef(NdbQueryOperationDefImpl *pimpl);
+  friend class NdbQueryIndexScanOperationDefImpl;
+  NdbQueryIndexScanOperationDef(NdbQueryOperationDefImpl& impl);
   ~NdbQueryIndexScanOperationDef();
 }; // class NdbQueryIndexScanOperationDef
 
@@ -237,7 +244,7 @@ public:
   NdbQueryBuilder(Ndb&);    // Or getQueryBuilder() from Ndb..
  ~NdbQueryBuilder();
 
-  class NdbQueryDef* prepare();    // Complete building a queryTree from 'this' NdbQueryBuilder
+  const NdbQueryDef* prepare();    // Complete building a queryTree from 'this' NdbQueryBuilder
 
   // NdbQueryOperand builders:
   // ::constValue constructors variants, considder to added/removed variants
@@ -328,8 +335,8 @@ private:
 class NdbQueryDef
 {
 protected:
-  // C'tor is protected - only NdbQueryBuilder::prepare() is allowed to construct a new NdbQueryDef
-  NdbQueryDef(NdbQueryDefImpl* pimpl);
+  friend class NdbQueryDefImpl;
+  NdbQueryDef(NdbQueryDefImpl& impl);
 
 public:
   ~NdbQueryDef();
@@ -353,7 +360,7 @@ public:
   NdbQueryDefImpl& getImpl() const;
 
 private:
-  NdbQueryDefImpl* const m_pimpl;
+  NdbQueryDefImpl& m_impl;
 };
 
 

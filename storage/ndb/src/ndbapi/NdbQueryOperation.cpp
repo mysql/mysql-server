@@ -24,8 +24,8 @@
 #include "signaldata/QueryTree.hpp"
 #include "AttributeHeader.hpp"
 
-NdbQuery::NdbQuery(NdbQueryImpl *pimpl):
-  m_pimpl(pimpl)
+NdbQuery::NdbQuery(NdbQueryImpl& impl):
+  m_impl(impl)
 {}
 
 NdbQuery::~NdbQuery()
@@ -35,75 +35,78 @@ NdbQuery::~NdbQuery()
 //static
 NdbQuery*
 NdbQuery::buildQuery(NdbTransaction& trans, const NdbQueryDef& queryDef)
-{ return NdbQueryImpl::buildQuery(trans, queryDef);
+{ NdbQueryImpl* query = NdbQueryImpl::buildQuery(trans, queryDef.getImpl());
+  return (query) ? &query->getInterface() : NULL;
 }
 
 NdbQuery*
 NdbQuery::buildQuery(NdbTransaction& trans)  // TEMP hack to be removed
-{ return NdbQueryImpl::buildQuery(trans);
+{ NdbQueryImpl* query = NdbQueryImpl::buildQuery(trans);
+  return (query) ? &query->getInterface() : NULL;
 }
 
 Uint32
 NdbQuery::getNoOfOperations() const
 {
-  return m_pimpl->getNoOfOperations();
-}
-
-NdbQueryOperation*
-NdbQuery::getQueryOperation(const char* ident) const
-{
-  return m_pimpl->getQueryOperation(ident);
+  return m_impl.getNoOfOperations();
 }
 
 NdbQueryOperation*
 NdbQuery::getQueryOperation(Uint32 index) const
 {
-  return m_pimpl->getQueryOperation(index);
+  return &m_impl.getQueryOperation(index).getInterface();
+}
+
+NdbQueryOperation*
+NdbQuery::getQueryOperation(const char* ident) const
+{
+  NdbQueryOperationImpl* op = m_impl.getQueryOperation(ident);
+  return (op) ? &op->getInterface() : NULL;
 }
 
 Uint32
 NdbQuery::getNoOfParameters() const
 {
-  return m_pimpl->getNoOfParameters();
+  return m_impl.getNoOfParameters();
 }
 
 const NdbParamOperand*
 NdbQuery::getParameter(const char* name) const
 {
-  return m_pimpl->getParameter(name);
+  return m_impl.getParameter(name);
 }
 
 const NdbParamOperand*
 NdbQuery::getParameter(Uint32 num) const
 {
-  return m_pimpl->getParameter(num);
+  return m_impl.getParameter(num);
 }
 
 int
 NdbQuery::nextResult(bool fetchAllowed, bool forceSend)
 {
-  return m_pimpl->nextResult(fetchAllowed, forceSend);
+  return m_impl.nextResult(fetchAllowed, forceSend);
 }
 
 void
 NdbQuery::close(bool forceSend, bool release)
 {
-  m_pimpl->close(forceSend,release);
+  m_impl.close(forceSend,release);
 }
 
 NdbTransaction*
 NdbQuery::getNdbTransaction() const
 {
-  return m_pimpl->getNdbTransaction();
+  return m_impl.getNdbTransaction();
 }
 
 const NdbError& 
 NdbQuery::getNdbError() const {
-  return m_pimpl->getNdbError();
+  return m_impl.getNdbError();
 };
 
-NdbQueryOperation::NdbQueryOperation(NdbQueryOperationImpl *pimpl)
-  :m_pimpl(pimpl)
+NdbQueryOperation::NdbQueryOperation(NdbQueryOperationImpl& impl)
+  :m_impl(impl)
 {}
 NdbQueryOperation::~NdbQueryOperation()
 {}
@@ -115,62 +118,65 @@ NdbQueryOperation*
 NdbQueryOperation::buildQueryOperation(NdbQueryImpl& queryImpl,
                                        class NdbOperation& operation)
 {
-  return NdbQueryOperationImpl::buildQueryOperation(queryImpl, operation);
+  NdbQueryOperationImpl* op =
+    NdbQueryOperationImpl::buildQueryOperation(queryImpl, operation);
+  return (op) ? &op->getInterface() : NULL;
 }
 
 Uint32
 NdbQueryOperation::getNoOfParentOperations() const
 {
-  return m_pimpl->getNoOfParentOperations();
+  return m_impl.getNoOfParentOperations();
 }
 
 NdbQueryOperation*
 NdbQueryOperation::getParentOperation(Uint32 i) const
 {
-  return m_pimpl->getParentOperation(i);
+  return &m_impl.getParentOperation(i).getInterface();
 }
+
 Uint32 
 NdbQueryOperation::getNoOfChildOperations() const
 {
-  return m_pimpl->getNoOfChildOperations();
+  return m_impl.getNoOfChildOperations();
 }
 
 NdbQueryOperation* 
 NdbQueryOperation::getChildOperation(Uint32 i) const
 {
-  return m_pimpl->getChildOperation(i);
+  return &m_impl.getChildOperation(i).getInterface();
 }
 
-const NdbQueryOperationDef* 
+const NdbQueryOperationDef&
 NdbQueryOperation::getQueryOperationDef() const
 {
-  return m_pimpl->getQueryOperationDef();
+  return m_impl.getQueryOperationDef().getInterface();
 }
 
 NdbQuery& 
 NdbQueryOperation::getQuery() const {
-  return m_pimpl->getQuery();
+  return m_impl.getQuery().getInterface();
 };
 
 NdbRecAttr*
 NdbQueryOperation::getValue(const char* anAttrName,
 			    char* aValue)
 {
-  return m_pimpl->getValue(anAttrName, aValue);
+  return m_impl.getValue(anAttrName, aValue);
 }
 
 NdbRecAttr*
 NdbQueryOperation::getValue(Uint32 anAttrId, 
 			    char* aValue)
 {
-  return m_pimpl->getValue(anAttrId, aValue);
+  return m_impl.getValue(anAttrId, aValue);
 }
 
 NdbRecAttr*
 NdbQueryOperation::getValue(const NdbDictionary::Column* column, 
 			    char* aValue)
 {
-  return m_pimpl->getValue(column, aValue);
+  return m_impl.getValue(column, aValue);
 }
 
 int
@@ -179,7 +185,7 @@ NdbQueryOperation::setResultRowBuf (
                        char* resBuffer,
                        const unsigned char* result_mask)
 {
-  return m_pimpl->setResultRowBuf(rec, resBuffer, result_mask);
+  return m_impl.setResultRowBuf(rec, resBuffer, result_mask);
 }
 
 int
@@ -188,19 +194,19 @@ NdbQueryOperation::setResultRowRef (
                        char* & bufRef,
                        const unsigned char* result_mask)
 {
-  return m_pimpl->setResultRowRef(rec, bufRef, result_mask);
+  return m_impl.setResultRowRef(rec, bufRef, result_mask);
 }
 
 bool
 NdbQueryOperation::isRowNULL() const
 {
-  return m_pimpl->isRowNULL();
+  return m_impl.isRowNULL();
 }
 
 bool
 NdbQueryOperation::isRowChanged() const
 {
-  return m_pimpl->isRowChanged();
+  return m_impl.isRowChanged();
 }
 
 
@@ -208,7 +214,7 @@ NdbQueryOperation::isRowChanged() const
 /////////  NdbQueryImpl methods ///////////
 ///////////////////////////////////////////
 NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans):
-  NdbQuery(this),
+  m_interface(*this),
   m_magic(MAGIC),
   m_id(trans.getNdb()->theImpl->theNdbObjectIdMap.map(this)),
   m_error(),
@@ -220,8 +226,8 @@ NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans):
   assert(m_id != NdbObjectIdMap::InvalidId);
 }
 
-NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans, const NdbQueryDef& queryDef):
-  NdbQuery(this),
+NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans, const NdbQueryDefImpl& queryDef):
+  m_interface(*this),
   m_magic(MAGIC),
   m_id(trans.getNdb()->theImpl->theNdbObjectIdMap.map(this)),
   m_error(),
@@ -234,16 +240,15 @@ NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans, const NdbQueryDef& queryDef):
 
   for (Uint32 i=0; i<queryDef.getNoOfOperations(); ++i)
   {
-    const NdbQueryOperationDef* def = queryDef.getQueryOperation(i);
-    assert(def!=NULL);
+    const NdbQueryOperationDefImpl& def = queryDef.getQueryOperation(i);
 
     NdbQueryOperationImpl* op = new NdbQueryOperationImpl(*this, def);
 
     // Fill in operations parent refs, and append it as child of its parents
-    for (Uint32 p=0; p<def->getNoOfParentOperations(); ++p)
+    for (Uint32 p=0; p<def.getNoOfParentOperations(); ++p)
     { 
-      const NdbQueryOperationDef* parent = def->getParentOperation(p);
-      Uint32 ix = parent->getImpl().getQueryOperationIx();
+      const NdbQueryOperationDefImpl& parent = def.getParentOperation(p);
+      Uint32 ix = parent.getQueryOperationIx();
       assert (ix < m_operations.size());
       op->m_parents.push_back(m_operations[ix]);
       m_operations[ix]->m_children.push_back(op);
@@ -265,13 +270,13 @@ NdbQueryImpl::~NdbQueryImpl()
 }
 
 //static
-NdbQuery*
-NdbQueryImpl::buildQuery(NdbTransaction& trans, const NdbQueryDef& queryDef)
+NdbQueryImpl*
+NdbQueryImpl::buildQuery(NdbTransaction& trans, const NdbQueryDefImpl& queryDef)
 {
   return new NdbQueryImpl(trans, queryDef);
 }
 
-NdbQuery*
+NdbQueryImpl*
 NdbQueryImpl::buildQuery(NdbTransaction& trans)  // TEMP hack to be removed
 {
   return new NdbQueryImpl(trans);
@@ -283,16 +288,16 @@ NdbQueryImpl::getNoOfOperations() const
   return m_operations.size();
 }
 
-NdbQueryOperation*
+NdbQueryOperationImpl&
+NdbQueryImpl::getQueryOperation(Uint32 index) const
+{
+  return *m_operations[index];
+}
+
+NdbQueryOperationImpl*
 NdbQueryImpl::getQueryOperation(const char* ident) const
 {
   return NULL; // FIXME
-}
-
-NdbQueryOperation*
-NdbQueryImpl::getQueryOperation(Uint32 index) const
-{
-  return m_operations[index];
 }
 
 Uint32
@@ -361,14 +366,14 @@ NdbQueryImpl::release(){
 
 NdbQueryOperationImpl::NdbQueryOperationImpl(
            NdbQueryImpl& queryImpl,
-           const NdbQueryOperationDef* def):
-  NdbQueryOperation(this),
+           const NdbQueryOperationDefImpl& def):
+  m_interface(*this),
   m_magic(MAGIC),
   m_id(queryImpl.getNdbTransaction()->getNdb()->theImpl
        ->theNdbObjectIdMap.map(this)),
-  m_operationDef(def->getImpl()),
-  m_parents(def->getNoOfParentOperations()),
-  m_children(def->getNoOfChildOperations()),
+  m_operationDef(def),
+  m_parents(def.getNoOfParentOperations()),
+  m_children(def.getNoOfChildOperations()),
   m_receiver(queryImpl.getNdbTransaction()->getNdb()),
   m_queryImpl(queryImpl),
   m_state(State_Initial),
@@ -384,7 +389,7 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(
 /** Only used for result processing prototype purposes. To be removed.*/
 NdbQueryOperationImpl::NdbQueryOperationImpl(NdbQueryImpl& queryImpl, 
 					     NdbOperation& operation):
-  NdbQueryOperation(this),
+  m_interface(*this),
   m_magic(MAGIC),
   m_id(queryImpl.getNdbTransaction()->getNdb()->theImpl
        ->theNdbObjectIdMap.map(this)),
@@ -419,10 +424,10 @@ NdbQueryOperationImpl::getNoOfParentOperations() const
   return m_parents.size();
 }
 
-NdbQueryOperation*
+NdbQueryOperationImpl&
 NdbQueryOperationImpl::getParentOperation(Uint32 i) const
 {
-  return m_parents[i];
+  return *m_parents[i];
 }
 
 Uint32 
@@ -431,19 +436,19 @@ NdbQueryOperationImpl::getNoOfChildOperations() const
   return m_children.size();
 }
 
-NdbQueryOperation* 
+NdbQueryOperationImpl&
 NdbQueryOperationImpl::getChildOperation(Uint32 i) const
 {
-  return m_children[i];
+  return *m_children[i];
 }
 
-const NdbQueryOperationDef* 
+const NdbQueryOperationDefImpl&
 NdbQueryOperationImpl::getQueryOperationDef() const
 {
-  return NULL;  // FIXME
+  return m_operationDef;
 }
 
-NdbQuery& 
+NdbQueryImpl& 
 NdbQueryOperationImpl::getQuery() const
 {
   return m_queryImpl;
@@ -538,7 +543,7 @@ void NdbQueryOperationImpl::prepareSend(Uint32Buffer& serializedParams){
   optional.get(0) = 1; // Length of user projection
   AttributeHeader::init(&optional.get(1), 
 			AttributeHeader::READ_ALL,
-			m_operationDef.getTable()->getNoOfColumns());
+			m_operationDef.getTable().getNoOfColumns());
   // TODO: Implement for scans as well.
   QueryNodeParameters::setOpLen(lookupParams.get(POS_IN_LOOKUP_PARAM(len)),
 				QueryNodeParameters::QN_LOOKUP,
