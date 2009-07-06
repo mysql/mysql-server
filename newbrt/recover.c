@@ -498,6 +498,7 @@ int tokudb_recover(const char *data_dir, const char *log_dir) {
 	//printf("%s:%d data_wd=\"%s\"\n", __FILE__, __LINE__, data_wd);
     }
 
+    LSN lastlsn = ZERO_LSN;
     FILE *f = NULL;
     for (i=0; i<n_logfiles; i++) {
 	if (f) fclose(f);
@@ -506,7 +507,7 @@ int tokudb_recover(const char *data_dir, const char *log_dir) {
 	char *logfile = logfiles[n_logfiles-i-1];
 	f = fopen(logfile, "r");
 	assert(f);
-	//printf("Opened %s\n", logfiles[n_logfiles-i-1]);
+	printf("Opened %s\n", logfiles[n_logfiles-i-1]);
 	r = fseek(f, 0, SEEK_END); assert(r==0);
 	struct log_entry le;
 	struct backward_scan_state bs = initial_bss;
@@ -515,6 +516,13 @@ int tokudb_recover(const char *data_dir, const char *log_dir) {
 	while (1) {
 	    r = toku_log_fread_backward(f, &le);
 	    if (r==-1) break; // Ran out of file
+            LSN thislsn = toku_log_entry_get_lsn(&le);
+            if (lastlsn.lsn != 0) {
+                if (thislsn.lsn != lastlsn.lsn - 1)
+                    printf("bw lastlsn=%"PRId64" lsn=%"PRId64"\n", lastlsn.lsn, thislsn.lsn);
+                //assert(thislsn.lsn == lastlsn.lsn - 1);
+            }
+            lastlsn = thislsn;
 	    logtype_dispatch_assign(&le, toku_recover_backward_, r, &bs);
 	    if (r!=0) goto go_forward;
 	}
@@ -542,6 +550,13 @@ int tokudb_recover(const char *data_dir, const char *log_dir) {
 	assert(r==0);
 	while ((r = toku_log_fread(f, &le))==0) {
 	    //printf("doing %c\n", le.cmd);
+            LSN thislsn = toku_log_entry_get_lsn(&le);
+            if (lastlsn.lsn != thislsn.lsn) {
+                printf("fw expectlsn=%"PRId64" lsn=%"PRId64"\n", lastlsn.lsn, thislsn.lsn);
+            }
+            // assert(lastlsn.lsn == thislsn.lsn);
+            lastlsn.lsn += 1;
+
 	    logtype_dispatch_args(&le, toku_recover_);
 	    entrycount++;
 	}

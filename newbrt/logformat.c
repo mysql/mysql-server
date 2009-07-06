@@ -524,6 +524,13 @@ generate_rollbacks (void) {
     fprintf(cf, "  }\n  return EINVAL;\n}\n");
 }
 
+static void
+generate_log_entry_functions(void) {
+    fprintf(hf, "LSN toku_log_entry_get_lsn(struct log_entry *);\n");
+    fprintf(cf, "LSN toku_log_entry_get_lsn(struct log_entry *le) {\n");
+    fprintf(cf, "    return le->u.begin_checkpoint.lsn;\n");
+    fprintf(cf, "}\n");
+}
 
 const char *codepath = "log_code.c";
 const char *headerpath = "log_header.h";
@@ -550,6 +557,7 @@ int main (int argc __attribute__((__unused__)), char *argv[]  __attribute__((__u
     generate_log_reader();
     generate_logprint();
     generate_rollbacks();
+    generate_log_entry_functions();
     fprintf(hf, "#endif\n");
     {
 	int r=fclose(hf);
