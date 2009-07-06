@@ -383,7 +383,15 @@ private:
   int32 prepareWriteBufferForLobs();
   uint32 adjustLobBuffersForRead();
   bool lobFieldsRequested();
-  int convertFieldChars(enum_conversionDirection direction, uint16 fieldID, const char* input, char* output, size_t ilen, size_t olen, size_t* outDataLen);
+  int convertFieldChars(enum_conversionDirection direction, 
+                        uint16 fieldID, 
+                        const char* input, 
+                        char* output, 
+                        size_t ilen, 
+                        size_t olen, 
+                        size_t* outDataLen,
+                        bool tacitErrors=FALSE,
+                        size_t* substChars=NULL);
 
   /**
     Fast integer log2 function
