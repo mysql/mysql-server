@@ -2,11 +2,6 @@
 # Test of init_connect variable
 #
 
-if(`SELECT CONVERT(@@version_compile_os using latin1) IN ("Win32", "Win64", "Windows")`)
-{
---skip Bug#44920 2009-05-18 pcrews MTR2 is not processing master.opt input properly on Windows
-}
-
 # should work with embedded server after mysqltest is fixed
 --source include/not_embedded.inc
 
