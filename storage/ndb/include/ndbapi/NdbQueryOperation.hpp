@@ -50,8 +50,9 @@ class NdbRecord;
 class NdbQuery
 {
 protected:
-  // Only constructable through executing a NdbQueryDef 
-  NdbQuery(NdbQueryImpl *pimpl);
+  // Only constructable through ::buildQuery() 
+  friend class NdbQueryImpl;
+  NdbQuery(NdbQueryImpl& impl);
   ~NdbQuery();
 
 public:
@@ -142,12 +143,12 @@ public:
   const NdbError& getNdbError() const;
 
   /** Get object implementing NdbQuery interface.*/
-  NdbQueryImpl& getImpl(){return *m_pimpl;}
-  /** Get object implementing NdbQuery interface.*/
-  const NdbQueryImpl& getImpl() const{return *m_pimpl;}
+  NdbQueryImpl& getImpl() const
+  { return m_impl; }
+
 private:
   /** Opaque implementation NdbQuery interface.*/
-  NdbQueryImpl* const m_pimpl;
+  NdbQueryImpl& m_impl;
 
 }; // class NdbQuery
 
@@ -156,9 +157,10 @@ private:
 
 class NdbQueryOperation
 {
-protected:
-  // Only constructable through executing a NdbQueryDef 
-  NdbQueryOperation(NdbQueryOperationImpl *pimpl);
+private:
+  // Only constructable through executing a NdbQueryDef
+  friend class NdbQueryOperationImpl;
+  NdbQueryOperation(NdbQueryOperationImpl& impl);
   ~NdbQueryOperation();
 
 public:
@@ -182,7 +184,7 @@ public:
   Uint32 getNoOfChildOperations() const;
   NdbQueryOperation* getChildOperation(Uint32 i) const;
 
-  const NdbQueryOperationDef* getQueryOperationDef() const;
+  const NdbQueryOperationDef& getQueryOperationDef() const;
 
   // Get the entire query object which this operation is part of
   NdbQuery& getQuery() const;
@@ -262,14 +264,12 @@ public:
                              // value for this NdbQueryOperation
 
   /** Get object implementing NdbQueryOperation interface.*/
-  NdbQueryOperationImpl& getImpl(){return *m_pimpl;}
-
-  /** Get object implementing NdbQueryOperation interface.*/
-  const NdbQueryOperationImpl& getImpl() const{return *m_pimpl;}
+  NdbQueryOperationImpl& getImpl() const
+  { return m_impl; }
 
 private:
   // Opaque implementation class instance.
-  NdbQueryOperationImpl* const m_pimpl;
+  NdbQueryOperationImpl& m_impl;
 
 }; // class NdbQueryOperation
 

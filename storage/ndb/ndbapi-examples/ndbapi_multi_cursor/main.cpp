@@ -292,7 +292,7 @@ int testQueryBuilder(Ndb &myNdb)
 
   /* qt1 is 'const defined' */
   printf("q1\n");
-  NdbQueryDef* q1 = 0;
+  const NdbQueryDef* q1 = 0;
   {
     NdbQueryBuilder* qb = &myBuilder; //myDict->getQueryBuilder();
 
@@ -315,7 +315,7 @@ int testQueryBuilder(Ndb &myNdb)
   }
 
   printf("q2\n");
-  NdbQueryDef* q2 = 0;
+  const NdbQueryDef* q2 = 0;
   {
     NdbQueryBuilder* qb = &myBuilder; //myDict->getQueryBuilder();
 
@@ -335,7 +335,7 @@ int testQueryBuilder(Ndb &myNdb)
 
 /**** UNFINISHED...
   printf("q3\n");
-  NdbQueryDef* q3 = 0;
+  const NdbQueryDef* q3 = 0;
   {
     NdbQueryBuilder* qb = &myBuilder; //myDict->getQueryBuilder();
 
@@ -361,7 +361,7 @@ int testQueryBuilder(Ndb &myNdb)
    *  where dept_no = 'd005' and emp_no = 110567;
    */
   printf("q4\n");
-  NdbQueryDef* q4 = 0;
+  const NdbQueryDef* q4 = 0;
   {
     NdbQueryBuilder* qb = &myBuilder; //myDict->getQueryBuilder();
 
@@ -458,7 +458,7 @@ int testQueryBuilder(Ndb &myNdb)
   // Example: ::readTuple() using Index for unique key lookup
   printf("q5\n");
 
-  NdbQueryDef* q5 = 0;
+  const NdbQueryDef* q5 = 0;
   {
     NdbQueryBuilder* qb = &myBuilder; //myDict->getQueryBuilder();
 
@@ -484,7 +484,7 @@ int testQueryBuilder(Ndb &myNdb)
   // Example: ::readTuple() using Index for unique key lookup
   printf("q6\n");
 
-  NdbQueryDef* q6 = 0;
+  const NdbQueryDef* q6 = 0;
   {
     NdbQueryBuilder* qb = &myBuilder; //myDict->getQueryBuilder();
 
