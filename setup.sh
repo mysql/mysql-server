@@ -21,7 +21,7 @@
 
 set -eu
 
-TARGETDIR=../storage/innobase
+TARGETDIR=../storage/xtradb
 
 # link the build scripts
 BUILDSCRIPTS="compile-innodb compile-innodb-debug"
@@ -40,8 +40,8 @@ ln -sf ../$TARGETDIR/mysql-test/*.inc .
 # These patches are usually needed because of deviations of behavior between
 # the stock InnoDB and the InnoDB Plugin.
 cd ../..
-for patch in storage/innobase/mysql-test/patches/*.diff ; do
-	if [ "${patch}" != "storage/innobase/mysql-test/patches/*.diff" ] ; then
+for patch in storage/xtradb/mysql-test/patches/*.diff ; do
+	if [ "${patch}" != "storage/xtradb/mysql-test/patches/*.diff" ] ; then
 		patch -p0 < ${patch}
 	fi
 done

@@ -53,35 +53,35 @@ int init_strvar_from_file(char *var, int max_size, IO_CACHE *f,
 
 /* Include necessary InnoDB headers */
 extern "C" {
-#include "../storage/innobase/include/univ.i"
-#include "../storage/innobase/include/btr0sea.h"
-#include "../storage/innobase/include/os0file.h"
-#include "../storage/innobase/include/os0thread.h"
-#include "../storage/innobase/include/srv0start.h"
-#include "../storage/innobase/include/srv0srv.h"
-#include "../storage/innobase/include/trx0roll.h"
-#include "../storage/innobase/include/trx0trx.h"
-#include "../storage/innobase/include/trx0sys.h"
-#include "../storage/innobase/include/mtr0mtr.h"
-#include "../storage/innobase/include/row0ins.h"
-#include "../storage/innobase/include/row0mysql.h"
-#include "../storage/innobase/include/row0sel.h"
-#include "../storage/innobase/include/row0upd.h"
-#include "../storage/innobase/include/log0log.h"
-#include "../storage/innobase/include/lock0lock.h"
-#include "../storage/innobase/include/dict0crea.h"
-#include "../storage/innobase/include/btr0cur.h"
-#include "../storage/innobase/include/btr0btr.h"
-#include "../storage/innobase/include/fsp0fsp.h"
-#include "../storage/innobase/include/sync0sync.h"
-#include "../storage/innobase/include/fil0fil.h"
-#include "../storage/innobase/include/trx0xa.h"
-#include "../storage/innobase/include/row0merge.h"
-#include "../storage/innobase/include/thr0loc.h"
-#include "../storage/innobase/include/dict0boot.h"
-#include "../storage/innobase/include/ha_prototypes.h"
-#include "../storage/innobase/include/ut0mem.h"
-#include "../storage/innobase/include/ibuf0ibuf.h"
+#include "../storage/xtradb/include/univ.i"
+#include "../storage/xtradb/include/btr0sea.h"
+#include "../storage/xtradb/include/os0file.h"
+#include "../storage/xtradb/include/os0thread.h"
+#include "../storage/xtradb/include/srv0start.h"
+#include "../storage/xtradb/include/srv0srv.h"
+#include "../storage/xtradb/include/trx0roll.h"
+#include "../storage/xtradb/include/trx0trx.h"
+#include "../storage/xtradb/include/trx0sys.h"
+#include "../storage/xtradb/include/mtr0mtr.h"
+#include "../storage/xtradb/include/row0ins.h"
+#include "../storage/xtradb/include/row0mysql.h"
+#include "../storage/xtradb/include/row0sel.h"
+#include "../storage/xtradb/include/row0upd.h"
+#include "../storage/xtradb/include/log0log.h"
+#include "../storage/xtradb/include/lock0lock.h"
+#include "../storage/xtradb/include/dict0crea.h"
+#include "../storage/xtradb/include/btr0cur.h"
+#include "../storage/xtradb/include/btr0btr.h"
+#include "../storage/xtradb/include/fsp0fsp.h"
+#include "../storage/xtradb/include/sync0sync.h"
+#include "../storage/xtradb/include/fil0fil.h"
+#include "../storage/xtradb/include/trx0xa.h"
+#include "../storage/xtradb/include/row0merge.h"
+#include "../storage/xtradb/include/thr0loc.h"
+#include "../storage/xtradb/include/dict0boot.h"
+#include "../storage/xtradb/include/ha_prototypes.h"
+#include "../storage/xtradb/include/ut0mem.h"
+#include "../storage/xtradb/include/ibuf0ibuf.h"
 }
 
 #include "ha_innodb.h"
@@ -2220,6 +2220,7 @@ mem_free_and_error:
 	srv_n_write_io_threads = (ulint) innobase_write_io_threads;
 
 	srv_read_ahead &= 3;
+	srv_adaptive_checkpoint %= 3;
 
 	srv_force_recovery = (ulint) innobase_force_recovery;
 
@@ -10030,10 +10031,36 @@ static MYSQL_SYSVAR_ENUM(read_ahead, srv_read_ahead,
   "Control read ahead activity. (none, random, linear, [both])",
   NULL, innodb_read_ahead_update, 3, &read_ahead_typelib);
 
-static MYSQL_SYSVAR_ULONG(adaptive_checkpoint, srv_adaptive_checkpoint,
+static
+void
+innodb_adaptive_checkpoint_update(
+  THD* thd,
+  struct st_mysql_sys_var*     var,
+  void*        var_ptr,
+  const void*  save)
+{
+  *(long *)var_ptr= (*(long *)save) % 3;
+}
+const char *adaptive_checkpoint_names[]=
+{
+  "none", /* 0 */
+  "reflex", /* 1 */
+  "estimate", /* 2 */
+  /* For compatibility of the older patch */
+  "0", /* 3 ("none" + 3) */
+  "1", /* 4 ("reflex" + 3) */
+  "2", /* 5 ("estimate" + 3) */
+  NullS
+};
+TYPELIB adaptive_checkpoint_typelib=
+{
+  array_elements(adaptive_checkpoint_names) - 1, "adaptive_checkpoint_typelib",
+  adaptive_checkpoint_names, NULL
+};
+static MYSQL_SYSVAR_ENUM(adaptive_checkpoint, srv_adaptive_checkpoint,
   PLUGIN_VAR_RQCMDARG,
-  "Enable/Disable flushing along modified age. 0:disable 1:enable",
-  NULL, NULL, 0, 0, 1, 0);
+  "Enable/Disable flushing along modified age. ([none], reflex, estimate)",
+  NULL, innodb_adaptive_checkpoint_update, 0, &adaptive_checkpoint_typelib);
 
 static MYSQL_SYSVAR_ULONG(enable_unsafe_group_commit, srv_enable_unsafe_group_commit,
   PLUGIN_VAR_RQCMDARG,

@@ -134,6 +134,46 @@ buf_read_page_low(
 	bpage = buf_page_init_for_read(err, mode, space, zip_size, unzip,
 				       tablespace_version, offset);
 	if (bpage == NULL) {
+		/* bugfix: http://bugs.mysql.com/bug.php?id=43948 */
+		if (recv_recovery_is_on() && *err == DB_TABLESPACE_DELETED) {
+			/* hashed log recs must be treated here */
+			recv_addr_t*    recv_addr;
+
+			mutex_enter(&(recv_sys->mutex));
+
+			if (recv_sys->apply_log_recs == FALSE) {
+				mutex_exit(&(recv_sys->mutex));
+				goto not_to_recover;
+			}
+
+			/* recv_get_fil_addr_struct() */
+			recv_addr = HASH_GET_FIRST(recv_sys->addr_hash,
+					hash_calc_hash(ut_fold_ulint_pair(space, offset),
+						recv_sys->addr_hash));
+			while (recv_addr) {
+				if ((recv_addr->space == space)
+					&& (recv_addr->page_no == offset)) {
+					break;
+				}
+				recv_addr = HASH_GET_NEXT(addr_hash, recv_addr);
+			}
+
+			if ((recv_addr == NULL)
+			    || (recv_addr->state == RECV_BEING_PROCESSED)
+			    || (recv_addr->state == RECV_PROCESSED)) {
+				mutex_exit(&(recv_sys->mutex));
+				goto not_to_recover;
+			}
+
+			fprintf(stderr, " (cannot find space: %lu)", space);
+			recv_addr->state = RECV_PROCESSED;
+
+			ut_a(recv_sys->n_addrs);
+			recv_sys->n_addrs--;
+
+			mutex_exit(&(recv_sys->mutex));
+		}
+not_to_recover:
 
 		return(0);
 	}
@@ -784,11 +824,11 @@ buf_read_recv_pages(
 		while (buf_pool->n_pend_reads >= recv_n_pool_free_frames / 2) {
 
 			os_aio_simulated_wake_handler_threads();
-			os_thread_sleep(500000);
+			os_thread_sleep(10000);
 
 			count++;
 
-			if (count > 100) {
+			if (count > 5000) {
 				fprintf(stderr,
 					"InnoDB: Error: InnoDB has waited for"
 					" 50 seconds for pending\n"

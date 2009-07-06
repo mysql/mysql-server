@@ -110,7 +110,7 @@ the log and store the scanned log records in the buffer pool: we will
 use these free frames to read in pages when we start applying the
 log records to the database. */
 
-UNIV_INTERN ulint	recv_n_pool_free_frames		= 256;
+UNIV_INTERN ulint	recv_n_pool_free_frames		= 1024;
 
 /* The maximum lsn we see for a page during the recovery process. If this
 is bigger than the lsn we are able to scan up to, that is an indication that
@@ -1225,6 +1225,8 @@ recv_recover_page(
 					     buf_block_get_page_no(block));
 
 	if ((recv_addr == NULL)
+		/* bugfix: http://bugs.mysql.com/bug.php?id=44140 */
+	    || (recv_addr->state == RECV_BEING_READ && !just_read_in)
 	    || (recv_addr->state == RECV_BEING_PROCESSED)
 	    || (recv_addr->state == RECV_PROCESSED)) {
 

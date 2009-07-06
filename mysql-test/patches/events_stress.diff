@@ -1,5 +1,5 @@
---- mysql-test/t/events_stress.test.orig	2009-04-16 19:39:47.000000000 +0000
-+++ mysql-test/t/events_stress.test	2009-04-16 19:41:16.000000000 +0000
+--- mysql-test/t/events_stress.test.orig	2009-07-05 10:29:14.000000000 +0000
++++ mysql-test/t/events_stress.test	2009-07-05 10:30:49.000000000 +0000
 @@ -61,6 +61,7 @@
  }
  --enable_query_log
@@ -8,13 +8,15 @@
  SET GLOBAL event_scheduler=on;
  --sleep 2.5
  DROP DATABASE events_conn1_test2;
-@@ -135,3 +136,4 @@
- #
- 
+@@ -137,5 +138,5 @@
  DROP DATABASE events_test;
+ 
+ # Cleanup
+-SET GLOBAL event_scheduler=off;
 +SET GLOBAL event_scheduler=@old_event_scheduler;
---- mysql-test/r/events_stress.result.orig	2009-04-16 19:41:48.000000000 +0000
-+++ mysql-test/r/events_stress.result	2009-04-16 19:42:07.000000000 +0000
+ --source include/check_events_off.inc
+--- mysql-test/r/events_stress.result.orig	2009-07-05 10:54:30.000000000 +0000
++++ mysql-test/r/events_stress.result	2009-07-05 10:54:48.000000000 +0000
 @@ -32,6 +32,7 @@
  SELECT COUNT(*) FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='events_conn1_test2';
  COUNT(*)
@@ -23,8 +25,9 @@
  SET GLOBAL event_scheduler=on;
  DROP DATABASE events_conn1_test2;
  SET GLOBAL event_scheduler=off;
-@@ -63,3 +64,4 @@
+@@ -63,4 +64,4 @@
  DROP TABLE fill_it2;
  DROP TABLE fill_it3;
  DROP DATABASE events_test;
+-SET GLOBAL event_scheduler=off;
 +SET GLOBAL event_scheduler=@old_event_scheduler;

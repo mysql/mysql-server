@@ -1,6 +1,6 @@
---- mysql-test/r/mysqlshow.result.orig	2009-04-16 20:13:30.000000000 +0000
-+++ mysql-test/r/mysqlshow.result	2009-04-16 20:13:45.000000000 +0000
-@@ -107,6 +107,18 @@
+--- mysql-test/r/mysqlshow.result.orig	2009-06-25 21:56:22.000000000 +0000
++++ mysql-test/r/mysqlshow.result	2009-06-25 21:56:28.000000000 +0000
+@@ -107,6 +107,20 @@
  | TRIGGERS                              |
  | USER_PRIVILEGES                       |
  | VIEWS                                 |
@@ -10,16 +10,18 @@
 +| INNODB_BUFFER_POOL_PAGES              |
 +| XTRADB_ENHANCEMENTS                   |
 +| INNODB_TRX                            |
-+| INNODB_BUFFER_POOL_PAGES_BLOB         |
++| INNODB_INDEX_STATS                    |
 +| INNODB_LOCK_WAITS                     |
 +| INNODB_CMP_RESET                      |
 +| INNODB_CMP                            |
 +| INNODB_CMPMEM_RESET                   |
++| INNODB_BUFFER_POOL_PAGES_BLOB         |
 +| INNODB_CMPMEM                         |
++| INNODB_TABLE_STATS                    |
  +---------------------------------------+
  Database: INFORMATION_SCHEMA
  +---------------------------------------+
-@@ -140,6 +152,18 @@
+@@ -140,6 +154,20 @@
  | TRIGGERS                              |
  | USER_PRIVILEGES                       |
  | VIEWS                                 |
@@ -29,12 +31,14 @@
 +| INNODB_BUFFER_POOL_PAGES              |
 +| XTRADB_ENHANCEMENTS                   |
 +| INNODB_TRX                            |
-+| INNODB_BUFFER_POOL_PAGES_BLOB         |
++| INNODB_INDEX_STATS                    |
 +| INNODB_LOCK_WAITS                     |
 +| INNODB_CMP_RESET                      |
 +| INNODB_CMP                            |
 +| INNODB_CMPMEM_RESET                   |
++| INNODB_BUFFER_POOL_PAGES_BLOB         |
 +| INNODB_CMPMEM                         |
++| INNODB_TABLE_STATS                    |
  +---------------------------------------+
  Wildcard: inf_rmation_schema
  +--------------------+

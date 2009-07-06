@@ -364,7 +364,7 @@ UNIV_INTERN ulint	srv_flush_neighbor_pages = 1; /* 0:disable 1:enable */
 
 UNIV_INTERN ulint	srv_enable_unsafe_group_commit = 0; /* 0:disable 1:enable */
 UNIV_INTERN ulint	srv_read_ahead = 3; /* 1: random  2: linear  3: Both */
-UNIV_INTERN ulint	srv_adaptive_checkpoint = 0; /* 0:disable 1:enable */
+UNIV_INTERN ulint	srv_adaptive_checkpoint = 0; /* 0: none  1: reflex  2: estimate */
 
 UNIV_INTERN ulint	srv_expand_import = 0; /* 0:disable 1:enable */
 
@@ -2509,6 +2509,9 @@ srv_master_thread(
 
 	mutex_exit(&kernel_mutex);
 
+	mutex_enter(&(log_sys->mutex));
+	lsn_old = log_sys->lsn;
+	mutex_exit(&(log_sys->mutex));
 loop:
 	/*****************************************************************/
 	/* ---- When there is database activity by users, we cycle in this
@@ -2538,14 +2541,24 @@ loop:
 	for (i = 0; i < 10; i++) {
 		n_ios_old = log_sys->n_log_ios + buf_pool->n_pages_read
 			+ buf_pool->n_pages_written;
-		mutex_enter(&(log_sys->mutex));
-		lsn_old = log_sys->lsn;
-		mutex_exit(&(log_sys->mutex));
 		srv_main_thread_op_info = "sleeping";
 
 		if (!skip_sleep) {
 
 			os_thread_sleep(1000000);
+
+			/*
+			mutex_enter(&(log_sys->mutex));
+			oldest_lsn = buf_pool_get_oldest_modification();
+			ib_uint64_t	lsn = log_sys->lsn;
+			mutex_exit(&(log_sys->mutex));
+
+			if(oldest_lsn)
+			fprintf(stderr,
+				"InnoDB flush: age pct: %lu, lsn progress: %lu\n",
+				(lsn - oldest_lsn) * 100 / log_sys->max_checkpoint_age,
+				lsn - lsn_old);
+			*/
 		}
 
 		skip_sleep = FALSE;
@@ -2610,13 +2623,16 @@ loop:
 			iteration of this loop. */
 
 			skip_sleep = TRUE;
-		} else if (srv_adaptive_checkpoint) {
+			mutex_enter(&(log_sys->mutex));
+			lsn_old = log_sys->lsn;
+			mutex_exit(&(log_sys->mutex));
+		} else if (srv_adaptive_checkpoint == 1) {
 
 			/* Try to keep modified age not to exceed
 			max_checkpoint_age * 7/8 line */
 
 			mutex_enter(&(log_sys->mutex));
-
+			lsn_old = log_sys->lsn;
 			oldest_lsn = buf_pool_get_oldest_modification();
 			if (oldest_lsn == 0) {
 
@@ -2627,6 +2643,49 @@ loop:
 				    > (log_sys->max_checkpoint_age) - ((log_sys->max_checkpoint_age) / 8)) {
 					/* LOG_POOL_PREFLUSH_RATIO_ASYNC is exceeded. */
 					/* We should not flush from here. */
+					mutex_exit(&(log_sys->mutex));
+				} else if ((log_sys->lsn - oldest_lsn)
+				    > (log_sys->max_checkpoint_age) - ((log_sys->max_checkpoint_age) / 4)) {
+
+					/* 2nd defence line (max_checkpoint_age * 3/4) */
+
+					mutex_exit(&(log_sys->mutex));
+
+					n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST, PCT_IO(100),
+									  IB_ULONGLONG_MAX);
+					skip_sleep = TRUE;
+				} else if ((log_sys->lsn - oldest_lsn)
+					   > (log_sys->max_checkpoint_age)/2 ) {
+
+					/* 1st defence line (max_checkpoint_age * 1/2) */
+
+					mutex_exit(&(log_sys->mutex));
+
+					n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST, PCT_IO(10),
+									  IB_ULONGLONG_MAX);
+					skip_sleep = TRUE;
+				} else {
+					mutex_exit(&(log_sys->mutex));
+				}
+			}
+		} else if (srv_adaptive_checkpoint == 2) {
+
+			/* Try to keep modified age not to exceed
+			max_checkpoint_age * 7/8 line */
+
+			mutex_enter(&(log_sys->mutex));
+
+			oldest_lsn = buf_pool_get_oldest_modification();
+			if (oldest_lsn == 0) {
+				lsn_old = log_sys->lsn;
+				mutex_exit(&(log_sys->mutex));
+
+			} else {
+				if ((log_sys->lsn - oldest_lsn)
+				    > (log_sys->max_checkpoint_age) - ((log_sys->max_checkpoint_age) / 8)) {
+					/* LOG_POOL_PREFLUSH_RATIO_ASYNC is exceeded. */
+					/* We should not flush from here. */
+					lsn_old = log_sys->lsn;
 					mutex_exit(&(log_sys->mutex));
 				} else if ((log_sys->lsn - oldest_lsn)
 					   > (log_sys->max_checkpoint_age)/2 ) {
@@ -2663,11 +2722,23 @@ loop:
 
 					mutex_exit(&flush_list_mutex);
 
-					if(bpl)
+					if (!srv_use_doublewrite_buf) {
+						/* flush is faster than when doublewrite */
+						bpl = (bpl * 3) / 4;
+					}
+
+					if (bpl) {
+retry_flush_batch:
 						n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST,
 									bpl,
 									oldest_lsn + (lsn - lsn_old));
+						if (n_pages_flushed == ULINT_UNDEFINED) {
+							os_thread_sleep(5000);
+							goto retry_flush_batch;
+						}
+					}
 
+					lsn_old = lsn;
 					/*
 					fprintf(stderr,
 						"InnoDB flush: age pct: %lu, lsn progress: %lu, blocks to flush:%llu\n",
@@ -2675,10 +2746,15 @@ loop:
 						lsn - lsn_old, bpl);
 					*/
 				} else {
+					lsn_old = log_sys->lsn;
 					mutex_exit(&(log_sys->mutex));
 				}
 			}
 
+		} else {
+			mutex_enter(&(log_sys->mutex));
+			lsn_old = log_sys->lsn;
+			mutex_exit(&(log_sys->mutex));
 		}
 
 		if (srv_activity_count == old_activity_count) {
