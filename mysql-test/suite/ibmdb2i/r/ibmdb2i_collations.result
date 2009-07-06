@@ -1,0 +1,1204 @@
+drop table if exists t1, ffd, fd;
+CREATE TABLE t1 (armscii8_bin integer, c char(10), v varchar(20), index(c), index(v)) collate armscii8_bin engine=ibmdb2i;
+CREATE TABLE t1 (armscii8_general_ci integer, c char(10), v varchar(20), index(c), index(v)) collate armscii8_general_ci engine=ibmdb2i;
+CREATE TABLE t1 (ascii_bin integer, c char(10), v varchar(20), index(c), index(v)) collate ascii_bin engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	11	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	23	NULL	6	Using where
+drop table t1;
+create table t1 (ascii_bin char(10) primary key) collate ascii_bin engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (ascii_general_ci integer, c char(10), v varchar(20), index(c), index(v)) collate ascii_general_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	11	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	23	NULL	6	Using where
+drop table t1;
+create table t1 (ascii_general_ci char(10) primary key) collate ascii_general_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (big5_bin integer, c char(10), v varchar(20), index(c), index(v)) collate big5_bin engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	21	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	43	NULL	6	Using where
+drop table t1;
+create table t1 (big5_bin char(10) primary key) collate big5_bin engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (big5_chinese_ci integer, c char(10), v varchar(20), index(c), index(v)) collate big5_chinese_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	21	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	43	NULL	6	Using where
+drop table t1;
+create table t1 (big5_chinese_ci char(10) primary key) collate big5_chinese_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (cp1250_bin integer, c char(10), v varchar(20), index(c), index(v)) collate cp1250_bin engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	11	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	23	NULL	6	Using where
+drop table t1;
+create table t1 (cp1250_bin char(10) primary key) collate cp1250_bin engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (cp1250_croatian_ci integer, c char(10), v varchar(20), index(c), index(v)) collate cp1250_croatian_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	11	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	23	NULL	6	Using where
+drop table t1;
+create table t1 (cp1250_croatian_ci char(10) primary key) collate cp1250_croatian_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (cp1250_czech_cs integer, c char(10), v varchar(20), index(c), index(v)) collate cp1250_czech_cs engine=ibmdb2i;
+CREATE TABLE t1 (cp1250_general_ci integer, c char(10), v varchar(20), index(c), index(v)) collate cp1250_general_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	11	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	23	NULL	6	Using where
+drop table t1;
+create table t1 (cp1250_general_ci char(10) primary key) collate cp1250_general_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (cp1250_polish_ci integer, c char(10), v varchar(20), index(c), index(v)) collate cp1250_polish_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	11	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	23	NULL	6	Using where
+drop table t1;
+create table t1 (cp1250_polish_ci char(10) primary key) collate cp1250_polish_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (cp1251_bin integer, c char(10), v varchar(20), index(c), index(v)) collate cp1251_bin engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	11	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	23	NULL	6	Using where
+drop table t1;
+create table t1 (cp1251_bin char(10) primary key) collate cp1251_bin engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (cp1251_bulgarian_ci integer, c char(10), v varchar(20), index(c), index(v)) collate cp1251_bulgarian_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	11	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	23	NULL	6	Using where
+drop table t1;
+create table t1 (cp1251_bulgarian_ci char(10) primary key) collate cp1251_bulgarian_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (cp1251_general_ci integer, c char(10), v varchar(20), index(c), index(v)) collate cp1251_general_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	11	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	23	NULL	6	Using where
+drop table t1;
+create table t1 (cp1251_general_ci char(10) primary key) collate cp1251_general_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (cp1251_general_cs integer, c char(10), v varchar(20), index(c), index(v)) collate cp1251_general_cs engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	11	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	23	NULL	6	Using where
+drop table t1;
+create table t1 (cp1251_general_cs char(10) primary key) collate cp1251_general_cs engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (cp1251_ukrainian_ci integer, c char(10), v varchar(20), index(c), index(v)) collate cp1251_ukrainian_ci engine=ibmdb2i;
+CREATE TABLE t1 (cp1256_bin integer, c char(10), v varchar(20), index(c), index(v)) collate cp1256_bin engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	11	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	23	NULL	6	Using where
+drop table t1;
+create table t1 (cp1256_bin char(10) primary key) collate cp1256_bin engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (cp1256_general_ci integer, c char(10), v varchar(20), index(c), index(v)) collate cp1256_general_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	11	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	23	NULL	6	Using where
+drop table t1;
+create table t1 (cp1256_general_ci char(10) primary key) collate cp1256_general_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (cp1257_bin integer, c char(10), v varchar(20), index(c), index(v)) collate cp1257_bin engine=ibmdb2i;
+CREATE TABLE t1 (cp1257_general_ci integer, c char(10), v varchar(20), index(c), index(v)) collate cp1257_general_ci engine=ibmdb2i;
+CREATE TABLE t1 (cp1257_lithuanian_ci integer, c char(10), v varchar(20), index(c), index(v)) collate cp1257_lithuanian_ci engine=ibmdb2i;
+CREATE TABLE t1 (cp850_bin integer, c char(10), v varchar(20), index(c), index(v)) collate cp850_bin engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	11	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	23	NULL	6	Using where
+drop table t1;
+create table t1 (cp850_bin char(10) primary key) collate cp850_bin engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (cp850_general_ci integer, c char(10), v varchar(20), index(c), index(v)) collate cp850_general_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	11	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	23	NULL	6	Using where
+drop table t1;
+create table t1 (cp850_general_ci char(10) primary key) collate cp850_general_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (cp852_bin integer, c char(10), v varchar(20), index(c), index(v)) collate cp852_bin engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	11	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	23	NULL	6	Using where
+drop table t1;
+create table t1 (cp852_bin char(10) primary key) collate cp852_bin engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (cp852_general_ci integer, c char(10), v varchar(20), index(c), index(v)) collate cp852_general_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	11	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	23	NULL	6	Using where
+drop table t1;
+create table t1 (cp852_general_ci char(10) primary key) collate cp852_general_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (cp866_bin integer, c char(10), v varchar(20), index(c), index(v)) collate cp866_bin engine=ibmdb2i;
+CREATE TABLE t1 (cp866_general_ci integer, c char(10), v varchar(20), index(c), index(v)) collate cp866_general_ci engine=ibmdb2i;
+CREATE TABLE t1 (cp932_bin integer, c char(10), v varchar(20), index(c), index(v)) collate cp932_bin engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	21	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	43	NULL	6	Using where
+drop table t1;
+create table t1 (cp932_bin char(10) primary key) collate cp932_bin engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (cp932_japanese_ci integer, c char(10), v varchar(20), index(c), index(v)) collate cp932_japanese_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	21	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	43	NULL	6	Using where
+drop table t1;
+create table t1 (cp932_japanese_ci char(10) primary key) collate cp932_japanese_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (dec8_bin integer, c char(10), v varchar(20), index(c), index(v)) collate dec8_bin engine=ibmdb2i;
+CREATE TABLE t1 (dec8_swedish_ci integer, c char(10), v varchar(20), index(c), index(v)) collate dec8_swedish_ci engine=ibmdb2i;
+CREATE TABLE t1 (eucjpms_bin integer, c char(10), v varchar(20), index(c), index(v)) collate eucjpms_bin engine=ibmdb2i;
+CREATE TABLE t1 (eucjpms_japanese_ci integer, c char(10), v varchar(20), index(c), index(v)) collate eucjpms_japanese_ci engine=ibmdb2i;
+CREATE TABLE t1 (euckr_bin integer, c char(10), v varchar(20), index(c), index(v)) collate euckr_bin engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	21	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	43	NULL	6	Using where
+drop table t1;
+create table t1 (euckr_bin char(10) primary key) collate euckr_bin engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (euckr_korean_ci integer, c char(10), v varchar(20), index(c), index(v)) collate euckr_korean_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	21	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	43	NULL	6	Using where
+drop table t1;
+create table t1 (euckr_korean_ci char(10) primary key) collate euckr_korean_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (gb2312_bin integer, c char(10), v varchar(20), index(c), index(v)) collate gb2312_bin engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	21	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	43	NULL	6	Using where
+drop table t1;
+create table t1 (gb2312_bin char(10) primary key) collate gb2312_bin engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (gb2312_chinese_ci integer, c char(10), v varchar(20), index(c), index(v)) collate gb2312_chinese_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	21	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	43	NULL	6	Using where
+drop table t1;
+create table t1 (gb2312_chinese_ci char(10) primary key) collate gb2312_chinese_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (gbk_bin integer, c char(10), v varchar(20), index(c), index(v)) collate gbk_bin engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	21	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	43	NULL	6	Using where
+drop table t1;
+create table t1 (gbk_bin char(10) primary key) collate gbk_bin engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (gbk_chinese_ci integer, c char(10), v varchar(20), index(c), index(v)) collate gbk_chinese_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	21	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	43	NULL	6	Using where
+drop table t1;
+create table t1 (gbk_chinese_ci char(10) primary key) collate gbk_chinese_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (geostd8_bin integer, c char(10), v varchar(20), index(c), index(v)) collate geostd8_bin engine=ibmdb2i;
+CREATE TABLE t1 (geostd8_general_ci integer, c char(10), v varchar(20), index(c), index(v)) collate geostd8_general_ci engine=ibmdb2i;
+CREATE TABLE t1 (greek_bin integer, c char(10), v varchar(20), index(c), index(v)) collate greek_bin engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	11	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	23	NULL	6	Using where
+drop table t1;
+create table t1 (greek_bin char(10) primary key) collate greek_bin engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (greek_general_ci integer, c char(10), v varchar(20), index(c), index(v)) collate greek_general_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	11	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	23	NULL	6	Using where
+drop table t1;
+create table t1 (greek_general_ci char(10) primary key) collate greek_general_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (hebrew_bin integer, c char(10), v varchar(20), index(c), index(v)) collate hebrew_bin engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	11	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	23	NULL	6	Using where
+drop table t1;
+create table t1 (hebrew_bin char(10) primary key) collate hebrew_bin engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (hebrew_general_ci integer, c char(10), v varchar(20), index(c), index(v)) collate hebrew_general_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	11	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	23	NULL	6	Using where
+drop table t1;
+create table t1 (hebrew_general_ci char(10) primary key) collate hebrew_general_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (hp8_bin integer, c char(10), v varchar(20), index(c), index(v)) collate hp8_bin engine=ibmdb2i;
+CREATE TABLE t1 (hp8_english_ci integer, c char(10), v varchar(20), index(c), index(v)) collate hp8_english_ci engine=ibmdb2i;
+CREATE TABLE t1 (keybcs2_bin integer, c char(10), v varchar(20), index(c), index(v)) collate keybcs2_bin engine=ibmdb2i;
+CREATE TABLE t1 (keybcs2_general_ci integer, c char(10), v varchar(20), index(c), index(v)) collate keybcs2_general_ci engine=ibmdb2i;
+CREATE TABLE t1 (koi8r_bin integer, c char(10), v varchar(20), index(c), index(v)) collate koi8r_bin engine=ibmdb2i;
+CREATE TABLE t1 (koi8r_general_ci integer, c char(10), v varchar(20), index(c), index(v)) collate koi8r_general_ci engine=ibmdb2i;
+CREATE TABLE t1 (koi8u_bin integer, c char(10), v varchar(20), index(c), index(v)) collate koi8u_bin engine=ibmdb2i;
+CREATE TABLE t1 (koi8u_general_ci integer, c char(10), v varchar(20), index(c), index(v)) collate koi8u_general_ci engine=ibmdb2i;
+CREATE TABLE t1 (latin1_bin integer, c char(10), v varchar(20), index(c), index(v)) collate latin1_bin engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	11	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	23	NULL	6	Using where
+drop table t1;
+create table t1 (latin1_bin char(10) primary key) collate latin1_bin engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (latin1_danish_ci integer, c char(10), v varchar(20), index(c), index(v)) collate latin1_danish_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	11	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	23	NULL	6	Using where
+drop table t1;
+create table t1 (latin1_danish_ci char(10) primary key) collate latin1_danish_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (latin1_general_ci integer, c char(10), v varchar(20), index(c), index(v)) collate latin1_general_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	11	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	23	NULL	6	Using where
+drop table t1;
+create table t1 (latin1_general_ci char(10) primary key) collate latin1_general_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (latin1_general_cs integer, c char(10), v varchar(20), index(c), index(v)) collate latin1_general_cs engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	11	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	23	NULL	6	Using where
+drop table t1;
+create table t1 (latin1_general_cs char(10) primary key) collate latin1_general_cs engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (latin1_german1_ci integer, c char(10), v varchar(20), index(c), index(v)) collate latin1_german1_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	11	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	23	NULL	6	Using where
+drop table t1;
+create table t1 (latin1_german1_ci char(10) primary key) collate latin1_german1_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (latin1_german2_ci integer, c char(10), v varchar(20), index(c), index(v)) collate latin1_german2_ci engine=ibmdb2i;
+CREATE TABLE t1 (latin1_spanish_ci integer, c char(10), v varchar(20), index(c), index(v)) collate latin1_spanish_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	11	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	23	NULL	6	Using where
+drop table t1;
+create table t1 (latin1_spanish_ci char(10) primary key) collate latin1_spanish_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (latin1_swedish_ci integer, c char(10), v varchar(20), index(c), index(v)) collate latin1_swedish_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	11	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	23	NULL	6	Using where
+drop table t1;
+create table t1 (latin1_swedish_ci char(10) primary key) collate latin1_swedish_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (latin2_bin integer, c char(10), v varchar(20), index(c), index(v)) collate latin2_bin engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	11	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	23	NULL	6	Using where
+drop table t1;
+create table t1 (latin2_bin char(10) primary key) collate latin2_bin engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (latin2_croatian_ci integer, c char(10), v varchar(20), index(c), index(v)) collate latin2_croatian_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	11	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	23	NULL	6	Using where
+drop table t1;
+create table t1 (latin2_croatian_ci char(10) primary key) collate latin2_croatian_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (latin2_czech_cs integer, c char(10), v varchar(20), index(c), index(v)) collate latin2_czech_cs engine=ibmdb2i;
+CREATE TABLE t1 (latin2_general_ci integer, c char(10), v varchar(20), index(c), index(v)) collate latin2_general_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	11	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	23	NULL	6	Using where
+drop table t1;
+create table t1 (latin2_general_ci char(10) primary key) collate latin2_general_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (latin2_hungarian_ci integer, c char(10), v varchar(20), index(c), index(v)) collate latin2_hungarian_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	11	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	23	NULL	6	Using where
+drop table t1;
+create table t1 (latin2_hungarian_ci char(10) primary key) collate latin2_hungarian_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (latin5_bin integer, c char(10), v varchar(20), index(c), index(v)) collate latin5_bin engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	11	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	23	NULL	6	Using where
+drop table t1;
+create table t1 (latin5_bin char(10) primary key) collate latin5_bin engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (latin5_turkish_ci integer, c char(10), v varchar(20), index(c), index(v)) collate latin5_turkish_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	11	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	23	NULL	6	Using where
+drop table t1;
+create table t1 (latin5_turkish_ci char(10) primary key) collate latin5_turkish_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (latin7_bin integer, c char(10), v varchar(20), index(c), index(v)) collate latin7_bin engine=ibmdb2i;
+CREATE TABLE t1 (latin7_estonian_cs integer, c char(10), v varchar(20), index(c), index(v)) collate latin7_estonian_cs engine=ibmdb2i;
+CREATE TABLE t1 (latin7_general_ci integer, c char(10), v varchar(20), index(c), index(v)) collate latin7_general_ci engine=ibmdb2i;
+CREATE TABLE t1 (latin7_general_cs integer, c char(10), v varchar(20), index(c), index(v)) collate latin7_general_cs engine=ibmdb2i;
+CREATE TABLE t1 (macce_bin integer, c char(10), v varchar(20), index(c), index(v)) collate macce_bin engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	11	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	23	NULL	6	Using where
+drop table t1;
+create table t1 (macce_bin char(10) primary key) collate macce_bin engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (macce_general_ci integer, c char(10), v varchar(20), index(c), index(v)) collate macce_general_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	11	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	23	NULL	6	Using where
+drop table t1;
+create table t1 (macce_general_ci char(10) primary key) collate macce_general_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (macroman_bin integer, c char(10), v varchar(20), index(c), index(v)) collate macroman_bin engine=ibmdb2i;
+CREATE TABLE t1 (macroman_general_ci integer, c char(10), v varchar(20), index(c), index(v)) collate macroman_general_ci engine=ibmdb2i;
+CREATE TABLE t1 (sjis_bin integer, c char(10), v varchar(20), index(c), index(v)) collate sjis_bin engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	21	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	43	NULL	6	Using where
+drop table t1;
+create table t1 (sjis_bin char(10) primary key) collate sjis_bin engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (sjis_japanese_ci integer, c char(10), v varchar(20), index(c), index(v)) collate sjis_japanese_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	21	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	43	NULL	6	Using where
+drop table t1;
+create table t1 (sjis_japanese_ci char(10) primary key) collate sjis_japanese_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (swe7_bin integer, c char(10), v varchar(20), index(c), index(v)) collate swe7_bin engine=ibmdb2i;
+CREATE TABLE t1 (swe7_swedish_ci integer, c char(10), v varchar(20), index(c), index(v)) collate swe7_swedish_ci engine=ibmdb2i;
+CREATE TABLE t1 (tis620_bin integer, c char(10), v varchar(20), index(c), index(v)) collate tis620_bin engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	11	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	23	NULL	6	Using where
+drop table t1;
+create table t1 (tis620_bin char(10) primary key) collate tis620_bin engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (tis620_thai_ci integer, c char(10), v varchar(20), index(c), index(v)) collate tis620_thai_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	11	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	23	NULL	6	Using where
+drop table t1;
+create table t1 (tis620_thai_ci char(10) primary key) collate tis620_thai_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (ucs2_bin integer, c char(10), v varchar(20), index(c), index(v)) collate ucs2_bin engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	21	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	43	NULL	6	Using where
+drop table t1;
+create table t1 (ucs2_bin char(10) primary key) collate ucs2_bin engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (ucs2_czech_ci integer, c char(10), v varchar(20), index(c), index(v)) collate ucs2_czech_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	21	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	43	NULL	6	Using where
+drop table t1;
+create table t1 (ucs2_czech_ci char(10) primary key) collate ucs2_czech_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (ucs2_danish_ci integer, c char(10), v varchar(20), index(c), index(v)) collate ucs2_danish_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	21	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	43	NULL	6	Using where
+drop table t1;
+create table t1 (ucs2_danish_ci char(10) primary key) collate ucs2_danish_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (ucs2_esperanto_ci integer, c char(10), v varchar(20), index(c), index(v)) collate ucs2_esperanto_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	21	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	43	NULL	6	Using where
+drop table t1;
+create table t1 (ucs2_esperanto_ci char(10) primary key) collate ucs2_esperanto_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (ucs2_estonian_ci integer, c char(10), v varchar(20), index(c), index(v)) collate ucs2_estonian_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	21	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	43	NULL	6	Using where
+drop table t1;
+create table t1 (ucs2_estonian_ci char(10) primary key) collate ucs2_estonian_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (ucs2_general_ci integer, c char(10), v varchar(20), index(c), index(v)) collate ucs2_general_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	21	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	43	NULL	6	Using where
+drop table t1;
+create table t1 (ucs2_general_ci char(10) primary key) collate ucs2_general_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (ucs2_hungarian_ci integer, c char(10), v varchar(20), index(c), index(v)) collate ucs2_hungarian_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	21	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	43	NULL	6	Using where
+drop table t1;
+create table t1 (ucs2_hungarian_ci char(10) primary key) collate ucs2_hungarian_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (ucs2_icelandic_ci integer, c char(10), v varchar(20), index(c), index(v)) collate ucs2_icelandic_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	21	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	43	NULL	6	Using where
+drop table t1;
+create table t1 (ucs2_icelandic_ci char(10) primary key) collate ucs2_icelandic_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (ucs2_latvian_ci integer, c char(10), v varchar(20), index(c), index(v)) collate ucs2_latvian_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	21	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	43	NULL	6	Using where
+drop table t1;
+create table t1 (ucs2_latvian_ci char(10) primary key) collate ucs2_latvian_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (ucs2_lithuanian_ci integer, c char(10), v varchar(20), index(c), index(v)) collate ucs2_lithuanian_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	21	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	43	NULL	6	Using where
+drop table t1;
+create table t1 (ucs2_lithuanian_ci char(10) primary key) collate ucs2_lithuanian_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (ucs2_persian_ci integer, c char(10), v varchar(20), index(c), index(v)) collate ucs2_persian_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	21	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	43	NULL	6	Using where
+drop table t1;
+create table t1 (ucs2_persian_ci char(10) primary key) collate ucs2_persian_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (ucs2_polish_ci integer, c char(10), v varchar(20), index(c), index(v)) collate ucs2_polish_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	21	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	43	NULL	6	Using where
+drop table t1;
+create table t1 (ucs2_polish_ci char(10) primary key) collate ucs2_polish_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (ucs2_romanian_ci integer, c char(10), v varchar(20), index(c), index(v)) collate ucs2_romanian_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	21	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	43	NULL	6	Using where
+drop table t1;
+create table t1 (ucs2_romanian_ci char(10) primary key) collate ucs2_romanian_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (ucs2_roman_ci integer, c char(10), v varchar(20), index(c), index(v)) collate ucs2_roman_ci engine=ibmdb2i;
+CREATE TABLE t1 (ucs2_slovak_ci integer, c char(10), v varchar(20), index(c), index(v)) collate ucs2_slovak_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	21	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	43	NULL	6	Using where
+drop table t1;
+create table t1 (ucs2_slovak_ci char(10) primary key) collate ucs2_slovak_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (ucs2_slovenian_ci integer, c char(10), v varchar(20), index(c), index(v)) collate ucs2_slovenian_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	21	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	43	NULL	6	Using where
+drop table t1;
+create table t1 (ucs2_slovenian_ci char(10) primary key) collate ucs2_slovenian_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (ucs2_spanish2_ci integer, c char(10), v varchar(20), index(c), index(v)) collate ucs2_spanish2_ci engine=ibmdb2i;
+CREATE TABLE t1 (ucs2_spanish_ci integer, c char(10), v varchar(20), index(c), index(v)) collate ucs2_spanish_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	21	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	43	NULL	6	Using where
+drop table t1;
+create table t1 (ucs2_spanish_ci char(10) primary key) collate ucs2_spanish_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (ucs2_swedish_ci integer, c char(10), v varchar(20), index(c), index(v)) collate ucs2_swedish_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	21	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	43	NULL	6	Using where
+drop table t1;
+create table t1 (ucs2_swedish_ci char(10) primary key) collate ucs2_swedish_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (ucs2_turkish_ci integer, c char(10), v varchar(20), index(c), index(v)) collate ucs2_turkish_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	21	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	43	NULL	6	Using where
+drop table t1;
+create table t1 (ucs2_turkish_ci char(10) primary key) collate ucs2_turkish_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (ucs2_unicode_ci integer, c char(10), v varchar(20), index(c), index(v)) collate ucs2_unicode_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	21	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	43	NULL	6	Using where
+drop table t1;
+create table t1 (ucs2_unicode_ci char(10) primary key) collate ucs2_unicode_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (ujis_bin integer, c char(10), v varchar(20), index(c), index(v)) collate ujis_bin engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	31	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	63	NULL	6	Using where
+drop table t1;
+create table t1 (ujis_bin char(10) primary key) collate ujis_bin engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (ujis_japanese_ci integer, c char(10), v varchar(20), index(c), index(v)) collate ujis_japanese_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	31	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	63	NULL	6	Using where
+drop table t1;
+create table t1 (ujis_japanese_ci char(10) primary key) collate ujis_japanese_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (utf8_bin integer, c char(10), v varchar(20), index(c), index(v)) collate utf8_bin engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	31	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	63	NULL	6	Using where
+drop table t1;
+create table t1 (utf8_bin char(10) primary key) collate utf8_bin engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (utf8_czech_ci integer, c char(10), v varchar(20), index(c), index(v)) collate utf8_czech_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	31	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	63	NULL	6	Using where
+drop table t1;
+create table t1 (utf8_czech_ci char(10) primary key) collate utf8_czech_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (utf8_danish_ci integer, c char(10), v varchar(20), index(c), index(v)) collate utf8_danish_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	31	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	63	NULL	6	Using where
+drop table t1;
+create table t1 (utf8_danish_ci char(10) primary key) collate utf8_danish_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (utf8_esperanto_ci integer, c char(10), v varchar(20), index(c), index(v)) collate utf8_esperanto_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	31	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	63	NULL	6	Using where
+drop table t1;
+create table t1 (utf8_esperanto_ci char(10) primary key) collate utf8_esperanto_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (utf8_estonian_ci integer, c char(10), v varchar(20), index(c), index(v)) collate utf8_estonian_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	31	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	63	NULL	6	Using where
+drop table t1;
+create table t1 (utf8_estonian_ci char(10) primary key) collate utf8_estonian_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (utf8_general_ci integer, c char(10), v varchar(20), index(c), index(v)) collate utf8_general_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	31	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	63	NULL	6	Using where
+drop table t1;
+create table t1 (utf8_general_ci char(10) primary key) collate utf8_general_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (utf8_hungarian_ci integer, c char(10), v varchar(20), index(c), index(v)) collate utf8_hungarian_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	31	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	63	NULL	6	Using where
+drop table t1;
+create table t1 (utf8_hungarian_ci char(10) primary key) collate utf8_hungarian_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (utf8_icelandic_ci integer, c char(10), v varchar(20), index(c), index(v)) collate utf8_icelandic_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	31	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	63	NULL	6	Using where
+drop table t1;
+create table t1 (utf8_icelandic_ci char(10) primary key) collate utf8_icelandic_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (utf8_latvian_ci integer, c char(10), v varchar(20), index(c), index(v)) collate utf8_latvian_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	31	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	63	NULL	6	Using where
+drop table t1;
+create table t1 (utf8_latvian_ci char(10) primary key) collate utf8_latvian_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (utf8_lithuanian_ci integer, c char(10), v varchar(20), index(c), index(v)) collate utf8_lithuanian_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	31	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	63	NULL	6	Using where
+drop table t1;
+create table t1 (utf8_lithuanian_ci char(10) primary key) collate utf8_lithuanian_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (utf8_persian_ci integer, c char(10), v varchar(20), index(c), index(v)) collate utf8_persian_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	31	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	63	NULL	6	Using where
+drop table t1;
+create table t1 (utf8_persian_ci char(10) primary key) collate utf8_persian_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (utf8_polish_ci integer, c char(10), v varchar(20), index(c), index(v)) collate utf8_polish_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	31	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	63	NULL	6	Using where
+drop table t1;
+create table t1 (utf8_polish_ci char(10) primary key) collate utf8_polish_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (utf8_romanian_ci integer, c char(10), v varchar(20), index(c), index(v)) collate utf8_romanian_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	31	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	63	NULL	6	Using where
+drop table t1;
+create table t1 (utf8_romanian_ci char(10) primary key) collate utf8_romanian_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (utf8_roman_ci integer, c char(10), v varchar(20), index(c), index(v)) collate utf8_roman_ci engine=ibmdb2i;
+CREATE TABLE t1 (utf8_slovak_ci integer, c char(10), v varchar(20), index(c), index(v)) collate utf8_slovak_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	31	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	63	NULL	6	Using where
+drop table t1;
+create table t1 (utf8_slovak_ci char(10) primary key) collate utf8_slovak_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (utf8_slovenian_ci integer, c char(10), v varchar(20), index(c), index(v)) collate utf8_slovenian_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	31	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	63	NULL	6	Using where
+drop table t1;
+create table t1 (utf8_slovenian_ci char(10) primary key) collate utf8_slovenian_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (utf8_spanish2_ci integer, c char(10), v varchar(20), index(c), index(v)) collate utf8_spanish2_ci engine=ibmdb2i;
+CREATE TABLE t1 (utf8_spanish_ci integer, c char(10), v varchar(20), index(c), index(v)) collate utf8_spanish_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	31	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	63	NULL	6	Using where
+drop table t1;
+create table t1 (utf8_spanish_ci char(10) primary key) collate utf8_spanish_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (utf8_swedish_ci integer, c char(10), v varchar(20), index(c), index(v)) collate utf8_swedish_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	31	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	63	NULL	6	Using where
+drop table t1;
+create table t1 (utf8_swedish_ci char(10) primary key) collate utf8_swedish_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (utf8_turkish_ci integer, c char(10), v varchar(20), index(c), index(v)) collate utf8_turkish_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	31	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	63	NULL	6	Using where
+drop table t1;
+create table t1 (utf8_turkish_ci char(10) primary key) collate utf8_turkish_ci engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (utf8_unicode_ci integer, c char(10), v varchar(20), index(c), index(v)) collate utf8_unicode_ci engine=ibmdb2i;
+insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+insert into t1 select * from t1;
+explain select c,v from t1 force index(c) where c like "ab%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	31	NULL	6	Using where
+explain select c,v from t1 force index(v) where v like "de%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	63	NULL	6	Using where
+drop table t1;
+create table t1 (utf8_unicode_ci char(10) primary key) collate utf8_unicode_ci engine=ibmdb2i;
+drop table t1;
+create table ffd (WHCHD1 CHAR(20), WHCSID decimal(5,0)) engine=ibmdb2i;
+create table fd (SQSSEQ CHAR(10)) engine=ibmdb2i;
+create temporary table intermed (row integer key auto_increment, cs char(30), ccsid integer);
+insert into intermed (cs, ccsid) select * from ffd;
+create temporary table intermed2 (row integer key auto_increment, srtseq char(10));
+insert into intermed2 (srtseq) select * from fd;
+select ccsid, cs, srtseq from intermed inner join intermed2 on intermed.row = intermed2.row;
+ccsid	cs	srtseq
+500	"ascii_bin"	QBLA101F4U
+500	"ascii_general_ci"	QALA101F4S
+1200	"big5_bin"	QBCHT04B0U
+1200	"big5_chinese_ci"	QACHT04B0S
+1153	"cp1250_bin"	QELA20481U
+1153	"cp1250_croatian_ci"	QALA20481S
+1153	"cp1250_general_ci"	QCLA20481S
+1153	"cp1250_polish_ci"	QDLA20481S
+1025	"cp1251_bin"	QCCYR0401U
+1025	"cp1251_bulgarian_ci	QACYR0401S
+1025	"cp1251_general_ci"	QBCYR0401S
+1025	"cp1251_general_cs"	QBCYR0401U
+420	"cp1256_bin"	QBARA01A4U
+420	"cp1256_general_ci"	QAARA01A4S
+500	"cp850_bin"	QDLA101F4U
+500	"cp850_general_ci"	QCLA101F4S
+870	"cp852_bin"	QBLA20366U
+870	"cp852_general_ci"	QALA20366S
+1200	"cp932_bin"	QBJPN04B0U
+1200	"cp932_japanese_ci"	QAJPN04B0S
+1200	"euckr_bin"	QBKOR04B0U
+1200	"euckr_korean_ci"	QAKOR04B0S
+1200	"gb2312_bin"	QBCHS04B0U
+1200	"gb2312_chinese_ci"	QACHS04B0S
+1200	"gbk_bin"	QDCHS04B0U
+1200	"gbk_chinese_ci"	QCCHS04B0S
+875	"greek_bin"	QBELL036BU
+875	"greek_general_ci"	QAELL036BS
+424	"hebrew_bin"	QBHEB01A8U
+424	"hebrew_general_ci"	QAHEB01A8S
+1148	"latin1_bin"	QFLA1047CU
+1148	"latin1_danish_ci"	QALA1047CS
+1148	"latin1_general_ci"	QBLA1047CS
+1148	"latin1_general_cs"	QBLA1047CU
+1148	"latin1_german1_ci"	QCLA1047CS
+1148	"latin1_spanish_ci"	QDLA1047CS
+1148	"latin1_swedish_ci"	QELA1047CS
+870	"latin2_bin"	QGLA20366U
+870	"latin2_croatian_ci"	QCLA20366S
+870	"latin2_general_ci"	QELA20366S
+870	"latin2_hungarian_ci	QFLA20366S
+1026	"latin5_bin"	QBTRK0402U
+1026	"latin5_turkish_ci"	QATRK0402S
+870	"macce_bin"	QILA20366U
+870	"macce_general_ci"	QHLA20366S
+1200	"sjis_bin"	QDJPN04B0U
+1200	"sjis_japanese_ci"	QCJPN04B0S
+838	"tis620_bin"	QBTHA0346U
+838	"tis620_thai_ci"	QATHA0346S
+13488	"ucs2_bin"	*HEX
+13488	"ucs2_czech_ci"	I34ACS_CZ
+13488	"ucs2_danish_ci"	I34ADA_DK
+13488	"ucs2_esperanto_ci"	I34AEO
+13488	"ucs2_estonian_ci"	I34AET
+13488	"ucs2_general_ci"	QAUCS04B0S
+13488	"ucs2_hungarian_ci"	I34AHU
+13488	"ucs2_icelandic_ci"	I34AIS
+13488	"ucs2_latvian_ci"	I34ALV
+13488	"ucs2_lithuanian_ci"	I34ALT
+13488	"ucs2_persian_ci"	I34AFA
+13488	"ucs2_polish_ci"	I34APL
+13488	"ucs2_romanian_ci"	I34ARO
+13488	"ucs2_slovak_ci"	I34ASK
+13488	"ucs2_slovenian_ci"	I34ASL
+13488	"ucs2_spanish_ci"	I34AES
+13488	"ucs2_swedish_ci"	I34ASW
+13488	"ucs2_turkish_ci"	I34ATR
+13488	"ucs2_unicode_ci"	I34AEN
+1200	"ujis_bin"	QFJPN04B0U
+1200	"ujis_japanese_ci"	QEJPN04B0S
+1208	"utf8_bin"	*HEX
+1208	"utf8_czech_ci"	I34ACS_CZ
+1208	"utf8_danish_ci"	I34ADA_DK
+1208	"utf8_esperanto_ci"	I34AEO
+1208	"utf8_estonian_ci"	I34AET
+1200	"utf8_general_ci"	QAUCS04B0S
+1208	"utf8_hungarian_ci"	I34AHU
+1208	"utf8_icelandic_ci"	I34AIS
+1208	"utf8_latvian_ci"	I34ALV
+1208	"utf8_lithuanian_ci"	I34ALT
+1208	"utf8_persian_ci"	I34AFA
+1208	"utf8_polish_ci"	I34APL
+1208	"utf8_romanian_ci"	I34ARO
+1208	"utf8_slovak_ci"	I34ASK
+1208	"utf8_slovenian_ci"	I34ASL
+1208	"utf8_spanish_ci"	I34AES
+1208	"utf8_swedish_ci"	I34ASW
+1208	"utf8_turkish_ci"	I34ATR
+1208	"utf8_unicode_ci"	I34AEN
+drop table ffd, fd;
