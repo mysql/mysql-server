@@ -4769,8 +4769,6 @@ static void test_errors()
   result= mysql_store_result(mysql);
   mytest(result);
 
-  DIE_UNLESS(mysql_num_rows(result) == 1);
-
   (void) my_process_result_set(result);
   mysql_free_result(result);
 }
