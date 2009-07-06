@@ -24,3 +24,4 @@ rpl_slave_skip       : Bug#45521: rpl_slave_skip fails in pb2
 loaddata_autocom_ndb : Bug#35148: Error '4009 Cluster Failure' in various tests on various platforms
 ndb_autodiscover3    : Bug#35148: Error '4009 Cluster Failure' in various tests on various platforms
 ndb_autodiscover     : Bug#45972: ndb.ndb_autodiscover fails occasionally with pb2
+ndb_autodiscover2    : Bug#45972: ndb.ndb_autodiscover fails occasionally with pb2
