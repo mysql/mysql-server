@@ -171,7 +171,6 @@ bool rpl_master_has_bug(const Relay_log_info *rli, uint bug_id, bool report,
 bool rpl_master_erroneous_autoinc(THD* thd);
 
 const char *print_slave_db_safe(const char *db);
-int check_expected_error(THD* thd, Relay_log_info const *rli, int error_code);
 void skip_load_data_infile(NET* net);
 
 void end_slave(); /* release slave threads */
