@@ -220,6 +220,7 @@ INTERN  size_t	        myconv_dmap(myconv_t    cd,
       } else {
         *pOut=dmapS2S[*pIn];
         if (*pOut == 0x00) {
+          errno=EILSEQ;  /* 116 */
           *outBytesLeft-=(*inBytesLeft-inLen);
           *inBytesLeft=inLen;
           *outBuf=pOut;
