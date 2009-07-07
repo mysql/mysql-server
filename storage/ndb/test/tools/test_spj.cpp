@@ -262,6 +262,7 @@ void LookupOp::serializeParam(Vector<Uint32>& vec) const{
  insert into T values (1,1,3,11,1,1);
  insert into T values (11,3,4,5,1,1);
  insert into T values (5,4,1,1,1,1);
+ insert into T values (5,255,1,1,1,1);
 
 */
 int spjTest(int argc, char** argv){
@@ -349,9 +350,10 @@ int spjTest(int argc, char** argv){
 
     push_back(treeSpec, _data3, 1);
     
-    NdbQuery* const query = NdbQueryImpl::buildQuery(*pTrans);
+    NdbQuery& query = NdbQueryImpl::buildQuery(*pTrans)->getInterface();
     NdbQueryOperation* const root 
-      = NdbQueryOperationImpl::buildQueryOperation(query->getImpl(), *pOp);
+      = &NdbQueryOperationImpl::buildQueryOperation(query.getImpl(), 
+						   *pOp)->getInterface();
     //query->getImpl().setRootOperation(root);
     NdbQueryOperation* currOp = root;
     const ResultSet* rSet[nNodes];
@@ -359,8 +361,10 @@ int spjTest(int argc, char** argv){
     node[0]->setResultData(root->getImpl().ptr2int());
     for(int i=1; i<nNodes; i++){
       NdbQueryOperation* newOp = 
-	NdbQueryOperationImpl::buildQueryOperation(query->getImpl(), *pOp);
-      currOp->getImpl().addChild(*newOp);
+	&NdbQueryOperationImpl::buildQueryOperation(query.getImpl(), 
+						   *pOp)->getInterface();
+      assert(0);
+      //currOp->getImpl().addChild(*newOp);
       currOp = newOp;
       rSet[i] = new ResultSet(newOp, pTab);
       node[i]->setResultData(newOp->getImpl().ptr2int());
@@ -382,9 +386,9 @@ int spjTest(int argc, char** argv){
     NdbScanFilterImpl::add(pOp, paramSpec.getBase(), paramSpec.size());
     NdbScanFilterImpl::setIsLinkedFlag(pOp);
 
-    query->getImpl().prepareSend();
+    query.getImpl().prepareSend();
     // extern NdbQueryImpl* queryImpl; 
-    pOp->setQueryImpl(&query->getImpl());
+    pOp->setQueryImpl(&query.getImpl());
     pTrans->execute(NoCommit);
     // queryImpl = NULL;
     /*if (pTrans->getNdbError().classification == NdbError::NoDataFound){
@@ -584,8 +588,8 @@ int testSerialize(int argc, char** argv){
 
   /* Dummy for now at least. Key is really set with  ndbOperation->equal().*/
   const NdbQueryOperand* rootKey[] = 
-    {  qb->constValue(11), //a
-       qb->constValue(3), // b
+    {  qb->constValue(5), //a
+       qb->constValue(4), // b
        0
     };
   // Lookup a 'root' tuple.
@@ -597,13 +601,14 @@ int testSerialize(int argc, char** argv){
    */
   const NdbQueryOperand* linkKey[] = 
     {  qb->linkedValue(readRoot, "b0"),
-       qb->linkedValue(readRoot, "a0"),
+       qb->constValue(255), // b
+       // qb->linkedValue(readRoot, "a0"),
        0
     };
   const NdbQueryLookupOperationDef* readLinked = qb->readTuple(tab, linkKey);
   if (readLinked == NULL) APIERROR(qb->getNdbError());
 
-  NdbQueryDef* queryDef = qb->prepare();
+  const NdbQueryDef* queryDef = qb->prepare();
   if (queryDef == NULL) APIERROR(qb->getNdbError());
 
   assert (queryDef->getNoOfOperations() == 2);
