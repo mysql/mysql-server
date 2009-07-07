@@ -26,7 +26,7 @@ path=`dirname $0`
 extra_flags="$amd64_cflags -D__sun -m64 -mtune=athlon64"
 extra_configs="$amd64_configs $max_configs --with-libevent"
 
-LDFLAGS="-lmtmalloc -static-libgcc"
+LDFLAGS="-lmtmalloc -R/usr/sfw/lib/64"
 export LDFLAGS
 
 . "$path/FINISH.sh"

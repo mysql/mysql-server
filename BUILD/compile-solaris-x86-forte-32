@@ -1,0 +1,19 @@
+#!/bin/sh
+
+path=`dirname $0`
+. "$path/SETUP.sh"
+
+extra_flags="-m32 -mt -D_FORTEC_ -xbuiltin=%all -xlibmil -xlibmopt -fns=no -xprefetch=auto -xprefetch_level=3"
+extra_configs="$max_configs --with-libevent"
+
+warnings=""
+c_warnings=""
+cxx_warnings=""
+base_cxxflags="-noex"
+
+CC=cc
+CFLAGS="-xstrconst"
+CXX=CC
+LDFLAGS="-lmtmalloc"
+
+. "$path/FINISH.sh"

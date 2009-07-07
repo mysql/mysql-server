@@ -1,0 +1,27 @@
+#!/bin/sh
+
+path=`dirname $0`
+. "$path/SETUP.sh"
+
+# Take only #define options - the others are gcc specific.
+# (real fix is for SETUP.sh not to put gcc specific options in $debug_cflags)
+DEFS=""
+for F in $debug_cflags ; do
+        expr "$F" : "^-D" && DEFS="$DEFS $F"
+done
+debug_cflags="-O0 -g $DEFS"
+
+extra_flags="-m32 -mt -D_FORTEC_ -xbuiltin=%all -xlibmil -xlibmopt -fns=no -xprefetch=auto -xprefetch_level=3 $debug_cflags"
+extra_configs="$max_configs --with-libevent $debug_configs"
+
+warnings=""
+c_warnings=""
+cxx_warnings=""
+base_cxxflags="-noex"
+
+CC=cc
+CFLAGS="-xstrconst"
+CXX=CC
+LDFLAGS="-lmtmalloc"
+
+. "$path/FINISH.sh"
