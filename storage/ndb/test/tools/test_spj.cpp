@@ -311,6 +311,7 @@ int spjTest(int argc, char** argv){
 
   if (_scan == 0)
   {
+#ifdef UNUSED
     /**
        SELECT t1.*, t2.*
        FROM T t1 LEFT OUTER JOIN T t2 ON t2.a = t1.b0 AND t2.b = t1.a0
@@ -400,6 +401,7 @@ int spjTest(int argc, char** argv){
     for(int i=0; i<nNodes; i++){
       rSet[i]->print();
     }
+#endif
   }
   else if (_scan != 0)
   {
@@ -631,14 +633,15 @@ int testSerialize(int argc, char** argv){
   NdbTransaction* myTransaction= myNdb.startTransaction();
   if (myTransaction == NULL) APIERROR(myNdb.getNdbError());
 
-  NdbOperation* ndbOperation = myTransaction->getNdbOperation(tab);
-  ndbOperation->readTuple(NdbOperation::LM_Dirty);
-  // Set keys for root lookup.
-  ndbOperation->equal("a", 11);
-  ndbOperation->equal("b", 3);
+  //NdbOperation* ndbOperation = myTransaction->getNdbOperation(tab);
 
   // Instantiate NdbQuery for this transaction.
   NdbQuery* query = myTransaction->createQuery(queryDef, NULL);
+
+  // ndbOperation->readTuple(NdbOperation::LM_Dirty);
+  // Set keys for root lookup.
+  query->getImpl().getNdbOperation()->equal("a", 11);
+  query->getImpl().getNdbOperation()->equal("b", 3);
 
   /* Read all attributes from result tuples.*/
   const Uint32 nNodes = query->getNoOfOperations();
@@ -648,7 +651,7 @@ int testSerialize(int argc, char** argv){
   }
 
   /* Serialize query tree and parameters.*/
-  query->getImpl().prepareSend();
+  /*query->getImpl().prepareSend();
 
   Uint32* const tree = new Uint32[queryDef->getImpl().getSerialized().getSize()];
   for(Uint32 i = 0; i<queryDef->getImpl().getSerialized().getSize(); i++){
@@ -658,18 +661,18 @@ int testSerialize(int argc, char** argv){
   Uint32* const params = new Uint32[paramSize];
   for(Uint32 i = 0; i<paramSize; i++){
     params[i] = query->getImpl().getSerialized().get(i);
-  }
+    }*/
 
   /* Copy serialized data into ATTRINFO.*/
-  NdbScanFilterImpl::add(ndbOperation, tree, queryDef->getImpl().getSerialized().getSize());
-  NdbScanFilterImpl::add(ndbOperation, params, paramSize);
-  NdbScanFilterImpl::setIsLinkedFlag(ndbOperation);
+  /*NdbScanFilterImpl::add(ndbOperation, tree, queryDef->getImpl().getSerialized().getSize());
+    NdbScanFilterImpl::add(ndbOperation, params, paramSize);
+    NdbScanFilterImpl::setIsLinkedFlag(ndbOperation);*/
 
   // Add link to 
-  ndbOperation->setQueryImpl(&query->getImpl());
+  // ndbOperation->setQueryImpl(&query->getImpl());
   myTransaction->execute(NoCommit);
   // Print results.
-  for(int i=0; i<nNodes; i++){
+  for(Uint32 i=0; i<nNodes; i++){
     resultSet[i]->print();
   }
 

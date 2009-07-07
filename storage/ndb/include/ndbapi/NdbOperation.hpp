@@ -53,6 +53,7 @@ class NdbOperation
   friend class NdbScanFilterImpl;
   friend class NdbReceiver;
   friend class NdbBlob;
+  friend class NdbQueryImpl;
 #endif
 
 public:

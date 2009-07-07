@@ -32,32 +32,17 @@ class NdbQueryImpl {
 private:
   // Only constructable from factory ::buildQuery();
   explicit NdbQueryImpl(NdbTransaction& trans, 
-			const NdbQueryDefImpl& queryDef);
+                        const NdbQueryDefImpl& queryDef, NdbQueryImpl* next);
 
   ~NdbQueryImpl();
 public:
   STATIC_CONST (MAGIC = 0xdeadface);
 
   // Factory method which instantiate a query from its definition
-  static NdbQueryImpl*
-  buildQuery(NdbTransaction& trans, const NdbQueryDefImpl& queryDef);
+  static NdbQueryImpl* buildQuery(NdbTransaction& trans, 
+                                  const NdbQueryDefImpl& queryDef, 
+                                  NdbQueryImpl* next);
 
-  ///////////////////////////////////////////////////
-  // START: Temp hacks for Jans result set coding 
-  explicit NdbQueryImpl(NdbTransaction& trans);  // TEMP, will be removed
-
-  static NdbQueryImpl*
-  buildQuery(NdbTransaction& trans);
-
-  /** Set an NdbQueryOperation to be the root of a linked operation */
-  // LATER: root and *all* NdbQueryOperations will be constructed 
-  // together with NdbQuery itself in :.buildQuery()
-  void addQueryOperation(NdbQueryOperationImpl* op) {
-    m_operations.push_back(op);
-  }
-  //// END: TEMP hacks
-  //////////////////////////////////////////////////
-  
   Uint32 getNoOfOperations() const;
 
   // Get a specific NdbQueryOperation by ident specified
@@ -92,11 +77,6 @@ public:
     return --m_pendingOperations==0 && m_tcKeyConfReceived;
   }
 
-  /**TODO: Remove this method. Only needed by testSerialize() test code.*/
-  Uint32Buffer& getSerialized(){
-    return m_serializedParams;
-  }
-
   /** Prepare NdbReceiver objects for receiving the first results batch.*/
   void prepareSend();
 
@@ -111,7 +91,12 @@ public:
 
   NdbQuery& getInterface()
   { return m_interface; }
+  
+  /** Get next query in same transaction.*/
+  NdbQueryImpl* getNext() const {return m_next;}
 
+  /** TODO: Remove. Temporary hack for prototype.*/
+  NdbOperation* getNdbOperation() const {return m_ndbOperation;}
 private:
   NdbQuery m_interface;
 
@@ -131,8 +116,13 @@ private:
   int m_pendingOperations;
   /** Serialized representation of parameters. To be sent in TCKEYREQ*/
   Uint32Buffer m_serializedParams;
+  /** Next query in same transaction.*/
+  NdbQueryImpl* const m_next;
+  /** TODO: Remove this.*/
+  NdbOperation* m_ndbOperation;
+  /** Definition of this query.*/
+  const NdbQueryDefImpl& m_queryDef;
 }; // class NdbQueryImpl
-
 
 /** This class contains data members for NdbQueryOperation, such that these
  * do not need to exposed in NdbQueryOperation.hpp. This class may be 
@@ -197,9 +187,6 @@ public:
     child.m_parents.push_back(this);
   }
 
-  NdbOperation& getOperation() const{
-    return m_operation;
-  }
   // End: Hack
   //////////////////////////////////////////////
 
@@ -261,12 +248,8 @@ private:
   NdbQueryImpl& m_queryImpl;
   /** Progress of operation.*/
   State m_state;
-  /** TODO:Only used for result processing prototype purposes. To be removed.*/
-  NdbOperation& m_operation;
   explicit NdbQueryOperationImpl(NdbQueryImpl& queryImpl, 
-				 const NdbQueryOperationDefImpl& def);
-  explicit NdbQueryOperationImpl(NdbQueryImpl& queryImpl, 
-				 NdbOperation& operation);
+                                 const NdbQueryOperationDefImpl& def);
   ~NdbQueryOperationImpl(){
     if (m_id != NdbObjectIdMap::InvalidId) {
       m_queryImpl.getNdbTransaction()->getNdb()->theImpl

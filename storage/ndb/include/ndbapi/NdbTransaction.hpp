@@ -1084,6 +1084,8 @@ private:
   // optim: any blobs
   bool theBlobFlag;
   Uint8 thePendingBlobOps;
+  /** List of linked queries.*/
+  NdbQueryImpl* m_firstQuery;
   inline bool hasBlobOperation() { return theBlobFlag; }
 
   static void sendTC_COMMIT_ACK(class TransporterFacade *, NdbApiSignal *,
