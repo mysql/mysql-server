@@ -189,8 +189,14 @@ public:
   const char* getName() const
   { return m_ident; };
 
-  void addParent(NdbQueryOperationDefImpl *);
-  void addChild(NdbQueryOperationDefImpl *);
+  // Register a operation as parent of this operation
+  void addParent(NdbQueryOperationDefImpl*);
+
+  // Register a linked child refering this operation
+  void addChild(NdbQueryOperationDefImpl*);
+
+  // Register a linked reference to a column from operation
+  Uint32 addColumnRef(const NdbDictionary::Column*);
 
   virtual const NdbQueryOperationDef& getInterface() const = 0; 
 
@@ -198,14 +204,10 @@ public:
    * the struct QueryNode type.
    */
   virtual void serializeOperation(Uint32Buffer& serializedTree) const = 0;
+
   /** Find the projection that should be sent to the SPJ block. This should
    * contain the attributes needed to instantiate all child operations.
    */
-  void computeSPJProjection();
-  Vector<const NdbDictionary::Column*>& getSPJProjection(){
-    return m_spjProjection;
-  }
-
   const Vector<const NdbDictionary::Column*>& getSPJProjection() const{
     return m_spjProjection;
   }
@@ -220,15 +222,11 @@ protected:
                            const char* ident,
                            Uint32      ix)
    : m_table(table), m_ident(ident), m_ix(ix),
-     m_parents(), m_children()
+     m_parents(), m_children(),
+     m_spjProjection()
  {};
   
 private:
-  /** Update the projection that the parent operation will send to the SPJ
-   * block, such that it includes the attributes that this operation needs
-   * to be instantiated.
-   */
-  virtual void updateSPJProjection(NdbQueryOperationDefImpl& parent) const = 0;
   const NdbDictionary::Table& m_table;
   const char* const m_ident; // Optional name specified by aplication
   const Uint32 m_ix;         // Index if this operation within operation array

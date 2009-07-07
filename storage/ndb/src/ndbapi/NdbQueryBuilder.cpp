@@ -131,11 +131,16 @@ public:
   virtual int bindOperand(const NdbDictionary::Column& column,
                           NdbQueryOperationDefImpl& operation);
 
-  const NdbDictionary::Column& getParentColumn() const
-  { return m_parentColumn;
-  }
   const NdbQueryOperationDefImpl& getParentOperation() const
   { return m_parentOperation;
+  }
+  // 'LinkedSrc' is index into parent op's spj-projection list where
+  // the refered column value is available
+  Uint32 getLinkedSrc() const
+  { return m_parentColumnIx;
+  }
+  const NdbDictionary::Column& getParentColumn() const
+  { return *m_parentOperation.getSPJProjection()[m_parentColumnIx];
   }
   virtual const NdbQueryOperand& getInterface() const
   { return m_interface;
@@ -144,16 +149,18 @@ public:
 private:
   friend NdbQueryBuilderImpl::~NdbQueryBuilderImpl();
   virtual ~NdbLinkedOperandImpl() {};
+
   NdbLinkedOperandImpl (NdbQueryOperationDefImpl& parent, 
-                        const NdbDictionary::Column& column)
+                        Uint32 columnIx)
    : NdbQueryOperandImpl(OperandKind_Linked),
      m_interface(*this), 
-     m_parentOperation(parent), m_parentColumn(column)
+     m_parentOperation(parent),
+     m_parentColumnIx(columnIx)
   {};
 
   NdbLinkedOperand m_interface;
   NdbQueryOperationDefImpl& m_parentOperation;
-  const NdbDictionary::Column& m_parentColumn;
+  const Uint32 m_parentColumnIx;
 }; // class NdbLinkedOperandImpl
 
 
@@ -328,8 +335,6 @@ private:
   { return m_interface; }
 
 private:
-  virtual void updateSPJProjection(NdbQueryOperationDefImpl& parent) const;
-
   NdbQueryLookupOperationDef m_interface;
   const NdbDictionary::Index* const m_index;
   NdbQueryOperandImpl* m_keys[MAX_ATTRIBUTES_IN_INDEX+1];
@@ -370,11 +375,6 @@ private:
       m_interface(*this) 
   {};
 
-  virtual void updateSPJProjection(NdbQueryOperationDefImpl& parent) const {
-    // TODO: implement this;
-    assert(false);
-  }
-
   NdbQueryTableScanOperationDef m_interface;
 
 }; // class NdbQueryTableScanOperationDefImpl
@@ -402,10 +402,6 @@ private:
                            const char* ident,
                            Uint32      ix);
 
-  virtual void updateSPJProjection(NdbQueryOperationDefImpl& parent) const {
-    // TODO: implement this;
-    assert(false);
-  }
 private:
   NdbQueryIndexScanOperationDef m_interface;
   const NdbDictionary::Index& m_index;
@@ -716,16 +712,20 @@ NdbLinkedOperand*
 NdbQueryBuilder::linkedValue(const NdbQueryOperationDef* parent, const char* attr)
 {
   returnErrIf(parent==0 || attr==0, 4800);  // Required non-NULL arguments
-  NdbQueryOperationDefImpl* parentImpl = &parent->getImpl();
+  NdbQueryOperationDefImpl& parentImpl = parent->getImpl();
 
   // Parent should be a OperationDef contained in this query builder context
-  returnErrIf(!m_pimpl->contains(parentImpl), 4804); // Unknown parent
+  returnErrIf(!m_pimpl->contains(&parentImpl), 4804); // Unknown parent
 
   // 'attr' should refer a column from the underlying table in parent:
-  const NdbDictionary::Column* column = parentImpl->getTable().getColumn(attr);
+  const NdbDictionary::Column* column = parentImpl.getTable().getColumn(attr);
   returnErrIf(column==0, 4805); // Unknown column
 
-  NdbLinkedOperandImpl* linkedOp = new NdbLinkedOperandImpl(*parentImpl,*column);
+  // Locate refered parrent column in parent operations SPJ projection list;
+  // Add if not already present
+  Uint32 spjRef = parentImpl.addColumnRef(column);
+
+  NdbLinkedOperandImpl* linkedOp = new NdbLinkedOperandImpl(parentImpl,spjRef);
   returnErrIf(linkedOp==0, 4000);
 
   m_pimpl->m_linkedOperands.push_back(linkedOp);
@@ -971,9 +971,6 @@ NdbQueryDefImpl::NdbQueryDefImpl(const NdbQueryBuilderImpl& builder)
  : m_interface(*this), 
    m_operations(builder.m_operations)
 {
-  for(Uint32 i = 0; i<m_operations.size(); i++){
-    m_operations[i]->computeSPJProjection();
-  }
   /* Sets size to 1, such that serialization of operation 0 will start from 
    * offset 1, leaving space for the length field.*/
   m_serializedDef.get(0); 
@@ -1107,31 +1104,42 @@ NdbQueryIndexScanOperationDefImpl::NdbQueryIndexScanOperationDefImpl (
 
 
 void
-NdbQueryOperationDefImpl::addParent(NdbQueryOperationDefImpl *opDef)
+NdbQueryOperationDefImpl::addParent(NdbQueryOperationDefImpl* parentOp)
 {
+
   for (Uint32 i=0; i<m_parents.size(); ++i)
-  { if (m_parents[i] == opDef)
+  { if (m_parents[i] == parentOp)
       return;
   }
-  m_parents.push_back(opDef);
+  m_parents.push_back(parentOp);
 }
 
 void
-NdbQueryOperationDefImpl::addChild(NdbQueryOperationDefImpl *opDef)
+NdbQueryOperationDefImpl::addChild(NdbQueryOperationDefImpl* childOp)
 {
   for (Uint32 i=0; i<m_children.size(); ++i)
-  { if (m_children[i] == opDef)
+  { if (m_children[i] == childOp)
       return;
   }
-  m_children.push_back(opDef);
+  m_children.push_back(childOp);
 }
 
-void
-NdbQueryOperationDefImpl::computeSPJProjection(){
-  for(Uint32 i = 0; i<getNoOfChildOperations(); i++){
-    getChildOperation(i).updateSPJProjection(*this);
+
+// Register a linked reference to a column available from this operation
+Uint32
+NdbQueryOperationDefImpl::addColumnRef(const NdbDictionary::Column* column)
+{
+  Uint32 spjRef;
+  for (spjRef=0; spjRef<m_spjProjection.size(); ++spjRef)
+  { if (m_spjProjection[spjRef] == column)
+      return spjRef;
   }
+
+  // Add column if not already available
+  m_spjProjection.push_back(column);
+  return spjRef;
 }
+
 
 int
 NdbLinkedOperandImpl::bindOperand(
@@ -1142,9 +1150,9 @@ NdbLinkedOperandImpl::bindOperand(
   if (type != getParentColumn().getType())
     return 4803;  // Incompatible datatypes
 
-  // TODO? Check length if Char, and prec + scale if decimal type
+  // TODO? Check length if Char, and prec, scale if decimal type
 
-  // Register parent/child relations
+  // Register parent/child operation relations
   this->m_parentOperation.addChild(&operation);
   operation.addParent(&this->m_parentOperation);
 
@@ -1207,35 +1215,6 @@ private:
   int m_length;
 };
 
-/* Update the projection that the parent operation will send to the SPJ
- * block, such that it includes the attributes that this operation needs
- * to be instantiated.*/
-void 
-NdbQueryLookupOperationDefImpl
-::updateSPJProjection(NdbQueryOperationDefImpl& parent) const {
-  const NdbQueryOperandImpl* op = m_keys[0];
-  int keyNo = 0;
-  while(op!=NULL){
-    if(op->getKind()==OperandKind_Linked){
-      const NdbLinkedOperandImpl& linkedOp 
-	= static_cast<const NdbLinkedOperandImpl&>(*op);
-      /* Check if this linked operand refers to the current parent.*/
-      if(&linkedOp.getParentOperation()==&parent){
-	bool found = false;
-	Uint32 i = 0;
-	while(!found && i<parent.getSPJProjection().size()){
-	  found = parent.getSPJProjection()[i]==&linkedOp.getParentColumn();
-	  i++;
-	}
-	// Add the column if it is not there already.
-	if(!found){
-	  parent.getSPJProjection().push_back(&linkedOp.getParentColumn());
-	}
-      }
-    }
-    op = m_keys[++keyNo];
-  }
-}
 
 // Find offset (in 32-bit words) of field within struct QN_LookupNode.
 #define POS_IN_LOOKUP(field) (offsetof(QN_LookupNode, field)/sizeof(Uint32)) 
@@ -1263,14 +1242,12 @@ NdbQueryLookupOperationDefImpl
     // Multiple parents not yet supported.
     assert(getNoOfParentOperations()==1);
     for(Uint32 i = 0; 
-	i < getNoOfParentOperations(); 
-	i++){
+        i < getNoOfParentOperations(); 
+        i++){
       parentSeq.append(getParentOperation(i).getQueryOperationIx());
     }
     optPos = parentSeq.finish();
   }
-  int totalLinkedOperands = 0;
-  int foundLinkedOperands = 0;
   Uint32Slice keyPattern(optional, optPos+1);
   int keyPatternPos = 0;
   int keyNo = 0;
@@ -1278,29 +1255,13 @@ NdbQueryLookupOperationDefImpl
   while(op!=NULL){
     switch(op->getKind()){
     case OperandKind_Linked:
-      /* Iterate over the set of parents and add references to those columns 
-       * that we need from the parent result tuple that is sent to the SPJ 
-       * block.*/
-      for(Uint32 parentNo = 0; 
-	  parentNo < getNoOfParentOperations(); 
-	  parentNo++){
-	const NdbQueryOperationDefImpl& parent = getParentOperation(parentNo);
-	totalLinkedOperands++;
-	const NdbLinkedOperandImpl& linkedOp 
-	  = *static_cast<const NdbLinkedOperandImpl*>(op);
-	/* Check if this linked operand refers to the current parent.*/
-	if(&linkedOp.getParentOperation() == &parent){
-	  for (Uint32 i = 0; i<parent.getSPJProjection().size(); i++){
-	    if(&linkedOp.getParentColumn() == parent.getSPJProjection()[i]){
-	      keyPattern.get(keyPatternPos) = QueryPattern::col(i);
-	      foundLinkedOperands++;
-	    }
-	  }
-	  keyPatternPos++;
-	}
-      }
+    {
+      const NdbLinkedOperandImpl& linkedOp = *static_cast<const NdbLinkedOperandImpl*>(op);
+      keyPattern.get(keyPatternPos++) = QueryPattern::col(linkedOp.getLinkedSrc());
       break;
-    case OperandKind_Const:{
+    }
+    case OperandKind_Const:
+    {
       lookupNode.get(POS_IN_LOOKUP(requestInfo)) 
 	|= DABits::NI_KEY_CONSTS;
       const NdbConstOperandImpl& constOp 
@@ -1323,7 +1284,10 @@ NdbQueryLookupOperationDefImpl
 	buff[i&0x3] = constData[i];
       }
       keyPatternPos += wordCount;
+      break;
     }
+    case OperandKind_Param:  // TODO: Implement this
+      keyPattern.get(keyPatternPos++) = QueryPattern::data(0);  // Simple hack to avoid 'assert(keyPatternPos>0)' below
       break;
     default:
       assert(false);
@@ -1331,12 +1295,11 @@ NdbQueryLookupOperationDefImpl
     op = m_keys[++keyNo];
   }
   if(m_keys[0]!=NULL){
-    assert(keyPatternPos>0);
+    assert(keyPatternPos>0);  
     // Set total length of key pattern.
     optional.get(optPos) = keyPatternPos;
     optPos += keyPatternPos+1;
   }
-  assert(totalLinkedOperands==foundLinkedOperands);
 
   /* Add the projection that should be send to the SPJ block such that 
    * child operations can be instantiated.*/
