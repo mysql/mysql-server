@@ -1,7 +1,7 @@
 /*****************************************************************************
 
 Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
-Copyright (c) 2008, Google Inc.
+Copyright (c) 2008, 2009, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -154,6 +154,13 @@ extern ulint	srv_n_file_io_threads;
 extern ulint	srv_read_ahead_factor;
 extern ulint	srv_n_read_io_threads;
 extern ulint	srv_n_write_io_threads;
+
+/* Number of IO operations per second the server can do */
+extern ulint    srv_io_capacity;
+/* Returns the number of IO operations that is X percent of the
+capacity. PCT_IO(5) -> returns the number of IO operations that
+is 5% of the max where max is srv_io_capacity.  */
+#define PCT_IO(p) ((ulint) (srv_io_capacity * ((double) p / 100.0)))
 
 #ifdef UNIV_LOG_ARCHIVE
 extern ibool	srv_log_archive_on;
