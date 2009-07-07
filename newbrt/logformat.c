@@ -96,7 +96,7 @@ const struct logtype logtypes[] = {
     {"fassociate",  'f', FA{{"FILENUM", "filenum", 0},
 			    {"BYTESTRING", "fname", 0},   // pathname of file
 			    NULLFIELD}},
-    {"xstillopen", 's', FA{{"TXNID", "txnid", 0}, NULLFIELD}}, // only record root transactions
+    {"xstillopen", 's', FA{{"TXNID", "txnid", 0}, {"TXNID", "parent", 0}, NULLFIELD}}, // only record root transactions
     // Reords produced by transactions
     {"commit", 'C', FA{{"TXNID", "txnid", 0},NULLFIELD}},
     {"xabort", 'q', FA{{"TXNID", "txnid", 0},NULLFIELD}},

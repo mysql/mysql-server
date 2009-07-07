@@ -1523,7 +1523,9 @@ static int
 log_open_txn (TOKULOGGER logger, TOKUTXN txn, void *UU(v))
 {
     if (toku_logger_txn_parent(txn)==NULL) { // only have to log the open root transactions
-	int r = toku_log_xstillopen(logger, NULL, 0, toku_txn_get_txnid(txn));
+	int r = toku_log_xstillopen(logger, NULL, 0,
+				    toku_txn_get_txnid(txn),
+				    toku_txn_get_txnid(toku_logger_txn_parent(txn)));
 	assert(r==0);
     }
     return 0;
