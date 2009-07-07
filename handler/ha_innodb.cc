@@ -1,7 +1,7 @@
 /*****************************************************************************
 
 Copyright (c) 2000, 2009, MySQL AB & Innobase Oy. All Rights Reserved.
-Copyright (c) 2008, Google Inc.
+Copyright (c) 2008, 2009 Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -9617,6 +9617,11 @@ static MYSQL_SYSVAR_BOOL(doublewrite, innobase_use_doublewrite,
   "Disable with --skip-innodb-doublewrite.",
   NULL, NULL, TRUE);
 
+static MYSQL_SYSVAR_ULONG(io_capacity, srv_io_capacity,
+  PLUGIN_VAR_RQCMDARG,
+  "Number of IOPs the server can do. Tunes the background IO rate",
+  NULL, NULL, 200, 100, ~0L, 0);
+
 static MYSQL_SYSVAR_ULONG(fast_shutdown, innobase_fast_shutdown,
   PLUGIN_VAR_OPCMDARG,
   "Speeds up the shutdown process of the InnoDB storage engine. Possible "
@@ -9902,6 +9907,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(use_sys_malloc),
   MYSQL_SYSVAR(change_buffering),
   MYSQL_SYSVAR(read_ahead_factor),
+  MYSQL_SYSVAR(io_capacity),
   NULL
 };
 
