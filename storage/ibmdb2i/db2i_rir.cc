@@ -51,7 +51,6 @@ static inline int getKeyCntFromMap(key_part_map keypart_map)
   return (cnt); 
 }
 
-
 /**
   @brief
   Given a starting key and an ending key, estimate the number of rows that
@@ -270,81 +269,163 @@ ha_rows ha_ibmdb2i::records_in_range(uint inx,
         DB2Field& db2Field = db2Table->db2Field(field->field_index);
         litDefPtr->DataType = db2Field.getType();
         /*
-           Convert the literal to DB2 format.  
-                                                                                   */
-        rc = convertMySQLtoDB2(field,
-                 db2Field,
-                 literalPtr,
-                 (uchar*)minPtr+((curKey.key_part[partsInUse].null_bit)? 1 : 0));
+           Convert the literal to DB2 format
+                                                                                               */
+        if ((field->type() != MYSQL_TYPE_BIT) &&           // Don't do conversion on BIT data
+            (field->charset() != &my_charset_bin) &&       // Don't do conversion on BINARY data
+            (litDefPtr->DataType == QMY_CHAR ||
+             litDefPtr->DataType == QMY_VARCHAR ||
+             litDefPtr->DataType == QMY_GRAPHIC ||
+             litDefPtr->DataType == QMY_VARGRAPHIC))
+        {
+          // Most of the code is required by the considerable wrangling needed
+          // to prepare partial keys for use by DB2
+          // 1. UTF8 (CCSID 1208) data can be copied across unmodified if it is
+          //    utf8_bin. Otherwise, we need to convert the min and max
+          //    characters into the min and max characters employed
+          //    by the DB2 sort sequence. This is complicated by the fact that
+          //    the character widths are not always equal.
+          //  2. Likewise, UCS2 (CCSID 13488) data can be copied across unmodified
+          //     if it is ucs2_bin or ucs2_general_ci. Otherwise, we need to
+          //     convert the min and max characters into the min and max characters
+          //     employed by the DB2 sort sequence.
+          //  3. All other data will use standard iconv conversions. If an
+          //     unconvertible character is encountered, we assume it is the min
+          //     char and fill the remainder of the DB2 key with 0s. This may not
+          //     always be accurate, but it is probably sufficient for range
+          //     estimations.
+          const char* keyData = minPtr+((curKey.key_part[partsInUse].null_bit)? 1 : 0);
+          char* db2Data = literalPtr;
+          uint16 outLen = db2Field.getByteLengthInRecord();
+          uint16 inLen;
+          if (litDefPtr->DataType == QMY_VARCHAR ||
+              litDefPtr->DataType == QMY_VARGRAPHIC)
+          {
+            inLen = *(uint8*)keyData + ((*(uint8*)(keyData+1)) << 8);
+            keyData += 2;
+            outLen -= sizeof(uint16);
+            db2Data += sizeof(uint16);
+          }
+          else
+          {
+            inLen = field->max_display_length();
+          }
+          
+          size_t convertedBytes = 0;
+          if (db2Field.getCCSID() == 1208)
+          {
+            DBUG_ASSERT(inLen <= outLen);
+            if (strcmp(field->charset()->name, "utf8_bin"))
+            {
+              const char* end = keyData+inLen;
+              const char* curKey = keyData;
+              char* curDB2 = db2Data;
+              uint32 min = field->charset()->min_sort_char;
+              while ((curKey < end) && (curDB2 < db2Data+outLen-3))
+              {
+                my_wc_t temp;
+                int len = field->charset()->cset->mb_wc(field->charset(),
+                                                        &temp, 
+                                                        (const uchar*)curKey, 
+                                                        (const uchar*)end);
+                if (temp != min)
+                {
+                  DBUG_ASSERT(len <= 3);
+                  switch (len)
+                  {
+                    case 3: *(curDB2+2) = *(curKey+2);
+                    case 2: *(curDB2+1) = *(curKey+1);
+                    case 1: *(curDB2) = *(curKey);
+                  }                      
+                  curDB2 += len;
+                }
+                else
+                {
+                  *(curDB2++) = 0xEF;
+                  *(curDB2++) = 0xBF;
+                  *(curDB2++) = 0xBF;
+                }
+                curKey += len;
+              }
+              convertedBytes = curDB2 - db2Data;
+            }
+            else
+            {
+              memcpy(db2Data, keyData, inLen);
+              convertedBytes = inLen;
+            }
+            rc = 0;
+          }
+          else if (db2Field.getCCSID() == 13488)
+          {
+            DBUG_ASSERT(inLen <= outLen);
+            if (strcmp(field->charset()->name, "ucs2_bin") &&
+                strcmp(field->charset()->name, "ucs2_general_ci"))
+            {
+              const char* end = keyData+inLen;
+              const uint16* curKey = (uint16*)keyData;
+              uint16* curDB2 = (uint16*)db2Data;
+              uint16 min = field->charset()->min_sort_char;
+              while (curKey < (uint16*)end)
+              {
+                if (*curKey != min)
+                  *curDB2 = *curKey;
+                else
+                  *curDB2 = 0xFFFF;
+                ++curKey;
+                ++curDB2;
+              }
+            }
+            else
+            {
+              memcpy(db2Data, keyData, inLen);
+            }
+            convertedBytes = inLen;
+            rc = 0;
+          }
+          else
+          {
+            rc = convertFieldChars(toDB2, 
+                                   field->field_index, 
+                                   keyData,
+                                   db2Data,
+                                   inLen,
+                                   outLen,
+                                   &convertedBytes,
+                                   true);
+
+            if (rc == DB2I_ERR_ILL_CHAR)
+            {
+              // If an illegal character is encountered, we fill the remainder
+              // of the key with 0x00. This was implemented as a corollary to
+              // Bug#45012, though it should probably remain even after that
+              // bug is fixed.
+              memset(db2Data+convertedBytes, 0x00, outLen-convertedBytes);
+              convertedBytes = outLen;
+              rc = 0;
+            }
+          }
+          
+          if (!rc &&
+              (litDefPtr->DataType == QMY_VARGRAPHIC ||
+               litDefPtr->DataType == QMY_VARCHAR))
+          {
+            *(uint16*)(db2Data-sizeof(uint16)) = 
+                convertedBytes / (litDefPtr->DataType == QMY_VARGRAPHIC ? 2 : 1);
+          }
+
+        }
+        else // Non-character fields
+        {
+          rc = convertMySQLtoDB2(field,
+                                 db2Field,
+                                 literalPtr,
+                                 (uchar*)minPtr+((curKey.key_part[partsInUse].null_bit)? 1 : 0));
+        }
+
         if (rc != 0) break;
         litDefPtr->Offset = (uint32_t)(literalPtr - literalsPtr);
         litDefPtr->Length = db2Field.getByteLengthInRecord();
-        tempLen = litDefPtr->Length;
-        /*
-           Do additional conversion of a character or graphic value.
-                                                                                 */
-        CHARSET_INFO* fieldCharSet = field->charset();                                    
-        if ((field->type() != MYSQL_TYPE_BIT) &&           // Don't do conversion on BIT data
-            (field->charset() != &my_charset_bin) &&       // Don't do conversion on BINARY data
-            (litDefPtr->DataType == QMY_CHAR || litDefPtr->DataType == QMY_VARCHAR ||
-             litDefPtr->DataType == QMY_GRAPHIC || litDefPtr->DataType == QMY_VARGRAPHIC))
-        {
-           if (litDefPtr->DataType == QMY_VARCHAR ||
-               litDefPtr->DataType == QMY_VARGRAPHIC) 
-             tempPtr = literalPtr + sizeof(uint16);
-           else
-             tempPtr = literalPtr;
-           /* The following code checks to determine if MySQL is passing a
-              partial key. DB2 will accept a partial field value, but only
-              in the last field position of the key composite (and only if
-              there is no ICU sort sequence on the index).                  */
-           tempMinPtr = (char*)minPtr+((curKey.key_part[partsInUse].null_bit)? 1 : 0);
-           if (field->type() == MYSQL_TYPE_VARCHAR)
-           {
-             /* MySQL always stores key lengths as 2 bytes, little-endian. */
-               tempLen = *(uint8*)tempMinPtr + ((*(uint8*)(tempMinPtr+1)) << 8);
-               tempMinPtr = (char*)((char*)tempMinPtr + 2);
-           }
-           else
-             tempLen = field->field_length;                         
-
-           /* Determine if we are dealing with a partial key and if so, find the end of the partial key. */
-           if (litDefPtr->DataType == QMY_CHAR || litDefPtr->DataType == QMY_VARCHAR )
-           { /* Char or varchar.  If UTF8, no conversion is done to DB2 graphic.) */
-               endOfMinPtr = (char*)memchr(tempMinPtr,field->charset()->min_sort_char,tempLen);
-               if (endOfMinPtr)
-                 endOfLiteralPtr = tempPtr + ((uint32_t)(endOfMinPtr - tempMinPtr));
-           }
-           else
-           {
-              if (strncmp(fieldCharSet->csname, "utf8", sizeof("utf8")) == 0)
-              {  /* The MySQL charset is UTF8 but we are converting to graphic on DB2. Divide number of UTF8 bytes
-                    by 3 to get the number of characters, then multiple by 2 for double-byte graphic.*/
-               endOfMinPtr = (char*)memchr(tempMinPtr,field->charset()->min_sort_char,tempLen);
-               if (endOfMinPtr)
-                 endOfLiteralPtr = tempPtr + (((uint32_t)((endOfMinPtr - tempMinPtr)) / 3) * 2);
-              } 
-              else
-              { /* The DB2 data type is graphic or vargraphic, and we are not converting from UTF8 to graphic. */  
-                endOfMinPtr = (char*)wmemchr((wchar_t*)tempMinPtr,field->charset()->min_sort_char,tempLen/2);
-                if (endOfMinPtr)
-                  endOfLiteralPtr = tempPtr + (endOfMinPtr - tempMinPtr);
-              }
-           }
-           /* Enforce here that a partial is only allowed on the last field position 
-              of the key composite                                                    */
-           if (endOfLiteralPtr)
-           {
-             if ((partsInUse + 1) < minKeyCnt)   
-             {
-               rc = HA_POS_ERROR;
-               break;
-             }
-             endByte = endOfLiteralPtr - tempPtr;
-             /* We're making an assumption that if MySQL gives us a partial key, 
-                 the length of the partial is the same for both the min_key and max_key.      */
-           }  
-        }
         literalPtr = literalPtr + litDefPtr->Length;  // Bump pointer for next literal
       }
       /* If there is a max_key value for this field, and if the max_key value is 
@@ -389,28 +470,168 @@ ha_rows ha_ibmdb2i::records_in_range(uint inx,
         /*
            Convert the literal to DB2 format
                                                                                                */
-          rc = convertMySQLtoDB2(field,
-                 db2Field,
-                 literalPtr,
-                 (uchar*)maxPtr+((curKey.key_part[partsInUse].null_bit)? 1 : 0));
+        if ((field->type() != MYSQL_TYPE_BIT) &&           // Don't do conversion on BIT data
+            (field->charset() != &my_charset_bin) &&       // Don't do conversion on BINARY data
+            (litDefPtr->DataType == QMY_CHAR ||
+             litDefPtr->DataType == QMY_VARCHAR ||
+             litDefPtr->DataType == QMY_GRAPHIC ||
+             litDefPtr->DataType == QMY_VARGRAPHIC))
+          {
+            // We need to handle char fields in a special way in order to account
+            // for partial keys. Refer to the note above for a description of the
+            // basic design.
+            char* keyData = maxPtr+((curKey.key_part[partsInUse].null_bit)? 1 : 0);
+            char* db2Data = literalPtr;
+            uint16 outLen = db2Field.getByteLengthInRecord();
+            uint16 inLen;
+            if (litDefPtr->DataType == QMY_VARCHAR ||
+                litDefPtr->DataType == QMY_VARGRAPHIC)
+            {
+              inLen = *(uint8*)keyData + ((*(uint8*)(keyData+1)) << 8);
+              keyData += 2;
+              outLen -= sizeof(uint16);
+              db2Data += sizeof(uint16);
+            }
+            else
+            {
+              inLen = field->max_display_length();
+            }
+            
+            size_t convertedBytes;
+            if (db2Field.getCCSID() == 1208)
+            {
+              if (strcmp(field->charset()->name, "utf8_bin"))
+              {
+                const char* end = keyData+inLen;
+                const char* curKey = keyData;
+                char* curDB2 = db2Data;
+                uint32 max = field->charset()->max_sort_char;
+                while (curKey < end && (curDB2 < db2Data+outLen-3))
+                {
+                  my_wc_t temp;
+                  int len = field->charset()->cset->mb_wc(field->charset(), &temp, (const uchar*)curKey, (const uchar*)end);
+                  if (temp != max)
+                  {
+                    DBUG_ASSERT(len <= 3);
+                    switch (len)
+                    {
+                      case 3: *(curDB2+2) = *(curKey+2);
+                      case 2: *(curDB2+1) = *(curKey+1);
+                      case 1: *(curDB2) = *(curKey);
+                    }                      
+                    curDB2 += len;
+                  }
+                  else
+                  {
+                    *(curDB2++) = 0xE4;
+                    *(curDB2++) = 0xB6;
+                    *(curDB2++) = 0xBF;
+                  }
+                  curKey += len;
+                }
+                convertedBytes = curDB2 - db2Data;
+              }
+              else
+              {
+                DBUG_ASSERT(inLen <= outLen);
+                memcpy(db2Data, keyData, inLen);
+                convertedBytes = inLen;
+              }
+              rc = 0;
+            }
+            else if (db2Field.getCCSID() == 13488)
+            {
+              if (strcmp(field->charset()->name, "ucs2_bin") &&
+                  strcmp(field->charset()->name, "ucs2_general_ci"))
+              {
+                char* end = keyData+inLen;
+                uint16* curKey = (uint16*)keyData;
+                uint16* curDB2 = (uint16*)db2Data;
+                uint16 max = field->charset()->max_sort_char;
+                while (curKey < (uint16*)end)
+                {
+                  if (*curKey != max)
+                    *curDB2 = *curKey;
+                  else
+                    *curDB2 = 0x4DBF;
+                  ++curKey;
+                  ++curDB2;
+                }
+              }
+              else
+              {
+                memcpy(db2Data, keyData, outLen);
+              }
+              rc = 0;
+            }
+            else
+            {
+              size_t substituteChars = 0;
+              rc = convertFieldChars(toDB2, 
+                                     field->field_index, 
+                                     keyData,
+                                     db2Data,
+                                     inLen,
+                                     outLen,
+                                     &convertedBytes,
+                                     true,
+                                     &substituteChars);
+
+              if (rc == DB2I_ERR_ILL_CHAR)
+              {
+                // If an illegal character is encountered, we fill the remainder
+                // of the key with 0xFF. This was implemented to work around
+                // Bug#45012, though it should probably remain even after that
+                // bug is fixed.
+                memset(db2Data+convertedBytes, 0xFF, outLen-convertedBytes);
+                rc = 0;
+              }
+              else if ((substituteChars &&
+                        (litDefPtr->DataType == QMY_VARCHAR ||
+                         litDefPtr->DataType == QMY_CHAR)) ||
+                       strcmp(field->charset()->name, "cp1251_bulgarian_ci") == 0)
+              {
+                // When iconv translates the max_sort_char with a substitute 
+                // character, we have no way to know whether this affects
+                // the sort order of the key. Therefore, to be safe, when
+                // we know that substitute characters have been used in a
+                // single-byte string, we traverse the translated key
+                // in reverse, replacing substitue characters with 0xFF, which
+                // always sorts with the greatest weight in DB2 sort sequences.
+                // cp1251_bulgarian_ci is also handled this way because the
+                // max_sort_char is a control character which does not sort
+                // equivalently in DB2.
+                DBUG_ASSERT(inLen == outLen);
+                char* tmpKey = keyData + inLen - 1;
+                char* tmpDB2 = db2Data + outLen - 1;
+                while (*tmpKey == field->charset()->max_sort_char &&
+                       *tmpDB2 != 0xFF)
+                {
+                  *tmpDB2 = 0xFF;
+                  --tmpKey;
+                  --tmpDB2;
+                }                  
+              }
+            }
+            
+            if (!rc &&
+                (litDefPtr->DataType == QMY_VARGRAPHIC ||
+                 litDefPtr->DataType == QMY_VARCHAR))
+            {
+              *(uint16*)(db2Data-sizeof(uint16)) = 
+                  outLen / (litDefPtr->DataType == QMY_VARGRAPHIC ? 2 : 1);
+            }
+          }
+          else
+          {
+            rc = convertMySQLtoDB2(field,
+                                   db2Field,
+                                   literalPtr,
+                                   (uchar*)maxPtr+((curKey.key_part[partsInUse].null_bit)? 1 : 0));
+          }
           if (rc != 0) break;
           litDefPtr->Offset = (uint32_t)(literalPtr - literalsPtr);
           litDefPtr->Length = db2Field.getByteLengthInRecord();
-          tempLen = litDefPtr->Length;
-          /*
-             Now convert a character or graphic value.
-                                                                                 */
-          if ((field->type() != MYSQL_TYPE_BIT) &&     
-             (litDefPtr->DataType == QMY_CHAR || litDefPtr->DataType == QMY_VARCHAR ||
-              litDefPtr->DataType == QMY_GRAPHIC || litDefPtr->DataType == QMY_VARGRAPHIC))
-          {
-             if (litDefPtr->DataType == QMY_VARCHAR || litDefPtr->DataType == QMY_VARGRAPHIC)
-             {
-                tempPtr = literalPtr + sizeof(uint16);
-             }
-             else
-               tempPtr = literalPtr;
-          }
           literalPtr = literalPtr + litDefPtr->Length;   // Bump pointer for next literal
         }
         boundsPtr->HiBound.Position = literalCnt;
