@@ -111,8 +111,13 @@ public:
   const NdbQueryDef& getInterface() const
   { return m_interface; }
 
-  /**TODO: Remove this method. Only needed by testSerialize() test code.*/
+  /** Get serialized representation of query definition.*/
   Uint32Buffer& getSerialized(){
+    return m_serializedDef;
+  }
+
+  /** Get serialized representation of query definition.*/
+  const Uint32Buffer& getSerialized() const {
     return m_serializedDef;
   }
 private:

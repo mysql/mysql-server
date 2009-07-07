@@ -56,19 +56,6 @@ protected:
   ~NdbQuery();
 
 public:
-  // Factory method which instantiate a query from its definition
-  static NdbQuery*
-  buildQuery(NdbTransaction& trans, const NdbQueryDef& queryDef);
-
-  ////////////////////////////////////////////////////////
-  // START: TEMP HACK for Jans result set coding until we
-  // have a usable 'queryDef'
-  static NdbQuery*
-  buildQuery(NdbTransaction& trans);
-
-  // END Jans hack.
-  /////////////////////////////////////////////////
-
   Uint32 getNoOfOperations() const;
 
   // Get a specific NdbQueryOperation by ident specified

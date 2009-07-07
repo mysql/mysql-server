@@ -31,20 +31,6 @@ NdbQuery::NdbQuery(NdbQueryImpl& impl):
 NdbQuery::~NdbQuery()
 {}
 
-
-//static
-NdbQuery*
-NdbQuery::buildQuery(NdbTransaction& trans, const NdbQueryDef& queryDef)
-{ NdbQueryImpl* query = NdbQueryImpl::buildQuery(trans, queryDef.getImpl());
-  return (query) ? &query->getInterface() : NULL;
-}
-
-NdbQuery*
-NdbQuery::buildQuery(NdbTransaction& trans)  // TEMP hack to be removed
-{ NdbQueryImpl* query = NdbQueryImpl::buildQuery(trans);
-  return (query) ? &query->getInterface() : NULL;
-}
-
 Uint32
 NdbQuery::getNoOfOperations() const
 {
@@ -110,18 +96,6 @@ NdbQueryOperation::NdbQueryOperation(NdbQueryOperationImpl& impl)
 {}
 NdbQueryOperation::~NdbQueryOperation()
 {}
-
-// TODO: Remove this factory. Needed for result prototype only.
-// Temp factory for Jan - will be replaced later
-//static
-NdbQueryOperation*
-NdbQueryOperation::buildQueryOperation(NdbQueryImpl& queryImpl,
-                                       class NdbOperation& operation)
-{
-  NdbQueryOperationImpl* op =
-    NdbQueryOperationImpl::buildQueryOperation(queryImpl, operation);
-  return (op) ? &op->getInterface() : NULL;
-}
 
 Uint32
 NdbQueryOperation::getNoOfParentOperations() const
@@ -213,7 +187,9 @@ NdbQueryOperation::isRowChanged() const
 ///////////////////////////////////////////
 /////////  NdbQueryImpl methods ///////////
 ///////////////////////////////////////////
-NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans):
+NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans, 
+                           const NdbQueryDefImpl& queryDef, 
+                           NdbQueryImpl* next):
   m_interface(*this),
   m_magic(MAGIC),
   m_id(trans.getNdb()->theImpl->theNdbObjectIdMap.map(this)),
@@ -221,20 +197,10 @@ NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans):
   m_transaction(trans),
   m_operations(),
   m_tcKeyConfReceived(false),
-  m_pendingOperations(0)
-{
-  assert(m_id != NdbObjectIdMap::InvalidId);
-}
-
-NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans, const NdbQueryDefImpl& queryDef):
-  m_interface(*this),
-  m_magic(MAGIC),
-  m_id(trans.getNdb()->theImpl->theNdbObjectIdMap.map(this)),
-  m_error(),
-  m_transaction(trans),
-  m_operations(),
-  m_tcKeyConfReceived(false),
-  m_pendingOperations(0)
+  m_pendingOperations(0),
+  m_next(next),
+  m_ndbOperation(NULL),
+  m_queryDef(queryDef)
 {
   assert(m_id != NdbObjectIdMap::InvalidId);
 
@@ -255,6 +221,14 @@ NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans, const NdbQueryDefImpl& queryDe
     }
 
     m_operations.push_back(op);
+    if(def.getNoOfParentOperations()==0){
+      // TODO: Remove references to NdbOperation class.
+      assert(m_ndbOperation == NULL);
+      m_ndbOperation = m_transaction.getNdbOperation(&def.getTable());
+      m_ndbOperation->readTuple(NdbOperation::LM_Dirty);
+      m_ndbOperation->m_isLinked = true;
+      m_ndbOperation->setQueryImpl(this);
+    }
   }
 }
 
@@ -271,15 +245,11 @@ NdbQueryImpl::~NdbQueryImpl()
 
 //static
 NdbQueryImpl*
-NdbQueryImpl::buildQuery(NdbTransaction& trans, const NdbQueryDefImpl& queryDef)
+NdbQueryImpl::buildQuery(NdbTransaction& trans, 
+                         const NdbQueryDefImpl& queryDef, 
+                         NdbQueryImpl* next)
 {
-  return new NdbQueryImpl(trans, queryDef);
-}
-
-NdbQueryImpl*
-NdbQueryImpl::buildQuery(NdbTransaction& trans)  // TEMP hack to be removed
-{
-  return new NdbQueryImpl(trans);
+  return new NdbQueryImpl(trans, queryDef, next);
 }
 
 Uint32
@@ -338,10 +308,25 @@ NdbQueryImpl::getNdbTransaction() const
 
 void 
 NdbQueryImpl::prepareSend(){
-  m_pendingOperations = m_operations.size();
+  m_pendingOperations = m_operations.size();  
   for(Uint32 i = 0; i < m_operations.size(); i++){
-      m_operations[i]->prepareSend(m_serializedParams);
+    m_operations[i]->prepareSend(m_serializedParams);
   }
+  // TODO: Replace heap allocation.
+  Uint32* tree = new Uint32[m_queryDef.getSerialized().getSize()];
+  for(Uint32 i = 0; i < m_queryDef.getSerialized().getSize(); i++){
+    tree[i] = m_queryDef.getSerialized().get(i);
+  }
+  m_ndbOperation->insertATTRINFOloop(tree, 
+                                     m_queryDef.getSerialized().getSize());
+  delete[] tree;
+  Uint32* params = new Uint32[m_serializedParams.getSize()];
+  for(Uint32 i = 0; i < m_serializedParams.getSize(); i++){
+    params[i] = m_serializedParams.get(i);
+  }
+  m_ndbOperation->insertATTRINFOloop(params, m_serializedParams.getSize());
+  delete[] params; 
+
 #ifdef TRACE_SERIALIZATION
   ndbout << "Serialized params for all : ";
   for(Uint32 i = 0; i < m_serializedParams.getSize(); i++){
@@ -376,47 +361,11 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(
   m_children(def.getNoOfChildOperations()),
   m_receiver(queryImpl.getNdbTransaction()->getNdb()),
   m_queryImpl(queryImpl),
-  m_state(State_Initial),
-  m_operation(*((NdbOperation*)NULL))
+  m_state(State_Initial)
 { 
   assert(m_id != NdbObjectIdMap::InvalidId);
-  m_receiver.init(NdbReceiver::NDB_OPERATION, false, &m_operation);
+  m_receiver.init(NdbReceiver::NDB_OPERATION, false, NULL);
 }
-
-///////////////////////////////////////////////////////////
-// START: Temp code for Jan until we have a propper NdbQueryOperationDef
-
-/** Only used for result processing prototype purposes. To be removed.*/
-NdbQueryOperationImpl::NdbQueryOperationImpl(NdbQueryImpl& queryImpl, 
-					     NdbOperation& operation):
-  m_interface(*this),
-  m_magic(MAGIC),
-  m_id(queryImpl.getNdbTransaction()->getNdb()->theImpl
-       ->theNdbObjectIdMap.map(this)),
-  m_operationDef(*reinterpret_cast<NdbQueryOperationDefImpl*>(NULL)),
-  m_parents(),
-  m_children(),
-  m_receiver(queryImpl.getNdbTransaction()->getNdb()),
-  m_queryImpl(queryImpl),
-  m_state(State_Initial),
-  m_operation(operation)
-{ 
-  assert(m_id != NdbObjectIdMap::InvalidId);
-  m_receiver.init(NdbReceiver::NDB_OPERATION, false, &operation);
-  queryImpl.addQueryOperation(this);
-}
-
-// Temp factory for Jan - will be removed later
-// static
-NdbQueryOperationImpl*
-NdbQueryOperationImpl::buildQueryOperation(NdbQueryImpl& queryImpl,
-                                       class NdbOperation& operation)
-{
-  NdbQueryOperationImpl* op = new NdbQueryOperationImpl(queryImpl, operation);
-  return op;
-}
-// END temp code
-//////////////////////////////////////////////////////////
 
 Uint32
 NdbQueryOperationImpl::getNoOfParentOperations() const
@@ -457,7 +406,7 @@ NdbQueryOperationImpl::getQuery() const
 NdbRecAttr*
 NdbQueryOperationImpl::getValue(
                             const char* anAttrName,
-			    char* aValue)
+                            char* aValue)
 {
   return NULL; // FIXME
 }
@@ -465,7 +414,7 @@ NdbQueryOperationImpl::getValue(
 NdbRecAttr*
 NdbQueryOperationImpl::getValue(
                             Uint32 anAttrId, 
-			    char* aValue)
+                            char* aValue)
 {
   return NULL; // FIXME
 }
@@ -473,7 +422,7 @@ NdbQueryOperationImpl::getValue(
 NdbRecAttr*
 NdbQueryOperationImpl::getValue(
                             const NdbDictionary::Column* column, 
-			    char* aValue)
+                            char* aValue)
 {
   /* This code will only work for the lookup example in test_spj.cpp.
    */

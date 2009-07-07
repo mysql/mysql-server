@@ -525,38 +525,39 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
       if (tFirstDataPtr == 0) goto InvalidSignal;
 
       const bool isNdbOperation = 
-	void2rec(tFirstDataPtr)->checkMagicNumber();
+        void2rec(tFirstDataPtr)->checkMagicNumber();
       NdbQueryOperationImpl* const queryOpImpl 
-	= reinterpret_cast<NdbQueryOperationImpl*>(tFirstDataPtr);
+        = reinterpret_cast<NdbQueryOperationImpl*>(tFirstDataPtr);
 
       if (isNdbOperation) {
-	tOp = void2rec_op(tFirstDataPtr);
-	/* NB! NdbOperation::checkMagicNumber() returns 0 if it *is* 
-	* an NdbOperation.*/
-	assert(tOp->checkMagicNumber()==0); 
-	tCon = tOp->theNdbCon;
+        tOp = void2rec_op(tFirstDataPtr);
+        /* NB! NdbOperation::checkMagicNumber() returns 0 if it *is* 
+         * an NdbOperation.*/
+        assert(tOp->checkMagicNumber()==0); 
+        tCon = tOp->theNdbCon;
       } else if(queryOpImpl->checkMagicNumber()) {
-	tCon = queryOpImpl->getQuery().getNdbTransaction();
+        tCon = queryOpImpl->getQuery().getNdbTransaction();
       } else{ 
-	goto InvalidSignal;
+        goto InvalidSignal;
       }
       if (tCon != NULL) {
-	if (tCon->theSendStatus == NdbTransaction::sendTC_OP) {
-	  if(isNdbOperation){
-	    tReturnCode = tOp->receiveTCKEYREF(aSignal);
-	    if (tReturnCode != -1) {
-	      completedTransaction(tCon);
-	      return;
-	    }//if
-	  } else {
-	    if(queryOpImpl->execTCKEYREF() &&
-	       tCon->OpCompleteFailure(&queryOpImpl->getOperation()) != -1){
-	      completedTransaction(tCon);
-	      return;
-	    }//if 
-	  }//if
-	  break;
-	}//if
+        if (tCon->theSendStatus == NdbTransaction::sendTC_OP) {
+          if(isNdbOperation){
+            tReturnCode = tOp->receiveTCKEYREF(aSignal);
+            if (tReturnCode != -1) {
+              completedTransaction(tCon);
+              return;
+            }//if
+          } else {
+            if(queryOpImpl->execTCKEYREF() &&
+               tCon->OpCompleteFailure(queryOpImpl->getQuery()
+                                       .getNdbOperation()) != -1){
+              completedTransaction(tCon);
+              return;
+            }//if 
+          }//if
+          break;
+        }//if
       }//if (tCon != NULL)
       goto InvalidSignal;
       return;

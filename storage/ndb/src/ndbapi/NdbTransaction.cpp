@@ -85,7 +85,8 @@ NdbTransaction::NdbTransaction( Ndb* aNdb ) :
   theScanningOp(NULL),
   theBuddyConPtr(0xFFFFFFFF),
   theBlobFlag(false),
-  thePendingBlobOps(0)
+  thePendingBlobOps(0),
+  m_firstQuery(NULL)
 {
   theListState = NotInList;
   theError.code = 0;
@@ -631,6 +632,13 @@ NdbTransaction::executeAsynchPrepare(NdbTransaction::ExecType aTypeOfExec,
    */
   if (theError.code != 4012)
     theError.code = 0;
+  NdbQueryImpl* query = m_firstQuery;
+  while(query!=NULL){
+    query->prepareSend();
+    query = query->getNext();
+  }
+  m_firstQuery = NULL;
+
   NdbScanOperation* tcOp = m_theFirstScanOperation;
   if (tcOp != 0){
     // Execute any cursor operations
@@ -2765,6 +2773,15 @@ NdbTransaction::createQuery(const NdbQueryDef* def,
 			    const void* const param[],
 			    NdbOperation::LockMode lock_mode)
 {
-  NdbQuery* query = NdbQuery::buildQuery(*this, *def);
-  return query;
+  NdbQueryImpl* query 
+    = NdbQueryImpl::buildQuery(*this, def->getImpl(), m_firstQuery);
+  if(query!=NULL)
+  {
+    m_firstQuery = query;
+    return &query->getInterface();
+  }
+  else
+  {
+    return NULL;
+  }
 }
