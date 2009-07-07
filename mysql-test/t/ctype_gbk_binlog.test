@@ -24,9 +24,6 @@ CALL p1(@`tcontent`);
 
 FLUSH LOGS;
 DROP PROCEDURE p1;
---disable_warnings
-DROP TABLE IF EXISTS t2;
---enable_warnings
 RENAME TABLE t1 to t2;
 
 let $MYSQLD_DATADIR= `select @@datadir`;
