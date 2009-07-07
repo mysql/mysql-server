@@ -79,6 +79,7 @@ struct DABits
     NI_ATTR_INTERPRET = 0x10,  // Is attr-info a interpreted program
     NI_ATTR_PARAMS    = 0x20,  // Does attrinfo contain parameters
     NI_ATTR_LINKED    = 0x40,  // Does attrinfo contain linked values
+    NI_KEY_CONSTS     = 0x80,  // Does keyinfo contain const operands.
     NI_END = 0
   };
 
@@ -196,6 +197,11 @@ struct QueryPattern
    * If type == DATA, get len here
    */
   static Uint32 getLength(Uint32 info) { return info & 0xFFFF;}
+  static Uint32 data(Uint32 length) 
+  { 
+    assert(length <= 0xFFFF);
+    return (P_DATA << 16) | length;
+  }
 
   /**
    * If type == COL, get col-no here (index in row)

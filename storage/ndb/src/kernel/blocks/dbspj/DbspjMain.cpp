@@ -2151,7 +2151,7 @@ Dbspj::appendColToSection(Uint32 & dst, const RowRef::Linear & row, Uint32 col)
   }
   const Uint32 * ptr = row.m_data + offset;
   Uint32 len = AttributeHeader::getDataSize(* ptr ++);
-  return appendToSection(dst, ptr, len);
+  return appendToSection(dst, ptr, len) ? 0 : DbspjErr::InvalidPattern;
 }
 
 Uint32
@@ -2176,9 +2176,36 @@ Dbspj::appendDataToSection(Uint32 & ptrI,
   appendToSection(ptrI, tmp, len);
   return 0;
 #else
-  ndbrequire(false);
+  Uint32 remaining = len;
+  Uint32 dstIdx = 0;
+  Uint32 tmp[NDB_SECTION_SEGMENT_SZ];
+  
+  while(remaining>0 && !it.isNull())
+  {
+    tmp[dstIdx] = *it.data;
+    remaining--;
+    dstIdx++;
+    pattern.next(it);
+    if(dstIdx == NDB_SECTION_SEGMENT_SZ 
+       || remaining == 0){
+      if(!appendToSection(ptrI, tmp, dstIdx))
+      {
+	DEBUG_CRASH();
+	return DbspjErr::InvalidPattern;
+      }
+      dstIdx = 0;
+    }
+  }
+  if(remaining>0)
+  {
+    DEBUG_CRASH();
+    return DbspjErr::InvalidPattern;
+  }
+  else
+  {
+    return 0;
+  }
 #endif
-  return 0;
 }
 
 Uint32
@@ -2223,6 +2250,7 @@ Dbspj::expand(Uint32 & _dst, Local_pattern_store& pattern,
       err = appendColToSection(dst, row, val);
       break;
     case QueryPattern::P_DATA:
+      pattern.next(it);
       err = appendDataToSection(dst, pattern, it, val);
       break;
     }
@@ -2269,7 +2297,9 @@ Dbspj::expand(Uint32 & ptrI, DABuffer& pattern, Uint32 len,
       err = appendColToSection(dst, row, val);
       break;
     case QueryPattern::P_DATA:
-      err = appendToSection(dst, ptr, val);
+      if(likely(appendToSection(dst, ptr, val))){
+	err = 0;
+      }
       ptr += val;
       break;
     }
@@ -2396,7 +2426,9 @@ Dbspj::parseDA(Build_context& ctx,
         break;
     }
 
-    if (treeBits & (DABits::NI_KEY_PARAMS | DABits::NI_KEY_LINKED))
+    if (treeBits & (DABits::NI_KEY_PARAMS 
+		    | DABits::NI_KEY_LINKED 
+		    | DABits::NI_KEY_CONSTS))
     {
       jam();
       DEBUG("NI_KEY_PARAMS | NI_KEY_LINKED");
@@ -2458,14 +2490,30 @@ Dbspj::parseDA(Build_context& ctx,
         /**
          * "pure" key-pattern
          */
-        ndbrequire((treeBits & DABits::NI_KEY_LINKED) != 0);
         ndbrequire((treeBits & DABits::NI_KEY_PARAMS) == 0);
         ndbrequire((paramBits & DABits::PI_KEY_PARAMS) == 0);
-        err = appendToPattern(pattern, tree, len);
-        /**
-         * This node constructs a new key for each send
-         */
-        treeNodePtr.p->m_bits |= TreeNode::T_KEYINFO_CONSTRUCTED;
+        if((treeBits & DABits::NI_KEY_LINKED) == 0)
+        {
+          DEBUG("FIXED-CONST-KEY");
+          jam();
+          /**
+           * Expand pattern directly into keyinfo
+           *   This means a "fixed" key from here on
+           */
+          Uint32 keyInfoPtrI = RNIL;
+          err = expand(keyInfoPtrI, tree, len, param, 0);
+          assert(err==0);
+          treeNodePtr.p->m_send.m_keyInfoPtrI = keyInfoPtrI;
+	  
+        }
+	else
+        {
+          err = appendToPattern(pattern, tree, len);
+          /**
+           * This node constructs a new key for each send
+           */
+          treeNodePtr.p->m_bits |= TreeNode::T_KEYINFO_CONSTRUCTED;
+        }
       }
 
       if (unlikely(err != 0))
