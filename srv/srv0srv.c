@@ -183,6 +183,10 @@ UNIV_INTERN ulint	srv_log_file_size	= ULINT_MAX;
 UNIV_INTERN ulint	srv_log_buffer_size	= ULINT_MAX;
 UNIV_INTERN ulong	srv_flush_log_at_trx_commit = 1;
 
+/* Try to flush dirty pages so as to avoid IO bursts at
+the checkpoints. */
+UNIV_INTERN char	srv_adaptive_flushing	= TRUE;
+
 /* The sort order table of the MySQL latin1_swedish_ci character set
 collation */
 UNIV_INTERN const byte*	srv_latin1_ordering;
@@ -2175,13 +2179,16 @@ loop:
 	}
 
 	/* Update the statistics collected for deciding LRU
- 	eviction policy. */
+	eviction policy. */
 	buf_LRU_stat_update();
+
+	/* Update the statistics collected for flush rate policy. */
+	buf_flush_stat_update();
 
 	/* In case mutex_exit is not a memory barrier, it is
 	theoretically possible some threads are left waiting though
 	the semaphore is already released. Wake up those threads: */
-	
+
 	sync_arr_wake_threads_if_sema_free();
 
 	if (sync_array_print_long_waits()) {
@@ -2423,6 +2430,22 @@ loop:
 			iteration of this loop. */
 
 			skip_sleep = TRUE;
+		} else if (srv_adaptive_flushing) {
+
+			/* Try to keep the rate of flushing of dirty
+			pages such that redo log generation does not
+			produce bursts of IO at checkpoint time. */
+			ulint n_flush = buf_flush_get_desired_flush_rate();
+
+			if (n_flush) {
+				n_flush = ut_min(PCT_IO(100), n_flush);
+				n_pages_flushed =
+					buf_flush_batch(
+						BUF_FLUSH_LIST,
+						n_flush,
+						IB_ULONGLONG_MAX);
+				skip_sleep = TRUE;
+			}
 		}
 
 		if (srv_activity_count == old_activity_count) {
