@@ -973,6 +973,7 @@ bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
 
   save_use_only_table_context= thd->lex->use_only_table_context;
   thd->lex->use_only_table_context= TRUE;
+  thd->lex->current_select->cur_pos_in_select_list= UNDEF_POS;
   
   error= func_expr->fix_fields(thd, (Item**)&func_expr);
 
