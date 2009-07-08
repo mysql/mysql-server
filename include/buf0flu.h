@@ -127,6 +127,44 @@ buf_flush_ready_for_replace(
 /*========================*/
 	buf_page_t*	bpage);	/*!< in: buffer control block, must be
 				buf_page_in_file(bpage) and in the LRU list */
+
+/** @brief Statistics for selecting flush rate based on redo log
+generation speed.
+
+These statistics are generated for heuristics used in estimating the
+rate at which we should flush the dirty blocks to avoid bursty IO
+activity. Note that the rate of flushing not only depends on how many
+dirty pages we have in the buffer pool but it is also a fucntion of
+how much redo the workload is generating and at what rate. */
+
+struct buf_flush_stat_struct
+{
+	ib_uint64_t	redo;		/**< amount of redo generated. */
+	ulint		n_flushed;	/**< number of pages flushed. */
+};
+
+/** Statistics for selecting flush rate of dirty pages. */
+typedef struct buf_flush_stat_struct buf_flush_stat_t;
+/*********************************************************************
+Update the historical stats that we are collecting for flush rate
+heuristics at the end of each interval. */
+UNIV_INTERN
+void
+buf_flush_stat_update(void);
+/*=======================*/
+/*********************************************************************
+Determines the fraction of dirty pages that need to be flushed based
+on the speed at which we generate redo log. Note that if redo log
+is generated at significant rate without a corresponding increase
+in the number of dirty pages (for example, an in-memory workload)
+it can cause IO bursts of flushing. This function implements heuristics
+to avoid this burstiness.
+@return	number of dirty pages to be flushed / second */
+UNIV_INTERN
+ulint
+buf_flush_get_desired_flush_rate(void);
+/*==================================*/
+
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /******************************************************************//**
 Validates the flush list.

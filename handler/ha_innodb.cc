@@ -9687,6 +9687,11 @@ static MYSQL_SYSVAR_ULONG(max_dirty_pages_pct, srv_max_buf_pool_modified_pct,
   "Percentage of dirty pages allowed in bufferpool.",
   NULL, NULL, 75, 0, 99, 0);
 
+static MYSQL_SYSVAR_BOOL(adaptive_flushing, srv_adaptive_flushing,
+  PLUGIN_VAR_NOCMDARG,
+  "Attempt flushing dirty pages to avoid IO bursts at checkpoints.",
+  NULL, NULL, TRUE);
+
 static MYSQL_SYSVAR_ULONG(max_purge_lag, srv_max_purge_lag,
   PLUGIN_VAR_RQCMDARG,
   "Desired maximum length of the purge queue (0 = no limit)",
@@ -9886,6 +9891,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(log_files_in_group),
   MYSQL_SYSVAR(log_group_home_dir),
   MYSQL_SYSVAR(max_dirty_pages_pct),
+  MYSQL_SYSVAR(adaptive_flushing),
   MYSQL_SYSVAR(max_purge_lag),
   MYSQL_SYSVAR(mirrored_log_groups),
   MYSQL_SYSVAR(open_files),
