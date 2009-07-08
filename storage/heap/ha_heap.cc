@@ -419,6 +419,14 @@ int ha_heap::delete_all_rows()
   return 0;
 }
 
+
+int ha_heap::reset_auto_increment(ulonglong value)
+{
+  file->s->auto_increment= value;
+  return 0;
+}
+
+
 int ha_heap::external_lock(THD *thd, int lock_type)
 {
   return 0;					// No external locking
