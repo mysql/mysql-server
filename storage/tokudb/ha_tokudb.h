@@ -265,6 +265,7 @@ private:
         );
 
     void set_query_columns(uint keynr);
+    int prelock_range ( const key_range *start_key, const key_range *end_key);
 
  
 public:
@@ -336,6 +337,7 @@ public:
 
     int prepare_index_scan();
     int prepare_index_key_scan( const uchar * key, uint key_len );
+    int prepare_range_scan( const key_range *start_key, const key_range *end_key);
     void column_bitmaps_signal();
     int index_init(uint index, bool sorted);
     int index_end();
