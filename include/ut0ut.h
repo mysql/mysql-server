@@ -41,11 +41,18 @@ Created 1/20/1994 Heikki Tuuri
 typedef time_t	ib_time_t;
 
 #if defined(IB_HAVE_PAUSE_INSTRUCTION)
-   /* According to the gcc info page, asm volatile means that the
-   instruction has important side-effects and must not be removed.
-   Also asm volatile may trigger a memory barrier (spilling all registers
-   to memory). */
-#  define UT_RELAX_CPU() __asm__ __volatile__ ("pause")
+#  ifdef WIN32
+     /* In the Win32 API, the x86 PAUSE instruction is executed by calling
+     the YieldProcessor macro defined in WinNT.h. It is a CPU architecture-
+     independent way by using YieldProcessor.*/
+#    define UT_RELAX_CPU() YieldProcessor()
+#  else
+     /* According to the gcc info page, asm volatile means that the
+     instruction has important side-effects and must not be removed.
+     Also asm volatile may trigger a memory barrier (spilling all registers
+     to memory). */
+#    define UT_RELAX_CPU() __asm__ __volatile__ ("pause")
+#  endif
 #elif defined(HAVE_ATOMIC_BUILTINS)
 #  define UT_RELAX_CPU() do { \
      volatile lint	volatile_var; \
