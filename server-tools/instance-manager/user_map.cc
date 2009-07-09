@@ -145,8 +145,8 @@ int User_map::load(const char *password_file_name)
   while (fgets(line, sizeof(line), file))
   {
     /* skip comments and empty lines */
-    if (line[0] == '#' || line[0] == '\n' &&
-        (line[1] == '\0' || line[1] == '\r'))
+    if (line[0] == '#' || (line[0] == '\n' &&
+        (line[1] == '\0' || line[1] == '\r')))
       continue;
     if ((user= new User) == 0)
       goto done;

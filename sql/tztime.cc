@@ -447,8 +447,8 @@ prepare_tz_info(TIME_ZONE_INFO *sp, MEM_ROOT *storage)
     }
 
     if (end_t == MY_TIME_T_MAX ||
-        (cur_off_and_corr > 0) &&
-        (end_t >= MY_TIME_T_MAX - cur_off_and_corr))
+        ((cur_off_and_corr > 0) &&
+        (end_t >= MY_TIME_T_MAX - cur_off_and_corr)))
       /* end of t space */
       break;
 

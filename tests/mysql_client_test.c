@@ -12063,6 +12063,27 @@ static void test_bug6081()
 }
 
 
+/*
+  Verify that bogus database names are handled properly with
+  COM_CREATE_DB and COM_DROP_DB, i.e., cannot cause SIGSEGV through
+  the use of printf specifiers in the database name.
+*/
+static void test_bug45790()
+{
+  const char* bogus_db = "%s%s%s%s%s%s%s";
+  int rc;
+
+  myheader("test_bug45790");
+  rc= simple_command(mysql, COM_CREATE_DB, bogus_db,
+                     (ulong)strlen(bogus_db), 0);
+  myquery(rc);
+
+  rc= simple_command(mysql, COM_DROP_DB, bogus_db,
+                     (ulong)strlen(bogus_db), 0);
+  myquery(rc);
+}
+
+
 static void test_bug6096()
 {
   MYSQL_STMT *stmt;
@@ -16829,6 +16850,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug6059", test_bug6059 },
   { "test_bug6046", test_bug6046 },
   { "test_bug6081", test_bug6081 },
+  { "test_bug45790",test_bug45790 },
   { "test_bug6096", test_bug6096 },
   { "test_datetime_ranges", test_datetime_ranges },
   { "test_bug4172", test_bug4172 },

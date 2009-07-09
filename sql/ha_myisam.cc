@@ -97,7 +97,7 @@ static void mi_check_print_msg(MI_CHECK *param,	const char* msg_type,
 
   if (!thd->vio_ok())
   {
-    sql_print_error(msgbuf);
+    sql_print_error("%s", msgbuf);
     return;
   }
 

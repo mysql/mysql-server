@@ -243,9 +243,9 @@ extern int history_length;
 extern int history_max_entries;
 extern char history_expansion_char;
 extern char history_subst_char;
-extern char *history_word_delimiters;
+extern const char *history_word_delimiters;
 extern char history_comment_char;
-extern char *history_no_expand_chars;
+extern const char *history_no_expand_chars;
 extern char *history_search_delimiter_chars;
 extern int history_quotes_inhibit_expansion;
 

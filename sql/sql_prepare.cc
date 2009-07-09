@@ -1367,7 +1367,7 @@ static bool mysql_test_set_fields(Prepared_statement *stmt,
   THD *thd= stmt->thd;
   set_var_base *var;
 
-  if (tables && check_table_access(thd, SELECT_ACL, tables, 0) ||
+  if ((tables && check_table_access(thd, SELECT_ACL, tables, 0)) ||
       open_and_lock_tables(thd, tables))
     goto error;
 
@@ -2714,7 +2714,7 @@ Prepared_statement::Prepared_statement(THD *thd_arg, Protocol *protocol_arg)
 void Prepared_statement::setup_set_params()
 {
   /* Setup binary logging */
-  if (mysql_bin_log.is_open() && is_update_query(lex->sql_command) ||
+  if ((mysql_bin_log.is_open() && is_update_query(lex->sql_command)) ||
       mysql_log.is_open() || mysql_slow_log.is_open())
   {
     set_params_from_vars= insert_params_from_vars_with_log;
