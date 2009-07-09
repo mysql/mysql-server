@@ -8065,7 +8065,10 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
       if (cur_quick->file->inited != handler::NONE) 
         cur_quick->file->ha_index_end();
       if (cur_quick->init() || cur_quick->reset())
+      {
+        delete unique;
         DBUG_RETURN(1);
+      }
     }
 
     if (result)
@@ -8073,13 +8076,17 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
       if (result != HA_ERR_END_OF_FILE)
       {
         cur_quick->range_end();
+        delete unique;
         DBUG_RETURN(result);
       }
       break;
     }
 
     if (thd->killed)
+    {
+      delete unique;
       DBUG_RETURN(1);
+    }
 
     /* skip row if it will be retrieved by clustered PK scan */
     if (pk_quick_select && pk_quick_select->row_in_ranges())
@@ -8088,8 +8095,10 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
     cur_quick->file->position(cur_quick->record);
     result= unique->unique_add((char*)cur_quick->file->ref);
     if (result)
+    {
+      delete unique;
       DBUG_RETURN(1);
-
+    }
   }
 
   /*
