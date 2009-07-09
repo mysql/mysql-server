@@ -43,8 +43,10 @@ drop table t1;
 # note that when LOW_MEMORY is set the "test" below is meaningless
 #
 
-set @@max_allowed_packet=1048576*100;
+set @@global.max_allowed_packet=1048576*100;
 --replace_result "''" XXX "'1'" XXX
+# reconnect to make the new max packet size take effect
+--connect (newconn, localhost, root,,)
 eval select compress(repeat('aaaaaaaaaa', IF('$LOW_MEMORY', 10, 10000000))) is null;
 
 #

@@ -112,7 +112,7 @@ extern "C" {
 #define PROMPT_CHAR '\\'
 #define DEFAULT_DELIMITER ";"
 
-#define MAX_BATCH_BUFFER_SIZE (1024L * 1024L)
+#define MAX_BATCH_BUFFER_SIZE (1024L * 1024L * 1024L)
 
 typedef struct st_status
 {
@@ -1974,7 +1974,7 @@ static COMMANDS *find_command(char *name,char cmd_char)
 				     (uchar*)commands[i].name,len) &&
 	  !commands[i].name[len] &&
 	  (!end || (end && commands[i].takes_params))) ||
-	 !name && commands[i].cmd_char == cmd_char))
+	 (!name && commands[i].cmd_char == cmd_char)))
     {
       DBUG_PRINT("exit",("found command: %s", commands[i].name));
       DBUG_RETURN(&commands[i]);
@@ -2132,7 +2132,7 @@ static bool add_line(String &buffer,char *line,char *in_string,
       buffer.length(0);
     }
     else if (!*ml_comment && (!*in_string && (inchar == '#' ||
-			      inchar == '-' && pos[1] == '-' &&
+                                              (inchar == '-' && pos[1] == '-' &&
                               /*
                                 The third byte is either whitespace or is the
                                 end of the line -- which would occur only
@@ -2140,7 +2140,7 @@ static bool add_line(String &buffer,char *line,char *in_string,
                                 itself whitespace and should also match.
                               */
 			      (my_isspace(charset_info,pos[2]) ||
-                               !pos[2]))))
+                               !pos[2])))))
     {
       // Flush previously accepted characters
       if (out != line)

@@ -7,7 +7,7 @@ AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # The Docs Makefile.am parses this line!
 # remember to also change ndb version below and update version.c in ndb
-AM_INIT_AUTOMAKE(mysql, 5.0.84)
+AM_INIT_AUTOMAKE(mysql, 5.0.85)
 AM_CONFIG_HEADER([include/config.h:config.h.in])
 
 PROTOCOL_VERSION=10
@@ -23,7 +23,7 @@ NDB_SHARED_LIB_VERSION=$NDB_SHARED_LIB_MAJOR_VERSION:0:0
 # ndb version
 NDB_VERSION_MAJOR=5
 NDB_VERSION_MINOR=0
-NDB_VERSION_BUILD=84
+NDB_VERSION_BUILD=85
 NDB_VERSION_STATUS=""
 
 # Set all version vars based on $VERSION. How do we do this more elegant ?
@@ -1756,7 +1756,7 @@ esac
 
 # Build optimized or debug version ?
 # First check for gcc and g++
-if test "$ac_cv_prog_gcc" = "yes"
+if test "$GCC" = "yes"
 then
   DEBUG_CFLAGS="-g"
   DEBUG_OPTIMIZE_CC="-O"
@@ -1764,9 +1764,16 @@ then
 else
   DEBUG_CFLAGS="-g"
   DEBUG_OPTIMIZE_CC=""
-  OPTIMIZE_CFLAGS="-O"
+  case $SYSTEM_TYPE in                               
+    *solaris*)
+      OPTIMIZE_CFLAGS="-O1"
+      ;;
+    *)
+      OPTIMIZE_CFLAGS="-O"
+      ;;
+  esac
 fi
-if test "$ac_cv_prog_cxx_g" = "yes"
+if test "$GXX" = "yes"
 then
   DEBUG_CXXFLAGS="-g"
   DEBUG_OPTIMIZE_CXX="-O"
@@ -1774,7 +1781,14 @@ then
 else
   DEBUG_CXXFLAGS="-g"
   DEBUG_OPTIMIZE_CXX=""
-  OPTIMIZE_CXXFLAGS="-O"
+  case $SYSTEM_TYPE in
+    *solaris*)
+      OPTIMIZE_CXXFLAGS="-O1"
+      ;;
+    *)
+      OPTIMIZE_CXXFLAGS="-O"
+      ;;
+  esac
 fi
 
 if expr "$SYSTEM_TYPE" : ".*netware.*" > /dev/null; then

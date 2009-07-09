@@ -187,7 +187,7 @@ Variable_name	Value
 myisam_max_sort_file_size	FILE_SIZE
 set global net_retry_count=10, session net_retry_count=10;
 set global net_buffer_length=1024, net_write_timeout=200, net_read_timeout=300;
-set session net_buffer_length=2048, net_write_timeout=500, net_read_timeout=600;
+set session net_write_timeout=500, net_read_timeout=600;
 show global variables like 'net_%';
 Variable_name	Value
 net_buffer_length	1024
@@ -196,35 +196,39 @@ net_retry_count	10
 net_write_timeout	200
 show session variables like 'net_%';
 Variable_name	Value
-net_buffer_length	2048
+net_buffer_length	16384
 net_read_timeout	600
 net_retry_count	10
 net_write_timeout	500
-set session net_buffer_length=8000, global net_read_timeout=900, net_write_timeout=1000;
+set global net_buffer_length=8000, net_read_timeout=900, net_write_timeout=1000;
 show global variables like 'net_%';
 Variable_name	Value
-net_buffer_length	1024
+net_buffer_length	7168
 net_read_timeout	900
 net_retry_count	10
 net_write_timeout	1000
 show session variables like 'net_%';
 Variable_name	Value
-net_buffer_length	7168
+net_buffer_length	16384
 net_read_timeout	600
 net_retry_count	10
 net_write_timeout	500
-set net_buffer_length=1;
+set global net_buffer_length=1;
 Warnings:
 Warning	1292	Truncated incorrect net_buffer_length value: '1'
-show variables like 'net_buffer_length';
+show global variables like 'net_buffer_length';
 Variable_name	Value
 net_buffer_length	1024
-set net_buffer_length=2000000000;
+set global net_buffer_length=2000000000;
 Warnings:
 Warning	1292	Truncated incorrect net_buffer_length value: '2000000000'
-show variables like 'net_buffer_length';
+show global variables like 'net_buffer_length';
 Variable_name	Value
 net_buffer_length	1048576
+set session net_buffer_length=1024;
+ERROR HY000: SESSION variable net_buffer_length is read-only. Use SET GLOBAL net_buffer_length to assign the value
+set session max_allowed_packet=1024;
+ERROR HY000: SESSION variable max_allowed_packet is read-only. Use SET GLOBAL max_allowed_packet to assign the value
 set character set cp1251_koi8;
 show variables like "character_set_client";
 Variable_name	Value
@@ -393,7 +397,7 @@ set last_insert_id=1;
 set global local_infile=1;
 set long_query_time=100;
 set low_priority_updates=1;
-set max_allowed_packet=100;
+set global max_allowed_packet=100;
 Warnings:
 Warning	1292	Truncated incorrect max_allowed_packet value: '100'
 set global max_binlog_cache_size=100;
@@ -417,7 +421,7 @@ select @@max_user_connections;
 100
 set global max_write_lock_count=100;
 set myisam_sort_buffer_size=100;
-set net_buffer_length=100;
+set global net_buffer_length=100;
 Warnings:
 Warning	1292	Truncated incorrect net_buffer_length value: '100'
 set net_read_timeout=100;

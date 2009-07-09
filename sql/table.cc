@@ -2112,8 +2112,8 @@ bool TABLE_LIST::prep_check_option(THD *thd, uint8 check_opt_type)
   {
     const char *save_where= thd->where;
     thd->where= "check option";
-    if (!check_option->fixed &&
-        check_option->fix_fields(thd, &check_option) ||
+    if ((!check_option->fixed &&
+        check_option->fix_fields(thd, &check_option)) ||
         check_option->check_cols(1))
     {
       DBUG_RETURN(TRUE);
@@ -2827,7 +2827,7 @@ void Field_iterator_table_ref::set_field_iterator()
     /* Necesary, but insufficient conditions. */
     DBUG_ASSERT(table_ref->is_natural_join ||
                 table_ref->nested_join ||
-                table_ref->join_columns &&
+                (table_ref->join_columns &&
                 /* This is a merge view. */
                 ((table_ref->field_translation &&
                   table_ref->join_columns->elements ==
@@ -2836,7 +2836,7 @@ void Field_iterator_table_ref::set_field_iterator()
                  /* This is stored table or a tmptable view. */
                  (!table_ref->field_translation &&
                   table_ref->join_columns->elements ==
-                  table_ref->table->s->fields)));
+                  table_ref->table->s->fields))));
     field_it= &natural_join_it;
     DBUG_PRINT("info",("field_it for '%s' is Field_iterator_natural_join",
                        table_ref->alias));
