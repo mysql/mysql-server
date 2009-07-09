@@ -189,6 +189,7 @@ NdbQueryOperation::isRowChanged() const
 ///////////////////////////////////////////
 NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans, 
                            const NdbQueryDefImpl& queryDef, 
+                           const void* const param[],
                            NdbQueryImpl* next):
   m_interface(*this),
   m_magic(MAGIC),
@@ -198,6 +199,7 @@ NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans,
   m_operations(),
   m_tcKeyConfReceived(false),
   m_pendingOperations(0),
+  m_param(param),
   m_next(next),
   m_ndbOperation(NULL),
   m_queryDef(queryDef)
@@ -247,9 +249,10 @@ NdbQueryImpl::~NdbQueryImpl()
 NdbQueryImpl*
 NdbQueryImpl::buildQuery(NdbTransaction& trans, 
                          const NdbQueryDefImpl& queryDef, 
+                         const void* const param[],
                          NdbQueryImpl* next)
 {
-  return new NdbQueryImpl(trans, queryDef, next);
+  return new NdbQueryImpl(trans, queryDef, param, next);
 }
 
 Uint32
@@ -485,18 +488,49 @@ NdbQueryOperationImpl::isRowChanged() const
 void NdbQueryOperationImpl::prepareSend(Uint32Buffer& serializedParams){
   m_receiver.prepareSend();
   Uint32Slice lookupParams(serializedParams, serializedParams.getSize());
-  lookupParams.get(POS_IN_LOOKUP_PARAM(requestInfo)) = DABits::PI_ATTR_LIST;
+  Uint32 requestInfo = 0;
+  lookupParams.get(POS_IN_LOOKUP_PARAM(requestInfo)) = 0;
   lookupParams.get(POS_IN_LOOKUP_PARAM(resultData)) = m_id;
   Uint32Slice optional(lookupParams, POS_IN_LOOKUP_PARAM(optional));
-  // TODO: Fix this such that we get desired projection and not just all fields.
-  optional.get(0) = 1; // Length of user projection
-  AttributeHeader::init(&optional.get(1), 
-			AttributeHeader::READ_ALL,
-			m_operationDef.getTable().getNoOfColumns());
+
+  int optPos = 0;
+  assert (lookupParams.getSize() == POS_IN_LOOKUP_PARAM(optional)+optPos);
+
+  // SPJ block assume PARAMS to be supplied before ATTR_LIST
+  if (false)  // TODO: Check if serialized tree code has 'NI_KEY_PARAMS'
+  {
+    int size = 0;
+    requestInfo |= DABits::PI_KEY_PARAMS;
+    Uint32Slice keyParam(optional, optPos);
+
+    assert (getQuery().getParam() != NULL);
+    // FIXME: Add parameters here, unsure about the serialized format yet
+
+    optPos += size;
+  }
+
+  if (true)
+  {
+    requestInfo |= DABits::PI_ATTR_LIST;
+
+    // TODO: Fix this such that we get desired projection and not just all fields.
+    Uint32Slice attrList(optional, optPos);
+    attrList.get(0) = 1; // Length of user projection
+    AttributeHeader::init(&attrList.get(1), 
+			  AttributeHeader::READ_ALL,
+			  m_operationDef.getTable().getNoOfColumns());
+    optPos += 2;
+  }
+  lookupParams.get(POS_IN_LOOKUP_PARAM(requestInfo)) = requestInfo;
+
+  assert (lookupParams.getSize() == POS_IN_LOOKUP_PARAM(optional)+optPos);
+
   // TODO: Implement for scans as well.
   QueryNodeParameters::setOpLen(lookupParams.get(POS_IN_LOOKUP_PARAM(len)),
 				QueryNodeParameters::QN_LOOKUP,
 				lookupParams.getSize());
+
+
 #ifdef TRACE_SERIALIZATION
   ndbout << "Serialized params for node " 
 	 << m_operationDef.getQueryOperationIx() << " : ";

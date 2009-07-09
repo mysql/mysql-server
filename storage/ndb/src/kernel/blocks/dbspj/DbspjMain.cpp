@@ -2323,7 +2323,7 @@ error:
 
 Uint32
 Dbspj::expand(Local_pattern_store& dst, DABuffer& pattern, Uint32 len,
-              DABuffer & param, Uint32 cnt)
+              DABuffer& param, Uint32 cnt)
 {
   /**
    * TODO handle error
@@ -2537,7 +2537,7 @@ Dbspj::parseDA(Build_context& ctx,
 
        * - NI_ATTR_INTERPRET - tree contains interpreted program
        * - NI_ATTR_LINKED - means that the attr-info contains linked-values
-       * - NI_ATTR_PARAMS -.means that the attr-info is parameterized
+       * - NI_ATTR_PARAMS - means that the attr-info is parameterized
        *   PI_ATTR_PARAMS - means that the parameters contains attr parameters
        *
        * IF NI_ATTR_INTERPRET

@@ -1227,17 +1227,21 @@ NdbQueryLookupOperationDefImpl
     = getTable().getObjectId();
   lookupNode.get(POS_IN_LOOKUP(tableVersion))
     = getTable().getObjectVersion();
-  if(getNoOfChildOperations()==0){
-    lookupNode.get(POS_IN_LOOKUP(requestInfo)) = 0;
-  }else{
-    lookupNode.get(POS_IN_LOOKUP(requestInfo)) = DABits::NI_LINKED_ATTR;
-  }
+  lookupNode.get(POS_IN_LOOKUP(requestInfo)) = 0;
+  Uint32 requestInfo = 0;
+
+  /**
+   * NOTE: Order of sections within the optional part is fixed as:
+   *    Part1:  'NI_HAS_PARENT'
+   *    Part2:  'NI_KEY_PARAMS, NI_KEY_LINKED, NI_KEY_CONST'
+   *    PART3:  'NI_LINKED_ATTR ++
+   */
+
   Uint32Slice optional(lookupNode, POS_IN_LOOKUP(optional));
   int optPos = 0;
   if(getNoOfParentOperations()>0){
-    // Make list of parent nodes.
-    lookupNode.get(POS_IN_LOOKUP(requestInfo)) 
-      |= DABits::NI_HAS_PARENT | DABits::NI_KEY_LINKED;
+    // Optional part1: Make list of parent nodes.
+    requestInfo |= DABits::NI_HAS_PARENT;
     Uint16Sequence parentSeq(optional);
     // Multiple parents not yet supported.
     assert(getNoOfParentOperations()==1);
@@ -1251,19 +1255,20 @@ NdbQueryLookupOperationDefImpl
   Uint32Slice keyPattern(optional, optPos+1);
   int keyPatternPos = 0;
   int keyNo = 0;
+  int paramCnt = 0;
   const NdbQueryOperandImpl* op = m_keys[0];
   while(op!=NULL){
     switch(op->getKind()){
     case OperandKind_Linked:
     {
+      requestInfo |= DABits::NI_KEY_LINKED;
       const NdbLinkedOperandImpl& linkedOp = *static_cast<const NdbLinkedOperandImpl*>(op);
       keyPattern.get(keyPatternPos++) = QueryPattern::col(linkedOp.getLinkedSrc());
       break;
     }
     case OperandKind_Const:
     {
-      lookupNode.get(POS_IN_LOOKUP(requestInfo)) 
-	|= DABits::NI_KEY_CONSTS;
+      requestInfo |= DABits::NI_KEY_CONSTS;
       const NdbConstOperandImpl& constOp 
 	= *static_cast<const NdbConstOperandImpl*>(op);
       // No of words needed for storing the constant data.
@@ -1287,6 +1292,10 @@ NdbQueryLookupOperationDefImpl
       break;
     }
     case OperandKind_Param:  // TODO: Implement this
+/**** FIXME: can't set NI_KEY_PARAMS yet as this also require PI_KEY_PARAMS in parameter part
+      requestInfo |= DABits::NI_KEY_PARAMS;
+      paramCnt++;
+*****/
       keyPattern.get(keyPatternPos++) = QueryPattern::data(0);  // Simple hack to avoid 'assert(keyPatternPos>0)' below
       break;
     default:
@@ -1297,17 +1306,23 @@ NdbQueryLookupOperationDefImpl
   if(m_keys[0]!=NULL){
     assert(keyPatternPos>0);  
     // Set total length of key pattern.
-    optional.get(optPos) = keyPatternPos;
+    optional.get(optPos) = (paramCnt << 16) | keyPatternPos;
     optPos += keyPatternPos+1;
   }
 
   /* Add the projection that should be send to the SPJ block such that 
    * child operations can be instantiated.*/
-  Uint16Sequence spjProjSeq(Uint32Slice(optional, optPos));
-  for(Uint32 i = 0; i<getSPJProjection().size(); i++){
-    spjProjSeq.append(getSPJProjection()[i]->getColumnNo());
+//assert ((getNoOfChildOperations()==0) == (getSPJProjection().size()==0));
+  if (getNoOfChildOperations()>0){
+    requestInfo |= DABits::NI_LINKED_ATTR;
+    Uint16Sequence spjProjSeq(Uint32Slice(optional, optPos));
+    for(Uint32 i = 0; i<getSPJProjection().size(); i++){
+      spjProjSeq.append(getSPJProjection()[i]->getColumnNo());
+    }
+    optPos += spjProjSeq.finish();
   }
-  optPos += spjProjSeq.finish();
+
+  lookupNode.get(POS_IN_LOOKUP(requestInfo)) = requestInfo;
   const int length = sizeof(QN_LookupNode)/sizeof(Uint32) + optPos - 1;
   // Set node length and type.
   QueryNode::setOpLen(lookupNode.get(POS_IN_LOOKUP(len)), 
