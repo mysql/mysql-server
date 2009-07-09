@@ -949,3 +949,4 @@ use test;
 drop procedure mysqltestbug36570_p1;
 drop procedure ` mysqltestbug36570_p2`;
 drop function mysqltestbug36570_f1;
+set global log_bin_trust_function_creators = 0;

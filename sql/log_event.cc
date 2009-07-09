@@ -2257,8 +2257,8 @@ void Start_log_event_v3::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
       fprintf(file," at startup");
     fputc('\n', file);
     if (flags & LOG_EVENT_BINLOG_IN_USE_F)
-      fprintf(file, "# Warning: this binlog was not closed properly. "
-              "Most probably mysqld crashed writing it.\n");
+      fprintf(file, "# Warning: this binlog is either in use or was not " 
+                    "closed properly.\n");
   }
   if (!artificial_event && created)
   {
@@ -3096,7 +3096,7 @@ void Load_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info,
     {
       if (i)
 	fputc(',', file);
-      fprintf(file, field);
+      fprintf(file, "%s", field);
 	  
       field += field_lens[i]  + 1;
     }
@@ -5203,7 +5203,7 @@ void Execute_load_query_log_event::print(FILE* file,
   {
     my_fwrite(file, (byte*) query, fn_pos_start, MYF(MY_NABP | MY_WME));
     fprintf(file, " LOCAL INFILE \'");
-    fprintf(file, local_fname);
+    fprintf(file, "%s", local_fname);
     fprintf(file, "\'");
     if (dup_handling == LOAD_DUP_REPLACE)
       fprintf(file, " REPLACE");

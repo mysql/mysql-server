@@ -2423,8 +2423,9 @@ row_sel_store_mysql_rec(
 	byte*			data;
 	ulint			len;
 	ulint			i;
-	
+
 	ut_ad(prebuilt->mysql_template);
+	ut_ad(prebuilt->default_rec);
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
 
 	if (UNIV_LIKELY_NULL(prebuilt->blob_heap)) {
@@ -2520,58 +2521,15 @@ row_sel_store_mysql_rec(
 					~(byte) (templ->mysql_null_bit_mask);
 			}
 		} else {
-		        /* MySQL seems to assume the field for an SQL NULL
-		        value is set to zero or space. Not taking this into
-			account caused seg faults with NULL BLOB fields, and
-		        bug number 154 in the MySQL bug database: GROUP BY
-		        and DISTINCT could treat NULL values inequal. */
-			int	pad_char;
+			/* MySQL assumes that the field for an SQL
+			NULL value is set to the default value. */
 
 			mysql_rec[templ->mysql_null_byte_offset] |=
 					(byte) (templ->mysql_null_bit_mask);
-			switch (templ->type) {
-			case DATA_VARCHAR:
-			case DATA_BINARY:
-			case DATA_VARMYSQL:
-				if (templ->mysql_type
-				    == DATA_MYSQL_TRUE_VARCHAR) {
-					/* This is a >= 5.0.3 type
-					true VARCHAR.  Zero the field. */
-					pad_char = 0x00;
-					break;
-				}
-				/* Fall through */
-			case DATA_CHAR:
-			case DATA_FIXBINARY:
-			case DATA_MYSQL:
-			        /* MySQL pads all string types (except
-				BLOB, TEXT and true VARCHAR) with space. */
-				if (UNIV_UNLIKELY(templ->mbminlen == 2)) {
-					/* Treat UCS2 as a special case. */
-					data = mysql_rec
-						+ templ->mysql_col_offset;
-					len = templ->mysql_col_len;
-					/* There are two UCS2 bytes per char,
-					so the length has to be even. */
-					ut_a(!(len & 1));
-					/* Pad with 0x0020. */
-					while (len) {
-						*data++ = 0x00;
-						*data++ = 0x20;
-						len -= 2;
-					}
-					continue;
-				}
-				pad_char = 0x20;
-				break;
-			default:
-				pad_char = 0x00;
-				break;
-			}
-
-			ut_ad(!pad_char || templ->mbminlen == 1);
-			memset(mysql_rec + templ->mysql_col_offset,
-					pad_char, templ->mysql_col_len);
+			memcpy(mysql_rec + templ->mysql_col_offset,
+			       (const byte*) prebuilt->default_rec 
+                               + templ->mysql_col_offset,
+			       templ->mysql_col_len);
 		}
 	} 
 

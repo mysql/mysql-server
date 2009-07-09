@@ -413,7 +413,7 @@ void upgrade_lock_type(THD *thd, thr_lock_type *lock_type,
                        bool is_multi_insert)
 {
   if (duplic == DUP_UPDATE ||
-      duplic == DUP_REPLACE && *lock_type == TL_WRITE_CONCURRENT_INSERT)
+      (duplic == DUP_REPLACE && *lock_type == TL_WRITE_CONCURRENT_INSERT))
   {
     *lock_type= TL_WRITE_DEFAULT;
     return;
@@ -887,7 +887,8 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       if (changed)
         query_cache_invalidate3(thd, table_list, 1);
     }
-    if (changed && error <= 0 || thd->transaction.stmt.modified_non_trans_table
+    if ((changed && error <= 0)
+        || thd->transaction.stmt.modified_non_trans_table
         || was_insert_delayed)
     {
       if (mysql_bin_log.is_open())
@@ -1148,6 +1149,33 @@ static bool mysql_prepare_insert_check_table(THD *thd, TABLE_LIST *table_list,
 
 
 /*
+  Get extra info for tables we insert into
+
+  @param table     table(TABLE object) we insert into,
+                   might be NULL in case of view
+  @param           table(TABLE_LIST object) or view we insert into
+*/
+
+static void prepare_for_positional_update(TABLE *table, TABLE_LIST *tables)
+{
+  if (table)
+  {
+    if(table->reginfo.lock_type != TL_WRITE_DELAYED)
+      table->file->extra(HA_EXTRA_RETRIEVE_PRIMARY_KEY);
+    return;
+  }
+
+  DBUG_ASSERT(tables->view);
+  List_iterator<TABLE_LIST> it(*tables->view_tables);
+  TABLE_LIST *tbl;
+  while ((tbl= it++))
+    prepare_for_positional_update(tbl->table, tbl);
+
+  return;
+}
+
+
+/*
   Prepare items in INSERT statement
 
   SYNOPSIS
@@ -1297,9 +1325,8 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
     Only call extra() handler method if we are not performing a DELAYED
     operation. It will instead be executed by delayed insert thread.
   */
-  if ((duplic == DUP_UPDATE || duplic == DUP_REPLACE) &&
-      (table->reginfo.lock_type != TL_WRITE_DELAYED))
-    table->file->extra(HA_EXTRA_RETRIEVE_PRIMARY_KEY);
+  if (duplic == DUP_UPDATE || duplic == DUP_REPLACE)
+    prepare_for_positional_update(table, table_list);
   DBUG_RETURN(FALSE);
 }
 
@@ -3016,8 +3043,8 @@ bool select_insert::send_eof()
     We must invalidate the table in the query cache before binlog writing
     and ha_autocommit_or_rollback
   */
-
-  if (changed= (info.copied || info.deleted || info.updated))
+  changed= (info.copied || info.deleted || info.updated);
+  if (changed)
   {
     query_cache_invalidate3(thd, table, 1);
     if (thd->transaction.stmt.modified_non_trans_table)
