@@ -31,8 +31,11 @@
 class NdbQueryImpl {
 private:
   // Only constructable from factory ::buildQuery();
-  explicit NdbQueryImpl(NdbTransaction& trans, 
-                        const NdbQueryDefImpl& queryDef, NdbQueryImpl* next);
+  explicit NdbQueryImpl(
+             NdbTransaction& trans,
+             const NdbQueryDefImpl& queryDef,
+             const void* const param[],
+             NdbQueryImpl* next);
 
   ~NdbQueryImpl();
 public:
@@ -41,6 +44,7 @@ public:
   // Factory method which instantiate a query from its definition
   static NdbQueryImpl* buildQuery(NdbTransaction& trans, 
                                   const NdbQueryDefImpl& queryDef, 
+                                  const void* const param[],
                                   NdbQueryImpl* next);
 
   Uint32 getNoOfOperations() const;
@@ -92,6 +96,9 @@ public:
   NdbQuery& getInterface()
   { return m_interface; }
   
+  const void* getParam() const
+  { return m_param; }
+
   /** Get next query in same transaction.*/
   NdbQueryImpl* getNext() const {return m_next;}
 
@@ -112,10 +119,12 @@ private:
   Vector<NdbQueryOperationImpl*> m_operations;
   /** True if a TCKEYCONF message has been received for this query.*/
   bool m_tcKeyConfReceived;
-  /** Number of operations not yest completed.*/
+  /** Number of operations not yet completed.*/
   int m_pendingOperations;
   /** Serialized representation of parameters. To be sent in TCKEYREQ*/
   Uint32Buffer m_serializedParams;
+  /** Query parameter supplied to ::buildQuery() */
+  const void* const *m_param;
   /** Next query in same transaction.*/
   NdbQueryImpl* const m_next;
   /** TODO: Remove this.*/

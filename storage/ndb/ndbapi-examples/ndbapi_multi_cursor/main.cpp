@@ -32,6 +32,8 @@
 #include "NdbQueryBuilder.hpp"
 #include "NdbQueryOperation.hpp"
 
+#include "NdbQueryOperationImpl.hpp"
+
 /**
  * Helper debugging macros
  */
@@ -83,16 +85,6 @@ struct SalaryRow
   Int32  to_date;
 };
 
-
- NdbQuery*
- NdbTransaction::createQuery(const NdbQueryDef* def,
-              const void* const param[],
-              NdbOperation::LockMode lock_mode)
-{
-  NdbQuery* query = NdbQuery::buildQuery(*this, *def);
-
-  return query;
-}
 
 const char* employeeDef = 
 "CREATE TABLE employees ("
@@ -215,6 +207,13 @@ int createEmployeeDb()
     if (mysql_query(&mysql, salariesDef) != 0) MYSQLERROR(mysql);
     mysql_commit(&mysql);
     printf("Created 'salaries' table\n");
+
+    printf("Insert simple test data\n");
+    if (mysql_query(&mysql, "Insert into dept_manager(dept_no,emp_no) values ('d005', 110567)") != 0) MYSQLERROR(mysql);
+    mysql_commit(&mysql);
+
+    if (mysql_query(&mysql, "Insert into employees(emp_no) values (110567)") != 0) MYSQLERROR(mysql);
+    mysql_commit(&mysql);
 
     mysql_close(&mysql);
   }
@@ -365,20 +364,25 @@ int testQueryBuilder(Ndb &myNdb)
   {
     NdbQueryBuilder* qb = &myBuilder; //myDict->getQueryBuilder();
 
-    const NdbQueryOperand* managerKey[] =       // Manager is indexed om {"dept_no", "emp_no"}
+    const NdbQueryOperand* constManagerKey[] =  // Manager is indexed om {"dept_no", "emp_no"}
+    {  qb->constValue("d005"),   // dept_no = "d005"
+       qb->constValue(110567),   // emp_no  = 110567
+       0
+    };
+    const NdbQueryOperand* paramManagerKey[] =       // Manager is indexed om {"dept_no", "emp_no"}
     {  qb->paramValue(),         // dept_no parameter,
        qb->paramValue("emp"),    // emp_no parameter - param naming is optional
        0
     };
     // Lookup a single tuple with key define by 'managerKey' param. tuple
-    const NdbQueryLookupOperationDef *readManager = qb->readTuple(manager, managerKey);
+    const NdbQueryLookupOperationDef *readManager = qb->readTuple(manager, constManagerKey);
     if (readManager == NULL) APIERROR(qb->getNdbError());
 
     // THEN: employee table is joined:
     //    A linked value is used to let employee lookup refer values
     //    from the parent operation on manger.
 
-    const NdbQueryOperand* empJoinKey[] =         // Employee is indexed om {"emp_no"}
+    const NdbQueryOperand* empJoinKey[] =       // Employee is indexed om {"emp_no"}
     {  qb->linkedValue(readManager, "emp_no"),  // where '= readManger.emp_no'
        0
     };
@@ -409,7 +413,7 @@ int testQueryBuilder(Ndb &myNdb)
   // within the same NdbTransaction::execute(). )
   ////////////////////////////////////////////////////
   char* dept_no = "d005";
-  Uint32 emp_no = 132323;
+  Uint32 emp_no = 110567;
   void* paramList[] = {&dept_no, &emp_no};
 
   NdbTransaction* myTransaction= myNdb.startTransaction();
@@ -419,8 +423,11 @@ int testQueryBuilder(Ndb &myNdb)
   if (myQuery == NULL)
     APIERROR(myTransaction->getNdbError());
 
-  assert (myQuery->getNoOfOperations() == 2);
+  // TEMP HACK: Set keys for root lookup.
+  myQuery->getImpl().getNdbOperation()->equal("dept_no", "d005");
+  myQuery->getImpl().getNdbOperation()->equal("emp_no",   110567);
 
+  assert (myQuery->getNoOfOperations() == 2);
   assert (myQuery->getQueryOperation((Uint32)0)->getNoOfParentOperations() == 0);
 //assert (myQuery->getQueryOperation((Uint32)0)->getParentOperation((Uint32)0) == NULL);
   assert (myQuery->getQueryOperation((Uint32)0)->getNoOfChildOperations() == 1);
@@ -430,6 +437,7 @@ int testQueryBuilder(Ndb &myNdb)
   assert (myQuery->getQueryOperation((Uint32)1)->getNoOfChildOperations() == 0);
 //assert (myQuery->getQueryOperation((Uint32)1)->getChildOperation((Uint32)0) == NULL);
 
+#if 0
   ManagerRow managerRow;
   memset (&managerRow, 0, sizeof(managerRow));
   const NdbRecord* rowManagerRecord = manager->getDefaultRecord();
@@ -440,9 +448,32 @@ int testQueryBuilder(Ndb &myNdb)
   NdbQueryOperation* op = myQuery->getQueryOperation((Uint32)0);
 
   op->setResultRowBuf(rowManagerRecord, (char*)&managerRow);
+#else
+  
+  const NdbRecAttr *key[2][2];
 
+  for (Uint32 i=0; i<myQuery->getNoOfOperations(); ++i)
+  {
+    NdbQueryOperation* op = myQuery->getQueryOperation(i);
+    const NdbDictionary::Table* table = op->getQueryOperationDef().getTable();
+
+    key[i][0] =  op->getValue(table->getColumn(0));
+    key[i][1] =  op->getValue(table->getColumn(1));
+
+    for (Uint32 col=2; col<table->getNoOfColumns(); col++)
+    {
+      op->getValue(table->getColumn(col));
+    }
+  }
+#endif
+
+  printf("Start execute\n");
   if (myTransaction->execute( NdbTransaction::NoCommit ) == -1)
     APIERROR(myTransaction->getNdbError());
+  printf("Done executed\n");
+
+  printf("manager  emp_no: %d\n", key[0][1]->u_32_value());
+  printf("employee emp_no: %d\n", key[1][0]->u_32_value());
 
   // All NdbQuery operations are handled as scans with cursor placed 'before'
   // first record: Fetch next to retrieve result:
@@ -517,7 +548,6 @@ int testQueryBuilder(Ndb &myNdb)
 }
 
 
-
 int
 main(int argc, const char** argv){
   ndb_init();
@@ -532,17 +562,10 @@ main(int argc, const char** argv){
   Ndb_cluster_connection cluster_connection;
 #endif
 
-//printf("sizeof(NdbOperation): %d\n", sizeof(NdbOperation));
-//printf("sizeof(NdbScanOperation): %d\n", sizeof(NdbScanOperation));
-//printf("sizeof(NdbIndexScanOperation): %d\n", sizeof(NdbIndexScanOperation));
-  //printf("offset: %d\n", offsetof(NdbOperation, NdbOperation::m_type));
-
-
   if (!createEmployeeDb())
   {  std::cout << "Create of employee DB failed" << std::endl;
      exit(-1);
   }
-
   if (cluster_connection.connect(4, 5, 1))
   {
     std::cout << "Unable to connect to cluster within 30 secs." << std::endl;
@@ -560,7 +583,6 @@ main(int argc, const char** argv){
     exit(-1);
   }
   std::cout << "Connected to Cluster\n";
-
 
   /*******************************************
    * Check table existence                   *

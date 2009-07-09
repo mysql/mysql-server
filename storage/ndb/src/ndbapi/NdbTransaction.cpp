@@ -2774,7 +2774,7 @@ NdbTransaction::createQuery(const NdbQueryDef* def,
 			    NdbOperation::LockMode lock_mode)
 {
   NdbQueryImpl* query 
-    = NdbQueryImpl::buildQuery(*this, def->getImpl(), m_firstQuery);
+    = NdbQueryImpl::buildQuery(*this, def->getImpl(), param, m_firstQuery);
   if(query!=NULL)
   {
     m_firstQuery = query;
