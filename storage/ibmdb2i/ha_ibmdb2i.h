@@ -530,6 +530,13 @@ private:
                                  bool isPrimary,
                                  const char* db2LibName,    
                                  const char* db2FileName);
+  
+  int32 buildIndexFieldList(String& appendHere,
+                            const KEY& key,
+                            bool isPrimary,
+                            char* fileSortSequenceType, 
+                            char* fileSortSequence, 
+                            char* fileSortSequenceLibrary);
 
   // Specify NULL for data when using the data pointed to by field
   int32 convertMySQLtoDB2(Field* field, const DB2Field& db2Field, char* db2Buf, const uchar* data = NULL); 
@@ -806,4 +813,10 @@ private:
     query.append(STRING_WITH_LEN(" RCDFMT "));
     query.append(rcdfmt);
   }
+  
+  int32 generateShadowIndex(SqlStatementStream& stream, 
+                           const KEY& key,
+                           const char* libName,
+                           const char* fileName,
+                           const String& fieldDefinition);
 };
