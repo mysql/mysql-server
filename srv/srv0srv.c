@@ -382,10 +382,10 @@ UNIV_INTERN int	srv_query_thread_priority = 0;
 UNIV_INTERN ulong	srv_replication_delay		= 0;
 
 /*-------------------------------------------*/
-UNIV_INTERN ulong	srv_n_spin_wait_rounds	= 20;
+UNIV_INTERN ulong	srv_n_spin_wait_rounds	= 30;
 UNIV_INTERN ulong	srv_n_free_tickets_to_enter = 500;
 UNIV_INTERN ulong	srv_thread_sleep_delay = 10000;
-UNIV_INTERN ulong	srv_spin_wait_delay	= 5;
+UNIV_INTERN ulong	srv_spin_wait_delay	= 6;
 UNIV_INTERN ibool	srv_priority_boost	= TRUE;
 
 #ifdef UNIV_DEBUG
