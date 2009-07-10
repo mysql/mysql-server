@@ -2745,7 +2745,7 @@ fil_open_single_table_tablespace(
 		      "InnoDB: and MySQL removed the .ibd file for this.\n"
 		      "InnoDB: Please refer to\n"
 		      "InnoDB: http://dev.mysql.com/doc/refman/5.1/en/"
-		      "innodb-troubleshooting.html\n"
+		      "innodb-troubleshooting-datadict.html\n"
 		      "InnoDB: for how to resolve the issue.\n", stderr);
 
 		mem_free(filepath);
@@ -2786,7 +2786,7 @@ fil_open_single_table_tablespace(
 			" IMPORT TABLESPACE?\n"
 			"InnoDB: Please refer to\n"
 			"InnoDB: http://dev.mysql.com/doc/refman/5.1/en/"
-			"innodb-troubleshooting.html\n"
+			"innodb-troubleshooting-datadict.html\n"
 			"InnoDB: for how to resolve the issue.\n",
 			(ulong) space_id, (ulong) id);
 
@@ -3477,7 +3477,7 @@ fil_space_for_table_exists_in_mem(
 error_exit:
 		fputs("InnoDB: Please refer to\n"
 		      "InnoDB: http://dev.mysql.com/doc/refman/5.1/en/"
-		      "innodb-troubleshooting.html\n"
+		      "innodb-troubleshooting-datadict.html\n"
 		      "InnoDB: for how to resolve the issue.\n", stderr);
 
 		mem_free(path);
