@@ -166,6 +166,20 @@ static handler *innobase_create_handler(handlerton *hton,
 
 static const char innobase_hton_name[]= "InnoDB";
 
+/** @brief Initialize the default value of innodb_commit_concurrency.
+
+Once InnoDB is running, the innodb_commit_concurrency must not change
+from zero to nonzero. (Bug #42101)
+
+The initial default value is 0, and without this extra initialization,
+SET GLOBAL innodb_commit_concurrency=DEFAULT would set the parameter
+to 0, even if it was initially set to nonzero at the command line
+or configuration file. */
+static
+void
+innobase_commit_concurrency_init_default(void);
+/*==========================================*/
+
 /*****************************************************************
 Check for a valid value of innobase_commit_concurrency. */
 static
@@ -1774,6 +1788,8 @@ innobase_init(
 	ut_a(0 == strcmp((char*)my_charset_latin1.name,
 						(char*)"latin1_swedish_ci"));
 	memcpy(srv_latin1_ordering, my_charset_latin1.sort_order, 256);
+
+	innobase_commit_concurrency_init_default();
 
 	/* Since we in this module access directly the fields of a trx
 	struct, and due to different headers and flags it might happen that
@@ -8464,3 +8480,21 @@ mysql_declare_plugin(innobase)
   NULL /* reserved */
 }
 mysql_declare_plugin_end;
+
+/** @brief Initialize the default value of innodb_commit_concurrency.
+
+Once InnoDB is running, the innodb_commit_concurrency must not change
+from zero to nonzero. (Bug #42101)
+
+The initial default value is 0, and without this extra initialization,
+SET GLOBAL innodb_commit_concurrency=DEFAULT would set the parameter
+to 0, even if it was initially set to nonzero at the command line
+or configuration file. */
+static
+void
+innobase_commit_concurrency_init_default(void)
+/*==========================================*/
+{
+	MYSQL_SYSVAR_NAME(commit_concurrency).def_val
+		= innobase_commit_concurrency;
+}
