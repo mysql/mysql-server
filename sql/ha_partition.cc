@@ -3179,6 +3179,7 @@ int ha_partition::delete_row(const uchar *buf)
 int ha_partition::delete_all_rows()
 {
   int error;
+  bool truncate= FALSE;
   handler **file;
   THD *thd= ha_thd();
   DBUG_ENTER("ha_partition::delete_all_rows");
@@ -3190,12 +3191,16 @@ int ha_partition::delete_all_rows()
     ha_data->next_auto_inc_val= 0;
     ha_data->auto_inc_initialized= FALSE;
     unlock_auto_increment();
+    truncate= TRUE;
   }
   file= m_file;
   do
   {
     if ((error= (*file)->ha_delete_all_rows()))
       DBUG_RETURN(error);
+    /* Ignore the error */
+    if (truncate)
+      (void) (*file)->ha_reset_auto_increment(0);
   } while (*(++file));
   DBUG_RETURN(0);
 }
