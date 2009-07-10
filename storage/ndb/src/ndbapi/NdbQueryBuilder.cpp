@@ -1338,9 +1338,9 @@ NdbQueryLookupOperationDefImpl
     }
     optPos += spjProjSeq.finish();
   }
-
   lookupNode.get(POS_IN_LOOKUP(requestInfo)) = requestInfo;
-  const int length = sizeof(QN_LookupNode)/sizeof(Uint32) + optPos - 1;
+  const int length = POS_IN_LOOKUP(optional)+optPos;
+
   // Set node length and type.
   QueryNode::setOpLen(lookupNode.get(POS_IN_LOOKUP(len)), 
 		      QueryNode::QN_LOOKUP, length);
