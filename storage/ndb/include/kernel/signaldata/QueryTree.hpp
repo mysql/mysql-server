@@ -21,7 +21,10 @@
 
 struct QueryNode  // Effectively used as a base class for QN_xxxNode
 {
-  Uint32 op_len;
+  Uint32 len;
+  Uint32 requestInfo;
+  Uint32 tableId;      // 16-bit
+  Uint32 tableVersion;
 
   enum OpType
   {
@@ -43,7 +46,9 @@ struct QueryNode  // Effectively used as a base class for QN_xxxNode
 
 struct QueryNodeParameters  // Effectively used as a base class for QN_xxxParameters
 {
-  Uint32 op_len;
+  Uint32 len;
+  Uint32 requestInfo;
+  Uint32 resultData;   // Api connect ptr
 
   enum OpType
   {
@@ -74,12 +79,12 @@ struct DABits
 
     NI_KEY_LINKED     = 0x02,  // Does keyinfo contain linked values
     NI_KEY_PARAMS     = 0x04,  // Does keyinfo contain parameters
+    NI_KEY_CONSTS     = 0x80,  // Does keyinfo contain const operands.
 
     NI_LINKED_ATTR    = 0x08,  // List of attributes to be used by childs
     NI_ATTR_INTERPRET = 0x10,  // Is attr-info a interpreted program
     NI_ATTR_PARAMS    = 0x20,  // Does attrinfo contain parameters
     NI_ATTR_LINKED    = 0x40,  // Does attrinfo contain linked values
-    NI_KEY_CONSTS     = 0x80,  // Does keyinfo contain const operands.
     NI_END = 0
   };
 

@@ -213,13 +213,28 @@ NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans,
     NdbQueryOperationImpl* op = new NdbQueryOperationImpl(*this, def);
 
     m_operations.push_back(op);
-    if(def.getNoOfParentOperations()==0){
+    if(def.getNoOfParentOperations()==0)
+    {
       // TODO: Remove references to NdbOperation class.
       assert(m_ndbOperation == NULL);
-      m_ndbOperation = m_transaction.getNdbOperation(&def.getTable());
-      m_ndbOperation->readTuple(NdbOperation::LM_Dirty);
-      m_ndbOperation->m_isLinked = true;
-      m_ndbOperation->setQueryImpl(this);
+      if (def.getType() == NdbQueryOperationDefImpl::PrimaryKeyAccess)
+      {
+        NdbOperation* lookupOp = m_transaction.getNdbOperation(&def.getTable());
+        lookupOp->readTuple(NdbOperation::LM_Dirty);
+        lookupOp->m_isLinked = true;
+        lookupOp->setQueryImpl(this);
+        m_ndbOperation = lookupOp;
+      }
+      else if (def.getType() == NdbQueryOperationDefImpl::TableScan)
+      {
+        NdbScanOperation* scanOp = m_transaction.scanTable(def.getTable().getDefaultRecord(), NdbOperation::LM_Dirty);
+//      scanOp->readTuples(NdbOperation::LM_Dirty);
+        scanOp->m_isLinked = true;
+        scanOp->setQueryImpl(this);
+        m_ndbOperation = scanOp;
+      } else {
+        assert(false);
+      }
     }
   }
 }
@@ -301,6 +316,7 @@ NdbQueryImpl::getNdbTransaction() const
 
 int
 NdbQueryImpl::prepareSend(){
+  const Uint32Buffer& serializedDef = m_queryDef.getSerialized();
   m_pendingOperations = m_operations.size();  
   // Serialize parameters.
   for(Uint32 i = 0; i < m_operations.size(); i++){
@@ -314,6 +330,7 @@ NdbQueryImpl::prepareSend(){
                                      m_queryDef.getSerialized().getSize());
   m_ndbOperation->insertATTRINFOloop(&m_serializedParams.get(0), 
                                      m_serializedParams.getSize());
+
 #ifdef TRACE_SERIALIZATION
   ndbout << "Serialized params for all : ";
   for(Uint32 i = 0; i < m_serializedParams.getSize(); i++){
@@ -475,20 +492,27 @@ NdbQueryOperationImpl::isRowChanged() const
   return false;  // FIXME
 }
 
+#define POS_IN_PARAM(field) \
+(offsetof(QueryNodeParameters, field)/sizeof(Uint32))
+
 #define POS_IN_LOOKUP_PARAM(field) \
 (offsetof(QN_LookupParameters, field)/sizeof(Uint32)) 
 
 
-int NdbQueryOperationImpl::prepareSend(Uint32Buffer& serializedParams){
+int NdbQueryOperationImpl::prepareSend(Uint32Buffer& serializedParams)
+{
+  NdbQueryOperationDefImpl::Type opType = getQueryOperationDef().getType();
+  bool isScan = (opType == NdbQueryOperationDefImpl::TableScan ||
+                 opType == NdbQueryOperationDefImpl::OrderedIndexScan);
+
   m_receiver.prepareSend();
   Uint32Slice lookupParams(serializedParams, serializedParams.getSize());
   Uint32 requestInfo = 0;
-  lookupParams.get(POS_IN_LOOKUP_PARAM(requestInfo)) = 0;
-  lookupParams.get(POS_IN_LOOKUP_PARAM(resultData)) = m_id;
+  lookupParams.get(POS_IN_PARAM(requestInfo)) = 0;
+  lookupParams.get(POS_IN_PARAM(resultData)) = m_id;
   Uint32Slice optional(lookupParams, POS_IN_LOOKUP_PARAM(optional));
 
   int optPos = 0;
-  assert (lookupParams.getSize() == POS_IN_LOOKUP_PARAM(optional)+optPos);
 
   // SPJ block assume PARAMS to be supplied before ATTR_LIST
   if (false)  // TODO: Check if serialized tree code has 'NI_KEY_PARAMS'
@@ -515,13 +539,13 @@ int NdbQueryOperationImpl::prepareSend(Uint32Buffer& serializedParams){
 			  m_operationDef.getTable().getNoOfColumns());
     optPos += 2;
   }
-  lookupParams.get(POS_IN_LOOKUP_PARAM(requestInfo)) = requestInfo;
-
-  assert (lookupParams.getSize() == POS_IN_LOOKUP_PARAM(optional)+optPos);
+  lookupParams.get(POS_IN_PARAM(requestInfo)) = requestInfo;
 
   // TODO: Implement for scans as well.
-  QueryNodeParameters::setOpLen(lookupParams.get(POS_IN_LOOKUP_PARAM(len)),
-				QueryNodeParameters::QN_LOOKUP,
+  QueryNodeParameters::setOpLen(lookupParams.get(POS_IN_PARAM(len)),
+				isScan 
+                                  ?QueryNodeParameters::QN_SCAN_FRAG
+                                  :QueryNodeParameters::QN_LOOKUP,
 				lookupParams.getSize());
 
   if(unlikely(lookupParams.isMaxSizeExceeded())){

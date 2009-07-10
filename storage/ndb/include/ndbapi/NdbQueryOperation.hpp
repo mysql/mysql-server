@@ -61,7 +61,6 @@ public:
   NdbQueryOperation* getQueryOperation(Uint32 index) const;
 //NdbQueryOperation* getQueryOperation(const NdbQueryOperationDef* def) const;
 
-
   Uint32 getNoOfParameters() const;
   const NdbParamOperand* getParameter(const char* name) const;
   const NdbParamOperand* getParameter(Uint32 num) const;

@@ -639,8 +639,8 @@ Dbspj::build(Build_context& ctx,
 
     QueryNode* qn = (QueryNode*)m_buffer0;
     QueryNodeParameters * qp = (QueryNodeParameters*)m_buffer1;
-    qn->op_len = node_len;
-    qp->op_len = param_len;
+    qn->len = node_len;
+    qp->len = param_len;
     err = (this->*(info->m_build))(ctx, requestPtr, qn, qp);
     if (unlikely(err != 0))
     {

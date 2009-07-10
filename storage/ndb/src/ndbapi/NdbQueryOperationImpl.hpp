@@ -134,6 +134,7 @@ private:
   const NdbQueryDefImpl& m_queryDef;
 }; // class NdbQueryImpl
 
+
 /** This class contains data members for NdbQueryOperation, such that these
  * do not need to exposed in NdbQueryOperation.hpp. This class may be 
  * changed without forcing the customer to recompile his application.*/
@@ -204,7 +205,6 @@ public:
   /** Prepare for execution. 
    *  @return possible error code.*/
   int prepareSend(Uint32Buffer& serializedParams);
-
   void release();
 
   /* TODO: Remove this method. Only needed in spj_test.cpp.*/
