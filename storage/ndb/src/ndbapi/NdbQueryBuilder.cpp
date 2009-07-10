@@ -1185,10 +1185,12 @@ public:
 
   /** Add an item to the sequence.*/
   void append(Uint16 value){
-    if((m_length & 1) == 1){
+    if(m_length==0) {
+      m_buffer.get(0) = value<<16;
+    } else if((m_length & 1) == 0) {
+      m_buffer.get(m_length/2) |= value<<16;
+    } else {
       m_buffer.get((m_length+1)/2) = value;
-    }else{
-      m_buffer.get(m_length/2) |=  value<<16;
     }
     m_length++;
   }
