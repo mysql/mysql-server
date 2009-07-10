@@ -9801,13 +9801,13 @@ static MYSQL_SYSVAR_LONG(open_files, innobase_open_files,
 
 static MYSQL_SYSVAR_ULONG(sync_spin_loops, srv_n_spin_wait_rounds,
   PLUGIN_VAR_RQCMDARG,
-  "Count of spin-loop rounds in InnoDB mutexes",
-  NULL, NULL, 20L, 0L, ~0L, 0);
+  "Count of spin-loop rounds in InnoDB mutexes (30 by default)",
+  NULL, NULL, 30L, 0L, ~0L, 0);
 
 static MYSQL_SYSVAR_ULONG(spin_wait_delay, srv_spin_wait_delay,
   PLUGIN_VAR_OPCMDARG,
-  "Maximum delay between polling for a spin lock (5 by default)",
-  NULL, NULL, 5L, 0L, ~0L, 0);
+  "Maximum delay between polling for a spin lock (6 by default)",
+  NULL, NULL, 6L, 0L, ~0L, 0);
 
 static MYSQL_SYSVAR_ULONG(thread_concurrency, srv_thread_concurrency,
   PLUGIN_VAR_RQCMDARG,
