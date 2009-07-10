@@ -391,20 +391,6 @@ int testQueryBuilder(Ndb &myNdb)
 
     q4 = qb->prepare();
     if (q4 == NULL) APIERROR(qb->getNdbError());
-
-    assert (q4->getNoOfOperations() == 2);
-    assert (q4->getQueryOperation((Uint32)0) == readManager);
-    assert (q4->getQueryOperation((Uint32)1) == readEmployee);
-//  assert (q4->getQueryOperation((Uint32)2) == NULL);
-
-    assert (q4->getQueryOperation((Uint32)0)->getNoOfParentOperations() == 0);
-//  assert (q4->getQueryOperation((Uint32)0)->getParentOperation((Uint32)0) == NULL);
-    assert (q4->getQueryOperation((Uint32)0)->getNoOfChildOperations() == 1);
-    assert (q4->getQueryOperation((Uint32)0)->getChildOperation((Uint32)0) == readEmployee);
-    assert (q4->getQueryOperation((Uint32)1)->getNoOfParentOperations() == 1);
-    assert (q4->getQueryOperation((Uint32)1)->getParentOperation((Uint32)0) == readManager);
-    assert (q4->getQueryOperation((Uint32)1)->getNoOfChildOperations() == 0);
-//  assert (q4->getQueryOperation((Uint32)1)->getChildOperation((Uint32)0) == NULL);
   }
 
   ///////////////////////////////////////////////////
@@ -426,16 +412,6 @@ int testQueryBuilder(Ndb &myNdb)
   // TEMP HACK: Set keys for root lookup.
   myQuery->getImpl().getNdbOperation()->equal("dept_no", "d005");
   myQuery->getImpl().getNdbOperation()->equal("emp_no",   110567);
-
-  assert (myQuery->getNoOfOperations() == 2);
-  assert (myQuery->getQueryOperation((Uint32)0)->getNoOfParentOperations() == 0);
-//assert (myQuery->getQueryOperation((Uint32)0)->getParentOperation((Uint32)0) == NULL);
-  assert (myQuery->getQueryOperation((Uint32)0)->getNoOfChildOperations() == 1);
-  assert (myQuery->getQueryOperation((Uint32)0)->getChildOperation((Uint32)0) == myQuery->getQueryOperation((Uint32)1));
-  assert (myQuery->getQueryOperation((Uint32)1)->getNoOfParentOperations() == 1);
-  assert (myQuery->getQueryOperation((Uint32)1)->getParentOperation((Uint32)0) == myQuery->getQueryOperation((Uint32)0));
-  assert (myQuery->getQueryOperation((Uint32)1)->getNoOfChildOperations() == 0);
-//assert (myQuery->getQueryOperation((Uint32)1)->getChildOperation((Uint32)0) == NULL);
 
 #if 0
   ManagerRow managerRow;
@@ -472,14 +448,14 @@ int testQueryBuilder(Ndb &myNdb)
     APIERROR(myTransaction->getNdbError());
   printf("Done executed\n");
 
-  printf("manager  emp_no: %d\n", key[0][1]->u_32_value());
-  printf("employee emp_no: %d\n", key[1][0]->u_32_value());
-
   // All NdbQuery operations are handled as scans with cursor placed 'before'
   // first record: Fetch next to retrieve result:
   int res = myQuery->nextResult();
   if (res == -1)
     APIERROR(myQuery->getNdbError());
+
+  printf("manager  emp_no: %d\n", key[0][1]->u_32_value());
+  printf("employee emp_no: %d\n", key[1][0]->u_32_value());
 
   // NOW: Result is available in 'managerRow' buffer
 
@@ -537,12 +513,61 @@ int testQueryBuilder(Ndb &myNdb)
     const NdbQueryIndexBound  boundEq(low);
 
     // Lookup on a single tuple with key define by 'managerKey' param. tuple
-    const NdbQueryScanOperationDef* scanManager = qb->scanIndex(myPIndex, manager, &boundEq);
+//  const NdbQueryScanOperationDef* scanManager = qb->scanIndex(myPIndex, manager, &boundEq);
+    const NdbQueryScanOperationDef* scanManager = qb->scanTable(manager);
     if (scanManager == NULL) APIERROR(qb->getNdbError());
 
     q6 = qb->prepare();
     if (q6 == NULL) APIERROR(qb->getNdbError());
   }
+
+  myTransaction= myNdb.startTransaction();
+  if (myTransaction == NULL) APIERROR(myNdb.getNdbError());
+
+  myQuery = myTransaction->createQuery(q6, paramList);
+  if (myQuery == NULL)
+    APIERROR(myTransaction->getNdbError());
+
+  // TEMP HACK: Set keys for root lookup.
+  // NOTE: There should not be any keys for table scans!
+  // However, index scans may have a 'prune key'
+//  myQuery->getImpl().getNdbOperation()->equal("dept_no", "d005");
+//  myQuery->getImpl().getNdbOperation()->equal("emp_no",   110567);
+
+  const NdbRecAttr* value[2][2];
+
+  for (Uint32 i=0; i<myQuery->getNoOfOperations(); ++i)
+  {
+    NdbQueryOperation* op = myQuery->getQueryOperation(i);
+    const NdbDictionary::Table* table = op->getQueryOperationDef().getTable();
+
+    value[i][0] =  op->getValue(table->getColumn(0));
+    value[i][1] =  op->getValue(table->getColumn(1));
+
+    for (Uint32 col=2; col<table->getNoOfColumns(); col++)
+    {
+      op->getValue(table->getColumn(col));
+    }
+  }
+
+  printf("Start execute\n");
+  if (myTransaction->execute( NdbTransaction::NoCommit ) == -1)
+    APIERROR(myTransaction->getNdbError());
+  printf("Done executed\n");
+
+  // All NdbQuery operations are handled as scans with cursor placed 'before'
+  // first record: Fetch next to retrieve result:
+  res = myQuery->nextResult();
+  if (res == -1)
+    APIERROR(myQuery->getNdbError());
+
+  printf("manager  emp_no: %d\n", value[0][1]->u_32_value());
+//printf("employee emp_no: %d\n", value[1][0]->u_32_value());
+
+  // NOW: Result is available in 'managerRow' buffer
+
+  myNdb.closeTransaction(myTransaction);
+  myTransaction = 0;
 
   return 0;
 }

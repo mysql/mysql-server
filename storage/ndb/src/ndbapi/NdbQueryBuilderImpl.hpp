@@ -201,6 +201,16 @@ private:
 class NdbQueryOperationDefImpl
 {
 public:
+  /**
+   * Different access / query operation types
+   */
+  enum Type {
+    PrimaryKeyAccess,     ///< Read using pk
+    UniqueIndexAccess,    ///< Read using unique index
+    TableScan,            ///< Full table scan
+    OrderedIndexScan      ///< Ordered index scan, optionaly w/ bounds
+  };
+
   // Get the ordinal position of this operation within the query
   Uint32 getQueryOperationIx() const
   { return m_ix; };
@@ -232,6 +242,9 @@ public:
   // Register a linked reference to a column from operation
   Uint32 addColumnRef(const NdbDictionary::Column*);
 
+  // Get type of query operation
+  virtual Type getType() const = 0;
+
   virtual const NdbQueryOperationDef& getInterface() const = 0; 
 
   /** Make a serialized representation of this operation, corresponding to
@@ -248,8 +261,8 @@ public:
   }
 
   virtual ~NdbQueryOperationDefImpl() = 0;
-protected:
 
+protected:
   explicit NdbQueryOperationDefImpl (
                                      const NdbDictionary::Table& table,
                                      const char* ident,
@@ -258,7 +271,7 @@ protected:
      m_parents(), m_children(),
      m_spjProjection()
  {};
-  
+
 private:
   const NdbDictionary::Table& m_table;
   const char* const m_ident; // Optional name specified by aplication

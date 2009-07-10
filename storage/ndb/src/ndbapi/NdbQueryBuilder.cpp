@@ -343,6 +343,9 @@ private:
   virtual const NdbQueryOperationDef& getInterface() const
   { return m_interface; }
 
+  virtual Type getType() const
+  { return (index!=NULL) ? PrimaryKeyAccess : UniqueIndexAccess; }
+
 private:
   NdbQueryLookupOperationDef m_interface;
   const NdbDictionary::Index* const m_index;
@@ -374,6 +377,9 @@ public:
   virtual const NdbQueryOperationDef& getInterface() const
   { return m_interface; }
 
+  virtual Type getType() const
+  { return TableScan; }
+
 private:
   virtual ~NdbQueryTableScanOperationDefImpl() {};
   explicit NdbQueryTableScanOperationDefImpl (
@@ -401,6 +407,9 @@ public:
 
   virtual const NdbQueryOperationDef& getInterface() const
   { return m_interface; }
+
+  virtual Type getType() const
+  { return OrderedIndexScan; }
 
 private:
   virtual ~NdbQueryIndexScanOperationDefImpl() {};
@@ -1240,6 +1249,8 @@ private:
 
 // Find offset (in 32-bit words) of field within struct QN_LookupNode.
 #define POS_IN_LOOKUP(field) (offsetof(QN_LookupNode, field)/sizeof(Uint32)) 
+#define POS_IN_SCAN(field) (offsetof(QN_ScanFragNode, field)/sizeof(Uint32)) 
+#define POS_IN_QUERY(field) (offsetof(QueryNode, field)/sizeof(Uint32)) 
 
 int
 NdbQueryLookupOperationDefImpl
@@ -1361,9 +1372,63 @@ NdbQueryLookupOperationDefImpl
 
 int
 NdbQueryTableScanOperationDefImpl
-::serializeOperation(Uint32Buffer& serializedDef) const{
-  // TODO:Implement this
-  assert(false);
+::serializeOperation(Uint32Buffer& serializedDef) const
+{
+  Uint32Slice queryNode(serializedDef, serializedDef.getSize());
+  queryNode.get(POS_IN_QUERY(tableId)) 
+    = getTable().getObjectId();
+  queryNode.get(POS_IN_QUERY(tableVersion))
+    = getTable().getObjectVersion();
+  queryNode.get(POS_IN_QUERY(requestInfo)) = 0;
+  Uint32 requestInfo = 0;
+
+  Uint32Slice optional(queryNode, POS_IN_SCAN(optional));
+  int optPos = 0;
+
+  if(getNoOfParentOperations()>0){
+    // Optional part1: Make list of parent nodes.
+    requestInfo |= DABits::NI_HAS_PARENT;
+    Uint16Sequence parentSeq(optional);
+    // Multiple parents not yet supported.
+    assert(getNoOfParentOperations()==1);
+    for(Uint32 i = 0; 
+        i < getNoOfParentOperations(); 
+        i++){
+      parentSeq.append(getParentOperation(i).getQueryOperationIx());
+    }
+    optPos = parentSeq.finish();
+  }
+
+  /* Add the projection that should be send to the SPJ block such that 
+   * child operations can be instantiated.*/
+//assert ((getNoOfChildOperations()==0) == (getSPJProjection().size()==0));
+  if (getNoOfChildOperations()>0){
+    requestInfo |= DABits::NI_LINKED_ATTR;
+    Uint16Sequence spjProjSeq(Uint32Slice(optional, optPos));
+    for(Uint32 i = 0; i<getSPJProjection().size(); i++){
+      spjProjSeq.append(getSPJProjection()[i]->getColumnNo());
+    }
+    optPos += spjProjSeq.finish();
+  }
+
+  queryNode.get(POS_IN_QUERY(requestInfo)) = requestInfo;
+  const int length = POS_IN_SCAN(optional)+optPos;
+
+  // Set node length and type.
+  QueryNode::setOpLen(queryNode.get(POS_IN_QUERY(len)), 
+		      QueryNode::QN_SCAN_FRAG, length);
+  if(unlikely(serializedDef.isMaxSizeExceeded())){
+    return 4808; //Query definition too large.
+  }    
+#ifdef TRACE_SERIALIZATION
+  ndbout << "Serialized node " << getQueryOperationIx() << " : ";
+  for(int i = 0; i < length; i++){
+    char buf[12];
+    sprintf(buf, "%.8x", queryNode.get(i));
+    ndbout << buf << " ";
+  }
+  ndbout << endl;
+#endif
   return 0;
 }
 
