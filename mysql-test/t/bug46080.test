@@ -9,7 +9,8 @@ INSERT INTO t1 VALUES ('a');
 SET @@SESSION.sort_buffer_size=5*16*1000000;
 SET @@SESSION.max_heap_table_size=5*1000000;
 
-echo # Must not crash.
+--echo # Must not crash.
+--error 5,0
 SELECT GROUP_CONCAT(a ORDER BY a) FROM t1 GROUP BY a;
 
 DROP TABLE t1;
