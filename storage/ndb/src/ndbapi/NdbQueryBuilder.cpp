@@ -232,7 +232,9 @@ private:
 class NdbInt32ConstOperandImpl : public NdbConstOperandImpl
 {
 public:
-  NdbInt32ConstOperandImpl (Int32 value) : NdbConstOperandImpl(), m_value(value) {};
+  explicit NdbInt32ConstOperandImpl (Int32 value) : 
+    NdbConstOperandImpl(), 
+    m_value(value) {};
   size_t getLength()    const { return sizeof(m_value); };
   const void* getAddr() const { return &m_value; };
   NdbDictionary::Column::Type getType() const { return NdbDictionary::Column::Int; };
@@ -243,7 +245,9 @@ private:
 class NdbUint32ConstOperandImpl : public NdbConstOperandImpl
 {
 public:
-  NdbUint32ConstOperandImpl (Uint32 value) : NdbConstOperandImpl(), m_value(value) {};
+  explicit NdbUint32ConstOperandImpl (Uint32 value) : 
+    NdbConstOperandImpl(), 
+    m_value(value) {};
   size_t getLength()    const { return sizeof(m_value); };
   const void* getAddr() const { return &m_value; };
   NdbDictionary::Column::Type getType() const { return NdbDictionary::Column::Unsigned; };
@@ -254,7 +258,9 @@ private:
 class NdbInt64ConstOperandImpl : public NdbConstOperandImpl
 {
 public:
-  NdbInt64ConstOperandImpl (Int64 value) : NdbConstOperandImpl(), m_value(value) {};
+  explicit NdbInt64ConstOperandImpl (Int64 value) : 
+    NdbConstOperandImpl(), 
+    m_value(value) {};
   size_t getLength()    const { return sizeof(m_value); };
   const void* getAddr() const { return &m_value; };
   NdbDictionary::Column::Type getType() const { return NdbDictionary::Column::Bigint; };
@@ -265,7 +271,9 @@ private:
 class NdbUint64ConstOperandImpl : public NdbConstOperandImpl
 {
 public:
-  NdbUint64ConstOperandImpl (Uint64 value) : NdbConstOperandImpl(), m_value(value) {};
+  explicit NdbUint64ConstOperandImpl (Uint64 value) : 
+    NdbConstOperandImpl(), 
+    m_value(value) {};
   size_t getLength()    const { return sizeof(m_value); };
   const void* getAddr() const { return &m_value; };
   NdbDictionary::Column::Type getType() const { return NdbDictionary::Column::Bigunsigned; };
@@ -276,7 +284,8 @@ private:
 class NdbCharConstOperandImpl : public NdbConstOperandImpl
 {
 public:
-  NdbCharConstOperandImpl (const char* value) : NdbConstOperandImpl(), m_value(value) {};
+  explicit NdbCharConstOperandImpl (const char* value) : 
+    NdbConstOperandImpl(), m_value(value) {};
   size_t getLength()    const { return strlen(m_value); };
   const void* getAddr() const { return m_value; };
   NdbDictionary::Column::Type getType() const { return NdbDictionary::Column::Char; };
@@ -287,7 +296,7 @@ private:
 class NdbGenericConstOperandImpl : public NdbConstOperandImpl
 {
 public:
-  NdbGenericConstOperandImpl (const void* value, size_t length)
+  explicit NdbGenericConstOperandImpl (const void* value, size_t length)
   : NdbConstOperandImpl(), m_value(value), m_length(length)
   {};
 
@@ -315,17 +324,17 @@ public:
   const NdbDictionary::Index* getIndex() const
   { return m_index; };
 
-  virtual void serializeOperation(Uint32Buffer& serializedDef) const;
+  virtual int serializeOperation(Uint32Buffer& serializedDef) const;
 
 private:
   virtual ~NdbQueryLookupOperationDefImpl() {};
-  NdbQueryLookupOperationDefImpl (
+  explicit NdbQueryLookupOperationDefImpl (
                            const NdbDictionary::Index& index,
                            const NdbDictionary::Table& table,
                            const NdbQueryOperand* const keys[],
                            const char* ident,
                            Uint32      ix);
-  NdbQueryLookupOperationDefImpl (
+  explicit NdbQueryLookupOperationDefImpl (
                            const NdbDictionary::Table& table,
                            const NdbQueryOperand* const keys[],
                            const char* ident,
@@ -347,7 +356,7 @@ class NdbQueryScanOperationDefImpl :
 {
 public:
   virtual ~NdbQueryScanOperationDefImpl()=0;
-  NdbQueryScanOperationDefImpl (
+  explicit NdbQueryScanOperationDefImpl (
                            const NdbDictionary::Table& table,
                            const char* ident,
                            Uint32      ix)
@@ -360,14 +369,14 @@ class NdbQueryTableScanOperationDefImpl : public NdbQueryScanOperationDefImpl
   friend class NdbQueryBuilder;  // Allow privat access from builder interface
 
 public:
-  virtual void serializeOperation(Uint32Buffer& serializedDef) const;
+  virtual int serializeOperation(Uint32Buffer& serializedDef) const;
 
   virtual const NdbQueryOperationDef& getInterface() const
   { return m_interface; }
 
 private:
   virtual ~NdbQueryTableScanOperationDefImpl() {};
-  NdbQueryTableScanOperationDefImpl (
+  explicit NdbQueryTableScanOperationDefImpl (
                            const NdbDictionary::Table& table,
                            const char* ident,
                            Uint32      ix)
@@ -388,14 +397,14 @@ public:
   const NdbDictionary::Index& getIndex() const
   { return m_index; };
 
-  virtual void serializeOperation(Uint32Buffer& serializedDef) const;
+  virtual int serializeOperation(Uint32Buffer& serializedDef) const;
 
   virtual const NdbQueryOperationDef& getInterface() const
   { return m_interface; }
 
 private:
   virtual ~NdbQueryIndexScanOperationDefImpl() {};
-  NdbQueryIndexScanOperationDefImpl (
+  explicit NdbQueryIndexScanOperationDefImpl (
                            const NdbDictionary::Index& index,
                            const NdbDictionary::Table& table,
                            const NdbQueryIndexBound* bound,
@@ -953,9 +962,14 @@ NdbQueryBuilderImpl::contains(const NdbQueryOperationDefImpl* opDef)
 const NdbQueryDefImpl*
 NdbQueryBuilderImpl::prepare()
 {
-  NdbQueryDefImpl* def = new NdbQueryDefImpl(*this);
+  int error;
+  NdbQueryDefImpl* def = new NdbQueryDefImpl(*this, m_operations, error);
   returnErrIf(def==0, 4000);
-
+  if(unlikely(error!=0)){
+    delete def;
+    setErrorCode(error);
+    return NULL;
+  }
   m_operations.clear();
   m_paramOperands.clear();
   m_constOperands.clear();
@@ -967,15 +981,21 @@ NdbQueryBuilderImpl::prepare()
 ///////////////////////////////////
 // The (hidden) Impl of NdbQueryDef
 ///////////////////////////////////
-NdbQueryDefImpl::NdbQueryDefImpl(const NdbQueryBuilderImpl& builder)
+NdbQueryDefImpl::
+NdbQueryDefImpl(const NdbQueryBuilderImpl& builder,
+                const Vector<NdbQueryOperationDefImpl*>& operations,
+                int& error)
  : m_interface(*this), 
-   m_operations(builder.m_operations)
+   m_operations(operations)
 {
   /* Sets size to 1, such that serialization of operation 0 will start from 
    * offset 1, leaving space for the length field.*/
   m_serializedDef.get(0); 
   for(Uint32 i = 0; i<m_operations.size(); i++){
-    m_operations[i]->serializeOperation(m_serializedDef);
+    error = m_operations[i]->serializeOperation(m_serializedDef);
+    if(unlikely(error != 0)){
+      return;
+    }
   }
   // Set length and number of nodes in tree.
   QueryTree::setCntLen(m_serializedDef.get(0), 
@@ -996,7 +1016,7 @@ NdbQueryDefImpl::~NdbQueryDefImpl()
 {
   // Release all NdbQueryOperations
   for (Uint32 i=0; i<m_operations.size(); ++i)
-  { delete &m_operations[i];
+  { delete m_operations[i];
   }
 }
 
@@ -1221,7 +1241,7 @@ private:
 // Find offset (in 32-bit words) of field within struct QN_LookupNode.
 #define POS_IN_LOOKUP(field) (offsetof(QN_LookupNode, field)/sizeof(Uint32)) 
 
-void
+int
 NdbQueryLookupOperationDefImpl
 ::serializeOperation(Uint32Buffer& serializedDef) const{
   Uint32Slice lookupNode(serializedDef, serializedDef.getSize());
@@ -1281,15 +1301,10 @@ NdbQueryLookupOperationDefImpl
       // Sent type and length in words of key pattern field. 
       keyPattern.get(keyPatternPos++) 
 	= QueryPattern::data(wordCount);
-      const char* const constData 
-	= reinterpret_cast<const char*>(constOp.getAddr());
       // Copy constant data.
-      for(Uint32 i = 0; i<constOp.getLength(); i++){
-	char* const buff = 
-	  reinterpret_cast<char*>(&keyPattern
-				  .get(keyPatternPos+(i>>2)));
-	buff[i&0x3] = constData[i];
-      }
+      memcpy(&keyPattern.get(keyPatternPos, wordCount), 
+             constOp.getAddr(),
+             constOp.getLength());
       keyPatternPos += wordCount;
       break;
     }
@@ -1329,6 +1344,9 @@ NdbQueryLookupOperationDefImpl
   // Set node length and type.
   QueryNode::setOpLen(lookupNode.get(POS_IN_LOOKUP(len)), 
 		      QueryNode::QN_LOOKUP, length);
+  if(unlikely(serializedDef.isMaxSizeExceeded())){
+    return 4808; //Query definition too large.
+  }    
 #ifdef TRACE_SERIALIZATION
   ndbout << "Serialized node " << getQueryOperationIx() << " : ";
   for(int i = 0; i < length; i++){
@@ -1338,20 +1356,23 @@ NdbQueryLookupOperationDefImpl
   }
   ndbout << endl;
 #endif
+  return 0;
 }
 
-void 
+int
 NdbQueryTableScanOperationDefImpl
 ::serializeOperation(Uint32Buffer& serializedDef) const{
   // TODO:Implement this
   assert(false);
+  return 0;
 }
 
-void 
+int
 NdbQueryIndexScanOperationDefImpl
 ::serializeOperation(Uint32Buffer& serializedDef) const{
   // TODO:Implement this
   assert(false);
+  return 0;
 }
 
 // Instantiate Vector templates

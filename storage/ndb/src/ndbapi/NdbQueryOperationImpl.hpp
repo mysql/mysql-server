@@ -81,8 +81,9 @@ public:
     return --m_pendingOperations==0 && m_tcKeyConfReceived;
   }
 
-  /** Prepare NdbReceiver objects for receiving the first results batch.*/
-  void prepareSend();
+  /** Prepare for execution. 
+   *  @return possible error code.*/
+  int prepareSend();
 
   /** Release all NdbReceiver instances.*/
   void release();
@@ -96,8 +97,8 @@ public:
   NdbQuery& getInterface()
   { return m_interface; }
   
-  const void* getParam() const
-  { return m_param; }
+  const void* getParam(Uint32 i) const
+  { return m_param[i]; }
 
   /** Get next query in same transaction.*/
   NdbQueryImpl* getNext() const {return m_next;}
@@ -137,12 +138,21 @@ private:
  * do not need to exposed in NdbQueryOperation.hpp. This class may be 
  * changed without forcing the customer to recompile his application.*/
 class NdbQueryOperationImpl {
-  friend class NdbQueryImpl;
+  // friend class NdbQueryImpl;
   /** For debugging.*/
   friend NdbOut& operator<<(NdbOut& out, const NdbQueryOperationImpl&);
 public:
   STATIC_CONST (MAGIC = 0xfade1234);
 
+
+  explicit NdbQueryOperationImpl(NdbQueryImpl& queryImpl, 
+                                 const NdbQueryOperationDefImpl& def);
+  ~NdbQueryOperationImpl(){
+    if (m_id != NdbObjectIdMap::InvalidId) {
+      m_queryImpl.getNdbTransaction()->getNdb()->theImpl
+       ->theNdbObjectIdMap.unmap(m_id, this);
+    }
+  }
 
   Uint32 getNoOfParentOperations() const;
   NdbQueryOperationImpl& getParentOperation(Uint32 i) const;
@@ -184,21 +194,6 @@ public:
     return m_receiver.m_expected_result_length;
   }
 
-  //////////////////////////////////////////
-  // START Jans temp hack for result prototype
-  static NdbQueryOperationImpl*
-  buildQueryOperation(NdbQueryImpl& queryImpl, class NdbOperation& operation);
-
-  // To become obsolete as NdbQueryImpl::buildQuery() should
-  // construct all QueryOperations
-  void addChild(NdbQueryOperationImpl& child){
-    m_children.push_back(&child);
-    child.m_parents.push_back(this);
-  }
-
-  // End: Hack
-  //////////////////////////////////////////////
-
   /** Process result data for this operation. Return true if query complete.*/
   bool execTRANSID_AI(const Uint32* ptr, Uint32 len);
   
@@ -206,7 +201,9 @@ public:
    * Return true if query complete.*/
   bool execTCKEYREF();
 
-  void prepareSend(Uint32Buffer& serializedParams);
+  /** Prepare for execution. 
+   *  @return possible error code.*/
+  int prepareSend(Uint32Buffer& serializedParams);
 
   void release();
 
@@ -257,14 +254,6 @@ private:
   NdbQueryImpl& m_queryImpl;
   /** Progress of operation.*/
   State m_state;
-  explicit NdbQueryOperationImpl(NdbQueryImpl& queryImpl, 
-                                 const NdbQueryOperationDefImpl& def);
-  ~NdbQueryOperationImpl(){
-    if (m_id != NdbObjectIdMap::InvalidId) {
-      m_queryImpl.getNdbTransaction()->getNdb()->theImpl
-       ->theNdbObjectIdMap.unmap(m_id, this);
-    }
-  }
 
   /** A child operation is complete. 
    * Set this as complete if all children are complete.*/

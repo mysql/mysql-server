@@ -21,10 +21,11 @@
 #define NdbQueryBuilderImpl_H
 
 
+#include "signaldata/TcKeyReq.hpp"
+#include "signaldata/ScanTab.hpp"
 #include <Vector.hpp>
 #include "NdbQueryBuilder.hpp"
 #include "NdbDictionary.hpp"
-
 
 // Forward declared
 class NdbQueryBuilderImpl;
@@ -33,34 +34,51 @@ class NdbParamOperandImpl;
 class NdbConstOperandImpl;
 class NdbLinkedOperandImpl;
 
-/** An extensible array, used for holding serialized representaions of
- * queries and parameters.*/
+/** A buffer for holding serialized data.*/
 class Uint32Buffer{
 public:
-  Uint32Buffer():m_size(0){
+  STATIC_CONST(maxSize = MAX(TcKeyReq::MaxTotalAttrInfo, 
+                             ScanTabReq::MaxTotalAttrInfo));
+  explicit Uint32Buffer():
+    m_size(0),
+    m_maxSizeExceeded(false){
   }
-  /** Get the i'th element. Elements are not guaranteed to be contigious in 
-   *  memory, so doing (&get(i))[j] would be wrong.
-   */
-  Uint32& get(Uint32 i){
-    assert(i<300);
-    if(i>=m_size){
-      m_size = i+1;
+  
+  /** Get the idx'th element. Make sure there is space for 'count' elements.*/
+  Uint32& get(Uint32 idx, Uint32 count = 1){
+    const Uint32 newMax = idx+count-1;
+    if(newMax >= m_size){
+      if(unlikely(newMax >= maxSize)){
+        //ndbout << "Uint32Buffer::get() Attempt to access " << newMax 
+        //       << "th element.";
+        m_maxSizeExceeded = true;
+        assert(count <= maxSize);
+        return  m_array[0];
+      }
+      m_size = newMax+1;
     }
-    return m_array[i];
+    return m_array[idx];
   }
-  const Uint32& get(Uint32 i)const{
-    assert(i<m_size);
-    return m_array[i];
+
+  /** Get the idx'th element. Make sure there is space for 'count' elements.*/
+  const Uint32& get(Uint32 idx, Uint32 count=1) const {
+    assert(idx+count-idx < m_size);
+    assert(!m_maxSizeExceeded);
+    return m_array[idx];
   }
-  Uint32 getSize() const {
-    return m_size;
+
+  /** Check for out-of-bounds access.*/
+  bool isMaxSizeExceeded() const {
+    return m_maxSizeExceeded;
   }
+
+  Uint32 getSize() const {return m_size;}
 private:
   /* TODO: replace array with something that can grow and allocate from a 
    * pool as needed..*/
-  Uint32 m_array[300];
+  Uint32 m_array[maxSize];
   Uint32 m_size;
+  bool m_maxSizeExceeded;
 };
 
 /** A reference to a subset of an Uint32Buffer.
@@ -71,18 +89,28 @@ public:
     m_buffer(buffer),
     m_offset(offset){
   }
+
   explicit Uint32Slice(Uint32Slice& slice, Uint32 offset):
     m_buffer(slice.m_buffer),
     m_offset(offset+slice.m_offset){
   }
-  Uint32& get(int i){
-    return m_buffer.get(i+m_offset);
+
+  Uint32& get(int idx, Uint32 count=1){
+    return m_buffer.get(idx+m_offset, count);
   }
-  const Uint32& get(int i)const{
-    return m_buffer.get(i+m_offset);
+
+  const Uint32& get(int i, Uint32 count=1)const{
+    return m_buffer.get(i+m_offset, count);
   }
+
   Uint32 getOffset() const {return m_offset;}
+
   Uint32 getSize() const {return m_buffer.getSize() - m_offset;}
+
+  /** Check for out-of-bounds access.*/
+  bool isMaxSizeExceeded() const {
+    return m_buffer.isMaxSizeExceeded();
+  }
 private:
   Uint32Buffer& m_buffer;
   const Uint32 m_offset;
@@ -95,7 +123,9 @@ class NdbQueryDefImpl
   friend class NdbQueryDef;
 
 public:
-  NdbQueryDefImpl(const NdbQueryBuilderImpl& builder);
+  explicit NdbQueryDefImpl(const NdbQueryBuilderImpl& builder, 
+                           const Vector<NdbQueryOperationDefImpl*>& operations,
+                           int& error);
   ~NdbQueryDefImpl();
 
   Uint32 getNoOfOperations() const
@@ -136,11 +166,10 @@ private:
 class NdbQueryBuilderImpl
 {
   friend class NdbQueryBuilder;
-  friend NdbQueryDefImpl::NdbQueryDefImpl(const NdbQueryBuilderImpl& builder);
 
 public:
   ~NdbQueryBuilderImpl();
-  NdbQueryBuilderImpl(Ndb& ndb);
+  explicit NdbQueryBuilderImpl(Ndb& ndb);
 
   const NdbQueryDefImpl* prepare();
 
@@ -207,8 +236,9 @@ public:
 
   /** Make a serialized representation of this operation, corresponding to
    * the struct QueryNode type.
+   * @return Possible error code.
    */
-  virtual void serializeOperation(Uint32Buffer& serializedTree) const = 0;
+  virtual int serializeOperation(Uint32Buffer& serializedTree) const = 0;
 
   /** Find the projection that should be sent to the SPJ block. This should
    * contain the attributes needed to instantiate all child operations.
@@ -217,15 +247,13 @@ public:
     return m_spjProjection;
   }
 
-protected:
   virtual ~NdbQueryOperationDefImpl() = 0;
-  friend NdbQueryBuilderImpl::~NdbQueryBuilderImpl();
-  friend NdbQueryDefImpl::~NdbQueryDefImpl();
+protected:
 
-  NdbQueryOperationDefImpl (
-                           const NdbDictionary::Table& table,
-                           const char* ident,
-                           Uint32      ix)
+  explicit NdbQueryOperationDefImpl (
+                                     const NdbDictionary::Table& table,
+                                     const char* ident,
+                                     Uint32      ix)
    : m_table(table), m_ident(ident), m_ix(ix),
      m_parents(), m_children(),
      m_spjProjection()

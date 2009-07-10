@@ -634,7 +634,12 @@ NdbTransaction::executeAsynchPrepare(NdbTransaction::ExecType aTypeOfExec,
     theError.code = 0;
   NdbQueryImpl* query = m_firstQuery;
   while(query!=NULL){
-    query->prepareSend();
+    const int retVal = query->prepareSend();
+    if (retVal != 0) {
+      theError.code = retVal;
+      theSendStatus = sendABORTfail;
+      DBUG_VOID_RETURN;
+    }
     query = query->getNext();
   }
   m_firstQuery = NULL;

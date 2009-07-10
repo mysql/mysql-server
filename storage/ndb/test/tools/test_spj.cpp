@@ -320,7 +320,7 @@ int spjTest(int argc, char** argv){
        sh> test_spj T
     */
 
-    HugoOperations hugoOps(* pTab);
+    //HugoOperations hugoOps(* pTab);
     NdbTransaction* pTrans = MyNdb.startTransaction();
     NdbOperation* pOp = pTrans->getNdbOperation(pTab);
     pOp->readTuple(NdbOperation::LM_Dirty);
