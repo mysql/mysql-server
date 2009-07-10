@@ -8177,6 +8177,97 @@ innobase_set_cursor_view(
 }
 
 
+/***********************************************************************
+Check whether any of the given columns is being renamed in the table. */
+static
+bool
+column_is_being_renamed(
+/*====================*/
+					/* out: true if any of col_names is
+					being renamed in table */
+	TABLE*		table,		/* in: MySQL table */
+	uint		n_cols,		/* in: number of columns */
+	const char**	col_names)	/* in: names of the columns */
+{
+	uint		j;
+	uint		k;
+	Field*		field;
+	const char*	col_name;
+
+	for (j = 0; j < n_cols; j++) {
+		col_name = col_names[j];
+		for (k = 0; k < table->s->fields; k++) {
+			field = table->field[k];
+			if ((field->flags & FIELD_IS_RENAMED)
+			    && innobase_strcasecmp(field->field_name,
+						   col_name) == 0) {
+				return(true);
+			}
+		}
+	}
+
+	return(false);
+}
+
+/***********************************************************************
+Check whether a column in table "table" is being renamed and if this column
+is part of a foreign key, either part of another table, referencing this
+table or part of this table, referencing another table. */
+static
+bool
+foreign_key_column_is_being_renamed(
+/*================================*/
+					/* out: true if a column that
+					participates in a foreign key definition
+					is being renamed */
+	row_prebuilt_t*	prebuilt,	/* in: InnoDB prebuilt struct */
+	TABLE*		table)		/* in: MySQL table */
+{
+	dict_foreign_t*	foreign;
+
+	/* check whether there are foreign keys at all */
+	if (UT_LIST_GET_LEN(prebuilt->table->foreign_list) == 0
+	    && UT_LIST_GET_LEN(prebuilt->table->referenced_list) == 0) {
+		/* no foreign keys involved with prebuilt->table */
+
+		return(false);
+	}
+
+	row_mysql_lock_data_dictionary(prebuilt->trx);
+
+	/* Check whether any column in the foreign key constraints which refer
+	to this table is being renamed. */
+	for (foreign = UT_LIST_GET_FIRST(prebuilt->table->referenced_list);
+	     foreign != NULL;
+	     foreign = UT_LIST_GET_NEXT(referenced_list, foreign)) {
+
+		if (column_is_being_renamed(table, foreign->n_fields,
+					    foreign->referenced_col_names)) {
+
+			row_mysql_unlock_data_dictionary(prebuilt->trx);
+			return(true);
+		}
+	}
+
+	/* Check whether any column in the foreign key constraints in the
+	table is being renamed. */
+	for (foreign = UT_LIST_GET_FIRST(prebuilt->table->foreign_list);
+	     foreign != NULL;
+	     foreign = UT_LIST_GET_NEXT(foreign_list, foreign)) {
+
+		if (column_is_being_renamed(table, foreign->n_fields,
+					    foreign->foreign_col_names)) {
+
+			row_mysql_unlock_data_dictionary(prebuilt->trx);
+			return(true);
+		}
+	}
+
+	row_mysql_unlock_data_dictionary(prebuilt->trx);
+
+	return(false);
+}
+
 bool ha_innobase::check_if_incompatible_data(
 	HA_CREATE_INFO*	info,
 	uint		table_changes)
@@ -8189,6 +8280,13 @@ bool ha_innobase::check_if_incompatible_data(
 	/* Check that auto_increment value was not changed */
 	if ((info->used_fields & HA_CREATE_USED_AUTO) &&
 		info->auto_increment_value != 0) {
+
+		return COMPATIBLE_DATA_NO;
+	}
+
+	/* Check if a column participating in a foreign key is being renamed.
+	There is no mechanism for updating InnoDB foreign key definitions. */
+	if (foreign_key_column_is_being_renamed(prebuilt, table)) {
 
 		return COMPATIBLE_DATA_NO;
 	}
