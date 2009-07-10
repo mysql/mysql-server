@@ -19,9 +19,6 @@
 #define NdbQueryOperation_H
 
 #include <ndb_types.h>
-// TODO: Remove this. Needed for result prototype only.
-//#include <NdbOperation.hpp>
-
 #include "NdbDictionary.hpp"
 
 class Ndb;

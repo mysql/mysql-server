@@ -212,16 +212,6 @@ NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans,
 
     NdbQueryOperationImpl* op = new NdbQueryOperationImpl(*this, def);
 
-    // Fill in operations parent refs, and append it as child of its parents
-    for (Uint32 p=0; p<def.getNoOfParentOperations(); ++p)
-    { 
-      const NdbQueryOperationDefImpl& parent = def.getParentOperation(p);
-      Uint32 ix = parent.getQueryOperationIx();
-      assert (ix < m_operations.size());
-      op->m_parents.push_back(m_operations[ix]);
-      m_operations[ix]->m_children.push_back(op);
-    }
-
     m_operations.push_back(op);
     if(def.getNoOfParentOperations()==0){
       // TODO: Remove references to NdbOperation class.
@@ -309,27 +299,21 @@ NdbQueryImpl::getNdbTransaction() const
   return &m_transaction;
 }
 
-void 
+int
 NdbQueryImpl::prepareSend(){
   m_pendingOperations = m_operations.size();  
+  // Serialize parameters.
   for(Uint32 i = 0; i < m_operations.size(); i++){
-    m_operations[i]->prepareSend(m_serializedParams);
+    const int error = m_operations[i]->prepareSend(m_serializedParams);
+    if(error != 0){
+      return error;
+    }
   }
-  // TODO: Replace heap allocation.
-  Uint32* tree = new Uint32[m_queryDef.getSerialized().getSize()];
-  for(Uint32 i = 0; i < m_queryDef.getSerialized().getSize(); i++){
-    tree[i] = m_queryDef.getSerialized().get(i);
-  }
-  m_ndbOperation->insertATTRINFOloop(tree, 
+  // Append serialized query tree and params to ATTRINFO of the NdnOperation.
+  m_ndbOperation->insertATTRINFOloop(&m_queryDef.getSerialized().get(0),
                                      m_queryDef.getSerialized().getSize());
-  delete[] tree;
-  Uint32* params = new Uint32[m_serializedParams.getSize()];
-  for(Uint32 i = 0; i < m_serializedParams.getSize(); i++){
-    params[i] = m_serializedParams.get(i);
-  }
-  m_ndbOperation->insertATTRINFOloop(params, m_serializedParams.getSize());
-  delete[] params; 
-
+  m_ndbOperation->insertATTRINFOloop(&m_serializedParams.get(0), 
+                                     m_serializedParams.getSize());
 #ifdef TRACE_SERIALIZATION
   ndbout << "Serialized params for all : ";
   for(Uint32 i = 0; i < m_serializedParams.getSize(); i++){
@@ -339,6 +323,7 @@ NdbQueryImpl::prepareSend(){
   }
   ndbout << endl;
 #endif
+  return 0;
 }
 
 void 
@@ -368,6 +353,15 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(
 { 
   assert(m_id != NdbObjectIdMap::InvalidId);
   m_receiver.init(NdbReceiver::NDB_OPERATION, false, NULL);
+  // Fill in operations parent refs, and append it as child of its parents
+  for (Uint32 p=0; p<def.getNoOfParentOperations(); ++p)
+  { 
+    const NdbQueryOperationDefImpl& parent = def.getParentOperation(p);
+    const Uint32 ix = parent.getQueryOperationIx();
+    assert (ix < m_queryImpl.getNoOfOperations());
+    m_parents.push_back(&m_queryImpl.getQueryOperation(ix));
+    m_queryImpl.getQueryOperation(ix).m_children.push_back(this);
+  }
 }
 
 Uint32
@@ -485,7 +479,7 @@ NdbQueryOperationImpl::isRowChanged() const
 (offsetof(QN_LookupParameters, field)/sizeof(Uint32)) 
 
 
-void NdbQueryOperationImpl::prepareSend(Uint32Buffer& serializedParams){
+int NdbQueryOperationImpl::prepareSend(Uint32Buffer& serializedParams){
   m_receiver.prepareSend();
   Uint32Slice lookupParams(serializedParams, serializedParams.getSize());
   Uint32 requestInfo = 0;
@@ -503,7 +497,7 @@ void NdbQueryOperationImpl::prepareSend(Uint32Buffer& serializedParams){
     requestInfo |= DABits::PI_KEY_PARAMS;
     Uint32Slice keyParam(optional, optPos);
 
-    assert (getQuery().getParam() != NULL);
+    assert (getQuery().getParam(0) != NULL);
     // FIXME: Add parameters here, unsure about the serialized format yet
 
     optPos += size;
@@ -530,7 +524,9 @@ void NdbQueryOperationImpl::prepareSend(Uint32Buffer& serializedParams){
 				QueryNodeParameters::QN_LOOKUP,
 				lookupParams.getSize());
 
-
+  if(unlikely(lookupParams.isMaxSizeExceeded())){
+    return 4808; // Query definition too large.
+  }
 #ifdef TRACE_SERIALIZATION
   ndbout << "Serialized params for node " 
 	 << m_operationDef.getQueryOperationIx() << " : ";
@@ -541,6 +537,7 @@ void NdbQueryOperationImpl::prepareSend(Uint32Buffer& serializedParams){
   }
   ndbout << endl;
 #endif
+  return 0;
 }
 
 void NdbQueryOperationImpl::release(){
