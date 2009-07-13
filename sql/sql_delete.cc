@@ -408,7 +408,7 @@ cleanup:
                                         thd->query, thd->query_length,
                                         is_trans, FALSE, errcode);
 
-      if (log_result && transactional_table)
+      if (log_result)
       {
 	error=1;
       }
@@ -806,7 +806,7 @@ void multi_delete::abort()
 
   /* the error was handled or nothing deleted and no side effects return */
   if (error_handled ||
-      !thd->transaction.stmt.modified_non_trans_table && !deleted)
+      (!thd->transaction.stmt.modified_non_trans_table && !deleted))
     DBUG_VOID_RETURN;
 
   /* Something already deleted so we have to invalidate cache */
@@ -1051,7 +1051,7 @@ static bool mysql_truncate_by_delete(THD *thd, TABLE_LIST *table_list)
 bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
 {
   HA_CREATE_INFO create_info;
-  char path[FN_REFLEN];
+  char path[FN_REFLEN + 1];
   TABLE *table;
   bool error;
   uint path_length;
@@ -1088,7 +1088,7 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
     goto end;
   }
 
-  path_length= build_table_filename(path, sizeof(path), table_list->db,
+  path_length= build_table_filename(path, sizeof(path) - 1, table_list->db,
                                     table_list->table_name, reg_ext, 0);
 
   if (!dont_send_ok)
