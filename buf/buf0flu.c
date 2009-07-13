@@ -1303,7 +1303,7 @@ buf_flush_get_desired_flush_rate(void)
 	ulint			n_flush_req;
 	lint			rate;
 	ib_uint64_t		lsn = log_get_lsn();
-	ib_uint64_t		log_capacity = log_get_capacity();
+	ulint			log_capacity = log_get_capacity();
 
 	/* log_capacity should never be zero after the initialization
 	of log subsystem. */
@@ -1321,8 +1321,9 @@ buf_flush_get_desired_flush_rate(void)
 	/* redo_avg below is average at which redo is generated in
 	past BUF_FLUSH_STAT_N_INTERVAL + redo generated in the current
 	interval. */
-	redo_avg = buf_flush_stat_sum.redo / BUF_FLUSH_STAT_N_INTERVAL
-		   + (lsn - buf_flush_stat_cur.redo);
+	redo_avg = (ulint) (buf_flush_stat_sum.redo
+			    / BUF_FLUSH_STAT_N_INTERVAL
+			    + (lsn - buf_flush_stat_cur.redo));
 
 	/* An overflow can happen possibly if we flush more than 2^32
 	pages in BUF_FLUSH_STAT_N_INTERVAL. This is a very very
