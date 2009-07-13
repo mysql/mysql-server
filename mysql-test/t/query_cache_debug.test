@@ -206,10 +206,11 @@ LET $wait_condition= SELECT SQL_NO_CACHE COUNT(*)= 1 FROM information_schema.pro
 --echo ** and finally release the mutex. The threads will continue to wait
 --echo ** until a broadcast signal reaches them causing both threads to 
 --echo ** come alive and check the condition.
-SELECT SQL_NO_CACHE id FROM information_schema.processlist WHERE state='wait_in_query_cache_insert' LIMIT 1 INTO @thread_id;
+SELECT SQL_NO_CACHE id FROM information_schema.processlist WHERE state='wait_in_query_cache_insert' ORDER BY id ASC LIMIT 1 INTO @thread_id;
 KILL QUERY @thread_id;
-SELECT SQL_NO_CACHE id FROM information_schema.processlist WHERE state='wait_in_query_cache_insert' LIMIT 1 INTO @thread_id;
+SELECT SQL_NO_CACHE id FROM information_schema.processlist WHERE state='wait_in_query_cache_insert' ORDER BY id DESC LIMIT 1 INTO @thread_id;
 KILL QUERY @thread_id;
+
 --echo **
 --echo ** Finally signal the DELETE statement on THD1 one last time.
 --echo ** The stmt will complete the query cache invalidation and return 

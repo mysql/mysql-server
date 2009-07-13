@@ -369,6 +369,34 @@ int convert_handler_error(int error, THD* thd, TABLE *table)
   return (actual_error);
 }
 
+inline bool concurrency_error_code(int error)
+{
+  switch (error)
+  {
+  case ER_LOCK_WAIT_TIMEOUT:
+  case ER_LOCK_DEADLOCK:
+  case ER_XA_RBDEADLOCK:
+    return TRUE;
+  default: 
+    return (FALSE);
+  }
+}
+
+inline bool unexpected_error_code(int unexpected_error)
+{
+  switch (unexpected_error) 
+  {
+  case ER_NET_READ_ERROR:
+  case ER_NET_ERROR_ON_WRITE:
+  case ER_QUERY_INTERRUPTED:
+  case ER_SERVER_SHUTDOWN:
+  case ER_NEW_ABORTING_CONNECTION:
+    return(TRUE);
+  default:
+    return(FALSE);
+  }
+}
+
 /*
   pretty_print_str()
 */
@@ -3006,7 +3034,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
     DBUG_PRINT("query",("%s",thd->query));
 
     if (ignored_error_code((expected_error= error_code)) ||
-	!check_expected_error(thd,rli,expected_error))
+	!unexpected_error_code(expected_error))
     {
       if (flags2_inited)
         /*
@@ -3138,8 +3166,8 @@ compare_errors:
     actual_error= thd->is_error() ? thd->main_da.sql_errno() : 0;
     DBUG_PRINT("info",("expected_error: %d  sql_errno: %d",
  		       expected_error, actual_error));
-    if ((expected_error != actual_error) &&
- 	expected_error &&
+    if ((expected_error && expected_error != actual_error &&
+         !concurrency_error_code(expected_error)) &&
  	!ignored_error_code(actual_error) &&
  	!ignored_error_code(expected_error))
     {
@@ -3158,7 +3186,8 @@ Default database: '%s'. Query: '%s'",
     /*
       If we get the same error code as expected, or they should be ignored. 
     */
-    else if (expected_error == actual_error ||
+    else if ((expected_error == actual_error && 
+              !concurrency_error_code(expected_error)) ||
  	     ignored_error_code(actual_error))
     {
       DBUG_PRINT("info",("error ignored"));
@@ -3330,8 +3359,8 @@ void Start_log_event_v3::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
       my_b_printf(&cache," at startup");
     my_b_printf(&cache, "\n");
     if (flags & LOG_EVENT_BINLOG_IN_USE_F)
-      my_b_printf(&cache, "# Warning: this binlog was not closed properly. "
-                  "Most probably mysqld crashed writing it.\n");
+      my_b_printf(&cache, "# Warning: this binlog is either in use or was not "
+                  "closed properly.\n");
   }
   if (!is_artificial_event() && created)
   {
@@ -4352,7 +4381,7 @@ void Load_log_event::print(FILE* file_arg, PRINT_EVENT_INFO* print_event_info,
     {
       if (i)
 	my_b_printf(&cache, ",");
-      my_b_printf(&cache, field);
+      my_b_printf(&cache, "%s", field);
 	  
       field += field_lens[i]  + 1;
     }
@@ -6680,7 +6709,7 @@ void Execute_load_query_log_event::print(FILE* file,
   {
     my_b_write(&cache, (uchar*) query, fn_pos_start);
     my_b_printf(&cache, " LOCAL INFILE \'");
-    my_b_printf(&cache, local_fname);
+    my_b_printf(&cache, "%s", local_fname);
     my_b_printf(&cache, "\'");
     if (dup_handling == LOAD_DUP_REPLACE)
       my_b_printf(&cache, " REPLACE");

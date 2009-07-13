@@ -171,10 +171,10 @@ bool rpl_master_has_bug(const Relay_log_info *rli, uint bug_id, bool report,
 bool rpl_master_erroneous_autoinc(THD* thd);
 
 const char *print_slave_db_safe(const char *db);
-int check_expected_error(THD* thd, Relay_log_info const *rli, int error_code);
 void skip_load_data_infile(NET* net);
 
-void end_slave(); /* clean up */
+void end_slave(); /* release slave threads */
+void close_active_mi(); /* clean up slave threads data */
 void clear_until_condition(Relay_log_info* rli);
 void clear_slave_error(Relay_log_info* rli);
 void end_relay_log_info(Relay_log_info* rli);
