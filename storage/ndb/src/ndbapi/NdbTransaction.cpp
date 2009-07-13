@@ -1918,6 +1918,7 @@ from other transactions.
       NdbQueryImpl* const queryImpl 
 	  = reinterpret_cast<NdbQueryImpl*>(mappedObj);
       const bool isReceiver = tOp->checkMagicNumber();
+      assert(isReceiver || queryImpl->checkMagicNumber());
 	/* TODO: Use a better mechanism than magic numbers to decide if 
 	 this is an NdbReceiver or ab NdbQueryImpl.*/
       if(mappedObj && (isReceiver || queryImpl->checkMagicNumber())){

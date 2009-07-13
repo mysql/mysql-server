@@ -67,19 +67,13 @@ public:
 
   const NdbError& getNdbError() const;
 
-  /** Process TCKEYCONF message. Return true if query is complete.*/
-  bool execTCKEYCONF(){
-    ndbout << "NdbQueryImpl::execTCKEYCONF()  m_pendingOperations=" 
-	   << m_pendingOperations << endl;
-    m_tcKeyConfReceived = true;
-    return m_pendingOperations==0;
-  }
+ /** Process TCKEYCONF message. Return true if query is complete.*/
+  bool execTCKEYCONF();
 
-  /** Record that an operation is complete.
+  /** Count number of completed operations.
+   * @param increment Change in count of  completed operations.
    * @return True if query is complete.*/
-  bool countCompletedOperation(){
-    return --m_pendingOperations==0 && m_tcKeyConfReceived;
-  }
+  bool incPendingOperations(int increment);
 
   /** Prepare for execution. 
    *  @return possible error code.*/
@@ -191,9 +185,6 @@ public:
     return m_receiver.getId();
     };*/
 
-  Uint32 getExpectedResultLength() const{
-    return m_receiver.m_expected_result_length;
-  }
 
   /** Process result data for this operation. Return true if query complete.*/
   bool execTRANSID_AI(const Uint32* ptr, Uint32 len);
@@ -205,6 +196,8 @@ public:
   /** Prepare for execution. 
    *  @return possible error code.*/
   int prepareSend(Uint32Buffer& serializedParams);
+
+  /** Release NdbReceiver objects.*/
   void release();
 
   /* TODO: Remove this method. Only needed in spj_test.cpp.*/
@@ -216,6 +209,12 @@ public:
   /** Verify magic number.*/
   bool checkMagicNumber() const { 
     return m_magic == MAGIC;
+  }
+
+  /** Check if operation is complete. 
+   * For doing sanity check on internal state.*/
+  bool isComplete() const { 
+    return m_pendingResults==0;
   }
 
   const NdbQueryOperation& getInterface() const
@@ -252,13 +251,8 @@ private:
   NdbReceiver m_receiver;
   /** NdbQuery to which this operation belongs. */
   NdbQueryImpl& m_queryImpl;
-  /** Progress of operation.*/
-  State m_state;
-
-  /** A child operation is complete. 
-   * Set this as complete if all children are complete.*/
-  void handleCompletedChild();
-
+  /** Number of pending TCKEYREF or TRANSID_AI messages for this operation.*/
+  int m_pendingResults;
 }; // class NdbQueryOperationImpl
 
 

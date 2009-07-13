@@ -197,8 +197,11 @@ NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans,
   m_error(),
   m_transaction(trans),
   m_operations(),
+  /* We will always receive a TCKEYCONF signal, even if the root operation
+   * yields no result.*/
   m_tcKeyConfReceived(false),
-  m_pendingOperations(0),
+  // Initially, only a result from the root is expected.
+  m_pendingOperations(1), 
   m_param(param),
   m_next(next),
   m_ndbOperation(NULL),
@@ -314,10 +317,36 @@ NdbQueryImpl::getNdbTransaction() const
   return &m_transaction;
 }
 
+bool 
+NdbQueryImpl::execTCKEYCONF(){
+  ndbout << "NdbQueryImpl::execTCKEYCONF()  m_pendingOperations=" 
+         << m_pendingOperations << endl;
+  m_tcKeyConfReceived = true;
+#ifndef NDEBUG // Compile with asserts activated.
+  if(m_pendingOperations==0){
+    for(Uint32 i = 0; i < getNoOfOperations(); i++){
+      assert(getQueryOperation(i).isComplete());
+    }
+  }
+#endif
+  return m_pendingOperations==0;
+}
+
+bool 
+NdbQueryImpl::incPendingOperations(int increment){
+  m_pendingOperations += increment;
+#ifndef NDEBUG // Compile with asserts activated.
+  if(m_pendingOperations==0 && m_tcKeyConfReceived){
+    for(Uint32 i = 0; i < getNoOfOperations(); i++){
+      assert(getQueryOperation(i).isComplete());
+    }
+  }
+#endif
+  return m_pendingOperations==0 && m_tcKeyConfReceived;
+}
+
 int
 NdbQueryImpl::prepareSend(){
-  const Uint32Buffer& serializedDef = m_queryDef.getSerialized();
-  m_pendingOperations = m_operations.size();  
   // Serialize parameters.
   for(Uint32 i = 0; i < m_operations.size(); i++){
     const int error = m_operations[i]->prepareSend(m_serializedParams);
@@ -366,7 +395,8 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(
   m_children(def.getNoOfChildOperations()),
   m_receiver(queryImpl.getNdbTransaction()->getNdb()),
   m_queryImpl(queryImpl),
-  m_state(State_Initial)
+  /* Initially, a result is only expected for the root operation.*/
+  m_pendingResults(def.getQueryOperationIx() == 0 ? 1 : 0)
 { 
   assert(m_id != NdbObjectIdMap::InvalidId);
   m_receiver.init(NdbReceiver::NDB_OPERATION, false, NULL);
@@ -501,9 +531,10 @@ NdbQueryOperationImpl::isRowChanged() const
 
 int NdbQueryOperationImpl::prepareSend(Uint32Buffer& serializedParams)
 {
-  NdbQueryOperationDefImpl::Type opType = getQueryOperationDef().getType();
-  bool isScan = (opType == NdbQueryOperationDefImpl::TableScan ||
-                 opType == NdbQueryOperationDefImpl::OrderedIndexScan);
+  const NdbQueryOperationDefImpl::Type opType 
+    = getQueryOperationDef().getType();
+  const bool isScan = (opType == NdbQueryOperationDefImpl::TableScan ||
+                       opType == NdbQueryOperationDefImpl::OrderedIndexScan);
 
   m_receiver.prepareSend();
   Uint32Slice lookupParams(serializedParams, serializedParams.getSize());
@@ -574,102 +605,72 @@ bool
 NdbQueryOperationImpl::execTRANSID_AI(const Uint32* ptr, Uint32 len){
   ndbout << "NdbQueryOperationImpl::execTRANSID_AI(): *this="
 	 << *this << endl;  
-  if(m_state!=State_Initial){
-    ndbout << "NdbQueryOperationImpl::execTRANSID_AI(): unexpected state "
-	   << *this << endl;
-    assert(false);
-    return false;
-  }
+  // Process result values.
   m_receiver.execTRANSID_AI(ptr, len);
-  bool done = true;
-  unsigned int i = 0;
-  while(done && i<m_children.size()){
-    done = m_children[i]->m_state == State_Complete;
-    i++;
-  }
-  if(done){
-    m_state = State_Complete;
-    for(unsigned int j = 0; j < m_parents.size(); j++){
-      m_parents[j]->handleCompletedChild();
+  m_pendingResults--;
+  /* Receiving this message means that each child has been instantiated 
+   * one more. Therefore, increment the pending message count for the children.
+   */
+  for(Uint32 i = 0; i<getNoOfChildOperations(); i++){
+    getChildOperation(i).m_pendingResults++;
+    if(getChildOperation(i).m_pendingResults == 0){
+      /* This child appears to be complete. Therefore decrement total count
+       * of pending operations.*/
+     m_queryImpl.incPendingOperations(-1);
+    }else if(getChildOperation(i).m_pendingResults == 1){
+      /* This child appeared to be complete prior to receiving this message, 
+       * but now we know that there will be
+       * an extra instance. Therefore, increment total count of pending 
+       * operations.*/
+      m_queryImpl.incPendingOperations(1);
     }
-    return m_queryImpl.countCompletedOperation();
-  }else{
-    m_state = State_WaitForChildren;
-    return false;
   }
+
+  if(m_pendingResults == 0){ 
+    /* If this operation is complete, check if the query is also complete.*/
+    return m_queryImpl.incPendingOperations(-1);
+  }else if(m_pendingResults == -1){
+    /* This happens because we received results for the child before those
+     * of the parent. This operation will be set as complete again when the 
+     * TRANSID_AI for the parent arrives.*/
+    m_queryImpl.incPendingOperations(1);
+  }
+  return false;
 }
 
 bool 
 NdbQueryOperationImpl::execTCKEYREF(){
   ndbout << "NdbQueryOperationImpl::execTCKEYREF(): *this="
-	 << *this << endl;  
-  if(m_state!=State_Initial){
-    ndbout << "NdbQueryOperationImpl::execTCKEYREF(): unexpected state "
-	   << *this << endl;
-    return false;
+	 << *this << endl;
+  m_pendingResults--;
+  if(m_pendingResults==0){
+    /* This operation is complete. Check if the query is also complete.*/
+    return m_queryImpl.incPendingOperations(-1);
+  }else if(m_pendingResults==-1){
+    /* This happens because we received results for the child before those
+     * of the parent. This operation will be set as complete again when the 
+     * TRANSID_AI for the parent arrives.*/
+    m_queryImpl.incPendingOperations(1);
   }
-  m_state = State_Complete;
-  for(unsigned int i = 0; i < m_parents.size(); i++){
-    m_parents[i]->handleCompletedChild();
-  }
-  return m_queryImpl.countCompletedOperation();
+  return false;
 }
 
-void
-NdbQueryOperationImpl::handleCompletedChild(){
-  switch(m_state){
-  case State_Initial:
-    break;
-  case State_WaitForChildren:
-    {
-      bool done = true;
-      unsigned int i = 0;
-      while(done && i<m_children.size()){
-	done = m_children[i]->m_state == State_Complete;
-	i++;
-      }
-      if(done){
-	m_state = State_Complete;
-	for(unsigned int j = 0; j < m_parents.size(); j++){
-	  m_parents[j]->handleCompletedChild();
-	}
-	m_queryImpl.countCompletedOperation();
-      }
-    }
-    break;
-  default:
-    ndbout << "NdbQueryOperationImpl::handleCompletedChild(): unexpected state "
-	   << *this << endl;
-    assert(false);
-  }
-}
+
 
 /** For debugging.*/
 NdbOut& operator<<(NdbOut& out, const NdbQueryOperationImpl& op){
   out << "[ this: " << &op
       << "  m_magic: " << op.m_magic 
       << "  m_id: " << op.m_id;
-  for(unsigned int i = 0; i<op.m_parents.size(); i++){
-    out << "  m_parents[" << i << "]" << op.m_parents[i]; 
+  for(unsigned int i = 0; i<op.getNoOfParentOperations(); i++){
+    out << "  m_parents[" << i << "]" << &op.getParentOperation(i); 
   }
-  for(unsigned int i = 0; i<op.m_children.size(); i++){
-    out << "  m_children[" << i << "]" << op.m_children[i]; 
+  for(unsigned int i = 0; i<op.getNoOfChildOperations(); i++){
+    out << "  m_children[" << i << "]" << &op.getChildOperation(i); 
   }
-  out << "  m_queryImpl: " << &op.m_queryImpl
-      << "  m_state: ";
-  switch(op.m_state){
-  case NdbQueryOperationImpl::State_Initial: 
-    out << "State_Initial";
-    break;
-  case NdbQueryOperationImpl::State_WaitForChildren: 
-    out << "State_WaitForChildren";
-    break;
-  case NdbQueryOperationImpl::State_Complete: 
-    out << "State_Complete";
-    break;
-  default:
-    out << "<Illegal enum>" << op.m_state;
-  }
+  out << "  m_queryImpl: " << &op.m_queryImpl;
+  out << "  m_pendingResults: " << op.m_pendingResults;
+  
   out << " ]";
   return out;
 }
