@@ -1060,15 +1060,18 @@ static int toku_txn_commit(DB_TXN * txn, u_int32_t flags) {
     if (r_child_first || flags!=0)
 	// frees the tokutxn
 	// Calls ydb_yield(NULL) occasionally
-        r = toku_logger_abort(db_txn_struct_i(txn)->tokutxn, ydb_yield, NULL);
+        //r = toku_logger_abort(db_txn_struct_i(txn)->tokutxn, ydb_yield, NULL);
+        r = toku_txn_abort_txn(db_txn_struct_i(txn)->tokutxn, ydb_yield, NULL);
     else
 	// frees the tokutxn
 	// Calls ydb_yield(NULL) occasionally
-        r = toku_logger_commit(db_txn_struct_i(txn)->tokutxn, nosync, ydb_yield, NULL);
+        //r = toku_logger_commit(db_txn_struct_i(txn)->tokutxn, nosync, ydb_yield, NULL);
+        r = toku_txn_commit_txn(db_txn_struct_i(txn)->tokutxn, nosync, ydb_yield, NULL);
 
     // Close the logger after releasing the locks
     int r2 = toku_txn_release_locks(txn);
-    toku_logger_txn_close(db_txn_struct_i(txn)->tokutxn);
+    //toku_logger_txn_close(db_txn_struct_i(txn)->tokutxn);
+    toku_txn_close_txn(db_txn_struct_i(txn)->tokutxn);
     // the toxutxn is freed, and we must free the rest. */
 
     // The txn is no good after the commit even if the commit fails, so free it up.
@@ -1108,9 +1111,11 @@ static int toku_txn_abort(DB_TXN * txn) {
             db_txn_struct_i(db_txn_struct_i(txn)->prev)->next = db_txn_struct_i(txn)->next;
         }
     }
-    int r = toku_logger_abort(db_txn_struct_i(txn)->tokutxn, ydb_yield, NULL);
+    //int r = toku_logger_abort(db_txn_struct_i(txn)->tokutxn, ydb_yield, NULL);
+    int r = toku_txn_abort_txn(db_txn_struct_i(txn)->tokutxn, ydb_yield, NULL);
     int r2 = toku_txn_release_locks(txn);
-    toku_logger_txn_close(db_txn_struct_i(txn)->tokutxn);
+    //toku_logger_txn_close(db_txn_struct_i(txn)->tokutxn);
+    toku_txn_close_txn(db_txn_struct_i(txn)->tokutxn);
 
 #if !TOKUDB_NATIVE_H
     toku_free(db_txn_struct_i(txn));
@@ -1206,7 +1211,8 @@ static int toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t f
         }
     }
     
-    r = toku_logger_txn_begin(stxn ? db_txn_struct_i(stxn)->tokutxn : 0, &db_txn_struct_i(result)->tokutxn, env->i->logger);
+    //r = toku_logger_txn_begin(stxn ? db_txn_struct_i(stxn)->tokutxn : 0, &db_txn_struct_i(result)->tokutxn, env->i->logger);
+    r = toku_txn_begin_txn(stxn ? db_txn_struct_i(stxn)->tokutxn : 0, &db_txn_struct_i(result)->tokutxn, env->i->logger);
     if (r != 0)
         return r;
     //Add to the list of children for the parent.

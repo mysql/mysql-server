@@ -51,6 +51,7 @@ BRT_SOURCES = \
   leafentry \
   leaflock \
   log \
+  logger \
   log_code \
   memarena \
   mempool \
@@ -58,9 +59,11 @@ BRT_SOURCES = \
   omt \
   recover \
   roll \
+  rollback \
   threadpool \
   toku_worker \
   trace_mem \
+  txn \
   x1764 \
   ybt \
 # keep this line so I can have a \ on the previous line
