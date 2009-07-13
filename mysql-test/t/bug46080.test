@@ -10,8 +10,10 @@ SET @@SESSION.sort_buffer_size=5*16*1000000;
 SET @@SESSION.max_heap_table_size=5*1000000;
 
 --echo # Must not crash.
---error 5,0
+--disable_result_log
+--error 0,5
 SELECT GROUP_CONCAT(a ORDER BY a) FROM t1 GROUP BY a;
+--enable_result_log
 
 DROP TABLE t1;
 SET @@SESSION.sort_buffer_size=default;
