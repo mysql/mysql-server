@@ -3545,11 +3545,18 @@ static int toku_db_truncate(DB *db, DB_TXN *txn, u_int32_t *row_count, u_int32_t
     HANDLE_PANICKED_DB(db);
     int r;
 
+    u_int32_t unhandled_flags = flags;
+    int ignore_cursors = 0;
+    if (flags & DB_TRUNCATE_WITHCURSORS) {
+        ignore_cursors = 1;
+        unhandled_flags &= ~DB_TRUNCATE_WITHCURSORS;
+    }
+
     // dont support flags (yet)
-    if (flags)
+    if (unhandled_flags)
         return EINVAL;
-    // dont support cursors 
-    if (toku_brt_get_cursor_count(db->i->brt) > 0)
+    // dont support cursors unless explicitly told to
+    if (!ignore_cursors && toku_brt_get_cursor_count(db->i->brt) > 0)
         return EINVAL;
 
     // acquire a table lock

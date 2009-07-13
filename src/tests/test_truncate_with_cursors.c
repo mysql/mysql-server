@@ -13,7 +13,7 @@
 #include <db.h>
 
 #ifdef USE_BDB
-int test_errors = 0;
+int test_errors;
 
 static void
 test_errcall (const DB_ENV *env __attribute__((__unused__)), const char *errpfx, const char *msg) {
@@ -21,11 +21,15 @@ test_errcall (const DB_ENV *env __attribute__((__unused__)), const char *errpfx,
     test_errors++;
 }
 
+#define DB_TRUNCATE_WITHCURSORS 0
 #endif
 
 // try to truncate with cursors active
 static int
-test_truncate_with_cursors (int n) {
+test_truncate_with_cursors (int n, u_int32_t trunc_flag) {
+#ifdef USE_BDB
+    test_errors = 0;
+#endif
     int r;
     
     DB_ENV *env;
@@ -72,7 +76,9 @@ test_truncate_with_cursors (int n) {
     assert(test_errors == 0);
 #endif
     u_int32_t row_count = 0;
-    r = db->truncate(db, 0, &row_count, 0); 
+    r = db->truncate(db, 0, &row_count, trunc_flag); 
+
+    BOOL truncated = FALSE;
 #ifdef USE_BDB
     // It looks like for 4.6 there's no error code, even though the documentation says "it is an error to truncate with open cursors".
     // For 4.3 and 4.7 the error code is EINVAL
@@ -83,13 +89,20 @@ test_truncate_with_cursors (int n) {
 	assert(r == EINVAL && test_errors);
     }
 #else
-    assert(r == EINVAL);
+    if (trunc_flag == 0)
+        assert(r == EINVAL);
+    else {
+        assert(trunc_flag == DB_TRUNCATE_WITHCURSORS);
+        assert(r == 0);
+        truncated = TRUE;
+    }
 #endif
 
     r = cursor->c_close(cursor); assert(r == 0);
-
     // ok, now try it
-    r = db->truncate(db, 0, &row_count, 0); assert(r == 0);
+    if (!truncated) {
+        r = db->truncate(db, 0, &row_count, 0); assert(r == 0);
+    }
 
     i = 0;
     r = db->cursor(db, 0, &cursor, 0); assert(r == 0);
@@ -131,8 +144,14 @@ test_main(int argc, char *argv[]) {
     int nodesize = 1024*1024;
     int leafentry = 25;
     int n = (nodesize/leafentry) * 2;
+    int r;
     system("rm -rf " ENVDIR);
     toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
-    int r = test_truncate_with_cursors(n);
-    return r;
+    r = test_truncate_with_cursors(n, 0);
+    CKERR(r);
+    system("rm -rf " ENVDIR);
+    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
+    r = test_truncate_with_cursors(n, DB_TRUNCATE_WITHCURSORS);
+    CKERR(r);
+    return 0;
 }
