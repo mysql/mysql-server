@@ -8,7 +8,7 @@ let $dump_file = $MYSQLTEST_VARDIR/tmp/desc.txt;
 CREATE TEMPORARY TABLE test.desc (a varchar(512)) ENGINE = HEAP;
 
 # needed for embedded
---exec chmod 0777 $dump_file
+--chmod 0777 $dump_file
 --replace_result $dump_file DUMP_FILE
 eval LOAD DATA INFILE '$dump_file' INTO TABLE test.desc;
 --remove_file $dump_file
