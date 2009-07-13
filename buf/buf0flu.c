@@ -1012,7 +1012,6 @@ buf_flush_batch(
 	ulint		old_page_count;
 	ulint		space;
 	ulint		offset;
-	ibool		try_neighbors = TRUE;
 
 	ut_ad((flush_type == BUF_FLUSH_LRU)
 	      || (flush_type == BUF_FLUSH_LIST));
@@ -1020,17 +1019,6 @@ buf_flush_batch(
 	ut_ad((flush_type != BUF_FLUSH_LIST)
 	      || sync_thread_levels_empty_gen(TRUE));
 #endif /* UNIV_SYNC_DEBUG */
-
-	/* If we are being asked to do a BUF_FLUSH_LIST flush and
-	min_n is ULINT_MAX and lsn_limit is provided then we are doing
-	this flush from within a query thread i.e.: not in background
-	and therefore we should not try to flush the neighbors and just
-	focus on getting the flushed LSN to the lsn_limit. */
-	if (flush_type == BUF_FLUSH_LIST && min_n == ULINT_MAX
-	    && lsn_limit != IB_ULONGLONG_MAX) {
-		try_neighbors = FALSE;
-	}
-
 	buf_pool_mutex_enter();
 
 	if ((buf_pool->n_flush[flush_type] > 0)
@@ -1090,36 +1078,18 @@ flush_next:
 			if (ready) {
 				space = buf_page_get_space(bpage);
 				offset = buf_page_get_page_no(bpage);
+
+				buf_pool_mutex_exit();
+
 				old_page_count = page_count;
 
-				if (try_neighbors) {
-
-					buf_pool_mutex_exit();
-
-					/* Try to flush also all the
-					neighbors */
-					page_count += buf_flush_try_neighbors(
-						space, offset, flush_type);
-					/* fprintf(stderr,
-					"Flush type %lu, page no %lu,"
-					" neighb %lu\n",
-					flush_type, offset,
-					page_count - old_page_count); */
-
-				} else {
-
-					/* Just flush this page. */
-					mutex_enter(block_mutex);
-
-					ut_a(buf_page_in_file(bpage));
-					ut_ad(bpage->in_page_hash);
-
-					/* buf_pool and block mutexes are
-					released inside the following
-					function. */
-					buf_flush_page(bpage, flush_type);
-					++page_count;
-				}
+				/* Try to flush also all the neighbors */
+				page_count += buf_flush_try_neighbors(
+					space, offset, flush_type);
+				/* fprintf(stderr,
+				"Flush type %lu, page no %lu, neighb %lu\n",
+				flush_type, offset,
+				page_count - old_page_count); */
 
 				buf_pool_mutex_enter();
 				goto flush_next;
