@@ -116,12 +116,12 @@ struct MBR
   int touches(const MBR *mbr)
   {
     /* The following should be safe, even if we compare doubles */
-    return ((((mbr->xmin == xmax) || (mbr->xmax == xmin)) &&
-	     (((mbr->ymin >= ymin) && (mbr->ymin <= ymax)) ||
-	      ((mbr->ymax >= ymin) && (mbr->ymax <= ymax)))) ||
-	    (((mbr->ymin == ymax) || (mbr->ymax == ymin)) &&
-	     (((mbr->xmin >= xmin) && (mbr->xmin <= xmax)) ||
-	      ((mbr->xmax >= xmin) && (mbr->xmax <= xmax)))));
+    return ((mbr->xmin == xmax || mbr->xmax == xmin) &&
+            ((mbr->ymin >= ymin && mbr->ymin <= ymax) ||
+             (mbr->ymax >= ymin && mbr->ymax <= ymax))) ||
+           ((mbr->ymin == ymax || mbr->ymax == ymin) &&
+            ((mbr->xmin >= xmin && mbr->xmin <= xmax) ||
+             (mbr->xmax >= xmin && mbr->xmax <= xmax)));
   }
 
   int within(const MBR *mbr)

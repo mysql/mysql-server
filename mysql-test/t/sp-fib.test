@@ -22,13 +22,14 @@ begin
     begin
       declare x, y bigint unsigned;
       declare c cursor for select f from t3 order by f desc limit 2;
-
       open c;
       fetch c into y;
       fetch c into x;
-      close c;
       insert into t3 values (x+y);
       call fib(n-1);
+      ## Close the cursor AFTER the recursion to ensure that the stack
+      ## frame is somewhat intact.
+      close c;
     end;
   end if;
 end|
@@ -36,24 +37,17 @@ end|
 # Enable recursion
 set @@max_sp_recursion_depth= 20|
 
-# Minimum test: recursion of 3 levels
-
 insert into t3 values (0), (1)|
 
-call fib(3)|
+# The small number of recursion levels is intentional.
+# We need to avoid
+# Bug#15866 main.sp fails (thread stack limit
+#           insufficient for recursive call "fib(20)")
+# which affects some platforms.
+call fib(4)|
 
 select * from t3 order by f asc|
 
-truncate table t3|
-
-# The original test, 20 levels, ran into memory limits on some machines
-# and builds. Try 10 instead...
-
-insert into t3 values (0), (1)|
-
-call fib(10)|
-
-select * from t3 order by f asc|
 drop table t3|
 drop procedure fib|
 set @@max_sp_recursion_depth= 0|

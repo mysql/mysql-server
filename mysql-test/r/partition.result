@@ -1982,5 +1982,14 @@ SELECT b, c FROM t1 WHERE b = 1 GROUP BY b, c;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	bc	bc	10	NULL	7	Using where; Using index for group-by
 DROP TABLE t1;
+#
+# Bug #45807: crash accessing partitioned table and sql_mode 
+#   contains ONLY_FULL_GROUP_BY
+#
+SET SESSION SQL_MODE='ONLY_FULL_GROUP_BY';
+CREATE TABLE t1(id INT,KEY(id)) ENGINE=MYISAM 
+PARTITION BY HASH(id) PARTITIONS 2;
+DROP TABLE t1;
+SET SESSION SQL_MODE=DEFAULT;
 End of 5.1 tests
 SET @@global.general_log= @old_general_log;
