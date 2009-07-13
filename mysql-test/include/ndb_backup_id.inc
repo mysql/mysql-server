@@ -8,7 +8,7 @@ CREATE TEMPORARY TABLE test.backup_info(
 ) ENGINE = HEAP;
 
 # needed for embedded
---exec chmod 0777 $dump_file
+--chmod 0777 $dump_file
 --disable_warnings
 --replace_result $dump_file DUMP_FILE
 eval LOAD DATA INFILE '$dump_file' INTO TABLE test.backup_info
