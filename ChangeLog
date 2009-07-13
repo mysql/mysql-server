@@ -18,18 +18,6 @@
 
 2009-07-07	The InnoDB Team
 
-	* buf/buf0flu.c:
-	Change the algorithm of flushing neighbors. The current
-	implementation is to try to flush the neighbors of every
-	page that we flush. This patch makes the following distinction:
-	  1) If the flush is from flush_list, AND
-	  2) If the flush is intended to move the oldest modification
-	     LSN ahead
-	THEN, do not try to flush the neighbors. Just focus on flushing
-	dirty pages at the end of flush_list.
-
-2009-07-07	The InnoDB Team
-
 	* srv/srv0srv.c, handler/ha_innodb.cc, log/log0log.c,
 	include/srv0srv.h:
 	Implement IO capacity tuning. Expose new configure knob
