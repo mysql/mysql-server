@@ -27,7 +27,6 @@ CREATE USER testuser1@localhost;
 GRANT SELECT ON test1.* TO testuser1@localhost;
 
 --echo # Establish connection testuser1 (user=testuser1)
-let $MASTER_MYSOCK= query_get_value(SHOW VARIABLES LIKE 'socket', Value, 1);
 --replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
 connect (testuser1,localhost,testuser1,,test1);
 --source suite/funcs_1/datadict/tables2.inc
