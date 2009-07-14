@@ -31,7 +31,7 @@ Created 3/26/1996 Heikki Tuuri
 
 #ifndef UNIV_HOTBACKUP
 #include "fsp0fsp.h"
-#include "mtr0mtr.h"
+#include "mtr0log.h"
 #include "mtr0log.h"
 #include "trx0trx.h"
 #include "trx0rseg.h"
