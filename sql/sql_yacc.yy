@@ -8944,7 +8944,7 @@ opt_limit_clause:
         ;
 
 limit_clause:
-          LIMIT limit_options {}
+          LIMIT limit_options { Lex->set_stmt_unsafe(); }
         ;
 
 limit_options:
@@ -9006,6 +9006,7 @@ delete_limit_clause:
           {
             SELECT_LEX *sel= Select;
             sel->select_limit= $2;
+            Lex->set_stmt_unsafe();
             sel->explicit_limit= 1;
           }
         ;
@@ -9459,13 +9460,21 @@ insert_lock_option:
 #endif
           }
         | LOW_PRIORITY  { $$= TL_WRITE_LOW_PRIORITY; }
-        | DELAYED_SYM   { $$= TL_WRITE_DELAYED; }
+        | DELAYED_SYM
+        {
+          $$= TL_WRITE_DELAYED;
+          Lex->set_stmt_unsafe();
+        }
         | HIGH_PRIORITY { $$= TL_WRITE; }
         ;
 
 replace_lock_option:
           opt_low_priority { $$= $1; }
-        | DELAYED_SYM { $$= TL_WRITE_DELAYED; }
+        | DELAYED_SYM
+        {
+          $$= TL_WRITE_DELAYED;
+          Lex->set_stmt_unsafe();
+        }
         ;
 
 insert2:

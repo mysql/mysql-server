@@ -540,7 +540,7 @@ THD::THD()
    lock_id(&main_lock_id),
    user_time(0), in_sub_stmt(0),
    sql_log_bin_toplevel(false),
-   binlog_table_maps(0), binlog_flags(0UL),
+   binlog_warning_flags(0UL), binlog_table_maps(0),
    table_map_for_update(0),
    arg_of_last_insert_id_function(FALSE),
    first_successful_insert_id_in_prev_stmt(0),
@@ -2975,13 +2975,13 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
     first_successful_insert_id_in_cur_stmt;
 
   if ((!lex->requires_prelocking() || is_update_query(lex->sql_command)) &&
-      !current_stmt_binlog_row_based)
+      !is_current_stmt_binlog_format_row())
   {
     options&= ~OPTION_BIN_LOG;
   }
 
   if ((backup->options & OPTION_BIN_LOG) && is_update_query(lex->sql_command)&&
-      !current_stmt_binlog_row_based)
+      !is_current_stmt_binlog_format_row())
     mysql_bin_log.start_union_events(this, this->query_id);
 
   /* Disable result sets */
@@ -3043,7 +3043,7 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
     is_fatal_sub_stmt_error= FALSE;
 
   if ((options & OPTION_BIN_LOG) && is_update_query(lex->sql_command) &&
-    !current_stmt_binlog_row_based)
+    !is_current_stmt_binlog_format_row())
     mysql_bin_log.stop_union_events(this);
 
   /*
@@ -3465,7 +3465,7 @@ int THD::binlog_write_row(TABLE* table, bool is_trans,
                           MY_BITMAP const* cols, size_t colcnt, 
                           uchar const *record) 
 { 
-  DBUG_ASSERT(current_stmt_binlog_row_based && mysql_bin_log.is_open());
+  DBUG_ASSERT(is_current_stmt_binlog_format_row() && mysql_bin_log.is_open());
 
   /*
     Pack records into format for transfer. We are allocating more
@@ -3495,7 +3495,7 @@ int THD::binlog_update_row(TABLE* table, bool is_trans,
                            const uchar *before_record,
                            const uchar *after_record)
 { 
-  DBUG_ASSERT(current_stmt_binlog_row_based && mysql_bin_log.is_open());
+  DBUG_ASSERT(is_current_stmt_binlog_format_row() && mysql_bin_log.is_open());
 
   size_t const before_maxlen = max_row_length(table, before_record);
   size_t const after_maxlen  = max_row_length(table, after_record);
@@ -3540,7 +3540,7 @@ int THD::binlog_delete_row(TABLE* table, bool is_trans,
                            MY_BITMAP const* cols, size_t colcnt,
                            uchar const *record)
 { 
-  DBUG_ASSERT(current_stmt_binlog_row_based && mysql_bin_log.is_open());
+  DBUG_ASSERT(is_current_stmt_binlog_format_row() && mysql_bin_log.is_open());
 
   /* 
      Pack records into format for transfer. We are allocating more
@@ -3622,8 +3622,6 @@ show_query_type(THD::enum_binlog_query_type qtype)
     return "ROW";
   case THD::STMT_QUERY_TYPE:
     return "STMT";
-  case THD::MYSQL_QUERY_TYPE:
-    return "MYSQL";
   case THD::QUERY_TYPE_COUNT:
   default:
     DBUG_ASSERT(0 <= qtype && qtype < THD::QUERY_TYPE_COUNT);
@@ -3635,28 +3633,30 @@ show_query_type(THD::enum_binlog_query_type qtype)
 #endif
 
 
-/*
-  Member function that will log query, either row-based or
-  statement-based depending on the value of the 'current_stmt_binlog_row_based'
-  the value of the 'qtype' flag.
+/**
+  Log the current query.
 
-  This function should be called after the all calls to ha_*_row()
-  functions have been issued, but before tables are unlocked and
-  closed.
+  The query will be logged in either row format or statement format
+  depending on the value of @c current_stmt_binlog_row_based field and
+  the value of the @c qtype parameter.
 
-  OBSERVE
-    There shall be no writes to any system table after calling
-    binlog_query(), so these writes has to be moved to before the call
-    of binlog_query() for correct functioning.
+  This function must be called:
 
-    This is necessesary not only for RBR, but the master might crash
-    after binlogging the query but before changing the system tables.
-    This means that the slave and the master are not in the same state
-    (after the master has restarted), so therefore we have to
-    eliminate this problem.
+  - After the all calls to ha_*_row() functions have been issued.
 
-  RETURN VALUE
-    Error code, or 0 if no error.
+  - After any writes to system tables. Rationale: if system tables
+    were written after a call to this function, and the master crashes
+    after the call to this function and before writing the system
+    tables, then the master and slave get out of sync.
+
+  - Before tables are unlocked and closed.
+
+  @see decide_logging_format
+
+  @retval 0 Success
+
+  @retval nonzero If there is a failure when writing the query (e.g.,
+  write failure), then the error code is returned.
 */
 int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
                       ulong query_len, bool is_trans, bool suppress_use,
@@ -3681,51 +3681,69 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
       DBUG_RETURN(error);
 
   /*
-    If we are in statement mode and trying to log an unsafe statement,
-    we should print a warning.
+    Warnings for unsafe statements logged in statement format are
+    printed here instead of in decide_logging_format().  This is
+    because the warnings should be printed only if the statement is
+    actually logged. When executing decide_logging_format(), we cannot
+    know for sure if the statement will be logged.
   */
-  if (sql_log_bin_toplevel && lex->is_stmt_unsafe() &&
-      variables.binlog_format == BINLOG_FORMAT_STMT && 
-      binlog_filter->db_ok(this->db))
+  if (sql_log_bin_toplevel)
   {
-   /*
-     A warning can be elevated a error when STRICT sql mode.
-     But we don't want to elevate binlog warning to error here.
-   */
-    push_warning(this, MYSQL_ERROR::WARN_LEVEL_NOTE,
-                 ER_BINLOG_UNSAFE_STATEMENT,
-                 ER(ER_BINLOG_UNSAFE_STATEMENT));
-    if (!(binlog_flags & BINLOG_FLAG_UNSAFE_STMT_PRINTED))
+    if (binlog_warning_flags &
+        (1 << BINLOG_WARNING_FLAG_UNSAFE_AND_STMT_ENGINE))
     {
+      push_warning_printf(this, MYSQL_ERROR::WARN_LEVEL_NOTE,
+                          ER_BINLOG_UNSAFE_AND_STMT_ENGINE,
+                          "%s Statement: %.*s",
+                          ER(ER_BINLOG_UNSAFE_AND_STMT_ENGINE),
+                          MYSQL_ERRMSG_SIZE, query_arg);
+      sql_print_warning("%s Statement: %.*s",
+                        ER(ER_BINLOG_UNSAFE_AND_STMT_ENGINE),
+                        MYSQL_ERRMSG_SIZE, query_arg);
+      binlog_warning_flags|= 1 << BINLOG_WARNING_FLAG_PRINTED;
+    }
+    else if (binlog_warning_flags &
+             (1 << BINLOG_WARNING_FLAG_UNSAFE_AND_STMT_MODE))
+    {
+      push_warning_printf(this, MYSQL_ERROR::WARN_LEVEL_NOTE,
+                          ER_BINLOG_UNSAFE_STATEMENT,
+                          "%s Statement: %.*s",
+                          ER(ER_BINLOG_UNSAFE_STATEMENT),
+                          MYSQL_ERRMSG_SIZE, query_arg);
       sql_print_warning("%s Statement: %.*s",
                         ER(ER_BINLOG_UNSAFE_STATEMENT),
                         MYSQL_ERRMSG_SIZE, query_arg);
-      binlog_flags|= BINLOG_FLAG_UNSAFE_STMT_PRINTED;
+      binlog_warning_flags|= 1 << BINLOG_WARNING_FLAG_PRINTED;
     }
   }
 
   switch (qtype) {
+    /*
+      ROW_QUERY_TYPE means that the statement may be logged either in
+      row format or in statement format.  If
+      current_stmt_binlog_row_based is set, it means that the
+      statement has already been logged in row format and hence shall
+      not be logged again.
+    */
   case THD::ROW_QUERY_TYPE:
     DBUG_PRINT("debug",
                ("current_stmt_binlog_row_based: %d",
-                current_stmt_binlog_row_based));
-    if (current_stmt_binlog_row_based)
+                is_current_stmt_binlog_format_row()));
+    if (is_current_stmt_binlog_format_row())
       DBUG_RETURN(0);
-    /* Otherwise, we fall through */
-  case THD::MYSQL_QUERY_TYPE:
-    /*
-      Using this query type is a conveniece hack, since we have been
-      moving back and forth between using RBR for replication of
-      system tables and not using it.
+    /* Fall through */
 
-      Make sure to change in check_table_binlog_row_based() according
-      to how you treat this.
+    /*
+      STMT_QUERY_TYPE means that the query must be logged in statement
+      format; it cannot be logged in row format.  This is typically
+      used by DDL statements.  It is an error to use this query type
+      if current_stmt_binlog_row_based is set.
     */
   case THD::STMT_QUERY_TYPE:
     /*
       The MYSQL_LOG::write() function will set the STMT_END_F flag and
       flush the pending rows event if necessary.
-     */
+    */
     {
       Query_log_event qinfo(this, query_arg, query_len, is_trans, suppress_use,
                             errcode);
