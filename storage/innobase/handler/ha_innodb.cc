@@ -6854,21 +6854,21 @@ ha_innobase::external_lock(
 	/* Statement based binlogging does not work in isolation level
 	READ UNCOMMITTED and READ COMMITTED since the necessary
 	locks cannot be taken. In this case, we print an
-	informative error message and return with an error. */
-	if (lock_type == F_WRLCK)
-	{
-		ulong const binlog_format= thd_binlog_format(thd);
-		ulong const tx_isolation = thd_tx_isolation(current_thd);
-		if (tx_isolation <= ISO_READ_COMMITTED &&
-		    binlog_format == BINLOG_FORMAT_STMT)
-		{
-			char buf[256];
-			my_snprintf(buf, sizeof(buf),
-				    "Transaction level '%s' in"
-				    " InnoDB is not safe for binlog mode '%s'",
-				    tx_isolation_names[tx_isolation],
-				    binlog_format_names[binlog_format]);
-			my_error(ER_BINLOG_LOGGING_IMPOSSIBLE, MYF(0), buf);
+	informative error message and return with an error.
+	Note: decide_logging_format would give the same error message,
+	except it cannot give the extra details.
+	*/
+	if (lock_type == F_WRLCK &&
+	    !(table_flags() & HA_BINLOG_STMT_CAPABLE) &&
+	    thd_binlog_format(thd) == BINLOG_FORMAT_STMT) {
+		int skip = 0;
+		/* used by test case */
+		DBUG_EXECUTE_IF("no_innodb_binlog_errors", skip = 1;);
+		if (!skip) {
+			my_error(ER_BINLOG_STMT_MODE_AND_ROW_ENGINE, MYF(0),
+			         " InnoDB is limited to row-logging when "
+			         "transaction isolation level is "
+			         "READ COMMITTED or READ UNCOMMITTED.");
 			DBUG_RETURN(HA_ERR_LOGGING_IMPOSSIBLE);
 		}
 	}

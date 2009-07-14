@@ -403,7 +403,7 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
     Turn off row binlogging of this statement and use statement-based 
     so that all supporting tables are updated for CREATE EVENT command.
   */
-  if (thd->current_stmt_binlog_row_based)
+  if (thd->is_current_stmt_binlog_format_row())
     thd->clear_current_stmt_binlog_row_based();
 
   pthread_mutex_lock(&LOCK_event_metadata);
@@ -527,7 +527,7 @@ Events::update_event(THD *thd, Event_parse_data *parse_data,
     Turn off row binlogging of this statement and use statement-based 
     so that all supporting tables are updated for UPDATE EVENT command.
   */
-  if (thd->current_stmt_binlog_row_based)
+  if (thd->is_current_stmt_binlog_format_row())
     thd->clear_current_stmt_binlog_row_based();
 
   pthread_mutex_lock(&LOCK_event_metadata);
@@ -624,7 +624,7 @@ Events::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name, bool if_exists)
     Turn off row binlogging of this statement and use statement-based so
     that all supporting tables are updated for DROP EVENT command.
   */
-  if (thd->current_stmt_binlog_row_based)
+  if (thd->is_current_stmt_binlog_format_row())
     thd->clear_current_stmt_binlog_row_based();
 
   pthread_mutex_lock(&LOCK_event_metadata);

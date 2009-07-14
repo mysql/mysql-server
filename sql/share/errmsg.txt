@@ -6076,8 +6076,7 @@ ER_SLAVE_INCIDENT
 ER_NO_PARTITION_FOR_GIVEN_VALUE_SILENT
         eng "Table has no partition for some existing values"
 ER_BINLOG_UNSAFE_STATEMENT
-        eng "Statement may not be safe to log in statement format."
-        swe "Detta är inte säkert att logga i statement-format."
+        eng "Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT."
 ER_SLAVE_FATAL_ERROR
         eng "Fatal error: %s"
 ER_SLAVE_RELAY_LOG_READ_FAILURE
@@ -6201,3 +6200,18 @@ ER_TEMPORARY_NAME
 ER_RENAMED_NAME
   eng "Renamed"
   swe "Namnändrad"
+
+ER_BINLOG_ROW_ENGINE_AND_STMT_ENGINE
+  eng "Cannot execute statement: binlogging impossible since both row-incapable engines and statement-incapable engines are involved."
+ER_BINLOG_ROW_MODE_AND_STMT_ENGINE
+  eng "Cannot execute statement: binlogging impossible since BINLOG_FORMAT = ROW and at least one table uses a storage engine limited to statement-logging."
+ER_BINLOG_UNSAFE_AND_STMT_ENGINE
+  eng "Unsafe statement binlogged as statement since storage engine is limited to statement-logging."
+ER_BINLOG_ROW_INJECTION_AND_STMT_ENGINE
+  eng "Cannot execute row injection: binlogging impossible since at least one table uses a storage engine limited to statement-logging."
+ER_BINLOG_STMT_MODE_AND_ROW_ENGINE
+  eng "Cannot execute statement: binlogging impossible since BINLOG_FORMAT = STATEMENT and at least one table uses a storage engine limited to row-logging.%s"
+ER_BINLOG_ROW_INJECTION_AND_STMT_MODE
+  eng "Cannot execute row injection: binlogging impossible since BINLOG_FORMAT = STATEMENT."
+ER_BINLOG_MULTIPLE_ENGINES_AND_SELF_LOGGING_ENGINE
+  eng "Cannot execute statement: binlogging impossible since more than one engine is involved and at least one engine is self-logging."
