@@ -115,7 +115,7 @@ extern "C" {
 #define PROMPT_CHAR '\\'
 #define DEFAULT_DELIMITER ";"
 
-#define MAX_BATCH_BUFFER_SIZE (1024L * 1024L)
+#define MAX_BATCH_BUFFER_SIZE (1024L * 1024L * 1024L)
 
 typedef struct st_status
 {
@@ -1979,7 +1979,7 @@ static COMMANDS *find_command(char *name,char cmd_char)
     */
     if (strstr(name, "\\g") || (strstr(name, delimiter) &&
                                 !(strlen(name) >= 9 &&
-                                  !my_strnncoll(charset_info,
+                                  !my_strnncoll(&my_charset_latin1,
                                                 (uchar*) name, 9,
                                                 (const uchar*) "delimiter",
                                                 9))))
@@ -2000,11 +2000,11 @@ static COMMANDS *find_command(char *name,char cmd_char)
   {
     if (commands[i].func &&
 	((name &&
-	  !my_strnncoll(charset_info,(uchar*)name,len,
+	  !my_strnncoll(&my_charset_latin1, (uchar*)name, len,
 				     (uchar*)commands[i].name,len) &&
 	  !commands[i].name[len] &&
 	  (!end || (end && commands[i].takes_params))) ||
-	 !name && commands[i].cmd_char == cmd_char))
+	 (!name && commands[i].cmd_char == cmd_char)))
     {
       DBUG_PRINT("exit",("found command: %s", commands[i].name));
       DBUG_RETURN(&commands[i]);
@@ -2163,7 +2163,7 @@ static bool add_line(String &buffer,char *line,char *in_string,
       buffer.length(0);
     }
     else if (!*ml_comment && (!*in_string && (inchar == '#' ||
-			      inchar == '-' && pos[1] == '-' &&
+                                              (inchar == '-' && pos[1] == '-' &&
                               /*
                                 The third byte is either whitespace or is the
                                 end of the line -- which would occur only
@@ -2171,7 +2171,7 @@ static bool add_line(String &buffer,char *line,char *in_string,
                                 itself whitespace and should also match.
                               */
 			      (my_isspace(charset_info,pos[2]) ||
-                               !pos[2]))))
+                               !pos[2])))))
     {
       // Flush previously accepted characters
       if (out != line)
@@ -2732,7 +2732,7 @@ static int com_server_help(String *buffer __attribute__((unused)),
 {
   MYSQL_ROW cur;
   const char *server_cmd= buffer->ptr();
-  char cmd_buf[100];
+  char cmd_buf[100 + 1];
   MYSQL_RES *result;
   int error;
   
@@ -4264,41 +4264,36 @@ com_status(String *buffer __attribute__((unused)),
   MYSQL_RES *result;
   LINT_INIT(result);
 
+  if (mysql_real_query_for_lazy(
+        C_STRING_WITH_LEN("select DATABASE(), USER() limit 1")))
+    return 0;
+
   tee_puts("--------------", stdout);
   usage(1);					/* Print version */
-  if (connected)
+  tee_fprintf(stdout, "\nConnection id:\t\t%lu\n",mysql_thread_id(&mysql));
+  /*
+    Don't remove "limit 1",
+    it is protection againts SQL_SELECT_LIMIT=0
+  */
+  if (mysql_store_result_for_lazy(&result))
   {
-    tee_fprintf(stdout, "\nConnection id:\t\t%lu\n",mysql_thread_id(&mysql));
-    /* 
-      Don't remove "limit 1", 
-      it is protection againts SQL_SELECT_LIMIT=0
-    */
-    if (!mysql_query(&mysql,"select DATABASE(), USER() limit 1") &&
-	(result=mysql_use_result(&mysql)))
+    MYSQL_ROW cur=mysql_fetch_row(result);
+    if (cur)
     {
-      MYSQL_ROW cur=mysql_fetch_row(result);
-      if (cur)
-      {
-        tee_fprintf(stdout, "Current database:\t%s\n", cur[0] ? cur[0] : "");
-        tee_fprintf(stdout, "Current user:\t\t%s\n", cur[1]);
-      }
-      mysql_free_result(result);
-    } 
+      tee_fprintf(stdout, "Current database:\t%s\n", cur[0] ? cur[0] : "");
+      tee_fprintf(stdout, "Current user:\t\t%s\n", cur[1]);
+    }
+    mysql_free_result(result);
+  }
+
 #ifdef HAVE_OPENSSL
-    if ((status_str= mysql_get_ssl_cipher(&mysql)))
-      tee_fprintf(stdout, "SSL:\t\t\tCipher in use is %s\n",
-		  status_str);
-    else
-#endif /* HAVE_OPENSSL */
-      tee_puts("SSL:\t\t\tNot in use", stdout);
-  }
+  if ((status_str= mysql_get_ssl_cipher(&mysql)))
+    tee_fprintf(stdout, "SSL:\t\t\tCipher in use is %s\n",
+                status_str);
   else
-  {
-    vidattr(A_BOLD);
-    tee_fprintf(stdout, "\nNo connection\n");
-    vidattr(A_NORMAL);
-    return 0;
-  }
+#endif /* HAVE_OPENSSL */
+    tee_puts("SSL:\t\t\tNot in use", stdout);
+
   if (skip_updates)
   {
     vidattr(A_BOLD);
@@ -4317,8 +4312,14 @@ com_status(String *buffer __attribute__((unused)),
     tee_fprintf(stdout, "Insert id:\t\t%s\n", llstr(id, buff));
 
   /* "limit 1" is protection against SQL_SELECT_LIMIT=0 */
-  if (!mysql_query(&mysql,"select @@character_set_client, @@character_set_connection, @@character_set_server, @@character_set_database limit 1") &&
-      (result=mysql_use_result(&mysql)))
+  if (mysql_real_query_for_lazy(C_STRING_WITH_LEN(
+        "select @@character_set_client, @@character_set_connection, "
+        "@@character_set_server, @@character_set_database limit 1")))
+  {
+    if (mysql_errno(&mysql) == CR_SERVER_GONE_ERROR)
+      return 0;
+  }
+  if (mysql_store_result_for_lazy(&result))
   {
     MYSQL_ROW cur=mysql_fetch_row(result);
     if (cur)

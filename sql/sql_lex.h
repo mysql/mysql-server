@@ -1976,4 +1976,6 @@ extern bool is_lex_native_function(const LEX_STRING *name);
   @} (End of group Semantic_Analysis)
 */
 
+int my_missing_function_error(const LEX_STRING &token, const char *name);
+
 #endif /* MYSQL_SERVER */

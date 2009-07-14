@@ -39,8 +39,8 @@ sp_head *
 sp_find_routine(THD *thd, int type, sp_name *name,
                 sp_cache **cp, bool cache_only);
 
-int
-sp_exist_routines(THD *thd, TABLE_LIST *procs, bool any, bool no_error);
+bool
+sp_exist_routines(THD *thd, TABLE_LIST *procs, bool any);
 
 int
 sp_routine_exists_in_table(THD *thd, int type, sp_name *name);

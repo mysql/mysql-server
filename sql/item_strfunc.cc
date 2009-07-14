@@ -1629,16 +1629,17 @@ String *Item_func_password::val_str(String *str)
     return 0;
   if (res->length() == 0)
     return &my_empty_string;
-  make_scrambled_password(tmp_value, res->c_ptr());
+  my_make_scrambled_password(tmp_value, res->ptr(), res->length());
   str->set(tmp_value, SCRAMBLED_PASSWORD_CHAR_LENGTH, res->charset());
   return str;
 }
 
-char *Item_func_password::alloc(THD *thd, const char *password)
+char *Item_func_password::alloc(THD *thd, const char *password,
+                                size_t pass_len)
 {
   char *buff= (char *) thd->alloc(SCRAMBLED_PASSWORD_CHAR_LENGTH+1);
   if (buff)
-    make_scrambled_password(buff, password);
+    my_make_scrambled_password(buff, password, pass_len);
   return buff;
 }
 
@@ -1652,16 +1653,17 @@ String *Item_func_old_password::val_str(String *str)
     return 0;
   if (res->length() == 0)
     return &my_empty_string;
-  make_scrambled_password_323(tmp_value, res->c_ptr());
+  my_make_scrambled_password_323(tmp_value, res->ptr(), res->length());
   str->set(tmp_value, SCRAMBLED_PASSWORD_CHAR_LENGTH_323, res->charset());
   return str;
 }
 
-char *Item_func_old_password::alloc(THD *thd, const char *password)
+char *Item_func_old_password::alloc(THD *thd, const char *password,
+                                    size_t pass_len)
 {
   char *buff= (char *) thd->alloc(SCRAMBLED_PASSWORD_CHAR_LENGTH_323+1);
   if (buff)
-    make_scrambled_password_323(buff, password);
+    my_make_scrambled_password_323(buff, password, pass_len);
   return buff;
 }
 
@@ -2708,13 +2710,12 @@ String *Item_func_conv_charset::val_str(String *str)
     return null_value ? 0 : &str_value;
   /* 
     Here we don't pass 'str' as a parameter to args[0]->val_str()
-    as 'str' may points to 'str_value' (e.g. see Item::save_in_field()),
+    as 'str' may point to 'str_value' (e.g. see Item::save_in_field()),
     which we use below to convert string. 
     Use argument's 'str_value' instead.
   */
-  String *arg= args[0]->val_str(&args[0]->str_value);;
+  String *arg= args[0]->val_str(&args[0]->str_value);
   uint dummy_errors;
-  arg= args[0]->val_str(&args[0]->str_value);  
   if (!arg)
   {
     null_value=1;

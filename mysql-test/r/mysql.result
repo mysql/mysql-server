@@ -198,6 +198,7 @@ COUNT (*)
 1
 COUNT (*)
 1
+ERROR 2005 (HY000) at line 1: Unknown MySQL server host 'invalid_hostname' (errno)
 End of 5.0 tests
 WARNING: --server-arg option not supported in this configuration.
 Warning (Code 1286): Unknown table engine 'nonexistent'

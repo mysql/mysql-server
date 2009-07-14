@@ -23,7 +23,7 @@ master-bin.000001	4	Format_desc	1	106	Server ver: VERSION, Binlog ver: 4
 master-bin.000001	106	Query	1	193	drop database if exists d1
 master-bin.000001	193	Query	1	272	create database d1
 master-bin.000001	272	Query	1	370	use `d1`; create table t (s1 int) engine=innodb
-master-bin.000001	370	Query	1	436	use `d1`; BEGIN
+master-bin.000001	370	Query	1	436	BEGIN
 master-bin.000001	436	Query	1	521	use `d1`; insert into t values (1)
 master-bin.000001	521	Xid	1	548	COMMIT /* XID */
 master-bin.000001	548	Query	1	633	use `d1`; grant select on t to x@y
@@ -44,11 +44,11 @@ master-bin.000001	4	Format_desc	1	106	Server ver: VERSION, Binlog ver: 4
 master-bin.000001	106	Query	1	193	drop database if exists d1
 master-bin.000001	193	Query	1	272	create database d1
 master-bin.000001	272	Query	1	370	use `d1`; create table t (s1 int) engine=innodb
-master-bin.000001	370	Query	1	436	use `d1`; BEGIN
+master-bin.000001	370	Query	1	436	BEGIN
 master-bin.000001	436	Query	1	521	use `d1`; insert into t values (1)
 master-bin.000001	521	Xid	1	548	COMMIT /* XID */
 master-bin.000001	548	Query	1	633	use `d1`; grant select on t to x@y
-master-bin.000001	633	Query	1	699	use `d1`; BEGIN
+master-bin.000001	633	Query	1	699	BEGIN
 master-bin.000001	699	Query	1	784	use `d1`; insert into t values (2)
 master-bin.000001	784	Xid	1	811	COMMIT /* XID */
 master-bin.000001	811	Query	1	899	use `d1`; revoke select on t from x@y

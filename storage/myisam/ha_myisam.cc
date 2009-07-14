@@ -95,7 +95,7 @@ static void mi_check_print_msg(MI_CHECK *param,	const char* msg_type,
 
   if (!thd->vio_ok())
   {
-    sql_print_error(msgbuf);
+    sql_print_error("%s", msgbuf);
     return;
   }
 
@@ -1112,6 +1112,9 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize)
   param.out_flag= 0;
   strmov(fixed_name,file->filename);
 
+  // Release latches since this can take a long time
+  ha_release_temporary_latches(thd);
+
   // Don't lock tables if we have used LOCK TABLE
   if (!thd->locked_tables && 
       mi_lock_database(file, table->s->tmp_table ? F_EXTRA_LCK : F_WRLCK))
@@ -1865,6 +1868,12 @@ int ha_myisam::extra_opt(enum ha_extra_function operation, ulong cache_size)
 int ha_myisam::delete_all_rows()
 {
   return mi_delete_all_rows(file);
+}
+
+int ha_myisam::reset_auto_increment(ulonglong value)
+{
+  file->s->state.auto_increment= value;
+  return 0;
 }
 
 int ha_myisam::delete_table(const char *name)

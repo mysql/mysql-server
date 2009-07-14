@@ -137,7 +137,9 @@ int ha_ibmdb2i::convertFieldChars(enum_conversionDirection direction,
                                   char* output, 
                                   size_t ilen, 
                                   size_t olen, 
-                                  size_t* outDataLen)
+                                  size_t* outDataLen,
+                                  bool tacitErrors,
+                                  size_t* substChars)
 {
   DBUG_PRINT("ha_ibmdb2i::convertFieldChars",("Direction: %d; length = %d", direction, ilen));
   
@@ -157,26 +159,26 @@ int ha_ibmdb2i::convertFieldChars(enum_conversionDirection direction,
   size_t initOLen= olen;
   size_t substitutedChars = 0;
   int rc = iconv(conversion, (char**)&input, &ilen, &output, &olen, &substitutedChars );
+  if (outDataLen) *outDataLen = initOLen - olen;
+  if (substChars) *substChars = substitutedChars;
   if (unlikely(rc < 0))
   {
     int er = errno;
     if (er == EILSEQ)
     {
-      getErrTxt(DB2I_ERR_ILL_CHAR, table->field[fieldID]->field_name);
+      if (!tacitErrors) getErrTxt(DB2I_ERR_ILL_CHAR, table->field[fieldID]->field_name);
       return (DB2I_ERR_ILL_CHAR);
     }
     else
     {
-      getErrTxt(DB2I_ERR_ICONV,er);
+      if (!tacitErrors) getErrTxt(DB2I_ERR_ICONV,er);
       return (DB2I_ERR_ICONV);
     }
   }
-  if (unlikely(substitutedChars))
+  if (unlikely(substitutedChars) && (!tacitErrors))
   {
     warning(ha_thd(), DB2I_ERR_SUB_CHARS, table->field[fieldID]->field_name);
   }
-    
-  if (outDataLen) *outDataLen = initOLen - olen;
 
   return (0);
 }
@@ -555,12 +557,12 @@ int ha_ibmdb2i::getFieldTypeMapping(Field* field,
                 return 1;
               if (fieldCharSet->mbmaxlen > 1)
               {
-                if (strncmp(fieldCharSet->name, "ucs2_", sizeof("ucs2_")) == 0 ) // UCS2
+                if (memcmp(fieldCharSet->name, "ucs2_", sizeof("ucs2_")-1) == 0 ) // UCS2
                 {
                   sprintf(stringBuildBuffer, "GRAPHIC(%d)", max(fieldLength / fieldCharSet->mbmaxlen, 1)); // Number of characters
                   db2Ccsid = 13488;
                 }
-                else if (strncmp(fieldCharSet->name, "utf8_", sizeof("utf8_")) == 0 &&
+                else if (memcmp(fieldCharSet->name, "utf8_", sizeof("utf8_")-1) == 0 &&
                          strcmp(fieldCharSet->name, "utf8_general_ci") != 0) 
                 {
                   sprintf(stringBuildBuffer, "CHAR(%d)", max(fieldLength, 1)); // Number of bytes
@@ -584,12 +586,12 @@ int ha_ibmdb2i::getFieldTypeMapping(Field* field,
               {
                 if (fieldCharSet->mbmaxlen > 1)
                 {
-                  if (strncmp(fieldCharSet->name, "ucs2_", sizeof("ucs2_")) == 0 ) // UCS2
+                  if (memcmp(fieldCharSet->name, "ucs2_", sizeof("ucs2_")-1) == 0 ) // UCS2
                   {
                     sprintf(stringBuildBuffer, "VARGRAPHIC(%d)", max(fieldLength / fieldCharSet->mbmaxlen, 1)); // Number of characters
                     db2Ccsid = 13488;
                   }
-                  else if (strncmp(fieldCharSet->name, "utf8_", sizeof("utf8_")) == 0 &&
+                  else if (memcmp(fieldCharSet->name, "utf8_", sizeof("utf8_")-1) == 0 &&
                            strcmp(fieldCharSet->name, "utf8_general_ci") != 0) 
                   {
                     sprintf(stringBuildBuffer, "VARCHAR(%d)", max(fieldLength, 1)); // Number of bytes
@@ -611,12 +613,12 @@ int ha_ibmdb2i::getFieldTypeMapping(Field* field,
               {
                 if (fieldCharSet->mbmaxlen > 1)
                 {
-                  if (strncmp(fieldCharSet->name, "ucs2_", sizeof("ucs2_")) == 0 ) // UCS2
+                  if (memcmp(fieldCharSet->name, "ucs2_", sizeof("ucs2_")-1) == 0 ) // UCS2
                   {
                     sprintf(stringBuildBuffer, "LONG VARGRAPHIC ");
                     db2Ccsid = 13488;
                   }
-                  else if (strncmp(fieldCharSet->name, "utf8_", sizeof("utf8_")) == 0 &&
+                  else if (memcmp(fieldCharSet->name, "utf8_", sizeof("utf8_")-1) == 0 &&
                            strcmp(fieldCharSet->name, "utf8_general_ci") != 0) 
                   {
                     sprintf(stringBuildBuffer, "LONG VARCHAR ");
@@ -639,12 +641,12 @@ int ha_ibmdb2i::getFieldTypeMapping(Field* field,
 
                 if (fieldCharSet->mbmaxlen > 1)
                 {
-                  if (strncmp(fieldCharSet->name, "ucs2_", sizeof("ucs2_")) == 0 ) // UCS2
+                  if (memcmp(fieldCharSet->name, "ucs2_", sizeof("ucs2_")-1) == 0 ) // UCS2
                   {
                     sprintf(stringBuildBuffer, "DBCLOB(%d)", max(fieldLength / fieldCharSet->mbmaxlen, 1)); // Number of characters
                     db2Ccsid = 13488;
                   }
-                  else if (strncmp(fieldCharSet->name, "utf8_", sizeof("utf8_")) == 0 &&
+                  else if (memcmp(fieldCharSet->name, "utf8_", sizeof("utf8_")-1) == 0 &&
                            strcmp(fieldCharSet->name, "utf8_general_ci") != 0) 
                   {
                     sprintf(stringBuildBuffer, "CLOB(%d)", max(fieldLength, 1)); // Number of bytes
@@ -671,11 +673,15 @@ int ha_ibmdb2i::getFieldTypeMapping(Field* field,
                 return rtnCode;
             }
             
-            // Check whether there is a character conversion available.
-            iconv_t temp;
-            int32 rc = getConversion(toDB2, fieldCharSet, db2Ccsid, temp);
-            if (unlikely(rc))
-              return rc;
+            if (db2Ccsid != 1208 &&
+                db2Ccsid != 13488)
+            {
+              // Check whether there is a character conversion available.
+              iconv_t temp;
+              int32 rc = getConversion(toDB2, fieldCharSet, db2Ccsid, temp);
+              if (unlikely(rc))
+                return rc;
+            }
             
             sprintf(stringBuildBuffer, " CCSID %d ", db2Ccsid);
             mapping.append(stringBuildBuffer);
@@ -1085,7 +1091,7 @@ int32 ha_ibmdb2i::convertMySQLtoDB2(Field* field, const DB2Field& db2Field, char
                   if (bytesToStore)
                     memcpy(db2Buf, dataToStore, bytesToStore);
                   if (bytesToPad)
-                    wmemset((wchar_t*)(db2Buf + bytesToStore), 0x0020, bytesToPad/2);
+                    memset16((db2Buf + bytesToStore), 0x0020, bytesToPad/2);
                 }
                 else
                 {
@@ -1108,7 +1114,7 @@ int32 ha_ibmdb2i::convertMySQLtoDB2(Field* field, const DB2Field& db2Field, char
                     bytesToStore = db2BytesToStore;
                   }
                   if (db2BytesToStore < maxDb2BytesToStore) // If need to pad
-                    wmemset((wchar_t*)(db2Buf + db2BytesToStore), 0x0020, (maxDb2BytesToStore - db2BytesToStore)/2);
+                    memset16((db2Buf + db2BytesToStore), 0x0020, (maxDb2BytesToStore - db2BytesToStore)/2);
                 }
 
                 if (db2FieldType == QMY_VARGRAPHIC)
