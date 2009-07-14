@@ -4,12 +4,6 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
-SET @old_binlog_format= @@global.binlog_format;
-SET BINLOG_FORMAT=MIXED;
-SET GLOBAL BINLOG_FORMAT=MIXED;
-SELECT @@GLOBAL.BINLOG_FORMAT, @@SESSION.BINLOG_FORMAT;
-@@GLOBAL.BINLOG_FORMAT	@@SESSION.BINLOG_FORMAT
-MIXED	MIXED
 **** On Master ****
 CREATE TABLE t1 (a INT, b LONG);
 INSERT INTO t1 VALUES (1,1), (2,2);
@@ -73,4 +67,3 @@ slave-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
 slave-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 slave-bin.000001	#	Query	1	#	COMMIT
 DROP TABLE IF EXISTS t1;
-SET @@global.binlog_format= @old_binlog_format;

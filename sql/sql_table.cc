@@ -1804,7 +1804,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   LINT_INIT(alias);
   LINT_INIT(path_length);
 
-  if (thd->current_stmt_binlog_row_based && !dont_log_query)
+  if (thd->is_current_stmt_binlog_format_row() && !dont_log_query)
   {
     built_query.set_charset(system_charset_info);
     if (if_exists)
@@ -1882,7 +1882,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       being built.  The string always end in a comma and the comma
       will be chopped off before being written to the binary log.
       */
-    if (thd->current_stmt_binlog_row_based && !dont_log_query)
+    if (thd->is_current_stmt_binlog_format_row() && !dont_log_query)
     {
       non_temp_tables_count++;
       /*
@@ -2009,7 +2009,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     query_cache_invalidate3(thd, tables, 0);
     if (!dont_log_query)
     {
-      if (!thd->current_stmt_binlog_row_based ||
+      if (!thd->is_current_stmt_binlog_format_row() ||
           non_temp_tables_count > 0 && !tmp_table_deleted)
       {
         /*
@@ -2021,7 +2021,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
          */
         write_bin_log(thd, !error, thd->query, thd->query_length);
       }
-      else if (thd->current_stmt_binlog_row_based &&
+      else if (thd->is_current_stmt_binlog_format_row() &&
                non_temp_tables_count > 0 &&
                tmp_table_deleted)
       {
@@ -3822,8 +3822,8 @@ bool mysql_create_table_no_lock(THD *thd,
     Otherwise, the statement shall be binlogged.
    */
   if (!internal_tmp_table &&
-      (!thd->current_stmt_binlog_row_based ||
-       (thd->current_stmt_binlog_row_based &&
+      (!thd->is_current_stmt_binlog_format_row() ||
+       (thd->is_current_stmt_binlog_format_row() &&
         !(create_info->options & HA_LEX_CREATE_TMP_TABLE))))
     write_bin_log(thd, TRUE, thd->query, thd->query_length);
   error= FALSE;
@@ -5236,7 +5236,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   /*
     We have to write the query before we unlock the tables.
   */
-  if (thd->current_stmt_binlog_row_based)
+  if (thd->is_current_stmt_binlog_format_row())
   {
     /*
        Since temporary tables are not replicated under row-based
@@ -7143,7 +7143,7 @@ view_err:
     if (rename_temporary_table(thd, new_table, new_db, new_name))
       goto err1;
     /* We don't replicate alter table statement on temporary tables */
-    if (!thd->current_stmt_binlog_row_based)
+    if (!thd->is_current_stmt_binlog_format_row())
       write_bin_log(thd, TRUE, thd->query, thd->query_length);
     goto end_temporary;
   }
@@ -7305,7 +7305,7 @@ view_err:
                       db, table_name);
 
   DBUG_ASSERT(!(mysql_bin_log.is_open() &&
-                thd->current_stmt_binlog_row_based &&
+                thd->is_current_stmt_binlog_format_row() &&
                 (create_info->options & HA_LEX_CREATE_TMP_TABLE)));
   write_bin_log(thd, TRUE, thd->query, thd->query_length);
 

@@ -939,7 +939,7 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
       /* restore sql_mode when binloging */
       thd->variables.sql_mode= saved_mode;
       /* Such a statement can always go directly to binlog, no trans cache */
-      thd->binlog_query(THD::MYSQL_QUERY_TYPE,
+      thd->binlog_query(THD::STMT_QUERY_TYPE,
                         log_query.c_ptr(), log_query.length(),
                         FALSE, FALSE, 0);
       thd->variables.sql_mode= 0;
@@ -1830,6 +1830,8 @@ sp_cache_routines_and_add_tables_for_triggers(THD *thd, LEX *lex,
 {
   int ret= 0;
 
+  DBUG_ENTER("sp_cache_routines_and_add_tables_for_triggers");
+
   Sroutine_hash_entry **last_cached_routine_ptr=
     (Sroutine_hash_entry **)lex->sroutines_list.next;
 
@@ -1863,7 +1865,7 @@ sp_cache_routines_and_add_tables_for_triggers(THD *thd, LEX *lex,
   ret= sp_cache_routines_and_add_tables_aux(thd, lex,
                                             *last_cached_routine_ptr,
                                             FALSE);
-  return ret;
+  DBUG_RETURN(ret);
 }
 
 
