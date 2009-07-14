@@ -396,7 +396,8 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(
   m_receiver(queryImpl.getNdbTransaction()->getNdb()),
   m_queryImpl(queryImpl),
   /* Initially, a result is only expected for the root operation.*/
-  m_pendingResults(def.getQueryOperationIx() == 0 ? 1 : 0)
+  m_pendingResults(def.getQueryOperationIx() == 0 ? 1 : 0),
+  m_userProjection(def.getTable())
 { 
   assert(m_id != NdbObjectIdMap::InvalidId);
   m_receiver.init(NdbReceiver::NDB_OPERATION, false, NULL);
@@ -471,9 +472,7 @@ NdbQueryOperationImpl::getValue(
   /* This code will only work for the lookup example in test_spj.cpp.
    */
   assert(aValue==NULL);
-  /*if(getQuery().getQueryOperation(0)==this){
-    m_operation->getValue(column);
-    }*/
+  m_userProjection.addColumn(*column);
   return m_receiver.getValue(&NdbColumnImpl::getImpl(*column), aValue);
 }
 
@@ -522,6 +521,66 @@ NdbQueryOperationImpl::isRowChanged() const
   return false;  // FIXME
 }
 
+// Constructor.
+NdbQueryOperationImpl::UserProjection
+::UserProjection(const NdbDictionary::Table& tab):
+  m_columnCount(0),
+  m_noOfColsInTable(tab.getNoOfColumns()),
+  m_isOrdered(true),
+  m_maxColNo(-1){
+  assert(m_noOfColsInTable<=MAX_ATTRIBUTES_IN_TABLE);
+}
+
+void
+NdbQueryOperationImpl::UserProjection
+::addColumn(const NdbDictionary::Column& col){
+  const int colNo = col.getColumnNo();
+  assert(colNo<m_noOfColsInTable);
+  if(colNo<=m_maxColNo){
+    m_isOrdered = false;
+  }
+  m_maxColNo = MAX(colNo, m_maxColNo);
+  m_columns[m_columnCount++] = &col;
+  // TODO: Add error handling that somehow returns an error to the application.
+  assert(m_columnCount<=MAX_ATTRIBUTES_IN_TABLE);
+  m_mask.set(colNo);
+}
+
+int
+NdbQueryOperationImpl::UserProjection::serialize(Uint32Slice dst) const{
+  /* If the columns in the projections are ordered according to ascending
+   * column number, we can pack the projection more compactly.*/
+  if(m_isOrdered){
+    // Special case: get all columns.
+    if(m_columnCount==m_noOfColsInTable){
+      dst.get(0) = 1; // Size of projection in words.
+      AttributeHeader::init(&dst.get(1), 
+                            AttributeHeader::READ_ALL,
+                            m_columnCount);
+    }else{
+      /* Serialize projection as a bitmap.*/
+      const Uint32 wordCount = 1+m_maxColNo/32; // Size of mask.
+      dst.get(0) = wordCount+1; // Size of projection in words.
+      AttributeHeader::init(&dst.get(1), 
+                            AttributeHeader::READ_PACKED, 4*wordCount);
+      
+      memcpy(&dst.get(2, wordCount), &m_mask, 4*wordCount);
+    }
+  }else{
+    /* General case: serialize projection as a list of column numbers.*/
+    dst.get(0) = m_columnCount; // Size of projection in words. 
+    for(int i = 0; i<m_columnCount; i++){
+      AttributeHeader::init(&dst.get(i+1),
+                            m_columns[i]->getColumnNo(),
+                            0);
+    }
+  }
+  if(unlikely(dst.isMaxSizeExceeded())){
+    return 4808; // Query definition too large.
+  }
+  return 0;
+}
+
 #define POS_IN_PARAM(field) \
 (offsetof(QueryNodeParameters, field)/sizeof(Uint32))
 
@@ -563,12 +622,10 @@ int NdbQueryOperationImpl::prepareSend(Uint32Buffer& serializedParams)
     requestInfo |= DABits::PI_ATTR_LIST;
 
     // TODO: Fix this such that we get desired projection and not just all fields.
-    Uint32Slice attrList(optional, optPos);
-    attrList.get(0) = 1; // Length of user projection
-    AttributeHeader::init(&attrList.get(1), 
-			  AttributeHeader::READ_ALL,
-			  m_operationDef.getTable().getNoOfColumns());
-    optPos += 2;
+    const int error = m_userProjection.serialize(Uint32Slice(optional, optPos));
+    if(error!=0){
+      return error;
+    }
   }
   lookupParams.get(POS_IN_PARAM(requestInfo)) = requestInfo;
 
@@ -594,6 +651,7 @@ int NdbQueryOperationImpl::prepareSend(Uint32Buffer& serializedParams)
 #endif
   return 0;
 }
+
 
 void NdbQueryOperationImpl::release(){
   m_receiver.release();

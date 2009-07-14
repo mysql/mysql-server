@@ -132,35 +132,8 @@ private:
 
 
 const char* const ResultSet::attrNames[ResultSet::attrCount] = {
-  "a", "b", "a0", "b0", "c0", "c1" 
+  "a", "b", "a0", "b0", "c0" , "c1" 
 };
-/*
-class LookupQuery{
-  friend class LookupOp;
-public:
-  explicit LookupQuery(Ndb& ndb, const NdbDictionary::Table* pTab);
-private:
-  const NdbDictionary::Table* pTab;
-  HugoOperations hugoOps;
-  NdbTransaction* pTrans;
-  NdbOperation* pOp;
-  Vector<Uint32> treeSpec;
-  Vector<Uint32> paramSpec;
-  Vector<Uint32> attrList;
-};
-
-LookupQuery::LookupQuery(Ndb& ndb, const NdbDictionary::Table * pTab, 
-			 int depth):
-  pTab(pTab),
-  hugoOps(*pTab),
-  pTrans(MyNdb.startTransaction()),
-  pOp(pTrans->getNdbOperation(pTab)){
-  pOp->readTuple(NdbOperation::LM_Dirty);
-  pOp->equal("a", 1);
-  pOp->equal("b", 1);
-}
-*/
-
 
 class LookupOp{
 public:

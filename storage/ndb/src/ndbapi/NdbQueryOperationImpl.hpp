@@ -223,17 +223,39 @@ public:
   { return m_interface; }
 
 private:
-  NdbQueryOperation m_interface;
+  /** This class represents a projection that shall be sent to the 
+   * application.*/
+  class UserProjection{
+  public:
+    explicit UserProjection(const NdbDictionary::Table& tab);
 
-  /** State of the operation (in terms of pending messages.) */
-  enum State{
-    /** Awaiting TCKEYREF or TRANSID_AI for this operation.*/
-    State_Initial,
-    /** This operation is done, but its children are not.*/
-    State_WaitForChildren,
-    /** Operation and all children are done.*/
-    State_Complete
-  };
+    /** Add a column to the projection.*/ 
+    void addColumn(const NdbDictionary::Column& col);
+    
+    /** Make a serialize representation of this object, to be sent to the 
+     * SPJ block.
+     * @param dst Buffer for storing serialized projection.
+     * @return Possible error code.*/
+    int serialize(Uint32Slice dst) const;
+    
+  private:
+    /** The columns that consitutes the projection.*/
+    const NdbDictionary::Column* m_columns[MAX_ATTRIBUTES_IN_TABLE];
+    /** The number of columns in the projection.*/
+    int m_columnCount;
+    /** The number of columns in the table that the operation refers to.*/
+    const int m_noOfColsInTable;
+    /** User Projection, represented as a bitmap (indexd with column numbers).*/
+    Bitmask<MAXNROFATTRIBUTESINWORDS> m_mask;
+    /** True if columns were added in ascending order (ordered according to 
+     * column number).*/
+    bool m_isOrdered;
+    /** Highest column number seen so far.*/
+    int m_maxColNo;
+  }; // class UserProjection
+
+  /** Interface for the application developer.*/
+  NdbQueryOperation m_interface;
   /** For verifying pointers to this class.*/
   const Uint32 m_magic;
   /** I-value for object maps.*/
@@ -253,6 +275,8 @@ private:
   NdbQueryImpl& m_queryImpl;
   /** Number of pending TCKEYREF or TRANSID_AI messages for this operation.*/
   int m_pendingResults;
+  /** Projection to be sent to the application.*/
+  UserProjection m_userProjection;
 }; // class NdbQueryOperationImpl
 
 
