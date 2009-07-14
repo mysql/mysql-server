@@ -1654,7 +1654,7 @@ bool change_password(THD *thd, const char *host, const char *user,
                   acl_user->host.hostname ? acl_user->host.hostname : "",
                   new_password));
     thd->clear_error();
-    thd->binlog_query(THD::MYSQL_QUERY_TYPE, buff, query_length,
+    thd->binlog_query(THD::STMT_QUERY_TYPE, buff, query_length,
                       FALSE, FALSE, 0);
   }
 end:
