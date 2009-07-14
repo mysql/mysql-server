@@ -23,7 +23,7 @@
 #include <m_string.h>
 
 #include "../mgmsrv/ndb_mgmd_error.h"
-
+#include "NdbQueryBuilderImpl.hpp"
 
 typedef struct ErrorBundle {
   int code;
@@ -724,15 +724,23 @@ ErrorBundle ErrorCodes[] = {
   /**
    * NdbQueryBuilder API errors
    */
-  { 4800, DMEC, AE, "Required argument is NULL" },
-  { 4801, DMEC, AE, "All required 'key' values was not specified" },
-  { 4802, DMEC, AE, "Too many 'key' values was specified" },
-  { 4803, DMEC, AE, "Incompatible datatype specified in operand argument" },
-  { 4804, DMEC, AE, "Unknown 'parent' specified in linkedValue" },
-  { 4805, DMEC, AE, "Unknown 'column' specified in linkedValue" },
-  { 4806, DMEC, AE, "Specified 'index' does not belong to specified 'table'" },
-  { 4807, DMEC, AE, "Can't use same operand value to specify different column values" },
-  { 4808, DMEC, AE, "Query definition too large." },
+  { QRY_REQ_ARG_IS_NULL, DMEC, AE, 
+    "Required argument is NULL" },
+  { QRY_TOO_FEW_KEY_VALUES, DMEC, AE, 
+    "All required 'key' values was not specified" },
+  { QRY_TOO_MANY_KEY_VALUES, DMEC, AE, "Too many 'key' values was specified" },
+  { QRY_OPERAND_HAS_WRONG_TYPE, DMEC, AE, 
+    "Incompatible datatype specified in operand argument" },
+  { QRY_UNKONWN_PARENT, DMEC, AE, 
+    "Unknown 'parent' specified in linkedValue" },
+  { QRY_UNKNOWN_COLUMN, DMEC, AE, 
+    "Unknown 'column' specified in linkedValue" },
+  { QRY_UNRELATED_INDEX, DMEC, AE, 
+    "Specified 'index' does not belong to specified 'table'" },
+  { QRY_OPERAND_ALREADY_BOUND, DMEC, AE, 
+    "Can't use same operand value to specify different column values" },
+  { QRY_DEFINITION_TOO_LARGE, DMEC, AE, 
+    "Query definition too large." },
 
 
   { NO_CONTACT_WITH_PROCESS, DMEC, AE,
