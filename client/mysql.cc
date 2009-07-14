@@ -2302,8 +2302,10 @@ extern "C" char **new_mysql_completion (const char *text, int start, int end);
 */
 
 #if defined(USE_NEW_READLINE_INTERFACE) 
+static int fake_magic_space(int, int);
 extern "C" char *no_completion(const char*,int)
 #elif defined(USE_LIBEDIT_INTERFACE)
+static int fake_magic_space(const char *, int);
 extern "C" int no_completion(const char*,int)
 #else
 extern "C" char *no_completion()
@@ -2380,6 +2382,18 @@ static int not_in_history(const char *line)
   return 1;
 }
 
+
+#if defined(USE_NEW_READLINE_INTERFACE)
+static int fake_magic_space(int, int)
+#else
+static int fake_magic_space(const char *, int)
+#endif
+{
+  rl_insert(1, ' ');
+  return 0;
+}
+
+
 static void initialize_readline (char *name)
 {
   /* Allow conditional parsing of the ~/.inputrc file. */
@@ -2389,12 +2403,15 @@ static void initialize_readline (char *name)
 #if defined(USE_NEW_READLINE_INTERFACE)
   rl_attempted_completion_function= (rl_completion_func_t*)&new_mysql_completion;
   rl_completion_entry_function= (rl_compentry_func_t*)&no_completion;
+
+  rl_add_defun("magic-space", (rl_command_func_t *)&fake_magic_space, -1);
 #elif defined(USE_LIBEDIT_INTERFACE)
 #ifdef HAVE_LOCALE_H
   setlocale(LC_ALL,""); /* so as libedit use isprint */
 #endif
   rl_attempted_completion_function= (CPPFunction*)&new_mysql_completion;
   rl_completion_entry_function= &no_completion;
+  rl_add_defun("magic-space", (Function*)&fake_magic_space, -1);
 #else
   rl_attempted_completion_function= (CPPFunction*)&new_mysql_completion;
   rl_completion_entry_function= &no_completion;
@@ -3308,6 +3325,9 @@ print_table_data(MYSQL_RES *result)
       uint visible_length;
       uint extra_padding;
 
+      if (off)
+        (void) tee_fputs(" ", PAGER);
+
       if (cur[off] == NULL)
       {
         buffer= "NULL";
@@ -3342,7 +3362,7 @@ print_table_data(MYSQL_RES *result)
         else 
           tee_print_sized_data(buffer, data_length, field_max_length+extra_padding, FALSE);
       }
-      tee_fputs(" | ", PAGER);
+      tee_fputs(" |", PAGER);
     }
     (void) tee_fputs("\n", PAGER);
   }
