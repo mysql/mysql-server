@@ -765,7 +765,7 @@ rl_deprep_terminal ()
 
 int
 rl_restart_output (count, key)
-     int count, key;
+     int count __attribute__((unused)), key __attribute__((unused));
 {
 #if defined (__MINGW32__)
   return 0;
@@ -803,7 +803,7 @@ rl_restart_output (count, key)
 
 int
 rl_stop_output (count, key)
-     int count, key;
+     int count __attribute__((unused)), key __attribute__((unused));
 {
 #if defined (__MINGW32__)
   return 0;

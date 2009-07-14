@@ -18,3 +18,10 @@ im_options_unset     : Bug#20294: Instance manager tests fail randomly
 im_utils             : Bug#20294: Instance manager tests fail randomly
 rpl_log_pos          : Bug#8693 Test 'rpl_log_pos' fails sometimes
 kill                 : Bug#29149 Test "kill" fails on Windows
+ps_7ndb              : Bug#38315 "Cluster Failure" in ps_7ndb
+strict_autoinc_5ndb  : Bug#35148 "Error '4009 Cluster Failure' in various tests on various platforms"
+rpl_slave_skip       : Bug#45521: rpl_slave_skip fails in pb2
+loaddata_autocom_ndb : Bug#35148: Error '4009 Cluster Failure' in various tests on various platforms
+ndb_autodiscover3    : Bug#35148: Error '4009 Cluster Failure' in various tests on various platforms
+ndb_autodiscover     : Bug#45972: ndb.ndb_autodiscover fails occasionally with pb2
+ndb_autodiscover2    : Bug#45972: ndb.ndb_autodiscover fails occasionally with pb2
