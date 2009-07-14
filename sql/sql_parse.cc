@@ -5625,6 +5625,12 @@ bool my_yyoverflow(short **yyss, YYSTYPE **yyvs, ulong *yystacksize)
 
 void mysql_reset_thd_for_next_command(THD *thd)
 {
+  thd->reset_for_next_command();
+}
+
+void THD::reset_for_next_command()
+{
+  THD *thd= this;
   DBUG_ENTER("mysql_reset_thd_for_next_command");
   DBUG_ASSERT(!thd->spcont); /* not for substatements of routines */
   DBUG_ASSERT(! thd->in_sub_stmt);
@@ -5668,15 +5674,12 @@ void mysql_reset_thd_for_next_command(THD *thd)
   thd->rand_used= 0;
   thd->sent_row_count= thd->examined_row_count= 0;
 
-  /*
-    Because we come here only for start of top-statements, binlog format is
-    constant inside a complex statement (using stored functions) etc.
-  */
   thd->reset_current_stmt_binlog_row_based();
+  thd->binlog_warning_flags= 0;
 
   DBUG_PRINT("debug",
              ("current_stmt_binlog_row_based: %d",
-              thd->current_stmt_binlog_row_based));
+              thd->is_current_stmt_binlog_format_row()));
 
   DBUG_VOID_RETURN;
 }

@@ -1441,7 +1441,7 @@ void close_temporary_tables(THD *thd)
     return;
 
   if (!mysql_bin_log.is_open() || 
-      (thd->current_stmt_binlog_row_based && thd->variables.binlog_format == BINLOG_FORMAT_ROW))
+      (thd->is_current_stmt_binlog_format_row() && thd->variables.binlog_format == BINLOG_FORMAT_ROW))
   {
     TABLE *tmp_next;
     for (table= thd->temporary_tables; table; table= tmp_next)
@@ -4831,7 +4831,7 @@ static bool check_lock_and_start_stmt(THD *thd, TABLE *table,
 
     There may be more differences between open_n_lock_single_table() and
     open_ltable(). One known difference is that open_ltable() does
-    neither call decide_logging_format() nor handle some other logging
+    neither call thd->decide_logging_format() nor handle some other logging
     and locking issues because it does not call lock_tables().
 */
 
@@ -5052,63 +5052,142 @@ static void mark_real_tables_as_free_for_reuse(TABLE_LIST *table)
 
 
 /**
-   Decide on logging format to use for the statement.
+  Decide on logging format to use for the statement and issue errors
+  or warnings as needed.  The decision depends on the following
+  parameters:
 
-   Compute the capabilities vector for the involved storage engines
-   and mask out the flags for the binary log. Right now, the binlog
-   flags only include the capabilities of the storage engines, so this
-   is safe.
+  - The logging mode, i.e., the value of binlog_format.  Can be
+    statement, mixed, or row.
 
-   We now have three alternatives that prevent the statement from
-   being loggable:
+  - The type of statement.  There are three types of statements:
+    "normal" safe statements; unsafe statements; and row injections.
+    An unsafe statement is one that, if logged in statement format,
+    might produce different results when replayed on the slave (e.g.,
+    INSERT DELAYED).  A row injection is either a BINLOG statement, or
+    a row event executed by the slave's SQL thread.
 
-   1. If there are no capabilities left (all flags are clear) it is
-      not possible to log the statement at all, so we roll back the
-      statement and report an error.
+  - The capabilities of tables modified by the statement.  The
+    *capabilities vector* for a table is a set of flags associated
+    with the table.  Currently, it only includes two flags: *row
+    capability flag* and *statement capability flag*.
 
-   2. Statement mode is set, but the capabilities indicate that
-      statement format is not possible.
+    The row capability flag is set if and only if the engine can
+    handle row-based logging. The statement capability flag is set if
+    and only if the table can handle statement-based logging.
 
-   3. Row mode is set, but the capabilities indicate that row
-      format is not possible.
+  Decision table for logging format
+  ---------------------------------
 
-   4. Statement is unsafe, but the capabilities indicate that row
-      format is not possible.
+  The following table summarizes how the format and generated
+  warning/error depends on the tables' capabilities, the statement
+  type, and the current binlog_format.
 
-   If we are in MIXED mode, we then decide what logging format to use:
+     Row capable        N NNNNNNNNN YYYYYYYYY YYYYYYYYY
+     Statement capable  N YYYYYYYYY NNNNNNNNN YYYYYYYYY
 
-   1. If the statement is unsafe, row-based logging is used.
+     Statement type     * SSSUUUIII SSSUUUIII SSSUUUIII
 
-   2. If statement-based logging is not possible, row-based logging is
-      used.
+     binlog_format      * SMRSMRSMR SMRSMRSMR SMRSMRSMR
 
-   3. Otherwise, statement-based logging is used.
+     Logged format      - SS-SS---- -RR-RR-RR SRRSRR-RR
+     Warning/Error      1 --2332444 5--5--6-- ---7--6--
 
-   @param thd    Client thread
-   @param tables Tables involved in the query
- */
+  Legend
+  ------
 
-int decide_logging_format(THD *thd, TABLE_LIST *tables)
+  Row capable:    N - Some table not row-capable, Y - All tables row-capable
+  Stmt capable:   N - Some table not stmt-capable, Y - All tables stmt-capable
+  Statement type: (S)afe, (U)nsafe, or Row (I)njection
+  binlog_format:  (S)TATEMENT, (M)IXED, or (R)OW
+  Logged format:  (S)tatement or (R)ow
+  Warning/Error:  Warnings and error messages are as follows:
+
+  1. Error: Cannot execute statement: binlogging impossible since both
+     row-incapable engines and statement-incapable engines are
+     involved.
+
+  2. Error: Cannot execute statement: binlogging impossible since
+     BINLOG_FORMAT = ROW and at least one table uses a storage engine
+     limited to statement-logging.
+
+  3. Warning: Unsafe statement binlogged as statement since storage
+     engine is limited to statement-logging.
+
+  4. Error: Cannot execute row injection: binlogging impossible since
+     at least one table uses a storage engine limited to
+     statement-logging.
+
+  5. Error: Cannot execute statement: binlogging impossible since
+     BINLOG_FORMAT = STATEMENT and at least one table uses a storage
+     engine limited to row-logging.
+
+  6. Error: Cannot execute row injection: binlogging impossible since
+     BINLOG_FORMAT = STATEMENT.
+
+  7. Warning: Unsafe statement binlogged in statement format since
+     BINLOG_FORMAT = STATEMENT.
+
+  In addition, we can produce the following error (not depending on
+  the variables of the decision diagram):
+
+  8. Error: Cannot execute statement: binlogging impossible since more
+     than one engine is involved and at least one engine is
+     self-logging.
+
+  For each error case above, the statement is prevented from being
+  logged, we report an error, and roll back the statement.  For
+  warnings, we set the thd->binlog_flags variable: the warning will be
+  printed only if the statement is successfully logged.
+
+  @see THD::binlog_query
+
+  @param[in] thd    Client thread
+  @param[in] tables Tables involved in the query
+
+  @retval 0 No error; statement can be logged.
+  @retval -1 One of the error conditions above applies (1, 2, 4, 5, or 6).
+*/
+
+int THD::decide_logging_format(TABLE_LIST *tables)
 {
-  if (mysql_bin_log.is_open() && (thd->options & OPTION_BIN_LOG))
+  DBUG_ENTER("THD::decide_logging_format");
+  if (mysql_bin_log.is_open() && (options & OPTION_BIN_LOG))
   {
     /*
       Compute the starting vectors for the computations by creating a
       set with all the capabilities bits set and one with no
       capabilities bits set.
-     */
+    */
     handler::Table_flags flags_some_set= 0;
     handler::Table_flags flags_all_set=
       HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE;
 
     my_bool multi_engine= FALSE;
     void* prev_ht= NULL;
+
+#ifndef DBUG_OFF
+    {
+      static const char *prelocked_mode_name[] = {
+        "NON_PRELOCKED",
+        "PRELOCKED",
+        "PRELOCKED_UNDER_LOCK_TABLES",
+      };
+      DBUG_PRINT("debug", ("prelocked_mode: %s",
+                           prelocked_mode_name[prelocked_mode]));
+    }
+#endif
+
+    /*
+      Get the capabilities vector for all involved storage engines and
+      mask out the flags for the binary log.  (Currently, the binlog
+      flags only include the capabilities of the storage engines.)
+    */
     for (TABLE_LIST *table= tables; table; table= table->next_global)
     {
       if (table->placeholder())
         continue;
       if (table->table->s->table_category == TABLE_CATEGORY_PERFORMANCE)
-        thd->lex->set_stmt_unsafe();
+        lex->set_stmt_unsafe();
       if (table->lock_type >= TL_WRITE_ALLOW_WRITE)
       {
         ulonglong const flags= table->table->file->ha_table_flags();
@@ -5130,75 +5209,116 @@ int decide_logging_format(THD *thd, TABLE_LIST *tables)
     DBUG_PRINT("info", ("flags_some_set: %s%s",
                         FLAGSTR(flags_some_set, HA_BINLOG_STMT_CAPABLE),
                         FLAGSTR(flags_some_set, HA_BINLOG_ROW_CAPABLE)));
-    DBUG_PRINT("info", ("thd->variables.binlog_format: %ld",
-                        thd->variables.binlog_format));
+    DBUG_PRINT("info", ("variables.binlog_format: %ld",
+                        variables.binlog_format));
     DBUG_PRINT("info", ("multi_engine: %s",
                         multi_engine ? "TRUE" : "FALSE"));
 
     int error= 0;
-    if (flags_all_set == 0)
-    {
-      my_error((error= ER_BINLOG_LOGGING_IMPOSSIBLE), MYF(0),
-               "Statement cannot be logged to the binary log in"
-               " row-based nor statement-based format");
-    }
-    else if (thd->variables.binlog_format == BINLOG_FORMAT_STMT &&
-             (flags_all_set & HA_BINLOG_STMT_CAPABLE) == 0)
-    {
-      my_error((error= ER_BINLOG_LOGGING_IMPOSSIBLE), MYF(0),
-                "Statement-based format required for this statement,"
-                " but not allowed by this combination of engines");
-    }
-    else if ((thd->variables.binlog_format == BINLOG_FORMAT_ROW ||
-              thd->lex->is_stmt_unsafe()) &&
-             (flags_all_set & HA_BINLOG_ROW_CAPABLE) == 0)
-    {
-      my_error((error= ER_BINLOG_LOGGING_IMPOSSIBLE), MYF(0),
-                "Row-based format required for this statement,"
-                " but not allowed by this combination of engines");
-    }
 
     /*
       If more than one engine is involved in the statement and at
       least one is doing it's own logging (is *self-logging*), the
       statement cannot be logged atomically, so we generate an error
       rather than allowing the binlog to become corrupt.
-     */
+    */
     if (multi_engine &&
         (flags_some_set & HA_HAS_OWN_BINLOGGING))
     {
-      error= ER_BINLOG_LOGGING_IMPOSSIBLE;
-      my_error(error, MYF(0),
-               "Statement cannot be written atomically since more"
-               " than one engine involved and at least one engine"
-               " is self-logging");
+      my_error((error= ER_BINLOG_MULTIPLE_ENGINES_AND_SELF_LOGGING_ENGINE),
+               MYF(0));
     }
 
-    DBUG_PRINT("info", ("error: %d", error));
+    /* both statement-only and row-only engines involved */
+    if ((flags_all_set & (HA_BINLOG_STMT_CAPABLE | HA_BINLOG_ROW_CAPABLE)) == 0)
+    {
+      /*
+        1. Error: Binary logging impossible since both row-incapable
+           engines and statement-incapable engines are involved
+      */
+      my_error((error= ER_BINLOG_ROW_ENGINE_AND_STMT_ENGINE), MYF(0));
+    }
+    /* statement-only engines involved */
+    else if ((flags_all_set & HA_BINLOG_ROW_CAPABLE) == 0)
+    {
+      if (lex->is_stmt_row_injection())
+      {
+        /*
+          4. Error: Cannot execute row injection since table uses
+             storage engine limited to statement-logging
+        */
+        my_error((error= ER_BINLOG_ROW_INJECTION_AND_STMT_ENGINE), MYF(0));
+      }
+      else if (variables.binlog_format == BINLOG_FORMAT_ROW)
+      {
+        /*
+          2. Error: Cannot modify table that uses a storage engine
+             limited to statement-logging when BINLOG_FORMAT = ROW
+        */
+        my_error((error= ER_BINLOG_ROW_MODE_AND_STMT_ENGINE), MYF(0));
+      }
+      else if (lex->is_stmt_unsafe())
+      {
+        /*
+          3. Warning: Unsafe statement binlogged as statement since
+             storage engine is limited to statement-logging.
+        */
+        binlog_warning_flags|=
+          (1 << BINLOG_WARNING_FLAG_UNSAFE_AND_STMT_ENGINE);
+      }
+      /* log in statement format! */
+    }
+    /* no statement-only engines */
+    else
+    {
+      /* binlog_format = STATEMENT */
+      if (variables.binlog_format == BINLOG_FORMAT_STMT)
+      {
+        if (lex->is_stmt_row_injection())
+        {
+          /*
+            6. Error: Cannot execute row injection since
+               BINLOG_FORMAT = STATEMENT
+          */
+          my_error((error= ER_BINLOG_ROW_INJECTION_AND_STMT_MODE), MYF(0));
+        }
+        else if ((flags_all_set & HA_BINLOG_STMT_CAPABLE) == 0)
+        {
+          /*
+            5. Error: Cannot modify table that uses a storage engine
+               limited to row-logging when binlog_format = STATEMENT
+          */
+          my_error((error= ER_BINLOG_STMT_MODE_AND_ROW_ENGINE), MYF(0), "");
+        }
+        else if (lex->is_stmt_unsafe())
+        {
+          /*
+            7. Warning: Unsafe statement logged as statement due to
+               binlog_format = STATEMENT
+          */
+          binlog_warning_flags|=
+            (1 << BINLOG_WARNING_FLAG_UNSAFE_AND_STMT_MODE);
+        }
+        /* log in statement format! */
+      }
+      /* No statement-only engines and binlog_format != STATEMENT.
+         I.e., nothing prevents us from row logging if needed. */
+      else
+      {
+        if (lex->is_stmt_unsafe() || lex->is_stmt_row_injection()
+            || (flags_all_set & HA_BINLOG_STMT_CAPABLE) == 0)
+        {
+          /* log in row format! */
+          set_current_stmt_binlog_row_based_if_mixed();
+        }
+      }
+    }
 
     if (error)
-      return -1;
-
-    /*
-      We switch to row-based format if we are in mixed mode and one of
-      the following are true:
-
-      1. If the statement is unsafe
-      2. If statement format cannot be used
-
-      Observe that point to cannot be decided before the tables
-      involved in a statement has been checked, i.e., we cannot put
-      this code in reset_current_stmt_binlog_row_based(), it has to be
-      here.
-    */
-    if (thd->lex->is_stmt_unsafe() ||
-        (flags_all_set & HA_BINLOG_STMT_CAPABLE) == 0)
-    {
-      thd->set_current_stmt_binlog_row_based_if_mixed();
-    }
+      DBUG_RETURN(-1);
   }
 
-  return 0;
+  DBUG_RETURN(0);
 }
 
 /*
@@ -5242,7 +5362,7 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
   *need_reopen= FALSE;
 
   if (!tables && !thd->lex->requires_prelocking())
-    DBUG_RETURN(decide_logging_format(thd, tables));
+    DBUG_RETURN(thd->decide_logging_format(tables));
 
   /*
     We need this extra check for thd->prelocked_mode because we want to avoid
@@ -5402,7 +5522,7 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
     }
   }
 
-  DBUG_RETURN(decide_logging_format(thd, tables));
+  DBUG_RETURN(thd->decide_logging_format(tables));
 }
 
 

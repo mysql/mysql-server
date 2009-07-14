@@ -83,11 +83,11 @@ public:
   ulonglong table_flags() const
   {
     /*
-      We are saying that this engine is just row capable to have an
-      engine that can only handle row-based logging. This is used in
-      testing.
+      We are saying that this engine is just statement capable to have
+      an engine that can only handle statement-based logging. This is
+      used in testing.
     */
-    return HA_BINLOG_ROW_CAPABLE;
+    return HA_BINLOG_STMT_CAPABLE;
   }
 
   /** @brief
