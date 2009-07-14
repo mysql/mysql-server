@@ -276,7 +276,7 @@
 #endif
 
 /* The client defines this to avoid all thread code */
-#if defined(UNDEF_THREADS_HACK)
+#if defined(MYSQL_CLIENT_NO_THREADS) || defined(UNDEF_THREADS_HACK)
 #undef THREAD
 #undef HAVE_LINUXTHREADS
 #undef HAVE_NPTL

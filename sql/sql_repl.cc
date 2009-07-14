@@ -147,7 +147,7 @@ static int send_file(THD *thd)
   if (errmsg)
   {
     sql_print_error("Failed in send_file() %s", errmsg);
-    DBUG_PRINT("error", (errmsg));
+    DBUG_PRINT("error", ("%s", errmsg));
   }
   DBUG_RETURN(error);
 }
@@ -1043,6 +1043,7 @@ int reset_slave(THD *thd, Master_info* mi)
      Reset errors (the idea is that we forget about the
      old master).
   */
+  mi->clear_error();
   mi->rli.clear_error();
   mi->rli.clear_until_condition();
 

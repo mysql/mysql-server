@@ -75,7 +75,7 @@ bool Gis_read_stream::get_next_number(double *d)
   skip_space();
 
   if ((m_cur >= m_limit) ||
-      (*m_cur < '0' || *m_cur > '9') && *m_cur != '-' && *m_cur != '+')
+      ((*m_cur < '0' || *m_cur > '9') && *m_cur != '-' && *m_cur != '+'))
   {
     set_error_msg("Numeric constant expected");
     return 1;

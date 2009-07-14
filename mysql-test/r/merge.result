@@ -2127,4 +2127,18 @@ SELECT * FROM m1;
 ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
 DROP VIEW v1;
 DROP TABLE m1, t1;
+#
+# Bug #45796: invalid memory reads and writes when altering merge and 
+#             base tables
+#
+CREATE TABLE t1(c1 INT) ENGINE=MyISAM;
+CREATE TABLE m1(c1 INT) ENGINE=MERGE UNION=(t1);
+ALTER TABLE m1 ADD INDEX idx_c1(c1);
+SELECT * FROM m1;
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+ALTER TABLE t1 ADD INDEX idx_c1(c1);
+SELECT * FROM m1;
+c1
+DROP TABLE m1;
+DROP TABLE t1;
 End of 5.1 tests

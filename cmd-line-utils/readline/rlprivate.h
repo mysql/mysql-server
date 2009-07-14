@@ -77,7 +77,7 @@ typedef struct  __rl_search_context
   int sline_len;
   int sline_index;
 
-  char  *search_terminators;
+  const char  *search_terminators;
 } _rl_search_cxt;
 
 /* Callback data for reading numeric arguments */
@@ -164,7 +164,7 @@ extern int rl_set_retained_kills PARAMS((int));
 extern void _rl_set_screen_size PARAMS((int, int));
 
 /* undo.c */
-extern int _rl_fix_last_undo_of_type PARAMS((int, int, int));
+extern int _rl_fix_last_undo_of_type PARAMS((enum undo_code, int, int));
 
 /* util.c */
 extern char *_rl_savestring PARAMS((const char *));
@@ -359,7 +359,7 @@ extern int _rl_vis_botlin;
 extern int _rl_last_c_pos;
 extern int _rl_suppress_redisplay;
 extern int _rl_want_redisplay;
-extern char *rl_display_prompt;
+extern const char *rl_display_prompt;
 
 /* isearch.c */
 extern char *_rl_isearch_terminators;
@@ -398,17 +398,17 @@ extern _rl_search_cxt *_rl_nscxt;
 /* terminal.c */
 extern int _rl_enable_keypad;
 extern int _rl_enable_meta;
-extern char *_rl_term_clreol;
-extern char *_rl_term_clrpag;
-extern char *_rl_term_im;
-extern char *_rl_term_ic;
-extern char *_rl_term_ei;
-extern char *_rl_term_DC;
-extern char *_rl_term_up;
-extern char *_rl_term_dc;
-extern char *_rl_term_cr;
-extern char *_rl_term_IC;
-extern char *_rl_term_forward_char;
+extern const char *_rl_term_clreol;
+extern const char *_rl_term_clrpag;
+extern const char *_rl_term_im;
+extern const char *_rl_term_ic;
+extern const char *_rl_term_ei;
+extern const char *_rl_term_DC;
+extern const char *_rl_term_up;
+extern const char *_rl_term_dc;
+extern const char *_rl_term_cr;
+extern const char *_rl_term_IC;
+extern const char *_rl_term_forward_char;
 extern int _rl_screenheight;
 extern int _rl_screenwidth;
 extern int _rl_screenchars;

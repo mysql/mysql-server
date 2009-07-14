@@ -526,7 +526,7 @@ int send_variant_2_list(MEM_ROOT *mem_root, Protocol *protocol,
   String **end= pointers + names->elements;
 
   List_iterator<String> it(*names);
-  for (pos= pointers; pos!=end; (*pos++= it++));
+  for (pos= pointers; pos!=end; (*pos++= it++)) ;
 
   my_qsort(pointers,names->elements,sizeof(String*),string_ptr_cmp);
 

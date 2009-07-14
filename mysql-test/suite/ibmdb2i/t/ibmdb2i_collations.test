@@ -1,0 +1,44 @@
+source suite/ibmdb2i/include/have_ibmdb2i.inc;
+source suite/ibmdb2i/include/have_i61.inc;
+--disable_warnings
+drop table if exists t1, ffd, fd;
+--enable_warnings
+
+--disable_abort_on_error
+--error 0,255
+exec system "DLTF QGPL/FFDOUT" > /dev/null;
+--error 0,255
+exec system "DLTF QGPL/FDOUT" > /dev/null;
+--enable_abort_on_error
+let $count= query_get_value(select count(*) from information_schema.COLLATIONS where COLLATION_NAME <> "binary", count(*),1);
+
+while ($count)
+{
+  let $collation = query_get_value(select COLLATION_NAME from information_schema.COLLATIONS where COLLATION_NAME <> "binary" order by COLLATION_NAME desc, COLLATION_NAME, $count);
+  error 0,1005,2504,2028;
+  eval CREATE TABLE t1 ($collation integer, c char(10), v varchar(20), index(c), index(v)) collate $collation engine=ibmdb2i;
+  if (!$mysql_errno)
+  {
+      insert into t1 (c,v) values ("abc","def"),("abcd", "def"),("abcde","defg"),("aaaa","bbbb");
+      insert into t1 select * from t1;
+      explain select c,v from t1 force index(c) where c like "ab%";
+      explain select c,v from t1 force index(v) where v like "de%";
+      drop table t1;
+      eval create table t1 ($collation char(10) primary key) collate $collation engine=ibmdb2i;
+      system system "DSPFFD FILE(\"test\"/\"t1\") OUTPUT(*OUTFILE) OUTFILE(QGPL/FFDOUT) OUTMBR(*FIRST *ADD)" > /dev/null;
+      system system "DSPFD FILE(\"test\"/\"t1\") TYPE(*SEQ) OUTPUT(*OUTFILE) OUTFILE(QGPL/FDOUT) OUTMBR(*FIRST *ADD)" > /dev/null;
+      drop table t1;
+  }
+  dec $count;
+}
+
+create table ffd (WHCHD1 CHAR(20), WHCSID decimal(5,0)) engine=ibmdb2i;
+system system "CPYF FROMFILE(QGPL/FFDOUT) TOFILE(\"test\"/\"ffd\") mbropt(*replace) fmtopt(*drop *map)"  > /dev/null;
+create table fd (SQSSEQ CHAR(10)) engine=ibmdb2i;
+system system "CPYF FROMFILE(QGPL/FDOUT) TOFILE(\"test\"/\"fd\") mbropt(*replace) fmtopt(*drop *map)" > /dev/null;
+create temporary table intermed (row integer key auto_increment, cs char(30), ccsid integer);
+insert into intermed (cs, ccsid) select * from ffd;
+create temporary table intermed2 (row integer key auto_increment, srtseq char(10));
+insert into intermed2 (srtseq) select * from fd;
+select ccsid, cs, srtseq from intermed inner join intermed2 on intermed.row = intermed2.row;
+drop table ffd, fd;
