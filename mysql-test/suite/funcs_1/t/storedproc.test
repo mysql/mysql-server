@@ -10,6 +10,17 @@
 #                  
 ############################################################################
 
+# Bug#37746 - Arithmetic range ("int") is smaller than expected
+# This code is in place to ensure this test is only skipped
+# for the Win64 platform
+if(`SELECT CONVERT(@@version_compile_os using latin1) IN ("Win64")`)
+{
+--skip Bug#37746 2009-07-07 pcrews Arithmetic range ("int") is smaller than expected
+}
+
+
+
+
 # This test cannot be used for the embedded server because we check here
 # privileges.
 --source include/not_embedded.inc
@@ -817,7 +828,6 @@ CREATE PROCEDURE sp11() insert into mysql.t1 values('a');
 --replace_column 13 created 14 modified
 SELECT security_type from mysql.proc where specific_name='sp11';
 
-let $MASTER_MYSOCK= query_get_value(SHOW VARIABLES LIKE 'socket', Value, 1);
 --replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
 connect (u_1, localhost, user_1, , db_storedproc);
 --source suite/funcs_1/include/show_connection.inc
@@ -22430,7 +22440,9 @@ BEGIN
 END//
 delimiter ;//
 
+--disable_warnings
 CALL sp70_n(-1e+40);
+--enable_warnings
 eval CALL sp70_n( $minus_40 );
 
 
@@ -22446,7 +22458,9 @@ BEGIN
 END//
 delimiter ;//
 
+--disable_warnings
 CALL sp71_nu(1.00e+40);
+--enable_warnings
 eval CALL sp71_nu( $plus_40 );
 
 
@@ -22462,7 +22476,9 @@ BEGIN
 END//
 delimiter ;//
 
+--disable_warnings
 CALL sp72_nuz(1.00e+40);
+--enable_warnings
 eval CALL sp72_nuz( $plus_40 );
 
 
@@ -22478,7 +22494,9 @@ BEGIN
 END//
 delimiter ;//
 
+--disable_warnings
 CALL sp73_n_z(1.00e+40);
+--enable_warnings
 eval CALL sp73_n_z( $plus_40 );
 
 

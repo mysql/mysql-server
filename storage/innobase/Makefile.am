@@ -50,13 +50,14 @@ noinst_HEADERS=		include/btr0btr.h include/btr0btr.ic		\
 			include/eval0eval.h include/eval0eval.ic	\
 			include/eval0proc.h include/eval0proc.ic	\
 			include/fil0fil.h include/fsp0fsp.h		\
-			include/fsp0fsp.ic include/fut0fut.h		\
+			include/fsp0fsp.ic include/fsp0types.h		\
+			include/fut0fut.h				\
 			include/fut0fut.ic include/fut0lst.h		\
 			include/fut0lst.ic include/ha0ha.h		\
 			include/ha0ha.ic include/hash0hash.h		\
 			include/hash0hash.ic include/ibuf0ibuf.h	\
 			include/ibuf0ibuf.ic include/ibuf0types.h	\
-			include/lock0iter.h				\
+			include/lock0iter.h 				\
 			include/lock0lock.h include/lock0lock.ic	\
 			include/lock0priv.h include/lock0priv.ic	\
 			include/lock0types.h include/log0log.h		\

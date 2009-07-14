@@ -359,4 +359,106 @@ SELECT * FROM t4;
 
 DROP TABLE t1, t2, t3, t4;
 
+--echo #
+--echo # Bug#44886: SIGSEGV in test_if_skip_sort_order() -
+--echo #            uninitialized variable used as subscript 
+--echo #
+
+CREATE TABLE t1 (a INT, b INT, c INT, d INT, PRIMARY KEY (b), KEY (a,c))
+  ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1,1,1,0);
+
+CREATE TABLE t2 (a INT, b INT, e INT, KEY (e)) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (1,1,2);
+
+CREATE TABLE t3 (a INT, b INT) ENGINE=MyISAM;
+INSERT INTO t3 VALUES (1, 1);
+
+SELECT * FROM t1, t2, t3
+  WHERE t1.a = t3.a AND (t1.b = t3.b OR t1.d) AND t2.b = t1.b AND t2.e = 2
+  GROUP BY t1.b;
+
+DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug #45828: Optimizer won't use partial primary key if another 
+--echo # index can prevent filesort
+--echo #
+
+# Create the table
+CREATE TABLE `t1` (
+  c1 int NOT NULL,
+  c2 int NOT NULL,
+  c3 int NOT NULL,
+  PRIMARY KEY (c1,c2),
+  KEY  (c3)
+) ENGINE=InnoDB;
+
+# populate with data
+INSERT INTO t1 VALUES (5,2,1246276747);
+INSERT INTO t1 VALUES (2,1,1246281721);
+INSERT INTO t1 VALUES (7,3,1246281756);
+INSERT INTO t1 VALUES (4,2,1246282139);
+INSERT INTO t1 VALUES (3,1,1246282230);
+INSERT INTO t1 VALUES (1,0,1246282712);
+INSERT INTO t1 VALUES (8,3,1246282765);
+INSERT INTO t1 SELECT c1+10,c2+10,c3+10 FROM t1;
+INSERT INTO t1 SELECT c1+100,c2+100,c3+100 from t1;
+INSERT INTO t1 SELECT c1+1000,c2+1000,c3+1000 from t1;
+INSERT INTO t1 SELECT c1+10000,c2+10000,c3+10000 from t1;
+INSERT INTO t1 SELECT c1+100000,c2+100000,c3+100000 from t1;
+INSERT INTO t1 SELECT c1+1000000,c2+1000000,c3+1000000 from t1;
+
+# query and no rows will match the c1 condition, whereas all will match c3
+SELECT * FROM t1 WHERE c1 = 99999999 AND c3 > 1 ORDER BY c3;
+
+# SHOULD use the pk.
+# index on c3 will be used instead of primary key
+EXPLAIN SELECT * FROM t1 WHERE c1 = 99999999 AND c3 > 1 ORDER BY c3;
+
+# if we force the primary key, we can see the estimate is 1 
+EXPLAIN SELECT * FROM t1 FORCE INDEX (PRIMARY) WHERE c1 = 99999999 AND c3 > 1 ORDER BY c3;
+
+
+CREATE TABLE t2 (
+  c1 int NOT NULL,
+  c2 int NOT NULL,
+  c3 int NOT NULL,
+  KEY (c1,c2),
+  KEY (c3)
+) ENGINE=InnoDB;
+
+# SHOULD use the pk.
+# if we switch it from a primary key to a regular index, it works correctly as well
+explain SELECT * FROM t2 WHERE c1 = 99999999 AND c3 > 1 ORDER BY c3;
+
+DROP TABLE t1,t2;
+
+
+--echo #
+--echo # 36259: Optimizing with ORDER BY
+--echo #
+
+CREATE TABLE t1 (
+  a INT NOT NULL AUTO_INCREMENT,
+  b INT NOT NULL,
+  c INT NOT NULL,
+  d VARCHAR(5),
+  e INT NOT NULL,
+  PRIMARY KEY (a), KEY i2 (b,c,d)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 (b,c,d,e) VALUES (1,1,'a',1), (2,2,'b',2);
+INSERT INTO t1 (b,c,d,e) SELECT RAND()*10000, RAND()*10000, d, e FROM t1;
+INSERT INTO t1 (b,c,d,e) SELECT RAND()*10000, RAND()*10000, d, e FROM t1;
+INSERT INTO t1 (b,c,d,e) SELECT RAND()*10000, RAND()*10000, d, e FROM t1;
+INSERT INTO t1 (b,c,d,e) SELECT RAND()*10000, RAND()*10000, d, e FROM t1;
+INSERT INTO t1 (b,c,d,e) SELECT RAND()*10000, RAND()*10000, d, e FROM t1;
+INSERT INTO t1 (b,c,d,e) SELECT RAND()*10000, RAND()*10000, d, e FROM t1;
+EXPLAIN SELECT * FROM t1 WHERE b=1 AND c=1 ORDER BY a;
+EXPLAIN SELECT * FROM t1 FORCE INDEX(i2) WHERE b=1 and c=1 ORDER BY a;
+EXPLAIN SELECT * FROM t1 FORCE INDEX(PRIMARY) WHERE b=1 AND c=1 ORDER BY a;
+
+DROP TABLE t1;
+
 --echo End of 5.1 tests

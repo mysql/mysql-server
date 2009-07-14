@@ -1529,9 +1529,14 @@ row_unlock_for_mysql(
 			index = btr_pcur_get_btr_cur(clust_pcur)->index;
 		}
 
+		if (UNIV_UNLIKELY(!(index->type & DICT_CLUSTERED))) {
+			/* This is not a clustered index record.  We
+			do not know how to unlock the record. */
+			goto no_unlock;
+		}
+
 		/* If the record has been modified by this
 		transaction, do not unlock it. */
-		ut_a(index->type & DICT_CLUSTERED);
 
 		if (index->trx_id_offset) {
 			rec_trx_id = trx_read_trx_id(rec
@@ -1568,7 +1573,7 @@ row_unlock_for_mysql(
 						prebuilt->select_lock_type);
 			}
 		}
-
+no_unlock:
 		mtr_commit(&mtr);
 	}
 

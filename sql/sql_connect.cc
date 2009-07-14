@@ -1074,8 +1074,8 @@ static void prepare_new_connection_state(THD* thd)
 pthread_handler_t handle_one_connection(void *arg)
 {
   THD *thd= (THD*) arg;
-  ulong launch_time= (ulong) ((thd->thr_create_utime= my_micro_time()) -
-                              thd->connect_utime);
+
+  thd->thr_create_utime= my_micro_time();
 
   if (thread_scheduler.init_new_connection_thread())
   {
@@ -1084,8 +1084,20 @@ pthread_handler_t handle_one_connection(void *arg)
     thread_scheduler.end_thread(thd,0);
     return 0;
   }
-  if (launch_time >= slow_launch_time*1000000L)
-    statistic_increment(slow_launch_threads,&LOCK_status);
+
+  /*
+    If a thread was created to handle this connection:
+    increment slow_launch_threads counter if it took more than
+    slow_launch_time seconds to create the thread.
+  */
+  if (thd->prior_thr_create_utime)
+  {
+    ulong launch_time= (ulong) (thd->thr_create_utime -
+                                thd->prior_thr_create_utime);
+    if (launch_time >= slow_launch_time*1000000L)
+      statistic_increment(slow_launch_threads, &LOCK_status);
+    thd->prior_thr_create_utime= 0;
+  }
 
   /*
     handle_one_connection() is normally the only way a thread would

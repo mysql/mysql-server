@@ -1171,6 +1171,16 @@ CREATE TABLE t1 (f1 INTEGER PRIMARY KEY COMMENT 'My ID#', f2 INTEGER DEFAULT NUL
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
+--echo #
+--echo # Bug #36995: valgrind error in remove_const during subquery executions
+--echo #
+
+create table t1 (a bit(1) not null,b int) engine=myisam;
+create table t2 (c int) engine=innodb;
+explain
+select b from t1 where a not in (select b from t1,t2 group by a) group by a;
+DROP TABLE t1,t2;
+
 --echo End of 5.0 tests
 
 # Fix for BUG#19243 "wrong LAST_INSERT_ID() after ON DUPLICATE KEY
@@ -1488,42 +1498,11 @@ INSERT INTO t1 VALUES
   (4,1,3,'pk',NULL),(5,1,3,'c2',NULL),
   (2,1,4,'c_extra',NULL),(3,1,4,'c_extra',NULL);
 
-EXPLAIN SELECT * FROM t1 WHERE tid = 1 AND vid = 3 ORDER BY idx DESC;
+EXPLAIN SELECT * FROM t1 FORCE INDEX (PRIMARY) WHERE tid = 1 AND vid = 3 ORDER BY idx DESC;
 
-SELECT * FROM t1 WHERE tid = 1 AND vid = 3 ORDER BY idx DESC;
+SELECT * FROM t1 FORCE INDEX (PRIMARY) WHERE tid = 1 AND vid = 3 ORDER BY idx DESC;
 
 DROP TABLE t1;
-
-#
-# Bug#21704: Renaming column does not update FK definition.
-#
-
-#
-# --disable_warnings
-# DROP TABLE IF EXISTS t1;
-# DROP TABLE IF EXISTS t2;
-# --enable_warnings
-#
-# CREATE TABLE t1(id INT PRIMARY KEY)
-#   ENGINE=innodb;
-#
-# CREATE TABLE t2(
-#   t1_id INT PRIMARY KEY,
-#   CONSTRAINT fk1 FOREIGN KEY (t1_id) REFERENCES t1(id))
-#   ENGINE=innodb;
-#
-# --echo
-#
-# --disable_result_log
-# --error ER_ERROR_ON_RENAME
-# ALTER TABLE t1 CHANGE id id2 INT;
-# --enable_result_log
-#
-# --echo
-#
-# DROP TABLE t2;
-# DROP TABLE t1;
-#
 
 --echo #
 --echo # Bug #44290: explain crashes for subquery with distinct in

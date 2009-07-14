@@ -1420,14 +1420,14 @@ enum enum_schema_tables get_schema_table_idx(ST_SCHEMA_TABLE *schema_table);
 
 /* sql_prepare.cc */
 
-void mysql_stmt_prepare(THD *thd, const char *packet, uint packet_length);
-void mysql_stmt_execute(THD *thd, char *packet, uint packet_length);
-void mysql_stmt_close(THD *thd, char *packet);
+void mysqld_stmt_prepare(THD *thd, const char *packet, uint packet_length);
+void mysqld_stmt_execute(THD *thd, char *packet, uint packet_length);
+void mysqld_stmt_close(THD *thd, char *packet);
 void mysql_sql_stmt_prepare(THD *thd);
 void mysql_sql_stmt_execute(THD *thd);
 void mysql_sql_stmt_close(THD *thd);
-void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length);
-void mysql_stmt_reset(THD *thd, char *packet);
+void mysqld_stmt_fetch(THD *thd, char *packet, uint packet_length);
+void mysqld_stmt_reset(THD *thd, char *packet);
 void mysql_stmt_get_longdata(THD *thd, char *pos, ulong packet_length);
 void reinit_stmt_before_use(THD *thd, LEX *lex);
 
@@ -1950,7 +1950,8 @@ extern uint max_user_connections;
 extern ulong what_to_log,flush_time;
 extern ulong query_buff_size;
 extern ulong max_prepared_stmt_count, prepared_stmt_count;
-extern ulong binlog_cache_size, max_binlog_cache_size, open_files_limit;
+extern ulong binlog_cache_size, open_files_limit;
+extern ulonglong max_binlog_cache_size;
 extern ulong max_binlog_size, max_relay_log_size;
 extern ulong opt_binlog_rows_event_max_size;
 extern ulong rpl_recovery_rank, thread_cache_size, thread_pool_size;
@@ -2269,6 +2270,16 @@ char *fn_rext(char *name);
 #if defined MYSQL_SERVER || defined INNODB_COMPATIBILITY_HOOKS
 uint strconvert(CHARSET_INFO *from_cs, const char *from,
                 CHARSET_INFO *to_cs, char *to, uint to_length, uint *errors);
+/* depends on errmsg.txt Database `db`, Table `t` ... */
+#define EXPLAIN_FILENAME_MAX_EXTRA_LENGTH 63
+enum enum_explain_filename_mode
+{
+  EXPLAIN_ALL_VERBOSE= 0,
+  EXPLAIN_PARTITIONS_VERBOSE,
+  EXPLAIN_PARTITIONS_AS_COMMENT
+};
+uint explain_filename(const char *from, char *to, uint to_length,
+                      enum_explain_filename_mode explain_mode);
 uint filename_to_tablename(const char *from, char *to, uint to_length);
 uint tablename_to_filename(const char *from, char *to, uint to_length);
 uint check_n_cut_mysql50_prefix(const char *from, char *to, uint to_length);
@@ -2326,6 +2337,12 @@ extern void turn_parser_debug_on();
 #ifdef HAVE_CRYPTED_FRM
 SQL_CRYPT *get_crypt_for_frm(void);
 #endif
+
+/* password.c */
+extern "C" void my_make_scrambled_password_323(char *to, const char *password,
+                                               size_t pass_len);
+extern "C" void my_make_scrambled_password(char *to, const char *password,
+                                           size_t pass_len);
 
 #include "sql_view.h"
 
