@@ -1044,24 +1044,49 @@ public:
   }
 
   /**
-     Has the parser/scanner detected that this statement is unsafe?
-   */
+    Has the parser/scanner detected that this statement is unsafe?
+
+    @retval 0 if the statement is not marked as unsafe
+    @retval nonzero if the statement is marked as unsafe
+  */
   inline bool is_stmt_unsafe() const {
     return binlog_stmt_flags & (1U << BINLOG_STMT_FLAG_UNSAFE);
   }
 
   /**
+    Is this statement actually a row injection?
+
+    @retval 0 if the statement is not a row injection
+    @retval nonzero if the statement is a row injection
+  */
+  inline bool is_stmt_row_injection() const {
+    return binlog_stmt_flags & (1U << BINLOG_STMT_FLAG_ROW_INJECTION);
+  }
+
+  /**
+    Flag the statement as a row injection.  (A row injection is either
+    a BINLOG statement, or a row event in the relay log executed by
+    the slave SQL thread.)
+  */
+  inline void set_stmt_row_injection() {
+    DBUG_ENTER("set_stmt_row_injection");
+    binlog_stmt_flags|= (1U << BINLOG_STMT_FLAG_ROW_INJECTION);
+    DBUG_VOID_RETURN;
+  }
+  /**
      Flag the current (top-level) statement as unsafe.
-
      The flag will be reset after the statement has finished.
-
    */
   inline void set_stmt_unsafe() {
+    DBUG_ENTER("set_stmt_unsafe");
     binlog_stmt_flags|= (1U << BINLOG_STMT_FLAG_UNSAFE);
+    DBUG_VOID_RETURN;
   }
 
   inline void clear_stmt_unsafe() {
+    DBUG_ENTER("clear_stmt_unsafe");
     binlog_stmt_flags&= ~(1U << BINLOG_STMT_FLAG_UNSAFE);
+    DBUG_VOID_RETURN;
   }
 
   /**
@@ -1072,16 +1097,37 @@ public:
   { return sroutines_list.elements != 0; }
 
 private:
+  /**
+    Flags indicating properties of the statement with respect to
+    logging.
+
+    These are combined in a binary manner; e.g., an unsafe statement
+    has the bit (1<<BINLOG_STMT_FLAG_UNSAFE) set.
+  */
   enum enum_binlog_stmt_flag {
-    BINLOG_STMT_FLAG_UNSAFE,
+    /** The statement is unsafe to log in statement mode. */
+    BINLOG_STMT_FLAG_UNSAFE= 0,
+    /**
+      The statement is a row injection (i.e., either a BINLOG
+      statement or a row event executed by the slave SQL thread).
+    */
+    BINLOG_STMT_FLAG_ROW_INJECTION,
+    /**
+      The last element of this enumeration type.  Insert new members
+      above.
+    */
     BINLOG_STMT_FLAG_COUNT
   };
 
-  /*
-    Tells if the parsing stage detected properties of the statement,
-    for example: that some items require row-based binlogging to give
-    a reliable binlog/replication, or if we will use stored functions
-    or triggers which themselves need require row-based binlogging.
+  /**
+    Indicates the type of statement with respect to binlogging.
+
+    This is typically zeroed before parsing a statement, set during
+    parsing (depending on the query), and read when deciding the
+    logging format of the current statement.
+
+    This is a binary combination of one or more bits (1<<flag), where
+    flag is a member of enum_binlog_stmt_flag.
   */
   uint32 binlog_stmt_flags;
 };
@@ -1891,6 +1937,7 @@ typedef struct st_lex : public Query_tables_list
     }
     return FALSE;
   }
+
 } LEX;
 
 

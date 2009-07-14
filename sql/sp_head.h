@@ -459,6 +459,7 @@ public:
   */
   void propagate_attributes(LEX *lex)
   {
+    DBUG_ENTER("sp_head::propagate_attributes");
     /*
       If this routine needs row-based binary logging, the entire top statement
       too (we cannot switch from statement-based to row-based only for this
@@ -467,6 +468,7 @@ public:
     */
     if (m_flags & BINLOG_ROW_BASED_IF_MIXED)
       lex->set_stmt_unsafe();
+    DBUG_VOID_RETURN;
   }
 
 

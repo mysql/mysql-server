@@ -1,4 +1,7 @@
 --source include/have_ndb.inc
+# Since the master generates row-based events, the slave must be in
+# ROW or MIXED mode to accept the events.
+--source include/have_binlog_format_mixed_or_row.inc
 --source include/ndb_master-slave.inc
 
 

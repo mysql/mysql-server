@@ -7187,16 +7187,12 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     */
     thd->transaction.stmt.modified_non_trans_table= FALSE;
     /*
-      Check if the slave is set to use SBR.  If so, it should switch
-      to using RBR until the end of the "statement", i.e., next
-      STMT_END_F or next error.
+      This is a row injection, so we flag the "statement" as
+      such. Note that this code is called both when the slave does row
+      injections and when the BINLOG statement is used to do row
+      injections.
     */
-    if (!thd->current_stmt_binlog_row_based &&
-        mysql_bin_log.is_open() && (thd->options & OPTION_BIN_LOG))
-    {
-      thd->set_current_stmt_binlog_row_based();
-    }
-
+    thd->lex->set_stmt_row_injection();
 
     /*
       There are a few flags that are replicated with each row event.
@@ -7444,6 +7440,13 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     slave_rows_error_report(ERROR_LEVEL, error, rli, thd, table,
                              get_type_str(),
                              RPL_LOG_NAME, (ulong) log_pos);
+    /*
+      @todo We should probably not call
+      reset_current_stmt_binlog_row_based() from here.
+
+      Note: this applies to log_event_old.cc too.
+      /Sven
+    */
     thd->reset_current_stmt_binlog_row_based();
     const_cast<Relay_log_info*>(rli)->cleanup_context(thd, error);
     thd->is_slave_error= 1;
@@ -7545,6 +7548,16 @@ static int rows_event_stmt_cleanup(Relay_log_info const *rli, THD * thd)
       event flushed.
     */
 
+    /*
+      @todo We should probably not call
+      reset_current_stmt_binlog_row_based() from here.
+
+      Note: this applies to log_event_old.cc too
+
+      Btw, the previous comment about transactional engines does not
+      seem related to anything that happens here.
+      /Sven
+    */
     thd->reset_current_stmt_binlog_row_based();
 
     const_cast<Relay_log_info*>(rli)->cleanup_context(thd, 0);
