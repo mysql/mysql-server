@@ -3,8 +3,8 @@
 --exec $NDB_SELECT_ALL -d sys --delimiter=, SYSTAB_0 > $dump_file
 
 CREATE TEMPORARY TABLE test.backup_info(
-  id BIGINT,
-  backup_id BIGINT
+  a BIGINT,
+  b BIGINT
 ) ENGINE = HEAP;
 
 # needed for embedded
@@ -17,14 +17,14 @@ eval LOAD DATA INFILE '$dump_file' INTO TABLE test.backup_info
 --enable_warnings
 
 # Load backup id into environment variable
-let $_id = `SELECT backup_id from test.backup_info where id = 520093696`;
-if (!$_id)
+let $_exists = `SELECT a from test.backup_info where a = 520093696`;
+if (!$_exists)
 {
   # Failed to read the value, dump table and report error
-  select * from test.backup_info:
+  select * from test.backup_info;
   die Could not read backup id from backup_info table;
 }
-let $the_backup_id = $_id;
+let $the_backup_id = `SELECT b from test.backup_info where a = 520093696`;
 
 DROP TABLE test.backup_info;
 
