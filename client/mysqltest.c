@@ -1682,7 +1682,7 @@ void check_result(DYNAMIC_STRING* ds)
     dynstr_set(ds, NULL); /* Don't create a .log file */
 
     show_diff(NULL, result_file_name, reject_file);
-    die(mess);
+    die("%s", mess);
     break;
   }
   default: /* impossible */

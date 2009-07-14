@@ -7,6 +7,9 @@
 # accepted). The old name could be removed in 5.1 or 6.0.
 
 source include/master-slave.inc;
+# Save the current value and restore at end of testing
+let $log_bin_trust_function_creators=
+    `SELECT @@global.log_bin_trust_function_creators`;
 
 # we need a db != test, where we don't have automatic grants
 --disable_warnings
@@ -629,3 +632,10 @@ use test;
 drop procedure mysqltestbug36570_p1;
 drop procedure ` mysqltestbug36570_p2`;
 drop function mysqltestbug36570_f1;
+
+# Cleanup
+sync_slave_with_master;
+# Restore the initial value of log_bin_trust_function_creators
+eval
+set global log_bin_trust_function_creators = $log_bin_trust_function_creators;
+

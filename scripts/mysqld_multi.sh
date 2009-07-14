@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 
 use Getopt::Long;
-use POSIX qw(strftime);
+use POSIX qw(strftime getcwd);
 
 $|=1;
 $VER="2.16";
@@ -295,6 +295,7 @@ sub start_mysqlds()
   {
     @options = defaults_for_group($groups[$i]);
 
+    $basedir_found= 0; # The default
     $mysqld_found= 1; # The default
     $mysqld_found= 0 if (!length($mysqld));
     $com= "$mysqld";
@@ -309,6 +310,14 @@ sub start_mysqlds()
 	$options[$j]=~ s/\-\-mysqld\=//;
 	$com= $options[$j];
         $mysqld_found= 1;
+      }
+      elsif ("--basedir=" eq substr($options[$j], 0, 10))
+      {
+        $basedir= $options[$j];
+        $basedir =~ s/^--basedir=//;
+        $basedir_found= 1;
+        $options[$j]= quote_shell_word($options[$j]);
+        $tmp.= " $options[$j]";
       }
       else
       {
@@ -337,7 +346,16 @@ sub start_mysqlds()
       print "group [$groups[$i]] separately.\n";
       exit(1);
     }
+    if ($basedir_found)
+    {
+      $curdir=getcwd();
+      chdir($basedir) or die "Can't change to datadir $basedir";
+    }
     system($com);
+    if ($basedir_found)
+    {
+      chdir($curdir) or die "Can't change back to original dir $curdir";
+    }
   }
   if (!$i && !$opt_no_log)
   {

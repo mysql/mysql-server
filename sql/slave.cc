@@ -1435,7 +1435,7 @@ static int get_master_version_and_clock(MYSQL* mysql, MASTER_INFO* mi)
   
   if (errmsg)
   {
-    sql_print_error(errmsg);
+    sql_print_error("%s", errmsg);
     return 1;
   }
 
@@ -1558,7 +1558,7 @@ be equal for replication to work";
 err:
   if (errmsg)
   {
-    sql_print_error(errmsg);
+    sql_print_error("%s", errmsg);
     return 1;
   }
 
@@ -1968,7 +1968,7 @@ Failed to open the existing relay log info file '%s' (errno %d)",
   DBUG_RETURN(error);
 
 err:
-  sql_print_error(msg);
+  sql_print_error("%s", msg);
   end_io_cache(&rli->info_file);
   if (info_fd >= 0)
     my_close(info_fd, MYF(0));

@@ -115,14 +115,14 @@ _rl_abort_internal ()
 
 int
 rl_abort (count, key)
-     int count, key;
+     int count __attribute__((unused)), key __attribute__((unused));
 {
   return (_rl_abort_internal ());
 }
 
 int
 rl_tty_status (count, key)
-     int count, key;
+     int count __attribute__((unused)), key __attribute__((unused));
 {
 #if defined (TIOCSTAT)
   ioctl (1, TIOCSTAT, (char *)0);
@@ -172,7 +172,7 @@ rl_extend_line_buffer (len)
 /* A function for simple tilde expansion. */
 int
 rl_tilde_expand (ignore, key)
-     int ignore, key;
+     int ignore __attribute__((unused)), key __attribute__((unused));
 {
   register int start, end;
   char *homedir, *temp;
