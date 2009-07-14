@@ -96,7 +96,8 @@ public:
   virtual int bindOperand(const NdbDictionary::Column& column,
                           NdbQueryOperationDefImpl& operation)
   { if (m_column  && m_column != &column)
-      return 4807;  // Already bounded to a different column
+      // Already bounded to a different column
+      return QRY_OPERAND_ALREADY_BOUND;
     m_column = &column;
     return 0;
   }
@@ -662,7 +663,7 @@ NdbQueryBuilder::getNdbError() const
 NdbConstOperand* 
 NdbQueryBuilder::constValue(const char* value)
 {
-  returnErrIf(value==0,4800);
+  returnErrIf(value==0,QRY_REQ_ARG_IS_NULL);
   NdbConstOperandImpl* constOp = new NdbCharConstOperandImpl(value);
   returnErrIf(constOp==0,4000);
 
@@ -672,7 +673,7 @@ NdbQueryBuilder::constValue(const char* value)
 NdbConstOperand* 
 NdbQueryBuilder::constValue(const void* value, size_t length)
 {
-  returnErrIf(value==0 && length>0,4800);
+  returnErrIf(value==0 && length>0,QRY_REQ_ARG_IS_NULL);
   NdbConstOperandImpl* constOp = new NdbGenericConstOperandImpl(value,length);
   returnErrIf(constOp==0,4000);
 
@@ -729,15 +730,16 @@ NdbQueryBuilder::paramValue(const char* name)
 NdbLinkedOperand* 
 NdbQueryBuilder::linkedValue(const NdbQueryOperationDef* parent, const char* attr)
 {
-  returnErrIf(parent==0 || attr==0, 4800);  // Required non-NULL arguments
+  // Required non-NULL arguments
+  returnErrIf(parent==0 || attr==0, QRY_REQ_ARG_IS_NULL);
   NdbQueryOperationDefImpl& parentImpl = parent->getImpl();
 
   // Parent should be a OperationDef contained in this query builder context
-  returnErrIf(!m_pimpl->contains(&parentImpl), 4804); // Unknown parent
+  returnErrIf(!m_pimpl->contains(&parentImpl), QRY_UNKONWN_PARENT);
 
   // 'attr' should refer a column from the underlying table in parent:
   const NdbDictionary::Column* column = parentImpl.getTable().getColumn(attr);
-  returnErrIf(column==0, 4805); // Unknown column
+  returnErrIf(column==0, QRY_UNKNOWN_COLUMN); // Unknown column
 
   // Locate refered parrent column in parent operations SPJ projection list;
   // Add if not already present
@@ -760,7 +762,7 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Table* table,    // Primary key 
   if (m_pimpl->hasError())
     return NULL;
 
-  returnErrIf(table==0 || keys==0, 4800);  // Required non-NULL arguments
+  returnErrIf(table==0 || keys==0, QRY_REQ_ARG_IS_NULL);
 
   // All column values being part of primary key should be specified:
   int keyfields = table->getNoOfPrimaryKeys();
@@ -769,10 +771,11 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Table* table,    // Primary key 
   // Check: keys[] are specified for all fields in PK
   for (i=0; i<keyfields; ++i)
   {
-    returnErrIf(keys[i]==NULL, 4801);  // A 'Key' value is undefineds
+    // A 'Key' value is undefineds
+    returnErrIf(keys[i]==NULL, QRY_TOO_FEW_KEY_VALUES);
   }
   // Check for propper NULL termination of keys[] spec
-  returnErrIf(keys[keyfields]!=NULL, 4802);
+  returnErrIf(keys[keyfields]!=NULL, QRY_TOO_MANY_KEY_VALUES);
 
   NdbQueryLookupOperationDefImpl* op =
     new NdbQueryLookupOperationDefImpl(*table,keys,ident,
@@ -813,20 +816,21 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Index* index,    // Unique key l
 
   if (m_pimpl->hasError())
     return NULL;
-  returnErrIf(table==0 || index==0 || keys==0, 4800);  // Required non-NULL arguments
+  returnErrIf(table==0 || index==0 || keys==0, QRY_REQ_ARG_IS_NULL);
 
   // TODO: Restrict to only table_version_major() mismatch?
   returnErrIf(NdbIndexImpl::getImpl(*index).m_table_id != table->getObjectId() ||
-              NdbIndexImpl::getImpl(*index).m_table_version != table->getObjectVersion(), 4806);
+              NdbIndexImpl::getImpl(*index).m_table_version != table->getObjectVersion(), QRY_UNRELATED_INDEX);
 
   // Check: keys[] are specified for all fields in 'index'
   int inxfields = index->getNoOfColumns();
   for (i=0; i<inxfields; ++i)
   {
-    returnErrIf(keys[i]==NULL, 4801);  // A 'Key' value is undefineds
+    // A 'Key' value is undefineds
+    returnErrIf(keys[i]==NULL, QRY_TOO_FEW_KEY_VALUES);
   }
   // Check for propper NULL termination of keys[] spec
-  returnErrIf(keys[inxfields]!=NULL, 4802);
+  returnErrIf(keys[inxfields]!=NULL, QRY_TOO_MANY_KEY_VALUES);
 
   NdbQueryLookupOperationDefImpl* op = 
     new NdbQueryLookupOperationDefImpl(*index,*table,keys,ident,
@@ -856,7 +860,7 @@ NdbQueryBuilder::scanTable(const NdbDictionary::Table* table,
 {
   if (m_pimpl->hasError())
     return NULL;
-  returnErrIf(table==0, 4800);  // Required non-NULL arguments
+  returnErrIf(table==0, QRY_REQ_ARG_IS_NULL);  // Required non-NULL arguments
 
   NdbQueryTableScanOperationDefImpl* op =
     new NdbQueryTableScanOperationDefImpl(*table,ident,
@@ -876,11 +880,12 @@ NdbQueryBuilder::scanIndex(const NdbDictionary::Index* index,
 {
   if (m_pimpl->hasError())
     return NULL;
-  returnErrIf(table==0 || index==0, 4800);  // Required non-NULL arguments
+  // Required non-NULL arguments
+  returnErrIf(table==0 || index==0, QRY_REQ_ARG_IS_NULL);
 
   // TODO: Restrict to only table_version_major() mismatch?
   returnErrIf(NdbIndexImpl::getImpl(*index).m_table_id != table->getObjectId() ||
-              NdbIndexImpl::getImpl(*index).m_table_version != table->getObjectVersion(), 4806);
+              NdbIndexImpl::getImpl(*index).m_table_version != table->getObjectVersion(), QRY_UNRELATED_INDEX);
 
   NdbQueryIndexScanOperationDefImpl* op =
     new NdbQueryIndexScanOperationDefImpl(*index,*table,bound,ident,
@@ -1177,7 +1182,7 @@ NdbLinkedOperandImpl::bindOperand(
 {
   NdbDictionary::Column::Type type = column.getType();
   if (type != getParentColumn().getType())
-    return 4803;  // Incompatible datatypes
+    return QRY_OPERAND_HAS_WRONG_TYPE ;  // Incompatible datatypes
 
   // TODO? Check length if Char, and prec, scale if decimal type
 
@@ -1196,7 +1201,7 @@ NdbConstOperandImpl::bindOperand(
 {
   NdbDictionary::Column::Type type = column.getType();
   if (type != this->getType())
-    return 4803;  // Incompatible datatypes
+    return QRY_OPERAND_HAS_WRONG_TYPE ;  // Incompatible datatypes
 
   // TODO? Check length if Char, and prec,scale if decimal type
 
@@ -1246,22 +1251,25 @@ private:
   int m_length;
 };
 
+// Number of 32bit words needed to store 'type'.
+#define SIZE_IN_WORDS(type) ((sizeof(type)+sizeof(Uint32)-1)/sizeof(Uint32))
 
 // Find offset (in 32-bit words) of field within struct QN_LookupNode.
 #define POS_IN_LOOKUP(field) (offsetof(QN_LookupNode, field)/sizeof(Uint32)) 
+
+// Find offset (in 32-bit words) of field within struct QN_ScanFragNode.
 #define POS_IN_SCAN(field) (offsetof(QN_ScanFragNode, field)/sizeof(Uint32)) 
-#define POS_IN_QUERY(field) (offsetof(QueryNode, field)/sizeof(Uint32)) 
+//#define POS_IN_QUERY(field) (offsetof(QueryNode, field)/sizeof(Uint32)) 
 
 int
 NdbQueryLookupOperationDefImpl
 ::serializeOperation(Uint32Buffer& serializedDef) const{
-  Uint32Slice lookupNode(serializedDef, serializedDef.getSize());
-  lookupNode.get(POS_IN_LOOKUP(tableId)) 
-    = getTable().getObjectId();
-  lookupNode.get(POS_IN_LOOKUP(tableVersion))
-    = getTable().getObjectVersion();
-  lookupNode.get(POS_IN_LOOKUP(requestInfo)) = 0;
-  Uint32 requestInfo = 0;
+  Uint32Slice nodeBuffer(serializedDef, serializedDef.getSize());
+  QN_LookupNode& node = reinterpret_cast<QN_LookupNode&>
+    (nodeBuffer.get(0, SIZE_IN_WORDS(QN_LookupNode)));
+  node.tableId = getTable().getObjectId();
+  node.tableVersion = getTable().getObjectVersion();
+  node.requestInfo = 0;
 
   /**
    * NOTE: Order of sections within the optional part is fixed as:
@@ -1270,11 +1278,11 @@ NdbQueryLookupOperationDefImpl
    *    PART3:  'NI_LINKED_ATTR ++
    */
 
-  Uint32Slice optional(lookupNode, POS_IN_LOOKUP(optional));
+  Uint32Slice optional(nodeBuffer, POS_IN_LOOKUP(optional));
   int optPos = 0;
   if(getNoOfParentOperations()>0){
     // Optional part1: Make list of parent nodes.
-    requestInfo |= DABits::NI_HAS_PARENT;
+    node.requestInfo |= DABits::NI_HAS_PARENT;
     Uint16Sequence parentSeq(optional);
     // Multiple parents not yet supported.
     assert(getNoOfParentOperations()==1);
@@ -1294,14 +1302,14 @@ NdbQueryLookupOperationDefImpl
     switch(op->getKind()){
     case OperandKind_Linked:
     {
-      requestInfo |= DABits::NI_KEY_LINKED;
+      node.requestInfo |= DABits::NI_KEY_LINKED;
       const NdbLinkedOperandImpl& linkedOp = *static_cast<const NdbLinkedOperandImpl*>(op);
       keyPattern.get(keyPatternPos++) = QueryPattern::col(linkedOp.getLinkedSrc());
       break;
     }
     case OperandKind_Const:
     {
-      requestInfo |= DABits::NI_KEY_CONSTS;
+      node.requestInfo |= DABits::NI_KEY_CONSTS;
       const NdbConstOperandImpl& constOp 
 	= *static_cast<const NdbConstOperandImpl*>(op);
       // No of words needed for storing the constant data.
@@ -1321,7 +1329,7 @@ NdbQueryLookupOperationDefImpl
     }
     case OperandKind_Param:  // TODO: Implement this
 /**** FIXME: can't set NI_KEY_PARAMS yet as this also require PI_KEY_PARAMS in parameter part
-      requestInfo |= DABits::NI_KEY_PARAMS;
+      node.requestInfo |= DABits::NI_KEY_PARAMS;
       paramCnt++;
 *****/
       keyPattern.get(keyPatternPos++) = QueryPattern::data(0);  // Simple hack to avoid 'assert(keyPatternPos>0)' below
@@ -1342,27 +1350,25 @@ NdbQueryLookupOperationDefImpl
    * child operations can be instantiated.*/
 //assert ((getNoOfChildOperations()==0) == (getSPJProjection().size()==0));
   if (getNoOfChildOperations()>0){
-    requestInfo |= DABits::NI_LINKED_ATTR;
+    node.requestInfo |= DABits::NI_LINKED_ATTR;
     Uint16Sequence spjProjSeq(Uint32Slice(optional, optPos));
     for(Uint32 i = 0; i<getSPJProjection().size(); i++){
       spjProjSeq.append(getSPJProjection()[i]->getColumnNo());
     }
     optPos += spjProjSeq.finish();
   }
-  lookupNode.get(POS_IN_LOOKUP(requestInfo)) = requestInfo;
   const int length = POS_IN_LOOKUP(optional)+optPos;
 
   // Set node length and type.
-  QueryNode::setOpLen(lookupNode.get(POS_IN_LOOKUP(len)), 
-		      QueryNode::QN_LOOKUP, length);
+  QueryNode::setOpLen(node.len, QueryNode::QN_LOOKUP, length);
   if(unlikely(serializedDef.isMaxSizeExceeded())){
-    return 4808; //Query definition too large.
+    return QRY_DEFINITION_TOO_LARGE; //Query definition too large.
   }    
 #ifdef TRACE_SERIALIZATION
   ndbout << "Serialized node " << getQueryOperationIx() << " : ";
   for(int i = 0; i < length; i++){
     char buf[12];
-    sprintf(buf, "%.8x", lookupNode.get(i));
+    sprintf(buf, "%.8x", nodeBuffer.get(i));
     ndbout << buf << " ";
   }
   ndbout << endl;
@@ -1374,20 +1380,19 @@ int
 NdbQueryTableScanOperationDefImpl
 ::serializeOperation(Uint32Buffer& serializedDef) const
 {
-  Uint32Slice queryNode(serializedDef, serializedDef.getSize());
-  queryNode.get(POS_IN_QUERY(tableId)) 
-    = getTable().getObjectId();
-  queryNode.get(POS_IN_QUERY(tableVersion))
-    = getTable().getObjectVersion();
-  queryNode.get(POS_IN_QUERY(requestInfo)) = 0;
-  Uint32 requestInfo = 0;
+  Uint32Slice nodeBuffer(serializedDef, serializedDef.getSize());
+  QN_ScanFragNode& node = reinterpret_cast<QN_ScanFragNode&>
+    (nodeBuffer.get(0, SIZE_IN_WORDS(QN_ScanFragNode)));
+  node.tableId = getTable().getObjectId();
+  node.tableVersion = getTable().getObjectVersion();
+  node.requestInfo = 0;
 
-  Uint32Slice optional(queryNode, POS_IN_SCAN(optional));
+  Uint32Slice optional(nodeBuffer, POS_IN_SCAN(optional));
   int optPos = 0;
 
   if(getNoOfParentOperations()>0){
     // Optional part1: Make list of parent nodes.
-    requestInfo |= DABits::NI_HAS_PARENT;
+    node.requestInfo |= DABits::NI_HAS_PARENT;
     Uint16Sequence parentSeq(optional);
     // Multiple parents not yet supported.
     assert(getNoOfParentOperations()==1);
@@ -1403,7 +1408,7 @@ NdbQueryTableScanOperationDefImpl
    * child operations can be instantiated.*/
 //assert ((getNoOfChildOperations()==0) == (getSPJProjection().size()==0));
   if (getNoOfChildOperations()>0){
-    requestInfo |= DABits::NI_LINKED_ATTR;
+    node.requestInfo |= DABits::NI_LINKED_ATTR;
     Uint16Sequence spjProjSeq(Uint32Slice(optional, optPos));
     for(Uint32 i = 0; i<getSPJProjection().size(); i++){
       spjProjSeq.append(getSPJProjection()[i]->getColumnNo());
@@ -1411,20 +1416,18 @@ NdbQueryTableScanOperationDefImpl
     optPos += spjProjSeq.finish();
   }
 
-  queryNode.get(POS_IN_QUERY(requestInfo)) = requestInfo;
   const int length = POS_IN_SCAN(optional)+optPos;
 
   // Set node length and type.
-  QueryNode::setOpLen(queryNode.get(POS_IN_QUERY(len)), 
-		      QueryNode::QN_SCAN_FRAG, length);
+  QueryNode::setOpLen(node.len, QueryNode::QN_SCAN_FRAG, length);
   if(unlikely(serializedDef.isMaxSizeExceeded())){
-    return 4808; //Query definition too large.
+    return QRY_DEFINITION_TOO_LARGE; //Query definition too large.
   }    
 #ifdef TRACE_SERIALIZATION
   ndbout << "Serialized node " << getQueryOperationIx() << " : ";
   for(int i = 0; i < length; i++){
     char buf[12];
-    sprintf(buf, "%.8x", queryNode.get(i));
+    sprintf(buf, "%.8x", nodeBuffer.get(i));
     ndbout << buf << " ";
   }
   ndbout << endl;

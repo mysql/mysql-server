@@ -20,7 +20,19 @@
 #ifndef NdbQueryBuilderImpl_H
 #define NdbQueryBuilderImpl_H
 
+// Query-related error codes.
+#define QRY_REQ_ARG_IS_NULL 4800
+#define QRY_TOO_FEW_KEY_VALUES 4801
+#define QRY_TOO_MANY_KEY_VALUES 4802
+#define QRY_OPERAND_HAS_WRONG_TYPE 4803
+#define QRY_UNKONWN_PARENT 4804
+#define QRY_UNKNOWN_COLUMN 4805
+#define QRY_UNRELATED_INDEX 4806
+#define QRY_OPERAND_ALREADY_BOUND 4807
+#define QRY_DEFINITION_TOO_LARGE 4808
 
+
+#ifdef __cplusplus
 #include "signaldata/TcKeyReq.hpp"
 #include "signaldata/ScanTab.hpp"
 #include <Vector.hpp>
@@ -284,5 +296,5 @@ private:
   Vector<const NdbDictionary::Column*> m_spjProjection;
 }; // class NdbQueryOperationDefImpl
 
-
+#endif // __cplusplus
 #endif

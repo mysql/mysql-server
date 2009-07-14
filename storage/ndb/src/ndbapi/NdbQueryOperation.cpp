@@ -576,7 +576,7 @@ NdbQueryOperationImpl::UserProjection::serialize(Uint32Slice dst) const{
     }
   }
   if(unlikely(dst.isMaxSizeExceeded())){
-    return 4808; // Query definition too large.
+    return QRY_DEFINITION_TOO_LARGE; // Query definition too large.
   }
   return 0;
 }
@@ -637,7 +637,7 @@ int NdbQueryOperationImpl::prepareSend(Uint32Buffer& serializedParams)
 				lookupParams.getSize());
 
   if(unlikely(lookupParams.isMaxSizeExceeded())){
-    return 4808; // Query definition too large.
+    return QRY_DEFINITION_TOO_LARGE; // Query definition too large.
   }
 #ifdef TRACE_SERIALIZATION
   ndbout << "Serialized params for node " 
