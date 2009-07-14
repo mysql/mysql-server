@@ -363,7 +363,7 @@ int check_user(THD *thd, enum enum_server_command command,
   if (opt_secure_auth_local && passwd_len == SCRAMBLE_LENGTH_323)
   {
     net_printf_error(thd, ER_NOT_SUPPORTED_AUTH_MODE);
-    mysql_log.write(thd, COM_CONNECT, ER(ER_NOT_SUPPORTED_AUTH_MODE));
+    mysql_log.write(thd, COM_CONNECT, "%s", ER(ER_NOT_SUPPORTED_AUTH_MODE));
     DBUG_RETURN(-1);
   }
   if (passwd_len != 0 &&
@@ -500,7 +500,7 @@ int check_user(THD *thd, enum enum_server_command command,
   else if (res == 2) // client gave short hash, server has long hash
   {
     net_printf_error(thd, ER_NOT_SUPPORTED_AUTH_MODE);
-    mysql_log.write(thd,COM_CONNECT,ER(ER_NOT_SUPPORTED_AUTH_MODE));
+    mysql_log.write(thd,COM_CONNECT,"%s",ER(ER_NOT_SUPPORTED_AUTH_MODE));
     DBUG_RETURN(-1);
   }
   net_printf_error(thd, ER_ACCESS_DENIED_ERROR,
@@ -2096,7 +2096,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       }
       if (check_access(thd,CREATE_ACL,db,0,1,0,is_schema_db(db)))
 	break;
-      mysql_log.write(thd,command,packet);
+      mysql_log.write(thd, command, "%s", db);
       bzero(&create_info, sizeof(create_info));
       mysql_create_db(thd, (lower_case_table_names == 2 ? alias : db),
                       &create_info, 0);
@@ -2121,7 +2121,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
                    ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
 	break;
       }
-      mysql_log.write(thd,command,db);
+      mysql_log.write(thd, command, "%s", db);
       mysql_rm_db(thd, db, 0, 0);
       break;
     }
