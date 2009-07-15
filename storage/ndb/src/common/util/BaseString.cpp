@@ -210,7 +210,8 @@ BaseString::assfmt(const char *fmt, ...)
 	m_chr = t;
     }
     va_start(ap, fmt);
-    basestring_vsnprintf(m_chr, l, fmt, ap);
+    l = basestring_vsnprintf(m_chr, l, fmt, ap);
+    assert(l == strlen(m_chr));
     va_end(ap);
     m_len = strlen(m_chr);
     return *this;
@@ -618,6 +619,19 @@ TAPTEST(BaseString)
     OK(s3.assign((const char*)NULL).c_str() == NULL);
     OK(s4.assign((const char*)NULL).c_str() == NULL);
     OK(s4.assign(s4).c_str() == NULL);
+
+    //tests for Bug #45733 Cluster with more than 4 storage node 
+    for(int i=0;i<20;i++) 
+    {
+      OK(s2.assfmt("%*s",8,"Z"));
+      OK(s2.assfmt("%*s",511,"Z"));
+      OK(s2.assfmt("%*s",512,"Z"));
+      OK(s2.assfmt("%*s",513,"Z"));
+      OK(s2.assfmt("%*s",1023,"Z"));
+      OK(s2.assfmt("%*s",1024,"Z"));
+      OK(s2.assfmt("%*s",1025,"Z"));
+      OK(s2.assfmt("%*s",20*1024*1024,"Z"));
+    }
 
     return 1; // OK
 }
