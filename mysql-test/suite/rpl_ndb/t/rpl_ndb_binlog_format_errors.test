@@ -20,7 +20,10 @@
 # given for the case when an unsafe statement is executed and
 # binlog_format = STATEMENT.
 
+# Need debug so that 'SET @@session.debug' works.
 --source include/have_debug.inc
+# Need example plugin because it is the only statement-only engine.
+--source include/have_example_plugin.inc
 # The test changes binlog_format, so there is no reason to run it
 # under more than one binlog format.
 --source include/have_binlog_format_row.inc
