@@ -153,16 +153,16 @@ extern ulint	srv_mem_pool_size;
 extern ulint	srv_lock_table_size;
 
 extern ulint	srv_n_file_io_threads;
-extern ulint	srv_read_ahead_factor;
+extern ulong	srv_read_ahead_factor;
 extern ulint	srv_n_read_io_threads;
 extern ulint	srv_n_write_io_threads;
 
 /* Number of IO operations per second the server can do */
-extern ulint    srv_io_capacity;
+extern ulong    srv_io_capacity;
 /* Returns the number of IO operations that is X percent of the
 capacity. PCT_IO(5) -> returns the number of IO operations that
 is 5% of the max where max is srv_io_capacity.  */
-#define PCT_IO(p) ((ulint) (srv_io_capacity * ((double) p / 100.0)))
+#define PCT_IO(p) ((ulong) (srv_io_capacity * ((double) p / 100.0)))
 
 #ifdef UNIV_LOG_ARCHIVE
 extern ibool	srv_log_archive_on;

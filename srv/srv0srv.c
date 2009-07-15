@@ -214,7 +214,7 @@ within a 64 page extent even if they are accessed out of order or have
 not been accessed at all. This number (which varies from 0 to 64) is
 indicative of the slack that we have when deciding about linear
 readahead. */
-UNIV_INTERN ulint	srv_read_ahead_factor	= 8;
+UNIV_INTERN ulong	srv_read_ahead_factor	= 8;
 
 #ifdef UNIV_LOG_ARCHIVE
 UNIV_INTERN ibool		srv_log_archive_on	= FALSE;
@@ -239,7 +239,7 @@ UNIV_INTERN ulint	srv_win_file_flush_method = SRV_WIN_IO_UNBUFFERED;
 UNIV_INTERN ulint	srv_max_n_open_files	  = 300;
 
 /* Number of IO operations per second the server can do */
-UNIV_INTERN ulint	srv_io_capacity         = 200;
+UNIV_INTERN ulong	srv_io_capacity         = 200;
 
 /* The InnoDB main thread tries to keep the ratio of modified pages
 in the buffer pool to all database pages in the buffer pool smaller than
