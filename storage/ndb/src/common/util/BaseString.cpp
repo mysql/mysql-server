@@ -623,14 +623,15 @@ TAPTEST(BaseString)
     //tests for Bug #45733 Cluster with more than 4 storage node 
     for(int i=0;i<20;i++) 
     {
-      OK(s2.assfmt("%*s",8,"Z"));
-      OK(s2.assfmt("%*s",511,"Z"));
-      OK(s2.assfmt("%*s",512,"Z"));
-      OK(s2.assfmt("%*s",513,"Z"));
-      OK(s2.assfmt("%*s",1023,"Z"));
-      OK(s2.assfmt("%*s",1024,"Z"));
-      OK(s2.assfmt("%*s",1025,"Z"));
-      OK(s2.assfmt("%*s",20*1024*1024,"Z"));
+#define BIG_ASSFMT_OK(X) do{long x=(X);OK(s2.assfmt("%*s",x,"Z").length() == x);}while(0)
+      BIG_ASSFMT_OK(8);
+      BIG_ASSFMT_OK(511);
+      BIG_ASSFMT_OK(512);
+      BIG_ASSFMT_OK(513);
+      BIG_ASSFMT_OK(1023);
+      BIG_ASSFMT_OK(1024);
+      BIG_ASSFMT_OK(1025);
+      BIG_ASSFMT_OK(20*1024*1024);
     }
 
     return 1; // OK
