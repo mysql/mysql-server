@@ -188,7 +188,14 @@ int main(int argc, const char** argv )
         die("No real args -> nothing to do");
       /* Copy the remaining args to child_arg */
       for (int j= i+1; j < argc; j++) {
-        to+= _snprintf(to, child_args + sizeof(child_args) - to, "%s ", argv[j]);
+	if (strchr (argv[j], ' ')) {
+	  /* Protect with "" if this arg contains a space */
+	  to+= _snprintf(to, child_args + sizeof(child_args) - to,
+                         "\"%s\" ", argv[j]);
+	} else {
+	  to+= _snprintf(to, child_args + sizeof(child_args) - to,
+	                 "%s ", argv[j]);
+	}
       }
       break;
     } else {
