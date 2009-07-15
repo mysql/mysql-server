@@ -61,7 +61,6 @@ DROP USER dbdict_test@localhost;
 CREATE USER dbdict_test@localhost;
 
 --echo # Establish connection con (user=dbdict_test)
-let $MASTER_MYSOCK= query_get_value(SHOW VARIABLES LIKE 'socket', Value, 1);
 --replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
 connect (con,localhost,dbdict_test,,);
 ################################################################################

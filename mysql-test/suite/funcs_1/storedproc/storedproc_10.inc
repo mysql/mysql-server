@@ -58,7 +58,6 @@ GRANT CREATE ROUTINE ON db_storedproc.* TO 'user_1'@'localhost';
 GRANT SELECT         ON db_storedproc.* TO 'user_2'@'localhost';
 FLUSH PRIVILEGES;
 
-let $MASTER_MYSOCK= query_get_value(SHOW VARIABLES LIKE 'socket', Value, 1);
 --replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
 connect (user2_1, localhost, user_1, , db_storedproc);
 --source suite/funcs_1/include/show_connection.inc
