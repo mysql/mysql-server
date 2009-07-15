@@ -92,6 +92,7 @@
 # related to logging format (not just 'Unsafe statement binlogged in
 # statement mode since BINLOG_FORMAT = STATEMENT').
 
+source include/have_udf.inc;
 source include/have_log_bin.inc;
 source include/have_binlog_format_statement.inc;
 
