@@ -14,7 +14,7 @@ eval LOAD DATA INFILE '$dump_file' INTO TABLE test.desc;
 --remove_file $dump_file
 
 # Query the temporary table
-let $value = `SELECT a FROM test.desc
+let $value = `SELECT TRIM(TRAILING "\r" FROM a) FROM test.desc
   WHERE a LIKE BINARY "ForceVarPart%"`;
 echo $value;
 

@@ -14,7 +14,8 @@ eval LOAD DATA INFILE '$dump_file' INTO TABLE test.desc;
 --remove_file $dump_file
 
 # Query the temporary table
-SELECT a as 'Primary keys:' FROM test.desc WHERE a LIKE BINARY "%PRIMARY%";
+SELECT TRIM(TRAILING "\r" FROM a) as 'Primary keys:' FROM test.desc
+  WHERE a LIKE BINARY "%PRIMARY%";
 
 DROP TABLE test.desc;
 --enable_query_log
