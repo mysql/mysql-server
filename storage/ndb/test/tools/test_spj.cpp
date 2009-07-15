@@ -563,8 +563,9 @@ int testSerialize(int argc, char** argv){
 
   /* Dummy for now at least. Key is really set with  ndbOperation->equal().*/
   const NdbQueryOperand* rootKey[] = 
-    {  qb->constValue(5), //a
-       qb->constValue(4), // b
+    {  qb->constValue(11), //a
+       //       qb->constValue(3), // b
+       qb->paramValue(),
        0
     };
   // Lookup a 'root' tuple.
@@ -607,14 +608,15 @@ int testSerialize(int argc, char** argv){
   if (myTransaction == NULL) APIERROR(myNdb.getNdbError());
 
   //NdbOperation* ndbOperation = myTransaction->getNdbOperation(tab);
-
+  const int bParam = 3;
+  const void* params[] = {&bParam, NULL};
   // Instantiate NdbQuery for this transaction.
-  NdbQuery* query = myTransaction->createQuery(queryDef, NULL);
+  NdbQuery* query = myTransaction->createQuery(queryDef, params);
 
   // ndbOperation->readTuple(NdbOperation::LM_Dirty);
   // Set keys for root lookup.
-  query->getImpl().getNdbOperation()->equal("a", 11);
-  query->getImpl().getNdbOperation()->equal("b", 3);
+  //query->getImpl().getNdbOperation()->equal("a", 11);
+  //query->getImpl().getNdbOperation()->equal("b", 3);
 
   /* Read all attributes from result tuples.*/
   const Uint32 nNodes = query->getNoOfOperations();

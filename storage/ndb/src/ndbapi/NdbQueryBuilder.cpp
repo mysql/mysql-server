@@ -327,6 +327,9 @@ public:
 
   virtual int serializeOperation(Uint32Buffer& serializedDef) const;
 
+  virtual void materializeRootOperands(NdbOperation& ndbOperation,
+                                       const constVoidPtr actualParam[]) const;
+
 private:
   virtual ~NdbQueryLookupOperationDefImpl() {};
   explicit NdbQueryLookupOperationDefImpl (
@@ -381,6 +384,9 @@ public:
   virtual Type getType() const
   { return TableScan; }
 
+  virtual void materializeRootOperands(NdbOperation& ndbOperation,
+                                       const constVoidPtr actualParam[]) const;
+
 private:
   virtual ~NdbQueryTableScanOperationDefImpl() {};
   explicit NdbQueryTableScanOperationDefImpl (
@@ -411,6 +417,9 @@ public:
 
   virtual Type getType() const
   { return OrderedIndexScan; }
+
+  virtual void materializeRootOperands(NdbOperation& ndbOperation,
+                                       const constVoidPtr actualParam[]) const;
 
 private:
   virtual ~NdbQueryIndexScanOperationDefImpl() {};
@@ -819,8 +828,11 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Index* index,    // Unique key l
   returnErrIf(table==0 || index==0 || keys==0, QRY_REQ_ARG_IS_NULL);
 
   // TODO: Restrict to only table_version_major() mismatch?
-  returnErrIf(NdbIndexImpl::getImpl(*index).m_table_id != table->getObjectId() ||
-              NdbIndexImpl::getImpl(*index).m_table_version != table->getObjectVersion(), QRY_UNRELATED_INDEX);
+  returnErrIf(NdbIndexImpl::getImpl(*index).m_table_id 
+              != static_cast<Uint32>(table->getObjectId()) ||
+              NdbIndexImpl::getImpl(*index).m_table_version != 
+              static_cast<Uint32>(table->getObjectVersion()), 
+              QRY_UNRELATED_INDEX);
 
   // Check: keys[] are specified for all fields in 'index'
   int inxfields = index->getNoOfColumns();
@@ -884,8 +896,11 @@ NdbQueryBuilder::scanIndex(const NdbDictionary::Index* index,
   returnErrIf(table==0 || index==0, QRY_REQ_ARG_IS_NULL);
 
   // TODO: Restrict to only table_version_major() mismatch?
-  returnErrIf(NdbIndexImpl::getImpl(*index).m_table_id != table->getObjectId() ||
-              NdbIndexImpl::getImpl(*index).m_table_version != table->getObjectVersion(), QRY_UNRELATED_INDEX);
+  returnErrIf(NdbIndexImpl::getImpl(*index).m_table_id 
+              != static_cast<Uint32>(table->getObjectId()) ||
+              NdbIndexImpl::getImpl(*index).m_table_version 
+              != static_cast<Uint32>(table->getObjectVersion()), 
+              QRY_UNRELATED_INDEX);
 
   NdbQueryIndexScanOperationDefImpl* op =
     new NdbQueryIndexScanOperationDefImpl(*index,*table,bound,ident,
@@ -1091,6 +1106,43 @@ NdbQueryLookupOperationDefImpl::NdbQueryLookupOperationDefImpl (
 }
 
 
+void 
+NdbQueryLookupOperationDefImpl
+::materializeRootOperands(NdbOperation& ndbOperation,
+                          const constVoidPtr actualParam[]) const
+{
+  assert(getQueryOperationIx()==0); // Should only be called for root operation.
+  const int keyCount = m_index==NULL ? 
+    getTable().getNoOfPrimaryKeys() :
+    static_cast<int>(getIndex()->getNoOfColumns());
+  int paramNo = 0;
+  int keyNo;
+  for(keyNo = 0; keyNo<keyCount; keyNo++){
+    switch(m_keys[keyNo]->getKind()){
+    case OperandKind_Const:
+      {
+        const NdbConstOperandImpl* const constOp 
+          = static_cast<const NdbConstOperandImpl*>(m_keys[keyNo]);
+        ndbOperation.equal(keyNo, 
+                           static_cast<const char*>(constOp->getAddr()));
+      }
+      break;
+    case OperandKind_Param:
+      assert(actualParam[paramNo] != NULL);
+      ndbOperation.equal(keyNo, 
+                         static_cast<const char*>(actualParam[paramNo++]));
+      break;
+    default:
+      // Root operation cannot have linked operands.
+      assert(false);
+    }
+  }
+  // All actual parameters should have been consumed.
+  assert(actualParam[paramNo] == NULL);
+  // All key fields should have been assigned a value. 
+  assert(m_keys[keyNo] == NULL);
+}
+
 NdbQueryIndexScanOperationDefImpl::NdbQueryIndexScanOperationDefImpl (
                            const NdbDictionary::Index& index,
                            const NdbDictionary::Table& table,
@@ -1136,6 +1188,22 @@ NdbQueryIndexScanOperationDefImpl::NdbQueryIndexScanOperationDefImpl (
   }
 }
 
+
+void 
+NdbQueryIndexScanOperationDefImpl
+::materializeRootOperands(NdbOperation& ndbOperation,
+                          const constVoidPtr actualParam[]) const
+{
+  assert(false); // TODO: Implement this.
+}
+
+void 
+NdbQueryTableScanOperationDefImpl
+::materializeRootOperands(NdbOperation& ndbOperation,
+                          const constVoidPtr actualParam[]) const
+{
+  assert(false); // TODO: Implement this.
+}
 
 void
 NdbQueryOperationDefImpl::addParent(NdbQueryOperationDefImpl* parentOp)

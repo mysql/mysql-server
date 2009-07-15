@@ -162,6 +162,7 @@ public:
   const Uint32Buffer& getSerialized() const {
     return m_serializedDef;
   }
+
 private:
   NdbQueryDef m_interface;
 
@@ -208,6 +209,9 @@ private:
 
 }; // class NdbQueryBuilderImpl
 
+
+/** For making complex declarations more readable.*/
+typedef const void* constVoidPtr;
 
 
 class NdbQueryOperationDefImpl
@@ -271,6 +275,16 @@ public:
   const Vector<const NdbDictionary::Column*>& getSPJProjection() const{
     return m_spjProjection;
   }
+
+  /** Expand keys, bound and filters for the root operation. This is needed
+   * for allowing TCKEYREQ/LQHKEYREQ messages to be hashed to the right data
+   * node
+   * @param ndbOperation The operation that the query is piggy backed on.
+   * @param actualParam Instance values for NdbParamOperands.
+   */
+  virtual void 
+  materializeRootOperands(class NdbOperation& ndbOperation,
+                          const constVoidPtr actualParam[]) const = 0;
 
   virtual ~NdbQueryOperationDefImpl() = 0;
 
