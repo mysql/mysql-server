@@ -360,6 +360,9 @@ NdbQueryImpl::prepareSend(){
   m_ndbOperation->insertATTRINFOloop(&m_serializedParams.get(0), 
                                      m_serializedParams.getSize());
 
+  // Build explicit key/filter/bounds for root operation.
+  m_operations[0]->getQueryOperationDef()
+    .materializeRootOperands(*getNdbOperation(), m_param);
 #ifdef TRACE_SERIALIZATION
   ndbout << "Serialized params for all : ";
   for(Uint32 i = 0; i < m_serializedParams.getSize(); i++){
