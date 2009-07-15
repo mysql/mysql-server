@@ -875,8 +875,13 @@ select * from t1;
 create  view v1 as
 select * from v3 where b in (1, 2, 3, 4, 5, 6, 7);
 
+# Disable warnings since LIMIT warning for unsafe statement if
+# binlog_format = STATEMENT. Note: after BUG#45832, the warning should
+# not be issued.
+--disable_warnings
 create  view v2 as
 select v3.a from v3, v1 where v1.a=v3.a and v3.b=3 limit 1;
+--enable_warnings
 
 --exec $MYSQL_DUMP --skip-comments test
 
