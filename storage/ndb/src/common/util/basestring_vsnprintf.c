@@ -35,13 +35,13 @@ basestring_snprintf(char *str, size_t size, const char *format, ...)
   return(ret);
 }
 
-int
+static int
 vsnprintf_doubling(size_t size, const char *format, va_list ap)
 {
   char *buf = 0;
   int ret = -1;
 
-  while (ret < 0 || ret >= size)
+  while (ret < 0 || ret >= (int)size)
   {
     buf = realloc(buf, size*=2);
     ret = vsnprintf(buf, size, format, ap);
@@ -61,10 +61,10 @@ basestring_vsnprintf(char *str, size_t size, const char *format, va_list ap)
     return basestring_vsnprintf(buf, 1, format, ap);
   }
   ret = IF_WIN(_vsnprintf,vsnprintf)(str, size, format, ap);
-  if (ret >= 0 && ret < size)
+  if (ret >= 0 && ret < (int)size)
     return ret;
 #ifdef _WIN32
-  if (errno == EINVAL)
+  if (ret < 0 && errno == EINVAL)
     return ret;
   // otherwise, more than size chars are needed
   return _vscprintf(format, ap);
@@ -73,7 +73,7 @@ basestring_vsnprintf(char *str, size_t size, const char *format, va_list ap)
   {
     char buf[512];
     ret = vsnprintf(buf, sizeof(buf), format, ap);
-    if (ret >= 0 && ret < size)
+    if (ret >= 0 && ret < sizeof(buf))
       return ret;
     ret = vsnprintf_doubling(sizeof(buf), format, ap);
   }
