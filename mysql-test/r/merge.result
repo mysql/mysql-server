@@ -2141,4 +2141,24 @@ SELECT * FROM m1;
 c1
 DROP TABLE m1;
 DROP TABLE t1;
+#
+# Bug45781 infinite hang/crash in "opening tables" after handler tries to
+#          open merge table
+#
+DROP TABLE IF EXISTS m1,t1;
+CREATE TABLE t1(a int)engine=myisam;
+CREATE TABLE t2(a int)engine=myisam;
+CREATE TABLE t3(a int)engine=myisam;
+CREATE TABLE t4(a int)engine=myisam;
+CREATE TABLE t5(a int)engine=myisam;
+CREATE TABLE t6(a int)engine=myisam;
+CREATE TABLE t7(a int)engine=myisam;
+CREATE TABLE m1(a int)engine=merge union=(t1,t2,t3,t4,t5,t6,t7);
+SELECT 1 FROM m1;
+1
+HANDLER m1 OPEN;
+ERROR HY000: Table storage engine for 'm1' doesn't have this option
+DROP TABLE m1,t1,t2,t3,t4,t5,t6,t7;
+SELECT 1 FROM m1;
+ERROR 42S02: Table 'test.m1' doesn't exist
 End of 5.1 tests
