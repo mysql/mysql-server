@@ -440,3 +440,18 @@ CREATE TABLE t1(a TEXT);
 --error ER_WRONG_ARGUMENTS
 SELECT GROUP_CONCAT(a) AS st FROM t1 HAVING MATCH(st) AGAINST('test' IN BOOLEAN MODE);
 DROP TABLE t1;
+
+#
+# BUG#37740 Server crashes on execute statement with full text search and match against
+#
+
+CREATE TABLE t1 (col text, FULLTEXT KEY full_text (col));
+
+PREPARE s FROM 
+  "SELECT MATCH (col) AGAINST('findme') FROM t1 ORDER BY MATCH (col) AGAINST('findme')"
+  ;
+
+EXECUTE s;
+DEALLOCATE PREPARE s;
+DROP TABLE t1;
+
