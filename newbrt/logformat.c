@@ -119,6 +119,9 @@ const struct logtype logtypes[] = {
 				{"BYTESTRING", "key", 0},
 				{"BYTESTRING", "data", 0},
 				NULLFIELD}},
+    {"timestamp", 'T', FA{{"u_int64_t", "timestamp", 0},
+                          {"BYTESTRING", "comment", 0},
+                          NULLFIELD}},
     {0,0,FA{NULLFIELD}}
 };
 
