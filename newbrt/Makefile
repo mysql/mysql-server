@@ -50,7 +50,6 @@ BRT_SOURCES = \
   key \
   leafentry \
   leaflock \
-  log \
   logger \
   log_code \
   memarena \
