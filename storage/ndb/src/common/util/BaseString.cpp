@@ -623,7 +623,7 @@ TAPTEST(BaseString)
     //tests for Bug #45733 Cluster with more than 4 storage node 
     for(int i=0;i<20;i++) 
     {
-#define BIG_ASSFMT_OK(X) do{long x=(X);OK(s2.assfmt("%*s",x,"Z").length() == x);}while(0)
+#define BIG_ASSFMT_OK(X) do{int x=(X);OK(s2.assfmt("%*s",x,"Z").length() == x);}while(0)
       BIG_ASSFMT_OK(8);
       BIG_ASSFMT_OK(511);
       BIG_ASSFMT_OK(512);

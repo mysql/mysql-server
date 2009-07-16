@@ -35,6 +35,7 @@ basestring_snprintf(char *str, size_t size, const char *format, ...)
   return(ret);
 }
 
+#ifdef SNPRINTF_RETURN_TRUNC
 static int
 vsnprintf_doubling(size_t size, const char *format, va_list ap)
 {
@@ -49,6 +50,7 @@ vsnprintf_doubling(size_t size, const char *format, va_list ap)
   free(buf);
   return ret;
 }
+#endif
 
 int
 basestring_vsnprintf(char *str, size_t size, const char *format, va_list ap)
