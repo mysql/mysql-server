@@ -2,12 +2,19 @@
 
 Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
+Copyright (c) 2009, Sun Microsystems, Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
 briefly in the InnoDB documentation. The contributions by Google are
 incorporated with their permission, and subject to the conditions contained in
 the file COPYING.Google.
+
+Portions of this file contain modifications contributed and copyrighted by
+Sun Microsystems, Inc. Those modifications are gratefully acknowledged and
+are described briefly in the InnoDB documentation. The contributions by
+Sun Microsystems are incorporated with their permission, and subject to the
+conditions contained in the file COPYING.Sun_Microsystems.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -136,9 +143,9 @@ from Makefile.in->ut0auxconf.h */
 #endif /* HAVE_ATOMIC_BUILTINS */
 
 /* We only try to do explicit inlining of functions with gcc and
-Microsoft Visual C++ */
+Sun Studio */
 
-# if !defined(__GNUC__)
+# if !defined(__GNUC__) && !(defined(__SUNPRO_C) || defined(__SUNPRO_CC))
 #  undef  UNIV_MUST_NOT_INLINE			/* Remove compiler warning */
 #  define UNIV_MUST_NOT_INLINE
 # endif
@@ -238,8 +245,6 @@ by one. */
 that are only referenced from within InnoDB, not from MySQL */
 #if defined(__GNUC__) && (__GNUC__ >= 4)
 # define UNIV_INTERN __attribute__((visibility ("hidden")))
-#elif defined(__SUNPRO_C) && (__SUNPRO_C >= 0x550)
-# define UNIV_INTERN __hidden
 #else
 # define UNIV_INTERN
 #endif
@@ -248,9 +253,11 @@ that are only referenced from within InnoDB, not from MySQL */
 /* Definition for inline version */
 
 #ifdef __WIN__
-#define UNIV_INLINE	__inline
+# define UNIV_INLINE	__inline
+#elif defined(__SUNPRO_CC) || defined(__SUNPRO_C)
+# define UNIV_INLINE static inline
 #else
-#define UNIV_INLINE static __inline__
+# define UNIV_INLINE static __inline__
 #endif
 
 #else
@@ -391,6 +398,17 @@ it is read. */
 /* Minimize cache-miss latency by moving data at addr into a cache before
 it is read or written. */
 # define UNIV_PREFETCH_RW(addr) __builtin_prefetch(addr, 1, 3)
+#elif defined(__SUNPRO_C) || defined(__SUNPRO_CC)
+# include <sun_prefetch.h>
+#if __SUNPRO_C >= 0x550
+# undef UNIV_INTERN
+# define UNIV_INTERN __hidden
+#endif /* __SUNPRO_C >= 0x550 */
+/* Use sun_prefetch when compile with Sun Studio */
+# define UNIV_EXPECT(expr,value) (expr)
+# define UNIV_LIKELY_NULL(expr) (expr)
+# define UNIV_PREFETCH_R(addr) sun_prefetch_read_many(addr)
+# define UNIV_PREFETCH_RW(addr) sun_prefetch_write_many(addr)
 #else
 /* Dummy versions of the macros */
 # define UNIV_EXPECT(expr,value) (expr)
