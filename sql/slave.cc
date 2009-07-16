@@ -38,6 +38,7 @@
 #include <my_dir.h>
 #include <sql_common.h>
 #include <errmsg.h>
+#include <mysqld_error.h>
 #include <mysys_err.h>
 
 #ifdef HAVE_REPLICATION
@@ -859,6 +860,29 @@ int init_intvar_from_file(int* var, IO_CACHE* f, int default_val)
   DBUG_RETURN(1);
 }
 
+
+/*
+  Check if the error is caused by network.
+  @param[in]   errorno   Number of the error.
+  RETURNS:
+  TRUE         network error
+  FALSE        not network error
+*/
+
+bool is_network_error(uint errorno)
+{ 
+  if (errorno == CR_CONNECTION_ERROR || 
+      errorno == CR_CONN_HOST_ERROR ||
+      errorno == CR_SERVER_GONE_ERROR ||
+      errorno == CR_SERVER_LOST ||
+      errorno == ER_CON_COUNT_ERROR ||
+      errorno == ER_SERVER_SHUTDOWN)
+    return TRUE;
+
+  return FALSE;   
+}
+
+
 /*
   Note that we rely on the master's version (3.23, 4.0.14 etc) instead of
   relying on the binlog's version. This is not perfect: imagine an upgrade
@@ -871,6 +895,7 @@ int init_intvar_from_file(int* var, IO_CACHE* f, int default_val)
   RETURNS
   0       ok
   1       error
+  2       transient network problem, the caller should try to reconnect
 */
 
 static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
@@ -881,6 +906,7 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
   MYSQL_RES *master_res= 0;
   MYSQL_ROW master_row;
   DBUG_ENTER("get_master_version_and_clock");
+  int query_re= 0;
 
   /*
     Free old description_event_for_queue (that is needed if we are in
@@ -956,6 +982,8 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
     unavailable (very old master not supporting UNIX_TIMESTAMP()?).
   */
 
+  DBUG_SYNC_POINT("debug_lock.before_get_UNIX_TIMESTAMP", 10);
+  master_res= NULL;
   if (!mysql_real_query(mysql, STRING_WITH_LEN("SELECT UNIX_TIMESTAMP()")) &&
       (master_res= mysql_store_result(mysql)) &&
       (master_row= mysql_fetch_row(master_res)))
@@ -963,7 +991,13 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
     mi->clock_diff_with_master=
       (long) (time((time_t*) 0) - strtoul(master_row[0], 0, 10));
   }
-  else if (!check_io_slave_killed(mi->io_thd, mi, NULL))
+  else if (is_network_error(mysql_errno(mysql)))
+  {
+    mi->report(WARNING_LEVEL, mysql_errno(mysql),
+               "Get master clock failed with error: %s", mysql_error(mysql));
+    goto network_err;
+  }
+  else 
   {
     mi->clock_diff_with_master= 0; /* The "most sensible" value */
     sql_print_warning("\"SELECT UNIX_TIMESTAMP()\" failed on master, "
@@ -972,7 +1006,10 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
                       mysql_error(mysql), mysql_errno(mysql));
   }
   if (master_res)
+  {
     mysql_free_result(master_res);
+    master_res= NULL;
+  }
 
   /*
     Check that the master's server id and ours are different. Because if they
@@ -984,12 +1021,15 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
     Note: we could have put a @@SERVER_ID in the previous SELECT
     UNIX_TIMESTAMP() instead, but this would not have worked on 3.23 masters.
   */
+  DBUG_SYNC_POINT("debug_lock.before_get_SERVER_ID", 10);
+  master_res= NULL;
+  master_row= NULL;
   if (!mysql_real_query(mysql,
                         STRING_WITH_LEN("SHOW VARIABLES LIKE 'SERVER_ID'")) &&
-      (master_res= mysql_store_result(mysql)))
+      (master_res= mysql_store_result(mysql)) &&
+      (master_row= mysql_fetch_row(master_res)))
   {
-    if ((master_row= mysql_fetch_row(master_res)) &&
-        (::server_id == strtoul(master_row[1], 0, 10)) &&
+    if ((::server_id == strtoul(master_row[1], 0, 10)) &&
         !mi->rli.replicate_same_server_id)
     {
       errmsg= "The slave I/O thread stops because master and slave have equal \
@@ -998,10 +1038,34 @@ the --replicate-same-server-id option must be used on slave but this does \
 not always make sense; please check the manual before using it).";
       err_code= ER_SLAVE_FATAL_ERROR;
       sprintf(err_buff, ER(err_code), errmsg);
-    }
-    mysql_free_result(master_res);
-    if (errmsg)
       goto err;
+    }
+  }
+  else if (mysql_errno(mysql))
+  {
+    if (is_network_error(mysql_errno(mysql)))
+    {
+      mi->report(WARNING_LEVEL, mysql_errno(mysql),
+                 "Get master SERVER_ID failed with error: %s", mysql_error(mysql));
+      goto network_err;
+    }
+    /* Fatal error */
+    errmsg= "The slave I/O thread stops because a fatal error is encountered \
+when it try to get the value of SERVER_ID variable from master.";
+    err_code= mysql_errno(mysql);
+    sprintf(err_buff, "%s Error: %s", errmsg, mysql_error(mysql));
+    goto err;
+  }
+  else if (!master_row && master_res)
+  {
+    mi->report(WARNING_LEVEL, ER_UNKNOWN_SYSTEM_VARIABLE,
+               "Unknown system variable 'SERVER_ID' on master, \
+maybe it is a *VERY OLD MASTER*.");
+  }
+  if (master_res)
+  {
+    mysql_free_result(master_res);
+    master_res= NULL;
   }
 
   /*
@@ -1025,23 +1089,50 @@ not always make sense; please check the manual before using it).";
   if (*mysql->server_version == '3')
     goto err;
 
-  if ((*mysql->server_version == '4') &&
-      !mysql_real_query(mysql,
-                        STRING_WITH_LEN("SELECT @@GLOBAL.COLLATION_SERVER")) &&
-      (master_res= mysql_store_result(mysql)))
+  if (*mysql->server_version == '4')
   {
-    if ((master_row= mysql_fetch_row(master_res)) &&
-        strcmp(master_row[0], global_system_variables.collation_server->name))
+    master_res= NULL;
+    if (!mysql_real_query(mysql,
+                          STRING_WITH_LEN("SELECT @@GLOBAL.COLLATION_SERVER")) &&
+        (master_res= mysql_store_result(mysql)) &&
+        (master_row= mysql_fetch_row(master_res)))
     {
-      errmsg= "The slave I/O thread stops because master and slave have \
+      if (strcmp(master_row[0], global_system_variables.collation_server->name))
+      {
+        errmsg= "The slave I/O thread stops because master and slave have \
 different values for the COLLATION_SERVER global variable. The values must \
-be equal for replication to work";
-      err_code= ER_SLAVE_FATAL_ERROR;
-      sprintf(err_buff, ER(err_code), errmsg);
+be equal for the Statement-format replication to work";
+        err_code= ER_SLAVE_FATAL_ERROR;
+        sprintf(err_buff, ER(err_code), errmsg);
+        goto err;
+      }
     }
-    mysql_free_result(master_res);
-    if (errmsg)
+    else if (is_network_error(mysql_errno(mysql)))
+    {
+      mi->report(WARNING_LEVEL, mysql_errno(mysql),
+                 "Get master COLLATION_SERVER failed with error: %s", mysql_error(mysql));
+      goto network_err;
+    }
+    else if (mysql_errno(mysql) != ER_UNKNOWN_SYSTEM_VARIABLE)
+    {
+      /* Fatal error */
+      errmsg= "The slave I/O thread stops because a fatal error is encountered \
+when it try to get the value of COLLATION_SERVER global variable from master.";
+      err_code= mysql_errno(mysql);
+      sprintf(err_buff, "%s Error: %s", errmsg, mysql_error(mysql));
       goto err;
+    }
+    else
+      mi->report(WARNING_LEVEL, ER_UNKNOWN_SYSTEM_VARIABLE,
+                 "Unknown system variable 'COLLATION_SERVER' on master, \
+maybe it is a *VERY OLD MASTER*. *NOTE*: slave may experience \
+inconsistency if replicated data deals with collation.");
+
+    if (master_res)
+    {
+      mysql_free_result(master_res);
+      master_res= NULL;
+    }
   }
 
   /*
@@ -1059,35 +1150,62 @@ be equal for replication to work";
     This check is only necessary for 4.x masters (and < 5.0.4 masters but
     those were alpha).
   */
-  if ((*mysql->server_version == '4') &&
-      !mysql_real_query(mysql, STRING_WITH_LEN("SELECT @@GLOBAL.TIME_ZONE")) &&
-      (master_res= mysql_store_result(mysql)))
+  if (*mysql->server_version == '4')
   {
-    if ((master_row= mysql_fetch_row(master_res)) &&
-        strcmp(master_row[0],
-               global_system_variables.time_zone->get_name()->ptr()))
+    master_res= NULL;
+    if (!mysql_real_query(mysql, STRING_WITH_LEN("SELECT @@GLOBAL.TIME_ZONE")) &&
+        (master_res= mysql_store_result(mysql)) &&
+        (master_row= mysql_fetch_row(master_res)))
     {
-      errmsg= "The slave I/O thread stops because master and slave have \
+      if (strcmp(master_row[0],
+                 global_system_variables.time_zone->get_name()->ptr()))
+      {
+        errmsg= "The slave I/O thread stops because master and slave have \
 different values for the TIME_ZONE global variable. The values must \
-be equal for replication to work";
-      err_code= ER_SLAVE_FATAL_ERROR;
-      sprintf(err_buff, ER(err_code), errmsg);
+be equal for the Statement-format replication to work";
+        err_code= ER_SLAVE_FATAL_ERROR;
+        sprintf(err_buff, ER(err_code), errmsg);
+        goto err;
+      }
     }
-    mysql_free_result(master_res);
-
-    if (errmsg)
+    else if (is_network_error(mysql_errno(mysql)))
+    {
+      mi->report(WARNING_LEVEL, mysql_errno(mysql),
+                 "Get master TIME_ZONE failed with error: %s", mysql_error(mysql));
+      goto network_err;
+    } 
+    else
+    {
+      /* Fatal error */
+      errmsg= "The slave I/O thread stops because a fatal error is encountered \
+when it try to get the value of TIME_ZONE global variable from master.";
+      err_code= mysql_errno(mysql);
+      sprintf(err_buff, "%s Error: %s", errmsg, mysql_error(mysql));
       goto err;
+    }
+    if (master_res)
+    {
+      mysql_free_result(master_res);
+      master_res= NULL;
+    }
   }
 
 err:
   if (errmsg)
   {
+    if (master_res)
+      mysql_free_result(master_res);
     DBUG_ASSERT(err_code != 0);
     mi->report(ERROR_LEVEL, err_code, err_buff);
     DBUG_RETURN(1);
   }
 
   DBUG_RETURN(0);
+
+network_err:
+  if (master_res)
+    mysql_free_result(master_res);
+  DBUG_RETURN(2);
 }
 
 /*
@@ -2374,6 +2492,7 @@ pthread_handler_t handle_slave_io(void *arg)
   char llbuff[22];
   uint retry_count;
   bool suppress_warnings;
+  int ret;
 #ifndef DBUG_OFF
   uint retry_count_reg= 0, retry_count_dump= 0, retry_count_event= 0;
 #endif
@@ -2454,8 +2573,23 @@ connected:
   mi->slave_running= MYSQL_SLAVE_RUN_CONNECT;
   thd->slave_net = &mysql->net;
   thd_proc_info(thd, "Checking master version");
-  if (get_master_version_and_clock(mysql, mi))
+  ret= get_master_version_and_clock(mysql, mi);
+  if (ret == 1)
+    /* Fatal error */
     goto err;
+  
+  if (ret == 2) 
+  { 
+    if (check_io_slave_killed(mi->io_thd, mi, "Slave I/O thread killed"
+                              "while calling get_master_version_and_clock(...)"))
+      goto err;
+    suppress_warnings= FALSE;
+    /* Try to reconnect because the error was caused by a transient network problem */
+    if (try_to_reconnect(thd, mysql, mi, &retry_count, suppress_warnings,
+                             reconnect_messages[SLAVE_RECON_ACT_REG]))
+      goto err;
+    goto connected;
+  } 
 
   if (mi->rli.relay_log.description_event_for_queue->binlog_version > 1)
   {
