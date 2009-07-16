@@ -741,6 +741,8 @@ ErrorBundle ErrorCodes[] = {
     "Can't use same operand value to specify different column values" },
   { QRY_DEFINITION_TOO_LARGE, DMEC, AE, 
     "Query definition too large." },
+  { QRY_DUPLICATE_COLUMN_IN_PROJ, DMEC, AE, 
+    "Duplicate column in result projection for NdbQueryOperation."},
 
 
   { NO_CONTACT_WITH_PROCESS, DMEC, AE,

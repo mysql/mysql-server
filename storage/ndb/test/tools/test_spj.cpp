@@ -41,9 +41,10 @@ paramSpec: 00050001 00000001 00010000 00000001 fff00006 00050001 00000001 000200
 #include <kernel/signaldata/QueryTree.hpp>
 #include <kernel/AttributeHeader.hpp>
 #include <NdbQueryOperation.hpp>
+#include <NdbQueryBuilder.hpp>
 // 'impl' classes is needed for prototype only.
-#include <NdbQueryOperationImpl.hpp>
-#include "NdbQueryBuilderImpl.hpp"
+//#include <NdbQueryOperationImpl.hpp>
+//#include "NdbQueryBuilderImpl.hpp"
 
 
 typedef uchar* gptr;
@@ -613,41 +614,33 @@ int testSerialize(int argc, char** argv){
   // Instantiate NdbQuery for this transaction.
   NdbQuery* query = myTransaction->createQuery(queryDef, params);
 
-  // ndbOperation->readTuple(NdbOperation::LM_Dirty);
-  // Set keys for root lookup.
-  //query->getImpl().getNdbOperation()->equal("a", 11);
-  //query->getImpl().getNdbOperation()->equal("b", 3);
-
-  /* Read all attributes from result tuples.*/
-  const Uint32 nNodes = query->getNoOfOperations();
-  const ResultSet** resultSet = new const ResultSet*[nNodes];
-  for(Uint32 i = 0; i<nNodes; i++){
-    resultSet[i] = new ResultSet(query->getQueryOperation(i), tab);
+ /* Read all attributes from result tuples.*/
+  const Uint32 opCount = query->getNoOfOperations();
+  const Uint32 recordOpCount = 1;
+  const ResultSet** resultSet = new const ResultSet*[opCount-recordOpCount];
+  for(Uint32 i = 0; i < opCount-recordOpCount; i++){
+    resultSet[i] 
+      = new ResultSet(query->getQueryOperation(recordOpCount+i), tab);
   }
-
-  /* Serialize query tree and parameters.*/
-  /*query->getImpl().prepareSend();
-
-  Uint32* const tree = new Uint32[queryDef->getImpl().getSerialized().getSize()];
-  for(Uint32 i = 0; i<queryDef->getImpl().getSerialized().getSize(); i++){
-    tree[i] = queryDef->getImpl().getSerialized().get(i);
+  const NdbRecord* resultRec = tab->getDefaultRecord();
+  assert(resultRec!=NULL);
+  Uint32 results[recordOpCount][6] = {0};
+  const unsigned char mask[] = {0x0e};
+  for(Uint32 i = 0; i<recordOpCount; i++){
+    const int error = query->getQueryOperation(i)
+      ->setResultRowBuf(resultRec, 
+                        reinterpret_cast<char*>(results[i]), mask);
+    assert(error==0);
   }
-  const int paramSize = query->getImpl().getSerialized().getSize();
-  Uint32* const params = new Uint32[paramSize];
-  for(Uint32 i = 0; i<paramSize; i++){
-    params[i] = query->getImpl().getSerialized().get(i);
-    }*/
-
-  /* Copy serialized data into ATTRINFO.*/
-  /*NdbScanFilterImpl::add(ndbOperation, tree, queryDef->getImpl().getSerialized().getSize());
-    NdbScanFilterImpl::add(ndbOperation, params, paramSize);
-    NdbScanFilterImpl::setIsLinkedFlag(ndbOperation);*/
-
-  // Add link to 
-  // ndbOperation->setQueryImpl(&query->getImpl());
   myTransaction->execute(NoCommit);
+  for(Uint32 i = 0; i<recordOpCount; i++){
+    for(int j = 0; j<6; j++){
+      ndbout << results[i][j] << " ";
+    }
+    ndbout << endl;
+  }
   // Print results.
-  for(Uint32 i=0; i<nNodes; i++){
+  for(Uint32 i=0; i < opCount-recordOpCount; i++){
     resultSet[i]->print();
   }
 
