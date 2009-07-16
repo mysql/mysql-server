@@ -8493,6 +8493,7 @@ table_factor:
                 MYSQL_YYABORT;
               sel->add_joined_table($$);
               lex->pop_context();
+              lex->nest_level--;
             }
             else if ($4 || $6)
             {
@@ -8501,7 +8502,11 @@ table_factor:
               MYSQL_YYABORT;
             }
             else
+            {
+              /* nested join: FROM (t1 JOIN t2 ...),
+                 nest_level is the same as in the outer query */
               $$= $3;
+            }
           }
         ;
 

@@ -1870,6 +1870,12 @@ int ha_myisam::delete_all_rows()
   return mi_delete_all_rows(file);
 }
 
+int ha_myisam::reset_auto_increment(ulonglong value)
+{
+  file->s->state.auto_increment= value;
+  return 0;
+}
+
 int ha_myisam::delete_table(const char *name)
 {
   return mi_delete_table(name);
