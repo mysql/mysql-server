@@ -19,14 +19,14 @@ length_int_dbt_cmp (DB *db_compare, const DBT *a, const DBT *b) {
     assert(b->size > sizeof(int));
 
     int i;
-    int extra_len_a = *(u_int8_t*)(a->data+4);
+    int extra_len_a = *(u_int8_t*)((u_int8_t*)a->data    +4);
     assert(a->size == sizeof(int)+extra_len_a);
 
     for (i = 1; i < extra_len_a; i++) {
         assert(((char*)a->data+4)[i] == ' ');
     }
 
-    int extra_len_b = *(u_int8_t*)(b->data+4);
+    int extra_len_b = *(u_int8_t*)((u_int8_t*)b->data+4);
     assert(b->size == sizeof(int)+extra_len_b);
     for (i = 1; i < extra_len_b; i++) {
         assert(((char*)b->data+4)[i] == ' ');
@@ -94,8 +94,8 @@ test_txn_abort (u_int32_t dup_mode) {
     int k = 1;
     int v1 = 1;
     int v2 = 1;
-    int extra_1 = 1;
-    int extra_2 = 2;
+    u_int8_t extra_1 = 1;
+    u_int8_t extra_2 = 2;
     r = db->put(db, txn, dbt_init(&key, &k, sizeof k), dbt_init_length(&val, v1, extra_1, value1), DB_YESOVERWRITE); 
         CKERR(r);
     r = txn->commit(txn, DB_TXN_NOSYNC); 
