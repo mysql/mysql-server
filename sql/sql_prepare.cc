@@ -127,12 +127,12 @@ class Prepared_statement: public Statement
 public:
   enum flag_values
   {
-    IS_IN_USE= 1
+    IS_IN_USE= 1,
+    IS_SQL_PREPARE= 2
   };
 
   THD *thd;
   Select_fetch_protocol_binary result;
-  Protocol *protocol;
   Item_param **param_array;
   uint param_count;
   uint last_errno;
@@ -148,7 +148,7 @@ public:
                                List<LEX_STRING>& varnames,
                                String *expanded_query);
 public:
-  Prepared_statement(THD *thd_arg, Protocol *protocol_arg);
+  Prepared_statement(THD *thd_arg);
   virtual ~Prepared_statement();
   void setup_set_params();
   virtual Query_arena::Type type() const;
@@ -156,7 +156,8 @@ public:
   bool set_name(LEX_STRING *name);
   inline void close_cursor() { delete cursor; cursor= 0; }
   inline bool is_in_use() { return flags & (uint) IS_IN_USE; }
-  inline bool is_protocol_text() const { return protocol == &thd->protocol_text; }
+  inline bool is_sql_prepare() const { return flags & (uint) IS_SQL_PREPARE; }
+  void set_sql_prepare() { flags|= (uint) IS_SQL_PREPARE; }
   bool prepare(const char *packet, uint packet_length);
   bool execute_loop(String *expanded_query,
                     bool open_cursor,
@@ -1358,7 +1359,7 @@ static int mysql_test_select(Prepared_statement *stmt,
   */
   if (unit->prepare(thd, 0, 0))
     goto error;
-  if (!lex->describe && !stmt->is_protocol_text())
+  if (!lex->describe && !stmt->is_sql_prepare())
   {
     /* Make copy of item list, as change_columns may change it */
     List<Item> fields(lex->select_lex.item_list);
@@ -1988,7 +1989,7 @@ static bool check_prepared_statement(Prepared_statement *stmt)
     break;
   }
   if (res == 0)
-    DBUG_RETURN(stmt->is_protocol_text() ?
+    DBUG_RETURN(stmt->is_sql_prepare() ?
                 FALSE : (send_prep_stmt(stmt, 0) || thd->protocol->flush()));
 error:
   DBUG_RETURN(TRUE);
@@ -2058,6 +2059,7 @@ static bool init_param_array(Prepared_statement *stmt)
 
 void mysqld_stmt_prepare(THD *thd, const char *packet, uint packet_length)
 {
+  Protocol *save_protocol= thd->protocol;
   Prepared_statement *stmt;
   bool error;
   DBUG_ENTER("mysqld_stmt_prepare");
@@ -2067,7 +2069,7 @@ void mysqld_stmt_prepare(THD *thd, const char *packet, uint packet_length)
   /* First of all clear possible warnings from the previous command */
   mysql_reset_thd_for_next_command(thd);
 
-  if (! (stmt= new Prepared_statement(thd, &thd->protocol_binary)))
+  if (! (stmt= new Prepared_statement(thd)))
     DBUG_VOID_RETURN; /* out of memory: error is set in Sql_alloc */
 
   if (thd->stmt_map.insert(thd, stmt))
@@ -2084,6 +2086,8 @@ void mysqld_stmt_prepare(THD *thd, const char *packet, uint packet_length)
   sp_cache_flush_obsolete(&thd->sp_proc_cache);
   sp_cache_flush_obsolete(&thd->sp_func_cache);
 
+  thd->protocol= &thd->protocol_binary;
+
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(),QUERY_PRIOR);
 
@@ -2097,6 +2101,9 @@ void mysqld_stmt_prepare(THD *thd, const char *packet, uint packet_length)
     /* Statement map deletes statement on erase */
     thd->stmt_map.erase(stmt);
   }
+
+  thd->protocol= save_protocol;
+
   /* check_prepared_statemnt sends the metadata packet in case of success */
   DBUG_VOID_RETURN;
 }
@@ -2229,7 +2236,6 @@ void mysql_sql_stmt_prepare(THD *thd)
   const char *query;
   uint query_len= 0;
   DBUG_ENTER("mysql_sql_stmt_prepare");
-  DBUG_ASSERT(thd->protocol == &thd->protocol_text);
 
   if ((stmt= (Prepared_statement*) thd->stmt_map.find_by_name(name)))
   {
@@ -2247,10 +2253,12 @@ void mysql_sql_stmt_prepare(THD *thd)
   }
 
   if (! (query= get_dynamic_sql_string(lex, &query_len)) ||
-      ! (stmt= new Prepared_statement(thd, &thd->protocol_text)))
+      ! (stmt= new Prepared_statement(thd)))
   {
     DBUG_VOID_RETURN;                           /* out of memory */
   }
+
+  stmt->set_sql_prepare();
 
   /* Set the name first, insert should know that this statement has a name */
   if (stmt->set_name(name))
@@ -2431,6 +2439,7 @@ void mysqld_stmt_execute(THD *thd, char *packet_arg, uint packet_length)
   String expanded_query;
   uchar *packet_end= packet + packet_length;
   Prepared_statement *stmt;
+  Protocol *save_protocol= thd->protocol;
   bool open_cursor;
   DBUG_ENTER("mysqld_stmt_execute");
 
@@ -2458,7 +2467,9 @@ void mysqld_stmt_execute(THD *thd, char *packet_arg, uint packet_length)
 
   open_cursor= test(flags & (ulong) CURSOR_TYPE_READ_ONLY);
 
+  thd->protocol= &thd->protocol_binary;
   stmt->execute_loop(&expanded_query, open_cursor, packet, packet_end);
+  thd->protocol= save_protocol;
 
   /* Close connection socket; for use with client testing (Bug#43560). */
   DBUG_EXECUTE_IF("close_conn_after_stmt_execute", vio_close(thd->net.vio););
@@ -2814,12 +2825,11 @@ Select_fetch_protocol_binary::send_data(List<Item> &fields)
  Prepared_statement
 ****************************************************************************/
 
-Prepared_statement::Prepared_statement(THD *thd_arg, Protocol *protocol_arg)
+Prepared_statement::Prepared_statement(THD *thd_arg)
   :Statement(NULL, &main_mem_root,
              INITIALIZED, ++thd_arg->statement_id_counter),
   thd(thd_arg),
   result(thd_arg),
-  protocol(protocol_arg),
   param_array(0),
   param_count(0),
   last_errno(0),
@@ -3288,7 +3298,9 @@ Prepared_statement::reprepare()
   bool cur_db_changed;
   bool error;
 
-  Prepared_statement copy(thd, &thd->protocol_text);
+  Prepared_statement copy(thd);
+
+  copy.set_sql_prepare(); /* To suppress sending metadata to the client. */
 
   status_var_increment(thd->status_var.com_stmt_reprepare);
 
@@ -3346,7 +3358,7 @@ bool Prepared_statement::validate_metadata(Prepared_statement *copy)
     return FALSE -- the metadata of the original SELECT,
     if any, has not been sent to the client.
   */
-  if (is_protocol_text() || lex->describe)
+  if (is_sql_prepare() || lex->describe)
     return FALSE;
 
   if (lex->select_lex.item_list.elements !=
@@ -3409,7 +3421,6 @@ Prepared_statement::swap_prepared_statement(Prepared_statement *copy)
   DBUG_ASSERT(thd == copy->thd);
   last_error[0]= '\0';
   last_errno= 0;
-  /* Do not swap protocols, the copy always has protocol_text */
 }
 
 
@@ -3550,8 +3561,6 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
   thd->stmt_arena= this;
   reinit_stmt_before_use(thd, lex);
 
-  thd->protocol= protocol;                      /* activate stmt protocol */
-
   /* Go! */
 
   if (open_cursor)
@@ -3581,8 +3590,6 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
 
   if (cur_db_changed)
     mysql_change_db(thd, &saved_cur_db_name, TRUE);
-
-  thd->protocol= &thd->protocol_text;         /* use normal protocol */
 
   /* Assert that if an error, no cursor is open */
   DBUG_ASSERT(! (error && cursor));
