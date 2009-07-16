@@ -1,0 +1,20 @@
+set ibmdb2i_create_index_option=1;
+drop schema if exists test1;
+create schema test1;
+use test1;
+CREATE TABLE t1 (f int primary key, index(f)) engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (f char(10) collate utf8_bin primary key, index(f)) engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (f char(10) collate latin1_swedish_ci primary key, index(f)) engine=ibmdb2i;
+drop table t1;
+CREATE TABLE t1 (f char(10) collate latin1_swedish_ci primary key, i int, index i(i,f)) engine=ibmdb2i;
+drop table t1;
+create table fd (SQSSEQ CHAR(10)) engine=ibmdb2i;
+select * from fd;
+SQSSEQ
+*HEX
+*HEX
+*HEX
+*HEX
+drop table fd;
