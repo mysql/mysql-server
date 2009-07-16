@@ -41,9 +41,9 @@ char *strmake(register char *dst, register const char *src, uint length)
     write a character rather than '\0' as this makes spotting these
     problems in the results easier.
   */
-  uint n= strlen(src) + 1;
-  if (n <= length)
-    memset(dst + n, (int) 'Z', length - n + 1);
+  uint n= 0;
+  while (n < length && src[n++]);
+  memset(dst + n, (int) 'Z', length - n + 1);
 #endif
 
   while (length--)
