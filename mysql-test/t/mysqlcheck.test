@@ -193,5 +193,22 @@ DROP DATABASE `a@b`;
 
 USE test;
 
+--echo #
+--echo # Bug #31821: --all-in-1 and --fix-table-names don't work together
+--echo #
+
+--disable_warnings
+drop table if exists `#mysql50#t1-1`;
+--enable_warnings
+
+create table `#mysql50#t1-1` (a int);
+--exec $MYSQL_CHECK --all-in-1 --fix-table-names --databases test
+show tables like 't1-1';
+drop table `t1-1`;
+
+create table `#mysql50#t1-1` (a int);
+--exec $MYSQL_CHECK --all-in-1 --fix-table-names test "#mysql50#t1-1"
+show tables like 't1-1';
+drop table `t1-1`;
 
 --echo End of 5.1 tests
