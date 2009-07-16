@@ -32,6 +32,7 @@ sub mtr_options_from_test_file($$);
 
 my $do_test;
 my $skip_test;
+my %incompatible;
 
 sub init_pattern {
   my ($from, $what)= @_;
@@ -47,6 +48,15 @@ sub init_pattern {
 }
 
 
+sub collect_incomp_tests {
+  open (INCOMP, "lib/v1/incompatible.tests");
+  while (<INCOMP>)
+  {
+    next unless /^\w/;
+    s/\s.*\n//;		      # Ignore anything from first white space
+    $incompatible{$_}= 1;
+  }
+}
 
 ##############################################################################
 #
@@ -57,6 +67,8 @@ sub init_pattern {
 sub collect_test_cases ($) {
   $do_test= init_pattern($::opt_do_test, "--do-test");
   $skip_test= init_pattern($::opt_skip_test, "--skip-test");
+
+  collect_incomp_tests();
 
   my $suites= shift; # Semicolon separated list of test suites
   my $cases = [];    # Array of hash
@@ -528,6 +540,13 @@ sub collect_one_test_case($$$$$$$$$) {
   $tinfo->{'component_id'} = $component_id;
   push(@$cases, $tinfo);
 
+  if (exists ($incompatible{$tinfo->{'name'}}))
+  {
+    $tinfo->{'skip'}= 1;
+    $tinfo->{'comment'}= "Test cannot run in mtr v1";
+    return;
+  }
+  
   # ----------------------------------------------------------------------
   # Skip some tests but include in list, just mark them to skip
   # ----------------------------------------------------------------------
