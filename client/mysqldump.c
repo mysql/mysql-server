@@ -4810,7 +4810,8 @@ static my_bool get_view_structure(char *table, char* db)
             result_table);
     check_io(sql_file);
   }
-  fprintf(sql_file, "/*!50001 DROP TABLE %s*/;\n", opt_quoted_table);
+  /* Table might not exist if this view was dumped with --tab. */
+  fprintf(sql_file, "/*!50001 DROP TABLE IF EXISTS %s*/;\n", opt_quoted_table);
   if (opt_drop)
   {
     fprintf(sql_file, "/*!50001 DROP VIEW IF EXISTS %s*/;\n",

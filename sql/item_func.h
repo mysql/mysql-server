@@ -1519,6 +1519,7 @@ public:
       ft_handler->please->close_search(ft_handler);
     ft_handler= 0;
     concat_ws= 0;
+    table= 0;           // required by Item_func_match::eq()
     DBUG_VOID_RETURN;
   }
   enum Functype functype() const { return FT_FUNC; }
