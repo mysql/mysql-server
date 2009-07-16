@@ -3327,8 +3327,13 @@ bool Item_func_group_concat::add()
 
   TREE_ELEMENT *el= 0;                          // Only for safety
   if (row_eligible && tree)
+  {
     el= tree_insert(tree, table->record[0] + table->s->null_bytes, 0,
                     tree->custom_arg);
+    /* check if there was enough memory to insert the row */
+    if (!el)
+      return 1;
+  }
   /*
     If the row is not a duplicate (el->count == 1)
     we can dump the row here in case of GROUP_CONCAT(DISTINCT...)

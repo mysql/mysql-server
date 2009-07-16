@@ -13132,9 +13132,17 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
     for (nr=0; nr < table->s->keys ; nr++)
     {
       int direction;
+
       if (keys.is_set(nr) &&
           (direction= test_if_order_by_key(order, table, nr, &used_key_parts)))
       {
+        /*
+          At this point we are sure that ref_key is a non-ordering
+          key (where "ordering key" is a key that will return rows
+          in the order required by ORDER BY).
+        */
+        DBUG_ASSERT (ref_key != (int) nr);
+
         bool is_covering= table->covering_keys.is_set(nr) ||
                           (nr == table->s->primary_key &&
                           table->file->primary_key_is_clustered());
@@ -13215,7 +13223,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 	  */
           index_scan_time= select_limit/rec_per_key *
 	                   min(rec_per_key, table->file->scan_time());
-          if (is_covering || 
+          if ((ref_key < 0 && is_covering) || 
               (ref_key < 0 && (group || table->force_index)) ||
               index_scan_time < read_time)
           {
