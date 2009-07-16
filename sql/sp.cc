@@ -430,9 +430,9 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
                      type,
                      NULL, 0,
                      name->m_name.str, name->m_name.length,
-                     params, strlen(params),
-                     returns, strlen(returns),
-                     body, strlen(body),
+                     params, (ulong) strlen(params),
+                     returns, (ulong) strlen(returns),
+                     body, (ulong) strlen(body),
                      &chistics, &definer_user_name, &definer_host_name))
   {
     ret= SP_INTERNAL_ERROR;

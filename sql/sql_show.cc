@@ -287,7 +287,7 @@ find_files(THD *thd, List<char> *files, const char *db,
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   uint col_access=thd->col_access;
 #endif
-  uint wild_length= 0;
+  size_t wild_length= 0;
   TABLE_LIST table_list;
   DBUG_ENTER("find_files");
 
@@ -3738,7 +3738,7 @@ TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
       if (item->decimals > 0)
         item->max_length+= 1;
       item->set_name(fields_info->field_name,
-                     strlen(fields_info->field_name), cs);
+                     (uint) strlen(fields_info->field_name), cs);
       break;
     case MYSQL_TYPE_STRING:
     default:
