@@ -23,6 +23,7 @@
 #include "NdbQueryBuilderImpl.hpp"
 #include "signaldata/QueryTree.hpp"
 #include "AttributeHeader.hpp"
+#include "NdbRecord.hpp"
 
 NdbQuery::NdbQuery(NdbQueryImpl& impl):
   m_impl(impl)
@@ -134,23 +135,23 @@ NdbQueryOperation::getQuery() const {
 
 NdbRecAttr*
 NdbQueryOperation::getValue(const char* anAttrName,
-			    char* aValue)
+			    char* resultBuffer)
 {
-  return m_impl.getValue(anAttrName, aValue);
+  return m_impl.getValue(anAttrName, resultBuffer);
 }
 
 NdbRecAttr*
 NdbQueryOperation::getValue(Uint32 anAttrId, 
-			    char* aValue)
+			    char* resultBuffer)
 {
-  return m_impl.getValue(anAttrId, aValue);
+  return m_impl.getValue(anAttrId, resultBuffer);
 }
 
 NdbRecAttr*
 NdbQueryOperation::getValue(const NdbDictionary::Column* column, 
-			    char* aValue)
+			    char* resultBuffer)
 {
-  return m_impl.getValue(column, aValue);
+  return m_impl.getValue(column, resultBuffer);
 }
 
 int
@@ -216,7 +217,7 @@ NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans,
     NdbQueryOperationImpl* op = new NdbQueryOperationImpl(*this, def);
 
     m_operations.push_back(op);
-    if(def.getNoOfParentOperations()==0)
+    if(def.getQueryOperationIx()==0)
     {
       // TODO: Remove references to NdbOperation class.
       assert(m_ndbOperation == NULL);
@@ -400,7 +401,8 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(
   m_queryImpl(queryImpl),
   /* Initially, a result is only expected for the root operation.*/
   m_pendingResults(def.getQueryOperationIx() == 0 ? 1 : 0),
-  m_userProjection(def.getTable())
+  m_userProjection(def.getTable()),
+  m_resultStyle(Style_None)
 { 
   assert(m_id != NdbObjectIdMap::InvalidId);
   m_receiver.init(NdbReceiver::NDB_OPERATION, false, NULL);
@@ -454,31 +456,51 @@ NdbQueryOperationImpl::getQuery() const
 NdbRecAttr*
 NdbQueryOperationImpl::getValue(
                             const char* anAttrName,
-                            char* aValue)
+                            char* resultBuffer)
 {
-  return NULL; // FIXME
+  const NdbDictionary::Column* const column 
+    = m_operationDef.getTable().getColumn(anAttrName);
+  if(unlikely(column==NULL)){
+    return NULL;
+  } else {
+    return getValue(column, resultBuffer);
+  }
 }
 
 NdbRecAttr*
 NdbQueryOperationImpl::getValue(
                             Uint32 anAttrId, 
-                            char* aValue)
+                            char* resultBuffer)
 {
-  return NULL; // FIXME
+  const NdbDictionary::Column* const column 
+    = m_operationDef.getTable().getColumn(anAttrId);
+  if(unlikely(column==NULL)){
+    return NULL;
+  } else {
+    return getValue(column, resultBuffer);
+  }
 }
 
 NdbRecAttr*
 NdbQueryOperationImpl::getValue(
                             const NdbDictionary::Column* column, 
-                            char* aValue)
+                            char* resultBuffer)
 {
   /* This code will only work for the lookup example in test_spj.cpp.
    */
-  assert(aValue==NULL);
-  m_userProjection.addColumn(*column);
-  return m_receiver.getValue(&NdbColumnImpl::getImpl(*column), aValue);
+  if(unlikely(m_resultStyle == Style_NdbRecord)){
+    return NULL;
+  }
+  m_resultStyle = Style_NdbRecAttr;
+  if(unlikely(m_userProjection.addColumn(*column) !=0)){
+    return NULL;
+  }
+  return m_receiver.getValue(&NdbColumnImpl::getImpl(*column), resultBuffer);
 }
 
+static bool isSetInMask(const unsigned char* mask, int bitNo){
+  return mask[bitNo>>3] & 1<<(bitNo&7);
+}
 
 int
 NdbQueryOperationImpl::setResultRowBuf (
@@ -486,14 +508,26 @@ NdbQueryOperationImpl::setResultRowBuf (
                        char* resBuffer,
                        const unsigned char* result_mask)
 {
-/***
-  if (rec->tableId != m_table->tableId)
-  {
-    setErrorCode(4287);
-    return -1;
+  if (rec->tableId != 
+      static_cast<Uint32>(m_operationDef.getTable().getTableId())){
+    /* The key_record and attribute_record in primary key operation do not 
+       belong to the same table.*/
+    return 4287;
   }
-***/
-  return 0; // FIXME
+  if(unlikely(m_resultStyle==Style_NdbRecAttr)){
+    /* Cannot mix NdbRecAttr and NdbRecord methods in one operation. */
+    return 4284; 
+  }
+  m_resultStyle = Style_NdbRecord;
+  m_receiver.m_using_ndb_record = true;
+  m_receiver.getValues(rec, resBuffer);
+  for(Uint32 i = 0; i<rec->noOfColumns; i++){
+    if(likely(result_mask==NULL || isSetInMask(result_mask, i))){
+      m_userProjection.addColumn(*m_operationDef.getTable()
+                                 .getColumn(rec->columns[i].column_no));
+    }
+  }
+  return 0;
 }
 
 int
@@ -534,19 +568,23 @@ NdbQueryOperationImpl::UserProjection
   assert(m_noOfColsInTable<=MAX_ATTRIBUTES_IN_TABLE);
 }
 
-void
+int
 NdbQueryOperationImpl::UserProjection
 ::addColumn(const NdbDictionary::Column& col){
   const int colNo = col.getColumnNo();
   assert(colNo<m_noOfColsInTable);
+  if(unlikely(m_mask.get(colNo))){
+    return QRY_DUPLICATE_COLUMN_IN_PROJ;
+  }
+
   if(colNo<=m_maxColNo){
     m_isOrdered = false;
   }
   m_maxColNo = MAX(colNo, m_maxColNo);
   m_columns[m_columnCount++] = &col;
-  // TODO: Add error handling that somehow returns an error to the application.
   assert(m_columnCount<=MAX_ATTRIBUTES_IN_TABLE);
   m_mask.set(colNo);
+  return 0;
 }
 
 int
@@ -624,7 +662,6 @@ int NdbQueryOperationImpl::prepareSend(Uint32Buffer& serializedParams)
   {
     requestInfo |= DABits::PI_ATTR_LIST;
 
-    // TODO: Fix this such that we get desired projection and not just all fields.
     const int error = m_userProjection.serialize(Uint32Slice(optional, optPos));
     if(error!=0){
       return error;

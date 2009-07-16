@@ -147,18 +147,6 @@ private:
   ~NdbQueryOperation();
 
 public:
-  //////////////////////////////////////////
-  // START Jans temp hack for result prototype
-  // TODO: Remove this C'tor. Needed for result prototype only.
-  //NdbQueryOperation(NdbQuery& query, class NdbOperation& operation);
-
-  // Jan: To be (temp) used instead of above C'tor:
-  static NdbQueryOperation*
-  buildQueryOperation(NdbQueryImpl& queryImpl, class NdbOperation& operation);
-
-  // End: Hack
-  //////////////////////////////////////////////
-
   // Collection of get'ers to navigate in root, parent/child hierarchy
 
   Uint32 getNoOfParentOperations() const;
@@ -180,8 +168,8 @@ public:
    * will hold the returned attribute value. 
    *
    * @note Note that it is the applications responsibility
-   *       to allocate enough memory for aValue (if non-NULL).
-   *       The buffer aValue supplied by the application must be
+   *       to allocate enough memory for resultBuffer (if non-NULL).
+   *       The buffer resultBuffer supplied by the application must be
    *       aligned appropriately.  The buffer is used directly
    *       (avoiding a copy penalty) only if it is aligned on a
    *       4-byte boundary and the attribute size in bytes
@@ -196,19 +184,19 @@ public:
    *       is <em>not</em> readable/printable before the 
    *       transaction has been executed with NdbTransaction::execute.
    *
-   * @param anAttrName  Attribute name 
-   * @param aValue      If this is non-NULL, then the attribute value 
-   *                    will be returned in this parameter.<br>
-   *                    If NULL, then the attribute value will only 
-   *                    be stored in the returned NdbRecAttr object.
-   * @return            An NdbRecAttr object to hold the value of 
-   *                    the attribute, or a NULL pointer 
-   *                    (indicating error).
+   * @param anAttrName   Attribute name 
+   * @param resultBuffer If this is non-NULL, then the attribute value 
+   *                     will be returned in this parameter.<br>
+   *                     If NULL, then the attribute value will only 
+   *                     be stored in the returned NdbRecAttr object.
+   * @return             An NdbRecAttr object to hold the value of 
+   *                     the attribute, or a NULL pointer 
+   *                     (indicating error).
    */
-  NdbRecAttr* getValue(const char* anAttrName, char* aValue = 0);
-  NdbRecAttr* getValue(Uint32 anAttrId, char* aValue = 0);
+  NdbRecAttr* getValue(const char* anAttrName, char* resultBuffer = 0);
+  NdbRecAttr* getValue(Uint32 anAttrId, char* resultBuffer = 0);
   NdbRecAttr* getValue(const NdbDictionary::Column* column, 
-		       char* aValue = 0);
+		       char* resultBuffer = 0);
 
   /**
    * Retrieval of entire or partial rows may also be specified. For partial

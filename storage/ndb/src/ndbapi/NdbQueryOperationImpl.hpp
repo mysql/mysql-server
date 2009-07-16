@@ -160,9 +160,9 @@ public:
   // Get the entire query object which this operation is part of
   NdbQueryImpl& getQuery() const;
 
-  NdbRecAttr* getValue(const char* anAttrName, char* aValue);
-  NdbRecAttr* getValue(Uint32 anAttrId, char* aValue);
-  NdbRecAttr* getValue(const NdbDictionary::Column*, char* aValue);
+  NdbRecAttr* getValue(const char* anAttrName, char* resultBuffer);
+  NdbRecAttr* getValue(Uint32 anAttrId, char* resultBuffer);
+  NdbRecAttr* getValue(const NdbDictionary::Column*, char* resultBuffer);
 
   int setResultRowBuf (const NdbRecord *rec,
                        char* resBuffer,
@@ -229,8 +229,9 @@ private:
   public:
     explicit UserProjection(const NdbDictionary::Table& tab);
 
-    /** Add a column to the projection.*/ 
-    void addColumn(const NdbDictionary::Column& col);
+    /** Add a column to the projection.
+     * @return Possible error code.*/ 
+    int addColumn(const NdbDictionary::Column& col);
     
     /** Make a serialize representation of this object, to be sent to the 
      * SPJ block.
@@ -277,6 +278,12 @@ private:
   int m_pendingResults;
   /** Projection to be sent to the application.*/
   UserProjection m_userProjection;
+  /** NdbRecord and old style result retrieval may not be combined.*/
+  enum {
+    Style_None,       // Not set yet.
+    Style_NdbRecord,  // Use old style result retrieval.
+    Style_NdbRecAttr, // Use NdbRecord.
+  } m_resultStyle;
 }; // class NdbQueryOperationImpl
 
 
