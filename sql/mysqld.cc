@@ -3036,7 +3036,7 @@ static int init_common_variables(const char *conf_file_name, int argc,
   
   sys_init_connect.value_length= 0;
   if ((sys_init_connect.value= opt_init_connect))
-    sys_init_connect.value_length= strlen(opt_init_connect);
+    sys_init_connect.value_length= (uint) strlen(opt_init_connect);
   else
     sys_init_connect.value=my_strdup("",MYF(0));
   sys_init_connect.is_os_charset= TRUE;
@@ -7840,7 +7840,7 @@ static void fix_paths(void)
   }
   convert_dirname(mysql_real_data_home,mysql_real_data_home,NullS);
   my_realpath(mysql_unpacked_real_data_home, mysql_real_data_home, MYF(0));
-  mysql_unpacked_real_data_home_len= strlen(mysql_unpacked_real_data_home);
+  mysql_unpacked_real_data_home_len= (int) strlen(mysql_unpacked_real_data_home);
   if (mysql_unpacked_real_data_home[mysql_unpacked_real_data_home_len-1] == FN_LIBCHAR)
     --mysql_unpacked_real_data_home_len;
 

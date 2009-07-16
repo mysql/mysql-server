@@ -16248,14 +16248,14 @@ static void test_bug38486(void)
   stmt= mysql_stmt_init(mysql);
   mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, (void*)&type);
   stmt_text= "CREATE TABLE t1 (a INT)";
-  mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  mysql_stmt_prepare(stmt, stmt_text, (ulong) strlen(stmt_text));
   mysql_stmt_execute(stmt);
   mysql_stmt_close(stmt);
 
   stmt= mysql_stmt_init(mysql);
   mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, (void*)&type);
   stmt_text= "INSERT INTO t1 VALUES (1)";
-  mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  mysql_stmt_prepare(stmt, stmt_text, (ulong) strlen(stmt_text));
   mysql_stmt_execute(stmt);
   mysql_stmt_close(stmt);
 
