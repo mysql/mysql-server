@@ -855,8 +855,9 @@ void _db_pop_()
         }                                       \
       } while (0)
 
-int _db_explain_ (CODE_STATE *cs, char *buf, size_t len)
-{
+int _db_explain_ (CODE_STATE *cs, char *buf, size_t len_arg)
+{ 
+  uint len= (uint) len_arg;
   char *start=buf, *end=buf+len-4;
 
   get_code_state_or_return *buf=0;
@@ -1267,7 +1268,7 @@ static struct link *ListAdd(struct link *head,
     start= ctlp;
     while (ctlp < end && *ctlp != ',')
       ctlp++;
-    len=ctlp-start;
+    len=(int) (ctlp-start);
     new_malloc= (struct link *) DbugMalloc(sizeof(struct link)+len);
     memcpy(new_malloc->str, start, len);
     new_malloc->str[len]=0;
@@ -1303,7 +1304,7 @@ static struct link *ListDel(struct link *head,
 {
   const char *start;
   struct link **cur;
-  int len;
+  size_t len;
 
   while (ctlp < end)
   {
@@ -1357,7 +1358,7 @@ static struct link *ListCopy(struct link *orig)
   head= NULL;
   while (orig != NULL)
   {
-    len= strlen(orig->str);
+    len= (int) strlen(orig->str);
     new_malloc= (struct link *) DbugMalloc(sizeof(struct link)+len);
     memcpy(new_malloc->str, orig->str, len);
     new_malloc->str[len]= 0;
@@ -1827,7 +1828,7 @@ static void DBUGOpenFile(CODE_STATE *cs,
   {
     if (end)
     {
-      int len=end-name;
+      size_t len=(size_t) (end-name);
       memcpy(cs->stack->name, name, len);
       cs->stack->name[len]=0;
     }

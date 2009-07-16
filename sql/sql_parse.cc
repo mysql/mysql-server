@@ -8231,7 +8231,7 @@ int test_if_data_home_dir(const char *dir)
 
   (void) fn_format(path, dir, "", "",
                    (MY_RETURN_REAL_PATH|MY_RESOLVE_SYMLINKS));
-  dir_len= strlen(path);
+  dir_len= (int) strlen(path);
   if (mysql_unpacked_real_data_home_len<= dir_len)
   {
     if (dir_len > mysql_unpacked_real_data_home_len &&

@@ -3122,7 +3122,7 @@ static my_bool dump_all_views_in_db(char *database)
     for (numrows= 0 ; (table= getTableName(1)); )
     {
       char *end= strmov(afterdot, table);
-      if (include_table(hash_key,end - hash_key))
+      if (include_table(hash_key,(uint) (end - hash_key)))
       {
         numrows++;
         dynstr_append_checked(&query, quote_name(table, table_buff, 1));
@@ -3143,7 +3143,7 @@ static my_bool dump_all_views_in_db(char *database)
   while ((table= getTableName(0)))
   {
     char *end= strmov(afterdot, table);
-    if (include_table(hash_key, end - hash_key))
+    if (include_table(hash_key, (uint) (end - hash_key)))
       get_view_structure(table, database);
   }
   if (opt_xml)
