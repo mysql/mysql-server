@@ -5739,7 +5739,7 @@ int ha_tokudb::delete_all_rows() {
     for (uint i = 0; i < curr_num_DBs; i++) {
         DB *db = share->key_file[i];
         u_int32_t row_count = 0;
-        error = db->truncate(db, transaction, &row_count, 0);
+        error = db->truncate(db, transaction, &row_count, DB_TRUNCATE_WITHCURSORS);
         if (error) {
             break;
         }
