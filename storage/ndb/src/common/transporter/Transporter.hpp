@@ -30,6 +30,7 @@
 
 #include <NdbMutex.h>
 #include <NdbThread.h>
+#include <NdbTick.h>
 
 class Transporter {
   friend class TransporterRegistry;
@@ -93,6 +94,8 @@ public:
   void set_status_overloaded(bool val) {
     m_transporter_registry.set_status_overloaded(remoteNodeId, val);
   }
+
+  bool is_connect_blocked();
   
 protected:
   Transporter(TransporterRegistry &,
@@ -155,6 +158,11 @@ private:
 
   SocketClient *m_socket_client;
   struct in_addr m_connect_address;
+
+  Uint32 m_connection_refused_counter;
+  NDB_TICKS m_connect_block_end;
+  void connection_refused();
+  void reset_connection_block();
 
 protected:
   Uint32 getErrorCount();
