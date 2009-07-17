@@ -22,6 +22,7 @@
 #include "NdbQueryBuilder.hpp"
 #include "NdbQueryBuilderImpl.hpp"
 #include "signaldata/QueryTree.hpp"
+
 #include "AttributeHeader.hpp"
 #include "NdbRecord.hpp"
 
@@ -225,15 +226,14 @@ NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans,
       {
         NdbOperation* lookupOp = m_transaction.getNdbOperation(&def.getTable());
         lookupOp->readTuple(NdbOperation::LM_Dirty);
-        lookupOp->m_isLinked = true;
+        lookupOp->m_isLinked = true; //(queryDef.getNoOfOperations()>1);
         lookupOp->setQueryImpl(this);
         m_ndbOperation = lookupOp;
       }
       else if (def.getType() == NdbQueryOperationDefImpl::TableScan)
       {
         NdbScanOperation* scanOp = m_transaction.scanTable(def.getTable().getDefaultRecord(), NdbOperation::LM_Dirty);
-//      scanOp->readTuples(NdbOperation::LM_Dirty);
-        scanOp->m_isLinked = true;
+        scanOp->m_isLinked = true; // if (queryDef.getNoOfOperations()> 1);
         scanOp->setQueryImpl(this);
         m_ndbOperation = scanOp;
       } else {
@@ -351,19 +351,15 @@ NdbQueryImpl::prepareSend(){
   // Serialize parameters.
   for(Uint32 i = 0; i < m_operations.size(); i++){
     const int error = m_operations[i]->prepareSend(m_serializedParams);
-    if(error != 0){
+    if(unlikely(error != 0)){
       return error;
     }
   }
-  // Append serialized query tree and params to ATTRINFO of the NdnOperation.
-  m_ndbOperation->insertATTRINFOloop(&m_queryDef.getSerialized().get(0),
-                                     m_queryDef.getSerialized().getSize());
-  m_ndbOperation->insertATTRINFOloop(&m_serializedParams.get(0), 
-                                     m_serializedParams.getSize());
 
   // Build explicit key/filter/bounds for root operation.
   m_operations[0]->getQueryOperationDef()
     .materializeRootOperands(*getNdbOperation(), m_param);
+
 #ifdef TRACE_SERIALIZATION
   ndbout << "Serialized params for all : ";
   for(Uint32 i = 0; i < m_serializedParams.getSize(); i++){
@@ -373,6 +369,29 @@ NdbQueryImpl::prepareSend(){
   }
   ndbout << endl;
 #endif
+
+  // Append serialized query tree and params to ATTRINFO of the NdnOperation.
+  //
+  // Handled differently depending on if the operation is a NdbRecord type operation
+  // (Long signals) or a old type NdbApi operation.(Short signals)
+  // NOTE1: All scans are 'NdbRecord'
+  // NOTE2: It should be our goal to remove the dependency of the existing 
+  //        NdbOperations for building signals for NdbQueryOperations
+  if (m_ndbOperation->isNdbRecordOperation())
+  {
+    m_ndbOperation->insertATTRINFOData_NdbRecord((char*)&m_queryDef.getSerialized().get(0),
+                                       m_queryDef.getSerialized().getSize()*4);
+    m_ndbOperation->insertATTRINFOData_NdbRecord((char*)&m_serializedParams.get(0), 
+                                       m_serializedParams.getSize()*4);
+  }
+  else
+  {
+    m_ndbOperation->insertATTRINFOloop(&m_queryDef.getSerialized().get(0),
+                                       m_queryDef.getSerialized().getSize());
+    m_ndbOperation->insertATTRINFOloop(&m_serializedParams.get(0), 
+                                       m_serializedParams.getSize());
+  }
+
   return 0;
 }
 
@@ -461,7 +480,7 @@ NdbQueryOperationImpl::getValue(
   const NdbDictionary::Column* const column 
     = m_operationDef.getTable().getColumn(anAttrName);
   if(unlikely(column==NULL)){
-    return NULL;
+    return NULL;  // FIXME: Don't return NULL wo/ setting errorcode
   } else {
     return getValue(column, resultBuffer);
   }
@@ -563,6 +582,7 @@ NdbQueryOperationImpl::UserProjection
 ::UserProjection(const NdbDictionary::Table& tab):
   m_columnCount(0),
   m_noOfColsInTable(tab.getNoOfColumns()),
+  m_mask(),
   m_isOrdered(true),
   m_maxColNo(-1){
   assert(m_noOfColsInTable<=MAX_ATTRIBUTES_IN_TABLE);
@@ -645,16 +665,22 @@ int NdbQueryOperationImpl::prepareSend(Uint32Buffer& serializedParams)
 
   int optPos = 0;
 
+  //printf("operation has %d params\n", getQueryOperationDef().getNoOfParameters());
+
   // SPJ block assume PARAMS to be supplied before ATTR_LIST
-  if (false)  // TODO: Check if serialized tree code has 'NI_KEY_PARAMS'
+  if (getQueryOperationDef().getNoOfParameters() > 0)
   {
     int size = 0;
     requestInfo |= DABits::PI_KEY_PARAMS;
     Uint32Slice keyParam(optional, optPos);
 
-    assert (getQuery().getParam(0) != NULL);
     // FIXME: Add parameters here, unsure about the serialized format yet
-
+    for (Uint32 i=0; i<getQueryOperationDef().getNoOfParameters(); i++)
+    {
+      const NdbParamOperandImpl& param = getQueryOperationDef().getParameter(i);
+      const void* paramValue = getQuery().getParamValue(param.getParamIx());
+      assert (paramValue != NULL);
+    }
     optPos += size;
   }
 
@@ -698,7 +724,6 @@ void NdbQueryOperationImpl::release(){
 }
 
 
-
 bool 
 NdbQueryOperationImpl::execTRANSID_AI(const Uint32* ptr, Uint32 len){
   ndbout << "NdbQueryOperationImpl::execTRANSID_AI(): *this="
@@ -736,8 +761,9 @@ NdbQueryOperationImpl::execTRANSID_AI(const Uint32* ptr, Uint32 len){
   return false;
 }
 
+
 bool 
-NdbQueryOperationImpl::execTCKEYREF(){
+NdbQueryOperationImpl::execTCKEYREF(NdbApiSignal* aSignal){
   ndbout << "NdbQueryOperationImpl::execTCKEYREF(): *this="
 	 << *this << endl;
   m_pendingResults--;
@@ -752,7 +778,6 @@ NdbQueryOperationImpl::execTCKEYREF(){
   }
   return false;
 }
-
 
 
 /** For debugging.*/

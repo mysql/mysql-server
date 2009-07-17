@@ -549,7 +549,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
               return;
             }//if
           } else {
-            if(queryOpImpl->execTCKEYREF() &&
+            if(queryOpImpl->execTCKEYREF(aSignal) &&
                tCon->OpCompleteFailure(queryOpImpl->getQuery()
                                        .getNdbOperation()) != -1){
               completedTransaction(tCon);

@@ -75,7 +75,7 @@ public:
    * This struct represent a row being passed to a child
    *   currently only the RT_SECTION type is supported
    *   but RT_ROW_BUF is also planned (for buffered rows)
-   *     that will be used for eqi-join (and increased parallelism on scans)
+   *     that will be used for equi-join (and increased parallelism on scans)
    */
   struct RowRef
   {
@@ -249,7 +249,7 @@ public:
 
   /**
    * A node in a Query
-   *   (This is is an instantiated version of QueryNode in
+   *   (This is an instantiated version of QueryNode in
    *    include/kernel/signal/QueryTree.hpp)
    */
   struct TreeNode

@@ -1347,6 +1347,8 @@ Dbspj::lookup_execLQHKEYREF(Signal* signal,
     ref->errorCode = errCode;
     ref->errorData = 0;
 
+    DEBUG("lookup_execLQHKEYREF, errorCode:" << errCode);
+
     sendSignal(resultRef, GSN_TCKEYREF, signal,
                TcKeyRef::SignalLength, JBB);
   }
@@ -1397,13 +1399,15 @@ Dbspj::lookup_start_child(Signal* signal,
   const Uint32 tableId = LqhKeyReq::getTableId(src->tableSchemaVersion);
   const Uint32 corrVal = rowRef.m_src_correlation;
 
+  DEBUG("::lookup_start_child");
+
   do
   {
     Uint32 ptrI = RNIL;
     if (treeNodePtr.p->m_bits & TreeNode::T_KEYINFO_CONSTRUCTED)
     {
       jam();
-
+      DEBUG("start_child w/ T_KEYINFO_CONSTRUCTED");
       /**
        * Get key-pattern
        */
@@ -1491,14 +1495,23 @@ Dbspj::getNodes(Signal* signal, BuildKeyReq& dst, Uint32 tableId)
   req->hashValue = dst.hashInfo[1];
   req->distr_key_indicator = 0; // userDefinedPartitioning not supported!
 
+#if 1
   EXECUTE_DIRECT(DBDIH, GSN_DIGETNODESREQ, signal,
                  DiGetNodesReq::SignalLength);
+#else
+  sendSignal(DBDIH_REF, GSN_DIGETNODESREQ, signal,
+             DiGetNodesReq::SignalLength, JBB);
+  jamEntry();
+
+#endif
 
   DiGetNodesConf * conf = (DiGetNodesConf *)&signal->theData[0];
   err = signal->theData[0];
   Uint32 Tdata2 = conf->reqinfo;
   Uint32 nodeId = conf->nodes[0];
   Uint32 instanceKey = (Tdata2 >> 24) & 127;
+
+  DEBUG("HASH to nodeId:" << nodeId << ", instanceKey" << instanceKey);
 
   jamEntry();
   if (unlikely(err != 0))
@@ -2006,7 +2019,7 @@ Dbspj::buildRowHeader(RowRef::Header * header, SegmentedSectionPtr ptr)
 {
   Uint32 tmp, len;
   Uint32 * dst = (Uint32*)header->m_headers;
-  Uint32 * save = dst;
+  const Uint32 * save = dst;
   SectionReader r0(ptr, getSectionSegmentPool());
   do
   {
@@ -2026,11 +2039,12 @@ Uint32
 Dbspj::buildRowHeader(RowRef::Header * header, const Uint32 * src, Uint32 len)
 {
   Uint32 * dst = (Uint32*)header->m_headers;
-  Uint32 * save = dst;
+  const Uint32 * save = dst;
   for (Uint32 i = 0; i<len; i++)
   {
     Uint32 tmp = * src++;
     Uint32 tmp_len = AttributeHeader::getDataSize(tmp);
+    DEBUG("::buildRowHeader, tmp:" << tmp << ", tmp_len:" << tmp_len);
     * dst++ = tmp;
     src += tmp_len;
   }
@@ -2042,6 +2056,8 @@ Uint32
 Dbspj::appendToPattern(Local_pattern_store & pattern,
                        DABuffer & tree, Uint32 len)
 {
+  DEBUG("::appendToPattern, len:" << len);
+
   Uint32 err = DbspjErr::InvalidTreeNodeSpecification;
   if (tree.ptr + len <= tree.end)
   {
@@ -2119,6 +2135,8 @@ Dbspj::getColData32(const RowRef::Section & row, Uint32 col)
 Uint32
 Dbspj::appendColToSection(Uint32 & dst, const RowRef::Section & row, Uint32 col)
 {
+  DEBUG("::appendColToSection1, col:" << col);
+
   /**
    * TODO handle errors
    */
@@ -2140,6 +2158,8 @@ Dbspj::appendColToSection(Uint32 & dst, const RowRef::Section & row, Uint32 col)
 Uint32
 Dbspj::appendColToSection(Uint32 & dst, const RowRef::Linear & row, Uint32 col)
 {
+  DEBUG("::appendColToSection2, col:" << col);
+
   /**
    * TODO handle errors
    */
@@ -2160,6 +2180,8 @@ Dbspj::appendDataToSection(Uint32 & ptrI,
 			   Local_pattern_store::ConstDataBufferIterator& it,
 			   Uint32 len)
 {
+  DEBUG("::appendDataToSection, len:" << len);
+
 #if 0
   /**
    * TODO handle errors
@@ -2182,6 +2204,7 @@ Dbspj::appendDataToSection(Uint32 & ptrI,
   
   while(remaining>0 && !it.isNull())
   {
+    DEBUG("  data:" << *it.data);
     tmp[dstIdx] = *it.data;
     remaining--;
     dstIdx++;
@@ -2236,23 +2259,31 @@ Uint32
 Dbspj::expand(Uint32 & _dst, Local_pattern_store& pattern,
               const RowRef::Section & row)
 {
+  DEBUG("::expand1");
+
   Uint32 err;
   Uint32 dst = _dst;
   Local_pattern_store::ConstDataBufferIterator it;
-  for (pattern.first(it); !it.isNull(); pattern.next(it))
+  pattern.first(it);
+  while (!it.isNull())
   {
     Uint32 info = *it.data;
     Uint32 type = QueryPattern::getType(info);
     Uint32 val = QueryPattern::getLength(info);
-    err = DbspjErr::InvalidPattern;
+    pattern.next(it);
+
     switch(type){
     case QueryPattern::P_COL:
+      DEBUG("  COL, val:" << val);
       err = appendColToSection(dst, row, val);
       break;
     case QueryPattern::P_DATA:
-      pattern.next(it);
+      DEBUG("  DATA, val:" << val);
       err = appendDataToSection(dst, pattern, it, val);
       break;
+    default:
+      err = DbspjErr::InvalidPattern;
+      DEBUG_CRASH();
     }
     if (unlikely(err != 0))
     {
@@ -2271,6 +2302,7 @@ Uint32
 Dbspj::expand(Uint32 & ptrI, DABuffer& pattern, Uint32 len,
               DABuffer& param, Uint32 cnt)
 {
+  DEBUG("::expand2, len:" << len << ", cnt:" << cnt);
   /**
    * TODO handle error
    */
@@ -2291,17 +2323,23 @@ Dbspj::expand(Uint32 & ptrI, DABuffer& pattern, Uint32 len,
     Uint32 info = * ptr++;
     Uint32 type = QueryPattern::getType(info);
     Uint32 val = QueryPattern::getLength(info);
-    err = DbspjErr::InvalidPattern;
     switch(type){
     case QueryPattern::P_COL:
+      DEBUG("  COL, val:" << val);
       err = appendColToSection(dst, row, val);
       break;
     case QueryPattern::P_DATA:
+      DEBUG("  DATA, val:" << val);
       if(likely(appendToSection(dst, ptr, val))){
 	err = 0;
+      } else {
+        err = DbspjErr::InvalidPattern;
       }
       ptr += val;
       break;
+    default:
+      err = DbspjErr::InvalidPattern;
+      DEBUG_CRASH();
     }
     if (unlikely(err != 0))
     {
@@ -2325,6 +2363,7 @@ Uint32
 Dbspj::expand(Local_pattern_store& dst, DABuffer& pattern, Uint32 len,
               DABuffer& param, Uint32 cnt)
 {
+  DEBUG("::expand3, len:" << len << ", cnt:" << cnt << ", param: @" << param.ptr);
   /**
    * TODO handle error
    */
@@ -2335,6 +2374,10 @@ Dbspj::expand(Local_pattern_store& dst, DABuffer& pattern, Uint32 len,
   row.m_header = (RowRef::Header*)tmp;
   row.m_data = param.ptr;
 
+  DEBUG("row.header.len:" << row.m_header->m_len);
+
+  DEBUG("(Param) row @" << param.ptr);
+
   const Uint32 * ptr = pattern.ptr;
   const Uint32 * end = ptr + len;
 
@@ -2343,15 +2386,19 @@ Dbspj::expand(Local_pattern_store& dst, DABuffer& pattern, Uint32 len,
     Uint32 info = * ptr++;
     Uint32 type = QueryPattern::getType(info);
     Uint32 val = QueryPattern::getLength(info);
-    err = DbspjErr::InvalidPattern;
     switch(type){
     case QueryPattern::P_COL:
+      DEBUG("  COL pattern, val:" << val);
       err = appendColToPattern(dst, row, val);
       break;
     case QueryPattern::P_DATA:
+      DEBUG("  DATA pattern, val:" << val);
       err = dst.append(ptr, val) ? 0 : DbspjErr::OutOfQueryMemory;
       ptr += val;
       break;
+    default:
+      err = DbspjErr::InvalidPattern;
+      DEBUG_CRASH();
     }
     if (unlikely(err != 0))
     {
@@ -2365,6 +2412,8 @@ Dbspj::expand(Local_pattern_store& dst, DABuffer& pattern, Uint32 len,
    */
   pattern.ptr = end;
   param.ptr += row.m_header->m_len;
+
+  DEBUG("param end at" << param.ptr << ", row.header.len:" << row.m_header->m_len);
 
   return 0;
 
@@ -2431,7 +2480,7 @@ Dbspj::parseDA(Build_context& ctx,
 		    | DABits::NI_KEY_CONSTS))
     {
       jam();
-      DEBUG("NI_KEY_PARAMS | NI_KEY_LINKED");
+      DEBUG("NI_KEY_PARAMS | NI_KEY_LINKED | NI_KEY_CONSTS");
 
       /**
        * OPTIONAL PART 2:
@@ -2483,7 +2532,7 @@ Dbspj::parseDA(Build_context& ctx,
           treeNodePtr.p->m_send.m_keyInfoPtrI = keyInfoPtrI;
         }
       }
-      else
+      else  // cnt==0 -> No parameters in key (const + linked)
       {
         jam();
         DEBUG("KEY-PATTERN: len: " << len);
@@ -2492,6 +2541,9 @@ Dbspj::parseDA(Build_context& ctx,
          */
         ndbrequire((treeBits & DABits::NI_KEY_PARAMS) == 0);
         ndbrequire((paramBits & DABits::PI_KEY_PARAMS) == 0);
+
+        // FIXME: Key may contain *both* CONST, PARAM and LINKED KEY fields
+        //  .... which currently does not work...
         if((treeBits & DABits::NI_KEY_LINKED) == 0)
         {
           DEBUG("FIXED-CONST-KEY");
@@ -2501,14 +2553,16 @@ Dbspj::parseDA(Build_context& ctx,
            *   This means a "fixed" key from here on
            */
           Uint32 keyInfoPtrI = RNIL;
-          err = expand(keyInfoPtrI, tree, len, param, 0);
+          err = expand(keyInfoPtrI, tree, len, param, 0); // ... 'expand2'
           assert(err==0);
           treeNodePtr.p->m_send.m_keyInfoPtrI = keyInfoPtrI;
-	  
         }
 	else
         {
-          err = appendToPattern(pattern, tree, len);
+          DEBUG("LINKED-KEY");
+	  //err = expand(pattern, tree, len, param, cnt);
+
+	  err = appendToPattern(pattern, tree, len);
           /**
            * This node constructs a new key for each send
            */
