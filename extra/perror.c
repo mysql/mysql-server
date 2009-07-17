@@ -108,6 +108,7 @@ static HA_ERRORS ha_errlist[]=
   { 161,"The table is not writable"},
   { 162,"Failed to get the next autoinc value"},
   { 163,"Failed to set the row autoinc value"},
+  { 164,"Too many active concurrent transactions"},
   { -30999, "DB_INCOMPLETE: Sync didn't finish"},
   { -30998, "DB_KEYEMPTY: Key/data deleted or never created"},
   { -30997, "DB_KEYEXIST: The key/data pair already exists"},
