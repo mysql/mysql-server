@@ -1276,8 +1276,18 @@ TransporterRegistry::start_clients_thread()
 	  /**
 	   * First, we try to connect (if we have a port number).
 	   */
+
 	  if (t->get_s_port())
-	    connected= t->connect_client();
+          {
+            // When ndbd is starting up, it won't allow
+            // ndbapi clients to connect until it's started
+            // The transporter will detect this case and
+            // limit rapid reconnect attempts
+            if (t->is_connect_blocked())
+              continue; // Too many refused connections
+
+            connected= t->connect_client();
+          }
 
 	  /**
 	   * If dynamic, get the port for connecting from the management server
