@@ -5649,3 +5649,5 @@ ER_XA_RBTIMEOUT XA106
 	eng "XA_RBTIMEOUT: Transaction branch was rolled back: took too long"
 ER_XA_RBDEADLOCK XA102
 	eng "XA_RBDEADLOCK: Transaction branch was rolled back: deadlock was detected"
+ER_TOO_MANY_CONCURRENT_TRXS
+        eng  "Too many active concurrent transactions"
