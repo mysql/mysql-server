@@ -82,8 +82,11 @@ public:
   /** Release all NdbReceiver instances.*/
   void release();
 
-  bool checkMagicNumber() const { return m_magic == MAGIC;}
-  Uint32 ptr2int() const {return m_id;}
+  bool checkMagicNumber() const
+  { return m_magic == MAGIC; }
+
+  Uint32 ptr2int() const
+  { return m_id; }
   
   const NdbQuery& getInterface() const
   { return m_interface; }
@@ -91,14 +94,17 @@ public:
   NdbQuery& getInterface()
   { return m_interface; }
   
-  const void* getParam(Uint32 i) const
-  { return m_param[i]; }
+  const void* getParamValue(Uint32 ix) const
+  { return m_param[ix]; }
 
   /** Get next query in same transaction.*/
-  NdbQueryImpl* getNext() const {return m_next;}
+  NdbQueryImpl* getNext() const
+  { return m_next; }
 
   /** TODO: Remove. Temporary hack for prototype.*/
-  NdbOperation* getNdbOperation() const {return m_ndbOperation;}
+  NdbOperation* getNdbOperation() const
+  { return m_ndbOperation; }
+
 private:
   NdbQuery m_interface;
 
@@ -191,7 +197,7 @@ public:
   
   /** Process absence of result data for this operation. 
    * Return true if query complete.*/
-  bool execTCKEYREF();
+  bool execTCKEYREF(NdbApiSignal* aSignal);
 
   /** Prepare for execution. 
    *  @return possible error code.*/
@@ -246,7 +252,7 @@ private:
     int m_columnCount;
     /** The number of columns in the table that the operation refers to.*/
     const int m_noOfColsInTable;
-    /** User Projection, represented as a bitmap (indexd with column numbers).*/
+    /** User Projection, represented as a bitmap (indexed with column numbers).*/
     Bitmask<MAXNROFATTRIBUTESINWORDS> m_mask;
     /** True if columns were added in ascending order (ordered according to 
      * column number).*/

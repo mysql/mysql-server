@@ -53,7 +53,7 @@
 /**
  * Define NDB_CONNECT_STRING if you don't connect through the default localhost:1186
  */
-  #define NDB_CONNECT_STRING "loki43:2360"
+  #define NDB_CONNECT_STRING "127.0.0.1:2360"
 
 
 /*****************************************************
@@ -89,6 +89,7 @@ struct SalaryRow
 const char* employeeDef = 
 "CREATE TABLE employees ("
 "    emp_no      INT             NOT NULL,"
+"    dept_no     INT         NOT NULL,"   // Temporary added OJA
 "    birth_date  DATE            NOT NULL,"
 "    first_name  VARCHAR(14)     NOT NULL,"
 "    last_name   VARCHAR(16)     NOT NULL,"
@@ -107,7 +108,7 @@ const char* departmentsDef =
 
 const char* dept_managerDef = 
 "CREATE TABLE dept_manager ("
-"   dept_no      CHAR(4)         NOT NULL,"
+"   dept_no      INT         NOT NULL,"
 "   emp_no       INT             NOT NULL,"
 "   from_date    DATE            NOT NULL,"
 "   to_date      DATE            NOT NULL,"
@@ -169,7 +170,7 @@ int createEmployeeDb()
 //    mysql_options(&mysql, MYSQL_READ_DEFAULT_FILE, "/home/oa136780/mysql/mysql-5.1-telco-7.0-spj/install/config/my.cnf");
 
     const char *mysqld_sock = "/tmp/mysql.sock";
-    if ( !mysql_real_connect(&mysql, "loki43", "root", "", "",
+    if ( !mysql_real_connect(&mysql, "127.0.0.1", "root", "", "",
 			     4401, NULL, 0) )
       return 0;
 
@@ -208,12 +209,26 @@ int createEmployeeDb()
     mysql_commit(&mysql);
     printf("Created 'salaries' table\n");
 
+
+
+    /****
     printf("Insert simple test data\n");
-    if (mysql_query(&mysql, "Insert into dept_manager(dept_no,emp_no) values ('d005', 110567)") != 0) MYSQLERROR(mysql);
+    if (mysql_query(&mysql, "Insert into dept_manager(dept_no,emp_no) values ('d005',110567)") != 0) MYSQLERROR(mysql);
     mysql_commit(&mysql);
 
-    if (mysql_query(&mysql, "Insert into employees(emp_no) values (110567)") != 0) MYSQLERROR(mysql);
+    if (mysql_query(&mysql, "Insert into employees(emp_no,dept_no) values (110567,'d005')") != 0) MYSQLERROR(mysql);
     mysql_commit(&mysql);
+    ******/
+
+    /********/
+   printf("Insert simple test data\n");
+    if (mysql_query(&mysql, "Insert into dept_manager(dept_no,emp_no) values (1005,110567)") != 0) MYSQLERROR(mysql);
+    mysql_commit(&mysql);
+
+    if (mysql_query(&mysql, "Insert into employees(emp_no,dept_no) values (110567,1005)") != 0) MYSQLERROR(mysql);
+    mysql_commit(&mysql);
+
+    /************/
 
     mysql_close(&mysql);
   }
@@ -266,6 +281,9 @@ static void init_ndbrecord_info(Ndb &myNdb)
 int testQueryBuilder(Ndb &myNdb)
 {
   const NdbDictionary::Table *manager, *employee, *salary;
+  int res;
+  NdbTransaction* myTransaction;
+  NdbQuery* myQuery;
 
   printf("\n -- Building query --\n");
 
@@ -289,6 +307,7 @@ int testQueryBuilder(Ndb &myNdb)
    */
   NdbQueryBuilder myBuilder(myNdb);
 
+#if 0
   /* qt1 is 'const defined' */
   printf("q1\n");
   const NdbQueryDef* q1 = 0;
@@ -350,7 +369,6 @@ int testQueryBuilder(Ndb &myNdb)
   }
 *****/
 
-
   /* Composite operations building real *trees* aka. linked operations.
    * (First part is identical to building 'qt2' above)
    *
@@ -382,16 +400,17 @@ int testQueryBuilder(Ndb &myNdb)
     //    A linked value is used to let employee lookup refer values
     //    from the parent operation on manger.
 
-    const NdbQueryOperand* empJoinKey[] =       // Employee is indexed om {"emp_no"}
+    const NdbQueryOperand* joinEmployeeKey[] =       // Employee is indexed om {"emp_no"}
     {  qb->linkedValue(readManager, "emp_no"),  // where '= readManger.emp_no'
        0
     };
-    const NdbQueryLookupOperationDef* readEmployee = qb->readTuple(employee, empJoinKey);
+    const NdbQueryLookupOperationDef* readEmployee = qb->readTuple(employee, joinEmployeeKey);
     if (readEmployee == NULL) APIERROR(qb->getNdbError());
 
     q4 = qb->prepare();
     if (q4 == NULL) APIERROR(qb->getNdbError());
   }
+
 
   ///////////////////////////////////////////////////
   // q4 may later be executed as:
@@ -402,16 +421,12 @@ int testQueryBuilder(Ndb &myNdb)
   Uint32 emp_no = 110567;
   void* paramList[] = {&dept_no, &emp_no};
 
-  NdbTransaction* myTransaction= myNdb.startTransaction();
+  myTransaction= myNdb.startTransaction();
   if (myTransaction == NULL) APIERROR(myNdb.getNdbError());
 
-  NdbQuery* myQuery = myTransaction->createQuery(q4, paramList);
+  myQuery = myTransaction->createQuery(q4,0); // paramList);
   if (myQuery == NULL)
     APIERROR(myTransaction->getNdbError());
-
-  // TEMP HACK: Set keys for root lookup.
-  myQuery->getImpl().getNdbOperation()->equal("dept_no", "d005");
-  myQuery->getImpl().getNdbOperation()->equal("emp_no",   110567);
 
 #if 0
   ManagerRow managerRow;
@@ -435,11 +450,6 @@ int testQueryBuilder(Ndb &myNdb)
 
     key[i][0] =  op->getValue(table->getColumn(0));
     key[i][1] =  op->getValue(table->getColumn(1));
-
-    for (Uint32 col=2; col<table->getNoOfColumns(); col++)
-    {
-      op->getValue(table->getColumn(col));
-    }
   }
 #endif
 
@@ -450,7 +460,7 @@ int testQueryBuilder(Ndb &myNdb)
 
   // All NdbQuery operations are handled as scans with cursor placed 'before'
   // first record: Fetch next to retrieve result:
-  int res = myQuery->nextResult();
+  res = myQuery->nextResult();
   if (res == -1)
     APIERROR(myQuery->getNdbError());
 
@@ -461,6 +471,92 @@ int testQueryBuilder(Ndb &myNdb)
 
   myNdb.closeTransaction(myTransaction);
   myTransaction = 0;
+#endif
+
+  //////////////////////////////////////////////////
+  printf("q4_1\n");
+  const NdbQueryDef* q4_1 = 0;
+  {
+    NdbQueryBuilder* qb = &myBuilder; //myDict->getQueryBuilder();
+
+    const NdbQueryOperand* constEmpKey[] =       // Employee is indexed om {"emp_no"}
+    {  qb->constValue(110567),   // emp_no  = 110567
+       0
+    };
+    const NdbQueryLookupOperationDef* readEmployee = qb->readTuple(employee, constEmpKey);
+    if (readEmployee == NULL) APIERROR(qb->getNdbError());
+
+    const NdbQueryOperand* joinManagerKey[] =  // Manager is indexed om {"dept_no", "emp_no"}
+    {
+      //qb->constValue(1005),   // dept_no = "d005"
+      qb->linkedValue(readEmployee,"dept_no"),
+      //qb->linkedValue(readEmployee,"emp_no"),   // emp_no  = 110567
+      qb->constValue(110567),
+      //qb->paramValue(), //BEWARE: param serialization incomplete and will cause node failure!! 
+      0
+    };
+
+    // Join with a single tuple with key defined by linked employee fields
+    const NdbQueryLookupOperationDef *readManager = qb->readTuple(manager, joinManagerKey);
+    if (readManager == NULL) APIERROR(qb->getNdbError());
+
+    q4_1 = qb->prepare();
+    if (q4_1 == NULL) APIERROR(qb->getNdbError());
+  }
+
+  ///////////////////////////////////////////////////
+  // q4 may later be executed as:
+  // (Possibly multiple ::execute() or multiple NdbQueryDef instances 
+  // within the same NdbTransaction::execute(). )
+  ////////////////////////////////////////////////////
+  //char* dept_no = "d005";
+  Uint32 emp_no_q4 = 110567;
+  void* paramList_q4[] = {&emp_no_q4};
+
+  myTransaction= myNdb.startTransaction();
+  if (myTransaction == NULL) APIERROR(myNdb.getNdbError());
+
+  myQuery = myTransaction->createQuery(q4_1,0); //paramList_q4);
+  if (myQuery == NULL)
+    APIERROR(myTransaction->getNdbError());
+
+  const NdbRecAttr *value_q4[2][2];
+
+  for (Uint32 i=0; i<myQuery->getNoOfOperations(); ++i)
+  {
+    NdbQueryOperation* op = myQuery->getQueryOperation(i);
+    const NdbDictionary::Table* table = op->getQueryOperationDef().getTable();
+
+    value_q4[i][0] =  op->getValue(table->getColumn(0));
+    value_q4[i][1] =  op->getValue(table->getColumn(1));
+  }
+
+  printf("Start execute\n");
+  if (myTransaction->execute( NdbTransaction::NoCommit ) == -1)
+    APIERROR(myTransaction->getNdbError());
+  printf("Done executed\n");
+
+  // All NdbQuery operations are handled as scans with cursor placed 'before'
+  // first record: Fetch next to retrieve result:
+  res = myQuery->nextResult();
+  if (res == -1)
+    APIERROR(myQuery->getNdbError());
+
+  printf("employee emp_no: %d\n", value_q4[0][0]->u_32_value());
+  printf("manager  emp_no: %d\n", value_q4[1][1]->u_32_value());
+
+  // NOW: Result is available in 'managerRow' buffer
+
+  myNdb.closeTransaction(myTransaction);
+  myTransaction = 0;
+
+
+
+  /////////////////////////////////////////////////
+
+
+
+#if 0
 
   // Example: ::readTuple() using Index for unique key lookup
   printf("q5\n");
@@ -517,22 +613,28 @@ int testQueryBuilder(Ndb &myNdb)
     const NdbQueryScanOperationDef* scanManager = qb->scanTable(manager);
     if (scanManager == NULL) APIERROR(qb->getNdbError());
 
+    // THEN: employee table is joined:
+    //    A linked value is used to let employee lookup refer values
+    //    from the parent operation on manager.
+
+    const NdbQueryOperand* empJoinKey[] =       // Employee is indexed om {"emp_no"}
+    {  qb->linkedValue(scanManager, "emp_no"),  // where '= readManger.emp_no'
+       0
+    };
+    const NdbQueryLookupOperationDef* readEmployee = qb->readTuple(employee, empJoinKey);
+    if (readEmployee == NULL) APIERROR(qb->getNdbError());
+
     q6 = qb->prepare();
     if (q6 == NULL) APIERROR(qb->getNdbError());
   }
 
+
   myTransaction= myNdb.startTransaction();
   if (myTransaction == NULL) APIERROR(myNdb.getNdbError());
 
-  myQuery = myTransaction->createQuery(q6, paramList);
+  myQuery = myTransaction->createQuery(q6, 0);
   if (myQuery == NULL)
     APIERROR(myTransaction->getNdbError());
-
-  // TEMP HACK: Set keys for root lookup.
-  // NOTE: There should not be any keys for table scans!
-  // However, index scans may have a 'prune key'
-//  myQuery->getImpl().getNdbOperation()->equal("dept_no", "d005");
-//  myQuery->getImpl().getNdbOperation()->equal("emp_no",   110567);
 
   const NdbRecAttr* value[2][2];
 
@@ -562,12 +664,14 @@ int testQueryBuilder(Ndb &myNdb)
     APIERROR(myQuery->getNdbError());
 
   printf("manager  emp_no: %d\n", value[0][1]->u_32_value());
-//printf("employee emp_no: %d\n", value[1][0]->u_32_value());
+  printf("employee emp_no: %d\n", value[1][0]->u_32_value());
 
   // NOW: Result is available in 'managerRow' buffer
 
   myNdb.closeTransaction(myTransaction);
   myTransaction = 0;
+#endif
+
 
   return 0;
 }

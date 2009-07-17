@@ -37,18 +37,13 @@
  * (Particular the ConstOperant in order to implement multiple datatypes)
  *
  * In order to avoid allocating both an interface object and its particular
- * Impl object, all 'final' Impl objects inherit its interface class.
- * As all 'Impl' object 'is a' interface object:
- *   - C++ auto downcasting may be used to get the interface object.
- *   - Impl classes does not have to be friend of the interface classes.
+ * Impl object, all 'final' Impl objects contains a m_interface object with 
+ * the type of its interface class.
+ * All 'Impl' object 'has a' interface object which is accessible through
+ * the virtual method ::getInterface.
  *
- * ::getImpl() functions has been defined for convenient access 
- * to all available interface classes.
- *
- * CODE STATUS:
- *   Except for creating the Query objects, the NdbQueryBuilder factory
- *   does not do any usefull work yet. This is a framework for further
- *   logic to be added.
+ * ::getImpl() methods has been defined for convenient access 
+ * to all available Impl classes.
  * 
  */
 
@@ -73,162 +68,20 @@ setErrorCode(NdbQueryBuilder* qb, int aErrorCode)
     return NULL;			\
   }
 
-/** The type of an operand. This corresponds to the set of subclasses
- * of NdbQueryOperand.*/
-enum OperandKind{
-  OperandKind_Linked,
-  OperandKind_Param,
-  OperandKind_Const
-};
 
 //////////////////////////////////////////////
 // Implementation of NdbQueryOperand interface
-//////////////////////////////////////////////
-
-
-// Baseclass for the QueryOperand implementation
-class NdbQueryOperandImpl
-{
-public:
-  const NdbDictionary::Column* getColumn() const
-  { return m_column; };
-
-  virtual int bindOperand(const NdbDictionary::Column& column,
-                          NdbQueryOperationDefImpl& operation)
-  { if (m_column  && m_column != &column)
-      // Already bounded to a different column
-      return QRY_OPERAND_ALREADY_BOUND;
-    m_column = &column;
-    return 0;
-  }
-  
-  virtual const NdbQueryOperand& getInterface() const = 0; 
-
-  OperandKind getKind() const
-  { return m_kind;
-  }
-protected:
-  virtual ~NdbQueryOperandImpl()=0;
-
-  NdbQueryOperandImpl(OperandKind kind)
-    : m_column(0),
-      m_kind(kind)
-  {}
-
-private:
-  const NdbDictionary::Column* m_column;  // Initial NULL, assigned w/ bindOperand()
-  /** This is used to tell the type of an NdbQueryOperand. This allow safe
-   * downcasting to a subclass.
-   */
-  const OperandKind m_kind;
-}; // class NdbQueryOperandImpl
-
-
-class NdbLinkedOperandImpl : public NdbQueryOperandImpl
-{
-  friend class NdbQueryBuilder;  // Allow privat access from builder interface
-
-public:
-  virtual int bindOperand(const NdbDictionary::Column& column,
-                          NdbQueryOperationDefImpl& operation);
-
-  const NdbQueryOperationDefImpl& getParentOperation() const
-  { return m_parentOperation;
-  }
-  // 'LinkedSrc' is index into parent op's spj-projection list where
-  // the refered column value is available
-  Uint32 getLinkedSrc() const
-  { return m_parentColumnIx;
-  }
-  const NdbDictionary::Column& getParentColumn() const
-  { return *m_parentOperation.getSPJProjection()[m_parentColumnIx];
-  }
-  virtual const NdbQueryOperand& getInterface() const
-  { return m_interface;
-  }
-
-private:
-  friend NdbQueryBuilderImpl::~NdbQueryBuilderImpl();
-  virtual ~NdbLinkedOperandImpl() {};
-
-  NdbLinkedOperandImpl (NdbQueryOperationDefImpl& parent, 
-                        Uint32 columnIx)
-   : NdbQueryOperandImpl(OperandKind_Linked),
-     m_interface(*this), 
-     m_parentOperation(parent),
-     m_parentColumnIx(columnIx)
-  {};
-
-  NdbLinkedOperand m_interface;
-  NdbQueryOperationDefImpl& m_parentOperation;
-  const Uint32 m_parentColumnIx;
-}; // class NdbLinkedOperandImpl
-
-
-class NdbParamOperandImpl : public NdbQueryOperandImpl
-{
-  friend class NdbQueryBuilder;  // Allow privat access from builder interface
-
-public:
-  const char* getName() const
-  { return m_name; };
-
-  Uint32 getEnum() const
-  { return 0; };  // FIXME
-
-  virtual const NdbQueryOperand& getInterface() const
-  { return m_interface;
-  }
-
-private:
-  friend NdbQueryBuilderImpl::~NdbQueryBuilderImpl();
-  virtual ~NdbParamOperandImpl() {};
-  NdbParamOperandImpl (const char* name)
-   : NdbQueryOperandImpl(OperandKind_Param),
-     m_interface(*this), 
-     m_name(name)
-  {};
-
-  NdbParamOperand m_interface;
-  const char* const m_name;     // Optional parameter name or NULL
-}; // class NdbParamOperandImpl
-
-
-/////////////////////////////////////////////////////
-// Pure virtual baseclass for ConstOperand.
-// Each specific const datatype has its own subclass.
-/////////////////////////////////////////////////////
-class NdbConstOperandImpl : public NdbQueryOperandImpl
-{
-  friend class NdbQueryBuilder;  // Allow privat access from builder interface
-public:
-  virtual size_t getLength() const = 0;
-  virtual const void* getAddr() const = 0;
-
-  virtual int bindOperand(const NdbDictionary::Column& column,
-                          NdbQueryOperationDefImpl& operation);
-
-  virtual NdbDictionary::Column::Type getType() const = 0;
-
-  virtual const NdbQueryOperand& getInterface() const
-  { return m_interface;
-  }
-
-protected:
-  friend NdbQueryBuilderImpl::~NdbQueryBuilderImpl();
-  virtual ~NdbConstOperandImpl() {};
-  NdbConstOperandImpl ()
-    : NdbQueryOperandImpl(OperandKind_Const),
-      m_interface(*this)
-  {};
-
-private:
-  NdbConstOperand m_interface;
-}; // class NdbConstOperandImpl
+//
+// The common baseclass 'class NdbQueryOperandImpl',
+// and its 'const', 'linked' and 'param' subclasses are
+// defined in "NdbQueryBuilderImpl.hpp"
+// The 'const' operand subclass is a pure virtual baseclass
+// which has different type specific subclasses defined below:
+//////////////////////////////////////////////////////////////
 
 //////////////////////////////////////////////////
 // Implements different const datatypes by further
-// subclassing of NdbConstOperand.
+// subclassing of the baseclass NdbConstOperand.
 //////////////////////////////////////////////////
 class NdbInt32ConstOperandImpl : public NdbConstOperandImpl
 {
@@ -313,7 +166,7 @@ private:
 // Implementation of NdbQueryOperation interface
 ////////////////////////////////////////////////
 
-// Common Baseclass 'class NdbQueryOperationDefImp' is 
+// Common Baseclass 'class NdbQueryOperationDefImpl' is 
 // defined in "NdbQueryBuilderImpl.hpp"
 
 
@@ -543,7 +396,7 @@ NdbParamOperand::getName() const
 Uint32
 NdbParamOperand::getEnum() const
 {
-  return ::getImpl(*this).getEnum();
+  return ::getImpl(*this).getParamIx();
 }
 
 /****************************************************************************
@@ -676,7 +529,7 @@ NdbQueryBuilder::constValue(const char* value)
   NdbConstOperandImpl* constOp = new NdbCharConstOperandImpl(value);
   returnErrIf(constOp==0,4000);
 
-  m_pimpl->m_constOperands.push_back(constOp);
+  m_pimpl->m_operands.push_back(constOp);
   return &constOp->m_interface;
 }
 NdbConstOperand* 
@@ -686,7 +539,7 @@ NdbQueryBuilder::constValue(const void* value, size_t length)
   NdbConstOperandImpl* constOp = new NdbGenericConstOperandImpl(value,length);
   returnErrIf(constOp==0,4000);
 
-  m_pimpl->m_constOperands.push_back(constOp);
+  m_pimpl->m_operands.push_back(constOp);
   return &constOp->m_interface;
 }
 NdbConstOperand* 
@@ -695,7 +548,7 @@ NdbQueryBuilder::constValue(Int32 value)
   NdbConstOperandImpl* constOp = new NdbInt32ConstOperandImpl(value);
   returnErrIf(constOp==0,4000);
 
-  m_pimpl->m_constOperands.push_back(constOp);
+  m_pimpl->m_operands.push_back(constOp);
   return &constOp->m_interface;
 }
 NdbConstOperand* 
@@ -704,7 +557,7 @@ NdbQueryBuilder::constValue(Uint32 value)
   NdbConstOperandImpl* constOp = new NdbUint32ConstOperandImpl(value);
   returnErrIf(constOp==0,4000);
 
-  m_pimpl->m_constOperands.push_back(constOp);
+  m_pimpl->m_operands.push_back(constOp);
   return &constOp->m_interface;
 }
 NdbConstOperand* 
@@ -713,7 +566,7 @@ NdbQueryBuilder::constValue(Int64 value)
   NdbConstOperandImpl* constOp = new NdbInt64ConstOperandImpl(value);
   returnErrIf(constOp==0,4000);
 
-  m_pimpl->m_constOperands.push_back(constOp);
+  m_pimpl->m_operands.push_back(constOp);
   return &constOp->m_interface;
 }
 NdbConstOperand* 
@@ -722,17 +575,17 @@ NdbQueryBuilder::constValue(Uint64 value)
   NdbConstOperandImpl* constOp = new NdbUint64ConstOperandImpl(value);
   returnErrIf(constOp==0,4000);
 
-  m_pimpl->m_constOperands.push_back(constOp);
+  m_pimpl->m_operands.push_back(constOp);
   return &constOp->m_interface;
 }
 
 NdbParamOperand* 
 NdbQueryBuilder::paramValue(const char* name)
 {
-  NdbParamOperandImpl* paramOp = new NdbParamOperandImpl(name);
+  NdbParamOperandImpl* paramOp = new NdbParamOperandImpl(name,getImpl().m_paramCnt++);
   returnErrIf(paramOp==0,4000);
 
-  m_pimpl->m_paramOperands.push_back(paramOp);
+  m_pimpl->m_operands.push_back(paramOp);
   return &paramOp->m_interface;
 }
 
@@ -752,12 +605,12 @@ NdbQueryBuilder::linkedValue(const NdbQueryOperationDef* parent, const char* att
 
   // Locate refered parrent column in parent operations SPJ projection list;
   // Add if not already present
-  Uint32 spjRef = parentImpl.addColumnRef(column);
+  Uint32 colIx = parentImpl.addColumnRef(column);
 
-  NdbLinkedOperandImpl* linkedOp = new NdbLinkedOperandImpl(parentImpl,spjRef);
+  NdbLinkedOperandImpl* linkedOp = new NdbLinkedOperandImpl(parentImpl,colIx);
   returnErrIf(linkedOp==0, 4000);
 
-  m_pimpl->m_linkedOperands.push_back(linkedOp);
+  m_pimpl->m_operands.push_back(linkedOp);
   return &linkedOp->m_interface;
 }
 
@@ -953,8 +806,10 @@ NdbQueryBuilder::prepare()
 ////////////////////////////////////////
 
 NdbQueryBuilderImpl::NdbQueryBuilderImpl(Ndb& ndb)
-: m_ndb(ndb), m_error(), m_operations(),
-  m_paramOperands(), m_constOperands(), m_linkedOperands()
+: m_ndb(ndb), m_error(),
+  m_operations(),
+  m_operands(),
+  m_paramCnt(0)
 {}
 
 NdbQueryBuilderImpl::~NdbQueryBuilderImpl()
@@ -965,14 +820,8 @@ NdbQueryBuilderImpl::~NdbQueryBuilderImpl()
   for (i=0; i<m_operations.size(); ++i)
   { delete m_operations[i];
   }
-  for (i=0; i<m_paramOperands.size(); ++i)
-  { delete m_paramOperands[i];
-  }
-  for (i=0; i<m_constOperands.size(); ++i)
-  { delete m_constOperands[i];
-  }
-  for (i=0; i<m_linkedOperands.size(); ++i)
-  { delete m_linkedOperands[i];
+  for (i=0; i<m_operands.size(); ++i)
+  { delete m_operands[i];
   }
 }
 
@@ -1000,9 +849,7 @@ NdbQueryBuilderImpl::prepare()
     return NULL;
   }
   m_operations.clear();
-  m_paramOperands.clear();
-  m_constOperands.clear();
-  m_linkedOperands.clear();
+  m_operands.clear();
 
   return def;
 }
@@ -1013,9 +860,11 @@ NdbQueryBuilderImpl::prepare()
 NdbQueryDefImpl::
 NdbQueryDefImpl(const NdbQueryBuilderImpl& builder,
                 const Vector<NdbQueryOperationDefImpl*>& operations,
+                //const Vector<NdbQueryOperandImpl*> operands;  FIXME
                 int& error)
  : m_interface(*this), 
-   m_operations(operations)
+   m_operations(operations),
+   m_operands()
 {
   /* Sets size to 1, such that serialization of operation 0 will start from 
    * offset 1, leaving space for the length field.*/
@@ -1046,6 +895,9 @@ NdbQueryDefImpl::~NdbQueryDefImpl()
   // Release all NdbQueryOperations
   for (Uint32 i=0; i<m_operations.size(); ++i)
   { delete m_operations[i];
+  }
+  for (Uint32 i=0; i<m_operands.size(); ++i)
+  { delete m_operands[i];
   }
 }
 
@@ -1106,43 +958,6 @@ NdbQueryLookupOperationDefImpl::NdbQueryLookupOperationDefImpl (
 }
 
 
-void 
-NdbQueryLookupOperationDefImpl
-::materializeRootOperands(NdbOperation& ndbOperation,
-                          const constVoidPtr actualParam[]) const
-{
-  assert(getQueryOperationIx()==0); // Should only be called for root operation.
-  const int keyCount = m_index==NULL ? 
-    getTable().getNoOfPrimaryKeys() :
-    static_cast<int>(getIndex()->getNoOfColumns());
-  int paramNo = 0;
-  int keyNo;
-  for(keyNo = 0; keyNo<keyCount; keyNo++){
-    switch(m_keys[keyNo]->getKind()){
-    case OperandKind_Const:
-      {
-        const NdbConstOperandImpl* const constOp 
-          = static_cast<const NdbConstOperandImpl*>(m_keys[keyNo]);
-        ndbOperation.equal(keyNo, 
-                           static_cast<const char*>(constOp->getAddr()));
-      }
-      break;
-    case OperandKind_Param:
-      assert(actualParam[paramNo] != NULL);
-      ndbOperation.equal(keyNo, 
-                         static_cast<const char*>(actualParam[paramNo++]));
-      break;
-    default:
-      // Root operation cannot have linked operands.
-      assert(false);
-    }
-  }
-  // All actual parameters should have been consumed.
-  assert(actualParam[paramNo] == NULL);
-  // All key fields should have been assigned a value. 
-  assert(m_keys[keyNo] == NULL);
-}
-
 NdbQueryIndexScanOperationDefImpl::NdbQueryIndexScanOperationDefImpl (
                            const NdbDictionary::Index& index,
                            const NdbDictionary::Table& table,
@@ -1190,6 +1005,44 @@ NdbQueryIndexScanOperationDefImpl::NdbQueryIndexScanOperationDefImpl (
 
 
 void 
+NdbQueryLookupOperationDefImpl
+::materializeRootOperands(NdbOperation& ndbOperation,
+                          const constVoidPtr actualParam[]) const
+{
+  assert(getQueryOperationIx()==0); // Should only be called for root operation.
+  const int keyCount = m_index==NULL ? 
+    getTable().getNoOfPrimaryKeys() :
+    static_cast<int>(getIndex()->getNoOfColumns());
+  int paramNo = 0;
+  int keyNo;
+  for(keyNo = 0; keyNo<keyCount; keyNo++){
+    switch(m_keys[keyNo]->getKind()){
+    case NdbQueryOperandImpl::Const:
+      {
+        const NdbConstOperandImpl* const constOp 
+          = static_cast<const NdbConstOperandImpl*>(m_keys[keyNo]);
+        ndbOperation.equal(keyNo, 
+                           static_cast<const char*>(constOp->getAddr()));
+      }
+      break;
+    case NdbQueryOperandImpl::Param:
+      assert(actualParam[paramNo] != NULL);
+      ndbOperation.equal(keyNo, 
+                         static_cast<const char*>(actualParam[paramNo++]));
+      break;
+    default:
+      // Root operation cannot have linked operands.
+      assert(false);
+    }
+  }
+  // All actual parameters should have been consumed.
+  // assert(actualParam[paramNo] == NULL); // FIXME: param[] might be NULL
+  // All key fields should have been assigned a value. 
+  assert(m_keys[keyNo] == NULL);
+}
+
+
+void 
 NdbQueryIndexScanOperationDefImpl
 ::materializeRootOperands(NdbOperation& ndbOperation,
                           const constVoidPtr actualParam[]) const
@@ -1204,6 +1057,7 @@ NdbQueryTableScanOperationDefImpl
 {
   assert(false); // TODO: Implement this.
 }
+
 
 void
 NdbQueryOperationDefImpl::addParent(NdbQueryOperationDefImpl* parentOp)
@@ -1258,6 +1112,16 @@ NdbLinkedOperandImpl::bindOperand(
   this->m_parentOperation.addChild(&operation);
   operation.addParent(&this->m_parentOperation);
 
+  return NdbQueryOperandImpl::bindOperand(column,operation);
+}
+
+
+int
+NdbParamOperandImpl::bindOperand(
+                           const NdbDictionary::Column& column,
+                           NdbQueryOperationDefImpl& operation)
+{
+  operation.addParamRef(this);
   return NdbQueryOperandImpl::bindOperand(column,operation);
 }
 
@@ -1327,11 +1191,14 @@ private:
 
 // Find offset (in 32-bit words) of field within struct QN_ScanFragNode.
 #define POS_IN_SCAN(field) (offsetof(QN_ScanFragNode, field)/sizeof(Uint32)) 
+
 //#define POS_IN_QUERY(field) (offsetof(QueryNode, field)/sizeof(Uint32)) 
+
 
 int
 NdbQueryLookupOperationDefImpl
-::serializeOperation(Uint32Buffer& serializedDef) const{
+::serializeOperation(Uint32Buffer& serializedDef) const
+{
   Uint32Slice nodeBuffer(serializedDef, serializedDef.getSize());
   QN_LookupNode& node = reinterpret_cast<QN_LookupNode&>
     (nodeBuffer.get(0, SIZE_IN_WORDS(QN_LookupNode)));
@@ -1368,14 +1235,14 @@ NdbQueryLookupOperationDefImpl
   const NdbQueryOperandImpl* op = m_keys[0];
   while(op!=NULL){
     switch(op->getKind()){
-    case OperandKind_Linked:
+    case NdbQueryOperandImpl::Linked:
     {
       node.requestInfo |= DABits::NI_KEY_LINKED;
       const NdbLinkedOperandImpl& linkedOp = *static_cast<const NdbLinkedOperandImpl*>(op);
-      keyPattern.get(keyPatternPos++) = QueryPattern::col(linkedOp.getLinkedSrc());
+      keyPattern.get(keyPatternPos++) = QueryPattern::col(linkedOp.getLinkedColumnIx());
       break;
     }
-    case OperandKind_Const:
+    case NdbQueryOperandImpl::Const:
     {
       node.requestInfo |= DABits::NI_KEY_CONSTS;
       const NdbConstOperandImpl& constOp 
@@ -1395,11 +1262,10 @@ NdbQueryLookupOperationDefImpl
       keyPatternPos += wordCount;
       break;
     }
-    case OperandKind_Param:  // TODO: Implement this
-/**** FIXME: can't set NI_KEY_PARAMS yet as this also require PI_KEY_PARAMS in parameter part
+    case NdbQueryOperandImpl::Param:  // TODO: Implement this
+      /**** FIXME: can't set NI_KEY_PARAMS yet as this also require PI_KEY_PARAMS in parameter part *****/
       node.requestInfo |= DABits::NI_KEY_PARAMS;
       paramCnt++;
-*****/
       keyPattern.get(keyPatternPos++) = QueryPattern::data(0);  // Simple hack to avoid 'assert(keyPatternPos>0)' below
       break;
     default:
@@ -1443,6 +1309,8 @@ NdbQueryLookupOperationDefImpl
 #endif
   return 0;
 }
+
+
 
 int
 NdbQueryTableScanOperationDefImpl
@@ -1513,9 +1381,9 @@ NdbQueryIndexScanOperationDefImpl
 
 // Instantiate Vector templates
 template class Vector<NdbQueryOperationDefImpl*>;
-template class Vector<NdbParamOperandImpl*>;
-template class Vector<NdbConstOperandImpl*>;
-template class Vector<NdbLinkedOperandImpl*>;
+template class Vector<NdbQueryOperandImpl*>;
+
+template class Vector<const NdbParamOperandImpl*>;
 template class Vector<const NdbDictionary::Column*>;
 
 #if 0
