@@ -1555,4 +1555,28 @@ SELECT * FROM m1;
 DROP TABLE m1;
 DROP TABLE t1;
 
+--echo #
+--echo # Bug45781 infinite hang/crash in "opening tables" after handler tries to
+--echo #          open merge table
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS m1,t1;
+--enable_warnings
+
+CREATE TABLE t1(a int)engine=myisam;
+CREATE TABLE t2(a int)engine=myisam;
+CREATE TABLE t3(a int)engine=myisam;
+CREATE TABLE t4(a int)engine=myisam;
+CREATE TABLE t5(a int)engine=myisam;
+CREATE TABLE t6(a int)engine=myisam;
+CREATE TABLE t7(a int)engine=myisam;
+CREATE TABLE m1(a int)engine=merge union=(t1,t2,t3,t4,t5,t6,t7);
+SELECT 1 FROM m1;
+--error ER_ILLEGAL_HA
+HANDLER m1 OPEN;
+DROP TABLE m1,t1,t2,t3,t4,t5,t6,t7;
+--error ER_NO_SUCH_TABLE
+SELECT 1 FROM m1; # Should not hang!
+
 --echo End of 5.1 tests
