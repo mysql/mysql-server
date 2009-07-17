@@ -906,7 +906,6 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
   MYSQL_RES *master_res= 0;
   MYSQL_ROW master_row;
   DBUG_ENTER("get_master_version_and_clock");
-  int query_re= 0;
 
   /*
     Free old description_event_for_queue (that is needed if we are in

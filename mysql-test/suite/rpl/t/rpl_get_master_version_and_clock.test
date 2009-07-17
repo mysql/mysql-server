@@ -15,7 +15,7 @@
 #
 
 source include/master-slave.inc;
-
+source include/have_debug.inc;
 #Test case 1: Try to get the value of the UNIX_TIMESTAMP from master under network disconnection
 connection slave;
 let $debug_saved= `select @@global.debug`;
