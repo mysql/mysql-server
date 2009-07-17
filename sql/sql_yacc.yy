@@ -47,6 +47,12 @@
 #include <myisam.h>
 #include <myisammrg.h>
 
+/* this is to get the bison compilation windows warnings out */
+#ifdef _MSC_VER
+/* warning C4065: switch statement contains 'default' but no 'case' labels */
+#pragma warning (disable : 4065)
+#endif
+
 int yylex(void *yylval, void *yythd);
 
 const LEX_STRING null_lex_str= {0,0};
