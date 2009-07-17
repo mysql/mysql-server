@@ -60,8 +60,17 @@ char *toku_strdup_in_rollback(TOKUTXN txn, const char *s) {
     return toku_memdup_in_rollback(txn, s, strlen(s)+1);
 }
 
-static int note_brt_used_in_parent_txn(OMTVALUE brtv, u_int32_t UU(index), void*parentv) {
-    return toku_txn_note_brt(parentv, brtv);
+static int note_brt_used_in_txns_parent(OMTVALUE brtv, u_int32_t UU(index), void*txnv) {
+    TOKUTXN child  = txnv;
+    TOKUTXN parent = child->parent;
+    BRT brt = brtv;
+    int r = toku_txn_note_brt(parent, brt);
+    if (r==0 &&
+        brt->h->txnid_that_created_or_locked_when_empty == toku_txn_get_txnid(child)) {
+        //Pass magic "no rolltmp needed" flag to parent.
+        brt->h->txnid_that_created_or_locked_when_empty = toku_txn_get_txnid(parent);
+    }
+    return r;
 }
 
 int toku_rollback_commit(TOKUTXN txn, YIELDF yield, void*yieldv) {
@@ -114,7 +123,7 @@ int toku_rollback_commit(TOKUTXN txn, YIELDF yield, void*yieldv) {
         }
 
         // Note the open brts, the omts must be merged
-        r = toku_omt_iterate(txn->open_brts, note_brt_used_in_parent_txn, txn->parent);
+        r = toku_omt_iterate(txn->open_brts, note_brt_used_in_txns_parent, txn);
         assert(r==0);
 
         r = toku_maybe_spill_rollbacks(txn->parent);
