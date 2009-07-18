@@ -3441,8 +3441,10 @@ INSERT INTO `C` VALUES (9,9), (0,0), (8,6), (3,6), (7,6), (0,4),
 (1,7), (9,4), (0,8), (9,4), (0,7), (5,5), (0,0), (8,5), (8,7),
 (5,2), (1,8), (7,0), (0,9), (9,5);
 
+--disable_warnings
 SELECT * FROM C WHERE `int_key` IN (SELECT `int_nokey`);
 EXPLAIN EXTENDED SELECT * FROM C WHERE `int_key` IN (SELECT `int_nokey`);
+--enable_warnings
 
 DROP TABLE C;
 --echo # End of test for bug#45061.
