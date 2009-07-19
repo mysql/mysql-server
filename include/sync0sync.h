@@ -41,6 +41,8 @@ Created 9/5/1995 Heikki Tuuri
 #include "os0sync.h"
 #include "sync0arr.h"
 
+extern my_bool	timed_mutexes;
+
 #ifdef HAVE_WINDOWS_ATOMICS
 typedef LONG lock_word_t;	/*!< On Windows, InterlockedExchange operates
 				on LONG variable */
