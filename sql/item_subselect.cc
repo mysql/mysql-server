@@ -1227,6 +1227,10 @@ Item_in_subselect::single_value_transformer(JOIN *join,
       else
       {
 	// it is single select without tables => possible optimization
+        // remove the dependence mark since the item is moved to upper
+        // select and is not outer anymore.
+        item->walk(&Item::remove_dependence_processor, 0,
+                           (uchar *) select_lex->outer_select());
 	item= func->create(left_expr, item);
 	// fix_field of item will be done in time of substituting
 	substitution= item;
