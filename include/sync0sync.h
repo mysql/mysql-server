@@ -41,7 +41,9 @@ Created 9/5/1995 Heikki Tuuri
 #include "os0sync.h"
 #include "sync0arr.h"
 
+#if  defined(UNIV_DEBUG) && !defined(UNIV_HOTBACKUP)
 extern my_bool	timed_mutexes;
+#endif /* UNIV_DEBUG && !UNIV_HOTBACKUP */
 
 #ifdef HAVE_WINDOWS_ATOMICS
 typedef LONG lock_word_t;	/*!< On Windows, InterlockedExchange operates

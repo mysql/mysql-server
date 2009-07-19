@@ -109,7 +109,11 @@ extern char*	srv_arch_dir;
 
 /** store to its own file each table created by an user; data
 dictionary tables are in the system tablespace 0 */
+#ifndef UNIV_HOTBACKUP
 extern my_bool	srv_file_per_table;
+#else
+extern ibool	srv_file_per_table;
+#endif /* UNIV_HOTBACKUP */
 /** The file format to use on new *.ibd files. */
 extern ulint	srv_file_format;
 /** Whether to check file format during startup.  A value of
@@ -145,7 +149,11 @@ extern char	srv_adaptive_flushing;
 /* The sort order table of the MySQL latin1_swedish_ci character set
 collation */
 extern const byte*	srv_latin1_ordering;
+#ifndef UNIV_HOTBACKUP
 extern my_bool	srv_use_sys_malloc;
+#else
+extern ibool	srv_use_sys_malloc;
+#endif /* UNIV_HOTBACKUP */
 extern ulint	srv_buf_pool_size;	/*!< requested size in bytes */
 extern ulint	srv_buf_pool_old_size;	/*!< previously requested size */
 extern ulint	srv_buf_pool_curr_size;	/*!< current size in bytes */
