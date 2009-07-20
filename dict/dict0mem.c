@@ -103,7 +103,9 @@ dict_mem_table_free(
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 	ut_d(table->cached = FALSE);
 
+#ifndef UNIV_HOTBACKUP
 	mutex_free(&(table->autoinc_mutex));
+#endif /* UNIV_HOTBACKUP */
 	mem_heap_free(table->heap);
 }
 
