@@ -209,12 +209,10 @@ UNIV_INTERN ulint	srv_n_file_io_threads	= ULINT_MAX;
 UNIV_INTERN ulint	srv_n_read_io_threads	= ULINT_MAX;
 UNIV_INTERN ulint	srv_n_write_io_threads	= ULINT_MAX;
 
-/* User settable value of the number of pages that InnoDB will tolerate
-within a 64 page extent even if they are accessed out of order or have
-not been accessed at all. This number (which varies from 0 to 64) is
-indicative of the slack that we have when deciding about linear
-readahead. */
-UNIV_INTERN ulong	srv_read_ahead_factor	= 8;
+/* User settable value of the number of pages that must be present
+in the buffer cache and accessed sequentially for InnoDB to trigger a
+readahead request. */
+UNIV_INTERN ulong	srv_read_ahead_threshold	= 56;
 
 #ifdef UNIV_LOG_ARCHIVE
 UNIV_INTERN ibool		srv_log_archive_on	= FALSE;
