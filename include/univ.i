@@ -103,7 +103,7 @@ if we are compiling on Windows. */
 #ifndef UNIV_HOTBACKUP
 # include <my_global.h>
 # include <my_pthread.h>
-#endif
+#endif /* UNIV_HOTBACKUP */
 
 /* Include <sys/stat.h> to get S_I... macros defined for os0file.c */
 # include <sys/stat.h>
