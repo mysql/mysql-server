@@ -5,7 +5,7 @@
 
 #include "includes.h"
 
-static const int log_format_version=0;
+static const int log_format_version=1;
 
 static toku_pthread_mutex_t logger_mutex = TOKU_PTHREAD_MUTEX_INITIALIZER;
 
@@ -259,6 +259,7 @@ int toku_logger_find_logfiles (const char *directory, char ***resultp, int *n_lo
     int result_limit=2;
     int n_results=0;
     char **MALLOC_N(result_limit, result);
+    assert(result!= NULL);
     struct dirent *de;
     DIR *d=opendir(directory);
     if (d==0) {
@@ -273,9 +274,12 @@ int toku_logger_find_logfiles (const char *directory, char ***resultp, int *n_lo
 	if (n_results+1>=result_limit) {
 	    result_limit*=2;
 	    result = toku_realloc(result, result_limit*sizeof(*result));
+            // should we try to recover here?
+            assert(result!=NULL);
 	}
 	int fnamelen = dirnamelen + strlen(de->d_name) + 2; // One for the slash and one for the trailing NUL.
 	char *fname = toku_malloc(fnamelen);
+        assert(fname!=NULL);
 	snprintf(fname, fnamelen, "%s/%s", directory, de->d_name);
 	result[n_results++] = fname;
     }
@@ -676,13 +680,34 @@ int toku_read_and_print_logmagic (FILE *f, u_int32_t *versionp) {
 	if (r!=4) {
 	    return DB_BADFORMAT;
 	}
-	//printf("tokulog v.%d\n", toku_dtoh32(version));
+	printf("tokulog v.%d\n", toku_dtoh32(version));
         //version MUST be in network order regardless of disk order
 	*versionp=toku_ntohl(version);
     }
     return 0;
 }
 
+int toku_read_logmagic (FILE *f, u_int32_t *versionp) {
+    {
+	char magic[8];
+	int r=fread(magic, 1, 8, f);
+	if (r!=8) {
+	    return DB_BADFORMAT;
+	}
+	if (memcmp(magic, "tokulogg", 8)!=0) {
+	    return DB_BADFORMAT;
+	}
+    }
+    {
+	int version;
+    	int r=fread(&version, 1, 4, f);
+	if (r!=4) {
+	    return DB_BADFORMAT;
+	}
+	*versionp=toku_ntohl(version);
+    }
+    return 0;
+}
 
 TXNID toku_txn_get_txnid (TOKUTXN txn) {
     if (txn==0) return 0;

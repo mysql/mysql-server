@@ -475,7 +475,7 @@ int tokudb_recover(const char *data_dir, const char *log_dir) {
 	struct log_entry le;
 	u_int32_t version;
 	//printf("Reading file %d: %s\n", j, logfiles[j]);
-	r=toku_read_and_print_logmagic(f, &version);
+	r=toku_read_logmagic(f, &version);
 	assert(r==0 && version==0);
     go_forward: // we have an open file, so go forward.
 	//printf("Going forward\n");
