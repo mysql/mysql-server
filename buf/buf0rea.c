@@ -485,7 +485,8 @@ buf_read_ahead_linear(
 
 	/* How many out of order accessed pages can we ignore
 	when working out the access pattern for linear readahead */
-	threshold = ut_min(srv_read_ahead_factor, BUF_READ_AHEAD_AREA);
+	threshold = ut_min((64 - srv_read_ahead_threshold),
+			   BUF_READ_AHEAD_AREA);
 
 	fail_count = 0;
 

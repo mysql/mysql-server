@@ -9950,13 +9950,11 @@ static MYSQL_SYSVAR_STR(change_buffering, innobase_change_buffering,
   innodb_change_buffering_validate,
   innodb_change_buffering_update, NULL);
 
-static MYSQL_SYSVAR_ULONG(read_ahead_factor, srv_read_ahead_factor,
+static MYSQL_SYSVAR_ULONG(read_ahead_threshold, srv_read_ahead_threshold,
   PLUGIN_VAR_RQCMDARG,
-  "Number of pages that may be accessed out of order and InnoDB "
-  "will still issue a readahead."
-  "The higher the value the more relaxed the condition for starting "
-  "readahead.",
-  NULL, NULL, 8, 0, 64, 0);
+  "Number of pages that must be accessed sequentially for InnoDB to"
+  "trigger a readahead.",
+  NULL, NULL, 56, 0, 64, 0);
 
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(additional_mem_pool_size),
@@ -10010,7 +10008,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(version),
   MYSQL_SYSVAR(use_sys_malloc),
   MYSQL_SYSVAR(change_buffering),
-  MYSQL_SYSVAR(read_ahead_factor),
+  MYSQL_SYSVAR(read_ahead_threshold),
   MYSQL_SYSVAR(io_capacity),
   NULL
 };
