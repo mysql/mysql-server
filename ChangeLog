@@ -1,9 +1,26 @@
+2009-07-20	The InnoDB Team
+
+	* handler/ha_innodb.cc:
+	Fix Bug#39802 On Windows, 32-bit time_t should be enforced
+
 2009-07-16	The InnoDB Team
 
 	* include/univ.i:
 	Support inlining of functions and prefetch with Sun Studio.
 	These changes are based on contribution from
 	Sun Microsystems Inc. under a BSD license.
+
+2009-07-14	The InnoDB Team
+
+	* fil/fil0fil.c:
+	Fix Bug#45814 URL reference in InnoDB server errors needs adjusting to
+	match documentation
+
+2009-07-14	The InnoDB Team
+
+	* handler/ha_innodb.cc, mysql-test/innodb_bug21704.result,
+	mysql-test/innodb_bug21704.test:
+	Fix Bug#21704 Renaming column does not update FK definition
 
 2009-07-10	The InnoDB Team
 
