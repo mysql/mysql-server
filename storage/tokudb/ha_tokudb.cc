@@ -3981,7 +3981,6 @@ int ha_tokudb::prelock_range( const key_range *start_key, const key_range *end_k
 
     bzero((void *) &start_dbt_key, sizeof(start_dbt_key));
     bzero((void *) &end_dbt_key, sizeof(end_dbt_key));
-    range_lock_grabbed = false;
 
     if (start_key) {
         switch (start_key->flag) {
@@ -4044,7 +4043,11 @@ cleanup:
 
 
 int ha_tokudb::prepare_range_scan( const key_range *start_key, const key_range *end_key) {
-    return prelock_range(start_key, end_key);
+    int error = prelock_range(start_key, end_key);
+    if (!error) {
+        range_lock_grabbed = true;
+    }
+    return error;
 }
 
 int ha_tokudb::read_range_first(
