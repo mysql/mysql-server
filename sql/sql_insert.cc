@@ -1148,6 +1148,33 @@ static bool mysql_prepare_insert_check_table(THD *thd, TABLE_LIST *table_list,
 
 
 /*
+  Get extra info for tables we insert into
+
+  @param table     table(TABLE object) we insert into,
+                   might be NULL in case of view
+  @param           table(TABLE_LIST object) or view we insert into
+*/
+
+static void prepare_for_positional_update(TABLE *table, TABLE_LIST *tables)
+{
+  if (table)
+  {
+    if(table->reginfo.lock_type != TL_WRITE_DELAYED)
+      table->file->extra(HA_EXTRA_RETRIEVE_PRIMARY_KEY);
+    return;
+  }
+
+  DBUG_ASSERT(tables->view);
+  List_iterator<TABLE_LIST> it(*tables->view_tables);
+  TABLE_LIST *tbl;
+  while ((tbl= it++))
+    prepare_for_positional_update(tbl->table, tbl);
+
+  return;
+}
+
+
+/*
   Prepare items in INSERT statement
 
   SYNOPSIS
@@ -1297,9 +1324,8 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
     Only call extra() handler method if we are not performing a DELAYED
     operation. It will instead be executed by delayed insert thread.
   */
-  if ((duplic == DUP_UPDATE || duplic == DUP_REPLACE) &&
-      (table->reginfo.lock_type != TL_WRITE_DELAYED))
-    table->file->extra(HA_EXTRA_RETRIEVE_PRIMARY_KEY);
+  if (duplic == DUP_UPDATE || duplic == DUP_REPLACE)
+    prepare_for_positional_update(table, table_list);
   DBUG_RETURN(FALSE);
 }
 
