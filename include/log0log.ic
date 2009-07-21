@@ -385,6 +385,18 @@ log_get_lsn(void)
 	return(lsn);
 }
 
+/****************************************************************
+Gets the log group capacity. It is OK to read the value without
+holding log_sys->mutex because it is constant.
+@return	log group capacity */
+UNIV_INLINE
+ulint
+log_get_capacity(void)
+/*==================*/
+{
+	return(log_sys->log_group_capacity);
+}
+
 /***********************************************************************//**
 Checks if there is need for a log buffer flush or a new checkpoint, and does
 this if yes. Any database operation should call this when it has modified

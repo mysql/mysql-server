@@ -93,16 +93,6 @@ que_thr_create(
 	que_fork_t*	parent,	/*!< in: parent node, i.e., a fork node */
 	mem_heap_t*	heap);	/*!< in: memory heap where created */
 /**********************************************************************//**
-Checks if the query graph is in a state where it should be freed, and
-frees it in that case. If the session is in a state where it should be
-closed, also this is done.
-@return	TRUE if freed */
-UNIV_INTERN
-ibool
-que_graph_try_free(
-/*===============*/
-	que_t*	graph);	/*!< in: query graph */
-/**********************************************************************//**
 Frees a query graph, but not the heap where it was created. Does not free
 explicit cursor declarations, they are freed in que_graph_free. */
 UNIV_INTERN

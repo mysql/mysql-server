@@ -228,37 +228,3 @@ os_mem_free_large(
 	}
 #endif
 }
-
-/****************************************************************//**
-Sets the priority boost for threads released from waiting within the current
-process. */
-UNIV_INTERN
-void
-os_process_set_priority_boost(
-/*==========================*/
-	ibool	do_boost)	/*!< in: TRUE if priority boost should be done,
-				FALSE if not */
-{
-#ifdef __WIN__
-	ibool	no_boost;
-
-	if (do_boost) {
-		no_boost = FALSE;
-	} else {
-		no_boost = TRUE;
-	}
-
-#if TRUE != 1
-# error "TRUE != 1"
-#endif
-
-	/* Does not do anything currently!
-	SetProcessPriorityBoost(GetCurrentProcess(), no_boost);
-	*/
-	fputs("Warning: process priority boost setting"
-	      " currently not functional!\n",
-	      stderr);
-#else
-	UT_NOT_USED(do_boost);
-#endif
-}

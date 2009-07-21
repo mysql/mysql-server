@@ -1,7 +1,7 @@
 /*****************************************************************************
 
 Copyright (c) 2000, 2009, MySQL AB & Innobase Oy. All Rights Reserved.
-Copyright (c) 2008, Google Inc.
+Copyright (c) 2008, 2009 Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -22,6 +22,32 @@ this program; if not, write to the Free Software Foundation, Inc., 59 Temple
 Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
+/***********************************************************************
+
+Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 2009, Percona Inc.
+
+Portions of this file contain modifications contributed and copyrighted
+by Percona Inc.. Those modifications are
+gratefully acknowledged and are described briefly in the InnoDB
+documentation. The contributions by Percona Inc. are incorporated with
+their permission, and subject to the conditions contained in the file
+COPYING.Percona.
+
+This program is free software; you can redistribute it and/or modify it
+under the terms of the GNU General Public License as published by the
+Free Software Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+Public License for more details.
+
+You should have received a copy of the GNU General Public License along
+with this program; if not, write to the Free Software Foundation, Inc.,
+59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+
+***********************************************************************/
 
 /* TODO list for the InnoDB handler in 5.0:
   - Remove the flag trx->active_trans and look at trx->conc_state
@@ -41,37 +67,39 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 #include <mysys_err.h>
 #include <mysql/plugin.h>
 
+/** @file ha_innodb.cc */
+
 /* Include necessary InnoDB headers */
 extern "C" {
-#include "../storage/innobase/include/univ.i"
-#include "../storage/innobase/include/btr0sea.h"
-#include "../storage/innobase/include/os0file.h"
-#include "../storage/innobase/include/os0thread.h"
-#include "../storage/innobase/include/srv0start.h"
-#include "../storage/innobase/include/srv0srv.h"
-#include "../storage/innobase/include/trx0roll.h"
-#include "../storage/innobase/include/trx0trx.h"
-#include "../storage/innobase/include/trx0sys.h"
-#include "../storage/innobase/include/mtr0mtr.h"
-#include "../storage/innobase/include/row0ins.h"
-#include "../storage/innobase/include/row0mysql.h"
-#include "../storage/innobase/include/row0sel.h"
-#include "../storage/innobase/include/row0upd.h"
-#include "../storage/innobase/include/log0log.h"
-#include "../storage/innobase/include/lock0lock.h"
-#include "../storage/innobase/include/dict0crea.h"
-#include "../storage/innobase/include/btr0cur.h"
-#include "../storage/innobase/include/btr0btr.h"
-#include "../storage/innobase/include/fsp0fsp.h"
-#include "../storage/innobase/include/sync0sync.h"
-#include "../storage/innobase/include/fil0fil.h"
-#include "../storage/innobase/include/trx0xa.h"
-#include "../storage/innobase/include/row0merge.h"
-#include "../storage/innobase/include/thr0loc.h"
-#include "../storage/innobase/include/dict0boot.h"
-#include "../storage/innobase/include/ha_prototypes.h"
-#include "../storage/innobase/include/ut0mem.h"
-#include "../storage/innobase/include/ibuf0ibuf.h"
+#include "univ.i"
+#include "btr0sea.h"
+#include "os0file.h"
+#include "os0thread.h"
+#include "srv0start.h"
+#include "srv0srv.h"
+#include "trx0roll.h"
+#include "trx0trx.h"
+#include "trx0sys.h"
+#include "mtr0mtr.h"
+#include "row0ins.h"
+#include "row0mysql.h"
+#include "row0sel.h"
+#include "row0upd.h"
+#include "log0log.h"
+#include "lock0lock.h"
+#include "dict0crea.h"
+#include "btr0cur.h"
+#include "btr0btr.h"
+#include "fsp0fsp.h"
+#include "sync0sync.h"
+#include "fil0fil.h"
+#include "trx0xa.h"
+#include "row0merge.h"
+#include "thr0loc.h"
+#include "dict0boot.h"
+#include "ha_prototypes.h"
+#include "ut0mem.h"
+#include "ibuf0ibuf.h"
 }
 
 #include "ha_innodb.h"
@@ -124,6 +152,8 @@ static long innobase_mirrored_log_groups, innobase_log_files_in_group,
 	innobase_force_recovery, innobase_open_files,
 	innobase_autoinc_lock_mode;
 static ulong innobase_commit_concurrency = 0;
+static ulong innobase_read_io_threads;
+static ulong innobase_write_io_threads;
 
 static long long innobase_buffer_pool_size, innobase_log_file_size;
 
@@ -202,8 +232,21 @@ static handler *innobase_create_handler(handlerton *hton,
                                         TABLE_SHARE *table,
                                         MEM_ROOT *mem_root);
 
+/** @brief Initialize the default value of innodb_commit_concurrency.
+
+Once InnoDB is running, the innodb_commit_concurrency must not change
+from zero to nonzero. (Bug #42101)
+
+The initial default value is 0, and without this extra initialization,
+SET GLOBAL innodb_commit_concurrency=DEFAULT would set the parameter
+to 0, even if it was initially set to nonzero at the command line
+or configuration file. */
+static
+void
+innobase_commit_concurrency_init_default(void);
+/*==========================================*/
+
 /************************************************************//**
-@file handler/ha_innodb.cc
 Validate the file format name and return its corresponding id.
 @return	valid file format id */
 static
@@ -2132,6 +2175,8 @@ innobase_change_buffering_inited_ok:
 	srv_mem_pool_size = (ulint) innobase_additional_mem_pool_size;
 
 	srv_n_file_io_threads = (ulint) innobase_file_io_threads;
+	srv_n_read_io_threads = (ulint) innobase_read_io_threads;
+	srv_n_write_io_threads = (ulint) innobase_write_io_threads;
 
 	srv_force_recovery = (ulint) innobase_force_recovery;
 
@@ -2168,6 +2213,8 @@ innobase_change_buffering_inited_ok:
 
 	ut_a(0 == strcmp(my_charset_latin1.name, "latin1_swedish_ci"));
 	srv_latin1_ordering = my_charset_latin1.sort_order;
+
+	innobase_commit_concurrency_init_default();
 
 	/* Since we in this module access directly the fields of a trx
 	struct, and due to different headers and flags it might happen that
@@ -2945,8 +2992,7 @@ ha_innobase::innobase_initialize_autoinc()
 	dict_index_t*	index;
 	ulonglong	auto_inc;
 	const char*	col_name;
-	ulint		error = DB_SUCCESS;
-	dict_table_t*	innodb_table = prebuilt->table;
+	ulint		error;
 
 	col_name = table->found_next_number_field->field_name;
 	index = innobase_get_index(table->s->next_number_index);
@@ -2954,22 +3000,40 @@ ha_innobase::innobase_initialize_autoinc()
 	/* Execute SELECT MAX(col_name) FROM TABLE; */
 	error = row_search_max_autoinc(index, col_name, &auto_inc);
 
-	if (error == DB_SUCCESS) {
+	switch (error) {
+	case DB_SUCCESS:
 
-		/* At the this stage we dont' know the increment
+		/* At the this stage we don't know the increment
 		or the offset, so use default inrement of 1. */
 		++auto_inc;
+		break;
 
-		dict_table_autoinc_initialize(innodb_table, auto_inc);
-
-	} else {
+	case DB_RECORD_NOT_FOUND:
 		ut_print_timestamp(stderr);
-		fprintf(stderr, "  InnoDB: Error: (%lu) Couldn't read "
-			"the MAX(%s) autoinc value from the "
-			"index (%s).\n", error, col_name, index->name);
+		fprintf(stderr, "  InnoDB: MySQL and InnoDB data "
+			"dictionaries are out of sync.\n"
+			"InnoDB: Unable to find the AUTOINC column %s in the "
+			"InnoDB table %s.\n"
+			"InnoDB: We set the next AUTOINC column value to the "
+			"maximum possible value,\n"
+			"InnoDB: in effect disabling the AUTOINC next value "
+			"generation.\n"
+			"InnoDB: You can either set the next AUTOINC value "
+			"explicitly using ALTER TABLE\n"
+			"InnoDB: or fix the data dictionary by recreating "
+			"the table.\n",
+			col_name, index->table->name);
+
+		auto_inc = 0xFFFFFFFFFFFFFFFFULL;
+		break;
+
+	default:
+		return(error);
 	}
 
-	return(error);
+	dict_table_autoinc_initialize(prebuilt->table, auto_inc);
+
+	return(DB_SUCCESS);
 }
 
 /*****************************************************************//**
@@ -3187,7 +3251,6 @@ retry:
 		if (dict_table_autoinc_read(prebuilt->table) == 0) {
 
 			error = innobase_initialize_autoinc();
-			/* Should always succeed! */
 			ut_a(error == DB_SUCCESS);
 		}
 
@@ -6205,7 +6268,7 @@ ha_innobase::create(
 	/* Our function row_get_mysql_key_number_for_index assumes
 	the primary key is always number 0, if it exists */
 
-	DBUG_ASSERT(primary_key_no == -1 || primary_key_no == 0);
+	ut_a(primary_key_no == -1 || primary_key_no == 0);
 
 	/* Create the keys */
 
@@ -6938,7 +7001,7 @@ ha_innobase::info(
 		nor the CHECK TABLE time, nor the UPDATE or INSERT time. */
 
 		if (os_file_get_status(path,&stat_info)) {
-			stats.create_time = stat_info.ctime;
+			stats.create_time = (ulong) stat_info.ctime;
 		}
 	}
 
@@ -9125,6 +9188,97 @@ innobase_set_cursor_view(
 }
 
 
+/***********************************************************************
+Check whether any of the given columns is being renamed in the table. */
+static
+bool
+column_is_being_renamed(
+/*====================*/
+					/* out: true if any of col_names is
+					being renamed in table */
+	TABLE*		table,		/* in: MySQL table */
+	uint		n_cols,		/* in: number of columns */
+	const char**	col_names)	/* in: names of the columns */
+{
+	uint		j;
+	uint		k;
+	Field*		field;
+	const char*	col_name;
+
+	for (j = 0; j < n_cols; j++) {
+		col_name = col_names[j];
+		for (k = 0; k < table->s->fields; k++) {
+			field = table->field[k];
+			if ((field->flags & FIELD_IS_RENAMED)
+			    && innobase_strcasecmp(field->field_name,
+						   col_name) == 0) {
+				return(true);
+			}
+		}
+	}
+
+	return(false);
+}
+
+/***********************************************************************
+Check whether a column in table "table" is being renamed and if this column
+is part of a foreign key, either part of another table, referencing this
+table or part of this table, referencing another table. */
+static
+bool
+foreign_key_column_is_being_renamed(
+/*================================*/
+					/* out: true if a column that
+					participates in a foreign key definition
+					is being renamed */
+	row_prebuilt_t*	prebuilt,	/* in: InnoDB prebuilt struct */
+	TABLE*		table)		/* in: MySQL table */
+{
+	dict_foreign_t*	foreign;
+
+	/* check whether there are foreign keys at all */
+	if (UT_LIST_GET_LEN(prebuilt->table->foreign_list) == 0
+	    && UT_LIST_GET_LEN(prebuilt->table->referenced_list) == 0) {
+		/* no foreign keys involved with prebuilt->table */
+
+		return(false);
+	}
+
+	row_mysql_lock_data_dictionary(prebuilt->trx);
+
+	/* Check whether any column in the foreign key constraints which refer
+	to this table is being renamed. */
+	for (foreign = UT_LIST_GET_FIRST(prebuilt->table->referenced_list);
+	     foreign != NULL;
+	     foreign = UT_LIST_GET_NEXT(referenced_list, foreign)) {
+
+		if (column_is_being_renamed(table, foreign->n_fields,
+					    foreign->referenced_col_names)) {
+
+			row_mysql_unlock_data_dictionary(prebuilt->trx);
+			return(true);
+		}
+	}
+
+	/* Check whether any column in the foreign key constraints in the
+	table is being renamed. */
+	for (foreign = UT_LIST_GET_FIRST(prebuilt->table->foreign_list);
+	     foreign != NULL;
+	     foreign = UT_LIST_GET_NEXT(foreign_list, foreign)) {
+
+		if (column_is_being_renamed(table, foreign->n_fields,
+					    foreign->foreign_col_names)) {
+
+			row_mysql_unlock_data_dictionary(prebuilt->trx);
+			return(true);
+		}
+	}
+
+	row_mysql_unlock_data_dictionary(prebuilt->trx);
+
+	return(false);
+}
+
 UNIV_INTERN
 bool
 ha_innobase::check_if_incompatible_data(
@@ -9143,9 +9297,17 @@ ha_innobase::check_if_incompatible_data(
 		return(COMPATIBLE_DATA_NO);
 	}
 
+	/* Check if a column participating in a foreign key is being renamed.
+	There is no mechanism for updating InnoDB foreign key definitions. */
+	if (foreign_key_column_is_being_renamed(prebuilt, table)) {
+
+		return COMPATIBLE_DATA_NO;
+	}
+
 	/* Check that row format didn't change */
-	if ((info->used_fields & HA_CREATE_USED_ROW_FORMAT) &&
-	    get_row_type() != info->row_type) {
+	if ((info->used_fields & HA_CREATE_USED_ROW_FORMAT)
+	    && info->row_type != ROW_TYPE_DEFAULT
+	    && info->row_type != get_row_type()) {
 
 		return(COMPATIBLE_DATA_NO);
 	}
@@ -9285,11 +9447,12 @@ innodb_file_format_name_validate(
 
 		if (format_id <= DICT_TF_FORMAT_MAX) {
 
-			*(uint*) save = format_id;
+			*static_cast<const char**>(save) = file_format_input;
 			return(0);
 		}
 	}
 
+	*static_cast<const char**>(save) = NULL;
 	return(1);
 }
 
@@ -9308,13 +9471,24 @@ innodb_file_format_name_update(
 	const void*			save)		/*!< in: immediate result
 							from check function */
 {
+	const char* format_name;
+
 	ut_a(var_ptr != NULL);
 	ut_a(save != NULL);
-	ut_a((*(const uint*) save) <= DICT_TF_FORMAT_MAX);
 
-	srv_file_format = *(const uint*) save;
+	format_name = *static_cast<const char*const*>(save);
 
-	*(const char**) var_ptr
+	if (format_name) {
+		uint	format_id;
+
+		format_id = innobase_file_format_name_lookup(format_name);
+
+		if (format_id <= DICT_TF_FORMAT_MAX) {
+			srv_file_format = format_id;
+		}
+	}
+
+	*static_cast<const char**>(var_ptr)
 		= trx_sys_file_format_id_to_name(srv_file_format);
 }
 
@@ -9355,14 +9529,7 @@ innodb_file_format_check_validate(
 		} else if (innobase_file_format_check_validate(
 				file_format_input)) {
 
-			uint	format_id;
-
-			format_id = innobase_file_format_name_lookup(
-				file_format_input);
-
-			ut_a(format_id <= DICT_TF_FORMAT_MAX);
-
-			*(uint*) save = format_id;
+			*static_cast<const char**>(save) = file_format_input;
 
 			return(0);
 
@@ -9376,6 +9543,7 @@ innodb_file_format_check_validate(
 		}
 	}
 
+	*static_cast<const char**>(save) = NULL;
 	return(1);
 }
 
@@ -9394,19 +9562,39 @@ innodb_file_format_check_update(
 	const void*			save)		/*!< in: immediate result
 							from check function */
 {
-	uint	format_id;
+	const char*	format_name_in;
+	const char**	format_name_out;
+	uint		format_id;
 
 	ut_a(save != NULL);
 	ut_a(var_ptr != NULL);
 
-	format_id = *(const uint*) save;
+	format_name_in = *static_cast<const char*const*>(save);
+
+	if (!format_name_in) {
+
+		return;
+	}
+
+	format_id = innobase_file_format_name_lookup(format_name_in);
+
+	if (format_id > DICT_TF_FORMAT_MAX) {
+		/* DEFAULT is "on", which is invalid at runtime. */
+		push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+				    ER_WRONG_ARGUMENTS,
+				    "Ignoring SET innodb_file_format=%s",
+				    format_name_in);
+		return;
+	}
+
+	format_name_out = static_cast<const char**>(var_ptr);
 
 	/* Update the max format id in the system tablespace. */
-	if (trx_sys_file_format_max_set(format_id, (const char**) var_ptr)) {
+	if (trx_sys_file_format_max_set(format_id, format_name_out)) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
 			" [Info] InnoDB: the file format in the system "
-			"tablespace is now set to %s.\n", *(char**) var_ptr);
+			"tablespace is now set to %s.\n", *format_name_out);
 	}
 }
 
@@ -9531,6 +9719,11 @@ static MYSQL_SYSVAR_BOOL(doublewrite, innobase_use_doublewrite,
   "Disable with --skip-innodb-doublewrite.",
   NULL, NULL, TRUE);
 
+static MYSQL_SYSVAR_ULONG(io_capacity, srv_io_capacity,
+  PLUGIN_VAR_RQCMDARG,
+  "Number of IOPs the server can do. Tunes the background IO rate",
+  NULL, NULL, 200, 100, ~0L, 0);
+
 static MYSQL_SYSVAR_ULONG(fast_shutdown, innobase_fast_shutdown,
   PLUGIN_VAR_OPCMDARG,
   "Speeds up the shutdown process of the InnoDB storage engine. Possible "
@@ -9594,7 +9787,12 @@ static MYSQL_SYSVAR_STR(log_group_home_dir, innobase_log_group_home_dir,
 static MYSQL_SYSVAR_ULONG(max_dirty_pages_pct, srv_max_buf_pool_modified_pct,
   PLUGIN_VAR_RQCMDARG,
   "Percentage of dirty pages allowed in bufferpool.",
-  NULL, NULL, 90, 0, 100, 0);
+  NULL, NULL, 75, 0, 99, 0);
+
+static MYSQL_SYSVAR_BOOL(adaptive_flushing, srv_adaptive_flushing,
+  PLUGIN_VAR_NOCMDARG,
+  "Attempt flushing dirty pages to avoid IO bursts at checkpoints.",
+  NULL, NULL, TRUE);
 
 static MYSQL_SYSVAR_ULONG(max_purge_lag, srv_max_purge_lag,
   PLUGIN_VAR_RQCMDARG,
@@ -9636,7 +9834,7 @@ static MYSQL_SYSVAR_ULONG(replication_delay, srv_replication_delay,
 static MYSQL_SYSVAR_LONG(additional_mem_pool_size, innobase_additional_mem_pool_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Size of a memory pool InnoDB uses to store data dictionary information and other internal data structures.",
-  NULL, NULL, 1*1024*1024L, 512*1024L, LONG_MAX, 1024);
+  NULL, NULL, 8*1024*1024L, 512*1024L, LONG_MAX, 1024);
 
 static MYSQL_SYSVAR_ULONG(autoextend_increment, srv_auto_extend_increment,
   PLUGIN_VAR_RQCMDARG,
@@ -9646,7 +9844,7 @@ static MYSQL_SYSVAR_ULONG(autoextend_increment, srv_auto_extend_increment,
 static MYSQL_SYSVAR_LONGLONG(buffer_pool_size, innobase_buffer_pool_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "The size of the memory buffer InnoDB uses to cache data and indexes of its tables.",
-  NULL, NULL, 8*1024*1024L, 5*1024*1024L, LONGLONG_MAX, 1024*1024L);
+  NULL, NULL, 128*1024*1024L, 5*1024*1024L, LONGLONG_MAX, 1024*1024L);
 
 static MYSQL_SYSVAR_ULONG(commit_concurrency, innobase_commit_concurrency,
   PLUGIN_VAR_RQCMDARG,
@@ -9663,6 +9861,16 @@ static MYSQL_SYSVAR_LONG(file_io_threads, innobase_file_io_threads,
   "Number of file I/O threads in InnoDB.",
   NULL, NULL, 4, 4, 64, 0);
 
+static MYSQL_SYSVAR_ULONG(read_io_threads, innobase_read_io_threads,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "Number of background read I/O threads in InnoDB.",
+  NULL, NULL, 4, 1, 64, 0);
+
+static MYSQL_SYSVAR_ULONG(write_io_threads, innobase_write_io_threads,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "Number of background write I/O threads in InnoDB.",
+  NULL, NULL, 4, 1, 64, 0);
+
 static MYSQL_SYSVAR_LONG(force_recovery, innobase_force_recovery,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Helps to save your data in case the disk image of the database becomes corrupt.",
@@ -9671,7 +9879,7 @@ static MYSQL_SYSVAR_LONG(force_recovery, innobase_force_recovery,
 static MYSQL_SYSVAR_LONG(log_buffer_size, innobase_log_buffer_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "The size of the buffer which InnoDB uses to write log to the log files on disk.",
-  NULL, NULL, 1024*1024L, 256*1024L, LONG_MAX, 1024);
+  NULL, NULL, 8*1024*1024L, 256*1024L, LONG_MAX, 1024);
 
 static MYSQL_SYSVAR_LONGLONG(log_file_size, innobase_log_file_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -9695,13 +9903,13 @@ static MYSQL_SYSVAR_LONG(open_files, innobase_open_files,
 
 static MYSQL_SYSVAR_ULONG(sync_spin_loops, srv_n_spin_wait_rounds,
   PLUGIN_VAR_RQCMDARG,
-  "Count of spin-loop rounds in InnoDB mutexes",
-  NULL, NULL, 20L, 0L, ~0L, 0);
+  "Count of spin-loop rounds in InnoDB mutexes (30 by default)",
+  NULL, NULL, 30L, 0L, ~0L, 0);
 
 static MYSQL_SYSVAR_ULONG(spin_wait_delay, srv_spin_wait_delay,
   PLUGIN_VAR_OPCMDARG,
-  "Maximum delay between polling for a spin lock (5 by default)",
-  NULL, NULL, 5L, 0L, ~0L, 0);
+  "Maximum delay between polling for a spin lock (6 by default)",
+  NULL, NULL, 6L, 0L, ~0L, 0);
 
 static MYSQL_SYSVAR_ULONG(thread_concurrency, srv_thread_concurrency,
   PLUGIN_VAR_RQCMDARG,
@@ -9751,6 +9959,12 @@ static MYSQL_SYSVAR_STR(change_buffering, innobase_change_buffering,
   innodb_change_buffering_validate,
   innodb_change_buffering_update, NULL);
 
+static MYSQL_SYSVAR_ULONG(read_ahead_threshold, srv_read_ahead_threshold,
+  PLUGIN_VAR_RQCMDARG,
+  "Number of pages that must be accessed sequentially for InnoDB to"
+  "trigger a readahead.",
+  NULL, NULL, 56, 0, 64, 0);
+
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(additional_mem_pool_size),
   MYSQL_SYSVAR(autoextend_increment),
@@ -9763,6 +9977,8 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(doublewrite),
   MYSQL_SYSVAR(fast_shutdown),
   MYSQL_SYSVAR(file_io_threads),
+  MYSQL_SYSVAR(read_io_threads),
+  MYSQL_SYSVAR(write_io_threads),
   MYSQL_SYSVAR(file_per_table),
   MYSQL_SYSVAR(file_format),
   MYSQL_SYSVAR(file_format_check),
@@ -9780,6 +9996,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(log_files_in_group),
   MYSQL_SYSVAR(log_group_home_dir),
   MYSQL_SYSVAR(max_dirty_pages_pct),
+  MYSQL_SYSVAR(adaptive_flushing),
   MYSQL_SYSVAR(max_purge_lag),
   MYSQL_SYSVAR(mirrored_log_groups),
   MYSQL_SYSVAR(open_files),
@@ -9801,6 +10018,8 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(use_sys_malloc),
   MYSQL_SYSVAR(use_native_aio),
   MYSQL_SYSVAR(change_buffering),
+  MYSQL_SYSVAR(read_ahead_threshold),
+  MYSQL_SYSVAR(io_capacity),
   NULL
 };
 
@@ -9827,6 +10046,24 @@ i_s_innodb_cmp_reset,
 i_s_innodb_cmpmem,
 i_s_innodb_cmpmem_reset
 mysql_declare_plugin_end;
+
+/** @brief Initialize the default value of innodb_commit_concurrency.
+
+Once InnoDB is running, the innodb_commit_concurrency must not change
+from zero to nonzero. (Bug #42101)
+
+The initial default value is 0, and without this extra initialization,
+SET GLOBAL innodb_commit_concurrency=DEFAULT would set the parameter
+to 0, even if it was initially set to nonzero at the command line
+or configuration file. */
+static
+void
+innobase_commit_concurrency_init_default(void)
+/*==========================================*/
+{
+	MYSQL_SYSVAR_NAME(commit_concurrency).def_val
+		= innobase_commit_concurrency;
+}
 
 #ifdef UNIV_COMPILE_TEST_FUNCS
 

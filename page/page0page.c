@@ -233,9 +233,11 @@ page_set_max_trx_id(
 		page_zip_write_header(page_zip,
 				      page + (PAGE_HEADER + PAGE_MAX_TRX_ID),
 				      8, mtr);
+#ifndef UNIV_HOTBACKUP
 	} else if (mtr) {
 		mlog_write_dulint(page + (PAGE_HEADER + PAGE_MAX_TRX_ID),
 				  trx_id, mtr);
+#endif /* !UNIV_HOTBACKUP */
 	} else {
 		mach_write_to_8(page + (PAGE_HEADER + PAGE_MAX_TRX_ID), trx_id);
 	}

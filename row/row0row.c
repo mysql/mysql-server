@@ -643,67 +643,6 @@ notfound:
 	}
 }
 
-/*******************************************************************//**
-From a row build a row reference with which we can search the clustered
-index record. */
-UNIV_INTERN
-void
-row_build_row_ref_from_row(
-/*=======================*/
-	dtuple_t*		ref,	/*!< in/out: row reference built;
-					see the NOTE below!
-					ref must have the right number
-					of fields! */
-	const dict_table_t*	table,	/*!< in: table */
-	const dtuple_t*		row)	/*!< in: row
-					NOTE: the data fields in ref will point
-					directly into data of this row */
-{
-	const dict_index_t*	clust_index;
-	ulint			ref_len;
-	ulint			i;
-
-	ut_ad(ref && table && row);
-
-	clust_index = dict_table_get_first_index(table);
-
-	ref_len = dict_index_get_n_unique(clust_index);
-
-	ut_ad(ref_len == dtuple_get_n_fields(ref));
-
-	for (i = 0; i < ref_len; i++) {
-		const dict_col_t*	col;
-		const dict_field_t*	field;
-		dfield_t*		dfield;
-		const dfield_t*		dfield2;
-
-		dfield = dtuple_get_nth_field(ref, i);
-
-		field = dict_index_get_nth_field(clust_index, i);
-
-		col = dict_field_get_col(field);
-
-		dfield2 = dtuple_get_nth_field(row, dict_col_get_no(col));
-
-		dfield_copy(dfield, dfield2);
-		ut_ad(!dfield_is_ext(dfield));
-
-		if (field->prefix_len > 0 && !dfield_is_null(dfield)) {
-
-			ulint	len = dfield_get_len(dfield);
-
-			len = dtype_get_at_most_n_mbchars(
-				col->prtype, col->mbminlen, col->mbmaxlen,
-				field->prefix_len,
-				len, dfield_get_data(dfield));
-
-			dfield_set_len(dfield, len);
-		}
-	}
-
-	ut_ad(dtuple_check_typed(ref));
-}
-
 /***************************************************************//**
 Searches the clustered index record for a row, if we have the row reference.
 @return	TRUE if found */

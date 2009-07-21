@@ -215,21 +215,6 @@ row_build_row_ref_in_tuple(
 					or NULL */
 	trx_t*			trx);	/*!< in: transaction */
 /*******************************************************************//**
-From a row build a row reference with which we can search the clustered
-index record. */
-UNIV_INTERN
-void
-row_build_row_ref_from_row(
-/*=======================*/
-	dtuple_t*		ref,	/*!< in/out: row reference built;
-					see the NOTE below!
-					ref must have the right number
-					of fields! */
-	const dict_table_t*	table,	/*!< in: table */
-	const dtuple_t*		row);	/*!< in: row
-					NOTE: the data fields in ref will point
-					directly into data of this row */
-/*******************************************************************//**
 Builds from a secondary index record a row reference with which we can
 search the clustered index record. */
 UNIV_INLINE
