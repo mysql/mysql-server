@@ -239,7 +239,6 @@ mlog_parse_nbytes(
 	return(ptr);
 }
 
-#ifndef UNIV_HOTBACKUP
 /********************************************************//**
 Writes 1 - 4 bytes to a file page buffered in the buffer pool.
 Writes the corresponding log record to the mini-transaction log. */
@@ -322,6 +321,7 @@ mlog_write_dulint(
 	mlog_close(mtr, log_ptr);
 }
 
+#ifndef UNIV_HOTBACKUP
 /********************************************************//**
 Writes a string to a file page buffered in the buffer pool. Writes the
 corresponding log record to the mini-transaction log. */
@@ -440,7 +440,7 @@ byte*
 mlog_open_and_write_index(
 /*======================*/
 	mtr_t*		mtr,	/*!< in: mtr */
-	byte*		rec,	/*!< in: index record or page */
+	const byte*	rec,	/*!< in: index record or page */
 	dict_index_t*	index,	/*!< in: record descriptor */
 	byte		type,	/*!< in: log item type */
 	ulint		size)	/*!< in: requested buffer size in bytes

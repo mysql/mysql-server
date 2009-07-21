@@ -456,11 +456,12 @@ buf_LRU_get_recent_limit(void)
 
 	bpage = UT_LIST_GET_FIRST(buf_pool->LRU);
 
-	limit = buf_page_get_LRU_position(bpage) - len / BUF_LRU_INITIAL_RATIO;
+	limit = buf_page_get_LRU_position(bpage);
+	len /= BUF_LRU_INITIAL_RATIO;
 
 	buf_pool_mutex_exit();
 
-	return(limit);
+	return(limit > len ? (limit - len) : 0);
 }
 
 /********************************************************************//**

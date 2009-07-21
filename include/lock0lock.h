@@ -461,14 +461,6 @@ lock_table(
 	dict_table_t*	table,	/*!< in: database table in dictionary cache */
 	enum lock_mode	mode,	/*!< in: lock mode */
 	que_thr_t*	thr);	/*!< in: query thread */
-/*********************************************************************//**
-Checks if there are any locks set on the table.
-@return	TRUE if there are lock(s) */
-UNIV_INTERN
-ibool
-lock_is_on_table(
-/*=============*/
-	dict_table_t*	table);	/*!< in: database table in dictionary cache */
 /*************************************************************//**
 Removes a granted record lock of a transaction from the queue and grants
 locks to other transactions waiting in the queue if they now are entitled
@@ -482,14 +474,6 @@ lock_rec_unlock(
 	const buf_block_t*	block,	/*!< in: buffer block containing rec */
 	const rec_t*		rec,	/*!< in: record */
 	enum lock_mode		lock_mode);/*!< in: LOCK_S or LOCK_X */
-/*********************************************************************//**
-Releases a table lock.
-Releases possible other transactions waiting for this lock. */
-UNIV_INTERN
-void
-lock_table_unlock(
-/*==============*/
-	lock_t*	lock);	/*!< in: lock */
 /*********************************************************************//**
 Releases transaction locks, and releases possible other transactions waiting
 because of these locks. */

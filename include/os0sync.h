@@ -128,18 +128,6 @@ os_event_create(
 /*============*/
 	const char*	name);	/*!< in: the name of the event, if NULL
 				the event is created without a name */
-#ifdef __WIN__
-/*********************************************************//**
-Creates an auto-reset event semaphore, i.e., an event which is automatically
-reset when a single thread is released. Works only in Windows.
-@return	the event handle */
-UNIV_INTERN
-os_event_t
-os_event_create_auto(
-/*=================*/
-	const char*	name);	/*!< in: the name of the event, if NULL
-				the event is created without a name */
-#endif
 /**********************************************************//**
 Sets an event semaphore to the signaled state: lets waiting threads
 proceed. */

@@ -49,6 +49,7 @@ Created 10/16/1994 Heikki Tuuri
 
 #include "row0upd.h"
 #ifndef UNIV_HOTBACKUP
+#include "mtr0log.h"
 #include "page0page.h"
 #include "page0zip.h"
 #include "rem0rec.h"
