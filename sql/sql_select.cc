@@ -12865,8 +12865,23 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
   tab->records= table->sort.found_records;	// For SQL_CALC_ROWS
   if (select)
   {
+    /*
+      We need to preserve tablesort's output resultset here, because
+      QUICK_INDEX_MERGE_SELECT::~QUICK_INDEX_MERGE_SELECT (called by
+      SQL_SELECT::cleanup()) may free it assuming it's the result of the quick
+      select operation that we no longer need. Note that all the other parts of
+      this data structure are cleaned up when
+      QUICK_INDEX_MERGE_SELECT::get_next encounters end of data, so the next
+      SQL_SELECT::cleanup() call changes sort.io_cache alone.
+    */
+    IO_CACHE *tablesort_result_cache;
+
+    tablesort_result_cache= table->sort.io_cache;
+    table->sort.io_cache= NULL;
+
     select->cleanup();				// filesort did select
     tab->select= 0;
+    table->sort.io_cache= tablesort_result_cache;
   }
   tab->select_cond=0;
   tab->last_inner= 0;
