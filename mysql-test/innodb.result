@@ -1738,7 +1738,7 @@ count(*)
 drop table t1;
 SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_total';
 variable_value
-511
+8191
 SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_page_size';
 variable_value
 16384
@@ -1766,9 +1766,10 @@ variable_value - @innodb_row_lock_time_max_orig
 SELECT variable_value - @innodb_row_lock_time_avg_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_time_avg';
 variable_value - @innodb_row_lock_time_avg_orig
 0
+SET @innodb_sync_spin_loops_orig = @@innodb_sync_spin_loops;
 show variables like "innodb_sync_spin_loops";
 Variable_name	Value
-innodb_sync_spin_loops	20
+innodb_sync_spin_loops	30
 set global innodb_sync_spin_loops=1000;
 show variables like "innodb_sync_spin_loops";
 Variable_name	Value
@@ -1781,6 +1782,7 @@ set global innodb_sync_spin_loops=20;
 show variables like "innodb_sync_spin_loops";
 Variable_name	Value
 innodb_sync_spin_loops	20
+set global innodb_sync_spin_loops=@innodb_sync_spin_loops_orig;
 show variables like "innodb_thread_concurrency";
 Variable_name	Value
 innodb_thread_concurrency	0

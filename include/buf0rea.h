@@ -124,14 +124,16 @@ buf_read_recv_pages(
 	ulint		n_stored);	/*!< in: number of page numbers
 					in the array */
 
-/* The size in pages of the area which the read-ahead algorithms read if
+/** The size in pages of the area which the read-ahead algorithms read if
 invoked */
-
 #define	BUF_READ_AHEAD_AREA					\
 	ut_min(64, ut_2_power_up(buf_pool->curr_size / 32))
 
-/* Modes used in read-ahead */
+/** @name Modes used in read-ahead @{ */
+/** read only pages belonging to the insert buffer tree */
 #define BUF_READ_IBUF_PAGES_ONLY	131
+/** read any page */
 #define BUF_READ_ANY_PAGE		132
+/* @} */
 
 #endif
