@@ -1880,6 +1880,27 @@ srv_printf_innodb_monitor(
 
 	mutex_exit(&dict_foreign_err_mutex);
 
+	/* Print open transaction details */
+	lock_print_info_summary(file);
+
+	if (trx_start) {
+		long    t = ftell(file);
+		if (t < 0) {
+			*trx_start = ULINT_UNDEFINED;
+		} else {
+			*trx_start = (ulint) t;
+		}
+	}
+	lock_print_info_all_transactions(file);
+	if (trx_end) {
+		long    t = ftell(file);
+		if (t < 0) {
+			*trx_end = ULINT_UNDEFINED;
+		} else {
+			*trx_end = (ulint) t;
+		}
+	}
+
 	fputs("--------\n"
 	      "FILE I/O\n"
 	      "--------\n", file);
