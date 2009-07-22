@@ -4663,7 +4663,6 @@ toku_brt_note_table_lock (BRT brt, TOKUTXN txn)
     if (brt->h->txnid_that_created_or_locked_when_empty != toku_txn_get_txnid(txn) &&
         brt_is_empty(brt, toku_txn_logger(txn)) &&
         brt->h->txnid_that_created_or_locked_when_empty == 0) {
-        assert(brt->h->txnid_that_created_or_locked_when_empty == 0);
         brt->h->txnid_that_created_or_locked_when_empty = toku_txn_get_txnid(txn);
         int r = toku_txn_note_brt(txn, brt);
         assert(r==0);
