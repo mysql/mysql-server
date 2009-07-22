@@ -5609,19 +5609,18 @@ bool my_yyoverflow(short **yyss, YYSTYPE **yyvs, ulong *yystacksize)
 
 
 /**
- Reset THD part responsible for command processing state.
+  Reset the part of THD responsible for the state of command
+  processing.
 
-   This needs to be called before execution of every statement
-   (prepared or conventional).
-   It is not called by substatements of routines.
+  This needs to be called before execution of every statement
+  (prepared or conventional).  It is not called by substatements of
+  routines.
 
-  @todo
-   Make it a method of THD and align its name with the rest of
-   reset/end/start/init methods.
-  @todo
-   Call it after we use THD for queries, not before.
+  @todo Remove mysql_reset_thd_for_next_command and only use the
+  member function.
+
+  @todo Call it after we use THD for queries, not before.
 */
-
 void mysql_reset_thd_for_next_command(THD *thd)
 {
   thd->reset_for_next_command();
@@ -5674,7 +5673,7 @@ void THD::reset_for_next_command()
   thd->sent_row_count= thd->examined_row_count= 0;
 
   thd->reset_current_stmt_binlog_row_based();
-  thd->binlog_warning_flags= 0;
+  thd->binlog_unsafe_warning_flags= 0;
 
   DBUG_PRINT("debug",
              ("current_stmt_binlog_row_based: %d",

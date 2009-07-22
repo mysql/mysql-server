@@ -2379,7 +2379,7 @@ Create_udf_func::create(THD *thd, udf_func *udf, List<Item> *item_list)
   if (item_list != NULL)
     arg_count= item_list->elements;
 
-  thd->lex->set_stmt_unsafe();
+  thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_UDF);
 
   DBUG_ASSERT(   (udf->type == UDFTYPE_FUNCTION)
               || (udf->type == UDFTYPE_AGGREGATE));
@@ -3365,7 +3365,7 @@ Item*
 Create_func_found_rows::create(THD *thd)
 {
   DBUG_ENTER("Create_func_found_rows::create");
-  thd->lex->set_stmt_unsafe();
+  thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_FUNCTION);
   thd->lex->safe_to_cache_query= 0;
   DBUG_RETURN(new (thd->mem_root) Item_func_found_rows());
 }
@@ -3794,7 +3794,7 @@ Item*
 Create_func_load_file::create(THD *thd, Item *arg1)
 {
   DBUG_ENTER("Create_func_load_file::create");
-  thd->lex->set_stmt_unsafe();
+  thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_FUNCTION);
   thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
   DBUG_RETURN(new (thd->mem_root) Item_load_file(arg1));
 }
@@ -4264,7 +4264,7 @@ Item*
 Create_func_row_count::create(THD *thd)
 {
   DBUG_ENTER("Create_func_row_count::create");
-  thd->lex->set_stmt_unsafe();
+  thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_FUNCTION);
   thd->lex->safe_to_cache_query= 0;
   DBUG_RETURN(new (thd->mem_root) Item_func_row_count());
 }
@@ -4574,7 +4574,7 @@ Item*
 Create_func_uuid::create(THD *thd)
 {
   DBUG_ENTER("Create_func_uuid::create");
-  thd->lex->set_stmt_unsafe();
+  thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_FUNCTION);
   thd->lex->safe_to_cache_query= 0;
   DBUG_RETURN(new (thd->mem_root) Item_func_uuid());
 }
@@ -4586,7 +4586,7 @@ Item*
 Create_func_uuid_short::create(THD *thd)
 {
   DBUG_ENTER("Create_func_uuid_short::create");
-  thd->lex->set_stmt_unsafe();
+  thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_FUNCTION);
   thd->lex->safe_to_cache_query= 0;
   DBUG_RETURN(new (thd->mem_root) Item_func_uuid_short());
 }

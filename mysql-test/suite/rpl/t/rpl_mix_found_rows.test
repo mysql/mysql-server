@@ -1,6 +1,14 @@
 source include/master-slave.inc;
 source include/have_binlog_format_mixed.inc;
 
+# It is not possible to replicate FOUND_ROWS() using statement-based
+# replication, but there is a workaround that stores the result of
+# FOUND_ROWS() into a user variable and then replicates this instead.
+#
+# The purpose of this test case is to test that the workaround works
+# properly even when inside stored programs (i.e., stored routines and
+# triggers).
+
 --echo ==== Initialize ====
 
 --echo **** On Master ****

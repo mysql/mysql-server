@@ -1745,7 +1745,7 @@ public:
       decide_logging_format is made.  We should probably call
       thd->decide_logging_format() directly instead.  /Sven
     */
-    thd.lex->set_stmt_unsafe();
+    thd.lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_INSERT_DELAYED);
     thd.set_current_stmt_binlog_row_based_if_mixed();
 
     bzero((char*) &thd.net, sizeof(thd.net));		// Safety

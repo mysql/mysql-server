@@ -508,7 +508,7 @@ sp_head::operator delete(void *ptr, size_t size) throw()
 
 sp_head::sp_head()
   :Query_arena(&main_mem_root, INITIALIZED_FOR_SP),
-   m_flags(0), m_recursion_level(0), m_next_cached_sp(0),
+   m_flags(0), unsafe_flags(0), m_recursion_level(0), m_next_cached_sp(0),
    m_cont_level(0)
 {
   const LEX_STRING str_reset= { NULL, 0 };
@@ -2104,13 +2104,10 @@ sp_head::restore_lex(THD *thd)
 
   oldlex->trg_table_fields.push_back(&sublex->trg_table_fields);
 
-  /*
-    If this substatement needs row-based, the entire routine does too (we
-    cannot switch from statement-based to row-based only for this
-    substatement).
-  */
-  if (sublex->is_stmt_unsafe())
-    m_flags|= BINLOG_ROW_BASED_IF_MIXED;
+  /* If this substatement is unsafe, the entire routine is too. */
+  DBUG_PRINT("info", ("lex->get_stmt_unsafe_flags: 0x%x",
+                      thd->lex->get_stmt_unsafe_flags()));
+  unsafe_flags|= sublex->get_stmt_unsafe_flags();
 
   /*
     Add routines which are used by statement to respective set for

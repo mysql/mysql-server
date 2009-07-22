@@ -1043,49 +1043,143 @@ public:
     }
   }
 
-  /**
-    Has the parser/scanner detected that this statement is unsafe?
 
-    @retval 0 if the statement is not marked as unsafe
-    @retval nonzero if the statement is marked as unsafe
+  /**
+    Enumeration listing of all types of unsafe statement.
+
+    @note The order of elements of this enumeration type must
+    correspond to the order of the elements of the @c explanations
+    array defined in the body of @c THD::issue_unsafe_warnings.
+  */
+  enum enum_binlog_stmt_unsafe {
+    /**
+      SELECT..LIMIT is unsafe because the set of rows returned cannot
+      be predicted.
+    */
+    BINLOG_STMT_UNSAFE_LIMIT= 0,
+    /**
+      INSERT DELAYED is unsafe because the time when rows are inserted
+      cannot be predicted.
+    */
+    BINLOG_STMT_UNSAFE_INSERT_DELAYED,
+    /**
+      Access to log tables is unsafe because slave and master probably
+      log different things.
+    */
+    BINLOG_STMT_UNSAFE_SYSTEM_TABLE,
+    /**
+      Update of two autoincrement columns is unsafe.  With one
+      autoincrement column, we store the counter in the binlog so that
+      slave can restore the correct value.  But we can only store one
+      such counter per statement, so updating more than one
+      autoincrement column is not safe.
+    */
+    BINLOG_STMT_UNSAFE_TWO_AUTOINC_COLUMNS,
+    /**
+      Using a UDF (user-defined function) is unsafe.
+    */
+    BINLOG_STMT_UNSAFE_UDF,
+    /**
+      Using most system variables is unsafe, because slave may run
+      with different options than master.
+    */
+    BINLOG_STMT_UNSAFE_SYSTEM_VARIABLE,
+    /**
+      Using some functions is unsafe (e.g., UUID).
+    */
+    BINLOG_STMT_UNSAFE_FUNCTION,
+
+    /* The last element of this enumeration type. */
+    BINLOG_STMT_UNSAFE_COUNT
+  };
+  /**
+    This has all flags from 0 (inclusive) to BINLOG_STMT_FLAG_COUNT
+    (exclusive) set.
+  */
+  static const int BINLOG_STMT_UNSAFE_ALL_FLAGS=
+    ((1 << BINLOG_STMT_UNSAFE_COUNT) - 1);
+
+  /**
+    Determine if this statement is marked as unsafe.
+
+    @retval 0 if the statement is not marked as unsafe.
+    @retval nonzero if the statement is marked as unsafe.
   */
   inline bool is_stmt_unsafe() const {
-    return binlog_stmt_flags & (1U << BINLOG_STMT_FLAG_UNSAFE);
+    return get_stmt_unsafe_flags() != 0;
   }
 
   /**
-    Is this statement actually a row injection?
+    Flag the current (top-level) statement as unsafe.
+    The flag will be reset after the statement has finished.
+
+    @param unsafe_type The type of unsafety: one of the @c
+    BINLOG_STMT_FLAG_UNSAFE_* flags in @c enum_binlog_stmt_flag.
+  */
+  inline void set_stmt_unsafe(enum_binlog_stmt_unsafe unsafe_type) {
+    DBUG_ENTER("set_stmt_unsafe");
+    DBUG_ASSERT(unsafe_type >= 0 && unsafe_type < BINLOG_STMT_UNSAFE_COUNT);
+    binlog_stmt_flags|= (1U << unsafe_type);
+    DBUG_VOID_RETURN;
+  }
+
+  /**
+    Set the bits of binlog_stmt_flags determining the type of
+    unsafeness of the current statement.  No existing bits will be
+    cleared, but new bits may be set.
+
+    @param flags A binary combination of zero or more bits, (1<<flag)
+    where flag is a member of enum_binlog_stmt_unsafe.
+  */
+  inline void set_stmt_unsafe_flags(uint32 flags) {
+    DBUG_ENTER("set_stmt_unsafe_flags");
+    DBUG_ASSERT((flags & ~BINLOG_STMT_UNSAFE_ALL_FLAGS) == 0);
+    binlog_stmt_flags|= flags;
+    DBUG_VOID_RETURN;
+  }
+
+  /**
+    Return a binary combination of all unsafe warnings for the
+    statement.  If the statement has been marked as unsafe by the
+    'flag' member of enum_binlog_stmt_unsafe, then the return value
+    from this function has bit (1<<flag) set to 1.
+  */
+  inline uint32 get_stmt_unsafe_flags() const {
+    DBUG_ENTER("get_stmt_unsafe_flags");
+    DBUG_RETURN(binlog_stmt_flags & BINLOG_STMT_UNSAFE_ALL_FLAGS);
+  }
+
+  /**
+    Mark the current statement as safe; i.e., clear all bits in
+    binlog_stmt_flags that correspond to elements of
+    enum_binlog_stmt_unsafe.
+  */
+  inline void clear_stmt_unsafe() {
+    DBUG_ENTER("clear_stmt_unsafe");
+    binlog_stmt_flags&= ~BINLOG_STMT_UNSAFE_ALL_FLAGS;
+    DBUG_VOID_RETURN;
+  }
+
+  /**
+    Determine if this statement is a row injection.
 
     @retval 0 if the statement is not a row injection
     @retval nonzero if the statement is a row injection
   */
   inline bool is_stmt_row_injection() const {
-    return binlog_stmt_flags & (1U << BINLOG_STMT_FLAG_ROW_INJECTION);
+    return binlog_stmt_flags &
+      (1U << (BINLOG_STMT_UNSAFE_COUNT + BINLOG_STMT_TYPE_ROW_INJECTION));
   }
 
   /**
-    Flag the statement as a row injection.  (A row injection is either
+    Flag the statement as a row injection.  A row injection is either
     a BINLOG statement, or a row event in the relay log executed by
-    the slave SQL thread.)
+    the slave SQL thread.
   */
   inline void set_stmt_row_injection() {
     DBUG_ENTER("set_stmt_row_injection");
-    binlog_stmt_flags|= (1U << BINLOG_STMT_FLAG_ROW_INJECTION);
-    DBUG_VOID_RETURN;
-  }
-  /**
-     Flag the current (top-level) statement as unsafe.
-     The flag will be reset after the statement has finished.
-   */
-  inline void set_stmt_unsafe() {
-    DBUG_ENTER("set_stmt_unsafe");
-    binlog_stmt_flags|= (1U << BINLOG_STMT_FLAG_UNSAFE);
-    DBUG_VOID_RETURN;
-  }
-
-  inline void clear_stmt_unsafe() {
-    DBUG_ENTER("clear_stmt_unsafe");
-    binlog_stmt_flags&= ~(1U << BINLOG_STMT_FLAG_UNSAFE);
+    binlog_stmt_flags|=
+      (1U << (BINLOG_STMT_UNSAFE_COUNT + BINLOG_STMT_TYPE_ROW_INJECTION));
     DBUG_VOID_RETURN;
   }
 
@@ -1097,37 +1191,37 @@ public:
   { return sroutines_list.elements != 0; }
 
 private:
-  /**
-    Flags indicating properties of the statement with respect to
-    logging.
 
-    These are combined in a binary manner; e.g., an unsafe statement
-    has the bit (1<<BINLOG_STMT_FLAG_UNSAFE) set.
+  /**
+    Enumeration listing special types of statements.
+
+    Currently, the only possible type is ROW_INJECTION.
   */
-  enum enum_binlog_stmt_flag {
-    /** The statement is unsafe to log in statement mode. */
-    BINLOG_STMT_FLAG_UNSAFE= 0,
+  enum enum_binlog_stmt_type {
     /**
       The statement is a row injection (i.e., either a BINLOG
       statement or a row event executed by the slave SQL thread).
     */
-    BINLOG_STMT_FLAG_ROW_INJECTION,
-    /**
-      The last element of this enumeration type.  Insert new members
-      above.
-    */
-    BINLOG_STMT_FLAG_COUNT
+    BINLOG_STMT_TYPE_ROW_INJECTION = 0,
+
+    /** The last element of this enumeration type. */
+    BINLOG_STMT_TYPE_COUNT
   };
 
   /**
-    Indicates the type of statement with respect to binlogging.
+    Bit field indicating the type of statement.
 
-    This is typically zeroed before parsing a statement, set during
-    parsing (depending on the query), and read when deciding the
-    logging format of the current statement.
+    There are two groups of bits:
 
-    This is a binary combination of one or more bits (1<<flag), where
-    flag is a member of enum_binlog_stmt_flag.
+    - The low BINLOG_STMT_UNSAFE_COUNT bits indicate the types of
+      unsafeness that the current statement has.
+
+    - The next BINLOG_STMT_TYPE_COUNT bits indicate if the statement
+      is of some special type.
+
+    This must be a member of LEX, not of THD: each stored procedure
+    needs to remember its unsafeness state between calls and each
+    stored procedure has its own LEX object (but no own THD object).
   */
   uint32 binlog_stmt_flags;
 };
