@@ -47,6 +47,16 @@ static const int64_t toku_byte_order_host = 0x0102030405060708LL;
 #endif
 
 #if DISK_BYTE_ORDER == HOST_BYTE_ORDER
+static inline uint64_t
+toku_dtoh64(uint64_t i) {
+    return i;
+}
+
+static inline uint64_t
+toku_htod64(uint64_t i) {
+    return i;
+}
+
 static inline uint32_t
 toku_dtoh32(uint32_t i) {
     return i;

@@ -7,12 +7,8 @@
 
 #include "includes.h"
 #include "checkpoint.h"
-
-// these flags control whether or not we send commit messages for
-// various operations
-#define TOKU_DO_COMMIT_CMD_INSERT 0
-#define TOKU_DO_COMMIT_CMD_DELETE 1
-#define TOKU_DO_COMMIT_CMD_DELETE_BOTH 1
+#include "xids.h"
+#include "roll.h"
 
 int
 toku_commit_fcreate (TXNID UU(xid),
@@ -63,14 +59,15 @@ static int find_brt_from_filenum (OMTVALUE v, void *filenumvp) {
     return 0;
 }
 
-static int do_insertion (enum brt_cmd_type type, TXNID xid, FILENUM filenum, BYTESTRING key, BYTESTRING *data,TOKUTXN txn) {
+static int do_insertion (enum brt_cmd_type type, FILENUM filenum, BYTESTRING key, BYTESTRING *data,TOKUTXN txn) {
     CACHEFILE cf;
     //printf("%s:%d committing insert %s %s\n", __FILE__, __LINE__, key.data, data.data);
     int r = toku_cachefile_of_filenum(txn->logger->ct, filenum, &cf);
     assert(r==0);
 
     DBT key_dbt,data_dbt;
-    BRT_CMD_S brtcmd = { type, xid,
+    XIDS xids = toku_txn_get_xids(txn);
+    BRT_CMD_S brtcmd = { type, xids,
 			 .u.id={toku_fill_dbt(&key_dbt,  key.data,  key.len),
 				data
 				? toku_fill_dbt(&data_dbt, data->data, data->len)
@@ -93,18 +90,17 @@ static int do_nothing_with_filenum(TOKUTXN txn, FILENUM filenum) {
 }
 
 
-int toku_commit_cmdinsert (TXNID xid, FILENUM filenum, BYTESTRING key, TOKUTXN txn, YIELDF UU(yield), void *UU(yieldv)) {
+int toku_commit_cmdinsert (FILENUM filenum, BYTESTRING key, TOKUTXN txn, YIELDF UU(yield), void *UU(yieldv)) {
 #if TOKU_DO_COMMIT_CMD_INSERT
-    return do_insertion (BRT_COMMIT_ANY, xid, filenum, key, 0, txn);
+    return do_insertion (BRT_COMMIT_ANY, filenum, key, 0, txn);
 #else
-    xid = xid; key = key;
+    key = key;
     return do_nothing_with_filenum(txn, filenum);
 #endif
 }
 
 int
-toku_commit_cmdinsertboth (TXNID      xid,
-			   FILENUM    filenum,
+toku_commit_cmdinsertboth (FILENUM    filenum,
 			   BYTESTRING key,
 			   BYTESTRING data,
 			   TOKUTXN    txn,
@@ -112,39 +108,36 @@ toku_commit_cmdinsertboth (TXNID      xid,
 			   void *     UU(yieldv))
 {
 #if TOKU_DO_COMMIT_CMD_INSERT
-    return do_insertion (BRT_COMMIT_BOTH, xid, filenum, key, &data, txn);
+    return do_insertion (BRT_COMMIT_BOTH, filenum, key, &data, txn);
 #else
-    xid = xid; key = key; data = data;
+    key = key; data = data;
     return do_nothing_with_filenum(txn, filenum);
 #endif
 }
 
 int
-toku_rollback_cmdinsert (TXNID      xid,
-			 FILENUM    filenum,
+toku_rollback_cmdinsert (FILENUM    filenum,
 			 BYTESTRING key,
 			 TOKUTXN    txn,
 			 YIELDF     UU(yield),
 			 void *     UU(yieldv))
 {
-    return do_insertion (BRT_ABORT_ANY, xid, filenum, key, 0, txn);
+    return do_insertion (BRT_ABORT_ANY, filenum, key, 0, txn);
 }
 
 int
-toku_rollback_cmdinsertboth (TXNID      xid,
-			     FILENUM    filenum,
+toku_rollback_cmdinsertboth (FILENUM    filenum,
 			     BYTESTRING key,
 			     BYTESTRING data,
 			     TOKUTXN    txn,
 			     YIELDF     UU(yield),
 			     void *     UU(yieldv))
 {
-    return do_insertion (BRT_ABORT_BOTH, xid, filenum, key, &data, txn);
+    return do_insertion (BRT_ABORT_BOTH, filenum, key, &data, txn);
 }
 
 int
-toku_commit_cmddeleteboth (TXNID      xid,
-			   FILENUM    filenum,
+toku_commit_cmddeleteboth (FILENUM    filenum,
 			   BYTESTRING key,
 			   BYTESTRING data,
 			   TOKUTXN    txn,
@@ -152,7 +145,7 @@ toku_commit_cmddeleteboth (TXNID      xid,
 			   void *     UU(yieldv))
 {
 #if TOKU_DO_COMMIT_CMD_DELETE_BOTH
-    return do_insertion (BRT_COMMIT_BOTH, xid, filenum, key, &data, txn);
+    return do_insertion (BRT_COMMIT_BOTH, filenum, key, &data, txn);
 #else
     xid = xid; key = key; data = data;
     return do_nothing_with_filenum(txn, filenum);
@@ -160,27 +153,25 @@ toku_commit_cmddeleteboth (TXNID      xid,
 }
 
 int
-toku_rollback_cmddeleteboth (TXNID      xid,
-			     FILENUM    filenum,
+toku_rollback_cmddeleteboth (FILENUM    filenum,
 			     BYTESTRING key,
 			     BYTESTRING data,
 			     TOKUTXN    txn,
 			     YIELDF     UU(yield),
 			     void *     UU(yieldv))
 {
-    return do_insertion (BRT_ABORT_BOTH, xid, filenum, key, &data, txn);
+    return do_insertion (BRT_ABORT_BOTH, filenum, key, &data, txn);
 }
 
 int
-toku_commit_cmddelete (TXNID xid,
-		       FILENUM filenum,
+toku_commit_cmddelete (FILENUM filenum,
 		       BYTESTRING key,
 		       TOKUTXN txn,
 		       YIELDF     UU(yield),
 		       void *     UU(yieldv))
 {
 #if TOKU_DO_COMMIT_CMD_DELETE
-    return do_insertion (BRT_COMMIT_ANY, xid, filenum, key, 0, txn);
+    return do_insertion (BRT_COMMIT_ANY, filenum, key, 0, txn);
 #else
     xid = xid; key = key;
     return do_nothing_with_filenum(txn, filenum);
@@ -188,14 +179,13 @@ toku_commit_cmddelete (TXNID xid,
 }
 
 int
-toku_rollback_cmddelete (TXNID      xid,
-			 FILENUM    filenum,
+toku_rollback_cmddelete (FILENUM    filenum,
 			 BYTESTRING key,
 			 TOKUTXN    txn,
 			 YIELDF     UU(yield),
 			 void *     UU(yieldv))
 {
-    return do_insertion (BRT_ABORT_ANY, xid, filenum, key, 0, txn);
+    return do_insertion (BRT_ABORT_ANY, filenum, key, 0, txn);
 }
 
 int

@@ -184,6 +184,9 @@ VGRIND=valgrind --quiet --error-exitcode=1 --leak-check=full --show-reachable=ye
 ifeq ($(DB_ATTACH),1)
 	VGRIND+=--db-attach=yes
 endif
+ifeq ($(TRACK_ORIGINS),1)
+	VGRIND+=--track-origins=yes
+endif
 
 HGRIND=valgrind --quiet --tool=helgrind --error-exitcode=1
 

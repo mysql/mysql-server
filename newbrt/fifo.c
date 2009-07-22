@@ -3,6 +3,7 @@
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #include "includes.h"
+#include "xids.h"
 
 struct fifo {
     int n_items_in_fifo;
@@ -22,7 +23,9 @@ static void fifo_init(struct fifo *fifo) {
 }
 
 static int fifo_entry_size(struct fifo_entry *entry) {
-    return sizeof (struct fifo_entry) + entry->keylen + entry->vallen;
+    return sizeof (struct fifo_entry) + entry->keylen + entry->vallen
+                  + xids_get_size(&entry->xids_s)
+                  - sizeof(XIDS_S); //Prevent double counting from fifo_entry+xids_get_size
 }
 
 static struct fifo_entry *fifo_peek(struct fifo *fifo) {
@@ -59,8 +62,11 @@ static int next_power_of_two (int n) {
     return r;
 }
 
-int toku_fifo_enq(FIFO fifo, const void *key, unsigned int keylen, const void *data, unsigned int datalen, int type, TXNID xid) {
-    int need_space_here = sizeof(struct fifo_entry) + keylen + datalen;
+int toku_fifo_enq(FIFO fifo, const void *key, unsigned int keylen, const void *data, unsigned int datalen, int type, XIDS xids) {
+    int need_space_here = sizeof(struct fifo_entry)
+                          + keylen + datalen
+                          + xids_get_size(xids)
+                          - sizeof(XIDS_S); //Prevent double counting
     int need_space_total = fifo->memory_used+need_space_here;
     if (fifo->memory == NULL) {
 	fifo->memory_size = next_power_of_two(need_space_total);
@@ -88,30 +94,32 @@ int toku_fifo_enq(FIFO fifo, const void *key, unsigned int keylen, const void *d
     }
     struct fifo_entry *entry = (struct fifo_entry *)(fifo->memory + fifo->memory_start + fifo->memory_used);
     entry->type = (unsigned char)type;
-    entry->xid  = xid;
+    xids_cpy(&entry->xids_s, xids);
     entry->keylen = keylen;
-    memcpy(entry->key, key, keylen);
+    unsigned char *e_key = xids_get_end_of_array(&entry->xids_s);
+    memcpy(e_key, key, keylen);
     entry->vallen = datalen;
-    memcpy(entry->key + keylen, data, datalen);
+    memcpy(e_key + keylen, data, datalen);
     fifo->n_items_in_fifo++;
     fifo->memory_used += need_space_here;
     return 0;
 }
 
 int toku_fifo_enq_cmdstruct (FIFO fifo, const BRT_CMD cmd) {
-    return toku_fifo_enq(fifo, cmd->u.id.key->data, cmd->u.id.key->size, cmd->u.id.val->data, cmd->u.id.val->size, cmd->type, cmd->xid);
+    return toku_fifo_enq(fifo, cmd->u.id.key->data, cmd->u.id.key->size, cmd->u.id.val->data, cmd->u.id.val->size, cmd->type, cmd->xids);
 }
 
 /* peek at the head (the oldest entry) of the fifo */
-int toku_fifo_peek(FIFO fifo, bytevec *key, unsigned int *keylen, bytevec *data, unsigned int *datalen, u_int32_t *type, TXNID *xid) {
+int toku_fifo_peek(FIFO fifo, bytevec *key, unsigned int *keylen, bytevec *data, unsigned int *datalen, u_int32_t *type, XIDS *xids) {
     struct fifo_entry *entry = fifo_peek(fifo);
     if (entry == 0) return -1;
-    *key = entry->key;
+    unsigned char *e_key = xids_get_end_of_array(&entry->xids_s);
+    *key = e_key;
     *keylen = entry->keylen;
-    *data = entry->key + entry->keylen;
+    *data = e_key + entry->keylen;
     *datalen = entry->vallen;
     *type = entry->type;
-    *xid  = entry->xid;
+    *xids  = &entry->xids_s;
     return 0;
 }
 
@@ -120,7 +128,7 @@ int toku_fifo_peek_cmdstruct (FIFO fifo, BRT_CMD cmd, DBT*key, DBT*data) {
     u_int32_t type;
     bytevec keyb,datab;
     unsigned int keylen,datalen;
-    int r = toku_fifo_peek(fifo, &keyb, &keylen, &datab, &datalen, &type, &cmd->xid);
+    int r = toku_fifo_peek(fifo, &keyb, &keylen, &datab, &datalen, &type, &cmd->xids);
     if (r!=0) return r;
     cmd->type=(enum brt_cmd_type)type;
     toku_fill_dbt(key, keyb, keylen);
@@ -151,10 +159,10 @@ struct fifo_entry * toku_fifo_iterate_internal_get_entry(FIFO fifo, int off) {
     return (struct fifo_entry *)(fifo->memory + off);
 }
 
-void toku_fifo_iterate (FIFO fifo, void(*f)(bytevec key,ITEMLEN keylen,bytevec data,ITEMLEN datalen,int type, TXNID xid, void*), void *arg) {
+void toku_fifo_iterate (FIFO fifo, void(*f)(bytevec key,ITEMLEN keylen,bytevec data,ITEMLEN datalen,int type, XIDS xids, void*), void *arg) {
     FIFO_ITERATE(fifo,
-		 key, keylen, data, datalen, type, xid,
-		 f(key,keylen,data,datalen,type,xid, arg));
+		 key, keylen, data, datalen, type, xids,
+		 f(key,keylen,data,datalen,type,xids, arg));
 }
 
 unsigned long toku_fifo_memory_size(FIFO fifo) {

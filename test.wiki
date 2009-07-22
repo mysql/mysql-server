@@ -1,0 +1,8 @@
+ * One
+ * two
+ 1. FOO
+  a. sock
+  a. pizza
+ 2. elephant
+
+[[Include(source:toku/tokudb.1125/test2.wiki,wiki)]]

@@ -182,9 +182,20 @@ QUIET_BENCH_ARG=
 	rm -rf $@
 	$(BENCH_TIME) ./$< --env $@ $(QUIET_BENCH_ARG) $(EXTRA_BENCH_ARGS)
 
-no-txn.benchmark.dir: EXTRA_BENCH_ARGS=
-txn.benchmark.dir:    EXTRA_BENCH_ARGS= -x --singlex --prelock
-abort.benchmark.dir:  EXTRA_BENCH_ARGS= -x --singlex --prelock --abort
+DB_TYPES = no-txn txn abort child child_abort child_abortfirst txn1 abort1 child1 child-abort1 child_abortfirst1
+
+no-txn.benchmark.dir:            EXTRA_BENCH_ARGS=
+txn.benchmark.dir:               EXTRA_BENCH_ARGS= -x --singlex --prelock
+abort.benchmark.dir:             EXTRA_BENCH_ARGS= -x --singlex --prelock --abort
+child.benchmark.dir:             EXTRA_BENCH_ARGS= -x --singlex --prelock         --singlex-child
+child-abort.benchmark.dir:       EXTRA_BENCH_ARGS= -x --singlex --prelock --abort --singlex-child
+child-abortfirst.benchmark.dir:  EXTRA_BENCH_ARGS= -x --singlex --prelock --abort --singlex-child --finish-child-first
+txn1.benchmark.dir:              EXTRA_BENCH_ARGS= -x --singlex --prelock                                              --insert1first
+abort1.benchmark.dir:            EXTRA_BENCH_ARGS= -x --singlex --prelock --abort                                      --insert1first
+child1.benchmark.dir:            EXTRA_BENCH_ARGS= -x --singlex --prelock         --singlex-child                      --insert1first
+child-abort1.benchmark.dir:      EXTRA_BENCH_ARGS= -x --singlex --prelock --abort --singlex-child                      --insert1first
+child-abortfirst1.benchmark.dir: EXTRA_BENCH_ARGS= -x --singlex --prelock --abort --singlex-child --finish-child-first --insert1first
+
 
 QUIET_SCAN_ARG=
 SCANSCAN_ARGS=--lwc --prelock --prelockflag --cachesize 268435456 # scanscan default, cache of windows (256MB)
@@ -210,10 +221,13 @@ SCANSCAN_TDB = scanscan-tokudb$(BINSUF)
 %.flattenedscan.dir: QUIET_SCAN_ARGS=-q
 %.flattenedscan.dir: BENCH_TIME=
 %.flattenedscan.dir: $(SCANSCAN_TDB) %.benchmark.dir
+	rm -rf $@
 	cp -R $*.benchmark.dir $@
 	./$< --env $@ $(SCANSCAN_ARGS) $(QUIET_SCAN_ARG)
 
 %.flattenedscan: SHELL=/bin/bash
 %.flattenedscan: $(SCANSCAN_TDB) %.flattenedscan.dir
 	$(SCAN_TIME) ./$< --env $@.dir $(SCANSCAN_ARGS)$(QUIET_SCAN_ARG)
+
+.SECONDARY: $(patsubst %,%.flattenedscan.dir, $(DB_TYPES))
 

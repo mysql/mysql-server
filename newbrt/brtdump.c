@@ -100,7 +100,7 @@ dump_node (int f, BLOCKNUM blocknum, struct brt_header *h) {
 	    printf("   child %d: %" PRId64 "\n", i, BNC_BLOCKNUM(n, i).b);
 	    printf("   buffer contains %u bytes (%d items)\n", BNC_NBYTESINBUF(n, i), toku_fifo_n_entries(BNC_BUFFER(n,i)));
 	    if (dump_data) {
-		FIFO_ITERATE(BNC_BUFFER(n,i), key, keylen, data, datalen, typ, xid,
+		FIFO_ITERATE(BNC_BUFFER(n,i), key, keylen, data, datalen, typ, xids,
 			     {
 				 printf("    TYPE=");
 				 switch ((enum brt_cmd_type)typ) {
@@ -115,7 +115,7 @@ dump_node (int f, BLOCKNUM blocknum, struct brt_header *h) {
 				 }
 				 printf("HUH?");
 			     ok:
-				 printf(" xid=%"PRIu64" ", xid);
+				 printf(" xid=%"PRIu64" ", xids_get_innermost_xid(xids));
 				 print_item(key, keylen);
 				 if (datalen>0) {
 				     printf(" ");

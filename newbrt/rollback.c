@@ -32,6 +32,7 @@ void toku_rollback_txn_close (TOKUTXN txn) {
 
     list_remove(&txn->live_txns_link);
     note_txn_closing(txn);
+    xids_destroy(&txn->xids);
     toku_free(txn);
     return;
 }

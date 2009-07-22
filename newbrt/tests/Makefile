@@ -94,7 +94,8 @@ REGRESSION_TESTS_RAW = \
 	test-brt-overflow \
 	test-del-inorder \
 	test-inc-split \
-	test-leafentry \
+	test-leafentry10 \
+	test-leafentry-nested \
 	test_oexcl \
 	test_toku_malloc_plain_free \
 	threadpool-test \

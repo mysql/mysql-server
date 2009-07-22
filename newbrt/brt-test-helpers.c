@@ -3,6 +3,7 @@
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #include "includes.h"
+#include "ule.h"
 
 int toku_testsetup_leaf(BRT brt, BLOCKNUM *blocknum) {
     BRTNODE node;
@@ -74,15 +75,21 @@ int toku_testsetup_insert_to_leaf (BRT brt, BLOCKNUM blocknum, char *key, int ke
     toku_verify_counts(node);
     assert(node->height==0);
 
-    u_int32_t lesize, disksize;
+    size_t lesize, disksize;
     LEAFENTRY leafentry;
-    r = le_committed(keylen, key, vallen, val, &lesize, &disksize, &leafentry, node->u.l.buffer, &node->u.l.buffer_mempool, 0);
-
     OMTVALUE storeddatav;
     u_int32_t idx;
     DBT keydbt,valdbt;
-    BRT_CMD_S cmd = {BRT_INSERT, 0, .u.id={toku_fill_dbt(&keydbt, key, keylen),
-					   toku_fill_dbt(&valdbt, val, vallen)}};
+    BRT_CMD_S cmd = {BRT_INSERT, xids_get_root_xids(),
+                     .u.id={toku_fill_dbt(&keydbt, key, keylen),
+                            toku_fill_dbt(&valdbt, val, vallen)}};
+    //Generate a leafentry (committed insert key,val)
+    r = apply_msg_to_leafentry(&cmd, NULL, //No old leafentry
+                               &lesize, &disksize, &leafentry, 
+                               node->u.l.buffer, &node->u.l.buffer_mempool, 0);
+    assert(r==0);
+
+
     struct cmd_leafval_heaviside_extra be = {brt, &cmd, node->flags & TOKU_DB_DUPSORT};
     r = toku_omt_find_zero(node->u.l.buffer, toku_cmd_leafval_heaviside, &be, &storeddatav, &idx, NULL);
 
@@ -127,12 +134,13 @@ int toku_testsetup_insert_to_nonleaf (BRT brt, BLOCKNUM blocknum, enum brt_cmd_t
 				       toku_fill_dbt(&v, val, vallen),
 				       brt);
 
-    r = toku_fifo_enq(BNC_BUFFER(node, childnum), key, keylen, val, vallen, cmdtype, (TXNID)0);
+    XIDS xids_0 = xids_get_root_xids();
+    r = toku_fifo_enq(BNC_BUFFER(node, childnum), key, keylen, val, vallen, cmdtype, xids_0);
     assert(r==0);
-    u_int32_t fdelta = node->rand4fingerprint * toku_calc_fingerprint_cmd(cmdtype, (TXNID)0, key, keylen, val, vallen);
+    u_int32_t fdelta = node->rand4fingerprint * toku_calc_fingerprint_cmd(cmdtype, xids_0, key, keylen, val, vallen);
     node->local_fingerprint += fdelta;
     *subtree_fingerprint += fdelta;
-    int sizediff = keylen + vallen + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD;
+    int sizediff = keylen + vallen + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD + xids_get_serialize_size(xids_0);
     node->u.n.n_bytes_in_buffers += sizediff;
     BNC_NBYTESINBUF(node, childnum) += sizediff;
     node->dirty = 1;

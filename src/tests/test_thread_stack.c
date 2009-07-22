@@ -111,7 +111,12 @@ test_main(int argc, char *argv[]) {
     DB_ENV *env;
 
     r = db_env_create(&env, 0); assert(r == 0);
-    r = env->set_cachesize(env, 0, 8000000, 1); assert(r == 0);
+    //r = env->set_cachesize(env, 0, 8000000, 1); assert(r == 0); //Prior to nested transactions
+    //This ran incredibly slow with nested transactions.  I believe it makes sense to do the following:
+    //a node is 4MiB.  Nodes can become overfull.  If you can't have two nodes in memory, you thrash,
+    //So support 2 nodes plus a bit of wiggle room.
+    //r = env->set_cachesize(env, 0, (8<<20) + (1<<8), 1); assert(r == 0); //As of [13075] this is enough to hold the 2 nodes/run fast
+    r = env->set_cachesize(env, 0, (9<<20), 1); assert(r == 0);
     r = env->open(env, ENVDIR, DB_CREATE + DB_THREAD + DB_PRIVATE + DB_INIT_MPOOL + DB_INIT_LOCK, S_IRWXU+S_IRWXG+S_IRWXO); assert(r == 0);
 
     DB *db;

@@ -239,11 +239,17 @@ toku_recover_enq_insert (LSN lsn __attribute__((__unused__)), FILENUM filenum, T
     struct brt_cmd cmd;
     DBT keydbt, valdbt;
     cmd.type=BRT_INSERT;
-    cmd.xid =xid;
+    //TODO: #1125 and recovery:  Remove this hack
+    //            Assume this is a root txn (not yet enough info to construct full XIDS for message)
+    XIDS root = xids_get_root_xids();
+    r = xids_create_child(root, &cmd.xids, xid);
+    assert(r==0);
     cmd.u.id.key = toku_fill_dbt(&keydbt, key.data, key.len);
     cmd.u.id.val = toku_fill_dbt(&valdbt, val.data, val.len);
     r = toku_brt_root_put_cmd(pair->brt, &cmd, null_tokulogger);
     assert(r==0);
+    xids_destroy(&cmd.xids);
+    xids_destroy(&root);
     toku_free(key.data);
     toku_free(val.data);
 }
@@ -265,11 +271,17 @@ toku_recover_enq_delete_both (LSN lsn __attribute__((__unused__)), FILENUM filen
     struct brt_cmd cmd;
     DBT keydbt, valdbt;
     cmd.type = BRT_DELETE_BOTH;
-    cmd.xid =xid;
+    //TODO: #1125 and recovery:  Remove this hack
+    //            Assume this is a root txn (not yet enough info to construct full XIDS for message)
+    XIDS root = xids_get_root_xids();
+    r = xids_create_child(root, &cmd.xids, xid);
+    assert(r==0);
     cmd.u.id.key = toku_fill_dbt(&keydbt, key.data, key.len);
     cmd.u.id.val = toku_fill_dbt(&valdbt, val.data, val.len);
     r = toku_brt_root_put_cmd(pair->brt, &cmd, null_tokulogger);
     assert(r==0);
+    xids_destroy(&cmd.xids);
+    xids_destroy(&root);
     toku_free(key.data);
     toku_free(val.data);
 }
@@ -291,11 +303,17 @@ toku_recover_enq_delete_any (LSN lsn __attribute__((__unused__)), FILENUM filenu
     struct brt_cmd cmd;
     DBT keydbt, valdbt;
     cmd.type = BRT_DELETE_ANY;
-    cmd.xid = xid;
+    //TODO: #1125 and recovery:  Remove this hack
+    //            Assume this is a root txn (not yet enough info to construct full XIDS for message)
+    XIDS root = xids_get_root_xids();
+    r = xids_create_child(root, &cmd.xids, xid);
+    assert(r==0);
     cmd.u.id.key = toku_fill_dbt(&keydbt, key.data, key.len);
     cmd.u.id.val = toku_fill_dbt(&valdbt, val.data, val.len);
     r = toku_brt_root_put_cmd(pair->brt, &cmd, null_tokulogger);
     assert(r==0);
+    xids_destroy(&cmd.xids);
+    xids_destroy(&root);
     toku_free(key.data);
     toku_free(val.data);
 }

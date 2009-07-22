@@ -188,10 +188,11 @@ static unsigned int toku_serialize_brtnode_size_slow (BRTNODE node) {
         assert(0 <= n_buffers && n_buffers < TREE_FANOUT+1);
 	for (i=0; i< n_buffers; i++) {
 	    FIFO_ITERATE(BNC_BUFFER(node,i),
-			 key __attribute__((__unused__)), keylen,
+			 key, keylen,
 			 data __attribute__((__unused__)), datalen,
-			 type __attribute__((__unused__)), xid __attribute__((__unused__)),
-			 (hsize+=BRT_CMD_OVERHEAD+KEY_VALUE_OVERHEAD+keylen+datalen));
+			 type __attribute__((__unused__)), xids,
+			 (hsize+=BRT_CMD_OVERHEAD+KEY_VALUE_OVERHEAD+keylen+datalen+
+                          xids_get_serialize_size(xids)));
 	}
 	assert(hsize==node->u.n.n_bytes_in_buffers);
 	assert(csize==node->u.n.totalchildkeylens);
@@ -201,7 +202,7 @@ static unsigned int toku_serialize_brtnode_size_slow (BRTNODE node) {
 	toku_omt_iterate(node->u.l.buffer,
 			 addupsize,
 			 &hsize);
-	assert(hsize<=node->u.l.n_bytes_in_buffer);
+	assert(hsize==node->u.l.n_bytes_in_buffer);
 	hsize+=4; /* add n entries in buffer table. */
 	hsize+=3*8; /* add the three leaf stats, but no exact bit. */
 	return size+hsize;
@@ -226,11 +227,11 @@ unsigned int toku_serialize_brtnode_size (BRTNODE node) {
 	result+=4; /* n_entries in buffer table. */
 	result+=3*8; /* the three leaf stats. */
 	result+=node->u.l.n_bytes_in_buffer;
-	if (toku_memory_check) {
-	    unsigned int slowresult = toku_serialize_brtnode_size_slow(node);
-	    if (result!=slowresult) printf("%s:%d result=%u slowresult=%u\n", __FILE__, __LINE__, result, slowresult);
-	    assert(result==slowresult);
-	}
+    }
+    if (toku_memory_check) {
+        unsigned int slowresult = toku_serialize_brtnode_size_slow(node);
+        if (result!=slowresult) printf("%s:%d result=%u slowresult=%u\n", __FILE__, __LINE__, result, slowresult);
+        assert(result==slowresult);
     }
     return result;
 }
@@ -408,14 +409,14 @@ int toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct b
 	    for (i=0; i< n_buffers; i++) {
 		//printf("%s:%d p%d=%p n_entries=%d\n", __FILE__, __LINE__, i, node->mdicts[i], mdict_n_entries(node->mdicts[i]));
 		wbuf_int(&w, toku_fifo_n_entries(BNC_BUFFER(node,i)));
-		FIFO_ITERATE(BNC_BUFFER(node,i), key, keylen, data, datalen, type, xid,
+		FIFO_ITERATE(BNC_BUFFER(node,i), key, keylen, data, datalen, type, xids,
 				  {
 				      assert(type>=0 && type<256);
 				      wbuf_char(&w, (unsigned char)type);
-				      wbuf_TXNID(&w, xid);
+				      wbuf_xids(&w, xids);
 				      wbuf_bytes(&w, key, keylen);
 				      wbuf_bytes(&w, data, datalen);
-				      check_local_fingerprint+=node->rand4fingerprint*toku_calc_fingerprint_cmd(type, xid, key, keylen, data, datalen);
+				      check_local_fingerprint+=node->rand4fingerprint*toku_calc_fingerprint_cmd(type, xids, key, keylen, data, datalen);
 				  });
 	    }
 	    //printf("%s:%d check_local_fingerprint=%8x\n", __FILE__, __LINE__, check_local_fingerprint);
@@ -736,7 +737,7 @@ int toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash
     result->layout_version    = rbuf_int(&rc);
     {
 	switch (result->layout_version) {
-	case BRT_LAYOUT_VERSION_10: goto ok_layout_version;
+	case BRT_LAYOUT_VERSION: goto ok_layout_version;
 	    // Don't support older versions.
 	}
 	r=toku_db_badformat();
@@ -826,19 +827,21 @@ int toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash
 		    bytevec val; ITEMLEN vallen;
 		    //toku_verify_counts(result);
                     int type = rbuf_char(&rc);
-		    TXNID xid  = rbuf_ulonglong(&rc);
+                    XIDS xids;
+                    xids_create_from_buffer(&rc, &xids);
 		    rbuf_bytes(&rc, &key, &keylen); /* Returns a pointer into the rbuf. */
 		    rbuf_bytes(&rc, &val, &vallen);
-		    check_local_fingerprint += result->rand4fingerprint * toku_calc_fingerprint_cmd(type, xid, key, keylen, val, vallen);
+		    check_local_fingerprint += result->rand4fingerprint * toku_calc_fingerprint_cmd(type, xids, key, keylen, val, vallen);
 		    //printf("Found %s,%s\n", (char*)key, (char*)val);
 		    {
-			r=toku_fifo_enq(BNC_BUFFER(result, cnum), key, keylen, val, vallen, type, xid); /* Copies the data into the hash table. */
+			r=toku_fifo_enq(BNC_BUFFER(result, cnum), key, keylen, val, vallen, type, xids); /* Copies the data into the hash table. */
 			if (r!=0) { goto died_12; }
 		    }
-		    diff =  keylen + vallen + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD;
+		    diff = keylen + vallen + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD + xids_get_serialize_size(xids);
 		    result->u.n.n_bytes_in_buffers += diff;
 		    BNC_NBYTESINBUF(result,cnum)   += diff;
 		    //printf("Inserted\n");
+                    xids_destroy(&xids);
 		}
 	    }
 	    if (check_local_fingerprint != result->local_fingerprint) {
@@ -977,6 +980,7 @@ serialize_brt_header_min_size (u_int32_t version) {
     u_int32_t size;
     switch(version) {
         case BRT_LAYOUT_VERSION_10:
+        case BRT_LAYOUT_VERSION_11:
             size = (+8 // "tokudata"
                     +4 // version
                     +4 // size
@@ -1231,7 +1235,7 @@ deserialize_brtheader (int fd, struct rbuf *rb, struct brt_header **brth) {
     list_init(&h->zombie_brts);
     //version MUST be in network order on disk regardless of disk order
     h->layout_version = rbuf_network_int(&rc);
-    assert(h->layout_version==BRT_LAYOUT_VERSION_10);
+    assert(h->layout_version==BRT_LAYOUT_VERSION);
 
     //Size MUST be in network order regardless of disk order.
     u_int32_t size = rbuf_network_int(&rc);
@@ -1311,8 +1315,9 @@ deserialize_brtheader_from_fd_into_rbuf(int fd, toku_off_t offset, struct rbuf *
         if (r==0) {
             //Version MUST be in network order regardless of disk order.
             version = rbuf_network_int(rb);
-            if (version < BRT_LAYOUT_VERSION_10) r = TOKUDB_DICTIONARY_TOO_OLD; //Cannot use
-            if (version > BRT_LAYOUT_VERSION_10) r = TOKUDB_DICTIONARY_TOO_NEW; //Cannot use
+            //TODO: #1125 Possibly support transparent upgrade.  If so, it should be < ...10
+            if (version < BRT_LAYOUT_VERSION) r = TOKUDB_DICTIONARY_TOO_OLD; //Cannot use
+            if (version > BRT_LAYOUT_VERSION) r = TOKUDB_DICTIONARY_TOO_NEW; //Cannot use
         }
         u_int32_t size;
         if (r==0) {

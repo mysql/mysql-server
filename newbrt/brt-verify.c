@@ -50,12 +50,12 @@ static int compare_pairs (BRT brt, struct kv_pair *a, struct kv_pair *b) {
 static int compare_leafentries (BRT brt, LEAFENTRY a, LEAFENTRY b) {
     DBT x,y;
     int cmp = brt->compare_fun(brt->db,
-			       toku_fill_dbt(&x, le_any_key(a), le_any_keylen(a)),
-			       toku_fill_dbt(&y, le_any_key(b), le_any_keylen(b)));
+			       toku_fill_dbt(&x, le_key(a), le_keylen(a)),
+			       toku_fill_dbt(&y, le_key(b), le_keylen(b)));
     if (cmp==0 && (brt->flags & TOKU_DB_DUPSORT)) {
 	cmp = brt->dup_compare(brt->db,
-			       toku_fill_dbt(&x, le_any_val(a), le_any_vallen(a)),
-			       toku_fill_dbt(&y, le_any_val(b), le_any_vallen(b)));
+			       toku_fill_dbt(&x, le_innermost_inserted_val(a), le_innermost_inserted_vallen(a)),
+			       toku_fill_dbt(&y, le_innermost_inserted_val(b), le_innermost_inserted_vallen(b)));
     }
     return cmp;
 }
@@ -75,7 +75,7 @@ static void verify_pair (bytevec key, unsigned int keylen,
                          bytevec data __attribute__((__unused__)),
                          unsigned int datalen __attribute__((__unused__)),
                          int type __attribute__((__unused__)),
-                         TXNID xid __attribute__((__unused__)),
+                         XIDS xids __attribute__((__unused__)),
                          void *arg) {
     struct verify_pair_arg *vparg = (struct verify_pair_arg *)arg;
     BRT brt = vparg->brt;

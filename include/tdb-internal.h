@@ -14,9 +14,9 @@ struct simple_dbt {
 struct __toku_db_txn_internal {
     //TXNID txnid64; /* A sixty-four bit txn id. */
     struct tokutxn *tokutxn;
-    struct __toku_lth *lth;
+    struct __toku_lth *lth;  //Hash table holding list of dictionaries this txn has touched
     u_int32_t flags;
-    DB_TXN *child, *next, *prev;
+    DB_TXN *child;
 };
 
 struct __toku_dbc_internal {

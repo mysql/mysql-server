@@ -20,11 +20,19 @@ int toku_txn_begin_txn (TOKUTXN parent_tokutxn, TOKUTXN *tokutxn, TOKULOGGER log
     }
     r = toku_omt_create(&result->open_brts);
     if (r!=0) {
+died1:
 	toku_logger_panic(logger, r);
 	toku_free(result);
 	return r;
     }
     result->txnid64 = result->first_lsn.lsn;
+    XIDS parent_xids;
+    if (parent_tokutxn==NULL)
+        parent_xids = xids_get_root_xids();
+    else
+        parent_xids = parent_tokutxn->xids;
+    if ((r=xids_create_child(parent_xids, &result->xids, result->txnid64)))
+        goto died1;
     result->logger = logger;
     result->parent = parent_tokutxn;
     result->oldest_logentry = result->newest_logentry = 0;
@@ -70,3 +78,9 @@ void toku_txn_close_txn(TOKUTXN txn) {
     toku_rollback_txn_close(txn);
     return;
 }
+
+XIDS toku_txn_get_xids (TOKUTXN txn) {
+    if (txn==0) return xids_get_root_xids();
+    else return txn->xids;
+}
+

@@ -34,25 +34,73 @@
 #include "rbuf.h"
 #include "x1764.h"
 
+#if 0
+    Memory format of packed nodup leaf entry
+    CONSTANTS:
+        num_uxrs
+        keylen
+    Run-time-constants
+        voffset of val/vallen??? (for le_any_val) This must be small if it is interpreted as voffset = realoffset_of_val - keylen
+            GOOD performance optimization.
+            ALSO good for simplicity (no having to scan packed version)
+        key[]
+    variable length
+        
+        
+    Memory format of packed dup leaf entry
+    CONSTANTS:
+        num_uxrs
+        keylen
+        vallen
+    Run-time-constants
+        key[]
+        val[]
+#endif
+#if TOKU_WINDOWS
+#pragma pack(push, 1)
+#endif
+struct __attribute__ ((__packed__)) leafentry {
+    u_int8_t  num_xrs;
+    u_int32_t keylen;
+    u_int32_t innermost_inserted_vallen;
+    union {
+        struct __attribute__ ((__packed__)) leafentry_committed {
+            u_int8_t key_val[0];     //Actual key, then actual val
+        } comm;
+        struct __attribute__ ((__packed__)) leafentry_provisional {
+            u_int8_t innermost_type;
+            TXNID    xid_outermost_uncommitted;
+            u_int8_t key_val_xrs[];  //Actual key,
+                                     //then actual innermost inserted val,
+                                     //then transaction records.
+        } prov;
+    } u;
+};
+#if TOKU_WINDOWS
+#pragma pack(pop)
+#endif
+
+typedef struct leafentry *LEAFENTRY;
+
+
 u_int32_t toku_le_crc(LEAFENTRY v);
 
-int le_committed (u_int32_t klen, void* kval, u_int32_t dlen, void* dval, u_int32_t *resultsize, u_int32_t *disksize, LEAFENTRY *result,
+//TODO: #1125 next four probably are not necessary once testing for new structure is done (except possibly for test-leafentry.c, rename to test-leafentry10.c
+int le10_committed (u_int32_t klen, void* kval, u_int32_t dlen, void* dval, u_int32_t *resultsize, u_int32_t *disksize, LEAFENTRY *result,
 		  OMT, struct mempool *, void **maybe_free);
-int le_both (TXNID xid, u_int32_t cklen, void* ckval, u_int32_t cdlen, void* cdval, u_int32_t pdlen, void* pdval,
+int le10_both (TXNID xid, u_int32_t cklen, void* ckval, u_int32_t cdlen, void* cdval, u_int32_t pdlen, void* pdval,
 	     u_int32_t *memsize, u_int32_t *disksize, LEAFENTRY *result,
 	     OMT, struct mempool *, void **maybe_free);
-int le_provdel (TXNID xid, u_int32_t klen, void* kval, u_int32_t dlen, void* dval,
+int le10_provdel (TXNID xid, u_int32_t klen, void* kval, u_int32_t dlen, void* dval,
 		u_int32_t *resultsize, u_int32_t *memsize, LEAFENTRY *result,
 		OMT, struct mempool *, void **maybe_free);
-int le_provpair (TXNID xid, u_int32_t klen, void* kval, u_int32_t plen, void* pval, u_int32_t *memsize, u_int32_t *disksize, LEAFENTRY *result,
+int le10_provpair (TXNID xid, u_int32_t klen, void* kval, u_int32_t plen, void* pval, u_int32_t *memsize, u_int32_t *disksize, LEAFENTRY *result,
 		 OMT omt, struct mempool *mp, void **maybe_free);
 
 enum le_state { LE_COMMITTED=1, // A committed pair.
 		LE_BOTH,        // A committed pair and a provisional pair.
 		LE_PROVDEL,     // A committed pair that has been provisionally deleted
 		LE_PROVPAIR };  // No committed value, but a provisional pair.
-
-u_int32_t leafentry_memsize (LEAFENTRY);
 
 static inline enum le_state get_le_state(LEAFENTRY le) {
     return (enum le_state)*(unsigned char *)le;
@@ -93,7 +141,7 @@ static inline u_int64_t getint64 (unsigned char *p) {
     unsigned char* __kvaladdr = 4      + __klenaddr;                                                                 \
     unsigned char* __clenaddr = __klen + __kvaladdr;   u_int32_t __clen = getint(__clenaddr);                        \
     unsigned char* __cvaladdr = 4 + __clenaddr;                                                                      \
-    return funname ## _le_committed(__klen, __kvaladdr, __clen, __cvaladdr
+    return funname ## _le10_committed(__klen, __kvaladdr, __clen, __cvaladdr
 
 #define DO_LE_BOTH(funname,le)  case LE_BOTH: {                         \
     unsigned char* __xidaddr  = 1+(unsigned char*)le;  u_int64_t __xid  = getint64(__xidaddr);                       \
@@ -103,7 +151,7 @@ static inline u_int64_t getint64 (unsigned char *p) {
     unsigned char* __cvaladdr = 4 + __clenaddr;                                                                      \
     unsigned char* __plenaddr = __clen + __cvaladdr;   u_int32_t __plen = getint(__plenaddr);                        \
     unsigned char* __pvaladdr = 4 + __plenaddr;                                                                      \
-    return funname ## _le_both(__xid, __klen, __kvaladdr, __clen, __cvaladdr, __plen, __pvaladdr
+    return funname ## _le10_both(__xid, __klen, __kvaladdr, __clen, __cvaladdr, __plen, __pvaladdr
 
 #define DO_LE_PROVDEL(funname,le )  case LE_PROVDEL:  {                                                              \
     unsigned char* __xidaddr  = 1+(unsigned char*)le;  u_int64_t __xid  = getint64(__xidaddr);                       \
@@ -111,7 +159,7 @@ static inline u_int64_t getint64 (unsigned char *p) {
     unsigned char* __kvaladdr = 4 + __klenaddr;                                                                      \
     unsigned char* __dlenaddr = __klen + __kvaladdr;   u_int32_t __dlen = getint(__dlenaddr);                        \
     unsigned char* __dvaladdr = 4 + __dlenaddr;                                                                      \
-    return funname ## _le_provdel(__xid, __klen, __kvaladdr, __dlen, __dvaladdr
+    return funname ## _le10_provdel(__xid, __klen, __kvaladdr, __dlen, __dvaladdr
 
 #define DO_LE_PROVPAIR(funname,le)   case LE_PROVPAIR:  {                                                            \
     unsigned char* __xidaddr  = 1+(unsigned char*)le;  u_int64_t __xid  = getint64(__xidaddr);                       \
@@ -119,7 +167,7 @@ static inline u_int64_t getint64 (unsigned char *p) {
     unsigned char* __kvaladdr = 4 + __klenaddr;                                                                      \
     unsigned char* __plenaddr = __klen + __kvaladdr;   u_int32_t __plen = getint(__plenaddr);                        \
     unsigned char* __pvaladdr = 4 + __plenaddr;                                                                      \
-    return funname ## _le_provpair(__xid, __klen, __kvaladdr, __plen, __pvaladdr
+    return funname ## _le10_provpair(__xid, __klen, __kvaladdr, __plen, __pvaladdr
 
 #ifdef __ICL
 #define LESWITCHCALL(le,funname, ...) do {        \
@@ -139,80 +187,57 @@ static inline u_int64_t getint64 (unsigned char *p) {
   } abort(); } while (0)
 #endif
 
-u_int32_t leafentry_memsize (LEAFENTRY le); // the size of a leafentry in memory.
-u_int32_t leafentry_disksize (LEAFENTRY le); // this is the same as logsizeof_LEAFENTRY.  The size of a leafentry on disk.
-u_int32_t toku_logsizeof_LEAFENTRY(LEAFENTRY le);
+size_t leafentry_memsize (LEAFENTRY le); // the size of a leafentry in memory.
+size_t leafentry_disksize (LEAFENTRY le); // this is the same as logsizeof_LEAFENTRY.  The size of a leafentry on disk.
 void wbuf_LEAFENTRY(struct wbuf *w, LEAFENTRY le);
-void rbuf_LEAFENTRY(struct rbuf *r, u_int32_t *resultsize, u_int32_t *disksize, LEAFENTRY *le);
-int toku_fread_LEAFENTRY(FILE *f, LEAFENTRY *le, struct x1764 *, u_int32_t *len); // read a leafentry from a log
-int toku_logprint_LEAFENTRY(FILE *outf, FILE *inf, const char *fieldname, struct x1764 *, u_int32_t *len, const char *format); // read a leafentry from a log and then print it in human-readable form.
-void toku_free_LEAFENTRY(LEAFENTRY le);
 int print_leafentry (FILE *outf, LEAFENTRY v); // Print a leafentry out in human-readable form.
 
 int le_is_provdel(LEAFENTRY le); // Return true if it is a provisional delete.
 void*     le_latest_key (LEAFENTRY le); // Return the latest key (return NULL for provisional deletes)
 u_int32_t le_latest_keylen (LEAFENTRY le); // Return the latest keylen.
+void* le_latest_key_and_len (LEAFENTRY le, u_int32_t *len);
 void*     le_latest_val (LEAFENTRY le); // Return the latest val (return NULL for provisional deletes)
 u_int32_t le_latest_vallen (LEAFENTRY le); // Return the latest vallen.  Returns 0 for provisional deletes.
+void* le_latest_val_and_len (LEAFENTRY le, u_int32_t *len);
 
- // Return any key or value (even if it's only provisional)
-void* le_any_key (LEAFENTRY le);
-u_int32_t le_any_keylen (LEAFENTRY le);
-void* le_any_val (LEAFENTRY le);
-u_int32_t le_any_vallen (LEAFENTRY le);
-u_int64_t le_any_xid (LEAFENTRY le);
+ // Return any key or value (even if it's only provisional).
+void* le_key (LEAFENTRY le);
+u_int32_t le_keylen (LEAFENTRY le);
+void* le_key_and_len (LEAFENTRY le, u_int32_t *len);
 
-void *latest_key_le_committed(u_int32_t klen, void *kval, u_int32_t vallen, void *val);
-void *latest_key_le_both(TXNID xid, u_int32_t klen, void *kval, u_int32_t clen, void *cval, u_int32_t plen, void *pval);
-void *latest_key_le_provdel(TXNID xid, u_int32_t klen, void *kval, u_int32_t clen, void *cval);
-void *latest_key_le_provpair(TXNID xid, u_int32_t klen, void *kval, u_int32_t plen, void *pval);
+u_int64_t le_outermost_uncommitted_xid (LEAFENTRY le);
 
-u_int32_t latest_keylen_le_committed(u_int32_t klen, void *kval, u_int32_t vallen, void *val);
-u_int32_t latest_keylen_le_both(TXNID xid, u_int32_t klen, void *kval, u_int32_t clen, void *cval, u_int32_t plen, void *pval);
-u_int32_t latest_keylen_le_provdel(TXNID xid, u_int32_t klen, void *kval, u_int32_t clen, void *cval);
-u_int32_t latest_keylen_le_provpair(TXNID xid, u_int32_t klen, void *kval, u_int32_t plen, void *pval);
+ // Return any key or value (even if it's only provisional)  If more than one exist, choose innermost (newest)
+void* le_innermost_inserted_val (LEAFENTRY le);
+u_int32_t le_innermost_inserted_vallen (LEAFENTRY le);
+void* le_innermost_inserted_val_and_len (LEAFENTRY le, u_int32_t *len);
 
-void *latest_val_le_committed(u_int32_t klen, void *kval, u_int32_t vallen, void *val);
-void *latest_val_le_both(TXNID xid, u_int32_t klen, void *kval, u_int32_t clen, void *cval, u_int32_t plen, void *pval);
-void *latest_val_le_provdel(TXNID xid, u_int32_t klen, void *kval, u_int32_t clen, void *cval);
-void *latest_val_le_provpair(TXNID xid, u_int32_t klen, void *kval, u_int32_t plen, void *pval);
-
-u_int32_t latest_vallen_le_committed(u_int32_t klen, void *kval, u_int32_t vallen, void *val);
-u_int32_t latest_vallen_le_both(TXNID xid, u_int32_t klen, void *kval, u_int32_t clen, void *cval, u_int32_t plen, void *pval);
-u_int32_t latest_vallen_le_provdel(TXNID xid, u_int32_t klen, void *kval, u_int32_t clen, void *cval);
-u_int32_t latest_vallen_le_provpair(TXNID xid, u_int32_t klen, void *kval, u_int32_t plen, void *pval);
-
-u_int64_t latest_xid_le_committed(u_int32_t klen, void *kval, u_int32_t vallen, void *val);
-u_int64_t latest_xid_le_both(TXNID xid, u_int32_t klen, void *kval, u_int32_t clen, void *cval, u_int32_t plen, void *pval);
-u_int64_t latest_xid_le_provdel(TXNID xid, u_int32_t klen, void *kval, u_int32_t clen, void *cval);
-u_int64_t latest_xid_le_provpair(TXNID xid, u_int32_t klen, void *kval, u_int32_t plen, void *pval);
-
-//
-
-void *any_key_le_committed(u_int32_t klen, void *kval, u_int32_t vallen, void *val);
-void *any_key_le_both(TXNID xid, u_int32_t klen, void *kval, u_int32_t clen, void *cval, u_int32_t plen, void *pval);
-void *any_key_le_provdel(TXNID xid, u_int32_t klen, void *kval, u_int32_t clen, void *cval);
-void *any_key_le_provpair(TXNID xid, u_int32_t klen, void *kval, u_int32_t plen, void *pval);
-
-u_int32_t any_keylen_le_committed(u_int32_t klen, void *kval, u_int32_t vallen, void *val);
-u_int32_t any_keylen_le_both(TXNID xid, u_int32_t klen, void *kval, u_int32_t clen, void *cval, u_int32_t plen, void *pval);
-u_int32_t any_keylen_le_provdel(TXNID xid, u_int32_t klen, void *kval, u_int32_t clen, void *cval);
-u_int32_t any_keylen_le_provpair(TXNID xid, u_int32_t klen, void *kval, u_int32_t plen, void *pval);
-
-void *any_val_le_committed(u_int32_t klen, void *kval, u_int32_t vallen, void *val);
-void *any_val_le_both(TXNID xid, u_int32_t klen, void *kval, u_int32_t clen, void *cval, u_int32_t plen, void *pval);
-void *any_val_le_provdel(TXNID xid, u_int32_t klen, void *kval, u_int32_t clen, void *cval);
-void *any_val_le_provpair(TXNID xid, u_int32_t klen, void *kval, u_int32_t plen, void *pval);
-
-u_int32_t any_vallen_le_committed(u_int32_t klen, void *kval, u_int32_t vallen, void *val);
-u_int32_t any_vallen_le_both(TXNID xid, u_int32_t klen, void *kval, u_int32_t clen, void *cval, u_int32_t plen, void *pval);
-u_int32_t any_vallen_le_provdel(TXNID xid, u_int32_t klen, void *kval, u_int32_t clen, void *cval);
-u_int32_t any_vallen_le_provpair(TXNID xid, u_int32_t klen, void *kval, u_int32_t plen, void *pval);
-
-u_int64_t any_xid_le_committed(u_int32_t klen, void *kval, u_int32_t vallen, void *val);
-u_int64_t any_xid_le_both(TXNID xid, u_int32_t klen, void *kval, u_int32_t clen, void *cval, u_int32_t plen, void *pval);
-u_int64_t any_xid_le_provdel(TXNID xid, u_int32_t klen, void *kval, u_int32_t clen, void *cval);
-u_int64_t any_xid_le_provpair(TXNID xid, u_int32_t klen, void *kval, u_int32_t plen, void *pval);
+void le_full_promotion(LEAFENTRY le, size_t *new_leafentry_memorysize, size_t *new_leafentry_disksize);
+//Effect: Fully promotes le.  Returns new memory/disk size.
+//        Reuses the memory of le.
+//        Memory size is guaranteed to reduce.
+//           result of leafentry_memsize() changes
+//        Pointer to le is reused.
+//           No need to update omt if it just points to the leafentry.
+//        Does not change results of:
+//           le_is_provdel()
+//           le_latest_keylen()
+//           le_latest_vallen()
+//           le_keylen()
+//           le_innermost_inserted_vallen()
+//        le_outermost_uncommitted_xid will return 0 after this.
+//        Changes results of following pointer functions, but memcmp of old/new answers would say they're the same.
+//          Note: You would have to memdup the old answers before calling le_full_promotion, if you want to run the comparison
+//           le_latest_key()
+//           le_latest_val()
+//           le_key()
+//           le_innermost_inserted_val()
+//        le_outermost_uncommitted_xid will return 0 after this
+//        key/val pointers will change, but data pointed to by them will be the same
+//           as before
+//Requires: le is not a provdel
+//Requires: le is not marked committed
+//Requires: The outermost uncommitted xid in le has actually committed (le was not yet updated to reflect that)
 
 #endif
 
