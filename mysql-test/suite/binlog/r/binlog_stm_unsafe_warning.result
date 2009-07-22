@@ -4,10 +4,10 @@ CREATE TABLE t1 (a int, b int, primary key (a));
 INSERT INTO t1 VALUES (1,2), (2,3);
 UPDATE t1 SET b='4' WHERE a=1 LIMIT 1;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Statement: UPDATE t1 SET b='4' WHERE a=1 LIMIT 1
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason: Statement uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
 UPDATE t1 SET b='5' WHERE a=2 ORDER BY a LIMIT 1;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Statement: UPDATE t1 SET b='5' WHERE a=2 ORDER BY a LIMIT 1
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason: Statement uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
 DROP TABLE t1;
 ### NOT filtered database => assertion: binlog disabled and warnings ARE NOT shown
 SET SQL_LOG_BIN= 0;
@@ -25,6 +25,10 @@ DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (a int, b int, primary key (a));
 INSERT INTO t1 VALUES (1,2), (2,3);
 UPDATE t1 SET b='4' WHERE a=1 LIMIT 1;
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason: Statement uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
 UPDATE t1 SET b='5' WHERE a=2 ORDER BY a LIMIT 1;
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason: Statement uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
 DROP TABLE t1;
 DROP DATABASE b42851;

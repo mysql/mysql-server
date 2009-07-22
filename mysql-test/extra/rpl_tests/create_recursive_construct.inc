@@ -15,12 +15,15 @@
 #  - With SQL_LOG_BIN = 1 and binlog_format = MIXED, to verify that it
 #    writes row events to the binlog.
 #
-#  - If the recursive construct can be invoked so that it has no
-#    side-effects but it returns a value that may be nondeterministic,
-#    then it is invoked in such a way that the return value is
-#    discarded, with SQL_LOG_BIN = 1 and binlog_format = STATEMENT.
-#    In this case, no warning should be given and nothing should be
-#    written to the binlog.
+#  - In some cases, the recursive construct can be invoked so that it
+#    has no side-effects but returns a value that may be
+#    nondeterministic.  An example is a function that returns UUID().
+#    The function does not have side effects but its a return value
+#    that may differ on slave.  Such statements are invoked so that
+#    the return value is discarded (e.g., SELECT func()), with
+#    SQL_LOG_BIN = 1 and binlog_format = STATEMENT.  In this case, no
+#    warning should be given and nothing should be written to the
+#    binlog.
 #
 # This is an auxiliary file particularly targeted to being used by the
 # test binlog_unsafe.  In this context, the purpose is to check how
@@ -289,8 +292,15 @@ if (`SELECT '$CRC_RET_stmt_sidef' != ''`) {
     --eval $CRC_create
   }
 
-  --echo * binlog_format = STATEMENT: expect warning.
+  --echo * binlog_format = STATEMENT: expect $CRC_ARG_expected_number_of_warnings warnings.
   --eval $CRC_RET_stmt_sidef
+  --let $n_warnings= `SHOW COUNT(*) WARNINGS`
+  if (`SELECT '$n_warnings' != '$CRC_ARG_expected_number_of_warnings'`) {
+    --echo Failure! Expected $CRC_ARG_expected_number_of_warnings warnings, got $n_warnings warnings.
+    SHOW WARNINGS;
+    SHOW BINLOG EVENTS;
+    --exit
+  }
 
   # These queries are run without query log, to make result file more
   # readable.  Debug info is only printed if something abnormal
@@ -301,19 +311,33 @@ if (`SELECT '$CRC_RET_stmt_sidef' != ''`) {
   SET SQL_LOG_BIN = 0;
   RESET MASTER;
   --eval $CRC_RET_stmt_sidef
+  --let $n_warnings= `SHOW COUNT(*) WARNINGS`
+  if (`SELECT '$n_warnings' != '0'`) {
+    --echo Failure! Expected 0 warnings, got $n_warnings warnings.
+    SHOW WARNINGS;
+    SHOW BINLOG EVENTS;
+    --exit
+  }
   --let $binlog_event= query_get_value(SHOW BINLOG EVENTS, Event_type, 2)
   if (`SELECT '$binlog_event' != 'No such row'`) {
     --enable_query_log
     --echo Failure! Something was written to the binlog despite SQL_LOG_BIN=0:
     SHOW BINLOG EVENTS;
-    --die
+    --exit
   }
   SET SQL_LOG_BIN = 1;
 
   --echo * binlog_format = MIXED: expect row events in binlog and no warning.
   SET binlog_format = MIXED;
   RESET MASTER;
-  --eval $CRC_RET_stmt_sidef    
+  --eval $CRC_RET_stmt_sidef
+  --let $n_warnings= `SHOW COUNT(*) WARNINGS`
+  if (`SELECT '$n_warnings' != '0'`) {
+    --echo Failure! Expected 0 warnings, got $n_warnings warnings.
+    SHOW WARNINGS;
+    SHOW BINLOG EVENTS;
+    --exit
+  }
   # The first event is format_description, the second is
   # Query_event('BEGIN'), and the third should be our Table_map.
   --let $event_type= query_get_value(SHOW BINLOG EVENTS, Event_type, 3)
@@ -328,7 +352,7 @@ if (`SELECT '$CRC_RET_stmt_sidef' != ''`) {
     # we should instead execute:
     #--enable_query_log
     #SHOW BINLOG EVENTS;
-    #--die
+    #--exit
 
     # Here, we should really source
     # include/show_binlog_events.inc. But due to BUG#41913, that
@@ -352,6 +376,18 @@ if (`SELECT '$CRC_RET_sel_retval' != ''`) {
   --disable_result_log
   --eval $CRC_RET_sel_retval
   --enable_result_log
+
+  # Currently, due to a bug, we do get warnings here, so we don't
+  # fail.  When the bug is fixed, we should execute the following.
+
+  #--let $n_warnings= `SHOW COUNT(*) WARNINGS`
+  #if (`SELECT '$n_warnings' != '0'`) {
+  #  --enable_query_log
+  #  --echo Failure! Expected 0 warnings, got $n_warnings warnings.
+  #  SHOW WARNINGS;
+  #  SHOW BINLOG EVENTS;
+  #  --exit
+  #}
 }
 
 #--echo debug: <<<<EXIT create_recursive_construct
