@@ -3264,7 +3264,15 @@ int THD::decide_logging_format(TABLE_LIST *tables)
                       variables.binlog_format));
   DBUG_PRINT("info", ("lex->get_stmt_unsafe_flags(): 0x%x",
                       lex->get_stmt_unsafe_flags()));
-  if (mysql_bin_log.is_open() && (options & OPTION_BIN_LOG))
+
+  /*
+    We should not decide logging format if the binlog is closed or
+    binlogging is off, or if the statement is filtered out from the
+    binlog by filtering rules.
+  */
+  if (mysql_bin_log.is_open() && (options & OPTION_BIN_LOG) &&
+      !(variables.binlog_format == BINLOG_FORMAT_STMT &&
+        !binlog_filter->db_ok(db)))
   {
     /*
       Compute one bit field with the union of all the engine
@@ -3442,8 +3450,13 @@ int THD::decide_logging_format(TABLE_LIST *tables)
   else
     DBUG_PRINT("info", ("decision: no logging since "
                         "mysql_bin_log.is_open() = %d "
-                        "and (options & OPTION_BIN_LOG) = 0x%llx",
-                        mysql_bin_log.is_open(), (options & OPTION_BIN_LOG)));
+                        "and (options & OPTION_BIN_LOG) = 0x%llx "
+                        "and binlog_format = %d "
+                        "and binlog_filter->db_ok(db) = %d",
+                        mysql_bin_log.is_open(),
+                        (options & OPTION_BIN_LOG),
+                        variables.binlog_format,
+                        binlog_filter->db_ok(db)));
 #endif
 
   DBUG_RETURN(0);
