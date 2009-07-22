@@ -1335,6 +1335,10 @@ public:
 
     Set it using the  thd_proc_info(THD *thread, const char *message)
     macro/function.
+
+    This member is accessed and assigned without any synchronization.
+    Therefore, it may point only to constant (statically
+    allocated) strings, which memory won't go away over time.
   */
   const char *proc_info;
 
