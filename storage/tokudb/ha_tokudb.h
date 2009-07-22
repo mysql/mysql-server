@@ -53,6 +53,7 @@ typedef struct st_tokudb_share {
     // index of auto increment column in table->field, if auto_inc exists
     //
     uint ai_field_index;
+    bool ai_first_col;
 
     MY_BITMAP key_filters[MAX_KEY+1];
     uchar* field_lengths; //stores the field lengths of fixed size fields (255 max)
@@ -438,5 +439,6 @@ public:
 private:
     int read_full_row(uchar * buf);
     int __close(int mutex_is_locked);
-    int read_last();
+    int read_last(uint keynr);
+    bool is_auto_inc_first_column (uint* keynr);
 };
