@@ -6861,10 +6861,9 @@ ha_innobase::external_lock(
 	if (lock_type == F_WRLCK &&
 	    !(table_flags() & HA_BINLOG_STMT_CAPABLE) &&
 	    thd_binlog_format(thd) == BINLOG_FORMAT_STMT) {
-		int skip = 0;
-		/* used by test case */
-		DBUG_EXECUTE_IF("no_innodb_binlog_errors", skip = 1;);
-		if (!skip) {
+		/* The error may be suppressed by test cases, by setting
+		the no_innodb_binlog_errors debug symbol. */
+		if (DBUG_EVALUATE_IF("no_innodb_binlog_errors", 0, 1)) {
 			my_error(ER_BINLOG_STMT_MODE_AND_ROW_ENGINE, MYF(0),
 			         " InnoDB is limited to row-logging when "
 			         "transaction isolation level is "

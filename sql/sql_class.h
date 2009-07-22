@@ -1422,38 +1422,79 @@ public:
   int binlog_flush_pending_rows_event(bool stmt_end);
   int binlog_remove_pending_rows_event(bool clear_maps);
 
-  int is_current_stmt_binlog_format_row() {
+  /**
+    Determine the binlog format of the current statement.
+
+    @retval 0 if the current statement will be logged in statement
+    format.
+    @retval nonzero if the current statement will be logged in row
+    format.
+   */
+  int is_current_stmt_binlog_format_row() const {
     DBUG_ASSERT(current_stmt_binlog_format == BINLOG_FORMAT_STMT ||
                 current_stmt_binlog_format == BINLOG_FORMAT_ROW);
     return current_stmt_binlog_format == BINLOG_FORMAT_ROW;
   }
 
 private:
-  /*
-    Tells if current statement should binlog row-based(1) or stmt-based(0)
+  /**
+    Indicates the format in which the current statement will be
+    logged.  This can only be set from @c decide_logging_format().
   */
   enum_binlog_format current_stmt_binlog_format;
 
-  enum enum_binlog_warning_flag {
-    /* ER_BINLOG_UNSAFE_AND_STMT_ENGINE affects current stmt */
-    BINLOG_WARNING_FLAG_UNSAFE_AND_STMT_ENGINE = 0,
-    /* ER_BINLOG_UNSAFE_AND_STMT_MODE affects current stmt */
-    BINLOG_WARNING_FLAG_UNSAFE_AND_STMT_MODE,
-    /* One of the warnings has already been printed */
-    BINLOG_WARNING_FLAG_PRINTED,
-    /* number of elements of this enum; insert new members above */
-    BINLOG_WARNING_FLAG_COUNT
-  };
   /**
-    Flags holding the status of binlog-related warnings for the
-    current statement.  This is a binary combination of (1<<flag),
-    where flag is a member of @c enum_binlog_warning_flag.
-
-    The warnings are determined in @c THD::decide_logging_format, but
-    issued only later, after the statement has been written to the
-    binlog.  Hence it must be stored in the @c THD object.
+    Enumeration listing binlog-related warnings that a statement can
+    cause.
   */
-  uint32 binlog_warning_flags;
+  enum enum_binlog_stmt_warning {
+
+    /* ER_BINLOG_UNSAFE_AND_STMT_ENGINE affects current stmt */
+    BINLOG_STMT_WARNING_UNSAFE_AND_STMT_ENGINE= 0,
+
+    /* ER_BINLOG_UNSAFE_STATEMENT affects current stmt */
+    BINLOG_STMT_WARNING_UNSAFE_AND_STMT_MODE,
+
+    /** The last element of this enumeration type. */
+    BINLOG_STMT_WARNING_COUNT
+  };
+
+  /**
+    Bit field for the state of binlog warnings.
+
+    There are three groups of bits:
+
+    - The low BINLOG_STMT_WARNING_COUNT bits indicate the type of
+      warning that the current (top-level) statement will issue.  At
+      most one of these bits should be set (this is ensured by the
+      logic in decide_logging_format).
+
+    - The following Lex::BINLOG_STMT_UNSAFE_COUNT bits list all types
+      of unsafeness that the current statement has.
+
+    - The following Lex::BINLOG_STMT_UNSAFE_COUNT bits list all types
+      of unsafeness that the current statement has issued warnings
+      for.
+
+    Hence, this variable must be big enough to hold
+    BINLOG_STMT_WARNING_COUNT + 2 * Lex::BINLOG_STMT_UNSAFE_COUNT
+    bits.  This is asserted in @c issue_unsafe_warnings().
+
+    The first and second groups of bits are set by @c
+    decide_logging_format() when it detects that a warning should be
+    issued.  The third group of bits is set from @c binlog_query()
+    when a warning is issued.  All bits are cleared at the end of the
+    top-level statement.
+
+    This must be a member of THD and not of LEX, because warnings are
+    detected and issued in different places (@c
+    decide_logging_format() and @c binlog_query(), respectively).
+    Between these calls, the THD->lex object may change; e.g., if a
+    stored routine is invoked.  Only THD persists between the calls.
+  */
+  uint32 binlog_unsafe_warning_flags;
+
+  void issue_unsafe_warnings();
 
   /*
     Number of outstanding table maps, i.e., table maps in the
@@ -2139,6 +2180,14 @@ public:
   {
     DBUG_ENTER("set_current_stmt_binlog_row_based_if_mixed");
     /*
+      This should only be called from decide_logging_format.
+
+      @todo Once we have ensured this, uncomment the following
+      statement, remove the big comment below that, and remove the
+      in_sub_stmt==0 condition from the following 'if'.
+    */
+    /* DBUG_ASSERT(in_sub_stmt == 0); */
+    /*
       If in a stored/function trigger, the caller should already have done the
       change. We test in_sub_stmt to prevent introducing bugs where people
       wouldn't ensure that, and would switch to row-based mode in the middle
@@ -2149,7 +2198,7 @@ public:
     */
     if ((variables.binlog_format == BINLOG_FORMAT_MIXED) &&
         (in_sub_stmt == 0))
-      current_stmt_binlog_format= BINLOG_FORMAT_ROW;
+      set_current_stmt_binlog_row_based();
 
     DBUG_VOID_RETURN;
   }
@@ -2189,9 +2238,10 @@ public:
                 show_system_thread(system_thread)));
     if ((temporary_tables == NULL) && (in_sub_stmt == 0))
     {
-      current_stmt_binlog_format=
-        (variables.binlog_format == BINLOG_FORMAT_ROW) ? 
-        BINLOG_FORMAT_ROW : BINLOG_FORMAT_STMT;
+      if (variables.binlog_format == BINLOG_FORMAT_ROW)
+        set_current_stmt_binlog_row_based();
+      else
+        clear_current_stmt_binlog_row_based();
     }
     DBUG_VOID_RETURN;
   }

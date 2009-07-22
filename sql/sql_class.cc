@@ -39,6 +39,7 @@
 #include <io.h>
 #endif
 #include <mysys_err.h>
+#include <limits.h>
 
 #include "sp_rcontext.h"
 #include "sp_cache.h"
@@ -540,7 +541,7 @@ THD::THD()
    lock_id(&main_lock_id),
    user_time(0), in_sub_stmt(0),
    sql_log_bin_toplevel(false),
-   binlog_warning_flags(0UL), binlog_table_maps(0),
+   binlog_unsafe_warning_flags(0), binlog_table_maps(0),
    table_map_for_update(0),
    arg_of_last_insert_id_function(FALSE),
    first_successful_insert_id_in_prev_stmt(0),
@@ -3634,6 +3635,93 @@ show_query_type(THD::enum_binlog_query_type qtype)
 
 
 /**
+  Auxiliary method used by @c binlog_query() to raise warnings.
+
+  @param err An ER_BINLOG_UNSAFE_* constant; the warning to print.
+*/
+void THD::issue_unsafe_warnings()
+{
+  DBUG_ENTER("issue_unsafe_warnings");
+  /*
+    Ensure that binlog_unsafe_warning_flags is big enough to hold all
+    bits.  This is actually a constant expression.
+  */
+  DBUG_ASSERT(BINLOG_STMT_WARNING_COUNT + 2 * LEX::BINLOG_STMT_UNSAFE_COUNT <=
+              sizeof(binlog_unsafe_warning_flags) * CHAR_BIT);
+
+  /**
+    @note The order of the elements of this array must correspond to
+    the order of elements in enum_binlog_stmt_unsafe.
+  */
+  static const char *explanations[LEX::BINLOG_STMT_UNSAFE_COUNT] =
+  {
+    "Statement uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.",
+    "Statement uses INSERT DELAYED. This is unsafe because the time when rows are inserted cannot be predicted.",
+    "Statement uses the general_log or slow_log table. This is unsafe because system tables may differ on slave.",
+    "Statement updates two AUTO_INCREMENT columns. This is unsafe because the generated value cannot be predicted by slave.",
+    "Statement uses a UDF. It cannot be determined if the UDF will return the same value on slave.",
+    "Statement uses a system variable whose value may differ on slave.",
+    "Statement uses a system function whose value may differ on slave."
+  };
+  uint32 flags= binlog_unsafe_warning_flags;
+  /* No warnings (yet) for this statement. */
+  if (flags == 0)
+    DBUG_VOID_RETURN;
+
+  /* Get the types of unsafeness that affect the current statement. */
+  uint32 unsafe_type_flags= flags >> BINLOG_STMT_WARNING_COUNT;
+  DBUG_ASSERT((unsafe_type_flags & LEX::BINLOG_STMT_UNSAFE_ALL_FLAGS) != 0);
+  /*
+    Clear (1) bits above BINLOG_STMT_UNSAFE_COUNT; (2) bits for
+    warnings that have been printed already.
+  */
+  unsafe_type_flags &= (LEX::BINLOG_STMT_UNSAFE_ALL_FLAGS ^
+                        (unsafe_type_flags >> LEX::BINLOG_STMT_UNSAFE_COUNT));
+  /* If all warnings have been printed already, return. */
+  if (unsafe_type_flags == 0)
+    DBUG_VOID_RETURN;
+
+  /* Figure out which error code to issue. */
+  int err;
+  if (binlog_unsafe_warning_flags &
+      (1 << BINLOG_STMT_WARNING_UNSAFE_AND_STMT_ENGINE))
+    err= ER_BINLOG_UNSAFE_AND_STMT_ENGINE;
+  else {
+    DBUG_ASSERT(binlog_unsafe_warning_flags &
+                (1 << BINLOG_STMT_WARNING_UNSAFE_AND_STMT_MODE));
+    err= ER_BINLOG_UNSAFE_STATEMENT;
+  }
+
+  DBUG_PRINT("info", ("flags: 0x%x  err: %d", unsafe_type_flags, err));
+
+  /*
+    For each unsafe_type, check if the statement is unsafe in this way
+    and issue a warning.
+  */
+  for (int unsafe_type=0;
+       unsafe_type < LEX::BINLOG_STMT_UNSAFE_COUNT;
+       unsafe_type++)
+  {
+    if ((unsafe_type_flags & (1 << unsafe_type)) != 0)
+    {
+      push_warning_printf(this, MYSQL_ERROR::WARN_LEVEL_NOTE, err,
+                          "%s Reason: %s",
+                          ER(err), explanations[unsafe_type]);
+      sql_print_warning("%s Reason: %s Statement: %s",
+                        ER(err), explanations[unsafe_type], query);
+    }
+  }
+  /*
+    Mark these unsafe types as already printed, to avoid printing
+    warnings for them again.
+  */
+  binlog_unsafe_warning_flags|= unsafe_type_flags <<
+    (BINLOG_STMT_WARNING_COUNT + LEX::BINLOG_STMT_UNSAFE_COUNT);
+  DBUG_VOID_RETURN;
+}
+
+
+/**
   Log the current query.
 
   The query will be logged in either row format or statement format
@@ -3688,34 +3776,7 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
     know for sure if the statement will be logged.
   */
   if (sql_log_bin_toplevel)
-  {
-    if (binlog_warning_flags &
-        (1 << BINLOG_WARNING_FLAG_UNSAFE_AND_STMT_ENGINE))
-    {
-      push_warning_printf(this, MYSQL_ERROR::WARN_LEVEL_NOTE,
-                          ER_BINLOG_UNSAFE_AND_STMT_ENGINE,
-                          "%s Statement: %.*s",
-                          ER(ER_BINLOG_UNSAFE_AND_STMT_ENGINE),
-                          MYSQL_ERRMSG_SIZE, query_arg);
-      sql_print_warning("%s Statement: %.*s",
-                        ER(ER_BINLOG_UNSAFE_AND_STMT_ENGINE),
-                        MYSQL_ERRMSG_SIZE, query_arg);
-      binlog_warning_flags|= 1 << BINLOG_WARNING_FLAG_PRINTED;
-    }
-    else if (binlog_warning_flags &
-             (1 << BINLOG_WARNING_FLAG_UNSAFE_AND_STMT_MODE))
-    {
-      push_warning_printf(this, MYSQL_ERROR::WARN_LEVEL_NOTE,
-                          ER_BINLOG_UNSAFE_STATEMENT,
-                          "%s Statement: %.*s",
-                          ER(ER_BINLOG_UNSAFE_STATEMENT),
-                          MYSQL_ERRMSG_SIZE, query_arg);
-      sql_print_warning("%s Statement: %.*s",
-                        ER(ER_BINLOG_UNSAFE_STATEMENT),
-                        MYSQL_ERRMSG_SIZE, query_arg);
-      binlog_warning_flags|= 1 << BINLOG_WARNING_FLAG_PRINTED;
-    }
-  }
+    issue_unsafe_warnings();
 
   switch (qtype) {
     /*
@@ -3738,6 +3799,10 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
       format; it cannot be logged in row format.  This is typically
       used by DDL statements.  It is an error to use this query type
       if current_stmt_binlog_row_based is set.
+
+      @todo Currently there are places that call this method with
+      STMT_QUERY_TYPE and current_stmt_binlog_row_based.  Fix those
+      places and add assert to ensure correct behavior. /Sven
     */
   case THD::STMT_QUERY_TYPE:
     /*

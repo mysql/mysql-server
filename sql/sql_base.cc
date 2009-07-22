@@ -5152,12 +5152,17 @@ static void mark_real_tables_as_free_for_reuse(TABLE_LIST *table)
 int THD::decide_logging_format(TABLE_LIST *tables)
 {
   DBUG_ENTER("THD::decide_logging_format");
+  DBUG_PRINT("info", ("query: %s", query));
+  DBUG_PRINT("info", ("variables.binlog_format: %ld",
+                      variables.binlog_format));
+  DBUG_PRINT("info", ("lex->get_stmt_unsafe_flags(): 0x%x",
+                      lex->get_stmt_unsafe_flags()));
   if (mysql_bin_log.is_open() && (options & OPTION_BIN_LOG))
   {
     /*
-      Compute the starting vectors for the computations by creating a
-      set with all the capabilities bits set and one with no
-      capabilities bits set.
+      Compute one bit field with the union of all the engine
+      capabilities, and one with the intersection of all the engine
+      capabilities.
     */
     handler::Table_flags flags_some_set= 0;
     handler::Table_flags flags_all_set=
@@ -5180,15 +5185,14 @@ int THD::decide_logging_format(TABLE_LIST *tables)
 
     /*
       Get the capabilities vector for all involved storage engines and
-      mask out the flags for the binary log.  (Currently, the binlog
-      flags only include the capabilities of the storage engines.)
+      mask out the flags for the binary log.
     */
     for (TABLE_LIST *table= tables; table; table= table->next_global)
     {
       if (table->placeholder())
         continue;
       if (table->table->s->table_category == TABLE_CATEGORY_PERFORMANCE)
-        lex->set_stmt_unsafe();
+        lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_TABLE);
       if (table->lock_type >= TL_WRITE_ALLOW_WRITE)
       {
         ulonglong const flags= table->table->file->ha_table_flags();
@@ -5210,12 +5214,11 @@ int THD::decide_logging_format(TABLE_LIST *tables)
     DBUG_PRINT("info", ("flags_some_set: %s%s",
                         FLAGSTR(flags_some_set, HA_BINLOG_STMT_CAPABLE),
                         FLAGSTR(flags_some_set, HA_BINLOG_ROW_CAPABLE)));
-    DBUG_PRINT("info", ("variables.binlog_format: %ld",
-                        variables.binlog_format));
     DBUG_PRINT("info", ("multi_engine: %s",
                         multi_engine ? "TRUE" : "FALSE"));
 
     int error= 0;
+    int unsafe_flags;
 
     /*
       If more than one engine is involved in the statement and at
@@ -5258,14 +5261,20 @@ int THD::decide_logging_format(TABLE_LIST *tables)
         */
         my_error((error= ER_BINLOG_ROW_MODE_AND_STMT_ENGINE), MYF(0));
       }
-      else if (lex->is_stmt_unsafe())
+      else if ((unsafe_flags= lex->get_stmt_unsafe_flags()) != 0)
       {
         /*
           3. Warning: Unsafe statement binlogged as statement since
              storage engine is limited to statement-logging.
         */
-        binlog_warning_flags|=
-          (1 << BINLOG_WARNING_FLAG_UNSAFE_AND_STMT_ENGINE);
+        binlog_unsafe_warning_flags|=
+          (1 << BINLOG_STMT_WARNING_UNSAFE_AND_STMT_ENGINE) |
+          (unsafe_flags << BINLOG_STMT_WARNING_COUNT);
+        DBUG_PRINT("info", ("Scheduling warning to be issued by "
+                            "binlog_query: %s",
+                            ER(ER_BINLOG_UNSAFE_AND_STMT_ENGINE)));
+        DBUG_PRINT("info", ("binlog_unsafe_warning_flags: 0x%x",
+                            binlog_unsafe_warning_flags));
       }
       /* log in statement format! */
     }
@@ -5291,14 +5300,20 @@ int THD::decide_logging_format(TABLE_LIST *tables)
           */
           my_error((error= ER_BINLOG_STMT_MODE_AND_ROW_ENGINE), MYF(0), "");
         }
-        else if (lex->is_stmt_unsafe())
+        else if ((unsafe_flags= lex->get_stmt_unsafe_flags()) != 0)
         {
           /*
             7. Warning: Unsafe statement logged as statement due to
                binlog_format = STATEMENT
           */
-          binlog_warning_flags|=
-            (1 << BINLOG_WARNING_FLAG_UNSAFE_AND_STMT_MODE);
+          binlog_unsafe_warning_flags|=
+            (1 << BINLOG_STMT_WARNING_UNSAFE_AND_STMT_MODE) |
+            (unsafe_flags << BINLOG_STMT_WARNING_COUNT);
+          DBUG_PRINT("info", ("Scheduling warning to be issued by "
+                              "binlog_query: '%s'",
+                              ER(ER_BINLOG_UNSAFE_STATEMENT)));
+          DBUG_PRINT("info", ("binlog_stmt_flags: 0x%x",
+                              binlog_unsafe_warning_flags));
         }
         /* log in statement format! */
       }
@@ -5315,9 +5330,21 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       }
     }
 
-    if (error)
+    if (error) {
+      DBUG_PRINT("info", ("decision: no logging since an error was generated"));
       DBUG_RETURN(-1);
+    }
+    DBUG_PRINT("info", ("decision: logging in %s format",
+                        is_current_stmt_binlog_format_row() ?
+                        "ROW" : "STATEMENT"));
   }
+#ifndef DBUG_OFF
+  else
+    DBUG_PRINT("info", ("decision: no logging since "
+                        "mysql_bin_log.is_open() = %d "
+                        "and (options & OPTION_BIN_LOG) = 0x%llx",
+                        mysql_bin_log.is_open(), (options & OPTION_BIN_LOG)));
+#endif
 
   DBUG_RETURN(0);
 }
@@ -5401,7 +5428,7 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
       if (thd->variables.binlog_format == BINLOG_FORMAT_MIXED &&
           has_two_write_locked_tables_with_auto_increment(tables))
       {
-        thd->lex->set_stmt_unsafe();
+        thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_TWO_AUTOINC_COLUMNS);
         thd->set_current_stmt_binlog_row_based_if_mixed();
       }
     }

@@ -64,7 +64,7 @@ SET @@session.binlog_format = MIXED;
 * Unsafe statement and stmt-only engine
 INSERT INTO t_stmt VALUES (UUID());
 Warnings:
-Note	1639	Unsafe statement binlogged as statement since storage engine is limited to statement-logging. Statement: INSERT INTO t_stmt VALUES (UUID())
+Note	1639	Unsafe statement binlogged as statement since storage engine is limited to statement-logging. Reason: Statement uses a system function whose value may differ on slave.
 ---- binlog_format=statement ----
 [on slave]
 include/stop_slave.inc
@@ -93,7 +93,7 @@ ERROR HY000: Cannot execute row injection: binlogging impossible since BINLOG_FO
 * Unsafe statement and binlog_format=statement
 INSERT INTO t VALUES (UUID());
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Statement: INSERT INTO t VALUES (UUID())
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason: Statement uses a system function whose value may differ on slave.
 ---- master: binlog_format=mixed, slave: binlog_format=statement ----
 SET @@global.binlog_format = MIXED;
 SET @@session.binlog_format = MIXED;

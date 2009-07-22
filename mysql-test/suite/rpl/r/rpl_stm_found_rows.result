@@ -52,8 +52,8 @@ a
 a
 7
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Statement: INSERT INTO logtbl VALUES( NAME_CONST('sect',2), NAME_CONST('test',1), NAME_CONST('cnt',3))
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Statement: INSERT INTO logtbl VALUES( NAME_CONST('sect',2), NAME_CONST('test',1)+1, NAME_CONST('cnt',183))
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason: Statement uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason: Statement uses a system function whose value may differ on slave.
 CREATE PROCEDURE just_log(sect INT, test INT, found_rows INT) BEGIN
 INSERT INTO logtbl VALUES (sect,test,found_rows);
 END $$
