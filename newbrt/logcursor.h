@@ -7,22 +7,29 @@
 
 #include "log_header.h"
 
-typedef struct log_entry * TOKULOGENTRY;
-
 struct toku_logcursor;
 typedef struct toku_logcursor *TOKULOGCURSOR;
 
+// All routines return 0 on success
+
 // toku_logcursor_create()
 //   - returns a pointer to a logcursor
+//   - following toku_logcursor_create()
+//         if toku_logcursor_next() is called, it returns the first entry in the log
+//         if toku_logcursor_prev() is called, it returns the last entry in the log
 int toku_logcursor_create(TOKULOGCURSOR *lc, const char *log_dir);
+// toku_logcursor_destroy()
+//    - frees all resources associated with the logcursor, including the log_entry 
+//       associated with the latest cursor action
 int toku_logcursor_destroy(TOKULOGCURSOR *lc);
 
-// returns 0 on success
-int toku_logcursor_current(TOKULOGCURSOR lc, struct log_entry *le);
-int toku_logcursor_next(TOKULOGCURSOR lc, struct log_entry *le);
-int toku_logcursor_prev(TOKULOGCURSOR lc, struct log_entry *le);
+// toku_logcursor_[next,prev,first,last] take care of malloc'ing and free'ing log_entrys.
+//    - routines NULL out the **le pointers on entry, then set the **le pointers to 
+//        the malloc'ed entries when successful, 
+int toku_logcursor_next(TOKULOGCURSOR lc, struct log_entry **le);
+int toku_logcursor_prev(TOKULOGCURSOR lc, struct log_entry **le);
 
-int toku_logcursor_first(const TOKULOGCURSOR lc, struct log_entry *le);
-int toku_logcursor_last(const TOKULOGCURSOR lc, struct log_entry *le);
+int toku_logcursor_first(const TOKULOGCURSOR lc, struct log_entry **le);
+int toku_logcursor_last(const TOKULOGCURSOR lc, struct log_entry **le);
 
 #endif // TOKULOGCURSOR_H

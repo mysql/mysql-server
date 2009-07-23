@@ -373,7 +373,33 @@ generate_log_reader (void) {
     fprintf(cf, "  r = fseek(infile, -(int)len, SEEK_CUR);           assert(r==0);\n");
     //fprintf(cf, "  if (r!=0) return errno;\n");
     fprintf(cf, "  return 0;\n");
-    fprintf(cf, "}\n");
+    fprintf(cf, "}\n\n");
+
+    int free_count=0;
+    DO_LOGTYPES(lt, {
+            free_count=0;
+            fprintf(cf, "static void toku_log_free_log_entry_%s_resources (struct logtype_%s *data)", lt->name, lt->name);
+            fprintf(cf, " {\n");
+            DO_FIELDS(ft, lt, {
+                    if ( strcmp(ft->type, "BYTESTRING") == 0 ) {
+                        fprintf(cf, "    toku_free_BYTESTRING(data->%s);\n", ft->name);
+                        free_count++;
+                    }
+                });
+            if ( free_count == 0 ) fprintf(cf, "    struct logtype_%s *dummy __attribute__ ((unused)) = data;\n", lt->name);
+            fprintf(cf, "}\n\n");
+        });
+    fprintf2(cf, hf, "void toku_log_free_log_entry_resources (struct log_entry *le)");
+    fprintf(hf, ";\n");
+    fprintf(cf, " {\n");
+    fprintf(cf, "    switch ((enum lt_cmd)le->cmd) {\n");
+    DO_LOGTYPES(lt, {
+            fprintf(cf, "    case LT_%s:\n", lt->name);
+            fprintf(cf, "        return toku_log_free_log_entry_%s_resources (&(le->u.%s));\n", lt->name, lt->name);
+        });
+    fprintf(cf, "    };\n");
+    fprintf(cf, "    return;\n");
+    fprintf(cf, "}\n\n");
 }
 
 static void

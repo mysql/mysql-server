@@ -6,15 +6,14 @@
 #include "includes.h"
 
 struct toku_logcursor {
-    struct log_entry entry;
     char *logdir;
     char **logfiles;
     int n_logfiles;
     int cur_logfiles_index;
     FILE *cur_fp;
-    int is_open;
-    struct log_entry *cur_le;
-    struct log_entry cur_log_entry;
+    BOOL is_open;
+    struct log_entry entry;
+    BOOL entry_valid;
 };
 
 static int lc_close_cur_logfile(TOKULOGCURSOR lc) {
@@ -22,13 +21,13 @@ static int lc_close_cur_logfile(TOKULOGCURSOR lc) {
     if ( lc->is_open ) {
         r = fclose(lc->cur_fp);
         assert(0==r);
-        lc->is_open = 0;
+        lc->is_open = FALSE;
     }
     return 0;
 }
 static int lc_open_logfile(TOKULOGCURSOR lc, int index) {
     int r=0;
-    assert( lc->is_open == 0 );
+    assert( !lc->is_open );
     lc->cur_fp = fopen(lc->logfiles[index], "r");
     if ( lc->cur_fp == NULL ) 
         return DB_NOTFOUND;
@@ -40,7 +39,7 @@ static int lc_open_logfile(TOKULOGCURSOR lc, int index) {
     if (version != 1)
         return DB_BADFORMAT;
     // mark as open
-    lc->is_open = 1;
+    lc->is_open = TRUE;
     return r;
 }
 
@@ -55,9 +54,9 @@ int toku_logcursor_create(TOKULOGCURSOR *lc, const char *log_dir) {
     if ( NULL==cursor ) 
         return ENOMEM;
     // find logfiles in logdir
-    cursor->cur_le = NULL;
-    cursor->is_open = 0;
+    cursor->is_open = FALSE;
     cursor->cur_logfiles_index = 0;
+    cursor->entry_valid = FALSE;
     cursor->logdir = (char *) toku_malloc(strlen(log_dir)+1);
     if ( NULL==cursor->logdir ) 
         return ENOMEM;
@@ -77,27 +76,29 @@ int toku_logcursor_create(TOKULOGCURSOR *lc, const char *log_dir) {
 
 int toku_logcursor_destroy(TOKULOGCURSOR *lc) {
     int r=0;
+    if ( (*lc)->entry_valid )
+        toku_log_free_log_entry_resources(&((*lc)->entry));
     r = lc_close_cur_logfile(*lc);
+    int lf;
+    for(lf=0;lf<(*lc)->n_logfiles;lf++) {
+        toku_free((*lc)->logfiles[lf]);
+    }
+    toku_free((*lc)->logfiles);
     toku_free((*lc)->logdir);
     toku_free(*lc);
     *lc = NULL;
     return r;
 }
 
-int toku_logcursor_current(TOKULOGCURSOR lc, struct log_entry *le) {
-    if ( lc->cur_le == NULL ) 
-        return DB_NOTFOUND;
-    *le = lc->cur_log_entry;
-    return 0;
-}
-
-int toku_logcursor_next(TOKULOGCURSOR lc, struct log_entry *le) {
+int toku_logcursor_next(TOKULOGCURSOR lc, struct log_entry **le) {
     int r=0;
-    if ( lc->cur_le == NULL ) {
+    if ( lc->entry_valid ) 
+        toku_log_free_log_entry_resources(&(lc->entry));
+    if ( !lc->entry_valid ) {
         r = toku_logcursor_first(lc, le);
         return r;
     }
-    r = toku_log_fread(lc->cur_fp, le);
+    r = toku_log_fread(lc->cur_fp, &(lc->entry));
     while ( EOF == r ) { 
         // move to next file
         r = lc_close_cur_logfile(lc);
@@ -109,7 +110,7 @@ int toku_logcursor_next(TOKULOGCURSOR lc, struct log_entry *le) {
         r = lc_open_logfile(lc, lc->cur_logfiles_index);
         if (r!= 0) 
             return r;
-        r = toku_log_fread(lc->cur_fp, le);
+        r = toku_log_fread(lc->cur_fp, &(lc->entry));
     }
     if (r!=0) {
         if (r==DB_BADFORMAT) {
@@ -120,17 +121,19 @@ int toku_logcursor_next(TOKULOGCURSOR lc, struct log_entry *le) {
             return r;
         }
     }
-    lc->cur_log_entry = *le;
+    *le = &(lc->entry);
     return r;
 }
 
-int toku_logcursor_prev(TOKULOGCURSOR lc, struct log_entry *le) {
+int toku_logcursor_prev(TOKULOGCURSOR lc, struct log_entry **le) {
     int r=0;
-    if ( lc->cur_le == NULL ) {
+    if ( lc->entry_valid ) 
+        toku_log_free_log_entry_resources(&(lc->entry));
+    if ( !lc->entry_valid ) {
         r = toku_logcursor_last(lc, le);
         return r;
     }
-    r = toku_log_fread_backward(lc->cur_fp, le);
+    r = toku_log_fread_backward(lc->cur_fp, &(lc->entry));
     while ( -1 == r) { // if within header length of top of file
         // move to previous file
         r = lc_close_cur_logfile(lc);
@@ -142,7 +145,7 @@ int toku_logcursor_prev(TOKULOGCURSOR lc, struct log_entry *le) {
         r = lc_open_logfile(lc, lc->cur_logfiles_index);
         if (r!=0) 
             return r;
-        r = toku_log_fread_backward(lc->cur_fp, le);
+        r = toku_log_fread_backward(lc->cur_fp, &(lc->entry));
     }
     if (r!=0) {
         if (r==DB_BADFORMAT) {
@@ -153,12 +156,14 @@ int toku_logcursor_prev(TOKULOGCURSOR lc, struct log_entry *le) {
             return r;
         }
     }
-    lc->cur_log_entry = *le;
-    return 0;
+    *le = &(lc->entry);
+    return r;
 }
 
-int toku_logcursor_first(TOKULOGCURSOR lc, struct log_entry *le) {
+int toku_logcursor_first(TOKULOGCURSOR lc, struct log_entry **le) {
     int r=0;
+    if ( lc->entry_valid ) 
+        toku_log_free_log_entry_resources(&(lc->entry));
     // close any but the first log file
     if ( lc->cur_logfiles_index != 0 ) {
         lc_close_cur_logfile(lc);
@@ -170,17 +175,18 @@ int toku_logcursor_first(TOKULOGCURSOR lc, struct log_entry *le) {
             return r;
         lc->cur_logfiles_index = 0;
     }    
-    r = toku_log_fread(lc->cur_fp, le);
+    r = toku_log_fread(lc->cur_fp, &(lc->entry));
     if (r!=0) 
         return r;
-    // copy into cur_le
-    lc->cur_log_entry = *le;
-    lc->cur_le = &lc->cur_log_entry;
+    lc->entry_valid = TRUE;
+    *le = &(lc->entry);
     return r;
 }
 
-int toku_logcursor_last(TOKULOGCURSOR lc, struct log_entry *le) {
+int toku_logcursor_last(TOKULOGCURSOR lc, struct log_entry **le) {
     int r=0;
+    if ( lc->entry_valid ) 
+        toku_log_free_log_entry_resources(&(lc->entry));
     // close any but last log file
     if ( lc->cur_logfiles_index != lc->n_logfiles-1 ) {
         lc_close_cur_logfile(lc);
@@ -196,14 +202,10 @@ int toku_logcursor_last(TOKULOGCURSOR lc, struct log_entry *le) {
     r = fseek(lc->cur_fp, 0, SEEK_END);
     assert(0==r);
     // read backward
-    r = toku_log_fread_backward(lc->cur_fp, le);
+    r = toku_log_fread_backward(lc->cur_fp, &(lc->entry));
     if (r!=0) 
         return r;
-    // copy into cur_le
-    lc->cur_log_entry = *le;
-    lc->cur_le = &lc->cur_log_entry;
+    lc->entry_valid = TRUE;
+    *le = &(lc->entry);
     return r;
 }
-
-
-
