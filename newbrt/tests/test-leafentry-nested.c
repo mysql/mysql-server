@@ -517,6 +517,8 @@ generate_provpair_for(ULE ule, BRT_MSG msg) {
     ule->uxrs[ule->num_uxrs - 1].xid    = xids_get_innermost_xid(xids);
 }
 
+//Test all the different things that can happen to a
+//non-existent leafentry (logical equivalent of a committed delete).
 static void
 test_le_empty_apply(void) {
     ULE_S ule_initial        = ule_committed_delete;
@@ -623,6 +625,8 @@ generate_both_for(ULE ule, DBT *oldval, BRT_MSG msg) {
     ule->uxrs[ule->num_uxrs - 1].xid    = xids_get_innermost_xid(xids);
 }
 
+//Test all the different things that can happen to a
+//committed leafentry (logical equivalent of a committed insert).
 static void
 test_le_committed_apply(void) {
     ULE_S ule_initial;
@@ -675,16 +679,6 @@ test_le_committed_apply(void) {
                 }
 
                 {
-                    //INSERT SAME
-                    msg_init(&msg, BRT_INSERT, msg_xids, &key, &val);
-                    ULE_S ule_expected;
-                    generate_both_for(&ule_expected, &val, &msg);
-                    test_le_apply(&ule_initial, &msg, &ule_expected);
-                }
-
-                {
-                    //NOT RIGHT YET
-                    //INSERT DIFFERENT
                     u_int8_t valbuf2[MAX_SIZE];
                     u_int32_t valsize2 = random() % MAX_SIZE;
                     fillrandom(valbuf2, valsize2);
