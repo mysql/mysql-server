@@ -219,7 +219,6 @@ Transporter::connect_client(NDB_SOCKET_TYPE sockfd) {
       NDB_CLOSE_SOCKET(sockfd);
       g_eventLogger->error("Incompatible configuration: transporter type "
                            "mismatch with node %d", nodeId);
-      ndbout_c("ratelimit: wrong transporter type");
       DBUG_RETURN(false);
     }
   }
