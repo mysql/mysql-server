@@ -3651,14 +3651,17 @@ static void init_ssl()
 #ifdef HAVE_OPENSSL
   if (opt_use_ssl)
   {
+    enum enum_ssl_init_error error= SSL_INITERR_NOERROR;
+
     /* having ssl_acceptor_fd != 0 signals the use of SSL */
     ssl_acceptor_fd= new_VioSSLAcceptorFd(opt_ssl_key, opt_ssl_cert,
 					  opt_ssl_ca, opt_ssl_capath,
-					  opt_ssl_cipher);
+					  opt_ssl_cipher, &error);
     DBUG_PRINT("info",("ssl_acceptor_fd: 0x%lx", (long) ssl_acceptor_fd));
     if (!ssl_acceptor_fd)
     {
       sql_print_warning("Failed to setup SSL");
+      sql_print_warning("SSL error: %s", sslGetErrString(error));
       opt_use_ssl = 0;
       have_ssl= SHOW_OPTION_DISABLED;
     }
@@ -4300,7 +4303,6 @@ int main(int argc, char **argv)
 
   select_thread=pthread_self();
   select_thread_in_use=1;
-  init_ssl();
 
 #ifdef HAVE_LIBWRAP
   libwrapName= my_progname+dirname_length(my_progname);
@@ -4355,6 +4357,7 @@ we force server id to 2, but this MySQL server will not act as a slave.");
   if (init_server_components())
     unireg_abort(1);
 
+  init_ssl();
   network_init();
 
 #ifdef __WIN__
