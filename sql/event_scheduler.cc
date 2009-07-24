@@ -158,6 +158,7 @@ deinit_event_thread(THD *thd)
   thread_count--;
   thread_running--;
   delete thd;
+  pthread_cond_broadcast(&COND_thread_count);
   pthread_mutex_unlock(&LOCK_thread_count);
 }
 
@@ -418,6 +419,7 @@ Event_scheduler::start()
     thread_count--;
     thread_running--;
     delete new_thd;
+    pthread_cond_broadcast(&COND_thread_count);
     pthread_mutex_unlock(&LOCK_thread_count);
   }
 end:
@@ -550,6 +552,7 @@ error:
     thread_count--;
     thread_running--;
     delete new_thd;
+    pthread_cond_broadcast(&COND_thread_count);
     pthread_mutex_unlock(&LOCK_thread_count);
   }
   delete event_name;
