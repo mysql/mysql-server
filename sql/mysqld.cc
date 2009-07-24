@@ -416,6 +416,21 @@ my_bool locked_in_memory;
 bool opt_using_transactions;
 bool volatile abort_loop;
 bool volatile shutdown_in_progress;
+/*
+  True if the bootstrap thread is running. Protected by LOCK_thread_count,
+  just like thread_count.
+  Used in bootstrap() function to determine if the bootstrap thread
+  has completed. Note, that we can't use 'thread_count' instead,
+  since in 5.1, in presence of the Event Scheduler, there may be
+  event threads running in parallel, so it's impossible to know
+  what value of 'thread_count' is a sign of completion of the
+  bootstrap thread.
+
+  At the same time, we can't start the event scheduler after
+  bootstrap either, since we want to be able to process event-related
+  SQL commands in the init file and in --bootstrap mode.
+*/
+bool in_bootstrap= FALSE;
 /**
    @brief 'grant_option' is used to indicate if privileges needs
    to be checked, in which case the lock, LOCK_grant, is used
@@ -4426,6 +4441,11 @@ we force server id to 2, but this MySQL server will not act as a slave.");
     unireg_abort(1);
   }
 
+  execute_ddl_log_recovery();
+
+  if (Events::init(opt_noacl || opt_bootstrap))
+    unireg_abort(1);
+
   if (opt_bootstrap)
   {
     select_thread_in_use= 0;                    // Allow 'kill' to work
@@ -4437,13 +4457,9 @@ we force server id to 2, but this MySQL server will not act as a slave.");
     if (read_init_file(opt_init_file))
       unireg_abort(1);
   }
-  execute_ddl_log_recovery();
 
   create_shutdown_thread();
   start_handle_manager();
-
-  if (Events::init(opt_noacl))
-    unireg_abort(1);
 
   sql_print_information(ER(ER_STARTUP),my_progname,server_version,
                         ((unix_sock == INVALID_SOCKET) ? (char*) ""
@@ -4726,6 +4742,7 @@ static void bootstrap(FILE *file)
   thd->security_ctx->master_access= ~(ulong)0;
   thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
   thread_count++;
+  in_bootstrap= TRUE;
 
   bootstrap_file=file;
 #ifndef EMBEDDED_LIBRARY			// TODO:  Enable this
@@ -4738,7 +4755,7 @@ static void bootstrap(FILE *file)
   }
   /* Wait for thread to die */
   (void) pthread_mutex_lock(&LOCK_thread_count);
-  while (thread_count)
+  while (in_bootstrap)
   {
     (void) pthread_cond_wait(&COND_thread_count,&LOCK_thread_count);
     DBUG_PRINT("quit",("One thread died (count=%u)",thread_count));
