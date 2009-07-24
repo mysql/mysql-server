@@ -1106,8 +1106,7 @@ void execute_init_command(THD *thd, sys_var_str *init_command_var,
     values of init_command_var can't be changed
   */
   rw_rdlock(var_mutex);
-  thd->query= init_command_var->value;
-  thd->query_length= init_command_var->value_length;
+  thd->set_query(init_command_var->value, init_command_var->value_length);
   save_client_capabilities= thd->client_capabilities;
   thd->client_capabilities|= CLIENT_MULTI_QUERIES;
   /*
@@ -1326,6 +1325,7 @@ pthread_handler_t handle_bootstrap(void *arg)
   thd->init_for_queries();
   while (fgets(buff, thd->net.max_packet, file))
   {
+    char *query;
    ulong length= (ulong) strlen(buff);
    while (buff[length-1] != '\n' && !feof(file))
    {
@@ -1350,10 +1350,9 @@ pthread_handler_t handle_bootstrap(void *arg)
            buff[length-1] == ';'))
       length--;
     buff[length]=0;
-    thd->query_length=length;
-    thd->query= thd->memdup_w_gap(buff, length+1, 
-				  thd->db_length+1+QUERY_CACHE_FLAGS_SIZE);
-    thd->query[length] = '\0';
+    query= thd->memdup_w_gap(buff, length + 1,
+                             thd->db_length + 1 + QUERY_CACHE_FLAGS_SIZE);
+    thd->set_query(query, length);
     DBUG_PRINT("query",("%-.4096s",thd->query));
 #if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
     thd->profiling.set_query_source(thd->query, length);
@@ -1463,8 +1462,7 @@ int mysql_table_dump(THD* thd, char* db, char* tbl_name)
   if (check_one_table_access(thd, SELECT_ACL, table_list))
     goto err;
   thd->free_list = 0;
-  thd->query_length=(uint) strlen(tbl_name);
-  thd->query = tbl_name;
+  thd->set_query(tbl_name, (uint) strlen(tbl_name));
   if ((error = mysqld_dump_create_info(thd, table_list, -1)))
   {
     my_error(ER_GET_ERRNO, MYF(0), my_errno);
@@ -1987,9 +1985,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       thd->profiling.set_query_source(next_packet, length);
 #endif
 
+      thd->set_query(next_packet, length);
       VOID(pthread_mutex_lock(&LOCK_thread_count));
-      thd->query_length= length;
-      thd->query= next_packet;
       /*
         Count each statement from the client.
       */
@@ -2041,9 +2038,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
         table_list.schema_table= schema_table;
     }
 
-    thd->query_length= (uint) strlen(packet);       // for simplicity: don't optimize
-    if (!(thd->query=fields=thd->memdup(packet,thd->query_length+1)))
+    uint query_length= (uint) strlen(packet);
+    if (!(fields= thd->memdup(packet, query_length + 1)))
       break;
+    thd->set_query(fields, query_length);
     mysql_log.write(thd,command,"%s %s",table_list.table_name, fields);
     if (lower_case_table_names)
       my_casedn_str(files_charset_info, table_list.table_name);
@@ -2327,13 +2325,12 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   log_slow_statement(thd);
 
   thd_proc_info(thd, "cleaning up");
-  VOID(pthread_mutex_lock(&LOCK_thread_count)); // For process list
-  thd_proc_info(thd, 0);
+  thd->set_query(NULL, 0);
   thd->command=COM_SLEEP;
-  thd->query=0;
-  thd->query_length=0;
+  VOID(pthread_mutex_lock(&LOCK_thread_count)); // For process list
   thread_running--;
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
+  thd_proc_info(thd, 0);
   thd->packet.shrink(thd->variables.net_buffer_length);	// Reclaim some memory
   free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
   DBUG_RETURN(error);
@@ -2536,6 +2533,7 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
 
 bool alloc_query(THD *thd, const char *packet, uint packet_length)
 {
+  char *query;
   packet_length--;				// Remove end null
   /* Remove garbage at start and end of query */
   while (my_isspace(thd->charset(),packet[0]) && packet_length > 0)
@@ -2551,14 +2549,13 @@ bool alloc_query(THD *thd, const char *packet, uint packet_length)
     packet_length--;
   }
   /* We must allocate some extra memory for query cache */
-  thd->query_length= 0;                        // Extra safety: Avoid races
-  if (!(thd->query= (char*) thd->memdup_w_gap((gptr) (packet),
-					      packet_length,
-					      thd->db_length+ 1 +
-					      QUERY_CACHE_FLAGS_SIZE)))
-    return TRUE;
-  thd->query[packet_length]=0;
-  thd->query_length= packet_length;
+  if (! (query= (char*) thd->memdup_w_gap(packet,
+                                          packet_length,
+                                          1 + thd->db_length +
+                                          QUERY_CACHE_FLAGS_SIZE)))
+      return TRUE;
+  query[packet_length]= '\0';
+  thd->set_query(query, packet_length);
 
   /* Reclaim some memory */
   thd->packet.shrink(thd->variables.net_buffer_length);
@@ -7506,7 +7503,7 @@ void kill_one_thread(THD *thd, ulong id, bool only_kill_query)
   {
     if (tmp->thread_id == id)
     {
-      pthread_mutex_lock(&tmp->LOCK_delete);	// Lock from delete
+      pthread_mutex_lock(&tmp->LOCK_thd_data);	// Lock from delete
       break;
     }
   }
@@ -7539,7 +7536,7 @@ void kill_one_thread(THD *thd, ulong id, bool only_kill_query)
     }
     else
       error=ER_KILL_DENIED_ERROR;
-    pthread_mutex_unlock(&tmp->LOCK_delete);
+    pthread_mutex_unlock(&tmp->LOCK_thd_data);
   }
 
   if (!error)
