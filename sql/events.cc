@@ -852,33 +852,29 @@ Events::fill_schema_events(THD *thd, TABLE_LIST *tables, COND * /* cond */)
 }
 
 
-/*
-  Inits the scheduler's structures.
+/**
+  Initializes the scheduler's structures.
 
-  SYNOPSIS
-    Events::init()
+  @param  opt_noacl_or_bootstrap
+                     TRUE if there is --skip-grant-tables or --bootstrap
+                     option. In that case we disable the event scheduler.
 
-  NOTES
-    This function is not synchronized.
+  @note   This function is not synchronized.
 
-  RETURN VALUE
-    FALSE  OK
-    TRUE   Error in case the scheduler can't start
+  @retval  FALSE   Perhaps there was an error, and the event scheduler
+                   is disabled. But the error is not fatal and the 
+                   server start up can continue.
+  @retval  TRUE    Fatal error. Startup must terminate (call unireg_abort()).
 */
 
 bool
-Events::init(my_bool opt_noacl)
+Events::init(my_bool opt_noacl_or_bootstrap)
 {
 
   THD *thd;
   bool res= FALSE;
 
   DBUG_ENTER("Events::init");
-
-  /* Disable the scheduler if running with --skip-grant-tables */
-  if (opt_noacl)
-    opt_event_scheduler= EVENTS_DISABLED;
-
 
   /* We need a temporary THD during boot */
   if (!(thd= new THD()))
@@ -908,13 +904,21 @@ Events::init(my_bool opt_noacl)
   /*
     Since we allow event DDL even if the scheduler is disabled,
     check the system tables, as we might need them.
+
+    If run with --skip-grant-tables or --bootstrap, don't try to do the
+    check of system tables and don't complain: in these modes the tables
+    are most likely not there and we're going to disable the event
+    scheduler anyway.
   */
-  if (Event_db_repository::check_system_tables(thd))
+  if (opt_noacl_or_bootstrap || Event_db_repository::check_system_tables(thd))
   {
-    sql_print_error("Event Scheduler: An error occurred when initializing "
-                    "system tables.%s",
-                    opt_event_scheduler == EVENTS_DISABLED ?
-                    "" : " Disabling the Event Scheduler.");
+    if (! opt_noacl_or_bootstrap)
+    {
+      sql_print_error("Event Scheduler: An error occurred when initializing "
+                      "system tables.%s",
+                      opt_event_scheduler == EVENTS_DISABLED ?
+                      "" : " Disabling the Event Scheduler.");
+    }
 
     /* Disable the scheduler since the system tables are not up to date */
     opt_event_scheduler= EVENTS_DISABLED;
@@ -924,7 +928,8 @@ Events::init(my_bool opt_noacl)
 
   /*
     Was disabled explicitly from the command line, or because we're running
-    with --skip-grant-tables, or because we have no system tables.
+    with --skip-grant-tables, or --bootstrap, or because we have no system
+    tables.
   */
   if (opt_event_scheduler == Events::EVENTS_DISABLED)
     goto end;
