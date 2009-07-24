@@ -2973,6 +2973,7 @@ uint handler::get_dup_key(int error)
 */
 int handler::delete_table(const char *name)
 {
+  int saved_error= 0;
   int error= 0;
   int enoent_or_zero= ENOENT;                   // Error if no file was deleted
   char buff[FN_REFLEN];
@@ -2982,21 +2983,31 @@ int handler::delete_table(const char *name)
     fn_format(buff, name, "", *ext, MY_UNPACK_FILENAME|MY_APPEND_EXT);
     if (my_delete_with_symlink(buff, MYF(0)))
     {
-      if ((error= my_errno) != ENOENT)
-	break;
+      if (my_errno != ENOENT)
+      {
+        /*
+          If error on the first existing file, return the error.
+          Otherwise delete as much as possible.
+        */
+        if (enoent_or_zero)
+          return my_errno;
+	saved_error= my_errno;
+      }
     }
     else
       enoent_or_zero= 0;                        // No error for ENOENT
     error= enoent_or_zero;
   }
-  return error;
+  return saved_error ? saved_error : error;
 }
 
 
 int handler::rename_table(const char * from, const char * to)
 {
   int error= 0;
-  for (const char **ext= bas_ext(); *ext ; ext++)
+  const char **ext, **start_ext;
+  start_ext= bas_ext();
+  for (ext= start_ext; *ext ; ext++)
   {
     if (rename_file_ext(from, to, *ext))
     {
@@ -3004,6 +3015,12 @@ int handler::rename_table(const char * from, const char * to)
 	break;
       error= 0;
     }
+  }
+  if (error)
+  {
+    /* Try to revert the rename. Ignore errors. */
+    for (; ext >= start_ext; ext--)
+      rename_file_ext(to, from, *ext);
   }
   return error;
 }
