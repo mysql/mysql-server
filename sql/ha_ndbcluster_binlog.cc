@@ -253,8 +253,7 @@ static void run_query(THD *thd, char *buf, char *end,
   const char* found_semicolon= NULL;
 
   bzero((char*) &thd->net, sizeof(NET));
-  thd->query_length= end - buf;
-  thd->query= buf;
+  thd->set_query(buf, (uint) (end - buf));
   thd->variables.pseudo_thread_id= thread_id;
   thd->transaction.stmt.modified_non_trans_table= FALSE;
   if (disable_binlog)
@@ -297,8 +296,7 @@ static void run_query(THD *thd, char *buf, char *end,
   thd->main_da.reset_diagnostics_area();
 
   thd->options= save_thd_options;
-  thd->query_length= save_thd_query_length;
-  thd->query= save_thd_query;
+  thd->set_query(save_thd_query, save_thd_query_length);
   thd->variables.pseudo_thread_id= save_thread_id;
   thd->status_var= save_thd_status_var;
   thd->transaction.all= save_thd_transaction_all;
