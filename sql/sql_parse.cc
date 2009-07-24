@@ -533,8 +533,9 @@ end:
 #ifndef EMBEDDED_LIBRARY
   (void) pthread_mutex_lock(&LOCK_thread_count);
   thread_count--;
-  (void) pthread_mutex_unlock(&LOCK_thread_count);
+  in_bootstrap= FALSE;
   (void) pthread_cond_broadcast(&COND_thread_count);
+  (void) pthread_mutex_unlock(&LOCK_thread_count);
   my_thread_end();
   pthread_exit(0);
 #endif
