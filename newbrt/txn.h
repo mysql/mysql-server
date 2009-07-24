@@ -10,5 +10,6 @@ int toku_txn_commit_txn (TOKUTXN txn, int nosync, YIELDF yield, void*yieldv);
 int toku_txn_abort_txn(TOKUTXN txn, YIELDF yield, void*yieldv);
 void toku_txn_close_txn(TOKUTXN txn);
 XIDS toku_txn_get_xids (TOKUTXN);
+extern TXNID oldest_living_xid;
 
 #endif //TOKUTXN_H

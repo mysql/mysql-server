@@ -24,6 +24,8 @@ typedef const void *bytevec;
 
 typedef int64_t DISKOFF;  /* Offset in a disk. -1 is the NULL pointer. */
 typedef u_int64_t TXNID;
+#define MAX_TXNID ((TXNID)UINT64_MAX)
+
 typedef struct s_blocknum { int64_t b; } BLOCKNUM; // make a struct so that we will notice type problems.
 
 static inline BLOCKNUM make_blocknum(int64_t b) { BLOCKNUM result={b}; return result; }

@@ -6,6 +6,8 @@
 #include "includes.h"
 #include "txn.h"
 
+TXNID oldest_living_xid = MAX_TXNID;
+
 int toku_txn_begin_txn (TOKUTXN parent_tokutxn, TOKUTXN *tokutxn, TOKULOGGER logger) {
     if (logger->is_panicked) return EINVAL;
     TAGMALLOC(TOKUTXN, result);
@@ -39,6 +41,12 @@ died1:
 
     result->rollentry_arena = memarena_create();
 
+    if (list_empty(&logger->live_txns)) {
+        assert(oldest_living_xid == MAX_TXNID);
+        oldest_living_xid = result->txnid64;
+    }
+    assert(oldest_living_xid < MAX_TXNID);
+    assert(oldest_living_xid <= result->txnid64);
     list_push(&logger->live_txns, &result->live_txns_link);
     result->rollentry_resident_bytecount=0;
     result->rollentry_raw_count = 0;
