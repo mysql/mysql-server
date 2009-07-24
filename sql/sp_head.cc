@@ -1012,8 +1012,7 @@ subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str)
   else
     DBUG_RETURN(TRUE);
 
-  thd->query= pbuf;
-  thd->query_length= qbuf.length();
+  thd->set_query(pbuf, qbuf.length());
 
   DBUG_RETURN(FALSE);
 }
@@ -2858,8 +2857,7 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
     }
     else
       *nextp= m_ip+1;
-    thd->query= query;
-    thd->query_length= query_length;
+    thd->set_query(query, query_length);
     thd->query_name_consts= 0;
 
     if (!thd->is_error())
