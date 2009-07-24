@@ -1960,8 +1960,7 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli,
       db_ok(thd->db, replicate_do_db, replicate_ignore_db))
   {
     thd->set_time((time_t)when);
-    thd->query_length= q_len_arg;
-    thd->query= (char*)query_arg;
+    thd->set_query((char*)query_arg, q_len_arg);
     VOID(pthread_mutex_lock(&LOCK_thread_count));
     thd->query_id = next_query_id();
     VOID(pthread_mutex_unlock(&LOCK_thread_count));
@@ -2164,7 +2163,6 @@ Default database: '%s'. Query: '%s'",
   } /* End of if (db_ok(... */
 
 end:
-  VOID(pthread_mutex_lock(&LOCK_thread_count));
   /*
     Probably we have set thd->query, thd->db, thd->catalog to point to places
     in the data_buf of this event. Now the event is going to be deleted
@@ -2177,10 +2175,8 @@ end:
   */
   thd->catalog= 0;
   thd->set_db(NULL, 0);                 /* will free the current database */
+  thd->set_query(NULL, 0);
   DBUG_PRINT("info", ("end: query= 0"));
-  thd->query= 0;			// just to be sure
-  thd->query_length= 0;
-  VOID(pthread_mutex_unlock(&LOCK_thread_count));
   close_thread_tables(thd);      
   free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
   /*
@@ -3259,8 +3255,7 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
       print_query(FALSE, load_data_query, &end, (char **)&thd->lex->fname_start,
                   (char **)&thd->lex->fname_end);
       *end= 0;
-      thd->query_length= (uint) (end - load_data_query);
-      thd->query= load_data_query;
+      thd->set_query(load_data_query, (uint) (end - load_data_query));
 
       if (sql_ex.opt_flags & REPLACE_FLAG)
       {
@@ -3366,12 +3361,9 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
 error:
   thd->net.vio = 0; 
   const char *remember_db= thd->db;
-  VOID(pthread_mutex_lock(&LOCK_thread_count));
   thd->catalog= 0;
   thd->set_db(NULL, 0);                   /* will free the current database */
-  thd->query= 0;
-  thd->query_length= 0;
-  VOID(pthread_mutex_unlock(&LOCK_thread_count));
+  thd->set_query(NULL, 0);
   close_thread_tables(thd);
   if (thd->query_error)
   {
