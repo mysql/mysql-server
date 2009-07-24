@@ -734,17 +734,7 @@ convert_error_code_to_mysql(
     		return(HA_ERR_LOCK_TABLE_FULL);
 	} else if (error == DB_TOO_MANY_CONCURRENT_TRXS) {
 
-		/* Once MySQL add the appropriate code to errmsg.txt then
-		we can get rid of this #ifdef. NOTE: The code checked by
-		the #ifdef is the suggested name for the error condition
-		and the actual error code name could very well be different.
-		This will require some monitoring, ie. the status
-		of this request on our part.*/
-#ifdef ER_TOO_MANY_CONCURRENT_TRXS
-		return(ER_TOO_MANY_CONCURRENT_TRXS);
-#else
-		return(HA_ERR_RECORD_FILE_FULL);
-#endif
+		return(HA_ERR_TOO_MANY_CONCURRENT_TRXS);
 
 	} else if (error == DB_UNSUPPORTED) {
 
