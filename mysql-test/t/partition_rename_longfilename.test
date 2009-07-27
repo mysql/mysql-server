@@ -1,3 +1,4 @@
+-- source include/not_windows.inc
 -- source include/have_partition.inc
 -- source include/not_embedded.inc
 --disable_warnings
@@ -7,8 +8,11 @@ let $MYSQLD_DATADIR= `SELECT @@datadir`;
 
 #
 # Bug#30102: rename table does corrupt tables with partition files on failure
+# This test case renames the table such that the partition file name 
+# is 255 chars long. Due the restriction of 260 char path name (including drive label)
+# this will fail in windows.
+# Other tests related to this bug can be found in partition_not_embedded.test
 #
---echo # Bug#30102 test
 CREATE TABLE t1 (a INT)
 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (6),
@@ -19,29 +23,22 @@ PARTITION BY RANGE (a)
 --echo # List of files in database `test`, all original t1-files here
 --list_files $MYSQLD_DATADIR/test t1*
 INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
---echo # Renaming to a file name where the first partition is 250 chars
---echo # and the second partition is 350 chars
-# 7,7 avoids the error message, which is not deterministic.
---error 7,7
-RENAME TABLE t1 TO `t2_new..............................................end`;
-#                         1234567890123456789012345678901234567890123456
---echo # List of files in database `test`, should not be any t2-files here
---list_files $MYSQLD_DATADIR/test t2*
---echo # List of files in database `test`, should be all t1-files here
---list_files $MYSQLD_DATADIR/test t1*
---sorted_result
-SELECT * FROM t1;
---echo # List of files in database `test`, should be all t1-files here
---list_files $MYSQLD_DATADIR/test t1*
---echo # Renaming to a file name where the first partition is 156 chars
---echo # and the second partition is 256 chars
-# 7,7 avoids the error message, which is not deterministic.
---error 7,7
-RENAME TABLE t1 TO `t2_............................_end`;
+--echo # Renaming to a file name where the first partition is 155 chars
+--echo # and the second partition is 255 chars
+RENAME TABLE t1 TO `t2_............................end`;
 #                      1234567890123456789012345678
-# 7 + 4 + 5 + 28 * 5 = 16 + 140 = 156
---echo # List of files in database `test`, should not be any t2-files here
+# t2_ + end
+#     .MY[ID] or .frm
+#         #P#p[012]
+#             28 * @002e
+# 6 + 4 + 5 + 28 * 5 = 155
+--echo # List of files in database `test`, should not be any t1-files here
+--list_files $MYSQLD_DATADIR/test t1*
+--echo # List of files in database `test`, should be all t2-files here
 --list_files $MYSQLD_DATADIR/test t2*
+--sorted_result
+SELECT * FROM `t2_............................end`;
+RENAME TABLE `t2_............................end` to t1;
 --echo # List of files in database `test`, should be all t1-files here
 --list_files $MYSQLD_DATADIR/test t1*
 --sorted_result
