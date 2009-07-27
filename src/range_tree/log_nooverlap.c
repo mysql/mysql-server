@@ -18,7 +18,6 @@
 #include <stdlib.h>
 #include <toku_stdint.h>
 #include <string.h>
-typedef toku_range *OMTVALUE;
 #include "../../newbrt/omt.h"
 
 struct __toku_range_tree_local {

@@ -24,19 +24,21 @@ int toku_logger_create (TOKULOGGER *resultp) {
     result->lg_max = 100<<20; // 100MB default
     result->head = result->tail = 0;
     result->lsn = result->written_lsn = result->fsynced_lsn = (LSN){0};
-    list_init(&result->live_txns);
+    r = toku_omt_create(&result->live_txns); if (r!=0) goto died0;
     result->n_in_buf=0;
     result->n_in_file=0;
     result->directory=0;
     result->checkpoint_lsn=(LSN){0};
     result->write_block_size = BRT_DEFAULT_NODE_SIZE; // default logging size is the same as the default brt block size
     *resultp=result;
-    r = ml_init(&result->input_lock); if (r!=0) goto died0;
-    r = ml_init(&result->output_lock); if (r!=0) goto died1;
+    r = ml_init(&result->input_lock); if (r!=0) goto died1;
+    r = ml_init(&result->output_lock); if (r!=0) goto died2;
     return 0;
 
- died1:
+ died2:
     ml_destroy(&result->input_lock);
+ died1:
+    toku_omt_destroy(&result->live_txns);
  died0:
     toku_free(result);
     return r;
@@ -131,6 +133,7 @@ int toku_logger_close(TOKULOGGER *loggerp) {
     r = ml_destroy(&logger->input_lock);  if (r!=0) goto panic;
     logger->is_panicked=1; // Just in case this might help.
     if (logger->directory) toku_free(logger->directory);
+    toku_omt_destroy(&logger->live_txns);
     toku_free(logger);
     *loggerp=0;
     if (locked_logger) {
@@ -728,20 +731,36 @@ TOKULOGGER toku_txn_logger (TOKUTXN txn) {
     return txn ? txn->logger : 0;
 }
 
-int toku_txnid2txn (TOKULOGGER logger, TXNID txnid, TOKUTXN *result) {
-    if (logger==0) return -1;
-    struct list *l;
-    for (l = list_head(&logger->live_txns); l != &logger->live_txns; l = l->next) {
-	TOKUTXN txn = list_struct(l, struct tokutxn, live_txns_link);
-	assert(txn->tag==TYP_TOKUTXN);
-	if (txn->txnid64==txnid) {
-	    *result = txn;
-	    return 0;
-	}
-    }
-    // If there is no txn, then we treat it as the null txn.
-    *result = 0;
+//Heaviside function to search through an OMT by a TXNID
+static int
+find_by_xid (OMTVALUE v, void *txnidv) {
+    TOKUTXN txn = v;
+    TXNID   txnidfind = *(TXNID*)txnidv;
+    if (txn->txnid64<txnidfind) return -1;
+    if (txn->txnid64>txnidfind) return +1;
     return 0;
+}
+
+int toku_txnid2txn (TOKULOGGER logger, TXNID txnid, TOKUTXN *result) {
+    if (logger==NULL) return -1;
+
+    OMTVALUE txnfound;
+    int rval;
+    int r = toku_omt_find_zero(logger->live_txns, find_by_xid, &txnid, &txnfound, NULL, NULL);
+    if (r==0) {
+        TOKUTXN txn = txnfound;
+        assert(txn->tag==TYP_TOKUTXN);
+        assert(txn->txnid64==txnid);
+        *result = txn;
+        rval = 0;
+    }
+    else {
+        assert(r==DB_NOTFOUND);
+        // If there is no txn, then we treat it as the null txn.
+        *result = NULL;
+        rval    = 0;
+    }
+    return rval;
 }
 
 int toku_set_func_fsync (int (*fsync_function)(int)) {
@@ -793,16 +812,7 @@ int toku_logger_log_archive (TOKULOGGER logger, char ***logs_p, int flags) {
     // get them into increasing order
     qsort(all_logs, all_n_logs, sizeof(all_logs[0]), logfilenamecompare);
 
-    LSN oldest_live_txn_lsn={1LL<<63};
-    {
-	struct list *l;
-	for (l=list_head(&logger->live_txns); l!=&logger->live_txns; l=l->next) {
-	    TOKUTXN txn = list_struct(l, struct tokutxn, live_txns_link);
-	    if (oldest_live_txn_lsn.lsn>txn->txnid64) {
-		oldest_live_txn_lsn.lsn=txn->txnid64;
-	    }
-	}
-    }
+    LSN oldest_live_txn_lsn={.lsn = oldest_living_xid};
     //printf("%s:%d Oldest txn is %lld\n", __FILE__, __LINE__, (long long)oldest_live_txn_lsn.lsn);
 
     // Now starting at the last one, look for archivable ones.
@@ -853,16 +863,6 @@ int toku_logger_log_archive (TOKULOGGER logger, char ***logs_p, int flags) {
     return 0;
 }
 
-
-int toku_logger_iterate_over_live_txns (TOKULOGGER logger, int (*f)(TOKULOGGER, TOKUTXN, void*), void *v) {
-    struct list *l;
-    for (l = list_head(&logger->live_txns); l != &logger->live_txns; l = l->next) {
-	TOKUTXN txn = list_struct(l, struct tokutxn, live_txns_link);
-	int r = f(logger, txn, v);
-	if (r!=0) return r;
-    }
-    return 0;
-}
 
 TOKUTXN toku_logger_txn_parent (TOKUTXN txn) {
     return txn->parent;

@@ -14,18 +14,20 @@ int toku_txn_begin_txn (TOKUTXN parent_tokutxn, TOKUTXN *tokutxn, TOKULOGGER log
     if (result==0) 
         return errno;
     int r;
-    r = toku_log_xbegin(logger, &result->first_lsn, 0, parent_tokutxn ? parent_tokutxn->txnid64 : 0);
-    if (r!=0) { 
+    if (0) {
+died0:
         toku_logger_panic(logger, r);  
         toku_free(result); 
         return r; 
     }
+    r = toku_log_xbegin(logger, &result->first_lsn, 0, parent_tokutxn ? parent_tokutxn->txnid64 : 0);
+    if (r!=0) goto died0;
     r = toku_omt_create(&result->open_brts);
-    if (r!=0) {
+    if (r!=0) goto died0;
+    if (0) {
 died1:
-	toku_logger_panic(logger, r);
-	toku_free(result);
-	return r;
+        toku_omt_destroy(&result->open_brts);
+        goto died0;
     }
     result->txnid64 = result->first_lsn.lsn;
     XIDS parent_xids;
@@ -35,19 +37,36 @@ died1:
         parent_xids = parent_tokutxn->xids;
     if ((r=xids_create_child(parent_xids, &result->xids, result->txnid64)))
         goto died1;
+    if (0) {
+died2:
+        xids_destroy(&result->xids);
+        goto died1;
+    }
     result->logger = logger;
     result->parent = parent_tokutxn;
     result->oldest_logentry = result->newest_logentry = 0;
 
     result->rollentry_arena = memarena_create();
 
-    if (list_empty(&logger->live_txns)) {
+    if (toku_omt_size(logger->live_txns) == 0) {
         assert(oldest_living_xid == MAX_TXNID);
         oldest_living_xid = result->txnid64;
     }
     assert(oldest_living_xid < MAX_TXNID);
     assert(oldest_living_xid <= result->txnid64);
-    list_push(&logger->live_txns, &result->live_txns_link);
+
+    {
+        //Add txn to list (omt) of live transactions
+        u_int32_t idx;
+        r = toku_omt_insert(logger->live_txns, result, find_xid, result, &idx);
+        if (r!=0) goto died2;
+
+        if (oldest_living_xid == result->txnid64)
+            assert(idx == 0);
+        else
+            assert(idx > 0);
+    }
+
     result->rollentry_resident_bytecount=0;
     result->rollentry_raw_count = 0;
     result->rollentry_filename = 0;

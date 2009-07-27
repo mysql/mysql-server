@@ -14,7 +14,6 @@
 #include "list.h"
 #include "mempool.h"
 #include "kv-pair.h"
-typedef void *OMTVALUE;
 #include "omt.h"
 #include "leafentry.h"
 #include "block_table.h"

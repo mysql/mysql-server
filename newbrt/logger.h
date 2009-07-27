@@ -65,7 +65,6 @@ int toku_txnid2txn (TOKULOGGER logger, TXNID txnid, TOKUTXN *result);
 //int toku_set_func_fsync (int (*fsync_function)(int));
 int toku_logger_log_archive (TOKULOGGER logger, char ***logs_p, int flags);
 
-int toku_logger_iterate_over_live_txns (TOKULOGGER logger, int (*f)(TOKULOGGER, TOKUTXN, void*), void *v);
 TOKUTXN toku_logger_txn_parent (TOKUTXN txn);
 void toku_logger_note_checkpoint(TOKULOGGER logger, LSN lsn);
 

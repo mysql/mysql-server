@@ -4,7 +4,6 @@
 #include "test.h"
 #include <stdio.h>
 
-typedef void *OMTVALUE;
 #include "omt.h"
 #include "memory.h"
 #include "toku_assert.h"

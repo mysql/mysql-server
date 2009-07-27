@@ -65,7 +65,7 @@ struct tokulogger {
     // To access these, you must have the input lock
     struct logbytes *head,*tail;
     LSN lsn; // the next available lsn
-    struct list live_txns; // just a linked list.  Should be a hashtable.
+    OMT live_txns; // a sorted tree.  Old comment said should be a hashtable.  Do we still want that?
     int n_in_buf;
 
     // To access these, you must have the output lock
@@ -95,7 +95,6 @@ struct tokutxn {
     LSN        last_lsn; /* Everytime anything is logged, update the LSN.  (We need to atomically record the LSN along with writing into the log.) */
     LSN        first_lsn; /* The first lsn in the transaction. */
     struct roll_entry *oldest_logentry,*newest_logentry; /* Only logentries with rollbacks are here. There is a list going from newest to oldest. */
-    struct list live_txns_link;
 
     MEMARENA   rollentry_arena;
 

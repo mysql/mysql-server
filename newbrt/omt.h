@@ -147,6 +147,7 @@
 // The programming API:
 
 //typedef struct value *OMTVALUE; // A slight improvement over using void*.
+typedef void *OMTVALUE;
 typedef struct omt *OMT;
 typedef struct omt_cursor *OMTCURSOR;
 
