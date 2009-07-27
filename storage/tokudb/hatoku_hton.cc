@@ -641,10 +641,10 @@ mysql_declare_plugin(tokudb) {
     "TokuDB", 
     "Tokutek Inc", 
     "Fractal trees, transactions, row level locks",
-    PLUGIN_LICENSE_PROPRIETARY,        /* QQQ license? */
+    PLUGIN_LICENSE_GPL,
     tokudb_init_func,          /* plugin init */
     tokudb_done_func,          /* plugin deinit */
-    0x0200,                    /* QQQ 2.0 */
+    0x0210,                    /* 2.1.0 */
     NULL,                      /* status variables */
     tokudb_system_variables,   /* system variables */
     NULL                       /* config options */
