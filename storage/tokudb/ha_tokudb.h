@@ -14,6 +14,13 @@ typedef struct st_multi_col_pack_info {
     u_int32_t len_of_offsets; //length of the offset bytes in a packed row
 } MULTI_COL_PACK_INFO;
 
+//
+// This object stores table information that is to be shared
+// among all ha_tokudb objects.
+// There is one instance per table, shared among threads.
+// Some of the variables here are the DB* pointers to indexes,
+// and auto increment information.
+//
 typedef struct st_tokudb_share {
     char *table_name;
     uint table_name_length, use_count;
@@ -226,8 +233,8 @@ private:
     // For bulk inserts, we want option of not updating auto inc
     // until all inserts are done. By default, is false
     //
-    bool delay_auto_inc_update;
-    bool auto_inc_update_req;
+    bool delay_updating_ai_metadata; // if true, don't update auto-increment metadata until bulk load completes
+    bool ai_metadata_update_required; // if true, autoincrement metadata must be updated 
 
     //
     // buffer for updating the status of long insert, delete, and update

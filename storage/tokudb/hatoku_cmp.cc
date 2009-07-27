@@ -1244,6 +1244,7 @@ uchar* unpack_toku_key_field(
             0
             );
         num_bytes_copied = new_pos - (from_tokudb + get_length_bytes_from_max(key_part_length));
+        assert(num_bytes_copied <= num_bytes);
         bfill(to_mysql+num_bytes_copied, num_bytes - num_bytes_copied, field->charset()->pad_char);
         goto exit;
     case (toku_type_varbinary):
