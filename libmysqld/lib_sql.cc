@@ -1078,9 +1078,19 @@ net_send_eof(THD *thd, uint server_status, uint total_warn_count)
 
 void net_send_error_packet(THD *thd, uint sql_errno, const char *err)
 {
-  MYSQL_DATA *data= thd->cur_data ? thd->cur_data : thd->alloc_new_dataset();
-  struct embedded_query_result *ei= data->embedded_info;
+  MYSQL_DATA *data= thd->cur_data;
+  struct embedded_query_result *ei;
 
+  if (!thd->mysql)            // bootstrap file handling
+  {
+    fprintf(stderr, "ERROR: %d  %s\n", sql_errno, err);
+    return;
+  }
+
+  if (!data)
+    data= thd->alloc_new_dataset();
+
+  ei= data->embedded_info;
   ei->last_errno= sql_errno;
   strmake(ei->info, err, sizeof(ei->info)-1);
   strmov(ei->sqlstate, mysql_errno_to_sqlstate(sql_errno));
