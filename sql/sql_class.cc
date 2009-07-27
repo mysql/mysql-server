@@ -627,7 +627,7 @@ THD::THD()
 #ifdef SIGNAL_WITH_VIO_CLOSE
   active_vio = 0;
 #endif
-  pthread_mutex_init(&LOCK_delete, MY_MUTEX_INIT_FAST);
+  pthread_mutex_init(&LOCK_thd_data, MY_MUTEX_INIT_FAST);
 
   /* Variables with default values */
   proc_info="login";
@@ -911,8 +911,8 @@ THD::~THD()
   THD_CHECK_SENTRY(this);
   DBUG_ENTER("~THD()");
   /* Ensure that no one is using THD */
-  pthread_mutex_lock(&LOCK_delete);
-  pthread_mutex_unlock(&LOCK_delete);
+  pthread_mutex_lock(&LOCK_thd_data);
+  pthread_mutex_unlock(&LOCK_thd_data);
   add_to_status(&global_status_var, &status_var);
 
   /* Close connection */
@@ -939,7 +939,7 @@ THD::~THD()
   free_root(&transaction.mem_root,MYF(0));
 #endif
   mysys_var=0;					// Safety (shouldn't be needed)
-  pthread_mutex_destroy(&LOCK_delete);
+  pthread_mutex_destroy(&LOCK_thd_data);
 #ifndef DBUG_OFF
   dbug_sentry= THD_SENTRY_GONE;
 #endif  
@@ -1012,7 +1012,7 @@ void THD::awake(THD::killed_state state_to_set)
   DBUG_ENTER("THD::awake");
   DBUG_PRINT("enter", ("this: 0x%lx", (long) this));
   THD_CHECK_SENTRY(this);
-  safe_mutex_assert_owner(&LOCK_delete); 
+  safe_mutex_assert_owner(&LOCK_thd_data);
 
   killed= state_to_set;
   if (state_to_set != THD::KILL_QUERY)
@@ -1409,7 +1409,7 @@ int THD::send_explain_fields(select_result *result)
 void THD::close_active_vio()
 {
   DBUG_ENTER("close_active_vio");
-  safe_mutex_assert_owner(&LOCK_delete); 
+  safe_mutex_assert_owner(&LOCK_thd_data);
 #ifndef EMBEDDED_LIBRARY
   if (active_vio)
   {
@@ -3052,6 +3052,25 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
   */
   examined_row_count+= backup->examined_row_count;
   cuted_fields+=       backup->cuted_fields;
+}
+
+
+void THD::set_statement(Statement *stmt)
+{
+  pthread_mutex_lock(&LOCK_thd_data);
+  Statement::set_statement(stmt);
+  pthread_mutex_unlock(&LOCK_thd_data);
+}
+
+
+/** Assign a new value to thd->query.  */
+
+void THD::set_query(char *query_arg, uint32 query_length_arg)
+{
+  pthread_mutex_lock(&LOCK_thd_data);
+  query= query_arg;
+  query_length= query_length_arg;
+  pthread_mutex_unlock(&LOCK_thd_data);
 }
 
 
