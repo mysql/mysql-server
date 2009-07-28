@@ -24,7 +24,7 @@ typedef const void *bytevec;
 
 typedef int64_t DISKOFF;  /* Offset in a disk. -1 is the NULL pointer. */
 typedef u_int64_t TXNID;
-#define MAX_TXNID ((TXNID)UINT64_MAX)
+#define TXNID_NONE_LIVING ((TXNID)0)
 
 typedef struct s_blocknum { int64_t b; } BLOCKNUM; // make a struct so that we will notice type problems.
 
@@ -38,6 +38,7 @@ typedef struct {
 /* Make the LSN be a struct instead of an integer so that we get better type checking. */
 typedef struct __toku_lsn { u_int64_t lsn; } LSN;
 #define ZERO_LSN ((LSN){0})
+#define MAX_LSN  ((LSN){UINT64_MAX})
 
 /* Make the FILEID a struct for the same reason. */
 typedef struct __toku_fileid { u_int32_t fileid; } FILENUM;
