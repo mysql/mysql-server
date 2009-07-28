@@ -2,7 +2,8 @@
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
 /* Insert a bunch of stuff */
-#include <db.h>
+#include <inttypes.h>
+#include <tokudb.h>
 #include <assert.h>
 #include <errno.h>
 #include <string.h>
@@ -10,6 +11,10 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <unistd.h>
+
+static inline float toku_tdiff (struct timeval *a, struct timeval *b) {
+    return (a->tv_sec - b->tv_sec) +1e-6*(a->tv_usec - b->tv_usec);
+}
 
 #if !defined(DB_YESOVERWRITE)
 #define DB_YESOVERWRITE 0
@@ -206,7 +211,7 @@ static void benchmark_shutdown (void) {
         if (singlex_child) fprintf(stderr, "SKIPPED 'small rolltmp' test for child txn\n");
         else
             assert(s->rolltmp_raw_count < 100);  // gross test, not worth investigating details
-	os_free(s);
+	free(s);
 	//system("ls -l bench.tokudb");
 #endif
     }
@@ -379,6 +384,8 @@ static int print_usage (const char *argv0) {
 
     return 1;
 }
+
+#define UU(x) x __attribute__((__unused__))
 
 #if defined(TOKUDB)
 static int
