@@ -1,1 +1,5 @@
-put something here
+db-insert
+
+The db-insert directory contains a program that measures insertion performance
+into a Tokutek Fractal Tree. 
+
