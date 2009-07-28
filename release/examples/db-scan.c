@@ -48,7 +48,7 @@ DB_TXN *tid=0;
 
 #define STRINGIFY2(s) #s
 #define STRINGIFY(s) STRINGIFY2(s)
-const char *dbdir = "../bench."  STRINGIFY(DIRSUF); /* DIRSUF is passed in as a -D argument to the compiler. */
+const char *dbdir = "./bench."  STRINGIFY(DIRSUF); /* DIRSUF is passed in as a -D argument to the compiler. */
 int env_open_flags_yesx = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL|DB_INIT_TXN|DB_INIT_LOG|DB_INIT_LOCK;
 int env_open_flags_nox = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL;
 char *dbfilename = "bench.db";
@@ -440,7 +440,7 @@ int main (int argc, const char *argv[]) {
 #endif
 #if defined(__linux__) && __linux__
     char fname[256];
-    sprintf(fname, "/proc/%d/status", toku_os_getpid());
+    sprintf(fname, "/proc/%d/status", getpid());
     FILE *f = fopen(fname, "r");
     if (f) {
         char line[256];

@@ -5,9 +5,9 @@ you cannot access a database created by Berkeley DB using the Tokutek
 DB, or vice-versa.
 
 db-insert is a program that inserts random key-value pairs into a database.
+db-scan is a program that scans through the key-value pairs, reading every row, from a database.
 
 To build it and run it (it's been tested on Fedora 10):
-$ cd db-insert
 $ make                                           (Makes the binaries)
 Run the insertion workload under TokuDB:
 $ ./db-insert
@@ -38,10 +38,10 @@ Total time 1872.746582s for 8388608 insertions =     4479/s
 
 The files are smaller for TokuDB than BDB.
 
-$ ls -lh ../bench.tokudb/
+$ ls -lh bench.tokudb/
 total 39M
 -rwxrwxr-x 1 bradley bradley 39M 2009-07-28 15:36 bench.db
-$ ls -lh ../bench.bdb/
+$ ls -lh bench.bdb/
 total 322M
 -rw-r--r-- 1 bradley bradley 322M 2009-07-28 16:14 bench.db
 
