@@ -85,7 +85,7 @@ static void do_prelock(DB* db, DB_TXN* txn) {
 
 #define STRINGIFY2(s) #s
 #define STRINGIFY(s) STRINGIFY2(s)
-const char *dbdir = "../bench."  STRINGIFY(DIRSUF);
+const char *dbdir = "./bench."  STRINGIFY(DIRSUF);
 char *dbfilename = "bench.db";
 char *dbname;
 
