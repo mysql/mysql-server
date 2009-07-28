@@ -2,12 +2,18 @@
 #define DONT_DEPRECATE_MALLOC
 
 #include <inttypes.h>
+#ifdef BDB
+#include <db.h>
+#define DIRSUF bdb
+#else
 #include <tokudb.h>
+#define DIRSUF tokudb
+#endif
 #include <assert.h>
 #include <errno.h>
+#include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -18,7 +24,6 @@ int do_txns=1, prelock=0, prelockflag=0;
 u_int32_t lock_flag = 0;
 long limitcount=-1;
 u_int32_t cachesize = 127*1024*1024;
-static int do_mysql = 0;
 static u_int64_t start_range = 0, end_range = 0;
 static int n_experiments = 2;
 
@@ -33,7 +38,6 @@ static int print_usage (const char *argv0) {
     fprintf(stderr, "  --nox               no transactions (no locking)\n");
     fprintf(stderr, "  --count <count>     read the first COUNT rows and then  stop.\n");
     fprintf(stderr, "  --cachesize <n>     set the env cachesize to <n>\n");
-    fprintf(stderr, "  --mysql             compare keys that are mysql big int not null types\n");
     fprintf(stderr, "  --env DIR           put db files in DIR instead of default\n");
     return 1;
 }
@@ -44,7 +48,7 @@ DB_TXN *tid=0;
 
 #define STRINGIFY2(s) #s
 #define STRINGIFY(s) STRINGIFY2(s)
-const char *dbdir = "./bench."  STRINGIFY(DIRSUF); /* DIRSUF is passed in as a -D argument to the compiler. */
+const char *dbdir = "../bench."  STRINGIFY(DIRSUF); /* DIRSUF is passed in as a -D argument to the compiler. */
 int env_open_flags_yesx = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL|DB_INIT_TXN|DB_INIT_LOG|DB_INIT_LOCK;
 int env_open_flags_nox = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL;
 char *dbfilename = "bench.db";
@@ -87,8 +91,6 @@ static void parse_args (int argc, const char *argv[]) {
             argc--; argv++;
 	    if (argc==0) exit(print_usage(pname));
 	    dbdir = *argv;
-        } else if (strcmp(*argv, "--mysql") == 0) {
-            do_mysql = 1;
         } else if (strcmp(*argv, "--range") == 0 && argc > 2) {
             run_mode = RUN_RANGE;
             argc--; argv++;
@@ -187,13 +189,6 @@ static int counttotalbytes (DBT const *key, DBT const *data, void *extrav) {
     struct extra_count *e=extrav;
     e->totalbytes += key->size + data->size;
     e->rowcounter++;
-    if (do_mysql && 0) {
-        static uint64_t expect_key = 0;
-        uint64_t k = mysql_get_bigint((unsigned char*)key->data+1);
-        if (k != expect_key)
-            printf("%s:%d %"PRIu64" %"PRIu64"\n", __FUNCTION__, __LINE__, k, expect_key);
-        expect_key = k + 1;
-    }
     return 0;
 }
 

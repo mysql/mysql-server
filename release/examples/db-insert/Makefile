@@ -6,4 +6,4 @@ db-insert-bdb: db-insert.c
 default: db-insert
 
 clean:
-	rm -rf db-insert bench.$(DIRSUF)
+	rm -rf db-insert db-insert-bdb
