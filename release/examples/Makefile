@@ -5,7 +5,7 @@ CPPFLAGS = -I./include
 LDFLAGS = -L.. -lfractaltreeindex -Wl,-rpath,..
 db-insert-bdb: db-insert.c
 	cc -ldb db-insert.c  -o db-insert-bdb -DBDB $(CFLAGS)
-db-scan-bdb: db-insert.c
+db-scan-bdb: db-scan.c
 	cc -ldb db-scan.c    -o db-scan-bdb   -DBDB $(CFLAGS)
 default: db-insert
 

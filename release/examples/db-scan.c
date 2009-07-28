@@ -167,10 +167,14 @@ static void scanscan_hwc (void) {
             c_get_flags |= lock_flag;
         }
 	while (0 == (r = dbc->c_get(dbc, &k, &v, c_get_flags))) {
+	    
+	    //printf("r=%d\n", r);
+
 	    totalbytes += k.size + v.size;
 	    rowcounter++;
 	    if (limitcount>0 && rowcounter>=limitcount) break;
 	}
+	assert(r==DB_NOTFOUND);
 	r = dbc->c_close(dbc);                                      assert(r==0);
 	double thistime = gettime();
 	double tdiff = thistime-prevtime;

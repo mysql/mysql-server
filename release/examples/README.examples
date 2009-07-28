@@ -45,4 +45,22 @@ $ ls -lh bench.bdb/
 total 322M
 -rw-r--r-- 1 bradley bradley 322M 2009-07-28 16:14 bench.db
 
+When scanning the table, one can run out of locks with BDB.  There are ways around it (increase the lock table size).
+
+$ ./db-scan-bdb
+Lock table is out of available object entries
+db-scan-bdb: db-scan.c:177: scanscan_hwc: Assertion `r==(-30988)' failed.
+Aborted
+
+TokuDB is fine on a big table scan.
+
+$ ./db-scan
+Scan    33162304 bytes (2072644 rows) in  7.924463s at  4.184801MB/s
+Scan    33162304 bytes (2072644 rows) in  3.062239s at 10.829431MB/s
+0:3 1:53 2:56 
+miss=3 hit=53 wait_reading=0 wait=0
+VmPeak:	  244668 kB
+VmHWM:	   68096 kB
+VmRSS:	    1232 kB
+
 There isn't much documentation for the Tokutek Fractal Tree index library, but most of the API is like Berkeley DB's.
