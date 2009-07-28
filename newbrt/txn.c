@@ -6,8 +6,6 @@
 #include "includes.h"
 #include "txn.h"
 
-TXNID oldest_living_xid = MAX_TXNID;
-
 int toku_txn_begin_txn (TOKUTXN parent_tokutxn, TOKUTXN *tokutxn, TOKULOGGER logger) {
     if (logger->is_panicked) return EINVAL;
     TAGMALLOC(TOKUTXN, result);
@@ -49,11 +47,11 @@ died2:
     result->rollentry_arena = memarena_create();
 
     if (toku_omt_size(logger->live_txns) == 0) {
-        assert(oldest_living_xid == MAX_TXNID);
-        oldest_living_xid = result->txnid64;
+        assert(logger->oldest_living_xid == MAX_TXNID);
+        logger->oldest_living_xid = result->txnid64;
     }
-    assert(oldest_living_xid < MAX_TXNID);
-    assert(oldest_living_xid <= result->txnid64);
+    assert(logger->oldest_living_xid < MAX_TXNID);
+    assert(logger->oldest_living_xid <= result->txnid64);
 
     {
         //Add txn to list (omt) of live transactions
@@ -61,7 +59,7 @@ died2:
         r = toku_omt_insert(logger->live_txns, result, find_xid, result, &idx);
         if (r!=0) goto died2;
 
-        if (oldest_living_xid == result->txnid64)
+        if (logger->oldest_living_xid == result->txnid64)
             assert(idx == 0);
         else
             assert(idx > 0);

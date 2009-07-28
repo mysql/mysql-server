@@ -68,4 +68,6 @@ int toku_logger_log_archive (TOKULOGGER logger, char ***logs_p, int flags);
 TOKUTXN toku_logger_txn_parent (TOKUTXN txn);
 void toku_logger_note_checkpoint(TOKULOGGER logger, LSN lsn);
 
+TXNID toku_logger_get_oldest_living_xid(TOKULOGGER logger);
+
 #endif

@@ -29,6 +29,7 @@ int toku_logger_create (TOKULOGGER *resultp) {
     result->n_in_file=0;
     result->directory=0;
     result->checkpoint_lsn=(LSN){0};
+    result->oldest_living_xid = MAX_TXNID;
     result->write_block_size = BRT_DEFAULT_NODE_SIZE; // default logging size is the same as the default brt block size
     *resultp=result;
     r = ml_init(&result->input_lock); if (r!=0) goto died1;
@@ -812,7 +813,8 @@ int toku_logger_log_archive (TOKULOGGER logger, char ***logs_p, int flags) {
     // get them into increasing order
     qsort(all_logs, all_n_logs, sizeof(all_logs[0]), logfilenamecompare);
 
-    LSN oldest_live_txn_lsn={.lsn = oldest_living_xid};
+    LSN oldest_live_txn_lsn={.lsn = toku_logger_get_oldest_living_xid(logger)};
+    assert(oldest_live_txn_lsn.lsn != 0);
     //printf("%s:%d Oldest txn is %lld\n", __FILE__, __LINE__, (long long)oldest_live_txn_lsn.lsn);
 
     // Now starting at the last one, look for archivable ones.
@@ -871,3 +873,11 @@ TOKUTXN toku_logger_txn_parent (TOKUTXN txn) {
 void toku_logger_note_checkpoint(TOKULOGGER logger, LSN lsn) {
     logger->checkpoint_lsn = lsn;
 }
+
+TXNID toku_logger_get_oldest_living_xid(TOKULOGGER logger) {
+    TXNID rval = 0;
+    if (logger)
+        rval = logger->oldest_living_xid;
+    return rval;
+}
+

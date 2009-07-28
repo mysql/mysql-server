@@ -1346,7 +1346,7 @@ brt_leaf_apply_full_promotion_once (BRTNODE node, LEAFENTRY le)
 }
 
 static void
-maybe_do_implicit_promotion_on_query (BRTNODE node, LEAFENTRY le) {
+maybe_do_implicit_promotion_on_query (BRT_CURSOR brtcursor, LEAFENTRY le) {
     //Requires: le is not a provdel (Callers never call it unless not provdel).
     //assert(!le_is_provdel(le)); //Must be as fast as possible.  Assert is superfluous.
 
@@ -1362,8 +1362,8 @@ maybe_do_implicit_promotion_on_query (BRTNODE node, LEAFENTRY le) {
     //   * We will sometimes say a txn is uncommitted when it is committed.
     //   * We will NEVER say a txn is committed when it is uncommitted.
     TXNID outermost_uncommitted_xid = le_outermost_uncommitted_xid(le);
-    if (outermost_uncommitted_xid != 0 && outermost_uncommitted_xid < oldest_living_xid) {
-        brt_leaf_apply_full_promotion_once(node, le);
+    if (outermost_uncommitted_xid != 0 && outermost_uncommitted_xid < brtcursor->oldest_living_xid) {
+        brt_leaf_apply_full_promotion_once(brtcursor->leaf_info.node, le);
     }
 }
 
@@ -3305,7 +3305,7 @@ brt_cursor_invalidate(BRT_CURSOR brtcursor) {
     }
 }
 
-int toku_brt_cursor (BRT brt, BRT_CURSOR *cursorptr) {
+int toku_brt_cursor (BRT brt, BRT_CURSOR *cursorptr, TOKULOGGER logger) {
     BRT_CURSOR cursor = toku_malloc(sizeof *cursor);
     if (cursor == 0)
         return ENOMEM;
@@ -3313,6 +3313,8 @@ int toku_brt_cursor (BRT brt, BRT_CURSOR *cursorptr) {
     cursor->brt = brt;
     cursor->current_in_omt = FALSE;
     cursor->prefetching = FALSE;
+    cursor->oldest_living_xid = toku_logger_get_oldest_living_xid(logger);
+    assert(cursor->oldest_living_xid != MAX_TXNID);
     list_push(&brt->cursors, &cursor->cursors_link);
     int r = toku_omt_cursor_create(&cursor->omtcursor);
     assert(r==0);
@@ -3474,7 +3476,9 @@ brt_search_leaf_node(BRTNODE node, brt_search_t *search, BRT_GET_STRADDLE_CALLBA
         }
     }
 got_a_good_value:
-    maybe_do_implicit_promotion_on_query(node, le);
+    //Save node ptr in brtcursor (implicit promotion requires it).
+    brtcursor->leaf_info.node = node;
+    maybe_do_implicit_promotion_on_query(brtcursor, le);
     {
         u_int32_t keylen;
         bytevec   key    = le_latest_key_and_len(le, &keylen);
@@ -3501,7 +3505,6 @@ got_a_good_value:
             brtcursor->leaf_info.fullhash    = node->fullhash;
             brtcursor->leaf_info.blocknumber = node->thisnodename;
 #endif
-            brtcursor->leaf_info.node        = node;
             brtcursor->leaf_info.leaflock    = node->u.l.leaflock;
             brtcursor->leaf_info.to_be.omt   = node->u.l.buffer;
             brtcursor->leaf_info.to_be.index = idx;
@@ -3890,7 +3893,7 @@ brt_cursor_shortcut (BRT_CURSOR cursor, int direction, u_int32_t limit, BRT_GET_
             assert(r==0);
 
             if (!le_is_provdel(le)) {
-                maybe_do_implicit_promotion_on_query(cursor->leaf_info.node, le);
+                maybe_do_implicit_promotion_on_query(cursor, le);
                 u_int32_t keylen;
                 bytevec   key    = le_latest_key_and_len(le, &keylen);
                 u_int32_t vallen;
@@ -4357,7 +4360,7 @@ toku_brt_lookup (BRT brt, DBT *k, DBT *v, BRT_GET_CALLBACK_FUNCTION getf, void *
     int r, rr;
     BRT_CURSOR cursor;
 
-    rr = toku_brt_cursor(brt, &cursor);
+    rr = toku_brt_cursor(brt, &cursor, NULL);
     if (rr != 0) return rr;
 
     int op = brt->flags & TOKU_DB_DUPSORT ? DB_GET_BOTH : DB_SET;
@@ -4723,7 +4726,7 @@ brt_is_empty (BRT brt, TOKULOGGER logger) {
     BRT_CURSOR cursor;
     int r, r2;
     BOOL is_empty;
-    r = toku_brt_cursor(brt, &cursor);
+    r = toku_brt_cursor(brt, &cursor, NULL);
     if (r == 0) {
         r = toku_brt_cursor_first(cursor, getf_nothing, NULL, logger);
         r2 = toku_brt_cursor_close(cursor);
