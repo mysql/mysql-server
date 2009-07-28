@@ -16,20 +16,21 @@ For example, on Centos 5, 64 bit libraries are found in /usr/lib64. Installation
 is as simple as executing the following:
     sudo cp libtokufractaltreeindex-RELEASE.so /usr/lib64
           
-Some users put it into "/usr/mysql/lib" because some useful binaries 
-that employ the library include "/usr/mysql/lib" in their rpath.
+Some users put it into "/usr/mysql/lib" because some useful binaries
+include "/usr/mysql/lib" in their rpath, and can use the library.
           
 Some users put it into /opt, for example in "/opt/tokutek/lib". In this 
 case you will need to arrange for the loader to be able to find it 
 (e.g., by arranging that LD_LIBRARY_PATH includes /opt/tokutek/lib).
 
-If you do not have root access you can put it into a directory in your home directory.  You may need to help the loader find it, using something like:
+If you do not have root access you can put it into a directory in your
+home directory.  You may need to help the loader find it, using
+something like:
    mkdir ~/lib
    cp libtokufractaltreeindex-RELEASE.so ~/lib/
    export LD_LIBRARY_PATH=~/lib/
 
-Examples
-
 To use the Fractal Tree Index as an embedded database, please read the
-README.examples file in the examples directory.
+README.examples file in the examples directory.  Any such use requires
+a license from Tokutek.
 
