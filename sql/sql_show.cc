@@ -74,9 +74,6 @@ static TYPELIB grant_types = { sizeof(grant_names)/sizeof(char **),
                                grant_names, NULL};
 #endif
 
-/* Match the values of enum ha_choice */
-static const char *ha_choice_values[] = {"", "0", "1"};
-
 static void store_key_options(THD *thd, String *packet, TABLE *table,
                               KEY *key_info);
 
