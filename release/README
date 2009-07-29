@@ -34,3 +34,4 @@ To use the Fractal Tree Index as an embedded database, please read the
 README.examples file in the examples directory.  Any such use requires
 a license from Tokutek.
 
+Notice:  MySQL is a registered trademark of Sun Microsystems, Inc.
