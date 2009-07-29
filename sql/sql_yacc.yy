@@ -4206,6 +4206,10 @@ opt_sub_partition:
             if (Lex->part_info->no_subparts != 0 &&
                 !Lex->part_info->use_default_subpartitions)
             {
+              /*
+                We come here when we have defined subpartitions on the first
+                partition but not on all the subsequent partitions. 
+              */
               my_parse_error(ER(ER_PARTITION_WRONG_NO_SUBPART_ERROR));
               MYSQL_YYABORT;
             }
@@ -4248,6 +4252,23 @@ sub_part_definition:
             partition_info *part_info= lex->part_info;
             partition_element *curr_part= part_info->current_partition;
             partition_element *sub_p_elem= new partition_element(curr_part);
+            if (part_info->use_default_subpartitions &&
+                part_info->partitions.elements >= 2)
+            {
+              /*
+                create table t1 (a int)
+                partition by list (a) subpartition by hash (a)
+                (partition p0 values in (1),
+                 partition p1 values in (2) subpartition sp11);
+                causes use to arrive since we are on the second
+                partition, but still use_default_subpartitions
+                is set. When we come here we're processing at least
+                the second partition (the current partition processed
+                have already been put into the partitions list.
+              */
+              my_parse_error(ER(ER_PARTITION_WRONG_NO_SUBPART_ERROR));
+              MYSQL_YYABORT;
+            }
             if (!sub_p_elem ||
              curr_part->subpartitions.push_back(sub_p_elem))
             {
