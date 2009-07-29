@@ -1,6 +1,5 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
-
-#ident "Copyright (c) 200o Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2009 Tokutek Inc.  All rights reserved."
 #include "test.h"
 #include <stdio.h>
 #include <assert.h>
@@ -9,10 +8,8 @@
 #include <memory.h>
 #include <sys/stat.h>
 #include <db.h>
-// #include "xids.h"
-
-// fix later (maybe pass in desired depth as a param?)
-#define MAX_NEST 250
+#include "tokuconst.h"
+#define MAX_NEST MAX_NESTED_TRANSACTIONS
 
 
 /*********************
@@ -26,7 +23,7 @@
  *  - insert, query
  *
  * for i = 1 to MAX
- *  - txnid = txns[MAX - i]
+ *  - txnid = txns[MAX - i - 1]
  *  - commit or abort(txnid), query
  *
  */
@@ -51,6 +48,8 @@ setup_db (void) {
         r = env->txn_begin(env, 0, &txn, 0); CKERR(r);
 
         r = db_create(&db, env, 0); CKERR(r);
+        r = db->set_bt_compare(db, int_dbt_cmp); CKERR(r);
+        r = db->set_dup_compare(db, int_dbt_cmp); CKERR(r);
         r = db->open(db, txn, "test.db", 0, DB_BTREE, DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
         r = txn->commit(txn, 0); CKERR(r);
     }
@@ -64,42 +63,71 @@ close_db (void) {
     r=env->close(env, 0); CKERR(r);
 }
 
-int
+static void
 test_txn_nesting (int depth) {
+    int r;
     if (verbose) { fprintf(stderr, "%s (%s):%d [depth = %d]\n", __FILE__, __FUNCTION__, __LINE__, depth); fflush(stderr); }
 
-    DBT key, val;
+    DBT key, val, observed_val;
+    dbt_init(&observed_val, NULL, 0);
     int i;
 
     DB_TXN * txns[depth];
     DB_TXN * parent = NULL;
 
+    int vals[depth];
+
+    int mykey = 42;
+    dbt_init(&key, &mykey, sizeof mykey);
+    
+
     for (i = 0; i < depth; i++){
-	int r;
 	DB_TXN * this_txn;
-	
+
 	if (verbose)
 	    printf("Begin txn at level %d\n", i);
-	dbt_init(&key, &i, sizeof i);
-	dbt_init(&val, &i, sizeof i);
+	vals[i] = i;
+	dbt_init(&val, &vals[i], sizeof i);
 	r = env->txn_begin(env, parent, &this_txn, 0);   CKERR(r);
 	txns[i] = this_txn;
 	parent = this_txn;  // will be parent in next iteration
-	r = db->put(db, this_txn, &key, &val, 0);          CKERR(r);
+	r = db->put(db, this_txn, &key, &val, DB_YESOVERWRITE);          CKERR(r);
+
+        r = db->get(db, this_txn, &key, &observed_val, 0); CKERR(r);
+	assert(int_dbt_cmp(db, &val, &observed_val) == 0);
     }
 
-    for (i = 0; i < depth; i++) {
-	int r;
-	DB_TXN * this_txn;
+    int which_val = depth-1;
+    for (i = depth-1; i >= 0; i--) {
+        //Query, verify the correct value is stored.
+        //Close (abort/commit) innermost transaction
 
-	if (verbose)
-	    printf("Commit txn at level %d\n", i);
-	this_txn = txns[depth - i - 1];
-	r = this_txn->commit(this_txn, DB_TXN_NOSYNC);   CKERR(r);
+        if (verbose)
+            printf("Commit txn at level %d\n", i);
+
+        dbt_init(&observed_val, NULL, 0);
+        r = db->get(db, txns[i], &key, &observed_val, 0); CKERR(r);
+	dbt_init(&val, &vals[which_val], sizeof i);
+	assert(int_dbt_cmp(db, &val, &observed_val) == 0);
+
+	if (i % 2) {
+	    r = txns[i]->commit(txns[i], DB_TXN_NOSYNC);   CKERR(r);
+	    //which_val does not change (it gets promoted)
+	}
+	else {
+	    r = txns[i]->abort(txns[i]); CKERR(r);
+	    which_val = i - 1;
+	}
+        txns[i] = NULL;
     }
-
-    return 0;
-
+    //Query, verify the correct value is stored.
+    r = db->get(db, NULL, &key, &observed_val, 0);
+    if (which_val == -1) CKERR2(r, DB_NOTFOUND);
+    else {
+        CKERR(r);
+	dbt_init(&val, &vals[which_val], sizeof i);
+        assert(int_dbt_cmp(db, &val, &observed_val) == 0);
+    }
 }
 
 
