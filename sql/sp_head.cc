@@ -1248,7 +1248,7 @@ sp_head::execute(THD *thd)
     */
     if (thd->prelocked_mode == NON_PRELOCKED)
       thd->user_var_events_alloc= thd->mem_root;
-    
+
     err_status= i->execute(thd, &ip);
 
     if (i->free_list)
@@ -2863,7 +2863,7 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
     if (!thd->is_error())
       thd->main_da.reset_diagnostics_area();
   }
-  DBUG_RETURN(res);
+  DBUG_RETURN(res || thd->is_error());
 }
 
 
