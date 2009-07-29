@@ -1894,4 +1894,18 @@ DROP TABLE t1;
 create table `me:i`(id int);
 drop table `me:i`;
 
+# --
+# -- Bug#45829: CREATE TABLE TRANSACTIONAL PAGE_CHECKSUM ROW_FORMAT=PAGE accepted, does nothing
+# --
+
+drop table if exists t1,t2,t3;
+create table t1 (a int) transactional=0;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'transactional=0' at line 1
+create table t2 (a int) page_checksum=1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'page_checksum=1' at line 1
+create table t3 (a int) row_format=page;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'page' at line 1
+
+# -- End of Bug#45829
+
 End of 5.1 tests
