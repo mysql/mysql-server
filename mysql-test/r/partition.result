@@ -1068,7 +1068,13 @@ partition by range (a)
 subpartition by hash(a)
 (partition p0 values less than (0),
 partition p1 values less than (1) (subpartition sp0));
-ERROR 42000: Wrong number of subpartitions defined, mismatch with previous setting near '))' at line 5
+ERROR 42000: Wrong number of subpartitions defined, mismatch with previous setting near 'subpartition sp0))' at line 5
+create table t1 (a int, b int)
+partition by list (a)
+subpartition by hash(a)
+(partition p0 values in (0),
+partition p1 values in (1) (subpartition sp0));
+ERROR 42000: Wrong number of subpartitions defined, mismatch with previous setting near 'subpartition sp0))' at line 5
 create table t1 (a int)
 partition by hash (a)
 (partition p0 (subpartition sp0));
