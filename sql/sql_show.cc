@@ -1428,22 +1428,12 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
     /* We use CHECKSUM, instead of TABLE_CHECKSUM, for backward compability */
     if (share->db_create_options & HA_OPTION_CHECKSUM)
       packet->append(STRING_WITH_LEN(" CHECKSUM=1"));
-    if (share->page_checksum != HA_CHOICE_UNDEF)
-    {
-      packet->append(STRING_WITH_LEN(" PAGE_CHECKSUM="));
-      packet->append(ha_choice_values[(uint) share->page_checksum], 1);
-    }
     if (share->db_create_options & HA_OPTION_DELAY_KEY_WRITE)
       packet->append(STRING_WITH_LEN(" DELAY_KEY_WRITE=1"));
     if (create_info.row_type != ROW_TYPE_DEFAULT)
     {
       packet->append(STRING_WITH_LEN(" ROW_FORMAT="));
       packet->append(ha_row_type[(uint) create_info.row_type]);
-    }
-    if (share->transactional != HA_CHOICE_UNDEF)
-    {
-      packet->append(STRING_WITH_LEN(" TRANSACTIONAL="));
-      packet->append(ha_choice_values[(uint) share->transactional], 1);
     }
     if (table->s->key_block_size)
     {
@@ -3591,21 +3581,12 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
     /* We use CHECKSUM, instead of TABLE_CHECKSUM, for backward compability */
     if (share->db_create_options & HA_OPTION_CHECKSUM)
       ptr=strmov(ptr," checksum=1");
-    if (share->page_checksum != HA_CHOICE_UNDEF)
-      ptr= strxmov(ptr, " page_checksum=",
-                   ha_choice_values[(uint) share->page_checksum], NullS);
     if (share->db_create_options & HA_OPTION_DELAY_KEY_WRITE)
       ptr=strmov(ptr," delay_key_write=1");
     if (share->row_type != ROW_TYPE_DEFAULT)
       ptr=strxmov(ptr, " row_format=", 
                   ha_row_type[(uint) share->row_type],
                   NullS);
-    if (share->transactional != HA_CHOICE_UNDEF)
-    {
-      ptr= strxmov(ptr, " TRANSACTIONAL=",
-                   (share->transactional == HA_CHOICE_YES ? "1" : "0"),
-                   NullS);
-    }
     if (share->key_block_size)
     {
       ptr= strmov(ptr, " KEY_BLOCK_SIZE=");
@@ -3615,9 +3596,6 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
     if (is_partitioned)
       ptr= strmov(ptr, " partitioned");
 #endif
-    if (share->transactional != HA_CHOICE_UNDEF)
-      ptr= strxmov(ptr, " transactional=",
-                   ha_choice_values[(uint) share->transactional], NullS);
     table->field[19]->store(option_buff+1,
                             (ptr == option_buff ? 0 : 
                              (uint) (ptr-option_buff)-1), cs);
