@@ -219,6 +219,7 @@ static void benchmark_shutdown (void) {
             tid = NULL; 
         }
         if (singlex_child) {
+            tid = NULL;
             assert(parenttid);
             r = (do_abort ? parenttid->abort(parenttid) : parenttid->commit(parenttid, 0));    assert(r==0);
             parenttid = NULL;
