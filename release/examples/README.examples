@@ -11,7 +11,7 @@ To build it and run it (it's been tested on Fedora 10):
 $ make                                           (Makes the binaries)
 Run the insertion workload under TokuDB:
 $ ./db-insert
-Run the insertion workload under BDB:
+Run the scan workload under BDB:
 $ ./db-insert-bdb
 
 Here is what the output looks like (this on a Thinkpad X61s laptop
