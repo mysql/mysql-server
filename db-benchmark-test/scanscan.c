@@ -206,6 +206,7 @@ static void scanscan_hwc (void) {
 	    rowcounter++;
 	    if (limitcount>0 && rowcounter>=limitcount) break;
 	}
+	assert(r==DB_NOTFOUND); // complain about things like lock-not-found
 	r = dbc->c_close(dbc);                                      assert(r==0);
 	double thistime = gettime();
 	double tdiff = thistime-prevtime;
@@ -251,6 +252,7 @@ static void scanscan_lwc (void) {
 	    rowcounter++;
 	    if (limitcount>0 && rowcounter>=limitcount) break;
 	}
+	assert(r==DB_NOTFOUND);
 	r = dbc->c_close(dbc);                                      assert(r==0);
 	double thistime = gettime();
 	double tdiff = thistime-prevtime;
