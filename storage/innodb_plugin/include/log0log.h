@@ -15,6 +15,30 @@ this program; if not, write to the Free Software Foundation, Inc., 59 Temple
 Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
+/*****************************************************************************
+
+Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 2009, Google Inc.
+
+Portions of this file contain modifications contributed and copyrighted by
+Google, Inc. Those modifications are gratefully acknowledged and are described
+briefly in the InnoDB documentation. The contributions by Google are
+incorporated with their permission, and subject to the conditions contained in
+the file COPYING.Google.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
 
 /**************************************************//**
 @file include/log0log.h
@@ -145,6 +169,14 @@ UNIV_INLINE
 ib_uint64_t
 log_get_lsn(void);
 /*=============*/
+/****************************************************************
+Gets the log group capacity. It is OK to read the value without
+holding log_sys->mutex because it is constant.
+@return	log group capacity */
+UNIV_INLINE
+ulint
+log_get_capacity(void);
+/*==================*/
 /******************************************************//**
 Initializes the log. */
 UNIV_INTERN
@@ -198,6 +230,16 @@ UNIV_INTERN
 void
 log_buffer_flush_to_disk(void);
 /*==========================*/
+/****************************************************************//**
+This functions writes the log buffer to the log file and if 'flush'
+is set it forces a flush of the log file as well. This is meant to be
+called from background master thread only as it does not wait for
+the write (+ possible flush) to finish. */
+UNIV_INTERN
+void
+log_buffer_sync_in_background(
+/*==========================*/
+	ibool	flush);	/*<! in: flush the logs to disk */
 /****************************************************************//**
 Advances the smallest lsn for which there are unflushed dirty blocks in the
 buffer pool and also may make a new checkpoint. NOTE: this function may only

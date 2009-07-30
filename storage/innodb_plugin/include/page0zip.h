@@ -444,9 +444,17 @@ page_zip_calc_checksum(
 	__attribute__((nonnull));
 
 #ifndef UNIV_HOTBACKUP
+/** Check if a pointer to an uncompressed page matches a compressed page.
+@param ptr	pointer to an uncompressed page frame
+@param page_zip	compressed page descriptor
+@return		TRUE if ptr and page_zip refer to the same block */
 # define PAGE_ZIP_MATCH(ptr, page_zip)			\
 	(buf_frame_get_page_zip(ptr) == (page_zip))
 #else /* !UNIV_HOTBACKUP */
+/** Check if a pointer to an uncompressed page matches a compressed page.
+@param ptr	pointer to an uncompressed page frame
+@param page_zip	compressed page descriptor
+@return		TRUE if ptr and page_zip refer to the same block */
 # define PAGE_ZIP_MATCH(ptr, page_zip)				\
 	(page_align(ptr) + UNIV_PAGE_SIZE == (page_zip)->data)
 #endif /* !UNIV_HOTBACKUP */

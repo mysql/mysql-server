@@ -57,7 +57,7 @@ ha_create_func(
 	ulint		i;
 #endif /* !UNIV_HOTBACKUP */
 
-	ut_ad(ut_is_2pow(n));
+	ut_ad(ut_is_2pow(n_mutexes));
 	table = hash_create(n);
 
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
@@ -248,28 +248,6 @@ ha_delete_hash_node(
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 
 	HASH_DELETE_AND_COMPACT(ha_node_t, next, table, del_node);
-}
-
-/*************************************************************//**
-Deletes an entry from a hash table. */
-UNIV_INTERN
-void
-ha_delete(
-/*======*/
-	hash_table_t*	table,	/*!< in: hash table */
-	ulint		fold,	/*!< in: folded value of data */
-	void*		data)	/*!< in: data, must not be NULL and must exist
-				in the hash table */
-{
-	ha_node_t*	node;
-
-	ASSERT_HASH_MUTEX_OWN(table, fold);
-
-	node = ha_search_with_data(table, fold, data);
-
-	ut_a(node);
-
-	ha_delete_hash_node(table, node);
 }
 
 /*********************************************************//**

@@ -891,11 +891,11 @@ trx_commit_off_kernel(
 		there are > 2 users in the database. Then at least 2 users can
 		gather behind one doing the physical log write to disk.
 
-		If we are calling trx_commit() under MySQL's binlog mutex, we
+		If we are calling trx_commit() under prepare_commit_mutex, we
 		will delay possible log write and flush to a separate function
 		trx_commit_complete_for_mysql(), which is only called when the
-		thread has released the binlog mutex. This is to make the
-		group commit algorithm to work. Otherwise, the MySQL binlog
+		thread has released the mutex. This is to make the
+		group commit algorithm to work. Otherwise, the prepare_commit
 		mutex would serialize all commits and prevent a group of
 		transactions from gathering. */
 

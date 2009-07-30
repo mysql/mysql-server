@@ -125,6 +125,32 @@ MYSQL_PLUGIN_ACTIONS(innodb_plugin,  [
             ])
         ])
     ])
+  # Check for x86 PAUSE instruction
+  AC_MSG_CHECKING(for x86 PAUSE instruction)
+  # We have to actually try running the test program, because of a bug
+  # in Solaris on x86_64, where it wrongly reports that PAUSE is not
+  # supported when trying to run an application. See
+  # http://bugs.opensolaris.org/bugdatabase/printableBug.do?bug_id=6478684
+  # We use ib_ prefix to avoid collisoins if this code is added to
+  # mysql's configure.in.
+  AC_TRY_RUN(
+    [
+      int main() {
+        __asm__ __volatile__ ("pause");
+        return(0);
+      }
+    ],
+    [
+      AC_DEFINE([IB_HAVE_PAUSE_INSTRUCTION], [1], [Does x86 PAUSE instruction exist])
+      AC_MSG_RESULT(yes)
+    ],
+    [
+      AC_MSG_RESULT(no)
+    ],
+    [
+      AC_MSG_RESULT(no)
+    ]
+  )
   ])
 
 # vim: set ft=config:

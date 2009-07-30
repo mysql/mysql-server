@@ -69,15 +69,6 @@ os_mem_free_large(
 					os_mem_alloc_large() */
 	ulint	size);			/*!< in: size returned by
 					os_mem_alloc_large() */
-/****************************************************************//**
-Sets the priority boost for threads released from waiting within the current
-process. */
-UNIV_INTERN
-void
-os_process_set_priority_boost(
-/*==========================*/
-	ibool	do_boost);	/*!< in: TRUE if priority boost should be done,
-				FALSE if not */
 
 #ifndef UNIV_NONINL
 #include "os0proc.ic"

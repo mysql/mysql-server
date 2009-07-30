@@ -146,7 +146,8 @@ dtype_is_non_binary_string_type(
 
 /*********************************************************************//**
 Forms a precise type from the < 4.1.2 format precise type plus the
-charset-collation code. */
+charset-collation code.
+@return precise type, including the charset-collation code */
 UNIV_INTERN
 ulint
 dtype_form_prtype(

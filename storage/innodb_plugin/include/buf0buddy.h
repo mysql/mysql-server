@@ -76,6 +76,7 @@ struct buf_buddy_stat_struct {
 	ib_uint64_t	relocated_usec;
 };
 
+/** Statistics of buddy blocks of a given size. */
 typedef struct buf_buddy_stat_struct buf_buddy_stat_t;
 
 /** Statistics of the buddy system, indexed by block size.

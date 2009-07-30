@@ -168,7 +168,7 @@ mlog_write_initial_log_record_fast(
 	mtr_t*		mtr);	/*!< in: mtr */
 #else /* !UNIV_HOTBACKUP */
 # define mlog_write_initial_log_record(ptr,type,mtr) ((void) 0)
-# define mlog_write_initial_log_record_fast(ptr,type,log_ptr,mtr) ((void) 0)
+# define mlog_write_initial_log_record_fast(ptr,type,log_ptr,mtr) ((byte *) 0)
 #endif /* !UNIV_HOTBACKUP */
 /********************************************************//**
 Parses an initial log record written by mlog_write_initial_log_record.
@@ -218,7 +218,7 @@ byte*
 mlog_open_and_write_index(
 /*======================*/
 	mtr_t*		mtr,	/*!< in: mtr */
-	byte*		rec,	/*!< in: index record or page */
+	const byte*	rec,	/*!< in: index record or page */
 	dict_index_t*	index,	/*!< in: record descriptor */
 	byte		type,	/*!< in: log item type */
 	ulint		size);	/*!< in: requested buffer size in bytes

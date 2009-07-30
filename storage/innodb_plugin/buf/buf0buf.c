@@ -1672,12 +1672,10 @@ lookup:
 
 	if (UNIV_UNLIKELY(!bpage->zip.data)) {
 		/* There is no compressed page. */
+err_exit:
 		buf_pool_mutex_exit();
 		return(NULL);
 	}
-
-	block_mutex = buf_page_get_mutex(bpage);
-	mutex_enter(block_mutex);
 
 	switch (buf_page_get_state(bpage)) {
 	case BUF_BLOCK_NOT_USED:
@@ -1685,13 +1683,17 @@ lookup:
 	case BUF_BLOCK_MEMORY:
 	case BUF_BLOCK_REMOVE_HASH:
 	case BUF_BLOCK_ZIP_FREE:
-		ut_error;
 		break;
 	case BUF_BLOCK_ZIP_PAGE:
 	case BUF_BLOCK_ZIP_DIRTY:
+		block_mutex = &buf_pool_zip_mutex;
+		mutex_enter(block_mutex);
 		bpage->buf_fix_count++;
-		break;
+		goto got_block;
 	case BUF_BLOCK_FILE_PAGE:
+		block_mutex = &((buf_block_t*) bpage)->mutex;
+		mutex_enter(block_mutex);
+
 		/* Discard the uncompressed page frame if possible. */
 		if (buf_LRU_free_block(bpage, FALSE, NULL)
 		    == BUF_LRU_FREED) {
@@ -1702,9 +1704,13 @@ lookup:
 
 		buf_block_buf_fix_inc((buf_block_t*) bpage,
 				      __FILE__, __LINE__);
-		break;
+		goto got_block;
 	}
 
+	ut_error;
+	goto err_exit;
+
+got_block:
 	must_read = buf_page_get_io_fix(bpage) == BUF_IO_READ;
 
 	buf_pool_mutex_exit();
@@ -2006,6 +2012,7 @@ buf_page_get_gen(
 	ut_ad((mode == BUF_GET) || (mode == BUF_GET_IF_IN_POOL)
 	      || (mode == BUF_GET_NO_LATCH));
 	ut_ad(zip_size == fil_space_get_zip_size(space));
+	ut_ad(ut_is_2pow(zip_size));
 #ifndef UNIV_LOG_DEBUG
 	ut_ad(!ibuf_inside() || ibuf_page(space, zip_size, offset, NULL));
 #endif
@@ -2079,12 +2086,15 @@ loop2:
 	case BUF_BLOCK_ZIP_PAGE:
 	case BUF_BLOCK_ZIP_DIRTY:
 		bpage = &block->page;
+		/* Protect bpage->buf_fix_count. */
+		mutex_enter(&buf_pool_zip_mutex);
 
 		if (bpage->buf_fix_count
 		    || buf_page_get_io_fix(bpage) != BUF_IO_NONE) {
 			/* This condition often occurs when the buffer
 			is not buffer-fixed, but I/O-fixed by
 			buf_page_init_for_read(). */
+			mutex_exit(&buf_pool_zip_mutex);
 wait_until_unfixed:
 			/* The block is buffer-fixed or I/O-fixed.
 			Try again later. */
@@ -2096,6 +2106,7 @@ wait_until_unfixed:
 
 		/* Allocate an uncompressed page. */
 		buf_pool_mutex_exit();
+		mutex_exit(&buf_pool_zip_mutex);
 
 		block = buf_LRU_get_free_block(0);
 		ut_a(block);
@@ -2182,10 +2193,10 @@ wait_until_unfixed:
 
 		block->page.buf_fix_count = 1;
 		buf_block_set_io_fix(block, BUF_IO_READ);
-		buf_pool->n_pend_unzip++;
 		rw_lock_x_lock(&block->lock);
 		mutex_exit(&block->mutex);
 		mutex_exit(&buf_pool_zip_mutex);
+		buf_pool->n_pend_unzip++;
 
 		buf_buddy_free(bpage, sizeof *bpage);
 
@@ -2203,10 +2214,10 @@ wait_until_unfixed:
 		/* Unfix and unlatch the block. */
 		buf_pool_mutex_enter();
 		mutex_enter(&block->mutex);
-		buf_pool->n_pend_unzip--;
 		block->page.buf_fix_count--;
 		buf_block_set_io_fix(block, BUF_IO_NONE);
 		mutex_exit(&block->mutex);
+		buf_pool->n_pend_unzip--;
 		rw_lock_x_unlock(&block->lock);
 
 		if (UNIV_UNLIKELY(!success)) {
