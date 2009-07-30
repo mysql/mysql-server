@@ -2,7 +2,7 @@
 This file is included in univ.i and will cause compilation failure
 if not present.
 A custom check has been added in the generated
-storage/innobase/Makefile.in that is shipped with with the InnoDB Plugin
+storage/innobase/Makefile.in that is shipped with the InnoDB Plugin
 source archive. This check tries to compile a test program and if
 successful then adds "#define HAVE_ATOMIC_PTHREAD_T" to this file.
 This is a hack that has been developed in order to check for pthread_t

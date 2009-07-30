@@ -494,17 +494,12 @@ sub collect_one_suite($)
       next if ($test->{'skip'} || !$test->{'innodb_test'});
       # Exceptions
       next if ($test->{'name'} eq 'main.innodb'); # Failed with wrong errno (fk)
-      next if ($test->{'name'} eq 'main.innodb_mysql'); # Diff in show (fk)
-      next if ($test->{'name'} eq 'main.index_merge_innodb'); # Explain diff
       # innodb_file_per_table is rw with innodb_plugin
       next if ($test->{'name'} eq 'sys_vars.innodb_file_per_table_basic');
       # innodb_lock_wait_timeout is rw with innodb_plugin
       next if ($test->{'name'} eq 'sys_vars.innodb_lock_wait_timeout_basic');
       # Diff around innodb_thread_concurrency variable
       next if ($test->{'name'} eq 'sys_vars.innodb_thread_concurrency_basic');
-      next if ($test->{'name'} eq 'main.innodb_bug42101-nonzero');
-      next if ($test->{'name'} eq 'main.innodb_bug21704');
-      next if ($test->{'name'} eq 'main.innodb_bug45357');
       # Copy test options
       my $new_test= My::Test->new();
       while (my ($key, $value) = each(%$test))

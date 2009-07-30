@@ -98,15 +98,15 @@ In summary, the compressed page looks like this:
   - deleted records (free list) in link order
 */
 
-/* Start offset of the area that will be compressed */
+/** Start offset of the area that will be compressed */
 #define PAGE_ZIP_START		PAGE_NEW_SUPREMUM_END
-/* Size of an compressed page directory entry */
+/** Size of an compressed page directory entry */
 #define PAGE_ZIP_DIR_SLOT_SIZE	2
-/* Mask of record offsets */
+/** Mask of record offsets */
 #define PAGE_ZIP_DIR_SLOT_MASK	0x3fff
-/* 'owned' flag */
+/** 'owned' flag */
 #define PAGE_ZIP_DIR_SLOT_OWNED	0x4000
-/* 'deleted' flag */
+/** 'deleted' flag */
 #define PAGE_ZIP_DIR_SLOT_DEL	0x8000
 
 /**********************************************************************//**

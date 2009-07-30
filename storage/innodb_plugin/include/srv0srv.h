@@ -1,7 +1,7 @@
 /*****************************************************************************
 
 Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
-Copyright (c) 2008, Google Inc.
+Copyright (c) 2008, 2009, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -22,6 +22,32 @@ this program; if not, write to the Free Software Foundation, Inc., 59 Temple
 Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
+/***********************************************************************
+
+Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 2009, Percona Inc.
+
+Portions of this file contain modifications contributed and copyrighted
+by Percona Inc.. Those modifications are
+gratefully acknowledged and are described briefly in the InnoDB
+documentation. The contributions by Percona Inc. are incorporated with
+their permission, and subject to the conditions contained in the file
+COPYING.Percona.
+
+This program is free software; you can redistribute it and/or modify it
+under the terms of the GNU General Public License as published by the
+Free Software Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+Public License for more details.
+
+You should have received a copy of the GNU General Public License along
+with this program; if not, write to the Free Software Foundation, Inc.,
+59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+
+***********************************************************************/
 
 /**************************************************//**
 @file include/srv0srv.h
@@ -42,7 +68,7 @@ Created 10/10/1995 Heikki Tuuri
 
 extern const char*	srv_main_thread_op_info;
 
-/* Prefix used by MySQL to indicate pre-5.1 table name encoding */
+/** Prefix used by MySQL to indicate pre-5.1 table name encoding */
 extern const char	srv_mysql50_table_name_prefix[9];
 
 /* When this event is set the lock timeout and InnoDB monitor
@@ -81,14 +107,20 @@ extern char*	srv_data_home;
 extern char*	srv_arch_dir;
 #endif /* UNIV_LOG_ARCHIVE */
 
-/* store to its own file each table created by an user; data
+/** store to its own file each table created by an user; data
 dictionary tables are in the system tablespace 0 */
+#ifndef UNIV_HOTBACKUP
 extern my_bool	srv_file_per_table;
-/* The file format to use on new *.ibd files. */
+#else
+extern ibool	srv_file_per_table;
+#endif /* UNIV_HOTBACKUP */
+/** The file format to use on new *.ibd files. */
 extern ulint	srv_file_format;
-/* Whether to check file format during startup.*/
+/** Whether to check file format during startup.  A value of
+DICT_TF_FORMAT_MAX + 1 means no checking ie. FALSE.  The default is to
+set it to the highest format we support. */
 extern ulint	srv_check_file_format_at_startup;
-/* Place locks to records only i.e. do not use next-key locking except
+/** Place locks to records only i.e. do not use next-key locking except
 on duplicate key checking and foreign key checking */
 extern ibool	srv_locks_unsafe_for_binlog;
 #endif /* !UNIV_HOTBACKUP */
@@ -111,11 +143,17 @@ extern ulint	srv_n_log_files;
 extern ulint	srv_log_file_size;
 extern ulint	srv_log_buffer_size;
 extern ulong	srv_flush_log_at_trx_commit;
+extern char	srv_adaptive_flushing;
+
 
 /* The sort order table of the MySQL latin1_swedish_ci character set
 collation */
 extern const byte*	srv_latin1_ordering;
+#ifndef UNIV_HOTBACKUP
 extern my_bool	srv_use_sys_malloc;
+#else
+extern ibool	srv_use_sys_malloc;
+#endif /* UNIV_HOTBACKUP */
 extern ulint	srv_buf_pool_size;	/*!< requested size in bytes */
 extern ulint	srv_buf_pool_old_size;	/*!< previously requested size */
 extern ulint	srv_buf_pool_curr_size;	/*!< current size in bytes */
@@ -123,6 +161,16 @@ extern ulint	srv_mem_pool_size;
 extern ulint	srv_lock_table_size;
 
 extern ulint	srv_n_file_io_threads;
+extern ulong	srv_read_ahead_threshold;
+extern ulint	srv_n_read_io_threads;
+extern ulint	srv_n_write_io_threads;
+
+/* Number of IO operations per second the server can do */
+extern ulong    srv_io_capacity;
+/* Returns the number of IO operations that is X percent of the
+capacity. PCT_IO(5) -> returns the number of IO operations that
+is 5% of the max where max is srv_io_capacity.  */
+#define PCT_IO(p) ((ulong) (srv_io_capacity * ((double) p / 100.0)))
 
 #ifdef UNIV_LOG_ARCHIVE
 extern ibool	srv_log_archive_on;
@@ -215,7 +263,7 @@ extern mutex_t*	kernel_mutex_temp;/* mutex protecting the server, trx structs,
 				same DRAM page as other hotspot semaphores */
 #define kernel_mutex (*kernel_mutex_temp)
 
-#define SRV_MAX_N_IO_THREADS	100
+#define SRV_MAX_N_IO_THREADS	130
 
 /* Array of English strings describing the current state of an
 i/o handler thread */
@@ -533,10 +581,10 @@ void
 srv_export_innodb_status(void);
 /*==========================*/
 
-/* Thread slot in the thread table */
+/** Thread slot in the thread table */
 typedef struct srv_slot_struct	srv_slot_t;
 
-/* Thread table is an array of slots */
+/** Thread table is an array of slots */
 typedef srv_slot_t	srv_table_t;
 
 /** Status variables to be passed to MySQL */

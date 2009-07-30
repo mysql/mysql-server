@@ -44,6 +44,39 @@ Created 11/11/1995 Heikki Tuuri
 #include "os0file.h"
 #include "trx0sys.h"
 
+/**********************************************************************
+These statistics are generated for heuristics used in estimating the
+rate at which we should flush the dirty blocks to avoid bursty IO
+activity. Note that the rate of flushing not only depends on how many
+dirty pages we have in the buffer pool but it is also a fucntion of
+how much redo the workload is generating and at what rate. */
+/* @{ */
+
+/** Number of intervals for which we keep the history of these stats.
+Each interval is 1 second, defined by the rate at which
+srv_error_monitor_thread() calls buf_flush_stat_update(). */
+#define BUF_FLUSH_STAT_N_INTERVAL 20
+
+/** Sampled values buf_flush_stat_cur.
+Not protected by any mutex.  Updated by buf_flush_stat_update(). */
+static buf_flush_stat_t	buf_flush_stat_arr[BUF_FLUSH_STAT_N_INTERVAL];
+
+/** Cursor to buf_flush_stat_arr[]. Updated in a round-robin fashion. */
+static ulint		buf_flush_stat_arr_ind;
+
+/** Values at start of the current interval. Reset by
+buf_flush_stat_update(). */
+static buf_flush_stat_t	buf_flush_stat_cur;
+
+/** Running sum of past values of buf_flush_stat_cur.
+Updated by buf_flush_stat_update(). Not protected by any mutex. */
+static buf_flush_stat_t	buf_flush_stat_sum;
+
+/** Number of pages flushed through non flush_list flushes. */
+static ulint buf_lru_flush_page_count = 0;
+
+/* @} */
+
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /******************************************************************//**
 Validates the flush list.
@@ -1102,6 +1135,13 @@ flush_next:
 
 	srv_buf_pool_flushed += page_count;
 
+	/* We keep track of all flushes happening as part of LRU
+	flush. When estimating the desired rate at which flush_list
+	should be flushed we factor in this value. */
+	if (flush_type == BUF_FLUSH_LRU) {
+		buf_lru_flush_page_count += page_count;
+	}
+
 	return(page_count);
 }
 
@@ -1195,6 +1235,117 @@ buf_flush_free_margin(void)
 			buf_flush_wait_batch_end(BUF_FLUSH_LRU);
 		}
 	}
+}
+
+/*********************************************************************
+Update the historical stats that we are collecting for flush rate
+heuristics at the end of each interval.
+Flush rate heuristic depends on (a) rate of redo log generation and
+(b) the rate at which LRU flush is happening. */
+UNIV_INTERN
+void
+buf_flush_stat_update(void)
+/*=======================*/
+{
+	buf_flush_stat_t*	item;
+	ib_uint64_t		lsn_diff;
+	ib_uint64_t		lsn;
+	ulint			n_flushed;
+
+	lsn = log_get_lsn();
+	if (buf_flush_stat_cur.redo == 0) {
+		/* First time around. Just update the current LSN
+		and return. */
+		buf_flush_stat_cur.redo = lsn;
+		return;
+	}
+
+	item = &buf_flush_stat_arr[buf_flush_stat_arr_ind];
+
+	/* values for this interval */
+	lsn_diff = lsn - buf_flush_stat_cur.redo;
+	n_flushed = buf_lru_flush_page_count
+		    - buf_flush_stat_cur.n_flushed;
+
+	/* add the current value and subtract the obsolete entry. */
+	buf_flush_stat_sum.redo += lsn_diff - item->redo;
+	buf_flush_stat_sum.n_flushed += n_flushed - item->n_flushed;
+
+	/* put current entry in the array. */
+	item->redo = lsn_diff;
+	item->n_flushed = n_flushed;
+
+	/* update the index */
+	buf_flush_stat_arr_ind++;
+	buf_flush_stat_arr_ind %= BUF_FLUSH_STAT_N_INTERVAL;
+
+	/* reset the current entry. */
+	buf_flush_stat_cur.redo = lsn;
+	buf_flush_stat_cur.n_flushed = buf_lru_flush_page_count;
+}
+
+/*********************************************************************
+Determines the fraction of dirty pages that need to be flushed based
+on the speed at which we generate redo log. Note that if redo log
+is generated at a significant rate without corresponding increase
+in the number of dirty pages (for example, an in-memory workload)
+it can cause IO bursts of flushing. This function implements heuristics
+to avoid this burstiness.
+@return	number of dirty pages to be flushed / second */
+UNIV_INTERN
+ulint
+buf_flush_get_desired_flush_rate(void)
+/*==================================*/
+{
+	ulint			redo_avg;
+	ulint			lru_flush_avg;
+	ulint			n_dirty;
+	ulint			n_flush_req;
+	lint			rate;
+	ib_uint64_t		lsn = log_get_lsn();
+	ulint			log_capacity = log_get_capacity();
+
+	/* log_capacity should never be zero after the initialization
+	of log subsystem. */
+	ut_ad(log_capacity != 0);
+
+	/* Get total number of dirty pages. It is OK to access
+	flush_list without holding any mtex as we are using this
+	only for heuristics. */
+	n_dirty = UT_LIST_GET_LEN(buf_pool->flush_list);
+
+	/* An overflow can happen if we generate more than 2^32 bytes
+	of redo in this interval i.e.: 4G of redo in 1 second. We can
+	safely consider this as infinity because if we ever come close
+	to 4G we'll start a synchronous flush of dirty pages. */
+	/* redo_avg below is average at which redo is generated in
+	past BUF_FLUSH_STAT_N_INTERVAL + redo generated in the current
+	interval. */
+	redo_avg = (ulint) (buf_flush_stat_sum.redo
+			    / BUF_FLUSH_STAT_N_INTERVAL
+			    + (lsn - buf_flush_stat_cur.redo));
+
+	/* An overflow can happen possibly if we flush more than 2^32
+	pages in BUF_FLUSH_STAT_N_INTERVAL. This is a very very
+	unlikely scenario. Even when this happens it means that our
+	flush rate will be off the mark. It won't affect correctness
+	of any subsystem. */
+	/* lru_flush_avg below is rate at which pages are flushed as
+	part of LRU flush in past BUF_FLUSH_STAT_N_INTERVAL + the
+	number of pages flushed in the current interval. */
+	lru_flush_avg = buf_flush_stat_sum.n_flushed
+			/ BUF_FLUSH_STAT_N_INTERVAL
+			+ (buf_lru_flush_page_count
+			   - buf_flush_stat_cur.n_flushed);
+
+	n_flush_req = (n_dirty * redo_avg) / log_capacity;
+
+	/* The number of pages that we want to flush from the flush
+	list is the difference between the required rate and the
+	number of pages that we are historically flushing from the
+	LRU list */
+	rate = n_flush_req - lru_flush_avg;
+	return(rate > 0 ? (ulint) rate : 0);
 }
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG

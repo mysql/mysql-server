@@ -312,19 +312,6 @@ mem_heap_dup(
 	const void*	data,	/*!< in: data to be copied */
 	ulint		len);	/*!< in: length of data, in bytes */
 
-/**********************************************************************//**
-Concatenate two memory blocks and return the result, using a memory heap.
-@return	own: the result */
-UNIV_INTERN
-void*
-mem_heap_cat(
-/*=========*/
-	mem_heap_t*	heap,	/*!< in: memory heap where result is allocated */
-	const void*	b1,	/*!< in: block 1 */
-	ulint		len1,	/*!< in: length of b1, in bytes */
-	const void*	b2,	/*!< in: block 2 */
-	ulint		len2);	/*!< in: length of b2, in bytes */
-
 /****************************************************************//**
 A simple (s)printf replacement that dynamically allocates the space for the
 formatted string from the given heap. This supports a very limited set of
