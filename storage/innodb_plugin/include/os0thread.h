@@ -44,7 +44,7 @@ can wait inside InnoDB */
 
 #ifdef __WIN__
 typedef void*			os_thread_t;
-typedef unsigned long	os_thread_id_t;	/*!< In Windows the thread id
+typedef unsigned long		os_thread_id_t;	/*!< In Windows the thread id
 						is an unsigned long int */
 #else
 typedef pthread_t		os_thread_t;

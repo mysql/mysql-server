@@ -44,13 +44,10 @@ the accessed pages when deciding whether to read-ahead */
 
 /** There must be at least this many pages in buf_pool in the area to start
 a random read-ahead */
-#define BUF_READ_AHEAD_RANDOM_THRESHOLD	(5 + buf_read_ahead_random_area / 8)
+#define BUF_READ_AHEAD_RANDOM_THRESHOLD	(1 + BUF_READ_AHEAD_RANDOM_AREA / 2)
 
 /** The linear read-ahead area size */
 #define	BUF_READ_AHEAD_LINEAR_AREA	BUF_READ_AHEAD_AREA
-
-/** The linear read-ahead threshold */
-#define LINEAR_AREA_THRESHOLD_COEF	5 / 8
 
 /** If there are buf_pool->curr_size per the number below pending reads, then
 read-ahead is not done: this is to prevent flooding the buffer pool with
@@ -198,6 +195,9 @@ buf_read_ahead_random(
 	ulint		err;
 	ulint		i;
 	ulint		buf_read_ahead_random_area;
+
+	/* We have currently disabled random readahead */
+	return(0);
 
 	if (srv_startup_is_before_trx_rollback_phase) {
 		/* No read-ahead to avoid thread deadlocks */
@@ -423,6 +423,7 @@ buf_read_ahead_linear(
 	ulint		i;
 	const ulint	buf_read_ahead_linear_area
 		= BUF_READ_AHEAD_LINEAR_AREA;
+	ulint		threshold;
 
 	if (UNIV_UNLIKELY(srv_startup_is_before_trx_rollback_phase)) {
 		/* No read-ahead to avoid thread deadlocks */
@@ -482,6 +483,11 @@ buf_read_ahead_linear(
 		asc_or_desc = -1;
 	}
 
+	/* How many out of order accessed pages can we ignore
+	when working out the access pattern for linear readahead */
+	threshold = ut_min((64 - srv_read_ahead_threshold),
+			   BUF_READ_AHEAD_AREA);
+
 	fail_count = 0;
 
 	for (i = low; i < high; i++) {
@@ -491,25 +497,25 @@ buf_read_ahead_linear(
 			/* Not accessed */
 			fail_count++;
 
-		} else if (pred_bpage
-			   && (ut_ulint_cmp(
+		} else if (pred_bpage) {
+			int res = (ut_ulint_cmp(
 				       buf_page_get_LRU_position(bpage),
-				       buf_page_get_LRU_position(pred_bpage))
-			       != asc_or_desc)) {
+				       buf_page_get_LRU_position(pred_bpage)));
 			/* Accesses not in the right order */
+			if (res != 0 && res != asc_or_desc) {
+				fail_count++;
+			}
+		}
 
-			fail_count++;
+		if (fail_count > threshold) {
+			/* Too many failures: return */
+			buf_pool_mutex_exit();
+			return(0);
+		}
+
+		if (bpage && buf_page_is_accessed(bpage)) {
 			pred_bpage = bpage;
 		}
-	}
-
-	if (fail_count > buf_read_ahead_linear_area
-	    * LINEAR_AREA_THRESHOLD_COEF) {
-		/* Too many failures: return */
-
-		buf_pool_mutex_exit();
-
-		return(0);
 	}
 
 	/* If we got this far, we know that enough pages in the area have
@@ -746,6 +752,14 @@ buf_read_recv_pages(
 	ulint		i;
 
 	zip_size = fil_space_get_zip_size(space);
+
+	if (UNIV_UNLIKELY(zip_size == ULINT_UNDEFINED)) {
+		/* It is a single table tablespace and the .ibd file is
+		missing: do nothing */
+
+		return;
+	}
+
 	tablespace_version = fil_space_get_version(space);
 
 	for (i = 0; i < n_stored; i++) {

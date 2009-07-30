@@ -22,6 +22,32 @@ this program; if not, write to the Free Software Foundation, Inc., 59 Temple
 Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
+/***********************************************************************
+
+Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 2009, Percona Inc.
+
+Portions of this file contain modifications contributed and copyrighted
+by Percona Inc.. Those modifications are
+gratefully acknowledged and are described briefly in the InnoDB
+documentation. The contributions by Percona Inc. are incorporated with
+their permission, and subject to the conditions contained in the file
+COPYING.Percona.
+
+This program is free software; you can redistribute it and/or modify it
+under the terms of the GNU General Public License as published by the
+Free Software Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+Public License for more details.
+
+You should have received a copy of the GNU General Public License along
+with this program; if not, write to the Free Software Foundation, Inc.,
+59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+
+***********************************************************************/
 
 /********************************************************************//**
 @file srv/srv0start.c
@@ -1007,6 +1033,7 @@ innobase_start_or_create_for_mysql(void)
 	ulint		tablespace_size_in_header;
 	ulint		err;
 	ulint		i;
+	ulint		io_limit;
 	my_bool		srv_file_per_table_original_value
 		= srv_file_per_table;
 	mtr_t		mtr;
@@ -1135,19 +1162,21 @@ innobase_start_or_create_for_mysql(void)
 	os_aio_use_native_aio = FALSE;
 
 #ifdef __WIN__
-	if (os_get_os_version() == OS_WIN95
-	    || os_get_os_version() == OS_WIN31
-	    || os_get_os_version() == OS_WINNT) {
-
+	switch (os_get_os_version()) {
+	case OS_WIN95:
+	case OS_WIN31:
+	case OS_WINNT:
 		/* On Win 95, 98, ME, Win32 subsystem for Windows 3.1,
 		and NT use simulated aio. In NT Windows provides async i/o,
 		but when run in conjunction with InnoDB Hot Backup, it seemed
 		to corrupt the data files. */
 
 		os_aio_use_native_aio = FALSE;
-	} else {
+		break;
+	default:
 		/* On Win 2000 and XP use async i/o */
 		os_aio_use_native_aio = TRUE;
+		break;
 	}
 #endif
 	if (srv_file_flush_method_str == NULL) {
@@ -1265,26 +1294,34 @@ innobase_start_or_create_for_mysql(void)
 		return(DB_ERROR);
 	}
 
-	/* Restrict the maximum number of file i/o threads */
-	if (srv_n_file_io_threads > SRV_MAX_N_IO_THREADS) {
-
-		srv_n_file_io_threads = SRV_MAX_N_IO_THREADS;
+	/* If user has set the value of innodb_file_io_threads then
+	we'll emit a message telling the user that this parameter
+	is now deprecated. */
+	if (srv_n_file_io_threads != 4) {
+		fprintf(stderr, "InnoDB: Warning:"
+			" innodb_file_io_threads is deprecated."
+			" Please use innodb_read_io_threads and"
+			" innodb_write_io_threads instead\n");
 	}
 
+	/* Now overwrite the value on srv_n_file_io_threads */
+	srv_n_file_io_threads = 2 + srv_n_read_io_threads
+				+ srv_n_write_io_threads;
+
+	ut_a(srv_n_file_io_threads <= SRV_MAX_N_IO_THREADS);
+
+	/* TODO: Investigate if SRV_N_PENDING_IOS_PER_THREAD (32) limit
+	still applies to windows. */
 	if (!os_aio_use_native_aio) {
-		/* In simulated aio we currently have use only for 4 threads */
-		srv_n_file_io_threads = 4;
-
-		os_aio_init(8 * SRV_N_PENDING_IOS_PER_THREAD
-			    * srv_n_file_io_threads,
-			    srv_n_file_io_threads,
-			    SRV_MAX_N_PENDING_SYNC_IOS);
+		io_limit = 8 * SRV_N_PENDING_IOS_PER_THREAD;
 	} else {
-		os_aio_init(SRV_N_PENDING_IOS_PER_THREAD
-			    * srv_n_file_io_threads,
-			    srv_n_file_io_threads,
-			    SRV_MAX_N_PENDING_SYNC_IOS);
+		io_limit = SRV_N_PENDING_IOS_PER_THREAD;
 	}
+
+	os_aio_init(io_limit,
+		    srv_n_read_io_threads,
+		    srv_n_write_io_threads,
+		    SRV_MAX_N_PENDING_SYNC_IOS);
 
 	fil_init(srv_file_per_table ? 50000 : 5000,
 		 srv_max_n_open_files);

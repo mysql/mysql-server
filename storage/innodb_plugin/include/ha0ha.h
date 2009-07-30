@@ -164,16 +164,6 @@ is inserted.
 # define ha_insert_for_fold(t,f,b,d) ha_insert_for_fold_func(t,f,d)
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 
-/*************************************************************//**
-Deletes an entry from a hash table. */
-UNIV_INTERN
-void
-ha_delete(
-/*======*/
-	hash_table_t*	table,	/*!< in: hash table */
-	ulint		fold,	/*!< in: folded value of data */
-	void*		data);	/*!< in: data, must not be NULL and must exist
-				in the hash table */
 /*********************************************************//**
 Looks for an element when we know the pointer to the data and deletes
 it from the hash table if found.

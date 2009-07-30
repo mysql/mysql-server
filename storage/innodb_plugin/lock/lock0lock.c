@@ -3768,32 +3768,6 @@ lock_table(
 }
 
 /*********************************************************************//**
-Checks if there are any locks set on the table.
-@return	TRUE if there are lock(s) */
-UNIV_INTERN
-ibool
-lock_is_on_table(
-/*=============*/
-	dict_table_t*	table)	/*!< in: database table in dictionary cache */
-{
-	ibool	ret;
-
-	ut_ad(table);
-
-	lock_mutex_enter_kernel();
-
-	if (UT_LIST_GET_LAST(table->locks)) {
-		ret = TRUE;
-	} else {
-		ret = FALSE;
-	}
-
-	lock_mutex_exit_kernel();
-
-	return(ret);
-}
-
-/*********************************************************************//**
 Checks if a waiting table lock request still has to wait in a queue.
 @return	TRUE if still has to wait */
 static
@@ -3932,22 +3906,6 @@ lock_rec_unlock(
 
 		lock = lock_rec_get_next(heap_no, lock);
 	}
-
-	mutex_exit(&kernel_mutex);
-}
-
-/*********************************************************************//**
-Releases a table lock.
-Releases possible other transactions waiting for this lock. */
-UNIV_INTERN
-void
-lock_table_unlock(
-/*==============*/
-	lock_t*	lock)	/*!< in: lock */
-{
-	mutex_enter(&kernel_mutex);
-
-	lock_table_dequeue(lock);
 
 	mutex_exit(&kernel_mutex);
 }
@@ -4499,6 +4457,20 @@ loop:
 			ulint	zip_size= fil_space_get_zip_size(space);
 			ulint	page_no = lock->un_member.rec_lock.page_no;
 
+			if (UNIV_UNLIKELY(zip_size == ULINT_UNDEFINED)) {
+
+				/* It is a single table tablespace and
+				the .ibd file is missing (TRUNCATE
+				TABLE probably stole the locks): just
+				print the lock without attempting to
+				load the page in the buffer pool. */
+
+				fprintf(file, "RECORD LOCKS on"
+					" non-existing space %lu\n",
+					(ulong) space);
+				goto print_rec;
+			}
+
 			lock_mutex_exit_kernel();
 			innobase_mysql_end_print_arbitrary_thd();
 
@@ -4517,6 +4489,7 @@ loop:
 			goto loop;
 		}
 
+print_rec:
 		lock_rec_print(file, lock);
 	} else {
 		ut_ad(lock_get_type_low(lock) & LOCK_TABLE);
@@ -4721,6 +4694,7 @@ lock_rec_validate_page(
 	ulint		nth_lock	= 0;
 	ulint		nth_bit		= 0;
 	ulint		i;
+	ulint		zip_size;
 	mtr_t		mtr;
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
@@ -4731,8 +4705,9 @@ lock_rec_validate_page(
 
 	mtr_start(&mtr);
 
-	block = buf_page_get(space, fil_space_get_zip_size(space),
-			     page_no, RW_X_LATCH, &mtr);
+	zip_size = fil_space_get_zip_size(space);
+	ut_ad(zip_size != ULINT_UNDEFINED);
+	block = buf_page_get(space, zip_size, page_no, RW_X_LATCH, &mtr);
 	buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
 
 	page = block->frame;

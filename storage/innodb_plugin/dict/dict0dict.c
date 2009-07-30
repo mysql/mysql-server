@@ -1693,6 +1693,11 @@ dict_index_find_cols(
 		}
 
 		/* It is an error not to find a matching column. */
+		fputs("InnoDB: Error: no matching column for ", stderr);
+		ut_print_name(stderr, NULL, FALSE, field->name);
+		fputs(" in ", stderr);
+		dict_index_name_print(stderr, NULL, index);
+		fputs("!\n", stderr);
 		ut_error;
 
 found:
@@ -2974,7 +2979,7 @@ scan_more:
 		} else if (quote) {
 			/* Within quotes: do not look for
 			starting quotes or comments. */
-		} else if (*sptr == '"' || *sptr == '`') {
+		} else if (*sptr == '"' || *sptr == '`' || *sptr == '\'') {
 			/* Starting quote: remember the quote character. */
 			quote = *sptr;
 		} else if (*sptr == '#'

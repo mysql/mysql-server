@@ -1317,7 +1317,7 @@ drop table t1;
 
 # Test for testable InnoDB status variables. This test
 # uses previous ones(pages_created, rows_deleted, ...).
---replace_result 512 511
+--replace_result 8192 8191
 SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_total';
 SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_page_size';
 SELECT variable_value - @innodb_rows_deleted_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_deleted';
@@ -1332,6 +1332,7 @@ SELECT variable_value - @innodb_row_lock_time_max_orig FROM information_schema.g
 SELECT variable_value - @innodb_row_lock_time_avg_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_time_avg';
 
 # Test for innodb_sync_spin_loops variable
+SET @innodb_sync_spin_loops_orig = @@innodb_sync_spin_loops;
 show variables like "innodb_sync_spin_loops";
 set global innodb_sync_spin_loops=1000;
 show variables like "innodb_sync_spin_loops";
@@ -1339,6 +1340,7 @@ set global innodb_sync_spin_loops=0;
 show variables like "innodb_sync_spin_loops";
 set global innodb_sync_spin_loops=20;
 show variables like "innodb_sync_spin_loops";
+set global innodb_sync_spin_loops=@innodb_sync_spin_loops_orig;
 
 # Test for innodb_thread_concurrency variable
 show variables like "innodb_thread_concurrency";

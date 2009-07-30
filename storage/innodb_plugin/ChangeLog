@@ -1,3 +1,190 @@
+2009-07-20	The InnoDB Team
+
+	* buf/buf0rea.c, handler/ha_innodb.cc, include/srv0srv.h,
+	srv/srv0srv.c:
+	Change the read ahead parameter name to innodb_read_ahead_threshold.
+	Change the meaning of this parameter to signify the number of pages
+	that must be sequentially accessed for InnoDB to trigger a readahead
+	request.
+
+2009-07-20	The InnoDB Team
+
+	* handler/ha_innodb.cc:
+	Fix Bug#39802 On Windows, 32-bit time_t should be enforced
+
+2009-07-16	The InnoDB Team
+
+	* include/univ.i:
+	Support inlining of functions and prefetch with Sun Studio.
+	These changes are based on contribution from Sun Microsystems Inc.
+	under a BSD license.
+
+2009-07-14	The InnoDB Team
+
+	* fil/fil0fil.c:
+	Fix Bug#45814 URL reference in InnoDB server errors needs adjusting to
+	match documentation
+
+2009-07-14	The InnoDB Team
+
+	* handler/ha_innodb.cc, mysql-test/innodb_bug21704.result,
+	mysql-test/innodb_bug21704.test:
+	Fix Bug#21704 Renaming column does not update FK definition
+
+2009-07-10	The InnoDB Team
+
+	* handler/ha_innodb.cc, srv/srv0srv.c:
+	Change the defaults for
+	innodb_sync_spin_loops: 20 -> 30
+	innodb_spin_wait_delay: 5 -> 6
+
+2009-07-08	The InnoDB Team
+
+	* buf/buf0flu.c, handler/ha_innodb.cc, include/buf0flu.h,
+	include/log0log.h, include/log0log.ic, include/srv0srv.h,
+	srv/srv0srv.c:
+	Implement the adaptive flushing of dirty pages, which uses
+	a heuristics based flushing rate of dirty pages to avoid IO
+	bursts at checkpoint. Expose new configure knob
+	innodb_adaptive_flushing to control whether the new flushing
+	algorithm should be used.
+
+2009-07-07	The InnoDB Team
+
+	* handler/ha_innodb.cc, include/srv0srv.h, log/log0log.c,
+	srv/srv0srv.c:
+	Implement IO capacity tuning. Expose new configure knob
+	innodb_io_capacity to control the master threads IO rate. The
+	ibuf merge is also changed from synchronous to asynchronous.
+	These changes are based on contribution from Google Inc.
+	under a BSD license.
+
+2009-07-02	The InnoDB Team
+
+	* include/ut0ut.h, plug.in, ut/ut0ut.c:
+	Use the PAUSE instruction inside the spinloop if it is available,
+	Thanks to Mikael Ronstrom <mikael@mysql.com>.
+
+2009-06-29	The InnoDB Team
+
+	* handler/ha_innodb.cc, mysql-test/innodb_file_format.test,
+	mysql-test/innodb_file_format.result:
+	Do not crash on SET GLOBAL innodb_file_format=DEFAULT
+	or SET GLOBAL innodb_file_format_check=DEFAULT.
+
+2009-06-29	The InnoDB Team
+
+	* buf/buf0buf.c, buf/buf0rea.c, lock/lock0lock.c:
+	Tolerate missing tablespaces during crash recovery and when
+	printing information on locks.
+
+2009-06-29	The InnoDB Team
+
+	* buf/buf0buf.c:
+	Fix a race condition when reading buf_fix_count.
+	Currently, it is not being protected by the buffer pool mutex,
+	but by the block mutex.
+
+2009-06-29	The InnoDB Team
+
+	* handler/handler0alter.cc:
+	Start the user transaction prebuilt->trx if it was not started
+	before adding or dropping an index. Without this fix, the
+	table could be locked outside an active transaction.
+
+2009-06-25	The InnoDB Team
+
+	* handler/ha_innodb.cc, mysql-test/innodb_bug42101.test,
+	mysql-test/innodb_bug42101.result,
+	mysql-test/innodb_bug42101-nonzero.test,
+	mysql-test/innodb_bug42101-nonzero.result:
+	Fix Bug#45749 Race condition in SET GLOBAL
+	innodb_commit_concurrency=DEFAULT
+
+2009-06-25	The InnoDB Team
+
+	* dict/dict0dict.c:
+	When an index column cannot be found in the table during index
+	creation, display additional diagnostic before an assertion failure.
+	This does NOT fix Bug #44571 InnoDB Plugin crashes on ADD INDEX,
+	but it helps understand the reason of the crash.
+
+2009-06-17	The InnoDB Team
+
+	* row/row0merge.c:
+	Fix Bug#45426 UNIV_DEBUG build cause assertion error at CREATE INDEX
+
+2009-06-17	The InnoDB Team
+
+	* mysql-test/innodb_bug45357.result, mysql-test/innodb_bug45357.test,
+	row/row0mysql.c:
+	Fix Bug#45357 5.1.35 crashes with Failing assertion: index->type &
+	DICT_CLUSTERED
+
+2009-06-17	The InnoDB Team
+
+	* handler/ha_innodb.cc, mysql-test/innodb-autoinc.result,
+	mysql-test/innodb-autoinc.test:
+	Fix Bug#44030 Error: (1500) Couldn't read the MAX(ID) autoinc value
+	from the index (PRIMARY)
+
+2009-06-11	The InnoDB Team
+
+	* handler/ha_innodb.cc, mysql-test/innodb.result, srv/srv0srv.c:
+	Change the following defaults:
+	max_dirty_pages_pct: from 90 to 75, max allowed from 100 to 99
+	additional_mem_pool_size: from 1 to 8 MB
+	buffer_pool_size: from 8 to 128 MB
+	log_buffer_size: from 1 to 8 MB
+	read_io_threads/write_io_threads: from 1 to 4
+
+2009-06-09	The InnoDB Team
+
+	* handler/ha_innodb.cc, include/trx0trx.h, trx/trx0trx.c:
+	Enable Group Commit functionality that was broken in 5.0 when
+	distributed transactions were introduced.
+
+2009-06-05	The InnoDB Team
+
+	* handler/ha_innodb.cc, include/os0file.h, include/srv0srv.h,
+	os/os0file.c, srv/srv0srv.c, srv/srv0start.c:
+	Enable functionality to have multiple background IO helper threads.
+	Expose new configure knobs innodb_read_io_threads and
+	innodb_write_io_threads and deprecate innodb_file_io_threads (this
+	parameter was relevant only on windows). Internally this allows
+	multiple segments for read and write IO request arrays where one
+	thread works on one segment.
+
+2009-06-05	The InnoDB Team
+
+	* buf/buf0lru.c, buf/buf0rea.c, handler/ha_innodb.cc,
+	include/srv0srv.h, srv/srv0srv.c:
+	Fix a bug in linear read ahead:
+	  1) Take into account access pattern when deciding whether or not to
+	    do linear read ahead.
+	  2) Expose a knob innodb_read_ahead_factor = [0-64] default (8),
+	    dynamic, global to control linear read ahead behavior. This is the
+	    value of the number of pages that InnoDB will tolerate within a
+	    64 page extent even if they are accessed out of order or have
+	    not been accessed at all. This number (which varies from 0 to 64)
+	    is indicative of the slack that we have when deciding about linear
+	    readahead.
+	  3) Disable random read ahead. Keep the code for now.
+
+2009-06-03	The InnoDB Team
+
+	* dict/dict0dict.c, mysql-test/t/innodb_mysql.test,
+	mysql-test/r/innodb_mysql.result:
+	Fix Bug#39793 Foreign keys not constructed when column
+	has a '#' in a comment or default value
+
+2009-05-27	The InnoDB Team
+
+	* Doxyfile:
+	Allow the extraction of documentation from the code base with the
+	Doxygen tool. Convert and add many (but not yet all) comments to
+	Doxygen format.
+
 2009-05-19	The InnoDB Team
 
 	* btr/btr0btr.c, btr/btr0cur.c, lock/lock0lock.c,
@@ -6,7 +193,7 @@
 	page/page0zip.c, page/page0page.c:
 	Write updates of PAGE_MAX_TRX_ID to the redo log and add debug
 	assertions for checking that PAGE_MAX_TRX_ID is valid on leaf
-	pages of secondary indexes and the insert buffer B-tree.  This bug
+	pages of secondary indexes and the insert buffer B-tree. This bug
 	could cause failures in secondary index lookups in consistent
 	reads right after crash recovery.
 
@@ -36,7 +223,7 @@
 
 	* row/row0mysql.c:
 	When scanning indexes, report in the error log any error codes
-	returned by the search function.  These error codes will still be
+	returned by the search function. These error codes will still be
 	ignored in CHECK TABLE.
 
 2009-04-23	The InnoDB Team

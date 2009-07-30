@@ -15,6 +15,32 @@ this program; if not, write to the Free Software Foundation, Inc., 59 Temple
 Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
+/***********************************************************************
+
+Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 2009, Percona Inc.
+
+Portions of this file contain modifications contributed and copyrighted
+by Percona Inc.. Those modifications are
+gratefully acknowledged and are described briefly in the InnoDB
+documentation. The contributions by Percona Inc. are incorporated with
+their permission, and subject to the conditions contained in the file
+COPYING.Percona.
+
+This program is free software; you can redistribute it and/or modify it
+under the terms of the GNU General Public License as published by the
+Free Software Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+Public License for more details.
+
+You should have received a copy of the GNU General Public License along
+with this program; if not, write to the Free Software Foundation, Inc.,
+59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+
+***********************************************************************/
 
 /**************************************************//**
 @file include/os0file.h
@@ -398,6 +424,7 @@ ibool
 os_file_close(
 /*==========*/
 	os_file_t	file);	/*!< in, own: handle to a file */
+#ifdef UNIV_HOTBACKUP
 /***********************************************************************//**
 Closes a file handle.
 @return	TRUE if success */
@@ -406,6 +433,7 @@ ibool
 os_file_close_no_error_handling(
 /*============================*/
 	os_file_t	file);	/*!< in, own: handle to a file */
+#endif /* UNIV_HOTBACKUP */
 /***********************************************************************//**
 Gets a file size.
 @return	TRUE if success */
@@ -574,23 +602,23 @@ ibool
 os_file_create_subdirs_if_needed(
 /*=============================*/
 	const char*	path);	/*!< in: path name */
-/************************************************************************//**
-Initializes the asynchronous io system. Creates separate aio array for
-non-ibuf read and write, a third aio array for the ibuf i/o, with just one
-segment, two aio arrays for log reads and writes with one segment, and a
-synchronous aio array of the specified size. The combined number of segments
-in the three first aio arrays is the parameter n_segments given to the
-function. The caller must create an i/o handler thread for each segment in
-the four first arrays, but not for the sync aio array. */
+/***********************************************************************
+Initializes the asynchronous io system. Creates one array each for ibuf
+and log i/o. Also creates one array each for read and write where each
+array is divided logically into n_read_segs and n_write_segs
+respectively. The caller must create an i/o handler thread for each
+segment in these arrays. This function also creates the sync array.
+No i/o handler thread needs to be created for that */
 UNIV_INTERN
 void
 os_aio_init(
 /*========*/
-	ulint	n,		/*!< in: maximum number of pending aio operations
-				allowed; n must be divisible by n_segments */
-	ulint	n_segments,	/*!< in: combined number of segments in the four
-				first aio arrays; must be >= 4 */
-	ulint	n_slots_sync);	/*!< in: number of slots in the sync aio array */
+	ulint	n_per_seg,	/*<! in: maximum number of pending aio
+				operations allowed per segment */
+	ulint	n_read_segs,	/*<! in: number of reader threads */
+	ulint	n_write_segs,	/*<! in: number of writer threads */
+	ulint	n_slots_sync);	/*<! in: number of slots in the sync aio
+				array */
 /*******************************************************************//**
 Requests an asynchronous i/o operation.
 @return	TRUE if request was queued successfully, FALSE if fail */

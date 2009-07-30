@@ -696,37 +696,6 @@ que_graph_free(
 	mem_heap_free(graph->heap);
 }
 
-/**********************************************************************//**
-Checks if the query graph is in a state where it should be freed, and
-frees it in that case. If the session is in a state where it should be
-closed, also this is done.
-@return	TRUE if freed */
-UNIV_INTERN
-ibool
-que_graph_try_free(
-/*===============*/
-	que_t*	graph)	/*!< in: query graph */
-{
-	sess_t*	sess;
-
-	ut_ad(mutex_own(&kernel_mutex));
-
-	sess = (graph->trx)->sess;
-
-	if ((graph->state == QUE_FORK_BEING_FREED)
-	    && (graph->n_active_thrs == 0)) {
-
-		UT_LIST_REMOVE(graphs, sess->graphs, graph);
-		que_graph_free(graph);
-
-		sess_try_close(sess);
-
-		return(TRUE);
-	}
-
-	return(FALSE);
-}
-
 /****************************************************************//**
 Performs an execution step on a thr node.
 @return	query thread to run next, or NULL if none */
