@@ -3451,6 +3451,7 @@ os_aio_array_reserve_slot(
 
 #endif
 	ulint		i;
+	ulint		counter;
 	ulint		slots_per_seg;
 	ulint		local_seg;
 
@@ -3481,17 +3482,13 @@ loop:
 		goto loop;
 	}
 
-	/* First try to find a slot in the preferred local segment */
-	for (i = local_seg * slots_per_seg; i < array->n_slots; i++) {
-		slot = os_aio_array_get_nth_slot(array, i);
+	/* We start our search for an available slot from our preferred
+	local segment and do a full scan of the array. We are
+	guaranteed to find a slot in full scan. */
+	for (i = local_seg * slots_per_seg, counter = 0;
+	     counter < array->n_slots; i++, counter++) {
 
-		if (slot->reserved == FALSE) {
-			goto found;
-		}
-	}
-
-	/* Fall back to a full scan. We are guaranteed to find a slot */
-	for (i = 0;; i++) {
+		i %= array->n_slots;
 		slot = os_aio_array_get_nth_slot(array, i);
 
 		if (slot->reserved == FALSE) {
