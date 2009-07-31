@@ -9213,6 +9213,8 @@ into_destination:
                 !(lex->result= new select_export(lex->exchange, lex->nest_level)))
               MYSQL_YYABORT;
           }
+          opt_load_data_charset
+          { Lex->exchange->cs= $4; }
           opt_field_term opt_line_term
         | DUMPFILE TEXT_STRING_filesystem
           {
