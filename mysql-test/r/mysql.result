@@ -162,8 +162,8 @@ ERROR 1049 (42000) at line 1: Unknown database 'invalid'
 ERROR 1049 (42000) at line 1: Unknown database 'invalid'
 Test connect with dbname + hostname
 Test connect with dbname + _invalid_ hostname
-ERROR 2003 (HY000) at line 1: Can't connect to MySQL server on 'invalid_hostname' (errno)
-ERROR 2003 (HY000) at line 1: Can't connect to MySQL server on 'invalid_hostname' (errno)
+ERROR 2005 (HY000) at line 1: Unknown MySQL server host 'invalid_hostname' (errno)
+ERROR 2005 (HY000) at line 1: Unknown MySQL server host 'invalid_hostname' (errno)
 The commands reported in the bug report
 ERROR 2005 (HY000) at line 1: Unknown MySQL server host 'cyril has found a bug :)XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX' (errno)
 Too long dbname
