@@ -5381,6 +5381,13 @@ int ha_partition::extra(enum ha_extra_function operation)
     /* Currently only NDB use the *_CANNOT_BATCH */
     break;
   }
+  /*
+    http://dev.mysql.com/doc/refman/5.1/en/partitioning-limitations.html
+    says we no longer support logging to partitioned tables, so we fail
+    here.
+  */
+  case HA_EXTRA_MARK_AS_LOG_TABLE:
+    DBUG_RETURN(ER_UNSUPORTED_LOG_ENGINE);
   default:
   {
     /* Temporary crash to discover what is wrong */
