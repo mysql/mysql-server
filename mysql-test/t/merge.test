@@ -1515,6 +1515,49 @@ insert into m1 (col1) values (1);
 
 drop table m1, t1;
 
+--echo #
+--echo # Bug#45800 crash when replacing into a merge table and there is a duplicate
+--echo #
+
+--echo # Replace duplicate value in child table when merge table doesn't have key
+CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE=MyISAM;
+CREATE TABLE m1 (c1 INT NOT NULL) ENGINE=MRG_MyISAM INSERT_METHOD=LAST UNION=(t1);
+INSERT INTO m1  VALUES (666);
+SELECT * FROM m1;
+--echo # insert the duplicate value into the merge table
+REPLACE INTO m1 VALUES (666);
+SELECT * FROM m1;
+DROP TABLE m1, t1;
+
+--echo # Insert... on duplicate key update (with duplicate values in the table)
+CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE=MyISAM;
+CREATE TABLE m1 (c1 INT NOT NULL) ENGINE=MRG_MyISAM INSERT_METHOD=LAST UNION=(t1);
+INSERT INTO m1  VALUES (666);
+SELECT * FROM m1;
+--echo # insert the duplicate value into the merge table
+INSERT INTO m1 VALUES (666) ON DUPLICATE KEY UPDATE c1=c1+1;
+SELECT * FROM m1;
+DROP TABLE m1, t1;
+
+--echo # Insert duplicate value on MERGE table, where, MERGE has a key but MyISAM has more keys
+CREATE TABLE t1 (c1 INT, c2 INT, UNIQUE (c1), UNIQUE (c2));
+CREATE TABLE m1 (c1 INT, c2 INT, UNIQUE (c1)) ENGINE=MRG_MyISAM INSERT_METHOD=LAST UNION=(t1);
+INSERT INTO m1 VALUES (1,2);
+--echo # insert the duplicate value into the merge table
+--error ER_DUP_ENTRY
+INSERT INTO m1 VALUES (3,2);
+DROP TABLE m1,t1;
+
+--echo # Try to define MERGE and MyISAM with keys on different columns
+CREATE TABLE t1 (c1 INT, c2 INT, UNIQUE (c1));
+CREATE TABLE m1 (c1 INT, c2 INT, UNIQUE (c2)) ENGINE=MRG_MyISAM INSERT_METHOD=LAST UNION=(t1);
+--echo # Try accessing the merge table for inserts (error occurs)
+--error ER_WRONG_MRG_TABLE
+INSERT INTO m1 VALUES (1,2);
+--error ER_WRONG_MRG_TABLE
+INSERT INTO m1 VALUES (1,4);
+DROP TABLE m1,t1;
+
 #
 #Bug #44040   MySQL allows creating a MERGE table upon VIEWs but crashes 
 #when using it
@@ -1535,4 +1578,48 @@ SELECT * FROM m1;
 
 DROP VIEW v1;
 DROP TABLE m1, t1;
+
+--echo #
+--echo # Bug #45796: invalid memory reads and writes when altering merge and 
+--echo #             base tables
+--echo #
+
+CREATE TABLE t1(c1 INT) ENGINE=MyISAM;
+CREATE TABLE m1(c1 INT) ENGINE=MERGE UNION=(t1);
+ALTER TABLE m1 ADD INDEX idx_c1(c1);
+# Open the MERGE table and allocate buffers based on children's definition.
+--error ER_WRONG_MRG_TABLE
+SELECT * FROM m1;
+# Change the child table definition.
+ALTER TABLE t1 ADD INDEX idx_c1(c1);
+# Check that old buffers are not reused
+SELECT * FROM m1;
+
+DROP TABLE m1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug45781 infinite hang/crash in "opening tables" after handler tries to
+--echo #          open merge table
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS m1,t1;
+--enable_warnings
+
+CREATE TABLE t1(a int)engine=myisam;
+CREATE TABLE t2(a int)engine=myisam;
+CREATE TABLE t3(a int)engine=myisam;
+CREATE TABLE t4(a int)engine=myisam;
+CREATE TABLE t5(a int)engine=myisam;
+CREATE TABLE t6(a int)engine=myisam;
+CREATE TABLE t7(a int)engine=myisam;
+CREATE TABLE m1(a int)engine=merge union=(t1,t2,t3,t4,t5,t6,t7);
+SELECT 1 FROM m1;
+--error ER_ILLEGAL_HA
+HANDLER m1 OPEN;
+DROP TABLE m1,t1,t2,t3,t4,t5,t6,t7;
+--error ER_NO_SUCH_TABLE
+SELECT 1 FROM m1; # Should not hang!
+
 --echo End of 5.1 tests

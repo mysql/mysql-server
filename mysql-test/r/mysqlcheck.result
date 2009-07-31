@@ -186,4 +186,18 @@ a
 500
 DROP DATABASE `a@b`;
 USE test;
+#
+# Bug #31821: --all-in-1 and --fix-table-names don't work together
+#
+drop table if exists `#mysql50#t1-1`;
+create table `#mysql50#t1-1` (a int);
+show tables like 't1-1';
+Tables_in_test (t1-1)
+t1-1
+drop table `t1-1`;
+create table `#mysql50#t1-1` (a int);
+show tables like 't1-1';
+Tables_in_test (t1-1)
+t1-1
+drop table `t1-1`;
 End of 5.1 tests

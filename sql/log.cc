@@ -1564,25 +1564,15 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
                        YESNO(all),
                        YESNO(thd->transaction.all.modified_non_trans_table),
                        YESNO(thd->transaction.stmt.modified_non_trans_table)));
-  if ((all && thd->transaction.all.modified_non_trans_table) ||
-      (!all && thd->transaction.stmt.modified_non_trans_table &&
-       !mysql_bin_log.check_write_error(thd)) ||
-      ((thd->options & OPTION_KEEP_LOG) &&
-        !mysql_bin_log.check_write_error(thd)))
+  if (mysql_bin_log.check_write_error(thd))
   {
     /*
-      We write the transaction cache with a rollback last if we have
-      modified any non-transactional table. We do this even if we are
-      committing a single statement that has modified a
-      non-transactional table since it can have modified a
-      transactional table in that statement as well, which needs to be
-      rolled back on the slave.
+      "all == true" means that a "rollback statement" triggered the error and
+      this function was called. However, this must not happen as a rollback
+      is written directly to the binary log. And in auto-commit mode, a single
+      statement that is rolled back has the flag all == false.
     */
-    Query_log_event qev(thd, STRING_WITH_LEN("ROLLBACK"), TRUE, TRUE, 0);
-    error= binlog_end_trans(thd, trx_data, &qev, all);
-  }
-  else
-  {
+    DBUG_ASSERT(!all);
     /*
       We reach this point if either only transactional tables were modified or
       the effect of a statement that did not get into the binlog needs to be
@@ -1592,12 +1582,38 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
       on the master did not get into the binlog and slaves will be inconsistent.
       On the other hand, if a statement is transactional, we just safely roll it
       back.
-     */
+    */
     if ((thd->transaction.stmt.modified_non_trans_table ||
         (thd->options & OPTION_KEEP_LOG)) &&
         mysql_bin_log.check_write_error(thd))
       trx_data->set_incident();
     error= binlog_end_trans(thd, trx_data, 0, all);
+  }
+  else
+  {
+   /*
+      We flush the cache with a rollback, wrapped in a beging/rollback if:
+        . aborting a transcation that modified a non-transactional table or;
+        . aborting a statement that modified both transactional and
+          non-transctional tables but which is not in the boundaries of any
+          transaction;
+        . the OPTION_KEEP_LOG is activate.
+    */
+    if ((all && thd->transaction.all.modified_non_trans_table) ||
+        (!all && thd->transaction.stmt.modified_non_trans_table &&
+         !(thd->options & (OPTION_BEGIN | OPTION_NOT_AUTOCOMMIT))) ||
+        ((thd->options & OPTION_KEEP_LOG)))
+    {
+      Query_log_event qev(thd, STRING_WITH_LEN("ROLLBACK"), TRUE, TRUE, 0);
+      error= binlog_end_trans(thd, trx_data, &qev, all);
+    }
+    /*
+      Otherwise, we simply truncate the cache as there is no change on
+      non-transactional tables as follows.
+    */
+    else if ((all && !thd->transaction.all.modified_non_trans_table) ||
+          (!all && !thd->transaction.stmt.modified_non_trans_table))
+      error= binlog_end_trans(thd, trx_data, 0, all);
   }
   if (!all)
     trx_data->before_stmt_pos = MY_OFF_T_UNDEF; // part of the stmt rollback

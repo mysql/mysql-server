@@ -158,6 +158,7 @@ deinit_event_thread(THD *thd)
   thread_count--;
   thread_running--;
   delete thd;
+  pthread_cond_broadcast(&COND_thread_count);
   pthread_mutex_unlock(&LOCK_thread_count);
 }
 
@@ -418,6 +419,7 @@ Event_scheduler::start()
     thread_count--;
     thread_running--;
     delete new_thd;
+    pthread_cond_broadcast(&COND_thread_count);
     pthread_mutex_unlock(&LOCK_thread_count);
   }
 end:
@@ -550,6 +552,7 @@ error:
     thread_count--;
     thread_running--;
     delete new_thd;
+    pthread_cond_broadcast(&COND_thread_count);
     pthread_mutex_unlock(&LOCK_thread_count);
   }
   delete event_name;
@@ -625,13 +628,13 @@ Event_scheduler::stop()
     DBUG_PRINT("info", ("Scheduler thread has id %lu",
                         scheduler_thd->thread_id));
     /* Lock from delete */
-    pthread_mutex_lock(&scheduler_thd->LOCK_delete);
+    pthread_mutex_lock(&scheduler_thd->LOCK_thd_data);
     /* This will wake up the thread if it waits on Queue's conditional */
     sql_print_information("Event Scheduler: Killing the scheduler thread, "
                           "thread id %lu",
                           scheduler_thd->thread_id);
     scheduler_thd->awake(THD::KILL_CONNECTION);
-    pthread_mutex_unlock(&scheduler_thd->LOCK_delete);
+    pthread_mutex_unlock(&scheduler_thd->LOCK_thd_data);
 
     /* thd could be 0x0, when shutting down */
     sql_print_information("Event Scheduler: "
