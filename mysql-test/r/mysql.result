@@ -162,8 +162,8 @@ ERROR 1049 (42000) at line 1: Unknown database 'invalid'
 ERROR 1049 (42000) at line 1: Unknown database 'invalid'
 Test connect with dbname + hostname
 Test connect with dbname + _invalid_ hostname
-ERROR 2005 (HY000) at line 1: Unknown MySQL server host 'invalid_hostname' (errno)
-ERROR 2005 (HY000) at line 1: Unknown MySQL server host 'invalid_hostname' (errno)
+ERROR 2003 (HY000) at line 1: Can't connect to MySQL server on 'invalid_hostname' (errno)
+ERROR 2003 (HY000) at line 1: Can't connect to MySQL server on 'invalid_hostname' (errno)
 The commands reported in the bug report
 ERROR 2005 (HY000) at line 1: Unknown MySQL server host 'cyril has found a bug :)XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX' (errno)
 Too long dbname
@@ -207,5 +207,27 @@ Warning (Code 1286): Unknown table engine 'nonexistent2'
 Warning (Code 1266): Using storage engine MyISAM for table 't2'
 Error (Code 1050): Table 't2' already exists
 drop tables t1, t2;
-<TABLE BORDER=1><TR><TH>&lt;</TH></TR><TR><TD>&lt; &amp; &gt;</TD></TR></TABLE>
+<TABLE BORDER=1><TR><TH>&lt;</TH></TR><TR><TD>&lt; &amp; &gt;</TD></TR></TABLE>create table t1 (a char(5));
+insert into t1 values ('\0b\0');
+a
+\0b\0
+a
+\0b\0
++------+
+| a    |
++------+
+|  b   |
++------+
+*************************** 1. row ***************************
+a:  b 
+<TABLE BORDER=1><TR><TH>a</TH></TR><TR><TD> b </TD></TR></TABLE><?xml version="1.0"?>
+
+<resultset statement="select a from t1
+" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <row>
+	<field name="a"> b </field>
+  </row>
+</resultset>
+drop table t1;
+
 End of tests
