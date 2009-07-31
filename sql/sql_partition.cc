@@ -3824,8 +3824,13 @@ bool mysql_unpack_partition(THD *thd,
     Item_field objects.
     This is not a nice solution since if the parser uses current_select
     for anything else it will corrupt the current LEX object.
+    Also, we need to make sure there even is a select -- if the statement
+    was a "USE ...", current_select will be NULL, but we may still end up
+    here if we try to log to a partitioned table. This is currently
+    unsupported, but should still fail rather than crash!
   */
-  thd->lex->current_select= old_lex->current_select; 
+  if (!(thd->lex->current_select= old_lex->current_select))
+    goto end;
   /*
     All Items created is put into a free list on the THD object. This list
     is used to free all Item objects after completing a query. We don't
