@@ -1020,6 +1020,17 @@ subpartition by hash(a)
  partition p1 values less than (1) (subpartition sp0));
 
 #
+# Bug 46354 Crash with subpartition
+#
+--error ER_PARSE_ERROR
+create table t1 (a int, b int)
+partition by list (a)
+subpartition by hash(a)
+(partition p0 values in (0),
+ partition p1 values in (1) (subpartition sp0));
+
+
+#
 # BUG 15961 No error when subpartition defined without subpartition by clause
 #
 --error ER_SUBPARTITION_ERROR

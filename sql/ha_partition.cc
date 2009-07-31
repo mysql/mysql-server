@@ -423,12 +423,9 @@ bool ha_partition::initialize_partition(MEM_ROOT *mem_root)
 
 int ha_partition::delete_table(const char *name)
 {
-  int error;
   DBUG_ENTER("ha_partition::delete_table");
 
-  if ((error= del_ren_cre_table(name, NULL, NULL, NULL)))
-    DBUG_RETURN(error);
-  DBUG_RETURN(handler::delete_table(name));
+  DBUG_RETURN(del_ren_cre_table(name, NULL, NULL, NULL));
 }
 
 
@@ -456,12 +453,9 @@ int ha_partition::delete_table(const char *name)
 
 int ha_partition::rename_table(const char *from, const char *to)
 {
-  int error;
   DBUG_ENTER("ha_partition::rename_table");
 
-  if ((error= del_ren_cre_table(from, to, NULL, NULL)))
-    DBUG_RETURN(error);
-  DBUG_RETURN(handler::rename_table(from, to));
+  DBUG_RETURN(del_ren_cre_table(from, to, NULL, NULL));
 }
 
 
@@ -1807,6 +1801,15 @@ uint ha_partition::del_ren_cre_table(const char *from,
   DBUG_PRINT("enter", ("from: (%s) to: (%s)", from, to));
   name_buffer_ptr= m_name_buffer_ptr;
   file= m_file;
+  if (to == NULL && table_arg == NULL)
+  {
+    /*
+      Delete table, start by delete the .par file. If error, break, otherwise
+      delete as much as possible.
+    */
+    if ((error= handler::delete_table(from)))
+      DBUG_RETURN(error);
+  }
   /*
     Since ha_partition has HA_FILE_BASED, it must alter underlying table names
     if they do not have HA_FILE_BASED and lower_case_table_names == 2.
@@ -1828,6 +1831,8 @@ uint ha_partition::del_ren_cre_table(const char *from,
       create_partition_name(to_buff, to_path, name_buffer_ptr,
                             NORMAL_PART_NAME, FALSE);
       error= (*file)->ha_rename_table(from_buff, to_buff);
+      if (error)
+        goto rename_error;
     }
     else if (table_arg == NULL)			// delete branch
       error= (*file)->ha_delete_table(from_buff);
@@ -1843,6 +1848,15 @@ uint ha_partition::del_ren_cre_table(const char *from,
       save_error= error;
     i++;
   } while (*(++file));
+  if (to != NULL)
+  {
+    if ((error= handler::rename_table(from, to)))
+    {
+      /* Try to revert everything, ignore errors */
+      (void) handler::rename_table(to, from);
+      goto rename_error;
+    }
+  }
   DBUG_RETURN(save_error);
 create_error:
   name_buffer_ptr= m_name_buffer_ptr;
@@ -1850,7 +1864,21 @@ create_error:
   {
     create_partition_name(from_buff, from_path, name_buffer_ptr, NORMAL_PART_NAME,
                           FALSE);
-    VOID((*file)->ha_delete_table((const char*) from_buff));
+    (void) (*file)->ha_delete_table((const char*) from_buff);
+    name_buffer_ptr= strend(name_buffer_ptr) + 1;
+  }
+  DBUG_RETURN(error);
+rename_error:
+  name_buffer_ptr= m_name_buffer_ptr;
+  for (abort_file= file, file= m_file; file < abort_file; file++)
+  {
+    /* Revert the rename, back from 'to' to the original 'from' */
+    create_partition_name(from_buff, from_path, name_buffer_ptr,
+                          NORMAL_PART_NAME, FALSE);
+    create_partition_name(to_buff, to_path, name_buffer_ptr,
+                          NORMAL_PART_NAME, FALSE);
+    /* Ignore error here */
+    (void) (*file)->ha_rename_table(to_buff, from_buff);
     name_buffer_ptr= strend(name_buffer_ptr) + 1;
   }
   DBUG_RETURN(error);
@@ -3179,6 +3207,7 @@ int ha_partition::delete_row(const uchar *buf)
 int ha_partition::delete_all_rows()
 {
   int error;
+  bool truncate= FALSE;
   handler **file;
   THD *thd= ha_thd();
   DBUG_ENTER("ha_partition::delete_all_rows");
@@ -3190,12 +3219,16 @@ int ha_partition::delete_all_rows()
     ha_data->next_auto_inc_val= 0;
     ha_data->auto_inc_initialized= FALSE;
     unlock_auto_increment();
+    truncate= TRUE;
   }
   file= m_file;
   do
   {
     if ((error= (*file)->ha_delete_all_rows()))
       DBUG_RETURN(error);
+    /* Ignore the error */
+    if (truncate)
+      (void) (*file)->ha_reset_auto_increment(0);
   } while (*(++file));
   DBUG_RETURN(0);
 }

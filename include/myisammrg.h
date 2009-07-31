@@ -47,6 +47,7 @@ typedef struct st_mymerge_info		/* Struct from h_info */
   ulonglong deleted;			/* Deleted records in database */
   ulonglong recpos;			/* Pos for last used record */
   ulonglong data_file_length;
+  ulonglong dupp_key_pos;               /* Offset of the Duplicate key in the merge table */
   uint	reclength;			/* Recordlength */
   int	errkey;				/* With key was dupplicated on err */
   uint	options;			/* HA_OPTION_... used */
@@ -88,7 +89,8 @@ extern MYRG_INFO *myrg_parent_open(const char *parent_name,
                                    void *callback_param);
 extern int myrg_attach_children(MYRG_INFO *m_info, int handle_locking,
                                 MI_INFO *(*callback)(void*),
-                                void *callback_param);
+                                void *callback_param,
+                                my_bool *need_compat_check);
 extern int myrg_detach_children(MYRG_INFO *m_info);
 extern int myrg_panic(enum ha_panic_function function);
 extern int myrg_rfirst(MYRG_INFO *file,uchar *buf,int inx);

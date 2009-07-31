@@ -627,7 +627,7 @@ THD::THD()
 #ifdef SIGNAL_WITH_VIO_CLOSE
   active_vio = 0;
 #endif
-  pthread_mutex_init(&LOCK_delete, MY_MUTEX_INIT_FAST);
+  pthread_mutex_init(&LOCK_thd_data, MY_MUTEX_INIT_FAST);
 
   /* Variables with default values */
   proc_info="login";
@@ -911,8 +911,8 @@ THD::~THD()
   THD_CHECK_SENTRY(this);
   DBUG_ENTER("~THD()");
   /* Ensure that no one is using THD */
-  pthread_mutex_lock(&LOCK_delete);
-  pthread_mutex_unlock(&LOCK_delete);
+  pthread_mutex_lock(&LOCK_thd_data);
+  pthread_mutex_unlock(&LOCK_thd_data);
   add_to_status(&global_status_var, &status_var);
 
   /* Close connection */
@@ -939,7 +939,7 @@ THD::~THD()
   free_root(&transaction.mem_root,MYF(0));
 #endif
   mysys_var=0;					// Safety (shouldn't be needed)
-  pthread_mutex_destroy(&LOCK_delete);
+  pthread_mutex_destroy(&LOCK_thd_data);
 #ifndef DBUG_OFF
   dbug_sentry= THD_SENTRY_GONE;
 #endif  
@@ -1012,7 +1012,7 @@ void THD::awake(THD::killed_state state_to_set)
   DBUG_ENTER("THD::awake");
   DBUG_PRINT("enter", ("this: 0x%lx", (long) this));
   THD_CHECK_SENTRY(this);
-  safe_mutex_assert_owner(&LOCK_delete); 
+  safe_mutex_assert_owner(&LOCK_thd_data);
 
   killed= state_to_set;
   if (state_to_set != THD::KILL_QUERY)
@@ -1409,7 +1409,7 @@ int THD::send_explain_fields(select_result *result)
 void THD::close_active_vio()
 {
   DBUG_ENTER("close_active_vio");
-  safe_mutex_assert_owner(&LOCK_delete); 
+  safe_mutex_assert_owner(&LOCK_thd_data);
 #ifndef EMBEDDED_LIBRARY
   if (active_vio)
   {
@@ -1790,6 +1790,8 @@ select_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
   if ((uint) strlen(exchange->file_name) + NAME_LEN >= FN_REFLEN)
     strmake(path,exchange->file_name,FN_REFLEN-1);
 
+  write_cs= exchange->cs ? exchange->cs : &my_charset_bin;
+
   if ((file= create_file(thd, path, exchange, &cache)) < 0)
     return 1;
   /* Check if there is any blobs in data */
@@ -1808,6 +1810,31 @@ select_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
       else
         non_string_results= TRUE;
     }
+  }
+  if (exchange->escaped->numchars() > 1 || exchange->enclosed->numchars() > 1)
+  {
+    my_error(ER_WRONG_FIELD_TERMINATORS, MYF(0));
+    return TRUE;
+  }
+  if (exchange->escaped->length() > 1 || exchange->enclosed->length() > 1 ||
+      !my_isascii(exchange->escaped->ptr()[0]) ||
+      !my_isascii(exchange->enclosed->ptr()[0]) ||
+      !exchange->field_term->is_ascii() || !exchange->line_term->is_ascii() ||
+      !exchange->line_start->is_ascii())
+  {
+    /*
+      Current LOAD DATA INFILE recognizes field/line separators "as is" without
+      converting from client charset to data file charset. So, it is supposed,
+      that input file of LOAD DATA INFILE consists of data in one charset and
+      separators in other charset. For the compatibility with that [buggy]
+      behaviour SELECT INTO OUTFILE implementation has been saved "as is" too,
+      but the new warning message has been added:
+
+        Non-ASCII separator arguments are not fully supported
+    */
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                 WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED,
+                 ER(WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED));
   }
   field_term_length=exchange->field_term->length();
   field_term_char= field_term_length ?
@@ -1858,6 +1885,8 @@ bool select_export::send_data(List<Item> &items)
 
   DBUG_ENTER("select_export::send_data");
   char buff[MAX_FIELD_WIDTH],null_buff[2],space[MAX_FIELD_WIDTH];
+  char cvt_buff[MAX_FIELD_WIDTH];
+  String cvt_str(cvt_buff, sizeof(cvt_buff), write_cs);
   bool space_inited=0;
   String tmp(buff,sizeof(buff),&my_charset_bin),*res;
   tmp.length(0);
@@ -1881,6 +1910,37 @@ bool select_export::send_data(List<Item> &items)
     bool enclosed = (exchange->enclosed->length() &&
                      (!exchange->opt_enclosed || result_type == STRING_RESULT));
     res=item->str_result(&tmp);
+    if (res && !my_charset_same(write_cs, res->charset()) &&
+        !my_charset_same(write_cs, &my_charset_bin))
+    {
+      const char *well_formed_error_pos;
+      const char *cannot_convert_error_pos;
+      const char *from_end_pos;
+      const char *error_pos;
+      uint32 bytes;
+      bytes= well_formed_copy_nchars(write_cs, cvt_buff, sizeof(cvt_buff),
+                                     res->charset(), res->ptr(), res->length(),
+                                     sizeof(cvt_buff),
+                                     &well_formed_error_pos,
+                                     &cannot_convert_error_pos,
+                                     &from_end_pos);
+      error_pos= well_formed_error_pos ? well_formed_error_pos
+                                       : cannot_convert_error_pos;
+      if (error_pos)
+      {
+        char printable_buff[32];
+        convert_to_printable(printable_buff, sizeof(printable_buff),
+                             error_pos, res->ptr() + res->length() - error_pos,
+                             res->charset(), 6);
+        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                            ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
+                            ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
+                            "string", printable_buff,
+                            item->name, row_count);
+      }
+      cvt_str.length(bytes);
+      res= &cvt_str;
+    }
     if (res && enclosed)
     {
       if (my_b_write(&cache,(uchar*) exchange->enclosed->ptr(),
@@ -3055,6 +3115,25 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
 }
 
 
+void THD::set_statement(Statement *stmt)
+{
+  pthread_mutex_lock(&LOCK_thd_data);
+  Statement::set_statement(stmt);
+  pthread_mutex_unlock(&LOCK_thd_data);
+}
+
+
+/** Assign a new value to thd->query.  */
+
+void THD::set_query(char *query_arg, uint32 query_length_arg)
+{
+  pthread_mutex_lock(&LOCK_thd_data);
+  query= query_arg;
+  query_length= query_length_arg;
+  pthread_mutex_unlock(&LOCK_thd_data);
+}
+
+
 /**
   Mark transaction to rollback and mark error as fatal to a sub-statement.
 
@@ -3695,7 +3774,8 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
     push_warning(this, MYSQL_ERROR::WARN_LEVEL_NOTE,
                  ER_BINLOG_UNSAFE_STATEMENT,
                  ER(ER_BINLOG_UNSAFE_STATEMENT));
-    if (!(binlog_flags & BINLOG_FLAG_UNSAFE_STMT_PRINTED))
+    if (global_system_variables.log_warnings &&
+        !(binlog_flags & BINLOG_FLAG_UNSAFE_STMT_PRINTED))
     {
       sql_print_warning("%s Statement: %.*s",
                         ER(ER_BINLOG_UNSAFE_STATEMENT),

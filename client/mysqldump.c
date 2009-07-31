@@ -3137,6 +3137,12 @@ static void dump_table(char *table, char *db)
     dynstr_append_checked(&query_string, filename);
     dynstr_append_checked(&query_string, "'");
 
+    dynstr_append_checked(&query_string, " /*!50137 CHARACTER SET ");
+    dynstr_append_checked(&query_string, default_charset == mysql_universal_client_charset ?
+                                         my_charset_bin.name : /* backward compatibility */
+                                         default_charset);
+    dynstr_append_checked(&query_string, " */");
+
     if (fields_terminated || enclosed || opt_enclosed || escaped)
       dynstr_append_checked(&query_string, " FIELDS");
     
@@ -3821,6 +3827,10 @@ static int dump_all_databases()
     return 1;
   while ((row= mysql_fetch_row(tableres)))
   {
+    if (mysql_get_server_version(mysql) >= 50003 &&
+        !my_strcasecmp(&my_charset_latin1, row[0], "information_schema"))
+      continue;
+
     if (dump_all_tables_in_db(row[0]))
       result=1;
   }
@@ -3835,6 +3845,10 @@ static int dump_all_databases()
     }
     while ((row= mysql_fetch_row(tableres)))
     {
+      if (mysql_get_server_version(mysql) >= 50003 &&
+          !my_strcasecmp(&my_charset_latin1, row[0], "information_schema"))
+        continue;
+
       if (dump_all_views_in_db(row[0]))
         result=1;
     }
@@ -3941,10 +3955,6 @@ int init_dumping_tables(char *qdatabase)
 
 static int init_dumping(char *database, int init_func(char*))
 {
-  if (mysql_get_server_version(mysql) >= 50003 &&
-      !my_strcasecmp(&my_charset_latin1, database, "information_schema"))
-    return 1;
-
   if (mysql_select_db(mysql, database))
   {
     DB_error(mysql, "when selecting the database");
@@ -4003,6 +4013,7 @@ static int dump_all_tables_in_db(char *database)
     DBUG_RETURN(1);
   if (opt_xml)
     print_xml_tag(md_result_file, "", "\n", "database", "name=", database, NullS);
+
   if (lock_tables)
   {
     DYNAMIC_STRING query;
@@ -4236,7 +4247,10 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
   }
   end= pos;
 
-  if (lock_tables)
+  /* Can't LOCK TABLES in INFORMATION_SCHEMA, so don't try. */
+  if (lock_tables &&
+      !(mysql_get_server_version(mysql) >= 50003 &&
+        !my_strcasecmp(&my_charset_latin1, db, "information_schema")))
   {
     if (mysql_real_query(mysql, lock_tables_query.str,
                          lock_tables_query.length-1))
@@ -4802,7 +4816,8 @@ static my_bool get_view_structure(char *table, char* db)
             result_table);
     check_io(sql_file);
   }
-  fprintf(sql_file, "/*!50001 DROP TABLE %s*/;\n", opt_quoted_table);
+  /* Table might not exist if this view was dumped with --tab. */
+  fprintf(sql_file, "/*!50001 DROP TABLE IF EXISTS %s*/;\n", opt_quoted_table);
   if (opt_drop)
   {
     fprintf(sql_file, "/*!50001 DROP VIEW IF EXISTS %s*/;\n",
