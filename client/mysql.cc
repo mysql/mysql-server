@@ -170,6 +170,8 @@ static const char *xmlmeta[] = {
   "<", "&lt;",
   ">", "&gt;",
   "\"", "&quot;",
+  /* Turn \0 into a space. Why not &#0;? That's not valid XML or HTML. */
+  "\0", " ",
   0, 0
 };
 static const char *day_names[]={"Sun","Mon","Tue","Wed","Thu","Fri","Sat"};
@@ -3502,11 +3504,29 @@ print_table_data_vertically(MYSQL_RES *result)
     mysql_field_seek(result,0);
     tee_fprintf(PAGER, 
 		"*************************** %d. row ***************************\n", row_count);
+
+    ulong *lengths= mysql_fetch_lengths(result);
+
     for (uint off=0; off < mysql_num_fields(result); off++)
     {
       field= mysql_fetch_field(result);
       tee_fprintf(PAGER, "%*s: ",(int) max_length,field->name);
-      tee_fprintf(PAGER, "%s\n",cur[off] ? (char*) cur[off] : "NULL");
+      if (cur[off])
+      {
+        unsigned int i;
+        const char *p;
+
+        for (i= 0, p= cur[off]; i < lengths[off]; i+= 1, p+= 1)
+        {
+          if (*p == '\0')
+            tee_putc((int)' ', PAGER);
+          else
+            tee_putc((int)*p, PAGER);
+        }
+        tee_putc('\n', PAGER);
+      }
+      else
+        tee_fprintf(PAGER, "NULL\n");
     }
   }
 }
@@ -3573,7 +3593,7 @@ xmlencode_print(const char *src, uint length)
     tee_fputs("NULL", PAGER);
   else
   {
-    for (const char *p = src; *p && length; *p++, length--)
+    for (const char *p = src; length; *p++, length--)
     {
       const char *t;
       if ((t = array_value(xmlmeta, *p)))
@@ -3593,7 +3613,12 @@ safe_put_field(const char *pos,ulong length)
   else
   {
     if (opt_raw_data)
-      tee_fputs(pos, PAGER);
+    {
+      unsigned long i;
+      /* Can't use tee_fputs(), it stops with NUL characters. */
+      for (i= 0; i < length; i++, pos++)
+        tee_putc(*pos, PAGER);
+    }
     else for (const char *end=pos+length ; pos != end ; pos++)
     {
 #ifdef USE_MB
