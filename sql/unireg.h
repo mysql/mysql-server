@@ -29,8 +29,8 @@
 #define TEMP_PREFIX	"MY"
 #define LOG_PREFIX	"ML"
 #define PROGDIR		"bin/"
-#ifndef DATADIR
-#define DATADIR		"data/"
+#ifndef MYSQL_DATADIR
+#define MYSQL_DATADIR		"data/"
 #endif
 #ifndef SHAREDIR
 #define SHAREDIR	"share/"
