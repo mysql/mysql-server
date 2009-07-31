@@ -3714,7 +3714,8 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
     push_warning(this, MYSQL_ERROR::WARN_LEVEL_NOTE,
                  ER_BINLOG_UNSAFE_STATEMENT,
                  ER(ER_BINLOG_UNSAFE_STATEMENT));
-    if (!(binlog_flags & BINLOG_FLAG_UNSAFE_STMT_PRINTED))
+    if (global_system_variables.log_warnings &&
+        !(binlog_flags & BINLOG_FLAG_UNSAFE_STMT_PRINTED))
     {
       sql_print_warning("%s Statement: %.*s",
                         ER(ER_BINLOG_UNSAFE_STATEMENT),
