@@ -139,9 +139,9 @@ INSERT INTO global_suppressions VALUES
  ("Cannot find or open table test\/bug29807 from"),
 
  /* innodb foreign key tests that fail in ALTER or RENAME produce this */
- ("InnoDB: Error: in ALTER TABLE `test`.`t[12]`"),
+ ("InnoDB: Error: in ALTER TABLE `test`.`t[123]`"),
  ("InnoDB: Error: in RENAME TABLE table `test`.`t1`"),
- ("InnoDB: Error: table `test`.`t[12]` does not exist in the InnoDB internal"),
+ ("InnoDB: Error: table `test`.`t[123]` does not exist in the InnoDB internal"),
 
  /* Test case for Bug#14233 produces the following warnings: */
  ("Stored routine 'test'.'bug14233_1': invalid value in column mysql.proc"),

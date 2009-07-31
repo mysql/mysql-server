@@ -416,6 +416,21 @@ my_bool locked_in_memory;
 bool opt_using_transactions;
 bool volatile abort_loop;
 bool volatile shutdown_in_progress;
+/*
+  True if the bootstrap thread is running. Protected by LOCK_thread_count,
+  just like thread_count.
+  Used in bootstrap() function to determine if the bootstrap thread
+  has completed. Note, that we can't use 'thread_count' instead,
+  since in 5.1, in presence of the Event Scheduler, there may be
+  event threads running in parallel, so it's impossible to know
+  what value of 'thread_count' is a sign of completion of the
+  bootstrap thread.
+
+  At the same time, we can't start the event scheduler after
+  bootstrap either, since we want to be able to process event-related
+  SQL commands in the init file and in --bootstrap mode.
+*/
+bool in_bootstrap= FALSE;
 /**
    @brief 'grant_option' is used to indicate if privileges needs
    to be checked, in which case the lock, LOCK_grant, is used
@@ -3504,7 +3519,7 @@ static int init_thread_environment()
   (void) pthread_mutex_init(&LOCK_mysql_create_db,MY_MUTEX_INIT_SLOW);
   (void) pthread_mutex_init(&LOCK_lock_db,MY_MUTEX_INIT_SLOW);
   (void) pthread_mutex_init(&LOCK_Acl,MY_MUTEX_INIT_SLOW);
-  (void) pthread_mutex_init(&LOCK_open, NULL);
+  (void) pthread_mutex_init(&LOCK_open, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_thread_count,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_mapped_file,MY_MUTEX_INIT_SLOW);
   (void) pthread_mutex_init(&LOCK_status,MY_MUTEX_INIT_FAST);
@@ -3651,14 +3666,17 @@ static void init_ssl()
 #ifdef HAVE_OPENSSL
   if (opt_use_ssl)
   {
+    enum enum_ssl_init_error error= SSL_INITERR_NOERROR;
+
     /* having ssl_acceptor_fd != 0 signals the use of SSL */
     ssl_acceptor_fd= new_VioSSLAcceptorFd(opt_ssl_key, opt_ssl_cert,
 					  opt_ssl_ca, opt_ssl_capath,
-					  opt_ssl_cipher);
+					  opt_ssl_cipher, &error);
     DBUG_PRINT("info",("ssl_acceptor_fd: 0x%lx", (long) ssl_acceptor_fd));
     if (!ssl_acceptor_fd)
     {
       sql_print_warning("Failed to setup SSL");
+      sql_print_warning("SSL error: %s", sslGetErrString(error));
       opt_use_ssl = 0;
       have_ssl= SHOW_OPTION_DISABLED;
     }
@@ -4300,7 +4318,6 @@ int main(int argc, char **argv)
 
   select_thread=pthread_self();
   select_thread_in_use=1;
-  init_ssl();
 
 #ifdef HAVE_LIBWRAP
   libwrapName= my_progname+dirname_length(my_progname);
@@ -4355,6 +4372,7 @@ we force server id to 2, but this MySQL server will not act as a slave.");
   if (init_server_components())
     unireg_abort(1);
 
+  init_ssl();
   network_init();
 
 #ifdef __WIN__
@@ -4423,6 +4441,11 @@ we force server id to 2, but this MySQL server will not act as a slave.");
     unireg_abort(1);
   }
 
+  execute_ddl_log_recovery();
+
+  if (Events::init(opt_noacl || opt_bootstrap))
+    unireg_abort(1);
+
   if (opt_bootstrap)
   {
     select_thread_in_use= 0;                    // Allow 'kill' to work
@@ -4434,13 +4457,9 @@ we force server id to 2, but this MySQL server will not act as a slave.");
     if (read_init_file(opt_init_file))
       unireg_abort(1);
   }
-  execute_ddl_log_recovery();
 
   create_shutdown_thread();
   start_handle_manager();
-
-  if (Events::init(opt_noacl))
-    unireg_abort(1);
 
   sql_print_information(ER(ER_STARTUP),my_progname,server_version,
                         ((unix_sock == INVALID_SOCKET) ? (char*) ""
@@ -4723,6 +4742,7 @@ static void bootstrap(FILE *file)
   thd->security_ctx->master_access= ~(ulong)0;
   thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
   thread_count++;
+  in_bootstrap= TRUE;
 
   bootstrap_file=file;
 #ifndef EMBEDDED_LIBRARY			// TODO:  Enable this
@@ -4735,7 +4755,7 @@ static void bootstrap(FILE *file)
   }
   /* Wait for thread to die */
   (void) pthread_mutex_lock(&LOCK_thread_count);
-  while (thread_count)
+  while (in_bootstrap)
   {
     (void) pthread_cond_wait(&COND_thread_count,&LOCK_thread_count);
     DBUG_PRINT("quit",("One thread died (count=%u)",thread_count));
@@ -6621,7 +6641,7 @@ The minimum value for this variable is 4096.",
    "Joins that are probably going to read more than max_join_size records return an error.",
    (uchar**) &global_system_variables.max_join_size,
    (uchar**) &max_system_variables.max_join_size, 0, GET_HA_ROWS, REQUIRED_ARG,
-   ~0L, 1, ~0L, 0, 1, 0},
+   HA_POS_ERROR, 1, HA_POS_ERROR, 0, 1, 0},
    {"max_length_for_sort_data", OPT_MAX_LENGTH_FOR_SORT_DATA,
     "Max number of bytes in sorted records.",
     (uchar**) &global_system_variables.max_length_for_sort_data,

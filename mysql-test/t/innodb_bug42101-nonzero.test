@@ -12,6 +12,8 @@ set global innodb_commit_concurrency=1;
 select @@innodb_commit_concurrency;
 set global innodb_commit_concurrency=42;
 select @@innodb_commit_concurrency;
+set global innodb_commit_concurrency=DEFAULT;
+select @@innodb_commit_concurrency;
 --error ER_WRONG_ARGUMENTS
 set global innodb_commit_concurrency=0;
 select @@innodb_commit_concurrency;

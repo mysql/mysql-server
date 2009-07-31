@@ -47,6 +47,12 @@
 #include <myisam.h>
 #include <myisammrg.h>
 
+/* this is to get the bison compilation windows warnings out */
+#ifdef _MSC_VER
+/* warning C4065: switch statement contains 'default' but no 'case' labels */
+#pragma warning (disable : 4065)
+#endif
+
 int yylex(void *yylval, void *yythd);
 
 const LEX_STRING null_lex_str= {0,0};
@@ -883,7 +889,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  OWNER_SYM
 %token  PACK_KEYS_SYM
 %token  PAGE_SYM
-%token  PAGE_CHECKSUM_SYM
 %token  PARAM_MARKER
 %token  PARSER_SYM
 %token  PARTIAL                       /* SQL-2003-N */
@@ -1042,7 +1047,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  TO_SYM                        /* SQL-2003-R */
 %token  TRAILING                      /* SQL-2003-R */
 %token  TRANSACTION_SYM
-%token  TRANSACTIONAL_SYM
 %token  TRIGGERS_SYM
 %token  TRIGGER_SYM                   /* SQL-2003-R */
 %token  TRIM                          /* SQL-2003-N */
@@ -4202,6 +4206,10 @@ opt_sub_partition:
             if (Lex->part_info->no_subparts != 0 &&
                 !Lex->part_info->use_default_subpartitions)
             {
+              /*
+                We come here when we have defined subpartitions on the first
+                partition but not on all the subsequent partitions. 
+              */
               my_parse_error(ER(ER_PARTITION_WRONG_NO_SUBPART_ERROR));
               MYSQL_YYABORT;
             }
@@ -4244,6 +4252,23 @@ sub_part_definition:
             partition_info *part_info= lex->part_info;
             partition_element *curr_part= part_info->current_partition;
             partition_element *sub_p_elem= new partition_element(curr_part);
+            if (part_info->use_default_subpartitions &&
+                part_info->partitions.elements >= 2)
+            {
+              /*
+                create table t1 (a int)
+                partition by list (a) subpartition by hash (a)
+                (partition p0 values in (1),
+                 partition p1 values in (2) subpartition sp11);
+                causes use to arrive since we are on the second
+                partition, but still use_default_subpartitions
+                is set. When we come here we're processing at least
+                the second partition (the current partition processed
+                have already been put into the partitions list.
+              */
+              my_parse_error(ER(ER_PARTITION_WRONG_NO_SUBPART_ERROR));
+              MYSQL_YYABORT;
+            }
             if (!sub_p_elem ||
              curr_part->subpartitions.push_back(sub_p_elem))
             {
@@ -4460,11 +4485,6 @@ create_table_option:
              Lex->create_info.table_options|= $3 ? HA_OPTION_CHECKSUM : HA_OPTION_NO_CHECKSUM;
              Lex->create_info.used_fields|= HA_CREATE_USED_CHECKSUM;
           }
-        | PAGE_CHECKSUM_SYM opt_equal choice
-          {
-            Lex->create_info.used_fields|= HA_CREATE_USED_PAGE_CHECKSUM;
-            Lex->create_info.page_checksum= $3;
-          }
         | DELAY_KEY_WRITE_SYM opt_equal ulong_num
           {
             Lex->create_info.table_options|= $3 ? HA_OPTION_DELAY_KEY_WRITE : HA_OPTION_NO_DELAY_KEY_WRITE;
@@ -4523,11 +4543,6 @@ create_table_option:
           {
             Lex->create_info.used_fields|= HA_CREATE_USED_KEY_BLOCK_SIZE;
             Lex->create_info.key_block_size= $3;
-          }
-        | TRANSACTIONAL_SYM opt_equal choice
-          {
-	    Lex->create_info.used_fields|= HA_CREATE_USED_TRANSACTIONAL;
-            Lex->create_info.transactional= $3;
           }
         ;
 
@@ -4610,7 +4625,6 @@ row_types:
         | COMPRESSED_SYM { $$= ROW_TYPE_COMPRESSED; }
         | REDUNDANT_SYM  { $$= ROW_TYPE_REDUNDANT; }
         | COMPACT_SYM    { $$= ROW_TYPE_COMPACT; }
-        | PAGE_SYM       { $$= ROW_TYPE_PAGE; }
         ;
 
 merge_insert_types:
@@ -8493,6 +8507,7 @@ table_factor:
                 MYSQL_YYABORT;
               sel->add_joined_table($$);
               lex->pop_context();
+              lex->nest_level--;
             }
             else if ($4 || $6)
             {
@@ -8501,7 +8516,11 @@ table_factor:
               MYSQL_YYABORT;
             }
             else
+            {
+              /* nested join: FROM (t1 JOIN t2 ...),
+                 nest_level is the same as in the outer query */
               $$= $3;
+            }
           }
         ;
 
@@ -9194,6 +9213,8 @@ into_destination:
                 !(lex->result= new select_export(lex->exchange, lex->nest_level)))
               MYSQL_YYABORT;
           }
+          opt_load_data_charset
+          { Lex->exchange->cs= $4; }
           opt_field_term opt_line_term
         | DUMPFILE TEXT_STRING_filesystem
           {
@@ -11548,7 +11569,6 @@ keyword_sp:
         | ONE_SYM                  {}
         | PACK_KEYS_SYM            {}
         | PAGE_SYM                 {}
-        | PAGE_CHECKSUM_SYM	   {}
         | PARTIAL                  {}
         | PARTITIONING_SYM         {}
         | PARTITIONS_SYM           {}
@@ -11625,7 +11645,6 @@ keyword_sp:
         | TEXT_SYM                 {}
         | THAN_SYM                 {}
         | TRANSACTION_SYM          {}
-        | TRANSACTIONAL_SYM        {}
         | TRIGGERS_SYM             {}
         | TIMESTAMP                {}
         | TIMESTAMP_ADD            {}
