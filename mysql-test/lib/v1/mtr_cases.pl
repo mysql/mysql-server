@@ -540,7 +540,11 @@ sub collect_one_test_case($$$$$$$$$) {
   $tinfo->{'component_id'} = $component_id;
   push(@$cases, $tinfo);
 
-  if (exists ($incompatible{$tinfo->{'name'}}))
+  # Remove "combinations" part of test name
+  my $test_base_name= $tinfo->{'name'};
+  $test_base_name=~ s/\s.*\n//;
+
+  if (exists ($incompatible{$test_base_name}))
   {
     $tinfo->{'skip'}= 1;
     $tinfo->{'comment'}= "Test cannot run in mtr v1";
