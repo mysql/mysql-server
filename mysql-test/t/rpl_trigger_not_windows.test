@@ -1,0 +1,7 @@
+#
+# Test of triggers with replication
+#
+
+source include/master-slave.inc;
+source include/not_windows.inc;
+source t/rpl_trigger.inc;

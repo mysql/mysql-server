@@ -1,10 +1,4 @@
 #
-# Test of triggers with replication
-#
-
-source include/master-slave.inc;
-
-#
 # #12482: Triggers has side effects with auto_increment values
 #
 
@@ -284,63 +278,76 @@ while ($rnd)
 
 # 1. Check that the trigger's replication is succeeded.
 
-# Stop the slave.
+#
+# This was introduced due to the following bug on windows:
+# BUG#43264 Test rpl_trigger is failing randomly w/ use of copy_file in 5.0 
+# Unfortunately, it is not possible to share a solution as 5.0 has the following issues:
+#   1 - Inability to restart a server in the middle of a test case.
+#   2 - Neither the index or the binlogs are re-opened when the slave is stopped and
+#   restarted.
+#
+if (`select convert(@@version_compile_os using latin1) IN ("Win32","Win64","Windows") = 0`)
+{
+  # Stop the slave.
 
-connection slave;
-STOP SLAVE;
+  connection slave;
+  STOP SLAVE;
 
-# Replace master's binlog.
+  # Replace master's binlog.
 
-connection master;
-FLUSH LOGS;
---remove_file $MYSQLTEST_VARDIR/log/master-bin.000001
---copy_file $MYSQL_TEST_DIR/std_data/bug16266.000001 $MYSQLTEST_VARDIR/log/master-bin.000001
+  connection master;
+  FLUSH LOGS;
+  --remove_file $MYSQLTEST_VARDIR/log/master-bin.000001
+  --copy_file $MYSQL_TEST_DIR/std_data/bug16266.000001 $MYSQLTEST_VARDIR/log/master-bin.000001
 
-# Make the slave to replay the new binlog.
+  # Make the slave to replay the new binlog.
 
-connection slave;
-RESET SLAVE;
-START SLAVE;
+  connection slave;
+  RESET SLAVE;
+  START SLAVE;
 
-SELECT MASTER_POS_WAIT('master-bin.000001', 513) >= 0;
+  SELECT MASTER_POS_WAIT('master-bin.000001', 513) >= 0;
 
-# Check that the replication succeeded.
+  # Check that the replication succeeded.
 
-SHOW TABLES LIKE 't_';
-SHOW TRIGGERS;
-SELECT * FROM t1;
-SELECT * FROM t2;
+  SHOW TABLES LIKE 't_';
+  SHOW TRIGGERS;
+  SELECT * FROM t1;
+  SELECT * FROM t2;
 
-# 2. Check that the trigger is non-SUID on the slave;
-# 3. Check that the trigger can be activated on the slave.
+  # 2. Check that the trigger is non-SUID on the slave;
+  # 3. Check that the trigger can be activated on the slave.
 
-INSERT INTO t1 VALUES(2);
+  INSERT INTO t1 VALUES(2);
 
-SELECT * FROM t1;
-SELECT * FROM t2;
+  SELECT * FROM t1;
+  SELECT * FROM t2;
 
-# That's all, cleanup.
+  # That's all, cleanup.
 
-DROP TRIGGER trg1;
-DROP TABLE t1;
-DROP TABLE t2;
+  DROP TRIGGER trg1;
+  DROP TABLE t1;
+  DROP TABLE t2;
 
-STOP SLAVE;
-RESET SLAVE;
+  connection slave;
 
-# The master should be clean.
+  STOP SLAVE;
+  --source include/wait_for_slave_to_stop.inc
+  RESET SLAVE;
 
-connection master;
-SHOW TABLES LIKE 't_';
-SHOW TRIGGERS;
+  # The master should be clean.
 
-RESET MASTER;
+  connection master;
+  SHOW TABLES LIKE 't_';
+  SHOW TRIGGERS;
 
-# Restart slave.
+  RESET MASTER;
 
-connection slave;
-START SLAVE;
+  # Restart slave.
 
+  connection slave;
+  START SLAVE;
+}
 
 #
 # BUG#20438: CREATE statements for views, stored routines and triggers can be
