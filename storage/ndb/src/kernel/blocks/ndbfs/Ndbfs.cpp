@@ -138,6 +138,19 @@ validate_path(BaseString & dst,
   return true;
 }
 
+const BaseString&
+Ndbfs::get_base_path(Uint32 no) const
+{
+  if (no < NDB_ARRAY_SIZE(m_base_path) &&
+      strlen(m_base_path[no].c_str()) > 0)
+  {
+    jam();
+    return m_base_path[no];
+  }
+  
+  return m_base_path[FsOpenReq::BP_FS];
+}
+
 void 
 Ndbfs::execREAD_CONFIG_REQ(Signal* signal)
 {
@@ -162,51 +175,51 @@ Ndbfs::execREAD_CONFIG_REQ(Signal* signal)
   ndb_mgm_get_string_parameter(p, CFG_DB_DD_FILESYSTEM_PATH, &ddpath);
 
   {
-    const char * datapath = 0;
+    const char * datapath = ddpath;
     ndb_mgm_get_string_parameter(p, CFG_DB_DD_DATAFILE_PATH, &datapath);
-    if (datapath == 0)
+    if (datapath)
     {
-      if (ddpath)
-        datapath = ddpath;
-      else
-        datapath = m_ctx.m_config.fileSystemPath();
-    }
-
-    BaseString path;
-    add_path(path, datapath);
-    do_mkdir(path.c_str());
-    add_path(path, tmp.c_str());
-    do_mkdir(path.c_str());
-    if (!validate_path(m_base_path[FsOpenReq::BP_DD_DF], path.c_str()))
-    {
-      ERROR_SET(fatal, NDBD_EXIT_AFS_INVALIDPATH,
-                m_base_path[FsOpenReq::BP_DD_DF].c_str(),
-                "FileSystemPathDataFiles");
+      /**
+       * Only set BP_DD_DF if either FileSystemPathDataFiles or FileSystemPathDD
+       *   is set...otherwise get_base_path(FsOpenReq::BP_DD_DF) will
+       *   return BP_FS (see get_base_path)
+       */
+      BaseString path;
+      add_path(path, datapath);
+      do_mkdir(path.c_str());
+      add_path(path, tmp.c_str());
+      do_mkdir(path.c_str());
+      if (!validate_path(m_base_path[FsOpenReq::BP_DD_DF], path.c_str()))
+      {
+        ERROR_SET(fatal, NDBD_EXIT_AFS_INVALIDPATH,
+                  m_base_path[FsOpenReq::BP_DD_DF].c_str(),
+                  "FileSystemPathDataFiles");
+      }
     }
   }
 
   {
-    const char * undopath = 0;
+    const char * undopath = ddpath;
     ndb_mgm_get_string_parameter(p, CFG_DB_DD_UNDOFILE_PATH, &undopath);
-    if (undopath == 0)
+    if (undopath)
     {
-      if (ddpath)
-        undopath = ddpath;
-      else
-        undopath = m_ctx.m_config.fileSystemPath();
-    }
-
-    BaseString path;
-    add_path(path, undopath);
-    do_mkdir(path.c_str());
-    add_path(path, tmp.c_str());
-    do_mkdir(path.c_str());
-
-    if (!validate_path(m_base_path[FsOpenReq::BP_DD_UF], path.c_str()))
-    {
-      ERROR_SET(fatal, NDBD_EXIT_AFS_INVALIDPATH,
-                m_base_path[FsOpenReq::BP_DD_UF].c_str(),
-                "FileSystemPathUndoFiles");
+      /**
+       * Only set BP_DD_DF if either FileSystemPathUndoFiles or FileSystemPathDD
+       *   is set...otherwise get_base_path(FsOpenReq::BP_DD_UF) will
+       *   return BP_FS (see get_base_path)
+       */
+      BaseString path;
+      add_path(path, undopath);
+      do_mkdir(path.c_str());
+      add_path(path, tmp.c_str());
+      do_mkdir(path.c_str());
+      
+      if (!validate_path(m_base_path[FsOpenReq::BP_DD_UF], path.c_str()))
+      {
+        ERROR_SET(fatal, NDBD_EXIT_AFS_INVALIDPATH,
+                  m_base_path[FsOpenReq::BP_DD_UF].c_str(),
+                  "FileSystemPathUndoFiles");
+      }
     }
   }
 
@@ -313,17 +326,17 @@ Ndbfs::execFSOPENREQ(Signal* signal)
     // QOD, should be arg to FSOPEN
     if (refToMain(userRef) == TSMAN)
     {
-      file->theFileName.set(m_base_path[FsOpenReq::BP_DD_DF],
+      file->theFileName.set(get_base_path(FsOpenReq::BP_DD_DF),
                             ptr, g_sectionSegmentPool);
     }
     else if (refToMain(userRef) == LGMAN)
     {
-      file->theFileName.set(m_base_path[FsOpenReq::BP_DD_UF],
+      file->theFileName.set(get_base_path(FsOpenReq::BP_DD_UF),
                             ptr, g_sectionSegmentPool);
     }
     else
     {
-      file->theFileName.set(m_base_path[FsOpenReq::BP_FS],
+      file->theFileName.set(get_base_path(FsOpenReq::BP_FS),
                             ptr, g_sectionSegmentPool);
     }
 
@@ -374,10 +387,13 @@ Ndbfs::execFSREMOVEREQ(Signal* signal)
   
   if (version == 6)
   {
-    if (m_base_path[FsOpenReq::BP_FS] == m_base_path[bp])
+    ndbrequire(bp < NDB_ARRAY_SIZE(m_base_path));
+    if (strlen(m_base_path[bp].c_str()) == 0)
+    {
       goto ignore;
+    }
   }
-
+  
   ndbrequire(forward(file, request));
   return;
 ignore:
