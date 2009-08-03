@@ -14,20 +14,25 @@
 
 /*********************
  *
- * Purpose of this test is to verify nested transactions (support right number of possible values)
+ * Purpose of this test is to verify nested transactions, including support for implicit promotion
+ * in the presence of placeholders and branched trees of transactions.
+ *
 create empty db
 for test = 1 to MAX
    for nesting level 0
      - randomly insert or not
    for nesting_level = 1 to MAX
      - begin txn
-     - randomly one of (insert, delete, do nothing)
+     - randomly perform four operations, each of which is one of (insert, delete, do nothing)
      -  if insert, use a value/len unique to this txn
      - query to verify
    for nesting level = MAX to 1
-     - randomly abort or commit each transaction
+     - randomly abort or commit each transaction or
+      - insert or delete at same level (followed by either abort/commit)
+      - branch (add more child txns similar to above)
      - query to verify
 delete db
+ *
  */
 
 
@@ -41,6 +46,7 @@ u_int8_t types  [MAX_NEST];
 u_int8_t currval[MAX_NEST];
 DB_TXN   *txns   [MAX_NEST];
 DB_TXN   *txn_query;
+DB_TXN   *patient_txn;
 int which_expected;
 
 static void
@@ -225,11 +231,13 @@ test_txn_nested_jumble (int iteration) {
     if (verbose) { fprintf(stderr, "%s (%s):%d [iteration # %d]\n", __FILE__, __FUNCTION__, __LINE__, iteration); fflush(stderr); }
 
     initialize_db();
+    r = env->txn_begin(env, NULL, &patient_txn, 0);
+        CKERR(r);
 
-    //BELOW IS OLD CODE
     int index_of_expected_value  = MAX_NEST - 1;
     int nest_level               = MAX_NEST - 1;
     int min_allowed_branch_level = MAX_NEST - 2;
+futz_with_stack:
     while (nest_level > 0) {
         int operation = random() % 4;
         switch (operation) {
@@ -278,6 +286,25 @@ test_txn_nested_jumble (int iteration) {
                 assert(FALSE);
         }
     }
+    //All transactions that have touched this key are finished.
+    assert(nest_level == 0);
+    if (min_allowed_branch_level >= 0) {
+        //start new subtree
+        int max = 4;
+        assert(patient_txn);
+        txns[1] = patient_txn;
+        patient_txn = NULL;
+        maybe_insert_or_delete(1, randomize_no_placeholder_type());
+        int branch_level;
+        for (branch_level = 2; branch_level <= max; branch_level++) {
+            start_txn_and_maybe_insert_or_delete(branch_level);
+        }
+        nest_level = max;
+        min_allowed_branch_level = -1;
+        index_of_expected_value = nest_level;
+        goto futz_with_stack;
+    }
+
     //Clean out dictionary
 
     types[0] = TYPE_DELETE;
@@ -292,7 +319,7 @@ test_main(int argc, char *argv[]) {
     initialize_values();
     int i;
     setup_db();
-    for (i = 0; i < 100; i++) {
+    for (i = 0; i < 64; i++) {
         test_txn_nested_jumble(i);
     }
     close_db();
