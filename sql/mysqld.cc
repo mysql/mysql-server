@@ -3519,7 +3519,7 @@ static int init_thread_environment()
   (void) pthread_mutex_init(&LOCK_mysql_create_db,MY_MUTEX_INIT_SLOW);
   (void) pthread_mutex_init(&LOCK_lock_db,MY_MUTEX_INIT_SLOW);
   (void) pthread_mutex_init(&LOCK_Acl,MY_MUTEX_INIT_SLOW);
-  (void) pthread_mutex_init(&LOCK_open, NULL);
+  (void) pthread_mutex_init(&LOCK_open, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_thread_count,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_mapped_file,MY_MUTEX_INIT_SLOW);
   (void) pthread_mutex_init(&LOCK_status,MY_MUTEX_INIT_FAST);
@@ -6641,7 +6641,7 @@ The minimum value for this variable is 4096.",
    "Joins that are probably going to read more than max_join_size records return an error.",
    (uchar**) &global_system_variables.max_join_size,
    (uchar**) &max_system_variables.max_join_size, 0, GET_HA_ROWS, REQUIRED_ARG,
-   ~0L, 1, ~0L, 0, 1, 0},
+   HA_POS_ERROR, 1, HA_POS_ERROR, 0, 1, 0},
    {"max_length_for_sort_data", OPT_MAX_LENGTH_FOR_SORT_DATA,
     "Max number of bytes in sorted records.",
     (uchar**) &global_system_variables.max_length_for_sort_data,
@@ -7650,7 +7650,7 @@ static int mysql_init_variables(void)
 
   /* Set directory paths */
   strmake(language, LANGUAGE, sizeof(language)-1);
-  strmake(mysql_real_data_home, get_relative_path(DATADIR),
+  strmake(mysql_real_data_home, get_relative_path(MYSQL_DATADIR),
 	  sizeof(mysql_real_data_home)-1);
   mysql_data_home_buff[0]=FN_CURLIB;	// all paths are relative from here
   mysql_data_home_buff[1]=0;

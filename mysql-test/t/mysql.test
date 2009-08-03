@@ -387,5 +387,19 @@ drop tables t1, t2;
 # 
 --exec $MYSQL --html test -e "select '< & >' as '<'"
 
+#
+# Bug #27884: mysql client + null byte
+# 
+create table t1 (a char(5));
+insert into t1 values ('\0b\0');
+--exec $MYSQL test -e "select a from t1"
+--exec $MYSQL -r test -e "select a from t1"
+--exec $MYSQL -s test -e "select a from t1"
+--exec $MYSQL --table test -e "select a from t1"
+--exec $MYSQL --vertical test -e "select a from t1"
+--exec $MYSQL --html test -e "select a from t1"
+--exec $MYSQL --xml test -e "select a from t1"
+drop table t1;
+
 --echo
 --echo End of tests

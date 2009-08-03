@@ -4502,5 +4502,64 @@ DROP PROCEDURE IF EXISTS pr1;
 DROP TRIGGER IF EXISTS tr1;
 DROP TABLE IF EXISTS t1;
 #
+# Bug #30946: mysqldump silently ignores --default-character-set
+#             when used with --tab
+#
+# Also see outfile_loaddata.test
+#
+SET NAMES utf8;
+CREATE TABLE t1 (a INT, b CHAR(10) CHARSET koi8r, c CHAR(10) CHARSET latin1);
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t1 VALUES (1, 'ABC-АБВ', 'DEF-ÂÃÄ'), (2, NULL, NULL);
+# error on multi-character ENCLOSED/ESCAPED BY
+# default '--default-charset' (binary):
+##################################################
+1	ABC-���	DEF-���
+2	\N	\N
+##################################################
+TRUNCATE t2;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/t1.txt' INTO TABLE t2 CHARACTER SET binary;
+SELECT * FROM t1 UNION SELECT * FROM t2 ORDER BY a, b, c;
+a	b	c
+1	ABC-АБВ	DEF-ÂÃÄ
+2	NULL	NULL
+# utf8:
+##################################################
+1	ABC-АБВ	DEF-ÂÃÄ
+2	\N	\N
+##################################################
+TRUNCATE t2;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/t1.txt' INTO TABLE t2 CHARACTER SET utf8;
+SELECT * FROM t1 UNION SELECT * FROM t2 ORDER BY a, b, c;
+a	b	c
+1	ABC-АБВ	DEF-ÂÃÄ
+2	NULL	NULL
+# latin1 (data corruption is expected):
+##################################################
+1	ABC-???	DEF-���
+2	\N	\N
+##################################################
+TRUNCATE t2;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/t1.txt' INTO TABLE t2 CHARACTER SET latin1 ;
+SELECT * FROM t1 UNION SELECT * FROM t2 ORDER BY a, b, c;
+a	b	c
+1	ABC-???	DEF-ÂÃÄ
+1	ABC-АБВ	DEF-ÂÃÄ
+2	NULL	NULL
+# koi8r (data corruption is expected):
+##################################################
+1	ABC-���	DEF-???
+2	\N	\N
+##################################################
+TRUNCATE t2;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/t1.txt' INTO TABLE t2 CHARACTER SET koi8r;
+SELECT * FROM t1 UNION SELECT * FROM t2 ORDER BY a, b, c;
+a	b	c
+1	ABC-АБВ	DEF-???
+1	ABC-АБВ	DEF-ÂÃÄ
+2	NULL	NULL
+SET NAMES default;
+DROP TABLE t1, t2;
+#
 # End of 5.1 tests
 #

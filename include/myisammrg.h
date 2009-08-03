@@ -47,6 +47,7 @@ typedef struct st_mymerge_info		/* Struct from h_info */
   ulonglong deleted;			/* Deleted records in database */
   ulonglong recpos;			/* Pos for last used record */
   ulonglong data_file_length;
+  ulonglong dupp_key_pos;               /* Offset of the Duplicate key in the merge table */
   uint	reclength;			/* Recordlength */
   int	errkey;				/* With key was dupplicated on err */
   uint	options;			/* HA_OPTION_... used */
