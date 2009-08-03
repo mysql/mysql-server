@@ -13,6 +13,7 @@ OBJS = $(patsubst %.c,%.$(OEXT),$(SRCS))
 TARGET = libtokuportability.$(AEXT)
 
 build install: $(LIBPORTABILITY)
+	cd tests;$(MAKE) build
 
 $(LIBPORTABILITY): $(TARGET)
 	if ! diff $< $@ 2>/dev/null; then cp $< $@; fi
