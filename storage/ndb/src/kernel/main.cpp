@@ -229,8 +229,11 @@ do_next:
   return 0;
 }
 
+extern int g_ndb_init_need_monotonic;
+
 int main(int argc, char** argv)
 {
+  g_ndb_init_need_monotonic = 1;
   NDB_INIT(argv[0]);
   // Print to stdout/console
   g_eventLogger->createConsoleHandler();
