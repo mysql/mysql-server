@@ -4,5 +4,5 @@
 
 source include/master-slave.inc;
 source include/windows.inc;
-source t/rpl_trigger.inc;
 
+--source include/rpl_trigger_common.inc
