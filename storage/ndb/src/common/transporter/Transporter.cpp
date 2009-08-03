@@ -263,8 +263,10 @@ Transporter::connection_refused()
   if (m_connection_refused_counter < MIN_CONNECTIONS_REFUSED)
     return; // Not blocked yet
 
+#if 0
   if (m_connect_block_end == 0)
-    g_eventLogger->info("Connection to %d blocked", remoteNodeId);
+    g_eventLogger->debug("Connection to %d blocked", remoteNodeId);
+#endif
 
   // Calculate time when block should expire, limit to MAX_BLOCK_TIME
   m_connect_block_end = NdbTick_CurrentMillisecond() +
@@ -287,7 +289,9 @@ Transporter::is_connect_blocked(void)
 
   if (NdbTick_CurrentMillisecond() > m_connect_block_end)
   {
-    g_eventLogger->info("Connection to %d unblocked", remoteNodeId);
+#if 0
+    g_eventLogger->debug("Connection to %d unblocked", remoteNodeId);
+#endif
     m_connect_block_end = 0;
     return false;
   }
