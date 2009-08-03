@@ -2,7 +2,7 @@
 #define DONT_DEPRECATE_MALLOC
 
 #include <toku_portability.h>
-#include <assert.h>
+#include <toku_assert.h>
 #include <db.h>
 #include <errno.h>
 #include <stdlib.h>
