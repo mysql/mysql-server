@@ -9319,7 +9319,8 @@ ha_innobase::check_if_incompatible_data(
 
 	/* Check that row format didn't change */
 	if ((info->used_fields & HA_CREATE_USED_ROW_FORMAT) &&
-	    get_row_type() != info->row_type) {
+	    get_row_type() != ((info->row_type == ROW_TYPE_DEFAULT)
+				? ROW_TYPE_COMPACT : info->row_type)) {
 
 		return(COMPATIBLE_DATA_NO);
 	}
