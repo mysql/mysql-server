@@ -1585,6 +1585,11 @@ mysql_ssl_set(MYSQL *mysql __attribute__((unused)) ,
 {
   DBUG_ENTER("mysql_ssl_set");
 #ifdef HAVE_OPENSSL
+  my_free(mysql->options.ssl_key, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(mysql->options.ssl_cert, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(mysql->options.ssl_ca, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(mysql->options.ssl_capath, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(mysql->options.ssl_cipher, MYF(MY_ALLOW_ZERO_PTR));
   mysql->options.ssl_key=    strdup_if_not_null(key);
   mysql->options.ssl_cert=   strdup_if_not_null(cert);
   mysql->options.ssl_ca=     strdup_if_not_null(ca);

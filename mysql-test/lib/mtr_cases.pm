@@ -970,6 +970,16 @@ sub collect_one_test_case {
     }
   }
 
+  if ( $tinfo->{'not_valgrind'} )
+  {
+    if ( $::opt_valgrind_mysqld )
+    {
+      $tinfo->{'skip'}= 1;
+      $tinfo->{'comment'}= "Not compatible with Valgrind testing";
+      return $tinfo;
+    }
+  }
+
   # ----------------------------------------------------------------------
   # Find config file to use if not already selected in <testname>.opt file
   # ----------------------------------------------------------------------
@@ -1050,6 +1060,7 @@ my @tags=
  ["include/ndb_master-slave.inc", "ndb_test", 1],
  ["federated.inc", "federated_test", 1],
  ["include/not_embedded.inc", "not_embedded", 1],
+ ["include/not_valgrind.inc", "not_valgrind", 1],
 );
 
 

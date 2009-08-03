@@ -1508,7 +1508,7 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop index id2 on t2;
 drop index id on t2;
-Got one of the listed errors
+ERROR HY000: Cannot drop index 'id': needed in a foreign key constraint
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -1738,7 +1738,7 @@ count(*)
 drop table t1;
 show status like "Innodb_buffer_pool_pages_total";
 Variable_name	Value
-Innodb_buffer_pool_pages_total	512
+Innodb_buffer_pool_pages_total	511
 show status like "Innodb_page_size";
 Variable_name	Value
 Innodb_page_size	16384
@@ -1784,7 +1784,7 @@ innodb_sync_spin_loops	20
 SET @old_innodb_thread_concurrency= @@global.innodb_thread_concurrency;
 show variables like "innodb_thread_concurrency";
 Variable_name	Value
-innodb_thread_concurrency	8
+innodb_thread_concurrency	0
 set global innodb_thread_concurrency=1001;
 Warnings:
 Warning	1292	Truncated incorrect thread_concurrency value: '1001'
@@ -2377,6 +2377,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 (v varchar(10), c char(10)) row_format=fixed;
+Warnings:
+Warning	1478	InnoDB: assuming ROW_FORMAT=COMPACT.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -3190,6 +3192,7 @@ t1	CREATE TABLE `t1` (
   CONSTRAINT `t1_t2` FOREIGN KEY (`id`) REFERENCES `t2` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=349 DEFAULT CHARSET=latin1
 DROP TABLE t1,t2;
+set innodb_strict_mode=on;
 CREATE TABLE t1 (
 c01 CHAR(255), c02 CHAR(255), c03 CHAR(255), c04 CHAR(255),
 c05 CHAR(255), c06 CHAR(255), c07 CHAR(255), c08 CHAR(255),

@@ -5333,6 +5333,7 @@ compare_tables(TABLE *table,
       !table->s->mysql_version ||
       (table->s->frm_version < FRM_VER_TRUE_VARCHAR && varchar))
   {
+    DBUG_PRINT("info", ("Basic checks -> ALTER_TABLE_DATA_CHANGED"));
     *need_copy_table= ALTER_TABLE_DATA_CHANGED;
     DBUG_RETURN(0);
   }
@@ -5361,6 +5362,8 @@ compare_tables(TABLE *table,
     if ((tmp_new_field->flags & NOT_NULL_FLAG) !=
 	(uint) (field->flags & NOT_NULL_FLAG))
     {
+      DBUG_PRINT("info", ("NULL behaviour difference in field '%s' -> "
+                          "ALTER_TABLE_DATA_CHANGED", new_field->field_name));
       *need_copy_table= ALTER_TABLE_DATA_CHANGED;
       DBUG_RETURN(0);
     }
@@ -5382,6 +5385,8 @@ compare_tables(TABLE *table,
     /* Evaluate changes bitmap and send to check_if_incompatible_data() */
     if (!(tmp= field->is_equal(tmp_new_field)))
     {
+      DBUG_PRINT("info", ("!field_is_equal('%s') -> ALTER_TABLE_DATA_CHANGED",
+                          new_field->field_name));
       *need_copy_table= ALTER_TABLE_DATA_CHANGED;
       DBUG_RETURN(0);
     }
@@ -5515,16 +5520,22 @@ compare_tables(TABLE *table,
   /* Check if changes are compatible with current handler without a copy */
   if (table->file->check_if_incompatible_data(create_info, changes))
   {
+    DBUG_PRINT("info", ("check_if_incompatible_data() -> "
+                        "ALTER_TABLE_DATA_CHANGED"));
     *need_copy_table= ALTER_TABLE_DATA_CHANGED;
     DBUG_RETURN(0);
   }
 
   if (*index_drop_count || *index_add_count)
   {
+    DBUG_PRINT("info", ("Index dropped=%u added=%u -> "
+                        "ALTER_TABLE_INDEX_CHANGED",
+                        *index_drop_count, *index_add_count));
     *need_copy_table= ALTER_TABLE_INDEX_CHANGED;
     DBUG_RETURN(0);
   }
 
+  DBUG_PRINT("info", (" -> ALTER_TABLE_METADATA_ONLY"));
   *need_copy_table= ALTER_TABLE_METADATA_ONLY; // Tables are compatible
   DBUG_RETURN(0);
 }

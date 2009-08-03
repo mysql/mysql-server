@@ -1126,7 +1126,7 @@ show create table t2;
 create index id2 on t2 (id);
 show create table t2;
 drop index id2 on t2;
---error 1025,1025
+--error ER_DROP_INDEX_FK
 drop index id on t2;
 show create table t2;
 drop table t2;
@@ -1294,6 +1294,7 @@ drop table t1;
 
 # Test for testable InnoDB status variables. This test
 # uses previous ones(pages_created, rows_deleted, ...).
+--replace_result 512 511
 show status like "Innodb_buffer_pool_pages_total";
 show status like "Innodb_page_size";
 show status like "Innodb_rows_deleted";
@@ -2357,6 +2358,7 @@ DROP TABLE t1,t2;
 #
 # Bug #21101 (Prints wrong error message if max row size is too large)
 #
+set innodb_strict_mode=on;
 --error 1118
 CREATE TABLE t1 (
 	c01 CHAR(255), c02 CHAR(255), c03 CHAR(255), c04 CHAR(255),

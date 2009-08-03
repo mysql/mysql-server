@@ -3917,6 +3917,10 @@ static inline bool copy_event_cache_to_file_and_reinit(IO_CACHE *cache,
     reinit_io_cache(cache, WRITE_CACHE, 0, FALSE, TRUE);
 }
 
+bool rpl_get_position_info(const char **log_file_name, ulonglong *log_pos,
+                           const char **group_relay_log_name,
+                           ulonglong *relay_log_pos);
+
 /**
   @} (end of group Replication)
 */

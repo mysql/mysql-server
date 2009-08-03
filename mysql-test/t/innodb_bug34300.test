@@ -9,6 +9,7 @@
 -- disable_result_log
 
 # set packet size and reconnect 
+SET @save_max_allowed_packet=@@global.max_allowed_packet;
 SET @@global.max_allowed_packet=16777216;
 --connect (newconn, localhost, root,,)
 
@@ -21,7 +22,6 @@ CREATE TABLE bug34300 (
 
 INSERT INTO bug34300 VALUES ('xxx', repeat('a', 8459264), 'zzz');
 
--- enable_query_log
 -- enable_result_log
 
 SELECT f4, f8 FROM bug34300;
@@ -31,11 +31,6 @@ ALTER TABLE bug34300 ADD COLUMN (f10 INT);
 SELECT f4, f8 FROM bug34300;
 
 DROP TABLE bug34300;
-
 disconnect newconn;
 connection default;
---disable_result_log
---disable_query_log
-SET @@global.max_allowed_packet=default;
---enable_result_log
---enable_query_log
+SET @@global.max_allowed_packet=@save_max_allowed_packet;

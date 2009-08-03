@@ -22,11 +22,6 @@
 #ifdef HAVE_REPLICATION
 
 
-// Defined in slave.cc
-int init_intvar_from_file(int* var, IO_CACHE* f, int default_val);
-int init_strvar_from_file(char *var, int max_size, IO_CACHE *f,
-			  const char *default_val);
-
 Master_info::Master_info()
   :Slave_reporting_capability("I/O"),
    ssl(0), ssl_verify_server_cert(0), fd(-1), io_thd(0), inited(0),

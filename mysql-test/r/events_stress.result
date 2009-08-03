@@ -32,6 +32,7 @@ USE events_conn1_test2;
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='events_conn1_test2';
 COUNT(*)
 50
+SET @old_event_scheduler=@@event_scheduler;
 SET GLOBAL event_scheduler=on;
 DROP DATABASE events_conn1_test2;
 SET GLOBAL event_scheduler=off;
@@ -63,3 +64,4 @@ DROP TABLE fill_it1;
 DROP TABLE fill_it2;
 DROP TABLE fill_it3;
 DROP DATABASE events_test;
+SET GLOBAL event_scheduler=@old_event_scheduler;

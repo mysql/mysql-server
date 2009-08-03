@@ -224,7 +224,7 @@ my $opt_strace_client;
 our $opt_user = "root";
 
 my $opt_valgrind= 0;
-my $opt_valgrind_mysqld= 0;
+our $opt_valgrind_mysqld= 0;
 my $opt_valgrind_mysqltest= 0;
 my @default_valgrind_args= ("--show-reachable=yes");
 my @valgrind_args;
@@ -1354,6 +1354,18 @@ sub command_line_setup {
 
     mtr_report("Running valgrind with options \"",
 	       join(" ", @valgrind_args), "\"");
+  }
+
+  # InnoDB does not bother to do individual de-allocations at exit. Instead it
+  # relies on a custom allocator to track every allocation, and frees all at
+  # once during exit.
+  # In XtraDB, an option use-sys-malloc is introduced (and on by default) to
+  # disable this (for performance). But this exposes Valgrind to all the
+  # missing de-allocations, so we need to disable it to at least get
+  # meaningful leak checking for the rest of the server.
+  if ($opt_valgrind_mysqld)
+  {
+    push(@opt_extra_mysqld_opt, "--loose-skip-innodb-use-sys-malloc");
   }
 
   mtr_report("Checking supported features...");

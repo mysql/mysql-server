@@ -1,0 +1,297 @@
+diff -Nur CMakeLists.txt.orig CMakeLists.txt
+--- CMakeLists.txt.orig	2008-10-03 12:25:41 -05:00
++++ CMakeLists.txt	2008-09-26 17:32:51 -05:00
+@@ -244,9 +244,9 @@
+ IF(WITH_FEDERATED_STORAGE_ENGINE)
+   ADD_SUBDIRECTORY(storage/federated)
+ ENDIF(WITH_FEDERATED_STORAGE_ENGINE)
+-IF(WITH_INNOBASE_STORAGE_ENGINE)
++IF(WITH_INNOBASE_STORAGE_ENGINE OR INNODB_DYNAMIC_PLUGIN)
+   ADD_SUBDIRECTORY(storage/innobase)
+-ENDIF(WITH_INNOBASE_STORAGE_ENGINE)
++ENDIF(WITH_INNOBASE_STORAGE_ENGINE OR INNODB_DYNAMIC_PLUGIN)
+ ADD_SUBDIRECTORY(sql)
+ ADD_SUBDIRECTORY(server-tools/instance-manager)
+ ADD_SUBDIRECTORY(libmysql)
+ 
+diff -Nur sql/CMakeLists.txt.orig sql/CMakeLists.txt
+--- sql/CMakeLists.txt.orig	2008-10-03 12:25:41 -05:00
++++ sql/CMakeLists.txt	2008-09-24 03:58:19 -05:00
+@@ -100,6 +100,15 @@
+                       LINK_FLAGS  "/PDB:${CMAKE_CFG_INTDIR}/mysqld${MYSQLD_EXE_SUFFIX}.pdb")
+ ENDIF(cmake_version EQUAL 20406)
+ 
++# Checks for 64-bit version
++IF(CMAKE_SIZEOF_VOID_P MATCHES 8)
++SET_TARGET_PROPERTIES(mysqld PROPERTIES
++                      LINK_FLAGS "/def:\"${PROJECT_SOURCE_DIR}/sql/mysqld_x64.def\"")
++ELSE(CMAKE_SIZEOF_VOID_P MATCHES 8)
++SET_TARGET_PROPERTIES(mysqld PROPERTIES
++                      LINK_FLAGS "/def:\"${PROJECT_SOURCE_DIR}/sql/mysqld.def\"")
++ENDIF(CMAKE_SIZEOF_VOID_P MATCHES 8)
++
+ IF(EMBED_MANIFESTS)
+   MYSQL_EMBED_MANIFEST("mysqld" "asInvoker")
+ ENDIF(EMBED_MANIFESTS)
+ 
+diff -Nur sql/mysqld.def.orig sql/mysqld.def
+--- sql/mysqld.def.orig	1969-12-31 18:00:00 -06:00
++++ sql/mysqld.def	2008-10-31 02:20:32 -05:00
+@@ -0,0 +1,98 @@
++EXPORTS
++	?use_hidden_primary_key@handler@@UAEXXZ
++	?get_dynamic_partition_info@handler@@UAEXPAUPARTITION_INFO@@I@Z
++	?read_first_row@handler@@UAEHPAEI@Z
++	?read_range_next@handler@@UAEHXZ
++	?read_range_first@handler@@UAEHPBUst_key_range@@0_N1@Z
++	?read_multi_range_first@handler@@UAEHPAPAUst_key_multi_range@@PAU2@I_NPAUst_handler_buffer@@@Z
++	?read_multi_range_next@handler@@UAEHPAPAUst_key_multi_range@@@Z
++	?index_read_idx_map@handler@@UAEHPAEIPBEKW4ha_rkey_function@@@Z
++	?print_error@handler@@UAEXHH@Z
++	?clone@handler@@UAEPAV1@PAUst_mem_root@@@Z
++	?get_auto_increment@handler@@UAEX_K00PA_K1@Z
++	?index_next_same@handler@@UAEHPAEPBEI@Z
++	?get_error_message@handler@@UAE_NHPAVString@@@Z
++	?ha_thd@handler@@IBEPAVTHD@@XZ
++	?update_auto_increment@handler@@QAEHXZ
++	?ha_statistic_increment@handler@@IBEXPQsystem_status_var@@K@Z
++	?trans_register_ha@@YAXPAVTHD@@_NPAUhandlerton@@@Z
++	?cmp@Field_blob@@QAEHPBEI0I@Z
++	?set_time@Field_timestamp@@QAEXXZ
++	?sql_print_error@@YAXPBDZZ
++	?sql_print_warning@@YAXPBDZZ
++	?check_global_access@@YA_NPAVTHD@@K@Z
++	?schema_table_store_record@@YA_NPAVTHD@@PAUst_table@@@Z
++	?get_quote_char_for_identifier@@YAHPAVTHD@@PBDI@Z
++	?copy@String@@QAE_NXZ
++	?copy@String@@QAE_NABV1@@Z
++	?copy@String@@QAE_NPBDIPAUcharset_info_st@@@Z
++	?copy_and_convert@@YAIPADIPAUcharset_info_st@@PBDI1PAI@Z
++	?filename_to_tablename@@YAIPBDPADI@Z
++	?strconvert@@YAIPAUcharset_info_st@@PBD0PADIPAI@Z
++	?calculate_key_len@@YAIPAUst_table@@IPBEK@Z
++	?sql_alloc@@YAPAXI@Z
++	?localtime_to_TIME@@YAXPAUst_mysql_time@@PAUtm@@@Z
++	?push_warning@@YAPAVMYSQL_ERROR@@PAVTHD@@W4enum_warning_level@1@IPBD@Z
++	?push_warning_printf@@YAXPAVTHD@@W4enum_warning_level@MYSQL_ERROR@@IPBDZZ
++	?drop_table@handler@@EAEXPBD@Z
++	?column_bitmaps_signal@handler@@UAEXXZ
++	?delete_table@handler@@MAEHPBD@Z
++	?rename_table@handler@@MAEHPBD0@Z
++	?key_map_empty@@3V?$Bitmap@$0EA@@@B
++	?THR_THD@@3PAVTHD@@A
++	?end_of_list@@3Ulist_node@@A
++	?mysql_tmpdir_list@@3Ust_my_tmpdir@@A
++	mysql_query_cache_invalidate4
++	thd_query
++	thd_sql_command
++	thd_get_thread_id
++	thd_get_xid
++	thd_slave_thread
++	thd_non_transactional_update
++	thd_mark_transaction_to_rollback
++	thd_security_context
++	thd_charset
++	thd_test_options
++	thd_ha_data
++	thd_killed
++	thd_tx_isolation
++	thd_tablespace_op
++	thd_sql_command
++	thd_memdup
++	thd_make_lex_string
++	thd_in_lock_tables
++	thd_binlog_format
++	_my_hash_init
++	my_hash_free
++	my_tmpdir
++	check_if_legal_filename
++	my_filename
++	my_sync_dir_by_file
++	alloc_root
++	thr_lock_data_init
++	thr_lock_init
++	thr_lock_delete
++	my_multi_malloc
++	get_charset
++	unpack_filename
++	my_hash_insert
++	my_hash_search
++	my_hash_delete
++	mysql_bin_log_file_pos
++	mysql_bin_log_file_name
++	mysqld_embedded
++	my_thread_name
++	my_malloc
++	my_no_flags_free
++	_sanity
++	_mymalloc
++	_myfree
++	_my_strdup
++	_my_thread_var
++	my_error
++	pthread_cond_init
++	pthread_cond_signal
++	pthread_cond_wait
++	pthread_cond_destroy
++	localtime_r
++	my_strdup
+
+diff -Nur sql/mysqld_x64.def.orig sql/mysqld_x64.def
+--- sql/mysqld_x64.def.orig	1969-12-31 18:00:00 -06:00
++++ sql/mysqld_x64.def		2008-10-31 02:22:04 -05:00
+@@ -0,0 +1,98 @@
++EXPORTS
++	?use_hidden_primary_key@handler@@UEAAXXZ
++	?get_dynamic_partition_info@handler@@UEAAXPEAUPARTITION_INFO@@I@Z
++	?read_first_row@handler@@UEAAHPEAEI@Z
++	?read_range_next@handler@@UEAAHXZ
++	?read_range_first@handler@@UEAAHPEBUst_key_range@@0_N1@Z
++	?read_multi_range_first@handler@@UEAAHPEAPEAUst_key_multi_range@@PEAU2@I_NPEAUst_handler_buffer@@@Z
++	?read_multi_range_next@handler@@UEAAHPEAPEAUst_key_multi_range@@@Z
++	?index_read_idx_map@handler@@UEAAHPEAEIPEBEKW4ha_rkey_function@@@Z
++	?print_error@handler@@UEAAXHH@Z
++	?clone@handler@@UEAAPEAV1@PEAUst_mem_root@@@Z
++	?get_auto_increment@handler@@UEAAX_K00PEA_K1@Z
++	?index_next_same@handler@@UEAAHPEAEPEBEI@Z
++	?get_error_message@handler@@UEAA_NHPEAVString@@@Z
++	?ha_thd@handler@@IEBAPEAVTHD@@XZ
++	?update_auto_increment@handler@@QEAAHXZ
++	?ha_statistic_increment@handler@@IEBAXPEQsystem_status_var@@K@Z
++	?trans_register_ha@@YAXPEAVTHD@@_NPEAUhandlerton@@@Z
++	?cmp@Field_blob@@QEAAHPEBEI0I@Z
++	?set_time@Field_timestamp@@QEAAXXZ
++	?sql_print_error@@YAXPEBDZZ
++	?sql_print_warning@@YAXPEBDZZ
++	?check_global_access@@YA_NPEAVTHD@@K@Z
++	?schema_table_store_record@@YA_NPEAVTHD@@PEAUst_table@@@Z
++	?get_quote_char_for_identifier@@YAHPEAVTHD@@PEBDI@Z
++	?copy@String@@QEAA_NXZ
++	?copy@String@@QEAA_NAEBV1@@Z
++	?copy@String@@QEAA_NPEBDIPEAUcharset_info_st@@@Z
++	?copy_and_convert@@YAIPEADIPEAUcharset_info_st@@PEBDI1PEAI@Z
++	?filename_to_tablename@@YAIPEBDPEADI@Z
++	?strconvert@@YAIPEAUcharset_info_st@@PEBD0PEADIPEAI@Z
++	?calculate_key_len@@YAIPEAUst_table@@IPEBEK@Z
++	?sql_alloc@@YAPEAX_K@Z
++	?localtime_to_TIME@@YAXPEAUst_mysql_time@@PEAUtm@@@Z
++	?push_warning@@YAPEAVMYSQL_ERROR@@PEAVTHD@@W4enum_warning_level@1@IPEBD@Z
++	?push_warning_printf@@YAXPEAVTHD@@W4enum_warning_level@MYSQL_ERROR@@IPEBDZZ
++	?drop_table@handler@@EEAAXPEBD@Z
++	?column_bitmaps_signal@handler@@UEAAXXZ
++	?delete_table@handler@@MEAAHPEBD@Z
++	?rename_table@handler@@MEAAHPEBD0@Z
++	?key_map_empty@@3V?$Bitmap@$0EA@@@B
++	?THR_THD@@3PEAVTHD@@EA
++	?end_of_list@@3Ulist_node@@A
++	?mysql_tmpdir_list@@3Ust_my_tmpdir@@A
++	mysql_query_cache_invalidate4
++	thd_query
++	thd_sql_command
++	thd_get_thread_id
++	thd_get_xid
++	thd_slave_thread
++	thd_non_transactional_update
++	thd_mark_transaction_to_rollback
++	thd_security_context
++	thd_charset
++	thd_test_options
++	thd_ha_data
++	thd_killed
++	thd_tx_isolation
++	thd_tablespace_op
++	thd_sql_command
++	thd_memdup
++	thd_make_lex_string
++	thd_in_lock_tables
++	thd_binlog_format
++	_my_hash_init
++	my_hash_free
++	my_tmpdir
++	check_if_legal_filename
++	my_filename
++	my_sync_dir_by_file
++	alloc_root
++	thr_lock_data_init
++	thr_lock_init
++	thr_lock_delete
++	my_multi_malloc
++	get_charset
++	unpack_filename
++	my_hash_insert
++	my_hash_search
++	my_hash_delete
++	mysql_bin_log_file_pos
++	mysql_bin_log_file_name
++	mysqld_embedded
++	my_thread_name
++	my_malloc
++	my_no_flags_free
++	_sanity
++	_mymalloc
++	_myfree
++	_my_strdup
++	_my_thread_var
++	my_error
++	pthread_cond_init
++	pthread_cond_signal
++	pthread_cond_wait
++	pthread_cond_destroy
++	localtime_r
++	my_strdup
+
+diff -Nur win/configure.js.orig win/configure.js
+--- win/configure.js.orig	2008-09-26 21:18:37 -05:00
++++ win/configure.js	2008-10-01 11:21:27 -05:00
+@@ -49,6 +49,7 @@
+             case "CYBOZU":
+             case "EMBED_MANIFESTS":
+             case "WITH_EMBEDDED_SERVER":
++            case "INNODB_DYNAMIC_PLUGIN":
+                     configfile.WriteLine("SET (" + args.Item(i) + " TRUE)");
+                     break;
+             case "MYSQL_SERVER_SUFFIX":
+
+diff -Nur win/build-vs71.bat.orig win/build-vs71.bat
+--- win/build-vs71.bat.orig	2008-08-20 10:21:59 -05:00
++++ win/build-vs71.bat	2008-10-27 10:52:38 -05:00
+@@ -15,8 +15,10 @@
+ REM along with this program; if not, write to the Free Software
+ REM Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ 
++REM CMAKE_BUILD_TYPE can be specified as Release or Debug
++
+ if exist cmakecache.txt del cmakecache.txt
+ copy win\vs71cache.txt cmakecache.txt
+-cmake -G "Visual Studio 7 .NET 2003"
++cmake -G "Visual Studio 7 .NET 2003" -DCMAKE_BUILD_TYPE=%1
+ copy cmakecache.txt win\vs71cache.txt
+ 
+diff -Nur win/build-vs8.bat.orig win/build-vs8.bat
+--- win/build-vs8.bat.orig	2008-08-20 10:21:59 -05:00
++++ win/build-vs8.bat	2008-10-27 10:52:31 -05:00
+@@ -15,7 +15,9 @@
+ REM along with this program; if not, write to the Free Software
+ REM Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ 
++REM CMAKE_BUILD_TYPE can be specified as Release or Debug
++
+ if exist cmakecache.txt del cmakecache.txt
+ copy win\vs8cache.txt cmakecache.txt
+-cmake -G "Visual Studio 8 2005"
++cmake -G "Visual Studio 8 2005" -DCMAKE_BUILD_TYPE=%1
+ copy cmakecache.txt win\vs8cache.txt
+diff -Nur win/build-vs8_x64.bat.orig win/build-vs8_x64.bat
+--- win/build-vs8_x64.bat.orig	2008-08-20 10:21:59 -05:00
++++ win/build-vs8_x64.bat	2008-10-27 10:53:11 -05:00
+@@ -15,7 +15,9 @@
+ REM along with this program; if not, write to the Free Software
+ REM Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ 
++REM CMAKE_BUILD_TYPE can be specified as Release or Debug
++
+ if exist cmakecache.txt del cmakecache.txt
+ copy win\vs8cache.txt cmakecache.txt
+-cmake -G "Visual Studio 8 2005 Win64"
++cmake -G "Visual Studio 8 2005 Win64" -DCMAKE_BUILD_TYPE=%1
+ copy cmakecache.txt win\vs8cache.txt
