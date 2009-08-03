@@ -1,4 +1,3 @@
-SET @old_general_log= @@global.general_log;
 drop table if exists t1, t2;
 CREATE TABLE t1 (a INT, FOREIGN KEY (a) REFERENCES t0 (a))
 ENGINE=MyISAM
@@ -1627,17 +1626,6 @@ create table t (s1 int) engine=myisam partition by key (s1);
 create trigger t_ad after delete on t for each row insert into t values (old.s1);
 insert into t values (1);
 drop table t;
-USE mysql;
-TRUNCATE TABLE general_log;
-SET @old_general_log_state = @@global.general_log;
-SET GLOBAL general_log = 0;
-ALTER TABLE general_log ENGINE = MyISAM;
-ALTER TABLE general_log PARTITION BY RANGE (TO_DAYS(event_time))
-(PARTITION p0 VALUES LESS THAN (733144), PARTITION p1 VALUES LESS THAN (3000000));
-ERROR HY000: Incorrect usage of PARTITION and log table
-ALTER TABLE general_log ENGINE = CSV;
-SET GLOBAL general_log = @old_general_log_state;
-use test;
 create table t2 (b int);
 create table t1 (b int)
 PARTITION BY RANGE (t2.b) (
@@ -1998,4 +1986,3 @@ PARTITION BY HASH(id) PARTITIONS 2;
 DROP TABLE t1;
 SET SESSION SQL_MODE=DEFAULT;
 End of 5.1 tests
-SET @@global.general_log= @old_general_log;

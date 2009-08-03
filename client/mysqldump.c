@@ -3137,6 +3137,12 @@ static void dump_table(char *table, char *db)
     dynstr_append_checked(&query_string, filename);
     dynstr_append_checked(&query_string, "'");
 
+    dynstr_append_checked(&query_string, " /*!50137 CHARACTER SET ");
+    dynstr_append_checked(&query_string, default_charset == mysql_universal_client_charset ?
+                                         my_charset_bin.name : /* backward compatibility */
+                                         default_charset);
+    dynstr_append_checked(&query_string, " */");
+
     if (fields_terminated || enclosed || opt_enclosed || escaped)
       dynstr_append_checked(&query_string, " FIELDS");
     

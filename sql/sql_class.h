@@ -2493,6 +2493,7 @@ class select_export :public select_to_file {
   */
   bool is_unsafe_field_sep;
   bool fixed_row_size;
+  CHARSET_INFO *write_cs; // output charset
 public:
   select_export(sql_exchange *ex) :select_to_file(ex) {}
   /**
