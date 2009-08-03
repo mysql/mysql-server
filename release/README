@@ -16,8 +16,8 @@ For example, on Centos 5, 64 bit libraries are found in /usr/lib64. Installation
 is as simple as executing the following:
     sudo cp libtokufractaltreeindex-RELEASE.so /usr/lib64
           
-Some users put it into "/usr/mysql/lib" because some useful binaries
-include "/usr/mysql/lib" in their rpath, and can use the library.
+Some users put it into "/usr/local/mysql/lib" because some useful binaries
+include "/usr/local/mysql/lib" in their rpath, and can use the library.
           
 Some users put it into /opt, for example in "/opt/tokutek/lib". In this 
 case you will need to arrange for the loader to be able to find it 
