@@ -357,6 +357,12 @@ parse_spec(Vector<ddentry> & dst,
     {
       group.size = parse_size(list[i].c_str() + keylen);
     }
+    else if (strlen(list[i].c_str()) == 0 && (i + 1) == list.size())
+    {
+      /**
+       * ignore stray ";"
+       */
+    }
     else
     {
       /**
@@ -416,7 +422,7 @@ Ndbcntr::execREAD_CONFIG_REQ(Signal* signal)
       if (parse_spec(f_dd, lgspec, DictTabInfo::LogfileGroup))
       {
         BaseString::snprintf(buf, sizeof(buf),
-                             "Unable to parse InitalLogfileGroup: %s", lgspec);
+                             "Unable to parse InitialLogfileGroup: %s", lgspec);
         progError(__LINE__, NDBD_EXIT_INVALID_CONFIG, buf);
       }
     }
@@ -426,9 +432,9 @@ Ndbcntr::execREAD_CONFIG_REQ(Signal* signal)
     {
       if (f_dd.size() == 0)
       {
-        warningEvent("InitalTablespace specified, "
-                     "but InitalLogfileGroup is not!");
-        warningEvent("Ignoring InitalTablespace: %s",
+        warningEvent("InitialTablespace specified, "
+                     "but InitialLogfileGroup is not!");
+        warningEvent("Ignoring InitialTablespace: %s",
                      tsspec);
       }
       else
@@ -436,7 +442,7 @@ Ndbcntr::execREAD_CONFIG_REQ(Signal* signal)
         if (parse_spec(f_dd, tsspec, DictTabInfo::Tablespace))
         {
           BaseString::snprintf(buf, sizeof(buf),
-                               "Unable to parse InitalTablespace: %s", tsspec);
+                               "Unable to parse InitialTablespace: %s", tsspec);
           progError(__LINE__, NDBD_EXIT_INVALID_CONFIG, buf);
         }
       }

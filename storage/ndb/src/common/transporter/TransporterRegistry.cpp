@@ -1511,11 +1511,20 @@ TransporterRegistry::start_clients_thread()
 	  /**
 	   * First, we try to connect (if we have a port number).
 	   */
+
 	  if (t->get_s_port())
           {
+            // When ndbd is starting up, it won't allow
+            // ndbapi clients to connect until it's started
+            // The transporter will detect this case and
+            // limit rapid reconnect attempts
+            if (t->is_connect_blocked())
+              continue; // Too many refused connections
+
             DBUG_PRINT("info", ("connecting to node %d using port %d",
                                 nodeId, t->get_s_port()));
-	    connected= t->connect_client();
+
+            connected= t->connect_client();
           }
 
 	  /**
