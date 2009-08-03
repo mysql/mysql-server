@@ -122,10 +122,11 @@ buf_LRU_free_block(
 	buf_page_t*	bpage,	/* in: block to be freed */
 	ibool		zip,	/* in: TRUE if should remove also the
 				compressed page of an uncompressed page */
-	ibool*		buf_pool_mutex_released);
+	ibool*		buf_pool_mutex_released,
 				/* in: pointer to a variable that will
 				be assigned TRUE if buf_pool_mutex
 				was temporarily released, or NULL */
+	ibool		have_LRU_mutex);
 /**********************************************************************
 Try to free a replaceable block. */
 UNIV_INTERN
@@ -169,7 +170,8 @@ UNIV_INTERN
 void
 buf_LRU_block_free_non_file_page(
 /*=============================*/
-	buf_block_t*	block);	/* in: block, must not contain a file page */
+	buf_block_t*	block,	/* in: block, must not contain a file page */
+	ibool		have_page_hash_mutex);
 /**********************************************************************
 Adds a block to the LRU list. */
 UNIV_INTERN

@@ -472,6 +472,7 @@ ibuf_init_at_db_start(void)
 
 	/* Use old-style record format for the insert buffer. */
 	table = dict_mem_table_create(IBUF_TABLE_NAME, IBUF_SPACE_ID, 1, 0);
+	table->n_mysql_handles_opened = 1; /* for pin */
 
 	dict_mem_table_add_col(table, heap, "DUMMY_COLUMN", DATA_BINARY, 0, 0);
 

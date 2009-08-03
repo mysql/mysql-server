@@ -464,8 +464,14 @@ or row lock! */
 					SYNC_SEARCH_SYS, as memory allocation
 					can call routines there! Otherwise
 					the level is SYNC_MEM_HASH. */
+#define SYNC_BUF_LRU_LIST	157
+#define SYNC_BUF_PAGE_HASH	156
+#define	SYNC_BUF_BLOCK		155
+#define SYNC_BUF_FREE_LIST	153
+#define SYNC_BUF_ZIP_FREE	152
+#define SYNC_BUF_ZIP_HASH	151
 #define	SYNC_BUF_POOL		150
-#define	SYNC_BUF_BLOCK		149
+#define SYNC_BUF_FLUSH_LIST	149
 #define SYNC_DOUBLEWRITE	140
 #define	SYNC_ANY_LATCH		135
 #define SYNC_THR_LOCAL		133

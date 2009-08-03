@@ -13,10 +13,10 @@ SET storage_engine=InnoDB;
 
 -- disable_query_log
 -- disable_result_log
+set @old_innodb_file_per_table=@@innodb_file_per_table;
+set @old_innodb_file_format=@@innodb_file_format;
+set @old_innodb_file_format_check=@@innodb_file_format_check;
 
-SET @save_innodb_file_format=@@global.innodb_file_format;
-SET @save_innodb_file_format_check=@@global.innodb_file_format_check;
-SET @save_innodb_file_per_table=@@global.innodb_file_per_table;
 SET GLOBAL innodb_file_format='Barracuda';
 SET GLOBAL innodb_file_per_table=on;
 
@@ -27,7 +27,8 @@ CHECK TABLE table0 EXTENDED;
 INSERT IGNORE INTO `table0` SET `col19` = '19940127002709', `col20` = 2383927.9055146948, `col21` = 4293243420.5621204000, `col22` = '20511211123705', `col23` = 4289899778.6573381000, `col24` = 4293449279.0540481000, `col25` = 'emphysemic', `col26` = 'dentally', `col27` = '2347406', `col28` = 'eruct', `col30` = 1222, `col31` = 4294372994.9941406000, `col32` = 4291385574.1173744000, `col33` = 'borrowing\'s', `col34` = 'septics', `col35` = 'ratter\'s', `col36` = 'Kaye', `col37` = 'Florentia', `col38` = 'allium', `col39` = 'barkeep', `col40` = '19510407003441', `col41` = 4293559200.4215522000, `col42` = 22482, `col43` = 'decussate', `col44` = 'Brom\'s', `col45` = 'violated', `col46` = 4925506.4635456400, `col47` = 930549, `col48` = '51296066', `col49` = 'voluminously', `col50` = '29306676', `col51` = -88, `col52` = -2153690, `col53` = 4290250202.1464887000, `col54` = 'expropriation', `col55` = 'Aberdeen\'s', `col56` = 20343, `col58` = '19640415171532', `col59` = 'extern', `col60` = 'Ubana', `col61` = 4290487961.8539081000, `col62` = '2147', `col63` = -24271, `col64` = '20750801194548', `col65` = 'Cunaxa\'s', `col66` = 'pasticcio', `col67` = 2795817, `col68` = 'Indore\'s', `col70` = 6864127, `col71` = '1817832', `col72` = '20540506114211', `col73` = '20040101012300', `col74` = 'rationalized', `col75` = '45522', `col76` = 'indene', `col77` = -6964559, `col78` = 4247535.5266884370, `col79` = '20720416124357', `col80` = '2143', `col81` = 4292060102.4466386000, `col82` = 'striving', `col83` = 'boneblack\'s', `col84` = 'redolent', `col85` = 6489697.9009369183, `col86` = 4287473465.9731131000, `col87` = 7726015, `col88` = 'perplexed', `col89` = '17153791', `col90` = 5478587.1108127078, `col91` = 4287091404.7004304000, `col92` = 'Boulez\'s', `col93` = '2931278';
 CHECK TABLE table0 EXTENDED;
 
-SET GLOBAL innodb_file_format=@save_innodb_file_format;
-SET GLOBAL innodb_file_format_check=@save_innodb_file_format_check;
-SET GLOBAL innodb_file_per_table=@save_innodb_file_per_table;
 DROP TABLE table0;
+set global innodb_file_per_table=@old_innodb_file_per_table;
+set global innodb_file_format=@old_innodb_file_format;
+set global innodb_file_format_check=@old_innodb_file_format_check;
+

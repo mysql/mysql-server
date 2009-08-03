@@ -42,6 +42,10 @@ Created 10/25/1995 Heikki Tuuri
 #include "mtr0log.h"
 #include "dict0dict.h"
 #include "page0zip.h"
+#include "trx0trx.h"
+#include "trx0sys.h"
+#include "pars0pars.h"
+#include "row0mysql.h"
 
 
 /*
@@ -2977,7 +2981,7 @@ fil_open_single_table_tablespace(
 	ut_a(flags != DICT_TF_COMPACT);
 
 	file = os_file_create_simple_no_error_handling(
-		filepath, OS_FILE_OPEN, OS_FILE_READ_ONLY, &success);
+		filepath, OS_FILE_OPEN, OS_FILE_READ_WRITE, &success);
 	if (!success) {
 		/* The following call prints an error message */
 		os_file_get_last_error(TRUE);
@@ -3024,6 +3028,275 @@ fil_open_single_table_tablespace(
 
 	space_id = fsp_header_get_space_id(page);
 	space_flags = fsp_header_get_flags(page);
+
+	if (srv_expand_import && (space_id != id || space_flags != flags)) {
+		dulint		old_id[31];
+		dulint		new_id[31];
+		ulint		root_page[31];
+		ulint		n_index;
+		os_file_t	info_file = -1;
+		char*		info_file_path;
+		ulint	i;
+		int		len;
+		ib_uint64_t	current_lsn;
+
+		current_lsn = log_get_lsn();
+
+		/* overwrite fsp header */
+		fsp_header_init_fields(page, id, flags);
+		mach_write_to_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, id);
+		space_id = id;
+		space_flags = flags;
+		if (mach_read_ull(page + FIL_PAGE_FILE_FLUSH_LSN) > current_lsn)
+			mach_write_ull(page + FIL_PAGE_FILE_FLUSH_LSN, current_lsn);
+		mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM,
+				srv_use_checksums
+				? buf_calc_page_new_checksum(page)
+						: BUF_NO_CHECKSUM_MAGIC);
+		mach_write_to_4(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM,
+				srv_use_checksums
+				? buf_calc_page_old_checksum(page)
+						: BUF_NO_CHECKSUM_MAGIC);
+		success = os_file_write(filepath, file, page, 0, 0, UNIV_PAGE_SIZE);
+
+		/* get file size */
+		ulint		size_low, size_high, size;
+		ib_int64_t	size_bytes;
+		os_file_get_size(file, &size_low, &size_high);
+		size_bytes = (((ib_int64_t)size_high) << 32)
+				+ (ib_int64_t)size_low;
+
+		/* get cruster index information */
+		dict_table_t*   table;
+		dict_index_t*   index;
+		table = dict_table_get_low(name);
+		index = dict_table_get_first_index(table);
+		ut_a(index->page==3);
+
+
+		/* read metadata from .exp file */
+		n_index = 0;
+		bzero(old_id, sizeof(old_id));
+		bzero(new_id, sizeof(new_id));
+		bzero(root_page, sizeof(root_page));
+
+		info_file_path = fil_make_ibd_name(name, FALSE);
+		len = strlen(info_file_path);
+		info_file_path[len - 3] = 'e';
+		info_file_path[len - 2] = 'x';
+		info_file_path[len - 1] = 'p';
+
+		info_file = os_file_create_simple_no_error_handling(
+				info_file_path, OS_FILE_OPEN, OS_FILE_READ_ONLY, &success);
+		if (!success) {
+			fprintf(stderr, "InnoDB: cannot open %s\n", info_file_path);
+			goto skip_info;
+		}
+		success = os_file_read(info_file, page, 0, 0, UNIV_PAGE_SIZE);
+		if (!success) {
+			fprintf(stderr, "InnoDB: cannot read %s\n", info_file_path);
+			goto skip_info;
+		}
+		if (mach_read_from_4(page) != 0x78706f72UL
+		    || mach_read_from_4(page + 4) != 0x74696e66UL) {
+			fprintf(stderr, "InnoDB: %s seems not to be a correct .exp file\n", info_file_path);
+			goto skip_info;
+		}
+
+		fprintf(stderr, "InnoDB: import: extended import of %s is started.\n", name);
+
+		n_index = mach_read_from_4(page + 8);
+		fprintf(stderr, "InnoDB: import: %lu indexes are detected.\n", (ulong)n_index);
+		for (i = 0; i < n_index; i++) {
+			new_id[i] =
+				dict_table_get_index_on_name(table,
+						(page + (i + 1) * 512 + 12))->id;
+			old_id[i] = mach_read_from_8(page + (i + 1) * 512);
+			root_page[i] = mach_read_from_4(page + (i + 1) * 512 + 8);
+		}
+
+skip_info:
+		if (info_file != -1)
+			os_file_close(info_file);
+
+		/*
+		if (size_bytes >= 1024 * 1024) {
+			size_bytes = ut_2pow_round(size_bytes, 1024 * 1024);
+		}
+		*/
+		if (!(flags & DICT_TF_ZSSIZE_MASK)) {
+			mem_heap_t*	heap = NULL;
+			ulint		offsets_[REC_OFFS_NORMAL_SIZE];
+			ulint*		offsets = offsets_;
+			size = (ulint) (size_bytes / UNIV_PAGE_SIZE);
+			/* over write space id of all pages */
+			ib_int64_t     offset;
+
+			rec_offs_init(offsets_);
+
+			fprintf(stderr, "InnoDB: Progress in %:");
+
+			for (offset = 0; offset < size_bytes; offset += UNIV_PAGE_SIZE) {
+				success = os_file_read(file, page,
+							(ulint)(offset & 0xFFFFFFFFUL),
+							(ulint)(offset >> 32), UNIV_PAGE_SIZE);
+				if (mach_read_from_4(page + FIL_PAGE_OFFSET) || !offset) {
+					mach_write_to_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, id);
+
+					for (i = 0; i < n_index; i++) {
+						if (offset / UNIV_PAGE_SIZE == root_page[i]) {
+							/* this is index root page */
+							mach_write_to_4(page + FIL_PAGE_DATA + PAGE_BTR_SEG_LEAF
+											+ FSEG_HDR_SPACE, id);
+							mach_write_to_4(page + FIL_PAGE_DATA + PAGE_BTR_SEG_TOP
+											+ FSEG_HDR_SPACE, id);
+							break;
+						}
+					}
+
+					if (fil_page_get_type(page) == FIL_PAGE_INDEX) {
+						dulint tmp = mach_read_from_8(page + (PAGE_HEADER + PAGE_INDEX_ID));
+
+						if (mach_read_from_2(page + PAGE_HEADER + PAGE_LEVEL) == 0
+						    && ut_dulint_cmp(old_id[0], tmp) == 0) {
+							/* leaf page of cluster index, reset trx_id of records */
+							rec_t*	rec;
+							rec_t*	supremum;
+							ulint	n_recs;
+
+							supremum = page_get_supremum_rec(page);
+							rec = page_rec_get_next(page_get_infimum_rec(page));
+							n_recs = page_get_n_recs(page);
+
+							while (rec && rec != supremum && n_recs > 0) {
+								ulint	offset = index->trx_id_offset;
+								if (!offset) {
+									offsets = rec_get_offsets(rec, index, offsets,
+											ULINT_UNDEFINED, &heap);
+									offset = row_get_trx_id_offset(rec, index, offsets);
+								}
+								trx_write_trx_id(rec + offset, ut_dulint_create(0, 1));
+								rec = page_rec_get_next(rec);
+								n_recs--;
+							}
+						}
+
+						for (i = 0; i < n_index; i++) {
+							if (ut_dulint_cmp(old_id[i], tmp) == 0) {
+								mach_write_to_8(page + (PAGE_HEADER + PAGE_INDEX_ID), new_id[i]);
+								break;
+							}
+						}
+					}
+
+					if (mach_read_ull(page + FIL_PAGE_LSN) > current_lsn) {
+						mach_write_ull(page + FIL_PAGE_LSN, current_lsn);
+						mach_write_ull(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM,
+										current_lsn);
+					}
+
+					mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM,
+							srv_use_checksums
+							? buf_calc_page_new_checksum(page)
+									: BUF_NO_CHECKSUM_MAGIC);
+					mach_write_to_4(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM,
+							srv_use_checksums
+							? buf_calc_page_old_checksum(page)
+									: BUF_NO_CHECKSUM_MAGIC);
+
+					success = os_file_write(filepath, file, page,
+								(ulint)(offset & 0xFFFFFFFFUL),
+								(ulint)(offset >> 32), UNIV_PAGE_SIZE);
+				}
+
+				if (size_bytes
+				    && ((ib_int64_t)((offset + UNIV_PAGE_SIZE) * 100) / size_bytes)
+					!= ((offset * 100) / size_bytes)) {
+					fprintf(stderr, " %lu",
+						(ulong)((ib_int64_t)((offset + UNIV_PAGE_SIZE) * 100) / size_bytes));
+				}
+			}
+
+			fprintf(stderr, " done.\n");
+
+			/* update SYS_INDEXES set root page */
+			index = dict_table_get_first_index(table);
+			while (index) {
+				for (i = 0; i < n_index; i++) {
+					if (ut_dulint_cmp(new_id[i], index->id) == 0) {
+						break;
+					}
+				}
+
+				if (i != n_index
+				    && root_page[i] != index->page) {
+					/* must update */
+					ulint	error;
+					trx_t*	trx;
+					pars_info_t*	info = NULL;
+
+					trx = trx_allocate_for_mysql();
+					trx->op_info = "extended import";
+
+					info = pars_info_create();
+
+					pars_info_add_dulint_literal(info, "indexid", new_id[i]);
+					pars_info_add_int4_literal(info, "new_page", (lint) root_page[i]);
+
+					error = que_eval_sql(info,
+						"PROCEDURE UPDATE_INDEX_PAGE () IS\n"
+						"BEGIN\n"
+						"UPDATE SYS_INDEXES"
+						" SET PAGE_NO = :new_page"
+						" WHERE ID = :indexid;\n"
+						"COMMIT WORK;\n"
+						"END;\n",
+						FALSE, trx);
+
+					if (error != DB_SUCCESS) {
+						fprintf(stderr, "InnoDB: failed to update SYS_INDEXES\n");
+					}
+
+					trx_commit_for_mysql(trx);
+
+					trx_free_for_mysql(trx);
+
+					index->page = root_page[i];
+				}
+
+				index = dict_table_get_next_index(index);
+			}
+			if (UNIV_LIKELY_NULL(heap)) {
+				mem_heap_free(heap);
+			}
+		} else {
+			/* zip page? */
+			size = (ulint)
+			(size_bytes
+					/ dict_table_flags_to_zip_size(flags));
+			fprintf(stderr, "InnoDB: import: table %s seems to be in newer format."
+					" It may not be able to treated for now.\n", name);
+		}
+		/* .exp file should be removed */
+		success = os_file_delete(info_file_path);
+		if (!success) {
+			success = os_file_delete_if_exists(info_file_path);
+		}
+		mem_free(info_file_path);
+
+		fil_system_t*	system	= fil_system;
+		mutex_enter(&(system->mutex));
+		fil_node_t*	node = NULL;
+		fil_space_t*	space;
+		space = fil_space_get_by_id(id);
+		if (space)
+			node = UT_LIST_GET_FIRST(space->chain);
+		if (node && node->size < size) {
+			space->size += (size - node->size);
+			node->size = size;
+		}
+		mutex_exit(&(system->mutex));
+	}
 
 	ut_free(buf2);
 

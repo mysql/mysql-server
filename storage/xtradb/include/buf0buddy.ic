@@ -44,10 +44,11 @@ buf_buddy_alloc_low(
 			possibly NULL if lru==NULL */
 	ulint	i,	/* in: index of buf_pool->zip_free[],
 			or BUF_BUDDY_SIZES */
-	ibool*	lru)	/* in: pointer to a variable that will be assigned
+	ibool*	lru,	/* in: pointer to a variable that will be assigned
 			TRUE if storage was allocated from the LRU list
 			and buf_pool_mutex was temporarily released,
 			or NULL if the LRU list should not be used */
+	ibool	have_page_hash_mutex)
 	__attribute__((malloc));
 
 /**************************************************************************
@@ -58,8 +59,9 @@ buf_buddy_free_low(
 /*===============*/
 	void*	buf,	/* in: block to be freed, must not be
 			pointed to by the buffer pool */
-	ulint	i)	/* in: index of buf_pool->zip_free[],
+	ulint	i,	/* in: index of buf_pool->zip_free[],
 			or BUF_BUDDY_SIZES */
+	ibool	have_page_hash_mutex)
 	__attribute__((nonnull));
 
 /**************************************************************************
@@ -98,14 +100,15 @@ buf_buddy_alloc(
 			/* out: allocated block,
 			possibly NULL if lru == NULL */
 	ulint	size,	/* in: block size, up to UNIV_PAGE_SIZE */
-	ibool*	lru)	/* in: pointer to a variable that will be assigned
+	ibool*	lru,	/* in: pointer to a variable that will be assigned
 			TRUE if storage was allocated from the LRU list
 			and buf_pool_mutex was temporarily released,
 			or NULL if the LRU list should not be used */
+	ibool	have_page_hash_mutex)
 {
-	ut_ad(buf_pool_mutex_own());
+	//ut_ad(buf_pool_mutex_own());
 
-	return(buf_buddy_alloc_low(buf_buddy_get_slot(size), lru));
+	return(buf_buddy_alloc_low(buf_buddy_get_slot(size), lru, have_page_hash_mutex));
 }
 
 /**************************************************************************
@@ -116,11 +119,24 @@ buf_buddy_free(
 /*===========*/
 	void*	buf,	/* in: block to be freed, must not be
 			pointed to by the buffer pool */
-	ulint	size)	/* in: block size, up to UNIV_PAGE_SIZE */
+	ulint	size,	/* in: block size, up to UNIV_PAGE_SIZE */
+	ibool	have_page_hash_mutex)
 {
-	ut_ad(buf_pool_mutex_own());
+	//ut_ad(buf_pool_mutex_own());
 
-	buf_buddy_free_low(buf, buf_buddy_get_slot(size));
+	if (!have_page_hash_mutex) {
+		mutex_enter(&LRU_list_mutex);
+		rw_lock_x_lock(&page_hash_latch);
+	}
+
+	mutex_enter(&zip_free_mutex);
+	buf_buddy_free_low(buf, buf_buddy_get_slot(size), TRUE);
+	mutex_exit(&zip_free_mutex);
+
+	if (!have_page_hash_mutex) {
+		mutex_exit(&LRU_list_mutex);
+		rw_lock_x_unlock(&page_hash_latch);
+	}
 }
 
 #ifdef UNIV_MATERIALIZE

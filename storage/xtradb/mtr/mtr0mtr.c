@@ -102,6 +102,38 @@ mtr_memo_pop_all(
 	}
 }
 
+UNIV_INLINE
+void
+mtr_memo_note_modification_all(
+/*===========================*/
+	mtr_t*	mtr)	/* in: mtr */
+{
+	mtr_memo_slot_t* slot;
+	dyn_array_t*	memo;
+	ulint		offset;
+
+	ut_ad(mtr);
+	ut_ad(mtr->magic_n == MTR_MAGIC_N);
+	ut_ad(mtr->state == MTR_COMMITTING); /* Currently only used in
+					     commit */
+	ut_ad(mtr->modifications);
+
+	memo = &(mtr->memo);
+
+	offset = dyn_array_get_data_size(memo);
+
+	while (offset > 0) {
+		offset -= sizeof(mtr_memo_slot_t);
+		slot = dyn_array_get_element(memo, offset);
+
+		if (UNIV_LIKELY(slot->object != NULL) &&
+		    slot->type == MTR_MEMO_PAGE_X_FIX) {
+			buf_flush_note_modification(
+				(buf_block_t*)slot->object, mtr);
+		}
+	}
+}
+
 /****************************************************************
 Writes the contents of a mini-transaction log, if any, to the database log. */
 static
@@ -180,6 +212,8 @@ mtr_commit(
 
 	if (write_log) {
 		mtr_log_reserve_and_write(mtr);
+
+		mtr_memo_note_modification_all(mtr);
 	}
 
 	/* We first update the modification info to buffer pages, and only
@@ -190,11 +224,12 @@ mtr_commit(
 	required when we insert modified buffer pages in to the flush list
 	which must be sorted on oldest_modification. */
 
-	mtr_memo_pop_all(mtr);
-
 	if (write_log) {
 		log_release();
 	}
+
+	/* All unlocking has been moved here, after log_sys mutex release. */
+	mtr_memo_pop_all(mtr);
 
 	ut_d(mtr->state = MTR_COMMITTED);
 	dyn_array_free(&(mtr->memo));
@@ -263,6 +298,12 @@ mtr_memo_release(
 		slot = dyn_array_get_element(memo, offset);
 
 		if ((object == slot->object) && (type == slot->type)) {
+			if (mtr->modifications &&
+			    UNIV_LIKELY(slot->object != NULL) &&
+			    slot->type == MTR_MEMO_PAGE_X_FIX) {
+				buf_flush_note_modification(
+					(buf_block_t*)slot->object, mtr);
+			}
 
 			mtr_memo_slot_release(mtr, slot);
 

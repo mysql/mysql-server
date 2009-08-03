@@ -372,6 +372,8 @@ ut_get_year_month_day(
 /*****************************************************************
 Runs an idle loop on CPU. The argument gives the desired delay
 in microseconds on 100 MHz Pentium + Visual C++. */
+extern ulint	srv_spins_microsec;
+
 UNIV_INTERN
 ulint
 ut_delay(
@@ -383,7 +385,11 @@ ut_delay(
 
 	j = 0;
 
-	for (i = 0; i < delay * 50; i++) {
+	for (i = 0; i < delay * srv_spins_microsec; i++) {
+#if (defined (__i386__) || defined (__x86_64__)) && defined (__GNUC__)
+		/* it is equal to the instruction 'pause' */
+		__asm__ __volatile__ ("rep; nop");
+#endif
 		j += i;
 	}
 

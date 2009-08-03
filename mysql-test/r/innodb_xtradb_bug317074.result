@@ -1,5 +1,5 @@
-SET @save_innodb_file_format=@@global.innodb_file_format;
-SET @save_innodb_file_format_check=@@global.innodb_file_format_check;
-SET @save_innodb_file_per_table=@@global.innodb_file_per_table;
+SET @old_innodb_file_format=@@innodb_file_format;
+SET @old_innodb_file_per_table=@@innodb_file_per_table;
+SET @old_innodb_file_format_check=@@innodb_file_format_check;
 SET GLOBAL innodb_file_format='Barracuda';
 SET GLOBAL innodb_file_per_table=ON;

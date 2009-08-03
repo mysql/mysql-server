@@ -127,6 +127,8 @@ extern ulint	srv_buf_pool_curr_size;	/* current size in bytes */
 extern ulint	srv_mem_pool_size;
 extern ulint	srv_lock_table_size;
 
+extern ibool	srv_thread_concurrency_timer_based;
+
 extern ulint	srv_n_file_io_threads;
 extern ulint	srv_n_read_io_threads;
 extern ulint	srv_n_write_io_threads;
@@ -163,6 +165,11 @@ extern ulint	srv_fast_shutdown;	 /* If this is 1, do not do a
 extern ibool	srv_innodb_status;
 
 extern unsigned long long	srv_stats_sample_pages;
+extern ulint	srv_stats_method;
+#define SRV_STATS_METHOD_NULLS_EQUAL     0
+#define SRV_STATS_METHOD_NULLS_NOT_EQUAL 1
+#define SRV_STATS_METHOD_IGNORE_NULLS    2
+extern ulint	srv_stats_auto_update;
 
 extern ibool	srv_use_doublewrite_buf;
 extern ibool	srv_use_checksums;
@@ -184,8 +191,10 @@ extern ulint	srv_enable_unsafe_group_commit;
 extern ulint	srv_read_ahead;
 extern ulint	srv_adaptive_checkpoint;
 
-extern ulint	srv_extra_rsegments;
+extern ulint	srv_expand_import;
 
+extern ulint	srv_extra_rsegments;
+extern ulint	srv_dict_size_limit;
 /*-------------------------------------------*/
 
 extern ulint	srv_n_rows_inserted;
@@ -552,6 +561,7 @@ struct export_var_struct{
 	ulint innodb_data_writes;
 	ulint innodb_data_written;
 	ulint innodb_data_reads;
+	ulint innodb_dict_tables;
 	ulint innodb_buffer_pool_pages_total;
 	ulint innodb_buffer_pool_pages_data;
 	ulint innodb_buffer_pool_pages_dirty;

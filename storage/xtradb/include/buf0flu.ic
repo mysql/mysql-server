@@ -53,13 +53,23 @@ buf_flush_note_modification(
 	buf_block_t*	block,	/* in: block which is modified */
 	mtr_t*		mtr)	/* in: mtr */
 {
+	ibool	use_LRU_mutex = FALSE;
+
+	if (UT_LIST_GET_LEN(buf_pool->unzip_LRU))
+		use_LRU_mutex = TRUE;
+
+	if (use_LRU_mutex)
+		mutex_enter(&LRU_list_mutex);
+
+	mutex_enter(&block->mutex);
+
 	ut_ad(block);
 	ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 	ut_ad(block->page.buf_fix_count > 0);
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&(block->lock), RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
-	ut_ad(buf_pool_mutex_own());
+	//ut_ad(buf_pool_mutex_own());
 
 	ut_ad(mtr->start_lsn != 0);
 	ut_ad(mtr->modifications);
@@ -68,16 +78,23 @@ buf_flush_note_modification(
 	block->page.newest_modification = mtr->end_lsn;
 
 	if (!block->page.oldest_modification) {
+		mutex_enter(&flush_list_mutex);
 
 		block->page.oldest_modification = mtr->start_lsn;
 		ut_ad(block->page.oldest_modification != 0);
 
 		buf_flush_insert_into_flush_list(block);
+		mutex_exit(&flush_list_mutex);
 	} else {
 		ut_ad(block->page.oldest_modification <= mtr->start_lsn);
 	}
 
+	mutex_exit(&block->mutex);
+
 	++srv_buf_pool_write_requests;
+
+	if (use_LRU_mutex)
+		mutex_exit(&LRU_list_mutex);
 }
 
 /************************************************************************
@@ -92,6 +109,16 @@ buf_flush_recv_note_modification(
 	ib_uint64_t	end_lsn)	/* in: end lsn of the last mtr in the
 					set of mtr's */
 {
+	ibool	use_LRU_mutex = FALSE;
+
+	if(UT_LIST_GET_LEN(buf_pool->unzip_LRU))
+		use_LRU_mutex = TRUE;
+
+	if (use_LRU_mutex)
+		mutex_enter(&LRU_list_mutex);
+
+	mutex_enter(&(block->mutex));
+
 	ut_ad(block);
 	ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 	ut_ad(block->page.buf_fix_count > 0);
@@ -99,22 +126,27 @@ buf_flush_recv_note_modification(
 	ut_ad(rw_lock_own(&(block->lock), RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 
-	buf_pool_mutex_enter();
+	//buf_pool_mutex_enter();
 
 	ut_ad(block->page.newest_modification <= end_lsn);
 
 	block->page.newest_modification = end_lsn;
 
 	if (!block->page.oldest_modification) {
+		mutex_enter(&flush_list_mutex);
 
 		block->page.oldest_modification = start_lsn;
 
 		ut_ad(block->page.oldest_modification != 0);
 
 		buf_flush_insert_sorted_into_flush_list(block);
+		mutex_exit(&flush_list_mutex);
 	} else {
 		ut_ad(block->page.oldest_modification <= start_lsn);
 	}
 
-	buf_pool_mutex_exit();
+	//buf_pool_mutex_exit();
+	if (use_LRU_mutex)
+		mutex_exit(&LRU_list_mutex);
+	mutex_exit(&(block->mutex));
 }

@@ -157,6 +157,7 @@ static long innobase_mirrored_log_groups, innobase_log_files_in_group,
 	innobase_autoinc_lock_mode;
 
 static unsigned long innobase_read_io_threads, innobase_write_io_threads;
+static my_bool innobase_thread_concurrency_timer_based;
 static long long innobase_buffer_pool_size, innobase_log_file_size;
 
 /* The default values for the following char* start-up parameters
@@ -488,6 +489,8 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_dblwr_pages_written,	  SHOW_LONG},
   {"dblwr_writes",
   (char*) &export_vars.innodb_dblwr_writes,		  SHOW_LONG},
+  {"dict_tables",
+  (char*) &export_vars.innodb_dict_tables,		  SHOW_LONG},
   {"have_atomic_builtins",
   (char*) &export_vars.innodb_have_atomic_builtins,	  SHOW_BOOL},
   {"log_waits",
@@ -2100,77 +2103,6 @@ mem_free_and_error:
 		goto error;
 	}
 
-#ifdef HAVE_REPLICATION
-#ifdef MYSQL_SERVER
-	if(innobase_overwrite_relay_log_info) {
-	/* If InnoDB progressed from relay-log.info, overwrite it */
-	if (fname[0] == '\0') {
-		fprintf(stderr,
-			"InnoDB: something wrong with relay-info.log. InnoDB will not overwrite it.\n");
-	} else if (0 != strcmp(fname, trx_sys_mysql_master_log_name)
-		   || pos != trx_sys_mysql_master_log_pos) {
-		/* Overwrite relay-log.info */
-		bzero((char*) &info_file, sizeof(info_file));
-		fn_format(fname, relay_log_info_file, mysql_data_home, "", 4+32);
-
-		int error = 0;
-
-		if (!access(fname,F_OK)) {
-			/* exist */
-			if ((info_fd = my_open(fname, O_RDWR|O_BINARY, MYF(MY_WME))) < 0) {
-				error = 1;
-			} else if (init_io_cache(&info_file, info_fd, IO_SIZE*2,
-						WRITE_CACHE, 0L, 0, MYF(MY_WME))) {
-				error = 1;
-			}
-
-			if (error) {
-				if (info_fd >= 0)
-					my_close(info_fd, MYF(0));
-				goto skip_overwrite;
-			}
-		} else {
-			error = 1;
-			goto skip_overwrite;
-		}
-
-		char buff[FN_REFLEN*2+22*2+4], *pos;
-
-		my_b_seek(&info_file, 0L);
-		pos=strmov(buff, trx_sys_mysql_relay_log_name);
-		*pos++='\n';
-		pos=longlong2str(trx_sys_mysql_relay_log_pos, pos, 10);
-		*pos++='\n';
-		pos=strmov(pos, trx_sys_mysql_master_log_name);
-		*pos++='\n';
-		pos=longlong2str(trx_sys_mysql_master_log_pos, pos, 10);
-		*pos='\n';
-
-		if (my_b_write(&info_file, (uchar*) buff, (size_t) (pos-buff)+1))
-			error = 1;
-		if (flush_io_cache(&info_file))
-			error = 1;
-
-		end_io_cache(&info_file);
-		if (info_fd >= 0)
-			my_close(info_fd, MYF(0));
-skip_overwrite:
-		if (error) {
-			fprintf(stderr,
-				"InnoDB: ERROR: error occured during overwriting relay-log.info.\n");
-		} else {
-			fprintf(stderr,
-				"InnoDB: relay-log.info was overwritten.\n");
-		}
-	} else {
-		fprintf(stderr,
-			"InnoDB: InnoDB and relay-log.info are synchronized. InnoDB will not overwrite it.\n");
-	}
-	}
-#endif /* MYSQL_SERVER */
-#endif /* HAVE_REPLICATION */
-
-
 	srv_extra_undoslots = (ibool) innobase_extra_undoslots;
 
 	/* -------------- Log files ---------------------------*/
@@ -2266,6 +2198,9 @@ skip_overwrite:
 	srv_n_log_files = (ulint) innobase_log_files_in_group;
 	srv_log_file_size = (ulint) innobase_log_file_size;
 
+	srv_thread_concurrency_timer_based =
+		(ibool) innobase_thread_concurrency_timer_based;
+
 #ifdef UNIV_LOG_ARCHIVE
 	srv_log_archive_on = (ulint) innobase_log_archive;
 #endif /* UNIV_LOG_ARCHIVE */
@@ -2280,6 +2215,7 @@ skip_overwrite:
 	srv_n_write_io_threads = (ulint) innobase_write_io_threads;
 
 	srv_read_ahead &= 3;
+	srv_adaptive_checkpoint %= 3;
 
 	srv_force_recovery = (ulint) innobase_force_recovery;
 
@@ -2328,6 +2264,76 @@ skip_overwrite:
 	if (err != DB_SUCCESS) {
 		goto mem_free_and_error;
 	}
+
+#ifdef HAVE_REPLICATION
+#ifdef MYSQL_SERVER
+	if(innobase_overwrite_relay_log_info) {
+	/* If InnoDB progressed from relay-log.info, overwrite it */
+	if (fname[0] == '\0') {
+		fprintf(stderr,
+			"InnoDB: something wrong with relay-info.log. InnoDB will not overwrite it.\n");
+	} else if (0 != strcmp(fname, trx_sys_mysql_master_log_name)
+		   || pos != trx_sys_mysql_master_log_pos) {
+		/* Overwrite relay-log.info */
+		bzero((char*) &info_file, sizeof(info_file));
+		fn_format(fname, relay_log_info_file, mysql_data_home, "", 4+32);
+
+		int error = 0;
+
+		if (!access(fname,F_OK)) {
+			/* exist */
+			if ((info_fd = my_open(fname, O_RDWR|O_BINARY, MYF(MY_WME))) < 0) {
+				error = 1;
+			} else if (init_io_cache(&info_file, info_fd, IO_SIZE*2,
+						WRITE_CACHE, 0L, 0, MYF(MY_WME))) {
+				error = 1;
+			}
+
+			if (error) {
+				if (info_fd >= 0)
+					my_close(info_fd, MYF(0));
+				goto skip_overwrite;
+			}
+		} else {
+			error = 1;
+			goto skip_overwrite;
+		}
+
+		char buff[FN_REFLEN*2+22*2+4], *pos;
+
+		my_b_seek(&info_file, 0L);
+		pos=strmov(buff, trx_sys_mysql_relay_log_name);
+		*pos++='\n';
+		pos=longlong2str(trx_sys_mysql_relay_log_pos, pos, 10);
+		*pos++='\n';
+		pos=strmov(pos, trx_sys_mysql_master_log_name);
+		*pos++='\n';
+		pos=longlong2str(trx_sys_mysql_master_log_pos, pos, 10);
+		*pos='\n';
+
+		if (my_b_write(&info_file, (uchar*) buff, (size_t) (pos-buff)+1))
+			error = 1;
+		if (flush_io_cache(&info_file))
+			error = 1;
+
+		end_io_cache(&info_file);
+		if (info_fd >= 0)
+			my_close(info_fd, MYF(0));
+skip_overwrite:
+		if (error) {
+			fprintf(stderr,
+				"InnoDB: ERROR: error occured during overwriting relay-log.info.\n");
+		} else {
+			fprintf(stderr,
+				"InnoDB: relay-log.info was overwritten.\n");
+		}
+	} else {
+		fprintf(stderr,
+			"InnoDB: InnoDB and relay-log.info are synchronized. InnoDB will not overwrite it.\n");
+	}
+	}
+#endif /* MYSQL_SERVER */
+#endif /* HAVE_REPLICATION */
 
 	innobase_open_tables = hash_create(200);
 	pthread_mutex_init(&innobase_share_mutex, MY_MUTEX_INIT_FAST);
@@ -7079,7 +7085,9 @@ ha_innobase::info(
 	ib_table = prebuilt->table;
 
 	if (flag & HA_STATUS_TIME) {
-		if (innobase_stats_on_metadata) {
+		if (innobase_stats_on_metadata
+		    && (thd_sql_command(user_thd) == SQLCOM_ANALYZE
+			|| srv_stats_auto_update)) {
 			/* In sql_show we call with this flag: update
 			then statistics so that they are up-to-date */
 
@@ -9321,7 +9329,8 @@ ha_innobase::check_if_incompatible_data(
 	if (info_row_type == ROW_TYPE_DEFAULT)
 		info_row_type = ROW_TYPE_COMPACT;
 	if ((info->used_fields & HA_CREATE_USED_ROW_FORMAT) &&
-	    row_type != info_row_type) {
+	    get_row_type() != ((info->row_type == ROW_TYPE_DEFAULT)
+				? ROW_TYPE_COMPACT : info->row_type)) {
 
 		DBUG_PRINT("info", ("get_row_type()=%d != info->row_type=%d -> "
 				    "COMPATIBLE_DATA_NO",
@@ -9830,6 +9839,31 @@ static MYSQL_SYSVAR_ULONGLONG(stats_sample_pages, srv_stats_sample_pages,
   "The number of index pages to sample when calculating statistics (default 8)",
   NULL, NULL, 8, 1, ~0ULL, 0);
 
+const char *innobase_stats_method_names[]=
+{
+  "nulls_equal",
+  "nulls_unequal",
+  "nulls_ignored",
+  NullS
+};
+TYPELIB innobase_stats_method_typelib=
+{
+  array_elements(innobase_stats_method_names) - 1, "innobase_stats_method_typelib",
+  innobase_stats_method_names, NULL
+};
+static MYSQL_SYSVAR_ENUM(stats_method, srv_stats_method,
+  PLUGIN_VAR_RQCMDARG,
+  "Specifies how InnoDB index statistics collection code should threat NULLs. "
+  "Possible values of name are same to for 'myisam_stats_method'. "
+  "This is startup parameter.",
+  NULL, NULL, 0, &innobase_stats_method_typelib);
+
+static MYSQL_SYSVAR_ULONG(stats_auto_update, srv_stats_auto_update,
+  PLUGIN_VAR_RQCMDARG,
+  "Enable/Disable InnoDB's auto update statistics of indexes. "
+  "(except for ANALYZE TABLE command) 0:disable 1:enable",
+  NULL, NULL, 1, 0, 1, 0);
+
 static MYSQL_SYSVAR_BOOL(adaptive_hash_index, btr_search_enabled,
   PLUGIN_VAR_OPCMDARG,
   "Enable InnoDB adaptive hash index (enabled by default).  "
@@ -9907,6 +9941,12 @@ static MYSQL_SYSVAR_ULONG(sync_spin_loops, srv_n_spin_wait_rounds,
   "Count of spin-loop rounds in InnoDB mutexes",
   NULL, NULL, 20L, 0L, ~0L, 0);
 
+static MYSQL_SYSVAR_BOOL(thread_concurrency_timer_based,
+  innobase_thread_concurrency_timer_based,
+  PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
+  "Use InnoDB timer based concurrency throttling. ",
+  NULL, NULL, FALSE);
+
 static MYSQL_SYSVAR_ULONG(thread_concurrency, srv_thread_concurrency,
   PLUGIN_VAR_RQCMDARG,
   "Helps in performance tuning in heavily concurrent environments. Sets the maximum number of threads allowed inside InnoDB. Value 0 will disable the thread throttling.",
@@ -9953,7 +9993,7 @@ static MYSQL_SYSVAR_STR(change_buffering, innobase_change_buffering,
 static MYSQL_SYSVAR_ULONG(io_capacity, srv_io_capacity,
   PLUGIN_VAR_RQCMDARG,
   "Number of IO operations per second the server can do. Tunes background IO rate.",
-  NULL, NULL, 100, 100, 999999999, 0);
+  NULL, NULL, 200, 100, 999999999, 0);
 
 static MYSQL_SYSVAR_LONGLONG(ibuf_max_size, srv_ibuf_max_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -10008,10 +10048,36 @@ static MYSQL_SYSVAR_ENUM(read_ahead, srv_read_ahead,
   "Control read ahead activity. (none, random, linear, [both])",
   NULL, innodb_read_ahead_update, 3, &read_ahead_typelib);
 
-static MYSQL_SYSVAR_ULONG(adaptive_checkpoint, srv_adaptive_checkpoint,
+static
+void
+innodb_adaptive_checkpoint_update(
+  THD* thd,
+  struct st_mysql_sys_var*     var,
+  void*        var_ptr,
+  const void*  save)
+{
+  *(long *)var_ptr= (*(long *)save) % 3;
+}
+const char *adaptive_checkpoint_names[]=
+{
+  "none", /* 0 */
+  "reflex", /* 1 */
+  "estimate", /* 2 */
+  /* For compatibility of the older patch */
+  "0", /* 3 ("none" + 3) */
+  "1", /* 4 ("reflex" + 3) */
+  "2", /* 5 ("estimate" + 3) */
+  NullS
+};
+TYPELIB adaptive_checkpoint_typelib=
+{
+  array_elements(adaptive_checkpoint_names) - 1, "adaptive_checkpoint_typelib",
+  adaptive_checkpoint_names, NULL
+};
+static MYSQL_SYSVAR_ENUM(adaptive_checkpoint, srv_adaptive_checkpoint,
   PLUGIN_VAR_RQCMDARG,
-  "Enable/Disable flushing along modified age. 0:disable 1:enable",
-  NULL, NULL, 0, 0, 1, 0);
+  "Enable/Disable flushing along modified age. ([none], reflex, estimate)",
+  NULL, innodb_adaptive_checkpoint_update, 0, &adaptive_checkpoint_typelib);
 
 static MYSQL_SYSVAR_ULONG(enable_unsafe_group_commit, srv_enable_unsafe_group_commit,
   PLUGIN_VAR_RQCMDARG,
@@ -10021,17 +10087,27 @@ static MYSQL_SYSVAR_ULONG(enable_unsafe_group_commit, srv_enable_unsafe_group_co
 static MYSQL_SYSVAR_ULONG(read_io_threads, innobase_read_io_threads,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Number of background read I/O threads in InnoDB.",
-  NULL, NULL, 1, 1, 64, 0);
+  NULL, NULL, 8, 1, 64, 0);
 
 static MYSQL_SYSVAR_ULONG(write_io_threads, innobase_write_io_threads,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Number of background write I/O threads in InnoDB.",
-  NULL, NULL, 1, 1, 64, 0);
+  NULL, NULL, 8, 1, 64, 0);
+
+static MYSQL_SYSVAR_ULONG(expand_import, srv_expand_import,
+  PLUGIN_VAR_RQCMDARG,
+  "Enable/Disable converting automatically *.ibd files when import tablespace.",
+  NULL, NULL, 0, 0, 1, 0);
 
 static MYSQL_SYSVAR_ULONG(extra_rsegments, srv_extra_rsegments,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Number of extra user rollback segments when create new database.",
   NULL, NULL, 0, 0, 127, 0);
+
+static MYSQL_SYSVAR_ULONG(dict_size_limit, srv_dict_size_limit,
+  PLUGIN_VAR_RQCMDARG,
+  "Limit the allocated memory for dictionary cache. (0: unlimited)",
+  NULL, NULL, 0, 0, LONG_MAX, 0);
 
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(additional_mem_pool_size),
@@ -10069,6 +10145,8 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(overwrite_relay_log_info),
   MYSQL_SYSVAR(rollback_on_timeout),
   MYSQL_SYSVAR(stats_on_metadata),
+  MYSQL_SYSVAR(stats_method),
+  MYSQL_SYSVAR(stats_auto_update),
   MYSQL_SYSVAR(stats_sample_pages),
   MYSQL_SYSVAR(adaptive_hash_index),
   MYSQL_SYSVAR(replication_delay),
@@ -10078,6 +10156,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(sync_spin_loops),
   MYSQL_SYSVAR(table_locks),
   MYSQL_SYSVAR(thread_concurrency),
+  MYSQL_SYSVAR(thread_concurrency_timer_based),
   MYSQL_SYSVAR(thread_sleep_delay),
   MYSQL_SYSVAR(autoinc_lock_mode),
   MYSQL_SYSVAR(show_verbose_locks),
@@ -10093,7 +10172,9 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(enable_unsafe_group_commit),
   MYSQL_SYSVAR(read_io_threads),
   MYSQL_SYSVAR(write_io_threads),
+  MYSQL_SYSVAR(expand_import),
   MYSQL_SYSVAR(extra_rsegments),
+  MYSQL_SYSVAR(dict_size_limit),
   MYSQL_SYSVAR(use_sys_malloc),
   MYSQL_SYSVAR(change_buffering),
   NULL
@@ -10287,6 +10368,8 @@ i_s_innodb_cmp,
 i_s_innodb_cmp_reset,
 i_s_innodb_cmpmem,
 i_s_innodb_cmpmem_reset,
+i_s_innodb_table_stats,
+i_s_innodb_index_stats,
 i_s_innodb_patches
 mysql_declare_plugin_end;
 

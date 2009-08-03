@@ -11,7 +11,7 @@
 -- disable_result_log
 -- enable_warnings
 
-SET @save_innodb_stats_sample_pages=@@innodb_stats_sample_pages;
+SET @old_innodb_stats_sample_pages=@@innodb_stats_sample_pages;
 SET GLOBAL innodb_stats_sample_pages=0;
 
 # check that the value has been adjusted to 1
@@ -61,5 +61,5 @@ ANALYZE TABLE innodb_analyze;
 SET GLOBAL innodb_stats_sample_pages=16;
 ANALYZE TABLE innodb_analyze;
 
-SET GLOBAL innodb_stats_sample_pages=@save_innodb_stats_sample_pages;
 DROP TABLE innodb_analyze;
+SET GLOBAL innodb_stats_sample_pages=@old_innodb_stats_sample_pages;

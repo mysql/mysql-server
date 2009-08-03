@@ -1,8 +1,8 @@
 -- source include/have_innodb.inc
 
-SET @save_innodb_file_format=@@global.innodb_file_format;
-SET @save_innodb_file_format_check=@@global.innodb_file_format_check;
-SET @save_innodb_file_per_table=@@global.innodb_file_per_table;
+SET @old_innodb_file_format=@@innodb_file_format;
+SET @old_innodb_file_per_table=@@innodb_file_per_table;
+SET @old_innodb_file_format_check=@@innodb_file_format_check;
 SET GLOBAL innodb_file_format='Barracuda';
 SET GLOBAL innodb_file_per_table=ON;
 
@@ -38,8 +38,7 @@ DROP PROCEDURE insert_many;
 # The bug is hangup at the following statement
 ALTER TABLE test1 ENGINE=MyISAM;
 
-SET GLOBAL innodb_file_format=@save_innodb_file_format;
-SET GLOBAL innodb_file_format_check=@save_innodb_file_format_check;
-SET GLOBAL innodb_file_per_table=@save_innodb_file_per_table;
-
 DROP TABLE test1;
+SET GLOBAL innodb_file_format=@old_innodb_file_format;
+SET GLOBAL innodb_file_per_table=@old_innodb_file_per_table;
+SET GLOBAL innodb_file_format_check=@old_innodb_file_format_check;

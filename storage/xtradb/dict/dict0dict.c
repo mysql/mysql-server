@@ -545,6 +545,8 @@ dict_table_get_on_id(
 
 	table = dict_table_get_on_id_low(table_id);
 
+	dict_table_LRU_trim(table);
+
 	mutex_exit(&(dict_sys->mutex));
 
 	return(table);
@@ -658,6 +660,8 @@ dict_table_get(
 	if (inc_mysql_count && table) {
 		table->n_mysql_handles_opened++;
 	}
+
+	dict_table_LRU_trim(table);
 
 	mutex_exit(&(dict_sys->mutex));
 
@@ -1151,6 +1155,64 @@ dict_table_remove_from_cache(
 	dict_sys->size -= size;
 
 	dict_mem_table_free(table);
+}
+
+/**************************************************************************
+Frees tables from the end of table_LRU if the dictionary cache occupies
+too much space. */
+UNIV_INTERN
+void
+dict_table_LRU_trim(
+/*================*/
+	dict_table_t*	self)
+{
+	dict_table_t*	table;
+	dict_table_t*	prev_table;
+	dict_foreign_t*	foreign;
+	ulint		n_removed;
+	ulint		n_have_parent;
+	ulint		cached_foreign_tables;
+
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(mutex_own(&(dict_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
+
+retry:
+	n_removed = n_have_parent = 0;
+	table = UT_LIST_GET_LAST(dict_sys->table_LRU);
+
+	while ( srv_dict_size_limit && table
+		&& ((dict_sys->table_hash->n_cells
+		     + dict_sys->table_id_hash->n_cells) * sizeof(hash_cell_t)
+		    + dict_sys->size) > srv_dict_size_limit ) {
+		prev_table = UT_LIST_GET_PREV(table_LRU, table);
+
+		if (table == self || table->n_mysql_handles_opened)
+			goto next_loop;
+
+		cached_foreign_tables = 0;
+		foreign = UT_LIST_GET_FIRST(table->foreign_list);
+		while (foreign != NULL) {
+			if (foreign->referenced_table)
+				cached_foreign_tables++;
+			foreign = UT_LIST_GET_NEXT(foreign_list, foreign);
+		}
+
+		if (cached_foreign_tables == 0) {
+			dict_table_remove_from_cache(table);
+			n_removed++;
+		} else {
+			n_have_parent++;
+		}
+next_loop:
+		table = prev_table;
+	}
+
+	if ( srv_dict_size_limit && n_have_parent && n_removed
+		&& ((dict_sys->table_hash->n_cells
+		     + dict_sys->table_id_hash->n_cells) * sizeof(hash_cell_t)
+		    + dict_sys->size) > srv_dict_size_limit )
+		goto retry;
 }
 
 /********************************************************************
@@ -2987,7 +3049,7 @@ scan_more:
 		} else if (quote) {
 			/* Within quotes: do not look for
 			starting quotes or comments. */
-		} else if (*sptr == '"' || *sptr == '`') {
+		} else if (*sptr == '"' || *sptr == '`' || *sptr == '\'') {
 			/* Starting quote: remember the quote character. */
 			quote = *sptr;
 		} else if (*sptr == '#'
@@ -4276,7 +4338,8 @@ dict_table_print_low(
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
-	dict_update_statistics_low(table, TRUE);
+	if (srv_stats_auto_update)
+		dict_update_statistics_low(table, TRUE);
 
 	fprintf(stderr,
 		"--------------------------------------\n"

@@ -285,6 +285,7 @@ Value 10 should be good if there are less than 4 processors + 4 disks in the
 computer. Bigger computers need bigger values. Value 0 will disable the
 concurrency check. */
 
+UNIV_INTERN ibool	srv_thread_concurrency_timer_based = FALSE;
 UNIV_INTERN ulong	srv_thread_concurrency	= 0;
 UNIV_INTERN ulong	srv_commit_concurrency	= 0;
 
@@ -336,6 +337,8 @@ UNIV_INTERN ibool	srv_innodb_status	= FALSE;
 /* When estimating number of different key values in an index, sample
 this many index pages */
 UNIV_INTERN unsigned long long	srv_stats_sample_pages = 8;
+UNIV_INTERN ulint	srv_stats_method = 0;
+UNIV_INTERN ulint	srv_stats_auto_update = 1;
 
 UNIV_INTERN ibool	srv_use_doublewrite_buf	= TRUE;
 UNIV_INTERN ibool	srv_use_checksums = TRUE;
@@ -361,14 +364,18 @@ UNIV_INTERN ulint	srv_flush_neighbor_pages = 1; /* 0:disable 1:enable */
 
 UNIV_INTERN ulint	srv_enable_unsafe_group_commit = 0; /* 0:disable 1:enable */
 UNIV_INTERN ulint	srv_read_ahead = 3; /* 1: random  2: linear  3: Both */
-UNIV_INTERN ulint	srv_adaptive_checkpoint = 0; /* 0:disable 1:enable */
+UNIV_INTERN ulint	srv_adaptive_checkpoint = 0; /* 0: none  1: reflex  2: estimate */
+
+UNIV_INTERN ulint	srv_expand_import = 0; /* 0:disable 1:enable */
 
 UNIV_INTERN ulint	srv_extra_rsegments = 0; /* extra rseg for users */
+UNIV_INTERN ulint	srv_dict_size_limit = 0;
 /*-------------------------------------------*/
 UNIV_INTERN ulong	srv_n_spin_wait_rounds	= 20;
 UNIV_INTERN ulong	srv_n_free_tickets_to_enter = 500;
 UNIV_INTERN ulong	srv_thread_sleep_delay = 10000;
 UNIV_INTERN ulint	srv_spin_wait_delay	= 5;
+UNIV_INTERN ulint	srv_spins_microsec	= 50;
 UNIV_INTERN ibool	srv_priority_boost	= TRUE;
 
 #ifdef UNIV_DEBUG
@@ -657,6 +664,47 @@ are indexed by the type of the thread. */
 UNIV_INTERN ulint	srv_n_threads_active[SRV_MASTER + 1];
 UNIV_INTERN ulint	srv_n_threads[SRV_MASTER + 1];
 
+static
+void
+srv_align_spins_microsec(void)
+{
+	ulint	start_sec, end_sec;
+	ulint	start_usec, end_usec;
+	ib_uint64_t	usecs;
+
+	/* change temporary */
+	srv_spins_microsec = 1;
+
+	if (ut_usectime(&start_sec, &start_usec)) {
+		srv_spins_microsec = 50;
+		goto end;
+	}
+
+	ut_delay(100000);
+
+	if (ut_usectime(&end_sec, &end_usec)) {
+		srv_spins_microsec = 50;
+		goto end;
+	}
+
+	usecs = (end_sec - start_sec) * 1000000LL + (end_usec - start_usec);
+
+	if (usecs) {
+		srv_spins_microsec = 100000 / usecs;
+		if (srv_spins_microsec == 0)
+			srv_spins_microsec = 1;
+		if (srv_spins_microsec > 50)
+			srv_spins_microsec = 50;
+	} else {
+		srv_spins_microsec = 50;
+	}
+end:
+	if (srv_spins_microsec != 50)
+		fprintf(stderr,
+			"InnoDB: unit of spin count at ut_delay() is aligned to %lu\n",
+			srv_spins_microsec);
+}
+
 /*************************************************************************
 Sets the info describing an i/o thread current state. */
 UNIV_INTERN
@@ -889,6 +937,8 @@ srv_init(void)
 	dict_table_t*		table;
 	ulint			i;
 
+	srv_align_spins_microsec();
+
 	srv_sys = mem_alloc(sizeof(srv_sys_t));
 
 	kernel_mutex_temp = mem_alloc(sizeof(mutex_t));
@@ -1009,6 +1059,75 @@ UNIV_INTERN ulong	srv_max_purge_lag		= 0;
 /*************************************************************************
 Puts an OS thread to wait if there are too many concurrent threads
 (>= srv_thread_concurrency) inside InnoDB. The threads wait in a FIFO queue. */
+
+#ifdef INNODB_RW_LOCKS_USE_ATOMICS
+static void
+enter_innodb_with_tickets(trx_t* trx)
+{
+	trx->declared_to_be_inside_innodb = TRUE;
+	trx->n_tickets_to_enter_innodb = SRV_FREE_TICKETS_TO_ENTER;
+	return;
+}
+
+static void
+srv_conc_enter_innodb_timer_based(trx_t* trx)
+{
+	lint	conc_n_threads;
+	ibool	has_yielded = FALSE;
+	ulint	has_slept = 0;
+
+	if (trx->declared_to_be_inside_innodb) {
+		ut_print_timestamp(stderr);
+		fputs(
+"  InnoDB: Error: trying to declare trx to enter InnoDB, but\n"
+"InnoDB: it already is declared.\n", stderr);
+		trx_print(stderr, trx, 0);
+		putc('\n', stderr);
+	}
+retry:
+	if (srv_conc_n_threads < (lint) srv_thread_concurrency) {
+		conc_n_threads = __sync_add_and_fetch(&srv_conc_n_threads, 1);
+		if (conc_n_threads <= (lint) srv_thread_concurrency) {
+			enter_innodb_with_tickets(trx);
+			return;
+		}
+		__sync_add_and_fetch(&srv_conc_n_threads, -1);
+	}
+	if (!has_yielded)
+	{
+		has_yielded = TRUE;
+		os_thread_yield();
+		goto retry;
+	}
+	if (trx->has_search_latch
+	    || NULL != UT_LIST_GET_FIRST(trx->trx_locks)) {
+
+		conc_n_threads = __sync_add_and_fetch(&srv_conc_n_threads, 1);
+		enter_innodb_with_tickets(trx);
+		return;
+	}
+	if (has_slept < 2)
+	{
+		trx->op_info = "sleeping before entering InnoDB";
+		os_thread_sleep(10000);
+		trx->op_info = "";
+		has_slept++;
+	}
+	conc_n_threads = __sync_add_and_fetch(&srv_conc_n_threads, 1);
+	enter_innodb_with_tickets(trx);
+	return;
+}
+
+static void
+srv_conc_exit_innodb_timer_based(trx_t* trx)
+{
+	__sync_add_and_fetch(&srv_conc_n_threads, -1);
+	trx->declared_to_be_inside_innodb = FALSE;
+	trx->n_tickets_to_enter_innodb = 0;
+	return;
+}
+#endif
+
 UNIV_INTERN
 void
 srv_conc_enter_innodb(
@@ -1038,6 +1157,13 @@ srv_conc_enter_innodb(
 
 		return;
 	}
+
+#ifdef INNODB_RW_LOCKS_USE_ATOMICS
+	if (srv_thread_concurrency_timer_based) {
+		srv_conc_enter_innodb_timer_based(trx);
+		return;
+	}
+#endif
 
 	os_fast_mutex_lock(&srv_conc_mutex);
 retry:
@@ -1182,6 +1308,14 @@ srv_conc_force_enter_innodb(
 	}
 
 	ut_ad(srv_conc_n_threads >= 0);
+#ifdef INNODB_RW_LOCKS_USE_ATOMICS
+	if (srv_thread_concurrency_timer_based) {
+		__sync_add_and_fetch(&srv_conc_n_threads, 1);
+		trx->declared_to_be_inside_innodb = TRUE;
+		trx->n_tickets_to_enter_innodb = 1;
+		return;
+	}
+#endif
 
 	os_fast_mutex_lock(&srv_conc_mutex);
 
@@ -1214,6 +1348,13 @@ srv_conc_force_exit_innodb(
 
 		return;
 	}
+
+#ifdef INNODB_RW_LOCKS_USE_ATOMICS
+	if (srv_thread_concurrency_timer_based) {
+		srv_conc_exit_innodb_timer_based(trx);
+		return;
+	}
+#endif
 
 	os_fast_mutex_lock(&srv_conc_mutex);
 
@@ -1934,6 +2075,7 @@ srv_export_innodb_status(void)
 	export_vars.innodb_data_reads = os_n_file_reads;
 	export_vars.innodb_data_writes = os_n_file_writes;
 	export_vars.innodb_data_written = srv_data_written;
+	export_vars.innodb_dict_tables= (dict_sys ? UT_LIST_GET_LEN(dict_sys->table_LRU) : 0);
 	export_vars.innodb_buffer_pool_read_requests = buf_pool->n_page_gets;
 	export_vars.innodb_buffer_pool_write_requests
 		= srv_buf_pool_write_requests;
@@ -2348,6 +2490,8 @@ srv_master_thread(
 	ibool		skip_sleep	= FALSE;
 	ulint		i;
 
+	ib_uint64_t	lsn_old;
+
 	ib_uint64_t	oldest_lsn;
 	
 #ifdef UNIV_DEBUG_THREAD_CREATION
@@ -2365,6 +2509,9 @@ srv_master_thread(
 
 	mutex_exit(&kernel_mutex);
 
+	mutex_enter(&(log_sys->mutex));
+	lsn_old = log_sys->lsn;
+	mutex_exit(&(log_sys->mutex));
 loop:
 	/*****************************************************************/
 	/* ---- When there is database activity by users, we cycle in this
@@ -2399,6 +2546,19 @@ loop:
 		if (!skip_sleep) {
 
 			os_thread_sleep(1000000);
+
+			/*
+			mutex_enter(&(log_sys->mutex));
+			oldest_lsn = buf_pool_get_oldest_modification();
+			ib_uint64_t	lsn = log_sys->lsn;
+			mutex_exit(&(log_sys->mutex));
+
+			if(oldest_lsn)
+			fprintf(stderr,
+				"InnoDB flush: age pct: %lu, lsn progress: %lu\n",
+				(lsn - oldest_lsn) * 100 / log_sys->max_checkpoint_age,
+				lsn - lsn_old);
+			*/
 		}
 
 		skip_sleep = FALSE;
@@ -2437,14 +2597,15 @@ loop:
 			+ log_sys->n_pending_writes;
 		n_ios = log_sys->n_log_ios + buf_pool->n_pages_read
 			+ buf_pool->n_pages_written;
-		if (n_pend_ios < 3 && (n_ios - n_ios_old < PCT_IO(5))) {
+		if (n_pend_ios < PCT_IO(3) && (n_ios - n_ios_old < PCT_IO(5))) {
 			srv_main_thread_op_info = "doing insert buffer merge";
 			ibuf_contract_for_n_pages(
 				TRUE, PCT_IBUF_IO((srv_insert_buffer_batch_size / 4)));
 
 			srv_main_thread_op_info = "flushing log";
 
-			log_buffer_flush_to_disk();
+			/* No fsync when srv_flush_log_at_trx_commit != 1 */
+			log_buffer_flush_maybe_sync();
 		}
 
 		if (UNIV_UNLIKELY(buf_get_modified_ratio_pct()
@@ -2462,13 +2623,16 @@ loop:
 			iteration of this loop. */
 
 			skip_sleep = TRUE;
-		} else if (srv_adaptive_checkpoint) {
+			mutex_enter(&(log_sys->mutex));
+			lsn_old = log_sys->lsn;
+			mutex_exit(&(log_sys->mutex));
+		} else if (srv_adaptive_checkpoint == 1) {
 
 			/* Try to keep modified age not to exceed
 			max_checkpoint_age * 7/8 line */
 
 			mutex_enter(&(log_sys->mutex));
-
+			lsn_old = log_sys->lsn;
 			oldest_lsn = buf_pool_get_oldest_modification();
 			if (oldest_lsn == 0) {
 
@@ -2504,7 +2668,93 @@ loop:
 					mutex_exit(&(log_sys->mutex));
 				}
 			}
+		} else if (srv_adaptive_checkpoint == 2) {
 
+			/* Try to keep modified age not to exceed
+			max_checkpoint_age * 7/8 line */
+
+			mutex_enter(&(log_sys->mutex));
+
+			oldest_lsn = buf_pool_get_oldest_modification();
+			if (oldest_lsn == 0) {
+				lsn_old = log_sys->lsn;
+				mutex_exit(&(log_sys->mutex));
+
+			} else {
+				if ((log_sys->lsn - oldest_lsn)
+				    > (log_sys->max_checkpoint_age) - ((log_sys->max_checkpoint_age) / 8)) {
+					/* LOG_POOL_PREFLUSH_RATIO_ASYNC is exceeded. */
+					/* We should not flush from here. */
+					lsn_old = log_sys->lsn;
+					mutex_exit(&(log_sys->mutex));
+				} else if ((log_sys->lsn - oldest_lsn)
+					   > (log_sys->max_checkpoint_age)/2 ) {
+
+					/* defence line (max_checkpoint_age * 1/2) */
+					ib_uint64_t	lsn = log_sys->lsn;
+
+					mutex_exit(&(log_sys->mutex));
+
+					ib_uint64_t level, bpl;
+					buf_page_t* bpage;
+
+					mutex_enter(&flush_list_mutex);
+
+					level = 0;
+					bpage = UT_LIST_GET_FIRST(buf_pool->flush_list);
+
+					while (bpage != NULL) {
+						ib_uint64_t	oldest_modification = bpage->oldest_modification;
+						if (oldest_modification != 0) {
+							level += log_sys->max_checkpoint_age
+								 - (lsn - oldest_modification);
+						}
+						bpage = UT_LIST_GET_NEXT(flush_list, bpage);
+					}
+
+					if (level) {
+						bpl = ((ib_uint64_t) UT_LIST_GET_LEN(buf_pool->flush_list)
+							* UT_LIST_GET_LEN(buf_pool->flush_list)
+							* (lsn - lsn_old)) / level;
+					} else {
+						bpl = 0;
+					}
+
+					mutex_exit(&flush_list_mutex);
+
+					if (!srv_use_doublewrite_buf) {
+						/* flush is faster than when doublewrite */
+						bpl = (bpl * 3) / 4;
+					}
+
+					if (bpl) {
+retry_flush_batch:
+						n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST,
+									bpl,
+									oldest_lsn + (lsn - lsn_old));
+						if (n_pages_flushed == ULINT_UNDEFINED) {
+							os_thread_sleep(5000);
+							goto retry_flush_batch;
+						}
+					}
+
+					lsn_old = lsn;
+					/*
+					fprintf(stderr,
+						"InnoDB flush: age pct: %lu, lsn progress: %lu, blocks to flush:%llu\n",
+						(lsn - oldest_lsn) * 100 / log_sys->max_checkpoint_age,
+						lsn - lsn_old, bpl);
+					*/
+				} else {
+					lsn_old = log_sys->lsn;
+					mutex_exit(&(log_sys->mutex));
+				}
+			}
+
+		} else {
+			mutex_enter(&(log_sys->mutex));
+			lsn_old = log_sys->lsn;
+			mutex_exit(&(log_sys->mutex));
 		}
 
 		if (srv_activity_count == old_activity_count) {
@@ -2537,7 +2787,8 @@ loop:
  		buf_flush_batch(BUF_FLUSH_LIST, PCT_IO(100), IB_ULONGLONG_MAX);
 
 		srv_main_thread_op_info = "flushing log";
-		log_buffer_flush_to_disk();
+		/* No fsync when srv_flush_log_at_trx_commit != 1 */
+		log_buffer_flush_maybe_sync();
 	}
 
 	/* We run a batch of insert buffer merge every 10 seconds,
@@ -2547,7 +2798,8 @@ loop:
 	ibuf_contract_for_n_pages(TRUE, PCT_IBUF_IO((srv_insert_buffer_batch_size / 4)));
 
 	srv_main_thread_op_info = "flushing log";
-	log_buffer_flush_to_disk();
+	/* No fsync when srv_flush_log_at_trx_commit != 1 */
+	log_buffer_flush_maybe_sync();
 
 	/* We run a full purge every 10 seconds, even if the server
 	were active */
@@ -2718,7 +2970,14 @@ flush_loop:
 
 	srv_main_thread_op_info = "flushing log";
 
-	log_buffer_flush_to_disk();
+	current_time = time(NULL);
+	if (difftime(current_time, last_flush_time) > 1) {
+		log_buffer_flush_to_disk();
+		last_flush_time = current_time;
+	} else {
+		/* No fsync when srv_flush_log_at_trx_commit != 1 */
+		log_buffer_flush_maybe_sync();
+	}
 
 	srv_main_thread_op_info = "making checkpoint";
 

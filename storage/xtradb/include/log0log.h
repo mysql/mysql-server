@@ -186,6 +186,13 @@ void
 log_buffer_flush_to_disk(void);
 /*==========================*/
 /********************************************************************
+Flushes the log buffer. Forces it to disk depending on the value of
+the configuration parameter innodb_flush_log_at_trx_commit. */
+UNIV_INTERN
+void
+log_buffer_flush_maybe_sync(void);
+/*=============================*/
+/********************************************************************
 Advances the smallest lsn for which there are unflushed dirty blocks in the
 buffer pool and also may make a new checkpoint. NOTE: this function may only
 be called if the calling thread owns no synchronization objects! */

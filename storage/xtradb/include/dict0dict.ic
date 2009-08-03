@@ -723,6 +723,13 @@ dict_table_check_if_in_cache_low(
 	HASH_SEARCH(name_hash, dict_sys->table_hash, table_fold,
 		    dict_table_t*, table, ut_ad(table->cached),
 		    !strcmp(table->name, table_name));
+
+	/* make young in table_LRU */
+	if (table) {
+		UT_LIST_REMOVE(table_LRU, dict_sys->table_LRU, table);
+		UT_LIST_ADD_FIRST(table_LRU, dict_sys->table_LRU, table);
+	}
+
 	return(table);
 }
 
@@ -774,6 +781,12 @@ dict_table_get_on_id_low(
 		    !ut_dulint_cmp(table->id, table_id));
 	if (table == NULL) {
 		table = dict_load_table_on_id(table_id);
+	}
+
+	/* make young in table_LRU */
+	if (table) {
+		UT_LIST_REMOVE(table_LRU, dict_sys->table_LRU, table);
+		UT_LIST_ADD_FIRST(table_LRU, dict_sys->table_LRU, table);
 	}
 
 	ut_ad(!table || table->cached);

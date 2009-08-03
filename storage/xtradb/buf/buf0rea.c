@@ -134,6 +134,46 @@ buf_read_page_low(
 	bpage = buf_page_init_for_read(err, mode, space, zip_size, unzip,
 				       tablespace_version, offset);
 	if (bpage == NULL) {
+		/* bugfix: http://bugs.mysql.com/bug.php?id=43948 */
+		if (recv_recovery_is_on() && *err == DB_TABLESPACE_DELETED) {
+			/* hashed log recs must be treated here */
+			recv_addr_t*    recv_addr;
+
+			mutex_enter(&(recv_sys->mutex));
+
+			if (recv_sys->apply_log_recs == FALSE) {
+				mutex_exit(&(recv_sys->mutex));
+				goto not_to_recover;
+			}
+
+			/* recv_get_fil_addr_struct() */
+			recv_addr = HASH_GET_FIRST(recv_sys->addr_hash,
+					hash_calc_hash(ut_fold_ulint_pair(space, offset),
+						recv_sys->addr_hash));
+			while (recv_addr) {
+				if ((recv_addr->space == space)
+					&& (recv_addr->page_no == offset)) {
+					break;
+				}
+				recv_addr = HASH_GET_NEXT(addr_hash, recv_addr);
+			}
+
+			if ((recv_addr == NULL)
+			    || (recv_addr->state == RECV_BEING_PROCESSED)
+			    || (recv_addr->state == RECV_PROCESSED)) {
+				mutex_exit(&(recv_sys->mutex));
+				goto not_to_recover;
+			}
+
+			fprintf(stderr, " (cannot find space: %lu)", space);
+			recv_addr->state = RECV_PROCESSED;
+
+			ut_a(recv_sys->n_addrs);
+			recv_sys->n_addrs--;
+
+			mutex_exit(&(recv_sys->mutex));
+		}
+not_to_recover:
 
 		return(0);
 	}
@@ -246,18 +286,22 @@ buf_read_ahead_random(
 
 	LRU_recent_limit = buf_LRU_get_recent_limit();
 
-	buf_pool_mutex_enter();
+	//buf_pool_mutex_enter();
+	mutex_enter(&buf_pool_mutex);
 
 	if (buf_pool->n_pend_reads
 	    > buf_pool->curr_size / BUF_READ_AHEAD_PEND_LIMIT) {
-		buf_pool_mutex_exit();
+		//buf_pool_mutex_exit();
+		mutex_exit(&buf_pool_mutex);
 
 		return(0);
 	}
+	mutex_exit(&buf_pool_mutex);
 
 	/* Count how many blocks in the area have been recently accessed,
 	that is, reside near the start of the LRU list. */
 
+	rw_lock_s_lock(&page_hash_latch);
 	for (i = low; i < high; i++) {
 		const buf_page_t*	bpage = buf_page_hash_get(space, i);
 
@@ -269,13 +313,15 @@ buf_read_ahead_random(
 
 			if (recent_blocks >= BUF_READ_AHEAD_RANDOM_THRESHOLD) {
 
-				buf_pool_mutex_exit();
+				//buf_pool_mutex_exit();
+				rw_lock_s_unlock(&page_hash_latch);
 				goto read_ahead;
 			}
 		}
 	}
 
-	buf_pool_mutex_exit();
+	//buf_pool_mutex_exit();
+	rw_lock_s_unlock(&page_hash_latch);
 	/* Do nothing */
 	return(0);
 
@@ -469,10 +515,12 @@ buf_read_ahead_linear(
 
 	tablespace_version = fil_space_get_version(space);
 
-	buf_pool_mutex_enter();
+	//buf_pool_mutex_enter();
+	mutex_enter(&buf_pool_mutex);
 
 	if (high > fil_space_get_size(space)) {
-		buf_pool_mutex_exit();
+		//buf_pool_mutex_exit();
+		mutex_exit(&buf_pool_mutex);
 		/* The area is not whole, return */
 
 		return(0);
@@ -480,10 +528,12 @@ buf_read_ahead_linear(
 
 	if (buf_pool->n_pend_reads
 	    > buf_pool->curr_size / BUF_READ_AHEAD_PEND_LIMIT) {
-		buf_pool_mutex_exit();
+		//buf_pool_mutex_exit();
+		mutex_exit(&buf_pool_mutex);
 
 		return(0);
 	}
+	mutex_exit(&buf_pool_mutex);
 
 	/* Check that almost all pages in the area have been accessed; if
 	offset == low, the accesses must be in a descending order, otherwise,
@@ -497,6 +547,7 @@ buf_read_ahead_linear(
 
 	fail_count = 0;
 
+	rw_lock_s_lock(&page_hash_latch);
 	for (i = low; i < high; i++) {
 		bpage = buf_page_hash_get(space, i);
 
@@ -520,7 +571,8 @@ buf_read_ahead_linear(
 	    * LINEAR_AREA_THRESHOLD_COEF) {
 		/* Too many failures: return */
 
-		buf_pool_mutex_exit();
+		//buf_pool_mutex_exit();
+		rw_lock_s_unlock(&page_hash_latch);
 
 		return(0);
 	}
@@ -531,7 +583,8 @@ buf_read_ahead_linear(
 	bpage = buf_page_hash_get(space, offset);
 
 	if (bpage == NULL) {
-		buf_pool_mutex_exit();
+		//buf_pool_mutex_exit();
+		rw_lock_s_unlock(&page_hash_latch);
 
 		return(0);
 	}
@@ -557,7 +610,8 @@ buf_read_ahead_linear(
 	pred_offset = fil_page_get_prev(frame);
 	succ_offset = fil_page_get_next(frame);
 
-	buf_pool_mutex_exit();
+	//buf_pool_mutex_exit();
+	rw_lock_s_unlock(&page_hash_latch);
 
 	if ((offset == low) && (succ_offset == offset + 1)) {
 
@@ -770,11 +824,11 @@ buf_read_recv_pages(
 		while (buf_pool->n_pend_reads >= recv_n_pool_free_frames / 2) {
 
 			os_aio_simulated_wake_handler_threads();
-			os_thread_sleep(500000);
+			os_thread_sleep(10000);
 
 			count++;
 
-			if (count > 100) {
+			if (count > 5000) {
 				fprintf(stderr,
 					"InnoDB: Error: InnoDB has waited for"
 					" 50 seconds for pending\n"

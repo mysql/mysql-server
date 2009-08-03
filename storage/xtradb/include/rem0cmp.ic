@@ -88,5 +88,5 @@ cmp_rec_rec(
 	ulint	match_b		= 0;
 
 	return(cmp_rec_rec_with_match(rec1, rec2, offsets1, offsets2, index,
-				      &match_f, &match_b));
+				      &match_f, &match_b, 0));
 }
