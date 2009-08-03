@@ -3753,7 +3753,6 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
     if (ndbcluster_terminating)
     {
       pthread_mutex_unlock(&LOCK_server_started);
-      pthread_mutex_lock(&LOCK_ndb_util_thread);
       goto err;
     }
   }

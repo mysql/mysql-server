@@ -313,12 +313,14 @@ inline ulonglong double2ulonglong(double d)
 #ifdef _CUSTOMCONFIG_
 #include <custom_conf.h>
 #else
+#ifndef CMAKE_CONFIGD
 #define DEFAULT_MYSQL_HOME	"c:\\mysql"
-#define DATADIR         	"c:\\mysql\\data"
+#define MYSQL_DATADIR          "c:\\mysql\\data"
 #define PACKAGE			"mysql"
 #define DEFAULT_BASEDIR		"C:\\"
 #define SHAREDIR		"share"
 #define DEFAULT_CHARSET_HOME	"C:/mysql/"
+#endif
 #endif
 #ifndef DEFAULT_HOME_ENV
 #define DEFAULT_HOME_ENV MYSQL_HOME
