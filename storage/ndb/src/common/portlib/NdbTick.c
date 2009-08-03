@@ -35,9 +35,13 @@ static clockid_t NdbTick_clk_id = CLOCK_MONOTONIC;
 static clockid_t NdbTick_clk_id = CLOCK_REALTIME;
 #endif
 
-void NdbTick_Init()
+void NdbTick_Init(int need_monotonic)
 {
   struct timespec tick_time;
+
+  if (!need_monotonic)
+    NdbTick_clk_id = CLOCK_REALTIME;
+
   if (clock_gettime(NdbTick_clk_id, &tick_time) == 0)
     return;
 #ifdef CLOCK_MONOTONIC
