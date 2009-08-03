@@ -1,7 +1,7 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #include <stdio.h>
 #include <unistd.h>
-#include <assert.h>
+#include <toku_assert.h>
 
 #include "test.h"
 #include "checkpoint.h"
