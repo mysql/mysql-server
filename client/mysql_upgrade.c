@@ -253,8 +253,12 @@ get_one_option(int optid, const struct my_option *opt,
     break;
 
   case 'b': /* --basedir   */
-  case 'v': /* --verbose   */
   case 'd': /* --datadir   */
+    fprintf(stderr, "%s: the '--%s' option is always ignored\n",
+            my_progname, optid == 'b' ? "basedir" : "datadir");
+    /* FALLTHROUGH */
+
+  case 'v': /* --verbose   */
   case 'f': /* --force     */
     add_option= FALSE;
     break;

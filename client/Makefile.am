@@ -71,7 +71,7 @@ mysqldump_SOURCES=              mysqldump.c \
 	                        $(top_srcdir)/mysys/mf_getdate.c
 
 mysqlimport_SOURCES=		mysqlimport.c
-
+mysqlimport_CFLAGS=		-DTHREAD -UUNDEF_THREADS_HACK
 mysqlimport_LDADD =		$(CXXLDFLAGS) $(CLIENT_THREAD_LIBS) \
 				@CLIENT_EXTRA_LDFLAGS@ \
 				$(LIBMYSQLCLIENT_LA) \
@@ -101,7 +101,7 @@ mysql_upgrade_SOURCES=          mysql_upgrade.c \
 # Fix for mit-threads
 DEFS =			-DMYSQL_CLIENT_NO_THREADS \
 			-DDEFAULT_MYSQL_HOME="\"$(prefix)\"" \
-			-DDATADIR="\"$(localstatedir)\""
+			-DMYSQL_DATADIR="\"$(localstatedir)\""
 
 sql_src=log_event.h mysql_priv.h rpl_constants.h \
 	rpl_utility.h rpl_tblmap.h rpl_tblmap.cc \

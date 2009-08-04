@@ -5990,6 +5990,9 @@ Item_func_sp::execute_impl(THD *thd)
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   Security_context *save_security_ctx= thd->security_ctx;
 #endif
+  enum enum_sp_data_access access=
+    (m_sp->m_chistics->daccess == SP_DEFAULT_ACCESS) ?
+     SP_DEFAULT_ACCESS_MAPPING : m_sp->m_chistics->daccess;
 
   DBUG_ENTER("Item_func_sp::execute_impl");
 
@@ -6007,11 +6010,13 @@ Item_func_sp::execute_impl(THD *thd)
     Throw an error if a non-deterministic function is called while
     statement-based replication (SBR) is active.
   */
+
   if (!m_sp->m_chistics->detistic && !trust_function_creators &&
+      (access == SP_CONTAINS_SQL || access == SP_MODIFIES_SQL_DATA) &&
       (mysql_bin_log.is_open() &&
        thd->variables.binlog_format == BINLOG_FORMAT_STMT))
   {
-    my_error(ER_BINLOG_ROW_RBR_TO_SBR, MYF(0));
+    my_error(ER_BINLOG_UNSAFE_ROUTINE, MYF(0));
     goto error;
   }
 
