@@ -272,12 +272,12 @@ public:
 
 
 private:
+#ifndef DBUG_OFF
+  my_thread_id m_cache_lock_thread_id;
+#endif
   pthread_cond_t COND_cache_status_changed;
-
-  enum Cache_status { NO_FLUSH_IN_PROGRESS, FLUSH_IN_PROGRESS,
-                      TABLE_FLUSH_IN_PROGRESS };
-
-  Cache_status m_cache_status;
+  enum Cache_lock_status { UNLOCKED, LOCKED_NO_WAIT, LOCKED };
+  Cache_lock_status m_cache_lock_status;
 
   bool m_query_cache_is_disabled;
   
@@ -382,8 +382,6 @@ protected:
 	      Query_cache_block *pprev);
   my_bool join_results(ulong join_limit);
 
-  void wait_while_table_flush_is_in_progress(bool *interrupt);
-
   /*
     Following function control structure_guard_mutex
     by themself or don't need structure_guard_mutex
@@ -480,12 +478,6 @@ protected:
   friend void query_cache_abort(NET *net);
 
   bool is_disabled(void) { return m_query_cache_is_disabled; }
-  
-  bool is_flushing(void) 
-  { 
-    return (m_cache_status != Query_cache::NO_FLUSH_IN_PROGRESS);
-  }
-
   /*
     The following functions are only used when debugging
     We don't protect these with ifndef DBUG_OFF to not have to recompile
@@ -503,6 +495,11 @@ protected:
 			Query_cache_block_table * point,
 			const char *name);
   my_bool in_blocks(Query_cache_block * point);
+
+  bool try_lock(void);
+  void lock(void);
+  void lock_and_suspend(void);
+  void unlock(void);
 };
 
 extern Query_cache query_cache;

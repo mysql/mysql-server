@@ -96,7 +96,7 @@ static void mi_check_print_msg(MI_CHECK *param,	const char* msg_type,
 
   if (!thd->vio_ok())
   {
-    sql_print_error(msgbuf);
+    sql_print_error("%s", msgbuf);
     return;
   }
 
@@ -1810,7 +1810,7 @@ int ha_myisam::info(uint flag)
     stats.data_file_length=  misam_info.data_file_length;
     stats.index_file_length= misam_info.index_file_length;
     stats.delete_length=     misam_info.delete_length;
-    stats.check_time=        misam_info.check_time;
+    stats.check_time=        (ulong) misam_info.check_time;
     stats.mean_rec_length=   misam_info.mean_reclength;
   }
   if (flag & HA_STATUS_CONST)
@@ -1818,7 +1818,7 @@ int ha_myisam::info(uint flag)
     TABLE_SHARE *share= table->s;
     stats.max_data_file_length=  misam_info.max_data_file_length;
     stats.max_index_file_length= misam_info.max_index_file_length;
-    stats.create_time= misam_info.create_time;
+    stats.create_time= (ulong) misam_info.create_time;
     ref_length= misam_info.reflength;
     share->db_options_in_use= misam_info.options;
     stats.block_size= myisam_block_size;        /* record block size */
@@ -1833,7 +1833,7 @@ int ha_myisam::info(uint flag)
     if (share->key_parts)
       memcpy((char*) table->key_info[0].rec_per_key,
 	     (char*) misam_info.rec_per_key,
-	     sizeof(table->key_info[0].rec_per_key[0])*share->key_parts);
+             sizeof(table->key_info[0].rec_per_key[0])*share->key_parts);
     if (share->tmp_table == NO_TMP_TABLE)
       pthread_mutex_unlock(&share->mutex);
 
@@ -1857,7 +1857,7 @@ int ha_myisam::info(uint flag)
     my_store_ptr(dup_ref, ref_length, misam_info.dupp_key_pos);
   }
   if (flag & HA_STATUS_TIME)
-    stats.update_time = misam_info.update_time;
+    stats.update_time = (ulong) misam_info.update_time;
   if (flag & HA_STATUS_AUTO)
     stats.auto_increment_value= misam_info.auto_increment;
 
@@ -1891,6 +1891,12 @@ int ha_myisam::extra_opt(enum ha_extra_function operation, ulong cache_size)
 int ha_myisam::delete_all_rows()
 {
   return mi_delete_all_rows(file);
+}
+
+int ha_myisam::reset_auto_increment(ulonglong value)
+{
+  file->s->state.auto_increment= value;
+  return 0;
 }
 
 int ha_myisam::delete_table(const char *name)

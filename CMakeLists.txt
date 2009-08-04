@@ -13,7 +13,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-CMAKE_MINIMUM_REQUIRED(VERSION 2.4.7 FATAL_ERROR)
+CMAKE_MINIMUM_REQUIRED(VERSION 2.6.0 FATAL_ERROR)
 
 PROJECT(MySql)
 
@@ -32,52 +32,6 @@ ADD_DEFINITIONS(-DHAVE_YASSL)
 # Set debug options
 SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DFORCE_INIT_OF_VARS")
 
-# Note that some engines are always compiled in, MyISAM, MyISAMMRG and HEAP,
-# these three plugin defintions are dummys for symmetry
-
-SET(WITH_HEAP_STORAGE_ENGINE TRUE)
-ADD_DEFINITIONS(-DWITH_HEAP_STORAGE_ENGINE)
-SET (mysql_plugin_defs "${mysql_plugin_defs},builtin_heap_plugin")
-
-SET(WITH_MYISAM_STORAGE_ENGINE TRUE)
-ADD_DEFINITIONS(-DWITH_MYISAM_STORAGE_ENGINE)
-SET (mysql_plugin_defs "${mysql_plugin_defs},builtin_myisam_plugin")
-
-SET(WITH_MYISAMMRG_STORAGE_ENGINE TRUE)
-ADD_DEFINITIONS(-DWITH_MYISAMMRG_STORAGE_ENGINE)
-SET (mysql_plugin_defs "${mysql_plugin_defs},builtin_myisammrg_plugin")
-
-IF(WITH_ARCHIVE_STORAGE_ENGINE)
-  ADD_DEFINITIONS(-DWITH_ARCHIVE_STORAGE_ENGINE)
-  SET (mysql_plugin_defs "${mysql_plugin_defs},builtin_archive_plugin")
-ENDIF(WITH_ARCHIVE_STORAGE_ENGINE)
-IF(WITH_BLACKHOLE_STORAGE_ENGINE)
-  ADD_DEFINITIONS(-DWITH_BLACKHOLE_STORAGE_ENGINE)
-  SET (mysql_plugin_defs "${mysql_plugin_defs},builtin_blackhole_plugin")
-ENDIF(WITH_BLACKHOLE_STORAGE_ENGINE)
-IF(WITH_CSV_STORAGE_ENGINE)
-  ADD_DEFINITIONS(-DWITH_CSV_STORAGE_ENGINE)
-  SET (mysql_plugin_defs "${mysql_plugin_defs},builtin_csv_plugin")
-ENDIF(WITH_CSV_STORAGE_ENGINE)
-IF(WITH_EXAMPLE_STORAGE_ENGINE)
-  ADD_DEFINITIONS(-DWITH_EXAMPLE_STORAGE_ENGINE)
-  SET (mysql_plugin_defs "${mysql_plugin_defs},builtin_example_plugin")
-ENDIF(WITH_EXAMPLE_STORAGE_ENGINE)
-IF(WITH_INNOBASE_STORAGE_ENGINE)
-  ADD_DEFINITIONS(-DWITH_INNOBASE_STORAGE_ENGINE)
-  SET (mysql_plugin_defs "${mysql_plugin_defs},builtin_innobase_plugin")
-ENDIF(WITH_INNOBASE_STORAGE_ENGINE)
-IF(WITH_PARTITION_STORAGE_ENGINE)
-  ADD_DEFINITIONS(-DWITH_PARTITION_STORAGE_ENGINE)
-  SET (mysql_plugin_defs "${mysql_plugin_defs},builtin_partition_plugin")
-ENDIF(WITH_PARTITION_STORAGE_ENGINE)
-IF(WITH_FEDERATED_STORAGE_ENGINE)
-  ADD_DEFINITIONS(-DWITH_FEDERATED_STORAGE_ENGINE)
-  SET (mysql_plugin_defs "${mysql_plugin_defs},builtin_federated_plugin")
-ENDIF(WITH_FEDERATED_STORAGE_ENGINE)
-
-CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/sql/sql_builtin.cc.in 
-               ${CMAKE_SOURCE_DIR}/sql/sql_builtin.cc @ONLY)
 
 SET(localstatedir "C:\\mysql\\data")
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/support-files/my-huge.cnf.sh
@@ -122,6 +76,16 @@ IF(MSVC AND NOT CMAKE_GENERATOR MATCHES "Visual Studio 7")
     SET(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} /wd4996")
 ENDIF(MSVC AND NOT CMAKE_GENERATOR MATCHES "Visual Studio 7")
 
+IF(CMAKE_GENERATOR MATCHES "Visual Studio 7")
+    # VS2003 has a bug that prevents linking mysqld with module definition file 
+    # (/DEF option for linker). Linker would incorrectly complain about multiply 
+    # defined symbols. Workaround is to disable dynamic plugins, so /DEF is not
+    # used.
+    MESSAGE("Warning: Building MySQL with Visual Studio 2003.NET is no more supported.")
+    MESSAGE("Please use a newer version of Visual Studio.")
+    SET(WITHOUT_DYNAMIC_PLUGINS TRUE)
+ENDIF(CMAKE_GENERATOR MATCHES "Visual Studio 7")
+
 # Settings for Visual Studio 7 and above.  
 IF(MSVC)
     # replace /MDd with /MTd
@@ -165,12 +129,16 @@ IF(WIN32)
   ADD_DEFINITIONS("-D_WINDOWS -D__WIN__ -D_CRT_SECURE_NO_DEPRECATE")
 ENDIF(WIN32)
 
+# default to x86 platform.  We'll check for X64 in a bit
+SET (PLATFORM X86)
+
 # This definition is necessary to work around a bug with Intellisense described
 # here: http://tinyurl.com/2cb428.  Syntax highlighting is important for proper
 # debugger functionality.
 IF(CMAKE_SIZEOF_VOID_P MATCHES 8)
     MESSAGE(STATUS "Detected 64-bit platform.")
     ADD_DEFINITIONS("-D_WIN64")
+    SET (PLATFORM X64)
 ENDIF(CMAKE_SIZEOF_VOID_P MATCHES 8)
 
 IF(EMBED_MANIFESTS)
@@ -223,6 +191,81 @@ IF(EMBED_MANIFESTS)
     ENDIF(CMAKE_GENERATOR MATCHES "Visual Studio 8 2005 Win64")
 ENDIF(EMBED_MANIFESTS)
 
+# Figure out what engines to build and how (statically or dynamically),
+# add preprocessor defines for storage engines.
+IF(WITHOUT_DYNAMIC_PLUGINS)
+  MESSAGE("Dynamic plugins are disabled.")
+ENDIF(WITHOUT_DYNAMIC_PLUGINS)
+
+FILE(GLOB STORAGE_SUBDIRS storage/*)
+FOREACH(SUBDIR ${STORAGE_SUBDIRS})
+  FILE(RELATIVE_PATH DIRNAME ${PROJECT_SOURCE_DIR}/storage ${SUBDIR})
+  STRING(TOUPPER ${DIRNAME} ENGINE)
+  STRING(TOLOWER ${DIRNAME} ENGINE_LOWER) 
+  IF (EXISTS ${SUBDIR}/CMakeLists.txt)
+    # Check  MYSQL_STORAGE_ENGINE macro is present
+    FILE(STRINGS ${SUBDIR}/CMakeLists.txt HAVE_STORAGE_ENGINE REGEX MYSQL_STORAGE_ENGINE)
+    IF(HAVE_STORAGE_ENGINE)
+      SET(ENGINE_BUILD_TYPE "DYNAMIC")
+      # Read plug.in to find out if a plugin is mandatory and whether it supports
+      # build as shared library (dynamic).
+      IF(EXISTS ${SUBDIR}/plug.in)
+        FILE(READ ${SUBDIR}/plug.in PLUGIN_FILE_CONTENT)
+        STRING (REGEX MATCH  "MYSQL_PLUGIN_DYNAMIC"  MYSQL_PLUGIN_DYNAMIC  ${PLUGIN_FILE_CONTENT})
+        STRING (REGEX MATCH  "MYSQL_PLUGIN_MANDATORY"  MYSQL_PLUGIN_MANDATORY  ${PLUGIN_FILE_CONTENT})
+        STRING (REGEX MATCH  "MYSQL_PLUGIN_STATIC"  MYSQL_PLUGIN_STATIC  ${PLUGIN_FILE_CONTENT})
+
+        IF(MYSQL_PLUGIN_MANDATORY)
+          SET(WITH_${ENGINE}_STORAGE_ENGINE TRUE)
+        ENDIF(MYSQL_PLUGIN_MANDATORY)
+
+        IF (WITH_${ENGINE}_STORAGE_ENGINE AND MYSQL_PLUGIN_STATIC)
+          SET(ENGINE_BUILD_TYPE "STATIC")
+        ELSEIF(NOT WITHOUT_${ENGINE}_STORAGE_ENGINE AND MYSQL_PLUGIN_DYNAMIC AND NOT WITHOUT_DYNAMIC_PLUGINS)
+          SET(ENGINE_BUILD_TYPE "DYNAMIC")
+        ELSE(WITH_${ENGINE}_STORAGE_ENGINE AND MYSQL_PLUGIN_STATIC)
+          SET(ENGINE_BUILD_TYPE "NONE")
+        ENDIF(WITH_${ENGINE}_STORAGE_ENGINE AND MYSQL_PLUGIN_STATIC)
+        IF (ENGINE_BUILD_TYPE STREQUAL "STATIC") 
+          SET (mysql_plugin_defs  "${mysql_plugin_defs},builtin_${ENGINE_LOWER}_plugin")
+          SET (MYSQLD_STATIC_ENGINE_LIBS ${MYSQLD_STATIC_ENGINE_LIBS} ${ENGINE_LOWER})
+          SET (STORAGE_ENGINE_DEFS "${STORAGE_ENGINE_DEFS} -DWITH_${ENGINE}_STORAGE_ENGINE")
+          SET (WITH_${ENGINE}_STORAGE_ENGINE TRUE)
+        ENDIF (ENGINE_BUILD_TYPE STREQUAL "STATIC")
+      ENDIF(EXISTS ${SUBDIR}/plug.in)
+
+      IF(NOT ENGINE_BUILD_TYPE STREQUAL "NONE")
+        LIST(APPEND  ${ENGINE_BUILD_TYPE}_ENGINE_DIRECTORIES  ${SUBDIR})
+      ENDIF(NOT ENGINE_BUILD_TYPE STREQUAL "NONE")
+      
+    ENDIF(HAVE_STORAGE_ENGINE)
+  ENDIF(EXISTS ${SUBDIR}/CMakeLists.txt)
+ENDFOREACH(SUBDIR ${STORAGE_SUBDIRS})
+
+# Special handling for partition(not really pluggable)
+IF(NOT WITHOUT_PARTITION_STORAGE_ENGINE)
+  SET (STORAGE_ENGINE_DEFS "${STORAGE_ENGINE_DEFS} -DWITH_PARTITION_STORAGE_ENGINE")
+  SET (mysql_plugin_defs  "${mysql_plugin_defs},builtin_partition_plugin")
+ENDIF(NOT WITHOUT_PARTITION_STORAGE_ENGINE)
+
+ADD_DEFINITIONS(${STORAGE_ENGINE_DEFS}) 
+
+# Now write out our mysql_plugin_defs struct
+CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/sql/sql_builtin.cc.in 
+               ${CMAKE_SOURCE_DIR}/sql/sql_builtin.cc @ONLY)
+
+# Add subdirectories for storage engines
+SET (ENGINE_BUILD_TYPE "STATIC")
+FOREACH(DIR ${STATIC_ENGINE_DIRECTORIES})
+  ADD_SUBDIRECTORY(${DIR})
+ENDFOREACH(DIR ${STATIC_ENGINE_DIRECTORIES})
+
+SET (ENGINE_BUILD_TYPE "DYNAMIC")
+FOREACH(DIR ${DYNAMIC_ENGINE_DIRECTORIES})
+  ADD_SUBDIRECTORY(${DIR})
+ENDFOREACH(DIR ${DYNAMIC_ENGINE_DIRECTORIES})
+
+
 # FIXME "debug" only needed if build type is "Debug", but
 # CMAKE_BUILD_TYPE is not set during configure time.
 ADD_SUBDIRECTORY(vio)
@@ -235,28 +278,7 @@ ADD_SUBDIRECTORY(zlib)
 ADD_SUBDIRECTORY(extra/yassl)
 ADD_SUBDIRECTORY(extra/yassl/taocrypt)
 ADD_SUBDIRECTORY(extra)
-ADD_SUBDIRECTORY(storage/heap)
-ADD_SUBDIRECTORY(storage/myisam)
-ADD_SUBDIRECTORY(storage/myisammrg)
 ADD_SUBDIRECTORY(client)
-IF(WITH_ARCHIVE_STORAGE_ENGINE)
-  ADD_SUBDIRECTORY(storage/archive)
-ENDIF(WITH_ARCHIVE_STORAGE_ENGINE)
-IF(WITH_BLACKHOLE_STORAGE_ENGINE)
-  ADD_SUBDIRECTORY(storage/blackhole)
-ENDIF(WITH_BLACKHOLE_STORAGE_ENGINE)
-IF(WITH_CSV_STORAGE_ENGINE)
-  ADD_SUBDIRECTORY(storage/csv)
-ENDIF(WITH_CSV_STORAGE_ENGINE)
-IF(WITH_EXAMPLE_STORAGE_ENGINE)
-  ADD_SUBDIRECTORY(storage/example)
-ENDIF(WITH_EXAMPLE_STORAGE_ENGINE)
-IF(WITH_FEDERATED_STORAGE_ENGINE)
-  ADD_SUBDIRECTORY(storage/federated)
-ENDIF(WITH_FEDERATED_STORAGE_ENGINE)
-IF(WITH_INNOBASE_STORAGE_ENGINE)
-  ADD_SUBDIRECTORY(storage/innobase)
-ENDIF(WITH_INNOBASE_STORAGE_ENGINE)
 ADD_SUBDIRECTORY(sql)
 ADD_SUBDIRECTORY(libmysql)
 ADD_SUBDIRECTORY(tests)

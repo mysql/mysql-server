@@ -91,7 +91,7 @@ enum enum_mark_columns
 
 extern char internal_table_name[2];
 extern char empty_c_string[1];
-extern const char **errmesg;
+extern MYSQL_PLUGIN_IMPORT const char **errmesg;
 
 #define TC_LOG_PAGE_SIZE   8192
 #define TC_LOG_MIN_SIZE    (3*TC_LOG_PAGE_SIZE)
@@ -1036,7 +1036,10 @@ show_system_thread(enum_thread_type thread)
 class Internal_error_handler
 {
 protected:
-  Internal_error_handler() {}
+  Internal_error_handler() :
+    m_prev_internal_handler(NULL)
+  {}
+
   virtual ~Internal_error_handler() {}
 
 public:
@@ -1069,6 +1072,28 @@ public:
                             const char *message,
                             MYSQL_ERROR::enum_warning_level level,
                             THD *thd) = 0;
+private:
+  Internal_error_handler *m_prev_internal_handler;
+  friend class THD;
+};
+
+
+/**
+  Implements the trivial error handler which cancels all error states
+  and prevents an SQLSTATE to be set.
+*/
+
+class Dummy_error_handler : public Internal_error_handler
+{
+public:
+  bool handle_error(uint sql_errno,
+                    const char *message,
+                    MYSQL_ERROR::enum_warning_level level,
+                    THD *thd)
+  {
+    /* Ignore error */
+    return TRUE;
+  }
 };
 
 
@@ -1345,7 +1370,8 @@ public:
   /* remote (peer) port */
   uint16 peer_port;
   time_t     start_time, user_time;
-  ulonglong  connect_utime, thr_create_utime; // track down slow pthread_create
+  // track down slow pthread_create
+  ulonglong  prior_thr_create_utime, thr_create_utime;
   ulonglong  start_utime, utime_after_lock;
   
   thr_lock_type update_lock_default;
@@ -1439,6 +1465,14 @@ public:
     {
       changed_tables= 0;
       savepoints= 0;
+      /*
+        If rm_error is raised, it means that this piece of a distributed
+        transaction has failed and must be rolled back. But the user must
+        rollback it explicitly, so don't start a new distributed XA until
+        then.
+      */
+      if (!xid_state.rm_error)
+        xid_state.xid.null();
 #ifdef USING_TRANSACTIONS
       free_root(&mem_root,MYF(MY_KEEP_PREALLOC));
 #endif
@@ -1889,7 +1923,7 @@ public:
   int binlog_query(enum_binlog_query_type qtype,
                    char const *query, ulong query_len,
                    bool is_trans, bool suppress_use,
-                   THD::killed_state killed_err_arg= THD::KILLED_NO_VALUE);
+                   int errcode);
 #endif
 
   /*
@@ -2210,6 +2244,9 @@ public:
   thd_scheduler scheduler;
 
 public:
+  inline Internal_error_handler *get_internal_handler()
+  { return m_internal_handler; }
+
   /**
     Add an internal error handler to the thread execution context.
     @param handler the exception handler to add

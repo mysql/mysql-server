@@ -389,6 +389,13 @@ void init_slave_skip_errors(const char* arg)
   DBUG_VOID_RETURN;
 }
 
+static void set_thd_in_use_temporary_tables(Relay_log_info *rli)
+{
+  TABLE *table;
+
+  for (table= rli->save_temporary_tables ; table ; table= table->next)
+    table->in_use= rli->sql_thd;
+}
 
 int terminate_slave_threads(Master_info* mi,int thread_mask,bool skip_lock)
 {
@@ -661,7 +668,7 @@ static int end_slave_on_walk(Master_info* mi, uchar* /*unused*/)
 
 
 /*
-  Free all resources used by slave
+  Release slave threads at time of executing shutdown.
 
   SYNOPSIS
     end_slave()
@@ -687,14 +694,31 @@ void end_slave()
       once multi-master code is ready.
     */
     terminate_slave_threads(active_mi,SLAVE_FORCE_ALL);
-    end_master_info(active_mi);
-    delete active_mi;
-    active_mi= 0;
   }
   pthread_mutex_unlock(&LOCK_active_mi);
   DBUG_VOID_RETURN;
 }
 
+/**
+   Free all resources used by slave threads at time of executing shutdown.
+   The routine must be called after all possible users of @c active_mi
+   have left.
+
+   SYNOPSIS
+     close_active_mi()
+
+*/
+void close_active_mi()
+{
+  pthread_mutex_lock(&LOCK_active_mi);
+  if (active_mi)
+  {
+    end_master_info(active_mi);
+    delete active_mi;
+    active_mi= 0;
+  }
+  pthread_mutex_unlock(&LOCK_active_mi);
+}
 
 static bool io_slave_killed(THD* thd, Master_info* mi)
 {
@@ -803,7 +827,7 @@ int init_strvar_from_file(char *var, int max_size, IO_CACHE *f,
         up to and including newline.
       */
       int c;
-      while (((c=my_b_get(f)) != '\n' && c != my_b_EOF));
+      while (((c=my_b_get(f)) != '\n' && c != my_b_EOF)) ;
     }
     DBUG_RETURN(0);
   }
@@ -1486,6 +1510,8 @@ bool show_master_info(THD* thd, Master_info* mi)
 
     pthread_mutex_lock(&mi->data_lock);
     pthread_mutex_lock(&mi->rli.data_lock);
+    pthread_mutex_lock(&mi->err_lock);
+    pthread_mutex_lock(&mi->rli.err_lock);
     protocol->store(mi->host, &my_charset_bin);
     protocol->store(mi->user, &my_charset_bin);
     protocol->store((uint32) mi->port);
@@ -1585,6 +1611,8 @@ bool show_master_info(THD* thd, Master_info* mi)
     // Last_SQL_Error
     protocol->store(mi->rli.last_error().message, &my_charset_bin);
 
+    pthread_mutex_unlock(&mi->rli.err_lock);
+    pthread_mutex_unlock(&mi->err_lock);
     pthread_mutex_unlock(&mi->rli.data_lock);
     pthread_mutex_unlock(&mi->data_lock);
 
@@ -1855,25 +1883,6 @@ static ulong read_event(MYSQL* mysql, Master_info *mi, bool* suppress_warnings)
                       len, mysql->net.read_pos[4]));
   DBUG_RETURN(len - 1);
 }
-
-
-int check_expected_error(THD* thd, Relay_log_info const *rli,
-                         int expected_error)
-{
-  DBUG_ENTER("check_expected_error");
-
-  switch (expected_error) {
-  case ER_NET_READ_ERROR:
-  case ER_NET_ERROR_ON_WRITE:
-  case ER_QUERY_INTERRUPTED:
-  case ER_SERVER_SHUTDOWN:
-  case ER_NEW_ABORTING_CONNECTION:
-    DBUG_RETURN(1);
-  default:
-    DBUG_RETURN(0);
-  }
-}
-
 
 /*
   Check if the current error is of temporary nature of not.
@@ -2228,7 +2237,7 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
                           "the slave_transaction_retries variable.",
                           slave_trans_retries);
       }
-      else if (exec_res && !temp_err ||
+      else if ((exec_res && !temp_err) ||
                (opt_using_transactions &&
                 rli->group_relay_log_pos == rli->event_relay_log_pos))
       {
@@ -2390,6 +2399,7 @@ pthread_handler_t handle_slave_io(void *arg)
 
   pthread_detach_this_thread();
   thd->thread_stack= (char*) &thd; // remember where our stack is
+  mi->clear_error();
   if (init_slave_thread(thd, SLAVE_THD_IO))
   {
     pthread_cond_broadcast(&mi->start_cond);
@@ -2504,6 +2514,7 @@ requesting master dump") ||
         goto connected;
       });
 
+    DBUG_ASSERT(mi->last_error().number == 0);
     while (!io_slave_killed(thd,mi))
     {
       ulong event_len;
@@ -2668,12 +2679,19 @@ err:
   LOAD DATA INFILE.
  */
 static 
-int check_temp_dir(char* tmp_dir, char *tmp_file)
+int check_temp_dir(char* tmp_file)
 {
   int fd;
   MY_DIR *dirp;
+  char tmp_dir[FN_REFLEN];
+  size_t tmp_dir_size;
 
   DBUG_ENTER("check_temp_dir");
+
+  /*
+    Get the directory from the temporary file.
+  */
+  dirname_part(tmp_dir, tmp_file, &tmp_dir_size);
 
   /*
     Check if the directory exists.
@@ -2750,6 +2768,7 @@ pthread_handler_t handle_slave_sql(void *arg)
   }
   thd->init_for_queries();
   thd->temporary_tables = rli->save_temporary_tables; // restore temp tables
+  set_thd_in_use_temporary_tables(rli);   // (re)set sql_thd in use for saved temp tables
   pthread_mutex_lock(&LOCK_thread_count);
   threads.append(thd);
   pthread_mutex_unlock(&LOCK_thread_count);
@@ -2830,7 +2849,7 @@ log '%s' at position %s, relay log '%s' position: %s", RPL_LOG_NAME,
                     llstr(rli->group_master_log_pos,llbuff),rli->group_relay_log_name,
                     llstr(rli->group_relay_log_pos,llbuff1));
 
-  if (check_temp_dir(slave_load_tmpdir, rli->slave_patternload_file))
+  if (check_temp_dir(rli->slave_patternload_file))
   {
     rli->report(ERROR_LEVEL, thd->main_da.sql_errno(), 
                 "Unable to use slave's temporary directory %s - %s", 
@@ -2996,6 +3015,7 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
   DBUG_ASSERT(rli->sql_thd == thd);
   THD_CHECK_SENTRY(thd);
   rli->sql_thd= 0;
+  set_thd_in_use_temporary_tables(rli);  // (re)set sql_thd in use for saved temp tables
   pthread_mutex_lock(&LOCK_thread_count);
   THD_CHECK_SENTRY(thd);
   delete thd;
@@ -3694,6 +3714,7 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
 
   if (!slave_was_killed)
   {
+    mi->clear_error(); // clear possible left over reconnect error
     if (reconnect)
     {
       if (!suppress_warnings && global_system_variables.log_warnings)

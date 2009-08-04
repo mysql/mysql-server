@@ -1165,7 +1165,7 @@ bool Field_num::get_int(CHARSET_INFO *cs, const char *from, uint len,
   if (unsigned_flag)
   {
 
-    if (((ulonglong) *rnd > unsigned_max) && (*rnd= (longlong) unsigned_max) ||
+    if ((((ulonglong) *rnd > unsigned_max) && (*rnd= (longlong) unsigned_max)) ||
         error == MY_ERRNO_ERANGE)
     {
       goto out_of_range;
@@ -1350,7 +1350,7 @@ void Field::copy_from_tmp(int row_offset)
   if (null_ptr)
   {
     *null_ptr= (uchar) ((null_ptr[0] & (uchar) ~(uint) null_bit) |
-			null_ptr[row_offset] & (uchar) null_bit);
+			(null_ptr[row_offset] & (uchar) null_bit));
   }
 }
 
@@ -4081,8 +4081,8 @@ int Field_float::store(const char *from,uint len,CHARSET_INFO *cs)
   int error;
   char *end;
   double nr= my_strntod(cs,(char*) from,len,&end,&error);
-  if (error || (!len || (uint) (end-from) != len &&
-                table->in_use->count_cuted_fields))
+  if (error || (!len || ((uint) (end-from) != len &&
+                table->in_use->count_cuted_fields)))
   {
     set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
                 (error ? ER_WARN_DATA_OUT_OF_RANGE : WARN_DATA_TRUNCATED), 1);
@@ -4343,8 +4343,8 @@ int Field_double::store(const char *from,uint len,CHARSET_INFO *cs)
   int error;
   char *end;
   double nr= my_strntod(cs,(char*) from, len, &end, &error);
-  if (error || (!len || (uint) (end-from) != len &&
-                table->in_use->count_cuted_fields))
+  if (error || (!len || ((uint) (end-from) != len &&
+                table->in_use->count_cuted_fields)))
   {
     set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
                 (error ? ER_WARN_DATA_OUT_OF_RANGE : WARN_DATA_TRUNCATED), 1);
@@ -5196,7 +5196,7 @@ int Field_time::store(longlong nr, bool unsigned_val)
                          MYSQL_TIMESTAMP_TIME, 1);
     error= 1;
   }
-  else if (nr > (longlong) TIME_MAX_VALUE || nr < 0 && unsigned_val)
+  else if (nr > (longlong) TIME_MAX_VALUE || (nr < 0 && unsigned_val))
   {
     tmp= TIME_MAX_VALUE;
     set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
@@ -5307,7 +5307,7 @@ bool Field_time::get_time(MYSQL_TIME *ltime)
     ltime->neg= 1;
     tmp=-tmp;
   }
-  ltime->day= 0;
+  ltime->year= ltime->month= ltime->day= 0;
   ltime->hour=   (int) (tmp/10000);
   tmp-=ltime->hour*10000;
   ltime->minute= (int) tmp/100;
@@ -5361,7 +5361,7 @@ int Field_year::store(const char *from, uint len,CHARSET_INFO *cs)
   int error;
   longlong nr= cs->cset->strntoull10rnd(cs, from, len, 0, &end, &error);
 
-  if (nr < 0 || nr >= 100 && nr <= 1900 || nr > 2155 || 
+  if (nr < 0 || (nr >= 100 && nr <= 1900) || nr > 2155 ||
       error == MY_ERRNO_ERANGE)
   {
     *ptr=0;
@@ -5405,7 +5405,7 @@ int Field_year::store(double nr)
 int Field_year::store(longlong nr, bool unsigned_val)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
-  if (nr < 0 || nr >= 100 && nr <= 1900 || nr > 2155)
+  if (nr < 0 || (nr >= 100 && nr <= 1900) || nr > 2155)
   {
     *ptr= 0;
     set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
@@ -6429,16 +6429,16 @@ int Field_str::store(double nr)
   /* Calculate the exponent from the 'e'-format conversion */
   if (anr < 1.0 && anr > 0)
   {
-    for (exp= 0; anr < 1e-100; exp-= 100, anr*= 1e100);
-    for (; anr < 1e-10; exp-= 10, anr*= 1e10);
-    for (i= 1; anr < 1 / log_10[i]; exp--, i++);
+    for (exp= 0; anr < 1e-100; exp-= 100, anr*= 1e100) ;
+    for (; anr < 1e-10; exp-= 10, anr*= 1e10) ;
+    for (i= 1; anr < 1 / log_10[i]; exp--, i++) ;
     exp--;
   }
   else
   {
-    for (exp= 0; anr > 1e100; exp+= 100, anr/= 1e100);
-    for (; anr > 1e10; exp+= 10, anr/= 1e10);
-    for (i= 1; anr > log_10[i]; exp++, i++);
+    for (exp= 0; anr > 1e100; exp+= 100, anr/= 1e100) ;
+    for (; anr > 1e10; exp+= 10, anr/= 1e10) ;
+    for (i= 1; anr > log_10[i]; exp++, i++) ;
   }
 
   max_length= local_char_length - neg;
@@ -8833,7 +8833,7 @@ bool Field_num::eq_def(Field *field)
   Field_num *from_num= (Field_num*) field;
 
   if (unsigned_flag != from_num->unsigned_flag ||
-      zerofill && !from_num->zerofill && !zero_pack() ||
+      (zerofill && !from_num->zerofill && !zero_pack()) ||
       dec != from_num->dec)
     return 0;
   return 1;
@@ -8974,7 +8974,7 @@ int Field_bit::store(const char *from, uint length, CHARSET_INFO *cs)
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   int delta;
 
-  for (; length && !*from; from++, length--);          // skip left 0's
+  for (; length && !*from; from++, length--) ;         // skip left 0's
   delta= bytes_in_rec - length;
 
   if (delta < -1 ||
@@ -9306,7 +9306,7 @@ Field_bit::unpack(uchar *to, const uchar *from, uint param_data,
     and slave have the same sizes, then use the old unpack() method.
   */
   if (param_data == 0 ||
-      (from_bit_len == bit_len) && (from_len == bytes_in_rec))
+      ((from_bit_len == bit_len) && (from_len == bytes_in_rec)))
   {
     if (bit_len > 0)
     {
@@ -9385,7 +9385,7 @@ int Field_bit_as_char::store(const char *from, uint length, CHARSET_INFO *cs)
   int delta;
   uchar bits= (uchar) (field_length & 7);
 
-  for (; length && !*from; from++, length--);          // skip left 0's
+  for (; length && !*from; from++, length--) ;         // skip left 0's
   delta= bytes_in_rec - length;
 
   if (delta < 0 ||

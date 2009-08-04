@@ -20,5 +20,5 @@ eval CHANGE MASTER TO MASTER_USER='root',
 START SLAVE;
 
 source include/wait_for_slave_sql_to_stop.inc;
-let $error=query_get_value("show slave status", Last_SQL_Error, 1);
-echo $error;
+let $errno=query_get_value("show slave status", Last_SQL_Errno, 1);
+echo $errno;

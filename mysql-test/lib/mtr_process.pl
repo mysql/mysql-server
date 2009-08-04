@@ -21,7 +21,25 @@
 use strict;
 use Socket;
 use Errno;
+use My::Platform;
+use if IS_WINDOWS, "Net::Ping";
 
+# Ancient perl might not have port_number method for Net::Ping.
+# Check it and use fallback to connect() if it is not present.
+BEGIN 
+{
+  my $use_netping= 0;
+  if (IS_WINDOWS)
+  {
+    my $ping = Net::Ping->new();
+    if ($ping->can("port_number"))
+    {
+      $use_netping= 1;
+    }
+  }
+  eval 'sub USE_NETPING { $use_netping }';
+}
+  
 sub sleep_until_file_created ($$$);
 sub mtr_ping_port ($);
 
@@ -30,6 +48,24 @@ sub mtr_ping_port ($) {
 
   mtr_verbose("mtr_ping_port: $port");
 
+  if (IS_WINDOWS && USE_NETPING)
+  {
+    # Under Windows, connect to a port that is not open is slow
+    # It takes ~1sec. Net::Ping with small timeout is much faster.
+    my $ping = Net::Ping->new();
+    $ping->port_number($port);
+    if ($ping->ping("localhost",0.1))
+    {
+      mtr_verbose("USED");
+      return 1;
+    }
+    else
+    {
+      mtr_verbose("FREE");
+      return 0;
+    }
+  }
+  
   my $remote= "localhost";
   my $iaddr=  inet_aton($remote);
   if ( ! $iaddr )

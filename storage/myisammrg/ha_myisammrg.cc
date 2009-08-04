@@ -546,7 +546,8 @@ int ha_myisammrg::attach_children(void)
 
   if (myrg_attach_children(this->file, this->test_if_locked |
                            current_thd->open_options,
-                           myisammrg_attach_children_callback, this))
+                           myisammrg_attach_children_callback, this,
+                           (my_bool *) &need_compat_check))
   {
     DBUG_PRINT("error", ("my_errno %d", my_errno));
     DBUG_RETURN(my_errno ? my_errno : -1);
@@ -948,11 +949,11 @@ int ha_myisammrg::info(uint flag)
         with such a number, it'll be an error later anyway.
       */
       bzero((char*) table->key_info[0].rec_per_key,
-            sizeof(table->key_info[0].rec_per_key) * table->s->key_parts);
+            sizeof(table->key_info[0].rec_per_key[0]) * table->s->key_parts);
 #endif
       memcpy((char*) table->key_info[0].rec_per_key,
 	     (char*) mrg_info.rec_per_key,
-             sizeof(table->key_info[0].rec_per_key) *
+             sizeof(table->key_info[0].rec_per_key[0]) *
              min(file->keys, table->s->key_parts));
     }
   }

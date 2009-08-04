@@ -1,6 +1,5 @@
 # Embedded server doesn't support external clients
 --source include/not_embedded.inc
---source include/have_log_bin.inc
 
 # Binlog is required
 --source include/have_log_bin.inc
@@ -1396,9 +1395,6 @@ drop user mysqltest_1@localhost;
 
 
 --echo #
---echo # Bug#21527 mysqldump incorrectly tries to LOCK TABLES on the
---echo #           information_schema database.
---echo #
 --echo # Bug#21424 mysqldump failing to export/import views
 --echo #
 
@@ -1464,6 +1460,13 @@ disconnect root;
 --remove_file $MYSQLTEST_VARDIR/tmp/bug21527.sql
 use test;
 
+--echo #
+--echo # Bug #21527 mysqldump incorrectly tries to LOCK TABLES on the 
+--echo # information_schema database.
+--echo #
+--echo # Bug #33762: mysqldump can not dump INFORMATION_SCHEMA
+--echo #
+--exec $MYSQL_DUMP --compact --opt -d information_schema TABLES
 
 --echo #
 --echo # Bug#19745 mysqldump --xml produces invalid xml
@@ -1699,9 +1702,6 @@ DROP TABLE t1;
 # Added for use-thread option
 #
 
-# THIS PART OF THE TEST IS DISABLED UNTIL Bug#32991 IS FIXED
-if ($bug32991_fixed) {
-
 create table t1 (a text , b text);
 create table t2 (a text , b text);
 insert t1 values ("Duck, Duck", "goose");
@@ -1738,8 +1738,6 @@ drop table t1;
 drop table t2;
 
 drop table words2;
-
-}
 
 --echo #
 --echo # Bug#16853 mysqldump doesn't show events
@@ -1953,6 +1951,59 @@ DROP DATABASE mysqldump_test_db;
 # This line must be executed _after_ all test cases.
 SET @@GLOBAL.CONCURRENT_INSERT = @OLD_CONCURRENT_INSERT;
 
+
+###########################################################################
+
+--echo
+--echo Bug #34861 - mysqldump with --tab gives weird output for triggers.
+--echo
+
+CREATE TABLE t1 (f1 INT);
+CREATE TRIGGER tr1 BEFORE UPDATE ON t1 FOR EACH ROW SET @f1 = 1;
+CREATE PROCEDURE pr1 () SELECT "Meow";
+CREATE EVENT ev1 ON SCHEDULE AT '2030-01-01 00:00:00' DO SELECT "Meow";
+
+--echo
+SHOW TRIGGERS;
+SHOW EVENTS;
+SELECT name,body FROM mysql.proc WHERE NAME = 'pr1';
+
+--echo
+--echo dump table; if anything goes to stdout, it ends up here: ---------------
+--exec $MYSQL_DUMP --compact --routines --triggers --events --result-file=$MYSQLTEST_VARDIR/tmp/test_34861.sql --tab=$MYSQLTEST_VARDIR/tmp/ test
+
+--echo
+--echo drop everything
+DROP EVENT ev1;
+DROP TRIGGER tr1;
+DROP TABLE t1;
+DROP PROCEDURE pr1;
+
+--echo
+--echo reload table; this should restore table and trigger
+--exec $MYSQL test < $MYSQLTEST_VARDIR/tmp/t1.sql
+SHOW TRIGGERS;
+SHOW EVENTS;
+SELECT name,body FROM mysql.proc WHERE NAME = 'pr1';
+
+--echo
+--echo reload db; this should restore routines and events
+--exec $MYSQL test < $MYSQLTEST_VARDIR/tmp/test_34861.sql
+SHOW TRIGGERS;
+SHOW EVENTS;
+SELECT name,body FROM mysql.proc WHERE NAME = 'pr1';
+
+--echo
+--echo cleanup
+--remove_file $MYSQLTEST_VARDIR/tmp/t1.txt
+--remove_file $MYSQLTEST_VARDIR/tmp/t1.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/test_34861.sql
+--disable_warnings
+DROP EVENT IF EXISTS ev1;
+DROP PROCEDURE IF EXISTS pr1;
+DROP TRIGGER IF EXISTS tr1;
+DROP TABLE IF EXISTS t1;
+--enable_warnings
 
 ###########################################################################
 
