@@ -253,8 +253,7 @@ static void run_query(THD *thd, char *buf, char *end,
   const char* found_semicolon= NULL;
 
   bzero((char*) &thd->net, sizeof(NET));
-  thd->query_length= end - buf;
-  thd->query= buf;
+  thd->set_query(buf, (uint) (end - buf));
   thd->variables.pseudo_thread_id= thread_id;
   thd->transaction.stmt.modified_non_trans_table= FALSE;
   if (disable_binlog)
@@ -297,8 +296,7 @@ static void run_query(THD *thd, char *buf, char *end,
   thd->main_da.reset_diagnostics_area();
 
   thd->options= save_thd_options;
-  thd->query_length= save_thd_query_length;
-  thd->query= save_thd_query;
+  thd->set_query(save_thd_query, save_thd_query_length);
   thd->variables.pseudo_thread_id= save_thread_id;
   thd->status_var= save_thd_status_var;
   thd->transaction.all= save_thd_transaction_all;
@@ -3755,7 +3753,6 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
     if (ndbcluster_terminating)
     {
       pthread_mutex_unlock(&LOCK_server_started);
-      pthread_mutex_lock(&LOCK_ndb_util_thread);
       goto err;
     }
   }

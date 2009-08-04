@@ -6201,3 +6201,8 @@ ER_TEMPORARY_NAME
 ER_RENAMED_NAME
   eng "Renamed"
   swe "Namnändrad"
+ER_TOO_MANY_CONCURRENT_TRXS
+        eng  "Too many active concurrent transactions"
+
+WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED
+  eng "Non-ASCII separator arguments are not fully supported"

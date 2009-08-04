@@ -10,8 +10,6 @@
 #
 --source include/have_partition.inc
 
-SET @old_general_log= @@global.general_log;
-
 --disable_warnings
 drop table if exists t1, t2;
 --enable_warnings
@@ -1020,6 +1018,17 @@ subpartition by hash(a)
  partition p1 values less than (1) (subpartition sp0));
 
 #
+# Bug 46354 Crash with subpartition
+#
+--error ER_PARSE_ERROR
+create table t1 (a int, b int)
+partition by list (a)
+subpartition by hash(a)
+(partition p0 values in (0),
+ partition p1 values in (1) (subpartition sp0));
+
+
+#
 # BUG 15961 No error when subpartition defined without subpartition by clause
 #
 --error ER_SUBPARTITION_ERROR
@@ -1641,23 +1650,6 @@ insert into t values (1);
 drop table t;
 
 #
-# Bug #27816: Log tables ran with partitions crashes the server when logging
-# is enabled.
-#
-
-USE mysql;
-TRUNCATE TABLE general_log;
-SET @old_general_log_state = @@global.general_log;
-SET GLOBAL general_log = 0;
-ALTER TABLE general_log ENGINE = MyISAM;
---error ER_WRONG_USAGE
-ALTER TABLE general_log PARTITION BY RANGE (TO_DAYS(event_time))
-  (PARTITION p0 VALUES LESS THAN (733144), PARTITION p1 VALUES LESS THAN (3000000));
-ALTER TABLE general_log ENGINE = CSV;
-SET GLOBAL general_log = @old_general_log_state;
-use test;
-
-#
 # Bug #27084 partitioning by list seems failing when using case 
 # BUG #18198: Case no longer supported, test case removed
 #
@@ -1988,5 +1980,3 @@ DROP TABLE t1;
 SET SESSION SQL_MODE=DEFAULT;
 
 --echo End of 5.1 tests
-
-SET @@global.general_log= @old_general_log;
