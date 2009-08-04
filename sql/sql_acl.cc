@@ -936,6 +936,7 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
 #ifdef HAVE_OPENSSL
     Vio *vio=thd->net.vio;
     SSL *ssl= (SSL*) vio->ssl_arg;
+    X509 *cert;
 #endif
 
     /*
@@ -964,8 +965,11 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
       */
       if (vio_type(vio) == VIO_TYPE_SSL &&
 	  SSL_get_verify_result(ssl) == X509_V_OK &&
-	  SSL_get_peer_certificate(ssl))
+	  (cert= SSL_get_peer_certificate(ssl)))
+      {
 	user_access= acl_user->access;
+        X509_free(cert);
+      }
       break;
     case SSL_TYPE_SPECIFIED: /* Client should have specified attrib */
       /*
@@ -974,7 +978,6 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
 	If cipher name is specified, we compare it to actual cipher in
 	use.
       */
-      X509 *cert;
       if (vio_type(vio) != VIO_TYPE_SSL ||
 	  SSL_get_verify_result(ssl) != X509_V_OK)
 	break;
@@ -1014,6 +1017,7 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
             sql_print_information("X509 issuer mismatch: should be '%s' "
 			      "but is '%s'", acl_user->x509_issuer, ptr);
           free(ptr);
+          X509_free(cert);
           user_access=NO_ACCESS;
           break;
         }
@@ -1033,12 +1037,15 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
             sql_print_information("X509 subject mismatch: should be '%s' but is '%s'",
                             acl_user->x509_subject, ptr);
           free(ptr);
+          X509_free(cert);
           user_access=NO_ACCESS;
           break;
         }
         user_access= acl_user->access;
         free(ptr);
       }
+      /* Deallocate the X509 certificate. */
+      X509_free(cert);
       break;
 #else  /* HAVE_OPENSSL */
     default:
@@ -1185,12 +1192,12 @@ static void acl_update_user(const char *user, const char *host,
   for (uint i=0 ; i < acl_users.elements ; i++)
   {
     ACL_USER *acl_user=dynamic_element(&acl_users,i,ACL_USER*);
-    if (!acl_user->user && !user[0] ||
-	acl_user->user && !strcmp(user,acl_user->user))
+    if ((!acl_user->user && !user[0]) ||
+	(acl_user->user && !strcmp(user,acl_user->user)))
     {
-      if (!acl_user->host.hostname && !host[0] ||
-	  acl_user->host.hostname &&
-	  !my_strcasecmp(system_charset_info, host, acl_user->host.hostname))
+      if ((!acl_user->host.hostname && !host[0]) ||
+	  (acl_user->host.hostname &&
+	  !my_strcasecmp(system_charset_info, host, acl_user->host.hostname)))
       {
 	acl_user->access=privileges;
 	if (mqh->specified_limits & USER_RESOURCES::QUERIES_PER_HOUR)
@@ -1268,16 +1275,16 @@ static void acl_update_db(const char *user, const char *host, const char *db,
   for (uint i=0 ; i < acl_dbs.elements ; i++)
   {
     ACL_DB *acl_db=dynamic_element(&acl_dbs,i,ACL_DB*);
-    if (!acl_db->user && !user[0] ||
-	acl_db->user &&
-	!strcmp(user,acl_db->user))
+    if ((!acl_db->user && !user[0]) ||
+	(acl_db->user &&
+	!strcmp(user,acl_db->user)))
     {
-      if (!acl_db->host.hostname && !host[0] ||
-	  acl_db->host.hostname &&
-          !strcmp(host, acl_db->host.hostname))
+      if ((!acl_db->host.hostname && !host[0]) ||
+	  (acl_db->host.hostname &&
+          !strcmp(host, acl_db->host.hostname)))
       {
-	if (!acl_db->db && !db[0] ||
-	    acl_db->db && !strcmp(db,acl_db->db))
+	if ((!acl_db->db && !db[0]) ||
+	    (acl_db->db && !strcmp(db,acl_db->db)))
 	{
 	  if (privileges)
 	    acl_db->access=privileges;
@@ -1486,8 +1493,8 @@ bool acl_check_host(const char *host, const char *ip)
     return 0;
   VOID(pthread_mutex_lock(&acl_cache->lock));
 
-  if (host && hash_search(&acl_check_hosts,(uchar*) host,strlen(host)) ||
-      ip && hash_search(&acl_check_hosts,(uchar*) ip, strlen(ip)))
+  if ((host && hash_search(&acl_check_hosts,(uchar*) host,strlen(host))) ||
+      (ip && hash_search(&acl_check_hosts,(uchar*) ip, strlen(ip))))
   {
     VOID(pthread_mutex_unlock(&acl_cache->lock));
     return 0;					// Found host
@@ -1648,7 +1655,7 @@ bool change_password(THD *thd, const char *host, const char *user,
                   new_password));
     thd->clear_error();
     thd->binlog_query(THD::MYSQL_QUERY_TYPE, buff, query_length,
-                      FALSE, FALSE, THD::NOT_KILLED);
+                      FALSE, FALSE, 0);
   }
 end:
   close_thread_tables(thd);
@@ -1704,8 +1711,8 @@ find_acl_user(const char *host, const char *user, my_bool exact)
                        host,
                        acl_user->host.hostname ? acl_user->host.hostname :
                        ""));
-    if (!acl_user->user && !user[0] ||
-	acl_user->user && !strcmp(user,acl_user->user))
+    if ((!acl_user->user && !user[0]) ||
+	(acl_user->user && !strcmp(user,acl_user->user)))
     {
       if (exact ? !my_strcasecmp(system_charset_info, host,
                                  acl_user->host.hostname ?
@@ -2988,8 +2995,8 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     {
       if (!(rights & CREATE_ACL))
       {
-        char buf[FN_REFLEN];
-        build_table_filename(buf, sizeof(buf), table_list->db,
+        char buf[FN_REFLEN + 1];
+        build_table_filename(buf, sizeof(buf) - 1, table_list->db,
                              table_list->table_name, reg_ext, 0);
         fn_format(buf, buf, "", "", MY_UNPACK_FILENAME  | MY_RESOLVE_SYMLINKS |
                                     MY_RETURN_REAL_PATH | MY_APPEND_EXT);
@@ -3191,26 +3198,24 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
 }
 
 
-/*
+/**
   Store routine level grants in the privilege tables
 
-  SYNOPSIS
-    mysql_routine_grant()
-    thd			Thread handle
-    table_list		List of routines to give grant
-    is_proc             true indicates routine list are procedures
-    user_list		List of users to give grant
-    rights		Table level grant
-    revoke_grant	Set to 1 if this is a REVOKE command
+  @param thd Thread handle
+  @param table_list List of routines to give grant
+  @param is_proc Is this a list of procedures?
+  @param user_list List of users to give grant
+  @param rights Table level grant
+  @param revoke_grant Is this is a REVOKE command?
 
-  RETURN
-    0	ok
-    1	error
+  @return
+    @retval FALSE Success.
+    @retval TRUE An error occurred.
 */
 
 bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
 			 List <LEX_USER> &user_list, ulong rights,
-			 bool revoke_grant, bool no_error)
+			 bool revoke_grant, bool write_to_binlog)
 {
   List_iterator <LEX_USER> str_list (user_list);
   LEX_USER *Str, *tmp_Str;
@@ -3221,22 +3226,20 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
 
   if (!initialized)
   {
-    if (!no_error)
-      my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0),
-               "--skip-grant-tables");
+    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0),
+             "--skip-grant-tables");
     DBUG_RETURN(TRUE);
   }
   if (rights & ~PROC_ACLS)
   {
-    if (!no_error)
-      my_message(ER_ILLEGAL_GRANT_FOR_TABLE, ER(ER_ILLEGAL_GRANT_FOR_TABLE),
-        	 MYF(0));
+    my_message(ER_ILLEGAL_GRANT_FOR_TABLE, ER(ER_ILLEGAL_GRANT_FOR_TABLE),
+               MYF(0));
     DBUG_RETURN(TRUE);
   }
 
   if (!revoke_grant)
   {
-    if (sp_exist_routines(thd, table_list, is_proc, no_error)<0)
+    if (sp_exist_routines(thd, table_list, is_proc))
       DBUG_RETURN(TRUE);
   }
 
@@ -3317,9 +3320,8 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
     {
       if (revoke_grant)
       {
-        if (!no_error)
-          my_error(ER_NONEXISTING_PROC_GRANT, MYF(0),
-		   Str->user.str, Str->host.str, table_name);
+        my_error(ER_NONEXISTING_PROC_GRANT, MYF(0),
+	         Str->user.str, Str->host.str, table_name);
 	result= TRUE;
 	continue;
       }
@@ -3344,15 +3346,13 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
   }
   thd->mem_root= old_root;
   pthread_mutex_unlock(&acl_cache->lock);
-  if (!result && !no_error)
+
+  if (write_to_binlog)
   {
     write_bin_log(thd, TRUE, thd->query, thd->query_length);
   }
 
   rw_unlock(&LOCK_grant);
-
-  if (!result && !no_error)
-    my_ok(thd);
 
   /* Tables are automatically closed */
   DBUG_RETURN(result);
@@ -5319,16 +5319,13 @@ static int handle_grant_struct(uint struct_no, bool drop,
   uint elements;
   const char *user;
   const char *host;
-  ACL_USER *acl_user;
-  ACL_DB *acl_db;
-  GRANT_NAME *grant_name;
+  ACL_USER *acl_user= NULL;
+  ACL_DB *acl_db= NULL;
+  GRANT_NAME *grant_name= NULL;
   DBUG_ENTER("handle_grant_struct");
   DBUG_PRINT("info",("scan struct: %u  search: '%s'@'%s'",
                      struct_no, user_from->user.str, user_from->host.str));
 
-  LINT_INIT(acl_user);
-  LINT_INIT(acl_db);
-  LINT_INIT(grant_name);
   LINT_INIT(user);
   LINT_INIT(host);
 
@@ -5696,6 +5693,7 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
   List_iterator <LEX_USER> user_list(list);
   TABLE_LIST tables[GRANT_TABLES];
   bool some_users_deleted= FALSE;
+  ulong old_sql_mode= thd->variables.sql_mode;
   DBUG_ENTER("mysql_drop_user");
 
   /*
@@ -5708,6 +5706,8 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
   /* DROP USER may be skipped on replication client. */
   if ((result= open_grant_tables(thd, tables)))
     DBUG_RETURN(result != 1);
+
+  thd->variables.sql_mode&= ~MODE_PAD_CHAR_TO_FULL_LENGTH;
 
   rw_wrlock(&LOCK_grant);
   VOID(pthread_mutex_lock(&acl_cache->lock));
@@ -5741,6 +5741,7 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
 
   rw_unlock(&LOCK_grant);
   close_thread_tables(thd);
+  thd->variables.sql_mode= old_sql_mode;
   DBUG_RETURN(result);
 }
 
@@ -6150,21 +6151,20 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
 }
 
 
-/*
+/**
   Grant EXECUTE,ALTER privilege for a stored procedure
 
-  SYNOPSIS
-    sp_grant_privileges()
-    thd                         The current thread.
-    db				DB of the stored procedure
-    name			Name of the stored procedure
+  @param thd The current thread.
+  @param sp_db
+  @param sp_name
+  @param is_proc
 
-  RETURN
-    0           OK.
-    < 0         Error. Error message not yet sent.
+  @return
+    @retval FALSE Success
+    @retval TRUE An error occured. Error message not yet sent.
 */
 
-int sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
+bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
                          bool is_proc)
 {
   Security_context *sctx= thd->security_ctx;
@@ -6174,6 +6174,7 @@ int sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
   bool result;
   ACL_USER *au;
   char passwd_buff[SCRAMBLED_PASSWORD_CHAR_LENGTH+1];
+  Dummy_error_handler error_handler;
   DBUG_ENTER("sp_grant_privileges");
 
   if (!(combo=(LEX_USER*) thd->alloc(sizeof(st_lex_user))))
@@ -6224,8 +6225,11 @@ int sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
     }
     else
     {
-      my_error(ER_PASSWD_LENGTH, MYF(0), SCRAMBLED_PASSWORD_CHAR_LENGTH);
-      return -1;
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          ER_PASSWD_LENGTH,
+                          ER(ER_PASSWD_LENGTH),
+                          SCRAMBLED_PASSWORD_CHAR_LENGTH);
+      return TRUE;
     }
     combo->password.str= passwd_buff;
   }
@@ -6239,10 +6243,17 @@ int sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
     DBUG_RETURN(TRUE);
 
   thd->lex->ssl_type= SSL_TYPE_NOT_SPECIFIED;
+  thd->lex->ssl_cipher= thd->lex->x509_subject= thd->lex->x509_issuer= 0;
   bzero((char*) &thd->lex->mqh, sizeof(thd->lex->mqh));
 
+  /*
+    Only care about whether the operation failed or succeeded
+    as all errors will be handled later.
+  */
+  thd->push_internal_handler(&error_handler);
   result= mysql_routine_grant(thd, tables, is_proc, user_list,
-  				DEFAULT_CREATE_PROC_ACLS, 0, 1);
+                              DEFAULT_CREATE_PROC_ACLS, FALSE, FALSE);
+  thd->pop_internal_handler();
   DBUG_RETURN(result);
 }
 

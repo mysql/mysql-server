@@ -117,8 +117,11 @@ connection addconroot1;
 --reap
 connection addconroot2;
 --reap
-disconnect addconroot1;
 disconnect addconroot2;
+--source include/wait_until_disconnected.inc
+connection addconroot1;
+disconnect addconroot1;
+--source include/wait_until_disconnected.inc
 connection default;
 
 --echo End of 5.0 tests

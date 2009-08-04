@@ -129,8 +129,8 @@ struct IconvMap
 {
   struct HashKey
   {
-    uint16 direction; // This is a uint16 instead of a uchar to avoid garbage data in the key from compiler padding
-    uint16 db2CCSID;
+    uint32 direction; // These are uint32s to avoid garbage data in the key from compiler padding
+    uint32 db2CCSID;
     const CHARSET_INFO* myCharset;
   } hashKey;
   iconv_t iconvDesc;
@@ -245,9 +245,14 @@ static int32 getNewTextDesc(const int32 inType,
   else if ((inType == Qlg_TypeAS400CCSID) && (outType == Qlg_TypeAix41))
   {
     // Override non-standard charsets
-    if (unlikely(strcmp("1148", in) == 0))
+    if (strcmp("1148", in) == 0)
     {
       strcpy(out, "IBM-1148");
+      DBUG_RETURN(0);
+    }
+    else if (unlikely(strcmp("1153", in) == 0))
+    {
+      strcpy(out, "IBM-1153");
       DBUG_RETURN(0);
     }
   }
@@ -268,8 +273,15 @@ static int32 getNewTextDesc(const int32 inType,
       RESULT_INT32);
   if (unlikely(arguments->base.result.s_int32.r_int32 < 0))
   {
-     getErrTxt(DB2I_ERR_ILECALL,"QlgCvtTextDescToDesc",arguments->base.result.s_int32.r_int32);
-     DBUG_RETURN(DB2I_ERR_ILECALL);
+    if (arguments->base.result.s_int32.r_int32 == Qlg_InDescriptorNotFound)
+    {
+      DBUG_RETURN(DB2I_ERR_UNSUPP_CHARSET);
+    }
+    else
+    {
+      getErrTxt(DB2I_ERR_ILECALL,"QlgCvtTextDescToDesc",arguments->base.result.s_int32.r_int32);
+      DBUG_RETURN(DB2I_ERR_ILECALL);
+    }
   }
   
   // Store the conversion information into a cache entry
@@ -372,6 +384,11 @@ static int32 convertTextDesc(const int32 inType, const int32 outType, const char
         strcpy(outDesc,"IBM-1256");
         DBUG_RETURN(0);
       }
+      else if (strcmp("macce", inDescOverride) == 0)
+      {
+        strcpy(outDesc,"IBM-1282");
+        DBUG_RETURN(0);
+      }
     }
     else if (outType == Qlg_TypeAS400CCSID)
     {
@@ -428,8 +445,13 @@ int32 convertIANAToDb2Ccsid(const char* parmIANADesc, uint16* db2Ccsid)
   int aixEncodingScheme;
   int db2EncodingScheme;
   rc = convertTextDesc(Qlg_TypeIANA, Qlg_TypeAS400CCSID, parmIANADesc, aixCcsidString);
-  if (rc != 0)
+  if (unlikely(rc))
+  {
+    if (rc == DB2I_ERR_UNSUPP_CHARSET)
+      getErrTxt(DB2I_ERR_UNSUPP_CHARSET, parmIANADesc);
+    
     return rc;
+  }
   aixCcsid = atoi(aixCcsidString);
   rc = getEncodingScheme(aixCcsid, aixEncodingScheme);     
   if (rc != 0) 
@@ -571,6 +593,11 @@ int32 getAssociatedCCSID(const uint16 inCcsid, const int inEncodingScheme, uint1
     *outCcsid = 1148;
     DBUG_RETURN(0);
   }
+  else if ((inCcsid == 1250) && (inEncodingScheme == 0x1100))
+  {
+    *outCcsid = 1153;
+    DBUG_RETURN(0);
+  }
 
   if (!ptrInited)
   {  
@@ -646,32 +673,38 @@ static int32 openNewConversion(enum_conversionDirection direction,
      there equivalent iconv descriptions.
   */
   rc = convertTextDesc(Qlg_TypeIANA, Qlg_TypeAix41, mysqlCSName, mysqlAix41Desc);
-  if (rc)
+  if (unlikely(rc))
+  {
+    if (rc == DB2I_ERR_UNSUPP_CHARSET)
+      getErrTxt(DB2I_ERR_UNSUPP_CHARSET, mysqlCSName);
+    
     DBUG_RETURN(rc);
+  }
   CHARSET_INFO *cs= &my_charset_bin;
   (uint)(cs->cset->long10_to_str)(cs,db2CcsidString,sizeof(db2CcsidString), 10, db2CCSID);  
   rc = convertTextDesc(Qlg_TypeAS400CCSID, Qlg_TypeAix41, db2CcsidString, db2Aix41Desc);
-  if (rc)
-      DBUG_RETURN(rc);
+  if (unlikely(rc))
+  {
+    if (rc == DB2I_ERR_UNSUPP_CHARSET)
+      getErrTxt(DB2I_ERR_UNSUPP_CHARSET, mysqlCSName);
+    
+    DBUG_RETURN(rc);
+  }
   
   /* Call iconv to open the conversion. */
   if (direction == toDB2)
   {
     newConversion = iconv_open(db2Aix41Desc, mysqlAix41Desc);
-    if (newConversion == (iconv_t) -1)
-    {
-       getErrTxt(DB2I_ERR_ICONV_OPEN, mysqlAix41Desc, db2Aix41Desc,  errno);
-       DBUG_RETURN(DB2I_ERR_ICONV_OPEN);
-    }
   }
   else
   {
     newConversion = iconv_open(mysqlAix41Desc, db2Aix41Desc);
-    if (newConversion == (iconv_t) -1)
-    {
-       getErrTxt(DB2I_ERR_ICONV_OPEN, db2Aix41Desc, mysqlAix41Desc, errno);
-       DBUG_RETURN(DB2I_ERR_ICONV_OPEN);
-    }
+  }
+
+  if (unlikely(newConversion == (iconv_t) -1))
+  {
+    getErrTxt(DB2I_ERR_UNSUPP_CHARSET, mysqlCSName);
+    DBUG_RETURN(DB2I_ERR_UNSUPP_CHARSET);
   }
  
   /* Insert the new conversion into the cache. */

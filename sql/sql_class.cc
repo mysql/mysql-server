@@ -27,6 +27,7 @@
 
 #include "mysql_priv.h"
 #include "rpl_rli.h"
+#include "rpl_filter.h"
 #include "rpl_record.h"
 #include "slave.h"
 #include <my_bitmap.h>
@@ -546,6 +547,7 @@ THD::THD()
    first_successful_insert_id_in_prev_stmt_for_binlog(0),
    first_successful_insert_id_in_cur_stmt(0),
    stmt_depends_on_first_successful_insert_id_in_prev_stmt(FALSE),
+   examined_row_count(0),
    global_read_lock(0),
    is_fatal_error(0),
    transaction_rollback_request(0),
@@ -590,7 +592,7 @@ THD::THD()
   // Must be reset to handle error with THD's created for init of mysqld
   lex->current_select= 0;
   start_time=(time_t) 0;
-  start_utime= 0L;
+  start_utime= prior_thr_create_utime= 0L;
   utime_after_lock= 0L;
   current_linfo =  0;
   slave_thread = 0;
@@ -674,31 +676,40 @@ THD::THD()
 
 void THD::push_internal_handler(Internal_error_handler *handler)
 {
-  /*
-    TODO: The current implementation is limited to 1 handler at a time only.
-    THD and sp_rcontext need to be modified to use a common handler stack.
-  */
-  DBUG_ASSERT(m_internal_handler == NULL);
-  m_internal_handler= handler;
+  if (m_internal_handler)
+  {
+    handler->m_prev_internal_handler= m_internal_handler;
+    m_internal_handler= handler;
+  }
+  else
+  {
+    m_internal_handler= handler;
+  }
 }
 
 
 bool THD::handle_error(uint sql_errno, const char *message,
                        MYSQL_ERROR::enum_warning_level level)
 {
-  if (m_internal_handler)
+  if (!m_internal_handler)
+    return FALSE;
+
+  for (Internal_error_handler *error_handler= m_internal_handler;
+       error_handler;
+       error_handler= m_internal_handler->m_prev_internal_handler)
   {
-    return m_internal_handler->handle_error(sql_errno, message, level, this);
+    if (error_handler->handle_error(sql_errno, message, level, this))
+    return TRUE;
   }
 
-  return FALSE;                                 // 'FALSE', as per coding style
+  return FALSE;
 }
 
 
 void THD::pop_internal_handler()
 {
   DBUG_ASSERT(m_internal_handler != NULL);
-  m_internal_handler= NULL;
+  m_internal_handler= m_internal_handler->m_prev_internal_handler;
 }
 
 extern "C"
@@ -746,6 +757,12 @@ void thd_get_xid(const MYSQL_THD thd, MYSQL_XID *xid)
   *xid = *(MYSQL_XID *) &thd->transaction.xid_state.xid;
 }
 
+#ifdef _WIN32
+extern "C"   THD *_current_thd_noinline(void)
+{
+  return my_pthread_getspecific_ptr(THD*,THR_THD);
+}
+#endif
 /*
   Init common variables that has to be reset on start and on change_user
 */
@@ -2599,7 +2616,7 @@ bool select_dumpvar::send_data(List<Item> &items)
     {
       Item_func_set_user_var *suv= new Item_func_set_user_var(mv->s, item);
       suv->fix_fields(thd, 0);
-      suv->check(0);
+      suv->save_item_result(item);
       suv->update();
     }
   }
@@ -3649,7 +3666,7 @@ show_query_type(THD::enum_binlog_query_type qtype)
 */
 int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
                       ulong query_len, bool is_trans, bool suppress_use,
-                      THD::killed_state killed_status_arg)
+                      int errcode)
 {
   DBUG_ENTER("THD::binlog_query");
   DBUG_PRINT("enter", ("qtype: %s  query: '%s'",
@@ -3674,7 +3691,8 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
     we should print a warning.
   */
   if (sql_log_bin_toplevel && lex->is_stmt_unsafe() &&
-      variables.binlog_format == BINLOG_FORMAT_STMT)
+      variables.binlog_format == BINLOG_FORMAT_STMT && 
+      binlog_filter->db_ok(this->db))
   {
    /*
      A warning can be elevated a error when STRICT sql mode.
@@ -3716,7 +3734,7 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
      */
     {
       Query_log_event qinfo(this, query_arg, query_len, is_trans, suppress_use,
-                            killed_status_arg);
+                            errcode);
       qinfo.flags|= LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F;
       /*
         Binlog table maps will be irrelevant after a Query_log_event

@@ -464,34 +464,35 @@ inline bool is_system_table_name(const char *name, uint length)
   CHARSET_INFO *ci= system_charset_info;
 
   return (
-          /* mysql.proc table */
-          length == 4 &&
-          my_tolower(ci, name[0]) == 'p' && 
-          my_tolower(ci, name[1]) == 'r' &&
-          my_tolower(ci, name[2]) == 'o' &&
-          my_tolower(ci, name[3]) == 'c' ||
+           /* mysql.proc table */
+           (length == 4 &&
+             my_tolower(ci, name[0]) == 'p' && 
+             my_tolower(ci, name[1]) == 'r' &&
+             my_tolower(ci, name[2]) == 'o' &&
+             my_tolower(ci, name[3]) == 'c') ||
 
-          length > 4 &&
-          (
-           /* one of mysql.help* tables */
-           my_tolower(ci, name[0]) == 'h' &&
-           my_tolower(ci, name[1]) == 'e' &&
-           my_tolower(ci, name[2]) == 'l' &&
-           my_tolower(ci, name[3]) == 'p' ||
+           (length > 4 &&
+             (
+               /* one of mysql.help* tables */
+               (my_tolower(ci, name[0]) == 'h' &&
+                 my_tolower(ci, name[1]) == 'e' &&
+                 my_tolower(ci, name[2]) == 'l' &&
+                 my_tolower(ci, name[3]) == 'p') ||
 
-           /* one of mysql.time_zone* tables */
-           my_tolower(ci, name[0]) == 't' &&
-           my_tolower(ci, name[1]) == 'i' &&
-           my_tolower(ci, name[2]) == 'm' &&
-           my_tolower(ci, name[3]) == 'e' ||
+               /* one of mysql.time_zone* tables */
+               (my_tolower(ci, name[0]) == 't' &&
+                 my_tolower(ci, name[1]) == 'i' &&
+                 my_tolower(ci, name[2]) == 'm' &&
+                 my_tolower(ci, name[3]) == 'e') ||
 
-           /* mysql.event table */
-           my_tolower(ci, name[0]) == 'e' &&
-           my_tolower(ci, name[1]) == 'v' &&
-           my_tolower(ci, name[2]) == 'e' &&
-           my_tolower(ci, name[3]) == 'n' &&
-           my_tolower(ci, name[4]) == 't'
-          )
+               /* mysql.event table */
+               (my_tolower(ci, name[0]) == 'e' &&
+                 my_tolower(ci, name[1]) == 'v' &&
+                 my_tolower(ci, name[2]) == 'e' &&
+                 my_tolower(ci, name[3]) == 'n' &&
+                 my_tolower(ci, name[4]) == 't')
+             )
+           )
          );
 }
 
@@ -779,7 +780,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   strpos=disk_buff+6;
 
   if (!(rec_per_key= (ulong*) alloc_root(&share->mem_root,
-					 sizeof(ulong*)*key_parts)))
+                                         sizeof(ulong)*key_parts)))
     goto err;
 
   for (i=0 ; i < keys ; i++, keyinfo++)
@@ -3314,8 +3315,8 @@ bool TABLE_LIST::prep_check_option(THD *thd, uint8 check_opt_type)
   {
     const char *save_where= thd->where;
     thd->where= "check option";
-    if (!check_option->fixed &&
-        check_option->fix_fields(thd, &check_option) ||
+    if ((!check_option->fixed &&
+        check_option->fix_fields(thd, &check_option)) ||
         check_option->check_cols(1))
     {
       DBUG_RETURN(TRUE);
@@ -3341,6 +3342,7 @@ void TABLE_LIST::hide_view_error(THD *thd)
 
   if (thd->main_da.sql_errno() == ER_BAD_FIELD_ERROR ||
       thd->main_da.sql_errno() == ER_SP_DOES_NOT_EXIST ||
+      thd->main_da.sql_errno() == ER_FUNC_INEXISTENT_NAME_COLLISION ||
       thd->main_da.sql_errno() == ER_PROCACCESS_DENIED_ERROR ||
       thd->main_da.sql_errno() == ER_COLUMNACCESS_DENIED_ERROR ||
       thd->main_da.sql_errno() == ER_TABLEACCESS_DENIED_ERROR ||
@@ -4030,7 +4032,7 @@ void Field_iterator_table_ref::set_field_iterator()
     /* Necesary, but insufficient conditions. */
     DBUG_ASSERT(table_ref->is_natural_join ||
                 table_ref->nested_join ||
-                table_ref->join_columns &&
+                (table_ref->join_columns &&
                 /* This is a merge view. */
                 ((table_ref->field_translation &&
                   table_ref->join_columns->elements ==
@@ -4039,7 +4041,7 @@ void Field_iterator_table_ref::set_field_iterator()
                  /* This is stored table or a tmptable view. */
                  (!table_ref->field_translation &&
                   table_ref->join_columns->elements ==
-                  table_ref->table->s->fields)));
+                  table_ref->table->s->fields))));
     field_it= &natural_join_it;
     DBUG_PRINT("info",("field_it for '%s' is Field_iterator_natural_join",
                        table_ref->alias));

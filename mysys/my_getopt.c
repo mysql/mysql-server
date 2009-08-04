@@ -20,6 +20,7 @@
 #include <mysys_err.h>
 #include <my_getopt.h>
 #include <errno.h>
+#include <m_string.h>
 
 typedef void (*init_func_p)(const struct my_option *option, uchar* *variable,
                             longlong value);
@@ -410,7 +411,8 @@ invalid value '%s'",
 	  argument= optend;
 	}
 	else if (optp->arg_type == OPT_ARG &&
-		 (optp->var_type & GET_TYPE_MASK) == GET_BOOL)
+		 (((optp->var_type & GET_TYPE_MASK) == GET_BOOL) ||
+                   (optp->var_type & GET_TYPE_MASK) == GET_ENUM))
 	{
 	  if (optend == disabled_my_option)
 	    *((my_bool*) value)= (my_bool) 0;
@@ -648,8 +650,18 @@ static int setval(const struct my_option *opts, uchar* *value, char *argument,
 	return EXIT_OUT_OF_MEMORY;
       break;
     case GET_ENUM:
-      if (((*(int*)result_pos)= find_type(argument, opts->typelib, 2) - 1) < 0)
-        return EXIT_ARGUMENT_INVALID;
+      if (((*(int*)result_pos)=
+             find_type(argument, opts->typelib, 2) - 1) < 0)
+      {
+        /*
+          Accept an integer representation of the enumerated item.
+        */
+        char *endptr;
+        unsigned int arg= (unsigned int) strtol(argument, &endptr, 10);
+        if (*endptr || arg >= opts->typelib->count)
+          return EXIT_ARGUMENT_INVALID;
+        *(int*)result_pos= arg;
+      }
       break;
     case GET_SET:
       *((ulonglong*)result_pos)= find_typeset(argument, opts->typelib, &err);

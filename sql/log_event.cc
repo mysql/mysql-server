@@ -369,6 +369,34 @@ int convert_handler_error(int error, THD* thd, TABLE *table)
   return (actual_error);
 }
 
+inline bool concurrency_error_code(int error)
+{
+  switch (error)
+  {
+  case ER_LOCK_WAIT_TIMEOUT:
+  case ER_LOCK_DEADLOCK:
+  case ER_XA_RBDEADLOCK:
+    return TRUE;
+  default: 
+    return (FALSE);
+  }
+}
+
+inline bool unexpected_error_code(int unexpected_error)
+{
+  switch (unexpected_error) 
+  {
+  case ER_NET_READ_ERROR:
+  case ER_NET_ERROR_ON_WRITE:
+  case ER_QUERY_INTERRUPTED:
+  case ER_SERVER_SHUTDOWN:
+  case ER_NEW_ABORTING_CONNECTION:
+    return(TRUE);
+  default:
+    return(FALSE);
+  }
+}
+
 /*
   pretty_print_str()
 */
@@ -791,8 +819,8 @@ Log_event::do_shall_skip(Relay_log_info *rli)
                       (ulong) server_id, (ulong) ::server_id,
                       rli->replicate_same_server_id,
                       rli->slave_skip_counter));
-  if (server_id == ::server_id && !rli->replicate_same_server_id ||
-      rli->slave_skip_counter == 1 && rli->is_in_group())
+  if ((server_id == ::server_id && !rli->replicate_same_server_id) ||
+      (rli->slave_skip_counter == 1 && rli->is_in_group()))
     return EVENT_SKIP_IGNORE;
   else if (rli->slave_skip_counter > 0)
     return EVENT_SKIP_COUNT;
@@ -2316,19 +2344,16 @@ Query_log_event::Query_log_event()
       query_length      - size of the  `query_arg' array
       using_trans       - there is a modified transactional table
       suppress_use      - suppress the generation of 'USE' statements
-      killed_status_arg - an optional with default to THD::KILLED_NO_VALUE
-                          if the value is different from the default, the arg
-                          is set to the current thd->killed value.
-                          A caller might need to masquerade thd->killed with
-                          THD::NOT_KILLED.
+      errcode           - the error code of the query
+      
   DESCRIPTION
   Creates an event for binlogging
-  The value for local `killed_status' can be supplied by caller.
+  The value for `errcode' should be supplied by caller.
 */
 Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
 				 ulong query_length, bool using_trans,
-				 bool suppress_use,
-                                 THD::killed_state killed_status_arg)
+				 bool suppress_use, int errcode)
+
   :Log_event(thd_arg,
              (thd_arg->thread_specific_used ? LOG_EVENT_THREAD_SPECIFIC_F :
               0) |
@@ -2349,22 +2374,7 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
 {
   time_t end_time;
 
-  if (killed_status_arg == THD::KILLED_NO_VALUE)
-    killed_status_arg= thd_arg->killed;
-  error_code=
-    (killed_status_arg == THD::NOT_KILLED) ?
-    (thd_arg->is_error() ? thd_arg->main_da.sql_errno() : 0) :
-    ((thd_arg->system_thread & SYSTEM_THREAD_DELAYED_INSERT) ? 0 :
-     thd_arg->killed_errno());
-
-  /* thd_arg->main_da.sql_errno() might be ER_SERVER_SHUTDOWN or
-     ER_QUERY_INTERRUPTED, So here we need to make sure that
-     error_code is not set to these errors when specified NOT_KILLED
-     by the caller
-  */
-  if ((killed_status_arg == THD::NOT_KILLED) &&
-      (error_code == ER_SERVER_SHUTDOWN || error_code == ER_QUERY_INTERRUPTED))
-    error_code= 0;
+  error_code= errcode;
 
   time(&end_time);
   exec_time = (ulong) (end_time  - thd_arg->start_time);
@@ -2751,7 +2761,8 @@ void Query_log_event::print_query_header(IO_CACHE* file,
 
   if (!(flags & LOG_EVENT_SUPPRESS_USE_F) && db)
   {
-    if ((different_db= memcmp(print_event_info->db, db, db_len + 1)))
+    different_db= memcmp(print_event_info->db, db, db_len + 1);
+    if (different_db)
       memcpy(print_event_info->db, db, db_len + 1);
     if (db[0] && different_db) 
       my_b_printf(file, "use %s%s\n", db, print_event_info->delimiter);
@@ -3008,7 +3019,10 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
             ::do_apply_event(), then the companion SET also have so
             we don't need to reset_one_shot_variables().
   */
-  if (rpl_filter->db_ok(thd->db))
+  if (!strncmp(query_arg, "BEGIN", q_len_arg) ||
+      !strncmp(query_arg, "COMMIT", q_len_arg) ||
+      !strncmp(query_arg, "ROLLBACK", q_len_arg) ||
+      rpl_filter->db_ok(thd->db))
   {
     thd->set_time((time_t)when);
     thd->query_length= q_len_arg;
@@ -3020,7 +3034,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
     DBUG_PRINT("query",("%s",thd->query));
 
     if (ignored_error_code((expected_error= error_code)) ||
-	!check_expected_error(thd,rli,expected_error))
+	!unexpected_error_code(expected_error))
     {
       if (flags2_inited)
         /*
@@ -3152,8 +3166,8 @@ compare_errors:
     actual_error= thd->is_error() ? thd->main_da.sql_errno() : 0;
     DBUG_PRINT("info",("expected_error: %d  sql_errno: %d",
  		       expected_error, actual_error));
-    if ((expected_error != actual_error) &&
- 	expected_error &&
+    if ((expected_error && expected_error != actual_error &&
+         !concurrency_error_code(expected_error)) &&
  	!ignored_error_code(actual_error) &&
  	!ignored_error_code(expected_error))
     {
@@ -3172,7 +3186,8 @@ Default database: '%s'. Query: '%s'",
     /*
       If we get the same error code as expected, or they should be ignored. 
     */
-    else if (expected_error == actual_error ||
+    else if ((expected_error == actual_error && 
+              !concurrency_error_code(expected_error)) ||
  	     ignored_error_code(actual_error))
     {
       DBUG_PRINT("info",("error ignored"));
@@ -3344,8 +3359,8 @@ void Start_log_event_v3::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
       my_b_printf(&cache," at startup");
     my_b_printf(&cache, "\n");
     if (flags & LOG_EVENT_BINLOG_IN_USE_F)
-      my_b_printf(&cache, "# Warning: this binlog was not closed properly. "
-                  "Most probably mysqld crashed writing it.\n");
+      my_b_printf(&cache, "# Warning: this binlog is either in use or was not "
+                  "closed properly.\n");
   }
   if (!is_artificial_event() && created)
   {
@@ -4366,7 +4381,7 @@ void Load_log_event::print(FILE* file_arg, PRINT_EVENT_INFO* print_event_info,
     {
       if (i)
 	my_b_printf(&cache, ",");
-      my_b_printf(&cache, field);
+      my_b_printf(&cache, "%s", field);
 	  
       field += field_lens[i]  + 1;
     }
@@ -6619,9 +6634,9 @@ Execute_load_query_log_event(THD *thd_arg, const char* query_arg,
                              uint fn_pos_end_arg,
                              enum_load_dup_handling dup_handling_arg,
                              bool using_trans, bool suppress_use,
-                             THD::killed_state killed_err_arg):
+                             int errcode):
   Query_log_event(thd_arg, query_arg, query_length_arg, using_trans,
-                  suppress_use, killed_err_arg),
+                  suppress_use, errcode),
   file_id(thd_arg->file_id), fn_pos_start(fn_pos_start_arg),
   fn_pos_end(fn_pos_end_arg), dup_handling(dup_handling_arg)
 {
@@ -6694,7 +6709,7 @@ void Execute_load_query_log_event::print(FILE* file,
   {
     my_b_write(&cache, (uchar*) query, fn_pos_start);
     my_b_printf(&cache, " LOCAL INFILE \'");
-    my_b_printf(&cache, local_fname);
+    my_b_printf(&cache, "%s", local_fname);
     my_b_printf(&cache, "\'");
     if (dup_handling == LOAD_DUP_REPLACE)
       my_b_printf(&cache, " REPLACE");
@@ -6912,8 +6927,8 @@ Rows_log_event::Rows_log_event(THD *thd_arg, TABLE *tbl_arg, ulong tid,
     solution, to be able to terminate a started statement in the
     binary log: the extraneous events will be removed in the future.
    */
-  DBUG_ASSERT(tbl_arg && tbl_arg->s && tid != ~0UL ||
-              !tbl_arg && !cols && tid == ~0UL);
+  DBUG_ASSERT((tbl_arg && tbl_arg->s && tid != ~0UL) ||
+              (!tbl_arg && !cols && tid == ~0UL));
 
   if (thd_arg->options & OPTION_NO_FOREIGN_KEY_CHECKS)
       set_flags(NO_FOREIGN_KEY_CHECKS_F);
@@ -7105,7 +7120,7 @@ int Rows_log_event::do_add_row_data(uchar *row_data, size_t length)
 #endif
 
   DBUG_ASSERT(m_rows_buf <= m_rows_cur);
-  DBUG_ASSERT(!m_rows_buf || m_rows_end && m_rows_buf < m_rows_end);
+  DBUG_ASSERT(!m_rows_buf || (m_rows_end && m_rows_buf < m_rows_end));
   DBUG_ASSERT(m_rows_cur <= m_rows_end);
 
   /* The cast will always work since m_rows_cur <= m_rows_end */
@@ -7862,10 +7877,11 @@ Table_map_log_event::Table_map_log_event(THD *thd, TABLE *tbl, ulong tid,
 
   /*
     Now set the size of the data to the size of the field metadata array
-    plus one or two bytes for number of elements in the field metadata array.
+    plus one or three bytes (see pack.c:net_store_length) for number of 
+    elements in the field metadata array.
   */
   if (m_field_metadata_size > 255)
-    m_data_size+= m_field_metadata_size + 2; 
+    m_data_size+= m_field_metadata_size + 3; 
   else
     m_data_size+= m_field_metadata_size + 1; 
 
@@ -9312,7 +9328,7 @@ Incident_log_event::print(FILE *file,
 
   Write_on_release_cache cache(&print_event_info->head_cache, file);
   print_header(&cache, print_event_info, FALSE);
-  my_b_printf(&cache, "\n# Incident: %s", description());
+  my_b_printf(&cache, "\n# Incident: %s\nRELOAD DATABASE; # Shall generate syntax error\n", description());
 }
 #endif
 

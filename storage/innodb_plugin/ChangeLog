@@ -1,0 +1,1149 @@
+2009-07-20	The InnoDB Team
+
+	* buf/buf0rea.c, handler/ha_innodb.cc, include/srv0srv.h,
+	srv/srv0srv.c:
+	Change the read ahead parameter name to innodb_read_ahead_threshold.
+	Change the meaning of this parameter to signify the number of pages
+	that must be sequentially accessed for InnoDB to trigger a readahead
+	request.
+
+2009-07-20	The InnoDB Team
+
+	* handler/ha_innodb.cc:
+	Fix Bug#39802 On Windows, 32-bit time_t should be enforced
+
+2009-07-16	The InnoDB Team
+
+	* include/univ.i:
+	Support inlining of functions and prefetch with Sun Studio.
+	These changes are based on contribution from Sun Microsystems Inc.
+	under a BSD license.
+
+2009-07-14	The InnoDB Team
+
+	* fil/fil0fil.c:
+	Fix Bug#45814 URL reference in InnoDB server errors needs adjusting to
+	match documentation
+
+2009-07-14	The InnoDB Team
+
+	* handler/ha_innodb.cc, mysql-test/innodb_bug21704.result,
+	mysql-test/innodb_bug21704.test:
+	Fix Bug#21704 Renaming column does not update FK definition
+
+2009-07-10	The InnoDB Team
+
+	* handler/ha_innodb.cc, srv/srv0srv.c:
+	Change the defaults for
+	innodb_sync_spin_loops: 20 -> 30
+	innodb_spin_wait_delay: 5 -> 6
+
+2009-07-08	The InnoDB Team
+
+	* buf/buf0flu.c, handler/ha_innodb.cc, include/buf0flu.h,
+	include/log0log.h, include/log0log.ic, include/srv0srv.h,
+	srv/srv0srv.c:
+	Implement the adaptive flushing of dirty pages, which uses
+	a heuristics based flushing rate of dirty pages to avoid IO
+	bursts at checkpoint. Expose new configure knob
+	innodb_adaptive_flushing to control whether the new flushing
+	algorithm should be used.
+
+2009-07-07	The InnoDB Team
+
+	* handler/ha_innodb.cc, include/srv0srv.h, log/log0log.c,
+	srv/srv0srv.c:
+	Implement IO capacity tuning. Expose new configure knob
+	innodb_io_capacity to control the master threads IO rate. The
+	ibuf merge is also changed from synchronous to asynchronous.
+	These changes are based on contribution from Google Inc.
+	under a BSD license.
+
+2009-07-02	The InnoDB Team
+
+	* include/ut0ut.h, plug.in, ut/ut0ut.c:
+	Use the PAUSE instruction inside the spinloop if it is available,
+	Thanks to Mikael Ronstrom <mikael@mysql.com>.
+
+2009-06-29	The InnoDB Team
+
+	* handler/ha_innodb.cc, mysql-test/innodb_file_format.test,
+	mysql-test/innodb_file_format.result:
+	Do not crash on SET GLOBAL innodb_file_format=DEFAULT
+	or SET GLOBAL innodb_file_format_check=DEFAULT.
+
+2009-06-29	The InnoDB Team
+
+	* buf/buf0buf.c, buf/buf0rea.c, lock/lock0lock.c:
+	Tolerate missing tablespaces during crash recovery and when
+	printing information on locks.
+
+2009-06-29	The InnoDB Team
+
+	* buf/buf0buf.c:
+	Fix a race condition when reading buf_fix_count.
+	Currently, it is not being protected by the buffer pool mutex,
+	but by the block mutex.
+
+2009-06-29	The InnoDB Team
+
+	* handler/handler0alter.cc:
+	Start the user transaction prebuilt->trx if it was not started
+	before adding or dropping an index. Without this fix, the
+	table could be locked outside an active transaction.
+
+2009-06-25	The InnoDB Team
+
+	* handler/ha_innodb.cc, mysql-test/innodb_bug42101.test,
+	mysql-test/innodb_bug42101.result,
+	mysql-test/innodb_bug42101-nonzero.test,
+	mysql-test/innodb_bug42101-nonzero.result:
+	Fix Bug#45749 Race condition in SET GLOBAL
+	innodb_commit_concurrency=DEFAULT
+
+2009-06-25	The InnoDB Team
+
+	* dict/dict0dict.c:
+	When an index column cannot be found in the table during index
+	creation, display additional diagnostic before an assertion failure.
+	This does NOT fix Bug #44571 InnoDB Plugin crashes on ADD INDEX,
+	but it helps understand the reason of the crash.
+
+2009-06-17	The InnoDB Team
+
+	* row/row0merge.c:
+	Fix Bug#45426 UNIV_DEBUG build cause assertion error at CREATE INDEX
+
+2009-06-17	The InnoDB Team
+
+	* mysql-test/innodb_bug45357.result, mysql-test/innodb_bug45357.test,
+	row/row0mysql.c:
+	Fix Bug#45357 5.1.35 crashes with Failing assertion: index->type &
+	DICT_CLUSTERED
+
+2009-06-17	The InnoDB Team
+
+	* handler/ha_innodb.cc, mysql-test/innodb-autoinc.result,
+	mysql-test/innodb-autoinc.test:
+	Fix Bug#44030 Error: (1500) Couldn't read the MAX(ID) autoinc value
+	from the index (PRIMARY)
+
+2009-06-11	The InnoDB Team
+
+	* handler/ha_innodb.cc, mysql-test/innodb.result, srv/srv0srv.c:
+	Change the following defaults:
+	max_dirty_pages_pct: from 90 to 75, max allowed from 100 to 99
+	additional_mem_pool_size: from 1 to 8 MB
+	buffer_pool_size: from 8 to 128 MB
+	log_buffer_size: from 1 to 8 MB
+	read_io_threads/write_io_threads: from 1 to 4
+
+2009-06-09	The InnoDB Team
+
+	* handler/ha_innodb.cc, include/trx0trx.h, trx/trx0trx.c:
+	Enable Group Commit functionality that was broken in 5.0 when
+	distributed transactions were introduced.
+
+2009-06-05	The InnoDB Team
+
+	* handler/ha_innodb.cc, include/os0file.h, include/srv0srv.h,
+	os/os0file.c, srv/srv0srv.c, srv/srv0start.c:
+	Enable functionality to have multiple background IO helper threads.
+	Expose new configure knobs innodb_read_io_threads and
+	innodb_write_io_threads and deprecate innodb_file_io_threads (this
+	parameter was relevant only on windows). Internally this allows
+	multiple segments for read and write IO request arrays where one
+	thread works on one segment.
+
+2009-06-05	The InnoDB Team
+
+	* buf/buf0lru.c, buf/buf0rea.c, handler/ha_innodb.cc,
+	include/srv0srv.h, srv/srv0srv.c:
+	Fix a bug in linear read ahead:
+	  1) Take into account access pattern when deciding whether or not to
+	    do linear read ahead.
+	  2) Expose a knob innodb_read_ahead_factor = [0-64] default (8),
+	    dynamic, global to control linear read ahead behavior. This is the
+	    value of the number of pages that InnoDB will tolerate within a
+	    64 page extent even if they are accessed out of order or have
+	    not been accessed at all. This number (which varies from 0 to 64)
+	    is indicative of the slack that we have when deciding about linear
+	    readahead.
+	  3) Disable random read ahead. Keep the code for now.
+
+2009-06-03	The InnoDB Team
+
+	* dict/dict0dict.c, mysql-test/t/innodb_mysql.test,
+	mysql-test/r/innodb_mysql.result:
+	Fix Bug#39793 Foreign keys not constructed when column
+	has a '#' in a comment or default value
+
+2009-05-27	The InnoDB Team
+
+	* Doxyfile:
+	Allow the extraction of documentation from the code base with the
+	Doxygen tool. Convert and add many (but not yet all) comments to
+	Doxygen format.
+
+2009-05-19	The InnoDB Team
+
+	* btr/btr0btr.c, btr/btr0cur.c, lock/lock0lock.c,
+	include/page0page.ic, include/lock0lock.h, include/dict0dict.h,
+	include/page0page.h, include/dict0dict.ic, ibuf/ibuf0ibuf.c,
+	page/page0zip.c, page/page0page.c:
+	Write updates of PAGE_MAX_TRX_ID to the redo log and add debug
+	assertions for checking that PAGE_MAX_TRX_ID is valid on leaf
+	pages of secondary indexes and the insert buffer B-tree. This bug
+	could cause failures in secondary index lookups in consistent
+	reads right after crash recovery.
+
+2009-05-18	The InnoDB Team
+
+	* btr/btr0cur.c:
+	Correctly estimate the space needed on the compressed page when
+	performing an update by delete-and-insert.
+
+2009-05-14	The InnoDB Team
+
+	* handler/ha_innodb.cc, include/srv0srv.h,
+	mysql-test/innodb_bug42101-nonzero-master.opt,
+	mysql-test/innodb_bug42101-nonzero.result,
+	mysql-test/innodb_bug42101-nonzero.test,
+	mysql-test/innodb_bug42101.result, mysql-test/innodb_bug42101.test,
+	srv/srv0srv.c:
+	Fix Bug#42101 Race condition in innodb_commit_concurrency
+
+2009-05-13	The InnoDB Team
+
+	* dict/dict0dict.c:
+	Fix Bug#44320 InnoDB: missing DB_ROLL_PTR in Table Monitor COLUMNS
+	output
+
+2009-04-23	The InnoDB Team
+
+	* row/row0mysql.c:
+	When scanning indexes, report in the error log any error codes
+	returned by the search function. These error codes will still be
+	ignored in CHECK TABLE.
+
+2009-04-23	The InnoDB Team
+
+	* include/trx0types.h:
+	Define the logical type names trx_id_t, roll_ptr_t, and undo_no_t
+	and use them in place of dulint everywhere.
+
+2009-04-18	The InnoDB Team
+
+	* handler/ha_innodb.cc, include/pars0pars.h:
+	Fix Bug#29125 Windows Server X64: so many compiler warnings
+
+2009-04-16	The InnoDB Team
+
+	* include/univ.i:
+	Define REFMAN as the base URL of the MySQL Reference Manual and
+	use the macro in all diagnostic output.
+
+2009-04-16	The InnoDB Team
+
+	* CMakeLists.txt, include/os0sync.h, include/sync0sync.h,
+	include/sync0sync.ic, include/univ.i, srv/srv0start.c,
+	sync/sync0sync.c:
+	Use the Windows Interlocked functions for atomic memory
+	access.
+
+2009-04-15	The InnoDB Team
+
+	* mysql-test/innodb.result, mysql-test/innodb.test:
+	Fix Bug#43309 Test main.innodb can't be run twice
+
+2009-04-14	The InnoDB Team
+
+	* CMakeLists.txt, handler/win_delay_loader.cc,
+	win-plugin/win-plugin.diff:
+	Remove statically linked libraries from MySQL (zlib and strings).
+
+2009-04-11	The InnoDB Team
+
+	* CMakeLists.txt, win-plugin/README, win-plugin/win-plugin.diff:
+	Rewrite CMakeLists.txt.
+
+2009-04-07	The InnoDB Team
+
+	* include/os0sync.h, include/sync0rw.ic, include/sync0sync.h,
+	include/sync0sync.ic, include/univ.i, plug.in, srv/srv0srv.c,
+	srv/srv0start.c, sync/sync0arr.c, sync/sync0sync.c:
+	Enable atomics on Solaris (using the libc functions as defined in
+	atomic.h) if GCC atomic builtins are not present.
+
+2009-04-07	The InnoDB Team
+
+	* btr/btr0btr.c, dict/dict0dict.c, ibuf/ibuf0ibuf.c,
+	include/data0data.h, include/data0data.ic, include/data0type.h,
+	include/data0type.ic, include/dict0dict.h, include/dict0dict.ic,
+	include/rem0rec.ic, mysql-test/innodb.result, mysql-test/innodb.test,
+	pars/pars0pars.c, rem/rem0rec.c, row/row0upd.c:
+	Fix Bug#44032 In ROW_FORMAT=REDUNDANT, update UTF-8 CHAR
+	to/from NULL is not in-place
+
+2009-04-07	The InnoDB Team
+
+	* page/page0cur.c:
+	Fix Bug#43660 SHOW INDEXES/ANALYZE does NOT update cardinality for
+	indexes of InnoDB table
+
+2009-04-06	The InnoDB Team
+
+	* handler/ha_innodb.cc:
+	Make the parameter innodb_change_buffering settable by the
+	configuration file or mysqld command line options. Before this
+	fix, the initial value specified for this parameter was ignored.
+
+2009-04-06	The InnoDB Team
+
+	* sync/sync0rw.c:
+	Avoid a bogus failure in UNIV_SYNC_DEBUG diagnostics.
+
+2009-04-02	The InnoDB Team
+
+	* handler/ha_innodb.cc, include/srv0srv.h, srv/srv0srv.c:
+	Add new parameter innodb_spin_wait_delay to set the maximum delay
+	between polling for a spin lock.
+
+2009-04-02	The InnoDB Team
+
+	* dict/dict0crea.c, handler/ha_innodb.cc, handler/ha_innodb.h,
+	include/dict0mem.h, include/row0merge.h, include/row0mysql.h,
+	mysql-test/innodb-index.result, mysql-test/innodb-index.test,
+	row/row0merge.c, row/row0sel.c:
+	In consistent reads, refuse to use newly created indexes that may
+	lack history.
+
+2009-03-25	The InnoDB Team
+
+	* buf/buf0buf.c, handler/ha_innodb.cc, include/buf0buf.h:
+	In SHOW ENGINE INNODB MUTEX do not show the status of block->mutex,
+	block->lock, block->lock->mutex (if applicable) and all mutexes and
+	rw-locks for which number of os-waits are zero because this can
+	be overwhelming particularly when the buffer pool is very large.
+
+2009-03-20	The InnoDB Team
+
+	* buf/buf0buf.c, include/log0recv.h, log/log0recv.c:
+	Remove the compile-time constant parameters of
+	recv_recover_page(), recv_scan_log_recs(), and recv_sys_init().
+
+2009-03-20	The InnoDB Team
+
+	* data/data0type.c, handler/ha_innodb.cc, include/ha_prototypes.h:
+	Declare innobase_get_at_most_n_mbchars() in ha_prototypes.h.
+
+2009-03-20	The InnoDB Team
+
+	* fil/fil0fil.h, fil/fil0fil.c, srv/srv0start.c:
+	Add the parameter hash_size to fil_init().
+
+2009-03-20	The InnoDB Team
+
+	* fil/fil0fil.c:
+	Refer to fil_system directly, not via local variables.
+
+2009-03-20	The InnoDB Team
+
+	* page/page0page.c:
+	In page_validate(), always report the space id, page number and
+	the name of the index when corruption is noticed.
+
+2009-03-20	The InnoDB Team
+
+	* include/log0log.h, include/log0log.ic, log/log0log.c:
+	Add in/out comments or const qualifiers to some function
+	parameters as appropriate.
+
+2009-03-20	The InnoDB Team
+
+	* dict/dict0boot.c, dict/dict0dict.c, fsp/fsp0fsp.c,
+	include/dict0dict.h, include/srv0srv.h, srv/srv0srv.c,
+	page/page0page.c:
+	Replace srv_sys->dummy_ind1 and srv_sys->dummy_ind2 with
+	dict_ind_redundant and dict_ind_compact, which are
+	initialized by dict_init().
+
+2009-03-11	The InnoDB Team
+
+	InnoDB Plugin 1.0.3 released
+
+2009-03-05	The InnoDB Team
+
+	* handler/ha_innodb.cc, mysql-test/innodb-autoinc.result,
+	mysql-test/innodb-autoinc.test:
+	Fix Bug#43203 Overflow from auto incrementing causes server segv
+
+2009-02-25	The InnoDB Team
+
+	* handler/ha_innodb.cc, mysql-test/innodb-autoinc.result,
+	mysql-test/innodb-autoinc.test:
+	Fix Bug#42714 AUTO_INCREMENT errors in 5.1.31
+
+2009-02-23	The InnoDB Team
+
+	* btr/btr0cur.c:
+	Fix Bug#43043 Crash on BLOB delete operation
+
+2009-02-20	The InnoDB Team
+
+	* handler/ha_innodb.cc:
+	Make innodb_use_sys_malloc=ON the default.
+
+2009-02-20	The InnoDB Team
+
+	* handler/ha_innodb.cc, mysql-test/innodb-autoinc.result,
+	mysql-test/innodb-autoinc.test:
+	Fix Bug#42400 InnoDB autoinc code can't handle floating-point columns
+
+2009-02-18	The InnoDB Team
+
+	* include/ut0mem.h, os/os0proc.c, ut/ut0mem.c:
+	Protect ut_total_allocated_memory with ut_list_mutex in
+	os_mem_alloc_large() and os_mem_free_large(). The lack of this mutex
+	protection could cause an assertion failure during fast index
+	creation. Also, add UNIV_MEM_ALLOC and UNIV_MEM_FREE instrumentation
+	to os_mem_alloc_large() and os_mem_free_large(), so that Valgrind can
+	detect more errors.
+
+2009-02-11	The InnoDB Team
+
+	* handler/ha_innodb.cc:
+	Make innodb_thread_concurrency=0 the default. The old default value
+	was 8. A non-zero setting may be useful when InnoDB is showing severe
+	scalability problems under multiple concurrent connections.
+
+2009-02-10	The InnoDB Team
+
+	* handler/ha_innodb.cc, handler/ha_innodb.h:
+	Fix Bug#41676 Table names are case insensitive in locking
+
+2009-02-10	The InnoDB Team
+
+	* mem/mem0dbg.c, mem/mem0mem.c, mem/mem0pool.c:
+	When innodb_use_sys_malloc is set, ignore
+	innodb_additional_mem_pool_size, because nothing will be allocated
+	from mem_comm_pool.
+
+2009-02-10	The InnoDB Team
+
+	* ut/ut0mem.c:
+	Map ut_malloc_low(), ut_realloc(), and ut_free() directly to malloc(),
+	realloc(), and free() when innodb_use_sys_malloc is set. As a side
+	effect, ut_total_allocated_memory ("Total memory allocated" in the
+	"BUFFER POOL AND MEMORY" section of SHOW ENGINE INNODB STATUS) will
+	exclude any memory allocated by these functions when
+	innodb_use_sys_malloc is set.
+
+2009-02-10	The InnoDB Team
+
+	* btr/btr0cur.c, btr/btr0sea.c, buf/buf0buf.c, handler/ha_innodb.cc,
+	include/buf0buf.ic, include/os0sync.h, include/srv0srv.h,
+	include/sync0rw.h, include/sync0rw.ic, include/sync0sync.h,
+	include/sync0sync.ic, include/univ.i, row/row0sel.c, srv/srv0srv.c,
+	srv/srv0start.c, sync/sync0arr.c, sync/sync0rw.c, sync/sync0sync.c:
+	On those platforms that support it, implement the synchronization
+	primitives of InnoDB mutexes and read/write locks with GCC atomic
+	builtins instead of Pthreads mutexes and InnoDB mutexes. These changes
+	are based on a patch supplied by Mark Callaghan of Google under a BSD
+	license.
+
+2009-01-30	The InnoDB Team
+
+	* btr/btr0cur.c, btr/btr0sea.c, buf/buf0buf.c, handler/ha_innodb.cc,
+	include/btr0sea.h, include/buf0buf.h, include/sync0sync.h,
+	sync/sync0sync.c:
+	Make the configuration parameter innodb_adaptive_hash_index dynamic,
+	so that it can be changed at runtime.
+
+2009-01-29	The InnoDB Team
+
+	* handler/ha_innodb.cc, ibuf/ibuf0ibuf.c, include/ibuf0ibuf.h,
+	include/ibuf0ibuf.ic:
+	Implement the settable global variable innodb_change_buffering,
+	with the allowed values 'none' and 'inserts'. The default value
+	'inserts' enables the buffering of inserts to non-unique secondary
+	index trees when the B-tree leaf page is not in the buffer pool.
+
+2009-01-27	The InnoDB Team
+
+	* buf/buf0lru.c:
+	Fix a race condition in buf_LRU_invalidate_tablespace(): The
+	compressed page size (zip_size) was read while the block descriptor
+	was no longer protected by a mutex. This could lead to corruption
+	when a table is dropped on a busy system that contains compressed
+	tables.
+
+2009-01-26	The InnoDB Team
+
+	* btr/btr0sea.c, buf/buf0buf.c, include/buf0buf.h, include/buf0buf.ic,
+	include/mtr0log.ic, include/row0upd.ic, mtr/mtr0mtr.c:
+	Implement buf_block_align() with pointer arithmetics, as it is in the
+	built-in InnoDB distributed with MySQL. Do not acquire the buffer pool
+	mutex before buf_block_align(). This removes a scalability bottleneck
+	in the adaptive hash index lookup. In CHECK TABLE, check that
+	buf_pool->page_hash is consistent with buf_block_align().
+
+2009-01-23	The InnoDB Team
+
+	* btr/btr0sea.c:
+	Fix Bug#42279 Race condition in btr_search_drop_page_hash_when_freed()
+
+2009-01-23	The InnoDB Team
+
+	* buf/buf0buf.c, include/buf0buf.h:
+	Remove the unused mode BUF_GET_NOWAIT of buf_page_get_gen()
+
+2009-01-20	The InnoDB Team
+
+	* include/rem0rec.h, include/rem0rec.ic:
+	Fix Bug#41571 MySQL segfaults after innodb recovery
+
+2009-01-20	The InnoDB Team
+
+	* lock/lock0lock.c:
+	Fix Bug#42152 Race condition in lock_is_table_exclusive()
+
+2009-01-14	The InnoDB Team
+
+	* include/trx0roll.h, trx/trx0roll.c, trx/trx0trx.c:
+	Fix Bug#38187 Error 153 when creating savepoints
+
+2009-01-14	The InnoDB Team
+
+	* dict/dict0load.c:
+	Fix Bug#42075 dict_load_indexes failure in dict_load_table will
+	corrupt the dictionary cache
+
+2009-01-13	The InnoDB Team
+
+	* buf/buf0buddy.c, dict/dict0dict.c, dict/dict0mem.c, fil/fil0fil.c,
+	ha/ha0storage.c, handler/ha_innodb.cc, handler/win_delay_loader.cc,
+	include/buf0buf.ic, include/dict0dict.ic, include/hash0hash.h,
+	thr/thr0loc.c, trx/trx0i_s.c:
+	Add the parameter ASSERTION to HASH_SEARCH() macro, and use it for
+	light validation of the traversed items in hash table lookups when
+	UNIV_DEBUG is enabled.
+
+2009-01-09	The InnoDB Team
+
+	* buf/buf0flu.c, include/buf0flu.h, include/buf0flu.ic:
+	Remove unused code from the functions
+	buf_flush_insert_into_flush_list() and
+	buf_flush_insert_sorted_into_flush_list().
+
+2009-01-09	The InnoDB Team
+
+	* buf/buf0flu.c:
+	Simplify the functions buf_flush_try_page() and buf_flush_batch(). Add
+	debug assertions and an explanation to buf_flush_write_block_low().
+
+2009-01-07	The InnoDB Team
+
+	* row/row0merge.c:
+	Fix a bug in recovery when dropping temporary indexes.
+
+2009-01-07	The InnoDB Team
+
+	* handler/ha_innodb.cc, handler/ha_innodb.h, handler/handler0alter.cc:
+	Fix Bug#41680 calls to trx_allocate_for_mysql are not consistent
+
+2009-01-07	The InnoDB Team
+
+	* mysql-test/innodb_bug41904.result, mysql-test/innodb_bug41904.test,
+	row/row0merge.c:
+	Fix Bug#41904 create unique index problem
+
+2009-01-02	The InnoDB Team
+
+	* handler/ha_innodb.cc, include/srv0srv.h, mem/mem0pool.c,
+	mysql-test/innodb-use-sys-malloc-master.opt,
+	mysql-test/innodb-use-sys-malloc.result,
+	mysql-test/innodb-use-sys-malloc.test, srv/srv0srv.c, srv/srv0start.c:
+	Implement the configuration parameter innodb_use_sys_malloc (false by
+	default), for disabling InnoDB's internal memory allocator and using
+	system malloc/free instead. The "BUFFER POOL AND MEMORY" section of
+	SHOW ENGINE INNODB STATUS will report "in additional pool allocated
+	allocated 0" when innodb_use_sys_malloc is set.
+
+2008-12-30	The InnoDB Team
+
+	* btr/btr0btr.c:
+	When setting the PAGE_LEVEL of a compressed B-tree page from or to 0,
+	compress the page at the same time. This is necessary, because the
+	column information stored on the compressed page will differ between
+	leaf and non-leaf pages. Leaf pages are identified by PAGE_LEVEL=0.
+	This bug can make InnoDB crash when all rows of a compressed table are
+	deleted.
+
+2008-12-17	The InnoDB Team
+
+	* include/row0sel.h, include/row0upd.h, pars/pars0pars.c,
+	row/row0mysql.c, row/row0sel.c, row/row0upd.c:
+	Remove update-in-place select from the internal SQL interpreter. It
+	was only used for updating the InnoDB internal data dictionary when
+	renaming or dropping tables. It could have caused deadlocks when
+	acquiring latches on insert buffer bitmap pages.
+
+2008-12-17	The InnoDB Team
+
+	* btr/btr0sea.c, buf/buf0buf.c, buf/buf0lru.c, ha/ha0ha.c,
+	ha/hash0hash.c, include/buf0buf.h, include/ha0ha.h, include/ha0ha.ic,
+	include/hash0hash.h, include/univ.i:
+	Introduce the preprocessor symbol UNIV_AHI_DEBUG for enabling adaptive
+	hash index debugging independently of UNIV_DEBUG.
+
+2008-12-16	The InnoDB Team
+
+	* btr/btr0cur.c:
+	Do not update the free bits in the insert buffer bitmap when inserting
+	or deleting from the insert buffer B-tree. Assert that records in the
+	insert buffer B-tree are never updated.
+
+2008-12-12	The InnoDB Team
+
+	* buf/buf0buf.c, fil/fil0fil.c, fsp/fsp0fsp.c, ibuf/ibuf0ibuf.c,
+	include/fil0fil.h, include/ibuf0ibuf.h, include/ibuf0ibuf.ic,
+	include/ibuf0types.h:
+	Clean up the insert buffer subsystem so that only one insert
+	buffer B-tree exists.
+	Originally, there were provisions in InnoDB for multiple insert
+	buffer B-trees, apparently one for each tablespace.
+	When Heikki Tuuri implemented multiple InnoDB tablespaces in
+	MySQL/InnoDB 4.1, he made the insert buffer live only in the
+	system tablespace (space 0) but left the provisions in the code.
+
+2008-12-11	The InnoDB Team
+
+	* include/srv0srv.h, os/os0proc.c, srv/srv0srv.c:
+	Fix the issue that the InnoDB plugin fails if innodb_buffer_pool_size
+	is defined bigger than 4096M on 64-bit Windows. This bug should not
+	have affected other 64-bit systems.
+
+2008-12-09	The InnoDB Team
+
+	* handler/ha_innodb.cc:
+	Fix Bug#40386 Not flushing query cache after truncate.
+
+2008-12-09	The InnoDB Team
+
+	* handler/ha_innodb.cc, srv/srv0srv.c, trx/trx0trx.c:
+	Fix Bug#40760 "set global innodb_thread_concurrency = 0;" is not safe
+
+2008-12-04	The InnoDB Team
+
+	* handler/ha_innodb.cc, handler/mysql_addons.cc,
+	include/mysql_addons.h, trx/trx0i_s.c, win-plugin/win-plugin.diff:
+	Remove dependencies to MySQL internals (defining MYSQL_SERVER).
+
+2008-12-02	The InnoDB Team
+
+	* page/page0cur.c:
+	When allocating space for a record from the free list of previously
+	purged records, zero out the DB_TRX_ID and DB_ROLL_PTR of the purged
+	record if the new record would not overwrite these fields. This fixes
+	a harmless content mismatch reported by page_zip_validate().
+
+2008-12-02	The InnoDB Team
+
+	* row/row0merge.c:
+	Replace the WHILE 1 with WHILE 1=1 in the SQL procedure, so that the
+	loop will actually be entered and temporary indexes be dropped during
+	crash recovery.
+
+2008-12-01	The InnoDB Team
+
+	InnoDB Plugin 1.0.2 released
+
+2008-10-31	The InnoDB Team
+
+	* dict/dict0mem.c, include/dict0mem.h, include/lock0lock.h,
+	include/row0mysql.h, include/trx0trx.h, include/univ.i,
+	include/ut0vec.h, include/ut0vec.ic, lock/lock0lock.c,
+	row/row0mysql.c, trx/trx0trx.c:
+	Fix Bug#26316 Triggers create duplicate entries on auto-increment
+	columns
+
+2008-10-30	The InnoDB Team
+
+	* handler/ha_innodb.cc, handler/handler0vars.h,
+	handler/win_delay_loader.cc, mysql-test/innodb_bug40360.result,
+	mysql-test/innodb_bug40360.test:
+	Fix Bug#40360 Binlog related errors with binlog off
+
+2008-10-29	The InnoDB Team
+
+	* include/data0type.ic:
+	Fix Bug#40369 dtype_get_sql_null_size() returns 0 or 1, not the size
+
+2008-10-29	The InnoDB Team
+
+	* handler/ha_innodb.cc, include/srv0srv.h, srv/srv0srv.c:
+	Fix Bug#38189 innodb_stats_on_metadata missing
+
+2008-10-28	The InnoDB Team
+
+	* CMakeLists.txt, ha_innodb.def, handler/ha_innodb.cc,
+	handler/handler0alter.cc, handler/handler0vars.h, handler/i_s.cc,
+	handler/win_delay_loader.cc, win-plugin/*:
+	Implemented the delayloading of externals for the plugin on Windows.
+	This makes it possible to build a dynamic plugin (ha_innodb.dll) on
+	Windows.
+
+2008-10-27	The InnoDB Team
+
+	* CMakeLists.txt:
+	Fix Bug#19424 InnoDB: Possibly a memory overrun of the buffer being
+	freed (64-bit Visual C)
+
+2008-10-23	The InnoDB Team
+
+	* ibuf/ibuf0ibuf.c:
+	ibuf_delete_rec(): When the cursor to the insert buffer record
+	cannot be restored, do not complain if the tablespace does not
+	exist, because the insert buffer record may have been discarded by
+	some other thread. This bug has existed in MySQL/InnoDB since
+	version 4.1, when innodb_file_per_table was implemented.
+	This may fix Bug#27276 InnoDB Error: ibuf cursor restoration fails.
+
+2008-10-22	The InnoDB Team
+
+	* dict/dict0dict.c, dict/dict0mem.c, handler/ha_innodb.cc,
+	handler/ha_innodb.h, include/dict0dict.h, include/dict0mem.h,
+	row/row0mysql.c:
+	Fix Bug#39830 Table autoinc value not updated on first insert
+	Fix Bug#35498 Cannot get table test/table1 auto-inccounter value in
+	::info
+	Fix Bug#36411 "Failed to read auto-increment value from storage
+	engine" in 5.1.24 auto-inc
+
+2008-10-22	The InnoDB Team
+
+	* handler/ha_innodb.cc, include/row0mysql.h, row/row0mysql.c:
+	Fix Bug#40224 New AUTOINC changes mask reporting of deadlock/timeout
+	errors
+
+2008-10-16	The InnoDB Team
+
+	* dict/dict0dict.c, mysql-test/innodb-index.result,
+	mysql-test/innodb-index.test:
+	Skip the undo log size check when creating REDUNDANT and COMPACT
+	tables. In ROW_FORMAT=DYNAMIC and ROW_FORMAT=COMPRESSED, column
+	prefix indexes require that prefixes of externally stored columns
+	be written to the undo log. This may make the undo log record
+	bigger than the record on the B-tree page. The maximum size of an
+	undo log record is the page size. That must be checked for, in
+	dict_index_add_to_cache(). However, this restriction must not
+	be enforced on REDUNDANT or COMPACT tables.
+
+2008-10-15	The InnoDB Team
+
+	* btr/btr0cur.c, include/btr0cur.h, row/row0ext.c, row/row0sel.c,
+	row/row0upd.c:
+	When the server crashes while freeing an externally stored column
+	of a compressed table, the BTR_EXTERN_LEN field in the BLOB
+	pointer will be written as 0. Tolerate this in the functions that
+	deal with externally stored columns. This fixes problems after
+	crash recovery, in the rollback of incomplete transactions, and in
+	the purge of delete-marked records.
+
+2008-10-15	The InnoDB Team
+
+	* btr/btr0btr.c, include/page0zip.h, page/page0zip.c, include/univ.i:
+	When a B-tree node of a compressed table is split or merged, the
+	compression may fail. In this case, the entire compressed page
+	will be copied and the excess records will be deleted. However,
+	page_zip_copy(), now renamed to page_zip_copy_recs(), copied too
+	many fields in the page header, overwriting PAGE_BTR_SEG_LEAF and
+	PAGE_BTR_SEG_TOP when splitting the B-tree root. This caused
+	corruption of compressed tables. Furthermore, the lock table and
+	the adaptive hash index would be corrupted, because we forgot to
+	update them when invoking page_zip_copy_recs().
+
+	Introduce the symbol UNIV_ZIP_DEBUG for triggering the copying of
+	compressed pages more often, for debugging purposes.
+
+2008-10-10	The InnoDB Team
+
+	* handler/handler0alter.cc, include/row0merge.h, row/row0merge.c,
+	row/row0mysql.c:
+	Fix some locking issues, mainly in fast index creation. The
+	InnoDB data dictionary cache should be latched whenever a
+	transaction is holding locks on any data dictionary tables.
+	Otherwise, lock waits or deadlocks could occur. Furthermore, the
+	data dictionary transaction must be committed (and the locks
+	released) before the data dictionary latch is released.
+
+	ha_innobase::add_index(): Lock the data dictionary before renaming
+	or dropping the created indexes, because neither operation will
+	commit the data dictionary transaction.
+
+	ha_innobase::final_drop_index(): Commit the transactions before
+	unlocking the data dictionary.
+
+2008-10-09	The InnoDB Team
+
+	* buf/buf0lru.c:
+	Fix Bug#39939 DROP TABLE/DISCARD TABLESPACE takes long time in
+	buf_LRU_invalidate_tablespace()
+
+2008-10-08	The InnoDB Team
+
+	* dict/dict0crea.c, trx/trx0roll.c, include/row0mysql.h,
+	row/row0merge.c, row/row0mysql.c:
+	When dropping a table, hold the data dictionary latch until the
+	transaction has been committed. The data dictionary latch is
+	supposed to prevent lock waits and deadlocks in the data
+	dictionary tables. Due to this bug, DROP TABLE could cause a
+	deadlock or hang. Note that because of Bug#33650 and Bug#39833,
+	MySQL may also drop a (temporary) table when executing CREATE INDEX
+	or ALTER TABLE ... ADD INDEX.
+
+2008-10-04	The InnoDB Team
+
+	* handler/ha_innodb.cc, mysql-test/innodb_bug39438-master.opt,
+	mysql-test/innodb_bug39438.result, mysql-test/innodb_bug39438.test:
+	Fix Bug#39438 Testcase for Bug#39436 crashes on 5.1 in
+	fil_space_get_latch
+
+2008-10-04	The InnoDB Team
+
+	* include/lock0lock.h, lock/lock0lock.c,
+	mysql-test/innodb_bug38231.result, mysql-test/innodb_bug38231.test,
+	row/row0mysql.c:
+	Fix Bug#38231 Innodb crash in lock_reset_all_on_table() on TRUNCATE +
+	LOCK / UNLOCK
+
+2008-10-04	The InnoDB Team
+
+	* handler/ha_innodb.cc:
+	Fix Bug#35498 Cannot get table test/table1 auto-inccounter value in
+	::info
+
+2008-10-04	The InnoDB Team
+
+	* handler/ha_innodb.cc, handler/ha_innodb.h:
+	Fix Bug#37788 InnoDB Plugin: AUTO_INCREMENT wrong for compressed
+	tables
+
+2008-10-04	The InnoDB Team
+
+	* dict/dict0dict.c, handler/ha_innodb.cc, handler/ha_innodb.h,
+	include/dict0dict.h, include/dict0mem.h, row/row0mysql.c:
+	Fix Bug#39830 Table autoinc value not updated on first insert
+
+2008-10-03	The InnoDB Team
+
+	* mysql-test/innodb-index.test, mysql-test/innodb-index.result,
+	mysql-test/innodb-timeout.test, mysql-test/innodb-timeout.result,
+	srv/srv0srv.c, include/srv0srv.h, handler/ha_innodb.cc,
+	include/ha_prototypes.h:
+	Fix Bug#36285 innodb_lock_wait_timeout is not dynamic, not per session
+
+2008-09-19	The InnoDB Team
+
+	* os/os0proc.c:
+	Fix a memory leak on Windows. The memory leak was due to wrong
+	parameters passed into VirtualFree() call. As the result, the
+	call fails with Windows error 87.
+
+2008-09-17	The InnoDB Team
+
+	* mysql-test/innodb.result, mysql-test/innodb-zip.result,
+	mysql-test/innodb-zip.test, mysql-test/innodb.test, ibuf/ibuf0ibuf.c,
+	dict/dict0crea.c, dict/dict0load.c, dict/dict0boot.c,
+	include/dict0dict.h, include/trx0trx.h, dict/dict0dict.c,
+	trx/trx0trx.c, include/ha_prototypes.h, handler/ha_innodb.cc:
+	When creating an index in innodb_strict_mode, check that the
+	maximum record size will never exceed the B-tree page size limit.
+	For uncompressed tables, there should always be enough space for
+	two records in an empty B-tree page. For compressed tables, there
+	should be enough space for storing two node pointer records or one
+	data record in an empty page in uncompressed format.
+	The purpose of this check is to guarantee that INSERT or UPDATE
+	will never fail due to too big record size.
+
+2008-09-17	The InnoDB Team
+
+	* btr/btr0cur.c, data/data0data.c, include/page0zip.h,
+	include/page0zip.ic, page/page0zip.c, mysql-test/innodb_bug36172.test:
+	Prevent infinite B-tree page splits in compressed tables by
+	ensuring that there will always be enough space for two node
+	pointer records in an empty B-tree page. Also, require that at
+	least one data record will fit in an empty compressed page. This
+	will reduce the maximum size of records in compressed tables.
+
+2008-09-09	The InnoDB Team
+
+	* mysql-test/innodb.result:
+	Fix the failing innodb test by merging changes that MySQL made to
+	that file (r2646.12.1 in MySQL BZR repository)
+
+2008-09-09	The InnoDB Team
+
+	* handler/ha_innodb.cc, mysql-test/innodb-autoinc.result,
+	mysql-test/innodb-autoinc.test:
+	Fix Bug#38839 auto increment does not work properly with InnoDB after
+	update
+
+2008-09-09	The InnoDB Team
+
+	* dict/dict0dict.c, handler/handler0alter.cc, include/dict0dict.h,
+	mysql-test/innodb-index.result, mysql-test/innodb-index.test:
+	Fix Bug#38786 InnoDB plugin crashes on drop table/create table with FK
+
+2008-08-21	The InnoDB Team
+
+	* handler/ha_innodb.cc, include/ha_prototypes.h, row/row0sel.c:
+	Fix Bug#37885 row_search_for_mysql may gap lock unnecessarily with SQL
+	comments in query
+
+2008-08-21	The InnoDB Team
+
+	* handler/ha_innodb.cc:
+	Fix Bug#38185 ha_innobase::info can hold locks even when called with
+	HA_STATUS_NO_LOCK
+
+2008-08-18	The InnoDB Team
+
+	* buf/buf0buf.c, buf/buf0lru.c, include/buf0buf.ic, include/univ.i:
+	Introduce UNIV_LRU_DEBUG for debugging the LRU buffer pool cache
+
+2008-08-08	The InnoDB Team
+
+	* buf/buf0lru.c, include/buf0buf.h:
+	Fix two recovery bugs that could lead to a crash in debug builds with
+	small buffer size
+
+2008-08-07	The InnoDB Team
+
+	* btr/btr0cur.c, handler/ha_innodb.cc, include/srv0srv.h,
+	srv/srv0srv.c:
+	Add a parameter innodb_stats_sample_pages to allow users to control
+	the number of index dives when InnoDB estimates the cardinality of
+	an index (ANALYZE TABLE, SHOW TABLE STATUS etc)
+
+2008-08-07	The InnoDB Team
+
+	* trx/trx0i_s.c:
+	Fix a bug that would lead to a crash if a SELECT was issued from the
+	INFORMATION_SCHEMA tables and there are rolling back transactions at
+	the same time
+
+2008-08-06	The InnoDB Team
+
+	* btr/btr0btr.c, btr/btr0cur.c, ibuf/ibuf0ibuf.c, include/btr0cur.h,
+	include/trx0roll.h, include/trx0types.h, row/row0purge.c,
+	row/row0uins.c, row/row0umod.c, trx/trx0roll.c:
+	In the rollback of incomplete transactions after crash recovery,
+	tolerate clustered index records whose externally stored columns
+	have not been written.
+
+2008-07-30	The InnoDB Team
+
+	* trx/trx0trx.c:
+	Fixes a race in recovery where the recovery thread recovering a
+	PREPARED trx and the background rollback thread can both try
+	to free the trx after its status is set to COMMITTED_IN_MEMORY.
+
+2008-07-29	The InnoDB Team
+
+	* include/trx0rec.h, row/row0purge.c, row/row0vers.c, trx/trx0rec.c:
+	Fix a BLOB corruption bug
+
+2008-07-15	The InnoDB Team
+
+	* btr/btr0sea.c, dict/dict0dict.c, include/btr0sea.h:
+	Fixed a timing hole where a thread dropping an index can free the
+	in-memory index struct while another thread is still using that
+	structure to remove entries from adaptive hash index belonging
+	to one of the pages that belongs to the index being dropped.
+
+2008-07-04	The InnoDB Team
+
+	* mysql-test/innodb-index.result:
+	Fix the failing innodb-index test by adjusting the result to a new
+	MySQL behavior (the change occured in BZR-r2667)
+
+2008-07-03	The InnoDB Team
+
+	* mysql-test/innodb-zip.result, mysql-test/innodb-zip.test:
+	Remove the negative test cases that produce warnings
+
+2008-07-02	The InnoDB Team
+
+	* mysql-test/innodb-replace.result, mysql-test/innodb-index.test:
+	Disable part of innodb-index test because MySQL changed its behavior
+	and is not calling ::add_index() anymore when adding primary index on
+	non-NULL column
+
+2008-07-01	The InnoDB Team
+
+	* mysql-test/innodb-replace.result, mysql-test/innodb-replace.test:
+	Fix the failing innodb-replace test by merging changes that MySQL
+	made to that file (r2659 in MySQL BZR repository)
+
+2008-07-01	The InnoDB Team
+
+	* lock/lock0lock.c:
+	Fix Bug#36942 Performance problem in lock_get_n_rec_locks (SHOW INNODB
+	STATUS)
+
+2008-07-01	The InnoDB Team
+
+	* ha/ha0ha.c:
+	Fix Bug#36941 Performance problem in ha_print_info (SHOW INNODB
+	STATUS)
+
+2008-07-01	The InnoDB Team
+
+	* handler/ha_innodb.cc, mysql-test/innodb-autoinc.result,
+	mysql-test/innodb-autoinc.test:
+	Fix Bug#37531 After truncate, auto_increment behaves incorrectly for
+	InnoDB
+
+2008-06-19	The InnoDB Team
+
+	* handler/ha_innodb.cc:
+	Rewrite the function innodb_plugin_init() to support parameters in
+	different order (in static and dynamic InnoDB) and to support more
+	parameters in the static InnoDB
+
+2008-06-19	The InnoDB Team
+
+	* handler/handler0alter.cc:
+	Fix a bug in ::add_index() which set the transaction state to "active"
+	but never restored it to the original value. This bug caused warnings
+	to be printed by the rpl.rpl_ddl mysql-test.
+
+2008-06-19	The InnoDB Team
+
+	* mysql-test/patches:
+	Add a directory which contains patches, which need to be applied to
+	MySQL source in order to get some mysql-tests to succeed. The patches
+	cannot be committed in MySQL repository because they are specific to
+	the InnoDB plugin.
+
+2008-06-19	The InnoDB Team
+
+	* mysql-test/innodb-zip.result, mysql-test/innodb-zip.test,
+	row/row0row.c:
+	Fix an anomaly when updating a record with BLOB prefix
+
+2008-06-18	The InnoDB Team
+
+	* include/trx0sys.h, srv/srv0start.c, trx/trx0sys.c:
+	Fix a bug in recovery which was a side effect of the file_format_check
+	changes
+
+2008-06-09	The InnoDB Team
+
+	* mysql-test/innodb.result:
+	Fix the failing innodb test by merging changes that MySQL made to that
+	file
+
+2008-06-06	The InnoDB Team
+
+	* buf/buf0buf.c, handler/ha_innodb.cc, include/buf0buf.h,
+	include/srv0srv.h, srv/srv0srv.c:
+	Fix Bug#36600 SHOW STATUS takes a lot of CPU in
+	buf_get_latched_pages_number
+
+	* handler/ha_innodb.cc, os/os0file.c:
+	Fix Bug#11894 innodb_file_per_table crashes w/ Windows .sym symbolic
+	link hack
+
+	* include/ut0ut.h, srv/srv0srv.c, ut/ut0ut.c:
+	Fix Bug#36819 ut_usectime does not handle errors from gettimeofday
+
+	* handler/ha_innodb.cc:
+	Fix Bug#35602 Failed to read auto-increment value from storage engine
+
+	* srv/srv0start.c:
+	Fix Bug#36149 Read buffer overflow in srv0start.c found during "make
+	test"
+
+2008-05-08	The InnoDB Team
+
+	* btr/btr0btr.c, mysql-test/innodb_bug36172.result,
+	mysql-test/innodb_bug36172.test:
+	Fix Bug#36172 insert into compressed innodb table crashes
+
+2008-05-08	The InnoDB Team
+
+	InnoDB Plugin 1.0.1 released
+
+2008-05-06	The InnoDB Team
+
+	* handler/ha_innodb.cc, include/srv0srv.h, include/sync0sync.h,
+	include/trx0sys.h, mysql-test/innodb-zip.result,
+	mysql-test/innodb-zip.test, srv/srv0srv.c, srv/srv0start.c,
+	sync/sync0sync.c, trx/trx0sys.c:
+	Implement the system tablespace tagging
+
+	* handler/ha_innodb.cc, handler/i_s.cc, include/univ.i,
+	srv/srv0start.c:
+	Add InnoDB version in INFORMATION_SCHEMA.PLUGINS.PLUGIN_VERSION,
+	in the startup message and in a server variable innodb_version.
+
+	* sync/sync0sync.c:
+	Fix a bug in the sync debug code where a lock with level
+	SYNC_LEVEL_VARYING would cause an assertion failure when a thread
+	tried to release it.
+
+2008-04-30	The InnoDB Team
+
+	* Makefile.am:
+	Fix Bug#36434 ha_innodb.so is installed in the wrong directory
+
+	* handler/ha_innodb.cc:
+	Merge change from MySQL (Fix Bug#35406 5.1-opt crashes on select from
+	I_S.REFERENTIAL_CONSTRAINTS):
+	ChangeSet@1.2563, 2008-03-18 19:42:04+04:00, gluh@mysql.com +1 -0
+
+	* scripts/install_innodb_plugins.sql:
+	Added
+
+	* mysql-test/innodb.result:
+	Merge change from MySQL (this fixes the failing innodb test):
+	ChangeSet@1.1810.3601.4, 2008-02-07 02:33:21+04:00
+
+	* row/row0sel.c:
+	Fix Bug#35226 RBR event crashes slave
+
+	* handler/ha_innodb.cc:
+	Change the fix for Bug#32440 to show bytes instead of kilobytes in
+	INFORMATION_SCHEMA.TABLES.DATA_FREE
+
+	* handler/ha_innodb.cc, mysql-test/innodb.result,
+	mysql-test/innodb.test:
+	Fix Bug#29507 TRUNCATE shows to many rows effected
+
+	* handler/ha_innodb.cc, mysql-test/innodb.result,
+	mysql-test/innodb.test:
+	Fix Bug#35537 Innodb doesn't increment handler_update and
+	handler_delete
+
+2008-04-29	The InnoDB Team
+
+	* handler/i_s.cc, include/srv0start.h, srv/srv0start.c:
+	Fix Bug#36310 InnoDB plugin crash
+
+2008-04-23	The InnoDB Team
+
+	* mysql-test/innodb_bug36169.result, mysql-test/innodb_bug36169.test,
+	row/row0mysql.c:
+	Fix Bug#36169 create innodb compressed table with too large row size
+	crashed
+
+	* (outside the source tree):
+	Fix Bug#36222 New InnoDB plugin 1.0 has wrong MKDIR_P defined in
+	Makefile.in
+
+2008-04-15	The InnoDB Team
+
+	InnoDB Plugin 1.0.0 released

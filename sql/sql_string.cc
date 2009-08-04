@@ -322,12 +322,24 @@ bool String::set_or_copy_aligned(const char *str,uint32 arg_length,
   return copy_aligned(str, arg_length, offset, cs);
 }
 
-	/* Copy with charset conversion */
+
+/**
+   Copies the character data into this String, with optional character set
+   conversion.
+
+   @return
+   FALSE ok
+   TRUE  Could not allocate result buffer
+
+*/
 
 bool String::copy(const char *str, uint32 arg_length,
 		  CHARSET_INFO *from_cs, CHARSET_INFO *to_cs, uint *errors)
 {
   uint32 offset;
+
+  DBUG_ASSERT(!str || str != Ptr);
+  
   if (!needs_conversion(arg_length, from_cs, to_cs, &offset))
   {
     *errors= 0;

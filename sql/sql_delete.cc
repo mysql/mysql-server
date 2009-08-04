@@ -389,8 +389,12 @@ cleanup:
         FALSE :
         transactional_table;
 
+      int errcode= 0;
       if (error < 0)
         thd->clear_error();
+      else
+        errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
+      
       /*
         [binlog]: If 'handler::delete_all_rows()' was called and the
         storage engine does not inject the rows itself, we replicate
@@ -402,9 +406,9 @@ cleanup:
       */
       int log_result= thd->binlog_query(query_type,
                                         thd->query, thd->query_length,
-                                        is_trans, FALSE, killed_status);
+                                        is_trans, FALSE, errcode);
 
-      if (log_result && transactional_table)
+      if (log_result)
       {
 	error=1;
       }
@@ -582,6 +586,11 @@ int mysql_multi_delete_prepare(THD *thd)
       }
     }
   }
+  /*
+    Reset the exclude flag to false so it doesn't interfare
+    with further calls to unique_table
+  */
+  lex->select_lex.exclude_from_table_unique_test= FALSE;
   DBUG_RETURN(FALSE);
 }
 
@@ -617,11 +626,24 @@ multi_delete::initialize_tables(JOIN *join)
     DBUG_RETURN(1);
 
   table_map tables_to_delete_from=0;
+  delete_while_scanning= 1;
   for (walk= delete_tables; walk; walk= walk->next_local)
+  {
     tables_to_delete_from|= walk->table->map;
+    if (delete_while_scanning &&
+        unique_table(thd, walk, join->tables_list, false))
+    {
+      /*
+        If the table we are going to delete from appears
+        in join, we need to defer delete. So the delete
+        doesn't interfers with the scaning of results.
+      */
+      delete_while_scanning= 0;
+    }
+  }
+
 
   walk= delete_tables;
-  delete_while_scanning= 1;
   for (JOIN_TAB *tab=join->join_tab, *end=join->join_tab+join->tables;
        tab < end;
        tab++)
@@ -784,7 +806,7 @@ void multi_delete::abort()
 
   /* the error was handled or nothing deleted and no side effects return */
   if (error_handled ||
-      !thd->transaction.stmt.modified_non_trans_table && !deleted)
+      (!thd->transaction.stmt.modified_non_trans_table && !deleted))
     DBUG_VOID_RETURN;
 
   /* Something already deleted so we have to invalidate cache */
@@ -818,9 +840,10 @@ void multi_delete::abort()
     */
     if (mysql_bin_log.is_open())
     {
+      int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
       thd->binlog_query(THD::ROW_QUERY_TYPE,
                         thd->query, thd->query_length,
-                        transactional_tables, FALSE);
+                        transactional_tables, FALSE, errcode);
     }
     thd->transaction.all.modified_non_trans_table= true;
   }
@@ -961,11 +984,14 @@ bool multi_delete::send_eof()
   {
     if (mysql_bin_log.is_open())
     {
+      int errcode= 0;
       if (local_error == 0)
         thd->clear_error();
+      else
+        errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
       if (thd->binlog_query(THD::ROW_QUERY_TYPE,
                             thd->query, thd->query_length,
-                            transactional_tables, FALSE, killed_status) &&
+                            transactional_tables, FALSE, errcode) &&
           !normal_tables)
       {
 	local_error=1;  // Log write failed: roll back the SQL statement
@@ -1025,7 +1051,7 @@ static bool mysql_truncate_by_delete(THD *thd, TABLE_LIST *table_list)
 bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
 {
   HA_CREATE_INFO create_info;
-  char path[FN_REFLEN];
+  char path[FN_REFLEN + 1];
   TABLE *table;
   bool error;
   uint path_length;
@@ -1062,7 +1088,7 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
     goto end;
   }
 
-  path_length= build_table_filename(path, sizeof(path), table_list->db,
+  path_length= build_table_filename(path, sizeof(path) - 1, table_list->db,
                                     table_list->table_name, reg_ext, 0);
 
   if (!dont_send_ok)

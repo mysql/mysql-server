@@ -941,7 +941,7 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
       /* Such a statement can always go directly to binlog, no trans cache */
       thd->binlog_query(THD::MYSQL_QUERY_TYPE,
                         log_query.c_ptr(), log_query.length(),
-                        FALSE, FALSE, THD::NOT_KILLED);
+                        FALSE, FALSE, 0);
       thd->variables.sql_mode= 0;
     }
 
@@ -1308,13 +1308,20 @@ sp_find_routine(THD *thd, int type, sp_name *name, sp_cache **cp,
 /**
   This is used by sql_acl.cc:mysql_routine_grant() and is used to find
   the routines in 'routines'.
+
+  @param thd Thread handler
+  @param routines List of needles in the hay stack
+  @param any Any of the needles are good enough
+
+  @return
+    @retval FALSE Found.
+    @retval TRUE  Not found
 */
 
-int
-sp_exist_routines(THD *thd, TABLE_LIST *routines, bool any, bool no_error)
+bool
+sp_exist_routines(THD *thd, TABLE_LIST *routines, bool any)
 {
   TABLE_LIST *routine;
-  bool result= 0;
   bool sp_object_found;
   DBUG_ENTER("sp_exists_routine");
   for (routine= routines; routine; routine= routine->next_global)
@@ -1336,21 +1343,16 @@ sp_exist_routines(THD *thd, TABLE_LIST *routines, bool any, bool no_error)
     if (sp_object_found)
     {
       if (any)
-        DBUG_RETURN(1);
-      result= 1;
+        break;
     }
     else if (!any)
     {
-      if (!no_error)
-      {
-	my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION or PROCEDURE", 
-		 routine->table_name);
-	DBUG_RETURN(-1);
-      }
-      DBUG_RETURN(0);
+      my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION or PROCEDURE",
+               routine->table_name);
+      DBUG_RETURN(TRUE);
     }
   }
-  DBUG_RETURN(result);
+  DBUG_RETURN(FALSE);
 }
 
 

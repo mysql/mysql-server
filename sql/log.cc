@@ -153,7 +153,8 @@ private:
 class binlog_trx_data {
 public:
   binlog_trx_data()
-    : at_least_one_stmt(0), m_pending(0), before_stmt_pos(MY_OFF_T_UNDEF)
+    : at_least_one_stmt(0), incident(FALSE), m_pending(0),
+    before_stmt_pos(MY_OFF_T_UNDEF)
   {
     trans_log.end_of_file= max_binlog_cache_size;
   }
@@ -184,6 +185,7 @@ public:
     delete pending();
     set_pending(0);
     reinit_io_cache(&trans_log, WRITE_CACHE, pos, 0, 0);
+    trans_log.end_of_file= max_binlog_cache_size;
     if (pos < before_stmt_pos)
       before_stmt_pos= MY_OFF_T_UNDEF;
 
@@ -206,6 +208,7 @@ public:
     if (!empty())
       truncate(0);
     before_stmt_pos= MY_OFF_T_UNDEF;
+    incident= FALSE;
     trans_log.end_of_file= max_binlog_cache_size;
     DBUG_ASSERT(empty());
   }
@@ -222,11 +225,22 @@ public:
 
   IO_CACHE trans_log;                         // The transaction cache
 
+  void set_incident(void)
+  {
+    incident= TRUE;
+  }
+  
+  bool has_incident(void)
+  {
+    return(incident);
+  }
+
   /**
     Boolean that is true if there is at least one statement in the
     transaction cache.
   */
   bool at_least_one_stmt;
+  bool incident;
 
 private:
   /*
@@ -942,7 +956,7 @@ bool LOGGER::slow_log_print(THD *thd, const char *query, uint query_length,
   bool error= FALSE;
   Log_event_handler **current_handler;
   bool is_command= FALSE;
-  char user_host_buff[MAX_USER_HOST_SIZE];
+  char user_host_buff[MAX_USER_HOST_SIZE + 1];
   Security_context *sctx= thd->security_ctx;
   uint user_host_len= 0;
   ulonglong query_utime, lock_utime;
@@ -1008,7 +1022,7 @@ bool LOGGER::general_log_write(THD *thd, enum enum_server_command command,
 {
   bool error= FALSE;
   Log_event_handler **current_handler= general_log_handler_list;
-  char user_host_buff[MAX_USER_HOST_SIZE];
+  char user_host_buff[MAX_USER_HOST_SIZE + 1];
   Security_context *sctx= thd->security_ctx;
   ulong id;
   uint user_host_len= 0;
@@ -1391,7 +1405,8 @@ binlog_end_trans(THD *thd, binlog_trx_data *trx_data,
   */
   if (end_ev != NULL)
   {
-    thd->binlog_flush_pending_rows_event(TRUE);
+    if (thd->binlog_flush_pending_rows_event(TRUE))
+      DBUG_RETURN(1);
     /*
       Doing a commit or a rollback including non-transactional tables,
       i.e., ending a transaction where we might write the transaction
@@ -1402,7 +1417,8 @@ binlog_end_trans(THD *thd, binlog_trx_data *trx_data,
       were, we would have to ensure that we're not ending a statement
       inside a stored function.
      */
-    error= mysql_bin_log.write(thd, &trx_data->trans_log, end_ev);
+    error= mysql_bin_log.write(thd, &trx_data->trans_log, end_ev,
+                               trx_data->has_incident());
     trx_data->reset();
 
     /*
@@ -1428,7 +1444,11 @@ binlog_end_trans(THD *thd, binlog_trx_data *trx_data,
      */
     thd->binlog_remove_pending_rows_event(TRUE);
     if (all || !(thd->options & (OPTION_BEGIN | OPTION_NOT_AUTOCOMMIT)))
+    {
+      if (trx_data->has_incident())
+        mysql_bin_log.write_incident(thd, TRUE);
       trx_data->reset();
+    }
     else                                        // ...statement
       trx_data->truncate(trx_data->before_stmt_pos);
 
@@ -1502,8 +1522,7 @@ static int binlog_commit(handlerton *hton, THD *thd, bool all)
               YESNO(thd->transaction.stmt.modified_non_trans_table)));
   if (!in_transaction || all)
   {
-    Query_log_event qev(thd, STRING_WITH_LEN("COMMIT"), TRUE, FALSE);
-    qev.error_code= 0; // see comment in MYSQL_LOG::write(THD, IO_CACHE)
+    Query_log_event qev(thd, STRING_WITH_LEN("COMMIT"), TRUE, TRUE, 0);
     error= binlog_end_trans(thd, trx_data, &qev, all);
     goto end;
   }
@@ -1545,9 +1564,11 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
                        YESNO(all),
                        YESNO(thd->transaction.all.modified_non_trans_table),
                        YESNO(thd->transaction.stmt.modified_non_trans_table)));
-  if (all && thd->transaction.all.modified_non_trans_table ||
-      !all && thd->transaction.stmt.modified_non_trans_table ||
-      (thd->options & OPTION_KEEP_LOG))
+  if ((all && thd->transaction.all.modified_non_trans_table) ||
+      (!all && thd->transaction.stmt.modified_non_trans_table &&
+       !mysql_bin_log.check_write_error(thd)) ||
+      ((thd->options & OPTION_KEEP_LOG) &&
+        !mysql_bin_log.check_write_error(thd)))
   {
     /*
       We write the transaction cache with a rollback last if we have
@@ -1557,23 +1578,68 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
       transactional table in that statement as well, which needs to be
       rolled back on the slave.
     */
-    Query_log_event qev(thd, STRING_WITH_LEN("ROLLBACK"), TRUE, FALSE);
-    qev.error_code= 0; // see comment in MYSQL_LOG::write(THD, IO_CACHE)
+    Query_log_event qev(thd, STRING_WITH_LEN("ROLLBACK"), TRUE, TRUE, 0);
     error= binlog_end_trans(thd, trx_data, &qev, all);
   }
-  else if (all && !thd->transaction.all.modified_non_trans_table ||
-           !all && !thd->transaction.stmt.modified_non_trans_table)
+  else
   {
     /*
-      If we have modified only transactional tables, we can truncate
-      the transaction cache without writing anything to the binary
-      log.
+      We reach this point if either only transactional tables were modified or
+      the effect of a statement that did not get into the binlog needs to be
+      rolled back. In the latter case, if a statement changed non-transactional
+      tables or had the OPTION_KEEP_LOG associated, we write an incident event
+      to the binlog in order to stop slaves and notify users that some changes
+      on the master did not get into the binlog and slaves will be inconsistent.
+      On the other hand, if a statement is transactional, we just safely roll it
+      back.
      */
+    if ((thd->transaction.stmt.modified_non_trans_table ||
+        (thd->options & OPTION_KEEP_LOG)) &&
+        mysql_bin_log.check_write_error(thd))
+      trx_data->set_incident();
     error= binlog_end_trans(thd, trx_data, 0, all);
   }
   if (!all)
     trx_data->before_stmt_pos = MY_OFF_T_UNDEF; // part of the stmt rollback
   DBUG_RETURN(error);
+}
+
+void MYSQL_BIN_LOG::set_write_error(THD *thd)
+{
+  DBUG_ENTER("MYSQL_BIN_LOG::set_write_error");
+
+  write_error= 1;
+
+  if (check_write_error(thd))
+    DBUG_VOID_RETURN;
+
+  if (my_errno == EFBIG)
+    my_message(ER_TRANS_CACHE_FULL, ER(ER_TRANS_CACHE_FULL), MYF(MY_WME));
+  else
+    my_error(ER_ERROR_ON_WRITE, MYF(MY_WME), name, errno);
+
+  DBUG_VOID_RETURN;
+}
+
+bool MYSQL_BIN_LOG::check_write_error(THD *thd)
+{
+  DBUG_ENTER("MYSQL_BIN_LOG::check_write_error");
+
+  bool checked= FALSE;
+
+  if (!thd->is_error())
+    DBUG_RETURN(checked);
+
+  switch (thd->main_da.sql_errno())
+  {
+    case ER_TRANS_CACHE_FULL:
+    case ER_ERROR_ON_WRITE:
+    case ER_BINLOG_LOGGING_IMPOSSIBLE:
+      checked= TRUE;
+    break;
+  }
+
+  DBUG_RETURN(checked);
 }
 
 /**
@@ -1606,10 +1672,11 @@ static int binlog_savepoint_set(handlerton *hton, THD *thd, void *sv)
 
   binlog_trans_log_savepos(thd, (my_off_t*) sv);
   /* Write it to the binary log */
-  
+
+  int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
   int const error=
     thd->binlog_query(THD::STMT_QUERY_TYPE,
-                      thd->query, thd->query_length, TRUE, FALSE);
+                      thd->query, thd->query_length, TRUE, FALSE, errcode);
   DBUG_RETURN(error);
 }
 
@@ -1625,9 +1692,10 @@ static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
   if (unlikely(thd->transaction.all.modified_non_trans_table || 
                (thd->options & OPTION_KEEP_LOG)))
   {
+    int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
     int error=
       thd->binlog_query(THD::STMT_QUERY_TYPE,
-                        thd->query, thd->query_length, TRUE, FALSE);
+                        thd->query, thd->query_length, TRUE, FALSE, errcode);
     DBUG_RETURN(error);
   }
   binlog_trans_log_truncate(thd, *(my_off_t*)sv);
@@ -2065,6 +2133,9 @@ bool MYSQL_QUERY_LOG::write(time_t event_time, const char *user_host,
   /* Test if someone closed between the is_open test and lock */
   if (is_open())
   {
+    /* for testing output of timestamp and thread id */
+    DBUG_EXECUTE_IF("reset_log_last_time", last_time= 0;);
+
     /* Note that my_b_write() assumes it knows the length for this */
       if (event_time != last_time)
       {
@@ -2073,7 +2144,7 @@ bool MYSQL_QUERY_LOG::write(time_t event_time, const char *user_host,
         localtime_r(&event_time, &start);
 
         time_buff_len= my_snprintf(local_time_buff, MAX_TIME_SIZE,
-                                   "%02d%02d%02d %2d:%02d:%02d",
+                                   "%02d%02d%02d %2d:%02d:%02d\t",
                                    start.tm_year % 100, start.tm_mon + 1,
                                    start.tm_mday, start.tm_hour,
                                    start.tm_min, start.tm_sec);
@@ -3851,6 +3922,7 @@ MYSQL_BIN_LOG::flush_and_set_pending_rows_event(THD *thd,
     if (pending->write(file))
     {
       pthread_mutex_unlock(&LOCK_log);
+      set_write_error(thd);
       DBUG_RETURN(1);
     }
 
@@ -3925,7 +3997,8 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
   */
   bool const end_stmt=
     thd->prelocked_mode && thd->lex->requires_prelocking();
-  thd->binlog_flush_pending_rows_event(end_stmt);
+  if (thd->binlog_flush_pending_rows_event(end_stmt))
+    DBUG_RETURN(error);
 
   pthread_mutex_lock(&LOCK_log);
 
@@ -3976,8 +4049,7 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
         DBUG_PRINT("info", ("Using trans_log: cache: %d, trans_log_pos: %lu",
                             event_info->get_cache_stmt(),
                             (ulong) trans_log_pos));
-        if (trans_log_pos == 0)
-          thd->binlog_start_trans_and_stmt();
+        thd->binlog_start_trans_and_stmt();
         file= trans_log;
       }
       /*
@@ -4055,7 +4127,8 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
        Write the SQL command
      */
 
-    if (event_info->write(file))
+    if (event_info->write(file) || 
+        DBUG_EVALUATE_IF("injecting_fault_writing", 1, 0))
       goto err;
 
     if (file == &log_file) // we are writing to the real log (disk)
@@ -4069,13 +4142,7 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
 
 err:
     if (error)
-    {
-      if (my_errno == EFBIG)
-	my_message(ER_TRANS_CACHE_FULL, ER(ER_TRANS_CACHE_FULL), MYF(0));
-      else
-	my_error(ER_ERROR_ON_WRITE, MYF(0), name, errno);
-      write_error=1;
-    }
+      set_write_error(thd);
   }
 
   if (event_info->flags & LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F)
@@ -4327,6 +4394,58 @@ int MYSQL_BIN_LOG::write_cache(IO_CACHE *cache, bool lock_log, bool sync_log)
   return 0;                                     // All OK
 }
 
+/*
+  Helper function to get the error code of the query to be binlogged.
+ */
+int query_error_code(THD *thd, bool not_killed)
+{
+  int error;
+  
+  if (not_killed)
+  {
+    error= thd->is_error() ? thd->main_da.sql_errno() : 0;
+
+    /* thd->main_da.sql_errno() might be ER_SERVER_SHUTDOWN or
+       ER_QUERY_INTERRUPTED, So here we need to make sure that error
+       is not set to these errors when specified not_killed by the
+       caller.
+    */
+    if (error == ER_SERVER_SHUTDOWN || error == ER_QUERY_INTERRUPTED)
+      error= 0;
+  }
+  else
+  {
+    /* killed status for DELAYED INSERT thread should never be used */
+    DBUG_ASSERT(!(thd->system_thread & SYSTEM_THREAD_DELAYED_INSERT));
+    error= thd->killed_errno();
+  }
+
+  return error;
+}
+
+bool MYSQL_BIN_LOG::write_incident(THD *thd, bool lock)
+{
+  uint error= 0;
+  DBUG_ENTER("MYSQL_BIN_LOG::write_incident");
+  LEX_STRING const write_error_msg=
+    { C_STRING_WITH_LEN("error writing to the binary log") };
+  Incident incident= INCIDENT_LOST_EVENTS;
+  Incident_log_event ev(thd, incident, write_error_msg);
+  if (lock)
+    pthread_mutex_lock(&LOCK_log);
+  ev.write(&log_file);
+  if (lock)
+  {
+    if (!error && !(error= flush_and_sync()))
+    {
+      signal_update();
+      rotate_and_purge(RP_LOCK_LOG_IS_ALREADY_LOCKED);
+    }
+    pthread_mutex_unlock(&LOCK_log);
+  }
+  DBUG_RETURN(error);
+}
+
 /**
   Write a cached log entry to the binary log.
   - To support transaction over replication, we wrap the transaction
@@ -4339,6 +4458,9 @@ int MYSQL_BIN_LOG::write_cache(IO_CACHE *cache, bool lock_log, bool sync_log)
   @param cache		The cache to copy to the binlog
   @param commit_event   The commit event to print after writing the
                         contents of the cache.
+  @param incident       Defines if an incident event should be created to
+                        notify that some non-transactional changes did
+                        not get into the binlog.
 
   @note
     We only come here if there is something in the cache.
@@ -4348,7 +4470,8 @@ int MYSQL_BIN_LOG::write_cache(IO_CACHE *cache, bool lock_log, bool sync_log)
     'cache' needs to be reinitialized after this functions returns.
 */
 
-bool MYSQL_BIN_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event)
+bool MYSQL_BIN_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event,
+                          bool incident)
 {
   DBUG_ENTER("MYSQL_BIN_LOG::write(THD *, IO_CACHE *, Log_event *)");
   VOID(pthread_mutex_lock(&LOCK_log));
@@ -4370,19 +4493,8 @@ bool MYSQL_BIN_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event)
         transaction is either a BEGIN..COMMIT block or a single
         statement in autocommit mode.
       */
-      Query_log_event qinfo(thd, STRING_WITH_LEN("BEGIN"), TRUE, FALSE);
-      /*
-        Imagine this is rollback due to net timeout, after all
-        statements of the transaction succeeded. Then we want a
-        zero-error code in BEGIN.  In other words, if there was a
-        really serious error code it's already in the statement's
-        events, there is no need to put it also in this internally
-        generated event, and as this event is generated late it would
-        lead to false alarms.
+      Query_log_event qinfo(thd, STRING_WITH_LEN("BEGIN"), TRUE, TRUE, 0);
 
-        This is safer than thd->clear_error() against kills at shutdown.
-      */
-      qinfo.error_code= 0;
       /*
         Now this Query_log_event has artificial log_pos 0. It must be
         adjusted to reflect the real position in the log. Not doing it
@@ -4408,6 +4520,10 @@ bool MYSQL_BIN_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event)
 
       if (commit_event && commit_event->write(&log_file))
         goto err;
+
+      if (incident && write_incident(thd, FALSE))
+        goto err;
+
       if (flush_and_sync())
         goto err;
       DBUG_EXECUTE_IF("half_binlogged_transaction", abort(););

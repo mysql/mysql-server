@@ -667,4 +667,28 @@ desc v1;
 drop view v1;
 drop table t1;
 
+#
+# Bug#44684: valgrind reports invalid reads in 
+# Item_func_spatial_collection::val_str
+#
+SELECT MultiPoint(12345,'');
+SELECT MultiPoint(123451,'');
+SELECT MultiPoint(1234512,'');
+SELECT MultiPoint(12345123,'');
+
+SELECT MultiLineString(12345,'');
+SELECT MultiLineString(123451,'');
+SELECT MultiLineString(1234512,'');
+SELECT MultiLineString(12345123,'');
+
+SELECT LineString(12345,'');
+SELECT LineString(123451,'');
+SELECT LineString(1234512,'');
+SELECT LineString(12345123,'');
+
+SELECT Polygon(12345,'');
+SELECT Polygon(123451,'');
+SELECT Polygon(1234512,'');
+SELECT Polygon(12345123,'');
+
 --echo End of 5.1 tests
