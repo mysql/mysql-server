@@ -341,3 +341,4 @@ EXTRA_DIST=		CMakeLists.txt plug.in \
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
+
