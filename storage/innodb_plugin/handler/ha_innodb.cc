@@ -1023,6 +1023,7 @@ innobase_get_charset(
 }
 
 #if defined (__WIN__) && defined (MYSQL_DYNAMIC_PLUGIN)
+extern MYSQL_PLUGIN_IMPORT MY_TMPDIR mysql_tmpdir_list;
 /*******************************************************************//**
 Map an OS error to an errno value. The OS error number is stored in
 _doserrno and the mapped value is stored in errno) */
