@@ -5988,15 +5988,15 @@ static bool update_schema_privilege(THD *thd, TABLE *table, char *buff,
   int i= 2;
   CHARSET_INFO *cs= system_charset_info;
   restore_record(table, s->default_values);
-  table->field[0]->store(buff, strlen(buff), cs);
+  table->field[0]->store(buff, (uint) strlen(buff), cs);
   if (db)
-    table->field[i++]->store(db, strlen(db), cs);
+    table->field[i++]->store(db, (uint) strlen(db), cs);
   if (t_name)
-    table->field[i++]->store(t_name, strlen(t_name), cs);
+    table->field[i++]->store(t_name, (uint) strlen(t_name), cs);
   if (column)
     table->field[i++]->store(column, col_length, cs);
   table->field[i++]->store(priv, priv_length, cs);
-  table->field[i]->store(is_grantable, strlen(is_grantable), cs);
+  table->field[i]->store(is_grantable, (uint) strlen(is_grantable), cs);
   return schema_table_store_record(thd, table);
 }
 #endif

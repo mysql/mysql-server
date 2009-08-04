@@ -1,0 +1,46 @@
+--source include/have_innodb.inc
+
+--echo #
+--echo # Bug #40113: Embedded SELECT inside UPDATE or DELETE can timeout 
+--echo #  without error
+--echo #
+
+CREATE TABLE t1 (a int, b int, PRIMARY KEY  (a,b)) ENGINE=InnoDB;
+
+INSERT INTO t1 (a,b) VALUES (1070109,99);
+
+CREATE TABLE t2 (b int, a int, PRIMARY KEY (b)) ENGINE=InnoDB;
+
+INSERT INTO t2 (b,a) VALUES (7,1070109);
+
+SELECT * FROM t1;
+
+BEGIN;
+
+SELECT b FROM t2 WHERE b=7 FOR UPDATE;
+
+CONNECT (addconroot, localhost, root,,);
+CONNECTION addconroot;
+
+BEGIN;
+
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT b FROM t2 WHERE b=7 FOR UPDATE;
+
+--error ER_LOCK_WAIT_TIMEOUT
+INSERT INTO t1 (a) VALUES ((SELECT a FROM t2 WHERE b=7));
+
+--error ER_LOCK_WAIT_TIMEOUT
+UPDATE t1 SET a='7000000' WHERE a=(SELECT a FROM t2 WHERE b=7);
+
+--error ER_LOCK_WAIT_TIMEOUT
+DELETE FROM t1 WHERE a=(SELECT a FROM t2 WHERE b=7);
+
+SELECT * FROM t1;
+
+CONNECTION default;
+DISCONNECT addconroot;
+
+DROP TABLE t2, t1;
+
+--echo End of 5.0 tests

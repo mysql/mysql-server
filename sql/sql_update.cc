@@ -230,7 +230,7 @@ int mysql_update(THD *thd,
 
   if (select_lex->inner_refs_list.elements &&
     fix_inner_refs(thd, all_fields, select_lex, select_lex->ref_pointer_array))
-    DBUG_RETURN(-1);
+    DBUG_RETURN(1);
 
   if (conds)
   {
@@ -247,7 +247,14 @@ int mysql_update(THD *thd,
   {
     delete select;
     free_underlaid_joins(thd, select_lex);
-    if (error)
+    /*
+      There was an error or the error was already sent by
+      the quick select evaluation.
+      TODO: Add error code output parameter to Item::val_xxx() methods.
+      Currently they rely on the user checking DA for
+      errors when unwinding the stack after calling Item::val_xxx().
+    */
+    if (error || thd->net.report_error)
     {
       DBUG_RETURN(1);				// Error in where
     }

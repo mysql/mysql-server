@@ -287,7 +287,7 @@ find_files(THD *thd, List<char> *files, const char *db,
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   uint col_access=thd->col_access;
 #endif
-  uint wild_length= 0;
+  size_t wild_length= 0;
   TABLE_LIST table_list;
   DBUG_ENTER("find_files");
 
@@ -1410,16 +1410,14 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
         thd_info->start_time= tmp->start_time;
 #endif
         thd_info->query=0;
+        /* Lock THD mutex that protects its data when looking at it. */
+        pthread_mutex_lock(&tmp->LOCK_thd_data);
         if (tmp->query)
         {
-	  /* 
-            query_length is always set to 0 when we set query = NULL; see
-	    the comment in sql_class.h why this prevents crashes in possible
-            races with query_length
-          */
           uint length= min(max_query_length, tmp->query_length);
           thd_info->query=(char*) thd->strmake(tmp->query,length);
         }
+        pthread_mutex_unlock(&tmp->LOCK_thd_data);
         thread_infos.append(thd_info);
       }
     }
@@ -3738,7 +3736,7 @@ TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
       if (item->decimals > 0)
         item->max_length+= 1;
       item->set_name(fields_info->field_name,
-                     strlen(fields_info->field_name), cs);
+                     (uint) strlen(fields_info->field_name), cs);
       break;
     case MYSQL_TYPE_STRING:
     default:

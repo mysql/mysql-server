@@ -16248,14 +16248,14 @@ static void test_bug38486(void)
   stmt= mysql_stmt_init(mysql);
   mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, (void*)&type);
   stmt_text= "CREATE TABLE t1 (a INT)";
-  mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  mysql_stmt_prepare(stmt, stmt_text, (ulong) strlen(stmt_text));
   mysql_stmt_execute(stmt);
   mysql_stmt_close(stmt);
 
   stmt= mysql_stmt_init(mysql);
   mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, (void*)&type);
   stmt_text= "INSERT INTO t1 VALUES (1)";
-  mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  mysql_stmt_prepare(stmt, stmt_text, (ulong) strlen(stmt_text));
   mysql_stmt_execute(stmt);
   mysql_stmt_close(stmt);
 
@@ -16270,25 +16270,33 @@ static void bug20023_change_user(MYSQL *con)
                            opt_db ? opt_db : "test"));
 }
 
-static void bug20023_query_int_variable(MYSQL *con,
+static void bug20023_query_str_variable(MYSQL *con,
                                         const char *var_name,
-                                        int *var_value)
+                                        char *str,
+                                        size_t len)
 {
   MYSQL_RES *rs;
   MYSQL_ROW row;
 
   char query_buffer[MAX_TEST_QUERY_LENGTH];
 
-  my_snprintf(query_buffer,
-          sizeof (query_buffer),
-          "SELECT @@%s",
-          (const char *) var_name);
+  my_snprintf(query_buffer, sizeof (query_buffer),
+              "SELECT @@%s", var_name);
 
   DIE_IF(mysql_query(con, query_buffer));
   DIE_UNLESS(rs= mysql_store_result(con));
   DIE_UNLESS(row= mysql_fetch_row(rs));
-  *var_value= atoi(row[0]);
+  my_snprintf(str, len, "%s", row[0]);
   mysql_free_result(rs);
+}
+
+static void bug20023_query_int_variable(MYSQL *con,
+                                        const char *var_name,
+                                        int *var_value)
+{
+  char str[32];
+  bug20023_query_str_variable(con, var_name, str, sizeof(str));
+  *var_value= atoi(str);
 }
 
 static void test_bug20023()
@@ -16296,7 +16304,12 @@ static void test_bug20023()
   MYSQL con;
 
   int sql_big_selects_orig;
-  int max_join_size_orig;
+  /*
+    Type of max_join_size is ha_rows, which might be ulong or off_t
+    depending on the platform or configure options. Preserve the string
+    to avoid type overflow pitfalls.
+  */
+  char max_join_size_orig[32];
 
   int sql_big_selects_2;
   int sql_big_selects_3;
@@ -16326,9 +16339,10 @@ static void test_bug20023()
                               "session.sql_big_selects",
                               &sql_big_selects_orig);
 
-  bug20023_query_int_variable(&con,
+  bug20023_query_str_variable(&con,
                               "global.max_join_size",
-                              &max_join_size_orig);
+                              max_join_size_orig,
+                              sizeof(max_join_size_orig));
 
   /***********************************************************************
    Test that COM_CHANGE_USER resets the SQL_BIG_SELECTS to the initial value.
@@ -16405,8 +16419,8 @@ static void test_bug20023()
 
   my_snprintf(query_buffer,
            sizeof (query_buffer),
-           "SET @@global.max_join_size = %d",
-           (int) max_join_size_orig);
+           "SET @@global.max_join_size = %s",
+           max_join_size_orig);
 
   DIE_IF(mysql_query(&con, query_buffer));
   DIE_IF(mysql_query(&con, "SET @@session.max_join_size = default"));
