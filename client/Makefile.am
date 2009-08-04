@@ -57,7 +57,7 @@ strings_src=decimal.c
 # Fix for mit-threads
 DEFS =			-DUNDEF_THREADS_HACK \
 			-DDEFAULT_MYSQL_HOME="\"$(prefix)\"" \
-			-DDATADIR="\"$(localstatedir)\""
+			-DMYSQL_DATADIR="\"$(localstatedir)\""
 
 EXTRA_DIST =		get_password.c CMakeLists.txt echo.c
 

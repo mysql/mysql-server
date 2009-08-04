@@ -82,7 +82,7 @@ vio_objects= vio.lo viosocket.lo viossl.lo viosslfactories.lo
 CLEANFILES =		$(target_libadd) $(SHLIBOBJS) \
 			$(target)
 DEFS =			-DDEFAULT_CHARSET_HOME="\"$(MYSQLBASEdir)\"" \
-			-DDATADIR="\"$(MYSQLDATAdir)\"" \
+			-DMYSQL_DATADIR="\"$(MYSQLDATAdir)\"" \
 			-DDEFAULT_HOME_ENV=MYSQL_HOME \
 			-DDEFAULT_GROUP_SUFFIX_ENV=MYSQL_GROUP_SUFFIX \
 			-DDEFAULT_SYSCONFDIR="\"$(sysconfdir)\"" \

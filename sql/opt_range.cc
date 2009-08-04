@@ -792,7 +792,7 @@ SEL_TREE::SEL_TREE(SEL_TREE *arg, PARAM *param): Sql_alloc()
 
 SEL_IMERGE::SEL_IMERGE (SEL_IMERGE *arg, PARAM *param) : Sql_alloc()
 {
-  uint elements= (arg->trees_end - arg->trees);
+  uint elements= (uint) (arg->trees_end - arg->trees);
   if (elements > PREALLOCED_TREES)
   {
     uint size= elements * sizeof (SEL_TREE **);

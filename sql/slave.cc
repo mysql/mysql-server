@@ -755,7 +755,7 @@ int terminate_slave_thread(THD* thd,
     int error;
     DBUG_PRINT("loop", ("killing slave thread"));
 
-    pthread_mutex_lock(&thd->LOCK_delete);
+    pthread_mutex_lock(&thd->LOCK_thd_data);
 #ifndef DONT_USE_THR_ALARM
     /*
       Error codes from pthread_kill are:
@@ -766,7 +766,7 @@ int terminate_slave_thread(THD* thd,
     DBUG_ASSERT(err != EINVAL);
 #endif
     thd->awake(THD::NOT_KILLED);
-    pthread_mutex_unlock(&thd->LOCK_delete);
+    pthread_mutex_unlock(&thd->LOCK_thd_data);
 
     /*
       There is a small chance that slave thread might miss the first
@@ -1608,15 +1608,13 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
     DBUG_RETURN(1);
   }
   thd->command = COM_TABLE_DUMP;
-  thd->query_length= packet_len;
-  /* Note that we should not set thd->query until the area is initalized */
   if (!(query = thd->strmake((char*) net->read_pos, packet_len)))
   {
     sql_print_error("create_table_from_dump: out of memory");
     my_message(ER_GET_ERRNO, "Out of memory", MYF(0));
     DBUG_RETURN(1);
   }
-  thd->query= query;
+  thd->set_query(query, packet_len);
   thd->query_error = 0;
   thd->net.no_send_ok = 1;
 
@@ -3867,11 +3865,8 @@ err:
   // print the current replication position
   sql_print_information("Slave I/O thread exiting, read up to log '%s', position %s",
 		  IO_RPL_LOG_NAME, llstr(mi->master_log_pos,llbuff));
-  VOID(pthread_mutex_lock(&LOCK_thread_count));
-  thd->query= 0; // extra safety
-  thd->query_length= 0;
+  thd->set_query(NULL, 0);
   thd->reset_db(NULL, 0);
-  VOID(pthread_mutex_unlock(&LOCK_thread_count));
   if (mysql)
   {
     /*
@@ -4105,17 +4100,14 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
 		        RPL_LOG_NAME, llstr(rli->group_master_log_pos,llbuff));
 
  err:
-  VOID(pthread_mutex_lock(&LOCK_thread_count));
   /*
     Some extra safety, which should not been needed (normally, event deletion
     should already have done these assignments (each event which sets these
     variables is supposed to set them to 0 before terminating)).
   */
-  thd->catalog= 0; 
+  thd->catalog= 0;
+  thd->set_query(NULL, 0);
   thd->reset_db(NULL, 0);
-  thd->query= 0; 
-  thd->query_length= 0;
-  VOID(pthread_mutex_unlock(&LOCK_thread_count));
   thd_proc_info(thd, "Waiting for slave mutex on exit");
   pthread_mutex_lock(&rli->run_lock);
   /* We need data_lock, at least to wake up any waiting master_pos_wait() */

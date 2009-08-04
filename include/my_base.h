@@ -377,9 +377,10 @@ enum ha_base_keytype {
 #define HA_ERR_TABLE_READONLY    161  /* The table is not writable */
 #define HA_ERR_AUTOINC_READ_FAILED 162/* Failed to get the next autoinc value */
 #define HA_ERR_AUTOINC_ERANGE    163  /* Failed to set the row autoinc value */
+#define HA_ERR_TOO_MANY_CONCURRENT_TRXS 164 /*Too many active concurrent transactions */
 /* You must also add numbers and description to extra/perror.c ! */
 
-#define HA_ERR_LAST              163  /*Copy last error nr.*/
+#define HA_ERR_LAST              164  /*Copy last error nr.*/
 /* Add error numbers before HA_ERR_LAST and change it accordingly. */
 #define HA_ERR_ERRORS            (HA_ERR_LAST - HA_ERR_FIRST + 1)
 
