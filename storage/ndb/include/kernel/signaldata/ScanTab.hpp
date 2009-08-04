@@ -488,6 +488,11 @@ public:
    * Length of signal
    */
   STATIC_CONST( SignalLength = 4 );
+  
+  /**
+   * Section carrying receiverIds if num receivers > 21
+   */
+  STATIC_CONST( ReceiverIdsSectionNum = 0);
 
 private:
 
