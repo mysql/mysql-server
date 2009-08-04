@@ -3573,19 +3573,6 @@ You should consider changing lower_case_table_names to 1 or 2",
 			files_charset_info :
 			&my_charset_bin);
 
-
-  /*
-    If we explicitly turn off query cache from the command line query cache will
-    be disabled for the reminder of the server life time. This is because we
-    want to avoid locking the QC specific mutex if query cache isn't going to
-    be used.
-  */
-  if (global_system_variables.query_cache_type == 0)
-  {
-    have_query_cache= SHOW_OPTION_NO;
-    query_cache.disable_query_cache();
-  }
-
   return 0;
 }
 
@@ -6889,10 +6876,12 @@ The minimum value for this variable is 4096.",
    (uchar**) &query_cache_min_res_unit, (uchar**) &query_cache_min_res_unit,
    0, GET_ULONG, REQUIRED_ARG, QUERY_CACHE_MIN_RESULT_DATA_SIZE,
    0, ULONG_MAX, 0, 1, 0},
+#endif /*HAVE_QUERY_CACHE*/
   {"query_cache_size", OPT_QUERY_CACHE_SIZE,
    "The memory allocated to store results from old queries.",
    (uchar**) &query_cache_size, (uchar**) &query_cache_size, 0, GET_ULONG,
    REQUIRED_ARG, 0, 0, (longlong) ULONG_MAX, 0, 1024, 0},
+#ifdef HAVE_QUERY_CACHE
   {"query_cache_type", OPT_QUERY_CACHE_TYPE,
    "0 = OFF = Don't cache or retrieve results. 1 = ON = Cache all results except SELECT SQL_NO_CACHE ... queries. 2 = DEMAND = Cache only SELECT SQL_CACHE ... queries.",
    (uchar**) &global_system_variables.query_cache_type,
