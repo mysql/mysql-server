@@ -10071,6 +10071,7 @@ void Dbtc::execSCAN_NEXTREQ(Signal* signal)
   apiConnectptr.i = req->apiConnectPtr;
   if (apiConnectptr.i >= capiConnectFilesize) {
     jam();
+    releaseSections(signal);
     warningHandlerLab(signal, __LINE__);
     return;
   }//if
@@ -10082,6 +10083,7 @@ void Dbtc::execSCAN_NEXTREQ(Signal* signal)
   const UintR ctransid1 = apiConnectptr.p->transid[0] ^ transid1;
   const UintR ctransid2 = apiConnectptr.p->transid[1] ^ transid2;
   if ((ctransid1 | ctransid2) != 0){
+    releaseSections(signal);
     ScanTabRef * ref = (ScanTabRef*)&signal->theData[0];
     ref->apiConnectPtr = apiConnectptr.p->ndbapiConnect;
     ref->transId1 = transid1;
@@ -10099,6 +10101,7 @@ void Dbtc::execSCAN_NEXTREQ(Signal* signal)
    */
   if (apiConnectptr.p->apiConnectstate != CS_START_SCAN) {
     jam();
+    releaseSections(signal);
     if (apiConnectptr.p->apiConnectstate == CS_CONNECTED) {
       jam();
       /*********************************************************************
@@ -10128,7 +10131,34 @@ void Dbtc::execSCAN_NEXTREQ(Signal* signal)
   ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
   ScanRecord* scanP = scanptr.p;
 
-  const Uint32 len = signal->getLength() - 4;
+  /* Copy ReceiverIds to working space past end of signal
+   * so that we don't overwrite them when sending signals
+   */
+  Uint32 len = 0;
+  if (signal->header.m_noOfSections > 0)
+  {
+    jam();
+    /* TODO : Add Dropped signal handling for SCAN_NEXTREQ */
+    /* Receiver ids are in a long section */
+    ndbrequire(signal->getLength() == ScanNextReq::SignalLength);
+    ndbrequire(signal->header.m_noOfSections == 1);
+    SegmentedSectionPtr receiverIdsSection;
+    ndbrequire(signal->getSection(receiverIdsSection, 
+                                  ScanNextReq::ReceiverIdsSectionNum));
+    len= receiverIdsSection.p->m_sz;
+    ndbassert(len < (8192 - 25));
+    
+    copy(signal->getDataPtrSend()+25, receiverIdsSection);
+    releaseSections(signal);
+  }
+  else
+  {
+    jam();
+    len= signal->getLength() - ScanNextReq::SignalLength;
+    memcpy(signal->getDataPtrSend()+25, 
+           signal->getDataPtr()+ ScanNextReq::SignalLength, 
+           4 * len);
+  }
 
   if (stopScan == ZTRUE) {
     jam();
@@ -10149,9 +10179,6 @@ void Dbtc::execSCAN_NEXTREQ(Signal* signal)
      */
     return;
   }
-
-  // Copy op ptrs so I dont overwrite them when sending...
-  memcpy(signal->getDataPtrSend()+25, signal->getDataPtr()+4, 4 * len);
 
   ScanFragNextReq tmp;
   tmp.closeFlag = ZFALSE;
