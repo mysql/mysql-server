@@ -1612,10 +1612,8 @@ bool ha_myisam::check_and_repair(THD *thd)
 
   old_query= thd->query;
   old_query_length= thd->query_length;
-  pthread_mutex_lock(&LOCK_thread_count);
-  thd->query=        table->s->table_name.str;
-  thd->query_length= (uint) table->s->table_name.length;
-  pthread_mutex_unlock(&LOCK_thread_count);
+  thd->set_query(table->s->table_name.str,
+                 (uint) table->s->table_name.length);
 
   if ((marked_crashed= mi_is_crashed(file)) || check(thd, &check_opt))
   {
@@ -1628,10 +1626,7 @@ bool ha_myisam::check_and_repair(THD *thd)
     if (repair(thd, &check_opt))
       error=1;
   }
-  pthread_mutex_lock(&LOCK_thread_count);
-  thd->query= old_query;
-  thd->query_length= old_query_length;
-  pthread_mutex_unlock(&LOCK_thread_count);
+  thd->set_query(old_query, old_query_length);
   DBUG_RETURN(error);
 }
 

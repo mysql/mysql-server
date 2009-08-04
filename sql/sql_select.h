@@ -466,7 +466,8 @@ public:
     group_optimized_away= 0;
 
     all_fields= fields_arg;
-    fields_list= fields_arg;
+    if (&fields_list != &fields_arg)      /* Avoid valgrind-warning */
+      fields_list= fields_arg;
     bzero((char*) &keyuse,sizeof(keyuse));
     tmp_table_param.init();
     tmp_table_param.end_write_records= HA_POS_ERROR;

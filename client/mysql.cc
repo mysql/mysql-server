@@ -170,6 +170,8 @@ static const char *xmlmeta[] = {
   "<", "&lt;",
   ">", "&gt;",
   "\"", "&quot;",
+  /* Turn \0 into a space. Why not &#0;? That's not valid XML or HTML. */
+  "\0", " ",
   0, 0
 };
 static const char *day_names[]={"Sun","Mon","Tue","Wed","Thu","Fri","Sat"};
@@ -2302,8 +2304,10 @@ extern "C" char **new_mysql_completion (const char *text, int start, int end);
 */
 
 #if defined(USE_NEW_READLINE_INTERFACE) 
+static int fake_magic_space(int, int);
 extern "C" char *no_completion(const char*,int)
 #elif defined(USE_LIBEDIT_INTERFACE)
+static int fake_magic_space(const char *, int);
 extern "C" int no_completion(const char*,int)
 #else
 extern "C" char *no_completion()
@@ -2380,6 +2384,18 @@ static int not_in_history(const char *line)
   return 1;
 }
 
+
+#if defined(USE_NEW_READLINE_INTERFACE)
+static int fake_magic_space(int, int)
+#else
+static int fake_magic_space(const char *, int)
+#endif
+{
+  rl_insert(1, ' ');
+  return 0;
+}
+
+
 static void initialize_readline (char *name)
 {
   /* Allow conditional parsing of the ~/.inputrc file. */
@@ -2389,12 +2405,15 @@ static void initialize_readline (char *name)
 #if defined(USE_NEW_READLINE_INTERFACE)
   rl_attempted_completion_function= (rl_completion_func_t*)&new_mysql_completion;
   rl_completion_entry_function= (rl_compentry_func_t*)&no_completion;
+
+  rl_add_defun("magic-space", (rl_command_func_t *)&fake_magic_space, -1);
 #elif defined(USE_LIBEDIT_INTERFACE)
 #ifdef HAVE_LOCALE_H
   setlocale(LC_ALL,""); /* so as libedit use isprint */
 #endif
   rl_attempted_completion_function= (CPPFunction*)&new_mysql_completion;
   rl_completion_entry_function= &no_completion;
+  rl_add_defun("magic-space", (Function*)&fake_magic_space, -1);
 #else
   rl_attempted_completion_function= (CPPFunction*)&new_mysql_completion;
   rl_completion_entry_function= &no_completion;
@@ -3308,6 +3327,9 @@ print_table_data(MYSQL_RES *result)
       uint visible_length;
       uint extra_padding;
 
+      if (off)
+        (void) tee_fputs(" ", PAGER);
+
       if (cur[off] == NULL)
       {
         buffer= "NULL";
@@ -3342,7 +3364,7 @@ print_table_data(MYSQL_RES *result)
         else 
           tee_print_sized_data(buffer, data_length, field_max_length+extra_padding, FALSE);
       }
-      tee_fputs(" | ", PAGER);
+      tee_fputs(" |", PAGER);
     }
     (void) tee_fputs("\n", PAGER);
   }
@@ -3482,11 +3504,29 @@ print_table_data_vertically(MYSQL_RES *result)
     mysql_field_seek(result,0);
     tee_fprintf(PAGER, 
 		"*************************** %d. row ***************************\n", row_count);
+
+    ulong *lengths= mysql_fetch_lengths(result);
+
     for (uint off=0; off < mysql_num_fields(result); off++)
     {
       field= mysql_fetch_field(result);
       tee_fprintf(PAGER, "%*s: ",(int) max_length,field->name);
-      tee_fprintf(PAGER, "%s\n",cur[off] ? (char*) cur[off] : "NULL");
+      if (cur[off])
+      {
+        unsigned int i;
+        const char *p;
+
+        for (i= 0, p= cur[off]; i < lengths[off]; i+= 1, p+= 1)
+        {
+          if (*p == '\0')
+            tee_putc((int)' ', PAGER);
+          else
+            tee_putc((int)*p, PAGER);
+        }
+        tee_putc('\n', PAGER);
+      }
+      else
+        tee_fprintf(PAGER, "NULL\n");
     }
   }
 }
@@ -3553,7 +3593,7 @@ xmlencode_print(const char *src, uint length)
     tee_fputs("NULL", PAGER);
   else
   {
-    for (const char *p = src; *p && length; *p++, length--)
+    for (const char *p = src; length; *p++, length--)
     {
       const char *t;
       if ((t = array_value(xmlmeta, *p)))
@@ -3573,7 +3613,12 @@ safe_put_field(const char *pos,ulong length)
   else
   {
     if (opt_raw_data)
-      tee_fputs(pos, PAGER);
+    {
+      unsigned long i;
+      /* Can't use tee_fputs(), it stops with NUL characters. */
+      for (i= 0; i < length; i++, pos++)
+        tee_putc(*pos, PAGER);
+    }
     else for (const char *end=pos+length ; pos != end ; pos++)
     {
 #ifdef USE_MB
