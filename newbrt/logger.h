@@ -5,6 +5,8 @@
 #ident "Copyright (c) 2007, 2008, 2009 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
+enum { TOKU_LOG_VERSION = 1 };
+
 int toku_logger_create (TOKULOGGER *resultp);
 int toku_logger_open (const char *directory, TOKULOGGER logger);
 int toku_logger_log_bytes (TOKULOGGER logger, struct logbytes *bytes, int do_fsync);

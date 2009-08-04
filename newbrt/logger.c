@@ -5,7 +5,7 @@
 
 #include "includes.h"
 
-static const int log_format_version=1;
+static const int log_format_version=TOKU_LOG_VERSION;
 
 static toku_pthread_mutex_t logger_mutex = TOKU_PTHREAD_MUTEX_INITIALIZER;
 
