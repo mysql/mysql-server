@@ -53,12 +53,16 @@ test_main (int argc __attribute__((__unused__)),
     r = toku_logcursor_create(&lc, dname);
     assert(r == 0 && lc != NULL);
 
-    struct log_entry le;
+    struct log_entry *le;
     r = toku_logcursor_next(lc, &le);
-    assert(r == 0 && le.cmd == LT_timestamp);
+    assert(r == 0 && le->cmd == LT_timestamp);
+    assert(le->u.timestamp.comment.len == 5 && memcmp(le->u.timestamp.comment.data, "hello", 5) == 0);
+    u_int64_t t = le->u.timestamp.timestamp;
     
     r = toku_logcursor_next(lc, &le);
-    assert(r == 0 && le.cmd == LT_timestamp);
+    assert(r == 0 && le->cmd == LT_timestamp);
+    assert(le->u.timestamp.comment.len == 5 && memcmp(le->u.timestamp.comment.data, "world", 5) == 0);
+    printf("%"PRId64"\n", le->u.timestamp.timestamp - t);
 
     r = toku_logcursor_next(lc, &le);
     assert(r != 0);

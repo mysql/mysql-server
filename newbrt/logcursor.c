@@ -61,6 +61,8 @@ int toku_logcursor_create(TOKULOGCURSOR *lc, const char *log_dir) {
     if ( NULL==cursor->logdir ) 
         return ENOMEM;
     strcpy(cursor->logdir, log_dir);
+    cursor->logfiles = NULL;
+    cursor->n_logfiles = 0;
     r = toku_logger_find_logfiles(cursor->logdir, &(cursor->logfiles), &(cursor->n_logfiles));
     if (r!=0) {
         failresult=r;
@@ -76,8 +78,10 @@ int toku_logcursor_create(TOKULOGCURSOR *lc, const char *log_dir) {
 
 int toku_logcursor_destroy(TOKULOGCURSOR *lc) {
     int r=0;
-    if ( (*lc)->entry_valid )
+    if ( (*lc)->entry_valid ) {
         toku_log_free_log_entry_resources(&((*lc)->entry));
+        (*lc)->entry_valid = FALSE;
+    }
     r = lc_close_cur_logfile(*lc);
     int lf;
     for(lf=0;lf<(*lc)->n_logfiles;lf++) {
@@ -92,9 +96,10 @@ int toku_logcursor_destroy(TOKULOGCURSOR *lc) {
 
 int toku_logcursor_next(TOKULOGCURSOR lc, struct log_entry **le) {
     int r=0;
-    if ( lc->entry_valid ) 
+    if ( lc->entry_valid ) {
         toku_log_free_log_entry_resources(&(lc->entry));
-    if ( !lc->entry_valid ) {
+        lc->entry_valid = FALSE;
+    } else if ( !lc->entry_valid ) {
         r = toku_logcursor_first(lc, le);
         return r;
     }
@@ -121,15 +126,17 @@ int toku_logcursor_next(TOKULOGCURSOR lc, struct log_entry **le) {
             return r;
         }
     }
+    lc->entry_valid = TRUE;
     *le = &(lc->entry);
     return r;
 }
 
 int toku_logcursor_prev(TOKULOGCURSOR lc, struct log_entry **le) {
     int r=0;
-    if ( lc->entry_valid ) 
+    if ( lc->entry_valid ) {
         toku_log_free_log_entry_resources(&(lc->entry));
-    if ( !lc->entry_valid ) {
+        lc->entry_valid = FALSE;
+    } else if ( !lc->entry_valid ) {
         r = toku_logcursor_last(lc, le);
         return r;
     }
@@ -156,14 +163,17 @@ int toku_logcursor_prev(TOKULOGCURSOR lc, struct log_entry **le) {
             return r;
         }
     }
+    lc->entry_valid = TRUE;
     *le = &(lc->entry);
     return r;
 }
 
 int toku_logcursor_first(TOKULOGCURSOR lc, struct log_entry **le) {
     int r=0;
-    if ( lc->entry_valid ) 
+    if ( lc->entry_valid ) {
         toku_log_free_log_entry_resources(&(lc->entry));
+        lc->entry_valid = FALSE;
+    }
     // close any but the first log file
     if ( lc->cur_logfiles_index != 0 ) {
         lc_close_cur_logfile(lc);
@@ -185,8 +195,10 @@ int toku_logcursor_first(TOKULOGCURSOR lc, struct log_entry **le) {
 
 int toku_logcursor_last(TOKULOGCURSOR lc, struct log_entry **le) {
     int r=0;
-    if ( lc->entry_valid ) 
+    if ( lc->entry_valid ) {
         toku_log_free_log_entry_resources(&(lc->entry));
+        lc->entry_valid = FALSE;
+    }
     // close any but last log file
     if ( lc->cur_logfiles_index != lc->n_logfiles-1 ) {
         lc_close_cur_logfile(lc);
