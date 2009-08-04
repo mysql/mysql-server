@@ -41,11 +41,17 @@
 #include <myisam.h>
 #include <myisammrg.h>
 
+/* this is to get the bison compilation windows warnings out */
+#ifdef _MSC_VER
+/* warning C4065: switch statement contains 'default' but no 'case' labels */
+#pragma warning (disable : 4065)
+#endif
+
 int yylex(void *yylval, void *yythd);
 
 const LEX_STRING null_lex_str={0,0};
 
-#define yyoverflow(A,B,C,D,E,F) {ulong val= *(F); if (my_yyoverflow((B), (D), &val)) { yyerror((char*) (A)); return 2; } else { *(F)= (YYSIZE_T)val; }}
+#define yyoverflow(A,B,C,D,E,F) {ulong val= (ulong) *(F); if (my_yyoverflow((B), (D), &val)) { yyerror((char*) (A)); return 2; } else { *(F)= (YYSIZE_T)val; }}
 
 #undef 	WARN_DEPRECATED			/* this macro is also defined in mysql_priv.h */
 #define WARN_DEPRECATED(A,B)                                        \
@@ -2233,9 +2239,9 @@ sp_proc_stmt:
                 lex->tok_end otherwise.
               */
               if (yychar == YYEMPTY)
-                i->m_query.length= lip->ptr - sp->m_tmp_query;
+                i->m_query.length= (uint) (lip->ptr - sp->m_tmp_query);
               else
-                i->m_query.length= lip->tok_end - sp->m_tmp_query;
+                i->m_query.length= (uint) (lip->tok_end - sp->m_tmp_query);
               if (!(i->m_query.str= strmake_root(thd->mem_root,
                                                  sp->m_tmp_query,
                                                  i->m_query.length)) ||
@@ -9021,9 +9027,10 @@ simple_ident:
 
             Item_splocal *splocal;
             splocal= new Item_splocal($1, spv->offset, spv->type,
-                                      lip->tok_start_prev - 
-                                      lex->sphead->m_tmp_query,
-                                      lip->tok_end - lip->tok_start_prev);
+                                      (uint) (lip->tok_start_prev - 
+                                      lex->sphead->m_tmp_query),
+                                      (uint) (lip->tok_end - 
+                                      lip->tok_start_prev));
             if (splocal == NULL)
               MYSQL_YYABORT;
 #ifndef DBUG_OFF
@@ -9737,9 +9744,9 @@ option_type_value:
                 lip->tok_end otherwise.
               */
               if (yychar == YYEMPTY)
-                qbuff.length= lip->ptr - sp->m_tmp_query;
+                qbuff.length= (uint) (lip->ptr - sp->m_tmp_query);
               else
-                qbuff.length= lip->tok_end - sp->m_tmp_query;
+                qbuff.length= (uint) (lip->tok_end - sp->m_tmp_query);
 
               if (!(qbuff.str= alloc_root(thd->mem_root, qbuff.length + 5)))
                 MYSQL_YYABORT;
@@ -11059,7 +11066,7 @@ view_select_aux:
           char *stmt_beg= (lex->sphead ?
                            (char *)lex->sphead->m_tmp_query :
                            thd->query);
-	  lex->create_view_select_start= $2 - stmt_beg;
+	  lex->create_view_select_start= (uint) ($2 - stmt_beg);
 	}
 	| '(' remember_name select_paren ')' union_opt
 	{
@@ -11068,7 +11075,7 @@ view_select_aux:
           char *stmt_beg= (lex->sphead ?
                            (char *)lex->sphead->m_tmp_query :
                            thd->query);
-	  lex->create_view_select_start= $2 - stmt_beg;
+	  lex->create_view_select_start= (uint) ($2 - stmt_beg);
 	}
 	;
 
@@ -11113,7 +11120,7 @@ trigger_tail:
 	
 	  lex->stmt_definition_begin= $2;
           lex->ident.str= $7;
-          lex->ident.length= $10 - $7;
+          lex->ident.length= (uint) ($10 - $7);
 
 	  lex->sphead= sp;
 	  lex->spname= $3;

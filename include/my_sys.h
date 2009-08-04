@@ -512,7 +512,7 @@ typedef int (*qsort2_cmp)(const void *, const void *, const void *);
  ((info)->write_pos + (Count) <=(info)->write_end ?\
   (memcpy((info)->write_pos, (Buffer), (size_t)(Count)),\
    ((info)->write_pos+=(Count)),0) : \
-   (*(info)->write_function)((info),(Buffer),(Count)))
+   (*(info)->write_function)((info),(Buffer), (uint)(Count)))
 
 #define my_b_get(info) \
   ((info)->read_pos != (info)->read_end ?\

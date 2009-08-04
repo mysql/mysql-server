@@ -3036,7 +3036,7 @@ static int init_common_variables(const char *conf_file_name, int argc,
   
   sys_init_connect.value_length= 0;
   if ((sys_init_connect.value= opt_init_connect))
-    sys_init_connect.value_length= strlen(opt_init_connect);
+    sys_init_connect.value_length= (uint) strlen(opt_init_connect);
   else
     sys_init_connect.value=my_strdup("",MYF(0));
   sys_init_connect.is_os_charset= TRUE;
@@ -3249,14 +3249,17 @@ static void init_ssl()
 #ifdef HAVE_OPENSSL
   if (opt_use_ssl)
   {
+    enum enum_ssl_init_error error= SSL_INITERR_NOERROR;
+
     /* having ssl_acceptor_fd != 0 signals the use of SSL */
     ssl_acceptor_fd= new_VioSSLAcceptorFd(opt_ssl_key, opt_ssl_cert,
 					  opt_ssl_ca, opt_ssl_capath,
-					  opt_ssl_cipher);
+					  opt_ssl_cipher, &error);
     DBUG_PRINT("info",("ssl_acceptor_fd: 0x%lx", (long) ssl_acceptor_fd));
     if (!ssl_acceptor_fd)
     {
       sql_print_warning("Failed to setup SSL");
+      sql_print_warning("SSL error: %s", sslGetErrString(error));
       opt_use_ssl = 0;
       have_ssl= SHOW_OPTION_DISABLED;
     }
@@ -3747,7 +3750,6 @@ int main(int argc, char **argv)
 
   select_thread=pthread_self();
   select_thread_in_use=1;
-  init_ssl();
 
 #ifdef HAVE_LIBWRAP
   libwrapName= my_progname+dirname_length(my_progname);
@@ -3804,6 +3806,7 @@ we force server id to 2, but this MySQL server will not act as a slave.");
   if (init_server_components())
     exit(1);
 
+  init_ssl();
   network_init();
 
 #ifdef __WIN__
@@ -6168,7 +6171,7 @@ The minimum value for this variable is 4096.",
    "Joins that are probably going to read more than max_join_size records return an error.",
    (gptr*) &global_system_variables.max_join_size,
    (gptr*) &max_system_variables.max_join_size, 0, GET_HA_ROWS, REQUIRED_ARG,
-   ~0L, 1, ~0L, 0, 1, 0},
+   HA_POS_ERROR, 1, HA_POS_ERROR, 0, 1, 0},
    {"max_length_for_sort_data", OPT_MAX_LENGTH_FOR_SORT_DATA,
     "Max number of bytes in sorted records.",
     (gptr*) &global_system_variables.max_length_for_sort_data,
@@ -6862,7 +6865,7 @@ static void mysql_init_variables(void)
 
   /* Set directory paths */
   strmake(language, LANGUAGE, sizeof(language)-1);
-  strmake(mysql_real_data_home, get_relative_path(DATADIR),
+  strmake(mysql_real_data_home, get_relative_path(MYSQL_DATADIR),
 	  sizeof(mysql_real_data_home)-1);
   mysql_data_home_buff[0]=FN_CURLIB;	// all paths are relative from here
   mysql_data_home_buff[1]=0;
@@ -7840,7 +7843,7 @@ static void fix_paths(void)
   }
   convert_dirname(mysql_real_data_home,mysql_real_data_home,NullS);
   my_realpath(mysql_unpacked_real_data_home, mysql_real_data_home, MYF(0));
-  mysql_unpacked_real_data_home_len= strlen(mysql_unpacked_real_data_home);
+  mysql_unpacked_real_data_home_len= (int) strlen(mysql_unpacked_real_data_home);
   if (mysql_unpacked_real_data_home[mysql_unpacked_real_data_home_len-1] == FN_LIBCHAR)
     --mysql_unpacked_real_data_home_len;
 

@@ -4,3 +4,5 @@ insert into t1 set a = -1;
 optimize table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
+==== clean up ====
+DROP TABLE t1;

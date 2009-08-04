@@ -114,7 +114,7 @@ mysql_tzinfo_to_sql_LDADD =  @MYSQLD_EXTRA_LDFLAGS@ $(LDADD) $(CXXLDFLAGS)
 
 DEFS =			-DMYSQL_SERVER \
 			-DDEFAULT_MYSQL_HOME="\"$(MYSQLBASEdir)\"" \
-			-DDATADIR="\"$(MYSQLDATAdir)\"" \
+			-DMYSQL_DATADIR="\"$(MYSQLDATAdir)\"" \
 			-DSHAREDIR="\"$(MYSQLSHAREdir)\"" \
 			@DEFS@
 
