@@ -835,7 +835,7 @@ void query_cache_insert(NET *net, const char *packet, ulong length)
   DBUG_ENTER("query_cache_insert");
 
   /* See the comment on double-check locking usage above. */
-  if (query_cache.is_disabled() || net->query_cache_query == 0)
+  if (net->query_cache_query == 0)
     DBUG_VOID_RETURN;
 
   DBUG_EXECUTE_IF("wait_in_query_cache_insert",
@@ -930,7 +930,7 @@ void query_cache_end_of_result(THD *thd)
   DBUG_ENTER("query_cache_end_of_result");
 
   /* See the comment on double-check locking usage above. */
-  if (query_cache.is_disabled() || thd->net.query_cache_query == 0)
+  if (thd->net.query_cache_query == 0)
     DBUG_VOID_RETURN;
 
   /* Ensure that only complete results are cached. */
@@ -1032,7 +1032,6 @@ Query_cache::Query_cache(ulong query_cache_limit_arg,
    query_cache_limit(query_cache_limit_arg),
    queries_in_cache(0), hits(0), inserts(0), refused(0),
    total_blocks(0), lowmem_prunes(0),
-   m_query_cache_is_disabled(FALSE),
    min_allocation_unit(ALIGN_SIZE(min_allocation_unit_arg)),
    min_result_data_size(ALIGN_SIZE(min_result_data_size_arg)),
    def_query_hash_size(ALIGN_SIZE(def_query_hash_size_arg)),
@@ -1117,7 +1116,7 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
 
     See also a note on double-check locking usage above.
   */
-  if (m_query_cache_is_disabled || thd->locked_tables || query_cache_size == 0)
+  if (thd->locked_tables || query_cache_size == 0)
     DBUG_VOID_RETURN;
   uint8 tables_type= 0;
 
@@ -1332,9 +1331,6 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   Query_cache_query_flags flags;
   DBUG_ENTER("Query_cache::send_result_to_client");
 
-  if (m_query_cache_is_disabled)
-      DBUG_RETURN(0);
-  
   /*
     Testing 'query_cache_size' without a lock here is safe: the thing
     we may loose is that the query won't be served from cache, but we
@@ -2625,48 +2621,6 @@ void Query_cache::invalidate_table(THD *thd, TABLE *table)
 
 void Query_cache::invalidate_table(THD *thd, uchar * key, uint32  key_length)
 {
-#ifdef TO_BE_REMOVED
-/*
-  This ifdef'd piece comes from Summit, it's a manual backport (2008-10-15) of
-  http://lists.mysql.com/commits/56418.
-  But that was an early, non-final patch: after that backport was made, the
-  author of the patch decided to abandon it, and his final patch (put into 6.0)
-  was different.
-  Then 5.1's code was changed for some other reasons, so now we have a
-  conflict between the old patch backported to Summit and the latest 5.1.
-  The backport cannot stay, it has to be removed and then rewritten if
-  desired.
-*/
-  bool interrupt;
-  
-  if (m_query_cache_is_disabled)
-    return;
-  
-  STRUCT_LOCK(&structure_guard_mutex);
-  if (query_cache_size == 0)
-  {
-      STRUCT_UNLOCK(&structure_guard_mutex);
-      return;
-  }
-      
-  wait_while_table_flush_is_in_progress(&interrupt);
-  if (interrupt)
-  {
-    STRUCT_UNLOCK(&structure_guard_mutex);
-    return;
-  }
-||||||| BASE-REVISION
-  bool interrupt;
-  STRUCT_LOCK(&structure_guard_mutex);
-  wait_while_table_flush_is_in_progress(&interrupt);
-  if (interrupt)
-  {
-    STRUCT_UNLOCK(&structure_guard_mutex);
-    return;
-  }
-=======
-/* current 5.1 code: */
-#endif
   DBUG_EXECUTE_IF("wait_in_query_cache_invalidate1",
                    debug_wait_for_kill("wait_in_query_cache_invalidate1"); );
 
