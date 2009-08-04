@@ -50,8 +50,13 @@ check_cpu () {
         model_name=`sysctl -n hw.model`
         ;;
       Darwin)
-        cpu_family=`uname -p`
-        model_name=`machine`
+        cpu_family=`sysctl -n machdep.cpu.vendor`
+        model_name=`sysctl -n machdep.cpu.brand_string`
+        if [ -z "$cpu_family" -o -z "$model_name" ]
+        then  
+          cpu_family=`uname -p`
+          model_name=`machine`
+        fi  
         ;;
       *)
         cpu_family=`uname -p`;

@@ -124,6 +124,31 @@ drop table t1;
 
 --echo End of 5.0 tests
 
+#
+# Bug#44672: Assertion failed: thd->transaction.xid_state.xid.is_null()
+#
+
+xa start 'a';
+xa end 'a';
+xa rollback 'a';
+xa start 'a';
+xa end 'a';
+xa rollback 'a';
+
+#
+# Bug#45548: XA transaction without access to InnoDB tables crashes the server
+#
+
+xa start 'a';
+xa end 'a';
+xa prepare 'a';
+xa commit 'a';
+
+xa start 'a';
+xa end 'a';
+xa prepare 'a';
+xa commit 'a';
+
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
 

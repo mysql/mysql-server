@@ -798,8 +798,9 @@ void Item_sum_sum::fix_length_and_dec()
   {
     /* SUM result can't be longer than length(arg) + length(MAX_ROWS) */
     int precision= args[0]->decimal_precision() + DECIMAL_LONGLONG_DIGITS;
-    max_length= my_decimal_precision_to_length(precision, decimals,
-                                               unsigned_flag);
+    max_length= my_decimal_precision_to_length_no_truncation(precision,
+                                                             decimals,
+                                                             unsigned_flag);
     curr_dec_buff= 0;
     hybrid_type= DECIMAL_RESULT;
     my_decimal_set_zero(dec_buffs);
@@ -1233,8 +1234,9 @@ void Item_sum_avg::fix_length_and_dec()
   {
     int precision= args[0]->decimal_precision() + prec_increment;
     decimals= min(args[0]->decimals + prec_increment, DECIMAL_MAX_SCALE);
-    max_length= my_decimal_precision_to_length(precision, decimals,
-                                               unsigned_flag);
+    max_length= my_decimal_precision_to_length_no_truncation(precision,
+                                                             decimals,
+                                                             unsigned_flag);
     f_precision= min(precision+DECIMAL_LONGLONG_DIGITS, DECIMAL_MAX_PRECISION);
     f_scale=  args[0]->decimals;
     dec_bin_size= my_decimal_get_binary_size(f_precision, f_scale);
@@ -1439,8 +1441,9 @@ void Item_sum_variance::fix_length_and_dec()
   {
     int precision= args[0]->decimal_precision()*2 + prec_increment;
     decimals= min(args[0]->decimals + prec_increment, DECIMAL_MAX_SCALE);
-    max_length= my_decimal_precision_to_length(precision, decimals,
-                                               unsigned_flag);
+    max_length= my_decimal_precision_to_length_no_truncation(precision,
+                                                             decimals,
+                                                             unsigned_flag);
 
     break;
   }
@@ -2640,8 +2643,8 @@ bool Item_sum_count_distinct::setup(THD *thd)
       enum enum_field_types f_type= f->type();
       tree_key_length+= f->pack_length();
       if ((f_type == MYSQL_TYPE_VARCHAR) ||
-          !f->binary() && (f_type == MYSQL_TYPE_STRING ||
-                           f_type == MYSQL_TYPE_VAR_STRING))
+          (!f->binary() && (f_type == MYSQL_TYPE_STRING ||
+                           f_type == MYSQL_TYPE_VAR_STRING)))
       {
         all_binary= FALSE;
         break;
@@ -3324,8 +3327,13 @@ bool Item_func_group_concat::add()
 
   TREE_ELEMENT *el= 0;                          // Only for safety
   if (row_eligible && tree)
+  {
     el= tree_insert(tree, table->record[0] + table->s->null_bytes, 0,
                     tree->custom_arg);
+    /* check if there was enough memory to insert the row */
+    if (!el)
+      return 1;
+  }
   /*
     If the row is not a duplicate (el->count == 1)
     we can dump the row here in case of GROUP_CONCAT(DISTINCT...)

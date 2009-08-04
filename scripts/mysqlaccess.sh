@@ -1,4 +1,4 @@
-#!@PERL@
+#!/usr/bin/perl
 # ****************************
 package MySQLaccess;
 #use strict;

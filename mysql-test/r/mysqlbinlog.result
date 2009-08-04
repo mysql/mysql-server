@@ -471,4 +471,7 @@ IS NOT NULL
 1
 *** Unsigned server_id 4294967295 is found: 1 ***
 SET @@global.server_id= 1;
+RESET MASTER;
+FLUSH LOGS;
+End of 5.0 tests
 End of 5.1 tests

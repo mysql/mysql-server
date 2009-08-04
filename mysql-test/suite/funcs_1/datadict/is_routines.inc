@@ -96,10 +96,11 @@ CREATE FUNCTION function_for_routines() RETURNS INT RETURN 0;
 SELECT specific_name,routine_catalog,routine_schema,routine_name,routine_type,
        routine_body,external_name,external_language,parameter_style,sql_path
 FROM information_schema.routines
-WHERE routine_catalog   IS NOT NULL OR external_name   IS NOT NULL
+WHERE routine_schema = 'test' AND
+   (routine_catalog   IS NOT NULL OR external_name   IS NOT NULL
    OR external_language IS NOT NULL OR sql_path        IS NOT NULL
    OR routine_body      <> 'SQL'    OR parameter_style <> 'SQL'
-   OR specific_name     <> routine_name;
+   OR specific_name     <> routine_name);
 
 DROP PROCEDURE sp_for_routines;
 DROP FUNCTION  function_for_routines;
@@ -178,7 +179,6 @@ GRANT EXECUTE ON db_datadict_2.* TO 'testuser2'@'localhost';
 FLUSH PRIVILEGES;
 
 --echo # Establish connection testuser1 (user=testuser1)
-let $MASTER_MYSOCK= query_get_value(SHOW VARIABLES LIKE 'socket', Value, 1);
 --replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
 connect (testuser1, localhost, testuser1, , db_datadict);
 --replace_column 16 "YYYY-MM-DD hh:mm:ss" 17 "YYYY-MM-DD hh:mm:ss"

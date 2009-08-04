@@ -86,7 +86,7 @@ static int read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
 static bool write_execute_load_query_log_event(THD *thd,
 					       bool duplicates, bool ignore,
 					       bool transactional_table,
-                                               THD::killed_state killed_status);
+                                               int errcode);
 #endif /* EMBEDDED_LIBRARY */
 
 /*
@@ -483,10 +483,12 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 	/* If the file was not empty, wrote_create_file is true */
 	if (lf_info.wrote_create_file)
 	{
+          int errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
+          
 	  if (thd->transaction.stmt.modified_non_trans_table)
 	    write_execute_load_query_log_event(thd, handle_duplicates,
 					       ignore, transactional_table,
-                                               killed_status);
+                                               errcode);
 	  else
 	  {
 	    Delete_file_log_event d(thd, db, transactional_table);
@@ -528,8 +530,9 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       read_info.end_io_cache();
       if (lf_info.wrote_create_file)
       {
+        int errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
         write_execute_load_query_log_event(thd, handle_duplicates, ignore,
-                                           transactional_table,killed_status);
+                                           transactional_table, errcode);
       }
     }
   }
@@ -553,7 +556,7 @@ err:
 static bool write_execute_load_query_log_event(THD *thd,
 					       bool duplicates, bool ignore,
 					       bool transactional_table,
-                                               THD::killed_state killed_err_arg)
+                                               int errcode)
 {
   Execute_load_query_log_event
     e(thd, thd->query, thd->query_length,
@@ -561,7 +564,7 @@ static bool write_execute_load_query_log_event(THD *thd,
       (uint) ((char*)thd->lex->fname_end - (char*)thd->query),
       (duplicates == DUP_REPLACE) ? LOAD_DUP_REPLACE :
       (ignore ? LOAD_DUP_IGNORE : LOAD_DUP_ERROR),
-      transactional_table, FALSE, killed_err_arg);
+      transactional_table, FALSE, errcode);
   e.flags|= LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F;
   return mysql_bin_log.write(&e);
 }
@@ -747,9 +750,9 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
 
       real_item= item->real_item();
 
-      if (!read_info.enclosed &&
+      if ((!read_info.enclosed &&
 	  (enclosed_length && length == 4 &&
-           !memcmp(pos, STRING_WITH_LEN("NULL"))) ||
+           !memcmp(pos, STRING_WITH_LEN("NULL")))) ||
 	  (length == 1 && read_info.found_null))
       {
 
@@ -1148,8 +1151,8 @@ int READ_INFO::read_field()
 	}
 	// End of enclosed field if followed by field_term or line_term
 	if (chr == my_b_EOF ||
-	    chr == line_term_char && terminator(line_term_ptr,
-						line_term_length))
+	    (chr == line_term_char && terminator(line_term_ptr,
+						line_term_length)))
 	{					// Maybe unexpected linefeed
 	  enclosed=1;
 	  found_end_of_line=1;

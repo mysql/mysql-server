@@ -12,7 +12,7 @@ DROP TABLE IF EXISTS t1;
 CREATE TEMPORARY TABLE t1 AS SELECT @@global.init_slave AS my_column;
 DESCRIBE t1;
 Field	Type	Null	Key	Default	Extra
-my_column	varchar(59)	NO			
+my_column	varchar(59)	YES		NULL	
 DROP TABLE t1;
 SELECT @@global.init_slave = 'SET @@global.max_connections = @@global.max_connections + 1';
 @@global.init_slave = 'SET @@global.max_connections = @@global.max_connections + 1'

@@ -45,15 +45,15 @@ void get_date(register char * to, int flag, time_t date)
    skr=date ? (time_t) date : my_time(0);
 #if defined(HAVE_LOCALTIME_R) && defined(_REENTRANT)
    if (flag & GETDATE_GMT)
-     localtime_r(&skr,&tm_tmp);
-   else
      gmtime_r(&skr,&tm_tmp);
+   else
+     localtime_r(&skr,&tm_tmp);
    start_time= &tm_tmp;
 #else
    if (flag & GETDATE_GMT)
-     start_time= localtime(&skr);
-   else
      start_time= gmtime(&skr);
+   else
+     start_time= localtime(&skr);
 #endif
    if (flag & GETDATE_SHORT_DATE)
      sprintf(to,"%02d%02d%02d",
