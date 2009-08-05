@@ -2263,7 +2263,7 @@ int ha_tokudb::get_status() {
     bzero(&value, sizeof(value));
     key.data = &curr_key;
     key.size = sizeof(curr_key);
-    value.flags = DB_DBT_MALLOC;
+    value.flags = DB_DBT_USERMEM;
     error = db_env->txn_begin(db_env, 0, &txn, 0);
     if (error) { goto cleanup; }
 
@@ -2272,6 +2272,8 @@ int ha_tokudb::get_status() {
         //
         // get version
         //
+        value.ulen = sizeof(share->version);
+        value.data = &share->version;
         curr_key = hatoku_version;
         error = share->status_block->get(
             share->status_block, 
@@ -2283,18 +2285,18 @@ int ha_tokudb::get_status() {
         if (error == DB_NOTFOUND) {
             share->version = 0;
         }
-        else if (error == 0 && value.size == sizeof(share->version)) {
-            share->version = *(uint *)value.data;
-            free(value.data);
-            value.data = NULL;
-        }
-        else {
+        else if (error || value.size != sizeof(share->version)) {
+            if (error == 0) {
+                error = HA_ERR_INTERNAL_ERROR;
+            }
             goto cleanup;
         }
         //
         // get capabilities
         //
         curr_key = hatoku_capabilities;
+        value.ulen = sizeof(share->capabilities);
+        value.data = &share->capabilities;
         error = share->status_block->get(
             share->status_block, 
             txn, 
@@ -2305,12 +2307,10 @@ int ha_tokudb::get_status() {
         if (error == DB_NOTFOUND) {
             share->capabilities= 0;
         }
-        else if (error == 0 && value.size == sizeof(share->version)) {
-            share->capabilities= *(uint *)value.data;
-            free(value.data);
-            value.data = NULL;
-        }
-        else {
+        else if (error || value.size != sizeof(share->version)) {
+            if (error == 0) {
+                error = HA_ERR_INTERNAL_ERROR;
+            }
             goto cleanup;
         }
     }
@@ -5108,7 +5108,7 @@ void ha_tokudb::init_auto_increment() {
     bzero(&value, sizeof(value));
     key.data = &key_val;
     key.size = sizeof(key_val);
-    value.flags = DB_DBT_MALLOC;
+    value.flags = DB_DBT_USERMEM;
     DB_TXN* txn = NULL;
 
     error = db_env->txn_begin(db_env, 0, &txn, 0);
@@ -5121,6 +5121,8 @@ void ha_tokudb::init_auto_increment() {
         // column so far, the max value could have been auto generated (e.g. insert (NULL))
         // or it could have been manually inserted by user (e.g. insert (345))
         //
+        value.ulen = sizeof(share->last_auto_increment);
+        value.data = &share->last_auto_increment;
         error = share->status_block->get(
             share->status_block, 
             txn, 
@@ -5129,12 +5131,7 @@ void ha_tokudb::init_auto_increment() {
             0
             );
         
-        if (error == 0 && value.size == sizeof(share->last_auto_increment)) {
-            share->last_auto_increment = *(ulonglong *)value.data;
-            free(value.data);
-            value.data = NULL;
-        }
-        else {
+        if (error || value.size != sizeof(share->last_auto_increment)) {
             share->last_auto_increment = 0;
         }
         if (is_auto_inc_first_column(&auto_inc_keynr)) {
@@ -5162,6 +5159,8 @@ void ha_tokudb::init_auto_increment() {
         // then the value 100 should be stored here
         //
         key_val = hatoku_ai_create_value;
+        value.ulen = sizeof(share->auto_inc_create_value);
+        value.data = &share->auto_inc_create_value;
         error = share->status_block->get(
             share->status_block, 
             txn, 
@@ -5170,12 +5169,7 @@ void ha_tokudb::init_auto_increment() {
             0
             );
         
-        if (error == 0 && value.size == sizeof(share->auto_inc_create_value)) {
-            share->auto_inc_create_value = *(ulonglong *)value.data;
-            free(value.data);
-            value.data = NULL;
-        }
-        else {
+        if (error || value.size != sizeof(share->auto_inc_create_value)) {
             share->auto_inc_create_value = 0;
         }
 
