@@ -470,4 +470,8 @@ C##suitname():NDBT_TestSuite(#suitname){ \
 // Helper functions for retrieving variables from NDBT_Step
 #define GETNDB(ps) ((NDBT_NdbApiStep*)ps)->getNdb()
 
+#define POSTUPGRADE(testname) \
+  TESTCASE(testname "--post-upgrade", \
+           "checks being run after upgrade has completed")
+
 #endif
