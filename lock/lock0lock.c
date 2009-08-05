@@ -360,6 +360,8 @@ ibool
 lock_rec_validate_page(
 /*===================*/
 	ulint	space,	/*!< in: space id */
+	ulint	zip_size,/*!< in: compressed page size in bytes
+			or 0 for uncompressed pages */
 	ulint	page_no);/*!< in: page number */
 
 /* Define the following in order to enable lock_rec_validate_page() checks. */
@@ -2622,6 +2624,7 @@ lock_move_reorganize_page(
 
 #ifdef UNIV_DEBUG_LOCK_VALIDATE
 	ut_ad(lock_rec_validate_page(buf_block_get_space(block),
+				     buf_block_get_zip_size(block),
 				     buf_block_get_page_no(block)));
 #endif
 }
@@ -2711,8 +2714,10 @@ lock_move_rec_list_end(
 
 #ifdef UNIV_DEBUG_LOCK_VALIDATE
 	ut_ad(lock_rec_validate_page(buf_block_get_space(block),
+				     buf_block_get_zip_size(block),
 				     buf_block_get_page_no(block)));
 	ut_ad(lock_rec_validate_page(buf_block_get_space(new_block),
+				     buf_block_get_zip_size(block),
 				     buf_block_get_page_no(new_block)));
 #endif
 }
@@ -2822,6 +2827,7 @@ lock_move_rec_list_start(
 
 #ifdef UNIV_DEBUG_LOCK_VALIDATE
 	ut_ad(lock_rec_validate_page(buf_block_get_space(block),
+				     buf_block_get_zip_size(block),
 				     buf_block_get_page_no(block)));
 #endif
 }
@@ -4684,6 +4690,8 @@ ibool
 lock_rec_validate_page(
 /*===================*/
 	ulint	space,	/*!< in: space id */
+	ulint	zip_size,/*!< in: compressed page size in bytes
+			or 0 for uncompressed pages */
 	ulint	page_no)/*!< in: page number */
 {
 	dict_index_t*	index;
@@ -4694,7 +4702,6 @@ lock_rec_validate_page(
 	ulint		nth_lock	= 0;
 	ulint		nth_bit		= 0;
 	ulint		i;
-	ulint		zip_size;
 	mtr_t		mtr;
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
@@ -4705,7 +4712,6 @@ lock_rec_validate_page(
 
 	mtr_start(&mtr);
 
-	zip_size = fil_space_get_zip_size(space);
 	ut_ad(zip_size != ULINT_UNDEFINED);
 	block = buf_page_get(space, zip_size, page_no, RW_X_LATCH, &mtr);
 	buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
@@ -4840,7 +4846,9 @@ lock_validate(void)
 
 			lock_mutex_exit_kernel();
 
-			lock_rec_validate_page(space, page_no);
+			lock_rec_validate_page(space,
+					       fil_space_get_zip_size(space),
+					       page_no);
 
 			lock_mutex_enter_kernel();
 
