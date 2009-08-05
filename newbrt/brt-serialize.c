@@ -306,11 +306,8 @@ static int get_sub_block_sizes(int totalsize, int maxn, struct sub_block_sizes s
 }
 
 // get the size of the compression header
-static size_t get_compression_header_size(int layout_version, int n) {
-    if (layout_version < BRT_LAYOUT_VERSION_10)
-        return n * sizeof (struct sub_block_sizes);
-    else
-        return sizeof (u_int32_t) + n * sizeof (struct sub_block_sizes);
+static size_t get_compression_header_size(int UU(layout_version), int n) {
+    return sizeof (u_int32_t) + n * sizeof (struct sub_block_sizes);
 }
 
 // get the sum of the sub block compressed sizes 
@@ -353,7 +350,7 @@ int toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct b
     wbuf_literal_bytes(&w, "toku", 4);
     if (node->height==0) wbuf_literal_bytes(&w, "leaf", 4);
     else wbuf_literal_bytes(&w, "node", 4);
-    assert(node->layout_version == BRT_LAYOUT_VERSION_9 || node->layout_version == BRT_LAYOUT_VERSION);
+    assert(node->layout_version == BRT_LAYOUT_VERSION);
     wbuf_int(&w, node->layout_version);
     wbuf_ulonglong(&w, node->log_lsn.lsn);
     assert(node->desc == &h->descriptor);
@@ -457,8 +454,6 @@ int toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct b
     // select the number of sub blocks and their sizes. 
     // impose an upper bound on the number of sub blocks.
     int max_sub_blocks = 4;
-    if (node->layout_version < BRT_LAYOUT_VERSION_10)
-        max_sub_blocks = 1;
     struct sub_block_sizes sub_block_sizes[max_sub_blocks];
     int n_sub_blocks = get_sub_block_sizes(calculated_size-uncompressed_magic_len, max_sub_blocks, sub_block_sizes);
     assert(0 < n_sub_blocks && n_sub_blocks <= max_sub_blocks);
@@ -515,8 +510,8 @@ int toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct b
 
     // write out the compression header
     uint32_t *compressed_header_ptr = (uint32_t *)(compressed_buf + uncompressed_magic_len);
-    if (node->layout_version >= BRT_LAYOUT_VERSION_10)
-        *compressed_header_ptr++ = toku_htod32(n_sub_blocks);
+
+    *compressed_header_ptr++ = toku_htod32(n_sub_blocks);
     for (i=0; i<n_sub_blocks; i++) {
         compressed_header_ptr[0] = toku_htod32(sub_block_sizes[i].compressed_size);
         compressed_header_ptr[1] = toku_htod32(sub_block_sizes[i].uncompressed_size);
@@ -644,7 +639,7 @@ int toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash
     result->desc = &h->descriptor;
     result->ever_been_written = 1;
 
-    unsigned char *MALLOC_N(size, compressed_block);
+    unsigned char *XMALLOC_N(size, compressed_block);
 
     // read the compressed block
     ssize_t rlen = pread(fd, compressed_block, size, offset);
@@ -653,14 +648,14 @@ int toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash
     // get the layout_version
     unsigned char *uncompressed_header = compressed_block;
     int layout_version = toku_dtoh32(*(uint32_t*)(uncompressed_header+uncompressed_version_offset));
+    //TODO: #1924 Deal with old versions here.
+    //TODO: #1924 either assert we're not too old, or return some form of
+    //            checksum error?
 
     // get the number of compressed sub blocks
     int n_sub_blocks;
     int compression_header_offset;
-    if (layout_version < BRT_LAYOUT_VERSION_10) {
-        n_sub_blocks = 1; 
-        compression_header_offset = uncompressed_magic_len;
-    } else {
+    {
         n_sub_blocks = toku_dtoh32(*(u_int32_t*)(&uncompressed_header[uncompressed_magic_len]));
         compression_header_offset = uncompressed_magic_len + 4;
     }
@@ -737,6 +732,7 @@ int toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash
     result->layout_version    = rbuf_int(&rc);
     {
 	switch (result->layout_version) {
+	    //TODO: #1924
 	case BRT_LAYOUT_VERSION: goto ok_layout_version;
 	    // Don't support older versions.
 	}
@@ -1209,7 +1205,7 @@ deserialize_brtheader (int fd, struct rbuf *rb, struct brt_header **brth) {
     //  we have an rbuf representing the header.
     //  The checksum has been validated
 
-    //Steal rbuf (used to simplify merge/reduce diff size/keep old code)
+    //Steal rbuf (used to simplify merge, reduce diff size, and keep old code)
     struct rbuf rc = *rb;
     memset(rb, 0, sizeof(*rb));
 
@@ -1235,6 +1231,7 @@ deserialize_brtheader (int fd, struct rbuf *rb, struct brt_header **brth) {
     list_init(&h->zombie_brts);
     //version MUST be in network order on disk regardless of disk order
     h->layout_version = rbuf_network_int(&rc);
+    //TODO: #1924
     assert(h->layout_version==BRT_LAYOUT_VERSION);
 
     //Size MUST be in network order regardless of disk order.
@@ -1315,8 +1312,7 @@ deserialize_brtheader_from_fd_into_rbuf(int fd, toku_off_t offset, struct rbuf *
         if (r==0) {
             //Version MUST be in network order regardless of disk order.
             version = rbuf_network_int(rb);
-            //TODO: #1125 Possibly support transparent upgrade.  If so, it should be < ...10
-            if (version < BRT_LAYOUT_VERSION) r = TOKUDB_DICTIONARY_TOO_OLD; //Cannot use
+            if (version < BRT_LAYOUT_MIN_SUPPORTED_VERSION) r = TOKUDB_DICTIONARY_TOO_OLD; //Cannot use
             if (version > BRT_LAYOUT_VERSION) r = TOKUDB_DICTIONARY_TOO_NEW; //Cannot use
         }
         u_int32_t size;
