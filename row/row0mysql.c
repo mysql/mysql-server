@@ -3590,7 +3590,7 @@ row_delete_constraint(
 
 	if ((err == DB_SUCCESS) && !strchr(id, '/')) {
 		/* Old format < 4.0.18 constraints have constraint ids
-		<number>_<number>. We only try deleting them if the
+		NUMBER_NUMBER. We only try deleting them if the
 		constraint name does not contain a '/' character, otherwise
 		deleting a new format constraint named 'foo/bar' from
 		database 'baz' would remove constraint 'bar' from database
