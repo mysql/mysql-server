@@ -43,6 +43,7 @@ public:
   bool getClusters(SqlResultSet& result);
   bool getMgmds(int cluster_id, SqlResultSet& result);
   bool getNdbds(int cluster_id, SqlResultSet& result);
+  int getOwnProcessId();
 
 private:
   int writeCommand(AtrtCommandType _type,

@@ -19,6 +19,7 @@
 #include <AtrtClient.hpp>
 #include <NDBT_Output.hpp>
 #include <NdbSleep.h>
+#include <NdbEnv.h>
 
 AtrtClient::AtrtClient(const char* _group_suffix)
   : DbUtil("atrt", _group_suffix)
@@ -210,7 +211,16 @@ AtrtClient::getNdbds(int cluster_id, SqlResultSet& result){
                   result);
 }
 
-
-
-
-
+int
+AtrtClient::getOwnProcessId()
+{
+  /**
+   * Put in env for simplicity
+   */
+  char buf[100];
+  if (NdbEnv_GetEnv("ATRT_PID", buf, sizeof(buf)))
+  {
+    return atoi(buf);
+  }
+  return -1;
+}

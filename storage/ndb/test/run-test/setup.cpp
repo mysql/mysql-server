@@ -207,13 +207,13 @@ load_process(atrt_config& config, atrt_cluster& cluster,
   atrt_host * host_ptr = find(hostname, config.m_hosts);
   atrt_process *proc_ptr = new atrt_process;
 
+  const size_t proc_no = config.m_processes.size();
   config.m_processes.push_back(proc_ptr);
   host_ptr->m_processes.push_back(proc_ptr);
   cluster.m_processes.push_back(proc_ptr);
   
   atrt_process& proc = *proc_ptr;
   
-  const size_t proc_no = config.m_processes.size();
   proc.m_index = idx;
   proc.m_type = type;
   proc.m_host = host_ptr;
@@ -232,6 +232,7 @@ load_process(atrt_config& config, atrt_cluster& cluster,
   proc.m_proc.m_ulimit = "c:unlimited";
   proc.m_proc.m_env.assfmt("MYSQL_BASE_DIR=%s", g_prefix);
   proc.m_proc.m_env.appfmt(" MYSQL_HOME=%s", g_basedir);
+  proc.m_proc.m_env.appfmt(" ATRT_PID=%u", (unsigned)proc_no);
   proc.m_proc.m_shutdown_options = "";
 
   int argc = 1;
