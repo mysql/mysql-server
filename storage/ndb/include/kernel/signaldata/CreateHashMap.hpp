@@ -21,9 +21,13 @@
 struct CreateHashMapReq
 {
 
-  STATIC_CONST( SignalLength = 5 );
+  STATIC_CONST( SignalLength = 7 );
 
-  enum RequestType {
+  enum RequestType
+  {
+    CreateIfNotExists = 1,
+    CreateDefault     = 2,
+    CreateForReorg    = 4
   };
 
   Uint32 clientRef;
