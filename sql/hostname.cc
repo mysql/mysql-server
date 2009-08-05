@@ -99,6 +99,7 @@ static void get_ip_string(const struct sockaddr *ip,
                        ip4_int8[0], ip4_int8[1], ip4_int8[2], ip4_int8[3]);
 
     DBUG_ASSERT(n < ip_str_size);
+    (void)n; // Remove compiler warning
     break;
   }
 
@@ -116,6 +117,7 @@ static void get_ip_string(const struct sockaddr *ip,
                        ntohs(ip6_int16[6]), ntohs(ip6_int16[7]));
 
     DBUG_ASSERT(n < ip_str_size);
+    (void)n; // Remove compiler warning
     break;
   }
 #endif /* HAVE_STRUCT_IN6_ADDR */
@@ -506,6 +508,7 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
   {
     bool err_status= hostname_cache_get_key(ip, ip_string);
     DBUG_ASSERT(!err_status);
+    (void)err_status; // Remove compiler warning
   }
 
   DBUG_PRINT("info", ("IP address: '%s'.", (const char *) ip_string));
@@ -680,6 +683,7 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
     {
       bool err_status= hostname_cache_get_key(resolved_ip, resolved_ip_key);
       DBUG_ASSERT(!err_status);
+      (void)err_status; // Remove compiler warning
     }
 
     DBUG_PRINT("info", ("  - '%s'", (const char *) resolved_ip_key));
