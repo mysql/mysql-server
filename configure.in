@@ -878,6 +878,24 @@ then
 fi
 
 #--------------------------------------------------------------------
+# Check for IPv6 support
+#--------------------------------------------------------------------
+
+AC_CHECK_HEADERS(netinet/in6.h)
+
+AC_CHECK_TYPES([struct in6_addr], [], [], 
+[[#ifdef WIN32
+#include <winsock2.h>
+#else
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#endif
+#ifdef HAVE_NETINET_IN6_H
+include <netinet/in6.h>
+#endif]])
+
+#--------------------------------------------------------------------
 # Check for TCP wrapper support
 #--------------------------------------------------------------------
 

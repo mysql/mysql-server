@@ -2303,8 +2303,8 @@ uint build_table_shadow_filename(char *buff, size_t bufflen,
 #define FRM_ONLY        (1 << 3)
 
 /* from hostname.cc */
-struct in_addr;
-char * ip_to_hostname(struct sockaddr_storage *in, int addrLen, uint *errors);
+bool ip_to_hostname(struct sockaddr_storage *ip_storage,
+                    char **hostname, uint *connect_errors);
 void inc_host_errors(struct sockaddr_storage *in);
 void reset_host_errors(struct sockaddr_storage *in);
 bool hostname_cache_init();
