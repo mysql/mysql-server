@@ -415,20 +415,6 @@
 }
 
 {
-   dlclose memory loss from plugin variant 4, seen on Ubuntu Jaunty i686
-   Memcheck:Leak
-   fun:malloc
-   fun:_dl_close_worker
-   fun:_dl_close
-   fun:dlclose_doit
-   fun:_dl_catch_error
-   fun:_dlerror_run
-   fun:dlclose
-   fun:_Z15free_plugin_memP12st_plugin_dl
-   fun:_Z13plugin_dl_delPK19st_mysql_lex_string
-}
-
-{
    dlclose memory loss from plugin variant 4
    Memcheck:Leak
    fun:malloc
@@ -452,6 +438,35 @@
    obj:/lib*/libdl-*.so
    fun:dlclose
    fun:_ZL15free_plugin_memP12st_plugin_dl
+}
+
+{
+   dlclose memory loss from plugin variant 6, seen on Ubuntu Jaunty i686
+   Memcheck:Leak
+   fun:malloc
+   fun:_dl_scope_free
+   fun:_dl_close_worker
+   fun:_dl_close
+   fun:dlclose_doit
+   fun:_dl_catch_error
+   fun:_dlerror_run
+   fun:dlclose
+   fun:_ZL15free_plugin_memP12st_plugin_dl
+   fun:_ZL13plugin_dl_delPK19st_mysql_lex_string
+}
+
+{
+   dlclose memory loss from plugin variant 7, seen on Ubuntu Jaunty i686
+   Memcheck:Leak
+   fun:malloc
+   fun:_dl_close_worker
+   fun:_dl_close
+   fun:dlclose_doit
+   fun:_dl_catch_error
+   fun:_dlerror_run
+   fun:dlclose
+   fun:_ZL15free_plugin_memP12st_plugin_dl
+   fun:_ZL13plugin_dl_delPK19st_mysql_lex_string
 }
 
 {
