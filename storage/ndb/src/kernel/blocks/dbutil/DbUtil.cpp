@@ -237,9 +237,24 @@ DbUtil::execSTTOR(Signal* signal)
     c_transId[1] = 0;
   }
   
-  if(startphase == 6){
-    hardcodedPrepare();
-    connectTc(signal);
+  if(startphase == 6)
+  {
+    jam();
+
+    /**
+     * 1) get systab_0 table-id
+     * 2) run hardcodedPrepare (for sequences)
+     * 3) connectTc()
+     * 4) STTORRY
+     */
+
+    /**
+     * We need to find table-id of SYSTAB_0, as it can be after upgrade
+     *   we don't know what it will be...
+     */
+    get_systab_tableid(signal);
+
+    return;
   }
   
   signal->theData[0] = 0;
@@ -249,6 +264,35 @@ DbUtil::execSTTOR(Signal* signal)
   sendSignal(NDBCNTR_REF, GSN_STTORRY, signal, 6, JBB);
 
   return;
+}
+
+void
+DbUtil::get_systab_tableid(Signal* signal)
+{
+  static char NAME[] = "sys/def/SYSTAB_0";
+
+  GetTabInfoReq * req = (GetTabInfoReq *)signal->getDataPtrSend();
+  req->senderRef = reference();
+  req->senderData = RNIL;
+  req->schemaTransId = 0;
+  req->requestType = GetTabInfoReq::RequestByName |
+    GetTabInfoReq::LongSignalConf;
+
+  req->tableNameLen = sizeof(NAME);
+
+  /********************************************
+   * Code signal data and send signals to DICT
+   ********************************************/
+
+  Uint32 buf[(sizeof(NAME)+3)/4];
+  ndbrequire(sizeof(buf) >= sizeof(NAME));
+  memcpy(buf, NAME, sizeof(NAME));
+
+  LinearSectionPtr ptr[1];
+  ptr[0].p = buf;
+  ptr[0].sz = sizeof(NAME);
+  sendSignal(DBDICT_REF, GSN_GET_TABINFOREQ, signal,
+             GetTabInfoReq::SignalLength, JBB, ptr,1);
 }
 
 void
@@ -286,6 +330,16 @@ DbUtil::execTCSEIZECONF(Signal* signal){
   ptr.p->connectPtr = signal->theData[1];
   
   c_seizingTransactions.release(ptr);
+
+  if (c_seizingTransactions.isEmpty())
+  {
+    jam();
+    signal->theData[0] = 0;
+    signal->theData[3] = 1;
+    signal->theData[4] = 6;
+    signal->theData[5] = 255;
+    sendSignal(NDBCNTR_REF, GSN_STTORRY, signal, 6, JBB);
+  }
 }
 
 
@@ -970,7 +1024,7 @@ void DbUtil::readPrepareProps(Signal* signal,
   {
     GetTabInfoReq * req = (GetTabInfoReq *)signal->getDataPtrSend();
     req->senderRef = reference();
-    req->senderData = prepPtr.i;;           
+    req->senderData = prepPtr.i;
     req->schemaTransId = prepPtr.p->schemaTransId;
     if (tableKey == UtilPrepareReq::TableName) {
       jam();
@@ -1031,10 +1085,23 @@ DbUtil::execGET_TABINFO_CONF(Signal* signal){
   handle.getSection(dictTabInfoPtr, GetTabInfoConf::DICT_TAB_INFO);
   ndbrequire(dictTabInfoPtr.sz == totalLen);
   
-  PreparePtr prepPtr;
-  c_runningPrepares.getPtr(prepPtr, prepI);
-  prepareOperation(signal, prepPtr, dictTabInfoPtr);
-  releaseSections(handle);
+  if (prepI != RNIL)
+  {
+    jam();
+    PreparePtr prepPtr;
+    c_runningPrepares.getPtr(prepPtr, prepI);
+    prepareOperation(signal, prepPtr, dictTabInfoPtr);
+    releaseSections(handle);
+    return;
+  }
+  else
+  {
+    jam();
+    // get_systab_tableid
+    releaseSections(handle);
+    hardcodedPrepare(signal, conf->tableId);
+    return;
+  }
 }
 
 void
@@ -1512,10 +1579,9 @@ DbUtil::execUTIL_RELEASE_REQ(Signal* signal){
  *
  *  A service with a stored incrementable number
  **************************************************************************/
-#define SYSTAB_0 2
-
 void
-DbUtil::hardcodedPrepare() {
+DbUtil::hardcodedPrepare(Signal* signal, Uint32 SYSTAB_0)
+{
   /**
    * Prepare SequenceCurrVal (READ)
    */
@@ -1647,6 +1713,8 @@ DbUtil::hardcodedPrepare() {
     attrInfo[3] = 0; // FinalReadSize
     attrInfo[4] = 0; // SubroutineSize
   }
+
+  connectTc(signal);
 }
 
 void

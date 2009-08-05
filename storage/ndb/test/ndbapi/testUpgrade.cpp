@@ -23,6 +23,7 @@
 #include <NdbRestarter.hpp>
 #include <AtrtClient.hpp>
 #include <Bitmask.hpp>
+#include <NdbBackup.hpp>
 
 static Vector<BaseString> table_list;
 
@@ -496,6 +497,17 @@ runPostUpgradeChecks(NDBT_Context* ctx, NDBT_Step* step)
    *   automatically by NDBT...
    *   so when we enter here, this is already tested
    */
+
+  NdbBackup backup(GETNDB(step)->getNodeId()+1);
+
+  ndbout << "Starting backup..." << flush;
+  if (backup.start() != 0)
+  {
+    ndbout << "Failed" << endl;
+    return NDBT_FAILED;
+  }
+  ndbout << "done" << endl;
+
   return NDBT_OK;
 }
 
