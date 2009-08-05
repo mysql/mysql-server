@@ -665,8 +665,13 @@ static int check_connection(THD *thd)
     thd->main_security_ctx.host_or_ip= thd->main_security_ctx.ip;
     if (!(specialflag & SPECIAL_NO_RESOLVE))
     {
-      thd->main_security_ctx.host=
-        ip_to_hostname(&net->vio->remote, net->vio->addrLen, &connect_errors);
+      if (ip_to_hostname(&net->vio->remote,
+                         &thd->main_security_ctx.host, &connect_errors))
+      {
+        my_error(ER_BAD_HOST_ERROR, MYF(0), ip);
+        return 1;
+      }
+
       /* Cut very long hostnames to avoid possible overflows */
       if (thd->main_security_ctx.host)
       {
