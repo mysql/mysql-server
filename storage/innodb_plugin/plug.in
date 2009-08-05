@@ -17,6 +17,7 @@
 MYSQL_STORAGE_ENGINE(innodb_plugin,, [InnoDB Storage Engine],
         [Transactional Tables using InnoDB], [max,max-no-ndb])
 MYSQL_PLUGIN_DIRECTORY(innodb_plugin, [storage/innodb_plugin])
+MYSQL_PLUGIN_STATIC(innodb_plugin,   [libinnobase.a])
 MYSQL_PLUGIN_DYNAMIC(innodb_plugin,  [ha_innodb_plugin.la])
 MYSQL_PLUGIN_ACTIONS(innodb_plugin,  [
   AC_CHECK_HEADERS(sched.h)

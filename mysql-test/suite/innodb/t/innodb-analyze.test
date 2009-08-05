@@ -4,7 +4,6 @@
 #
 
 -- source include/have_innodb.inc
--- source suite/innodb/include/have_innodb_plugin.inc
 
 # we care only that the following SQL commands do not produce errors
 # and do not crash the server

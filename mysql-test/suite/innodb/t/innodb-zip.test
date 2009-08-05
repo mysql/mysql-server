@@ -1,5 +1,4 @@
 -- source include/have_innodb.inc
--- source suite/innodb/include/have_innodb_plugin.inc
 
 let $per_table=`select @@innodb_file_per_table`;
 let $format=`select @@innodb_file_format`;

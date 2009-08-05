@@ -476,65 +476,6 @@ sub collect_one_suite($)
     }
   }
 
-  # ----------------------------------------------------------------------
-  # Testing InnoDB plugin.
-  # ----------------------------------------------------------------------
-  my $lib_innodb_plugin=
-    mtr_file_exists(::vs_config_dirs('storage/innodb_plugin', 'ha_innodb_plugin.dll'),
-                    "$::basedir/storage/innodb_plugin/.libs/ha_innodb_plugin.so",
-                    "$::basedir/lib/mysql/plugin/ha_innodb_plugin.so",
-                    "$::basedir/lib/mysql/plugin/ha_innodb_plugin.dll");
-  if ($::mysql_version_id >= 50100 && !(IS_WINDOWS && $::opt_embedded_server) &&
-      $lib_innodb_plugin)
-  {
-    my @new_cases;
-
-    foreach my $test (@cases)
-    {
-      next if ($test->{'skip'} || !$test->{'innodb_test'});
-      # Exceptions
-      next if ($test->{'name'} eq 'main.innodb'); # Failed with wrong errno (fk)
-      # innodb_file_per_table is rw with innodb_plugin
-      next if ($test->{'name'} eq 'sys_vars.innodb_file_per_table_basic');
-      # innodb_lock_wait_timeout is rw with innodb_plugin
-      next if ($test->{'name'} eq 'sys_vars.innodb_lock_wait_timeout_basic');
-      # Diff around innodb_thread_concurrency variable
-      next if ($test->{'name'} eq 'sys_vars.innodb_thread_concurrency_basic');
-      # Copy test options
-      my $new_test= My::Test->new();
-      while (my ($key, $value) = each(%$test))
-      {
-        if (ref $value eq "ARRAY")
-        {
-          push(@{$new_test->{$key}}, @$value);
-        }
-        else
-        {
-          $new_test->{$key}= $value;
-        }
-      }
-      my $plugin_filename= basename($lib_innodb_plugin);
-      push(@{$new_test->{master_opt}}, '--ignore-builtin-innodb');
-      push(@{$new_test->{master_opt}}, '--plugin-dir=' . dirname($lib_innodb_plugin));
-      push(@{$new_test->{master_opt}}, "--plugin_load=innodb=$plugin_filename;innodb_locks=$plugin_filename");
-      push(@{$new_test->{slave_opt}}, '--ignore-builtin-innodb');
-      push(@{$new_test->{slave_opt}}, '--plugin-dir=' . dirname($lib_innodb_plugin));
-      push(@{$new_test->{slave_opt}}, "--plugin_load=innodb=$plugin_filename;innodb_locks=$plugin_filename");
-      if ($new_test->{combination})
-      {
-        $new_test->{combination}.= ' + InnoDB plugin';
-      }
-      else
-      {
-        $new_test->{combination}= 'InnoDB plugin';
-      }
-      push(@new_cases, $new_test);
-    }
-    push(@cases, @new_cases);
-  }
-  # ----------------------------------------------------------------------
-  # End of testing InnoDB plugin.
-  # ----------------------------------------------------------------------
   optimize_cases(\@cases);
   #print_testcases(@cases);
 
