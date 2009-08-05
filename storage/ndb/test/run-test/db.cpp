@@ -402,11 +402,11 @@ populate_db(atrt_config& config, atrt_process* mysqld)
 	return false;
       }
 
-      if (populate_options(&mysqld->m_mysql, stmtopt, &option_id, i,
+      if (populate_options(&mysqld->m_mysql, stmtopt, &option_id, id,
 			   &proc->m_options.m_loaded) == false)
 	return false;
       
-      if (populate_options(&mysqld->m_mysql, stmtopt, &option_id, i,
+      if (populate_options(&mysqld->m_mysql, stmtopt, &option_id, id,
 			   &proc->m_cluster->m_options.m_loaded) == false)
 	return false;
       
