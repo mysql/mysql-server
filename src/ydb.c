@@ -2631,6 +2631,8 @@ finish:
 
 static int
 db_getf_set(DB *db, DB_TXN *txn, u_int32_t flags, DBT *key, YDB_CALLBACK_FUNCTION f, void *extra) {
+    HANDLE_PANICKED_DB(db);
+    HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
     DBC *c;
     int r = toku_db_cursor(db, txn, &c, 0, 1);
     if (r==0) {
@@ -2643,6 +2645,8 @@ db_getf_set(DB *db, DB_TXN *txn, u_int32_t flags, DBT *key, YDB_CALLBACK_FUNCTIO
 
 static int
 db_getf_get_both(DB *db, DB_TXN *txn, u_int32_t flags, DBT *key, DBT *val, YDB_CALLBACK_FUNCTION f, void *extra) {
+    HANDLE_PANICKED_DB(db);
+    HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
     DBC *c;
     int r = toku_db_cursor(db, txn, &c, 0, 1);
     if (r==0) {
@@ -3546,6 +3550,30 @@ static int locked_db_get (DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_
     toku_ydb_lock(); int r = autotxn_db_get(db, txn, key, data, flags); toku_ydb_unlock(); return r;
 }
 
+static inline int autotxn_db_getf_set (DB *db, DB_TXN *txn, u_int32_t flags, DBT *key, YDB_CALLBACK_FUNCTION f, void *extra) {
+    BOOL changed; int r;
+    r = toku_db_construct_autotxn(db, &txn, &changed, FALSE);
+    if (r!=0) return r;
+    r = db_getf_set(db, txn, flags, key, f, extra);
+    return toku_db_destruct_autotxn(txn, r, changed);
+}
+
+static int locked_db_getf_set (DB *db, DB_TXN *txn, u_int32_t flags, DBT *key, YDB_CALLBACK_FUNCTION f, void *extra) {
+    toku_ydb_lock(); int r = autotxn_db_getf_set(db, txn, flags, key, f, extra); toku_ydb_unlock(); return r;
+}
+
+static inline int autotxn_db_getf_get_both (DB *db, DB_TXN *txn, u_int32_t flags, DBT *key, DBT *val, YDB_CALLBACK_FUNCTION f, void *extra) {
+    BOOL changed; int r;
+    r = toku_db_construct_autotxn(db, &txn, &changed, FALSE);
+    if (r!=0) return r;
+    r = db_getf_get_both(db, txn, flags, key, val, f, extra);
+    return toku_db_destruct_autotxn(txn, r, changed);
+}
+
+static int locked_db_getf_get_both (DB *db, DB_TXN *txn, u_int32_t flags, DBT *key, DBT *val, YDB_CALLBACK_FUNCTION f, void *extra) {
+    toku_ydb_lock(); int r = autotxn_db_getf_get_both(db, txn, flags, key, val, f, extra); toku_ydb_unlock(); return r;
+}
+
 static int locked_db_pre_acquire_read_lock(DB *db, DB_TXN *txn, const DBT *key_left, const DBT *val_left, const DBT *key_right, const DBT *val_right) {
     toku_ydb_lock();
     int r = toku_db_pre_acquire_read_lock(db, txn, key_left, val_left, key_right, val_right);
@@ -3753,6 +3781,8 @@ static int toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     SDB(pre_acquire_table_lock);
     SDB(truncate);
     SDB(row_size_supported);
+    SDB(getf_set);
+    SDB(getf_get_both);
 #undef SDB
     result->dbt_pos_infty = toku_db_dbt_pos_infty;
     result->dbt_neg_infty = toku_db_dbt_neg_infty;

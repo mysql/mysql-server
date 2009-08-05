@@ -233,7 +233,9 @@ struct __toku_db {
   int (*row_size_supported) (DB*, u_int32_t) /* Test whether a row size is supported. */;
   const DBT *descriptor /* saved row/dictionary descriptor for aiding in comparisons */;
   int (*set_descriptor) (DB*, u_int32_t version, const DBT* descriptor, toku_dbt_upgradef dbt_userformat_upgrade) /* set row/dictionary descriptor for a db.  Available only while db is open */;
-  void* __toku_dummy1[34];
+  int (*getf_set)(DB*, DB_TXN*, u_int32_t, DBT*, YDB_CALLBACK_FUNCTION, void*) /* same as DBC->c_getf_set without a persistent cursor) */;
+  int (*getf_get_both)(DB*, DB_TXN*, u_int32_t, DBT*, DBT*, YDB_CALLBACK_FUNCTION, void*) /* same as DBC->c_getf_get_both without a persistent cursor) */;
+  void* __toku_dummy1[32];
   char __toku_dummy2[80];
   void *api_internal; /* 32-bit offset=276 size=4, 64=bit offset=464 size=8 */
   void* __toku_dummy3[5];
