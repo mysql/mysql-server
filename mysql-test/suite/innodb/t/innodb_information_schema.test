@@ -4,7 +4,6 @@
 #
 
 -- source include/have_innodb.inc
--- source suite/innodb/include/have_innodb_plugin.inc
 
 -- disable_query_log
 -- disable_result_log

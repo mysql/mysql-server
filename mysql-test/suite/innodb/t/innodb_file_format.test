@@ -1,5 +1,4 @@
 -- source include/have_innodb.inc
--- source suite/innodb/include/have_innodb_plugin.inc
 
 let $format=`select @@innodb_file_format`;
 let $innodb_file_format_check_orig=`select @@innodb_file_format_check`;

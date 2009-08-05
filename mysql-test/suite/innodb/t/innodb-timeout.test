@@ -1,5 +1,4 @@
 -- source include/have_innodb.inc
--- source suite/innodb/include/have_innodb_plugin.inc
 
 let $timeout=`select @@innodb_lock_wait_timeout`;
 set global innodb_lock_wait_timeout=42;

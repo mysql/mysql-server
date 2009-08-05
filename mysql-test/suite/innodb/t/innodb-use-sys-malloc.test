@@ -1,5 +1,4 @@
 --source include/have_innodb.inc
--- source suite/innodb/include/have_innodb_plugin.inc
 
 #display current value of innodb_use_sys_malloc
 SELECT @@GLOBAL.innodb_use_sys_malloc;
