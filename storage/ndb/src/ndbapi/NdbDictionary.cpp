@@ -2875,6 +2875,7 @@ NdbDictionary::Dictionary::createHashMap(const HashMap& map, ObjectId * dst)
   int ret;
   DO_TRANS(ret,
            m_impl.m_receiver.create_hashmap(NdbHashMapImpl::getImpl(map),
-                                            &NdbDictObjectImpl::getImpl(*dst)));
+                                            &NdbDictObjectImpl::getImpl(*dst),
+                                            0));
   return ret;
 }
