@@ -4006,15 +4006,28 @@ default_service_handling(char **argv,
 			 const char *account_name)
 {
   char path_and_service[FN_REFLEN+FN_REFLEN+32], *pos, *end;
+  const char *opt_delim;
   end= path_and_service + sizeof(path_and_service)-3;
 
   /* We have to quote filename if it contains spaces */
   pos= add_quoted_string(path_and_service, file_path, end);
   if (*extra_opt)
   {
-    /* Add (possible quoted) option after file_path */
+    /* 
+     Add option after file_path. There will be zero or one extra option.  It's 
+     assumed to be --defaults-file=file but isn't checked.  The variable (not
+     the option name) should be quoted if it contains a string.  
+    */
     *pos++= ' ';
-    pos= add_quoted_string(pos, extra_opt, end);
+    if (opt_delim= strchr(extra_opt, '='))
+    {
+      size_t length= ++opt_delim - extra_opt;
+      strnmov(pos, extra_opt, length);
+    }
+    else
+      opt_delim= extra_opt;
+    
+    pos= add_quoted_string(pos, opt_delim, end);
   }
   /* We must have servicename last */
   *pos++= ' ';
