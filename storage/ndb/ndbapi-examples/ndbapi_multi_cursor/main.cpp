@@ -89,7 +89,7 @@ struct SalaryRow
 const char* employeeDef = 
 "CREATE TABLE employees ("
 "    emp_no      INT             NOT NULL,"
-"    dept_no     INT         NOT NULL,"   // Temporary added OJA
+"    dept_no     CHAR(4)         NOT NULL,"   // Temporary added OJA
 "    birth_date  DATE            NOT NULL,"
 "    first_name  VARCHAR(14)     NOT NULL,"
 "    last_name   VARCHAR(16)     NOT NULL,"
@@ -108,7 +108,7 @@ const char* departmentsDef =
 
 const char* dept_managerDef = 
 "CREATE TABLE dept_manager ("
-"   dept_no      INT         NOT NULL,"
+"   dept_no      CHAR(4)         NOT NULL,"
 "   emp_no       INT             NOT NULL,"
 "   from_date    DATE            NOT NULL,"
 "   to_date      DATE            NOT NULL,"
@@ -211,16 +211,16 @@ int createEmployeeDb()
 
 
 
-    /****
+    /****/
     printf("Insert simple test data\n");
     if (mysql_query(&mysql, "Insert into dept_manager(dept_no,emp_no) values ('d005',110567)") != 0) MYSQLERROR(mysql);
     mysql_commit(&mysql);
 
     if (mysql_query(&mysql, "Insert into employees(emp_no,dept_no) values (110567,'d005')") != 0) MYSQLERROR(mysql);
     mysql_commit(&mysql);
-    ******/
+    /******/
 
-    /********/
+    /********
    printf("Insert simple test data\n");
     if (mysql_query(&mysql, "Insert into dept_manager(dept_no,emp_no) values (1005,110567)") != 0) MYSQLERROR(mysql);
     mysql_commit(&mysql);
@@ -228,7 +228,7 @@ int createEmployeeDb()
     if (mysql_query(&mysql, "Insert into employees(emp_no,dept_no) values (110567,1005)") != 0) MYSQLERROR(mysql);
     mysql_commit(&mysql);
 
-    /************/
+    ************/
 
     mysql_close(&mysql);
   }
@@ -284,6 +284,9 @@ int testQueryBuilder(Ndb &myNdb)
   int res;
   NdbTransaction* myTransaction;
   NdbQuery* myQuery;
+
+  char* dept_no = "d005";
+  Uint32 emp_no = 110567;
 
   printf("\n -- Building query --\n");
 
@@ -368,6 +371,8 @@ int testQueryBuilder(Ndb &myNdb)
     if (q3 == NULL) APIERROR(qb->getNdbError());
   }
 *****/
+#endif
+
 
   /* Composite operations building real *trees* aka. linked operations.
    * (First part is identical to building 'qt2' above)
@@ -393,7 +398,7 @@ int testQueryBuilder(Ndb &myNdb)
        0
     };
     // Lookup a single tuple with key define by 'managerKey' param. tuple
-    const NdbQueryLookupOperationDef *readManager = qb->readTuple(manager, constManagerKey);
+    const NdbQueryLookupOperationDef *readManager = qb->readTuple(manager, paramManagerKey);
     if (readManager == NULL) APIERROR(qb->getNdbError());
 
     // THEN: employee table is joined:
@@ -417,14 +422,12 @@ int testQueryBuilder(Ndb &myNdb)
   // (Possibly multiple ::execute() or multiple NdbQueryDef instances 
   // within the same NdbTransaction::execute(). )
   ////////////////////////////////////////////////////
-  char* dept_no = "d005";
-  Uint32 emp_no = 110567;
-  void* paramList[] = {&dept_no, &emp_no};
+  void* paramList[] = {dept_no, &emp_no};
 
   myTransaction= myNdb.startTransaction();
   if (myTransaction == NULL) APIERROR(myNdb.getNdbError());
 
-  myQuery = myTransaction->createQuery(q4,0); // paramList);
+  myQuery = myTransaction->createQuery(q4,paramList);
   if (myQuery == NULL)
     APIERROR(myTransaction->getNdbError());
 
@@ -471,7 +474,6 @@ int testQueryBuilder(Ndb &myNdb)
 
   myNdb.closeTransaction(myTransaction);
   myTransaction = 0;
-#endif
 
   //////////////////////////////////////////////////
   printf("q4_1\n");
@@ -479,20 +481,22 @@ int testQueryBuilder(Ndb &myNdb)
   {
     NdbQueryBuilder* qb = &myBuilder; //myDict->getQueryBuilder();
 
-    const NdbQueryOperand* constEmpKey[] =       // Employee is indexed om {"emp_no"}
-    {  qb->constValue(110567),   // emp_no  = 110567
+    const NdbQueryOperand* empKey[] =       // Employee is indexed om {"emp_no"}
+    {
+       //qb->constValue(110567),   // emp_no  = 110567
+       qb->paramValue(),
        0
     };
-    const NdbQueryLookupOperationDef* readEmployee = qb->readTuple(employee, constEmpKey);
+    const NdbQueryLookupOperationDef* readEmployee = qb->readTuple(employee, empKey);
     if (readEmployee == NULL) APIERROR(qb->getNdbError());
 
     const NdbQueryOperand* joinManagerKey[] =  // Manager is indexed om {"dept_no", "emp_no"}
     {
       //qb->constValue(1005),   // dept_no = "d005"
       qb->linkedValue(readEmployee,"dept_no"),
-      //qb->linkedValue(readEmployee,"emp_no"),   // emp_no  = 110567
-      qb->constValue(110567),
-      //qb->paramValue(), //BEWARE: param serialization incomplete and will cause node failure!! 
+      qb->linkedValue(readEmployee,"emp_no"),   // emp_no  = 110567
+      //qb->constValue(110567),
+      //qb->paramValue(),
       0
     };
 
@@ -509,14 +513,13 @@ int testQueryBuilder(Ndb &myNdb)
   // (Possibly multiple ::execute() or multiple NdbQueryDef instances 
   // within the same NdbTransaction::execute(). )
   ////////////////////////////////////////////////////
-  //char* dept_no = "d005";
-  Uint32 emp_no_q4 = 110567;
-  void* paramList_q4[] = {&emp_no_q4};
+
+  void* paramList_q4[] = {&emp_no};
 
   myTransaction= myNdb.startTransaction();
   if (myTransaction == NULL) APIERROR(myNdb.getNdbError());
 
-  myQuery = myTransaction->createQuery(q4_1,0); //paramList_q4);
+  myQuery = myTransaction->createQuery(q4_1,paramList_q4);
   if (myQuery == NULL)
     APIERROR(myTransaction->getNdbError());
 
@@ -550,11 +553,7 @@ int testQueryBuilder(Ndb &myNdb)
   myNdb.closeTransaction(myTransaction);
   myTransaction = 0;
 
-
-
   /////////////////////////////////////////////////
-
-
 
 #if 0
 

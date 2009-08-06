@@ -191,9 +191,10 @@ struct QueryPattern
   Uint32 m_info;
   enum
   {
-    P_DATA = 0x1, // Raw data of len-words
-    P_COL  = 0x2, // Get col from RowRef
-    P_END  = 0
+    P_DATA  = 0x1, // Raw data of len-words (constants)
+    P_COL   = 0x2, // Get col from RowRef
+    P_PARAM = 0x3,
+    P_END   = 0
   };
 
   static Uint32 getType(const Uint32 info) { return info >> 16;}
@@ -213,6 +214,12 @@ struct QueryPattern
    */
   static Uint32 getColNo(Uint32 info) { return info & 0xFFFF;}
   static Uint32 col(Uint32 no) { return (P_COL << 16) | no; }
+
+  /**
+   * If type == PARAM, get param-no here (index in param list)
+   */
+  static Uint32 getParamNo(Uint32 info) { return info & 0xFFFF;}
+  static Uint32 param(Uint32 no) { return (P_PARAM << 16) | no; }
 };
 
 #endif

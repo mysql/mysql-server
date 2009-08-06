@@ -31,6 +31,7 @@
 #define QRY_OPERAND_ALREADY_BOUND 4807
 #define QRY_DEFINITION_TOO_LARGE 4808
 #define QRY_DUPLICATE_COLUMN_IN_PROJ 4809
+#define QRY_NEED_PARAMETER 4810
 
 
 #ifdef __cplusplus
@@ -80,6 +81,27 @@ public:
     return m_array[idx];
   }
 
+  /** append 'src' to end of this buffer */
+  size_t append(const Uint32Buffer& src) {
+    memcpy(&get(getSize(), src.getSize()),
+           &src.get(0),
+           src.getSize()*sizeof(Uint32));
+    return src.getSize();
+  }
+
+  /** append 'src' *bytes* to end of this buffer
+   *  Zero pad possibly odd bytes in last Uint32 word */
+  size_t append(const void* src, size_t len) {
+    size_t wordCount = (len + sizeof(Uint32)-1) / sizeof(Uint32);
+    Uint32* dst = &get(getSize(), wordCount);
+
+    // Make sure that any trailing bytes in the last word are zero.
+    dst[wordCount-1] = 0;
+    // Copy src 
+    memcpy(dst, src, len);
+    return wordCount;
+  }
+
   /** Check for out-of-bounds access.*/
   bool isMaxSizeExceeded() const {
     return m_maxSizeExceeded;
@@ -98,12 +120,18 @@ private:
 */
 class Uint32Slice{
 public:
+  /** Constructs a slice at end of underlying buffer */
+  explicit Uint32Slice(Uint32Buffer& buffer):
+    m_buffer(buffer),
+    m_offset(buffer.getSize()){
+  }
+
   explicit Uint32Slice(Uint32Buffer& buffer, Uint32 offset):
     m_buffer(buffer),
     m_offset(offset){
   }
 
-  explicit Uint32Slice(Uint32Slice& slice, Uint32 offset):
+  explicit Uint32Slice(const Uint32Slice& slice, Uint32 offset):
     m_buffer(slice.m_buffer),
     m_offset(offset+slice.m_offset){
   }
@@ -114,6 +142,12 @@ public:
 
   const Uint32& get(int i, Uint32 count=1)const{
     return m_buffer.get(i+m_offset, count);
+  }
+
+  /** append 'src' *bytes* to end of this buffer
+   *  Zero pad possibly odd bytes in last Uint32 word */
+  size_t append(const void* src, size_t len) const {
+    return m_buffer.append(src,len);
   }
 
   Uint32 getOffset() const {return m_offset;}

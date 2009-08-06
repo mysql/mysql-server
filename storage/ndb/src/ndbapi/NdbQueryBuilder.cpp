@@ -16,15 +16,18 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "NdbQueryBuilder.hpp"
 #include "NdbQueryBuilderImpl.hpp"
 #include <ndb_global.h>
 #include <Vector.hpp>
+#include "signaldata/QueryTree.hpp"
 
 #include "Ndb.hpp"
 #include "NdbDictionary.hpp"
-#include "NdbOut.hpp"
 #include "NdbDictionaryImpl.hpp"
-#include "signaldata/QueryTree.hpp"
+#include "AttributeHeader.hpp"
+#include "NdbOut.hpp"
+
 
 /**
  * Implementation of all QueryBuilder objects are completely hidden from
@@ -37,10 +40,8 @@
  * (Particular the ConstOperant in order to implement multiple datatypes)
  *
  * In order to avoid allocating both an interface object and its particular
- * Impl object, all 'final' Impl objects contains a m_interface object with 
- * the type of its interface class.
- * All 'Impl' object 'has a' interface object which is accessible through
- * the virtual method ::getInterface.
+ * Impl object, all 'final' Impl objects 'has a' interface object 
+ * which is accessible through the virtual method ::getInterface.
  *
  * ::getImpl() methods has been defined for convenient access 
  * to all available Impl classes.
@@ -842,14 +843,16 @@ NdbQueryBuilderImpl::prepare()
 {
   int error;
   NdbQueryDefImpl* def = new NdbQueryDefImpl(*this, m_operations, error);
+  m_operations.clear();
+  m_operands.clear();
+  m_paramCnt = 0;
+
   returnErrIf(def==0, 4000);
   if(unlikely(error!=0)){
     delete def;
     setErrorCode(error);
     return NULL;
   }
-  m_operations.clear();
-  m_operands.clear();
 
   return def;
 }
@@ -1013,30 +1016,32 @@ NdbQueryLookupOperationDefImpl
   const int keyCount = m_index==NULL ? 
     getTable().getNoOfPrimaryKeys() :
     static_cast<int>(getIndex()->getNoOfColumns());
-  int paramNo = 0;
   int keyNo;
   for(keyNo = 0; keyNo<keyCount; keyNo++){
     switch(m_keys[keyNo]->getKind()){
     case NdbQueryOperandImpl::Const:
-      {
-        const NdbConstOperandImpl* const constOp 
-          = static_cast<const NdbConstOperandImpl*>(m_keys[keyNo]);
-        ndbOperation.equal(keyNo, 
-                           static_cast<const char*>(constOp->getAddr()));
-      }
+    {
+      const NdbConstOperandImpl* const constOp 
+        = static_cast<const NdbConstOperandImpl*>(m_keys[keyNo]);
+      ndbOperation.equal(keyNo, static_cast<const char*>(constOp->getAddr()));
       break;
+    }
     case NdbQueryOperandImpl::Param:
+    {
+      const NdbParamOperandImpl* const paramOp 
+        = static_cast<const NdbParamOperandImpl*>(m_keys[keyNo]);
+      int paramNo = paramOp->getParamIx();
+      assert(actualParam != NULL);
       assert(actualParam[paramNo] != NULL);
       ndbOperation.equal(keyNo, 
-                         static_cast<const char*>(actualParam[paramNo++]));
+                         static_cast<const char*>(actualParam[paramNo]));
       break;
+    }
     default:
       // Root operation cannot have linked operands.
       assert(false);
     }
   }
-  // All actual parameters should have been consumed.
-  // assert(actualParam[paramNo] == NULL); // FIXME: param[] might be NULL
   // All key fields should have been assigned a value. 
   assert(m_keys[keyNo] == NULL);
 }
@@ -1183,25 +1188,14 @@ private:
   int m_length;
 };
 
-// Number of 32bit words needed to store 'type'.
-#define SIZE_IN_WORDS(type) ((sizeof(type)+sizeof(Uint32)-1)/sizeof(Uint32))
-
-// Find offset (in 32-bit words) of field within struct QN_LookupNode.
-#define POS_IN_LOOKUP(field) (offsetof(QN_LookupNode, field)/sizeof(Uint32)) 
-
-// Find offset (in 32-bit words) of field within struct QN_ScanFragNode.
-#define POS_IN_SCAN(field) (offsetof(QN_ScanFragNode, field)/sizeof(Uint32)) 
-
-//#define POS_IN_QUERY(field) (offsetof(QueryNode, field)/sizeof(Uint32)) 
-
 
 int
 NdbQueryLookupOperationDefImpl
 ::serializeOperation(Uint32Buffer& serializedDef) const
 {
-  Uint32Slice nodeBuffer(serializedDef, serializedDef.getSize());
+  Uint32Slice nodeBuffer(serializedDef);
   QN_LookupNode& node = reinterpret_cast<QN_LookupNode&>
-    (nodeBuffer.get(0, SIZE_IN_WORDS(QN_LookupNode)));
+    (nodeBuffer.get(0, QN_LookupNode::NodeSize));
   node.tableId = getTable().getObjectId();
   node.tableVersion = getTable().getObjectVersion();
   node.requestInfo = 0;
@@ -1213,8 +1207,7 @@ NdbQueryLookupOperationDefImpl
    *    PART3:  'NI_LINKED_ATTR ++
    */
 
-  Uint32Slice optional(nodeBuffer, POS_IN_LOOKUP(optional));
-  int optPos = 0;
+  Uint32Slice optional(serializedDef);
   if(getNoOfParentOperations()>0){
     // Optional part1: Make list of parent nodes.
     node.requestInfo |= DABits::NI_HAS_PARENT;
@@ -1226,78 +1219,77 @@ NdbQueryLookupOperationDefImpl
         i++){
       parentSeq.append(getParentOperation(i).getQueryOperationIx());
     }
-    optPos = parentSeq.finish();
+    parentSeq.finish();
   }
-  Uint32Slice keyPattern(optional, optPos+1);
-  int keyPatternPos = 0;
-  int keyNo = 0;
-  int paramCnt = 0;
-  const NdbQueryOperandImpl* op = m_keys[0];
-  while(op!=NULL){
-    switch(op->getKind()){
-    case NdbQueryOperandImpl::Linked:
+
+  if(m_keys[0]!=NULL)
+  {
+    //    Uint32Slice keyPattern(optional, optPos);
+    Uint32Slice keyPattern(serializedDef);
+    int keyPatternPos = 1; // Length at offs '0' set later
+    int paramCnt = 0;
+    int keyNo = 0;
+    const NdbQueryOperandImpl* op = m_keys[0];
+    do
     {
-      node.requestInfo |= DABits::NI_KEY_LINKED;
-      const NdbLinkedOperandImpl& linkedOp = *static_cast<const NdbLinkedOperandImpl*>(op);
-      keyPattern.get(keyPatternPos++) = QueryPattern::col(linkedOp.getLinkedColumnIx());
-      break;
-    }
-    case NdbQueryOperandImpl::Const:
-    {
-      node.requestInfo |= DABits::NI_KEY_CONSTS;
-      const NdbConstOperandImpl& constOp 
-	= *static_cast<const NdbConstOperandImpl*>(op);
-      // No of words needed for storing the constant data.
-      const Uint32 wordCount 
-	= (sizeof(Uint32) + constOp.getLength() - 1) / sizeof(Uint32);
-      // Make sure that any trailing bytes in the last word are zero.
-      keyPattern.get(keyPatternPos+wordCount) = 0;
-      // Sent type and length in words of key pattern field. 
-      keyPattern.get(keyPatternPos++) 
-	= QueryPattern::data(wordCount);
-      // Copy constant data.
-      memcpy(&keyPattern.get(keyPatternPos, wordCount), 
-             constOp.getAddr(),
-             constOp.getLength());
-      keyPatternPos += wordCount;
-      break;
-    }
-    case NdbQueryOperandImpl::Param:  // TODO: Implement this
-      /**** FIXME: can't set NI_KEY_PARAMS yet as this also require PI_KEY_PARAMS in parameter part *****/
-      node.requestInfo |= DABits::NI_KEY_PARAMS;
-      paramCnt++;
-      keyPattern.get(keyPatternPos++) = QueryPattern::data(0);  // Simple hack to avoid 'assert(keyPatternPos>0)' below
-      break;
-    default:
-      assert(false);
-    }
-    op = m_keys[++keyNo];
-  }
-  if(m_keys[0]!=NULL){
-    assert(keyPatternPos>0);  
+      switch(op->getKind()){
+      case NdbQueryOperandImpl::Linked:
+      {
+        node.requestInfo |= DABits::NI_KEY_LINKED;
+        const NdbLinkedOperandImpl& linkedOp = *static_cast<const NdbLinkedOperandImpl*>(op);
+        keyPattern.get(keyPatternPos++) = QueryPattern::col(linkedOp.getLinkedColumnIx());
+        break;
+      }
+      case NdbQueryOperandImpl::Const:
+      {
+        node.requestInfo |= DABits::NI_KEY_CONSTS;
+        const NdbConstOperandImpl& constOp 
+	  = *static_cast<const NdbConstOperandImpl*>(op);
+     
+        // No of words needed for storing the constant data.
+        const Uint32 wordCount =  AttributeHeader::getDataSize(constOp.getLength());
+        // Set type and length in words of key pattern field. 
+        keyPattern.get(keyPatternPos++) = QueryPattern::data(wordCount);
+        keyPatternPos += keyPattern.append(constOp.getAddr(),constOp.getLength());
+        break;
+      }
+      case NdbQueryOperandImpl::Param:
+      {
+        node.requestInfo |= DABits::NI_KEY_PARAMS;
+        paramCnt++;
+        const NdbParamOperandImpl& paramOp = *static_cast<const NdbParamOperandImpl*>(op);
+        keyPattern.get(keyPatternPos++) = QueryPattern::param(paramOp.getParamIx());
+        break;
+      }
+      default:
+        assert(false);
+      }
+      op = m_keys[++keyNo];
+    } while (op!=NULL);
+
     // Set total length of key pattern.
-    optional.get(optPos) = (paramCnt << 16) | keyPatternPos;
-    optPos += keyPatternPos+1;
+    keyPattern.get(0) = (paramCnt << 16) | (keyPatternPos-1);
   }
 
   /* Add the projection that should be send to the SPJ block such that 
    * child operations can be instantiated.*/
-//assert ((getNoOfChildOperations()==0) == (getSPJProjection().size()==0));
   if (getNoOfChildOperations()>0){
     node.requestInfo |= DABits::NI_LINKED_ATTR;
-    Uint16Sequence spjProjSeq(Uint32Slice(optional, optPos));
+    Uint32Slice projection(serializedDef);
+    Uint16Sequence spjProjSeq(projection);
     for(Uint32 i = 0; i<getSPJProjection().size(); i++){
       spjProjSeq.append(getSPJProjection()[i]->getColumnNo());
     }
-    optPos += spjProjSeq.finish();
+    spjProjSeq.finish();
   }
-  const int length = POS_IN_LOOKUP(optional)+optPos;
 
   // Set node length and type.
+  const int length = nodeBuffer.getSize();
   QueryNode::setOpLen(node.len, QueryNode::QN_LOOKUP, length);
   if(unlikely(serializedDef.isMaxSizeExceeded())){
     return QRY_DEFINITION_TOO_LARGE; //Query definition too large.
-  }    
+  }
+
 #ifdef TRACE_SERIALIZATION
   ndbout << "Serialized node " << getQueryOperationIx() << " : ";
   for(int i = 0; i < length; i++){
@@ -1316,16 +1308,14 @@ int
 NdbQueryTableScanOperationDefImpl
 ::serializeOperation(Uint32Buffer& serializedDef) const
 {
-  Uint32Slice nodeBuffer(serializedDef, serializedDef.getSize());
+  Uint32Slice nodeBuffer(serializedDef);
   QN_ScanFragNode& node = reinterpret_cast<QN_ScanFragNode&>
-    (nodeBuffer.get(0, SIZE_IN_WORDS(QN_ScanFragNode)));
+    (nodeBuffer.get(0, QN_ScanFragNode::NodeSize));
   node.tableId = getTable().getObjectId();
   node.tableVersion = getTable().getObjectVersion();
   node.requestInfo = 0;
 
-  Uint32Slice optional(nodeBuffer, POS_IN_SCAN(optional));
-  int optPos = 0;
-
+  Uint32Slice optional(serializedDef);
   if(getNoOfParentOperations()>0){
     // Optional part1: Make list of parent nodes.
     node.requestInfo |= DABits::NI_HAS_PARENT;
@@ -1337,24 +1327,23 @@ NdbQueryTableScanOperationDefImpl
         i++){
       parentSeq.append(getParentOperation(i).getQueryOperationIx());
     }
-    optPos = parentSeq.finish();
+    parentSeq.finish();
   }
 
   /* Add the projection that should be send to the SPJ block such that 
    * child operations can be instantiated.*/
-//assert ((getNoOfChildOperations()==0) == (getSPJProjection().size()==0));
   if (getNoOfChildOperations()>0){
     node.requestInfo |= DABits::NI_LINKED_ATTR;
-    Uint16Sequence spjProjSeq(Uint32Slice(optional, optPos));
+    Uint32Slice projection(serializedDef);
+    Uint16Sequence spjProjSeq(projection);
     for(Uint32 i = 0; i<getSPJProjection().size(); i++){
       spjProjSeq.append(getSPJProjection()[i]->getColumnNo());
     }
-    optPos += spjProjSeq.finish();
+    spjProjSeq.finish();
   }
 
-  const int length = POS_IN_SCAN(optional)+optPos;
-
   // Set node length and type.
+  const int length = nodeBuffer.getSize();
   QueryNode::setOpLen(node.len, QueryNode::QN_SCAN_FRAG, length);
   if(unlikely(serializedDef.isMaxSizeExceeded())){
     return QRY_DEFINITION_TOO_LARGE; //Query definition too large.

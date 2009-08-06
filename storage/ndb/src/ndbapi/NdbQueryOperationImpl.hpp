@@ -34,7 +34,6 @@ private:
   explicit NdbQueryImpl(
              NdbTransaction& trans,
              const NdbQueryDefImpl& queryDef,
-             const void* const param[],
              NdbQueryImpl* next);
 
   ~NdbQueryImpl();
@@ -44,7 +43,6 @@ public:
   // Factory method which instantiate a query from its definition
   static NdbQueryImpl* buildQuery(NdbTransaction& trans, 
                                   const NdbQueryDefImpl& queryDef, 
-                                  const void* const param[],
                                   NdbQueryImpl* next);
 
   Uint32 getNoOfOperations() const;
@@ -53,7 +51,6 @@ public:
   // when the NdbQueryOperationDef was created.
   NdbQueryOperationImpl& getQueryOperation(Uint32 ident) const;
   NdbQueryOperationImpl* getQueryOperation(const char* ident) const;
-//NdbQueryOperationImpl* getQueryOperation(const NdbQueryOperationDef* def) const;
 
   Uint32 getNoOfParameters() const;
   const NdbParamOperand* getParameter(const char* name) const;
@@ -66,6 +63,12 @@ public:
   NdbTransaction* getNdbTransaction() const;
 
   const NdbError& getNdbError() const;
+
+  void setErrorCode(int aErrorCode)
+  { if (!m_error.code)
+      m_error.code = aErrorCode;
+  }
+  void setErrorCodeAbort(int aErrorCode);
 
  /** Process TCKEYCONF message. Return true if query is complete.*/
   bool execTCKEYCONF();
@@ -94,9 +97,6 @@ public:
   NdbQuery& getInterface()
   { return m_interface; }
   
-  const void* getParamValue(Uint32 ix) const
-  { return m_param[ix]; }
-
   /** Get next query in same transaction.*/
   NdbQueryImpl* getNext() const
   { return m_next; }
@@ -124,8 +124,6 @@ private:
   int m_pendingOperations;
   /** Serialized representation of parameters. To be sent in TCKEYREQ*/
   Uint32Buffer m_serializedParams;
-  /** Query parameter supplied to ::buildQuery() */
-  const void* const *m_param;
   /** Next query in same transaction.*/
   NdbQueryImpl* const m_next;
   /** TODO: Remove this.*/
@@ -144,7 +142,6 @@ class NdbQueryOperationImpl {
   friend NdbOut& operator<<(NdbOut& out, const NdbQueryOperationImpl&);
 public:
   STATIC_CONST (MAGIC = 0xfade1234);
-
 
   explicit NdbQueryOperationImpl(NdbQueryImpl& queryImpl, 
                                  const NdbQueryOperationDefImpl& def);
@@ -198,6 +195,10 @@ public:
   /** Process absence of result data for this operation. 
    * Return true if query complete.*/
   bool execTCKEYREF(NdbApiSignal* aSignal);
+
+  /** Serialize parameter values.
+   *  @return possible error code.*/
+  int serializeParams(const constVoidPtr paramValues[]);
 
   /** Prepare for execution. 
    *  @return possible error code.*/
@@ -267,6 +268,8 @@ private:
   const Uint32 m_magic;
   /** I-value for object maps.*/
   const Uint32 m_id;
+  /** NdbQuery to which this operation belongs. */
+  NdbQueryImpl& m_queryImpl;
   /** The (transaction independent ) definition from which this instance
    * was created.*/
   const NdbQueryOperationDefImpl& m_operationDef;
@@ -276,12 +279,13 @@ private:
   Vector<NdbQueryOperationImpl*> m_parents;
   /** Children of this operation.*/
   Vector<NdbQueryOperationImpl*> m_children;
+
   /** For processing results from this operation.*/
   NdbReceiver m_receiver;
-  /** NdbQuery to which this operation belongs. */
-  NdbQueryImpl& m_queryImpl;
   /** Number of pending TCKEYREF or TRANSID_AI messages for this operation.*/
   int m_pendingResults;
+  /** Buffer for parameters in serialized format */
+  Uint32Buffer m_params;
   /** Projection to be sent to the application.*/
   UserProjection m_userProjection;
   /** NdbRecord and old style result retrieval may not be combined.*/

@@ -191,7 +191,6 @@ NdbQueryOperation::isRowChanged() const
 ///////////////////////////////////////////
 NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans, 
                            const NdbQueryDefImpl& queryDef, 
-                           const void* const param[],
                            NdbQueryImpl* next):
   m_interface(*this),
   m_magic(MAGIC),
@@ -203,8 +202,8 @@ NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans,
    * yields no result.*/
   m_tcKeyConfReceived(false),
   // Initially, only a result from the root is expected.
-  m_pendingOperations(1), 
-  m_param(param),
+  m_pendingOperations(1),
+  m_serializedParams(),
   m_next(next),
   m_ndbOperation(NULL),
   m_queryDef(queryDef)
@@ -245,6 +244,8 @@ NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans,
 
 NdbQueryImpl::~NdbQueryImpl()
 {
+  this->release();
+
   if (m_id != NdbObjectIdMap::InvalidId) {
     m_transaction.getNdb()->theImpl->theNdbObjectIdMap.unmap(m_id, this);
   }
@@ -258,10 +259,9 @@ NdbQueryImpl::~NdbQueryImpl()
 NdbQueryImpl*
 NdbQueryImpl::buildQuery(NdbTransaction& trans, 
                          const NdbQueryDefImpl& queryDef, 
-                         const void* const param[],
                          NdbQueryImpl* next)
 {
-  return new NdbQueryImpl(trans, queryDef, param, next);
+  return new NdbQueryImpl(trans, queryDef, next);
 }
 
 Uint32
@@ -356,10 +356,6 @@ NdbQueryImpl::prepareSend(){
     }
   }
 
-  // Build explicit key/filter/bounds for root operation.
-  m_operations[0]->getQueryOperationDef()
-    .materializeRootOperands(*getNdbOperation(), m_param);
-
 #ifdef TRACE_SERIALIZATION
   ndbout << "Serialized params for all : ";
   for(Uint32 i = 0; i < m_serializedParams.getSize(); i++){
@@ -413,13 +409,14 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(
   m_magic(MAGIC),
   m_id(queryImpl.getNdbTransaction()->getNdb()->theImpl
        ->theNdbObjectIdMap.map(this)),
+  m_queryImpl(queryImpl),
   m_operationDef(def),
   m_parents(def.getNoOfParentOperations()),
   m_children(def.getNoOfChildOperations()),
   m_receiver(queryImpl.getNdbTransaction()->getNdb()),
-  m_queryImpl(queryImpl),
   /* Initially, a result is only expected for the root operation.*/
   m_pendingResults(def.getQueryOperationIx() == 0 ? 1 : 0),
+  m_params(),
   m_userProjection(def.getTable()),
   m_resultStyle(Style_None)
 { 
@@ -642,11 +639,39 @@ NdbQueryOperationImpl::UserProjection::serialize(Uint32Slice dst) const{
   return 0;
 }
 
-#define POS_IN_PARAM(field) \
-(offsetof(QueryNodeParameters, field)/sizeof(Uint32))
+int NdbQueryOperationImpl::serializeParams(const constVoidPtr paramValues[])
+{
+  if (paramValues == NULL)
+  {
+    return QRY_NEED_PARAMETER;
+  }
 
-#define POS_IN_LOOKUP_PARAM(field) \
-(offsetof(QN_LookupParameters, field)/sizeof(Uint32)) 
+  int paramPos = 0;
+  for (Uint32 i=0; i<getQueryOperationDef().getNoOfParameters(); i++)
+  {
+    const NdbParamOperandImpl& param = getQueryOperationDef().getParameter(i);
+    const constVoidPtr paramValue = paramValues[param.getParamIx()];
+    if (paramValue == NULL)  // FIXME: May also indicate a NULL value....
+    {
+      return QRY_NEED_PARAMETER;
+    }
+
+    /**
+     *  Add parameter value to serialized data.
+     *  Each value has a Uint32 length field (in bytes), followed by
+     *  the actuall value. Allocation is in Uint32 units with unused bytes
+     *  zero padded.
+     **/
+    Uint32 len = param.getColumn()->getSize();
+    m_params.get(paramPos++) = len;  // paramValue length in #bytes
+    paramPos += m_params.append(paramValue,len);
+
+    if(unlikely(m_params.isMaxSizeExceeded())){
+      return QRY_DEFINITION_TOO_LARGE; // Query definition too large.
+    }
+  }
+  return 0;
+}
 
 
 int NdbQueryOperationImpl::prepareSend(Uint32Buffer& serializedParams)
@@ -657,46 +682,33 @@ int NdbQueryOperationImpl::prepareSend(Uint32Buffer& serializedParams)
                        opType == NdbQueryOperationDefImpl::OrderedIndexScan);
 
   m_receiver.prepareSend();
-  Uint32Slice lookupParams(serializedParams, serializedParams.getSize());
-  Uint32 requestInfo = 0;
-  lookupParams.get(POS_IN_PARAM(requestInfo)) = 0;
-  lookupParams.get(POS_IN_PARAM(resultData)) = m_id;
-  Uint32Slice optional(lookupParams, POS_IN_LOOKUP_PARAM(optional));
-
-  int optPos = 0;
-
-  //printf("operation has %d params\n", getQueryOperationDef().getNoOfParameters());
+  Uint32Slice lookupParams(serializedParams);
+  QN_LookupParameters& param = reinterpret_cast<QN_LookupParameters&>
+    (lookupParams.get(0, QN_LookupParameters::NodeSize));
+  param.len = 0;  // Temp value, fixup later
+  param.requestInfo = 0;
+  param.resultData = m_id;
 
   // SPJ block assume PARAMS to be supplied before ATTR_LIST
   if (getQueryOperationDef().getNoOfParameters() > 0)
   {
-    int size = 0;
-    requestInfo |= DABits::PI_KEY_PARAMS;
-    Uint32Slice keyParam(optional, optPos);
-
-    // FIXME: Add parameters here, unsure about the serialized format yet
-    for (Uint32 i=0; i<getQueryOperationDef().getNoOfParameters(); i++)
-    {
-      const NdbParamOperandImpl& param = getQueryOperationDef().getParameter(i);
-      const void* paramValue = getQuery().getParamValue(param.getParamIx());
-      assert (paramValue != NULL);
-    }
-    optPos += size;
+    // parameter values has been serialized as part of ::buildQuery()
+    // Only need to append it to rest of the serialized arguments
+    param.requestInfo |= DABits::PI_KEY_PARAMS;
+    serializedParams.append(m_params);    
   }
 
   if (true)
   {
-    requestInfo |= DABits::PI_ATTR_LIST;
-
-    const int error = m_userProjection.serialize(Uint32Slice(optional, optPos));
-    if(error!=0){
+    param.requestInfo |= DABits::PI_ATTR_LIST;
+    const int error = m_userProjection.serialize(Uint32Slice(serializedParams));
+    if(error!=0) {
       return error;
     }
   }
-  lookupParams.get(POS_IN_PARAM(requestInfo)) = requestInfo;
 
-  // TODO: Implement for scans as well.
-  QueryNodeParameters::setOpLen(lookupParams.get(POS_IN_PARAM(len)),
+  QueryNodeParameters::setOpLen(param.len,
+				//lookupParams.get(POS_IN_PARAM(len)),
 				isScan 
                                   ?QueryNodeParameters::QN_SCAN_FRAG
                                   :QueryNodeParameters::QN_LOOKUP,
@@ -705,6 +717,7 @@ int NdbQueryOperationImpl::prepareSend(Uint32Buffer& serializedParams)
   if(unlikely(lookupParams.isMaxSizeExceeded())){
     return QRY_DEFINITION_TOO_LARGE; // Query definition too large.
   }
+
 #ifdef TRACE_SERIALIZATION
   ndbout << "Serialized params for node " 
 	 << m_operationDef.getQueryOperationIx() << " : ";
