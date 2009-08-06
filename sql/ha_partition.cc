@@ -3730,7 +3730,7 @@ int ha_partition::index_init(uint inx, bool sorted)
   */
   if (m_lock_type == F_WRLCK)
     bitmap_union(table->read_set, &m_part_info->full_part_field_set);
-  else if (sorted)
+  if (sorted)
   {
     /*
       An ordered scan is requested. We must make sure all fields of the 
