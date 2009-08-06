@@ -4598,7 +4598,6 @@ bool Field_double::send_binary(Protocol *protocol)
 
 int Field_double::cmp(const uchar *a_ptr, const uchar *b_ptr)
 {
-  ASSERT_COLUMN_MARKED_FOR_READ;
   double a,b;
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
