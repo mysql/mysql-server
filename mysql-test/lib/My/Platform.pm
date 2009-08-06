@@ -106,10 +106,13 @@ sub check_socket_path_length {
   my ($path)= @_;
 
   return 0 if IS_WINDOWS;
+  # This may not be true, but we can't test for it on AIX due to Perl bug
+  # See Bug #45771
+  return 0 if ($^O eq 'aix');
 
   require IO::Socket::UNIX;
 
-  my $truncated= 1; # Be negative
+  my $truncated= undef;
 
   # Create a tempfile name with same length as "path"
   my $tmpdir = tempdir( CLEANUP => 0);
@@ -122,32 +125,20 @@ sub check_socket_path_length {
        Local => $testfile,
        Listen => 1,
       );
+    $truncated= 1; # Be negatvie
 
     die "Could not create UNIX domain socket: $!"
       unless defined $sock;
 
-    my $hostpath = eval {$sock->hostpath()};
-    if ($@) {
-      die unless $@ =~ /^Bad arg length for Socket::unpack_sockaddr_un/;
-
-      # Bug on AIX and i5/OS Perl IO::Socket::UNIX which dies with something
-      # like:
-      #   Bad arg length for Socket::unpack_sockaddr_un, length is 25,
-      #   should be 106 at /path/to/perl/lib/5.8.0/aix/Socket.pm line 380.
-      #
-      # Just fake it that everything is fine
-      $hostpath = $testfile;
-    }
-
     die "UNIX domain socket path was truncated"
-      unless ($testfile eq $hostpath);
+      unless ($testfile eq $sock->hostpath());
 
     $truncated= 0; # Yes, it worked!
 
   };
 
   die "Unexpected failure when checking socket path length: $@"
-    if $@ and $@ !~ /^UNIX domain socket path was truncated/;
+    if $@ and not defined $truncated;
 
   $sock= undef;  # Close socket
   rmtree($tmpdir); # Remove the tempdir and any socket file created
