@@ -378,7 +378,7 @@ buf_read_page(
 Applies linear read-ahead if in the buf_pool the page is a border page of
 a linear read-ahead area and all the pages in the area have been accessed.
 Does not read any page if the read-ahead mechanism is not activated. Note
-that the the algorithm looks at the 'natural' adjacent successor and
+that the algorithm looks at the 'natural' adjacent successor and
 predecessor of the page, which on the leaf level of a B-tree are the next
 and previous page in the chain of leaves. To know these, the page specified
 in (space, offset) must already be present in the buf_pool. Thus, the
