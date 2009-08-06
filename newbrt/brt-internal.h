@@ -148,6 +148,7 @@ struct remembered_hash {
 
 enum brtheader_type {BRTHEADER_CURRENT=1, BRTHEADER_CHECKPOINT_INPROGRESS};
 
+// brt_header is always the current version.
 struct brt_header {
     enum brtheader_type type;
     struct brt_header * checkpoint_header;
@@ -176,6 +177,10 @@ struct brt_header {
     struct list live_brts;
     struct list zombie_brts;
 };
+
+typedef struct brt_header brt_header_10;
+
+typedef struct brt_header brt_header_11;
 
 struct brt {
     CACHEFILE cf;

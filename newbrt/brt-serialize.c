@@ -4,6 +4,9 @@
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #include "includes.h"
+#include "backwards_10.h"
+
+// NOTE: The backwards compatability functions are in a file that is included at the END of this file.
 
 #if 0
 static u_int64_t ntohll(u_int64_t v) {
@@ -1198,6 +1201,7 @@ deserialize_descriptor_from(int fd, struct brt_header *h, struct descriptor *des
     }
 }
 
+
 // We only deserialize brt header once and then share everything with all the brts.
 static int
 deserialize_brtheader (int fd, struct rbuf *rb, struct brt_header **brth) {
@@ -1282,9 +1286,48 @@ deserialize_brtheader (int fd, struct rbuf *rb, struct brt_header **brth) {
     return 0;
 }
 
+
+
+//TODO: When version 12 exists, add case for version 11 that looks like version 10 case,
+// but calls deserialize_brtheader_11() and upgrade_11_12()
+static int
+deserialize_brtheader_versioned (int fd, struct rbuf *rb, struct brt_header **brth, u_int32_t version) {
+    int rval;
+    brt_header_10 *brth_10 = NULL;
+    brt_header_11 *brth_11 = NULL;
+    int upgrade = 0;
+
+    switch(version) {
+    case BRT_LAYOUT_VERSION_10:
+	if (!upgrade)
+	    rval = deserialize_brtheader_10(fd, rb, &brth_10);
+	upgrade++;
+	if (rval == 0) 
+	    rval = upgrade_brtheader_10_11(&brth_10, &brth_11);
+    case BRT_LAYOUT_VERSION:
+	if (!upgrade)
+	    rval = deserialize_brtheader (fd, rb, &brth_11);
+	if (rval == 0) {
+	    assert(brth_11);
+	    *brth = brth_11;
+	}
+	if (upgrade && rval == 0) (*brth)->dirty = 1;
+	break;    // this is the only break
+    default:
+	assert(FALSE);
+    }
+    if (rval == 0)
+	assert((*brth)->layout_version == BRT_LAYOUT_VERSION);
+    return rval;
+}
+
+
+
+// Simply reading the raw bytes of the header into an rbuf is insensitive to disk format version.  
+// If that ever changes, then modify this.
 //TOKUDB_DICTIONARY_NO_HEADER means we can overwrite everything in the file AND the header is useless
 static int
-deserialize_brtheader_from_fd_into_rbuf(int fd, toku_off_t offset, struct rbuf *rb, u_int64_t *checkpoint_count) {
+deserialize_brtheader_from_fd_into_rbuf(int fd, toku_off_t offset, struct rbuf *rb, u_int64_t *checkpoint_count, u_int32_t * version_p) {
     int r = 0;
     const int64_t prefix_size = 8 + // magic ("tokudata")
                                 4 + // version
@@ -1312,6 +1355,7 @@ deserialize_brtheader_from_fd_into_rbuf(int fd, toku_off_t offset, struct rbuf *
         if (r==0) {
             //Version MUST be in network order regardless of disk order.
             version = rbuf_network_int(rb);
+	    *version_p = version;
             if (version < BRT_LAYOUT_MIN_SUPPORTED_VERSION) r = TOKUDB_DICTIONARY_TOO_OLD; //Cannot use
             if (version > BRT_LAYOUT_VERSION) r = TOKUDB_DICTIONARY_TOO_NEW; //Cannot use
         }
@@ -1372,32 +1416,42 @@ deserialize_brtheader_from_fd_into_rbuf(int fd, toku_off_t offset, struct rbuf *
     return r;
 }
 
-//TODO:
-// * read in whole thing, do checksum
-// * switch to using rbuf
-// * read in size, version, LSN and checkpoint count (pre)
-// * read in LSN and checkpoint count  to save in header object
-int toku_deserialize_brtheader_from (int fd, struct brt_header **brth) {
+
+// Read brtheader from file into struct.  Read both headers and use the latest one.
+int 
+toku_deserialize_brtheader_from (int fd, struct brt_header **brth) {
     struct rbuf rb_0;
     struct rbuf rb_1;
     u_int64_t checkpoint_count_0;
     u_int64_t checkpoint_count_1;
     int r0;
     int r1;
+    u_int32_t version_0, version_1, version = 0;
+
     {
         toku_off_t header_0_off = 0;
-        r0 = deserialize_brtheader_from_fd_into_rbuf(fd, header_0_off, &rb_0, &checkpoint_count_0);
+        r0 = deserialize_brtheader_from_fd_into_rbuf(fd, header_0_off, &rb_0, &checkpoint_count_0, &version_0);
     }
     {
         toku_off_t header_1_off = BLOCK_ALLOCATOR_HEADER_RESERVE;
-        r1 = deserialize_brtheader_from_fd_into_rbuf(fd, header_1_off, &rb_1, &checkpoint_count_1);
+        r1 = deserialize_brtheader_from_fd_into_rbuf(fd, header_1_off, &rb_1, &checkpoint_count_1, &version_1);
     }
     struct rbuf *rb = NULL;
     
     if (r0!=TOKUDB_DICTIONARY_TOO_NEW && r1!=TOKUDB_DICTIONARY_TOO_NEW) {
-        if (r0==0) rb = &rb_0;
-        if (r1==0 && (r0!=0 || checkpoint_count_1 > checkpoint_count_0)) rb = &rb_1;
-        if (r0==0 && r1==0) assert(checkpoint_count_1 != checkpoint_count_0);
+        if (r0==0) {
+	    rb = &rb_0;
+	    version = version_0;
+	}
+        if (r1==0 && (r0!=0 || checkpoint_count_1 > checkpoint_count_0)) {
+	    rb = &rb_1;
+	    version = version_1;
+	}
+        if (r0==0 && r1==0) {
+	    assert(checkpoint_count_1 != checkpoint_count_0);
+	    if (rb == &rb_0) assert(version_0 >= version_1);
+	    else assert(version_0 <= version_1);
+	}
     }
     int r = 0;
     if (rb==NULL) {
@@ -1415,7 +1469,7 @@ int toku_deserialize_brtheader_from (int fd, struct brt_header **brth) {
         assert(r!=0);
     }
 
-    if (r==0) r = deserialize_brtheader(fd, rb, brth);
+    if (r==0) r = deserialize_brtheader_versioned(fd, rb, brth, version);
     if (rb_0.buf) toku_free(rb_0.buf);
     if (rb_1.buf) toku_free(rb_1.buf);
     return r;
@@ -1462,3 +1516,6 @@ read_u_int64_t (int fd, toku_off_t *at, u_int64_t *result) {
 int toku_db_badformat(void) {
     return DB_BADFORMAT;
 }
+
+// NOTE: Backwards compatibility functions are in the included .c file(s):
+#include "backwards_10.c"
