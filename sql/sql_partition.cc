@@ -6077,6 +6077,9 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
   lpt->pack_frm_len= 0;
   thd->work_part_info= part_info;
 
+  /* Never update timestamp columns when alter */
+  table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
+
   if (fast_alter_partition & HA_PARTITION_ONE_PHASE)
   {
     /*

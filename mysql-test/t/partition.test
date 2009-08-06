@@ -15,6 +15,31 @@ drop table if exists t1, t2;
 --enable_warnings
 
 #
+# Bug#46478: timestamp field incorrectly defaulted when partition is reorganized
+#
+CREATE TABLE t1 (
+  a timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  b varchar(10),
+  PRIMARY KEY (a)
+)
+PARTITION BY RANGE (to_days(a)) (
+ PARTITION p1 VALUES LESS THAN (733407),
+ PARTITION pmax VALUES LESS THAN MAXVALUE
+);
+
+INSERT INTO t1 VALUES ('2007-07-30 17:35:48', 'p1');
+INSERT INTO t1 VALUES ('2009-07-14 17:35:55', 'pmax');
+INSERT INTO t1 VALUES ('2009-09-21 17:31:42', 'pmax');
+
+SELECT * FROM t1;
+ALTER TABLE t1 REORGANIZE PARTITION pmax INTO (
+ PARTITION p3 VALUES LESS THAN (733969),
+ PARTITION pmax VALUES LESS THAN MAXVALUE);
+SELECT * FROM t1;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+#
 # Bug#36001: Partitions: spelling and using some error messages
 #
 --error ER_FOREIGN_KEY_ON_PARTITIONED
