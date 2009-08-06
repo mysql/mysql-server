@@ -421,6 +421,7 @@ public:
     int delete_all_rows();
     void extract_hidden_primary_key(uint keynr, DBT const *row, DBT const *found_key);
     void read_key_only(uchar * buf, uint keynr, DBT const *row, DBT const *found_key);
+    void read_row_callback (uchar * buf, uint keynr, DBT const *row, DBT const *found_key);
     int read_primary_key(uchar * buf, uint keynr, DBT const *row, DBT const *found_key);
     int read_row(uchar * buf, uint keynr, DBT const *row, DBT const *found_key);
     int unpack_blobs(
