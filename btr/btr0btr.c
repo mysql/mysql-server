@@ -797,7 +797,7 @@ btr_create(
 		buf_block_dbg_add_level(block, SYNC_TREE_NODE_NEW);
 	}
 
-	/* Create a new index page on the the allocated segment page */
+	/* Create a new index page on the allocated segment page */
 	page_zip = buf_block_get_page_zip(block);
 
 	if (UNIV_LIKELY_NULL(page_zip)) {
@@ -1902,7 +1902,7 @@ func_start:
 				n_uniq, &heap);
 
 			/* If the new record is less than the existing record
-			the the split in the middle will copy the existing
+			the split in the middle will copy the existing
 			record to the new node. */
 			if (cmp_dtuple_rec(tuple, first_rec, offsets) < 0) {
 				split_rec = page_get_middle_rec(page);

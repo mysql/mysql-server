@@ -614,7 +614,7 @@ future, but at the moment we plan to implement a more coarse solution,
 which could be called a global priority inheritance. If a thread
 has to wait for a long time, say 300 milliseconds, for a resource,
 we just guess that it may be waiting for a resource owned by a background
-thread, and boost the the priority of all runnable background threads
+thread, and boost the priority of all runnable background threads
 to the normal level. The background threads then themselves adjust
 their fixed priority back to background after releasing all resources
 they had (or, at some fixed points in their program code).

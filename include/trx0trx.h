@@ -360,7 +360,7 @@ enum trx_dict_op {
 	operation modes in crash recovery. */
 	TRX_DICT_OP_TABLE = 1,
 	/** The transaction is creating or dropping an index in an
-	existing table.  In crash recovery, the the data dictionary
+	existing table.  In crash recovery, the data dictionary
 	must be locked, but the table must not be dropped. */
 	TRX_DICT_OP_INDEX = 2
 };

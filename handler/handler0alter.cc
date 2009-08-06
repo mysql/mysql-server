@@ -802,7 +802,7 @@ error_handling:
 	alter table t drop index b, add index (b);
 
 	The fix will have to parse the SQL and note that the index
-	being added has the same name as the the one being dropped and
+	being added has the same name as the one being dropped and
 	ignore that in the dup index check.*/
 	//dict_table_check_for_dup_indexes(prebuilt->table);
 #endif
