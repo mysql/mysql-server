@@ -12532,15 +12532,18 @@ int ha_ndbcluster::alter_table_phase1(THD *thd,
      }
   }
 
-  if (alter_flags->is_set(HA_ALTER_TABLE_REORG))
+  if (alter_flags->is_set(HA_ALTER_TABLE_REORG) || alter_flags->is_set(HA_ADD_PARTITION))
   {
-    new_tab->setFragmentCount(0);    
-    new_tab->setFragmentData(0, 0);
-  }
-  else if (alter_flags->is_set(HA_ADD_PARTITION))
-  {
-    partition_info *part_info= table->part_info;
-    new_tab->setFragmentCount(part_info->no_parts);
+    if (alter_flags->is_set(HA_ALTER_TABLE_REORG))
+    {
+      new_tab->setFragmentCount(0);
+      new_tab->setFragmentData(0, 0);
+    }
+    else if (alter_flags->is_set(HA_ADD_PARTITION))
+    {
+      partition_info *part_info= table->part_info;
+      new_tab->setFragmentCount(part_info->no_parts);
+    }
 
     int res= dict->prepareHashMap(*old_tab, *new_tab);
     if (res == -1)

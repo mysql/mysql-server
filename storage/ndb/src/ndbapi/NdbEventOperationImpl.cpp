@@ -2151,7 +2151,7 @@ NdbEventBuffer::handle_change_nodegroup(const SubGcpCompleteRep* rep)
 
     if (found == 0)
     {
-      ndbout_c(" - NOT FOUND");
+      ndbout_c(" - NOT FOUND (total: %u cnt: %u)", m_total_buckets, cnt);
       return;
     }
 

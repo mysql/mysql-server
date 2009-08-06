@@ -4557,6 +4557,20 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
 
     tabRequire(hm_ptr.p->m_object_version ==  tablePtr.p->hashMapVersion,
                CreateTableRef::InvalidHashMap);
+
+    Ptr<Hash2FragmentMap> mapptr;
+    g_hash_map.getPtr(mapptr, hm_ptr.p->m_map_ptr_i);
+
+    if (tablePtr.p->fragmentCount == 0)
+    {
+      jam();
+      tablePtr.p->fragmentCount = mapptr.p->m_fragments;
+    }
+    else
+    {
+      tabRequire(mapptr.p->m_fragments == tablePtr.p->fragmentCount,
+                 CreateTableRef::InvalidHashMap);
+    }
   }
   
   {
