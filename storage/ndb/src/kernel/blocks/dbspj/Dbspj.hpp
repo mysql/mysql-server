@@ -464,7 +464,7 @@ private:
    * Misc
    */
   Uint32 buildRowHeader(RowRef::Header *, SegmentedSectionPtr);
-  Uint32 buildRowHeader(RowRef::Header *, const Uint32 * src, Uint32 len);
+  Uint32 buildRowHeader(RowRef::Header *, const Uint32 *& src, Uint32 len);
   Uint32 getColData32(const RowRef::Section&, Uint32 colNo);
   Uint32 appendToPattern(Local_pattern_store &, DABuffer & tree, Uint32);
   Uint32 appendColToPattern(Local_pattern_store&,const RowRef::Linear&, Uint32);

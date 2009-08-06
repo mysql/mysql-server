@@ -591,6 +591,9 @@ NdbTransaction::executeNoBlobs(NdbTransaction::ExecType aTypeOfExec,
     }
   }
   thePendingBlobOps = 0;
+  if (theReturnStatus == ReturnFailure) {
+    DBUG_RETURN(-1);
+  }//if
   DBUG_RETURN(0);
 }//NdbTransaction::execute()
 
@@ -636,8 +639,9 @@ NdbTransaction::executeAsynchPrepare(NdbTransaction::ExecType aTypeOfExec,
   while(query!=NULL){
     const int retVal = query->prepareSend();
     if (retVal != 0) {
-      theError.code = retVal;
-      theSendStatus = sendABORTfail;
+      setErrorCode(retVal);
+      //theSendStatus = sendABORTfail;
+      theReturnStatus = ReturnFailure;
       DBUG_VOID_RETURN;
     }
     query = query->getNext();
@@ -2776,18 +2780,40 @@ NdbTransaction::report_node_failure(Uint32 id){
 
 NdbQuery*
 NdbTransaction::createQuery(const NdbQueryDef* def,
-			    const void* const param[],
+			    const void* const paramValues[],
 			    NdbOperation::LockMode lock_mode)
 {
+  NdbQueryDefImpl& queryDef = def->getImpl();
   NdbQueryImpl* query 
-    = NdbQueryImpl::buildQuery(*this, def->getImpl(), param, m_firstQuery);
-  if(query!=NULL)
-  {
-    m_firstQuery = query;
-    return &query->getInterface();
-  }
-  else
-  {
+    = NdbQueryImpl::buildQuery(*this, queryDef, m_firstQuery);
+
+  if (query == NULL) {
+    setErrorCode(4000);
     return NULL;
   }
+
+  m_firstQuery = query;
+
+  /**
+   * Immediately build the serialize parameter representation in order 
+   * to avoid storing param values elsewhere until query is executed.
+   */
+  for (Uint32 i=0; i<query->getNoOfOperations(); ++i)
+  {
+    if (queryDef.getQueryOperation(i).getNoOfParameters() > 0)
+    {
+      int err = query->getQueryOperation(i).serializeParams(paramValues);
+      if (unlikely(err != 0)) {
+        setErrorCode(err);
+        query->close(false,true);
+        return NULL;
+      }
+    }
+  }
+
+  // Build explicit key/filter/bounds for root operation, possibly refering paramValues
+  Uint32 root = 0;
+  queryDef.getQueryOperation(root).materializeRootOperands(*query->getNdbOperation(), paramValues);
+
+  return &query->getInterface();
 }
