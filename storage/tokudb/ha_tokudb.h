@@ -111,11 +111,6 @@ private:
     //
     DBT last_key;
     //
-    // current row pointed to by ha_tokudb's cursor
-    // TODO: make sure current_row gets set properly
-    //
-    DBT current_row;
-    //
     // pointer used for multi_alloc of key_buff, key_buff2, primary_key_buff
     //
     void *alloc_ptr;
