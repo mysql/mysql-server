@@ -45,7 +45,7 @@ Created 2/2/1994 Heikki Tuuri
 			==============
 
 The index page consists of a page header which contains the page's
-id and other information. On top of it are the the index records
+id and other information. On top of it are the index records
 in a heap linked into a one way linear list according to alphabetic order.
 
 Just below page end is an array of pointers which we call page directory,

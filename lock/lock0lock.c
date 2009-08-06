@@ -214,7 +214,7 @@ a waiting s-lock request on the next record? If this s-lock was placed
 by a read cursor moving in the ascending order in the index, we cannot
 do the insert immediately, because when we finally commit our transaction,
 the read cursor should see also the new inserted record. So we should
-move the read cursor backward from the the next record for it to pass over
+move the read cursor backward from the next record for it to pass over
 the new inserted record. This move backward may be too cumbersome to
 implement. If we in this situation just enqueue a second x-lock request
 for our transaction on the next record, then the deadlock mechanism
