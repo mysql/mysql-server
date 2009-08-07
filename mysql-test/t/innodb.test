@@ -15,6 +15,8 @@
 
 -- source include/have_innodb.inc
 
+let $MYSQLD_DATADIR= `select @@datadir`;
+
 # Save the original values of some variables in order to be able to
 # estimate how much they have changed during the tests. Previously this
 # test assumed that e.g. rows_deleted is 0 here and after deleting 23
@@ -1149,7 +1151,7 @@ show create table t2;
 create index id2 on t2 (id);
 show create table t2;
 drop index id2 on t2;
---error 1025,1025
+--error ER_DROP_INDEX_FK
 drop index id on t2;
 show create table t2;
 drop table t2;
@@ -1185,8 +1187,6 @@ drop table t2;
 
 # Test error handling
 
-# Embedded server doesn't chdir to data directory
---replace_result $MYSQLTEST_VARDIR . mysqld.1/data/ ''
 --error ER_WRONG_FK_DEF
 create table t2 (id int(11) not null, id2 int(11) not null, constraint t1_id_fk foreign key (id2,id) references t1 (id)) engine = innodb;
 
@@ -1317,6 +1317,8 @@ drop table t1;
 
 # Test for testable InnoDB status variables. This test
 # uses previous ones(pages_created, rows_deleted, ...).
+# We get one of 4095 or 4096 randomly
+--replace_result 4096 4095
 SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_total';
 SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_page_size';
 SELECT variable_value - @innodb_rows_deleted_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_deleted';
@@ -1331,6 +1333,7 @@ SELECT variable_value - @innodb_row_lock_time_max_orig FROM information_schema.g
 SELECT variable_value - @innodb_row_lock_time_avg_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_time_avg';
 
 # Test for innodb_sync_spin_loops variable
+SET @innodb_sync_spin_loops_orig = @@innodb_sync_spin_loops;
 show variables like "innodb_sync_spin_loops";
 set global innodb_sync_spin_loops=1000;
 show variables like "innodb_sync_spin_loops";
@@ -1338,6 +1341,7 @@ set global innodb_sync_spin_loops=0;
 show variables like "innodb_sync_spin_loops";
 set global innodb_sync_spin_loops=20;
 show variables like "innodb_sync_spin_loops";
+set global innodb_sync_spin_loops=@innodb_sync_spin_loops_orig;
 
 # Test for innodb_thread_concurrency variable
 SET @old_innodb_thread_concurrency= @@global.innodb_thread_concurrency;
@@ -1380,8 +1384,6 @@ source include/varchar.inc;
 # Some errors/warnings on create
 #
 
-# Embedded server doesn't chdir to data directory
---replace_result $MYSQLTEST_VARDIR . mysqld.1/data/ ''
 create table t1 (v varchar(65530), key(v));
 drop table t1;
 create table t1 (v varchar(65536));
@@ -1655,8 +1657,6 @@ disconnect b;
 
 set foreign_key_checks=0;
 create table t2 (a int primary key, b int, foreign key (b) references t1(a)) engine = innodb;
-# Embedded server doesn't chdir to data directory
---replace_result $MYSQLTEST_VARDIR . mysqld.1/data/ ''
 -- error 1005
 create table t1(a char(10) primary key, b varchar(20)) engine = innodb;
 set foreign_key_checks=1;
@@ -1667,8 +1667,6 @@ drop table t2;
 
 set foreign_key_checks=0;
 create table t1(a varchar(10) primary key) engine = innodb DEFAULT CHARSET=latin1;
-# Embedded server doesn't chdir to data directory
---replace_result $MYSQLTEST_VARDIR . mysqld.1/data/ ''
 -- error 1005
 create table t2 (a varchar(10), foreign key (a) references t1(a)) engine = innodb DEFAULT CHARSET=utf8;
 set foreign_key_checks=1;
@@ -1698,8 +1696,7 @@ drop table t2,t1;
 set foreign_key_checks=0;
 create table t2 (a varchar(10), foreign key (a) references t1(a)) engine = innodb DEFAULT CHARSET=latin1;
 create table t3(a varchar(10) primary key) engine = innodb DEFAULT CHARSET=utf8;
-# Embedded server doesn't chdir to data directory
---replace_result $MYSQLTEST_VARDIR . mysqld.1/data/ ''
+--replace_result $MYSQLD_DATADIR ./
 -- error 1025
 rename table t3 to t1;
 set foreign_key_checks=1;
@@ -2338,8 +2335,7 @@ INSERT INTO t2 VALUES (1);
 ALTER TABLE t2 ADD FOREIGN KEY (a) REFERENCES t1 (a) ON DELETE SET NULL;
 # mysqltest first does replace_regex, then replace_result
 --replace_regex /'[^']*test\/#sql-[0-9a-f_]*'/'#sql-temporary'/
-# Embedded server doesn't chdir to data directory
---replace_result $MYSQLTEST_VARDIR . mysqld.1/data/ ''
+--replace_result $MYSQLD_DATADIR ./
 --error 1025
 ALTER TABLE t2 MODIFY a INT NOT NULL;
 DELETE FROM t1;
@@ -2380,6 +2376,7 @@ DROP TABLE t1,t2;
 #
 # Bug #21101 (Prints wrong error message if max row size is too large)
 #
+set innodb_strict_mode=on;
 --error 1118
 CREATE TABLE t1 (
 	c01 CHAR(255), c02 CHAR(255), c03 CHAR(255), c04 CHAR(255),
@@ -2548,6 +2545,8 @@ DISCONNECT c1;
 CONNECTION default;
 
 SET GLOBAL innodb_thread_concurrency = @innodb_thread_concurrency_orig;
+
+-- enable_query_log
 
 #######################################################################
 #                                                                     #

@@ -478,3 +478,23 @@ INSERT INTO t2 SELECT c1 FROM t1;
 INSERT INTO t2 SELECT NULL FROM t1;
 DROP TABLE t1;
 DROP TABLE t2;
+#
+# BUG#44030: Error: (1500) Couldn't read the MAX(ID) autoinc value from
+# the index (PRIMARY)
+# This test requires a restart of the server
+CREATE TABLE t1 (c1 INT PRIMARY KEY AUTO_INCREMENT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (null);
+INSERT INTO t1 VALUES (null);
+ALTER TABLE t1 CHANGE c1 d1 INT NOT NULL AUTO_INCREMENT;
+SELECT * FROM t1;
+# Restart the server
+-- source include/restart_mysqld.inc
+# The MySQL and InnoDB data dictionaries should now be out of sync.
+# The select should print message to the error log
+SELECT * FROM t1;
+-- error ER_AUTOINC_READ_FAILED,1467
+INSERT INTO t1 VALUES(null);
+ALTER TABLE t1 AUTO_INCREMENT = 3;
+INSERT INTO t1 VALUES(null);
+SELECT * FROM t1;
+DROP TABLE t1;

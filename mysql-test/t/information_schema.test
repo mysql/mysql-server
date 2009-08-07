@@ -44,8 +44,7 @@ insert into t5 values (10);
 create view v1 (c) as
  SELECT table_name FROM information_schema.TABLES
   WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test', 'mysqltest') AND
-        table_name<>'ndb_binlog_index' AND
-        table_name<>'ndb_apply_status';
+        table_name not like 'ndb_%' AND table_name not like 'innodb_%';
 select * from v1;
 
 select c,table_name from v1
@@ -491,7 +490,7 @@ select table_schema,table_name, column_name from
 information_schema.columns
 where data_type = 'longtext';
 select table_name, column_name, data_type from information_schema.columns
-where data_type = 'datetime';
+where data_type = 'datetime' and table_name not like 'innodb_%';
 
 #
 # Bug#8164 subquery with INFORMATION_SCHEMA.COLUMNS, 100 % CPU
@@ -539,7 +538,10 @@ flush privileges;
 # Bug#9404 information_schema: Weird error messages
 # with SELECT SUM() ... GROUP BY queries
 #
-SELECT table_schema, count(*) FROM information_schema.TABLES WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test', 'mysqltest') AND table_name<>'ndb_binlog_index' AND table_name<>'ndb_apply_status' GROUP BY TABLE_SCHEMA;
+SELECT table_schema, count(*) FROM information_schema.TABLES WHERE
+table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test', 'mysqltest')
+AND table_name not like 'ndb%' AND table_name not like 'innodb_%'
+GROUP BY TABLE_SCHEMA;
 
 
 #
@@ -928,7 +930,8 @@ SELECT t.table_name, c1.column_name
             WHERE c2.table_schema = t.table_schema AND
                   c2.table_name = t.table_name AND
                   c2.column_name LIKE '%SCHEMA%'
-        );
+        )
+        AND t.table_name not like 'innodb_%';
 SELECT t.table_name, c1.column_name
   FROM information_schema.tables t
        INNER JOIN
@@ -942,7 +945,8 @@ SELECT t.table_name, c1.column_name
             WHERE c2.table_schema = 'information_schema' AND
                   c2.table_name = t.table_name AND
                   c2.column_name LIKE '%SCHEMA%'
-        );
+        )
+        AND t.table_name not like 'innodb_%';
 
 #
 # Bug#2123 query with a simple non-correlated subquery over
@@ -1041,6 +1045,7 @@ where t.table_schema = 'information_schema' and
          c2.table_schema='information_schema' and
          (c2.column_type = 'varchar(7)' or c2.column_type = 'varchar(20)')
           group by c2.column_type order by num limit 1)
+        and t.table_name not like 'innodb_%'
 group by t.table_name order by num1, t.table_name;
 
 #

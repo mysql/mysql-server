@@ -105,7 +105,13 @@ drop table t1;
 --error ER_TOO_BIG_ROWSIZE
 CREATE TABLE t1(c TEXT, PRIMARY KEY (c(440)))
 ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1 CHARSET=ASCII;
-CREATE TABLE t1(c TEXT, PRIMARY KEY (c(439)))
+# 439 throws error with certain system zlib (ubuntu "intrepid")
+# but not with zlib bundled with MySQL, because zlib's compressBound()
+# are different (and used by InnoDB's page_zip_empty_size()); see
+# http://www.linux-archive.org/archlinux-development/119356-zlib-1-2-3-3-1-a.html
+# "Fix compressBound(), was low for some pathological cases [Fearnley]".
+# 438 works with both zlib-s.
+CREATE TABLE t1(c TEXT, PRIMARY KEY (c(438)))
 ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1 CHARSET=ASCII;
 INSERT INTO t1 VALUES(REPEAT('A',512)),(REPEAT('B',512));
 DROP TABLE t1;

@@ -1508,7 +1508,7 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop index id2 on t2;
 drop index id on t2;
-Got one of the listed errors
+ERROR HY000: Cannot drop index 'id': needed in a foreign key constraint
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -1738,7 +1738,7 @@ count(*)
 drop table t1;
 SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_total';
 variable_value
-4096
+4095
 SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_page_size';
 variable_value
 16384
@@ -1766,9 +1766,10 @@ variable_value - @innodb_row_lock_time_max_orig
 SELECT variable_value - @innodb_row_lock_time_avg_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_time_avg';
 variable_value - @innodb_row_lock_time_avg_orig
 0
+SET @innodb_sync_spin_loops_orig = @@innodb_sync_spin_loops;
 show variables like "innodb_sync_spin_loops";
 Variable_name	Value
-innodb_sync_spin_loops	20
+innodb_sync_spin_loops	30
 set global innodb_sync_spin_loops=1000;
 show variables like "innodb_sync_spin_loops";
 Variable_name	Value
@@ -1781,6 +1782,7 @@ set global innodb_sync_spin_loops=20;
 show variables like "innodb_sync_spin_loops";
 Variable_name	Value
 innodb_sync_spin_loops	20
+set global innodb_sync_spin_loops=@innodb_sync_spin_loops_orig;
 SET @old_innodb_thread_concurrency= @@global.innodb_thread_concurrency;
 show variables like "innodb_thread_concurrency";
 Variable_name	Value
@@ -1970,7 +1972,7 @@ explain select count(*) from t1 where v between 'a' and 'a ' and v between 'a  '
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	v	v	13	const	#	Using where; Using index
 alter table t1 add unique(v);
-ERROR 23000: Duplicate entry '{ ' for key 'v_2'
+ERROR 23000: Duplicate entry 'v' for key 'v_2'
 alter table t1 add key(v);
 select concat('*',v,'*',c,'*',t,'*') as qq from t1 where v='a';
 qq
@@ -2377,6 +2379,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 (v varchar(10), c char(10)) row_format=fixed;
+Warnings:
+Warning	1478	InnoDB: assuming ROW_FORMAT=COMPACT.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -3190,6 +3194,7 @@ t1	CREATE TABLE `t1` (
   CONSTRAINT `t1_t2` FOREIGN KEY (`id`) REFERENCES `t2` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=349 DEFAULT CHARSET=latin1
 DROP TABLE t1,t2;
+set innodb_strict_mode=on;
 CREATE TABLE t1 (
 c01 CHAR(255), c02 CHAR(255), c03 CHAR(255), c04 CHAR(255),
 c05 CHAR(255), c06 CHAR(255), c07 CHAR(255), c08 CHAR(255),
