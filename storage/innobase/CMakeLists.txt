@@ -23,9 +23,9 @@ IF (CMAKE_SIZEOF_VOID_P MATCHES 8)
 	SET(WIN64 TRUE)
 ENDIF (CMAKE_SIZEOF_VOID_P MATCHES 8)
 
-# Include directories under innodb_plugin
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/innodb_plugin/include
-		    ${CMAKE_SOURCE_DIR}/storage/innodfb_plugin/handler)
+# Include directories under innobase
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/innobase/include
+		    ${CMAKE_SOURCE_DIR}/storage/innobase/handler)
 
 # Include directories under mysql
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
@@ -41,7 +41,7 @@ IF(MSVC AND $(WIN64))
 				    PROPERTIES COMPILE_FLAGS -Od)
 ENDIF(MSVC AND $(WIN64))
 
-SET(INNODB_PLUGIN_SOURCES	btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c btr/btr0sea.c
+SET(INNOBASE_SOURCES	btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c btr/btr0sea.c
 			buf/buf0buddy.c buf/buf0buf.c buf/buf0flu.c buf/buf0lru.c buf/buf0rea.c
 			data/data0data.c data/data0type.c
 			dict/dict0boot.c dict/dict0crea.c dict/dict0dict.c dict/dict0load.c dict/dict0mem.c
@@ -75,4 +75,4 @@ SET(INNODB_PLUGIN_SOURCES	btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c btr/btr0sea
 			ut/ut0byte.c ut/ut0dbg.c ut/ut0mem.c ut/ut0rnd.c ut/ut0ut.c ut/ut0vec.c
 			ut/ut0list.c ut/ut0wqueue.c)
 ADD_DEFINITIONS(-DHAVE_WINDOWS_ATOMICS -DINNODB_RW_LOCKS_USE_ATOMICS -DIB_HAVE_PAUSE_INSTRUCTION)
-MYSQL_STORAGE_ENGINE(INNODB_PLUGIN)
+MYSQL_STORAGE_ENGINE(INNOBASE)
