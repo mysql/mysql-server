@@ -14,12 +14,12 @@
 # Place, Suite 330, Boston, MA 02111-1307 USA
 #
 
-MYSQL_STORAGE_ENGINE(innodb_plugin,, [InnoDB Storage Engine],
+MYSQL_STORAGE_ENGINE(innobase, innodb, [InnoDB Storage Engine],
         [Transactional Tables using InnoDB], [max,max-no-ndb])
-MYSQL_PLUGIN_DIRECTORY(innodb_plugin, [storage/innodb_plugin])
-MYSQL_PLUGIN_STATIC(innodb_plugin,   [libinnobase.a])
-MYSQL_PLUGIN_DYNAMIC(innodb_plugin,  [ha_innodb_plugin.la])
-MYSQL_PLUGIN_ACTIONS(innodb_plugin,  [
+MYSQL_PLUGIN_DIRECTORY(innobase, [storage/innobase])
+MYSQL_PLUGIN_STATIC(innobase,   [libinnobase.a])
+MYSQL_PLUGIN_DYNAMIC(innobase,  [ha_innodb.la])
+MYSQL_PLUGIN_ACTIONS(innobase,  [
   AC_CHECK_HEADERS(sched.h)
   AC_CHECK_SIZEOF(int, 4)
   AC_CHECK_SIZEOF(long, 4)
