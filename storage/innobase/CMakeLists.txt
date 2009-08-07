@@ -22,9 +22,6 @@
 SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
 SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
 INCLUDE("${PROJECT_SOURCE_DIR}/storage/mysql_storage_engine.cmake")
-IF (CMAKE_SIZEOF_VOID_P MATCHES 8)
-	SET(WIN64 TRUE)
-ENDIF (CMAKE_SIZEOF_VOID_P MATCHES 8)
 
 # Include directories under innobase
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/innobase/include
@@ -39,10 +36,10 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
 
 # Removing compiler optimizations for innodb/mem/* files on 64-bit Windows
 # due to 64-bit compiler error, See MySQL Bug #19424, #36366, #34297
-IF(MSVC AND ${WIN64})
+IF(MSVC AND CMAKE_SIZEOF_VOID_P MATCHES 8)
 	SET_SOURCE_FILES_PROPERTIES(mem/mem0mem.c mem/mem0pool.c
 				    PROPERTIES COMPILE_FLAGS -Od)
-ENDIF(MSVC AND ${WIN64})
+ENDIF(MSVC AND CMAKE_SIZEOF_VOID_P MATCHES 8)
 
 SET(INNOBASE_SOURCES	btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c btr/btr0sea.c
 			buf/buf0buddy.c buf/buf0buf.c buf/buf0flu.c buf/buf0lru.c buf/buf0rea.c
