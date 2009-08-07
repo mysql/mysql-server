@@ -21,13 +21,13 @@ Warnings:
 Warning	1292	Truncated incorrect table_definition_cache value: '1'
 SELECT @@global.table_definition_cache;
 @@global.table_definition_cache
-256
+400
 SET @@global.table_definition_cache = 2;
 Warnings:
 Warning	1292	Truncated incorrect table_definition_cache value: '2'
 SELECT @@global.table_definition_cache;
 @@global.table_definition_cache
-256
+400
 SET @@global.table_definition_cache = 524287;
 SELECT @@global.table_definition_cache;
 @@global.table_definition_cache
@@ -42,13 +42,13 @@ Warnings:
 Warning	1292	Truncated incorrect table_definition_cache value: '0'
 SELECT @@global.table_definition_cache;
 @@global.table_definition_cache
-256
+400
 SET @@global.table_definition_cache = -1024;
 Warnings:
 Warning	1292	Truncated incorrect table_definition_cache value: '-1024'
 SELECT @@global.table_definition_cache;
 @@global.table_definition_cache
-256
+400
 SET @@global.table_definition_cache = 524289;
 Warnings:
 Warning	1292	Truncated incorrect table_definition_cache value: '524289'
@@ -83,13 +83,13 @@ Warnings:
 Warning	1292	Truncated incorrect table_definition_cache value: '1'
 SELECT @@global.table_definition_cache;
 @@global.table_definition_cache
-256
+400
 SET @@global.table_definition_cache = FALSE;
 Warnings:
 Warning	1292	Truncated incorrect table_definition_cache value: '0'
 SELECT @@global.table_definition_cache;
 @@global.table_definition_cache
-256
+400
 '#---------------------FN_DYNVARS_019_08----------------------#'
 SET @@global.table_definition_cache = 5;
 Warnings:

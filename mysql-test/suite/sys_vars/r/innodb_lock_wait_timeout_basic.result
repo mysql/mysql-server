@@ -4,9 +4,6 @@ COUNT(@@GLOBAL.innodb_lock_wait_timeout)
 1
 1 Expected
 '#---------------------BS_STVARS_032_02----------------------#'
-SET @@GLOBAL.innodb_lock_wait_timeout=1;
-ERROR HY000: Variable 'innodb_lock_wait_timeout' is a read only variable
-Expected error 'Read only variable'
 SELECT COUNT(@@GLOBAL.innodb_lock_wait_timeout);
 COUNT(@@GLOBAL.innodb_lock_wait_timeout)
 1
@@ -39,11 +36,11 @@ COUNT(@@innodb_lock_wait_timeout)
 1
 1 Expected
 SELECT COUNT(@@local.innodb_lock_wait_timeout);
-ERROR HY000: Variable 'innodb_lock_wait_timeout' is a GLOBAL variable
-Expected error 'Variable is a GLOBAL variable'
+COUNT(@@local.innodb_lock_wait_timeout)
+1
 SELECT COUNT(@@SESSION.innodb_lock_wait_timeout);
-ERROR HY000: Variable 'innodb_lock_wait_timeout' is a GLOBAL variable
-Expected error 'Variable is a GLOBAL variable'
+COUNT(@@SESSION.innodb_lock_wait_timeout)
+1
 SELECT COUNT(@@GLOBAL.innodb_lock_wait_timeout);
 COUNT(@@GLOBAL.innodb_lock_wait_timeout)
 1

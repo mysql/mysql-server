@@ -3,7 +3,7 @@ drop view if exists v1,v2;
 drop function if exists f1;
 drop function if exists f2;
 use INFORMATION_SCHEMA;
-show tables;
+show tables where Tables_in_information_schema not like "Innodb%";
 Tables_in_information_schema
 CHARACTER_SETS
 COLLATIONS

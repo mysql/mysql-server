@@ -1,19 +1,19 @@
 SET @global_start_value = @@global.innodb_sync_spin_loops;
 SELECT @global_start_value;
 @global_start_value
-20
+30
 '#--------------------FN_DYNVARS_046_01------------------------#'
 SET @@global.innodb_sync_spin_loops = 0;
 SET @@global.innodb_sync_spin_loops = DEFAULT;
 SELECT @@global.innodb_sync_spin_loops;
 @@global.innodb_sync_spin_loops
-20
+30
 '#---------------------FN_DYNVARS_046_02-------------------------#'
 SET innodb_sync_spin_loops = 1;
 ERROR HY000: Variable 'innodb_sync_spin_loops' is a GLOBAL variable and should be set with SET GLOBAL
 SELECT @@innodb_sync_spin_loops;
 @@innodb_sync_spin_loops
-20
+30
 SELECT local.innodb_sync_spin_loops;
 ERROR 42S02: Unknown table 'local' in field list
 SET global innodb_sync_spin_loops = 0;
@@ -89,4 +89,4 @@ SELECT @@global.innodb_sync_spin_loops;
 SET @@global.innodb_sync_spin_loops = @global_start_value;
 SELECT @@global.innodb_sync_spin_loops;
 @@global.innodb_sync_spin_loops
-20
+30
