@@ -970,7 +970,22 @@ void Dbacc::initOpRec(Signal* signal)
   opbits |= ((Treqinfo >> 4) & 0x3) ? (Uint32) Operationrec::OP_LOCK_MODE : 0;
   opbits |= ((Treqinfo >> 4) & 0x3) ? (Uint32) Operationrec::OP_ACC_LOCK_MODE : 0;
   opbits |= (dirtyReadFlag) ? (Uint32) Operationrec::OP_DIRTY_READ : 0;
-  opbits |= ((Treqinfo >> 31) & 0x1) ? (Uint32) Operationrec::OP_LOCK_REQ : 0;
+  if ((Treqinfo >> 31) & 0x1)
+  {
+    opbits |= Operationrec::OP_LOCK_REQ;            // TUX LOCK_REQ
+
+    /**
+     * A lock req has SCAN_OP, it can't delete a row,
+     *   so OP_COMMIT_DELETE_CHECK is set like for SCAN
+     *   see initScanOpRec
+     */
+    opbits |= Operationrec::OP_COMMIT_DELETE_CHECK;
+
+    /**
+     * TODO: Looking at it now, I think it would be more natural
+     *       to treat it as a ZREAD...
+     */
+  }
   
   //operationRecPtr.p->nodeType = (Treqinfo >> 7) & 0x3;
   operationRecPtr.p->fid = fragrecptr.p->myfid;
