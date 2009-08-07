@@ -37,10 +37,6 @@ SELECT COUNT(@@GLOBAL.innodb_lock_wait_timeout);
 #   Check if Value can set                                         #
 ####################################################################
 
---error ER_INCORRECT_GLOBAL_LOCAL_VAR
-SET @@GLOBAL.innodb_lock_wait_timeout=1;
---echo Expected error 'Read only variable'
-
 SELECT COUNT(@@GLOBAL.innodb_lock_wait_timeout);
 --echo 1 Expected
 
@@ -84,13 +80,9 @@ SELECT @@innodb_lock_wait_timeout = @@GLOBAL.innodb_lock_wait_timeout;
 SELECT COUNT(@@innodb_lock_wait_timeout);
 --echo 1 Expected
 
---Error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SELECT COUNT(@@local.innodb_lock_wait_timeout);
---echo Expected error 'Variable is a GLOBAL variable'
 
---Error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SELECT COUNT(@@SESSION.innodb_lock_wait_timeout);
---echo Expected error 'Variable is a GLOBAL variable'
 
 SELECT COUNT(@@GLOBAL.innodb_lock_wait_timeout);
 --echo 1 Expected

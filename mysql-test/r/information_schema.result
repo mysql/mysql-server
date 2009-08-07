@@ -39,8 +39,7 @@ insert into t5 values (10);
 create view v1 (c) as
 SELECT table_name FROM information_schema.TABLES
 WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test', 'mysqltest') AND
-table_name<>'ndb_binlog_index' AND
-table_name<>'ndb_apply_status';
+table_name not like 'ndb_%' AND table_name not like 'innodb_%';
 select * from v1;
 c
 CHARACTER_SETS
@@ -776,7 +775,7 @@ information_schema	TRIGGERS	ACTION_CONDITION
 information_schema	TRIGGERS	ACTION_STATEMENT
 information_schema	VIEWS	VIEW_DEFINITION
 select table_name, column_name, data_type from information_schema.columns
-where data_type = 'datetime';
+where data_type = 'datetime' and table_name not like 'innodb_%';
 table_name	column_name	data_type
 EVENTS	EXECUTE_AT	datetime
 EVENTS	STARTS	datetime
@@ -850,7 +849,10 @@ VIEWS	TABLE_NAME	select
 delete from mysql.user where user='mysqltest_4';
 delete from mysql.db where user='mysqltest_4';
 flush privileges;
-SELECT table_schema, count(*) FROM information_schema.TABLES WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test', 'mysqltest') AND table_name<>'ndb_binlog_index' AND table_name<>'ndb_apply_status' GROUP BY TABLE_SCHEMA;
+SELECT table_schema, count(*) FROM information_schema.TABLES WHERE
+table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test', 'mysqltest')
+AND table_name not like 'ndb%' AND table_name not like 'innodb_%'
+GROUP BY TABLE_SCHEMA;
 table_schema	count(*)
 information_schema	28
 mysql	22
@@ -1237,7 +1239,8 @@ FROM information_schema.columns c2
 WHERE c2.table_schema = t.table_schema AND
 c2.table_name = t.table_name AND
 c2.column_name LIKE '%SCHEMA%'
-        );
+        )
+AND t.table_name not like 'innodb_%';
 table_name	column_name
 CHARACTER_SETS	CHARACTER_SET_NAME
 COLLATIONS	COLLATION_NAME
@@ -1280,7 +1283,8 @@ FROM information_schema.columns c2
 WHERE c2.table_schema = 'information_schema' AND
 c2.table_name = t.table_name AND
 c2.column_name LIKE '%SCHEMA%'
-        );
+        )
+AND t.table_name not like 'innodb_%';
 table_name	column_name
 CHARACTER_SETS	CHARACTER_SET_NAME
 COLLATIONS	COLLATION_NAME
@@ -1374,6 +1378,7 @@ from information_schema.columns c2 where
 c2.table_schema='information_schema' and
 (c2.column_type = 'varchar(7)' or c2.column_type = 'varchar(20)')
 group by c2.column_type order by num limit 1)
+and t.table_name not like 'innodb_%'
 group by t.table_name order by num1, t.table_name;
 table_name	group_concat(t.table_schema, '.', t.table_name)	num1
 CHARACTER_SETS	information_schema.CHARACTER_SETS	1

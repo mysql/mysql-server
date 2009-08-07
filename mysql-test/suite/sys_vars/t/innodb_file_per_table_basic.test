@@ -37,10 +37,6 @@ SELECT COUNT(@@GLOBAL.innodb_file_per_table);
 #   Check if Value can set                                         #
 ####################################################################
 
---error ER_INCORRECT_GLOBAL_LOCAL_VAR
-SET @@GLOBAL.innodb_file_per_table=1;
---echo Expected error 'Read only variable'
-
 SELECT COUNT(@@GLOBAL.innodb_file_per_table);
 --echo 1 Expected
 
@@ -52,7 +48,7 @@ SELECT COUNT(@@GLOBAL.innodb_file_per_table);
 # Check if the value in GLOBAL Table matches value in variable  #
 #################################################################
 
-SELECT @@GLOBAL.innodb_file_per_table = VARIABLE_VALUE
+SELECT IF(@@GLOBAL.innodb_file_per_table,'ON','OFF') = VARIABLE_VALUE
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='innodb_file_per_table';
 --echo 1 Expected
