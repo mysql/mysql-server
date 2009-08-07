@@ -2261,7 +2261,8 @@ enum enum_explain_filename_mode
 {
   EXPLAIN_ALL_VERBOSE= 0,
   EXPLAIN_PARTITIONS_VERBOSE,
-  EXPLAIN_PARTITIONS_AS_COMMENT
+  EXPLAIN_PARTITIONS_AS_COMMENT,
+  EXPLAIN_PARTITIONS_AS_COMMENT_NO_QUOTING
 };
 uint explain_filename(const char *from, char *to, uint to_length,
                       enum_explain_filename_mode explain_mode);
