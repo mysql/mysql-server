@@ -16647,6 +16647,38 @@ static void test_bug41078(void)
   DBUG_VOID_RETURN;
 }
 
+
+/**
+  Bug#45010: invalid memory reads during parsing some strange statements
+*/
+
+static void test_bug45010()
+{
+  int rc;
+  const char query1[]= "select a.\x80",
+             query2[]= "describe `table\xef";
+
+  DBUG_ENTER("test_bug45010");
+  myheader("test_bug45010");
+
+  rc= mysql_query(mysql, "set names utf8");
+  myquery(rc);
+
+  /* \x80 (-128) could be used as a index of ident_map. */
+  rc= mysql_real_query(mysql, query1, sizeof(query1) - 1);
+  DIE_UNLESS(rc);
+
+  /* \xef (-17) could be used to skip 3 bytes past the buffer end. */
+  rc= mysql_real_query(mysql, query2, sizeof(query2) - 1);
+  DIE_UNLESS(rc);
+
+  rc= mysql_query(mysql, "set names default");
+  myquery(rc);
+
+  DBUG_VOID_RETURN;
+}
+
+
 /*
   Read and parse arguments and MySQL options from my.cnf
 */
@@ -16949,6 +16981,7 @@ static struct my_tests_st my_tests[]= {
 #endif
   { "test_bug41078", test_bug41078 },
   { "test_bug20023", test_bug20023 },
+  { "test_bug45010", test_bug45010 },
   { 0, 0 }
 };
 
