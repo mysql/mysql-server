@@ -32,10 +32,10 @@ sys_var_long_ptr trg_new_row_fake_var(0, 0);
 
 /* Macros to look like lex */
 
-#define yyGet()		*(lip->ptr++)
-#define yyGetLast()	lip->ptr[-1]
-#define yyPeek()	lip->ptr[0]
-#define yyPeek2()	lip->ptr[1]
+#define yyGet()		((uchar)*(lip->ptr++))
+#define yyGetLast()	((uchar)lip->ptr[-1])
+#define yyPeek()	((uchar)lip->ptr[0])
+#define yyPeek2()	((uchar)lip->ptr[1])
 #define yyUnget()	lip->ptr--
 #define yySkip()	lip->ptr++
 #define yyLength()	((uint) (lip->ptr - lip->tok_start)-1)
@@ -813,9 +813,11 @@ int MYSQLlex(void *arg, void *yythd)
 	  }
 	}
 #ifdef USE_MB
-	else if (var_length < 1)
-	  break;				// Error
-	lip->ptr+= var_length-1;
+	else if (use_mb(cs))
+        {
+          if ((var_length= my_ismbchar(cs, lip->ptr-1, lip->end_of_query)))
+            lip->ptr+= var_length-1;
+        }
 #endif
       }
       if (double_quotes)
