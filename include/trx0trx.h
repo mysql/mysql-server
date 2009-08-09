@@ -43,34 +43,6 @@ extern sess_t*	trx_dummy_sess;
 the kernel mutex */
 extern ulint	trx_n_mysql_transactions;
 
-/*****************************************************************
-Resets the new record lock info in a transaction struct. */
-UNIV_INLINE
-void
-trx_reset_new_rec_lock_info(
-/*========================*/
-	trx_t*	trx);	/* in: transaction struct */
-/*****************************************************************
-Registers that we have set a new record lock on an index. We only have space
-to store 2 indexes! If this is called to store more than 2 indexes after
-trx_reset_new_rec_lock_info(), then this function does nothing. */
-UNIV_INLINE
-void
-trx_register_new_rec_lock(
-/*======================*/
-	trx_t*		trx,	/* in: transaction struct */
-	dict_index_t*	index);	/* in: trx sets a new record lock on this
-				index */
-/*****************************************************************
-Checks if trx has set a new record lock on an index. */
-UNIV_INLINE
-ibool
-trx_new_rec_locks_contain(
-/*======================*/
-				/* out: TRUE if trx has set a new record lock
-				on index */
-	trx_t*		trx,	/* in: transaction struct */
-	dict_index_t*	index);	/* in: index */
 /************************************************************************
 Releases the search latch if trx has reserved it. */
 UNIV_INTERN
@@ -624,20 +596,6 @@ struct trx_struct{
 					to srv_conc_innodb_enter, if the value
 					here is > 0, we decrement this by 1 */
 	/*------------------------------*/
-	dict_index_t*	new_rec_locks[2];/* these are normally NULL; if
-					srv_locks_unsafe_for_binlog is TRUE
-					or session is using READ COMMITTED
-					isolation level,
-					in a cursor search, if we set a new
-					record lock on an index, this is set
-					to point to the index; this is
-					used in releasing the locks under the
-					cursors if we are performing an UPDATE
-					and we determine after retrieving
-					the row that it does not need to be
-					locked; thus, these can be used to
-					implement a 'mini-rollback' that
-					releases the latest record locks */
 	UT_LIST_NODE_T(trx_t)
 			trx_list;	/* list of transactions */
 	UT_LIST_NODE_T(trx_t)

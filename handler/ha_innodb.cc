@@ -194,6 +194,7 @@ static char*	innobase_log_arch_dir			= NULL;
 static my_bool	innobase_use_doublewrite		= TRUE;
 static my_bool	innobase_use_checksums			= TRUE;
 static my_bool	innobase_extra_undoslots		= FALSE;
+static my_bool	innobase_fast_recovery			= FALSE;
 static my_bool	innobase_locks_unsafe_for_binlog	= FALSE;
 static my_bool	innobase_overwrite_relay_log_info	= FALSE;
 static my_bool	innobase_rollback_on_timeout		= FALSE;
@@ -2220,8 +2221,11 @@ mem_free_and_error:
 	srv_n_write_io_threads = (ulint) innobase_write_io_threads;
 
 	srv_read_ahead &= 3;
+	srv_adaptive_checkpoint %= 3;
 
 	srv_force_recovery = (ulint) innobase_force_recovery;
+
+	srv_fast_recovery = (ibool) innobase_fast_recovery;
 
 	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
 	srv_use_checksums = (ibool) innobase_use_checksums;
@@ -9318,7 +9322,8 @@ ha_innobase::check_if_incompatible_data(
 
 	/* Check that row format didn't change */
 	if ((info->used_fields & HA_CREATE_USED_ROW_FORMAT) &&
-	    get_row_type() != info->row_type) {
+	    get_row_type() != ((info->row_type == ROW_TYPE_DEFAULT)
+				? ROW_TYPE_COMPACT : info->row_type)) {
 
 		return(COMPATIBLE_DATA_NO);
 	}
@@ -9709,6 +9714,11 @@ static MYSQL_SYSVAR_BOOL(extra_undoslots, innobase_extra_undoslots,
   "don't use the datafile for normal mysqld or ibbackup! ####",
   NULL, NULL, FALSE);
 
+static MYSQL_SYSVAR_BOOL(fast_recovery, innobase_fast_recovery,
+  PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
+  "Enable to use speed hack of recovery avoiding flush list sorting.",
+  NULL, NULL, FALSE);
+
 static MYSQL_SYSVAR_BOOL(overwrite_relay_log_info, innobase_overwrite_relay_log_info,
   PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
   "During InnoDB crash recovery on slave overwrite relay-log.info "
@@ -10030,10 +10040,36 @@ static MYSQL_SYSVAR_ENUM(read_ahead, srv_read_ahead,
   "Control read ahead activity. (none, random, linear, [both])",
   NULL, innodb_read_ahead_update, 3, &read_ahead_typelib);
 
-static MYSQL_SYSVAR_ULONG(adaptive_checkpoint, srv_adaptive_checkpoint,
+static
+void
+innodb_adaptive_checkpoint_update(
+  THD* thd,
+  struct st_mysql_sys_var*     var,
+  void*        var_ptr,
+  const void*  save)
+{
+  *(long *)var_ptr= (*(long *)save) % 3;
+}
+const char *adaptive_checkpoint_names[]=
+{
+  "none", /* 0 */
+  "reflex", /* 1 */
+  "estimate", /* 2 */
+  /* For compatibility of the older patch */
+  "0", /* 3 ("none" + 3) */
+  "1", /* 4 ("reflex" + 3) */
+  "2", /* 5 ("estimate" + 3) */
+  NullS
+};
+TYPELIB adaptive_checkpoint_typelib=
+{
+  array_elements(adaptive_checkpoint_names) - 1, "adaptive_checkpoint_typelib",
+  adaptive_checkpoint_names, NULL
+};
+static MYSQL_SYSVAR_ENUM(adaptive_checkpoint, srv_adaptive_checkpoint,
   PLUGIN_VAR_RQCMDARG,
-  "Enable/Disable flushing along modified age. 0:disable 1:enable",
-  NULL, NULL, 0, 0, 1, 0);
+  "Enable/Disable flushing along modified age. ([none], reflex, estimate)",
+  NULL, innodb_adaptive_checkpoint_update, 0, &adaptive_checkpoint_typelib);
 
 static MYSQL_SYSVAR_ULONG(enable_unsafe_group_commit, srv_enable_unsafe_group_commit,
   PLUGIN_VAR_RQCMDARG,
@@ -10076,6 +10112,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(data_home_dir),
   MYSQL_SYSVAR(doublewrite),
   MYSQL_SYSVAR(extra_undoslots),
+  MYSQL_SYSVAR(fast_recovery),
   MYSQL_SYSVAR(fast_shutdown),
   MYSQL_SYSVAR(file_io_threads),
   MYSQL_SYSVAR(file_per_table),

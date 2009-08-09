@@ -187,8 +187,6 @@ trx_create(
 	trx->autoinc_locks = ib_vector_create(
 		mem_heap_create(sizeof(ib_vector_t) + sizeof(void*) * 4), 4);
 
-	trx_reset_new_rec_lock_info(trx);
-
 	return(trx);
 }
 

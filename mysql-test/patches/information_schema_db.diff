@@ -1,6 +1,6 @@
---- mysql-test/r/information_schema_db.result.orig	2009-04-16 20:05:49.000000000 +0000
-+++ mysql-test/r/information_schema_db.result	2009-04-16 20:06:07.000000000 +0000
-@@ -33,6 +33,18 @@
+--- mysql-test/r/information_schema_db.result.orig	2009-06-25 21:41:38.000000000 +0000
++++ mysql-test/r/information_schema_db.result	2009-06-25 21:42:01.000000000 +0000
+@@ -33,6 +33,20 @@
  TRIGGERS
  USER_PRIVILEGES
  VIEWS
@@ -10,12 +10,14 @@
 +INNODB_BUFFER_POOL_PAGES
 +XTRADB_ENHANCEMENTS
 +INNODB_TRX
-+INNODB_BUFFER_POOL_PAGES_BLOB
++INNODB_INDEX_STATS
 +INNODB_LOCK_WAITS
 +INNODB_CMP_RESET
 +INNODB_CMP
 +INNODB_CMPMEM_RESET
++INNODB_BUFFER_POOL_PAGES_BLOB
 +INNODB_CMPMEM
++INNODB_TABLE_STATS
  show tables from INFORMATION_SCHEMA like 'T%';
  Tables_in_information_schema (T%)
  TABLES
