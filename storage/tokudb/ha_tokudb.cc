@@ -364,6 +364,7 @@ static int smart_dbt_do_nothing (DBT const *key, DBT  const *row, void *context)
 static int
 smart_dbt_callback_rowread_ptquery (DBT const *key, DBT  const *row, void *context) {
     SMART_DBT_INFO info = (SMART_DBT_INFO)context;
+    info->ha->extract_hidden_primary_key(info->keynr, row, key);
     return info->ha->read_row_callback(info->buf,info->keynr,row,key);
 }
 
