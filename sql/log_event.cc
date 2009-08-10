@@ -1918,6 +1918,8 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli,
 {
   const char *new_db= rewrite_db(db);
   int expected_error,actual_error= 0;
+  HA_CREATE_INFO db_options;
+
   /*
     Colleagues: please never free(thd->catalog) in MySQL. This would lead to
     bugs as here thd->catalog is a part of an alloced block, not an entire
@@ -1926,6 +1928,13 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli,
   */
   thd->catalog= catalog_len ? (char *) catalog : (char *)"";
   thd->set_db(new_db, (uint) strlen(new_db));          /* allocates a copy of 'db' */
+
+  /*
+    Setting the character set and collation of the current database thd->db.
+   */
+  load_db_opt_by_name(thd, thd->db, &db_options);
+  if (db_options.default_table_charset)
+    thd->db_charset= db_options.default_table_charset;
   thd->variables.auto_increment_increment= auto_increment_increment;
   thd->variables.auto_increment_offset=    auto_increment_offset;
 
