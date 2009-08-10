@@ -10238,6 +10238,13 @@ Dbdict::createIndex_parse(Signal* signal, bool master,
     impl_req->indexId = getFreeObjId(0);
   }
 
+  if (impl_req->indexId == RNIL)
+  {
+    jam();
+    setError(error, CreateTableRef::NoMoreTableRecords, __LINE__);
+    return;
+  }
+
   if (ERROR_INSERTED(6122)) {
     jam();
     CLEAR_ERROR_INSERT_VALUE;
@@ -24847,6 +24854,15 @@ Dbdict::slave_run_start(Signal *signal, const SchemaTransImplReq* req)
   ErrorInfo error;
   SchemaTransPtr trans_ptr;
   const Uint32 trans_key = req->transKey;
+
+  Uint32 objId = getFreeObjId(0);
+  if (objId == RNIL)
+  {
+    jam();
+    setError(error, CreateTableRef::NoMoreTableRecords, __LINE__);
+    goto err;
+  }
+
   if (req->senderRef != reference())
   {
     jam();
@@ -24870,7 +24886,7 @@ Dbdict::slave_run_start(Signal *signal, const SchemaTransImplReq* req)
     ndbrequire(findSchemaTrans(trans_ptr, req->transKey));
   }
 
-  trans_ptr.p->m_obj_id = getFreeObjId(0);
+  trans_ptr.p->m_obj_id = objId;
   trans_log(trans_ptr);
 
   sendTransConf(signal, trans_ptr);
