@@ -2671,7 +2671,7 @@ sub mysql_install_db {
   mtr_add_arg($args, "--bootstrap");
   mtr_add_arg($args, "--basedir=%s", $install_basedir);
   mtr_add_arg($args, "--datadir=%s", $install_datadir);
-  mtr_add_arg($args, "--loose-skip-innodb");
+  mtr_add_arg($args, "--loose-innodb=OFF");
   mtr_add_arg($args, "--loose-skip-falcon");
   mtr_add_arg($args, "--loose-skip-ndbcluster");
   mtr_add_arg($args, "--tmpdir=%s", "$opt_vardir/tmp/");
