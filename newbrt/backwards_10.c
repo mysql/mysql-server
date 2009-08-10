@@ -109,3 +109,20 @@ deserialize_brtheader_10 (int fd, struct rbuf *rb, brt_header_10 **brth) {
     *brth = h;
     return 0;
 }
+
+static int
+decompress_brtnode_from_raw_block_into_rbuf_10(u_int8_t *raw_block, struct rbuf *rb, BLOCKNUM blocknum) {
+    int r = decompress_brtnode_from_raw_block_into_rbuf(raw_block, rb, blocknum);
+    return r;
+}
+
+static int
+deserialize_brtnode_from_rbuf_10 (BLOCKNUM blocknum, u_int32_t fullhash, BRTNODE *brtnode, struct brt_header *h, struct rbuf *rb) {
+    blocknum = blocknum;
+    fullhash = fullhash;
+    brtnode = brtnode;
+    h = h;
+    rb = rb;
+    assert(FALSE);
+}
+
