@@ -289,7 +289,6 @@ concurrency check. */
 
 UNIV_INTERN ibool	srv_thread_concurrency_timer_based = FALSE;
 UNIV_INTERN ulong	srv_thread_concurrency	= 0;
-UNIV_INTERN ulong	srv_commit_concurrency	= 0;
 
 /* this mutex protects srv_conc data structures */
 UNIV_INTERN os_fast_mutex_t	srv_conc_mutex;
