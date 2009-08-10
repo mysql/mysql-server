@@ -35,3 +35,44 @@ C3BF
 D0AA
 D0AA
 drop table t1;
+-------------test bug#45516------------------
+DROP DATABASE IF EXISTS mysqltest;
+CREATE DATABASE mysqltest CHARSET UTF8;
+USE mysqltest;
+CREATE TABLE t (cl varchar(100)) CHARSET UTF8;
+LOAD DATA LOCAL INFILE './std_data/loaddata_utf8.dat' INTO TABLE t
+FIELDS TERMINATED BY ',' LINES TERMINATED BY '\n';
+----------content on master----------
+SELECT hex(cl) FROM t;
+hex(cl)
+E4B880E4BA8CE4B889
+E59B9BE4BA94E585AD
+E4B883E585ABE4B99D
+----------content on slave----------
+USE mysqltest;
+SELECT hex(cl) FROM t;
+hex(cl)
+E4B880E4BA8CE4B889
+E59B9BE4BA94E585AD
+E4B883E585ABE4B99D
+DROP DATABASE mysqltest;
+DROP DATABASE IF EXISTS mysqltest;
+CREATE DATABASE mysqltest CHARSET UTF8;
+USE mysqltest;
+CREATE TABLE t (cl varchar(100)) CHARSET UTF8;
+LOAD DATA INFILE '../std_data_ln/loaddata_utf8.dat' INTO TABLE t
+FIELDS TERMINATED BY ',' LINES TERMINATED BY '\n';
+----------content on master----------
+SELECT hex(cl) FROM t;
+hex(cl)
+E4B880E4BA8CE4B889
+E59B9BE4BA94E585AD
+E4B883E585ABE4B99D
+----------content on slave----------
+USE mysqltest;
+SELECT hex(cl) FROM t;
+hex(cl)
+E4B880E4BA8CE4B889
+E59B9BE4BA94E585AD
+E4B883E585ABE4B99D
+DROP DATABASE mysqltest;
