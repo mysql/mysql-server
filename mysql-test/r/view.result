@@ -3699,25 +3699,6 @@ SELECT * FROM v1 IGNORE INDEX (c2) WHERE c2=2;
 ERROR 42000: Key 'c2' doesn't exist in table 'v1'
 DROP VIEW v1;
 DROP TABLE t1;
-# -----------------------------------------------------------------
-# -- Bug#40825: Error 1356 while selecting from a view 
-# --            with a "HAVING" clause though query works
-# -----------------------------------------------------------------
-
-CREATE TABLE t1 (c INT);
-
-CREATE VIEW v1 (view_column) AS SELECT c AS alias FROM t1 HAVING alias;
-SHOW CREATE VIEW v1;
-View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`c` AS `view_column` from `t1` having `view_column`	latin1	latin1_swedish_ci
-SELECT * FROM v1;
-view_column
-
-DROP VIEW v1;
-DROP TABLE t1;
-
-# -- End of test case for Bug#40825
-
 # 
 # Bug #45806 crash when replacing into a view with a join!
 # 
@@ -3829,6 +3810,25 @@ DROP VIEW v1;
 DROP VIEW v2;
 DROP TABLE t1;
 # -- End of test case for Bug#45806
+# -----------------------------------------------------------------
+# -- Bug#40825: Error 1356 while selecting from a view 
+# --            with a "HAVING" clause though query works
+# -----------------------------------------------------------------
+
+CREATE TABLE t1 (c INT);
+
+CREATE VIEW v1 (view_column) AS SELECT c AS alias FROM t1 HAVING alias;
+SHOW CREATE VIEW v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`c` AS `view_column` from `t1` having `view_column`	latin1	latin1_swedish_ci
+SELECT * FROM v1;
+view_column
+
+DROP VIEW v1;
+DROP TABLE t1;
+
+# -- End of test case for Bug#40825
+
 # -----------------------------------------------------------------
 # -- End of 5.0 tests.
 # -----------------------------------------------------------------
