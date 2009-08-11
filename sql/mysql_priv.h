@@ -2304,9 +2304,10 @@ uint build_table_shadow_filename(char *buff, size_t bufflen,
 
 /* from hostname.cc */
 bool ip_to_hostname(struct sockaddr_storage *ip_storage,
+                    const char *ip_string,
                     char **hostname, uint *connect_errors);
-void inc_host_errors(struct sockaddr_storage *in);
-void reset_host_errors(struct sockaddr_storage *in);
+void inc_host_errors(const char *ip_string);
+void reset_host_errors(const char *ip_string);
 bool hostname_cache_init();
 void hostname_cache_free();
 void hostname_cache_refresh(void);

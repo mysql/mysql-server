@@ -34,6 +34,9 @@ CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/include/mysql_version.h.in
 # Set standard options
 ADD_DEFINITIONS(-DHAVE_YASSL)
 
+# Enable IPv6 handling code
+ADD_DEFINITIONS(-DHAVE_IPV6)
+
 # Set debug options
 SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DFORCE_INIT_OF_VARS")
 
