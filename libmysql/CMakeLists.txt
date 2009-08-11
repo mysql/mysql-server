@@ -109,7 +109,7 @@ TARGET_LINK_LIBRARIES(mysqlclient)
 
 ADD_LIBRARY(libmysql          SHARED ${CLIENT_SOURCES} dll.c libmysql.def)
 ADD_DEPENDENCIES(libmysql GenError)
-TARGET_LINK_LIBRARIES(libmysql wsock32)
+TARGET_LINK_LIBRARIES(libmysql wsock32 ws2_32)
 
 IF(EMBED_MANIFESTS)
   MYSQL_EMBED_MANIFEST("myTest" "asInvoker")
