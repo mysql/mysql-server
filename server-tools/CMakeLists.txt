@@ -31,4 +31,4 @@ ADD_EXECUTABLE(mysqlmanager buffer.cc command.cc commands.cc guardian.cc instanc
                             ../../libmysql/errmsg.c)
 
 ADD_DEPENDENCIES(mysqlmanager GenError)
-TARGET_LINK_LIBRARIES(mysqlmanager dbug mysys strings taocrypt vio yassl zlib wsock32)
+TARGET_LINK_LIBRARIES(mysqlmanager dbug mysys strings taocrypt vio yassl zlib wsock32 ws2_32)
