@@ -28,6 +28,6 @@ void toku_upgrade_ule_remove_innermost_uxr(ULE ule);
 void toku_upgrade_ule_push_insert_uxr(ULE ule, TXNID xid, u_int32_t vallen, void * valp);
 void toku_upgrade_ule_push_delete_uxr(ULE ule, TXNID xid);
 //Exposed brt functions for the purpose of upgrading
-void toku_upgrade_maybe_bump_nkeys (BRTNODE node, u_int32_t idx, LEAFENTRY le, int direction);
+void toku_calculate_leaf_stats(BRTNODE node);
 
 #endif
