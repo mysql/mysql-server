@@ -1241,6 +1241,13 @@ sub command_line_setup {
     {
       mtr_error("Can't use --extern when using debugger");
     }
+    # Set one week timeout (check-testcase timeout will be 1/10th)
+    $opt_testcase_timeout= 7 * 24 * 60;
+    $opt_suite_timeout= 7 * 24 * 60;
+    # One day to shutdown
+    $opt_shutdown_timeout= 24 * 60;
+    # One day for PID file creation (this is given in seconds not minutes)
+    $opt_start_timeout= 24 * 60 * 60;
   }
 
   # --------------------------------------------------------------------------
