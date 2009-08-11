@@ -6816,6 +6816,139 @@ out:
   return NDBT_OK;
 }
 
+static
+int
+createIndexes(NdbDictionary::Dictionary* pDic,
+              const NdbDictionary::Table & tab, int cnt)
+{
+  for (int i = 0; i<cnt && i < tab.getNoOfColumns(); i++)
+  {
+    char buf[256];
+    NdbDictionary::Index idx0;
+    BaseString::snprintf(buf, sizeof(buf), "%s-idx-%u", tab.getName(), i);
+    idx0.setName(buf);
+    idx0.setType(NdbDictionary::Index::OrderedIndex);
+    idx0.setTable(tab.getName());
+    idx0.setStoredIndex(false);
+    idx0.addIndexColumn(tab.getColumn(i)->getName());
+
+    if (pDic->createIndex(idx0))
+    {
+      ndbout << pDic->getNdbError() << endl;
+      return NDBT_FAILED;
+    }
+  }
+
+  return 0;
+}
+
+int
+runBug46552(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  const NdbDictionary::Table* pTab = ctx->getTab();
+  NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
+
+  NdbRestarter res;
+  if (res.getNumDbNodes() < 2)
+    return NDBT_OK;
+
+  NdbDictionary::Table tab0 = *pTab;
+  NdbDictionary::Table tab1 = *pTab;
+
+  BaseString name;
+  name.assfmt("%s_0", tab0.getName());
+  tab0.setName(name.c_str());
+  name.assfmt("%s_1", tab1.getName());
+  tab1.setName(name.c_str());
+
+  pDic->dropTable(tab0.getName());
+  pDic->dropTable(tab1.getName());
+
+  if (pDic->createTable(tab0))
+  {
+    ndbout << pDic->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  if (pDic->createTable(tab1))
+  {
+    ndbout << pDic->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  if (createIndexes(pDic, tab1, 4))
+    return NDBT_FAILED;
+
+  Vector<int> group1;
+  Vector<int> group2;
+  Bitmask<256/32> nodeGroupMap;
+  for (int j = 0; j<res.getNumDbNodes(); j++)
+  {
+    int node = res.getDbNodeId(j);
+    int ng = res.getNodeGroup(node);
+    if (nodeGroupMap.get(ng))
+    {
+      group2.push_back(node);
+    }
+    else
+    {
+      group1.push_back(node);
+      nodeGroupMap.set(ng);
+    }
+  }
+
+  res.restartNodes(group1.getBase(), (int)group1.size(),
+                   NdbRestarter::NRRF_NOSTART |
+                   NdbRestarter::NRRF_ABORT);
+
+  res.waitNodesNoStart(group1.getBase(), (int)group1.size());
+  res.startNodes(group1.getBase(), (int)group1.size());
+  res.waitClusterStarted();
+
+  res.restartNodes(group2.getBase(), (int)group2.size(),
+                   NdbRestarter::NRRF_NOSTART |
+                   NdbRestarter::NRRF_ABORT);
+  res.waitNodesNoStart(group2.getBase(), (int)group2.size());
+  res.startNodes(group2.getBase(), (int)group2.size());
+  res.waitClusterStarted();
+
+  if (pDic->dropTable(tab0.getName()))
+  {
+    ndbout << pDic->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  if (pDic->createTable(tab0))
+  {
+    ndbout << pDic->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  if (createIndexes(pDic, tab0, 4))
+    return NDBT_FAILED;
+
+  res.restartAll2(NdbRestarter::NRRF_NOSTART | NdbRestarter::NRRF_ABORT);
+  res.waitClusterNoStart();
+  res.startAll();
+  res.waitClusterStarted();
+
+  if (pDic->dropTable(tab0.getName()))
+  {
+    ndbout << pDic->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  if (pDic->dropTable(tab1.getName()))
+  {
+    ndbout << pDic->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  return NDBT_OK;
+}
+
+
 /** telco-6.4 **/
  
 NDBT_TESTSUITE(testDict);
@@ -7034,6 +7167,10 @@ TESTCASE("Bug41905",
 	 ""){
   STEP(runBug41905);
   STEP(runBug41905getTable);
+}
+TESTCASE("Bug46552", "")
+{
+  INITIALIZER(runBug46552);
 }
 /** telco-6.4 **/
 NDBT_TESTSUITE_END(testDict);

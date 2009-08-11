@@ -4596,31 +4596,41 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
     jam();
     tablePtr.p->primaryTableId = c_tableDesc.PrimaryTableId;
     tablePtr.p->indexState = (TableRecord::IndexState)c_tableDesc.IndexState;
-    tablePtr.p->triggerId = c_tableDesc.CustomTriggerId;
 
-    if (c_tableDesc.InsertTriggerId != RNIL ||
-        c_tableDesc.UpdateTriggerId != RNIL ||
-        c_tableDesc.DeleteTriggerId != RNIL)
+    if (getNodeState().getSystemRestartInProgress())
     {
       jam();
-      /**
-       * Upgrade...unique index
-       */
-      ndbrequire(tablePtr.p->isUniqueIndex());
-      ndbrequire(c_tableDesc.CustomTriggerId == RNIL);
-      ndbrequire(c_tableDesc.InsertTriggerId != RNIL);
-      ndbrequire(c_tableDesc.UpdateTriggerId != RNIL);
-      ndbrequire(c_tableDesc.DeleteTriggerId != RNIL);
-      ndbout_c("table: %u UPGRADE saving (%u/%u/%u)",
-               tablePtr.i,
-               c_tableDesc.InsertTriggerId,
-               c_tableDesc.UpdateTriggerId,
-               c_tableDesc.DeleteTriggerId);
-      tablePtr.p->triggerId = c_tableDesc.InsertTriggerId;
-      tablePtr.p->m_upgrade_trigger_handling.m_upgrade = true;
-      tablePtr.p->m_upgrade_trigger_handling.insertTriggerId = c_tableDesc.InsertTriggerId;
-      tablePtr.p->m_upgrade_trigger_handling.updateTriggerId = c_tableDesc.UpdateTriggerId;
-      tablePtr.p->m_upgrade_trigger_handling.deleteTriggerId = c_tableDesc.DeleteTriggerId;
+      tablePtr.p->triggerId = RNIL;
+    }
+    else
+    {
+      jam();
+      tablePtr.p->triggerId = c_tableDesc.CustomTriggerId;
+
+      if (c_tableDesc.InsertTriggerId != RNIL ||
+          c_tableDesc.UpdateTriggerId != RNIL ||
+          c_tableDesc.DeleteTriggerId != RNIL)
+      {
+        jam();
+        /**
+         * Upgrade...unique index
+         */
+        ndbrequire(tablePtr.p->isUniqueIndex());
+        ndbrequire(c_tableDesc.CustomTriggerId == RNIL);
+        ndbrequire(c_tableDesc.InsertTriggerId != RNIL);
+        ndbrequire(c_tableDesc.UpdateTriggerId != RNIL);
+        ndbrequire(c_tableDesc.DeleteTriggerId != RNIL);
+        ndbout_c("table: %u UPGRADE saving (%u/%u/%u)",
+                 tablePtr.i,
+                 c_tableDesc.InsertTriggerId,
+                 c_tableDesc.UpdateTriggerId,
+                 c_tableDesc.DeleteTriggerId);
+        tablePtr.p->triggerId = c_tableDesc.InsertTriggerId;
+        tablePtr.p->m_upgrade_trigger_handling.m_upgrade = true;
+        tablePtr.p->m_upgrade_trigger_handling.insertTriggerId = c_tableDesc.InsertTriggerId;
+        tablePtr.p->m_upgrade_trigger_handling.updateTriggerId = c_tableDesc.UpdateTriggerId;
+        tablePtr.p->m_upgrade_trigger_handling.deleteTriggerId = c_tableDesc.DeleteTriggerId;
+      }
     }
   }
   else
@@ -11477,7 +11487,8 @@ Dbdict::alterIndex_toCreateTrigger(Signal* signal, SchemaOpPtr op_ptr)
 
   Uint32 forceTriggerId = indexPtr.p->triggerId;
   D(V(getNodeState().startLevel) << V(NodeState::SL_STARTED));
-  if (getNodeState().startLevel == NodeState::SL_STARTED) {
+  if (getNodeState().startLevel == NodeState::SL_STARTED)
+  {
     ndbrequire(forceTriggerId == RNIL);
   }
   req->forceTriggerId = forceTriggerId;
@@ -16359,6 +16370,12 @@ Dbdict::createTrigger_abortParse(Signal* signal, SchemaOpPtr op_ptr)
     jam();
 
     TriggerRecordPtr triggerPtr;
+    if (! (triggerId < c_triggerRecordPool.getSize()))
+    {
+      jam();
+      goto done;
+    }
+
     c_triggerRecordPool.getPtr(triggerPtr, triggerId);
 
     if (triggerPtr.p->triggerState == TriggerRecord::TS_DEFINING)
@@ -16383,6 +16400,8 @@ Dbdict::createTrigger_abortParse(Signal* signal, SchemaOpPtr op_ptr)
       releaseDictObject(op_ptr);
     }
   }
+
+done:
 
   sendTransConf(signal, op_ptr);
 }

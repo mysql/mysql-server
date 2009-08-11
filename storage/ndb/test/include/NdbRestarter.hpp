@@ -57,6 +57,8 @@ public:
                       flags & NRRF_NOSTART,
                       flags & NRRF_ABORT);
   }
+
+  int restartNodes(int * nodes, int num_nodes, Uint32 flags);
   
   int startAll();
   int startNodes(const int * _nodes, int _num_nodes);
