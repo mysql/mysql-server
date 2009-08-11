@@ -1,0 +1,13 @@
+drop table if exists t1;
+create table t1 (c1 char(5) unique not null, c2 int, stamp timestamp) engine=innodb;
+select * from t1;
+c1	c2	stamp
+replace delayed into t1 (c1, c2)  values ( "text1","11");
+ERROR HY000: DELAYED option not supported for table 't1'
+select * from t1;
+c1	c2	stamp
+replace delayed into t1 (c1, c2)  values ( "text1","12");
+ERROR HY000: DELAYED option not supported for table 't1'
+select * from t1;
+c1	c2	stamp
+drop table t1;
