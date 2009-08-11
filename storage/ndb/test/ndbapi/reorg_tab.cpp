@@ -83,14 +83,7 @@ int main(int argc, const char** argv){
     }
 
     NdbDictionary::Table newTable = *oldTable;
-    if (_p == 0)
-    {
-      newTable.setFragmentCount(2 * oldTable->getFragmentCount());
-    }
-    else
-    {
-      newTable.setFragmentCount(_p);
-    }
+    newTable.setFragmentCount(_p);
 
     if (MyDic->beginSchemaTrans() != 0)
       goto err;

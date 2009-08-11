@@ -23,6 +23,7 @@
 #include <NdbRestarter.hpp>
 #include <AtrtClient.hpp>
 #include <Bitmask.hpp>
+#include <NdbBackup.hpp>
 
 static Vector<BaseString> table_list;
 
@@ -452,21 +453,97 @@ int runUpgrade_Traffic(NDBT_Context* ctx, NDBT_Step* step){
   return res;
 }
 
+int
+startPostUpgradeChecks(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /**
+   * This will restart *self* in new version
+   */
+
+  /**
+   * mysql-getopt works so that passing "-n X -n Y" is ok
+   *   and is interpreted as "-n Y"
+   *
+   * so we restart ourselves with testcase-name and "--post-upgrade" appended
+   * e.g if testcase is "testUpgrade -n X"
+   *     this will restart it as "testUpgrade -n X -n X--post-upgrade"
+   */
+  BaseString tc;
+  tc.assfmt("-n %s--post-upgrade", ctx->getCase()->getName());
+
+  ndbout << "About to restart self with extra arg: " << tc.c_str() << endl;
+
+  AtrtClient atrt;
+  int process_id = atrt.getOwnProcessId();
+  if (process_id == -1)
+  {
+    g_err << "Failed to find own process id" << endl;
+    return NDBT_FAILED;
+  }
+
+  if (!atrt.changeVersion(process_id, tc.c_str()))
+    return NDBT_FAILED;
+
+  // Will not be reached...
+
+  return NDBT_OK;
+}
+
+int
+runPostUpgradeChecks(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /**
+   * Table will be dropped/recreated
+   *   automatically by NDBT...
+   *   so when we enter here, this is already tested
+   */
+
+  NdbBackup backup(GETNDB(step)->getNodeId()+1);
+
+  ndbout << "Starting backup..." << flush;
+  if (backup.start() != 0)
+  {
+    ndbout << "Failed" << endl;
+    return NDBT_FAILED;
+  }
+  ndbout << "done" << endl;
+
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testUpgrade);
 TESTCASE("Upgrade_NR1",
 	 "Test that one node at a time can be upgraded"){
   INITIALIZER(runCheckStarted);
   STEP(runUpgrade_NR1);
+  VERIFIER(startPostUpgradeChecks);
+}
+POSTUPGRADE("Upgrade_NR1")
+{
+  INITIALIZER(runCheckStarted);
+  INITIALIZER(runPostUpgradeChecks);
 }
 TESTCASE("Upgrade_NR2",
 	 "Test that one node in each nodegroup can be upgradde simultaneously"){
   INITIALIZER(runCheckStarted);
   STEP(runUpgrade_NR2);
+  VERIFIER(startPostUpgradeChecks);
+}
+POSTUPGRADE("Upgrade_NR2")
+{
+  INITIALIZER(runCheckStarted);
+  INITIALIZER(runPostUpgradeChecks);
 }
 TESTCASE("Upgrade_NR3",
 	 "Test that one node in each nodegroup can be upgradde simultaneously"){
   INITIALIZER(runCheckStarted);
   STEP(runUpgrade_NR3);
+  VERIFIER(startPostUpgradeChecks);
+}
+POSTUPGRADE("Upgrade_NR3")
+{
+  INITIALIZER(runCheckStarted);
+  INITIALIZER(runPostUpgradeChecks);
 }
 TESTCASE("Upgrade_FS",
 	 "Test that one node in each nodegroup can be upgrade simultaneously")
@@ -476,6 +553,12 @@ TESTCASE("Upgrade_FS",
   INITIALIZER(runCreateAllTables);
   INITIALIZER(runLoadAll);
   STEP(runUpgrade_Traffic);
+  VERIFIER(startPostUpgradeChecks);
+}
+POSTUPGRADE("Upgrade_FS")
+{
+  INITIALIZER(runCheckStarted);
+  INITIALIZER(runPostUpgradeChecks);
 }
 TESTCASE("Upgrade_Traffic",
 	 "Test upgrade with traffic, all tables and restart --initial")
@@ -484,6 +567,12 @@ TESTCASE("Upgrade_Traffic",
   INITIALIZER(runCreateAllTables);
   STEP(runUpgrade_Traffic);
   STEP(runBasic);
+  VERIFIER(startPostUpgradeChecks);
+}
+POSTUPGRADE("Upgrade_Traffic")
+{
+  INITIALIZER(runCheckStarted);
+  INITIALIZER(runPostUpgradeChecks);
 }
 TESTCASE("Upgrade_Traffic_FS",
 	 "Test upgrade with traffic, all tables and restart using FS")
@@ -493,6 +582,12 @@ TESTCASE("Upgrade_Traffic_FS",
   INITIALIZER(runCreateAllTables);
   STEP(runUpgrade_Traffic);
   STEP(runBasic);
+  VERIFIER(startPostUpgradeChecks);
+}
+POSTUPGRADE("Upgrade_Traffic_FS")
+{
+  INITIALIZER(runCheckStarted);
+  INITIALIZER(runPostUpgradeChecks);
 }
 TESTCASE("Upgrade_Traffic_one",
 	 "Test upgrade with traffic, *one* table and restart --initial")
@@ -501,6 +596,12 @@ TESTCASE("Upgrade_Traffic_one",
   INITIALIZER(runCreateOneTable);
   STEP(runUpgrade_Traffic);
   STEP(runBasic);
+  VERIFIER(startPostUpgradeChecks);
+}
+POSTUPGRADE("Upgrade_Traffic_one")
+{
+  INITIALIZER(runCheckStarted);
+  INITIALIZER(runPostUpgradeChecks);
 }
 TESTCASE("Upgrade_Traffic_FS_one",
 	 "Test upgrade with traffic, all tables and restart using FS")
@@ -510,6 +611,12 @@ TESTCASE("Upgrade_Traffic_FS_one",
   INITIALIZER(runCreateOneTable);
   STEP(runUpgrade_Traffic);
   STEP(runBasic);
+  VERIFIER(startPostUpgradeChecks);
+}
+POSTUPGRADE("Upgrade_Traffic_FS_one")
+{
+  INITIALIZER(runCheckStarted);
+  INITIALIZER(runPostUpgradeChecks);
 }
 NDBT_TESTSUITE_END(testUpgrade);
 

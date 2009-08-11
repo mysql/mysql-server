@@ -312,55 +312,99 @@ my_socket vio_fd(Vio* vio)
 }
 
 
-my_bool vio_peer_addr(Vio * vio, char *buf, uint16 *port, size_t buflen)
+my_bool vio_peer_addr(Vio * vio, char *ip_buffer, uint16 *port, 
+                      size_t ip_buffer_size)
 {
   DBUG_ENTER("vio_peer_addr");
-  DBUG_PRINT("enter", ("sd: " MY_SOCKET_FORMAT,
+  DBUG_PRINT("enter", ("Client socket fd: " MY_SOCKET_FORMAT,
                        MY_SOCKET_FORMAT_VALUE(vio->sd)));
   if (vio->localhost)
   {
-    strmov(buf,"127.0.0.1");
+    strmov(ip_buffer,"127.0.0.1");
     *port= 0;
   }
   else
   {
-    int error;
-    char port_buf[NI_MAXSERV];
-    size_socket addrLen = sizeof(vio->remote);
-    if (my_getpeername(vio->sd, (struct sockaddr *) (&vio->remote),
-                       &addrLen) != 0)
-    {
-      DBUG_PRINT("exit", ("getpeername gave error: %d", socket_errno));
-      DBUG_RETURN(1);
-    }
-    vio->addrLen= (int)addrLen;
+    int err_code;
+    char port_buffer[NI_MAXSERV];
     
-    if ((error= getnameinfo((struct sockaddr *)(&vio->remote), 
-                            addrLen,
-                            buf, buflen,
-                            port_buf, NI_MAXSERV, NI_NUMERICHOST|NI_NUMERICSERV)))
+    struct sockaddr *addr= (struct sockaddr *) (&vio->remote);
+    size_socket addr_size = sizeof (vio->remote);
+
+    struct sockaddr *resolving_addr= addr;
+    uint resolving_addr_size= addr_size;
+
+#ifdef HAVE_STRUCT_IN6_ADDR
+    struct sockaddr_storage addr_storage;
+#endif
+
+    /* Get sockaddr by socked fd (fill vio->remote) */
+
+    err_code= my_getpeername(vio->sd, addr, &addr_size);
+
+    if (err_code)
     {
-      DBUG_PRINT("exit", ("getnameinfo gave error: %s", 
-                          gai_strerror(error)));
-      DBUG_RETURN(1);
+      DBUG_PRINT("exit", ("getpeername() gave error: %d", socket_errno));
+      DBUG_RETURN(TRUE);
     }
-    
-    *port= (uint16)strtol(port_buf, (char **)NULL, 10);
+
+    vio->addrLen= (int) addr_size;
 
     /*
-      A lot of users do not have IPv6 loopback resolving to localhost
-      correctly setup. Should this exist? No. If we do not do it though
-      we will be getting a lot of support questions from users who
-      have bad setups. This code should be removed by say... 2012.
-        -Brian
+      Convert IPv6 address to IPv4 if it is IPv4-mapped or IPv4-compatible.
     */
-    if (!memcmp(buf, "::ffff:127.0.0.1", sizeof("::ffff:127.0.0.1")))
-      strmov(buf, "127.0.0.1");
-  }
-  DBUG_PRINT("exit", ("addr: %s", buf));
-  DBUG_RETURN(0);
-}
 
+#ifdef HAVE_STRUCT_IN6_ADDR
+    if (addr->sa_family == AF_INET6)
+    {
+      const struct sockaddr_in6 *addr6= (const struct sockaddr_in6 *) addr;
+      const struct in6_addr *ip6= &(addr6->sin6_addr);
+      const uint32 *ip6_int32= (uint32 *) ip6->s6_addr;
+
+      memset(&addr_storage, 0, sizeof (addr_storage));
+
+      if (IN6_IS_ADDR_V4MAPPED(ip6) || IN6_IS_ADDR_V4COMPAT(ip6))
+      {
+        struct sockaddr_in *ip4= (struct sockaddr_in *) &addr_storage;
+        ip4->sin_family= AF_INET;
+        ip4->sin_port= 0;
+
+        /*
+          In an IPv4 mapped or compatible address, the last 32 bits represent
+          the IPv4 address. The byte orders for IPv6 and IPv4 addresses are
+          the same, so a simple copy is possible.
+        */
+        ip4->sin_addr.s_addr= ip6_int32[3];
+
+        resolving_addr= (struct sockaddr *) ip4;
+        resolving_addr_size= sizeof (addr_storage);
+      }
+    }
+#endif /* HAVE_STRUCT_IN6_ADDR */
+
+    /* Get IP address & port number. */
+
+    err_code= getnameinfo(resolving_addr, resolving_addr_size,
+                          ip_buffer, ip_buffer_size,
+                          port_buffer, NI_MAXSERV,
+                          NI_NUMERICHOST | NI_NUMERICSERV);
+
+    if (err_code)
+    {
+      DBUG_PRINT("exit", ("getnameinfo() gave error: %s",
+                          gai_strerror(err_code)));
+      DBUG_RETURN(TRUE);
+    }
+
+    *port= (uint16) strtol(port_buffer, (char **) NULL, 10);
+  }
+
+
+  DBUG_PRINT("exit", ("Client IP address: %s; port: %d",
+                      (const char *) ip_buffer,
+                      (int) *port));
+  DBUG_RETURN(FALSE);
+}
 
 /* Return 0 if there is data to be read */
 

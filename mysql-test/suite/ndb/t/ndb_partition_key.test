@@ -57,7 +57,7 @@ CREATE TABLE t1 (a INT, b CHAR(10) COLLATE latin1_bin, c INT, d INT,
 insert into t1 values (1,"a",1,1),(2,"a",1,1),(3,"a",1,1);
 
 # should show only one attribute with DISTRIBUTION KEY
---exec $NDB_DESC --no-defaults -d test t1 | grep 'AT='
+source show_attributes.inc;
 
 #
 # Test that explicit partition info is not shown in show create table

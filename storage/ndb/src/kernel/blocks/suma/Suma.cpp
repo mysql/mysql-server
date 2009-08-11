@@ -1653,6 +1653,11 @@ Suma::execUTIL_SEQUENCE_REF(Signal* signal)
 
   SubscriberPtr subbPtr;
   c_subscriberPool.getPtr(subbPtr,subData);
+  if (err == UtilSequenceRef::TCError)
+  {
+    jam();
+    err = ref->TCErrorCode;
+  }
   sendSubIdRef(signal, subbPtr.p->m_senderRef, subbPtr.p->m_senderData, err);
   c_subscriberPool.release(subbPtr);
   DBUG_PRINT("info",("c_subscriberPool  size: %d free: %d",

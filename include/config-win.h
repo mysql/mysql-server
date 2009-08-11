@@ -21,8 +21,8 @@
 #define BIG_TABLES
 
 /* We have to do this define before including windows.h to get the
-   AWE API functions.  this #define means we target W2K (NT5) and newer */
-#define _WIN32_WINNT     0x0500
+   AWE API functions.  this #define means we target Windows XP and newer */
+#define _WIN32_WINNT     0x0501
 
 #if defined(_MSC_VER) && _MSC_VER >= 1400
 /* Avoid endless warnings about sprintf() etc. being unsafe. */

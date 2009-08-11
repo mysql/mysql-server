@@ -98,7 +98,7 @@ do_change_version(atrt_config& config, SqlResultSet& command,
 
   const char* new_prefix= g_prefix1 ? g_prefix1 : g_prefix;
   const char* old_prefix= g_prefix;
-  proc.m_proc.m_env.assfmt("MYSQL_BASE_DIR=%s", new_prefix);
+  proc.m_proc.m_env.appfmt(" MYSQL_BASE_DIR=%s", new_prefix);
   const char *start= strstr(proc.m_proc.m_path.c_str(), old_prefix);
   if (!start){
     g_logger.critical("Could not find '%s' in '%s'",

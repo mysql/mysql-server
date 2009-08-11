@@ -4553,10 +4553,24 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
     jam();
     HashMapPtr hm_ptr;
     tabRequire(c_hash_map_hash.find(hm_ptr, tablePtr.p->hashMapObjectId),
-               CreateTableRef::InvalidTablespace);
+               CreateTableRef::InvalidHashMap);
 
     tabRequire(hm_ptr.p->m_object_version ==  tablePtr.p->hashMapVersion,
-               CreateTableRef::InvalidTablespace);
+               CreateTableRef::InvalidHashMap);
+
+    Ptr<Hash2FragmentMap> mapptr;
+    g_hash_map.getPtr(mapptr, hm_ptr.p->m_map_ptr_i);
+
+    if (tablePtr.p->fragmentCount == 0)
+    {
+      jam();
+      tablePtr.p->fragmentCount = mapptr.p->m_fragments;
+    }
+    else
+    {
+      tabRequire(mapptr.p->m_fragments == tablePtr.p->fragmentCount,
+                 CreateTableRef::InvalidHashMap);
+    }
   }
   
   {
@@ -10222,6 +10236,13 @@ Dbdict::createIndex_parse(Signal* signal, bool master,
   {
     jam();
     impl_req->indexId = getFreeObjId(0);
+  }
+
+  if (impl_req->indexId == RNIL)
+  {
+    jam();
+    setError(error, CreateTableRef::NoMoreTableRecords, __LINE__);
+    return;
   }
 
   if (ERROR_INSERTED(6122)) {
@@ -24833,6 +24854,15 @@ Dbdict::slave_run_start(Signal *signal, const SchemaTransImplReq* req)
   ErrorInfo error;
   SchemaTransPtr trans_ptr;
   const Uint32 trans_key = req->transKey;
+
+  Uint32 objId = getFreeObjId(0);
+  if (objId == RNIL)
+  {
+    jam();
+    setError(error, CreateTableRef::NoMoreTableRecords, __LINE__);
+    goto err;
+  }
+
   if (req->senderRef != reference())
   {
     jam();
@@ -24856,7 +24886,7 @@ Dbdict::slave_run_start(Signal *signal, const SchemaTransImplReq* req)
     ndbrequire(findSchemaTrans(trans_ptr, req->transKey));
   }
 
-  trans_ptr.p->m_obj_id = getFreeObjId(0);
+  trans_ptr.p->m_obj_id = objId;
   trans_log(trans_ptr);
 
   sendTransConf(signal, trans_ptr);
@@ -26134,6 +26164,13 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
      * No info, create "default"
      */
     jam();
+    if (impl_req->requestType & CreateHashMapReq::CreateDefault)
+    {
+      jam();
+      impl_req->buckets = NDB_DEFAULT_HASHMAP_BUCKTETS;
+      impl_req->fragments = 0;
+    }
+
     Uint32 buckets = impl_req->buckets;
     Uint32 fragments = impl_req->fragments;
     if (fragments == 0)
@@ -26142,6 +26179,7 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
 
       fragments = get_default_fragments();
     }
+
     BaseString::snprintf(hm.HashMapName, sizeof(hm.HashMapName),
                          "DEFAULT-HASHMAP-%u-%u",
                          buckets,
@@ -26173,6 +26211,9 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
                                DictHashMapInfo::MappingSize, true);
     ndbrequire(s == SimpleProperties::Eof);
     w.getPtr(objInfoPtr);
+
+    handle.m_cnt = 1;
+    handle.m_ptr[CreateHashMapReq::INFO] = objInfoPtr;
   }
 
   Uint32 len = Uint32(strlen(hm.HashMapName) + 1);
@@ -26186,11 +26227,51 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
     return;
   }
 
-  if(get_object(hm.HashMapName, len, hash) != 0)
+  DictObject * objptr = get_object(hm.HashMapName, len, hash);
+  if(objptr != 0)
   {
     jam();
-    setError(error, CreateTableRef::TableAlreadyExist, __LINE__);
+
+    if (! (impl_req->requestType & CreateHashMapReq::CreateIfNotExists))
+    {
+      jam();
+      setError(error, CreateTableRef::TableAlreadyExist, __LINE__);
+      return;
+    }
+
+    /**
+     * verify object found
+     */
+
+    if (objptr->m_type != DictTabInfo::HashMap)
+    {
+      jam();
+      setError(error, CreateTableRef::TableAlreadyExist, __LINE__);
+      return;
+    }
+
+    if (check_write_obj(objptr->m_id,
+                        trans_ptr.p->m_transId,
+                        SchemaFile::SF_CREATE, error))
+    {
+      jam();
+      return;
+    }
+
+    HashMapPtr hm_ptr;
+    ndbrequire(c_hash_map_hash.find(hm_ptr, objptr->m_id));
+
+    impl_req->objectId = objptr->m_id;
+    impl_req->objectVersion = hm_ptr.p->m_object_version;
     return;
+  }
+  else
+  {
+    jam();
+    /**
+     * Clear the IfNotExistsFlag
+     */
+    impl_req->requestType &= ~Uint32(CreateHashMapReq::CreateIfNotExists);
   }
 
   if (ERROR_INSERTED(6206))
@@ -26402,13 +26483,19 @@ Dbdict::createHashMap_abortParse(Signal* signal, SchemaOpPtr op_ptr)
 {
   D("createHashMap_abortParse" << *op_ptr.p);
 
+  CreateHashMapRecPtr createHashMapPtr;
+  getOpRec(op_ptr, createHashMapPtr);
+  CreateHashMapImplReq* impl_req = &createHashMapPtr.p->m_request;
+
+  if (impl_req->requestType & CreateHashMapReq::CreateIfNotExists)
+  {
+    jam();
+    ndbrequire(op_ptr.p->m_orig_entry_id == RNIL);
+  }
+
   if (op_ptr.p->m_orig_entry_id != RNIL)
   {
     jam();
-
-    CreateHashMapRecPtr createHashMapPtr;
-    getOpRec(op_ptr, createHashMapPtr);
-    CreateHashMapImplReq* impl_req = &createHashMapPtr.p->m_request;
 
     Ptr<HashMapRecord> hm_ptr;
     ndbrequire(c_hash_map_hash.find(hm_ptr, impl_req->objectId));
@@ -26478,6 +26565,13 @@ Dbdict::createHashMap_prepare(Signal* signal, SchemaOpPtr op_ptr)
   CreateHashMapRecPtr createHashMapPtr;
   getOpRec(op_ptr, createHashMapPtr);
   CreateHashMapImplReq* impl_req = &createHashMapPtr.p->m_request;
+
+  if (impl_req->requestType & CreateHashMapReq::CreateIfNotExists)
+  {
+    jam();
+    sendTransConf(signal, op_ptr);
+    return;
+  }
 
   Callback cb;
   cb.m_callbackData = op_ptr.p->op_key;

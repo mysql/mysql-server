@@ -1915,6 +1915,94 @@ runBug28804_ATTRINFO(NDBT_Context* ctx, NDBT_Step* step)
   return tcSaveINDX_test(ctx, step, 8051);
 }
 
+int
+runBug46069(NDBT_Context* ctx, NDBT_Step* step)
+{
+  HugoTransactions hugoTrans(*ctx->getTab());
+  Ndb* pNdb = GETNDB(step);
+  const int rows = ctx->getNumRecords();
+  Uint32 threads = ctx->getProperty("THREADS", 12);
+  int loops = ctx->getNumLoops();
+
+  ctx->getPropertyWait("STARTED", threads);
+
+  for (int i = 0; i<loops; i++)
+  {
+    ndbout << "Loop: " << i << endl;
+    if (hugoTrans.loadTable(pNdb, rows) != 0)
+      return NDBT_FAILED;
+
+    ctx->setProperty("STARTED", Uint32(0));
+    ctx->getPropertyWait("STARTED", threads);
+  }
+
+  ctx->stopTest();
+  return NDBT_OK;
+}
+
+int
+runBug46069_pkdel(NDBT_Context* ctx, NDBT_Step* step)
+{
+  HugoOperations hugoOps(*ctx->getTab());
+  Ndb* pNdb = GETNDB(step);
+  const int rows = ctx->getNumRecords();
+
+  while(!ctx->isTestStopped())
+  {
+    ctx->incProperty("STARTED");
+    ctx->getPropertyWait("STARTED", Uint32(0));
+    if (ctx->isTestStopped())
+      break;
+
+    for (int i = 0; i<rows && !ctx->isTestStopped(); )
+    {
+      int cnt = (rows - i);
+      if (cnt > 100)
+        cnt = 100;
+      cnt = 1 + (rand() % cnt);
+      if (hugoOps.startTransaction(pNdb) != 0)
+      {
+        break;
+      }
+      hugoOps.pkDeleteRecord(pNdb, i, cnt);
+      int res = hugoOps.execute_Commit(pNdb, AO_IgnoreError);
+      if (res != -1)
+      {
+        i += cnt;
+      }
+      hugoOps.closeTransaction(pNdb);
+    }
+  }
+
+  return NDBT_OK;
+}
+
+int
+runBug46069_scandel(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary * dict = pNdb->getDictionary();
+  const NdbDictionary::Index * idx = dict->getIndex(pkIdxName,
+						    ctx->getTab()->getName());
+  if (idx == 0)
+  {
+    return NDBT_FAILED;
+  }
+  UtilTransactions hugoTrans(*ctx->getTab(), idx);
+
+  while(!ctx->isTestStopped())
+  {
+    ctx->incProperty("STARTED");
+    ctx->getPropertyWait("STARTED", Uint32(0));
+    if (ctx->isTestStopped())
+      break;
+
+    hugoTrans.clearTable(pNdb);
+  }
+
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testIndex);
 TESTCASE("CreateAll", 
 	 "Test that we can create all various indexes on each table\n"
@@ -2277,6 +2365,16 @@ TESTCASE("Bug28804_ATTRINFO",
   STEP(runBug28804_ATTRINFO);
   FINALIZER(createPkIndex_Drop);
   FINALIZER(runClearTable);
+}
+TESTCASE("Bug46069", ""){
+  TC_PROPERTY("OrderedIndex", 1);
+  TC_PROPERTY("THREADS", 12);
+  TC_PROPERTY("LoggedIndexes", Uint32(0));
+  INITIALIZER(createPkIndex);
+  STEP(runBug46069);
+  STEPS(runBug46069_pkdel, 10);
+  STEPS(runBug46069_scandel, 2);
+  FINALIZER(createPkIndex_Drop);
 }
 NDBT_TESTSUITE_END(testIndex);
 

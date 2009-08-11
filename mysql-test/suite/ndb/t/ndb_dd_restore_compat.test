@@ -8,7 +8,7 @@
 select * from information_schema.columns
 where table_name = "t1";
 show create table t1;
---exec $NDB_DESC --no-defaults -d test t1 | grep 'ST='
+source show_attributes.inc;
 select * from t1 order by a1;
 drop table t1;
 
