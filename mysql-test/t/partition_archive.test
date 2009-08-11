@@ -10,6 +10,27 @@
 --source include/have_partition.inc
 --source include/have_archive.inc
 
+let $MYSQLD_DATADIR= `select @@datadir`;
+
+#
+# Bug#44622: Using PARTITIONs with ARCHIVE engine reports 0 bytes in i_s.TABLES
+#
+CREATE TABLE t1 (f1 DATE NOT NULL) 
+ENGINE = ARCHIVE PARTITION BY RANGE (TO_DAYS(f1)) 
+(partition p1 values less than (733751), 
+ partition p2 values less than MAXVALUE); 
+
+INSERT INTO t1 VALUES(CURRENT_DATE); 
+
+SELECT DATA_LENGTH, INDEX_LENGTH FROM information_schema.TABLES WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1';
+SELECT DATA_LENGTH, INDEX_LENGTH FROM information_schema.TABLES WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1';
+DROP TABLE t1;
+CREATE TABLE t1 (f1 DATE NOT NULL) 
+ENGINE = ARCHIVE;
+INSERT INTO t1 VALUES(CURRENT_DATE); 
+SELECT DATA_LENGTH, INDEX_LENGTH FROM information_schema.TABLES WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1';
+SELECT DATA_LENGTH, INDEX_LENGTH FROM information_schema.TABLES WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1';
+DROP TABLE t1;
 
 #
 # Bug 17310 Partitions: Bugs with archived partitioned tables
