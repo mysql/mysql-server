@@ -4267,12 +4267,6 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
     ulong tx_isolation = thd_tx_isolation(thd);
     HA_TOKU_ISO_LEVEL toku_iso_level = tx_to_toku_iso(tx_isolation);
     tokudb_trx_data *trx = NULL;
-    if (thd->in_lock_tables) {
-        printf("YES! in lock tables\n");
-    }
-    else {
-        printf("NO! NOT in lock tables\n");
-    }
 #if 0
     declare_lockretry;
 #endif
