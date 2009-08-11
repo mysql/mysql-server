@@ -34,11 +34,15 @@ struct NdbCondition
 
 static int init = 0;
 #ifdef HAVE_CLOCK_GETTIME
+#ifdef CLOCK_MONOTONIC
+static int clock_id = CLOCK_MONOTONIC;
+#else
 static int clock_id = CLOCK_REALTIME;
+#endif
 #endif
 
 void
-NdbCondition_Init()
+NdbCondition_Init(int need_monotonic)
 {
   init = 1;
 #if defined HAVE_CLOCK_GETTIME && defined HAVE_PTHREAD_CONDATTR_SETCLOCK && \
@@ -47,6 +51,10 @@ NdbCondition_Init()
   int res, init = 0;
   pthread_cond_t tmp;
   pthread_condattr_t attr;
+
+  if (!need_monotonic)
+    return;
+
   if ((res = pthread_condattr_init(&attr)) != 0)
     goto nogo;
 

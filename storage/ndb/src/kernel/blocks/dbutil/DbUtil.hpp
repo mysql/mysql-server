@@ -420,7 +420,8 @@ public:
 		   struct LinearSectionPtr sectionsPtr[]);
   void finishTransaction(Signal*, TransactionPtr);
   void releaseTransaction(TransactionPtr transPtr);
-  void hardcodedPrepare();
+  void get_systab_tableid(Signal*);
+  void hardcodedPrepare(Signal*, Uint32 SYSTAB_0);
   void connectTc(Signal* signal);
   void reportSequence(Signal*, const Transaction *);
   void readPrepareProps(Signal* signal, 

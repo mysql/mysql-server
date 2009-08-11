@@ -170,24 +170,33 @@ void Dbtup::free_var_rec(Fragrecord* fragPtr,
 
   if (ref.m_page_no != RNIL)
   {
+    jam();
     c_page_pool.getPtr(pagePtr, ref.m_page_no);
-    ((Var_page*)pagePtr.p)->free_record(ref.m_page_idx, Var_page::CHAIN);
-
-    ndbassert(pagePtr.p->free_space <= Var_page::DATA_WORDS);
-    if (pagePtr.p->free_space == Var_page::DATA_WORDS - 1)
-    {
-      jam();
-      Uint32 idx = pagePtr.p->list_index;
-      LocalDLList<Page> list(c_page_pool, fragPtr->free_var_page_array[idx]);
-      list.remove(pagePtr);
-      returnCommonArea(pagePtr.i, 1);
-      fragPtr->noOfVarPages --;
-    } else {
-      jam();
-      update_free_page_list(fragPtr, pagePtr);
-    }
+    free_var_part(fragPtr, pagePtr, ref.m_page_idx);
   }
   return;
+}
+
+void
+Dbtup::free_var_part(Fragrecord* fragPtr, PagePtr pagePtr, Uint32 page_idx)
+{
+  ((Var_page*)pagePtr.p)->free_record(page_idx, Var_page::CHAIN);
+
+  ndbassert(pagePtr.p->free_space <= Var_page::DATA_WORDS);
+  if (pagePtr.p->free_space == Var_page::DATA_WORDS - 1)
+  {
+    jam();
+    Uint32 idx = pagePtr.p->list_index;
+    LocalDLList<Page> list(c_page_pool, fragPtr->free_var_page_array[idx]);
+    list.remove(pagePtr);
+    returnCommonArea(pagePtr.i, 1);
+    fragPtr->noOfVarPages --;
+  }
+  else
+  {
+    jam();
+    update_free_page_list(fragPtr, pagePtr);
+  }
 }
 
 Uint32 *
@@ -233,6 +242,7 @@ Dbtup::realloc_var_part(Fragrecord* fragPtr, Tablerec* tabPtr, PagePtr pagePtr,
   }
   else
   {
+    jam();
     Local_key newref;
     new_var_ptr = alloc_var_part(fragPtr, tabPtr, newsz, &newref);
     if (unlikely(new_var_ptr == 0))
@@ -240,12 +250,12 @@ Dbtup::realloc_var_part(Fragrecord* fragPtr, Tablerec* tabPtr, PagePtr pagePtr,
 
     if (oldsz)
     {
+      jam();
       Uint32 *src = pageP->get_ptr(oldref.m_page_idx);
       ndbassert(oldref.m_page_no != newref.m_page_no);
       ndbassert(pageP->get_entry_len(oldref.m_page_idx) == oldsz);
       memcpy(new_var_ptr, src, 4*oldsz);
-      pageP->free_record(oldref.m_page_idx, Var_page::CHAIN);
-      update_free_page_list(fragPtr, pagePtr);
+      free_var_part(fragPtr, pagePtr, oldref.m_page_idx);
     }
 
     refptr->assign(&newref);
@@ -261,7 +271,6 @@ Dbtup::move_var_part(Fragrecord* fragPtr, Tablerec* tabPtr, PagePtr pagePtr,
   jam();
 
   ndbassert(size);
-  Uint32 *new_var_ptr;
   Var_page* pageP = (Var_page*)pagePtr.p;
   Local_key oldref;
   refptr->copyout(&oldref);
@@ -276,84 +285,59 @@ Dbtup::move_var_part(Fragrecord* fragPtr, Tablerec* tabPtr, PagePtr pagePtr,
    * to small-free-size page list
    */
   if (new_index > pageP->list_index)
-    return;
-
-  PagePtr new_pagePtr;
-  new_pagePtr.i = RNIL;
-  for (int i = new_index; i < MAX_FREE_LIST; i++) 
   {
     jam();
-    if (!fragPtr->free_var_page_array[i].isEmpty()) 
-    {
-      jam();
-      /**
-       * get first page from free page list,
-       * the page is the desition where old varpart move to
-       */
-      new_pagePtr.i = fragPtr->free_var_page_array[i].firstItem;
-    }
+    return;
   }
- 
+
+  PagePtr new_pagePtr;
+  new_pagePtr.i = get_alloc_page(fragPtr, size + 1);
+
+  if (new_pagePtr.i == RNIL)
+  {
+    jam();
+    return;
+  }
+
   /**
    * do not move varpart if new var part page is same as old
    */
-  if (new_pagePtr.i != RNIL && new_pagePtr.i != pagePtr.i) 
+  if (new_pagePtr.i == pagePtr.i)
   {
     jam();
-    c_page_pool.getPtr(new_pagePtr);
-
-    Uint32 idx= ((Var_page*)new_pagePtr.p)
-      ->alloc_record(size,(Var_page*)ctemp_page, Var_page::CHAIN);
-
-    Local_key newref;
-    newref.m_page_no = new_pagePtr.i;
-    newref.m_page_idx = idx;
-
-    /**
-     * update new page into new free list after alloc_record 
-     */
-    update_free_page_list(fragPtr, new_pagePtr);
-
-    new_var_ptr = ((Var_page*)new_pagePtr.p)->get_ptr(idx);
-    Uint32 *src = pageP->get_ptr(oldref.m_page_idx);
-
-    /**
-     * copy old varpart to new position
-     */
-    memcpy(new_var_ptr, src, 4*size);
-
-    /**
-     * remove old var part of tuple
-     */
-    pageP->free_record(oldref.m_page_idx, Var_page::CHAIN);
-
-    ndbassert(pageP->free_space <= Var_page::DATA_WORDS);
-    /**
-     * if the old page is empty, then reclaim it to global page pool
-     */
-    if (unlikely(pageP->free_space == Var_page::DATA_WORDS - 1)) 
-    {
-      jam();
-      Uint32 idx = pageP->list_index;
-      LocalDLList<Page> list(c_page_pool, fragPtr->free_var_page_array[idx]);
-      list.remove(pagePtr);
-      returnCommonArea(pagePtr.i, 1);
-      fragPtr->noOfVarPages --;
-    } 
-    else 
-    {
-      jam();
-      /**
-       * update the old page into new free list after free_record
-       */
-      update_free_page_list(fragPtr, pagePtr);
-    }
-
-    /**
-     * update var part ref of fix part tuple to newref
-     */
-    refptr->assign(&newref);
+    return;
   }
+
+  c_page_pool.getPtr(new_pagePtr);
+
+  Uint32 idx= ((Var_page*)new_pagePtr.p)
+    ->alloc_record(size,(Var_page*)ctemp_page, Var_page::CHAIN);
+
+  /**
+   * update new page into new free list after alloc_record
+   */
+  update_free_page_list(fragPtr, new_pagePtr);
+
+  Uint32 *dst = ((Var_page*)new_pagePtr.p)->get_ptr(idx);
+  const Uint32 *src = pageP->get_ptr(oldref.m_page_idx);
+
+  /**
+   * copy old varpart to new position
+   */
+  memcpy(dst, src, 4*size);
+
+  /**
+   * remove old var part of tuple
+   */
+  free_var_part(fragPtr, pagePtr, oldref.m_page_idx);
+
+  /**
+   * update var part ref of fix part tuple to newref
+   */
+  Local_key newref;
+  newref.m_page_no = new_pagePtr.i;
+  newref.m_page_idx = idx;
+  refptr->assign(&newref);
 }
 
 /* ------------------------------------------------------------------------ */

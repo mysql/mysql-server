@@ -80,7 +80,11 @@ int main(int argc, const char** argv){
   Vector<NdbDictionary::Index*> indexes;
   {
     NdbDictionary::Dictionary::List list;
-    int res = MyNdb.getDictionary()->listIndexes(list, *ptab);
+    if (MyNdb.getDictionary()->listIndexes(list, *ptab) != 0)
+    {
+      ndbout << endl << MyNdb.getDictionary()->getNdbError() << endl;
+      return NDBT_ProgramExit(NDBT_FAILED);
+    }
     for (unsigned i = 0; i<list.count; i++)
     {
       const NdbDictionary::Index* idx = 
@@ -107,6 +111,11 @@ int main(int argc, const char** argv){
     ndbout << "Copying table " <<  _tabname << " to " << _to_tabname << "...";
     NdbDictionary::Table tab2(*ptab);
     tab2.setName(_to_tabname);
+    if (MyNdb.getDictionary()->beginSchemaTrans() != 0)
+    {
+      ndbout << endl << MyNdb.getDictionary()->getNdbError() << endl;
+      return NDBT_ProgramExit(NDBT_FAILED);
+    }
     if (MyNdb.getDictionary()->createTable(tab2) != 0){
       ndbout << endl << MyNdb.getDictionary()->getNdbError() << endl;
       return NDBT_ProgramExit(NDBT_FAILED);
@@ -125,6 +134,12 @@ int main(int argc, const char** argv){
       }
     }
     
+    if (MyNdb.getDictionary()->endSchemaTrans() != 0)
+    {
+      ndbout << endl << MyNdb.getDictionary()->getNdbError() << endl;
+      return NDBT_ProgramExit(NDBT_FAILED);
+    }
+
     ndbout << "OK" << endl;
     if (_copy_data){
       ndbout << "Copying data..."<<endl;

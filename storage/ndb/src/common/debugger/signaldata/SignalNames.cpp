@@ -741,6 +741,8 @@ const GsnName SignalNames [] = {
   ,{ GSN_RELEASE_PAGES_REQ, "RELEASE_PAGES_REQ" }
   ,{ GSN_RELEASE_PAGES_CONF, "RELEASE_PAGES_CONF" }
 
-
+  ,{ GSN_CREATE_HASH_MAP_REQ, "CREATE_HASH_MAP_REQ" }
+  ,{ GSN_CREATE_HASH_MAP_REF, "CREATE_HASH_MAP_REF" }
+  ,{ GSN_CREATE_HASH_MAP_CONF, "CREATE_HASH_MAP_CONF" }
 };
 const unsigned short NO_OF_SIGNAL_NAMES = sizeof(SignalNames)/sizeof(GsnName);

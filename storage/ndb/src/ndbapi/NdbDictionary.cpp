@@ -19,6 +19,7 @@
 #include <NdbDictionary.hpp>
 #include "NdbDictionaryImpl.hpp"
 #include <NdbOut.hpp>
+#include <signaldata/CreateHashMap.hpp>
 
 /* NdbRecord static helper methods */
 
@@ -1851,6 +1852,48 @@ NdbDictionary::Dictionary::prepareHashMap(const Table& oldTableF,
 
     Uint32 oldcnt = oldTable.getFragmentCount();
     Uint32 newcnt = newTable.getFragmentCount();
+    if (newcnt == 0)
+    {
+      /**
+       * reorg...we don't know how many fragments new table should have
+       *   create if exist a default map...which will "know" how many fragments there are
+       */
+      ObjectId tmp;
+      int ret = m_impl.m_receiver.create_hashmap(NdbHashMapImpl::getImpl(newmapF),
+                                                 &NdbDictObjectImpl::getImpl(tmp),
+                                                 CreateHashMapReq::CreateDefault |
+                                                 CreateHashMapReq::CreateIfNotExists);
+      if (ret)
+      {
+        return ret;
+      }
+
+      HashMap hm;
+      ret = m_impl.m_receiver.get_hashmap(NdbHashMapImpl::getImpl(hm), tmp.getObjectId());
+      if (ret)
+      {
+        return ret;
+      }
+      Uint32 zero = 0;
+      Vector<Uint32> values;
+      values.fill(hm.getMapLen() - 1, zero);
+      hm.getMapValues(values.getBase(), values.size());
+      for (Uint32 i = 0; i<hm.getMapLen(); i++)
+      {
+        if (values[i] > newcnt)
+          newcnt = values[i];
+      }
+      newcnt++; // Loop will find max val, cnt = max + 1
+      if (newcnt < oldcnt)
+      {
+        /**
+         * drop partition is currently not supported...
+         *   and since this is a "reorg" (newcnt == 0) we silently change it to a nop
+         */
+        newcnt = oldcnt;
+      }
+      newTable.setFragmentCount(newcnt);
+    }
 
     for (Uint32 i = 0; i<newmap.m_map.size(); i++)
     {
@@ -2875,6 +2918,7 @@ NdbDictionary::Dictionary::createHashMap(const HashMap& map, ObjectId * dst)
   int ret;
   DO_TRANS(ret,
            m_impl.m_receiver.create_hashmap(NdbHashMapImpl::getImpl(map),
-                                            &NdbDictObjectImpl::getImpl(*dst)));
+                                            &NdbDictObjectImpl::getImpl(*dst),
+                                            0));
   return ret;
 }
