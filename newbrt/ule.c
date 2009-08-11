@@ -79,51 +79,6 @@ static inline BOOL uxr_is_delete(UXR uxr);
 static inline BOOL uxr_is_placeholder(UXR uxr);
 
 
-///////////// TEMP TEMP TEMP TEMP
-///////////// scaffolding/upgrading begins here  
-///////////// Some of this code may be used to upgrade an old database to our new version.
-
-//
-// le_unpack_le_* functions are throwaway code as part of phase 1 (temp
-// scaffolding)
-//
-#if 0
-static void le_unpack_le10_committed(u_int32_t klen, void *kval, u_int32_t vallen, void *val, ULE ule) {
-    //Committed value
-    ule_init_empty_ule(ule, klen, kval);
-    ule_remove_innermost_uxr(ule);	// pop committed delete
-    ule_push_insert_uxr(ule, 0, vallen, val);
-}
-
-static void le_unpack_le10_both(TXNID xid, u_int32_t klen, void *kval, u_int32_t clen, void *cval, u_int32_t plen, void *pval, ULE ule) {
-    //committed value and provisional insert
-    ule_init_empty_ule(ule, klen, kval);
-    ule_remove_innermost_uxr(ule);	// pop committed delete
-    ule_push_insert_uxr(ule, 0, clen, cval);	// push committed 
-    ule_push_insert_uxr(ule, xid, plen, pval);	// push provisional
-}
-
-static void le_unpack_le10_provdel(TXNID xid, u_int32_t klen, void *kval, u_int32_t clen, void *cval, ULE ule) {
-    //committed value and provisional delete
-    ule_init_empty_ule(ule, klen, kval);
-    ule_remove_innermost_uxr(ule);	// pop committed delete
-    ule_push_insert_uxr(ule, 0, clen, cval);	// push committed
-    ule_push_delete_uxr(ule, xid);		// push provisional
-}
-
-static void le_unpack_le10_provpair(TXNID xid, u_int32_t klen, void *kval, u_int32_t plen, void *pval, ULE ule) {
-    //committed delete and provisional insert
-    ule_init_empty_ule(ule, klen, kval);
-    ule_push_insert_uxr(ule, xid, plen, pval);	// push provisional
-}
-
-//Used to unpack a version 10 record to ule, which can be packed to version 11.
-static void UU()
-le_unpack_from_version_10(ULE ule, LEAFENTRY le) {
-    LESWITCHCALL(le, le_unpack, ule);
-}
-#endif
-
 static void *
 le_malloc(OMT omt, struct mempool *mp, size_t size, void **maybe_free)
 {
@@ -1528,6 +1483,26 @@ bool transaction_open(TXNID xid) {
 }
 
 #endif
+
+// Wrapper code to support backwards compatibility with version 10 (until we don't want it).
+// These wrappers should be removed if/when we remove support for version 10 leafentries.
+#include "backwards_10.h"
+void
+toku_upgrade_ule_init_empty_ule(ULE ule, u_int32_t keylen, void * keyp) {
+    ule_init_empty_ule(ule, keylen, keyp);
+}
+void
+toku_upgrade_ule_remove_innermost_uxr(ULE ule) {
+    ule_remove_innermost_uxr(ule);
+}
+void
+toku_upgrade_ule_push_insert_uxr(ULE ule, TXNID xid, u_int32_t vallen, void * valp) {
+    ule_push_insert_uxr(ule, xid, vallen, valp);
+}
+void
+toku_upgrade_ule_push_delete_uxr(ULE ule, TXNID xid) {
+    ule_push_delete_uxr(ule, xid);
+}
 
 
 
