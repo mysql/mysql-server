@@ -1979,4 +1979,23 @@ CREATE TABLE t1(id INT,KEY(id)) ENGINE=MYISAM
 DROP TABLE t1;
 SET SESSION SQL_MODE=DEFAULT;
 
+
+--echo #
+--echo # BUG#45816 - assertion failure with index containing double 
+--echo #             column on partitioned table
+--echo #
+
+CREATE TABLE t1 (
+  a INT DEFAULT NULL,
+  b DOUBLE DEFAULT NULL,
+  c INT DEFAULT NULL,
+  KEY idx2(b,a)
+) PARTITION BY HASH(c) PARTITIONS 3;
+
+INSERT INTO t1 VALUES (6,8,9);
+INSERT INTO t1 VALUES (6,8,10);
+
+SELECT  1 FROM t1 JOIN t1 AS t2 USING (a) FOR UPDATE;
+
+DROP TABLE t1;
 --echo End of 5.1 tests
