@@ -501,6 +501,11 @@ private:
   void lookup_start_child(Signal*, Ptr<Request>, Ptr<TreeNode>, const RowRef &);
   void lookup_cleanup(Ptr<Request>, Ptr<TreeNode>);
 
+  Uint32 handle_special_hash(Uint32 tableId, Uint32 dstHash[4],
+                             const Uint64* src,
+                             Uint32 srcLen,       // Len in #32bit words
+                             const struct KeyDescriptor* desc);
+
   Uint32 computeHash(Signal*, BuildKeyReq&, Uint32 table, Uint32 keyInfoPtrI);
   Uint32 getNodes(Signal*, BuildKeyReq&, Uint32 tableId);
 
