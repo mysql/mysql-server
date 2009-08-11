@@ -3680,29 +3680,6 @@ SELECT * FROM v1 IGNORE INDEX (c2) WHERE c2=2;
 DROP VIEW v1;
 DROP TABLE t1;
 
---echo # -----------------------------------------------------------------
---echo # -- Bug#40825: Error 1356 while selecting from a view 
---echo # --            with a "HAVING" clause though query works
---echo # -----------------------------------------------------------------
---echo
-
-CREATE TABLE t1 (c INT);
-
---echo
-
-CREATE VIEW v1 (view_column) AS SELECT c AS alias FROM t1 HAVING alias;
-SHOW CREATE VIEW v1;
-SELECT * FROM v1;
-
---echo
-
-DROP VIEW v1;
-DROP TABLE t1;
-
---echo
---echo # -- End of test case for Bug#40825
---echo
-
 --echo # 
 --echo # Bug #45806 crash when replacing into a view with a join!
 --echo # 
@@ -3734,6 +3711,29 @@ DROP VIEW v2;
 DROP TABLE t1;
 
 --echo # -- End of test case for Bug#45806
+
+--echo # -----------------------------------------------------------------
+--echo # -- Bug#40825: Error 1356 while selecting from a view 
+--echo # --            with a "HAVING" clause though query works
+--echo # -----------------------------------------------------------------
+--echo
+
+CREATE TABLE t1 (c INT);
+
+--echo
+
+CREATE VIEW v1 (view_column) AS SELECT c AS alias FROM t1 HAVING alias;
+SHOW CREATE VIEW v1;
+SELECT * FROM v1;
+
+--echo
+
+DROP VIEW v1;
+DROP TABLE t1;
+
+--echo
+--echo # -- End of test case for Bug#40825
+--echo
 
 --echo # -----------------------------------------------------------------
 --echo # -- End of 5.0 tests.
