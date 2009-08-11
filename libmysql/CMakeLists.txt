@@ -105,7 +105,7 @@ SET(CLIENT_SOURCES   ../mysys/array.c ../strings/bchange.c ../strings/bmove.c
 
 ADD_LIBRARY(mysqlclient       STATIC ${CLIENT_SOURCES})
 ADD_DEPENDENCIES(mysqlclient GenError)
-TARGET_LINK_LIBRARIES(mysqlclient)
+TARGET_LINK_LIBRARIES(mysqlclient ws2_32)
 
 ADD_LIBRARY(libmysql          SHARED ${CLIENT_SOURCES} dll.c libmysql.def)
 ADD_DEPENDENCIES(libmysql GenError)
