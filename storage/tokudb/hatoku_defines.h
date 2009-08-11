@@ -84,8 +84,6 @@ typedef struct st_tokudb_trx_data {
     DB_TXN *sp_level;
     uint tokudb_lock_count;
     HA_TOKU_ISO_LEVEL iso_level;
-    bool table_lock_wanted;
-    int table_lock_type;
 } tokudb_trx_data;
 
 

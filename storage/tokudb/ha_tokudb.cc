@@ -425,7 +425,7 @@ smart_dbt_callback_rowread_heavi(DBT const *key, DBT  const *row, void *context,
 // macro that modifies read flag for cursor operations depending on whether
 // we have preacquired lock or not
 //
-#define SET_READ_FLAG(flg) ((range_lock_grabbed || current_thd->options & OPTION_TABLE_LOCK) ? ((flg) | DB_PRELOCKED) : (flg))
+#define SET_READ_FLAG(flg) ((range_lock_grabbed) ? ((flg) | DB_PRELOCKED) : (flg))
 
 
 //
@@ -2518,13 +2518,6 @@ int ha_tokudb::write_row(uchar * record) {
     }
  
     trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
-    if (trx->table_lock_wanted) {
-        error = acquire_table_lock(trx->all ? trx->all : trx->stmt, 
-                                 (TABLE_LOCK_TYPE)trx->table_lock_type);
-        if (error)
-            TOKUDB_TRACE(" acquire_table_lock trx=%p type=%d error=%d\n", trx, trx->table_lock_type, error);
-        trx->table_lock_wanted = false;
-    }
 
     lockretry {
         error = share->file->put(
@@ -4274,6 +4267,12 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
     ulong tx_isolation = thd_tx_isolation(thd);
     HA_TOKU_ISO_LEVEL toku_iso_level = tx_to_toku_iso(tx_isolation);
     tokudb_trx_data *trx = NULL;
+    if (thd->in_lock_tables) {
+        printf("YES! in lock tables\n");
+    }
+    else {
+        printf("NO! NOT in lock tables\n");
+    }
 #if 0
     declare_lockretry;
 #endif
@@ -4303,7 +4302,7 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
             DBUG_ASSERT(trx->stmt == 0);
             transaction = NULL;    // Safety
             /* First table lock, start transaction */
-            if ((thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN | OPTION_TABLE_LOCK)) && 
+            if ((thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) && 
                  !trx->all &&
                  (thd_sql_command(thd) != SQLCOM_CREATE_TABLE) &&
                  (thd_sql_command(thd) != SQLCOM_DROP_TABLE) &&
@@ -4323,11 +4322,6 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
                 }
                 trx->sp_level = trx->all;
                 trans_register_ha(thd, TRUE, tokudb_hton);
-                if (thd->in_lock_tables && thd_sql_command(thd) == SQLCOM_LOCK_TABLES) {
-                    trx->table_lock_wanted = true;
-                    trx->table_lock_type = lock.type < TL_READ_NO_INSERT ? lock_read : lock_write;
-                    goto cleanup;
-                }
             }
             DBUG_PRINT("trans", ("starting transaction stmt"));
             if (trx->stmt) { 
@@ -4351,13 +4345,6 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
                 TOKUDB_TRACE("stmt:%p:%p\n", trx->sp_level, trx->stmt);
             }
             trans_register_ha(thd, FALSE, tokudb_hton);
-        }
-        else {
-            if (thd->in_lock_tables && thd_sql_command(thd) == SQLCOM_LOCK_TABLES) {
-                assert(trx->all != NULL);
-                trx->table_lock_wanted = true;
-                trx->table_lock_type = lock.type < TL_READ_NO_INSERT ? lock_read : lock_write;
-            }
         }
         transaction = trx->stmt;
     }
@@ -4428,6 +4415,22 @@ int ha_tokudb::start_stmt(THD * thd, thr_lock_type lock_type) {
         error = db_env->txn_begin(db_env, trx->sp_level, &trx->stmt, toku_iso_to_txn_flag(trx->iso_level));
         trans_register_ha(thd, FALSE, tokudb_hton);
     }
+    //
+    // we know we are in lock tables
+    // attempt to grab a table lock
+    // if fail, continue, do not return error
+    // This is because a failure ok, it simply means
+    // another active transaction has some locks.
+    // That other transaction modify this table
+    // until it is unlocked, therefore having acquire_table_lock
+    // potentially grab some locks but not all is ok.
+    //
+    if (lock.type <= TL_READ_NO_INSERT) {
+        acquire_table_lock(trx->stmt,lock_read);
+    }
+    else {
+        acquire_table_lock(trx->stmt,lock_write);
+    }    
     if (added_rows > deleted_rows) {
         share->rows_from_locked_table = added_rows - deleted_rows;
     }
