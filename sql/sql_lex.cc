@@ -1105,9 +1105,12 @@ int MYSQLlex(void *arg, void *yythd)
 	  }
 	}
 #ifdef USE_MB
-	else if (var_length < 1)
-	  break;				// Error
-        lip->skip_binary(var_length-1);
+        else if (use_mb(cs))
+        {
+          if ((var_length= my_ismbchar(cs, lip->get_ptr() - 1,
+                                       lip->get_end_of_query())))
+            lip->skip_binary(var_length-1);
+        }
 #endif
       }
       if (double_quotes)
