@@ -7987,6 +7987,8 @@ int main(int argc, char **argv)
   if (parsing_disabled)
     die("Test ended with parsing disabled");
 
+  my_bool empty_result= FALSE;
+  
   /*
     The whole test has been executed _sucessfully_.
     Time to compare result or save it to record file.
@@ -8027,11 +8029,20 @@ int main(int argc, char **argv)
   }
   else
   {
-    die("The test didn't produce any output");
+    /* Empty output is an error *unless* we also have an empty result file */
+    if (! result_file_name || record ||
+        compare_files (log_file.file_name(), result_file_name))
+    {
+      die("The test didn't produce any output");
+    }
+    else 
+    {
+      empty_result= TRUE;  /* Meaning empty was expected */
+    }
   }
 
-  if (!command_executed && result_file_name)
-    die("No queries executed but result file found!");
+  if (!command_executed && result_file_name && !empty_result)
+    die("No queries executed but non-empty result file found!");
 
   verbose_msg("Test has succeeded!");
   timer_output();
