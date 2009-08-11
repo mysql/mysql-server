@@ -3659,6 +3659,51 @@ DROP TABLE t1;
 
 # -- End of test case for Bug#34337.
 
+# -----------------------------------------------------------------
+# -- Bug#35193 VIEW query is rewritten without "FROM DUAL",
+# --           causing syntax error
+# -----------------------------------------------------------------
+
+CREATE VIEW v1 AS SELECT 1 FROM DUAL WHERE 1;
+
+SELECT * FROM v1;
+1
+1
+SHOW CREATE TABLE v1;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select 1 AS `1` from DUAL  where 1
+
+DROP VIEW v1;
+
+# -- End of test case for Bug#35193.
+
+CREATE VIEW v1 AS SELECT 1;
+DROP VIEW v1;
+CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT, INDEX (c2));
+INSERT INTO t1 VALUES (1,1), (2,2), (3,3);
+SELECT * FROM t1 USE INDEX (PRIMARY) WHERE c1=2;
+c1	c2
+2	2
+SELECT * FROM t1 USE INDEX (c2) WHERE c2=2;
+c1	c2
+2	2
+CREATE VIEW v1 AS SELECT c1, c2 FROM t1;
+SHOW INDEX FROM v1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+SELECT * FROM v1 USE INDEX (PRIMARY) WHERE c1=2;
+ERROR HY000: Key 'PRIMARY' doesn't exist in table 'v1'
+SELECT * FROM v1 FORCE INDEX (PRIMARY) WHERE c1=2;
+ERROR HY000: Key 'PRIMARY' doesn't exist in table 'v1'
+SELECT * FROM v1 IGNORE INDEX (PRIMARY) WHERE c1=2;
+ERROR HY000: Key 'PRIMARY' doesn't exist in table 'v1'
+SELECT * FROM v1 USE INDEX (c2) WHERE c2=2;
+ERROR HY000: Key 'c2' doesn't exist in table 'v1'
+SELECT * FROM v1 FORCE INDEX (c2) WHERE c2=2;
+ERROR HY000: Key 'c2' doesn't exist in table 'v1'
+SELECT * FROM v1 IGNORE INDEX (c2) WHERE c2=2;
+ERROR HY000: Key 'c2' doesn't exist in table 'v1'
+DROP VIEW v1;
+DROP TABLE t1;
 # 
 # Bug #45806 crash when replacing into a view with a join!
 # 
@@ -3770,51 +3815,6 @@ DROP VIEW v1;
 DROP VIEW v2;
 DROP TABLE t1;
 # -- End of test case for Bug#45806
-# -----------------------------------------------------------------
-# -- Bug#35193 VIEW query is rewritten without "FROM DUAL",
-# --           causing syntax error
-# -----------------------------------------------------------------
-
-CREATE VIEW v1 AS SELECT 1 FROM DUAL WHERE 1;
-
-SELECT * FROM v1;
-1
-1
-SHOW CREATE TABLE v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select 1 AS `1` from DUAL  where 1
-
-DROP VIEW v1;
-
-# -- End of test case for Bug#35193.
-
-CREATE VIEW v1 AS SELECT 1;
-DROP VIEW v1;
-CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT, INDEX (c2));
-INSERT INTO t1 VALUES (1,1), (2,2), (3,3);
-SELECT * FROM t1 USE INDEX (PRIMARY) WHERE c1=2;
-c1	c2
-2	2
-SELECT * FROM t1 USE INDEX (c2) WHERE c2=2;
-c1	c2
-2	2
-CREATE VIEW v1 AS SELECT c1, c2 FROM t1;
-SHOW INDEX FROM v1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
-SELECT * FROM v1 USE INDEX (PRIMARY) WHERE c1=2;
-ERROR HY000: Key 'PRIMARY' doesn't exist in table 'v1'
-SELECT * FROM v1 FORCE INDEX (PRIMARY) WHERE c1=2;
-ERROR HY000: Key 'PRIMARY' doesn't exist in table 'v1'
-SELECT * FROM v1 IGNORE INDEX (PRIMARY) WHERE c1=2;
-ERROR HY000: Key 'PRIMARY' doesn't exist in table 'v1'
-SELECT * FROM v1 USE INDEX (c2) WHERE c2=2;
-ERROR HY000: Key 'c2' doesn't exist in table 'v1'
-SELECT * FROM v1 FORCE INDEX (c2) WHERE c2=2;
-ERROR HY000: Key 'c2' doesn't exist in table 'v1'
-SELECT * FROM v1 IGNORE INDEX (c2) WHERE c2=2;
-ERROR HY000: Key 'c2' doesn't exist in table 'v1'
-DROP VIEW v1;
-DROP TABLE t1;
 # -----------------------------------------------------------------
 # -- Bug#40825: Error 1356 while selecting from a view 
 # --            with a "HAVING" clause though query works
