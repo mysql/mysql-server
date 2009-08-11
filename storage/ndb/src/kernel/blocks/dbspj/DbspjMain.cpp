@@ -26,6 +26,7 @@
 #include <signaldata/DiGetNodes.hpp>
 #include <Interpreter.hpp>
 #include <AttributeHeader.hpp>
+#include <KeyDescriptor.hpp>
 #include <md5_hash.hpp>
 
 // Use DEBUG to print messages that should be
@@ -1465,16 +1466,77 @@ Dbspj::lookup_cleanup(Ptr<Request> requestPtr,
 }
 
 
+Uint32
+Dbspj::handle_special_hash(Uint32 tableId, Uint32 dstHash[4],
+                           const Uint64* src,
+                           Uint32 srcLen,       // Len in #32bit words
+                           const KeyDescriptor* desc)
+{
+  const Uint32 MAX_KEY_SIZE_IN_LONG_WORDS= 
+    (MAX_KEY_SIZE_IN_WORDS + 1) / 2;
+  Uint64 alignedWorkspace[MAX_KEY_SIZE_IN_LONG_WORDS * MAX_XFRM_MULTIPLY];
+  const bool hasVarKeys = desc->noOfVarKeys > 0;
+  const bool hasCharAttr = desc->hasCharAttr;
+  const bool compute_distkey = desc->noOfDistrKeys > 0;
+  
+  const Uint64 *hashInput = 0;
+  Uint32 inputLen = 0;
+  Uint32 keyPartLen[MAX_ATTRIBUTES_IN_INDEX];
+  Uint32 * keyPartLenPtr;
+
+  /* Normalise KeyInfo into workspace if necessary */
+  if(hasCharAttr || (compute_distkey && hasVarKeys))
+  {
+    hashInput = alignedWorkspace;
+    keyPartLenPtr = keyPartLen;
+    inputLen = xfrm_key(tableId, 
+                        (Uint32*)src, 
+                        (Uint32*)alignedWorkspace, 
+                        sizeof(alignedWorkspace) >> 2, 
+                        keyPartLenPtr);
+    if (unlikely(inputLen == 0))
+    {
+      return 290;  // 'Corrupt key in TC, unable to xfrm'
+    }
+  } 
+  else 
+  {
+    /* Keyinfo already suitable for hash */
+    hashInput = src;
+    inputLen = srcLen;
+    keyPartLenPtr = 0;
+  }
+  
+  /* Calculate primary key hash */
+  md5_hash(dstHash, hashInput, inputLen);
+  
+  /* If the distribution key != primary key then we have to
+   * form a distribution key from the primary key and calculate 
+   * a separate distribution hash based on this
+   */
+  if(compute_distkey)
+  {
+    jam();
+    
+    Uint32 distrKeyHash[4];
+    /* Reshuffle primary key columns to get just distribution key */
+    Uint32 len = create_distr_key(tableId, (Uint32*)hashInput, (Uint32*)alignedWorkspace, keyPartLenPtr);
+    /* Calculate distribution key hash */
+    md5_hash(distrKeyHash, alignedWorkspace, len);
+
+    /* Just one word used for distribution */
+    dstHash[1] = distrKeyHash[1];
+  }
+  return 0;
+}
 
 Uint32
 Dbspj::computeHash(Signal* signal,
 		   BuildKeyReq& dst, Uint32 tableId, Uint32 ptrI)
 {
   /**
-   * TODO...lots of code...see Dbtc::hash()
-   *
-   * BEWARE: Hash on character attrs will fail as they will
-   * require the Dbtc::handle_special_hash() logic...
+   * Essentially the same code as in Dbtc::hash().
+   * The code for user defined partitioning has been removed though.
    */
   SegmentedSectionPtr ptr;
   getSection(ptr, ptrI);
@@ -1485,10 +1547,21 @@ Dbspj::computeHash(Signal* signal,
     (MAX_KEY_SIZE_IN_WORDS + 1) / 2;
   Uint64 tmp64[MAX_KEY_SIZE_IN_LONG_WORDS];
   Uint32 *tmp32 = (Uint32*)tmp64;
-
   copy(tmp32, ptr);
-  md5_hash(dst.hashInfo, tmp64, ptr.sz);
-  return 0;
+
+  const KeyDescriptor* desc = g_key_descriptor_pool.getPtr(tableId);
+  ndbrequire(desc != NULL);
+
+  bool need_special_hash = desc->hasCharAttr | (desc->noOfDistrKeys > 0);
+  if (need_special_hash)
+  {
+    return handle_special_hash(tableId, dst.hashInfo, tmp64, ptr.sz, desc);
+  }
+  else
+  {
+    md5_hash(dst.hashInfo, tmp64, ptr.sz);
+    return 0;
+  }
 }
 
 Uint32
