@@ -1,0 +1,31 @@
+--- mysql-test/suite/sys_vars/r/innodb_thread_concurrency_basic.result.orig	2008-12-04 18:45:52 -06:00
++++ mysql-test/suite/sys_vars/r/innodb_thread_concurrency_basic.result	2009-02-12 02:05:48 -06:00
+@@ -1,19 +1,19 @@
+ SET @global_start_value = @@global.innodb_thread_concurrency;
+ SELECT @global_start_value;
+ @global_start_value
+-8
++0
+ '#--------------------FN_DYNVARS_046_01------------------------#'
+ SET @@global.innodb_thread_concurrency = 0;
+ SET @@global.innodb_thread_concurrency = DEFAULT;
+ SELECT @@global.innodb_thread_concurrency;
+ @@global.innodb_thread_concurrency
+-8
++0
+ '#---------------------FN_DYNVARS_046_02-------------------------#'
+ SET innodb_thread_concurrency = 1;
+ ERROR HY000: Variable 'innodb_thread_concurrency' is a GLOBAL variable and should be set with SET GLOBAL
+ SELECT @@innodb_thread_concurrency;
+ @@innodb_thread_concurrency
+-8
++0
+ SELECT local.innodb_thread_concurrency;
+ ERROR 42S02: Unknown table 'local' in field list
+ SET global innodb_thread_concurrency = 0;
+@@ -93,4 +93,4 @@
+ SET @@global.innodb_thread_concurrency = @global_start_value;
+ SELECT @@global.innodb_thread_concurrency;
+ @@global.innodb_thread_concurrency
+-8
++0
