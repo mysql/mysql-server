@@ -28,45 +28,6 @@
 #include "procedure.h"
 #include <myisam.h>
 
-#define FT_KEYPART   (MAX_REF_PARTS+10)
-/* Values in optimize */
-#define KEY_OPTIMIZE_EXISTS		1
-#define KEY_OPTIMIZE_REF_OR_NULL	2
-
-/* KEYUSE element types */
-enum keyuse_type
-{
-  /* 
-    val refers to the same table, this is either KEYUSE_BIND or KEYUSE_NO_BIND
-    type, we didn't determine which one yet.
-  */
-  KEYUSE_UNKNOWN= 0,
-  /* 
-    'regular' keyuse, i.e. it represents one of the following
-      * t.keyXpartY = func(constants, other-tables)
-      * t.keyXpartY IS NULL 
-      * t.keyXpartY = func(constants, other-tables) OR t.keyXpartY IS NULL 
-    and can be used to construct ref acces
-  */
-  KEYUSE_USABLE,
-  /*
-    The keyuse represents a condition in form: 
-      
-      t.uniq_keyXpartY = func(other parts of uniq_keyX)
-    
-    This can't be used to construct uniq_keyX but we could use it to determine
-    that the table will produce at most one match.
-  */
-  KEYUSE_BIND,
-  /*
-    Keyuse that's not usable for ref access and doesn't meet the criteria of
-    KEYUSE_BIND. Examples:
-      t.keyXpartY = func(t.keyXpartY)
-      t.keyXpartY = func(column of t that's not covered by keyX)
-  */
-  KEYUSE_NO_BIND
-};
-
 typedef struct keyuse_t {
   TABLE *table;
   Item	*val;				/**< or value if no field */
@@ -90,15 +51,6 @@ typedef struct keyuse_t {
     NULL  - Otherwise (the source equality can't be turned off)
   */
   bool *cond_guard;
-  /*
-    1  <=> This keyuse can be used to construct key access.
-    0 <=> Otherwise. Currently unusable KEYUSEs represent equalities
-              where one table column refers to another one, like this:
-                t.keyXpartA=func(t.keyXpartB)
-              This equality cannot be used for index access but is useful
-              for table elimination.
-  */
-  enum keyuse_type type;
 } KEYUSE;
 
 class store_key;
@@ -258,7 +210,7 @@ typedef struct st_join_table {
   JOIN		*join;
   /** Bitmap of nested joins this table is part of */
   nested_join_map embedding_map;
-  
+
   void cleanup();
   inline bool is_using_loose_index_scan()
   {

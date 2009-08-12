@@ -1119,7 +1119,6 @@ void eliminate_tables(JOIN *join)
         case Func_dep::FD_OUTER_JOIN:
         {
           Outer_join_dep *outer_join_dep= (Outer_join_dep*)bound_dep;
-          /* TODO what do here? Stop if eliminated the top-level? */
           mark_as_eliminated(te.join, outer_join_dep->table_list);
           Outer_join_dep *parent= outer_join_dep->parent;
           if (parent && 
@@ -1235,38 +1234,6 @@ void dbug_print_deps(Table_elimination *te)
 }
 
 #endif 
-
-/***********************************************************************************************/
-
-#if 0
-static void dbug_print_fdep(FUNC_DEP *fd)
-{
-  switch (fd->type) {
-  case FUNC_DEP::FD_OUTER_JOIN:
-  {
-    fprintf(DBUG_FILE, "outer_join(");
-    if (fd->table_list->nested_join)
-    {
-      bool first= TRUE;
-      List_iterator<TABLE_LIST> it(fd->table_list->nested_join->join_list);
-      TABLE_LIST *tbl;
-      while ((tbl= it++))
-      {
-        fprintf(DBUG_FILE, "%s%s", first?"":" ", 
-                tbl->table? tbl->table->alias : "...");
-        first= FALSE;
-      }
-      fprintf(DBUG_FILE, ")");
-    }
-    else
-      fprintf(DBUG_FILE, "%s", fd->table_list->table->alias);
-    fprintf(DBUG_FILE, ")");
-    break;
-  }
-  }
-}
-
-#endif
 
 /**
   @} (end of group Table_Elimination)
