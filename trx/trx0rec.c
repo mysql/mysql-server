@@ -1333,7 +1333,7 @@ trx_undo_get_undo_rec_low(
 	ulint		rseg_id;
 	ulint		page_no;
 	ulint		offset;
-	page_t*		undo_page;
+	const page_t*	undo_page;
 	trx_rseg_t*	rseg;
 	ibool		is_insert;
 	mtr_t		mtr;
