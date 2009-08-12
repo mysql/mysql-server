@@ -618,7 +618,7 @@ enum btr_cur_method {
 				hash_node, and might be necessary to
 				update */
 	BTR_CUR_BINARY,		/*!< success using the binary search */
-	BTR_CUR_INSERT_TO_IBUF,	/*!< performed the intended insert to
+	BTR_CUR_INSERT_TO_IBUF	/*!< performed the intended insert to
 				the insert buffer */
 };
 
