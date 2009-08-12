@@ -724,8 +724,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   if (!head[32])				// New frm file in 3.23
   {
     share->avg_row_length= uint4korr(head+34);
-    share->transactional= (ha_choice) (head[39] & 3);
-    share->page_checksum= (ha_choice) ((head[39] >> 2) & 3);
     share->row_type= (row_type) head[40];
     share->table_charset= get_charset((uint) head[38],MYF(0));
     share->null_field_first= 1;
@@ -2493,8 +2491,11 @@ File create_frm(THD *thd, const char *name, const char *db,
     int4store(fileinfo+34,create_info->avg_row_length);
     fileinfo[38]= (create_info->default_table_charset ?
 		   create_info->default_table_charset->number : 0);
-    fileinfo[39]= (uchar) ((uint) create_info->transactional |
-                           ((uint) create_info->page_checksum << 2));
+    /*
+      In future versions, we will store in fileinfo[39] the values of the
+      TRANSACTIONAL and PAGE_CHECKSUM clauses of CREATE TABLE.
+    */
+    fileinfo[39]= 0;
     fileinfo[40]= (uchar) create_info->row_type;
     /* Next few bytes where for RAID support */
     fileinfo[41]= 0;

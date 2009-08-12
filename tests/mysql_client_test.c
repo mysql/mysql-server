@@ -16951,9 +16951,10 @@ static void bug20023_change_user(MYSQL *con)
                            opt_db ? opt_db : "test"));
 }
 
-static my_bool query_int_variable(MYSQL *con,
+static my_bool query_str_variable(MYSQL *con,
                                   const char *var_name,
-                                  int *var_value)
+                                  char *str,
+                                  size_t len)
 {
   MYSQL_RES *rs;
   MYSQL_ROW row;
@@ -16962,10 +16963,8 @@ static my_bool query_int_variable(MYSQL *con,
 
   my_bool is_null;
 
-  my_snprintf(query_buffer,
-          sizeof (query_buffer),
-          "SELECT %s",
-          (const char *) var_name);
+  my_snprintf(query_buffer, sizeof (query_buffer),
+              "SELECT %s", var_name);
 
   DIE_IF(mysql_query(con, query_buffer));
   DIE_UNLESS(rs= mysql_store_result(con));
@@ -16974,9 +16973,22 @@ static my_bool query_int_variable(MYSQL *con,
   is_null= row[0] == NULL;
 
   if (!is_null)
-    *var_value= atoi(row[0]);
+    my_snprintf(str, len, "%s", row[0]);
 
   mysql_free_result(rs);
+
+  return is_null;
+}
+
+static my_bool query_int_variable(MYSQL *con,
+                                  const char *var_name,
+                                  int *var_value)
+{
+  char str[32];
+  my_bool is_null= query_str_variable(con, var_name, str, sizeof(str));
+
+  if (!is_null)
+    *var_value= atoi(str);
 
   return is_null;
 }
@@ -16986,16 +16998,19 @@ static void test_bug20023()
   MYSQL con;
 
   int sql_big_selects_orig;
-  int max_join_size_orig;
+  /*
+    Type of max_join_size is ha_rows, which might be ulong or off_t
+    depending on the platform or configure options. Preserve the string
+    to avoid type overflow pitfalls.
+  */
+  char max_join_size_orig[32];
 
   int sql_big_selects_2;
   int sql_big_selects_3;
   int sql_big_selects_4;
   int sql_big_selects_5;
 
-#if NOT_USED
   char query_buffer[MAX_TEST_QUERY_LENGTH];
-#endif
 
   /* Create a new connection. */
 
@@ -17018,9 +17033,10 @@ static void test_bug20023()
                      "@@session.sql_big_selects",
                      &sql_big_selects_orig);
 
-  query_int_variable(&con,
+  query_str_variable(&con,
                      "@@global.max_join_size",
-                     &max_join_size_orig);
+                     max_join_size_orig,
+                     sizeof(max_join_size_orig));
 
   /***********************************************************************
     Test that COM_CHANGE_USER resets the SQL_BIG_SELECTS to the initial value.
@@ -17093,25 +17109,16 @@ static void test_bug20023()
     Check that SQL_BIG_SELECTS will be the original one.
   ***********************************************************************/
 
-#if NOT_USED
-  /*
-    max_join_size is a ulong or better.
-    my_snprintf() only goes up to ul.
-  */
-
   /* Restore MAX_JOIN_SIZE. */
 
   my_snprintf(query_buffer,
            sizeof (query_buffer),
-           "SET @@global.max_join_size = %d",
-           (int) max_join_size_orig);
+           "SET @@global.max_join_size = %s",
+           max_join_size_orig);
 
   DIE_IF(mysql_query(&con, query_buffer));
 
-#else
   DIE_IF(mysql_query(&con, "SET @@global.max_join_size = -1"));
-#endif
-
   DIE_IF(mysql_query(&con, "SET @@session.max_join_size = default"));
 
   /* Issue COM_CHANGE_USER. */
@@ -17940,6 +17947,85 @@ static void test_bug41078(void)
   DBUG_VOID_RETURN;
 }
 
+/**
+  Bug#45010: invalid memory reads during parsing some strange statements
+*/
+static void test_bug45010()
+{
+  int rc;
+  const char query1[]= "select a.\x80",
+             query2[]= "describe `table\xef";
+
+  DBUG_ENTER("test_bug45010");
+  myheader("test_bug45010");
+
+  rc= mysql_query(mysql, "set names utf8");
+  myquery(rc);
+
+  /* \x80 (-128) could be used as a index of ident_map. */
+  rc= mysql_real_query(mysql, query1, sizeof(query1) - 1);
+  DIE_UNLESS(rc);
+
+  /* \xef (-17) could be used to skip 3 bytes past the buffer end. */
+  rc= mysql_real_query(mysql, query2, sizeof(query2) - 1);
+  DIE_UNLESS(rc);
+
+  rc= mysql_query(mysql, "set names default");
+  myquery(rc);
+
+  DBUG_VOID_RETURN;
+}
+
+/**
+  Bug#44495: Prepared Statement:
+             CALL p(<x>) - `thd->protocol == &thd->protocol_text' failed
+*/
+
+static void test_bug44495()
+{
+  int rc;
+  MYSQL con;
+  MYSQL_STMT *stmt;
+
+  DBUG_ENTER("test_bug44495");
+  myheader("test_44495");
+
+  rc= mysql_query(mysql, "DROP PROCEDURE IF EXISTS p1");
+  myquery(rc);
+
+  rc= mysql_query(mysql, "CREATE PROCEDURE p1(IN arg VARCHAR(25))"
+                         "  BEGIN SET @stmt = CONCAT('SELECT \"', arg, '\"');"
+                         "  PREPARE ps1 FROM @stmt;"
+                         "  EXECUTE ps1;"
+                         "  DROP PREPARE ps1;"
+                         "END;");
+  myquery(rc);
+
+  DIE_UNLESS(mysql_init(&con));
+
+  DIE_UNLESS(mysql_real_connect(&con, opt_host, opt_user, opt_password,
+                                current_db, opt_port, opt_unix_socket,
+                                CLIENT_MULTI_RESULTS));
+
+  stmt= mysql_simple_prepare(&con, "CALL p1('abc')");
+  check_stmt(stmt);
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  rc= my_process_stmt_result(stmt);
+  DIE_UNLESS(rc == 1);
+
+  mysql_stmt_close(stmt);
+
+  mysql_close(&con);
+
+  rc= mysql_query(mysql, "DROP PROCEDURE p1");
+  myquery(rc);
+
+  DBUG_VOID_RETURN;
+}
+
 /*
   Read and parse arguments and MySQL options from my.cnf
 */
@@ -18243,6 +18329,7 @@ static struct my_tests_st my_tests[]= {
   { "test_change_user", test_change_user },
   { "test_bug30472", test_bug30472 },
   { "test_bug20023", test_bug20023 },
+  { "test_bug45010", test_bug45010 },
   { "test_bug31418", test_bug31418 },
   { "test_bug31669", test_bug31669 },
   { "test_bug28386", test_bug28386 },
@@ -18255,6 +18342,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug36326", test_bug36326 },
 #endif
   { "test_bug41078", test_bug41078 },
+  { "test_bug44495", test_bug44495 },
   { 0, 0 }
 };
 

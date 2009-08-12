@@ -148,6 +148,17 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 	       MYF(0));
     DBUG_RETURN(TRUE);
   }
+
+  /* Report problems with non-ascii separators */
+  if (!escaped->is_ascii() || !enclosed->is_ascii() ||
+      !field_term->is_ascii() ||
+      !ex->line_term->is_ascii() || !ex->line_start->is_ascii())
+  {
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                 WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED,
+                 ER(WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED));
+  } 
+
   if (open_and_lock_tables(thd, table_list))
     DBUG_RETURN(TRUE);
   if (setup_tables_and_check_access(thd, &thd->lex->select_lex.context,

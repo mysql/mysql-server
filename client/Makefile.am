@@ -101,7 +101,7 @@ mysql_upgrade_SOURCES=          mysql_upgrade.c \
 # Fix for mit-threads
 DEFS =			-DMYSQL_CLIENT_NO_THREADS \
 			-DDEFAULT_MYSQL_HOME="\"$(prefix)\"" \
-			-DDATADIR="\"$(localstatedir)\""
+			-DMYSQL_DATADIR="\"$(localstatedir)\""
 
 sql_src=log_event.h mysql_priv.h rpl_constants.h \
 	rpl_utility.h rpl_tblmap.h rpl_tblmap.cc \

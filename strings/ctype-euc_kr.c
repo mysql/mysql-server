@@ -185,13 +185,13 @@ static uchar NEAR sort_order_euc_kr[]=
  
  Valid multi-byte characters:
  
-   [A1..FE][41..5A,61..7A,81..FE]
+   [81..FE][41..5A,61..7A,81..FE]
  
  Note, 0x5C is not a valid MB tail,
  so escape_with_backslash_is_dangerous is not set.
 */
 
-#define iseuc_kr_head(c)     ((0xa1<=(uchar)(c) && (uchar)(c)<=0xfe))
+#define iseuc_kr_head(c)     ((0x81<=(uchar)(c) && (uchar)(c)<=0xfe))
 
 #define iseuc_kr_tail1(c)    ((uchar) (c) >= 0x41 && (uchar) (c) <= 0x5A)
 #define iseuc_kr_tail2(c)    ((uchar) (c) >= 0x61 && (uchar) (c) <= 0x7A)
@@ -1294,7 +1294,7 @@ static uint16 tab_ksc5601_uni0[]={
 0x25A8,0x25A7,0x25A6,0x25A9,0x2668,0x260F,0x260E,0x261C,
 0x261E,0x00B6,0x2020,0x2021,0x2195,0x2197,0x2199,0x2196,
 0x2198,0x266D,0x2669,0x266A,0x266C,0x327F,0x321C,0x2116,
-0x33C7,0x2122,0x33C2,0x33D8,0x2121,     0,     0,     0,
+0x33C7,0x2122,0x33C2,0x33D8,0x2121,0x20AC,0x00AE,     0,
      0,     0,     0,     0,     0,     0,     0,     0,
      0,     0,     0,     0,     0,     0,     0,     0,
      0,     0,     0,     0,     0,     0,     0,     0,
@@ -4172,7 +4172,7 @@ static int func_ksc5601_uni_onechar(int code){
 /* page 0 0x00A1-0x0167 */
 static uint16 tab_uni_ksc56010[]={
 0xA2AE,     0,     0,0xA2B4,     0,     0,0xA1D7,0xA1A7,
-     0,0xA8A3,     0,     0,0xA1A9,     0,     0,0xA1C6,
+     0,0xA8A3,     0,     0,0xA1A9,0xA2E7,     0,0xA1C6,
 0xA1BE,0xA9F7,0xA9F8,0xA2A5,     0,0xA2D2,0xA1A4,0xA2AC,
 0xA9F6,0xA8AC,     0,0xA8F9,0xA8F6,0xA8FA,0xA2AF,     0,
      0,     0,     0,     0,     0,0xA8A1,     0,     0,
@@ -4270,7 +4270,7 @@ static uint16 tab_uni_ksc56012[]={
      0,     0,     0,     0,     0,     0,     0,     0,
      0,     0,     0,     0,     0,     0,     0,     0,
      0,     0,     0,     0,     0,     0,     0,     0,
-     0,     0,     0,     0,     0,     0,     0,     0,
+     0,     0,     0,     0,     0,     0,     0,0xA2E6,
      0,     0,     0,     0,     0,     0,     0,     0,
      0,     0,     0,     0,     0,     0,     0,     0,
      0,     0,     0,     0,     0,     0,     0,     0,

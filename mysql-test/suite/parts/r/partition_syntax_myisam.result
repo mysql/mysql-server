@@ -796,7 +796,7 @@ f_char2 CHAR(20),
 f_charbig VARCHAR(1000) )
 PARTITION BY RANGE(f_int1) SUBPARTITION BY HASH(f_int1) (PARTITION part1 VALUES LESS THAN (10), PARTITION part2 VALUES LESS THAN (20), PARTITION part3 VALUES LESS THAN (2147483646)
 (SUBPARTITION subpart31 , SUBPARTITION subpart32 )) ;
-ERROR 42000: Wrong number of subpartitions defined, mismatch with previous setting near '))' at line 7
+ERROR 42000: Wrong number of subpartitions defined, mismatch with previous setting near 'SUBPARTITION subpart31 , SUBPARTITION subpart32 ))' at line 7
 CREATE TABLE t1 (  f_int1 INTEGER,
 f_int2 INTEGER,
 f_char1 CHAR(20),
@@ -804,7 +804,7 @@ f_char2 CHAR(20),
 f_charbig VARCHAR(1000) )
 PARTITION BY RANGE(f_int1) SUBPARTITION BY HASH(f_int1) (PARTITION part1 VALUES LESS THAN (10), PARTITION part2 VALUES LESS THAN (20)
 (SUBPARTITION subpart21 , SUBPARTITION subpart22 ), PARTITION part3 VALUES LESS THAN (2147483646)) ;
-ERROR 42000: Wrong number of subpartitions defined, mismatch with previous setting near '), PARTITION part3 VALUES LESS THAN (2147483646))' at line 7
+ERROR 42000: Wrong number of subpartitions defined, mismatch with previous setting near 'SUBPARTITION subpart21 , SUBPARTITION subpart22 ), PARTITION part3 VALUES LESS T' at line 7
 CREATE TABLE t1 (  f_int1 INTEGER,
 f_int2 INTEGER,
 f_char1 CHAR(20),
@@ -813,8 +813,7 @@ f_charbig VARCHAR(1000) )
 PARTITION BY RANGE(f_int1) SUBPARTITION BY HASH(f_int1) (PARTITION part1 VALUES LESS THAN (10), PARTITION part2 VALUES LESS THAN (20)
 (SUBPARTITION subpart21 , SUBPARTITION subpart22 ), PARTITION part3 VALUES LESS THAN (2147483646)
 (SUBPARTITION subpart31 , SUBPARTITION subpart32 )) ;
-ERROR 42000: Wrong number of subpartitions defined, mismatch with previous setting near '), PARTITION part3 VALUES LESS THAN (2147483646)
-(SUBPARTITION subpart31 , SUBPA' at line 7
+ERROR 42000: Wrong number of subpartitions defined, mismatch with previous setting near 'SUBPARTITION subpart21 , SUBPARTITION subpart22 ), PARTITION part3 VALUES LESS T' at line 7
 CREATE TABLE t1 (  f_int1 INTEGER,
 f_int2 INTEGER,
 f_char1 CHAR(20),
