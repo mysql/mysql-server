@@ -895,7 +895,7 @@ class partition_info;
 struct st_partition_iter;
 #define NOT_A_PARTITION_ID ((uint32)-1)
 
-enum ha_choice { HA_CHOICE_UNDEF, HA_CHOICE_NO, HA_CHOICE_YES };
+enum enum_ha_unused { HA_CHOICE_UNDEF, HA_CHOICE_NO, HA_CHOICE_YES };
 
 typedef struct st_ha_create_information
 {
@@ -918,14 +918,12 @@ typedef struct st_ha_create_information
   uint options;				/* OR of HA_CREATE_ options */
   uint merge_insert_method;
   uint extra_size;                      /* length of extra data segment */
-  /** Transactional or not. Unused; reserved for future versions. */
-  enum ha_choice transactional;
+  enum enum_ha_unused unused1;
   bool table_existed;			/* 1 in create if table existed */
   bool frm_only;                        /* 1 if no ha_create_table() */
   bool varchar;                         /* 1 if table has a VARCHAR */
   enum ha_storage_media storage_media;  /* DEFAULT, DISK or MEMORY */
-  /** Per-page checksums or not. Unused; reserved for future versions. */
-  enum ha_choice page_checksum;
+  enum enum_ha_unused unused2;
 } HA_CREATE_INFO;
 
 
