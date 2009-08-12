@@ -3757,8 +3757,8 @@ partitioning:
             LEX_STRING partition_name={C_STRING_WITH_LEN("partition")};
             if (!plugin_is_ready(&partition_name, MYSQL_STORAGE_ENGINE_PLUGIN))
             {
-              my_error(ER_FEATURE_DISABLED, MYF(0),
-                      "partitioning", "--with-partition");
+              my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0),
+                       "--skip-partition");
               MYSQL_YYABORT;
             }
             lex->part_info= new partition_info();
