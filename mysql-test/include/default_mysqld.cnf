@@ -13,12 +13,14 @@ key_buffer_size=            1M
 sort_buffer=                256K
 max_heap_table_size=        1M
 
-loose-innodb_data_file_path=      ibdata1:10M:autoextend
-loose-innodb_buffer_pool_size=    64M
+loose-innodb_data_file_path=      ibdata1:8M:autoextend
+loose-innodb_buffer_pool_size=    8M
 loose-innodb_write_io_threads=    2
 loose-innodb_read_io_threads=     2
-loose-innodb_log_buffer_size=     4M
-loose-innodb_log_file_size=       32M
+loose-innodb_log_buffer_size=     1M
+loose-innodb_log_file_size=       5M
+loose-innodb_additional_mem_pool_size= 1M
+loose-innodb_log_files_in_group=  2
 
 slave-net-timeout=120
 
