@@ -187,10 +187,12 @@ my_bool net_realloc(NET *net, size_t length)
   pkt_length = (length+IO_SIZE-1) & ~(IO_SIZE-1); 
   /*
     We must allocate some extra bytes for the end 0 and to be able to
-    read big compressed blocks
+    read big compressed blocks + 1 safety byte since uint3korr() in
+    my_real_read() may actually read 4 bytes depending on build flags and
+    platform.
   */
   if (!(buff= (uchar*) my_realloc((char*) net->buff, pkt_length +
-                                  NET_HEADER_SIZE + COMP_HEADER_SIZE,
+                                  NET_HEADER_SIZE + COMP_HEADER_SIZE + 1,
                                   MYF(MY_WME))))
   {
     /* @todo: 1 and 2 codes are identical. */
@@ -943,6 +945,13 @@ my_real_read(NET *net, size_t *complen)
 #ifdef HAVE_COMPRESS
 	if (net->compress)
 	{
+          /*
+            The following uint3korr() may read 4 bytes, so make sure we don't
+            read unallocated or uninitialized memory. The right-hand expression
+            must match the size of the buffer allocated in net_realloc().
+          */
+          DBUG_ASSERT(net->where_b + NET_HEADER_SIZE + sizeof(uint32) <=
+                      net->max_packet + NET_HEADER_SIZE + COMP_HEADER_SIZE + 1);
 	  /*
 	    If the packet is compressed then complen > 0 and contains the
 	    number of bytes in the uncompressed packet

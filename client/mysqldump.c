@@ -3137,6 +3137,12 @@ static void dump_table(char *table, char *db)
     dynstr_append_checked(&query_string, filename);
     dynstr_append_checked(&query_string, "'");
 
+    dynstr_append_checked(&query_string, " /*!50138 CHARACTER SET ");
+    dynstr_append_checked(&query_string, default_charset == mysql_universal_client_charset ?
+                                         my_charset_bin.name : /* backward compatibility */
+                                         default_charset);
+    dynstr_append_checked(&query_string, " */");
+
     if (fields_terminated || enclosed || opt_enclosed || escaped)
       dynstr_append_checked(&query_string, " FIELDS");
     
@@ -4810,7 +4816,8 @@ static my_bool get_view_structure(char *table, char* db)
             result_table);
     check_io(sql_file);
   }
-  fprintf(sql_file, "/*!50001 DROP TABLE %s*/;\n", opt_quoted_table);
+  /* Table might not exist if this view was dumped with --tab. */
+  fprintf(sql_file, "/*!50001 DROP TABLE IF EXISTS %s*/;\n", opt_quoted_table);
   if (opt_drop)
   {
     fprintf(sql_file, "/*!50001 DROP VIEW IF EXISTS %s*/;\n",

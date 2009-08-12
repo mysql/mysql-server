@@ -17,6 +17,9 @@
 #ifndef _SP_H_
 #define _SP_H_
 
+/* Tells what SP_DEFAULT_ACCESS should be mapped to */
+#define SP_DEFAULT_ACCESS_MAPPING SP_CONTAINS_SQL
+
 // Return codes from sp_create_*, sp_drop_*, and sp_show_*:
 #define SP_OK                 0
 #define SP_KEY_NOT_FOUND     -1
