@@ -30,11 +30,7 @@ struct NdbCondition
 };
 
 #ifdef HAVE_CLOCK_GETTIME
-#ifdef CLOCK_MONOTONIC
-static int clock_id = CLOCK_MONOTONIC;
-#else
 static int clock_id = CLOCK_REALTIME;
-#endif
 #endif
 
 void
