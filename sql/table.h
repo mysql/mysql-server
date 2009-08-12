@@ -361,6 +361,8 @@ typedef struct st_table_share
   }
   enum row_type row_type;		/* How rows are stored */
   enum tmp_table_type tmp_table;
+  enum enum_ha_unused unused1;
+  enum enum_ha_unused unused2;
 
   uint ref_count;                       /* How many TABLE objects uses this */
   uint open_count;			/* Number of tables in open list */
