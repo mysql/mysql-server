@@ -913,6 +913,15 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
           we unlock the old value of share->db_plugin before
           replacing it with a globally locked version of tmp_plugin
         */
+        /* Check if the partitioning engine is ready */
+        if (!plugin_is_ready(&name, MYSQL_STORAGE_ENGINE_PLUGIN))
+        {
+          error= 8;
+          my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0),
+                   "--skip-partition");
+          my_free(buff, MYF(0));
+          goto err;
+        }
         plugin_unlock(NULL, share->db_plugin);
         share->db_plugin= ha_lock_engine(NULL, partition_hton);
         DBUG_PRINT("info", ("setting dbtype to '%.*s' (%d)",
