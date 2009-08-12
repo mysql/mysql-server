@@ -1283,9 +1283,15 @@ TransporterRegistry::start_clients_thread()
             // ndbapi clients to connect until it's started
             // The transporter will detect this case and
             // limit rapid reconnect attempts
+#if 0
+            // disable this "fix" as it cause some 50 tests to fail
+	    // in autotest...
+	    // suggest that we send back "blocked" instead
+	    // and ping-pong this back-and-forth until connection
+	    // gets un-blocked
             if (t->is_connect_blocked())
               continue; // Too many refused connections
-
+#endif
             connected= t->connect_client();
           }
 
