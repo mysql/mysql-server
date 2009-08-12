@@ -29,11 +29,11 @@
 
 static const unsigned int PACKET_BUFFER_EXTRA_ALLOC= 1024;
 /* Declared non-static only because of the embedded library. */
-void net_send_error_packet(THD *thd, uint sql_errno, const char *err);
-void net_send_ok(THD *, uint, uint, ha_rows, ulonglong, const char *);
-void net_send_eof(THD *thd, uint server_status, uint total_warn_count);
+bool net_send_error_packet(THD *thd, uint sql_errno, const char *err);
+bool net_send_ok(THD *, uint, uint, ha_rows, ulonglong, const char *);
+bool net_send_eof(THD *thd, uint server_status, uint total_warn_count);
 #ifndef EMBEDDED_LIBRARY
-static void write_eof_packet(THD *thd, NET *net,
+static bool write_eof_packet(THD *thd, NET *net,
                              uint server_status, uint total_warn_count);
 #endif
 
@@ -70,8 +70,17 @@ bool Protocol_binary::net_store_data(const uchar *from, size_t length)
   For SIGNAL/RESIGNAL and GET DIAGNOSTICS functionality it's
   critical that every error that can be intercepted is issued in one
   place only, my_message_sql.
+
+  @param thd Thread handler
+  @param sql_errno The error code to send
+  @param err A pointer to the error message
+
+  @return
+    @retval FALSE The message was sent to the client
+    @retval TRUE An error occurred and the message wasn't sent properly
 */
-void net_send_error(THD *thd, uint sql_errno, const char *err)
+
+bool net_send_error(THD *thd, uint sql_errno, const char *err)
 {
   DBUG_ENTER("net_send_error");
 
@@ -80,6 +89,7 @@ void net_send_error(THD *thd, uint sql_errno, const char *err)
   DBUG_ASSERT(err && err[0]);
 
   DBUG_PRINT("enter",("sql_errno: %d  err: %s", sql_errno, err));
+  bool error;
 
   /*
     It's one case when we can push an error even though there
@@ -90,11 +100,11 @@ void net_send_error(THD *thd, uint sql_errno, const char *err)
   /* Abort multi-result sets */
   thd->server_status&= ~SERVER_MORE_RESULTS_EXISTS;
 
-  net_send_error_packet(thd, sql_errno, err);
+  error= net_send_error_packet(thd, sql_errno, err);
 
   thd->main_da.can_overwrite_status= FALSE;
 
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(error);
 }
 
 /**
@@ -113,25 +123,33 @@ void net_send_error(THD *thd, uint sql_errno, const char *err)
   Is not stored if no message.
 
   @param thd		   Thread handler
+  @param server_status     The server status
+  @param total_warn_count  Total number of warnings
   @param affected_rows	   Number of rows changed by statement
   @param id		   Auto_increment id for first row (if used)
   @param message	   Message to send to the client (Used by mysql_status)
+ 
+  @return
+    @retval FALSE The message was successfully sent
+    @retval TRUE An error occurred and the messages wasn't sent properly
+
 */
 
 #ifndef EMBEDDED_LIBRARY
-void
+bool
 net_send_ok(THD *thd,
             uint server_status, uint total_warn_count,
             ha_rows affected_rows, ulonglong id, const char *message)
 {
   NET *net= &thd->net;
   uchar buff[MYSQL_ERRMSG_SIZE+10],*pos;
+  bool error= FALSE;
   DBUG_ENTER("my_ok");
 
   if (! net->vio)	// hack for re-parsing queries
   {
     DBUG_PRINT("info", ("vio present: NO"));
-    DBUG_VOID_RETURN;
+    DBUG_RETURN(FALSE);
   }
 
   buff[0]=0;					// No fields
@@ -162,13 +180,14 @@ net_send_ok(THD *thd,
 
   if (message && message[0])
     pos= net_store_data(pos, (uchar*) message, strlen(message));
-  VOID(my_net_write(net, buff, (size_t) (pos-buff)));
-  VOID(net_flush(net));
+  error= my_net_write(net, buff, (size_t) (pos-buff));
+  if (!error)
+    error= net_flush(net);
 
   thd->main_da.can_overwrite_status= FALSE;
   DBUG_PRINT("info", ("OK sent, so no more error sending allowed"));
 
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(error);
 }
 
 static uchar eof_buff[1]= { (uchar) 254 };      /* Marker for end of fields */
@@ -188,37 +207,54 @@ static uchar eof_buff[1]= { (uchar) 254 };      /* Marker for end of fields */
   client.
 
   @param thd		Thread handler
-  @param no_flush	Set to 1 if there will be more data to the client,
-                    like in send_fields().
+  @param server_status The server status
+  @param total_warn_count Total number of warnings
+
+  @return
+    @retval FALSE The message was successfully sent
+    @retval TRUE An error occurred and the message wasn't sent properly
 */    
 
-void
+bool
 net_send_eof(THD *thd, uint server_status, uint total_warn_count)
 {
   NET *net= &thd->net;
+  bool error= FALSE;
   DBUG_ENTER("net_send_eof");
   /* Set to TRUE if no active vio, to work well in case of --init-file */
   if (net->vio != 0)
   {
     thd->main_da.can_overwrite_status= TRUE;
-    write_eof_packet(thd, net, server_status, total_warn_count);
-    VOID(net_flush(net));
+    error= write_eof_packet(thd, net, server_status, total_warn_count);
+    if (!error)
+      error= net_flush(net);
     thd->main_da.can_overwrite_status= FALSE;
     DBUG_PRINT("info", ("EOF sent, so no more error sending allowed"));
   }
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(error);
 }
 
 
 /**
   Format EOF packet according to the current protocol and
   write it to the network output buffer.
+
+  @param thd The thread handler
+  @param net The network handler
+  @param server_status The server status
+  @param total_warn_count The number of warnings
+
+
+  @return
+    @retval FALSE The message was sent successfully
+    @retval TRUE An error occurred and the messages wasn't sent properly
 */
 
-static void write_eof_packet(THD *thd, NET *net,
+static bool write_eof_packet(THD *thd, NET *net,
                              uint server_status,
                              uint total_warn_count)
 {
+  bool error;
   if (thd->client_capabilities & CLIENT_PROTOCOL_41)
   {
     uchar buff[5];
@@ -237,10 +273,12 @@ static void write_eof_packet(THD *thd, NET *net,
     if (thd->is_fatal_error)
       server_status&= ~SERVER_MORE_RESULTS_EXISTS;
     int2store(buff + 3, server_status);
-    VOID(my_net_write(net, buff, 5));
+    error= my_net_write(net, buff, 5);
   }
   else
-    VOID(my_net_write(net, eof_buff, 1));
+    error= my_net_write(net, eof_buff, 1);
+  
+  return error;
 }
 
 /**
@@ -261,7 +299,17 @@ bool send_old_password_request(THD *thd)
 }
 
 
-void net_send_error_packet(THD *thd, uint sql_errno, const char *err)
+/**
+  @param thd Thread handler
+  @param sql_errno The error code to send
+  @param err A pointer to the error message
+
+  @return
+   @retval FALSE The message was successfully sent
+   @retval TRUE  An error occurred and the messages wasn't sent properly
+*/
+
+bool net_send_error_packet(THD *thd, uint sql_errno, const char *err)
 {
   NET *net= &thd->net;
   uint length;
@@ -279,7 +327,7 @@ void net_send_error_packet(THD *thd, uint sql_errno, const char *err)
       /* In bootstrap it's ok to print on stderr */
       fprintf(stderr,"ERROR: %d  %s\n",sql_errno,err);
     }
-    DBUG_VOID_RETURN;
+    DBUG_RETURN(FALSE);
   }
 
   if (net->return_errno)
@@ -301,9 +349,8 @@ void net_send_error_packet(THD *thd, uint sql_errno, const char *err)
     length=(uint) strlen(err);
     set_if_smaller(length,MYSQL_ERRMSG_SIZE-1);
   }
-  VOID(net_write_command(net,(uchar) 255, (uchar*) "", 0, (uchar*) err,
+  DBUG_RETURN(net_write_command(net,(uchar) 255, (uchar*) "", 0, (uchar*) err,
                          length));
-  DBUG_VOID_RETURN;
 }
 
 #endif /* EMBEDDED_LIBRARY */
@@ -389,36 +436,39 @@ void net_end_statement(THD *thd)
   if (thd->main_da.is_sent)
     return;
 
+  bool error= FALSE;
+
   switch (thd->main_da.status()) {
   case Diagnostics_area::DA_ERROR:
     /* The query failed, send error to log and abort bootstrap. */
-    net_send_error(thd,
-                   thd->main_da.sql_errno(),
-                   thd->main_da.message());
+    error= net_send_error(thd,
+                          thd->main_da.sql_errno(),
+                          thd->main_da.message());
     break;
   case Diagnostics_area::DA_EOF:
-    net_send_eof(thd,
-                 thd->main_da.server_status(),
-                 thd->main_da.total_warn_count());
+    error= net_send_eof(thd,
+                        thd->main_da.server_status(),
+                        thd->main_da.total_warn_count());
     break;
   case Diagnostics_area::DA_OK:
-    net_send_ok(thd,
-                thd->main_da.server_status(),
-                thd->main_da.total_warn_count(),
-                thd->main_da.affected_rows(),
-                thd->main_da.last_insert_id(),
-                thd->main_da.message());
+    error= net_send_ok(thd,
+                       thd->main_da.server_status(),
+                       thd->main_da.total_warn_count(),
+                       thd->main_da.affected_rows(),
+                       thd->main_da.last_insert_id(),
+                       thd->main_da.message());
     break;
   case Diagnostics_area::DA_DISABLED:
     break;
   case Diagnostics_area::DA_EMPTY:
   default:
     DBUG_ASSERT(0);
-    net_send_ok(thd, thd->server_status, thd->total_warn_count,
-                0, 0, NULL);
+    error= net_send_ok(thd, thd->server_status, thd->total_warn_count,
+                       0, 0, NULL);
     break;
   }
-  thd->main_da.is_sent= TRUE;
+  if (!error)
+    thd->main_da.is_sent= TRUE;
 }
 
 

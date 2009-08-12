@@ -1810,7 +1810,8 @@ JOIN::exec()
       curr_join->having= curr_join->tmp_having= 0; // Allready done
     
     /* Change sum_fields reference to calculated fields in tmp_table */
-    curr_join->all_fields= *curr_all_fields;
+    if (curr_join != this)
+      curr_join->all_fields= *curr_all_fields;
     if (!items1)
     {
       items1= items0 + all_fields.elements;
@@ -1829,8 +1830,11 @@ JOIN::exec()
 				      fields_list.elements, all_fields))
 	  DBUG_VOID_RETURN;
       }
-      curr_join->tmp_all_fields1= tmp_all_fields1;
-      curr_join->tmp_fields_list1= tmp_fields_list1;
+      if (curr_join != this)
+      {
+        curr_join->tmp_all_fields1= tmp_all_fields1;
+        curr_join->tmp_fields_list1= tmp_fields_list1;
+      }
       curr_join->items1= items1;
     }
     curr_all_fields= &tmp_all_fields1;
@@ -1978,8 +1982,11 @@ JOIN::exec()
 				     tmp_fields_list2, tmp_all_fields2, 
 				     fields_list.elements, tmp_all_fields1))
 	  DBUG_VOID_RETURN;
-	curr_join->tmp_fields_list2= tmp_fields_list2;
-	curr_join->tmp_all_fields2= tmp_all_fields2;
+        if (curr_join != this)
+        {
+          curr_join->tmp_fields_list2= tmp_fields_list2;
+          curr_join->tmp_all_fields2= tmp_all_fields2;
+        }
       }
       curr_fields_list= &curr_join->tmp_fields_list2;
       curr_all_fields= &curr_join->tmp_all_fields2;
@@ -2034,8 +2041,11 @@ JOIN::exec()
       tmp_table_param.save_copy_field= curr_join->tmp_table_param.copy_field;
       tmp_table_param.save_copy_field_end=
 	curr_join->tmp_table_param.copy_field_end;
-      curr_join->tmp_all_fields3= tmp_all_fields3;
-      curr_join->tmp_fields_list3= tmp_fields_list3;
+      if (curr_join != this)
+      {
+        curr_join->tmp_all_fields3= tmp_all_fields3;
+        curr_join->tmp_fields_list3= tmp_fields_list3;
+      }
     }
     else
     {
@@ -6144,7 +6154,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
         }
 
       }
-      if (tmp || !cond)
+      if (tmp || !cond || tab->type == JT_REF)
       {
         DBUG_EXECUTE("where",print_where(tmp,tab->table->alias, QT_ORDINARY););
 	SQL_SELECT *sel= tab->select= ((SQL_SELECT*)
@@ -6158,7 +6168,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
           The guard will turn the predicate on only after
           the first match for outer tables is encountered.
 	*/        
-        if (cond)
+        if (cond && tmp)
         {
           /*
             Because of QUICK_GROUP_MIN_MAX_SELECT there may be a select without
@@ -10655,6 +10665,11 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
   if (table->s->db_type() != heap_hton || 
       error != HA_ERR_RECORD_FILE_FULL)
   {
+    /*
+      We don't want this error to be converted to a warning, e.g. in case of
+      INSERT IGNORE ... SELECT.
+    */
+    thd->fatal_error();
     table->file->print_error(error,MYF(0));
     DBUG_RETURN(1);
   }
@@ -12934,6 +12949,8 @@ find_field_in_item_list (Field *field, void *data)
 
   The index must cover all fields in <order>, or it will not be considered.
 
+  @param no_changes No changes will be made to the query plan.
+
   @todo
     - sergeyp: Results of all index merge selects actually are ordered 
     by clustered PK values.
@@ -13268,6 +13285,15 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
       }
       if (!no_changes)
       {
+        /* 
+           If ref_key used index tree reading only ('Using index' in EXPLAIN),
+           and best_key doesn't, then revert the decision.
+        */
+        if (!table->covering_keys.is_set(best_key) && table->key_read)
+        {
+          table->key_read= 0;
+          table->file->extra(HA_EXTRA_NO_KEYREAD);          
+        }        
         if (!quick_created)
 	{
           tab->index= best_key;
@@ -13284,16 +13310,6 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
             table->key_read=1;
             table->file->extra(HA_EXTRA_KEYREAD);
           }
-          else if (table->key_read)
-          {
-            /*
-              Clear the covering key read flags that might have been
-              previously set for some key other than the current best_key.
-            */
-            table->key_read= 0;
-            table->file->extra(HA_EXTRA_NO_KEYREAD);
-          }
-
           table->file->ha_index_or_rnd_end();
           if (join->select_options & SELECT_DESCRIBE)
           {

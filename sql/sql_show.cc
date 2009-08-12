@@ -74,9 +74,6 @@ static TYPELIB grant_types = { sizeof(grant_names)/sizeof(char **),
                                grant_names, NULL};
 #endif
 
-/* Match the values of enum ha_choice */
-static const char *ha_choice_values[] = {"", "0", "1"};
-
 static void store_key_options(THD *thd, String *packet, TABLE *table,
                               KEY *key_info);
 
@@ -1151,7 +1148,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   {
     const LEX_STRING *const db=
       table_list->schema_table ? &INFORMATION_SCHEMA_NAME : &table->s->db;
-    if (strcmp(db->str, thd->db) != 0)
+    if (!thd->db || strcmp(db->str, thd->db))
     {
       append_identifier(thd, packet, db->str, db->length);
       packet->append(STRING_WITH_LEN("."));
@@ -1428,22 +1425,12 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
     /* We use CHECKSUM, instead of TABLE_CHECKSUM, for backward compability */
     if (share->db_create_options & HA_OPTION_CHECKSUM)
       packet->append(STRING_WITH_LEN(" CHECKSUM=1"));
-    if (share->page_checksum != HA_CHOICE_UNDEF)
-    {
-      packet->append(STRING_WITH_LEN(" PAGE_CHECKSUM="));
-      packet->append(ha_choice_values[(uint) share->page_checksum], 1);
-    }
     if (share->db_create_options & HA_OPTION_DELAY_KEY_WRITE)
       packet->append(STRING_WITH_LEN(" DELAY_KEY_WRITE=1"));
     if (create_info.row_type != ROW_TYPE_DEFAULT)
     {
       packet->append(STRING_WITH_LEN(" ROW_FORMAT="));
       packet->append(ha_row_type[(uint) create_info.row_type]);
-    }
-    if (share->transactional != HA_CHOICE_UNDEF)
-    {
-      packet->append(STRING_WITH_LEN(" TRANSACTIONAL="));
-      packet->append(ha_choice_values[(uint) share->transactional], 1);
     }
     if (table->s->key_block_size)
     {
@@ -1768,16 +1755,14 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
 
         thd_info->start_time= tmp->start_time;
         thd_info->query=0;
+        /* Lock THD mutex that protects its data when looking at it. */
+        pthread_mutex_lock(&tmp->LOCK_thd_data);
         if (tmp->query)
         {
-	  /* 
-            query_length is always set to 0 when we set query = NULL; see
-	    the comment in sql_class.h why this prevents crashes in possible
-            races with query_length
-          */
           uint length= min(max_query_length, tmp->query_length);
           thd_info->query=(char*) thd->strmake(tmp->query,length);
         }
+        pthread_mutex_unlock(&tmp->LOCK_thd_data);
         thread_infos.append(thd_info);
       }
     }
@@ -3593,21 +3578,12 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
     /* We use CHECKSUM, instead of TABLE_CHECKSUM, for backward compability */
     if (share->db_create_options & HA_OPTION_CHECKSUM)
       ptr=strmov(ptr," checksum=1");
-    if (share->page_checksum != HA_CHOICE_UNDEF)
-      ptr= strxmov(ptr, " page_checksum=",
-                   ha_choice_values[(uint) share->page_checksum], NullS);
     if (share->db_create_options & HA_OPTION_DELAY_KEY_WRITE)
       ptr=strmov(ptr," delay_key_write=1");
     if (share->row_type != ROW_TYPE_DEFAULT)
       ptr=strxmov(ptr, " row_format=", 
                   ha_row_type[(uint) share->row_type],
                   NullS);
-    if (share->transactional != HA_CHOICE_UNDEF)
-    {
-      ptr= strxmov(ptr, " TRANSACTIONAL=",
-                   (share->transactional == HA_CHOICE_YES ? "1" : "0"),
-                   NullS);
-    }
     if (share->key_block_size)
     {
       ptr= strmov(ptr, " KEY_BLOCK_SIZE=");
@@ -3617,9 +3593,6 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
     if (is_partitioned)
       ptr= strmov(ptr, " partitioned");
 #endif
-    if (share->transactional != HA_CHOICE_UNDEF)
-      ptr= strxmov(ptr, " transactional=",
-                   ha_choice_values[(uint) share->transactional], NullS);
     table->field[19]->store(option_buff+1,
                             (ptr == option_buff ? 0 : 
                              (uint) (ptr-option_buff)-1), cs);
