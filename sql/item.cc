@@ -1918,30 +1918,8 @@ void Item_field::reset_field(Field *f)
 
 bool Item_field::check_column_usage_processor(uchar *arg)
 {
-  Field_processor_info* info=(Field_processor_info*)arg;
-
-  if (field->table == info->table)
-  {
-    /* It is not ok to use columns that are not part of the key of interest: */
-    if (!(field->part_of_key.is_set(info->keyno)))
-       return TRUE;
-
-    /* Find which key part we're using and mark it in needed_key_parts */
-    KEY *key= &field->table->key_info[info->keyno];
-    for (uint part= 0; part < key->key_parts; part++)
-    {
-      if (field->field_index == key->key_part[part].field->field_index)
-      {
-        if (part == info->forbidden_part)
-          return TRUE;
-        info->needed_key_parts |= key_part_map(1) << part;
-        break;
-      }
-    }
-    return FALSE;
-  }
-  else
-    info->used_tables |= this->used_tables();
+  Field_enumerator *fe= (Field_enumerator*)arg;
+  fe->see_field(field);
   return FALSE;
 }
 

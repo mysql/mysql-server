@@ -1017,7 +1017,7 @@ public:
   bool eq_by_collation(Item *item, bool binary_cmp, CHARSET_INFO *cs); 
 };
 
-/* Data for Item::check_column_usage_processor */
+#if 0
 typedef struct 
 {
   TABLE *table;         /* Table of interest */
@@ -1028,7 +1028,15 @@ typedef struct
   /* [Set by processor] Parts of index of interest that expression refers to */
   uint needed_key_parts;
 } Field_processor_info;
+#endif 
 
+/* Data for Item::check_column_usage_processor */
+class Field_enumerator
+{
+public:
+  virtual void see_field(Field *field)= 0;
+  virtual ~Field_enumerator() {}; /* Shut up compiler warning */
+};
 
 class sp_head;
 

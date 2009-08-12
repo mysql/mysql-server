@@ -93,6 +93,34 @@ public:
   }
 };
 
+/* An iterator to quickly walk over bits in unlonglong bitmap. */
+class Table_map_iterator
+{
+  ulonglong bmp;
+  uint no;
+public:
+  Table_map_iterator(ulonglong t) : bmp(t), no(0) {}
+  int next_bit()
+  {
+    static const char last_bit[16]= {32, 0, 1, 0, 
+                                      2, 0, 1, 0, 
+                                      3, 0, 1, 0,
+                                      2, 0, 1, 0};
+    uint bit;
+    while ((bit= last_bit[bmp & 0xF]) == 32)
+    {
+      no += 4;
+      bmp= bmp >> 4;
+      if (!bmp)
+        return BITMAP_END;
+    }
+    bmp &= ~(1LL << bit);
+    return no + bit;
+  }
+  int operator++(int) { return next_bit(); }
+  enum { BITMAP_END= 64 };
+};
+
 template <> class Bitmap<64>
 {
   ulonglong map;
@@ -136,5 +164,10 @@ public:
   my_bool operator==(const Bitmap<64>& map2) const { return map == map2.map; }
   char *print(char *buf) const { longlong2str(map,buf,16); return buf; }
   ulonglong to_ulonglong() const { return map; }
+  class Iterator : public Table_map_iterator
+  {
+  public:
+    Iterator(Bitmap<64> &bmp) : Table_map_iterator(bmp.map) {}
+  };
 };
 
