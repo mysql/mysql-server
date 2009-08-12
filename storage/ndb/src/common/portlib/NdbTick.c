@@ -77,7 +77,7 @@ NdbTick_CurrentMicrosecond(NDB_TICKS * secs, Uint32 * micros){
   return res;
 }
 #else
-void NdbTick_Init()
+void NdbTick_Init(int need_monotonic)
 {
 }
 
