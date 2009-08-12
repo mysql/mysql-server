@@ -2949,6 +2949,8 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
 {
   LEX_STRING new_db;
   int expected_error,actual_error= 0;
+  HA_CREATE_INFO db_options;
+
   /*
     Colleagues: please never free(thd->catalog) in MySQL. This would
     lead to bugs as here thd->catalog is a part of an alloced block,
@@ -2960,6 +2962,13 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
   new_db.length= db_len;
   new_db.str= (char *) rpl_filter->get_rewrite_db(db, &new_db.length);
   thd->set_db(new_db.str, new_db.length);       /* allocates a copy of 'db' */
+
+  /*
+    Setting the character set and collation of the current database thd->db.
+   */
+  load_db_opt_by_name(thd, thd->db, &db_options);
+  if (db_options.default_table_charset)
+    thd->db_charset= db_options.default_table_charset;
   thd->variables.auto_increment_increment= auto_increment_increment;
   thd->variables.auto_increment_offset=    auto_increment_offset;
 
