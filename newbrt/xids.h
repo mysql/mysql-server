@@ -51,4 +51,6 @@ unsigned char *xids_get_end_of_array(XIDS xids);
 
 void wbuf_xids(struct wbuf *wb, XIDS xids);
 
+void xids_fprintf(FILE* fp, XIDS xids);
+
 #endif 

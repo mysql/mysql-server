@@ -209,3 +209,14 @@ void wbuf_xids(struct wbuf *wb, XIDS xids) {
     }
 }
 
+void
+xids_fprintf(FILE* fp, XIDS xids) {
+    u_int8_t index;
+    fprintf(fp, "[|%u| ", xids_get_num_xids(xids));
+    for (index = 0; index < xids_get_num_xids(xids); index++) {
+        if (index) fprintf(fp, ",");
+        fprintf(fp, "%"PRIx64, xids_get_xid(xids, index));
+    }
+    fprintf(fp, "]");
+}
+

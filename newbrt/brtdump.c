@@ -115,7 +115,9 @@ dump_node (int f, BLOCKNUM blocknum, struct brt_header *h) {
 				 }
 				 printf("HUH?");
 			     ok:
-				 printf(" xid=%"PRIu64" ", xids_get_innermost_xid(xids));
+				 printf(" xid=");
+                                 xids_fprintf(stdout, xids);
+                                 printf(" ");
 				 print_item(key, keylen);
 				 if (datalen>0) {
 				     printf(" ");
