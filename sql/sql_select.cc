@@ -114,7 +114,7 @@ static COND *simplify_joins(JOIN *join, List<TABLE_LIST> *join_list,
                             COND *conds, bool top);
 static bool check_interleaving_with_nj(JOIN_TAB *next);
 static void restore_prev_nj_state(JOIN_TAB *last);
-static void reset_nj_counters(List<TABLE_LIST> *join_list);
+static void reset_nj_counters(JOIN *join, List<TABLE_LIST> *join_list);
 static uint build_bitmap_for_nested_joins(List<TABLE_LIST> *join_list,
                                           uint first_unused);
 
@@ -1011,7 +1011,7 @@ JOIN::optimize()
     DBUG_RETURN(1);
   }
   
-  reset_nj_counters(join_list);
+  reset_nj_counters(this, join_list);
   make_outerjoin_info(this);
 
   /*
@@ -4625,7 +4625,7 @@ choose_plan(JOIN *join, table_map join_tables)
   DBUG_ENTER("choose_plan");
 
   join->cur_embedding_map= 0;
-  reset_nj_counters(join->join_list);
+  reset_nj_counters(join, join->join_list);
   /*
     if (SELECT_STRAIGHT_JOIN option is set)
       reorder tables so dependent tables come after tables they depend 
@@ -8791,7 +8791,7 @@ static uint build_bitmap_for_nested_joins(List<TABLE_LIST> *join_list,
                     tables which will be ignored.
 */
 
-static void reset_nj_counters(List<TABLE_LIST> *join_list)
+static void reset_nj_counters(JOIN *join, List<TABLE_LIST> *join_list)
 {
   List_iterator<TABLE_LIST> li(*join_list);
   TABLE_LIST *table;
@@ -8802,7 +8802,9 @@ static void reset_nj_counters(List<TABLE_LIST> *join_list)
     if ((nested_join= table->nested_join))
     {
       nested_join->counter= 0;
-      reset_nj_counters(&nested_join->join_list);
+      nested_join->n_tables= my_count_bits(nested_join->used_tables & 
+                                           ~join->eliminated_tables);
+      reset_nj_counters(join, &nested_join->join_list);
     }
   }
   DBUG_VOID_RETURN;
