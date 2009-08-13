@@ -58,6 +58,7 @@ struct backward_scan_state {
     int n_live_txns;
     LSN min_live_txn;
 };
+
 static struct backward_scan_state initial_bss = {BS_INIT,{0},0,{0}};
 
 static void
@@ -176,12 +177,10 @@ internal_toku_recover_fopen_or_fcreate (int flags, int mode, char *fixedfname, F
 static void
 toku_recover_fopen (LSN UU(lsn), TXNID UU(txnid), BYTESTRING fname, FILENUM filenum) {
     char *fixedfname = fixup_fname(&fname);
-    toku_free_BYTESTRING(fname);
     internal_toku_recover_fopen_or_fcreate(0, 0, fixedfname, filenum);
 }
 
-static int toku_recover_backward_fopen (struct logtype_fopen *l, struct backward_scan_state *UU(bs)) {
-    toku_free_BYTESTRING(l->fname);
+static int toku_recover_backward_fopen (struct logtype_fopen *UU(l), struct backward_scan_state *UU(bs)) {
     return 0;
 }
 
@@ -190,43 +189,13 @@ static int toku_recover_backward_fopen (struct logtype_fopen *l, struct backward
 static void
 toku_recover_fcreate (LSN UU(lsn), TXNID UU(txnid), FILENUM filenum, BYTESTRING fname,u_int32_t mode) {
     char *fixedfname = fixup_fname(&fname);
-    toku_free_BYTESTRING(fname);
     create_dir_from_file(fixedfname);
     internal_toku_recover_fopen_or_fcreate(O_CREAT|O_TRUNC, mode, fixedfname, filenum);
 }
 
-static int toku_recover_backward_fcreate (struct logtype_fcreate *l, struct backward_scan_state *UU(bs)) {
-    toku_free_BYTESTRING(l->fname);
+static int toku_recover_backward_fcreate (struct logtype_fcreate *UU(l), struct backward_scan_state *UU(bs)) {
     return 0;
 }
-
-#if 0
-static void
-toku_recover_enqrootentry (LSN lsn __attribute__((__unused__)), FILENUM filenum, TXNID xid, u_int32_t typ, BYTESTRING key, BYTESTRING val) {
-    struct cf_pair *pair = NULL;
-    int r = find_cachefile(filenum, &pair);
-    if (r!=0) {
-	// if we didn't find a cachefile, then we don't have to do anything.
-	return;
-    }    
-    struct brt_cmd cmd;
-    DBT keydbt, valdbt;
-    cmd.type=(enum brt_cmd_type) typ;
-    cmd.xid =xid;
-    cmd.u.id.key = toku_fill_dbt(&keydbt, key.data, key.len);
-    cmd.u.id.val = toku_fill_dbt(&valdbt, val.data, val.len);
-    r = toku_brt_root_put_cmd(pair->brt, &cmd, null_tokulogger);
-    assert(r==0);
-    toku_free(key.data);
-    toku_free(val.data);
-}
-
-static int toku_recover_backward_enqrootentry (struct logtype_enqrootentry *l, struct backward_scan_state *UU(bs)) {
-    toku_free_BYTESTRING(l->key);
-    toku_free_BYTESTRING(l->data);
-    return 0;
-}
-#endif
 
 static void
 toku_recover_enq_insert (LSN lsn __attribute__((__unused__)), FILENUM filenum, TXNID xid, BYTESTRING key, BYTESTRING val) {
@@ -250,13 +219,9 @@ toku_recover_enq_insert (LSN lsn __attribute__((__unused__)), FILENUM filenum, T
     assert(r==0);
     xids_destroy(&cmd.xids);
     xids_destroy(&root);
-    toku_free(key.data);
-    toku_free(val.data);
 }
 
-static int toku_recover_backward_enq_insert (struct logtype_enq_insert *l, struct backward_scan_state *UU(bs)) {
-    toku_free_BYTESTRING(l->key);
-    toku_free_BYTESTRING(l->value);
+static int toku_recover_backward_enq_insert (struct logtype_enq_insert *UU(l), struct backward_scan_state *UU(bs)) {
     return 0;
 }
 
@@ -282,13 +247,9 @@ toku_recover_enq_delete_both (LSN lsn __attribute__((__unused__)), FILENUM filen
     assert(r==0);
     xids_destroy(&cmd.xids);
     xids_destroy(&root);
-    toku_free(key.data);
-    toku_free(val.data);
 }
 
-static int toku_recover_backward_enq_delete_both (struct logtype_enq_delete_both *l, struct backward_scan_state *UU(bs)) {
-    toku_free_BYTESTRING(l->key);
-    toku_free_BYTESTRING(l->value);
+static int toku_recover_backward_enq_delete_both (struct logtype_enq_delete_both *UU(l), struct backward_scan_state *UU(bs)) {
     return 0;
 }
 
@@ -314,13 +275,9 @@ toku_recover_enq_delete_any (LSN lsn __attribute__((__unused__)), FILENUM filenu
     assert(r==0);
     xids_destroy(&cmd.xids);
     xids_destroy(&root);
-    toku_free(key.data);
-    toku_free(val.data);
 }
 
-static int toku_recover_backward_enq_delete_any (struct logtype_enq_delete_any *l, struct backward_scan_state *UU(bs)) {
-    toku_free_BYTESTRING(l->key);
-    toku_free_BYTESTRING(l->value);
+static int toku_recover_backward_enq_delete_any (struct logtype_enq_delete_any *UU(l), struct backward_scan_state *UU(bs)) {
     return 0;
 }
 
@@ -332,11 +289,9 @@ toku_recover_fclose (LSN UU(lsn), BYTESTRING UU(fname), FILENUM filenum) {
     r = toku_close_brt(pair->brt, 0, 0);
     assert(r==0);
     pair->brt=0;
-    toku_free_BYTESTRING(fname);
 }
 
-static int toku_recover_backward_fclose (struct logtype_fclose *l, struct backward_scan_state *UU(bs)) {
-    toku_free_BYTESTRING(l->fname);
+static int toku_recover_backward_fclose (struct logtype_fclose *UU(l), struct backward_scan_state *UU(bs)) {
     return 0;
 }
 
@@ -362,7 +317,6 @@ static int toku_recover_backward_begin_checkpoint (struct logtype_begin_checkpoi
     fprintf(stderr, "%s: %d Unknown checkpoint state %d\n", __FILE__, __LINE__, (int)bs->bs);
     abort();
 }
-
 
 static int toku_recover_end_checkpoint (LSN UU(lsn), TXNID UU(txnid)) {
     return 0;
@@ -391,8 +345,7 @@ static int toku_recover_fassociate (LSN UU(lsn), FILENUM UU(filenum), BYTESTRING
 
 static int toku_recover_backward_fassociate (struct logtype_fassociate *l, struct backward_scan_state *UU(bs)) {
     char *fixedfname = fixup_fname(&l->fname);
-    toku_free_BYTESTRING(l->fname);
-    internal_toku_recover_fopen_or_fcreate(0, 0, fixedfname, l->filenum);
+     internal_toku_recover_fopen_or_fcreate(0, 0, fixedfname, l->filenum);
     return 0;
 }
 
@@ -445,13 +398,11 @@ static int toku_recover_backward_xbegin (struct logtype_xbegin *l, struct backwa
     abort();
 }
 
-static int toku_recover_timestamp (LSN UU(lsn), u_int64_t UU(timestamp), BYTESTRING comment) {
-    toku_free_BYTESTRING(comment);
+static int toku_recover_timestamp (LSN UU(lsn), u_int64_t UU(timestamp), BYTESTRING UU(comment)) {
     return 0;
 }
 
-static int toku_recover_backward_timestamp (struct logtype_timestamp *l, struct backward_scan_state *UU(bs)) {
-    toku_free_BYTESTRING(l->comment);
+static int toku_recover_backward_timestamp (struct logtype_timestamp *UU(l), struct backward_scan_state *UU(bs)) {
     return 0;
 }
 
@@ -495,9 +446,6 @@ static int toku_delete_rolltmp_files (const char *log_dir) {
 int tokudb_recover(const char *data_dir, const char *log_dir) {
     int failresult = 0;
     int r;
-    int entrycount=0;
-    char **logfiles;
-
     int lockfd;
 
     {
@@ -514,117 +462,61 @@ int tokudb_recover(const char *data_dir, const char *log_dir) {
 	}
     }
 
-    r = toku_delete_rolltmp_files(log_dir);
-    if (r!=0) { failresult=r; goto fail; }
-
-    int n_logfiles;
-    r = toku_logger_find_logfiles(log_dir, &logfiles, &n_logfiles);
-    if (r!=0) { failresult=r; goto fail; }
-    int i;
-    toku_recover_init();
     char org_wd[1000];
     {
 	char *wd=getcwd(org_wd, sizeof(org_wd));
 	assert(wd!=0);
 	//printf("%s:%d org_wd=\"%s\"\n", __FILE__, __LINE__, org_wd);
     }
-    char data_wd[1000];
-    {
-	r=chdir(data_dir); assert(r==0);
-	char *wd=getcwd(data_wd, sizeof(data_wd));
-	assert(wd!=0);
-	//printf("%s:%d data_wd=\"%s\"\n", __FILE__, __LINE__, data_wd);
+
+    r = toku_delete_rolltmp_files(log_dir);
+    if (r!=0) { failresult=r; goto fail; }
+
+    TOKULOGCURSOR logcursor;
+    r = toku_logcursor_create(&logcursor, log_dir);
+    assert(r == 0);
+
+    toku_recover_init();
+
+    r = chdir(data_dir); 
+    assert(r == 0);
+
+    struct log_entry *le;
+
+    struct backward_scan_state bs = initial_bss;
+    while (1) {
+        r = toku_logcursor_prev(logcursor, &le);
+        if (0) printf("%s:%d r=%d cmd=%c\n", __FUNCTION__, __LINE__, r, r==0 ? le->cmd:'?');
+        if (r != 0)
+            break;
+        logtype_dispatch_assign(le, toku_recover_backward_, r, &bs);
+        if (r != 0)
+            break;
     }
 
-    LSN lastlsn = ZERO_LSN;
-    FILE *f = NULL;
-    for (i=0; i<n_logfiles; i++) {
-	if (f) fclose(f);
-	r=chdir(org_wd);
-	assert(r==0);
-	char *logfile = logfiles[n_logfiles-i-1];
-	f = fopen(logfile, "r");
-	assert(f);
-	printf("Opened %s\n", logfiles[n_logfiles-i-1]);
-	r = fseek(f, 0, SEEK_END); assert(r==0);
-	struct log_entry le;
-	struct backward_scan_state bs = initial_bss;
-	r=chdir(data_wd);
-	assert(r==0);
-	while (1) {
-	    r = toku_log_fread_backward(f, &le);
-	    if (r==-1) break; // Ran out of file
-            LSN thislsn = toku_log_entry_get_lsn(&le);
-            if (lastlsn.lsn != 0) {
-                if (thislsn.lsn != lastlsn.lsn - 1)
-                    printf("bw lastlsn=%"PRIu64" lsn=%"PRIu64"\n", lastlsn.lsn, thislsn.lsn);
-                //assert(thislsn.lsn == lastlsn.lsn - 1);
-            }
-            lastlsn = thislsn;
-	    logtype_dispatch_assign(&le, toku_recover_backward_, r, &bs);
-	    if (r!=0) goto go_forward;
-	}
+    while (1) {
+        r = toku_logcursor_next(logcursor, &le);
+        if (0) printf("%s:%d r=%d cmd=%c\n", __FUNCTION__, __LINE__, r, r==0 ? le->cmd:'?');
+        if (r != 0)
+            break;
+        logtype_dispatch_args(le, toku_recover_);
     }
-    i--;
-    // We got to the end of the last log
-    if (f) { r=fclose(f); assert(r==0); }
 
-    // Now we go forward from this point
-    while (n_logfiles-i-1<n_logfiles) {
-	//fprintf(stderr, "Opening %s\n", logfiles[i]);
-	int j = n_logfiles-i-1;
-	r=chdir(org_wd);
-	assert(r==0);
-	f = fopen(logfiles[j], "r");
-	assert(f);
-	struct log_entry le;
-	u_int32_t version;
-	//printf("Reading file %d: %s\n", j, logfiles[j]);
-	r=toku_read_logmagic(f, &version);
-	assert(r==0 && version==TOKU_LOG_VERSION);
-    go_forward: // we have an open file, so go forward.
-	//printf("Going forward\n");
-	r=chdir(data_wd);
-	assert(r==0);
-	while ((r = toku_log_fread(f, &le))==0) {
-	    //printf("doing %c\n", le.cmd);
-            LSN thislsn = toku_log_entry_get_lsn(&le);
-            if (lastlsn.lsn != thislsn.lsn) {
-                printf("fw expectlsn=%"PRIu64" lsn=%"PRIu64"\n", lastlsn.lsn, thislsn.lsn);
-            }
-            // assert(lastlsn.lsn == thislsn.lsn);
-            lastlsn.lsn += 1;
-
-	    logtype_dispatch_args(&le, toku_recover_);
-	    entrycount++;
-	}
-	if (r!=EOF) {
-	    if (r==DB_BADFORMAT) {
-		fprintf(stderr, "Bad log format at record %d\n", entrycount);
-		return r;
-	    } else {
-		fprintf(stderr, "Huh? %s\n", strerror(r));
-		return r;
-	    }
-	}
-	fclose(f);
-	i--;
-    }
     toku_recover_cleanup();
-    for (i=0; logfiles[i]; i++) {
-	toku_free(logfiles[i]);
-    }
-    toku_free(logfiles);
+
+    r = chdir(org_wd); 
+    assert(r == 0);
+
+    r = toku_logcursor_destroy(&logcursor);
+    assert(r == 0);
 
     r=toku_os_unlock_file(lockfd);
-    if (r!=0) return errno;
-
-    r=chdir(org_wd);
     if (r!=0) return errno;
 
     //printf("%s:%d recovery successful! ls -l says\n", __FILE__, __LINE__);
     //system("ls -l");
     return 0;
+
  fail:
     toku_os_unlock_file(lockfd);
     chdir(org_wd);

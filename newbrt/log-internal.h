@@ -141,6 +141,7 @@ static inline int toku_logsizeof_BYTESTRING (BYTESTRING bs) {
     return 4+bs.len;
 }
 
+#if 0
 static inline int toku_logsizeof_LOGGEDBRTHEADER (LOGGEDBRTHEADER bs) {
     int in_both = 4+4+4+8+8+4+8;
     in_both += 8; // for the number of block headers
@@ -152,6 +153,7 @@ static inline int toku_logsizeof_LOGGEDBRTHEADER (LOGGEDBRTHEADER bs) {
 static inline int toku_logsizeof_INTPAIRARRAY (INTPAIRARRAY pa) {
     return 4+(4+4)*pa.size;
 }
+#endif
 
 static inline char *fixup_fname(BYTESTRING *f) {
     assert(f->len>0);

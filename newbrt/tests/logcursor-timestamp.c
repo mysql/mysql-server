@@ -19,8 +19,9 @@ static u_int64_t now(void) {
 // a cursor through the log entries
 
 int
-test_main (int argc __attribute__((__unused__)),
-	  const char *argv[] __attribute__((__unused__))) {
+test_main (int argc, const char *argv[]) {
+    default_parse_args(argc, argv);
+
     int r;
     system(rmrf);
     r = toku_os_mkdir(dname, S_IRWXU);    assert(r==0);
@@ -48,12 +49,13 @@ test_main (int argc __attribute__((__unused__)),
     r = toku_logger_close(&logger);
     assert(r == 0);
 
-    // TODO verify the log
+    // verify the log forwards
     TOKULOGCURSOR lc = NULL;
+    struct log_entry *le;
+    
     r = toku_logcursor_create(&lc, dname);
     assert(r == 0 && lc != NULL);
 
-    struct log_entry *le;
     r = toku_logcursor_next(lc, &le);
     assert(r == 0 && le->cmd == LT_timestamp);
     assert(le->u.timestamp.comment.len == 5 && memcmp(le->u.timestamp.comment.data, "hello", 5) == 0);
@@ -62,9 +64,33 @@ test_main (int argc __attribute__((__unused__)),
     r = toku_logcursor_next(lc, &le);
     assert(r == 0 && le->cmd == LT_timestamp);
     assert(le->u.timestamp.comment.len == 5 && memcmp(le->u.timestamp.comment.data, "world", 5) == 0);
-    printf("%"PRId64"\n", le->u.timestamp.timestamp - t);
+    if (verbose)
+        printf("%"PRId64"\n", le->u.timestamp.timestamp - t);
+    assert(le->u.timestamp.timestamp - t >= 10*1000000);
 
     r = toku_logcursor_next(lc, &le);
+    assert(r != 0);
+
+    r = toku_logcursor_destroy(&lc);
+    assert(r == 0 && lc == NULL);
+
+    // verify the log backwards
+    r = toku_logcursor_create(&lc, dname);
+    assert(r == 0 && lc != NULL);
+
+    r = toku_logcursor_prev(lc, &le);
+    assert(r == 0 && le->cmd == LT_timestamp);
+    assert(le->u.timestamp.comment.len == 5 && memcmp(le->u.timestamp.comment.data, "world", 5) == 0);
+    t = le->u.timestamp.timestamp;
+    
+    r = toku_logcursor_prev(lc, &le);
+    assert(r == 0 && le->cmd == LT_timestamp);
+    assert(le->u.timestamp.comment.len == 5 && memcmp(le->u.timestamp.comment.data, "hello", 5) == 0);
+    if (verbose)
+        printf("%"PRId64"\n", t - le->u.timestamp.timestamp);
+    assert(t - le->u.timestamp.timestamp >= 10*1000000);
+
+    r = toku_logcursor_prev(lc, &le);
     assert(r != 0);
 
     r = toku_logcursor_destroy(&lc);

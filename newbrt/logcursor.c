@@ -5,8 +5,10 @@
 
 #include "includes.h"
 
+enum lc_direction { LC_FORWARD, LC_BACKWARD, LC_FIRST, LC_LAST };
+
 struct toku_logcursor {
-    char *logdir;
+    char *logdir;         // absolute directory name
     char **logfiles;
     int n_logfiles;
     int cur_logfiles_index;
@@ -14,7 +16,26 @@ struct toku_logcursor {
     BOOL is_open;
     struct log_entry entry;
     BOOL entry_valid;
+    LSN cur_lsn;
+    enum lc_direction last_direction;
 };
+
+#define LC_LSN_ERROR (-1)
+
+static void lc_print_logcursor (TOKULOGCURSOR lc) __attribute__((unused));
+static void lc_print_logcursor (TOKULOGCURSOR lc)  {
+    printf("lc = %p\n", lc);
+    printf("  logdir = %s\n", lc->logdir);
+    printf("  logfiles = %p\n", lc->logfiles);
+    for (int lf=0;lf<lc->n_logfiles;lf++) {
+        printf("    logfile[%d] = %p (%s)\n", lf, lc->logfiles[lf], lc->logfiles[lf]);
+    }
+    printf("  n_logfiles = %d\n", lc->n_logfiles);
+    printf("  cur_logfiles_index = %d\n", lc->cur_logfiles_index);
+    printf("  cur_fp = %p\n", lc->cur_fp);
+    printf("  cur_lsn = %lu\n", lc->cur_lsn.lsn);
+    printf("  last_direction = %d\n", lc->last_direction);
+}
 
 static int lc_close_cur_logfile(TOKULOGCURSOR lc) {
     int r=0;
@@ -28,6 +49,7 @@ static int lc_close_cur_logfile(TOKULOGCURSOR lc) {
 static int lc_open_logfile(TOKULOGCURSOR lc, int index) {
     int r=0;
     assert( !lc->is_open );
+    if( index == -1 || index >= lc->n_logfiles) return DB_NOTFOUND;
     lc->cur_fp = fopen(lc->logfiles[index], "r");
     if ( lc->cur_fp == NULL ) 
         return DB_NOTFOUND;
@@ -36,10 +58,22 @@ static int lc_open_logfile(TOKULOGCURSOR lc, int index) {
     r = toku_read_logmagic(lc->cur_fp, &version);
     if (r!=0) 
         return DB_BADFORMAT;
-    if (version != 1)
+    if (version != TOKU_LOG_VERSION)
         return DB_BADFORMAT;
     // mark as open
     lc->is_open = TRUE;
+    return r;
+}
+
+static int lc_check_lsn(TOKULOGCURSOR lc, int dir) {
+    int r=0;
+    LSN lsn = toku_log_entry_get_lsn(&(lc->entry));
+    if (((dir == LC_FORWARD)  && ( lsn.lsn != lc->cur_lsn.lsn + 1 )) ||
+        ((dir == LC_BACKWARD) && ( lsn.lsn != lc->cur_lsn.lsn - 1 ))) {
+        fprintf(stderr, "Bad LSN : direction = %d, lsn.lsn = %"PRIu64", cur_lsn.lsn=%"PRIu64"\n", dir, lsn.lsn, lc->cur_lsn.lsn);
+        return LC_LSN_ERROR;
+    }
+    lc->cur_lsn.lsn = lsn.lsn;
     return r;
 }
 
@@ -51,16 +85,38 @@ int toku_logcursor_create(TOKULOGCURSOR *lc, const char *log_dir) {
 
     // malloc a cursor
     TOKULOGCURSOR cursor = (TOKULOGCURSOR) toku_malloc(sizeof(struct toku_logcursor));
-    if ( NULL==cursor ) 
-        return ENOMEM;
+    if ( cursor == NULL ) {
+        failresult = ENOMEM;
+        goto fail;
+    }
     // find logfiles in logdir
     cursor->is_open = FALSE;
     cursor->cur_logfiles_index = 0;
     cursor->entry_valid = FALSE;
-    cursor->logdir = (char *) toku_malloc(strlen(log_dir)+1);
-    if ( NULL==cursor->logdir ) 
-        return ENOMEM;
-    strcpy(cursor->logdir, log_dir);
+    // cursor->logdir must be an absolute path
+    if ( log_dir[0]=='/' ) {
+        cursor->logdir = (char *) toku_malloc(strlen(log_dir)+1);
+        if ( cursor->logdir == NULL ) {
+            failresult = ENOMEM;
+            goto fail;
+        }
+        sprintf(cursor->logdir, "%s", log_dir);
+    }
+    else {
+        char *cwd = getcwd(NULL, 0);
+        if ( cwd == NULL ) {
+            failresult = -1;
+            goto fail;
+        }
+        cursor->logdir = (char *) toku_malloc(strlen(cwd)+strlen(log_dir)+2);
+        if ( cursor->logdir == NULL ) {
+            toku_free(cwd);
+            failresult = ENOMEM;
+            goto fail;
+        }
+        sprintf(cursor->logdir, "%s/%s", cwd, log_dir);
+        toku_free(cwd);
+    }
     cursor->logfiles = NULL;
     cursor->n_logfiles = 0;
     r = toku_logger_find_logfiles(cursor->logdir, &(cursor->logfiles), &(cursor->n_logfiles));
@@ -68,9 +124,55 @@ int toku_logcursor_create(TOKULOGCURSOR *lc, const char *log_dir) {
         failresult=r;
         goto fail;
     }
+    cursor->cur_lsn.lsn=0;
+    cursor->last_direction=LC_FIRST;
     *lc = cursor;
     return r;
  fail:
+    toku_logcursor_destroy(&cursor);
+    *lc = NULL;
+    return failresult;
+}
+
+int toku_logcursor_create_for_file(TOKULOGCURSOR *lc, const char *log_dir, const char *log_file) {
+    int r=0;
+    int failresult=0;
+
+    TOKULOGCURSOR cursor;
+    r = toku_logcursor_create(&cursor, log_dir);
+    if (r!=0)
+        return r;
+
+    int idx;
+    int found_it=0;
+    int fullnamelen = strlen(cursor->logdir) + strlen(log_file) + 3;
+    char *log_file_fullname = toku_malloc(fullnamelen);
+    if ( log_file_fullname == NULL ) {
+        failresult = ENOMEM;
+        goto fail;
+    }
+    sprintf(log_file_fullname, "%s/%s", cursor->logdir, log_file);
+    for(idx=0;idx<cursor->n_logfiles;idx++) {
+        if ( strcmp(log_file_fullname, cursor->logfiles[idx]) == 0 ) {
+            found_it = 1;
+            break;
+        }
+    }
+    if (found_it==0) {
+        failresult = DB_NOTFOUND;
+        goto fail;
+    }
+    // replace old logfile structure with single file version
+    int lf;
+    for(lf=0;lf<cursor->n_logfiles;lf++) {
+        toku_free(cursor->logfiles[lf]);
+    }
+    cursor->n_logfiles=1;
+    cursor->logfiles[0] = log_file_fullname;
+    *lc = cursor;
+    return r;
+fail:
+    toku_free(log_file_fullname);
     toku_logcursor_destroy(&cursor);
     *lc = NULL;
     return failresult;
@@ -99,7 +201,13 @@ int toku_logcursor_next(TOKULOGCURSOR lc, struct log_entry **le) {
     if ( lc->entry_valid ) {
         toku_log_free_log_entry_resources(&(lc->entry));
         lc->entry_valid = FALSE;
-    } else if ( !lc->entry_valid ) {
+        if (lc->last_direction == LC_BACKWARD) {
+            struct log_entry junk;
+            r = toku_log_fread(lc->cur_fp, &junk);
+            assert(r == 0);
+            toku_log_free_log_entry_resources(&junk);
+        }
+    } else {
         r = toku_logcursor_first(lc, le);
         return r;
     }
@@ -126,6 +234,10 @@ int toku_logcursor_next(TOKULOGCURSOR lc, struct log_entry **le) {
             return r;
         }
     }
+    r = lc_check_lsn(lc, LC_FORWARD);
+    if (r!=0)
+        return r;
+    lc->last_direction = LC_FORWARD;
     lc->entry_valid = TRUE;
     *le = &(lc->entry);
     return r;
@@ -136,7 +248,13 @@ int toku_logcursor_prev(TOKULOGCURSOR lc, struct log_entry **le) {
     if ( lc->entry_valid ) {
         toku_log_free_log_entry_resources(&(lc->entry));
         lc->entry_valid = FALSE;
-    } else if ( !lc->entry_valid ) {
+        if (lc->last_direction == LC_FORWARD) {
+            struct log_entry junk;
+            r = toku_log_fread_backward(lc->cur_fp, &junk);
+            assert(r == 0);
+            toku_log_free_log_entry_resources(&junk);
+        }
+    } else {
         r = toku_logcursor_last(lc, le);
         return r;
     }
@@ -163,6 +281,10 @@ int toku_logcursor_prev(TOKULOGCURSOR lc, struct log_entry **le) {
             return r;
         }
     }
+    r = lc_check_lsn(lc, LC_BACKWARD);
+    if (r!=0)
+        return r;
+    lc->last_direction = LC_BACKWARD;
     lc->entry_valid = TRUE;
     *le = &(lc->entry);
     return r;
@@ -188,6 +310,10 @@ int toku_logcursor_first(TOKULOGCURSOR lc, struct log_entry **le) {
     r = toku_log_fread(lc->cur_fp, &(lc->entry));
     if (r!=0) 
         return r;
+    r = lc_check_lsn(lc, LC_FIRST);
+    if (r!=0)
+        return r;
+    lc->last_direction = LC_FIRST;
     lc->entry_valid = TRUE;
     *le = &(lc->entry);
     return r;
@@ -217,6 +343,10 @@ int toku_logcursor_last(TOKULOGCURSOR lc, struct log_entry **le) {
     r = toku_log_fread_backward(lc->cur_fp, &(lc->entry));
     if (r!=0) 
         return r;
+    r = lc_check_lsn(lc, LC_LAST);
+    if (r!=0)
+        return r;
+    lc->last_direction = LC_LAST;
     lc->entry_valid = TRUE;
     *le = &(lc->entry);
     return r;
