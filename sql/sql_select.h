@@ -285,7 +285,15 @@ public:
     fetching data from a cursor
   */
   bool     resume_nested_loop;
-  table_map const_table_map,found_const_table_map;
+  table_map const_table_map;
+  /*
+    Constant tables for which we have found a row (as opposed to those for
+    which we didn't).
+  */
+  table_map found_const_table_map;
+  
+  /* Tables removed by table elimination. Set to 0 before the elimination. */
+  table_map eliminated_tables;
   /*
      Bitmap of all inner tables from outer joins
   */
@@ -425,6 +433,7 @@ public:
     table= 0;
     tables= 0;
     const_tables= 0;
+    eliminated_tables= 0;
     join_list= 0;
     sort_and_group= 0;
     first_record= 0;
@@ -529,6 +538,10 @@ public:
   {
     return (unit == &thd->lex->unit && (unit->fake_select_lex == 0 ||
                                         select_lex == unit->fake_select_lex));
+  }
+  inline table_map all_tables_map()
+  {
+    return (table_map(1) << tables) - 1;
   }
 private:
   bool make_simple_join(JOIN *join, TABLE *tmp_table);
@@ -730,9 +743,12 @@ bool error_if_full_join(JOIN *join);
 int report_error(TABLE *table, int error);
 int safe_index_read(JOIN_TAB *tab);
 COND *remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value);
+void set_position(JOIN *join,uint idx,JOIN_TAB *table,KEYUSE *key);
 
 inline bool optimizer_flag(THD *thd, uint flag)
 { 
   return (thd->variables.optimizer_switch & flag);
 }
+
+void eliminate_tables(JOIN *join);
 

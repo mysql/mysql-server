@@ -52,8 +52,16 @@ protected:
   bool have_to_be_excluded;
   /* cache of constant state */
   bool const_item_cache;
-
+  
 public:
+  /* 
+    References from inside the subquery to the select that this predicate is
+    in.  References to parent selects not included.
+  */
+  List<Item> refers_to;
+  int in_fix_fields;
+  bool eliminated;
+  
   /* changed engine indicator */
   bool engine_changed;
   /* subquery is transformed */
@@ -126,6 +134,8 @@ public:
   virtual void reset_value_registration() {}
   enum_parsing_place place() { return parsing_place; }
   bool walk(Item_processor processor, bool walk_subquery, uchar *arg);
+  bool mark_as_eliminated_processor(uchar *arg);
+  bool check_column_usage_processor(uchar *arg);
 
   /**
     Get the SELECT_LEX structure associated with this Item.

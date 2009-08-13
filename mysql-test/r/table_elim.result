@@ -1,0 +1,204 @@
+drop table if exists t0, t1, t2, t3;
+drop view if exists v1, v2;
+create table t1 (a int);
+insert into t1 values (0),(1),(2),(3);
+create table t0 as select * from t1;
+create table t2 (a int primary key, b int) 
+as select a, a as b from t1 where a in (1,2);
+create table t3 (a int primary key, b int) 
+as select a, a as b from t1 where a in (1,3);
+# This will be  eliminated:
+explain select t1.a from t1 left join t2 on t2.a=t1.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	
+explain extended select t1.a from t1 left join t2 on t2.a=t1.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	100.00	
+Warnings:
+Note	1003	select `test`.`t1`.`a` AS `a` from `test`.`t1` where 1
+select t1.a from t1 left join t2 on t2.a=t1.a;
+a
+0
+1
+2
+3
+# This will not be eliminated as t2.b is in in select list:
+explain select * from t1 left join t2 on t2.a=t1.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	
+# This will not be eliminated as t2.b is in in order list:
+explain select t1.a from t1 left join t2 on t2.a=t1.a order by t2.b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	Using temporary; Using filesort
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	
+# This will not be eliminated as t2.b is in group list:
+explain select t1.a from t1 left join t2 on t2.a=t1.a group by t2.b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	Using temporary; Using filesort
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	
+# This will not be eliminated as t2.b is in the WHERE
+explain select t1.a from t1 left join t2 on t2.a=t1.a where t2.b < 3 or t2.b is null;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	Using where
+# Elimination of multiple tables:
+explain select t1.a from t1 left join (t2 join t3) on t2.a=t1.a and t3.a=t1.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	
+# Elimination of multiple tables (2):
+explain select t1.a from t1 left join (t2 join t3 on t2.b=t3.b) on t2.a=t1.a and t3.a=t1.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	
+# Elimination when done within an outer join nest:
+explain extended
+select t0.*
+from
+t0 left join (t1 left join (t2 join t3 on t2.b=t3.b) on t2.a=t1.a and
+t3.a=t1.a) on t0.a=t1.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t0	ALL	NULL	NULL	NULL	NULL	4	100.00	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	100.00	
+Warnings:
+Note	1003	select `test`.`t0`.`a` AS `a` from `test`.`t0` left join (`test`.`t1`) on((`test`.`t0`.`a` = `test`.`t1`.`a`)) where 1
+# Elimination with aggregate functions
+explain select count(*) from t1 left join t2 on t2.a=t1.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	
+explain select count(1) from t1 left join t2 on t2.a=t1.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	
+explain select count(1) from t1 left join t2 on t2.a=t1.a group by t1.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	Using temporary; Using filesort
+This must not use elimination:
+explain select count(1) from t1 left join t2 on t2.a=t1.a group by t2.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	Using temporary; Using filesort
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	Using index
+drop table t0, t1, t2, t3;
+create table t0 ( id integer, primary key (id));
+create table t1 (
+id integer,
+attr1 integer,
+primary key (id),
+key (attr1)
+);
+create table t2 (
+id integer,
+attr2 integer,
+fromdate date,
+primary key (id, fromdate),
+key (attr2,fromdate)
+);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+insert into t0 select A.id + 10*B.id from t0 A, t0 B where B.id > 0;
+insert into t1 select id, id from t0;
+insert into t2 select id, id, date_add('2009-06-22', interval id day) from t0;
+insert into t2 select id, id+1, date_add('2008-06-22', interval id day) from t0;
+create view v1 as
+select 
+F.id, A1.attr1, A2.attr2
+from 
+t0 F 
+left join t1 A1 on A1.id=F.id
+left join t2 A2 on A2.id=F.id and 
+A2.fromdate=(select MAX(fromdate) from
+t2 where id=A2.id);
+create view v2 as
+select 
+F.id, A1.attr1, A2.attr2
+from 
+t0 F 
+left join t1 A1 on A1.id=F.id
+left join t2 A2 on A2.id=F.id and 
+A2.fromdate=(select MAX(fromdate) from
+t2 where id=F.id);
+This should use one table:
+explain select id from v1 where id=2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	F	const	PRIMARY	PRIMARY	4	const	1	Using index
+This should use one table:
+explain extended select id from v1 where id in (1,2,3,4);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	F	range	PRIMARY	PRIMARY	4	NULL	4	100.00	Using where; Using index
+Warnings:
+Note	1276	Field or reference 'test.A2.id' of SELECT #3 was resolved in SELECT #1
+Note	1003	select `F`.`id` AS `id` from `test`.`t0` `F` where (`F`.`id` in (1,2,3,4))
+This should use facts and A1 tables:
+explain extended select id from v1 where attr1 between 12 and 14;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	A1	range	PRIMARY,attr1	attr1	5	NULL	2	100.00	Using where
+1	PRIMARY	F	eq_ref	PRIMARY	PRIMARY	4	test.A1.id	1	100.00	Using index
+Warnings:
+Note	1276	Field or reference 'test.A2.id' of SELECT #3 was resolved in SELECT #1
+Note	1003	select `F`.`id` AS `id` from `test`.`t0` `F` join `test`.`t1` `A1` where ((`F`.`id` = `A1`.`id`) and (`A1`.`attr1` between 12 and 14))
+This should use facts, A2 and its subquery:
+explain extended select id from v1 where attr2 between 12 and 14;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	A2	range	PRIMARY,attr2	attr2	5	NULL	5	100.00	Using where
+1	PRIMARY	F	eq_ref	PRIMARY	PRIMARY	4	test.A2.id	1	100.00	Using index
+3	DEPENDENT SUBQUERY	t2	ref	PRIMARY	PRIMARY	4	test.A2.id	2	100.00	Using index
+Warnings:
+Note	1276	Field or reference 'test.A2.id' of SELECT #3 was resolved in SELECT #1
+Note	1003	select `F`.`id` AS `id` from `test`.`t0` `F` join `test`.`t2` `A2` where ((`F`.`id` = `A2`.`id`) and (`A2`.`attr2` between 12 and 14) and (`A2`.`fromdate` = (select max(`test`.`t2`.`fromdate`) AS `MAX(fromdate)` from `test`.`t2` where (`test`.`t2`.`id` = `A2`.`id`))))
+This should use one table:
+explain select id from v2 where id=2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	F	const	PRIMARY	PRIMARY	4	const	1	Using index
+This should use one table:
+explain extended select id from v2 where id in (1,2,3,4);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	F	range	PRIMARY	PRIMARY	4	NULL	4	100.00	Using where; Using index
+Warnings:
+Note	1276	Field or reference 'test.F.id' of SELECT #3 was resolved in SELECT #1
+Note	1003	select `F`.`id` AS `id` from `test`.`t0` `F` where (`F`.`id` in (1,2,3,4))
+This should use facts and A1 tables:
+explain extended select id from v2 where attr1 between 12 and 14;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	A1	range	PRIMARY,attr1	attr1	5	NULL	2	100.00	Using where
+1	PRIMARY	F	eq_ref	PRIMARY	PRIMARY	4	test.A1.id	1	100.00	Using index
+Warnings:
+Note	1276	Field or reference 'test.F.id' of SELECT #3 was resolved in SELECT #1
+Note	1003	select `F`.`id` AS `id` from `test`.`t0` `F` join `test`.`t1` `A1` where ((`F`.`id` = `A1`.`id`) and (`A1`.`attr1` between 12 and 14))
+This should use facts, A2 and its subquery:
+explain extended select id from v2 where attr2 between 12 and 14;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	A2	range	PRIMARY,attr2	attr2	5	NULL	5	100.00	Using where
+1	PRIMARY	F	eq_ref	PRIMARY	PRIMARY	4	test.A2.id	1	100.00	Using where; Using index
+3	DEPENDENT SUBQUERY	t2	ref	PRIMARY	PRIMARY	4	test.F.id	2	100.00	Using index
+Warnings:
+Note	1276	Field or reference 'test.F.id' of SELECT #3 was resolved in SELECT #1
+Note	1003	select `F`.`id` AS `id` from `test`.`t0` `F` join `test`.`t2` `A2` where ((`F`.`id` = `A2`.`id`) and (`A2`.`attr2` between 12 and 14) and (`A2`.`fromdate` = (select max(`test`.`t2`.`fromdate`) AS `MAX(fromdate)` from `test`.`t2` where (`test`.`t2`.`id` = `F`.`id`))))
+drop view v1, v2;
+drop table t0, t1, t2;
+create table t1 (a int);
+insert into t1 values (0),(1),(2),(3);
+create table t2 (pk1 int, pk2 int, pk3 int, col int, primary key(pk1, pk2, pk3));
+insert into t2 select a,a,a,a from t1;
+This must use only t1:
+explain select t1.* from t1 left join t2 on t2.pk1=t1.a and 
+t2.pk2=t2.pk1+1 and
+t2.pk3=t2.pk2+1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	
+This must use only t1:
+explain select t1.* from t1 left join t2 on t2.pk1=t1.a and 
+t2.pk3=t2.pk1+1 and
+t2.pk2=t2.pk3+1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	
+This must use both:
+explain select t1.* from t1 left join t2 on t2.pk1=t1.a and 
+t2.pk3=t2.pk1+1 and
+t2.pk2=t2.pk3+t2.col;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	
+1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	test.t1.a	1	
+This must use only t1:
+explain select t1.* from t1 left join t2 on t2.pk2=t1.a and 
+t2.pk1=t2.pk2+1 and
+t2.pk3=t2.pk1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	
+drop table t1, t2;

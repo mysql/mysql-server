@@ -350,7 +350,7 @@ bool Item_sum::register_sum_func(THD *thd, Item **ref)
          sl= sl->master_unit()->outer_select() )
       sl->master_unit()->item->with_sum_func= 1;
   }
-  thd->lex->current_select->mark_as_dependent(aggr_sel);
+  thd->lex->current_select->mark_as_dependent(aggr_sel, NULL);
   return FALSE;
 }
 
@@ -542,11 +542,6 @@ void Item_sum::update_used_tables ()
       args[i]->update_used_tables();
       used_tables_cache|= args[i]->used_tables();
     }
-
-    used_tables_cache&= PSEUDO_TABLE_BITS;
-
-    /* the aggregate function is aggregated into its local context */
-    used_tables_cache |=  (1 << aggr_sel->join->tables) - 1;
   }
 }
 

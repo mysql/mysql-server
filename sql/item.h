@@ -731,7 +731,11 @@ public:
   virtual bool val_bool_result() { return val_bool(); }
   virtual bool is_null_result() { return is_null(); }
 
-  /* bit map of tables used by item */
+  /* 
+    Bitmap of tables used by item
+    (note: if you need to check dependencies on individual columns, check out
+     check_column_usage_processor)
+  */
   virtual table_map used_tables() const { return (table_map) 0L; }
   /*
     Return table map of tables that can't be NULL tables (tables that are
@@ -888,6 +892,8 @@ public:
   virtual bool reset_query_id_processor(uchar *query_id_arg) { return 0; }
   virtual bool is_expensive_processor(uchar *arg) { return 0; }
   virtual bool register_field_in_read_map(uchar *arg) { return 0; }
+  virtual bool check_column_usage_processor(uchar *arg) { return 0; }
+  virtual bool mark_as_eliminated_processor(uchar *arg) { return 0; }
   /*
     Check if a partition function is allowed
     SYNOPSIS
@@ -1011,6 +1017,14 @@ public:
   bool eq_by_collation(Item *item, bool binary_cmp, CHARSET_INFO *cs); 
 };
 
+
+/* Data for Item::check_column_usage_processor */
+class Field_enumerator
+{
+public:
+  virtual void see_field(Field *field)= 0;
+  virtual ~Field_enumerator() {}; /* Shut up compiler warning */
+};
 
 class sp_head;
 
@@ -1477,6 +1491,7 @@ public:
   bool find_item_in_field_list_processor(uchar *arg);
   bool register_field_in_read_map(uchar *arg);
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_column_usage_processor(uchar *arg);
   void cleanup();
   bool result_as_longlong()
   {
@@ -2202,6 +2217,10 @@ public:
   { 
     if (!depended_from) 
       (*ref)->update_used_tables(); 
+  }
+  bool const_item() const 
+  {
+    return (*ref)->const_item();
   }
   table_map not_null_tables() const { return (*ref)->not_null_tables(); }
   void set_result_field(Field *field)	{ result_field= field; }

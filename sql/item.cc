@@ -1915,6 +1915,15 @@ void Item_field::reset_field(Field *f)
   name= (char*) f->field_name;
 }
 
+
+bool Item_field::check_column_usage_processor(uchar *arg)
+{
+  Field_enumerator *fe= (Field_enumerator*)arg;
+  fe->see_field(field);
+  return FALSE;
+}
+
+
 const char *Item_ident::full_name() const
 {
   char *tmp;
@@ -3380,7 +3389,7 @@ static void mark_as_dependent(THD *thd, SELECT_LEX *last, SELECT_LEX *current,
   /* store pointer on SELECT_LEX from which item is dependent */
   if (mark_item)
     mark_item->depended_from= last;
-  current->mark_as_dependent(last);
+  current->mark_as_dependent(last, resolved_item);
   if (thd->lex->describe & DESCRIBE_EXTENDED)
   {
     char warn_buff[MYSQL_ERRMSG_SIZE];

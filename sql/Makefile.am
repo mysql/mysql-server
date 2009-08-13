@@ -121,7 +121,8 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
                         event_queue.cc event_db_repository.cc events.cc \
 			sql_plugin.cc sql_binlog.cc \
 			sql_builtin.cc sql_tablespace.cc partition_info.cc \
-			sql_servers.cc event_parse_data.cc
+			sql_servers.cc event_parse_data.cc \
+                        opt_table_elimination.cc
 
 nodist_mysqld_SOURCES =	mini_client_errors.c pack.c client.c my_time.c my_user.c 
 
