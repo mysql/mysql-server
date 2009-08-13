@@ -911,6 +911,9 @@ void end_server(MYSQL *mysql)
   {
     init_sigpipe_variables
     DBUG_PRINT("info",("Net: %s", vio_description(mysql->net.vio)));
+#ifdef MYSQL_SERVER
+    slave_io_thread_detach_vio();
+#endif
     set_sigpipe(mysql);
     vio_delete(mysql->net.vio);
     reset_sigpipe(mysql);
