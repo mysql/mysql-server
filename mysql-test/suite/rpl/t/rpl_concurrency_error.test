@@ -125,14 +125,13 @@ while ($type)
 connection master;
 sync_slave_with_master;
 
-# Re-enable this after fixing BUG#46130
-#connection master;
-#let $diff_statement= SELECT * FROM t order by i;
-#source include/diff_master_slave.inc;
+connection master;
+let $diff_statement= SELECT * FROM t order by i;
+source include/diff_master_slave.inc;
 
-#connection master;
-#let $diff_statement= SELECT * FROM n order by d, f;
-#source include/diff_master_slave.inc;
+connection master;
+let $diff_statement= SELECT * FROM n order by d, f;
+source include/diff_master_slave.inc;
 
 --echo ########################################################################
 --echo #                                Cleanup
