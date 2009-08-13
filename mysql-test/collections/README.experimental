@@ -23,3 +23,10 @@ The syntax is as follows:
    start with the same characters up to the last letter before the asterisk
    are considered experimental:
         main.a*  # get rid of main.alias, main.alibaba and main.agliolio
+
+6) Optionally, the test case may be followed by one or more platform
+   qualifiers beginning with @ or @!. The test will then be considered
+   experimental only/except on that platform. Basic OS names as
+   reported by $^O in Perl, or 'windows' are supported, this includes
+   solaris, linux, windows, aix, darwin, ...  Example:
+        main.alias  @aix @windows    # Fails on those

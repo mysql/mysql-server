@@ -1,1 +1,2 @@
 funcs_1.charset_collation_1              # depends on compile-time decisions
+main.plugin_load  @solaris               # Bug #42144
