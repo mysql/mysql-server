@@ -93,11 +93,9 @@ public:
 
 
 /*
-  A field.
-  - Depends on table or equality
-  - Has expressions it participates as dependencies
-
-  There is no counter, bound fields are in $list, not bound are not.
+  A table field. There is only one such object for any tblX.fieldY
+  - the field epends on its table and equalities
+  - expressions that use the field are its dependencies
 */
 class Field_dep : public Func_dep
 {
@@ -107,19 +105,23 @@ public:
   {
     type= Func_dep::FD_FIELD;
   }
-  /* Table we're from. It also has pointers to keys that we're part of */
-  Table_dep *table;
+
+  Table_dep *table; /* Table this field is from */
   Field *field;
   
+  /* 
+    Field_deps that belong to one table form a linked list. list members are
+    ordered by field_index 
+  */
   Field_dep *next_table_field;
   uint bitmap_offset; /* Offset of our part of the bitmap */
 };
 
 
 /*
-  A unique key.
-   - Depends on all its components
-   - Has its table as dependency
+  A Unique key.
+   - Unique key depends on all of its components
+   - Key's table is its dependency
 */
 class Key_dep: public Func_dep
 {
@@ -133,14 +135,15 @@ public:
   Table_dep *table; /* Table this key is from */
   uint keyno;
   uint n_missing_keyparts;
+  /* Unique keys form a linked list, ordered by keyno */
   Key_dep *next_table_key;
 };
 
 
 /*
-  A table. 
-  - Depends on any of its unique keys
-  - Has its fields and embedding outer join as dependency.
+  A table.
+  - table depends on any of its unique keys
+  - has its fields and embedding outer join as dependency.
 */
 class Table_dep : public Func_dep
 {
@@ -151,16 +154,16 @@ public:
     type= Func_dep::FD_TABLE;
   }
   TABLE *table;
-  Field_dep *fields; /* Fields that belong to this table */
-  Key_dep *keys; /* Unique keys */
-  Outer_join_dep *outer_join_dep;
+  Field_dep *fields; /* Ordered list of fields that belong to this table */
+  Key_dep *keys; /* Ordered list of Unique keys in this table */
+  Outer_join_dep *outer_join_dep; /* Innermost eliminable outer join we're in */
 };
 
 
 /*
-  An outer join nest. 
-  - Depends on all tables inside it.
-  - (And that's it).
+  An outer join nest that is subject to elimination
+  - it depends on all tables inside it
+  - has its parent outer join as dependency
 */
 class Outer_join_dep: public Func_dep
 {
@@ -171,14 +174,27 @@ public:
   {
     type= Func_dep::FD_OUTER_JOIN;
   }
+  /* 
+    Outer join we're representing. This can be a join nest or a one table that
+    is outer join'ed.
+  */
   TABLE_LIST *table_list;
+  
+  /* 
+    Tables within this outer join (and its descendants) that are not yet known
+    to be functionally dependent.
+  */
   table_map missing_tables;
+  /* All tables within this outer join and its descendants */ 
   table_map all_tables;
+  /* Parent eliminable outer join, if any */
   Outer_join_dep *parent;
 };
 
 
-/* TODO need this? */
+/*
+  Table elimination context
+*/
 class Table_elimination
 {
 public:
@@ -204,20 +220,22 @@ public:
 
 
 static 
-void build_funcdeps_for_cond(Table_elimination *te, Equality_dep **fdeps, 
-                             uint *and_level, Item *cond, 
-                             table_map usable_tables);
+void build_eq_deps_for_cond(Table_elimination *te, Equality_dep **fdeps, 
+                            uint *and_level, Item *cond, 
+                            table_map usable_tables);
 static 
-void add_funcdep(Table_elimination *te, 
-                 Equality_dep **eq_dep, uint and_level,
-                 Item_func *cond, Field *field,
-                 bool eq_func, Item **value,
-                 uint num_values, table_map usable_tables);
+void add_eq_dep(Table_elimination *te, 
+                Equality_dep **eq_dep, uint and_level,
+                Item_func *cond, Field *field,
+                bool eq_func, Item **value,
+                uint num_values, table_map usable_tables);
 static 
 Equality_dep *merge_func_deps(Equality_dep *start, Equality_dep *new_fields, 
                               Equality_dep *end, uint and_level);
 
-Field_dep *get_field_dep(Table_elimination *te, Field *field);
+static Table_dep *get_table_dep(Table_elimination *te, TABLE *table);
+static Field_dep *get_field_dep(Table_elimination *te, Field *field);
+
 void eliminate_tables(JOIN *join);
 static void mark_as_eliminated(JOIN *join, TABLE_LIST *tbl);
 
@@ -228,24 +246,25 @@ static void dbug_print_deps(Table_elimination *te);
 /*******************************************************************************************/
 
 /*
-  Produce FUNC_DEP elements for the given item (i.e. condition) and add them 
-    to fdeps array.
+  Produce Eq_dep elements for given condition.
 
   SYNOPSIS
-    build_funcdeps_for_cond()
-      fdeps  INOUT   Put created FUNC_DEP structures here
-
+    build_eq_deps_for_cond()
+      te                    Table elimination context 
+      fdeps          INOUT  Put produced equality conditions here
+      and_level      INOUT  AND-level (like in add_key_fields)
+      cond                  Condition to process
+      usable_tables         Tables which fields we're interested in. That is,
+                            Equality_dep represent "tbl.col=expr" and we'll
+                            produce them only if tbl is in usable_tables.
   DESCRIPTION
-    a
-
-  SEE ALSO
-    add_key_fields()
-
+    This function is modeled after add_key_fields()
 */
+
 static 
-void build_funcdeps_for_cond(Table_elimination *te, 
-                             Equality_dep **fdeps, uint *and_level, Item *cond,
-                             table_map usable_tables)
+void build_eq_deps_for_cond(Table_elimination *te, Equality_dep **fdeps, 
+                            uint *and_level, Item *cond, 
+                            table_map usable_tables)
 {
   if (cond->type() == Item_func::COND_ITEM)
   {
@@ -258,7 +277,7 @@ void build_funcdeps_for_cond(Table_elimination *te,
       Item *item;
       while ((item=li++))
       {
-        build_funcdeps_for_cond(te, fdeps, and_level, item, usable_tables);
+        build_eq_deps_for_cond(te, fdeps, and_level, item, usable_tables);
       }
       /* 
         TODO: inject here a "if we have {t.col=const AND t.col=smth_else}, then
@@ -270,13 +289,13 @@ void build_funcdeps_for_cond(Table_elimination *te,
     else
     {
       (*and_level)++;
-      build_funcdeps_for_cond(te, fdeps, and_level, li++, usable_tables);
+      build_eq_deps_for_cond(te, fdeps, and_level, li++, usable_tables);
       Item *item;
       while ((item=li++))
       {
         Equality_dep *start_key_fields= *fdeps;
         (*and_level)++;
-        build_funcdeps_for_cond(te, fdeps, and_level, item, usable_tables);
+        build_eq_deps_for_cond(te, fdeps, and_level, item, usable_tables);
         *fdeps= merge_func_deps(org_key_fields, start_key_fields, *fdeps,
                                 ++(*and_level));
       }
@@ -304,11 +323,11 @@ void build_funcdeps_for_cond(Table_elimination *te,
         values--;
       DBUG_ASSERT(cond_func->functype() != Item_func::IN_FUNC ||
                   cond_func->argument_count() != 2);
-      add_funcdep(te, fdeps, *and_level, cond_func,
-                  ((Item_field*)(cond_func->key_item()->real_item()))->field,
-                  0, values, 
-                  cond_func->argument_count()-1,
-                  usable_tables);
+      add_eq_dep(te, fdeps, *and_level, cond_func,
+                 ((Item_field*)(cond_func->key_item()->real_item()))->field,
+                 0, values, 
+                 cond_func->argument_count()-1,
+                 usable_tables);
     }
     if (cond_func->functype() == Item_func::BETWEEN)
     {
@@ -321,8 +340,8 @@ void build_funcdeps_for_cond(Table_elimination *te,
             !(cond_func->arguments()[i]->used_tables() & OUTER_REF_TABLE_BIT))
         {
           field_item= (Item_field *) (cond_func->arguments()[i]->real_item());
-          add_funcdep(te, fdeps, *and_level, cond_func,
-                      field_item->field, 0, values, 1, usable_tables);
+          add_eq_dep(te, fdeps, *and_level, cond_func,
+                     field_item->field, 0, values, 1, usable_tables);
         }
       }  
     }
@@ -336,19 +355,19 @@ void build_funcdeps_for_cond(Table_elimination *te,
     if (cond_func->arguments()[0]->real_item()->type() == Item::FIELD_ITEM &&
         !(cond_func->arguments()[0]->used_tables() & OUTER_REF_TABLE_BIT))
     {
-      add_funcdep(te, fdeps, *and_level, cond_func,
-                  ((Item_field*)(cond_func->arguments()[0])->real_item())->field,
-                  equal_func,
-                  cond_func->arguments()+1, 1, usable_tables);
+      add_eq_dep(te, fdeps, *and_level, cond_func,
+                 ((Item_field*)(cond_func->arguments()[0])->real_item())->field,
+                 equal_func,
+                 cond_func->arguments()+1, 1, usable_tables);
     }
     if (cond_func->arguments()[1]->real_item()->type() == Item::FIELD_ITEM &&
         cond_func->functype() != Item_func::LIKE_FUNC &&
         !(cond_func->arguments()[1]->used_tables() & OUTER_REF_TABLE_BIT))
     {
-      add_funcdep(te, fdeps, *and_level, cond_func, 
-                  ((Item_field*)(cond_func->arguments()[1])->real_item())->field,
-                  equal_func,
-                  cond_func->arguments(),1,usable_tables);
+      add_eq_dep(te, fdeps, *and_level, cond_func, 
+                 ((Item_field*)(cond_func->arguments()[1])->real_item())->field,
+                 equal_func,
+                 cond_func->arguments(),1,usable_tables);
     }
     break;
   }
@@ -360,10 +379,10 @@ void build_funcdeps_for_cond(Table_elimination *te,
       Item *tmp=new Item_null;
       if (unlikely(!tmp))                       // Should never be true
         return;
-      add_funcdep(te, fdeps, *and_level, cond_func,
-                  ((Item_field*)(cond_func->arguments()[0])->real_item())->field,
-                  cond_func->functype() == Item_func::ISNULL_FUNC,
-                  &tmp, 1, usable_tables);
+      add_eq_dep(te, fdeps, *and_level, cond_func,
+                 ((Item_field*)(cond_func->arguments()[0])->real_item())->field,
+                 cond_func->functype() == Item_func::ISNULL_FUNC,
+                 &tmp, 1, usable_tables);
     }
     break;
   case Item_func::OPTIMIZE_EQUAL:
@@ -380,8 +399,8 @@ void build_funcdeps_for_cond(Table_elimination *te,
       */   
       while ((item= it++))
       {
-        add_funcdep(te, fdeps, *and_level, cond_func, item->field,
-                    TRUE, &const_item, 1, usable_tables);
+        add_eq_dep(te, fdeps, *and_level, cond_func, item->field,
+                   TRUE, &const_item, 1, usable_tables);
       }
     }
     else 
@@ -400,8 +419,8 @@ void build_funcdeps_for_cond(Table_elimination *te,
         {
           if (!field->eq(item->field))
           {
-            add_funcdep(te, fdeps, *and_level, cond_func, field/*item*/,
-                        TRUE, (Item **) &item, 1, usable_tables);
+            add_eq_dep(te, fdeps, *and_level, cond_func, field,
+                       TRUE, (Item **) &item, 1, usable_tables);
           }
         }
         it.rewind();
@@ -411,15 +430,19 @@ void build_funcdeps_for_cond(Table_elimination *te,
   }
 }
 
+
 /*
-  Perform an OR operation on two (adjacent) FUNC_DEP arrays.
+  Perform an OR operation on two (adjacent) Equality_dep arrays.
 
   SYNOPSIS
      merge_func_deps()
+       start        Start of left OR-part
+       new_fields   Start of right OR-part
+       end          End of right OR-part
+       and_level    AND-level.
 
   DESCRIPTION
-
-  This function is invoked for two adjacent arrays of FUNC_DEP elements:
+  This function is invoked for two adjacent arrays of Equality_dep elements:
 
                       $LEFT_PART             $RIGHT_PART
              +-----------------------+-----------------------+
@@ -527,17 +550,18 @@ Equality_dep *merge_func_deps(Equality_dep *start, Equality_dep *new_fields,
 
 
 /*
-  Add a funcdep for a given equality.
+  Add an Equality_dep element for a given predicate, if applicable 
+
+  DESCRIPTION 
+    This function is modeled after add_key_field().
 */
 
 static 
-void add_funcdep(Table_elimination *te, 
-                 Equality_dep **eq_dep, uint and_level,
-                 Item_func *cond, Field *field,
-                 bool eq_func, Item **value,
-                 uint num_values, table_map usable_tables)
+void add_eq_dep(Table_elimination *te, Equality_dep **eq_dep,
+                uint and_level, Item_func *cond, Field *field,
+                bool eq_func, Item **value, uint num_values,
+                table_map usable_tables)
 {
- // Field *field= item_field->field;
   if (!(field->table->map & usable_tables))
     return;
 
@@ -606,7 +630,11 @@ void add_funcdep(Table_elimination *te,
 }
 
 
-Table_dep *get_table_dep(Table_elimination *te, TABLE *table)
+/*
+  Get a Table_dep object for the given table, creating it if necessary.
+*/
+
+static Table_dep *get_table_dep(Table_elimination *te, TABLE *table)
 {
   Table_dep *tbl_dep= new Table_dep(table);
   Key_dep **key_list= &(tbl_dep->keys);
@@ -625,19 +653,21 @@ Table_dep *get_table_dep(Table_elimination *te, TABLE *table)
   return te->table_deps[table->tablenr] = tbl_dep;
 }
 
+
 /* 
-  Given a field, get its dependency element: if it already exists, find it,
-  otherwise create it.
+  Get a Field_dep object for the given field, creating it if necessary
 */
 
-Field_dep *get_field_dep(Table_elimination *te, Field *field)
+static Field_dep *get_field_dep(Table_elimination *te, Field *field)
 {
   TABLE *table= field->table;
   Table_dep *tbl_dep;
 
+  /* First, get the table*/
   if (!(tbl_dep= te->table_deps[table->tablenr]))
     tbl_dep= get_table_dep(te, table);
-
+ 
+  /* Try finding the field in field list */
   Field_dep **pfield= &(tbl_dep->fields);
   while (*pfield && (*pfield)->field->field_index < field->field_index)
   {
@@ -646,20 +676,34 @@ Field_dep *get_field_dep(Table_elimination *te, Field *field)
   if (*pfield && (*pfield)->field->field_index == field->field_index)
     return *pfield;
   
+  /* Create the field and insert it in the list */
   Field_dep *new_field= new Field_dep(tbl_dep, field);
-  
   new_field->next_table_field= *pfield;
   *pfield= new_field;
+
   return new_field;
 }
 
 
+/*
+  Create an Outer_join_dep object for the given outer join
+
+  DESCRIPTION
+    Outer_join_dep objects for children (or further descendants) are always
+    created before the parents.
+*/
+
+static 
 Outer_join_dep *get_outer_join_dep(Table_elimination *te, 
                                    TABLE_LIST *outer_join, table_map deps_map)
 {
   Outer_join_dep *oj_dep;
   oj_dep= new Outer_join_dep(outer_join, deps_map);
-
+  
+  /* 
+    Collect a bitmap fo tables that we depend on, and also set parent pointer
+    for descendant outer join elements.
+  */
   Table_map_iterator it(deps_map);
   int idx;
   while ((idx= it.next_bit()) != Table_map_iterator::BITMAP_END)
@@ -667,6 +711,11 @@ Outer_join_dep *get_outer_join_dep(Table_elimination *te,
     Table_dep *table_dep;
     if (!(table_dep= te->table_deps[idx]))
     {
+      /*
+        We get here only when ON expression had no references to inner tables
+        and Table_map objects weren't created for them. This is a rare/
+        unimportant case so it's ok to do not too efficient searches.
+      */
       TABLE *table= NULL;
       for (TABLE_LIST *tlist= te->join->select_lex->leaf_tables; tlist;
            tlist=tlist->next_leaf)
@@ -680,7 +729,13 @@ Outer_join_dep *get_outer_join_dep(Table_elimination *te,
       DBUG_ASSERT(table);
       table_dep= get_table_dep(te, table);
     }
-
+    
+    /* 
+      Walk from the table up to its embedding outer joins. The goal is to
+      find the least embedded outer join nest and set its parent pointer to
+      point to the newly created Outer_join_dep.
+      to set the pointer of its near 
+    */
     if (!table_dep->outer_join_dep)
       table_dep->outer_join_dep= oj_dep;
     else
@@ -690,43 +745,35 @@ Outer_join_dep *get_outer_join_dep(Table_elimination *te,
         oj= oj->parent;
       oj->parent=oj_dep;
     }
-
   }
   return oj_dep;
 }
 
 
 /*
-  Perform table elimination in a given join list
+  Build functional dependency graph for elements of given join list
 
   SYNOPSIS
     collect_funcdeps_for_join_list()
-      te                      Table elimination context.
-      join_list               Join list to work on 
-      its_outer_join          TRUE <=> the join_list is an inner side of an 
-                                       outer join 
-                              FALSE <=> otherwise (this is top-level join 
-                                        list, simplify_joins flattens out all
-                                        other kinds of join lists)
-                                                    
-      tables_in_list          Bitmap of tables embedded in the join_list.
-      tables_used_elsewhere   Bitmap of tables that are referred to from
-                              somewhere outside of the join list (e.g.
-                              select list, HAVING, etc).
+      te                       Table elimination context.
+      join_list                Join list to work on 
+      build_eq_deps            TRUE <=> build Equality_dep elements for all
+                               members of the join list, even if they cannot 
+                               be individually eliminated
+      tables_used_elsewhere    Bitmap of tables that are referred to from
+                               somewhere outside of this join list (e.g.
+                               select list, HAVING, ON expressions of parent
+                               joins, etc).
+      eliminable_tables  INOUT Tables that can potentially be eliminated
+                               (needed so we know for which tables to build 
+                               dependencies for)
+      eq_dep             INOUT End of array of equality dependencies.
 
   DESCRIPTION
-    Perform table elimination for a join list.
-    Try eliminating children nests first.
-    The "all tables in join nest can produce only one matching record
-    combination" property checking is modeled after constant table detection,
-    plus we reuse info attempts to eliminate child join nests.
-
-  RETURN
-    Number of children left after elimination. 0 means everything was
-    eliminated.
+    .
 */
 
-static uint
+static void
 collect_funcdeps_for_join_list(Table_elimination *te,
                                List<TABLE_LIST> *join_list,
                                bool build_eq_deps,
@@ -771,7 +818,7 @@ collect_funcdeps_for_join_list(Table_elimination *te,
       {
         // build comp_cond from ON expression
         uint and_level=0;
-        build_funcdeps_for_cond(te, eq_dep, &and_level, tbl->on_expr, 
+        build_eq_deps_for_cond(te, eq_dep, &and_level, tbl->on_expr, 
                                 *eliminable_tables);
       }
 
@@ -781,19 +828,13 @@ collect_funcdeps_for_join_list(Table_elimination *te,
       tables_used_on_left |= tbl->on_expr->used_tables();
     }
   }
-  return 0;
+  return;
 }
 
+
 /*
-  Analyze exising FUNC_DEP array and add elements for tables and uniq keys
-
-  SYNOPSIS
-  
-  DESCRIPTION
-    Add FUNC_DEP elements
-
-  RETURN
-    .
+  This is used to analyse expressions in "tbl.col=expr" dependencies so
+  that we can figure out which fields the expression depends on.
 */
 
 class Field_dependency_setter : public Field_enumerator
@@ -819,20 +860,41 @@ public:
           return;
         }
       }
-      /* We didn't find the field. Bump the dependency anyway */
+      /* 
+        We got here if didn't find this field. It's not a part of 
+        a unique key, and/or there is no field=expr element for it.
+        Bump the dependency anyway, this will signal that this dependency
+        cannot be satisfied.
+      */
       te->equality_deps[expr_offset].unknown_args++;
     }
   }
+
   Table_elimination *te;
-  uint expr_offset; /* Offset of the expression we're processing */
+  /* Offset of the expression we're processing in the dependency bitmap */
+  uint expr_offset; 
 };
 
+
+/*
+  Setup equality dependencies
+  
+  SYNOPSIS
+    setup_equality_deps()
+      te                    Table elimination context
+      bound_deps_list  OUT  Start of linked list of elements that were found to
+                            be bound (caller will use this to see if that
+                            allows to declare further elements bound)
+*/
 
 static 
 bool setup_equality_deps(Table_elimination *te, Func_dep **bound_deps_list)
 {
   DBUG_ENTER("setup_equality_deps");
   
+  /*
+    Count Field_dep objects and assign each of them a unique bitmap_offset.
+  */
   uint offset= 0;
   for (Table_dep **tbl_dep=te->table_deps; 
        tbl_dep < te->table_deps + MAX_TABLES;
@@ -859,7 +921,10 @@ bool setup_equality_deps(Table_elimination *te, Func_dep **bound_deps_list)
   bitmap_clear_all(&te->expr_deps);
 
   /* 
-    Walk through all field=expr elements and collect all fields.
+    Analyze all "field=expr" dependencies, and have te->expr_deps encode
+    dependencies of expressions from fields.
+
+    Also collect a linked list of equalities that are bound.
   */
   Func_dep *bound_dep= NULL;
   Field_dependency_setter deps_setter(te);
