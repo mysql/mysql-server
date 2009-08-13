@@ -984,6 +984,9 @@ sub command_line_setup {
 
   if ( $opt_experimental )
   {
+    # $^O on Windows considered not generic enough
+    my $plat= (IS_WINDOWS) ? 'windows' : $^O;
+
     # read the list of experimental test cases from the file specified on
     # the command line
     open(FILE, "<", $opt_experimental) or mtr_error("Can't read experimental file: $opt_experimental");
@@ -994,6 +997,15 @@ sub command_line_setup {
       # remove comments (# foo) at the beginning of the line, or after a 
       # blank at the end of the line
       s/( +|^)#.*$//;
+      # If @ platform specifier given, use this entry only if it contains
+      # @<platform> or @!<xxx> where xxx != platform
+      if (/\@.*/)
+      {
+	next if (/\@!$plat/);
+	next unless (/\@$plat/ or /\@!/);
+	# Then remove @ and everything after it
+	s/\@.*$//;
+      }
       # remove whitespace
       s/^ +//;              
       s/ +$//;
