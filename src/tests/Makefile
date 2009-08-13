@@ -103,6 +103,7 @@ BDB_DONTRUN_TESTS = \
 	test_txn_nested2 \
 	test_txn_nested3 \
 	test_txn_nested4 \
+	backwards_10_each_le_and_msg \
 #\ ends prev line
 
 # checkpoint tests depend on this header file, 
