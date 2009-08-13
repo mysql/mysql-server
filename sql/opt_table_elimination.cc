@@ -20,18 +20,15 @@
   OVERVIEW
 
   The module has one entry point - eliminate_tables() function, which one 
-  needs to call (once) sometime after update_ref_and_keys() but before the
-  join optimization.  
+  needs to call (once) at some point before the join optimization.
   eliminate_tables() operates over the JOIN structures. Logically, it
   removes the right sides of outer join nests. Physically, it changes the
   following members:
 
   * Eliminated tables are marked as constant and moved to the front of the
     join order.
-  * In addition to this, they are recorded in JOIN::eliminated_tables bitmap.
 
-  * All join nests have their NESTED_JOIN::n_tables updated to discount
-    the eliminated tables
+  * In addition to this, they are recorded in JOIN::eliminated_tables bitmap.
 
   * Items that became disused because they were in the ON expression of an 
     eliminated outer join are notified by means of the Item tree walk which 
@@ -40,26 +37,13 @@
       Item_subselect with its Item_subselect::eliminated flag which is used
       by EXPLAIN code to check if the subquery should be shown in EXPLAIN.
 
-  Table elimination is redone on every PS re-execution. (TODO reasons?)
+  Table elimination is redone on every PS re-execution.
 */
 
+
 /*
-  A structure that represents a functional dependency of something over
-  something else. This can be one of:
-
-  1. A "tbl.field = expr" equality. The field depends on the expression.
-  
-  2. An Item_equal(...) multi-equality. Each participating field depends on
-     every other participating field. (TODO???)
-  
-  3. A UNIQUE_KEY(field1, field2, fieldN). The key depends on the fields that
-     it is composed of.
-
-  4. A table (which is within an outer join nest). Table depends on a unique
-     key (value of a unique key identifies a table record)
-
-  5. An outer join nest. It depends on all tables it contains.
-
+  An abstract structure that represents some entity that's being dependent on
+  some other entity.
 */
 
 class Func_dep : public Sql_alloc
@@ -73,9 +57,14 @@ public:
     FD_UNIQUE_KEY,
     FD_TABLE,
     FD_OUTER_JOIN
-  } type;
-  Func_dep *next;
-  bool bound;
+  } type; /* Type of the object */
+  
+  /* 
+    Used to make a linked list of elements that became bound and thus can
+    make elements that depend on them bound, too.
+  */
+  Func_dep *next; 
+  bool bound; /* TRUE<=> The entity is considered bound */
   Func_dep() : next(NULL), bound(FALSE) {}
 };
 
@@ -84,10 +73,10 @@ class Field_dep;
 class Table_dep;
 class Outer_join_dep;
 
+
 /*
-  An equality
-  - Depends on multiple fields (those in its expression), unknown_args is a 
-    counter of unsatisfied dependencies.
+  A "tbl.column= expr" equality dependency.  tbl.column depends on fields 
+  used in expr.
 */
 class Equality_dep : public Func_dep
 {
@@ -95,8 +84,11 @@ public:
   Field_dep *field;
   Item  *val;
   
-  uint level; /* Used during condition analysis only */
-  uint unknown_args; /* Number of yet unknown arguments */
+  /* Used during condition analysis only, similar to KEYUSE::level */
+  uint level;
+  
+  /* Number of fields referenced from *val that are not yet 'bound' */
+  uint unknown_args;
 };
 
 
@@ -139,7 +131,7 @@ public:
     type= Func_dep::FD_UNIQUE_KEY;
   }
   Table_dep *table; /* Table this key is from */
-  uint keyno; // TODO do we care about this
+  uint keyno;
   uint n_missing_keyparts;
   Key_dep *next_table_key;
 };

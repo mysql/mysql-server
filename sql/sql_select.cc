@@ -114,7 +114,7 @@ static COND *simplify_joins(JOIN *join, List<TABLE_LIST> *join_list,
                             COND *conds, bool top);
 static bool check_interleaving_with_nj(JOIN_TAB *next);
 static void restore_prev_nj_state(JOIN_TAB *last);
-static void reset_nj_counters(JOIN *join, List<TABLE_LIST> *join_list);
+static uint reset_nj_counters(JOIN *join, List<TABLE_LIST> *join_list);
 static uint build_bitmap_for_nested_joins(List<TABLE_LIST> *join_list,
                                           uint first_unused);
 
@@ -8791,23 +8791,26 @@ static uint build_bitmap_for_nested_joins(List<TABLE_LIST> *join_list,
                     tables which will be ignored.
 */
 
-static void reset_nj_counters(JOIN *join, List<TABLE_LIST> *join_list)
+static uint reset_nj_counters(JOIN *join, List<TABLE_LIST> *join_list)
 {
   List_iterator<TABLE_LIST> li(*join_list);
   TABLE_LIST *table;
   DBUG_ENTER("reset_nj_counters");
+  uint n=0;
   while ((table= li++))
   {
     NESTED_JOIN *nested_join;
     if ((nested_join= table->nested_join))
     {
       nested_join->counter= 0;
-      nested_join->n_tables= my_count_bits(nested_join->used_tables & 
-                                           ~join->eliminated_tables);
-      reset_nj_counters(join, &nested_join->join_list);
+      //nested_join->n_tables= my_count_bits(nested_join->used_tables & 
+      //                                     ~join->eliminated_tables);
+      nested_join->n_tables= reset_nj_counters(join, &nested_join->join_list);
     }
+    if (table->table && (table->table->map & ~join->eliminated_tables))
+      n++;
   }
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(n);
 }
 
 
