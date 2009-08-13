@@ -676,16 +676,12 @@ Outer_join_dep *get_outer_join_dep(Table_elimination *te,
     if (!(table_dep= te->table_deps[idx]))
     {
       TABLE *table= NULL;
-      /* 
-        Locate and create the table. The search isnt very efficient but 
-        typically we won't get here as we process the ON expression first
-        and that will create the Table_dep
-      */
-      for (uint i= 0; i < te->join->tables; i++)
+      for (TABLE_LIST *tlist= te->join->select_lex->leaf_tables; tlist;
+           tlist=tlist->next_leaf)
       {
-        if (te->join->join_tab[i].table->tablenr == (uint)idx)
+        if (tlist->table->tablenr == (uint)idx)
         {
-          table= te->join->join_tab[i].table;
+          table=tlist->table;
           break;
         }
       }
