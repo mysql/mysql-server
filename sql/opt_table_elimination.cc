@@ -1043,7 +1043,8 @@ void eliminate_tables(JOIN *join)
             DBUG_PRINT("info", ("key %s.%s is now bound",
                                 key_dep->table->table->alias, 
                                 key_dep->table->table->key_info[key_dep->keyno].name));
-            if (!key_dep->bound)
+            if (field_dep->field->part_of_key.is_set(key_dep->keyno) && 
+                !key_dep->bound)
             {
               if (!--key_dep->n_missing_keyparts)
               {
