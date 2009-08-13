@@ -1,50 +1,3 @@
-This is a release of MySQL, a dual-license SQL database server.
-MySQL is brought to you by the MySQL team at Sun Microsystems, Inc.
-
-License information can be found in these files:
-- For GPL (free) distributions, see the COPYING file and
-  the EXCEPTIONS-CLIENT file.
-- For commercial distributions, see the LICENSE.mysql file.
-
-GPLv2 Disclaimer
-For the avoidance of doubt, except that if any license choice
-other than GPL or LGPL is available it will apply instead, Sun
-elects to use only the General Public License version 2 (GPLv2)
-at this time for any software where a choice of GPL license versions
-is made available with the language indicating that GPLv2 or any
-later version may be used, or where a choice of which version of
-the GPL is applied is otherwise unspecified.
-
-For further information about MySQL or additional documentation, see:
-- The latest information about MySQL: http://www.mysql.com
-- The current MySQL documentation: http://dev.mysql.com/doc
-
-Some manual sections of special interest:
-
-- If you are migrating from an older version of MySQL, please read the
-  "Upgrading from..." section first!
-- To see what MySQL can do, take a look at the features section.
-- For installation instructions, see the Installing and Upgrading
-chapter.
-- For the new features/bugfix history, see the Change History appendix.
-- For the currently known bugs/misfeatures (known errors) see the
-Problems
-  and Common Errors appendix.
-- For a list of developers and other contributors, see the Credits
-  appendix.
-
-A local copy of the MySQL Reference Manual can be found in the Docs
-directory in GNU Info format.  You can also browse the manual online or
-download it in any of several formats at the URL given earlier in this
-file.
-
-************************************************************
-
-IMPORTANT:
-
-Bug or error reports should be sent to http://bugs.mysql.com.
-
-
 ***************************************************************************
 
 %%The following software may be included in this product:
@@ -52,7 +5,7 @@ Fred Fish's Dbug Library
 
 Use of any of this software is governed by the terms of the license below:
 
- *
+*
  *				   N O T I C E				      *
  *									      *
  *		      Copyright Abandoned, 1987, Fred Fish		      *
@@ -1284,5 +1237,378 @@ Use of any of this software is governed by the terms of the license below:
  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 02111-1307, USA.
 */
+
+***************************************************************************
+
+%%The following software may be included in this product:
+libevent
+
+Use of any of this software is governed by the terms of the license below:
+
+/*
+ * Copyright (c) 2000-2004 Niels Provos 
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. The name of the author may not be used to endorse or promote products
+ *    derived from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+Additional License(s)
+
+http://creativecommons.org/licenses/publicdomain
+
+***************************************************************************
+
+%%The following software may be included in this product:
+Async DNS Library
+
+Use of any of this software is governed by the terms of the license below:
+
+/* Async DNS Library
+ * Adam Langley 
+ * http://www.imperialviolet.org/eventdns.html
+ * Public Domain code
+ *
+ * This software is Public Domain. To view a copy of the public domain dedication,
+ * visit http://creativecommons.org/licenses/publicdomain/ or send a letter to
+ * Creative Commons, 559 Nathan Abbott Way, Stanford, California 94305, USA.
+ *
+ * I ask and expect, but do not require, that all derivative works contain an
+ * attribution similar to:
+ * 	Parts developed by Adam Langley 
+ *
+ * You may wish to replace the word "Parts" with something else depending on
+ * the amount of original code.
+ *
+ * (Derivative works does not include programs which link against, run or include
+ * the source verbatim in their source distributions)
+ *
+ * Version: 0.1b
+ */
+
+***************************************************************************
+
+%%The following software may be included in this product:
+log.c
+
+Use of any of this software is governed by the terms of the license below:
+
+/*      $OpenBSD: err.c,v 1.2 2002/06/25 15:50:15 mickey Exp $  */
+
+/*
+ * log.c
+ *
+ * Based on err.c, which was adapted from OpenBSD libc *err* *warn* code.
+ *
+ * Copyright (c) 2005 Nick Mathewson 
+ *
+ * Copyright (c) 2000 Dug Song 
+ *
+ * Copyright (c) 1993
+ *      The Regents of the University of California.  All rights
+reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. Neither the name of the University nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+
+***************************************************************************
+
+%%The following software may be included in this product:
+min_heap.h
+
+Use of any of this software is governed by the terms of the license below:
+
+/*
+ * Copyright (c) 2006 Maxim Yegorushkin 
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. The name of the author may not be used to endorse or promote products
+ *    derived from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+***************************************************************************
+
+%%The following software may be included in this product:
+win32.c
+
+Use of any of this software is governed by the terms of the license below:
+
+/*
+ * Copyright 2000-2002 Niels Provos 
+ * Copyright 2003 Michael A. Davis 
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. The name of the author may not be used to endorse or promote products
+ *    derived from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+***************************************************************************
+
+%%The following software may be included in this product:
+UnicodeData.txt
+
+Use of any of this software is governed by the terms of the license below:
+
+Unicode Terms of Use
+
+    For the general privacy policy governing access to this site, see the 
+Unicode Privacy Policy. For trademark usage, see the Unicode Consortium®
+Trademarks and Logo Policy.
+    Notice to End User: Terms of Use
+    Carefully read the following legal agreement ("Agreement"). Use or copying
+of the software and/or codes provided with this agreement (The "Software")
+constitutes your acceptance of these terms
+
+       1. Unicode Copyright.
+             1. Copyright © 1991-2008 Unicode, Inc. All rights reserved.
+             2. Certain documents and files on this website contain a legend
+indicating that "Modification is permitted." Any person is hereby authorized,
+without fee, to modify such documents and files to create derivative works
+conforming to the Unicode® Standard, subject to Terms and Conditions herein.
+             3. Any person is hereby authorized, without fee, to view, use,
+reproduce, and distribute all documents and files solely for informational
+purposes in the creation of products supporting the Unicode Standard, subject to
+the Terms and Conditions herein.
+             4. Further specifications of rights and restrictions pertaining to
+the use of the particular set of data files known as the "Unicode Character
+Database" can be found in Exhibit 1.
+             5. Each version of the Unicode Standard has further specifications
+of rights and restrictions of use. For the book editions, these are found on the
+back of the title page. For the online edition, certain files (such as the PDF
+files for book chapters and code charts) carry specific restrictions. All other
+files are covered under these general Terms of Use.  To request a permission to
+reproduce any part of the Unicode Standard, please contact the Unicode Consortium.
+             6. No license is granted to "mirror" the Unicode website where a
+fee is charged for access to the "mirror" site.
+             7. Modification is not permitted with respect to this document. All
+copies of this document must be verbatim.
+       2. Restricted Rights Legend. Any technical data or software which is
+licensed to the United States of America, its agencies and/or instrumentalities
+under this Agreement is commercial technical data or commercial computer
+software developed exclusively at private expense as defined in FAR 2.101, or
+DFARS 252.227-7014 (June 1995), as applicable. For technical data, use,
+duplication, or disclosure by the Government is subject to restrictions as set
+forth in DFARS 202.227-7015 Technical Data, Commercial and Items (Nov 1995) and
+this Agreement. For Software, in accordance with FAR 12-212 or DFARS 227-7202,
+as applicable, use, duplication or disclosure by the Government is subject to
+the restrictions set forth in this Agreement.
+       3. Warranties and Disclaimers.
+             1. This publication and/or website may include technical or
+typographical errors or other inaccuracies . Changes are periodically added to
+the information herein; these changes will be incorporated in new editions of
+the publication and/or website. Unicode may make improvements and/or changes in
+the product(s) and/or program(s) described in this publication and/or website at
+any time.
+             2. If this file has been purchased on magnetic or optical media
+from Unicode, Inc. the sole and exclusive remedy for any claim will be exchange
+of the defective media within ninety (90) days of original purchase.
+             3. EXCEPT AS PROVIDED IN SECTION C.2, THIS PUBLICATION AND/OR
+SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND EITHER EXPRESS,
+IMPLIED, OR STATUTORY, INCLUDING, BUT NOT LIMITED TO, ANY WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT. UNICODE
+AND ITS LICENSORS ASSUME NO RESPONSIBILITY FOR ERRORS OR OMISSIONS IN THIS
+PUBLICATION AND/OR SOFTWARE OR OTHER DOCUMENTS WHICH ARE REFERENCED BY OR LINKED
+TO THIS PUBLICATION OR THE UNICODE WEBSITE.
+       4. Waiver of Damages. In no event shall Unicode or its licensors be
+liable for any special, incidental, indirect or consequential damages of any
+kind, or any damages whatsoever, whether or not Unicode was advised of the
+possibility of the damage, including, without limitation, those resulting from
+the following: loss of use, data or profits, in connection with the use,
+modification or distribution of this information or its derivatives.
+       5. Trademarks.
+             1. Unicode and the Unicode logo are registered trademarks of
+Unicode, Inc. 
+             2. This site contains product names and corporate names of other
+companies. All product names and company names and logos mentioned herein are
+the trademarks or registered trademarks of their respective owners. Other
+products and corporate names mentioned herein which are trademarks of a third
+party are used only for explanation and for the owners' benefit and with no
+intent to infringe.
+             3. Use of third party products or information referred to herein is
+at the user’s risk.
+       6. Miscellaneous.
+             1. Jurisdiction and Venue. This server is operated from a location
+in the State of California, United States of America. Unicode makes no
+representation that the materials are appropriate for use in other locations. If
+you access this server from other locations, you are responsible for compliance
+with local laws. This Agreement, all use of this site and any claims and damages
+resulting from use of this site are governed solely by the laws of the State of
+California without regard to any principles which would apply the laws of a
+different jurisdiction. The user agrees that any disputes regarding this site
+shall be resolved solely in the courts located in Santa Clara County,
+California. The user agrees said courts have personal jurisdiction and agree to
+waive any right to transfer the dispute to any other forum.
+             2. Modification by Unicode Unicode shall have the right to modify
+this Agreement at any time by posting it to this site. The user may not assign
+any part of this Agreement without Unicode’s prior written consent.
+             3. Taxes. The user agrees to pay any taxes arising from access to
+this website or use of the information herein, except for those based on
+Unicode’s net income.
+             4. Severability.  If any provision of this Agreement is declared
+invalid or unenforceable, the remaining provisions of this Agreement shall
+remain in effect.
+             5. Entire Agreement. This Agreement constitutes the entire
+agreement between the parties. 
+
+EXHIBIT 1
+UNICODE, INC. LICENSE AGREEMENT - DATA FILES AND SOFTWARE
+
+    Unicode Data Files include all data files under the directories
+http://www.unicode.org/Public/, http://www.unicode.org/reports/, and
+http://www.unicode.org/cldr/data/ . Unicode Software includes any source code
+published in the Unicode Standard or under the directories
+http://www.unicode.org/Public/, http://www.unicode.org/reports/, and
+http://www.unicode.org/cldr/data/.
+
+    NOTICE TO USER: Carefully read the following legal agreement. BY
+DOWNLOADING, INSTALLING, COPYING OR OTHERWISE USING UNICODE INC.'S DATA FILES
+("DATA FILES"), AND/OR SOFTWARE ("SOFTWARE"), YOU UNEQUIVOCALLY ACCEPT, AND
+AGREE TO BE BOUND BY, ALL OF THE TERMS AND CONDITIONS OF THIS AGREEMENT. IF YOU
+DO NOT AGREE, DO NOT DOWNLOAD, INSTALL, COPY, DISTRIBUTE OR USE THE DATA FILES
+OR SOFTWARE.
+
+    COPYRIGHT AND PERMISSION NOTICE
+
+    Copyright © 1991-2008 Unicode, Inc. All rights reserved. Distributed under
+the Terms of Use in http://www.unicode.org/copyright.html.
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+of the Unicode data files and any associated documentation (the "Data Files") or
+Unicode software and any associated documentation (the "Software") to deal in
+the Data Files or Software without restriction, including without limitation the
+rights to use, copy, modify, merge, publish, distribute, and/or sell copies of
+the Data Files or Software, and to permit persons to whom the Data Files or
+Software are furnished to do so, provided that (a) the above copyright notice(s)
+and this permission notice appear with all copies of the Data Files or Software,
+(b) both the above copyright notice(s) and this permission notice appear in
+associated documentation, and (c) there is clear notice in each modified Data
+File or in the Software as well as in the documentation associated with the Data
+File(s) or Software that the data or software has been modified.
+
+    THE DATA FILES AND SOFTWARE ARE PROVIDED "AS IS", WITHOUT WARRANTY OF ANY
+KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF THIRD
+PARTY RIGHTS. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR HOLDERS INCLUDED IN THIS
+NOTICE BE LIABLE FOR ANY CLAIM, OR ANY SPECIAL INDIRECT OR CONSEQUENTIAL
+DAMAGES, OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS,
+WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING
+OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THE DATA FILES OR SOFTWARE.
+
+    Except as contained in this notice, the name of a copyright holder shall not
+be used in advertising or otherwise to promote the sale, use or other dealings
+in these Data Files or Software without prior written authorization of the
+copyright holder.
+
+    Unicode and the Unicode logo are trademarks of Unicode, Inc., and may be
+registered in some jurisdictions. All other trademarks and registered trademarks
+mentioned herein are the property of their respective owners.
+
+***************************************************************************
+
+%%The following software may be included in this product:
+dtoa.c
+
+Use of any of this software is governed by the terms of the license below:
+
+/****************************************************************
+
+  This file incorporates work covered by the following copyright and
+  permission notice:
+
+  The author of this software is David M. Gay.
+
+  Copyright (c) 1991, 2000, 2001 by Lucent Technologies.
+
+  Permission to use, copy, modify, and distribute this software for any
+  purpose without fee is hereby granted, provided that this entire
+  notice is included in all copies of any software which is or includes a copy
+  or modification of this software and in all copies of the supporting
+  documentation for such software.
+
+  THIS SOFTWARE IS BEING PROVIDED "AS IS", WITHOUT ANY EXPRESS OR IMPLIED
+  WARRANTY.  IN PARTICULAR, NEITHER THE AUTHOR NOR LUCENT MAKES ANY
+  REPRESENTATION OR WARRANTY OF ANY KIND CONCERNING THE MERCHANTABILITY
+  OF THIS SOFTWARE OR ITS FITNESS FOR ANY PARTICULAR PURPOSE.
+
+ ***************************************************************/
 
 ***************************************************************************
