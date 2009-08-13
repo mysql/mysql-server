@@ -3392,25 +3392,6 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
   bool not_used;
   DBUG_ENTER("create_table_from_items");
 
-  DBUG_EXECUTE_IF("sleep_create_select_before_check_if_exists", my_sleep(6000000););
-
-  if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
-      create_table->table->db_stat)
-  {
-    /* Table already exists and was open at open_and_lock_tables() stage. */
-    if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
-    {
-      create_info->table_existed= 1;		// Mark that table existed
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
-                          ER_TABLE_EXISTS_ERROR, ER(ER_TABLE_EXISTS_ERROR),
-                          create_table->table_name);
-      DBUG_RETURN(create_table->table);
-    }
-
-    my_error(ER_TABLE_EXISTS_ERROR, MYF(0), create_table->table_name);
-    DBUG_RETURN(0);
-  }
-
   tmp_table.alias= 0;
   tmp_table.timestamp_field= 0;
   tmp_table.s= &share;
@@ -3612,10 +3593,35 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     thd->binlog_start_trans_and_stmt();
   }
 
-  if (!(table= create_table_from_items(thd, create_info, create_table,
-                                       alter_info, &values,
-                                       &extra_lock, hook_ptr)))
-    DBUG_RETURN(-1);				// abort() deletes table
+  DBUG_EXECUTE_IF("sleep_create_select_before_check_if_exists", my_sleep(6000000););
+
+  if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
+      create_table->table->db_stat)
+  {
+    /* Table already exists and was open at open_and_lock_tables() stage. */
+    if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
+    {
+      /* Mark that table existed */
+      create_info->table_existed= 1;
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+                          ER_TABLE_EXISTS_ERROR, ER(ER_TABLE_EXISTS_ERROR),
+                          create_table->table_name);
+      if (thd->current_stmt_binlog_row_based)
+        binlog_show_create_table(&(create_table->table), 1);
+      table= create_table->table;
+    }
+    else
+    {
+      my_error(ER_TABLE_EXISTS_ERROR, MYF(0), create_table->table_name);
+      DBUG_RETURN(-1);
+    }
+  }
+  else
+    if (!(table= create_table_from_items(thd, create_info, create_table,
+                                         alter_info, &values,
+                                         &extra_lock, hook_ptr)))
+      /* abort() deletes table */
+      DBUG_RETURN(-1);
 
   if (extra_lock)
   {
