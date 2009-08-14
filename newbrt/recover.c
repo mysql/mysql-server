@@ -295,7 +295,7 @@ static int toku_recover_backward_fclose (struct logtype_fclose *UU(l), struct ba
     return 0;
 }
 
-static int toku_recover_begin_checkpoint (LSN UU(lsn)) {
+static int toku_recover_begin_checkpoint (LSN UU(lsn), u_int64_t UU(timestamp)) {
     return 0;
 }
 
@@ -318,7 +318,7 @@ static int toku_recover_backward_begin_checkpoint (struct logtype_begin_checkpoi
     abort();
 }
 
-static int toku_recover_end_checkpoint (LSN UU(lsn), TXNID UU(txnid)) {
+static int toku_recover_end_checkpoint (LSN UU(lsn), TXNID UU(txnid), u_int64_t UU(timestamp)) {
     return 0;
 }
 

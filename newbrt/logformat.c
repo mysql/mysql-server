@@ -91,8 +91,8 @@ const struct logtype rollbacks[] = {
 
 const struct logtype logtypes[] = {
     // Records produced by checkpoints
-    {"begin_checkpoint", 'x', FA{NULLFIELD}},
-    {"end_checkpoint",   'X', FA{{"TXNID", "txnid", 0}, NULLFIELD}},  // TXNID is LSN of begin_checkpoint
+    {"begin_checkpoint", 'x', FA{{"u_int64_t", "timestamp", 0}, NULLFIELD}},
+    {"end_checkpoint",   'X', FA{{"TXNID", "txnid", 0}, {"u_int64_t", "timestamp", 0}, NULLFIELD}},  // TXNID is LSN of begin_checkpoint
     {"fassociate",  'f', FA{{"FILENUM", "filenum", 0},
 			    {"BYTESTRING", "fname", 0},   // pathname of file
 			    NULLFIELD}},
