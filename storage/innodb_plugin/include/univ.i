@@ -408,7 +408,8 @@ it is read. */
 /* Minimize cache-miss latency by moving data at addr into a cache before
 it is read or written. */
 # define UNIV_PREFETCH_RW(addr) __builtin_prefetch(addr, 1, 3)
-#elif defined(__SUNPRO_C) || defined(__SUNPRO_CC)
+/* Sun Studio includes sun_prefetch.h as of version 5.9 */
+#elif (defined(__SUNPRO_C) && __SUNPRO_C >= 0x590) || (defined(__SUNPRO_CC) && __SUNPRO_CC >= 0x590)
 # include <sun_prefetch.h>
 #if __SUNPRO_C >= 0x550
 # undef UNIV_INTERN
