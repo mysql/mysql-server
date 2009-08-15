@@ -114,7 +114,6 @@ public:
     MODULE_EXPRESSION,
     MODULE_MULTI_EQUALITY,
     MODULE_UNIQUE_KEY,
-    MODULE_TABLE,
     MODULE_OUTER_JOIN
   } type; /* Type of the object */
   
@@ -138,7 +137,7 @@ class Equality_module : public Module_dep
 {
 public:
   Field_value *field;
-  Item  *val;
+  Item  *expression;
   
   /* Used during condition analysis only, similar to KEYUSE::level */
   uint level;
@@ -510,18 +509,18 @@ Equality_module *merge_func_deps(Equality_module *start, Equality_module *new_fi
       */
       if (old->field == new_fields->field)
       {
-	if (!new_fields->val->const_item())
+	if (!new_fields->expression->const_item())
 	{
 	  /*
 	    If the value matches, we can use the key reference.
 	    If not, we keep it until we have examined all new values
 	  */
-	  if (old->val->eq(new_fields->val, old->field->field->binary()))
+	  if (old->expression->eq(new_fields->expression, old->field->field->binary()))
 	  {
 	    old->level= and_level;
 	  }
 	}
-	else if (old->val->eq_by_collation(new_fields->val, 
+	else if (old->expression->eq_by_collation(new_fields->expression, 
                                            old->field->field->binary(),
                                            old->field->field->charset()))
 	{
@@ -633,7 +632,7 @@ void add_eq_dep(Table_elimination *te, Equality_module **eq_dep,
   /* Store possible eq field */
   (*eq_dep)->type=  Module_dep::MODULE_EXPRESSION; //psergey-todo;
   (*eq_dep)->field= get_field_value(te, field); 
-  (*eq_dep)->val=   *value;
+  (*eq_dep)->expression=   *value;
   (*eq_dep)->level= and_level;
   (*eq_dep)++;
 }
@@ -953,7 +952,7 @@ bool setup_equality_deps(Table_elimination *te, Module_dep **bound_deps_list)
   {
     deps_setter.expr_offset= eq_dep - te->equality_deps;
     eq_dep->unknown_args= 0;
-    eq_dep->val->walk(&Item::check_column_usage_processor, FALSE, 
+    eq_dep->expression->walk(&Item::check_column_usage_processor, FALSE, 
                       (uchar*)&deps_setter);
     if (!eq_dep->unknown_args)
     {
@@ -1283,7 +1282,7 @@ void dbug_print_deps(Table_elimination *te)
     char buf[128];
     String str(buf, sizeof(buf), &my_charset_bin);
     str.length(0);
-    eq_dep->val->print(&str, QT_ORDINARY);
+    eq_dep->expression->print(&str, QT_ORDINARY);
     fprintf(DBUG_FILE, "  equality%d: %s -> %s.%s\n", 
             eq_dep - te->equality_deps,
             str.c_ptr(),
