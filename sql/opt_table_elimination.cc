@@ -111,11 +111,11 @@ class Module_dep : public Sql_alloc
 {
 public:
   enum {
-    FD_EXPRESSION,
-    FD_MULTI_EQUALITY,
-    FD_UNIQUE_KEY,
-    FD_TABLE,
-    FD_OUTER_JOIN
+    MODULE_EXPRESSION,
+    MODULE_MULTI_EQUALITY,
+    MODULE_UNIQUE_KEY,
+    MODULE_TABLE,
+    MODULE_OUTER_JOIN
   } type; /* Type of the object */
   
   /* 
@@ -156,7 +156,7 @@ public:
   Key_module(Table_value *table_arg, uint keyno_arg, uint n_parts_arg) :
     table(table_arg), keyno(keyno_arg), next_table_key(NULL)
   {
-    type= Module_dep::FD_UNIQUE_KEY;
+    type= Module_dep::MODULE_UNIQUE_KEY;
     unknown_args= n_parts_arg;
   }
   Table_value *table; /* Table this key is from */
@@ -178,7 +178,7 @@ public:
   Outer_join_module(TABLE_LIST *table_list_arg, uint n_children) : 
     table_list(table_list_arg), parent(NULL)
   {
-    type= Module_dep::FD_OUTER_JOIN;
+    type= Module_dep::MODULE_OUTER_JOIN;
     unknown_args= n_children;
   }
   /* 
@@ -205,7 +205,7 @@ public:
 class Table_elimination
 {
 public:
-  Table_elimination(JOIN *join_arg) : join(join_arg)
+  Table_elimination(JOIN *join_arg) : join(join_arg), n_outer_joins(0)
   {
     bzero(table_deps, sizeof(table_deps));
   }
@@ -220,6 +220,7 @@ public:
 
   /* Outer joins that are candidates for elimination */
   List<Outer_join_module> oj_deps;
+  uint n_outer_joins;
 
   /* Bitmap of how expressions depend on bits */
   MY_BITMAP expr_deps;
@@ -630,12 +631,13 @@ void add_eq_dep(Table_elimination *te, Equality_module **eq_dep,
 
   DBUG_ASSERT(eq_func);
   /* Store possible eq field */
-  (*eq_dep)->type=  Module_dep::FD_EXPRESSION; //psergey-todo;
+  (*eq_dep)->type=  Module_dep::MODULE_EXPRESSION; //psergey-todo;
   (*eq_dep)->field= get_field_value(te, field); 
   (*eq_dep)->val=   *value;
   (*eq_dep)->level= and_level;
   (*eq_dep)++;
 }
+
 
 /*
   Get a Table_value object for the given table, creating it if necessary.
@@ -643,9 +645,11 @@ void add_eq_dep(Table_elimination *te, Equality_module **eq_dep,
 
 static Table_value *get_table_value(Table_elimination *te, TABLE *table)
 {
-  Table_value *tbl_dep= new Table_value(table);
-  Key_module **key_list= &(tbl_dep->keys);
+  Table_value *tbl_dep;
+  if (!(tbl_dep= new Table_value(table)))
+    return NULL;
 
+  Key_module **key_list= &(tbl_dep->keys);
   /* Add dependencies for unique keys */
   for (uint i=0; i < table->s->keys; i++)
   {
@@ -657,7 +661,7 @@ static Table_value *get_table_value(Table_elimination *te, TABLE *table)
       key_list= &(key_dep->next_table_key);
     }
   }
-  return te->table_deps[table->tablenr] = tbl_dep;
+  return te->table_deps[table->tablenr]= tbl_dep;
 }
 
 
@@ -672,7 +676,10 @@ static Field_value *get_field_value(Table_elimination *te, Field *field)
 
   /* First, get the table*/
   if (!(tbl_dep= te->table_deps[table->tablenr]))
-    tbl_dep= get_table_value(te, table);
+  {
+    if (!(tbl_dep= get_table_value(te, table)))
+      return NULL;
+  }
  
   /* Try finding the field in field list */
   Field_value **pfield= &(tbl_dep->fields);
@@ -702,10 +709,12 @@ static Field_value *get_field_value(Table_elimination *te, Field *field)
 
 static 
 Outer_join_module *get_outer_join_dep(Table_elimination *te, 
-                                   TABLE_LIST *outer_join, table_map deps_map)
+                                      TABLE_LIST *outer_join, 
+                                      table_map deps_map)
 {
   Outer_join_module *oj_dep;
   oj_dep= new Outer_join_module(outer_join, my_count_bits(deps_map));
+  te->n_outer_joins++;
   
   /* 
     Collect a bitmap fo tables that we depend on, and also set parent pointer
@@ -734,7 +743,8 @@ Outer_join_module *get_outer_join_dep(Table_elimination *te,
         }
       }
       DBUG_ASSERT(table);
-      table_dep= get_table_value(te, table);
+      if (!(table_dep= get_table_value(te, table)))
+        return NULL;
     }
     
     /* 
@@ -781,7 +791,7 @@ Outer_join_module *get_outer_join_dep(Table_elimination *te,
     .
 */
 
-static void
+static bool
 collect_funcdeps_for_join_list(Table_elimination *te,
                                List<TABLE_LIST> *join_list,
                                bool build_eq_deps,
@@ -808,11 +818,12 @@ collect_funcdeps_for_join_list(Table_elimination *te,
         eliminable= !(cur_map & outside_used_tables);
         if (eliminable)
           *eliminable_tables |= cur_map;
-        collect_funcdeps_for_join_list(te, &tbl->nested_join->join_list,
-                                       eliminable || build_eq_deps,
-                                       outside_used_tables,
-                                       eliminable_tables,
-                                       eq_dep);
+        if (collect_funcdeps_for_join_list(te, &tbl->nested_join->join_list,
+                                           eliminable || build_eq_deps,
+                                           outside_used_tables,
+                                           eliminable_tables,
+                                           eq_dep))
+          return TRUE;
       }
       else
       {
@@ -830,13 +841,13 @@ collect_funcdeps_for_join_list(Table_elimination *te,
                                 *eliminable_tables);
       }
 
-      if (eliminable)
-        te->oj_deps.push_back(get_outer_join_dep(te, tbl, cur_map));
+      if (eliminable && get_outer_join_dep(te, tbl, cur_map))
+        return TRUE;
 
       tables_used_on_left |= tbl->on_expr->used_tables();
     }
   }
-  return;
+  return FALSE;
 }
 
 
@@ -1053,16 +1064,18 @@ void eliminate_tables(JOIN *join)
       DBUG_VOID_RETURN;
     Equality_module *eq_deps_end= te.equality_deps;
     table_map eliminable_tables= 0;
-    collect_funcdeps_for_join_list(&te, join->join_list,
-                                   FALSE,
-                                   used_tables,
-                                   &eliminable_tables,
-                                   &eq_deps_end);
+    if (collect_funcdeps_for_join_list(&te, join->join_list,
+                                       FALSE,
+                                       used_tables,
+                                       &eliminable_tables,
+                                       &eq_deps_end))
+      DBUG_VOID_RETURN;
     te.n_equality_deps= eq_deps_end - te.equality_deps;
     
     Module_dep *bound_modules;
     //Value_dep  *bound_values;
-    setup_equality_deps(&te, &bound_modules);
+    if (setup_equality_deps(&te, &bound_modules))
+      DBUG_VOID_RETURN;
     
     run_elimination_wave(&te, bound_modules);
   }
@@ -1108,7 +1121,7 @@ void run_elimination_wave(Table_elimination *te, Module_dep *bound_modules)
     {
       switch (bound_modules->type)
       {
-        case Module_dep::FD_EXPRESSION:
+        case Module_dep::MODULE_EXPRESSION:
         {
           /*  It's a field=expr and we got to know the expr, so we know the field */
           Equality_module *eq_dep= (Equality_module*)bound_modules;
@@ -1121,7 +1134,7 @@ void run_elimination_wave(Table_elimination *te, Module_dep *bound_modules)
           }
           break;
         }
-        case Module_dep::FD_UNIQUE_KEY:
+        case Module_dep::MODULE_UNIQUE_KEY:
         {
           /* Unique key is known means the table is known */
           Table_value *table_dep=((Key_module*)bound_modules)->table;
@@ -1134,13 +1147,13 @@ void run_elimination_wave(Table_elimination *te, Module_dep *bound_modules)
           }
           break;
         }
-        case Module_dep::FD_OUTER_JOIN:
+        case Module_dep::MODULE_OUTER_JOIN:
         {
           Outer_join_module *outer_join_dep= (Outer_join_module*)bound_modules;
           mark_as_eliminated(te->join, outer_join_dep->table_list);
           break;
         }
-        case Module_dep::FD_MULTI_EQUALITY:
+        case Module_dep::MODULE_MULTI_EQUALITY:
         default:
           DBUG_ASSERT(0);
       }
