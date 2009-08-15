@@ -841,7 +841,7 @@ collect_funcdeps_for_join_list(Table_elimination *te,
                                 *eliminable_tables);
       }
 
-      if (eliminable && get_outer_join_dep(te, tbl, cur_map))
+      if (eliminable && !get_outer_join_dep(te, tbl, cur_map))
         return TRUE;
 
       tables_used_on_left |= tbl->on_expr->used_tables();
