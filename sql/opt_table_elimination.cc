@@ -125,7 +125,7 @@ public:
     make elements that depend on them bound, too.
   */
   Module_dep *next; 
-  uint unknown_args; /* TRUE<=> The entity is considered bound */
+  uint unknown_args;
 
   Module_dep() : next(NULL), unknown_args(0) {}
 };
@@ -249,10 +249,8 @@ void run_elimination_wave(Table_elimination *te, Module_dep *bound_modules);
 void eliminate_tables(JOIN *join);
 static void mark_as_eliminated(JOIN *join, TABLE_LIST *tbl);
 
-#if 0
 #ifndef DBUG_OFF
 static void dbug_print_deps(Table_elimination *te);
-#endif 
 #endif 
 /*******************************************************************************************/
 
@@ -854,7 +852,7 @@ collect_funcdeps_for_join_list(Table_elimination *te,
 
 
 /*
-  This is used to analyse expressions in "tbl.col=expr" dependencies so
+  This is used to analyze expressions in "tbl.col=expr" dependencies so
   that we can figure out which fields the expression depends on.
 */
 
@@ -965,7 +963,7 @@ bool setup_equality_deps(Table_elimination *te, Module_dep **bound_deps_list)
   }
   *bound_deps_list= bound_dep;
 
-  //DBUG_EXECUTE("test", dbug_print_deps(te); );
+  DBUG_EXECUTE("test", dbug_print_deps(te); );
   DBUG_RETURN(FALSE);
 }
 
@@ -1089,7 +1087,6 @@ static
 void signal_from_field_to_exprs(Table_elimination* te, Field_value *field_dep,
                                 Module_dep **bound_modules)
 {
-  /* Now, expressions */
   for (uint i=0; i < te->n_equality_deps; i++)
   {
     if (bitmap_is_set(&te->expr_deps, field_dep->bitmap_offset + i) &&
@@ -1213,7 +1210,6 @@ void run_elimination_wave(Table_elimination *te, Module_dep *bound_modules)
           for (Outer_join_module *outer_join_dep= table_dep->outer_join_dep;
                outer_join_dep; outer_join_dep= outer_join_dep->parent)
           {
-            //if (!(outer_join_dep->missing_tables &= ~table_dep->table->map))
             if (outer_join_dep->unknown_args && 
                 !--outer_join_dep->unknown_args)
             {
@@ -1268,7 +1264,6 @@ static void mark_as_eliminated(JOIN *join, TABLE_LIST *tbl)
 }
 
 
-#if 0
 #ifndef DBUG_OFF
 static 
 void dbug_print_deps(Table_elimination *te)
@@ -1323,7 +1318,6 @@ void dbug_print_deps(Table_elimination *te)
   DBUG_VOID_RETURN;
 }
 
-#endif 
 #endif 
 /**
   @} (end of group Table_Elimination)
