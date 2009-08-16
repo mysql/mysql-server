@@ -233,11 +233,10 @@ void build_eq_deps_for_cond(Table_elimination *te, Equality_module **fdeps,
                             uint *and_level, Item *cond, 
                             table_map usable_tables);
 static 
-void add_eq_dep(Table_elimination *te, 
-                Equality_module **eq_dep, uint and_level,
-                Item_func *cond, Field *field,
-                bool eq_func, Item **value,
-                uint num_values, table_map usable_tables);
+void add_eq_dep(Table_elimination *te, Equality_module **eq_dep, 
+                uint and_level,
+                Item_func *cond, Item *left, Item *right, 
+                table_map usable_tables);
 static 
 Equality_module *merge_func_deps(Equality_module *start, Equality_module *new_fields, 
                               Equality_module *end, uint and_level);
@@ -314,87 +313,54 @@ void build_eq_deps_for_cond(Table_elimination *te, Equality_module **fdeps,
 
   if (cond->type() != Item::FUNC_ITEM)
     return;
+
   Item_func *cond_func= (Item_func*) cond;
-  switch (cond_func->select_optimize()) {
-  case Item_func::OPTIMIZE_NONE:
-    break;
-  case Item_func::OPTIMIZE_KEY:
+  Item **args= cond_func->arguments();
+  Item *fld;
+
+  switch (cond_func->functype()) {
+  case Item_func::IN_FUNC:
   {
-    Item **values;
-    // BETWEEN, IN, NE
-    if (cond_func->key_item()->real_item()->type() == Item::FIELD_ITEM &&
-       !(cond_func->used_tables() & OUTER_REF_TABLE_BIT))
+    if (cond_func->argument_count() == 2)
     {
-      values= cond_func->arguments()+1;
-      if (cond_func->functype() == Item_func::NE_FUNC &&
-          cond_func->arguments()[1]->real_item()->type() == Item::FIELD_ITEM &&
-         !(cond_func->arguments()[0]->used_tables() & OUTER_REF_TABLE_BIT))
-        values--;
-      DBUG_ASSERT(cond_func->functype() != Item_func::IN_FUNC ||
-                  cond_func->argument_count() != 2);
-      add_eq_dep(te, fdeps, *and_level, cond_func,
-                 ((Item_field*)(cond_func->key_item()->real_item()))->field,
-                 0, values, 
-                 cond_func->argument_count()-1,
+      add_eq_dep(te, fdeps, *and_level, cond_func, args[0], args[1], 
+                 usable_tables);
+      add_eq_dep(te, fdeps, *and_level, cond_func, args[1], args[0], 
                  usable_tables);
     }
-    if (cond_func->functype() == Item_func::BETWEEN)
-    {
-      values= cond_func->arguments();
-      for (uint i= 1 ; i < cond_func->argument_count() ; i++)
-      {
-        Item_field *field_item;
-        if (cond_func->arguments()[i]->real_item()->type() == Item::FIELD_ITEM
-            &&
-            !(cond_func->arguments()[i]->used_tables() & OUTER_REF_TABLE_BIT))
-        {
-          field_item= (Item_field *) (cond_func->arguments()[i]->real_item());
-          add_eq_dep(te, fdeps, *and_level, cond_func,
-                     field_item->field, 0, values, 1, usable_tables);
-        }
-      }  
-    }
-    break;
   }
-  case Item_func::OPTIMIZE_OP:
+  case Item_func::BETWEEN:
   {
-    bool equal_func=(cond_func->functype() == Item_func::EQ_FUNC ||
-                     cond_func->functype() == Item_func::EQUAL_FUNC);
-
-    if (cond_func->arguments()[0]->real_item()->type() == Item::FIELD_ITEM &&
-        !(cond_func->arguments()[0]->used_tables() & OUTER_REF_TABLE_BIT))
+    if (!((Item_func_between*)cond)->negated &&
+        args[1]->eq(args[2], ((Item_field*)fld)->field->binary()))
     {
-      add_eq_dep(te, fdeps, *and_level, cond_func,
-                 ((Item_field*)(cond_func->arguments()[0])->real_item())->field,
-                 equal_func,
-                 cond_func->arguments()+1, 1, usable_tables);
-    }
-    if (cond_func->arguments()[1]->real_item()->type() == Item::FIELD_ITEM &&
-        cond_func->functype() != Item_func::LIKE_FUNC &&
-        !(cond_func->arguments()[1]->used_tables() & OUTER_REF_TABLE_BIT))
-    {
-      add_eq_dep(te, fdeps, *and_level, cond_func, 
-                 ((Item_field*)(cond_func->arguments()[1])->real_item())->field,
-                 equal_func,
-                 cond_func->arguments(),1,usable_tables);
+      add_eq_dep(te, fdeps, *and_level, cond_func, args[0], args[1],
+                 usable_tables);
+      add_eq_dep(te, fdeps, *and_level, cond_func, args[1], args[0],
+                 usable_tables);
     }
     break;
   }
-  case Item_func::OPTIMIZE_NULL:
-    /* column_name IS [NOT] NULL */
-    if (cond_func->arguments()[0]->real_item()->type() == Item::FIELD_ITEM &&
-        !(cond_func->used_tables() & OUTER_REF_TABLE_BIT))
-    {
-      Item *tmp=new Item_null;
-      if (unlikely(!tmp))                       // Should never be true
-        return;
-      add_eq_dep(te, fdeps, *and_level, cond_func,
-                 ((Item_field*)(cond_func->arguments()[0])->real_item())->field,
-                 cond_func->functype() == Item_func::ISNULL_FUNC,
-                 &tmp, 1, usable_tables);
-    }
+  case Item_func::EQ_FUNC:
+  case Item_func::EQUAL_FUNC:
+  {
+    add_eq_dep(te, fdeps, *and_level, cond_func, args[0], args[1], 
+               usable_tables);
+    add_eq_dep(te, fdeps, *and_level, cond_func, args[1], args[0],
+               usable_tables);
     break;
-  case Item_func::OPTIMIZE_EQUAL:
+  }
+  case Item_func::ISNULL_FUNC:
+  {
+    Item *tmp=new Item_null;
+    if (unlikely(!tmp))                       // Should never be true
+      return;
+    add_eq_dep(te, fdeps, *and_level, cond_func, args[0], args[1], 
+               usable_tables);
+    break;
+  }
+  case Item_func::MULT_EQUAL_FUNC:
+  {
     Item_equal *item_equal= (Item_equal *) cond;
     Item *const_item= item_equal->get_const();
     Item_equal_iterator it(*item_equal);
@@ -408,8 +374,8 @@ void build_eq_deps_for_cond(Table_elimination *te, Equality_module **fdeps,
       */   
       while ((item= it++))
       {
-        add_eq_dep(te, fdeps, *and_level, cond_func, item->field,
-                   TRUE, &const_item, 1, usable_tables);
+        add_eq_dep(te, fdeps, *and_level, cond_func, item, const_item, 
+                   usable_tables);
       }
     }
     else 
@@ -424,17 +390,21 @@ void build_eq_deps_for_cond(Table_elimination *te, Equality_module **fdeps,
       while ((item= fi++))
       {
         Field *field= item->field;
-        while ((item= it++))
+        Item_field *item2;
+        while ((item2= it++))
         {
-          if (!field->eq(item->field))
+          if (!field->eq(item2->field))
           {
-            add_eq_dep(te, fdeps, *and_level, cond_func, field,
-                       TRUE, (Item **) &item, 1, usable_tables);
+            add_eq_dep(te, fdeps, *and_level, cond_func, item, item2, 
+                       usable_tables);
           }
         }
         it.rewind();
       }
     }
+    break;
+  }
+  default:
     break;
   }
 }
@@ -567,75 +537,40 @@ Equality_module *merge_func_deps(Equality_module *start, Equality_module *new_fi
 
 static 
 void add_eq_dep(Table_elimination *te, Equality_module **eq_dep,
-                uint and_level, Item_func *cond, Field *field,
-                bool eq_func, Item **value, uint num_values,
-                table_map usable_tables)
+                uint and_level, Item_func *cond, 
+                Item *left, Item *right, table_map usable_tables)
 {
-  if (!(field->table->map & usable_tables))
-    return;
-
-  for (uint i=0; i<num_values; i++)
+  if ((left->used_tables() & usable_tables) &&
+      !(right->used_tables() & RAND_TABLE_BIT) &&
+      left->real_item()->type() == Item::FIELD_ITEM)
   {
-    if ((value[i])->used_tables() & RAND_TABLE_BIT)
-      return;
-  }
-
-  /*
-    Save the following cases:
-    Field op constant
-    Field LIKE constant where constant doesn't start with a wildcard
-    Field = field2 where field2 is in a different table
-    Field op formula
-    Field IS NULL
-    Field IS NOT NULL
-     Field BETWEEN ...
-     Field IN ...
-  */
-
-  /*
-    We can't always use indexes when comparing a string index to a
-    number. cmp_type() is checked to allow compare of dates to numbers.
-    eq_func is NEVER true when num_values > 1
-   */
-  if (!eq_func)
-  {
-    /* 
-      Additional optimization: if we're processing "t.key BETWEEN c1 AND c1"
-      then proceed as if we were processing "t.key = c1".
-    */
-    if ((cond->functype() != Item_func::BETWEEN) ||
-        ((Item_func_between*) cond)->negated ||
-        !value[0]->eq(value[1], field->binary()))
-      return;
-    eq_func= TRUE;
-  }
-
-  if (field->result_type() == STRING_RESULT)
-  {
-    if ((*value)->result_type() != STRING_RESULT)
+    Field *field= ((Item_field*)left->real_item())->field;
+    if (field->result_type() == STRING_RESULT)
     {
-      if (field->cmp_type() != (*value)->result_type())
-        return;
+      if (right->result_type() != STRING_RESULT)
+      {
+        if (field->cmp_type() != right->result_type())
+          return;
+      }
+      else
+      {
+        /*
+          We can't use indexes if the effective collation
+          of the operation differ from the field collation.
+        */
+        if (field->cmp_type() == STRING_RESULT &&
+            ((Field_str*)field)->charset() != cond->compare_collation())
+          return;
+      }
     }
-    else
-    {
-      /*
-        We can't use indexes if the effective collation
-        of the operation differ from the field collation.
-      */
-      if (field->cmp_type() == STRING_RESULT &&
-          ((Field_str*)field)->charset() != cond->compare_collation())
-        return;
-    }
-  }
 
-  DBUG_ASSERT(eq_func);
-  /* Store possible eq field */
-  (*eq_dep)->type=  Module_dep::MODULE_EXPRESSION; //psergey-todo;
-  (*eq_dep)->field= get_field_value(te, field); 
-  (*eq_dep)->expression=   *value;
-  (*eq_dep)->level= and_level;
-  (*eq_dep)++;
+    /* Store possible eq field */
+    (*eq_dep)->type=  Module_dep::MODULE_EXPRESSION; //psergey-todo;
+    (*eq_dep)->field= get_field_value(te, field); 
+    (*eq_dep)->expression= right;
+    (*eq_dep)->level= and_level;
+    (*eq_dep)++;
+  }
 }
 
 
@@ -1150,6 +1085,12 @@ void run_elimination_wave(Table_elimination *te, Module_dep *bound_modules)
         {
           Outer_join_module *outer_join_dep= (Outer_join_module*)bound_modules;
           mark_as_eliminated(te->join, outer_join_dep->table_list);
+          if (!--te->n_outer_joins)
+          {
+            DBUG_PRINT("info", ("Table elimination eliminated everything" 
+                                " it theoretically could"));
+            return;
+          }
           break;
         }
         case Module_dep::MODULE_MULTI_EQUALITY:
