@@ -8967,20 +8967,6 @@ static void restore_prev_nj_state(JOIN_TAB *last)
   JOIN *join= last->join;
   while (last_emb)
   {
-    /*
-      psergey-elim: (nevermind)
-      new_prefix= cur_prefix & ~last;
-      if (!(new_prefix & cur_table_map)) // removed last inner table 
-      {
-        join->cur_embedding_map&= ~last_emb->nested_join->nj_map;
-      }
-      else (current)
-      {
-        // Won't hurt doing it all the time:
-        join->cur_embedding_map |= ...;
-      }
-      else
-    */
     if (!(--last_emb->nested_join->counter))
       join->cur_embedding_map&= ~last_emb->nested_join->nj_map;
     else if (last_emb->nested_join->n_tables-1 ==

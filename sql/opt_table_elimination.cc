@@ -19,6 +19,25 @@
 /*
   OVERVIEW
 
+  This file contains table elimination module. The idea behind table
+  elimination is as follows: suppose we have a left join
+ 
+    SELECT * FROM t1 LEFT JOIN 
+      (t2 JOIN t3) ON t3.primary_key=t1.col AND 
+                      t4.primary_key=t2.col
+  such that
+  * columns of the inner tables are not used anywhere ouside the outer join
+    (not in WHERE, not in GROUP/ORDER BY clause, not in select list etc etc),
+  * inner side of the outer join is guaranteed to produce at most one matching
+    record combination for each record combination of outer tables.
+  
+  then the inner side of the outer join can be removed from the query, as it 
+  will always produce only one record combination (either real or 
+  null-complemented one) and we don't care about what that record combination 
+  is.
+
+  MODULE INTERFACE
+
   The module has one entry point - eliminate_tables() function, which one 
   needs to call (once) at some point before the join optimization.
   eliminate_tables() operates over the JOIN structures. Logically, it
@@ -38,6 +57,50 @@
       by EXPLAIN code to check if the subquery should be shown in EXPLAIN.
 
   Table elimination is redone on every PS re-execution.
+
+  IMPLEMENTATION
+
+  As said above, we can remove inner side of an outer join if it is 
+
+    1. not referred to from any other parts of the query
+    2. always produces one matching record combination.
+
+  We check #1 by doing a recursive descent down the join->join_list while 
+  maintaining a union of used_tables() attribute of all expressions we've seen
+  "elsewhere". When we encounter an outer join, we check if the bitmap of
+  tables on its inner side has intersection with tables that are used
+  elsewhere. No intersection means that inner side of the outer join could
+  potentially be eliminated.
+
+  #2 is checked using a concept of values and modules that indicate
+  dependencies between them.
+
+  We start with 
+  of certain values that functional dependencies between
+  them. There are two kinds of values:
+*/
+
+/*
+  A value 
+
+  functional dependencies between two kinds of entities:
+*/
+
+class Value_dep;
+  class Field_value;
+  class Table_value;
+ 
+
+class Module_dep;
+  class Equality_module;
+  class Outer_join_module;
+  class Key_module;
+
+class Table_elimination;
+
+
+/*
+  A value. 
 */
 
 class Value_dep : public Sql_alloc
@@ -55,13 +118,9 @@ public:
   Value_dep *next;
 };
 
-class Field_value;
-class Table_value;
-class Outer_join_module;
-class Key_module;
 
 /*
-  A table field. There is only one such object for any tblX.fieldY
+  A table field value. There is exactly only one such object for any tblX.fieldY
   - the field epends on its table and equalities
   - expressions that use the field are its dependencies
 */
@@ -87,7 +146,8 @@ public:
 
 
 /*
-  A table.
+  A table value. There is one Table_value object for every table that can
+  potentially be eliminated.
   - table depends on any of its unique keys
   - has its fields and embedding outer join as dependency.
 */
@@ -221,6 +281,7 @@ public:
   MY_BITMAP expr_deps;
 };
 
+
 static 
 bool build_eq_deps_for_cond(Table_elimination *te, Equality_module **fdeps, 
                             uint *and_level, Item *cond, 
@@ -244,6 +305,7 @@ static void mark_as_eliminated(JOIN *join, TABLE_LIST *tbl);
 #ifndef DBUG_OFF
 static void dbug_print_deps(Table_elimination *te);
 #endif 
+
 /*******************************************************************************************/
 
 /*
@@ -538,8 +600,8 @@ Equality_module *merge_func_deps(Equality_module *start, Equality_module *new_fi
 
 static 
 bool add_eq_dep(Table_elimination *te, Equality_module **eq_dep,
-                uint and_level, Item_func *cond, 
-                Item *left, Item *right, table_map usable_tables)
+                uint and_level, Item_func *cond, Item *left, Item *right,
+                table_map usable_tables)
 {
   if ((left->used_tables() & usable_tables) &&
       !(right->used_tables() & RAND_TABLE_BIT) &&
@@ -565,7 +627,6 @@ bool add_eq_dep(Table_elimination *te, Equality_module **eq_dep,
       }
     }
 
-    /* Store possible eq field */
     (*eq_dep)->type=  Module_dep::MODULE_EXPRESSION; //psergey-todo;
     if (!((*eq_dep)->field= get_field_value(te, field)))
       return TRUE;
@@ -651,7 +712,8 @@ Outer_join_module *get_outer_join_dep(Table_elimination *te,
                                       table_map deps_map)
 {
   Outer_join_module *oj_dep;
-  oj_dep= new Outer_join_module(outer_join, my_count_bits(deps_map));
+  if (!(oj_dep= new Outer_join_module(outer_join, my_count_bits(deps_map))))
+    return NULL;
   te->n_outer_joins++;
   
   /* 
