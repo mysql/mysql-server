@@ -40,13 +40,16 @@
   Table elimination is redone on every PS re-execution.
 */
 
-class Value_dep
+class Value_dep : public Sql_alloc
 {
 public:
   enum {
     VALUE_FIELD,
     VALUE_TABLE,
   } type; /* Type of the object */
+  
+  Value_dep(): bound(FALSE), next(NULL)
+  {}
 
   bool bound;
   Value_dep *next;
