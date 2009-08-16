@@ -184,18 +184,11 @@ public:
     unknown_args= n_children;
   }
   /* 
-    Outer join we're representing. This can be a join nest or a one table that
+    Outer join we're representing. This can be a join nest or one table that
     is outer join'ed.
   */
   TABLE_LIST *table_list;
   
-  /* 
-    Tables within this outer join (and its descendants) that are not yet known
-    to be functionally dependent.
-  */
-  table_map missing_tables; //psergey-todo: remove 
-  /* All tables within this outer join and its descendants */ 
-  table_map all_tables; //psergey-todo: remove 
   /* Parent eliminable outer join, if any */
   Outer_join_module *parent;
 };
@@ -229,11 +222,11 @@ public:
 };
 
 static 
-void build_eq_deps_for_cond(Table_elimination *te, Equality_module **fdeps, 
+bool build_eq_deps_for_cond(Table_elimination *te, Equality_module **fdeps, 
                             uint *and_level, Item *cond, 
                             table_map usable_tables);
 static 
-void add_eq_dep(Table_elimination *te, Equality_module **eq_dep, 
+bool add_eq_dep(Table_elimination *te, Equality_module **eq_dep, 
                 uint and_level,
                 Item_func *cond, Item *left, Item *right, 
                 table_map usable_tables);
@@ -270,7 +263,7 @@ static void dbug_print_deps(Table_elimination *te);
 */
 
 static 
-void build_eq_deps_for_cond(Table_elimination *te, Equality_module **fdeps, 
+bool build_eq_deps_for_cond(Table_elimination *te, Equality_module **fdeps, 
                             uint *and_level, Item *cond, 
                             table_map usable_tables)
 {
@@ -285,7 +278,8 @@ void build_eq_deps_for_cond(Table_elimination *te, Equality_module **fdeps,
       Item *item;
       while ((item=li++))
       {
-        build_eq_deps_for_cond(te, fdeps, and_level, item, usable_tables);
+        if (build_eq_deps_for_cond(te, fdeps, and_level, item, usable_tables))
+          return TRUE;
       }
       /* 
         TODO: inject here a "if we have {t.col=const AND t.col=smth_else}, then
@@ -297,47 +291,52 @@ void build_eq_deps_for_cond(Table_elimination *te, Equality_module **fdeps,
     else
     {
       (*and_level)++;
-      build_eq_deps_for_cond(te, fdeps, and_level, li++, usable_tables);
+      if (build_eq_deps_for_cond(te, fdeps, and_level, li++, usable_tables))
+        return TRUE;
       Item *item;
       while ((item=li++))
       {
         Equality_module *start_key_fields= *fdeps;
         (*and_level)++;
-        build_eq_deps_for_cond(te, fdeps, and_level, item, usable_tables);
+        if (build_eq_deps_for_cond(te, fdeps, and_level, item, usable_tables))
+          return TRUE;
         *fdeps= merge_func_deps(org_key_fields, start_key_fields, *fdeps,
                                 ++(*and_level));
       }
     }
-    return;
+    return FALSE;
   }
 
   if (cond->type() != Item::FUNC_ITEM)
-    return;
+    return FALSE;
 
   Item_func *cond_func= (Item_func*) cond;
   Item **args= cond_func->arguments();
-  Item *fld;
 
   switch (cond_func->functype()) {
   case Item_func::IN_FUNC:
   {
     if (cond_func->argument_count() == 2)
     {
-      add_eq_dep(te, fdeps, *and_level, cond_func, args[0], args[1], 
-                 usable_tables);
-      add_eq_dep(te, fdeps, *and_level, cond_func, args[1], args[0], 
-                 usable_tables);
+      if (add_eq_dep(te, fdeps, *and_level, cond_func, args[0], args[1], 
+                     usable_tables) || 
+          add_eq_dep(te, fdeps, *and_level, cond_func, args[1], args[0], 
+                 usable_tables))
+        return TRUE;
     }
   }
   case Item_func::BETWEEN:
   {
+    Item *fld;
     if (!((Item_func_between*)cond)->negated &&
+        (fld= args[0]->real_item())->type() == Item::FIELD_ITEM &&
         args[1]->eq(args[2], ((Item_field*)fld)->field->binary()))
     {
-      add_eq_dep(te, fdeps, *and_level, cond_func, args[0], args[1],
-                 usable_tables);
-      add_eq_dep(te, fdeps, *and_level, cond_func, args[1], args[0],
-                 usable_tables);
+      if (add_eq_dep(te, fdeps, *and_level, cond_func, args[0], args[1],
+                     usable_tables) || 
+          add_eq_dep(te, fdeps, *and_level, cond_func, args[1], args[0],
+                     usable_tables))
+        return TRUE;
     }
     break;
   }
@@ -353,10 +352,9 @@ void build_eq_deps_for_cond(Table_elimination *te, Equality_module **fdeps,
   case Item_func::ISNULL_FUNC:
   {
     Item *tmp=new Item_null;
-    if (unlikely(!tmp))                       // Should never be true
-      return;
-    add_eq_dep(te, fdeps, *and_level, cond_func, args[0], args[1], 
-               usable_tables);
+    if (!tmp || add_eq_dep(te, fdeps, *and_level, cond_func, args[0], args[1],
+                           usable_tables))
+      return TRUE;
     break;
   }
   case Item_func::MULT_EQUAL_FUNC:
@@ -374,8 +372,9 @@ void build_eq_deps_for_cond(Table_elimination *te, Equality_module **fdeps,
       */   
       while ((item= it++))
       {
-        add_eq_dep(te, fdeps, *and_level, cond_func, item, const_item, 
-                   usable_tables);
+        if (add_eq_dep(te, fdeps, *and_level, cond_func, item, const_item, 
+                       usable_tables))
+          return TRUE;
       }
     }
     else 
@@ -395,8 +394,9 @@ void build_eq_deps_for_cond(Table_elimination *te, Equality_module **fdeps,
         {
           if (!field->eq(item2->field))
           {
-            add_eq_dep(te, fdeps, *and_level, cond_func, item, item2, 
-                       usable_tables);
+            if (add_eq_dep(te, fdeps, *and_level, cond_func, item, item2, 
+                           usable_tables))
+              return TRUE;
           }
         }
         it.rewind();
@@ -407,6 +407,7 @@ void build_eq_deps_for_cond(Table_elimination *te, Equality_module **fdeps,
   default:
     break;
   }
+  return FALSE;
 }
 
 
@@ -536,7 +537,7 @@ Equality_module *merge_func_deps(Equality_module *start, Equality_module *new_fi
 */
 
 static 
-void add_eq_dep(Table_elimination *te, Equality_module **eq_dep,
+bool add_eq_dep(Table_elimination *te, Equality_module **eq_dep,
                 uint and_level, Item_func *cond, 
                 Item *left, Item *right, table_map usable_tables)
 {
@@ -550,7 +551,7 @@ void add_eq_dep(Table_elimination *te, Equality_module **eq_dep,
       if (right->result_type() != STRING_RESULT)
       {
         if (field->cmp_type() != right->result_type())
-          return;
+          return FALSE;
       }
       else
       {
@@ -560,17 +561,19 @@ void add_eq_dep(Table_elimination *te, Equality_module **eq_dep,
         */
         if (field->cmp_type() == STRING_RESULT &&
             ((Field_str*)field)->charset() != cond->compare_collation())
-          return;
+          return FALSE;
       }
     }
 
     /* Store possible eq field */
     (*eq_dep)->type=  Module_dep::MODULE_EXPRESSION; //psergey-todo;
-    (*eq_dep)->field= get_field_value(te, field); 
+    if (!((*eq_dep)->field= get_field_value(te, field)))
+      return TRUE;
     (*eq_dep)->expression= right;
     (*eq_dep)->level= and_level;
     (*eq_dep)++;
   }
+  return FALSE;
 }
 
 
