@@ -58,7 +58,7 @@
 
   Table elimination is redone on every PS re-execution.
 
-  IMPLEMENTATION
+  TABLE ELIMINATION ALGORITHM
 
   As said above, we can remove inner side of an outer join if it is 
 
@@ -67,23 +67,59 @@
 
   We check #1 by doing a recursive descent down the join->join_list while 
   maintaining a union of used_tables() attribute of all expressions we've seen
-  "elsewhere". When we encounter an outer join, we check if the bitmap of
-  tables on its inner side has intersection with tables that are used
-  elsewhere. No intersection means that inner side of the outer join could
+  "elsewhere". When we encounter an outer join, we check if the bitmap of 
+  tables on its inner side has an intersection with tables that are used 
+  elsewhere. No intersection means that inner side of the outer join could 
   potentially be eliminated.
 
-  #2 is checked using a concept of values and modules that indicate
-  dependencies between them.
+  In order to check #2, one needs to prove that inner side of an outer join 
+  is functionally dependent on the outside. We prove dependency by proving
+  functional dependency of intermediate objects:
 
-  We start with 
-  of certain values that functional dependencies between
-  them. There are two kinds of values:
-*/
+  - Inner side of outer join is functionally dependent when each of its tables
+    are functionally dependent. (We assume a table is functionally dependent 
+    when its dependencies allow to uniquely identify one table record, or no
+    records).
 
-/*
-  A value 
+  - Table is functionally dependent when it has got a unique key whose columns
+    are functionally dependent.
 
-  functional dependencies between two kinds of entities:
+  - A column is functionally dependent when we could locate an AND-part of a
+    certain ON clause in form 
+      
+      tblX.columnY= expr 
+    
+    where expr is functionally-depdendent.
+
+  Apparently the above rules can be applied recursively. Also, certain entities
+  depend on multiple other entities. We model this by a bipartite graph which
+  has two kinds of nodes:
+
+  Value nodes:
+   - Table column values (each is a value of tblX.columnY)
+   - Table nodes (each node represents a table inside an eliminable join nest).
+  each value is either bound (i.e. functionally dependent) or not.
+
+  Module nodes:
+   - Nodes representing tblX.colY=expr equalities. Equality node has 
+      = incoming edges from columns used in expr 
+      = outgoing edge to tblX.colY column.
+   - Nodes representing unique keys. Unique key has
+      = incoming edges from key component value nodes
+      = outgoing edge to key's table node
+   - Inner side of outer join node. Outer join node has
+      = incoming edges from table value nodes
+      = No outgoing edges. Once we reach it, we know we can eliminate the 
+        outer join.
+  A module may depend on multiple values, and hence its primary attribute is
+  the number of its depedencies that are not bound. 
+
+  The algorithm starts with equality nodes that don't have any incoming edges
+  (their expressions are either constant or depend only on tables that are
+  outside of any outer joins) and proceeds to traverse dependency->dependant
+  edges until we've other traversed everything (TODO rephrase elaborate), or
+  we've reached the point where all outer join modules have zero unsatisfied
+  dependencies.
 */
 
 class Value_dep;
