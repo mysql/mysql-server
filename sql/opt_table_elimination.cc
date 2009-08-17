@@ -136,7 +136,8 @@ class Table_elimination;
 
 
 /*
-  A value. 
+  A value, something that can be bound or not bound. Also, values can be linked
+  in a list.
 */
 
 class Value_dep : public Sql_alloc
@@ -203,7 +204,7 @@ public:
 
 
 /*
-  A 'module'
+  A 'module'. Module has dependencies
 */
 
 class Module_dep : public Sql_alloc
@@ -225,7 +226,6 @@ public:
 
   Module_dep() : next(NULL), unknown_args(0) {}
 };
-
 
 
 /*
@@ -333,6 +333,9 @@ Equality_module *merge_func_deps(Equality_module *start, Equality_module *new_fi
 
 static Table_value *get_table_value(Table_elimination *te, TABLE *table);
 static Field_value *get_field_value(Table_elimination *te, Field *field);
+static Outer_join_module *get_outer_join_dep(Table_elimination *te, 
+                                             TABLE_LIST *outer_join, 
+                                             table_map deps_map);
 static 
 void run_elimination_wave(Table_elimination *te, Module_dep *bound_modules);
 void eliminate_tables(JOIN *join);
@@ -1212,15 +1215,19 @@ void run_elimination_wave(Table_elimination *te, Module_dep *bound_modules)
             - expressions that depend on us.
           */
           Field_value *field_dep= (Field_value*)bound_values;
+          DBUG_PRINT("info", ("field %s.%s is now bound",
+                               field_dep->field->table->alias,
+                               field_dep->field->field_name));
+
           for (Key_module *key_dep= field_dep->table->keys; key_dep;
                key_dep= key_dep->next_table_key)
           {
-            DBUG_PRINT("info", ("key %s.%s is now bound",
-                                key_dep->table->table->alias, 
-                                key_dep->table->table->key_info[key_dep->keyno].name));
             if (field_dep->field->part_of_key.is_set(key_dep->keyno) && 
                 key_dep->unknown_args && !--key_dep->unknown_args)
             {
+              DBUG_PRINT("info", ("key %s.%s is now bound",
+                                  key_dep->table->table->alias, 
+                                  key_dep->table->table->key_info[key_dep->keyno].name));
               /* Mark as bound and add to the list */
               key_dep->next= bound_modules;
               bound_modules= key_dep;

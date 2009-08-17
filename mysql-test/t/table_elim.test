@@ -157,4 +157,23 @@ explain select t1.* from t1 left join t2 on t2.pk2=t1.a and
                                             t2.pk3=t2.pk1;
 
 drop table t1, t2;
+#
+# Check that equality propagation is taken into account
+#
+create table t1 (pk int primary key, col int);
+insert into t1 values (1,1),(2,2);
+
+create table t2 like t1;
+insert into t2 select * from t1;
+
+create table t3 like t1;
+insert into t3 select * from t1;
+
+explain 
+select t1.* from t1 left join ( t2 left join t3 on t3.pk=t2.col) on t2.col=t1.col;
+
+explain 
+select t1.*, t2.* from t1 left join (t2 left join t3 on t3.pk=t2.col) on t2.pk=t1.col;
+
+drop table t1, t2;
 
