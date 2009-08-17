@@ -153,11 +153,18 @@ create table t1(russian_deviant enum('E','F','EÿF','F,E') NOT NULL DEFAULT'E');
 show create table t1;
 drop table t1;
 
-# ER_WRONG_FIELD_TERMINATORS
---error 1005
+# the following create statement sometimes fails like it would if NO_BACKSLASH_ESCAPES sql mode was on,
+# we check sql mode here
+select @@SESSION.sql_mode;
+select @@GLOBAL.sql_mode;
+
+## ER_WRONG_FIELD_TERMINATORS
+#--error 1005
 create table t1(exhausting_charset enum('ABCDEFGHIJKLMNOPQRSTUVWXYZ','	
 
  !"','#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~','xx\','yy\€','zz‚ƒ„…†‡ˆ‰Š‹Œ‘’“”•–—˜™š›œŸ ¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏĞÑÒÓÔÕÖ×ØÙÚÛÜİŞßàáâãäåæçèéêëìíîïğñòóôõö÷øùúûüışÿ'));
+
+drop table t1;
 
 --disable_query_log
 drop database pbxt;

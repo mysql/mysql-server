@@ -802,6 +802,10 @@ drop tables t1,t2,t3;
 # exceeds mediumtext maximum length
 #
 
+SELECT @tmp_max:= @@global.max_allowed_packet;
+SET @@global.max_allowed_packet=25000000;
+# switching connection to allow the new max_allowed_packet take effect
+--connect (newconn, localhost, root,,)
 CREATE TABLE t1 (a mediumtext);
 CREATE TABLE t2 (b varchar(20));
 INSERT INTO t1 VALUES ('a');
@@ -823,6 +827,9 @@ INSERT INTO t1 VALUES ('a');
 CREATE TABLE t3 SELECT REPEAT(a,2) AS a FROM t1 UNION SELECT b FROM t2;
 SHOW CREATE TABLE t3;
 DROP TABLES t1,t2,t3;
+--connection default
+SET @@global.max_allowed_packet:= @tmp_max;
+--disconnect newconn
 
 #
 # Bug #10032 Bug in parsing UNION with ORDER BY when one node does not use FROM

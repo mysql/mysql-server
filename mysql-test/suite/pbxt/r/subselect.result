@@ -1333,7 +1333,7 @@ a
 explain extended select * from t2 where t2.a in (select a from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	index	NULL	a	5	NULL	4	100.00	Using where; Using index
-2	DEPENDENT SUBQUERY	t1	index_subquery	a	a	5	func	1001	100.00	Using index; Using where
+2	DEPENDENT SUBQUERY	t1	index_subquery	a	a	5	func	1	100.00	Using index; Using where
 Warnings:
 Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on a where (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`))))
 select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
@@ -1343,7 +1343,7 @@ a
 explain extended select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	index	NULL	a	5	NULL	4	100.00	Using where; Using index
-2	DEPENDENT SUBQUERY	t1	index_subquery	a	a	5	func	1001	100.00	Using index; Using where
+2	DEPENDENT SUBQUERY	t1	index_subquery	a	a	5	func	1	100.00	Using index; Using where
 Warnings:
 Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on a where ((`test`.`t1`.`b` <> 30) and (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`)))))
 select * from t2 where t2.a in (select t1.a from t1,t3 where t1.b=t3.a);
@@ -1353,8 +1353,8 @@ a
 explain extended select * from t2 where t2.a in (select t1.a from t1,t3 where t1.b=t3.a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	index	NULL	a	5	NULL	4	100.00	Using where; Using index
-2	DEPENDENT SUBQUERY	t1	ref	a	a	5	func	1001	100.00	Using where; Using index
-2	DEPENDENT SUBQUERY	t3	index	a	a	5	NULL	3	100.00	Using where; Using index; Using join buffer
+2	DEPENDENT SUBQUERY	t1	ref	a	a	5	func	1	100.00	Using where; Using index
+2	DEPENDENT SUBQUERY	t3	ref	a	a	5	test.t1.b	1	100.00	Using where; Using index
 Warnings:
 Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(select 1 AS `Not_used` from `test`.`t1` join `test`.`t3` where ((`test`.`t3`.`a` = `test`.`t1`.`b`) and (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`))))
 insert into t1 values (3,31);
@@ -1370,7 +1370,7 @@ a
 explain extended select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	index	NULL	a	5	NULL	4	100.00	Using where; Using index
-2	DEPENDENT SUBQUERY	t1	index_subquery	a	a	5	func	1001	100.00	Using index; Using where
+2	DEPENDENT SUBQUERY	t1	index_subquery	a	a	5	func	1	100.00	Using index; Using where
 Warnings:
 Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on a where ((`test`.`t1`.`b` <> 30) and (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`)))))
 drop table t1, t2, t3;
@@ -3546,7 +3546,7 @@ ORDER BY t1.t DESC LIMIT 1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	
 1	PRIMARY	t1	index	NULL	PRIMARY	16	NULL	11	Using where; Using index; Using join buffer
-2	DEPENDENT SUBQUERY	t1	ref	PRIMARY	PRIMARY	8	test.t2.i1,const	2	Using where; Using index; Using filesort
+2	DEPENDENT SUBQUERY	t1	ref	PRIMARY	PRIMARY	8	test.t2.i1,const	1	Using where; Using index; Using filesort
 SELECT * FROM t1,t2
 WHERE t1.t = (SELECT t1.t FROM t1 
 WHERE t1.t < t2.t  AND t1.i2=1 AND t2.i1=t1.i1
@@ -4214,7 +4214,7 @@ CREATE INDEX I2 ON t1 (b);
 EXPLAIN SELECT a,b FROM t1 WHERE b IN (SELECT a FROM t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	DEPENDENT SUBQUERY	t1	index_subquery	I1	I1	2	func	2	Using index; Using where
+2	DEPENDENT SUBQUERY	t1	index_subquery	I1	I1	2	func	1	Using index; Using where
 SELECT a,b FROM t1 WHERE b IN (SELECT a FROM t1);
 a	b
 CREATE TABLE t2 (a VARCHAR(1), b VARCHAR(10));
@@ -4224,14 +4224,14 @@ CREATE INDEX I2 ON t2 (b);
 EXPLAIN SELECT a,b FROM t2 WHERE b IN (SELECT a FROM t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	DEPENDENT SUBQUERY	t2	index_subquery	I1	I1	4	func	2	Using index; Using where
+2	DEPENDENT SUBQUERY	t2	index_subquery	I1	I1	4	func	1	Using index; Using where
 SELECT a,b FROM t2 WHERE b IN (SELECT a FROM t2);
 a	b
 EXPLAIN
 SELECT a,b FROM t1 WHERE b IN (SELECT a FROM t1 WHERE LENGTH(a)<500);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	DEPENDENT SUBQUERY	t1	index_subquery	I1	I1	2	func	2	Using index; Using where
+2	DEPENDENT SUBQUERY	t1	index_subquery	I1	I1	2	func	1	Using index; Using where
 SELECT a,b FROM t1 WHERE b IN (SELECT a FROM t1 WHERE LENGTH(a)<500);
 a	b
 DROP TABLE t1,t2;

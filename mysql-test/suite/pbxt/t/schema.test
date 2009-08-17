@@ -10,5 +10,12 @@ drop database if exists mysqltest1;
 
 create schema foo;
 show create schema foo;
+# force PBXT schema to be created
+create table t1 (id int) engine=pbxt;
 show schemas;
 drop schema foo;
+
+--disable_query_log
+drop table if exists t1;
+drop database pbxt;
+--enable_query_log
