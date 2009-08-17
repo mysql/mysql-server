@@ -1935,8 +1935,8 @@ private:
 	/* Some extern variables used with handlers */
 
 extern const char *ha_row_type[];
-extern const char *tx_isolation_names[];
-extern const char *binlog_format_names[];
+extern MYSQL_PLUGIN_IMPORT const char *tx_isolation_names[];
+extern MYSQL_PLUGIN_IMPORT const char *binlog_format_names[];
 extern TYPELIB tx_isolation_typelib;
 extern TYPELIB myisam_stats_method_typelib;
 extern ulong total_ha, total_ha_2pc;
