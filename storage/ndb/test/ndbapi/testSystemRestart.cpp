@@ -1832,6 +1832,93 @@ int runBug45154(NDBT_Context* ctx, NDBT_Step* step)
   return result;
 }
 
+int runBug46651(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary * pDict = pNdb->getDictionary();
+  Uint32 rows = ctx->getNumRecords();
+  NdbRestarter res;
+
+  NdbDictionary::Table tab;
+  tab.setName("BUG_46651");
+
+  NdbDictionary::Column col;
+  col.setName("ATTR1");
+  col.setType(NdbDictionary::Column::Unsigned);
+  col.setLength(1);
+  col.setPrimaryKey(true);
+  col.setNullable(false);
+  col.setAutoIncrement(false);
+  tab.addColumn(col);
+  col.setName("ATTR2");
+  col.setType(NdbDictionary::Column::Unsigned);
+  col.setLength(1);
+  col.setPrimaryKey(false);
+  col.setNullable(false);
+  tab.addColumn(col);
+  col.setName("ATTR3");
+  col.setType(NdbDictionary::Column::Unsigned);
+  col.setLength(1);
+  col.setPrimaryKey(false);
+  col.setNullable(false);
+  tab.addColumn(col);
+  tab.setForceVarPart(true);
+  pDict->dropTable(tab.getName());
+  if (pDict->createTable(tab))
+  {
+    ndbout << pDict->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  const NdbDictionary::Table* pTab = pDict->getTable(tab.getName());
+  if (pTab == 0)
+  {
+    ndbout << pDict->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  {
+    HugoTransactions trans(* pTab);
+    if (trans.loadTable(pNdb, rows) != 0)
+    {
+      return NDBT_FAILED;
+    }
+  }
+
+  res.restartAll2(NdbRestarter::NRRF_NOSTART);
+  if (res.waitClusterNoStart())
+    return NDBT_FAILED;
+  res.startAll();
+  if (res.waitClusterStarted())
+    return NDBT_FAILED;
+
+  NdbDictionary::Table newTab = *pTab;
+  col.setName("ATTR4");
+  col.setType(NdbDictionary::Column::Varbinary);
+  col.setLength(25);
+  col.setPrimaryKey(false);
+  col.setNullable(true);
+  col.setDynamic(true);
+  newTab.addColumn(col);
+
+  if (pDict->alterTable(*pTab, newTab))
+  {
+    ndbout << pDict->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  res.restartAll2(NdbRestarter::NRRF_NOSTART | NdbRestarter::NRRF_ABORT);
+  if (res.waitClusterNoStart())
+    return NDBT_FAILED;
+  res.startAll();
+  if (res.waitClusterStarted())
+    return NDBT_FAILED;
+
+  pDict->dropTable(tab.getName());
+
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testSystemRestart);
 TESTCASE("SR1", 
 	 "Basic system restart test. Focus on testing restart from REDO log.\n"
@@ -2130,6 +2217,10 @@ TESTCASE("Bug41915", "")
 TESTCASE("Bug45154", "")
 {
   INITIALIZER(runBug45154);
+}
+TESTCASE("Bug46651", "")
+{
+  INITIALIZER(runBug46651);
 }
 NDBT_TESTSUITE_END(testSystemRestart);
 
