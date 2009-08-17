@@ -94,15 +94,14 @@ int toku_logcursor_create(TOKULOGCURSOR *lc, const char *log_dir) {
     cursor->cur_logfiles_index = 0;
     cursor->entry_valid = FALSE;
     // cursor->logdir must be an absolute path
-    if ( log_dir[0]=='/' ) {
+    if (toku_os_is_absolute_name(log_dir)) {
         cursor->logdir = (char *) toku_malloc(strlen(log_dir)+1);
         if ( cursor->logdir == NULL ) {
             failresult = ENOMEM;
             goto fail;
         }
         sprintf(cursor->logdir, "%s", log_dir);
-    }
-    else {
+    } else {
         char *cwd = getcwd(NULL, 0);
         if ( cwd == NULL ) {
             failresult = -1;
