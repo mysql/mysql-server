@@ -268,12 +268,13 @@ Dbtup::commit_operation(Signal* signal,
     if (copy_bits & Tuple_header::VAR_PART)
     {
       jam();
-      ndbassert(tmp.m_page_no != RNIL);
       ndbassert(bits & Tuple_header::VAR_PART);
+      ndbassert(tmp.m_page_no != RNIL);
+      ndbassert(copy_bits & Tuple_header::COPY_TUPLE);
+
       Uint32 *dst= get_ptr(&vpagePtr, *ref);
       Var_page* vpagePtrP = (Var_page*)vpagePtr.p;
       Varpart_copy*vp =(Varpart_copy*)copy->get_end_of_fix_part_ptr(regTabPtr);
-      ndbassert(copy_bits & Tuple_header::COPY_TUPLE);
       /* The first word of shrunken tuple holds the lenght in words. */
       Uint32 len = vp->m_len;
       memcpy(dst, vp->m_data, 4*len);
@@ -286,16 +287,16 @@ Dbtup::commit_operation(Signal* signal,
         {
           jam();
           vpagePtrP->shrink_entry(tmp.m_page_idx, len);
+          update_free_page_list(regFragPtr, vpagePtr);
         }
         else
         {
           jam();
-          vpagePtrP->free_record(tmp.m_page_idx, Var_page::CHAIN);
+          free_var_part(regFragPtr, vpagePtr, tmp.m_page_idx);
           tmp.m_page_no = RNIL;
           ref->assign(&tmp);
           copy_bits &= ~(Uint32)Tuple_header::VAR_PART;
         }
-        update_free_page_list(regFragPtr, vpagePtr);
       }
       else
       {
