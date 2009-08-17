@@ -847,14 +847,14 @@ sub collect_one_test_case {
   if ( $tinfo->{'big_test'} and ! $::opt_big_test )
   {
     $tinfo->{'skip'}= 1;
-    $tinfo->{'comment'}= "Test need 'big-test' option";
+    $tinfo->{'comment'}= "Test needs 'big-test' option";
     return $tinfo
   }
 
   if ( $tinfo->{'need_debug'} && ! $::debug_compiled_binaries )
   {
     $tinfo->{'skip'}= 1;
-    $tinfo->{'comment'}= "Test need debug binaries";
+    $tinfo->{'comment'}= "Test needs debug binaries";
     return $tinfo
   }
 
@@ -890,14 +890,14 @@ sub collect_one_test_case {
 
   if ($tinfo->{'federated_test'})
   {
-    # This is a test that need federated, enable it
+    # This is a test that needs federated, enable it
     push(@{$tinfo->{'master_opt'}}, "--loose-federated");
     push(@{$tinfo->{'slave_opt'}}, "--loose-federated");
   }
 
   if ( $tinfo->{'innodb_test'} )
   {
-    # This is a test that need innodb
+    # This is a test that needs innodb
     if ( $::mysqld_variables{'innodb'} eq "OFF" ||
          ! exists $::mysqld_variables{'innodb'} )
     {
@@ -918,7 +918,7 @@ sub collect_one_test_case {
     if (grep(/^--skip-log-bin/,  @::opt_extra_mysqld_opt) )
     {
       $tinfo->{'skip'}= 1;
-      $tinfo->{'comment'}= "Test need binlog";
+      $tinfo->{'comment'}= "Test needs binlog";
       return $tinfo;
     }
   }
