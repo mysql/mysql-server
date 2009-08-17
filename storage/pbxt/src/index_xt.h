@@ -24,6 +24,7 @@
 #define __xt_index_h__
 
 #ifdef DRIZZLED
+#include <drizzled/definitions.h>
 #include <mysys/my_bitmap.h>
 #else
 #include <mysql_version.h>
@@ -34,7 +35,6 @@
 #include "linklist_xt.h"
 #include "datalog_xt.h"
 #include "datadic_xt.h"
-//#include "cache_xt.h"
 
 #ifndef MYSQL_VERSION_ID
 #error MYSQL_VERSION_ID must be defined!
@@ -109,7 +109,7 @@ class Field;
 
 #define XT_MAX_RECORD_REF_SIZE		8
 
-#define XT_INDEX_PAGE_DATA_SIZE		XT_INDEX_PAGE_SIZE - 2			/* NOTE: 2 == offsetof(XTIdxBranchDRec, tb_data) */
+#define XT_INDEX_PAGE_DATA_SIZE		(XT_INDEX_PAGE_SIZE - 2)			/* NOTE: 2 == offsetof(XTIdxBranchDRec, tb_data) */
 
 #define XT_MAKE_LEAF_SIZE(x)		((x) + offsetof(XTIdxBranchDRec, tb_data))
 
@@ -218,7 +218,7 @@ typedef struct XTIndFreeList {
  * in 32 threads on smalltab: runTest(SMALL_INSERT_TEST, 32, dbUrl)
  */
 /*
- * XT_INDEX_USE_RW_MUTEX:
+ * XT_INDEX_USE_RWMUTEX:
  * But the RW mutex is a close second, if not just as fast.
  * If it is at least as fast, then it is better because read lock
  * overhead is then zero.
@@ -240,17 +240,24 @@ typedef struct XTIndFreeList {
  * Latest test show that RW mutex is slightly faster:
  * 127460 to 123574 payment transactions.
  */
-#define XT_INDEX_USE_RW_MUTEX
-//#define XT_INDEX_USE_PTHREAD_RW
 
-#ifdef XT_INDEX_USE_FASTWRLOCK
-#define XT_INDEX_LOCK_TYPE				XTFastRWLockRec
-#define XT_INDEX_INIT_LOCK(s, i)		xt_fastrwlock_init(s, &(i)->mi_rwlock)
-#define XT_INDEX_FREE_LOCK(s, i)		xt_fastrwlock_free(s, &(i)->mi_rwlock)	
-#define XT_INDEX_READ_LOCK(i, o)		xt_fastrwlock_slock(&(i)->mi_rwlock, (o)->ot_thread)
-#define XT_INDEX_WRITE_LOCK(i, o)		xt_fastrwlock_xlock(&(i)->mi_rwlock, (o)->ot_thread)
-#define XT_INDEX_UNLOCK(i, o)			xt_fastrwlock_unlock(&(i)->mi_rwlock, (o)->ot_thread)
-#define XT_INDEX_HAVE_XLOCK(i, o)		TRUE
+#ifdef XT_NO_ATOMICS
+#define XT_INDEX_USE_PTHREAD_RW
+#else
+//#define XT_INDEX_USE_RWMUTEX
+//#define XT_INDEX_USE_PTHREAD_RW
+//#define XT_INDEX_SPINXSLOCK
+#define XT_TAB_ROW_USE_XSMUTEX
+#endif
+
+#ifdef XT_TAB_ROW_USE_XSMUTEX
+#define XT_INDEX_LOCK_TYPE				XTXSMutexRec
+#define XT_INDEX_INIT_LOCK(s, i)		xt_xsmutex_init_with_autoname(s, &(i)->mi_rwlock)
+#define XT_INDEX_FREE_LOCK(s, i)		xt_xsmutex_free(s, &(i)->mi_rwlock)	
+#define XT_INDEX_READ_LOCK(i, o)		xt_xsmutex_slock(&(i)->mi_rwlock, (o)->ot_thread->t_id)
+#define XT_INDEX_WRITE_LOCK(i, o)		xt_xsmutex_xlock(&(i)->mi_rwlock, (o)->ot_thread->t_id)
+#define XT_INDEX_UNLOCK(i, o)			xt_xsmutex_unlock(&(i)->mi_rwlock, (o)->ot_thread->t_id)
+#define XT_INDEX_HAVE_XLOCK(i, o)		((i)->sxs_xlocker == (o)->ot_thread->t_id)
 #elif defined(XT_INDEX_USE_PTHREAD_RW)
 #define XT_INDEX_LOCK_TYPE				xt_rwlock_type
 #define XT_INDEX_INIT_LOCK(s, i)		xt_init_rwlock_with_autoname(s, &(i)->mi_rwlock)
@@ -259,7 +266,15 @@ typedef struct XTIndFreeList {
 #define XT_INDEX_WRITE_LOCK(i, o)		xt_xlock_rwlock_ns(&(i)->mi_rwlock)
 #define XT_INDEX_UNLOCK(i, o)			xt_unlock_rwlock_ns(&(i)->mi_rwlock)
 #define XT_INDEX_HAVE_XLOCK(i, o)		TRUE
-#else // XT_INDEX_USE_RW_MUTEX
+#elif defined(XT_INDEX_SPINXSLOCK)
+#define XT_INDEX_LOCK_TYPE				XTSpinXSLockRec
+#define XT_INDEX_INIT_LOCK(s, i)		xt_spinxslock_init_with_autoname(s, &(i)->mi_rwlock)
+#define XT_INDEX_FREE_LOCK(s, i)		xt_spinxslock_free(s, &(i)->mi_rwlock)	
+#define XT_INDEX_READ_LOCK(i, o)		xt_spinxslock_slock(&(i)->mi_rwlock, (o)->ot_thread->t_id)
+#define XT_INDEX_WRITE_LOCK(i, o)		xt_spinxslock_xlock(&(i)->mi_rwlock, (o)->ot_thread->t_id)
+#define XT_INDEX_UNLOCK(i, o)			xt_spinxslock_unlock(&(i)->mi_rwlock, (o)->ot_thread->t_id)
+#define XT_INDEX_HAVE_XLOCK(i, o)		((i)->mi_rwlock.nrw_xlocker == (o)->ot_thread->t_id)
+#else // XT_INDEX_USE_RWMUTEX
 #define XT_INDEX_LOCK_TYPE				XTRWMutexRec
 #define XT_INDEX_INIT_LOCK(s, i)		xt_rwmutex_init_with_autoname(s, &(i)->mi_rwlock)
 #define XT_INDEX_FREE_LOCK(s, i)		xt_rwmutex_free(s, &(i)->mi_rwlock)	
@@ -289,22 +304,24 @@ typedef struct XTIndex {
 	XTIndFreeListPtr	mi_free_list;				/* List of free pages for this index. */
 	
 	/* Protected by the mi_dirty_lock: */
-	XTSpinLockRec		mi_dirty_lock;			/* Spin lock protecting the dirty & free lists. */
+	XTSpinLockRec		mi_dirty_lock;				/* Spin lock protecting the dirty & free lists. */
 	struct XTIndBlock	*mi_dirty_list;				/* List of dirty pages for this index. */
 	u_int				mi_dirty_blocks;			/* Count of the dirty blocks. */
 
 	/* Index contants: */
 	u_int				mi_flags;
 	u_int				mi_key_size;
+	u_int				mi_max_items;				/* The maximum number of items that can fit in a leaf node. */
 	xtBool				mi_low_byte_first;
 	xtBool				mi_fix_key;
+	xtBool				mi_lazy_delete;				/* TRUE if index entries are "lazy deleted". */
 	u_int				mi_single_type;				/* Used when the index contains a single field. */
 	u_int				mi_select_total;
 	XTScanBranchFunc	mi_scan_branch;
 	XTPrevItemFunc		mi_prev_item;
 	XTLastItemFunc		mi_last_item;
 	XTSimpleCompFunc	mi_simple_comp_key;
-	MY_BITMAP			mi_col_map;					/* Bit-map of columns in the index. */
+	MX_BITMAP			mi_col_map;					/* Bit-map of columns in the index. */
 	u_int				mi_subset_of;				/* Indicates if this index is a complete subset of someother index. */
 	u_int				mi_seg_count;
 	XTIndexSegRec		mi_seg[200];
@@ -344,6 +361,7 @@ typedef struct XTDictionary {
 	Field				**dic_blob_cols;
 
 	/* MySQL related information. NULL when no tables are open from MySQL side! */
+	xtBool				dic_no_lazy_delete;			/* FALSE if lazy delete is OK. */
 	u_int				dic_disable_index;			/* Non-zero if the index cannot be used. */
 	u_int				dic_index_ver;				/* The version of the index. */
 	u_int				dic_key_count;
@@ -462,6 +480,8 @@ xtBool	xt_idx_prev(register struct XTOpenTable *ot, register struct XTIndex *ind
 xtBool	xt_idx_read(struct XTOpenTable *ot, struct XTIndex *ind, xtWord1 *rec_buf);
 void	xt_ind_set_index_selectivity(XTThreadPtr self, struct XTOpenTable *ot);
 void	xt_check_indices(struct XTOpenTable *ot);
+void	xt_load_indices(XTThreadPtr self, struct XTOpenTable *ot);
+void	xt_ind_count_deleted_items(struct XTTable *ot, struct XTIndex *ind, struct XTIndBlock *block);
 xtBool	xt_flush_indices(struct XTOpenTable *ot, off_t *bytes_flushed, xtBool have_table_lock);
 void	xt_ind_track_dump_block(struct XTTable *tab, xtIndexNodeID address);
 
@@ -482,6 +502,7 @@ void	xt_prev_branch_item_var(struct XTTable *tab, XTIndexPtr ind, XTIdxBranchDPt
 
 void	xt_last_branch_item_fix(struct XTTable *tab, XTIndexPtr ind, XTIdxBranchDPtr branch, register XTIdxResultPtr result);
 void	xt_last_branch_item_var(struct XTTable *tab, XTIndexPtr ind, XTIdxBranchDPtr branch, register XTIdxResultPtr result);
+xtBool	xt_idx_lazy_delete_on_leaf(XTIndexPtr ind, struct XTIndBlock *block, xtWord2 branch_size);
 
 //#define TRACK_ACTIVITY
 #ifdef TRACK_ACTIVITY

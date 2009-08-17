@@ -137,6 +137,7 @@ class XTDDColumnRef : public XTObject {
 		return new_obj;
 	}
 
+	virtual void init(XTThreadPtr self) { XTObject::init(self); }
 	virtual void init(XTThreadPtr self, XTObject *obj);
 	virtual void finalize(XTThreadPtr self);
 };
@@ -156,6 +157,7 @@ class XTDDConstraint : public XTObject {
 		co_ind_name(NULL) {
 	}
 
+	virtual void init(XTThreadPtr self) { XTObject::init(self); }
 	virtual void init(XTThreadPtr self, XTObject *obj);
 	virtual void finalize(XTThreadPtr self) {
 		if (co_name)
@@ -198,6 +200,7 @@ class XTDDIndex : public XTDDConstraint {
 		return new_obj;
 	}
 
+        virtual void init(XTThreadPtr self) { XTDDConstraint::init(self); };
 	virtual void init(XTThreadPtr self, XTObject *obj);
 	struct XTIndex *getIndexPtr();
 };
@@ -230,6 +233,7 @@ class XTDDForeignKey : public XTDDIndex {
 		return new_obj;
 	}
 
+        virtual void init(XTThreadPtr self) { XTDDIndex::init(self); }
 	virtual void init(XTThreadPtr self, XTObject *obj);
 	virtual void finalize(XTThreadPtr self);
 	virtual void loadString(XTThreadPtr self, XTStringBufferPtr sb);
@@ -284,7 +288,7 @@ class XTDDTable : public XTObject {
 	XTDDIndex *findReferenceIndex(XTDDForeignKey *fk);
 	bool insertRow(struct XTOpenTable *rec_ot, xtWord1 *buffer);
 	bool checkNoAction(struct XTOpenTable *ot, xtRecordID rec_id);
-	xtBool checkCanDrop();
+	xtBool checkCanDrop(xtBool drop_db);
 	bool deleteRow(struct XTOpenTable *rec_ot, xtWord1 *buffer);
 	void deleteAllRows(XTThreadPtr self);
 	bool updateRow(struct XTOpenTable *rec_ot, xtWord1 *before, xtWord1 *after);

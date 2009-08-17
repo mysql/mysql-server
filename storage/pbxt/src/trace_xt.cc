@@ -72,6 +72,12 @@ xtPublic xtBool xt_init_trace(void)
 	trace_log_offset = 0;
 	trace_log_end = 0;
 	trace_stat_count = 0;
+
+#ifdef XT_TRACK_CONNECTIONS
+	for (int i=0; i<XT_TRACK_MAX_CONNS; i++)
+		xt_track_conn_info[i].cu_t_id = i;
+#endif
+
 	return TRUE;
 }
 
@@ -342,4 +348,46 @@ xtPublic void xt_ftracef(char *fmt, ...)
 	xt_unlock_mutex_ns(&trace_mutex);
 	va_end(ap);
 }
+
+/*
+ * -----------------------------------------------------------------------
+ * CONNECTION TRACKING
+ */
+
+#ifdef XT_TRACK_CONNECTIONS
+XTConnInfoRec	xt_track_conn_info[XT_TRACK_MAX_CONNS];
+
+static int trace_comp_conn_info(const void *a, const void *b)
+{
+	XTConnInfoPtr	ci_a = (XTConnInfoPtr) a, ci_b = (XTConnInfoPtr) b;
+
+	if (ci_a->ci_curr_xact_id > ci_b->ci_curr_xact_id)
+		return 1;
+	if (ci_a->ci_curr_xact_id < ci_b->ci_curr_xact_id)
+		return -1;
+	return 0;
+}
+
+xtPublic void xt_dump_conn_tracking(void)
+{
+	XTConnInfoRec	conn_info[XT_TRACK_MAX_CONNS];
+	XTConnInfoPtr	ptr;
+
+	memcpy(conn_info, xt_track_conn_info, sizeof(xt_track_conn_info));
+	qsort(conn_info, XT_TRACK_MAX_CONNS, sizeof(XTConnInfoRec), trace_comp_conn_info);
+
+	ptr = conn_info;
+	for (int i=0; i<XT_TRACK_MAX_CONNS; i++) {
+		if (ptr->ci_curr_xact_id || ptr->ci_prev_xact_id) {
+			printf("%3d curr=%d prev=%d prev-time=%ld\n", (int) ptr->cu_t_id, (int) ptr->ci_curr_xact_id, (int) ptr->ci_prev_xact_id, (long) ptr->ci_prev_xact_time);
+			if (i+1<XT_TRACK_MAX_CONNS) {
+				printf("    diff=%d\n", (int) (ptr+1)->ci_curr_xact_id - (int) ptr->ci_curr_xact_id);
+			}
+		}
+		ptr++;
+	}
+}
+
+#endif
+
 

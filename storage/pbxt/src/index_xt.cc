@@ -23,6 +23,10 @@
 
 #include "xt_config.h"
 
+#ifdef DRIZZLED
+#include <bitset>
+#endif
+
 #include <string.h>
 #include <stdio.h>
 #include <stddef.h>
@@ -52,7 +56,7 @@
 //#define CHECK_AND_PRINT
 //#define CHECK_NODE_REFERENCE
 //#define TRACE_FLUSH
-//#define CHECK_PRINTS_RECORD_REFERENCES
+#define CHECK_PRINTS_RECORD_REFERENCES
 #else
 #define MAX_SEARCH_DEPTH			100
 #endif
@@ -77,6 +81,7 @@ static u_int idx_check_index(XTOpenTablePtr ot, XTIndexPtr ind, xtBool with_lock
 #endif
 
 static xtBool idx_insert_node(XTOpenTablePtr ot, XTIndexPtr ind, IdxBranchStackPtr stack, XTIdxKeyValuePtr key_value, xtIndexNodeID branch);
+static xtBool idx_remove_lazy_deleted_item_in_node(XTOpenTablePtr ot, XTIndexPtr ind, xtIndexNodeID current, XTIndReferencePtr iref, XTIdxKeyValuePtr key_value);
 
 #ifdef XT_TRACK_INDEX_UPDATES
 
@@ -163,7 +168,7 @@ static void track_dump_all(u_int max_block)
 
 #endif
 
-xtPublic void xt_ind_track_dump_block(XTTableHPtr tab __attribute__((unused)), xtIndexNodeID address __attribute__((unused)))
+xtPublic void xt_ind_track_dump_block(XTTableHPtr XT_UNUSED(tab), xtIndexNodeID XT_UNUSED(address))
 {
 #ifdef TRACK_ACTIVITY
 	u_int i = XT_NODE_ID(address)-1;
@@ -268,7 +273,7 @@ static xtBool idx_new_branch(XTOpenTablePtr ot, XTIndexPtr ind, xtIndexNodeID *a
 
 	if ((XT_NODE_ID(wrote_pos) = XT_NODE_ID(tab->tab_ind_free))) {
 		/* Use the block on the free list: */
-		if (!xt_ind_read_bytes(ot, wrote_pos, sizeof(XTIndFreeBlockRec), (xtWord1 *) &free_block))
+		if (!xt_ind_read_bytes(ot, ind, wrote_pos, sizeof(XTIndFreeBlockRec), (xtWord1 *) &free_block))
 			goto failed;
 		XT_NODE_ID(tab->tab_ind_free) = (xtIndexNodeID) XT_GET_DISK_8(free_block.if_next_block_8);
 		xt_unlock_mutex_ns(&tab->tab_ind_lock);
@@ -343,7 +348,7 @@ static xtBool idx_free_branch(XTOpenTablePtr ot, XTIndexPtr ind, xtIndexNodeID n
  * Simple compare functions
  */
 
-xtPublic int xt_compare_2_int4(XTIndexPtr ind __attribute__((unused)), uint key_length, xtWord1 *key_value, xtWord1 *b_value)
+xtPublic int xt_compare_2_int4(XTIndexPtr XT_UNUSED(ind), uint key_length, xtWord1 *key_value, xtWord1 *b_value)
 {
 	int r;
 
@@ -357,7 +362,7 @@ xtPublic int xt_compare_2_int4(XTIndexPtr ind __attribute__((unused)), uint key_
 	return r;
 }
 
-xtPublic int xt_compare_3_int4(XTIndexPtr ind __attribute__((unused)), uint key_length, xtWord1 *key_value, xtWord1 *b_value)
+xtPublic int xt_compare_3_int4(XTIndexPtr XT_UNUSED(ind), uint key_length, xtWord1 *key_value, xtWord1 *b_value)
 {
 	int r;
 
@@ -381,7 +386,7 @@ xtPublic int xt_compare_3_int4(XTIndexPtr ind __attribute__((unused)), uint key_
  * Tree branch sanning (searching nodes and leaves)
  */
 
-xtPublic void xt_scan_branch_single(struct XTTable *tab __attribute__((unused)), XTIndexPtr ind, XTIdxBranchDPtr branch, register XTIdxKeyValuePtr value, register XTIdxResultRec *result)
+xtPublic void xt_scan_branch_single(struct XTTable *XT_UNUSED(tab), XTIndexPtr ind, XTIdxBranchDPtr branch, register XTIdxKeyValuePtr value, register XTIdxResultRec *result)
 {
 	XT_NODE_TEMP;
 	u_int				branch_size;
@@ -522,7 +527,7 @@ xtPublic void xt_scan_branch_single(struct XTTable *tab __attribute__((unused)),
  * index (in the case of -1) or to the first value after the
  * the search key in the case of 1.
  */
-xtPublic void xt_scan_branch_fix(struct XTTable *tab __attribute__((unused)), XTIndexPtr ind, XTIdxBranchDPtr branch, register XTIdxKeyValuePtr value, register XTIdxResultRec *result)
+xtPublic void xt_scan_branch_fix(struct XTTable *XT_UNUSED(tab), XTIndexPtr ind, XTIdxBranchDPtr branch, register XTIdxKeyValuePtr value, register XTIdxResultRec *result)
 {
 	XT_NODE_TEMP;
 	u_int				branch_size;
@@ -619,7 +624,7 @@ xtPublic void xt_scan_branch_fix(struct XTTable *tab __attribute__((unused)), XT
 	result->sr_item.i_item_offset = node_ref_size + i * full_item_size;
 }
 
-xtPublic void xt_scan_branch_fix_simple(struct XTTable *tab __attribute__((unused)), XTIndexPtr ind, XTIdxBranchDPtr branch, register XTIdxKeyValuePtr value, register XTIdxResultRec *result)
+xtPublic void xt_scan_branch_fix_simple(struct XTTable *XT_UNUSED(tab), XTIndexPtr ind, XTIdxBranchDPtr branch, register XTIdxKeyValuePtr value, register XTIdxResultRec *result)
 {
 	XT_NODE_TEMP;
 	u_int				branch_size;
@@ -720,7 +725,7 @@ xtPublic void xt_scan_branch_fix_simple(struct XTTable *tab __attribute__((unuse
  * Variable length key values are stored as a sorted list. Since each list item has a variable length, we
  * must scan the list sequentially in order to find a key.
  */
-xtPublic void xt_scan_branch_var(struct XTTable *tab __attribute__((unused)), XTIndexPtr ind, XTIdxBranchDPtr branch, register XTIdxKeyValuePtr value, register XTIdxResultRec *result)
+xtPublic void xt_scan_branch_var(struct XTTable *XT_UNUSED(tab), XTIndexPtr ind, XTIdxBranchDPtr branch, register XTIdxKeyValuePtr value, register XTIdxResultRec *result)
 {
 	XT_NODE_TEMP;
 	u_int			branch_size;
@@ -816,7 +821,7 @@ xtPublic void xt_scan_branch_var(struct XTTable *tab __attribute__((unused)), XT
 }
 
 /* Go to the next item in the node. */
-static void idx_next_branch_item(XTTableHPtr tab __attribute__((unused)), XTIndexPtr ind, XTIdxBranchDPtr branch, register XTIdxResultRec *result)
+static void idx_next_branch_item(XTTableHPtr XT_UNUSED(tab), XTIndexPtr ind, XTIdxBranchDPtr branch, register XTIdxResultRec *result)
 {
 	XT_NODE_TEMP;
 	xtWord1	*bitem;
@@ -834,7 +839,7 @@ static void idx_next_branch_item(XTTableHPtr tab __attribute__((unused)), XTInde
 	result->sr_branch = IDX_GET_NODE_REF(tab, bitem, result->sr_item.i_node_ref_size);
 }
 
-xtPublic void xt_prev_branch_item_fix(XTTableHPtr tab __attribute__((unused)), XTIndexPtr ind __attribute__((unused)), XTIdxBranchDPtr branch, register XTIdxResultRec *result)
+xtPublic void xt_prev_branch_item_fix(XTTableHPtr XT_UNUSED(tab), XTIndexPtr XT_UNUSED(ind), XTIdxBranchDPtr branch, register XTIdxResultRec *result)
 {
 	XT_NODE_TEMP;
 	ASSERT_NS(result->sr_item.i_item_offset >= result->sr_item.i_item_size + result->sr_item.i_node_ref_size + result->sr_item.i_node_ref_size);
@@ -843,7 +848,7 @@ xtPublic void xt_prev_branch_item_fix(XTTableHPtr tab __attribute__((unused)), X
 	result->sr_branch = IDX_GET_NODE_REF(tab, branch->tb_data + result->sr_item.i_item_offset, result->sr_item.i_node_ref_size);
 }
 
-xtPublic void xt_prev_branch_item_var(XTTableHPtr tab __attribute__((unused)), XTIndexPtr ind, XTIdxBranchDPtr branch, register XTIdxResultRec *result)
+xtPublic void xt_prev_branch_item_var(XTTableHPtr XT_UNUSED(tab), XTIndexPtr ind, XTIdxBranchDPtr branch, register XTIdxResultRec *result)
 {
 	XT_NODE_TEMP;
 	xtWord1	*bitem;
@@ -865,7 +870,20 @@ xtPublic void xt_prev_branch_item_var(XTTableHPtr tab __attribute__((unused)), X
 	result->sr_item.i_item_offset = bitem - branch->tb_data;
 }
 
-static void idx_first_branch_item(XTTableHPtr tab __attribute__((unused)), XTIndexPtr ind, XTIdxBranchDPtr branch, register XTIdxResultPtr result)
+static void idx_reload_item_fix(XTIndexPtr XT_NDEBUG_UNUSED(ind), XTIdxBranchDPtr branch, register XTIdxResultPtr result)
+{
+	u_int branch_size;
+
+	branch_size = XT_GET_DISK_2(branch->tb_size_2);
+	ASSERT_NS(result->sr_item.i_node_ref_size == (XT_IS_NODE(branch_size) ? XT_NODE_REF_SIZE : 0));
+	ASSERT_NS(result->sr_item.i_item_size == ind->mi_key_size + XT_RECORD_REF_SIZE);
+	result->sr_item.i_total_size = XT_GET_BRANCH_DATA_SIZE(branch_size);
+	if (result->sr_item.i_item_offset > result->sr_item.i_total_size)
+		result->sr_item.i_item_offset = result->sr_item.i_total_size;
+	xt_get_res_record_ref(&branch->tb_data[result->sr_item.i_item_offset + result->sr_item.i_item_size - XT_RECORD_REF_SIZE], result); 
+}
+
+static void idx_first_branch_item(XTTableHPtr XT_UNUSED(tab), XTIndexPtr ind, XTIdxBranchDPtr branch, register XTIdxResultPtr result)
 {
 	XT_NODE_TEMP;
 	u_int branch_size;
@@ -903,7 +921,7 @@ static void idx_first_branch_item(XTTableHPtr tab __attribute__((unused)), XTInd
 /*
  * Last means different things for leaf or node!
  */
-xtPublic void xt_last_branch_item_fix(XTTableHPtr tab __attribute__((unused)), XTIndexPtr ind, XTIdxBranchDPtr branch, register XTIdxResultPtr result)
+xtPublic void xt_last_branch_item_fix(XTTableHPtr XT_UNUSED(tab), XTIndexPtr ind, XTIdxBranchDPtr branch, register XTIdxResultPtr result)
 {
 	XT_NODE_TEMP;
 	u_int branch_size;
@@ -935,7 +953,7 @@ xtPublic void xt_last_branch_item_fix(XTTableHPtr tab __attribute__((unused)), X
 	}
 }
 
-xtPublic void xt_last_branch_item_var(XTTableHPtr tab __attribute__((unused)), XTIndexPtr ind, XTIdxBranchDPtr branch, register XTIdxResultPtr result)
+xtPublic void xt_last_branch_item_var(XTTableHPtr XT_UNUSED(tab), XTIndexPtr ind, XTIdxBranchDPtr branch, register XTIdxResultPtr result)
 {
 	XT_NODE_TEMP;
 	u_int	branch_size;
@@ -986,6 +1004,218 @@ xtPublic void xt_last_branch_item_var(XTTableHPtr tab __attribute__((unused)), X
 	}
 }
 
+xtPublic xtBool xt_idx_lazy_delete_on_leaf(XTIndexPtr ind, XTIndBlockPtr block, xtWord2 branch_size)
+{
+	ASSERT_NS(ind->mi_fix_key);
+	
+	/* Compact the leaf if more than half the items that fit on the page
+	 * are deleted: */
+	if (block->cp_del_count >= ind->mi_max_items/2)
+		return FALSE;
+
+	/* Compact the page if there is only 1 (or less) valid item left: */
+	if ((u_int) block->cp_del_count+1 >= ((u_int) branch_size - 2)/(ind->mi_key_size + XT_RECORD_REF_SIZE))
+		return FALSE;
+
+	return OK;
+}
+
+static xtBool idx_lazy_delete_on_node(XTIndexPtr ind, XTIndBlockPtr block, register XTIdxItemPtr item)
+{
+	ASSERT_NS(ind->mi_fix_key);
+	
+	/* Compact the node if more than 1/4 of the items that fit on the page
+	 * are deleted: */
+	if (block->cp_del_count >= ind->mi_max_items/4)
+		return FALSE;
+
+	/* Compact the page if there is only 1 (or less) valid item left: */
+	if ((u_int) block->cp_del_count+1 >= (item->i_total_size - item->i_node_ref_size)/(item->i_item_size + item->i_node_ref_size))
+		return FALSE;
+
+	return OK;
+}
+
+inline static xtBool idx_cmp_item_key_fix(XTIndReferencePtr iref, register XTIdxItemPtr item, XTIdxKeyValuePtr value)
+{
+	xtWord1 *data;
+
+	data = &iref->ir_branch->tb_data[item->i_item_offset];
+	return memcmp(data, value->sv_key, value->sv_length) == 0;
+}
+
+inline static void idx_set_item_key_fix(XTIndReferencePtr iref, register XTIdxItemPtr item, XTIdxKeyValuePtr value)
+{
+	xtWord1 *data;
+
+	data = &iref->ir_branch->tb_data[item->i_item_offset];
+	memcpy(data, value->sv_key, value->sv_length);
+	xt_set_val_record_ref(data + value->sv_length, value);
+	iref->ir_updated = TRUE;
+}
+
+inline static void idx_set_item_reference(XTIndReferencePtr iref, register XTIdxItemPtr item, xtRowID rec_id, xtRowID row_id)
+{
+	size_t	offset;
+	xtWord1	*data;
+
+	/* This is the offset of the reference in the item we found: */
+	offset = item->i_item_offset +item->i_item_size - XT_RECORD_REF_SIZE;
+	data = &iref->ir_branch->tb_data[offset];
+
+	xt_set_record_ref(data, rec_id, row_id);
+	iref->ir_updated = TRUE;
+}
+
+inline static void idx_set_item_row_id(XTIndReferencePtr iref, register XTIdxItemPtr item, xtRowID row_id)
+{
+	size_t	offset;
+	xtWord1	*data;
+
+	offset = 
+		/* This is the offset of the reference in the item we found: */
+		item->i_item_offset +item->i_item_size - XT_RECORD_REF_SIZE +
+		/* This is the offset of the row id in the reference: */
+		XT_RECORD_ID_SIZE;
+	data = &iref->ir_branch->tb_data[offset];
+
+	/* This update does not change the structure of page, so we do it without
+	 * copying the page before we write.
+	 */
+	XT_SET_DISK_4(data, row_id);
+	iref->ir_updated = TRUE;
+}
+
+inline static xtBool idx_is_item_deleted(register XTIdxBranchDPtr branch, register XTIdxItemPtr item)
+{
+	xtWord1	*data;
+
+	data = &branch->tb_data[item->i_item_offset + item->i_item_size - XT_RECORD_REF_SIZE + XT_RECORD_ID_SIZE];
+	return XT_GET_DISK_4(data) == (xtRowID) -1;
+}
+
+inline static void idx_set_item_deleted(XTIndReferencePtr iref, register XTIdxItemPtr item)
+{
+	idx_set_item_row_id(iref, item, (xtRowID) -1);
+	
+	/* This should be safe because there is only one thread,
+	 * the sweeper, that does this!
+	 *
+	 * Threads that decrement this value have an xlock on
+	 * the page, or the index.
+	 */
+	iref->ir_block->cp_del_count++;
+}
+
+/*
+ * {LAZY-DEL-INDEX-ITEMS}
+ * Do a lazy delete of an item by just setting the Row ID
+ * to the delete indicator: row ID -1.
+ */
+static void idx_lazy_delete_branch_item(XTOpenTablePtr ot, XTIndexPtr ind, XTIndReferencePtr iref, register XTIdxItemPtr item)
+{
+	idx_set_item_deleted(iref, item);
+	xt_ind_release(ot, ind, iref->ir_xlock ? XT_UNLOCK_W_UPDATE : XT_UNLOCK_R_UPDATE, iref);
+}
+
+/*
+ * This function compacts the leaf, but preserves the
+ * position of the item.
+ */
+static xtBool idx_compact_leaf(XTOpenTablePtr ot, XTIndexPtr ind, XTIndReferencePtr iref, register XTIdxItemPtr item)
+{
+	register XTIdxBranchDPtr branch = iref->ir_branch;
+	int		item_idx, count, i, idx;
+	u_int	size;
+	xtWord1	*s_data;
+	xtWord1	*d_data;
+	xtWord1	*data;
+	xtRowID	row_id;
+
+	if (iref->ir_block->cb_handle_count) {
+		if (!xt_ind_copy_on_write(iref)) {
+			xt_ind_release(ot, ind, iref->ir_xlock ? XT_UNLOCK_WRITE : XT_UNLOCK_READ, iref);
+			return FAILED;
+		}
+	}
+
+	ASSERT_NS(!item->i_node_ref_size);
+	ASSERT_NS(ind->mi_fix_key);
+	size = item->i_item_size;
+	count = item->i_total_size / size;
+	item_idx = item->i_item_offset / size;
+	s_data = d_data = branch->tb_data;
+	idx = 0;
+	for (i=0; i<count; i++) {
+		data = s_data + item->i_item_size - XT_RECORD_REF_SIZE + XT_RECORD_ID_SIZE;
+		row_id = XT_GET_DISK_4(data);
+		if (row_id == (xtRowID) -1) {
+			if (idx < item_idx)
+				item_idx--;
+		}
+		else {
+			if (d_data != s_data)
+				memcpy(d_data, s_data, size);
+			d_data += size;
+			idx++;
+		}
+		s_data += size;
+	}
+	iref->ir_block->cp_del_count = 0;
+	item->i_total_size = d_data - branch->tb_data;
+	ASSERT_NS(idx * size == item->i_total_size);
+	item->i_item_offset = item_idx * size;
+	XT_SET_DISK_2(branch->tb_size_2, XT_MAKE_BRANCH_SIZE(item->i_total_size, 0));
+	iref->ir_updated = TRUE;
+	return OK;
+}
+
+static xtBool idx_lazy_remove_leaf_item_right(XTOpenTablePtr ot, XTIndexPtr ind, XTIndReferencePtr iref, register XTIdxItemPtr item)
+{
+	register XTIdxBranchDPtr branch = iref->ir_branch;
+	int		item_idx, count, i;
+	u_int	size;
+	xtWord1	*s_data;
+	xtWord1	*d_data;
+	xtWord1	*data;
+	xtRowID	row_id;
+
+	ASSERT_NS(!item->i_node_ref_size);
+
+	if (iref->ir_block->cb_handle_count) {
+		if (!xt_ind_copy_on_write(iref)) {
+			xt_ind_release(ot, ind, XT_UNLOCK_WRITE, iref);
+			return FAILED;
+		}
+	}
+
+	ASSERT_NS(ind->mi_fix_key);
+	size = item->i_item_size;
+	count = item->i_total_size / size;
+	item_idx = item->i_item_offset / size;
+	s_data = d_data = branch->tb_data;
+	for (i=0; i<count; i++) {
+		if (i == item_idx)
+			item->i_item_offset = d_data - branch->tb_data;
+		else {
+			data = s_data + item->i_item_size - XT_RECORD_REF_SIZE + XT_RECORD_ID_SIZE;
+			row_id = XT_GET_DISK_4(data);
+			if (row_id != (xtRowID) -1) {
+				if (d_data != s_data)
+					memcpy(d_data, s_data, size);
+				d_data += size;
+			}
+		}
+		s_data += size;
+	}
+	iref->ir_block->cp_del_count = 0;
+	item->i_total_size = d_data - branch->tb_data;
+	XT_SET_DISK_2(branch->tb_size_2, XT_MAKE_BRANCH_SIZE(item->i_total_size, 0));
+	iref->ir_updated = TRUE;
+	xt_ind_release(ot, ind, XT_UNLOCK_W_UPDATE, iref);
+	return OK;
+}
+
 /*
  * Remove an item and save to disk.
  */
@@ -1003,8 +1233,14 @@ static xtBool idx_remove_branch_item_right(XTOpenTablePtr ot, XTIndexPtr ind, xt
 	 * an Xlock on the cache block.
 	 */
 	if (iref->ir_block->cb_handle_count) {
-		if (!xt_ind_copy_on_write(iref))
+		if (!xt_ind_copy_on_write(iref)) {
+			xt_ind_release(ot, ind, item->i_node_ref_size ? XT_UNLOCK_READ : XT_UNLOCK_WRITE, iref);
 			return FAILED;
+		}
+	}
+	if (ind->mi_lazy_delete) {
+		if (idx_is_item_deleted(branch, item))
+			iref->ir_block->cp_del_count--;
 	}
 	/* Remove the node reference to the left of the item: */
 	memmove(&branch->tb_data[item->i_item_offset],
@@ -1013,18 +1249,28 @@ static xtBool idx_remove_branch_item_right(XTOpenTablePtr ot, XTIndexPtr ind, xt
 	item->i_total_size -= size;
 	XT_SET_DISK_2(branch->tb_size_2, XT_MAKE_BRANCH_SIZE(item->i_total_size, item->i_node_ref_size));
 	IDX_TRACE("%d-> %x\n", (int) XT_NODE_ID(address), (int) XT_GET_DISK_2(branch->tb_size_2));
+	iref->ir_updated = TRUE;
 	xt_ind_release(ot, ind, item->i_node_ref_size ? XT_UNLOCK_R_UPDATE : XT_UNLOCK_W_UPDATE, iref);
 	return OK;
 }
 
-static xtBool idx_remove_branch_item_left(XTOpenTablePtr ot, XTIndexPtr ind, xtIndexNodeID, XTIndReferencePtr iref, register XTIdxItemPtr item)
+static xtBool idx_remove_branch_item_left(XTOpenTablePtr ot, XTIndexPtr ind, xtIndexNodeID, XTIndReferencePtr iref, register XTIdxItemPtr item, xtBool *lazy_delete_cleanup_required)
 {
 	register XTIdxBranchDPtr branch = iref->ir_branch;
 	u_int size = item->i_item_size + item->i_node_ref_size;
 
+	ASSERT_NS(item->i_node_ref_size);
 	if (iref->ir_block->cb_handle_count) {
-		if (!xt_ind_copy_on_write(iref))
+		if (!xt_ind_copy_on_write(iref)) {
+			xt_ind_release(ot, ind, item->i_node_ref_size ? XT_UNLOCK_READ : XT_UNLOCK_WRITE, iref);
 			return FAILED;
+		}
+	}
+	if (ind->mi_lazy_delete) {
+		if (idx_is_item_deleted(branch, item))
+			iref->ir_block->cp_del_count--;
+		if (lazy_delete_cleanup_required)
+			*lazy_delete_cleanup_required = idx_lazy_delete_on_node(ind, iref->ir_block, item);
 	}
 	/* Remove the node reference to the left of the item: */
 	memmove(&branch->tb_data[item->i_item_offset - item->i_node_ref_size],
@@ -1033,11 +1279,12 @@ static xtBool idx_remove_branch_item_left(XTOpenTablePtr ot, XTIndexPtr ind, xtI
 	item->i_total_size -= size;
 	XT_SET_DISK_2(branch->tb_size_2, XT_MAKE_BRANCH_SIZE(item->i_total_size, item->i_node_ref_size));
 	IDX_TRACE("%d-> %x\n", (int) XT_NODE_ID(address), (int) XT_GET_DISK_2(branch->tb_size_2));
+	iref->ir_updated = TRUE;
 	xt_ind_release(ot, ind, item->i_node_ref_size ? XT_UNLOCK_R_UPDATE : XT_UNLOCK_W_UPDATE, iref);
 	return OK;
 }
 
-static void idx_insert_leaf_item(XTIndexPtr ind __attribute__((unused)), XTIdxBranchDPtr leaf, XTIdxKeyValuePtr value, XTIdxResultPtr result)
+static void idx_insert_leaf_item(XTIndexPtr XT_UNUSED(ind), XTIdxBranchDPtr leaf, XTIdxKeyValuePtr value, XTIdxResultPtr result)
 {
 	xtWord1 *item;
 
@@ -1053,7 +1300,7 @@ static void idx_insert_leaf_item(XTIndexPtr ind __attribute__((unused)), XTIdxBr
 	XT_SET_DISK_2(leaf->tb_size_2, XT_MAKE_LEAF_SIZE(result->sr_item.i_total_size));
 }
 
-static void idx_insert_node_item(XTTableHPtr tab __attribute__((unused)), XTIndexPtr ind __attribute__((unused)), XTIdxBranchDPtr leaf, XTIdxKeyValuePtr value, XTIdxResultPtr result, xtIndexNodeID branch)
+static void idx_insert_node_item(XTTableHPtr XT_UNUSED(tab), XTIndexPtr XT_UNUSED(ind), XTIdxBranchDPtr leaf, XTIdxKeyValuePtr value, XTIdxResultPtr result, xtIndexNodeID branch)
 {
 	xtWord1 *item;
 
@@ -1114,7 +1361,7 @@ static void idx_get_middle_branch_item(XTIndexPtr ind, XTIdxBranchDPtr branch, X
 	}
 }
 
-static size_t idx_write_branch_item(XTIndexPtr ind __attribute__((unused)), xtWord1 *item, XTIdxKeyValuePtr value)
+static size_t idx_write_branch_item(XTIndexPtr XT_UNUSED(ind), xtWord1 *item, XTIdxKeyValuePtr value)
 {
 	memcpy(item, value->sv_key, value->sv_length);
 	xt_set_val_record_ref(item + value->sv_length, value);
@@ -1133,23 +1380,38 @@ static xtBool idx_replace_node_key(XTOpenTablePtr ot, XTIndexPtr ind, IdxStackIt
 	xtWord1				key_buf[XT_INDEX_MAX_KEY_SIZE];
 
 #ifdef DEBUG
-	iref.ir_ulock = XT_UNLOCK_NONE;
+	iref.ir_xlock = 2;
+	iref.ir_updated = 2;
 #endif
-	if (!xt_ind_fetch(ot, current, XT_LOCK_WRITE, &iref))
+	if (!xt_ind_fetch(ot, ind, current, XT_LOCK_WRITE, &iref))
 		return FAILED;
 	if (iref.ir_block->cb_handle_count) {
 		if (!xt_ind_copy_on_write(&iref))
 			goto failed_1;
+	}
+	if (ind->mi_lazy_delete) {
+		ASSERT_NS(item_size == item->i_pos.i_item_size);
+		if (idx_is_item_deleted(iref.ir_branch, &item->i_pos))
+			iref.ir_block->cp_del_count--;
 	}
 	memmove(&iref.ir_branch->tb_data[item->i_pos.i_item_offset + item_size],
 		&iref.ir_branch->tb_data[item->i_pos.i_item_offset + item->i_pos.i_item_size],
 		item->i_pos.i_total_size - item->i_pos.i_item_offset - item->i_pos.i_item_size);
 	memcpy(&iref.ir_branch->tb_data[item->i_pos.i_item_offset],
 		item_buf, item_size);
+	if (ind->mi_lazy_delete) {
+		if (idx_is_item_deleted(iref.ir_branch, &item->i_pos))
+			iref.ir_block->cp_del_count++;
+	}
 	item->i_pos.i_total_size = item->i_pos.i_total_size + item_size - item->i_pos.i_item_size;
 	XT_SET_DISK_2(iref.ir_branch->tb_size_2, XT_MAKE_NODE_SIZE(item->i_pos.i_total_size));
 	IDX_TRACE("%d-> %x\n", (int) XT_NODE_ID(current), (int) XT_GET_DISK_2(iref.ir_branch->tb_size_2));
+	iref.ir_updated = TRUE;
 
+#ifdef DEBUG
+	if (ind->mi_lazy_delete)
+		ASSERT_NS(item->i_pos.i_total_size <= XT_INDEX_PAGE_DATA_SIZE);
+#endif
 	if (item->i_pos.i_total_size <= XT_INDEX_PAGE_DATA_SIZE)
 		return xt_ind_release(ot, ind, XT_UNLOCK_W_UPDATE, &iref);
 
@@ -1184,6 +1446,7 @@ static xtBool idx_replace_node_key(XTOpenTablePtr ot, XTIndexPtr ind, IdxStackIt
 	/* Change the size of the old branch: */
 	XT_SET_DISK_2(iref.ir_branch->tb_size_2, XT_MAKE_NODE_SIZE(result.sr_item.i_item_offset));
 	IDX_TRACE("%d-> %x\n", (int) XT_NODE_ID(current), (int) XT_GET_DISK_2(iref.ir_branch->tb_size_2));
+	iref.ir_updated = TRUE;
 
 	xt_ind_release(ot, ind, XT_UNLOCK_W_UPDATE, &iref);
 
@@ -1237,7 +1500,8 @@ static xtBool idx_insert_node(XTOpenTablePtr ot, XTIndexPtr ind, IdxBranchStackP
 	XTIdxBranchDPtr		new_branch_ptr;
 
 #ifdef DEBUG
-	iref.ir_ulock = XT_UNLOCK_NONE;
+	iref.ir_xlock = 2;
+	iref.ir_updated = 2;
 #endif
 	/* Insert a new branch (key, data)... */
 	if (!(stack_item = idx_pop(stack))) {
@@ -1268,7 +1532,7 @@ static xtBool idx_insert_node(XTOpenTablePtr ot, XTIndexPtr ind, IdxBranchStackP
 	 * cache, and will remain in cache when we read again below for the
 	 * purpose of update.
 	 */
-	if (!xt_ind_fetch(ot, current, XT_LOCK_READ, &iref))
+	if (!xt_ind_fetch(ot, ind, current, XT_LOCK_READ, &iref))
 		goto failed;
 	ASSERT_NS(XT_IS_NODE(XT_GET_DISK_2(iref.ir_branch->tb_size_2)));
 	ind->mi_scan_branch(ot->ot_table, ind, iref.ir_branch, key_value, &result);
@@ -1280,6 +1544,7 @@ static xtBool idx_insert_node(XTOpenTablePtr ot, XTIndexPtr ind, IdxBranchStackP
 		}
 		idx_insert_node_item(ot->ot_table, ind, iref.ir_branch, key_value, &result, branch);
 		IDX_TRACE("%d-> %x\n", (int) XT_NODE_ID(current), (int) XT_GET_DISK_2(ot->ot_ind_wbuf.tb_size_2));
+		iref.ir_updated = TRUE;
 		ASSERT_NS(result.sr_item.i_total_size <= XT_INDEX_PAGE_DATA_SIZE);
 		xt_ind_release(ot, ind, XT_UNLOCK_R_UPDATE, &iref);
 		goto done_ok;
@@ -1314,6 +1579,7 @@ static xtBool idx_insert_node(XTOpenTablePtr ot, XTIndexPtr ind, IdxBranchStackP
 			goto failed_2;
 	}
 	memcpy(iref.ir_branch, &ot->ot_ind_wbuf, offsetof(XTIdxBranchDRec, tb_data) + result.sr_item.i_item_offset);
+	iref.ir_updated = TRUE;
 	xt_ind_release(ot, ind, XT_UNLOCK_R_UPDATE, &iref);
 
 	/* Insert the new branch into the parent node, using the new middle key value: */
@@ -1373,7 +1639,8 @@ static xtBool idx_check_duplicates(XTOpenTablePtr ot, XTIndexPtr ind, XTIdxKeyVa
 	XTXactWaitRec		xw;
 
 #ifdef DEBUG
-	iref.ir_ulock = XT_UNLOCK_NONE;
+	iref.ir_xlock = 2;
+	iref.ir_updated = 2;
 #endif
 	retry:
 	idx_newstack(&stack);
@@ -1385,7 +1652,7 @@ static xtBool idx_check_duplicates(XTOpenTablePtr ot, XTIndexPtr ind, XTIdxKeyVa
 	key_value->sv_flags = 0;
 
 	while (XT_NODE_ID(current)) {
-		if (!xt_ind_fetch(ot, current, XT_LOCK_READ, &iref)) {
+		if (!xt_ind_fetch(ot, ind, current, XT_LOCK_READ, &iref)) {
 			key_value->sv_flags = save_flags;
 			return FAILED;
 		}
@@ -1422,7 +1689,7 @@ static xtBool idx_check_duplicates(XTOpenTablePtr ot, XTIndexPtr ind, XTIdxKeyVa
 			while ((node = idx_pop(&stack))) {
 				if (node->i_pos.i_item_offset < node->i_pos.i_total_size) {
 					current = node->i_branch;
-					if (!xt_ind_fetch(ot, current, XT_LOCK_READ, &iref))
+					if (!xt_ind_fetch(ot, ind, current, XT_LOCK_READ, &iref))
 						return FAILED;
 					xt_get_res_record_ref(&iref.ir_branch->tb_data[node->i_pos.i_item_offset + node->i_pos.i_item_size - XT_RECORD_REF_SIZE], &result);
 					result.sr_item = node->i_pos;
@@ -1437,6 +1704,11 @@ static xtBool idx_check_duplicates(XTOpenTablePtr ot, XTIndexPtr ind, XTIdxKeyVa
 		if (myxt_compare_key(ind, 0, key_value->sv_length, key_value->sv_key, &iref.ir_branch->tb_data[result.sr_item.i_item_offset]) != 0) {
 			xt_ind_release(ot, ind, XT_UNLOCK_READ, &iref);
 			break;
+		}
+
+		if (ind->mi_lazy_delete) {
+			if (result.sr_row_id == (xtRowID) -1)
+				goto next_item;
 		}
 
 		switch (xt_tab_maybe_committed(ot, result.sr_rec_id, &xn_id, NULL, NULL)) {
@@ -1464,6 +1736,7 @@ static xtBool idx_check_duplicates(XTOpenTablePtr ot, XTIndexPtr ind, XTIdxKeyVa
 				break;
 		}
 
+		next_item:
 		idx_next_branch_item(ot->ot_table, ind, iref.ir_branch, &result);
 
 		if (result.sr_item.i_node_ref_size) {
@@ -1473,7 +1746,7 @@ static xtBool idx_check_duplicates(XTOpenTablePtr ot, XTIndexPtr ind, XTIdxKeyVa
 				if (!idx_push(&stack, current, &result.sr_item))
 					return FAILED;
 				current = result.sr_branch;
-				if (!xt_ind_fetch(ot, current, XT_LOCK_READ, &iref))
+				if (!xt_ind_fetch(ot, ind, current, XT_LOCK_READ, &iref))
 					return FAILED;
 				idx_first_branch_item(ot->ot_table, ind, iref.ir_branch, &result);
 				if (!result.sr_item.i_node_ref_size)
@@ -1487,6 +1760,14 @@ static xtBool idx_check_duplicates(XTOpenTablePtr ot, XTIndexPtr ind, XTIdxKeyVa
 	failed:
 	xt_ind_release(ot, ind, XT_UNLOCK_READ, &iref);
 	return FAILED;
+}
+
+inline static void idx_still_on_key(XTIndexPtr ind, register XTIdxSearchKeyPtr search_key, register XTIdxBranchDPtr branch, register XTIdxItemPtr item)
+{
+	if (search_key && search_key->sk_on_key) {
+		search_key->sk_on_key = myxt_compare_key(ind, search_key->sk_key_value.sv_flags, search_key->sk_key_value.sv_length,
+			search_key->sk_key_value.sv_key, &branch->tb_data[item->i_item_offset]) == 0;
+	}
 }
 
 /*
@@ -1506,9 +1787,11 @@ xtPublic xtBool xt_idx_insert(XTOpenTablePtr ot, XTIndexPtr ind, xtRowID row_id,
 	size_t				new_size;
 	xtBool				check_for_dups = ind->mi_flags & (HA_UNIQUE_CHECK | HA_NOSAME) && !allow_dups;
 	xtBool				lock_structure = FALSE;
+	xtBool				updated = FALSE;
 
 #ifdef DEBUG
-	iref.ir_ulock = XT_UNLOCK_NONE;
+	iref.ir_xlock = 2;
+	iref.ir_updated = 2;
 #endif
 #ifdef CHECK_AND_PRINT
 	//idx_check_index(ot, ind, TRUE);
@@ -1559,6 +1842,7 @@ xtPublic xtBool xt_idx_insert(XTOpenTablePtr ot, XTIndexPtr ind, xtRowID row_id,
 		XT_INDEX_READ_LOCK(ind, ot);
 
 	retry:
+	/* Create a root node if required: */
 	if (!(XT_NODE_ID(current) = XT_NODE_ID(ind->mi_root))) {
 		/* Index is empty, create a new one: */
 		ASSERT_NS(lock_structure);
@@ -1575,8 +1859,9 @@ xtPublic xtBool xt_idx_insert(XTOpenTablePtr ot, XTIndexPtr ind, xtRowID row_id,
 		goto done_ok;
 	}
 
+	/* Search down the tree for the insertion point. */
 	while (XT_NODE_ID(current)) {
-		if (!xt_ind_fetch(ot, current, XT_XLOCK_LEAF, &iref))
+		if (!xt_ind_fetch(ot, ind, current, XT_XLOCK_LEAF, &iref))
 			goto failed;
 		ind->mi_scan_branch(ot->ot_table, ind, iref.ir_branch, &key_value, &result);
 		if (result.sr_duplicate) {
@@ -1601,8 +1886,23 @@ xtPublic xtBool xt_idx_insert(XTOpenTablePtr ot, XTIndexPtr ind, xtRowID row_id,
 			}
 		}
 		if (result.sr_found) {
-			/* Node found, can happen during recovery of indexes! */
-			XTPageUnlockType utype;
+			/* Node found, can happen during recovery of indexes! 
+			 * We have found an exact match of both key and record.
+			 */
+			XTPageUnlockType	utype;
+			xtBool				overwrite = FALSE;
+
+			/* {LAZY-DEL-INDEX-ITEMS}
+			 * If the item has been lazy deleted, then just overwrite!
+			 */ 
+			if (result.sr_row_id == (xtRowID) -1) {
+				xtWord2 del_count;
+	
+				/* This is safe because we have an xlock on the leaf. */
+				if ((del_count = iref.ir_block->cp_del_count))
+					iref.ir_block->cp_del_count = del_count-1;
+				overwrite = TRUE;
+			}
 
 			if (!result.sr_row_id && row_id) {
 				/* {INDEX-RECOV_ROWID} Set the row-id
@@ -1610,20 +1910,11 @@ xtPublic xtBool xt_idx_insert(XTOpenTablePtr ot, XTIndexPtr ind, xtRowID row_id,
 				 * is not committed.
 				 * It will be removed later by the sweeper.
 				 */
-				size_t	offset;
-				xtWord1	*data;
+				overwrite = TRUE;
+			}
 
-				offset = 
-					/* This is the offset of the reference in the item we found: */
-					result.sr_item.i_item_offset + result.sr_item.i_item_size - XT_RECORD_REF_SIZE +
-					/* This is the offset of the row id in the reference: */
-					4;
-				data = &iref.ir_branch->tb_data[offset];
-
-				/* This update does not change the structure of page, so we do it without
-				 * copying the page before we write.
-				 */
-				XT_SET_DISK_4(data, row_id);
+			if (overwrite) {
+				idx_set_item_row_id(&iref, &result.sr_item, row_id);
 				utype = result.sr_item.i_node_ref_size ? XT_UNLOCK_R_UPDATE : XT_UNLOCK_W_UPDATE;
 			}
 			else
@@ -1644,14 +1935,84 @@ xtPublic xtBool xt_idx_insert(XTOpenTablePtr ot, XTIndexPtr ind, xtRowID row_id,
 	/* Must be a leaf!: */
 	ASSERT_NS(!result.sr_item.i_node_ref_size);
 
+	updated = FALSE;
+	if (ind->mi_lazy_delete && iref.ir_block->cp_del_count) {
+		/* There are a number of possibilities:
+		 * - We could just replace a lazy deleted slot.
+		 * - We could compact and insert.
+		 * - We could just insert
+		 */
+
+		if (result.sr_item.i_item_offset > 0) {
+			/* Check if it can go into the previous node: */
+			XTIdxResultRec	t_res;
+
+			t_res.sr_item = result.sr_item;
+			xt_prev_branch_item_fix(ot->ot_table, ind, iref.ir_branch, &t_res);
+			if (t_res.sr_row_id != (xtRowID) -1)
+				goto try_current;
+
+			/* Yup, it can, but first check to see if it would be 
+			 * better to put it in the current node.
+			 * This is the case if the previous node key is not the
+			 * same as the key we are adding...
+			 */
+			if (result.sr_item.i_item_offset < result.sr_item.i_total_size &&
+				result.sr_row_id == (xtRowID) -1) {
+				if (!idx_cmp_item_key_fix(&iref, &t_res.sr_item, &key_value))
+					goto try_current;
+			}
+
+			idx_set_item_key_fix(&iref, &t_res.sr_item, &key_value);
+			iref.ir_block->cp_del_count--;
+			xt_ind_release(ot, ind, XT_UNLOCK_W_UPDATE, &iref);
+			goto done_ok;
+		}
+
+		try_current:
+		if (result.sr_item.i_item_offset < result.sr_item.i_total_size) {
+			if (result.sr_row_id == (xtRowID) -1) {
+				idx_set_item_key_fix(&iref, &result.sr_item, &key_value);
+				iref.ir_block->cp_del_count--;
+				xt_ind_release(ot, ind, XT_UNLOCK_W_UPDATE, &iref);
+				goto done_ok;
+			}
+		}
+
+		/* Check if we must compact... 
+		 * It makes no sense to split as long as there are lazy deleted items
+		 * in the page. So, delete them if a split would otherwise be required!
+		 */
+		ASSERT_NS(key_value.sv_length + XT_RECORD_REF_SIZE == result.sr_item.i_item_size);
+		if (result.sr_item.i_total_size + key_value.sv_length + XT_RECORD_REF_SIZE > XT_INDEX_PAGE_DATA_SIZE) {
+			if (!idx_compact_leaf(ot, ind, &iref, &result.sr_item))
+				goto failed;
+			updated = TRUE;
+		}
+		
+		/* Fall through to the insert code... */
+		/* NOTE: if there were no lazy deleted items in the leaf, then
+		 * idx_compact_leaf is a NOP. This is the only case in which it may not
+		 * fall through and do the insert below.
+		 *
+		 * Normally, if the cp_del_count is correct then the insert
+		 * will work below, and the assertion here will not fail.
+		 *
+		 * In this case, the xt_ind_release() will correctly indicate an update.
+		 */
+		ASSERT_NS(result.sr_item.i_total_size + key_value.sv_length + XT_RECORD_REF_SIZE <= XT_INDEX_PAGE_DATA_SIZE);
+	}
+
 	if (result.sr_item.i_total_size + key_value.sv_length + XT_RECORD_REF_SIZE <= XT_INDEX_PAGE_DATA_SIZE) {
 		if (iref.ir_block->cb_handle_count) {
 			if (!xt_ind_copy_on_write(&iref))
 				goto failed_1;
 		}
+
 		idx_insert_leaf_item(ind, iref.ir_branch, &key_value, &result);
 		IDX_TRACE("%d-> %x\n", (int) XT_NODE_ID(current), (int) XT_GET_DISK_2(ot->ot_ind_wbuf.tb_size_2));
 		ASSERT_NS(result.sr_item.i_total_size <= XT_INDEX_PAGE_DATA_SIZE);
+		iref.ir_updated = TRUE;
 		xt_ind_release(ot, ind, XT_UNLOCK_W_UPDATE, &iref);
 		goto done_ok;
 	}
@@ -1660,7 +2021,7 @@ xtPublic xtBool xt_idx_insert(XTOpenTablePtr ot, XTIndexPtr ind, xtRowID row_id,
 	 * Make sure we have a structural lock:
 	 */
 	if (!lock_structure) {
-		xt_ind_release(ot, ind, XT_UNLOCK_WRITE, &iref);
+		xt_ind_release(ot, ind, updated ? XT_UNLOCK_W_UPDATE : XT_UNLOCK_WRITE, &iref);
 		XT_INDEX_UNLOCK(ind, ot);
 		lock_structure = TRUE;
 		goto lock_and_retry;
@@ -1705,6 +2066,7 @@ xtPublic xtBool xt_idx_insert(XTOpenTablePtr ot, XTIndexPtr ind, xtRowID row_id,
 			goto failed_2;
 	}
 	memcpy(iref.ir_branch, &ot->ot_ind_wbuf, offsetof(XTIdxBranchDRec, tb_data) + result.sr_item.i_item_offset);
+	iref.ir_updated = TRUE;
 	xt_ind_release(ot, ind, XT_UNLOCK_W_UPDATE, &iref);
 
 	/* Insert the new branch into the parent node, using the new middle key value: */
@@ -1732,7 +2094,7 @@ xtPublic xtBool xt_idx_insert(XTOpenTablePtr ot, XTIndexPtr ind, xtRowID row_id,
 	idx_free_branch(ot, ind, new_branch);
 
 	failed_1:
-	xt_ind_release(ot, ind, XT_UNLOCK_WRITE, &iref);
+	xt_ind_release(ot, ind, updated ? XT_UNLOCK_W_UPDATE : XT_UNLOCK_WRITE, &iref);
 
 	failed:
 	XT_INDEX_UNLOCK(ind, ot);
@@ -1747,18 +2109,175 @@ xtPublic xtBool xt_idx_insert(XTOpenTablePtr ot, XTIndexPtr ind, xtRowID row_id,
 	return FAILED;
 }
 
+
+/* Remove the given item in the node.
+ * This is done by going down the tree to find a replacement
+ * for the deleted item!
+ */
+static xtBool idx_remove_item_in_node(XTOpenTablePtr ot, XTIndexPtr ind, IdxBranchStackPtr stack, XTIndReferencePtr iref, XTIdxKeyValuePtr key_value)
+{
+	IdxStackItemPtr		delete_node;
+	XTIdxResultRec		result;
+	xtIndexNodeID		current;
+	xtBool				lazy_delete_cleanup_required = FALSE;
+	IdxStackItemPtr		current_top;
+
+	delete_node = idx_top(stack);
+	current = delete_node->i_branch;
+	result.sr_item = delete_node->i_pos;
+
+	/* Follow the branch after this item: */
+	idx_next_branch_item(ot->ot_table, ind, iref->ir_branch, &result);
+	xt_ind_release(ot, ind, iref->ir_updated ? XT_UNLOCK_R_UPDATE : XT_UNLOCK_READ, iref);
+
+	/* Go down the left-hand side until we reach a leaf: */
+	while (XT_NODE_ID(current)) {
+		current = result.sr_branch;
+		if (!xt_ind_fetch(ot, ind, current, XT_XLOCK_LEAF, iref))
+			return FAILED;
+		idx_first_branch_item(ot->ot_table, ind, iref->ir_branch, &result);
+		if (!result.sr_item.i_node_ref_size)
+			break;
+		xt_ind_release(ot, ind, XT_UNLOCK_READ, iref);
+		if (!idx_push(stack, current, &result.sr_item))
+			return FAILED;
+	}
+
+	ASSERT_NS(XT_NODE_ID(current));
+	ASSERT_NS(!result.sr_item.i_node_ref_size);
+
+	if (!xt_ind_reserve(ot, stack->s_top + 2, iref->ir_branch)) {
+		xt_ind_release(ot, ind, XT_UNLOCK_WRITE, iref);
+		return FAILED;
+	}
+	
+	/* This code removes lazy deleted items from the leaf,
+	 * before we promote an item to a leaf.
+	 * This is not essential, but prevents lazy deleted
+	 * items from being propogated up the tree.
+	 */
+	if (ind->mi_lazy_delete) {
+		if (iref->ir_block->cp_del_count) {
+			if (!idx_compact_leaf(ot, ind, iref, &result.sr_item))
+				return FAILED;
+		}
+	}
+
+	/* Crawl back up the stack trace, looking for a key
+	 * that can be used to replace the deleted key.
+	 *
+	 * Any empty nodes on the way up can be removed!
+	 */
+	if (result.sr_item.i_total_size > 0) {
+		/* There is a key in the leaf, extract it, and put it in the node: */
+		memcpy(key_value->sv_key, &iref->ir_branch->tb_data[result.sr_item.i_item_offset], result.sr_item.i_item_size);
+		/* This call also frees the iref.ir_branch page! */
+		if (!idx_remove_branch_item_right(ot, ind, current, iref, &result.sr_item))
+			return FAILED;
+		if (!idx_replace_node_key(ot, ind, delete_node, stack, result.sr_item.i_item_size, key_value->sv_key))
+			return FAILED;
+		goto done_ok;
+	}
+
+	xt_ind_release(ot, ind, iref->ir_updated ? XT_UNLOCK_W_UPDATE : XT_UNLOCK_WRITE, iref);
+
+	for (;;) {
+		/* The current node/leaf is empty, remove it: */
+		idx_free_branch(ot, ind, current);
+
+		current_top = idx_pop(stack);
+		current = current_top->i_branch;
+		if (!xt_ind_fetch(ot, ind, current, XT_XLOCK_LEAF, iref))
+			return FAILED;
+		
+		if (current_top == delete_node) {
+			/* All children have been removed. Delete the key and done: */
+			if (!idx_remove_branch_item_right(ot, ind, current, iref, &current_top->i_pos))
+				return FAILED;
+			goto done_ok;
+		}
+
+		if (current_top->i_pos.i_total_size > current_top->i_pos.i_node_ref_size) {
+			/* Save the key: */
+			memcpy(key_value->sv_key, &iref->ir_branch->tb_data[current_top->i_pos.i_item_offset], current_top->i_pos.i_item_size);
+			/* This function also frees the cache page: */
+			if (!idx_remove_branch_item_left(ot, ind, current, iref, &current_top->i_pos, &lazy_delete_cleanup_required))
+				return FAILED;
+			if (!idx_replace_node_key(ot, ind, delete_node, stack, current_top->i_pos.i_item_size, key_value->sv_key))
+				return FAILED;
+			/* */
+			if (lazy_delete_cleanup_required) {
+				if (!xt_ind_fetch(ot, ind, current, XT_LOCK_READ, iref))
+					return FAILED;
+				if (!idx_remove_lazy_deleted_item_in_node(ot, ind, current, iref, key_value))
+					return FAILED;
+			}
+			goto done_ok;
+		}
+		xt_ind_release(ot, ind, current_top->i_pos.i_node_ref_size ? XT_UNLOCK_READ : XT_UNLOCK_WRITE, iref);
+	}
+
+	done_ok:
+#ifdef XT_TRACK_INDEX_UPDATES
+	ASSERT_NS(ot->ot_ind_reserved >= ot->ot_ind_reads);
+#endif
+	return OK;
+}
+
+/*
+ * This function assumes we have a lock on the structure of the index.
+ */
+static xtBool idx_remove_lazy_deleted_item_in_node(XTOpenTablePtr ot, XTIndexPtr ind, xtIndexNodeID current, XTIndReferencePtr iref, XTIdxKeyValuePtr key_value)
+{
+	IdxBranchStackRec	stack;
+	XTIdxResultRec		result;
+
+	/* Now remove all lazy deleted items in this node.... */
+	idx_first_branch_item(ot->ot_table, ind, (XTIdxBranchDPtr) iref->ir_block->cb_data, &result);
+
+	for (;;) {
+		while (result.sr_item.i_item_offset < result.sr_item.i_total_size) {
+			if (result.sr_row_id == (xtRowID) -1)
+				goto remove_item;
+			idx_next_branch_item(ot->ot_table, ind, (XTIdxBranchDPtr) iref->ir_block->cb_data, &result);
+		}
+		break;
+
+		remove_item:
+
+		idx_newstack(&stack);
+		if (!idx_push(&stack, current, &result.sr_item)) {
+			xt_ind_release(ot, ind, iref->ir_updated ? XT_UNLOCK_R_UPDATE : XT_UNLOCK_READ, iref);
+			return FAILED;
+		}
+
+		if (!idx_remove_item_in_node(ot, ind, &stack, iref, key_value))
+			return FAILED;
+
+		/* Go back up to the node we are trying to
+		 * free of things.
+		 */
+		if (!xt_ind_fetch(ot, ind, current, XT_LOCK_READ, iref))
+			return FAILED;
+		/* Load the data again: */
+		idx_reload_item_fix(ind, iref->ir_branch, &result);
+	}
+
+	xt_ind_release(ot, ind, iref->ir_updated ? XT_UNLOCK_R_UPDATE : XT_UNLOCK_READ, iref);
+	return OK;
+}
+
 static xtBool idx_delete(XTOpenTablePtr ot, XTIndexPtr ind, XTIdxKeyValuePtr key_value)
 {
 	IdxBranchStackRec	stack;
 	xtIndexNodeID		current;
 	XTIndReferenceRec	iref;
 	XTIdxResultRec		result;
-	IdxStackItemPtr		delete_node = NULL;
-	IdxStackItemPtr		current_top = NULL;
 	xtBool				lock_structure = FALSE;
 
 #ifdef DEBUG
-	iref.ir_ulock = XT_UNLOCK_NONE;
+	iref.ir_xlock = 2;
+	iref.ir_updated = 2;
 #endif
 	/* The index appears to have no root: */
 	if (!XT_NODE_ID(ind->mi_root))
@@ -1776,17 +2295,37 @@ static xtBool idx_delete(XTOpenTablePtr ot, XTIndexPtr ind, XTIdxKeyValuePtr key
 		goto done_ok;
 
 	while (XT_NODE_ID(current)) {
-		if (!xt_ind_fetch(ot, current, XT_XLOCK_LEAF, &iref))
+		if (!xt_ind_fetch(ot, ind, current, XT_XLOCK_DEL_LEAF, &iref))
 			goto failed;
 		ind->mi_scan_branch(ot->ot_table, ind, iref.ir_branch, key_value, &result);
 		if (!result.sr_item.i_node_ref_size) {
 			/* A leaf... */
 			if (result.sr_found) {
-				if (!idx_remove_branch_item_right(ot, ind, current, &iref, &result.sr_item))
-					goto failed;
+				if (ind->mi_lazy_delete) {
+					/* If the we have a W lock, then fetch decided that we
+					 * need to compact the page.
+					 * The decision is made by xt_idx_lazy_delete_on_leaf() 
+					 */
+					if (!iref.ir_xlock)
+						idx_lazy_delete_branch_item(ot, ind, &iref, &result.sr_item);
+					else {
+						if (!iref.ir_block->cp_del_count) {
+							if (!idx_remove_branch_item_right(ot, ind, current, &iref, &result.sr_item))
+								goto failed;
+						}
+						else {
+							if (!idx_lazy_remove_leaf_item_right(ot, ind, &iref, &result.sr_item))
+								goto failed;
+						}
+					}
+				}
+				else {
+					if (!idx_remove_branch_item_right(ot, ind, current, &iref, &result.sr_item))
+						goto failed;
+				}
 			}
 			else
-				xt_ind_release(ot, ind, XT_UNLOCK_WRITE, &iref);
+				xt_ind_release(ot, ind, iref.ir_xlock ? XT_UNLOCK_WRITE : XT_UNLOCK_READ, &iref);
 			goto done_ok;
 		}
 		if (!idx_push(&stack, current, &result.sr_item)) {
@@ -1803,6 +2342,35 @@ static xtBool idx_delete(XTOpenTablePtr ot, XTIndexPtr ind, XTIdxKeyValuePtr key
 	/* Must be a non-leaf!: */
 	ASSERT_NS(result.sr_item.i_node_ref_size);
 
+	if (ind->mi_lazy_delete) {
+		if (!idx_lazy_delete_on_node(ind, iref.ir_block, &result.sr_item)) {
+			/* We need to remove some items from this node: */
+
+			if (!lock_structure) {
+				xt_ind_release(ot, ind, XT_UNLOCK_READ, &iref);
+				XT_INDEX_UNLOCK(ind, ot);
+				lock_structure = TRUE;
+				goto lock_and_retry;
+			}
+
+			idx_set_item_deleted(&iref, &result.sr_item);
+			if (!idx_remove_lazy_deleted_item_in_node(ot, ind, current, &iref, key_value))
+				goto failed;
+			goto done_ok;
+		}
+
+		if (!ot->ot_table->tab_dic.dic_no_lazy_delete) {
+			/* {LAZY-DEL-INDEX-ITEMS}
+			 * We just set item to deleted, this is a significant time
+			 * saver.
+			 * But this item can only be cleaned up when all
+			 * items on the node below are deleted.
+			 */
+			idx_lazy_delete_branch_item(ot, ind, &iref, &result.sr_item);
+			goto done_ok;
+		}
+	}
+
 	/* We will have to remove the key from a non-leaf node,
 	 * which means we are changing the structure of the index.
 	 * Make sure we have a structural lock:
@@ -1815,86 +2383,8 @@ static xtBool idx_delete(XTOpenTablePtr ot, XTIndexPtr ind, XTIdxKeyValuePtr key
 	}
 
 	/* This is the item we will have to replace: */
-	delete_node = idx_top(&stack);
-
-	/* Follow the branch after this item: */
-	idx_next_branch_item(ot->ot_table, ind, iref.ir_branch, &result);
-	ASSERT_NS(XT_NODE_ID(current));
-	xt_ind_release(ot, ind, XT_UNLOCK_READ, &iref);
-
-	/* Go down the left-hand side until we reach a leaf: */
-	while (XT_NODE_ID(current)) {
-		current = result.sr_branch;
-		if (!xt_ind_fetch(ot, current, XT_XLOCK_LEAF, &iref))
-			goto failed;
-		idx_first_branch_item(ot->ot_table, ind, iref.ir_branch, &result);
-		if (!result.sr_item.i_node_ref_size)
-			break;
-		xt_ind_release(ot, ind, XT_UNLOCK_READ, &iref);
-		if (!idx_push(&stack, current, &result.sr_item))
-			goto failed;
-	}
-
-	ASSERT_NS(XT_NODE_ID(current));
-	ASSERT_NS(!result.sr_item.i_node_ref_size);
-
-	if (!xt_ind_reserve(ot, stack.s_top + 2, iref.ir_branch)) {
-		xt_ind_release(ot, ind, XT_UNLOCK_WRITE, &iref);
+	if (!idx_remove_item_in_node(ot, ind, &stack, &iref, key_value))
 		goto failed;
-	}
-
-	/* Crawl back up the stack trace, looking for a key
-	 * that can be used to replace the deleted key.
-	 *
-	 * Any empty nodes on the way up can be removed!
-	 */
-	if (result.sr_item.i_total_size > 0) {
-		/* There is a key in the leaf, extract it, and put it in the node: */
-		memcpy(key_value->sv_key, &iref.ir_branch->tb_data[result.sr_item.i_item_offset], result.sr_item.i_item_size);
-		/* This call also frees the iref.ir_branch page! */
-		if (!idx_remove_branch_item_right(ot, ind, current, &iref, &result.sr_item))
-			goto failed;
-		if (!idx_replace_node_key(ot, ind, delete_node, &stack, result.sr_item.i_item_size, key_value->sv_key))
-			goto failed;
-		goto done_ok_2;
-	}
-
-	xt_ind_release(ot, ind, XT_UNLOCK_WRITE, &iref);
-
-	for (;;) {
-		/* The current node/leaf is empty, remove it: */
-		idx_free_branch(ot, ind, current);
-
-		current_top = idx_pop(&stack);
-		current = current_top->i_branch;
-		if (!xt_ind_fetch(ot, current, XT_XLOCK_LEAF, &iref))
-			goto failed;
-		
-		if (current_top == delete_node) {
-			/* All children have been removed. Delete the key and done: */
-			if (!idx_remove_branch_item_right(ot, ind, current, &iref, &current_top->i_pos))
-				goto failed;
-			goto done_ok_2;
-		}
-
-		if (current_top->i_pos.i_total_size > current_top->i_pos.i_node_ref_size) {
-			/* Save the key: */
-			memcpy(key_value->sv_key, &iref.ir_branch->tb_data[current_top->i_pos.i_item_offset], current_top->i_pos.i_item_size);
-			/* This function also frees the cache page: */
-			if (!idx_remove_branch_item_left(ot, ind, current, &iref, &current_top->i_pos))
-				goto failed;
-			if (!idx_replace_node_key(ot, ind, delete_node, &stack, current_top->i_pos.i_item_size, key_value->sv_key))
-				goto failed;
-			goto done_ok_2;
-		}
-		xt_ind_release(ot, ind, current_top->i_pos.i_node_ref_size ? XT_UNLOCK_READ : XT_UNLOCK_WRITE, &iref);
-	}
-
-
-	done_ok_2:
-#ifdef XT_TRACK_INDEX_UPDATES
-	ASSERT_NS(ot->ot_ind_reserved >= ot->ot_ind_reads);
-#endif
 
 	done_ok:
 	XT_INDEX_UNLOCK(ind, ot);
@@ -1945,7 +2435,8 @@ xtPublic xtBool xt_idx_update_row_id(XTOpenTablePtr ot, XTIndexPtr ind, xtRecord
 	xtWord1				key_buf[XT_INDEX_MAX_KEY_SIZE + XT_MAX_RECORD_REF_SIZE];
 
 #ifdef DEBUG
-	iref.ir_ulock = XT_UNLOCK_NONE;
+	iref.ir_xlock = 2;
+	iref.ir_updated = 2;
 #endif
 #ifdef CHECK_AND_PRINT
 	idx_check_index(ot, ind, TRUE);
@@ -1989,7 +2480,7 @@ xtPublic xtBool xt_idx_update_row_id(XTOpenTablePtr ot, XTIndexPtr ind, xtRecord
 		goto done_ok;
 
 	while (XT_NODE_ID(current)) {
-		if (!xt_ind_fetch(ot, current, XT_LOCK_READ, &iref))
+		if (!xt_ind_fetch(ot, ind, current, XT_LOCK_READ, &iref))
 			goto failed;
 		ind->mi_scan_branch(ot->ot_table, ind, iref.ir_branch, &key_value, &result);
 		if (result.sr_found || !result.sr_item.i_node_ref_size)
@@ -1999,23 +2490,10 @@ xtPublic xtBool xt_idx_update_row_id(XTOpenTablePtr ot, XTIndexPtr ind, xtRecord
 	}
 
 	if (result.sr_found) {
-		size_t	offset;
-		xtWord1	*data;
-
-		offset = 
-			/* This is the offset of the reference in the item we found: */
-			result.sr_item.i_item_offset + result.sr_item.i_item_size - XT_RECORD_REF_SIZE +
-			/* This is the offset of the row id in the reference: */
-			4;
-		data = &iref.ir_branch->tb_data[offset];
-
-		/* This update does not change the structure of page, so we do it without
-		 * copying the page before we write.
-		 *
-		 * TODO: Check that concurrent reads can handle this!
+		/* TODO: Check that concurrent reads can handle this!
 		 * assuming the write is not atomic.
 		 */
-		XT_SET_DISK_4(data, row_id);
+		idx_set_item_row_id(&iref, &result.sr_item, row_id);
 		xt_ind_release(ot, ind, XT_UNLOCK_R_UPDATE, &iref);
 	}
 	else
@@ -2076,7 +2554,8 @@ xtPublic xtBool xt_idx_search(XTOpenTablePtr ot, XTIndexPtr ind, register XTIdxS
 	XTIdxResultRec		result;
 
 #ifdef DEBUG
-	iref.ir_ulock = XT_UNLOCK_NONE;
+	iref.ir_xlock = 2;
+	iref.ir_updated = 2;
 #endif
 	if (ot->ot_ind_rhandle) {
 		xt_ind_release_handle(ot->ot_ind_rhandle, FALSE, ot->ot_thread);
@@ -2110,7 +2589,7 @@ xtPublic xtBool xt_idx_search(XTOpenTablePtr ot, XTIndexPtr ind, register XTIdxS
 		goto done_ok;
 
 	while (XT_NODE_ID(current)) {
-		if (!xt_ind_fetch(ot, current, XT_LOCK_READ, &iref))
+		if (!xt_ind_fetch(ot, ind, current, XT_LOCK_READ, &iref))
 			goto failed;
 		ind->mi_scan_branch(ot->ot_table, ind, iref.ir_branch, &search_key->sk_key_value, &result);
 		if (result.sr_found)
@@ -2124,6 +2603,17 @@ xtPublic xtBool xt_idx_search(XTOpenTablePtr ot, XTIndexPtr ind, register XTIdxS
 		current = result.sr_branch;
 	}
 
+	if (ind->mi_lazy_delete) {
+		ignore_lazy_deleted_items:
+		while (result.sr_item.i_item_offset < result.sr_item.i_total_size) {
+			if (result.sr_row_id != (xtRowID) -1) {
+				idx_still_on_key(ind, search_key, iref.ir_branch, &result.sr_item);
+				break;
+			}
+			idx_next_branch_item(ot->ot_table, ind, iref.ir_branch, &result);
+		}
+	}
+
 	if (result.sr_item.i_item_offset == result.sr_item.i_total_size) {
 		IdxStackItemPtr node;
 
@@ -2134,12 +2624,39 @@ xtPublic xtBool xt_idx_search(XTOpenTablePtr ot, XTIndexPtr ind, register XTIdxS
 		xt_ind_release(ot, ind, XT_UNLOCK_READ, &iref);
 		while ((node = idx_pop(&stack))) {
 			if (node->i_pos.i_item_offset < node->i_pos.i_total_size) {
-				xtRecordID rec_id;
-
-				if (!xt_ind_fetch(ot, node->i_branch, XT_LOCK_READ, &iref))
+				if (!xt_ind_fetch(ot, ind, node->i_branch, XT_LOCK_READ, &iref))
 					goto failed;
-				xt_get_record_ref(&iref.ir_branch->tb_data[node->i_pos.i_item_offset + node->i_pos.i_item_size - XT_RECORD_REF_SIZE], &rec_id, &ot->ot_curr_row_id);
-				ot->ot_curr_rec_id = rec_id;
+				xt_get_res_record_ref(&iref.ir_branch->tb_data[node->i_pos.i_item_offset + node->i_pos.i_item_size - XT_RECORD_REF_SIZE], &result);
+
+				if (ind->mi_lazy_delete) {
+					result.sr_item = node->i_pos;
+					if (result.sr_row_id == (xtRowID) -1) {
+						/* If this node pointer is lazy deleted, then
+						 * go down the next branch...
+						 */
+						idx_next_branch_item(ot->ot_table, ind, iref.ir_branch, &result);
+
+						/* Go down to the bottom: */
+						current = node->i_branch;
+						while (XT_NODE_ID(current)) {
+							xt_ind_release(ot, ind, XT_UNLOCK_READ, &iref);
+							if (!idx_push(&stack, current, &result.sr_item))
+								goto failed;
+							current = result.sr_branch;
+							if (!xt_ind_fetch(ot, ind, current, XT_LOCK_READ, &iref))
+								goto failed;
+							idx_first_branch_item(ot->ot_table, ind, iref.ir_branch, &result);
+							if (!result.sr_item.i_node_ref_size)
+								break;
+						}
+
+						goto ignore_lazy_deleted_items;
+					}
+					idx_still_on_key(ind, search_key, iref.ir_branch, &result.sr_item);
+				}
+
+				ot->ot_curr_rec_id = result.sr_rec_id;
+				ot->ot_curr_row_id = result.sr_row_id;
 				ot->ot_ind_state = node->i_pos;
 
 				/* Convert the pointer to a handle which can be used in later operations: */
@@ -2180,14 +2697,16 @@ xtPublic xtBool xt_idx_search(XTOpenTablePtr ot, XTIndexPtr ind, register XTIdxS
 	//idx_check_index(ot, ind, TRUE);
 	//idx_check_on_key(ot);
 #endif
-	ASSERT_NS(iref.ir_ulock == XT_UNLOCK_NONE);
+	ASSERT_NS(iref.ir_xlock == 2);
+	ASSERT_NS(iref.ir_updated == 2);
 	return OK;
 
 	failed:
 	XT_INDEX_UNLOCK(ind, ot);
 	if (idx_out_of_memory_failure(ot))
 		goto retry_after_oom;
-	ASSERT_NS(iref.ir_ulock == XT_UNLOCK_NONE);
+	ASSERT_NS(iref.ir_xlock == 2);
+	ASSERT_NS(iref.ir_updated == 2);
 	return FAILED;
 }
 
@@ -2199,7 +2718,8 @@ xtPublic xtBool xt_idx_search_prev(XTOpenTablePtr ot, XTIndexPtr ind, register X
 	XTIdxResultRec		result;
 
 #ifdef DEBUG
-	iref.ir_ulock = XT_UNLOCK_NONE;
+	iref.ir_xlock = 2;
+	iref.ir_updated = 2;
 #endif
 	if (ot->ot_ind_rhandle) {
 		xt_ind_release_handle(ot->ot_ind_rhandle, FALSE, ot->ot_thread);
@@ -2232,7 +2752,7 @@ xtPublic xtBool xt_idx_search_prev(XTOpenTablePtr ot, XTIndexPtr ind, register X
 		goto done_ok;
 
 	while (XT_NODE_ID(current)) {
-		if (!xt_ind_fetch(ot, current, XT_LOCK_READ, &iref))
+		if (!xt_ind_fetch(ot, ind, current, XT_LOCK_READ, &iref))
 			goto failed;
 		ind->mi_scan_branch(ot->ot_table, ind, iref.ir_branch, &search_key->sk_key_value, &result);
 		if (result.sr_found)
@@ -2249,17 +2769,43 @@ xtPublic xtBool xt_idx_search_prev(XTOpenTablePtr ot, XTIndexPtr ind, register X
 	if (result.sr_item.i_item_offset == 0) {
 		IdxStackItemPtr node;
 
-		/* We are at the end of a leaf node.
-		 * Go up the stack to find the start poition of the next key.
+		search_up_stack:
+		/* We are at the start of a leaf node.
+		 * Go up the stack to find the start position of the next key.
 		 * If we find none, then we are the end of the index.
 		 */
 		xt_ind_release(ot, ind, XT_UNLOCK_READ, &iref);
 		while ((node = idx_pop(&stack))) {
 			if (node->i_pos.i_item_offset > node->i_pos.i_node_ref_size) {
-				if (!xt_ind_fetch(ot, node->i_branch, XT_LOCK_READ, &iref))
+				if (!xt_ind_fetch(ot, ind, node->i_branch, XT_LOCK_READ, &iref))
 					goto failed;
 				result.sr_item = node->i_pos;
 				ind->mi_prev_item(ot->ot_table, ind, iref.ir_branch, &result);
+
+				if (ind->mi_lazy_delete) {
+					if (result.sr_row_id == (xtRowID) -1) {
+						/* Go down to the bottom, in order to scan the leaf backwards: */
+						current = node->i_branch;
+						while (XT_NODE_ID(current)) {
+							xt_ind_release(ot, ind, XT_UNLOCK_READ, &iref);
+							if (!idx_push(&stack, current, &result.sr_item))
+								goto failed;
+							current = result.sr_branch;
+							if (!xt_ind_fetch(ot, ind, current, XT_LOCK_READ, &iref))
+								goto failed;
+							ind->mi_last_item(ot->ot_table, ind, iref.ir_branch, &result);
+							if (!result.sr_item.i_node_ref_size)
+								break;
+						}
+
+						/* If the leaf empty we have to go up the stack again... */
+						if (result.sr_item.i_total_size == 0)
+							goto search_up_stack;
+
+						goto scan_back_in_leaf;
+					}
+				}
+
 				goto record_found;
 			}
 		}
@@ -2268,6 +2814,16 @@ xtPublic xtBool xt_idx_search_prev(XTOpenTablePtr ot, XTIndexPtr ind, register X
 
 	/* We must just step once to the left in this leaf node... */
 	ind->mi_prev_item(ot->ot_table, ind, iref.ir_branch, &result);
+
+	if (ind->mi_lazy_delete) {
+		scan_back_in_leaf:
+		while (result.sr_row_id == (xtRowID) -1) {
+			if (result.sr_item.i_item_offset == 0)
+				goto search_up_stack;
+			ind->mi_prev_item(ot->ot_table, ind, iref.ir_branch, &result);
+		}
+		idx_still_on_key(ind, search_key, iref.ir_branch, &result.sr_item);
+	}
 
 	record_found:
 	ot->ot_curr_rec_id = result.sr_rec_id;
@@ -2330,34 +2886,47 @@ xtPublic xtBool xt_idx_next(register XTOpenTablePtr ot, register XTIndexPtr ind,
 	XTIndReferenceRec	iref;
 
 #ifdef DEBUG
-	iref.ir_ulock = XT_UNLOCK_NONE;
+	iref.ir_xlock = 2;
+	iref.ir_updated = 2;
 #endif
 	ASSERT_NS(ot->ot_ind_rhandle);
 	xt_ind_lock_handle(ot->ot_ind_rhandle);
-	if (!ot->ot_ind_state.i_node_ref_size && 
-		ot->ot_ind_state.i_item_offset < ot->ot_ind_state.i_total_size && 
+	result.sr_item = ot->ot_ind_state;
+	if (!result.sr_item.i_node_ref_size && 
+		result.sr_item.i_item_offset < result.sr_item.i_total_size && 
 		ot->ot_ind_rhandle->ih_cache_reference) {
-		key_value.sv_key = &ot->ot_ind_rhandle->ih_branch->tb_data[ot->ot_ind_state.i_item_offset];
-		key_value.sv_length = ot->ot_ind_state.i_item_size - XT_RECORD_REF_SIZE;
+		XTIdxItemRec prev_item;
 
-		result.sr_item = ot->ot_ind_state;
+		key_value.sv_key = &ot->ot_ind_rhandle->ih_branch->tb_data[result.sr_item.i_item_offset];
+		key_value.sv_length = result.sr_item.i_item_size - XT_RECORD_REF_SIZE;
+
+		prev_item = result.sr_item;
 		idx_next_branch_item(ot->ot_table, ind, ot->ot_ind_rhandle->ih_branch, &result);
+
+		if (ind->mi_lazy_delete) {
+			while (result.sr_item.i_item_offset < result.sr_item.i_total_size) {
+				if (result.sr_row_id != (xtRowID) -1)
+					break;
+				prev_item = result.sr_item;
+				idx_next_branch_item(ot->ot_table, ind, ot->ot_ind_rhandle->ih_branch, &result);
+			}
+		}
+
 		if (result.sr_item.i_item_offset < result.sr_item.i_total_size) {
 			/* Still on key? */
-			if (search_key && search_key->sk_on_key) {
-				search_key->sk_on_key = myxt_compare_key(ind, search_key->sk_key_value.sv_flags, search_key->sk_key_value.sv_length,
-					search_key->sk_key_value.sv_key, &ot->ot_ind_rhandle->ih_branch->tb_data[result.sr_item.i_item_offset]) == 0;
-			}
+			idx_still_on_key(ind, search_key, ot->ot_ind_rhandle->ih_branch, &result.sr_item);
 			xt_ind_unlock_handle(ot->ot_ind_rhandle);
 			goto checked_on_key;
 		}
+
+		result.sr_item = prev_item;
 	}
 
 	key_value.sv_flags = XT_SEARCH_WHOLE_KEY;
-	xt_get_record_ref(&ot->ot_ind_rhandle->ih_branch->tb_data[ot->ot_ind_state.i_item_offset + ot->ot_ind_state.i_item_size - XT_RECORD_REF_SIZE], &key_value.sv_rec_id, &key_value.sv_row_id);
+	xt_get_record_ref(&ot->ot_ind_rhandle->ih_branch->tb_data[result.sr_item.i_item_offset + result.sr_item.i_item_size - XT_RECORD_REF_SIZE], &key_value.sv_rec_id, &key_value.sv_row_id);
 	key_value.sv_key = key_buf;
-	key_value.sv_length = ot->ot_ind_state.i_item_size - XT_RECORD_REF_SIZE;
-	memcpy(key_buf, &ot->ot_ind_rhandle->ih_branch->tb_data[ot->ot_ind_state.i_item_offset], key_value.sv_length);
+	key_value.sv_length = result.sr_item.i_item_size - XT_RECORD_REF_SIZE;
+	memcpy(key_buf, &ot->ot_ind_rhandle->ih_branch->tb_data[result.sr_item.i_item_offset], key_value.sv_length);
 	xt_ind_release_handle(ot->ot_ind_rhandle, TRUE, ot->ot_thread);
 	ot->ot_ind_rhandle = NULL;
 
@@ -2375,7 +2944,7 @@ xtPublic xtBool xt_idx_next(register XTOpenTablePtr ot, register XTIndexPtr ind,
 	}
 
 	while (XT_NODE_ID(current)) {
-		if (!xt_ind_fetch(ot, current, XT_LOCK_READ, &iref))
+		if (!xt_ind_fetch(ot, ind, current, XT_LOCK_READ, &iref))
 			goto failed;
 		ind->mi_scan_branch(ot->ot_table, ind, iref.ir_branch, &key_value, &result);
 		if (result.sr_item.i_node_ref_size) {
@@ -2389,7 +2958,7 @@ xtPublic xtBool xt_idx_next(register XTOpenTablePtr ot, register XTIndexPtr ind,
 					if (!idx_push(&stack, current, &result.sr_item))
 						goto failed;
 					current = result.sr_branch;
-					if (!xt_ind_fetch(ot, current, XT_LOCK_READ, &iref))
+					if (!xt_ind_fetch(ot, ind, current, XT_LOCK_READ, &iref))
 						goto failed;
 					idx_first_branch_item(ot->ot_table, ind, iref.ir_branch, &result);
 					if (!result.sr_item.i_node_ref_size)
@@ -2416,6 +2985,15 @@ xtPublic xtBool xt_idx_next(register XTOpenTablePtr ot, register XTIndexPtr ind,
 		current = result.sr_branch;
 	}
 
+	if (ind->mi_lazy_delete) {
+		ignore_lazy_deleted_items:
+		while (result.sr_item.i_item_offset < result.sr_item.i_total_size) {
+			if (result.sr_row_id != (xtRowID) -1)
+				break;
+			idx_next_branch_item(NULL, ind, iref.ir_branch, &result);
+		}
+	}
+
 	/* Check the current position in a leaf: */
 	if (result.sr_item.i_item_offset == result.sr_item.i_total_size) {
 		/* At the end: */
@@ -2428,10 +3006,37 @@ xtPublic xtBool xt_idx_next(register XTOpenTablePtr ot, register XTIndexPtr ind,
 		xt_ind_release(ot, ind, XT_UNLOCK_READ, &iref);
 		while ((node = idx_pop(&stack))) {
 			if (node->i_pos.i_item_offset < node->i_pos.i_total_size) {
-				if (!xt_ind_fetch(ot, node->i_branch, XT_LOCK_READ, &iref))
+				if (!xt_ind_fetch(ot, ind, node->i_branch, XT_LOCK_READ, &iref))
 					goto failed;
 				result.sr_item = node->i_pos;
 				xt_get_res_record_ref(&iref.ir_branch->tb_data[result.sr_item.i_item_offset + result.sr_item.i_item_size - XT_RECORD_REF_SIZE], &result);
+
+				if (ind->mi_lazy_delete) {
+					if (result.sr_row_id == (xtRowID) -1) {
+						/* If this node pointer is lazy deleted, then
+						 * go down the next branch...
+						 */
+						idx_next_branch_item(ot->ot_table, ind, iref.ir_branch, &result);
+
+						/* Go down to the bottom: */
+						current = node->i_branch;
+						while (XT_NODE_ID(current)) {
+							xt_ind_release(ot, ind, XT_UNLOCK_READ, &iref);
+							if (!idx_push(&stack, current, &result.sr_item))
+								goto failed;
+							current = result.sr_branch;
+							if (!xt_ind_fetch(ot, ind, current, XT_LOCK_READ, &iref))
+								goto failed;
+							idx_first_branch_item(ot->ot_table, ind, iref.ir_branch, &result);
+							if (!result.sr_item.i_node_ref_size)
+								break;
+						}
+
+						/* And scan the leaf... */
+						goto ignore_lazy_deleted_items;
+					}
+				}
+
 				goto unlock_check_on_key;
 			}
 		}
@@ -2503,32 +3108,39 @@ xtPublic xtBool xt_idx_prev(register XTOpenTablePtr ot, register XTIndexPtr ind,
 	IdxStackItemPtr		node;
 
 #ifdef DEBUG
-	iref.ir_ulock = XT_UNLOCK_NONE;
+	iref.ir_xlock = 2;
+	iref.ir_updated = 2;
 #endif
 	ASSERT_NS(ot->ot_ind_rhandle);
 	xt_ind_lock_handle(ot->ot_ind_rhandle);
-	if (!ot->ot_ind_state.i_node_ref_size && ot->ot_ind_state.i_item_offset > 0) {
-		key_value.sv_key = &ot->ot_ind_rhandle->ih_branch->tb_data[ot->ot_ind_state.i_item_offset];
-		key_value.sv_length = ot->ot_ind_state.i_item_size - XT_RECORD_REF_SIZE;
+	result.sr_item = ot->ot_ind_state;
+	if (!result.sr_item.i_node_ref_size && result.sr_item.i_item_offset > 0) {
+		key_value.sv_key = &ot->ot_ind_rhandle->ih_branch->tb_data[result.sr_item.i_item_offset];
+		key_value.sv_length = result.sr_item.i_item_size - XT_RECORD_REF_SIZE;
 
-		result.sr_item = ot->ot_ind_state;
 		ind->mi_prev_item(ot->ot_table, ind, ot->ot_ind_rhandle->ih_branch, &result);
 
-		if (search_key && search_key->sk_on_key) {
-			search_key->sk_on_key = myxt_compare_key(ind, search_key->sk_key_value.sv_flags, search_key->sk_key_value.sv_length,
-				search_key->sk_key_value.sv_key, &ot->ot_ind_rhandle->ih_branch->tb_data[result.sr_item.i_item_offset]) == 0;
+		if (ind->mi_lazy_delete) {
+			while (result.sr_row_id == (xtRowID) -1) {
+				if (result.sr_item.i_item_offset == 0)
+					goto research;
+				ind->mi_prev_item(ot->ot_table, ind, ot->ot_ind_rhandle->ih_branch, &result);
+			}
 		}
+
+		idx_still_on_key(ind, search_key, ot->ot_ind_rhandle->ih_branch, &result.sr_item);
 
 		xt_ind_unlock_handle(ot->ot_ind_rhandle);
 		goto checked_on_key;
 	}
 
+	research:
 	key_value.sv_flags = XT_SEARCH_WHOLE_KEY;
 	key_value.sv_rec_id = ot->ot_curr_rec_id;
 	key_value.sv_row_id = 0;
 	key_value.sv_key = key_buf;
-	key_value.sv_length = ot->ot_ind_state.i_item_size - XT_RECORD_REF_SIZE;
-	memcpy(key_buf, &ot->ot_ind_rhandle->ih_branch->tb_data[ot->ot_ind_state.i_item_offset], key_value.sv_length);
+	key_value.sv_length = result.sr_item.i_item_size - XT_RECORD_REF_SIZE;
+	memcpy(key_buf, &ot->ot_ind_rhandle->ih_branch->tb_data[result.sr_item.i_item_offset], key_value.sv_length);
 	xt_ind_release_handle(ot->ot_ind_rhandle, TRUE, ot->ot_thread);
 	ot->ot_ind_rhandle = NULL;
 
@@ -2546,29 +3158,39 @@ xtPublic xtBool xt_idx_prev(register XTOpenTablePtr ot, register XTIndexPtr ind,
 	}
 
 	while (XT_NODE_ID(current)) {
-		if (!xt_ind_fetch(ot, current, XT_LOCK_READ, &iref))
+		if (!xt_ind_fetch(ot, ind, current, XT_LOCK_READ, &iref))
 			goto failed;
 		ind->mi_scan_branch(ot->ot_table, ind, iref.ir_branch, &key_value, &result);
 		if (result.sr_item.i_node_ref_size) {
 			if (result.sr_found) {
 				/* If we have found the key in a node: */
 
+				search_down_stack:
 				/* Go down to the bottom: */
 				while (XT_NODE_ID(current)) {
 					xt_ind_release(ot, ind, XT_UNLOCK_READ, &iref);
 					if (!idx_push(&stack, current, &result.sr_item))
 						goto failed;
 					current = result.sr_branch;
-					if (!xt_ind_fetch(ot, current, XT_LOCK_READ, &iref))
+					if (!xt_ind_fetch(ot, ind, current, XT_LOCK_READ, &iref))
 						goto failed;
 					ind->mi_last_item(ot->ot_table, ind, iref.ir_branch, &result);
 					if (!result.sr_item.i_node_ref_size)
 						break;
 				}
 
-				/* Is the leaf not empty, then we are done... */
+				/* If the leaf empty we have to go up the stack again... */
 				if (result.sr_item.i_total_size == 0)
 					break;
+
+				if (ind->mi_lazy_delete) {
+					while (result.sr_row_id == (xtRowID) -1) {
+						if (result.sr_item.i_item_offset == 0)
+							goto search_up_stack;
+						ind->mi_prev_item(ot->ot_table, ind, iref.ir_branch, &result);
+					}
+				}
+
 				goto unlock_check_on_key;
 			}
 		}
@@ -2580,6 +3202,15 @@ xtPublic xtBool xt_idx_prev(register XTOpenTablePtr ot, register XTIndexPtr ind,
 			if (result.sr_item.i_item_offset == 0)
 				break;
 			ind->mi_prev_item(ot->ot_table, ind, iref.ir_branch, &result);
+
+			if (ind->mi_lazy_delete) {
+				while (result.sr_row_id == (xtRowID) -1) {
+					if (result.sr_item.i_item_offset == 0)
+						goto search_up_stack;
+					ind->mi_prev_item(ot->ot_table, ind, iref.ir_branch, &result);
+				}
+			}
+
 			goto unlock_check_on_key;
 		}
 		xt_ind_release(ot, ind, XT_UNLOCK_READ, &iref);
@@ -2588,6 +3219,7 @@ xtPublic xtBool xt_idx_prev(register XTOpenTablePtr ot, register XTIndexPtr ind,
 		current = result.sr_branch;
 	}
 
+	search_up_stack:
 	/* We are at the start of a leaf node.
 	 * Go up the stack to find the start poition of the next key.
 	 * If we find none, then we are the end of the index.
@@ -2595,10 +3227,18 @@ xtPublic xtBool xt_idx_prev(register XTOpenTablePtr ot, register XTIndexPtr ind,
 	xt_ind_release(ot, ind, XT_UNLOCK_READ, &iref);
 	while ((node = idx_pop(&stack))) {
 		if (node->i_pos.i_item_offset > node->i_pos.i_node_ref_size) {
-			if (!xt_ind_fetch(ot, node->i_branch, XT_LOCK_READ, &iref))
+			if (!xt_ind_fetch(ot, ind, node->i_branch, XT_LOCK_READ, &iref))
 				goto failed;
 			result.sr_item = node->i_pos;
 			ind->mi_prev_item(ot->ot_table, ind, iref.ir_branch, &result);
+
+			if (ind->mi_lazy_delete) {
+				if (result.sr_row_id == (xtRowID) -1) {
+					current = node->i_branch;
+					goto search_down_stack;
+				}
+			}
+
 			goto unlock_check_on_key;
 		}
 	}
@@ -2648,7 +3288,7 @@ xtPublic xtBool xt_idx_prev(register XTOpenTablePtr ot, register XTIndexPtr ind,
 }
 
 /* Return TRUE if the record matches the current index search! */
-xtPublic xtBool xt_idx_match_search(register XTOpenTablePtr ot __attribute__((unused)), register XTIndexPtr ind, register XTIdxSearchKeyPtr search_key, xtWord1 *buf, int mode)
+xtPublic xtBool xt_idx_match_search(register XTOpenTablePtr XT_UNUSED(ot), register XTIndexPtr ind, register XTIdxSearchKeyPtr search_key, xtWord1 *buf, int mode)
 {
 	int		r;
 	xtWord1	key_buf[XT_INDEX_MAX_KEY_SIZE];
@@ -2666,7 +3306,7 @@ xtPublic xtBool xt_idx_match_search(register XTOpenTablePtr ot __attribute__((un
 	return FALSE;
 }
 
-static void idx_set_index_selectivity(XTThreadPtr self __attribute__((unused)), XTOpenTablePtr ot, XTIndexPtr ind)
+static void idx_set_index_selectivity(XTThreadPtr self, XTOpenTablePtr ot, XTIndexPtr ind)
 {
 	static const xtRecordID MAX_RECORDS = 100;
 
@@ -2834,10 +3474,11 @@ static u_int idx_check_node(XTOpenTablePtr ot, XTIndexPtr ind, int depth, xtInde
 	XTIndReferenceRec	iref;
 
 #ifdef DEBUG
-	iref.ir_ulock = XT_UNLOCK_NONE;
+	iref.ir_xlock = 2;
+	iref.ir_updated = 2;
 #endif
 	ASSERT_NS(XT_NODE_ID(node) <= XT_NODE_ID(ot->ot_table->tab_ind_eof));
-	if (!xt_ind_fetch(ot, node, XT_LOCK_READ, &iref))
+	if (!xt_ind_fetch(ot, ind, node, XT_LOCK_READ, &iref))
 		return 0;
 
 	idx_first_branch_item(ot->ot_table, ind, iref.ir_branch, &result);
@@ -2974,7 +3615,7 @@ xtPublic void xt_check_indices(XTOpenTablePtr ot)
 			track_block_exists(current);
 #endif
 			printf("%d ", (int) XT_NODE_ID(current));
-			if (!xt_ind_read_bytes(ot, current, sizeof(XTIndFreeBlockRec), (xtWord1 *) &free_block)) {
+			if (!xt_ind_read_bytes(ot, *ind, current, sizeof(XTIndFreeBlockRec), (xtWord1 *) &free_block)) {
 				xt_log_and_clear_exception_ns();
 				break;
 			}
@@ -2996,6 +3637,88 @@ xtPublic void xt_check_indices(XTOpenTablePtr ot)
 #endif
 	printf("===================================================\n");
 	xt_unlock_mutex_ns(&tab->tab_ind_flush_lock);
+}
+
+/*
+ * -----------------------------------------------------------------------
+ * Load index
+ */
+
+static void idx_load_node(XTThreadPtr self, XTOpenTablePtr ot, XTIndexPtr ind, xtIndexNodeID node)
+{
+	XTIdxResultRec		result;
+	XTIndReferenceRec	iref;
+
+	ASSERT_NS(XT_NODE_ID(node) <= XT_NODE_ID(ot->ot_table->tab_ind_eof));
+	if (!xt_ind_fetch(ot, ind, node, XT_LOCK_READ, &iref))
+		xt_throw(self);
+
+	idx_first_branch_item(ot->ot_table, ind, iref.ir_branch, &result);
+	if (result.sr_item.i_node_ref_size)
+		idx_load_node(self, ot, ind, result.sr_branch);
+	while (result.sr_item.i_item_offset < result.sr_item.i_total_size) {
+		idx_next_branch_item(ot->ot_table, ind, iref.ir_branch, &result);
+		if (result.sr_item.i_node_ref_size)
+			idx_load_node(self, ot, ind, result.sr_branch);
+	}
+
+	xt_ind_release(ot, ind, XT_UNLOCK_READ, &iref);
+}
+
+xtPublic void xt_load_indices(XTThreadPtr self, XTOpenTablePtr ot)
+{
+	register XTTableHPtr	tab = ot->ot_table;
+	XTIndexPtr				*ind_ptr;
+	XTIndexPtr				ind;
+	xtIndexNodeID			current;
+
+	xt_lock_mutex(self, &tab->tab_ind_flush_lock);
+	pushr_(xt_unlock_mutex, &tab->tab_ind_flush_lock);
+
+	ind_ptr = tab->tab_dic.dic_keys;
+	for (u_int k=0; k<tab->tab_dic.dic_key_count; k++, ind_ptr++) {
+		ind = *ind_ptr;
+		XT_INDEX_WRITE_LOCK(ind, ot);
+		if ((XT_NODE_ID(current) = XT_NODE_ID(ind->mi_root)))
+			idx_load_node(self, ot, ind, current);
+		XT_INDEX_UNLOCK(ind, ot);
+	}
+
+	freer_(); // xt_unlock_mutex(&tab->tab_ind_flush_lock)
+}
+
+/*
+ * -----------------------------------------------------------------------
+ * Count the number of deleted entries in a node:
+ */
+
+/*
+ * {LAZY-DEL-INDEX-ITEMS}
+ *
+ * Use this function to count the number of deleted items 
+ * in a node when it is loaded.
+ *
+ * The count helps us decide of the node should be "packed".
+ */
+xtPublic void xt_ind_count_deleted_items(XTTableHPtr tab, XTIndexPtr ind, XTIndBlockPtr block)
+{
+	XTIdxResultRec		result;
+	int					del_count = 0;
+	xtWord2				branch_size;
+
+	branch_size = XT_GET_DISK_2(((XTIdxBranchDPtr) block->cb_data)->tb_size_2);
+
+	/* This is possible when reading free pages. */
+	if (XT_GET_INDEX_BLOCK_LEN(branch_size) < 2 || XT_GET_INDEX_BLOCK_LEN(branch_size) > XT_INDEX_PAGE_SIZE)
+		return;
+
+	idx_first_branch_item(tab, ind, (XTIdxBranchDPtr) block->cb_data, &result);
+	while (result.sr_item.i_item_offset < result.sr_item.i_total_size) {
+		if (result.sr_row_id == (xtRowID) -1)
+			del_count++;
+		idx_next_branch_item(tab, ind, (XTIdxBranchDPtr) block->cb_data, &result);
+	}
+	block->cp_del_count = del_count;
 }
 
 /*
@@ -3408,7 +4131,7 @@ void XTIndexLogPool::ilp_init(struct XTThread *self, struct XTDatabase *db, size
 	xt_throw(self);
 }
 
-void XTIndexLogPool::ilp_close(struct XTThread *self __attribute__((unused)), xtBool lock)
+void XTIndexLogPool::ilp_close(struct XTThread *XT_UNUSED(self), xtBool lock)
 {
 	XTIndexLogPtr	il;
 
@@ -3570,7 +4293,7 @@ xtBool XTIndexLog::il_require_space(size_t bytes, XTThreadPtr thread)
 	return OK;
 }
 
-xtBool XTIndexLog::il_write_byte(struct XTOpenTable *ot __attribute__((unused)), xtWord1 byte)
+xtBool XTIndexLog::il_write_byte(struct XTOpenTable *ot, xtWord1 byte)
 {
 	if (!il_require_space(1, ot->ot_thread))
 		return FAILED;
@@ -3579,7 +4302,7 @@ xtBool XTIndexLog::il_write_byte(struct XTOpenTable *ot __attribute__((unused)),
 	return OK;
 }
 
-xtBool XTIndexLog::il_write_word4(struct XTOpenTable *ot __attribute__((unused)), xtWord4 value)
+xtBool XTIndexLog::il_write_word4(struct XTOpenTable *ot, xtWord4 value)
 {
 	xtWord1 *buffer;
 
@@ -3591,7 +4314,7 @@ xtBool XTIndexLog::il_write_word4(struct XTOpenTable *ot __attribute__((unused))
 	return OK;
 }
 
-xtBool XTIndexLog::il_write_block(struct XTOpenTable *ot __attribute__((unused)), XTIndBlockPtr block)
+xtBool XTIndexLog::il_write_block(struct XTOpenTable *ot, XTIndBlockPtr block)
 {
 	XTIndPageDataDPtr	page_data;
 	xtIndexNodeID		node_id;
@@ -3618,7 +4341,7 @@ xtBool XTIndexLog::il_write_block(struct XTOpenTable *ot __attribute__((unused))
 	return OK;
 }
 
-xtBool XTIndexLog::il_write_header(struct XTOpenTable *ot __attribute__((unused)), size_t head_size, xtWord1 *head_buf)
+xtBool XTIndexLog::il_write_header(struct XTOpenTable *ot, size_t head_size, xtWord1 *head_buf)
 {
 	XTIndHeadDataDPtr	head_data;
 

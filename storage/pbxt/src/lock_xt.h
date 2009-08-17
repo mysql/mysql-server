@@ -36,6 +36,290 @@ struct XTOpenTable;
 struct XTXactData;
 struct XTTable;
 
+#ifdef XT_ATOMIC_SOLARIS_LIB
+#include <atomic.h>
+#endif
+
+void xt_log_atomic_error_and_abort(c_char *func, c_char *file, u_int line);
+
+/*
+ * -----------------------------------------------------------------------
+ * ATOMIC OPERATIONS
+ */
+
+/*
+ * This macro is to remind me where it was safe
+ * to use a read lock!
+ */
+#define xt_lck_slock		xt_spinlock_lock
+
+/* I call these operations flushed because the result
+ * is written atomically.
+ * But the operations themselves are not atomic!
+ */
+inline void xt_atomic_inc1(volatile xtWord1 *mptr)
+{
+#ifdef XT_ATOMIC_WIN32_X86
+	__asm MOV  ECX, mptr
+	__asm MOV  DL, BYTE PTR [ECX]
+	__asm INC  DL
+	__asm XCHG DL, BYTE PTR [ECX]
+#elif defined(XT_ATOMIC_GNUC_X86)
+	xtWord1 val;
+
+	asm volatile ("movb %1,%0" : "=r" (val) : "m" (*mptr) : "memory");
+	val++;
+	asm volatile ("xchgb %1,%0" : "=r" (val) : "m" (*mptr), "0" (val) : "memory");
+#elif defined(XT_ATOMIC_SOLARIS_LIB)
+	atomic_inc_8(mptr);
+#else
+	*mptr++;
+	xt_log_atomic_error_and_abort(__FUNC__, __FILE__, __LINE__);
+#endif
+}
+
+inline xtWord1 xt_atomic_dec1(volatile xtWord1 *mptr)
+{
+	xtWord1 val;
+
+#ifdef XT_ATOMIC_WIN32_X86
+	__asm MOV  ECX, mptr
+	__asm MOV  DL, BYTE PTR [ECX]
+	__asm DEC  DL
+	__asm MOV  val, DL
+	__asm XCHG DL, BYTE PTR [ECX]
+#elif defined(XT_ATOMIC_GNUC_X86)
+	xtWord1 val2;
+
+	asm volatile ("movb %1, %0" : "=r" (val) : "m" (*mptr) : "memory");
+	val--;
+	asm volatile ("xchgb %1,%0" : "=r" (val2) : "m" (*mptr), "0" (val) : "memory");
+	/* Should work, but compiler makes a mistake?
+	 * asm volatile ("xchgb %1, %0" : : "r" (val), "m" (*mptr) : "memory");
+	 */
+#elif defined(XT_ATOMIC_SOLARIS_LIB)
+	val = atomic_dec_8_nv(mptr);
+#else
+	val = --(*mptr);
+	xt_log_atomic_error_and_abort(__FUNC__, __FILE__, __LINE__);
+#endif
+	return val;
+}
+
+inline void xt_atomic_inc2(volatile xtWord2 *mptr)
+{
+#ifdef XT_ATOMIC_WIN32_X86
+	__asm LOCK INC	WORD PTR mptr
+#elif defined(XT_ATOMIC_GNUC_X86)
+	asm volatile ("lock; incw %0" : : "m" (*mptr) : "memory");
+#elif defined(XT_ATOMIC_GCC_OPS)
+	__sync_fetch_and_add(mptr, 1);
+#elif defined(XT_ATOMIC_SOLARIS_LIB)
+	atomic_inc_16_nv(mptr);
+#else
+	(*mptr)++;
+	xt_log_atomic_error_and_abort(__FUNC__, __FILE__, __LINE__);
+#endif
+}
+
+inline void xt_atomic_dec2(volatile xtWord2 *mptr)
+{
+#ifdef XT_ATOMIC_WIN32_X86
+	__asm LOCK DEC	WORD PTR mptr
+#elif defined(XT_ATOMIC_GNUC_X86)
+	asm volatile ("lock; decw %0" : : "m" (*mptr) : "memory");
+#elif defined(XT_ATOMIC_GCC_OPS)
+	__sync_fetch_and_sub(mptr, 1);
+#elif defined(XT_ATOMIC_SOLARIS_LIB)
+	atomic_dec_16_nv(mptr);
+#else
+	--(*mptr);
+	xt_log_atomic_error_and_abort(__FUNC__, __FILE__, __LINE__);
+#endif
+}
+
+/* Atomic test and set 2 byte word! */
+inline xtWord2 xt_atomic_tas2(volatile xtWord2 *mptr, xtWord2 val)
+{
+#ifdef XT_ATOMIC_WIN32_X86
+	__asm MOV  ECX, mptr
+	__asm MOV  DX, val
+	__asm XCHG DX, WORD PTR [ECX]
+	__asm MOV  val, DX
+#elif defined(XT_ATOMIC_GNUC_X86)
+	asm volatile ("xchgw %1,%0" : "=r" (val) : "m" (*mptr), "0" (val) : "memory");
+#elif defined(XT_ATOMIC_SOLARIS_LIB)
+	val = atomic_swap_16(mptr, val);
+#else
+	/* Yikes! */
+	xtWord2 nval = val;
+
+	val = *mptr;
+	*mptr = nval;
+	xt_log_atomic_error_and_abort(__FUNC__, __FILE__, __LINE__);
+#endif
+	return val;
+}
+
+inline void xt_atomic_set4(volatile xtWord4 *mptr, xtWord4 val)
+{
+#ifdef XT_ATOMIC_WIN32_X86
+	__asm MOV  ECX, mptr
+	__asm MOV  EDX, val
+	__asm XCHG EDX, DWORD PTR [ECX]
+	//__asm MOV  DWORD PTR [ECX], EDX
+#elif defined(XT_ATOMIC_GNUC_X86)
+	asm volatile ("xchgl %1,%0" : "=r" (val) : "m" (*mptr), "0" (val) : "memory");
+	//asm volatile ("movl %0,%1" : "=r" (val) : "m" (*mptr) : "memory");
+#elif defined(XT_ATOMIC_SOLARIS_LIB)
+	atomic_swap_32(mptr, val);
+#else
+	*mptr = val;
+	xt_log_atomic_error_and_abort(__FUNC__, __FILE__, __LINE__);
+#endif
+}
+
+inline xtWord4 xt_atomic_tas4(volatile xtWord4 *mptr, xtWord4 val)
+{				
+#ifdef XT_ATOMIC_WIN32_X86
+	__asm MOV  ECX, mptr
+	__asm MOV  EDX, val
+	__asm XCHG EDX, DWORD PTR [ECX]
+	__asm MOV  val, EDX
+#elif defined(XT_ATOMIC_GNUC_X86)
+	val = val;
+	asm volatile ("xchgl %1,%0" : "=r" (val) : "m" (*mptr), "0" (val) : "memory");
+#elif defined(XT_ATOMIC_SOLARIS_LIB)
+	val = atomic_swap_32(mptr, val);
+#else
+	*mptr = val;
+	xt_log_atomic_error_and_abort(__FUNC__, __FILE__, __LINE__);
+#endif
+	return val;
+}
+
+/*
+ * -----------------------------------------------------------------------
+ * DIFFERENT TYPES OF LOCKS
+ */
+
+typedef struct XTSpinLock {
+	volatile xtWord4			spl_lock;
+#ifdef XT_NO_ATOMICS
+	xt_mutex_type				spl_mutex;
+#endif
+#ifdef DEBUG
+	struct XTThread				*spl_locker;
+#endif
+#ifdef XT_THREAD_LOCK_INFO
+	XTThreadLockInfoRec			spl_lock_info;
+	const char				    *spl_name;
+#endif
+} XTSpinLockRec, *XTSpinLockPtr;
+
+#ifdef XT_THREAD_LOCK_INFO
+#define xt_spinlock_init_with_autoname(a,b) xt_spinlock_init(a,b,LOCKLIST_ARG_SUFFIX(b))
+void	xt_spinlock_init(struct XTThread *self, XTSpinLockPtr sp, const char *name);
+#else
+#define xt_spinlock_init_with_autoname(a,b) xt_spinlock_init(a,b)
+void	xt_spinlock_init(struct XTThread *self, XTSpinLockPtr sp);
+#endif
+void	xt_spinlock_free(struct XTThread *self, XTSpinLockPtr sp);
+xtBool	xt_spinlock_spin(XTSpinLockPtr spl);
+#ifdef DEBUG
+void	xt_spinlock_set_thread(XTSpinLockPtr spl);
+#endif
+
+/* Code for test and set is derived from code by Larry Zhou and
+ * Google: http://code.google.com/p/google-perftools
+ */
+inline xtWord4 xt_spinlock_set(XTSpinLockPtr spl)
+{
+	xtWord4				prv;
+	volatile xtWord4	*lck;
+				
+	lck = &spl->spl_lock;
+#ifdef XT_ATOMIC_WIN32_X86
+	__asm MOV  ECX, lck
+	__asm MOV  EDX, 1
+	__asm XCHG EDX, DWORD PTR [ECX]
+	__asm MOV  prv, EDX
+#elif defined(XT_ATOMIC_GNUC_X86)
+	prv = 1;
+	asm volatile ("xchgl %1,%0" : "=r" (prv) : "m" (*lck), "0" (prv) : "memory");
+#elif defined(XT_ATOMIC_SOLARIS_LIB)
+	prv = atomic_swap_32(lck, 1);
+#else
+	/* The default implementation just uses a mutex, and
+	 * does not spin! */
+	xt_lock_mutex_ns(&spl->spl_mutex);
+	/* We have the lock */
+	*lck = 1;
+	prv = 0;
+#endif
+#ifdef DEBUG
+	if (!prv)
+		xt_spinlock_set_thread(spl);
+#endif
+	return prv;
+}
+
+inline xtWord4 xt_spinlock_reset(XTSpinLockPtr spl)
+{
+	xtWord4				prv;
+	volatile xtWord4	*lck;
+				
+#ifdef DEBUG
+	spl->spl_locker = NULL;
+#endif
+	lck = &spl->spl_lock;
+#ifdef XT_ATOMIC_WIN32_X86
+	__asm MOV  ECX, lck
+	__asm MOV  EDX, 0
+	__asm XCHG EDX, DWORD PTR [ECX]
+	__asm MOV  prv, EDX
+#elif defined(XT_ATOMIC_GNUC_X86)
+	prv = 0;
+	asm volatile ("xchgl %1,%0" : "=r" (prv) : "m" (*lck), "0" (prv) : "memory");
+#elif defined(XT_ATOMIC_SOLARIS_LIB)
+	prv = atomic_swap_32(lck, 0);
+#else
+	*lck = 0;
+	xt_unlock_mutex_ns(&spl->spl_mutex);
+	prv = 1;
+#endif
+	return prv;
+}
+
+/*
+ * Return FALSE, and register an error on failure.
+ */
+inline xtBool xt_spinlock_lock(XTSpinLockPtr spl)
+{
+	if (!xt_spinlock_set(spl)) {
+#ifdef XT_THREAD_LOCK_INFO
+		xt_thread_lock_info_add_owner(&spl->spl_lock_info);
+#endif
+		return OK;
+	}
+#ifdef XT_THREAD_LOCK_INFO
+	xtBool spin_result = xt_spinlock_spin(spl);
+	if (spin_result)
+		xt_thread_lock_info_add_owner(&spl->spl_lock_info);
+	return spin_result;
+#else
+	return xt_spinlock_spin(spl);
+#endif
+}
+
+inline void xt_spinlock_unlock(XTSpinLockPtr spl)
+{
+	xt_spinlock_reset(spl);
+#ifdef XT_THREAD_LOCK_INFO
+	xt_thread_lock_info_release_owner(&spl->spl_lock_info);
+#endif
+}
+
 /* Possibilities are 2 = align 4 or 2 = align 8 */
 #define XT_XS_LOCK_SHIFT		2
 #define XT_XS_LOCK_ALIGN		(1 << XT_XS_LOCK_SHIFT)
@@ -78,290 +362,6 @@ void xt_rwmutex_free(struct XTThread *self, XTRWMutexPtr xsl);
 xtBool xt_rwmutex_xlock(XTRWMutexPtr xsl, xtThreadID thd_id);
 xtBool xt_rwmutex_slock(XTRWMutexPtr xsl, xtThreadID thd_id);
 xtBool xt_rwmutex_unlock(XTRWMutexPtr xsl, xtThreadID thd_id);
-
-#ifdef XT_WIN
-#define XT_SPL_WIN32_ASM
-#else
-#if defined(__GNUC__) && (defined(__x86_64__) || defined(__i386__))
-#define XT_SPL_GNUC_X86
-#else
-#define XT_SPL_DEFAULT
-#endif
-#endif
-
-#ifdef XT_SOLARIS
-/* Use Sun atomic operations library
- * http://docs.sun.com/app/docs/doc/816-5168/atomic-ops-3c?a=view
- */
-#define XT_SPL_SOLARIS_LIB
-#endif
-
-#ifdef XT_SPL_SOLARIS_LIB
-#include <atomic.h>
-#endif
-
-typedef struct XTSpinLock {
-	volatile xtWord4			spl_lock;
-#ifdef XT_SPL_DEFAULT
-	xt_mutex_type				spl_mutex;
-#endif
-#ifdef DEBUG
-	struct XTThread				*spl_locker;
-#endif
-#ifdef XT_THREAD_LOCK_INFO
-	XTThreadLockInfoRec			spl_lock_info;
-	const char				    *spl_name;
-#endif
-} XTSpinLockRec, *XTSpinLockPtr;
-
-#ifdef XT_THREAD_LOCK_INFO
-#define xt_spinlock_init_with_autoname(a,b) xt_spinlock_init(a,b,LOCKLIST_ARG_SUFFIX(b))
-void	xt_spinlock_init(struct XTThread *self, XTSpinLockPtr sp, const char *name);
-#else
-#define xt_spinlock_init_with_autoname(a,b) xt_spinlock_init(a,b)
-void	xt_spinlock_init(struct XTThread *self, XTSpinLockPtr sp);
-#endif
-void	xt_spinlock_free(struct XTThread *self, XTSpinLockPtr sp);
-xtBool	xt_spinlock_spin(XTSpinLockPtr spl);
-#ifdef DEBUG
-void	xt_spinlock_set_thread(XTSpinLockPtr spl);
-#endif
-
-/*
- * This macro is to remind me where it was safe
- * to use a read lock!
- */
-#define xt_lck_slock		xt_spinlock_lock
-
-/* I call these operations flushed because the result
- * is written atomically.
- * But the operations themselves are not atomic!
- */
-inline void xt_flushed_inc1(volatile xtWord1 *mptr)
-{
-#ifdef XT_SPL_WIN32_ASM
-	__asm MOV  ECX, mptr
-	__asm MOV  DL, BYTE PTR [ECX]
-	__asm INC  DL
-	__asm XCHG DL, BYTE PTR [ECX]
-#elif defined(XT_SPL_GNUC_X86)
-	xtWord1 val;
-
-	asm volatile ("movb %1,%0" : "=r" (val) : "m" (*mptr) : "memory");
-	val++;
-	asm volatile ("xchgb %1,%0" : "=r" (val) : "m" (*mptr), "0" (val) : "memory");
-#elif defined(XT_SPL_SOLARIS_LIB)
-	atomic_inc_8(mptr);
-#else
-	*mptr++;
-#endif
-}
-
-inline xtWord1 xt_flushed_dec1(volatile xtWord1 *mptr)
-{
-	xtWord1 val;
-
-#ifdef XT_SPL_WIN32_ASM
-	__asm MOV  ECX, mptr
-	__asm MOV  DL, BYTE PTR [ECX]
-	__asm DEC  DL
-	__asm MOV  val, DL
-	__asm XCHG DL, BYTE PTR [ECX]
-#elif defined(XT_SPL_GNUC_X86)
-	xtWord1 val2;
-
-	asm volatile ("movb %1, %0" : "=r" (val) : "m" (*mptr) : "memory");
-	val--;
-	asm volatile ("xchgb %1,%0" : "=r" (val2) : "m" (*mptr), "0" (val) : "memory");
-	/* Should work, but compiler makes a mistake?
-	 * asm volatile ("xchgb %1, %0" : : "r" (val), "m" (*mptr) : "memory");
-	 */
-#elif defined(XT_SPL_SOLARIS_LIB)
-	val = atomic_dec_8_nv(mptr);
-#else
-	val = --(*mptr);
-#endif
-	return val;
-}
-
-inline void xt_atomic_inc2(volatile xtWord2 *mptr)
-{
-#ifdef XT_SPL_WIN32_ASM
-	__asm LOCK INC	WORD PTR mptr
-#elif defined(XT_SPL_GNUC_X86)
-        asm volatile ("lock; incw %0" : : "m" (*mptr) : "memory");
-#elif defined(__GNUC__)
-	__sync_fetch_and_add(mptr, 1);
-#elif defined(XT_SPL_SOLARIS_LIB)
-	atomic_inc_16_nv(mptr);
-#else
-	(*mptr)++;
-#endif
-}
-
-inline void xt_atomic_dec2(volatile xtWord2 *mptr)
-{
-#ifdef XT_SPL_WIN32_ASM
-	__asm LOCK DEC	WORD PTR mptr
-#elif defined(XT_SPL_GNUC_X86)
-	asm volatile ("lock; decw %0" : : "m" (*mptr) : "memory");
-#elif defined(__GNUC__)
-	__sync_fetch_and_sub(mptr, 1);
-#elif defined(XT_SPL_SOLARIS_LIB)
-	atomic_dec_16_nv(mptr);
-#else
-	--(*mptr);
-#endif
-}
-
-/* Atomic test and set 2 byte word! */
-inline xtWord2 xt_atomic_tas2(volatile xtWord2 *mptr, xtWord2 val)
-{
-#ifdef XT_SPL_WIN32_ASM
-	__asm MOV  ECX, mptr
-	__asm MOV  DX, val
-	__asm XCHG DX, WORD PTR [ECX]
-	__asm MOV  val, DX
-#elif defined(XT_SPL_GNUC_X86)
-	asm volatile ("xchgw %1,%0" : "=r" (val) : "m" (*mptr), "0" (val) : "memory");
-#elif defined(XT_SPL_SOLARIS_LIB)
-	val = atomic_swap_16(mptr, val);
-#else
-	/* Yikes! */
-	xtWord2 nval = val;
-
-	val = *mptr;
-	*mptr = nval;
-#endif
-	return val;
-}
-
-inline void xt_atomic_set4(volatile xtWord4 *mptr, xtWord4 val)
-{
-#ifdef XT_SPL_WIN32_ASM
-	__asm MOV  ECX, mptr
-	__asm MOV  EDX, val
-	__asm XCHG EDX, DWORD PTR [ECX]
-	//__asm MOV  DWORD PTR [ECX], EDX
-#elif defined(XT_SPL_GNUC_X86)
-	asm volatile ("xchgl %1,%0" : "=r" (val) : "m" (*mptr), "0" (val) : "memory");
-	//asm volatile ("movl %0,%1" : "=r" (val) : "m" (*mptr) : "memory");
-#elif defined(XT_SPL_SOLARIS_LIB)
-	atomic_swap_32(mptr, val);
-#else
-	*mptr = val;
-#endif
-}
-
-inline xtWord4 xt_atomic_get4(volatile xtWord4 *mptr)
-{
-	xtWord4 val;
-
-#ifdef XT_SPL_WIN32_ASM
-	__asm MOV ECX, mptr
-	__asm MOV EDX, DWORD PTR [ECX]
-	__asm MOV val, EDX
-#elif defined(XT_SPL_GNUC_X86)
-	asm volatile ("movl %1,%0" : "=r" (val) : "m" (*mptr) : "memory");
-#else
-	val = *mptr;
-#endif
-	return val;
-}
-
-/* Code for test and set is derived from code by Larry Zhou and
- * Google: http://code.google.com/p/google-perftools
- */
-inline xtWord4 xt_spinlock_set(XTSpinLockPtr spl)
-{
-	xtWord4				prv;
-	volatile xtWord4	*lck;
-				
-	lck = &spl->spl_lock;
-#ifdef XT_SPL_WIN32_ASM
-	__asm MOV  ECX, lck
-	__asm MOV  EDX, 1
-	__asm XCHG EDX, DWORD PTR [ECX]
-	__asm MOV  prv, EDX
-#elif defined(XT_SPL_GNUC_X86)
-	prv = 1;
-	asm volatile ("xchgl %1,%0" : "=r" (prv) : "m" (*lck), "0" (prv) : "memory");
-#elif defined(XT_SPL_SOLARIS_LIB)
-	prv = atomic_swap_32(lck, 1);
-#else
-	/* The default implementation just uses a mutex, and
-	 * does not spin! */
-	xt_lock_mutex_ns(&spl->spl_mutex);
-	/* We have the lock */
-	*lck = 1;
-	prv = 0;
-#endif
-#ifdef DEBUG
-	if (!prv)
-		xt_spinlock_set_thread(spl);
-#endif
-	return prv;
-}
-
-inline xtWord4 xt_spinlock_reset(XTSpinLockPtr spl)
-{
-	xtWord4				prv;
-	volatile xtWord4	*lck;
-				
-#ifdef DEBUG
-	spl->spl_locker = NULL;
-#endif
-	lck = &spl->spl_lock;
-#ifdef XT_SPL_WIN32_ASM
-	__asm MOV  ECX, lck
-	__asm MOV  EDX, 0
-	__asm XCHG EDX, DWORD PTR [ECX]
-	__asm MOV  prv, EDX
-#elif defined(XT_SPL_GNUC_X86)
-	prv = 0;
-	asm volatile ("xchgl %1,%0" : "=r" (prv) : "m" (*lck), "0" (prv) : "memory");
-#elif defined(XT_SPL_SOLARIS_LIB)
-	prv = atomic_swap_32(lck, 0);
-#else
-	*lck = 0;
-	xt_unlock_mutex_ns(&spl->spl_mutex);
-	prv = 1;
-#endif
-	return prv;
-}
-
-/*
- * Return FALSE, and register an error on failure.
- */
-inline xtBool xt_spinlock_lock(XTSpinLockPtr spl)
-{
-	if (!xt_spinlock_set(spl)) {
-#ifdef XT_THREAD_LOCK_INFO
-		xt_thread_lock_info_add_owner(&spl->spl_lock_info);
-#endif
-		return OK;
-	}
-#ifdef XT_THREAD_LOCK_INFO
-	xtBool spin_result = xt_spinlock_spin(spl);
-	if (spin_result)
-		xt_thread_lock_info_add_owner(&spl->spl_lock_info);
-	return spin_result;
-#else
-	return xt_spinlock_spin(spl);
-#endif
-}
-
-inline void xt_spinlock_unlock(XTSpinLockPtr spl)
-{
-	xt_spinlock_reset(spl);
-#ifdef XT_THREAD_LOCK_INFO
-	xt_thread_lock_info_release_owner(&spl->spl_lock_info);
-#endif
-}
-
-void xt_unit_test_read_write_locks(struct XTThread *self);
-void xt_unit_test_mutex_locks(struct XTThread *self);
-void xt_unit_test_create_threads(struct XTThread *self);
 
 #define XT_FAST_LOCK_MAX_WAIT	100
 
@@ -410,7 +410,7 @@ inline xtBool xt_fastlock_lock(XTFastLockPtr fal, struct XTThread *thread)
 #endif
 }
 
-inline void xt_fastlock_unlock(XTFastLockPtr fal, struct XTThread *thread __attribute__((unused)))
+inline void xt_fastlock_unlock(XTFastLockPtr fal, struct XTThread *XT_UNUSED(thread))
 {
 	if (fal->fal_wait_count)
 		xt_fastlock_wakeup(fal);
@@ -423,73 +423,61 @@ inline void xt_fastlock_unlock(XTFastLockPtr fal, struct XTThread *thread __attr
 #endif
 }
 
-typedef struct XTSpinRWLock {
-	XTSpinLockRec				srw_lock;
-	volatile xtThreadID			srw_xlocker;
-	XTSpinLockRec				srw_state_lock;
-	volatile u_int				srw_state;
-	union {
-#if XT_XS_LOCK_ALIGN == 4
-		volatile xtWord4		*srw_rlock_align;
-#else
-		volatile  xtWord8		*srw_rlock_align;
+#define XT_SXS_SLOCK_COUNT		2
+
+typedef struct XTSpinXSLock {
+	volatile xtWord2			sxs_xlocked;
+	volatile xtWord2			sxs_rlock_count;
+	volatile xtWord2			sxs_wait_count;			/* The number of readers waiting for the xlocker. */
+#ifdef DEBUG
+	xtThreadID					sxs_locker;
 #endif
-		volatile  xtWord1		*srw_rlock;
-	} x;
+#ifdef XT_THREAD_LOCK_INFO
+	XTThreadLockInfoRec			sxs_lock_info;
+	const char				    *sxs_name;
+#endif
+} XTSpinXSLockRec, *XTSpinXSLockPtr;
 
 #ifdef XT_THREAD_LOCK_INFO
-	XTThreadLockInfoRec			srw_lock_info;
-	const char				    *srw_name;
+#define xt_spinxslock_init_with_autoname(a,b) xt_spinxslock_init(a,b,LOCKLIST_ARG_SUFFIX(b))
+void xt_spinxslock_init(struct XTThread *self, XTSpinXSLockPtr sxs, const char *name);
+#else
+#define xt_spinxslock_init_with_autoname(a,b) xt_spinxslock_init(a,b)
+void xt_spinxslock_init(struct XTThread *self, XTSpinXSLockPtr sxs);
 #endif
+void xt_spinxslock_free(struct XTThread *self, XTSpinXSLockPtr sxs);
+xtBool xt_spinxslock_xlock(XTSpinXSLockPtr sxs, xtThreadID thd_id);
+xtBool xt_spinxslock_slock(XTSpinXSLockPtr sxs);
+xtBool xt_spinxslock_unlock(XTSpinXSLockPtr sxs, xtBool xlocked);
 
-} XTSpinRWLockRec, *XTSpinRWLockPtr;
+typedef struct XTXSMutexLock {
+	xt_mutex_type				xsm_lock;
+	xt_cond_type				xsm_cond;
+	xt_cond_type				xsm_cond_2;
+	volatile xtThreadID			xsm_xlocker;
+	volatile xtWord2			xsm_rlock_count;
+	volatile xtWord2			xsm_wait_count;			/* The number of readers waiting for the xlocker. */
+#ifdef DEBUG
+	xtThreadID					xsm_locker;
+#endif
+#ifdef XT_THREAD_LOCK_INFO
+	XTThreadLockInfoRec			xsm_lock_info;
+	const char				    *xsm_name;
+#endif
+} XTXSMutexRec, *XTXSMutexLockPtr;
 
 #ifdef XT_THREAD_LOCK_INFO
-#define xt_spinrwlock_init_with_autoname(a,b) xt_spinrwlock_init(a,b,LOCKLIST_ARG_SUFFIX(b))
-void xt_spinrwlock_init(struct XTThread *self, XTSpinRWLockPtr xsl, const char *name);
+#define xt_xsmutex_init_with_autoname(a,b) xt_xsmutex_init(a,b,LOCKLIST_ARG_SUFFIX(b))
+void xt_xsmutex_init(struct XTThread *self, XTXSMutexLockPtr xsm, const char *name);
 #else
-#define xt_spinrwlock_init_with_autoname(a,b) xt_spinrwlock_init(a,b)
-void xt_spinrwlock_init(struct XTThread *self, XTSpinRWLockPtr xsl);
-#endif
-void xt_spinrwlock_free(struct XTThread *self, XTSpinRWLockPtr xsl);
-xtBool xt_spinrwlock_xlock(XTSpinRWLockPtr xsl, xtThreadID thd_id);
-xtBool xt_spinrwlock_slock(XTSpinRWLockPtr xsl, xtThreadID thd_id);
-xtBool xt_spinrwlock_unlock(XTSpinRWLockPtr xsl, xtThreadID thd_id);
-
-typedef struct XTFastRWLock {
-	XTFastLockRec				frw_lock;
-	struct XTThread				*frw_xlocker;
-	XTSpinLockRec				frw_state_lock;
-	volatile u_int				frw_state;
-	u_int						frw_read_waiters;
-	union {
-#if XT_XS_LOCK_ALIGN == 4
-		volatile xtWord4		*frw_rlock_align;
-#else
-		volatile  xtWord8		*frw_rlock_align;
-#endif
-		volatile  xtWord1		*frw_rlock;
-	} x;
-
-#ifdef XT_THREAD_LOCK_INFO
-	XTThreadLockInfoRec			frw_lock_info;
-	const char				    *frw_name;
+#define xt_xsmutex_init_with_autoname(a,b) xt_xsmutex_init(a,b)
+void xt_xsmutex_init(struct XTThread *self, XTXSMutexLockPtr xsm);
 #endif
 
-} XTFastRWLockRec, *XTFastRWLockPtr;
-
-#ifdef XT_THREAD_LOCK_INFO
-#define xt_fastrwlock_init_with_autoname(a,b) xt_fastrwlock_init(a,b,LOCKLIST_ARG_SUFFIX(b))
-void xt_fastrwlock_init(struct XTThread *self, XTFastRWLockPtr frw, const char *name);
-#else
-#define xt_fastrwlock_init_with_autoname(a,b) xt_fastrwlock_init(a,b)
-void xt_fastrwlock_init(struct XTThread *self, XTFastRWLockPtr frw);
-#endif
-
-void xt_fastrwlock_free(struct XTThread *self, XTFastRWLockPtr frw);
-xtBool xt_fastrwlock_xlock(XTFastRWLockPtr frw, struct XTThread *thread);
-xtBool xt_fastrwlock_slock(XTFastRWLockPtr frw, struct XTThread *thread);
-xtBool xt_fastrwlock_unlock(XTFastRWLockPtr frw, struct XTThread *thread);
+void xt_xsmutex_free(struct XTThread *self, XTXSMutexLockPtr xsm);
+xtBool xt_xsmutex_xlock(XTXSMutexLockPtr xsm, xtThreadID thd_id);
+xtBool xt_xsmutex_slock(XTXSMutexLockPtr xsm, xtThreadID thd_id);
+xtBool xt_xsmutex_unlock(XTXSMutexLockPtr xsm, xtThreadID thd_id);
 
 typedef struct XTAtomicRWLock {
 	volatile xtWord2			arw_reader_count;
@@ -515,6 +503,35 @@ void xt_atomicrwlock_free(struct XTThread *self, XTAtomicRWLockPtr xsl);
 xtBool xt_atomicrwlock_xlock(XTAtomicRWLockPtr xsl, xtThreadID thr_id);
 xtBool xt_atomicrwlock_slock(XTAtomicRWLockPtr xsl);
 xtBool xt_atomicrwlock_unlock(XTAtomicRWLockPtr xsl, xtBool xlocked);
+
+typedef struct XTSkewRWLock {
+	volatile xtWord2			srw_reader_count;
+	volatile xtWord2			srw_xlock_set;
+
+#ifdef XT_THREAD_LOCK_INFO
+	XTThreadLockInfoRec			srw_lock_info;
+	const char				    *srw_name;
+#endif
+#ifdef DEBUG
+	xtThreadID					srw_locker;
+#endif
+} XTSkewRWLockRec, *XTSkewRWLockPtr;
+
+#ifdef XT_THREAD_LOCK_INFO
+#define xt_skewrwlock_init_with_autoname(a,b) xt_skewrwlock_init(a,b,LOCKLIST_ARG_SUFFIX(b))
+void xt_skewrwlock_init(struct XTThread *self, XTSkewRWLockPtr xsl, const char *name);
+#else
+#define xt_skewrwlock_init_with_autoname(a,b) xt_skewrwlock_init(a,b)
+void xt_skewrwlock_init(struct XTThread *self, XTSkewRWLockPtr xsl);
+#endif
+void xt_skewrwlock_free(struct XTThread *self, XTSkewRWLockPtr xsl);
+xtBool xt_skewrwlock_xlock(XTSkewRWLockPtr xsl, xtThreadID thr_id);
+xtBool xt_skewrwlock_slock(XTSkewRWLockPtr xsl);
+xtBool xt_skewrwlock_unlock(XTSkewRWLockPtr xsl, xtBool xlocked);
+
+void xt_unit_test_read_write_locks(struct XTThread *self);
+void xt_unit_test_mutex_locks(struct XTThread *self);
+void xt_unit_test_create_threads(struct XTThread *self);
 
 /*
  * -----------------------------------------------------------------------

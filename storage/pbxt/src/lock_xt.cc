@@ -25,6 +25,10 @@
 
 #include "xt_config.h"
 
+#ifdef DRIZZLED
+#include <bitset>
+#endif
+
 #include <stdio.h>
 
 #include "lock_xt.h"
@@ -38,6 +42,16 @@
 //#define XT_TRACE_LOCKS
 //#define CHECK_ROWLOCK_GROUP_CONSISTENCY
 #endif
+
+/*
+ * This function should never be called. It indicates a link
+ * error!
+ */
+xtPublic void xt_log_atomic_error_and_abort(c_char *func, c_char *file, u_int line)
+{
+	xt_logf(NULL, func, file, line, XT_LOG_ERROR, "%s", "Atomic operations not supported\n");
+	abort();
+}
 
 /*
  * -----------------------------------------------------------------------
@@ -715,7 +729,7 @@ xtBool xt_init_row_locks(XTRowLocksPtr rl)
 	return OK;
 }
 
-void xt_exit_row_locks(XTRowLocksPtr rl __attribute__((unused)))
+void xt_exit_row_locks(XTRowLocksPtr rl)
 {
 	for (int i=0; i<XT_ROW_LOCK_GROUP_COUNT; i++) {
 		xt_spinlock_free(NULL, &rl->rl_groups[i].lg_lock);
@@ -982,7 +996,7 @@ xtBool old_xt_init_row_locks(XTRowLocksPtr rl)
 	return OK;
 }
 
-void old_xt_exit_row_locks(XTRowLocksPtr rl __attribute__((unused)))
+void old_xt_exit_row_locks(XTRowLocksPtr XT_UNUSED(rl))
 {
 }
 
@@ -1007,10 +1021,6 @@ xtPublic void xt_exit_row_lock_list(XTRowLockListPtr lock_list)
  * SPECIAL EXCLUSIVE/SHARED (XS) LOCK
  */
 
-#define XT_GET1(x)		*(x)
-#define XT_SET4(x, y)	xt_atomic_set4(x, y)
-#define XT_GET4(x)		xt_atomic_get4(x)
-
 #ifdef XT_THREAD_LOCK_INFO
 xtPublic void xt_rwmutex_init(struct XTThread *self, XTRWMutexPtr xsl, const char *n)
 #else
@@ -1023,7 +1033,7 @@ xtPublic void xt_rwmutex_init(XTThreadPtr self, XTRWMutexPtr xsl)
 #endif
 	xt_init_mutex_with_autoname(self, &xsl->xs_lock);
 	xt_init_cond(self, &xsl->xs_cond);
-	XT_SET4(&xsl->xs_state, 0);
+	xt_atomic_set4(&xsl->xs_state, 0);
 	xsl->xs_xlocker = 0;
 	/* Must be aligned! */
 	ASSERT(xt_thr_maximum_threads == xt_align_size(xt_thr_maximum_threads, XT_XS_LOCK_ALIGN));
@@ -1068,7 +1078,7 @@ xtPublic xtBool xt_rwmutex_xlock(XTRWMutexPtr xsl, xtThreadID thd_id)
 	}
 
 	/* I am the locker (set state before locker!): */
-	XT_SET4(&xsl->xs_state, 0);
+	xt_atomic_set4(&xsl->xs_state, 0);
 	xsl->xs_xlocker = thd_id;
 
 	/* Wait for all the read lockers: */
@@ -1078,7 +1088,7 @@ xtPublic xtBool xt_rwmutex_xlock(XTRWMutexPtr xsl, xtThreadID thd_id)
 			 * Just in case of this, we keep the wait time down!
 			 */
 			if (!xt_timed_wait_cond_ns(&xsl->xs_cond, &xsl->xs_lock, 10)) {
-				XT_SET4(&xsl->xs_state, 0);
+				xt_atomic_set4(&xsl->xs_state, 0);
 				xsl->xs_xlocker = 0;
 				xt_unlock_mutex_ns(&xsl->xs_lock);
 				return FAILED;
@@ -1087,11 +1097,11 @@ xtPublic xtBool xt_rwmutex_xlock(XTRWMutexPtr xsl, xtThreadID thd_id)
 		/* State can be incremented in parallel by a reader
 		 * thread!
 		 */
-		XT_SET4(&xsl->xs_state, xsl->xs_state + 1);
+		xt_atomic_set4(&xsl->xs_state, xsl->xs_state + 1);
 	}
 
 	/* I have waited for all: */
-	XT_SET4(&xsl->xs_state, xt_thr_maximum_threads);
+	xt_atomic_set4(&xsl->xs_state, xt_thr_maximum_threads);
 
 #ifdef XT_THREAD_LOCK_INFO
 	xt_thread_lock_info_add_owner(&xsl->xs_lock_info);
@@ -1107,7 +1117,7 @@ xtPublic xtBool xt_rwmutex_slock(XTRWMutexPtr xsl, xtThreadID thd_id)
 #endif
 	ASSERT_NS(xt_get_self()->t_id == thd_id);
 
-	xt_flushed_inc1(&xsl->x.xs_rlock[thd_id]);
+	xt_atomic_inc1(&xsl->x.xs_rlock[thd_id]);
 
 	if (xsl->x.xs_rlock[thd_id] > 1)
 		return OK;
@@ -1158,7 +1168,7 @@ xtPublic xtBool xt_rwmutex_unlock(XTRWMutexPtr xsl, xtThreadID thd_id)
 		/* I have an X lock. */
 		ASSERT_NS(xsl->x.xs_rlock[thd_id] == XT_NO_LOCK);
 		ASSERT_NS(xsl->xs_state == xt_thr_maximum_threads);
-		XT_SET4(&xsl->xs_state, 0);
+		xt_atomic_set4(&xsl->xs_state, 0);
 		xsl->xs_xlocker = 0;
 		xt_unlock_mutex_ns(&xsl->xs_lock);
 		/* Wake up any other X or shared lockers: */
@@ -1201,7 +1211,7 @@ xtPublic xtBool xt_rwmutex_unlock(XTRWMutexPtr xsl, xtThreadID thd_id)
 						return FAILED;
 					}
 				}
-				xt_flushed_dec1(&xsl->x.xs_rlock[thd_id]);
+				xt_atomic_dec1(&xsl->x.xs_rlock[thd_id]);
 				xt_unlock_mutex_ns(&xsl->xs_lock);
 			}
 			else
@@ -1213,7 +1223,7 @@ xtPublic xtBool xt_rwmutex_unlock(XTRWMutexPtr xsl, xtThreadID thd_id)
 				 * try to get the lock xs_lock, I could hand for the duration
 				 * of the X lock.
 				 */
-				xt_flushed_dec1(&xsl->x.xs_rlock[thd_id]);
+				xt_atomic_dec1(&xsl->x.xs_rlock[thd_id]);
 		}
 	}
 #ifdef XT_THREAD_LOCK_INFO
@@ -1228,13 +1238,14 @@ xtPublic xtBool xt_rwmutex_unlock(XTRWMutexPtr xsl, xtThreadID thd_id)
  */
 
 #ifdef XT_THREAD_LOCK_INFO
-xtPublic void xt_spinlock_init(XTThreadPtr self __attribute__((unused)), XTSpinLockPtr spl, const char *n)
+xtPublic void xt_spinlock_init(XTThreadPtr self, XTSpinLockPtr spl, const char *n)
 #else
-xtPublic void xt_spinlock_init(XTThreadPtr self __attribute__((unused)), XTSpinLockPtr spl)
+xtPublic void xt_spinlock_init(XTThreadPtr self, XTSpinLockPtr spl)
 #endif
 {
+	(void) self;
 	spl->spl_lock = 0;
-#ifdef XT_SPL_DEFAULT
+#ifdef XT_NO_ATOMICS
 	xt_init_mutex(self, &spl->spl_mutex);
 #endif
 #ifdef DEBUG
@@ -1246,9 +1257,10 @@ xtPublic void xt_spinlock_init(XTThreadPtr self __attribute__((unused)), XTSpinL
 #endif
 }
 
-xtPublic void xt_spinlock_free(XTThreadPtr self __attribute__((unused)), XTSpinLockPtr spl __attribute__((unused)))
+xtPublic void xt_spinlock_free(XTThreadPtr XT_UNUSED(self), XTSpinLockPtr spl)
 {
-#ifdef XT_SPL_DEFAULT
+	(void) spl;
+#ifdef XT_NO_ATOMICS
 	xt_free_mutex(&spl->spl_mutex);
 #endif
 #ifdef XT_THREAD_LOCK_INFO
@@ -1266,7 +1278,7 @@ xtPublic xtBool xt_spinlock_spin(XTSpinLockPtr spl)
 			if (!*lck) {
 				/* Try to get the lock: */
 				if (!xt_spinlock_set(spl))
-					return OK;
+					goto done_ok;
 			}
 		}
 
@@ -1274,6 +1286,7 @@ xtPublic xtBool xt_spinlock_spin(XTSpinLockPtr spl)
 		xt_critical_wait();
 	}
 
+	done_ok:
 	return OK;
 }
 
@@ -1400,147 +1413,96 @@ xtPublic void xt_fastlock_wakeup(XTFastLockPtr fal)
 /*
  * -----------------------------------------------------------------------
  * READ/WRITE SPIN LOCK
+ *
+ * An extremely genius very fast read/write lock based on atomics!
  */
 
 #ifdef XT_THREAD_LOCK_INFO
-xtPublic void xt_spinrwlock_init(struct XTThread *self, XTSpinRWLockPtr srw, const char *name)
+xtPublic void xt_spinxslock_init(struct XTThread *XT_UNUSED(self), XTSpinXSLockPtr sxs, const char *name)
 #else
-xtPublic void xt_spinrwlock_init(struct XTThread *self, XTSpinRWLockPtr srw)
+xtPublic void xt_spinxslock_init(struct XTThread *XT_UNUSED(self), XTSpinXSLockPtr sxs)
 #endif
 {
-	xt_spinlock_init_with_autoname(self, &srw->srw_lock);
-	xt_spinlock_init_with_autoname(self, &srw->srw_state_lock);
-	srw->srw_state = 0;
-	srw->srw_xlocker = 0;
-	/* Must be aligned! */
-	ASSERT(xt_thr_maximum_threads == xt_align_size(xt_thr_maximum_threads, XT_XS_LOCK_ALIGN));
-	srw->x.srw_rlock = (xtWord1 *) xt_calloc(self, xt_thr_maximum_threads);
+	sxs->sxs_xlocked = 0;
+	sxs->sxs_rlock_count = 0;
+	sxs->sxs_wait_count = 0;
+#ifdef DEBUG
+	sxs->sxs_locker = 0;
+#endif
 #ifdef XT_THREAD_LOCK_INFO
-	srw->srw_name = name;
-	xt_thread_lock_info_init(&srw->srw_lock_info, srw);
+	sxs->sxs_name = name;
+	xt_thread_lock_info_init(&sxs->sxs_lock_info, sxs);
 #endif
 }
 
-xtPublic void xt_spinrwlock_free(struct XTThread *self, XTSpinRWLockPtr srw)
+xtPublic void xt_spinxslock_free(struct XTThread *XT_UNUSED(self), XTSpinXSLockPtr sxs)
 {
-	if (srw->x.srw_rlock)
-		xt_free(self, (void *) srw->x.srw_rlock);
-	xt_spinlock_free(self, &srw->srw_lock);
-	xt_spinlock_free(self, &srw->srw_state_lock);
 #ifdef XT_THREAD_LOCK_INFO
-	xt_thread_lock_info_free(&srw->srw_lock_info);
+	xt_thread_lock_info_free(&sxs->sxs_lock_info);
+#else
+	(void) sxs;
 #endif
 }
 
-xtPublic xtBool xt_spinrwlock_xlock(XTSpinRWLockPtr srw, xtThreadID thd_id)
+xtPublic xtBool xt_spinxslock_xlock(XTSpinXSLockPtr sxs, xtThreadID XT_NDEBUG_UNUSED(thd_id))
 {
-	xt_spinlock_lock(&srw->srw_lock);
-	ASSERT_NS(srw->x.srw_rlock[thd_id] == XT_NO_LOCK);
-	
-	xt_spinlock_lock(&srw->srw_state_lock);
+	register xtWord2 set;
 
-	/* Set the state before xlocker (dirty read!) */
-	srw->srw_state = 0;
-
-	/* I am the locker: */
-	srw->srw_xlocker = thd_id;
-
-	/* Wait for all the read lockers: */
-	while (srw->srw_state < xt_thr_current_max_threads) {
-		while (srw->x.srw_rlock[srw->srw_state]) {
-			xt_spinlock_unlock(&srw->srw_state_lock);
-			/* Wait for this reader, during this time, the reader
-			 * himself, may increment the state. */
-			xt_critical_wait();
-			xt_spinlock_lock(&srw->srw_state_lock);
-		}
-		/* State can be incremented in parallel by a reader
-		 * thread!
-		 */
-		srw->srw_state++;
+	/* Wait for exclusive locker: */
+	for (;;) {
+		set = xt_atomic_tas2(&sxs->sxs_xlocked, 1);
+		if (!set)
+			break;
+		xt_yield();
 	}
 
-	/* I have waited for all: */
-	srw->srw_state = xt_thr_maximum_threads;
-
-	xt_spinlock_unlock(&srw->srw_state_lock);
-
-#ifdef XT_THREAD_LOCK_INFO
-	xt_thread_lock_info_add_owner(&srw->srw_lock_info);
+#ifdef DEBUG
+	sxs->sxs_locker = thd_id;
 #endif
 
+	/* Wait for all the reader to wait! */
+	while (sxs->sxs_wait_count < sxs->sxs_rlock_count)
+		xt_yield();
+
+#ifdef XT_THREAD_LOCK_INFO
+	xt_thread_lock_info_add_owner(&sxs->sxs_lock_info);
+#endif
 	return OK;
 }
 
-xtPublic xtBool xt_spinrwlock_slock(XTSpinRWLockPtr srw, xtThreadID thd_id)
+xtPublic xtBool xt_spinxslock_slock(XTSpinXSLockPtr sxs)
 {
-	ASSERT_NS(srw->x.srw_rlock[thd_id] == XT_NO_LOCK);
-	srw->x.srw_rlock[thd_id] = XT_WANT_LOCK;
+	xt_atomic_inc2(&sxs->sxs_rlock_count);
+
 	/* Check if there could be an X locker: */
-	if (srw->srw_xlocker) {
-		/* There is an X locker.
-		 * If srw_state < thd_id then the X locker will wait for me.
-		 * So I should not wait!
-		 */
-		if (srw->srw_state >= thd_id) {
-			/* If srw->srw_state >= thd_id, then the locker may have, or
-			 * has already checked me, and I will have to wait.
-			 *
-			 * Otherwise, srw_state <= thd_id, which means the
-			 * X locker has not checked me, and will still wait for me (or 
-			 * is already waiting for me). In this case, I will have to
-			 * take the mutex to make sure exactly how far he
-			 * is with the checking.
-			 */
-			xt_spinlock_lock(&srw->srw_state_lock);
-			while (srw->srw_state > thd_id && srw->srw_xlocker) {
-				xt_spinlock_unlock(&srw->srw_state_lock);
-				xt_critical_wait();
-				xt_spinlock_lock(&srw->srw_state_lock);
-			}
-			xt_spinlock_unlock(&srw->srw_state_lock);
-		}
+	if (sxs->sxs_xlocked) {
+		/* I am waiting... */
+		xt_atomic_inc2(&sxs->sxs_wait_count);
+		while (sxs->sxs_xlocked)
+			xt_yield();
+		xt_atomic_dec2(&sxs->sxs_wait_count);
 	}
-	/* There is no exclusive locker, so we have the read lock: */
-	srw->x.srw_rlock[thd_id] = XT_HAVE_LOCK;
 
 #ifdef XT_THREAD_LOCK_INFO
-	xt_thread_lock_info_add_owner(&srw->srw_lock_info);
+	xt_thread_lock_info_add_owner(&sxs->sxs_lock_info);
 #endif
-
 	return OK;
 }
 
-xtPublic xtBool xt_spinrwlock_unlock(XTSpinRWLockPtr srw, xtThreadID thd_id)
+xtPublic xtBool xt_spinxslock_unlock(XTSpinXSLockPtr sxs, xtBool xlocked)
 {
-	if (srw->srw_xlocker == thd_id) {
-		/* I have an X lock. */
-		ASSERT_NS(srw->srw_state == xt_thr_maximum_threads);
-		srw->srw_state = 0;
-		srw->srw_xlocker = 0;
-		xt_spinlock_unlock(&srw->srw_lock);
+	if (xlocked) {
+#ifdef DEBUG
+		sxs->sxs_locker = 0;
+#endif
+		sxs->sxs_xlocked = 0;
 	}
-	else {
-		/* I have a shared lock: */
-		ASSERT_NS(srw->x.srw_rlock[thd_id] == XT_HAVE_LOCK);
-		ASSERT_NS(srw->srw_state != xt_thr_maximum_threads);
-		srw->x.srw_rlock[thd_id] = XT_NO_LOCK;
-		if (srw->srw_xlocker && srw->srw_state == thd_id) {
-			xt_spinlock_lock(&srw->srw_state_lock);
-			if (srw->srw_xlocker && srw->srw_state == thd_id) {
-				/* If the X locker is waiting for me,
-				 * then allow him to continue. 
-				 */
-				srw->srw_state = thd_id+1;
-			}
-			xt_spinlock_unlock(&srw->srw_state_lock);
-		}
-	}
+	else
+		xt_atomic_dec2(&sxs->sxs_rlock_count);
 
 #ifdef XT_THREAD_LOCK_INFO
-	xt_thread_lock_info_release_owner(&srw->srw_lock_info);
+	xt_thread_lock_info_release_owner(&sxs->sxs_lock_info);
 #endif
-
 	return OK;
 }
 
@@ -1550,194 +1512,159 @@ xtPublic xtBool xt_spinrwlock_unlock(XTSpinRWLockPtr srw, xtThreadID thd_id)
  */
 
 #ifdef XT_THREAD_LOCK_INFO
-xtPublic void xt_fastrwlock_init(struct XTThread *self, XTFastRWLockPtr frw, const char *n)
+xtPublic void xt_xsmutex_init(struct XTThread *self, XTXSMutexLockPtr xsm, const char *name)
 #else
-xtPublic void xt_fastrwlock_init(struct XTThread *self, XTFastRWLockPtr frw)
+xtPublic void xt_xsmutex_init(struct XTThread *self, XTXSMutexLockPtr xsm)
 #endif
 {
-	xt_fastlock_init_with_autoname(self, &frw->frw_lock);
-	frw->frw_xlocker = NULL;
-	xt_spinlock_init_with_autoname(self, &frw->frw_state_lock);
-	frw->frw_state = 0;
-	frw->frw_read_waiters = 0;
-	/* Must be aligned! */
-	ASSERT(xt_thr_maximum_threads == xt_align_size(xt_thr_maximum_threads, XT_XS_LOCK_ALIGN));
-	frw->x.frw_rlock = (xtWord1 *) xt_calloc(self, xt_thr_maximum_threads);
+	xt_init_mutex_with_autoname(self, &xsm->xsm_lock);
+	xt_init_cond(self, &xsm->xsm_cond);
+	xt_init_cond(self, &xsm->xsm_cond_2);
+	xsm->xsm_xlocker = 0;
+	xsm->xsm_rlock_count = 0;
+	xsm->xsm_wait_count = 0;
+#ifdef DEBUG
+	xsm->xsm_locker = 0;
+#endif
 #ifdef XT_THREAD_LOCK_INFO
-	frw->frw_name = n;
-	xt_thread_lock_info_init(&frw->frw_lock_info, frw);
+	xsm->xsm_name = name;
+	xt_thread_lock_info_init(&xsm->xsm_lock_info, xsm);
 #endif
 }
 
-xtPublic void xt_fastrwlock_free(struct XTThread *self, XTFastRWLockPtr frw)
+xtPublic void xt_xsmutex_free(struct XTThread *XT_UNUSED(self), XTXSMutexLockPtr xsm)
 {
-	if (frw->x.frw_rlock)
-		xt_free(self, (void *) frw->x.frw_rlock);
-	xt_fastlock_free(self, &frw->frw_lock);
-	xt_spinlock_free(self, &frw->frw_state_lock);
+	xt_free_mutex(&xsm->xsm_lock);
+	xt_free_cond(&xsm->xsm_cond);
+	xt_free_cond(&xsm->xsm_cond_2);
 #ifdef XT_THREAD_LOCK_INFO
-	xt_thread_lock_info_free(&frw->frw_lock_info);
+	xt_thread_lock_info_free(&xsm->xsm_lock_info);
 #endif
 }
 
-xtPublic xtBool xt_fastrwlock_xlock(XTFastRWLockPtr frw, struct XTThread *thread)
+xtPublic xtBool xt_xsmutex_xlock(XTXSMutexLockPtr xsm, xtThreadID thd_id)
 {
-	xt_fastlock_lock(&frw->frw_lock, thread);
-	ASSERT_NS(frw->x.frw_rlock[thread->t_id] == XT_NO_LOCK);
-	
-	xt_spinlock_lock(&frw->frw_state_lock);
+	xt_lock_mutex_ns(&xsm->xsm_lock);
 
-	/* Set the state before xlocker (dirty read!) */
-	frw->frw_state = 0;
+	/* Wait for exclusive locker: */
+	while (xsm->xsm_xlocker) {
+		if (!xt_timed_wait_cond_ns(&xsm->xsm_cond, &xsm->xsm_lock, 10000)) {
+			xt_unlock_mutex_ns(&xsm->xsm_lock);
+			return FAILED;
+		}
+	}
 
-	/* I am the locker: */
-	frw->frw_xlocker = thread;
+	/* GOTCHA: You would think this is not necessary...
+	 * But is does not always work, if a normal insert is used.
+	 * The reason is, I guess, on MMP the assignment is not
+	 * always immediately visible to other processors, because they
+	 * have old versions of this variable in there cache.
+	 *
+	 * But this is required, because the locking mechanism is based
+	 * on:
+	 * Locker: sets xlocker, tests rlock_count
+	 * Reader: incs rlock_count, tests xlocker
+	 *
+	 * The test, in both cases, may not read stale values.
+	 * volatile does not help, because this just turns compiler
+	 * optimisations off.
+	 */
+	xt_atomic_set4(&xsm->xsm_xlocker, thd_id);
 
-	/* Wait for all the read lockers: */
-	while (frw->frw_state < xt_thr_current_max_threads) {
-		while (frw->x.frw_rlock[frw->frw_state]) {
-			xt_lock_thread(thread);
-			xt_spinlock_unlock(&frw->frw_state_lock);
-			/* Wait for this reader. We rely on the reader to free
-			 * us from this wait! */
-			if (!xt_wait_thread(thread)) {
-				xt_unlock_thread(thread);
-				frw->frw_state = 0;
-				frw->frw_xlocker = NULL;
-				xt_fastlock_unlock(&frw->frw_lock, thread);
+	/* Wait for all the reader to wait! */
+	while (xsm->xsm_wait_count < xsm->xsm_rlock_count) {
+		/* {RACE-WR_MUTEX} Here as well: */
+		if (!xt_timed_wait_cond_ns(&xsm->xsm_cond, &xsm->xsm_lock, 100)) {
+			xsm->xsm_xlocker = 0;
+			xt_unlock_mutex_ns(&xsm->xsm_lock);
+			return FAILED;
+		}
+	}
+
+#ifdef XT_THREAD_LOCK_INFO
+	xt_thread_lock_info_add_owner(&xsm->xsm_lock_info);
+#endif
+	return OK;
+}
+
+xtPublic xtBool xt_xsmutex_slock(XTXSMutexLockPtr xsm, xtThreadID XT_UNUSED(thd_id))
+{
+	xt_atomic_inc2(&xsm->xsm_rlock_count);
+
+	/* Check if there could be an X locker: */
+	if (xsm->xsm_xlocker) {
+		/* I am waiting... */
+		xt_lock_mutex_ns(&xsm->xsm_lock);
+		xsm->xsm_wait_count++;
+		/* Wake up the xlocker: */
+		if (xsm->xsm_xlocker && xsm->xsm_wait_count == xsm->xsm_rlock_count) {
+			if (!xt_broadcast_cond_ns(&xsm->xsm_cond)) {
+				xsm->xsm_wait_count--;
+				xt_unlock_mutex_ns(&xsm->xsm_lock);
 				return FAILED;
 			}
-			xt_unlock_thread(thread);
-			xt_spinlock_lock(&frw->frw_state_lock);
 		}
-		/* State can be incremented in parallel by a reader
-		 * thread!
-		 */
-		frw->frw_state++;
+		while (xsm->xsm_xlocker) {
+			if (!xt_timed_wait_cond_ns(&xsm->xsm_cond_2, &xsm->xsm_lock, 10000)) {
+				xsm->xsm_wait_count--;
+				xt_unlock_mutex_ns(&xsm->xsm_lock);
+				return FAILED;
+			}
+		}
+		xsm->xsm_wait_count--;
+		xt_unlock_mutex_ns(&xsm->xsm_lock);
 	}
 
-	/* I have waited for all: */
-	frw->frw_state = xt_thr_maximum_threads;
-
-	xt_spinlock_unlock(&frw->frw_state_lock);
-
 #ifdef XT_THREAD_LOCK_INFO
-	xt_thread_lock_info_add_owner(&frw->frw_lock_info);
+	xt_thread_lock_info_add_owner(&xsm->xsm_lock_info);
 #endif
-
 	return OK;
 }
 
-xtPublic xtBool xt_fastrwlock_slock(XTFastRWLockPtr frw, struct XTThread *thread)
+xtPublic xtBool xt_xsmutex_unlock(XTXSMutexLockPtr xsm, xtThreadID thd_id)
 {
-	xtThreadID thd_id = thread->t_id;
-
-	ASSERT_NS(frw->x.frw_rlock[thd_id] == XT_NO_LOCK);
-	frw->x.frw_rlock[thd_id] = XT_WANT_LOCK;
-	/* Check if there could be an X locker: */
-	if (frw->frw_xlocker) {
-		/* There is an X locker.
-		 * If frw_state < thd_id then the X locker will wait for me.
-		 * So I should not wait!
-		 */
-		if (frw->frw_state >= thd_id) {
-			/* If frw->frw_state >= thd_id, then the locker may have, or
-			 * has already checked me, and I will have to wait.
-			 *
-			 * Otherwise, frw_state <= thd_id, which means the
-			 * X locker has not checked me, and will still wait for me (or 
-			 * is already waiting for me). In this case, I will have to
-			 * take the mutex to make sure exactly how far he
-			 * is with the checking.
-			 */
-			xt_spinlock_lock(&frw->frw_state_lock);
-			frw->frw_read_waiters++;
-			frw->x.frw_rlock[thd_id] = XT_WAITING;
-			while (frw->frw_state > thd_id && frw->frw_xlocker) {
-				xt_lock_thread(thread);
-				xt_spinlock_unlock(&frw->frw_state_lock);
-				if (!xt_wait_thread(thread)) {
-					xt_unlock_thread(thread);
-					xt_spinlock_lock(&frw->frw_state_lock);
-					frw->frw_read_waiters--;
-					frw->x.frw_rlock[thd_id] = XT_NO_LOCK;
-					xt_spinlock_unlock(&frw->frw_state_lock);
-					return FAILED;
-				}
-				xt_unlock_thread(thread);
-				xt_spinlock_lock(&frw->frw_state_lock);
+	if (xsm->xsm_xlocker == thd_id) {
+		xsm->xsm_xlocker = 0;
+		if (xsm->xsm_wait_count) {
+			if (!xt_broadcast_cond_ns(&xsm->xsm_cond_2)) {
+				xt_unlock_mutex_ns(&xsm->xsm_lock);
+				return FAILED;
 			}
-			frw->x.frw_rlock[thd_id] = XT_HAVE_LOCK;
-			frw->frw_read_waiters--;
-			xt_spinlock_unlock(&frw->frw_state_lock);
-			return OK;
 		}
-	}
-	/* There is no exclusive locker, so we have the read lock: */
-	frw->x.frw_rlock[thd_id] = XT_HAVE_LOCK;
-
-#ifdef XT_THREAD_LOCK_INFO
-	xt_thread_lock_info_add_owner(&frw->frw_lock_info);
-#endif
-
-	return OK;
-}
-
-xtPublic xtBool xt_fastrwlock_unlock(XTFastRWLockPtr frw, struct XTThread *thread)
-{
-	xtThreadID thd_id = thread->t_id;
-
-	if (frw->frw_xlocker == thread) {
-		/* I have an X lock. */
-		ASSERT_NS(frw->frw_state == xt_thr_maximum_threads);
-		frw->frw_state = 0;
-		frw->frw_xlocker = NULL;
-
-		/* Wake up all read waiters: */
-		if (frw->frw_read_waiters) {
-			xt_spinlock_lock(&frw->frw_state_lock);
-			if (frw->frw_read_waiters) {
-				XTThreadPtr	target;
-
-				for (u_int i=0; i<xt_thr_current_max_threads; i++) {
-					if (frw->x.frw_rlock[i] == XT_WAITING) {
-						if ((target = xt_thr_array[i])) {
-							xt_lock_thread(target);
-							xt_signal_thread(target);
-							xt_unlock_thread(target);
-						}
-					}
-				}
+		else {
+			/* Wake up any other X or shared lockers: */
+			if (!xt_broadcast_cond_ns(&xsm->xsm_cond)) {
+				xt_unlock_mutex_ns(&xsm->xsm_lock);
+				return FAILED;
 			}
-			xt_spinlock_unlock(&frw->frw_state_lock);
 		}
-		xt_fastlock_unlock(&frw->frw_lock, thread);
+		xt_unlock_mutex_ns(&xsm->xsm_lock);
 	}
 	else {
-		/* I have a shared lock: */
-		ASSERT_NS(frw->x.frw_rlock[thd_id] == XT_HAVE_LOCK);
-		ASSERT_NS(frw->frw_state != xt_thr_maximum_threads);
-		frw->x.frw_rlock[thd_id] = XT_NO_LOCK;
-		if (frw->frw_xlocker && frw->frw_state == thd_id) {
-			xt_spinlock_lock(&frw->frw_state_lock);
-			if (frw->frw_xlocker && frw->frw_state == thd_id) {
+		/* Taking the advice from {RACE-WR_MUTEX} I do the decrement
+		 * after I have a lock!
+		 */
+		if (xsm->xsm_xlocker) {
+			xt_lock_mutex_ns(&xsm->xsm_lock);
+			xt_atomic_dec2(&xsm->xsm_rlock_count);
+			if (xsm->xsm_xlocker && xsm->xsm_wait_count == xsm->xsm_rlock_count) {
 				/* If the X locker is waiting for me,
 				 * then allow him to continue. 
 				 */
-				frw->frw_state = thd_id+1;
-				/* Wake him up: */
-				xt_lock_thread(frw->frw_xlocker);
-				xt_signal_thread(frw->frw_xlocker);
-				xt_unlock_thread(frw->frw_xlocker);
+				if (!xt_broadcast_cond_ns(&xsm->xsm_cond)) {
+					xt_unlock_mutex_ns(&xsm->xsm_lock);
+					return FAILED;
+				}
 			}
-			xt_spinlock_unlock(&frw->frw_state_lock);
+			xt_unlock_mutex_ns(&xsm->xsm_lock);
 		}
+		else
+			xt_atomic_dec2(&xsm->xsm_rlock_count);
 	}
 
 #ifdef XT_THREAD_LOCK_INFO
-	xt_thread_lock_info_release_owner(&frw->frw_lock_info);
+	xt_thread_lock_info_release_owner(&xsm->xsm_lock_info);
 #endif
-
 	return OK;
 }
 
@@ -1747,9 +1674,9 @@ xtPublic xtBool xt_fastrwlock_unlock(XTFastRWLockPtr frw, struct XTThread *threa
  */
 
 #ifdef XT_THREAD_LOCK_INFO
-xtPublic void xt_atomicrwlock_init(struct XTThread XT_UNUSED(*self), XTAtomicRWLockPtr arw, const char *n)
+xtPublic void xt_atomicrwlock_init(struct XTThread *XT_UNUSED(self), XTAtomicRWLockPtr arw, const char *n)
 #else
-xtPublic void xt_atomicrwlock_init(struct XTThread XT_UNUSED(*self), XTAtomicRWLockPtr arw)
+xtPublic void xt_atomicrwlock_init(struct XTThread *XT_UNUSED(self), XTAtomicRWLockPtr arw)
 #endif
 {
 	arw->arw_reader_count = 0;
@@ -1760,14 +1687,18 @@ xtPublic void xt_atomicrwlock_init(struct XTThread XT_UNUSED(*self), XTAtomicRWL
 #endif
 }
 
+#ifdef XT_THREAD_LOCK_INFO
+xtPublic void xt_atomicrwlock_free(struct XTThread *, XTAtomicRWLockPtr arw)
+#else
 xtPublic void xt_atomicrwlock_free(struct XTThread *, XTAtomicRWLockPtr XT_UNUSED(arw))
+#endif
 {
 #ifdef XT_THREAD_LOCK_INFO
 	xt_thread_lock_info_free(&arw->arw_lock_info);
 #endif
 }
 
-xtPublic xtBool xt_atomicrwlock_xlock(XTAtomicRWLockPtr arw, xtThreadID XT_UNUSED(thr_id))
+xtPublic xtBool xt_atomicrwlock_xlock(XTAtomicRWLockPtr arw, xtThreadID XT_NDEBUG_UNUSED(thr_id))
 {
 	register xtWord2 set;
 
@@ -1819,16 +1750,118 @@ xtPublic xtBool xt_atomicrwlock_slock(XTAtomicRWLockPtr arw)
 
 xtPublic xtBool xt_atomicrwlock_unlock(XTAtomicRWLockPtr arw, xtBool xlocked)
 {
-	if (xlocked)
+	if (xlocked) {
+#ifdef DEBUG
+		arw->arw_locker = 0;
+#endif
 		arw->arw_xlock_set = 0;
+	}
 	else
 		xt_atomic_dec2(&arw->arw_reader_count);
 
 #ifdef XT_THREAD_LOCK_INFO
 	xt_thread_lock_info_release_owner(&arw->arw_lock_info);
 #endif
+
+	return OK;
+}
+
+/*
+ * -----------------------------------------------------------------------
+ * "SKEW" ATOMITC READ/WRITE LOCK (BASED ON ATOMIC OPERATIONS)
+ *
+ * This lock type favors writers. It only works if the proportion of readers
+ * to writer is high.
+ */
+
+#ifdef XT_THREAD_LOCK_INFO
+xtPublic void xt_skewrwlock_init(struct XTThread *XT_UNUSED(self), XTSkewRWLockPtr srw, const char *n)
+#else
+xtPublic void xt_skewrwlock_init(struct XTThread *XT_UNUSED(self), XTSkewRWLockPtr srw)
+#endif
+{
+	srw->srw_reader_count = 0;
+	srw->srw_xlock_set = 0;
+#ifdef XT_THREAD_LOCK_INFO
+	srw->srw_name = n;
+	xt_thread_lock_info_init(&srw->srw_lock_info, srw);
+#endif
+}
+
+#ifdef XT_THREAD_LOCK_INFO
+xtPublic void xt_skewrwlock_free(struct XTThread *, XTSkewRWLockPtr srw)
+#else
+xtPublic void xt_skewrwlock_free(struct XTThread *, XTSkewRWLockPtr XT_UNUSED(srw))
+#endif
+{
+#ifdef XT_THREAD_LOCK_INFO
+	xt_thread_lock_info_free(&srw->srw_lock_info);
+#endif
+}
+
+xtPublic xtBool xt_skewrwlock_xlock(XTSkewRWLockPtr srw, xtThreadID XT_NDEBUG_UNUSED(thr_id))
+{
+	register xtWord2 set;
+
+	/* First get an exclusive lock: */
+	for (;;) {
+		set = xt_atomic_tas2(&srw->srw_xlock_set, 1);
+		if (!set)
+			break;
+		xt_yield();
+	}
+
+	/* Wait for the remaining readers: */
+	while (srw->srw_reader_count)
+		xt_yield();
+
 #ifdef DEBUG
-	arw->arw_locker = 0;
+	srw->srw_locker = thr_id;
+#endif
+
+#ifdef XT_THREAD_LOCK_INFO
+	xt_thread_lock_info_add_owner(&srw->srw_lock_info);
+#endif
+	return OK;
+}
+
+xtPublic xtBool xt_skewrwlock_slock(XTSkewRWLockPtr srw)
+{
+	/* Wait for an exclusive lock: */
+	retry:
+	for (;;) {
+		if (!srw->srw_xlock_set)
+			break;
+		xt_yield();
+	}
+
+	/* Add a reader: */
+	xt_atomic_inc2(&srw->srw_reader_count);
+
+	/* Check for xlock again: */
+	if (srw->srw_xlock_set) {
+		xt_atomic_dec2(&srw->srw_reader_count);
+		goto retry;
+	}
+
+#ifdef XT_THREAD_LOCK_INFO
+	xt_thread_lock_info_add_owner(&srw->srw_lock_info);
+#endif
+	return OK;
+}
+
+xtPublic xtBool xt_skewrwlock_unlock(XTSkewRWLockPtr srw, xtBool xlocked)
+{
+	if (xlocked)
+		srw->srw_xlock_set = 0;
+	else
+		xt_atomic_dec2(&srw->srw_reader_count);
+
+#ifdef XT_THREAD_LOCK_INFO
+	xt_thread_lock_info_release_owner(&srw->srw_lock_info);
+#endif
+#ifdef DEBUG
+	srw->srw_locker = 0;
 #endif
 
 	return OK;
@@ -1844,15 +1877,17 @@ xtPublic xtBool xt_atomicrwlock_unlock(XTAtomicRWLockPtr arw, xtBool xlocked)
 #define JOB_PRINT			3
 #define JOB_INCREMENT		4
 #define JOB_SNOOZE			5
+#define JOB_DOUBLE_INC		6
 
 #define LOCK_PTHREAD_RW		1
 #define LOCK_PTHREAD_MUTEX	2
-#define LOCK_FASTRW			3
+#define LOCK_RWMUTEX		3
 #define LOCK_SPINLOCK		4
 #define LOCK_FASTLOCK		5
-#define LOCK_SPINRWLOCK		6
-#define LOCK_FASTRWLOCK		7
+#define LOCK_SPINXSLOCK		6
+#define LOCK_XSMUTEX		7
 #define LOCK_ATOMICRWLOCK	8
+#define LOCK_SKEWRWLOCK		9
 
 typedef struct XSLockTest {
 	u_int			xs_interations;
@@ -1864,18 +1899,19 @@ typedef struct XSLockTest {
 	XTSpinLockRec	xs_spinlock;
 	xt_mutex_type	xs_mutex;
 	XTFastLockRec	xs_fastlock;
-	XTSpinRWLockRec	xs_spinrwlock;
-	XTFastRWLockRec	xs_fastrwlock;
+	XTSpinXSLockRec	xs_spinrwlock;
+	XTXSMutexRec	xs_fastrwlock;
 	XTAtomicRWLockRec xs_atomicrwlock;
+	XTSkewRWLockRec xs_skewrwlock;
 	int				xs_progress;
 	xtWord4			xs_inc;
 } XSLockTestRec, *XSLockTestPtr;
 
-static void lck_free_thread_data(XTThreadPtr self __attribute__((unused)), void *data __attribute__((unused)))
+static void lck_free_thread_data(XTThreadPtr XT_UNUSED(self), void *XT_UNUSED(data))
 {
 }
 
-static void lck_do_job(XTThreadPtr self, int job, XSLockTestPtr data)
+static void lck_do_job(XTThreadPtr self, int job, XSLockTestPtr data, xtBool reader)
 {
 	char b1[2048], b2[2048];
 
@@ -1899,6 +1935,16 @@ static void lck_do_job(XTThreadPtr self, int job, XSLockTestPtr data)
 		case JOB_SNOOZE:
 			xt_sleep_milli_second(10);
 			data->xs_inc++;
+			break;
+		case JOB_DOUBLE_INC:
+			if (reader) {
+				if ((data->xs_inc & 1) != 0)
+					printf("Noooo!\n");
+			}
+			else {
+				data->xs_inc++;
+				data->xs_inc++;
+			}
 			break;
 	}
 }
@@ -1929,28 +1975,33 @@ static void *lck_run_reader(XTThreadPtr self)
 			printf("- %s %d\n", self->t_name, i+1);
 		if (data->xs_which_lock == LOCK_PTHREAD_RW) {
 			xt_slock_rwlock_ns(&data->xs_plock);
-			lck_do_job(self, data->xs_which_job, data);
+			lck_do_job(self, data->xs_which_job, data, TRUE);
 			xt_unlock_rwlock_ns(&data->xs_plock);
 		}
-		else if (data->xs_which_lock == LOCK_FASTRW) {
+		else if (data->xs_which_lock == LOCK_RWMUTEX) {
 			xt_rwmutex_slock(&data->xs_lock, self->t_id);
-			lck_do_job(self, data->xs_which_job, data);
+			lck_do_job(self, data->xs_which_job, data, TRUE);
 			xt_rwmutex_unlock(&data->xs_lock, self->t_id);
 		}
-		else if (data->xs_which_lock == LOCK_SPINRWLOCK) {
-			xt_spinrwlock_slock(&data->xs_spinrwlock, self->t_id);
-			lck_do_job(self, data->xs_which_job, data);
-			xt_spinrwlock_unlock(&data->xs_spinrwlock, self->t_id);
+		else if (data->xs_which_lock == LOCK_SPINXSLOCK) {
+			xt_spinxslock_slock(&data->xs_spinrwlock);
+			lck_do_job(self, data->xs_which_job, data, TRUE);
+			xt_spinxslock_unlock(&data->xs_spinrwlock, FALSE);
 		}
-		else if (data->xs_which_lock == LOCK_FASTRWLOCK) {
-			xt_fastrwlock_slock(&data->xs_fastrwlock, self);
-			lck_do_job(self, data->xs_which_job, data);
-			xt_fastrwlock_unlock(&data->xs_fastrwlock, self);
+		else if (data->xs_which_lock == LOCK_XSMUTEX) {
+			xt_xsmutex_slock(&data->xs_fastrwlock, self->t_id);
+			lck_do_job(self, data->xs_which_job, data, TRUE);
+			xt_xsmutex_unlock(&data->xs_fastrwlock, self->t_id);
 		}
 		else if (data->xs_which_lock == LOCK_ATOMICRWLOCK) {
 			xt_atomicrwlock_slock(&data->xs_atomicrwlock);
-			lck_do_job(self, data->xs_which_job, data);
+			lck_do_job(self, data->xs_which_job, data, TRUE);
 			xt_atomicrwlock_unlock(&data->xs_atomicrwlock, FALSE);
+		}
+		else if (data->xs_which_lock == LOCK_SKEWRWLOCK) {
+			xt_skewrwlock_slock(&data->xs_skewrwlock);
+			lck_do_job(self, data->xs_which_job, data, TRUE);
+			xt_skewrwlock_unlock(&data->xs_skewrwlock, FALSE);
 		}
 		else
 			ASSERT(FALSE);
@@ -1971,28 +2022,33 @@ static void *lck_run_writer(XTThreadPtr self)
 			printf("- %s %d\n", self->t_name, i+1);
 		if (data->xs_which_lock == LOCK_PTHREAD_RW) {
 			xt_xlock_rwlock_ns(&data->xs_plock);
-			lck_do_job(self, data->xs_which_job, data);
+			lck_do_job(self, data->xs_which_job, data, FALSE);
 			xt_unlock_rwlock_ns(&data->xs_plock);
 		}
-		else if (data->xs_which_lock == LOCK_FASTRW) {
+		else if (data->xs_which_lock == LOCK_RWMUTEX) {
 			xt_rwmutex_xlock(&data->xs_lock, self->t_id);
-			lck_do_job(self, data->xs_which_job, data);
+			lck_do_job(self, data->xs_which_job, data, FALSE);
 			xt_rwmutex_unlock(&data->xs_lock, self->t_id);
 		}
-		else if (data->xs_which_lock == LOCK_SPINRWLOCK) {
-			xt_spinrwlock_xlock(&data->xs_spinrwlock, self->t_id);
-			lck_do_job(self, data->xs_which_job, data);
-			xt_spinrwlock_unlock(&data->xs_spinrwlock, self->t_id);
+		else if (data->xs_which_lock == LOCK_SPINXSLOCK) {
+			xt_spinxslock_xlock(&data->xs_spinrwlock, self->t_id);
+			lck_do_job(self, data->xs_which_job, data, FALSE);
+			xt_spinxslock_unlock(&data->xs_spinrwlock, TRUE);
 		}
-		else if (data->xs_which_lock == LOCK_FASTRWLOCK) {
-			xt_fastrwlock_xlock(&data->xs_fastrwlock, self);
-			lck_do_job(self, data->xs_which_job, data);
-			xt_fastrwlock_unlock(&data->xs_fastrwlock, self);
+		else if (data->xs_which_lock == LOCK_XSMUTEX) {
+			xt_xsmutex_xlock(&data->xs_fastrwlock, self->t_id);
+			lck_do_job(self, data->xs_which_job, data, FALSE);
+			xt_xsmutex_unlock(&data->xs_fastrwlock, self->t_id);
 		}
 		else if (data->xs_which_lock == LOCK_ATOMICRWLOCK) {
 			xt_atomicrwlock_xlock(&data->xs_atomicrwlock, self->t_id);
-			lck_do_job(self, data->xs_which_job, data);
+			lck_do_job(self, data->xs_which_job, data, FALSE);
 			xt_atomicrwlock_unlock(&data->xs_atomicrwlock, TRUE);
+		}
+		else if (data->xs_which_lock == LOCK_SKEWRWLOCK) {
+			xt_skewrwlock_xlock(&data->xs_skewrwlock, self->t_id);
+			lck_do_job(self, data->xs_which_job, data, FALSE);
+			xt_skewrwlock_unlock(&data->xs_skewrwlock, TRUE);
 		}
 		else
 			ASSERT(FALSE);
@@ -2011,7 +2067,7 @@ static void lck_print_test(XSLockTestRec *data)
 		case LOCK_PTHREAD_MUTEX:
 			printf("pthread mutex");
 			break;
-		case LOCK_FASTRW:
+		case LOCK_RWMUTEX:
 			printf("fast read/write mutex");
 			break;
 		case LOCK_SPINLOCK:
@@ -2020,14 +2076,17 @@ static void lck_print_test(XSLockTestRec *data)
 		case LOCK_FASTLOCK:
 			printf("fast mutex");
 			break;
-		case LOCK_SPINRWLOCK:
+		case LOCK_SPINXSLOCK:
 			printf("spin read/write lock");
 			break;
-		case LOCK_FASTRWLOCK:
-			printf("fast read/write lock");
+		case LOCK_XSMUTEX:
+			printf("fast x/s mutex");
 			break;
 		case LOCK_ATOMICRWLOCK:
 			printf("atomic read/write lock");
+			break;
+		case LOCK_SKEWRWLOCK:
+			printf("skew read/write lock");
 			break;
 	}
 
@@ -2063,17 +2122,17 @@ static void *lck_run_mutex_locker(XTThreadPtr self)
 			printf("- %s %d\n", self->t_name, i+1);
 		if (data->xs_which_lock == LOCK_PTHREAD_MUTEX) {
 			xt_lock_mutex_ns(&data->xs_mutex);
-			lck_do_job(self, data->xs_which_job, data);
+			lck_do_job(self, data->xs_which_job, data, FALSE);
 			xt_unlock_mutex_ns(&data->xs_mutex);
 		}
 		else if (data->xs_which_lock == LOCK_SPINLOCK) {
 			xt_spinlock_lock(&data->xs_spinlock);
-			lck_do_job(self, data->xs_which_job, data);
+			lck_do_job(self, data->xs_which_job, data, FALSE);
 			xt_spinlock_unlock(&data->xs_spinlock);
 		}
 		else if (data->xs_which_lock == LOCK_FASTLOCK) {
 			xt_fastlock_lock(&data->xs_fastlock, self);
-			lck_do_job(self, data->xs_which_job, data);
+			lck_do_job(self, data->xs_which_job, data, FALSE);
 			xt_fastlock_unlock(&data->xs_fastlock, self);
 		}
 		else
@@ -2164,15 +2223,19 @@ xtPublic void xt_unit_test_read_write_locks(XTThreadPtr self)
 	memset(&data, 0, sizeof(data));
 
 	printf("TEST: xt_unit_test_read_write_locks\n");
+	printf("size of XTXSMutexRec = %d\n", (int) sizeof(XTXSMutexRec));
+	printf("size of pthread_cond_t = %d\n", (int) sizeof(pthread_cond_t));
+	printf("size of pthread_mutex_t = %d\n", (int) sizeof(pthread_mutex_t));
 	xt_rwmutex_init_with_autoname(self, &data.xs_lock);
 	xt_init_rwlock_with_autoname(self, &data.xs_plock);
-	xt_spinrwlock_init_with_autoname(self, &data.xs_spinrwlock);
-	xt_fastrwlock_init_with_autoname(self, &data.xs_fastrwlock);
+	xt_spinxslock_init_with_autoname(self, &data.xs_spinrwlock);
+	xt_xsmutex_init_with_autoname(self, &data.xs_fastrwlock);
 	xt_atomicrwlock_init_with_autoname(self, &data.xs_atomicrwlock);
+	xt_skewrwlock_init_with_autoname(self, &data.xs_skewrwlock);
 
 	/**
 	data.xs_interations = 10;
-	data.xs_which_lock = LOCK_FASTRW; // LOCK_PTHREAD_RW, LOCK_FASTRW, LOCK_SPINRWLOCK, LOCK_FASTRWLOCK
+	data.xs_which_lock = LOCK_RWMUTEX; // LOCK_PTHREAD_RW, LOCK_RWMUTEX, LOCK_SPINXSLOCK, LOCK_XSMUTEX
 	data.xs_which_job = JOB_PRINT;
 	data.xs_debug_print = TRUE;
 	data.xs_progress = 0;
@@ -2184,7 +2247,7 @@ xtPublic void xt_unit_test_read_write_locks(XTThreadPtr self)
 
 	/**
 	data.xs_interations = 4000;
-	data.xs_which_lock = LOCK_FASTRW; // LOCK_PTHREAD_RW, LOCK_FASTRW, LOCK_SPINRWLOCK, LOCK_FASTRWLOCK
+	data.xs_which_lock = LOCK_RWMUTEX; // LOCK_PTHREAD_RW, LOCK_RWMUTEX, LOCK_SPINXSLOCK, LOCK_XSMUTEX
 	data.xs_which_job = JOB_SLEEP;
 	data.xs_debug_print = TRUE;
 	data.xs_progress = 200;
@@ -2194,37 +2257,52 @@ xtPublic void xt_unit_test_read_write_locks(XTThreadPtr self)
 	lck_reader_writer_test(self, &data, 4, 2);
 	**/
 
+	// LOCK_PTHREAD_RW, LOCK_RWMUTEX, LOCK_SPINXSLOCK, LOCK_XSMUTEX, LOCK_ATOMICRWLOCK, LOCK_SKEWRWLOCK
 	/**/
-	data.xs_interations = 1000000;
-	data.xs_which_lock = LOCK_FASTRW; // LOCK_PTHREAD_RW, LOCK_FASTRW, LOCK_SPINRWLOCK, LOCK_FASTRWLOCK, LOCK_ATOMICRWLOCK
-	data.xs_which_job = JOB_INCREMENT;
+	data.xs_interations = 100000;
+	data.xs_which_lock = LOCK_XSMUTEX;
+	data.xs_which_job = JOB_DOUBLE_INC; // JOB_INCREMENT, JOB_DOUBLE_INC
 	data.xs_debug_print = FALSE;
 	data.xs_progress = 0;
 	lck_reader_writer_test(self, &data, 10, 0);
+	data.xs_which_lock = LOCK_XSMUTEX;
+	lck_reader_writer_test(self, &data, 10, 0);
+	//lck_reader_writer_test(self, &data, 0, 5);
+	//lck_reader_writer_test(self, &data, 10, 0);
+	//lck_reader_writer_test(self, &data, 10, 5);
 	/**/
 
-	/**
+	/**/
 	data.xs_interations = 10000;
-	data.xs_which_lock = LOCK_FASTRW; // LOCK_PTHREAD_RW, LOCK_FASTRW, LOCK_SPINRWLOCK, LOCK_FASTRWLOCK
+	data.xs_which_lock = LOCK_XSMUTEX;
 	data.xs_which_job = JOB_MEMCPY;
 	data.xs_debug_print = FALSE;
 	data.xs_progress = 0;
-	lck_reader_writer_test(self, &data, 10, 5);
-	**/
+	lck_reader_writer_test(self, &data, 10, 0);
+	data.xs_which_lock = LOCK_XSMUTEX;
+	lck_reader_writer_test(self, &data, 10, 0);
+	//lck_reader_writer_test(self, &data, 0, 5);
+	//lck_reader_writer_test(self, &data, 10, 0);
+	//lck_reader_writer_test(self, &data, 10, 5);
+	/**/
 
-	/**
+	/**/
 	data.xs_interations = 1000;
-	data.xs_which_lock = LOCK_FASTRW; // LOCK_PTHREAD_RW, LOCK_FASTRW, LOCK_SPINRWLOCK, LOCK_FASTRWLOCK
-	data.xs_which_job = JOB_SLEEP;
+	data.xs_which_lock = LOCK_XSMUTEX;
+	data.xs_which_job = JOB_SLEEP; // JOB_SLEEP, JOB_SNOOZE
 	data.xs_debug_print = FALSE;
 	data.xs_progress = 0;
-	lck_reader_writer_test(self, &data, 10, 5);
-	**/
+	lck_reader_writer_test(self, &data, 10, 0);
+	data.xs_which_lock = LOCK_XSMUTEX;
+	lck_reader_writer_test(self, &data, 10, 0);
+	/**/
 
 	xt_rwmutex_free(self, &data.xs_lock);
 	xt_free_rwlock(&data.xs_plock);
-	xt_spinrwlock_free(self, &data.xs_spinrwlock);
-	xt_fastrwlock_free(self, &data.xs_fastrwlock);
+	xt_spinxslock_free(self, &data.xs_spinrwlock);
+	xt_xsmutex_free(self, &data.xs_fastrwlock);
+	xt_atomicrwlock_free(self, &data.xs_atomicrwlock);
+	xt_skewrwlock_free(self, &data.xs_skewrwlock);
 }
 
 xtPublic void xt_unit_test_mutex_locks(XTThreadPtr self)

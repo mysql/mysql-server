@@ -30,6 +30,10 @@
 struct XTThread;
 
 #ifdef DEBUG
+#define DEBUG_MEMORY
+#endif
+
+#ifdef DEBUG_MEMORY
 
 #define XT_MM_STACK_TRACE	200
 #define XT_MM_TRACE_DEPTH	4
@@ -109,7 +113,7 @@ void	xt_free_ns(void *ptr);
 
 #endif
 
-#ifdef DEBUG
+#ifdef DEBUG_MEMORY
 #define xt_dup_string(t, s)		xt_mm_dup_string(t, s, __LINE__, __FILE__)
 
 char	*xt_mm_dup_string(struct XTThread *self, const char *path, u_int line, const char *file);

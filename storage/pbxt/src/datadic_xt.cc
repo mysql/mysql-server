@@ -26,6 +26,10 @@
 
 #include "xt_config.h"
 
+#ifdef DRIZZLED
+#include <bitset>
+#endif
+
 #include <ctype.h>
 #include <errno.h>
 
@@ -433,7 +437,7 @@ class XTTokenizer {
 	XTToken *nextToken(XTThreadPtr self, c_char *keyword, XTToken *tk);
 };
 
-void ri_free_token(XTThreadPtr self __attribute__((unused)), XTToken *tk)
+void ri_free_token(XTThreadPtr XT_UNUSED(self), XTToken *tk)
 {
 	delete tk;
 }
@@ -523,6 +527,13 @@ XTToken *XTTokenizer::nextToken(XTThreadPtr self)
 					if (*(tkn_curr_pos + 1) != quote)
 						break;
 					tkn_curr_pos++;
+				}
+				/* TODO: Unless sql_mode == 'NO_BACKSLASH_ESCAPES'!!! */
+				if (*tkn_curr_pos == '\\') {
+					if (*(tkn_curr_pos+1) == quote) {
+						if (quote == '"' || quote == '\'')
+							tkn_curr_pos++;
+					}
 				}
 				tkn_curr_pos++;
 			}
@@ -639,7 +650,7 @@ class XTParseTable : public XTObject {
 	int parseKeyAction(XTThreadPtr self);	
 	void parseCreateTable(XTThreadPtr self);
 	void parseAddTableItem(XTThreadPtr self);
-	void parseQualifiedName(XTThreadPtr self, char *name);
+	void parseQualifiedName(XTThreadPtr self, char *parent_name, char *name);
 	void parseTableName(XTThreadPtr self, bool alterTable);
 	void parseExpression(XTThreadPtr self, bool allow_reserved);
 	void parseBrackets(XTThreadPtr self);
@@ -667,53 +678,53 @@ class XTParseTable : public XTObject {
 		memset(&pt_sbuffer, 0, sizeof(XTStringBufferRec));
 	}
 
-	virtual void finalize(XTThreadPtr self __attribute__((unused))) {
+	virtual void finalize(XTThreadPtr XT_UNUSED(self)) {
 		if (pt_tokenizer)
 			delete pt_tokenizer;
 		xt_sb_set_size(NULL, &pt_sbuffer, 0);
 	}
 
 	// Hooks to receive output from the parser:
-	virtual void setTableName(XTThreadPtr self __attribute__((unused)), char *name __attribute__((unused)), bool alterTable __attribute__((unused))) {
+	virtual void setTableName(XTThreadPtr XT_UNUSED(self), char *XT_UNUSED(name), bool XT_UNUSED(alterTable)) {
 	}
-	virtual void addColumn(XTThreadPtr self __attribute__((unused)), char *col_name __attribute__((unused)), char *old_col_name __attribute__((unused))) {
+	virtual void addColumn(XTThreadPtr XT_UNUSED(self), char *XT_UNUSED(col_name), char *XT_UNUSED(old_col_name)) {
 	}
 	virtual void setDataType(XTThreadPtr self, char *cstring) {
 		if (cstring) 
 			xt_free(self, cstring);
 	}
-	virtual void setNull(XTThreadPtr self __attribute__((unused)), bool nullOK __attribute__((unused))) {
+	virtual void setNull(XTThreadPtr XT_UNUSED(self), bool XT_UNUSED(nullOK)) {
 	}
-	virtual void setAutoInc(XTThreadPtr self __attribute__((unused)), bool autoInc __attribute__((unused))) {
+	virtual void setAutoInc(XTThreadPtr XT_UNUSED(self), bool XT_UNUSED(autoInc)) {
 	}
 	
 	/* Add a contraint. If lastColumn is TRUE then add the contraint 
 	 * to the last column. If not, expect addListedColumn() to be called.
 	 */
-	virtual void addConstraint(XTThreadPtr self __attribute__((unused)), char *name __attribute__((unused)), u_int type __attribute__((unused)), bool lastColumn __attribute__((unused))) {
+	virtual void addConstraint(XTThreadPtr XT_UNUSED(self), char *XT_UNUSED(name), u_int XT_UNUSED(type), bool XT_UNUSED(lastColumn)) {
 	}
 	
 	/* Move the last column created. If symbol is NULL then move the column to the
 	 * first position, else move it to the position just after the given column.
 	 */
-	virtual void moveColumn(XTThreadPtr self __attribute__((unused)), char *col_name __attribute__((unused))) {
+	virtual void moveColumn(XTThreadPtr XT_UNUSED(self), char *XT_UNUSED(col_name)) {
 	}
 
-	virtual void dropColumn(XTThreadPtr self __attribute__((unused)), char *col_name __attribute__((unused))) {
+	virtual void dropColumn(XTThreadPtr XT_UNUSED(self), char *XT_UNUSED(col_name)) {
 	}
 
-	virtual void dropConstraint(XTThreadPtr self __attribute__((unused)), char *name __attribute__((unused)), u_int type __attribute__((unused))) {
+	virtual void dropConstraint(XTThreadPtr XT_UNUSED(self), char *XT_UNUSED(name), u_int XT_UNUSED(type)) {
 	}
 
-	virtual void setIndexName(XTThreadPtr self __attribute__((unused)), char *name __attribute__((unused))) {
+	virtual void setIndexName(XTThreadPtr XT_UNUSED(self), char *XT_UNUSED(name)) {
 	}
-	virtual void addListedColumn(XTThreadPtr self __attribute__((unused)), char *index_col_name __attribute__((unused))) {
+	virtual void addListedColumn(XTThreadPtr XT_UNUSED(self), char *XT_UNUSED(index_col_name)) {
 	}
-	virtual void setReferencedTable(XTThreadPtr self __attribute__((unused)), char *ref_table __attribute__((unused))) {
+	virtual void setReferencedTable(XTThreadPtr XT_UNUSED(self), char *XT_UNUSED(ref_schema), char *XT_UNUSED(ref_table)) {
 	}
-	virtual void addReferencedColumn(XTThreadPtr self __attribute__((unused)), char *index_col_name __attribute__((unused))) {
+	virtual void addReferencedColumn(XTThreadPtr XT_UNUSED(self), char *XT_UNUSED(index_col_name)) {
 	}
-	virtual void setActions(XTThreadPtr self __attribute__((unused)), int on_delete __attribute__((unused)), int on_update __attribute__((unused))) {
+	virtual void setActions(XTThreadPtr XT_UNUSED(self), int XT_UNUSED(on_delete), int XT_UNUSED(on_update)) {
 	}
 
 	virtual void parseTable(XTThreadPtr self, bool convert, char *sql);	
@@ -859,7 +870,7 @@ void XTParseTable::parseAddTableItem(XTThreadPtr self)
 	if (pt_current->isKeyWord("CONSTRAINT")) {
 		pt_current = pt_tokenizer->nextToken(self);
 		if (pt_current->isIdentifier())
-			parseQualifiedName(self, name);
+			parseQualifiedName(self, NULL, name);
 	}
 
 	if (pt_current->isReservedWord(XT_TK_PRIMARY)) {
@@ -974,13 +985,15 @@ void XTParseTable::parseMoveColumn(XTThreadPtr self)
 		char	name[XT_IDENTIFIER_NAME_SIZE];
 
 		pt_current = pt_tokenizer->nextToken(self);
-		parseQualifiedName(self, name);
+		parseQualifiedName(self, NULL, name);
 		moveColumn(self, name);
 	}
 }
 
-void XTParseTable::parseQualifiedName(XTThreadPtr self, char *name)
+void XTParseTable::parseQualifiedName(XTThreadPtr self, char *parent_name, char *name)
 {
+	if (parent_name)
+		parent_name[0] = '\0';
 	/* Should be an identifier by I have this example:
 	 * CREATE TABLE t1 ( comment CHAR(32) ASCII NOT NULL, koi8_ru_f CHAR(32) CHARACTER SET koi8r NOT NULL default '' ) CHARSET=latin5;
 	 *
@@ -990,6 +1003,8 @@ void XTParseTable::parseQualifiedName(XTThreadPtr self, char *name)
 		raiseError(self, pt_current, XT_ERR_ID_TOO_LONG);
 	pt_current = pt_tokenizer->nextToken(self);
 	while (pt_current->isKeyWord(".")) {
+		if (parent_name)
+			xt_strcpy(XT_IDENTIFIER_NAME_SIZE,parent_name, name);
 		pt_current = pt_tokenizer->nextToken(self);
 		/* Accept anything after the DOT! */
 		if (pt_current->getString(name, XT_IDENTIFIER_NAME_SIZE) >= XT_IDENTIFIER_NAME_SIZE)
@@ -1002,7 +1017,7 @@ void XTParseTable::parseTableName(XTThreadPtr self, bool alterTable)
 {
 	char name[XT_IDENTIFIER_NAME_SIZE];
 
-	parseQualifiedName(self, name);
+	parseQualifiedName(self, NULL, name);
 	setTableName(self, name, alterTable);
 }
 
@@ -1011,7 +1026,7 @@ void XTParseTable::parseColumnDefinition(XTThreadPtr self, char *old_col_name)
 	char col_name[XT_IDENTIFIER_NAME_SIZE];
 
 	// column_definition
-	parseQualifiedName(self, col_name);
+	parseQualifiedName(self, NULL, col_name);
 	addColumn(self, col_name, old_col_name);
 	parseDataType(self);
 
@@ -1111,7 +1126,7 @@ u_int XTParseTable::columnList(XTThreadPtr self, bool index_cols)
 	pt_current->expectKeyWord(self, "(");
 	do {
 		pt_current = pt_tokenizer->nextToken(self);
-		parseQualifiedName(self, name);
+		parseQualifiedName(self, NULL, name);
 		addListedColumn(self, name);
 		cols++;
 		if (index_cols) {
@@ -1135,19 +1150,20 @@ void XTParseTable::parseReferenceDefinition(XTThreadPtr self, u_int req_cols)
 	int		on_delete = XT_KEY_ACTION_DEFAULT;
 	int		on_update = XT_KEY_ACTION_DEFAULT;
 	char	name[XT_IDENTIFIER_NAME_SIZE];
+	char	parent_name[XT_IDENTIFIER_NAME_SIZE];
 	u_int	cols = 0;
 
 	// REFERENCES tbl_name
 	pt_current = pt_tokenizer->nextToken(self, "REFERENCES", pt_current);
-	parseQualifiedName(self, name);
-	setReferencedTable(self, name);
+	parseQualifiedName(self, parent_name, name);
+	setReferencedTable(self, parent_name[0] ? parent_name : NULL, name);
 
 	// [ (index_col_name,...) ]
 	if (pt_current->isKeyWord("(")) {
 		pt_current->expectKeyWord(self, "(");
 		do {
 			pt_current = pt_tokenizer->nextToken(self);
-			parseQualifiedName(self, name);
+			parseQualifiedName(self, NULL, name);
 			addReferencedColumn(self, name);
 			cols++;
 			if (cols > req_cols)
@@ -1219,7 +1235,7 @@ void XTParseTable::parseAlterTable(XTThreadPtr self)
 			if (pt_current->isReservedWord(XT_TK_COLUMN))
 				pt_current = pt_tokenizer->nextToken(self);
 
-			parseQualifiedName(self, old_col_name);
+			parseQualifiedName(self, NULL, old_col_name);
 			parseColumnDefinition(self, old_col_name);
 			parseMoveColumn(self);
 		}
@@ -1251,7 +1267,7 @@ void XTParseTable::parseAlterTable(XTThreadPtr self)
 			else {
 				if (pt_current->isReservedWord(XT_TK_COLUMN))
 					pt_current = pt_tokenizer->nextToken(self);
-				parseQualifiedName(self, name);
+				parseQualifiedName(self, NULL, name);
 				dropColumn(self, name);
 			}
 		}
@@ -1259,7 +1275,7 @@ void XTParseTable::parseAlterTable(XTThreadPtr self)
 			pt_current = pt_tokenizer->nextToken(self);
 			if (pt_current->isKeyWord("TO"))
 				pt_current = pt_tokenizer->nextToken(self);
-			parseQualifiedName(self, name);
+			parseQualifiedName(self, NULL, name);
 		}
 		else
 			/* Just ignore the syntax until the next , */
@@ -1284,7 +1300,7 @@ void XTParseTable::parseCreateIndex(XTThreadPtr self)
 	else if (pt_current->isKeyWord("SPACIAL"))
 		pt_current = pt_tokenizer->nextToken(self);
 	pt_current = pt_tokenizer->nextToken(self, "INDEX", pt_current);
-	parseQualifiedName(self, name);
+	parseQualifiedName(self, NULL, name);
 	optionalIndexType(self);
 	pt_current = pt_tokenizer->nextToken(self, "ON", pt_current);
 	parseTableName(self, true);
@@ -1299,7 +1315,7 @@ void XTParseTable::parseDropIndex(XTThreadPtr self)
 
 	pt_current = pt_tokenizer->nextToken(self, "DROP", pt_current);
 	pt_current = pt_tokenizer->nextToken(self, "INDEX", pt_current);
-	parseQualifiedName(self, name);
+	parseQualifiedName(self, NULL, name);
 	pt_current = pt_tokenizer->nextToken(self, "ON", pt_current);
 	parseTableName(self, true);
 	dropConstraint(self, name, XT_DD_INDEX);
@@ -1340,7 +1356,7 @@ class XTCreateTable : public XTParseTable {
 	virtual void addConstraint(XTThreadPtr self, char *name, u_int type, bool lastColumn);
 	virtual void dropConstraint(XTThreadPtr self, char *name, u_int type);
 	virtual void addListedColumn(XTThreadPtr self, char *index_col_name);
-	virtual void setReferencedTable(XTThreadPtr self, char *ref_table);
+	virtual void setReferencedTable(XTThreadPtr self, char *ref_schema, char *ref_table);
 	virtual void addReferencedColumn(XTThreadPtr self, char *index_col_name);
 	virtual void setActions(XTThreadPtr self, int on_delete, int on_update);
 
@@ -1535,23 +1551,31 @@ void XTCreateTable::addListedColumn(XTThreadPtr self, char *index_col_name)
 	}
 }
 
-void XTCreateTable::setReferencedTable(XTThreadPtr self, char *ref_table)
+void XTCreateTable::setReferencedTable(XTThreadPtr self, char *ref_schema, char *ref_table)
 {
 	XTDDForeignKey	*fk = (XTDDForeignKey *) ct_curr_constraint;
 	char			path[PATH_MAX];
 
-	xt_strcpy(PATH_MAX, path, ct_tab_path->ps_path);
-	xt_remove_last_name_of_path(path);
-	if (ct_convert) {
-		char	buffer[XT_IDENTIFIER_NAME_SIZE];
-		size_t	len;
-
-		myxt_static_convert_identifier(self, ct_charset, ref_table, buffer, XT_IDENTIFIER_NAME_SIZE);
-		len = strlen(path);
-		myxt_static_convert_table_name(self, buffer, &path[len], PATH_MAX - len);
-	}
-	else
+	if (ref_schema) {
+		xt_strcpy(PATH_MAX,path, ".");
+		xt_add_dir_char(PATH_MAX, path);
+		xt_strcat(PATH_MAX, path, ref_schema);
+		xt_add_dir_char(PATH_MAX, path);
 		xt_strcat(PATH_MAX, path, ref_table);
+	} else {
+		xt_strcpy(PATH_MAX, path, ct_tab_path->ps_path);
+		xt_remove_last_name_of_path(path);
+		if (ct_convert) {
+			char	buffer[XT_IDENTIFIER_NAME_SIZE];
+			size_t	len;
+
+			myxt_static_convert_identifier(self, ct_charset, ref_table, buffer, XT_IDENTIFIER_NAME_SIZE);
+			len = strlen(path);
+			myxt_static_convert_table_name(self, buffer, &path[len], PATH_MAX - len);
+		}
+		else
+			xt_strcat(PATH_MAX, path, ref_table);
+	}
 
 	fk->fk_ref_tab_name = (XTPathStrPtr) xt_dup_string(self, path);
 }
@@ -1578,7 +1602,7 @@ void XTCreateTable::addReferencedColumn(XTThreadPtr self, char *index_col_name)
 		fk->fk_ref_cols.clone(self, &fk->co_cols);
 }
 
-void XTCreateTable::setActions(XTThreadPtr self __attribute__((unused)), int on_delete, int on_update)
+void XTCreateTable::setActions(XTThreadPtr XT_UNUSED(self), int on_delete, int on_update)
 {
 	XTDDForeignKey	*fk = (XTDDForeignKey *) ct_curr_constraint;
 
@@ -1773,6 +1797,7 @@ bool XTDDTableRef::checkReference(xtWord1 *before_buf, XTThreadPtr thread)
 	XTIdxSearchKeyRec	search_key;
 	xtXactID			xn_id;
 	XTXactWaitRec		xw;
+	bool				ok = false;
 
 	if (!(loc_ind = tr_fkey->getReferenceIndexPtr()))
 		return false;
@@ -1792,40 +1817,42 @@ bool XTDDTableRef::checkReference(xtWord1 *before_buf, XTThreadPtr thread)
 
 	/* Search for the key in the child (referencing) table: */
 	if (!(ot = xt_db_open_table_using_tab(tr_fkey->co_table->dt_table, thread)))
-		goto failed;
+		return false;
 
 	retry:
 	if (!xt_idx_search(ot, ind, &search_key))
-		goto failed;
+		goto done;
 		
 	while (ot->ot_curr_rec_id && search_key.sk_on_key) {
 		switch (xt_tab_maybe_committed(ot, ot->ot_curr_rec_id, &xn_id, &ot->ot_curr_row_id, &ot->ot_curr_updated)) {
 			case XT_MAYBE:				
 				xw.xw_xn_id = xn_id;
 				if (!xt_xn_wait_for_xact(thread, &xw, NULL))
-					goto failed;
+					goto done;
 				goto retry;
 			case XT_ERR:
-				goto failed;
+				goto done;
 			case TRUE:
 				/* We found a matching child: */
 				xt_register_ixterr(XT_REG_CONTEXT, XT_ERR_ROW_IS_REFERENCED, tr_fkey->co_name);
-				goto failed;
-				break;
+				goto done;
 			case FALSE:
 				if (!xt_idx_next(ot, ind, &search_key))
-					goto failed;
+					goto done;
 				break;
 		}
 	}
 
 	/* No matching children, all OK: */
-	xt_db_return_table_to_pool_ns(ot);
-	return true;
+	ok = true;
 
-	failed:
+	done:
+	if (ot->ot_ind_rhandle) {
+		xt_ind_release_handle(ot->ot_ind_rhandle, FALSE, thread);
+		ot->ot_ind_rhandle = NULL;
+	}
 	xt_db_return_table_to_pool_ns(ot);
-	return false;
+	return ok;
 }
 
 /*
@@ -1962,6 +1989,10 @@ bool XTDDTableRef::modifyRow(XTOpenTablePtr XT_UNUSED(ref_ot), xtWord1 *before_b
 	}
 
 	/* No matching children, all OK: */
+	if (ot->ot_ind_rhandle) {
+		xt_ind_release_handle(ot->ot_ind_rhandle, FALSE, thread);
+		ot->ot_ind_rhandle = NULL;
+	}
 	xt_db_return_table_to_pool_ns(ot);
 
 	success:
@@ -1971,6 +2002,10 @@ bool XTDDTableRef::modifyRow(XTOpenTablePtr XT_UNUSED(ref_ot), xtWord1 *before_b
 	return true;
 
 	failed_2:
+	if (ot->ot_ind_rhandle) {
+		xt_ind_release_handle(ot->ot_ind_rhandle, FALSE, thread);
+		ot->ot_ind_rhandle = NULL;
+	}
 	xt_db_return_table_to_pool_ns(ot);
 
 	failed:
@@ -2055,8 +2090,13 @@ void XTDDForeignKey::finalize(XTThreadPtr self)
 
 void XTDDForeignKey::loadString(XTThreadPtr self, XTStringBufferPtr sb)
 {
+	char schema_name[XT_IDENTIFIER_NAME_SIZE];
+	
 	XTDDConstraint::loadString(self, sb);
 	xt_sb_concat(self, sb, " REFERENCES `");
+	xt_2nd_last_name_of_path(XT_IDENTIFIER_NAME_SIZE, schema_name, fk_ref_tab_name->ps_path);
+	xt_sb_concat(self, sb, schema_name);
+	xt_sb_concat(self, sb, "`.`");
 	xt_sb_concat(self, sb, xt_last_name_of_path(fk_ref_tab_name->ps_path));
 	xt_sb_concat(self, sb, "` ");
 
@@ -2288,6 +2328,10 @@ bool XTDDForeignKey::insertRow(xtWord1 *before_buf, xtWord1 *rec_buf, XTThreadPt
 				goto failed_2;
 			case TRUE:
 				/* We found a matching parent: */
+				if (ot->ot_ind_rhandle) {
+					xt_ind_release_handle(ot->ot_ind_rhandle, FALSE, thread);
+					ot->ot_ind_rhandle = NULL;
+				}
 				xt_db_return_table_to_pool_ns(ot);
 				goto success;
 			case FALSE:
@@ -2300,6 +2344,10 @@ bool XTDDForeignKey::insertRow(xtWord1 *before_buf, xtWord1 *rec_buf, XTThreadPt
 	xt_register_ixterr(XT_REG_CONTEXT, XT_ERR_NO_REFERENCED_ROW, co_name);
 
 	failed_2:
+	if (ot->ot_ind_rhandle) {
+		xt_ind_release_handle(ot->ot_ind_rhandle, FALSE, thread);
+		ot->ot_ind_rhandle = NULL;
+	}
 	xt_db_return_table_to_pool_ns(ot);
 
 	failed:
@@ -2867,9 +2915,33 @@ bool XTDDTable::updateRow(XTOpenTablePtr ot, xtWord1 *before, xtWord1 *after)
 	return ok;
 }
 
-xtBool XTDDTable::checkCanDrop()
+/*
+ * drop_db parameter is TRUE if we are dropping the schema of this table. In this case
+ * we return TRUE if the table has only refs to the tables from its own schema
+ */
+xtBool XTDDTable::checkCanDrop(xtBool drop_db)
 {
 	/* no refs or references only itself */
-	return (dt_trefs == NULL) || 
-		(dt_trefs->tr_next == NULL) && (dt_trefs->tr_fkey->co_table == this);
+	if ((dt_trefs == NULL) || ((dt_trefs->tr_next == NULL) && (dt_trefs->tr_fkey->co_table == this)))
+		return TRUE;
+
+	if (!drop_db) 
+		return FALSE;
+	
+	const char *this_schema = xt_last_2_names_of_path(dt_table->tab_name->ps_path);
+	size_t this_schema_sz = xt_last_name_of_path(dt_table->tab_name->ps_path) - this_schema;
+	XTDDTableRef *tr = dt_trefs;
+
+	while (tr) {
+		const char *tab_path = tr->tr_fkey->co_table->dt_table->tab_name->ps_path;
+		const char *tab_schema = xt_last_2_names_of_path(tab_path);
+		size_t tab_schema_sz = xt_last_name_of_path(tab_path) - tab_schema;
+
+		if (this_schema_sz != tab_schema_sz || strncmp(this_schema, tab_schema, tab_schema_sz))
+			return FALSE;
+		
+		tr = tr->tr_next;
+	}
+
+	return TRUE;
 }

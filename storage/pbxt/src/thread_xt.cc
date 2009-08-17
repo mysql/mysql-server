@@ -23,6 +23,10 @@
 
 #include "xt_config.h"
 
+#ifdef DRIZZLED
+#include <bitset>
+#endif
+
 #ifndef XT_WIN
 #include <unistd.h>
 #include <sys/time.h>
@@ -177,7 +181,7 @@ static void thr_log_newline(XTThreadPtr self, c_char *func, c_char *file, u_int 
 #endif
 #endif
 
-void xt_log_flush(XTThreadPtr self __attribute__((unused)))
+void xt_log_flush(XTThreadPtr XT_UNUSED(self))
 {
 	fflush(log_file);
 }
@@ -466,7 +470,7 @@ static void thr_free_resources(XTThreadPtr self, XTResourcePtr top)
 	}
 }
 
-xtPublic void xt_bug(XTThreadPtr self __attribute__((unused)))
+xtPublic void xt_bug(XTThreadPtr XT_UNUSED(self))
 {
 	static int *bug_ptr = NULL;
 	
@@ -532,7 +536,11 @@ xtPublic void xt_throw_error(XTThreadPtr self, c_char *func, c_char *file, u_int
 
 #define XT_SYS_ERR_SIZE		300
 
-static c_char *thr_get_sys_error(int err, char *err_msg __attribute__((unused)))
+#ifdef XT_WIN
+static c_char *thr_get_sys_error(int err, char *err_msg)
+#else
+static c_char *thr_get_sys_error(int err, char *XT_UNUSED(err_msg))
+#endif
 {
 #ifdef XT_WIN
 	char *ptr;
@@ -638,7 +646,7 @@ static c_char *thr_get_err_string(int xt_err)
 		case XT_ERR_INDEX_CORRUPTED:		str = "Table `%s` index is corrupted, REPAIR TABLE required"; break;
 		case XT_ERR_NO_INDEX_CACHE:			str = "Not enough index cache memory to handle concurrent updates"; break;
 		case XT_ERR_INDEX_LOG_CORRUPT:		str = "Index log corrupt: '%s'"; break;
-		case XT_ERR_TOO_MANY_THREADS:		str = "Too many threads: %s, increase max_connections"; break;
+		case XT_ERR_TOO_MANY_THREADS:		str = "Too many threads: %s, increase pbxt_max_threads"; break;
 		case XT_ERR_TOO_MANY_WAITERS:		str = "Too many waiting threads: %s"; break;
 		case XT_ERR_INDEX_OLD_VERSION:		str = "Table `%s` index created by an older version, REPAIR TABLE required"; break;
 		case XT_ERR_PBXT_TABLE_EXISTS:		str = "System table cannot be dropped because PBXT table still exists"; break;
@@ -869,13 +877,18 @@ xtPublic void xt_log_errno(XTThreadPtr self, c_char *func, c_char *file, u_int l
  * -----------------------------------------------------------------------
  * Assertions and failures (one breakpoints for all failures)
  */
+//#define CRASH_ON_ASSERT
 
-xtPublic xtBool xt_assert(XTThreadPtr self __attribute__((unused)), c_char *expr, c_char *func, c_char *file, u_int line)
+xtPublic xtBool xt_assert(XTThreadPtr self, c_char *expr, c_char *func, c_char *file, u_int line)
 {
+	(void) self;
 #ifdef DEBUG
 	//xt_set_fflush(TRUE);
 	//xt_dump_trace();
 	printf("%s(%s:%d) %s\n", func, file, (int) line, expr);
+#ifdef CRASH_ON_ASSERT
+	abort();
+#endif
 #ifdef XT_WIN
 	FatalAppExit(0, "Assertion Failed!");
 #endif
@@ -981,11 +994,13 @@ static xtBool thr_setup_signals(void)
 }
 #endif
 
-static void *thr_main(void *data)
+typedef void *(*ThreadMainFunc)(XTThreadPtr self);
+
+extern "C" void *thr_main(void *data)
 {
 	ThreadDataPtr	td = (ThreadDataPtr) data;
 	XTThreadPtr		self = td->td_thr;
-	void			*(*start_routine)(XTThreadPtr);
+	ThreadMainFunc		start_routine;
 	void			*return_data;
 
 	enter_();
@@ -1857,7 +1872,7 @@ xtPublic void xt_signal_thread(XTThreadPtr target)
 	xt_broadcast_cond_ns(&target->t_cond);
 }
 
-xtPublic void xt_terminate_thread(XTThreadPtr self __attribute__((unused)), XTThreadPtr target)
+xtPublic void xt_terminate_thread(XTThreadPtr XT_UNUSED(self), XTThreadPtr target)
 {
 	target->t_quit = TRUE;
 	target->t_delayed_signal = SIGTERM;

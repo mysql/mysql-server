@@ -782,19 +782,20 @@ private:
 
 	void deleteTempFiles()
 	{
-		struct dirent *entry;
+		struct dirent	*entry;
 		struct dirent	*result;
 		DIR				*odir;
 		int				err;
-		size_t				sz;
+		size_t			sz;
 		char			temp_file[100];
 
-#ifdef XT_SOLARIS
+#ifdef __sun
 		sz = sizeof(struct dirent) + pathconf("/tmp/", _PC_NAME_MAX); // Solaris, see readdir(3C)
 #else
 		sz = sizeof(struct dirent);
 #endif
-		entry = (struct dirent*)malloc(sz);
+		if (!(entry = (struct dirent *) malloc(sz)))
+			return;
 		if (!(odir = opendir("/tmp/")))
 			return;
 		err = readdir_r(odir, entry, &result);

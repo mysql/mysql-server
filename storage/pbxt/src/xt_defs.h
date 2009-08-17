@@ -187,7 +187,16 @@ typedef struct XTPathStr {
 	char				ps_path[XT_VAR_LENGTH];
 } *XTPathStrPtr;
 
-#define XT_UNUSED(x)	x __attribute__((__unused__))
+//#define XT_UNUSED(x)		x __attribute__((__unused__))
+#define XT_UNUSED(x)
+
+/* Only used when DEBUG is on: */
+#ifdef DEBUG
+#define XT_NDEBUG_UNUSED(x)	x
+#else
+//#define XT_NDEBUG_UNUSED(x)	x __attribute__((__unused__))
+#define XT_NDEBUG_UNUSED(x)
+#endif
 
 /* ----------------------------------------------------------------------
  * MAIN CONSTANTS
@@ -267,8 +276,10 @@ typedef struct XTPathStr {
  * the row list is scanned.
  *
  * For more details see [(9)].
+ * 223, 1019, 3613
  */
-#define XT_ROW_RWLOCKS					223
+#define XT_ROW_RWLOCKS					1019
+//#define XT_ROW_RWLOCKS					223
 
 /*
  * These are the number of row lock "slots" per table.
@@ -292,31 +303,20 @@ typedef struct XTPathStr {
  */
 #define XT_OPEN_TABLE_FREE_TIME			30
 
-#ifdef XT_USE_GLOBAL_DEBUG_SIZES
-/*
- * DEBUG SIZES!
- * Reduce the thresholds to make things happen faster.
+/* Define this in order to use memory mapped files
+ * (record and row pointer files only).
+ *
+ * This makes no difference in sysbench R/W performance
+ * test.
  */
+//#define XT_USE_ROW_REC_MMAP_FILES
 
-//#undef XT_ROW_RWLOCKS
-//#define XT_ROW_RWLOCKS				2
-
-//#undef XT_TAB_MIN_VAR_REC_LENGTH
-//#define XT_TAB_MIN_VAR_REC_LENGTH		20
-
-//#undef XT_ROW_LOCK_COUNT
-//#define XT_ROW_LOCK_COUNT				(XT_ROW_RWLOCKS * 2)
-
-//#undef XT_INDEX_PAGE_SHIFTS
-//#define XT_INDEX_PAGE_SHIFTS			12
-
-//#undef XT_INDEX_WRITE_BUFFER_SIZE
-//#define XT_INDEX_WRITE_BUFFER_SIZE	(40 * 1024)
-
-#endif
-
-/* Define this in order to use memory mapped files: */
-#define XT_USE_ROW_REC_MMAP_FILES
+/* Define this if sequential scan should load data into the 
+ * record cache.
+ *
+ * This is the way InnoDB behaves.
+ */
+#define XT_SEQ_SCAN_LOADS_CACHE
 
 /* Define this in order to use direct I/O on index files: */
 /* NOTE: DO NOT ENABLE!
@@ -326,32 +326,34 @@ typedef struct XTPathStr {
  */
 //#define XT_USE_DIRECT_IO_ON_INDEX
 
-#ifdef XT_USE_ROW_REC_MMAP_FILES
+/*
+ * Define this variable if PBXT should do lazy deleting in indexes
+ * Note, even if the variable is not defined, PBXT will handle
+ * lazy deleted items in an index.
+ *
+ * NOTE: This can cause significant degrade of index scan speed.
+ * 25% on sysbench readonly index scan tests.
+ */
+//#define XT_USE_LAZY_DELETE
 
-#define XT_SEQ_SCAN_FROM_MEMORY
-#define XT_ROW_REC_FILE_PTR				XTMapFilePtr
-#define XT_PWRITE_RR_FILE				xt_pwrite_fmap
-#define XT_PREAD_RR_FILE				xt_pread_fmap
-#define XT_FLUSH_RR_FILE				xt_flush_fmap
-#define XT_CLOSE_RR_FILE_NS				xt_close_fmap_ns
+/*
+ * Define this variable if a connection should wait for the
+ * sweeper to clean up previous transactions executed by the
+ * connection, before continuing.
+ *
+ * The number of transactions that the sweeper is aload to
+ * lag can be dynamic, but there is a limit (XT_MAX_XACT_BEHIND)
+ */
+#define XT_WAIT_FOR_CLEANUP
 
-#else
-
-#define XT_ROW_REC_FILE_PTR				XTOpenFilePtr
-#define XT_PWRITE_RR_FILE				xt_pwrite_file
-#define XT_PREAD_RR_FILE				xt_pread_file
-#define XT_FLUSH_RR_FILE				xt_flush_file
-#define XT_CLOSE_RR_FILE_NS				xt_close_file_ns
-
-#endif
-
-#ifdef XT_SEQ_SCAN_FROM_MEMORY
-#define XT_LOCK_MEMORY_PTR(x, f, a, s, v, c)	do { x = xt_lock_fmap_ptr(f, a, s, v, c); } while (0)
-#define XT_UNLOCK_MEMORY_PTR(f, v)				xt_unlock_fmap_ptr(f, v);
-#else
-#define XT_LOCK_MEMORY_PTR(x, f, a, v, c)
-#define XT_UNLOCK_MEMORY_PTR(f, v)
-#endif
+/*
+ * This seems to be the optimal value, at least according to
+ * sysbench/sysbench run --test=oltp --num-threads=128 --max-requests=50000 --mysql-user=root 
+ * --oltp-table-size=100000 --oltp-table-name=sb_pbxt --mysql-engine-trx=yes
+ *
+ * Using 8, 16 and 128 threads.
+ */
+#define XT_MAX_XACT_BEHIND				2
 
 /* {NO-ACTION-BUG}
  * Define this to implement NO ACTION correctly
@@ -403,6 +405,60 @@ typedef struct XTPathStr {
 #define XT_TABLE_NAME_SIZE				((XT_IDENTIFIER_CHAR_COUNT * 5) + 1)	// The maximum length of a file name that has been normalized
 
 #define XT_ADD_PTR(p, l)				((void *) ((char *) (p) + (l)))
+
+/* ----------------------------------------------------------------------
+ * DEFINES DEPENDENT ON  CONSTANTS
+ */
+
+#ifdef XT_USE_ROW_REC_MMAP_FILES
+
+#define XT_ROW_REC_FILE_PTR						XTMapFilePtr
+#define XT_PWRITE_RR_FILE						xt_pwrite_fmap
+#define XT_PREAD_RR_FILE						xt_pread_fmap
+#define XT_FLUSH_RR_FILE						xt_flush_fmap
+#define XT_CLOSE_RR_FILE_NS						xt_close_fmap_ns
+
+#define XT_LOCK_MEMORY_PTR(x, f, a, s, v, c)	do { x = xt_lock_fmap_ptr(f, a, s, v, c); } while (0)
+#define XT_UNLOCK_MEMORY_PTR(f, d, e, v)		do { xt_unlock_fmap_ptr(f, v); d = NULL; } while (0)
+
+#else
+
+#define XT_ROW_REC_FILE_PTR						XTOpenFilePtr
+#define XT_PWRITE_RR_FILE						xt_pwrite_file
+#define XT_PREAD_RR_FILE						xt_pread_file
+#define XT_FLUSH_RR_FILE						xt_flush_file
+#define XT_CLOSE_RR_FILE_NS						xt_close_file_ns
+
+#define XT_LOCK_MEMORY_PTR(x, f, a, s, v, c)	do { if (!xt_lock_file_ptr(f, &x, a, s, v, c)) x = NULL; } while (0)
+#define XT_UNLOCK_MEMORY_PTR(f, d, e, v)		do { if (e) { xt_unlock_file_ptr(f, d, v); d = NULL; } } while (0)
+
+#endif
+
+/* ----------------------------------------------------------------------
+ * DEBUG SIZES!
+ * Reduce the thresholds to make things happen faster.
+ */
+
+#ifdef XT_USE_GLOBAL_DEBUG_SIZES
+
+//#undef XT_ROW_RWLOCKS
+//#define XT_ROW_RWLOCKS				2
+
+//#undef XT_TAB_MIN_VAR_REC_LENGTH
+//#define XT_TAB_MIN_VAR_REC_LENGTH		20
+
+//#undef XT_ROW_LOCK_COUNT
+//#define XT_ROW_LOCK_COUNT				(XT_ROW_RWLOCKS * 2)
+
+//#undef XT_INDEX_PAGE_SHIFTS
+//#define XT_INDEX_PAGE_SHIFTS			8	// 256
+//#undef XT_BLOCK_SIZE_FOR_DIRECT_IO
+//#define XT_BLOCK_SIZE_FOR_DIRECT_IO	256
+
+//#undef XT_INDEX_WRITE_BUFFER_SIZE
+//#define XT_INDEX_WRITE_BUFFER_SIZE	(40 * 1024)
+
+#endif
 
 /* ----------------------------------------------------------------------
  * BYTE ORDER
@@ -645,6 +701,14 @@ typedef struct xtIndexNodeID {
 #define XT_XACT_ID_SIZE			4
 #define XT_CHECKSUM4_XACT(x)	(x)
 
+#ifdef XT_WIN
+#define __FUNC__				__FUNCTION__
+#elif defined(XT_SOLARIS)
+#define __FUNC__				"__func__"
+#else
+#define __FUNC__				__PRETTY_FUNCTION__
+#endif
+
 /* ----------------------------------------------------------------------
  * GLOBAL VARIABLES
  */
@@ -669,6 +733,7 @@ extern xtBool				pbxt_crash_debug;
 #define MYSQL_THD							Session *
 #define THR_THD								THR_Session
 #define STRUCT_TABLE						class Table
+#define TABLE_SHARE							TableShare
 
 #define MYSQL_TYPE_STRING					DRIZZLE_TYPE_VARCHAR
 #define MYSQL_TYPE_VARCHAR					DRIZZLE_TYPE_VARCHAR
@@ -687,6 +752,7 @@ extern xtBool				pbxt_crash_debug;
 
 #define mx_tmp_use_all_columns(x, y)		(x)->use_all_columns(y)
 #define mx_tmp_restore_column_map(x, y)		(x)->restore_column_map(y)
+#define MX_BIT_FAST_TEST_AND_SET(x, y)		bitmap_test_and_set(x, y)
 
 #define MX_TABLE_TYPES_T					handler::Table_flags
 #define MX_UINT8_T							uint8_t
@@ -696,6 +762,7 @@ extern xtBool				pbxt_crash_debug;
 #define MX_CHARSET_INFO						struct charset_info_st
 #define MX_CONST_CHARSET_INFO				const struct charset_info_st			
 #define MX_CONST							const
+
 #define my_bool								bool
 #define int16								int16_t
 #define int32								int32_t
@@ -712,6 +779,9 @@ extern xtBool				pbxt_crash_debug;
 
 #define HA_CAN_SQL_HANDLER					0
 #define HA_CAN_INSERT_DELAYED				0
+#define HA_BINLOG_ROW_CAPABLE				0
+#define HA_BINLOG_STMT_CAPABLE				0
+#define HA_CACHE_TBL_TRANSACT				0
 
 #define max									cmax
 #define min									cmin
@@ -734,6 +804,7 @@ extern xtBool				pbxt_crash_debug;
 #define thd_tablespace_op					session_tablespace_op
 #define thd_alloc							session_alloc
 #define thd_make_lex_string					session_make_lex_string
+#define column_bitmaps_signal()
 
 #define my_pthread_setspecific_ptr(T, V)	pthread_setspecific(T, (void*) (V))
 
@@ -750,6 +821,9 @@ extern xtBool				pbxt_crash_debug;
                                    (((uint32_t) (((const unsigned char*) (A))[1])) << 16) +\
                                    (((uint32_t) (((const unsigned char*) (A))[0])) << 24)))
 
+class PBXTStorageEngine;
+typedef PBXTStorageEngine handlerton;
+
 #else // DRIZZLED
 /* The MySQL case: */
 #if MYSQL_VERSION_ID >= 60008
@@ -760,6 +834,7 @@ extern xtBool				pbxt_crash_debug;
 
 #define mx_tmp_use_all_columns				dbug_tmp_use_all_columns
 #define mx_tmp_restore_column_map(x, y)		dbug_tmp_restore_column_map((x)->read_set, y)
+#define MX_BIT_FAST_TEST_AND_SET(x, y)		bitmap_fast_test_and_set(x, y)
 
 #define MX_TABLE_TYPES_T					ulonglong
 #define MX_UINT8_T							uint8
@@ -771,6 +846,11 @@ extern xtBool				pbxt_crash_debug;
 #define MX_CONST							
 
 #endif // DRIZZLED
+
+#define MX_BITMAP							MY_BITMAP
+#define MX_BIT_SIZE()						n_bits
+#define MX_BIT_IS_SUBSET(x, y)				bitmap_is_subset(x, y)
+#define MX_BIT_SET(x, y)					bitmap_set_bit(x, y)
 
 #ifndef XT_SCAN_CORE_DEFINED
 #define XT_SCAN_CORE_DEFINED

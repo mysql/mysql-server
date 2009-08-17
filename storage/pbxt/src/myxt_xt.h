@@ -92,9 +92,6 @@ XTThreadPtr	myxt_get_self();
 int			myxt_statistics_fill_table(XTThreadPtr self, void *th, void *ta, void *co, MX_CONST void *ch);
 void		myxt_get_status(XTThreadPtr self, XTStringBufferPtr strbuf);
 
-void		myxt_bitmap_init(XTThreadPtr self, MY_BITMAP *map, u_int n_bits);
-void		myxt_bitmap_free(XTThreadPtr self, MY_BITMAP *map);
-
 class XTDDColumnFactory
 {
 public:

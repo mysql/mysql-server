@@ -61,7 +61,7 @@ xtPublic xtWord8 xt_time_now(void)
 	return ms;
 }
 
-xtPublic void xt_free_nothing(struct XTThread XT_UNUSED(*thr), void XT_UNUSED(*x))
+xtPublic void xt_free_nothing(struct XTThread *XT_UNUSED(thread), void *XT_UNUSED(x))
 {
 }
 

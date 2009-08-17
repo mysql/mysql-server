@@ -25,6 +25,7 @@
 
 #include "xt_defs.h"
 #include "lock_xt.h"
+#include "memory_xt.h"
 
 struct XTThread;
 
@@ -59,7 +60,7 @@ u_int		xt_heap_get_ref_count(struct XTThread *self, XTHeapPtr mem);
 
 void		xt_check_heap(struct XTThread *self, XTHeapPtr mem);
 
-#ifdef DEBUG
+#ifdef DEBUG_MEMORY
 #define xt_heap_new(t, s, f)		xt_mm_heap_new(t, s, f, __LINE__, __FILE__, FALSE)
 #define xt_heap_new_track(t, s, f)	xt_mm_heap_new(t, s, f, __LINE__, __FILE__, TRUE)
 #define xt_heap_reference(t, s)		xt_mm_heap_reference(t, s, __LINE__, __FILE__)

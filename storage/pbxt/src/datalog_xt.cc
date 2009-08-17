@@ -301,7 +301,7 @@ static xtBool dl_write_log_header(XTDataLogFilePtr data_log, XTOpenFilePtr of, x
 	return OK;
 }
 
-static void dl_free_seq_read(XTThreadPtr self __attribute__((unused)), XTDataSeqReadPtr seq_read)
+static void dl_free_seq_read(XTThreadPtr XT_UNUSED(self), XTDataSeqReadPtr seq_read)
 {
 	seq_read->sl_seq_exit();
 }
@@ -452,7 +452,7 @@ xtBool XTDataLogCache::dls_set_log_state(XTDataLogFilePtr data_log, int state)
 	return FAILED;
 }
 
-static int dl_cmp_log_id(XTThreadPtr XT_UNUSED(self), register const void XT_UNUSED(*thunk), register const void *a, register const void *b)
+static int dl_cmp_log_id(XTThreadPtr XT_UNUSED(self), register const void *XT_UNUSED(thunk), register const void *a, register const void *b)
 {
 	xtLogID			log_id_a = *((xtLogID *) a);
 	xtLogID			log_id_b = *((xtLogID *) b);
@@ -1149,7 +1149,7 @@ xtBool XTDataLogBuffer::dlb_flush_log(xtBool commit, XTThreadPtr thread)
 	return OK;
 }
 
-xtBool XTDataLogBuffer::dlb_write_thru_log(xtLogID log_id __attribute__((unused)), xtLogOffset log_offset, size_t size, xtWord1 *data, XTThreadPtr thread)
+xtBool XTDataLogBuffer::dlb_write_thru_log(xtLogID XT_NDEBUG_UNUSED(log_id), xtLogOffset log_offset, size_t size, xtWord1 *data, XTThreadPtr thread)
 {
 	ASSERT_NS(log_id == dlb_data_log->dlf_log_id);
 
@@ -1166,7 +1166,7 @@ xtBool XTDataLogBuffer::dlb_write_thru_log(xtLogID log_id __attribute__((unused)
 	return OK;
 }
 
-xtBool XTDataLogBuffer::dlb_append_log(xtLogID log_id __attribute__((unused)), xtLogOffset log_offset, size_t size, xtWord1 *data, XTThreadPtr thread)
+xtBool XTDataLogBuffer::dlb_append_log(xtLogID XT_NDEBUG_UNUSED(log_id), xtLogOffset log_offset, size_t size, xtWord1 *data, XTThreadPtr thread)
 {
 	ASSERT_NS(log_id == dlb_data_log->dlf_log_id);
 
@@ -1357,7 +1357,7 @@ xtBool XTDataLogBuffer::dlb_delete_log(xtLogID log_id, xtLogOffset log_offset, s
  * Delete all the extended data belonging to a particular
  * table.
  */
-xtPublic void xt_dl_delete_ext_data(XTThreadPtr self, XTTableHPtr tab, xtBool missing_ok __attribute__((unused)), xtBool have_table_lock)
+xtPublic void xt_dl_delete_ext_data(XTThreadPtr self, XTTableHPtr tab, xtBool XT_UNUSED(missing_ok), xtBool have_table_lock)
 {
 	XTOpenTablePtr	ot;
 	xtRecordID		page_rec_id, offs_rec_id;

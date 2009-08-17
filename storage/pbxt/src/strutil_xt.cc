@@ -365,6 +365,7 @@ xtPublic void xt_int8_to_byte_size(xtInt8 value, char *string)
 	sprintf(string, "%s %s (%"PRId64" bytes)", val_str, unit, value);
 }
 
+/* Version number must also be set in configure.in! */
 xtPublic c_char *xt_get_version(void)
 {
 	return "1.0.08 RC";

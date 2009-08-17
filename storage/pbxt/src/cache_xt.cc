@@ -23,6 +23,10 @@
 
 #include "xt_config.h"
 
+#ifdef DRIZZLED
+#include <bitset>
+#endif
+
 #ifndef XT_WIN
 #include <unistd.h>
 #endif
@@ -51,17 +55,22 @@
 #define IDX_CAC_SEGMENT_COUNT		((off_t) 1 << XT_INDEX_CACHE_SEGMENT_SHIFTS)
 #define IDX_CAC_SEGMENT_MASK		(IDX_CAC_SEGMENT_COUNT - 1)
 
-//#define IDX_USE_SPINRWLOCK
-#define IDX_USE_RWMUTEX
+#ifdef XT_NO_ATOMICS
+#define IDX_CAC_USE_PTHREAD_RW
+#else
+//#define IDX_CAC_USE_RWMUTEX
 //#define IDX_CAC_USE_PTHREAD_RW
+//#define IDX_USE_SPINXSLOCK
+#define IDX_CAC_USE_XSMUTEX
+#endif
 
-#ifdef IDX_CAC_USE_FASTWRLOCK
-#define IDX_CAC_LOCK_TYPE				XTFastRWLockRec
-#define IDX_CAC_INIT_LOCK(s, i)			xt_fastrwlock_init(s, &(i)->cs_lock)
-#define IDX_CAC_FREE_LOCK(s, i)			xt_fastrwlock_free(s, &(i)->cs_lock)	
-#define IDX_CAC_READ_LOCK(i, o)			xt_fastrwlock_slock(&(i)->cs_lock, (o))
-#define IDX_CAC_WRITE_LOCK(i, o)		xt_fastrwlock_xlock(&(i)->cs_lock, (o))
-#define IDX_CAC_UNLOCK(i, o)			xt_fastrwlock_unlock(&(i)->cs_lock, (o))
+#ifdef IDX_CAC_USE_XSMUTEX
+#define IDX_CAC_LOCK_TYPE				XTXSMutexRec
+#define IDX_CAC_INIT_LOCK(s, i)			xt_xsmutex_init_with_autoname(s, &(i)->cs_lock)
+#define IDX_CAC_FREE_LOCK(s, i)			xt_xsmutex_free(s, &(i)->cs_lock)	
+#define IDX_CAC_READ_LOCK(i, o)			xt_xsmutex_slock(&(i)->cs_lock, (o)->t_id)
+#define IDX_CAC_WRITE_LOCK(i, o)		xt_xsmutex_xlock(&(i)->cs_lock, (o)->t_id)
+#define IDX_CAC_UNLOCK(i, o)			xt_xsmutex_unlock(&(i)->cs_lock, (o)->t_id)
 #elif defined(IDX_CAC_USE_PTHREAD_RW)
 #define IDX_CAC_LOCK_TYPE				xt_rwlock_type
 #define IDX_CAC_INIT_LOCK(s, i)			xt_init_rwlock(s, &(i)->cs_lock)
@@ -69,13 +78,20 @@
 #define IDX_CAC_READ_LOCK(i, o)			xt_slock_rwlock_ns(&(i)->cs_lock)
 #define IDX_CAC_WRITE_LOCK(i, o)		xt_xlock_rwlock_ns(&(i)->cs_lock)
 #define IDX_CAC_UNLOCK(i, o)			xt_unlock_rwlock_ns(&(i)->cs_lock)
-#elif defined(IDX_USE_RWMUTEX)
+#elif defined(IDX_CAC_USE_RWMUTEX)
 #define IDX_CAC_LOCK_TYPE				XTRWMutexRec
 #define IDX_CAC_INIT_LOCK(s, i)			xt_rwmutex_init_with_autoname(s, &(i)->cs_lock)
 #define IDX_CAC_FREE_LOCK(s, i)			xt_rwmutex_free(s, &(i)->cs_lock)	
 #define IDX_CAC_READ_LOCK(i, o)			xt_rwmutex_slock(&(i)->cs_lock, (o)->t_id)
 #define IDX_CAC_WRITE_LOCK(i, o)		xt_rwmutex_xlock(&(i)->cs_lock, (o)->t_id)
 #define IDX_CAC_UNLOCK(i, o)			xt_rwmutex_unlock(&(i)->cs_lock, (o)->t_id)
+#elif defined(IDX_CAC_USE_SPINXSLOCK)
+#define IDX_CAC_LOCK_TYPE				XTSpinXSLockRec
+#define IDX_CAC_INIT_LOCK(s, i)			xt_spinxslock_init_with_autoname(s, &(i)->cs_lock)
+#define IDX_CAC_FREE_LOCK(s, i)			xt_spinxslock_free(s, &(i)->cs_lock)	
+#define IDX_CAC_READ_LOCK(i, s)			xt_spinxslock_slock(&(i)->cs_lock, (s)->t_id)
+#define IDX_CAC_WRITE_LOCK(i, s)		xt_spinxslock_xlock(&(i)->cs_lock, (s)->t_id)
+#define IDX_CAC_UNLOCK(i, s)			xt_spinxslock_unlock(&(i)->cs_lock, (s)->t_id)
 #endif
 
 #define ID_HANDLE_USE_SPINLOCK
@@ -308,7 +324,8 @@ xtPublic XTIndHandlePtr xt_ind_get_handle(XTOpenTablePtr ot, XTIndexPtr ind, XTI
 
 	hs = &ind_cac_globals.cg_handle_slot[iref->ir_block->cb_address % XT_HANDLE_SLOTS];
 
-	ASSERT_NS(iref->ir_ulock == XT_UNLOCK_READ);
+	ASSERT_NS(iref->ir_xlock == FALSE);
+	ASSERT_NS(iref->ir_updated == FALSE);
 	ID_HANDLE_LOCK(&hs->hs_handles_lock);
 #ifdef CHECK_HANDLE_STRUCTS
 	ic_check_handle_structs();
@@ -337,10 +354,10 @@ xtPublic XTIndHandlePtr xt_ind_get_handle(XTOpenTablePtr ot, XTIndexPtr ind, XTI
 	 * at least an Slock on the index.
 	 * So this excludes anyone who is reading 
 	 * cb_handle_count in the index.
-	 * (all cache block writers, and a freeer).
+	 * (all cache block writers, and the freeer).
 	 *
 	 * The increment is safe because I have the list
-	 * lock, which is required by anyone else
+	 * lock (hs_handles_lock), which is required by anyone else
 	 * who increments or decrements this value.
 	 */
 	iref->ir_block->cb_handle_count++;
@@ -396,8 +413,11 @@ xtPublic void xt_ind_release_handle(XTIndHandlePtr handle, xtBool have_lock, XTT
 		xblock = seg->cs_hash_table[hash_idx];
 		while (xblock) {
 			if (block == xblock) {
-				/* Found the block... */
-				xt_atomicrwlock_xlock(&block->cb_lock, thread->t_id);
+				/* Found the block... 
+				 * {HANDLE-COUNT-SLOCK}
+				 * 04.05.2009, changed to slock.
+				 */
+				XT_IPAGE_READ_LOCK(&block->cb_lock);
 				goto block_found;
 			}
 			xblock = xblock->cb_next;
@@ -431,7 +451,18 @@ xtPublic void xt_ind_release_handle(XTIndHandlePtr handle, xtBool have_lock, XTT
 		/* {HANDLE-COUNT-USAGE}
 		 * This is safe here because I have excluded
 		 * all readers by taking an Xlock on the
-		 * cache block.
+		 * cache block (CHANGED - see below).
+		 *
+		 * {HANDLE-COUNT-SLOCK}
+		 * 04.05.2009, changed to slock.
+		 * Should be OK, because:
+		 * A have a lock on the list lock (hs_handles_lock),
+		 * which prevents concurrent updates to cb_handle_count.
+		 *
+		 * I have also have a read lock on the cache block
+		 * but not a lock on the index. As a result, we cannot
+		 * excluded all index writers (and readers of 
+		 * cb_handle_count.
 		 */
 		block->cb_handle_count--;
 	}
@@ -466,7 +497,7 @@ xtPublic void xt_ind_release_handle(XTIndHandlePtr handle, xtBool have_lock, XTT
 	ID_HANDLE_UNLOCK(&hs->hs_handles_lock);
 
 	if (block)
-		xt_atomicrwlock_unlock(&block->cb_lock, TRUE);
+		XT_IPAGE_UNLOCK(&block->cb_lock, FALSE);
 }
 
 /* Call this function before a referenced cache block is modified!
@@ -482,17 +513,28 @@ xtPublic xtBool xt_ind_copy_on_write(XTIndReferencePtr iref)
 
 	hs = &ind_cac_globals.cg_handle_slot[iref->ir_block->cb_address % XT_HANDLE_SLOTS];
 
+	ID_HANDLE_LOCK(&hs->hs_handles_lock);
+
 	/* {HANDLE-COUNT-USAGE}
 	 * This is only called by updaters of this index block, or
 	 * the free which holds an Xlock on the index block.
-	 *
 	 * These are all mutually exclusive for the index block.
+	 *
+	 * {HANDLE-COUNT-SLOCK}
+	 * Do this check again, after we have the list lock (hs_handles_lock).
+	 * There is a small chance that the count has changed, since we last
+	 * checked because xt_ind_release_handle() only holds
+	 * an slock on the index page.
+	 *
+	 * An updater can sometimes have a XLOCK on the index and an slock
+	 * on the cache block. In this case xt_ind_release_handle()
+	 * could have run through.
 	 */
-	ASSERT_NS(iref->ir_block->cb_handle_count);
-	if (!iref->ir_block->cb_handle_count)
+	if (!iref->ir_block->cb_handle_count) {
+		ID_HANDLE_UNLOCK(&hs->hs_handles_lock);
 		return OK;
+	}
 
-	ID_HANDLE_LOCK(&hs->hs_handles_lock);
 #ifdef CHECK_HANDLE_STRUCTS
 	ic_check_handle_structs();
 #endif
@@ -609,7 +651,7 @@ xtPublic void xt_ind_init(XTThreadPtr self, size_t cache_size)
 #endif
 
 		for (u_int i=0; i<ind_cac_globals.cg_block_count; i++) {
-			xt_atomicrwlock_init_with_autoname(self, &block->cb_lock);
+			XT_IPAGE_INIT_LOCK(self, &block->cb_lock);
 			block->cb_state = IDX_CAC_BLOCK_FREE;
 			block->cb_next = ind_cac_globals.cg_free_list;
 #ifdef XT_USE_DIRECT_IO_ON_INDEX
@@ -836,10 +878,10 @@ static xtBool ind_free_block(XTOpenTablePtr ot, XTIndBlockPtr block)
 	while (xblock) {
 		if (block == xblock) {
 			/* Found the block... */
-			xt_atomicrwlock_xlock(&block->cb_lock, ot->ot_thread->t_id);
+			XT_IPAGE_WRITE_LOCK(&block->cb_lock, ot->ot_thread->t_id);
 			if (block->cb_state != IDX_CAC_BLOCK_CLEAN) {
 				/* This block cannot be freeed: */
-				xt_atomicrwlock_unlock(&block->cb_lock, TRUE);
+				XT_IPAGE_UNLOCK(&block->cb_lock, TRUE);
 				IDX_CAC_UNLOCK(seg, ot->ot_thread);
 #ifdef DEBUG_CHECK_IND_CACHE
 				xt_ind_check_cache(NULL);
@@ -878,11 +920,12 @@ static xtBool ind_free_block(XTOpenTablePtr ot, XTIndBlockPtr block)
 	if (block->cb_handle_count) {
 		XTIndReferenceRec	iref;
 		
-		iref.ir_ulock = XT_UNLOCK_WRITE;
+		iref.ir_xlock = TRUE;
+		iref.ir_updated = FALSE;
 		iref.ir_block = block;
 		iref.ir_branch = (XTIdxBranchDPtr) block->cb_data;
 		if (!xt_ind_copy_on_write(&iref)) {
-			xt_atomicrwlock_unlock(&block->cb_lock, TRUE);
+			XT_IPAGE_UNLOCK(&block->cb_lock, TRUE);
 			return FALSE;
 		}
 	}
@@ -918,7 +961,7 @@ static xtBool ind_free_block(XTOpenTablePtr ot, XTIndBlockPtr block)
 	IDX_TRACE("%d- f%x\n", (int) XT_NODE_ID(address), (int) XT_GET_DISK_2(block->cb_data));
 
 	/* Unlock BEFORE the block is reused! */
-	xt_atomicrwlock_unlock(&block->cb_lock, TRUE);
+	XT_IPAGE_UNLOCK(&block->cb_lock, TRUE);
 
 	xt_unlock_mutex_ns(&ind_cac_globals.cg_lock);
 
@@ -1001,7 +1044,7 @@ static u_int ind_cac_free_lru_blocks(XTOpenTablePtr ot, u_int blocks_required, X
  * Fetch the block. Note, if we are about to write the block
  * then there is no need to read it from disk!
  */
-static XTIndBlockPtr ind_cac_fetch(XTOpenTablePtr ot, xtIndexNodeID address, DcSegmentPtr *ret_seg, xtBool read_data)
+static XTIndBlockPtr ind_cac_fetch(XTOpenTablePtr ot, XTIndexPtr ind, xtIndexNodeID address, DcSegmentPtr *ret_seg, xtBool read_data)
 {
 	register XTOpenFilePtr	file = ot->ot_ind_file;
 	register XTIndBlockPtr	block, new_block;
@@ -1110,6 +1153,7 @@ static XTIndBlockPtr ind_cac_fetch(XTOpenTablePtr ot, xtIndexNodeID address, DcS
 	new_block->cb_state = IDX_CAC_BLOCK_CLEAN;
 	new_block->cb_handle_count = 0;
 	new_block->cp_flush_seq = 0;
+	new_block->cp_del_count = 0;
 	new_block->cb_dirty_next = NULL;
 	new_block->cb_dirty_prev = NULL;
 
@@ -1172,6 +1216,13 @@ static XTIndBlockPtr ind_cac_fetch(XTOpenTablePtr ot, xtIndexNodeID address, DcS
 #endif
 	xt_unlock_mutex_ns(&dcg->cg_lock);
 
+	/* {LAZY-DEL-INDEX-ITEMS}
+	 * Conditionally count the number of deleted entries in the index:
+	 * We do this before other threads can read the block.
+	 */
+	if (ind->mi_lazy_delete && read_data)
+		xt_ind_count_deleted_items(ot->ot_table, ind, block);
+
 	/* Add to the hash table: */
 	block->cb_next = seg->cs_hash_table[hash_idx];
 	seg->cs_hash_table[hash_idx] = block;
@@ -1221,10 +1272,10 @@ xtPublic xtBool xt_ind_write(XTOpenTablePtr ot, XTIndexPtr ind, xtIndexNodeID ad
 	XTIndBlockPtr	block;
 	DcSegmentPtr	seg;
 
-	if (!(block = ind_cac_fetch(ot, address, &seg, FALSE)))
+	if (!(block = ind_cac_fetch(ot, ind, address, &seg, FALSE)))
 		return FAILED;
 
-	xt_atomicrwlock_xlock(&block->cb_lock, ot->ot_thread->t_id);
+	XT_IPAGE_WRITE_LOCK(&block->cb_lock, ot->ot_thread->t_id);
 	ASSERT_NS(block->cb_state == IDX_CAC_BLOCK_CLEAN || block->cb_state == IDX_CAC_BLOCK_DIRTY);
 	memcpy(block->cb_data, data, size);
 	block->cp_flush_seq = ot->ot_table->tab_ind_flush_seq;
@@ -1239,7 +1290,7 @@ xtPublic xtBool xt_ind_write(XTOpenTablePtr ot, XTIndexPtr ind, xtIndexNodeID ad
 		xt_spinlock_unlock(&ind->mi_dirty_lock);
 		block->cb_state = IDX_CAC_BLOCK_DIRTY;
 	}
-	xt_atomicrwlock_unlock(&block->cb_lock, TRUE);
+	XT_IPAGE_UNLOCK(&block->cb_lock, TRUE);
 	IDX_CAC_UNLOCK(seg, ot->ot_thread);
 #ifdef XT_TRACK_INDEX_UPDATES
 	ot->ot_ind_changed++;
@@ -1259,10 +1310,10 @@ xtPublic xtBool xt_ind_write_cache(XTOpenTablePtr ot, xtIndexNodeID address, siz
 		return FAILED;
 
 	if (block) {
-		xt_atomicrwlock_xlock(&block->cb_lock, ot->ot_thread->t_id);
+		XT_IPAGE_WRITE_LOCK(&block->cb_lock, ot->ot_thread->t_id);
 		ASSERT_NS(block->cb_state == IDX_CAC_BLOCK_CLEAN || block->cb_state == IDX_CAC_BLOCK_DIRTY);
 		memcpy(block->cb_data, data, size);
-		xt_atomicrwlock_unlock(&block->cb_lock, TRUE);
+		XT_IPAGE_UNLOCK(&block->cb_lock, TRUE);
 		IDX_CAC_UNLOCK(seg, ot->ot_thread);
 	}
 
@@ -1277,7 +1328,7 @@ xtPublic xtBool xt_ind_clean(XTOpenTablePtr ot, XTIndexPtr ind, xtIndexNodeID ad
 	if (!ind_cac_get(ot, address, &seg, &block))
 		return FAILED;
 	if (block) {
-		xt_atomicrwlock_xlock(&block->cb_lock, ot->ot_thread->t_id);
+		XT_IPAGE_WRITE_LOCK(&block->cb_lock, ot->ot_thread->t_id);
 		ASSERT_NS(block->cb_state == IDX_CAC_BLOCK_CLEAN || block->cb_state == IDX_CAC_BLOCK_DIRTY);
 
 		if (block->cb_state == IDX_CAC_BLOCK_DIRTY) {
@@ -1293,7 +1344,7 @@ xtPublic xtBool xt_ind_clean(XTOpenTablePtr ot, XTIndexPtr ind, xtIndexNodeID ad
 			xt_spinlock_unlock(&ind->mi_dirty_lock);
 			block->cb_state = IDX_CAC_BLOCK_CLEAN;
 		}
-		xt_atomicrwlock_unlock(&block->cb_lock, TRUE);
+		XT_IPAGE_UNLOCK(&block->cb_lock, TRUE);
 
 		IDX_CAC_UNLOCK(seg, ot->ot_thread);
 	}
@@ -1301,29 +1352,33 @@ xtPublic xtBool xt_ind_clean(XTOpenTablePtr ot, XTIndexPtr ind, xtIndexNodeID ad
 	return OK;
 }
 
-xtPublic xtBool xt_ind_read_bytes(XTOpenTablePtr ot, xtIndexNodeID address, size_t size, xtWord1 *data)
+xtPublic xtBool xt_ind_read_bytes(XTOpenTablePtr ot, XTIndexPtr ind, xtIndexNodeID address, size_t size, xtWord1 *data)
 {
 	XTIndBlockPtr	block;
 	DcSegmentPtr	seg;
 
-	if (!(block = ind_cac_fetch(ot, address, &seg, TRUE)))
+	if (!(block = ind_cac_fetch(ot, ind, address, &seg, TRUE)))
 		return FAILED;
 
-	xt_atomicrwlock_slock(&block->cb_lock);
+	XT_IPAGE_READ_LOCK(&block->cb_lock);
 	memcpy(data, block->cb_data, size);
-	xt_atomicrwlock_unlock(&block->cb_lock, FALSE);
+	XT_IPAGE_UNLOCK(&block->cb_lock, FALSE);
 	IDX_CAC_UNLOCK(seg, ot->ot_thread);
 	return OK;
 }
 
-xtPublic xtBool xt_ind_fetch(XTOpenTablePtr ot, xtIndexNodeID address, XTPageLockType ltype, XTIndReferencePtr iref)
+xtPublic xtBool xt_ind_fetch(XTOpenTablePtr ot, XTIndexPtr ind, xtIndexNodeID address, XTPageLockType ltype, XTIndReferencePtr iref)
 {
 	register XTIndBlockPtr	block;
 	DcSegmentPtr			seg;
 	xtWord2					branch_size;
+	xtBool					xlock = FALSE;
 
-	ASSERT_NS(iref->ir_ulock == XT_UNLOCK_NONE);
-	if (!(block = ind_cac_fetch(ot, address, &seg, TRUE)))
+#ifdef DEBUG
+	ASSERT_NS(iref->ir_xlock == 2);
+	ASSERT_NS(iref->ir_xlock == 2);
+#endif
+	if (!(block = ind_cac_fetch(ot, ind, address, &seg, TRUE)))
 		return NULL;
 
 	branch_size = XT_GET_DISK_2(((XTIdxBranchDPtr) block->cb_data)->tb_size_2);
@@ -1333,21 +1388,50 @@ xtPublic xtBool xt_ind_fetch(XTOpenTablePtr ot, xtIndexNodeID address, XTPageLoc
 		return FAILED;
 	}
 
-	if (ltype == XT_XLOCK_LEAF) {
-		if (XT_IS_NODE(branch_size))
-			ltype = XT_LOCK_READ;
-		else
-			ltype = XT_LOCK_WRITE;
+	switch (ltype) {
+		case XT_LOCK_READ:
+			break;
+		case XT_LOCK_WRITE:
+			xlock = TRUE;
+			break;
+		case XT_XLOCK_LEAF:
+			if (!XT_IS_NODE(branch_size))
+				xlock = TRUE;
+			break;
+		case XT_XLOCK_DEL_LEAF:
+			if (!XT_IS_NODE(branch_size)) {
+				if (ot->ot_table->tab_dic.dic_no_lazy_delete)
+					xlock = TRUE;
+				else {
+					/*
+					 * {LAZY-DEL-INDEX-ITEMS}
+					 *
+					 * We are fetch a page for delete purpose.
+					 * we decide here if we plan to do a lazy delete,
+					 * Or if we plan to compact the node.
+					 *
+					 * A lazy delete just requires a shared lock.
+					 *
+					 */
+					if (ind->mi_lazy_delete) {
+						/* If the number of deleted items is greater than
+						 * half of the number of times that can fit in the
+						 * page, then we will compact the node.
+						 */
+						if (!xt_idx_lazy_delete_on_leaf(ind, block, XT_GET_INDEX_BLOCK_LEN(branch_size)))
+							xlock = TRUE;
+					}
+					else
+						xlock = TRUE;
+				}
+			}
+			break;
 	}
 
-	if (ltype == XT_LOCK_WRITE) {
-		xt_atomicrwlock_xlock(&block->cb_lock, ot->ot_thread->t_id);
-		iref->ir_ulock = XT_UNLOCK_WRITE;
-	}
-	else {
-		xt_atomicrwlock_slock(&block->cb_lock);
-		iref->ir_ulock = XT_UNLOCK_READ;
-	}
+	if ((iref->ir_xlock = xlock))
+		XT_IPAGE_WRITE_LOCK(&block->cb_lock, ot->ot_thread->t_id);
+	else
+		XT_IPAGE_READ_LOCK(&block->cb_lock);
 
 	IDX_CAC_UNLOCK(seg, ot->ot_thread);
 
@@ -1358,18 +1442,31 @@ xtPublic xtBool xt_ind_fetch(XTOpenTablePtr ot, xtIndexNodeID address, XTPageLoc
 	 * As a result, we need to pass a pointer to both the
 	 * cache block and the cache block data:
 	 */
+	iref->ir_updated = FALSE;
 	iref->ir_block = block;
 	iref->ir_branch = (XTIdxBranchDPtr) block->cb_data;
 	return OK;
 }
 
-xtPublic xtBool xt_ind_release(XTOpenTablePtr ot, XTIndexPtr ind, XTPageUnlockType XT_UNUSED(utype), XTIndReferencePtr iref)
+xtPublic xtBool xt_ind_release(XTOpenTablePtr ot, XTIndexPtr ind, XTPageUnlockType XT_NDEBUG_UNUSED(utype), XTIndReferencePtr iref)
 {
 	register XTIndBlockPtr	block;
 
 	block = iref->ir_block;
 
-	if (utype == XT_UNLOCK_R_UPDATE || utype == XT_UNLOCK_W_UPDATE) {
+#ifdef DEBUG
+	ASSERT_NS(iref->ir_xlock != 2);
+	ASSERT_NS(iref->ir_updated != 2);
+	if (iref->ir_updated)
+		ASSERT_NS(utype == XT_UNLOCK_R_UPDATE || utype == XT_UNLOCK_W_UPDATE);
+	else
+		ASSERT_NS(utype == XT_UNLOCK_READ || utype == XT_UNLOCK_WRITE);
+	if (iref->ir_xlock)
+		ASSERT_NS(utype == XT_UNLOCK_WRITE || utype == XT_UNLOCK_W_UPDATE);
+	else
+		ASSERT_NS(utype == XT_UNLOCK_READ || utype == XT_UNLOCK_R_UPDATE);
+#endif
+	if (iref->ir_updated) {
 		/* The page was update: */
 		ASSERT_NS(block->cb_state == IDX_CAC_BLOCK_CLEAN || block->cb_state == IDX_CAC_BLOCK_DIRTY);
 		block->cp_flush_seq = ot->ot_table->tab_ind_flush_seq;
@@ -1386,16 +1483,10 @@ xtPublic xtBool xt_ind_release(XTOpenTablePtr ot, XTIndexPtr ind, XTPageUnlockTy
 		}
 	}
 
+	XT_IPAGE_UNLOCK(&block->cb_lock, iref->ir_xlock);
 #ifdef DEBUG
-	if (utype == XT_UNLOCK_W_UPDATE)
-		utype = XT_UNLOCK_WRITE;
-	else if (utype == XT_UNLOCK_R_UPDATE)
-		utype = XT_UNLOCK_READ;
-	ASSERT_NS(iref->ir_ulock == utype);
-#endif
-	xt_atomicrwlock_unlock(&block->cb_lock, iref->ir_ulock == XT_UNLOCK_WRITE ? TRUE : FALSE);
-#ifdef DEBUG
-	iref->ir_ulock = XT_UNLOCK_NONE;
+	iref->ir_xlock = 2;
+	iref->ir_updated = 2;
 #endif
 	return OK;
 }
@@ -1483,25 +1574,4 @@ xtPublic void xt_ind_unreserve(XTOpenTablePtr ot)
 	if (!ind_cac_globals.cg_free_list)
 		xt_ind_free_reserved(ot);
 }
-
-xtPublic void xt_load_indices(XTThreadPtr self, XTOpenTablePtr ot)
-{
-	register XTTableHPtr	tab = ot->ot_table;
-	register XTIndBlockPtr	block;
-	DcSegmentPtr			seg;
-	xtIndexNodeID			id;
-
-	xt_lock_mutex_ns(&tab->tab_ind_flush_lock);
-
-	for (id=1; id < XT_NODE_ID(tab->tab_ind_eof); id++) {
-		if (!(block = ind_cac_fetch(ot, id, &seg, TRUE))) {
-			xt_unlock_mutex_ns(&tab->tab_ind_flush_lock);
-			xt_throw(self);
-		}
-		IDX_CAC_UNLOCK(seg, ot->ot_thread);
-	}
-
-	xt_unlock_mutex_ns(&tab->tab_ind_flush_lock);
-}
-
 

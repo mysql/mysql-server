@@ -96,4 +96,22 @@ const int max_connections = 500;
 #define XT_SOLARIS
 #endif
 
+/*
+ * Definition of which atomic operations to use:
+ */
+#ifdef XT_WIN
+/* MS Studio style embedded assembler for x86 */
+#define XT_ATOMIC_WIN32_X86
+#elif defined(__GNUC__) && (defined(__x86_64__) || defined(__i386__))
+/* Use GNU style embedded assembler for x86 */
+#define XT_ATOMIC_GNUC_X86
+#elif defined(XT_SOLARIS)
+/* Use Sun atomic operations library
+ * http://docs.sun.com/app/docs/doc/816-5168/atomic-ops-3c?a=view
+ */
+#define XT_ATOMIC_SOLARIS_LIB
+#else
+#define XT_NO_ATOMICS
+#endif
+
 #endif

@@ -274,7 +274,7 @@ static int pbxt_lock_table(void *thread, int *xact, void *open_table, int lock_t
 	return err;
 }
 
-static int pbxt_unlock_table(void *thread, int xact, void *open_table __attribute__((unused)), PBMSResultPtr result)
+static int pbxt_unlock_table(void *thread, int xact, void *XT_UNUSED(open_table), PBMSResultPtr result)
 {
 	THD				*thd = (THD *) thread;
 	XTThreadPtr		self = xt_ha_thd_to_self(thd);
@@ -418,6 +418,10 @@ static int pbxt_send_blob(void *thread, void *open_table, const char *blob_colum
 			err = MS_ERR_ENGINE;
 	}
 	cont_(a);
+	if (ot->ot_ind_rhandle) {
+		xt_ind_release_handle(ot->ot_ind_rhandle, FALSE, self);
+		ot->ot_ind_rhandle = NULL;
+	}
 	xt_sb_set_size(NULL, &value, 0);
 	return err;
 }

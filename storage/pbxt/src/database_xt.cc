@@ -23,6 +23,10 @@
 
 #include "xt_config.h"
 
+#ifdef DRIZZLED
+#include <bitset>
+#endif
+
 #include <string.h>
 #include <stdio.h>
 
@@ -240,7 +244,7 @@ static void db_hash_free(XTThreadPtr self, void *data)
 	xt_heap_release(self, (XTDatabaseHPtr) data);
 }
 
-static int db_cmp_db_id(struct XTThread XT_UNUSED(*self), register const void XT_UNUSED(*thunk), register const void *a, register const void *b)
+static int db_cmp_db_id(struct XTThread *XT_UNUSED(self), register const void *XT_UNUSED(thunk), register const void *a, register const void *b)
 {
 	xtDatabaseID	db_id = *((xtDatabaseID *) a);
 	XTDatabaseHPtr	*db_ptr = (XTDatabaseHPtr *) b;
@@ -346,7 +350,7 @@ static void db_finalize(XTThreadPtr self, void *x)
 	}
 }
 
-static void db_onrelease(XTThreadPtr self, void XT_UNUSED(*x))
+static void db_onrelease(XTThreadPtr self, void *XT_UNUSED(x))
 {
 	/* Signal threads waiting for exclusive use of the database: */
 	if (xt_db_open_databases)	// The database may already be closed.
@@ -612,7 +616,7 @@ xtPublic void xt_drop_database(XTThreadPtr self, XTDatabaseHPtr	db)
 xtPublic void xt_open_database(XTThreadPtr self, char *path, xtBool multi_path)
 {
 	XTDatabaseHPtr db;
-	
+
 	/* We cannot get a database, without unusing the current
 	 * first. The reason is that the restart process will
 	 * partially set the current database!
@@ -621,7 +625,7 @@ xtPublic void xt_open_database(XTThreadPtr self, char *path, xtBool multi_path)
 	db = xt_get_database(self, path, multi_path);
 	pushr_(xt_heap_release, db);
 	xt_use_database(self, db, XT_FOR_USER);
-	freer_(); // xt_heap_release(self, db);	
+	freer_();	// xt_heap_release(self, db);	
 }
 
 /* This function can only be called if you do not already have a database in
@@ -638,6 +642,12 @@ xtPublic void xt_use_database(XTThreadPtr self, XTDatabaseHPtr db, int what_for)
 
 	xt_heap_reference(self, db);
 	self->st_database = db;
+#ifdef XT_WAIT_FOR_CLEANUP
+	self->st_last_xact = 0;
+	for (int i=0; i<XT_MAX_XACT_BEHIND; i++) {
+		self->st_prev_xact[i] = db->db_xn_curr_id;
+	}
+#endif
 	xt_xn_init_thread(self, what_for);
 }
 
@@ -1117,15 +1127,18 @@ xtPublic void xt_db_return_table_to_pool_ns(XTOpenTablePtr ot)
 	XTDatabaseHPtr		db = ot->ot_table->tab_db;
 	xtBool				flush_table = TRUE;
 
+	/* No open table returned to the pool should still
+	 * have a cache handle!
+	 */
+	ASSERT_NS(!ot->ot_ind_rhandle);
 	xt_lock_mutex_ns(&db->db_ot_pool.opt_lock);
 
 	if (!(table_pool = db_get_open_table_pool(db, ot->ot_table->tab_id)))
 		goto failed;
 
 	if (table_pool->opt_locked && !table_pool->opt_flushing) {
-		table_pool->opt_total_open--;
 		/* Table will be closed below: */
-		if (table_pool->opt_total_open > 0)
+		if (table_pool->opt_total_open > 1)
 			flush_table = FALSE;
 	}
 	else {
@@ -1151,14 +1164,21 @@ xtPublic void xt_db_return_table_to_pool_ns(XTOpenTablePtr ot)
 		ot = NULL;
 	}
 
+	if (ot) {
+		xt_unlock_mutex_ns(&db->db_ot_pool.opt_lock);
+		xt_close_table(ot, flush_table, FALSE);
+
+		/* assume that table_pool cannot be invalidated in between as we have table_pool->opt_total_open > 0 */
+		xt_lock_mutex_ns(&db->db_ot_pool.opt_lock);
+		table_pool->opt_total_open--;
+	}
+
 	db_free_open_table_pool(NULL, table_pool);
 
 	if (!xt_broadcast_cond_ns(&db->db_ot_pool.opt_cond))
 		goto failed;
 	xt_unlock_mutex_ns(&db->db_ot_pool.opt_lock);
-	if (ot)
-		xt_close_table(ot, flush_table, FALSE);
-
+	
 	return;
 
 	failed:

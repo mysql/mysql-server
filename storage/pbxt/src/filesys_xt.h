@@ -76,13 +76,60 @@ xtBool			xt_fs_rename(struct XTThread *self, char *from_path, char *to_path);
 #define XT_NULL_FD	(-1)
 #endif
 
+/* Note, this lock must be re-entrant,
+ * The only lock that satifies this is
+ * FILE_MAP_USE_RWMUTEX!
+ *
+ * 20.05.2009: This problem should be fixed now with mf_slock_count!
+ *
+ * The lock need no longer be re-entrant
+ */
+#ifdef XT_NO_ATOMICS
+#define FILE_MAP_USE_PTHREAD_RW
+#else
+//#define FILE_MAP_USE_RWMUTEX
+//#define FILE_MAP_USE_PTHREAD_RW
+//#define IDX_USE_SPINXSLOCK
+#define FILE_MAP_USE_XSMUTEX
+#endif
+
+#ifdef FILE_MAP_USE_XSMUTEX
+#define FILE_MAP_LOCK_TYPE				XTXSMutexRec
+#define FILE_MAP_INIT_LOCK(s, i)		xt_xsmutex_init_with_autoname(s, i)
+#define FILE_MAP_FREE_LOCK(s, i)		xt_xsmutex_free(s, i)	
+#define FILE_MAP_READ_LOCK(i, o)		xt_xsmutex_slock(i, o)
+#define FILE_MAP_WRITE_LOCK(i, o)		xt_xsmutex_xlock(i, o)
+#define FILE_MAP_UNLOCK(i, o)			xt_xsmutex_unlock(i, o)
+#elif defined(FILE_MAP_USE_PTHREAD_RW)
+#define FILE_MAP_LOCK_TYPE				xt_rwlock_type
+#define FILE_MAP_INIT_LOCK(s, i)		xt_init_rwlock(s, i)
+#define FILE_MAP_FREE_LOCK(s, i)		xt_free_rwlock(i)	
+#define FILE_MAP_READ_LOCK(i, o)		xt_slock_rwlock_ns(i)
+#define FILE_MAP_WRITE_LOCK(i, o)		xt_xlock_rwlock_ns(i)
+#define FILE_MAP_UNLOCK(i, o)			xt_unlock_rwlock_ns(i)
+#elif defined(FILE_MAP_USE_RWMUTEX)
+#define FILE_MAP_LOCK_TYPE				XTRWMutexRec
+#define FILE_MAP_INIT_LOCK(s, i)		xt_rwmutex_init_with_autoname(s, i)
+#define FILE_MAP_FREE_LOCK(s, i)		xt_rwmutex_free(s, i)	
+#define FILE_MAP_READ_LOCK(i, o)		xt_rwmutex_slock(i, o)
+#define FILE_MAP_WRITE_LOCK(i, o)		xt_rwmutex_xlock(i, o)
+#define FILE_MAP_UNLOCK(i, o)			xt_rwmutex_unlock(i, o)
+#elif defined(FILE_MAP_USE_SPINXSLOCK)
+#define FILE_MAP_LOCK_TYPE				XTSpinXSLockRec
+#define FILE_MAP_INIT_LOCK(s, i)		xt_spinxslock_init_with_autoname(s, i)
+#define FILE_MAP_FREE_LOCK(s, i)		xt_spinxslock_free(s, i)	
+#define FILE_MAP_READ_LOCK(i, o)		xt_spinxslock_slock(i, o)
+#define FILE_MAP_WRITE_LOCK(i, o)		xt_spinxslock_xlock(i, o)
+#define FILE_MAP_UNLOCK(i, o)			xt_spinxslock_unlock(i, o)
+#endif
+
 typedef struct XTFileMemMap {
 	xtWord1				*mm_start;			/* The in-memory start of the map. */
 #ifdef XT_WIN
 	HANDLE				mm_mapdes;
 #endif
 	off_t				mm_length;			/* The length of the file map. */
-	XTRWMutexRec		mm_lock;			/* The file map R/W lock. */
+	FILE_MAP_LOCK_TYPE	mm_lock;			/* The file map R/W lock. */
 	size_t				mm_grow_size;		/* The amount by which the map file is increased. */
 } XTFileMemMapRec, *XTFileMemMapPtr;
 
@@ -127,6 +174,9 @@ xtBool			xt_pwrite_file(XTOpenFilePtr of, off_t offset, size_t size, void *data,
 xtBool			xt_pread_file(XTOpenFilePtr of, off_t offset, size_t size, size_t min_size, void *data, size_t *red_size, struct XTIOStats *timer, struct XTThread *thread);
 xtBool			xt_flush_file(XTOpenFilePtr of, struct XTIOStats *timer, struct XTThread *thread);
 
+xtBool			xt_lock_file_ptr(XTOpenFilePtr of, xtWord1 **data, off_t offset, size_t size, struct XTIOStats *timer, struct XTThread *thread);
+void			xt_unlock_file_ptr(XTOpenFilePtr of, xtWord1 *data, struct XTThread *thread);
+
 typedef struct XTOpenDir {
 	char				*od_path;
 #ifdef XT_WIN
@@ -134,8 +184,14 @@ typedef struct XTOpenDir {
 	WIN32_FIND_DATA		od_data;
 #else
 	char				*od_filter;
-	struct dirent		od_entry;
 	DIR					*od_dir;
+	/* WARNING: Solaris requires od_entry.d_name member to have size at least as returned
+	 * by pathconf() function on per-directory basis. This makes it impossible to statically
+	 * pre-set the size. So xt_dir_open on Solaris dynamically allocates space as needed. 
+	 *
+	 * This also means that the od_entry member should always be last in the XTOpenDir structure.
+	 */
+	struct dirent		od_entry;
 #endif
 } XTOpenDirRec, *XTOpenDirPtr;
 
@@ -147,6 +203,7 @@ xtBool			xt_dir_is_file(struct XTThread *self, XTOpenDirPtr od);
 off_t			xt_dir_file_size(struct XTThread *self, XTOpenDirPtr od);
 
 typedef struct XTMapFile : public XTFileRef {
+	u_int				mf_slock_count;
 	XTFileMemMapPtr		mf_memmap;
 } XTMapFileRec, *XTMapFilePtr;
 
