@@ -57,8 +57,10 @@ Dbtup::do_tup_abort_operation(Signal* signal,
 
     if(! (bits & Tuple_header::ALLOC))
     {
+      jam();
       if(bits & Tuple_header::MM_GROWN)
       {
+        jam();
 	if (0) ndbout_c("abort grow");
 	Ptr<Page> vpage;
 	Uint32 idx= opPtrP->m_tuple_location.m_page_idx;
@@ -86,26 +88,30 @@ Dbtup::do_tup_abort_operation(Signal* signal,
         ndbassert(sz < len);
         if (sz)
         {
+          jam();
           pageP->shrink_entry(idx, sz);
+          update_free_page_list(fragPtrP, vpage);
         }
         else
         {
-          pageP->free_record(tmp.m_page_idx, Var_page::CHAIN);
+          jam();
+          free_var_part(fragPtrP, vpage, tmp.m_page_idx);
           tmp.m_page_no = RNIL;
           ref->assign(&tmp);
           bits &= ~(Uint32)Tuple_header::VAR_PART;
         }
-        update_free_page_list(fragPtrP, vpage);
         tuple_ptr->m_header_bits= bits & ~Tuple_header::MM_GROWN;
         change = true;
       } 
       else if(bits & Tuple_header::MM_SHRINK)
       {
+        jam();
 	if (0) ndbout_c("abort shrink");
       }
     }
     else if (opPtrP->is_first_operation())
     {
+      jam();
       /**
        * Aborting last operation that performed ALLOC
        */
@@ -116,8 +122,10 @@ Dbtup::do_tup_abort_operation(Signal* signal,
   }
   else if (opPtrP->is_first_operation())
   {
+    jam();
     if (bits & Tuple_header::ALLOC)
     {
+      jam();
       change = true;
       tuple_ptr->m_header_bits &= ~(Uint32)Tuple_header::ALLOC;
       tuple_ptr->m_header_bits |= Tuple_header::FREED;

@@ -3114,6 +3114,8 @@ Dbtup::update_lcp(KeyReqStruct* req_struct, const Uint32 * src, Uint32 len)
   req_struct->m_lcp_varpart_len = varlen32;
   ptr->m_header_bits |= (tabPtrP->m_bits & Tablerec::TR_DiskPart) ? 
     Tuple_header::DISK_PART : 0;
+  ptr->m_header_bits |= (varlen32) ? Tuple_header::VAR_PART : 0;
+
   req_struct->changeMask.set();
 }
 
