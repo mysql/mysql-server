@@ -1573,4 +1573,17 @@ static inline double rint(double x)
 }
 #endif /* HAVE_RINT */
 
+/* 
+  MYSQL_PLUGIN_IMPORT macro is used to export mysqld data
+  (i.e variables) for usage in storage engine loadable plugins.
+  Outside of Windows, it is dummy.
+*/
+#ifndef MYSQL_PLUGIN_IMPORT
+#if (defined(_WIN32) && defined(MYSQL_DYNAMIC_PLUGIN))
+#define MYSQL_PLUGIN_IMPORT __declspec(dllimport)
+#else
+#define MYSQL_PLUGIN_IMPORT
+#endif
+#endif
+
 #endif /* my_global_h */

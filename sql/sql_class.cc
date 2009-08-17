@@ -757,6 +757,12 @@ void thd_get_xid(const MYSQL_THD thd, MYSQL_XID *xid)
   *xid = *(MYSQL_XID *) &thd->transaction.xid_state.xid;
 }
 
+#ifdef _WIN32
+extern "C"   THD *_current_thd_noinline(void)
+{
+  return my_pthread_getspecific_ptr(THD*,THR_THD);
+}
+#endif
 /*
   Init common variables that has to be reset on start and on change_user
 */
