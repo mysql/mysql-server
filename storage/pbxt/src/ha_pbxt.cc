@@ -65,8 +65,8 @@ extern "C" char **session_query(Session *session);
 #include "heap_xt.h"
 #include "myxt_xt.h"
 #include "datadic_xt.h"
-#ifdef XT_STREAMING
-#include "streaming_xt.h"
+#ifdef PBMS_ENABLED
+#include "pbms_enabled.h"
 #endif
 #include "tabcache_xt.h"
 #include "systab_xt.h"
@@ -968,8 +968,8 @@ static void ha_exit(XTThreadPtr self)
 	/* This may cause the streaming engine to cleanup connections and 
 	 * tables belonging to this engine. This in turn may require some of
 	 * the stuff below (like xt_create_thread() called from pbxt_close_table()! */
-#ifdef XT_STREAMING
-	xt_exit_streaming();
+#ifdef PBMS_ENABLED
+	pbms_finalize();
 #endif
 	pbxt_call_exit(self);
 	xt_exit_threading(self);
@@ -1041,7 +1041,7 @@ static int pbxt_init(void *p)
 	XT_TRACE_CALL();
 
 	if (sizeof(xtWordPS) != sizeof(void *)) {
-		printf("PBXT: This won't work, I require that sizeof(xtWordPS) != sizeof(void *)!\n");
+		printf("PBXT: This won't work, I require that sizeof(xtWordPS) == sizeof(void *)!\n");
 		XT_RETURN(1);
 	}
 
@@ -1078,9 +1078,12 @@ static int pbxt_init(void *p)
 		if (!xt_init_logging())					/* Initialize logging */
 			goto error_1;
 
-#ifdef XT_STREAMING
-		if (!xt_init_streaming())
+#ifdef PBMS_ENABLED
+		PBMSResultRec result;
+		if (!pbms_initialize("PBXT", false, &result)) {
+			xt_logf(XT_NT_ERROR, "pbms_initialize() Error: %s", result.mr_message);
 			goto error_2;
+		}
 #endif
 
 		if (!xt_init_memory())					/* Initialize memory */
@@ -1129,7 +1132,7 @@ static int pbxt_init(void *p)
 			ASSERT(!pbxt_database);
 			{
 				THD *curr_thd = current_thd;
-				THD *thd = curr_thd;
+				THD *thd = NULL;
 
 #ifndef DRIZZLED
 				extern myxt_mutex_t LOCK_plugin;
@@ -1169,16 +1172,20 @@ static int pbxt_init(void *p)
 					xt_xres_start_database_recovery(self);
 				}
 				catch_(b) {
-					if (!curr_thd && thd)
-						myxt_destroy_thread(thd, FALSE);
-#ifndef DRIZZLED
-					myxt_mutex_lock(&LOCK_plugin);
-#endif
-					xt_throw(self);
+					/* It is possible that the error was reset by cleanup code.
+					 * Set a generic error code in that case.
+					 */
+					/* PMC - This is not necessary in because exceptions are 
+					 * now preserved, in exception handler cleanup.
+					*/
+					if (!self->t_exception.e_xt_err)
+						xt_register_error(XT_REG_CONTEXT, XT_SYSTEM_ERROR, 0, "Initialization failed"); 
+					xt_log_exception(self, &self->t_exception, XT_LOG_DEFAULT);
+					init_err = 1;
 				}
 				cont_(b);
 
-				if (!curr_thd)
+				if (thd)
 					myxt_destroy_thread(thd, FALSE);
 #ifndef DRIZZLED
 				myxt_mutex_lock(&LOCK_plugin);
@@ -1237,8 +1244,8 @@ static int pbxt_init(void *p)
 	XT_RETURN(init_err);
 
 	error_3:
-#ifdef XT_STREAMING
-	xt_exit_streaming();
+#ifdef PBMS_ENABLED
+	pbms_finalize();
 
 	error_2:
 #endif
@@ -1295,9 +1302,6 @@ static int pbxt_close_connection(handlerton *hton, THD* thd)
 {
 #endif
 	XTThreadPtr		self;
-#ifdef XT_STREAMING
-	XTExceptionRec	e;
-#endif
 
 	XT_TRACE_CALL();
 	if ((self = (XTThreadPtr) *thd_ha_data(thd, hton))) {
@@ -1308,10 +1312,6 @@ static int pbxt_close_connection(handlerton *hton, THD* thd)
 		xt_set_self(self);
 		xt_free_thread(self);
 	}
-#ifdef XT_STREAMING
-	if (!xt_pbms_close_connection((void *) thd, &e))
-		xt_log_exception(NULL, &e, XT_LOG_DEFAULT);
-#endif
 	return 0;
 }
 
@@ -2301,6 +2301,14 @@ int ha_pbxt::write_row(byte *buf)
 	XT_PRINT1(pb_open_tab->ot_thread, "ha_pbxt::write_row %s\n", pb_share->sh_table_path->ps_path);
 	XT_DISABLED_TRACE(("INSERT tx=%d val=%d\n", (int) pb_open_tab->ot_thread->st_xact_data->xd_start_xn_id, (int) XT_GET_DISK_4(&buf[1])));
 	//statistic_increment(ha_write_count,&LOCK_status);
+#ifdef PBMS_ENABLED
+	PBMSResultRec result;
+	err = pbms_write_row_blobs(table, buf, &result);
+	if (err) {
+		xt_logf(XT_NT_ERROR, "pbms_write_row_blobs() Error: %s", result.mr_message);
+		return err;
+	}
+#endif
 
 	/* GOTCHA: I have a huge problem with the transaction statement.
 	 * It is not ALWAYS committed (I mean ha_commit_trans() is
@@ -2332,7 +2340,8 @@ int ha_pbxt::write_row(byte *buf)
 		int update_err = update_auto_increment();
 		if (update_err) {
 			ha_log_pbxt_thread_error_for_mysql(pb_ignore_dup_key);
-			return update_err;
+			err = update_err;
+			goto done;
 		}
 		set_auto_increment(table->next_number_field);
 	}
@@ -2350,6 +2359,10 @@ int ha_pbxt::write_row(byte *buf)
 			pb_open_tab->ot_thread->st_update_id++;
 	}
 
+	done:
+#ifdef PBMS_ENABLED
+	pbms_completed(table, (err == 0));
+#endif
 	return err;
 }
 
@@ -2423,6 +2436,21 @@ int ha_pbxt::update_row(const byte * old_data, byte * new_data)
 	if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
 		table->timestamp_field->set_time();
 
+#ifdef PBMS_ENABLED
+	PBMSResultRec result;
+
+	err = pbms_delete_row_blobs(table, old_data, &result);
+	if (err) {
+		xt_logf(XT_NT_ERROR, "update_row:pbms_delete_row_blobs() Error: %s", result.mr_message);
+		return err;
+	}
+	err = pbms_write_row_blobs(table, new_data, &result);
+	if (err) { 
+		xt_logf(XT_NT_ERROR, "update_row:pbms_write_row_blobs() Error: %s", result.mr_message);
+		goto pbms_done;
+	}
+#endif
+
 	/* GOTCHA: We need to check the auto-increment value on update
 	 * because of the following test (which fails for InnoDB) -
 	 * auto_increment.test:
@@ -2445,6 +2473,11 @@ int ha_pbxt::update_row(const byte * old_data, byte * new_data)
 		err = ha_log_pbxt_thread_error_for_mysql(pb_ignore_dup_key);
 
 	pb_open_tab->ot_table->tab_locks.xt_remove_temp_lock(pb_open_tab, TRUE);
+	
+#ifdef PBMS_ENABLED
+	pbms_done:
+	pbms_completed(table, (err == 0));
+#endif
 
 	return err;
 }
@@ -2468,6 +2501,16 @@ int ha_pbxt::delete_row(const byte * buf)
 	XT_DISABLED_TRACE(("DELETE tx=%d val=%d\n", (int) pb_open_tab->ot_thread->st_xact_data->xd_start_xn_id, (int) XT_GET_DISK_4(&buf[1])));
 	//statistic_increment(ha_delete_count,&LOCK_status);
 
+#ifdef PBMS_ENABLED
+	PBMSResultRec result;
+
+	err = pbms_delete_row_blobs(table, buf, &result);
+	if (err) {
+		xt_logf(XT_NT_ERROR, "pbms_delete_row_blobs() Error: %s", result.mr_message);
+		return err;
+	}
+#endif
+
 	if (!pb_open_tab->ot_thread->st_stat_trans) {
 		trans_register_ha(pb_mysql_thd, FALSE, pbxt_hton);
 		XT_PRINT0(pb_open_tab->ot_thread, "ha_pbxt::delete_row trans_register_ha all=FALSE\n");
@@ -2481,6 +2524,9 @@ int ha_pbxt::delete_row(const byte * buf)
 
 	pb_open_tab->ot_table->tab_locks.xt_remove_temp_lock(pb_open_tab, TRUE);
 
+#ifdef PBMS_ENABLED
+	pbms_completed(table, (err == 0));
+#endif
 	return err;
 }
 
@@ -3478,7 +3524,7 @@ int ha_pbxt::info(uint flag)
 		if (flag & HA_STATUS_VARIABLE) {
 			stats.deleted = ot->ot_table->tab_row_fnum;
 			stats.records = (ha_rows) (ot->ot_table->tab_row_eof_id - 1 - stats.deleted);
-			stats.data_file_length = ot->ot_table->tab_rec_eof_id;
+			stats.data_file_length = xt_rec_id_to_rec_offset(ot->ot_table, ot->ot_table->tab_rec_eof_id);
 			stats.index_file_length = xt_ind_node_to_offset(ot->ot_table, ot->ot_table->tab_ind_eof);
 			stats.delete_length = ot->ot_table->tab_rec_fnum * ot->ot_rec_size;
 			//check_time = info.check_time;
@@ -4749,6 +4795,19 @@ int ha_pbxt::delete_table(const char *table_path)
 #endif
 	}
 	cont_(a);
+	
+#ifdef PBMS_ENABLED
+	/* Call pbms_delete_table_with_blobs() last because it cannot be undone. */
+	if (!err) {
+		PBMSResultRec result;
+
+		if (pbms_delete_table_with_blobs(table_path, &result)) {
+			xt_logf(XT_NT_WARNING, "pbms_delete_table_with_blobs() Error: %s", result.mr_message);
+		}
+		
+		pbms_completed(NULL, true);
+	}
+#endif
 
 	return err;
 }
@@ -4809,6 +4868,16 @@ int ha_pbxt::rename_table(const char *from, const char *to)
 
 	XT_PRINT2(self, "ha_pbxt::rename_table %s -> %s\n", from, to);
 
+#ifdef PBMS_ENABLED
+	PBMSResultRec result;
+
+	err = pbms_rename_table_with_blobs(from, to, &result);
+	if (err) {
+		xt_logf(XT_NT_ERROR, "pbms_rename_table_with_blobs() Error: %s", result.mr_message);
+		return err;
+	}
+#endif
+
 	try_(a) {
 		xt_ha_open_database_of_table(self, (XTPathStrPtr) to);
 		to_db = self->st_database;
@@ -4837,10 +4906,6 @@ int ha_pbxt::rename_table(const char *from, const char *to)
 		freer_(); // ha_release_exclusive_use(share)
 		freer_(); // ha_unget_share(share)
 
-#ifdef XT_STREAMING
-		/* PBMS remove the table? */
-		xt_pbms_rename_table(from, to);
-#endif
 		/*
 		 * If there are no more PBXT tables in the database, we
 		 * "drop the database", which deletes all PBXT resources
@@ -4860,6 +4925,10 @@ int ha_pbxt::rename_table(const char *from, const char *to)
 		err = xt_ha_pbxt_thread_error_for_mysql(thd, self, pb_ignore_dup_key);
 	}
 	cont_(a);
+	
+#ifdef PBMS_ENABLED
+	pbms_completed(NULL, (err == 0));
+#endif
 
 	XT_RETURN(err);
 }

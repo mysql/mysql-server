@@ -1132,6 +1132,7 @@ xtBool XTDatabaseLog::xlog_append(XTThreadPtr thread, size_t size1, xtWord1 *dat
 				/* [(8)] Flush the compactor log. */
 				xt_lock_mutex_ns(&xl_db->db_co_dlog_lock);
 				if (!xl_db->db_co_thread->st_dlog_buf.dlb_flush_log(TRUE, thread)) {
+					xl_log_bytes_written -= part_size;
 					xt_unlock_mutex_ns(&xl_db->db_co_dlog_lock);
 					goto write_failed;
 				}
@@ -1140,8 +1141,10 @@ xtBool XTDatabaseLog::xlog_append(XTThreadPtr thread, size_t size1, xtWord1 *dat
 
 			/* And flush if required: */
 			flush_time = thread->st_statistics.st_xlog.ts_flush_time;
-			if (!xt_flush_file(xl_log_file, &thread->st_statistics.st_xlog, thread))
+			if (!xt_flush_file(xl_log_file, &thread->st_statistics.st_xlog, thread)) {
+				xl_log_bytes_written -= part_size;
 				goto write_failed;
+			}
 			xl_last_flush_time = (u_int) (thread->st_statistics.st_xlog.ts_flush_time - flush_time);
 
 			xl_log_bytes_flushed = xl_log_bytes_written;
@@ -2514,9 +2517,6 @@ static void xlog_wr_main(XTThreadPtr self)
 				if (!record) {
 					break;
 				}
-				/* Count the number of bytes read from the log: */
-				db->db_xlog.xl_log_bytes_read += ws->ws_seqread.xseq_record_len;
-
 				switch (record->xl.xl_status_1) {
 					case XT_LOG_ENT_HEADER:
 						break;
@@ -2540,6 +2540,8 @@ static void xlog_wr_main(XTThreadPtr self)
 						xt_xres_apply_in_order(self, ws, ws->ws_seqread.xseq_rec_log_id, ws->ws_seqread.xseq_rec_log_offset, record);
 						break;
 				}
+				/* Count the number of bytes read from the log: */
+				db->db_xlog.xl_log_bytes_read += ws->ws_seqread.xseq_record_len;
 			}
 		}
 

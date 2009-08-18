@@ -1735,8 +1735,8 @@ void XTDDConstraint::alterColumnName(XTThreadPtr self, char *from_name, char *to
 void XTDDConstraint::getColumnList(char *buffer, size_t size)
 {
 	if (co_table->dt_table) {
-		xt_strcat(size, buffer, "`");
-		xt_strcpy(size, buffer, co_table->dt_table->tab_name->ps_path);
+		xt_strcpy(size, buffer, "`");
+		xt_strcat(size, buffer, co_table->dt_table->tab_name->ps_path);
 		xt_strcat(size, buffer, "` (`");
 	}
 	else
@@ -1754,6 +1754,20 @@ bool XTDDConstraint::sameColumns(XTDDConstraint *co)
 	u_int i = 0;
 
 	if (co_cols.size() != co->co_cols.size())
+		return false;
+	while (i<co_cols.size()) {
+		if (myxt_strcasecmp(co_cols.itemAt(i)->cr_col_name, co->co_cols.itemAt(i)->cr_col_name) != 0)
+			return false;
+		i++;
+	}
+	return OK;
+}
+
+bool XTDDConstraint::samePrefixColumns(XTDDConstraint *co)
+{
+	u_int i = 0;
+
+	if (co_cols.size() > co->co_cols.size())
 		return false;
 	while (i<co_cols.size()) {
 		if (myxt_strcasecmp(co_cols.itemAt(i)->cr_col_name, co->co_cols.itemAt(i)->cr_col_name) != 0)
@@ -2167,6 +2181,20 @@ bool XTDDForeignKey::sameReferenceColumns(XTDDConstraint *co)
 	u_int i = 0;
 
 	if (fk_ref_cols.size() != co->co_cols.size())
+		return false;
+	while (i<fk_ref_cols.size()) {
+		if (myxt_strcasecmp(fk_ref_cols.itemAt(i)->cr_col_name, co->co_cols.itemAt(i)->cr_col_name) != 0)
+			return false;
+		i++;
+	}
+	return OK;
+}
+
+bool XTDDForeignKey::samePrefixReferenceColumns(XTDDConstraint *co)
+{
+	u_int i = 0;
+
+	if (fk_ref_cols.size() > co->co_cols.size())
 		return false;
 	while (i<fk_ref_cols.size()) {
 		if (myxt_strcasecmp(fk_ref_cols.itemAt(i)->cr_col_name, co->co_cols.itemAt(i)->cr_col_name) != 0)
@@ -2720,16 +2748,24 @@ void XTDDTable::checkForeignKeys(XTThreadPtr self, bool temp_table)
 
 XTDDIndex *XTDDTable::findIndex(XTDDConstraint *co)
 {
-	XTDDIndex *ind;
+	XTDDIndex *ind = NULL;
+	XTDDIndex *cur_ind;
+	u_int index_size = UINT_MAX;
 
 	for (u_int i=0; i<dt_indexes.size(); i++) {
-		ind = dt_indexes.itemAt(i);
-		if (co->sameColumns(ind))
-			return ind;
+		cur_ind = dt_indexes.itemAt(i);
+		u_int sz = cur_ind->getIndexPtr()->mi_key_size;
+		if (sz < index_size && co->samePrefixColumns(cur_ind)) {
+			ind = cur_ind;
+			index_size = sz;
+		}
 	}
+
+	if (ind) 
+		return ind;
+	
 	{
 		char buffer[XT_ERR_MSG_SIZE - 200];
-
 		co->getColumnList(buffer, XT_ERR_MSG_SIZE - 200);
 		xt_register_ixterr(XT_REG_CONTEXT, XT_ERR_NO_MATCHING_INDEX, buffer);
 	}
@@ -2738,15 +2774,23 @@ XTDDIndex *XTDDTable::findIndex(XTDDConstraint *co)
 
 XTDDIndex *XTDDTable::findReferenceIndex(XTDDForeignKey *fk)
 {
-	XTDDIndex		*ind;
+	XTDDIndex		*ind = NULL;
+	XTDDIndex		*cur_ind;
 	XTDDColumnRef	*cr;
 	u_int			i;
+	u_int			index_size = UINT_MAX;
 
 	for (i=0; i<dt_indexes.size(); i++) {
-		ind = dt_indexes.itemAt(i);
-		if (fk->sameReferenceColumns(ind))
-			return ind;
+		cur_ind = dt_indexes.itemAt(i);
+		u_int sz = cur_ind->getIndexPtr()->mi_key_size;
+		if (sz < index_size && fk->samePrefixReferenceColumns(cur_ind)) {
+			ind = cur_ind;
+			index_size = sz;
+		}
 	}
+
+	if (ind)
+		return ind;
 
 	/* If the index does not exist, maybe the columns do not exist?! */
 	for (i=0; i<fk->fk_ref_cols.size(); i++) {

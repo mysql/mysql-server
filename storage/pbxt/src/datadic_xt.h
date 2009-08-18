@@ -171,6 +171,7 @@ class XTDDConstraint : public XTObject {
 	virtual void alterColumnName(XTThreadPtr self, char *from_name, char *to_name);
 	void getColumnList(char *buffer, size_t size);
 	bool sameColumns(XTDDConstraint *co);
+	bool samePrefixColumns(XTDDConstraint *co);
 	bool attachColumns();
 };
 
@@ -240,6 +241,7 @@ class XTDDForeignKey : public XTDDIndex {
 	void getReferenceList(char *buffer, size_t size);
 	struct XTIndex *getReferenceIndexPtr();
 	bool sameReferenceColumns(XTDDConstraint *co);
+	bool samePrefixReferenceColumns(XTDDConstraint *co);
 	bool checkReferencedTypes(XTDDTable *dt);
 	void removeReference(XTThreadPtr self);
 	bool insertRow(xtWord1 *before, xtWord1 *after, XTThreadPtr thread);

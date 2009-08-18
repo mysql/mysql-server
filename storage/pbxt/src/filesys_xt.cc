@@ -54,11 +54,17 @@
 //#define DEBUG_TRACE_IO
 //#define DEBUG_TRACE_MAP_IO
 //#define DEBUG_TRACE_FILES
+//#define INJECT_WRITE_REMAP_ERROR
 #endif
 
 #ifdef DEBUG_TRACE_FILES
 //#define PRINTF		xt_ftracef
 #define PRINTF		xt_trace
+#endif
+
+#ifdef INJECT_WRITE_REMAP_ERROR
+#define INJECT_REMAP_FILE_SIZE			1000000
+#define INJECT_REMAP_FILE_TYPE			"xtd"
 #endif
 
 /* ----------------------------------------------------------------------
@@ -868,10 +874,21 @@ xtPublic xtBool xt_flush_file(XTOpenFilePtr of, XTIOStatsPtr stat, XTThreadPtr X
 		goto failed;
 	}
 #else
+	/* Mac OS X has problems with fsync. We had several cases of index corruption presumably because
+	 * fsync didn't really flush index pages to disk. fcntl(F_FULLFSYNC) is considered more effective 
+	 * in such case.
+	 */
+#ifdef F_FULLFSYNC
+	if (fcntl(of->of_filedes, F_FULLFSYNC, 0) == -1) {
+		xt_register_ferrno(XT_REG_CONTEXT, errno, xt_file_path(of));
+		goto failed;
+	}
+#else
 	if (fsync(of->of_filedes) == -1) {
 		xt_register_ferrno(XT_REG_CONTEXT, errno, xt_file_path(of));
 		goto failed;
 	}
+#endif
 #endif
 #ifdef DEBUG_TRACE_IO
 	xt_trace("/* %s */ pbxt_file_sync(\"%s\");\n", xt_trace_clock_diff(timef, start), of->fr_file->fil_path);
@@ -1185,6 +1202,15 @@ off_t xt_dir_file_size(XTThreadPtr self, XTOpenDirPtr od)
 
 static xtBool fs_map_file(XTFileMemMapPtr mm, XTFilePtr file, xtBool grow)
 {
+#ifdef INJECT_WRITE_REMAP_ERROR
+	if (xt_is_extension(file->fil_path, INJECT_REMAP_FILE_TYPE)) {
+		if (mm->mm_length > INJECT_REMAP_FILE_SIZE) {
+			xt_register_ferrno(XT_REG_CONTEXT, 30, file->fil_path);
+			return FAILED;
+		}
+	}
+#endif
+
 	ASSERT_NS(!mm->mm_start);
 #ifdef XT_WIN
 	/* This will grow the file to the given size: */
@@ -1373,14 +1399,23 @@ static xtBool fs_remap_file(XTMapFilePtr map, off_t offset, size_t size, XTIOSta
 		}
 		mm->mm_start = NULL;
 #ifdef XT_WIN
-		if (!CloseHandle(mm->mm_mapdes))
+		/* It is possible that a previous remap attempt has failed: the map was closed
+		 * but the new map was not allocated (e.g. because of insufficient disk space). 
+		 * In this case mm->mm_mapdes will be NULL.
+		 */
+		if (mm->mm_mapdes && !CloseHandle(mm->mm_mapdes))
 			return xt_register_ferrno(XT_REG_CONTEXT, fs_get_win_error(), xt_file_path(map));
 		mm->mm_mapdes = NULL;
 #endif
+		off_t old_size = mm->mm_length;
 		mm->mm_length = new_size;
 
-		if (!fs_map_file(mm, map->fr_file, TRUE))
+		if (!fs_map_file(mm, map->fr_file, TRUE)) {
+			/* Try to restore old mapping */
+			mm->mm_length = old_size;
+			fs_map_file(mm, map->fr_file, FALSE);
 			return FAILED;
+		}
 	}
 	return OK;
 	

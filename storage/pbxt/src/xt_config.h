@@ -81,7 +81,7 @@ const int max_connections = 500;
 #define DEBUG
 #endif // _DEBUG
 #else
-#define XT_STREAMING
+#define PBMS_ENABLED
 #endif
 
 #ifdef __FreeBSD__

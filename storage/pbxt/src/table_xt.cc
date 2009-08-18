@@ -47,9 +47,6 @@
 #include "myxt_xt.h"
 #include "cache_xt.h"
 #include "trace_xt.h"
-#ifdef XT_STREAMING
-#include "streaming_xt.h"
-#endif
 #include "index_xt.h"
 #include "restart_xt.h"
 #include "systab_xt.h"
@@ -410,9 +407,11 @@ xtPublic void xt_tab_init_db(XTThreadPtr self, XTDatabaseHPtr db)
 {
 	XTTableDescRec		desc;
 	XTTableEntryRec		te_tab;
+	XTTableEntryPtr		te_ptr;
 	XTTablePathPtr		db_path;
-	char			pbuf[PATH_MAX];
+	char				pbuf[PATH_MAX];
 	int					len;
+	u_int				edx;
 
 	enter_();
 	pushr_(xt_tab_exit_db, db);
@@ -487,13 +486,29 @@ xtPublic void xt_tab_init_db(XTThreadPtr self, XTDatabaseHPtr db)
 		desc.td_tab_path->tp_tab_count++;
 		te_tab.te_table = NULL;
 		xt_sl_insert(self, db->db_table_by_id, &desc.td_tab_id, &te_tab);
-
-		xt_strcpy(PATH_MAX, pbuf, desc.td_tab_path->tp_path);
-		xt_add_dir_char(PATH_MAX, pbuf);
-		xt_strcat(PATH_MAX, pbuf, desc.td_tab_name);
-		xt_heap_release(self, xt_use_table_no_lock(self, db, (XTPathStrPtr)pbuf, FALSE, FALSE, NULL, NULL));
 	}
 	freer_(); // xt_describe_tables_exit(&desc)
+
+	/* 
+	 * The purpose of this code is to ensure that all tables are opened and cached,
+	 * which is actually only required if tables have foreign key references.
+	 *
+	 * In other words, a side affect of this code is that FK references between tables
+	 * are registered, and checked.
+	 *
+	 * Unfortunately we don't know if a table is referenced by a FK, so we have to open
+	 * all tables.
+	 * 
+	 * Cannot open tables in the loop above because db->db_table_by_id which is built 
+	 * above is used by xt_use_table_no_lock() 
+	 */
+	xt_enum_tables_init(&edx);
+	while ((te_ptr = xt_enum_tables_next(self, db, &edx))) {
+		xt_strcpy(PATH_MAX, pbuf, te_ptr->te_tab_path->tp_path);
+		xt_add_dir_char(PATH_MAX, pbuf);
+		xt_strcat(PATH_MAX, pbuf, te_ptr->te_tab_name);
+		xt_heap_release(self, xt_use_table_no_lock(self, db, (XTPathStrPtr)pbuf, FALSE, FALSE, NULL, NULL));
+	}
 
 	popr_(); // Discard xt_tab_exit_db(db)
 	exit_();
@@ -733,6 +748,12 @@ static xtBool tab_find_table(XTThreadPtr self, XTDatabaseHPtr db, XTPathStrPtr n
 	return FALSE;
 }
 
+xtPublic void xt_tab_disable_index(XTTableHPtr tab, u_int ind_error)
+{
+	tab->tab_dic.dic_disable_index = ind_error;
+	xt_tab_set_table_repair_pending(tab);
+}
+
 xtPublic void xt_tab_set_index_error(XTTableHPtr tab)
 {
 	switch (tab->tab_dic.dic_disable_index) {
@@ -830,18 +851,18 @@ static void tab_load_index_header(XTThreadPtr self, XTTableHPtr tab, XTOpenFileP
 					break;
 				default:
 					if (tab->tab_dic.dic_index_ver < XT_IND_CURRENT_VERSION)
-						tab->tab_dic.dic_disable_index = XT_INDEX_TOO_OLD;
+						xt_tab_disable_index(tab, XT_INDEX_TOO_OLD);
 					else
-						tab->tab_dic.dic_disable_index = XT_INDEX_TOO_NEW;
+						xt_tab_disable_index(tab, XT_INDEX_TOO_NEW);
 					break;
 			}
 		}
 		else if (tab->tab_index_page_size != XT_INDEX_PAGE_SIZE)
-			tab->tab_dic.dic_disable_index = XT_INDEX_BAD_BLOCK;
+			xt_tab_disable_index(tab, XT_INDEX_BAD_BLOCK);
 	}
 	else {
 		memset(tab->tab_index_head, 0, XT_INDEX_HEAD_SIZE);
-		tab->tab_dic.dic_disable_index = XT_INDEX_MISSING;
+		xt_tab_disable_index(tab, XT_INDEX_MISSING);
 		tab->tab_index_header_size = XT_INDEX_HEAD_SIZE;
 		tab->tab_index_page_size = XT_INDEX_PAGE_SIZE;
 		tab->tab_dic.dic_index_ver = 0;
@@ -1112,6 +1133,8 @@ static int tab_new_handle(XTThreadPtr self, XTTableHPtr *r_tab, XTDatabaseHPtr d
 
 	xt_heap_set_release_callback(self, tab, tab_onrelease);
 
+	tab->tab_repair_pending = xt_tab_is_table_repair_pending(tab);
+
 	popr_(); // Discard xt_heap_release(tab)
 
 	xt_ht_put(self, db->db_tables, tab);
@@ -1239,11 +1262,6 @@ static XTOpenTablePoolPtr tab_lock_table(XTThreadPtr self, XTPathStrPtr name, xt
 		return_(NULL);
 	}
 
-#ifdef XT_STREAMING
-	/* Tell PBMS to close all open tables of this sort: */
-	xt_pbms_close_all_tables(name->ps_path);
-#endif
-
 	/* Wait for all open tables to close: */
 	xt_db_wait_for_open_tables(self, table_pool);
 
@@ -1320,9 +1338,6 @@ xtPublic void xt_create_table(XTThreadPtr self, XTPathStrPtr name, XTDictionaryP
 
 		/* Remove the PBMS table: */
 		ASSERT(xt_get_self() == self);
-#ifdef XT_STREAMING
-		xt_pbms_drop_table(name->ps_path);
-#endif
 
 		/* Remove the table from the directory. It will get a new
 		 * ID so the handle in the directory will no longer be valid.
@@ -1645,9 +1660,6 @@ xtPublic void xt_drop_table(XTThreadPtr self, XTPathStrPtr tab_name, xtBool drop
 			tab_delete_table_files(self, tab_name, tab_id);
 
 			ASSERT(xt_get_self() == self);
-#ifdef XT_STREAMING
-			xt_pbms_drop_table(tab_name->ps_path);
-#endif
 			if ((te_ptr = (XTTableEntryPtr) xt_sl_find(self, db->db_table_by_id, &tab_id))) {
 				tab_remove_table_path(self, db, te_ptr->te_tab_path);
 				xt_sl_delete(self, db->db_table_by_id, &tab_id);
@@ -1764,6 +1776,7 @@ xtPublic void xt_check_table(XTThreadPtr self, XTOpenTablePtr ot)
 	u_llong					max_comp_rec_len = 0;
 	size_t					rec_size;
 	size_t					row_size;
+	u_llong					ext_data_len = 0;
 
 #if defined(DUMP_CHECK_TABLE) || defined(CHECK_TABLE_STATS)
 	printf("\nCHECK TABLE: %s\n", tab->tab_name->ps_path);
@@ -1863,6 +1876,7 @@ xtPublic void xt_check_table(XTThreadPtr self, XTOpenTablePtr ot)
 				printf("record-X ");
 #endif
 				alloc_rec_count++;
+				ext_data_len += XT_GET_DISK_4(rec_buf->re_log_dat_siz_4);
 				row_size = XT_GET_DISK_4(rec_buf->re_log_dat_siz_4) + ot->ot_rec_size - XT_REC_EXT_HEADER_SIZE;
 				alloc_rec_bytes += row_size;
 				if (!min_comp_rec_len || row_size < min_comp_rec_len)
@@ -1918,6 +1932,9 @@ xtPublic void xt_check_table(XTThreadPtr self, XTOpenTablePtr ot)
 	}
 	
 #ifdef CHECK_TABLE_STATS
+	if (!tab->tab_dic.dic_rec_fixed)
+		printf("Extendend data length   = %llu\n", ext_data_len);
+	
 	if (alloc_rec_count) {
 		printf("Minumum comp. rec. len. = %llu\n", (u_llong) min_comp_rec_len);
 		printf("Average comp. rec. len. = %llu\n", (u_llong) ((double) alloc_rec_bytes / (double) alloc_rec_count + (double) 0.5));
@@ -2086,6 +2103,8 @@ xtPublic void xt_rename_table(XTThreadPtr self, XTPathStrPtr old_name, XTPathStr
 	popr_(); // Discard xt_free(te_new_name);
 
 	tab = xt_use_table_no_lock(self, db, new_name, FALSE, FALSE, &dic, NULL);
+	/* All renamed tables are considered repaired! */
+	xt_tab_table_repaired(tab);
 	xt_heap_release(self, tab);
 
 	freer_(); // myxt_free_dictionary(&dic)
@@ -3708,49 +3727,6 @@ xtPublic int xt_tab_remove_record(XTOpenTablePtr ot, xtRecordID rec_id, xtWord1 
 		}
 	}
 
-#ifdef XT_STREAMING
-	if (tab->tab_dic.dic_blob_count) {
-		/* If the record contains any LONGBLOB then check how much
-		 * space we need.
-		 */
-		size_t blob_size;
-
-		switch (old_rec_type) {
-			case XT_TAB_STATUS_DELETE:
-			case XT_TAB_STATUS_DEL_CLEAN:
-				break;
-			case XT_TAB_STATUS_FIXED:
-			case XT_TAB_STATUS_FIX_CLEAN:
-				/* Should not be the case, record with LONGBLOB can never be fixed! */
-				break;
-			case XT_TAB_STATUS_VARIABLE:
-			case XT_TAB_STATUS_VAR_CLEAN:
-				cols_req = tab->tab_dic.dic_blob_cols_req;
-				cols_in_buffer = cols_req;
-				blob_size = myxt_load_row_length(ot, rec_size - XT_REC_FIX_HEADER_SIZE, ot->ot_row_rbuffer + XT_REC_FIX_HEADER_SIZE, &cols_in_buffer);
-				if (cols_in_buffer < cols_req)
-					blob_size = tab->tab_dic.dic_rec_size;
-				else 
-					blob_size += XT_REC_FIX_HEADER_SIZE;
-				if (blob_size > rec_size)
-					rec_size = blob_size;
-				break;
-			case XT_TAB_STATUS_EXT_DLOG:
-			case XT_TAB_STATUS_EXT_CLEAN:
-				cols_req = tab->tab_dic.dic_blob_cols_req;
-				cols_in_buffer = cols_req;
-				blob_size = myxt_load_row_length(ot, rec_size - XT_REC_EXT_HEADER_SIZE, ot->ot_row_rbuffer + XT_REC_EXT_HEADER_SIZE, &cols_in_buffer);
-				if (cols_in_buffer < cols_req)
-					blob_size = tab->tab_dic.dic_rec_size;
-				else 
-					blob_size += XT_REC_EXT_HEADER_SIZE;
-				if (blob_size > rec_size)
-					rec_size = blob_size;
-				break;
-		}
-	}
-#endif
-
 	set_removed:
 	if (XT_REC_IS_EXT_DLOG(old_rec_type)) {
 		/* {LOCK-EXT-REC} Lock, and read again to make sure that the
@@ -4387,15 +4363,6 @@ xtPublic xtBool xt_tab_new_record(XTOpenTablePtr ot, xtWord1 *rec_buf)
 	xtRowID					row_id;
 	u_int					idx_cnt = 0;
 	XTIndexPtr				*ind;
-#ifdef XT_STREAMING
-	void					*pbms_table;
-
-	/* PBMS: Reference BLOBs!? */
-	if (tab->tab_dic.dic_blob_count) {
-		if (!myxt_use_blobs(ot, &pbms_table, rec_buf))
-			return FAILED;
-	}
-#endif
 
 	if (!myxt_store_row(ot, &rec_info, (char *) rec_buf))
 		goto failed_0;
@@ -4430,17 +4397,6 @@ xtPublic xtBool xt_tab_new_record(XTOpenTablePtr ot, xtWord1 *rec_buf)
 		}
 	}
 
-#ifdef XT_STREAMING
-	/* Reference the BLOBs in the row: */
-	if (tab->tab_dic.dic_blob_count) {
-		if (!myxt_retain_blobs(ot, pbms_table, rec_info.ri_rec_id)) {
-			pbms_table = NULL;
-			goto failed_2;
-		}
-		pbms_table = NULL;
-	}
-#endif
-
 	/* Do the foreign key stuff: */
 	if (ot->ot_table->tab_dic.dic_table->dt_fkeys.size() > 0) {
 		if (!ot->ot_table->tab_dic.dic_table->insertRow(ot, rec_buf))
@@ -4461,10 +4417,6 @@ xtPublic xtBool xt_tab_new_record(XTOpenTablePtr ot, xtWord1 *rec_buf)
 	tab_free_row_on_fail(ot, tab, row_id);
 
 	failed_0:
-#ifdef XT_STREAMING
-	if (tab->tab_dic.dic_blob_count && pbms_table)
-		myxt_unuse_blobs(ot, pbms_table);
-#endif
 	return FAILED;
 }
 
@@ -4568,15 +4520,6 @@ static xtBool tab_overwrite_record(XTOpenTablePtr ot, xtWord1 *before_buf, xtWor
 	xtLogOffset				log_offset;
 	xtBool					prev_ext_rec;
 
-#ifdef XT_STREAMING
-	void					*pbms_table;
-
-	if (tab->tab_dic.dic_blob_count) {
-		if (!myxt_use_blobs(ot, &pbms_table, after_buf))
-			return FAILED;
-	}
-#endif
-
 	if (!myxt_store_row(ot, &rec_info, (char *) after_buf))
 		goto failed_0;
 
@@ -4640,16 +4583,6 @@ static xtBool tab_overwrite_record(XTOpenTablePtr ot, xtWord1 *before_buf, xtWor
 	if (prev_ext_rec)
 		tab_free_ext_record_on_fail(ot, rec_id, &prev_rec_head, TRUE);
 
-#ifdef XT_STREAMING
-	if (tab->tab_dic.dic_blob_count) {
-		/* Retain the BLOBs new record: */
-		if (!myxt_retain_blobs(ot, pbms_table, rec_id))
-			return FAILED;
-		/* Release the BLOBs in the old record: */
-		myxt_release_blobs(ot, before_buf, rec_id);
-	}
-#endif
-
 	return OK;
 
 	failed_2:
@@ -4692,11 +4625,6 @@ static xtBool tab_overwrite_record(XTOpenTablePtr ot, xtWord1 *before_buf, xtWor
 		tab_free_ext_record_on_fail(ot, rec_id, &prev_rec_head, TRUE);
 
 	failed_0:
-#ifdef XT_STREAMING
-	/* Unuse the BLOBs of the new record: */
-	if (tab->tab_dic.dic_blob_count && pbms_table)
-		myxt_unuse_blobs(ot, pbms_table);
-#endif
 	return FAILED;
 }
 
@@ -4709,10 +4637,6 @@ xtPublic xtBool xt_tab_update_record(XTOpenTablePtr ot, xtWord1 *before_buf, xtW
 	XTTabRecInfoRec			rec_info;
 	u_int					idx_cnt = 0;
 	XTIndexPtr				*ind;
-
-#ifdef XT_STREAMING
-	void					*pbms_table;
-#endif
 
 	/*
 	 * Originally only the flag ot->ot_curr_updated was checked, and if it was on, then
@@ -4752,14 +4676,6 @@ xtPublic xtBool xt_tab_update_record(XTOpenTablePtr ot, xtWord1 *before_buf, xtW
 	tab = ot->ot_table;
 	row_id = ot->ot_curr_row_id;
 	self = ot->ot_thread;
-
-#ifdef XT_STREAMING
-	/* PBMS: Reference BLOBs!? */
-	if (tab->tab_dic.dic_blob_count) {
-		if (!myxt_use_blobs(ot, &pbms_table, after_buf))
-			return FAILED;
-	}
-#endif
 
 	if (!myxt_store_row(ot, &rec_info, (char *) after_buf))
 		goto failed_0;
@@ -4810,17 +4726,6 @@ xtPublic xtBool xt_tab_update_record(XTOpenTablePtr ot, xtWord1 *before_buf, xtW
 		}
 	}
 
-#ifdef XT_STREAMING
-	/* Reference the BLOBs in the row: */
-	if (tab->tab_dic.dic_blob_count) {
-		if (!myxt_retain_blobs(ot, pbms_table, rec_info.ri_rec_id)) {
-			pbms_table = NULL;
-			goto failed_2;
-		}
-		pbms_table = NULL;
-	}
-#endif
-
 	if (ot->ot_table->tab_dic.dic_table->dt_trefs || ot->ot_table->tab_dic.dic_table->dt_fkeys.size() > 0) {
 		if (!ot->ot_table->tab_dic.dic_table->updateRow(ot, before_buf, after_buf))
 			goto failed_2;
@@ -4837,10 +4742,6 @@ xtPublic xtBool xt_tab_update_record(XTOpenTablePtr ot, xtWord1 *before_buf, xtW
 	XT_TAB_ROW_UNLOCK(&tab->tab_row_rwlock[row_id % XT_ROW_RWLOCKS], ot->ot_thread);
 
 	failed_0:
-#ifdef XT_STREAMING
-	if (tab->tab_dic.dic_blob_count && pbms_table)
-		myxt_unuse_blobs(ot, pbms_table);
-#endif
 	return FAILED;
 }
 
@@ -5166,3 +5067,166 @@ xtPublic xtBool xt_tab_seq_next(XTOpenTablePtr ot, xtWord1 *buffer, xtBool *eof)
 	return FAILED;
 }
 
+/*
+ * -----------------------------------------------------------------------
+ * REPAIR TABLE
+ */
+
+#define REP_FIND		0
+#define REP_ADD			1
+#define REP_DEL			2
+
+static xtBool tab_exec_repair_pending(XTDatabaseHPtr db, int what, char *table_name)
+{
+	XTThreadPtr			thread = xt_get_self();
+	char				file_path[PATH_MAX];
+	XTOpenFilePtr		of = NULL;
+	int					len;
+	char				*buffer = NULL, *ptr, *name;
+	char				ch;
+	xtBool				found = FALSE;
+
+	xt_strcpy(PATH_MAX, file_path, db->db_main_path);
+	xt_add_pbxt_file(PATH_MAX, file_path, "repair-pending");
+	
+	if (what == REP_ADD) {
+		if (!xt_open_file_ns(&of, file_path, XT_FS_CREATE | XT_FS_MAKE_PATH))
+			return FALSE;
+	}
+	else {
+		if (!xt_open_file_ns(&of, file_path, XT_FS_DEFAULT))
+			return FALSE;
+	}
+	if (!of)
+		return FALSE;
+
+	len = (int) xt_seek_eof_file(NULL, of);
+	
+	if (!(buffer = (char *) xt_malloc_ns(len + 1)))
+		goto failed;
+
+	if (!xt_pread_file(of, 0, len, len, buffer, NULL, &thread->st_statistics.st_x, thread))
+		goto failed;
+
+	buffer[len] = 0;
+	ptr = buffer;
+	for(;;) {
+		name = ptr;
+		while (*ptr && *ptr != '\n' && *ptr != '\r')
+			ptr++;
+		if (ptr > name) {
+			ch = *ptr;
+			*ptr = 0;
+			if (xt_tab_compare_names(name, table_name) == 0) {
+				*ptr = ch;
+				found = TRUE;
+				break;
+			}	
+			*ptr = ch;
+		}
+		if (!*ptr)
+			break;
+		ptr++;
+	}
+
+	switch (what) {
+		case REP_ADD:
+			if (!found) {
+				/* Remove any trailing empty lines: */
+				while (len > 0) {
+					if (buffer[len-1] != '\n' && buffer[len-1] != '\r')
+						break;
+					len--;
+				}
+				if (len > 0) {
+					if (!xt_pwrite_file(of, len, 1, (void *) "\n", &thread->st_statistics.st_x, thread))
+						goto failed;
+					len++;
+				}
+				if (!xt_pwrite_file(of, len, strlen(table_name), table_name, &thread->st_statistics.st_x, thread))
+					goto failed;
+				len += strlen(table_name);
+				if (!xt_set_eof_file(NULL, of, len))
+					goto failed;
+			}
+			break;
+		case REP_DEL:
+			if (found) {
+				if (*ptr != '\0')
+					ptr++;
+				memmove(name, ptr, len - (ptr - buffer));
+				len = len - (ptr - name);
+
+				/* Remove trailing empty lines: */
+				while (len > 0) {
+					if (buffer[len-1] != '\n' && buffer[len-1] != '\r')
+						break;
+					len--;
+				}
+
+				if (len > 0) {
+					if (!xt_pwrite_file(of, 0, len, buffer, &thread->st_statistics.st_x, thread))
+						goto failed;
+					if (!xt_set_eof_file(NULL, of, len))
+						goto failed;
+				}
+			}
+			break;
+	}
+
+	xt_close_file_ns(of);
+	xt_free_ns(buffer);
+
+	if (len == 0)
+		xt_fs_delete(NULL, file_path);
+	return found;
+
+	failed:
+	if (of)
+		xt_close_file_ns(of);
+	if (buffer)
+		xt_free_ns(buffer);
+	xt_log_and_clear_exception(thread);
+	return FALSE;
+}
+
+xtPublic void tab_make_table_name(XTTableHPtr tab, char *table_name, size_t size)
+{
+	char	name_buf[XT_IDENTIFIER_NAME_SIZE*3+3];
+
+	xt_2nd_last_name_of_path(sizeof(name_buf), name_buf, tab->tab_name->ps_path);
+	myxt_static_convert_file_name(name_buf, table_name, size);
+	xt_strcat(size, table_name, ".");
+	myxt_static_convert_file_name(xt_last_name_of_path(tab->tab_name->ps_path), name_buf, sizeof(name_buf));
+	xt_strcat(size, table_name, name_buf);
+}
+
+xtPublic xtBool xt_tab_is_table_repair_pending(XTTableHPtr tab)
+{
+	char table_name[XT_IDENTIFIER_NAME_SIZE*3+3];
+
+	tab_make_table_name(tab, table_name, sizeof(table_name));
+	return tab_exec_repair_pending(tab->tab_db, REP_FIND, table_name);
+}
+
+xtPublic void xt_tab_table_repaired(XTTableHPtr tab)
+{
+	if (tab->tab_repair_pending) {
+		char table_name[XT_IDENTIFIER_NAME_SIZE*3+3];
+
+		tab->tab_repair_pending = FALSE;
+		tab_make_table_name(tab, table_name, sizeof(table_name));
+		tab_exec_repair_pending(tab->tab_db, REP_DEL, table_name);
+	}
+}
+
+xtPublic void xt_tab_set_table_repair_pending(XTTableHPtr tab)
+{
+	if (!tab->tab_repair_pending) {
+		char table_name[XT_IDENTIFIER_NAME_SIZE*3+3];
+
+		tab->tab_repair_pending = TRUE;
+		tab_make_table_name(tab, table_name, sizeof(table_name));
+		tab_exec_repair_pending(tab->tab_db, REP_ADD, table_name);
+	}
+}

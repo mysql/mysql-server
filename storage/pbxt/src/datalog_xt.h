@@ -183,8 +183,8 @@ typedef struct XTSeqLogRead {
 	virtual xtBool			sl_rnd_read(xtLogOffset log_offset, size_t size, xtWord1 *data, size_t *read, struct XTThread *thread) {
 		(void) log_offset; (void) size; (void) data; (void) read; (void) thread; return OK;
 	};
-	virtual xtBool			sl_seq_next(XTXactLogBufferDPtr *entry, xtBool verify, struct XTThread *thread) {
-		(void) entry; (void) verify; (void) thread; return OK;
+	virtual xtBool			sl_seq_next(XTXactLogBufferDPtr *entry, struct XTThread *thread) {
+		(void) entry; (void) thread; return OK;
 	};
 	virtual void			sl_seq_skip(size_t size) { (void) size; }
 } XTSeqLogReadRec, *XTSeqLogReadPtr;
@@ -195,6 +195,7 @@ typedef struct XTDataSeqRead : public XTSeqLogRead {
 	xtLogOffset				sl_rec_log_offset;	/* The current log read position. */
 	size_t					sl_record_len;		/* The length of the current record. */
 	xtLogOffset				sl_log_eof;
+	xtLogOffset				sl_extra_garbage;	/* Garbage found during a scan. */
 
 	size_t					sl_buffer_size;		/* Size of the buffer. */
 	xtLogOffset				sl_buf_log_offset;	/* File offset of the buffer. */
@@ -208,7 +209,7 @@ typedef struct XTDataSeqRead : public XTSeqLogRead {
 	virtual void			sl_seq_pos(xtLogID *log_id, xtLogOffset *log_offset);
 	virtual xtBool			sl_seq_start(xtLogID log_id, xtLogOffset log_offset, xtBool missing_ok);
 	virtual xtBool			sl_rnd_read(xtLogOffset log_offset, size_t size, xtWord1 *data, size_t *read, struct XTThread *thread);
-	virtual xtBool			sl_seq_next(XTXactLogBufferDPtr *entry, xtBool verify, struct XTThread *thread);
+	virtual xtBool			sl_seq_next(XTXactLogBufferDPtr *entry, struct XTThread *thread);
 	virtual void			sl_seq_skip(size_t size);
 	virtual void			sl_seq_skip_to(off_t offset);
 } XTDataSeqReadRec, *XTDataSeqReadPtr;

@@ -496,7 +496,7 @@ static xtBool xres_add_index_entries(XTOpenTablePtr ot, xtRowID row_id, xtRecord
 			/* TODO: Write something to the index header to indicate that
 			 * it is corrupted.
 			 */
-			tab->tab_dic.dic_disable_index = XT_INDEX_CORRUPTED;
+			xt_tab_disable_index(ot->ot_table, XT_INDEX_CORRUPTED);
 			xt_log_and_clear_exception_ns();
 			return OK;
 		}
@@ -629,6 +629,9 @@ static void xres_apply_change(XTThreadPtr self, XTOpenTablePtr ot, XTXactLogBuff
 	xtWord1				*rec_data = NULL;
 	XTTabRecFreeDPtr	free_data;
 
+	if (tab->tab_dic.dic_key_count == 0)
+		check_index = FALSE;
+
 	switch (record->xl.xl_status_1) {
 		case XT_LOG_ENT_REC_MODIFIED:
 		case XT_LOG_ENT_UPDATE:
@@ -642,7 +645,7 @@ static void xres_apply_change(XTThreadPtr self, XTOpenTablePtr ot, XTXactLogBuff
 			/* This should be done before we apply change to table, as otherwise we lose
 			 * the key value that we need to remove from index
 			 */
-			if (check_index && ot->ot_table->tab_dic.dic_key_count && record->xl.xl_status_1 == XT_LOG_ENT_REC_MODIFIED) {
+			if (check_index && record->xl.xl_status_1 == XT_LOG_ENT_REC_MODIFIED) {
 				if ((rec_data = xres_load_record(self, ot, rec_id, NULL, 0, rec_buf, tab->tab_dic.dic_ind_cols_req)))
 					xres_remove_index_entries(ot, rec_id, rec_data);			
 			}
@@ -652,7 +655,7 @@ static void xres_apply_change(XTThreadPtr self, XTOpenTablePtr ot, XTXactLogBuff
 				xt_throw(self);
 			tab->tab_bytes_to_flush += len;
 
-			if (check_index && ot->ot_table->tab_dic.dic_key_count) {
+			if (check_index) {
 				switch (record->xl.xl_status_1) {
 					case XT_LOG_ENT_DELETE:
 					case XT_LOG_ENT_DELETE_BG:
@@ -851,9 +854,6 @@ static void xres_apply_change(XTThreadPtr self, XTOpenTablePtr ot, XTXactLogBuff
 						goto do_rec_freed;
 					record_loaded = TRUE;
 				}
-#ifdef XT_STREAMING
-				myxt_release_blobs(ot, rec_data, rec_id);
-#endif
 			}
 
 			if (record->xl.xl_status_1 == XT_LOG_ENT_REC_REMOVED_EXT) {
@@ -959,30 +959,11 @@ static void xres_apply_change(XTThreadPtr self, XTOpenTablePtr ot, XTXactLogBuff
 
 			if (check_index) {
 				cols_required = tab->tab_dic.dic_ind_cols_req;
-#ifdef XT_STREAMING
-				if (tab->tab_dic.dic_blob_cols_req > cols_required)
-					cols_required = tab->tab_dic.dic_blob_cols_req;
-#endif
 				if (!(rec_data = xres_load_record(self, ot, rec_id, &record->rb.rb_rec_type_1, rec_size, rec_buf, cols_required)))
 					goto go_on_to_free;
 				record_loaded = TRUE;
 				xres_remove_index_entries(ot, rec_id, rec_data);
 			}
-
-#ifdef XT_STREAMING
-			if (tab->tab_dic.dic_blob_count) {
-				if (!record_loaded) {
-					cols_required = tab->tab_dic.dic_blob_cols_req;
-					if (!(rec_data = xres_load_record(self, ot, rec_id, &record->rb.rb_rec_type_1, rec_size, rec_buf, cols_required)))
-						/* [(7)] REMOVE is followed by FREE:
-						goto get_rec_offset;
-						*/
-						goto go_on_to_free;
-					record_loaded = TRUE;
-				}
-				myxt_release_blobs(ot, rec_data, rec_id);
-			}
-#endif
 
 			if (data_log_id && data_log_offset && log_over_size) {
 				if (!ot->ot_thread->st_dlog_buf.dlb_delete_log(data_log_id, data_log_offset, log_over_size, tab->tab_id, rec_id, self)) {

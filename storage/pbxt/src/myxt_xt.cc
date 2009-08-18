@@ -52,9 +52,6 @@ extern pthread_key_t THR_Session;
 #include "myxt_xt.h"
 #include "strutil_xt.h"
 #include "database_xt.h"
-#ifdef XT_STREAMING
-#include "streaming_xt.h"
-#endif
 #include "cache_xt.h"
 #include "datalog_xt.h"
 
@@ -2914,6 +2911,11 @@ xtPublic void myxt_static_convert_table_name(XTThreadPtr XT_UNUSED(self), char *
 	tablename_to_filename(from, to, to_len);
 }
 
+xtPublic void myxt_static_convert_file_name(char *from, char *to, size_t to_len)
+{
+	filename_to_tablename(from, to, to_len);
+}
+
 xtPublic int myxt_strcasecmp(char * a, char *b)
 {
 	return my_strcasecmp(&my_charset_utf8_general_ci, a, b);
@@ -2944,88 +2946,6 @@ xtPublic MX_CHARSET_INFO *myxt_getcharset(bool convert)
 	}
 	return &my_charset_utf8_general_ci;
 }
-
-#ifdef XT_STREAMING
-xtPublic xtBool myxt_use_blobs(XTOpenTablePtr ot, void **ret_pbms_table, xtWord1 *rec_buf)
-{
-	void	*pbms_table;
-	XTTable	*tab = ot->ot_table;
-	u_int	idx = 0;
-	Field	*field;
-	char	*blob_ref;
-	xtWord4	len;
-	char	in_url[PBMS_BLOB_URL_SIZE];
-	char	*out_url;
-
-	if (!xt_pbms_open_table(&pbms_table, tab->tab_name->ps_path))
-		return FAILED;
-
-	for (idx=0; idx<tab->tab_dic.dic_blob_count; idx++) {
-		field = tab->tab_dic.dic_blob_cols[idx];
-		if ((blob_ref = mx_get_length_and_data(field, (char *) rec_buf, &len)) && len) {
-			xt_strncpy(PBMS_BLOB_URL_SIZE, in_url, blob_ref, len);
-
-			if (!xt_pbms_use_blob(pbms_table, &out_url, in_url, field->field_index)) {
-				xt_pbms_close_table(pbms_table);
-				return FAILED;
-			}
-
-			if (out_url) {
-				len = strlen(out_url);
-				mx_set_length_and_data(field, (char *) rec_buf, len, out_url);
-			}
-		}
-	}
-	*ret_pbms_table = pbms_table;
-	return OK;
-}
-
-xtPublic void myxt_unuse_blobs(XTOpenTablePtr XT_UNUSED(ot), void *pbms_table)
-{
-	xt_pbms_close_table(pbms_table);
-}
-
-xtPublic xtBool myxt_retain_blobs(XTOpenTablePtr XT_UNUSED(ot), void *pbms_table, xtRecordID rec_id)
-{
-	xtBool				ok;
-	PBMSEngineRefRec	eng_ref;
-
-	memset(&eng_ref, 0, sizeof(PBMSEngineRefRec));
-	XT_SET_DISK_8(eng_ref.er_data, rec_id);
-	ok = xt_pbms_retain_blobs(pbms_table, &eng_ref);
-	xt_pbms_close_table(pbms_table);
-	return ok;
-}
-
-xtPublic void myxt_release_blobs(XTOpenTablePtr ot, xtWord1 *rec_buf, xtRecordID rec_id)
-{
-	void				*pbms_table;
-	XTTable				*tab = ot->ot_table;
-	u_int				idx = 0;
-	Field				*field;
-	char				*blob_ref;
-	xtWord4				len;
-	char				in_url[PBMS_BLOB_URL_SIZE];
-	PBMSEngineRefRec	eng_ref;
-
-	memset(&eng_ref, 0, sizeof(PBMSEngineRefRec));
-	XT_SET_DISK_8(eng_ref.er_data, rec_id);
-
-	if (!xt_pbms_open_table(&pbms_table, tab->tab_name->ps_path))
-		return;
-
-	for (idx=0; idx<tab->tab_dic.dic_blob_count; idx++) {
-		field = tab->tab_dic.dic_blob_cols[idx];
-		if ((blob_ref = mx_get_length_and_data(field, (char *) rec_buf, &len)) && len) {
-			xt_strncpy(PBMS_BLOB_URL_SIZE, in_url, blob_ref, len);
-
-			xt_pbms_release_blob(pbms_table, in_url, field->field_index, &eng_ref);
-		}
-	}
-
-	xt_pbms_close_table(pbms_table);
-}
-#endif // XT_STREAMING
 
 xtPublic void *myxt_create_thread()
 {

@@ -1,13 +1,45 @@
 PBXT Release Notes
 ==================
 
+------- 1.0.08c RC2 - 2009-08-18
+
+RN266: Updated BLOB streaming glue, used with the PBMS engine. The glue code is now identical to the version of "1.0.08-rc-pbms" version of PBXT available from http://blobstreaming.org/download.
+
+RN265: Changes the sequential reading of data log files to skip gaps, instead of returning EOF. This ensures that extended data records are preserved even when something goes wrong with the way the file is written.
+
+RN264: Fixed a bug that cased an "Data log not found" error after an out of disk space error on a log file. This bug is similar to RN262 in that it allows "gaps" to appear in the data logs.
+
+RN263: Updated xtstat to compile on Windows/MS Visual C++.
+
+RN262: Merged changes for PBMS version 0.5.09.
+
+RN261: Concerning bug #377788: Cannot find index for FK. Fixed buffer overflow which occurred when the error was reported.
+
+RN260: Fixed bug #377788: Cannot find index for FK. PBXT now correctly uses prefix of an index to support FK references (e.g. if key = (c1, c2) then an index on (c1, c2, c3) will work). Also fixed buffer overflow, which occurred when reporting the error.
+
+RN259: Fixed bug #309424: xtstat doesn't use my.cnf. You can now add an [xtstat] section to my.cnf, for use with xtstat.
+
+RN258: updated xt_p_join implementation for Windows to check if a thread has already exited or has not yet started
+
+RN257: Removed false assertion that could fail during restore if a transaction log page was zero-filled
+
+RN256: Update datalog eof pointer only if write opearions were sucessful
+
+RN255: Added re-allocation of of filemap if allocating the of the new map failed. This often happens if there's not enough space on disk.
+
+RN254: When a table with a corrupted index is detected, PBXT creates a file called 'repair-pending' in the pbxt directory, with the name of the table in it. Each table in the file is listed on a line by itself (the last line has no trailing \n). When the table is repaired (using the REPAIR TABLE command), this entry is removed from the file.
+
+RN253: Use fcntl(F_FULLFSYNC) instead of fsync on platforms that support it. Improper fsync operation was presumably the reason of index corruption on Mac OS X.
+
+RN252: Fixed bug #368692: PBXT not reporting data size correctly in information_schema.
+
 ------- 1.0.08 RC2 - 2009-06-30
 
 RN251: A Windows-specific test update, also removed false assertion that failed on Windows.
 
 RN250: Fixed a bug that caused recovery to fail when the transaction log ID exceeded 255. The problem was a checksum failed in the log record.
 
-RN249: Fixed bug #313176: Test case timeout. This happened because record cache pages where not propoerly freed and as soon as cache filled up the performacne degraded.
+RN249: Fixed bug #313176: Test case timeout. This happened because record cache pages where not properly freed and as soon as cache filled up the performacne degraded.
 
 RN248: PBXT now compiles and runs with MySQL 5.1.35. All tests pass.
 

@@ -3424,7 +3424,7 @@ static void idx_set_index_selectivity(XTThreadPtr self, XTOpenTablePtr ot, XTInd
 	ot->ot_ind_rhandle = NULL;
 
 	failed:
-	ot->ot_table->tab_dic.dic_disable_index = XT_INDEX_CORRUPTED;
+	xt_tab_disable_index(ot->ot_table, XT_INDEX_CORRUPTED);
 	xt_log_and_clear_exception_ns();
 	return;
 }

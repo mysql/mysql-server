@@ -333,6 +333,7 @@ typedef struct XTTable : public XTHeap {
 	/* Values that belong in the header when flushed! */
 	xtBool					tab_flush_pending;						/* TRUE if the table needs to be flushed */
 	xtBool					tab_recovery_done;						/* TRUE if the table has been recovered */
+	xtBool					tab_repair_pending;						/* TRUE if the table has been marked for repair */
 	xtBool					tab_temporary;							/* TRUE if this is a temporary table {TEMP-TABLES}. */
 	off_t					tab_bytes_to_flush;						/* Number of bytes of the record/row files to flush. */
 
@@ -562,7 +563,12 @@ xtBool				xt_tab_put_eof_rec_data(XTOpenTablePtr ot, xtRecordID rec_id, size_t s
 xtBool				xt_tab_put_log_op_rec_data(XTOpenTablePtr ot, u_int status, xtRecordID free_rec_id, xtRecordID rec_id, size_t size, xtWord1 *buffer);
 xtBool				xt_tab_put_log_rec_data(XTOpenTablePtr ot, u_int status, xtRecordID free_rec_id, xtRecordID rec_id, size_t size, xtWord1 *buffer, xtOpSeqNo *op_seq);
 xtBool				xt_tab_get_rec_data(register XTOpenTablePtr ot, xtRecordID rec_id, size_t size, xtWord1 *buffer);
+void				xt_tab_disable_index(XTTableHPtr tab, u_int ind_error);
 void				xt_tab_set_index_error(XTTableHPtr tab);
+
+xtBool				xt_tab_is_table_repair_pending(XTTableHPtr tab);
+void				xt_tab_table_repaired(XTTableHPtr tab);
+void				xt_tab_set_table_repair_pending(XTTableHPtr tab);
 
 inline off_t		xt_row_id_to_row_offset(register XTTableHPtr tab, xtRowID row_id)
 {
@@ -631,3 +637,4 @@ inline xtIndexNodeID xt_ind_offset_to_node(register XTTableHPtr tab, off_t ind_o
 	while (0)
 
 #endif
+
