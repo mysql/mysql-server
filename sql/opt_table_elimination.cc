@@ -58,7 +58,7 @@
 
   Table elimination is redone on every PS re-execution.
 
-  TABLE ELIMINATION ALGORITHM
+  TABLE ELIMINATION ALGORITHM FOR ONE OUTER JOIN
 
   As said above, we can remove inner side of an outer join if it is 
 
@@ -101,14 +101,14 @@
   each value is either bound (i.e. functionally dependent) or not.
 
   Module nodes:
-   - Nodes representing tblX.colY=expr equalities. Equality node has 
+   - Modules representing tblX.colY=expr equalities. Equality module has 
       = incoming edges from columns used in expr 
       = outgoing edge to tblX.colY column.
    - Nodes representing unique keys. Unique key has
-      = incoming edges from key component value nodes
-      = outgoing edge to key's table node
-   - Inner side of outer join node. Outer join node has
-      = incoming edges from table value nodes
+      = incoming edges from key component value modules
+      = outgoing edge to key's table module
+   - Inner side of outer join module. Outer join module has
+      = incoming edges from table value modules
       = No outgoing edges. Once we reach it, we know we can eliminate the 
         outer join.
   A module may depend on multiple values, and hence its primary attribute is
@@ -116,10 +116,13 @@
 
   The algorithm starts with equality nodes that don't have any incoming edges
   (their expressions are either constant or depend only on tables that are
-  outside of any outer joins) and proceeds to traverse dependency->dependant
-  edges until we've other traversed everything (TODO rephrase elaborate), or
-  we've reached the point where all outer join modules have zero unsatisfied
-  dependencies.
+  outside of the outer join in question) and performns a breadth-first
+  traversal. If we reach the outer join nest node, it means outer join is
+  functionally-dependant and can be eliminated. Otherwise it cannot.
+ 
+  HANDLING MULTIPLE NESTED OUTER JOINS 
+  (TODO : explanations why 'local bottom up is sufficient')
+
 */
 
 class Value_dep;
@@ -143,13 +146,9 @@ class Table_elimination;
 class Value_dep : public Sql_alloc
 {
 public:
-  enum {
-    VALUE_FIELD,
-    VALUE_TABLE,
-  } type; /* Type of the object */
-  
-  Value_dep(): bound(FALSE), next(NULL)
-  {}
+  Value_dep(): bound(FALSE), next(NULL) {}
+  virtual void now_bound(Table_elimination *te, Module_dep **bound_modules)=0;
+  virtual ~Value_dep() {} /* only to shut up compiler warnings */
 
   bool bound;
   Value_dep *next;
@@ -166,21 +165,27 @@ class Field_value : public Value_dep
 public:
   Field_value(Table_value *table_arg, Field *field_arg) :
     table(table_arg), field(field_arg)
-  {
-    type= Value_dep::VALUE_FIELD;
-  }
+  {}
 
   Table_value *table; /* Table this field is from */
   Field *field;
   
   /* 
-    Field_deps that belong to one table form a linked list. list members are
-    ordered by field_index 
+    Field_deps that belong to one table form a linked list, ordered by
+    field_index 
   */
   Field_value *next_table_field;
   uint bitmap_offset; /* Offset of our part of the bitmap */
+  
+  /*
+    Field became known. Check out
+    - unique keys we belong to
+    - expressions that depend on us.
+  */
+  void now_bound(Table_elimination *te, Module_dep **bound_modules);
+  void signal_from_field_to_exprs(Table_elimination* te, 
+                                  Module_dep **bound_modules);
 };
-
 
 /*
   A table value. There is one Table_value object for every table that can
@@ -192,14 +197,13 @@ class Table_value : public Value_dep
 {
 public:
   Table_value(TABLE *table_arg) : 
-    table(table_arg), fields(NULL), keys(NULL), outer_join_dep(NULL)
-  {
-    type= Value_dep::VALUE_TABLE;
-  }
+    table(table_arg), fields(NULL), keys(NULL)
+  {}
   TABLE *table;
   Field_value *fields; /* Ordered list of fields that belong to this table */
   Key_module *keys; /* Ordered list of Unique keys in this table */
-  Outer_join_module *outer_join_dep; /* Innermost eliminable outer join we're in */
+  //Outer_join_module *outer_join_dep;
+  void now_bound(Table_elimination *te, Module_dep **bound_modules);
 };
 
 
@@ -211,12 +215,11 @@ class Module_dep : public Sql_alloc
 {
 public:
   enum {
-    MODULE_EXPRESSION,
-    MODULE_MULTI_EQUALITY,
-    MODULE_UNIQUE_KEY,
     MODULE_OUTER_JOIN
   } type; /* Type of the object */
   
+  virtual bool now_bound(Table_elimination *te, Value_dep **bound_modules)=0;
+  virtual ~Module_dep(){}
   /* 
     Used to make a linked list of elements that became bound and thus can
     make elements that depend on them bound, too.
@@ -240,6 +243,7 @@ public:
   
   /* Used during condition analysis only, similar to KEYUSE::level */
   uint level;
+  bool now_bound(Table_elimination *te, Value_dep **bound_values);
 };
 
 
@@ -254,15 +258,14 @@ public:
   Key_module(Table_value *table_arg, uint keyno_arg, uint n_parts_arg) :
     table(table_arg), keyno(keyno_arg), next_table_key(NULL)
   {
-    type= Module_dep::MODULE_UNIQUE_KEY;
     unknown_args= n_parts_arg;
   }
   Table_value *table; /* Table this key is from */
   uint keyno;
   /* Unique keys form a linked list, ordered by keyno */
   Key_module *next_table_key;
+  bool now_bound(Table_elimination *te, Value_dep **bound_values);
 };
-
 
 
 /*
@@ -273,18 +276,11 @@ public:
 class Outer_join_module: public Module_dep
 {
 public:
-  Outer_join_module(//TABLE_LIST *table_list_arg, 
-  uint n_children)  
-  //  table_list(table_list_arg)
+  Outer_join_module(uint n_children)  
   {
-    type= Module_dep::MODULE_OUTER_JOIN;
     unknown_args= n_children;
   }
-  /* 
-    Outer join we're representing. This can be a join nest or one table that
-    is outer join'ed.
-  */
-//  TABLE_LIST *table_list;
+  bool now_bound(Table_elimination *te, Value_dep **bound_values);
 };
 
 
@@ -307,6 +303,8 @@ public:
   /* tablenr -> Table_value* mapping. */
   Table_value *table_deps[MAX_KEY];
 
+  Outer_join_module *outer_join_dep;
+
   /* Bitmap of how expressions depend on bits */
   MY_BITMAP expr_deps;
 };
@@ -319,8 +317,12 @@ eliminate_tables_for_list(Table_elimination *te,
                           table_map tables_in_list,
                           Item *on_expr,
                           table_map tables_used_elsewhere);
-static bool 
-check_func_dependency(Table_elimination *te, table_map tables, Item* cond);
+static
+bool check_func_dependency(Table_elimination *te, 
+                           table_map dep_tables,
+                           List_iterator<TABLE_LIST> *it, 
+                           TABLE_LIST *oj_tbl,
+                           Item* cond);
 
 static 
 bool build_eq_deps_for_cond(Table_elimination *te, Equality_module **fdeps, 
@@ -332,16 +334,12 @@ bool add_eq_dep(Table_elimination *te, Equality_module **eq_dep,
                 Item_func *cond, Item *left, Item *right, 
                 table_map usable_tables);
 static 
-Equality_module *merge_func_deps(Equality_module *start, Equality_module *new_fields, 
-                              Equality_module *end, uint and_level);
+Equality_module *merge_func_deps(Equality_module *start, 
+                                 Equality_module *new_fields, 
+                                 Equality_module *end, uint and_level);
 
 static Table_value *get_table_value(Table_elimination *te, TABLE *table);
 static Field_value *get_field_value(Table_elimination *te, Field *field);
-static Outer_join_module *get_outer_join_dep(Table_elimination *te, 
-                                             //TABLE_LIST *outer_join, 
-                                             table_map deps_map);
-static 
-bool run_elimination_wave(Table_elimination *te, Module_dep *bound_modules);
 static void mark_as_eliminated(JOIN *join, TABLE_LIST *tbl);
 
 
@@ -560,7 +558,7 @@ bool build_eq_deps_for_cond(Table_elimination *te, Equality_module **fdeps,
 
 static 
 Equality_module *merge_func_deps(Equality_module *start, Equality_module *new_fields, 
-                              Equality_module *end, uint and_level)
+                                 Equality_module *end, uint and_level)
 {
   if (start == new_fields)
     return start;				// Impossible or
@@ -684,7 +682,6 @@ bool add_eq_dep(Table_elimination *te, Equality_module **eq_mod,
       }
     }
 
-    (*eq_mod)->type=  Module_dep::MODULE_EXPRESSION; //psergey-todo;
     if (!((*eq_mod)->field= get_field_value(te, field)))
       return TRUE;
     (*eq_mod)->expression= right;
@@ -763,6 +760,7 @@ static Field_value *get_field_value(Table_elimination *te, Field *field)
     created before the parents.
 */
 
+#if 0
 static 
 Outer_join_module *get_outer_join_dep(Table_elimination *te, 
                                      // TABLE_LIST *outer_join, 
@@ -806,6 +804,7 @@ Outer_join_module *get_outer_join_dep(Table_elimination *te,
   }
   return oj_dep;
 }
+#endif
 
 
 /*
@@ -879,7 +878,7 @@ bool setup_equality_deps(Table_elimination *te, Module_dep **bound_deps_list)
   uint offset= 0;
   for (Table_value **tbl_dep=te->table_deps; 
        tbl_dep < te->table_deps + MAX_TABLES;
-       tbl_dep++) // psergey-todo: TODO change to Table_map_iterator
+       tbl_dep++) // psergey-todo: Wipe this out altogether
   {
     if (*tbl_dep)
     {
@@ -1090,7 +1089,8 @@ eliminate_tables_for_list(Table_elimination *te, List<TABLE_LIST> *join_list,
       {
         /* This is  "... LEFT JOIN tbl ON cond" */
         if (!(tbl->table->map & outside_used_tables) &&
-            check_func_dependency(te, tbl->table->map, tbl->on_expr))
+            check_func_dependency(te, tbl->table->map, NULL, tbl, 
+                                  tbl->on_expr))
         {
           mark_as_eliminated(te->join, tbl);
         }
@@ -1108,8 +1108,9 @@ eliminate_tables_for_list(Table_elimination *te, List<TABLE_LIST> *join_list,
   /* Try eliminating the nest we're called for */
   if (all_eliminated && on_expr && !(list_tables & tables_used_elsewhere))
   {
+    it.rewind();
     return check_func_dependency(te, list_tables & ~te->join->eliminated_tables,
-                                 on_expr);
+                                 &it, NULL, on_expr);
   }
   return FALSE; /* not eliminated */
 }
@@ -1134,31 +1135,130 @@ eliminate_tables_for_list(Table_elimination *te, List<TABLE_LIST> *join_list,
 */
 
 static
-bool check_func_dependency(Table_elimination *te, table_map tables, Item* cond)
+bool check_func_dependency(Table_elimination *te,
+                           table_map dep_tables,
+                           List_iterator<TABLE_LIST> *it, 
+                           TABLE_LIST *oj_tbl,
+                           Item* cond)
 {
   uint and_level=0;
   Equality_module* eq_dep= te->equality_deps;
-  if (build_eq_deps_for_cond(te, &eq_dep, &and_level, cond, tables))
-    return TRUE;
-  te->n_equality_deps= eq_dep - te->equality_deps;
   Module_dep *bound_modules;
-  if (!get_outer_join_dep(te, tables) &&
-      !setup_equality_deps(te, &bound_modules) &&
-      run_elimination_wave(te, bound_modules))
+  
+  bzero(te->table_deps, sizeof(te->table_deps));
+  
+  if (oj_tbl)
   {
-    return TRUE; /* eliminated */
+    if (!get_table_value(te, oj_tbl->table))
+      return FALSE;
   }
-  return FALSE;
+  else
+  {
+    TABLE_LIST *tbl; 
+    while ((tbl= (*it)++))
+    {
+      if (tbl->table && (tbl->table->map & dep_tables))
+      {
+        if (!get_table_value(te, tbl->table))
+          return FALSE;
+      }
+    }
+  }
+
+  /* Extract equalities from the ON expression */
+  if (build_eq_deps_for_cond(te, &eq_dep, &and_level, cond, dep_tables) ||
+      eq_dep == te->equality_deps)
+    return FALSE;
+  
+  te->n_equality_deps= eq_dep - te->equality_deps;
+  /* Create objects for running wave algorithm */ 
+  if (!(te->outer_join_dep= new Outer_join_module(my_count_bits(dep_tables))) ||
+      setup_equality_deps(te, &bound_modules))
+  {
+    return FALSE; /* OOM, default to non-dependent */
+  }
+
+  Value_dep *bound_values= NULL;
+  while (bound_modules)
+  {
+    for (;bound_modules; bound_modules= bound_modules->next)
+    {
+      if (bound_modules->now_bound(te, &bound_values))
+        return TRUE; /* Dependent! */
+    }
+    for (;bound_values; bound_values=bound_values->next)
+      bound_values->now_bound(te, &bound_modules);
+  }
+  return FALSE; /* Not dependent */ 
 }
 
 
-static 
-void signal_from_field_to_exprs(Table_elimination* te, Field_value *field_dep,
-                                Module_dep **bound_modules)
+/*
+  Table is known means that
+  - one more element in outer join nest is known
+  - all its fields are known
+*/
+
+void Table_value::now_bound(Table_elimination *te, 
+                            Module_dep **bound_modules)
+{
+  DBUG_PRINT("info", ("table %s is now bound", table->alias));
+
+  for (Field_value *field_dep= fields; field_dep;
+       field_dep= field_dep->next_table_field)
+  {
+    if (!field_dep->bound)
+    {
+      /* Mark as bound and add to the list */
+      field_dep->bound= TRUE;
+      field_dep->signal_from_field_to_exprs(te, bound_modules);
+    }
+  }
+  
+  if (te->outer_join_dep->unknown_args && 
+      !--te->outer_join_dep->unknown_args)
+  {
+    /* Mark as bound and add to the list */
+    te->outer_join_dep->next= *bound_modules;
+    *bound_modules= te->outer_join_dep;
+  }
+}
+
+
+void Field_value::now_bound(Table_elimination *te, 
+                            Module_dep **bound_modules)
+{
+  DBUG_PRINT("info", ("field %s.%s is now bound", field->table->alias,
+                       field->field_name));
+
+  for (Key_module *key_dep= table->keys; key_dep; 
+       key_dep= key_dep->next_table_key)
+  {
+    if (field->part_of_key.is_set(key_dep->keyno) && 
+        key_dep->unknown_args && !--key_dep->unknown_args)
+    {
+      DBUG_PRINT("info", ("key %s.%s is now bound",
+                          key_dep->table->table->alias, 
+                          key_dep->table->table->key_info[key_dep->keyno].name));
+      /* Mark as bound and add to the list */
+      key_dep->next= *bound_modules;
+      *bound_modules= key_dep;
+    }
+  }
+  signal_from_field_to_exprs(te, bound_modules);
+}
+
+
+/*
+  Walk through expressions that depend on this field and 'notify' them 
+  that this field is no longer unknown.
+*/
+void Field_value::signal_from_field_to_exprs(Table_elimination* te, 
+                                             Module_dep **bound_modules)
 {
   for (uint i=0; i < te->n_equality_deps; i++)
   {
-    if (bitmap_is_set(&te->expr_deps, field_dep->bitmap_offset + i) &&
+    if (bitmap_is_set(&te->expr_deps, bitmap_offset + i) &&
         te->equality_deps[i].unknown_args &&
         !--te->equality_deps[i].unknown_args)
     {
@@ -1171,131 +1271,37 @@ void signal_from_field_to_exprs(Table_elimination* te, Field_value *field_dep,
 }
 
 
-/* 
-  Run the wave.
-  All Func_dep-derived objects are divided into three classes:
-  - Those that have bound=FALSE
-  - Those that have bound=TRUE 
-  - Those that have bound=TRUE and are in the list..
-*/
-
-static 
-bool run_elimination_wave(Table_elimination *te, Module_dep *bound_modules)
+bool Outer_join_module::now_bound(Table_elimination *te, 
+                                  Value_dep **bound_values)
 {
-  Value_dep *bound_values= NULL;
-  while (bound_modules)
+  DBUG_PRINT("info", ("Outer join eliminated"));
+  return TRUE; /* Signal to finish the process */
+}
+
+
+bool Equality_module::now_bound(Table_elimination *te, 
+                                Value_dep **bound_values)
+{
+  /* For field=expr and we got to know the expr, so we know the field */
+  if (!field->bound)
   {
-    for (;bound_modules; bound_modules= bound_modules->next)
-    {
-      switch (bound_modules->type)
-      {
-        case Module_dep::MODULE_EXPRESSION:
-        {
-          /*  It's a field=expr and we got to know the expr, so we know the field */
-          Equality_module *eq_dep= (Equality_module*)bound_modules;
-          if (!eq_dep->field->bound)
-          {
-            /* Mark as bound and add to the list */
-            eq_dep->field->bound= TRUE;
-            eq_dep->field->next= bound_values;
-            bound_values= eq_dep->field;
-          }
-          break;
-        }
-        case Module_dep::MODULE_UNIQUE_KEY:
-        {
-          /* Unique key is known means the table is known */
-          Table_value *table_dep=((Key_module*)bound_modules)->table;
-          if (!table_dep->bound)
-          {
-            /* Mark as bound and add to the list */
-            table_dep->bound= TRUE;
-            table_dep->next= bound_values;
-            bound_values= table_dep;
-          }
-          break;
-        }
-        case Module_dep::MODULE_OUTER_JOIN:
-        {
-          DBUG_PRINT("info", ("Outer join eliminated"));
-          return TRUE;
-          break;
-        }
-        case Module_dep::MODULE_MULTI_EQUALITY:
-        default:
-          DBUG_ASSERT(0);
-      }
-    }
+    /* Mark as bound and add to the list */
+    field->bound= TRUE;
+    field->next= *bound_values;
+    *bound_values= field;
+  }
+  return FALSE;
+}
 
-    for (;bound_values; bound_values=bound_values->next)
-    {
-      switch (bound_values->type)
-      {
-        case Value_dep::VALUE_FIELD:
-        {
-          /*
-            Field became known. Check out
-            - unique keys we belong to
-            - expressions that depend on us.
-          */
-          Field_value *field_dep= (Field_value*)bound_values;
-          DBUG_PRINT("info", ("field %s.%s is now bound",
-                               field_dep->field->table->alias,
-                               field_dep->field->field_name));
-
-          for (Key_module *key_dep= field_dep->table->keys; key_dep;
-               key_dep= key_dep->next_table_key)
-          {
-            if (field_dep->field->part_of_key.is_set(key_dep->keyno) && 
-                key_dep->unknown_args && !--key_dep->unknown_args)
-            {
-              DBUG_PRINT("info", ("key %s.%s is now bound",
-                                  key_dep->table->table->alias, 
-                                  key_dep->table->table->key_info[key_dep->keyno].name));
-              /* Mark as bound and add to the list */
-              key_dep->next= bound_modules;
-              bound_modules= key_dep;
-            }
-          }
-          signal_from_field_to_exprs(te, field_dep, &bound_modules);
-          break;
-        }
-        case Value_dep::VALUE_TABLE:
-        {
-          Table_value *table_dep=(Table_value*)bound_values; 
-          DBUG_PRINT("info", ("table %s is now bound",
-                              table_dep->table->alias));
-          /*
-            Table is known means that
-            - one more element in outer join nest is known
-            - all its fields are known
-          */
-          Outer_join_module *outer_join_dep= table_dep->outer_join_dep;
-          if (outer_join_dep->unknown_args && 
-              !--outer_join_dep->unknown_args)
-          {
-            /* Mark as bound and add to the list */
-            outer_join_dep->next= bound_modules;
-            bound_modules= outer_join_dep;
-            break;
-          }
-
-          for (Field_value *field_dep= table_dep->fields; field_dep; 
-               field_dep= field_dep->next_table_field)
-          {
-            if (!field_dep->bound)
-            {
-              /* Mark as bound and add to the list */
-              field_dep->bound= TRUE;
-              signal_from_field_to_exprs(te, field_dep, &bound_modules);
-            }
-          }
-          break;
-        }
-        default: 
-          DBUG_ASSERT(0);
-      }
-    }
+/* Unique key is known means its  table is known */
+bool Key_module::now_bound(Table_elimination *te, Value_dep **bound_values)
+{
+  if (!table->bound)
+  {
+    /* Mark as bound and add to the list */
+    table->bound= TRUE;
+    table->next= *bound_values;
+    *bound_values= table;
   }
   return FALSE;
 }
@@ -1304,6 +1310,7 @@ bool run_elimination_wave(Table_elimination *te, Module_dep *bound_modules)
 /* 
   Mark one table or the whole join nest as eliminated.
 */
+
 static void mark_as_eliminated(JOIN *join, TABLE_LIST *tbl)
 {
   TABLE *table;
