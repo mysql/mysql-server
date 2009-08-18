@@ -287,12 +287,6 @@ static void serial_insert_from (long long from) {
     if (do_transactions && !singlex) {
 	int r = dbenv->txn_begin(dbenv, 0, &tid, 0); assert(r==0);
         do_prelock(db, tid);
-	{
-	    DBT k,v;
-	    r=db->put(db, tid, fill_dbt(&k, "a", 1), fill_dbt(&v, "b", 1), put_flags);
-	    CKERR(r);
-	}
-				      
     }
     for (i=0; i<items_per_iteration; i++) {
 	insert((from+i)*SERIAL_SPACING);
