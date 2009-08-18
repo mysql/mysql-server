@@ -29,7 +29,7 @@ class BackupConsumer {
 public:
   BackupConsumer() {}
   virtual ~BackupConsumer() { }
-  virtual bool init() { return true;}
+  virtual bool init(Uint32 tableCompabilityMask) { return true;}
   virtual bool object(Uint32 tableType, const void*) { return true;}
   virtual bool table(const TableS &){return true;}
   virtual bool endOfTables() { return true; }
@@ -54,7 +54,7 @@ public:
   NODE_GROUP_MAP *m_nodegroup_map;
   uint            m_nodegroup_map_len;
   virtual bool has_temp_error() {return false;}
-  virtual bool table_equal(const TableS &) {return true;}
+  virtual bool table_equal(const TableS &) { return true; }
   virtual bool table_compatible_check(const TableS &) {return true;}
 };
 
