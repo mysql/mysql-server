@@ -7161,6 +7161,10 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
     run_query_normal(cn, command, flags, query, query_len,
 		     ds, &ds_warnings);
 
+  dynstr_free(&ds_warnings);
+  if (command->type == Q_EVAL)
+    dynstr_free(&eval_query);
+
   if (display_result_sorted)
   {
     /* Sort the result set and append it to result */
@@ -7191,11 +7195,8 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
     check_require(ds, command->require_file);
   }
 
-  dynstr_free(&ds_warnings);
   if (ds == &ds_result)
     dynstr_free(&ds_result);
-  if (command->type == Q_EVAL)
-    dynstr_free(&eval_query);
   DBUG_VOID_RETURN;
 }
 
