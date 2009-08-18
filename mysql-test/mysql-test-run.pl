@@ -209,6 +209,7 @@ sub check_timeout { return $opt_testcase_timeout * 6; };
 
 my $opt_start;
 my $opt_start_dirty;
+my $start_only;
 my $opt_wait_all;
 my $opt_repeat= 1;
 my $opt_retry= 3;
@@ -1263,10 +1264,18 @@ sub command_line_setup {
   }
 
   # --------------------------------------------------------------------------
+  # Modified behavior with --start options
+  # --------------------------------------------------------------------------
+  if ($opt_start or $opt_start_dirty) {
+    collect_option ('quick-collect', 1);
+    $start_only= 1;
+  }
+
+  # --------------------------------------------------------------------------
   # Check use of wait-all
   # --------------------------------------------------------------------------
 
-  if ($opt_wait_all && ! ($opt_start_dirty || $opt_start))
+  if ($opt_wait_all && ! $start_only)
   {
     mtr_error("--wait-all can only be used with --start or --start-dirty");
   }
@@ -2824,7 +2833,7 @@ sub run_testcase_check_skip_test($)
 
   if ( $tinfo->{'skip'} )
   {
-    mtr_report_test_skipped($tinfo);
+    mtr_report_test_skipped($tinfo) unless $start_only;
     return 1;
   }
 
@@ -3311,9 +3320,16 @@ sub run_testcase ($) {
   # server exits
   # ----------------------------------------------------------------------
 
-  if ( $opt_start or $opt_start_dirty )
+  if ( $start_only )
   {
     mtr_print("\nStarted", started(all_servers()));
+    mtr_print("Using config for test", $tinfo->{name});
+    mtr_print("Port and socket path for server(s):");
+    foreach my $mysqld ( mysqlds() )
+    {
+      mtr_print ($mysqld->name() . "  " . $mysqld->value('port') .
+	      "  " . $mysqld->value('socket'));
+    }
     mtr_print("Waiting for server(s) to exit...");
     if ( $opt_wait_all ) {
       My::SafeProcess->wait_all();
