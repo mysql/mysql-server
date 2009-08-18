@@ -642,7 +642,7 @@ TableS::TableS(Uint32 version, NdbTableImpl* tableImpl)
 {
   m_dictTable = tableImpl;
   m_noOfNullable = m_nullBitmaskSize = 0;
-  m_auto_val_id= ~(Uint32)0;
+  m_auto_val_attrib = 0;
   m_max_auto_val= 0;
   m_noOfRecords= 0;
   backupVersion = version;
@@ -1579,10 +1579,11 @@ void TableS::createAttr(NdbDictionary::Column *column)
   d->attrId = allAttributesDesc.size();
   d->convertFunc = NULL;
   d->parameter = NULL;
+  d->m_exclude = false;
   allAttributesDesc.push_back(d);
 
   if (d->m_column->getAutoIncrement())
-    m_auto_val_id= d->attrId;
+    m_auto_val_attrib = d;
 
   if(d->m_column->getPrimaryKey() && backupVersion <= MAKE_VERSION(4,1,7))
   {
