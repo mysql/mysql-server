@@ -295,14 +295,16 @@ public:
     bzero(table_deps, sizeof(table_deps));
   }
 
-  JOIN *join;
+  JOIN *join; /* Join we're working on */
+  
   /* Array of equality dependencies */
   Equality_module *equality_deps;
   uint n_equality_deps; /* Number of elements in the array */
 
   /* tablenr -> Table_value* mapping. */
   Table_value *table_deps[MAX_KEY];
-
+  
+  /* Element for the outer join we're attempting to eliminate */
   Outer_join_module *outer_join_dep;
 
   /* Bitmap of how expressions depend on bits */
@@ -312,13 +314,13 @@ public:
 void eliminate_tables(JOIN *join);
 
 static bool
-eliminate_tables_for_list(Table_elimination *te, 
+eliminate_tables_for_list(JOIN *join, 
                           List<TABLE_LIST> *join_list,
                           table_map tables_in_list,
                           Item *on_expr,
                           table_map tables_used_elsewhere);
 static
-bool check_func_dependency(Table_elimination *te, 
+bool check_func_dependency(JOIN *join, 
                            table_map dep_tables,
                            List_iterator<TABLE_LIST> *it, 
                            TABLE_LIST *oj_tbl,
@@ -753,61 +755,6 @@ static Field_value *get_field_value(Table_elimination *te, Field *field)
 
 
 /*
-  Create an Outer_join_module object for the given outer join
-
-  DESCRIPTION
-    Outer_join_module objects for children (or further descendants) are always
-    created before the parents.
-*/
-
-#if 0
-static 
-Outer_join_module *get_outer_join_dep(Table_elimination *te, 
-                                     // TABLE_LIST *outer_join, 
-                                      table_map deps_map)
-{
-  Outer_join_module *oj_dep;
-  if (!(oj_dep= new Outer_join_module(/*outer_join, */my_count_bits(deps_map))))
-    return NULL;
-  
-  /* 
-    Collect a bitmap fo tables that we depend on, and also set parent pointer
-    for descendant outer join elements.
-  */
-  Table_map_iterator it(deps_map);
-  int idx;
-  while ((idx= it.next_bit()) != Table_map_iterator::BITMAP_END)
-  {
-    Table_value *table_dep;
-    if (!(table_dep= te->table_deps[idx]))
-    {
-      /*
-        We get here only when ON expression had no references to inner tables
-        and Table_map objects weren't created for them. This is a rare/
-        unimportant case so it's ok to do not too efficient searches.
-      */
-      TABLE *table= NULL;
-      for (TABLE_LIST *tlist= te->join->select_lex->leaf_tables; tlist;
-           tlist=tlist->next_leaf)
-      {
-        if (tlist->table->tablenr == (uint)idx)
-        {
-          table=tlist->table;
-          break;
-        }
-      }
-      DBUG_ASSERT(table);
-      if (!(table_dep= get_table_value(te, table)))
-        return NULL;
-    }
-    table_dep->outer_join_dep= oj_dep;
-  }
-  return oj_dep;
-}
-#endif
-
-
-/*
   This is used to analyze expressions in "tbl.col=expr" dependencies so
   that we can figure out which fields the expression depends on.
 */
@@ -852,33 +799,39 @@ public:
 
 
 /*
-  Setup equality dependencies
+  Setup inbound dependency relationships for tbl.col=expr equalities
  
   SYNOPSIS
-    setup_equality_deps()
+    setup_equality_modules_deps()
       te                    Table elimination context
       bound_deps_list  OUT  Start of linked list of elements that were found to
                             be bound (caller will use this to see if that
                             allows to declare further elements bound)
   DESCRIPTION
-  RETURN
+  Setup inbound dependency relationships for tbl.col=expr equalities:
+    - allocate a bitmap where we store such dependencies
+    - for each "tbl.col=expr" equality, analyze the expr part and find out
+      which fields it refers to and set appropriate dependencies.
     
+  RETURN
+    FALSE  OK
+    TRUE   Out of memory
 */
 
 static 
-bool setup_equality_deps(Table_elimination *te, Module_dep **bound_deps_list)
+bool setup_equality_modules_deps(Table_elimination *te, 
+                                 Module_dep **bound_deps_list)
 {
-  DBUG_ENTER("setup_equality_deps");
+  DBUG_ENTER("setup_equality_modules_deps");
   
-  if (!te->n_equality_deps)
-    DBUG_RETURN(TRUE);
   /*
-    Count Field_value objects and assign each of them a unique bitmap_offset.
+    Count Field_value objects and assign each of them a unique bitmap_offset
+    value.
   */
   uint offset= 0;
   for (Table_value **tbl_dep=te->table_deps; 
        tbl_dep < te->table_deps + MAX_TABLES;
-       tbl_dep++) // psergey-todo: Wipe this out altogether
+       tbl_dep++)
   {
     if (*tbl_dep)
     {
@@ -924,7 +877,6 @@ bool setup_equality_deps(Table_elimination *te, Module_dep **bound_deps_list)
   }
   *bound_deps_list= bound_dep;
 
-  DBUG_EXECUTE("test", dbug_print_deps(te); );
   DBUG_RETURN(FALSE);
 }
 
@@ -1016,15 +968,7 @@ void eliminate_tables(JOIN *join)
   if (all_tables & ~used_tables)
   {
     /* There are some tables that we probably could eliminate. Try it. */
-    //psergey-todo: move allocs to somewhere else.
-    Table_elimination te(join);
-    uint m= max(thd->lex->current_select->max_equal_elems,1);
-    uint max_elems= ((thd->lex->current_select->cond_count+1)*2 +
-                      thd->lex->current_select->between_count)*m + 1 + 10; 
-    if (!(te.equality_deps= new Equality_module[max_elems]))
-      DBUG_VOID_RETURN;
-
-    eliminate_tables_for_list(&te, join->join_list, all_tables, NULL,
+    eliminate_tables_for_list(join, join->join_list, all_tables, NULL,
                               used_tables);
   }
   DBUG_VOID_RETURN;
@@ -1056,7 +1000,7 @@ void eliminate_tables(JOIN *join)
 */
 
 static bool
-eliminate_tables_for_list(Table_elimination *te, List<TABLE_LIST> *join_list,
+eliminate_tables_for_list(JOIN *join, List<TABLE_LIST> *join_list,
                           table_map list_tables, Item *on_expr,
                           table_map tables_used_elsewhere)
 {
@@ -1074,13 +1018,13 @@ eliminate_tables_for_list(Table_elimination *te, List<TABLE_LIST> *join_list,
       if (tbl->nested_join)
       {
         /* This is  "... LEFT JOIN (join_nest) ON cond" */
-        if (eliminate_tables_for_list(te,
+        if (eliminate_tables_for_list(join,
                                       &tbl->nested_join->join_list, 
                                       tbl->nested_join->used_tables, 
                                       tbl->on_expr,
                                       outside_used_tables))
         {
-          mark_as_eliminated(te->join, tbl);
+          mark_as_eliminated(join, tbl);
         }
         else
           all_eliminated= FALSE;
@@ -1089,10 +1033,10 @@ eliminate_tables_for_list(Table_elimination *te, List<TABLE_LIST> *join_list,
       {
         /* This is  "... LEFT JOIN tbl ON cond" */
         if (!(tbl->table->map & outside_used_tables) &&
-            check_func_dependency(te, tbl->table->map, NULL, tbl, 
+            check_func_dependency(join, tbl->table->map, NULL, tbl, 
                                   tbl->on_expr))
         {
-          mark_as_eliminated(te->join, tbl);
+          mark_as_eliminated(join, tbl);
         }
         else
           all_eliminated= FALSE;
@@ -1109,7 +1053,7 @@ eliminate_tables_for_list(Table_elimination *te, List<TABLE_LIST> *join_list,
   if (all_eliminated && on_expr && !(list_tables & tables_used_elsewhere))
   {
     it.rewind();
-    return check_func_dependency(te, list_tables & ~te->join->eliminated_tables,
+    return check_func_dependency(join, list_tables & ~join->eliminated_tables,
                                  &it, NULL, on_expr);
   }
   return FALSE; /* not eliminated */
@@ -1135,18 +1079,27 @@ eliminate_tables_for_list(Table_elimination *te, List<TABLE_LIST> *join_list,
 */
 
 static
-bool check_func_dependency(Table_elimination *te,
+bool check_func_dependency(JOIN *join,
                            table_map dep_tables,
                            List_iterator<TABLE_LIST> *it, 
                            TABLE_LIST *oj_tbl,
                            Item* cond)
 {
   uint and_level=0;
-  Equality_module* eq_dep= te->equality_deps;
   Module_dep *bound_modules;
   
-  bzero(te->table_deps, sizeof(te->table_deps));
+    //psergey-todo: move allocs to somewhere else.
+  Table_elimination pte(join);
+  Table_elimination *te= &pte;
+  uint m= max(join->thd->lex->current_select->max_equal_elems,1);
+  uint max_elems= ((join->thd->lex->current_select->cond_count+1)*2 +
+                    join->thd->lex->current_select->between_count)*m + 1 + 10; 
+  if (!(te->equality_deps= new Equality_module[max_elems]))
+    return FALSE;
+
+  Equality_module* eq_dep= te->equality_deps;
   
+  /* Create Table_value objects for all tables we're trying to eliminate */
   if (oj_tbl)
   {
     if (!get_table_value(te, oj_tbl->table))
@@ -1165,19 +1118,25 @@ bool check_func_dependency(Table_elimination *te,
     }
   }
 
-  /* Extract equalities from the ON expression */
+  /*
+    Analyze the the ON expression and create Equality_module objects and
+    Field_value objects for their left parts.
+  */
   if (build_eq_deps_for_cond(te, &eq_dep, &and_level, cond, dep_tables) ||
       eq_dep == te->equality_deps)
     return FALSE;
-  
+ 
   te->n_equality_deps= eq_dep - te->equality_deps;
-  /* Create objects for running wave algorithm */ 
+
   if (!(te->outer_join_dep= new Outer_join_module(my_count_bits(dep_tables))) ||
-      setup_equality_deps(te, &bound_modules))
+      setup_equality_modules_deps(te, &bound_modules))
   {
     return FALSE; /* OOM, default to non-dependent */
   }
+  
+  DBUG_EXECUTE("test", dbug_print_deps(te); );
 
+  /* The running wave algorithm itself: */
   Value_dep *bound_values= NULL;
   while (bound_modules)
   {
