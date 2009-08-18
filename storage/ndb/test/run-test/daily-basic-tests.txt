@@ -1334,3 +1334,8 @@ max-time: 300
 cmd: testSystemRestart
 args: -n Bug46651 T1
 
+max-time: 300
+cmd: testSystemRestart
+args: -n Bug46412 T1
+
+# end of 6.3

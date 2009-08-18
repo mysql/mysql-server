@@ -789,7 +789,7 @@ done:
       //  IF THERE WAS A LOCAL CHECKPOINT ONGOING AT THE CRASH MOMENT WE WILL
       //    INVALIDATE THAT LOCAL CHECKPOINT.
       /* -------------------------------------------------------------------- */
-      invalidateLcpInfoAfterSr();
+      invalidateLcpInfoAfterSr(signal);
     }//if
 
     if (m_micro_gcp.m_enabled == false && 
@@ -4676,7 +4676,7 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
   
   if (isMaster()) {
     jam();
-    setNodeRestartInfoBits();
+    setNodeRestartInfoBits(signal);
   }//if
 }//Dbdih::execNODE_FAILREP()
 
@@ -4965,7 +4965,7 @@ void Dbdih::failedNodeLcpHandling(Signal* signal, NodeRecordPtr failedNodePtr)
       break;
     case Sysfile::NS_ActiveMissed_1:
       jam();
-      failedNodePtr.p->activeStatus = Sysfile::NS_ActiveMissed_2;
+      failedNodePtr.p->activeStatus = Sysfile::NS_ActiveMissed_1;
       break;
     case Sysfile::NS_ActiveMissed_2:
       jam();
@@ -6287,13 +6287,15 @@ Dbdih::sendMASTER_LCPCONF(Signal * signal){
     return;
   }
 
-  if(c_lcpState.lcpStatus == LCP_COPY_GCI){
+  if(c_lcpState.lcpStatus == LCP_COPY_GCI)
+  {
     jam();
     /**
      * Restart it
      */
     //Uint32 lcpId = SYSFILE->latestLCP_ID;
     SYSFILE->latestLCP_ID--;
+    Sysfile::clearLCPOngoing(SYSFILE->systemRestartBits);
     c_lcpState.setLcpStatus(LCP_STATUS_IDLE, __LINE__);
 #if 0
     if(c_copyGCISlave.m_copyReason == CopyGCIReq::LOCAL_CHECKPOINT){
@@ -9894,7 +9896,7 @@ void Dbdih::execCOPY_GCICONF(Signal* signal)
   }
 }//Dbdih::execCOPY_GCICONF()
 
-void Dbdih::invalidateLcpInfoAfterSr()
+void Dbdih::invalidateLcpInfoAfterSr(Signal* signal)
 {
   NodeRecordPtr nodePtr;
   SYSFILE->latestLCP_ID--;
@@ -9911,10 +9913,8 @@ void Dbdih::invalidateLcpInfoAfterSr()
       /* ------------------------------------------------------------------- */
       switch (nodePtr.p->activeStatus) {
       case Sysfile::NS_Active:
-	/* ----------------------------------------------------------------- */
-	// When not active in ongoing LCP and still active is a contradiction.
-	/* ----------------------------------------------------------------- */
-        ndbrequire(false);
+        nodePtr.p->activeStatus = Sysfile::NS_Active;
+        break;
       case Sysfile::NS_ActiveMissed_1:
         jam();
         nodePtr.p->activeStatus = Sysfile::NS_Active;
@@ -9927,9 +9927,14 @@ void Dbdih::invalidateLcpInfoAfterSr()
         jam();
         break;
       }//switch
-    }//if
+    }
+    else
+    {
+      jam();
+      ndbassert(nodePtr.p->activeStatus == Sysfile::NS_Active);
+    }
   }//for
-  setNodeRestartInfoBits();
+  setNodeRestartInfoBits(signal);
 }//Dbdih::invalidateLcpInfoAfterSr()
 
 /* ------------------------------------------------------------------------- */
@@ -9948,6 +9953,8 @@ void Dbdih::writingCopyGciLab(Signal* signal, FileRecordPtr filePtr)
   /*     WE HAVE NOW WRITTEN THIS FILE. WRITE ALSO NEXT FILE IF THIS IS NOT  */
   /*     ALREADY THE LAST.                                                   */
   /* ----------------------------------------------------------------------- */
+  CRASH_INSERTION(7219);
+
   filePtr.p->reqStatus = FileRecord::IDLE;
   if (filePtr.i == crestartInfoFile[0]) {
     jam();
@@ -11808,7 +11815,7 @@ void Dbdih::storeNewLcpIdLab(Signal* signal)
    *   but this function has been move "up" in the flow
    *   to just before calcKeepGci
    */
-  setNodeRestartInfoBits();
+  setNodeRestartInfoBits(signal);
 
   c_lcpState.setLcpStatus(LCP_COPY_GCI, __LINE__);
   //#ifdef VM_TRACE
@@ -11822,6 +11829,8 @@ void Dbdih::storeNewLcpIdLab(Signal* signal)
 
 void Dbdih::startLcpRoundLab(Signal* signal) {
   jam();
+
+  CRASH_INSERTION(7218);
 
   Mutex mutex(signal, c_mutexMgr, c_startLcpMutexHandle);
   Callback c = { safe_cast(&Dbdih::startLcpMutex_locked), 0 };
@@ -12841,8 +12850,8 @@ void Dbdih::allNodesLcpCompletedLab(Signal* signal)
     }
   }
   
-  setLcpActiveStatusEnd(signal);
   Sysfile::clearLCPOngoing(SYSFILE->systemRestartBits);
+  setLcpActiveStatusEnd(signal);
 
   if(!isMaster()){
     jam();
@@ -15552,7 +15561,7 @@ void Dbdih::setLcpActiveStatusEnd(Signal* signal)
   c_lcpState.m_participatingLQH.clear();
   if (isMaster()) {
     jam();
-    setNodeRestartInfoBits();
+    setNodeRestartInfoBits(signal);
   }//if
 }//Dbdih::setLcpActiveStatusEnd()
 
@@ -15656,7 +15665,7 @@ void Dbdih::setNodeGroups()
 /*************************************************************************/
 /* SET THE RESTART INFO BITS BASED ON THE NODES ACTIVE STATUS.           */
 /*************************************************************************/
-void Dbdih::setNodeRestartInfoBits() 
+void Dbdih::setNodeRestartInfoBits(Signal * signal)
 {
   NodeRecordPtr nodePtr;
   Uint32 tsnrNodeGroup;
@@ -15669,7 +15678,11 @@ void Dbdih::setNodeRestartInfoBits()
     SYSFILE->nodeGroups[i] = 0;
   }//for
   NdbNodeBitmask::clear(SYSFILE->lcpActive);
-  
+
+#ifdef ERROR_INSERT
+  NdbNodeBitmask tmp;
+#endif
+
   for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++) {
     ptrAss(nodePtr, nodeRecord);
     switch (nodePtr.p->activeStatus) {
@@ -15716,11 +15729,41 @@ void Dbdih::setNodeRestartInfoBits()
       tsnrNodeGroup = nodePtr.p->nodeGroup;
     }//if
     Sysfile::setNodeGroup(nodePtr.i, SYSFILE->nodeGroups, tsnrNodeGroup);
-    if (c_lcpState.m_participatingLQH.get(nodePtr.i)){
+    if (c_lcpState.m_participatingLQH.get(nodePtr.i))
+    {
       jam();
       NdbNodeBitmask::set(SYSFILE->lcpActive, nodePtr.i);
     }//if
+#ifdef ERROR_INSERT
+    else if (Sysfile::getLCPOngoing(SYSFILE->systemRestartBits))
+    {
+      jam();
+      if (nodePtr.p->activeStatus == Sysfile::NS_Active)
+        tmp.set(nodePtr.i);
+    }
+#endif
   }//for
+
+#ifdef ERROR_INSERT
+  if (!tmp.isclear())
+  {
+    jam();
+
+    NdbNodeBitmask all;
+    nodePtr.i = cfirstAliveNode;
+    do {
+      jam();
+      ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
+      all.set(nodePtr.i);
+      nodePtr.i = nodePtr.p->nextNode;
+    } while (nodePtr.i != RNIL);
+
+
+    NodeReceiverGroup rg(DBDIH, all);
+    signal->theData[0] = 7219;
+    sendSignal(rg, GSN_NDB_TAMPER, signal,  1, JBA);
+  }
+#endif
 }//Dbdih::setNodeRestartInfoBits()
 
 /*************************************************************************/

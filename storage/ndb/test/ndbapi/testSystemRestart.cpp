@@ -1928,6 +1928,95 @@ int runBug46651(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int
+runBug46412(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Uint32 loops = ctx->getNumLoops();
+  NdbRestarter res;
+  const Uint32 nodeCount = res.getNumDbNodes();
+  if(nodeCount < 2)
+  {
+    return NDBT_OK;
+  }
+
+  for (Uint32 l = 0; l<loops; l++)
+  {
+loop:
+    printf("checking nodegroups of getNextMasterNodeId(): ");
+    int nodes[256];
+    bzero(nodes, sizeof(nodes));
+    nodes[0] = res.getMasterNodeId();
+    printf("%d ", nodes[0]);
+    for (Uint32 i = 1; i<nodeCount; i++)
+    {
+      nodes[i] = res.getNextMasterNodeId(nodes[i-1]);
+      printf("%d ", nodes[i]);
+    }
+    printf("\n");
+
+    Bitmask<256/32> ng;
+    int cnt = 0;
+    int restartnodes[256];
+
+    Uint32 limit = (nodeCount / 2);
+    for (Uint32 i = 0; i<limit; i++)
+    {
+      int tmp = res.getNodeGroup(nodes[i]);
+      printf("node %d ng: %d", nodes[i], tmp);
+      if (ng.get(tmp))
+      {
+        restartnodes[cnt++] = nodes[i];
+        ndbout_c(" COLLISION");
+        limit++;
+        if (limit > nodeCount)
+          limit = nodeCount;
+      }
+      else
+      {
+        ng.set(tmp);
+        ndbout_c(" OK");
+      }
+    }
+
+    if (cnt)
+    {
+      printf("restarting nodes: ");
+      for (int i = 0; i<cnt; i++)
+        printf("%d ", restartnodes[i]);
+      printf("\n");
+      for (int i = 0; i<cnt; i++)
+      {
+        res.restartOneDbNode(restartnodes[i], false, true, true);
+      }
+      res.waitNodesNoStart(restartnodes, cnt);
+      res.startNodes(restartnodes, cnt);
+      if (res.waitClusterStarted())
+        return NDBT_FAILED;
+
+      goto loop;
+    }
+
+    int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+    res.dumpStateAllNodes(val2, 2);
+
+    for (Uint32 i = 0; i<(nodeCount / 2); i++)
+    {
+      res.insertErrorInNode(nodes[(nodeCount / 2) - (i + 1)], 7218);
+    }
+
+    int lcp = 7099;
+    res.dumpStateAllNodes(&lcp, 1);
+
+    res.waitClusterNoStart();
+    res.startAll();
+    if (res.waitClusterStarted())
+      return NDBT_FAILED;
+  }
+
+  return NDBT_OK;
+}
+
+
 NDBT_TESTSUITE(testSystemRestart);
 TESTCASE("SR1", 
 	 "Basic system restart test. Focus on testing restart from REDO log.\n"
@@ -2230,6 +2319,10 @@ TESTCASE("Bug45154", "")
 TESTCASE("Bug46651", "")
 {
   INITIALIZER(runBug46651);
+}
+TESTCASE("Bug46412", "")
+{
+  INITIALIZER(runBug46412);
 }
 NDBT_TESTSUITE_END(testSystemRestart);
 
