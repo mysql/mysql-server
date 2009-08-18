@@ -15950,15 +15950,7 @@ void Dbdih::execBLOCK_COMMIT_ORD(Signal* signal){
   BlockCommitOrd* const block = (BlockCommitOrd *)&signal->theData[0];
 
   jamEntry();
-#if 0
-  ndbrequire(c_blockCommit == false || 
-	     c_blockCommitNo == block->failNo);
-#else
-  if(!(c_blockCommit == false || c_blockCommitNo == block->failNo)){
-    infoEvent("Possible bug in Dbdih::execBLOCK_COMMIT_ORD c_blockCommit = %d c_blockCommitNo = %d"
-	      " sig->failNo = %d", c_blockCommit, c_blockCommitNo, block->failNo);
-  }
-#endif
+
   c_blockCommit = true;
   c_blockCommitNo = block->failNo;
 }
@@ -15969,9 +15961,9 @@ void Dbdih::execUNBLOCK_COMMIT_ORD(Signal* signal){
 
   jamEntry();
   
-  if(c_blockCommit == true){
+  if(c_blockCommit == true)
+  {
     jam();
-    //    ndbrequire(c_blockCommitNo == unblock->failNo);
     
     c_blockCommit = false;
     emptyverificbuffer(signal, true);
