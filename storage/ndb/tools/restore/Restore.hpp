@@ -31,6 +31,19 @@
 #include <ndb_version.h>
 #include <version.h>
 
+enum TableChangesMask
+{
+  /**
+   * Allow attribute promotion
+   */
+  TCM_ATTRIBUTE_PROMOTION = 0x1,
+
+  /**
+   * Allow missing columns
+   */
+  TCM_EXCLUDE_MISSING_COLUMNS = 0x2
+};
+
 inline
 bool
 isDrop6(Uint32 version)
@@ -79,8 +92,8 @@ struct AttributeDesc {
   Uint32 attrId;
   NdbDictionary::Column *m_column;
 
+  bool m_exclude;
   Uint32 m_nullBitIndex;
-
   AttrConvertFunc convertFunc;
   void *parameter;
 public:
@@ -151,7 +164,7 @@ class TableS {
   Uint32 m_noOfNullable;
   Uint32 m_nullBitmaskSize;
 
-  Uint32 m_auto_val_id;
+  AttributeDesc * m_auto_val_attrib;
   Uint64 m_max_auto_val;
 
   bool isSysTable;
@@ -207,11 +220,11 @@ public:
   };
   
   bool have_auto_inc() const {
-    return m_auto_val_id != ~(Uint32)0;
+    return m_auto_val_attrib != 0;
   };
 
   bool have_auto_inc(Uint32 id) const {
-    return m_auto_val_id == id;
+    return (m_auto_val_attrib ? m_auto_val_attrib->attrId == id : false);
   };
 
   Uint64 get_max_auto_val() const {

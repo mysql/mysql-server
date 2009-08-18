@@ -74,14 +74,14 @@ public:
     m_free_callback = 0;
     m_temp_error = false;
     m_no_upgrade = false;
-    m_promote_attributes = false;
+    m_tableChangesMask = 0;
     m_preserve_trailing_spaces = false;
     m_transactions = 0;
     m_cache.m_old_table = 0;
   }
   
   virtual ~BackupRestore();
-  virtual bool init();
+  virtual bool init(Uint32 tableChangesMask);
   virtual void release();
   virtual bool object(Uint32 type, const void* ptr);
   virtual bool table(const TableS &);
@@ -167,7 +167,7 @@ public:
   bool m_no_restore_disk;
   bool m_restore_epoch;
   bool m_no_upgrade; // for upgrade ArrayType from 5.0 backup file.
-  bool m_promote_attributes; 
+  Uint32 m_tableChangesMask;
   static bool m_preserve_trailing_spaces;
 
   Uint32 m_n_tablespace;
