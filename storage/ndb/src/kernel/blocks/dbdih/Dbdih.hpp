@@ -917,7 +917,7 @@ private:
 
   void checkEscalation();
   void clearRestartInfoBits(Signal *);
-  void invalidateLcpInfoAfterSr();
+  void invalidateLcpInfoAfterSr(Signal*);
 
   bool isMaster();
   bool isActiveMaster();
@@ -944,7 +944,7 @@ private:
   void setNodeGroups();
   void setNodeInfo(Signal *);
   void setNodeLcpActiveStatus();
-  void setNodeRestartInfoBits();
+  void setNodeRestartInfoBits(Signal*);
   void startGcp(Signal *);
   void startGcpMonitor(Signal*);
 
