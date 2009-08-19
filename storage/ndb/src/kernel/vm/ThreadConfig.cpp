@@ -60,11 +60,9 @@ ThreadConfig::scanTimeQueue()
 // time backwards. We cannot know how long time has past since last
 // time and we make a best try with 0 milliseconds.
 //--------------------------------------------------------------------
-#ifdef VM_TRACE
     ndbout << "Time moved backwards with ";
     ndbout << (globalData.internalMillisecCounter - currMilliSecond);
     ndbout << " milliseconds" << endl;
-#endif
     globalData.internalMillisecCounter = currMilliSecond;
   }//if
   if (currMilliSecond > (globalData.internalMillisecCounter + 1500)) {
@@ -73,11 +71,9 @@ ThreadConfig::scanTimeQueue()
 // if operator changed the time or if the OS has misbehaved badly.
 // We set the new time to one second from the past.
 //--------------------------------------------------------------------
-#ifdef VM_TRACE
     ndbout << "Time moved forward with ";
     ndbout << (currMilliSecond - globalData.internalMillisecCounter);
     ndbout << " milliseconds" << endl;
-#endif
     globalData.internalMillisecCounter = currMilliSecond - 1000;
   }//if
   while (((currMilliSecond - globalData.internalMillisecCounter) > 0) &&
