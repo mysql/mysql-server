@@ -6215,3 +6215,23 @@ ER_BINLOG_ROW_INJECTION_AND_STMT_MODE
   eng "Cannot execute row injection: binlogging impossible since BINLOG_FORMAT = STATEMENT."
 ER_BINLOG_MULTIPLE_ENGINES_AND_SELF_LOGGING_ENGINE
   eng "Cannot execute statement: binlogging impossible since more than one engine is involved and at least one engine is self-logging."
+
+ER_BINLOG_UNSAFE_LIMIT
+  eng "Statement uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted."
+ER_BINLOG_UNSAFE_INSERT_DELAYED
+  eng "Statement uses INSERT DELAYED. This is unsafe because the time when rows are inserted cannot be predicted."
+ER_BINLOG_UNSAFE_SYSTEM_TABLE
+  eng "Statement uses the general_log or slow_log table. This is unsafe because system tables may differ on slave."
+ER_BINLOG_UNSAFE_TWO_AUTOINC_COLUMNS
+  eng "Statement updates two AUTO_INCREMENT columns. This is unsafe because the generated value cannot be predicted by slave."
+ER_BINLOG_UNSAFE_UDF
+  eng "Statement uses a UDF. It cannot be determined if the UDF will return the same value on slave."
+ER_BINLOG_UNSAFE_SYSTEM_VARIABLE
+  eng "Statement uses a system variable whose value may differ on slave."
+ER_BINLOG_UNSAFE_SYSTEM_FUNCTION
+  eng "Statement uses a system function whose value may differ on slave."
+
+ER_BINLOG_UNSAFE_WARNING_SHORT
+  eng "%s Reason: %s"
+ER_BINLOG_UNSAFE_WARNING_LONG
+  eng "%s Reason: %s Statement: %s"
