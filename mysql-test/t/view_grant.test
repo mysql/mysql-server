@@ -1232,6 +1232,42 @@ DROP TABLE db1.t1;
 DROP DATABASE db1;
 
 connection default;
+
+--echo #
+--echo # Bug #46019: ERROR 1356 When selecting from within another 
+--echo #  view that has Group By
+--echo #
+
+CREATE DATABASE db1;
+USE db1;
+
+CREATE TABLE t1 (a INT);
+
+CREATE SQL SECURITY INVOKER VIEW v1 AS 
+ SELECT a FROM t1 GROUP BY a;
+
+CREATE SQL SECURITY INVOKER VIEW v2 AS
+ SELECT a FROM v1;
+
+CREATE USER u1;
+
+GRANT SELECT ON TABLE t1 TO u1;
+GRANT SELECT, SHOW VIEW ON TABLE v1 TO u1;
+GRANT SELECT, SHOW VIEW ON TABLE v2 TO u1;
+
+CONNECT (u1, localhost, u1,,db1);
+CONNECTION u1;
+
+SELECT a FROM v1;
+SELECT a FROM v2;
+
+CONNECTION default;
+DISCONNECT u1;
+DROP USER u1;
+DROP VIEW v1,v2;
+DROP TABLE t1;
+USE test;
+DROP DATABASE db1;
 --echo End of 5.0 tests.
 
 # Wait till we reached the initial number of concurrent sessions
