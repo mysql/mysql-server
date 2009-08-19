@@ -3350,97 +3350,6 @@ int ha_tokudb::read_full_row(uchar * buf) {
 
 
 //
-// The funtion read_row checks whether the row was obtained from the primary table or 
-// from an index table. If it was obtained from an index table, it further dereferences on
-// the main table. In the end, the read_row function will manage to return the actual row
-// of interest in the buf parameter.
-//
-// Parameters:
-//      [out]   buf - buffer for the row, in MySQL format
-//              keynr - index into key_file that represents DB we are currently operating on.
-//      [in]    row - the row that has been read from the preceding DB call
-//      [in]    found_key - key used to retrieve the row
-//
-int ha_tokudb::read_row(uchar * buf, uint keynr, DBT const *row, DBT const *found_key) {
-    TOKUDB_DBUG_ENTER("ha_tokudb::read_row");
-    int error;
-    struct smart_dbt_info info;
-    info.ha = this;
-    info.buf = buf;
-    info.keynr = primary_key;
-
-    extract_hidden_primary_key(keynr, row, found_key);
-
-    table->status = 0;
-    //
-    // if the index shows that the table we read the row from was indexed on the primary key,
-    // that means we have our row and can skip
-    // this entire if clause. All that is required is to unpack row.
-    // if the index shows that what we read was from a table that was NOT indexed on the 
-    // primary key, then we must still retrieve the row, as the "row" value is indeed just
-    // a primary key, whose row we must still read
-    //
-    if (keynr != primary_key) {
-        if (key_read && found_key) {
-            // TOKUDB_DBUG_DUMP("key=", found_key->data, found_key->size);
-            unpack_key(buf, found_key, keynr);
-            if (!hidden_primary_key && !(table->key_info[keynr].flags & HA_CLUSTERING)) {
-                // TOKUDB_DBUG_DUMP("row=", row->data, row->size);
-                unpack_key(buf, row, primary_key);
-            }
-            error = 0;
-            goto exit;
-        }
-        //
-        // in this case we have a clustered key, so no need to do pt query
-        //
-        if (table->key_info[keynr].flags & HA_CLUSTERING) {
-            error = unpack_row(buf, row, found_key, keynr);
-            goto exit;
-        }
-        //
-        // create a DBT that has the same data as row,
-        //
-        DBT key;
-        bzero((void *) &key, sizeof(key));
-        key.data = key_buff;
-        key.size = row->size;
-        memcpy(key_buff, row->data, row->size);
-        
-        error = share->file->getf_set(
-            share->file, 
-            transaction, 
-            0, 
-            &key, 
-            smart_dbt_callback_rowread_ptquery, 
-            &info
-            );
-        if (error) {
-            table->status = STATUS_NOT_FOUND;
-            error = (error == DB_NOTFOUND ? HA_ERR_CRASHED : error);
-            goto exit;
-        }
-    }
-    else {
-        //
-        // in this case we are dealing with the primary key
-        //
-        if (key_read && !hidden_primary_key) {
-            unpack_key(buf, found_key, keynr);
-        }
-        else {
-            error = unpack_row(buf, row, found_key, primary_key);
-            if (error) { goto exit; }
-        }
-    }
-    if (found_key) { DBUG_DUMP("read row key", (uchar *) found_key->data, found_key->size); }
-    error = 0;
-
-exit:
-    TOKUDB_DBUG_RETURN(error);
-}
-
-//
 // context information for the heaviside functions.
 // Context information includes data necessary
 // to perform comparisons
@@ -3618,7 +3527,6 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
     u_int32_t flags = 0;
     struct smart_dbt_info info;
     struct heavi_info heavi_info;
-    bool do_read_row = true;
 
     HANDLE_INVALID_CURSOR();
 
@@ -3632,10 +3540,10 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
 
     heavi_info.db = share->key_file[active_index];
     heavi_info.key = &last_key;
+    flags = SET_READ_FLAG(0);
     switch (find_flag) {
     case HA_READ_KEY_EXACT: /* Find first record else error */
-        flags = SET_READ_FLAG(DB_SET_RANGE);
-        error = cursor->c_get(cursor, &last_key, &row, flags);
+        error = cursor->c_getf_set_range(cursor, flags, &last_key, SMART_DBT_CALLBACK, &info);
         if (error == 0) {
             DBT orig_key;
             pack_key(&orig_key, active_index, key_buff2, key, key_len, COL_NEG_INF);
@@ -3645,54 +3553,46 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
         }
         break;
     case HA_READ_AFTER_KEY: /* Find next rec. after key-record */
-        flags = SET_READ_FLAG(0);
         error = cursor->c_getf_heaviside(
             cursor, flags, 
             key_read ? smart_dbt_callback_keyread_heavi : smart_dbt_callback_rowread_heavi, &info,
             after_key_heavi, &heavi_info, 
             1
             );
-        do_read_row = false;
         break;
     case HA_READ_BEFORE_KEY: /* Find next rec. before key-record */
-        flags = SET_READ_FLAG(0);
         error = cursor->c_getf_heaviside(
             cursor, flags, 
             key_read ? smart_dbt_callback_keyread_heavi : smart_dbt_callback_rowread_heavi, &info,
             before_key_heavi, &heavi_info, 
             -1
             );
-        do_read_row = false;
         break;
     case HA_READ_KEY_OR_NEXT: /* Record or next record */
-        flags = SET_READ_FLAG(DB_SET_RANGE);
-        error = cursor->c_get(cursor, &last_key, &row, flags);
+        error = cursor->c_getf_set_range(cursor, flags, &last_key, SMART_DBT_CALLBACK, &info);
         break;
     case HA_READ_KEY_OR_PREV: /* Record or previous */
-        flags = SET_READ_FLAG(DB_SET_RANGE);
-        error = cursor->c_get(cursor, &last_key, &row, flags);
+        error = cursor->c_getf_set_range(cursor, flags, &last_key, SMART_DBT_CALLBACK, &info);
         if (error == 0) {
             DBT orig_key; 
             pack_key(&orig_key, active_index, key_buff2, key, key_len, COL_NEG_INF);
             if (tokudb_prefix_cmp_dbt_key(share->key_file[active_index], &orig_key, &last_key) != 0) {
-                error = cursor->c_get(cursor, &last_key, &row, DB_PREV);
+                error = cursor->c_getf_prev(cursor, flags, SMART_DBT_CALLBACK, &info);
             }
         }
-        else if (error == DB_NOTFOUND)
-            error = cursor->c_get(cursor, &last_key, &row, DB_LAST);
+        else if (error == DB_NOTFOUND) {
+            error = cursor->c_getf_last(cursor, flags, SMART_DBT_CALLBACK, &info);
+        }
         break;
     case HA_READ_PREFIX_LAST_OR_PREV: /* Last or prev key with the same prefix */
-        flags = SET_READ_FLAG(0);
         error = cursor->c_getf_heaviside(
             cursor, flags, 
             key_read ? smart_dbt_callback_keyread_heavi : smart_dbt_callback_rowread_heavi, &info,
             prefix_last_or_prev_heavi, &heavi_info, 
             -1
             );
-        do_read_row = false;
         break;
     case HA_READ_PREFIX_LAST:
-        flags = SET_READ_FLAG(0);
         error = cursor->c_getf_heaviside(
             cursor, flags, 
             key_read ? smart_dbt_callback_keyread_heavi : smart_dbt_callback_rowread_heavi, &info,
@@ -3702,7 +3602,6 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
         if (!error && heavi_ret_val != 0) {
             error = DB_NOTFOUND;
         }
-        do_read_row = false;
         break;
     default:
         TOKUDB_TRACE("unsupported:%d\n", find_flag);
@@ -3710,10 +3609,7 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
         break;
     }
     error = handle_cursor_error(error,HA_ERR_KEY_NOT_FOUND,active_index);
-    if (!error && do_read_row) {
-        error = read_row(buf, active_index, &row, &last_key);
-    }
-    else if (!error && !key_read && active_index != primary_key && !(table->key_info[active_index].flags & HA_CLUSTERING)) {
+    if (!error && !key_read && active_index != primary_key && !(table->key_info[active_index].flags & HA_CLUSTERING)) {
         error = read_full_row(buf);
     }
     
