@@ -348,103 +348,103 @@ test_first (u_int32_t dup_flags) {
 }
 
 static void
-test_set_range (u_int32_t dup_flags) {
+test_set_range (u_int32_t dup_flags, u_int32_t flag, int i) {
     /* ********************************************************************** */
     setup_dbs(dup_flags);
-    cget(TRUE, FALSE, 'a', 1, 1, 0, 0, DB_SET_RANGE);
+    cget(TRUE, FALSE, 'a', i*1, i*1, 0, 0, flag);
     close_dbs();
     /* ********************************************************************** */
     setup_dbs(dup_flags);
-    cget(TRUE, FALSE, 'a', 1, 1, 0, 0, DB_SET_RANGE);
-    cget(TRUE, FALSE, 'a', 2, 1, 0, 0, DB_SET_RANGE);
+    cget(TRUE, FALSE, 'a', i*1, i*1, 0, 0, flag);
+    cget(TRUE, FALSE, 'a', i*2, i*1, 0, 0, flag);
     close_dbs();
     /* ********************************************************************** */
     setup_dbs(dup_flags);
-    cget(TRUE, FALSE, 'a', 1, 1, 0, 0, DB_SET_RANGE);
-    cget(TRUE, FALSE, 'a', 1, 1, 0, 0, DB_SET_RANGE);
+    cget(TRUE, FALSE, 'a', i*1, i*1, 0, 0, flag);
+    cget(TRUE, FALSE, 'a', i*1, i*1, 0, 0, flag);
     close_dbs();
     /* ********************************************************************** */
     setup_dbs(dup_flags);
-    cget(TRUE, FALSE, 'a', 1, 1, 0, 0, DB_SET_RANGE);
-    cget(TRUE, FALSE, 'b', 2, 1, 0, 0, DB_SET_RANGE);
+    cget(TRUE, FALSE, 'a', i*1, i*1, 0, 0, flag);
+    cget(TRUE, FALSE, 'b', i*2, i*1, 0, 0, flag);
     close_dbs();
     /* ********************************************************************** */
     setup_dbs(dup_flags);
-    cget(TRUE, FALSE, 'a', 1, 1, 0, 0, DB_SET_RANGE);
-    cget(TRUE, FALSE, 'b', 1, 1, 0, 0, DB_SET_RANGE);
+    cget(TRUE, FALSE, 'a', i*1, i*1, 0, 0, flag);
+    cget(TRUE, FALSE, 'b', i*1, i*1, 0, 0, flag);
     close_dbs();
     /* ********************************************************************** */
     setup_dbs(dup_flags);
-    cget(TRUE, FALSE, 'a', 1, 1, 0, 0, DB_SET_RANGE);
-    cget(TRUE, FALSE, 'b', 5, 5, 0, 0, DB_SET_RANGE);
-    put(FALSE, 'a', 7, 6);
-    put(FALSE, 'a', 5, 5);
-    put(TRUE,  'a', 4, 4);
-    put(TRUE,  'b', -1, 4);
-    put(FALSE,  'b', 2, 4);
-    put(FALSE, 'a', 5, 4);
+    cget(TRUE, FALSE, 'a', i*1, i*1, 0, 0, flag);
+    cget(TRUE, FALSE, 'b', i*5, i*5, 0, 0, flag);
+    put(FALSE, 'a', i*7, i*6);
+    put(FALSE, 'a', i*5, i*5);
+    put(TRUE,  'a', i*4, i*4);
+    put(TRUE,  'b', -i*1, i*4);
+    put(FALSE,  'b', i*2, i*4);
+    put(FALSE, 'a', i*5, i*4);
     early_commit('b');
-    put(TRUE, 'a', 7, 6);
-    put(TRUE, 'a', 5, 5);
-    put(TRUE,  'a', 4, 4);
-    put(TRUE, 'a', 5, 4);
-    cget(TRUE, TRUE, 'a', 1, 1, 4, 4, DB_SET_RANGE);
-    cget(TRUE, TRUE, 'a', 2, 1, 4, 4, DB_SET_RANGE);
-    cget(FALSE, TRUE, 'c', 6, 6, 7, 6, DB_SET_RANGE);
+    put(TRUE, 'a', i*7, i*6);
+    put(TRUE, 'a', i*5, i*5);
+    put(TRUE,  'a', i*4, i*4);
+    put(TRUE, 'a', i*5, i*4);
+    cget(TRUE, TRUE, 'a', i*1, i*1, i*4, i*4, flag);
+    cget(TRUE, TRUE, 'a', i*2, i*1, i*4, i*4, flag);
+    cget(FALSE, TRUE, 'c', i*6, i*6, i*7, i*6, flag);
     early_commit('a');
-    cget(TRUE, TRUE, 'c', 6, 6, 7, 6, DB_SET_RANGE);
+    cget(TRUE, TRUE, 'c', i*6, i*6, i*7, i*6, flag);
     close_dbs();
 }
 
 static void
-test_both_range (u_int32_t dup_flags) {
+test_both_range (u_int32_t dup_flags, u_int32_t flag, int i) {
     if (dup_flags == 0) {
-      test_both(dup_flags, DB_GET_BOTH_RANGE);
+      test_both(dup_flags, flag);
       return;
     }
     /* ********************************************************************** */
     setup_dbs(dup_flags);
-    cget(TRUE, FALSE, 'a', 1, 1, 0, 0, DB_GET_BOTH_RANGE);
+    cget(TRUE, FALSE, 'a', i*1, i*1, 0, 0, flag);
     close_dbs();
     /* ********************************************************************** */
     setup_dbs(dup_flags);
-    cget(TRUE, FALSE, 'a', 1, 1, 0, 0, DB_GET_BOTH_RANGE);
-    cget(TRUE, FALSE, 'a', 2, 1, 0, 0, DB_GET_BOTH_RANGE);
+    cget(TRUE, FALSE, 'a', i*1, i*1, 0, 0, flag);
+    cget(TRUE, FALSE, 'a', i*2, i*1, 0, 0, flag);
     close_dbs();
     /* ********************************************************************** */
     setup_dbs(dup_flags);
-    cget(TRUE, FALSE, 'a', 1, 1, 0, 0, DB_GET_BOTH_RANGE);
-    cget(TRUE, FALSE, 'a', 1, 1, 0, 0, DB_GET_BOTH_RANGE);
+    cget(TRUE, FALSE, 'a', i*1, i*1, 0, 0, flag);
+    cget(TRUE, FALSE, 'a', i*1, i*1, 0, 0, flag);
     close_dbs();
     /* ********************************************************************** */
     setup_dbs(dup_flags);
-    cget(TRUE, FALSE, 'a', 1, 1, 0, 0, DB_GET_BOTH_RANGE);
-    cget(TRUE, FALSE, 'b', 2, 1, 0, 0, DB_GET_BOTH_RANGE);
+    cget(TRUE, FALSE, 'a', i*1, i*1, 0, 0, flag);
+    cget(TRUE, FALSE, 'b', i*2, i*1, 0, 0, flag);
     close_dbs();
     /* ********************************************************************** */
     setup_dbs(dup_flags);
-    cget(TRUE, FALSE, 'a', 1, 1, 0, 0, DB_GET_BOTH_RANGE);
-    cget(TRUE, FALSE, 'b', 1, 1, 0, 0, DB_GET_BOTH_RANGE);
+    cget(TRUE, FALSE, 'a', i*1, i*1, 0, 0, flag);
+    cget(TRUE, FALSE, 'b', i*1, i*1, 0, 0, flag);
     close_dbs();
     /* ********************************************************************** */
     setup_dbs(dup_flags);
-    cget(TRUE, FALSE, 'a', 1, 1, 0, 0, DB_GET_BOTH_RANGE);
-    cget(TRUE, FALSE, 'b', 5, 5, 0, 0, DB_GET_BOTH_RANGE);
-    put(TRUE, 'a', 5, 0);
-    put(FALSE, 'a', 5, 5);
-    put(FALSE, 'a', 5, 6);
-    put(TRUE,  'a', 6, 0);
-    put(TRUE,  'b', 1, 0);
+    cget(TRUE, FALSE, 'a', i*1, i*1, 0, 0, flag);
+    cget(TRUE, FALSE, 'b', i*5, i*5, 0, 0, flag);
+    put(TRUE, 'a', i*5, 0);
+    put(FALSE, 'a', i*5, i*5);
+    put(FALSE, 'a', i*5, i*6);
+    put(TRUE,  'a', i*6, 0);
+    put(TRUE,  'b', i*1, 0);
     early_commit('b');
-    put(TRUE, 'a', 5, 0);
-    put(TRUE, 'a', 5, 5);
-    put(TRUE, 'a', 5, 6);
-    put(TRUE,  'a', 6, 0);
-    cget(TRUE, FALSE, 'a', 1, 1, 4, 4, DB_GET_BOTH_RANGE);
-    cget(TRUE,  TRUE, 'a', 1, 0, 1, 0, DB_GET_BOTH_RANGE);
-    cget(FALSE, TRUE, 'c', 5, 5, 5, 5, DB_GET_BOTH_RANGE);
+    put(TRUE, 'a', i*5, 0);
+    put(TRUE, 'a', i*5, i*5);
+    put(TRUE, 'a', i*5, i*6);
+    put(TRUE,  'a', i*6, 0);
+    cget(TRUE, FALSE, 'a', i*1, i*1, i*4, i*4, flag);
+    cget(TRUE,  TRUE, 'a', i*1, 0, i*1, 0, flag);
+    cget(FALSE, TRUE, 'c', i*5, i*5, i*5, i*5, flag);
     early_commit('a');
-    cget(TRUE, TRUE, 'c', 5, 5, 5, 5, DB_GET_BOTH_RANGE);
+    cget(TRUE, TRUE, 'c', i*5, i*5, i*5, i*5, flag);
     close_dbs();
 }
 
@@ -657,9 +657,15 @@ test (u_int32_t dup_flags) {
     /* ********************************************************************** */
     test_last(dup_flags);
     /* ********************************************************************** */
-    test_set_range(dup_flags);
+    test_set_range(dup_flags, DB_SET_RANGE, 1);
+#ifdef DB_SET_RANGE_REVERSE
+    test_set_range(dup_flags, DB_SET_RANGE_REVERSE, -1);
+#endif
     /* ********************************************************************** */
-    test_both_range(dup_flags);
+    test_both_range(dup_flags, DB_GET_BOTH_RANGE, 1);
+#ifdef DB_GET_BOTH_RANGE_REVERSE
+    test_both_range(dup_flags, DB_GET_BOTH_RANGE_REVERSE, -1);
+#endif
     /* ********************************************************************** */
     test_next(dup_flags, DB_NEXT);
     test_next(dup_flags, DB_NEXT_NODUP);

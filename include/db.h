@@ -108,6 +108,8 @@ typedef enum {
 #define DB_SET 26
 #define DB_SET_RANGE 27
 #define DB_CURRENT_BINDING 253
+#define DB_SET_RANGE_REVERSE 252
+#define DB_GET_BOTH_RANGE_REVERSE 251
 #define DB_RMW 1073741824
 #define DB_PRELOCKED 0x00800000
 #define DB_PRELOCKED_WRITE 0x00400000
@@ -263,8 +265,10 @@ struct __toku_dbc {
   int (*c_getf_heaviside)(DBC *, u_int32_t, YDB_HEAVISIDE_CALLBACK_FUNCTION f, void *extra_f, YDB_HEAVISIDE_FUNCTION h, void *extra_h, int direction);
   int (*c_getf_set)(DBC *, u_int32_t, DBT *, YDB_CALLBACK_FUNCTION, void *);
   int (*c_getf_set_range)(DBC *, u_int32_t, DBT *, YDB_CALLBACK_FUNCTION, void *);
+  int (*c_getf_set_range_reverse)(DBC *, u_int32_t, DBT *, YDB_CALLBACK_FUNCTION, void *);
   int (*c_getf_get_both)(DBC *, u_int32_t, DBT *, DBT *, YDB_CALLBACK_FUNCTION, void *);
   int (*c_getf_get_both_range)(DBC *, u_int32_t, DBT *, DBT *, YDB_CALLBACK_FUNCTION, void *);
+  int (*c_getf_get_both_range_reverse)(DBC *, u_int32_t, DBT *, DBT *, YDB_CALLBACK_FUNCTION, void *);
   int (*c_close) (DBC *);
   int (*c_count) (DBC *, db_recno_t *, u_int32_t);
   int (*c_del) (DBC *, u_int32_t);

@@ -4078,6 +4078,21 @@ toku_brt_cursor_get_both_range(BRT_CURSOR cursor, DBT *key, DBT *val, BRT_GET_CA
     return brt_cursor_search_eq_k_x(cursor, &search, getf, getf_v, logger);
 }
 
+static int brt_cursor_compare_get_both_range_reverse(brt_search_t *search, DBT *x, DBT *y) {
+    BRT brt = search->context;
+    int keycmp = compare_k_x(brt, search->k, x);
+    if (keycmp > 0)
+        return 1;
+    else
+        return keycmp == 0 && (y == 0 || compare_v_y(brt, search->v, y) >= 0); /* return min xy: k >= x && v >= y */
+}
+
+int
+toku_brt_cursor_get_both_range_reverse(BRT_CURSOR cursor, DBT *key, DBT *val, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v, TOKULOGGER logger)
+{
+    brt_search_t search; brt_search_init(&search, brt_cursor_compare_get_both_range_reverse, BRT_SEARCH_RIGHT, key, val, cursor->brt);
+    return brt_cursor_search_eq_k_x(cursor, &search, getf, getf_v, logger);
+}
 
 static int
 brt_cursor_prev_shortcut (BRT_CURSOR cursor, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v)
@@ -4166,6 +4181,19 @@ toku_brt_cursor_set_range(BRT_CURSOR cursor, DBT *key, BRT_GET_CALLBACK_FUNCTION
     brt_search_t search; brt_search_init(&search, brt_cursor_compare_set_range, BRT_SEARCH_LEFT, key, NULL, cursor->brt);
     return brt_cursor_search(cursor, &search, getf, getf_v, logger);
 }
+
+static int brt_cursor_compare_set_range_reverse(brt_search_t *search, DBT *x, DBT *y) {
+    BRT brt = search->context;
+    return compare_kv_xy(brt, search->k, search->v, x, y) >= 0; /* return kv >= xy */
+}
+
+int
+toku_brt_cursor_set_range_reverse(BRT_CURSOR cursor, DBT *key, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v, TOKULOGGER logger)
+{
+    brt_search_t search; brt_search_init(&search, brt_cursor_compare_set_range_reverse, BRT_SEARCH_RIGHT, key, NULL, cursor->brt);
+    return brt_cursor_search(cursor, &search, getf, getf_v, logger);
+}
+
 
 //TODO: When tests have been rewritten, get rid of this function.
 //Only used by tests.
