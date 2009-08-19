@@ -113,16 +113,27 @@ parse_arguments() {
 
 MY_PWD=`pwd`
 # Check for the directories we would expect from a binary release install
-if test -f ./share/mysql/english/errmsg.sys -a -x ./bin/mysqld
+if test -n "$MY_BASEDIR_VERSION" -a -d "$MY_BASEDIR_VERSION"
+then
+  # BASEDIR is already overridden on command line.  Do not re-set.
+
+  # Use BASEDIR to discover le.
+  if test -x "$MY_BASEDIR_VERSION/libexec/mysqld"
+  then
+    ledir="$MY_BASEDIR_VERSION/libexec"
+  else
+    ledir="$MY_BASEDIR_VERSION/bin"
+  fi
+elif test -f ./share/mysql/english/errmsg.sys -a -x "$MY_PWD/bin/mysqld"
 then
   MY_BASEDIR_VERSION=$MY_PWD		# Where bin, share and data are
   ledir=$MY_BASEDIR_VERSION/bin		# Where mysqld is
+  ledir="$MY_PWD/bin"			# Where mysqld is
 # Check for the directories we would expect from a source install
-elif test -f ./share/mysql/english/errmsg.sys -a \
- -x ./libexec/mysqld
+elif test -f ./share/mysql/english/errmsg.sys -a -x "$MY_PWD/libexec/mysqld"
 then
   MY_BASEDIR_VERSION=$MY_PWD		# Where libexec, share and var are
-  ledir=$MY_BASEDIR_VERSION/libexec	# Where mysqld is
+  ledir="$MY_PWD/libexec"		# Where mysqld is
 # Since we didn't find anything, used the compiled-in defaults
 else
   MY_BASEDIR_VERSION=@prefix@
@@ -181,7 +192,10 @@ err_log=
 
 # Get first arguments from the my.cnf file, groups [mysqld] and [mysqld_safe]
 # and then merge with the command line arguments
-if test -x ./bin/my_print_defaults
+if test -x "$MY_BASEDIR_VERSION/bin/my_print_defaults"
+then
+  print_defaults="$MY_BASEDIR_VERSION/bin/my_print_defaults"
+elif test -x ./bin/my_print_defaults
 then
   print_defaults="./bin/my_print_defaults"
 elif test -x @bindir@/my_print_defaults
