@@ -3440,12 +3440,17 @@ void do_diff_files(struct st_command *command)
     die("command \"diff_files\" failed, file '%s' does not exist",
         ds_filename2.str);
 
-  if ((error= compare_files(ds_filename.str, ds_filename2.str)))
+  if ((error= compare_files(ds_filename.str, ds_filename2.str)) &&
+      match_expected_error(command, error, NULL) < 0)
   {
     /* Compare of the two files failed, append them to output
-       so the failure can be analyzed
+       so the failure can be analyzed, but only if it was not
+       expected to fail.
     */
     show_diff(&ds_res, ds_filename.str, ds_filename2.str);
+    log_file.write(&ds_res);
+    log_file.flush();
+    dynstr_set(&ds_res, 0);
   }
 
   dynstr_free(&ds_filename);
