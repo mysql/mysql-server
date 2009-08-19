@@ -2010,9 +2010,6 @@ static int has_temporary_error(THD *thd)
 {
   DBUG_ENTER("has_temporary_error");
 
-  if (thd->is_fatal_error)
-    DBUG_RETURN(0);
-
   DBUG_EXECUTE_IF("all_errors_are_temporary_errors",
                   if (thd->main_da.is_error())
                   {
