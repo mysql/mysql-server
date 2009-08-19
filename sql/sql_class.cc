@@ -3942,7 +3942,8 @@ show_query_type(THD::enum_binlog_query_type qtype)
 /**
   Auxiliary method used by @c binlog_query() to raise warnings.
 
-  @param err An ER_BINLOG_UNSAFE_* constant; the warning to print.
+  The type of warning and the type of unsafeness is stored in
+  THD::binlog_unsafe_warning_flags.
 */
 void THD::issue_unsafe_warnings()
 {
@@ -3958,15 +3959,15 @@ void THD::issue_unsafe_warnings()
     @note The order of the elements of this array must correspond to
     the order of elements in enum_binlog_stmt_unsafe.
   */
-  static const char *explanations[LEX::BINLOG_STMT_UNSAFE_COUNT] =
+  static const int explanations[LEX::BINLOG_STMT_UNSAFE_COUNT] =
   {
-    "Statement uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.",
-    "Statement uses INSERT DELAYED. This is unsafe because the time when rows are inserted cannot be predicted.",
-    "Statement uses the general_log or slow_log table. This is unsafe because system tables may differ on slave.",
-    "Statement updates two AUTO_INCREMENT columns. This is unsafe because the generated value cannot be predicted by slave.",
-    "Statement uses a UDF. It cannot be determined if the UDF will return the same value on slave.",
-    "Statement uses a system variable whose value may differ on slave.",
-    "Statement uses a system function whose value may differ on slave."
+    ER_BINLOG_UNSAFE_LIMIT,
+    ER_BINLOG_UNSAFE_INSERT_DELAYED,
+    ER_BINLOG_UNSAFE_SYSTEM_TABLE,
+    ER_BINLOG_UNSAFE_TWO_AUTOINC_COLUMNS,
+    ER_BINLOG_UNSAFE_UDF,
+    ER_BINLOG_UNSAFE_SYSTEM_VARIABLE,
+    ER_BINLOG_UNSAFE_SYSTEM_FUNCTION
   };
   uint32 flags= binlog_unsafe_warning_flags;
   /* No warnings (yet) for this statement. */
@@ -3977,7 +3978,7 @@ void THD::issue_unsafe_warnings()
   uint32 unsafe_type_flags= flags >> BINLOG_STMT_WARNING_COUNT;
   DBUG_ASSERT((unsafe_type_flags & LEX::BINLOG_STMT_UNSAFE_ALL_FLAGS) != 0);
   /*
-    Clear (1) bits above BINLOG_STMT_UNSAFE_COUNT; (2) bits for
+    Clear: (1) bits above BINLOG_STMT_UNSAFE_COUNT; (2) bits for
     warnings that have been printed already.
   */
   unsafe_type_flags &= (LEX::BINLOG_STMT_UNSAFE_ALL_FLAGS ^
@@ -4010,10 +4011,10 @@ void THD::issue_unsafe_warnings()
     if ((unsafe_type_flags & (1 << unsafe_type)) != 0)
     {
       push_warning_printf(this, MYSQL_ERROR::WARN_LEVEL_NOTE, err,
-                          "%s Reason: %s",
-                          ER(err), explanations[unsafe_type]);
-      sql_print_warning("%s Reason: %s Statement: %s",
-                        ER(err), explanations[unsafe_type], query);
+                          ER(ER_BINLOG_UNSAFE_WARNING_SHORT),
+                          ER(err), ER(explanations[unsafe_type]));
+      sql_print_warning(ER(ER_BINLOG_UNSAFE_WARNING_LONG),
+                        ER(err), ER(explanations[unsafe_type]), query);
     }
   }
   /*
