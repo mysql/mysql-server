@@ -3811,14 +3811,23 @@ cleanup:
 int ha_tokudb::index_first(uchar * buf) {
     TOKUDB_DBUG_ENTER("ha_tokudb::index_first");
     int error;
-    DBT row;
+    struct smart_dbt_info info;
+    u_int32_t flags = SET_READ_FLAG(0);
     HANDLE_INVALID_CURSOR();
-    statistic_increment(table->in_use->status_var.ha_read_first_count, &LOCK_status);
-    bzero((void *) &row, sizeof(row));
 
-    error = handle_cursor_error(cursor->c_get(cursor, &last_key, &row, DB_FIRST),HA_ERR_END_OF_FILE,active_index);
-    if (!error) {
-        error = read_row(buf, active_index, &row, &last_key);
+    statistic_increment(table->in_use->status_var.ha_read_first_count, &LOCK_status);
+
+    info.ha = this;
+    info.buf = buf;
+    info.keynr = active_index;
+
+    error = handle_cursor_error(cursor->c_getf_first(cursor, flags, SMART_DBT_CALLBACK, &info),HA_ERR_END_OF_FILE,active_index);
+    //
+    // still need to get entire contents of the row if operation done on
+    // secondary DB and it was NOT a covering index
+    //
+    if (!error && !key_read && (active_index != primary_key) && !(table->key_info[active_index].flags & HA_CLUSTERING) ) {
+        error = read_full_row(buf);
     }
 
 cleanup:
@@ -3837,14 +3846,23 @@ cleanup:
 int ha_tokudb::index_last(uchar * buf) {
     TOKUDB_DBUG_ENTER("ha_tokudb::index_last");
     int error;
-    DBT row;
+    struct smart_dbt_info info;
+    u_int32_t flags = SET_READ_FLAG(0);
     HANDLE_INVALID_CURSOR();
-    statistic_increment(table->in_use->status_var.ha_read_last_count, &LOCK_status);
-    bzero((void *) &row, sizeof(row));
 
-    error = handle_cursor_error(cursor->c_get(cursor, &last_key, &row, DB_LAST),HA_ERR_END_OF_FILE,active_index);
-    if (!error) {
-        error = read_row(buf, active_index, &row, &last_key);
+    statistic_increment(table->in_use->status_var.ha_read_last_count, &LOCK_status);
+
+    info.ha = this;
+    info.buf = buf;
+    info.keynr = active_index;
+
+    error = handle_cursor_error(cursor->c_getf_last(cursor, flags, SMART_DBT_CALLBACK, &info),HA_ERR_END_OF_FILE,active_index);
+    //
+    // still need to get entire contents of the row if operation done on
+    // secondary DB and it was NOT a covering index
+    //
+    if (!error && !key_read && (active_index != primary_key) && !(table->key_info[active_index].flags & HA_CLUSTERING) ) {
+        error = read_full_row(buf);
     }
 cleanup:
     TOKUDB_DBUG_RETURN(error);
