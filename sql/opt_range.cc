@@ -2063,7 +2063,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
     KEY *key_info;
     PARAM param;
 
-    if (check_stack_overrun(thd, 2*STACK_MIN_SIZE, buff))
+    if (check_stack_overrun(thd, 2*STACK_MIN_SIZE + sizeof(PARAM), buff))
       DBUG_RETURN(0);                           // Fatal error flag is set
 
     /* set up parameter that is passed to all functions */
