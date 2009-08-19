@@ -7213,7 +7213,7 @@ function_call_keyword:
             $$= new (YYTHD->mem_root) Item_func_current_user(Lex->current_context());
             if ($$ == NULL)
               MYSQL_YYABORT;
-            Lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_FUNCTION);
+            Lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
             Lex->safe_to_cache_query= 0;
           }
         | DATE_SYM '(' expr ')'
@@ -7368,7 +7368,7 @@ function_call_keyword:
             $$= new (YYTHD->mem_root) Item_func_user();
             if ($$ == NULL)
               MYSQL_YYABORT;
-            Lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_FUNCTION);
+            Lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
             Lex->safe_to_cache_query=0;
           }
         | YEAR_SYM '(' expr ')'

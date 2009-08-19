@@ -1087,7 +1087,7 @@ public:
     /**
       Using some functions is unsafe (e.g., UUID).
     */
-    BINLOG_STMT_UNSAFE_FUNCTION,
+    BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION,
 
     /* The last element of this enumeration type. */
     BINLOG_STMT_UNSAFE_COUNT
