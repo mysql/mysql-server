@@ -147,7 +147,7 @@ class Value_dep : public Sql_alloc
 {
 public:
   Value_dep(): bound(FALSE), next(NULL) {}
-  virtual void now_bound(Func_dep_analyzer *te, Module_dep **bound_modules)=0;
+  virtual void now_bound(Func_dep_analyzer *fda, Module_dep **bound_modules)=0;
   virtual ~Value_dep() {} /* only to shut up compiler warnings */
 
   bool bound;
@@ -182,8 +182,8 @@ public:
     - unique keys we belong to
     - expressions that depend on us.
   */
-  void now_bound(Func_dep_analyzer *te, Module_dep **bound_modules);
-  void signal_from_field_to_exprs(Func_dep_analyzer* te, 
+  void now_bound(Func_dep_analyzer *fda, Module_dep **bound_modules);
+  void signal_from_field_to_exprs(Func_dep_analyzer* fda, 
                                   Module_dep **bound_modules);
 };
 
@@ -203,7 +203,7 @@ public:
   Field_value *fields; /* Ordered list of fields that belong to this table */
   Key_module *keys; /* Ordered list of Unique keys in this table */
   //Outer_join_module *outer_join_dep;
-  void now_bound(Func_dep_analyzer *te, Module_dep **bound_modules);
+  void now_bound(Func_dep_analyzer *fda, Module_dep **bound_modules);
 };
 
 
@@ -218,7 +218,7 @@ public:
     MODULE_OUTER_JOIN
   } type; /* Type of the object */
   
-  virtual bool now_bound(Func_dep_analyzer *te, Value_dep **bound_modules)=0;
+  virtual bool now_bound(Func_dep_analyzer *fda, Value_dep **bound_modules)=0;
   virtual ~Module_dep(){}
   /* 
     Used to make a linked list of elements that became bound and thus can
@@ -243,7 +243,7 @@ public:
   
   /* Used during condition analysis only, similar to KEYUSE::level */
   uint level;
-  bool now_bound(Func_dep_analyzer *te, Value_dep **bound_values);
+  bool now_bound(Func_dep_analyzer *fda, Value_dep **bound_values);
 };
 
 
@@ -264,7 +264,7 @@ public:
   uint keyno;
   /* Unique keys form a linked list, ordered by keyno */
   Key_module *next_table_key;
-  bool now_bound(Func_dep_analyzer *te, Value_dep **bound_values);
+  bool now_bound(Func_dep_analyzer *fda, Value_dep **bound_values);
 };
 
 
@@ -280,7 +280,7 @@ public:
   {
     unknown_args= n_children;
   }
-  bool now_bound(Func_dep_analyzer *te, Value_dep **bound_values);
+  bool now_bound(Func_dep_analyzer *fda, Value_dep **bound_values);
 };
 
 
@@ -301,9 +301,9 @@ public:
   table_map usable_tables;
   
   /* Array of equality dependencies */
-  Equality_module *equality_deps;
-  uint n_equality_deps; /* Number of elements in the array */
-  uint n_equality_deps_alloced;
+  Equality_module *equality_mods;
+  uint n_equality_mods; /* Number of elements in the array */
+  uint n_equality_mods_alloced;
 
   /* tablenr -> Table_value* mapping. */
   Table_value *table_deps[MAX_KEY];
@@ -331,10 +331,10 @@ bool check_func_dependency(JOIN *join,
                            Item* cond);
 
 static 
-bool build_eq_deps_for_cond(Func_dep_analyzer *te, Equality_module **fdeps, 
+void build_eq_mods_for_cond(Func_dep_analyzer *fda, Equality_module **fdeps, 
                             uint *and_level, Item *cond);
 static 
-bool add_eq_dep(Func_dep_analyzer *te, Equality_module **eq_dep, 
+void add_eq_mod(Func_dep_analyzer *fda, Equality_module **eq_mod, 
                 uint and_level,
                 Item_func *cond, Item *left, Item *right);
 static 
@@ -342,14 +342,14 @@ Equality_module *merge_func_deps(Equality_module *start,
                                  Equality_module *new_fields, 
                                  Equality_module *end, uint and_level);
 
-static Table_value *get_table_value(Func_dep_analyzer *te, TABLE *table);
-static Field_value *get_field_value(Func_dep_analyzer *te, Field *field);
+static Table_value *get_table_value(Func_dep_analyzer *fda, TABLE *table);
+static Field_value *get_field_value(Func_dep_analyzer *fda, Field *field);
 static void mark_as_eliminated(JOIN *join, TABLE_LIST *tbl);
 
 
 
 #ifndef DBUG_OFF
-static void dbug_print_deps(Func_dep_analyzer *te);
+static void dbug_print_deps(Func_dep_analyzer *fda);
 #endif 
 
 /*******************************************************************************************/
@@ -358,17 +358,18 @@ static void dbug_print_deps(Func_dep_analyzer *te);
   Produce Eq_dep elements for given condition.
 
   SYNOPSIS
-    build_eq_deps_for_cond()
-      te                    Table elimination context 
+    build_eq_mods_for_cond()
+      fda                    Table elimination context 
       fdeps          INOUT  Put produced equality conditions here
       and_level      INOUT  AND-level (like in add_key_fields)
       cond                  Condition to process
+
   DESCRIPTION
     This function is modeled after add_key_fields()
 */
 
 static 
-bool build_eq_deps_for_cond(Func_dep_analyzer *te, Equality_module **fdeps, 
+void build_eq_mods_for_cond(Func_dep_analyzer *fda, Equality_module **fdeps, 
                             uint *and_level, Item *cond)
 {
   if (cond->type() == Item_func::COND_ITEM)
@@ -381,34 +382,29 @@ bool build_eq_deps_for_cond(Func_dep_analyzer *te, Equality_module **fdeps,
     {
       Item *item;
       while ((item=li++))
-      {
-        if (build_eq_deps_for_cond(te, fdeps, and_level, item))
-          return TRUE;
-      }
+        build_eq_mods_for_cond(fda, fdeps, and_level, item);
       for (; org_key_fields != *fdeps ; org_key_fields++)
         org_key_fields->level= *and_level;
     }
     else
     {
-      (*and_level)++;
-      if (build_eq_deps_for_cond(te, fdeps, and_level, li++))
-        return TRUE;
       Item *item;
+      (*and_level)++;
+      build_eq_mods_for_cond(fda, fdeps, and_level, li++);
       while ((item=li++))
       {
         Equality_module *start_key_fields= *fdeps;
         (*and_level)++;
-        if (build_eq_deps_for_cond(te, fdeps, and_level, item))
-          return TRUE;
+        build_eq_mods_for_cond(fda, fdeps, and_level, item);
         *fdeps= merge_func_deps(org_key_fields, start_key_fields, *fdeps,
                                 ++(*and_level));
       }
     }
-    return FALSE;
+    return;
   }
 
   if (cond->type() != Item::FUNC_ITEM)
-    return FALSE;
+    return;
 
   Item_func *cond_func= (Item_func*) cond;
   Item **args= cond_func->arguments();
@@ -418,10 +414,10 @@ bool build_eq_deps_for_cond(Func_dep_analyzer *te, Equality_module **fdeps,
   {
     if (cond_func->argument_count() == 2)
     {
-      if (add_eq_dep(te, fdeps, *and_level, cond_func, args[0], args[1]) || 
-          add_eq_dep(te, fdeps, *and_level, cond_func, args[1], args[0]))
-        return TRUE;
+      add_eq_mod(fda, fdeps, *and_level, cond_func, args[0], args[1]);
+      add_eq_mod(fda, fdeps, *and_level, cond_func, args[1], args[0]);
     }
+    break;
   }
   case Item_func::BETWEEN:
   {
@@ -430,24 +426,23 @@ bool build_eq_deps_for_cond(Func_dep_analyzer *te, Equality_module **fdeps,
         (fld= args[0]->real_item())->type() == Item::FIELD_ITEM &&
         args[1]->eq(args[2], ((Item_field*)fld)->field->binary()))
     {
-      if (add_eq_dep(te, fdeps, *and_level, cond_func, args[0], args[1]) || 
-          add_eq_dep(te, fdeps, *and_level, cond_func, args[1], args[0]))
-        return TRUE;
+      add_eq_mod(fda, fdeps, *and_level, cond_func, args[0], args[1]);
+      add_eq_mod(fda, fdeps, *and_level, cond_func, args[1], args[0]);
     }
     break;
   }
   case Item_func::EQ_FUNC:
   case Item_func::EQUAL_FUNC:
   {
-    add_eq_dep(te, fdeps, *and_level, cond_func, args[0], args[1]);
-    add_eq_dep(te, fdeps, *and_level, cond_func, args[1], args[0]);
+    add_eq_mod(fda, fdeps, *and_level, cond_func, args[0], args[1]);
+    add_eq_mod(fda, fdeps, *and_level, cond_func, args[1], args[0]);
     break;
   }
   case Item_func::ISNULL_FUNC:
   {
     Item *tmp=new Item_null;
-    if (!tmp || add_eq_dep(te, fdeps, *and_level, cond_func, args[0], args[1]))
-      return TRUE;
+    if (tmp)
+      add_eq_mod(fda, fdeps, *and_level, cond_func, args[0], args[1]);
     break;
   }
   case Item_func::MULT_EQUAL_FUNC:
@@ -462,12 +457,9 @@ bool build_eq_deps_for_cond(Func_dep_analyzer *te, Equality_module **fdeps,
         For each field field1 from item_equal consider the equality 
         field1=const_item as a condition allowing an index access of the table
         with field1 by the keys value of field1.
-      */   
+      */
       while ((item= it++))
-      {
-        if (add_eq_dep(te, fdeps, *and_level, cond_func, item, const_item))
-          return TRUE;
-      }
+        add_eq_mod(fda, fdeps, *and_level, cond_func, item, const_item);
     }
     else 
     {
@@ -485,10 +477,7 @@ bool build_eq_deps_for_cond(Func_dep_analyzer *te, Equality_module **fdeps,
         while ((item2= it++))
         {
           if (!field->eq(item2->field))
-          {
-            if (add_eq_dep(te, fdeps, *and_level, cond_func, item, item2))
-              return TRUE;
-          }
+            add_eq_mod(fda, fdeps, *and_level, cond_func, item, item2);
         }
         it.rewind();
       }
@@ -498,7 +487,6 @@ bool build_eq_deps_for_cond(Func_dep_analyzer *te, Equality_module **fdeps,
   default:
     break;
   }
-  return FALSE;
 }
 
 
@@ -624,8 +612,8 @@ Equality_module *merge_func_deps(Equality_module *start, Equality_module *new_fi
   Add an Equality_module element for left=right condition
 
   SYNOPSIS
-    add_eq_dep()
-      te                Table elimination context
+    add_eq_mod()
+      fda               Table elimination context
       eq_mod     INOUT  Store created Equality_module here and increment ptr if
                         you do so
       and_level         AND-level ()
@@ -645,10 +633,10 @@ Equality_module *merge_func_deps(Equality_module *start, Equality_module *new_fi
 */
 
 static 
-bool add_eq_dep(Func_dep_analyzer *te, Equality_module **eq_mod,
+void add_eq_mod(Func_dep_analyzer *fda, Equality_module **eq_mod,
                 uint and_level, Item_func *cond, Item *left, Item *right)
 {
-  if ((left->used_tables() & te->usable_tables) &&
+  if ((left->used_tables() & fda->usable_tables) &&
       !(right->used_tables() & RAND_TABLE_BIT) &&
       left->real_item()->type() == Item::FIELD_ITEM)
   {
@@ -658,7 +646,7 @@ bool add_eq_dep(Func_dep_analyzer *te, Equality_module **eq_mod,
       if (right->result_type() != STRING_RESULT)
       {
         if (field->cmp_type() != right->result_type())
-          return FALSE;
+          return;
       }
       else
       {
@@ -668,17 +656,33 @@ bool add_eq_dep(Func_dep_analyzer *te, Equality_module **eq_mod,
         */
         if (field->cmp_type() == STRING_RESULT &&
             ((Field_str*)field)->charset() != cond->compare_collation())
-          return FALSE;
+          return;
       }
     }
+    
+    if (*eq_mod == fda->equality_mods + fda->n_equality_mods_alloced)
+    {
+      /* 
+        We've filled the entire equality_mods array. Replace it with a bigger
+        one. We do it somewhat inefficiently but it doesn't matter.
+      */
+      Equality_module *new_arr;
+      if (!(new_arr= new Equality_module[fda->n_equality_mods_alloced *2]))
+        return;
+      fda->n_equality_mods_alloced *= 2;
+      for (int i= 0; i < *eq_mod - fda->equality_mods; i++)
+        new_arr[i]= fda->equality_mods[i];
 
-    if (!((*eq_mod)->field= get_field_value(te, field)))
-      return TRUE;
+      fda->equality_mods= new_arr;
+      *eq_mod= new_arr + (*eq_mod - fda->equality_mods);
+    }
+
+    if (!((*eq_mod)->field= get_field_value(fda, field)))
+      return;
     (*eq_mod)->expression= right;
     (*eq_mod)->level= and_level;
     (*eq_mod)++;
   }
-  return FALSE;
 }
 
 
@@ -686,7 +690,7 @@ bool add_eq_dep(Func_dep_analyzer *te, Equality_module **eq_mod,
   Get a Table_value object for the given table, creating it if necessary.
 */
 
-static Table_value *get_table_value(Func_dep_analyzer *te, TABLE *table)
+static Table_value *get_table_value(Func_dep_analyzer *fda, TABLE *table)
 {
   Table_value *tbl_dep;
   if (!(tbl_dep= new Table_value(table)))
@@ -704,7 +708,7 @@ static Table_value *get_table_value(Func_dep_analyzer *te, TABLE *table)
       key_list= &(key_dep->next_table_key);
     }
   }
-  return te->table_deps[table->tablenr]= tbl_dep;
+  return fda->table_deps[table->tablenr]= tbl_dep;
 }
 
 
@@ -712,15 +716,15 @@ static Table_value *get_table_value(Func_dep_analyzer *te, TABLE *table)
   Get a Field_value object for the given field, creating it if necessary
 */
 
-static Field_value *get_field_value(Func_dep_analyzer *te, Field *field)
+static Field_value *get_field_value(Func_dep_analyzer *fda, Field *field)
 {
   TABLE *table= field->table;
   Table_value *tbl_dep;
 
   /* First, get the table*/
-  if (!(tbl_dep= te->table_deps[table->tablenr]))
+  if (!(tbl_dep= fda->table_deps[table->tablenr]))
   {
-    if (!(tbl_dep= get_table_value(te, table)))
+    if (!(tbl_dep= get_table_value(fda, table)))
       return NULL;
   }
  
@@ -750,13 +754,13 @@ static Field_value *get_field_value(Func_dep_analyzer *te, Field *field)
 class Field_dependency_recorder : public Field_enumerator
 {
 public:
-  Field_dependency_recorder(Func_dep_analyzer *te_arg): te(te_arg)
+  Field_dependency_recorder(Func_dep_analyzer *te_arg): fda(te_arg)
   {}
   
   void see_field(Field *field)
   {
     Table_value *tbl_dep;
-    if ((tbl_dep= te->table_deps[field->table->tablenr]))
+    if ((tbl_dep= fda->table_deps[field->table->tablenr]))
     {
       for (Field_value *field_dep= tbl_dep->fields; field_dep; 
            field_dep= field_dep->next_table_field)
@@ -764,9 +768,9 @@ public:
         if (field->field_index == field_dep->field->field_index)
         {
           uint offs= field_dep->bitmap_offset + expr_offset;
-          if (!bitmap_is_set(&te->expr_deps, offs))
-            te->equality_deps[expr_offset].unknown_args++;
-          bitmap_set_bit(&te->expr_deps, offs);
+          if (!bitmap_is_set(&fda->expr_deps, offs))
+            fda->equality_mods[expr_offset].unknown_args++;
+          bitmap_set_bit(&fda->expr_deps, offs);
           return;
         }
       }
@@ -776,11 +780,11 @@ public:
         Bump the dependency anyway, this will signal that this dependency
         cannot be satisfied.
       */
-      te->equality_deps[expr_offset].unknown_args++;
+      fda->equality_mods[expr_offset].unknown_args++;
     }
   }
 
-  Func_dep_analyzer *te;
+  Func_dep_analyzer *fda;
   /* Offset of the expression we're processing in the dependency bitmap */
   uint expr_offset; 
 };
@@ -791,7 +795,7 @@ public:
  
   SYNOPSIS
     setup_equality_modules_deps()
-      te                    Table elimination context
+      fda                    Table elimination context
       bound_deps_list  OUT  Start of linked list of elements that were found to
                             be bound (caller will use this to see if that
                             allows to declare further elements bound)
@@ -807,7 +811,7 @@ public:
 */
 
 static 
-bool setup_equality_modules_deps(Func_dep_analyzer *te, 
+bool setup_equality_modules_deps(Func_dep_analyzer *fda, 
                                  Module_dep **bound_deps_list)
 {
   DBUG_ENTER("setup_equality_modules_deps");
@@ -817,8 +821,8 @@ bool setup_equality_modules_deps(Func_dep_analyzer *te,
     value.
   */
   uint offset= 0;
-  for (Table_value **tbl_dep=te->table_deps; 
-       tbl_dep < te->table_deps + MAX_TABLES;
+  for (Table_value **tbl_dep=fda->table_deps; 
+       tbl_dep < fda->table_deps + MAX_TABLES;
        tbl_dep++)
   {
     if (*tbl_dep)
@@ -828,39 +832,39 @@ bool setup_equality_modules_deps(Func_dep_analyzer *te,
            field_dep= field_dep->next_table_field)
       {
         field_dep->bitmap_offset= offset;
-        offset += te->n_equality_deps;
+        offset += fda->n_equality_mods;
       }
     }
   }
  
   void *buf;
   if (!(buf= current_thd->alloc(bitmap_buffer_size(offset))) ||
-      bitmap_init(&te->expr_deps, (my_bitmap_map*)buf, offset, FALSE))
+      bitmap_init(&fda->expr_deps, (my_bitmap_map*)buf, offset, FALSE))
   {
     DBUG_RETURN(TRUE);
   }
-  bitmap_clear_all(&te->expr_deps);
+  bitmap_clear_all(&fda->expr_deps);
 
   /* 
-    Analyze all "field=expr" dependencies, and have te->expr_deps encode
+    Analyze all "field=expr" dependencies, and have fda->expr_deps encode
     dependencies of expressions from fields.
 
     Also collect a linked list of equalities that are bound.
   */
   Module_dep *bound_dep= NULL;
-  Field_dependency_recorder deps_recorder(te);
-  for (Equality_module *eq_dep= te->equality_deps; 
-       eq_dep < te->equality_deps + te->n_equality_deps;
-       eq_dep++)
+  Field_dependency_recorder deps_recorder(fda);
+  for (Equality_module *eq_mod= fda->equality_mods; 
+       eq_mod < fda->equality_mods + fda->n_equality_mods;
+       eq_mod++)
   {
-    deps_recorder.expr_offset= eq_dep - te->equality_deps;
-    eq_dep->unknown_args= 0;
-    eq_dep->expression->walk(&Item::check_column_usage_processor, FALSE, 
+    deps_recorder.expr_offset= eq_mod - fda->equality_mods;
+    eq_mod->unknown_args= 0;
+    eq_mod->expression->walk(&Item::check_column_usage_processor, FALSE, 
                              (uchar*)&deps_recorder);
-    if (!eq_dep->unknown_args)
+    if (!eq_mod->unknown_args)
     {
-      eq_dep->next= bound_dep;
-      bound_dep= eq_dep;
+      eq_mod->next= bound_dep;
+      bound_dep= eq_mod;
     }
   }
   *bound_deps_list= bound_dep;
@@ -968,7 +972,7 @@ void eliminate_tables(JOIN *join)
 
   SYNOPSIS
     eliminate_tables_for_list()
-      te                      Table elimination context
+      fda                      Table elimination context
       join_list               Join list to work on
       list_tables             Bitmap of tables embedded in the join_list.
       on_expr                 ON expression, if the join list is the inner side
@@ -1053,7 +1057,7 @@ eliminate_tables_for_list(JOIN *join, List<TABLE_LIST> *join_list,
 
   SYNOPSIS
     check_func_dependency()
-      te       Table elimination context
+      fda      Table elimination context
       tables   Set of tables we want to be functionally dependent 
       cond     Condition to use
 
@@ -1073,24 +1077,25 @@ bool check_func_dependency(JOIN *join,
                            TABLE_LIST *oj_tbl,
                            Item* cond)
 {
-  uint and_level=0;
   Module_dep *bound_modules;
   
-    //psergey-todo: move allocs to somewhere else.
-  Func_dep_analyzer pte(join);
-  Func_dep_analyzer *te= &pte;
-  uint m= max(join->thd->lex->current_select->max_equal_elems,1);
-  uint max_elems= ((join->thd->lex->current_select->cond_count+1)*2 +
-                    join->thd->lex->current_select->between_count)*m + 1 + 10; 
-  if (!(te->equality_deps= new Equality_module[max_elems]))
+  Func_dep_analyzer fda(join);
+  
+  /* Start value */
+  fda.n_equality_mods_alloced= 
+    join->thd->lex->current_select->max_equal_elems +
+    (join->thd->lex->current_select->cond_count+1)*2 +
+    join->thd->lex->current_select->between_count;
+
+  if (!(fda.equality_mods= new Equality_module[fda.n_equality_mods_alloced]))
     return FALSE;
 
-  Equality_module* eq_dep= te->equality_deps;
+  Equality_module* last_eq_mod= fda.equality_mods;
   
   /* Create Table_value objects for all tables we're trying to eliminate */
   if (oj_tbl)
   {
-    if (!get_table_value(te, oj_tbl->table))
+    if (!get_table_value(&fda, oj_tbl->table))
       return FALSE;
   }
   else
@@ -1100,30 +1105,29 @@ bool check_func_dependency(JOIN *join,
     {
       if (tbl->table && (tbl->table->map & dep_tables))
       {
-        if (!get_table_value(te, tbl->table))
+        if (!get_table_value(&fda, tbl->table))
           return FALSE;
       }
     }
   }
 
-  te->usable_tables= dep_tables;
+  fda.usable_tables= dep_tables;
   /*
     Analyze the the ON expression and create Equality_module objects and
     Field_value objects for their left parts.
   */
-  if (build_eq_deps_for_cond(te, &eq_dep, &and_level, cond) ||
-      eq_dep == te->equality_deps)
-    return FALSE;
- 
-  te->n_equality_deps= eq_dep - te->equality_deps;
+  uint and_level=0;
+  build_eq_mods_for_cond(&fda, &last_eq_mod, &and_level, cond);
+  if (!(fda.n_equality_mods= last_eq_mod - fda.equality_mods))
+    return FALSE;  /* No useful conditions */
 
-  if (!(te->outer_join_dep= new Outer_join_module(my_count_bits(dep_tables))) ||
-      setup_equality_modules_deps(te, &bound_modules))
+  if (!(fda.outer_join_dep= new Outer_join_module(my_count_bits(dep_tables))) ||
+      setup_equality_modules_deps(&fda, &bound_modules))
   {
     return FALSE; /* OOM, default to non-dependent */
   }
   
-  DBUG_EXECUTE("test", dbug_print_deps(te); );
+  DBUG_EXECUTE("test", dbug_print_deps(&fda); );
 
   /* The running wave algorithm itself: */
   Value_dep *bound_values= NULL;
@@ -1131,11 +1135,11 @@ bool check_func_dependency(JOIN *join,
   {
     for (;bound_modules; bound_modules= bound_modules->next)
     {
-      if (bound_modules->now_bound(te, &bound_values))
+      if (bound_modules->now_bound(&fda, &bound_values))
         return TRUE; /* Dependent! */
     }
     for (;bound_values; bound_values=bound_values->next)
-      bound_values->now_bound(te, &bound_modules);
+      bound_values->now_bound(&fda, &bound_modules);
   }
   return FALSE; /* Not dependent */ 
 }
@@ -1147,7 +1151,7 @@ bool check_func_dependency(JOIN *join,
   - all its fields are known
 */
 
-void Table_value::now_bound(Func_dep_analyzer *te, 
+void Table_value::now_bound(Func_dep_analyzer *fda, 
                             Module_dep **bound_modules)
 {
   DBUG_PRINT("info", ("table %s is now bound", table->alias));
@@ -1159,21 +1163,21 @@ void Table_value::now_bound(Func_dep_analyzer *te,
     {
       /* Mark as bound and add to the list */
       field_dep->bound= TRUE;
-      field_dep->signal_from_field_to_exprs(te, bound_modules);
+      field_dep->signal_from_field_to_exprs(fda, bound_modules);
     }
   }
   
-  if (te->outer_join_dep->unknown_args && 
-      !--te->outer_join_dep->unknown_args)
+  if (fda->outer_join_dep->unknown_args && 
+      !--fda->outer_join_dep->unknown_args)
   {
     /* Mark as bound and add to the list */
-    te->outer_join_dep->next= *bound_modules;
-    *bound_modules= te->outer_join_dep;
+    fda->outer_join_dep->next= *bound_modules;
+    *bound_modules= fda->outer_join_dep;
   }
 }
 
 
-void Field_value::now_bound(Func_dep_analyzer *te, 
+void Field_value::now_bound(Func_dep_analyzer *fda, 
                             Module_dep **bound_modules)
 {
   DBUG_PRINT("info", ("field %s.%s is now bound", field->table->alias,
@@ -1193,7 +1197,7 @@ void Field_value::now_bound(Func_dep_analyzer *te,
       *bound_modules= key_dep;
     }
   }
-  signal_from_field_to_exprs(te, bound_modules);
+  signal_from_field_to_exprs(fda, bound_modules);
 }
 
 
@@ -1201,25 +1205,25 @@ void Field_value::now_bound(Func_dep_analyzer *te,
   Walk through expressions that depend on this field and 'notify' them 
   that this field is no longer unknown.
 */
-void Field_value::signal_from_field_to_exprs(Func_dep_analyzer* te, 
+void Field_value::signal_from_field_to_exprs(Func_dep_analyzer* fda, 
                                              Module_dep **bound_modules)
 {
-  for (uint i=0; i < te->n_equality_deps; i++)
+  for (uint i=0; i < fda->n_equality_mods; i++)
   {
-    if (bitmap_is_set(&te->expr_deps, bitmap_offset + i) &&
-        te->equality_deps[i].unknown_args &&
-        !--te->equality_deps[i].unknown_args)
+    if (bitmap_is_set(&fda->expr_deps, bitmap_offset + i) &&
+        fda->equality_mods[i].unknown_args &&
+        !--fda->equality_mods[i].unknown_args)
     {
       /* Mark as bound and add to the list */
-      Equality_module* eq_dep= &te->equality_deps[i];
-      eq_dep->next= *bound_modules;
-      *bound_modules= eq_dep;
+      Equality_module* eq_mod= &fda->equality_mods[i];
+      eq_mod->next= *bound_modules;
+      *bound_modules= eq_mod;
     }
   }
 }
 
 
-bool Outer_join_module::now_bound(Func_dep_analyzer *te, 
+bool Outer_join_module::now_bound(Func_dep_analyzer *fda, 
                                   Value_dep **bound_values)
 {
   DBUG_PRINT("info", ("Outer join eliminated"));
@@ -1227,7 +1231,7 @@ bool Outer_join_module::now_bound(Func_dep_analyzer *te,
 }
 
 
-bool Equality_module::now_bound(Func_dep_analyzer *te, 
+bool Equality_module::now_bound(Func_dep_analyzer *fda, 
                                 Value_dep **bound_values)
 {
   /* For field=expr and we got to know the expr, so we know the field */
@@ -1242,7 +1246,7 @@ bool Equality_module::now_bound(Func_dep_analyzer *te,
 }
 
 /* Unique key is known means its  table is known */
-bool Key_module::now_bound(Func_dep_analyzer *te, Value_dep **bound_values)
+bool Key_module::now_bound(Func_dep_analyzer *fda, Value_dep **bound_values)
 {
   if (!table->bound)
   {
@@ -1294,7 +1298,7 @@ static void mark_as_eliminated(JOIN *join, TABLE_LIST *tbl)
 
 #ifndef DBUG_OFF
 static 
-void dbug_print_deps(Func_dep_analyzer *te)
+void dbug_print_deps(Func_dep_analyzer *fda)
 {
   DBUG_ENTER("dbug_print_deps");
   DBUG_LOCK_FILE;
@@ -1302,18 +1306,18 @@ void dbug_print_deps(Func_dep_analyzer *te)
   fprintf(DBUG_FILE,"deps {\n");
   
   /* Start with printing equalities */
-  for (Equality_module *eq_dep= te->equality_deps; 
-       eq_dep != te->equality_deps + te->n_equality_deps; eq_dep++)
+  for (Equality_module *eq_mod= fda->equality_mods; 
+       eq_mod != fda->equality_mods + fda->n_equality_mods; eq_mod++)
   {
     char buf[128];
     String str(buf, sizeof(buf), &my_charset_bin);
     str.length(0);
-    eq_dep->expression->print(&str, QT_ORDINARY);
+    eq_mod->expression->print(&str, QT_ORDINARY);
     fprintf(DBUG_FILE, "  equality%d: %s -> %s.%s\n", 
-            eq_dep - te->equality_deps,
+            eq_mod - fda->equality_mods,
             str.c_ptr(),
-            eq_dep->field->table->table->alias,
-            eq_dep->field->field->field_name);
+            eq_mod->field->table->table->alias,
+            eq_mod->field->field->field_name);
   }
   fprintf(DBUG_FILE,"\n");
 
@@ -1321,7 +1325,7 @@ void dbug_print_deps(Func_dep_analyzer *te)
   for (uint i=0; i < MAX_TABLES; i++)
   {
     Table_value *table_dep;
-    if ((table_dep= te->table_deps[i]))
+    if ((table_dep= fda->table_deps[i]))
     {
       /* Print table */
       fprintf(DBUG_FILE, "  table %s\n", table_dep->table->alias);
@@ -1332,9 +1336,9 @@ void dbug_print_deps(Func_dep_analyzer *te)
         fprintf(DBUG_FILE, "    field %s.%s ->", table_dep->table->alias,
                 field_dep->field->field_name);
         uint ofs= field_dep->bitmap_offset;
-        for (uint bit= ofs; bit < ofs + te->n_equality_deps; bit++)
+        for (uint bit= ofs; bit < ofs + fda->n_equality_mods; bit++)
         {
-          if (bitmap_is_set(&te->expr_deps, bit))
+          if (bitmap_is_set(&fda->expr_deps, bit))
             fprintf(DBUG_FILE, " equality%d ", bit - ofs);
         }
         fprintf(DBUG_FILE, "\n");
