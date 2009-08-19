@@ -771,6 +771,29 @@ struct TABLE_LIST
   void reinit_before_use(THD *thd);
   Item_subselect *containing_subselect();
 
+  /**
+     @brief True if this TABLE_LIST represents an not yet materialized 
+     derived table, i.e. the result of a subquery or view execution.
+  */
+  bool is_non_materialized_derived_table() const
+  {
+    return derived && !derived_result;
+  }
+
+  /**
+     @brief Returns the name of the database that the referenced table belongs
+     to.
+  */
+  char *get_db_name() { return view != NULL ? view_db.str : db; }
+
+  /**
+     @brief Returns the name of the table that this TABLE_LIST represents.
+
+     @details The unqualified table name or view name for a table or view,
+     respectively.
+   */
+  char *get_table_name() { return view != NULL ? view_name.str : table_name; }
+
 private:
   bool prep_check_option(THD *thd, uint8 check_opt_type);
   bool prep_where(THD *thd, Item **conds, bool no_where_clause);
