@@ -105,6 +105,11 @@ public:
   NdbOperation* getNdbOperation() const
   { return m_ndbOperation; }
 
+  Uint32 getParallelism() const
+  { return m_parallelism; } 
+
+  const NdbQueryDefImpl& getQueryDef() const
+  { return m_queryDef; }
 private:
   NdbQuery m_interface;
 
@@ -130,6 +135,9 @@ private:
   NdbOperation* m_ndbOperation;
   /** Definition of this query.*/
   const NdbQueryDefImpl& m_queryDef;
+  /** Number of fragments to be scanned in parallel. (1 if root operation is 
+   * a lookup)*/
+  Uint32 m_parallelism;
 }; // class NdbQueryImpl
 
 
@@ -143,14 +151,20 @@ class NdbQueryOperationImpl {
 public:
   STATIC_CONST (MAGIC = 0xfade1234);
 
+  /** Fetch next result row. 
+   * @see NdbQuery::nextResult */
+  static int nextResult(const NdbQueryImpl& queryImpl, 
+                        bool fetchAllowed, 
+                        bool forceSend);
+
+  /** Close scan receivers used for lookups. (Since scans and lookups should
+   * have the same semantics for nextResult(), lookups use scan-type 
+   * NdbReceiver objects.)*/
+  static void closeSingletonScans(const NdbQueryImpl& query);
+
   explicit NdbQueryOperationImpl(NdbQueryImpl& queryImpl, 
                                  const NdbQueryOperationDefImpl& def);
-  ~NdbQueryOperationImpl(){
-    if (m_id != NdbObjectIdMap::InvalidId) {
-      m_queryImpl.getNdbTransaction()->getNdb()->theImpl
-       ->theNdbObjectIdMap.unmap(m_id, this);
-    }
-  }
+  ~NdbQueryOperationImpl();
 
   Uint32 getNoOfParentOperations() const;
   NdbQueryOperationImpl& getParentOperation(Uint32 i) const;
@@ -172,7 +186,7 @@ public:
                        const unsigned char* result_mask);
 
   int setResultRowRef (const NdbRecord* rec,
-                       char* & bufRef,
+                       const char* & bufRef,
                        const unsigned char* result_mask);
 
   bool isRowNULL() const;    // Row associated with Operation is NULL value?
@@ -196,6 +210,9 @@ public:
    * Return true if query complete.*/
   bool execTCKEYREF(NdbApiSignal* aSignal);
 
+  /** Scan batch is complete.*/
+  void execSCAN_TABCONF(Uint32 tcPtrI, Uint32 rowCount, NdbReceiver* receiver); 
+
   /** Serialize parameter values.
    *  @return possible error code.*/
   int serializeParams(const constVoidPtr paramValues[]);
@@ -218,16 +235,30 @@ public:
     return m_magic == MAGIC;
   }
 
-  /** Check if operation is complete. 
-   * For doing sanity check on internal state.*/
+  /** Check if operation is complete. */
   bool isComplete() const { 
-    return m_pendingResults==0;
+    return m_pendingResults==0 && m_pendingScanTabConfs==0;
+  }
+
+  /** Return true if this operation is a scan.*/
+  bool isScan() const {
+    return getQueryOperationDef().getType() 
+      == NdbQueryOperationDefImpl::TableScan ||
+      getQueryOperationDef().getType() 
+      == NdbQueryOperationDefImpl::OrderedIndexScan;
   }
 
   const NdbQueryOperation& getInterface() const
   { return m_interface; }
   NdbQueryOperation& getInterface()
   { return m_interface; }
+
+  const NdbReceiver& getReceiver(Uint32 recNo) const;
+
+  /** Find max number of rows per batch per ResultStream.*/
+  void findMaxRows();
+
+  Uint32 getMaxBatchRows() const { return m_maxBatchRows;}
 
 private:
   /** This class represents a projection that shall be sent to the 
@@ -243,9 +274,13 @@ private:
     /** Make a serialize representation of this object, to be sent to the 
      * SPJ block.
      * @param dst Buffer for storing serialized projection.
+     * @param withCorrelation Include correlation data in projection.
      * @return Possible error code.*/
-    int serialize(Uint32Slice dst) const;
+    int serialize(Uint32Slice dst, bool withCorrelation) const;
     
+    /** Get number of columns.*/
+    int getColumnCount() const {return m_columnCount;}
+
   private:
     /** The columns that consitutes the projection.*/
     const NdbDictionary::Column* m_columns[MAX_ATTRIBUTES_IN_TABLE];
@@ -261,6 +296,84 @@ private:
     /** Highest column number seen so far.*/
     int m_maxColNo;
   }; // class UserProjection
+
+  /** A 'void' index for a tuple in structures below.*/
+  STATIC_CONST( tupleNotFound = 0xffffffff);
+
+  /** A map from tuple correlation Id to tuple number.*/
+  class TupleIdMap{
+  public:
+    explicit TupleIdMap():m_vector(){}
+
+    void put(Uint16 id, Uint32 num);
+
+    Uint32 get(Uint16 id) const;
+
+  private:
+    struct Pair{
+      Uint16 m_id;
+      Uint16 m_num;
+    };
+    Vector<Pair> m_vector;
+    /** No copying.*/
+    TupleIdMap(const TupleIdMap&);
+    TupleIdMap& operator=(const TupleIdMap&);
+  };
+
+  /** For scans, we receiver n parallel streams of data. There is a 
+   * ResultStream object for each such stream. (For lookups, there is a 
+   * single result stream.)*/
+  class ResultStream{
+  public:
+    /** The receiver object that unpacks transid_AI messages.*/
+    NdbReceiver m_receiver;
+    /** The number of transid_AI messages received.*/
+    Uint32 m_transidAICount;
+    /** A map from tuple correlation Id to tuple number.*/
+    TupleIdMap m_idMap;
+
+    explicit ResultStream(NdbQueryOperationImpl& operation);
+
+    ~ResultStream();
+
+    Uint32 getChildTupleIdx(Uint32 childNo, Uint32 tupleNo) const {
+      return m_childTupleIdx[tupleNo*m_operation.getNoOfChildOperations()
+                             +childNo];
+    }
+
+    void setChildTupleIdx(Uint32 childNo, Uint32 tupleNo, Uint32 index){
+      m_childTupleIdx[tupleNo*m_operation.getNoOfChildOperations()
+                      +childNo] = index;
+    }
+    
+    /** Prepare for receiving results (Invoked via NdbTransaction::execute()).*/
+    void prepare();
+
+    Uint32 getParentTupleCorr(Uint32 rowNo) const { 
+      return m_parentTupleCorr[rowNo];
+    }
+
+    void setParentTupleCorr(Uint32 rowNo, Uint32 correlationNum) const { 
+      m_parentTupleCorr[rowNo] = correlationNum;
+    }
+    
+  private:
+    /** Operation to which this resultStream belong.*/
+    NdbQueryOperationImpl& m_operation;
+    /** One-dimensional array. For each tuple, this array holds the correlation
+     * number of the corresponding parent tuple. */
+    Uint32* m_parentTupleCorr;
+    /** Two dimenional array of indexes to child tuples ([childNo, ownTupleNo])
+     * This is used for finding the child tuple in the corresponding resultStream of 
+     the child operation. */
+    Uint32* m_childTupleIdx;
+    /** No copying.*/
+    ResultStream(const ResultStream&);
+    ResultStream& operator=(const ResultStream&);
+  };
+
+  /** Fix parent-child references when a complete batch has been received.*/
+  static void buildChildTupleLinks(const NdbQueryImpl& query);
 
   /** Interface for the application developer.*/
   NdbQueryOperation m_interface;
@@ -281,9 +394,11 @@ private:
   Vector<NdbQueryOperationImpl*> m_children;
 
   /** For processing results from this operation.*/
-  NdbReceiver m_receiver;
+  ResultStream** m_resultStreams;
   /** Number of pending TCKEYREF or TRANSID_AI messages for this operation.*/
   int m_pendingResults;
+  /** Number of pending SCAN_TABCONF messages for this operation.*/
+  int m_pendingScanTabConfs;
   /** Buffer for parameters in serialized format */
   Uint32Buffer m_params;
   /** Projection to be sent to the application.*/
@@ -294,6 +409,27 @@ private:
     Style_NdbRecord,  // Use old style result retrieval.
     Style_NdbRecAttr, // Use NdbRecord.
   } m_resultStyle;
+  /** For temporary storing one result batch.*/
+  char* m_batchBuffer;
+  /** Buffer for final storage of result.*/
+  char* m_resultBuffer;
+  /** Pointer to application pointer that should be set to point to the 
+   * current row.
+   * @see NdbQueryOperationImpl::setResultRowRef */
+  const char** m_resultRef;
+  /** True if this operation gave no result for the current row.*/
+  bool m_isRowNull;
+  /** Batch size for scans or lookups with scan parents.*/
+  Uint32 m_batchByteSize;
+  /** Index into m_resultStreams. The resultStream from which we are now retrieving 
+   * results.*/
+  Uint32 m_currStream;
+  /** Max rows (per resultStream) in a scan batch.*/
+  Uint32 m_maxBatchRows;
+  /** Result record.*/
+  const NdbRecord* m_ndbRecord;
+  /** Fetch result for non-root operation.*/
+  void updateChildResult(Uint32 resultStreamNo, Uint32 rowNo);
 }; // class NdbQueryOperationImpl
 
 

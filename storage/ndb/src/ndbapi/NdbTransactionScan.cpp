@@ -32,7 +32,7 @@
 #include <signaldata/ScanTab.hpp>
 
 #include <NdbOut.hpp>
-
+#include <NdbQueryOperationImpl.hpp>
 
 /***************************************************************************
  * int  receiveSCAN_TABREF(NdbApiSignal* aSignal)
@@ -110,10 +110,20 @@ NdbTransaction::receiveSCAN_TABCONF(NdbApiSignal* aSignal,
       NdbReceiver* tOp = theNdb->void2rec(tPtr);
       if (tOp && tOp->checkMagicNumber())
       {
-	if (tcPtrI == RNIL && opCount == 0)
-	  theScanningOp->receiver_completed(tOp);
-	else if (tOp->execSCANOPCONF(tcPtrI, totalLen, opCount))
-	  theScanningOp->receiver_delivered(tOp);
+        NdbQueryOperationImpl* const queryOpImpl 
+          = static_cast<NdbQueryOperationImpl*>(tOp->m_owner);
+        if(queryOpImpl->checkMagicNumber())
+        {
+          queryOpImpl->execSCAN_TABCONF(tcPtrI, opCount, tOp);
+        }
+        else
+        {
+          if (tcPtrI == RNIL && opCount == 0)
+            theScanningOp->receiver_completed(tOp);
+          else if (tOp->execSCANOPCONF(tcPtrI, totalLen, opCount))
+            theScanningOp->receiver_delivered(tOp);
+          
+        }
       }
     }
     return 0;

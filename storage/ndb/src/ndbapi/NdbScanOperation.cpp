@@ -26,6 +26,7 @@
 #include "NdbDictionaryImpl.hpp"
 #include <NdbBlob.hpp>
 #include <NdbInterpretedCode.hpp>
+#include <NdbQueryOperationImpl.hpp>
 
 #include <NdbRecAttr.hpp>
 #include <NdbReceiver.hpp>
@@ -2397,6 +2398,13 @@ NdbScanOperation::doSendScan(int aProcessorId)
    * Section 2 : Optional KEYINFO section
    */
   GenericSectionPtr secs[3];
+  if(m_isLinked) {
+    const NdbQueryOperationImpl& queryOp 
+      = m_queryImpl->getQueryOperation(0U);
+    for(Uint32 i = 0; i<theParallelism; i++){
+      m_prepared_receivers[i] = queryOp.getReceiver(i).getId();
+    }
+  }
   LinearSectionIterator receiverIdIterator(m_prepared_receivers,
                                            theParallelism);
   SignalSectionIterator attrInfoIter(theFirstATTRINFO);

@@ -65,7 +65,8 @@ printSCAN_FRAGREQ(FILE * output, const Uint32 * theData,
   fprintf(output, " batch_size_bytes: %u\n", sig->batch_size_bytes);
   if (len > ScanFragReq::SignalLength)
   {
-    fprintf(output, " AnyValue: 0x%x\n", sig->variableData[0]);
+    fprintf(output, " RootFragId: 0x%x\n", sig->variableData[0]);
+    fprintf(output, " AnyValue: 0x%x\n", sig->variableData[1]);
   }
 
   return true;

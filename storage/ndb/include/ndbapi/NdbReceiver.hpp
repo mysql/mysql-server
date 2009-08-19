@@ -89,7 +89,7 @@ private:
   void getValues(const NdbRecord*, char*);
   void prepareSend();
   void calculate_batch_size(Uint32, Uint32, Uint32&, Uint32&, Uint32&,
-                            const NdbRecord *);
+                            const NdbRecord *) const;
   /*
     Set up buffers for receiving TRANSID_AI and KEYINFO20 signals
     during a scan using NdbRecord.
@@ -205,6 +205,10 @@ private:
   int get_keyinfo20(Uint32 & scaninfo, Uint32 & length,
                     const char * & data_ptr) const;
   int getScanAttrData(const char * & data, Uint32 & size, Uint32 & pos) const;
+  /** Used by NdbQueryOperationImpl, where random access to rows is needed.*/
+  void setCurrentRow(Uint32 currentRow) { m_current_row = currentRow; }
+  /** Used by NdbQueryOperationImpl.*/
+  Uint32 getCurrentRow() const { return m_current_row; }
 };
 
 #ifdef NDB_NO_DROPPED_SIGNAL

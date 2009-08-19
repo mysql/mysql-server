@@ -43,7 +43,7 @@ paramSpec: 00050001 00000001 00010000 00000001 fff00006 00050001 00000001 000200
 #include <NdbQueryOperation.hpp>
 #include <NdbQueryBuilder.hpp>
 // 'impl' classes is needed for prototype only.
-//#include <NdbQueryOperationImpl.hpp>
+#include <NdbQueryOperationImpl.hpp>
 //#include "NdbQueryBuilderImpl.hpp"
 
 
@@ -519,7 +519,7 @@ int spjTest(int argc, char** argv){
 
 
 
-int testSerialize(int argc, char** argv){
+int testSerialize(bool scan, int argc, char** argv){
   NDB_INIT(argv[0]);
 
   const char *load_default_groups[]= { "mysql_cluster",0 };
@@ -562,94 +562,170 @@ int testSerialize(int argc, char** argv){
 
   NdbQueryBuilder* qb = &myBuilder; //myDict->getQueryBuilder();
 
-  /* Dummy for now at least. Key is really set with  ndbOperation->equal().*/
-  const NdbQueryOperand* rootKey[] = 
-    {  qb->constValue(11), //a
-       //       qb->constValue(3), // b
-       qb->paramValue(),
-       0
-    };
-  // Lookup a 'root' tuple.
-  const NdbQueryLookupOperationDef *readRoot = qb->readTuple(tab, rootKey);
-  if (readRoot == NULL) APIERROR(qb->getNdbError());
-
-  /* Link to another lookup on the same table: 
-     WHERE tup1.a = tup0.b0 AND tup1.b = tup0.a0
-   */
-  const NdbQueryOperand* linkKey[] = 
-    {  qb->linkedValue(readRoot, "b0"),
-       qb->constValue(255), // b
-       // qb->linkedValue(readRoot, "a0"),
-       0
-    };
-  const NdbQueryLookupOperationDef* readLinked = qb->readTuple(tab, linkKey);
-  if (readLinked == NULL) APIERROR(qb->getNdbError());
-
-  const NdbQueryDef* queryDef = qb->prepare();
-  if (queryDef == NULL) APIERROR(qb->getNdbError());
-
-  assert (queryDef->getNoOfOperations() == 2);
-  assert (queryDef->getQueryOperation((Uint32)0) == readRoot);
-  assert (queryDef->getQueryOperation((Uint32)1) == readLinked);
-  assert (queryDef->getQueryOperation((Uint32)0)->getNoOfParentOperations() 
-	  == 0);
-  assert (queryDef->getQueryOperation((Uint32)0)->getNoOfChildOperations() 
-	  == 1);
-  assert (queryDef->getQueryOperation((Uint32)0)->getChildOperation((Uint32)0) 
-	  == readLinked);
-  assert (queryDef->getQueryOperation((Uint32)1)->getNoOfParentOperations() 
-	  == 1);
-  assert (queryDef->getQueryOperation((Uint32)1)->getParentOperation((Uint32)0) 
-	  == readRoot);
-  assert (queryDef->getQueryOperation((Uint32)1)->getNoOfChildOperations() 
-	  == 0);
-
-  HugoOperations hugoOps(* tab);
-  NdbTransaction* myTransaction= myNdb.startTransaction();
-  if (myTransaction == NULL) APIERROR(myNdb.getNdbError());
-
-  //NdbOperation* ndbOperation = myTransaction->getNdbOperation(tab);
-  const int bParam = 3;
-  const void* params[] = {&bParam, NULL};
-  // Instantiate NdbQuery for this transaction.
-  NdbQuery* query = myTransaction->createQuery(queryDef, params);
-
- /* Read all attributes from result tuples.*/
-  const Uint32 opCount = query->getNoOfOperations();
-  const Uint32 recordOpCount = 1;
-  const ResultSet** resultSet = new const ResultSet*[opCount-recordOpCount];
-  for(Uint32 i = 0; i < opCount-recordOpCount; i++){
-    resultSet[i] 
-      = new ResultSet(query->getQueryOperation(recordOpCount+i), tab);
-  }
-  const NdbRecord* resultRec = tab->getDefaultRecord();
-  assert(resultRec!=NULL);
-  Uint32 results[recordOpCount][6] = {0};
-  const unsigned char mask[] = {0x0e};
-  for(Uint32 i = 0; i<recordOpCount; i++){
-    const int error = query->getQueryOperation(i)
-      ->setResultRowBuf(resultRec, 
-                        reinterpret_cast<char*>(results[i]), mask);
-    assert(error==0);
-  }
-  myTransaction->execute(NoCommit);
-  for(Uint32 i = 0; i<recordOpCount; i++){
-    for(int j = 0; j<6; j++){
-      ndbout << results[i][j] << " ";
+  if(scan){
+    const NdbRecord* resultRec = tab->getDefaultRecord();
+    assert(resultRec!=NULL);
+    const NdbQueryScanOperationDef* scanOpDef = qb->scanTable(tab);
+    const NdbQueryOperand* linkKey[] = 
+      {  qb->linkedValue(scanOpDef, "b0"),
+         qb->linkedValue(scanOpDef, "a0"),
+         0
+      };
+    const NdbQueryLookupOperationDef* readLinked = qb->readTuple(tab, linkKey);
+    if (readLinked == NULL) APIERROR(qb->getNdbError());
+    const NdbQueryDef* const scanDef = qb->prepare();
+    NdbTransaction* myTransaction= myNdb.startTransaction();
+    const void* params[] = {NULL};
+    // Instantiate NdbQuery for this transaction.
+    NdbQuery* query = myTransaction->createQuery(scanDef, params);
+    //Uint32 results[10][6];
+    //char* resultPtr = NULL;
+    const Uint32* scanResultPtr;
+    //const unsigned char* mask = NULL;
+    NdbQueryOperation* const scanOp = query->getQueryOperation(0U);
+    scanOp->setResultRowRef(resultRec, 
+                        reinterpret_cast<const char*&>(scanResultPtr),
+                        NULL);
+    const Uint32* lookupResultPtr;
+    NdbQueryOperation* const lookupOp = query->getQueryOperation(1);
+    lookupOp->setResultRowRef(resultRec, 
+                              reinterpret_cast<const char*&>(lookupResultPtr),
+                              NULL);
+    //extern bool stopHere;
+    //stopHere = true;
+    assert(myTransaction->execute(NoCommit)==0);
+    while(!(scanOp->getImpl().isComplete())){
+      sleep(1);
     }
-    ndbout << endl;
-  }
-  // Print results.
-  for(Uint32 i=0; i < opCount-recordOpCount; i++){
-    resultSet[i]->print();
-  }
+    bool done = false;
+    int rowNo = 0;
+    while(!done){
+      // scanResultPtr = reinterpret_cast<char*>(results[rowNo]);
+      const int retVal = query->nextResult(false, false);
+      switch(retVal){
+      case 0:
+        break;
+      case 1:
+        done = true;
+        break;
+      case 2:
+        ndbout << "No more results in buffer";
+        done = true;
+        break;
+      default:
+        assert(false);
+      };
+      if(!done){
+        ndbout << "Scan row: " << rowNo << endl;
+        for(int i = 0; i<6; i++){
+          ndbout << scanResultPtr[i] << " ";
+        }
+        ndbout << endl;
+        ndbout << "Loopkup row: " << rowNo << endl;
+        if(lookupOp->isRowNULL()){
+          ndbout << "NULL" << endl;
+        }else{
+          for(int i = 0; i<6; i++){
+            ndbout << lookupResultPtr[i] << " ";
+          }
+          ndbout << endl;
+        }
+        rowNo++;
+      }
+    }
+  }else{
+    /* Dummy for now at least. Key is really set with  ndbOperation->equal().*/
+    const NdbQueryOperand* rootKey[] = 
+      {  qb->constValue(11), //a
+         //       qb->constValue(3), // b
+         qb->paramValue(),
+         0
+      };
+    // Lookup a 'root' tuple.
+    const NdbQueryLookupOperationDef *readRoot = qb->readTuple(tab, rootKey);
+    if (readRoot == NULL) APIERROR(qb->getNdbError());
 
+    /* Link to another lookup on the same table: 
+       WHERE tup1.a = tup0.b0 AND tup1.b = tup0.a0
+    */
+    const NdbQueryOperand* linkKey[] = 
+      {  qb->linkedValue(readRoot, "b0"),
+         qb->constValue(255), // b
+         // qb->linkedValue(readRoot, "a0"),
+         0
+      };
+    const NdbQueryLookupOperationDef* readLinked = qb->readTuple(tab, linkKey);
+    if (readLinked == NULL) APIERROR(qb->getNdbError());
+
+    const NdbQueryDef* queryDef = qb->prepare();
+    if (queryDef == NULL) APIERROR(qb->getNdbError());
+
+    assert (queryDef->getNoOfOperations() == 2);
+    assert (queryDef->getQueryOperation((Uint32)0) == readRoot);
+    assert (queryDef->getQueryOperation((Uint32)1) == readLinked);
+    assert (queryDef->getQueryOperation((Uint32)0)->getNoOfParentOperations() 
+            == 0);
+    assert (queryDef->getQueryOperation((Uint32)0)->getNoOfChildOperations() 
+            == 1);
+    assert (queryDef->getQueryOperation((Uint32)0)->getChildOperation((Uint32)0) 
+            == readLinked);
+    assert (queryDef->getQueryOperation((Uint32)1)->getNoOfParentOperations() 
+            == 1);
+    assert (queryDef->getQueryOperation((Uint32)1)->getParentOperation((Uint32)0) 
+            == readRoot);
+    assert (queryDef->getQueryOperation((Uint32)1)->getNoOfChildOperations() 
+            == 0);
+
+    //HugoOperations hugoOps(* tab);
+    NdbTransaction* myTransaction= myNdb.startTransaction();
+    if (myTransaction == NULL) APIERROR(myNdb.getNdbError());
+
+    //NdbOperation* ndbOperation = myTransaction->getNdbOperation(tab);
+    const int bParam = 3;
+    const void* params[] = {&bParam, NULL};
+    // Instantiate NdbQuery for this transaction.
+    NdbQuery* query = myTransaction->createQuery(queryDef, params);
+
+    /* Read all attributes from result tuples.*/
+    const Uint32 opCount = query->getNoOfOperations();
+    const Uint32 recordOpCount = 2;
+    const ResultSet** resultSet = new const ResultSet*[opCount-recordOpCount];
+    for(Uint32 i = 0; i < opCount-recordOpCount; i++){
+      resultSet[i] 
+        = new ResultSet(query->getQueryOperation(recordOpCount+i), tab);
+    }
+    const NdbRecord* resultRec = tab->getDefaultRecord();
+    assert(resultRec!=NULL);
+    Uint32 results[recordOpCount][6] = {0};
+    const unsigned char mask[] = {0x0e};
+    for(Uint32 i = 0; i<recordOpCount; i++){
+      const int error = query->getQueryOperation(i)
+        ->setResultRowBuf(resultRec, 
+                          reinterpret_cast<char*>(results[i]), NULL);
+      assert(error==0);
+    }
+    myTransaction->execute(NoCommit);
+    assert(query->nextResult(false, false)==0);
+    for(Uint32 i = 0; i<recordOpCount; i++){
+      for(int j = 0; j<6; j++){
+        ndbout << results[i][j] << " ";
+      }
+      ndbout << endl;
+    }
+    // Print results.
+    for(Uint32 i=0; i < opCount-recordOpCount; i++){
+      resultSet[i]->print();
+    }
+    assert(query->nextResult(false, false)==1);
+  }
   return 0;
 };
 
+
 int main(int argc, char** argv){
   //return spjTest(argc, argv);
-  return testSerialize(argc, argv);
+  testSerialize(false, argc, argv);
+  return testSerialize(true, argc, argv);
 }
 /**
  * Store list of 16-bit integers put into 32-bit integers

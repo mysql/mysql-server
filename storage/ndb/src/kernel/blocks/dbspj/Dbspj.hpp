@@ -210,6 +210,15 @@ public:
      *  should only do local cleanup(s)
      */
     void (Dbspj::*m_cleanup)(Ptr<Request>, Ptr<TreeNode>);
+
+    /**
+     * This function is called on the root operation  when a LQHKEYCONF, 
+     * LQKEYREF or LQHKEYREQ signal is sent or received on behalf of a 
+     * descendant operation*/
+    void (Dbspj::*m_count_descendant_signal)(Signal* signal,
+                                             Ptr<Request> requestPtr,
+                                             Ptr<TreeNode> rootPtr,
+                                             Uint32 globalSignalNo);
   };
 
   struct LookupData
@@ -217,7 +226,7 @@ public:
     Uint32 m_api_resultRef;
     Uint32 m_api_resultData;
     Uint32 m_outstanding;
-    Uint32 m_lqhKeyReq[LqhKeyReq::FixedSignalLength + 3];
+    Uint32 m_lqhKeyReq[LqhKeyReq::FixedSignalLength + 4];
   };
 
   struct ScanFragData
@@ -242,9 +251,20 @@ public:
 
     Uint32 m_scan_state;     // Only valid is TreeNodeState >= TN_ACTIVE
     Uint32 m_scan_status;    // fragmentCompleted
+    /** True if signal has been received since sending 
+     * last SCAN_FRAGREQ/SCAN_NEXTREQ*/
+    bool   m_scan_fragconf_received; 
     Uint32 m_rows_received;  // #execTRANSID_AI
     Uint32 m_rows_expecting; // ScanFragConf
-    Uint32 m_scanFragReq[ScanFragReq::SignalLength + 1];
+    /** Number of receiced LQHKEYCONF messages from descendant lookup 
+     * operations.*/
+    Uint32 m_descendant_keyconfs_received;
+    /** Number of received LQHKEYREF messages from descendant lookup 
+     * operations.*/
+    Uint32 m_descendant_keyrefs_received;
+    /** Number of LQHKEYREQ messages sent for descendant lookup operations.*/
+    Uint32 m_descendant_keyreqs_sent;
+    Uint32 m_scanFragReq[ScanFragReq::SignalLength + 2];
   };
 
   /**
@@ -386,6 +406,7 @@ public:
     Uint32 m_node_cnt;
     Uint32 m_senderRef;
     Uint32 m_senderData;
+    Uint32 m_rootResultData;
     Uint32 m_transId[2];
     NdbNodeBitmask m_node_mask; // Dependant data nodes...
     TreeNode_list::Head m_nodes;
@@ -465,7 +486,8 @@ private:
    */
   Uint32 buildRowHeader(RowRef::Header *, SegmentedSectionPtr);
   Uint32 buildRowHeader(RowRef::Header *, const Uint32 *& src, Uint32 len);
-  Uint32 getColData32(const RowRef::Section&, Uint32 colNo);
+  void getCorrelationData(const RowRef::Section & row, Uint32 col,
+                          Uint32& rootStreamId, Uint32& correlationNumber);
   Uint32 appendToPattern(Local_pattern_store &, DABuffer & tree, Uint32);
   Uint32 appendColToPattern(Local_pattern_store&,const RowRef::Linear&, Uint32);
 
@@ -485,7 +507,9 @@ private:
                  DABuffer param, Uint32 paramBits);
 
   Uint32 zeroFill(Uint32 & ptrI, Uint32 cnt);
-
+  /** Find root operation.*/
+  const Ptr<TreeNode> getRoot(TreeNode_list::Head& head);
+  
   /**
    * Lookup
    */
@@ -500,6 +524,10 @@ private:
   void lookup_execLQHKEYCONF(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void lookup_start_child(Signal*, Ptr<Request>, Ptr<TreeNode>, const RowRef &);
   void lookup_cleanup(Ptr<Request>, Ptr<TreeNode>);
+  void lookup_count_descendant_signal(Signal* signal,
+                                      Ptr<Request> requestPtr,
+                                      Ptr<TreeNode> rootPtr,
+                                      Uint32 globalSignalNo){};
 
   Uint32 handle_special_hash(Uint32 tableId, Uint32 dstHash[4],
                              const Uint64* src,
@@ -524,6 +552,10 @@ private:
   void scanFrag_batch_complete(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void scanFrag_start_child(Signal*,Ptr<Request>,Ptr<TreeNode>, const RowRef &);
   void scanFrag_cleanup(Ptr<Request>, Ptr<TreeNode>);
+  void scanFrag_count_descendant_signal(Signal* signal,
+                                        Ptr<Request> requestPtr,
+                                        Ptr<TreeNode> rootPtr,
+                                        Uint32 globalSignalNo);
 
   /**
    * Scratch buffers...
