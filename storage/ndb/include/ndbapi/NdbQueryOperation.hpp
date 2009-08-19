@@ -221,7 +221,7 @@ public:
                        const unsigned char* result_mask = 0);
 
   int setResultRowRef (const NdbRecord* rec,
-                       char* & bufRef,
+                       const char* & bufRef,
                        const unsigned char* result_mask = 0);
 
   // TODO: define how BLOB/CLOB should be retrieved.

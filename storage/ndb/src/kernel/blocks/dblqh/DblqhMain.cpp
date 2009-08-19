@@ -4029,6 +4029,8 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   Uint32 TanyValueFlag = LqhKeyReq::getAnyValueFlag(Treqinfo);
   regTcPtr->m_anyValue = 0;
   if (TanyValueFlag == 1) {
+    regTcPtr->m_rootStreamId = lqhKeyReq->variableData[nextPos];
+    nextPos++;
     regTcPtr->m_anyValue = lqhKeyReq->variableData[nextPos];
     nextPos++;
   }
@@ -5258,7 +5260,8 @@ Dblqh::acckeyconf_tupkeyreq(Signal* signal, TcConnectionrec* regTcPtr,
 
   sig0 = regTcPtr->m_row_id.m_page_no;
   sig1 = regTcPtr->m_row_id.m_page_idx;
-  sig2 = regTcPtr->m_anyValue;
+  sig2 = regTcPtr->m_rootStreamId;
+  sig3 = regTcPtr->m_anyValue;
   
   tupKeyReq->primaryReplica = (tcConnectptr.p->seqNoReplica == 0)?true:false;
   tupKeyReq->coordinatorTC = tcConnectptr.p->tcBlockref;
@@ -5268,7 +5271,8 @@ Dblqh::acckeyconf_tupkeyreq(Signal* signal, TcConnectionrec* regTcPtr,
 
   tupKeyReq->m_row_id_page_no = sig0;
   tupKeyReq->m_row_id_page_idx = sig1;
-  tupKeyReq->anyValue = sig2;
+  tupKeyReq->rootStreamId = sig2;
+  tupKeyReq->anyValue = sig3;
   
   TRACE_OP(regTcPtr, "TUPKEYREQ");
   
@@ -9258,7 +9262,8 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
      *      and nextPos (see execLQHKEYREQ)
      *      but since long/short SCAN_FRAGREQ can arrive...we skip it for now
      */
-    tcConnectptr.p->m_anyValue = scanFragReq->variableData[0];
+    tcConnectptr.p->m_rootStreamId = scanFragReq->variableData[0];
+    tcConnectptr.p->m_anyValue = scanFragReq->variableData[1];
   }
 
   errorCode = initScanrec(scanFragReq, aiLen);
@@ -9997,6 +10002,7 @@ Dblqh::next_scanconf_tupkeyreq(Signal* signal,
   tupKeyReq->disk_page= disk_page;
   /* No AttrInfo sent to TUP, it uses a stored procedure */
   tupKeyReq->attrInfoIVal= RNIL;
+  tupKeyReq->rootStreamId = regTcPtr->m_rootStreamId;
   tupKeyReq->anyValue = regTcPtr->m_anyValue+scanPtr.p->m_curr_batch_size_rows;
   Uint32 blockNo = refToMain(regTcPtr->tcTupBlockref);
   EXECUTE_DIRECT(blockNo, GSN_TUPKEYREQ, signal, 

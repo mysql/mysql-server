@@ -742,7 +742,9 @@ ErrorBundle ErrorCodes[] = {
   { QRY_DEFINITION_TOO_LARGE, DMEC, AE, 
     "Query definition too large." },
   { QRY_DUPLICATE_COLUMN_IN_PROJ, DMEC, AE, 
-    "Duplicate column in result projection for NdbQueryOperation"},
+    "Duplicate column in result projection for NdbQueryOperation."},
+  { QRY_RESULT_ROW_ALREADY_DEFINED, DMEC, AE, 
+    "Result row already defined for NdbQueryOperation."},
   { QRY_NEED_PARAMETER, DMEC, AE, 
     "Parameter values required by query was not specified"},
 

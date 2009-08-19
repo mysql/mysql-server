@@ -2432,8 +2432,9 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
   }
   case AttributeHeader::READ_ANY_VALUE:{
     jam();
-    sz = 1;
-    outBuffer[1] = operPtr.p->m_any_value;
+    sz = 2;
+    outBuffer[1] = operPtr.p->m_root_frag_id;
+    outBuffer[2] = operPtr.p->m_any_value;
     break;
   }
   default:

@@ -1052,7 +1052,7 @@ NdbQueryIndexScanOperationDefImpl
 ::materializeRootOperands(NdbOperation& ndbOperation,
                           const constVoidPtr actualParam[]) const
 {
-  assert(false); // TODO: Implement this.
+  // TODO: Implement this.
 }
 
 void 
@@ -1060,7 +1060,7 @@ NdbQueryTableScanOperationDefImpl
 ::materializeRootOperands(NdbOperation& ndbOperation,
                           const constVoidPtr actualParam[]) const
 {
-  assert(false); // TODO: Implement this.
+  // TODO: Implement this.
 }
 
 
