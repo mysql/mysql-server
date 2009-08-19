@@ -244,8 +244,11 @@ Qmgr::execSTART_ORD(Signal* signal)
   /**
    * Start timer handling 
    */
+  Uint64 now = NdbTick_CurrentMillisecond();
   signal->theData[0] = ZTIMER_HANDLING;
-  sendSignal(QMGR_REF, GSN_CONTINUEB, signal, 1, JBB);
+  signal->theData[1] = Uint32(now >> 32);
+  signal->theData[2] = Uint32(now);
+  sendSignal(QMGR_REF, GSN_CONTINUEB, signal, 3, JBB);
 
   NodeRecPtr nodePtr;
   for (nodePtr.i = 1; nodePtr.i < MAX_NODES; nodePtr.i++) 
@@ -406,17 +409,19 @@ Qmgr::execDIH_RESTARTCONF(Signal*signal)
 
 void Qmgr::setHbDelay(UintR aHbDelay)
 {
+  NDB_TICKS now = NdbTick_CurrentMillisecond();
   hb_send_timer.setDelay(aHbDelay < 10 ? 10 : aHbDelay);
-  hb_send_timer.reset();
+  hb_send_timer.reset(now);
   hb_check_timer.setDelay(aHbDelay < 10 ? 10 : aHbDelay);
-  hb_check_timer.reset();
+  hb_check_timer.reset(now);
 }
 
 void Qmgr::setHbApiDelay(UintR aHbApiDelay)
 {
+  NDB_TICKS now = NdbTick_CurrentMillisecond();
   chbApiDelay = (aHbApiDelay < 100 ? 100 : aHbApiDelay);
   hb_api_timer.setDelay(chbApiDelay);
-  hb_api_timer.reset();
+  hb_api_timer.reset(now);
 }
 
 void Qmgr::setArbitTimeout(UintR aArbitTimeout)
@@ -1946,13 +1951,14 @@ void Qmgr::execCM_ADD(Signal* signal)
     addNodePtr.p->phase = ZRUNNING;
     setNodeInfo(addNodePtr.i).m_heartbeat_cnt= 0;
     c_clusterNodes.set(addNodePtr.i);
-    findNeighbours(signal);
+    findNeighbours(signal, __LINE__);
 
     /**
      * SEND A HEARTBEAT IMMEDIATELY TO DECREASE THE RISK THAT WE MISS EARLY
      * HEARTBEATS. 
      */
     sendHeartbeat(signal);
+    hb_send_timer.reset(0);
 
     /**
      *  ENABLE COMMUNICATION WITH ALL BLOCKS WITH THE NEWLY ADDED NODE
@@ -2033,7 +2039,7 @@ Qmgr::joinedCluster(Signal* signal, NodeRecPtr nodePtr){
    */
   nodePtr.p->phase = ZRUNNING;
   setNodeInfo(nodePtr.i).m_heartbeat_cnt= 0;
-  findNeighbours(signal);
+  findNeighbours(signal, __LINE__);
   c_clusterNodes.set(nodePtr.i);
   c_start.reset();
 
@@ -2042,6 +2048,7 @@ Qmgr::joinedCluster(Signal* signal, NodeRecPtr nodePtr){
    * THAT WE MISS EARLY HEARTBEATS. 
    */
   sendHeartbeat(signal);
+  hb_send_timer.reset(0);
 
   /**
    * ENABLE COMMUNICATION WITH ALL BLOCKS IN THE CURRENT CLUSTER AND SET 
@@ -2197,7 +2204,9 @@ void Qmgr::execCM_ACKADD(Signal* signal)
  * WE HAVE BEEN INCLUDED INTO THE CLUSTER. IT IS NOW TIME TO CALCULATE WHICH 
  * ARE OUR LEFT AND RIGHT NEIGHBOURS FOR THE HEARTBEAT PROTOCOL. 
  *--------------------------------------------------------------------------*/
-void Qmgr::findNeighbours(Signal* signal) 
+#include <EventLogger.hpp>
+extern EventLogger * g_eventLogger;
+void Qmgr::findNeighbours(Signal* signal, Uint32 from) 
 {
   UintR toldLeftNeighbour;
   UintR tfnLeftFound;
@@ -2207,6 +2216,7 @@ void Qmgr::findNeighbours(Signal* signal)
   NodeRecPtr fnNodePtr;
   NodeRecPtr fnOwnNodePtr;
 
+  Uint32 toldRightNeighbour = cneighbourh;
   toldLeftNeighbour = cneighbourl;
   tfnLeftFound = 0;
   tfnMaxFound = 0;
@@ -2307,6 +2317,12 @@ void Qmgr::findNeighbours(Signal* signal)
     }//if
   }//for
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, Tlen, JBB);
+  g_eventLogger->info("findNeighbours from: %u old (left: %u right: %u) new (%u %u)", 
+                      from,
+                      toldLeftNeighbour,
+                      toldRightNeighbour,
+                      cneighbourl,
+                      cneighbourh);
 }//Qmgr::findNeighbours()
 
 /*
@@ -2332,8 +2348,9 @@ void Qmgr::initData(Signal* signal)
   c_allow_api_connect = 0;
   ctoStatus = Q_NOT_ACTIVE;
 
+  NDB_TICKS now = NdbTick_CurrentMillisecond();
   interface_check_timer.setDelay(1000);
-  interface_check_timer.reset();
+  interface_check_timer.reset(now);
   clatestTransactionCheck = 0;
 
   // catch-all for missing initializations
@@ -2432,6 +2449,17 @@ void Qmgr::timerHandlingLab(Signal* signal)
   myNodePtr.i = getOwnNodeId();
   ptrCheckGuard(myNodePtr, MAX_NDB_NODES, nodeRec);
 
+  Uint32 sentHi = signal->theData[1];
+  Uint32 sentLo = signal->theData[2];
+  Uint64 sent = (Uint64(sentHi) << 32) + sentLo;
+
+  if (TcurrentTime >= sent + 50 || (TcurrentTime < sent))
+  {
+    jam();
+    ndbout_c("WARNING: timerHandlingLab now: %llu sent: %llu diff: %d",
+             TcurrentTime, sent, int(TcurrentTime - sent));
+  }
+
   if (myNodePtr.p->phase == ZRUNNING) {
     jam();
     /**---------------------------------------------------------------------
@@ -2440,25 +2468,25 @@ void Qmgr::timerHandlingLab(Signal* signal)
     if (hb_send_timer.check(TcurrentTime)) {
       jam();
       sendHeartbeat(signal);
-      hb_send_timer.reset();
+      hb_send_timer.reset(TcurrentTime);
     }
     if (hb_check_timer.check(TcurrentTime)) {
       jam();
       checkHeartbeat(signal);
-      hb_check_timer.reset();
+      hb_check_timer.reset(TcurrentTime);
     }
   }
   
   if (interface_check_timer.check(TcurrentTime)) {
     jam();
-    interface_check_timer.reset();
+    interface_check_timer.reset(TcurrentTime);
     checkStartInterface(signal, TcurrentTime);
   }
 
   if (hb_api_timer.check(TcurrentTime)) 
   {
     jam();
-    hb_api_timer.reset();
+    hb_api_timer.reset(TcurrentTime);
     apiHbHandlingLab(signal, TcurrentTime);
   }
 
@@ -2490,7 +2518,9 @@ void Qmgr::timerHandlingLab(Signal* signal)
   // Resend this signal with 10 milliseconds delay.
   //--------------------------------------------------
   signal->theData[0] = ZTIMER_HANDLING;
-  sendSignalWithDelay(QMGR_REF, GSN_CONTINUEB, signal, 10, 1);
+  signal->theData[1] = Uint32(TcurrentTime >> 32);
+  signal->theData[2] = Uint32(TcurrentTime);
+  sendSignalWithDelay(QMGR_REF, GSN_CONTINUEB, signal, 10, 3);
   return;
 }//Qmgr::timerHandlingLab()
 
@@ -4278,7 +4308,7 @@ void Qmgr::failReport(Signal* signal,
       return;
     }//if
     failedNodePtr.p->ndynamicId = 0;
-    findNeighbours(signal);
+    findNeighbours(signal, __LINE__);
     if (failedNodePtr.i == cpresident) {
       jam();
       /**--------------------------------------------------------------------

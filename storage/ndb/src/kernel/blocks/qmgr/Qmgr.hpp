@@ -316,7 +316,7 @@ private:
                   Uint16 aFailedNode,
                   UintR aSendFailRep,
                   FailRep::FailCause failCause);
-  void findNeighbours(Signal* signal);
+  void findNeighbours(Signal* signal, Uint32 from);
   Uint16 translateDynamicIdToNodeId(Signal* signal, UintR TdynamicId);
 
   void initData(Signal* signal);
