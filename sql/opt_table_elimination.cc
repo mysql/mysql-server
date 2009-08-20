@@ -175,7 +175,10 @@ public:
     field_index 
   */
   Field_value *next_table_field;
-  uint bitmap_offset; /* Offset of our part of the bitmap */
+  /* 
+    Offset of our part of the bitmap psergey-todo: better comment!
+  */
+  uint bitmap_offset;
   
   /*
     Field became known. Check out
@@ -214,10 +217,6 @@ public:
 class Module_dep : public Sql_alloc
 {
 public:
-  enum {
-    MODULE_OUTER_JOIN
-  } type; /* Type of the object */
-  
   virtual bool now_bound(Func_dep_analyzer *fda, Value_dep **bound_modules)=0;
   virtual ~Module_dep(){}
   /* 
@@ -232,14 +231,18 @@ public:
 
 
 /*
-  A "tbl.column= expr" equality dependency.  tbl.column depends on fields 
-  used in expr.
+  This represents either
+   - "tbl.column= expr" equality dependency, i.e. tbl.column depends on fields 
+     used in the expression, or
+   - tbl1.col1=tbl2.col2=... multi-equality.
 */
 class Equality_module : public Module_dep
 {
 public:
   Field_value *field;
   Item  *expression;
+  
+  List<Field_value> *mult_equal_fields;
   
   /* Used during condition analysis only, similar to KEYUSE::level */
   uint level;
@@ -331,7 +334,7 @@ bool check_func_dependency(JOIN *join,
                            Item* cond);
 
 static 
-void build_eq_mods_for_cond(Func_dep_analyzer *fda, Equality_module **fdeps, 
+void build_eq_mods_for_cond(Func_dep_analyzer *fda, Equality_module **eq_mod, 
                             uint *and_level, Item *cond);
 static 
 void add_eq_mod(Func_dep_analyzer *fda, Equality_module **eq_mod, 
@@ -346,6 +349,9 @@ static Table_value *get_table_value(Func_dep_analyzer *fda, TABLE *table);
 static Field_value *get_field_value(Func_dep_analyzer *fda, Field *field);
 static void mark_as_eliminated(JOIN *join, TABLE_LIST *tbl);
 
+static void add_eq_mod2(Func_dep_analyzer *fda, Equality_module **eq_mod,
+                        uint and_level, Field_value *field_val, Item *right,
+                        List<Field_value>* mult_equal_fields);
 
 
 #ifndef DBUG_OFF
@@ -360,7 +366,7 @@ static void dbug_print_deps(Func_dep_analyzer *fda);
   SYNOPSIS
     build_eq_mods_for_cond()
       fda                    Table elimination context 
-      fdeps          INOUT  Put produced equality conditions here
+      eq_mod          INOUT  Put produced equality conditions here
       and_level      INOUT  AND-level (like in add_key_fields)
       cond                  Condition to process
 
@@ -369,34 +375,34 @@ static void dbug_print_deps(Func_dep_analyzer *fda);
 */
 
 static 
-void build_eq_mods_for_cond(Func_dep_analyzer *fda, Equality_module **fdeps, 
+void build_eq_mods_for_cond(Func_dep_analyzer *fda, Equality_module **eq_mod, 
                             uint *and_level, Item *cond)
 {
   if (cond->type() == Item_func::COND_ITEM)
   {
     List_iterator_fast<Item> li(*((Item_cond*) cond)->argument_list());
-    Equality_module *org_key_fields= *fdeps;
+    Equality_module *org_key_fields= *eq_mod;
     
     /* AND/OR */
     if (((Item_cond*) cond)->functype() == Item_func::COND_AND_FUNC)
     {
       Item *item;
       while ((item=li++))
-        build_eq_mods_for_cond(fda, fdeps, and_level, item);
-      for (; org_key_fields != *fdeps ; org_key_fields++)
+        build_eq_mods_for_cond(fda, eq_mod, and_level, item);
+      for (; org_key_fields != *eq_mod ; org_key_fields++)
         org_key_fields->level= *and_level;
     }
     else
     {
       Item *item;
       (*and_level)++;
-      build_eq_mods_for_cond(fda, fdeps, and_level, li++);
+      build_eq_mods_for_cond(fda, eq_mod, and_level, li++);
       while ((item=li++))
       {
-        Equality_module *start_key_fields= *fdeps;
+        Equality_module *start_key_fields= *eq_mod;
         (*and_level)++;
-        build_eq_mods_for_cond(fda, fdeps, and_level, item);
-        *fdeps= merge_func_deps(org_key_fields, start_key_fields, *fdeps,
+        build_eq_mods_for_cond(fda, eq_mod, and_level, item);
+        *eq_mod= merge_func_deps(org_key_fields, start_key_fields, *eq_mod,
                                 ++(*and_level));
       }
     }
@@ -414,8 +420,8 @@ void build_eq_mods_for_cond(Func_dep_analyzer *fda, Equality_module **fdeps,
   {
     if (cond_func->argument_count() == 2)
     {
-      add_eq_mod(fda, fdeps, *and_level, cond_func, args[0], args[1]);
-      add_eq_mod(fda, fdeps, *and_level, cond_func, args[1], args[0]);
+      add_eq_mod(fda, eq_mod, *and_level, cond_func, args[0], args[1]);
+      add_eq_mod(fda, eq_mod, *and_level, cond_func, args[1], args[0]);
     }
     break;
   }
@@ -426,67 +432,110 @@ void build_eq_mods_for_cond(Func_dep_analyzer *fda, Equality_module **fdeps,
         (fld= args[0]->real_item())->type() == Item::FIELD_ITEM &&
         args[1]->eq(args[2], ((Item_field*)fld)->field->binary()))
     {
-      add_eq_mod(fda, fdeps, *and_level, cond_func, args[0], args[1]);
-      add_eq_mod(fda, fdeps, *and_level, cond_func, args[1], args[0]);
+      add_eq_mod(fda, eq_mod, *and_level, cond_func, args[0], args[1]);
+      add_eq_mod(fda, eq_mod, *and_level, cond_func, args[1], args[0]);
     }
     break;
   }
   case Item_func::EQ_FUNC:
   case Item_func::EQUAL_FUNC:
   {
-    add_eq_mod(fda, fdeps, *and_level, cond_func, args[0], args[1]);
-    add_eq_mod(fda, fdeps, *and_level, cond_func, args[1], args[0]);
+    add_eq_mod(fda, eq_mod, *and_level, cond_func, args[0], args[1]);
+    add_eq_mod(fda, eq_mod, *and_level, cond_func, args[1], args[0]);
     break;
   }
   case Item_func::ISNULL_FUNC:
   {
     Item *tmp=new Item_null;
     if (tmp)
-      add_eq_mod(fda, fdeps, *and_level, cond_func, args[0], args[1]);
+      add_eq_mod(fda, eq_mod, *and_level, cond_func, args[0], args[1]);
     break;
   }
   case Item_func::MULT_EQUAL_FUNC:
   {
-    Item_equal *item_equal= (Item_equal *) cond;
-    Item *const_item= item_equal->get_const();
+    Item_equal *item_equal= (Item_equal*)cond;
+    // const item is 'item', field -> NULL. mult_equal_fields <-- an ordered
+    // list of 
+    List<Field_value> *fvl;
+    if (!(fvl= new List<Field_value>))
+      break;
+    
     Item_equal_iterator it(*item_equal);
     Item_field *item;
-    if (const_item)
+    Item *bound_item= item_equal->get_const();
+    while ((item= it++))
     {
-      /*
-        For each field field1 from item_equal consider the equality 
-        field1=const_item as a condition allowing an index access of the table
-        with field1 by the keys value of field1.
-      */
-      while ((item= it++))
-        add_eq_mod(fda, fdeps, *and_level, cond_func, item, const_item);
-    }
-    else 
-    {
-      /*
-        Consider all pairs of different fields included into item_equal.
-        For each of them (field1, field1) consider the equality 
-        field1=field2 as a condition allowing an index access of the table
-        with field1 by the keys value of field2.
-      */   
-      Item_equal_iterator fi(*item_equal);
-      while ((item= fi++))
+      if ((item->used_tables() & fda->usable_tables))
       {
-        Field *field= item->field;
-        Item_field *item2;
-        while ((item2= it++))
+        Field_value *field_val;
+        if ((field_val= get_field_value(fda, item->field)))
         {
-          if (!field->eq(item2->field))
-            add_eq_mod(fda, fdeps, *and_level, cond_func, item, item2);
+          List_iterator<Field_value> it2(*fvl);
+          Field_value *other_f;
+          uint field_val_ratio= field_val->field->table->tablenr*MAX_FIELDS +
+                                field_val->field->field_index;
+          bool added= FALSE;
+          while ((other_f= it2++))
+          {
+            uint other_f_ratio= other_f->field->table->tablenr*MAX_FIELDS + 
+                                other_f->field->field_index;
+            if (other_f_ratio > field_val_ratio)
+            {
+              *(it2.ref())= field_val;
+              it2.after(other_f);
+              added= TRUE;
+              break;
+            }
+          }
+          if (!added)
+            fvl->push_back(field_val);
         }
-        it.rewind();
+      }
+      else
+      {
+        if (!bound_item)
+          bound_item= item;
       }
     }
+    add_eq_mod2(fda, eq_mod, *and_level, NULL, bound_item, fvl);
     break;
   }
   default:
     break;
   }
+}
+
+
+/*
+   The only requirement of this function is to order fields in some
+   deterministic way.
+*/
+
+int cmp_equal_fields(Item_field *field1, Item_field *field2, void *arg)
+{
+  int cmp= 0;
+  bool outer_ref= 0;
+  if (field2->used_tables() & OUTER_REF_TABLE_BIT)
+  {  
+    outer_ref= 1;
+    cmp= -1;
+  }
+  if (field2->used_tables() & OUTER_REF_TABLE_BIT)
+  {
+    outer_ref= 1;
+    cmp++;
+  }
+  if (outer_ref)
+    return cmp;
+  cmp= (int)field2->field->table->tablenr - 
+       (int)field1->field->table->tablenr;
+  if (cmp)
+    return cmp < 0 ? -1 : 1;
+  cmp= (int)field2->field->field_index - 
+       (int)field1->field->field_index;
+
+    return cmp < 0 ? -1 : (cmp ? 1 : 0);
+  
 }
 
 
@@ -540,9 +589,9 @@ Equality_module *merge_func_deps(Equality_module *start, Equality_module *new_fi
                                  Equality_module *end, uint and_level)
 {
   if (start == new_fields)
-    return start;				// Impossible or
+    return start;                                // Impossible or
   if (new_fields == end)
-    return start;				// No new fields, skip all
+    return start;                                // No new fields, skip all
 
   Equality_module *first_free=new_fields;
 
@@ -551,40 +600,119 @@ Equality_module *merge_func_deps(Equality_module *start, Equality_module *new_fi
     for (Equality_module *old=start ; old != first_free ; old++)
     {
       /* 
-         TODO: does it make sense to attempt to merging multiple-equalities? 
-         A: YES.  
-           (a=b=c) OR (a=b=d)  produce "a=b". 
-         QQ: 
-           What to use for merging? Trivial N*M algorithm or pre-sort and then
-           merge ordered sequences?
+        Merge multiple-equalities:
+        A: YES.  
+          (a=b=c) OR (a=b=d)  produce "a=b".
+
+        TODO:
+          sort by (table_ptr, column_index)
+          then run along the two and produce an intersection
+
+        Q: What about constants?
+          a=b=3  OR a=b=5 -> a=b= (either 3 or 5)
+
+          a=b  OR a=b=5 -> a=b= (any constant)
+        A: keep the constant iff it is present in both sides and is the same.
+        
+        class Multi_equality
+        {
+          Item *const_item;
+          List<...) list;
+        };
+
       */
       if (old->field == new_fields->field)
       {
-	if (!new_fields->expression->const_item())
-	{
-	  /*
-	    If the value matches, we can use the key reference.
-	    If not, we keep it until we have examined all new values
-	  */
-	  if (old->expression->eq(new_fields->expression, old->field->field->binary()))
-	  {
-	    old->level= and_level;
-	  }
-	}
-	else if (old->expression->eq_by_collation(new_fields->expression, 
-                                           old->field->field->binary(),
-                                           old->field->field->charset()))
-	{
-	  old->level= and_level;
-	}
-	else
-	{
+        if (!old->field)
+        {
+          /*
+            OR-ing two multiple equalities. We must compute an intersection of
+            used fields, and check the constants according to these rules:
+
+              a=b=c=d  OR  a=c=e=f  ->  a=c  (compute intersection)
+              a=const1 OR a=b       ->  (nothing)
+              a=const1 OR a=const1  ->  a=const1 
+              a=const1 OR a=const2  ->  (nothing)
+            
+            If we're performing an OR operation over multiple equalities, e.g.
+
+              (a=b=c AND p=q) OR (a=b AND v=z)
+            
+            then we'll need to try combining each equality with each. ANDed
+            equalities are guaranteed to be disjoint, so we'll only get one
+            hit.
+          */
+          if (old->expression && new_fields->expression &&
+              old->expression->eq_by_collation(new_fields->expression, 
+                                               old->mult_equal_fields->head()->field->binary(),
+                                               old->mult_equal_fields->head()->field->charset()))
+          {
+            /* Ok, keep */
+          }
+          else
+          {
+            // no single constant/bound item.
+            old->expression= NULL;
+          }
+           
+          List <Field_value> *fv;
+          if (!(fv= new List<Field_value>))
+            break;
+
+          List_iterator<Field_value> it1(*old->mult_equal_fields);
+          List_iterator<Field_value> it2(*new_fields->mult_equal_fields);
+          Field_value *lfield= it1++;
+          Field_value *rfield= it2++;
+          // Merge
+          while (lfield && rfield)
+          {
+            if (lfield == rfield)
+              fv->push_back(lfield);
+            else
+            {
+              uint left_ratio= lfield->field->table->tablenr*MAX_FIELDS +
+                               lfield->field->field_index;
+              uint right_ratio= rfield->field->table->tablenr*MAX_FIELDS +
+                                rfield->field->field_index;
+              if (left_ratio < right_ratio)
+                lfield=it1++;
+              else
+                rfield=it2++;
+            }
+          }
+
+          if (fv->elements + test(old->expression) > 1)
+          {
+            old->mult_equal_fields= fv;
+            old->level= and_level;
+          }
+        }
+        else if (!new_fields->expression->const_item())
+        {
+          /*
+            If the value matches, we can use the key reference.
+            If not, we keep it until we have examined all new values
+          */
+          if (old->expression->eq(new_fields->expression, 
+                                  old->field->field->binary()))
+          {
+            old->level= and_level;
+          }
+        }
+        else if (old->expression->eq_by_collation(new_fields->expression, 
+                                                  old->field->field->binary(),
+                                                  old->field->field->charset()))
+        {
+          old->level= and_level;
+        }
+        else
+        {
           /* The expressions are different. */
-	  if (old == --first_free)		// If last item
-	    break;
-	  *old= *first_free;			// Remove old value
-	  old--;				// Retry this value
-	}
+          if (old == --first_free)                // If last item
+            break;
+          *old= *first_free;                        // Remove old value
+          old--;                                // Retry this value
+        }
       }
     }
   }
@@ -596,10 +724,10 @@ Equality_module *merge_func_deps(Equality_module *start, Equality_module *new_fi
   for (Equality_module *old=start ; old != first_free ;)
   {
     if (old->level != and_level)
-    {						// Not used in all levels
+    {                                                // Not used in all levels
       if (old == --first_free)
-	break;
-      *old= *first_free;			// Remove old value
+        break;
+      *old= *first_free;                        // Remove old value
       continue;
     }
     old++;
@@ -659,32 +787,41 @@ void add_eq_mod(Func_dep_analyzer *fda, Equality_module **eq_mod,
           return;
       }
     }
-    
-    if (*eq_mod == fda->equality_mods + fda->n_equality_mods_alloced)
-    {
-      /* 
-        We've filled the entire equality_mods array. Replace it with a bigger
-        one. We do it somewhat inefficiently but it doesn't matter.
-      */
-      Equality_module *new_arr;
-      if (!(new_arr= new Equality_module[fda->n_equality_mods_alloced *2]))
-        return;
-      fda->n_equality_mods_alloced *= 2;
-      for (int i= 0; i < *eq_mod - fda->equality_mods; i++)
-        new_arr[i]= fda->equality_mods[i];
-
-      fda->equality_mods= new_arr;
-      *eq_mod= new_arr + (*eq_mod - fda->equality_mods);
-    }
-
-    if (!((*eq_mod)->field= get_field_value(fda, field)))
-      return;
-    (*eq_mod)->expression= right;
-    (*eq_mod)->level= and_level;
-    (*eq_mod)++;
+    Field_value *field_val;
+    if ((field_val= get_field_value(fda, field)))
+      add_eq_mod2(fda, eq_mod, and_level, field_val, right, NULL);
   }
 }
 
+
+/* Just add eq_mod w/o any checks */
+static void add_eq_mod2(Func_dep_analyzer *fda, Equality_module **eq_mod,
+                        uint and_level, Field_value *field_val, Item *right,
+                        List<Field_value>* mult_equal_fields)
+{
+  if (*eq_mod == fda->equality_mods + fda->n_equality_mods_alloced)
+  {
+    /* 
+      We've filled the entire equality_mods array. Replace it with a bigger
+      one. We do it somewhat inefficiently but it doesn't matter.
+    */
+    Equality_module *new_arr;
+    if (!(new_arr= new Equality_module[fda->n_equality_mods_alloced *2]))
+      return;
+    fda->n_equality_mods_alloced *= 2;
+    for (int i= 0; i < *eq_mod - fda->equality_mods; i++)
+      new_arr[i]= fda->equality_mods[i];
+
+    fda->equality_mods= new_arr;
+    *eq_mod= new_arr + (*eq_mod - fda->equality_mods);
+  }
+
+  (*eq_mod)->field= field_val;
+  (*eq_mod)->expression= right;
+  (*eq_mod)->level= and_level;
+  (*eq_mod)->mult_equal_fields= mult_equal_fields;
+  (*eq_mod)++;
+}
 
 /*
   Get a Table_value object for the given table, creating it if necessary.
@@ -782,11 +919,15 @@ public:
       */
       fda->equality_mods[expr_offset].unknown_args++;
     }
+    else
+      saw_other_tbl= TRUE;
   }
 
   Func_dep_analyzer *fda;
   /* Offset of the expression we're processing in the dependency bitmap */
-  uint expr_offset; 
+  uint expr_offset;
+
+  bool saw_other_tbl;
 };
 
 
@@ -858,9 +999,21 @@ bool setup_equality_modules_deps(Func_dep_analyzer *fda,
        eq_mod++)
   {
     deps_recorder.expr_offset= eq_mod - fda->equality_mods;
+    deps_recorder.saw_other_tbl= FALSE;
     eq_mod->unknown_args= 0;
+
+    /* Regular tbl.col=expr(tblX1.col1, tblY1.col2, ...) */
     eq_mod->expression->walk(&Item::check_column_usage_processor, FALSE, 
                              (uchar*)&deps_recorder);
+
+    if (!eq_mod->field)
+    {
+      if (eq_mod->unknown_args)
+        eq_mod->unknown_args= 1;
+      if (deps_recorder.saw_other_tbl)
+        eq_mod->unknown_args= 0;
+    }
+
     if (!eq_mod->unknown_args)
     {
       eq_mod->next= bound_dep;
@@ -1235,12 +1388,30 @@ bool Equality_module::now_bound(Func_dep_analyzer *fda,
                                 Value_dep **bound_values)
 {
   /* For field=expr and we got to know the expr, so we know the field */
-  if (!field->bound)
+  if (mult_equal_fields)
   {
-    /* Mark as bound and add to the list */
-    field->bound= TRUE;
-    field->next= *bound_values;
-    *bound_values= field;
+    List_iterator<Field_value> it(*mult_equal_fields);
+    Field_value *fv;
+    while ((fv= it++))
+    {
+      if (!fv->bound)
+      {
+        /* Mark as bound and add to the list */
+        fv->bound= TRUE;
+        fv->next= *bound_values;
+        *bound_values= fv;
+      }
+    }
+  }
+  else
+  {
+    if (!field->bound)
+    {
+      /* Mark as bound and add to the list */
+      field->bound= TRUE;
+      field->next= *bound_values;
+      *bound_values= field;
+    }
   }
   return FALSE;
 }
@@ -1313,11 +1484,19 @@ void dbug_print_deps(Func_dep_analyzer *fda)
     String str(buf, sizeof(buf), &my_charset_bin);
     str.length(0);
     eq_mod->expression->print(&str, QT_ORDINARY);
-    fprintf(DBUG_FILE, "  equality%d: %s -> %s.%s\n", 
-            eq_mod - fda->equality_mods,
-            str.c_ptr(),
-            eq_mod->field->table->table->alias,
-            eq_mod->field->field->field_name);
+    if (eq_mod->field)
+    {
+      fprintf(DBUG_FILE, "  equality%d: %s -> %s.%s\n", 
+              eq_mod - fda->equality_mods,
+              str.c_ptr(),
+              eq_mod->field->table->table->alias,
+              eq_mod->field->field->field_name);
+    }
+    else
+    {
+      fprintf(DBUG_FILE, "  equality%d: multi-equality", 
+              eq_mod - fda->equality_mods);
+    }
   }
   fprintf(DBUG_FILE,"\n");
 

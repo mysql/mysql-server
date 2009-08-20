@@ -1578,6 +1578,7 @@ public:
   uint members();
   bool contains(Field *field);
   Item_field* get_first() { return fields.head(); }
+  uint n_fields() { return fields.elements; }
   void merge(Item_equal *item);
   void update_const();
   enum Functype functype() const { return MULT_EQUAL_FUNC; }
