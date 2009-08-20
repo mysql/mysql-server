@@ -140,7 +140,6 @@ endif
 BDB_TESTS = $(patsubst %.c,%.bdb$(BINSUF),$(filter-out $(patsubst %,%.c,$(BDB_DONTRUN_TESTS)),$(SRCS)))
 
 TDB_TESTS_THAT_SHOULD_FAIL= \
-	x2 \
 	test_groupcommit_count \
 	test944 \
 	test_truncate_txn_abort \
