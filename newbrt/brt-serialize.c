@@ -557,6 +557,7 @@ int toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct b
     assert(w.ndone==calculated_size);
     toku_free(buf);
     toku_free(compressed_buf);
+    node->dirty = 0;  // See #1957.   Must set the node to be clean after serializing it so that it doesn't get written again on the next checkpoint or eviction.
     return r;
 }
 
