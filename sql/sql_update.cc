@@ -527,6 +527,7 @@ int mysql_update(THD *thd,
       table->file->unlock_row();
     thd->row_count++;
   }
+  table->auto_increment_field_not_null= FALSE;
   /*
     Caching the killed status to pass as the arg to query event constuctor;
     The cached value can not change whereas the killed status can
