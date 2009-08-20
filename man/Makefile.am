@@ -23,7 +23,7 @@ EXTRA_DIST =  $(man1_MANS) $(man8_MANS)
 
 # "make_win_*" are not needed in Unix binary packages,
 install-data-hook:
-	rm -f $(DESTDIR)$(manlibdir)/man1/make_win_*
+	rm -f $(DESTDIR)$(mandir)/man1/make_win_*
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
