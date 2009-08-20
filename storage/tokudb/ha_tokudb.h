@@ -277,6 +277,7 @@ private:
     void set_query_columns(uint keynr);
     int prelock_range ( const key_range *start_key, const key_range *end_key);
 
+
  
 public:
     ha_tokudb(handlerton * hton, TABLE_SHARE * table_arg);
@@ -429,6 +430,10 @@ public:
         DBT const *key,
         uint index
         );
+
+    int prefix_cmp_dbts( uint keynr, const DBT* first_key, const DBT* second_key) {
+        return tokudb_prefix_cmp_dbt_key(share->key_file[keynr], first_key, second_key);
+    }
 
     int heavi_ret_val;
 
