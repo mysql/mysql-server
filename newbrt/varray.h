@@ -22,6 +22,9 @@ void varray_destroy(struct varray **vap);
 // element is the new element
 // Returns: 0 if success
 int varray_append(struct varray *va, void *p);
+
+// Sort the array elements
+void varray_sort(struct varray *va, int (*)(const void *, const void *));
                   
 // Apply a function to all of the elements in the array
 // Effect: The function f is called for every element in the array, with

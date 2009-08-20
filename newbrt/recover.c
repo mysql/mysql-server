@@ -410,12 +410,13 @@ static int toku_recover_backward_xstillopen (struct logtype_xstillopen *l, struc
 static int toku_recover_xbegin (LSN lsn, TXNID parent_xid) {
     int r;
 
-    // TODO do something with the parent
-    assert(parent_xid == 0);
+    // lookup the parent
     TOKUTXN parent = NULL;
+    r = toku_txnid2txn(recover_logger, parent_xid, &parent);
+    assert(r == 0);
 
     // create a transaction and bind it to the transaction id
-    TOKUTXN txn;
+    TOKUTXN txn = NULL;
     r = toku_txn_begin_with_xid(parent, &txn, recover_logger, lsn.lsn);
     assert(r == 0);
     return 0;
@@ -538,6 +539,13 @@ static int tokudb_needs_recovery(const char *log_dir) {
     return needs_recovery;
 }
 
+// Sort the transactions in reverse order of transaction id
+static int compare_txn(const void *a, const void *b) {
+    TOKUTXN atxn = (TOKUTXN) * (void **) a;
+    TOKUTXN btxn = (TOKUTXN) * (void **) b;
+    return - (atxn->txnid64 - btxn->txnid64);
+}
+
 // Append a transaction to the set of live transactions
 static int append_live_txn(OMTVALUE v, u_int32_t UU(i), void *extra) {
     TOKUTXN txn = (TOKUTXN) v;
@@ -618,11 +626,12 @@ static int really_do_recovery(const char *data_dir, const char *log_dir) {
     // restart logging
     toku_logger_restart(recover_logger, lastlsn);
 
-    // abort all of the remaining live transactions
+    // abort all of the remaining live transactions in reverse transaction id order
     struct varray *live_txns = NULL;
     r = varray_create(&live_txns, 1);
     assert(r == 0);
     toku_omt_iterate(recover_logger->live_txns, append_live_txn, live_txns);
+    varray_sort(live_txns, compare_txn);
     varray_iterate(live_txns, abort_live_txn, NULL);
     varray_destroy(&live_txns);
 

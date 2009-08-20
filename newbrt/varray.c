@@ -50,9 +50,12 @@ int varray_append(struct varray *va, void *p) {
     va->a[va->c++] = p;
     return 0;
 }
+
+void varray_sort(struct varray *va, int (*compare)(const void *a, const void *b)) {
+    qsort(va->a, va->c, sizeof (void *), compare);
+}
                   
 void varray_iterate(struct varray *va, void (*f)(void *p, void *extra), void *extra) {
-    int i;
-    for (i=0; i<va->c; i++) 
+    for (int i = 0; i < va->c; i++) 
         f(va->a[i], extra);
 }
