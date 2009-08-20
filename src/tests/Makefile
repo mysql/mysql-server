@@ -277,7 +277,7 @@ endif
 
 %.recover: %.tdb$(BINSUF) $(PTHREAD_LOCAL)
 	echo doing ./$< &&\
-	$(VGRIND) ./$<                                                                          && \
+	$(VGRIND) ./$< --no-shutdown                                                            && \
 	rm -rf dir.$*.c.tdb.recover                                                             && \
 	mkdir dir.$*.c.tdb.recover                                                              && \
 	echo doing recovery &&\

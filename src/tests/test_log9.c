@@ -25,7 +25,7 @@ struct in_db {
 
 int maxcount = 10;
 
-static void insert_some (int outeri) {
+static void insert_some (int outeri, BOOL close_env) {
     u_int32_t create_flag = outeri%2 ? DB_CREATE : 0; // Sometimes use DB_CREATE, sometimes don't.
     int r;
     DB_ENV *env;
@@ -60,10 +60,12 @@ static void insert_some (int outeri) {
     }
     r=tid->commit(tid, 0);    assert(r==0);
     r=db->close(db, 0);       assert(r==0);
-    r=env->close(env, 0);     assert(r==0);
+    if (close_env) {
+        r=env->close(env, 0);     assert(r==0);
+    }
 }    
 
-static void make_db (void) {
+static void make_db (BOOL close_env) {
     DB_ENV *env;
     DB *db;
     DB_TXN *tid;
@@ -80,10 +82,12 @@ static void make_db (void) {
     r=db->open(db, tid, "foo.db", 0, DB_BTREE, DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
     r=tid->commit(tid, 0);    assert(r==0);
     r=db->close(db, 0);  CKERR(r);
-    r=env->close(env, 0); CKERR(r);
+    if (close_env) {
+        r=env->close(env, 0); CKERR(r);
+    }
 
     for (i=0; i<2; i++)
-	insert_some(i);
+	insert_some(i, close_env);
     
     while (items) {
 	struct in_db *next=items->next;
@@ -93,7 +97,12 @@ static void make_db (void) {
 }
 
 int
-test_main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
-    make_db();
+test_main (int argc, char *argv[]) {
+    BOOL close_env = TRUE;
+    for (int i=1; i<argc; i++) {
+        if (strcmp(argv[i], "--no-shutdown") == 0)
+            close_env = FALSE;
+    }
+    make_db(close_env);
     return 0;
 }

@@ -6,6 +6,7 @@
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 int toku_txn_begin_txn (TOKUTXN parent_tokutxn, TOKUTXN *tokutxn, TOKULOGGER logger);
+int toku_txn_begin_with_xid (TOKUTXN parent_tokutxn, TOKUTXN *tokutxn, TOKULOGGER logger, TXNID xid);
 int toku_txn_commit_txn (TOKUTXN txn, int nosync, YIELDF yield, void*yieldv);
 int toku_txn_abort_txn(TOKUTXN txn, YIELDF yield, void*yieldv);
 void toku_txn_close_txn(TOKUTXN txn);

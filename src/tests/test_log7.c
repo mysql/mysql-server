@@ -23,7 +23,7 @@ struct in_db {
     struct in_db *next;
 } *items=0;
 
-static void make_db (void) {
+static void make_db (BOOL close_env) {
     DB_ENV *env;
     DB *db;
     DB_TXN *tid;
@@ -70,7 +70,9 @@ static void make_db (void) {
     }
     r=tid->commit(tid, 0);    assert(r==0);
     r=db->close(db, 0);       assert(r==0);
-    r=env->close(env, 0);     assert(r==0);
+    if (close_env) {
+        r=env->close(env, 0);     assert(r==0);
+    }
     while (items) {
 	struct in_db *next=items->next;
 	toku_free(items);
@@ -79,7 +81,12 @@ static void make_db (void) {
 }
 
 int
-test_main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
-    make_db();
+test_main (int argc, char *argv[]) {
+    BOOL close_env = TRUE;
+    for (int i=1; i<argc; i++) {
+        if (strcmp(argv[i], "--no-shutdown") == 0)
+            close_env = FALSE;
+    }
+    make_db(close_env);
     return 0;
 }

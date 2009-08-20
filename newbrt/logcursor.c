@@ -305,10 +305,22 @@ int toku_logcursor_first(TOKULOGCURSOR lc, struct log_entry **le) {
         if (r!=0) 
             return r;
         lc->cur_logfiles_index = 0;
-    }    
-    r = toku_log_fread(lc->cur_fp, &(lc->entry));
-    if (r!=0) 
-        return r;
+    }
+    while (1) {
+        r = toku_log_fread(lc->cur_fp, &(lc->entry));
+        if (r==0) 
+            break;
+        // move to next file
+        r = lc_close_cur_logfile(lc);
+        if (r!=0) 
+            return r;
+        if ( lc->cur_logfiles_index == lc->n_logfiles-1) 
+            return DB_NOTFOUND;
+        lc->cur_logfiles_index++;
+        r = lc_open_logfile(lc, lc->cur_logfiles_index);
+        if (r!= 0) 
+            return r;
+    }
     r = lc_check_lsn(lc, LC_FIRST);
     if (r!=0)
         return r;
@@ -335,13 +347,25 @@ int toku_logcursor_last(TOKULOGCURSOR lc, struct log_entry **le) {
             return r;
         lc->cur_logfiles_index = lc->n_logfiles-1;
     }
-    // seek to end
-    r = fseek(lc->cur_fp, 0, SEEK_END);
-    assert(0==r);
-    // read backward
-    r = toku_log_fread_backward(lc->cur_fp, &(lc->entry));
-    if (r!=0) 
-        return r;
+    while (1) {
+        // seek to end
+        r = fseek(lc->cur_fp, 0, SEEK_END);
+        assert(0==r);
+        // read backward
+        r = toku_log_fread_backward(lc->cur_fp, &(lc->entry));
+        if (r==0) 
+            break;
+        // move to previous file
+        r = lc_close_cur_logfile(lc);
+        if (r!=0) 
+            return r;
+        if ( lc->cur_logfiles_index == 0 ) 
+            return DB_NOTFOUND;
+        lc->cur_logfiles_index--;
+        r = lc_open_logfile(lc, lc->cur_logfiles_index);
+        if (r!=0) 
+            return r;    
+    }
     r = lc_check_lsn(lc, LC_LAST);
     if (r!=0)
         return r;

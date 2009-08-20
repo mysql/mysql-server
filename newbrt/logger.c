@@ -11,7 +11,6 @@ static toku_pthread_mutex_t logger_mutex = TOKU_PTHREAD_MUTEX_INITIALIZER;
 
 static int (*toku_os_fsync_function)(int)=fsync;
 static int open_logfile (TOKULOGGER logger);
-static int toku_logger_fsync_null(int fd __attribute__((__unused__)));
 static int do_write (TOKULOGGER logger, int do_fsync);
 
 int toku_logger_create (TOKULOGGER *resultp) {
@@ -20,7 +19,7 @@ int toku_logger_create (TOKULOGGER *resultp) {
     if (result==0) return errno;
     result->is_open=0;
     result->is_panicked=0;
-    result->write_log_files = 1;
+    result->write_log_files = TRUE;
     result->lg_max = 100<<20; // 100MB default
     result->head = result->tail = 0;
     result->lsn = result->written_lsn = result->fsynced_lsn = (LSN){0};
@@ -70,14 +69,24 @@ int toku_logger_open (const char *directory, TOKULOGGER logger) {
     long long nexti;
     r = toku_logger_find_next_unused_log_file(directory, &nexti);
     if (r!=0) return r;
-    logger->directory = toku_strdup(directory);
+    if (toku_os_is_absolute_name(directory)) {
+        logger->directory = toku_strdup(directory);
+    } else {
+        char *cwd = getcwd(NULL, 0);
+        if (cwd == NULL)
+            return -1;
+        char *new_log_dir = toku_malloc(strlen(cwd) + strlen(directory) + 2);
+        if (new_log_dir == NULL)
+            return -2;
+        sprintf(new_log_dir, "%s/%s", cwd, directory);
+        logger->directory = new_log_dir;
+        toku_free(cwd);
+    }
     if (logger->directory==0) return errno;
     logger->next_log_file_number = nexti;
     open_logfile(logger);
 
     logger->is_open = 1;
-    if (!logger->write_log_files)
-        toku_set_func_fsync(toku_logger_fsync_null);
 
     return 0;
 }
@@ -107,7 +116,9 @@ int toku_logger_log_bytes (TOKULOGGER logger, struct logbytes *bytes, int do_fsy
 	    /* Our LSN has been written.  We have the output lock */
 	    if (do_fsync && logger->fsynced_lsn.lsn > bytes->lsn.lsn) {
 		/* But we need to fsync it. */
-		r = toku_os_fsync_function(logger->fd);
+		if (logger->write_log_files) {
+                    r = toku_os_fsync_function(logger->fd); assert(r == 0);
+                }
 		logger->fsynced_lsn = logger->written_lsn;
 	    }
 	}
@@ -160,6 +171,16 @@ int toku_logger_close(TOKULOGGER *loggerp) {
     return r;
 }
 
+int toku_logger_shutdown(TOKULOGGER logger) {
+    int r = 0;
+
+    // TODO: checkpoint?
+    
+    // log a shutdown
+    if (logger->is_open)
+        r = toku_log_shutdown(logger, NULL, TRUE, 0);
+    return r;
+}
 
 #if 0
 int toku_logger_log_checkpoint (TOKULOGGER logger) {
@@ -203,8 +224,8 @@ int toku_logger_is_open(TOKULOGGER logger) {
     return logger->is_open;
 }
 
-void toku_logger_set_cachetable (TOKULOGGER tl, CACHETABLE ct) {
-    tl->ct = ct;
+void toku_logger_set_cachetable (TOKULOGGER logger, CACHETABLE ct) {
+    logger->ct = ct;
 }
 
 int toku_logger_set_lg_max(TOKULOGGER logger, u_int32_t lg_max) {
@@ -242,10 +263,6 @@ int toku_logger_lock_destroy(void) {
     int r = toku_pthread_mutex_destroy(&logger_mutex);
     assert(r == 0);
     return r;
-}
-
-static int toku_logger_fsync_null(int fd __attribute__((__unused__))) {
-    return 0;
 }
 
 int toku_logger_find_next_unused_log_file(const char *directory, long long *result) {
@@ -309,10 +326,6 @@ int toku_logger_find_logfiles (const char *directory, char ***resultp, int *n_lo
     return d ? closedir(d) : 0;
 }
 
-void toku_logger_write_log_files (TOKULOGGER tl, int write_log_files) {
-    tl->write_log_files = write_log_files;
-}
-
 // Write something out.  Keep trying even if partial writes occur.
 // On error: Return negative with errno set.
 // On success return nbytes.
@@ -334,13 +347,14 @@ static int open_logfile (TOKULOGGER logger) {
     char fname[fnamelen];
     snprintf(fname, fnamelen, "%s/log%012lld.tokulog", logger->directory, logger->next_log_file_number);
     if (logger->write_log_files) {
-        logger->fd = open(fname, O_CREAT+O_WRONLY+O_TRUNC+O_EXCL+O_BINARY, S_IRWXU);     if (logger->fd==-1) return errno;
+        logger->fd = open(fname, O_CREAT+O_WRONLY+O_TRUNC+O_EXCL+O_BINARY, S_IRWXU);     
+        if (logger->fd==-1) return errno;
+        logger->next_log_file_number++;
     } else {
         logger->fd = open(DEV_NULL_FILE, O_WRONLY+O_BINARY);
         // printf("%s: %s %d\n", __FUNCTION__, DEV_NULL_FILE, logger->fd); fflush(stdout);
         if (logger->fd==-1) return errno;
     }
-    logger->next_log_file_number++;
     r = write_it(logger->fd, "tokulogg", 8);             if (r!=8) return errno;
     int version_l = toku_htonl(log_format_version); //version MUST be in network byte order regardless of disk order
     r = write_it(logger->fd, &version_l, 4);             if (r!=4) return errno;
@@ -351,9 +365,16 @@ static int open_logfile (TOKULOGGER logger) {
 
 static int close_and_open_logfile (TOKULOGGER logger) {
     int r;
-    r = toku_os_fsync_function(logger->fd);              if (r!=0) return errno;
+    if (logger->write_log_files) {
+        r = toku_os_fsync_function(logger->fd);          if (r!=0) return errno;
+    }
     r = close(logger->fd);                               if (r!=0) return errno;
     return open_logfile(logger);
+}
+
+void toku_logger_write_log_files (TOKULOGGER logger, BOOL write_log_files) {
+    assert(!logger->is_open);
+    logger->write_log_files = write_log_files;
 }
 
 // Enter holding both locks
@@ -402,13 +423,36 @@ static int do_write (TOKULOGGER logger, int do_fsync) {
     if (r!=logger->n_in_buf) { r=errno; goto panic; }
     logger->n_in_buf=0;
     if (do_fsync) {
-	r = toku_os_fsync_function(logger->fd);
+        if (logger->write_log_files) {
+            r = toku_os_fsync_function(logger->fd); assert(r == 0);
+        }
 	logger->fsynced_lsn = logger->written_lsn;
     }
     return 0;
  panic:
     toku_logger_panic(logger, r);
     return r;
+}
+
+int toku_logger_restart(TOKULOGGER logger, LSN lastlsn) {
+    int r;
+
+    // flush out the log buffer
+    r = ml_lock(&logger->output_lock); assert(r == 0);
+    r = ml_lock(&logger->input_lock); assert(r == 0);
+    r = do_write(logger, TRUE); assert(r == 0);
+    r = ml_unlock(&logger->output_lock); assert(r == 0);
+
+    // close the log file
+    r = close(logger->fd); assert(r == 0);
+    logger->fd = -1;
+
+    // reset the LSN's to the lastlsn when the logger was opened
+    logger->lsn = logger->written_lsn = logger->fsynced_lsn = lastlsn;
+    logger->write_log_files = TRUE;
+
+    // open a new log file
+    return open_logfile(logger);
 }
 
 int toku_logger_log_fcreate (TOKUTXN txn, const char *fname, FILENUM filenum, int mode) {
@@ -736,10 +780,9 @@ LSN toku_txn_get_last_lsn (TOKUTXN txn) {
     if (txn==0) return (LSN){0};
     return txn->last_lsn;
 }
+
 LSN toku_logger_last_lsn(TOKULOGGER logger) {
-    LSN result=logger->lsn;
-    result.lsn--;
-    return result;
+    return logger->lsn;
 }
 
 TOKULOGGER toku_txn_logger (TOKUTXN txn) {

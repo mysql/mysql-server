@@ -10,13 +10,14 @@ enum { TOKU_LOG_VERSION = 1 };
 int toku_logger_create (TOKULOGGER *resultp);
 int toku_logger_open (const char *directory, TOKULOGGER logger);
 int toku_logger_log_bytes (TOKULOGGER logger, struct logbytes *bytes, int do_fsync);
+int toku_logger_shutdown(TOKULOGGER logger);
 int toku_logger_close(TOKULOGGER *loggerp);
 
 int toku_logger_fsync (TOKULOGGER logger);
 void toku_logger_panic (TOKULOGGER logger, int err);
 int toku_logger_panicked(TOKULOGGER logger);
 int toku_logger_is_open(TOKULOGGER logger);
-void toku_logger_set_cachetable (TOKULOGGER tl, CACHETABLE ct);
+void toku_logger_set_cachetable (TOKULOGGER logger, CACHETABLE ct);
 int toku_logger_set_lg_max(TOKULOGGER logger, u_int32_t lg_max);
 int toku_logger_get_lg_max(TOKULOGGER logger, u_int32_t *lg_maxp);
 int toku_logger_set_lg_bsize(TOKULOGGER logger, u_int32_t bsize);
@@ -24,7 +25,20 @@ int toku_logger_set_lg_bsize(TOKULOGGER logger, u_int32_t bsize);
 int toku_logger_lock_init(void);
 int toku_logger_lock_destroy(void);
 
-void toku_logger_write_log_files (TOKULOGGER tl, int write_log_files);
+void toku_logger_write_log_files (TOKULOGGER logger, BOOL write_log_files);
+
+// Restart the logger.  This function is used by recovery to really start
+// logging.
+// Effects: Flush the current log buffer, reset the logger's lastlsn, and
+// open a new log file.
+// Returns: 0 if success
+int toku_logger_restart(TOKULOGGER logger, LSN lastlsn);
+
+// Maybe trim the log entries from the log that are older than the given LSN
+// Effect: find all of the log files whose largest LSN is smaller than the
+// given LSN and delete them.
+// Returns: 0 if success
+int toku_logger_maybe_trim_log(TOKULOGGER logger, LSN lsn);
 
 int toku_logger_log_fcreate (TOKUTXN txn, const char *fname, FILENUM filenum, int mode);
 int toku_logger_log_fopen (TOKUTXN txn, const char * fname, FILENUM filenum);

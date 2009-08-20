@@ -130,7 +130,7 @@ const struct logtype logtypes[] = {
                                {"BYTESTRING", "key", 0},
                                {"BYTESTRING", "value", 0},
                                NULLFIELD}},
-    {"shutdown", 'S', FA{NULLFIELD}},
+    {"shutdown", 'S', FA{{"u_int64_t", "timestamp", 0}, NULLFIELD}},
     {"timestamp", 'T', FA{{"u_int64_t", "timestamp", 0},
                           {"BYTESTRING", "comment", 0},
                           NULLFIELD}},
@@ -273,10 +273,20 @@ generate_dispatch (void) {
 		});
     fprintf(hf, " }} while (0)\n");
 }
+
+static void
+generate_get_timestamp(void) {
+    fprintf(cf, "static u_int64_t toku_get_timestamp(void) {\n");
+    fprintf(cf, "  struct timeval tv; int r = gettimeofday(&tv, NULL);\n");
+    fprintf(cf, "  assert(r==0);\n");
+    fprintf(cf, "  return tv.tv_sec * 1000000ULL + tv.tv_usec;\n");
+    fprintf(cf, "}\n");
+}
 		
 static void
 generate_log_writer (void) {
     fprintf(cf, "static u_int64_t toku_lsn_increment=1;\nvoid toku_set_lsn_increment (uint64_t incr) { assert(incr>0 && incr< (16LL<<32)); toku_lsn_increment=incr; }\n");
+    generate_get_timestamp();
     DO_LOGTYPES(lt, {
 			fprintf2(cf, hf, "int toku_log_%s (TOKULOGGER logger, LSN *lsnp, int do_fsync", lt->name);
 			DO_FIELDS(ft, lt, fprintf2(cf, hf, ", %s %s", ft->type, ft->name));
@@ -310,6 +320,8 @@ generate_log_writer (void) {
 			fprintf(cf, "  lbytes->lsn = lsn;\n");
 			fprintf(cf, "  if (lsnp) *lsnp=logger->lsn;\n");
 			DO_FIELDS(ft, lt,
+                                  if (strcmp(ft->name, "timestamp") == 0)
+                                      fprintf(cf, "  if (timestamp == 0) timestamp = toku_get_timestamp();\n");
 				  fprintf(cf, "  wbuf_%s(&wbuf, %s);\n", ft->type, ft->name));
 			fprintf(cf, "  int r= toku_logger_finish(logger, lbytes, &wbuf, do_fsync);\n");
 			fprintf(cf, "  assert(wbuf.ndone==buflen);\n");
