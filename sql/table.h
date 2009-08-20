@@ -1466,6 +1466,15 @@ struct TABLE_LIST
   bool is_anonymous_derived_table() const { return derived && !view; }
 
   /**
+     @brief True if this TABLE_LIST represents an not yet materialized 
+     derived table, i.e. the result of a subquery or view execution.
+  */
+  bool is_non_materialized_derived_table() const
+  {
+    return derived && !derived_result;
+  }
+
+  /**
      @brief Returns the name of the database that the referenced table belongs
      to.
   */
