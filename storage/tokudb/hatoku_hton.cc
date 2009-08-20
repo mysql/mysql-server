@@ -189,6 +189,21 @@ static int tokudb_init_func(void *p) {
     db_env->set_errcall(db_env, tokudb_print_error);
     db_env->set_errpfx(db_env, "TokuDB");
 
+    //
+    // set default comparison functions
+    //
+    r = db_env->set_default_bt_compare(db_env, tokudb_cmp_dbt_key);
+    if (r) {
+        DBUG_PRINT("info", ("set_default_bt_compare%d\n", r));
+        goto error; 
+    }
+    r = db_env->set_default_dup_compare(db_env, tokudb_cmp_dbt_data);
+    if (r) {
+        DBUG_PRINT("info", ("set_default_dup_compare%d\n", r));
+        goto error; 
+    }
+
+
     // config directories
 #if 0
     DBUG_PRINT("info", ("tokudb_tmpdir: %s\n", tokudb_tmpdir));

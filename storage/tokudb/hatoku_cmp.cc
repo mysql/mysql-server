@@ -1408,7 +1408,19 @@ int tokudb_cmp_dbt_key(DB *file, const DBT *keya, const DBT *keyb) {
 
 int tokudb_cmp_dbt_data(DB *file, const DBT *keya, const DBT *keyb) {
     int row_desc_offset = *(u_int32_t *)file->descriptor->data;
-    int cmp = tokudb_compare_two_keys(
+    int cmp;
+    //
+    // for no_dup tables, file->descriptor->size == row_desc_offset
+    // so just use a default comparison function
+    //
+    if (file->descriptor->size - row_desc_offset == 0) {
+        return memcmp(
+            keya->data, 
+            keyb->data, 
+            (keya->size < keyb->size) ? keya->size : keyb->size
+            );
+    }
+    cmp = tokudb_compare_two_keys(
         keya->data, 
         keya->size, 
         keyb->data,
