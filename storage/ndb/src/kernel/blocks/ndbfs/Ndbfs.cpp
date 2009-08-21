@@ -316,32 +316,22 @@ Ndbfs::execFSOPENREQ(Signal* signal)
     file->m_page_ptr.setNull();
   }
   
-  if(signal->getNoOfSections() == 0){
+  SegmentedSectionPtr ptr; ptr.setNull();
+  if(signal->getNoOfSections())
+  {
     jam();
-    file->theFileName.set(m_base_path, userRef, fsOpenReq->fileNumber);
-  } else {
-    jam();
-    SegmentedSectionPtr ptr;
     signal->getSection(ptr, FsOpenReq::FILENAME);
-    // QOD, should be arg to FSOPEN
-    if (refToMain(userRef) == TSMAN)
-    {
-      file->theFileName.set(get_base_path(FsOpenReq::BP_DD_DF),
-                            ptr, g_sectionSegmentPool);
-    }
-    else if (refToMain(userRef) == LGMAN)
-    {
-      file->theFileName.set(get_base_path(FsOpenReq::BP_DD_UF),
-                            ptr, g_sectionSegmentPool);
-    }
-    else
-    {
-      file->theFileName.set(get_base_path(FsOpenReq::BP_FS),
-                            ptr, g_sectionSegmentPool);
-    }
+  }
 
+
+  file->theFileName.set(this, userRef, fsOpenReq->fileNumber, false, ptr);
+
+  if (signal->getNoOfSections())
+  {
+    jam();
     releaseSections(signal);
   }
+
   file->reportTo(&theFromThreads);
   if (getenv("NDB_TRACE_OPEN"))
     ndbout_c("open(%s)", file->theFileName.c_str());
@@ -371,9 +361,24 @@ Ndbfs::execFSREMOVEREQ(Signal* signal)
   AsyncFile* file = getIdleFile();
   ndbrequire(file != NULL);
 
+  SegmentedSectionPtr ptr; ptr.setNull();
+  if(signal->getNoOfSections())
+  {
+    jam();
+    signal->getSection(ptr, FsOpenReq::FILENAME);
+  }
+
+  file->theFileName.set(this, userRef, req->fileNumber, req->directory, ptr);
+
+  if (signal->getNoOfSections())
+  {
+    jam();
+    releaseSections(signal);
+  }
+
   Uint32 version = FsOpenReq::getVersion(req->fileNumber);
   Uint32 bp = FsOpenReq::v5_getLcpNo(req->fileNumber);
-  file->theFileName.set(m_base_path, userRef, req->fileNumber, req->directory);
+
   file->reportTo(&theFromThreads);
 
   Request* request = theRequestPool->get();
