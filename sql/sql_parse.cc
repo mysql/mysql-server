@@ -5058,8 +5058,7 @@ bool check_single_table_access(THD *thd, ulong privilege,
   if (!(all_tables->belong_to_view &&
         (thd->lex->sql_command == SQLCOM_SHOW_FIELDS)) &&
       !(all_tables->view &&
-        all_tables->effective_algorithm == VIEW_ALGORITHM_TMPTABLE &&
-        all_tables->is_non_materialized_derived_table()) &&
+        all_tables->effective_algorithm == VIEW_ALGORITHM_TMPTABLE) &&
       check_grant(thd, privilege, all_tables, 0, 1, no_errors))
     goto deny;
 
