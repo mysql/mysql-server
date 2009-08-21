@@ -428,7 +428,7 @@ install -d $RBR%{_sbindir}
 
 
 # Install all binaries 
-(cd $MBD && make install DESTDIR=$RBR benchdir_root=%{_datadir})
+(cd $MBD && make install DESTDIR=$RBR testroot=%{_datadir})
 # Old packages put shared libs in %{_libdir}/ (not %{_libdir}/mysql), so do
 # the same here.
 mv $RBR/%{_libdir}/mysql/*.so* $RBR/%{_libdir}/
@@ -857,6 +857,10 @@ fi
 
 - Install plugin libraries in appropriate packages.
 - Disable example plugins.
+
+* Thu Aug 20 2009 Jonathan Perkin <jperkin@stripped>
+
+- Update variable used for mysql-test suite location to match source.
 
 * Fri Nov 07 2008 Joerg Bruehe <joerg@mysql.com>
 
