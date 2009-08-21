@@ -505,39 +505,6 @@ void build_eq_mods_for_cond(Func_dep_analyzer *fda, Equality_module **eq_mod,
 
 
 /*
-   The only requirement of this function is to order fields in some
-   deterministic way.
-*/
-
-int cmp_equal_fields(Item_field *field1, Item_field *field2, void *arg)
-{
-  int cmp= 0;
-  bool outer_ref= 0;
-  if (field2->used_tables() & OUTER_REF_TABLE_BIT)
-  {  
-    outer_ref= 1;
-    cmp= -1;
-  }
-  if (field2->used_tables() & OUTER_REF_TABLE_BIT)
-  {
-    outer_ref= 1;
-    cmp++;
-  }
-  if (outer_ref)
-    return cmp;
-  cmp= (int)field2->field->table->tablenr - 
-       (int)field1->field->table->tablenr;
-  if (cmp)
-    return cmp < 0 ? -1 : 1;
-  cmp= (int)field2->field->field_index - 
-       (int)field1->field->field_index;
-
-    return cmp < 0 ? -1 : (cmp ? 1 : 0);
-  
-}
-
-
-/*
   Perform an OR operation on two (adjacent) Equality_module arrays.
 
   SYNOPSIS
