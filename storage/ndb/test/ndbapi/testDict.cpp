@@ -3289,7 +3289,8 @@ runDropDDObjects(NDBT_Context* ctx, NDBT_Step* step){
       case NdbDictionary::Object::UserTable:
         tableFound = list.elements[i].name;
         if(tableFound != 0){
-          if(strcmp(tableFound, "ndb_apply_status") != 0 && 
+          if(strcmp(list.elements[i].database, "TEST_DB") == 0 &&
+             strcmp(tableFound, "ndb_apply_status") != 0 &&
              strcmp(tableFound, "NDB$BLOB_2_3") != 0 &&
              strcmp(tableFound, "ndb_schema") != 0){
       	    if(pDict->dropTable(tableFound) != 0){
@@ -3419,6 +3420,126 @@ testDropDDObjectsSetup(NDBT_Context* ctx, NDBT_Step* step){
   
   return NDBT_OK;
 }
+
+int
+runBug36072(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* pDict = pNdb->getDictionary();
+  NdbRestarter res;
+
+  int err[] = { 6016, 6017 };
+  for (Uint32 i = 0; i<2; i++)
+  {
+    int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+
+    if (res.dumpStateAllNodes(val2, 2))
+      return NDBT_FAILED;
+
+    if (res.insertErrorInAllNodes(932)) // arbit
+      return NDBT_FAILED;
+
+    if (res.insertErrorInAllNodes(err[i]))
+      return NDBT_FAILED;
+
+    NdbDictionary::LogfileGroup lg;
+    lg.setName("DEFAULT-LG");
+    lg.setUndoBufferSize(8*1024*1024);
+
+    NdbDictionary::Undofile uf;
+    uf.setPath("undofile01.dat");
+    uf.setSize(5*1024*1024);
+    uf.setLogfileGroup("DEFAULT-LG");
+
+    int r = pDict->createLogfileGroup(lg);
+    if (i != 0)
+    {
+      if (r)
+      {
+        ndbout << __LINE__ << " : " << pDict->getNdbError() << endl;
+        return NDBT_FAILED;
+      }
+      pDict->createUndofile(uf);
+    }
+
+    if (res.waitClusterNoStart())
+      return NDBT_FAILED;
+
+    res.startAll();
+    if (res.waitClusterStarted())
+      return NDBT_FAILED;
+
+    if (i == 0)
+    {
+      NdbDictionary::LogfileGroup lg2 = pDict->getLogfileGroup("DEFAULT-LG");
+      NdbError err= pDict->getNdbError();
+      if( (int) err.classification == (int) ndberror_cl_none)
+      {
+        ndbout << __LINE__ << " : " << pDict->getNdbError() << endl;
+        return NDBT_FAILED;
+      }
+
+      if (pDict->createLogfileGroup(lg) != 0)
+      {
+        ndbout << __LINE__ << endl;
+        return NDBT_FAILED;
+      }
+    }
+    else
+    {
+      NdbDictionary::Undofile uf2 = pDict->getUndofile(0, "undofile01.dat");
+      NdbError err= pDict->getNdbError();
+      if( (int) err.classification == (int) ndberror_cl_none)
+      {
+        ndbout << __LINE__ << endl;
+        return NDBT_FAILED;
+      }
+
+      if (pDict->createUndofile(uf) != 0)
+      {
+        ndbout << __LINE__ << " : " << pDict->getNdbError() << endl;
+        return NDBT_FAILED;
+      }
+    }
+
+    {
+      NdbDictionary::LogfileGroup lg2 = pDict->getLogfileGroup("DEFAULT-LG");
+      NdbError err= pDict->getNdbError();
+      if( (int) err.classification != (int) ndberror_cl_none)
+      {
+        ndbout << __LINE__ << " : " << pDict->getNdbError() << endl;
+        return NDBT_FAILED;
+      }
+
+      if (pDict->dropLogfileGroup(lg2))
+      {
+        ndbout << __LINE__ << " : " << pDict->getNdbError() << endl;
+        return NDBT_FAILED;
+      }
+    }
+  }
+
+  return NDBT_OK;
+}
+
+int
+restartClusterInitial(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter res;
+
+  res.restartAll(NdbRestarter::NRRF_INITIAL |
+                 NdbRestarter::NRRF_NOSTART |
+                 NdbRestarter::NRRF_ABORT);
+  if (res.waitClusterNoStart())
+    return NDBT_FAILED;
+
+  res.startAll();
+  if (res.waitClusterStarted())
+    return NDBT_FAILED;
+
+  return NDBT_OK;
+}
+
 
 int
 DropDDObjectsVerify(NDBT_Context* ctx, NDBT_Step* step){
@@ -3648,6 +3769,12 @@ TESTCASE("DictRestart",
 TESTCASE("Bug24631",
          ""){
   INITIALIZER(runBug24631);
+}
+TESTCASE("Bug36702", "")
+{
+  INITIALIZER(runDropDDObjects);
+  INITIALIZER(runBug36072);
+  FINALIZER(restartClusterInitial);
 }
 TESTCASE("Bug29186",
          ""){
