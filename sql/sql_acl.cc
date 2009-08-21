@@ -3650,14 +3650,11 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
       continue;                                 // ok
 
     if (!(~table->grant.privilege & want_access) || 
-        table->is_non_materialized_derived_table() || table->schema_table)
+        table->derived || table->schema_table)
     {
       /*
         It is subquery in the FROM clause. VIEW set table->derived after
-        table opening, but this function is mostly called before table opening.
-        When it's called after table opening e.g. for nested views with 
-        materialization we shoud check the materialized table for access as 
-        any other table.
+        table opening, but this function always called before table opening.
       */
       if (!table->referencing_view)
       {
@@ -3670,10 +3667,9 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
       }
       continue;
     }
-
     if (!(grant_table= table_hash_search(sctx->host, sctx->ip,
-                                         table->get_db_name(), sctx->priv_user,
-                                         table->get_table_name(), 0)))
+                                         table->db, sctx->priv_user,
+                                         table->table_name,0)))
     {
       want_access &= ~table->grant.privilege;
       goto err;					// No grants
