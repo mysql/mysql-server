@@ -147,7 +147,17 @@ private:
   static void v2_setCount(Uint32 fileNumber[], Uint32 no);
 
   /**
-   * V4 - LCP
+   * V4 - Specified filename
+   */
+  static Uint32 v4_getBasePath(const Uint32 fileNumber[]) {
+    return v5_getLcpNo(fileNumber);
+  }
+  static void v4_setBasePath(Uint32 fileNumber[], Uint32 no) {
+    v5_setLcpNo(fileNumber, no);
+  }
+
+  /**
+   * V5 - LCP
    */
   static Uint32 v5_getLcpNo(const Uint32 fileNumber[]);
   static Uint32 v5_getTableId(const Uint32 fileNumber[]);

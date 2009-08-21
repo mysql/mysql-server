@@ -728,7 +728,8 @@ Tsman::open_file(Signal* signal,
   
   memset(req->fileNumber, 0, sizeof(req->fileNumber));
   FsOpenReq::setVersion(req->fileNumber, 4); // Version 4 = specified filename
-  
+  FsOpenReq::v4_setBasePath(req->fileNumber, FsOpenReq::BP_DD_DF);
+
   req->fileFlags = 0;
   req->fileFlags |= FsOpenReq::OM_READWRITE;
   req->fileFlags |= FsOpenReq::OM_DIRECT;
