@@ -15147,6 +15147,8 @@ Dbdict::execCREATE_FILE_REQ(Signal* signal)
     c_blockState = BS_CREATE_TAB;
     return;
   } while(0);
+
+  releaseSections(signal);
   
   ref->senderData = senderData;
   ref->masterNodeId = c_masterNodeId;
@@ -15261,6 +15263,8 @@ Dbdict::execCREATE_FILEGROUP_REQ(Signal* signal)
     c_blockState = BS_CREATE_TAB;
     return;
   } while(0);
+
+  releaseSections(signal);
   
   ref->senderData = senderData;
   ref->masterNodeId = c_masterNodeId;
