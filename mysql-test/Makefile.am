@@ -17,7 +17,8 @@
 
 ## Process this file with automake to create Makefile.in
 
-testdir =	$(prefix)/mysql-test
+testroot =	$(prefix)
+testdir =	$(testroot)/mysql-test
 
 test_SCRIPTS =	mtr \
 		mysql-test-run \
