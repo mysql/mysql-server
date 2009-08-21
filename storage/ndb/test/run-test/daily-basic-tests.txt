@@ -1328,6 +1328,10 @@ args: -n Bug45154 D1
 
 max-time: 300
 cmd: testDict
+args: -n Bug36702 D1
+
+max-time: 300
+cmd: testDict
 args: -n Bug46552 T1
 
 max-time: 300
