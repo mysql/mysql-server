@@ -703,6 +703,8 @@ private:
   void execFSREADCONF(Signal* signal);
   void execFSREADREF(Signal* signal);
   void execFSWRITECONF(Signal* signal);
+  void execFSREMOVEREF(Signal*);
+  void execFSREMOVECONF(Signal*);
   void execNDB_STTOR(Signal* signal);
   void execREAD_CONFIG_REQ(Signal* signal);
   void execSTTOR(Signal* signal);
@@ -2583,11 +2585,13 @@ private:
   void restartDropTab_complete(Signal*, Uint32 callback, Uint32);
 
   void restartDropObj(Signal*, Uint32, const SchemaFile::TableEntry *);
+  void restartDropObj_readObjConf(Signal*, Uint32, Uint32);
   void restartDropObj_prepare_start_done(Signal*, Uint32, Uint32);
   void restartDropObj_prepare_complete_done(Signal*, Uint32, Uint32);
   void restartDropObj_commit_start_done(Signal*, Uint32, Uint32);
   void restartDropObj_commit_complete_done(Signal*, Uint32, Uint32);
-  
+  void restartDropObj_updateSchemaFile(Signal*, DropObjRecordPtr);
+
   void restart_checkSchemaStatusComplete(Signal*, Uint32 callback, Uint32);
   void restart_writeSchemaConf(Signal*, Uint32 callbackData, Uint32);
   void masterRestart_checkSchemaStatusComplete(Signal*, Uint32, Uint32);

@@ -41,6 +41,7 @@
 #include <signaldata/FsOpenReq.hpp>
 #include <signaldata/FsReadWriteReq.hpp>
 #include <signaldata/FsRef.hpp>
+#include <signaldata/FsRemoveReq.hpp>
 #include <signaldata/GetTabInfo.hpp>
 #include <signaldata/GetTableId.hpp>
 #include <signaldata/HotSpareRep.hpp>
@@ -1707,6 +1708,8 @@ Dbdict::Dbdict(Block_context& ctx):
   addRecSignal(GSN_FSWRITECONF, &Dbdict::execFSWRITECONF);
   addRecSignal(GSN_FSREADCONF, &Dbdict::execFSREADCONF);
   addRecSignal(GSN_FSREADREF, &Dbdict::execFSREADREF, true);
+  addRecSignal(GSN_FSREMOVEREF, &Dbdict::execFSREMOVEREF, true);
+  addRecSignal(GSN_FSREMOVECONF, &Dbdict::execFSREMOVECONF);
   addRecSignal(GSN_LQHFRAGCONF, &Dbdict::execLQHFRAGCONF);
   addRecSignal(GSN_LQHADDATTCONF, &Dbdict::execLQHADDATTCONF);
   addRecSignal(GSN_LQHADDATTREF, &Dbdict::execLQHADDATTREF);
@@ -3611,7 +3614,12 @@ Dbdict::restartDropObj(Signal* signal,
   case DictTabInfo::LogfileGroup:{
     jam();
     Ptr<Filegroup> fg_ptr;
-    ndbrequire(c_filegroup_hash.find(fg_ptr, tableId));
+    if (!c_filegroup_hash.find(fg_ptr, tableId))
+    {
+      jam();
+      restartDropObj_updateSchemaFile(signal, dropObjPtr);
+      return;
+    }
     dropObjPtr.p->m_obj_ptr_i = fg_ptr.i;
     dropObjPtr.p->m_vt_index = 3;
     break;
@@ -3620,7 +3628,20 @@ Dbdict::restartDropObj(Signal* signal,
     jam();
     Ptr<File> file_ptr;
     dropObjPtr.p->m_vt_index = 2;
-    ndbrequire(c_file_hash.find(file_ptr, tableId));
+    if (!c_file_hash.find(file_ptr, tableId))
+    {
+      jam();
+      /**
+       * We need to read it, to be able to delete it
+       */
+      c_readTableRecord.no_of_words = entry->m_info_words;
+      c_readTableRecord.pageId = 0;
+      c_readTableRecord.m_callback.m_callbackData = dropObjPtr.p->key;
+      c_readTableRecord.m_callback.m_callbackFunction =
+        safe_cast(&Dbdict::restartDropObj_readObjConf);
+      startReadTableFile(signal, tableId);
+      return;
+    }
     dropObjPtr.p->m_obj_ptr_i = file_ptr.i;
     break;
   }
@@ -3628,7 +3649,20 @@ Dbdict::restartDropObj(Signal* signal,
     jam();    
     Ptr<File> file_ptr;
     dropObjPtr.p->m_vt_index = 4;
-    ndbrequire(c_file_hash.find(file_ptr, tableId));
+    if (!c_file_hash.find(file_ptr, tableId))
+    {
+      jam();
+      /**
+       * We need to read it, to be able to delete it
+       */
+      c_readTableRecord.no_of_words = entry->m_info_words;
+      c_readTableRecord.pageId = 0;
+      c_readTableRecord.m_callback.m_callbackData = dropObjPtr.p->key;
+      c_readTableRecord.m_callback.m_callbackFunction =
+        safe_cast(&Dbdict::restartDropObj_readObjConf);
+      startReadTableFile(signal, tableId);
+      return;
+    }
     dropObjPtr.p->m_obj_ptr_i = file_ptr.i;
 
     /**
@@ -3656,6 +3690,98 @@ Dbdict::restartDropObj(Signal* signal,
       (signal, dropObjPtr.p);
   else
     execute(signal, dropObjPtr.p->m_callback, 0);
+
+  return;
+}
+
+void
+Dbdict::restartDropObj_readObjConf(Signal* signal,
+                                   Uint32 callbackData,
+                                   Uint32 returnCode)
+{
+  jam();
+
+  DropObjRecordPtr dropObjPtr;
+  ndbrequire(c_opDropObj.find(dropObjPtr, callbackData));
+
+  if (returnCode)
+  {
+    jam();
+    /**
+     * File not found
+     */
+ignore:
+    restartDropObj_updateSchemaFile(signal, dropObjPtr);
+    return;
+  }
+
+  /**
+   * This is "dead"-code, so it's "ok" to hard-code it to undo/data-file
+   * dead == 6.4 has schema transactions. differerent framework
+   */
+
+
+  PageRecordPtr pageRecPtr;
+  c_pageRecordArray.getPtr(pageRecPtr, c_readTableRecord.pageId);
+
+  Uint32 sz = c_readTableRecord.no_of_words;
+  SimplePropertiesLinearReader it(pageRecPtr.p->word+ZPAGE_HEADER_SIZE, sz);
+
+  DictFilegroupInfo::File f; f.init();
+  SimpleProperties::UnpackStatus status;
+  status = SimpleProperties::unpack(it, &f,
+				    DictFilegroupInfo::FileMapping,
+				    DictFilegroupInfo::FileMappingSize,
+				    true, true);
+
+  if(status != SimpleProperties::Eof)
+  {
+    jam();
+    goto ignore;
+  }
+
+  // dead -> hard-coded rm
+  FsRemoveReq * req = (FsRemoveReq*)signal->getDataPtrSend();
+  req->directory = 0;
+  req->userReference = reference();
+  req->userPointer = dropObjPtr.p->key;
+  memset(req->fileNumber, 0, sizeof(req->fileNumber));
+  FsOpenReq::setVersion(req->fileNumber, 4); // Version 4 = specified filename
+
+  switch(dropObjPtr.p->m_obj_type){
+  case DictTabInfo::Datafile:
+    jam();
+    FsOpenReq::v4_setBasePath(req->fileNumber, FsOpenReq::BP_DD_DF);
+    break;
+  case DictTabInfo::Undofile:
+    jam();
+    FsOpenReq::v4_setBasePath(req->fileNumber, FsOpenReq::BP_DD_UF);
+    break;
+  }
+
+  LinearSectionPtr ptr[3];
+  ptr[0].p = (Uint32*)f.FileName;
+  ptr[0].sz = ((strlen(f.FileName) + 1) + 3) / 4;
+  sendSignal(NDBFS_REF, GSN_FSREMOVEREQ, signal, FsRemoveReq::SignalLength,
+             JBB, ptr, 1);
+}
+
+void
+Dbdict::execFSREMOVEREF(Signal* signal)
+{
+  FsRef* ref = (FsRef*)signal->getDataPtr();
+  DropObjRecordPtr dropObjPtr;
+  ndbrequire(c_opDropObj.find(dropObjPtr, ref->userPointer));
+  restartDropObj_updateSchemaFile(signal, dropObjPtr);
+}
+
+void
+Dbdict::execFSREMOVECONF(Signal* signal)
+{
+  FsConf* conf = (FsConf*)signal->getDataPtr();
+  DropObjRecordPtr dropObjPtr;
+  ndbrequire(c_opDropObj.find(dropObjPtr, conf->userPointer));
+  restartDropObj_updateSchemaFile(signal, dropObjPtr);
 }
 
 void
@@ -3721,6 +3847,24 @@ Dbdict::restartDropObj_commit_start_done(Signal* signal,
     execute(signal, dropObjPtr.p->m_callback, 0);
 }  
 
+void
+Dbdict::restartDropObj_updateSchemaFile(Signal* signal,
+                                        DropObjRecordPtr dropObjPtr)
+{
+
+  ndbout_c("NOT FOUND ignoring");
+  Uint32 objId = dropObjPtr.p->m_obj_id;
+  XSchemaFile * xsf = &c_schemaFile[c_schemaRecord.schemaPage != 0];
+  SchemaFile::TableEntry objEntry = * getTableEntry(xsf, objId);
+  objEntry.m_tableState = SchemaFile::DROP_TABLE_COMMITTED;
+
+  Callback callback;
+  callback.m_callbackData = dropObjPtr.p->key;
+  callback.m_callbackFunction =
+    safe_cast(&Dbdict::restartDropObj_commit_complete_done);
+
+  updateSchemaState(signal, objId, &objEntry, &callback);
+}
 
 void
 Dbdict::restartDropObj_commit_complete_done(Signal* signal,
@@ -15967,8 +16111,19 @@ Dbdict::createObj_commit(Signal * signal, SchemaOp * op)
   if (ERROR_INSERTED(6016))
   {
     jam();
-    NodeReceiverGroup rg(CMVMI, c_aliveNodes);
     signal->theData[0] = 9999;
+    NdbNodeBitmask mask = c_aliveNodes;
+    if (c_masterNodeId == getOwnNodeId())
+    {
+      jam();
+      mask.clear(getOwnNodeId());
+      sendSignalWithDelay(CMVMI_REF, GSN_NDB_TAMPER, signal, 1000, 1);
+      if (mask.isclear())
+      {
+        return;
+      }
+    }
+    NodeReceiverGroup rg(CMVMI, mask);
     sendSignal(rg, GSN_NDB_TAMPER, signal, 1, JBB);
     return;
   }
@@ -17054,8 +17209,20 @@ Dbdict::create_file_commit_start(Signal* signal, SchemaOp* op)
   if (ERROR_INSERTED(6017))
   {
     jam();
-    NodeReceiverGroup rg(CMVMI, c_aliveNodes);
     signal->theData[0] = 9999;
+
+    NdbNodeBitmask mask = c_aliveNodes;
+    if (c_masterNodeId == getOwnNodeId())
+    {
+      jam();
+      mask.clear(getOwnNodeId());
+      sendSignalWithDelay(CMVMI_REF, GSN_NDB_TAMPER, signal, 1000, 1);
+      if (mask.isclear())
+      {
+        return;
+      }
+    }
+    NodeReceiverGroup rg(CMVMI, mask);
     sendSignal(rg, GSN_NDB_TAMPER, signal, 1, JBB);
     return;
   }
