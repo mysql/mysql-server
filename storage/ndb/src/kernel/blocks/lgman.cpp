@@ -598,6 +598,7 @@ Lgman::open_file(Signal* signal, Ptr<Undofile> ptr, Uint32 requestInfo)
   
   memset(req->fileNumber, 0, sizeof(req->fileNumber));
   FsOpenReq::setVersion(req->fileNumber, 4); // Version 4 = specified filename
+  FsOpenReq::v4_setBasePath(req->fileNumber, FsOpenReq::BP_DD_UF);
 
   req->fileFlags = 0;
   req->fileFlags |= FsOpenReq::OM_READWRITE;
