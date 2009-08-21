@@ -15,6 +15,28 @@ drop table if exists t1, t2;
 --enable_warnings
 
 #
+# Bug#46639: 1030 (HY000): Got error 124 from storage engine on
+# INSERT ... SELECT ...
+CREATE TABLE t1 (
+  a int NOT NULL,
+  b int NOT NULL);
+
+CREATE TABLE t2 (
+  a int NOT NULL,
+  b int NOT NULL,
+  INDEX(b)
+)
+PARTITION BY HASH(a) PARTITIONS 2;
+
+INSERT INTO t1 VALUES (399, 22);
+INSERT INTO t2 VALUES (1, 22), (1, 42);
+
+INSERT INTO t2 SELECT 1, 399 FROM t2, t1
+WHERE t1.b = t2.b;
+
+DROP TABLE t1, t2;
+
+#
 # Bug#46478: timestamp field incorrectly defaulted when partition is reorganized
 #
 CREATE TABLE t1 (
