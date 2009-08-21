@@ -175,6 +175,17 @@ select t1.* from t1 left join ( t2 left join t3 on t3.pk=t2.col) on t2.col=t1.co
 explain 
 select t1.*, t2.* from t1 left join (t2 left join t3 on t3.pk=t2.col) on t2.pk=t1.col;
 
+explain select t1.* 
+from 
+  t1 left join ( t2 left join t3 on t3.pk=t2.col or t3.pk=t2.col) 
+  on t2.col=t1.col or t2.col=t1.col;
+
+explain select t1.*, t2.* 
+from 
+  t1 left join 
+  (t2 left join t3 on t3.pk=t2.col or t3.pk=t2.col) 
+  on t2.pk=t1.col or t2.pk=t1.col;
+
 drop table t1, t2, t3;
 
 --echo # 

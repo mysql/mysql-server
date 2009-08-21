@@ -454,8 +454,6 @@ void build_eq_mods_for_cond(Func_dep_analyzer *fda, Equality_module **eq_mod,
   case Item_func::MULT_EQUAL_FUNC:
   {
     Item_equal *item_equal= (Item_equal*)cond;
-    // const item is 'item', field -> NULL. mult_equal_fields <-- an ordered
-    // list of 
     List<Field_value> *fvl;
     if (!(fvl= new List<Field_value>))
       break;
@@ -1001,17 +999,24 @@ bool setup_equality_modules_deps(Func_dep_analyzer *fda,
     deps_recorder.expr_offset= eq_mod - fda->equality_mods;
     deps_recorder.saw_other_tbl= FALSE;
     eq_mod->unknown_args= 0;
-
-    /* Regular tbl.col=expr(tblX1.col1, tblY1.col2, ...) */
-    eq_mod->expression->walk(&Item::check_column_usage_processor, FALSE, 
-                             (uchar*)&deps_recorder);
-
-    if (!eq_mod->field)
+    
+    if (eq_mod->field)
     {
-      if (eq_mod->unknown_args)
-        eq_mod->unknown_args= 1;
-      if (deps_recorder.saw_other_tbl)
-        eq_mod->unknown_args= 0;
+    /* Regular tbl.col=expr(tblX1.col1, tblY1.col2, ...) */
+      eq_mod->expression->walk(&Item::check_column_usage_processor, FALSE, 
+                               (uchar*)&deps_recorder);
+    }
+    else 
+    {
+      /* It's a multi-equality*/
+      eq_mod->unknown_args= !test(eq_mod->expression);
+      List_iterator<Field_value> it(*eq_mod->mult_equal_fields);
+      Field_value* field_val;
+      while ((field_val= it++))
+      {
+        uint offs= field_val->bitmap_offset + eq_mod - fda->equality_mods;
+        bitmap_set_bit(&fda->expr_deps, offs);
+      }
     }
 
     if (!eq_mod->unknown_args)
