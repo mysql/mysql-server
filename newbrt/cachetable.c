@@ -1147,20 +1147,20 @@ int toku_cachetable_maybe_get_and_pin (CACHEFILE cachefile, CACHEKEY key, u_int3
     cachetable_lock(ct);
     for (p=ct->table[fullhash&(ct->table_size-1)]; p; p=p->hash_chain) {
 	count++;
-	if (p->key.b==key.b && p->cachefile==cachefile && p->state == CTPAIR_IDLE) {
-
-	    if (p->checkpoint_pending || !p->dirty) {
-		goto finish;
-	    }
-	    *value = p->value;
-	    rwlock_read_lock(&p->rwlock, ct->mutex);
-	    lru_touch(ct,p);
-            r = 0;
-	    //printf("%s:%d cachetable_maybe_get_and_pin(%lld)--> %p\n", __FILE__, __LINE__, key, *value);
+	if (p->key.b==key.b && p->cachefile==cachefile) {
+            if (p->state == CTPAIR_IDLE && //If not idle, will require a stall and/or will be clean once it is idle
+                !p->checkpoint_pending &&  //If checkpoint pending, we would need to first write it, which would make it clean
+                p->dirty &&
+                rwlock_try_prefer_read_lock(&p->rwlock, ct->mutex) == 0 //Grab read lock.  If any stall would be necessary that means it would be clean AFTER the stall, so don't even try to stall
+            ) {
+                *value = p->value;
+                lru_touch(ct,p);
+                r = 0;
+                //printf("%s:%d cachetable_maybe_get_and_pin(%lld)--> %p\n", __FILE__, __LINE__, key, *value);
+            }
             break;
 	}
     }
- finish:
     note_hash_count(count);
     cachetable_unlock(ct);
     return r;
