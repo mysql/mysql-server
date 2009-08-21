@@ -23910,8 +23910,19 @@ Dbdict::trans_commit_start(Signal* signal, SchemaTransPtr trans_ptr)
   if (ERROR_INSERTED(6016) || ERROR_INSERTED(6017))
   {
     jam();
-    NodeReceiverGroup rg(CMVMI, c_aliveNodes);
     signal->theData[0] = 9999;
+    NdbNodeBitmask mask = c_aliveNodes;
+    if (c_masterNodeId == getOwnNodeId())
+    {
+      jam();
+      mask.clear(getOwnNodeId());
+      sendSignalWithDelay(CMVMI_REF, GSN_NDB_TAMPER, signal, 1000, 1);
+      if (mask.isclear())
+      {
+        return;
+      }
+    }
+    NodeReceiverGroup rg(CMVMI, mask);
     sendSignal(rg, GSN_NDB_TAMPER, signal, 1, JBB);
     return;
   }
