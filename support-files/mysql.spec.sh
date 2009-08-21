@@ -301,6 +301,8 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-$PATH}\" \
 		--with-csv-storage-engine \
 		--with-blackhole-storage-engine \
 		--with-federated-storage-engine \
+		--without-plugin-daemon_example \
+		--without-plugin-example \
 		--with-partition \
 		--with-big-tables \
 		--enable-shared \
@@ -693,6 +695,8 @@ fi
 %attr(755, root, root) %{_bindir}/resolve_stack_dump
 %attr(755, root, root) %{_bindir}/resolveip
 
+%attr(755, root, root) %{_libdir}/plugin/*.so*
+
 %attr(755, root, root) %{_sbindir}/mysqld
 %attr(755, root, root) %{_sbindir}/mysqld-debug
 %attr(755, root, root) %{_sbindir}/mysqlmanager
@@ -818,6 +822,8 @@ fi
 %{_libdir}/mysql/libvio.a
 %{_libdir}/mysql/libz.a
 %{_libdir}/mysql/libz.la
+%{_libdir}/plugin/*.a
+%{_libdir}/plugin/*.la
 
 %files shared
 %defattr(-, root, root, 0755)
@@ -847,6 +853,11 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog
+* Fri Aug 21 2009 Jonathan Perkin <jperkin@sun.com>
+
+- Install plugin libraries in appropriate packages.
+- Disable example plugins.
+
 * Fri Nov 07 2008 Joerg Bruehe <joerg@mysql.com>
 
 - Correct yesterday's fix, so that it also works for the last flag,
