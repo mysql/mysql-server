@@ -24,6 +24,7 @@
 #include "ErrorHandlingMacros.hpp"
 #include "RefConvert.hpp"
 #include "DebuggerNames.hpp"
+#include "Ndbfs.hpp"
 
 #include <signaldata/FsOpenReq.hpp>
 
@@ -49,9 +50,10 @@ Filename::~Filename(){
 }
 
 void 
-Filename::set(const BaseString basepath[],
-	      BlockReference blockReference, 
-	      const Uint32 filenumber[4], bool dir) 
+Filename::set(Ndbfs* fs,
+              BlockReference blockReference,
+              const Uint32 filenumber[4], bool dir,
+              SegmentedSectionPtr ptr)
 {
   char buf[PATH_MAX];
 
@@ -62,14 +64,14 @@ Filename::set(const BaseString basepath[],
   if (version == 2)
   {
     sz = BaseString::snprintf(theName, sizeof(theName), "%s", 
-                              basepath[FsOpenReq::BP_BACKUP].c_str());
-    m_base_name = theName + basepath[FsOpenReq::BP_BACKUP].length();
+                              fs->get_base_path(FsOpenReq::BP_BACKUP).c_str());
+    m_base_name = theName + fs->get_base_path(FsOpenReq::BP_BACKUP).length();
   }
   else
   {
     sz = BaseString::snprintf(theName, sizeof(theName), "%s", 
-                              basepath[FsOpenReq::BP_FS].c_str());
-    m_base_name = theName + basepath[FsOpenReq::BP_FS].length();
+                              fs->get_base_path(FsOpenReq::BP_FS).c_str());
+    m_base_name = theName + fs->get_base_path(FsOpenReq::BP_FS).length();
   }
   
   switch(version){
@@ -147,6 +149,24 @@ Filename::set(const BaseString basepath[],
     strcat(theName, buf);
   }
     break;
+  case 4:
+  {
+    char buf[PATH_MAX];
+    copy((Uint32*)&buf[0], ptr);
+    if(buf[0] == DIR_SEPARATOR[0])
+    {
+      strncpy(theName, buf, PATH_MAX);
+      m_base_name = theName;
+    }
+    else
+    {
+      Uint32 bp = FsOpenReq::v4_getBasePath(filenumber);
+      BaseString::snprintf(theName, sizeof(theName), "%s%s",
+               fs->get_base_path(bp).c_str(), buf);
+      m_base_name = theName + fs->get_base_path(bp).length();
+    }
+    return; // No extension
+  }
   case 5:
   {
     Uint32 tableId = FsOpenReq::v5_getTableId(filenumber);
@@ -160,7 +180,7 @@ Filename::set(const BaseString basepath[],
   {
     Uint32 bp = FsOpenReq::v5_getLcpNo(filenumber);
     sz = BaseString::snprintf(theName, sizeof(theName), "%s",
-                              basepath[bp].c_str());
+                              fs->get_base_path(bp).c_str());
     break;
   }
   default:
@@ -179,24 +199,5 @@ Filename::set(const BaseString basepath[],
 	break;
       }
     }
-  }
-}
-
-void 
-Filename::set(const BaseString & basepath,
-	      SegmentedSectionPtr ptr, class SectionSegmentPool& pool)
-{
-  char buf[PATH_MAX];
-  copy((Uint32*)&buf[0], ptr);
-  if(buf[0] == DIR_SEPARATOR[0])
-  {
-    strncpy(theName, buf, PATH_MAX);
-    m_base_name = theName;
-  }
-  else 
-  {
-    snprintf(theName, sizeof(theName), "%s%s",
-             basepath.c_str(), buf);
-    m_base_name = theName + basepath.length();
   }
 }
