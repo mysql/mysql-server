@@ -3201,7 +3201,7 @@ Dbtup::shrink_tuple(KeyReqStruct* req_struct, Uint32 sizes[2],
          * clear bm-len bits, so they won't incorrect indicate
          *   a non-zero map
          */
-        * dyn_src_ptr &= ~Uint32(DYN_BM_LEN_MASK);
+        * ((Uint32 *)dyn_src_ptr) &= ~Uint32(DYN_BM_LEN_MASK);
 
         Uint32 *bm_ptr= (Uint32 *)dyn_src_ptr + bm_len - 1;
         while(*bm_ptr == 0)
