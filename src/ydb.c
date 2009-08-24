@@ -3882,6 +3882,27 @@ static int locked_db_truncate(DB *db, DB_TXN *txn, u_int32_t *row_count, u_int32
     return r;
 }
 
+static int
+toku_db_flatten(DB *db, DB_TXN *txn) {
+    HANDLE_PANICKED_DB(db);
+    TOKULOGGER logger = toku_txn_logger(txn ? db_txn_struct_i(txn)->tokutxn : NULL);
+    int r = toku_brt_flatten(db->i->brt, logger);
+    return r;
+}
+
+static inline int autotxn_db_flatten(DB* db, DB_TXN* txn) {
+    BOOL changed; int r;
+    r = toku_db_construct_autotxn(db, &txn, &changed, FALSE);
+    if (r!=0) return r;
+    r = toku_db_flatten(db, txn);
+    return toku_db_destruct_autotxn(txn, r, changed);
+}
+
+
+static int locked_db_flatten(DB *db, DB_TXN *txn) {
+    toku_ydb_lock(); int r = autotxn_db_flatten(db, txn); toku_ydb_unlock(); return r;
+}
+
 static int toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     int r;
 
@@ -3939,6 +3960,7 @@ static int toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     SDB(row_size_supported);
     SDB(getf_set);
     SDB(getf_get_both);
+    SDB(flatten);
 #undef SDB
     result->dbt_pos_infty = toku_db_dbt_pos_infty;
     result->dbt_neg_infty = toku_db_dbt_neg_infty;

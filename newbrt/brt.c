@@ -3850,6 +3850,30 @@ toku_brt_cursor_current(BRT_CURSOR cursor, int op, BRT_GET_CALLBACK_FUNCTION get
     return getf(cursor->key.size, cursor->key.data, cursor->val.size, cursor->val.data, getf_v); // brt_cursor_copyout(cursor, outkey, outval);
 }
 
+static int
+brt_flatten_getf(ITEMLEN UU(keylen),      bytevec UU(key),
+                 ITEMLEN UU(vallen),      bytevec UU(val),
+                 void *UU(v)) {
+    return DB_NOTFOUND;
+}
+
+int
+toku_brt_flatten(BRT brt, TOKULOGGER logger)
+{
+    BRT_CURSOR tmp_cursor;
+    int r = toku_brt_cursor(brt, &tmp_cursor, logger);
+    if (r!=0) return r;
+    brt_search_t search; brt_search_init(&search, brt_cursor_compare_one, BRT_SEARCH_LEFT, 0, 0, tmp_cursor->brt);
+    r = brt_cursor_search(tmp_cursor, &search, brt_flatten_getf, NULL, logger);
+    if (r==DB_NOTFOUND) r = 0;
+    {
+        //Cleanup temporary cursor
+        int r2 = toku_brt_cursor_close(tmp_cursor);
+        if (r==0) r = r2;
+    }
+    return r;
+}
+
 int
 toku_brt_cursor_first(BRT_CURSOR cursor, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v, TOKULOGGER logger)
 {
