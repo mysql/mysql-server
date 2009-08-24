@@ -229,3 +229,23 @@ explain select t1.* from t1 left join t2 on t2.a=t1.a;
 
 drop table t1, t2;
 
+--echo #
+--echo # check UPDATE/DELETE that look like they could be eliminated
+--echo #
+create table t1 (a int primary key, b int);
+insert into t1 values (1,1),(2,2),(3,3);
+
+create table t2 like t1;
+insert into t2 select * from t1;
+update t1 left join t2 using (a) set t2.a=t2.a+100;
+select * from t1;
+select * from t2;
+
+delete from t2;
+insert into t2 select * from t1;
+
+delete t2 from t1 left join t2 using (a);
+select * from t1;
+select * from t2;
+drop table t1, t2;
+

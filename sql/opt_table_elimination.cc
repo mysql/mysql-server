@@ -1069,15 +1069,25 @@ void eliminate_tables(JOIN *join)
   
   if (join->select_lex == &thd->lex->select_lex)
   {
-    /* Multi-table UPDATE and DELETE: don't eliminate the tables we modify: */
-    used_tables |= thd->table_map_for_update;
 
     /* Multi-table UPDATE: don't eliminate tables referred from SET statement */
     if (thd->lex->sql_command == SQLCOM_UPDATE_MULTI)
     {
+      /* Multi-table UPDATE and DELETE: don't eliminate the tables we modify: */
+      used_tables |= thd->table_map_for_update;
       List_iterator<Item> it2(thd->lex->value_list);
       while ((item= it2++))
         used_tables |= item->used_tables();
+    }
+
+    if (thd->lex->sql_command == SQLCOM_DELETE_MULTI)
+    {
+      TABLE_LIST *tbl;
+      for (tbl= (TABLE_LIST*)thd->lex->auxiliary_table_list.first;
+           tbl; tbl= tbl->next_local)
+      {
+        used_tables |= tbl->table->map;
+      }
     }
   }
   
