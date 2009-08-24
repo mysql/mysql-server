@@ -9437,8 +9437,25 @@ void Dbdih::execGCP_TCFINISHED(Signal* signal)
 #endif
 
   ndbrequire(m_micro_gcp.m_state == MicroGcp::M_GCP_COMMIT);
+
+  /**
+   * Make sure that each LQH gets scheduled, so that they don't get out of sync
+   * wrt to SUB_GCP_COMPLETE_REP
+   */
+  Callback cb;
+  cb.m_callbackData = 10;
+  cb.m_callbackFunction = safe_cast(&Dbdih::execGCP_TCFINISHED_sync_conf);
+  Uint32 blocks[] = { DBLQH, 0 };
+  synchronize_threads_for_blocks(signal, blocks, cb);
+}//Dbdih::execGCP_TCFINISHED()
+
+void
+Dbdih::execGCP_TCFINISHED_sync_conf(Signal* signal, Uint32 cb, Uint32 err)
+{
+  ndbrequire(m_micro_gcp.m_state == MicroGcp::M_GCP_COMMIT);
+
   m_micro_gcp.m_state = MicroGcp::M_GCP_COMMITTED;
-  retRef = m_micro_gcp.m_master_ref;
+  Uint32 retRef = m_micro_gcp.m_master_ref;
 
   GCPNodeFinished* conf2 = (GCPNodeFinished*)signal->getDataPtrSend();
   conf2->nodeId = cownNodeId;
@@ -9447,7 +9464,7 @@ void Dbdih::execGCP_TCFINISHED(Signal* signal)
   conf2->gci_lo = (Uint32)(m_micro_gcp.m_old_gci & 0xFFFFFFFF);
   sendSignal(retRef, GSN_GCP_NODEFINISH, signal, 
              GCPNodeFinished::SignalLength, JBB);
-}//Dbdih::execGCP_TCFINISHED()
+}
 
 void
 Dbdih::execSUB_GCP_COMPLETE_REP(Signal* signal)

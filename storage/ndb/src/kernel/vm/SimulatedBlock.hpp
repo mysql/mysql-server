@@ -141,6 +141,14 @@ protected:
 
   void initCommon();
 public:
+  typedef void (SimulatedBlock::* CallbackFunction)(class Signal*,
+						    Uint32 callbackData,
+						    Uint32 returnCode);
+  struct Callback {
+    CallbackFunction m_callbackFunction;
+    Uint32 m_callbackData;
+  };
+
   /**
    * 
    */
@@ -189,15 +197,26 @@ public:
   static Uint32 getInstanceKey(Uint32 tabId, Uint32 fragId);
   static Uint32 getInstanceFromKey(Uint32 instanceKey); // local use only
 
-public:
-  typedef void (SimulatedBlock::* CallbackFunction)(class Signal*, 
-						    Uint32 callbackData,
-						    Uint32 returnCode);
-  struct Callback {
-    CallbackFunction m_callbackFunction;
-    Uint32 m_callbackData;
-  };
+  /**
+   * This method will make sure that when callback in called each
+   *   thread running an instance any of the threads in blocks[]
+   *   will have executed a signal
+   */
+  void synchronize_threads_for_blocks(Signal*, const Uint32 blocks[],
+                                      const Callback&, JobBufferLevel = JBB);
   
+private:
+  struct SyncThreadRecord
+  {
+    Callback m_callback;
+    Uint32 m_cnt;
+    Uint32 nextPool;
+  };
+  ArrayPool<SyncThreadRecord> c_syncThreadPool;
+  void execSYNC_THREAD_REQ(Signal*);
+  void execSYNC_THREAD_CONF(Signal*);
+
+public:
   virtual const char* get_filename(Uint32 fd) const { return "";}
 protected:
   static Callback TheEmptyCallback;

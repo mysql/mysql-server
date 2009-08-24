@@ -755,6 +755,7 @@ private:
   void execDIH_SCAN_TAB_COMPLETE_REP(Signal*);
   void execGCP_SAVEREF(Signal *);
   void execGCP_TCFINISHED(Signal *);
+  void execGCP_TCFINISHED_sync_conf(Signal* signal, Uint32 cb, Uint32 err);
   void execREAD_NODESCONF(Signal *);
   void execNDB_STTOR(Signal *);
   void execDICTSTARTCONF(Signal *);

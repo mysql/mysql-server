@@ -816,8 +816,9 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 
 #define GSN_ALTER_TABLE_REP             606
 #define GSN_API_BROADCAST_REP           607
-#define GSN_608
-#define GSN_609
+
+#define GSN_SYNC_THREAD_REQ             608
+#define GSN_SYNC_THREAD_CONF            609
 #define GSN_610
 #define GSN_611
 
