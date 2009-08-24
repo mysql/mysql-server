@@ -3169,7 +3169,7 @@ compare_errors:
 
      /*
       If we expected a non-zero error code, and we don't get the same error
-      code, and none of them should be ignored.
+      code, and it should be ignored or is related to a concurrency issue.
     */
     actual_error= thd->is_error() ? thd->main_da.sql_errno() : 0;
     DBUG_PRINT("info",("expected_error: %d  sql_errno: %d",
@@ -3192,7 +3192,8 @@ Default database: '%s'. Query: '%s'",
       thd->is_slave_error= 1;
     }
     /*
-      If we get the same error code as expected, or they should be ignored. 
+      If we get the same error code as expected and it is not a concurrency
+      issue, or should be ignored.
     */
     else if ((expected_error == actual_error && 
               !concurrency_error_code(expected_error)) ||
@@ -3202,6 +3203,14 @@ Default database: '%s'. Query: '%s'",
       clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
       thd->killed= THD::NOT_KILLED;
     }
+    /*
+      If we expected a non-zero error code and get nothing and, it is a concurrency
+      issue or should be ignored.
+    */
+    else if (expected_error && !actual_error && 
+             (concurrency_error_code(expected_error) ||
+              ignored_error_code(expected_error)))
+      ha_autocommit_or_rollback(thd, TRUE);
     /*
       Other cases: mostly we expected no error and get one.
     */
