@@ -494,6 +494,7 @@ private:
   Uint32 appendTreeToSection(Uint32 & ptrI, SectionReader &, Uint32);
   Uint32 appendColToSection(Uint32 & ptrI, const RowRef::Linear&, Uint32 col);
   Uint32 appendColToSection(Uint32 & ptrI, const RowRef::Section&, Uint32 col);
+  Uint32 appendPkColToSection(Uint32 & ptrI, const RowRef::Section&, Uint32 col);
   Uint32 appendDataToSection(Uint32 & ptrI, Local_pattern_store&,
 			     Local_pattern_store::ConstDataBufferIterator&,
 			     Uint32 len);

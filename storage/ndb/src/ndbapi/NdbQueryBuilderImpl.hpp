@@ -28,26 +28,31 @@
 #define QRY_UNKONWN_PARENT 4804
 #define QRY_UNKNOWN_COLUMN 4805
 #define QRY_UNRELATED_INDEX 4806
-#define QRY_OPERAND_ALREADY_BOUND 4807
-#define QRY_DEFINITION_TOO_LARGE 4808
-#define QRY_DUPLICATE_COLUMN_IN_PROJ 4809
-#define QRY_NEED_PARAMETER 4810
-#define QRY_RESULT_ROW_ALREADY_DEFINED 4811
-
+#define QRY_WRONG_INDEX_TYPE 4807
+#define QRY_OPERAND_ALREADY_BOUND 4808
+#define QRY_DEFINITION_TOO_LARGE 4809
+#define QRY_DUPLICATE_COLUMN_IN_PROJ 4810
+#define QRY_NEED_PARAMETER 4811
+#define QRY_RESULT_ROW_ALREADY_DEFINED 4812
 
 #ifdef __cplusplus
 #include "signaldata/TcKeyReq.hpp"
 #include "signaldata/ScanTab.hpp"
 #include <Vector.hpp>
 #include "NdbQueryBuilder.hpp"
-#include "NdbDictionary.hpp"
 
 // Forward declared
+class NdbTableImpl;
+class NdbIndexImpl;
+class NdbColumnImpl;
 class NdbQueryBuilderImpl;
 class NdbQueryOperationDefImpl;
 class NdbParamOperandImpl;
 class NdbConstOperandImpl;
 class NdbLinkedOperandImpl;
+
+// For debuggging.
+#define TRACE_SERIALIZATION
 
 /** A buffer for holding serialized data.*/
 class Uint32Buffer{
@@ -108,7 +113,8 @@ public:
     return m_maxSizeExceeded;
   }
 
-  Uint32 getSize() const {return m_size;}
+  size_t getSize() const {return m_size;}
+
 private:
   /* TODO: replace array with something that can grow and allocate from a 
    * pool as needed..*/
@@ -153,7 +159,7 @@ public:
 
   Uint32 getOffset() const {return m_offset;}
 
-  Uint32 getSize() const {return m_buffer.getSize() - m_offset;}
+  size_t getSize() const {return m_buffer.getSize() - m_offset;}
 
   /** Check for out-of-bounds access.*/
   bool isMaxSizeExceeded() const {
@@ -207,8 +213,6 @@ private:
   Uint32Buffer m_serializedDef; 
 }; // class NdbQueryDefImpl
 
-// For debuggging.
-#define TRACE_SERIALIZATION
 
 class NdbQueryBuilderImpl
 {
@@ -251,6 +255,9 @@ typedef const void* constVoidPtr;
 
 class NdbQueryOperationDefImpl
 {
+  friend class NdbQueryOperationImpl;
+  friend class NdbQueryImpl;
+
 public:
   /**
    * Different access / query operation types
@@ -261,10 +268,6 @@ public:
     TableScan,            ///< Full table scan
     OrderedIndexScan      ///< Ordered index scan, optionaly w/ bounds
   };
-
-  // Get the ordinal position of this operation within the query
-  Uint32 getQueryOperationIx() const
-  { return m_ix; }
 
   Uint32 getNoOfParentOperations() const
   { return m_parents.size(); }
@@ -278,11 +281,16 @@ public:
   const NdbQueryOperationDefImpl& getChildOperation(Uint32 i) const
   { return *m_children[i]; }
 
-  const NdbDictionary::Table& getTable() const
+  const NdbTableImpl& getTable() const
   { return m_table; }
 
   const char* getName() const
   { return m_ident; }
+
+  Uint32 assignQueryOperationId(Uint32& nodeId)
+  { if (getIndex()) nodeId++;
+    m_id = nodeId++;
+  }
 
   // Register a operation as parent of this operation
   void addParent(NdbQueryOperationDefImpl*);
@@ -294,7 +302,7 @@ public:
   // Return position in list of refered columns available from
   // this (parent) operation. Child ops later refer linked 
   // columns by its position in this list
-  Uint32 addColumnRef(const NdbDictionary::Column*);
+  Uint32 addColumnRef(const NdbColumnImpl*);
 
   // Register a param operand which is refered by this operation.
   // Param values are supplied pr. operation when code is serialized.
@@ -307,8 +315,8 @@ public:
   const NdbParamOperandImpl& getParameter(Uint32 ix) const
   { return *m_params[ix]; }
 
-  // Get type of query operation
-  virtual Type getType() const = 0;
+  virtual const NdbIndexImpl* getIndex() const
+  { return NULL; }
 
   virtual const NdbQueryOperationDef& getInterface() const = 0; 
 
@@ -321,7 +329,7 @@ public:
   /** Find the projection that should be sent to the SPJ block. This should
    * contain the attributes needed to instantiate all child operations.
    */
-  const Vector<const NdbDictionary::Column*>& getSPJProjection() const{
+  const Vector<const NdbColumnImpl*>& getSPJProjection() const{
     return m_spjProjection;
   }
 
@@ -339,18 +347,35 @@ public:
 
 protected:
   explicit NdbQueryOperationDefImpl (
-                                     const NdbDictionary::Table& table,
+                                     const NdbTableImpl& table,
                                      const char* ident,
                                      Uint32      ix)
-   : m_table(table), m_ident(ident), m_ix(ix),
+   : m_table(table), m_ident(ident), m_ix(ix), m_id(ix),
      m_parents(), m_children(), m_params(),
      m_spjProjection()
   {}
 
+  // Get the ordinal position of this operation within the query def.
+  Uint32 getQueryOperationIx() const
+  { return m_ix; }
+
+  // Get id of node as known inside queryTree
+  Uint32 getQueryOperationId() const
+  { return m_id; }
+
+  // Get type of query operation
+  virtual Type getType() const = 0;
+
+  // QueryTree building:
+  // Append list of parent nodes to serialized code
+  void appendParentList(Uint32Buffer& serializedDef) const;
+
 private:
-  const NdbDictionary::Table& m_table;
+  const NdbTableImpl& m_table;
   const char* const m_ident; // Optional name specified by aplication
   const Uint32 m_ix;         // Index of this operation within operation array
+  Uint32       m_id;         // Operation id when materialized into queryTree.
+                             // If op has index, index id is 'm_id-1'.
 
   // parent / child vectors contains dependencies as defined
   // with linkedValues
@@ -361,9 +386,8 @@ private:
   Vector<const NdbParamOperandImpl*> m_params;
 
   // Column from this operation required by its child operations
-  Vector<const NdbDictionary::Column*> m_spjProjection;
+  Vector<const NdbColumnImpl*> m_spjProjection;
 }; // class NdbQueryOperationDefImpl
-
 
 //////////////////////////////////////////////
 // Implementation of NdbQueryOperand interface
@@ -383,10 +407,10 @@ public:
     Const
   };
 
-  const NdbDictionary::Column* getColumn() const
+  const NdbColumnImpl* getColumn() const
   { return m_column; }
 
-  virtual int bindOperand(const NdbDictionary::Column& column,
+  virtual int bindOperand(const NdbColumnImpl& column,
                           NdbQueryOperationDefImpl& operation)
   { if (m_column  && m_column != &column)
       // Already bounded to a different column
@@ -395,8 +419,6 @@ public:
     return 0;
   }
   
-  virtual const NdbQueryOperand& getInterface() const = 0; 
-
   Kind getKind() const
   { return m_kind; }
 
@@ -412,7 +434,7 @@ protected:
   {}
 
 private:
-  const NdbDictionary::Column* m_column;  // Initial NULL, assigned w/ bindOperand()
+  const NdbColumnImpl* m_column;       // Initial NULL, assigned w/ bindOperand()
   /** This is used to tell the type of an NdbQueryOperand. This allow safe
    * downcasting to a subclass.
    */
@@ -425,7 +447,7 @@ class NdbLinkedOperandImpl : public NdbQueryOperandImpl
   friend class NdbQueryBuilder;  // Allow privat access from builder interface
 
 public:
-  virtual int bindOperand(const NdbDictionary::Column& column,
+  virtual int bindOperand(const NdbColumnImpl& column,
                           NdbQueryOperationDefImpl& operation);
 
   const NdbQueryOperationDefImpl& getParentOperation() const
@@ -436,14 +458,14 @@ public:
   Uint32 getLinkedColumnIx() const
   { return m_parentColumnIx; }
 
-  const NdbDictionary::Column& getParentColumn() const
+  const NdbColumnImpl& getParentColumn() const
   { return *m_parentOperation.getSPJProjection()[m_parentColumnIx]; }
 
-  virtual const NdbQueryOperand& getInterface() const
+  virtual const NdbLinkedOperand& getInterface() const
   { return m_interface; }
 
 private:
-  virtual ~NdbLinkedOperandImpl() {};
+  virtual ~NdbLinkedOperandImpl() {}
 
   NdbLinkedOperandImpl (NdbQueryOperationDefImpl& parent, 
                         Uint32 columnIx)
@@ -464,7 +486,7 @@ class NdbParamOperandImpl : public NdbQueryOperandImpl
   friend class NdbQueryBuilder;  // Allow privat access from builder interface
 
 public:
-  virtual int bindOperand(const NdbDictionary::Column& column,
+  virtual int bindOperand(const NdbColumnImpl& column,
                           NdbQueryOperationDefImpl& operation);
 
   const char* getName() const
@@ -473,11 +495,11 @@ public:
   Uint32 getParamIx() const
   { return m_paramIx; }
 
-  virtual const NdbQueryOperand& getInterface() const
+  virtual const NdbParamOperand& getInterface() const
   { return m_interface; }
 
 private:
-  virtual ~NdbParamOperandImpl() {};
+  virtual ~NdbParamOperandImpl() {}
   NdbParamOperandImpl (const char* name, Uint32 paramIx)
    : NdbQueryOperandImpl(Param),
      m_interface(*this), 
@@ -498,16 +520,16 @@ public:
   virtual size_t getLength() const = 0;
   virtual const void* getAddr() const = 0;
 
-  virtual int bindOperand(const NdbDictionary::Column& column,
+  virtual int bindOperand(const NdbColumnImpl& column,
                           NdbQueryOperationDefImpl& operation);
 
   virtual NdbDictionary::Column::Type getType() const = 0;
 
-  virtual const NdbQueryOperand& getInterface() const
+  virtual const NdbConstOperand& getInterface() const
   { return m_interface; }
 
 protected:
-  virtual ~NdbConstOperandImpl() {};
+  virtual ~NdbConstOperandImpl() {}
   NdbConstOperandImpl ()
     : NdbQueryOperandImpl(Const),
       m_interface(*this)

@@ -79,12 +79,12 @@ struct DABits
 
     NI_KEY_LINKED     = 0x02,  // Does keyinfo contain linked values
     NI_KEY_PARAMS     = 0x04,  // Does keyinfo contain parameters
-    NI_KEY_CONSTS     = 0x80,  // Does keyinfo contain const operands.
+    NI_KEY_CONSTS     = 0x08,  // Does keyinfo contain const operands.
 
-    NI_LINKED_ATTR    = 0x08,  // List of attributes to be used by childs
-    NI_ATTR_INTERPRET = 0x10,  // Is attr-info a interpreted program
-    NI_ATTR_PARAMS    = 0x20,  // Does attrinfo contain parameters
-    NI_ATTR_LINKED    = 0x40,  // Does attrinfo contain linked values
+    NI_LINKED_ATTR    = 0x10,  // List of attributes to be used by childs
+    NI_ATTR_INTERPRET = 0x20,  // Is attr-info a interpreted program
+    NI_ATTR_PARAMS    = 0x40,  // Does attrinfo contain parameters
+    NI_ATTR_LINKED    = 0x80,  // Does attrinfo contain linked values
     NI_END = 0
   };
 
@@ -191,10 +191,11 @@ struct QueryPattern
   Uint32 m_info;
   enum
   {
-    P_DATA  = 0x1, // Raw data of len-words (constants)
-    P_COL   = 0x2, // Get col from RowRef
-    P_PARAM = 0x3,
-    P_END   = 0
+    P_DATA   = 0x1, // Raw data of len-words (constants)
+    P_COL    = 0x2, // Get column value from RowRef
+    P_UNQ_PK = 0x3, // NDB$PK column from a unique index
+    P_PARAM  = 0x4, // User specified parameter value
+    P_END    = 0
   };
 
   static Uint32 getType(const Uint32 info) { return info >> 16;}
@@ -214,6 +215,11 @@ struct QueryPattern
    */
   static Uint32 getColNo(Uint32 info) { return info & 0xFFFF;}
   static Uint32 col(Uint32 no) { return (P_COL << 16) | no; }
+
+  /**
+   * If type == P_UNQ_PK, get PK value from composite NDB$PK col.
+   */
+  static Uint32 colPk(Uint32 no) {  return (P_UNQ_PK << 16) | no; }
 
   /**
    * If type == PARAM, get param-no here (index in param list)
