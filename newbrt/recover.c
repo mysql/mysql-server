@@ -493,9 +493,9 @@ static int toku_delete_rolltmp_files (const char *log_dir) {
 }
 
 // Does this log environment need recovery?
-// Effects: If there are no log files, or if there is a "null" checkpoint at the end of the log, 
-// or if there is a shutdown at the end of the log, then we don't need recovery to run.
-// Returns: TRUE if it does, FALSE if it does not
+// Effects: If there are no log files, or if there is a "null" checkpoint at the end of the log,
+// then we don't need recovery to run.  We skip the optional shutdown log entry.
+// Returns: TRUE if we need recovery, FALSE if we do not need recovery.
 static int tokudb_needs_recovery(const char *log_dir) {
     int needs_recovery;
     int r;
@@ -515,7 +515,10 @@ static int tokudb_needs_recovery(const char *log_dir) {
         needs_recovery = TRUE; goto exit;
     }
     if (le->cmd == LT_shutdown) {
-        needs_recovery = FALSE; goto exit;
+        r = toku_logcursor_prev(logcursor, &le);
+        if (r != 0) {
+            needs_recovery = TRUE; goto exit;
+        }
     }
     if (le->cmd != LT_end_checkpoint) {
         needs_recovery = TRUE; goto exit;

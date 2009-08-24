@@ -451,6 +451,20 @@ static int toku_env_close(DB_ENV * env, u_int32_t flags) {
     if (env->i->cachetable) {
 	toku_ydb_unlock();  // ydb lock must not be held when shutting down minicron
 	toku_cachetable_minicron_shutdown(env->i->cachetable);
+        if (env->i->logger) {
+#if 0
+            // TODO lock problems (see test_db_remove.c).  may want to require an environment.
+            r0 = toku_checkpoint(env->i->cachetable, env->i->logger, NULL, NULL, NULL);
+            assert(r0 == 0);
+#else
+            // TODO locks?
+            r0 = toku_cachetable_begin_checkpoint(env->i->cachetable, env->i->logger);
+            if (r0 == 0)
+                toku_cachetable_end_checkpoint(env->i->cachetable, env->i->logger, NULL);
+            assert(r0 == 0);
+#endif
+            r0 = toku_logger_shutdown(env->i->logger); assert(r0 == 0);
+        }
 	toku_ydb_lock();
         r0=toku_cachetable_close(&env->i->cachetable);
 	if (r0) {
@@ -458,8 +472,6 @@ static int toku_env_close(DB_ENV * env, u_int32_t flags) {
 	}
     }
     if (env->i->logger) {
-        r1=toku_logger_shutdown(env->i->logger);
-        // TODO: check return
         r1=toku_logger_close(&env->i->logger);
 	if (r0==0 && r1) {
 	    toku_ydb_do_error(env, r0, "Cannot close environment (logger close error)\n");
