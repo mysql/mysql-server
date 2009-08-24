@@ -12171,6 +12171,7 @@ void Dblqh::execLCP_FRAG_ORD(Signal* signal)
         completeLcpRoundLab(signal, lcpId);
       } else {
         jam();
+        clcpCompletedState = LCP_IDLE;
         sendLCP_COMPLETE_REP(signal, lcpId);
       }//if
     }
@@ -12200,7 +12201,6 @@ void Dblqh::execLCP_FRAG_ORD(Signal* signal)
     ndbrequire(clcpCompletedState == LCP_IDLE);
     clcpCompletedState = LCP_RUNNING;
   }
-  cnoOfFragsCheckpointed++;
   
   if(tabptr.p->tableStatus == Tablerec::PREP_DROP_TABLE_DONE){
     jam();
@@ -12210,6 +12210,8 @@ void Dblqh::execLCP_FRAG_ORD(Signal* signal)
     sendLCP_FRAG_REP(signal, fragOrd);
     return;
   }
+
+  cnoOfFragsCheckpointed++;
 
   if (lcpPtr.p->lcpState != LcpRecord::LCP_IDLE) {
     ndbrequire(lcpPtr.p->lcpQueued == false);
