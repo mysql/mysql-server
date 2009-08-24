@@ -8308,11 +8308,21 @@ get_constant_key_infix(KEY *index_info, SEL_ARG *index_range_tree,
       return FALSE;
 
     uint field_length= cur_part->store_length;
-    if ((cur_range->maybe_null &&
+    if (cur_range->maybe_null &&
          cur_range->min_value[0] && cur_range->max_value[0])
-        ||
-        (memcmp(cur_range->min_value, cur_range->max_value, field_length) == 0))
-    { /* cur_range specifies 'IS NULL' or an equality condition. */
+    { 
+      /*
+        cur_range specifies 'IS NULL'. In this case the argument points to a "null value" (is_null_string)
+        that may not always be long enough for a direct memcpy to a field.
+      */
+      DBUG_ASSERT (field_length > 0);
+      *key_ptr= 1;
+      bzero(key_ptr+1,field_length-1);
+      key_ptr+= field_length;
+      *key_infix_len+= field_length;
+    }
+    else if (memcmp(cur_range->min_value, cur_range->max_value, field_length) == 0)
+    { /* cur_range specifies an equality condition. */
       memcpy(key_ptr, cur_range->min_value, field_length);
       key_ptr+= field_length;
       *key_infix_len+= field_length;
