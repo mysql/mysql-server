@@ -18,6 +18,7 @@
 
 /*
   OVERVIEW
+  ========
 
   This file contains table elimination module. The idea behind table
   elimination is as follows: suppose we have a left join
@@ -36,7 +37,9 @@
   null-complemented one) and we don't care about what that record combination 
   is.
 
+
   MODULE INTERFACE
+  ================
 
   The module has one entry point - eliminate_tables() function, which one 
   needs to call (once) at some point before the join optimization.
@@ -58,23 +61,25 @@
 
   Table elimination is redone on every PS re-execution.
 
-  TABLE ELIMINATION ALGORITHM FOR ONE OUTER JOIN
 
-  As said above, we can remove inner side of an outer join if it is 
+  TABLE ELIMINATION ALGORITHM FOR ONE OUTER JOIN
+  ==============================================
+
+  As described above, we can remove inner side of an outer join if it is 
 
     1. not referred to from any other parts of the query
     2. always produces one matching record combination.
 
-  We check #1 by doing a recursive descent down the join->join_list while 
-  maintaining a union of used_tables() attribute of all expressions we've seen
-  "elsewhere". When we encounter an outer join, we check if the bitmap of 
-  tables on its inner side has an intersection with tables that are used 
+  We check #1 by doing a recursive descent down the join->join_list while
+  maintaining a union of used_tables() attribute of all Item expressions in
+  other parts of the query. When we encounter an outer join, we check if the
+  bitmap of tables on its inner side has intersection with tables that are used
   elsewhere. No intersection means that inner side of the outer join could 
   potentially be eliminated.
 
   In order to check #2, one needs to prove that inner side of an outer join 
-  is functionally dependent on the outside. We prove dependency by proving
-  functional dependency of intermediate objects:
+  is functionally dependent on the outside. The proof is constructed from
+  functional dependencies of intermediate objects:
 
   - Inner side of outer join is functionally dependent when each of its tables
     are functionally dependent. (We assume a table is functionally dependent 
@@ -91,14 +96,15 @@
     
     where expr is functionally-depdendent.
 
-  Apparently the above rules can be applied recursively. Also, certain entities
-  depend on multiple other entities. We model this by a bipartite graph which
-  has two kinds of nodes:
+  These relationships are modeled as a bipartite directed graph that has
+  dependencies as edges and two kinds of nodes:
 
   Value nodes:
    - Table column values (each is a value of tblX.columnY)
-   - Table nodes (each node represents a table inside an eliminable join nest).
-  each value is either bound (i.e. functionally dependent) or not.
+   - Table values (each node represents a table inside the join nest we're
+     trying to eliminate).
+  A value has one attribute, it is either bound (i.e. functionally dependent) 
+  or not.
 
   Module nodes:
    - Modules representing tblX.colY=expr equalities. Equality module has 
@@ -118,11 +124,54 @@
   (their expressions are either constant or depend only on tables that are
   outside of the outer join in question) and performns a breadth-first
   traversal. If we reach the outer join nest node, it means outer join is
-  functionally-dependant and can be eliminated. Otherwise it cannot.
+  functionally-dependant and can be eliminated. Otherwise it cannot be.
  
-  HANDLING MULTIPLE NESTED OUTER JOINS 
-  (TODO : explanations why 'local bottom up is sufficient')
+  HANDLING MULTIPLE NESTED OUTER JOINS
+  ====================================
 
+  Outer joins that are not nested one within another are eliminated
+  independently. For nested outer joins we have the following considerations:
+  
+  1. ON expressions from children outer joins must be taken into account 
+   
+  Consider this example:
+
+    SELECT t0.* 
+    FROM 
+      t0  
+    LEFT JOIN 
+      (t1 LEFT JOIN t2 ON t2.primary_key=t1.col1)
+    ON 
+      t1.primary_key=t0.col AND t2.col1=t1.col2
+
+  Here we cannot eliminate the "... LEFT JOIN t2 ON ..." part alone because the
+  ON clause of top level outer join has references to table t2. 
+  We can eliminate the entire  "... LEFT JOIN (t1 LEFT JOIN t2) ON .." part,
+  but in order to do that, we must look at both ON expressions.
+  
+  2. ON expressions of parent outer joins are useless.
+  Consider an example:
+
+    SELECT t0.* 
+    FROM
+      t0 
+    LEFT JOIN 
+      (t1 LEFT JOIN t2 ON some_expr)
+    ON
+      t2.primary_key=t1.col  -- (*)
+  
+  Here the uppermost ON expression has a clause that gives us functional
+  dependency of table t2 on t1 and hence could be used to eliminate the
+  "... LEFT JOIN t2 ON..." part.
+  However, we would not actually encounter this situation, because before the
+  table elimination we run simplify_joins(), which, among other things, upon
+  seeing a functional dependency condition like (*) will convert the outer join
+  of
+    
+    "... LEFT JOIN t2 ON ..."
+  
+  into inner join and thus make table elimination not to consider eliminating
+  table t2.
 */
 
 class Value_dep;
@@ -157,7 +206,7 @@ public:
 
 /*
   A table field value. There is exactly only one such object for any tblX.fieldY
-  - the field epends on its table and equalities
+  - the field depends on its table and equalities
   - expressions that use the field are its dependencies
 */
 class Field_value : public Value_dep
@@ -175,26 +224,23 @@ public:
     field_index 
   */
   Field_value *next_table_field;
-  /* 
-    Offset of our part of the bitmap psergey-todo: better comment!
+  /*
+    Offset to bits in Func_dep_analyzer::expr_deps
   */
   uint bitmap_offset;
   
-  /*
-    Field became known. Check out
-    - unique keys we belong to
-    - expressions that depend on us.
-  */
   void now_bound(Func_dep_analyzer *fda, Module_dep **bound_modules);
   void signal_from_field_to_exprs(Func_dep_analyzer* fda, 
                                   Module_dep **bound_modules);
 };
 
+
 /*
   A table value. There is one Table_value object for every table that can
   potentially be eliminated.
+  Dependencies:
   - table depends on any of its unique keys
-  - has its fields and embedding outer join as dependency.
+  - has its fields and embedding outer join as dependency
 */
 class Table_value : public Value_dep
 {
@@ -205,13 +251,13 @@ public:
   TABLE *table;
   Field_value *fields; /* Ordered list of fields that belong to this table */
   Key_module *keys; /* Ordered list of Unique keys in this table */
-  //Outer_join_module *outer_join_dep;
   void now_bound(Func_dep_analyzer *fda, Module_dep **bound_modules);
 };
 
 
 /*
-  A 'module'. Module has dependencies
+  A 'module'. Module has unsatisfied dependencies, number of whose is stored in
+  unknown_args. Modules also can be linked together in a list.
 */
 
 class Module_dep : public Sql_alloc
@@ -232,10 +278,11 @@ public:
 
 /*
   This represents either
-   - "tbl.column= expr" equality dependency, i.e. tbl.column depends on fields 
+   - "tbl.column= expr" equality dependency, i.e. tbl.column depends on fields
      used in the expression, or
    - tbl1.col1=tbl2.col2=... multi-equality.
 */
+
 class Equality_module : public Module_dep
 {
 public:
@@ -314,7 +361,11 @@ public:
   /* Element for the outer join we're attempting to eliminate */
   Outer_join_module *outer_join_dep;
 
-  /* Bitmap of how expressions depend on bits */
+  /* 
+    Bitmap of how expressions depend on bits. Given a Field_value object,
+    one can check bitmap_is_set(expr_deps, field_val->bitmap_offset + expr_no)
+    to see if expression equality_mods[expr_no] depends on the given field.
+  */
   MY_BITMAP expr_deps;
 };
 
@@ -453,11 +504,23 @@ void build_eq_mods_for_cond(Func_dep_analyzer *fda, Equality_module **eq_mod,
   }
   case Item_func::MULT_EQUAL_FUNC:
   {
+    /*
+      The condition is a 
+
+        tbl1.field1 = tbl2.field2 = tbl3.field3 [= const_expr]
+
+      multiple-equality. Do two things:
+       - Collect an ordered List<Field_value> of tblX.colY where tblX is one
+         of those that we're trying to eliminate.
+       - rembember if there was a const_expr or tblY.colZ that we can consider
+         bound.
+      Store all collected information in a Equality_module object.
+    */
     Item_equal *item_equal= (Item_equal*)cond;
     List<Field_value> *fvl;
     if (!(fvl= new List<Field_value>))
       break;
-    
+
     Item_equal_iterator it(*item_equal);
     Item_field *item;
     Item *bound_item= item_equal->get_const();
@@ -554,9 +617,9 @@ Equality_module *merge_func_deps(Equality_module *start, Equality_module *new_fi
                                  Equality_module *end, uint and_level)
 {
   if (start == new_fields)
-    return start;                                // Impossible or
+    return start;  /*  (nothing) OR (...) -> (nothing) */
   if (new_fields == end)
-    return start;                                // No new fields, skip all
+    return start;  /*  (...) OR (nothing) -> (nothing) */
 
   Equality_module *first_free=new_fields;
 
@@ -564,28 +627,6 @@ Equality_module *merge_func_deps(Equality_module *start, Equality_module *new_fi
   {
     for (Equality_module *old=start ; old != first_free ; old++)
     {
-      /* 
-        Merge multiple-equalities:
-        A: YES.  
-          (a=b=c) OR (a=b=d)  produce "a=b".
-
-        TODO:
-          sort by (table_ptr, column_index)
-          then run along the two and produce an intersection
-
-        Q: What about constants?
-          a=b=3  OR a=b=5 -> a=b= (either 3 or 5)
-
-          a=b  OR a=b=5 -> a=b= (any constant)
-        A: keep the constant iff it is present in both sides and is the same.
-        
-        class Multi_equality
-        {
-          Item *const_item;
-          List<...) list;
-        };
-
-      */
       if (old->field == new_fields->field)
       {
         if (!old->field)
@@ -616,7 +657,7 @@ Equality_module *merge_func_deps(Equality_module *start, Equality_module *new_fi
           }
           else
           {
-            // no single constant/bound item.
+            /* no single constant/bound item. */
             old->expression= NULL;
           }
            
@@ -975,7 +1016,7 @@ bool setup_equality_modules_deps(Func_dep_analyzer *fda,
     }
     else 
     {
-      /* It's a multi-equality*/
+      /* It's a multi-equality */
       eq_mod->unknown_args= !test(eq_mod->expression);
       List_iterator<Field_value> it(*eq_mod->mult_equal_fields);
       Field_value* field_val;
@@ -1049,6 +1090,11 @@ void eliminate_tables(JOIN *join)
   /* If there are no outer joins, we have nothing to eliminate: */
   if (!join->outer_join)
     DBUG_VOID_RETURN;
+
+#ifndef DBUG_OFF
+  if (!optimizer_flag(thd, OPTIMIZER_SWITCH_TABLE_ELIMINATION))
+    DBUG_VOID_RETURN;
+#endif
 
   /* Find the tables that are referred to from WHERE/HAVING */
   used_tables= (join->conds?  join->conds->used_tables() : 0) | 
@@ -1188,7 +1234,7 @@ eliminate_tables_for_list(JOIN *join, List<TABLE_LIST> *join_list,
 
 
 /*
-  Check if condition makes the a set of tables functionally-dependent
+  Check if given condition makes given set of tables functionally-dependent
 
   SYNOPSIS
     check_func_dependency()
@@ -1197,8 +1243,8 @@ eliminate_tables_for_list(JOIN *join, List<TABLE_LIST> *join_list,
       cond     Condition to use
 
   DESCRIPTION
-    Check if condition allows to conclude that the table set is functionally
-    dependent on everything else.
+    Check if we can use given condition to infer that the set of given tables
+    is functionally-dependent on everything else.
 
   RETURN 
     TRUE  - Yes, functionally dependent
@@ -1216,7 +1262,10 @@ bool check_func_dependency(JOIN *join,
   
   Func_dep_analyzer fda(join);
   
-  /* Start value */
+  /* 
+    Pre-alloc some Equality_module structures. We don't need this to be
+    guaranteed upper bound.
+  */
   fda.n_equality_mods_alloced= 
     join->thd->lex->current_select->max_equal_elems +
     (join->thd->lex->current_select->cond_count+1)*2 +
@@ -1249,7 +1298,7 @@ bool check_func_dependency(JOIN *join,
   fda.usable_tables= dep_tables;
   /*
     Analyze the the ON expression and create Equality_module objects and
-    Field_value objects for their left parts.
+      Field_value objects for the used fields.
   */
   uint and_level=0;
   build_eq_mods_for_cond(&fda, &last_eq_mod, &and_level, cond);
@@ -1264,14 +1313,14 @@ bool check_func_dependency(JOIN *join,
   
   DBUG_EXECUTE("test", dbug_print_deps(&fda); );
 
-  /* The running wave algorithm itself: */
+  /* The forward running wave algorithm: */
   Value_dep *bound_values= NULL;
   while (bound_modules)
   {
     for (;bound_modules; bound_modules= bound_modules->next)
     {
       if (bound_modules->now_bound(&fda, &bound_values))
-        return TRUE; /* Dependent! */
+        return TRUE; /* Dependent */
     }
     for (;bound_values; bound_values=bound_values->next)
       bound_values->now_bound(&fda, &bound_modules);
@@ -1280,17 +1329,12 @@ bool check_func_dependency(JOIN *join,
 }
 
 
-/*
-  Table is known means that
-  - one more element in outer join nest is known
-  - all its fields are known
-*/
-
 void Table_value::now_bound(Func_dep_analyzer *fda, 
                             Module_dep **bound_modules)
 {
   DBUG_PRINT("info", ("table %s is now bound", table->alias));
-
+  
+  /* Signal to all fields that they are now bound */
   for (Field_value *field_dep= fields; field_dep;
        field_dep= field_dep->next_table_field)
   {
@@ -1302,6 +1346,7 @@ void Table_value::now_bound(Func_dep_analyzer *fda,
     }
   }
   
+  /* Signal to outer join that one more table is known */
   if (fda->outer_join_dep->unknown_args && 
       !--fda->outer_join_dep->unknown_args)
   {
@@ -1318,6 +1363,7 @@ void Field_value::now_bound(Func_dep_analyzer *fda,
   DBUG_PRINT("info", ("field %s.%s is now bound", field->table->alias,
                        field->field_name));
 
+  /* Signal to unique keys and expressions that use this field*/
   for (Key_module *key_dep= table->keys; key_dep; 
        key_dep= key_dep->next_table_key)
   {
@@ -1337,8 +1383,8 @@ void Field_value::now_bound(Func_dep_analyzer *fda,
 
 
 /*
-  Walk through expressions that depend on this field and 'notify' them 
-  that this field is no longer unknown.
+  Walk through expressions that depend on this field and notify them 
+  that this field is now known.
 */
 void Field_value::signal_from_field_to_exprs(Func_dep_analyzer* fda, 
                                              Module_dep **bound_modules)
@@ -1362,16 +1408,16 @@ bool Outer_join_module::now_bound(Func_dep_analyzer *fda,
                                   Value_dep **bound_values)
 {
   DBUG_PRINT("info", ("Outer join eliminated"));
-  return TRUE; /* Signal to finish the process */
+  return TRUE; /* Signal out that the search is finished */
 }
 
 
 bool Equality_module::now_bound(Func_dep_analyzer *fda, 
                                 Value_dep **bound_values)
 {
-  /* For field=expr and we got to know the expr, so we know the field */
   if (mult_equal_fields)
   {
+    /* It's a=b=c=... multiple equality. Mark all equality members as known. */
     List_iterator<Field_value> it(*mult_equal_fields);
     Field_value *fv;
     while ((fv= it++))
@@ -1387,6 +1433,7 @@ bool Equality_module::now_bound(Func_dep_analyzer *fda,
   }
   else
   {
+    /* It's a fieldX=exprY equality. Mark exprY as known */
     if (!field->bound)
     {
       /* Mark as bound and add to the list */
@@ -1398,7 +1445,9 @@ bool Equality_module::now_bound(Func_dep_analyzer *fda,
   return FALSE;
 }
 
+
 /* Unique key is known means its  table is known */
+
 bool Key_module::now_bound(Func_dep_analyzer *fda, Value_dep **bound_values)
 {
   if (!table->bound)

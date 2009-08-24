@@ -297,9 +297,14 @@ TYPELIB sql_mode_typelib= { array_elements(sql_mode_names)-1,"",
 
 static const char *optimizer_switch_names[]=
 {
-  "index_merge","index_merge_union","index_merge_sort_union", 
-  "index_merge_intersection", "default", NullS
+  "index_merge","index_merge_union","index_merge_sort_union",
+  "index_merge_intersection",
+#ifndef DBUG_OFF
+  "table_elimination",
+#endif
+  "default", NullS
 };
+
 /* Corresponding defines are named OPTIMIZER_SWITCH_XXX */
 static const unsigned int optimizer_switch_names_len[]=
 {
@@ -307,6 +312,9 @@ static const unsigned int optimizer_switch_names_len[]=
   sizeof("index_merge_union") - 1,
   sizeof("index_merge_sort_union") - 1,
   sizeof("index_merge_intersection") - 1,
+#ifndef DBUG_OFF
+  sizeof("table_elimination") - 1,
+#endif
   sizeof("default") - 1
 };
 TYPELIB optimizer_switch_typelib= { array_elements(optimizer_switch_names)-1,"",
@@ -382,7 +390,10 @@ static const char *sql_mode_str= "OFF";
 /* Text representation for OPTIMIZER_SWITCH_DEFAULT */
 static const char *optimizer_switch_str="index_merge=on,index_merge_union=on,"
                                         "index_merge_sort_union=on,"
-                                        "index_merge_intersection=on";
+                                        "index_merge_intersection=on"
+#ifndef DBUG_OFF                                        
+                                        ",table_elimination=on";
+#endif
 static char *mysqld_user, *mysqld_chroot, *log_error_file_ptr;
 static char *opt_init_slave, *language_ptr, *opt_init_connect;
 static char *default_character_set_name;
@@ -6929,8 +6940,11 @@ The minimum value for this variable is 4096.",
    0, GET_ULONG, OPT_ARG, MAX_TABLES+1, 0, MAX_TABLES+2, 0, 1, 0},
   {"optimizer_switch", OPT_OPTIMIZER_SWITCH,
    "optimizer_switch=option=val[,option=val...], where option={index_merge, "
-   "index_merge_union, index_merge_sort_union, index_merge_intersection} and "
-   "val={on, off, default}.",
+   "index_merge_union, index_merge_sort_union, index_merge_intersection"
+#ifndef DBUG_OFF
+   ", table_elimination"
+#endif 
+   "} and val={on, off, default}.",
    (uchar**) &optimizer_switch_str, (uchar**) &optimizer_switch_str, 0, GET_STR, REQUIRED_ARG, 
    /*OPTIMIZER_SWITCH_DEFAULT*/0,
    0, 0, 0, 0, 0},
