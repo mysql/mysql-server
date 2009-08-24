@@ -122,7 +122,9 @@ private:
   /** Transaction in which this query instance executes.*/
   NdbTransaction& m_transaction;
   /** The operations constituting this query.*/
-  Vector<NdbQueryOperationImpl*> m_operations;
+  NdbQueryOperationImpl *m_operations;  // 'Array of ' OperationImpls
+  size_t m_countOperations;                       // #elements in above array
+
   /** True if a TCKEYCONF message has been received for this query.*/
   bool m_tcKeyConfReceived;
   /** Number of operations not yet completed.*/
@@ -145,11 +147,15 @@ private:
  * do not need to exposed in NdbQueryOperation.hpp. This class may be 
  * changed without forcing the customer to recompile his application.*/
 class NdbQueryOperationImpl {
-  // friend class NdbQueryImpl;
+
   /** For debugging.*/
   friend NdbOut& operator<<(NdbOut& out, const NdbQueryOperationImpl&);
 public:
   STATIC_CONST (MAGIC = 0xfade1234);
+
+  explicit NdbQueryOperationImpl(NdbQueryImpl& queryImpl, 
+                                 const NdbQueryOperationDefImpl& def);
+  ~NdbQueryOperationImpl();
 
   /** Fetch next result row. 
    * @see NdbQuery::nextResult */
@@ -161,10 +167,6 @@ public:
    * have the same semantics for nextResult(), lookups use scan-type 
    * NdbReceiver objects.)*/
   static void closeSingletonScans(const NdbQueryImpl& query);
-
-  explicit NdbQueryOperationImpl(NdbQueryImpl& queryImpl, 
-                                 const NdbQueryOperationDefImpl& def);
-  ~NdbQueryOperationImpl();
 
   Uint32 getNoOfParentOperations() const;
   NdbQueryOperationImpl& getParentOperation(Uint32 i) const;
@@ -386,12 +388,14 @@ private:
   /** The (transaction independent ) definition from which this instance
    * was created.*/
   const NdbQueryOperationDefImpl& m_operationDef;
-  /* TODO: replace m_children and m_parents with navigation via 
+  /* MAYBE: replace m_children and m_parents with navigation via 
    * m_operationDef.getParentOperation() etc.*/
   /** Parents of this operation.*/
   Vector<NdbQueryOperationImpl*> m_parents;
   /** Children of this operation.*/
   Vector<NdbQueryOperationImpl*> m_children;
+  /** Possibly (hidden) operation being index (and parent) for this op. */
+//NdbQueryOperationImpl* const m_index;
 
   /** For processing results from this operation.*/
   ResultStream** m_resultStreams;

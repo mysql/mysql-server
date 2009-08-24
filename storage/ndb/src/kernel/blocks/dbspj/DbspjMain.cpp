@@ -585,6 +585,12 @@ Dbspj::build(Build_context& ctx,
   Uint32 loop = QueryTree::getNodeCnt(tmp0);
 
   DEBUG("::build()");
+  if (loop == 0)
+  {
+    DEBUG_CRASH();
+    goto error;
+  }
+
   while (ctx.m_cnt < loop)
   {
     DEBUG(" - loop " << ctx.m_cnt << " pos: " << tree.getPos().currPos);
@@ -2311,8 +2317,6 @@ Dbspj::getCorrelationData(const RowRef::Section & row,
 Uint32
 Dbspj::appendColToSection(Uint32 & dst, const RowRef::Section & row, Uint32 col)
 {
-  DEBUG("::appendColToSection1, col:" << col);
-
   /**
    * TODO handle errors
    */
@@ -2334,8 +2338,6 @@ Dbspj::appendColToSection(Uint32 & dst, const RowRef::Section & row, Uint32 col)
 Uint32
 Dbspj::appendColToSection(Uint32 & dst, const RowRef::Linear & row, Uint32 col)
 {
-  DEBUG("::appendColToSection2, col:" << col);
-
   /**
    * TODO handle errors
    */
@@ -2348,6 +2350,32 @@ Dbspj::appendColToSection(Uint32 & dst, const RowRef::Linear & row, Uint32 col)
   const Uint32 * ptr = row.m_data + offset;
   Uint32 len = AttributeHeader::getDataSize(* ptr ++);
   return appendToSection(dst, ptr, len) ? 0 : DbspjErr::InvalidPattern;
+}
+
+/**
+ * 'PkCol' is the composite NDB$PK column in an unique index consisting of
+ * a fragment id and the composite PK value (all PK columns concatenated)
+ */
+Uint32
+Dbspj::appendPkColToSection(Uint32 & dst, const RowRef::Section & row, Uint32 col)
+{
+  /**
+   * TODO handle errors
+   */
+  const Uint32 * header = (const Uint32*)row.m_header->m_headers;
+  SegmentedSectionPtr ptr(row.m_dataPtr);
+  SectionReader reader(ptr, getSectionSegmentPool());
+  Uint32 offset = 0;
+  for (Uint32 i = 0; i<col; i++)
+  {
+    offset += 1 + AttributeHeader::getDataSize(* header++);
+  }
+  ndbrequire(reader.step(offset));
+  Uint32 tmp;
+  ndbrequire(reader.getWord(&tmp));
+  Uint32 len = AttributeHeader::getDataSize(tmp);
+  ndbrequire(reader.step(1)); // Skip fragid
+  return appendTreeToSection(dst, reader, len-1);
 }
 
 Uint32
@@ -2460,6 +2488,9 @@ Dbspj::expand(Uint32 & _dst, Local_pattern_store& pattern,
     case QueryPattern::P_COL:
       err = appendColToSection(dst, row, val);
       break;
+    case QueryPattern::P_UNQ_PK:
+      err = appendPkColToSection(dst, row, val);
+      break;
     case QueryPattern::P_DATA:
       err = appendDataToSection(dst, pattern, it, val);
       break;
@@ -2518,6 +2549,7 @@ Dbspj::expand(Uint32 & ptrI, DABuffer& pattern, Uint32 len,
       ptr += val;
       break;
     case QueryPattern::P_COL: // (linked) COL's not expected here
+    case QueryPattern::P_UNQ_PK:
     default:
       err = DbspjErr::InvalidPattern;
       DEBUG_CRASH();
@@ -2571,6 +2603,7 @@ Dbspj::expand(Local_pattern_store& dst, DABuffer& pattern, Uint32 len,
     Uint32 val = QueryPattern::getLength(info);
     switch(type){
     case QueryPattern::P_COL:
+    case QueryPattern::P_UNQ_PK:
       err = appendToPattern(dst, pattern, 1);
       break;
     case QueryPattern::P_DATA:
@@ -2905,10 +2938,10 @@ Dbspj::parseDA(Build_context& ctx,
         /**
          * Read correlation factor
          */
-        dst[cnt] = AttributeHeader::READ_ANY_VALUE << 16;
+        dst[cnt++] = AttributeHeader::READ_ANY_VALUE << 16;
 
         err = DbspjErr::OutOfSectionMemory;
-        if (!appendToSection(attrInfoPtrI, dst, cnt + 1))
+        if (!appendToSection(attrInfoPtrI, dst, cnt))
         {
           DEBUG_CRASH();
           break;
