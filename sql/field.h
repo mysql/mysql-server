@@ -608,6 +608,10 @@ protected:
 
 class Field_num :public Field {
 public:
+  /**
+     The scale of the Field's value, i.e. the number of digits to the right
+     of the decimal point.
+  */
   const uint8 dec;
   bool zerofill,unsigned_flag;	// Purify cannot handle bit fields
   Field_num(uchar *ptr_arg,uint32 len_arg, uchar *null_ptr_arg,
@@ -766,6 +770,11 @@ public:
   Field_new_decimal(uint32 len_arg, bool maybe_null_arg,
                     const char *field_name_arg, uint8 dec_arg,
                     bool unsigned_arg);
+  /*
+    Create a field to hold a decimal value from an item.
+    Truncates the precision and/or scale if necessary.
+  */
+  static Field_new_decimal *new_decimal_field(const Item *item);
   enum_field_types type() const { return MYSQL_TYPE_NEWDECIMAL;}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_BINARY; }
   Item_result result_type () const { return DECIMAL_RESULT; }
