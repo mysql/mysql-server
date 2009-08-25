@@ -319,6 +319,7 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-$PATH}\" \
 		--with-blackhole-storage-engine \
 		--with-federated-storage-engine \
 		--without-plugin-daemon_example \
+		--without-plugin-ftexample \
 		--with-partition \
 		--with-big-tables \
 %if %{WITH_BUNDLED_ZLIB}
@@ -852,8 +853,6 @@ fi
 %{_libdir}/mysql/plugin/ha_innodb_plugin.a
 %{_libdir}/mysql/plugin/ha_innodb_plugin.la
 %endif
-%{_libdir}/mysql/plugin/mypluglib.a
-%{_libdir}/mysql/plugin/mypluglib.la
 
 %files shared
 %defattr(-, root, root, 0755)
@@ -890,7 +889,7 @@ fi
 * Fri Aug 21 2009 Jonathan Perkin <jperkin@sun.com>
 
 - Install plugin libraries in appropriate packages.
-- Disable libdaemon_example plugin.
+- Disable libdaemon_example and ftexample plugins.
 
 * Thu Aug 20 2009 Jonathan Perkin <jperkin@stripped>
 
