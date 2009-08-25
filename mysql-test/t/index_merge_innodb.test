@@ -12,6 +12,12 @@
 
 --source include/have_innodb.inc
 let $engine_type= InnoDB;
+# According to Oracle: "InnoDB's estimate for the index cardinality
+# depends on a pseudo random number generator (it picks up random
+# pages to sample). After an optimization that was made in r2625 two
+# EXPLAINs started returning a different number of rows (3 instead of
+# 4)", so:
+let $index_merge_random_rows_in_EXPLAIN = 1;
 # InnoDB does not support Merge tables (affects include/index_merge1.inc)
 let $merge_table_support= 0;
 
