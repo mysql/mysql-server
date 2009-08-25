@@ -393,6 +393,8 @@ static const char *optimizer_switch_str="index_merge=on,index_merge_union=on,"
                                         "index_merge_intersection=on"
 #ifndef DBUG_OFF                                        
                                         ",table_elimination=on";
+#else
+                                        ;
 #endif
 static char *mysqld_user, *mysqld_chroot, *log_error_file_ptr;
 static char *opt_init_slave, *language_ptr, *opt_init_connect;

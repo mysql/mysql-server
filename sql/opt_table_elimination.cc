@@ -467,15 +467,6 @@ void build_eq_mods_for_cond(Func_dep_analyzer *fda, Equality_module **eq_mod,
   Item **args= cond_func->arguments();
 
   switch (cond_func->functype()) {
-  case Item_func::IN_FUNC:
-  {
-    if (cond_func->argument_count() == 2)
-    {
-      add_eq_mod(fda, eq_mod, *and_level, cond_func, args[0], args[1]);
-      add_eq_mod(fda, eq_mod, *and_level, cond_func, args[1], args[0]);
-    }
-    break;
-  }
   case Item_func::BETWEEN:
   {
     Item *fld;
@@ -837,7 +828,7 @@ static Table_value *get_table_value(Func_dep_analyzer *fda, TABLE *table)
 {
   Table_value *tbl_dep;
   if (!(tbl_dep= new Table_value(table)))
-    return NULL;
+    return NULL; /* purecov: inspected */
 
   Key_module **key_list= &(tbl_dep->keys);
   /* Add dependencies for unique keys */
@@ -1499,6 +1490,7 @@ static void mark_as_eliminated(JOIN *join, TABLE_LIST *tbl)
 
 
 #ifndef DBUG_OFF
+/* purecov: begin inspected */
 static 
 void dbug_print_deps(Func_dep_analyzer *fda)
 {
@@ -1559,6 +1551,7 @@ void dbug_print_deps(Func_dep_analyzer *fda)
   DBUG_UNLOCK_FILE;
   DBUG_VOID_RETURN;
 }
+/* purecov: end */
 
 #endif 
 /**
