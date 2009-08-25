@@ -1,0 +1,18 @@
+create table ABC (i int) engine=ibmdb2i;
+drop table ABC;
+create table `1234567890ABC` (i int) engine=ibmdb2i;
+drop table `1234567890ABC`;
+create table `!@#$%` (i int) engine=ibmdb2i;
+drop table `!@#$%`;
+create table `ABCD#########` (i int) engine=ibmdb2i;
+drop table `ABCD#########`;
+create table `_` (i int) engine=ibmdb2i;
+drop table `_`;
+create table `abc##def` (i int) engine=ibmdb2i;
+drop table `abc##def`;
+set names utf8;
+create table İ (s1 int) engine=ibmdb2i;
+drop table İ;
+create table İİ (s1 int) engine=ibmdb2i;
+drop table İİ;
+set names latin1;

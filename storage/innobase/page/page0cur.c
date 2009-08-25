@@ -538,7 +538,7 @@ page_cur_open_on_rnd_user_rec(
 
 		rnd = page_rnd % page_get_n_recs(page);
 	} else {
-		rnd = (ulint) page_cur_lcg_prng() % page_get_n_recs(page);
+		rnd = (ulint) (page_cur_lcg_prng() % page_get_n_recs(page));
 	}
 
 	rec = page_get_infimum_rec(page);

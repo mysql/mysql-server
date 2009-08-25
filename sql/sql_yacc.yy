@@ -6001,7 +6001,7 @@ alter_list_item:
               MYSQL_YYABORT;
             }
             if (check_table_name($3->table.str,$3->table.length) ||
-                $3->db.str && check_db_name(&$3->db))
+                ($3->db.str && check_db_name(&$3->db)))
             {
               my_error(ER_WRONG_TABLE_NAME, MYF(0), $3->table.str);
               MYSQL_YYABORT;
@@ -6163,8 +6163,8 @@ slave_until:
         | UNTIL_SYM slave_until_opts
           {
             LEX *lex=Lex;
-            if ((lex->mi.log_file_name || lex->mi.pos) &&
-                (lex->mi.relay_log_name || lex->mi.relay_log_pos) ||
+            if (((lex->mi.log_file_name || lex->mi.pos) &&
+                (lex->mi.relay_log_name || lex->mi.relay_log_pos)) ||
                 !((lex->mi.log_file_name && lex->mi.pos) ||
                   (lex->mi.relay_log_name && lex->mi.relay_log_pos)))
             {
@@ -8577,6 +8577,7 @@ table_factor:
                 MYSQL_YYABORT;
               sel->add_joined_table($$);
               lex->pop_context();
+              lex->nest_level--;
             }
             else if ($4 || $6)
             {
@@ -8585,7 +8586,11 @@ table_factor:
               MYSQL_YYABORT;
             }
             else
+            {
+              /* nested join: FROM (t1 JOIN t2 ...),
+                 nest_level is the same as in the outer query */
               $$= $3;
+            }
           }
         ;
 
@@ -12206,15 +12211,16 @@ text_or_password:
         | PASSWORD '(' TEXT_STRING ')'
           {
             $$= $3.length ? YYTHD->variables.old_passwords ?
-              Item_func_old_password::alloc(YYTHD, $3.str) :
-              Item_func_password::alloc(YYTHD, $3.str) :
+              Item_func_old_password::alloc(YYTHD, $3.str, $3.length) :
+              Item_func_password::alloc(YYTHD, $3.str, $3.length) :
               $3.str;
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
         | OLD_PASSWORD '(' TEXT_STRING ')'
           {
-            $$= $3.length ? Item_func_old_password::alloc(YYTHD, $3.str) :
+            $$= $3.length ? Item_func_old_password::alloc(YYTHD, $3.str,
+                                                          $3.length) :
               $3.str;
             if ($$ == NULL)
               MYSQL_YYABORT;
@@ -12676,7 +12682,7 @@ grant_user:
                   (char *) YYTHD->alloc(SCRAMBLED_PASSWORD_CHAR_LENGTH_323+1);
                 if (buff == NULL)
                   MYSQL_YYABORT;
-                make_scrambled_password_323(buff, $4.str);
+                my_make_scrambled_password_323(buff, $4.str, $4.length);
                 $1->password.str= buff;
                 $1->password.length= SCRAMBLED_PASSWORD_CHAR_LENGTH_323;
               }
@@ -12686,7 +12692,7 @@ grant_user:
                   (char *) YYTHD->alloc(SCRAMBLED_PASSWORD_CHAR_LENGTH+1);
                 if (buff == NULL)
                   MYSQL_YYABORT;
-                make_scrambled_password(buff, $4.str);
+                my_make_scrambled_password(buff, $4.str, $4.length);
                 $1->password.str= buff;
                 $1->password.length= SCRAMBLED_PASSWORD_CHAR_LENGTH;
               }

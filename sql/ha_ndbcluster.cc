@@ -1313,7 +1313,7 @@ int ha_ndbcluster::add_index_handle(THD *thd, NDBDICT *dict, KEY *key_info,
   }
   if (idx_type == UNIQUE_ORDERED_INDEX || idx_type == UNIQUE_INDEX)
   {
-    char unique_index_name[FN_LEN];
+    char unique_index_name[FN_LEN + 1];
     static const char* unique_suffix= "$unique";
     m_has_unique_index= TRUE;
     strxnmov(unique_index_name, FN_LEN, index_name, unique_suffix, NullS);
@@ -5827,7 +5827,7 @@ int ha_ndbcluster::create_index(THD *thd, const char *name, KEY *key_info,
                                 NDB_INDEX_TYPE idx_type, uint idx_no)
 {
   int error= 0;
-  char unique_name[FN_LEN];
+  char unique_name[FN_LEN + 1];
   static const char* unique_suffix= "$unique";
   DBUG_ENTER("ha_ndbcluster::create_ordered_index");
   DBUG_PRINT("info", ("Creating index %u: %s", idx_no, name));  
@@ -6990,7 +6990,7 @@ int ndbcluster_discover(handlerton *hton, THD* thd, const char *db,
   size_t len;
   uchar* data= NULL;
   Ndb* ndb;
-  char key[FN_REFLEN];
+  char key[FN_REFLEN + 1];
   DBUG_ENTER("ndbcluster_discover");
   DBUG_PRINT("enter", ("db: %s, name: %s", db, name)); 
 
@@ -7001,7 +7001,7 @@ int ndbcluster_discover(handlerton *hton, THD* thd, const char *db,
     ERR_RETURN(ndb->getNdbError());
   }
   NDBDICT* dict= ndb->getDictionary();
-  build_table_filename(key, sizeof(key), db, name, "", 0);
+  build_table_filename(key, sizeof(key) - 1, db, name, "", 0);
   /* ndb_share reference temporary */
   NDB_SHARE *share= get_share(key, 0, FALSE);
   if (share)
@@ -7176,9 +7176,9 @@ int ndbcluster_drop_database_impl(THD *thd, const char *path)
     drop_list.push_back(thd->strdup(elmt.name));
   }
   // Drop any tables belonging to database
-  char full_path[FN_REFLEN];
+  char full_path[FN_REFLEN + 1];
   char *tmp= full_path +
-    build_table_filename(full_path, sizeof(full_path), dbname, "", "", 0);
+    build_table_filename(full_path, sizeof(full_path) - 1, dbname, "", "", 0);
   if (ndb->setDatabaseName(dbname))
   {
     ERR_RETURN(ndb->getNdbError());
@@ -7246,7 +7246,7 @@ int ndb_create_table_from_engine(THD *thd, const char *db,
 int ndbcluster_find_all_files(THD *thd)
 {
   Ndb* ndb;
-  char key[FN_REFLEN];
+  char key[FN_REFLEN + 1];
   NDBDICT *dict;
   int unhandled, retries= 5, skipped;
   DBUG_ENTER("ndbcluster_find_all_files");
@@ -7304,7 +7304,7 @@ int ndbcluster_find_all_files(THD *thd)
     
       /* check if database exists */
       char *end= key +
-        build_table_filename(key, sizeof(key), elmt.database, "", "", 0);
+        build_table_filename(key, sizeof(key) - 1, elmt.database, "", "", 0);
       if (my_access(key, F_OK))
       {
         /* no such database defined, skip table */
@@ -7386,7 +7386,7 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
   uint i;
   Thd_ndb *thd_ndb;
   Ndb* ndb;
-  char name[FN_REFLEN];
+  char name[FN_REFLEN + 1];
   HASH ndb_tables, ok_tables;
   NDBDICT::List list;
 
@@ -7463,7 +7463,8 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
     DBUG_PRINT("info", ("%s", file_name->str));
     if (hash_search(&ndb_tables, (uchar*) file_name->str, file_name->length))
     {
-      build_table_filename(name, sizeof(name), db, file_name->str, reg_ext, 0);
+      build_table_filename(name, sizeof(name) - 1, db,
+                           file_name->str, reg_ext, 0);
       if (my_access(name, F_OK))
       {
         pthread_mutex_lock(&LOCK_open);
@@ -7485,7 +7486,8 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
     }
     
     // Check for .ndb file with this name
-    build_table_filename(name, sizeof(name), db, file_name->str, ha_ndb_ext, 0);
+    build_table_filename(name, sizeof(name) - 1, db,
+                         file_name->str, ha_ndb_ext, 0);
     DBUG_PRINT("info", ("Check access for %s", name));
     if (my_access(name, F_OK))
     {
@@ -7528,7 +7530,7 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
   /* setup logging to binlog for all discovered tables */
   {
     char *end, *end1= name +
-      build_table_filename(name, sizeof(name), db, "", "", 0);
+      build_table_filename(name, sizeof(name) - 1, db, "", "", 0);
     for (i= 0; i < ok_tables.records; i++)
     {
       file_name_str= (char*)hash_element(&ok_tables, i);
@@ -7550,7 +7552,8 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
     file_name_str= (char*) hash_element(&ndb_tables, i);
     if (!hash_search(&ok_tables, (uchar*) file_name_str, strlen(file_name_str)))
     {
-      build_table_filename(name, sizeof(name), db, file_name_str, reg_ext, 0);
+      build_table_filename(name, sizeof(name) - 1,
+                           db, file_name_str, reg_ext, 0);
       if (my_access(name, F_OK))
       {
         DBUG_PRINT("info", ("%s must be discovered", file_name_str));
@@ -7856,7 +7859,7 @@ void ndbcluster_print_error(int error, const NdbOperation *error_op)
 void ha_ndbcluster::set_dbname(const char *path_name, char *dbname)
 {
   char *end, *ptr, *tmp_name;
-  char tmp_buff[FN_REFLEN];
+  char tmp_buff[FN_REFLEN + 1];
  
   tmp_name= tmp_buff;
   /* Scan name from the end */
@@ -7882,7 +7885,7 @@ void ha_ndbcluster::set_dbname(const char *path_name, char *dbname)
     ptr++;
   }
 #endif
-  filename_to_tablename(tmp_name, dbname, FN_REFLEN);
+  filename_to_tablename(tmp_name, dbname, sizeof(tmp_buff) - 1);
 }
 
 /**
@@ -7902,7 +7905,7 @@ void
 ha_ndbcluster::set_tabname(const char *path_name, char * tabname)
 {
   char *end, *ptr, *tmp_name;
-  char tmp_buff[FN_REFLEN];
+  char tmp_buff[FN_REFLEN + 1];
 
   tmp_name= tmp_buff;
   /* Scan name from the end */
@@ -7923,7 +7926,7 @@ ha_ndbcluster::set_tabname(const char *path_name, char * tabname)
     ptr++;
   }
 #endif
-  filename_to_tablename(tmp_name, tabname, FN_REFLEN);
+  filename_to_tablename(tmp_name, tabname, sizeof(tmp_buff) - 1);
 }
 
 /**
@@ -8118,11 +8121,12 @@ uint8 ha_ndbcluster::table_cache_type()
 uint ndb_get_commitcount(THD *thd, char *dbname, char *tabname,
                          Uint64 *commit_count)
 {
-  char name[FN_REFLEN];
+  char name[FN_REFLEN + 1];
   NDB_SHARE *share;
   DBUG_ENTER("ndb_get_commitcount");
 
-  build_table_filename(name, sizeof(name), dbname, tabname, "", 0);
+  build_table_filename(name, sizeof(name) - 1,
+                       dbname, tabname, "", 0);
   DBUG_PRINT("enter", ("name: %s", name));
   pthread_mutex_lock(&ndbcluster_mutex);
   if (!(share=(NDB_SHARE*) hash_search(&ndbcluster_open_tables,

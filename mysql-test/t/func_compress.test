@@ -50,6 +50,7 @@ set @@global.max_allowed_packet=1048576*100;
 --connect (newconn, localhost, root,,)
 eval select compress(repeat('aaaaaaaaaa', IF('$LOW_MEMORY', 10, 10000000))) is null;
 disconnect newconn;
+--source include/wait_until_disconnected.inc
 connection default;
 set @@global.max_allowed_packet=default;
 
@@ -87,5 +88,25 @@ explain select *, uncompress(a) from t1;
 select *, uncompress(a) from t1;
 select *, uncompress(a), uncompress(a) is null from t1;
 drop table t1;
+
+#
+# Bug #44796: valgrind: too many my_longlong10_to_str_8bit warnings after 
+#             uncompressed_length
+#
+
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (1), (1111), (11111);
+
+# Disable warnings to avoid dependency on max_allowed_packet value
+--disable_warnings
+SELECT UNCOMPRESS(c1), UNCOMPRESSED_LENGTH(c1) FROM t1;
+--enable_warnings
+
+# We do not need the results, just make sure there are no valgrind errors
+--disable_result_log
+EXPLAIN EXTENDED SELECT * FROM (SELECT UNCOMPRESSED_LENGTH(c1) FROM t1) AS s;
+--enable_result_log
+
+DROP TABLE t1;
 
 --echo End of 5.0 tests
