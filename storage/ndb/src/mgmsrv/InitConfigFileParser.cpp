@@ -359,7 +359,6 @@ InitConfigFileParser::storeNameValuePair(Context& ctx,
                       values.c_str());
       return false;
     }
-    ndbout_c("storing enum value %d for %s", value_int, pname);
     require(ctx.m_currentSection->put(pname, value_int));
     break;
   }
