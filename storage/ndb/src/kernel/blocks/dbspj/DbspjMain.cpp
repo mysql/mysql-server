@@ -2947,7 +2947,7 @@ Dbspj::parseDA(Build_context& ctx,
           break;
         }
 
-        sum_read += cnt + 1;
+        sum_read += cnt;
       }
 
       if (interpreted)
