@@ -274,5 +274,7 @@ explain select t1.a from t1 left join t2 on t2.pk in (t1.a);
 
 explain select t1.a from t1 left join t2 on TRUE;
 
+explain select t1.a from t1 left join t3 on t3.pk1=t1.a and t3.pk2 IS NULL;
+
 drop table t1,t2,t3;
 

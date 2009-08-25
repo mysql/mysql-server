@@ -490,7 +490,7 @@ void build_eq_mods_for_cond(Func_dep_analyzer *fda, Equality_module **eq_mod,
   {
     Item *tmp=new Item_null;
     if (tmp)
-      add_eq_mod(fda, eq_mod, *and_level, cond_func, args[0], args[1]);
+      add_eq_mod(fda, eq_mod, *and_level, cond_func, args[0], tmp);
     break;
   }
   case Item_func::MULT_EQUAL_FUNC:
@@ -828,7 +828,7 @@ static Table_value *get_table_value(Func_dep_analyzer *fda, TABLE *table)
 {
   Table_value *tbl_dep;
   if (!(tbl_dep= new Table_value(table)))
-    return NULL; /* purecov: inspected */
+    return NULL;
 
   Key_module **key_list= &(tbl_dep->keys);
   /* Add dependencies for unique keys */
@@ -853,15 +853,8 @@ static Table_value *get_table_value(Func_dep_analyzer *fda, TABLE *table)
 static Field_value *get_field_value(Func_dep_analyzer *fda, Field *field)
 {
   TABLE *table= field->table;
-  Table_value *tbl_dep;
+  Table_value *tbl_dep= fda->table_deps[table->tablenr];
 
-  /* First, get the table*/
-  if (!(tbl_dep= fda->table_deps[table->tablenr]))
-  {
-    if (!(tbl_dep= get_table_value(fda, table)))
-      return NULL;
-  }
- 
   /* Try finding the field in field list */
   Field_value **pfield= &(tbl_dep->fields);
   while (*pfield && (*pfield)->field->field_index < field->field_index)
