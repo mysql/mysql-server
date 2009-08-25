@@ -1201,4 +1201,29 @@ SET GLOBAL server_id = -1;
 SELECT @@GLOBAL.server_id;
 SET GLOBAL server_id = @old_server_id;
 
+#
+# Bug #42778: delete order by null global variable causes 
+#             assertion .\filesort.cc, line 797
+#
+
+SELECT @@GLOBAL.INIT_FILE, @@GLOBAL.INIT_FILE IS NULL;
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES ();
+SET @bug42778= @@sql_safe_updates;
+SET @@sql_safe_updates= 0;
+DELETE FROM t1 ORDER BY (@@GLOBAL.INIT_FILE) ASC LIMIT 10;
+SET @@sql_safe_updates= @bug42778;
+
+DROP TABLE t1;
+
+--echo #
+--echo # BUG#10206 - InnoDB: Transaction requiring Max_BinLog_Cache_size > 4GB always rollsback
+--echo #
+
+SET @old_max_binlog_cache_size = @@GLOBAL.max_binlog_cache_size;
+--echo # Set the max_binlog_cache_size to size more than 4GB. 
+SET GLOBAL max_binlog_cache_size = 5 * 1024 * 1024 * 1024;
+SELECT @@GLOBAL.max_binlog_cache_size;
+SET GLOBAL max_binlog_cache_size = @old_max_binlog_cache_size;
 --echo End of 5.1 tests

@@ -289,7 +289,7 @@ CREATE TABLE t1(i INT PRIMARY KEY);
 CREATE TABLE t2(i INT PRIMARY KEY);
 CREATE TABLE t3(i INT, ch CHAR(50));
 
---echo "Should issue message Statement is not safe to log in statement format."
+--echo "Should issue message Statement may not be safe to log in statement format."
 INSERT INTO t1 SELECT * FROM t2 LIMIT 1;
 
 DELIMITER |;
@@ -302,7 +302,7 @@ BEGIN
   RETURN 0;
 END|
 DELIMITER ;|
---echo "Should issue message Statement is not safe to log in statement format only once"
+--echo "Should issue message Statement may not be safe to log in statement format only once"
 INSERT INTO t3 VALUES(func6(), UUID());
 
 --echo "Check whether SET @@SQL_LOG_BIN = 0/1 doesn't work in substatements"

@@ -1,4 +1,4 @@
-#!@PERL@
+#!/usr/bin/perl
 # Copyright (C) 2001, 2003 MySQL AB
 #  All rights reserved. Use is subject to license terms.
 #

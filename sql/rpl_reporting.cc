@@ -13,6 +13,7 @@ Slave_reporting_capability::report(loglevel level, int err_code,
   va_list args;
   va_start(args, msg);
 
+  pthread_mutex_lock(&err_lock);
   switch (level)
   {
   case ERROR_LEVEL:
@@ -38,6 +39,7 @@ Slave_reporting_capability::report(loglevel level, int err_code,
 
   my_vsnprintf(pbuff, pbuffsize, msg, args);
 
+  pthread_mutex_unlock(&err_lock);
   va_end(args);
 
   /* If the msg string ends with '.', do not add a ',' it would be ugly */
@@ -45,4 +47,9 @@ Slave_reporting_capability::report(loglevel level, int err_code,
                   m_thread_name, pbuff,
                   (pbuff[0] && *(strend(pbuff)-1) == '.') ? "" : ",",
                   err_code);
+}
+
+Slave_reporting_capability::~Slave_reporting_capability()
+{
+  pthread_mutex_destroy(&err_lock);
 }
