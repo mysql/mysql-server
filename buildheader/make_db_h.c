@@ -60,6 +60,7 @@ void print_defines (void) {
     dodefine(DB_PRIVATE);
     dodefine(DB_RDONLY);
     dodefine(DB_RECOVER);
+    dodefine(DB_RUNRECOVERY);
     dodefine(DB_THREAD);
     dodefine(DB_TXN_NOSYNC);
 

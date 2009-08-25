@@ -96,7 +96,7 @@ dir_create(void) {
 
 // pass in zeroes for default cachesize
 static void  UU()
-env_startup(int64_t bytes) {
+    env_startup(int64_t bytes, BOOL do_log_recover) {
     int r;
     r = db_env_create(&env, 0);
         CKERR(r);
@@ -108,7 +108,10 @@ env_startup(int64_t bytes) {
 	r = env->set_cachesize(env, bytes >> 30, bytes % (1<<30), 1);
         CKERR(r);
     }
-    r = env->open(env, ENVDIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO);
+    int envflags = DB_INIT_LOCK | DB_INIT_MPOOL | DB_INIT_TXN | DB_CREATE | DB_PRIVATE;
+    if (do_log_recover)
+        envflags += DB_INIT_LOG | DB_RECOVER;
+    r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);
         CKERR(r);
     env->set_errfile(env, stderr);
     r = env->checkpointing_set_period(env, 0); //Disable auto-checkpointing.

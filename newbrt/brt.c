@@ -213,6 +213,9 @@ brtnode_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd, enum reactivity *re, BOOL *di
 static int
 flush_this_child (BRT t, BRTNODE node, int childnum, enum reactivity *child_re, BOOL *did_io);
 
+static void brt_verify_flags(BRT brt, BRTNODE node) {
+    assert(brt->flags == node->flags);
+}
 
 int toku_brt_debug_mode = 0;
 
@@ -2502,10 +2505,9 @@ int toku_brt_root_put_cmd(BRT brt, BRT_CMD cmd, TOKULOGGER logger)
     node=node_v;
 
     VERIFY_NODE(brt, node);
-
     assert(node->fullhash==fullhash);
+    brt_verify_flags(brt, node);
 
-    VERIFY_NODE(brt, node);
     verify_local_fingerprint_nonleaf(node);
     if ((r = push_something_at_root(brt, &node, rootp, cmd, logger))) {
 	toku_unpin_brtnode(brt, node); // ignore any error code on the unpin.
