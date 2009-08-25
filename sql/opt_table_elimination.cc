@@ -197,7 +197,7 @@ class Value_dep : public Sql_alloc
 public:
   Value_dep(): bound(FALSE), next(NULL) {}
   virtual void now_bound(Func_dep_analyzer *fda, Module_dep **bound_modules)=0;
-  virtual ~Value_dep() {} /* only to shut up compiler warnings */
+  virtual ~Value_dep(){} /* purecov: inspected */ /* stop compiler warnings */
 
   bool bound;
   Value_dep *next;
@@ -264,7 +264,7 @@ class Module_dep : public Sql_alloc
 {
 public:
   virtual bool now_bound(Func_dep_analyzer *fda, Value_dep **bound_modules)=0;
-  virtual ~Module_dep(){}
+  virtual ~Module_dep(){}  /* purecov: inspected */ /* stop compiler warnings */
   /* 
     Used to make a linked list of elements that became bound and thus can
     make elements that depend on them bound, too.
@@ -510,7 +510,7 @@ void build_eq_mods_for_cond(Func_dep_analyzer *fda, Equality_module **eq_mod,
     Item_equal *item_equal= (Item_equal*)cond;
     List<Field_value> *fvl;
     if (!(fvl= new List<Field_value>))
-      break;
+      break; /* purecov: inspected */
 
     Item_equal_iterator it(*item_equal);
     Item_field *item;
@@ -802,6 +802,7 @@ static void add_eq_mod2(Func_dep_analyzer *fda, Equality_module **eq_mod,
       We've filled the entire equality_mods array. Replace it with a bigger
       one. We do it somewhat inefficiently but it doesn't matter.
     */
+    /* purecov: begin inspected */
     Equality_module *new_arr;
     if (!(new_arr= new Equality_module[fda->n_equality_mods_alloced *2]))
       return;
@@ -811,6 +812,7 @@ static void add_eq_mod2(Func_dep_analyzer *fda, Equality_module **eq_mod,
 
     fda->equality_mods= new_arr;
     *eq_mod= new_arr + (*eq_mod - fda->equality_mods);
+    /* purecov: end */
   }
 
   (*eq_mod)->field= field_val;
@@ -828,7 +830,7 @@ static Table_value *get_table_value(Func_dep_analyzer *fda, TABLE *table)
 {
   Table_value *tbl_dep;
   if (!(tbl_dep= new Table_value(table)))
-    return NULL;
+    return NULL; /* purecov: inspected */
 
   Key_module **key_list= &(tbl_dep->keys);
   /* Add dependencies for unique keys */
@@ -972,7 +974,7 @@ bool setup_equality_modules_deps(Func_dep_analyzer *fda,
   if (!(buf= current_thd->alloc(bitmap_buffer_size(offset))) ||
       bitmap_init(&fda->expr_deps, (my_bitmap_map*)buf, offset, FALSE))
   {
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(TRUE); /* purecov: inspected */
   }
   bitmap_clear_all(&fda->expr_deps);
 
@@ -1077,7 +1079,7 @@ void eliminate_tables(JOIN *join)
 
 #ifndef DBUG_OFF
   if (!optimizer_flag(thd, OPTIMIZER_SWITCH_TABLE_ELIMINATION))
-    DBUG_VOID_RETURN;
+    DBUG_VOID_RETURN; /* purecov: inspected */
 #endif
 
   /* Find the tables that are referred to from WHERE/HAVING */
@@ -1256,7 +1258,7 @@ bool check_func_dependency(JOIN *join,
     join->thd->lex->current_select->between_count;
 
   if (!(fda.equality_mods= new Equality_module[fda.n_equality_mods_alloced]))
-    return FALSE;
+    return FALSE; /* purecov: inspected */
 
   Equality_module* last_eq_mod= fda.equality_mods;
   
@@ -1264,7 +1266,7 @@ bool check_func_dependency(JOIN *join,
   if (oj_tbl)
   {
     if (!get_table_value(&fda, oj_tbl->table))
-      return FALSE;
+      return FALSE; /* purecov: inspected */
   }
   else
   {
@@ -1274,7 +1276,7 @@ bool check_func_dependency(JOIN *join,
       if (tbl->table && (tbl->table->map & dep_tables))
       {
         if (!get_table_value(&fda, tbl->table))
-          return FALSE;
+          return FALSE; /* purecov: inspected */
       }
     }
   }
@@ -1292,7 +1294,7 @@ bool check_func_dependency(JOIN *join,
   if (!(fda.outer_join_dep= new Outer_join_module(my_count_bits(dep_tables))) ||
       setup_equality_modules_deps(&fda, &bound_modules))
   {
-    return FALSE; /* OOM, default to non-dependent */
+    return FALSE; /* OOM, default to non-dependent */ /* purecov: inspected */
   }
   
   DBUG_EXECUTE("test", dbug_print_deps(&fda); );
