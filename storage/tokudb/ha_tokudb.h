@@ -276,6 +276,7 @@ private:
 
     void set_query_columns(uint keynr);
     int prelock_range ( const key_range *start_key, const key_range *end_key);
+    int create_txn(THD* thd, tokudb_trx_data* trx);
 
 
  
