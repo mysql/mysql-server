@@ -143,9 +143,6 @@ TDB_TESTS_THAT_SHOULD_FAIL= \
 	test_groupcommit_count \
 	test944 \
 	test_truncate_txn_abort \
-	test_log8 \
-	test_log9 \
-	test_log10 \
 #\ ends prev line
 ifneq ($(OS_CHOICE),windows)
     TDB_TESTS_THAT_SHOULD_FAIL+= \
@@ -154,6 +151,9 @@ ifneq ($(OS_CHOICE),windows)
 endif
 
 TDB_TESTS_THAT_SHOULD_FAIL_LIT= \
+	test_log8.recover \
+	test_log9.recover \
+	test_log10.recover \
 #\ ends prev line
 
 ifeq ($(OS_CHOICE),windows)
