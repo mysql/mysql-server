@@ -594,14 +594,15 @@ int testSerialize(bool scan, int argc, char** argv){
     //extern bool stopHere;
     //stopHere = true;
     assert(myTransaction->execute(NoCommit)==0);
-    while(!(scanOp->getImpl().isComplete())){
+    /*
+    while(!(scanOp->getImpl().isBatchComplete())){
       sleep(1);
-    }
+      }*/
     bool done = false;
     int rowNo = 0;
     while(!done){
       // scanResultPtr = reinterpret_cast<char*>(results[rowNo]);
-      const int retVal = query->nextResult(false, false);
+      const int retVal = query->nextResult(true, false);
       switch(retVal){
       case 0:
         break;
@@ -705,7 +706,7 @@ int testSerialize(bool scan, int argc, char** argv){
       assert(error==0);
     }
     myTransaction->execute(NoCommit);
-    assert(query->nextResult(false, false)==0);
+    assert(query->nextResult(true, false)==0);
     for(Uint32 i = 0; i<recordOpCount; i++){
       for(int j = 0; j<6; j++){
         ndbout << results[i][j] << " ";
@@ -716,7 +717,8 @@ int testSerialize(bool scan, int argc, char** argv){
     for(Uint32 i=0; i < opCount-recordOpCount; i++){
       resultSet[i]->print();
     }
-    assert(query->nextResult(false, false)==1);
+    assert(query->nextResult(false, false)==2);
+    assert(query->nextResult(true, false)==1);
   }
   return 0;
 };

@@ -19,6 +19,8 @@
 #define NdbQueryOperation_H
 
 #include <ndb_types.h>
+/* There is no way to forward declare nested class NdbDictionary::Column,
+ * so this header file must be included.*/
 #include "NdbDictionary.hpp"
 
 class Ndb;
@@ -30,6 +32,7 @@ class NdbQueryOperation;
 class NdbQueryOperationDef;
 class NdbRecAttr;
 class NdbTransaction;
+
 
 /** Opaque implementation classes*/
 class NdbQueryImpl;
@@ -53,6 +56,14 @@ protected:
   ~NdbQuery();
 
 public:
+  /** Possible return values from nextResult().*/
+  enum NextResultOutcome{
+    NextResult_error = -1,
+    NextResult_gotRow = 0,
+    NextResult_scanComplete = 1,
+    NextResult_bufferEmpty = 2
+  };
+
   Uint32 getNoOfOperations() const;
 
   // Get a specific NdbQueryOperation by ident specified
@@ -101,7 +112,8 @@ public:
    * -   1: if there are no more tuples to scan.
    * -   2: if there are no more cached records in NdbApi
    */
-  int nextResult(bool fetchAllowed = true, bool forceSend = false);
+  NextResultOutcome nextResult(bool fetchAllowed = true, 
+                               bool forceSend = false);
 
   /**
    * Get NdbTransaction object for this query operation

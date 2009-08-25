@@ -669,7 +669,7 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Table* table,    // Primary key 
                                        m_pimpl->m_operations.size());
   returnErrIf(op==0, 4000);
 
-  int keyindex = 0;
+  Uint32 keyindex = 0;
   for (i=0; i<colcount; ++i)
   {
     const NdbColumnImpl *col = tableImpl.getColumn(i);
@@ -684,7 +684,7 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Table* table,    // Primary key 
       }
 
       keyindex++;
-      if (keyindex >= keyfields)
+      if (keyindex >= static_cast<Uint32>(keyfields))
         break;  // Seen all PK fields
     }
   }
@@ -1341,7 +1341,7 @@ NdbQueryLookupOperationDefImpl
 
 #ifdef TRACE_SERIALIZATION
   ndbout << "Serialized node " << getQueryOperationId() << " : ";
-  for (int i = 0; i < length; i++) {
+  for (Uint32 i = 0; i < length; i++) {
     char buf[12];
     sprintf(buf, "%.8x", nodeBuffer.get(i));
     ndbout << buf << " ";
@@ -1400,7 +1400,7 @@ NdbQueryIndexOperationDefImpl
 
 #ifdef TRACE_SERIALIZATION
     ndbout << "Serialized index " << getQueryOperationId()-1 << " : ";
-    for (int i = 0; i < length; i++){
+    for (Uint32 i = 0; i < length; i++){
       char buf[12];
       sprintf(buf, "%.8x", indexBuffer.get(i));
       ndbout << buf << " ";
@@ -1458,7 +1458,7 @@ NdbQueryIndexOperationDefImpl
 
 #ifdef TRACE_SERIALIZATION
   ndbout << "Serialized node " << getQueryOperationId() << " : ";
-  for (int i = 0; i < length; i++) {
+  for (Uint32 i = 0; i < length; i++) {
     char buf[12];
     sprintf(buf, "%.8x", nodeBuffer.get(i));
     ndbout << buf << " ";
@@ -1506,7 +1506,7 @@ NdbQueryTableScanOperationDefImpl
   }    
 #ifdef TRACE_SERIALIZATION
   ndbout << "Serialized node " << getQueryOperationId() << " : ";
-  for(int i = 0; i < length; i++){
+  for(Uint32 i = 0; i < length; i++){
     char buf[12];
     sprintf(buf, "%.8x", nodeBuffer.get(i));
     ndbout << buf << " ";
