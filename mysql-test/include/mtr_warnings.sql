@@ -132,7 +132,7 @@ INSERT INTO global_suppressions VALUES
 
  ("Error in Log_event::read_log_event\\\(\\\): 'Sanity check failed', data_len: 258, event_type: 49"),
 
- ("Statement is not safe to log in statement format"),
+ ("Statement may not be safe to log in statement format"),
 
  /* test case for Bug#bug29807 copies a stray frm into database */
  ("InnoDB: Error: table `test`.`bug29807` does not exist in the InnoDB internal"),
@@ -171,6 +171,10 @@ INSERT INTO global_suppressions VALUES
       this error message.
   */
  ("Can't find file: '.\\\\test\\\\\\?{8}.frm'"),
+
+ /* Added 2009-08-XX after fixing Bug #42408 */
+
+ ("Slave: Operation DROP USER failed for '.*'@'localhost' Error_code: 1396"),
 
  ("THE_LAST_SUPPRESSION")||
 
