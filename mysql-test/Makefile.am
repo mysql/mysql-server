@@ -94,7 +94,6 @@ TEST_DIRS = t r include std_data std_data/parts collections \
 	suite/funcs_2/t \
 	suite/jp suite/jp/t suite/jp/r suite/jp/std_data suite/jp/include \
 	suite/manual/t suite/manual/r \
-	suite/ndb_team suite/ndb_team/t suite/ndb_team/r \
 	suite/rpl suite/rpl/include suite/rpl/r \
 	suite/rpl/t \
 	suite/stress/include suite/stress/t suite/stress/r \
