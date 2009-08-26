@@ -4578,12 +4578,12 @@ int toku_brt_keyrange (BRT brt, DBT *key, u_int64_t *less,  u_int64_t *equal,  u
     return 0;
 }
 
-int toku_brt_stat64 (BRT brt, TOKUTXN UU(txn), u_int64_t *nkeys, u_int64_t *ndata, u_int64_t *dsize, u_int64_t *fsize) {
+int toku_brt_stat64 (BRT brt, TOKUTXN UU(txn), struct brtstat64_s *s) {
     {
 	int64_t file_size;
 	int r = toku_os_get_file_size(toku_cachefile_fd(brt->cf), &file_size);
 	assert(r==0);
-	*fsize = file_size + toku_cachefile_size_in_memory(brt->cf);
+	s->fsize = file_size + toku_cachefile_size_in_memory(brt->cf);
     }
 
     assert(brt->h);
@@ -4598,17 +4598,17 @@ int toku_brt_stat64 (BRT brt, TOKUTXN UU(txn), u_int64_t *nkeys, u_int64_t *ndat
     BRTNODE node = node_v;
 
     if (node->height==0) {
-	*nkeys = node->u.l.leaf_stats.nkeys;
-	*ndata = node->u.l.leaf_stats.ndata;
-	*dsize = node->u.l.leaf_stats.dsize;
+	s->nkeys = node->u.l.leaf_stats.nkeys;
+	s->ndata = node->u.l.leaf_stats.ndata;
+	s->dsize = node->u.l.leaf_stats.dsize;
     } else {
-	*nkeys = *ndata = *dsize = 0;
+	s->nkeys = s->ndata = s->dsize = 0;
 	int i;
 	for (i=0; i<node->u.n.n_children; i++) {
 	    struct subtree_estimates *se = &BNC_SUBTREE_ESTIMATES(node, i);
-	    *nkeys += se->nkeys;
-	    *ndata += se->ndata;
-	    *dsize += se->dsize;
+	    s->nkeys += se->nkeys;
+	    s->ndata += se->ndata;
+	    s->dsize += se->dsize;
 	}
     }
     

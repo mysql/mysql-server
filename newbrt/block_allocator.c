@@ -7,7 +7,7 @@
 
 // Here's a very simple implementation.
 // It's not very fast at allocating or freeing.
-
+// Previous implementation used next_fit, but now use first_fit since we are moving blocks around to reduce file size.
 
 struct blockpair {
     u_int64_t offset;
@@ -20,18 +20,21 @@ struct block_allocator {
     u_int64_t n_blocks; // How many blocks
     u_int64_t blocks_array_size; // How big is the blocks_array.  Must be >= n_blocks.
     struct blockpair *blocks_array; // These blocks are sorted by address.
-    u_int64_t next_fit_counter; // Used for the next_fit algorithm.
+    u_int64_t n_bytes_in_use; // including the reserve_at_beginning
 };
 
 void
 block_allocator_validate (BLOCK_ALLOCATOR ba) {
     u_int64_t i;
+    u_int64_t n_bytes_in_use = ba->reserve_at_beginning;
     for (i=0; i<ba->n_blocks; i++) {
+	n_bytes_in_use += ba->blocks_array[i].size;
 	if (i>0) {
 	    assert(ba->blocks_array[i].offset >  ba->blocks_array[i-1].offset);
 	    assert(ba->blocks_array[i].offset >= ba->blocks_array[i-1].offset + ba->blocks_array[i-1].size );
 	}
     }
+    assert(n_bytes_in_use == ba->n_bytes_in_use);
 }
 
 #if 0
@@ -60,7 +63,7 @@ create_block_allocator (BLOCK_ALLOCATOR *ba, u_int64_t reserve_at_beginning, u_i
     result->n_blocks = 0;
     result->blocks_array_size = 1;
     XMALLOC_N(result->blocks_array_size, result->blocks_array);
-    result->next_fit_counter = 0;
+    result->n_bytes_in_use = reserve_at_beginning;
     *ba = result;
     VALIDATE(result);
 }
@@ -89,6 +92,7 @@ block_allocator_alloc_block_at (BLOCK_ALLOCATOR ba, u_int64_t size, u_int64_t of
     assert(offset >= ba->reserve_at_beginning);
     grow_blocks_array(ba);
     // Just do a linear search for the block
+    ba->n_bytes_in_use += size;
     for (i=0; i<ba->n_blocks; i++) {
 	if (ba->blocks_array[i].offset > offset) {
 	    // allocate it in that slot
@@ -110,27 +114,41 @@ block_allocator_alloc_block_at (BLOCK_ALLOCATOR ba, u_int64_t size, u_int64_t of
 }
 
 static inline u_int64_t
-align (u_int64_t value, BLOCK_ALLOCATOR ba) {
+align (u_int64_t value, BLOCK_ALLOCATOR ba)
+// Effect: align a value by rounding up.
+{
     return ((value+ba->alignment-1)/ba->alignment)*ba->alignment;
 }
 
 void
 block_allocator_alloc_block (BLOCK_ALLOCATOR ba, u_int64_t size, u_int64_t *offset) {
     grow_blocks_array(ba);
+    ba->n_bytes_in_use += size;
     if (ba->n_blocks==0) {
-	ba->blocks_array[0].offset = ba->reserve_at_beginning;
+	assert(ba->n_bytes_in_use == ba->reserve_at_beginning + size); // we know exactly how many are in use
+	ba->blocks_array[0].offset = align(ba->reserve_at_beginning, ba);
 	ba->blocks_array[0].size  = size;
-	*offset = ba->reserve_at_beginning;
+	*offset = ba->blocks_array[0].offset;
 	ba->n_blocks++;
 	return;
     }
-    u_int64_t i;
-    u_int64_t blocknum = ba->next_fit_counter;
-    // Implement next fit.
-    for (i=0; i<ba->n_blocks; i++, blocknum++) {
-	if (blocknum>=ba->n_blocks) blocknum=0;
+    // Implement first fit.    
+    {
+	u_int64_t end_of_reserve = align(ba->reserve_at_beginning, ba);
+	if (end_of_reserve + size <= ba->blocks_array[0].offset ) {
+	    // Check to see if the space immediately after the reserve is big enough to hold the new block.
+	    struct blockpair *bp = &ba->blocks_array[0];
+	    memmove(bp+1, bp, (ba->n_blocks)*sizeof(struct blockpair));
+	    bp[0].offset = end_of_reserve;
+	    bp[0].size   = size;
+	    ba->n_blocks++;
+	    *offset = end_of_reserve;
+	    VALIDATE(ba);
+	    return;
+	}
+    }
+    for (u_int64_t blocknum = 0; blocknum +1 < ba->n_blocks; blocknum ++) {
 	// Consider the space after blocknum
-	if (blocknum+1 == ba->n_blocks) continue; // Can't use the space after the last block, since that would be new space.
 	struct blockpair *bp = &ba->blocks_array[blocknum];
 	u_int64_t this_offset = bp[0].offset;
 	u_int64_t this_size   = bp[0].size;
@@ -141,7 +159,6 @@ block_allocator_alloc_block (BLOCK_ALLOCATOR ba, u_int64_t size, u_int64_t *offs
 	bp[1].offset = answer_offset;
 	bp[1].size   = size;
 	ba->n_blocks++;
-	ba->next_fit_counter = blocknum;
 	*offset = answer_offset;
 	VALIDATE(ba);
 	return;
@@ -188,6 +205,7 @@ block_allocator_free_block (BLOCK_ALLOCATOR ba, u_int64_t offset) {
     VALIDATE(ba);
     int64_t bn = find_block(ba, offset);
     assert(bn>=0); // we require that there is a block with that offset.  Might as well abort if no such block exists.
+    ba->n_bytes_in_use -= ba->blocks_array[bn].size;
     memmove(&ba->blocks_array[bn], &ba->blocks_array[bn+1], (ba->n_blocks-bn-1) * sizeof(struct blockpair));
     ba->n_blocks--;
     VALIDATE(ba);
@@ -206,5 +224,24 @@ block_allocator_allocated_limit (BLOCK_ALLOCATOR ba) {
     else {
 	struct blockpair *last = &ba->blocks_array[ba->n_blocks-1];
 	return last->offset + last->size;
+    }
+}
+
+int
+block_allocator_get_nth_block_in_layout_order (BLOCK_ALLOCATOR ba, u_int64_t b, u_int64_t *offset, u_int64_t *size)
+// Effect: Consider the blocks in sorted order.  The reserved block at the beginning is number 0.  The next one is number 1 and so forth.
+// Return the offset and size of the block with that number.
+// Return 0 if there is a block that big, return nonzero if b is too big.
+{
+    if (b==0) {
+	*offset=0;
+	*size  =ba->reserve_at_beginning;
+	return  0;
+    } else if (b > ba->n_blocks) {
+	return -1;
+    } else {
+	*offset=ba->blocks_array[b-1].offset;
+	*size  =ba->blocks_array[b-1].size;
+	return 0;
     }
 }
