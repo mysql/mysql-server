@@ -196,6 +196,9 @@ command. Not tested on Windows. */
 						debugging without UNIV_DEBUG */
 #define UNIV_DEBUG				/* Enable ut_ad() assertions
 						and disable UNIV_INLINE */
+#define UNIV_DEBUG_LOCK_VALIDATE		/* Enable
+						ut_ad(lock_rec_validate_page())
+						assertions. */
 #define UNIV_DEBUG_FILE_ACCESSES		/* Debug .ibd file access
 						(field file_page_was_freed
 						in buf_page_t) */
