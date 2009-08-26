@@ -2879,7 +2879,7 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, int is_cre
         if (r != 0) goto died00;
         if (did_create) {
             mode_t mode = S_IRWXU|S_IRWXG|S_IRWXO;
-            r = toku_logger_log_fcreate(txn, fname_in_env, toku_cachefile_filenum(t->cf), mode);
+            r = toku_logger_log_fcreate(txn, fname_in_env, toku_cachefile_filenum(t->cf), mode, t->flags);
             if (r != 0) goto died_after_open;
             txn_created = (BOOL)(txn!=NULL);
         } else {

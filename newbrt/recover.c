@@ -3,12 +3,6 @@
 #ident "Copyright (c) 2007, 2008, 2009 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-/* Recover an env.  The logs are in argv[1].  The new database is created in the cwd. */
-
-// Test:
-//    cd ../src/tests/tmpdir
-//    ../../../newbrt/recover ../dir.test_log2.c.tdb
-
 #include "includes.h"
 #include "log_header.h"
 #include "varray.h"
@@ -195,7 +189,7 @@ static int find_cachefile (FILENUM fnum, struct cf_pair **cf_pair) {
 }
 
 // Open the file if it is not already open.  If it is already open, then do nothing.
-static void internal_toku_recover_fopen_or_fcreate (int flags, int mode, char *fixedfname, FILENUM filenum) {
+static void internal_toku_recover_fopen_or_fcreate (int flags, int mode, char *fixedfname, FILENUM filenum, u_int32_t treeflags) {
     {
 	struct cf_pair *pair = NULL;
 	int r = find_cachefile(filenum, &pair);
@@ -217,9 +211,13 @@ static void internal_toku_recover_fopen_or_fcreate (int flags, int mode, char *f
     BRT brt=0;
     int r = toku_brt_create(&brt);
     assert(r == 0);
+    if (flags & O_CREAT)
+        toku_brt_set_flags(brt, treeflags);
     brt->fname = fixedfname;
     brt->h=0;
-    brt->compare_fun = toku_default_compare_fun; // we'll need to set these to the right comparison function, or do without them.
+    // we'll need to set these to the right comparison function, or do without them.
+    // TODO get default compare functions from the environment
+    brt->compare_fun = toku_default_compare_fun; 
     brt->dup_compare = toku_default_compare_fun;
     brt->db = 0;
     r = toku_cachetable_openfd(&cf, recover_ct, fd, fixedfname);
@@ -234,7 +232,7 @@ static void internal_toku_recover_fopen_or_fcreate (int flags, int mode, char *f
 
 static void toku_recover_fopen (LSN UU(lsn), TXNID UU(xid), BYTESTRING fname, FILENUM filenum) {
     char *fixedfname = fixup_fname(&fname);
-    internal_toku_recover_fopen_or_fcreate(0, 0, fixedfname, filenum);
+    internal_toku_recover_fopen_or_fcreate(0, 0, fixedfname, filenum, 0);
 }
 
 static int toku_recover_backward_fopen (struct logtype_fopen *UU(l), struct backward_scan_state *UU(bs)) {
@@ -242,10 +240,10 @@ static int toku_recover_backward_fopen (struct logtype_fopen *UU(l), struct back
 }
 
 // fcreate is like fopen except that the file must be created. Also creates the dir if needed.
-static void toku_recover_fcreate (LSN UU(lsn), TXNID UU(xid), FILENUM filenum, BYTESTRING fname,u_int32_t mode) {
+static void toku_recover_fcreate (LSN UU(lsn), TXNID UU(xid), FILENUM filenum, BYTESTRING fname, u_int32_t mode, u_int32_t treeflags) {
     char *fixedfname = fixup_fname(&fname);
     create_dir_from_file(fixedfname);
-    internal_toku_recover_fopen_or_fcreate(O_CREAT|O_TRUNC, mode, fixedfname, filenum);
+    internal_toku_recover_fopen_or_fcreate(O_CREAT|O_TRUNC, mode, fixedfname, filenum, treeflags);
 }
 
 static int toku_recover_backward_fcreate (struct logtype_fcreate *UU(l), struct backward_scan_state *UU(bs)) {
@@ -386,7 +384,7 @@ static int toku_recover_fassociate (LSN UU(lsn), FILENUM UU(filenum), BYTESTRING
 
 static int toku_recover_backward_fassociate (struct logtype_fassociate *l, struct backward_scan_state *UU(bs)) {
     char *fixedfname = fixup_fname(&l->fname);
-    internal_toku_recover_fopen_or_fcreate(0, 0, fixedfname, l->filenum);
+    internal_toku_recover_fopen_or_fcreate(0, 0, fixedfname, l->filenum, 0);
     return 0;
 }
 
@@ -500,8 +498,8 @@ static int toku_delete_rolltmp_files (const char *log_dir) {
 }
 
 // Effects: If there are no log files, or if there is a "clean" checkpoint at the end of the log,
-// then we don't need recovery to run.  We skip the optional shutdown log entry.
-// Returns: TRUE if we need recovery, FALSE if we do not need recovery.
+// then we don't need recovery to run.  Skip the shutdown log entry if there is one.
+// Returns: TRUE if we need recovery, otherwise FALSE.
 int tokudb_needs_recovery(const char *log_dir) {
     int needs_recovery;
     int r;
@@ -552,7 +550,11 @@ int tokudb_needs_recovery(const char *log_dir) {
 static int compare_txn(const void *a, const void *b) {
     TOKUTXN atxn = (TOKUTXN) * (void **) a;
     TOKUTXN btxn = (TOKUTXN) * (void **) b;
-    return - (atxn->txnid64 - btxn->txnid64);
+    if (atxn->txnid64 > btxn->txnid64)
+        return -1;
+    if (atxn->txnid64 < btxn->txnid64)
+        return +1;
+    return 0;
 }
 
 // Append a transaction to the set of live transactions

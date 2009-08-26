@@ -40,7 +40,7 @@ int toku_logger_restart(TOKULOGGER logger, LSN lastlsn);
 // Returns: 0 if success
 int toku_logger_maybe_trim_log(TOKULOGGER logger, LSN lsn);
 
-int toku_logger_log_fcreate (TOKUTXN txn, const char *fname, FILENUM filenum, int mode);
+int toku_logger_log_fcreate (TOKUTXN txn, const char *fname, FILENUM filenum, u_int32_t mode, u_int32_t flags);
 int toku_logger_log_fopen (TOKUTXN txn, const char * fname, FILENUM filenum);
 
 int toku_fread_u_int8_t (FILE *f, u_int8_t *v, struct x1764 *mm, u_int32_t *len);

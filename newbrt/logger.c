@@ -453,11 +453,11 @@ int toku_logger_restart(TOKULOGGER logger, LSN lastlsn) {
     return open_logfile(logger);
 }
 
-int toku_logger_log_fcreate (TOKUTXN txn, const char *fname, FILENUM filenum, int mode) {
+int toku_logger_log_fcreate (TOKUTXN txn, const char *fname, FILENUM filenum, u_int32_t mode, u_int32_t treeflags) {
     if (txn==0) return 0;
     if (txn->logger->is_panicked) return EINVAL;
     BYTESTRING bs = { .len=strlen(fname), .data = toku_strdup_in_rollback(txn, fname) };
-    int r = toku_log_fcreate (txn->logger, (LSN*)0, 0, toku_txn_get_txnid(txn), filenum, bs, mode);
+    int r = toku_log_fcreate (txn->logger, (LSN*)0, 0, toku_txn_get_txnid(txn), filenum, bs, mode, treeflags);
     if (r!=0) return r;
     r = toku_logger_save_rollback_fcreate(txn, toku_txn_get_txnid(txn), filenum, bs);
     return r;
