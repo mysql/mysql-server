@@ -3371,8 +3371,20 @@ void
 os_aio_simulated_put_read_threads_to_sleep(void)
 /*============================================*/
 {
+
+/* The idea of putting background IO threads to sleep is only for
+Windows when using simulated AIO. Windows XP seems to schedule
+background threads too eagerly to allow for coalescing during
+readahead requests. */
+#ifdef __WIN__
 	os_aio_array_t*	array;
 	ulint		g;
+
+	if (os_aio_use_native_aio) {
+		/* We do not use simulated aio: do nothing */
+
+		return;
+	}
 
 	os_aio_recommend_sleep_for_read_threads	= TRUE;
 
@@ -3384,6 +3396,7 @@ os_aio_simulated_put_read_threads_to_sleep(void)
 			os_event_reset(os_aio_segment_wait_events[g]);
 		}
 	}
+#endif /* __WIN__ */
 }
 
 /*******************************************************************//**
