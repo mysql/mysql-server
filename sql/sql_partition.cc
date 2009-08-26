@@ -2766,8 +2766,24 @@ uint32 get_list_array_idx_for_endpoint(partition_info *part_info,
 
   if (part_info->part_expr->null_value)
   {
-    DBUG_RETURN(0);
+    /*
+      Special handling for MONOTONIC functions that can return NULL for
+      values that are comparable. I.e.
+      '2000-00-00' can be compared to '2000-01-01' but TO_DAYS('2000-00-00')
+      returns NULL which cannot be compared used <, >, <=, >= etc.
+
+      Otherwise, just return the the first index (lowest value).
+    */
+    enum_monotonicity_info monotonic;
+    monotonic= part_info->part_expr->get_monotonicity_info();
+    if (monotonic != MONOTONIC_INCREASING_NOT_NULL && 
+        monotonic != MONOTONIC_STRICT_INCREASING_NOT_NULL)
+    {
+      /* F(col) can not return NULL, return index with lowest value */
+      DBUG_RETURN(0);
+    }
   }
+
   if (unsigned_flag)
     part_func_value-= 0x8000000000000000ULL;
   DBUG_ASSERT(part_info->no_list_values);
@@ -2916,11 +2932,29 @@ uint32 get_partition_id_range_for_endpoint(partition_info *part_info,
 
   if (part_info->part_expr->null_value)
   {
-    uint32 ret_part_id= 0;
-    if (!left_endpoint && include_endpoint)
-      ret_part_id= 1;
-    DBUG_RETURN(ret_part_id);
+    /*
+      Special handling for MONOTONIC functions that can return NULL for
+      values that are comparable. I.e.
+      '2000-00-00' can be compared to '2000-01-01' but TO_DAYS('2000-00-00')
+      returns NULL which cannot be compared used <, >, <=, >= etc.
+
+      Otherwise, just return the first partition
+      (may be included if not left endpoint)
+    */
+    enum_monotonicity_info monotonic;
+    monotonic= part_info->part_expr->get_monotonicity_info();
+    if (monotonic != MONOTONIC_INCREASING_NOT_NULL &&
+        monotonic != MONOTONIC_STRICT_INCREASING_NOT_NULL)
+    {
+      /* F(col) can not return NULL, return partition with lowest value */
+      if (!left_endpoint && include_endpoint)
+        DBUG_RETURN(1);
+      DBUG_RETURN(0);               
+
+    }
   }
+
+
   if (unsigned_flag)
     part_func_value-= 0x8000000000000000ULL;
   if (left_endpoint && !include_endpoint)
@@ -6733,6 +6767,19 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
   }
   else
     assert(0);
+  
+  if (part_info->part_type == RANGE_PARTITION ||
+      part_info->has_null_value)
+  {
+    enum_monotonicity_info monotonic;
+    monotonic= part_info->part_expr->get_monotonicity_info();
+    if (monotonic == MONOTONIC_INCREASING_NOT_NULL ||
+        monotonic == MONOTONIC_STRICT_INCREASING_NOT_NULL)
+    {
+      /* col is NOT NULL, but F(col) can return NULL, add NULL partition */
+      part_iter->ret_null_part= part_iter->ret_null_part_orig= TRUE;
+    }
+  }
 
   /* 
     Find minimum: Do special handling if the interval has left bound in form
@@ -6959,7 +7006,13 @@ uint32 get_next_partition_id_range(PARTITION_ITERATOR* part_iter)
 {
   if (part_iter->part_nums.cur >= part_iter->part_nums.end)
   {
+    if (part_iter->ret_null_part)
+    {
+      part_iter->ret_null_part= FALSE;
+      return 0;                    /* NULL always in first range partition */
+    }
     part_iter->part_nums.cur= part_iter->part_nums.start;
+    part_iter->ret_null_part= part_iter->ret_null_part_orig;
     return NOT_A_PARTITION_ID;
   }
   else
@@ -6987,7 +7040,7 @@ uint32 get_next_partition_id_range(PARTITION_ITERATOR* part_iter)
 
 uint32 get_next_partition_id_list(PARTITION_ITERATOR *part_iter)
 {
-  if (part_iter->part_nums.cur == part_iter->part_nums.end)
+  if (part_iter->part_nums.cur >= part_iter->part_nums.end)
   {
     if (part_iter->ret_null_part)
     {
