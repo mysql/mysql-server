@@ -654,7 +654,7 @@ Equality_module *merge_func_deps(Equality_module *start, Equality_module *new_fi
            
           List <Field_value> *fv;
           if (!(fv= new List<Field_value>))
-            break;
+            break; /* purecov: inspected */
 
           List_iterator<Field_value> it1(*old->mult_equal_fields);
           List_iterator<Field_value> it2(*new_fields->mult_equal_fields);
@@ -664,7 +664,11 @@ Equality_module *merge_func_deps(Equality_module *start, Equality_module *new_fi
           while (lfield && rfield)
           {
             if (lfield == rfield)
+            {
               fv->push_back(lfield);
+              lfield=it1++;
+              rfield=it2++;
+            }
             else
             {
               uint left_ratio= lfield->field->table->tablenr*MAX_FIELDS +
