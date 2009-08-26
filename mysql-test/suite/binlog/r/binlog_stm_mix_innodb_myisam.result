@@ -346,7 +346,9 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 values (3,3)
 master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS t2
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t2 (a int, b int, primary key (a)) engine=innodb
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (4,4)
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; TRUNCATE table t2
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (5,5)
 master-bin.000001	#	Query	#	#	use `test`; DROP TABLE t2
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 values (6,6)
@@ -545,8 +547,10 @@ UPDATE t4,t3 SET t4.a=t3.a + bug27417(1) /* top level non-ta table */;
 ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Intvar	#	#	INSERT_ID=6
 master-bin.000001	#	Query	#	#	use `test`; UPDATE t4,t3 SET t4.a=t3.a + bug27417(1) /* top level non-ta table */
+master-bin.000001	#	Query	#	#	ROLLBACK
 /* the output must denote there is the query */;
 select count(*) from t1 /* must be 4 */;
 count(*)
@@ -782,8 +786,10 @@ UPDATE t4,t3 SET t4.a=t3.a + bug27417(1) /* top level non-ta table */;
 ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Intvar	#	#	INSERT_ID=6
 master-bin.000001	#	Query	#	#	use `test`; UPDATE t4,t3 SET t4.a=t3.a + bug27417(1) /* top level non-ta table */
+master-bin.000001	#	Query	#	#	ROLLBACK
 select count(*) from t1 /* must be 4 */;
 count(*)
 4
