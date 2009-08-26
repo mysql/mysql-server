@@ -397,13 +397,20 @@ public:
   from INT_RESULT, may be NULL, or are unsigned.
   It will be possible to address this issue once the related partitioning bugs
   (BUG#16002, BUG#15447, BUG#13436) are fixed.
+
+  The NOT_NULL enums are used in TO_DAYS, since TO_DAYS('2001-00-00') returns
+  NULL which puts those rows into the NULL partition, but
+  '2000-12-31' < '2001-00-00' < '2001-01-01'. So special handling is needed
+  for this (see Bug#20577).
 */
 
 typedef enum monotonicity_info 
 {
    NON_MONOTONIC,              /* none of the below holds */
    MONOTONIC_INCREASING,       /* F() is unary and (x < y) => (F(x) <= F(y)) */
-   MONOTONIC_STRICT_INCREASING /* F() is unary and (x < y) => (F(x) <  F(y)) */
+   MONOTONIC_INCREASING_NOT_NULL,  /* But only for valid/real x and y */
+   MONOTONIC_STRICT_INCREASING,/* F() is unary and (x < y) => (F(x) <  F(y)) */
+   MONOTONIC_STRICT_INCREASING_NOT_NULL  /* But only for valid/real x and y */
 } enum_monotonicity_info;
 
 /*************************************************************************/
