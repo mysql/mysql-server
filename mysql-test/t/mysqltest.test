@@ -1780,6 +1780,56 @@ remove_file $MYSQLTEST_VARDIR/tmp/file2.tmp;
 --error 1
 --exec echo "copy_file from_file;" | $MYSQL_TEST 2>&1
 
+
+# ----------------------------------------------------------------------------
+# test for move_file
+# ----------------------------------------------------------------------------
+
+# - Check that if source file does not exist, nothing will be created.
+
+--error 1
+file_exists $MYSQLTEST_VARDIR/tmp/file1.tmp;
+--error 1
+file_exists $MYSQLTEST_VARDIR/tmp/file2.tmp;
+--error 1
+move_file $MYSQLTEST_VARDIR/tmp/file1.tmp $MYSQLTEST_VARDIR/tmp/file2.tmp;
+--error 1
+file_exists $MYSQLTEST_VARDIR/tmp/file1.tmp;
+--error 1
+file_exists $MYSQLTEST_VARDIR/tmp/file2.tmp;
+
+# - Check that if source file exists, everything works properly.
+
+--write_file $MYSQLTEST_VARDIR/tmp/file1.tmp
+file1
+EOF
+
+move_file $MYSQLTEST_VARDIR/tmp/file1.tmp $MYSQLTEST_VARDIR/tmp/file2.tmp;
+--error 1
+file_exists $MYSQLTEST_VARDIR/tmp/file1.tmp;
+file_exists $MYSQLTEST_VARDIR/tmp/file2.tmp;
+
+# - Check that if destination file exists, everything works properly.
+#   (file2.tmp exists from the previous check; file1.tmp needs to be created)
+
+--write_file $MYSQLTEST_VARDIR/tmp/file1.tmp
+file1
+EOF
+
+move_file $MYSQLTEST_VARDIR/tmp/file1.tmp $MYSQLTEST_VARDIR/tmp/file2.tmp;
+--error 1
+file_exists $MYSQLTEST_VARDIR/tmp/file1.tmp;
+file_exists $MYSQLTEST_VARDIR/tmp/file2.tmp;
+remove_file $MYSQLTEST_VARDIR/tmp/file2.tmp;
+
+# - Check usage.
+
+--error 1
+--exec echo "move_file ;" | $MYSQL_TEST 2>&1
+
+--error 1
+--exec echo "move_file from_file;" | $MYSQL_TEST 2>&1
+
 # ----------------------------------------------------------------------------
 # test for chmod
 # ----------------------------------------------------------------------------
@@ -2035,6 +2085,10 @@ let $value= query_get_value(SELECT 'A B' AS "MyColumn", MyColumn, 1);
 #
 # 4. column name with space
 let $value= query_get_value(SELECT 1 AS "My Column", My Column, 1);
+--echo value= $value
+#
+# 4.1 Query containing , protected by quotes, quotes also on column
+let $value= query_get_value('SELECT 1 as a, 2 as b', "b", 1);
 --echo value= $value
 #
 #------------ Negative tests ------------

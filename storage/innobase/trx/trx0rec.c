@@ -23,6 +23,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "que0que.h"
 #include "trx0purge.h"
 #include "row0row.h"
+#include "mtr0log.h"
 
 /*=========== UNDO LOG RECORD CREATION AND DECODING ====================*/
 

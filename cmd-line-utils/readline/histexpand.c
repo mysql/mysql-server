@@ -87,14 +87,14 @@ char history_comment_char = '\0';
 
 /* The list of characters which inhibit the expansion of text if found
    immediately following history_expansion_char. */
-char *history_no_expand_chars = " \t\n\r=";
+const char *history_no_expand_chars = " \t\n\r=";
 
 /* If set to a non-zero value, single quotes inhibit history expansion.
    The default is 0. */
 int history_quotes_inhibit_expansion = 0;
 
 /* Used to split words by history_tokenize_internal. */
-char *history_word_delimiters = HISTORY_WORD_DELIMITERS;
+const char *history_word_delimiters = HISTORY_WORD_DELIMITERS;
 
 /* If set, this points to a function that is called to verify that a
    particular history expansion should be performed. */
@@ -203,7 +203,7 @@ get_history_event (string, caller_index, delimiting_quote)
     }
 
   /* Only a closing `?' or a newline delimit a substring search string. */
-  for (local_index = i; c = string[i]; i++)
+  for (local_index = i; (c = string[i]); i++)
     {
 #if defined (HANDLE_MULTIBYTE)
       if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)

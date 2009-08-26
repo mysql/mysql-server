@@ -31,7 +31,7 @@ noinst_HEADERS =	readline.h chardefs.h keymaps.h \
 
 EXTRA_DIST=		emacs_keymap.c vi_keymap.c
 
-DEFS =			-DUNDEF_THREADS_HACK -DHAVE_CONFIG_H -DNO_KILL_INTR
+DEFS =			-DMYSQL_CLIENT_NO_THREADS -DHAVE_CONFIG_H -DNO_KILL_INTR
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
