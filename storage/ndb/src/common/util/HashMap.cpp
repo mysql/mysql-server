@@ -112,7 +112,7 @@ TAPTEST(HashMap)
 
   printf("BaseString -> int\n");
   {
-    HashMap<BaseString, int, BaseString::get_key > string_hash;
+    HashMap<BaseString, int, BaseString_get_key > string_hash;
     OK(string_hash.insert("magnus", 1));
     OK(string_hash.insert("mas", 2));
     int value;
