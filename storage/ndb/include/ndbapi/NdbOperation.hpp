@@ -1497,6 +1497,9 @@ protected:
      prototype.*/
   NdbQueryImpl* m_queryImpl;
   
+private:
+  NdbOperation(const NdbOperation&); // Not impl.
+  NdbOperation&operator=(const NdbOperation&);
 };
 
 #ifdef NDB_NO_DROPPED_SIGNAL

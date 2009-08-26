@@ -274,6 +274,10 @@ max-time: 2500
 cmd: testIndex
 args: -n BuildDuring T6 
 
+max-time: 600
+cmd: testIndex
+args: -n Bug46069 T1
+
 #
 # SCAN TESTS
 #
@@ -1322,3 +1326,20 @@ max-time: 300
 cmd: testSystemRestart
 args: -n Bug45154 D1
 
+max-time: 300
+cmd: testDict
+args: -n Bug36702 D1
+
+max-time: 300
+cmd: testDict
+args: -n Bug46552 T1
+
+max-time: 300
+cmd: testSystemRestart
+args: -n Bug46651 T1
+
+max-time: 300
+cmd: testSystemRestart
+args: -n Bug46412 T1
+
+# end of 6.3

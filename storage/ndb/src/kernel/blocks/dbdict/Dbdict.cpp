@@ -2452,7 +2452,6 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
   c_triggerRecordPool.setSize(c_maxNoOfTriggers);
 
   c_opSectionBufferPool.setSize(1024); // units OpSectionSegmentSize
-  c_schemaOpPool.setSize(MAX_SCHEMA_OPERATIONS);
   c_schemaOpHash.setSize(MAX_SCHEMA_OPERATIONS);
   c_schemaTransPool.setSize(MAX_SCHEMA_TRANSACTIONS);
   c_schemaTransHash.setSize(2);
@@ -2473,21 +2472,28 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
   c_filegroup_pool.init(RT_DBDICT_FILEGROUP, pc);
 
   // new OpRec pools
-  c_createTableRecPool.setSize(32);
-  c_dropTableRecPool.setSize(32);
+  /**
+   * one mysql index can be 2 ndb indexes
+   */
+  /**
+   * TODO: Use arena-allocator for schema-transactions
+   */
+  c_createTableRecPool.setSize(1 + 2 * MAX_INDEXES);
+  c_dropTableRecPool.setSize(1 + 2 * MAX_INDEXES);
   c_alterTableRecPool.setSize(32);
-  c_createTriggerRecPool.setSize(32);
-  c_dropTriggerRecPool.setSize(32);
-  c_createIndexRecPool.setSize(32);
-  c_dropIndexRecPool.setSize(32);
-  c_alterIndexRecPool.setSize(32);
-  c_buildIndexRecPool.setSize(32);
+  c_createTriggerRecPool.setSize(4 * 2 * MAX_INDEXES);
+  c_dropTriggerRecPool.setSize(3 * 2 * MAX_INDEXES);
+  c_createIndexRecPool.setSize(2*MAX_INDEXES);
+  c_dropIndexRecPool.setSize(2 * MAX_INDEXES);
+  c_alterIndexRecPool.setSize(2 * MAX_INDEXES);
+  c_buildIndexRecPool.setSize(2 * 2 * MAX_INDEXES);
   c_createFilegroupRecPool.setSize(32);
   c_createFileRecPool.setSize(32);
   c_dropFilegroupRecPool.setSize(32);
   c_dropFileRecPool.setSize(32);
   c_createHashMapRecPool.setSize(32);
   c_copyDataRecPool.setSize(32);
+  c_schemaOpPool.setSize(1 + 32 * MAX_INDEXES);
 
   c_hash_map_hash.setSize(4);
   c_hash_map_pool.setSize(32);
@@ -2495,7 +2501,7 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
 
   c_createNodegroupRecPool.setSize(2);
   c_dropNodegroupRecPool.setSize(2);
-
+  
   c_opRecordPool.setSize(256);   // XXX need config params
   c_opCreateEvent.setSize(2);
   c_opSubEvent.setSize(2);
@@ -4547,10 +4553,24 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
     jam();
     HashMapPtr hm_ptr;
     tabRequire(c_hash_map_hash.find(hm_ptr, tablePtr.p->hashMapObjectId),
-               CreateTableRef::InvalidTablespace);
+               CreateTableRef::InvalidHashMap);
 
     tabRequire(hm_ptr.p->m_object_version ==  tablePtr.p->hashMapVersion,
-               CreateTableRef::InvalidTablespace);
+               CreateTableRef::InvalidHashMap);
+
+    Ptr<Hash2FragmentMap> mapptr;
+    g_hash_map.getPtr(mapptr, hm_ptr.p->m_map_ptr_i);
+
+    if (tablePtr.p->fragmentCount == 0)
+    {
+      jam();
+      tablePtr.p->fragmentCount = mapptr.p->m_fragments;
+    }
+    else
+    {
+      tabRequire(mapptr.p->m_fragments == tablePtr.p->fragmentCount,
+                 CreateTableRef::InvalidHashMap);
+    }
   }
   
   {
@@ -4576,31 +4596,41 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
     jam();
     tablePtr.p->primaryTableId = c_tableDesc.PrimaryTableId;
     tablePtr.p->indexState = (TableRecord::IndexState)c_tableDesc.IndexState;
-    tablePtr.p->triggerId = c_tableDesc.CustomTriggerId;
 
-    if (c_tableDesc.InsertTriggerId != RNIL ||
-        c_tableDesc.UpdateTriggerId != RNIL ||
-        c_tableDesc.DeleteTriggerId != RNIL)
+    if (getNodeState().getSystemRestartInProgress())
     {
       jam();
-      /**
-       * Upgrade...unique index
-       */
-      ndbrequire(tablePtr.p->isUniqueIndex());
-      ndbrequire(c_tableDesc.CustomTriggerId == RNIL);
-      ndbrequire(c_tableDesc.InsertTriggerId != RNIL);
-      ndbrequire(c_tableDesc.UpdateTriggerId != RNIL);
-      ndbrequire(c_tableDesc.DeleteTriggerId != RNIL);
-      ndbout_c("table: %u UPGRADE saving (%u/%u/%u)",
-               tablePtr.i,
-               c_tableDesc.InsertTriggerId,
-               c_tableDesc.UpdateTriggerId,
-               c_tableDesc.DeleteTriggerId);
-      tablePtr.p->triggerId = c_tableDesc.InsertTriggerId;
-      tablePtr.p->m_upgrade_trigger_handling.m_upgrade = true;
-      tablePtr.p->m_upgrade_trigger_handling.insertTriggerId = c_tableDesc.InsertTriggerId;
-      tablePtr.p->m_upgrade_trigger_handling.updateTriggerId = c_tableDesc.UpdateTriggerId;
-      tablePtr.p->m_upgrade_trigger_handling.deleteTriggerId = c_tableDesc.DeleteTriggerId;
+      tablePtr.p->triggerId = RNIL;
+    }
+    else
+    {
+      jam();
+      tablePtr.p->triggerId = c_tableDesc.CustomTriggerId;
+
+      if (c_tableDesc.InsertTriggerId != RNIL ||
+          c_tableDesc.UpdateTriggerId != RNIL ||
+          c_tableDesc.DeleteTriggerId != RNIL)
+      {
+        jam();
+        /**
+         * Upgrade...unique index
+         */
+        ndbrequire(tablePtr.p->isUniqueIndex());
+        ndbrequire(c_tableDesc.CustomTriggerId == RNIL);
+        ndbrequire(c_tableDesc.InsertTriggerId != RNIL);
+        ndbrequire(c_tableDesc.UpdateTriggerId != RNIL);
+        ndbrequire(c_tableDesc.DeleteTriggerId != RNIL);
+        ndbout_c("table: %u UPGRADE saving (%u/%u/%u)",
+                 tablePtr.i,
+                 c_tableDesc.InsertTriggerId,
+                 c_tableDesc.UpdateTriggerId,
+                 c_tableDesc.DeleteTriggerId);
+        tablePtr.p->triggerId = c_tableDesc.InsertTriggerId;
+        tablePtr.p->m_upgrade_trigger_handling.m_upgrade = true;
+        tablePtr.p->m_upgrade_trigger_handling.insertTriggerId = c_tableDesc.InsertTriggerId;
+        tablePtr.p->m_upgrade_trigger_handling.updateTriggerId = c_tableDesc.UpdateTriggerId;
+        tablePtr.p->m_upgrade_trigger_handling.deleteTriggerId = c_tableDesc.DeleteTriggerId;
+      }
     }
   }
   else
@@ -10218,6 +10248,13 @@ Dbdict::createIndex_parse(Signal* signal, bool master,
     impl_req->indexId = getFreeObjId(0);
   }
 
+  if (impl_req->indexId == RNIL)
+  {
+    jam();
+    setError(error, CreateTableRef::NoMoreTableRecords, __LINE__);
+    return;
+  }
+
   if (ERROR_INSERTED(6122)) {
     jam();
     CLEAR_ERROR_INSERT_VALUE;
@@ -11450,7 +11487,8 @@ Dbdict::alterIndex_toCreateTrigger(Signal* signal, SchemaOpPtr op_ptr)
 
   Uint32 forceTriggerId = indexPtr.p->triggerId;
   D(V(getNodeState().startLevel) << V(NodeState::SL_STARTED));
-  if (getNodeState().startLevel == NodeState::SL_STARTED) {
+  if (getNodeState().startLevel == NodeState::SL_STARTED)
+  {
     ndbrequire(forceTriggerId == RNIL);
   }
   req->forceTriggerId = forceTriggerId;
@@ -16332,6 +16370,12 @@ Dbdict::createTrigger_abortParse(Signal* signal, SchemaOpPtr op_ptr)
     jam();
 
     TriggerRecordPtr triggerPtr;
+    if (! (triggerId < c_triggerRecordPool.getSize()))
+    {
+      jam();
+      goto done;
+    }
+
     c_triggerRecordPool.getPtr(triggerPtr, triggerId);
 
     if (triggerPtr.p->triggerState == TriggerRecord::TS_DEFINING)
@@ -16356,6 +16400,8 @@ Dbdict::createTrigger_abortParse(Signal* signal, SchemaOpPtr op_ptr)
       releaseDictObject(op_ptr);
     }
   }
+
+done:
 
   sendTransConf(signal, op_ptr);
 }
@@ -23864,8 +23910,19 @@ Dbdict::trans_commit_start(Signal* signal, SchemaTransPtr trans_ptr)
   if (ERROR_INSERTED(6016) || ERROR_INSERTED(6017))
   {
     jam();
-    NodeReceiverGroup rg(CMVMI, c_aliveNodes);
     signal->theData[0] = 9999;
+    NdbNodeBitmask mask = c_aliveNodes;
+    if (c_masterNodeId == getOwnNodeId())
+    {
+      jam();
+      mask.clear(getOwnNodeId());
+      sendSignalWithDelay(CMVMI_REF, GSN_NDB_TAMPER, signal, 1000, 1);
+      if (mask.isclear())
+      {
+        return;
+      }
+    }
+    NodeReceiverGroup rg(CMVMI, mask);
     sendSignal(rg, GSN_NDB_TAMPER, signal, 1, JBB);
     return;
   }
@@ -24827,6 +24884,15 @@ Dbdict::slave_run_start(Signal *signal, const SchemaTransImplReq* req)
   ErrorInfo error;
   SchemaTransPtr trans_ptr;
   const Uint32 trans_key = req->transKey;
+
+  Uint32 objId = getFreeObjId(0);
+  if (objId == RNIL)
+  {
+    jam();
+    setError(error, CreateTableRef::NoMoreTableRecords, __LINE__);
+    goto err;
+  }
+
   if (req->senderRef != reference())
   {
     jam();
@@ -24850,7 +24916,7 @@ Dbdict::slave_run_start(Signal *signal, const SchemaTransImplReq* req)
     ndbrequire(findSchemaTrans(trans_ptr, req->transKey));
   }
 
-  trans_ptr.p->m_obj_id = getFreeObjId(0);
+  trans_ptr.p->m_obj_id = objId;
   trans_log(trans_ptr);
 
   sendTransConf(signal, trans_ptr);
@@ -26128,6 +26194,13 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
      * No info, create "default"
      */
     jam();
+    if (impl_req->requestType & CreateHashMapReq::CreateDefault)
+    {
+      jam();
+      impl_req->buckets = NDB_DEFAULT_HASHMAP_BUCKTETS;
+      impl_req->fragments = 0;
+    }
+
     Uint32 buckets = impl_req->buckets;
     Uint32 fragments = impl_req->fragments;
     if (fragments == 0)
@@ -26136,6 +26209,7 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
 
       fragments = get_default_fragments();
     }
+
     BaseString::snprintf(hm.HashMapName, sizeof(hm.HashMapName),
                          "DEFAULT-HASHMAP-%u-%u",
                          buckets,
@@ -26167,6 +26241,9 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
                                DictHashMapInfo::MappingSize, true);
     ndbrequire(s == SimpleProperties::Eof);
     w.getPtr(objInfoPtr);
+
+    handle.m_cnt = 1;
+    handle.m_ptr[CreateHashMapReq::INFO] = objInfoPtr;
   }
 
   Uint32 len = Uint32(strlen(hm.HashMapName) + 1);
@@ -26180,11 +26257,51 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
     return;
   }
 
-  if(get_object(hm.HashMapName, len, hash) != 0)
+  DictObject * objptr = get_object(hm.HashMapName, len, hash);
+  if(objptr != 0)
   {
     jam();
-    setError(error, CreateTableRef::TableAlreadyExist, __LINE__);
+
+    if (! (impl_req->requestType & CreateHashMapReq::CreateIfNotExists))
+    {
+      jam();
+      setError(error, CreateTableRef::TableAlreadyExist, __LINE__);
+      return;
+    }
+
+    /**
+     * verify object found
+     */
+
+    if (objptr->m_type != DictTabInfo::HashMap)
+    {
+      jam();
+      setError(error, CreateTableRef::TableAlreadyExist, __LINE__);
+      return;
+    }
+
+    if (check_write_obj(objptr->m_id,
+                        trans_ptr.p->m_transId,
+                        SchemaFile::SF_CREATE, error))
+    {
+      jam();
+      return;
+    }
+
+    HashMapPtr hm_ptr;
+    ndbrequire(c_hash_map_hash.find(hm_ptr, objptr->m_id));
+
+    impl_req->objectId = objptr->m_id;
+    impl_req->objectVersion = hm_ptr.p->m_object_version;
     return;
+  }
+  else
+  {
+    jam();
+    /**
+     * Clear the IfNotExistsFlag
+     */
+    impl_req->requestType &= ~Uint32(CreateHashMapReq::CreateIfNotExists);
   }
 
   if (ERROR_INSERTED(6206))
@@ -26396,13 +26513,19 @@ Dbdict::createHashMap_abortParse(Signal* signal, SchemaOpPtr op_ptr)
 {
   D("createHashMap_abortParse" << *op_ptr.p);
 
+  CreateHashMapRecPtr createHashMapPtr;
+  getOpRec(op_ptr, createHashMapPtr);
+  CreateHashMapImplReq* impl_req = &createHashMapPtr.p->m_request;
+
+  if (impl_req->requestType & CreateHashMapReq::CreateIfNotExists)
+  {
+    jam();
+    ndbrequire(op_ptr.p->m_orig_entry_id == RNIL);
+  }
+
   if (op_ptr.p->m_orig_entry_id != RNIL)
   {
     jam();
-
-    CreateHashMapRecPtr createHashMapPtr;
-    getOpRec(op_ptr, createHashMapPtr);
-    CreateHashMapImplReq* impl_req = &createHashMapPtr.p->m_request;
 
     Ptr<HashMapRecord> hm_ptr;
     ndbrequire(c_hash_map_hash.find(hm_ptr, impl_req->objectId));
@@ -26472,6 +26595,13 @@ Dbdict::createHashMap_prepare(Signal* signal, SchemaOpPtr op_ptr)
   CreateHashMapRecPtr createHashMapPtr;
   getOpRec(op_ptr, createHashMapPtr);
   CreateHashMapImplReq* impl_req = &createHashMapPtr.p->m_request;
+
+  if (impl_req->requestType & CreateHashMapReq::CreateIfNotExists)
+  {
+    jam();
+    sendTransConf(signal, op_ptr);
+    return;
+  }
 
   Callback cb;
   cb.m_callbackData = op_ptr.p->op_key;

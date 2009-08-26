@@ -66,6 +66,8 @@ SELECT @@global.bulk_insert_buffer_size;
 @@global.bulk_insert_buffer_size
 42949672950
 SET @@global.bulk_insert_buffer_size = -1024;
+Warnings:
+Warning	1292	Truncated incorrect bulk_insert_buffer_size value: '-1024'
 SELECT @@global.bulk_insert_buffer_size;
 @@global.bulk_insert_buffer_size
 0
@@ -80,6 +82,8 @@ SELECT @@session.bulk_insert_buffer_size;
 @@session.bulk_insert_buffer_size
 42949672950
 SET @@session.bulk_insert_buffer_size = -2;
+Warnings:
+Warning	1292	Truncated incorrect bulk_insert_buffer_size value: '-2'
 SELECT @@session.bulk_insert_buffer_size;
 @@session.bulk_insert_buffer_size
 0

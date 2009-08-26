@@ -1230,8 +1230,10 @@ Dbtup::prepare_initial_insert(KeyReqStruct *req_struct,
 
   if(mm_vars || mm_dyns)
   {
-    bits |= Tuple_header::VAR_PART;
-    /* Reserve room for length word. */
+    jam();
+    /* Init Varpart_copy struct */
+    Varpart_copy * cp = (Varpart_copy*)ptr;
+    cp->m_len = 0;
     ptr += Varpart_copy::SZ32;
 
     /* Prepare empty varsize part. */
@@ -1262,6 +1264,7 @@ Dbtup::prepare_initial_insert(KeyReqStruct *req_struct,
 
     if (mm_dyns)
     {
+      jam();
       /* Prepare empty dynamic part. */
       dst->m_dyn_data_ptr= (char *)ptr;
       dst->m_dyn_offset_arr_ptr= req_struct->var_pos_array+2*mm_vars;
@@ -1527,7 +1530,7 @@ int Dbtup::handleInsertReq(Signal* signal,
     base = (Tuple_header*)ptr;
     base->m_operation_ptr_i= regOperPtr.i;
     base->m_header_bits= Tuple_header::ALLOC |
-      (vardynsize ? Tuple_header::VAR_PART : 0);
+      (sizes[2+MM] > 0 ? Tuple_header::VAR_PART : 0);
 
     regOperPtr.p->m_tuple_location.m_page_no = real_page_id;
   }
@@ -2943,7 +2946,6 @@ Dbtup::expand_tuple(KeyReqStruct* req_struct,
     
     ndbassert((UintPtr(src_ptr) & 3) == 0);
     src_ptr = src_ptr + step;
-    extra_bits |= Tuple_header::VAR_PART;
   }
 
   src->m_header_bits= bits & 
@@ -3254,6 +3256,12 @@ Dbtup::shrink_tuple(KeyReqStruct* req_struct, Uint32 sizes[2],
       /* If no dynamic variables, store nothing. */
       ndbassert(bm_len);
       {
+        /**
+         * clear bm-len bits, so they won't incorrect indicate
+         *   a non-zero map
+         */
+        * ((Uint32 *)dyn_src_ptr) &= ~Uint32(DYN_BM_LEN_MASK);
+
         Uint32 *bm_ptr= (Uint32 *)dyn_src_ptr + bm_len - 1;
         while(*bm_ptr == 0)
         {
@@ -3371,6 +3379,7 @@ Dbtup::shrink_tuple(KeyReqStruct* req_struct, Uint32 sizes[2],
     Uint32 varpart_len= dst_ptr - varstart;
     vp->m_len = varpart_len;
     sizes[MM] = varpart_len;
+    ptr->m_header_bits |= (varpart_len) ? Tuple_header::VAR_PART : 0;
     
     ndbassert((UintPtr(ptr) & 3) == 0);
     ndbassert(varpart_len < 0x10000);

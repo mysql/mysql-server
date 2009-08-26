@@ -378,6 +378,11 @@ enum open_table_mode
 #define PRECISION_FOR_DOUBLE 53
 #define PRECISION_FOR_FLOAT  24
 
+/* -[digits].E+## */
+#define MAX_FLOAT_STR_LENGTH (FLT_DIG + 6)
+/* -[digits].E+### */
+#define MAX_DOUBLE_STR_LENGTH (DBL_DIG + 7)
+
 /*
   Default time to wait before aborting a new client connection
   that does not respond to "initial server greeting" timely
@@ -2298,10 +2303,11 @@ uint build_table_shadow_filename(char *buff, size_t bufflen,
 #define FRM_ONLY        (1 << 3)
 
 /* from hostname.cc */
-struct in_addr;
-char * ip_to_hostname(struct sockaddr_storage *in, int addrLen, uint *errors);
-void inc_host_errors(struct sockaddr_storage *in);
-void reset_host_errors(struct sockaddr_storage *in);
+bool ip_to_hostname(struct sockaddr_storage *ip_storage,
+                    const char *ip_string,
+                    char **hostname, uint *connect_errors);
+void inc_host_errors(const char *ip_string);
+void reset_host_errors(const char *ip_string);
 bool hostname_cache_init();
 void hostname_cache_free();
 void hostname_cache_refresh(void);

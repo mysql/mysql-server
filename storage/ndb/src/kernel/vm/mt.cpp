@@ -3996,6 +3996,37 @@ lookup_lock(const void * ptr)
   return 0;
 }
 
+Uint32
+mt_get_thread_references_for_blocks(const Uint32 blocks[], Uint32 threadId,
+                                    Uint32 dst[], Uint32 len)
+{
+  Uint32 cnt = 0;
+  Bitmask<(MAX_THREADS+31)/32> mask;
+  mask.set(threadId);
+  for (Uint32 i = 0; blocks[i] != 0; i++)
+  {
+    Uint32 block = blocks[i];
+    /**
+     * Find each thread that has instance of block
+     */
+    assert(block == blockToMain(block));
+    Uint32 index = block - MIN_BLOCK_NO;
+    for (Uint32 instance = 0; instance < MAX_BLOCK_INSTANCES; instance++)
+    {
+      Uint32 thr_no = thr_map[index][instance].thr_no;
+      if (thr_no == thr_map_entry::NULL_THR_NO)
+        break;
+
+      if (mask.get(thr_no))
+        continue;
+
+      mask.set(thr_no);
+      require(cnt < len);
+      dst[cnt++] = numberToRef(block, instance, 0);
+    }
+  }
+  return cnt;
+}
 
 /**
  * Global data

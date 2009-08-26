@@ -101,6 +101,8 @@ private:
   void readWriteRequest(  int action, Signal * signal );
 
   static Uint32 translateErrno(int aErrno);
+public:
+  const BaseString& get_base_path(Uint32 no) const;
 };
 
 class VoidFs : public SimulatedBlock

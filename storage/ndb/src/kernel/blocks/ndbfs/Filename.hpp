@@ -65,10 +65,8 @@ public:
   Filename();
   ~Filename();
 
-  void set(const BaseString basepath[],
-	   BlockReference, const Uint32 fileno[4], bool = false);
-  void set(const BaseString & basepath,
-	   SegmentedSectionPtr ptr, class SectionSegmentPool&);
+  void set(class Ndbfs*, BlockReference, const Uint32 fileno[4], bool directory,
+           SegmentedSectionPtr ptr);
   
   const char* c_str() const;         // Complete name including dirname
   const char* get_base_name() const; // Exclude fs (or backup) path

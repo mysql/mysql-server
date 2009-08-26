@@ -90,6 +90,14 @@ my_socket vio_fd(Vio*vio);
 my_bool vio_peer_addr(Vio* vio, char *buf, uint16 *port, size_t buflen);
 my_bool	vio_poll_read(Vio *vio,uint timeout);
 
+my_bool vio_get_normalized_ip_string(const struct sockaddr *addr, int addr_length,
+                                     char *ip_string, size_t ip_string_size);
+
+int vio_getnameinfo(const struct sockaddr *sa,
+                    char *hostname, size_t hostname_size,
+                    char *port, size_t port_size,
+                    int flags);
+
 #ifdef HAVE_OPENSSL
 #include <openssl/opensslv.h>
 #if OPENSSL_VERSION_NUMBER < 0x0090700f

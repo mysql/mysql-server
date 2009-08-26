@@ -833,5 +833,17 @@ int Ndb_cluster_connection::set_timeout(int timeout_ms)
                              timeout_ms);
 }
 
+int
+Ndb_cluster_connection::get_auto_reconnect() const
+{
+  return m_impl.m_transporter_facade->get_auto_reconnect();
+}
+
+void
+Ndb_cluster_connection::set_auto_reconnect(int value)
+{
+  m_impl.m_transporter_facade->set_auto_reconnect(value);
+}
+
 template class Vector<Ndb_cluster_connection_impl::Node>;
 

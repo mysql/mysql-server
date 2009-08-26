@@ -232,6 +232,7 @@ our $opt_skip_ndbcluster= 0;
 my $exe_ndbd;
 my $exe_ndbmtd;
 my $exe_ndb_mgmd;
+my $exe_ndb_mgm;
 my $exe_ndb_waiter;
 
 our $debug_compiled_binaries;
@@ -279,6 +280,8 @@ sub main {
        "bzr_mysql-5.1-telco-6.2-merge"  => "ndb_team",
        "bzr_mysql-5.1-telco-6.3"        => "ndb_team",
        "bzr_mysql-5.1-telco-6.4"        => "ndb_team",
+       "bzr_mysql-5.1-telco-7.0"        => "ndb_team",
+       "bzr_mysql-5.1-telco-7.1"        => "ndb_team",
        "bzr_mysql-6.0-ndb"              => "ndb_team,rpl_ndb_big,ndb_binlog",
       );
 
@@ -314,7 +317,7 @@ sub main {
 
   #######################################################################
   my $num_tests= @$tests;
-  if ( not defined $opt_parallel ) {
+  if ( $opt_parallel eq "auto" ) {
     # Try to find a suitable value for number of workers
     my $sys_info= My::SysInfo->new();
 
@@ -729,6 +732,10 @@ sub run_worker ($) {
     }
     elsif ($line eq 'BYE'){
       mtr_report("Server said BYE");
+
+      # Stop all servers "nicely" before child exit
+      stop_all_servers($opt_shutdown_timeout);
+
       exit(0);
     }
     else {
@@ -788,7 +795,7 @@ sub command_line_setup {
              'vs-config=s'                => \$opt_vs_config,
 
 	     # Max number of parallel threads to use
-	     'parallel=i'               => \$opt_parallel,
+	     'parallel=s'               => \$opt_parallel,
 
              # Config file to use as template for all tests
 	     'defaults-file=s'          => \&collect_option,
@@ -1127,9 +1134,9 @@ sub command_line_setup {
   # --------------------------------------------------------------------------
   # Check parallel value
   # --------------------------------------------------------------------------
-  if ($opt_parallel < 1)
+  if ($opt_parallel ne "auto" && $opt_parallel < 1)
   {
-    mtr_error("0 or negative parallel value makes no sense, use positive number");
+    mtr_error("0 or negative parallel value makes no sense, use 'auto' or positive number");
   }
 
   # --------------------------------------------------------------------------
@@ -1558,6 +1565,11 @@ sub executable_setup () {
 		  ["storage/ndb/src/mgmsrv", "libexec", "sbin", "bin"],
 		  "ndb_mgmd");
 
+    $exe_ndb_mgm=
+      my_find_bin($basedir,
+                  ["storage/ndb/src/mgmclient", "libexec", "sbin", "bin"],
+                  "ndb_mgm");
+
     $exe_ndb_waiter=
       my_find_bin($basedir,
 		  ["storage/ndb/tools/", "bin"],
@@ -1610,14 +1622,22 @@ sub mysql_fix_arguments () {
 }
 
 
-sub client_arguments ($) {
+sub client_arguments ($;$) {
   my $client_name= shift;
+  my $group_suffix= shift;
   my $client_exe= mtr_exe_exists("$path_client_bindir/$client_name");
 
   my $args;
   mtr_init_args(\$args);
   mtr_add_arg($args, "--defaults-file=%s", $path_config_file);
-  client_debug_arg($args, $client_name);
+  if (defined($group_suffix)) {
+    mtr_add_arg($args, "--defaults-group-suffix=%s", $group_suffix);
+    client_debug_arg($args, "$client_name-$group_suffix");
+  }
+  else
+  {
+    client_debug_arg($args, $client_name);
+  }
   return mtr_args2str($client_exe, @$args);
 }
 
@@ -1901,6 +1921,7 @@ sub environment_setup {
   $ENV{'MYSQL_SHOW'}=               client_arguments("mysqlshow");
   $ENV{'MYSQL_BINLOG'}=             client_arguments("mysqlbinlog");
   $ENV{'MYSQL'}=                    client_arguments("mysql");
+  $ENV{'MYSQL_SLAVE'}=              client_arguments("mysql", ".2");
   $ENV{'MYSQL_UPGRADE'}=            client_arguments("mysql_upgrade");
   $ENV{'MYSQLADMIN'}=               native_path($exe_mysqladmin);
   $ENV{'MYSQL_CLIENT_TEST'}=        mysql_client_test_arguments();
@@ -2372,6 +2393,7 @@ sub ndb_mgmd_start ($$) {
      error         => $path_ndb_mgmd_log,
      append        => 1,
      verbose       => $opt_verbose,
+     shutdown      => sub { ndb_mgmd_stop($ndb_mgmd) },
     );
   mtr_verbose("Started $ndb_mgmd->{proc}");
 
@@ -2423,6 +2445,7 @@ sub ndbd_start {
      error         => $path_ndbd_log,
      append        => 1,
      verbose       => $opt_verbose,
+     shutdown      => sub { ndbd_stop($ndbd) },
     );
   mtr_verbose("Started $proc");
 
@@ -3993,6 +4016,36 @@ sub run_sh_script {
 }
 
 
+sub ndbd_stop {
+  # Intentionally left empty, ndbd nodes will be shutdown
+  # by sending "shutdown" to ndb_mgmd
+}
+
+
+sub ndb_mgmd_stop{
+  my $ndb_mgmd= shift or die "usage: ndb_mgmd_stop(<ndb_mgm>)";
+
+  my $args;
+
+  my $host=$ndb_mgmd->value('HostName');
+  my $port=$ndb_mgmd->value('PortNumber');
+  mtr_verbose("Stopping cluster '$host:$port'");
+
+  mtr_init_args(\$args);
+  mtr_add_arg($args, "--ndb-connectstring=%s:%s", $host,$port);
+  mtr_add_arg($args, "-e");
+  mtr_add_arg($args, "shutdown");
+
+  My::SafeProcess->run
+    (
+     name          => "ndb_mgm shutdown $host:$port",
+     path          => $exe_ndb_mgm,
+     args          => \$args,
+     output         => "/dev/null",
+    );
+}
+
+
 sub mysqld_stop {
   my $mysqld= shift or die "usage: mysqld_stop(<mysqld>)";
 
@@ -4202,12 +4255,14 @@ sub mysqld_start ($$) {
 }
 
 
-sub stop_all_servers () {
+sub stop_all_servers ($) {
+  # Default timeout zero -> just zap servers
+  my $timeout = shift || 0;
 
   mtr_verbose("Stopping all servers...");
 
   # Kill all started servers
-  My::SafeProcess::shutdown(0, # shutdown timeout 0 => kill
+  My::SafeProcess::shutdown($timeout,
 			    started(all_servers()));
 
   # Remove pidfiles
@@ -5170,6 +5225,8 @@ Misc options
                         the first specified test case
   fast                  Run as fast as possible, dont't wait for servers
                         to shutdown etc.
+  parallel=N            Run tests in N parallel threads (default=1)
+                        Use parallel=auto for auto-setting of N
   repeat=N              Run each test N number of times
   retry=N               Retry tests that fail N times, limit number of failures
                         to $opt_retry_failure

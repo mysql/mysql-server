@@ -73,6 +73,7 @@
 #include <SectionReader.hpp>
 #include <signaldata/SignalDroppedRep.hpp>
 #include <signaldata/FsReadWriteReq.hpp>
+#include <NdbEnv.h>
 
 #include "../suma/Suma.hpp"
 #include "DblqhCommon.hpp"
@@ -152,7 +153,15 @@ operator<<(NdbOut& out, Operation_t op)
 //#define MARKER_TRACE 0
 //#define TRACE_SCAN_TAKEOVER 1
 
-#ifndef DEBUG_REDO
+#ifdef VM_TRACE
+#ifndef NDB_DEBUG_REDO
+#define NDB_DEBUG_REDO
+#endif
+#endif
+
+#ifdef NDB_DEBUG_REDO
+static int DEBUG_REDO = 0;
+#else
 #define DEBUG_REDO 0
 #endif
 
@@ -615,6 +624,15 @@ void Dblqh::execSTTOR(Signal* signal)
     traceopout = &ndbout;
 #endif
     
+#ifdef NDB_DEBUG_REDO
+    {
+      char buf[100];
+      if (NdbEnv_GetEnv("NDB_DEBUG_REDO", buf, sizeof(buf)))
+      {
+        DEBUG_REDO = 1;
+      }
+    }
+#endif
     return;
     break;
   case 4:
@@ -3655,7 +3673,8 @@ int Dblqh::saveAttrInfoInSection(const Uint32* dataPtr, Uint32 len)
     return ZGET_ATTRINBUF_ERROR;
   }//if
 
-  regTcPtr->currTupAiLen+= len;
+  if (regTcPtr->m_flags & TcConnectionrec::OP_SAVEATTRINFO)
+    regTcPtr->currTupAiLen += len;
   
   return ZOK;
 } // saveAttrInfoInSection
@@ -4302,7 +4321,6 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   if (saveAttrInfo)
     regTcPtr->m_flags|= TcConnectionrec::OP_SAVEATTRINFO;
   
-  
   /* Handle any AttrInfo we received with the LQHKEYREQ */
   if (regTcPtr->currReclenAi != 0)
   {
@@ -4333,7 +4351,8 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
         return;
       }
         
-      regTcPtr->currTupAiLen= TreclenAiLqhkey;
+      if (saveAttrInfo)
+        regTcPtr->currTupAiLen= TreclenAiLqhkey;
     }
   }//if
 
@@ -10555,7 +10574,10 @@ void Dblqh::initScanTc(const ScanFragReq* req,
   tcConnectptr.p->m_scan_curr_range_no = 0;
   tcConnectptr.p->m_dealloc = 0;
   tcConnectptr.p->activeCreat = Fragrecord::AC_NORMAL;
-  tcConnectptr.p->m_flags = 0;
+  // set TcConnectionrec::OP_SAVEATTRINFO so that a
+  // "old" scan (short signals) update currTupAiLen which is checked
+  // in scanAttrinfoLab
+  tcConnectptr.p->m_flags = TcConnectionrec::OP_SAVEATTRINFO;
   TablerecPtr tTablePtr;
   tTablePtr.i = tabptr.p->primaryTableId;
   ptrCheckGuard(tTablePtr, ctabrecFileSize, tablerec);
@@ -12207,6 +12229,7 @@ void Dblqh::execLCP_FRAG_ORD(Signal* signal)
         completeLcpRoundLab(signal, lcpId);
       } else {
         jam();
+        clcpCompletedState = LCP_IDLE;
         sendLCP_COMPLETE_REP(signal, lcpId);
       }//if
     }
@@ -12236,7 +12259,6 @@ void Dblqh::execLCP_FRAG_ORD(Signal* signal)
     ndbrequire(clcpCompletedState == LCP_IDLE);
     clcpCompletedState = LCP_RUNNING;
   }
-  cnoOfFragsCheckpointed++;
   
   if(tabptr.p->tableStatus == Tablerec::PREP_DROP_TABLE_DONE){
     jam();
@@ -12246,6 +12268,8 @@ void Dblqh::execLCP_FRAG_ORD(Signal* signal)
     sendLCP_FRAG_REP(signal, fragOrd);
     return;
   }
+
+  cnoOfFragsCheckpointed++;
 
   if (lcpPtr.p->lcpState != LcpRecord::LCP_IDLE) {
     ndbrequire(lcpPtr.p->lcpQueued == false);
@@ -13322,10 +13346,19 @@ Dblqh::execFSSYNCCONF(Signal* signal)
   localLogFilePtr.i = signal->theData[0];
   ptrCheckGuard(localLogFilePtr, clogFileFileSize, logFileRecord);
   localLogPartPtr.i = localLogFilePtr.p->logPartRec;
+  ptrCheckGuard(localLogPartPtr, clogPartFileSize, logPartRecord);
   localGcpPtr.i = ccurrentGcprec;
   ptrCheckGuard(localGcpPtr, cgcprecFileSize, gcpRecord);
   localGcpPtr.p->gcpSyncReady[localLogPartPtr.i] = ZTRUE;
   UintR Ti;
+
+  if (DEBUG_REDO)
+  {
+    ndbout_c("part: %u file: %u gci: %u SYNC CONF",
+             localLogPartPtr.p->logPartNo,
+             localLogFilePtr.p->fileNo,
+             localGcpPtr.p->gcpId);
+  }
   for (Ti = 0; Ti < clogPartFileSize; Ti++) {
     jam();
     if (localGcpPtr.p->gcpSyncReady[Ti] == ZFALSE) {
@@ -13369,6 +13402,16 @@ void Dblqh::execFSCLOSECONF(Signal* signal)
   jamEntry();
   logFilePtr.i = signal->theData[0];
   ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
+
+  if (DEBUG_REDO)
+  {
+    logPartPtr.i = logFilePtr.p->logPartRec;
+    ptrCheckGuard(logPartPtr, clogPartFileSize, logPartRecord);
+    ndbout_c("part: %u file: %u CLOSE CONF",
+             logPartPtr.p->logPartNo,
+             logFilePtr.p->fileNo);
+  }
+
   switch (logFilePtr.p->logFileStatus) {
   case LogFileRecord::CLOSE_SR_INVALIDATE_PAGES:
     jam();
@@ -14698,7 +14741,7 @@ void Dblqh::writeFileDescriptor(Signal* signal)
   if (DEBUG_REDO)
   {
     ndbout_c("part: %u file: %u setting logMaxGciCompleted[%u] = %u",
-             logPartPtr.i,
+             logPartPtr.p->logPartNo,
              logFilePtr.p->fileNo,
              logFilePtr.p->currentMbyte,
              logPartPtr.p->logPartNewestCompletedGCI);
@@ -14870,7 +14913,7 @@ void Dblqh::writeSinglePage(Signal* signal, Uint32 pageNo,
 
   if (DEBUG_REDO)
     ndbout_c("writeSingle 1 page at part: %u file: %u pos: %u",
-	     logPartPtr.i,
+	     logPartPtr.p->logPartNo,
 	     logFilePtr.p->fileNo,
 	     pageNo);
 }//Dblqh::writeSinglePage()
@@ -14940,7 +14983,7 @@ void Dblqh::readSrLastFileLab(Signal* signal)
   logPartPtr.p->logLap = logPagePtr.p->logPageWord[ZPOS_LOG_LAP];
   if (DEBUG_REDO)
     ndbout_c("readSrLastFileLab part: %u logExecState: %u logPartState: %u logLap: %u",
-             logPartPtr.i,
+             logPartPtr.p->logPartNo,
  	     logPartPtr.p->logExecState,
  	     logPartPtr.p->logPartState,
  	     logPartPtr.p->logLap);
@@ -14973,7 +15016,7 @@ void Dblqh::readSrLastMbyteLab(Signal* signal)
       if (DEBUG_REDO)
       {
         ndbout_c("readSrLastMbyteLab part: %u lastMbyte: %u",
-                 logPartPtr.i, logPartPtr.p->lastMbyte);
+                 logPartPtr.p->logPartNo, logPartPtr.p->lastMbyte);
       }
     }//if
   }//if
@@ -15982,7 +16025,7 @@ void Dblqh::srLogLimits(Signal* signal)
       else if (DEBUG_REDO)
       {
         ndbout_c("SKIP part: %u file: %u mb: %u logMaxGciCompleted: %u >= %u",
-                 logPartPtr.i,
+                 logPartPtr.p->logPartNo,
                  logFilePtr.p->fileNo,
                  tmbyte,
                  logFilePtr.p->logMaxGciCompleted[tmbyte],
@@ -16047,7 +16090,7 @@ void Dblqh::srLogLimits(Signal* signal)
     tmp.i = logPartPtr.p->stopLogfile;
     ptrCheckGuard(tmp, clogFileFileSize, logFileRecord);
     ndbout_c("srLogLimits part: %u gci: %u-%u start file: %u mb: %u stop file: %u mb: %u",
-             logPartPtr.i,
+             logPartPtr.p->logPartNo,
              logPartPtr.p->logStartGci,
              logPartPtr.p->logLastGci,
              tlastPrepRef >> 16,
@@ -16485,7 +16528,7 @@ void Dblqh::execSr(Signal* signal)
       if (DEBUG_REDO)
 	ndbout_c("found gci: %u part: %u file: %u page: %u",
 		 logWord,
-		 logPartPtr.i,
+		 logPartPtr.p->logPartNo,
 		 logFilePtr.p->fileNo,
 		 logFilePtr.p->currentFilepage);
       if (logWord == logPartPtr.p->logLastGci) {
@@ -16507,7 +16550,7 @@ void Dblqh::execSr(Signal* signal)
 	  logPartPtr.p->logLap = logPagePtr.p->logPageWord[ZPOS_LOG_LAP];
 	  if (DEBUG_REDO)
 	    ndbout_c("execSr part: %u logLap: %u",
-		     logPartPtr.i, logPartPtr.p->logLap);
+		     logPartPtr.p->logPartNo, logPartPtr.p->logLap);
         }//if
 /*---------------------------------------------------------------------------*/
 /* THERE IS NO NEED OF EXECUTING PAST THIS LINE SINCE THERE WILL ONLY BE LOG */
@@ -16720,7 +16763,7 @@ void Dblqh::invalidateLogAfterLastGCI(Signal* signal) {
 	ndbrequire(logPartPtr.p->logLap); // Should always be > 0
 	if (DEBUG_REDO)
 	  ndbout_c("invalidateLogAfterLastGCI part: %u wrap from file 0 -> logLap: %u",
-		   logPartPtr.i, logPartPtr.p->logLap);
+		   logPartPtr.p->logPartNo, logPartPtr.p->logLap);
       }
       
       /**
@@ -16794,7 +16837,7 @@ void Dblqh::readFileInInvalidate(Signal* signal, bool stepNext)
 	logPartPtr.p->logLap++;
 	if (DEBUG_REDO)
 	  ndbout_c("readFileInInvalidate part: %u wrap to file 0 -> logLap: %u",
-		   logPartPtr.i, logPartPtr.p->logLap);
+		   logPartPtr.p->logPartNo, logPartPtr.p->logLap);
       }
       if (logFilePtr.p->logFileStatus != LogFileRecord::OPEN) 
       {
@@ -16848,7 +16891,7 @@ loop:
 done:
   if (DEBUG_REDO)
     ndbout_c("exitFromInvalidate part: %u head file: %u page: %u", 
-	     logPartPtr.i,
+	     logPartPtr.p->logPartNo,
 	     logPartPtr.p->headFileNo,
 	     logPartPtr.p->headPageNo);
   
@@ -17759,7 +17802,7 @@ void Dblqh::completedLogPage(Signal* signal, Uint32 clpType, Uint32 place)
   if (DEBUG_REDO)
     ndbout_c("writing %d pages at part: %u file: %u pos: %u",
 	     twlpNoPages,
-	     logPartPtr.i,
+	     logPartPtr.p->logPartNo,
 	     logFilePtr.p->fileNo,
 	     logFilePtr.p->filePosition);
 
@@ -18869,7 +18912,7 @@ void Dblqh::readExecLog(Signal* signal)
   if (DEBUG_REDO)
     ndbout_c("readExecLog %u page at part: %u file: %u pos: %u",
 	     lfoPtr.p->noPagesRw,
-	     logPartPtr.i,
+	     logPartPtr.p->logPartNo,
 	     logFilePtr.p->fileNo,
 	     logPartPtr.p->execSrStartPageNo);
 
@@ -18939,7 +18982,7 @@ void Dblqh::readExecSr(Signal* signal)
   if (DEBUG_REDO)
     ndbout_c("readExecSr %u page at part: %u file: %u pos: %u",
 	     8,
-	     logPartPtr.i,
+	     logPartPtr.p->logPartNo,
 	     logFilePtr.p->fileNo,
 	     tresPageid);
 
@@ -19099,7 +19142,7 @@ void Dblqh::readSinglePage(Signal* signal, Uint32 pageNo)
 
   if (DEBUG_REDO)
     ndbout_c("readSinglePage 1 page at part: %u file: %u pos: %u",
-	     logPartPtr.i,
+	     logPartPtr.p->logPartNo,
 	     logFilePtr.p->fileNo,
 	     pageNo);
 
@@ -19626,7 +19669,7 @@ void Dblqh::writeCompletedGciLog(Signal* signal)
   if (DEBUG_REDO)
     ndbout_c("writeCompletedGciLog gci: %u part: %u file: %u page: %u",
 	     cnewestCompletedGci,
-	     logPartPtr.i,
+	     logPartPtr.p->logPartNo,
 	     logFilePtr.p->fileNo,
 	     logFilePtr.p->currentFilepage);
 
@@ -19669,7 +19712,7 @@ void Dblqh::writeDirty(Signal* signal, Uint32 place)
 
   if (DEBUG_REDO)
     ndbout_c("writeDirty 1 page at part: %u file: %u pos: %u",
-	     logPartPtr.i,
+	     logPartPtr.p->logPartNo,
 	     logFilePtr.p->fileNo,
 	     logPartPtr.p->prevFilepage);
 

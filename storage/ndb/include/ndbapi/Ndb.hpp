@@ -970,10 +970,10 @@
 #define Ndb_H
 
 #include <ndb_types.h>
-#include <ndbapi_limits.h>
-#include <ndb_cluster_connection.hpp>
-#include <NdbError.hpp>
-#include <NdbDictionary.hpp>
+#include "ndbapi_limits.h"
+#include "ndb_cluster_connection.hpp"
+#include "NdbError.hpp"
+#include "NdbDictionary.hpp"
 
 class NdbObjectIdMap;
 class NdbOperation;
@@ -1759,18 +1759,19 @@ public:
   Free_list_usage * get_free_list_usage(Free_list_usage*);
 #endif
 
-  
-
-/*****************************************************************************
- *	These are service routines used by the other classes in the NDBAPI.
- ****************************************************************************/
- Uint32 get_cond_wait_index() { return cond_wait_index; }
- void set_cond_wait_index(Uint32 index) { cond_wait_index = index; }
 private:
+/*****************************************************************************
+ *     These are service routines used by the other classes in the NDBAPI.
+ ****************************************************************************/
+  Uint32 get_cond_wait_index() { return cond_wait_index; }
+  void set_cond_wait_index(Uint32 index) { cond_wait_index = index; }
   Uint32 cond_wait_index;
   Ndb *cond_signal_ndb;
   void cond_signal();
-  
+
+  Ndb(const Ndb&); // Not impl.
+  Ndb&operator=(const Ndb&);
+
   void setup(Ndb_cluster_connection *ndb_cluster_connection,
 	     const char* aCatalogName, const char* aSchemaName);
 

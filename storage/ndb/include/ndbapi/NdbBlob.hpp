@@ -20,9 +20,9 @@
 #define NdbBlob_H
 
 #include <ndb_types.h>
-#include <NdbDictionary.hpp>
-#include <NdbTransaction.hpp>
-#include <NdbError.hpp>
+#include "NdbDictionary.hpp"
+#include "NdbTransaction.hpp"
+#include "NdbError.hpp"
 
 class Ndb;
 class NdbTransaction;
@@ -495,6 +495,9 @@ private:
   void next(NdbBlob* obj) { theNext= obj;}
   NdbBlob* next() { return theNext;}
   friend struct Ndb_free_list_t<NdbBlob>;
+
+  NdbBlob(const NdbBlob&); // Not impl.
+  NdbBlob&operator=(const NdbBlob&);
 };
 
 #endif

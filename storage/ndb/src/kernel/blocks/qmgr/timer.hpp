@@ -39,33 +39,28 @@ public:
   /**
    *  Start timer
    */
-  inline void reset() { 
-    m_current_time = NdbTick_CurrentMillisecond();
+  inline void reset(NDB_TICKS now) { 
+    m_current_time = now;
     m_alarm_time = m_current_time + m_delay;
   }
   
-  /**
-   *  Check for alarm
-   */ 
-  inline bool check() { return check(NdbTick_CurrentMillisecond()); }
-
-  inline bool check(NDB_TICKS check_time) {
+  inline bool check(NDB_TICKS now) {
     /**
      *  Standard alarm check
      */
-    if (check_time > m_alarm_time) return true;
+    if (now > m_alarm_time) return true;
 
     /**
      *  Time progressing, but it is not alarm time yet
      */
-    if (check_time >= m_current_time) return false;
+    if (now >= m_current_time) return false;
 
     /**
      *  Time has moved backwards
      */
-    reset();
+    reset(now);
     return false;
-  }    
+  }
 
 private:
   NDB_TICKS m_current_time;

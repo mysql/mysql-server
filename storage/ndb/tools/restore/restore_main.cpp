@@ -33,6 +33,7 @@ extern FilteredNdbOut err;
 extern FilteredNdbOut info;
 extern FilteredNdbOut debug;
 
+static Uint32 g_tableCompabilityMask = 0;
 static int ga_nodeId = 0;
 static int ga_nParallelism = 128;
 static int ga_backupId = 0;
@@ -70,6 +71,7 @@ static bool ga_restore_epoch = false;
 static bool ga_restore = false;
 static bool ga_print = false;
 static bool ga_skip_table_check = false;
+static bool ga_exclude_missing_columns = false;
 static int _print = 0;
 static int _print_meta = 0;
 static int _print_data = 0;
@@ -100,7 +102,8 @@ enum ndb_restore_options {
   OPT_INCLUDE_TABLES,
   OPT_EXCLUDE_TABLES,
   OPT_INCLUDE_DATABASES,
-  OPT_EXCLUDE_DATABASES
+  OPT_EXCLUDE_DATABASES,
+  OPT_EXCLUDE_MISSING_COLUMNS
 };
 static const char *opt_fields_enclosed_by= NULL;
 static const char *opt_fields_terminated_by= NULL;
@@ -245,6 +248,11 @@ static struct my_option my_long_options[] =
     "Example: db1.t1,db3.t1",
     (uchar**) &opt_exclude_tables, (uchar**) &opt_exclude_tables, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "exclude-missing-columns", OPT_EXCLUDE_MISSING_COLUMNS,
+    "Ignore columns present in backup but not in database",
+    (uchar**) &ga_exclude_missing_columns,
+    (uchar**) &ga_exclude_missing_columns, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -581,11 +589,6 @@ o verify nodegroup mapping
      restore->m_no_upgrade = true;
   }
 
-  if (ga_promote_attributes)
-  {
-     restore->m_promote_attributes = true;
-  }
-
   if (_preserve_trailing_spaces)
   {
      restore->m_preserve_trailing_spaces = true;
@@ -706,6 +709,16 @@ o verify nodegroup mapping
     g_ndbrecord_print_format.null_string= "";
   g_ndbrecord_print_format.hex_prefix= "";
   g_ndbrecord_print_format.hex_format= opt_hex_format;
+
+  if (ga_promote_attributes)
+  {
+    g_tableCompabilityMask |= TCM_ATTRIBUTE_PROMOTION;
+  }
+
+  if (ga_exclude_missing_columns)
+  {
+    g_tableCompabilityMask |= TCM_EXCLUDE_MISSING_COLUMNS;
+  }
   return true;
 }
 
@@ -935,6 +948,8 @@ main(int argc, char** argv)
     g_options.appfmt(" -e");
   if (_no_restore_disk)
     g_options.appfmt(" -d");
+  if (ga_exclude_missing_columns)
+    g_options.append(" --exclude-missing-columns");
   g_options.appfmt(" -p %d", ga_nParallelism);
 
   g_connect_string = opt_connect_str;
@@ -1019,7 +1034,7 @@ main(int argc, char** argv)
   Uint32 i;
   for(i= 0; i < g_consumers.size(); i++)
   {
-    if (!g_consumers[i]->init())
+    if (!g_consumers[i]->init(g_tableCompabilityMask))
     {
       clearConsumers();
       err << "Failed to initialize consumers" << endl;
@@ -1130,7 +1145,7 @@ main(int argc, char** argv)
   {
     if(_restore_data || _print_data)
     {
-      if (!ga_skip_table_check && !ga_promote_attributes)
+      if (!ga_skip_table_check && g_tableCompabilityMask == 0)
       {
         for(i=0; i < metaData.getNoOfTables(); i++)
         {
@@ -1147,20 +1162,20 @@ main(int argc, char** argv)
           }
         }
       }
-      if (ga_promote_attributes)
+      if (g_tableCompabilityMask != 0)
       { 
-      //if want to promote attributes, compability check is done firstly
+        //if want to promote attributes, compability check is done firstly
         for (i=0; i < metaData.getNoOfTables(); i++){
           if (checkSysTable(metaData, i) &&
-             checkDbAndTableName(metaData[i]))
+              checkDbAndTableName(metaData[i]))
           {
             for(Uint32 j= 0; j < g_consumers.size(); j++)
             {
               if (!g_consumers[j]->table_compatible_check(*metaData[i]))
               {
-                 err << "Restore: Failed to restore data, ";
-                 err << metaData[i]->getTableName() << " table structure incompatible with backup's ... Exiting " << endl;
-                 exitHandler(NDBT_FAILED);
+                err << "Restore: Failed to restore data, ";
+                err << metaData[i]->getTableName() << " table structure incompatible with backup's ... Exiting " << endl;
+                exitHandler(NDBT_FAILED);
               } 
             } 
           }

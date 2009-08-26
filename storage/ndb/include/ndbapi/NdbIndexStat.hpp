@@ -20,9 +20,9 @@
 #define NdbIndexStat_H
 
 #include <ndb_global.h>
-#include <NdbDictionary.hpp>
-#include <NdbError.hpp>
-#include <NdbIndexScanOperation.hpp>
+#include "NdbDictionary.hpp"
+#include "NdbError.hpp"
+#include "NdbIndexScanOperation.hpp"
 class NdbIndexImpl;
 
 /*
