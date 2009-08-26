@@ -82,13 +82,14 @@ BackupRestore::m_allowed_promotion_attrs[] = {
 };
 
 bool
-BackupRestore::init()
+BackupRestore::init(Uint32 tableChangesMask)
 {
   release();
 
   if (!m_restore && !m_restore_meta && !m_restore_epoch)
     return true;
 
+  m_tableChangesMask = tableChangesMask;
   m_cluster_connection = new Ndb_cluster_connection(g_connect_string);
   m_cluster_connection->set_name(g_options.c_str());
   if(m_cluster_connection->connect(12, 5, 1) != 0)
@@ -811,7 +812,7 @@ BackupRestore::report_started(unsigned backup_id, unsigned node_id)
     data[0]= NDB_LE_RestoreStarted;
     data[1]= backup_id;
     data[2]= node_id;
-    Ndb_internal::send_event_report(m_ndb, data, 3);
+    Ndb_internal::send_event_report(false /* has lock */, m_ndb, data, 3);
   }
   return true;
 }
@@ -830,7 +831,7 @@ BackupRestore::report_meta_data(unsigned backup_id, unsigned node_id)
     data[5]= m_n_logfilegroup;
     data[6]= m_n_datafile;
     data[7]= m_n_undofile;
-    Ndb_internal::send_event_report(m_ndb, data, 8);
+    Ndb_internal::send_event_report(false /* has lock */, m_ndb, data, 8);
   }
   return true;
 }
@@ -847,7 +848,7 @@ BackupRestore::report_data(unsigned backup_id, unsigned node_id)
     data[4]= 0;
     data[5]= (Uint32)(m_dataBytes & 0xFFFFFFFF);
     data[6]= (Uint32)((m_dataBytes >> 32) & 0xFFFFFFFF);
-    Ndb_internal::send_event_report(m_ndb, data, 7);
+    Ndb_internal::send_event_report(false /* has lock */, m_ndb, data, 7);
   }
   return true;
 }
@@ -865,7 +866,7 @@ BackupRestore::report_log(unsigned backup_id, unsigned node_id)
     data[4]= 0;
     data[5]= (Uint32)(m_logBytes & 0xFFFFFFFF);
     data[6]= (Uint32)((m_logBytes >> 32) & 0xFFFFFFFF);
-    Ndb_internal::send_event_report(m_ndb, data, 7);
+    Ndb_internal::send_event_report(false /* has lock */, m_ndb, data, 7);
   }
   return true;
 }
@@ -879,7 +880,7 @@ BackupRestore::report_completed(unsigned backup_id, unsigned node_id)
     data[0]= NDB_LE_RestoreCompleted;
     data[1]= backup_id;
     data[2]= node_id;
-    Ndb_internal::send_event_report(m_ndb, data, 3);
+    Ndb_internal::send_event_report(false /* has lock */, m_ndb, data, 3);
   }
   return true;
 }
@@ -947,8 +948,14 @@ BackupRestore::table_equal(const TableS &tableS)
 bool
 BackupRestore::table_compatible_check(const TableS & tableS)
 {
-  if (!m_promote_attributes || !m_restore)
+  if (!m_restore)
     return true;
+
+  if (m_tableChangesMask == 0)
+  {
+    return table_equal(tableS);
+  }
+
   const char *tablename = tableS.getTableName();
 
   if(tableS.m_dictTable == NULL){
@@ -982,22 +989,79 @@ BackupRestore::table_compatible_check(const TableS & tableS)
     return false;
   }
 
-  //The first stage only allows to restore fully compatible tables.
-  if(tab->getNoOfColumns() != tableS.m_dictTable->getNoOfColumns())
+  /**
+   * remap column(s) based on column-names
+   */
+  for (int i = 0; i<tableS.m_dictTable->getNoOfColumns(); i++)
   {
-    ndbout_c("m_columns.size %d != %d",tab->getNoOfColumns(),
-                       tableS.m_dictTable->getNoOfColumns());
-    return false;
-  }
- 
-  const NDBCOL * col_in_kernel = NULL, * col_in_backup = NULL;
-  AttrCheckCompatFunc attrCheckCompatFunc = NULL;
+    AttributeDesc * attr_desc = tableS.getAttributeDesc(i);
+    const NDBCOL * col_in_backup = tableS.m_dictTable->getColumn(i);
+    const NDBCOL * col_in_kernel = tab->getColumn(col_in_backup->getName());
 
+    if (col_in_kernel == 0)
+    {
+      if ((m_tableChangesMask & TCM_EXCLUDE_MISSING_COLUMNS) == 0)
+      {
+        ndbout << "Missing column("
+               << tableS.m_dictTable->getName() << "."
+               << col_in_backup->getName()
+               << ") in DB and exclude-missing-columns not specified" << endl;
+        return false;
+      }
+
+      attr_desc->m_exclude = true;
+    }
+    else
+    {
+      attr_desc->attrId = col_in_kernel->getColumnNo();
+    }
+  }
+
+  for (int i = 0; i<tab->getNoOfColumns(); i++)
+  {
+    const NDBCOL * col_in_kernel = tab->getColumn(i);
+    const NDBCOL * col_in_backup =
+      tableS.m_dictTable->getColumn(col_in_kernel->getName());
+
+    if (col_in_backup == 0)
+    {
+      if ((m_tableChangesMask & TCM_EXCLUDE_MISSING_COLUMNS) == 0)
+      {
+        ndbout << "Missing column("
+               << tableS.m_dictTable->getName() << "."
+               << col_in_kernel->getName()
+               << ") in backup and exclude-missing-columns not specified"
+               << endl;
+        return false;
+      }
+
+      /**
+       * only nullable && not primary keys can be missing from backup
+       *
+       * NOTE: In 7.1 we could allow columsn with default value as well
+       */
+      if (col_in_kernel->getPrimaryKey() ||
+          col_in_kernel->getNullable() == false)
+      {
+        ndbout << "Missing column("
+               << tableS.m_dictTable->getName() << "."
+               << col_in_kernel->getName()
+               << ") in backup is primary key or not nullable in DB"
+               << endl;
+        return false;
+      }
+    }
+  }
+
+  AttrCheckCompatFunc attrCheckCompatFunc = NULL;
   for(int i = 0; i<tableS.m_dictTable->getNoOfColumns(); i++)
   {
-    AttributeDesc  * attr_desc = tableS.getAttributeDesc(i);
-    col_in_kernel = tab->getColumn(i);
-    col_in_backup = tableS.m_dictTable->getColumn(i);
+    AttributeDesc * attr_desc = tableS.getAttributeDesc(i);
+    if (attr_desc->m_exclude)
+      continue;
+
+    const NDBCOL * col_in_kernel = tab->getColumn(attr_desc->attrId);
+    const NDBCOL * col_in_backup = tableS.m_dictTable->getColumn(i);
 
     if(col_in_kernel->equal(*col_in_backup))
     {
@@ -1005,13 +1069,24 @@ BackupRestore::table_compatible_check(const TableS & tableS)
     }
     else
     {
+      if ((m_tableChangesMask & TCM_ATTRIBUTE_PROMOTION) == 0)
+      {
+        err << "Table: "<< tablename
+            << " column: " << col_in_backup->getName()
+            << " not equal with DB's definition"
+            << " promote-attributes not specified" << endl;
+        return false;
+      }
+
       NDBCOL::Type type_in_backup = col_in_backup->getType();
       NDBCOL::Type type_in_kernel = col_in_kernel->getType();
-      attrCheckCompatFunc = get_attr_check_compatability(type_in_backup, type_in_kernel);
+      attrCheckCompatFunc = get_attr_check_compatability(type_in_backup,
+                                                         type_in_kernel);
       if (attrCheckCompatFunc &&
           attrCheckCompatFunc(*col_in_backup, *col_in_kernel))
       {
-        attr_desc->convertFunc = get_convert_func(type_in_backup, type_in_kernel);
+        attr_desc->convertFunc = get_convert_func(type_in_backup,
+                                                  type_in_kernel);
         Uint32 m_attrSize = NdbColumnImpl::getImpl(*col_in_kernel).m_attrSize;
         Uint32 m_arraySize = NdbColumnImpl::getImpl(*col_in_kernel).m_arraySize;
 
@@ -1473,6 +1548,9 @@ void BackupRestore::tuple_a(restore_callback_t *cb)
 	int arraySize = attr_desc->arraySize;
 	char * dataPtr = attr_data->string_value;
 	Uint32 length = 0;
+
+        if (attr_desc->m_exclude)
+          continue;
        
         if (!attr_data->null)
         {
@@ -1494,7 +1572,7 @@ void BackupRestore::tuple_a(restore_callback_t *cb)
 	if (j == 0 && tup.getTable()->have_auto_inc(i))
 	  tup.getTable()->update_max_auto_val(dataPtr,size*arraySize);
 	
-        if (m_promote_attributes && attr_desc->convertFunc)
+        if (attr_desc->convertFunc)
         {
           if ((attr_desc->m_column->getPrimaryKey() && j == 0) ||
               (j == 1 && !attr_data->null))
@@ -1512,15 +1590,15 @@ void BackupRestore::tuple_a(restore_callback_t *cb)
 	if (attr_desc->m_column->getPrimaryKey())
 	{
 	  if (j == 1) continue;
-	  ret = op->equal(i, dataPtr, length);
+	  ret = op->equal(attr_desc->attrId, dataPtr, length);
 	}
 	else
 	{
 	  if (j == 0) continue;
 	  if (attr_data->null) 
-	    ret = op->setValue(i, NULL, 0);
+	    ret = op->setValue(attr_desc->attrId, NULL, 0);
 	  else
-	    ret = op->setValue(i, dataPtr, length);
+	    ret = op->setValue(attr_desc->attrId, dataPtr, length);
 	}
 	if (ret < 0) {
 	  ndbout_c("Column: %d type %d %d %d %d",i,
@@ -1710,7 +1788,7 @@ BackupRestore::logEntry(const LogEntry & tup)
   NdbTransaction * trans = m_ndb->startTransaction();
   if (trans == NULL) 
   {
-    // Deep shit, TODO: handle the error
+    // TODO: handle the error
     err << "Cannot start transaction" << endl;
     exitHandler();
   } // if
@@ -1767,6 +1845,9 @@ BackupRestore::logEntry(const LogEntry & tup)
     int size = attr->Desc->size;
     int arraySize = attr->Desc->arraySize;
     const char * dataPtr = attr->Data.string_value;
+
+    if (attr->Desc->m_exclude)
+      continue;
     
     if (tup.m_table->have_auto_inc(attr->Desc->attrId))
       tup.m_table->update_max_auto_val(dataPtr,size*arraySize);
@@ -1774,7 +1855,7 @@ BackupRestore::logEntry(const LogEntry & tup)
     const Uint32 length = (size / 8) * arraySize;
     n_bytes+= length;
 
-    if (m_promote_attributes && attr->Desc->convertFunc)
+    if (attr->Desc->convertFunc)
     {
       dataPtr = (char*)attr->Desc->convertFunc(dataPtr, attr->Desc->parameter);
 
@@ -2392,80 +2473,6 @@ BackupRestore::convert_var_longvar(const void *old_data,
 
   return parameter;
 }
-
-#if 0 // old tuple impl
-void
-BackupRestore::tuple(const TupleS & tup)
-{
-  if (!m_restore)
-    return;
-  while (1) 
-  {
-    NdbTransaction * trans = m_ndb->startTransaction();
-    if (trans == NULL) 
-    {
-      // Deep shit, TODO: handle the error
-      ndbout << "Cannot start transaction" << endl;
-      exitHandler();
-    } // if
-    
-    const TableS * table = tup.getTable();
-    NdbOperation * op = trans->getNdbOperation(table->getTableName());
-    if (op == NULL) 
-    {
-      ndbout << "Cannot get operation: ";
-      ndbout << trans->getNdbError() << endl;
-      exitHandler();
-    } // if
-    
-    // TODO: check return value and handle error
-    if (op->writeTuple() == -1) 
-    {
-      ndbout << "writeTuple call failed: ";
-      ndbout << trans->getNdbError() << endl;
-      exitHandler();
-    } // if
-    
-    for (int i = 0; i < tup.getNoOfAttributes(); i++) 
-    {
-      const AttributeS * attr = tup[i];
-      int size = attr->Desc->size;
-      int arraySize = attr->Desc->arraySize;
-      const char * dataPtr = attr->Data.string_value;
-      
-      const Uint32 length = (size * arraySize) / 8;
-      if (attr->Desc->m_column->getPrimaryKey()) 
-	op->equal(i, dataPtr, length);
-    }
-    
-    for (int i = 0; i < tup.getNoOfAttributes(); i++) 
-    {
-      const AttributeS * attr = tup[i];
-      int size = attr->Desc->size;
-      int arraySize = attr->Desc->arraySize;
-      const char * dataPtr = attr->Data.string_value;
-      
-      const Uint32 length = (size * arraySize) / 8;
-      if (!attr->Desc->m_column->getPrimaryKey())
-	if (attr->Data.null)
-	  op->setValue(i, NULL, 0);
-	else
-	  op->setValue(i, dataPtr, length);
-    }
-    int ret = trans->execute(NdbTransaction::Commit);
-    if (ret != 0)
-    {
-      ndbout << "execute failed: ";
-      ndbout << trans->getNdbError() << endl;
-      exitHandler();
-    }
-    m_ndb->closeTransaction(trans);
-    if (ret == 0)
-      break;
-  }
-  m_dataCount++;
-}
-#endif
 
 template class Vector<NdbDictionary::Table*>;
 template class Vector<const NdbDictionary::Table*>;

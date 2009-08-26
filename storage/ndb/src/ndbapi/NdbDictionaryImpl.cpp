@@ -2860,13 +2860,32 @@ NdbDictInterface::createTable(Ndb & ndb,
 
   DBUG_ENTER("NdbDictInterface::createTable");
 
+  if (impl.m_fragmentType == NdbDictionary::Object::HashMapPartition)
+  {
+    if (impl.m_hash_map_id == RNIL && impl.m_hash_map_version == ~(Uint32)0)
+    {
+      /**
+       * Make sure that hashmap exists (i.e after upgrade or similar)
+       */
+      NdbHashMapImpl hashmap;
+      ret = create_hashmap(hashmap, 0,
+                           CreateHashMapReq::CreateDefault |
+                           CreateHashMapReq::CreateIfNotExists);
+      if (ret)
+      {
+        DBUG_RETURN(ret);
+      }
+    }
+  }
 
   syncInternalName(ndb, impl);
 
   UtilBufferWriter w(m_buffer);
   ret= serializeTableDesc(ndb, impl, w);
   if(ret != 0)
+  {
     DBUG_RETURN(ret);
+  }
 
   DBUG_RETURN(sendCreateTable(impl, w));
 }
@@ -6903,6 +6922,7 @@ NdbDictInterface::drop_file(const NdbFileImpl & file)
   req->senderData = 0;
   req->file_id = file.m_id;
   req->file_version = file.m_version;
+  req->requestInfo = 0;
   req->requestInfo |= m_tx.requestFlags();
   req->transId = m_tx.transId();
   req->transKey = m_tx.transKey();
@@ -7000,6 +7020,7 @@ NdbDictInterface::create_filegroup(const NdbFilegroupImpl & group,
   req->senderRef = m_reference;
   req->senderData = 0;
   req->objType = fg.FilegroupType;
+  req->requestInfo = 0;
   req->requestInfo |= m_tx.requestFlags();
   req->transId = m_tx.transId();
   req->transKey = m_tx.transKey();
@@ -7063,6 +7084,7 @@ NdbDictInterface::drop_filegroup(const NdbFilegroupImpl & group)
   req->senderData = 0;
   req->filegroup_id = group.m_id;
   req->filegroup_version = group.m_version;
+  req->requestInfo = 0;
   req->requestInfo |= m_tx.requestFlags();
   req->transId = m_tx.transId();
   req->transKey = m_tx.transKey();
@@ -7531,7 +7553,8 @@ NdbDictInterface::parseHashMapInfo(NdbHashMapImpl &dst,
 
 int
 NdbDictInterface::create_hashmap(const NdbHashMapImpl& src,
-                                 NdbDictObjectImpl* obj)
+                                 NdbDictObjectImpl* obj,
+                                 Uint32 flags)
 {
   DictHashMapInfo::HashMap hm; hm.init();
   BaseString::snprintf(hm.HashMapName, sizeof(hm.HashMapName), src.getName());
@@ -7566,6 +7589,7 @@ NdbDictInterface::create_hashmap(const NdbHashMapImpl& src,
   CreateHashMapReq* req = CAST_PTR(CreateHashMapReq, tSignal.getDataPtrSend());
   req->clientRef = m_reference;
   req->clientData = 0;
+  req->requestInfo = flags;
   req->requestInfo |= m_tx.requestFlags();
   req->transId = m_tx.transId();
   req->transKey = m_tx.transKey();
@@ -7582,7 +7606,12 @@ NdbDictInterface::create_hashmap(const NdbHashMapImpl& src,
     Send signal without time-out since creating files can take a very long
     time if the file is very big.
   */
-  int ret = dictSignal(&tSignal, ptr, 1,
+  Uint32 seccnt = 1;
+  if (flags & CreateHashMapReq::CreateDefault)
+  {
+    seccnt = 0;
+  }
+  int ret = dictSignal(&tSignal, ptr, seccnt,
 		       0, // master
 		       WAIT_CREATE_INDX_REQ,
 		       -1, 100,

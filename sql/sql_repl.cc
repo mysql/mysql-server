@@ -1156,7 +1156,10 @@ int reset_slave(THD *thd, Master_info* mi)
   if ((error= purge_relay_logs(&mi->rli, thd,
 			       1 /* just reset */,
 			       &errmsg)))
+  {
+    sql_errno= ER_RELAY_LOG_FAIL;
     goto err;
+  }
 
   /*
     Clear master's log coordinates and reset host/user/etc to the values

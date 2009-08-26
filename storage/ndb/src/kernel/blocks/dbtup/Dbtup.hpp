@@ -2968,6 +2968,8 @@ private:
   void move_var_part(Fragrecord* fragPtr, Tablerec* tabPtr, PagePtr pagePtr,
                      Var_part_ref* refptr, Uint32 size);
  
+  void free_var_part(Fragrecord* fragPtr, PagePtr pagePtr, Uint32 page_idx);
+
   void validate_page(Tablerec*, Var_page* page);
   
   Uint32* alloc_fix_rec(Fragrecord*const, Tablerec*const, Local_key*,

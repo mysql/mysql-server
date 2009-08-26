@@ -790,6 +790,7 @@ NDBT_TestSuite::NDBT_TestSuite(const char* pname) :
    tsname = NULL;
    temporaryTables = false;
    runonce = false;
+   m_noddl = false;
 }
 
 
@@ -876,6 +877,7 @@ int NDBT_TestSuite::executeAll(Ndb_cluster_connection& con,
       ctx->setNumRecords(records);
       ctx->setNumLoops(loops);
       ctx->setSuite(this);
+      ctx->setProperty("NoDDL", (Uint32) m_noddl);
 
       int result = tests[i]->execute(ctx);
 
@@ -951,6 +953,7 @@ NDBT_TestSuite::executeOneCtx(Ndb_cluster_connection& con,
       ctx->setNumRecords(records);
       ctx->setNumLoops(loops);
       ctx->setSuite(this);
+      ctx->setProperty("NoDDL", (Uint32) m_noddl);
     
       result = tests[t]->execute(ctx);
       if (result != NDBT_OK)
@@ -1026,6 +1029,7 @@ void NDBT_TestSuite::execute(Ndb_cluster_connection& con,
     ctx->setNumLoops(loops);
     ctx->setSuite(this);
     ctx->setTab(pTab);
+    ctx->setProperty("NoDDL", (Uint32) m_noddl);
 
     result = tests[t]->execute(ctx);
     tests[t]->saveTestResult(pTab->getName(), result);
@@ -1127,7 +1131,6 @@ NDBT_TestSuite::dropTables(Ndb_cluster_connection& con) const
   Ndb ndb(&con, "TEST_DB");
   ndb.init(1);
 
-  int res= NDBT_OK;
   NdbDictionary::Dictionary* pDict = ndb.getDictionary();
   for(unsigned i = 0; i<m_tables_in_test.size(); i++)
   {
@@ -1155,10 +1158,47 @@ runDropTable(NDBT_Context* ctx, NDBT_Step* step)
     Ndb ndb(&ctx->m_cluster_connection, "TEST_DB");
     ndb.init(1);
     
-    int res= NDBT_OK;
     NdbDictionary::Dictionary* pDict = ndb.getDictionary();
     pDict->dropTable(tab_name);
   }
+  return NDBT_OK;
+}
+
+
+static int
+runCheckTableExists(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb ndb(&ctx->m_cluster_connection, "TEST_DB");
+  ndb.init(1);
+
+  NdbDictionary::Dictionary* pDict = ndb.getDictionary();
+  const NdbDictionary::Table* pTab = ctx->getTab();
+  const char *tab_name=  pTab->getName();
+
+  const NdbDictionary::Table* pDictTab = pDict->getTable(tab_name);
+
+  if (pDictTab == NULL)
+  {
+    g_err << "runCheckTableExists : Failed to find table " 
+          << tab_name << endl;
+    g_err << "Required schema : " << *((NDBT_Table*)pTab) << endl;
+    return NDBT_FAILED;
+  }
+
+  /* Todo : better check that table in DB is same as
+   * table we expect
+   */
+
+  // Update ctx with a pointer to dict table
+  ctx->setTab(pDictTab);
+  ctx->setProperty("$table", tab_name);
+
+  return NDBT_OK;
+}
+
+static int
+runEmptyDropTable(NDBT_Context* ctx, NDBT_Step* step)
+{
   return NDBT_OK;
 }
 
@@ -1239,6 +1279,7 @@ static int opt_verbose;
 static int opt_seed = 0;
 static int opt_nologging = 0;
 static int opt_temporary = 0;
+static int opt_noddl = 0;
 
 static struct my_option my_long_options[] =
 {
@@ -1275,6 +1316,9 @@ static struct my_option my_long_options[] =
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "nologging", 0, "Create table(s) wo/ logging",
     (uchar **) &opt_nologging, (uchar **) &opt_nologging, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "noddl", 0, "Don't create/drop tables as part of running tests",
+    (uchar**) &opt_noddl, (uchar**) &opt_noddl, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -1345,6 +1389,7 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
   if (opt_nologging)
     setLogging(false);
   temporaryTables = opt_temporary;
+  m_noddl = opt_noddl;
 
   if (opt_seed == 0)
   {
@@ -1375,16 +1420,39 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
   {
     for (unsigned t = 0; t < tests.size(); t++)
     {
+      const char* createFuncName= NULL;
+      NDBT_TESTFUNC* createFunc= NULL;
+      const char* dropFuncName= NULL;
+      NDBT_TESTFUNC* dropFunc= NULL;
+
+      if (!m_noddl)
+      {
+        createFuncName= m_createAll ? "runCreateTable" : "runCreateTable";
+        createFunc=   m_createAll ? &runCreateTables : &runCreateTable;
+        dropFuncName= m_createAll ? "runDropTables" : "runDropTable";
+        dropFunc= m_createAll ? &runDropTables : &runDropTable;
+      }
+      else
+      {
+        /* No DDL allowed, so we substitute 'do nothing' variants
+         * of the create + drop table test procs
+         */
+        createFuncName= "runCheckTableExists";
+        createFunc= &runCheckTableExists;
+        dropFuncName= "runEmptyDropTable";
+        dropFunc= &runEmptyDropTable;
+      }
+
       NDBT_TestCaseImpl1* pt= (NDBT_TestCaseImpl1*)tests[t];
       NDBT_Initializer* pti =
         new NDBT_Initializer(pt,
-                             m_createAll ? "runCreateTables" : "runCreateTable",
-                             m_createAll ? runCreateTables : runCreateTable);
+                             createFuncName,
+                             *createFunc);
       pt->addInitializer(pti, true);
       NDBT_Finalizer* ptf =
         new NDBT_Finalizer(pt,
-                           m_createAll ? "runDropTables" : "runDropTable",
-                           m_createAll ? runDropTables : runDropTable);
+                           dropFuncName,
+                           *dropFunc);
       pt->addFinalizer(ptf);
     }
   }

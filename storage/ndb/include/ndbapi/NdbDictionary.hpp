@@ -170,6 +170,8 @@ public:
       UserDefined = 7,
       HashMapPartition = 9
     };
+  private:
+    Object&operator=(const Object&);
   };
 
   class Dictionary; // Forward declaration
@@ -195,6 +197,9 @@ public:
   private:
     friend class NdbDictObjectImpl;
     class NdbDictObjectImpl & m_impl;
+
+    ObjectId(const ObjectId&); // Not impl.
+    ObjectId&operator=(const ObjectId&);
   };
   
   class Table; // forward declaration

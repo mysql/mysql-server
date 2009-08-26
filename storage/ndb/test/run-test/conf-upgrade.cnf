@@ -11,6 +11,7 @@ fix-nodeid=1
 skip-innodb
 loose-skip-bdb
 socket=mysql.sock
+skip-grant-tables
 
 [client]
 protocol=tcp

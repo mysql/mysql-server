@@ -1079,7 +1079,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    "8",
+    "2",
     "0",  
     STR_VALUE(MAX_INT_RNIL) },
 
@@ -1241,7 +1241,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_DB_ARBIT_METHOD,
     "Arbitration",
     DB_TOKEN,
-    "How to perform arbitration to avoid \"split brain\" when node(s) fail",
+    "How to perform arbitration to avoid split-brain issue when node(s) fail",
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_ENUM,
@@ -1680,7 +1680,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_NDBMT_CLASSIC,
     "__ndbmt_classic",
     DB_TOKEN,
-    "For ndbmtd use \"mt-classic\"",
+    "For ndbmtd use mt-classic",
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_BOOL,
@@ -1926,6 +1926,20 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "256K",
     STR_VALUE(MAX_INT_RNIL)
   },
+
+  {
+    CFG_AUTO_RECONNECT,
+    "AutoReconnect",
+    "API",
+    "Specifies if an api node should reconnect when fully disconnected from cluster",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_BOOL,
+    "true",
+    "false",
+    "true"
+  },
+
 
   /****************************************************************************
    * MGM

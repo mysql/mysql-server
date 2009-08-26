@@ -158,6 +158,10 @@ SimulatedBlock::initCommon()
   count = 5;
   this->getParam("ActiveCounters", &count);
   c_counterMgr.setSize(count);
+
+  count = 5;
+  this->getParam("ActiveThreadSync", &count);
+  c_syncThreadPool.setSize(count);
 }
 
 SimulatedBlock::~SimulatedBlock()
@@ -208,6 +212,8 @@ SimulatedBlock::installSimulatedBlockFunctions(){
   a[GSN_API_START_REP] = &SimulatedBlock::execAPI_START_REP;
   a[GSN_SEND_PACKED] = &SimulatedBlock::execSEND_PACKED;
   a[GSN_CALLBACK_CONF] = &SimulatedBlock::execCALLBACK_CONF;
+  a[GSN_SYNC_THREAD_REQ] = &SimulatedBlock::execSYNC_THREAD_REQ;
+  a[GSN_SYNC_THREAD_CONF] = &SimulatedBlock::execSYNC_THREAD_CONF;
 }
 
 void
@@ -1928,7 +1934,6 @@ SimulatedBlock::execCALLBACK_CONF(Signal* signal)
   Uint32 senderRef = conf->senderRef;
 
   ndbrequire(m_callbackTableAddr != 0);
-  const CallbackTable& ct = *m_callbackTableAddr;
   const CallbackEntry& ce = getCallbackEntry(conf->callbackIndex);
   CallbackFunction function = ce.m_function;
 
@@ -3349,3 +3354,67 @@ SimulatedBlock::debugOutTag(char *buf, int line)
   return buf;
 }
 #endif
+
+void
+SimulatedBlock::synchronize_threads_for_blocks(Signal * signal,
+                                               const Uint32 blocks[],
+                                               const Callback & cb,
+                                               JobBufferLevel prio)
+{
+#ifndef NDBD_MULTITHREADED
+  Callback copy = cb;
+  execute(signal, copy, 0);
+#else
+  ljam();
+  Uint32 ref[32]; // max threads
+  Uint32 cnt = mt_get_thread_references_for_blocks(blocks, getThreadId(),
+                                                   ref, NDB_ARRAY_SIZE(ref));
+  if (cnt == 0)
+  {
+    ljam();
+    Callback copy = cb;
+    execute(signal, copy, 0);
+    return;
+  }
+
+  Ptr<SyncThreadRecord> ptr;
+  ndbrequire(c_syncThreadPool.seize(ptr));
+  ptr.p->m_cnt = cnt;
+  ptr.p->m_callback = cb;
+
+  signal->theData[0] = reference();
+  signal->theData[1] = ptr.i;
+  signal->theData[2] = Uint32(prio);
+  for (Uint32 i = 0; i<cnt; i++)
+  {
+    sendSignal(ref[i], GSN_SYNC_THREAD_REQ, signal, 3, prio);
+  }
+#endif
+}
+
+void
+SimulatedBlock::execSYNC_THREAD_REQ(Signal* signal)
+{
+  ljamEntry();
+  Uint32 ref = signal->theData[0];
+  Uint32 prio = signal->theData[2];
+  sendSignal(ref, GSN_SYNC_THREAD_CONF, signal, signal->getLength(),
+             JobBufferLevel(prio));
+}
+
+void
+SimulatedBlock::execSYNC_THREAD_CONF(Signal* signal)
+{
+  ljamEntry();
+  Ptr<SyncThreadRecord> ptr;
+  c_syncThreadPool.getPtr(ptr, signal->theData[1]);
+  if (ptr.p->m_cnt == 1)
+  {
+    ljam();
+    Callback copy = ptr.p->m_callback;
+    c_syncThreadPool.release(ptr);
+    execute(signal, copy, 0);
+    return;
+  }
+  ptr.p->m_cnt --;
+}

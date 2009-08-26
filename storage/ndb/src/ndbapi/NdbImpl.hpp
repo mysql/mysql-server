@@ -58,7 +58,7 @@ public:
   NdbImpl(Ndb_cluster_connection *, Ndb&);
   ~NdbImpl();
 
-  int send_event_report(Uint32 *data, Uint32 length);
+  int send_event_report(bool has_lock, Uint32 *data, Uint32 length);
 
   Ndb &m_ndb;
   Ndb * m_next_ndb_object, * m_prev_ndb_object;

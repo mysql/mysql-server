@@ -789,7 +789,7 @@ done:
       //  IF THERE WAS A LOCAL CHECKPOINT ONGOING AT THE CRASH MOMENT WE WILL
       //    INVALIDATE THAT LOCAL CHECKPOINT.
       /* -------------------------------------------------------------------- */
-      invalidateLcpInfoAfterSr();
+      invalidateLcpInfoAfterSr(signal);
     }//if
 
     if (m_micro_gcp.m_enabled == false && 
@@ -4676,7 +4676,7 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
   
   if (isMaster()) {
     jam();
-    setNodeRestartInfoBits();
+    setNodeRestartInfoBits(signal);
   }//if
 }//Dbdih::execNODE_FAILREP()
 
@@ -4965,7 +4965,7 @@ void Dbdih::failedNodeLcpHandling(Signal* signal, NodeRecordPtr failedNodePtr)
       break;
     case Sysfile::NS_ActiveMissed_1:
       jam();
-      failedNodePtr.p->activeStatus = Sysfile::NS_ActiveMissed_2;
+      failedNodePtr.p->activeStatus = Sysfile::NS_ActiveMissed_1;
       break;
     case Sysfile::NS_ActiveMissed_2:
       jam();
@@ -6287,13 +6287,15 @@ Dbdih::sendMASTER_LCPCONF(Signal * signal){
     return;
   }
 
-  if(c_lcpState.lcpStatus == LCP_COPY_GCI){
+  if(c_lcpState.lcpStatus == LCP_COPY_GCI)
+  {
     jam();
     /**
      * Restart it
      */
     //Uint32 lcpId = SYSFILE->latestLCP_ID;
     SYSFILE->latestLCP_ID--;
+    Sysfile::clearLCPOngoing(SYSFILE->systemRestartBits);
     c_lcpState.setLcpStatus(LCP_STATUS_IDLE, __LINE__);
 #if 0
     if(c_copyGCISlave.m_copyReason == CopyGCIReq::LOCAL_CHECKPOINT){
@@ -9435,8 +9437,25 @@ void Dbdih::execGCP_TCFINISHED(Signal* signal)
 #endif
 
   ndbrequire(m_micro_gcp.m_state == MicroGcp::M_GCP_COMMIT);
+
+  /**
+   * Make sure that each LQH gets scheduled, so that they don't get out of sync
+   * wrt to SUB_GCP_COMPLETE_REP
+   */
+  Callback cb;
+  cb.m_callbackData = 10;
+  cb.m_callbackFunction = safe_cast(&Dbdih::execGCP_TCFINISHED_sync_conf);
+  Uint32 blocks[] = { DBLQH, 0 };
+  synchronize_threads_for_blocks(signal, blocks, cb);
+}//Dbdih::execGCP_TCFINISHED()
+
+void
+Dbdih::execGCP_TCFINISHED_sync_conf(Signal* signal, Uint32 cb, Uint32 err)
+{
+  ndbrequire(m_micro_gcp.m_state == MicroGcp::M_GCP_COMMIT);
+
   m_micro_gcp.m_state = MicroGcp::M_GCP_COMMITTED;
-  retRef = m_micro_gcp.m_master_ref;
+  Uint32 retRef = m_micro_gcp.m_master_ref;
 
   GCPNodeFinished* conf2 = (GCPNodeFinished*)signal->getDataPtrSend();
   conf2->nodeId = cownNodeId;
@@ -9445,7 +9464,7 @@ void Dbdih::execGCP_TCFINISHED(Signal* signal)
   conf2->gci_lo = (Uint32)(m_micro_gcp.m_old_gci & 0xFFFFFFFF);
   sendSignal(retRef, GSN_GCP_NODEFINISH, signal, 
              GCPNodeFinished::SignalLength, JBB);
-}//Dbdih::execGCP_TCFINISHED()
+}
 
 void
 Dbdih::execSUB_GCP_COMPLETE_REP(Signal* signal)
@@ -9894,7 +9913,7 @@ void Dbdih::execCOPY_GCICONF(Signal* signal)
   }
 }//Dbdih::execCOPY_GCICONF()
 
-void Dbdih::invalidateLcpInfoAfterSr()
+void Dbdih::invalidateLcpInfoAfterSr(Signal* signal)
 {
   NodeRecordPtr nodePtr;
   SYSFILE->latestLCP_ID--;
@@ -9911,10 +9930,8 @@ void Dbdih::invalidateLcpInfoAfterSr()
       /* ------------------------------------------------------------------- */
       switch (nodePtr.p->activeStatus) {
       case Sysfile::NS_Active:
-	/* ----------------------------------------------------------------- */
-	// When not active in ongoing LCP and still active is a contradiction.
-	/* ----------------------------------------------------------------- */
-        ndbrequire(false);
+        nodePtr.p->activeStatus = Sysfile::NS_Active;
+        break;
       case Sysfile::NS_ActiveMissed_1:
         jam();
         nodePtr.p->activeStatus = Sysfile::NS_Active;
@@ -9927,9 +9944,14 @@ void Dbdih::invalidateLcpInfoAfterSr()
         jam();
         break;
       }//switch
-    }//if
+    }
+    else
+    {
+      jam();
+      ndbassert(nodePtr.p->activeStatus == Sysfile::NS_Active);
+    }
   }//for
-  setNodeRestartInfoBits();
+  setNodeRestartInfoBits(signal);
 }//Dbdih::invalidateLcpInfoAfterSr()
 
 /* ------------------------------------------------------------------------- */
@@ -9948,6 +9970,8 @@ void Dbdih::writingCopyGciLab(Signal* signal, FileRecordPtr filePtr)
   /*     WE HAVE NOW WRITTEN THIS FILE. WRITE ALSO NEXT FILE IF THIS IS NOT  */
   /*     ALREADY THE LAST.                                                   */
   /* ----------------------------------------------------------------------- */
+  CRASH_INSERTION(7219);
+
   filePtr.p->reqStatus = FileRecord::IDLE;
   if (filePtr.i == crestartInfoFile[0]) {
     jam();
@@ -11808,7 +11832,7 @@ void Dbdih::storeNewLcpIdLab(Signal* signal)
    *   but this function has been move "up" in the flow
    *   to just before calcKeepGci
    */
-  setNodeRestartInfoBits();
+  setNodeRestartInfoBits(signal);
 
   c_lcpState.setLcpStatus(LCP_COPY_GCI, __LINE__);
   //#ifdef VM_TRACE
@@ -11822,6 +11846,8 @@ void Dbdih::storeNewLcpIdLab(Signal* signal)
 
 void Dbdih::startLcpRoundLab(Signal* signal) {
   jam();
+
+  CRASH_INSERTION(7218);
 
   Mutex mutex(signal, c_mutexMgr, c_startLcpMutexHandle);
   Callback c = { safe_cast(&Dbdih::startLcpMutex_locked), 0 };
@@ -12841,8 +12867,8 @@ void Dbdih::allNodesLcpCompletedLab(Signal* signal)
     }
   }
   
-  setLcpActiveStatusEnd(signal);
   Sysfile::clearLCPOngoing(SYSFILE->systemRestartBits);
+  setLcpActiveStatusEnd(signal);
 
   if(!isMaster()){
     jam();
@@ -13203,7 +13229,7 @@ void Dbdih::crashSystemAtGcpStop(Signal* signal, bool local)
       signal->theData[0] = 2305;
       sendSignal(rg, GSN_DUMP_STATE_ORD, signal, 1, JBB);
       
-      infoEvent("Detected GCP stop(%d)...sending kill to %s", 
+      warningEvent("Detected GCP stop(%d)...sending kill to %s", 
                 m_gcp_save.m_master.m_state, c_GCP_SAVEREQ_Counter.getText());
       ndbout_c("Detected GCP stop(%d)...sending kill to %s", 
                m_gcp_save.m_master.m_state, c_GCP_SAVEREQ_Counter.getText());
@@ -13215,7 +13241,7 @@ void Dbdih::crashSystemAtGcpStop(Signal* signal, bool local)
       /**
        * We're waiting for a COPY_GCICONF
        */
-      infoEvent("Detected GCP stop(%d)...sending kill to %s", 
+      warningEvent("Detected GCP stop(%d)...sending kill to %s", 
                 m_gcp_save.m_master.m_state, c_COPY_GCIREQ_Counter.getText());
       ndbout_c("Detected GCP stop(%d)...sending kill to %s", 
                m_gcp_save.m_master.m_state, c_COPY_GCIREQ_Counter.getText());
@@ -13265,7 +13291,7 @@ void Dbdih::crashSystemAtGcpStop(Signal* signal, bool local)
     /**
      * We're waiting for a GCP PREPARE CONF
      */
-      infoEvent("Detected GCP stop(%d)...sending kill to %s", 
+      warningEvent("Detected GCP stop(%d)...sending kill to %s", 
                 m_micro_gcp.m_state, c_GCP_PREPARE_Counter.getText());
       ndbout_c("Detected GCP stop(%d)...sending kill to %s", 
                m_micro_gcp.m_state, c_GCP_PREPARE_Counter.getText());
@@ -13292,7 +13318,7 @@ void Dbdih::crashSystemAtGcpStop(Signal* signal, bool local)
     }
     case MicroGcp::M_GCP_COMMIT:
     {
-      infoEvent("Detected GCP stop(%d)...sending kill to %s", 
+      warningEvent("Detected GCP stop(%d)...sending kill to %s", 
                 m_micro_gcp.m_state, c_GCP_COMMIT_Counter.getText());
       ndbout_c("Detected GCP stop(%d)...sending kill to %s", 
                m_micro_gcp.m_state, c_GCP_COMMIT_Counter.getText());
@@ -15552,7 +15578,7 @@ void Dbdih::setLcpActiveStatusEnd(Signal* signal)
   c_lcpState.m_participatingLQH.clear();
   if (isMaster()) {
     jam();
-    setNodeRestartInfoBits();
+    setNodeRestartInfoBits(signal);
   }//if
 }//Dbdih::setLcpActiveStatusEnd()
 
@@ -15656,7 +15682,7 @@ void Dbdih::setNodeGroups()
 /*************************************************************************/
 /* SET THE RESTART INFO BITS BASED ON THE NODES ACTIVE STATUS.           */
 /*************************************************************************/
-void Dbdih::setNodeRestartInfoBits() 
+void Dbdih::setNodeRestartInfoBits(Signal * signal)
 {
   NodeRecordPtr nodePtr;
   Uint32 tsnrNodeGroup;
@@ -15669,7 +15695,11 @@ void Dbdih::setNodeRestartInfoBits()
     SYSFILE->nodeGroups[i] = 0;
   }//for
   NdbNodeBitmask::clear(SYSFILE->lcpActive);
-  
+
+#ifdef ERROR_INSERT
+  NdbNodeBitmask tmp;
+#endif
+
   for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++) {
     ptrAss(nodePtr, nodeRecord);
     switch (nodePtr.p->activeStatus) {
@@ -15716,11 +15746,41 @@ void Dbdih::setNodeRestartInfoBits()
       tsnrNodeGroup = nodePtr.p->nodeGroup;
     }//if
     Sysfile::setNodeGroup(nodePtr.i, SYSFILE->nodeGroups, tsnrNodeGroup);
-    if (c_lcpState.m_participatingLQH.get(nodePtr.i)){
+    if (c_lcpState.m_participatingLQH.get(nodePtr.i))
+    {
       jam();
       NdbNodeBitmask::set(SYSFILE->lcpActive, nodePtr.i);
     }//if
+#ifdef ERROR_INSERT
+    else if (Sysfile::getLCPOngoing(SYSFILE->systemRestartBits))
+    {
+      jam();
+      if (nodePtr.p->activeStatus == Sysfile::NS_Active)
+        tmp.set(nodePtr.i);
+    }
+#endif
   }//for
+
+#ifdef ERROR_INSERT
+  if (!tmp.isclear())
+  {
+    jam();
+
+    NdbNodeBitmask all;
+    nodePtr.i = cfirstAliveNode;
+    do {
+      jam();
+      ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
+      all.set(nodePtr.i);
+      nodePtr.i = nodePtr.p->nextNode;
+    } while (nodePtr.i != RNIL);
+
+
+    NodeReceiverGroup rg(DBDIH, all);
+    signal->theData[0] = 7219;
+    sendSignal(rg, GSN_NDB_TAMPER, signal,  1, JBA);
+  }
+#endif
 }//Dbdih::setNodeRestartInfoBits()
 
 /*************************************************************************/
@@ -16602,15 +16662,7 @@ void Dbdih::execBLOCK_COMMIT_ORD(Signal* signal){
   BlockCommitOrd* const block = (BlockCommitOrd *)&signal->theData[0];
 
   jamEntry();
-#if 0
-  ndbrequire(c_blockCommit == false || 
-	     c_blockCommitNo == block->failNo);
-#else
-  if(!(c_blockCommit == false || c_blockCommitNo == block->failNo)){
-    infoEvent("Possible bug in Dbdih::execBLOCK_COMMIT_ORD c_blockCommit = %d c_blockCommitNo = %d"
-	      " sig->failNo = %d", c_blockCommit, c_blockCommitNo, block->failNo);
-  }
-#endif
+
   c_blockCommit = true;
   c_blockCommitNo = block->failNo;
 }
@@ -16621,9 +16673,9 @@ void Dbdih::execUNBLOCK_COMMIT_ORD(Signal* signal){
 
   jamEntry();
   
-  if(c_blockCommit == true){
+  if(c_blockCommit == true)
+  {
     jam();
-    //    ndbrequire(c_blockCommitNo == unblock->failNo);
     
     c_blockCommit = false;
     emptyverificbuffer(signal, true);

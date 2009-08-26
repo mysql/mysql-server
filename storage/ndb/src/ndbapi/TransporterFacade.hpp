@@ -161,6 +161,8 @@ public:
   NdbWaiter* rem_last_from_cond_wait_queue();
   // heart beat received from a node (e.g. a signal came)
   void hb_received(NodeId n);
+  void set_auto_reconnect(int val);
+  int get_auto_reconnect() const;
 
   /* TransporterCallback interface. */
   void deliver_signal(SignalHeader * const header,
@@ -191,7 +193,6 @@ public:
   {
     theTransporterRegistry->reset_send_buffer(node, should_be_empty);
   }
-
 
 private:
   void init_cond_wait_queue();

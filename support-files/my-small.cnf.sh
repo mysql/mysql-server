@@ -27,9 +27,9 @@ socket		= @MYSQL_UNIX_ADDR@
 port		= @MYSQL_TCP_PORT@
 socket		= @MYSQL_UNIX_ADDR@
 skip-locking
-key_buffer = 16K
+key_buffer_size = 16K
 max_allowed_packet = 1M
-table_cache = 4
+table_open_cache = 4
 sort_buffer_size = 64K
 read_buffer_size = 256K
 read_rnd_buffer_size = 256K
@@ -74,12 +74,8 @@ no-auto-rehash
 # Remove the next comment character if you are not familiar with SQL
 #safe-updates
 
-[isamchk]
-key_buffer = 8M
-sort_buffer_size = 8M
-
 [myisamchk]
-key_buffer = 8M
+key_buffer_size = 8M
 sort_buffer_size = 8M
 
 [mysqlhotcopy]

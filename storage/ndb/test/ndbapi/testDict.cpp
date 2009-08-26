@@ -3168,7 +3168,8 @@ runDropDDObjects(NDBT_Context* ctx, NDBT_Step* step){
       case NdbDictionary::Object::UserTable:
         tableFound = list.elements[i].name;
         if(tableFound != 0){
-          if(strcmp(tableFound, "ndb_apply_status") != 0 && 
+          if(strcmp(list.elements[i].database, "TEST_DB") == 0 &&
+             strcmp(tableFound, "ndb_apply_status") != 0 &&
              strcmp(tableFound, "NDB$BLOB_2_3") != 0 &&
              strcmp(tableFound, "ndb_schema") != 0){
       	    if(pDict->dropTable(tableFound) != 0){
@@ -3298,6 +3299,139 @@ testDropDDObjectsSetup(NDBT_Context* ctx, NDBT_Step* step){
   
   return NDBT_OK;
 }
+
+int
+runBug36072(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* pDict = pNdb->getDictionary();
+  NdbRestarter res;
+
+  int err[] = { 6016, 
+#if BUG_46856
+                6017, 
+#endif
+                0 };
+  for (Uint32 i = 0; i<err[i] != 0; i++)
+  {
+    int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+
+    if (res.dumpStateAllNodes(val2, 2))
+      return NDBT_FAILED;
+
+    if (res.insertErrorInAllNodes(932)) // arbit
+      return NDBT_FAILED;
+
+    int code = err[i];
+
+    if (code == 6016)
+    {
+      if (res.insertErrorInAllNodes(code))
+        return NDBT_FAILED;
+    }
+
+    NdbDictionary::LogfileGroup lg;
+    lg.setName("DEFAULT-LG");
+    lg.setUndoBufferSize(8*1024*1024);
+
+    NdbDictionary::Undofile uf;
+    uf.setPath("undofile01.dat");
+    uf.setSize(5*1024*1024);
+    uf.setLogfileGroup("DEFAULT-LG");
+
+    int r = pDict->createLogfileGroup(lg);
+    if (code == 6017)
+    {
+      if (r)
+      {
+        ndbout << __LINE__ << " : " << pDict->getNdbError() << endl;
+        return NDBT_FAILED;
+      }
+
+      if (res.insertErrorInAllNodes(err[i]))
+        return NDBT_FAILED;
+
+      pDict->createUndofile(uf);
+    }
+
+    if (res.waitClusterNoStart())
+      return NDBT_FAILED;
+
+    res.startAll();
+    if (res.waitClusterStarted())
+      return NDBT_FAILED;
+
+    if (code == 6016)
+    {
+      NdbDictionary::LogfileGroup lg2 = pDict->getLogfileGroup("DEFAULT-LG");
+      NdbError err= pDict->getNdbError();
+      if( (int) err.classification == (int) ndberror_cl_none)
+      {
+        ndbout << __LINE__ << " : " << pDict->getNdbError() << endl;
+        return NDBT_FAILED;
+      }
+
+      if (pDict->createLogfileGroup(lg) != 0)
+      {
+        ndbout << __LINE__ << endl;
+        return NDBT_FAILED;
+      }
+    }
+    else
+    {
+      NdbDictionary::Undofile uf2 = pDict->getUndofile(0, "undofile01.dat");
+      NdbError err= pDict->getNdbError();
+      if( (int) err.classification == (int) ndberror_cl_none)
+      {
+        ndbout << __LINE__ << endl;
+        return NDBT_FAILED;
+      }
+
+      if (pDict->createUndofile(uf) != 0)
+      {
+        ndbout << __LINE__ << " : " << pDict->getNdbError() << endl;
+        return NDBT_FAILED;
+      }
+    }
+
+    {
+      NdbDictionary::LogfileGroup lg2 = pDict->getLogfileGroup("DEFAULT-LG");
+      NdbError err= pDict->getNdbError();
+      if( (int) err.classification != (int) ndberror_cl_none)
+      {
+        ndbout << __LINE__ << " : " << pDict->getNdbError() << endl;
+        return NDBT_FAILED;
+      }
+
+      if (pDict->dropLogfileGroup(lg2))
+      {
+        ndbout << __LINE__ << " : " << pDict->getNdbError() << endl;
+        return NDBT_FAILED;
+      }
+    }
+  }
+
+  return NDBT_OK;
+}
+
+int
+restartClusterInitial(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter res;
+
+  res.restartAll(NdbRestarter::NRRF_INITIAL |
+                 NdbRestarter::NRRF_NOSTART |
+                 NdbRestarter::NRRF_ABORT);
+  if (res.waitClusterNoStart())
+    return NDBT_FAILED;
+
+  res.startAll();
+  if (res.waitClusterStarted())
+    return NDBT_FAILED;
+
+  return NDBT_OK;
+}
+
 
 int
 DropDDObjectsVerify(NDBT_Context* ctx, NDBT_Step* step){
@@ -6816,6 +6950,139 @@ out:
   return NDBT_OK;
 }
 
+static
+int
+createIndexes(NdbDictionary::Dictionary* pDic,
+              const NdbDictionary::Table & tab, int cnt)
+{
+  for (int i = 0; i<cnt && i < tab.getNoOfColumns(); i++)
+  {
+    char buf[256];
+    NdbDictionary::Index idx0;
+    BaseString::snprintf(buf, sizeof(buf), "%s-idx-%u", tab.getName(), i);
+    idx0.setName(buf);
+    idx0.setType(NdbDictionary::Index::OrderedIndex);
+    idx0.setTable(tab.getName());
+    idx0.setStoredIndex(false);
+    idx0.addIndexColumn(tab.getColumn(i)->getName());
+
+    if (pDic->createIndex(idx0))
+    {
+      ndbout << pDic->getNdbError() << endl;
+      return NDBT_FAILED;
+    }
+  }
+
+  return 0;
+}
+
+int
+runBug46552(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  const NdbDictionary::Table* pTab = ctx->getTab();
+  NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
+
+  NdbRestarter res;
+  if (res.getNumDbNodes() < 2)
+    return NDBT_OK;
+
+  NdbDictionary::Table tab0 = *pTab;
+  NdbDictionary::Table tab1 = *pTab;
+
+  BaseString name;
+  name.assfmt("%s_0", tab0.getName());
+  tab0.setName(name.c_str());
+  name.assfmt("%s_1", tab1.getName());
+  tab1.setName(name.c_str());
+
+  pDic->dropTable(tab0.getName());
+  pDic->dropTable(tab1.getName());
+
+  if (pDic->createTable(tab0))
+  {
+    ndbout << pDic->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  if (pDic->createTable(tab1))
+  {
+    ndbout << pDic->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  if (createIndexes(pDic, tab1, 4))
+    return NDBT_FAILED;
+
+  Vector<int> group1;
+  Vector<int> group2;
+  Bitmask<256/32> nodeGroupMap;
+  for (int j = 0; j<res.getNumDbNodes(); j++)
+  {
+    int node = res.getDbNodeId(j);
+    int ng = res.getNodeGroup(node);
+    if (nodeGroupMap.get(ng))
+    {
+      group2.push_back(node);
+    }
+    else
+    {
+      group1.push_back(node);
+      nodeGroupMap.set(ng);
+    }
+  }
+
+  res.restartNodes(group1.getBase(), (int)group1.size(),
+                   NdbRestarter::NRRF_NOSTART |
+                   NdbRestarter::NRRF_ABORT);
+
+  res.waitNodesNoStart(group1.getBase(), (int)group1.size());
+  res.startNodes(group1.getBase(), (int)group1.size());
+  res.waitClusterStarted();
+
+  res.restartNodes(group2.getBase(), (int)group2.size(),
+                   NdbRestarter::NRRF_NOSTART |
+                   NdbRestarter::NRRF_ABORT);
+  res.waitNodesNoStart(group2.getBase(), (int)group2.size());
+  res.startNodes(group2.getBase(), (int)group2.size());
+  res.waitClusterStarted();
+
+  if (pDic->dropTable(tab0.getName()))
+  {
+    ndbout << pDic->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  if (pDic->createTable(tab0))
+  {
+    ndbout << pDic->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  if (createIndexes(pDic, tab0, 4))
+    return NDBT_FAILED;
+
+  res.restartAll2(NdbRestarter::NRRF_NOSTART | NdbRestarter::NRRF_ABORT);
+  res.waitClusterNoStart();
+  res.startAll();
+  res.waitClusterStarted();
+
+  if (pDic->dropTable(tab0.getName()))
+  {
+    ndbout << pDic->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  if (pDic->dropTable(tab1.getName()))
+  {
+    ndbout << pDic->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  return NDBT_OK;
+}
+
+
 /** telco-6.4 **/
  
 NDBT_TESTSUITE(testDict);
@@ -7006,16 +7273,22 @@ TESTCASE("Bug24631",
          ""){
   INITIALIZER(runBug24631);
 }
-TESTCASE("SchemaTrans",
-         "Schema transactions"){
-  ALL_TABLES();
-  STEP(runSchemaTrans);
+TESTCASE("Bug36702", "")
+{
+  INITIALIZER(runDropDDObjects);
+  INITIALIZER(runBug36072);
+  FINALIZER(restartClusterInitial);
 }
 TESTCASE("Bug29186",
          ""){
   INITIALIZER(runBug29186);
 }
 /** telco-6.4 **/
+TESTCASE("SchemaTrans",
+         "Schema transactions"){
+  ALL_TABLES();
+  STEP(runSchemaTrans);
+}
 TESTCASE("FailCreateHashmap",
          "Fail create hashmap")
 {
@@ -7034,6 +7307,10 @@ TESTCASE("Bug41905",
 	 ""){
   STEP(runBug41905);
   STEP(runBug41905getTable);
+}
+TESTCASE("Bug46552", "")
+{
+  INITIALIZER(runBug46552);
 }
 /** telco-6.4 **/
 NDBT_TESTSUITE_END(testDict);
