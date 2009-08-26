@@ -70,7 +70,7 @@ typedef struct trx_named_savept_struct trx_named_savept_t;
 enum trx_rb_ctx {
 	RB_NONE = 0,	/*!< no rollback */
 	RB_NORMAL,	/*!< normal rollback */
-	RB_RECOVERY,	/*!< rolling back an incomplete transaction,
+	RB_RECOVERY	/*!< rolling back an incomplete transaction,
 			in crash recovery */
 };
 

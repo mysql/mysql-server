@@ -494,7 +494,6 @@ Item* handle_sql2003_note184_exception(THD *thd, Item* left, bool equal,
   enum enum_tx_isolation tx_isolation;
   enum Cast_target cast_type;
   enum Item_udftype udf_type;
-  enum ha_choice choice;
   CHARSET_INFO *charset;
   thr_lock_type lock_type;
   interval_type interval, interval_time_st;
@@ -1163,8 +1162,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %type <ulonglong_number>
         ulonglong_num real_ulonglong_num size_number
-
-%type <choice> choice
 
 %type <p_elem_value>
         part_bit_expr
@@ -3757,8 +3754,8 @@ partitioning:
             LEX_STRING partition_name={C_STRING_WITH_LEN("partition")};
             if (!plugin_is_ready(&partition_name, MYSQL_STORAGE_ENGINE_PLUGIN))
             {
-              my_error(ER_FEATURE_DISABLED, MYF(0),
-                      "partitioning", "--with-partition");
+              my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0),
+                       "--skip-partition");
               MYSQL_YYABORT;
             }
             lex->part_info= new partition_info();
@@ -9065,11 +9062,6 @@ dec_num:
           DECIMAL_NUM
         | FLOAT_NUM
         ;
-
-choice:
-	ulong_num { $$= $1 != 0 ? HA_CHOICE_YES : HA_CHOICE_NO; }
-	| DEFAULT { $$= HA_CHOICE_UNDEF; }
-	;
 
 procedure_clause:
           /* empty */
