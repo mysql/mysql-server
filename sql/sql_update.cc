@@ -732,6 +732,7 @@ int mysql_update(THD *thd,
       break;
     }
   }
+  table->auto_increment_field_not_null= FALSE;
   dup_key_found= 0;
   /*
     Caching the killed status to pass as the arg to query event constuctor;

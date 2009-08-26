@@ -658,10 +658,8 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
     }
     push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 			ER_DB_CREATE_EXISTS, ER(ER_DB_CREATE_EXISTS), db);
-    if (!silent)
-      my_ok(thd);
     error= 0;
-    goto exit;
+    goto not_silent;
   }
   else
   {
@@ -698,7 +696,8 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
       happened.  (This is a very unlikely senario)
     */
   }
-  
+
+not_silent:
   if (!silent)
   {
     char *query;

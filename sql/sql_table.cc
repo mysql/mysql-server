@@ -3476,6 +3476,41 @@ void sp_prepare_create_field(THD *thd, Create_field *sql_field)
 
 
 /*
+  Write CREATE TABLE binlog
+
+  SYNOPSIS
+    write_create_table_bin_log()
+    thd               Thread object
+    create_info       Create information
+    internal_tmp_table  Set to 1 if this is an internal temporary table
+
+  DESCRIPTION
+    This function only is called in mysql_create_table_no_lock and
+    mysql_create_table
+
+  RETURN VALUES
+    NONE
+ */
+static inline void write_create_table_bin_log(THD *thd,
+                                              const HA_CREATE_INFO *create_info,
+                                              bool internal_tmp_table)
+{
+  /*
+    Don't write statement if:
+    - It is an internal temporary table,
+    - Row-based logging is used and it we are creating a temporary table, or
+    - The binary log is not open.
+    Otherwise, the statement shall be binlogged.
+   */
+  if (!internal_tmp_table &&
+      (!thd->current_stmt_binlog_row_based ||
+       (thd->current_stmt_binlog_row_based &&
+        !(create_info->options & HA_LEX_CREATE_TMP_TABLE))))
+    write_bin_log(thd, TRUE, thd->query, thd->query_length);
+}
+
+
+/*
   Create a table
 
   SYNOPSIS
@@ -3738,6 +3773,7 @@ bool mysql_create_table_no_lock(THD *thd,
                           ER_TABLE_EXISTS_ERROR, ER(ER_TABLE_EXISTS_ERROR),
                           alias);
       error= 0;
+      write_create_table_bin_log(thd, create_info, internal_tmp_table);
       goto err;
     }
     my_error(ER_TABLE_EXISTS_ERROR, MYF(0), alias);
@@ -3858,18 +3894,7 @@ bool mysql_create_table_no_lock(THD *thd,
     thd->thread_specific_used= TRUE;
   }
 
-  /*
-    Don't write statement if:
-    - It is an internal temporary table,
-    - Row-based logging is used and it we are creating a temporary table, or
-    - The binary log is not open.
-    Otherwise, the statement shall be binlogged.
-   */
-  if (!internal_tmp_table &&
-      (!thd->current_stmt_binlog_row_based ||
-       (thd->current_stmt_binlog_row_based &&
-        !(create_info->options & HA_LEX_CREATE_TMP_TABLE))))
-    write_bin_log(thd, TRUE, thd->query, thd->query_length);
+  write_create_table_bin_log(thd, create_info, internal_tmp_table);
   error= FALSE;
 unlock_and_end:
   VOID(pthread_mutex_unlock(&LOCK_open));
@@ -3885,6 +3910,7 @@ warn:
                       ER_TABLE_EXISTS_ERROR, ER(ER_TABLE_EXISTS_ERROR),
                       alias);
   create_info->table_existed= 1;		// Mark that table existed
+  write_create_table_bin_log(thd, create_info, internal_tmp_table);
   goto unlock_and_end;
 }
 
@@ -3936,6 +3962,7 @@ bool mysql_create_table(THD *thd, const char *db, const char *table_name,
                             table_name);
         create_info->table_existed= 1;
         result= FALSE;
+        write_create_table_bin_log(thd, create_info, internal_tmp_table);
       }
       else
       {
@@ -5276,6 +5303,24 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
     goto err;	    /* purecov: inspected */
   }
 
+goto binlog;
+
+table_exists:
+  if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
+  {
+    char warn_buff[MYSQL_ERRMSG_SIZE];
+    my_snprintf(warn_buff, sizeof(warn_buff),
+		ER(ER_TABLE_EXISTS_ERROR), table_name);
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+		 ER_TABLE_EXISTS_ERROR,warn_buff);
+  }
+  else
+  {
+    my_error(ER_TABLE_EXISTS_ERROR, MYF(0), table_name);
+    goto err;
+  }
+
+binlog:
   DBUG_EXECUTE_IF("sleep_create_like_before_binlogging", my_sleep(6000000););
 
   /*
@@ -5339,20 +5384,6 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
     write_bin_log(thd, TRUE, thd->query, thd->query_length);
 
   res= FALSE;
-  goto err;
-
-table_exists:
-  if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
-  {
-    char warn_buff[MYSQL_ERRMSG_SIZE];
-    my_snprintf(warn_buff, sizeof(warn_buff),
-		ER(ER_TABLE_EXISTS_ERROR), table_name);
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
-		 ER_TABLE_EXISTS_ERROR,warn_buff);
-    res= FALSE;
-  }
-  else
-    my_error(ER_TABLE_EXISTS_ERROR, MYF(0), table_name);
 
 err:
   if (name_lock)
