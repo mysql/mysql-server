@@ -228,7 +228,7 @@ static struct my_option my_long_options[] =
    (uchar**) &opt_compatible_mode_str, (uchar**) &opt_compatible_mode_str, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"compact", OPT_COMPACT,
-   "Give less verbose output (useful for debugging). Disables structure comments and header/footer constructs.  Enables options --skip-add-drop-table --no-set-names --skip-disable-keys --skip-add-locks",
+   "Give less verbose output (useful for debugging). Disables structure comments and header/footer constructs.  Enables options --skip-add-drop-table --skip-add-locks --skip-comments --skip-disable-keys --skip-set-charset",
    (uchar**) &opt_compact, (uchar**) &opt_compact, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"complete-insert", 'c', "Use complete insert statements.",
@@ -709,6 +709,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
 #endif
   case 'p':
+    if (argument == disabled_my_option)
+      argument= (char*) "";                     /* Don't require password */
     if (argument)
     {
       char *start=argument;
@@ -1402,18 +1404,19 @@ static char *cover_definer_clause_in_sp(const char *def_str,
   SYNOPSIS
     open_sql_file_for_table
     name      name of the table or view
+    flags     flags (as per "man 2 open")
 
   RETURN VALUES
     0        Failed to open file
     > 0      Handle of the open file
 */
-static FILE* open_sql_file_for_table(const char* table)
+static FILE* open_sql_file_for_table(const char* table, int flags)
 {
   FILE* res;
   char filename[FN_REFLEN], tmp_path[FN_REFLEN];
   convert_dirname(tmp_path,path,NullS);
   res= my_fopen(fn_format(filename, table, tmp_path, ".sql", 4),
-                O_WRONLY, MYF(MY_WME));
+                flags, MYF(MY_WME));
   return res;
 }
 
@@ -2299,7 +2302,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
 
       if (path)
       {
-        if (!(sql_file= open_sql_file_for_table(table)))
+        if (!(sql_file= open_sql_file_for_table(table, O_WRONLY)))
           DBUG_RETURN(0);
 
         write_header(sql_file, db);
@@ -2510,7 +2513,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
     {
       if (path)
       {
-        if (!(sql_file= open_sql_file_for_table(table)))
+        if (!(sql_file= open_sql_file_for_table(table, O_WRONLY)))
           DBUG_RETURN(0);
         write_header(sql_file, db);
       }
@@ -2734,12 +2737,10 @@ continue_xml:
   DBUG_RETURN((uint) num_fields);
 } /* get_table_structure */
 
-static void dump_trigger_old(MYSQL_RES *show_triggers_rs,
+static void dump_trigger_old(FILE *sql_file, MYSQL_RES *show_triggers_rs,
                              MYSQL_ROW *show_trigger_row,
                              const char *table_name)
 {
-  FILE *sql_file= md_result_file;
-
   char quoted_table_name_buf[NAME_LEN * 2 + 3];
   char *quoted_table_name= quote_name(table_name, quoted_table_name_buf, 1);
 
@@ -2805,11 +2806,10 @@ static void dump_trigger_old(MYSQL_RES *show_triggers_rs,
   DBUG_VOID_RETURN;
 }
 
-static int dump_trigger(MYSQL_RES *show_create_trigger_rs,
+static int dump_trigger(FILE *sql_file, MYSQL_RES *show_create_trigger_rs,
                         const char *db_name,
                         const char *db_cl_name)
 {
-  FILE *sql_file= md_result_file;
   MYSQL_ROW row;
   int db_cl_altered= FALSE;
 
@@ -2873,11 +2873,17 @@ static int dump_triggers_for_table(char *table_name, char *db_name)
   uint       old_opt_compatible_mode= opt_compatible_mode;
   MYSQL_RES  *show_triggers_rs;
   MYSQL_ROW  row;
+  FILE      *sql_file= md_result_file;
 
   char       db_cl_name[MY_CS_NAME_SIZE];
+  int        ret= TRUE;
 
   DBUG_ENTER("dump_triggers_for_table");
   DBUG_PRINT("enter", ("db: %s, table_name: %s", db_name, table_name));
+
+  if (path && !(sql_file= open_sql_file_for_table(table_name,
+                                                  O_WRONLY | O_APPEND)))
+    DBUG_RETURN(1);
 
   /* Do not use ANSI_QUOTES on triggers in dump */
   opt_compatible_mode&= ~MASK_ANSI_QUOTES;
@@ -2885,10 +2891,10 @@ static int dump_triggers_for_table(char *table_name, char *db_name)
   /* Get database collation. */
 
   if (switch_character_set_results(mysql, "binary"))
-    DBUG_RETURN(TRUE);
+    goto done;
 
   if (fetch_db_collation(db_name, db_cl_name, sizeof (db_cl_name)))
-    DBUG_RETURN(TRUE);
+    goto done;
 
   /* Get list of triggers. */
 
@@ -2897,7 +2903,7 @@ static int dump_triggers_for_table(char *table_name, char *db_name)
               quote_for_like(table_name, name_buff));
 
   if (mysql_query_with_error_report(mysql, &show_triggers_rs, query_buff))
-    DBUG_RETURN(TRUE);
+    goto done;
 
   /* Dump triggers. */
 
@@ -2918,17 +2924,15 @@ static int dump_triggers_for_table(char *table_name, char *db_name)
         provide all the necessary information to restore trigger properly.
       */
 
-      dump_trigger_old(show_triggers_rs, &row, table_name);
+      dump_trigger_old(sql_file, show_triggers_rs, &row, table_name);
     }
     else
     {
       MYSQL_RES *show_create_trigger_rs= mysql_store_result(mysql);
 
       if (!show_create_trigger_rs ||
-          dump_trigger(show_create_trigger_rs, db_name, db_cl_name))
-      {
-        DBUG_RETURN(TRUE);
-      }
+          dump_trigger(sql_file, show_create_trigger_rs, db_name, db_cl_name))
+        goto done;
 
       mysql_free_result(show_create_trigger_rs);
     }
@@ -2938,7 +2942,7 @@ static int dump_triggers_for_table(char *table_name, char *db_name)
   mysql_free_result(show_triggers_rs);
 
   if (switch_character_set_results(mysql, default_charset))
-    DBUG_RETURN(TRUE);
+    goto done;
 
   /*
     make sure to set back opt_compatible mode to
@@ -2946,7 +2950,13 @@ static int dump_triggers_for_table(char *table_name, char *db_name)
   */
   opt_compatible_mode=old_opt_compatible_mode;
 
-  DBUG_RETURN(FALSE);
+  ret= FALSE;
+
+done:
+  if (path)
+    my_fclose(sql_file, MYF(0));
+
+  DBUG_RETURN(ret);
 }
 
 static void add_load_option(DYNAMIC_STRING *str, const char *option,
@@ -4791,7 +4801,7 @@ static my_bool get_view_structure(char *table, char* db)
   /* If requested, open separate .sql file for this view */
   if (path)
   {
-    if (!(sql_file= open_sql_file_for_table(table)))
+    if (!(sql_file= open_sql_file_for_table(table, O_WRONLY)))
       DBUG_RETURN(1);
 
     write_header(sql_file, db);

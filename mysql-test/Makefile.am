@@ -26,6 +26,7 @@ test_SCRIPTS =	mtr \
 		mysql-stress-test.pl
 
 nobase_test_DATA = \
+	valgrind.supp \
 	lib/v1/mysql-test-run.pl \
 	lib/v1/mtr_cases.pl \
 	lib/v1/mtr_io.pl \
@@ -42,7 +43,6 @@ nobase_test_DATA = \
 	lib/v1/mtr_im.pl \
 	lib/v1/mtr_process.pl \
 	lib/v1/mtr_unique.pl \
-\
 	lib/mtr_cases.pm \
 	lib/mtr_gcov.pl \
 	lib/mtr_gprof.pl \
@@ -70,9 +70,8 @@ nobase_test_DATA = \
 SUBDIRS =	lib/My/SafeProcess
 
 EXTRA_DIST =	README \
-		valgrind.supp \
 		$(test_SCRIPTS) \
-		$(nobase_test_DATA) 
+		$(nobase_test_DATA)
 
 # List of directories containing test + result files and the
 # related test data files that should be copied
@@ -103,7 +102,6 @@ TEST_DIRS = t r include std_data std_data/parts collections \
 	suite/ndb suite/ndb/t suite/ndb/r suite/ndb/include suite/ndb/std_data \
 	suite/ndb_binlog suite/ndb_binlog/t suite/ndb_binlog/r \
 	suite/ndb_team suite/ndb_team/t suite/ndb_team/r \
-	suite/rpl_ndb suite/rpl_ndb/t suite/rpl_ndb/r \
 	suite/parts suite/parts/t suite/parts/r suite/parts/inc
 
 # Used by dist-hook and install-data-local to copy all

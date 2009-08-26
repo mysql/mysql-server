@@ -71,3 +71,111 @@ DROP TABLE t1,t2;
 SET GLOBAL concurrent_insert= DEFAULT;
 SET GLOBAL query_cache_size= DEFAULT;
 SET GLOBAL query_cache_type= DEFAULT;
+#
+# Bug43758 Query cache can lock up threads in 'freeing items' state
+#
+FLUSH STATUS;
+SET GLOBAL query_cache_type=DEMAND;
+SET GLOBAL query_cache_size= 1024*768;
+DROP TABLE IF EXISTS t1,t2,t3,t4,t5;
+CREATE TABLE t1 (a VARCHAR(100));
+CREATE TABLE t2 (a VARCHAR(100));
+CREATE TABLE t3 (a VARCHAR(100));
+CREATE TABLE t4 (a VARCHAR(100));
+CREATE TABLE t5 (a VARCHAR(100));
+INSERT INTO t1 VALUES ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'),('bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
+INSERT INTO t2 VALUES ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'),('bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
+INSERT INTO t3 VALUES ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'),('bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
+INSERT INTO t4 VALUES ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'),('bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
+INSERT INTO t5 VALUES ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'),('bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
+=================================== Connection thd1
+**
+** Load Query Cache with a result set and one table.
+**
+SELECT SQL_CACHE * FROM t1;
+a
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+*************************************************************************
+** We want to accomplish the following state:
+**  - Query cache status: TABLE_FLUSH_IN_PROGRESS
+**  - THD1: invalidate_table_internal (iterating query blocks)
+**  - THD2: query_cache_insert (cond_wait)
+**  - THD3: query_cache_insert (cond_wait)
+**  - No thread should be holding the structure_guard_mutex.
+**
+** First step is to place a DELETE-statement on the debug hook just
+** before the mutex lock in invalidate_table_internal.
+** This will allow new result sets to be written into the QC.
+** 
+SET SESSION debug='+d,wait_in_query_cache_invalidate1';
+SET SESSION debug='+d,wait_in_query_cache_invalidate2';
+DELETE FROM t1 WHERE a like '%a%';;
+=================================== Connection default
+** Assert that the expect process status is obtained.
+**
+=================================== Connection thd2
+** On THD2: Insert a result into the cache. This attempt will be blocked
+** because of a debug hook placed just before the mutex lock after which
+** the first part of the result set is written.
+SET SESSION debug='+d,wait_in_query_cache_insert';
+SELECT SQL_CACHE * FROM t2 UNION SELECT * FROM t3;
+=================================== Connection thd3
+** On THD3: Insert another result into the cache and block on the same
+** debug hook.
+SET SESSION debug='+d,wait_in_query_cache_insert';
+SELECT SQL_CACHE * FROM t4 UNION SELECT * FROM t5;;
+=================================== Connection default
+** Assert that the two SELECT-stmt threads to reach the hook.
+**
+**
+** Signal the DELETE thread, THD1, to continue. It will enter the mutex
+** lock and set query cache status to TABLE_FLUSH_IN_PROGRESS and then
+** unlock the mutex before stopping on the next debug hook.
+SELECT SQL_NO_CACHE id FROM information_schema.processlist WHERE state='wait_in_query_cache_invalidate1' LIMIT 1 INTO @flush_thread_id;
+KILL QUERY @flush_thread_id;
+** Assert that we reach the next debug hook.
+**
+** Signal the remaining debug hooks blocking THD2 and THD3.
+** The threads will grab the guard mutex enter the wait condition and
+** and finally release the mutex. The threads will continue to wait
+** until a broadcast signal reaches them causing both threads to 
+** come alive and check the condition.
+SELECT SQL_NO_CACHE id FROM information_schema.processlist WHERE state='wait_in_query_cache_insert' ORDER BY id ASC LIMIT 1 INTO @thread_id;
+KILL QUERY @thread_id;
+SELECT SQL_NO_CACHE id FROM information_schema.processlist WHERE state='wait_in_query_cache_insert' ORDER BY id DESC LIMIT 1 INTO @thread_id;
+KILL QUERY @thread_id;
+**
+** Finally signal the DELETE statement on THD1 one last time.
+** The stmt will complete the query cache invalidation and return 
+** cache status to NO_FLUSH_IN_PROGRESS. On the status change
+** One signal will be sent to the thread group waiting for executing
+** invalidations and a broadcast signal will be sent to the thread 
+** group holding result set writers.
+SELECT SQL_NO_CACHE id FROM information_schema.processlist WHERE state='wait_in_query_cache_invalidate2' LIMIT 1 INTO @flush_thread_id;
+KILL QUERY @flush_thread_id;
+**
+*************************************************************************
+** No tables should be locked
+=================================== Connection thd2
+a
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+DELETE FROM t1;
+DELETE FROM t2;
+DELETE FROM t3;
+=================================== Connection thd3
+a
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+DELETE FROM t4;
+DELETE FROM t5;
+=================================== Connection thd1
+** Done.
+SET GLOBAL query_cache_size= 0;
+# Restore defaults
+RESET QUERY CACHE;
+FLUSH STATUS;
+DROP TABLE t1,t2,t3,t4,t5;
+SET GLOBAL query_cache_size= DEFAULT;
+SET GLOBAL query_cache_type= DEFAULT;

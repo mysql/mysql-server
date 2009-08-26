@@ -719,6 +719,7 @@ connection con1;
 --reap
 drop table t1;
 disconnect con1;
+--source include/wait_until_disconnected.inc
 connection default;
 
 #

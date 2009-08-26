@@ -28,7 +28,7 @@ from mysql.ndb_apply_status;
 
 show binlog events from <start_pos> limit 1;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	<start_pos>	Query	1	#	use `test`; BEGIN
+master-bin.000001	<start_pos>	Query	1	#	BEGIN
 
 # Now the insert, one step after
 
@@ -53,7 +53,7 @@ from mysql.ndb_apply_status;
 <log_name>	<start_pos>	<end_pos>
 show binlog events from <start_pos> limit 1;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	<start_pos>	Query	1	#	use `test`; BEGIN
+master-bin.000001	<start_pos>	Query	1	#	BEGIN
 
 show binlog events from <start_pos> limit 1,2;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info

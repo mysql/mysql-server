@@ -1,0 +1,1 @@
+--innodb --replicate-do-db=db1
