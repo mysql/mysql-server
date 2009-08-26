@@ -991,15 +991,19 @@ longlong Item_func_to_days::val_int_endpoint(bool left_endp, bool *incl_endp)
     point to day bound ("strictly less" comparison stays intact):
 
       col < '2007-09-15 00:00:00'  -> TO_DAYS(col) <  TO_DAYS('2007-09-15')
+      col > '2007-09-15 23:59:59'  -> TO_DAYS(col) >  TO_DAYS('2007-09-15')
 
     which is different from the general case ("strictly less" changes to
     "less or equal"):
 
       col < '2007-09-15 12:34:56'  -> TO_DAYS(col) <= TO_DAYS('2007-09-15')
   */
-  if (!left_endp && !(ltime.hour || ltime.minute || ltime.second ||
-                      ltime.second_part))
-    ; /* do nothing */
+  if ((!left_endp && !(ltime.hour || ltime.minute || ltime.second ||
+                       ltime.second_part)) ||
+       (left_endp && ltime.hour == 23 && ltime.minute == 59 &&
+        ltime.second == 59))
+    /* do nothing */
+    ;
   else
     *incl_endp= TRUE;
   return res;
