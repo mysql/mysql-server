@@ -5826,6 +5826,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
       {
         tree= new (alloc) SEL_ARG(field, 0, 0);
         tree->type= SEL_ARG::IMPOSSIBLE;
+        field->table->in_use->variables.sql_mode= orig_sql_mode;
         goto end;
       }
       else
@@ -5859,7 +5860,10 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
           */
         }
         else
+        {
+          field->table->in_use->variables.sql_mode= orig_sql_mode;
           goto end;
+        }
       }
     }
 
