@@ -53,7 +53,7 @@ order by table_name;
 end|
 delimiter ;|
 
-create table t1 
+create table t1
 (f1 int(10) unsigned not null,
  f2 varchar(100) not null,
  primary key (f1), unique key (f2));
@@ -105,8 +105,8 @@ drop function f2;
 drop view v1, v2;
 
 #
-# Bug#20543: select on information_schema strange warnings, view, different
-#             schemas/users
+# Bug#20543 select on information_schema strange warnings, view, different
+#           schemas/users
 #
 #
 create database testdb_1;
@@ -125,7 +125,7 @@ grant insert on v1 to testdb_2@localhost;
 create view v5 as select f1 from t1;
 grant show view on v5 to testdb_2@localhost;
 
---error 1227
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
 create definer=`no_such_user`@`no_such_host` view v6 as select f1 from t1;
 
 connection default;
@@ -169,46 +169,53 @@ use testdb_1;
 revoke show view on v6 from testdb_2@localhost;
 connection testdb_2;
 
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 show fields from testdb_1.v5;
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 show create view testdb_1.v5;
 
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 show fields from testdb_1.v6;
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 show create view testdb_1.v6;
 
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 show fields from testdb_1.v7;
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 show create view testdb_1.v7;
 
---error 1345
+--error ER_VIEW_NO_EXPLAIN
 show create view v4;
-#--error 1345
+#--error ER_VIEW_NO_EXPLAIN
 show fields from v4;
 
 show fields from v2;
 show fields from testdb_1.v1;
 show create view v2;
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 show create view testdb_1.v1;
 
-select table_name from information_schema.columns a 
+select table_name from information_schema.columns a
 where a.table_name = 'v2';
-select view_definition from information_schema.views a 
+select view_definition from information_schema.views a
 where a.table_name = 'v2';
-select view_definition from information_schema.views a 
+select view_definition from information_schema.views a
 where a.table_name = 'testdb_1.v1';
 
---error 1356
+--error ER_VIEW_INVALID
 select * from v2;
 
 connection default;
 use test;
 drop view testdb_1.v1, v2, testdb_1.v3, v4;
 drop database testdb_1;
+connection testdb_1;
+disconnect testdb_1;
+--source include/wait_until_disconnected.inc
+connection testdb_2;
+disconnect testdb_2;
+--source include/wait_until_disconnected.inc
+connection default;
 drop user testdb_1@localhost;
 drop user testdb_2@localhost;
 
@@ -239,4 +246,7 @@ show create view testdb_1.v1;
 connection default;
 drop user mysqltest_1@localhost;
 drop database testdb_1;
+connection user1;
 disconnect user1;
+--source include/wait_until_disconnected.inc
+connection default;

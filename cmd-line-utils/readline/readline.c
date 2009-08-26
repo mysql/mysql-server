@@ -90,7 +90,7 @@ static void bind_arrow_keys_internal PARAMS((Keymap));
 static void bind_arrow_keys PARAMS((void));
 
 static void readline_default_bindings PARAMS((void));
-static void reset_default_bindings PARAMS((void));
+static void reset_default_bindings PARAMS((void)) __attribute__((unused));
 
 static int _rl_subseq_result PARAMS((int, Keymap, int, int));
 static int _rl_subseq_getchar PARAMS((int));

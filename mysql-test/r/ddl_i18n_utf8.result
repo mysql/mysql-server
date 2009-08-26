@@ -2829,7 +2829,11 @@ t2	CREATE TABLE `t2` (
   `col1` varchar(10) COLLATE cp1251_general_cs DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=cp1251 COLLATE=cp1251_general_cs
 
+---> connection: con2
+
+---> connection: con3
+
 ---> connection: default
-use test|
-DROP DATABASE mysqltest1|
-DROP DATABASE mysqltest2|
+USE test;
+DROP DATABASE mysqltest1;
+DROP DATABASE mysqltest2;

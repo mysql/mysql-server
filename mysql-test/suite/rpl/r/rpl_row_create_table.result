@@ -150,10 +150,10 @@ a	b
 SHOW BINLOG EVENTS FROM 107;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 #	107	Query	#	207	use `test`; CREATE TABLE t7 (a INT, b INT UNIQUE)
-#	207	Query	#	275	use `test`; BEGIN
+#	207	Query	#	275	BEGIN
 #	275	Table_map	#	317	table_id: # (test.t7)
 #	317	Write_rows	#	373	table_id: # flags: STMT_END_F
-#	373	Query	#	444	use `test`; ROLLBACK
+#	373	Query	#	444	ROLLBACK
 SELECT * FROM t7 ORDER BY a,b;
 a	b
 1	2
@@ -173,10 +173,10 @@ Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 SHOW BINLOG EVENTS FROM 107;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-#	107	Query	#	175	use `test`; BEGIN
+#	107	Query	#	175	BEGIN
 #	175	Table_map	#	217	table_id: # (test.t7)
 #	217	Write_rows	#	273	table_id: # flags: STMT_END_F
-#	273	Query	#	344	use `test`; ROLLBACK
+#	273	Query	#	344	ROLLBACK
 SELECT * FROM t7 ORDER BY a,b;
 a	b
 1	2
@@ -299,35 +299,35 @@ a
 SHOW BINLOG EVENTS FROM 107;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 #	107	Query	#	193	use `test`; CREATE TABLE t1 (a INT)
-#	193	Query	#	261	use `test`; BEGIN
+#	193	Query	#	261	BEGIN
 #	261	Table_map	#	302	table_id: # (test.t1)
 #	302	Write_rows	#	346	table_id: # flags: STMT_END_F
-#	346	Query	#	415	use `test`; COMMIT
-#	415	Query	#	483	use `test`; BEGIN
+#	346	Query	#	415	COMMIT
+#	415	Query	#	483	BEGIN
 #	483	Query	#	608	use `test`; CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL
 ) ENGINE=InnoDB
 #	608	Table_map	#	649	table_id: # (test.t2)
 #	649	Write_rows	#	693	table_id: # flags: STMT_END_F
 #	693	Xid	#	720	COMMIT /* XID */
-#	720	Query	#	788	use `test`; BEGIN
+#	720	Query	#	788	BEGIN
 #	788	Query	#	913	use `test`; CREATE TABLE `t3` (
   `a` int(11) DEFAULT NULL
 ) ENGINE=InnoDB
 #	913	Table_map	#	954	table_id: # (test.t3)
 #	954	Write_rows	#	998	table_id: # flags: STMT_END_F
 #	998	Xid	#	1025	COMMIT /* XID */
-#	1025	Query	#	1093	use `test`; BEGIN
+#	1025	Query	#	1093	BEGIN
 #	1093	Query	#	1218	use `test`; CREATE TABLE `t4` (
   `a` int(11) DEFAULT NULL
 ) ENGINE=InnoDB
 #	1218	Table_map	#	1259	table_id: # (test.t4)
 #	1259	Write_rows	#	1303	table_id: # flags: STMT_END_F
 #	1303	Xid	#	1330	COMMIT /* XID */
-#	1330	Query	#	1398	use `test`; BEGIN
+#	1330	Query	#	1398	BEGIN
 #	1398	Table_map	#	1439	table_id: # (test.t1)
 #	1439	Write_rows	#	1483	table_id: # flags: STMT_END_F
-#	1483	Query	#	1554	use `test`; ROLLBACK
+#	1483	Query	#	1554	ROLLBACK
 SHOW TABLES;
 Tables_in_test
 t1
@@ -393,12 +393,12 @@ a
 SHOW BINLOG EVENTS FROM 107;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 #	107	Query	#	193	use `test`; CREATE TABLE t1 (a INT)
-#	193	Query	#	261	use `test`; BEGIN
+#	193	Query	#	261	BEGIN
 #	261	Table_map	#	302	table_id: # (test.t1)
 #	302	Write_rows	#	346	table_id: # flags: STMT_END_F
-#	346	Query	#	415	use `test`; COMMIT
+#	346	Query	#	415	COMMIT
 #	415	Query	#	515	use `test`; CREATE TABLE t2 (a INT) ENGINE=INNODB
-#	515	Query	#	583	use `test`; BEGIN
+#	515	Query	#	583	BEGIN
 #	583	Table_map	#	624	table_id: # (test.t2)
 #	624	Write_rows	#	668	table_id: # flags: STMT_END_F
 #	668	Table_map	#	709	table_id: # (test.t2)
@@ -431,12 +431,12 @@ SELECT * FROM t2 ORDER BY a;
 a
 SHOW BINLOG EVENTS FROM 107;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-#	107	Query	#	175	use `test`; BEGIN
+#	107	Query	#	175	BEGIN
 #	175	Table_map	#	216	table_id: # (test.t2)
 #	216	Write_rows	#	260	table_id: # flags: STMT_END_F
 #	260	Table_map	#	301	table_id: # (test.t2)
 #	301	Write_rows	#	340	table_id: # flags: STMT_END_F
-#	340	Query	#	411	use `test`; ROLLBACK
+#	340	Query	#	411	ROLLBACK
 SELECT * FROM t2 ORDER BY a;
 a
 DROP TABLE t1,t2;
@@ -468,12 +468,12 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	DROP DATABASE IF EXISTS mysqltest1
 master-bin.000001	#	Query	#	#	CREATE DATABASE mysqltest1
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE mysqltest1.without_select (f1 BIGINT)
-master-bin.000001	#	Query	#	#	use `test`; BEGIN
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `mysqltest1`.`with_select` (
   `f1` int(1) NOT NULL DEFAULT '0'
 )
 master-bin.000001	#	Table_map	#	#	table_id: # (mysqltest1.with_select)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	use `test`; COMMIT
+master-bin.000001	#	Query	#	#	COMMIT
 DROP DATABASE mysqltest1;
 end of the tests
