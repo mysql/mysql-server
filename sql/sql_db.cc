@@ -184,8 +184,7 @@ uchar* dboptions_get_key(my_dbopt_t *opt, size_t *length,
 static inline void write_to_binlog(THD *thd, char *query, uint q_len,
                                    char *db, uint db_len)
 {
-  Query_log_event qinfo(thd, query, q_len, 0, 0, THD::NOT_KILLED);
-  qinfo.error_code= 0;
+  Query_log_event qinfo(thd, query, q_len, 0, 0, 0);
   qinfo.db= db;
   qinfo.db_len= db_len;
   mysql_bin_log.write(&qinfo);
@@ -541,13 +540,13 @@ err1:
 bool load_db_opt_by_name(THD *thd, const char *db_name,
                          HA_CREATE_INFO *db_create_info)
 {
-  char db_opt_path[FN_REFLEN];
+  char db_opt_path[FN_REFLEN + 1];
 
   /*
     Pass an empty file name, and the database options file name as extension
     to avoid table name to file name encoding.
   */
-  (void) build_table_filename(db_opt_path, sizeof(db_opt_path),
+  (void) build_table_filename(db_opt_path, sizeof(db_opt_path) - 1,
                               db_name, "", MY_DB_OPT_FILE, 0);
 
   return load_db_opt(thd, db_opt_path, db_create_info);
@@ -652,7 +651,7 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
 
   /* Check directory */
-  path_len= build_table_filename(path, sizeof(path), db, "", "", 0);
+  path_len= build_table_filename(path, sizeof(path) - 1, db, "", "", 0);
   path[path_len-1]= 0;                    // Remove last '/' from path
 
   if (my_stat(path,&stat_info,MYF(0)))
@@ -729,8 +728,9 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
 
     if (mysql_bin_log.is_open())
     {
+      int errcode= query_error_code(thd, TRUE);
       Query_log_event qinfo(thd, query, query_length, 0, 
-			    /* suppress_use */ TRUE, THD::NOT_KILLED);
+			    /* suppress_use */ TRUE, errcode);
 
       /*
 	Write should use the database being created as the "current
@@ -800,7 +800,7 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
      We pass MY_DB_OPT_FILE as "extension" to avoid
      "table name to file name" encoding.
   */
-  build_table_filename(path, sizeof(path), db, "", MY_DB_OPT_FILE, 0);
+  build_table_filename(path, sizeof(path) - 1, db, "", MY_DB_OPT_FILE, 0);
   if ((error=write_db_opt(thd, path, create_info)))
     goto exit;
 
@@ -820,8 +820,9 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
 
   if (mysql_bin_log.is_open())
   {
+    int errcode= query_error_code(thd, TRUE);
     Query_log_event qinfo(thd, thd->query, thd->query_length, 0,
-			  /* suppress_use */ TRUE, THD::NOT_KILLED);
+			  /* suppress_use */ TRUE, errcode);
 
     /*
       Write should use the database being created as the "current
@@ -895,7 +896,7 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
 
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
 
-  length= build_table_filename(path, sizeof(path), db, "", "", 0);
+  length= build_table_filename(path, sizeof(path) - 1, db, "", "", 0);
   strmov(path+length, MY_DB_OPT_FILE);		// Append db option file name
   del_dbopt(path);				// Remove dboption hash entry
   path[length]= '\0';				// Remove file name
@@ -970,8 +971,9 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     }
     if (mysql_bin_log.is_open())
     {
+      int errcode= query_error_code(thd, TRUE);
       Query_log_event qinfo(thd, query, query_length, 0, 
-			    /* suppress_use */ TRUE, THD::NOT_KILLED);
+			    /* suppress_use */ TRUE, errcode);
       /*
         Write should use the database being created as the "current
         database" and not the threads current database, which is the
@@ -1851,7 +1853,7 @@ bool mysql_upgrade_db(THD *thd, LEX_STRING *old_db)
     for (uint idx=0 ; idx < nfiles && !thd->killed ; idx++)
     {
       FILEINFO *file= dirp->dir_entry + idx;
-      char *extension, tname[FN_REFLEN];
+      char *extension, tname[FN_REFLEN + 1];
       LEX_STRING table_str;
       DBUG_PRINT("info",("Examining: %s", file->name));
 
@@ -1940,7 +1942,7 @@ bool mysql_upgrade_db(THD *thd, LEX_STRING *old_db)
     for (uint idx=0 ; idx < nfiles ; idx++)
     {
       FILEINFO *file= dirp->dir_entry + idx;
-      char oldname[FN_REFLEN], newname[FN_REFLEN];
+      char oldname[FN_REFLEN + 1], newname[FN_REFLEN + 1];
       DBUG_PRINT("info",("Examining: %s", file->name));
 
       /* skiping . and .. and MY_DB_OPT_FILE */
@@ -1970,8 +1972,9 @@ bool mysql_upgrade_db(THD *thd, LEX_STRING *old_db)
   /* Step8: logging */
   if (mysql_bin_log.is_open())
   {
+    int errcode= query_error_code(thd, TRUE);
     Query_log_event qinfo(thd, thd->query, thd->query_length,
-                          0, TRUE, THD::NOT_KILLED);
+                          0, TRUE, errcode);
     thd->clear_error();
     mysql_bin_log.write(&qinfo);
   }
@@ -2009,10 +2012,10 @@ exit:
 
 bool check_db_dir_existence(const char *db_name)
 {
-  char db_dir_path[FN_REFLEN];
+  char db_dir_path[FN_REFLEN + 1];
   uint db_dir_path_len;
 
-  db_dir_path_len= build_table_filename(db_dir_path, sizeof(db_dir_path),
+  db_dir_path_len= build_table_filename(db_dir_path, sizeof(db_dir_path) - 1,
                                         db_name, "", "", 0);
 
   if (db_dir_path_len && db_dir_path[db_dir_path_len - 1] == FN_LIBCHAR)

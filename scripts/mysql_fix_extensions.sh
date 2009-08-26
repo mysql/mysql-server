@@ -1,4 +1,4 @@
-#!@PERL@
+#!/usr/bin/perl
 # This is a utility for MySQL. It is not needed by any standard part
 # of MySQL.
 

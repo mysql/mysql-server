@@ -31,6 +31,8 @@ our @EXPORT= qw(report_option mtr_print_line mtr_print_thick_line
 		mtr_report_test);
 
 use mtr_match;
+use My::Platform;
+use POSIX qw[ _exit ];
 require "mtr_io.pl";
 
 my $tot_real_time= 0;
@@ -70,6 +72,8 @@ sub _mtr_report_test_name ($) {
 
   print _name(), _timestamp();
   printf "%-40s ", $tname;
+  my $worker = $tinfo->{worker};
+  printf "w$worker " if $worker;
 
   return $tname;
 }
@@ -218,8 +222,8 @@ sub mtr_report_test ($) {
 }
 
 
-sub mtr_report_stats ($) {
-  my $tests= shift;
+sub mtr_report_stats ($;$) {
+  my ($tests, $dont_error)= @_;
 
   # ----------------------------------------------------------------------
   # Find out how we where doing
@@ -256,6 +260,17 @@ sub mtr_report_stats ($) {
     {
       # Servers was restarted
       $tot_restarts++;
+    }
+
+    # Add counts for repeated runs, if any.
+    # Note that the last run has already been counted above.
+    my $num_repeat = $tinfo->{'repeat'} - 1;
+    if ( $num_repeat > 0 )
+    {
+      $tot_tests += $num_repeat;
+      my $rep_failed = $tinfo->{'rep_failures'} || 0;
+      $tot_failed += $rep_failed;
+      $tot_passed += $num_repeat - $rep_failed;
     }
 
     # Look for warnings produced by mysqltest
@@ -337,7 +352,7 @@ sub mtr_report_stats ($) {
     foreach my $tinfo (@$tests)
     {
       my $tname= $tinfo->{'name'};
-      if ( $tinfo->{failures} and ! $seen{$tname})
+      if ( ($tinfo->{failures} || $tinfo->{rep_failures}) and ! $seen{$tname})
       {
         print " $tname";
 	$seen{$tname}= 1;
@@ -360,7 +375,7 @@ sub mtr_report_stats ($) {
 
   if ( $tot_failed != 0 || $found_problems)
   {
-    mtr_error("there were failing test cases");
+    mtr_error("there were failing test cases") unless $dont_error;
   }
 }
 
@@ -460,7 +475,14 @@ sub mtr_warning (@) {
 sub mtr_error (@) {
   print STDERR _name(), _timestamp(),
     "mysql-test-run: *** ERROR: ", join(" ", @_), "\n";
-  exit(1);
+  if (IS_WINDOWS)
+  {
+    POSIX::_exit(1);
+  }
+  else
+  {
+    exit(1);
+  }
 }
 
 

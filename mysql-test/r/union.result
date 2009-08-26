@@ -1574,4 +1574,17 @@ SHOW FIELDS FROM t2;
 Field	Type	Null	Key	Default	Extra
 d	double(9,6)	YES		NULL	
 DROP TABLE t1, t2;
+CREATE TABLE t1(a INT);
+EXPLAIN EXTENDED
+SELECT a FROM t1
+UNION
+SELECT a FROM t1
+ORDER BY a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
+2	UNION	t1	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
+NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using filesort
+Warnings:
+Note	1003	select '0' AS `a` from `test`.`t1` union select '0' AS `a` from `test`.`t1` order by `a`
+DROP TABLE t1;
 End of 5.0 tests

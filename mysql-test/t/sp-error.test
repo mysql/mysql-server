@@ -2435,3 +2435,16 @@ delimiter ;$$
 #
 LOAD DATA INFILE '../../tmp/proc.txt' INTO TABLE mysql.proc;
 remove_file $MYSQLTEST_VARDIR/tmp/proc.txt;
+
+#
+# Bug #38159: Function parsing problem generates misleading error message
+#
+
+CREATE TABLE t1 (a INT, b INT);
+INSERT INTO t1 VALUES (1,1), (2,2);
+--error ER_FUNC_INEXISTENT_NAME_COLLISION
+SELECT MAX (a) FROM t1 WHERE b = 999999;
+SELECT AVG (a) FROM t1 WHERE b = 999999;
+--error ER_SP_DOES_NOT_EXIST
+SELECT non_existent (a) FROM t1 WHERE b = 999999;
+DROP TABLE t1;

@@ -95,3 +95,14 @@ Note	1003	select password('idkfa ') AS `password('idkfa ')`,old_password('idkfa'
 select encrypt('1234','_.');
 encrypt('1234','_.')
 #
+#
+# Bug #44767: invalid memory reads in password() and old_password() 
+#             functions
+#
+CREATE TABLE t1(c1 MEDIUMBLOB);
+INSERT INTO t1 VALUES (REPEAT('a', 1024));
+SELECT OLD_PASSWORD(c1), PASSWORD(c1) FROM t1;
+OLD_PASSWORD(c1)	PASSWORD(c1)
+77023ffe214c04ff	*82E58A2C08AAFE72C8EB523069CD8ADB33F78F58
+DROP TABLE t1;
+End of 5.0 tests

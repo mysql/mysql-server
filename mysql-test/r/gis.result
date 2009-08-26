@@ -984,4 +984,52 @@ f4	geometry	YES		NULL
 f5	datetime	YES		NULL	
 drop view v1;
 drop table t1;
+SELECT MultiPoint(12345,'');
+MultiPoint(12345,'')
+NULL
+SELECT MultiPoint(123451,'');
+MultiPoint(123451,'')
+NULL
+SELECT MultiPoint(1234512,'');
+MultiPoint(1234512,'')
+NULL
+SELECT MultiPoint(12345123,'');
+MultiPoint(12345123,'')
+NULL
+SELECT MultiLineString(12345,'');
+MultiLineString(12345,'')
+NULL
+SELECT MultiLineString(123451,'');
+MultiLineString(123451,'')
+NULL
+SELECT MultiLineString(1234512,'');
+MultiLineString(1234512,'')
+NULL
+SELECT MultiLineString(12345123,'');
+MultiLineString(12345123,'')
+NULL
+SELECT LineString(12345,'');
+LineString(12345,'')
+NULL
+SELECT LineString(123451,'');
+LineString(123451,'')
+NULL
+SELECT LineString(1234512,'');
+LineString(1234512,'')
+NULL
+SELECT LineString(12345123,'');
+LineString(12345123,'')
+NULL
+SELECT Polygon(12345,'');
+Polygon(12345,'')
+NULL
+SELECT Polygon(123451,'');
+Polygon(123451,'')
+NULL
+SELECT Polygon(1234512,'');
+Polygon(1234512,'')
+NULL
+SELECT Polygon(12345123,'');
+Polygon(12345123,'')
+NULL
 End of 5.1 tests
