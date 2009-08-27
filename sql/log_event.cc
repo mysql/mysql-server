@@ -3202,6 +3202,15 @@ Default database: '%s'. Query: '%s'",
       DBUG_PRINT("info",("error ignored"));
       clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
       thd->killed= THD::NOT_KILLED;
+      /*
+        When an error is expected and matches the actual error the
+        slave does not report any error and by consequence changes
+        on transactional tables are not rolled back in the function
+        close_thread_tables(). For that reason, we explicitly roll
+        them back here.
+      */
+      if (expected_error && expected_error == actual_error)
+        ha_autocommit_or_rollback(thd, TRUE);
     }
     /*
       If we expected a non-zero error code and get nothing and, it is a concurrency

@@ -652,8 +652,30 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 # There is a bug in the slave that needs to be fixed before enabling
 # this part of the test. A bug report will be filed referencing this
 # test case.
+BEGIN;
+INSERT INTO nt_3 VALUES ("new text -28", -28, '');
+INSERT INTO tt_3 VALUES ("new text -27", -27, ''), ("new text -28", -28, '');
+ERROR 23000: Duplicate entry '-28' for key 'PRIMARY'
+INSERT INTO tt_1 VALUES ("new text -27", -27, '');
+COMMIT;
+BEGIN;
+INSERT INTO tt_4 VALUES ("new text -28", -28, '');
+INSERT INTO nt_4 VALUES ("new text -27", -27, ''), ("new text -28", -28, '');
+ERROR 23000: Duplicate entry '-28' for key 'PRIMARY'
+INSERT INTO tt_1 VALUES ("new text -28", -28, '');
+COMMIT;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_3 VALUES ("new text -28", -28, '')
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_3 VALUES ("new text -27", -27, ''), ("new text -28", -28, '')
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1 VALUES ("new text -27", -27, '')
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_4 VALUES ("new text -28", -28, '')
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_4 VALUES ("new text -27", -27, ''), ("new text -28", -28, '')
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1 VALUES ("new text -28", -28, '')
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 
 
@@ -832,29 +854,6 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_4 VALUES ("new text -30
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_4 VALUES ("new text -29", -29, ''), ("new text -30", -30, '')
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1 VALUES ("new text -31", -31, '')
 master-bin.000001	#	Query	#	#	ROLLBACK
-
-
-
-
-#
-#14) "B M T R" with error in M generates in the binlog the "B M T R" entries.
-#
-BEGIN;
-INSERT INTO tt_4 VALUES ("new text -32", -32, '');
-TRUNCATE TABLE tt_4;
-INSERT INTO tt_4 VALUES ("new text -33", -33, '');
-ROLLBACK;
-show binlog events from <binlog_start>;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_4 VALUES ("new text -32", -32, '')
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE tt_4
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_4 VALUES ("new text -33", -33, '')
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ###################################################################################
 #                                        CLEAN
 ###################################################################################
