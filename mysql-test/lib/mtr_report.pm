@@ -147,6 +147,9 @@ sub mtr_report_test ($) {
           }
         }
         $fail = "exp-fail";
+
+        # Mark test as experimental
+        $tinfo->{'exp_fail'} = 1;
         last;
       }
     }
@@ -235,14 +238,24 @@ sub mtr_report_stats ($;$) {
   my $tot_tests=  0;
   my $tot_restarts= 0;
   my $found_problems= 0;
+  my $tot_exp_fail = 0;
 
   foreach my $tinfo (@$tests)
   {
     if ( $tinfo->{failures} )
     {
-      # Test has failed at least one time
-      $tot_tests++;
-      $tot_failed++;
+      if ( $tinfo->{exp_fail} )
+      {
+	# Count experimental failures separately
+        $tot_exp_fail++;
+      }
+      else
+      {
+	# Test has failed at least one time
+	$tot_tests++;
+	$tot_failed++;
+      }
+
     }
     elsif ( $tinfo->{'result'} eq 'MTR_RES_SKIPPED' )
     {
@@ -367,10 +380,16 @@ sub mtr_report_stats ($;$) {
       "the documentation\n",
       "at http://dev.mysql.com/doc/mysql/en/mysql-test-suite.html\n\n";
 
-   }
+  }
   else
   {
     print "All $tot_tests tests were successful.\n\n";
+  }
+
+
+  if ( $tot_exp_fail != 0)
+  {
+    print "There was also $tot_exp_fail experimental tests that failed.\n\n";
   }
 
   if ( $tot_failed != 0 || $found_problems)
