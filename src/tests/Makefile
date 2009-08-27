@@ -479,6 +479,12 @@ helgrind2.bdbrun: BDBVGRIND=$(HGRIND)
 helgrind3.tdbrun: TDBVGRIND=$(HGRIND)
 helgrind3.bdbrun: BDBVGRIND=$(HGRIND)
 
+# we deliberately don't close the env, so recovery runs
+# lets avoid all of the valgrind errors
+test-recover1.tdbrun: VGRIND=
+test-recover2.tdbrun: VGRIND=
+test-recover3.tdbrun: VGRIND=
+
 dumpit:
 	../../newbrt/brtdump  dir.test_log5.c.tdb.recover/foo.db > dump.r && ../../newbrt/brtdump  dir.test_log5.c.tdb/foo.db > dump.o && diff -q dump.o dump.r
 
