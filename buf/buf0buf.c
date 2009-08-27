@@ -1622,7 +1622,7 @@ buf_page_get_zip(
 #ifndef UNIV_LOG_DEBUG
 	ut_ad(!ibuf_inside());
 #endif
-	buf_pool->n_page_gets++;
+	buf_pool->stat.n_page_gets++;
 
 	for (;;) {
 		buf_pool_mutex_enter();
@@ -1991,7 +1991,7 @@ buf_page_get_gen(
 #ifndef UNIV_LOG_DEBUG
 	ut_ad(!ibuf_inside() || ibuf_page(space, zip_size, offset, NULL));
 #endif
-	buf_pool->n_page_gets++;
+	buf_pool->stat.n_page_gets++;
 loop:
 	block = guess;
 	buf_pool_mutex_enter();
@@ -2410,7 +2410,7 @@ buf_page_optimistic_get_func(
 	ut_a(ibuf_count_get(buf_block_get_space(block),
 			    buf_block_get_page_no(block)) == 0);
 #endif
-	buf_pool->n_page_gets++;
+	buf_pool->stat.n_page_gets++;
 
 	return(TRUE);
 }
@@ -2504,7 +2504,7 @@ buf_page_get_known_nowait(
 	     || (ibuf_count_get(buf_block_get_space(block),
 				buf_block_get_page_no(block)) == 0));
 #endif
-	buf_pool->n_page_gets++;
+	buf_pool->stat.n_page_gets++;
 
 	return(TRUE);
 }
@@ -2580,7 +2580,7 @@ buf_page_try_get_func(
 #endif /* UNIV_DEBUG_FILE_ACCESSES */
 	buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
 
-	buf_pool->n_page_gets++;
+	buf_pool->stat.n_page_gets++;
 
 #ifdef UNIV_IBUF_COUNT_DEBUG
 	ut_a(ibuf_count_get(buf_block_get_space(block),
@@ -2944,7 +2944,7 @@ buf_page_create(
 	buf_LRU_add_block(&block->page, FALSE);
 
 	buf_block_buf_fix_inc(block, __FILE__, __LINE__);
-	buf_pool->n_pages_created++;
+	buf_pool->stat.n_pages_created++;
 
 	if (zip_size) {
 		void*	data;
@@ -3192,7 +3192,7 @@ corrupt:
 
 		ut_ad(buf_pool->n_pend_reads > 0);
 		buf_pool->n_pend_reads--;
-		buf_pool->n_pages_read++;
+		buf_pool->stat.n_pages_read++;
 
 		if (uncompressed) {
 			rw_lock_x_unlock_gen(&((buf_block_t*) bpage)->lock,
@@ -3212,7 +3212,7 @@ corrupt:
 					     BUF_IO_WRITE);
 		}
 
-		buf_pool->n_pages_written++;
+		buf_pool->stat.n_pages_written++;
 
 		break;
 
@@ -3530,10 +3530,11 @@ buf_print(void)
 		(ulong) buf_pool->n_flush[BUF_FLUSH_LRU],
 		(ulong) buf_pool->n_flush[BUF_FLUSH_LIST],
 		(ulong) buf_pool->n_flush[BUF_FLUSH_SINGLE_PAGE],
-		(ulong) buf_pool->n_pages_made_young,
-		(ulong) buf_pool->n_pages_not_made_young,
-		(ulong) buf_pool->n_pages_read, buf_pool->n_pages_created,
-		(ulong) buf_pool->n_pages_written);
+		(ulong) buf_pool->stat.n_pages_made_young,
+		(ulong) buf_pool->stat.n_pages_not_made_young,
+		(ulong) buf_pool->stat.n_pages_read,
+		(ulong) buf_pool->stat.n_pages_created,
+		(ulong) buf_pool->stat.n_pages_written);
 
 	/* Count the number of blocks belonging to each index in the buffer */
 
@@ -3767,61 +3768,66 @@ buf_print_io(
 	current_time = time(NULL);
 	time_elapsed = 0.001 + difftime(current_time,
 					buf_pool->last_printout_time);
-	buf_pool->last_printout_time = current_time;
 
 	fprintf(file,
 		"Pages made young %lu, not young %lu\n"
 		"%.2f youngs/s, %.2f non-youngs/s\n"
 		"Pages read %lu, created %lu, written %lu\n"
 		"%.2f reads/s, %.2f creates/s, %.2f writes/s\n",
-		(ulong) buf_pool->n_pages_made_young,
-		(ulong) buf_pool->n_pages_not_made_young,
-		(buf_pool->n_pages_made_young
-		 - buf_pool->n_pages_made_young_old)
+		(ulong) buf_pool->stat.n_pages_made_young,
+		(ulong) buf_pool->stat.n_pages_not_made_young,
+		(buf_pool->stat.n_pages_made_young
+		 - buf_pool->old_stat.n_pages_made_young)
 		/ time_elapsed,
-		(buf_pool->n_pages_not_made_young
-		 - buf_pool->n_pages_not_made_young_old)
+		(buf_pool->stat.n_pages_not_made_young
+		 - buf_pool->old_stat.n_pages_not_made_young)
 		/ time_elapsed,
-		(ulong) buf_pool->n_pages_read,
-		(ulong) buf_pool->n_pages_created,
-		(ulong) buf_pool->n_pages_written,
-		(buf_pool->n_pages_read - buf_pool->n_pages_read_old)
+		(ulong) buf_pool->stat.n_pages_read,
+		(ulong) buf_pool->stat.n_pages_created,
+		(ulong) buf_pool->stat.n_pages_written,
+		(buf_pool->stat.n_pages_read
+		 - buf_pool->old_stat.n_pages_read)
 		/ time_elapsed,
-		(buf_pool->n_pages_created - buf_pool->n_pages_created_old)
+		(buf_pool->stat.n_pages_created
+		 - buf_pool->old_stat.n_pages_created)
 		/ time_elapsed,
-		(buf_pool->n_pages_written - buf_pool->n_pages_written_old)
+		(buf_pool->stat.n_pages_written
+		 - buf_pool->old_stat.n_pages_written)
 		/ time_elapsed);
 
-	n_gets_diff = buf_pool->n_page_gets - buf_pool->n_page_gets_old;
+	n_gets_diff = buf_pool->stat.n_page_gets - buf_pool->old_stat.n_page_gets;
 
 	if (n_gets_diff) {
 		fprintf(file,
 			"Buffer pool hit rate %lu / 1000,"
 			" young-making rate %lu / 1000 not %lu / 1000\n",
 			(ulong)
-			(1000 - ((1000 * (buf_pool->n_pages_read
-					  - buf_pool->n_pages_read_old))
-				 / n_gets_diff)),
+			(1000 - ((1000 * (buf_pool->stat.n_pages_read
+					  - buf_pool->old_stat.n_pages_read))
+				 / (buf_pool->stat.n_page_gets
+				    - buf_pool->old_stat.n_page_gets))),
 			(ulong)
-			(1000 * (buf_pool->n_pages_made_young
-				 - buf_pool->n_pages_made_young_old)
+			(1000 * (buf_pool->stat.n_pages_made_young
+				 - buf_pool->old_stat.n_pages_made_young)
 			 / n_gets_diff),
 			(ulong)
-			(1000 * (buf_pool->n_pages_not_made_young
-				 - buf_pool->n_pages_not_made_young_old)
+			(1000 * (buf_pool->stat.n_pages_not_made_young
+				 - buf_pool->old_stat.n_pages_not_made_young)
 			 / n_gets_diff));
 	} else {
 		fputs("No buffer pool page gets since the last printout\n",
 		      file);
 	}
 
-	buf_pool->n_page_gets_old = buf_pool->n_page_gets;
-	buf_pool->n_pages_made_young_old = buf_pool->n_pages_made_young;
-	buf_pool->n_pages_not_made_young_old
-		= buf_pool->n_pages_not_made_young;
-	buf_pool->n_pages_read_old = buf_pool->n_pages_read;
-	buf_pool->n_pages_created_old = buf_pool->n_pages_created;
-	buf_pool->n_pages_written_old = buf_pool->n_pages_written;
+	/* Statistics about read ahead algorithm */
+	fprintf(file, "Pages read ahead %.2f/s,"
+		" evicted without access %.2f/s\n",
+		(buf_pool->stat.n_ra_pages_read
+		- buf_pool->old_stat.n_ra_pages_read)
+		/ time_elapsed,
+		(buf_pool->stat.n_ra_pages_evicted
+		- buf_pool->old_stat.n_ra_pages_evicted)
+		/ time_elapsed);
 
 	/* Print some values to help us with visualizing what is
 	happening with LRU eviction. */
@@ -3833,6 +3839,7 @@ buf_print_io(
 		buf_LRU_stat_sum.io, buf_LRU_stat_cur.io,
 		buf_LRU_stat_sum.unzip, buf_LRU_stat_cur.unzip);
 
+	buf_refresh_io_stats();
 	buf_pool_mutex_exit();
 }
 
@@ -3844,10 +3851,7 @@ buf_refresh_io_stats(void)
 /*======================*/
 {
 	buf_pool->last_printout_time = time(NULL);
-	buf_pool->n_page_gets_old = buf_pool->n_page_gets;
-	buf_pool->n_pages_read_old = buf_pool->n_pages_read;
-	buf_pool->n_pages_created_old = buf_pool->n_pages_created;
-	buf_pool->n_pages_written_old = buf_pool->n_pages_written;
+	buf_pool->old_stat = buf_pool->stat;
 }
 
 /*********************************************************************//**
