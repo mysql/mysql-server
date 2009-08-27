@@ -1,5 +1,6 @@
 2009-08-26	The InnoDB Team
 
+	* handler/ha_innodb.cc, os/os0file.c:
 	Fix Bug#42885 buf_read_ahead_random, buf_read_ahead_linear counters,
 	thread wakeups
 
