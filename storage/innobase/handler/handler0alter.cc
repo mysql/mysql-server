@@ -863,6 +863,7 @@ error_handling:
 		indexed_table->n_mysql_handles_opened++;
 
 		error = row_merge_drop_table(trx, innodb_table);
+		innodb_table = indexed_table;
 		goto convert_error;
 
 	case DB_TOO_BIG_RECORD:
