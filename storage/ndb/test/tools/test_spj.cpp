@@ -43,7 +43,7 @@ paramSpec: 00050001 00000001 00010000 00000001 fff00006 00050001 00000001 000200
 #include <NdbQueryOperation.hpp>
 #include <NdbQueryBuilder.hpp>
 // 'impl' classes is needed for prototype only.
-#include <NdbQueryOperationImpl.hpp>
+//#include <NdbQueryOperationImpl.hpp>
 //#include "NdbQueryBuilderImpl.hpp"
 
 

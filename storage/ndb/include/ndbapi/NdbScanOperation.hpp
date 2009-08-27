@@ -37,6 +37,7 @@ class NdbScanOperation : public NdbOperation {
   friend class NdbOperation;
   friend class NdbBlob;
   friend class NdbScanFilter;
+  friend class NdbQueryOperationImpl;
 #endif
 
 public:
