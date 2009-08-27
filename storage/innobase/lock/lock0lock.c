@@ -3574,7 +3574,8 @@ lock_table_remove_low(
 		and lock_grant()). Therefore it can be empty and we
 		need to check for that. */
 
-		if (!ib_vector_is_empty(trx->autoinc_locks)) {
+		if (!lock_get_wait(lock)
+		    && !ib_vector_is_empty(trx->autoinc_locks)) {
 			lock_t*	autoinc_lock;
 
 			autoinc_lock = ib_vector_pop(trx->autoinc_locks);
@@ -3647,8 +3648,10 @@ lock_table_enqueue_waiting(
 
 	if (lock_deadlock_occurs(lock, trx)) {
 
-		lock_reset_lock_and_trx_wait(lock);
+		/* The order here is important, we don't want to
+		lose the state of the lock before calling remove. */
 		lock_table_remove_low(lock);
+		lock_reset_lock_and_trx_wait(lock);
 
 		return(DB_DEADLOCK);
 	}
