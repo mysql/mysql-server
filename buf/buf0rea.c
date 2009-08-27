@@ -38,14 +38,6 @@ Created 11/5/1995 Heikki Tuuri
 #include "srv0start.h"
 #include "srv0srv.h"
 
-/** The size in blocks of the area where the random read-ahead algorithm counts
-the accessed pages when deciding whether to read-ahead */
-#define	BUF_READ_AHEAD_RANDOM_AREA	BUF_READ_AHEAD_AREA
-
-/** There must be at least this many pages in buf_pool in the area to start
-a random read-ahead */
-#define BUF_READ_AHEAD_RANDOM_THRESHOLD	(1 + BUF_READ_AHEAD_RANDOM_AREA / 2)
-
 /** The linear read-ahead area size */
 #define	BUF_READ_AHEAD_LINEAR_AREA	BUF_READ_AHEAD_AREA
 
@@ -62,7 +54,8 @@ flag is cleared and the x-lock released by an i/o-handler thread.
 @return 1 if a read request was queued, 0 if the page already resided
 in buf_pool, or if the page is in the doublewrite buffer blocks in
 which case it is never read into the pool, or if the tablespace does
-not exist or is being dropped */
+not exist or is being dropped 
+@return 1 if read request is issued. 0 if it is not */
 static
 ulint
 buf_read_page_low(
@@ -168,12 +161,10 @@ buf_read_page_low(
 High-level function which reads a page asynchronously from a file to the
 buffer buf_pool if it is not already there. Sets the io_fix flag and sets
 an exclusive lock on the buffer frame. The flag is cleared and the x-lock
-released by the i/o-handler thread. Does a random read-ahead if it seems
-sensible.
-@return number of page read requests issued: this can be greater than
-1 if read-ahead occurred */
+released by the i/o-handler thread.
+@return TRUE if page has been read in, FALSE in case of failure */
 UNIV_INTERN
-ulint
+ibool
 buf_read_page(
 /*==========*/
 	ulint	space,	/*!< in: space id */
@@ -209,7 +200,7 @@ buf_read_page(
 	/* Increment number of I/O operations used for LRU policy. */
 	buf_LRU_stat_inc_io();
 
-	return(count);
+	return(count > 0 ? TRUE : FALSE);
 }
 
 /********************************************************************//**
