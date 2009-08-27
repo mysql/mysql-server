@@ -181,7 +181,7 @@ our $opt_client_debugger;
 my $config; # The currently running config
 my $current_config_name; # The currently running config file template
 
-our $opt_experimental;
+our $opt_experimental = "collections/default.experimental";
 our $experimental_test_cases;
 
 my $baseport;
