@@ -3300,6 +3300,7 @@ Item_copy *Item_copy::create (Item *item)
       return new Item_copy_decimal (item);
 
     case ROW_RESULT:
+    case MAX_NO_ITEM_RESULTS:
       DBUG_ASSERT (0);
   }
   /* should not happen */
