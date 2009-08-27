@@ -4105,8 +4105,8 @@ sub mysqld_arguments ($$$) {
 
   if ( $mysql_version_id >= 50106 )
   {
-    # Turn on logging to both tables and file
-    mtr_add_arg($args, "--log-output=table,file");
+    # Turn on logging to file
+    mtr_add_arg($args, "--log-output=file");
   }
 
   # Check if "extra_opt" contains skip-log-bin
