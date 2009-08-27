@@ -489,7 +489,7 @@ buf_read_ahead_linear(
 	LRU policy decision. */
 	buf_LRU_stat_inc_io();
 
-	++srv_read_ahead_seq;
+	buf_pool->stat.n_ra_pages_read += count;
 	return(count);
 }
 

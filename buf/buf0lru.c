@@ -576,6 +576,7 @@ buf_LRU_free_from_common_LRU_list(
 	     bpage = UT_LIST_GET_PREV(LRU, bpage), distance--) {
 
 		enum buf_lru_free_block_status	freed;
+		unsigned			accessed;
 		mutex_t*			block_mutex
 			= buf_page_get_mutex(bpage);
 
@@ -583,11 +584,18 @@ buf_LRU_free_from_common_LRU_list(
 		ut_ad(bpage->in_LRU_list);
 
 		mutex_enter(block_mutex);
+		accessed = buf_page_is_accessed(bpage);
 		freed = buf_LRU_free_block(bpage, TRUE, NULL);
 		mutex_exit(block_mutex);
 
 		switch (freed) {
 		case BUF_LRU_FREED:
+			/* Keep track of pages that are evicted without
+			ever being accessed. This gives us a measure of
+			the effectiveness of readahead */
+			if (!accessed) {
+				++buf_pool->stat.n_ra_pages_evicted;
+			}
 			return(TRUE);
 
 		case BUF_LRU_NOT_FREED:
@@ -1270,7 +1278,7 @@ buf_LRU_make_block_young(
 	buf_page_t*	bpage)	/*!< in: control block */
 {
 	ut_ad(buf_pool_mutex_own());
-	buf_pool->n_pages_made_young++;
+	buf_pool->stat.n_pages_made_young++;
 
 	buf_LRU_remove_block(bpage);
 	buf_LRU_add_block_low(bpage, FALSE);
