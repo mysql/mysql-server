@@ -200,7 +200,7 @@ buf_read_page(
 	/* Increment number of I/O operations used for LRU policy. */
 	buf_LRU_stat_inc_io();
 
-	return(count > 0 ? TRUE : FALSE);
+	return(count > 0);
 }
 
 /********************************************************************//**
