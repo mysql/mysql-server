@@ -2001,6 +2001,12 @@ Dbspj::scanFrag_execSCAN_FRAGCONF(Signal* signal,
 
   treeNodePtr.p->m_scanfrag_data.m_scan_status = done;
   treeNodePtr.p->m_scanfrag_data.m_rows_expecting = rows;
+  if (treeNodePtr.p->m_bits & TreeNode::T_LEAF)
+  {
+    /* If this is a leaf node, then no rows will be sent to the SPJ block,
+     *  as there are no child operations to instantiate.*/
+    treeNodePtr.p->m_scanfrag_data.m_rows_received = rows;
+  }
   treeNodePtr.p->m_scanfrag_data.m_scan_fragconf_received = true;
   if(isScanComplete(treeNodePtr.p->m_scanfrag_data)){
     jam();

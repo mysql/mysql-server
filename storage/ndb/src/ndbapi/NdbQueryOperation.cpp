@@ -225,11 +225,11 @@ NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans,
   if (root.getType() == NdbQueryOperationDefImpl::PrimaryKeyAccess  ||
       root.getType() == NdbQueryOperationDefImpl::UniqueIndexAccess)
   {
-    const NdbDictionary::Table* table = root.getIndex()
+    const NdbDictionary::Table* const table = root.getIndex()
       ? root.getIndex()->getIndexTable()
       : &root.getTable();
     
-    NdbOperation* lookupOp = m_transaction.getNdbOperation(table);
+    NdbOperation* const lookupOp = m_transaction.getNdbOperation(table);
     lookupOp->readTuple(NdbOperation::LM_Dirty);
     lookupOp->m_isLinked = true; //(queryDef.getNoOfOperations()>1);
     lookupOp->setQueryImpl(this);
@@ -242,7 +242,9 @@ NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans,
   }
   else if (root.getType() == NdbQueryOperationDefImpl::TableScan)
   {
-    NdbScanOperation* scanOp = m_transaction.scanTable(root.getTable().getDefaultRecord(), NdbOperation::LM_Dirty);
+    NdbScanOperation* const scanOp 
+      = m_transaction.scanTable(root.getTable().getDefaultRecord(), 
+                                NdbOperation::LM_Dirty);
     scanOp->m_isLinked = true; // if (queryDef.getNoOfOperations()> 1);
     scanOp->setQueryImpl(this);
     m_ndbOperation = scanOp;
@@ -438,6 +440,7 @@ NdbQueryImpl::prepareSend(){
 
 void 
 NdbQueryImpl::release(){
+  // FIXME: Should this be called as part of destructor?
   for(Uint32 i = 0; i < m_countOperations; i++){
       m_operations[i].release();
   }
@@ -824,6 +827,13 @@ NdbQueryOperationImpl::fetchMoreResults(bool forceSend){
           /* FIXME: Add code to ask for the next batch if necessary.*/
           const bool scanComplete = true;
           if(scanComplete){
+            /* FIXME: Close scans properly. This would involve sending
+             * SCAN_NEXTREQ*/
+            NdbScanOperation* const scanOp 
+              = static_cast<NdbScanOperation*>(getQuery().getNdbOperation());
+            scanOp->m_sent_receivers_count = 0;
+            scanOp->m_api_receivers_count = 0;
+            scanOp->m_conf_receivers_count = 0;
             return FetchResult_scanComplete;
           }else{
             // FIXME: Ask for new scan batch.
