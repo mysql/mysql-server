@@ -62,3 +62,23 @@ clean:
 
 install: $(TARGET)
 	cp $(TARGET) $(MYSQL_LIBDIR)/libtokudb_engine.so
+
+tags: TAGS cscope.out;
+
+TAGS: $(TOKUDB)/*/*.[ch] $(TOKUDB)/*/*/*.[ch] $(TOKUDB)/*/*/*/*.[ch] *.cc *.h
+	rm -f `find $(TOKUDB)/ -type f -name TAGS` #Delete all other tag files
+	etags $(TOKUDB)/*/*.[ch] $(TOKUDB)/*/*/*.[ch] $(TOKUDB)/*/*/*/*.[ch] *.cc *.h
+
+cscope.files: $(TOKUDB)/*/*.[ch] $(TOKUDB)/*/*/*.[ch] $(TOKUDB)/*/*/*/*.[ch] *.cc *.h
+	(echo $(TOKUDB)/*/*.[ch] $(TOKUDB)/*/*/*.[ch] $(TOKUDB)/*/*/*/*.[ch] *.cc *.h | tr " " "\n") > $@
+
+ifneq ($(CYGWIN),)
+    CSCOPE=mlcscope
+else
+    CSCOPE=cscope
+endif
+
+cscope.out: cscope.files $(TOKUDB)/*/*.[ch] $(TOKUDB)/*/*/*.[ch] $(TOKUDB)/*/*/*/*.[ch] *.cc *.h
+	$(CSCOPE) -qb
+
+
