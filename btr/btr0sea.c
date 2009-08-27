@@ -957,7 +957,7 @@ btr_search_guess_on_hash(
 	/* Increment the page get statistics though we did not really
 	fix the page: for user info only */
 
-	buf_pool->n_page_gets++;
+	buf_pool->stat.n_page_gets++;
 
 	return(TRUE);
 

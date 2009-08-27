@@ -1284,6 +1284,31 @@ Compute the hash fold value for blocks in buf_pool->zip_hash. */
 #define BUF_POOL_ZIP_FOLD_BPAGE(b) BUF_POOL_ZIP_FOLD((buf_block_t*) (b))
 /* @} */
 
+/** @brief The buffer pool statistics structure. */
+struct buf_pool_stat_struct{
+	ulint	n_page_gets;	/*!< number of page gets performed;
+				also successful searches through
+				the adaptive hash index are
+				counted as page gets; this field
+				is NOT protected by the buffer
+				pool mutex */
+	ulint	n_pages_read;	/*!< number read operations */
+	ulint	n_pages_written;/*!< number write operations */
+	ulint	n_pages_created;/*!< number of pages created
+				in the pool with no read */
+	ulint	n_ra_pages_read;/*!< number of pages read in
+				as part of read ahead */
+	ulint	n_ra_pages_evicted;/*!< number of read ahead
+				pages that are evicted without
+				being accessed */
+	ulint	n_pages_made_young; /*!< number of pages made young, in
+				calls to buf_LRU_make_block_young() */
+	ulint	n_pages_not_made_young; /*!< number of pages not made
+				young because the first access
+				was not long enough ago, in
+				buf_page_peek_if_too_old() */
+};
+
 /** @brief The buffer pool structure.
 
 NOTE! The definition appears here only for other modules of this
@@ -1311,44 +1336,13 @@ struct buf_pool_struct{
 	time_t		last_printout_time;
 					/*!< when buf_print_io was last time
 					called */
-	ulint		n_pages_made_young;
-					/*!< number of pages made young, in
-					calls to buf_LRU_make_block_young() */
-	ulint		n_pages_not_made_young;
-					/*!< number of pages not made
-					young because the first access
-					was not long enough ago, in
-					buf_page_peek_if_too_old() */
-	ulint		n_pages_read;	/*!< number read operations */
-	ulint		n_pages_written;/*!< number write operations */
-	ulint		n_pages_created;/*!< number of pages created
-					in the pool with no read */
-	ulint		n_page_gets;	/*!< number of page gets performed;
-					also successful searches through
-					the adaptive hash index are
-					counted as page gets; this field
-					is NOT protected by the buffer
-					pool mutex */
-	ulint		n_page_gets_old;/*!< n_page_gets when buf_print_io was
-					called last time: used to calculate
-					hit rate */
-	ulint		n_pages_made_young_old;
-					/*!< n_pages_made_young when
-					buf_print_io was called last time */
-	ulint		n_pages_not_made_young_old;
-					/*!< n_pages_not_made_young when
-					buf_print_io was called last time */
-	ulint		n_pages_read_old;
-					/*!< n_pages_read when buf_print_io
-					was called last time */
-	ulint		n_pages_written_old;
-					/*!< n_pages_written when buf_print_io
-					was called last time */
-	ulint		n_pages_created_old;
-					/*!< n_pages_created when buf_print_io
-					was called last time */
+	buf_pool_stat_t	stat;		/*!< current statistics */
+	buf_pool_stat_t	old_stat;	/*!< old statistics */
+
 	/* @} */
+
 	/** @name Page flushing algorithm fields */
+
 	/* @{ */
 
 	UT_LIST_BASE_NODE_T(buf_page_t) flush_list;
