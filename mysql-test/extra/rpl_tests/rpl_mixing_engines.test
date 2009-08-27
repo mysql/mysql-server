@@ -562,21 +562,21 @@ let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
 --echo # There is a bug in the slave that needs to be fixed before enabling
 --echo # this part of the test. A bug report will be filed referencing this
 --echo # test case.
-#
-#BEGIN;
-#INSERT INTO nt_3 VALUES ("new text -28", -28, '');
-#--error ER_DUP_ENTRY
-#INSERT INTO tt_3 VALUES ("new text -27", -27, ''), ("new text -28", -28, '');
-#INSERT INTO tt_1 VALUES ("new text -27", -27, '');
-#COMMIT;
-#
-#BEGIN;
-#INSERT INTO tt_4 VALUES ("new text -28", -28, '');
-#--error ER_DUP_ENTRY
-#INSERT INTO nt_4 VALUES ("new text -27", -27, ''), ("new text -28", -28, '');
-#INSERT INTO tt_1 VALUES ("new text -28", -28, '');
-#COMMIT;
-#
+
+BEGIN;
+INSERT INTO nt_3 VALUES ("new text -28", -28, '');
+--error ER_DUP_ENTRY
+INSERT INTO tt_3 VALUES ("new text -27", -27, ''), ("new text -28", -28, '');
+INSERT INTO tt_1 VALUES ("new text -27", -27, '');
+COMMIT;
+
+BEGIN;
+INSERT INTO tt_4 VALUES ("new text -28", -28, '');
+--error ER_DUP_ENTRY
+INSERT INTO nt_4 VALUES ("new text -27", -27, ''), ("new text -28", -28, '');
+INSERT INTO tt_1 VALUES ("new text -28", -28, '');
+COMMIT;
+
 --source include/show_binlog_events.inc
 
 --echo
@@ -679,23 +679,6 @@ INSERT INTO tt_4 VALUES ("new text -30", -30, '');
 --error ER_DUP_ENTRY
 INSERT INTO nt_4 VALUES ("new text -29", -29, ''), ("new text -30", -30, '');
 INSERT INTO tt_1 VALUES ("new text -31", -31, '');
-ROLLBACK;
-
---source include/show_binlog_events.inc
-
---echo
---echo
---echo
---echo
-let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
---echo #
---echo #14) "B M T R" with error in M generates in the binlog the "B M T R" entries.
---echo #
-
-BEGIN;
-INSERT INTO tt_4 VALUES ("new text -32", -32, '');
-TRUNCATE TABLE tt_4;
-INSERT INTO tt_4 VALUES ("new text -33", -33, '');
 ROLLBACK;
 
 --source include/show_binlog_events.inc
