@@ -1,0 +1,17 @@
+#
+# Bug#44571 InnoDB Plugin crashes on ADD INDEX
+# http://bugs.mysql.com/44571
+#
+-- source include/have_innodb.inc
+
+CREATE TABLE bug44571 (foo INT) ENGINE=InnoDB;
+ALTER TABLE bug44571 CHANGE foo bar INT;
+-- error ER_KEY_COLUMN_DOES_NOT_EXITS
+ALTER TABLE bug44571 ADD INDEX bug44571b (foo);
+# The following will fail, because the CHANGE foo bar was
+# not communicated to InnoDB.
+--error ER_NOT_KEYFILE
+ALTER TABLE bug44571 ADD INDEX bug44571b (bar);
+--error ER_NOT_KEYFILE
+CREATE INDEX bug44571b ON bug44571 (bar);
+DROP TABLE bug44571;
