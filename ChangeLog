@@ -1,5 +1,12 @@
 2009-08-27	The InnoDB Team
 
+	* row/row0merge.c:
+	Fix a bug in the merge sort that can corrupt indexes in fast index
+	creation.  Add some consistency checks.  Check that the number of
+	records remains constant in every merge sort pass.
+
+2009-08-27	The InnoDB Team
+
 	* buf/buf0buf.c, buf/buf0lru.c, buf/buf0rea.c,
 	handler/ha_innodb.cc, include/buf0buf.h, include/buf0buf.ic,
 	include/buf0lru.h, include/ut0ut.h, ut/ut0ut.c:
