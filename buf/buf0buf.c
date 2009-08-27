@@ -966,8 +966,6 @@ buf_pool_init(void)
 		buf_pool->no_flush[i] = os_event_create(NULL);
 	}
 
-	buf_pool->ulint_clock = 1;
-
 	/* 3. Initialize LRU fields
 	--------------------------- */
 	/* All fields are initialized by mem_zalloc(). */
@@ -1471,31 +1469,6 @@ buf_pool_resize(void)
 }
 
 /********************************************************************//**
-Moves the block to the start of the LRU list if there is a danger
-that the block would drift out of the buffer pool. */
-UNIV_INLINE
-void
-buf_block_make_young(
-/*=================*/
-	buf_page_t*	bpage)	/*!< in: block to make younger */
-{
-	ut_ad(!buf_pool_mutex_own());
-
-	/* Note that we read freed_page_clock's without holding any mutex:
-	this is allowed since the result is used only in heuristics */
-
-	if (buf_page_peek_if_too_old(bpage)) {
-
-		buf_pool_mutex_enter();
-		/* There has been freeing activity in the LRU list:
-		best to move to the head of the LRU list */
-
-		buf_LRU_make_block_young(bpage);
-		buf_pool_mutex_exit();
-	}
-}
-
-/********************************************************************//**
 Moves a page to the start of the buffer pool LRU list. This high-level
 function can be used to prevent an important page from from slipping out of
 the buffer pool. */
@@ -1713,13 +1686,15 @@ err_exit:
 got_block:
 	must_read = buf_page_get_io_fix(bpage) == BUF_IO_READ;
 
+	if (buf_page_peek_if_too_old(bpage)) {
+		buf_LRU_make_block_young(bpage);
+	}
+
+	buf_page_set_accessed(bpage);
+
 	buf_pool_mutex_exit();
 
-	buf_page_set_accessed(bpage, TRUE);
-
 	mutex_exit(block_mutex);
-
-	buf_block_make_young(bpage);
 
 #ifdef UNIV_DEBUG_FILE_ACCESSES
 	ut_a(!bpage->file_page_was_freed);
@@ -2000,7 +1975,7 @@ buf_page_get_gen(
 	mtr_t*		mtr)	/*!< in: mini-transaction */
 {
 	buf_block_t*	block;
-	ibool		accessed;
+	unsigned	access_time;
 	ulint		fix_type;
 	ibool		must_read;
 
@@ -2243,17 +2218,20 @@ wait_until_unfixed:
 	UNIV_MEM_ASSERT_RW(&block->page, sizeof block->page);
 
 	buf_block_buf_fix_inc(block, file, line);
-	buf_pool_mutex_exit();
-
-	/* Check if this is the first access to the page */
-
-	accessed = buf_page_is_accessed(&block->page);
-
-	buf_page_set_accessed(&block->page, TRUE);
 
 	mutex_exit(&block->mutex);
 
-	buf_block_make_young(&block->page);
+	/* Check if this is the first access to the page */
+
+	access_time = buf_page_is_accessed(&block->page);
+
+	if (buf_page_peek_if_too_old(&block->page)) {
+		buf_LRU_make_block_young(&block->page);
+	}
+
+	buf_page_set_accessed(&block->page);
+
+	buf_pool_mutex_exit();
 
 #ifdef UNIV_DEBUG_FILE_ACCESSES
 	ut_a(!block->page.file_page_was_freed);
@@ -2306,7 +2284,7 @@ wait_until_unfixed:
 
 	mtr_memo_push(mtr, block, fix_type);
 
-	if (!accessed) {
+	if (!access_time) {
 		/* In the case of a first access, try to apply linear
 		read-ahead */
 
@@ -2336,7 +2314,7 @@ buf_page_optimistic_get_func(
 	ulint		line,	/*!< in: line where called */
 	mtr_t*		mtr)	/*!< in: mini-transaction */
 {
-	ibool		accessed;
+	unsigned	access_time;
 	ibool		success;
 	ulint		fix_type;
 
@@ -2353,14 +2331,21 @@ buf_page_optimistic_get_func(
 	}
 
 	buf_block_buf_fix_inc(block, file, line);
-	accessed = buf_page_is_accessed(&block->page);
-	buf_page_set_accessed(&block->page, TRUE);
 
 	mutex_exit(&block->mutex);
 
-	buf_block_make_young(&block->page);
+	buf_pool_mutex_enter();
 
 	/* Check if this is the first access to the page */
+	access_time = buf_page_is_accessed(&block->page);
+
+	if (buf_page_peek_if_too_old(&block->page)) {
+		buf_LRU_make_block_young(&block->page);
+	}
+
+	buf_page_set_accessed(&block->page);
+
+	buf_pool_mutex_exit();
 
 	ut_ad(!ibuf_inside()
 	      || ibuf_page(buf_block_get_space(block),
@@ -2412,7 +2397,7 @@ buf_page_optimistic_get_func(
 #ifdef UNIV_DEBUG_FILE_ACCESSES
 	ut_a(block->page.file_page_was_freed == FALSE);
 #endif
-	if (UNIV_UNLIKELY(!accessed)) {
+	if (UNIV_UNLIKELY(!access_time)) {
 		/* In the case of a first access, try to apply linear
 		read-ahead */
 
@@ -2473,9 +2458,15 @@ buf_page_get_known_nowait(
 
 	mutex_exit(&block->mutex);
 
-	if (mode == BUF_MAKE_YOUNG) {
-		buf_block_make_young(&block->page);
+	buf_pool_mutex_enter();
+
+	if (mode == BUF_MAKE_YOUNG && buf_page_peek_if_too_old(&block->page)) {
+		buf_LRU_make_block_young(&block->page);
 	}
+
+	buf_page_set_accessed(&block->page);
+
+	buf_pool_mutex_exit();
 
 	ut_ad(!ibuf_inside() || (mode == BUF_KEEP_OLD));
 
@@ -2608,10 +2599,10 @@ buf_page_init_low(
 	buf_page_t*	bpage)	/*!< in: block to init */
 {
 	bpage->flush_type = BUF_FLUSH_LRU;
-	bpage->accessed = FALSE;
 	bpage->io_fix = BUF_IO_NONE;
 	bpage->buf_fix_count = 0;
 	bpage->freed_page_clock = 0;
+	bpage->access_time = 0;
 	bpage->newest_modification = 0;
 	bpage->oldest_modification = 0;
 	HASH_INVALIDATE(bpage, hash);
@@ -2990,11 +2981,11 @@ buf_page_create(
 		rw_lock_x_unlock(&block->lock);
 	}
 
+	buf_page_set_accessed(&block->page);
+
 	buf_pool_mutex_exit();
 
 	mtr_memo_push(mtr, block, MTR_MEMO_BUF_FIX);
-
-	buf_page_set_accessed(&block->page, TRUE);
 
 	mutex_exit(&block->mutex);
 
@@ -3528,6 +3519,7 @@ buf_print(void)
 		"n pending decompressions %lu\n"
 		"n pending reads %lu\n"
 		"n pending flush LRU %lu list %lu single page %lu\n"
+		"pages made young %lu, not young %lu\n"
 		"pages read %lu, created %lu, written %lu\n",
 		(ulong) size,
 		(ulong) UT_LIST_GET_LEN(buf_pool->LRU),
@@ -3538,6 +3530,8 @@ buf_print(void)
 		(ulong) buf_pool->n_flush[BUF_FLUSH_LRU],
 		(ulong) buf_pool->n_flush[BUF_FLUSH_LIST],
 		(ulong) buf_pool->n_flush[BUF_FLUSH_SINGLE_PAGE],
+		(ulong) buf_pool->n_pages_made_young,
+		(ulong) buf_pool->n_pages_not_made_young,
 		(ulong) buf_pool->n_pages_read, buf_pool->n_pages_created,
 		(ulong) buf_pool->n_pages_written);
 
@@ -3744,10 +3738,9 @@ buf_print_io(
 {
 	time_t	current_time;
 	double	time_elapsed;
-	ulint	size;
+	ulint	n_gets_diff;
 
 	ut_ad(buf_pool);
-	size = buf_pool->curr_size;
 
 	buf_pool_mutex_enter();
 
@@ -3755,12 +3748,14 @@ buf_print_io(
 		"Buffer pool size   %lu\n"
 		"Free buffers       %lu\n"
 		"Database pages     %lu\n"
+		"Old database pages %lu\n"
 		"Modified db pages  %lu\n"
 		"Pending reads %lu\n"
 		"Pending writes: LRU %lu, flush list %lu, single page %lu\n",
-		(ulong) size,
+		(ulong) buf_pool->curr_size,
 		(ulong) UT_LIST_GET_LEN(buf_pool->free),
 		(ulong) UT_LIST_GET_LEN(buf_pool->LRU),
+		(ulong) buf_pool->LRU_old_len,
 		(ulong) UT_LIST_GET_LEN(buf_pool->flush_list),
 		(ulong) buf_pool->n_pend_reads,
 		(ulong) buf_pool->n_flush[BUF_FLUSH_LRU]
@@ -3775,8 +3770,18 @@ buf_print_io(
 	buf_pool->last_printout_time = current_time;
 
 	fprintf(file,
+		"Pages made young %lu, not young %lu\n"
+		"%.2f youngs/s, %.2f non-youngs/s\n"
 		"Pages read %lu, created %lu, written %lu\n"
 		"%.2f reads/s, %.2f creates/s, %.2f writes/s\n",
+		(ulong) buf_pool->n_pages_made_young,
+		(ulong) buf_pool->n_pages_not_made_young,
+		(buf_pool->n_pages_made_young
+		 - buf_pool->n_pages_made_young_old)
+		/ time_elapsed,
+		(buf_pool->n_pages_not_made_young
+		 - buf_pool->n_pages_not_made_young_old)
+		/ time_elapsed,
 		(ulong) buf_pool->n_pages_read,
 		(ulong) buf_pool->n_pages_created,
 		(ulong) buf_pool->n_pages_written,
@@ -3787,19 +3792,33 @@ buf_print_io(
 		(buf_pool->n_pages_written - buf_pool->n_pages_written_old)
 		/ time_elapsed);
 
-	if (buf_pool->n_page_gets > buf_pool->n_page_gets_old) {
-		fprintf(file, "Buffer pool hit rate %lu / 1000\n",
+	n_gets_diff = buf_pool->n_page_gets - buf_pool->n_page_gets_old;
+
+	if (n_gets_diff) {
+		fprintf(file,
+			"Buffer pool hit rate %lu / 1000,"
+			" young-making rate %lu / 1000 not %lu / 1000\n",
 			(ulong)
 			(1000 - ((1000 * (buf_pool->n_pages_read
 					  - buf_pool->n_pages_read_old))
-				 / (buf_pool->n_page_gets
-				    - buf_pool->n_page_gets_old))));
+				 / n_gets_diff)),
+			(ulong)
+			(1000 * (buf_pool->n_pages_made_young
+				 - buf_pool->n_pages_made_young_old)
+			 / n_gets_diff),
+			(ulong)
+			(1000 * (buf_pool->n_pages_not_made_young
+				 - buf_pool->n_pages_not_made_young_old)
+			 / n_gets_diff));
 	} else {
 		fputs("No buffer pool page gets since the last printout\n",
 		      file);
 	}
 
 	buf_pool->n_page_gets_old = buf_pool->n_page_gets;
+	buf_pool->n_pages_made_young_old = buf_pool->n_pages_made_young;
+	buf_pool->n_pages_not_made_young_old
+		= buf_pool->n_pages_not_made_young;
 	buf_pool->n_pages_read_old = buf_pool->n_pages_read;
 	buf_pool->n_pages_created_old = buf_pool->n_pages_created;
 	buf_pool->n_pages_written_old = buf_pool->n_pages_written;
