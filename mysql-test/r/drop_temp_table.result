@@ -18,5 +18,5 @@ master-bin.000001	#	Query	1	#	create database `drop-temp+table-test`
 master-bin.000001	#	Query	1	#	use `drop-temp+table-test`; create temporary table shortn1 (a int)
 master-bin.000001	#	Query	1	#	use `drop-temp+table-test`; create temporary table `table:name` (a int)
 master-bin.000001	#	Query	1	#	use `drop-temp+table-test`; create temporary table shortn2 (a int)
-master-bin.000001	#	Query	1	#	use `drop-temp+table-test`; DROP /*!40005 TEMPORARY */ TABLE IF EXISTS `drop-temp+table-test`.`shortn2`,`drop-temp+table-test`.`table:name`,`drop-temp+table-test`.`shortn1`
+master-bin.000001	#	Query	1	#	use `drop-temp+table-test`; DROP /*!40005 TEMPORARY */ TABLE IF EXISTS `shortn2`,`table:name`,`shortn1`
 drop database `drop-temp+table-test`;
