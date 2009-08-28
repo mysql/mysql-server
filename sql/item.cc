@@ -3305,8 +3305,7 @@ Item_copy *Item_copy::create (Item *item)
         new Item_copy_uint (item) : new Item_copy_int (item);
     case DECIMAL_RESULT:
       return new Item_copy_decimal (item);
-
-    case ROW_RESULT:
+    default:
       DBUG_ASSERT (0);
   }
   /* should not happen */
