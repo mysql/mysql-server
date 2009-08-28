@@ -15,7 +15,7 @@ reset master;
 connection slave;
 
 # Add suppression for expected warnings in slaves error log
-call mtr.add_suppression("Failed during slave thread initialization");
+call mtr.add_suppression("Failed during slave I/O thread initialization");
 
 --disable_warnings
 stop slave;
