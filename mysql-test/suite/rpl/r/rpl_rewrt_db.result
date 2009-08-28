@@ -90,5 +90,132 @@ a	b
 2	row 2
 3	row 3
 0	
+set sql_log_bin= 0;
 drop database rewrite;
+set sql_log_bin= 1;
+set sql_log_bin= 0;
 drop table t1;
+set sql_log_bin= 1;
+
+****
+**** Bug #46861 Auto-closing of temporary tables broken by replicate-rewrite-db
+****
+
+****
+**** Preparing the environment
+****
+SET sql_log_bin= 0;
+CREATE DATABASE database_master_temp_01;
+CREATE DATABASE database_master_temp_02;
+CREATE DATABASE database_master_temp_03;
+SET sql_log_bin= 1;
+SET sql_log_bin= 0;
+CREATE DATABASE database_slave_temp_01;
+CREATE DATABASE database_slave_temp_02;
+CREATE DATABASE database_slave_temp_03;
+SET sql_log_bin= 1;
+
+****
+**** Creating temporary tables on different databases with different connections
+****
+**** con_temp_01 --> creates 
+****                  t_01_01_temp on database_master_temp_01
+****
+**** con_temp_02 --> creates 
+****                  t_01_01_temp on database_master_temp_01
+****                  t_02_01_temp, t_02_02_temp on database_master_temp_02
+****
+**** con_temp_02 --> creates 
+****                  t_01_01_temp on database_master_temp_01
+****                  t_02_01_temp, t_02_02_temp on database_master_temp_02
+****                  t_03_01_temp, t_03_02_temp, t_03_03_temp on database_master_temp_03
+****
+
+con_temp_01
+
+USE database_master_temp_01;
+CREATE TEMPORARY TABLE t_01_01_temp(a int);
+INSERT INTO t_01_01_temp VALUES(1);
+
+con_temp_02
+
+USE database_master_temp_01;
+CREATE TEMPORARY TABLE t_01_01_temp(a int);
+INSERT INTO t_01_01_temp VALUES(1);
+USE database_master_temp_02;
+CREATE TEMPORARY TABLE t_02_01_temp(a int);
+INSERT INTO t_02_01_temp VALUES(1);
+CREATE TEMPORARY TABLE t_02_02_temp(a int);
+INSERT INTO t_02_02_temp VALUES(1);
+
+con_temp_03
+
+USE database_master_temp_01;
+CREATE TEMPORARY TABLE t_01_01_temp(a int);
+INSERT INTO t_01_01_temp VALUES(1);
+USE database_master_temp_02;
+CREATE TEMPORARY TABLE t_02_01_temp(a int);
+INSERT INTO t_02_01_temp VALUES(1);
+CREATE TEMPORARY TABLE t_02_02_temp(a int);
+INSERT INTO t_02_02_temp VALUES(1);
+USE database_master_temp_03;
+CREATE TEMPORARY TABLE t_03_01_temp(a int);
+INSERT INTO t_03_01_temp VALUES(1);
+CREATE TEMPORARY TABLE t_03_02_temp(a int);
+INSERT INTO t_03_02_temp VALUES(1);
+CREATE TEMPORARY TABLE t_03_03_temp(a int);
+INSERT INTO t_03_03_temp VALUES(1);
+
+**** Dropping the connections
+**** We want to SHOW BINLOG EVENTS, to know what was logged. But there is no
+**** guarantee that logging of the terminated con1 has been done yet.a  To be 
+**** sure that logging has been done, we use a user lock.
+
+show status like 'Slave_open_temp_tables';
+Variable_name	Value
+Slave_open_temp_tables	10
+select get_lock("con_01",10);
+get_lock("con_01",10)
+1
+select get_lock("con_01",10);
+get_lock("con_01",10)
+1
+select get_lock("con_02",10);
+get_lock("con_02",10)
+1
+select get_lock("con_02",10);
+get_lock("con_02",10)
+1
+select get_lock("con_03",10);
+get_lock("con_03",10)
+1
+select get_lock("con_03",10);
+get_lock("con_03",10)
+1
+
+**** Checking the binary log and temporary tables
+
+show status like 'Slave_open_temp_tables';
+Variable_name	Value
+Slave_open_temp_tables	0
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `database_master_temp_01`; DROP /*!40005 TEMPORARY */ TABLE IF EXISTS `t_01_01_temp`
+master-bin.000001	#	Query	#	#	use `database_master_temp_02`; DROP /*!40005 TEMPORARY */ TABLE IF EXISTS `t_02_02_temp`,`t_02_01_temp`
+master-bin.000001	#	Query	#	#	use `database_master_temp_01`; DROP /*!40005 TEMPORARY */ TABLE IF EXISTS `t_01_01_temp`
+master-bin.000001	#	Query	#	#	use `database_master_temp_03`; DROP /*!40005 TEMPORARY */ TABLE IF EXISTS `t_03_03_temp`,`t_03_02_temp`,`t_03_01_temp`
+master-bin.000001	#	Query	#	#	use `database_master_temp_02`; DROP /*!40005 TEMPORARY */ TABLE IF EXISTS `t_02_02_temp`,`t_02_01_temp`
+master-bin.000001	#	Query	#	#	use `database_master_temp_01`; DROP /*!40005 TEMPORARY */ TABLE IF EXISTS `t_01_01_temp`
+****
+**** Cleaning up the test case
+****
+SET sql_log_bin= 0;
+DROP DATABASE database_master_temp_01;
+DROP DATABASE database_master_temp_02;
+DROP DATABASE database_master_temp_03;
+SET sql_log_bin= 1;
+SET sql_log_bin= 0;
+DROP DATABASE database_slave_temp_01;
+DROP DATABASE database_slave_temp_02;
+DROP DATABASE database_slave_temp_03;
+SET sql_log_bin= 1;
