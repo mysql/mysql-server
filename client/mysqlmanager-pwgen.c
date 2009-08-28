@@ -104,29 +104,34 @@ void get_pass(char* pw, int len)
 {
   FILE* fp;
   char* pw_end=pw+len;
+  size_t elements_read= 0;
   /*
     /dev/random is more secure than  rand() because the seed is easy to
     predict, so we resort to rand() only if /dev/random is not available
   */
   if ((fp=fopen("/dev/random","r")))
   {
-    fread(pw,len,1,fp);
-    fclose(fp);
-    while (pw<pw_end)
+    if ((elements_read= fread(pw,len,1,fp)))
     {
-      char tmp= 'a'+((uint)*pw % 26);
-      *pw++= tmp;
+      while (pw<pw_end)
+      {
+        char tmp= 'a'+((uint)*pw % 26);
+        *pw++= tmp;
+      }
     }
+    fclose(fp);
   }
-  else
+
+  if (elements_read != 1)
   {
     srand(time(NULL));
     while (pw<pw_end)
     {
-      char tmp= 'a'+((uint)*pw % 26);
+      char tmp= 'a'+((uint)rand() % 26);
       *pw++= tmp;
     }
   }
+
   *pw_end=0;
 }
 

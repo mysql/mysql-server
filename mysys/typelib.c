@@ -44,7 +44,8 @@
 
 int find_type(my_string x, TYPELIB *typelib, uint full_name)
 {
-  int find,pos,findpos;
+  int find,pos;
+  int UNINIT_VAR(findpos);                       /* guarded by find */
   reg1 my_string i;
   reg2 const char *j;
   DBUG_ENTER("find_type");
@@ -55,7 +56,6 @@ int find_type(my_string x, TYPELIB *typelib, uint full_name)
     DBUG_PRINT("exit",("no count"));
     DBUG_RETURN(0);
   }
-  LINT_INIT(findpos);
   find=0;
   for (pos=0 ; (j=typelib->type_names[pos]) ; pos++)
   {

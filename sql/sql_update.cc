@@ -125,7 +125,7 @@ int mysql_update(THD *thd,
   uint		want_privilege;
 #endif
   uint          table_count= 0;
-  query_id_t	query_id=thd->query_id, timestamp_query_id;
+  query_id_t	query_id=thd->query_id, UNINIT_VAR(timestamp_query_id);
   ha_rows	updated, found;
   key_map	old_used_keys;
   TABLE		*table;
@@ -136,8 +136,6 @@ int mysql_update(THD *thd,
   List<Item> all_fields;
   THD::killed_state killed_status= THD::NOT_KILLED;
   DBUG_ENTER("mysql_update");
-
-  LINT_INIT(timestamp_query_id);
 
   for ( ; ; )
   {
