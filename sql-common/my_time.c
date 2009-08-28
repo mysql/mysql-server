@@ -450,9 +450,7 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
     }
   }
 
-  DBUG_RETURN(l_time->time_type=
-              (number_of_fields <= 3 ? MYSQL_TIMESTAMP_DATE :
-                                       MYSQL_TIMESTAMP_DATETIME));
+  DBUG_RETURN(l_time->time_type);
 
 err:
   bzero((char*) l_time, sizeof(*l_time));
