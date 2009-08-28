@@ -489,7 +489,7 @@ int thr_write_keys(MI_SORT_PARAM *sort_param)
 {
   SORT_INFO *sort_info=sort_param->sort_info;
   MI_CHECK *param=sort_info->param;
-  ulong length, keys;
+  ulong UNINIT_VAR(length), keys;
   ulong *rec_per_key_part=param->rec_per_key_part;
   int got_error=sort_info->got_error;
   uint i;
@@ -896,7 +896,7 @@ merge_buffers(MI_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
   int error;
   uint sort_length,maxcount;
   ha_rows count;
-  my_off_t to_start_filepos;
+  my_off_t UNINIT_VAR(to_start_filepos);
   uchar *strpos;
   BUFFPEK *buffpek,**refpek;
   QUEUE queue;

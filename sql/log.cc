@@ -4831,7 +4831,8 @@ bool flush_error_log()
    my_rename(log_error_file,err_renamed,MYF(0));
    if (freopen(log_error_file,"a+",stdout))
    {
-     freopen(log_error_file,"a+",stderr);
+     FILE *reopen;
+     reopen= freopen(log_error_file,"a+",stderr);
      setbuf(stderr, NULL);
    }
    else

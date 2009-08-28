@@ -339,9 +339,7 @@ rl_generic_bind (type, keyseq, data, map)
   char *keys;
   int keys_len;
   register int i;
-  KEYMAP_ENTRY k;
-
-  k.function = 0;
+  KEYMAP_ENTRY k= { 0, NULL };
 
   /* If no keys to bind to, exit right away. */
   if (keyseq == 0 || *keyseq == 0)
@@ -776,7 +774,7 @@ _rl_read_file (filename, sizep)
   file_size = (size_t)finfo.st_size;
 
   /* check for overflow on very large files */
-if ((sizeof(off_t) > sizeof(size_t) && finfo.st_size > (off_t)(size_t)~0) ||  
+  if ((sizeof(off_t) > sizeof(size_t) && finfo.st_size > (off_t)(size_t)~0) ||  
     file_size + 1 < file_size)
     {
       if (file >= 0)

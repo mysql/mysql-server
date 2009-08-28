@@ -1036,14 +1036,16 @@ static void usage(void)
 static int drop_db(MYSQL *mysql, const char *db)
 {
   char name_buff[FN_REFLEN+20], buf[10];
+  char *input;
+
   if (!option_force)
   {
     puts("Dropping the database is potentially a very bad thing to do.");
     puts("Any data stored in the database will be destroyed.\n");
     printf("Do you really want to drop the '%s' database [y/N] ",db);
     fflush(stdout);
-    VOID(fgets(buf,sizeof(buf)-1,stdin));
-    if ((*buf != 'y') && (*buf != 'Y'))
+    input= fgets(buf, sizeof(buf)-1, stdin);
+    if (!input || ((*input != 'y') && (*input != 'Y')))
     {
       puts("\nOK, aborting database drop!");
       return -1;

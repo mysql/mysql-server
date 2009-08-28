@@ -1673,7 +1673,7 @@ bool agg_item_collations_for_comparison(DTCollation &c, const char *fname,
 bool agg_item_set_converter(DTCollation &coll, const char *fname,
                             Item **args, uint nargs, uint flags, int item_sep)
 {
-  Item **arg, *safe_args[2];
+  Item **arg, *safe_args[2]= {NULL, NULL};
 
   /*
     For better error reporting: save the first and the second argument.
@@ -1682,8 +1682,6 @@ bool agg_item_set_converter(DTCollation &coll, const char *fname,
       doesn't display each argument's characteristics.
     - if nargs is 1, then this error cannot happen.
   */
-  LINT_INIT(safe_args[0]);
-  LINT_INIT(safe_args[1]);
   if (nargs >=2 && nargs <= 3)
   {
     safe_args[0]= args[0];
@@ -5507,9 +5505,8 @@ bool Item_null::send(Protocol *protocol, String *packet)
 
 bool Item::send(Protocol *protocol, String *buffer)
 {
-  bool result;
+  bool UNINIT_VAR(result);                       // Will be set if null_value == 0
   enum_field_types f_type;
-  LINT_INIT(result);                     // Will be set if null_value == 0
 
   switch ((f_type=field_type())) {
   default:

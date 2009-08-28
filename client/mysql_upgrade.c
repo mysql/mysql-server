@@ -552,6 +552,7 @@ static int upgrade_already_done(void)
   FILE *in;
   char upgrade_info_file[FN_REFLEN]= {0};
   char buf[sizeof(MYSQL_SERVER_VERSION)+1];
+  char *res;
 
   if (get_upgrade_info_file_name(upgrade_info_file))
     return 0; /* Could not get filename => not sure */
@@ -564,7 +565,7 @@ static int upgrade_already_done(void)
     will be detected by the strncmp
   */
   bzero(buf, sizeof(buf));
-  fgets(buf, sizeof(buf), in);
+  res= fgets(buf, sizeof(buf), in);
 
   my_fclose(in, MYF(0));
 
