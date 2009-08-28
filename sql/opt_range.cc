@@ -5856,7 +5856,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
 
             but we'll need to convert '>' to '>=' and '<' to '<='. This will
             be done together with other types at the end of this function
-            (grep for field_is_equal_to_item)
+            (grep for stored_field_cmp_to_item)
           */
         }
         else
@@ -5934,7 +5934,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
 
   switch (type) {
   case Item_func::LT_FUNC:
-    if (field_is_equal_to_item(field,value))
+    if (stored_field_cmp_to_item(field,value) == 0)
       tree->max_flag=NEAR_MAX;
     /* fall through */
   case Item_func::LE_FUNC:
@@ -5948,11 +5948,16 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
     break;
   case Item_func::GT_FUNC:
     /* Don't use open ranges for partial key_segments */
-    if (field_is_equal_to_item(field,value) &&
-        !(key_part->flag & HA_PART_KEY_SEG))
+    if ((!(key_part->flag & HA_PART_KEY_SEG)) &&
+        (stored_field_cmp_to_item(field, value) <= 0))
       tree->min_flag=NEAR_MIN;
-    /* fall through */
+    tree->max_flag= NO_MAX_RANGE;
+    break;
   case Item_func::GE_FUNC:
+    /* Don't use open ranges for partial key_segments */
+    if ((!(key_part->flag & HA_PART_KEY_SEG)) &&
+        (stored_field_cmp_to_item(field,value) < 0))
+      tree->min_flag= NEAR_MIN;
     tree->max_flag=NO_MAX_RANGE;
     break;
   case Item_func::SP_EQUALS_FUNC:
@@ -6438,13 +6443,6 @@ key_and(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2, uint clone_flag)
   if ((key1->min_flag | key2->min_flag) & GEOM_FLAG)
   {
     /* TODO: why not leave one of the trees? */
-    key1->free_tree();
-    key2->free_tree();
-    return 0;					// Can't optimize this
-  }
-
-  if ((key1->min_flag | key2->min_flag) & GEOM_FLAG)
-  {
     key1->free_tree();
     key2->free_tree();
     return 0;					// Can't optimize this
