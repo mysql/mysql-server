@@ -1472,11 +1472,10 @@ void unlock_global_read_lock(THD *thd)
 bool wait_if_global_read_lock(THD *thd, bool abort_on_refresh,
                               bool is_not_commit)
 {
-  const char *old_message;
+  const char *UNINIT_VAR(old_message);
   bool result= 0, need_exit_cond;
   DBUG_ENTER("wait_if_global_read_lock");
 
-  LINT_INIT(old_message);
   /*
     Assert that we do not own LOCK_open. If we would own it, other
     threads could not close their tables. This would make a pretty
