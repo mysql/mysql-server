@@ -300,6 +300,7 @@ static inline void init_single_partition_iterator(uint32 part_id,
 {
   part_iter->part_nums.start= part_iter->part_nums.cur= part_id;
   part_iter->part_nums.end= part_id+1;
+  part_iter->ret_null_part= part_iter->ret_null_part_orig= FALSE;
   part_iter->get_next= get_next_partition_id_range;
 }
 
