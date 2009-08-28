@@ -86,6 +86,8 @@ static inline void rwlock_prefer_read_lock(RWLOCK rwlock, toku_pthread_mutex_t *
 // If a stall would happen (write lock is held), instead return EBUSY immediately.
 // expects: mutex is locked
 
+//Bug in ICL compiler prevents the UU definition from propogating to this header. Redefine UU here.
+#define UU(x) x __attribute__((__unused__))
 static inline int rwlock_try_prefer_read_lock(RWLOCK rwlock, toku_pthread_mutex_t *UU(mutex)) {
     int r = EBUSY;
     if (!rwlock->writer) {
