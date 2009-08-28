@@ -1633,7 +1633,7 @@ mysql_ssl_free(MYSQL *mysql __attribute__((unused)))
 */
 
 const char * STDCALL
-mysql_get_ssl_cipher(MYSQL *mysql)
+mysql_get_ssl_cipher(MYSQL *mysql __attribute__((unused)))
 {
   DBUG_ENTER("mysql_get_ssl_cipher");
 #ifdef HAVE_OPENSSL
@@ -1829,7 +1829,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 		       uint port, const char *unix_socket,ulong client_flag)
 {
   char		buff[NAME_LEN+USERNAME_LENGTH+100];
-  char		*end,*host_info;
+  char		*end,*host_info= NULL;
   my_socket	sock;
   in_addr_t	ip_addr;
   struct	sockaddr_in sock_addr;
@@ -1847,7 +1847,6 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 #endif
   init_sigpipe_variables
   DBUG_ENTER("mysql_real_connect");
-  LINT_INIT(host_info);
 
   DBUG_PRINT("enter",("host: %s  db: %s  user: %s",
 		      host ? host : "(Null)",

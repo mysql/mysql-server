@@ -32,7 +32,7 @@
 MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
 {
   int save_errno,errpos=0;
-  uint files= 0, i, dir_length, length, key_parts, min_keys= 0;
+  uint files= 0, i, dir_length, length, UNINIT_VAR(key_parts), min_keys= 0;
   ulonglong file_offset=0;
   char name_buff[FN_REFLEN*2],buff[FN_REFLEN],*end;
   MYRG_INFO *m_info=0;
@@ -42,8 +42,6 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
   uint found_merge_insert_method= 0;
   my_bool bad_children= FALSE;
   DBUG_ENTER("myrg_open");
-
-  LINT_INIT(key_parts);
 
   bzero((char*) &file,sizeof(file));
   if ((fd=my_open(fn_format(name_buff,name,"",MYRG_NAME_EXT,4),

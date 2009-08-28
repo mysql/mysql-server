@@ -935,13 +935,10 @@ int Gis_polygon::interior_ring_n(uint32 num, String *result) const
 int Gis_polygon::centroid_xy(double *x, double *y) const
 {
   uint32 n_linear_rings;
-  double res_area;
-  double res_cx, res_cy;
+  double UNINIT_VAR(res_area);
+  double UNINIT_VAR(res_cx), UNINIT_VAR(res_cy);
   const char *data= m_data;
   bool first_loop= 1;
-  LINT_INIT(res_area);
-  LINT_INIT(res_cx);
-  LINT_INIT(res_cy);
 
   if (no_data(data, 4))
     return 1;
@@ -1634,13 +1631,9 @@ int Gis_multi_polygon::centroid(String *result) const
   uint32 n_polygons;
   bool first_loop= 1;
   Gis_polygon p;
-  double res_area, res_cx, res_cy;
+  double UNINIT_VAR(res_area), UNINIT_VAR(res_cx), UNINIT_VAR(res_cy);
   double cur_area, cur_cx, cur_cy;
   const char *data= m_data;
-
-  LINT_INIT(res_area);
-  LINT_INIT(res_cx);
-  LINT_INIT(res_cy);
 
   if (no_data(data, 4))
     return 1;

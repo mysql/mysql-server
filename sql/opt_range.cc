@@ -3514,11 +3514,10 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
 {
   int idx;
   SEL_ARG **key,**end, **key_to_read= NULL;
-  ha_rows best_records;
+  ha_rows UNINIT_VAR(best_records);              /* protected by key_to_read */
   TRP_RANGE* read_plan= NULL;
   bool pk_is_clustered= param->table->file->primary_key_is_clustered();
   DBUG_ENTER("get_key_scans_params");
-  LINT_INIT(best_records); /* protected by key_to_read */
   /*
     Note that there may be trees that have type SEL_TREE::KEY but contain no
     key reads at all, e.g. tree for expression "key1 is not null" where key1
@@ -5370,8 +5369,7 @@ static bool eq_tree(SEL_ARG* a,SEL_ARG *b)
 SEL_ARG *
 SEL_ARG::insert(SEL_ARG *key)
 {
-  SEL_ARG *element,**par,*last_element;
-  LINT_INIT(par); LINT_INIT(last_element);
+  SEL_ARG *element,**UNINIT_VAR(par),*UNINIT_VAR(last_element);
 
   for (element= this; element != &null_element ; )
   {
@@ -7918,7 +7916,9 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
         goto next_index;
     }
     else
+    {
       DBUG_ASSERT(FALSE);
+    }
 
     /* Check (SA2). */
     if (min_max_arg_item)

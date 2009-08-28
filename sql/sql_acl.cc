@@ -5067,16 +5067,12 @@ static int handle_grant_struct(uint struct_no, bool drop,
   uint elements;
   const char *user;
   const char *host;
-  ACL_USER *acl_user;
-  ACL_DB *acl_db;
-  GRANT_NAME *grant_name;
+  ACL_USER *UNINIT_VAR(acl_user);
+  ACL_DB *UNINIT_VAR(acl_db);
+  GRANT_NAME *UNINIT_VAR(grant_name);
   DBUG_ENTER("handle_grant_struct");
   DBUG_PRINT("info",("scan struct: %u  search: '%s'@'%s'",
                      struct_no, user_from->user.str, user_from->host.str));
-
-  LINT_INIT(acl_user);
-  LINT_INIT(acl_db);
-  LINT_INIT(grant_name);
 
   safe_mutex_assert_owner(&acl_cache->lock);
 
