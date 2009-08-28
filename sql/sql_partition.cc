@@ -6730,6 +6730,7 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
   Field *field= part_info->part_field_array[0];
   uint32             max_endpoint_val;
   get_endpoint_func  get_endpoint;
+  bool               can_match_multiple_values;  /* is not '=' */
   uint field_len= field->pack_length_in_rec();
   part_iter->ret_null_part= part_iter->ret_null_part_orig= FALSE;
 
@@ -6768,9 +6769,13 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
   else
     assert(0);
   
-  if (part_info->part_type == RANGE_PARTITION ||
-      part_info->has_null_value)
+  can_match_multiple_values= (flags || !min_value || !max_value ||
+                              memcmp(min_value, max_value, field_len));
+  if (can_match_multiple_values &&
+      (part_info->part_type == RANGE_PARTITION ||
+       part_info->has_null_value))
   {
+    /* Range scan on RANGE or LIST partitioned table */
     enum_monotonicity_info monotonic;
     monotonic= part_info->part_expr->get_monotonicity_info();
     if (monotonic == MONOTONIC_INCREASING_NOT_NULL ||
@@ -6812,6 +6817,14 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
       store_key_image_to_rec(field, min_value, field_len);
       bool include_endp= !test(flags & NEAR_MIN);
       part_iter->part_nums.start= get_endpoint(part_info, 1, include_endp);
+      if (!can_match_multiple_values && part_info->part_expr->null_value)
+      {
+        /* col = x and F(x) = NULL -> only search NULL partition */
+        part_iter->part_nums.cur= part_iter->part_nums.start= 0;
+        part_iter->part_nums.end= 0;
+        part_iter->ret_null_part= part_iter->ret_null_part_orig= TRUE;
+        return 1;
+      }
       part_iter->part_nums.cur= part_iter->part_nums.start;
       if (part_iter->part_nums.start == max_endpoint_val)
         return 0; /* No partitions */

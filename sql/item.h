@@ -583,8 +583,8 @@ public:
         left_endp  FALSE  <=> The interval is "x < const" or "x <= const"
                    TRUE   <=> The interval is "x > const" or "x >= const"
 
-        incl_endp  IN   TRUE <=> the comparison is '<' or '>'
-                        FALSE <=> the comparison is '<=' or '>='
+        incl_endp  IN   FALSE <=> the comparison is '<' or '>'
+                        TRUE  <=> the comparison is '<=' or '>='
                    OUT  The same but for the "F(x) $CMP$ F(const)" comparison
 
     DESCRIPTION
@@ -3125,4 +3125,4 @@ void mark_select_range_as_dependent(THD *thd,
 extern Cached_item *new_Cached_item(THD *thd, Item *item);
 extern Item_result item_cmp_type(Item_result a,Item_result b);
 extern void resolve_const_item(THD *thd, Item **ref, Item *cmp_item);
-extern bool field_is_equal_to_item(Field *field,Item *item);
+extern int stored_field_cmp_to_item(Field *field, Item *item);
