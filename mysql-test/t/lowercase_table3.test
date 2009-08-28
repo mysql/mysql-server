@@ -9,7 +9,7 @@
 --source include/have_case_insensitive_file_system.inc
 --source include/not_windows.inc
 
-call mtr.add_suppression("Cannot find or open table test/BUG29839 from .*");
+call mtr.add_suppression("Cannot find or open table test/BUG29839 from");
 
 --disable_warnings
 DROP TABLE IF EXISTS t1,T1;
