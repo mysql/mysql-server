@@ -706,7 +706,7 @@ void close_temporary_tables(THD *thd)
     return;
   }
 
-  TABLE *next,
+  TABLE *UNINIT_VAR(next),
     *prev_table /* prev link is not maintained in TABLE's double-linked list */;
   bool was_quote_show= true; /* to assume thd->options has OPTION_QUOTE_SHOW_CREATE */
   // Better add "if exists", in case a RESET MASTER has been done
@@ -716,7 +716,6 @@ void close_temporary_tables(THD *thd)
   memcpy(buf, stub, stub_len);
   String s_query= String(buf, sizeof(buf), system_charset_info);
   bool found_user_tables= false;
-  LINT_INIT(next);
 
   /*
      insertion sort of temp tables by pseudo_thread_id to build ordered list
@@ -4142,8 +4141,7 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
     (and not an item that happens to have a name).
   */
   bool is_ref_by_name= 0;
-  uint unaliased_counter;
-  LINT_INIT(unaliased_counter);                 // Dependent on found_unaliased
+  uint UNINIT_VAR(unaliased_counter);           // Dependent on found_unaliased
 
   *resolution= NOT_RESOLVED;
 
