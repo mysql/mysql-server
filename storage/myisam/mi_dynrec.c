@@ -1419,16 +1419,14 @@ void _my_store_blob_length(uchar *pos,uint pack_length,uint length)
 int _mi_read_dynamic_record(MI_INFO *info, my_off_t filepos, uchar *buf)
 {
   int block_of_record;
-  uint b_type,left_length;
-  uchar *to;
+  uint b_type,UNINIT_VAR(left_length);
+  uchar *UNINIT_VAR(to);
   MI_BLOCK_INFO block_info;
   File file;
   DBUG_ENTER("mi_read_dynamic_record");
 
   if (filepos != HA_OFFSET_ERROR)
   {
-    LINT_INIT(to);
-    LINT_INIT(left_length);
     file=info->dfile;
     block_of_record= 0;   /* First block of record is numbered as zero. */
     block_info.second_read= 0;
@@ -1697,13 +1695,12 @@ int _mi_read_rnd_dynamic_record(MI_INFO *info, uchar *buf,
 {
   int block_of_record, info_read, save_errno;
   uint left_len,b_type;
-  uchar *to;
+  uchar *UNINIT_VAR(to);
   MI_BLOCK_INFO block_info;
   MYISAM_SHARE *share=info->s;
   DBUG_ENTER("_mi_read_rnd_dynamic_record");
 
   info_read=0;
-  LINT_INIT(to);
 
   if (info->lock_type == F_UNLCK)
   {

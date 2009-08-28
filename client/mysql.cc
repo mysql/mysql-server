@@ -3819,7 +3819,8 @@ com_edit(String *buffer,char *line __attribute__((unused)))
       !(editor = (char *)getenv("VISUAL")))
     editor = "vi";
   strxmov(buff,editor," ",filename,NullS);
-  (void) system(buff);
+  if(system(buff) == -1)
+    goto err;
 
   MY_STAT stat_arg;
   if (!my_stat(filename,&stat_arg,MYF(MY_WME)))
