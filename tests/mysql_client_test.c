@@ -4262,7 +4262,7 @@ static void test_fetch_date()
 
   myheader("test_fetch_date");
 
-  /* Will not work if sql_mode is NO_ZERO_DATE (implicit if TRADITIONAL) /*/
+  /* Will not work if sql_mode is NO_ZERO_DATE (implicit if TRADITIONAL) */
   rc= mysql_query(mysql, "SET SQL_MODE=''");
   myquery(rc);
 
