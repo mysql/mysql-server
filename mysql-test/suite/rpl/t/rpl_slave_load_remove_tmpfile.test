@@ -8,8 +8,6 @@
 #    2 - Catches error.
 ##########################################################################
 
-call mtr.add_suppression("Slave: Error writing file 'UNKNOWN' (Errcode: 9) Error_code: 3");
-
 --source include/have_binlog_format_mixed_or_statement.inc
 --source include/have_innodb.inc
 --source include/have_debug.inc
@@ -50,3 +48,5 @@ drop table t1;
 connection slave;
 
 drop table t1;
+
+call mtr.add_suppression("Slave: Error writing file 'UNKNOWN' (Errcode: 9) Error_code: 3");
