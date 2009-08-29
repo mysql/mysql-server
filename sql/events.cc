@@ -342,6 +342,33 @@ common_1_lev_code:
 
 
 /**
+  Create a new query string for removing executable comments 
+  for avoiding leak and keeping consistency of the execution 
+  on master and slave.
+  
+  @param[in] thd                 Thread handler
+  @param[in] buf                 Query string
+
+  @return
+             0           ok
+             1           error
+*/
+static int
+create_query_string(THD *thd, String *buf)
+{
+  /* Append the "CREATE" part of the query */
+  if (buf->append(STRING_WITH_LEN("CREATE ")))
+    return 1;
+  /* Append definer */
+  append_definer(thd, buf, &(thd->lex->definer->user), &(thd->lex->definer->host));
+  /* Append the left part of thd->query after "DEFINER" part */
+  if (buf->append(thd->lex->stmt_definition_begin))
+    return 1;
+ 
+  return 0;
+}
+
+/**
   Create a new event.
 
   @param[in,out]  thd            THD
@@ -439,7 +466,16 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
     {
       /* Binlog the create event. */
       DBUG_ASSERT(thd->query && thd->query_length);
-      write_bin_log(thd, TRUE, thd->query, thd->query_length);
+      String log_query;
+      if (create_query_string(thd, &log_query))
+      {
+        sql_print_error("Event Error: An error occurred while creating query string, "
+                        "before writing it into binary log.");
+        DBUG_RETURN(TRUE);
+      }
+      /* If the definer is not set or set to CURRENT_USER, the value of CURRENT_USER 
+         will be written into the binary log as the definer for the SQL thread. */
+      write_bin_log(thd, TRUE, log_query.c_ptr(), log_query.length());
     }
   }
   pthread_mutex_unlock(&LOCK_event_metadata);
