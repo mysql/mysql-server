@@ -71,12 +71,16 @@ EXTRA_DIST =		FINISH.sh \
 			compile-ppc-max \
 			compile-solaris-amd64 \
 			compile-solaris-amd64-debug \
+			compile-solaris-amd64-debug-forte \
 			compile-solaris-amd64-forte \
-			compile-solaris-amd64-forte-debug \
 			compile-solaris-sparc \
 			compile-solaris-sparc-debug \
 			compile-solaris-sparc-forte \
-			compile-solaris-sparc-purify
+			compile-solaris-sparc-purify \
+			compile-solaris-x86-32 \
+			compile-solaris-x86-32-debug \
+			compile-solaris-x86-32-debug-forte \
+			compile-solaris-x86-forte-32
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
