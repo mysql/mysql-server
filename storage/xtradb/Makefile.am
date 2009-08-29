@@ -131,7 +131,8 @@ noinst_HEADERS=		include/btr0btr.h include/btr0btr.ic		\
 			include/ut0list.ic include/ut0wqueue.h		\
 			include/ha_prototypes.h handler/ha_innodb.h	\
 			include/handler0alter.h				\
-			handler/i_s.h handler/innodb_patch_info.h
+			handler/i_s.h handler/innodb_patch_info.h	\
+			handler/handler0vars.h
 
 EXTRA_LIBRARIES=	libinnobase.a
 noinst_LIBRARIES=	@plugin_innobase_static_target@
