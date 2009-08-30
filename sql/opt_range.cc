@@ -9639,7 +9639,17 @@ check_group_min_max_predicates(COND *cond, Item_field *min_max_arg_item,
   */
   if (cond_type == Item::SUBSELECT_ITEM)
     DBUG_RETURN(FALSE);
-  
+
+  /*
+    Condition of the form 'field' is equivalent to 'field <> 0' and thus
+    satisfies the SA3 condition.
+  */
+  if (cond_type == Item::FIELD_ITEM)
+  {
+    DBUG_PRINT("info", ("Analyzing: %s", cond->full_name()));
+    DBUG_RETURN(TRUE);
+  }
+
   /* We presume that at this point there are no other Items than functions. */
   DBUG_ASSERT(cond_type == Item::FUNC_ITEM);
 
