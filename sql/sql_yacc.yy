@@ -1809,15 +1809,16 @@ server_option:
         ;
 
 event_tail:
-          EVENT_SYM opt_if_not_exists sp_name
+          remember_name EVENT_SYM opt_if_not_exists sp_name
           {
             THD *thd= YYTHD;
             LEX *lex=Lex;
 
-            lex->create_info.options= $2;
+            lex->stmt_definition_begin= $1;
+            lex->create_info.options= $3;
             if (!(lex->event_parse_data= Event_parse_data::new_instance(thd)))
               MYSQL_YYABORT;
-            lex->event_parse_data->identifier= $3;
+            lex->event_parse_data->identifier= $4;
             lex->event_parse_data->on_completion=
                                   Event_parse_data::ON_COMPLETION_DROP;
 

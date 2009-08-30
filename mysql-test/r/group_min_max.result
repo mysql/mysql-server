@@ -2502,3 +2502,15 @@ a	MAX(b)
 2	1
 DROP TABLE t;
 End of 5.0 tests
+#
+# Bug #46607: Assertion failed: (cond_type == Item::FUNC_ITEM) results in
+#              server crash
+#
+CREATE TABLE t (a INT, b INT, INDEX (a,b));
+INSERT INTO t VALUES (2,0), (2,0), (2,1), (2,1);
+INSERT INTO t SELECT * FROM t;
+SELECT a, MAX(b) FROM t WHERE b GROUP BY a;
+a	MAX(b)
+2	1
+DROP TABLE t;
+End of 5.1 tests
