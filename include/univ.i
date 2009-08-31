@@ -125,11 +125,11 @@ if we are compiling on Windows. */
 #  include <sched.h>
 # endif
 
-# if defined(HAVE_GCC_ATOMIC_BUILTINS) || defined(HAVE_SOLARIS_ATOMICS) \
+# if defined(HAVE_IB_GCC_ATOMIC_BUILTINS) || defined(HAVE_SOLARIS_ATOMICS) \
      || defined(HAVE_WINDOWS_ATOMICS)
 /* If atomics are defined we use them in InnoDB mutex implementation */
 #  define HAVE_ATOMIC_BUILTINS
-# endif /* (HAVE_GCC_ATOMIC_BUILTINS) || (HAVE_SOLARIS_ATOMICS)
+# endif /* (HAVE_IB_GCC_ATOMIC_BUILTINS) || (HAVE_SOLARIS_ATOMICS)
 	|| (HAVE_WINDOWS_ATOMICS) */
 
 /* For InnoDB rw_locks to work with atomics we need the thread_id
