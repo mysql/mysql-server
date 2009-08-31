@@ -3571,8 +3571,8 @@ sub run_testcase ($) {
 # error log and write all lines that look
 # suspicious into $error_log.warnings
 #
-sub extract_warning_lines ($) {
-  my ($error_log) = @_;
+sub extract_warning_lines ($$) {
+  my ($error_log, $tname) = @_;
 
   # Open the servers .err log file and read all lines
   # belonging to current tets into @lines
@@ -3580,14 +3580,27 @@ sub extract_warning_lines ($) {
     or mtr_error("Could not open file '$error_log' for reading: $!");
 
   my @lines;
+  my $found_test= 0;		# Set once we've found the log of this test
   while ( my $line = <$Ferr> )
   {
-    if ( $line =~ /^CURRENT_TEST:/ )
+    if ($found_test)
     {
-      # Throw away lines from previous tests
-      @lines = ();
+      # If test wasn't last after all, discard what we found, test again.
+      if ( $line =~ /^CURRENT_TEST:/)
+      {
+	@lines= ();
+	$found_test= $line =~ /^CURRENT_TEST: $tname/;
+      }
+      else
+      {
+	push(@lines, $line);
+      }
     }
-    push(@lines, $line);
+    else
+    {
+      # Search for beginning of test, until found
+      $found_test= 1 if ($line =~ /^CURRENT_TEST: $tname/);
+    }
   }
   $Ferr = undef; # Close error log file
 
@@ -3665,7 +3678,7 @@ sub start_check_warnings ($$) {
   my $log_error= $mysqld->value('#log-error');
   # To be communicated to the test
   $ENV{MTR_LOG_ERROR}= $log_error;
-  extract_warning_lines($log_error);
+  extract_warning_lines($log_error, $tinfo->{name});
 
   my $args;
   mtr_init_args(\$args);
