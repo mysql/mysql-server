@@ -44,14 +44,6 @@
  * Macros and defines
  */
 
-#ifdef XT_WIN
-#define __FUNC__						__FUNCTION__
-#elif defined(XT_SOLARIS)
-#define __FUNC__						"__func__"
-#else
-#define __FUNC__						__PRETTY_FUNCTION__
-#endif
-
 #define XT_ERR_MSG_SIZE					(PATH_MAX + 200)
 
 #ifdef DEBUG
@@ -291,6 +283,12 @@ typedef struct XTThread {
 	xtBool					st_xact_long_running;			/* TRUE if this is a long running writer transaction. */
 	xtWord4					st_visible_time;				/* Transactions committed before this time are visible. */
 	XTDataLogBufferRec		st_dlog_buf;
+	
+	/* A list of the last 10 transactions run by this connection: */
+#ifdef XT_WAIT_FOR_CLEANUP
+	u_int					st_last_xact;
+	xtXactID				st_prev_xact[XT_MAX_XACT_BEHIND];
+#endif
 
 	int						st_xact_mode;					/* The transaction mode. */
 	xtBool					st_ignore_fkeys;				/* TRUE if we must ignore foreign keys. */

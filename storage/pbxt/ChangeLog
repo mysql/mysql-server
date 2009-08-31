@@ -1,7 +1,75 @@
 PBXT Release Notes
 ==================
 
-------- 1.0.08 RC - Not yet released
+------- 1.0.08c RC2 - 2009-08-18
+
+RN266: Updated BLOB streaming glue, used with the PBMS engine. The glue code is now identical to the version of "1.0.08-rc-pbms" version of PBXT available from http://blobstreaming.org/download.
+
+RN265: Changes the sequential reading of data log files to skip gaps, instead of returning EOF. This ensures that extended data records are preserved even when something goes wrong with the way the file is written.
+
+RN264: Fixed a bug that cased an "Data log not found" error after an out of disk space error on a log file. This bug is similar to RN262 in that it allows "gaps" to appear in the data logs.
+
+RN263: Updated xtstat to compile on Windows/MS Visual C++.
+
+RN262: Merged changes for PBMS version 0.5.09.
+
+RN261: Concerning bug #377788: Cannot find index for FK. Fixed buffer overflow which occurred when the error was reported.
+
+RN260: Fixed bug #377788: Cannot find index for FK. PBXT now correctly uses prefix of an index to support FK references (e.g. if key = (c1, c2) then an index on (c1, c2, c3) will work). Also fixed buffer overflow, which occurred when reporting the error.
+
+RN259: Fixed bug #309424: xtstat doesn't use my.cnf. You can now add an [xtstat] section to my.cnf, for use with xtstat.
+
+RN258: updated xt_p_join implementation for Windows to check if a thread has already exited or has not yet started
+
+RN257: Removed false assertion that could fail during restore if a transaction log page was zero-filled
+
+RN256: Update datalog eof pointer only if write opearions were sucessful
+
+RN255: Added re-allocation of of filemap if allocating the of the new map failed. This often happens if there's not enough space on disk.
+
+RN254: When a table with a corrupted index is detected, PBXT creates a file called 'repair-pending' in the pbxt directory, with the name of the table in it. Each table in the file is listed on a line by itself (the last line has no trailing \n). When the table is repaired (using the REPAIR TABLE command), this entry is removed from the file.
+
+RN253: Use fcntl(F_FULLFSYNC) instead of fsync on platforms that support it. Improper fsync operation was presumably the reason of index corruption on Mac OS X.
+
+RN252: Fixed bug #368692: PBXT not reporting data size correctly in information_schema.
+
+------- 1.0.08 RC2 - 2009-06-30
+
+RN251: A Windows-specific test update, also removed false assertion that failed on Windows.
+
+RN250: Fixed a bug that caused recovery to fail when the transaction log ID exceeded 255. The problem was a checksum failed in the log record.
+
+RN249: Fixed bug #313176: Test case timeout. This happened because record cache pages where not properly freed and as soon as cache filled up the performacne degraded.
+
+RN248: PBXT now compiles and runs with MySQL 5.1.35. All tests pass.
+
+RN247: Fixed bug #369086: Incosistent/Incorrect Truncate behavior
+
+RN246: Fixed bug #378222: Drop sakila causes error: Cannot delete or update a parent row: a foreign key constraint fails
+
+RN245: Fixed bug #379315: Inconsistent behavior of DELETE IGNORE and FK constraint.
+
+RN244: Fixed a recovery problem: during the recovery of "record modified" action the table was updated before the old index entries were removed; then the xres_remove_index_entries was supplied the new record which lead to incorrect index update.
+
+RN243: Fixed a bug that caused a recovery failure if partitioned pbxt tables where present. This happended because the recovery used a MySQL function to open tables and the PBXT handler was not yet registered
+
+RN242: Fixed a bug that caused a deadlock if pbxt initialization failed. This happened because pbxt ceanup was done from pbxt_init() with PLUGIN_lock being held by MySQL which lead to a deadlock in the freeer thread
+
+RN241: Fixed a heap corruption bug (writing to a freed memory location). It happened only when memory mapped files were used leading to heap inconsistency and program crash or termination by heap checker. Likely to happen right after or during DROP TABLE but possible in other cases too.
+
+RN240: Load the record cache on read when no using memory mapped files.
+
+RN239: Added PBXT variable pbxt_max_threads. This is the maximum number of threads that can be created PBXT. By default this value is set to 0 which means the number of threads is derived from the MySQL variable max_connections. The value used is max_connections+7. Under Drizzle the default value is 500.
+
+RN238: Added an option to wait for the sweeper to clean up old transactions on a particular connection. This prevents the sweeper from getting too far behind.
+
+RN237: Added an option to lazy delete fixed length index entries. This means the index entries are just marked for deletion, instead of removing the items from the index page. This has the advantage that an exclusive lock is not always required for deletion.
+
+RN236: Fixed bug #349177: a bug in configure.in script.
+
+RN235: Fixed bug 349176: a compiler warning.
+
+RN234: Completed Drizzle integration. All Drizzle tests now run with PBXT.
 
 RN233: Fixed bugs which occur when PBXT is used together with PBMS (BLOB Streaming engine).
 

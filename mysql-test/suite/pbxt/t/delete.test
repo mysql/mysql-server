@@ -120,13 +120,16 @@ select * from t2;
 delete t11.*, t12.* from t11,t12 where t11.a = t12.a and t11.b <> (select b from t2 where t11.a < t2.a);
 select * from t11;
 select * from t12;
+--error 1242
 delete ignore t11.*, t12.* from t11,t12 where t11.a = t12.a and t11.b <> (select b from t2 where t11.a < t2.a);
 select * from t11;
 select * from t12;
+--error 1062
 insert into t11 values (2, 12);
 -- error 1242
 delete from t11 where t11.b <> (select b from t2 where t11.a < t2.a);
 select * from t11;
+--error 1242
 delete ignore from t11 where t11.b <> (select b from t2 where t11.a < t2.a);
 select * from t11;
 drop table t11, t12, t2;

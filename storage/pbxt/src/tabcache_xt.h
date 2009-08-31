@@ -125,11 +125,11 @@ typedef struct XTTableSeq {
 		xt_init_mutex_with_autoname(self, &ts_ns_lock);
 	}
 
-	void xt_op_seq_set(XTThreadPtr self __attribute__((unused)), xtOpSeqNo n) {
+	void xt_op_seq_set(XTThreadPtr XT_UNUSED(self), xtOpSeqNo n) {
 		ts_next_seq = n;
 	}
 
-	void xt_op_seq_exit(XTThreadPtr self __attribute__((unused))) {
+	void xt_op_seq_exit(XTThreadPtr XT_UNUSED(self)) {
 		xt_free_mutex(&ts_ns_lock);
 	}
 
@@ -150,12 +150,50 @@ typedef struct XTTableSeq {
 #endif
 } XTTableSeqRec, *XTTableSeqPtr;
 
+#ifdef XT_NO_ATOMICS
+#define TAB_CAC_USE_PTHREAD_RW
+#else
+//#define TAB_CAC_USE_RWMUTEX
+//#define TAB_CAC_USE_PTHREAD_RW
+//#define IDX_USE_SPINXSLOCK
+#define TAB_CAC_USE_XSMUTEX
+#endif
+
+#ifdef TAB_CAC_USE_XSMUTEX
+#define TAB_CAC_LOCK_TYPE				XTXSMutexRec
+#define TAB_CAC_INIT_LOCK(s, i)			xt_xsmutex_init_with_autoname(s, i)
+#define TAB_CAC_FREE_LOCK(s, i)			xt_xsmutex_free(s, i)	
+#define TAB_CAC_READ_LOCK(i, o)			xt_xsmutex_slock(i, o)
+#define TAB_CAC_WRITE_LOCK(i, o)		xt_xsmutex_xlock(i, o)
+#define TAB_CAC_UNLOCK(i, o)			xt_xsmutex_unlock(i, o)
+#elif defined(TAB_CAC_USE_PTHREAD_RW)
+#define TAB_CAC_LOCK_TYPE				xt_rwlock_type
+#define TAB_CAC_INIT_LOCK(s, i)			xt_init_rwlock(s, i)
+#define TAB_CAC_FREE_LOCK(s, i)			xt_free_rwlock(i)	
+#define TAB_CAC_READ_LOCK(i, o)			xt_slock_rwlock_ns(i)
+#define TAB_CAC_WRITE_LOCK(i, o)		xt_xlock_rwlock_ns(i)
+#define TAB_CAC_UNLOCK(i, o)			xt_unlock_rwlock_ns(i)
+#elif defined(TAB_CAC_USE_RWMUTEX)
+#define TAB_CAC_LOCK_TYPE				XTRWMutexRec
+#define TAB_CAC_INIT_LOCK(s, i)			xt_rwmutex_init_with_autoname(s, i)
+#define TAB_CAC_FREE_LOCK(s, i)			xt_rwmutex_free(s, i)	
+#define TAB_CAC_READ_LOCK(i, o)			xt_rwmutex_slock(i, o)
+#define TAB_CAC_WRITE_LOCK(i, o)		xt_rwmutex_xlock(i, o)
+#define TAB_CAC_UNLOCK(i, o)			xt_rwmutex_unlock(i, o)
+#elif defined(TAB_CAC_USE_SPINXSLOCK)
+#define TAB_CAC_LOCK_TYPE				XTSpinXSLockRec
+#define TAB_CAC_INIT_LOCK(s, i)			xt_spinxslock_init_with_autoname(s, i)
+#define TAB_CAC_FREE_LOCK(s, i)			xt_spinxslock_free(s, i)	
+#define TAB_CAC_READ_LOCK(i, o)			xt_spinxslock_slock(i, o)
+#define TAB_CAC_WRITE_LOCK(i, o)		xt_spinxslock_xlock(i, o)
+#define TAB_CAC_UNLOCK(i, o)			xt_spinxslock_unlock(i, o)
+#endif
+
 /* A disk cache segment. The cache is divided into a number of segments
  * to improve concurrency.
  */
 typedef struct XTTabCacheSeg {
-	XTRWMutexRec				tcs_lock;						/* The cache segment read/write lock. */
-	//xt_cond_type			tcs_cond;
+	TAB_CAC_LOCK_TYPE		tcs_lock;						/* The cache segment read/write lock. */
 	XTTabCachePagePtr		*tcs_hash_table;
 	size_t					tcs_cache_in_use;
 } XTTabCacheSegRec, *XTTabCacheSegPtr;
@@ -220,7 +258,7 @@ public:
 	xtBool					xt_tc_read(XT_ROW_REC_FILE_PTR file, xtRefID ref_id, size_t size, xtWord1 *data, XTThreadPtr thread);
 	xtBool					xt_tc_read_4(XT_ROW_REC_FILE_PTR file, xtRefID ref_id, xtWord4 *data, XTThreadPtr thread);
 	xtBool					xt_tc_read_page(XT_ROW_REC_FILE_PTR file, xtRefID ref_id, xtWord1 *data, XTThreadPtr thread);
-	xtBool					xt_tc_get_page(XT_ROW_REC_FILE_PTR file, xtRefID ref_id, XTTabCachePagePtr *page, size_t *offset, XTThreadPtr thread);
+	xtBool					xt_tc_get_page(XT_ROW_REC_FILE_PTR file, xtRefID ref_id, xtBool load, XTTabCachePagePtr *page, size_t *offset, XTThreadPtr thread);
 	void					xt_tc_release_page(XT_ROW_REC_FILE_PTR file, XTTabCachePagePtr page, XTThreadPtr thread);
 	xtBool					tc_fetch(XT_ROW_REC_FILE_PTR file, xtRefID ref_id, XTTabCacheSegPtr *ret_seg, XTTabCachePagePtr *ret_page, size_t *offset, xtBool read, XTThreadPtr thread);
 

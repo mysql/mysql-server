@@ -31,7 +31,7 @@
 #undef xt_heap_new
 #endif
 
-#ifdef DEBUG
+#ifdef DEBUG_MEMORY
 xtPublic XTHeapPtr xt_mm_heap_new(XTThreadPtr self, size_t size, XTFinalizeFunc finalize, u_int line, c_char *file, xtBool track)
 #else
 xtPublic XTHeapPtr xt_heap_new(XTThreadPtr self, size_t size, XTFinalizeFunc finalize)
@@ -39,7 +39,7 @@ xtPublic XTHeapPtr xt_heap_new(XTThreadPtr self, size_t size, XTFinalizeFunc fin
 {
 	volatile XTHeapPtr	hp;
 	
-#ifdef DEBUG
+#ifdef DEBUG_MEMORY
 	hp = (XTHeapPtr) xt_mm_calloc(self, size, line, file);
 	hp->h_track = track;
 	if (track)
@@ -65,21 +65,21 @@ xtPublic XTHeapPtr xt_heap_new(XTThreadPtr self, size_t size, XTFinalizeFunc fin
 	return hp;
 }
 
-xtPublic void xt_check_heap(XTThreadPtr self __attribute__((unused)), XTHeapPtr hp __attribute__((unused)))
+xtPublic void xt_check_heap(XTThreadPtr XT_NDEBUG_UNUSED(self), XTHeapPtr XT_NDEBUG_UNUSED(hp))
 {
-#ifdef DEBUG
+#ifdef DEBUG_MEMORY
 	xt_mm_malloc_size(self, hp);
 #endif
 }
 
-#ifdef DEBUG
+#ifdef DEBUG_MEMORY
 xtPublic void xt_mm_heap_reference(XTThreadPtr self, XTHeapPtr hp, u_int line, c_char *file)
 #else
 xtPublic void xt_heap_reference(XTThreadPtr, XTHeapPtr hp)
 #endif
 {
 	xt_spinlock_lock(&hp->h_lock);
-#ifdef DEBUG
+#ifdef DEBUG_MEMORY
 	if (hp->h_track)
 		printf("HEAP: +1 %d->%d %s:%d\n", (int) hp->h_ref_count, (int) hp->h_ref_count+1, file, (int) line);
 #endif
@@ -91,7 +91,7 @@ xtPublic void xt_heap_release(XTThreadPtr self, XTHeapPtr hp)
 {	
 	if (!hp)
 		return;
-#ifdef DEBUG
+#ifdef DEBUG_MEMORY
 	xt_spinlock_lock(&hp->h_lock);
 	ASSERT(hp->h_ref_count != 0);
 	xt_spinlock_unlock(&hp->h_lock);
@@ -100,7 +100,7 @@ xtPublic void xt_heap_release(XTThreadPtr self, XTHeapPtr hp)
 	if (hp->h_onrelease)
 		(*hp->h_onrelease)(self, hp);
 	if (hp->h_ref_count > 0) {
-#ifdef DEBUG
+#ifdef DEBUG_MEMORY
 	if (hp->h_track)
 		printf("HEAP: -1 %d->%d\n", (int) hp->h_ref_count, (int) hp->h_ref_count-1);
 #endif
@@ -116,12 +116,12 @@ xtPublic void xt_heap_release(XTThreadPtr self, XTHeapPtr hp)
 	xt_spinlock_unlock(&hp->h_lock);
 }
 
-xtPublic void xt_heap_set_release_callback(XTThreadPtr self __attribute__((unused)), XTHeapPtr hp, XTFinalizeFunc onrelease)
+xtPublic void xt_heap_set_release_callback(XTThreadPtr XT_UNUSED(self), XTHeapPtr hp, XTFinalizeFunc onrelease)
 {
 	hp->h_onrelease = onrelease;
 }
 
-xtPublic u_int xt_heap_get_ref_count(struct XTThread *self __attribute__((unused)), XTHeapPtr hp)
+xtPublic u_int xt_heap_get_ref_count(struct XTThread *XT_UNUSED(self), XTHeapPtr hp)
 {
 	return hp->h_ref_count;
 }

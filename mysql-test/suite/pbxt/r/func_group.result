@@ -61,7 +61,7 @@ grp	sum
 NULL	NULL
 1	7
 2	20.25
-3	45.483163247594
+3	45.4831632475944
 create table t2 (grp int, a bigint unsigned, c char(10));
 insert into t2 select grp,max(a)+max(grp),max(c) from t1 group by grp;
 replace into t2 select grp, a, c from t1 limit 2,1;
@@ -613,8 +613,8 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 explain
 select max(t1.a3), min(t2.a2) from t1, t2 where t1.a2 = 2 and t1.a3 < 'MIN' and t2.a3 > 'CA';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	range	k1	k1	3	NULL	1	Using where; Using index
-1	SIMPLE	t1	range	k1	k1	7	NULL	1	Using where; Using index; Using join buffer
+1	SIMPLE	t1	range	k1	k1	7	NULL	1	Using where; Using index
+1	SIMPLE	t2	range	k1	k1	3	NULL	1	Using where; Using index; Using join buffer
 explain
 select min(a4 - 0.01) from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1186,7 +1186,7 @@ std(s1/s2)
 0.21325764
 select std(o1/o2) from bug22555;
 std(o1/o2)
-0.21325763586649
+0.213257635866493
 select std(e1/e2) from bug22555;
 std(e1/e2)
 0.21325764
@@ -1212,7 +1212,7 @@ round(std(s1/s2), 17)
 0.21325763586649341
 select std(o1/o2) from bug22555;
 std(o1/o2)
-0.21325763586649
+0.213257635866493
 select round(std(e1/e2), 17) from bug22555;
 round(std(e1/e2), 17)
 0.21325763586649341
@@ -1237,7 +1237,7 @@ round(std(s1/s2), 17)
 0.21325763586649341
 select std(o1/o2) from bug22555;
 std(o1/o2)
-0.21325763586649
+0.213257635866493
 select round(std(e1/e2), 17) from bug22555;
 round(std(e1/e2), 17)
 0.21325763586649341

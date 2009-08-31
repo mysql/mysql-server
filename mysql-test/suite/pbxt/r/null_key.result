@@ -407,8 +407,8 @@ EXPLAIN SELECT SQL_CALC_FOUND_ROWS * FROM t1 LEFT JOIN t2 ON t1.a=t2.a
 LEFT JOIN t3 ON t2.b=t3.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	
-1	SIMPLE	t2	ref	idx	idx	5	test.t1.a	2	
-1	SIMPLE	t3	ref	idx	idx	5	test.t2.b	186	Using index
+1	SIMPLE	t2	ref	idx	idx	5	test.t1.a	1	
+1	SIMPLE	t3	ref	idx	idx	5	test.t2.b	1	Using index
 FLUSH STATUS ;
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 LEFT JOIN t2 ON t1.a=t2.a
 LEFT JOIN t3 ON t2.b=t3.b;

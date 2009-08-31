@@ -338,12 +338,12 @@ select * from t1 X, t1 Y
 where X.b = Y.b and (X.a=1 or X.a=2) and (Y.a=2 or Y.a=3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	X	p1,p2	ALL	a,b	NULL	NULL	NULL	2	Using where
-1	SIMPLE	Y	p2,p3	ref	a,b	b	4	test.X.b	2	Using where
+1	SIMPLE	Y	p2,p3	ref	a,b	b	4	test.X.b	1	Using where
 explain partitions
 select * from t1 X, t1 Y where X.a = Y.a and (X.a=1 or X.a=2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	X	p1,p2	ALL	a	NULL	NULL	NULL	4	Using where
-1	SIMPLE	Y	p1,p2	ref	a	a	4	test.X.a	2	
+1	SIMPLE	Y	p1,p2	ref	a	a	4	test.X.a	1	
 drop table t1;
 create table t1 (a int) partition by hash(a) partitions 20;
 insert into t1 values (1),(2),(3);

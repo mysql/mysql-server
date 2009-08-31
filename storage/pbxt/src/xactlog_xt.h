@@ -373,6 +373,13 @@ typedef struct XTXactLogFile {
 /*
  * The transaction log. Each database has one.
  */
+ 
+/* Does not seem to make much difference... */
+#ifndef XT_NO_ATOMICS
+/* This function uses atomic ops: */
+//#define XT_XLOG_WAIT_SPINS
+#endif
+
 typedef struct XTDatabaseLog {
 	struct XTDatabase		*xl_db;
 
@@ -390,7 +397,12 @@ typedef struct XTDatabaseLog {
 	/* The writer log buffer: */
 	xt_mutex_type			xl_write_lock;
 	xt_cond_type			xl_write_cond;
+#ifdef XT_XLOG_WAIT_SPINS
+	xtWord4					xt_writing;						/* 1 if a thread is writing. */
+	xtWord4					xt_waiting;						/* Count of the threads waiting on the xl_write_cond. */
+#else
 	xtBool					xt_writing;						/* TRUE if a thread is writing. */
+#endif
 	xtLogID					xl_log_id;						/* The number of the write log. */
 	XTOpenFilePtr			xl_log_file;					/* The open write log. */
 

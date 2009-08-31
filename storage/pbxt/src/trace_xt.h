@@ -46,4 +46,29 @@ void	xt_ftracef(char *fmt, ...);
 //#define PBXT_HANDLER_TRACE
 #endif
 
+/*
+ * -----------------------------------------------------------------------
+ * CONNECTION TRACKING
+ */
+
+#define XT_TRACK_CONNECTIONS
+
+#ifdef XT_TRACK_CONNECTIONS
+#define XT_TRACK_MAX_CONNS		500
+
+typedef struct XTConnInfo {
+	xtThreadID			cu_t_id;
+	xtXactID			ci_curr_xact_id;
+	xtWord8				ci_xact_start;
+
+	xtXactID			ci_prev_xact_id;
+	xtWord8				ci_prev_xact_time;
+} XTConnInfoRec, *XTConnInfoPtr;
+
+extern XTConnInfoRec xt_track_conn_info[XT_TRACK_MAX_CONNS];
+
+void	xt_dump_conn_tracking(void);
+
+#endif
+
 #endif

@@ -35,7 +35,7 @@
 #include <drizzled/common.h>
 #include <mysys/thr_lock.h>
 #include <drizzled/dtcollation.h>
-#include <drizzled/handlerton.h>
+#include <drizzled/plugin/storage_engine.h>
 #else
 #include "mysql_priv.h"
 #endif
@@ -47,9 +47,6 @@
 #include "myxt_xt.h"
 #include "cache_xt.h"
 #include "trace_xt.h"
-#ifdef XT_STREAMING
-#include "streaming_xt.h"
-#endif
 #include "index_xt.h"
 #include "restart_xt.h"
 #include "systab_xt.h"
@@ -293,17 +290,17 @@ static void tab_get_row_file_name(char *table_name, char *name, xtTableID tab_id
 	sprintf(table_name, "%s-%lu.xtr", name, (u_long) tab_id);
 }
 
-static void tab_get_data_file_name(char *table_name, char *name, xtTableID tab_id __attribute__((unused)))
+static void tab_get_data_file_name(char *table_name, char *name, xtTableID XT_UNUSED(tab_id))
 {
 	sprintf(table_name, "%s.xtd", name);
 }
 
-static void tab_get_index_file_name(char *table_name, char *name, xtTableID tab_id __attribute__((unused)))
+static void tab_get_index_file_name(char *table_name, char *name, xtTableID XT_UNUSED(tab_id))
 {
 	sprintf(table_name, "%s.xti", name);
 }
 
-static void tab_free_by_id(XTThreadPtr self __attribute__((unused)), void *thunk __attribute__((unused)), void *item)
+static void tab_free_by_id(XTThreadPtr self, void *XT_UNUSED(thunk), void *item)
 {
 	XTTableEntryPtr	te_ptr = (XTTableEntryPtr) item;
 
@@ -315,7 +312,7 @@ static void tab_free_by_id(XTThreadPtr self __attribute__((unused)), void *thunk
 	te_ptr->te_table = NULL;
 }
 
-static int tab_comp_by_id(XTThreadPtr self __attribute__((unused)), register const void *thunk __attribute__((unused)), register const void *a, register const void *b)
+static int tab_comp_by_id(XTThreadPtr XT_UNUSED(self), register const void *XT_UNUSED(thunk), register const void *a, register const void *b)
 {
 	xtTableID		te_id = *((xtTableID *) a);
 	XTTableEntryPtr	te_ptr = (XTTableEntryPtr) b;
@@ -327,14 +324,14 @@ static int tab_comp_by_id(XTThreadPtr self __attribute__((unused)), register con
 	return 1;
 }
 
-static void tab_free_path(XTThreadPtr self __attribute__((unused)), void *thunk __attribute__((unused)), void *item)
+static void tab_free_path(XTThreadPtr self, void *XT_UNUSED(thunk), void *item)
 {
 	XTTablePathPtr	tp_ptr = *((XTTablePathPtr *) item);
 
 	xt_free(self, tp_ptr);
 }
 
-static int tab_comp_path(XTThreadPtr self __attribute__((unused)), register const void *thunk __attribute__((unused)), register const void *a, register const void *b)
+static int tab_comp_path(XTThreadPtr XT_UNUSED(self), register const void *XT_UNUSED(thunk), register const void *a, register const void *b)
 {
 	char			*path = (char *) a;
 	XTTablePathPtr	tp_ptr = *((XTTablePathPtr *) b);
@@ -398,7 +395,7 @@ xtPublic xtBool xt_describe_tables_next(XTThreadPtr self, XTTableDescPtr td)
 	return_(TRUE);
 }
 
-xtPublic void xt_describe_tables_exit(XTThreadPtr self __attribute__((unused)), XTTableDescPtr td)
+xtPublic void xt_describe_tables_exit(XTThreadPtr XT_UNUSED(self), XTTableDescPtr td)
 {
 	if (td->td_open_dir)
 		xt_dir_close(NULL, td->td_open_dir);
@@ -410,8 +407,11 @@ xtPublic void xt_tab_init_db(XTThreadPtr self, XTDatabaseHPtr db)
 {
 	XTTableDescRec		desc;
 	XTTableEntryRec		te_tab;
+	XTTableEntryPtr		te_ptr;
 	XTTablePathPtr		db_path;
+	char				pbuf[PATH_MAX];
 	int					len;
+	u_int				edx;
 
 	enter_();
 	pushr_(xt_tab_exit_db, db);
@@ -425,7 +425,6 @@ xtPublic void xt_tab_init_db(XTThreadPtr self, XTDatabaseHPtr db)
 	if (db->db_multi_path) {
 		XTOpenFilePtr	of;
 		char			*buffer, *ptr, *path;
-		char			pbuf[PATH_MAX];
 
 		xt_strcpy(PATH_MAX, pbuf, db->db_main_path);
 		xt_add_location_file(PATH_MAX, pbuf);
@@ -489,6 +488,27 @@ xtPublic void xt_tab_init_db(XTThreadPtr self, XTDatabaseHPtr db)
 		xt_sl_insert(self, db->db_table_by_id, &desc.td_tab_id, &te_tab);
 	}
 	freer_(); // xt_describe_tables_exit(&desc)
+
+	/* 
+	 * The purpose of this code is to ensure that all tables are opened and cached,
+	 * which is actually only required if tables have foreign key references.
+	 *
+	 * In other words, a side affect of this code is that FK references between tables
+	 * are registered, and checked.
+	 *
+	 * Unfortunately we don't know if a table is referenced by a FK, so we have to open
+	 * all tables.
+	 * 
+	 * Cannot open tables in the loop above because db->db_table_by_id which is built 
+	 * above is used by xt_use_table_no_lock() 
+	 */
+	xt_enum_tables_init(&edx);
+	while ((te_ptr = xt_enum_tables_next(self, db, &edx))) {
+		xt_strcpy(PATH_MAX, pbuf, te_ptr->te_tab_path->tp_path);
+		xt_add_dir_char(PATH_MAX, pbuf);
+		xt_strcat(PATH_MAX, pbuf, te_ptr->te_tab_name);
+		xt_heap_release(self, xt_use_table_no_lock(self, db, (XTPathStrPtr)pbuf, FALSE, FALSE, NULL, NULL));
+	}
 
 	popr_(); // Discard xt_tab_exit_db(db)
 	exit_();
@@ -605,8 +625,9 @@ xtPublic void xt_tab_exit_db(XTThreadPtr self, XTDatabaseHPtr db)
 	}
 }
 
-static void tab_check_table(XTThreadPtr self __attribute__((unused)), XTTableHPtr tab __attribute__((unused)))
+static void tab_check_table(XTThreadPtr self, XTTableHPtr XT_UNUSED(tab))
 {
+	(void) self;
 	enter_();
 	exit_();
 }
@@ -661,7 +682,7 @@ xtPublic void xt_enum_tables_init(u_int *edx)
 	*edx = 0;
 }
 
-xtPublic XTTableEntryPtr xt_enum_tables_next(XTThreadPtr self __attribute__((unused)), XTDatabaseHPtr db, u_int *edx)
+xtPublic XTTableEntryPtr xt_enum_tables_next(XTThreadPtr XT_UNUSED(self), XTDatabaseHPtr db, u_int *edx)
 {
 	XTTableEntryPtr en_ptr;
 
@@ -725,6 +746,12 @@ static xtBool tab_find_table(XTThreadPtr self, XTDatabaseHPtr db, XTPathStrPtr n
 		}
 	}
 	return FALSE;
+}
+
+xtPublic void xt_tab_disable_index(XTTableHPtr tab, u_int ind_error)
+{
+	tab->tab_dic.dic_disable_index = ind_error;
+	xt_tab_set_table_repair_pending(tab);
 }
 
 xtPublic void xt_tab_set_index_error(XTTableHPtr tab)
@@ -803,22 +830,39 @@ static void tab_load_index_header(XTThreadPtr self, XTTableHPtr tab, XTOpenFileP
 			tab->tab_index_page_size = XT_GET_DISK_4(index_fmt->if_page_size_4);
 		}	
 
+#ifdef XT_USE_LAZY_DELETE
+		if (tab->tab_dic.dic_index_ver <= XT_IND_NO_LAZY_DELETE)
+			tab->tab_dic.dic_no_lazy_delete = TRUE;
+		else
+			tab->tab_dic.dic_no_lazy_delete = FALSE;
+#else
+		tab->tab_dic.dic_no_lazy_delete = TRUE;
+#endif
+
 		/* Incorrect version of index is handled by allowing a sequential scan, but no index access.
 		 * Recovery with the wrong index type will not recover the indexes, a REPAIR TABLE
 		 * will be required!
 		 */
 		if (tab->tab_dic.dic_index_ver != XT_IND_CURRENT_VERSION) {
-			if (tab->tab_dic.dic_index_ver != XT_IND_CURRENT_VERSION)
-				tab->tab_dic.dic_disable_index = XT_INDEX_TOO_OLD;
-			else
-				tab->tab_dic.dic_disable_index = XT_INDEX_TOO_NEW;
+			switch (tab->tab_dic.dic_index_ver) {
+				case XT_IND_NO_LAZY_DELETE:
+				case XT_IND_LAZY_DELETE_OK:
+					/* I can handle this type of index. */
+					break;
+				default:
+					if (tab->tab_dic.dic_index_ver < XT_IND_CURRENT_VERSION)
+						xt_tab_disable_index(tab, XT_INDEX_TOO_OLD);
+					else
+						xt_tab_disable_index(tab, XT_INDEX_TOO_NEW);
+					break;
+			}
 		}
 		else if (tab->tab_index_page_size != XT_INDEX_PAGE_SIZE)
-			tab->tab_dic.dic_disable_index = XT_INDEX_BAD_BLOCK;
+			xt_tab_disable_index(tab, XT_INDEX_BAD_BLOCK);
 	}
 	else {
 		memset(tab->tab_index_head, 0, XT_INDEX_HEAD_SIZE);
-		tab->tab_dic.dic_disable_index = XT_INDEX_MISSING;
+		xt_tab_disable_index(tab, XT_INDEX_MISSING);
 		tab->tab_index_header_size = XT_INDEX_HEAD_SIZE;
 		tab->tab_index_page_size = XT_INDEX_PAGE_SIZE;
 		tab->tab_dic.dic_index_ver = 0;
@@ -1089,6 +1133,8 @@ static int tab_new_handle(XTThreadPtr self, XTTableHPtr *r_tab, XTDatabaseHPtr d
 
 	xt_heap_set_release_callback(self, tab, tab_onrelease);
 
+	tab->tab_repair_pending = xt_tab_is_table_repair_pending(tab);
+
 	popr_(); // Discard xt_heap_release(tab)
 
 	xt_ht_put(self, db->db_tables, tab);
@@ -1216,11 +1262,6 @@ static XTOpenTablePoolPtr tab_lock_table(XTThreadPtr self, XTPathStrPtr name, xt
 		return_(NULL);
 	}
 
-#ifdef XT_STREAMING
-	/* Tell PBMS to close all open tables of this sort: */
-	xt_pbms_close_all_tables(name->ps_path);
-#endif
-
 	/* Wait for all open tables to close: */
 	xt_db_wait_for_open_tables(self, table_pool);
 
@@ -1297,9 +1338,6 @@ xtPublic void xt_create_table(XTThreadPtr self, XTPathStrPtr name, XTDictionaryP
 
 		/* Remove the PBMS table: */
 		ASSERT(xt_get_self() == self);
-#ifdef XT_STREAMING
-		xt_pbms_drop_table(name->ps_path);
-#endif
 
 		/* Remove the table from the directory. It will get a new
 		 * ID so the handle in the directory will no longer be valid.
@@ -1572,7 +1610,7 @@ xtPublic void xt_create_table(XTThreadPtr self, XTPathStrPtr name, XTDictionaryP
 	exit_();
 }
 
-xtPublic void xt_drop_table(XTThreadPtr self, XTPathStrPtr tab_name)
+xtPublic void xt_drop_table(XTThreadPtr self, XTPathStrPtr tab_name, xtBool drop_db)
 {
 	XTDatabaseHPtr		db = self->st_database;
 	XTOpenTablePoolPtr	table_pool;
@@ -1596,8 +1634,16 @@ xtPublic void xt_drop_table(XTThreadPtr self, XTPathStrPtr tab_name)
 		tab_id = tab->tab_id;	/* tab is not null if returned table_pool is not null */
 		/* check if other tables refer this */
 		if (!self->st_ignore_fkeys) 
-			can_drop = tab->tab_dic.dic_table->checkCanDrop();
+			can_drop = tab->tab_dic.dic_table->checkCanDrop(drop_db);
 	}
+#ifdef DRIZZLED 
+	/* See the comment in ha_pbxt::delete_table regarding different implmentation of DROP TABLE
+         * in MySQL and Drizzle
+         */
+	else {
+		xt_throw_xterr(XT_CONTEXT, XT_ERR_TABLE_NOT_FOUND);
+	}
+#endif
 
 	if (can_drop) {
 		if (tab_id) {
@@ -1614,9 +1660,6 @@ xtPublic void xt_drop_table(XTThreadPtr self, XTPathStrPtr tab_name)
 			tab_delete_table_files(self, tab_name, tab_id);
 
 			ASSERT(xt_get_self() == self);
-#ifdef XT_STREAMING
-			xt_pbms_drop_table(tab_name->ps_path);
-#endif
 			if ((te_ptr = (XTTableEntryPtr) xt_sl_find(self, db->db_table_by_id, &tab_id))) {
 				tab_remove_table_path(self, db, te_ptr->te_tab_path);
 				xt_sl_delete(self, db->db_table_by_id, &tab_id);
@@ -1733,6 +1776,7 @@ xtPublic void xt_check_table(XTThreadPtr self, XTOpenTablePtr ot)
 	u_llong					max_comp_rec_len = 0;
 	size_t					rec_size;
 	size_t					row_size;
+	u_llong					ext_data_len = 0;
 
 #if defined(DUMP_CHECK_TABLE) || defined(CHECK_TABLE_STATS)
 	printf("\nCHECK TABLE: %s\n", tab->tab_name->ps_path);
@@ -1832,6 +1876,7 @@ xtPublic void xt_check_table(XTThreadPtr self, XTOpenTablePtr ot)
 				printf("record-X ");
 #endif
 				alloc_rec_count++;
+				ext_data_len += XT_GET_DISK_4(rec_buf->re_log_dat_siz_4);
 				row_size = XT_GET_DISK_4(rec_buf->re_log_dat_siz_4) + ot->ot_rec_size - XT_REC_EXT_HEADER_SIZE;
 				alloc_rec_bytes += row_size;
 				if (!min_comp_rec_len || row_size < min_comp_rec_len)
@@ -1887,6 +1932,9 @@ xtPublic void xt_check_table(XTThreadPtr self, XTOpenTablePtr ot)
 	}
 	
 #ifdef CHECK_TABLE_STATS
+	if (!tab->tab_dic.dic_rec_fixed)
+		printf("Extendend data length   = %llu\n", ext_data_len);
+	
 	if (alloc_rec_count) {
 		printf("Minumum comp. rec. len. = %llu\n", (u_llong) min_comp_rec_len);
 		printf("Average comp. rec. len. = %llu\n", (u_llong) ((double) alloc_rec_bytes / (double) alloc_rec_count + (double) 0.5));
@@ -2055,6 +2103,8 @@ xtPublic void xt_rename_table(XTThreadPtr self, XTPathStrPtr old_name, XTPathStr
 	popr_(); // Discard xt_free(te_new_name);
 
 	tab = xt_use_table_no_lock(self, db, new_name, FALSE, FALSE, &dic, NULL);
+	/* All renamed tables are considered repaired! */
+	xt_tab_table_repaired(tab);
 	xt_heap_release(self, tab);
 
 	freer_(); // myxt_free_dictionary(&dic)
@@ -2305,6 +2355,9 @@ xtPublic XTOpenTablePtr tab_open_table(XTTableHPtr tab)
 	if (!(ot = (XTOpenTablePtr) xt_malloc_ns(sizeof(XTOpenTableRec))))
 		return NULL;
 	memset(ot, 0, offsetof(XTOpenTableRec, ot_ind_wbuf));
+
+	ot->ot_seq_page = NULL;
+	ot->ot_seq_data = NULL;
 
 	self = xt_get_self();
 	try_(a) {
@@ -3353,6 +3406,16 @@ xtPublic int xt_tab_dirty_read_record(register XTOpenTablePtr ot, xtWord1 *buffe
 	return OK;
 }
 
+#ifdef XT_USE_ROW_REC_MMAP_FILES
+/* Loading into cache is not required,
+ * Instead we copy the memory map to load the
+ * data.
+ */
+#define TAB_ROW_LOAD_CACHE		FALSE
+#else
+#define TAB_ROW_LOAD_CACHE		TRUE
+#endif
+
 /*
  * Pull the entire row pointer file into memory.
  */
@@ -3376,7 +3439,7 @@ xtPublic void xt_tab_load_row_pointers(XTThreadPtr self, XTOpenTablePtr ot)
 		end_offset = xt_row_id_to_row_offset(tab, eof_rec_id);
 		rec_id = 1;
 		while (rec_id < eof_rec_id) {
-			if (!tab->tab_rows.xt_tc_get_page(ot->ot_row_file, rec_id, &page, &poffset, self))
+			if (!tab->tab_rows.xt_tc_get_page(ot->ot_row_file, rec_id, TAB_ROW_LOAD_CACHE, &page, &poffset, self))
 				xt_throw(self);
 			if (page)
 				tab->tab_rows.xt_tc_release_page(ot->ot_row_file, page, self);
@@ -3392,7 +3455,7 @@ xtPublic void xt_tab_load_row_pointers(XTThreadPtr self, XTOpenTablePtr ot)
 				XT_LOCK_MEMORY_PTR(buff_ptr, ot->ot_row_file, offset, tfer, &self->st_statistics.st_rec, self);
 				if (buff_ptr) {
 					memcpy(buffer, buff_ptr, tfer);
-					XT_UNLOCK_MEMORY_PTR(ot->ot_row_file, self);
+					XT_UNLOCK_MEMORY_PTR(ot->ot_row_file, buff_ptr, TRUE, self);
 				}
 			}
 			rec_id += tab->tab_rows.tci_rows_per_page;
@@ -3521,7 +3584,7 @@ static void tab_restore_exception(XTExceptionPtr e)
  * FALSE if the record has already been freed. 
  *
  */
-xtPublic int xt_tab_remove_record(XTOpenTablePtr ot, xtRecordID rec_id, xtWord1 *rec_data, xtRecordID *prev_var_id, xtBool clean_delete, xtRowID row_id, xtXactID xn_id __attribute__((unused)))
+xtPublic int xt_tab_remove_record(XTOpenTablePtr ot, xtRecordID rec_id, xtWord1 *rec_data, xtRecordID *prev_var_id, xtBool clean_delete, xtRowID row_id, xtXactID XT_UNUSED(xn_id))
 {
 	register XTTableHPtr	tab = ot->ot_table;
 	size_t					rec_size;
@@ -3664,49 +3727,6 @@ xtPublic int xt_tab_remove_record(XTOpenTablePtr ot, xtRecordID rec_id, xtWord1 
 		}
 	}
 
-#ifdef XT_STREAMING
-	if (tab->tab_dic.dic_blob_count) {
-		/* If the record contains any LONGBLOB then check how much
-		 * space we need.
-		 */
-		size_t blob_size;
-
-		switch (old_rec_type) {
-			case XT_TAB_STATUS_DELETE:
-			case XT_TAB_STATUS_DEL_CLEAN:
-				break;
-			case XT_TAB_STATUS_FIXED:
-			case XT_TAB_STATUS_FIX_CLEAN:
-				/* Should not be the case, record with LONGBLOB can never be fixed! */
-				break;
-			case XT_TAB_STATUS_VARIABLE:
-			case XT_TAB_STATUS_VAR_CLEAN:
-				cols_req = tab->tab_dic.dic_blob_cols_req;
-				cols_in_buffer = cols_req;
-				blob_size = myxt_load_row_length(ot, rec_size - XT_REC_FIX_HEADER_SIZE, ot->ot_row_rbuffer + XT_REC_FIX_HEADER_SIZE, &cols_in_buffer);
-				if (cols_in_buffer < cols_req)
-					blob_size = tab->tab_dic.dic_rec_size;
-				else 
-					blob_size += XT_REC_FIX_HEADER_SIZE;
-				if (blob_size > rec_size)
-					rec_size = blob_size;
-				break;
-			case XT_TAB_STATUS_EXT_DLOG:
-			case XT_TAB_STATUS_EXT_CLEAN:
-				cols_req = tab->tab_dic.dic_blob_cols_req;
-				cols_in_buffer = cols_req;
-				blob_size = myxt_load_row_length(ot, rec_size - XT_REC_EXT_HEADER_SIZE, ot->ot_row_rbuffer + XT_REC_EXT_HEADER_SIZE, &cols_in_buffer);
-				if (cols_in_buffer < cols_req)
-					blob_size = tab->tab_dic.dic_rec_size;
-				else 
-					blob_size += XT_REC_EXT_HEADER_SIZE;
-				if (blob_size > rec_size)
-					rec_size = blob_size;
-				break;
-		}
-	}
-#endif
-
 	set_removed:
 	if (XT_REC_IS_EXT_DLOG(old_rec_type)) {
 		/* {LOCK-EXT-REC} Lock, and read again to make sure that the
@@ -3810,7 +3830,7 @@ static xtRowID tab_new_row(XTOpenTablePtr ot, XTTableHPtr tab)
 				xt_unlock_mutex_ns(&tab->tab_row_lock);
 				return 0;
 			}
-			xt_rwmutex_unlock(&seg->tcs_lock, ot->ot_thread->t_id);
+			TAB_CAC_UNLOCK(&seg->tcs_lock, ot->ot_thread->t_id);
 		}
 		tab->tab_row_eof_id++;
 	}
@@ -4343,15 +4363,6 @@ xtPublic xtBool xt_tab_new_record(XTOpenTablePtr ot, xtWord1 *rec_buf)
 	xtRowID					row_id;
 	u_int					idx_cnt = 0;
 	XTIndexPtr				*ind;
-#ifdef XT_STREAMING
-	void					*pbms_table;
-
-	/* PBMS: Reference BLOBs!? */
-	if (tab->tab_dic.dic_blob_count) {
-		if (!myxt_use_blobs(ot, &pbms_table, rec_buf))
-			return FAILED;
-	}
-#endif
 
 	if (!myxt_store_row(ot, &rec_info, (char *) rec_buf))
 		goto failed_0;
@@ -4386,17 +4397,6 @@ xtPublic xtBool xt_tab_new_record(XTOpenTablePtr ot, xtWord1 *rec_buf)
 		}
 	}
 
-#ifdef XT_STREAMING
-	/* Reference the BLOBs in the row: */
-	if (tab->tab_dic.dic_blob_count) {
-		if (!myxt_retain_blobs(ot, pbms_table, rec_info.ri_rec_id)) {
-			pbms_table = NULL;
-			goto failed_2;
-		}
-		pbms_table = NULL;
-	}
-#endif
-
 	/* Do the foreign key stuff: */
 	if (ot->ot_table->tab_dic.dic_table->dt_fkeys.size() > 0) {
 		if (!ot->ot_table->tab_dic.dic_table->insertRow(ot, rec_buf))
@@ -4417,10 +4417,6 @@ xtPublic xtBool xt_tab_new_record(XTOpenTablePtr ot, xtWord1 *rec_buf)
 	tab_free_row_on_fail(ot, tab, row_id);
 
 	failed_0:
-#ifdef XT_STREAMING
-	if (tab->tab_dic.dic_blob_count && pbms_table)
-		myxt_unuse_blobs(ot, pbms_table);
-#endif
 	return FAILED;
 }
 
@@ -4524,15 +4520,6 @@ static xtBool tab_overwrite_record(XTOpenTablePtr ot, xtWord1 *before_buf, xtWor
 	xtLogOffset				log_offset;
 	xtBool					prev_ext_rec;
 
-#ifdef XT_STREAMING
-	void					*pbms_table;
-
-	if (tab->tab_dic.dic_blob_count) {
-		if (!myxt_use_blobs(ot, &pbms_table, after_buf))
-			return FAILED;
-	}
-#endif
-
 	if (!myxt_store_row(ot, &rec_info, (char *) after_buf))
 		goto failed_0;
 
@@ -4596,16 +4583,6 @@ static xtBool tab_overwrite_record(XTOpenTablePtr ot, xtWord1 *before_buf, xtWor
 	if (prev_ext_rec)
 		tab_free_ext_record_on_fail(ot, rec_id, &prev_rec_head, TRUE);
 
-#ifdef XT_STREAMING
-	if (tab->tab_dic.dic_blob_count) {
-		/* Retain the BLOBs new record: */
-		if (!myxt_retain_blobs(ot, pbms_table, rec_id))
-			return FAILED;
-		/* Release the BLOBs in the old record: */
-		myxt_release_blobs(ot, before_buf, rec_id);
-	}
-#endif
-
 	return OK;
 
 	failed_2:
@@ -4648,11 +4625,6 @@ static xtBool tab_overwrite_record(XTOpenTablePtr ot, xtWord1 *before_buf, xtWor
 		tab_free_ext_record_on_fail(ot, rec_id, &prev_rec_head, TRUE);
 
 	failed_0:
-#ifdef XT_STREAMING
-	/* Unuse the BLOBs of the new record: */
-	if (tab->tab_dic.dic_blob_count && pbms_table)
-		myxt_unuse_blobs(ot, pbms_table);
-#endif
 	return FAILED;
 }
 
@@ -4665,10 +4637,6 @@ xtPublic xtBool xt_tab_update_record(XTOpenTablePtr ot, xtWord1 *before_buf, xtW
 	XTTabRecInfoRec			rec_info;
 	u_int					idx_cnt = 0;
 	XTIndexPtr				*ind;
-
-#ifdef XT_STREAMING
-	void					*pbms_table;
-#endif
 
 	/*
 	 * Originally only the flag ot->ot_curr_updated was checked, and if it was on, then
@@ -4708,14 +4676,6 @@ xtPublic xtBool xt_tab_update_record(XTOpenTablePtr ot, xtWord1 *before_buf, xtW
 	tab = ot->ot_table;
 	row_id = ot->ot_curr_row_id;
 	self = ot->ot_thread;
-
-#ifdef XT_STREAMING
-	/* PBMS: Reference BLOBs!? */
-	if (tab->tab_dic.dic_blob_count) {
-		if (!myxt_use_blobs(ot, &pbms_table, after_buf))
-			return FAILED;
-	}
-#endif
 
 	if (!myxt_store_row(ot, &rec_info, (char *) after_buf))
 		goto failed_0;
@@ -4766,17 +4726,6 @@ xtPublic xtBool xt_tab_update_record(XTOpenTablePtr ot, xtWord1 *before_buf, xtW
 		}
 	}
 
-#ifdef XT_STREAMING
-	/* Reference the BLOBs in the row: */
-	if (tab->tab_dic.dic_blob_count) {
-		if (!myxt_retain_blobs(ot, pbms_table, rec_info.ri_rec_id)) {
-			pbms_table = NULL;
-			goto failed_2;
-		}
-		pbms_table = NULL;
-	}
-#endif
-
 	if (ot->ot_table->tab_dic.dic_table->dt_trefs || ot->ot_table->tab_dic.dic_table->dt_fkeys.size() > 0) {
 		if (!ot->ot_table->tab_dic.dic_table->updateRow(ot, before_buf, after_buf))
 			goto failed_2;
@@ -4793,10 +4742,6 @@ xtPublic xtBool xt_tab_update_record(XTOpenTablePtr ot, xtWord1 *before_buf, xtW
 	XT_TAB_ROW_UNLOCK(&tab->tab_row_rwlock[row_id % XT_ROW_RWLOCKS], ot->ot_thread);
 
 	failed_0:
-#ifdef XT_STREAMING
-	if (tab->tab_dic.dic_blob_count && pbms_table)
-		myxt_unuse_blobs(ot, pbms_table);
-#endif
 	return FAILED;
 }
 
@@ -4906,6 +4851,7 @@ xtPublic xtBool xt_tab_seq_init(XTOpenTablePtr ot)
 	register XTTableHPtr tab = ot->ot_table;
 	
 	ot->ot_seq_page = NULL;
+	ot->ot_seq_data = NULL;
 	ot->ot_on_page = FALSE;
 	ot->ot_seq_offset = 0;
 
@@ -4958,6 +4904,7 @@ xtPublic void xt_tab_seq_reset(XTOpenTablePtr ot)
 	ot->ot_seq_rec_id = 0;
 	ot->ot_seq_eof_id = 0;
 	ot->ot_seq_page = NULL;
+	ot->ot_seq_data = NULL;
 	ot->ot_on_page = FALSE;
 	ot->ot_seq_offset = 0;
 }
@@ -4970,8 +4917,20 @@ xtPublic void xt_tab_seq_exit(XTOpenTablePtr ot)
 		tab->tab_recs.xt_tc_release_page(ot->ot_rec_file, ot->ot_seq_page, ot->ot_thread);
 		ot->ot_seq_page = NULL;
 	}
+	if (ot->ot_seq_data)
+		XT_UNLOCK_MEMORY_PTR(ot->ot_rec_file, ot->ot_seq_data, TRUE, ot->ot_thread);
 	ot->ot_on_page = FALSE;
 }
+
+#ifdef XT_USE_ROW_REC_MMAP_FILES
+#define TAB_SEQ_LOAD_CACHE		FALSE
+#else
+#ifdef XT_SEQ_SCAN_LOADS_CACHE
+#define TAB_SEQ_LOAD_CACHE		TRUE
+#else
+#define TAB_SEQ_LOAD_CACHE		FALSE
+#endif
+#endif
 
 xtPublic xtBool xt_tab_seq_next(XTOpenTablePtr ot, xtWord1 *buffer, xtBool *eof)
 {
@@ -4979,14 +4938,19 @@ xtPublic xtBool xt_tab_seq_next(XTOpenTablePtr ot, xtWord1 *buffer, xtBool *eof)
 	register size_t			rec_size = tab->tab_dic.dic_rec_size;
 	xtWord1					*buff_ptr;
 	xtRecordID				new_rec_id;
-	xtBool					ptr_locked;
 	xtRecordID				invalid_rec = 0;
-	XTTabRecHeadDRec		rec_head;
 
 	next_page:
 	if (!ot->ot_on_page) {
-		if (!(ot->ot_on_page = tab->tab_recs.xt_tc_get_page(ot->ot_rec_file, ot->ot_seq_rec_id, &ot->ot_seq_page, &ot->ot_seq_offset, ot->ot_thread)))
+		if (!(ot->ot_on_page = tab->tab_recs.xt_tc_get_page(ot->ot_rec_file, ot->ot_seq_rec_id, TAB_SEQ_LOAD_CACHE, &ot->ot_seq_page, &ot->ot_seq_offset, ot->ot_thread)))
 			return FAILED;
+		if (!ot->ot_seq_page) {
+			XT_LOCK_MEMORY_PTR(ot->ot_seq_data, ot->ot_rec_file, xt_rec_id_to_rec_offset(tab, ot->ot_seq_rec_id), tab->tab_rows.tci_page_size, &ot->ot_thread->st_statistics.st_rec, ot->ot_thread);
+			if (!ot->ot_seq_data)
+				return FAILED;
+			ot->ot_on_page = TRUE;
+			ot->ot_seq_offset = 0;
+		}
 	}
 
 	next_record:
@@ -5001,22 +4965,19 @@ xtPublic xtBool xt_tab_seq_next(XTOpenTablePtr ot, xtWord1 *buffer, xtBool *eof)
 			tab->tab_recs.xt_tc_release_page(ot->ot_rec_file, ot->ot_seq_page, ot->ot_thread);
 			ot->ot_seq_page = NULL;
 		}
+		if (ot->ot_seq_data)
+			/* NULL here means that in the case of non-memory mapped
+			 * files we "keep" the lock.
+			 */
+			XT_UNLOCK_MEMORY_PTR(ot->ot_rec_file, ot->ot_seq_data, FALSE, ot->ot_thread);
 		ot->ot_on_page = FALSE;
 		goto next_page;
 	}
 
-	if (ot->ot_seq_page) {
-		ptr_locked = FALSE;
+	if (ot->ot_seq_page)
 		buff_ptr = ot->ot_seq_page->tcp_data + ot->ot_seq_offset;
-	}
-	else {
-		size_t red_size;
-
-		ptr_locked = TRUE;
-		if (!xt_pread_fmap(ot->ot_rec_file, xt_rec_id_to_rec_offset(tab, ot->ot_seq_rec_id), sizeof(XTTabRecHeadDRec), sizeof(XTTabRecHeadDRec), &rec_head, &red_size, &ot->ot_thread->st_statistics.st_rec, ot->ot_thread))
-			return FAILED;
-		buff_ptr = (xtWord1 *) &rec_head;
-	}
+	else
+		buff_ptr = ot->ot_seq_data + ot->ot_seq_offset;
 
 	/* This is the current record: */
 	ot->ot_curr_rec_id = ot->ot_seq_rec_id;
@@ -5033,7 +4994,6 @@ xtPublic xtBool xt_tab_seq_next(XTOpenTablePtr ot, xtWord1 *buffer, xtBool *eof)
 		case XT_ERR:
 			goto failed;
 		case XT_NEW:
-			ptr_locked = FALSE;
 			buff_ptr = ot->ot_row_rbuffer;
 			if (!xt_tab_get_rec_data(ot, new_rec_id, rec_size, ot->ot_row_rbuffer))
 				return XT_ERR;
@@ -5066,8 +5026,6 @@ xtPublic xtBool xt_tab_seq_next(XTOpenTablePtr ot, xtWord1 *buffer, xtBool *eof)
 			invalid_rec = 0;
 			goto next_record;
 		default:
-			if (ptr_locked)
-				XT_LOCK_MEMORY_PTR(buff_ptr, ot->ot_rec_file, xt_rec_id_to_rec_offset(tab, ot->ot_curr_rec_id), tab->tab_rows.tci_page_size, &ot->ot_thread->st_statistics.st_rec, ot->ot_thread);
 			break;
 	}
 
@@ -5099,17 +5057,176 @@ xtPublic xtBool xt_tab_seq_next(XTOpenTablePtr ot, xtWord1 *buffer, xtBool *eof)
 			break;
 		}
 	}
-	if (ptr_locked)
-		XT_UNLOCK_MEMORY_PTR(ot->ot_rec_file, ot->ot_thread);
 
 	*eof = FALSE;
 	return OK;
 
 	failed_1:
-	if (ptr_locked)
-		XT_UNLOCK_MEMORY_PTR(ot->ot_rec_file, ot->ot_thread);
 
 	failed:
 	return FAILED;
 }
 
+/*
+ * -----------------------------------------------------------------------
+ * REPAIR TABLE
+ */
+
+#define REP_FIND		0
+#define REP_ADD			1
+#define REP_DEL			2
+
+static xtBool tab_exec_repair_pending(XTDatabaseHPtr db, int what, char *table_name)
+{
+	XTThreadPtr			thread = xt_get_self();
+	char				file_path[PATH_MAX];
+	XTOpenFilePtr		of = NULL;
+	int					len;
+	char				*buffer = NULL, *ptr, *name;
+	char				ch;
+	xtBool				found = FALSE;
+
+	xt_strcpy(PATH_MAX, file_path, db->db_main_path);
+	xt_add_pbxt_file(PATH_MAX, file_path, "repair-pending");
+	
+	if (what == REP_ADD) {
+		if (!xt_open_file_ns(&of, file_path, XT_FS_CREATE | XT_FS_MAKE_PATH))
+			return FALSE;
+	}
+	else {
+		if (!xt_open_file_ns(&of, file_path, XT_FS_DEFAULT))
+			return FALSE;
+	}
+	if (!of)
+		return FALSE;
+
+	len = (int) xt_seek_eof_file(NULL, of);
+	
+	if (!(buffer = (char *) xt_malloc_ns(len + 1)))
+		goto failed;
+
+	if (!xt_pread_file(of, 0, len, len, buffer, NULL, &thread->st_statistics.st_x, thread))
+		goto failed;
+
+	buffer[len] = 0;
+	ptr = buffer;
+	for(;;) {
+		name = ptr;
+		while (*ptr && *ptr != '\n' && *ptr != '\r')
+			ptr++;
+		if (ptr > name) {
+			ch = *ptr;
+			*ptr = 0;
+			if (xt_tab_compare_names(name, table_name) == 0) {
+				*ptr = ch;
+				found = TRUE;
+				break;
+			}	
+			*ptr = ch;
+		}
+		if (!*ptr)
+			break;
+		ptr++;
+	}
+
+	switch (what) {
+		case REP_ADD:
+			if (!found) {
+				/* Remove any trailing empty lines: */
+				while (len > 0) {
+					if (buffer[len-1] != '\n' && buffer[len-1] != '\r')
+						break;
+					len--;
+				}
+				if (len > 0) {
+					if (!xt_pwrite_file(of, len, 1, (void *) "\n", &thread->st_statistics.st_x, thread))
+						goto failed;
+					len++;
+				}
+				if (!xt_pwrite_file(of, len, strlen(table_name), table_name, &thread->st_statistics.st_x, thread))
+					goto failed;
+				len += strlen(table_name);
+				if (!xt_set_eof_file(NULL, of, len))
+					goto failed;
+			}
+			break;
+		case REP_DEL:
+			if (found) {
+				if (*ptr != '\0')
+					ptr++;
+				memmove(name, ptr, len - (ptr - buffer));
+				len = len - (ptr - name);
+
+				/* Remove trailing empty lines: */
+				while (len > 0) {
+					if (buffer[len-1] != '\n' && buffer[len-1] != '\r')
+						break;
+					len--;
+				}
+
+				if (len > 0) {
+					if (!xt_pwrite_file(of, 0, len, buffer, &thread->st_statistics.st_x, thread))
+						goto failed;
+					if (!xt_set_eof_file(NULL, of, len))
+						goto failed;
+				}
+			}
+			break;
+	}
+
+	xt_close_file_ns(of);
+	xt_free_ns(buffer);
+
+	if (len == 0)
+		xt_fs_delete(NULL, file_path);
+	return found;
+
+	failed:
+	if (of)
+		xt_close_file_ns(of);
+	if (buffer)
+		xt_free_ns(buffer);
+	xt_log_and_clear_exception(thread);
+	return FALSE;
+}
+
+xtPublic void tab_make_table_name(XTTableHPtr tab, char *table_name, size_t size)
+{
+	char	name_buf[XT_IDENTIFIER_NAME_SIZE*3+3];
+
+	xt_2nd_last_name_of_path(sizeof(name_buf), name_buf, tab->tab_name->ps_path);
+	myxt_static_convert_file_name(name_buf, table_name, size);
+	xt_strcat(size, table_name, ".");
+	myxt_static_convert_file_name(xt_last_name_of_path(tab->tab_name->ps_path), name_buf, sizeof(name_buf));
+	xt_strcat(size, table_name, name_buf);
+}
+
+xtPublic xtBool xt_tab_is_table_repair_pending(XTTableHPtr tab)
+{
+	char table_name[XT_IDENTIFIER_NAME_SIZE*3+3];
+
+	tab_make_table_name(tab, table_name, sizeof(table_name));
+	return tab_exec_repair_pending(tab->tab_db, REP_FIND, table_name);
+}
+
+xtPublic void xt_tab_table_repaired(XTTableHPtr tab)
+{
+	if (tab->tab_repair_pending) {
+		char table_name[XT_IDENTIFIER_NAME_SIZE*3+3];
+
+		tab->tab_repair_pending = FALSE;
+		tab_make_table_name(tab, table_name, sizeof(table_name));
+		tab_exec_repair_pending(tab->tab_db, REP_DEL, table_name);
+	}
+}
+
+xtPublic void xt_tab_set_table_repair_pending(XTTableHPtr tab)
+{
+	if (!tab->tab_repair_pending) {
+		char table_name[XT_IDENTIFIER_NAME_SIZE*3+3];
+
+		tab->tab_repair_pending = TRUE;
+		tab_make_table_name(tab, table_name, sizeof(table_name));
+		tab_exec_repair_pending(tab->tab_db, REP_ADD, table_name);
+	}
+}

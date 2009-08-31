@@ -28,7 +28,7 @@
 #ifdef DRIZZLED
 #include <drizzled/common.h>
 #include <drizzled/handler.h>
-#include <drizzled/handlerton.h>
+#include <drizzled/plugin/storage_engine.h>
 #include <mysys/thr_lock.h>
 #else
 #include "mysql_priv.h"
@@ -50,6 +50,25 @@
 #endif
 
 class ha_pbxt;
+
+#ifdef DRIZZLED
+
+class PBXTStorageEngine : public StorageEngine {
+public:
+	PBXTStorageEngine(std::string name_arg)
+	: StorageEngine(name_arg, HTON_NO_FLAGS) {}
+
+	/* override */ int close_connection(Session *);
+	/* override */ int commit(Session *, bool);
+	/* override */ int rollback(Session *, bool);
+	/* override */ handler *create(TABLE_SHARE *, MEM_ROOT *);
+	/* override */ void drop_database(char *);
+	/* override */ bool show_status(Session *, stat_print_fn *, enum ha_stat_type);
+};
+
+typedef PBXTStorageEngine handlerton;
+
+#endif
 
 extern handlerton *pbxt_hton;
 

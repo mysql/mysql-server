@@ -217,7 +217,7 @@ bool XTLocationTable::seqScanNext(char *buf, bool *eof)
 	uint32		len;
 	Field		*curr_field;
 	byte		*save;
-	MY_BITMAP	*save_write_set;
+	MX_BITMAP	*save_write_set;
 
 	last_access = CS_GET_DISK_4(blob->rb_last_access_4);
 	last_ref = CS_GET_DISK_4(blob->rb_last_ref_4);
@@ -336,7 +336,6 @@ bool XTLocationTable::seqScanNext(char *buf, bool *eof)
 	table->write_set = save_write_set;
 	return true;
 #endif
-	return false;
 }
 
 void XTLocationTable::loadRow(char *buf, xtWord4 row_id)
@@ -345,7 +344,7 @@ void XTLocationTable::loadRow(char *buf, xtWord4 row_id)
 	Field			*curr_field;
 	XTTablePathPtr	tp_ptr;
 	byte			*save;
-	MY_BITMAP		*save_write_set;
+	MX_BITMAP		*save_write_set;
 
 	/* ASSERT_COLUMN_MARKED_FOR_WRITE is failing when
 	 * I use store()!??
@@ -386,7 +385,7 @@ void XTLocationTable::loadRow(char *buf, xtWord4 row_id)
 	table->write_set = save_write_set;
 }
 
-xtWord4 XTLocationTable::seqScanPos(xtWord1 *buf __attribute__((unused)))
+xtWord4 XTLocationTable::seqScanPos(xtWord1 *XT_UNUSED(buf))
 {
 	return lt_index-1;
 }
@@ -451,7 +450,7 @@ bool XTStatisticsTable::seqScanNext(char *buf, bool *eof)
 void XTStatisticsTable::loadRow(char *buf, xtWord4 rec_id)
 {
 	TABLE			*table = ost_my_table;
-	MY_BITMAP		*save_write_set;
+	MX_BITMAP		*save_write_set;
 	Field			*curr_field;
 	byte			*save;
 	const char		*stat_name;
@@ -503,7 +502,7 @@ void XTStatisticsTable::loadRow(char *buf, xtWord4 rec_id)
 	table->write_set = save_write_set;
 }
 
-xtWord4 XTStatisticsTable::seqScanPos(xtWord1 *buf __attribute__((unused)))
+xtWord4 XTStatisticsTable::seqScanPos(xtWord1 *XT_UNUSED(buf))
 {
 	return tt_index-1;
 }
@@ -531,14 +530,14 @@ void st_path_to_table_name(size_t size, char *buffer, const char *path)
 		*str = '.';
 }
 
-void XTSystemTableShare::startUp(XTThreadPtr self __attribute__((unused)))
+void XTSystemTableShare::startUp(XTThreadPtr XT_UNUSED(self))
 {
 	thr_lock_init(&sys_location_lock);
 	thr_lock_init(&sys_statistics_lock);
 	sys_lock_inited = TRUE;
 }
 
-void XTSystemTableShare::shutDown(XTThreadPtr self __attribute__((unused)))
+void XTSystemTableShare::shutDown(XTThreadPtr XT_UNUSED(self))
 {
 	if (sys_lock_inited) {
 		thr_lock_delete(&sys_location_lock);
@@ -588,7 +587,7 @@ bool XTSystemTableShare::doesSystemTableExist()
 	return false;
 }
 
-void XTSystemTableShare::createSystemTables(XTThreadPtr self __attribute__((unused)), XTDatabaseHPtr db __attribute__((unused)))
+void XTSystemTableShare::createSystemTables(XTThreadPtr XT_UNUSED(self), XTDatabaseHPtr XT_UNUSED(db))
 {
 	int		i = 0;
 
