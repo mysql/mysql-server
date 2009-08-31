@@ -3207,6 +3207,28 @@ add_key_equal_fields(KEY_FIELD **key_fields, uint and_level,
   }
 }
 
+
+/**
+  Check if an expression is a non-outer field.
+
+  Checks if an expression is a field and belongs to the current select.
+
+  @param   field  Item expression to check
+
+  @return boolean
+     @retval TRUE   the expression is a local field
+     @retval FALSE  it's something else
+*/
+
+inline static bool
+is_local_field (Item *field)
+{
+  field= field->real_item();
+  return field->type() == Item::FIELD_ITEM && 
+    !((Item_field *)field)->depended_from;
+}
+
+
 static void
 add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,
                COND *cond, table_map usable_tables,
@@ -3282,13 +3304,12 @@ add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,
   {
     Item **values;
     // BETWEEN, IN, NE
-    if (cond_func->key_item()->real_item()->type() == Item::FIELD_ITEM &&
+    if (is_local_field (cond_func->key_item()) &&
 	!(cond_func->used_tables() & OUTER_REF_TABLE_BIT))
     {
       values= cond_func->arguments()+1;
       if (cond_func->functype() == Item_func::NE_FUNC &&
-        cond_func->arguments()[1]->real_item()->type() == Item::FIELD_ITEM &&
-	     !(cond_func->arguments()[0]->used_tables() & OUTER_REF_TABLE_BIT))
+        is_local_field (cond_func->arguments()[1]))
         values--;
       DBUG_ASSERT(cond_func->functype() != Item_func::IN_FUNC ||
                   cond_func->argument_count() != 2);
@@ -3304,9 +3325,7 @@ add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,
       for (uint i= 1 ; i < cond_func->argument_count() ; i++)
       {
         Item_field *field_item;
-        if (cond_func->arguments()[i]->real_item()->type() == Item::FIELD_ITEM
-            &&
-            !(cond_func->arguments()[i]->used_tables() & OUTER_REF_TABLE_BIT))
+        if (is_local_field (cond_func->arguments()[i]))
         {
           field_item= (Item_field *) (cond_func->arguments()[i]->real_item());
           add_key_equal_fields(key_fields, *and_level, cond_func,
@@ -3322,8 +3341,7 @@ add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,
     bool equal_func=(cond_func->functype() == Item_func::EQ_FUNC ||
 		     cond_func->functype() == Item_func::EQUAL_FUNC);
 
-    if (cond_func->arguments()[0]->real_item()->type() == Item::FIELD_ITEM &&
-	!(cond_func->arguments()[0]->used_tables() & OUTER_REF_TABLE_BIT))
+    if (is_local_field (cond_func->arguments()[0]))
     {
       add_key_equal_fields(key_fields, *and_level, cond_func,
 	                (Item_field*) (cond_func->arguments()[0])->real_item(),
@@ -3331,9 +3349,8 @@ add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,
                            cond_func->arguments()+1, 1, usable_tables,
                            sargables);
     }
-    if (cond_func->arguments()[1]->real_item()->type() == Item::FIELD_ITEM &&
-	cond_func->functype() != Item_func::LIKE_FUNC &&
-	!(cond_func->arguments()[1]->used_tables() & OUTER_REF_TABLE_BIT))
+    if (is_local_field (cond_func->arguments()[1]) &&
+	cond_func->functype() != Item_func::LIKE_FUNC)
     {
       add_key_equal_fields(key_fields, *and_level, cond_func, 
                        (Item_field*) (cond_func->arguments()[1])->real_item(),
@@ -3345,7 +3362,7 @@ add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,
   }
   case Item_func::OPTIMIZE_NULL:
     /* column_name IS [NOT] NULL */
-    if (cond_func->arguments()[0]->real_item()->type() == Item::FIELD_ITEM &&
+    if (is_local_field (cond_func->arguments()[0]) &&
 	!(cond_func->used_tables() & OUTER_REF_TABLE_BIT))
     {
       Item *tmp=new Item_null;
