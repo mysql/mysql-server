@@ -232,10 +232,13 @@ int init_io_cache(IO_CACHE *info, File file, size_t cachesize,
       buffer_block= cachesize;
       if (type == SEQ_READ_APPEND)
 	buffer_block *= 2;
-      if ((info->buffer=
-	   (uchar*) my_malloc(buffer_block,
-			     MYF((cache_myflags & ~ MY_WME) |
-				 (cachesize == min_cache ? MY_WME : 0)))) != 0)
+      /*
+        Unset MY_WAIT_IF_FULL bit if it is set, to prevent conflict with
+        MY_ZEROFILL.
+      */
+      myf flag = MYF((cache_myflags & ~ (MY_WME | MY_WAIT_IF_FULL)) |
+                (cachesize == min_cache ? MY_WME : 0));
+      if ((info->buffer= (uchar*) my_malloc(buffer_block, flag)) != 0)
       {
 	info->write_buffer=info->buffer;
 	if (type == SEQ_READ_APPEND)
