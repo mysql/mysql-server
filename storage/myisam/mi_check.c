@@ -1551,7 +1551,7 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
     param->testflag|=T_CALC_CHECKSUM;
 
 #if SIZEOF_CHARP == 4
-  DBUG_ASSERT(param->use_buffers < (ulonglong(1) << 32));
+  DBUG_ASSERT(param->use_buffers < ((ulonglong) 1 << 32));
 #endif
   if (!param->using_global_keycache)
     VOID(init_key_cache(dflt_key_cache, param->key_cache_block_size,
