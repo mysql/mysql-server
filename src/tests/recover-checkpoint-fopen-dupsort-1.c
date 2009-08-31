@@ -1,3 +1,5 @@
+// this test verifies that db creation after a checkpoint works for nodup and dupsort dictionaries
+
 #include <sys/stat.h>
 #include "test.h"
 
@@ -46,8 +48,6 @@ static void run_test (BOOL do_commit, BOOL do_abort) {
     abort();
 }
 
-#if 0
-
 static void run_recover (BOOL did_commit) {
     DB_ENV *env;
     DB *dba, *dbb;
@@ -56,8 +56,19 @@ static void run_recover (BOOL did_commit) {
     r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                          CKERR(r);
     r = db_create(&dba, env, 0);                                                            CKERR(r);
     r = dba->open(dba, NULL, namea, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);        CKERR(r);
+
+    u_int32_t dbflags;
+    dbflags = 0;
+    r = dba->get_flags(dba, &dbflags);                                                        CKERR(r);
+    assert(dbflags == 0);
+
     r = db_create(&dbb, env, 0);                                                            CKERR(r);
     r = dba->open(dbb, NULL, nameb, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);        CKERR(r);
+
+    dbflags = 0;
+    r = dbb->get_flags(dbb, &dbflags);                                                        CKERR(r);
+    assert(dbflags == DB_DUPSORT);
+
     DBT aa={.size=0}, ab={.size=0};
     DBT ba={.size=0}, bb={.size=0};
     DB_TXN *txn;
@@ -98,8 +109,6 @@ static void run_recover (BOOL did_commit) {
     r = dbb->close(dbb, 0);                                                                 CKERR(r);
     r = env->close(env, 0);                                                                 CKERR(r);
 }
-
-#endif
 
 static void run_recover_only (void) {
     DB_ENV *env;
@@ -184,6 +193,10 @@ int test_main (int argc, char *argv[]) {
 	run_test(TRUE, FALSE);
     } else if (do_abort) {
         run_test(FALSE, TRUE);
+    } else if (do_recover_committed) {
+        run_recover(TRUE);
+    } else if (do_recover_aborted) {
+        run_recover(FALSE);
     } else if (do_recover_only) {
         run_recover_only();
     } else if (do_no_recover) {

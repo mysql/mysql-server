@@ -29,7 +29,7 @@ static void backward_scan_state_init(struct backward_scan_state *bs) {
 
 // Map filenum to brt
 // TODO why can't we use the cachetable to find by filenum?
-struct filenum_map {
+struct file_map {
     struct cf_pair {
         FILENUM filenum;
         CACHEFILE cf;
@@ -38,40 +38,44 @@ struct filenum_map {
     int n_cf_pairs, max_cf_pairs;
 };
 
-static void filenum_map_init(struct filenum_map *fmap) {
+static void file_map_init(struct file_map *fmap) {
     fmap->cf_pairs = NULL;
     fmap->n_cf_pairs = fmap->max_cf_pairs = 0;
 }
 
-static void filenum_map_close_dictionaries(struct filenum_map *fmap) {
+static void file_map_close_dictionaries(struct file_map *fmap) {
     int r;
 
-    int i;
-    for (i=0; i<fmap->n_cf_pairs; i++) {
+    for (int i=0; i<fmap->n_cf_pairs; i++) {
 	if (fmap->cf_pairs[i].brt) {
 	    r = toku_close_brt(fmap->cf_pairs[i].brt, 0, 0);
 	    //r = toku_cachefile_close(&cf_pairs[i].cf);
 	    assert(r == 0);
 	}
     }
-    fmap->n_cf_pairs = 0;
+    fmap->n_cf_pairs = fmap->max_cf_pairs = 0;
     if (fmap->cf_pairs) {
         toku_free(fmap->cf_pairs);
         fmap->cf_pairs = NULL;
     }
 }
 
-static int filenum_map_add (struct filenum_map *fmap, FILENUM fnum, CACHEFILE cf, BRT brt) {
-    if (fmap->max_cf_pairs==0) {
-	fmap->n_cf_pairs=1;
-	fmap->max_cf_pairs=2;
+static int file_map_add (struct file_map *fmap, FILENUM fnum, CACHEFILE cf, BRT brt) {
+    if (fmap->cf_pairs == NULL) {
+	fmap->max_cf_pairs = 1;
 	MALLOC_N(fmap->max_cf_pairs, fmap->cf_pairs);
-	if (fmap->cf_pairs==0) return errno;
+	if (fmap->cf_pairs == NULL) {
+            fmap->max_cf_pairs = 0;
+            return errno;
+        }
+	fmap->n_cf_pairs=1;
     } else {
 	if (fmap->n_cf_pairs >= fmap->max_cf_pairs) {
-	    fmap->cf_pairs = toku_realloc(fmap->cf_pairs, 2*fmap->max_cf_pairs*sizeof(struct cf_pair));
-            assert(fmap->cf_pairs);
-	    fmap->max_cf_pairs*=2;
+            struct cf_pair *new_cf_pairs = toku_realloc(fmap->cf_pairs, 2*fmap->max_cf_pairs*sizeof(struct cf_pair));
+            if (new_cf_pairs == NULL) 
+                return errno;
+            fmap->cf_pairs = new_cf_pairs;
+	    fmap->max_cf_pairs *= 2;
 	}
 	fmap->n_cf_pairs++;
     }
@@ -81,9 +85,8 @@ static int filenum_map_add (struct filenum_map *fmap, FILENUM fnum, CACHEFILE cf
     return 0;
 }
 
-static int find_cachefile (struct filenum_map *fmap, FILENUM fnum, struct cf_pair **cf_pair) {
-    int i;
-    for (i=0; i<fmap->n_cf_pairs; i++) {
+static int find_cachefile (struct file_map *fmap, FILENUM fnum, struct cf_pair **cf_pair) {
+    for (int i=0; i<fmap->n_cf_pairs; i++) {
 	if (fnum.fileid==fmap->cf_pairs[i].filenum.fileid) {
 	    *cf_pair = fmap->cf_pairs+i;
 	    return 0;
@@ -98,7 +101,7 @@ struct recover_env {
     brt_compare_func bt_compare;
     brt_compare_func dup_compare;
     struct backward_scan_state bs;
-    struct filenum_map fmap;
+    struct file_map fmap;
 };
 typedef struct recover_env *RECOVER_ENV;
 
@@ -113,7 +116,7 @@ int recover_env_init (RECOVER_ENV env, brt_compare_func bt_compare, brt_compare_
     toku_logger_set_cachetable(env->logger, env->ct);
     env->bt_compare = bt_compare;
     env->dup_compare = dup_compare;
-    filenum_map_init(&env->fmap);
+    file_map_init(&env->fmap);
 
     if (toku_recover_trace)
         printf("%s:%d\n", __FUNCTION__, __LINE__);
@@ -123,7 +126,7 @@ int recover_env_init (RECOVER_ENV env, brt_compare_func bt_compare, brt_compare_
 void recover_env_cleanup (RECOVER_ENV env) {
     int r;
 
-    filenum_map_close_dictionaries(&env->fmap);
+    file_map_close_dictionaries(&env->fmap);
 
     r = toku_logger_close(&env->logger);
     assert(r == 0);
@@ -183,10 +186,9 @@ static int toku_recover_backward_xabort (struct logtype_xabort *UU(l), RECOVER_E
 }
 
 static void create_dir_from_file (const char *fname) {
-    int i;
     char *tmp=toku_strdup(fname);
     char ch;
-    for (i=0; (ch=fname[i]); i++) {
+    for (int i=0; (ch=fname[i]); i++) {
         //
         // TODO: this may fail in windows, double check the absolute path names
         // and '/' as the directory delimiter or something
@@ -210,27 +212,25 @@ static void create_dir_from_file (const char *fname) {
 
 // Open the file if it is not already open.  If it is already open, then do nothing.
 static void internal_toku_recover_fopen_or_fcreate (RECOVER_ENV env, int flags, int mode, char *fixedfname, FILENUM filenum, u_int32_t treeflags) {
-    {
-	struct cf_pair *pair = NULL;
-	int r = find_cachefile(&env->fmap, filenum, &pair);
-	if (0==r) {
-	    toku_free(fixedfname);
-	    return;
-	}
+    int r;
+
+    // already open
+    struct cf_pair *pair = NULL;
+    r = find_cachefile(&env->fmap, filenum, &pair);
+    if (r == 0) {
+        toku_free(fixedfname);
+        return;
     }
 
-    CACHEFILE cf;
-    int fd = open(fixedfname, O_RDWR|O_BINARY|flags, mode);
-    if (fd<0) {
-	char org_wd[1000];
-	char *wd=getcwd(org_wd, sizeof(org_wd));
-	fprintf(stderr, "%s:%d Could not open file %s, cwd=%s, errno=%d (%s)\n",
-		__FILE__, __LINE__, fixedfname, wd, errno, strerror(errno));
+    if (flags & O_TRUNC) {
+        // maybe unlink
+        r = unlink(fixedfname);
+        if (r != 0)
+            printf("%s:%d unlink %d\n", __FUNCTION__, __LINE__, errno);
     }
-    assert(fd>=0);
 
     BRT brt=0;
-    int r = toku_brt_create(&brt);
+    r = toku_brt_create(&brt);
     assert(r == 0);
 
     // create tree with treeflags, otherwise use the treeflags from the tree
@@ -243,17 +243,15 @@ static void internal_toku_recover_fopen_or_fcreate (RECOVER_ENV env, int flags, 
     if (env->dup_compare)
         toku_brt_set_dup_compare(brt, env->dup_compare);
 
-    brt->fname = fixedfname;
-    brt->h=0;
-    brt->db = 0;
-    r = toku_cachetable_openfd(&cf, env->ct, fd, fixedfname);
+    // TODO mode
+    mode = mode;
+
+    r = toku_brt_open(brt, fixedfname, fixedfname, (flags & O_CREAT) != 0, FALSE, env->ct, NULL, NULL);
     assert(r == 0);
-    brt->cf=cf;
-    r = toku_read_brt_header_and_store_in_cachefile(brt->cf, &brt->h);
-    if (r==TOKUDB_DICTIONARY_NO_HEADER) {
-	r = toku_brt_alloc_init_header(brt);
-    }
-    filenum_map_add(&env->fmap, filenum, cf, brt);
+
+    toku_free(fixedfname);
+
+    file_map_add(&env->fmap, filenum, NULL, brt);
 }
 
 static void toku_recover_fopen (LSN UU(lsn), TXNID UU(xid), BYTESTRING fname, FILENUM filenum, RECOVER_ENV env) {
@@ -261,7 +259,17 @@ static void toku_recover_fopen (LSN UU(lsn), TXNID UU(xid), BYTESTRING fname, FI
     internal_toku_recover_fopen_or_fcreate(env, 0, 0, fixedfname, filenum, 0);
 }
 
-static int toku_recover_backward_fopen (struct logtype_fopen *UU(l), RECOVER_ENV UU(env)) {
+static int toku_recover_backward_fopen (struct logtype_fopen *l, RECOVER_ENV env) {
+    if (env->bs.bs == BS_SAW_CKPT_END) {
+        // close the tree
+        struct cf_pair *pair = NULL;
+        int r = find_cachefile(&env->fmap, l->filenum, &pair);
+        if (r == 0) {
+            r = toku_close_brt(pair->brt, 0, 0);
+            assert(r == 0);
+            pair->brt=0;
+        }
+    }
     return 0;
 }
 
@@ -348,13 +356,19 @@ static int toku_recover_backward_enq_delete_any (struct logtype_enq_delete_any *
 static void toku_recover_fclose (LSN UU(lsn), BYTESTRING UU(fname), FILENUM filenum, RECOVER_ENV UU(env)) {
     struct cf_pair *pair = NULL;
     int r = find_cachefile(&env->fmap, filenum, &pair);
-    assert(r == 0);
-    r = toku_close_brt(pair->brt, 0, 0);
-    assert(r == 0);
-    pair->brt=0;
+    if (r == 0) {
+        r = toku_close_brt(pair->brt, 0, 0);
+        assert(r == 0);
+        pair->brt=0;
+    }
 }
 
-static int toku_recover_backward_fclose (struct logtype_fclose *UU(l), RECOVER_ENV UU(env)) {
+static int toku_recover_backward_fclose (struct logtype_fclose *l, RECOVER_ENV env) {
+    if (env->bs.bs == BS_SAW_CKPT) {
+        // tree open
+        char *fixedfname = fixup_fname(&l->fname);
+        internal_toku_recover_fopen_or_fcreate(env, 0, 0, fixedfname, l->filenum, 0);
+    }
     return 0;
 }
 
@@ -374,8 +388,8 @@ static int toku_recover_backward_begin_checkpoint (struct logtype_begin_checkpoi
 	if (bs->n_live_txns==0) {
 	    fprintf(stderr, "Turning around at begin_checkpoint %" PRIu64 "\n", l->lsn.lsn);
 	    return 1;
-	}
-	else return 0;
+	} else 
+            return 0;
     case BS_SAW_CKPT:
 	return 0; // ignore it
     }
@@ -427,11 +441,11 @@ static int toku_recover_backward_xstillopen (struct logtype_xstillopen *l, RECOV
     case BS_INIT:
 	return 0; // ignore live txns from incomplete checkpoint
     case BS_SAW_CKPT_END:
-	if (bs->n_live_txns==0) {
+	if (bs->n_live_txns == 0)
 	    bs->min_live_txn = l->txnid;
-	} else {
-	    if (bs->min_live_txn > l->txnid)  bs->min_live_txn = l->txnid;
-	}
+        // TODO need a new txnid comparison 
+	else if (bs->min_live_txn > l->txnid)  
+            bs->min_live_txn = l->txnid;
 	bs->n_live_txns++;
 	return 0;
     case BS_SAW_CKPT:
@@ -470,7 +484,7 @@ static int toku_recover_backward_xbegin (struct logtype_xbegin *l, RECOVER_ENV e
 	    fprintf(stderr, "Turning around at xbegin %" PRIu64 "\n", l->lsn.lsn);
 	    return 1;
 	} else {
-	    fprintf(stderr, "scanning back at xbegin %" PRIu64 " (looking for %" PRIu64 ")\n", l->lsn.lsn, bs->min_live_txn);
+	    fprintf(stderr, "Scanning back at xbegin %" PRIu64 " (looking for %" PRIu64 ")\n", l->lsn.lsn, bs->min_live_txn);
 	    return 0;
 	}
     }
@@ -580,6 +594,7 @@ int tokudb_needs_recovery(const char *log_dir) {
 static int compare_txn(const void *a, const void *b) {
     TOKUTXN atxn = (TOKUTXN) * (void **) a;
     TOKUTXN btxn = (TOKUTXN) * (void **) b;
+    // TODO this is wrong.  we want if (older(atxn, btxn)) return -1
     if (atxn->txnid64 > btxn->txnid64)
         return -1;
     if (atxn->txnid64 < btxn->txnid64)
@@ -676,7 +691,7 @@ static int do_recovery(RECOVER_ENV env, const char *data_dir, const char *log_di
     varray_destroy(&live_txns);
 
     // close the open dictionaries
-    filenum_map_close_dictionaries(&env->fmap);
+    file_map_close_dictionaries(&env->fmap);
 
     // write a recovery log entry
     BYTESTRING recover_comment = { strlen("recover"), "recover" };

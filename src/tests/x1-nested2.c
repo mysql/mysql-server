@@ -45,11 +45,10 @@ do_x1_shutdown (BOOL do_commit, BOOL do_abort) {
 	r = dbb->put(dbb, txn, &b, &a, 0);                                              CKERR(r);
     }
     //printf("opened\n");
+    r = txn->commit(txn, 0);                                                            CKERR(r);
     if (do_commit) {
-	r = txn->commit(txn, 0);                                                        CKERR(r);
         r = txn->commit(txn0, 0);                                                       CKERR(r);
     } else if (do_abort) {
-        r = txn->abort(txn);                                                            CKERR(r);
         r = txn->abort(txn0);                                                           CKERR(r);
         
         // force an fsync of the log
