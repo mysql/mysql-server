@@ -14,31 +14,31 @@ echo == 4 ==;
 --exec $NDB_CONFIG --no-defaults --query=nodeid --type=ndbd --host=localhost 2> /dev/null
 
 echo == 5 ==;
---exec $NDB_CONFIG --no-defaults --query=type,nodeid,host --config-file=$MYSQL_TEST_DIR/std_data/ndb_config_config.ini 2> /dev/null
+--exec $NDB_CONFIG --no-defaults --query=type,nodeid,host --config-file=$MYSQL_TEST_DIR/suite/ndb/ndb_config_config.ini 2> /dev/null
 
 # End of 4.1 tests
 echo == 6 ==;
---exec $NDB_CONFIG --defaults-group-suffix=.jonas --defaults-file=$MYSQL_TEST_DIR/std_data/ndb_config_mycnf1.cnf --query=type,nodeid,host,IndexMemory,DataMemory --mycnf 2> /dev/null
+--exec $NDB_CONFIG --defaults-group-suffix=.jonas --defaults-file=$MYSQL_TEST_DIR/suite/ndb/ndb_config_mycnf1.cnf --query=type,nodeid,host,IndexMemory,DataMemory --mycnf 2> /dev/null
 
 echo == 7 ==;
---exec $NDB_CONFIG --defaults-group-suffix=.cluster0 --defaults-file=$MYSQL_TEST_DIR/std_data/ndb_config_mycnf2.cnf --query=type,nodeid,host --mycnf 2> /dev/null
+--exec $NDB_CONFIG --defaults-group-suffix=.cluster0 --defaults-file=$MYSQL_TEST_DIR/suite/ndb/ndb_config_mycnf2.cnf --query=type,nodeid,host --mycnf 2> /dev/null
 
 echo == 8 ==;
---exec $NDB_CONFIG --defaults-group-suffix=.cluster1 --defaults-file=$MYSQL_TEST_DIR/std_data/ndb_config_mycnf2.cnf --query=type,nodeid,host --mycnf 2> /dev/null
+--exec $NDB_CONFIG --defaults-group-suffix=.cluster1 --defaults-file=$MYSQL_TEST_DIR/suite/ndb/ndb_config_mycnf2.cnf --query=type,nodeid,host --mycnf 2> /dev/null
 
 echo == 9 ==;
---exec $NDB_CONFIG --defaults-group-suffix=.cluster2 --defaults-file=$MYSQL_TEST_DIR/std_data/ndb_config_mycnf2.cnf --query=type,nodeid,host --mycnf 2> /dev/null
+--exec $NDB_CONFIG --defaults-group-suffix=.cluster2 --defaults-file=$MYSQL_TEST_DIR/suite/ndb/ndb_config_mycnf2.cnf --query=type,nodeid,host --mycnf 2> /dev/null
 echo == 10 ==;
---exec $NDB_CONFIG --defaults-group-suffix=.cluster2 --defaults-file=$MYSQL_TEST_DIR/std_data/ndb_config_mycnf2.cnf --connections --query=type,nodeid1,nodeid2,group,nodeidserver --mycnf 2> /dev/null
+--exec $NDB_CONFIG --defaults-group-suffix=.cluster2 --defaults-file=$MYSQL_TEST_DIR/suite/ndb/ndb_config_mycnf2.cnf --connections --query=type,nodeid1,nodeid2,group,nodeidserver --mycnf 2> /dev/null
 
 echo == 11 ==;
---exec $NDB_CONFIG --no-defaults --query=nodeid --host=localhost --config-file=$MYSQL_TEST_DIR/std_data/ndb_config_config.ini 2> /dev/null
+--exec $NDB_CONFIG --no-defaults --query=nodeid --host=localhost --config-file=$MYSQL_TEST_DIR/suite/ndb/ndb_config_config.ini 2> /dev/null
 
 echo == 12 ==;
---exec $NDB_CONFIG --no-defaults --query=nodeid --host=1.2.3.4   --config-file=$MYSQL_TEST_DIR/std_data/ndb_config_config.ini 2> /dev/null
+--exec $NDB_CONFIG --no-defaults --query=nodeid --host=1.2.3.4   --config-file=$MYSQL_TEST_DIR/suite/ndb/ndb_config_config.ini 2> /dev/null
 
 echo == 13 ==;
---exec $NDB_CONFIG --no-defaults --query=nodeid --host=127.0.0.1 --config-file=$MYSQL_TEST_DIR/std_data/ndb_config_config.ini 2> /dev/null
+--exec $NDB_CONFIG --no-defaults --query=nodeid --host=127.0.0.1 --config-file=$MYSQL_TEST_DIR/suite/ndb/ndb_config_config.ini 2> /dev/null
 
 echo == 14 == ndb_config --configinfo;
 --exec $NDB_CONFIG --configinfo > /dev/null
