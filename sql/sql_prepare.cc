@@ -2072,10 +2072,9 @@ void mysql_sql_stmt_prepare(THD *thd)
   LEX_STRING *name= &lex->prepared_stmt_name;
   Prepared_statement *stmt;
   const char *query;
-  uint query_len;
+  uint UNINIT_VAR(query_len);
   DBUG_ENTER("mysql_sql_stmt_prepare");
   DBUG_ASSERT(thd->protocol == &thd->protocol_simple);
-  LINT_INIT(query_len);
 
   if ((stmt= (Prepared_statement*) thd->stmt_map.find_by_name(name)))
   {
