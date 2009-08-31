@@ -159,7 +159,16 @@ check_test-assert$(BINSUF): test-assert$(BINSUF) $(PTHREAD_LOCAL)
 	$(VGRIND) ./$< ok $(SUMMARIZE_CMD)
 
 check_%: % $(PTHREAD_LOCAL)
-	$(VGRIND)  ./$< $(VERBVERBOSE) $(SUMMARIZE_CMD)
+ifeq ($(VGRIND),)
+	./$< $(VERBVERBOSE) $(SUMMARIZE_CMD)
+else
+	$(VGRIND) --log-file=$<.check.valgrind ./$< $(VERBVERBOSE); \
+	if [ $$? -eq 0 ] ; then \
+		lines=`cat $<.check.valgrind | wc -l`; \
+		if [ $$lines -ne 0 ] ; then cat $<.check.valgrind; test 0 = 1; fi \
+	fi \
+	$(SUMMARIZE_CMD)
+endif
 
 benchmark-test.$(OEXT): ../brt.h ../brt-search.h ../../include/db.h
 
@@ -168,7 +177,7 @@ clean:
 	rm -rf log-test7.c.dir_*
 	rm -rf *.dir 
 	rm -f cachetable-fd-test.ctest2.data test_oexcl.c.tmp
-	rm -f *.brt *.clean *.dirty *.tdb *.dat *.data *.out
+	rm -f *.brt *.clean *.dirty *.tdb *.dat *.data *.out *.check.valgrind
 
 $(BINS): $(LINK_FILES)
 $(BINS): test.h
