@@ -285,7 +285,7 @@ os_fast_mutex_free(
 /**********************************************************//**
 Atomic compare-and-swap and increment for InnoDB. */
 
-#ifdef HAVE_GCC_ATOMIC_BUILTINS
+#ifdef HAVE_IB_GCC_ATOMIC_BUILTINS
 /**********************************************************//**
 Returns true if swapped, ptr is pointer to target, old_val is value to
 compare to, new_val is the value to swap in. */
@@ -377,7 +377,7 @@ InterlockedExchange() operates on LONG, and the LONG will be
 clobbered */
 # define os_atomic_test_and_set_byte(ptr, new_val) \
 	((byte) InterlockedExchange(ptr, new_val))
-#endif /* HAVE_GCC_ATOMIC_BUILTINS */
+#endif /* HAVE_IB_GCC_ATOMIC_BUILTINS */
 
 #ifndef UNIV_NONINL
 #include "os0sync.ic"
