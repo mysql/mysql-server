@@ -76,15 +76,25 @@ CREATE /*!50000 DEFINER='user44331' */ EVENT event44331_4
 
 --echo #on master 
 select EVENT_SCHEMA, EVENT_NAME, DEFINER from information_schema.events
-  where EVENT_NAME='event44331_1' || EVENT_NAME='event44331_2' || 
-        EVENT_NAME='event44331_3' || EVENT_NAME='event44331_4';
+  where EVENT_NAME='event44331_1';
+select EVENT_SCHEMA, EVENT_NAME, DEFINER from information_schema.events
+  where EVENT_NAME='event44331_2';
+select EVENT_SCHEMA, EVENT_NAME, DEFINER from information_schema.events
+  where EVENT_NAME='event44331_3';
+select EVENT_SCHEMA, EVENT_NAME, DEFINER from information_schema.events
+  where EVENT_NAME='event44331_4';
 
 sync_slave_with_master;
 connection slave;
 --echo #on slave
 select EVENT_SCHEMA, EVENT_NAME, DEFINER from information_schema.events
-  where EVENT_NAME='event44331_1' || EVENT_NAME='event44331_2' || 
-        EVENT_NAME='event44331_3' || EVENT_NAME='event44331_4';
+  where EVENT_NAME='event44331_1';
+select EVENT_SCHEMA, EVENT_NAME, DEFINER from information_schema.events
+  where EVENT_NAME='event44331_2';
+select EVENT_SCHEMA, EVENT_NAME, DEFINER from information_schema.events
+  where EVENT_NAME='event44331_3';
+select EVENT_SCHEMA, EVENT_NAME, DEFINER from information_schema.events
+  where EVENT_NAME='event44331_4';
 
 connection master;
 SET @@global.event_scheduler= @old_event_scheduler;
