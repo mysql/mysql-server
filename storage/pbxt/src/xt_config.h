@@ -81,7 +81,8 @@ const int max_connections = 500;
 #define DEBUG
 #endif // _DEBUG
 #else
-#define PBMS_ENABLED
+// Paul suggested to disable PBMS in MariaDB for now.
+// #define PBMS_ENABLED
 #endif
 
 #ifdef __FreeBSD__
