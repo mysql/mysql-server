@@ -2063,7 +2063,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
     KEY *key_info;
     PARAM param;
 
-    if (check_stack_overrun(thd, 2*STACK_MIN_SIZE, buff))
+    if (check_stack_overrun(thd, 2*STACK_MIN_SIZE + sizeof(PARAM), buff))
       DBUG_RETURN(0);                           // Fatal error flag is set
 
     /* set up parameter that is passed to all functions */
@@ -3514,11 +3514,10 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
 {
   int idx;
   SEL_ARG **key,**end, **key_to_read= NULL;
-  ha_rows best_records;
+  ha_rows UNINIT_VAR(best_records);              /* protected by key_to_read */
   TRP_RANGE* read_plan= NULL;
   bool pk_is_clustered= param->table->file->primary_key_is_clustered();
   DBUG_ENTER("get_key_scans_params");
-  LINT_INIT(best_records); /* protected by key_to_read */
   /*
     Note that there may be trees that have type SEL_TREE::KEY but contain no
     key reads at all, e.g. tree for expression "key1 is not null" where key1
@@ -5370,8 +5369,7 @@ static bool eq_tree(SEL_ARG* a,SEL_ARG *b)
 SEL_ARG *
 SEL_ARG::insert(SEL_ARG *key)
 {
-  SEL_ARG *element,**par,*last_element;
-  LINT_INIT(par); LINT_INIT(last_element);
+  SEL_ARG *element,**UNINIT_VAR(par),*UNINIT_VAR(last_element);
 
   for (element= this; element != &null_element ; )
   {
@@ -7918,7 +7916,9 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
         goto next_index;
     }
     else
+    {
       DBUG_ASSERT(FALSE);
+    }
 
     /* Check (SA2). */
     if (min_max_arg_item)
@@ -8308,11 +8308,21 @@ get_constant_key_infix(KEY *index_info, SEL_ARG *index_range_tree,
       return FALSE;
 
     uint field_length= cur_part->store_length;
-    if ((cur_range->maybe_null &&
+    if (cur_range->maybe_null &&
          cur_range->min_value[0] && cur_range->max_value[0])
-        ||
-        (memcmp(cur_range->min_value, cur_range->max_value, field_length) == 0))
-    { /* cur_range specifies 'IS NULL' or an equality condition. */
+    { 
+      /*
+        cur_range specifies 'IS NULL'. In this case the argument points to a "null value" (is_null_string)
+        that may not always be long enough for a direct memcpy to a field.
+      */
+      DBUG_ASSERT (field_length > 0);
+      *key_ptr= 1;
+      bzero(key_ptr+1,field_length-1);
+      key_ptr+= field_length;
+      *key_infix_len+= field_length;
+    }
+    else if (memcmp(cur_range->min_value, cur_range->max_value, field_length) == 0)
+    { /* cur_range specifies an equality condition. */
       memcpy(key_ptr, cur_range->min_value, field_length);
       key_ptr+= field_length;
       *key_infix_len+= field_length;

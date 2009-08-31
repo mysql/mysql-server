@@ -78,7 +78,7 @@ static void split_file_name(const char *file_name,
 
 extern "C" void myrg_print_wrong_table(const char *table_name)
 {
-  LEX_STRING db, name;
+  LEX_STRING db= {NULL, 0}, name;
   char buf[FN_REFLEN];
   split_file_name(table_name, &db, &name);
   memcpy(buf, db.str, db.length);

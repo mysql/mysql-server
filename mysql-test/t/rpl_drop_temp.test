@@ -3,15 +3,22 @@ source include/master-slave.inc;
 create database if not exists mysqltest;
 --enable_warnings
 
+connect (con_temp,127.0.0.1,root,,test,$MASTER_MYPORT,);
+
+connection con_temp;
+use mysqltest;
 create temporary table mysqltest.t1 (n int);
 create temporary table mysqltest.t2 (n int);
-sync_slave_with_master;
+select get_lock("con_temp",10);
+
 connection master;
-disconnect master;
+disconnect con_temp;
+select get_lock("con_temp",10);
+sync_slave_with_master;
+
 connection slave;
---real_sleep 3 # time for DROP to be written
 show status like 'Slave_open_temp_tables';
-connection default;
+connection master;
 drop database mysqltest;
 
 # End of 4.1 tests
