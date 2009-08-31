@@ -678,7 +678,7 @@ err:
 byte *mi_alloc_rec_buff(MI_INFO *info, ulong length, byte **buf)
 {
   uint extra;
-  uint32 old_length;
+  uint32 UNINIT_VAR(old_length);
   LINT_INIT(old_length);
 
   if (! *buf || length > (old_length=mi_get_rec_buff_len(info, *buf)))

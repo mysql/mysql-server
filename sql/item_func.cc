@@ -2275,9 +2275,8 @@ void Item_func_min_max::fix_length_and_dec()
 
 uint Item_func_min_max::cmp_datetimes(ulonglong *value)
 {
-  longlong min_max;
+  longlong UNINIT_VAR(min_max);
   uint min_max_idx= 0;
-  LINT_INIT(min_max);
 
   for (uint i=0; i < arg_count ; i++)
   {
@@ -2345,8 +2344,7 @@ String *Item_func_min_max::val_str(String *str)
   }
   case STRING_RESULT:
   {
-    String *res;
-    LINT_INIT(res);
+    String *UNINIT_VAR(res);
     for (uint i=0; i < arg_count ; i++)
     {
       if (i == 0)
@@ -2435,8 +2433,7 @@ longlong Item_func_min_max::val_int()
 my_decimal *Item_func_min_max::val_decimal(my_decimal *dec)
 {
   DBUG_ASSERT(fixed == 1);
-  my_decimal tmp_buf, *tmp, *res;
-  LINT_INIT(res);
+  my_decimal tmp_buf, *tmp, *UNINIT_VAR(res);
 
   if (compare_as_dates)
   {
@@ -4974,8 +4971,7 @@ void Item_func_match::init_search(bool no_order)
 bool Item_func_match::fix_fields(THD *thd, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
-  Item *item;
-  LINT_INIT(item);				// Safe as arg_count is > 1
+  Item *UNINIT_VAR(item);                        // Safe as arg_count is > 1
 
   maybe_null=1;
   join_key=0;

@@ -2635,9 +2635,10 @@ bool flush_error_log()
     else
      result= 1;
 #else
+   FILE *reopen;
    my_rename(log_error_file,err_renamed,MYF(0));
    if (freopen(log_error_file,"a+",stdout))
-     freopen(log_error_file,"a+",stderr);
+       reopen= freopen(log_error_file,"a+",stderr);
    else
      result= 1;
 #endif

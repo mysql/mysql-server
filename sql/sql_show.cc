@@ -2172,8 +2172,8 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   ST_SCHEMA_TABLE *schema_table= tables->schema_table;
   SELECT_LEX sel;
   INDEX_FIELD_VALUES idx_field_vals;
-  char path[FN_REFLEN], *end, *base_name, *orig_base_name, *file_name;
-  uint len;
+  char path[FN_REFLEN], *UNINIT_VAR(end), *base_name, *orig_base_name, *file_name;
+  uint UNINIT_VAR(len);
   bool with_i_schema;
   enum enum_schema_tables schema_table_idx;
   List<char> bases;
@@ -2189,9 +2189,6 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   Security_context *sctx= thd->security_ctx;
 #endif
   DBUG_ENTER("get_all_tables");
-
-  LINT_INIT(end);
-  LINT_INIT(len);
 
   lex->view_prepare_mode= TRUE;
   lex->reset_n_backup_query_tables_list(&query_tables_list_backup);
