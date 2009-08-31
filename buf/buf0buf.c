@@ -837,16 +837,35 @@ buf_chunk_not_freed(
 	block = chunk->blocks;
 
 	for (i = chunk->size; i--; block++) {
-		mutex_enter(&block->mutex);
+		ibool	ready;
 
-		if (buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE
-		    && !buf_flush_ready_for_replace(&block->page)) {
-
+		switch (buf_block_get_state(block)) {
+		case BUF_BLOCK_ZIP_FREE:
+		case BUF_BLOCK_ZIP_PAGE:
+		case BUF_BLOCK_ZIP_DIRTY:
+			/* The uncompressed buffer pool should never
+			contain compressed block descriptors. */
+			ut_error;
+			break;
+		case BUF_BLOCK_NOT_USED:
+		case BUF_BLOCK_READY_FOR_USE:
+		case BUF_BLOCK_MEMORY:
+		case BUF_BLOCK_REMOVE_HASH:
+			/* Skip blocks that are not being used for
+			file pages. */
+			break;
+		case BUF_BLOCK_FILE_PAGE:
+			mutex_enter(&block->mutex);
+			ready = buf_flush_ready_for_replace(&block->page);
 			mutex_exit(&block->mutex);
-			return(block);
-		}
 
-		mutex_exit(&block->mutex);
+			if (!ready) {
+
+				return(block);
+			}
+
+			break;
+		}
 	}
 
 	return(NULL);
