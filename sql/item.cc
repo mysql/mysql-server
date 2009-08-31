@@ -1916,10 +1916,10 @@ void Item_field::reset_field(Field *f)
 }
 
 
-bool Item_field::check_column_usage_processor(uchar *arg)
+bool Item_field::enumerate_field_refs_processor(uchar *arg)
 {
   Field_enumerator *fe= (Field_enumerator*)arg;
-  fe->see_field(field);
+  fe->visit_field(field);
   return FALSE;
 }
 

@@ -2991,21 +2991,32 @@ typedef struct key_field_t {
   elements that would correspond to "$LEFT_PART OR $RIGHT_PART". 
   
   The rules for combining elements are as follows:
+
     (keyfieldA1 AND keyfieldA2 AND ...) OR (keyfieldB1 AND keyfieldB2 AND ...)=
-    AND_ij (keyfieldA_i OR keyfieldB_j)
+     
+     = AND_ij (keyfieldA_i OR keyfieldB_j)
   
   We discard all (keyfieldA_i OR keyfieldB_j) that refer to different
   fields. For those referring to the same field, the logic is as follows:
     
-  t.keycol=
+    t.keycol=expr1 OR t.keycol=expr2 -> (since expr1 and expr2 are different 
+                                         we can't produce a single equality,
+                                         so produce nothing)
 
-  To be able to do 'ref_or_null' we merge a comparison of a column
-  and 'column IS NULL' to one test.  This is useful for sub select queries
-  that are internally transformed to something like:.
+    t.keycol=expr1 OR t.keycol=expr1 -> t.keycol=expr1
+
+    t.keycol=expr1 OR t.keycol IS NULL -> t.keycol=expr1, and also set
+                                          KEY_OPTIMIZE_REF_OR_NULL flag
+
+  The last one is for ref_or_null access. We have handling for this special
+  because it's needed for evaluating IN subqueries that are internally
+  transformed into 
 
   @code
-  SELECT * FROM t1 WHERE t1.key=outer_ref_field or t1.key IS NULL 
+    EXISTS(SELECT * FROM t1 WHERE t1.key=outer_ref_field or t1.key IS NULL)
   @endcode
+
+  See add_key_fields() for discussion of what is and_level.
 
   KEY_FIELD::null_rejecting is processed as follows: @n
   result has null_rejecting=true if it is set for both ORed references.
@@ -3345,6 +3356,26 @@ add_key_equal_fields(KEY_FIELD **key_fields, uint and_level,
     }
   }
 }
+
+
+/*
+  In this and other functions, and_level is a number that is ever-growing
+  and is different for the contents of every AND or OR clause. For example,
+  when processing clause
+
+     (a AND b AND c) OR (x AND y)
+  
+  we'll have
+   * KEY_FIELD elements for (a AND b AND c) are assigned and_level=1
+   * KEY_FIELD elements for (x AND y) are assigned and_level=2
+   * OR operation is performed, and whatever elements are left after it are
+     assigned and_level=3.
+
+  The primary reason for having and_level attribute is the OR operation which 
+  uses and_level to mark KEY_FIELDs that should get into the result of the OR
+  operation
+
+*/
 
 static void
 add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,

@@ -734,7 +734,7 @@ public:
   /* 
     Bitmap of tables used by item
     (note: if you need to check dependencies on individual columns, check out
-     check_column_usage_processor)
+     class Field_enumerator)
   */
   virtual table_map used_tables() const { return (table_map) 0L; }
   /*
@@ -892,7 +892,7 @@ public:
   virtual bool reset_query_id_processor(uchar *query_id_arg) { return 0; }
   virtual bool is_expensive_processor(uchar *arg) { return 0; }
   virtual bool register_field_in_read_map(uchar *arg) { return 0; }
-  virtual bool check_column_usage_processor(uchar *arg) { return 0; }
+  virtual bool enumerate_field_refs_processor(uchar *arg) { return 0; }
   virtual bool mark_as_eliminated_processor(uchar *arg) { return 0; }
   /*
     Check if a partition function is allowed
@@ -1018,13 +1018,28 @@ public:
 };
 
 
-/* Data for Item::check_column_usage_processor */
+/*
+  Class to be used to enumerate all field references in an item tree.
+  Suggested usage:
+
+    class My_enumerator : public Field_enumerator 
+    {
+      virtual void visit_field() { ... your actions ...} 
+    }
+
+    My_enumerator enumerator;
+    item->walk(Item::enumerate_field_refs_processor, ...,(uchar*)&enumerator);
+
+  This is similar to Visitor pattern.
+*/
+
 class Field_enumerator
 {
 public:
-  virtual void see_field(Field *field)= 0;
-  virtual ~Field_enumerator() {}; /* Shut up compiler warning */
+  virtual void visit_field(Field *field)= 0;
+  virtual ~Field_enumerator() {}; /* purecov: inspected */
 };
+
 
 class sp_head;
 
@@ -1491,7 +1506,7 @@ public:
   bool find_item_in_field_list_processor(uchar *arg);
   bool register_field_in_read_map(uchar *arg);
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
-  bool check_column_usage_processor(uchar *arg);
+  bool enumerate_field_refs_processor(uchar *arg);
   void cleanup();
   bool result_as_longlong()
   {
