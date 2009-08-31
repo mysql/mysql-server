@@ -331,7 +331,7 @@ static int toku_recover_backward_enq_delete_both (struct logtype_enq_delete_both
     return 0;
 }
 
-static void toku_recover_enq_delete_any (LSN lsn __attribute__((__unused__)), FILENUM filenum, TXNID xid, BYTESTRING key, BYTESTRING UU(val), RECOVER_ENV env) {
+static void toku_recover_enq_delete_any (LSN lsn __attribute__((__unused__)), FILENUM filenum, TXNID xid, BYTESTRING key, RECOVER_ENV env) {
     struct cf_pair *pair = NULL;
     int r = find_cachefile(&env->fmap, filenum, &pair);
     if (r!=0) {

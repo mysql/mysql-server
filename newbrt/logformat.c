@@ -129,7 +129,6 @@ const struct logtype logtypes[] = {
     {"enq_delete_any", 'E', FA{{"FILENUM",    "filenum", 0},
                                {"TXNID",      "xid", 0},
                                {"BYTESTRING", "key", 0},
-                               {"BYTESTRING", "value", 0},
                                NULLFIELD}},
     {"shutdown", 'S', FA{{"u_int64_t", "timestamp", 0}, NULLFIELD}},
     {"timestamp", 'T', FA{{"u_int64_t", "timestamp", 0},
