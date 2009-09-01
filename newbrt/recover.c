@@ -443,8 +443,7 @@ static int toku_recover_backward_xstillopen (struct logtype_xstillopen *l, RECOV
     case BS_SAW_CKPT_END:
 	if (bs->n_live_txns == 0)
 	    bs->min_live_txn = l->txnid;
-        // TODO need a new txnid comparison 
-	else if (bs->min_live_txn > l->txnid)  
+	else if (toku_txnid_older(l->txnid, bs->min_live_txn))  
             bs->min_live_txn = l->txnid;
 	bs->n_live_txns++;
 	return 0;
@@ -595,11 +594,12 @@ static int compare_txn(const void *a, const void *b) {
     TOKUTXN atxn = (TOKUTXN) * (void **) a;
     TOKUTXN btxn = (TOKUTXN) * (void **) b;
     // TODO this is wrong.  we want if (older(atxn, btxn)) return -1
-    if (atxn->txnid64 > btxn->txnid64)
-        return -1;
-    if (atxn->txnid64 < btxn->txnid64)
+    if (toku_txnid_eq(atxn->txnid64, btxn->txnid64))
+        return 0;
+    if (toku_txnid_older(atxn->txnid64, btxn->txnid64))
         return +1;
-    return 0;
+    else
+        return -1;
 }
 
 // Append a transaction to the set of live transactions

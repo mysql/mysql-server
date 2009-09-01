@@ -151,3 +151,10 @@ XIDS toku_txn_get_xids (TOKUTXN txn) {
     else return txn->xids;
 }
 
+BOOL toku_txnid_older(TXNID a, TXNID b) {
+    return a < b; // TODO need modulo 64 arithmetic
+}
+
+BOOL toku_txnid_eq(TXNID a, TXNID b) {
+    return (BOOL)(a == b);
+}
