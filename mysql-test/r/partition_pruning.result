@@ -58,6 +58,7 @@ a
 SELECT * FROM t1 WHERE a = '1001-00-00';
 a
 1001-00-00
+# Disabling warnings for the invalid date
 SELECT * FROM t1 WHERE a < '1999-02-31';
 a
 0000-00-00
@@ -82,8 +83,6 @@ a
 2001-01-01
 SELECT * FROM t1 WHERE a = '1999-02-31';
 a
-Warning	1292	Incorrect date value: '1999-02-31' for column 'a' at row 1
-Warnings:
 SELECT * FROM t1 WHERE a BETWEEN '0000-00-00' AND '1002-00-00';
 a
 0000-00-00
@@ -139,6 +138,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = '1001-00-00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	pNULL	ref	a	a	4	const	1	Using where; Using index
+# Disabling warnings for the invalid date
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a < '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	pNULL,p0001-01-01,p1001-01-01,p2001-01-01	range	a	a	4	NULL	5	Using where; Using index
@@ -218,6 +218,7 @@ a
 SELECT * FROM t1 WHERE a = '1001-00-00';
 a
 1001-00-00
+# Disabling warnings for the invalid date
 SELECT * FROM t1 WHERE a < '1999-02-31';
 a
 0000-00-00
@@ -297,6 +298,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = '1001-00-00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	pNULL	ALL	NULL	NULL	NULL	NULL	7	Using where
+# Disabling warnings for the invalid date
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a < '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	pNULL,p0001-01-01,p1001-01-01,p2001-01-01	ALL	NULL	NULL	NULL	NULL	7	Using where
@@ -385,6 +387,7 @@ a
 SELECT * FROM t1 WHERE a = '1001-00-00';
 a
 1001-00-00
+# Disabling warnings for the invalid date
 SELECT * FROM t1 WHERE a < '1999-02-31';
 a
 0000-00-00
@@ -409,8 +412,6 @@ a
 2001-01-01
 SELECT * FROM t1 WHERE a = '1999-02-31';
 a
-Warning	1292	Incorrect date value: '1999-02-31' for column 'a' at row 1
-Warnings:
 SELECT * FROM t1 WHERE a BETWEEN '0000-00-00' AND '1002-00-00';
 a
 0000-00-00
@@ -466,6 +467,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = '1001-00-00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	pNULL	ref	a	a	4	const	1	Using where; Using index
+# Disabling warnings for the invalid date
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a < '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	p0001-01-01,pNULL,p0000-01-02,p1001-01-01	range	a	a	4	NULL	5	Using where; Using index
@@ -545,6 +547,7 @@ a
 SELECT * FROM t1 WHERE a = '1001-00-00';
 a
 1001-00-00
+# Disabling warnings for the invalid date
 SELECT * FROM t1 WHERE a < '1999-02-31';
 a
 0000-00-00
@@ -624,6 +627,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = '1001-00-00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	pNULL	ALL	NULL	NULL	NULL	NULL	7	Using where
+# Disabling warnings for the invalid date
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a < '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	p0001-01-01,pNULL,p0000-01-02,p1001-01-01	ALL	NULL	NULL	NULL	NULL	7	Using where
