@@ -287,8 +287,10 @@ cp libmysql/$TARGET/libmysql.dll \
    regex/$TARGET/regex.lib \
    strings/$TARGET/strings.lib \
    zlib/$TARGET/zlib.lib $DESTDIR/lib/opt/
-cp storage/innodb_plugin/$TARGET/ha_innodb_plugin.dll \
-   $DESTDIR/lib/plugin/
+if [ -d storage/innodb_plugin ]; then
+  cp storage/innodb_plugin/$TARGET/ha_innodb_plugin.dll \
+     $DESTDIR/lib/plugin/
+fi
 
 if [ x"$TARGET" != x"release" ] ; then
   cp libmysql/$TARGET/libmysql.pdb \
@@ -297,8 +299,10 @@ if [ x"$TARGET" != x"release" ] ; then
      regex/$TARGET/regex.pdb \
      strings/$TARGET/strings.pdb \
      zlib/$TARGET/zlib.pdb $DESTDIR/lib/opt/
-  cp storage/innodb_plugin/$TARGET/ha_innodb_plugin.pdb \
-     $DESTDIR/lib/plugin/
+  if [ -d storage/innodb_plugin ]; then
+    cp storage/innodb_plugin/$TARGET/ha_innodb_plugin.pdb \
+       $DESTDIR/lib/plugin/
+  fi
 fi
 
 
@@ -319,10 +323,12 @@ if [ x"$PACK_DEBUG" = x"" -a -f "libmysql/debug/libmysql.lib" -o \
      strings/debug/strings.pdb \
      zlib/debug/zlib.lib \
      zlib/debug/zlib.pdb $DESTDIR/lib/debug/
-  cp storage/innodb_plugin/debug/ha_innodb_plugin.dll \
-     storage/innodb_plugin/debug/ha_innodb_plugin.lib \
-     storage/innodb_plugin/debug/ha_innodb_plugin.pdb \
-     $DESTDIR/lib/plugin/debug/
+  if [ -d storage/innodb_plugin ]; then
+    cp storage/innodb_plugin/debug/ha_innodb_plugin.dll \
+       storage/innodb_plugin/debug/ha_innodb_plugin.lib \
+       storage/innodb_plugin/debug/ha_innodb_plugin.pdb \
+       $DESTDIR/lib/plugin/debug/
+  fi
 fi
 
 # ----------------------------------------------------------------------
