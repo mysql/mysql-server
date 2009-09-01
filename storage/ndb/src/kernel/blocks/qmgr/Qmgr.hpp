@@ -92,10 +92,12 @@ public:
   
   enum FailState {
     NORMAL = 0,
-    WAITING_FOR_FAILCONF1 = 1,
-    WAITING_FOR_FAILCONF2 = 2,
-    WAITING_FOR_FAILCONF3 = 3,
-    WAITING_FOR_NDB_FAILCONF = 3
+    WAITING_FOR_CLOSECOMCONF_ACTIVE = 1,     /* Node had phase ZAPI_ACTIVE */
+    WAITING_FOR_CLOSECOMCONF_NOTACTIVE = 2,  /* Node had phase != ZAPI_ACTIVE */
+    WAITING_FOR_FAILCONF1 = 3,
+    WAITING_FOR_FAILCONF2 = 4,
+    WAITING_FOR_FAILCONF3 = 5,
+    WAITING_FOR_NDB_FAILCONF = 6
   };
 
   enum Phase {
@@ -391,7 +393,8 @@ private:
 			  Uint32 failNo,
 			  Uint32 noOfNodes,
 			  const NodeId theNodes[]);
-    
+
+  void handleApiCloseComConf(Signal* signal);
 
   
   /* Wait this time until we try to join the       */

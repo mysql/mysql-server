@@ -497,6 +497,7 @@ void Cmvmi::execCLOSE_COMREQ(Signal* signal)
   CloseComReqConf * const closeCom = (CloseComReqConf *)&signal->theData[0];
 
   const BlockReference userRef = closeCom->xxxBlockRef;
+  Uint32 requestType = closeCom->requestType;
   Uint32 failNo = closeCom->failNo;
 //  Uint32 noOfNodes = closeCom->noOfNodes;
   
@@ -519,11 +520,20 @@ void Cmvmi::execCLOSE_COMREQ(Signal* signal)
     }
   }
 
-  if (failNo != 0) 
+  if (requestType != CloseComReqConf::RT_NO_REPLY)
   {
+    ndbassert((requestType == CloseComReqConf::RT_API_FAILURE) ||
+              ((requestType == CloseComReqConf::RT_NODE_FAILURE) &&
+               (failNo != 0)));
     jam();
-    signal->theData[0] = userRef;
-    signal->theData[1] = failNo;
+    CloseComReqConf* closeComConf = (CloseComReqConf *)signal->getDataPtrSend();
+    closeComConf->xxxBlockRef = userRef;
+    closeComConf->requestType = requestType;
+    closeComConf->failNo = failNo;
+
+    /* Note assumption that noOfNodes and theNodes
+     * bitmap is not trampled above 
+     */
     sendSignal(QMGR_REF, GSN_CLOSE_COMCONF, signal, 19, JBA);
   }
 }
