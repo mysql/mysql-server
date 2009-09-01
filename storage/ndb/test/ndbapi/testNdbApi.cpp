@@ -40,6 +40,14 @@
   result = NDBT_FAILED; \
   continue; } 
 
+static const char* ApiFailTestRun = "ApiFailTestRun";
+static const char* ApiFailTestComplete = "ApiFailTestComplete";
+static const char* ApiFailTestsRunning = "ApiFailTestsRunning";
+static const char* ApiFailNumberPkSteps = "ApiFailNumberPkSteps";
+static const int MAX_STEPS = 10;
+static Ndb_cluster_connection* otherConnection = NULL;
+static Ndb* stepNdbs[MAX_STEPS];
+
 
 int runTestMaxNdb(NDBT_Context* ctx, NDBT_Step* step){
   Uint32 loops = ctx->getNumLoops();
@@ -2843,6 +2851,259 @@ runBug44065(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int testApiFailReqImpl(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* Setup a separate connection for running PK updates
+   * with that will be disconnected without affecting
+   * the test framework
+   */
+  if (otherConnection != NULL)
+  {
+    ndbout << "Connection not null" << endl;
+    return NDBT_FAILED;
+  }
+  
+  const Uint32 MaxConnectStringSize= 256;
+  char connectString[ MaxConnectStringSize ];
+  ctx->m_cluster_connection.get_connectstring(connectString, 
+                                              MaxConnectStringSize);
+  
+  otherConnection= new Ndb_cluster_connection(connectString);
+  
+  if (otherConnection == NULL)
+  {
+    ndbout << "Connection is null" << endl;
+    return NDBT_FAILED;
+  }
+  
+  int rc= otherConnection->connect();
+  
+  if (rc!= 0)
+  {
+    ndbout << "Connect failed with rc " << rc << endl;
+    return NDBT_FAILED;
+  }
+  
+  /* Check that all nodes are alive - if one has failed
+   * then probably we exposed bad API_FAILREQ handling
+   */
+  if (otherConnection->wait_until_ready(10,10) != 0)
+  {
+    ndbout << "Cluster connection was not ready" << endl;
+    return NDBT_FAILED;
+  }
+  
+  for (int i=0; i < MAX_STEPS; i++)
+  {
+    /* We must create the Ndb objects here as we 
+     * are still single threaded
+     */
+    stepNdbs[i]= new Ndb(otherConnection,
+                         "TEST_DB");
+    stepNdbs[i]->init();
+    int rc= stepNdbs[i]->waitUntilReady(10);
+    
+    if (rc != 0)
+    {
+      ndbout << "Ndb " << i << " was not ready" << endl;
+      return NDBT_FAILED;
+    }
+    
+  }
+  
+  /* Now signal the 'worker' threads to start sending Pk
+   * reads
+   */
+  ctx->setProperty(ApiFailTestRun, 1);
+  
+  /* Wait until all of them are running before proceeding */
+  ctx->getPropertyWait(ApiFailTestsRunning, 
+                       ctx->getProperty(ApiFailNumberPkSteps));
+
+  if (ctx->isTestStopped())
+  {
+    return NDBT_OK;
+  }
+  
+  /* Clear the test-run flag so that they'll wait after
+   * they hit an error
+   */
+  ctx->setProperty(ApiFailTestRun, (Uint32)0);
+
+  /* Wait a little */
+  sleep(1);
+
+  /* Active more stringent checking of behaviour after
+   * API_FAILREQ
+   */
+  NdbRestarter restarter;
+    
+  /* Activate 8078 - TCs will abort() if they get a TCKEYREQ
+   * from the failed API after an API_FAILREQ message
+   */
+  ndbout << "Activating 8078" << endl;
+  restarter.insertErrorInAllNodes(8078);
+  
+  /* Wait a little longer */
+  sleep(1);
+  
+  /* Now cause our connection to disconnect
+   * This results in TC receiving an API_FAILREQ
+   * If there's an issue with API_FAILREQ 'cleanly'
+   * stopping further signals, there should be
+   * an assertion failure in TC 
+   */
+  int otherNodeId = otherConnection->node_id();
+  
+  ndbout << "Forcing disconnect of node " 
+         << otherNodeId << endl;
+  
+  /* All dump 900 <nodeId> */
+  int args[2]= {900, otherNodeId};
+  
+  restarter.dumpStateAllNodes( args, 2 );
+  
+
+  /* Now wait for all workers to finish
+   * (Running worker count to get down to zero
+   */
+  ctx->getPropertyWait(ApiFailTestsRunning, (Uint32)0);
+
+  if (ctx->isTestStopped())
+  {
+    return NDBT_OK;
+  }
+  
+  /* Clean up error insert */
+  restarter.insertErrorInAllNodes(0);
+  
+  /* Clean up allocated resources */
+  for (int i= 0; i < MAX_STEPS; i++)
+  {
+    delete stepNdbs[i];
+    stepNdbs[i]= NULL;
+  }
+  
+  delete otherConnection;
+  otherConnection= NULL;
+  
+  return NDBT_OK;
+}
+
+
+int testApiFailReq(NDBT_Context* ctx, NDBT_Step* step)
+{  
+  /* Perform a number of iterations, connecting,
+   * sending lots of PK updates, inserting error
+   * and then causing node failure
+   */
+  Uint32 iterations = 10;
+  int rc = NDBT_OK;
+
+  while (iterations --)
+  {
+    rc= testApiFailReqImpl(ctx, step);
+    
+    if (rc == NDBT_FAILED)
+    {
+      break;
+    }
+  } // while(iterations --)
+    
+  /* Avoid PkRead worker threads getting stuck */
+  ctx->setProperty(ApiFailTestComplete, (Uint32) 1);
+
+  return rc;
+}
+
+int runBulkPkReads(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* Run batched Pk reads */
+
+  while(true)
+  {
+    /* Wait to be signalled to start running */
+    while ((ctx->getProperty(ApiFailTestRun) == 0) &&
+           (ctx->getProperty(ApiFailTestComplete) == 0) &&
+           !ctx->isTestStopped())
+    {
+      ctx->wait_timeout(500); /* 500 millis */
+    }
+
+    if (ctx->isTestStopped() ||
+        (ctx->getProperty(ApiFailTestComplete) != 0))
+    {
+      /* Asked to stop by main test thread */
+      return NDBT_OK;
+    }
+    /* Indicate that we're underway */
+    ctx->incProperty(ApiFailTestsRunning);
+      
+    Ndb* otherNdb = stepNdbs[step->getStepNo()];
+    HugoOperations hugoOps(*ctx->getTab());
+    Uint32 numRecords = ctx->getNumRecords();
+    Uint32 batchSize = (1000 < numRecords)? 1000 : numRecords;
+    
+    ndbout << "Step number " << step->getStepNo()
+           << " reading batches of " << batchSize 
+           << " rows " << endl;
+    
+    while(true)
+    {
+      if (hugoOps.startTransaction(otherNdb) != 0)
+      {
+        ndbout << "Failed to start transaction.  Error : "
+               << otherNdb->getNdbError().message << endl;
+        return NDBT_FAILED;
+      }
+      
+      for (Uint32 op = 0; op < batchSize; op++)
+      {
+        if (hugoOps.pkReadRecord(otherNdb,
+                                 op) != 0)
+        {
+          ndbout << "Failed to define read of record number " << op << endl;
+          ndbout << "Error : " << hugoOps.getTransaction()->getNdbError().message 
+                 << endl;
+          return NDBT_FAILED;
+        }
+      }
+      
+      if (hugoOps.execute_Commit(otherNdb) != 0)
+      {
+        NdbError err = hugoOps.getTransaction()->getNdbError();
+        ndbout << "Execute failed with Error : " 
+               << err.message
+               << endl;
+        
+        hugoOps.closeTransaction(otherNdb);
+        
+        if ((err.code == 4010) || // Node failure
+            (err.code == 4025) || // Node failure
+            (err.code == 1218))   // Send buffer overload (reading larger tables)
+        {
+          /* Expected scenario due to injected Api disconnect 
+           * If there was a node failure due to assertion failure
+           * then we'll detect it when we try to setup a new
+           * connection
+           */
+          break; 
+        }
+        return NDBT_FAILED;
+      }
+      
+      hugoOps.closeTransaction(otherNdb);
+    }
+
+    /* Signal that we've finished running this iteration */
+    ctx->decProperty(ApiFailTestsRunning);
+  }
+ 
+  return NDBT_OK;
+}
+  
+  
+
 NDBT_TESTSUITE(testNdbApi);
 TESTCASE("MaxNdb", 
 	 "Create Ndb objects until no more can be created\n"){ 
@@ -2991,6 +3252,24 @@ TESTCASE("Bug44065_org",
 TESTCASE("Bug44065",
          "Rollback no-change update on top of existing data") {
   INITIALIZER(runBug44065);
+}
+TESTCASE("ApiFailReqBehaviour",
+         "Check ApiFailReq cleanly marks Api disconnect") {
+  // Some flags to enable the various threads to cooperate
+  TC_PROPERTY(ApiFailTestRun, (Uint32)0);
+  TC_PROPERTY(ApiFailTestComplete, (Uint32)0);
+  TC_PROPERTY(ApiFailTestsRunning, (Uint32)0);
+  TC_PROPERTY(ApiFailNumberPkSteps, (Uint32)5); // Num threads below
+  INITIALIZER(runLoadTable);
+  // 5 threads to increase probability of pending
+  // TCKEYREQ after API_FAILREQ
+  STEP(runBulkPkReads);
+  STEP(runBulkPkReads);
+  STEP(runBulkPkReads);
+  STEP(runBulkPkReads);
+  STEP(runBulkPkReads);
+  STEP(testApiFailReq);
+  FINALIZER(runClearTable);
 }
 NDBT_TESTSUITE_END(testNdbApi);
 
