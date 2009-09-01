@@ -867,11 +867,13 @@ void Dbtc::execAPI_FAILREQ(Signal* signal)
     CLEAR_ERROR_INSERT_VALUE;
     return;
   }
+#ifdef ERROR_INSERT
   if (ERROR_INSERTED(8078))
   {
     c_lastFailedApi = signal->theData[0];
     SET_ERROR_INSERT_VALUE(8079);
   }
+#endif
 
   capiFailRef = signal->theData[1];
   arrGuard(signal->theData[0], MAX_NODES);
@@ -2399,6 +2401,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
     return;
   }//if
   
+#ifdef ERROR_INSERT
   if (ERROR_INSERTED(8079))
   {
     /* Test that no signals received after API_FAILREQ */
@@ -2408,6 +2411,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
       ndbrequire(false);
     }
   }
+#endif
 
   Treqinfo = tcKeyReq->requestInfo;
   //--------------------------------------------------------------------------

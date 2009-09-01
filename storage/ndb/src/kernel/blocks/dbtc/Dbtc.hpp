@@ -1984,7 +1984,7 @@ private:
 
   Uint32 c_gcp_ref;
 
-#ifdef VM_TRACE
+#ifdef ERROR_INSERT
   // Used with ERROR_INSERT 8078 + 8079 to check API_FAILREQ handling
   Uint32 c_lastFailedApi;
 #endif
