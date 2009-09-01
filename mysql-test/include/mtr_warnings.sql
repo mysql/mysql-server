@@ -172,10 +172,6 @@ INSERT INTO global_suppressions VALUES
   */
  ("Can't find file: '.\\\\test\\\\\\?{8}.frm'"),
 
- /* Added 2009-08-XX after fixing Bug #42408 */
-
- ("Slave: Operation DROP USER failed for '.*'@'localhost' Error_code: 1396"),
-
  ("THE_LAST_SUPPRESSION")||
 
 
