@@ -3039,6 +3039,13 @@ fil_open_single_table_tablespace(
 		ulint	i;
 		int		len;
 		ib_uint64_t	current_lsn;
+		ulint		size_low, size_high, size;
+		ib_int64_t	size_bytes;
+		dict_table_t*   table;
+		dict_index_t*   index;
+		fil_system_t*	system;
+		fil_node_t*	node = NULL;
+		fil_space_t*	space;
 
 		current_lsn = log_get_lsn();
 
@@ -3060,15 +3067,11 @@ fil_open_single_table_tablespace(
 		success = os_file_write(filepath, file, page, 0, 0, UNIV_PAGE_SIZE);
 
 		/* get file size */
-		ulint		size_low, size_high, size;
-		ib_int64_t	size_bytes;
 		os_file_get_size(file, &size_low, &size_high);
 		size_bytes = (((ib_int64_t)size_high) << 32)
 				+ (ib_int64_t)size_low;
 
 		/* get cruster index information */
-		dict_table_t*   table;
-		dict_index_t*   index;
 		table = dict_table_get_low(name);
 		index = dict_table_get_first_index(table);
 		ut_a(index->page==3);
@@ -3076,9 +3079,9 @@ fil_open_single_table_tablespace(
 
 		/* read metadata from .exp file */
 		n_index = 0;
-		bzero(old_id, sizeof(old_id));
-		bzero(new_id, sizeof(new_id));
-		bzero(root_page, sizeof(root_page));
+		memset(old_id, 0, sizeof(old_id));
+		memset(new_id, 0, sizeof(new_id));
+		memset(root_page, 0, sizeof(root_page));
 
 		info_file_path = fil_make_ibd_name(name, FALSE);
 		len = strlen(info_file_path);
@@ -3128,9 +3131,9 @@ skip_info:
 			mem_heap_t*	heap = NULL;
 			ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 			ulint*		offsets = offsets_;
+			ib_int64_t      offset;
 			size = (ulint) (size_bytes / UNIV_PAGE_SIZE);
 			/* over write space id of all pages */
-			ib_int64_t     offset;
 
 			rec_offs_init(offsets_);
 
@@ -3284,10 +3287,8 @@ skip_info:
 		}
 		mem_free(info_file_path);
 
-		fil_system_t*	system	= fil_system;
+		system	= fil_system;
 		mutex_enter(&(system->mutex));
-		fil_node_t*	node = NULL;
-		fil_space_t*	space;
 		space = fil_space_get_by_id(id);
 		if (space)
 			node = UT_LIST_GET_FIRST(space->chain);

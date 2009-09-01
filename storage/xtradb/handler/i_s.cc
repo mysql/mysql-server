@@ -763,7 +763,7 @@ i_s_innodb_buffer_pool_pages_index_fill(
   dict_index_t*	index;
   dulint		index_id;
 
-  char *p;
+  const char *p;
   char db_name_raw[NAME_LEN*5+1], db_name[NAME_LEN+1];
   char table_name_raw[NAME_LEN*5+1], table_name[NAME_LEN+1];
 
@@ -2861,7 +2861,7 @@ i_s_innodb_index_stats_fill(
 					} else {
 						rec_per_key = n_rows;
 					}
-					snprintf(buff, 256, (i == index->n_uniq)?"%llu":"%llu, ",
+					ut_snprintf(buff, 256, (i == index->n_uniq)?"%llu":"%llu, ",
 						 rec_per_key);
 					strncat(row_per_keys, buff, 256 - strlen(row_per_keys));
 				}
