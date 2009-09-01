@@ -46,6 +46,7 @@ class NdbTableImpl;
 class NdbIndexImpl;
 class NdbColumnImpl;
 class NdbQueryBuilderImpl;
+class NdbQueryDefImpl;
 class NdbQueryOperationDefImpl;
 class NdbParamOperandImpl;
 class NdbConstOperandImpl;
@@ -171,81 +172,6 @@ private:
 };
 
 
-
-class NdbQueryDefImpl
-{
-  friend class NdbQueryDef;
-
-public:
-  explicit NdbQueryDefImpl(const NdbQueryBuilderImpl& builder, 
-                           const Vector<NdbQueryOperationDefImpl*>& operations,
-                           int& error);
-  ~NdbQueryDefImpl();
-
-  Uint32 getNoOfOperations() const
-  { return m_operations.size(); }
-
-  // Get a specific NdbQueryOperationDef by ident specified
-  // when the NdbQueryOperationDef was created.
-  const NdbQueryOperationDefImpl& getQueryOperation(Uint32 index) const
-  { return *m_operations[index]; } 
-
-  const NdbQueryOperationDefImpl* getQueryOperation(const char* ident) const;
-
-  const NdbQueryDef& getInterface() const
-  { return m_interface; }
-
-  /** Get serialized representation of query definition.*/
-  Uint32Buffer& getSerialized(){
-    return m_serializedDef;
-  }
-
-  /** Get serialized representation of query definition.*/
-  const Uint32Buffer& getSerialized() const {
-    return m_serializedDef;
-  }
-
-private:
-  NdbQueryDef m_interface;
-
-  Vector<NdbQueryOperationDefImpl*> m_operations;
-  Vector<NdbQueryOperandImpl*> m_operands;
-  Uint32Buffer m_serializedDef; 
-}; // class NdbQueryDefImpl
-
-
-class NdbQueryBuilderImpl
-{
-  friend class NdbQueryBuilder;
-
-public:
-  ~NdbQueryBuilderImpl();
-  explicit NdbQueryBuilderImpl(Ndb& ndb);
-
-  const NdbQueryDefImpl* prepare();
-
-  const NdbError& getNdbError() const;
-
-  void setErrorCode(int aErrorCode)
-  { if (!m_error.code)
-      m_error.code = aErrorCode;
-  }
-
-private:
-  bool hasError() const
-  { return (m_error.code!=0); }
-
-  bool contains(const NdbQueryOperationDefImpl*);
-
-  Ndb& m_ndb;
-  NdbError m_error;
-
-  Vector<NdbQueryOperationDefImpl*> m_operations;
-  Vector<NdbQueryOperandImpl*> m_operands;
-  Uint32 m_paramCnt;
-}; // class NdbQueryBuilderImpl
-
-
 ////////////////////////////////////////////////
 // Implementation of NdbQueryOperation interface
 ////////////////////////////////////////////////
@@ -319,6 +245,9 @@ public:
   virtual const NdbIndexImpl* getIndex() const
   { return NULL; }
 
+  // Return 'true' is query type is a multi-row scan
+  virtual bool isScanOperation() const = 0;
+
   virtual const NdbQueryOperationDef& getInterface() const = 0; 
 
   /** Make a serialized representation of this operation, corresponding to
@@ -389,6 +318,84 @@ private:
   // Column from this operation required by its child operations
   Vector<const NdbColumnImpl*> m_spjProjection;
 }; // class NdbQueryOperationDefImpl
+
+
+class NdbQueryDefImpl
+{
+  friend class NdbQueryDef;
+
+public:
+  explicit NdbQueryDefImpl(const NdbQueryBuilderImpl& builder, 
+                           const Vector<NdbQueryOperationDefImpl*>& operations,
+                           int& error);
+  ~NdbQueryDefImpl();
+
+  // Entire query is a scan iff root operation is scan. 
+  // May change in the future as we implement more complicated SPJ operations.
+  bool isScanQuery() const
+  { return m_operations[0]->isScanOperation(); }
+
+  Uint32 getNoOfOperations() const
+  { return m_operations.size(); }
+
+  // Get a specific NdbQueryOperationDef by ident specified
+  // when the NdbQueryOperationDef was created.
+  const NdbQueryOperationDefImpl& getQueryOperation(Uint32 index) const
+  { return *m_operations[index]; } 
+
+  const NdbQueryOperationDefImpl* getQueryOperation(const char* ident) const;
+
+  const NdbQueryDef& getInterface() const
+  { return m_interface; }
+
+  /** Get serialized representation of query definition.*/
+  Uint32Buffer& getSerialized()
+  { return m_serializedDef; }
+
+  /** Get serialized representation of query definition.*/
+  const Uint32Buffer& getSerialized() const
+  { return m_serializedDef; }
+
+private:
+  NdbQueryDef m_interface;
+
+  Vector<NdbQueryOperationDefImpl*> m_operations;
+  Vector<NdbQueryOperandImpl*> m_operands;
+  Uint32Buffer m_serializedDef; 
+}; // class NdbQueryDefImpl
+
+
+class NdbQueryBuilderImpl
+{
+  friend class NdbQueryBuilder;
+
+public:
+  ~NdbQueryBuilderImpl();
+  explicit NdbQueryBuilderImpl(Ndb& ndb);
+
+  const NdbQueryDefImpl* prepare();
+
+  const NdbError& getNdbError() const;
+
+  void setErrorCode(int aErrorCode)
+  { if (!m_error.code)
+      m_error.code = aErrorCode;
+  }
+
+private:
+  bool hasError() const
+  { return (m_error.code!=0); }
+
+  bool contains(const NdbQueryOperationDefImpl*);
+
+  Ndb& m_ndb;
+  NdbError m_error;
+
+  Vector<NdbQueryOperationDefImpl*> m_operations;
+  Vector<NdbQueryOperandImpl*> m_operands;
+  Uint32 m_paramCnt;
+}; // class NdbQueryBuilderImpl
+
 
 //////////////////////////////////////////////
 // Implementation of NdbQueryOperand interface

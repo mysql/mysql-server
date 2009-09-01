@@ -197,6 +197,9 @@ protected:
   virtual Type getType() const
   { return PrimaryKeyAccess; }
 
+  virtual bool isScanOperation() const
+  { return false; }
+
 protected:
   NdbQueryLookupOperationDef m_interface;
   NdbQueryOperandImpl* m_keys[MAX_ATTRIBUTES_IN_INDEX+1];
@@ -246,6 +249,9 @@ public:
                            Uint32      ix)
   : NdbQueryOperationDefImpl(table,ident,ix)
   {}
+
+  virtual bool isScanOperation() const
+  { return true; }
 
 protected:
   int serialize(Uint32Buffer& serializedDef,
