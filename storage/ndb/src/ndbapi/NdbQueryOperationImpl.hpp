@@ -182,7 +182,10 @@ public:
 
   /** A shorthand for getting the root operation. */
   NdbQueryOperationImpl& getRoot() const
-  { return getQuery().getRoot(); }
+  { return m_queryImpl.getRoot(); }
+
+  const NdbQueryDefImpl& getQueryDef() const
+  { return m_queryImpl.getQueryDef(); }
 
   const NdbQueryOperationDefImpl& getQueryOperationDef() const
   { return m_operationDef; }
@@ -248,12 +251,6 @@ public:
 
   /** Check if batch is complete for this operation.*/
   bool isBatchComplete() const;
-
-  /** Return true if this operation is a scan.*/
-  bool isScan() const {
-    return m_operationDef.getType() == NdbQueryOperationDefImpl::TableScan ||
-           m_operationDef.getType() == NdbQueryOperationDefImpl::OrderedIndexScan;
-  }
 
   const NdbQueryOperation& getInterface() const
   { return m_interface; }
