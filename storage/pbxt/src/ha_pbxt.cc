@@ -65,8 +65,8 @@ extern "C" char **session_query(Session *session);
 #include "heap_xt.h"
 #include "myxt_xt.h"
 #include "datadic_xt.h"
-#ifdef XT_STREAMING
-#include "streaming_xt.h"
+#ifdef PBMS_ENABLED
+#include "pbms_enabled.h"
 #endif
 #include "tabcache_xt.h"
 #include "systab_xt.h"
@@ -91,19 +91,21 @@ extern "C" char **session_query(Session *session);
 //#define PRINT_STATEMENTS
 #endif
 
+#ifndef DRIZZLED
 static handler	*pbxt_create_handler(handlerton *hton, TABLE_SHARE *table, MEM_ROOT *mem_root);
 static int		pbxt_init(void *p);
 static int		pbxt_end(void *p);
-#ifndef DRIZZLED
 static int		pbxt_panic(handlerton *hton, enum ha_panic_function flag);
-#endif
 static void		pbxt_drop_database(handlerton *hton, char *path);
 static int		pbxt_close_connection(handlerton *hton, THD* thd);
 static int		pbxt_commit(handlerton *hton, THD *thd, bool all);
 static int		pbxt_rollback(handlerton *hton, THD *thd, bool all);
+#endif
 static void		ha_aquire_exclusive_use(XTThreadPtr self, XTSharePtr share, ha_pbxt *mine);
 static void		ha_release_exclusive_use(XTThreadPtr self, XTSharePtr share);
 static void		ha_close_open_tables(XTThreadPtr self, XTSharePtr share, ha_pbxt *mine);
+
+extern void		xt_xres_start_database_recovery(XTThreadPtr self);
 
 #ifdef TRACE_STATEMENTS
 
@@ -167,7 +169,7 @@ xtBool					pbxt_crash_debug = FALSE;
 /* Variables for pbxt share methods */
 static xt_mutex_type	pbxt_database_mutex;		// Prevent a database from being opened while it is being dropped
 static XTHashTabPtr		pbxt_share_tables;			// Hash used to track open tables
-static XTDatabaseHPtr	pbxt_database = NULL;		// The global open database
+XTDatabaseHPtr			pbxt_database = NULL;		// The global open database
 static char				*pbxt_index_cache_size;
 static char				*pbxt_record_cache_size;
 static char				*pbxt_log_cache_size;
@@ -178,6 +180,7 @@ static char				*pbxt_checkpoint_frequency;
 static char				*pbxt_data_log_threshold;
 static char				*pbxt_data_file_grow_size;
 static char				*pbxt_row_file_grow_size;
+static int				pbxt_max_threads;
 
 #ifdef DEBUG
 #define XT_SHARE_LOCK_WAIT		5000
@@ -454,7 +457,7 @@ xtPublic void xt_ha_close_global_database(XTThreadPtr self)
  * operation to make sure it does not occur while
  * some other thread is doing a "closeall".
  */
-xtPublic void xt_ha_open_database_of_table(XTThreadPtr self, XTPathStrPtr table_path __attribute__((unused)))
+xtPublic void xt_ha_open_database_of_table(XTThreadPtr self, XTPathStrPtr XT_UNUSED(table_path))
 {
 #ifdef XT_USE_GLOBAL_DB
 	if (!self->st_database) {
@@ -574,7 +577,7 @@ xtPublic XTThreadPtr xt_ha_thd_to_self(THD *thd)
 }
 
 /* The first bit is 1. */
-static u_int ha_get_max_bit(MY_BITMAP *map)
+static u_int ha_get_max_bit(MX_BITMAP *map)
 {
 	my_bitmap_map	*data_ptr = map->bitmap;
 	my_bitmap_map	*end_ptr = map->last_word_ptr;
@@ -676,7 +679,7 @@ xtPublic int xt_ha_pbxt_to_mysql_error(int xt_err)
 	return(-1);			// Unknown error
 }
 
-xtPublic int xt_ha_pbxt_thread_error_for_mysql(THD *thd __attribute__((unused)), const XTThreadPtr self, int ignore_dup_key)
+xtPublic int xt_ha_pbxt_thread_error_for_mysql(THD *XT_UNUSED(thd), const XTThreadPtr self, int ignore_dup_key)
 {
 	int xt_err = self->t_exception.e_xt_err;
 
@@ -965,8 +968,8 @@ static void ha_exit(XTThreadPtr self)
 	/* This may cause the streaming engine to cleanup connections and 
 	 * tables belonging to this engine. This in turn may require some of
 	 * the stuff below (like xt_create_thread() called from pbxt_close_table()! */
-#ifdef XT_STREAMING
-	xt_exit_streaming();
+#ifdef PBMS_ENABLED
+	pbms_finalize();
 #endif
 	pbxt_call_exit(self);
 	xt_exit_threading(self);
@@ -979,9 +982,13 @@ static void ha_exit(XTThreadPtr self)
 /*
  * Outout the PBXT status. Return FALSE on error.
  */
-static bool pbxt_show_status(handlerton *hton __attribute__((unused)), THD* thd, 
+#ifdef DRIZZLED
+bool PBXTStorageEngine::show_status(Session *thd, stat_print_fn *stat_print, enum ha_stat_type)
+#else
+static bool pbxt_show_status(handlerton *XT_UNUSED(hton), THD* thd, 
                           stat_print_fn* stat_print,
-                          enum ha_stat_type stat_type __attribute__((unused)))
+                          enum ha_stat_type XT_UNUSED(stat_type))
+#endif
 {
 	XTThreadPtr			self;	
 	int					err = 0;
@@ -996,6 +1003,9 @@ static bool pbxt_show_status(handlerton *hton __attribute__((unused)), THD* thd,
 	//	xt_dump_xlogs(pbxt_database, 0);
 	xt_trace("// %s - dump\n", xt_trace_clock_diff(NULL));
 	xt_dump_trace();
+#endif
+#ifdef XT_TRACK_CONNECTIONS
+	xt_dump_conn_tracking();
 #endif
 
 	try_(a) {
@@ -1020,14 +1030,18 @@ static bool pbxt_show_status(handlerton *hton __attribute__((unused)), THD* thd,
  *
  * return 1 on error, else 0.
  */
+#ifdef DRIZZLED
+static int pbxt_init(PluginRegistry &registry)
+#else
 static int pbxt_init(void *p)
+#endif
 {
 	int init_err = 0;
 
 	XT_TRACE_CALL();
 
 	if (sizeof(xtWordPS) != sizeof(void *)) {
-		printf("PBXT: This won't work, I require that sizeof(xtWordPS) != sizeof(void *)!\n");
+		printf("PBXT: This won't work, I require that sizeof(xtWordPS) == sizeof(void *)!\n");
 		XT_RETURN(1);
 	}
 
@@ -1045,28 +1059,31 @@ static int pbxt_init(void *p)
 
  		xt_p_mutex_init_with_autoname(&pbxt_database_mutex, NULL);
 
+#ifdef DRIZZLED
+		pbxt_hton= new PBXTStorageEngine(std::string("PBXT"));
+		registry.add(pbxt_hton);
+#else
 		pbxt_hton = (handlerton *) p;
 		pbxt_hton->state = SHOW_OPTION_YES;
-#ifndef DRIZZLED
 		pbxt_hton->db_type = DB_TYPE_PBXT; // Wow! I have my own!
-#endif
 		pbxt_hton->close_connection = pbxt_close_connection; /* close_connection, cleanup thread related data. */
 		pbxt_hton->commit = pbxt_commit; /* commit */
 		pbxt_hton->rollback = pbxt_rollback; /* rollback */
 		pbxt_hton->create = pbxt_create_handler; /* Create a new handler */
 		pbxt_hton->drop_database = pbxt_drop_database; /* Drop a database */
-#ifndef DRIZZLED
 		pbxt_hton->panic = pbxt_panic; /* Panic call */
-#endif
 		pbxt_hton->show_status = pbxt_show_status;
 		pbxt_hton->flags = HTON_NO_FLAGS; /* HTON_CAN_RECREATE - Without this flags TRUNCATE uses delete_all_rows() */
-
+#endif
 		if (!xt_init_logging())					/* Initialize logging */
 			goto error_1;
 
-#ifdef XT_STREAMING
-		if (!xt_init_streaming())
+#ifdef PBMS_ENABLED
+		PBMSResultRec result;
+		if (!pbms_initialize("PBXT", false, &result)) {
+			xt_logf(XT_NT_ERROR, "pbms_initialize() Error: %s", result.mr_message);
 			goto error_2;
+		}
 #endif
 
 		if (!xt_init_memory())					/* Initialize memory */
@@ -1082,9 +1099,13 @@ static int pbxt_init(void *p)
 		 * +1 Free'er thread
 		 * +1 Temporary thread (e.g. TempForClose, TempForEnd)
 		 */
-		self = xt_init_threading(max_connections + 7);				/* Create the main self: */
+#ifndef DRIZZLED
+		if (pbxt_max_threads == 0)
+			pbxt_max_threads = max_connections + 7;
+#endif
+		self = xt_init_threading(pbxt_max_threads);				/* Create the main self: */
 		if (!self)
-			goto error_4;
+			goto error_3;
 
  		pbxt_inited = true;
 
@@ -1111,7 +1132,7 @@ static int pbxt_init(void *p)
 			ASSERT(!pbxt_database);
 			{
 				THD *curr_thd = current_thd;
-				THD *thd = curr_thd;
+				THD *thd = NULL;
 
 #ifndef DRIZZLED
 				extern myxt_mutex_t LOCK_plugin;
@@ -1148,21 +1169,23 @@ static int pbxt_init(void *p)
 							xt_throw(self);
 					}
 
-					xt_open_database(self, mysql_real_data_home, TRUE);
-					pbxt_database = self->st_database;
-					xt_heap_reference(self, pbxt_database);
+					xt_xres_start_database_recovery(self);
 				}
 				catch_(b) {
-					if (!curr_thd && thd)
-						myxt_destroy_thread(thd, FALSE);
-#ifndef DRIZZLED
-					myxt_mutex_lock(&LOCK_plugin);
-#endif
-					xt_throw(self);
+					/* It is possible that the error was reset by cleanup code.
+					 * Set a generic error code in that case.
+					 */
+					/* PMC - This is not necessary in because exceptions are 
+					 * now preserved, in exception handler cleanup.
+					*/
+					if (!self->t_exception.e_xt_err)
+						xt_register_error(XT_REG_CONTEXT, XT_SYSTEM_ERROR, 0, "Initialization failed"); 
+					xt_log_exception(self, &self->t_exception, XT_LOG_DEFAULT);
+					init_err = 1;
 				}
 				cont_(b);
 
-				if (!curr_thd)
+				if (thd)
 					myxt_destroy_thread(thd, FALSE);
 #ifndef DRIZZLED
 				myxt_mutex_lock(&LOCK_plugin);
@@ -1205,32 +1228,37 @@ static int pbxt_init(void *p)
 			 * I have to stop the freeer here because it was
 			 * started before opening the database.
 			 */
-			pbxt_call_exit(self);
-			pbxt_inited = FALSE;
-			xt_exit_threading(self);
-			goto error_4;
+
+			/* {FREEER-HANG-ON-INIT-ERROR}
+			 * pbxt_init is called with LOCK_plugin and if it fails and tries to exit
+			 * the freeer here it hangs because the freeer calls THD::~THD which tries
+			 * to aquire the same lock and hangs. OTOH MySQL calls pbxt_end() after
+			 * an unsuccessful call to pbxt_init, so we defer cleaup, except 
+			 * releasing 'self'
+			 */
+			xt_free_thread(self);
+			goto error_3;
 		}
 		xt_free_thread(self);
  	}
 	XT_RETURN(init_err);
 
-	error_4:
-	xt_exit_memory();
-
 	error_3:
-#ifdef XT_STREAMING
-	xt_exit_streaming();
+#ifdef PBMS_ENABLED
+	pbms_finalize();
 
 	error_2:
 #endif
-	xt_exit_logging();
 
 	error_1:
-	xt_p_mutex_destroy(&pbxt_database_mutex);		
 	XT_RETURN(1);
 }
 
-static int pbxt_end(void *p __attribute__((unused)))
+#ifdef DRIZZLED
+static int pbxt_end(PluginRegistry &registry)
+#else
+static int pbxt_end(void *)
+#endif
 {
 	XTThreadPtr		self;
 	int				err = 0;
@@ -1241,7 +1269,7 @@ static int pbxt_end(void *p __attribute__((unused)))
 		XTExceptionRec	e;
 
 		/* This flag also means "shutting down". */
-		pbxt_inited = FALSE;
+		pbxt_inited = FALSE; 
 		self = xt_create_thread("TempForEnd", FALSE, TRUE, &e);
 		if (self) {
 			self->t_main = TRUE;
@@ -1249,6 +1277,9 @@ static int pbxt_end(void *p __attribute__((unused)))
 		}
 	}
 
+#ifdef DRIZZLED
+	registry.remove(pbxt_hton);
+#endif
 	XT_RETURN(err);
 }
 
@@ -1262,12 +1293,15 @@ static int pbxt_panic(handlerton *hton, enum ha_panic_function flag)
 /*
  * Kill the PBXT thread associated with the MySQL thread.
  */
+#ifdef DRIZZLED
+int PBXTStorageEngine::close_connection(Session *thd)
+{
+	PBXTStorageEngine * const hton = this;
+#else
 static int pbxt_close_connection(handlerton *hton, THD* thd)
 {
-	XTThreadPtr		self;
-#ifdef XT_STREAMING
-	XTExceptionRec	e;
 #endif
+	XTThreadPtr		self;
 
 	XT_TRACE_CALL();
 	if ((self = (XTThreadPtr) *thd_ha_data(thd, hton))) {
@@ -1278,10 +1312,6 @@ static int pbxt_close_connection(handlerton *hton, THD* thd)
 		xt_set_self(self);
 		xt_free_thread(self);
 	}
-#ifdef XT_STREAMING
-	if (!xt_pbms_close_connection((void *) thd, &e))
-		xt_log_exception(NULL, &e, XT_LOG_DEFAULT);
-#endif
 	return 0;
 }
 
@@ -1290,7 +1320,11 @@ static int pbxt_close_connection(handlerton *hton, THD* thd)
  * when the last PBXT table was removed from the 
  * database.
  */
-static void pbxt_drop_database(handlerton *hton __attribute__((unused)), char *path __attribute__((unused)))
+#ifdef DRIZZLED
+void PBXTStorageEngine::drop_database(char *)
+#else
+static void pbxt_drop_database(handlerton *XT_UNUSED(hton), char *XT_UNUSED(path))
+#endif
 {
 	XT_TRACE_CALL();
 }
@@ -1317,8 +1351,14 @@ static void pbxt_drop_database(handlerton *hton __attribute__((unused)), char *p
  * pbxt_thr is a pointer the the PBXT thread structure.
  *
  */
+#ifdef DRIZZLED
+int PBXTStorageEngine::commit(Session *thd, bool all)
+{
+	PBXTStorageEngine * const hton = this;
+#else
 static int pbxt_commit(handlerton *hton, THD *thd, bool all)
 {
+#endif
 	int			err = 0;
 	XTThreadPtr	self;
 
@@ -1343,8 +1383,14 @@ static int pbxt_commit(handlerton *hton, THD *thd, bool all)
 	return err;
 }
 
+#ifdef DRIZZLED
+int PBXTStorageEngine::rollback(Session *thd, bool all)
+{
+	PBXTStorageEngine * const hton = this;
+#else
 static int pbxt_rollback(handlerton *hton, THD *thd, bool all)
 {
+#endif
 	int			err = 0;
 	XTThreadPtr	self;
 
@@ -1377,8 +1423,14 @@ static int pbxt_rollback(handlerton *hton, THD *thd, bool all)
 	return 0;
 }
 
+#ifdef DRIZZLED
+handler *PBXTStorageEngine::create(TABLE_SHARE *table, MEM_ROOT *mem_root)
+{
+	PBXTStorageEngine * const hton = this;
+#else
 static handler *pbxt_create_handler(handlerton *hton, TABLE_SHARE *table, MEM_ROOT *mem_root)
 {
+#endif
 	if (table && XTSystemTableShare::isSystemTable(table->path.str))
 		return new (mem_root) ha_xtsys(hton, table);
 	else
@@ -1513,7 +1565,11 @@ static void ha_close_open_tables(XTThreadPtr self, XTSharePtr share, ha_pbxt *mi
 	freer_(); // xt_unlock_mutex(share->sh_ex_mutex)
 }
 
-static void ha_release_exclusive_use(XTThreadPtr self __attribute__((unused)), XTSharePtr share)
+#ifdef PBXT_ALLOW_PRINTING
+static void ha_release_exclusive_use(XTThreadPtr self, XTSharePtr share)
+#else
+static void ha_release_exclusive_use(XTThreadPtr XT_UNUSED(self), XTSharePtr share)
+#endif
 {
 	XT_PRINT1(self, "ha_release_exclusive_use %s PBXT X UNLOCK\n", share->sh_table_path->ps_path);
 	xt_lock_mutex_ns((xt_mutex_type *) share->sh_ex_mutex);
@@ -1629,11 +1685,23 @@ ST_FIELD_INFO pbxt_statistics_fields_info[]=
 	{ 0,		0,	MYSQL_TYPE_STRING,		0, 0, 0, SKIP_OPEN_TABLE}
 };
 
+#ifdef DRIZZLED
+static InfoSchemaTable	*pbxt_statistics_table;
+
+int pbxt_init_statitics(PluginRegistry &registry)
+#else
 int pbxt_init_statitics(void *p)
+#endif
 {
-	ST_SCHEMA_TABLE *schema = (ST_SCHEMA_TABLE *) p;
-	schema->fields_info = pbxt_statistics_fields_info;
-	schema->fill_table = pbxt_statistics_fill_table;
+#ifdef DRIZZLED
+	pbxt_statistics_table = (InfoSchemaTable *)xt_calloc_ns(sizeof(InfoSchemaTable));
+	pbxt_statistics_table->table_name= "PBXT_STATISTICS";
+	registry.add(pbxt_statistics_table);
+#else
+	ST_SCHEMA_TABLE *pbxt_statistics_table = (ST_SCHEMA_TABLE *) p;
+#endif
+	pbxt_statistics_table->fields_info = pbxt_statistics_fields_info;
+	pbxt_statistics_table->fill_table = pbxt_statistics_fill_table;
 
 #if defined(XT_WIN) && defined(XT_COREDUMP)
 	void register_crash_filter();
@@ -1645,8 +1713,16 @@ int pbxt_init_statitics(void *p)
 	return 0;
 }
 
-int pbxt_exit_statitics(void *p __attribute__((unused)))
+#ifdef DRIZZLED
+int pbxt_exit_statitics(PluginRegistry &registry)
+#else
+int pbxt_exit_statitics(void *XT_UNUSED(p))
+#endif
 {
+#ifdef DRIZZLED
+	registry.remove(pbxt_statistics_table);
+	xt_free_ns(pbxt_statistics_table);
+#endif
 	return(0);
 }
 
@@ -1765,7 +1841,7 @@ MX_TABLE_TYPES_T ha_pbxt::table_flags() const
  */
 #define FLAGS_ARE_READ_DYNAMICALLY
 
-MX_ULONG_T ha_pbxt::index_flags(uint inx __attribute__((unused)), uint part __attribute__((unused)), bool all_parts __attribute__((unused))) const
+MX_ULONG_T ha_pbxt::index_flags(uint XT_UNUSED(inx), uint XT_UNUSED(part), bool XT_UNUSED(all_parts)) const
 {
 	/* It would be nice if the dynamic version of this function works,
 	 * but it does not. MySQL loads this information when the table is openned,
@@ -1876,7 +1952,7 @@ void ha_pbxt::internal_close(THD *thd, struct XTThread *self)
  * Called from handler.cc by handler::ha_open(). The server opens all tables by
  * calling ha_open() which then calls the handler specific open().
  */
-int ha_pbxt::open(const char *table_path, int mode __attribute__((unused)), uint test_if_locked __attribute__((unused)))
+int ha_pbxt::open(const char *table_path, int XT_UNUSED(mode), uint XT_UNUSED(test_if_locked))
 {
 	THD			*thd = current_thd;
 	int			err = 0;
@@ -2104,9 +2180,9 @@ void ha_pbxt::init_auto_increment(xtWord8 min_auto_inc)
 }
 
 void ha_pbxt::get_auto_increment(MX_ULONGLONG_T offset, MX_ULONGLONG_T increment,
-                                 MX_ULONGLONG_T nb_desired_values __attribute__((unused)),
+                                 MX_ULONGLONG_T XT_UNUSED(nb_desired_values),
                                  MX_ULONGLONG_T *first_value,
-                                 MX_ULONGLONG_T *nb_reserved_values __attribute__((unused)))
+                                 MX_ULONGLONG_T *nb_reserved_values)
 {
 	register XTTableHPtr	tab;
 	MX_ULONGLONG_T			nr, nr_less_inc;
@@ -2225,6 +2301,14 @@ int ha_pbxt::write_row(byte *buf)
 	XT_PRINT1(pb_open_tab->ot_thread, "ha_pbxt::write_row %s\n", pb_share->sh_table_path->ps_path);
 	XT_DISABLED_TRACE(("INSERT tx=%d val=%d\n", (int) pb_open_tab->ot_thread->st_xact_data->xd_start_xn_id, (int) XT_GET_DISK_4(&buf[1])));
 	//statistic_increment(ha_write_count,&LOCK_status);
+#ifdef PBMS_ENABLED
+	PBMSResultRec result;
+	err = pbms_write_row_blobs(table, buf, &result);
+	if (err) {
+		xt_logf(XT_NT_ERROR, "pbms_write_row_blobs() Error: %s", result.mr_message);
+		return err;
+	}
+#endif
 
 	/* GOTCHA: I have a huge problem with the transaction statement.
 	 * It is not ALWAYS committed (I mean ha_commit_trans() is
@@ -2256,7 +2340,8 @@ int ha_pbxt::write_row(byte *buf)
 		int update_err = update_auto_increment();
 		if (update_err) {
 			ha_log_pbxt_thread_error_for_mysql(pb_ignore_dup_key);
-			return update_err;
+			err = update_err;
+			goto done;
 		}
 		set_auto_increment(table->next_number_field);
 	}
@@ -2274,6 +2359,10 @@ int ha_pbxt::write_row(byte *buf)
 			pb_open_tab->ot_thread->st_update_id++;
 	}
 
+	done:
+#ifdef PBMS_ENABLED
+	pbms_completed(table, (err == 0));
+#endif
 	return err;
 }
 
@@ -2347,6 +2436,21 @@ int ha_pbxt::update_row(const byte * old_data, byte * new_data)
 	if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
 		table->timestamp_field->set_time();
 
+#ifdef PBMS_ENABLED
+	PBMSResultRec result;
+
+	err = pbms_delete_row_blobs(table, old_data, &result);
+	if (err) {
+		xt_logf(XT_NT_ERROR, "update_row:pbms_delete_row_blobs() Error: %s", result.mr_message);
+		return err;
+	}
+	err = pbms_write_row_blobs(table, new_data, &result);
+	if (err) { 
+		xt_logf(XT_NT_ERROR, "update_row:pbms_write_row_blobs() Error: %s", result.mr_message);
+		goto pbms_done;
+	}
+#endif
+
 	/* GOTCHA: We need to check the auto-increment value on update
 	 * because of the following test (which fails for InnoDB) -
 	 * auto_increment.test:
@@ -2369,6 +2473,11 @@ int ha_pbxt::update_row(const byte * old_data, byte * new_data)
 		err = ha_log_pbxt_thread_error_for_mysql(pb_ignore_dup_key);
 
 	pb_open_tab->ot_table->tab_locks.xt_remove_temp_lock(pb_open_tab, TRUE);
+	
+#ifdef PBMS_ENABLED
+	pbms_done:
+	pbms_completed(table, (err == 0));
+#endif
 
 	return err;
 }
@@ -2392,6 +2501,16 @@ int ha_pbxt::delete_row(const byte * buf)
 	XT_DISABLED_TRACE(("DELETE tx=%d val=%d\n", (int) pb_open_tab->ot_thread->st_xact_data->xd_start_xn_id, (int) XT_GET_DISK_4(&buf[1])));
 	//statistic_increment(ha_delete_count,&LOCK_status);
 
+#ifdef PBMS_ENABLED
+	PBMSResultRec result;
+
+	err = pbms_delete_row_blobs(table, buf, &result);
+	if (err) {
+		xt_logf(XT_NT_ERROR, "pbms_delete_row_blobs() Error: %s", result.mr_message);
+		return err;
+	}
+#endif
+
 	if (!pb_open_tab->ot_thread->st_stat_trans) {
 		trans_register_ha(pb_mysql_thd, FALSE, pbxt_hton);
 		XT_PRINT0(pb_open_tab->ot_thread, "ha_pbxt::delete_row trans_register_ha all=FALSE\n");
@@ -2405,6 +2524,9 @@ int ha_pbxt::delete_row(const byte * buf)
 
 	pb_open_tab->ot_table->tab_locks.xt_remove_temp_lock(pb_open_tab, TRUE);
 
+#ifdef PBMS_ENABLED
+	pbms_completed(table, (err == 0));
+#endif
 	return err;
 }
 
@@ -2491,7 +2613,7 @@ int ha_pbxt::delete_row(const byte * buf)
  * commit;
  */
 
-int ha_pbxt::xt_index_in_range(register XTOpenTablePtr ot __attribute__((unused)), register XTIndexPtr ind,
+int ha_pbxt::xt_index_in_range(register XTOpenTablePtr XT_UNUSED(ot), register XTIndexPtr ind,
 	register XTIdxSearchKeyPtr search_key, xtWord1 *buf)
 {
 	/* If search key is given, this means we want an exact match. */
@@ -2698,7 +2820,7 @@ int ha_pbxt::xt_index_prev_read(XTOpenTablePtr ot, XTIndexPtr ind, xtBool key_on
 	return ha_log_pbxt_thread_error_for_mysql(FALSE);
 }
 
-int ha_pbxt::index_init(uint idx, bool sorted __attribute__((unused)))
+int ha_pbxt::index_init(uint idx, bool XT_UNUSED(sorted))
 {
 	XTIndexPtr ind;
 
@@ -2715,7 +2837,8 @@ int ha_pbxt::index_init(uint idx, bool sorted __attribute__((unused)))
 
 	/* The number of columns required: */
 	if (pb_open_tab->ot_is_modify) {
-		pb_open_tab->ot_cols_req = table->read_set->n_bits;
+
+		pb_open_tab->ot_cols_req = table->read_set->MX_BIT_SIZE();
 #ifdef XT_PRINT_INDEX_OPT
 		ind = (XTIndexPtr) pb_share->sh_dic_keys[idx];
 
@@ -2764,10 +2887,10 @@ int ha_pbxt::index_init(uint idx, bool sorted __attribute__((unused)))
 		 * seem to have this problem!
 		 */
 		ind = (XTIndexPtr) pb_share->sh_dic_keys[idx];
-		if (bitmap_is_subset(table->read_set, &ind->mi_col_map))
+		if (MX_BIT_IS_SUBSET(table->read_set, &ind->mi_col_map))
 			pb_key_read = TRUE;
 #ifdef XT_PRINT_INDEX_OPT
-		printf("index_init %s index %d cols req=%d/%d read_bits=%X write_bits=%X index_bits=%X converage=%d\n", pb_open_tab->ot_table->tab_name->ps_path, (int) idx, pb_open_tab->ot_cols_req, table->read_set->n_bits, (int) *table->read_set->bitmap, (int) *table->write_set->bitmap, (int) *ind->mi_col_map.bitmap, (int) (bitmap_is_subset(table->read_set, &ind->mi_col_map) != 0));
+		printf("index_init %s index %d cols req=%d/%d read_bits=%X write_bits=%X index_bits=%X converage=%d\n", pb_open_tab->ot_table->tab_name->ps_path, (int) idx, pb_open_tab->ot_cols_req, table->read_set->MX_BIT_SIZE(), (int) *table->read_set->bitmap, (int) *table->write_set->bitmap, (int) *ind->mi_col_map.bitmap, (int) (MX_BIT_IS_SUBSET(table->read_set, &ind->mi_col_map) != 0));
 #endif
 	}
 	
@@ -2845,7 +2968,7 @@ void ha_return_row(XTOpenTablePtr ot, u_int index)
 }
 #endif
 
-int ha_pbxt::index_read_xt(byte * buf, uint idx, const byte *key, uint key_len __attribute__((unused)), enum ha_rkey_function find_flag __attribute__((unused)))
+int ha_pbxt::index_read_xt(byte * buf, uint idx, const byte *key, uint key_len, enum ha_rkey_function find_flag)
 {
 	int					err = 0;
 	XTIndexPtr			ind;
@@ -2887,9 +3010,12 @@ int ha_pbxt::index_read_xt(byte * buf, uint idx, const byte *key, uint key_len _
 			xt_idx_prep_key(ind, &search_key, ((find_flag == HA_READ_AFTER_KEY) ? XT_SEARCH_AFTER_KEY : 0) | prefix, (xtWord1 *) key, key_len);
 			if (!xt_idx_search(pb_open_tab, ind, &search_key))
 				err = ha_log_pbxt_thread_error_for_mysql(pb_ignore_dup_key);
-			else
+			else {
 				err = xt_index_next_read(pb_open_tab, ind, pb_key_read,
 					(find_flag == HA_READ_KEY_EXACT || find_flag == HA_READ_PREFIX) ? &search_key : NULL, buf);
+				if (err == HA_ERR_END_OF_FILE && find_flag == HA_READ_AFTER_KEY)
+					err = HA_ERR_KEY_NOT_FOUND;			
+			}
 			break;
 	}
 
@@ -2913,13 +3039,13 @@ int ha_pbxt::index_read_xt(byte * buf, uint idx, const byte *key, uint key_len _
  * row if available. If the key value is null, begin at the first key of the
  * index.
  */
-int ha_pbxt::index_read(byte * buf, const byte * key, uint key_len __attribute__((unused)), enum ha_rkey_function find_flag __attribute__((unused)))
+int ha_pbxt::index_read(byte * buf, const byte * key, uint key_len, enum ha_rkey_function find_flag)
 {
 	//statistic_increment(ha_read_key_count,&LOCK_status);
 	return index_read_xt(buf, active_index, key, key_len, find_flag);
 }
 
-int ha_pbxt::index_read_idx(byte * buf, uint idx, const byte *key, uint key_len __attribute__((unused)), enum ha_rkey_function find_flag __attribute__((unused)))
+int ha_pbxt::index_read_idx(byte * buf, uint idx, const byte *key, uint key_len, enum ha_rkey_function find_flag)
 {
 	//statistic_increment(ha_read_key_count,&LOCK_status);
 	return index_read_xt(buf, idx, key, key_len, find_flag);
@@ -3147,9 +3273,24 @@ int ha_pbxt::rnd_init(bool scan)
 	XT_PRINT1(pb_open_tab->ot_thread, "ha_pbxt::rnd_init %s\n", pb_share->sh_table_path->ps_path);
 	XT_DISABLED_TRACE(("seq scan tx=%d\n", (int) pb_open_tab->ot_thread->st_xact_data->xd_start_xn_id));
 
+	/* Call xt_tab_seq_exit() to make sure the resources used by the previous
+	 * scan are freed. In particular make sure cache page ref count is decremented.
+	 * This is needed as rnd_init() can be called mulitple times w/o matching calls 
+	 * to rnd_end(). Our experience is that currently this is done in queries like:
+	 *
+	 * SELECT t1.c1,t2.c1 FROM t1 LEFT JOIN t2 USING (c1);
+	 * UPDATE t1 LEFT JOIN t2 USING (c1) SET t1.c1 = t2.c1 WHERE t1.c1 = t2.c1;
+	 *
+	 * when scanning inner tables. It is important to understand that in such case
+	 * multiple calls to rnd_init() are not semantically equal to a new query. For
+	 * example we cannot make row locks permanent as we do in rnd_end(), as 
+	 * ha_pbxt::unlock_row still can be called.
+	 */
+	xt_tab_seq_exit(pb_open_tab);
+
 	/* The number of columns required: */
 	if (pb_open_tab->ot_is_modify)
-		pb_open_tab->ot_cols_req = table->read_set->n_bits;
+		pb_open_tab->ot_cols_req = table->read_set->MX_BIT_SIZE();
 	else {
 		pb_open_tab->ot_cols_req = ha_get_max_bit(table->read_set);
 
@@ -3243,7 +3384,7 @@ int ha_pbxt::rnd_next(byte *buf)
  *
  * Called from filesort.cc, sql_select.cc, sql_delete.cc and sql_update.cc.
  */
-void ha_pbxt::position(const byte *record __attribute__((unused)))
+void ha_pbxt::position(const byte *XT_UNUSED(record))
 {
 	XT_TRACE_CALL();
 	ASSERT_NS(pb_ex_in_use);
@@ -3383,7 +3524,7 @@ int ha_pbxt::info(uint flag)
 		if (flag & HA_STATUS_VARIABLE) {
 			stats.deleted = ot->ot_table->tab_row_fnum;
 			stats.records = (ha_rows) (ot->ot_table->tab_row_eof_id - 1 - stats.deleted);
-			stats.data_file_length = ot->ot_table->tab_rec_eof_id;
+			stats.data_file_length = xt_rec_id_to_rec_offset(ot->ot_table, ot->ot_table->tab_rec_eof_id);
 			stats.index_file_length = xt_ind_node_to_offset(ot->ot_table, ot->ot_table->tab_ind_eof);
 			stats.delete_length = ot->ot_table->tab_rec_fnum * ot->ot_rec_size;
 			//check_time = info.check_time;
@@ -3434,10 +3575,15 @@ int ha_pbxt::info(uint flag)
 #endif
 
 #endif // SAFE_MUTEX
+#ifdef DRIZZLED
+			set_prefix(share->keys_in_use, share->keys);
+			share->keys_for_keyread&= share->keys_in_use;
+#else
 			share->keys_in_use.set_prefix(share->keys);
 			//share->keys_in_use.intersect_extended(info.key_map);
 			share->keys_for_keyread.intersect(share->keys_in_use);
 			//share->db_record_offset = info.record_offset;
+#endif
 			for (u_int i = 0; i < share->keys; i++) {
 				ind = pb_share->sh_dic_keys[i];
 
@@ -3445,7 +3591,7 @@ int ha_pbxt::info(uint flag)
 				if (ind->mi_seg_count == 1 && (ind->mi_flags & HA_NOSAME))
 					rec_per_key = 1;
 				else {
-					
+					rec_per_key = 1;	
 				}
 				for (u_int j = 0; j < table->key_info[i].key_parts; j++)
 	 				table->key_info[i].rec_per_key[j] = (ulong) rec_per_key;
@@ -3570,6 +3716,8 @@ int ha_pbxt::extra(enum ha_extra_function operation)
 				if (pb_open_tab)
 					pb_open_tab->ot_table->tab_locks.xt_make_lock_permanent(pb_open_tab, &self->st_lock_list);
 			}
+			if (pb_open_tab)
+				pb_open_tab->ot_for_update = 0;
 			break;
 		case HA_EXTRA_KEYREAD:
 			/* This means we so not need to read the entire record. */
@@ -3706,6 +3854,12 @@ int ha_pbxt::delete_all_rows()
 		 */
 		ha_close_share(self, pb_share);
 
+		/* MySQL documentation requires us to reset auto increment value to 1
+		 * on truncate even if the table was created with a different value. 
+		 * This is also consistent with other engines.
+		 */
+		dic.dic_min_auto_inc = 1;
+
 		xt_create_table(self, (XTPathStrPtr) path, &dic);
 		if (!pb_table_locked)
 			freer_(); // ha_release_exclusive_use(pb_share)
@@ -3737,7 +3891,7 @@ int ha_pbxt::delete_all_rows()
  * now agree with the MyISAM strategy.
  * 
  */
-int ha_pbxt::analyze(THD *thd __attribute__((unused)), HA_CHECK_OPT *check_opt __attribute__((unused)))
+int ha_pbxt::analyze(THD *thd, HA_CHECK_OPT *XT_UNUSED(check_opt))
 {
 	int				err = 0;
 	XTDatabaseHPtr	db;
@@ -3819,7 +3973,7 @@ int ha_pbxt::analyze(THD *thd __attribute__((unused)), HA_CHECK_OPT *check_opt _
 	XT_RETURN(err);
 }
 
-int ha_pbxt::repair(THD *thd __attribute__((unused)), HA_CHECK_OPT *check_opt __attribute__((unused)))
+int ha_pbxt::repair(THD *XT_UNUSED(thd), HA_CHECK_OPT *XT_UNUSED(check_opt))
 {
 	return(HA_ADMIN_TRY_ALTER);
 }
@@ -3828,7 +3982,7 @@ int ha_pbxt::repair(THD *thd __attribute__((unused)), HA_CHECK_OPT *check_opt __
  * This is mapped to "ALTER TABLE tablename TYPE=PBXT", which rebuilds
  * the table in MySQL.
  */
-int ha_pbxt::optimize(THD *thd __attribute__((unused)), HA_CHECK_OPT *check_opt __attribute__((unused)))
+int ha_pbxt::optimize(THD *XT_UNUSED(thd), HA_CHECK_OPT *XT_UNUSED(check_opt))
 {
 	return(HA_ADMIN_TRY_ALTER);
 }
@@ -3837,7 +3991,7 @@ int ha_pbxt::optimize(THD *thd __attribute__((unused)), HA_CHECK_OPT *check_opt 
 extern int pbxt_mysql_trace_on;
 #endif
 
-int ha_pbxt::check(THD* thd, HA_CHECK_OPT* check_opt __attribute__((unused)))
+int ha_pbxt::check(THD* thd, HA_CHECK_OPT* XT_UNUSED(check_opt))
 {
 	int				err = 0;
 	XTThreadPtr		self;
@@ -3993,8 +4147,10 @@ xtPublic int ha_pbxt::external_lock(THD *thd, int lock_type)
 			 * (or update statement) just saw.
 			 */
 			if (pb_open_tab) {
-				if (pb_open_tab->ot_for_update)
+				if (pb_open_tab->ot_for_update) {
 					self->st_visible_time = self->st_database->db_xn_end_time;
+					pb_open_tab->ot_for_update = 0;
+				}
 
 				if (pb_share->sh_recalc_selectivity) {
 					if ((pb_share->sh_table->tab_row_eof_id - 1 - pb_share->sh_table->tab_row_fnum) >= 200) {
@@ -4079,10 +4235,15 @@ xtPublic int ha_pbxt::external_lock(THD *thd, int lock_type)
 			pb_open_tab->ot_is_modify = FALSE;
 			if ((pb_open_tab->ot_for_update = (lock_type == F_WRLCK))) {
 				switch ((int) thd_sql_command(thd)) {
-					case SQLCOM_UPDATE:
-					case SQLCOM_UPDATE_MULTI:
 					case SQLCOM_DELETE:
 					case SQLCOM_DELETE_MULTI:
+						/* turn DELETE IGNORE into normal DELETE. The IGNORE option causes problems because 
+						 * when a record is deleted we add an xlog record which we cannot "rollback" later
+						 * when we find that an FK-constraint has failed. 
+						 */
+						thd->lex->ignore = false;
+					case SQLCOM_UPDATE:
+					case SQLCOM_UPDATE_MULTI:
 					case SQLCOM_REPLACE:
 					case SQLCOM_REPLACE_SELECT:
 					case SQLCOM_INSERT:
@@ -4290,7 +4451,9 @@ int ha_pbxt::start_stmt(THD *thd, thr_lock_type lock_type)
 	pb_open_tab->ot_for_update =
 		(lock_type != TL_READ && 
 		 lock_type != TL_READ_WITH_SHARED_LOCKS &&
+#ifndef DRIZZLED
 		 lock_type != TL_READ_HIGH_PRIORITY && 
+#endif
 		 lock_type != TL_READ_NO_INSERT);
 	pb_open_tab->ot_is_modify = FALSE;
 	if (pb_open_tab->ot_for_update) {
@@ -4557,8 +4720,11 @@ int ha_pbxt::delete_table(const char *table_path)
 {
 	THD				*thd = current_thd;
 	int				err = 0;
-	XTThreadPtr		self;
+	XTThreadPtr		self = NULL;
 	XTSharePtr		share;
+
+	STAT_TRACE(self, *thd_query(thd));
+	XT_PRINT1(self, "ha_pbxt::delete_table %s\n", table_path);
 
 	if (XTSystemTableShare::isSystemTable(table_path))
 		return delete_system_table(table_path);
@@ -4567,9 +4733,6 @@ int ha_pbxt::delete_table(const char *table_path)
 		return xt_ha_pbxt_to_mysql_error(err);
 
 	self->st_ignore_fkeys = (thd_test_options(thd, OPTION_NO_FOREIGN_KEY_CHECKS)) != 0;
-
-	STAT_TRACE(self, *thd_query(thd));
-	XT_PRINT1(self, "ha_pbxt::delete_table %s\n", table_path);
 
 	try_(a) {
 		xt_ha_open_database_of_table(self, (XTPathStrPtr) table_path);
@@ -4586,16 +4749,23 @@ int ha_pbxt::delete_table(const char *table_path)
 			pushr_(ha_release_exclusive_use, share);
 			ha_close_open_tables(self, share, NULL);
 
-			xt_drop_table(self, (XTPathStrPtr) table_path);
+			xt_drop_table(self, (XTPathStrPtr) table_path, thd_sql_command(thd) == SQLCOM_DROP_DB);
 
 			freer_(); // ha_release_exclusive_use(share)
 			freer_(); // ha_unget_share(share)
 		}
 		catch_(b) {
-			/* If the table does not exist, just log the error and continue... */
+			/* In MySQL if the table does not exist, just log the error and continue. This is
+ 			 * needed to delete table in the case when CREATE TABLE fails and no PBXT disk
+ 			 * structures were created. 
+ 			 * Drizzle unlike MySQL iterates over all handlers and tries to delete table. It
+ 			 * stops after when a handler returns TRUE, so in Drizzle we need to report error.  
+			 */
+#ifndef DRIZZLED
 			if (self->t_exception.e_xt_err == XT_ERR_TABLE_NOT_FOUND)
 				xt_log_and_clear_exception(self);
 			else
+#endif
 				throw_();
 		}
 		cont_(b);
@@ -4619,8 +4789,25 @@ int ha_pbxt::delete_table(const char *table_path)
 	}
 	catch_(a) {
 		err = xt_ha_pbxt_thread_error_for_mysql(thd, self, pb_ignore_dup_key);
+#ifdef DRIZZLED
+		if (err == HA_ERR_NO_SUCH_TABLE)
+			err = ENOENT;
+#endif
 	}
 	cont_(a);
+	
+#ifdef PBMS_ENABLED
+	/* Call pbms_delete_table_with_blobs() last because it cannot be undone. */
+	if (!err) {
+		PBMSResultRec result;
+
+		if (pbms_delete_table_with_blobs(table_path, &result)) {
+			xt_logf(XT_NT_WARNING, "pbms_delete_table_with_blobs() Error: %s", result.mr_message);
+		}
+		
+		pbms_completed(NULL, true);
+	}
+#endif
 
 	return err;
 }
@@ -4681,6 +4868,16 @@ int ha_pbxt::rename_table(const char *from, const char *to)
 
 	XT_PRINT2(self, "ha_pbxt::rename_table %s -> %s\n", from, to);
 
+#ifdef PBMS_ENABLED
+	PBMSResultRec result;
+
+	err = pbms_rename_table_with_blobs(from, to, &result);
+	if (err) {
+		xt_logf(XT_NT_ERROR, "pbms_rename_table_with_blobs() Error: %s", result.mr_message);
+		return err;
+	}
+#endif
+
 	try_(a) {
 		xt_ha_open_database_of_table(self, (XTPathStrPtr) to);
 		to_db = self->st_database;
@@ -4709,10 +4906,6 @@ int ha_pbxt::rename_table(const char *from, const char *to)
 		freer_(); // ha_release_exclusive_use(share)
 		freer_(); // ha_unget_share(share)
 
-#ifdef XT_STREAMING
-		/* PBMS remove the table? */
-		xt_pbms_rename_table(from, to);
-#endif
 		/*
 		 * If there are no more PBXT tables in the database, we
 		 * "drop the database", which deletes all PBXT resources
@@ -4732,11 +4925,15 @@ int ha_pbxt::rename_table(const char *from, const char *to)
 		err = xt_ha_pbxt_thread_error_for_mysql(thd, self, pb_ignore_dup_key);
 	}
 	cont_(a);
+	
+#ifdef PBMS_ENABLED
+	pbms_completed(NULL, (err == 0));
+#endif
 
 	XT_RETURN(err);
 }
 
-int ha_pbxt::rename_system_table(const char *from __attribute__((unused)), const char *to __attribute__((unused)))
+int ha_pbxt::rename_system_table(const char *XT_UNUSED(from), const char *XT_UNUSED(to))
 {
 	return ER_NOT_SUPPORTED_YET;
 }
@@ -4771,7 +4968,7 @@ double ha_pbxt::scan_time()
 /*
  * The next method will never be called if you do not implement indexes.
  */
-double ha_pbxt::read_time(uint index __attribute__((unused)), uint ranges, ha_rows rows)
+double ha_pbxt::read_time(uint XT_UNUSED(index), uint ranges, ha_rows rows)
 {
 	double result = rows2double(ranges+rows);
 	return result;
@@ -4945,7 +5142,7 @@ void ha_pbxt::free_foreign_key_create_info(char* str)
 	xt_free(NULL, str);
 }
 
-bool ha_pbxt::get_error_message(int error __attribute__((unused)), String *buf)
+bool ha_pbxt::get_error_message(int XT_UNUSED(error), String *buf)
 {
 	THD				*thd = current_thd;
 	int				err = 0;
@@ -5104,9 +5301,9 @@ struct st_mysql_sys_var
 #endif
 
 #ifdef USE_CONST_SAVE
-static void pbxt_record_cache_size_func(THD *thd __attribute__((unused)), struct st_mysql_sys_var *var, void *tgt, const void *save)
+static void pbxt_record_cache_size_func(THD *XT_UNUSED(thd), struct st_mysql_sys_var *var, void *tgt, const void *save)
 #else
-static void pbxt_record_cache_size_func(THD *thd __attribute__((unused)), struct st_mysql_sys_var *var, void *tgt, void *save)
+static void pbxt_record_cache_size_func(THD *XT_UNUSED(thd), struct st_mysql_sys_var *var, void *tgt, void *save)
 #endif
 {
 	xtInt8	record_cache_size;
@@ -5215,6 +5412,18 @@ static MYSQL_SYSVAR_INT(sweeper_priority, xt_db_sweeper_priority,
 	"Determines the priority of the background sweeper process, 0 = low (default), 1 = normal (same as user threads), 2 = high.",
 	NULL, NULL, XT_PRIORITY_LOW, XT_PRIORITY_LOW, XT_PRIORITY_HIGH, 1);
 
+#ifdef DRIZZLED
+static MYSQL_SYSVAR_INT(max_threads, pbxt_max_threads,
+	PLUGIN_VAR_OPCMDARG,
+	"The maximum number of threads used by PBXT",
+	NULL, NULL, 500, 20, 20000, 1);
+#else
+static MYSQL_SYSVAR_INT(max_threads, pbxt_max_threads,
+	PLUGIN_VAR_OPCMDARG,
+	"The maximum number of threads used by PBXT, 0 = set according to MySQL max_connections.",
+	NULL, NULL, 0, 0, 20000, 1);
+#endif
+
 static struct st_mysql_sys_var* pbxt_system_variables[] = {
   MYSQL_SYSVAR(index_cache_size),
   MYSQL_SYSVAR(record_cache_size),
@@ -5231,6 +5440,7 @@ static struct st_mysql_sys_var* pbxt_system_variables[] = {
   MYSQL_SYSVAR(auto_increment_mode),
   MYSQL_SYSVAR(offline_log_function),
   MYSQL_SYSVAR(sweeper_priority),
+  MYSQL_SYSVAR(max_threads),
   NULL
 };
 #endif
@@ -5241,8 +5451,8 @@ drizzle_declare_plugin(pbxt)
 mysql_declare_plugin(pbxt)
 #endif
 {
-	MYSQL_STORAGE_ENGINE_PLUGIN,
 #ifndef DRIZZLED
+	MYSQL_STORAGE_ENGINE_PLUGIN,
 	&pbxt_storage_engine,
 #endif
 	"PBXT",
@@ -5266,8 +5476,8 @@ mysql_declare_plugin(pbxt)
 	NULL						/* config options                  */
 },
 {
-	MYSQL_INFORMATION_SCHEMA_PLUGIN,
 #ifndef DRIZZLED
+	MYSQL_INFORMATION_SCHEMA_PLUGIN,
 	&pbxt_statitics,
 #endif
 	"PBXT_STATISTICS",

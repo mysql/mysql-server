@@ -25,6 +25,7 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
                     ${CMAKE_SOURCE_DIR}/sql 
                     ${CMAKE_SOURCE_DIR}/regex 
                     ${CMAKE_SOURCE_DIR}/zlib
+                    ${CMAKE_SOURCE_DIR}/extra/libevent 
 )
 
 SET_SOURCE_FILES_PROPERTIES(${CMAKE_SOURCE_DIR}/sql/sql_yacc.h 
@@ -85,7 +86,7 @@ ADD_EXECUTABLE(mysqld
 
 TARGET_LINK_LIBRARIES(mysqld
                       heap myisam myisammrg mysys yassl zlib debug dbug yassl 
-                      taocrypt strings vio regex wsock32 ws2_32)
+                      taocrypt strings vio regex libevent wsock32 ws2_32)
 
 SET_TARGET_PROPERTIES(mysqld PROPERTIES OUTPUT_NAME mysqld${MYSQLD_EXE_SUFFIX})
 
@@ -139,7 +140,7 @@ ADD_CUSTOM_COMMAND(
 
 # Gen_lex_hash
 ADD_EXECUTABLE(gen_lex_hash gen_lex_hash.cc)
-TARGET_LINK_LIBRARIES(gen_lex_hash debug dbug mysqlclient wsock32)
+TARGET_LINK_LIBRARIES(gen_lex_hash debug dbug mysqlclient strings wsock32)
 GET_TARGET_PROPERTY(GEN_LEX_HASH_EXE gen_lex_hash LOCATION)
 ADD_CUSTOM_COMMAND(
         OUTPUT ${PROJECT_SOURCE_DIR}/sql/lex_hash.h

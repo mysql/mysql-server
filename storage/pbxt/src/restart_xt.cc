@@ -410,7 +410,7 @@ typedef struct XTOperation {
 	xtLogOffset				or_log_offset;
 } XTOperationRec, *XTOperationPtr;
 
-static int xres_cmp_op_seq(struct XTThread *self __attribute__((unused)), register const void *thunk __attribute__((unused)), register const void *a, register const void *b)
+static int xres_cmp_op_seq(struct XTThread *XT_UNUSED(self), register const void *XT_UNUSED(thunk), register const void *a, register const void *b)
 {
 	xtOpSeqNo		lf_op_seq = *((xtOpSeqNo *) a);
 	XTOperationPtr	lf_ptr = (XTOperationPtr) b;
@@ -480,19 +480,6 @@ static xtBool xres_add_index_entries(XTOpenTablePtr ot, xtRowID row_id, xtRecord
 		return OK;
 
 	for (idx_cnt=0, ind=tab->tab_dic.dic_keys; idx_cnt<tab->tab_dic.dic_key_count; idx_cnt++, ind++) {
-		/*
-		key.sk_on_key = FALSE;
-		key.sk_key_value.sv_flags = XT_SEARCH_WHOLE_KEY;
-		key.sk_key_value.sv_rec_id = rec_offset;
-		key.sk_key_value.sv_key = key.sk_key_buf;
-		key.sk_key_value.sv_length = myxt_create_key_from_row(*ind, key.sk_key_buf, rec_data, NULL);
-		if (!xt_idx_search(ot, *ind, &key)) {
-			ot->ot_err_index_no = (*ind)->mi_index_no;
-			return FAILED;
-		}
-		if (!key.sk_on_key) {
-		}
-		*/
 		if (!xt_idx_insert(ot, *ind, row_id, rec_id, rec_data, NULL, TRUE)) {
 			/* Check the error, certain errors are recoverable! */
 			XTThreadPtr self = xt_get_self();
@@ -509,7 +496,7 @@ static xtBool xres_add_index_entries(XTOpenTablePtr ot, xtRowID row_id, xtRecord
 			/* TODO: Write something to the index header to indicate that
 			 * it is corrupted.
 			 */
-			tab->tab_dic.dic_disable_index = XT_INDEX_CORRUPTED;
+			xt_tab_disable_index(ot->ot_table, XT_INDEX_CORRUPTED);
 			xt_log_and_clear_exception_ns();
 			return OK;
 		}
@@ -642,6 +629,9 @@ static void xres_apply_change(XTThreadPtr self, XTOpenTablePtr ot, XTXactLogBuff
 	xtWord1				*rec_data = NULL;
 	XTTabRecFreeDPtr	free_data;
 
+	if (tab->tab_dic.dic_key_count == 0)
+		check_index = FALSE;
+
 	switch (record->xl.xl_status_1) {
 		case XT_LOG_ENT_REC_MODIFIED:
 		case XT_LOG_ENT_UPDATE:
@@ -651,20 +641,25 @@ static void xres_apply_change(XTThreadPtr self, XTOpenTablePtr ot, XTXactLogBuff
 		case XT_LOG_ENT_INSERT_BG:
 		case XT_LOG_ENT_DELETE_BG:
 			rec_id = XT_GET_DISK_4(record->xu.xu_rec_id_4);
+
+			/* This should be done before we apply change to table, as otherwise we lose
+			 * the key value that we need to remove from index
+			 */
+			if (check_index && record->xl.xl_status_1 == XT_LOG_ENT_REC_MODIFIED) {
+				if ((rec_data = xres_load_record(self, ot, rec_id, NULL, 0, rec_buf, tab->tab_dic.dic_ind_cols_req)))
+					xres_remove_index_entries(ot, rec_id, rec_data);			
+			}
+
 			len = (size_t) XT_GET_DISK_2(record->xu.xu_size_2);
 			if (!XT_PWRITE_RR_FILE(ot->ot_rec_file, xt_rec_id_to_rec_offset(tab, rec_id), len, (xtWord1 *) &record->xu.xu_rec_type_1, &ot->ot_thread->st_statistics.st_rec, ot->ot_thread))
 				xt_throw(self);
 			tab->tab_bytes_to_flush += len;
 
-			if (check_index && ot->ot_table->tab_dic.dic_key_count) {
+			if (check_index) {
 				switch (record->xl.xl_status_1) {
 					case XT_LOG_ENT_DELETE:
 					case XT_LOG_ENT_DELETE_BG:
 						break;
-					case XT_LOG_ENT_REC_MODIFIED:
-						if ((rec_data = xres_load_record(self, ot, rec_id, NULL, 0, rec_buf, tab->tab_dic.dic_ind_cols_req)))
-							xres_remove_index_entries(ot, rec_id, rec_data);
-						/* No break required: */
 					default:
 						if ((rec_data = xres_load_record(self, ot, rec_id, &record->xu.xu_rec_type_1, len, rec_buf, tab->tab_dic.dic_ind_cols_req))) {
 							row_id = XT_GET_DISK_4(record->xu.xu_row_id_4);
@@ -859,9 +854,6 @@ static void xres_apply_change(XTThreadPtr self, XTOpenTablePtr ot, XTXactLogBuff
 						goto do_rec_freed;
 					record_loaded = TRUE;
 				}
-#ifdef XT_STREAMING
-				myxt_release_blobs(ot, rec_data, rec_id);
-#endif
 			}
 
 			if (record->xl.xl_status_1 == XT_LOG_ENT_REC_REMOVED_EXT) {
@@ -967,30 +959,11 @@ static void xres_apply_change(XTThreadPtr self, XTOpenTablePtr ot, XTXactLogBuff
 
 			if (check_index) {
 				cols_required = tab->tab_dic.dic_ind_cols_req;
-#ifdef XT_STREAMING
-				if (tab->tab_dic.dic_blob_cols_req > cols_required)
-					cols_required = tab->tab_dic.dic_blob_cols_req;
-#endif
 				if (!(rec_data = xres_load_record(self, ot, rec_id, &record->rb.rb_rec_type_1, rec_size, rec_buf, cols_required)))
 					goto go_on_to_free;
 				record_loaded = TRUE;
 				xres_remove_index_entries(ot, rec_id, rec_data);
 			}
-
-#ifdef XT_STREAMING
-			if (tab->tab_dic.dic_blob_count) {
-				if (!record_loaded) {
-					cols_required = tab->tab_dic.dic_blob_cols_req;
-					if (!(rec_data = xres_load_record(self, ot, rec_id, &record->rb.rb_rec_type_1, rec_size, rec_buf, cols_required)))
-						/* [(7)] REMOVE is followed by FREE:
-						goto get_rec_offset;
-						*/
-						goto go_on_to_free;
-					record_loaded = TRUE;
-				}
-				myxt_release_blobs(ot, rec_data, rec_id);
-			}
-#endif
 
 			if (data_log_id && data_log_offset && log_over_size) {
 				if (!ot->ot_thread->st_dlog_buf.dlb_delete_log(data_log_id, data_log_offset, log_over_size, tab->tab_id, rec_id, self)) {
@@ -1560,7 +1533,7 @@ static xtBool xres_delete_data_log(XTDatabaseHPtr db, xtLogID log_id)
 	return OK;
 }
 
-static int xres_comp_flush_tabs(XTThreadPtr self __attribute__((unused)), register const void *thunk __attribute__((unused)), register const void *a, register const void *b)
+static int xres_comp_flush_tabs(XTThreadPtr XT_UNUSED(self), register const void *XT_UNUSED(thunk), register const void *a, register const void *b)
 {
 	xtTableID				tab_id = *((xtTableID *) a);
 	XTCheckPointTablePtr	cp_tab = (XTCheckPointTablePtr) b;
@@ -1868,7 +1841,7 @@ void XTXactRestart::xres_init(XTThreadPtr self, XTDatabaseHPtr db, xtLogID *log_
 	exit_();
 }
 
-void XTXactRestart::xres_exit(XTThreadPtr self __attribute__((unused)))
+void XTXactRestart::xres_exit(XTThreadPtr XT_UNUSED(self))
 {
 }
 
@@ -2700,7 +2673,7 @@ xtPublic xtBool xt_begin_checkpoint(XTDatabaseHPtr db, xtBool have_table_lock, X
 		XTXactSegPtr 	seg;
 
 		seg = &db->db_xn_idx[i];
-		XT_XACT_WRITE_LOCK(&seg->xs_tab_lock, self);
+		XT_XACT_READ_LOCK(&seg->xs_tab_lock, self);
 		for (u_int j=0; j<XT_XN_HASH_TABLE_SIZE; j++) {
 			XTXactDataPtr	xact;
 			
@@ -2716,7 +2689,7 @@ xtPublic xtBool xt_begin_checkpoint(XTDatabaseHPtr db, xtBool have_table_lock, X
 				xact = xact->xd_next_xact;
 			}
 		}
-		XT_XACT_UNLOCK(&seg->xs_tab_lock, self);
+		XT_XACT_UNLOCK(&seg->xs_tab_lock, self, FALSE);
 	}
 
 #ifdef TRACE_CHECKPOINT
@@ -3200,4 +3173,37 @@ xtPublic void xt_dump_xlogs(XTDatabaseHPtr db, xtLogID start_log)
 
 	done:
 	db->db_xlog.xlog_seq_exit(&seq);
+}
+
+/* ----------------------------------------------------------------------
+ * D A T A B A S E   R E C O V E R Y   T H R E A D
+ */
+
+extern XTDatabaseHPtr pbxt_database;
+
+static void *xn_xres_run_recovery_thread(XTThreadPtr self)
+{
+	THD *mysql_thread;
+
+	mysql_thread = (THD *)myxt_create_thread();
+
+	while(!ha_resolve_by_legacy_type(mysql_thread, DB_TYPE_PBXT))
+		xt_sleep_milli_second(1);
+
+	xt_open_database(self, mysql_real_data_home, TRUE);
+	pbxt_database = self->st_database;
+	xt_heap_reference(self, pbxt_database);
+	myxt_destroy_thread(mysql_thread, TRUE);
+
+	return NULL;
+}
+
+xtPublic void xt_xres_start_database_recovery(XTThreadPtr self)
+{
+	char name[PATH_MAX];
+
+	sprintf(name, "DB-RECOVERY-%s", xt_last_directory_of_path(mysql_real_data_home));
+	xt_remove_dir_char(name);
+	XTThreadPtr thread = xt_create_daemon(self, name);
+	xt_run_thread(self, thread, xn_xres_run_recovery_thread);
 }

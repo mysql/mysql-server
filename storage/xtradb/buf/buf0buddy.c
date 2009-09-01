@@ -461,11 +461,11 @@ buf_buddy_relocate(
 	actually is a properly initialized buf_page_t object. */
 
 	if (size >= PAGE_ZIP_MIN_SIZE) {
+		mutex_t*	mutex;
 		if (!have_page_hash_mutex)
 			mutex_exit(&zip_free_mutex);
 
 		/* This is a compressed page. */
-		mutex_t*	mutex;
 
 		if (!have_page_hash_mutex) {
 			mutex_enter(&LRU_list_mutex);

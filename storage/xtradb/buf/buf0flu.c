@@ -1106,11 +1106,13 @@ retry_lock_1:
 				page_count += buf_flush_try_neighbors(
 					space, offset, flush_type);
 				} else {
+                                        mutex_t* block_mutex;
+                                        buf_page_t* bpage_tmp;
 					/* Try to flush the page only */
 					//buf_pool_mutex_enter();
 					rw_lock_s_lock(&page_hash_latch);
 
-					mutex_t* block_mutex = buf_page_get_mutex(bpage);
+					block_mutex = buf_page_get_mutex(bpage);
 retry_lock_2:
 					mutex_enter(block_mutex);
 					if (block_mutex != buf_page_get_mutex(bpage)) {
@@ -1119,7 +1121,7 @@ retry_lock_2:
 						goto retry_lock_2;
 					}
 
-					buf_page_t* bpage_tmp = buf_page_hash_get(space, offset);
+					bpage_tmp = buf_page_hash_get(space, offset);
 					if (bpage_tmp) {
 						buf_flush_page(bpage_tmp, flush_type);
 						page_count++;
@@ -1238,13 +1240,14 @@ buf_flush_LRU_recommendation(void)
 		   + BUF_FLUSH_EXTRA_MARGIN)
 	       && (distance < BUF_LRU_FREE_SEARCH_LEN)) {
 
-		if (!bpage->in_LRU_list) {
+		mutex_t* block_mutex;
+                if (!bpage->in_LRU_list) {
 			/* reatart. but it is very optimistic */
 			bpage = UT_LIST_GET_LAST(buf_pool->LRU);
 			continue;
 		}
 
-		mutex_t* block_mutex = buf_page_get_mutex(bpage);
+		block_mutex = buf_page_get_mutex(bpage);
 
 retry_lock:
 		mutex_enter(block_mutex);

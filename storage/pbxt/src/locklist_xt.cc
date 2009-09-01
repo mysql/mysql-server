@@ -59,13 +59,13 @@ void xt_thread_lock_info_init(XTThreadLockInfoPtr ptr, xt_rwlock_struct *lock)
 	ptr->li_lock_type = XTThreadLockInfo::RW_LOCK;
 }
 
-void xt_thread_lock_info_init(XTThreadLockInfoPtr ptr, XTFastRWLock *lock)
+void xt_thread_lock_info_init(XTThreadLockInfoPtr ptr, XTXSMutexLock *lock)
 {
 	ptr->li_fast_rwlock = lock;
 	ptr->li_lock_type   = XTThreadLockInfo::FAST_RW_LOCK;
 }
 
-void xt_thread_lock_info_init(XTThreadLockInfoPtr ptr, XTSpinRWLock *lock)
+void xt_thread_lock_info_init(XTThreadLockInfoPtr ptr, XTSpinXSLock *lock)
 {
 	ptr->li_spin_rwlock = lock;
 	ptr->li_lock_type   = XTThreadLockInfo::SPIN_RW_LOCK;
@@ -75,6 +75,12 @@ void xt_thread_lock_info_init(XTThreadLockInfoPtr ptr, XTAtomicRWLock *lock)
 {
 	ptr->li_atomic_rwlock = lock;
 	ptr->li_lock_type   = XTThreadLockInfo::ATOMIC_RW_LOCK;
+}
+
+void xt_thread_lock_info_init(XTThreadLockInfoPtr ptr, XTSkewRWLock *lock)
+{
+	ptr->li_skew_rwlock = lock;
+	ptr->li_lock_type   = XTThreadLockInfo::SKEW_RW_LOCK;
 }
 
 void xt_thread_lock_info_free(XTThreadLockInfoPtr ptr)
@@ -163,12 +169,12 @@ void xt_trace_thread_locks(XTThread *self)
 				lock_name = li->li_fast_lock->fal_name;
 				break;
 			case XTThreadLockInfo::FAST_RW_LOCK:
-				lock_type = "XTFastRWLock";
-				lock_name = li->li_fast_rwlock->frw_name;
+				lock_type = "XTXSMutexLock";
+				lock_name = li->li_fast_rwlock->xsm_name;
 				break;
 			case XTThreadLockInfo::SPIN_RW_LOCK:
 				lock_type = "XTSpinRWLock";
-				lock_name = li->li_spin_rwlock->srw_name;
+				lock_name = li->li_spin_rwlock->sxs_name;
 				break;
 			case XTThreadLockInfo::ATOMIC_RW_LOCK:
 				lock_type = "XTAtomicRWLock";

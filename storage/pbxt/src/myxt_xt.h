@@ -70,6 +70,7 @@ XTDDTable	*myxt_create_table_from_table(XTThreadPtr self, STRUCT_TABLE *my_tab);
 void		myxt_static_convert_identifier(XTThreadPtr self, struct charset_info_st *cs, char *from, char *to, size_t to_len);
 char		*myxt_convert_identifier(XTThreadPtr self, struct charset_info_st *cs, char *from);
 void		myxt_static_convert_table_name(XTThreadPtr self, char *from, char *to, size_t to_len);
+void		myxt_static_convert_file_name(char *from, char *to, size_t to_len);
 char		*myxt_convert_table_name(XTThreadPtr self, char *from);
 int			myxt_strcasecmp(char * a, char *b);
 int			myxt_isspace(struct charset_info_st *cs, char a);
@@ -78,22 +79,12 @@ int			myxt_isdigit(struct charset_info_st *cs, char a);
 
 struct charset_info_st *myxt_getcharset(bool convert);
 
-#ifdef XT_STREAMING
-xtBool		myxt_use_blobs(XTOpenTablePtr ot, void **ret_pbms_table, xtWord1 *rec_buf);
-void		myxt_unuse_blobs(XTOpenTablePtr ot, void *pbms_table);
-xtBool		myxt_retain_blobs(XTOpenTablePtr ot, void *pbms_table, xtRecordID record);
-void		myxt_release_blobs(XTOpenTablePtr ot, xtWord1 *rec_buf, xtRecordID record);
-#endif
-
 void		*myxt_create_thread();
 void		myxt_destroy_thread(void *thread, xtBool end_threads);
 XTThreadPtr	myxt_get_self();
 
 int			myxt_statistics_fill_table(XTThreadPtr self, void *th, void *ta, void *co, MX_CONST void *ch);
 void		myxt_get_status(XTThreadPtr self, XTStringBufferPtr strbuf);
-
-void		myxt_bitmap_init(XTThreadPtr self, MY_BITMAP *map, u_int n_bits);
-void		myxt_bitmap_free(XTThreadPtr self, MY_BITMAP *map);
 
 class XTDDColumnFactory
 {

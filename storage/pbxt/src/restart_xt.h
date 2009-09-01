@@ -131,4 +131,6 @@ xtWord8	xt_bytes_since_last_checkpoint(struct XTDatabase *db, xtLogID curr_log_i
 void xt_print_log_record(xtLogID log, off_t offset, XTXactLogBufferDPtr record);
 void xt_dump_xlogs(struct XTDatabase *db, xtLogID start_log);
 
+xtPublic void xt_xres_start_database_recovery(XTThreadPtr self, const char *path);
+
 #endif

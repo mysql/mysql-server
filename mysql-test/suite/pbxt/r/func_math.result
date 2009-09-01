@@ -60,7 +60,7 @@ Warnings:
 Note	1003	select ln(exp(10)) AS `ln(exp(10))`,exp((ln(sqrt(10)) * 2)) AS `exp(ln(sqrt(10))*2)`,ln(-(1)) AS `ln(-1)`,ln(0) AS `ln(0)`,ln(NULL) AS `ln(NULL)`
 select log2(8),log2(15),log2(-2),log2(0),log2(NULL);
 log2(8)	log2(15)	log2(-2)	log2(0)	log2(NULL)
-3	3.9068905956085	NULL	NULL	NULL
+3	3.90689059560852	NULL	NULL	NULL
 explain extended select log2(8),log2(15),log2(-2),log2(0),log2(NULL);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
@@ -68,7 +68,7 @@ Warnings:
 Note	1003	select log2(8) AS `log2(8)`,log2(15) AS `log2(15)`,log2(-(2)) AS `log2(-2)`,log2(0) AS `log2(0)`,log2(NULL) AS `log2(NULL)`
 select log10(100),log10(18),log10(-4),log10(0),log10(NULL);
 log10(100)	log10(18)	log10(-4)	log10(0)	log10(NULL)
-2	1.2552725051033	NULL	NULL	NULL
+2	1.25527250510331	NULL	NULL	NULL
 explain extended select log10(100),log10(18),log10(-4),log10(0),log10(NULL);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
@@ -85,7 +85,7 @@ Note	1003	select pow(10,log10(10)) AS `pow(10,log10(10))`,pow(2,4) AS `power(2,4
 set @@rand_seed1=10000000,@@rand_seed2=1000000;
 select rand(999999),rand();
 rand(999999)	rand()
-0.014231365187309	0.028870999839968
+0.0142313651873091	0.028870999839968
 explain extended select rand(999999),rand();
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
@@ -101,7 +101,7 @@ Warnings:
 Note	1003	select pi() AS `pi()`,format(sin((pi() / 2)),6) AS `format(sin(pi()/2),6)`,format(cos((pi() / 2)),6) AS `format(cos(pi()/2),6)`,format(abs(tan(pi())),6) AS `format(abs(tan(pi())),6)`,format((1 / tan(1)),6) AS `format(cot(1),6)`,format(asin(1),6) AS `format(asin(1),6)`,format(acos(0),6) AS `format(acos(0),6)`,format(atan(1),6) AS `format(atan(1),6)`
 select degrees(pi()),radians(360);
 degrees(pi())	radians(360)
-180	6.2831853071796
+180	6.28318530717959
 select format(atan(-2, 2), 6);
 format(atan(-2, 2), 6)
 -0.785398

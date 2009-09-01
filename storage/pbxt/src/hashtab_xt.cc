@@ -115,7 +115,7 @@ xtPublic void xt_ht_put(XTThreadPtr self, XTHashTabPtr ht, void *data)
 	popr_();
 }
 
-xtPublic void *xt_ht_get(XTThreadPtr self __attribute__((unused)), XTHashTabPtr ht, void *key)
+xtPublic void *xt_ht_get(XTThreadPtr XT_UNUSED(self), XTHashTabPtr ht, void *key)
 {
 	XTHashItemPtr	item;
 	xtHashValue		h;
@@ -239,14 +239,14 @@ xtPublic void xt_ht_signal(XTThreadPtr self, XTHashTabPtr ht)
 	xt_signal_cond(self, ht->ht_cond);
 }
 
-xtPublic void xt_ht_enum(struct XTThread *self __attribute__((unused)), XTHashTabPtr ht, XTHashEnumPtr en)
+xtPublic void xt_ht_enum(struct XTThread *XT_UNUSED(self), XTHashTabPtr ht, XTHashEnumPtr en)
 {
 	en->he_i = 0;
 	en->he_item = NULL;
 	en->he_ht = ht;
 }
 
-xtPublic void *xt_ht_next(struct XTThread *self __attribute__((unused)), XTHashEnumPtr en)
+xtPublic void *xt_ht_next(struct XTThread *XT_UNUSED(self), XTHashEnumPtr en)
 {
 	if (en->he_item) {
 		en->he_item = en->he_item->hi_next;
