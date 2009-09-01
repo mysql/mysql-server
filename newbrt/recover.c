@@ -543,7 +543,7 @@ static int toku_delete_rolltmp_files (const char *log_dir) {
 // Effects: If there are no log files, or if there is a "clean" checkpoint at the end of the log,
 // then we don't need recovery to run.  Skip the shutdown log entry if there is one.
 // Returns: TRUE if we need recovery, otherwise FALSE.
-int tokudb_needs_recovery(const char *log_dir) {
+int tokudb_needs_recovery(const char *log_dir, BOOL ignore_log_empty) {
     int needs_recovery;
     int r;
     TOKULOGCURSOR logcursor = NULL;
@@ -555,7 +555,7 @@ int tokudb_needs_recovery(const char *log_dir) {
     
     struct log_entry *le = NULL;
     r = toku_logcursor_last(logcursor, &le);
-    if (r == DB_NOTFOUND) {
+    if (r == DB_NOTFOUND && ignore_log_empty) {
         needs_recovery = FALSE; goto exit;
     }
     if (r != 0) {
@@ -626,6 +626,7 @@ static int do_recovery(RECOVER_ENV env, const char *data_dir, const char *log_di
     int r;
     int rr = 0;
     TOKULOGCURSOR logcursor = NULL;
+    struct log_entry *le = NULL;
 
     char org_wd[1000];
     {
@@ -639,6 +640,19 @@ static int do_recovery(RECOVER_ENV env, const char *data_dir, const char *log_di
 
     LSN lastlsn = toku_logger_last_lsn(env->logger);
 
+    // there must be at least one log entry
+    r = toku_logcursor_create(&logcursor, log_dir);
+    assert(r == 0);
+    
+    r = toku_logcursor_last(logcursor, &le);
+    if (r != 0) {
+        rr = DB_RUNRECOVERY; goto errorexit;
+    }
+
+    // TODO use logcursor->invalidate()
+    r = toku_logcursor_destroy(&logcursor);
+    assert(r == 0);
+
     r = toku_logcursor_create(&logcursor, log_dir);
     assert(r == 0);
 
@@ -647,8 +661,6 @@ static int do_recovery(RECOVER_ENV env, const char *data_dir, const char *log_di
         // no data directory error
         rr = errno; goto errorexit;
     }
-
-    struct log_entry *le;
 
     // scan backwards
     backward_scan_state_init(&env->bs);
@@ -759,7 +771,7 @@ int tokudb_recover(const char *data_dir, const char *log_dir, brt_compare_func b
     }
 
     int rr = 0;
-    if (tokudb_needs_recovery(log_dir)) {
+    if (tokudb_needs_recovery(log_dir, FALSE)) {
         struct recover_env renv;
         r = recover_env_init(&renv, bt_compare, dup_compare);
         assert(r == 0);
