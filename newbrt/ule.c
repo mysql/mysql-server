@@ -382,7 +382,7 @@ le_pack(ULE ule,                            // data to be packed into new leafen
         int i;
         for (i = ule->num_uxrs - 1; i >= 0; i--) {
             if (uxr_is_insert(&ule->uxrs[i])) {
-                index_of_innermost_insert = i;
+                index_of_innermost_insert = (u_int8_t) i;
                 vallen_innermost_insert   = ule->uxrs[i].vallen;
                 valp_innermost_insert     = ule->uxrs[i].valp;
                 goto found_insert;
@@ -1392,7 +1392,7 @@ ule_add_placeholders(ULE ule, XIDS xids) {
 
 static inline BOOL
 uxr_type_is_insert(u_int8_t type) {
-    BOOL rval = (type == XR_INSERT);
+    BOOL rval = (BOOL)(type == XR_INSERT);
     return rval;
 }
 
@@ -1403,7 +1403,7 @@ uxr_is_insert(UXR uxr) {
 
 static inline BOOL
 uxr_type_is_delete(u_int8_t type) {
-    BOOL rval = (type == XR_DELETE);
+    BOOL rval = (BOOL)(type == XR_DELETE);
     return rval;
 }
 
@@ -1414,7 +1414,7 @@ uxr_is_delete(UXR uxr) {
 
 static inline BOOL
 uxr_type_is_placeholder(u_int8_t type) {
-    BOOL rval = (type == XR_PLACEHOLDER);
+    BOOL rval = (BOOL)(type == XR_PLACEHOLDER);
     return rval;
 }
 

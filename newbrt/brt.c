@@ -2154,7 +2154,7 @@ brt_merge_child (BRT t, BRTNODE node, int childnum_to_merge, BOOL *did_io, BOOL 
         if (childa->height>0) { int i; for (i=0; i+1<childa->u.n.n_children; i++) assert(childa->u.n.childkeys[i]); }
         //(toku_verify_counts(childa), toku_verify_estimates(t,childa));
         // the tree did react if a merge (did_merge) or rebalance (new spkit key) occurred
-        *did_react = did_merge || did_rebalance;
+        *did_react = (BOOL)(did_merge || did_rebalance);
         if (did_merge) assert(!splitk_kvpair); else assert(splitk_kvpair);
         if (r!=0) goto return_r;
 
