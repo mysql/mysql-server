@@ -155,6 +155,7 @@ class NdbQueryOperationImpl {
 
   /** For debugging.*/
   friend NdbOut& operator<<(NdbOut& out, const NdbQueryOperationImpl&);
+
 public:
   STATIC_CONST (MAGIC = 0xfade1234);
 
@@ -179,10 +180,16 @@ public:
   Uint32 getNoOfChildOperations() const;
   NdbQueryOperationImpl& getChildOperation(Uint32 i) const;
 
-  const NdbQueryOperationDefImpl& getQueryOperationDef() const;
+  /** A shorthand for getting the root operation. */
+  NdbQueryOperationImpl& getRoot() const
+  { return getQuery().getRoot(); }
+
+  const NdbQueryOperationDefImpl& getQueryOperationDef() const
+  { return m_operationDef; }
 
   // Get the entire query object which this operation is part of
-  NdbQueryImpl& getQuery() const;
+  NdbQueryImpl& getQuery() const
+  { return m_queryImpl; }
 
   NdbRecAttr* getValue(const char* anAttrName, char* resultBuffer);
   NdbRecAttr* getValue(Uint32 anAttrId, char* resultBuffer);
@@ -200,15 +207,6 @@ public:
 
   bool isRowChanged() const; // Prev ::nextResult() on NdbQuery retrived a new
                              // value for this NdbQueryOperation
-
-  /** Returns an I-value for the NdbReceiver object that shall receive results
-   * for this operation. 
-   * @return The I-value.
-   */
-  /*Uint32 getResultPtr() const {
-    return m_receiver.getId();
-    };*/
-
 
   /** Process result data for this operation. Return true if batch complete.*/
   bool execTRANSID_AI(const Uint32* ptr, Uint32 len);
@@ -253,10 +251,8 @@ public:
 
   /** Return true if this operation is a scan.*/
   bool isScan() const {
-    return getQueryOperationDef().getType() 
-      == NdbQueryOperationDefImpl::TableScan ||
-      getQueryOperationDef().getType() 
-      == NdbQueryOperationDefImpl::OrderedIndexScan;
+    return m_operationDef.getType() == NdbQueryOperationDefImpl::TableScan ||
+           m_operationDef.getType() == NdbQueryOperationDefImpl::OrderedIndexScan;
   }
 
   const NdbQueryOperation& getInterface() const
@@ -269,12 +265,8 @@ public:
   /** Find max number of rows per batch per ResultStream.*/
   void findMaxRows();
 
-  Uint32 getMaxBatchRows() const { return m_maxBatchRows;}
-
-  /** A shorthand for getting the root operation.*/
-  NdbQueryOperationImpl& getRoot() const { 
-    return getQuery().getRoot();
-  }
+  Uint32 getMaxBatchRows() const
+  { return m_maxBatchRows; }
 
 private:
   /** This class represents a projection that shall be sent to the 

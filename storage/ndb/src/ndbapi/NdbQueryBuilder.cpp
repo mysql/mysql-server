@@ -18,6 +18,7 @@
 
 #include "NdbQueryBuilder.hpp"
 #include "NdbQueryBuilderImpl.hpp"
+#include "NdbIndexScanOperation.hpp"  // Temp intil we remove NdbOperation dependencies
 #include <ndb_global.h>
 #include <Vector.hpp>
 #include "signaldata/QueryTree.hpp"
@@ -26,6 +27,7 @@
 #include "NdbDictionary.hpp"
 #include "NdbDictionaryImpl.hpp"
 #include "AttributeHeader.hpp"
+#include "NdbRecord.hpp"              // Temp as above
 #include "NdbOut.hpp"
 
 
@@ -244,6 +246,11 @@ public:
                            Uint32      ix)
   : NdbQueryOperationDefImpl(table,ident,ix)
   {}
+
+protected:
+  int serialize(Uint32Buffer& serializedDef,
+                const NdbTableImpl& tableOrIndex) const;
+
 }; // class NdbQueryScanOperationDefImpl
 
 class NdbQueryTableScanOperationDefImpl : public NdbQueryScanOperationDefImpl
@@ -800,7 +807,7 @@ NdbQueryBuilder::scanIndex(const NdbDictionary::Index* index,
 
   NdbQueryIndexScanOperationDefImpl* op =
     new NdbQueryIndexScanOperationDefImpl(indexImpl, tableImpl,
-                                          bound,ident,
+                                          bound, ident,
                                           m_pimpl->m_operations.size());
   returnErrIf(op==0, 4000);
 
@@ -1046,13 +1053,16 @@ NdbQueryLookupOperationDefImpl
     getTable().getNoOfPrimaryKeys() :
     static_cast<int>(getIndex()->getNoOfColumns());
   int keyNo;
-  for(keyNo = 0; keyNo<keyCount; keyNo++){
+  for(keyNo = 0; keyNo<keyCount; keyNo++)
+  {
     switch(m_keys[keyNo]->getKind()){
     case NdbQueryOperandImpl::Const:
     {
       const NdbConstOperandImpl* const constOp 
         = static_cast<const NdbConstOperandImpl*>(m_keys[keyNo]);
-      ndbOperation.equal(keyNo, static_cast<const char*>(constOp->getAddr()));
+      int ret = 
+        ndbOperation.equal(keyNo, static_cast<const char*>(constOp->getAddr()));
+      assert(!ret);
       break;
     }
     case NdbQueryOperandImpl::Param:
@@ -1062,18 +1072,76 @@ NdbQueryLookupOperationDefImpl
       int paramNo = paramOp->getParamIx();
       assert(actualParam != NULL);
       assert(actualParam[paramNo] != NULL);
-      ndbOperation.equal(keyNo, 
-                         static_cast<const char*>(actualParam[paramNo]));
+      int ret = 
+        ndbOperation.equal(keyNo, 
+                           static_cast<const char*>(actualParam[paramNo]));
+      assert(!ret);
       break;
     }
+    case NdbQueryOperandImpl::Linked:    // Root operation cannot have linked operands.
     default:
-      // Root operation cannot have linked operands.
       assert(false);
     }
   }
   // All key fields should have been assigned a value. 
   assert(m_keys[keyNo] == NULL);
 }
+
+/**
+ * Helper function for NdbQueryIndexScanOperationDefImpl::materializeRootOperands()
+ * Fill in values for either a low or high bound as defined in boundDef[].
+ */
+static void 
+fillBoundValues (const NdbRecord* key_rec,
+                 char* buffer, Uint32& cnt,
+                 NdbQueryOperandImpl* const boundDef[],
+                 const constVoidPtr actualParam[])
+{
+  assert (key_rec->flags & NdbRecord::RecHasAllKeys);
+
+  /**
+   * Serialize upper/lower bounds definitions.
+   */
+  Uint32 keyNo;
+  const Uint32 keyCount = key_rec->key_index_length;
+  assert (keyCount <= key_rec->noOfColumns);
+  for (keyNo = 0; keyNo<keyCount; keyNo++)
+  {
+    const NdbQueryOperandImpl* bound = boundDef[keyNo];
+    if (bound == NULL)
+      break;
+
+    assert (key_rec->key_indexes[keyNo] <= key_rec->noOfColumns);
+    const NdbRecord::Attr& attr = key_rec->columns[key_rec->key_indexes[keyNo]];
+    assert (attr.flags & NdbRecord::IsKey);
+    Uint32 offset = attr.offset;
+
+    switch(bound->getKind()){
+    case NdbQueryOperandImpl::Const:
+    {
+      const NdbConstOperandImpl* constOp = static_cast<const NdbConstOperandImpl*>(bound);
+      assert (key_rec->columns[keyNo].maxSize >= constOp->getLength());
+      memcpy(buffer+offset, constOp->getAddr(), constOp->getLength());
+      break;
+    }
+    case NdbQueryOperandImpl::Param:
+    {
+      const NdbParamOperandImpl* const paramOp 
+        = static_cast<const NdbParamOperandImpl*>(bound);
+      int paramNo = paramOp->getParamIx();
+      assert(actualParam != NULL);
+      assert(actualParam[paramNo] != NULL);
+      memcpy(buffer+offset, actualParam[paramNo], key_rec->columns[keyNo].maxSize);
+      break;
+    }
+    case NdbQueryOperandImpl::Linked:    // Root operation cannot have linked operands.
+    default:
+      assert(false);
+    }
+  }
+  cnt = keyNo;
+} // fillBoundValues()
+
 
 
 void 
@@ -1082,8 +1150,35 @@ NdbQueryIndexScanOperationDefImpl
                           const constVoidPtr actualParam[]) const
 {
   assert(getQueryOperationIx()==0); // Should only be called for root operation.
-  assert (getQueryOperationId()==(getIndex() ?1 :0));
-  assert(false); // TODO: Implement this.
+
+  char low[1024], high[1024];
+  NdbIndexScanOperation::IndexBound bound;
+  const NdbRecord* key_rec = m_index.getDefaultRecord();
+  assert (key_rec->flags & NdbRecord::RecHasAllKeys);
+
+  /**
+   * Fill in upper and lower bounds as declared with specified values.
+   */
+  fillBoundValues (key_rec, low, bound.low_key_count, m_bound.low, actualParam);
+  bound.low_key = low;
+
+  if (m_bound.eqBound)
+  { // low / high are the same
+    bound.high_key = bound.low_key;
+    bound.high_key_count = bound.low_key_count;
+  }
+  else
+  {
+    fillBoundValues (key_rec, high, bound.high_key_count, m_bound.high, actualParam);
+    bound.high_key = high;
+  }
+  bound.low_inclusive=m_bound.lowIncl;
+  bound.high_inclusive=m_bound.highIncl;
+  bound.range_no=0;
+
+  NdbIndexScanOperation& inxOp = static_cast<NdbIndexScanOperation&>(ndbOperation);
+  int err = inxOp.setBound(key_rec,bound);
+  assert (!err);
 }
 
 void 
@@ -1092,6 +1187,7 @@ NdbQueryTableScanOperationDefImpl
                           const constVoidPtr actualParam[]) const
 {
   // TODO: Implement this.
+  // ... Or does it not make sense for a plain scan.....
 }
 
 
@@ -1236,11 +1332,11 @@ NdbQueryOperationDefImpl::appendParentList(Uint32Buffer& serializedDef) const
   parentSeq.finish();
 }
 
-static void
+static Uint32
 appendKeyPattern(Uint32Buffer& serializedDef,
-                 QN_LookupNode& node,
                  const NdbQueryOperandImpl* const *m_keys)
 {
+  Uint32 appendedPattern = 0;
   if (m_keys[0]!=NULL)
   {
     Uint32Slice keyPattern(serializedDef);
@@ -1248,22 +1344,22 @@ appendKeyPattern(Uint32Buffer& serializedDef,
     int keyPatternPos = 1; // Length at offs '0' set later
     int paramCnt = 0;
     int keyNo = 0;
-    const NdbQueryOperandImpl* op = m_keys[0];
+    const NdbQueryOperandImpl* key = m_keys[0];
     do
     {
-      switch(op->getKind()){
+      switch(key->getKind()){
       case NdbQueryOperandImpl::Linked:
       {
-        node.requestInfo |= DABits::NI_KEY_LINKED;
-        const NdbLinkedOperandImpl& linkedOp = *static_cast<const NdbLinkedOperandImpl*>(op);
+        appendedPattern |= DABits::NI_KEY_LINKED;
+        const NdbLinkedOperandImpl& linkedOp = *static_cast<const NdbLinkedOperandImpl*>(key);
         keyPattern.get(keyPatternPos++) = QueryPattern::col(linkedOp.getLinkedColumnIx());
         break;
       }
       case NdbQueryOperandImpl::Const:
       {
-        node.requestInfo |= DABits::NI_KEY_CONSTS;
+        appendedPattern |= DABits::NI_KEY_CONSTS;
         const NdbConstOperandImpl& constOp 
-	  = *static_cast<const NdbConstOperandImpl*>(op);
+	  = *static_cast<const NdbConstOperandImpl*>(key);
      
         // No of words needed for storing the constant data.
         const Uint32 wordCount =  AttributeHeader::getDataSize(constOp.getLength());
@@ -1274,21 +1370,23 @@ appendKeyPattern(Uint32Buffer& serializedDef,
       }
       case NdbQueryOperandImpl::Param:
       {
-        node.requestInfo |= DABits::NI_KEY_PARAMS;
+        appendedPattern |= DABits::NI_KEY_PARAMS;
         paramCnt++;
-        const NdbParamOperandImpl& paramOp = *static_cast<const NdbParamOperandImpl*>(op);
+        const NdbParamOperandImpl& paramOp = *static_cast<const NdbParamOperandImpl*>(key);
         keyPattern.get(keyPatternPos++) = QueryPattern::param(paramOp.getParamIx());
         break;
       }
       default:
         assert(false);
       }
-      op = m_keys[++keyNo];
-    } while (op!=NULL);
+      key = m_keys[++keyNo];
+    } while (key!=NULL);
 
     // Set total length of key pattern.
     keyPattern.get(0) = (paramCnt << 16) | (keyPatternPos-1);
   }
+
+  return appendedPattern;
 } // appendKeyPattern
 
 int
@@ -1296,7 +1394,6 @@ NdbQueryLookupOperationDefImpl
 ::serializeOperation(Uint32Buffer& serializedDef) const
 {
   assert (m_keys[0]!=NULL);
-  assert (!getIndex());
 
   Uint32Slice nodeBuffer(serializedDef);
   QN_LookupNode& node = reinterpret_cast<QN_LookupNode&>
@@ -1319,7 +1416,9 @@ NdbQueryLookupOperationDefImpl
   }
 
   // Part2: Append m_keys[] values specifying lookup key.
-  appendKeyPattern(serializedDef, node, m_keys);
+//if (getQueryOperationIx() > 0) {
+    node.requestInfo |= appendKeyPattern(serializedDef, m_keys);
+//}
 
   /* Add the projection that should be send to the SPJ block such that 
    * child operations can be instantiated.*/
@@ -1358,7 +1457,6 @@ NdbQueryIndexOperationDefImpl
 ::serializeOperation(Uint32Buffer& serializedDef) const
 {
   assert (m_keys[0]!=NULL);
-  assert (getIndex());
 
   /**
    * Serialize index as a seperate lookupNode
@@ -1379,7 +1477,9 @@ NdbQueryIndexOperationDefImpl
     }
 
     // Part2: m_keys[] are the keys to be used for index
-    appendKeyPattern(serializedDef, node, m_keys);
+//  if (getQueryOperationIx() > 0) {
+      node.requestInfo |= appendKeyPattern(serializedDef, m_keys);
+//  }
 
     /* Basetable is executed as child operation of index:
      * Add projection of NDB$PK column which is hidden *after* last index column.
@@ -1471,14 +1571,14 @@ NdbQueryIndexOperationDefImpl
 
 
 int
-NdbQueryTableScanOperationDefImpl
-::serializeOperation(Uint32Buffer& serializedDef) const
+NdbQueryScanOperationDefImpl::serialize(Uint32Buffer& serializedDef,
+                                        const NdbTableImpl& tableOrIndex) const
 {
   Uint32Slice nodeBuffer(serializedDef);
   QN_ScanFragNode& node = reinterpret_cast<QN_ScanFragNode&>
     (nodeBuffer.get(0, QN_ScanFragNode::NodeSize));
-  node.tableId = getTable().getObjectId();
-  node.tableVersion = getTable().getObjectVersion();
+  node.tableId = tableOrIndex.getObjectId();
+  node.tableVersion = tableOrIndex.getObjectVersion();
   node.requestInfo = 0;
 
   // Optional part1: Make list of parent nodes.
@@ -1487,8 +1587,9 @@ NdbQueryTableScanOperationDefImpl
     appendParentList (serializedDef);
   }
 
-  /* Add the projection that should be send to the SPJ block such that 
-   * child operations can be instantiated.*/
+  /** Add the projection that should be send to the SPJ block such that 
+   *  child operations can be instantiated.
+   */
   if (getNoOfChildOperations()>0){
     node.requestInfo |= DABits::NI_LINKED_ATTR;
     Uint16Sequence spjProjSeq(serializedDef);
@@ -1514,17 +1615,24 @@ NdbQueryTableScanOperationDefImpl
   ndbout << endl;
 #endif
   return 0;
+} // NdbQueryScanOperationDefImpl::serialize
+
+
+int
+NdbQueryTableScanOperationDefImpl
+::serializeOperation(Uint32Buffer& serializedDef) const
+{
+  return NdbQueryScanOperationDefImpl::serialize(serializedDef, getTable());
 } // NdbQueryTableScanOperationDefImpl::serializeOperation
+
 
 int
 NdbQueryIndexScanOperationDefImpl
 ::serializeOperation(Uint32Buffer& serializedDef) const
 {
-  assert (getQueryOperationId() > 0);
-  // TODO:Implement this
-  assert(false);
-  return 0;
-}
+  return NdbQueryScanOperationDefImpl::serialize(serializedDef, *m_index.getIndexTable());
+} // NdbQueryIndexScanOperationDefImpl::serializeOperation
+
 
 // Instantiate Vector templates
 template class Vector<NdbQueryOperationDefImpl*>;

@@ -288,7 +288,7 @@ public:
   { return m_ident; }
 
   Uint32 assignQueryOperationId(Uint32& nodeId)
-  { if (getIndex()) nodeId++;
+  { if (getType()==UniqueIndexAccess) nodeId++;
     m_id = nodeId++;
     return m_id;
   }
