@@ -624,6 +624,8 @@ static void abort_live_txn(void *v, void *UU(extra)) {
 
 static int do_recovery(RECOVER_ENV env, const char *data_dir, const char *log_dir) {
     int r;
+    int rr = 0;
+    TOKULOGCURSOR logcursor = NULL;
 
     char org_wd[1000];
     {
@@ -637,12 +639,14 @@ static int do_recovery(RECOVER_ENV env, const char *data_dir, const char *log_di
 
     LSN lastlsn = toku_logger_last_lsn(env->logger);
 
-    TOKULOGCURSOR logcursor;
     r = toku_logcursor_create(&logcursor, log_dir);
     assert(r == 0);
 
     r = chdir(data_dir); 
-    assert(r == 0);
+    if (r != 0) {
+        // no data directory error
+        rr = errno; goto errorexit;
+    }
 
     struct log_entry *le;
 
@@ -653,8 +657,12 @@ static int do_recovery(RECOVER_ENV env, const char *data_dir, const char *log_di
         r = toku_logcursor_prev(logcursor, &le);
         if (toku_recover_trace) 
             printf("%s:%d r=%d cmd=%c\n", __FUNCTION__, __LINE__, r, le ? le->cmd : '?');
-        if (r != 0)
+        if (r != 0) {
+            if (r == DB_RUNRECOVERY) {
+                rr = DB_RUNRECOVERY; goto errorexit;
+            }
             break;
+        }
         logtype_dispatch_assign(le, toku_recover_backward_, r, env);
         if (r != 0) {
             if (toku_recover_trace) 
@@ -670,8 +678,12 @@ static int do_recovery(RECOVER_ENV env, const char *data_dir, const char *log_di
         r = toku_logcursor_next(logcursor, &le);
         if (toku_recover_trace) 
             printf("%s:%d r=%d cmd=%c\n", __FUNCTION__, __LINE__, r, le ? le->cmd : '?');
-        if (r != 0)
+        if (r != 0) {
+            if (r == DB_RUNRECOVERY) {
+                rr = DB_RUNRECOVERY; goto errorexit;
+            }
             break;
+        }
         logtype_dispatch_args(le, toku_recover_, env);
     }
 
@@ -710,6 +722,17 @@ static int do_recovery(RECOVER_ENV env, const char *data_dir, const char *log_di
     assert(r == 0);
 
     return 0;
+
+ errorexit:
+    if (logcursor) {
+        r = toku_logcursor_destroy(&logcursor);
+        assert(r == 0);
+    }
+
+    r = chdir(org_wd); 
+    assert(r == 0);
+
+    return rr;
 }
 
 int tokudb_recover(const char *data_dir, const char *log_dir, brt_compare_func bt_compare, brt_compare_func dup_compare) {
@@ -748,8 +771,6 @@ int tokudb_recover(const char *data_dir, const char *log_dir, brt_compare_func b
 
     r = toku_os_unlock_file(lockfd);
     if (r != 0) return errno;
-
-    //printf("%s:%d recovery successful! ls -l says\n", __FILE__, __LINE__);
 
     return rr;
 }

@@ -20,7 +20,7 @@ struct toku_logcursor {
     enum lc_direction last_direction;
 };
 
-#define LC_LSN_ERROR (-1)
+#define LC_LSN_ERROR (DB_RUNRECOVERY)
 
 static void lc_print_logcursor (TOKULOGCURSOR lc) __attribute__((unused));
 static void lc_print_logcursor (TOKULOGCURSOR lc)  {
@@ -70,7 +70,9 @@ static int lc_check_lsn(TOKULOGCURSOR lc, int dir) {
     LSN lsn = toku_log_entry_get_lsn(&(lc->entry));
     if (((dir == LC_FORWARD)  && ( lsn.lsn != lc->cur_lsn.lsn + 1 )) ||
         ((dir == LC_BACKWARD) && ( lsn.lsn != lc->cur_lsn.lsn - 1 ))) {
-        fprintf(stderr, "Bad LSN : direction = %d, lsn.lsn = %"PRIu64", cur_lsn.lsn=%"PRIu64"\n", dir, lsn.lsn, lc->cur_lsn.lsn);
+        int index = lc->cur_logfiles_index;
+        fprintf(stderr, "Bad LSN: %d %s direction = %d, lsn.lsn = %"PRIu64", cur_lsn.lsn=%"PRIu64"\n", 
+                index, lc->logfiles[index], dir, lsn.lsn, lc->cur_lsn.lsn);
         return LC_LSN_ERROR;
     }
     lc->cur_lsn.lsn = lsn.lsn;
