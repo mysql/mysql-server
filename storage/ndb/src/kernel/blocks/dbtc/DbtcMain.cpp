@@ -936,6 +936,11 @@ void Dbtc::execAPI_FAILREQ(Signal* signal)
     CLEAR_ERROR_INSERT_VALUE;
     return;
   }
+  if (ERROR_INSERTED(8078))
+  {
+    c_lastFailedApi = signal->theData[0];
+    SET_ERROR_INSERT_VALUE(8079);
+  }
 
   capiFailRef = signal->theData[1];
   arrGuard(signal->theData[0], MAX_NODES);
@@ -1278,6 +1283,12 @@ void Dbtc::execTCSEIZEREQ(Signal* signal)
     }
   } 
   
+  if (ERROR_INSERTED(8078) || ERROR_INSERTED(8079))
+  {
+    /* Clear testing of API_FAILREQ behaviour */
+    CLEAR_ERROR_INSERT_VALUE;
+  };
+
   seizeApiConnect(signal);
   if (terrorCode == ZOK) {
     jam();
@@ -2572,6 +2583,16 @@ void Dbtc::execTCKEYREQ(Signal* signal)
     TCKEY_abort(signal, 7);
     return;
   }//if
+
+  if (ERROR_INSERTED(8079))
+  {
+    /* Test that no signals received after API_FAILREQ */
+    if (sendersNodeId == c_lastFailedApi)
+    {
+      /* Signal from API node received *after* API_FAILREQ */
+      ndbrequire(false);
+    }
+  }
 
   Treqinfo = tcKeyReq->requestInfo;
   //--------------------------------------------------------------------------
@@ -4118,7 +4139,8 @@ void Dbtc::sendtckeyconf(Signal* signal, UintR TcommitFlag)
   if (unlikely(!ndb_check_micro_gcp(getNodeInfo(localHostptr.i).m_version)))
   {
     jam();
-    ndbassert(Tpack6 == 0 || getNodeInfo(localHostptr.i).m_connected == false);
+    ndbassert(Tpack6 == 0 || 
+              getNodeInfo(localHostptr.i).m_version == 0); // Disconnected
   }
 }//Dbtc::sendtckeyconf()
 

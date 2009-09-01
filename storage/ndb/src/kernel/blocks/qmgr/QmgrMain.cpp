@@ -2618,14 +2618,14 @@ void Qmgr::sendApiFailReq(Signal* signal, Uint16 failedNodeNo)
 
   ptrCheckGuard(failedNodePtr, MAX_NODES, nodeRec);
   
-  ndbrequire(failedNodePtr.p->failState == NORMAL);
-  
   failedNodePtr.p->failState = WAITING_FOR_FAILCONF1;
-  NodeReceiverGroup rg(QMGR, c_clusterNodes);
-  sendSignal(rg, GSN_API_FAILREQ, signal, 2, JBA);
-  sendSignal(DBTC_REF, GSN_API_FAILREQ, signal, 2, JBA);
-  sendSignal(DBDICT_REF, GSN_API_FAILREQ, signal, 2, JBA);
-  sendSignal(SUMA_REF, GSN_API_FAILREQ, signal, 2, JBA);
+
+  /* JBB used to ensure delivery *after* any pending
+   * signals
+   */
+  sendSignal(DBTC_REF, GSN_API_FAILREQ, signal, 2, JBB);
+  sendSignal(DBDICT_REF, GSN_API_FAILREQ, signal, 2, JBB);
+  sendSignal(SUMA_REF, GSN_API_FAILREQ, signal, 2, JBB);
 }//Qmgr::sendApiFailReq()
 
 void Qmgr::execAPI_FAILREQ(Signal* signal)
@@ -2888,6 +2888,7 @@ void Qmgr::node_failed(Signal* signal, Uint16 aFailedNode)
       (CloseComReqConf *)&signal->theData[0];
 
     closeCom->xxxBlockRef = reference();
+    closeCom->requestType = CloseComReqConf::RT_NO_REPLY;
     closeCom->failNo      = 0;
     closeCom->noOfNodes   = 1;
     NodeBitmask::clear(closeCom->theNodes);
@@ -2931,25 +2932,24 @@ Qmgr::api_failed(Signal* signal, Uint32 nodeId)
     return;
   }
 
-  if (failedNodePtr.p->phase == ZAPI_ACTIVE)
-  {
-    jam();
-    sendApiFailReq(signal, nodeId);
-    arbitRec.code = ArbitCode::ApiFail;
-    handleArbitApiFail(signal, nodeId);
-  }
-  else
-  {
-    /**
-     * Always inform SUMA
-     */
-    jam();
-    signal->theData[0] = nodeId;
-    signal->theData[1] = QMGR_REF;
-    sendSignal(SUMA_REF, GSN_API_FAILREQ, signal, 2, JBA);
-    failedNodePtr.p->failState = WAITING_FOR_FAILCONF3;
-  }
+  ndbrequire(failedNodePtr.p->failState == NORMAL);
 
+  /* Send API_FAILREQ to peer QMGR blocks to allow them to disconnect
+   * quickly
+   * Local application blocks get API_FAILREQ once all pending signals
+   * from the failed API have been processed.
+   */
+  signal->theData[0] = failedNodePtr.i;
+  signal->theData[1] = QMGR_REF;
+  NodeReceiverGroup rg(QMGR, c_clusterNodes);
+  sendSignal(rg, GSN_API_FAILREQ, signal, 2, JBA);
+  
+  /* Now ask CMVMI to disconnect the node */
+  FailState initialState = (failedNodePtr.p->phase == ZAPI_ACTIVE) ?
+    WAITING_FOR_CLOSECOMCONF_ACTIVE : 
+    WAITING_FOR_CLOSECOMCONF_NOTACTIVE;
+
+  failedNodePtr.p->failState = initialState;
   failedNodePtr.p->phase = ZFAIL_CLOSING;
   setNodeInfo(failedNodePtr.i).m_heartbeat_cnt= 0;
   setNodeInfo(failedNodePtr.i).m_version = 0;
@@ -2957,22 +2957,14 @@ Qmgr::api_failed(Signal* signal, Uint32 nodeId)
   
   CloseComReqConf * const closeCom = (CloseComReqConf *)&signal->theData[0];
   closeCom->xxxBlockRef = reference();
+  closeCom->requestType = CloseComReqConf::RT_API_FAILURE;
   closeCom->failNo      = 0;
   closeCom->noOfNodes   = 1;
   NodeBitmask::clear(closeCom->theNodes);
   NodeBitmask::set(closeCom->theNodes, failedNodePtr.i);
   sendSignal(CMVMI_REF, GSN_CLOSE_COMREQ, signal, 
              CloseComReqConf::SignalLength, JBA);
-
-  if (getNodeInfo(failedNodePtr.i).getType() == NodeInfo::MGM)
-  {
-    /**
-     * Allow MGM do reconnect "directly"
-     */
-    jam();
-    setNodeInfo(failedNodePtr.i).m_heartbeat_cnt = 3;
-  }
-}
+} // api_failed
 
 /**--------------------------------------------------------------------------
  * AN API NODE IS REGISTERING. IF FOR THE FIRST TIME WE WILL ENABLE 
@@ -3502,6 +3494,80 @@ void Qmgr::execPREP_FAILREQ(Signal* signal)
   return;
 }//Qmgr::execPREP_FAILREQ()
 
+
+void Qmgr::handleApiCloseComConf(Signal* signal)
+{
+  jam();
+  CloseComReqConf * const closeCom = (CloseComReqConf *)&signal->theData[0];
+
+  /* Api failure special case */
+  for(Uint32 nodeId = 0; nodeId < MAX_NDB_NODES; nodeId ++)
+  {
+    if(NdbNodeBitmask::get(closeCom->theNodes, nodeId))
+    {
+      jam();
+      /* Check that *only* 1 *API* node is included in
+       * this CLOSE_COM_CONF
+       */
+      ndbrequire(getNodeInfo(nodeId).getType() != NodeInfo::DB);
+      ndbrequire(closeCom->noOfNodes == 1);
+      NdbNodeBitmask::clear(closeCom->theNodes, nodeId);
+      ndbrequire(NdbNodeBitmask::isclear(closeCom->theNodes));
+      
+      /* Now that we know communication from the failed Api has
+       * ceased, we can send the required API_FAILREQ signals
+       * and continue API failure handling
+       */
+      NodeRecPtr failedNodePtr;
+      failedNodePtr.i = nodeId;
+      ptrCheckGuard(failedNodePtr, MAX_NODES, nodeRec);
+      
+      ndbrequire((failedNodePtr.p->failState == 
+                  WAITING_FOR_CLOSECOMCONF_ACTIVE) ||
+                 (failedNodePtr.p->failState ==
+                  WAITING_FOR_CLOSECOMCONF_NOTACTIVE));
+      
+      if (failedNodePtr.p->failState == WAITING_FOR_CLOSECOMCONF_ACTIVE)
+      {
+        /**
+         * Inform application blocks TC, DICT, SUMA etc.
+         */
+        jam();
+        sendApiFailReq(signal, nodeId);
+        arbitRec.code = ArbitCode::ApiFail;
+        handleArbitApiFail(signal, nodeId);
+      }
+      else
+      {
+        /**
+         * Always inform SUMA
+         * JBB used to ensure delivery *after* any pending
+         * signals.
+         */
+        jam();
+        signal->theData[0] = nodeId;
+        signal->theData[1] = QMGR_REF;
+        sendSignal(SUMA_REF, GSN_API_FAILREQ, signal, 2, JBB);
+        failedNodePtr.p->failState = WAITING_FOR_FAILCONF3;
+      }
+      
+      if (getNodeInfo(failedNodePtr.i).getType() == NodeInfo::MGM)
+      {
+        /**
+         * Allow MGM do reconnect "directly"
+         */
+        jam();
+        setNodeInfo(failedNodePtr.i).m_heartbeat_cnt = 3;
+      }
+      
+      /* Handled the single API node failure */
+      return;
+    }
+  }
+  /* Never get here */
+  ndbrequire(false);
+}
+
 /**---------------------------------------------------------------------------
  * THE CRASHED NODES HAS BEEN EXCLUDED FROM COMMUNICATION. 
  * WE WILL CHECK WHETHER ANY MORE NODES HAVE FAILED DURING THE PREPARE PROCESS.
@@ -3517,6 +3583,17 @@ void Qmgr::execCLOSE_COMCONF(Signal* signal)
 
   CloseComReqConf * const closeCom = (CloseComReqConf *)&signal->theData[0];
 
+  Uint32 requestType = closeCom->requestType;
+
+  if (requestType == CloseComReqConf::RT_API_FAILURE)
+  {
+    jam();
+    handleApiCloseComConf(signal);
+    return;
+  }
+
+  /* Normal node failure preparation path */
+  ndbassert(requestType == CloseComReqConf::RT_NODE_FAILURE);
   BlockReference Tblockref  = closeCom->xxxBlockRef;
   Uint16 TfailureNr = closeCom->failNo;
 
@@ -4251,6 +4328,7 @@ void Qmgr::sendCloseComReq(Signal* signal, BlockReference TBRef, Uint16 aFailNo)
   CloseComReqConf * const closeCom = (CloseComReqConf *)&signal->theData[0];
   
   closeCom->xxxBlockRef = TBRef;
+  closeCom->requestType = CloseComReqConf::RT_NODE_FAILURE;
   closeCom->failNo      = aFailNo;
   closeCom->noOfNodes   = cnoPrepFailedNodes;
   
