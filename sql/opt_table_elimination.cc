@@ -24,8 +24,10 @@
   elimination is as follows: suppose we have a left join
  
     SELECT * FROM t1 LEFT JOIN 
-      (t2 JOIN t3) ON t3.primary_key=t1.col AND 
-                      t4.primary_key=t2.col
+      (t2 JOIN t3) ON t2.primary_key=t1.col AND 
+                      t2.primary_key=t2.col
+    WHERE ...
+
   such that
   * columns of the inner tables are not used anywhere ouside the outer join
     (not in WHERE, not in GROUP/ORDER BY clause, not in select list etc etc),
@@ -41,11 +43,11 @@
   MODULE INTERFACE
   ================
 
-  The module has one entry point - eliminate_tables() function, which one 
-  needs to call (once) at some point before the join optimization.
+  The module has one entry point - the eliminate_tables() function, which one
+  needs to call (once) at some point before join optimization.
   eliminate_tables() operates over the JOIN structures. Logically, it
-  removes the right sides of outer join nests. Physically, it changes the
-  following members:
+  removes the inner tables of an outer join operation together with the
+  operation itself. Physically, it changes the following members:
 
   * Eliminated tables are marked as constant and moved to the front of the
     join order.
@@ -119,13 +121,14 @@
       = No outgoing edges. Once we reach it, we know we can eliminate the 
         outer join.
   A module may depend on multiple values, and hence its primary attribute is
-  the number of its depedencies that are not bound. 
+  the number of its arguments that are not bound. 
 
   The algorithm starts with equality nodes that don't have any incoming edges
   (their expressions are either constant or depend only on tables that are
   outside of the outer join in question) and performns a breadth-first
   traversal. If we reach the outer join nest node, it means outer join is
-  functionally dependent and can be eliminated. Otherwise it cannot be.
+  functionally dependent and can be eliminated. Otherwise it cannot be
+  eliminated.
  
   HANDLING MULTIPLE NESTED OUTER JOINS
   ====================================
@@ -230,8 +233,9 @@ public:
   Field *field; /* Field this object is representing */
   
   /* Iteration over unbound modules that are our dependencies */
-  virtual Iterator init_unbound_modules_iter(char *buf);
-  virtual Dep_module* get_next_unbound_module(Dep_analysis_context *dac, Iterator iter);
+  Iterator init_unbound_modules_iter(char *buf);
+  Dep_module* get_next_unbound_module(Dep_analysis_context *dac, 
+                                      Iterator iter);
   
   void make_unbound_modules_iter_skip_keys(Iterator iter);
   
@@ -269,9 +273,11 @@ const size_t Dep_value_field::iterator_size=
 /*
   A table value. There is one Dep_value_table object for every table that can
   potentially be eliminated.
-  Dependencies:
-  - table depends on any of its unique keys
-  - has its fields and embedding outer join as dependency
+
+  Table becomes bound as soon as some of its unique keys becomes bound
+  Once the table is bound:
+   - all of its fields are bound
+   - its embedding outer join has one less unknown argument
 */
 
 class Dep_value_table : public Dep_value
@@ -280,14 +286,15 @@ public:
   Dep_value_table(TABLE *table_arg) : 
     table(table_arg), fields(NULL), keys(NULL)
   {}
-  TABLE *table;
-  Dep_value_field *fields; /* Ordered list of fields that belong to this table */
+  TABLE *table;  /* Table this object is representing */
+  /* Ordered list of fields that belong to this table */
+  Dep_value_field *fields;
   Dep_module_key *keys; /* Ordered list of Unique keys in this table */
 
   /* Iteration over unbound modules that are our dependencies */
   Iterator init_unbound_modules_iter(char *buf);
-  Dep_module* get_next_unbound_module(Dep_analysis_context *dac, Iterator iter);
-
+  Dep_module* get_next_unbound_module(Dep_analysis_context *dac, 
+                                      Iterator iter);
   static const size_t iterator_size;
 private:
   class Module_iter
@@ -295,7 +302,7 @@ private:
   public:
     /* Space for field iterator */
     char buf[Dep_value_field::iterator_size];
-    /* !NULL <=> iterating over dependenant modules of this field */
+    /* !NULL <=> iterating over depdenent modules of this field */
     Dep_value_field *field_dep; 
     bool returned_goal;
   };
@@ -339,7 +346,8 @@ public:
   /* Iteration over values that */
   typedef char *Iterator;
   virtual Iterator init_unbound_values_iter(char *buf)=0;
-  virtual Dep_value* get_next_unbound_value(Dep_analysis_context *dac, Iterator iter)=0;
+  virtual Dep_value* get_next_unbound_value(Dep_analysis_context *dac,
+                                            Iterator iter)=0;
   static const size_t iterator_size;
 protected:
   uint unbound_args;
@@ -385,9 +393,9 @@ const size_t Dep_module_expr::iterator_size=
 
 
 /*
-  A Unique key
-   - Unique key depends on all of its components
-   - Key's table is its dependency
+  A Unique key module
+   - Unique key has all of its components as arguments
+   - Once unique key is bound, its table value is known
 */
 
 class Dep_module_key: public Dep_module
@@ -539,8 +547,8 @@ void add_module_expr(Dep_analysis_context *dac, Dep_module_expr **eq_mod,
     The idea behind table elimination is that if we have an outer join:
    
       SELECT * FROM t1 LEFT JOIN 
-        (t2 JOIN t3) ON t3.primary_key=t1.col AND 
-                        t4.primary_key=t2.col
+        (t2 JOIN t3) ON t2.primary_key=t1.col AND 
+                        t3.primary_key=t2.col
     such that
 
     1. columns of the inner tables are not used anywhere ouside the outer
@@ -559,8 +567,8 @@ void add_module_expr(Dep_analysis_context *dac, Dep_module_expr **eq_mod,
     tables that are not used in select list/GROUP BY/ORDER BY/HAVING/etc and
     thus can possibly be eliminated.
 
-     After this, if #1 is met, the function calls eliminate_tables_for_list()
-     that checks #2.
+    After this, if #1 is met, the function calls eliminate_tables_for_list()
+    that checks #2.
   
   SIDE EFFECTS
     See the OVERVIEW section at the top of this file.
@@ -656,7 +664,14 @@ void eliminate_tables(JOIN *join)
                               select list, HAVING, other ON expressions, etc).
 
   DESCRIPTION
-    Perform table elimination in a given join list.
+    Perform table elimination in a given join list:
+    - First, walk through join list members and try doing table elimination for
+      them.
+    - Then, if the join list itself is an inner side of outer join
+      (on_expr!=NULL), then try to eliminate the entire join list.
+
+    See "HANDLING MULTIPLE NESTED OUTER JOINS" section at the top of this file
+    for more detailed description and justification.
     
   RETURN
     TRUE   The entire join list eliminated
@@ -1677,7 +1692,8 @@ Dep_value::Iterator Dep_value_field::init_unbound_modules_iter(char *buf)
 }
 
 
-void Dep_value_field::make_unbound_modules_iter_skip_keys(Dep_value::Iterator iter)
+void 
+Dep_value_field::make_unbound_modules_iter_skip_keys(Dep_value::Iterator iter)
 {
   ((Module_iter*)iter)->key_dep= NULL;
 }
