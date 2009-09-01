@@ -9,7 +9,7 @@ DB_TXN * const null_txn = 0;
 
 const char * const fname = ENVDIR "/" "test_db_remove.brt";
 
-void test_db_remove (void) {
+static void test_db_remove (void) {
     int r;
     system("rm -rf " ENVDIR);
     r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); assert(r==0);

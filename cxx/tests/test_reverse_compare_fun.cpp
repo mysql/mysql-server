@@ -65,7 +65,7 @@ void test_reverse_compare(int n, int dup_flags) {
     int i;
 
     system("rm -rf " DIR);
-    mkdir(DIR, 0777);
+    toku_os_mkdir(DIR, 0777);
 
     /* create the dup database file */
     db = new Db(null_env, 0);

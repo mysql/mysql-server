@@ -10,7 +10,7 @@
 #include <db.h>
 #include <toku_pthread.h>
 
-static inline unsigned int getmyid() {
+static inline unsigned int getmyid(void) {
     return toku_os_gettid();
 }
 

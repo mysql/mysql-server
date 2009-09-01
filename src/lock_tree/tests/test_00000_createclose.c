@@ -1,6 +1,6 @@
 #include <test.h>
 
-int main() {
+int main(void) {
     int r;
     toku_lock_tree* lt  = NULL;
     toku_ltm*       mgr = NULL;

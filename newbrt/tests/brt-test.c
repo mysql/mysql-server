@@ -483,7 +483,7 @@ static void test_large_kv(int bsize, int ksize, int vsize) {
  * test the key and value limits
  * the current implementation crashes when kvsize == bsize/2 rather than fails
  */
-static void test_brt_limits() {
+static void test_brt_limits(void) {
     int bsize = 1024;
     int kvsize = 4;
     while (kvsize < bsize/2) {
@@ -495,7 +495,7 @@ static void test_brt_limits() {
 /*
  * verify that a delete on an empty tree fails
  */
-static void test_brt_delete_empty() {
+static void test_brt_delete_empty(void) {
     if (verbose) printf("test_brt_delete_empty\n");
 
     BRT t;
@@ -840,7 +840,7 @@ static void test_brt_delete_both(int n) {
     r = toku_cachetable_close(&ct);     assert(r==0);
 }
 
-static void test_brt_delete() {
+static void test_brt_delete(void) {
     test_brt_delete_empty(); toku_memory_check_all_free();
     test_brt_delete_present(1); toku_memory_check_all_free();
     test_brt_delete_present(100); toku_memory_check_all_free();

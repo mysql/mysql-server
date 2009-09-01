@@ -124,7 +124,7 @@ verify_val(u_int8_t nest_level) {
 }
 
 static u_int8_t
-randomize_no_placeholder_type() {
+randomize_no_placeholder_type(void) {
     int r;
     r = random() % 2;
     switch (r) {
@@ -138,7 +138,7 @@ randomize_no_placeholder_type() {
 }
 
 static u_int8_t
-randomize_type() {
+randomize_type(void) {
     int r;
     do {
         r = random() % 4;

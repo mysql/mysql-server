@@ -134,7 +134,7 @@ drop_dead(void) {
 }
 
 
-void
+static void
 verify_and_insert (DB* db, int iter) {
 
     int64_t firstkey;     // first key to verify/insert
@@ -163,7 +163,7 @@ verify_and_insert (DB* db, int iter) {
 //  Purpose of this function is to perform a variety of random acts.  
 //  This will simulate normal database operations.  The idea is for the 
 //  the crash to occur sometimes during an insert, sometimes during a query, etc.
-void *
+static void *
 random_acts(void * d) {
     void * intothevoid = NULL;
     DICTIONARY dictionaries = (DICTIONARY) d;
@@ -197,7 +197,7 @@ random_acts(void * d) {
 
 u_int64_t max_windows_cachesize = 256 << 20;
 
-void
+static void
 run_test (int iter, int die) {
 
     u_int32_t flags = DB_DUP|DB_DUPSORT;

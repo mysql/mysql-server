@@ -278,7 +278,7 @@ static int usage()
    return EXIT_FAILURE;
 }
 
-static u_int8_t randbyte()
+static u_int8_t randbyte(void)
 {
    static u_int32_t   numsavedbits   = 0;
    static u_int64_t   savedbits      = 0;

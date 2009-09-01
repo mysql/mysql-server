@@ -184,7 +184,7 @@ error:
 }
 
 static inline int
-verify_library_version()
+verify_library_version(void)
 {
    int major;
    int minor;

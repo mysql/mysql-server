@@ -6,11 +6,11 @@
 #include <pthread.h>
 int x;
 
-void *starta(void* ignore __attribute__((__unused__))) {
+static void *starta(void* ignore __attribute__((__unused__))) {
     x++;
     return 0;
 }
-void *startb(void* ignore __attribute__((__unused__))) {
+static void *startb(void* ignore __attribute__((__unused__))) {
     x++;
     return 0;
 }

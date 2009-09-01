@@ -13,7 +13,7 @@
 DB_ENV *env;
 DB *db;
 
-void initialize (void) {
+static void initialize (void) {
     int r;
     system("rm -rf " ENVDIR);
     toku_os_mkdir(ENVDIR, 0777);
@@ -51,13 +51,13 @@ void initialize (void) {
     }
 }
 
-void finish (void) {
+static void finish (void) {
     int r;
     r = db->close(db, 0); assert(r==0);
     r = env->close(env, 0); assert(r==0);
 }
 
-void *starta(void* ignore __attribute__((__unused__))) {
+static void *starta(void* ignore __attribute__((__unused__))) {
     DB_TXN *txn = 0;
     DBT key, val;
     memset(&key, 0, sizeof(key));
@@ -71,7 +71,7 @@ void *starta(void* ignore __attribute__((__unused__))) {
     toku_free(val.data);
     return 0;
 }
-void *startb(void* ignore __attribute__((__unused__))) {
+static void *startb(void* ignore __attribute__((__unused__))) {
     DB_TXN *txn = 0;
     DBT key, val;
     memset(&key, 0, sizeof(key));

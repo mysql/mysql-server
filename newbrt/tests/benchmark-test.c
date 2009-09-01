@@ -107,7 +107,7 @@ static void biginsert (long long n_elements, struct timeval *starttime) {
     }
 }
 
-static void usage() {
+static void usage(void) {
     printf("benchmark-test [OPTIONS] [ITERATIONS]\n");
     printf("[-v]\n");
     printf("[-q]\n");

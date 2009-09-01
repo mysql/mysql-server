@@ -9,7 +9,7 @@
 #error This test only works for TokuDB.
 #endif
 
-void mkfile (const char *fname) {
+static void mkfile (const char *fname) {
     mode_t mode = S_IRWXU|S_IRWXG|S_IRWXO;
     int fd = open(fname, O_WRONLY | O_CREAT | O_BINARY, mode); 
     if (fd<0) perror("opening");
@@ -18,7 +18,7 @@ void mkfile (const char *fname) {
     r = close(fd);                                                        assert(r==0);
 }
 
-void
+static void
 do_1324 (int moreflags)
 {
     const char fname[] = ENVDIR "/__rolltmp.12345";

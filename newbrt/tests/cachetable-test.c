@@ -10,19 +10,19 @@
 
 toku_pthread_mutex_t  test_mutex;
 
-static inline void test_mutex_init() {
+static inline void test_mutex_init(void) {
     int r = toku_pthread_mutex_init(&test_mutex, 0); assert(r == 0);
 }
 
-static inline void test_mutex_destroy() {
+static inline void test_mutex_destroy(void) {
     int r = toku_pthread_mutex_destroy(&test_mutex); assert(r == 0);
 }
 
-static inline void test_mutex_lock() {
+static inline void test_mutex_lock(void) {
     int r = toku_pthread_mutex_lock(&test_mutex); assert(r == 0);
 }
 
-static inline void test_mutex_unlock() {
+static inline void test_mutex_unlock(void) {
     int r = toku_pthread_mutex_unlock(&test_mutex); assert(r == 0);
 }
 
@@ -452,7 +452,7 @@ static int test_dirty_fetch(CACHEFILE f, CACHEKEY key, u_int32_t fullhash, void 
     return 0;
 }
 
-static void test_dirty() {
+static void test_dirty(void) {
     if (verbose) printf("test_dirty\n");
 
     CACHETABLE t;
@@ -577,7 +577,7 @@ static void test_size_flush_callback(CACHEFILE f,
     }
 }
 
-static void test_size_resize() {
+static void test_size_resize(void) {
     if (verbose) printf("test_size_resize\n");
 
     CACHETABLE t;
@@ -633,7 +633,7 @@ static void test_size_resize() {
 
 static int min2(int a, int b) { return a < b ? a : b; }
 
-static void test_size_flush() {
+static void test_size_flush(void) {
     if (verbose) printf("test_size_flush\n");
 
     CACHETABLE t;

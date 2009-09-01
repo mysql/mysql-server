@@ -101,7 +101,7 @@ checkpoint_test_2(u_int32_t flags, u_int32_t n) {
 
 // Purpose is to scribble over test db while checkpoint is 
 // in progress.
-void checkpoint_callback_1(void * extra) {
+static void checkpoint_callback_1(void * extra) {
     DICTIONARY d = *(DICTIONARY*) extra;
     int i;
     char name[MAX_NAME*2];
@@ -117,7 +117,7 @@ void checkpoint_callback_1(void * extra) {
     
 }
 
-void checkpoint_callback_2(void * extra) {
+static void checkpoint_callback_2(void * extra) {
     DICTIONARY d = *(DICTIONARY*) extra;
     assert(d==test_dictionary);
     char name[MAX_NAME*2];
