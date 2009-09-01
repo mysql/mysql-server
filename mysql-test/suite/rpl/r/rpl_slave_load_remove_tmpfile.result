@@ -51,4 +51,4 @@ Last_SQL_Errno	9
 Last_SQL_Error	Error in Begin_load_query event: write to '../../tmp/SQL_LOAD.data' failed
 drop table t1;
 drop table t1;
-call mtr.add_suppression("Slave: Error writing file 'UNKNOWN' (Errcode: 9) Error_code: 3");
+call mtr.add_suppression("Slave: Error writing file 'UNKNOWN' .Errcode: 9. Error_code: 3");
