@@ -1304,3 +1304,8 @@ max-time: 300
 cmd: testDict
 args: -n Bug36702 D1
 
+# Test clean ApiFailReq behaviour
+max-time: 300
+cmd: testNdbApi
+args: -n ApiFailReqBehaviour T1
+
