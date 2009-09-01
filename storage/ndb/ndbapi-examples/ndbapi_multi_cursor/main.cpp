@@ -16,7 +16,7 @@
 /**************************************************************
  *
  * NOTE THAT THIS TOOL CAN ONLY BE RUN AGAINST THE EMPLOYEES DATABASE 
- * TABLES WITH WHICH IS A SEPERATE DOWNLOAD AVAILABLE AT WWW.MYSQL.COM.
+ * TABLES WHICH IS A SEPERATE DOWNLOAD AVAILABLE AT WWW.MYSQL.COM.
  **************************************************************/
 
 
@@ -33,6 +33,8 @@
 #include "NdbQueryOperation.hpp"
 
 #include "NdbQueryOperationImpl.hpp"
+
+//#define USE_RECATTR
 
 /**
  * Helper debugging macros
@@ -61,10 +63,11 @@
 ******************************************************/
 struct ManagerRow
 {
-  char   dept_no[1+4+1];
+  char   dept_no[4];
   Uint32 emp_no;
   Int32  from_date;
   Int32  to_date;
+  Uint32 my_key;
 };
 
 struct EmployeeRow
@@ -112,10 +115,12 @@ const char* dept_managerDef =
 "   emp_no       INT             NOT NULL,"
 "   from_date    DATE            NOT NULL,"
 "   to_date      DATE            NOT NULL,"
+"   my_key       INT             NOT NULL,"
 "   KEY         (emp_no),"
 "   KEY         (dept_no),"
 "   FOREIGN KEY (emp_no)  REFERENCES employees (emp_no)    ON DELETE CASCADE,"
 "   FOREIGN KEY (dept_no) REFERENCES departments (dept_no) ON DELETE CASCADE,"
+"   UNIQUE KEY MYINDEXNAME (my_key),"
 "   PRIMARY KEY (emp_no,dept_no))"
 " ENGINE=NDB";
 
@@ -210,25 +215,17 @@ int createEmployeeDb()
     printf("Created 'salaries' table\n");
 
 
-
-    /****/
     printf("Insert simple test data\n");
-    if (mysql_query(&mysql, "Insert into dept_manager(dept_no,emp_no) values ('d005',110567)") != 0) MYSQLERROR(mysql);
+
+    if (mysql_query(&mysql, "Insert into dept_manager(dept_no,emp_no,my_key) values ('d005',110567,110567)") != 0) MYSQLERROR(mysql);
+    mysql_commit(&mysql);
+    if (mysql_query(&mysql, "Insert into dept_manager(dept_no,emp_no,my_key) values ('c005',11057,11067)") != 0) MYSQLERROR(mysql);
+    mysql_commit(&mysql);
+    if (mysql_query(&mysql, "Insert into dept_manager(dept_no,emp_no,my_key) values ('e005',210567,210567)") != 0) MYSQLERROR(mysql);
     mysql_commit(&mysql);
 
     if (mysql_query(&mysql, "Insert into employees(emp_no,dept_no) values (110567,'d005')") != 0) MYSQLERROR(mysql);
     mysql_commit(&mysql);
-    /******/
-
-    /********
-   printf("Insert simple test data\n");
-    if (mysql_query(&mysql, "Insert into dept_manager(dept_no,emp_no) values (1005,110567)") != 0) MYSQLERROR(mysql);
-    mysql_commit(&mysql);
-
-    if (mysql_query(&mysql, "Insert into employees(emp_no,dept_no) values (110567,1005)") != 0) MYSQLERROR(mysql);
-    mysql_commit(&mysql);
-
-    ************/
 
     mysql_close(&mysql);
   }
@@ -288,6 +285,9 @@ int testQueryBuilder(Ndb &myNdb)
   char* dept_no = "d005";
   Uint32 emp_no = 110567;
 
+  ManagerRow  managerRow;
+  EmployeeRow employeeRow;
+
   printf("\n -- Building query --\n");
 
   NdbDictionary::Dictionary* myDict= myNdb.getDictionary();
@@ -310,7 +310,7 @@ int testQueryBuilder(Ndb &myNdb)
    */
   NdbQueryBuilder myBuilder(myNdb);
 
-#if 0
+#if 1
   /* qt1 is 'const defined' */
   printf("q1\n");
   const NdbQueryDef* q1 = 0;
@@ -374,6 +374,7 @@ int testQueryBuilder(Ndb &myNdb)
 #endif
 
 
+#if 1
   /* Composite operations building real *trees* aka. linked operations.
    * (First part is identical to building 'qt2' above)
    *
@@ -416,7 +417,6 @@ int testQueryBuilder(Ndb &myNdb)
     if (q4 == NULL) APIERROR(qb->getNdbError());
   }
 
-
   ///////////////////////////////////////////////////
   // q4 may later be executed as:
   // (Possibly multiple ::execute() or multiple NdbQueryDef instances 
@@ -431,19 +431,7 @@ int testQueryBuilder(Ndb &myNdb)
   if (myQuery == NULL)
     APIERROR(myTransaction->getNdbError());
 
-#if 0
-  ManagerRow managerRow;
-  memset (&managerRow, 0, sizeof(managerRow));
-  const NdbRecord* rowManagerRecord = manager->getDefaultRecord();
-  if (rowManagerRecord == NULL) APIERROR(myDict->getNdbError());
-
-  // Specify result handling NdbRecord style - need the (single) NdbQueryOperation:
-  assert(myQuery->getNoOfOperations()==2);
-  NdbQueryOperation* op = myQuery->getQueryOperation((Uint32)0);
-
-  op->setResultRowBuf(rowManagerRecord, (char*)&managerRow);
-#else
-  
+#ifdef USE_RECATTR
   const NdbRecAttr *key[2][2];
 
   for (Uint32 i=0; i<myQuery->getNoOfOperations(); ++i)
@@ -454,6 +442,24 @@ int testQueryBuilder(Ndb &myNdb)
     key[i][0] =  op->getValue(table->getColumn(0));
     key[i][1] =  op->getValue(table->getColumn(1));
   }
+
+#else
+{
+  memset (&managerRow,  0, sizeof(managerRow));
+  memset (&employeeRow, 0, sizeof(employeeRow));
+  const NdbRecord* rowManagerRecord = manager->getDefaultRecord();
+  if (rowManagerRecord == NULL) APIERROR(myDict->getNdbError());
+
+  const NdbRecord* rowEmployeeRecord = employee->getDefaultRecord();
+  if (rowEmployeeRecord == NULL) APIERROR(myDict->getNdbError());
+
+  assert(myQuery->getNoOfOperations()==2);
+  NdbQueryOperation* op0 = myQuery->getQueryOperation(0U);
+  NdbQueryOperation* op1 = myQuery->getQueryOperation(1U);
+
+  op0->setResultRowBuf(rowManagerRecord, (char*)&managerRow);
+  op1->setResultRowBuf(rowEmployeeRecord, (char*)&employeeRow);
+}
 #endif
 
   printf("Start execute\n");
@@ -467,10 +473,15 @@ int testQueryBuilder(Ndb &myNdb)
   if (res == -1)
     APIERROR(myQuery->getNdbError());
 
+#ifdef USE_RECATTR
   printf("manager  emp_no: %d\n", key[0][1]->u_32_value());
   printf("employee emp_no: %d\n", key[1][0]->u_32_value());
-
+#else
   // NOW: Result is available in 'managerRow' buffer
+  printf("manager  emp_no: %d\n", managerRow.emp_no);
+  printf("employee emp_no: %d\n", employeeRow.emp_no);
+#endif
+
 
   myNdb.closeTransaction(myTransaction);
   myTransaction = 0;
@@ -523,6 +534,7 @@ int testQueryBuilder(Ndb &myNdb)
   if (myQuery == NULL)
     APIERROR(myTransaction->getNdbError());
 
+#ifdef USE_RECATTR
   const NdbRecAttr *value_q4[2][2];
 
   for (Uint32 i=0; i<myQuery->getNoOfOperations(); ++i)
@@ -533,6 +545,24 @@ int testQueryBuilder(Ndb &myNdb)
     value_q4[i][0] =  op->getValue(table->getColumn(0));
     value_q4[i][1] =  op->getValue(table->getColumn(1));
   }
+#else
+{
+  memset (&managerRow,  0, sizeof(managerRow));
+  memset (&employeeRow, 0, sizeof(employeeRow));
+  const NdbRecord* rowEmployeeRecord = employee->getDefaultRecord();
+  if (rowEmployeeRecord == NULL) APIERROR(myDict->getNdbError());
+
+  const NdbRecord* rowManagerRecord = manager->getDefaultRecord();
+  if (rowManagerRecord == NULL) APIERROR(myDict->getNdbError());
+
+  assert(myQuery->getNoOfOperations()==2);
+  NdbQueryOperation* op0 = myQuery->getQueryOperation(0U);
+  NdbQueryOperation* op1 = myQuery->getQueryOperation(1U);
+
+  op0->setResultRowBuf(rowEmployeeRecord, (char*)&employeeRow);
+  op1->setResultRowBuf(rowManagerRecord, (char*)&managerRow);
+}
+#endif
 
   printf("Start execute\n");
   if (myTransaction->execute( NdbTransaction::NoCommit ) == -1)
@@ -545,18 +575,24 @@ int testQueryBuilder(Ndb &myNdb)
   if (res == -1)
     APIERROR(myQuery->getNdbError());
 
+#ifdef USE_RECATTR
   printf("employee emp_no: %d\n", value_q4[0][0]->u_32_value());
   printf("manager  emp_no: %d\n", value_q4[1][1]->u_32_value());
+
+#else
+  printf("employee emp_no: %d\n", employeeRow.emp_no);
+  printf("manager  emp_no: %d\n", managerRow.emp_no);
+#endif
 
   // NOW: Result is available in 'managerRow' buffer
 
   myNdb.closeTransaction(myTransaction);
   myTransaction = 0;
+#endif
 
   /////////////////////////////////////////////////
 
 #if 0
-
   // Example: ::readTuple() using Index for unique key lookup
   printf("q5\n");
 
@@ -565,14 +601,15 @@ int testQueryBuilder(Ndb &myNdb)
     NdbQueryBuilder* qb = &myBuilder; //myDict->getQueryBuilder();
 
     // Lookup Primary key for manager table
-    const NdbDictionary::Index *myPIndex= myDict->getIndex("PRIMARY", manager->getName());
+    const NdbDictionary::Index *myPIndex= myDict->getIndex("MYINDEXNAME$unique", manager->getName());
     if (myPIndex == NULL)
       APIERROR(myDict->getNdbError());
 
     // Manager index-key defined as parameter, NB: Reversed order compared to hash key
     const NdbQueryOperand* managerKey[] =  // Manager PK index is {"emp_no","dept_no", }
-    {  qb->constValue(110567),             // emp_no  = 110567
-       qb->constValue("d005"),             // dept_no = "d005"
+    {
+       //qb->constValue(110567),   // emp_no  = 110567
+       qb->paramValue(),
        0
     };
     // Lookup on a single tuple with key define by 'managerKey' param. tuple
@@ -583,13 +620,64 @@ int testQueryBuilder(Ndb &myNdb)
     if (q5 == NULL) APIERROR(qb->getNdbError());
   }
 
-  // Example: ::readTuple() using Index for unique key lookup
-  printf("q6\n");
+  myTransaction= myNdb.startTransaction();
+  if (myTransaction == NULL) APIERROR(myNdb.getNdbError());
+
+  void* paramList_q5[] = {&emp_no};
+  myQuery = myTransaction->createQuery(q5,paramList_q5);
+  if (myQuery == NULL)
+    APIERROR(myTransaction->getNdbError());
+
+#ifdef USE_RECATTR
+  const NdbRecAttr *value_q5[2];
+
+  NdbQueryOperation* op = myQuery->getQueryOperation(0U);
+  const NdbDictionary::Table* table = op->getQueryOperationDef().getTable();
+
+  value_q5[0] = op->getValue(table->getColumn(0));
+  value_q5[1] = op->getValue(table->getColumn(1));
+#else
+{
+  memset (&managerRow, 0, sizeof(managerRow));
+  const NdbRecord* rowManagerRecord = manager->getDefaultRecord();
+  if (rowManagerRecord == NULL) APIERROR(myDict->getNdbError());
+
+  // Specify result handling NdbRecord style - need the (single) NdbQueryOperation:
+  NdbQueryOperation* op = myQuery->getQueryOperation(0U);
+
+  op->setResultRowBuf(rowManagerRecord, (char*)&managerRow);
+}
+#endif
+
+  printf("Start execute\n");
+  if (myTransaction->execute( NdbTransaction::NoCommit ) == -1)
+    APIERROR(myTransaction->getNdbError());
+  printf("Done executed\n");
+
+  // All NdbQuery operations are handled as scans with cursor placed 'before'
+  // first record: Fetch next to retrieve result:
+  res = myQuery->nextResult();
+  if (res == -1)
+    APIERROR(myQuery->getNdbError());
+
+#ifdef USE_RECATTR
+  printf("employee emp_no: %d\n", value_q5[1]->u_32_value());
+#else
+  printf("employee emp_no: %d\n", managerRow.emp_no);
+#endif
+
+  myNdb.closeTransaction(myTransaction);
+  myTransaction = 0;
+#endif
+
+#if 1
+  printf("q6: Table scan + linked lookup\n");
 
   const NdbQueryDef* q6 = 0;
   {
     NdbQueryBuilder* qb = &myBuilder; //myDict->getQueryBuilder();
 
+/****
     // Lookup Primary key for manager table
     const NdbDictionary::Index *myPIndex= myDict->getIndex("PRIMARY", manager->getName());
     if (myPIndex == NULL)
@@ -606,7 +694,7 @@ int testQueryBuilder(Ndb &myNdb)
     const NdbQueryIndexBound  bound        (low, NULL);   // emp_no = [110567, oo]
     const NdbQueryIndexBound  bound_illegal(low, high);   // 'high' is char type -> illegal
     const NdbQueryIndexBound  boundEq(low);
-
+****/
     // Lookup on a single tuple with key define by 'managerKey' param. tuple
 //  const NdbQueryScanOperationDef* scanManager = qb->scanIndex(myPIndex, manager, &boundEq);
     const NdbQueryScanOperationDef* scanManager = qb->scanTable(manager);
@@ -627,7 +715,6 @@ int testQueryBuilder(Ndb &myNdb)
     if (q6 == NULL) APIERROR(qb->getNdbError());
   }
 
-
   myTransaction= myNdb.startTransaction();
   if (myTransaction == NULL) APIERROR(myNdb.getNdbError());
 
@@ -635,41 +722,202 @@ int testQueryBuilder(Ndb &myNdb)
   if (myQuery == NULL)
     APIERROR(myTransaction->getNdbError());
 
-  const NdbRecAttr* value[2][2];
+#ifdef USE_RECATTR
+  const NdbRecAttr* value_q6[2][2];
 
   for (Uint32 i=0; i<myQuery->getNoOfOperations(); ++i)
   {
     NdbQueryOperation* op = myQuery->getQueryOperation(i);
     const NdbDictionary::Table* table = op->getQueryOperationDef().getTable();
 
-    value[i][0] =  op->getValue(table->getColumn(0));
-    value[i][1] =  op->getValue(table->getColumn(1));
-
-    for (Uint32 col=2; col<table->getNoOfColumns(); col++)
-    {
-      op->getValue(table->getColumn(col));
-    }
+    value_q6[i][0] =  op->getValue(table->getColumn(0));
+    value_q6[i][1] =  op->getValue(table->getColumn(1));
   }
+#else
+{
+  int err;
+  const NdbRecord* rowManagerRecord = manager->getDefaultRecord();
+  if (rowManagerRecord == NULL) APIERROR(myDict->getNdbError());
+
+  assert(myQuery->getNoOfOperations()==2);
+  NdbQueryOperation* op0 = myQuery->getQueryOperation(0U);
+  err = op0->setResultRowBuf(rowManagerRecord, (char*)&managerRow);
+  assert (err==0);
+//if (err == NULL) APIERROR(op0->getNdbError());
+
+  const NdbRecord* rowEmployeeRecord = employee->getDefaultRecord();
+  if (rowEmployeeRecord == NULL) APIERROR(myDict->getNdbError());
+
+  NdbQueryOperation* op1 = myQuery->getQueryOperation(1U);
+  err = op1->setResultRowBuf(rowEmployeeRecord, (char*)&employeeRow);
+  assert (err==0);
+//if (err == NULL) APIERROR(op1->getNdbError());
+}
+#endif
 
   printf("Start execute\n");
   if (myTransaction->execute( NdbTransaction::NoCommit ) == -1)
     APIERROR(myTransaction->getNdbError());
   printf("Done executed\n");
 
-  // All NdbQuery operations are handled as scans with cursor placed 'before'
-  // first record: Fetch next to retrieve result:
-  res = myQuery->nextResult();
-  if (res == -1)
-    APIERROR(myQuery->getNdbError());
+  while (true) {
+    memset (&managerRow,  0, sizeof(managerRow));
+    memset (&employeeRow, 0, sizeof(employeeRow));
 
-  printf("manager  emp_no: %d\n", value[0][1]->u_32_value());
-  printf("employee emp_no: %d\n", value[1][0]->u_32_value());
+    // All NdbQuery operations are handled as scans with cursor placed 'before'
+    // first record: Fetch next to retrieve result:
+    NdbQuery::NextResultOutcome res = myQuery->nextResult();
 
-  // NOW: Result is available in 'managerRow' buffer
+    if (res == NdbQuery::NextResult_error) {
+      APIERROR(myQuery->getNdbError());
+    } else if (res!=NdbQuery::NextResult_gotRow) {
+      break;
+    }
+
+#ifdef USE_RECATTR
+    printf("manager  emp_no: %d\n", value_q6[0][1]->u_32_value());
+    printf("employee emp_no: %d\n", value_q6[1][0]->u_32_value());
+#else
+    // NOW: Result is available in row buffers
+    printf("manager  emp_no: %d\n", managerRow.emp_no);
+    printf("employee emp_no: %d\n", employeeRow.emp_no);
+#endif
+
+  };
+  printf("EOF\n");
+//  myQuery->close();
 
   myNdb.closeTransaction(myTransaction);
   myTransaction = 0;
 #endif
+
+#if 1
+  printf("Ordered index scan + lookup\n");
+
+  const NdbQueryDef* q6_1 = 0;
+  {
+    NdbQueryBuilder* qb = &myBuilder; //myDict->getQueryBuilder();
+
+    // Lookup Primary key for manager table
+    const NdbDictionary::Index *myPIndex= myDict->getIndex("PRIMARY", manager->getName());
+    if (myPIndex == NULL)
+      APIERROR(myDict->getNdbError());
+
+    const NdbQueryOperand* low[] =  // Manager PK index is {"emp_no","dept_no", }
+    {
+//     qb->constValue(110567),      // emp_no  = 110567
+       qb->paramValue(),
+       qb->constValue("d005"),      // dept_no = "d005"
+       0
+    };
+    const NdbQueryOperand* high[] =  // Manager PK index is {"emp_no","dept_no", }
+    {  qb->constValue("illegal key"),
+       0
+    };
+    const NdbQueryIndexBound  bound        (low, NULL);   // emp_no = [110567, oo]
+    const NdbQueryIndexBound  bound_illegal(low, high);   // 'high' is char type -> illegal
+    const NdbQueryIndexBound  boundEq(low);
+
+    // Lookup on a single tuple with key define by 'managerKey' param. tuple
+    const NdbQueryScanOperationDef* scanManager = qb->scanIndex(myPIndex, manager, &boundEq);
+    if (scanManager == NULL) APIERROR(qb->getNdbError());
+
+    // THEN: employee table is joined:
+    //    A linked value is used to let employee lookup refer values
+    //    from the parent operation on manager.
+
+    const NdbQueryOperand* empJoinKey[] =       // Employee is indexed om {"emp_no"}
+    {  qb->linkedValue(scanManager, "emp_no"),  // where '= readManger.emp_no'
+       0
+    };
+    const NdbQueryLookupOperationDef* readEmployee = qb->readTuple(employee, empJoinKey);
+    if (readEmployee == NULL) APIERROR(qb->getNdbError());
+
+    q6_1 = qb->prepare();
+    if (q6_1 == NULL) APIERROR(qb->getNdbError());
+  }
+
+  myTransaction= myNdb.startTransaction();
+  if (myTransaction == NULL) APIERROR(myNdb.getNdbError());
+
+  void* paramList_q6_1[] = {&emp_no};
+  myQuery = myTransaction->createQuery(q6_1, paramList_q6_1);
+  if (myQuery == NULL)
+    APIERROR(myTransaction->getNdbError());
+
+#ifdef USE_RECATTR
+  const NdbRecAttr* value_q6_1[2][2];
+
+  for (Uint32 i=0; i<myQuery->getNoOfOperations(); ++i)
+  {
+    NdbQueryOperation* op = myQuery->getQueryOperation(i);
+    const NdbDictionary::Table* table = op->getQueryOperationDef().getTable();
+
+    value_q6_1[i][0] =  op->getValue(table->getColumn(0));
+    value_q6_1[i][1] =  op->getValue(table->getColumn(1));
+  }
+#else
+{
+  int err;
+  const NdbRecord* rowManagerRecord = manager->getDefaultRecord();
+  if (rowManagerRecord == NULL) APIERROR(myDict->getNdbError());
+
+  assert(myQuery->getNoOfOperations()==2);
+  NdbQueryOperation* op0 = myQuery->getQueryOperation(0U);
+  err = op0->setResultRowBuf(rowManagerRecord, (char*)&managerRow);
+  assert (err==0);
+//if (err == NULL) APIERROR(op0->getNdbError());
+
+/****/
+  const NdbRecord* rowEmployeeRecord = employee->getDefaultRecord();
+  if (rowEmployeeRecord == NULL) APIERROR(myDict->getNdbError());
+
+  NdbQueryOperation* op1 = myQuery->getQueryOperation(1U);
+  err = op1->setResultRowBuf(rowEmployeeRecord, (char*)&employeeRow);
+  assert (err==0);
+//if (err == NULL) APIERROR(op1->getNdbError());
+/****/
+
+}
+#endif
+
+  printf("Start execute\n");
+  if (myTransaction->execute( NdbTransaction::NoCommit ) == -1)
+    APIERROR(myTransaction->getNdbError());
+  printf("Done executed\n");
+
+  while (true) {
+    memset (&managerRow,  0, sizeof(managerRow));
+    memset (&employeeRow, 0, sizeof(employeeRow));
+
+    // All NdbQuery operations are handled as scans with cursor placed 'before'
+    // first record: Fetch next to retrieve result:
+    NdbQuery::NextResultOutcome res = myQuery->nextResult();
+
+    if (res == NdbQuery::NextResult_error) {
+      APIERROR(myQuery->getNdbError());
+    } else if (res!=NdbQuery::NextResult_gotRow) {
+      break;
+    }
+
+#ifdef USE_RECATTR
+    printf("manager  emp_no: %d\n", value_q6_1[0][1]->u_32_value());
+    printf("employee emp_no: %d\n", value_q6_1[1][0]->u_32_value());
+#else
+    // NOW: Result is available in row buffers
+    printf("manager  emp_no: %d\n", managerRow.emp_no);
+    printf("employee emp_no: %d\n", employeeRow.emp_no);
+#endif
+
+  };
+  printf("EOF\n");
+//  myQuery->close();
+
+  myNdb.closeTransaction(myTransaction);
+  myTransaction = 0;
+#endif
+
+
 
 
   return 0;

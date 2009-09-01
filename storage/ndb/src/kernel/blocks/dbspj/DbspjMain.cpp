@@ -24,6 +24,7 @@
 #include <signaldata/RouteOrd.hpp>
 #include <signaldata/TransIdAI.hpp>
 #include <signaldata/DiGetNodes.hpp>
+#include <signaldata/AttrInfo.hpp>
 #include <Interpreter.hpp>
 #include <AttributeHeader.hpp>
 #include <KeyDescriptor.hpp>
@@ -454,10 +455,21 @@ Dbspj::execSCAN_FRAGREQ(Signal* signal)
     do_init(requestPtr.p, req, signal->getSendersBlockRef());
 
     Uint32 len_cnt;
-
+    Uint32 prefix_size=0;
     {
       SectionReader r0(ssPtr, getSectionSegmentPool());
-      r0.step(6);
+
+      /**
+       * Calculate size of optional sections prefix in attrinfo.
+       * This part is skipped by SPJ, and later regenerated when 
+       * the SCANREQ is transmitted to LQH.
+       */
+      for (Uint32 i=0; i<AttrInfo::SectionSizeInfoLength; i++)
+      { Uint32 tmp;
+        ndbrequire(r0.getWord(&tmp));
+        prefix_size += tmp;
+      }
+      r0.step(prefix_size);
 
       err = DbspjErr::ZeroLengthQueryTree;
       if (unlikely(!r0.getWord(&len_cnt)))
@@ -472,11 +484,15 @@ Dbspj::execSCAN_FRAGREQ(Signal* signal)
       SectionReader paramReader(ssPtr, getSectionSegmentPool());
 
       /**
-       * I just couldnt remove the 6 (added by scan-code) initial words...
-       *   so I simply step over them here
+       * I just couldnt remove the 'SectionSizeInfoLength++'
+       * (added by scan-code) initial words...
+       *  so I simply step over them here
+       *
+       * TODO: Eliminate append of these words when SPJ API build
+       *       this signal.
        */
-      treeReader.step(6);
-      paramReader.step(6);
+      treeReader.step(AttrInfo::SectionSizeInfoLength+prefix_size);
+      paramReader.step(AttrInfo::SectionSizeInfoLength+prefix_size);
 
       paramReader.step(len); // skip over tree to parameters
 
@@ -615,14 +631,6 @@ Dbspj::build(Build_context& ctx,
       goto error;
     }
 
-    err = DbspjErr::UnknowQueryOperation;
-    const OpInfo* info = getOpInfo(node_op);
-    if (unlikely(info == 0))
-    {
-      DEBUG_CRASH();
-      goto error;
-    }
-
     err = DbspjErr::InvalidTreeNodeSpecification;
     if (unlikely(tree.getWords(m_buffer0, node_len) == false))
     {
@@ -637,12 +645,6 @@ Dbspj::build(Build_context& ctx,
       goto error;
     }
 
-    if (unlikely(node_op != param_op))
-    {
-      DEBUG_CRASH();
-      goto error;
-    }
-
     printf("node: ");
     for (Uint32 i = 0; i<node_len; i++)
       printf("0x%.8x ", m_buffer0[i]);
@@ -652,6 +654,19 @@ Dbspj::build(Build_context& ctx,
     for (Uint32 i = 0; i<param_len; i++)
       printf("0x%.8x ", m_buffer1[i]);
     printf("\n");
+
+    err = DbspjErr::UnknowQueryOperation;
+    if (unlikely(node_op != param_op))
+    {
+      DEBUG_CRASH();
+      goto error;
+    }
+    const OpInfo* info = getOpInfo(node_op);
+    if (unlikely(info == 0))
+    {
+      DEBUG_CRASH();
+      goto error;
+    }
 
     QueryNode* qn = (QueryNode*)m_buffer0;
     QueryNodeParameters * qp = (QueryNodeParameters*)m_buffer1;
@@ -835,9 +850,9 @@ void
 Dbspj::execLQHKEYREF(Signal* signal)
 {
   jamEntry();
-  DEBUG("execLQHKEYREF");
 
   const LqhKeyRef* ref = (LqhKeyRef*)signal->getDataPtr();
+  DEBUG("execLQHKEYREF, errorCode:" << ref->errorCode);
   Ptr<TreeNode> treeNodePtr;
   m_treenode_pool.getPtr(treeNodePtr, ref->connectPtr);
 
@@ -871,10 +886,23 @@ Dbspj::execLQHKEYCONF(Signal* signal)
 }
 
 void
-Dbspj::execSCAN_FRAGREF(Signal*)
+Dbspj::execSCAN_FRAGREF(Signal* signal)
 {
   jamEntry();
-  DEBUG("execSCAN_FRAGREF");
+  const ScanFragRef * ref = (ScanFragRef*)signal->getDataPtr();
+
+  DEBUG("execSCAN_FRAGREF, errorCode:" << ref->errorCode);
+
+  // FIXME: signal 'SCAN_FRAGREF' to TC
+  Ptr<TreeNode> treeNodePtr;
+  m_treenode_pool.getPtr(treeNodePtr, ref->senderData);
+  Ptr<Request> requestPtr;
+  m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI);
+
+  ndbrequire(treeNodePtr.p->m_info&&treeNodePtr.p->m_info->m_execSCAN_FRAGREF);
+  (this->*(treeNodePtr.p->m_info->m_execSCAN_FRAGREF))(signal,
+                                                       requestPtr,
+                                                       treeNodePtr);
 }
 
 void
@@ -1811,6 +1839,10 @@ Dbspj::scanFrag_start(Signal* signal,
   ScanFragReq * dst =(ScanFragReq*)treeNodePtr.p->m_scanfrag_data.m_scanFragReq;
   Uint32 dst_requestInfo = dst->requestInfo;
 
+  if (ScanFragReq::getRangeScanFlag(requestInfo))
+  { ScanFragReq::setRangeScanFlag(dst_requestInfo,1);
+  }
+
   dst->fragmentNoKeyLen = fragId;
   dst->requestInfo = dst_requestInfo;
   dst->batch_size_bytes = batch_size_bytes;
@@ -1824,7 +1856,6 @@ Dbspj::scanFrag_start(Signal* signal,
   ndbassert(dst->transId2 == transId2);
 #endif
 
-  ndbassert(keyInfo.i == RNIL);
   treeNodePtr.p->m_send.m_keyInfoPtrI = keyInfo.i;
 
   scanFrag_send(signal, requestPtr, treeNodePtr);
@@ -1915,7 +1946,7 @@ Dbspj::scanFrag_send(Signal* signal,
   if (handle.m_cnt > 1)
   {
     printf("KEYINFO: ");
-    print(handle.m_ptr[0], stdout);
+    print(handle.m_ptr[1], stdout);
   }
 #endif
 
@@ -2003,8 +2034,10 @@ Dbspj::scanFrag_execSCAN_FRAGCONF(Signal* signal,
   treeNodePtr.p->m_scanfrag_data.m_rows_expecting = rows;
   if (treeNodePtr.p->m_bits & TreeNode::T_LEAF)
   {
-    /* If this is a leaf node, then no rows will be sent to the SPJ block,
-     *  as there are no child operations to instantiate.*/
+    /**
+     * If this is a leaf node, then no rows will be sent to the SPJ block,
+     * as there are no child operations to instantiate.
+     */
     treeNodePtr.p->m_scanfrag_data.m_rows_received = rows;
   }
   treeNodePtr.p->m_scanfrag_data.m_scan_fragconf_received = true;
