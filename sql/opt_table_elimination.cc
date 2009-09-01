@@ -24,8 +24,10 @@
   elimination is as follows: suppose we have a left join
  
     SELECT * FROM t1 LEFT JOIN 
-      (t2 JOIN t3) ON t3.primary_key=t1.col AND 
-                      t4.primary_key=t2.col
+      (t2 JOIN t3) ON t2.primary_key=t1.col AND 
+                      t2.primary_key=t2.col
+    WHERE ...
+
   such that
   * columns of the inner tables are not used anywhere ouside the outer join
     (not in WHERE, not in GROUP/ORDER BY clause, not in select list etc etc),
@@ -41,11 +43,11 @@
   MODULE INTERFACE
   ================
 
-  The module has one entry point - eliminate_tables() function, which one 
-  needs to call (once) at some point before the join optimization.
+  The module has one entry point - the eliminate_tables() function, which one
+  needs to call (once) at some point before join optimization.
   eliminate_tables() operates over the JOIN structures. Logically, it
-  removes the right sides of outer join nests. Physically, it changes the
-  following members:
+  removes the inner tables of an outer join operation together with the
+  operation itself. Physically, it changes the following members:
 
   * Eliminated tables are marked as constant and moved to the front of the
     join order.
@@ -94,7 +96,8 @@
       
       tblX.columnY= expr 
     
-    where expr is functionally-depdendent.
+    where expr is functionally depdendent. expr is functionally dependent when 
+    all columns that it refers to are functionally dependent.
 
   These relationships are modeled as a bipartite directed graph that has
   dependencies as edges and two kinds of nodes:
@@ -118,13 +121,14 @@
       = No outgoing edges. Once we reach it, we know we can eliminate the 
         outer join.
   A module may depend on multiple values, and hence its primary attribute is
-  the number of its depedencies that are not bound. 
+  the number of its arguments that are not bound. 
 
   The algorithm starts with equality nodes that don't have any incoming edges
   (their expressions are either constant or depend only on tables that are
   outside of the outer join in question) and performns a breadth-first
   traversal. If we reach the outer join nest node, it means outer join is
-  functionally-dependant and can be eliminated. Otherwise it cannot be.
+  functionally dependent and can be eliminated. Otherwise it cannot be
+  eliminated.
  
   HANDLING MULTIPLE NESTED OUTER JOINS
   ====================================
@@ -174,33 +178,41 @@
   table t2.
 */
 
-class Value_dep;
-  class Field_value;
-  class Table_value;
+class Dep_value;
+  class Dep_value_field;
+  class Dep_value_table;
  
 
-class Module_dep;
-  class Equality_module;
-  class Outer_join_module;
-  class Key_module;
+class Dep_module;
+  class Dep_module_expr;
+  class Dep_module_goal;
+  class Dep_module_key;
 
-class Func_dep_analyzer;
+class Dep_analysis_context;
 
 
 /*
-  A value, something that can be bound or not bound. Also, values can be linked
-  in a list.
+  A value, something that can be bound or not bound. One can also iterate over 
+  unbound modules that depend on this value
 */
 
-class Value_dep : public Sql_alloc
+class Dep_value : public Sql_alloc
 {
 public:
-  Value_dep(): bound(FALSE), next(NULL) {}
-  virtual void now_bound(Func_dep_analyzer *fda, Module_dep **bound_modules)=0;
-  virtual ~Value_dep(){} /* purecov: inspected */ /* stop compiler warnings */
+  Dep_value(): bound(FALSE) {}
+  virtual ~Dep_value(){} /* purecov: inspected */ /* stop compiler warnings */
+  
+  bool is_bound() { return bound; }
+  void make_bound() { bound= TRUE; }
 
+  /* Iteration over unbound modules that depend on this value */
+  typedef char *Iterator;
+  virtual Iterator init_unbound_modules_iter(char *buf)=0;
+  virtual Dep_module* get_next_unbound_module(Dep_analysis_context *dac,
+                                              Iterator iter) = 0;
+  static const size_t iterator_size;
+protected:
   bool bound;
-  Value_dep *next;
 };
 
 
@@ -209,70 +221,141 @@ public:
   - the field depends on its table and equalities
   - expressions that use the field are its dependencies
 */
-class Field_value : public Value_dep
+
+class Dep_value_field : public Dep_value
 {
 public:
-  Field_value(Table_value *table_arg, Field *field_arg) :
+  Dep_value_field(Dep_value_table *table_arg, Field *field_arg) :
     table(table_arg), field(field_arg)
   {}
 
-  Table_value *table; /* Table this field is from */
-  Field *field;
+  Dep_value_table *table; /* Table this field is from */
+  Field *field; /* Field this object is representing */
   
+  /* Iteration over unbound modules that are our dependencies */
+  Iterator init_unbound_modules_iter(char *buf);
+  Dep_module* get_next_unbound_module(Dep_analysis_context *dac, 
+                                      Iterator iter);
+  
+  void make_unbound_modules_iter_skip_keys(Iterator iter);
+  
+  static const size_t iterator_size;
+private:
   /* 
     Field_deps that belong to one table form a linked list, ordered by
     field_index 
   */
-  Field_value *next_table_field;
+  Dep_value_field *next_table_field;
+
   /*
-    Offset to bits in Func_dep_analyzer::expr_deps
+    Offset to bits in Dep_analysis_context::expr_deps (see comment to that 
+    member for semantics of the bits).
   */
   uint bitmap_offset;
-  
-  void now_bound(Func_dep_analyzer *fda, Module_dep **bound_modules);
-  void signal_from_field_to_exprs(Func_dep_analyzer* fda, 
-                                  Module_dep **bound_modules);
+
+  class Module_iter
+  {
+  public:
+    /* if not null, return this and advance */
+    Dep_module_key *key_dep;
+    /* Otherwise, this and advance */
+    uint equality_no;
+  };
+  friend class Dep_analysis_context;
+  friend class Field_dependency_recorder; 
+  friend class Dep_value_table;
 };
+
+const size_t Dep_value_field::iterator_size=
+  ALIGN_SIZE(sizeof(Dep_value_field::Module_iter));
 
 
 /*
-  A table value. There is one Table_value object for every table that can
+  A table value. There is one Dep_value_table object for every table that can
   potentially be eliminated.
-  Dependencies:
-  - table depends on any of its unique keys
-  - has its fields and embedding outer join as dependency
+
+  Table becomes bound as soon as some of its unique keys becomes bound
+  Once the table is bound:
+   - all of its fields are bound
+   - its embedding outer join has one less unknown argument
 */
-class Table_value : public Value_dep
+
+class Dep_value_table : public Dep_value
 {
 public:
-  Table_value(TABLE *table_arg) : 
+  Dep_value_table(TABLE *table_arg) : 
     table(table_arg), fields(NULL), keys(NULL)
   {}
-  TABLE *table;
-  Field_value *fields; /* Ordered list of fields that belong to this table */
-  Key_module *keys; /* Ordered list of Unique keys in this table */
-  void now_bound(Func_dep_analyzer *fda, Module_dep **bound_modules);
+  TABLE *table;  /* Table this object is representing */
+  /* Ordered list of fields that belong to this table */
+  Dep_value_field *fields;
+  Dep_module_key *keys; /* Ordered list of Unique keys in this table */
+
+  /* Iteration over unbound modules that are our dependencies */
+  Iterator init_unbound_modules_iter(char *buf);
+  Dep_module* get_next_unbound_module(Dep_analysis_context *dac, 
+                                      Iterator iter);
+  static const size_t iterator_size;
+private:
+  class Module_iter
+  {
+  public:
+    /* Space for field iterator */
+    char buf[Dep_value_field::iterator_size];
+    /* !NULL <=> iterating over depdenent modules of this field */
+    Dep_value_field *field_dep; 
+    bool returned_goal;
+  };
 };
+
+
+const size_t Dep_value_table::iterator_size=
+  ALIGN_SIZE(sizeof(Dep_value_table::Module_iter));
+
+const size_t Dep_value::iterator_size=
+  max(Dep_value_table::iterator_size, Dep_value_field::iterator_size);
 
 
 /*
   A 'module'. Module has unsatisfied dependencies, number of whose is stored in
-  unknown_args. Modules also can be linked together in a list.
+  unbound_args. Modules also can be linked together in a list.
 */
 
-class Module_dep : public Sql_alloc
+class Dep_module : public Sql_alloc
 {
 public:
-  virtual bool now_bound(Func_dep_analyzer *fda, Value_dep **bound_modules)=0;
-  virtual ~Module_dep(){}  /* purecov: inspected */ /* stop compiler warnings */
-  /* 
-    Used to make a linked list of elements that became bound and thus can
-    make elements that depend on them bound, too.
-  */
-  Module_dep *next; 
-  uint unknown_args;
+  virtual ~Dep_module(){}  /* purecov: inspected */ /* stop compiler warnings */
+  
+  /* Mark as bound. Currently is non-virtual and does nothing */
+  void make_bound() {};
 
-  Module_dep() : next(NULL), unknown_args(0) {}
+  /* 
+    The final module will return TRUE here. When we see that TRUE was returned,
+    that will mean that functional dependency check succeeded.
+  */
+  virtual bool is_final () { return FALSE; }
+
+  /* 
+    Increment number of bound arguments. this is expected to change
+    is_applicable() from false to true after sufficient set of arguments is
+    bound.
+  */
+  void touch() { unbound_args--; }
+  bool is_applicable() { return !test(unbound_args); }
+  
+  /* Iteration over values that */
+  typedef char *Iterator;
+  virtual Iterator init_unbound_values_iter(char *buf)=0;
+  virtual Dep_value* get_next_unbound_value(Dep_analysis_context *dac,
+                                            Iterator iter)=0;
+  static const size_t iterator_size;
+protected:
+  uint unbound_args;
+  
+  Dep_module() : unbound_args(0) {}
+  /* to bump unbound_args when constructing depedendencies */
+  friend class Field_dependency_recorder; 
+  friend class Dep_analysis_context;
 };
 
 
@@ -283,91 +366,138 @@ public:
    - tbl1.col1=tbl2.col2=... multi-equality.
 */
 
-class Equality_module : public Module_dep
+class Dep_module_expr : public Dep_module
 {
 public:
-  Field_value *field;
-  Item  *expression;
+  Dep_value_field *field;
+  Item  *expr;
   
-  List<Field_value> *mult_equal_fields;
-  
+  List<Dep_value_field> *mult_equal_fields;
   /* Used during condition analysis only, similar to KEYUSE::level */
   uint level;
-  bool now_bound(Func_dep_analyzer *fda, Value_dep **bound_values);
+
+  Iterator init_unbound_values_iter(char *buf);
+  Dep_value* get_next_unbound_value(Dep_analysis_context *dac, Iterator iter);
+  static const size_t iterator_size;
+private:
+  class Value_iter
+  {
+  public:
+    Dep_value_field *field;
+    List_iterator<Dep_value_field> it;
+  };
 };
+
+const size_t Dep_module_expr::iterator_size=
+  ALIGN_SIZE(sizeof(Dep_module_expr::Value_iter));
 
 
 /*
-  A Unique key.
-   - Unique key depends on all of its components
-   - Key's table is its dependency
+  A Unique key module
+   - Unique key has all of its components as arguments
+   - Once unique key is bound, its table value is known
 */
-class Key_module: public Module_dep
+
+class Dep_module_key: public Dep_module
 {
 public:
-  Key_module(Table_value *table_arg, uint keyno_arg, uint n_parts_arg) :
+  Dep_module_key(Dep_value_table *table_arg, uint keyno_arg, uint n_parts_arg) :
     table(table_arg), keyno(keyno_arg), next_table_key(NULL)
   {
-    unknown_args= n_parts_arg;
+    unbound_args= n_parts_arg;
   }
-  Table_value *table; /* Table this key is from */
-  uint keyno;
+  Dep_value_table *table; /* Table this key is from */
+  uint keyno;  /* The index we're representing */
   /* Unique keys form a linked list, ordered by keyno */
-  Key_module *next_table_key;
-  bool now_bound(Func_dep_analyzer *fda, Value_dep **bound_values);
+  Dep_module_key *next_table_key;
+  
+  Iterator init_unbound_values_iter(char *buf);
+  Dep_value* get_next_unbound_value(Dep_analysis_context *dac, Iterator iter);
+  static const size_t iterator_size;
+private:
+  class Value_iter
+  {
+  public:
+    Dep_value_table *table;
+  };
 };
+
+const size_t Dep_module_key::iterator_size= 
+  ALIGN_SIZE(sizeof(Dep_module_key::Value_iter));
+
+const size_t Dep_module::iterator_size=
+  max(Dep_module_expr::iterator_size, Dep_module_key::iterator_size);
 
 
 /*
-  An outer join nest that is subject to elimination
-  - it depends on all tables inside it
-  - has its parent outer join as dependency
+  A module that represents outer join that we're trying to eliminate. If we 
+  manage to declare this module to be bound, then outer join can be eliminated.
 */
-class Outer_join_module: public Module_dep
+
+class Dep_module_goal: public Dep_module
 {
 public:
-  Outer_join_module(uint n_children)  
+  Dep_module_goal(uint n_children)  
   {
-    unknown_args= n_children;
+    unbound_args= n_children;
   }
-  bool now_bound(Func_dep_analyzer *fda, Value_dep **bound_values);
+  bool is_final() { return TRUE; }
+  /* 
+    This is the goal module, so the running wave algorithm should terminate
+    once it sees that this module is applicable and should never try to apply
+    it, hence no use for unbound value iterator implementation.
+  */
+  Iterator init_unbound_values_iter(char *buf)
+  { 
+    DBUG_ASSERT(0); 
+    return NULL;
+  }
+  Dep_value* get_next_unbound_value(Dep_analysis_context *dac, Iterator iter)
+  {
+    DBUG_ASSERT(0); 
+    return NULL;
+  }
 };
 
 
 /*
   Functional dependency analyzer context
 */
-class Func_dep_analyzer
+class Dep_analysis_context
 {
 public:
-  Func_dep_analyzer(JOIN *join_arg) : join(join_arg)
-  {
-    bzero(table_deps, sizeof(table_deps));
-  }
-
-  JOIN *join; /* Join we're working on */
+  bool setup_equality_modules_deps(List<Dep_module> *bound_modules);
+  bool run_wave(List<Dep_module> *new_bound_modules);
 
   /* Tables that we're looking at eliminating */
   table_map usable_tables;
   
   /* Array of equality dependencies */
-  Equality_module *equality_mods;
+  Dep_module_expr *equality_mods;
   uint n_equality_mods; /* Number of elements in the array */
   uint n_equality_mods_alloced;
 
-  /* tablenr -> Table_value* mapping. */
-  Table_value *table_deps[MAX_KEY];
+  /* tablenr -> Dep_value_table* mapping. */
+  Dep_value_table *table_deps[MAX_KEY];
   
   /* Element for the outer join we're attempting to eliminate */
-  Outer_join_module *outer_join_dep;
+  Dep_module_goal *outer_join_dep;
 
   /* 
-    Bitmap of how expressions depend on bits. Given a Field_value object,
+    Bitmap of how expressions depend on bits. Given a Dep_value_field object,
     one can check bitmap_is_set(expr_deps, field_val->bitmap_offset + expr_no)
     to see if expression equality_mods[expr_no] depends on the given field.
   */
   MY_BITMAP expr_deps;
+  
+  Dep_value_table *create_table_value(TABLE *table);
+  Dep_value_field *get_field_value(Field *field);
+
+#ifndef DBUG_OFF
+  void dbug_print_deps();
+#endif 
 };
+
 
 void eliminate_tables(JOIN *join);
 
@@ -383,651 +513,25 @@ bool check_func_dependency(JOIN *join,
                            List_iterator<TABLE_LIST> *it, 
                            TABLE_LIST *oj_tbl,
                            Item* cond);
-
 static 
-void build_eq_mods_for_cond(Func_dep_analyzer *fda, Equality_module **eq_mod, 
-                            uint *and_level, Item *cond);
+void build_eq_mods_for_cond(Dep_analysis_context *dac, 
+                            Dep_module_expr **eq_mod, uint *and_level, 
+                            Item *cond);
 static 
-void add_eq_mod(Func_dep_analyzer *fda, Equality_module **eq_mod, 
-                uint and_level,
-                Item_func *cond, Item *left, Item *right);
+void check_equality(Dep_analysis_context *dac, Dep_module_expr **eq_mod, 
+                    uint and_level, Item_func *cond, Item *left, Item *right);
 static 
-Equality_module *merge_func_deps(Equality_module *start, 
-                                 Equality_module *new_fields, 
-                                 Equality_module *end, uint and_level);
-
-static Table_value *get_table_value(Func_dep_analyzer *fda, TABLE *table);
-static Field_value *get_field_value(Func_dep_analyzer *fda, Field *field);
+Dep_module_expr *merge_eq_mods(Dep_module_expr *start, 
+                                 Dep_module_expr *new_fields, 
+                                 Dep_module_expr *end, uint and_level);
 static void mark_as_eliminated(JOIN *join, TABLE_LIST *tbl);
-
-static void add_eq_mod2(Func_dep_analyzer *fda, Equality_module **eq_mod,
-                        uint and_level, Field_value *field_val, Item *right,
-                        List<Field_value>* mult_equal_fields);
-
-
-#ifndef DBUG_OFF
-static void dbug_print_deps(Func_dep_analyzer *fda);
-#endif 
-
-/*******************************************************************************************/
-
-/*
-  Produce Eq_dep elements for given condition.
-
-  SYNOPSIS
-    build_eq_mods_for_cond()
-      fda                    Table elimination context 
-      eq_mod          INOUT  Put produced equality conditions here
-      and_level      INOUT  AND-level (like in add_key_fields)
-      cond                  Condition to process
-
-  DESCRIPTION
-    This function is modeled after add_key_fields()
-*/
-
 static 
-void build_eq_mods_for_cond(Func_dep_analyzer *fda, Equality_module **eq_mod, 
-                            uint *and_level, Item *cond)
-{
-  if (cond->type() == Item_func::COND_ITEM)
-  {
-    List_iterator_fast<Item> li(*((Item_cond*) cond)->argument_list());
-    Equality_module *org_key_fields= *eq_mod;
-    
-    /* AND/OR */
-    if (((Item_cond*) cond)->functype() == Item_func::COND_AND_FUNC)
-    {
-      Item *item;
-      while ((item=li++))
-        build_eq_mods_for_cond(fda, eq_mod, and_level, item);
-      for (; org_key_fields != *eq_mod ; org_key_fields++)
-        org_key_fields->level= *and_level;
-    }
-    else
-    {
-      Item *item;
-      (*and_level)++;
-      build_eq_mods_for_cond(fda, eq_mod, and_level, li++);
-      while ((item=li++))
-      {
-        Equality_module *start_key_fields= *eq_mod;
-        (*and_level)++;
-        build_eq_mods_for_cond(fda, eq_mod, and_level, item);
-        *eq_mod= merge_func_deps(org_key_fields, start_key_fields, *eq_mod,
-                                ++(*and_level));
-      }
-    }
-    return;
-  }
-
-  if (cond->type() != Item::FUNC_ITEM)
-    return;
-
-  Item_func *cond_func= (Item_func*) cond;
-  Item **args= cond_func->arguments();
-
-  switch (cond_func->functype()) {
-  case Item_func::BETWEEN:
-  {
-    Item *fld;
-    if (!((Item_func_between*)cond)->negated &&
-        (fld= args[0]->real_item())->type() == Item::FIELD_ITEM &&
-        args[1]->eq(args[2], ((Item_field*)fld)->field->binary()))
-    {
-      add_eq_mod(fda, eq_mod, *and_level, cond_func, args[0], args[1]);
-      add_eq_mod(fda, eq_mod, *and_level, cond_func, args[1], args[0]);
-    }
-    break;
-  }
-  case Item_func::EQ_FUNC:
-  case Item_func::EQUAL_FUNC:
-  {
-    add_eq_mod(fda, eq_mod, *and_level, cond_func, args[0], args[1]);
-    add_eq_mod(fda, eq_mod, *and_level, cond_func, args[1], args[0]);
-    break;
-  }
-  case Item_func::ISNULL_FUNC:
-  {
-    Item *tmp=new Item_null;
-    if (tmp)
-      add_eq_mod(fda, eq_mod, *and_level, cond_func, args[0], tmp);
-    break;
-  }
-  case Item_func::MULT_EQUAL_FUNC:
-  {
-    /*
-      The condition is a 
-
-        tbl1.field1 = tbl2.field2 = tbl3.field3 [= const_expr]
-
-      multiple-equality. Do two things:
-       - Collect an ordered List<Field_value> of tblX.colY where tblX is one
-         of those that we're trying to eliminate.
-       - rembember if there was a const_expr or tblY.colZ that we can consider
-         bound.
-      Store all collected information in a Equality_module object.
-    */
-    Item_equal *item_equal= (Item_equal*)cond;
-    List<Field_value> *fvl;
-    if (!(fvl= new List<Field_value>))
-      break; /* purecov: inspected */
-
-    Item_equal_iterator it(*item_equal);
-    Item_field *item;
-    Item *bound_item= item_equal->get_const();
-    while ((item= it++))
-    {
-      if ((item->used_tables() & fda->usable_tables))
-      {
-        Field_value *field_val;
-        if ((field_val= get_field_value(fda, item->field)))
-        {
-          List_iterator<Field_value> it2(*fvl);
-          Field_value *other_f;
-          uint field_val_ratio= field_val->field->table->tablenr*MAX_FIELDS +
-                                field_val->field->field_index;
-          bool added= FALSE;
-          while ((other_f= it2++))
-          {
-            uint other_f_ratio= other_f->field->table->tablenr*MAX_FIELDS + 
-                                other_f->field->field_index;
-            if (other_f_ratio > field_val_ratio)
-            {
-              *(it2.ref())= field_val;
-              it2.after(other_f);
-              added= TRUE;
-              break;
-            }
-          }
-          if (!added)
-            fvl->push_back(field_val);
-        }
-      }
-      else
-      {
-        if (!bound_item)
-          bound_item= item;
-      }
-    }
-    add_eq_mod2(fda, eq_mod, *and_level, NULL, bound_item, fvl);
-    break;
-  }
-  default:
-    break;
-  }
-}
+void add_module_expr(Dep_analysis_context *dac, Dep_module_expr **eq_mod,
+                     uint and_level, Dep_value_field *field_val, Item *right,
+                     List<Dep_value_field>* mult_equal_fields);
 
 
-/*
-  Perform an OR operation on two (adjacent) Equality_module arrays.
-
-  SYNOPSIS
-     merge_func_deps()
-       start        Start of left OR-part
-       new_fields   Start of right OR-part
-       end          End of right OR-part
-       and_level    AND-level.
-
-  DESCRIPTION
-  This function is invoked for two adjacent arrays of Equality_module elements:
-
-                      $LEFT_PART             $RIGHT_PART
-             +-----------------------+-----------------------+
-            start                new_fields                 end
-         
-  The goal is to produce an array which would correspnd to the combined 
-  
-    $LEFT_PART OR $RIGHT_PART
-  
-  condition. This is achieved as follows: First, we apply distrubutive law:
-  
-    (fdep_A_1 AND fdep_A_2 AND ...)  OR  (fdep_B_1 AND fdep_B_2 AND ...) =
-
-     = AND_ij (fdep_A_[i] OR fdep_B_[j])
-  
-  Then we walk over the obtained "fdep_A_[i] OR fdep_B_[j]" pairs, and 
-   - Discard those that that have left and right part referring to different
-     columns. We can't infer anything useful from "col1=expr1 OR col2=expr2".
-   - When left and right parts refer to the same column,  we check if they are 
-     essentially the same. 
-     = If they are the same, we keep one copy 
-       "t.col=expr OR t.col=expr"  -> "t.col=expr 
-     = if they are different , then we discard both
-      "t.col=expr1 OR t.col=expr2" -> (nothing useful)
-
-  (no per-table or for-index FUNC_DEPS exist yet at this phase).
-
-  See also merge_key_fields().
-
-  RETURN 
-    End of the result array
-*/
-
-static 
-Equality_module *merge_func_deps(Equality_module *start, Equality_module *new_fields, 
-                                 Equality_module *end, uint and_level)
-{
-  if (start == new_fields)
-    return start;  /*  (nothing) OR (...) -> (nothing) */
-  if (new_fields == end)
-    return start;  /*  (...) OR (nothing) -> (nothing) */
-
-  Equality_module *first_free=new_fields;
-
-  for (; new_fields != end ; new_fields++)
-  {
-    for (Equality_module *old=start ; old != first_free ; old++)
-    {
-      if (old->field == new_fields->field)
-      {
-        if (!old->field)
-        {
-          /*
-            OR-ing two multiple equalities. We must compute an intersection of
-            used fields, and check the constants according to these rules:
-
-              a=b=c=d  OR  a=c=e=f  ->  a=c  (compute intersection)
-              a=const1 OR a=b       ->  (nothing)
-              a=const1 OR a=const1  ->  a=const1 
-              a=const1 OR a=const2  ->  (nothing)
-            
-            If we're performing an OR operation over multiple equalities, e.g.
-
-              (a=b=c AND p=q) OR (a=b AND v=z)
-            
-            then we'll need to try combining each equality with each. ANDed
-            equalities are guaranteed to be disjoint, so we'll only get one
-            hit.
-          */
-          if (old->expression && new_fields->expression &&
-              old->expression->eq_by_collation(new_fields->expression, 
-                                               old->mult_equal_fields->head()->field->binary(),
-                                               old->mult_equal_fields->head()->field->charset()))
-          {
-            /* Ok, keep */
-          }
-          else
-          {
-            /* no single constant/bound item. */
-            old->expression= NULL;
-          }
-           
-          List <Field_value> *fv;
-          if (!(fv= new List<Field_value>))
-            break; /* purecov: inspected */
-
-          List_iterator<Field_value> it1(*old->mult_equal_fields);
-          List_iterator<Field_value> it2(*new_fields->mult_equal_fields);
-          Field_value *lfield= it1++;
-          Field_value *rfield= it2++;
-          // Merge
-          while (lfield && rfield)
-          {
-            if (lfield == rfield)
-            {
-              fv->push_back(lfield);
-              lfield=it1++;
-              rfield=it2++;
-            }
-            else
-            {
-              uint left_ratio= lfield->field->table->tablenr*MAX_FIELDS +
-                               lfield->field->field_index;
-              uint right_ratio= rfield->field->table->tablenr*MAX_FIELDS +
-                                rfield->field->field_index;
-              if (left_ratio < right_ratio)
-                lfield=it1++;
-              else
-                rfield=it2++;
-            }
-          }
-
-          if (fv->elements + test(old->expression) > 1)
-          {
-            old->mult_equal_fields= fv;
-            old->level= and_level;
-          }
-        }
-        else if (!new_fields->expression->const_item())
-        {
-          /*
-            If the value matches, we can use the key reference.
-            If not, we keep it until we have examined all new values
-          */
-          if (old->expression->eq(new_fields->expression, 
-                                  old->field->field->binary()))
-          {
-            old->level= and_level;
-          }
-        }
-        else if (old->expression->eq_by_collation(new_fields->expression, 
-                                                  old->field->field->binary(),
-                                                  old->field->field->charset()))
-        {
-          old->level= and_level;
-        }
-        else
-        {
-          /* The expressions are different. */
-          if (old == --first_free)                // If last item
-            break;
-          *old= *first_free;                        // Remove old value
-          old--;                                // Retry this value
-        }
-      }
-    }
-  }
-
-  /* 
-    Ok, the results are within the [start, first_free) range, and the useful
-    elements have level==and_level. Now, remove all unusable elements:
-  */
-  for (Equality_module *old=start ; old != first_free ;)
-  {
-    if (old->level != and_level)
-    {                                                // Not used in all levels
-      if (old == --first_free)
-        break;
-      *old= *first_free;                        // Remove old value
-      continue;
-    }
-    old++;
-  }
-  return first_free;
-}
-
-
-/*
-  Add an Equality_module element for left=right condition
-
-  SYNOPSIS
-    add_eq_mod()
-      fda               Table elimination context
-      eq_mod     INOUT  Store created Equality_module here and increment ptr if
-                        you do so
-      and_level         AND-level ()
-      cond              Condition we've inferred the left=right equality from.
-      left              Left expression
-      right             Right expression
-      usable_tables     Create Equality_module only if Left_expression's table 
-                        belongs to this set.
-
-  DESCRIPTION 
-    Check if the passed equality means that 'left' expr is functionally dependent on
-    the 'right', and if yes, create an Equality_module object for it.
-
-  RETURN
-    FALSE OK
-    TRUE  Out of memory
-*/
-
-static 
-void add_eq_mod(Func_dep_analyzer *fda, Equality_module **eq_mod,
-                uint and_level, Item_func *cond, Item *left, Item *right)
-{
-  if ((left->used_tables() & fda->usable_tables) &&
-      !(right->used_tables() & RAND_TABLE_BIT) &&
-      left->real_item()->type() == Item::FIELD_ITEM)
-  {
-    Field *field= ((Item_field*)left->real_item())->field;
-    if (field->result_type() == STRING_RESULT)
-    {
-      if (right->result_type() != STRING_RESULT)
-      {
-        if (field->cmp_type() != right->result_type())
-          return;
-      }
-      else
-      {
-        /*
-          We can't assume there's a functional dependency if the effective 
-          collation of the operation differ from the field collation.
-        */
-        if (field->cmp_type() == STRING_RESULT &&
-            ((Field_str*)field)->charset() != cond->compare_collation())
-          return;
-      }
-    }
-    Field_value *field_val;
-    if ((field_val= get_field_value(fda, field)))
-      add_eq_mod2(fda, eq_mod, and_level, field_val, right, NULL);
-  }
-}
-
-
-/* Just add eq_mod w/o any checks */
-static void add_eq_mod2(Func_dep_analyzer *fda, Equality_module **eq_mod,
-                        uint and_level, Field_value *field_val, Item *right,
-                        List<Field_value>* mult_equal_fields)
-{
-  if (*eq_mod == fda->equality_mods + fda->n_equality_mods_alloced)
-  {
-    /* 
-      We've filled the entire equality_mods array. Replace it with a bigger
-      one. We do it somewhat inefficiently but it doesn't matter.
-    */
-    /* purecov: begin inspected */
-    Equality_module *new_arr;
-    if (!(new_arr= new Equality_module[fda->n_equality_mods_alloced *2]))
-      return;
-    fda->n_equality_mods_alloced *= 2;
-    for (int i= 0; i < *eq_mod - fda->equality_mods; i++)
-      new_arr[i]= fda->equality_mods[i];
-
-    fda->equality_mods= new_arr;
-    *eq_mod= new_arr + (*eq_mod - fda->equality_mods);
-    /* purecov: end */
-  }
-
-  (*eq_mod)->field= field_val;
-  (*eq_mod)->expression= right;
-  (*eq_mod)->level= and_level;
-  (*eq_mod)->mult_equal_fields= mult_equal_fields;
-  (*eq_mod)++;
-}
-
-/*
-  Get a Table_value object for the given table, creating it if necessary.
-*/
-
-static Table_value *get_table_value(Func_dep_analyzer *fda, TABLE *table)
-{
-  Table_value *tbl_dep;
-  if (!(tbl_dep= new Table_value(table)))
-    return NULL; /* purecov: inspected */
-
-  Key_module **key_list= &(tbl_dep->keys);
-  /* Add dependencies for unique keys */
-  for (uint i=0; i < table->s->keys; i++)
-  {
-    KEY *key= table->key_info + i; 
-    if ((key->flags & (HA_NOSAME | HA_END_SPACE_KEY)) == HA_NOSAME)
-    {
-      Key_module *key_dep= new Key_module(tbl_dep, i, key->key_parts);
-      *key_list= key_dep;
-      key_list= &(key_dep->next_table_key);
-    }
-  }
-  return fda->table_deps[table->tablenr]= tbl_dep;
-}
-
-
-/* 
-  Get a Field_value object for the given field, creating it if necessary
-*/
-
-static Field_value *get_field_value(Func_dep_analyzer *fda, Field *field)
-{
-  TABLE *table= field->table;
-  Table_value *tbl_dep= fda->table_deps[table->tablenr];
-
-  /* Try finding the field in field list */
-  Field_value **pfield= &(tbl_dep->fields);
-  while (*pfield && (*pfield)->field->field_index < field->field_index)
-  {
-    pfield= &((*pfield)->next_table_field);
-  }
-  if (*pfield && (*pfield)->field->field_index == field->field_index)
-    return *pfield;
-  
-  /* Create the field and insert it in the list */
-  Field_value *new_field= new Field_value(tbl_dep, field);
-  new_field->next_table_field= *pfield;
-  *pfield= new_field;
-
-  return new_field;
-}
-
-
-/*
-  This is used to analyze expressions in "tbl.col=expr" dependencies so
-  that we can figure out which fields the expression depends on.
-*/
-
-class Field_dependency_recorder : public Field_enumerator
-{
-public:
-  Field_dependency_recorder(Func_dep_analyzer *te_arg): fda(te_arg)
-  {}
-  
-  void see_field(Field *field)
-  {
-    Table_value *tbl_dep;
-    if ((tbl_dep= fda->table_deps[field->table->tablenr]))
-    {
-      for (Field_value *field_dep= tbl_dep->fields; field_dep; 
-           field_dep= field_dep->next_table_field)
-      {
-        if (field->field_index == field_dep->field->field_index)
-        {
-          uint offs= field_dep->bitmap_offset + expr_offset;
-          if (!bitmap_is_set(&fda->expr_deps, offs))
-            fda->equality_mods[expr_offset].unknown_args++;
-          bitmap_set_bit(&fda->expr_deps, offs);
-          return;
-        }
-      }
-      /* 
-        We got here if didn't find this field. It's not a part of 
-        a unique key, and/or there is no field=expr element for it.
-        Bump the dependency anyway, this will signal that this dependency
-        cannot be satisfied.
-      */
-      fda->equality_mods[expr_offset].unknown_args++;
-    }
-    else
-      saw_other_tbl= TRUE;
-  }
-
-  Func_dep_analyzer *fda;
-  /* Offset of the expression we're processing in the dependency bitmap */
-  uint expr_offset;
-
-  bool saw_other_tbl;
-};
-
-
-/*
-  Setup inbound dependency relationships for tbl.col=expr equalities
- 
-  SYNOPSIS
-    setup_equality_modules_deps()
-      fda                    Table elimination context
-      bound_deps_list  OUT  Start of linked list of elements that were found to
-                            be bound (caller will use this to see if that
-                            allows to declare further elements bound)
-  DESCRIPTION
-  Setup inbound dependency relationships for tbl.col=expr equalities:
-    - allocate a bitmap where we store such dependencies
-    - for each "tbl.col=expr" equality, analyze the expr part and find out
-      which fields it refers to and set appropriate dependencies.
-    
-  RETURN
-    FALSE  OK
-    TRUE   Out of memory
-*/
-
-static 
-bool setup_equality_modules_deps(Func_dep_analyzer *fda, 
-                                 Module_dep **bound_deps_list)
-{
-  DBUG_ENTER("setup_equality_modules_deps");
-  
-  /*
-    Count Field_value objects and assign each of them a unique bitmap_offset
-    value.
-  */
-  uint offset= 0;
-  for (Table_value **tbl_dep=fda->table_deps; 
-       tbl_dep < fda->table_deps + MAX_TABLES;
-       tbl_dep++)
-  {
-    if (*tbl_dep)
-    {
-      for (Field_value *field_dep= (*tbl_dep)->fields;
-           field_dep;
-           field_dep= field_dep->next_table_field)
-      {
-        field_dep->bitmap_offset= offset;
-        offset += fda->n_equality_mods;
-      }
-    }
-  }
- 
-  void *buf;
-  if (!(buf= current_thd->alloc(bitmap_buffer_size(offset))) ||
-      bitmap_init(&fda->expr_deps, (my_bitmap_map*)buf, offset, FALSE))
-  {
-    DBUG_RETURN(TRUE); /* purecov: inspected */
-  }
-  bitmap_clear_all(&fda->expr_deps);
-
-  /* 
-    Analyze all "field=expr" dependencies, and have fda->expr_deps encode
-    dependencies of expressions from fields.
-
-    Also collect a linked list of equalities that are bound.
-  */
-  Module_dep *bound_dep= NULL;
-  Field_dependency_recorder deps_recorder(fda);
-  for (Equality_module *eq_mod= fda->equality_mods; 
-       eq_mod < fda->equality_mods + fda->n_equality_mods;
-       eq_mod++)
-  {
-    deps_recorder.expr_offset= eq_mod - fda->equality_mods;
-    deps_recorder.saw_other_tbl= FALSE;
-    eq_mod->unknown_args= 0;
-    
-    if (eq_mod->field)
-    {
-    /* Regular tbl.col=expr(tblX1.col1, tblY1.col2, ...) */
-      eq_mod->expression->walk(&Item::check_column_usage_processor, FALSE, 
-                               (uchar*)&deps_recorder);
-    }
-    else 
-    {
-      /* It's a multi-equality */
-      eq_mod->unknown_args= !test(eq_mod->expression);
-      List_iterator<Field_value> it(*eq_mod->mult_equal_fields);
-      Field_value* field_val;
-      while ((field_val= it++))
-      {
-        uint offs= field_val->bitmap_offset + eq_mod - fda->equality_mods;
-        bitmap_set_bit(&fda->expr_deps, offs);
-      }
-    }
-
-    if (!eq_mod->unknown_args)
-    {
-      eq_mod->next= bound_dep;
-      bound_dep= eq_mod;
-    }
-  }
-  *bound_deps_list= bound_dep;
-
-  DBUG_RETURN(FALSE);
-}
-
+/*****************************************************************************/
 
 /*
   Perform table elimination
@@ -1043,8 +547,8 @@ bool setup_equality_modules_deps(Func_dep_analyzer *fda,
     The idea behind table elimination is that if we have an outer join:
    
       SELECT * FROM t1 LEFT JOIN 
-        (t2 JOIN t3) ON t3.primary_key=t1.col AND 
-                        t4.primary_key=t2.col
+        (t2 JOIN t3) ON t2.primary_key=t1.col AND 
+                        t3.primary_key=t2.col
     such that
 
     1. columns of the inner tables are not used anywhere ouside the outer
@@ -1062,6 +566,9 @@ bool setup_equality_modules_deps(Func_dep_analyzer *fda,
     This function primary handles checking #1. It collects a bitmap of
     tables that are not used in select list/GROUP BY/ORDER BY/HAVING/etc and
     thus can possibly be eliminated.
+
+    After this, if #1 is met, the function calls eliminate_tables_for_list()
+    that checks #2.
   
   SIDE EFFECTS
     See the OVERVIEW section at the top of this file.
@@ -1143,8 +650,10 @@ void eliminate_tables(JOIN *join)
 
   SYNOPSIS
     eliminate_tables_for_list()
-      fda                      Table elimination context
-      join_list               Join list to work on
+      join                    The join we're working on
+      join_list               Join list to eliminate tables from (and if
+                              on_expr !=NULL, then try eliminating join_list
+                              itself)
       list_tables             Bitmap of tables embedded in the join_list.
       on_expr                 ON expression, if the join list is the inner side
                               of an outer join.
@@ -1155,11 +664,19 @@ void eliminate_tables(JOIN *join)
                               select list, HAVING, other ON expressions, etc).
 
   DESCRIPTION
-    Perform table elimination in a given join list.
+    Perform table elimination in a given join list:
+    - First, walk through join list members and try doing table elimination for
+      them.
+    - Then, if the join list itself is an inner side of outer join
+      (on_expr!=NULL), then try to eliminate the entire join list.
+
+    See "HANDLING MULTIPLE NESTED OUTER JOINS" section at the top of this file
+    for more detailed description and justification.
     
   RETURN
-    TRUE  The entire join list eliminated
-    FALSE Join list wasn't eliminated (but some of its possibly were)
+    TRUE   The entire join list eliminated
+    FALSE  Join list wasn't eliminated (but some of its child outer joins 
+           possibly were)
 */
 
 static bool
@@ -1224,17 +741,22 @@ eliminate_tables_for_list(JOIN *join, List<TABLE_LIST> *join_list,
 
 
 /*
-  Check if given condition makes given set of tables functionally-dependent
+  Check if given condition makes given set of tables functionally dependent
 
   SYNOPSIS
     check_func_dependency()
-      fda      Table elimination context
-      tables   Set of tables we want to be functionally dependent 
-      cond     Condition to use
+      join         Join we're procesing
+      dep_tables   Tables that we check to be functionally dependent (on
+                   everything else)
+      it           Iterator that enumerates these tables, or NULL if we're 
+                   checking one single table and it is specified in oj_tbl
+                   parameter.
+      oj_tbl       NULL, or one single table that we're checking
+      cond         Condition to use to prove functional dependency
 
   DESCRIPTION
     Check if we can use given condition to infer that the set of given tables
-    is functionally-dependent on everything else.
+    is functionally dependent on everything else.
 
   RETURN 
     TRUE  - Yes, functionally dependent
@@ -1248,28 +770,27 @@ bool check_func_dependency(JOIN *join,
                            TABLE_LIST *oj_tbl,
                            Item* cond)
 {
-  Module_dep *bound_modules;
-  
-  Func_dep_analyzer fda(join);
+  Dep_analysis_context dac;
   
   /* 
-    Pre-alloc some Equality_module structures. We don't need this to be
+    Pre-alloc some Dep_module_expr structures. We don't need this to be
     guaranteed upper bound.
   */
-  fda.n_equality_mods_alloced= 
+  dac.n_equality_mods_alloced= 
     join->thd->lex->current_select->max_equal_elems +
     (join->thd->lex->current_select->cond_count+1)*2 +
     join->thd->lex->current_select->between_count;
 
-  if (!(fda.equality_mods= new Equality_module[fda.n_equality_mods_alloced]))
+  bzero(dac.table_deps, sizeof(dac.table_deps));
+  if (!(dac.equality_mods= new Dep_module_expr[dac.n_equality_mods_alloced]))
     return FALSE; /* purecov: inspected */
 
-  Equality_module* last_eq_mod= fda.equality_mods;
+  Dep_module_expr* last_eq_mod= dac.equality_mods;
   
-  /* Create Table_value objects for all tables we're trying to eliminate */
+  /* Create Dep_value_table objects for all tables we're trying to eliminate */
   if (oj_tbl)
   {
-    if (!get_table_value(&fda, oj_tbl->table))
+    if (!dac.create_table_value(oj_tbl->table))
       return FALSE; /* purecov: inspected */
   }
   else
@@ -1279,175 +800,949 @@ bool check_func_dependency(JOIN *join,
     {
       if (tbl->table && (tbl->table->map & dep_tables))
       {
-        if (!get_table_value(&fda, tbl->table))
+        if (!dac.create_table_value(tbl->table))
           return FALSE; /* purecov: inspected */
       }
     }
   }
+  dac.usable_tables= dep_tables;
 
-  fda.usable_tables= dep_tables;
   /*
-    Analyze the the ON expression and create Equality_module objects and
-      Field_value objects for the used fields.
+    Analyze the the ON expression and create Dep_module_expr objects and
+      Dep_value_field objects for the used fields.
   */
   uint and_level=0;
-  build_eq_mods_for_cond(&fda, &last_eq_mod, &and_level, cond);
-  if (!(fda.n_equality_mods= last_eq_mod - fda.equality_mods))
+  build_eq_mods_for_cond(&dac, &last_eq_mod, &and_level, cond);
+  if (!(dac.n_equality_mods= last_eq_mod - dac.equality_mods))
     return FALSE;  /* No useful conditions */
 
-  if (!(fda.outer_join_dep= new Outer_join_module(my_count_bits(dep_tables))) ||
-      setup_equality_modules_deps(&fda, &bound_modules))
+  List<Dep_module> bound_modules;
+
+  if (!(dac.outer_join_dep= new Dep_module_goal(my_count_bits(dep_tables))) ||
+      dac.setup_equality_modules_deps(&bound_modules))
   {
     return FALSE; /* OOM, default to non-dependent */ /* purecov: inspected */
   }
   
-  DBUG_EXECUTE("test", dbug_print_deps(&fda); );
-
-  /* The forward running wave algorithm: */
-  Value_dep *bound_values= NULL;
-  while (bound_modules)
-  {
-    for (;bound_modules; bound_modules= bound_modules->next)
-    {
-      if (bound_modules->now_bound(&fda, &bound_values))
-        return TRUE; /* Dependent */
-    }
-    for (;bound_values; bound_values=bound_values->next)
-      bound_values->now_bound(&fda, &bound_modules);
-  }
-  return FALSE; /* Not dependent */ 
-}
-
-
-void Table_value::now_bound(Func_dep_analyzer *fda, 
-                            Module_dep **bound_modules)
-{
-  DBUG_PRINT("info", ("table %s is now bound", table->alias));
+  DBUG_EXECUTE("test", dac.dbug_print_deps(); );
   
-  /* Signal to all fields that they are now bound */
-  for (Field_value *field_dep= fields; field_dep;
-       field_dep= field_dep->next_table_field)
-  {
-    if (!field_dep->bound)
-    {
-      /* Mark as bound and add to the list */
-      field_dep->bound= TRUE;
-      field_dep->signal_from_field_to_exprs(fda, bound_modules);
-    }
-  }
-  
-  /* Signal to outer join that one more table is known */
-  if (fda->outer_join_dep->unknown_args && 
-      !--fda->outer_join_dep->unknown_args)
-  {
-    /* Mark as bound and add to the list */
-    fda->outer_join_dep->next= *bound_modules;
-    *bound_modules= fda->outer_join_dep;
-  }
-}
-
-
-void Field_value::now_bound(Func_dep_analyzer *fda, 
-                            Module_dep **bound_modules)
-{
-  DBUG_PRINT("info", ("field %s.%s is now bound", field->table->alias,
-                       field->field_name));
-
-  /* Signal to unique keys and expressions that use this field*/
-  for (Key_module *key_dep= table->keys; key_dep; 
-       key_dep= key_dep->next_table_key)
-  {
-    if (field->part_of_key.is_set(key_dep->keyno) && 
-        key_dep->unknown_args && !--key_dep->unknown_args)
-    {
-      DBUG_PRINT("info", ("key %s.%s is now bound",
-                          key_dep->table->table->alias, 
-                          key_dep->table->table->key_info[key_dep->keyno].name));
-      /* Mark as bound and add to the list */
-      key_dep->next= *bound_modules;
-      *bound_modules= key_dep;
-    }
-  }
-  signal_from_field_to_exprs(fda, bound_modules);
+  return dac.run_wave(&bound_modules);
 }
 
 
 /*
-  Walk through expressions that depend on this field and notify them 
-  that this field is now known.
+  Running wave functional dependency check algorithm
+
+  SYNOPSIS
+   Dep_analysis_context::run_wave()
+     new_bound_modules  List of bound modules to start the running wave from. 
+                        The list is destroyed during execution
+  
+  DESCRIPTION
+    This function uses running wave algorithm to check if the join nest is
+    functionally-dependent. 
+    We start from provided list of bound modules, and then run the wave across 
+    dependency edges, trying the reach the Dep_module_goal module. If we manage
+    to reach it, then the join nest is functionally-dependent, otherwise it is
+    not.
+
+  RETURN 
+    TRUE   Yes, functionally dependent
+    FALSE  No.
 */
-void Field_value::signal_from_field_to_exprs(Func_dep_analyzer* fda, 
-                                             Module_dep **bound_modules)
+
+bool Dep_analysis_context::run_wave(List<Dep_module> *new_bound_modules)
 {
-  for (uint i=0; i < fda->n_equality_mods; i++)
+  List<Dep_value> new_bound_values;
+  
+  Dep_value *value;
+  Dep_module *module;
+
+  while (!new_bound_modules->is_empty())
   {
-    if (bitmap_is_set(&fda->expr_deps, bitmap_offset + i) &&
-        fda->equality_mods[i].unknown_args &&
-        !--fda->equality_mods[i].unknown_args)
+    /*
+      The "wave" is in new_bound_modules list. Iterate over values that can be
+      reached from these modules but are not yet bound, and collect the next
+      wave generation in new_bound_values list.
+    */
+    List_iterator<Dep_module> modules_it(*new_bound_modules);
+    while ((module= modules_it++))
     {
-      /* Mark as bound and add to the list */
-      Equality_module* eq_mod= &fda->equality_mods[i];
-      eq_mod->next= *bound_modules;
-      *bound_modules= eq_mod;
-    }
-  }
-}
-
-
-bool Outer_join_module::now_bound(Func_dep_analyzer *fda, 
-                                  Value_dep **bound_values)
-{
-  DBUG_PRINT("info", ("Outer join eliminated"));
-  return TRUE; /* Signal out that the search is finished */
-}
-
-
-bool Equality_module::now_bound(Func_dep_analyzer *fda, 
-                                Value_dep **bound_values)
-{
-  if (mult_equal_fields)
-  {
-    /* It's a=b=c=... multiple equality. Mark all equality members as known. */
-    List_iterator<Field_value> it(*mult_equal_fields);
-    Field_value *fv;
-    while ((fv= it++))
-    {
-      if (!fv->bound)
+      char iter_buf[Dep_module::iterator_size];
+      Dep_module::Iterator iter;
+      iter= module->init_unbound_values_iter(iter_buf);
+      while ((value= module->get_next_unbound_value(this, iter)))
       {
-        /* Mark as bound and add to the list */
-        fv->bound= TRUE;
-        fv->next= *bound_values;
-        *bound_values= fv;
+        value->make_bound();
+        new_bound_values.push_back(value);
+      }
+    }
+    new_bound_modules->empty();
+    
+    /*
+      Now walk over list of values we've just found to be bound and check which
+      unbound modules can be reached from them. If there are some modules that
+      became bound, collect them in new_bound_modules list.
+    */
+    List_iterator<Dep_value> value_it(new_bound_values);
+    while ((value= value_it++))
+    {
+      char iter_buf[Dep_value::iterator_size];
+      Dep_value::Iterator iter;
+      iter= value->init_unbound_modules_iter(iter_buf);
+      while ((module= value->get_next_unbound_module(this, iter)))
+      {
+        module->touch();
+        if (!module->is_applicable())
+          continue;
+        if (module->is_final())
+          return TRUE; /* Functionally dependent */
+        module->make_bound();
+        new_bound_modules->push_back(module);
+      }
+    }
+    new_bound_values.empty();
+  }
+  return FALSE;
+}
+
+
+/*
+  This is used to analyze expressions in "tbl.col=expr" dependencies so
+  that we can figure out which fields the expression depends on.
+*/
+
+class Field_dependency_recorder : public Field_enumerator
+{
+public:
+  Field_dependency_recorder(Dep_analysis_context *ctx_arg): ctx(ctx_arg)
+  {}
+  
+  void visit_field(Field *field)
+  {
+    Dep_value_table *tbl_dep;
+    if ((tbl_dep= ctx->table_deps[field->table->tablenr]))
+    {
+      for (Dep_value_field *field_dep= tbl_dep->fields; field_dep; 
+           field_dep= field_dep->next_table_field)
+      {
+        if (field->field_index == field_dep->field->field_index)
+        {
+          uint offs= field_dep->bitmap_offset + expr_offset;
+          if (!bitmap_is_set(&ctx->expr_deps, offs))
+            ctx->equality_mods[expr_offset].unbound_args++;
+          bitmap_set_bit(&ctx->expr_deps, offs);
+          return;
+        }
+      }
+      /* 
+        We got here if didn't find this field. It's not a part of 
+        a unique key, and/or there is no field=expr element for it.
+        Bump the dependency anyway, this will signal that this dependency
+        cannot be satisfied.
+      */
+      ctx->equality_mods[expr_offset].unbound_args++;
+    }
+    else
+      visited_other_tables= TRUE;
+  }
+
+  Dep_analysis_context *ctx;
+  /* Offset of the expression we're processing in the dependency bitmap */
+  uint expr_offset;
+
+  bool visited_other_tables;
+};
+
+
+
+
+/*
+  Setup inbound dependency relationships for tbl.col=expr equalities
+ 
+  SYNOPSIS
+    setup_equality_modules_deps()
+      bound_deps_list  Put here modules that were found not to depend on 
+                       any non-bound columns.
+
+  DESCRIPTION
+    Setup inbound dependency relationships for tbl.col=expr equalities:
+      - allocate a bitmap where we store such dependencies
+      - for each "tbl.col=expr" equality, analyze the expr part and find out
+        which fields it refers to and set appropriate dependencies.
+    
+  RETURN
+    FALSE  OK
+    TRUE   Out of memory
+*/
+
+bool Dep_analysis_context::setup_equality_modules_deps(List<Dep_module> 
+                                                       *bound_modules)
+{
+  DBUG_ENTER("setup_equality_modules_deps");
+ 
+  /*
+    Count Dep_value_field objects and assign each of them a unique 
+    bitmap_offset value.
+  */
+  uint offset= 0;
+  for (Dep_value_table **tbl_dep= table_deps; 
+       tbl_dep < table_deps + MAX_TABLES;
+       tbl_dep++)
+  {
+    if (*tbl_dep)
+    {
+      for (Dep_value_field *field_dep= (*tbl_dep)->fields;
+           field_dep;
+           field_dep= field_dep->next_table_field)
+      {
+        field_dep->bitmap_offset= offset;
+        offset += n_equality_mods;
       }
     }
   }
-  else
+ 
+  void *buf;
+  if (!(buf= current_thd->alloc(bitmap_buffer_size(offset))) ||
+      bitmap_init(&expr_deps, (my_bitmap_map*)buf, offset, FALSE))
   {
-    /* It's a fieldX=exprY equality. Mark exprY as known */
-    if (!field->bound)
-    {
-      /* Mark as bound and add to the list */
-      field->bound= TRUE;
-      field->next= *bound_values;
-      *bound_values= field;
-    }
+    DBUG_RETURN(TRUE); /* purecov: inspected */
   }
-  return FALSE;
+  bitmap_clear_all(&expr_deps);
+
+  /* 
+    Analyze all "field=expr" dependencies, and have expr_deps encode
+    dependencies of expressions from fields.
+
+    Also collect a linked list of equalities that are bound.
+  */
+  Field_dependency_recorder deps_recorder(this);
+  for (Dep_module_expr *eq_mod= equality_mods; 
+       eq_mod < equality_mods + n_equality_mods;
+       eq_mod++)
+  {
+    deps_recorder.expr_offset= eq_mod - equality_mods;
+    deps_recorder.visited_other_tables= FALSE;
+    eq_mod->unbound_args= 0;
+    
+    if (eq_mod->field)
+    {
+      /* Regular tbl.col=expr(tblX1.col1, tblY1.col2, ...) */
+      eq_mod->expr->walk(&Item::enumerate_field_refs_processor, FALSE, 
+                               (uchar*)&deps_recorder);
+    }
+    else 
+    {
+      /* It's a multi-equality */
+      eq_mod->unbound_args= !test(eq_mod->expr);
+      List_iterator<Dep_value_field> it(*eq_mod->mult_equal_fields);
+      Dep_value_field* field_val;
+      while ((field_val= it++))
+      {
+        uint offs= field_val->bitmap_offset + eq_mod - equality_mods;
+        bitmap_set_bit(&expr_deps, offs);
+      }
+    }
+
+    if (!eq_mod->unbound_args)
+      bound_modules->push_back(eq_mod);
+  }
+
+  DBUG_RETURN(FALSE);
 }
 
 
-/* Unique key is known means its  table is known */
+/*
+  Ordering that we're using whenever we need to maintain a no-duplicates list
+  of field value objects.
+*/
 
-bool Key_module::now_bound(Func_dep_analyzer *fda, Value_dep **bound_values)
+static 
+int compare_field_values(Dep_value_field *a, Dep_value_field *b, void *unused)
 {
-  if (!table->bound)
+  uint a_ratio= a->field->table->tablenr*MAX_FIELDS +
+                a->field->field_index;
+
+  uint b_ratio= b->field->table->tablenr*MAX_FIELDS +
+                b->field->field_index;
+  return (a_ratio < b_ratio)? -1 : ((a_ratio == b_ratio)? 0 : 1);
+}
+
+
+/*
+  Produce Dep_module_expr elements for given condition.
+
+  SYNOPSIS
+    build_eq_mods_for_cond()
+      ctx              Table elimination context
+      eq_mod    INOUT  Put produced equality conditions here
+      and_level INOUT  AND-level (like in add_key_fields)
+      cond             Condition to process
+
+  DESCRIPTION
+    Analyze the given condition and produce an array of Dep_module_expr 
+    dependencies from it. The idea of analysis is as follows:
+    There are useful equalities that have form 
+        
+        eliminable_tbl.field = expr      (denote as useful_equality)
+
+    The condition is composed of useful equalities and other conditions that
+    are combined together with AND and OR operators. We process the condition
+    in recursive fashion according to these basic rules:
+
+      useful_equality1 AND useful_equality2 -> make array of two 
+                                               Dep_module_expr objects
+
+      useful_equality AND other_cond -> discard other_cond
+      
+      useful_equality OR other_cond -> discard everything
+      
+      useful_equality1 OR useful_equality2 -> check if both sides of OR are the
+                                              same equality. If yes, that's the
+                                              result, otherwise discard 
+                                              everything.
+
+    The rules are used to map the condition into an array Dep_module_expr
+    elements. The array will specify functional dependencies that logically 
+    follow from the condition.
+
+  SEE ALSO
+    This function is modeled after add_key_fields()
+*/
+
+static 
+void build_eq_mods_for_cond(Dep_analysis_context *ctx, 
+                            Dep_module_expr **eq_mod,
+                            uint *and_level, Item *cond)
+{
+  if (cond->type() == Item_func::COND_ITEM)
   {
-    /* Mark as bound and add to the list */
-    table->bound= TRUE;
-    table->next= *bound_values;
-    *bound_values= table;
+    List_iterator_fast<Item> li(*((Item_cond*) cond)->argument_list());
+    uint orig_offset= *eq_mod - ctx->equality_mods;
+    
+    /* AND/OR */
+    if (((Item_cond*) cond)->functype() == Item_func::COND_AND_FUNC)
+    {
+      Item *item;
+      while ((item=li++))
+        build_eq_mods_for_cond(ctx, eq_mod, and_level, item);
+
+      for (Dep_module_expr *mod_exp= ctx->equality_mods + orig_offset;
+           mod_exp != *eq_mod ; mod_exp++)
+      {
+        mod_exp->level= *and_level;
+      }
+    }
+    else
+    {
+      Item *item;
+      (*and_level)++;
+      build_eq_mods_for_cond(ctx, eq_mod, and_level, li++);
+      while ((item=li++))
+      {
+        Dep_module_expr *start_key_fields= *eq_mod;
+        (*and_level)++;
+        build_eq_mods_for_cond(ctx, eq_mod, and_level, item);
+        *eq_mod= merge_eq_mods(ctx->equality_mods + orig_offset, 
+                               start_key_fields, *eq_mod,
+                               ++(*and_level));
+      }
+    }
+    return;
   }
-  return FALSE;
+
+  if (cond->type() != Item::FUNC_ITEM)
+    return;
+
+  Item_func *cond_func= (Item_func*) cond;
+  Item **args= cond_func->arguments();
+
+  switch (cond_func->functype()) {
+  case Item_func::BETWEEN:
+  {
+    Item *fld;
+    if (!((Item_func_between*)cond)->negated &&
+        (fld= args[0]->real_item())->type() == Item::FIELD_ITEM &&
+        args[1]->eq(args[2], ((Item_field*)fld)->field->binary()))
+    {
+      check_equality(ctx, eq_mod, *and_level, cond_func, args[0], args[1]);
+      check_equality(ctx, eq_mod, *and_level, cond_func, args[1], args[0]);
+    }
+    break;
+  }
+  case Item_func::EQ_FUNC:
+  case Item_func::EQUAL_FUNC:
+  {
+    check_equality(ctx, eq_mod, *and_level, cond_func, args[0], args[1]);
+    check_equality(ctx, eq_mod, *and_level, cond_func, args[1], args[0]);
+    break;
+  }
+  case Item_func::ISNULL_FUNC:
+  {
+    Item *tmp=new Item_null;
+    if (tmp)
+      check_equality(ctx, eq_mod, *and_level, cond_func, args[0], tmp);
+    break;
+  }
+  case Item_func::MULT_EQUAL_FUNC:
+  {
+    /*
+      The condition is a 
+
+        tbl1.field1 = tbl2.field2 = tbl3.field3 [= const_expr]
+
+      multiple-equality. Do two things:
+       - Collect List<Dep_value_field> of tblX.colY where tblX is one of the
+         tables we're trying to eliminate.
+       - rembember if there was a bound value, either const_expr or tblY.colZ
+         swher tblY is not a table that we're trying to eliminate.
+      Store all collected information in a Dep_module_expr object.
+    */
+    Item_equal *item_equal= (Item_equal*)cond;
+    List<Dep_value_field> *fvl;
+    if (!(fvl= new List<Dep_value_field>))
+      break; /* purecov: inspected */
+
+    Item_equal_iterator it(*item_equal);
+    Item_field *item;
+    Item *bound_item= item_equal->get_const();
+    while ((item= it++))
+    {
+      if ((item->used_tables() & ctx->usable_tables))
+      {
+        Dep_value_field *field_val;
+        if ((field_val= ctx->get_field_value(item->field)))
+          fvl->push_back(field_val);
+      }
+      else
+      {
+        if (!bound_item)
+          bound_item= item;
+      }
+    }
+    exchange_sort<Dep_value_field>(fvl, compare_field_values, NULL);
+    add_module_expr(ctx, eq_mod, *and_level, NULL, bound_item, fvl);
+    break;
+  }
+  default:
+    break;
+  }
+}
+
+
+/*
+  Perform an OR operation on two (adjacent) Dep_module_expr arrays.
+
+  SYNOPSIS
+     merge_eq_mods()
+       start        Start of left OR-part
+       new_fields   Start of right OR-part
+       end          End of right OR-part
+       and_level    AND-level (like in add_key_fields)
+
+  DESCRIPTION
+  This function is invoked for two adjacent arrays of Dep_module_expr elements:
+
+                      $LEFT_PART             $RIGHT_PART
+             +-----------------------+-----------------------+
+            start                new_fields                 end
+         
+  The goal is to produce an array which would correspond to the combined 
+  
+    $LEFT_PART OR $RIGHT_PART
+  
+  condition. This is achieved as follows: First, we apply distrubutive law:
+  
+    (fdep_A_1 AND fdep_A_2 AND ...)  OR  (fdep_B_1 AND fdep_B_2 AND ...) =
+
+     = AND_ij (fdep_A_[i] OR fdep_B_[j])
+  
+  Then we walk over the obtained "fdep_A_[i] OR fdep_B_[j]" pairs, and 
+   - Discard those that that have left and right part referring to different
+     columns. We can't infer anything useful from "col1=expr1 OR col2=expr2".
+   - When left and right parts refer to the same column,  we check if they are 
+     essentially the same. 
+     = If they are the same, we keep one copy 
+       "t.col=expr OR t.col=expr"  -> "t.col=expr 
+     = if they are different , then we discard both
+      "t.col=expr1 OR t.col=expr2" -> (nothing useful)
+
+  (no per-table or for-index FUNC_DEPS exist yet at this phase).
+
+  See also merge_key_fields().
+
+  RETURN 
+    End of the result array
+*/
+
+static 
+Dep_module_expr *merge_eq_mods(Dep_module_expr *start, 
+                               Dep_module_expr *new_fields,
+                               Dep_module_expr *end, uint and_level)
+{
+  if (start == new_fields)
+    return start;  /*  (nothing) OR (...) -> (nothing) */
+  if (new_fields == end)
+    return start;  /*  (...) OR (nothing) -> (nothing) */
+
+  Dep_module_expr *first_free= new_fields;
+
+  for (; new_fields != end ; new_fields++)
+  {
+    for (Dep_module_expr *old=start ; old != first_free ; old++)
+    {
+      if (old->field == new_fields->field)
+      {
+        if (!old->field)
+        {
+          /*
+            OR-ing two multiple equalities. We must compute an intersection of
+            used fields, and check the constants according to these rules:
+
+              a=b=c=d  OR a=c=e=f   ->  a=c  (compute intersection)
+              a=const1 OR a=b       ->  (nothing)
+              a=const1 OR a=const1  ->  a=const1 
+              a=const1 OR a=const2  ->  (nothing)
+            
+            If we're performing an OR operation over multiple equalities, e.g.
+
+              (a=b=c AND p=q) OR (a=b AND v=z)
+            
+            then we'll need to try combining each equality with each. ANDed
+            equalities are guaranteed to be disjoint, so we'll only get one
+            hit.
+          */
+          Field *eq_field= old->mult_equal_fields->head()->field;
+          if (old->expr && new_fields->expr &&
+              old->expr->eq_by_collation(new_fields->expr, eq_field->binary(),
+                                         eq_field->charset()))
+          {
+            /* Ok, keep */
+          }
+          else
+          {
+            /* no single constant/bound item. */
+            old->expr= NULL;
+          }
+           
+          List <Dep_value_field> *fv;
+          if (!(fv= new List<Dep_value_field>))
+            break; /* purecov: inspected */
+
+          List_iterator<Dep_value_field> it1(*old->mult_equal_fields);
+          List_iterator<Dep_value_field> it2(*new_fields->mult_equal_fields);
+          Dep_value_field *lfield= it1++;
+          Dep_value_field *rfield= it2++;
+          /* Intersect two ordered lists */
+          while (lfield && rfield)
+          {
+            if (lfield == rfield)
+            {
+              fv->push_back(lfield);
+              lfield=it1++;
+              rfield=it2++;
+            }
+            else
+            {
+              if (compare_field_values(lfield, rfield, NULL) < 0)
+                lfield= it1++;
+              else
+                rfield= it2++;
+            }
+          }
+
+          if (fv->elements + test(old->expr) > 1)
+          {
+            old->mult_equal_fields= fv;
+            old->level= and_level;
+          }
+        }
+        else if (!new_fields->expr->const_item())
+        {
+          /*
+            If the value matches, we can use the key reference.
+            If not, we keep it until we have examined all new values
+          */
+          if (old->expr->eq(new_fields->expr, 
+                            old->field->field->binary()))
+          {
+            old->level= and_level;
+          }
+        }
+        else if (old->expr->eq_by_collation(new_fields->expr,
+                                            old->field->field->binary(),
+                                            old->field->field->charset()))
+        {
+          old->level= and_level;
+        }
+        else
+        {
+          /* The expressions are different. */
+          if (old == --first_free)                // If last item
+            break;
+          *old= *first_free;                        // Remove old value
+          old--;                                // Retry this value
+        }
+      }
+    }
+  }
+
+  /* 
+    Ok, the results are within the [start, first_free) range, and the useful
+    elements have level==and_level. Now, remove all unusable elements:
+  */
+  for (Dep_module_expr *old=start ; old != first_free ;)
+  {
+    if (old->level != and_level)
+    {                                                // Not used in all levels
+      if (old == --first_free)
+        break;
+      *old= *first_free;                        // Remove old value
+      continue;
+    }
+    old++;
+  }
+  return first_free;
+}
+
+
+/*
+  Add an Dep_module_expr element for left=right condition
+
+  SYNOPSIS
+    check_equality()
+      fda               Table elimination context
+      eq_mod     INOUT  Store created Dep_module_expr here and increment ptr if
+                        you do so
+      and_level         AND-level (like in add_key_fields)
+      cond              Condition we've inferred the left=right equality from.
+      left              Left expression
+      right             Right expression
+      usable_tables     Create Dep_module_expr only if Left_expression's table 
+                        belongs to this set.
+
+  DESCRIPTION 
+    Check if the passed left=right equality is such that 
+     - 'left' is an Item_field referring to a field in a table we're checking
+       to be functionally depdendent,
+     - the equality allows to conclude that 'left' expression is functionally 
+       dependent on the 'right',
+    and if so, create an Dep_module_expr object.
+*/
+
+static 
+void check_equality(Dep_analysis_context *ctx, Dep_module_expr **eq_mod,
+                    uint and_level, Item_func *cond, Item *left, Item *right)
+{
+  if ((left->used_tables() & ctx->usable_tables) &&
+      !(right->used_tables() & RAND_TABLE_BIT) &&
+      left->real_item()->type() == Item::FIELD_ITEM)
+  {
+    Field *field= ((Item_field*)left->real_item())->field;
+    if (field->result_type() == STRING_RESULT)
+    {
+      if (right->result_type() != STRING_RESULT)
+      {
+        if (field->cmp_type() != right->result_type())
+          return;
+      }
+      else
+      {
+        /*
+          We can't assume there's a functional dependency if the effective
+          collation of the operation differ from the field collation.
+        */
+        if (field->cmp_type() == STRING_RESULT &&
+            ((Field_str*)field)->charset() != cond->compare_collation())
+          return;
+      }
+    }
+    Dep_value_field *field_val;
+    if ((field_val= ctx->get_field_value(field)))
+      add_module_expr(ctx, eq_mod, and_level, field_val, right, NULL);
+  }
+}
+
+
+/* 
+  Add a Dep_module_expr object with the specified parameters. 
+  
+  DESCRIPTION
+    Add a Dep_module_expr object with the specified parameters. Re-allocate
+    the ctx->equality_mods array if it has no space left.
+*/
+
+static 
+void add_module_expr(Dep_analysis_context *ctx, Dep_module_expr **eq_mod,
+                     uint and_level, Dep_value_field *field_val, 
+                     Item *right, List<Dep_value_field>* mult_equal_fields)
+{
+  if (*eq_mod == ctx->equality_mods + ctx->n_equality_mods_alloced)
+  {
+    /* 
+      We've filled the entire equality_mods array. Replace it with a bigger
+      one. We do it somewhat inefficiently but it doesn't matter.
+    */
+    /* purecov: begin inspected */
+    Dep_module_expr *new_arr;
+    if (!(new_arr= new Dep_module_expr[ctx->n_equality_mods_alloced *2]))
+      return;
+    ctx->n_equality_mods_alloced *= 2;
+    for (int i= 0; i < *eq_mod - ctx->equality_mods; i++)
+      new_arr[i]= ctx->equality_mods[i];
+
+    ctx->equality_mods= new_arr;
+    *eq_mod= new_arr + (*eq_mod - ctx->equality_mods);
+    /* purecov: end */
+  }
+
+  (*eq_mod)->field= field_val;
+  (*eq_mod)->expr= right;
+  (*eq_mod)->level= and_level;
+  (*eq_mod)->mult_equal_fields= mult_equal_fields;
+  (*eq_mod)++;
+}
+
+
+/*
+  Create a Dep_value_table object for the given table
+
+  SYNOPSIS
+    Dep_analysis_context::create_table_value()
+      table  Table to create object for
+
+  DESCRIPTION
+    Create a Dep_value_table object for the given table. Also create
+    Dep_module_key objects for all unique keys in the table.
+
+  RETURN
+    Created table value object
+    NULL if out of memory
+*/
+
+Dep_value_table *Dep_analysis_context::create_table_value(TABLE *table)
+{
+  Dep_value_table *tbl_dep;
+  if (!(tbl_dep= new Dep_value_table(table)))
+    return NULL; /* purecov: inspected */
+
+  Dep_module_key **key_list= &(tbl_dep->keys);
+  /* Add dependencies for unique keys */
+  for (uint i=0; i < table->s->keys; i++)
+  {
+    KEY *key= table->key_info + i; 
+    if ((key->flags & (HA_NOSAME | HA_END_SPACE_KEY)) == HA_NOSAME)
+    {
+      Dep_module_key *key_dep;
+      if (!(key_dep= new Dep_module_key(tbl_dep, i, key->key_parts)))
+        return NULL;
+      *key_list= key_dep;
+      key_list= &(key_dep->next_table_key);
+    }
+  }
+  return table_deps[table->tablenr]= tbl_dep;
+}
+
+
+/* 
+  Get a Dep_value_field object for the given field, creating it if necessary
+
+  SYNOPSIS
+   Dep_analysis_context::get_field_value()
+      field  Field to create object for
+        
+  DESCRIPTION
+    Get a Dep_value_field object for the given field. First, we search for it 
+    in the list of Dep_value_field objects we have already created. If we don't 
+    find it, we create a new Dep_value_field and put it into the list of field
+    objects we have for the table.
+
+  RETURN
+    Created field value object
+    NULL if out of memory
+*/
+
+Dep_value_field *Dep_analysis_context::get_field_value(Field *field)
+{
+  TABLE *table= field->table;
+  Dep_value_table *tbl_dep= table_deps[table->tablenr];
+
+  /* Try finding the field in field list */
+  Dep_value_field **pfield= &(tbl_dep->fields);
+  while (*pfield && (*pfield)->field->field_index < field->field_index)
+  {
+    pfield= &((*pfield)->next_table_field);
+  }
+  if (*pfield && (*pfield)->field->field_index == field->field_index)
+    return *pfield;
+  
+  /* Create the field and insert it in the list */
+  Dep_value_field *new_field= new Dep_value_field(tbl_dep, field);
+  new_field->next_table_field= *pfield;
+  *pfield= new_field;
+
+  return new_field;
+}
+
+
+/* 
+  Iteration over unbound modules that are our dependencies.
+  for those we have:
+    - dependendencies of our fields
+    - outer join we're in 
+*/
+char *Dep_value_table::init_unbound_modules_iter(char *buf)
+{
+  Module_iter *iter= ALIGN_PTR(my_ptrdiff_t(buf), Module_iter);
+  iter->field_dep= fields;
+  if (fields)
+  {
+    fields->init_unbound_modules_iter(iter->buf);
+    fields->make_unbound_modules_iter_skip_keys(iter->buf);
+  }
+  iter->returned_goal= FALSE;
+  return (char*)iter;
+}
+
+
+Dep_module* 
+Dep_value_table::get_next_unbound_module(Dep_analysis_context *dac,
+                                         char *iter)
+{
+  Module_iter *di= (Module_iter*)iter;
+  while (di->field_dep)
+  {
+    Dep_module *res;
+    if ((res= di->field_dep->get_next_unbound_module(dac, di->buf)))
+      return res;
+    if ((di->field_dep= di->field_dep->next_table_field))
+    {
+      char *field_iter= ((Module_iter*)iter)->buf;
+      di->field_dep->init_unbound_modules_iter(field_iter);
+      di->field_dep->make_unbound_modules_iter_skip_keys(field_iter);
+    }
+  }
+  
+  if (!di->returned_goal)
+  {
+    di->returned_goal= TRUE;
+    return dac->outer_join_dep;
+  }
+  return NULL;
+}
+
+
+char *Dep_module_expr::init_unbound_values_iter(char *buf)
+{
+  Value_iter *iter= ALIGN_PTR(my_ptrdiff_t(buf), Value_iter);
+  iter->field= field;
+  if (!field)
+  {
+    new (&iter->it) List_iterator<Dep_value_field>(*mult_equal_fields);
+  }
+  return (char*)iter;
+}
+
+
+Dep_value* Dep_module_expr::get_next_unbound_value(Dep_analysis_context *dac,
+                                                   char *buf)
+{
+  Dep_value *res;
+  if (field)
+  {
+    res= ((Value_iter*)buf)->field;
+    ((Value_iter*)buf)->field= NULL;
+    return (!res || res->is_bound())? NULL : res;
+  }
+  else
+  {
+    while ((res= ((Value_iter*)buf)->it++))
+    {
+      if (!res->is_bound())
+        return res;
+    }
+    return NULL;
+  }
+}
+
+
+char *Dep_module_key::init_unbound_values_iter(char *buf)
+{
+  Value_iter *iter= ALIGN_PTR(my_ptrdiff_t(buf), Value_iter);
+  iter->table= table;
+  return (char*)iter;
+}
+
+
+Dep_value* Dep_module_key::get_next_unbound_value(Dep_analysis_context *dac,
+                                                  Dep_module::Iterator iter)
+{
+  Dep_value* res= ((Value_iter*)iter)->table;
+  ((Value_iter*)iter)->table= NULL;
+  return res;
+}
+
+
+Dep_value::Iterator Dep_value_field::init_unbound_modules_iter(char *buf)
+{
+  Module_iter *iter= ALIGN_PTR(my_ptrdiff_t(buf), Module_iter);
+  iter->key_dep= table->keys;
+  iter->equality_no= 0;
+  return (char*)iter;
+}
+
+
+void 
+Dep_value_field::make_unbound_modules_iter_skip_keys(Dep_value::Iterator iter)
+{
+  ((Module_iter*)iter)->key_dep= NULL;
+}
+
+
+Dep_module* Dep_value_field::get_next_unbound_module(Dep_analysis_context *dac,
+                                                     Dep_value::Iterator iter)
+{
+  Module_iter *di= (Module_iter*)iter;
+  Dep_module_key *key_dep= di->key_dep;
+  
+  /* 
+    First, enumerate all unique keys that are 
+    - not yet applicable
+    - have this field as a part of them
+  */
+  while (key_dep && (key_dep->is_applicable() ||
+         !field->part_of_key.is_set(key_dep->keyno)))
+  {
+    key_dep= key_dep->next_table_key;
+  }
+
+  if (key_dep)
+  {
+    di->key_dep= key_dep->next_table_key;
+    return key_dep;
+  }
+  else 
+    di->key_dep= NULL;
+  
+  /*
+    Then walk through [multi]equalities and find those that
+     - depend on this field
+     - and are not bound yet.
+  */
+  uint eq_no= di->equality_no;
+  while (eq_no < dac->n_equality_mods && 
+         (!bitmap_is_set(&dac->expr_deps, bitmap_offset + eq_no) ||
+         dac->equality_mods[eq_no].is_applicable()))
+  {
+    eq_no++;
+  }
+  
+  if (eq_no < dac->n_equality_mods)
+  {
+    di->equality_no= eq_no+1;
+    return &dac->equality_mods[eq_no];
+  }
+  return NULL;
 }
 
 
@@ -1490,8 +1785,7 @@ static void mark_as_eliminated(JOIN *join, TABLE_LIST *tbl)
 
 #ifndef DBUG_OFF
 /* purecov: begin inspected */
-static 
-void dbug_print_deps(Func_dep_analyzer *fda)
+void Dep_analysis_context::dbug_print_deps()
 {
   DBUG_ENTER("dbug_print_deps");
   DBUG_LOCK_FILE;
@@ -1499,17 +1793,17 @@ void dbug_print_deps(Func_dep_analyzer *fda)
   fprintf(DBUG_FILE,"deps {\n");
   
   /* Start with printing equalities */
-  for (Equality_module *eq_mod= fda->equality_mods; 
-       eq_mod != fda->equality_mods + fda->n_equality_mods; eq_mod++)
+  for (Dep_module_expr *eq_mod= equality_mods; 
+       eq_mod != equality_mods + n_equality_mods; eq_mod++)
   {
     char buf[128];
     String str(buf, sizeof(buf), &my_charset_bin);
     str.length(0);
-    eq_mod->expression->print(&str, QT_ORDINARY);
+    eq_mod->expr->print(&str, QT_ORDINARY);
     if (eq_mod->field)
     {
       fprintf(DBUG_FILE, "  equality%d: %s -> %s.%s\n", 
-              eq_mod - fda->equality_mods,
+              eq_mod - equality_mods,
               str.c_ptr(),
               eq_mod->field->table->table->alias,
               eq_mod->field->field->field_name);
@@ -1517,7 +1811,7 @@ void dbug_print_deps(Func_dep_analyzer *fda)
     else
     {
       fprintf(DBUG_FILE, "  equality%d: multi-equality", 
-              eq_mod - fda->equality_mods);
+              eq_mod - equality_mods);
     }
   }
   fprintf(DBUG_FILE,"\n");
@@ -1525,21 +1819,21 @@ void dbug_print_deps(Func_dep_analyzer *fda)
   /* Then tables and their fields */
   for (uint i=0; i < MAX_TABLES; i++)
   {
-    Table_value *table_dep;
-    if ((table_dep= fda->table_deps[i]))
+    Dep_value_table *table_dep;
+    if ((table_dep= table_deps[i]))
     {
       /* Print table */
       fprintf(DBUG_FILE, "  table %s\n", table_dep->table->alias);
       /* Print fields */
-      for (Field_value *field_dep= table_dep->fields; field_dep; 
+      for (Dep_value_field *field_dep= table_dep->fields; field_dep; 
            field_dep= field_dep->next_table_field)
       {
         fprintf(DBUG_FILE, "    field %s.%s ->", table_dep->table->alias,
                 field_dep->field->field_name);
         uint ofs= field_dep->bitmap_offset;
-        for (uint bit= ofs; bit < ofs + fda->n_equality_mods; bit++)
+        for (uint bit= ofs; bit < ofs + n_equality_mods; bit++)
         {
-          if (bitmap_is_set(&fda->expr_deps, bit))
+          if (bitmap_is_set(&expr_deps, bit))
             fprintf(DBUG_FILE, " equality%d ", bit - ofs);
         }
         fprintf(DBUG_FILE, "\n");

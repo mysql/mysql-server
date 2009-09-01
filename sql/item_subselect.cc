@@ -215,13 +215,13 @@ err:
 }
 
 
-bool Item_subselect::check_column_usage_processor(uchar *arg)
+bool Item_subselect::enumerate_field_refs_processor(uchar *arg)
 {
   List_iterator<Item> it(refers_to);
   Item *item;
   while ((item= it++))
   {
-    if (item->walk(&Item::check_column_usage_processor,FALSE, arg))
+    if (item->walk(&Item::enumerate_field_refs_processor, FALSE, arg))
       return TRUE;
   }
   return FALSE;

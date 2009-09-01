@@ -5168,33 +5168,7 @@ void Item_equal::merge(Item_equal *item)
 
 void Item_equal::sort(Item_field_cmpfunc cmp, void *arg)
 {
-  bool swap;
-  List_iterator<Item_field> it(fields);
-  do
-  {
-    Item_field *item1= it++;
-    Item_field **ref1= it.ref();
-    Item_field *item2;
-
-    swap= FALSE;
-    while ((item2= it++))
-    {
-      Item_field **ref2= it.ref();
-      if (cmp(item1, item2, arg) < 0)
-      {
-        Item_field *item= *ref1;
-        *ref1= *ref2;
-        *ref2= item;
-        swap= TRUE;
-      }
-      else
-      {
-        item1= item2;
-        ref1= ref2;
-      }
-    }
-    it.rewind();
-  } while (swap);
+  exchange_sort<Item_field>(&fields, cmp, arg);
 }
 
 

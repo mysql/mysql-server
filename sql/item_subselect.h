@@ -135,7 +135,7 @@ public:
   enum_parsing_place place() { return parsing_place; }
   bool walk(Item_processor processor, bool walk_subquery, uchar *arg);
   bool mark_as_eliminated_processor(uchar *arg);
-  bool check_column_usage_processor(uchar *arg);
+  bool enumerate_field_refs_processor(uchar *arg);
 
   /**
     Get the SELECT_LEX structure associated with this Item.

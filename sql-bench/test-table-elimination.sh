@@ -290,10 +290,6 @@ print "time for select_one_attribute ($count:$rows): " .
     timestr(timediff($end_time, $loop_time),"all") . "\n";
 
 
-###
-### TODO...
-###
-
 ;
 
 ####
