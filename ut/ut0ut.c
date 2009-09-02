@@ -132,6 +132,7 @@ ut_time(void)
 	return(time(NULL));
 }
 
+#ifndef UNIV_HOTBACKUP
 /**********************************************************//**
 Returns system time.
 Upon successful completion, the value 0 is returned; otherwise the
@@ -215,6 +216,7 @@ ut_time_ms(void)
 
 	return((uint) tv.tv_sec * 1000 + tv.tv_usec / 1000);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /**********************************************************//**
 Returns the difference of two times in seconds.
