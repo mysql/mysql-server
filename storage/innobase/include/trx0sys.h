@@ -13,15 +13,12 @@ Created 3/26/1996 Heikki Tuuri
 
 #include "trx0types.h"
 #include "mtr0mtr.h"
-#include "mtr0log.h"
 #include "ut0byte.h"
 #include "mem0mem.h"
 #include "sync0sync.h"
 #include "ut0lst.h"
 #include "buf0buf.h"
 #include "fil0fil.h"
-#include "fut0lst.h"
-#include "fsp0fsp.h"
 #include "read0types.h"
 
 /* In a MySQL replication slave, in crash recovery we store the master log
@@ -45,6 +42,8 @@ extern trx_sys_t*	trx_sys;
 
 /* Doublewrite system */
 extern trx_doublewrite_t*	trx_doublewrite;
+/* Set to TRUE when the doublewrite buffer is being created */
+extern ibool			trx_doublewrite_buf_is_being_created;
 extern ibool			trx_doublewrite_must_reset_space_ids;
 extern ibool			trx_sys_multiple_tablespace_format;
 
@@ -302,6 +301,7 @@ trx_sys_print_mysql_master_log_pos(void);
 
 /* Space id and page no where the trx system file copy resides */
 #define	TRX_SYS_SPACE	0	/* the SYSTEM tablespace */
+#include "fsp0fsp.h"
 #define	TRX_SYS_PAGE_NO	FSP_TRX_SYS_PAGE_NO
 
 /* The offset of the transaction system header on the page */

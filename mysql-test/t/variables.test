@@ -1217,4 +1217,13 @@ SET @@sql_safe_updates= @bug42778;
 
 DROP TABLE t1;
 
+--echo #
+--echo # BUG#10206 - InnoDB: Transaction requiring Max_BinLog_Cache_size > 4GB always rollsback
+--echo #
+
+SET @old_max_binlog_cache_size = @@GLOBAL.max_binlog_cache_size;
+--echo # Set the max_binlog_cache_size to size more than 4GB. 
+SET GLOBAL max_binlog_cache_size = 5 * 1024 * 1024 * 1024;
+SELECT @@GLOBAL.max_binlog_cache_size;
+SET GLOBAL max_binlog_cache_size = @old_max_binlog_cache_size;
 --echo End of 5.1 tests

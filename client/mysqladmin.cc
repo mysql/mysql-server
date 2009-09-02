@@ -24,7 +24,7 @@
 #include <mysql.h>
 
 #define ADMIN_VERSION "8.42"
-#define MAX_MYSQL_VAR 256
+#define MAX_MYSQL_VAR 512
 #define SHUTDOWN_DEF_TIMEOUT 3600		/* Wait for shutdown */
 #define MAX_TRUNC_LENGTH 3
 
@@ -371,7 +371,7 @@ int main(int argc,char *argv[])
   }
   else
   {
-    while (!interrupted && (!opt_count_iterations || nr_iterations))
+    while (!interrupted)
     {
       new_line = 0;
       if ((error=execute_commands(&mysql,argc,commands)))
@@ -395,11 +395,11 @@ int main(int argc,char *argv[])
       }
       if (interval)
       {
+	if (opt_count_iterations && --nr_iterations == 0)
+          break;
 	sleep(interval);
 	if (new_line)
 	  puts("");
-	if (opt_count_iterations)
-	  nr_iterations--;
       }
       else
 	break;
@@ -743,6 +743,9 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
 			mysql_error(mysql));
 	return -1;
       }
+
+      DBUG_ASSERT(mysql_num_rows(res) < MAX_MYSQL_VAR);
+
       if (!opt_vertical)
 	print_header(res);
       else

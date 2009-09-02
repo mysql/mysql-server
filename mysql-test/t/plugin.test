@@ -3,13 +3,16 @@
 CREATE TABLE t1(a int) ENGINE=EXAMPLE;
 DROP TABLE t1;
 
-INSTALL PLUGIN example SONAME 'ha_example.so';
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN example SONAME $HA_EXAMPLE_SO;
+--replace_regex /\.dll/.so/
 --error 1125
-INSTALL PLUGIN EXAMPLE SONAME 'ha_example.so';
+eval INSTALL PLUGIN EXAMPLE SONAME $HA_EXAMPLE_SO;
 
 UNINSTALL PLUGIN example;
 
-INSTALL PLUGIN example SONAME 'ha_example.so';
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN example SONAME $HA_EXAMPLE_SO;
 
 CREATE TABLE t1(a int) ENGINE=EXAMPLE;
 
@@ -30,8 +33,8 @@ UNINSTALL PLUGIN non_exist;
 --echo # Bug#32034: check_func_enum() does not check correct values but set it
 --echo #            to impossible int val
 --echo #
-
-INSTALL PLUGIN example SONAME 'ha_example.so';
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN example SONAME $HA_EXAMPLE_SO;
 
 SET GLOBAL example_enum_var= e1;
 SET GLOBAL example_enum_var= e2;
@@ -45,7 +48,8 @@ UNINSTALL PLUGIN example;
 #
 # Bug #32757 hang with sql_mode set when setting some global variables
 #
-INSTALL PLUGIN example SONAME 'ha_example.so';
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN example SONAME $HA_EXAMPLE_SO;
 
 select @@session.sql_mode into @old_sql_mode;
 

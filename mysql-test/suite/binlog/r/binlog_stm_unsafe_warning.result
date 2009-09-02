@@ -1,0 +1,50 @@
+### NOT filtered database => assertion: warnings ARE shown
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a int, b int, primary key (a));
+INSERT INTO t1 VALUES (1,2), (2,3);
+UPDATE t1 SET b='4' WHERE a=1 LIMIT 1;
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+UPDATE t1 SET b='5' WHERE a=2 ORDER BY a LIMIT 1;
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+DROP TABLE t1;
+### NOT filtered database => assertion: binlog disabled and warnings ARE NOT shown
+SET SQL_LOG_BIN= 0;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a int, b int, primary key (a));
+INSERT INTO t1 VALUES (1,2), (2,3);
+UPDATE t1 SET b='4' WHERE a=1 LIMIT 1;
+UPDATE t1 SET b='5' WHERE a=2 ORDER BY a LIMIT 1;
+DROP TABLE t1;
+SET SQL_LOG_BIN= 1;
+### FILTERED database => assertion: warnings ARE NOT shown
+CREATE DATABASE b42851;
+USE b42851;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a int, b int, primary key (a));
+INSERT INTO t1 VALUES (1,2), (2,3);
+UPDATE t1 SET b='4' WHERE a=1 LIMIT 1;
+UPDATE t1 SET b='5' WHERE a=2 ORDER BY a LIMIT 1;
+DROP TABLE t1;
+DROP DATABASE b42851;
+USE test;
+#
+# Bug#46265: Can not disable warning about unsafe statements for binary logging
+#
+SET @old_log_warnings = @@log_warnings;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a VARCHAR(36), b VARCHAR(10));
+SET GLOBAL LOG_WARNINGS = 0;
+INSERT INTO t1 VALUES(UUID(), 'Bug#46265');
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+SET GLOBAL LOG_WARNINGS = 1;
+INSERT INTO t1 VALUES(UUID(), 'Bug#46265');
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+DROP TABLE t1;
+SET GLOBAL log_warnings = @old_log_warnings;
+# Count the number of times the "Unsafe" message was printed
+# to the error log.
+Occurrences: 1

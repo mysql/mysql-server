@@ -1660,3 +1660,13 @@ declare continue handler for sqlstate '00000' set @x=0;
 end$$
 ERROR 42000: Bad SQLSTATE: '00000'
 LOAD DATA INFILE '../../tmp/proc.txt' INTO TABLE mysql.proc;
+CREATE TABLE t1 (a INT, b INT);
+INSERT INTO t1 VALUES (1,1), (2,2);
+SELECT MAX (a) FROM t1 WHERE b = 999999;
+ERROR 42000: FUNCTION test.MAX does not exist. Check the 'Function Name Parsing and Resolution' section in the Reference Manual
+SELECT AVG (a) FROM t1 WHERE b = 999999;
+AVG (a)
+NULL
+SELECT non_existent (a) FROM t1 WHERE b = 999999;
+ERROR 42000: FUNCTION test.non_existent does not exist
+DROP TABLE t1;

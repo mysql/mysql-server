@@ -65,10 +65,10 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t2 VALUES(2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 SELECT * FROM t2 WHERE GET_LOCK('Bug#34306', 120)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t2 VALUES (3)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t2 VALUES (4)
-master-bin.000001	#	Query	#	#	use `test`; BEGIN
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	use `test`; COMMIT
+master-bin.000001	#	Query	#	#	COMMIT
 DROP TABLE t1;
 DROP TABLE t2;
 SET GLOBAL BINLOG_FORMAT = @saved_global_binlog_format;

@@ -16,25 +16,12 @@
 #ifndef _SQL_PROFILE_H
 #define _SQL_PROFILE_H
 
-#if __STDC_VERSION__ < 199901L
-#  if __GNUC__ >= 2
-#    define __func__ __FUNCTION__
-#  else
-#    define __func__ _unknown_func_
-extern const char * const _unknown_func_;
-#  endif
-#elif defined(_MSC_VER)
-#  if _MSC_VER < 1300
-#     define __func__ _unknown_func_
-extern const char * const _unknown_func_;
-#  else
-#    define __func__ __FUNCTION__
-#  endif
-#elif defined(__BORLANDC__)
-#  define __func__ __FUNC__
+#ifndef __func__
+#ifdef __FUNCTION__
+#define __func__ __FUNCTION__
 #else
-#  define __func__ _unknown_func_
-extern const char * const _unknown_func_;
+#define __func__ "unknown function"
+#endif
 #endif
 
 extern ST_FIELD_INFO query_profile_statistics_info[];

@@ -22,7 +22,7 @@ CALL bug18293("Foo's a Bar", _cp932 0xED40ED41ED42, 47.93)|
 SELECT HEX(s1),HEX(s2),d FROM t4|
 DROP PROCEDURE bug18293|
 DROP TABLE t4|
-SHOW BINLOG EVENTS FROM 369|
+SHOW BINLOG EVENTS FROM 370|
 delimiter ;|
 
 --echo End of 5.0 tests
@@ -31,8 +31,9 @@ delimiter ;|
 # #28436: Incorrect position in SHOW BINLOG EVENTS causes server coredump 
 # Note: 364 is a magic position (found experimentally, depends on 
 # the log's contents) that caused the server crash.
+
 --error 1220
-SHOW BINLOG EVENTS FROM 364;
+SHOW BINLOG EVENTS FROM 365;
 
 --echo Bug#44352 UPPER/LOWER function doesn't work correctly on cp932 and sjis environment.
 CREATE TABLE t1 (a varchar(16)) character set cp932;

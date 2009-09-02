@@ -32,11 +32,11 @@
   DESCRIPTION
     init_dynamic_array() initiates array and allocate space for 
     init_alloc eilements. 
-    Array is usable even if space allocation failed.
+    Array is usable even if space allocation failed, hence, the
+    function never returns TRUE.
     Static buffers must begin immediately after the array structure.
 
   RETURN VALUE
-    TRUE	my_malloc_ci() failed
     FALSE	Ok
 */
 
@@ -63,12 +63,12 @@ my_bool init_dynamic_array2(DYNAMIC_ARRAY *array, uint element_size,
   array->size_of_element=element_size;
   if ((array->buffer= init_buffer))
     DBUG_RETURN(FALSE);
-  if (!(array->buffer=(uchar*) my_malloc_ci(element_size*init_alloc,
-                                            MYF(MY_WME))))
-  {
+  /* 
+    Since the dynamic array is usable even if allocation fails here malloc
+    should not throw an error
+  */
+  if (!(array->buffer= (char*) my_malloc_ci(element_size*init_alloc, MYF(0))))
     array->max_element=0;
-    DBUG_RETURN(TRUE);
-  }
   DBUG_RETURN(FALSE);
 } 
 

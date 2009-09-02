@@ -44,7 +44,8 @@ class ha_myisammrg: public handler
 	    HA_NULL_IN_KEY | HA_CAN_INDEX_BLOBS | HA_FILE_BASED |
             HA_ANY_INDEX_MAY_BE_UNIQUE | HA_CAN_BIT_FIELD |
             HA_HAS_RECORDS |
-            HA_NO_COPY_ON_ALTER);
+            HA_NO_COPY_ON_ALTER |
+            HA_DUPLICATE_POS);
   }
   ulong index_flags(uint inx, uint part, bool all_parts) const
   {

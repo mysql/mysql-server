@@ -452,11 +452,45 @@ Field *Item_func::tmp_table_field(TABLE *table)
     return make_string_field(table);
     break;
   case DECIMAL_RESULT:
-    field= new Field_new_decimal(my_decimal_precision_to_length(decimal_precision(),
-                                                                decimals,
-                                                                unsigned_flag),
-                                 maybe_null, name, decimals, unsigned_flag);
+  {
+    uint8 dec= decimals;
+    uint8 intg= decimal_precision() - dec;
+    uint32 len= max_length;
+
+    /*
+      Trying to put too many digits overall in a DECIMAL(prec,dec)
+      will always throw a warning. We must limit dec to
+      DECIMAL_MAX_SCALE however to prevent an assert() later.
+    */
+
+    if (dec > 0)
+    {
+      int overflow;
+
+      dec= min(dec, DECIMAL_MAX_SCALE);
+
+      /*
+        If the value still overflows the field with the corrected dec,
+        we'll throw out decimals rather than integers. This is still
+        bad and of course throws a truncation warning.
+      */
+
+      const int required_length=
+        my_decimal_precision_to_length(intg + dec, dec,
+                                                     unsigned_flag);
+
+      overflow= required_length - len;
+
+      if (overflow > 0)
+        dec= max(0, dec - overflow);            // too long, discard fract
+      else
+        /* Corrected value fits. */
+        len= required_length;
+    }
+
+    field= new Field_new_decimal(len, maybe_null, name, dec, unsigned_flag);
     break;
+  }
   case ROW_RESULT:
   default:
     // This case should never be chosen
@@ -545,8 +579,8 @@ void Item_func::count_decimal_length()
     set_if_smaller(unsigned_flag, args[i]->unsigned_flag);
   }
   int precision= min(max_int_part + decimals, DECIMAL_MAX_PRECISION);
-  max_length= my_decimal_precision_to_length(precision, decimals,
-                                             unsigned_flag);
+  max_length= my_decimal_precision_to_length_no_truncation(precision, decimals,
+                                                           unsigned_flag);
 }
 
 
@@ -1141,16 +1175,15 @@ void Item_func_additive_op::result_precision()
   decimals= max(args[0]->decimals, args[1]->decimals);
   int arg1_int= args[0]->decimal_precision() - args[0]->decimals;
   int arg2_int= args[1]->decimal_precision() - args[1]->decimals;
-  int est_prec= max(arg1_int, arg2_int) + 1 + decimals;
-  int precision= min(est_prec, DECIMAL_MAX_PRECISION);
+  int precision= max(arg1_int, arg2_int) + 1 + decimals;
 
   /* Integer operations keep unsigned_flag if one of arguments is unsigned */
   if (result_type() == INT_RESULT)
     unsigned_flag= args[0]->unsigned_flag | args[1]->unsigned_flag;
   else
     unsigned_flag= args[0]->unsigned_flag & args[1]->unsigned_flag;
-  max_length= my_decimal_precision_to_length(precision, decimals,
-                                             unsigned_flag);
+  max_length= my_decimal_precision_to_length_no_truncation(precision, decimals,
+                                                           unsigned_flag);
 }
 
 
@@ -1255,7 +1288,8 @@ void Item_func_mul::result_precision()
   decimals= min(args[0]->decimals + args[1]->decimals, DECIMAL_MAX_SCALE);
   uint est_prec = args[0]->decimal_precision() + args[1]->decimal_precision();
   uint precision= min(est_prec, DECIMAL_MAX_PRECISION);
-  max_length= my_decimal_precision_to_length(precision, decimals,unsigned_flag);
+  max_length= my_decimal_precision_to_length_no_truncation(precision, decimals,
+                                                           unsigned_flag);
 }
 
 
@@ -1311,8 +1345,8 @@ void Item_func_div::result_precision()
   else
     unsigned_flag= args[0]->unsigned_flag & args[1]->unsigned_flag;
   decimals= min(args[0]->decimals + prec_increment, DECIMAL_MAX_SCALE);
-  max_length= my_decimal_precision_to_length(precision, decimals,
-                                             unsigned_flag);
+  max_length= my_decimal_precision_to_length_no_truncation(precision, decimals,
+                                                           unsigned_flag);
 }
 
 
@@ -1944,8 +1978,8 @@ void Item_func_round::fix_length_and_dec()
   unsigned_flag= args[0]->unsigned_flag;
   if (!args[1]->const_item())
   {
-    max_length= args[0]->max_length;
     decimals= args[0]->decimals;
+    max_length= float_length(decimals);
     if (args[0]->result_type() == DECIMAL_RESULT)
     {
       max_length++;
@@ -1965,8 +1999,8 @@ void Item_func_round::fix_length_and_dec()
 
   if (args[0]->decimals == NOT_FIXED_DEC)
   {
-    max_length= args[0]->max_length;
     decimals= min(decimals_to_set, NOT_FIXED_DEC);
+    max_length= float_length(decimals);
     hybrid_type= REAL_RESULT;
     return;
   }
@@ -1999,8 +2033,9 @@ void Item_func_round::fix_length_and_dec()
 
     precision-= decimals_delta - length_increase;
     decimals= min(decimals_to_set, DECIMAL_MAX_SCALE);
-    max_length= my_decimal_precision_to_length(precision, decimals,
-                                               unsigned_flag);
+    max_length= my_decimal_precision_to_length_no_truncation(precision,
+                                                             decimals,
+                                                             unsigned_flag);
     break;
   }
   default:
@@ -2243,8 +2278,9 @@ void Item_func_min_max::fix_length_and_dec()
     }
   }
   else if ((cmp_type == DECIMAL_RESULT) || (cmp_type == INT_RESULT))
-    max_length= my_decimal_precision_to_length(max_int_part+decimals, decimals,
-                                            unsigned_flag);
+    max_length= my_decimal_precision_to_length_no_truncation(max_int_part +
+                                                             decimals, decimals,
+                                                             unsigned_flag);
   cached_field_type= agg_field_type(args, arg_count);
 }
 
@@ -4463,8 +4499,8 @@ int Item_func_set_user_var::save_in_field(Field *field, bool no_conversions,
   update();
 
   if (result_type() == STRING_RESULT ||
-      result_type() == REAL_RESULT &&
-      field->result_type() == STRING_RESULT)
+      (result_type() == REAL_RESULT &&
+      field->result_type() == STRING_RESULT))
   {
     String *result;
     CHARSET_INFO *cs= collation.collation;
@@ -5802,6 +5838,14 @@ Item_func_sp::func_name() const
 }
 
 
+int my_missing_function_error(const LEX_STRING &token, const char *func_name)
+{
+  if (token.length && is_lex_native_function (&token))
+    return my_error(ER_FUNC_INEXISTENT_NAME_COLLISION, MYF(0), func_name);
+  else
+    return my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION", func_name);
+}
+
 
 /**
   @brief Initialize the result field by creating a temporary dummy table
@@ -5834,7 +5878,7 @@ Item_func_sp::init_result_field(THD *thd)
   if (!(m_sp= sp_find_routine(thd, TYPE_ENUM_FUNCTION, m_name,
                                &thd->sp_func_cache, TRUE)))
   {
-    my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION", m_name->m_qname.str);
+    my_missing_function_error (m_name->m_name, m_name->m_qname.str);
     context->process_error(thd);
     DBUG_RETURN(TRUE);
   }
@@ -5946,6 +5990,9 @@ Item_func_sp::execute_impl(THD *thd)
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   Security_context *save_security_ctx= thd->security_ctx;
 #endif
+  enum enum_sp_data_access access=
+    (m_sp->m_chistics->daccess == SP_DEFAULT_ACCESS) ?
+     SP_DEFAULT_ACCESS_MAPPING : m_sp->m_chistics->daccess;
 
   DBUG_ENTER("Item_func_sp::execute_impl");
 
@@ -5963,11 +6010,13 @@ Item_func_sp::execute_impl(THD *thd)
     Throw an error if a non-deterministic function is called while
     statement-based replication (SBR) is active.
   */
+
   if (!m_sp->m_chistics->detistic && !trust_function_creators &&
+      (access == SP_CONTAINS_SQL || access == SP_MODIFIES_SQL_DATA) &&
       (mysql_bin_log.is_open() &&
        thd->variables.binlog_format == BINLOG_FORMAT_STMT))
   {
-    my_error(ER_BINLOG_ROW_RBR_TO_SBR, MYF(0));
+    my_error(ER_BINLOG_UNSAFE_ROUTINE, MYF(0));
     goto error;
   }
 

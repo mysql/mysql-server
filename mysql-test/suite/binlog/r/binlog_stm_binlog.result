@@ -6,7 +6,7 @@ show binlog events;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	4	Format_desc	1	106	Server ver: #, Binlog ver: #
 master-bin.000001	106	Query	1	213	use `test`; create table t1 (a int, b int) engine=innodb
-master-bin.000001	213	Query	1	281	use `test`; BEGIN
+master-bin.000001	213	Query	1	281	BEGIN
 master-bin.000001	281	Query	1	371	use `test`; insert into t1 values (1,2)
 master-bin.000001	371	Xid	1	398	COMMIT /* XID */
 drop table t1;
@@ -24,10 +24,10 @@ show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; create table t1 (a int) engine=innodb
 master-bin.000001	#	Query	#	#	use `test`; create table t2 (a int) engine=innodb
-master-bin.000001	#	Query	#	#	use `test`; BEGIN
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; insert t1 values (5)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
-master-bin.000001	#	Query	#	#	use `test`; BEGIN
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; insert t2 values (5)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 drop table t1,t2;
@@ -39,7 +39,7 @@ drop table t1;
 show binlog events in 'master-bin.000001' from 106;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	use `test`; create table t1 (n int) engine=innodb
-master-bin.000001	#	Query	1	#	use `test`; BEGIN
+master-bin.000001	#	Query	1	#	BEGIN
 master-bin.000001	#	Query	1	#	use `test`; insert into t1 values(100 + 4)
 master-bin.000001	#	Query	1	#	use `test`; insert into t1 values(99 + 4)
 master-bin.000001	#	Query	1	#	use `test`; insert into t1 values(98 + 4)
@@ -159,7 +159,7 @@ show binlog events from 0;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	4	Format_desc	1	106	Server version, Binlog ver: 4
 master-bin.000001	106	Query	1	205	use `test`; create table t1(n int) engine=innodb
-master-bin.000001	205	Query	1	273	use `test`; BEGIN
+master-bin.000001	205	Query	1	273	BEGIN
 master-bin.000001	273	Query	1	361	use `test`; insert into t1 values (1)
 master-bin.000001	361	Query	1	449	use `test`; insert into t1 values (2)
 master-bin.000001	449	Query	1	537	use `test`; insert into t1 values (3)
@@ -173,7 +173,7 @@ show binlog events from 0;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	4	Format_desc	1	106	Server version, Binlog ver: 4
 master-bin.000001	106	Query	1	206	use `test`; create table t1 (a int) engine=innodb
-master-bin.000001	206	Query	1	274	use `test`; BEGIN
+master-bin.000001	206	Query	1	274	BEGIN
 master-bin.000001	274	Query	1	365	use `test`; insert into t1 values( 400 )
 master-bin.000001	365	Query	1	456	use `test`; insert into t1 values( 399 )
 master-bin.000001	456	Query	1	547	use `test`; insert into t1 values( 398 )
@@ -730,18 +730,18 @@ master-bin.000001	#	Query	#	#	use `mysql`; UPDATE user SET password=password('An
 master-bin.000001	#	Query	#	#	use `mysql`; DELETE FROM user WHERE host='localhost' AND user='@#@'
 master-bin.000001	#	Query	#	#	use `test`; drop table t1,t2,t3,tt1
 master-bin.000001	#	Query	#	#	use `test`; create table t1 (a int not null auto_increment, primary key (a)) engine=myisam
-master-bin.000001	#	Query	#	#	use `test`; BEGIN
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	use `test`; COMMIT
-master-bin.000001	#	Query	#	#	use `test`; BEGIN
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	use `test`; COMMIT
-master-bin.000001	#	Query	#	#	use `test`; BEGIN
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	use `test`; COMMIT
+master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	use `test`; FLUSH TABLES
 insert delayed into t1 values (null),(null),(null),(null);
 insert delayed into t1 values (null),(null),(400),(null);
@@ -773,3 +773,14 @@ show master status /* must show new binlog index after rotating */;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
 master-bin.000002	106		
 drop table t3;
+#
+# Bug #45998: database crashes when running "create as select"
+#
+CREATE DATABASE test1;
+USE test1;
+DROP DATABASE test1;
+CREATE TABLE test.t1(a int);
+INSERT INTO test.t1 VALUES (1), (2);
+CREATE TABLE test.t2 SELECT * FROM test.t1;
+USE test;
+DROP TABLES t1, t2;
