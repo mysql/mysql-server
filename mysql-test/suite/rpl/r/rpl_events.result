@@ -191,5 +191,63 @@ select * from t28953;
 END;|
 ALTER EVENT event1 RENAME TO event2;
 DROP EVENT event2;
+CREATE TABLE test.t1(details CHAR(30));
+CREATE EVENT /*!50000 event44331_1 */
+ON SCHEDULE AT CURRENT_TIMESTAMP
+ON COMPLETION PRESERVE DISABLE
+DO INSERT INTO test.t1 VALUES('event event44331_1 fired - no definer');
+CREATE DEFINER=CURRENT_USER /*!50000 EVENT event44331_2 */
+ON SCHEDULE AT CURRENT_TIMESTAMP
+ON COMPLETION PRESERVE DISABLE
+DO INSERT INTO test.t1 VALUES('event event44331_2 fired - DEFINER=CURRENT_USER');
+CREATE DEFINER=CURRENT_USER() EVENT event44331_3
+ON SCHEDULE AT CURRENT_TIMESTAMP
+ON COMPLETION PRESERVE DISABLE
+DO INSERT INTO test.t1 VALUES('event event44331_3 fired - DEFINER=CURRENT_USER() function');
+CREATE /*!50000 DEFINER='user44331' */ EVENT event44331_4
+ON SCHEDULE AT CURRENT_TIMESTAMP
+ON COMPLETION PRESERVE DISABLE
+DO INSERT INTO test.t1 VALUES('event event44331_4 fired - DEFINER=user1');
+Warnings:
+Note	1449	The user specified as a definer ('user44331'@'%') does not exist
+#on master 
+select EVENT_SCHEMA, EVENT_NAME, DEFINER from information_schema.events
+where EVENT_NAME='event44331_1';
+EVENT_SCHEMA	EVENT_NAME	DEFINER
+test	event44331_1	root@localhost
+select EVENT_SCHEMA, EVENT_NAME, DEFINER from information_schema.events
+where EVENT_NAME='event44331_2';
+EVENT_SCHEMA	EVENT_NAME	DEFINER
+test	event44331_2	root@localhost
+select EVENT_SCHEMA, EVENT_NAME, DEFINER from information_schema.events
+where EVENT_NAME='event44331_3';
+EVENT_SCHEMA	EVENT_NAME	DEFINER
+test	event44331_3	root@localhost
+select EVENT_SCHEMA, EVENT_NAME, DEFINER from information_schema.events
+where EVENT_NAME='event44331_4';
+EVENT_SCHEMA	EVENT_NAME	DEFINER
+test	event44331_4	user44331@%
+#on slave
+select EVENT_SCHEMA, EVENT_NAME, DEFINER from information_schema.events
+where EVENT_NAME='event44331_1';
+EVENT_SCHEMA	EVENT_NAME	DEFINER
+test	event44331_1	root@localhost
+select EVENT_SCHEMA, EVENT_NAME, DEFINER from information_schema.events
+where EVENT_NAME='event44331_2';
+EVENT_SCHEMA	EVENT_NAME	DEFINER
+test	event44331_2	root@localhost
+select EVENT_SCHEMA, EVENT_NAME, DEFINER from information_schema.events
+where EVENT_NAME='event44331_3';
+EVENT_SCHEMA	EVENT_NAME	DEFINER
+test	event44331_3	root@localhost
+select EVENT_SCHEMA, EVENT_NAME, DEFINER from information_schema.events
+where EVENT_NAME='event44331_4';
+EVENT_SCHEMA	EVENT_NAME	DEFINER
+test	event44331_4	user44331@%
 SET @@global.event_scheduler= @old_event_scheduler;
 DROP TABLE t28953;
+DROP TABLE t1;
+DROP EVENT event44331_1;
+DROP EVENT event44331_2;
+DROP EVENT event44331_3;
+DROP EVENT event44331_4;

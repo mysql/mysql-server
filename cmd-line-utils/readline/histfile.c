@@ -186,7 +186,7 @@ read_history_range (filename, from, to)
   file_size = (size_t)finfo.st_size;
 
   /* check for overflow on very large files */
-if ((sizeof(off_t) > sizeof(size_t) && finfo.st_size > (off_t)(size_t)~0) ||  
+  if ((sizeof(off_t) > sizeof(size_t) && finfo.st_size > (off_t)(size_t)~0) ||  
     file_size + 1 < file_size)
     {
       errno = overflow_errno;
@@ -311,6 +311,7 @@ history_truncate_file (fname, lines)
   int file, chars_read, rv;
   struct stat finfo;
   size_t file_size;
+  size_t bytes_written;
 
   buffer = (char *)NULL;
   filename = history_filename (fname);
@@ -340,7 +341,7 @@ history_truncate_file (fname, lines)
   file_size = (size_t)finfo.st_size;
 
   /* check for overflow on very large files */
-if ((sizeof(off_t) > sizeof(size_t) && finfo.st_size > (off_t)(size_t)~0) ||  
+  if ((sizeof(off_t) > sizeof(size_t) && finfo.st_size > (off_t)(size_t)~0) ||  
     file_size + 1 < file_size)
     {
       close (file);
@@ -400,7 +401,7 @@ if ((sizeof(off_t) > sizeof(size_t) && finfo.st_size > (off_t)(size_t)~0) ||
      truncate to. */
   if (bp > buffer && ((file = open (filename, O_WRONLY|O_TRUNC|O_BINARY, 0600)) != -1))
     {
-      write (file, bp, chars_read - (bp - buffer));
+      bytes_written= write (file, bp, chars_read - (bp - buffer));
 
 #if defined (__BEOS__)
       /* BeOS ignores O_TRUNC. */
