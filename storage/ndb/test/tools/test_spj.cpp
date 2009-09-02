@@ -517,6 +517,74 @@ int spjTest(int argc, char** argv){
   exit(-1); }
 
 
+int plainScan(int argc, char** argv){
+  NDB_INIT(argv[0]);
+
+  const char *load_default_groups[]= { "mysql_cluster",0 };
+  load_defaults("my",load_default_groups,&argc,&argv);
+  int ho_error;
+#ifndef DBUG_OFF
+  opt_debug= "d:t:O,/tmp/ndb_desc.trace";
+#endif
+  if ((ho_error=handle_options(&argc, &argv, my_long_options,
+			       ndb_std_get_one_option)))
+    return NDBT_ProgramExit(NDBT_WRONGARGS);
+
+  Ndb_cluster_connection con(opt_connect_str);
+  if(con.connect(12, 5, 1) != 0)
+  {
+    ndbout << "Unable to connect to management server." << endl;
+    return NDBT_ProgramExit(NDBT_FAILED);
+  }
+
+  int res = con.wait_until_ready(30,30);
+  if (res != 0)
+  {
+    ndbout << "Cluster nodes not ready in 30 seconds." << endl;
+    return NDBT_ProgramExit(NDBT_FAILED);
+  }
+
+  Ndb myNdb(&con, _dbname);
+  if(myNdb.init() != 0){
+    ERR(myNdb.getNdbError());
+    return NDBT_ProgramExit(NDBT_FAILED);
+  }
+
+  NdbDictionary::Dictionary*  const myDict = myNdb.getDictionary();
+  const NdbDictionary::Table* const tab = myDict->getTable("T");
+
+  assert(tab!=NULL);
+  
+  //APIERROR(myDict->getNdbError());
+  
+  NdbTransaction* myTransaction= myNdb.startTransaction();
+
+  NdbScanOperation* const scanOp = myTransaction->getNdbScanOperation(tab);
+  Uint32 results[6] = {0};
+  for(Uint32 i = 0; i<6; i++){
+    scanOp->getValue(i, reinterpret_cast<char*>(&results[i]));
+  }
+  
+  assert(myTransaction->execute(NoCommit)==0);
+  bool done = false;
+  while(!done){
+    switch(scanOp->nextResult(true, false)){
+    case 0:
+      for(Uint32 i = 0; i<6; i++){
+        ndbout << results[i] << " ";
+      }
+      ndbout << endl;
+      break;
+    case 1:
+      done = true;
+      break;
+    default:
+      assert(0);
+    }
+  }
+  return 0;
+}; // plainScan()
+
 
 
 int testSerialize(bool scan, int argc, char** argv){
@@ -578,14 +646,17 @@ int testSerialize(bool scan, int argc, char** argv){
     const void* params[] = {NULL};
     // Instantiate NdbQuery for this transaction.
     NdbQuery* query = myTransaction->createQuery(scanDef, params);
-    //Uint32 results[10][6];
-    //char* resultPtr = NULL;
-    const Uint32* scanResultPtr;
+    //const Uint32* scanResultPtr;
     //const unsigned char* mask = NULL;
     NdbQueryOperation* const scanOp = query->getQueryOperation(0U);
-    scanOp->setResultRowRef(resultRec, 
+    /*scanOp->setResultRowRef(resultRec, 
                         reinterpret_cast<const char*&>(scanResultPtr),
-                        NULL);
+                        NULL);*/
+    Uint32 scanResultPtr[6] = {0};
+    for(Uint32 i = 0; i<6; i++){
+      assert(scanOp->getValue(i, reinterpret_cast<char*>(scanResultPtr+i))
+             !=NULL);
+    }
     const Uint32* lookupResultPtr;
     NdbQueryOperation* const lookupOp = query->getQueryOperation(1);
     lookupOp->setResultRowRef(resultRec, 
@@ -689,7 +760,7 @@ int testSerialize(bool scan, int argc, char** argv){
 
     /* Read all attributes from result tuples.*/
     const Uint32 opCount = query->getNoOfOperations();
-    const Uint32 recordOpCount = 2;
+    const Uint32 recordOpCount = 0;
     const ResultSet** resultSet = new const ResultSet*[opCount-recordOpCount];
     for(Uint32 i = 0; i < opCount-recordOpCount; i++){
       resultSet[i] 
@@ -697,8 +768,13 @@ int testSerialize(bool scan, int argc, char** argv){
     }
     const NdbRecord* resultRec = tab->getDefaultRecord();
     assert(resultRec!=NULL);
-    Uint32 results[recordOpCount][6] = {0};
-    const unsigned char mask[] = {0x0e};
+    Uint32 results[2][6] = {0U};
+    const unsigned char mask[] = {0xe};
+    for(Uint32 i = 0; i<recordOpCount; i++){
+      for(Uint32 j = 0; j<6; j++){
+        results[i][j]= 0x0;
+      }
+    }
     for(Uint32 i = 0; i<recordOpCount; i++){
       const int error = query->getQueryOperation(i)
         ->setResultRowBuf(resultRec, 
@@ -725,9 +801,10 @@ int testSerialize(bool scan, int argc, char** argv){
 
 
 int main(int argc, char** argv){
-  //return spjTest(argc, argv);
+  //plainScan(argc, argv)
   testSerialize(false, argc, argv);
-  return testSerialize(true, argc, argv);
+  testSerialize(true, argc, argv);
+  return 0;
 }
 /**
  * Store list of 16-bit integers put into 32-bit integers

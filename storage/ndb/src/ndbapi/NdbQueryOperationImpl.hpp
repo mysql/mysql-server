@@ -83,9 +83,6 @@ public:
    *  @return possible error code.*/
   int prepareSend();
 
-  /** Release all NdbReceiver instances.*/
-  void release();
-
   bool checkMagicNumber() const
   { return m_magic == MAGIC; }
 
@@ -235,9 +232,6 @@ public:
    *  @return possible error code.*/
   int prepareSend(Uint32Buffer& serializedParams);
 
-  /** Release NdbReceiver objects.*/
-  void release();
-
   /* TODO: Remove this method. Only needed in spj_test.cpp.*/
   /** Return I-value for putting in object map.*/
   Uint32 ptr2int() const {
@@ -266,6 +260,14 @@ public:
   { return m_maxBatchRows; }
 
 private:
+  /** NdbRecord and NdbRecAttr may not be combined. Also, results may not 
+   * be requested for all operations.*/
+  enum ResultStyle{
+    Style_None,       // Not set yet.
+    Style_NdbRecord,  // Use old style result retrieval.
+    Style_NdbRecAttr, // Use NdbRecord.
+  };
+ 
   /** This class represents a projection that shall be sent to the 
    * application.*/
   class UserProjection{
@@ -279,9 +281,12 @@ private:
     /** Make a serialize representation of this object, to be sent to the 
      * SPJ block.
      * @param dst Buffer for storing serialized projection.
+     * @param style NdbRecord, NdbRecattr or empty projection.
      * @param withCorrelation Include correlation data in projection.
      * @return Possible error code.*/
-    int serialize(Uint32Slice dst, bool withCorrelation) const;
+    int serialize(Uint32Slice dst, 
+                  ResultStyle resultStyle, 
+                  bool withCorrelation) const;
     
     /** Get number of columns.*/
     int getColumnCount() const {return m_columnCount;}
@@ -464,12 +469,8 @@ private:
   Uint32Buffer m_params;
   /** Projection to be sent to the application.*/
   UserProjection m_userProjection;
-  /** NdbRecord and old style result retrieval may not be combined.*/
-  enum {
-    Style_None,       // Not set yet.
-    Style_NdbRecord,  // Use old style result retrieval.
-    Style_NdbRecAttr, // Use NdbRecord.
-  } m_resultStyle;
+  /** NdbRecord, NdbRecAttr or none.*/
+  ResultStyle m_resultStyle;
   /** For temporary storing one result batch.*/
   char* m_batchBuffer;
   /** Buffer for final storage of result.*/
@@ -493,10 +494,18 @@ private:
    * application thread and receiving thread. Access should be mutex protected.
    */
   StreamStack m_fullStreams;
+  /** Points to head of list. Used for old-style result retrieval 
+   * (using getValue()).*/
+  NdbRecAttr* m_firstRecAttr;
+  /** Points to tail of list. Used for old-style result retrieval 
+   * (using getValue()).*/
+  NdbRecAttr* m_lastRecAttr;
   /** Fetch result for non-root operation.*/
   void updateChildResult(Uint32 resultStreamNo, Uint32 rowNo);
   /** Get more scan results, ask for the next batch if necessary.*/
   FetchResult fetchMoreResults(bool forceSend);
+  /** Copy any NdbRecAttr results into application buffers.*/
+  void fetchRecAttrResults(Uint32 streamNo);
 }; // class NdbQueryOperationImpl
 
 
