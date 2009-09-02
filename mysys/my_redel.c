@@ -77,7 +77,9 @@ end:
 int my_copystat(const char *from, const char *to, int MyFlags)
 {
   struct stat statbuf;
+#if !defined(MSDOS) && !defined(__WIN__) && !defined(__EMX__) && !defined(OS2) && !defined(__NETWARE__)
   int res;
+#endif /* MSDOS */
 
   if (stat((char*) from, &statbuf))
   {
