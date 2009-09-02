@@ -20,13 +20,13 @@ show binlog events;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 master-bin.000001	#	Query	1	#	use `test`; create table t1(n int not null auto_increment primary key)ENGINE=InnoDB
-master-bin.000001	#	Query	1	#	use `test`; BEGIN
+master-bin.000001	#	Query	1	#	BEGIN
 master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	1	#	COMMIT /* XID */
 master-bin.000001	#	Query	1	#	use `test`; drop table t1
 master-bin.000001	#	Query	1	#	use `test`; create table t1 (word char(20) not null)ENGINE=InnoDB
-master-bin.000001	#	Query	1	#	use `test`; BEGIN
+master-bin.000001	#	Query	1	#	BEGIN
 master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	1	#	COMMIT /* XID */
@@ -36,7 +36,7 @@ master-bin.000001	#	Query	1	#	use `test`; create table t1(n int not null auto_in
 show binlog events from 106 limit 2;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	use `test`; create table t1(n int not null auto_increment primary key)ENGINE=InnoDB
-master-bin.000001	#	Query	1	#	use `test`; BEGIN
+master-bin.000001	#	Query	1	#	BEGIN
 show binlog events from 106 limit 2,1;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
@@ -192,13 +192,13 @@ insert into t2 values (1);
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; create table t1(n int not null auto_increment primary key)ENGINE=InnoDB
-master-bin.000001	#	Query	#	#	use `test`; BEGIN
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	use `test`; drop table t1
 master-bin.000001	#	Query	#	#	use `test`; create table t1 (word char(20) not null)ENGINE=InnoDB
-master-bin.000001	#	Query	#	#	use `test`; BEGIN
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
@@ -208,7 +208,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000002	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 master-bin.000002	#	Query	1	#	use `test`; create table t3 (a int)ENGINE=InnoDB
 master-bin.000002	#	Query	1	#	use `test`; create table t2 (n int)ENGINE=InnoDB
-master-bin.000002	#	Query	1	#	use `test`; BEGIN
+master-bin.000002	#	Query	1	#	BEGIN
 master-bin.000002	#	Table_map	1	#	table_id: # (test.t2)
 master-bin.000002	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 master-bin.000002	#	Xid	1	#	COMMIT /* XID */
@@ -301,14 +301,14 @@ insert into t1 values (NULL, last_insert_id()), (NULL, last_insert_id());
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; create table t1(a int auto_increment primary key, b int)
-master-bin.000001	#	Query	#	#	use `test`; BEGIN
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	use `test`; COMMIT
-master-bin.000001	#	Query	#	#	use `test`; BEGIN
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	use `test`; COMMIT
+master-bin.000001	#	Query	#	#	COMMIT
 select * from t1;
 a	b
 1	1

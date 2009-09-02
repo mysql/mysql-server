@@ -1,0 +1,11 @@
+source suite/ibmdb2i/include/have_ibmdb2i.inc;
+source suite/ibmdb2i/include/have_i61.inc;
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+create table t1 (c char(10), index(c)) charset macce engine=ibmdb2i;
+insert into t1 values ("test");
+select * from t1 order by c;
+drop table t1;

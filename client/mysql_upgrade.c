@@ -39,6 +39,7 @@ static uint my_end_arg= 0;
 static char *opt_user= (char*)"root";
 
 static DYNAMIC_STRING ds_args;
+static DYNAMIC_STRING conn_args;
 
 static char *opt_password= 0;
 static my_bool tty_password= 0;
@@ -135,6 +136,7 @@ static void free_used_memory(void)
   free_defaults(defaults_argv);
 
   dynstr_free(&ds_args);
+  dynstr_free(&conn_args);
 }
 
 
@@ -204,7 +206,7 @@ static void add_one_option(DYNAMIC_STRING* ds,
     }
   }
   dynstr_append_os_quoted(ds, "--", opt->name, eq, arg, NullS);
-  dynstr_append(&ds_args, " ");
+  dynstr_append(ds, " ");
 }
 
 
@@ -232,7 +234,7 @@ get_one_option(int optid, const struct my_option *opt,
 
   case 'p':
     if (argument == disabled_my_option)
-      argument= (char*) "";			// Don't require password
+      argument= (char*) "";			/* Don't require password */
     tty_password= 1;
     add_option= FALSE;
     if (argument)
@@ -251,10 +253,23 @@ get_one_option(int optid, const struct my_option *opt,
     break;
 
   case 'b': /* --basedir   */
-  case 'v': /* --verbose   */
   case 'd': /* --datadir   */
+    fprintf(stderr, "%s: the '--%s' option is always ignored\n",
+            my_progname, optid == 'b' ? "basedir" : "datadir");
+    /* FALLTHROUGH */
+
+  case 'v': /* --verbose   */
   case 'f': /* --force     */
     add_option= FALSE;
+    break;
+
+  case 'h': /* --host */
+  case 'W': /* --pipe */
+  case 'P': /* --port */
+  case 'S': /* --socket */
+  case OPT_MYSQL_PROTOCOL: /* --protocol */
+  case OPT_SHARED_MEMORY_BASE_NAME: /* --shared-memory-base-name */
+    add_one_option(&conn_args, opt, argument);
     break;
   }
 
@@ -604,13 +619,27 @@ static void create_mysql_upgrade_info_file(void)
 
 
 /*
+  Print connection-related arguments.
+*/
+
+static void print_conn_args(const char *tool_name)
+{
+  if (conn_args.str[0])
+    verbose("Running '%s' with connection arguments: %s", tool_name,
+          conn_args.str);
+  else
+    verbose("Running '%s with default connection arguments", tool_name);
+}  
+
+
+/*
   Check and upgrade(if neccessary) all tables
   in the server using "mysqlcheck --check-upgrade .."
 */
 
 static int run_mysqlcheck_upgrade(void)
 {
-  verbose("Running 'mysqlcheck'...");
+  print_conn_args("mysqlcheck");
   return run_tool(mysqlcheck_path,
                   NULL, /* Send output from mysqlcheck directly to screen */
                   "--no-defaults",
@@ -624,7 +653,7 @@ static int run_mysqlcheck_upgrade(void)
 
 static int run_mysqlcheck_fixnames(void)
 {
-  verbose("Running 'mysqlcheck'...");
+  print_conn_args("mysqlcheck");
   return run_tool(mysqlcheck_path,
                   NULL, /* Send output from mysqlcheck directly to screen */
                   "--no-defaults",
@@ -753,7 +782,8 @@ int main(int argc, char **argv)
     strncpy(self_name, argv[0], FN_REFLEN);
   }
 
-  if (init_dynamic_string(&ds_args, "", 512, 256))
+  if (init_dynamic_string(&ds_args, "", 512, 256) ||
+      init_dynamic_string(&conn_args, "", 512, 256))
     die("Out of memory");
 
   load_defaults("my", load_default_groups, &argc, &argv);

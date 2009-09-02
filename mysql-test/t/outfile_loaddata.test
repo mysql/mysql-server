@@ -111,3 +111,146 @@ SELECT HEX(c1) FROM t1;
 DROP TABLE t1;
 
 --echo # End of 5.0 tests.
+
+###########################################################################
+
+--echo #
+--echo # Bug #30946: mysqldump silently ignores --default-character-set
+--echo #             when used with --tab
+--echo #
+--echo # Also see mysqldump.test
+--echo #
+
+SET NAMES utf8;
+CREATE TABLE t1 (a INT, b CHAR(10) CHARSET koi8r, c CHAR(10) CHARSET latin1);
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t1 VALUES (1, 'ABC-АБВ', 'DEF-ÂÃÄ'), (2, NULL, NULL);
+
+--let $file=$MYSQLTEST_VARDIR/tmp/t1.txt
+
+
+--echo # Error on multi-character ENCLOSED/ESCAPED BY
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--error 1083
+--eval SELECT * FROM t1 INTO OUTFILE '$file' FIELDS ENCLOSED BY '12345'
+--remove_file $file
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--error 1083
+--eval SELECT * FROM t1 INTO OUTFILE '$file' FIELDS ESCAPED BY '12345'
+--remove_file $file
+
+
+--echo # "Not implemented" warning on multibyte  ENCLOSED/ESCAPED BY character,
+--echo # LOAD DATA rises error or has unpredictable result -- to be fixed later
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT * FROM t1 INTO OUTFILE '$file' FIELDS ENCLOSED BY 'ъ'
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--error 1083 # backward compatibility
+--eval LOAD DATA INFILE '$file' INTO TABLE t2 CHARACTER SET binary FIELDS ENCLOSED BY 'ъ'
+--remove_file $file
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT * FROM t1 INTO OUTFILE '$file' FIELDS ESCAPED BY 'ъ'
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--error 1083 # backward compatibility
+--eval LOAD DATA INFILE '$file' INTO TABLE t2 CHARACTER SET binary FIELDS ESCAPED BY 'ъ'
+--remove_file $file
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT * FROM t1 INTO OUTFILE '$file' FIELDS TERMINATED BY 'ъ'
+--echo ##################################################
+--cat_file $file
+--echo ##################################################
+TRUNCATE t2;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD DATA INFILE '$file' INTO TABLE t2 CHARACTER SET binary FIELDS TERMINATED BY 'ъ'
+--remove_file $file
+SELECT * FROM t1 UNION SELECT * FROM t2 ORDER BY a, b, c;
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT * FROM t1 INTO OUTFILE '$file' LINES STARTING BY 'ъ'
+--echo ##################################################
+--cat_file $file
+--echo ##################################################
+TRUNCATE t2;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD DATA INFILE '$file' INTO TABLE t2 CHARACTER SET binary LINES STARTING BY 'ъ'
+--remove_file $file
+SELECT * FROM t1 UNION SELECT * FROM t2 ORDER BY a, b, c;
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT * FROM t1 INTO OUTFILE '$file' LINES TERMINATED BY 'ъ'
+--echo ##################################################
+--cat_file $file
+--echo ##################################################
+TRUNCATE t2;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD DATA INFILE '$file' INTO TABLE t2 CHARACTER SET binary LINES TERMINATED BY 'ъ'
+--remove_file $file
+SELECT * FROM t1 UNION SELECT * FROM t2 ORDER BY a, b, c;
+
+--echo # Default (binary) charset:
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT * INTO OUTFILE '$file' FROM t1
+--echo ##################################################
+--cat_file $file
+--echo ##################################################
+TRUNCATE t2;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD DATA INFILE '$file' INTO TABLE t2 CHARACTER SET binary
+--remove_file $file
+SELECT * FROM t1 UNION SELECT * FROM t2 ORDER BY a, b, c;
+
+
+--echo # latin1 charset (INTO OUTFILE warning is expected):
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT * INTO OUTFILE '$file' CHARACTER SET latin1 FROM t1
+--echo ##################################################
+--cat_file $file
+--echo ##################################################
+TRUNCATE t2;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD DATA INFILE '$file' INTO TABLE t2 CHARACTER SET latin1 
+--remove_file $file
+SELECT * FROM t1 UNION SELECT * FROM t2 ORDER BY a, b, c;
+
+
+--echo # KOI8-R charset (INTO OUTFILE warning is expected):
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT * INTO OUTFILE '$file' CHARACTER SET koi8r FROM t1
+--echo ##################################################
+--cat_file $file
+--echo ##################################################
+TRUNCATE t2;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD DATA INFILE '$file' INTO TABLE t2 CHARACTER SET koi8r
+--remove_file $file
+SELECT * FROM t1 UNION SELECT * FROM t2 ORDER BY a, b, c;
+
+
+--echo # UTF-8 charset:
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT * INTO OUTFILE '$file' CHARACTER SET utf8 FROM t1
+--echo ##################################################
+--cat_file $file
+--echo ##################################################
+TRUNCATE t2;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD DATA INFILE '$file' INTO TABLE t2 CHARACTER SET utf8
+--remove_file $file
+SELECT * FROM t1 UNION SELECT * FROM t2 ORDER BY a, b, c;
+
+
+SET NAMES default;
+
+DROP TABLE t1, t2;
+
+###########################################################################
+--echo # End of 5.1 tests.

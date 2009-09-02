@@ -365,11 +365,14 @@ MYRG_INFO *myrg_parent_open(const char *parent_name,
     The callback returns the MyISAM table handle of the child table.
     Check table definition match.
 
-  @param[in]    m_info          MERGE parent table structure
-  @param[in]    handle_locking  if contains HA_OPEN_FOR_REPAIR, warn about
-                                incompatible child tables, but continue
-  @param[in]    callback        function to call for each child table
-  @param[in]    callback_param  data pointer to give to the callback
+  @param[in]    m_info            MERGE parent table structure
+  @param[in]    handle_locking    if contains HA_OPEN_FOR_REPAIR, warn about
+                                  incompatible child tables, but continue
+  @param[in]    callback          function to call for each child table
+  @param[in]    callback_param    data pointer to give to the callback
+  @param[in]    need_compat_check pointer to ha_myisammrg::need_compat_check
+                                  (we need this one to decide if previously
+                                  allocated buffers can be reused).
 
   @return status
     @retval     0               OK
@@ -382,7 +385,7 @@ MYRG_INFO *myrg_parent_open(const char *parent_name,
 
 int myrg_attach_children(MYRG_INFO *m_info, int handle_locking,
                          MI_INFO *(*callback)(void*),
-                         void *callback_param)
+                         void *callback_param, my_bool *need_compat_check)
 {
   ulonglong  file_offset;
   MI_INFO    *myisam;
@@ -423,6 +426,11 @@ int myrg_attach_children(MYRG_INFO *m_info, int handle_locking,
       m_info->reclength= myisam->s->base.reclength;
       min_keys=  myisam->s->base.keys;
       key_parts= myisam->s->base.key_parts;
+      if (*need_compat_check && m_info->rec_per_key_part)
+      {
+        my_free((char *) m_info->rec_per_key_part, MYF(0));
+        m_info->rec_per_key_part= NULL;
+      }
       if (!m_info->rec_per_key_part)
       {
         if(!(m_info->rec_per_key_part= (ulong*)

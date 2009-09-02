@@ -280,7 +280,9 @@ enum legacy_db_type
 
 enum row_type { ROW_TYPE_NOT_USED=-1, ROW_TYPE_DEFAULT, ROW_TYPE_FIXED,
 		ROW_TYPE_DYNAMIC, ROW_TYPE_COMPRESSED,
-		ROW_TYPE_REDUNDANT, ROW_TYPE_COMPACT, ROW_TYPE_PAGE };
+		ROW_TYPE_REDUNDANT, ROW_TYPE_COMPACT,
+                /** Unused. Reserved for future versions. */
+                ROW_TYPE_PAGE };
 
 enum enum_binlog_func {
   BFN_RESET_LOGS=        1,
@@ -323,7 +325,9 @@ enum enum_binlog_command {
 #define HA_CREATE_USED_PASSWORD         (1L << 17)
 #define HA_CREATE_USED_CONNECTION       (1L << 18)
 #define HA_CREATE_USED_KEY_BLOCK_SIZE   (1L << 19)
+/** Unused. Reserved for future versions. */
 #define HA_CREATE_USED_TRANSACTIONAL    (1L << 20)
+/** Unused. Reserved for future versions. */
 #define HA_CREATE_USED_PAGE_CHECKSUM    (1L << 21)
 
 typedef ulonglong my_xid; // this line is the same as in log_event.h
@@ -914,13 +918,14 @@ typedef struct st_ha_create_information
   uint options;				/* OR of HA_CREATE_ options */
   uint merge_insert_method;
   uint extra_size;                      /* length of extra data segment */
-  /* 0 not used, 1 if not transactional, 2 if transactional */
+  /** Transactional or not. Unused; reserved for future versions. */
   enum ha_choice transactional;
   bool table_existed;			/* 1 in create if table existed */
   bool frm_only;                        /* 1 if no ha_create_table() */
   bool varchar;                         /* 1 if table has a VARCHAR */
   enum ha_storage_media storage_media;  /* DEFAULT, DISK or MEMORY */
-  enum ha_choice page_checksum;         /* If we have page_checksums */
+  /** Per-page checksums or not. Unused; reserved for future versions. */
+  enum ha_choice page_checksum;
 } HA_CREATE_INFO;
 
 
@@ -1932,8 +1937,8 @@ private:
 	/* Some extern variables used with handlers */
 
 extern const char *ha_row_type[];
-extern const char *tx_isolation_names[];
-extern const char *binlog_format_names[];
+extern MYSQL_PLUGIN_IMPORT const char *tx_isolation_names[];
+extern MYSQL_PLUGIN_IMPORT const char *binlog_format_names[];
 extern TYPELIB tx_isolation_typelib;
 extern TYPELIB myisam_stats_method_typelib;
 extern ulong total_ha, total_ha_2pc;

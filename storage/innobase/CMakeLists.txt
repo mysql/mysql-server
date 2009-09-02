@@ -15,6 +15,7 @@
 
 SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
 SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
+INCLUDE("${PROJECT_SOURCE_DIR}/storage/mysql_storage_engine.cmake")
 ADD_DEFINITIONS(-DMYSQL_SERVER -D_WIN32 -D_LIB)
 
 # Bug 19424 - InnoDB: Possibly a memory overrun of the buffer being freed (64-bit Visual C)
@@ -25,12 +26,10 @@ IF(CMAKE_GENERATOR MATCHES "Visual Studio" AND CMAKE_SIZEOF_VOID_P MATCHES 8)
                               PROPERTIES COMPILE_FLAGS -Od)
 ENDIF(CMAKE_GENERATOR MATCHES "Visual Studio" AND CMAKE_SIZEOF_VOID_P MATCHES 8)
 
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/zlib
-                    ${CMAKE_SOURCE_DIR}/storage/innobase/include
-                    ${CMAKE_SOURCE_DIR}/storage/innobase/handler
-                    ${CMAKE_SOURCE_DIR}/sql
-                    ${CMAKE_SOURCE_DIR}/regex
-                    ${CMAKE_SOURCE_DIR}/extra/yassl/include)
+INCLUDE_DIRECTORIES(
+					${CMAKE_SOURCE_DIR}/storage/innobase/include
+					${CMAKE_SOURCE_DIR}/storage/innobase/handler
+					)
 
 SET(INNOBASE_SOURCES  btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c btr/btr0sea.c 
 					 buf/buf0buf.c buf/buf0flu.c buf/buf0lru.c buf/buf0rea.c 
@@ -64,7 +63,5 @@ SET(INNOBASE_SOURCES  btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c btr/btr0sea.c
 					 usr/usr0sess.c 
 					 ut/ut0byte.c ut/ut0dbg.c ut/ut0mem.c ut/ut0rnd.c ut/ut0ut.c ut/ut0vec.c ut/ut0list.c ut/ut0wqueue.c)
 
-IF(NOT SOURCE_SUBLIBS)
-  ADD_LIBRARY(innobase ${INNOBASE_SOURCES})
-  ADD_DEPENDENCIES(innobase GenError)
-ENDIF(NOT SOURCE_SUBLIBS)
+MYSQL_STORAGE_ENGINE(INNOBASE)
+

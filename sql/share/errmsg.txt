@@ -6177,3 +6177,32 @@ ER_TOO_LONG_TABLE_COMMENT
 ER_TOO_LONG_FIELD_COMMENT
   eng "Comment for field '%-.64s' is too long (max = %lu)"
   por "Comentário para o campo '%-.64s' é longo demais (max = %lu)"
+
+ER_FUNC_INEXISTENT_NAME_COLLISION 42000 
+  eng "FUNCTION %s does not exist. Check the 'Function Name Parsing and Resolution' section in the Reference Manual"
+
+# When updating these, please update EXPLAIN_FILENAME_MAX_EXTRA_LENGTH in
+# mysql_priv.h with the new maximal additional length for explain_filename.
+ER_DATABASE_NAME
+  eng "Database `%s`"
+  swe "Databas `%s`"
+ER_TABLE_NAME
+  eng "Table `%s`"
+  swe "Tabell `%s`"
+ER_PARTITION_NAME
+  eng "Partition `%s`"
+  swe "Partition `%s`"
+ER_SUBPARTITION_NAME
+  eng "Subpartition `%s`"
+  swe "Subpartition `%s`"
+ER_TEMPORARY_NAME
+  eng "Temporary"
+  swe "Temporär"
+ER_RENAMED_NAME
+  eng "Renamed"
+  swe "Namnändrad"
+ER_TOO_MANY_CONCURRENT_TRXS
+        eng  "Too many active concurrent transactions"
+
+WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED
+  eng "Non-ASCII separator arguments are not fully supported"

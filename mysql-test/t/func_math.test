@@ -269,6 +269,15 @@ SELECT a, ROUND(a) FROM t1;
 
 DROP TABLE t1;
 
+#
+# Bug#45152 crash with round() function on longtext column in a derived table
+#
+CREATE TABLE t1(f1 LONGTEXT) engine=myisam;
+INSERT INTO t1 VALUES ('a');
+SELECT 1 FROM (SELECT ROUND(f1) AS a FROM t1) AS s WHERE a LIKE 'a';
+SELECT 1 FROM (SELECT ROUND(f1, f1) AS a FROM t1) AS s WHERE a LIKE 'a';
+DROP TABLE t1;
+
 --echo End of 5.0 tests
 
 #

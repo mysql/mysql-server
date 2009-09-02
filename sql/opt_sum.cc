@@ -744,8 +744,8 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
   }
   else if (eq_type)
   {
-    if (!is_null && !cond->val_int() ||
-        is_null && !test(part->field->is_null()))  
+    if ((!is_null && !cond->val_int()) ||
+        (is_null && !test(part->field->is_null())))
      return 0;                       // Impossible test
   }
   else if (is_field_part)

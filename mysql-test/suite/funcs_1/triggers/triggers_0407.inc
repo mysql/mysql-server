@@ -22,7 +22,6 @@ let $message= Testcase: 3.5:;
 	create User test_super@localhost;
 	set password for test_super@localhost = password('PWD');
 	grant ALL on *.* to test_super@localhost with grant OPTION;
-        let $MASTER_MYSOCK= query_get_value(SHOW VARIABLES LIKE 'socket', Value, 1);
 	--replace_result $MASTER_MYPORT MASTER_MYPORT $MASTER_MYSOCK MASTER_MYSOCK
 	connect (con1_general,localhost,test_general,PWD,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 	--replace_result $MASTER_MYPORT MASTER_MYPORT $MASTER_MYSOCK MASTER_MYSOCK

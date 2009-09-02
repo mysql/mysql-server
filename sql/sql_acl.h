@@ -233,7 +233,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table, List <LEX_USER> &user_list,
                        bool revoke);
 bool mysql_routine_grant(THD *thd, TABLE_LIST *table, bool is_proc,
 			 List <LEX_USER> &user_list, ulong rights,
-			 bool revoke, bool no_error);
+			 bool revoke, bool write_to_binlog);
 my_bool grant_init();
 void grant_free(void);
 my_bool grant_reload(THD *thd);
@@ -264,7 +264,7 @@ void fill_effective_table_privileges(THD *thd, GRANT_INFO *grant,
                                      const char *db, const char *table);
 bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
                           bool is_proc);
-int sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
+bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
                          bool is_proc);
 bool check_routine_level_acl(THD *thd, const char *db, const char *name,
                              bool is_proc);

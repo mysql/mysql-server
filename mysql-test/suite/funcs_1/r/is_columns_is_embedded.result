@@ -166,7 +166,7 @@ NULL	information_schema	PROCESSLIST	HOST	3		NO	varchar	64	192	NULL	NULL	utf8	utf
 NULL	information_schema	PROCESSLIST	ID	1	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(4)				
 NULL	information_schema	PROCESSLIST	INFO	8	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext				
 NULL	information_schema	PROCESSLIST	STATE	7	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)				
-NULL	information_schema	PROCESSLIST	TIME	6	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(7)				
+NULL	information_schema	PROCESSLIST	TIME	6	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(7)				
 NULL	information_schema	PROCESSLIST	USER	2		NO	varchar	16	48	NULL	NULL	utf8	utf8_general_ci	varchar(16)				
 NULL	information_schema	REFERENTIAL_CONSTRAINTS	CONSTRAINT_CATALOG	1	NULL	YES	varchar	512	1536	NULL	NULL	utf8	utf8_general_ci	varchar(512)				
 NULL	information_schema	REFERENTIAL_CONSTRAINTS	CONSTRAINT_NAME	3		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)				
@@ -340,6 +340,7 @@ ORDER BY CHARACTER_SET_NAME, COLLATION_NAME, COL_CML;
 COL_CML	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME
 NULL	bigint	NULL	NULL
 NULL	datetime	NULL	NULL
+NULL	int	NULL	NULL
 --> CHAR(0) is allowed (see manual), and here both CHARACHTER_* values
 --> are 0, which is intended behavior, and the result of 0 / 0 IS NULL
 SELECT CHARACTER_OCTET_LENGTH / CHARACTER_MAXIMUM_LENGTH AS COL_CML,
@@ -519,7 +520,7 @@ NULL	information_schema	PROCESSLIST	ID	bigint	NULL	NULL	NULL	NULL	bigint(4)
 3.0000	information_schema	PROCESSLIST	HOST	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	PROCESSLIST	DB	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	PROCESSLIST	COMMAND	varchar	16	48	utf8	utf8_general_ci	varchar(16)
-NULL	information_schema	PROCESSLIST	TIME	bigint	NULL	NULL	NULL	NULL	bigint(7)
+NULL	information_schema	PROCESSLIST	TIME	int	NULL	NULL	NULL	NULL	int(7)
 3.0000	information_schema	PROCESSLIST	STATE	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 1.0000	information_schema	PROCESSLIST	INFO	longtext	4294967295	4294967295	utf8	utf8_general_ci	longtext
 3.0000	information_schema	REFERENTIAL_CONSTRAINTS	CONSTRAINT_CATALOG	varchar	512	1536	utf8	utf8_general_ci	varchar(512)

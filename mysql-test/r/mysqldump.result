@@ -1991,7 +1991,7 @@ SET character_set_client = utf8;
   `a` varchar(30)
 ) ENGINE=MyISAM */;
 SET character_set_client = @saved_cs_client;
-/*!50001 DROP TABLE `v2`*/;
+/*!50001 DROP TABLE IF EXISTS `v2`*/;
 /*!50001 DROP VIEW IF EXISTS `v2`*/;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;
@@ -2085,7 +2085,7 @@ SET character_set_client = utf8;
   `a` int(11)
 ) ENGINE=MyISAM */;
 SET character_set_client = @saved_cs_client;
-/*!50001 DROP TABLE `v1`*/;
+/*!50001 DROP TABLE IF EXISTS `v1`*/;
 /*!50001 DROP VIEW IF EXISTS `v1`*/;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;
@@ -2159,7 +2159,7 @@ SET character_set_client = utf8;
   `a` varchar(30)
 ) ENGINE=MyISAM */;
 SET character_set_client = @saved_cs_client;
-/*!50001 DROP TABLE `v2`*/;
+/*!50001 DROP TABLE IF EXISTS `v2`*/;
 /*!50001 DROP VIEW IF EXISTS `v2`*/;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;
@@ -2293,7 +2293,7 @@ SET character_set_client = utf8;
   `c` varchar(30)
 ) ENGINE=MyISAM */;
 SET character_set_client = @saved_cs_client;
-/*!50001 DROP TABLE `v1`*/;
+/*!50001 DROP TABLE IF EXISTS `v1`*/;
 /*!50001 DROP VIEW IF EXISTS `v1`*/;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;
@@ -2307,7 +2307,7 @@ SET character_set_client = @saved_cs_client;
 /*!50001 SET character_set_client      = @saved_cs_client */;
 /*!50001 SET character_set_results     = @saved_cs_results */;
 /*!50001 SET collation_connection      = @saved_col_connection */;
-/*!50001 DROP TABLE `v2`*/;
+/*!50001 DROP TABLE IF EXISTS `v2`*/;
 /*!50001 DROP VIEW IF EXISTS `v2`*/;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;
@@ -2321,7 +2321,7 @@ SET character_set_client = @saved_cs_client;
 /*!50001 SET character_set_client      = @saved_cs_client */;
 /*!50001 SET character_set_results     = @saved_cs_results */;
 /*!50001 SET collation_connection      = @saved_col_connection */;
-/*!50001 DROP TABLE `v3`*/;
+/*!50001 DROP TABLE IF EXISTS `v3`*/;
 /*!50001 DROP VIEW IF EXISTS `v3`*/;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;
@@ -3054,7 +3054,7 @@ SET character_set_client = utf8;
 SET character_set_client = @saved_cs_client;
 
 USE `test`;
-/*!50001 DROP TABLE `v0`*/;
+/*!50001 DROP TABLE IF EXISTS `v0`*/;
 /*!50001 DROP VIEW IF EXISTS `v0`*/;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;
@@ -3068,7 +3068,7 @@ USE `test`;
 /*!50001 SET character_set_client      = @saved_cs_client */;
 /*!50001 SET character_set_results     = @saved_cs_results */;
 /*!50001 SET collation_connection      = @saved_col_connection */;
-/*!50001 DROP TABLE `v1`*/;
+/*!50001 DROP TABLE IF EXISTS `v1`*/;
 /*!50001 DROP VIEW IF EXISTS `v1`*/;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;
@@ -3082,7 +3082,7 @@ USE `test`;
 /*!50001 SET character_set_client      = @saved_cs_client */;
 /*!50001 SET character_set_results     = @saved_cs_results */;
 /*!50001 SET collation_connection      = @saved_col_connection */;
-/*!50001 DROP TABLE `v2`*/;
+/*!50001 DROP TABLE IF EXISTS `v2`*/;
 /*!50001 DROP VIEW IF EXISTS `v2`*/;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;
@@ -3320,7 +3320,7 @@ insert into t values(5, 51);
 create view v1 as select qty, price, qty*price as value from t;
 create view v2 as select qty from v1;
 mysqldump {
-/*!50001 DROP TABLE `v1`*/;
+/*!50001 DROP TABLE IF EXISTS `v1`*/;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;
 /*!50001 SET @saved_col_connection     = @@collation_connection */;
@@ -3335,7 +3335,7 @@ mysqldump {
 /*!50001 SET collation_connection      = @saved_col_connection */;
 
 } mysqldump {
-/*!50001 DROP TABLE `v2`*/;
+/*!50001 DROP TABLE IF EXISTS `v2`*/;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;
 /*!50001 SET @saved_col_connection     = @@collation_connection */;
@@ -3434,7 +3434,7 @@ SET character_set_client = utf8;
 SET character_set_client = @saved_cs_client;
 
 USE `mysqldump_test_db`;
-/*!50001 DROP TABLE `v1`*/;
+/*!50001 DROP TABLE IF EXISTS `v1`*/;
 /*!50001 DROP VIEW IF EXISTS `v1`*/;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;
@@ -3496,7 +3496,7 @@ SET character_set_client = @saved_cs_client;
 USE `mysqldump_tables`;
 
 USE `mysqldump_views`;
-/*!50001 DROP TABLE `nasishnasifu`*/;
+/*!50001 DROP TABLE IF EXISTS `nasishnasifu`*/;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;
 /*!50001 SET @saved_col_connection     = @@collation_connection */;
@@ -3563,9 +3563,6 @@ grant REPLICATION CLIENT on *.* to mysqltest_1@localhost;
 drop table t1;
 drop user mysqltest_1@localhost;
 #
-# Bug#21527 mysqldump incorrectly tries to LOCK TABLES on the
-#           information_schema database.
-#
 # Bug#21424 mysqldump failing to export/import views
 #
 create database mysqldump_myDB;
@@ -3604,6 +3601,39 @@ revoke all privileges on mysqldump_myDB.* from myDB_User@localhost;
 drop user myDB_User@localhost;
 drop database mysqldump_myDB;
 use test;
+#
+# Bug #21527 mysqldump incorrectly tries to LOCK TABLES on the 
+# information_schema database.
+#
+# Bug #33762: mysqldump can not dump INFORMATION_SCHEMA
+#
+DROP TABLE IF EXISTS `TABLES`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TEMPORARY TABLE `TABLES` (
+  `TABLE_CATALOG` varchar(512) DEFAULT NULL,
+  `TABLE_SCHEMA` varchar(64) NOT NULL DEFAULT '',
+  `TABLE_NAME` varchar(64) NOT NULL DEFAULT '',
+  `TABLE_TYPE` varchar(64) NOT NULL DEFAULT '',
+  `ENGINE` varchar(64) DEFAULT NULL,
+  `VERSION` bigint(21) unsigned DEFAULT NULL,
+  `ROW_FORMAT` varchar(10) DEFAULT NULL,
+  `TABLE_ROWS` bigint(21) unsigned DEFAULT NULL,
+  `AVG_ROW_LENGTH` bigint(21) unsigned DEFAULT NULL,
+  `DATA_LENGTH` bigint(21) unsigned DEFAULT NULL,
+  `MAX_DATA_LENGTH` bigint(21) unsigned DEFAULT NULL,
+  `INDEX_LENGTH` bigint(21) unsigned DEFAULT NULL,
+  `DATA_FREE` bigint(21) unsigned DEFAULT NULL,
+  `AUTO_INCREMENT` bigint(21) unsigned DEFAULT NULL,
+  `CREATE_TIME` datetime DEFAULT NULL,
+  `UPDATE_TIME` datetime DEFAULT NULL,
+  `CHECK_TIME` datetime DEFAULT NULL,
+  `TABLE_COLLATION` varchar(32) DEFAULT NULL,
+  `CHECKSUM` bigint(21) unsigned DEFAULT NULL,
+  `CREATE_OPTIONS` varchar(255) DEFAULT NULL,
+  `TABLE_COMMENT` varchar(80) NOT NULL DEFAULT ''
+) ENGINE=MEMORY DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
 #
 # Bug#19745 mysqldump --xml produces invalid xml
 #
@@ -3855,7 +3885,7 @@ SET character_set_client = utf8;
   `c` int(11)
 ) ENGINE=MyISAM */;
 SET character_set_client = @saved_cs_client;
-/*!50001 DROP TABLE `v2`*/;
+/*!50001 DROP TABLE IF EXISTS `v2`*/;
 /*!50001 DROP VIEW IF EXISTS `v2`*/;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;
@@ -4006,6 +4036,181 @@ UNLOCK TABLES;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
 DROP TABLE t1;
+create table t1 (a text , b text);
+create table t2 (a text , b text);
+insert t1 values ("Duck, Duck", "goose");
+insert t1 values ("Duck, Duck", "pidgeon");
+insert t2 values ("We the people", "in order to perform");
+insert t2 values ("a more perfect", "union");
+select * from t1;
+a	b
+Duck, Duck	goose
+Duck, Duck	pidgeon
+select * from t2;
+a	b
+We the people	in order to perform
+a more perfect	union
+test.t1: Records: 2  Deleted: 0  Skipped: 0  Warnings: 0
+test.t2: Records: 2  Deleted: 0  Skipped: 0  Warnings: 0
+select * from t1;
+a	b
+Duck, Duck	goose
+Duck, Duck	pidgeon
+Duck, Duck	goose
+Duck, Duck	pidgeon
+select * from t2;
+a	b
+We the people	in order to perform
+a more perfect	union
+We the people	in order to perform
+a more perfect	union
+create table words(a varchar(255));
+create table words2(b varchar(255));
+select * from t1;
+a	b
+Duck, Duck	goose
+Duck, Duck	pidgeon
+Duck, Duck	goose
+Duck, Duck	pidgeon
+Duck, Duck	goose
+Duck, Duck	pidgeon
+select * from t2;
+a	b
+We the people	in order to perform
+a more perfect	union
+We the people	in order to perform
+a more perfect	union
+We the people	in order to perform
+a more perfect	union
+select * from words;
+a
+Aarhus
+Aaron
+Ababa
+aback
+abaft
+abandon
+abandoned
+abandoning
+abandonment
+abandons
+Aarhus
+Aaron
+Ababa
+aback
+abaft
+abandon
+abandoned
+abandoning
+abandonment
+abandons
+abase
+abased
+abasement
+abasements
+abases
+abash
+abashed
+abashes
+abashing
+abasing
+abate
+abated
+abatement
+abatements
+abater
+abates
+abating
+Abba
+abbe
+abbey
+abbeys
+abbot
+abbots
+Abbott
+abbreviate
+abbreviated
+abbreviates
+abbreviating
+abbreviation
+abbreviations
+Abby
+abdomen
+abdomens
+abdominal
+abduct
+abducted
+abduction
+abductions
+abductor
+abductors
+abducts
+Abe
+abed
+Abel
+Abelian
+Abelson
+Aberdeen
+Abernathy
+aberrant
+aberration
+select * from words2;
+b
+abase
+abased
+abasement
+abasements
+abases
+abash
+abashed
+abashes
+abashing
+abasing
+abate
+abated
+abatement
+abatements
+abater
+abates
+abating
+Abba
+abbe
+abbey
+abbeys
+abbot
+abbots
+Abbott
+abbreviate
+abbreviated
+abbreviates
+abbreviating
+abbreviation
+abbreviations
+Abby
+abdomen
+abdomens
+abdominal
+abduct
+abducted
+abduction
+abductions
+abductor
+abductors
+abducts
+Abe
+abed
+Abel
+Abelian
+Abelson
+Aberdeen
+Abernathy
+aberrant
+aberration
+drop table words;
+mysql-import: Error: 1146, Table 'test.words' doesn't exist, when using table: words
+drop table t1;
+drop table t2;
+drop table words2;
 #
 # Bug#16853 mysqldump doesn't show events
 #
@@ -4099,7 +4304,7 @@ SET character_set_client = utf8;
 SET character_set_client = @saved_cs_client;
 
 USE `mysqldump_test_db`;
-/*!50001 DROP TABLE `v1`*/;
+/*!50001 DROP TABLE IF EXISTS `v1`*/;
 /*!50001 DROP VIEW IF EXISTS `v1`*/;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;
@@ -4225,7 +4430,136 @@ DROP DATABASE mysqldump_test_db;
 
 # -- End of test case for Bug#32538.
 
+#
+# Bug#37377 Incorrect DROP TABLE statement in dump of a VIEW using --tab
+#
+create table t1 (a int);
+create view v1 as select a from t1;
+drop view v1;
+drop table t1;
+drop view v1;
+drop table t1;
+#
+# Bug#28071 mysqlimport does not quote or escape table name
+#
+drop table if exists `load`;
+create table `load` (a varchar(255));
+test.load: Records: 70  Deleted: 0  Skipped: 0  Warnings: 0
+select count(*) from `load`;
+count(*)
+70
+drop table `load`;
 SET @@GLOBAL.CONCURRENT_INSERT = @OLD_CONCURRENT_INSERT;
+
+Bug #34861 - mysqldump with --tab gives weird output for triggers.
+
+CREATE TABLE t1 (f1 INT);
+CREATE TRIGGER tr1 BEFORE UPDATE ON t1 FOR EACH ROW SET @f1 = 1;
+CREATE PROCEDURE pr1 () SELECT "Meow";
+CREATE EVENT ev1 ON SCHEDULE AT '2030-01-01 00:00:00' DO SELECT "Meow";
+
+SHOW TRIGGERS;
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
+tr1	UPDATE	t1	SET @f1 = 1	BEFORE	NULL		root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+SHOW EVENTS;
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+test	ev1	root@localhost	SYSTEM	ONE TIME	2030-01-01 00:00:00	NULL	NULL	NULL	NULL	ENABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
+SELECT name,body FROM mysql.proc WHERE NAME = 'pr1';
+name	body
+pr1	SELECT "Meow"
+
+dump table; if anything goes to stdout, it ends up here: ---------------
+
+drop everything
+DROP EVENT ev1;
+DROP TRIGGER tr1;
+DROP TABLE t1;
+DROP PROCEDURE pr1;
+
+reload table; this should restore table and trigger
+SHOW TRIGGERS;
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
+tr1	UPDATE	t1	SET @f1 = 1	BEFORE	NULL		root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+SHOW EVENTS;
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+SELECT name,body FROM mysql.proc WHERE NAME = 'pr1';
+name	body
+
+reload db; this should restore routines and events
+SHOW TRIGGERS;
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
+tr1	UPDATE	t1	SET @f1 = 1	BEFORE	NULL		root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+SHOW EVENTS;
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+test	ev1	root@localhost	SYSTEM	ONE TIME	2030-01-01 00:00:00	NULL	NULL	NULL	NULL	ENABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
+SELECT name,body FROM mysql.proc WHERE NAME = 'pr1';
+name	body
+pr1	SELECT "Meow"
+
+cleanup
+DROP EVENT IF EXISTS ev1;
+DROP PROCEDURE IF EXISTS pr1;
+DROP TRIGGER IF EXISTS tr1;
+DROP TABLE IF EXISTS t1;
+#
+# Bug #30946: mysqldump silently ignores --default-character-set
+#             when used with --tab
+#
+# Also see outfile_loaddata.test
+#
+SET NAMES utf8;
+CREATE TABLE t1 (a INT, b CHAR(10) CHARSET koi8r, c CHAR(10) CHARSET latin1);
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t1 VALUES (1, 'ABC-АБВ', 'DEF-ÂÃÄ'), (2, NULL, NULL);
+# error on multi-character ENCLOSED/ESCAPED BY
+# default '--default-charset' (binary):
+##################################################
+1	ABC-���	DEF-���
+2	\N	\N
+##################################################
+TRUNCATE t2;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/t1.txt' INTO TABLE t2 CHARACTER SET binary;
+SELECT * FROM t1 UNION SELECT * FROM t2 ORDER BY a, b, c;
+a	b	c
+1	ABC-АБВ	DEF-ÂÃÄ
+2	NULL	NULL
+# utf8:
+##################################################
+1	ABC-АБВ	DEF-ÂÃÄ
+2	\N	\N
+##################################################
+TRUNCATE t2;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/t1.txt' INTO TABLE t2 CHARACTER SET utf8;
+SELECT * FROM t1 UNION SELECT * FROM t2 ORDER BY a, b, c;
+a	b	c
+1	ABC-АБВ	DEF-ÂÃÄ
+2	NULL	NULL
+# latin1 (data corruption is expected):
+##################################################
+1	ABC-???	DEF-���
+2	\N	\N
+##################################################
+TRUNCATE t2;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/t1.txt' INTO TABLE t2 CHARACTER SET latin1 ;
+SELECT * FROM t1 UNION SELECT * FROM t2 ORDER BY a, b, c;
+a	b	c
+1	ABC-???	DEF-ÂÃÄ
+1	ABC-АБВ	DEF-ÂÃÄ
+2	NULL	NULL
+# koi8r (data corruption is expected):
+##################################################
+1	ABC-���	DEF-???
+2	\N	\N
+##################################################
+TRUNCATE t2;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/t1.txt' INTO TABLE t2 CHARACTER SET koi8r;
+SELECT * FROM t1 UNION SELECT * FROM t2 ORDER BY a, b, c;
+a	b	c
+1	ABC-АБВ	DEF-???
+1	ABC-АБВ	DEF-ÂÃÄ
+2	NULL	NULL
+SET NAMES default;
+DROP TABLE t1, t2;
 #
 # End of 5.1 tests
 #

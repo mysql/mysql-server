@@ -328,7 +328,9 @@ my_string_repertoire(CHARSET_INFO *cs, const char *str, ulong length)
   {
     my_wc_t wc;
     int chlen;
-    for (; (chlen= cs->cset->mb_wc(cs, &wc, str, strend)) > 0; str+= chlen)
+    for (;
+         (chlen= cs->cset->mb_wc(cs, &wc, (uchar*) str, (uchar*) strend)) > 0;
+         str+= chlen)
     {
       if (wc > 0x7F)
         return MY_REPERTOIRE_UNICODE30;

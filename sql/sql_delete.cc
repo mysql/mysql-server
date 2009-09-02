@@ -187,6 +187,14 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
     delete select;
     free_underlaid_joins(thd, select_lex);
     thd->row_count_func= 0;
+    /* 
+      Error was already created by quick select evaluation (check_quick()).
+      TODO: Add error code output parameter to Item::val_xxx() methods.
+      Currently they rely on the user checking DA for
+      errors when unwinding the stack after calling Item::val_xxx().
+    */
+    if (thd->is_error())
+      DBUG_RETURN(TRUE);
     my_ok(thd, (ha_rows) thd->row_count_func);
     /*
       We don't need to call reset_auto_increment in this case, because
@@ -389,8 +397,12 @@ cleanup:
         FALSE :
         transactional_table;
 
+      int errcode= 0;
       if (error < 0)
         thd->clear_error();
+      else
+        errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
+      
       /*
         [binlog]: If 'handler::delete_all_rows()' was called and the
         storage engine does not inject the rows itself, we replicate
@@ -402,9 +414,9 @@ cleanup:
       */
       int log_result= thd->binlog_query(query_type,
                                         thd->query, thd->query_length,
-                                        is_trans, FALSE, killed_status);
+                                        is_trans, FALSE, errcode);
 
-      if (log_result && transactional_table)
+      if (log_result)
       {
 	error=1;
       }
@@ -486,7 +498,7 @@ int mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds)
 
   if (select_lex->inner_refs_list.elements &&
     fix_inner_refs(thd, all_fields, select_lex, select_lex->ref_pointer_array))
-    DBUG_RETURN(-1);
+    DBUG_RETURN(TRUE);
 
   select_lex->fix_prepare_information(thd, conds, &fake_conds);
   DBUG_RETURN(FALSE);
@@ -802,7 +814,7 @@ void multi_delete::abort()
 
   /* the error was handled or nothing deleted and no side effects return */
   if (error_handled ||
-      !thd->transaction.stmt.modified_non_trans_table && !deleted)
+      (!thd->transaction.stmt.modified_non_trans_table && !deleted))
     DBUG_VOID_RETURN;
 
   /* Something already deleted so we have to invalidate cache */
@@ -836,9 +848,10 @@ void multi_delete::abort()
     */
     if (mysql_bin_log.is_open())
     {
+      int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
       thd->binlog_query(THD::ROW_QUERY_TYPE,
                         thd->query, thd->query_length,
-                        transactional_tables, FALSE);
+                        transactional_tables, FALSE, errcode);
     }
     thd->transaction.all.modified_non_trans_table= true;
   }
@@ -979,11 +992,14 @@ bool multi_delete::send_eof()
   {
     if (mysql_bin_log.is_open())
     {
+      int errcode= 0;
       if (local_error == 0)
         thd->clear_error();
+      else
+        errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
       if (thd->binlog_query(THD::ROW_QUERY_TYPE,
                             thd->query, thd->query_length,
-                            transactional_tables, FALSE, killed_status) &&
+                            transactional_tables, FALSE, errcode) &&
           !normal_tables)
       {
 	local_error=1;  // Log write failed: roll back the SQL statement
@@ -1043,7 +1059,7 @@ static bool mysql_truncate_by_delete(THD *thd, TABLE_LIST *table_list)
 bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
 {
   HA_CREATE_INFO create_info;
-  char path[FN_REFLEN];
+  char path[FN_REFLEN + 1];
   TABLE *table;
   bool error;
   uint path_length;
@@ -1080,7 +1096,7 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
     goto end;
   }
 
-  path_length= build_table_filename(path, sizeof(path), table_list->db,
+  path_length= build_table_filename(path, sizeof(path) - 1, table_list->db,
                                     table_list->table_name, reg_ext, 0);
 
   if (!dont_send_ok)

@@ -245,9 +245,14 @@ static int32 getNewTextDesc(const int32 inType,
   else if ((inType == Qlg_TypeAS400CCSID) && (outType == Qlg_TypeAix41))
   {
     // Override non-standard charsets
-    if (unlikely(strcmp("1148", in) == 0))
+    if (strcmp("1148", in) == 0)
     {
       strcpy(out, "IBM-1148");
+      DBUG_RETURN(0);
+    }
+    else if (unlikely(strcmp("1153", in) == 0))
+    {
+      strcpy(out, "IBM-1153");
       DBUG_RETURN(0);
     }
   }
@@ -377,6 +382,11 @@ static int32 convertTextDesc(const int32 inType, const int32 outType, const char
       else if (strcmp("cp1256", inDescOverride) == 0)
       {
         strcpy(outDesc,"IBM-1256");
+        DBUG_RETURN(0);
+      }
+      else if (strcmp("macce", inDescOverride) == 0)
+      {
+        strcpy(outDesc,"IBM-1282");
         DBUG_RETURN(0);
       }
     }
@@ -581,6 +591,11 @@ int32 getAssociatedCCSID(const uint16 inCcsid, const int inEncodingScheme, uint1
   if ((inCcsid == 923) && (inEncodingScheme == 0x1100))
   {
     *outCcsid = 1148;
+    DBUG_RETURN(0);
+  }
+  else if ((inCcsid == 1250) && (inEncodingScheme == 0x1100))
+  {
+    *outCcsid = 1153;
     DBUG_RETURN(0);
   }
 

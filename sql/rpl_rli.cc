@@ -947,6 +947,7 @@ int purge_relay_logs(Relay_log_info* rli, THD *thd, bool just_reset,
   if (count_relay_log_space(rli))
   {
     *errmsg= "Error counting relay log space";
+    error=1;
     goto err;
   }
   if (!just_reset)

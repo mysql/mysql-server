@@ -9,6 +9,8 @@ Created 12/7/1995 Heikki Tuuri
 #include "mach0data.h"
 #include "ut0lst.h"
 #include "buf0buf.h"
+#include "fsp0types.h"
+#include "trx0sys.h"
 
 /************************************************************
 Opens a buffer to mlog. It must be closed with mlog_close. */
@@ -173,6 +175,28 @@ mlog_write_initial_log_record_fast(
 
 	space = buf_block_get_space(block);
 	offset = buf_block_get_page_no(block);
+
+	/* check whether the page is in the doublewrite buffer;
+	the doublewrite buffer is located in pages
+	FSP_EXTENT_SIZE, ..., 3 * FSP_EXTENT_SIZE - 1 in the
+	system tablespace */
+	if (space == TRX_SYS_SPACE
+	    && offset >= FSP_EXTENT_SIZE && offset < 3 * FSP_EXTENT_SIZE) {
+		if (trx_doublewrite_buf_is_being_created) {
+			/* Do nothing: we only come to this branch in an
+			InnoDB database creation. We do not redo log
+			anything for the doublewrite buffer pages. */
+			return(log_ptr);
+		} else {
+			fprintf(stderr,
+				"Error: trying to redo log a record of type "
+				"%d on page %lu of space %lu in the "
+				"doublewrite buffer, continuing anyway.\n"
+				"Please post a bug report to "
+				"bugs.mysql.com.\n",
+				type, offset, space);
+		}
+	}
 
 	mach_write_to_1(log_ptr, type);
 	log_ptr++;
