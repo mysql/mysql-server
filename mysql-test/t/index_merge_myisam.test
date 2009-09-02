@@ -25,15 +25,19 @@ let $merge_table_support= 1;
 --echo #  we get another @@optimizer_switch user)
 --echo #
 
+--replace_regex /,table_elimination=on//
 select @@optimizer_switch;
 
 set optimizer_switch='index_merge=off,index_merge_union=off';
+--replace_regex /,table_elimination=on//
 select @@optimizer_switch;
 
 set optimizer_switch='index_merge_union=on';
+--replace_regex /,table_elimination=on//
 select @@optimizer_switch;
 
 set optimizer_switch='default,index_merge_sort_union=off';
+--replace_regex /,table_elimination=on//
 select @@optimizer_switch;
 
 --error ER_WRONG_VALUE_FOR_VAR
@@ -71,17 +75,21 @@ set optimizer_switch='default,index_merge=on,index_merge=off,default';
 
 set optimizer_switch=default;
 set optimizer_switch='index_merge=off,index_merge_union=off,default';
+--replace_regex /,table_elimination=on//
 select @@optimizer_switch;
 set optimizer_switch=default;
 
 # Check setting defaults for global vars
+--replace_regex /,table_elimination=on//
 select @@global.optimizer_switch;
 set @@global.optimizer_switch=default;
+--replace_regex /,table_elimination=on//
 select @@global.optimizer_switch;
 
 --echo #
 --echo # Check index_merge's @@optimizer_switch flags
 --echo #
+--replace_regex /,table_elimination.on//
 select @@optimizer_switch;
 
 create table t0 (a int);
@@ -182,6 +190,7 @@ set optimizer_switch='default,index_merge_union=off';
 explain select * from t1 where a=10 and b=10 or c=10;
 
 set optimizer_switch=default;
+--replace_regex /,table_elimination.on//
 show variables like 'optimizer_switch';
 
 drop table t0, t1;

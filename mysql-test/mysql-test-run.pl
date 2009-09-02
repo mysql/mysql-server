@@ -169,6 +169,7 @@ our $opt_force;
 our $opt_mem= $ENV{'MTR_MEM'};
 
 our $opt_gcov;
+our $opt_gcov_src_dir;
 our $opt_gcov_exe= "gcov";
 our $opt_gcov_err= "mysql-test-gcov.msg";
 our $opt_gcov_msg= "mysql-test-gcov.err";
@@ -270,7 +271,7 @@ sub main {
   command_line_setup();
 
   if ( $opt_gcov ) {
-    gcov_prepare($basedir);
+    gcov_prepare($basedir . "/" . $opt_gcov_src_dir);
   }
 
   if (!$opt_suites) {
@@ -416,7 +417,7 @@ sub main {
   mtr_print_line();
 
   if ( $opt_gcov ) {
-    gcov_collect($basedir, $opt_gcov_exe,
+    gcov_collect($basedir . "/" . $opt_gcov_src_dir, $opt_gcov_exe,
 		 $opt_gcov_msg, $opt_gcov_err);
   }
 
@@ -882,6 +883,7 @@ sub command_line_setup {
 
              # Coverage, profiling etc
              'gcov'                     => \$opt_gcov,
+             'gcov-src-dir=s'           => \$opt_gcov_src_dir,
              'valgrind|valgrind-all'    => \$opt_valgrind,
              'valgrind-mysqltest'       => \$opt_valgrind_mysqltest,
              'valgrind-mysqld'          => \$opt_valgrind_mysqld,
@@ -5397,6 +5399,9 @@ Misc options
                         actions. Disable facility with NUM=0.
   gcov                  Collect coverage information after the test.
                         The result is a gcov file per source and header file.
+  gcov-src-dir=subdir   Colllect coverage only within the given subdirectory.
+                        For example, if you're only developing the SQL layer, 
+                        it makes sense to use --gcov-src-dir=sql
 
 HERE
   exit(1);

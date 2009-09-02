@@ -60,7 +60,6 @@ static bool update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,
                                 table_map table_map, SELECT_LEX *select_lex,
                                 st_sargable_param **sargables);
 static int sort_keyuse(KEYUSE *a,KEYUSE *b);
-static void set_position(JOIN *join,uint index,JOIN_TAB *table,KEYUSE *key);
 static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
 			       table_map used_tables);
 static bool choose_plan(JOIN *join,table_map join_tables);
@@ -115,7 +114,7 @@ static COND *simplify_joins(JOIN *join, List<TABLE_LIST> *join_list,
                             COND *conds, bool top);
 static bool check_interleaving_with_nj(JOIN_TAB *next);
 static void restore_prev_nj_state(JOIN_TAB *last);
-static void reset_nj_counters(List<TABLE_LIST> *join_list);
+static uint reset_nj_counters(JOIN *join, List<TABLE_LIST> *join_list);
 static uint build_bitmap_for_nested_joins(List<TABLE_LIST> *join_list,
                                           uint first_unused);
 
@@ -1012,7 +1011,7 @@ JOIN::optimize()
     DBUG_RETURN(1);
   }
   
-  reset_nj_counters(join_list);
+  reset_nj_counters(this, join_list);
   make_outerjoin_info(this);
 
   /*
@@ -2381,6 +2380,13 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
   }
   else
   {
+    /*
+      When in EXPLAIN, delay deleting the joins so that they are still
+      available when we're producing EXPLAIN EXTENDED warning text.
+    */
+    if (select_options & SELECT_DESCRIBE)
+      free_join= 0;
+
     if (!(join= new JOIN(thd, fields, select_options, result)))
 	DBUG_RETURN(TRUE);
     thd_proc_info(thd, "init");
@@ -2646,24 +2652,31 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
                             ~outer_join, join->select_lex, &sargables))
       goto error;
 
-  /* Read tables with 0 or 1 rows (system tables) */
   join->const_table_map= 0;
+  join->const_tables= const_count;
+  eliminate_tables(join);
+  const_count= join->const_tables;
+  found_const_table_map= join->const_table_map;
 
+  /* Read tables with 0 or 1 rows (system tables) */
   for (POSITION *p_pos=join->positions, *p_end=p_pos+const_count;
        p_pos < p_end ;
        p_pos++)
   {
-    int tmp;
     s= p_pos->table;
-    s->type=JT_SYSTEM;
-    join->const_table_map|=s->table->map;
-    if ((tmp=join_read_const_table(s, p_pos)))
+    if (! (s->table->map & join->eliminated_tables))
     {
-      if (tmp > 0)
-	goto error;		// Fatal error
+      int tmp;
+      s->type=JT_SYSTEM;
+      join->const_table_map|=s->table->map;
+      if ((tmp=join_read_const_table(s, p_pos)))
+      {
+        if (tmp > 0)
+          goto error;		// Fatal error
+      }
+      else
+        found_const_table_map|= s->table->map;
     }
-    else
-      found_const_table_map|= s->table->map;
   }
 
   /* loop until no more const tables are found */
@@ -2688,7 +2701,8 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
         substitution of a const table the key value happens to be null
         then we can state that there are no matches for this equi-join.
       */  
-      if ((keyuse= s->keyuse) && *s->on_expr_ref && !s->embedding_map)
+      if ((keyuse= s->keyuse) && *s->on_expr_ref && !s->embedding_map &&
+         !(table->map & join->eliminated_tables))
       {
         /* 
           When performing an outer join operation if there are no matching rows
@@ -2965,13 +2979,44 @@ typedef struct key_field_t {
 
   This is called for OR between different levels.
 
-  To be able to do 'ref_or_null' we merge a comparison of a column
-  and 'column IS NULL' to one test.  This is useful for sub select queries
-  that are internally transformed to something like:.
+  That is, the function operates on an array of KEY_FIELD elements which has
+  two parts:
+
+                      $LEFT_PART             $RIGHT_PART
+             +-----------------------+-----------------------+
+            start                new_fields                 end
+         
+  $LEFT_PART and $RIGHT_PART are arrays that have KEY_FIELD elements for two
+  parts of the OR condition. Our task is to produce an array of KEY_FIELD 
+  elements that would correspond to "$LEFT_PART OR $RIGHT_PART". 
+  
+  The rules for combining elements are as follows:
+
+    (keyfieldA1 AND keyfieldA2 AND ...) OR (keyfieldB1 AND keyfieldB2 AND ...)=
+     
+     = AND_ij (keyfieldA_i OR keyfieldB_j)
+  
+  We discard all (keyfieldA_i OR keyfieldB_j) that refer to different
+  fields. For those referring to the same field, the logic is as follows:
+    
+    t.keycol=expr1 OR t.keycol=expr2 -> (since expr1 and expr2 are different 
+                                         we can't produce a single equality,
+                                         so produce nothing)
+
+    t.keycol=expr1 OR t.keycol=expr1 -> t.keycol=expr1
+
+    t.keycol=expr1 OR t.keycol IS NULL -> t.keycol=expr1, and also set
+                                          KEY_OPTIMIZE_REF_OR_NULL flag
+
+  The last one is for ref_or_null access. We have handling for this special
+  because it's needed for evaluating IN subqueries that are internally
+  transformed into 
 
   @code
-  SELECT * FROM t1 WHERE t1.key=outer_ref_field or t1.key IS NULL 
+    EXISTS(SELECT * FROM t1 WHERE t1.key=outer_ref_field or t1.key IS NULL)
   @endcode
+
+  See add_key_fields() for discussion of what is and_level.
 
   KEY_FIELD::null_rejecting is processed as follows: @n
   result has null_rejecting=true if it is set for both ORed references.
@@ -3311,6 +3356,26 @@ add_key_equal_fields(KEY_FIELD **key_fields, uint and_level,
     }
   }
 }
+
+
+/*
+  In this and other functions, and_level is a number that is ever-growing
+  and is different for the contents of every AND or OR clause. For example,
+  when processing clause
+
+     (a AND b AND c) OR (x AND y)
+  
+  we'll have
+   * KEY_FIELD elements for (a AND b AND c) are assigned and_level=1
+   * KEY_FIELD elements for (x AND y) are assigned and_level=2
+   * OR operation is performed, and whatever elements are left after it are
+     assigned and_level=3.
+
+  The primary reason for having and_level attribute is the OR operation which 
+  uses and_level to mark KEY_FIELDs that should get into the result of the OR
+  operation
+
+*/
 
 static void
 add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,
@@ -3990,8 +4055,7 @@ add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab)
 
 /** Save const tables first as used tables. */
 
-static void
-set_position(JOIN *join,uint idx,JOIN_TAB *table,KEYUSE *key)
+void set_position(JOIN *join,uint idx,JOIN_TAB *table,KEYUSE *key)
 {
   join->positions[idx].table= table;
   join->positions[idx].key=key;
@@ -4592,7 +4656,7 @@ choose_plan(JOIN *join, table_map join_tables)
   DBUG_ENTER("choose_plan");
 
   join->cur_embedding_map= 0;
-  reset_nj_counters(join->join_list);
+  reset_nj_counters(join, join->join_list);
   /*
     if (SELECT_STRAIGHT_JOIN option is set)
       reorder tables so dependent tables come after tables they depend 
@@ -5757,6 +5821,7 @@ JOIN::make_simple_join(JOIN *parent, TABLE *tmp_table)
   tables= 1;
   const_tables= 0;
   const_table_map= 0;
+  eliminated_tables= 0;
   tmp_table_param.field_count= tmp_table_param.sum_func_count=
     tmp_table_param.func_count= 0;
   tmp_table_param.copy_field= tmp_table_param.copy_field_end=0;
@@ -6021,7 +6086,7 @@ make_outerjoin_info(JOIN *join)
       }
       if (!tab->first_inner)  
         tab->first_inner= nested_join->first_nested;
-      if (++nested_join->counter < nested_join->join_list.elements)
+      if (++nested_join->counter < nested_join->n_tables)
         break;
       /* Table tab is the last inner table for nested join. */
       nested_join->first_nested->last_inner= tab;
@@ -8575,6 +8640,8 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
       conds= simplify_joins(join, &nested_join->join_list, conds, top);
       used_tables= nested_join->used_tables;
       not_null_tables= nested_join->not_null_tables;  
+      /* The following two might become unequal after table elimination: */
+      nested_join->n_tables= nested_join->join_list.elements;
     }
     else
     {
@@ -8733,7 +8800,7 @@ static uint build_bitmap_for_nested_joins(List<TABLE_LIST> *join_list,
             with anything)
         2. we could run out bits in nested_join_map otherwise.
       */
-      if (nested_join->join_list.elements != 1)
+      if (nested_join->n_tables != 1)
       {
         nested_join->nj_map= (nested_join_map) 1 << first_unused++;
         first_unused= build_bitmap_for_nested_joins(&nested_join->join_list,
@@ -8755,21 +8822,26 @@ static uint build_bitmap_for_nested_joins(List<TABLE_LIST> *join_list,
                     tables which will be ignored.
 */
 
-static void reset_nj_counters(List<TABLE_LIST> *join_list)
+static uint reset_nj_counters(JOIN *join, List<TABLE_LIST> *join_list)
 {
   List_iterator<TABLE_LIST> li(*join_list);
   TABLE_LIST *table;
   DBUG_ENTER("reset_nj_counters");
+  uint n=0;
   while ((table= li++))
   {
     NESTED_JOIN *nested_join;
     if ((nested_join= table->nested_join))
     {
       nested_join->counter= 0;
-      reset_nj_counters(&nested_join->join_list);
+      //nested_join->n_tables= my_count_bits(nested_join->used_tables & 
+      //                                     ~join->eliminated_tables);
+      nested_join->n_tables= reset_nj_counters(join, &nested_join->join_list);
     }
+    if (table->table && (table->table->map & ~join->eliminated_tables))
+      n++;
   }
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(n);
 }
 
 
@@ -8894,7 +8966,7 @@ static bool check_interleaving_with_nj(JOIN_TAB *next_tab)
       join->cur_embedding_map |= next_emb->nested_join->nj_map;
     }
     
-    if (next_emb->nested_join->join_list.elements !=
+    if (next_emb->nested_join->n_tables !=
         next_emb->nested_join->counter)
       break;
 
@@ -8928,7 +9000,7 @@ static void restore_prev_nj_state(JOIN_TAB *last)
   {
     if (!(--last_emb->nested_join->counter))
       join->cur_embedding_map&= ~last_emb->nested_join->nj_map;
-    else if (last_emb->nested_join->join_list.elements-1 ==
+    else if (last_emb->nested_join->n_tables-1 ==
              last_emb->nested_join->counter) 
       join->cur_embedding_map|= last_emb->nested_join->nj_map;
     else
@@ -16238,6 +16310,14 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       tmp3.length(0);
 
       quick_type= -1;
+
+      /* Don't show eliminated tables */
+      if (table->map & join->eliminated_tables)
+      {
+        used_tables|=table->map;
+        continue;
+      }
+
       item_list.empty();
       /* id */
       item_list.push_back(new Item_uint((uint32)
@@ -16560,8 +16640,11 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
        unit;
        unit= unit->next_unit())
   {
-    if (mysql_explain_union(thd, unit, result))
-      DBUG_VOID_RETURN;
+    if (!(unit->item && unit->item->eliminated))
+    {
+      if (mysql_explain_union(thd, unit, result))
+        DBUG_VOID_RETURN;
+    }
   }
   DBUG_VOID_RETURN;
 }
@@ -16602,7 +16685,6 @@ bool mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
     unit->fake_select_lex->options|= SELECT_DESCRIBE;
     if (!(res= unit->prepare(thd, result, SELECT_NO_UNLOCK | SELECT_DESCRIBE)))
       res= unit->exec();
-    res|= unit->cleanup();
   }
   else
   {
@@ -16635,6 +16717,7 @@ bool mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
 */
 
 static void print_join(THD *thd,
+                       table_map eliminated_tables,
                        String *str,
                        List<TABLE_LIST> *tables,
                        enum_query_type query_type)
@@ -16650,12 +16733,33 @@ static void print_join(THD *thd,
     *t= ti++;
 
   DBUG_ASSERT(tables->elements >= 1);
-  (*table)->print(thd, str, query_type);
+  /*
+    Assert that the first table in the list isn't eliminated. This comes from
+    the fact that the first table can't be inner table of an outer join.
+  */
+  DBUG_ASSERT(!eliminated_tables || 
+              !(((*table)->table && ((*table)->table->map & eliminated_tables)) ||
+                ((*table)->nested_join && !((*table)->nested_join->used_tables &
+                                           ~eliminated_tables))));
+  (*table)->print(thd, eliminated_tables, str, query_type);
 
   TABLE_LIST **end= table + tables->elements;
   for (TABLE_LIST **tbl= table + 1; tbl < end; tbl++)
   {
     TABLE_LIST *curr= *tbl;
+    /*
+      The "eliminated_tables &&" check guards againist the case of 
+      printing the query for CREATE VIEW. We do that without having run 
+      JOIN::optimize() and so will have nested_join->used_tables==0.
+    */
+    if (eliminated_tables &&
+        ((curr->table && (curr->table->map & eliminated_tables)) ||
+         (curr->nested_join && !(curr->nested_join->used_tables &
+                                ~eliminated_tables))))
+    {
+      continue;
+    }
+
     if (curr->outer_join)
     {
       /* MySQL converts right to left joins */
@@ -16665,7 +16769,7 @@ static void print_join(THD *thd,
       str->append(STRING_WITH_LEN(" straight_join "));
     else
       str->append(STRING_WITH_LEN(" join "));
-    curr->print(thd, str, query_type);
+    curr->print(thd, eliminated_tables, str, query_type);
     if (curr->on_expr)
     {
       str->append(STRING_WITH_LEN(" on("));
@@ -16719,12 +16823,13 @@ Index_hint::print(THD *thd, String *str)
   @param str   string where table should be printed
 */
 
-void TABLE_LIST::print(THD *thd, String *str, enum_query_type query_type)
+void TABLE_LIST::print(THD *thd, table_map eliminated_tables, String *str, 
+                       enum_query_type query_type)
 {
   if (nested_join)
   {
     str->append('(');
-    print_join(thd, str, &nested_join->join_list, query_type);
+    print_join(thd, eliminated_tables, str, &nested_join->join_list, query_type);
     str->append(')');
   }
   else
@@ -16866,7 +16971,7 @@ void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
   {
     str->append(STRING_WITH_LEN(" from "));
     /* go through join tree */
-    print_join(thd, str, &top_join_list, query_type);
+    print_join(thd, join? join->eliminated_tables: 0, str, &top_join_list, query_type);
   }
   else if (where)
   {

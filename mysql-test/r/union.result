@@ -522,7 +522,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	UNION	t2	const	PRIMARY	PRIMARY	4	const	1	100.00	
 NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	NULL	
 Warnings:
-Note	1003	(select '1' AS `a`,'1' AS `b` from `test`.`t1` where ('1' = 1)) union (select '1' AS `a`,'10' AS `b` from `test`.`t2` where ('1' = 1))
+Note	1003	(select '1' AS `a`,'1' AS `b` from `test`.`t1` where 1) union (select '1' AS `a`,'10' AS `b` from `test`.`t2` where 1)
 (select * from t1 where a=5) union (select * from t2 where a=1);
 a	b
 1	10

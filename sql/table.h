@@ -1366,7 +1366,8 @@ struct TABLE_LIST
     return (derived || view || schema_table || (create && !table->db_stat) ||
             !table);
   }
-  void print(THD *thd, String *str, enum_query_type query_type);
+  void print(THD *thd, table_map eliminated_tables, String *str, 
+             enum_query_type query_type);
   bool check_single_table(TABLE_LIST **table, table_map map,
                           TABLE_LIST *view);
   bool set_insert_values(MEM_ROOT *mem_root);
@@ -1615,7 +1616,11 @@ public:
 typedef struct st_nested_join
 {
   List<TABLE_LIST>  join_list;       /* list of elements in the nested join */
-  table_map         used_tables;     /* bitmap of tables in the nested join */
+  /* 
+    Bitmap of tables within this nested join (including those embedded within
+    its children), including tables removed by table elimination.
+  */
+  table_map         used_tables;
   table_map         not_null_tables; /* tables that rejects nulls           */
   struct st_join_table *first_nested;/* the first nested table in the plan  */
   /* 
@@ -1626,6 +1631,11 @@ typedef struct st_nested_join
     Before each use the counters are zeroed by reset_nj_counters.
   */
   uint              counter;
+  /*
+    Number of elements in join_list that were not (or contain table(s) that 
+    weren't) removed by table elimination.
+  */
+  uint              n_tables;
   nested_join_map   nj_map;          /* Bit used to identify this nested join*/
 } NESTED_JOIN;
 

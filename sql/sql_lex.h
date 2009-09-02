@@ -743,7 +743,7 @@ public:
     return master_unit()->return_after_parsing();
   }
 
-  void mark_as_dependent(st_select_lex *last);
+  void mark_as_dependent(st_select_lex *last, Item *dependency);
 
   bool set_braces(bool value);
   bool inc_in_sum_expr();
