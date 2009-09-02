@@ -76,7 +76,9 @@ end:
 int my_copystat(const char *from, const char *to, int MyFlags)
 {
   struct stat statbuf;
+#if !defined(__WIN__) && !defined(__NETWARE__)
   int res;
+#endif
 
   if (stat((char*) from, &statbuf))
   {
