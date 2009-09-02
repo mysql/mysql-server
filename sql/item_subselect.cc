@@ -1227,6 +1227,10 @@ Item_in_subselect::single_value_transformer(JOIN *join,
       else
       {
 	// it is single select without tables => possible optimization
+        // remove the dependence mark since the item is moved to upper
+        // select and is not outer anymore.
+        item->walk(&Item::remove_dependence_processor, 0,
+                           (uchar *) select_lex->outer_select());
 	item= func->create(left_expr, item);
 	// fix_field of item will be done in time of substituting
 	substitution= item;
@@ -1314,8 +1318,8 @@ Item_in_subselect::row_value_transformer(JOIN *join)
     Item *item_having_part2= 0;
     for (uint i= 0; i < cols_num; i++)
     {
-      DBUG_ASSERT(left_expr->fixed &&
-                  select_lex->ref_pointer_array[i]->fixed ||
+      DBUG_ASSERT((left_expr->fixed &&
+                  select_lex->ref_pointer_array[i]->fixed) ||
                   (select_lex->ref_pointer_array[i]->type() == REF_ITEM &&
                    ((Item_ref*)(select_lex->ref_pointer_array[i]))->ref_type() ==
                     Item_ref::OUTER_REF));
@@ -1392,8 +1396,8 @@ Item_in_subselect::row_value_transformer(JOIN *join)
     for (uint i= 0; i < cols_num; i++)
     {
       Item *item, *item_isnull;
-      DBUG_ASSERT(left_expr->fixed &&
-                  select_lex->ref_pointer_array[i]->fixed ||
+      DBUG_ASSERT((left_expr->fixed &&
+                  select_lex->ref_pointer_array[i]->fixed) ||
                   (select_lex->ref_pointer_array[i]->type() == REF_ITEM &&
                    ((Item_ref*)(select_lex->ref_pointer_array[i]))->ref_type() ==
                     Item_ref::OUTER_REF));

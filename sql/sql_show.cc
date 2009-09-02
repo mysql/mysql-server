@@ -74,9 +74,6 @@ static TYPELIB grant_types = { sizeof(grant_names)/sizeof(char **),
                                grant_names, NULL};
 #endif
 
-/* Match the values of enum ha_choice */
-static const char *ha_choice_values[] = {"", "0", "1"};
-
 static void store_key_options(THD *thd, String *packet, TABLE *table,
                               KEY *key_info);
 
@@ -601,7 +598,7 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
   if (open_normal_and_derived_tables(thd, table_list, 0))
   {
     if (!table_list->view ||
-        thd->is_error() && thd->main_da.sql_errno() != ER_VIEW_INVALID)
+        (thd->is_error() && thd->main_da.sql_errno() != ER_VIEW_INVALID))
       DBUG_RETURN(TRUE);
 
     /*
@@ -1151,7 +1148,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   {
     const LEX_STRING *const db=
       table_list->schema_table ? &INFORMATION_SCHEMA_NAME : &table->s->db;
-    if (strcmp(db->str, thd->db) != 0)
+    if (!thd->db || strcmp(db->str, thd->db))
     {
       append_identifier(thd, packet, db->str, db->length);
       packet->append(STRING_WITH_LEN("."));
@@ -1428,22 +1425,12 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
     /* We use CHECKSUM, instead of TABLE_CHECKSUM, for backward compability */
     if (share->db_create_options & HA_OPTION_CHECKSUM)
       packet->append(STRING_WITH_LEN(" CHECKSUM=1"));
-    if (share->page_checksum != HA_CHOICE_UNDEF)
-    {
-      packet->append(STRING_WITH_LEN(" PAGE_CHECKSUM="));
-      packet->append(ha_choice_values[(uint) share->page_checksum], 1);
-    }
     if (share->db_create_options & HA_OPTION_DELAY_KEY_WRITE)
       packet->append(STRING_WITH_LEN(" DELAY_KEY_WRITE=1"));
     if (create_info.row_type != ROW_TYPE_DEFAULT)
     {
       packet->append(STRING_WITH_LEN(" ROW_FORMAT="));
       packet->append(ha_row_type[(uint) create_info.row_type]);
-    }
-    if (share->transactional != HA_CHOICE_UNDEF)
-    {
-      packet->append(STRING_WITH_LEN(" TRANSACTIONAL="));
-      packet->append(ha_choice_values[(uint) share->transactional], 1);
     }
     if (table->s->key_block_size)
     {
@@ -1768,16 +1755,14 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
 
         thd_info->start_time= tmp->start_time;
         thd_info->query=0;
+        /* Lock THD mutex that protects its data when looking at it. */
+        pthread_mutex_lock(&tmp->LOCK_thd_data);
         if (tmp->query)
         {
-	  /* 
-            query_length is always set to 0 when we set query = NULL; see
-	    the comment in sql_class.h why this prevents crashes in possible
-            races with query_length
-          */
           uint length= min(max_query_length, tmp->query_length);
           thd_info->query=(char*) thd->strmake(tmp->query,length);
         }
+        pthread_mutex_unlock(&tmp->LOCK_thd_data);
         thread_infos.append(thd_info);
       }
     }
@@ -2819,8 +2804,8 @@ make_table_name_list(THD *thd, List<LEX_STRING> *table_names, LEX *lex,
                      LOOKUP_FIELD_VALUES *lookup_field_vals,
                      bool with_i_schema, LEX_STRING *db_name)
 {
-  char path[FN_REFLEN];
-  build_table_filename(path, sizeof(path), db_name->str, "", "", 0);
+  char path[FN_REFLEN + 1];
+  build_table_filename(path, sizeof(path) - 1, db_name->str, "", "", 0);
   if (!lookup_field_vals->wild_table_value &&
       lookup_field_vals->table_value.str)
   {
@@ -2982,8 +2967,8 @@ static int fill_schema_table_names(THD *thd, TABLE *table,
   else
   {
     enum legacy_db_type not_used;
-    char path[FN_REFLEN];
-    (void) build_table_filename(path, sizeof(path), db_name->str, 
+    char path[FN_REFLEN + 1];
+    (void) build_table_filename(path, sizeof(path) - 1, db_name->str, 
                                 table_name->str, reg_ext, 0);
     switch (mysql_frm_type(thd, path, &not_used)) {
     case FRMTYPE_ERROR:
@@ -3238,10 +3223,10 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
       if lookup value is empty string then
       it's impossible table name or db name
     */
-    if (lookup_field_vals.db_value.str &&
-        !lookup_field_vals.db_value.str[0] ||
-        lookup_field_vals.table_value.str &&
-        !lookup_field_vals.table_value.str[0])
+    if ((lookup_field_vals.db_value.str &&
+         !lookup_field_vals.db_value.str[0]) ||
+        (lookup_field_vals.table_value.str &&
+         !lookup_field_vals.table_value.str[0]))
     {
       error= 0;
       goto err;
@@ -3470,7 +3455,7 @@ int fill_schema_schemata(THD *thd, TABLE_LIST *tables, COND *cond)
     MY_STAT stat_info;
     if (!lookup_field_vals.db_value.str[0])
       DBUG_RETURN(0);
-    path_len= build_table_filename(path, sizeof(path),
+    path_len= build_table_filename(path, sizeof(path) - 1,
                                    lookup_field_vals.db_value.str, "", "", 0);
     path[path_len-1]= 0;
     if (!my_stat(path,&stat_info,MYF(0)))
@@ -3593,21 +3578,12 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
     /* We use CHECKSUM, instead of TABLE_CHECKSUM, for backward compability */
     if (share->db_create_options & HA_OPTION_CHECKSUM)
       ptr=strmov(ptr," checksum=1");
-    if (share->page_checksum != HA_CHOICE_UNDEF)
-      ptr= strxmov(ptr, " page_checksum=",
-                   ha_choice_values[(uint) share->page_checksum], NullS);
     if (share->db_create_options & HA_OPTION_DELAY_KEY_WRITE)
       ptr=strmov(ptr," delay_key_write=1");
     if (share->row_type != ROW_TYPE_DEFAULT)
       ptr=strxmov(ptr, " row_format=", 
                   ha_row_type[(uint) share->row_type],
                   NullS);
-    if (share->transactional != HA_CHOICE_UNDEF)
-    {
-      ptr= strxmov(ptr, " TRANSACTIONAL=",
-                   (share->transactional == HA_CHOICE_YES ? "1" : "0"),
-                   NullS);
-    }
     if (share->key_block_size)
     {
       ptr= strmov(ptr, " KEY_BLOCK_SIZE=");
@@ -3617,9 +3593,6 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
     if (is_partitioned)
       ptr= strmov(ptr, " partitioned");
 #endif
-    if (share->transactional != HA_CHOICE_UNDEF)
-      ptr= strxmov(ptr, " transactional=",
-                   ha_choice_values[(uint) share->transactional], NullS);
     table->field[19]->store(option_buff+1,
                             (ptr == option_buff ? 0 : 
                              (uint) (ptr-option_buff)-1), cs);
@@ -4116,10 +4089,10 @@ bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
                                                 TYPE_ENUM_PROCEDURE))
     return 0;
 
-  if (lex->sql_command == SQLCOM_SHOW_STATUS_PROC &&
-      proc_table->field[2]->val_int() == TYPE_ENUM_PROCEDURE ||
-      lex->sql_command == SQLCOM_SHOW_STATUS_FUNC &&
-      proc_table->field[2]->val_int() == TYPE_ENUM_FUNCTION ||
+  if ((lex->sql_command == SQLCOM_SHOW_STATUS_PROC &&
+      proc_table->field[2]->val_int() == TYPE_ENUM_PROCEDURE) ||
+      (lex->sql_command == SQLCOM_SHOW_STATUS_FUNC &&
+      proc_table->field[2]->val_int() == TYPE_ENUM_FUNCTION) ||
       (sql_command_flags[lex->sql_command] & CF_STATUS_COMMAND) == 0)
   {
     restore_record(table, s->default_values);
@@ -7070,6 +7043,12 @@ bool show_create_trigger(THD *thd, const sp_name *trg_name)
 
   if (!lst)
     return TRUE;
+
+  if (check_table_access(thd, TRIGGER_ACL, lst, 1, TRUE))
+  {
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "TRIGGER");
+    return TRUE;
+  }
 
   /*
     Open the table by name in order to load Table_triggers_list object.

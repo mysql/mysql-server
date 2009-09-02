@@ -10,7 +10,7 @@ AC_CANONICAL_SYSTEM
 #
 # When changing major version number please also check switch statement
 # in mysqlbinlog::check_master_version().
-AM_INIT_AUTOMAKE(mysql, 5.1.36)
+AM_INIT_AUTOMAKE(mysql, 5.1.39)
 AM_CONFIG_HEADER([include/config.h:config.h.in])
 
 PROTOCOL_VERSION=10
@@ -603,10 +603,11 @@ AC_SUBST(NOINST_LDFLAGS)
 # Check if we are using Linux and a glibc compiled with static nss
 # (this is true on the MySQL build machines to avoid NSS problems)
 #
+AC_CHECK_TOOL([NM], [nm]) 
 
 if test "$TARGET_LINUX" = "true" -a "$static_nss" = ""
 then
-  tmp=`nm /usr/lib*/libc.a  | grep _nss_files_getaliasent_r`
+  tmp=`$NM ${other_libc_lib:-/usr/lib*}/libc.a | grep _nss_files_getaliasent_r1`
   if test -n "$tmp"
   then
      STATIC_NSS_FLAGS="-lc -lnss_files -lnss_dns -lresolv"
@@ -1624,7 +1625,7 @@ esac
 
 # Build optimized or debug version ?
 # First check for gcc and g++
-if test "$ac_cv_prog_gcc" = "yes"
+if test "$GCC" = "yes"
 then
   DEBUG_CFLAGS="-g"
   DEBUG_OPTIMIZE_CC="-O"
@@ -1632,9 +1633,16 @@ then
 else
   DEBUG_CFLAGS="-g"
   DEBUG_OPTIMIZE_CC=""
-  OPTIMIZE_CFLAGS="-O"
+  case $SYSTEM_TYPE in                               
+    *solaris*)
+      OPTIMIZE_CFLAGS="-O1"
+      ;;
+    *)
+      OPTIMIZE_CFLAGS="-O"
+      ;;
+  esac
 fi
-if test "$ac_cv_prog_cxx_g" = "yes"
+if test "$GXX" = "yes"
 then
   DEBUG_CXXFLAGS="-g"
   DEBUG_OPTIMIZE_CXX="-O"
@@ -1642,7 +1650,14 @@ then
 else
   DEBUG_CXXFLAGS="-g"
   DEBUG_OPTIMIZE_CXX=""
-  OPTIMIZE_CXXFLAGS="-O"
+  case $SYSTEM_TYPE in
+    *solaris*)
+      OPTIMIZE_CXXFLAGS="-O1"
+      ;;
+    *)
+      OPTIMIZE_CXXFLAGS="-O"
+      ;;
+  esac
 fi
 
 case $SYSTEM_TYPE in
@@ -2075,6 +2090,25 @@ case "$mysql_cv_sys_os" in
  OS400) # i5/OS (OS/400) emits a SIGILL (Function not implemented) when
         # unsupported priority values are passed to pthread_setschedprio.
         # Since the only supported value is 1, treat it as inexistent.
+    ;;
+ SunOS) # Bug#42599 error: `pthread_setschedprio' was not declared in this scope
+        # In some installations, the pthread.h header used by GCC does not
+        # declare the pthread_setscheprio prototype, but the function is
+        # implemented. Since the function is used in C++ code, ensure that
+        # the function prototype is present.
+     AC_MSG_CHECKING([whether pthread_setschedprio is declared])
+     AC_LANG_PUSH([C++])
+     AC_COMPILE_IFELSE([
+       AC_LANG_PROGRAM([#include <pthread.h>],
+                      [(void)(pthread_setschedprio);])],
+       [ac_cv_func_pthread_setschedprio=yes],
+       [ac_cv_func_pthread_setschedprio=no])
+     AC_LANG_POP([C++])
+     AC_MSG_RESULT([$ac_cv_func_pthread_setschedprio])
+     if test "$ac_cv_func_pthread_setschedprio" = yes; then
+       AC_DEFINE(HAVE_PTHREAD_SETSCHEDPRIO, 1,
+                 [Define to 1 if you have the `pthread_setschedprio' function.])
+     fi
     ;;
  *) AC_CHECK_FUNCS(pthread_setschedprio)
     ;;

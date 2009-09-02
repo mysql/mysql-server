@@ -115,7 +115,7 @@ extern "C" {
 #define PROMPT_CHAR '\\'
 #define DEFAULT_DELIMITER ";"
 
-#define MAX_BATCH_BUFFER_SIZE (1024L * 1024L)
+#define MAX_BATCH_BUFFER_SIZE (1024L * 1024L * 1024L)
 
 typedef struct st_status
 {
@@ -170,6 +170,8 @@ static const char *xmlmeta[] = {
   "<", "&lt;",
   ">", "&gt;",
   "\"", "&quot;",
+  /* Turn \0 into a space. Why not &#0;? That's not valid XML or HTML. */
+  "\0", " ",
   0, 0
 };
 static const char *day_names[]={"Sun","Mon","Tue","Wed","Thu","Fri","Sat"};
@@ -1979,7 +1981,7 @@ static COMMANDS *find_command(char *name,char cmd_char)
     */
     if (strstr(name, "\\g") || (strstr(name, delimiter) &&
                                 !(strlen(name) >= 9 &&
-                                  !my_strnncoll(charset_info,
+                                  !my_strnncoll(&my_charset_latin1,
                                                 (uchar*) name, 9,
                                                 (const uchar*) "delimiter",
                                                 9))))
@@ -2000,11 +2002,11 @@ static COMMANDS *find_command(char *name,char cmd_char)
   {
     if (commands[i].func &&
 	((name &&
-	  !my_strnncoll(charset_info,(uchar*)name,len,
+	  !my_strnncoll(&my_charset_latin1, (uchar*)name, len,
 				     (uchar*)commands[i].name,len) &&
 	  !commands[i].name[len] &&
 	  (!end || (end && commands[i].takes_params))) ||
-	 !name && commands[i].cmd_char == cmd_char))
+	 (!name && commands[i].cmd_char == cmd_char)))
     {
       DBUG_PRINT("exit",("found command: %s", commands[i].name));
       DBUG_RETURN(&commands[i]);
@@ -2163,7 +2165,7 @@ static bool add_line(String &buffer,char *line,char *in_string,
       buffer.length(0);
     }
     else if (!*ml_comment && (!*in_string && (inchar == '#' ||
-			      inchar == '-' && pos[1] == '-' &&
+                                              (inchar == '-' && pos[1] == '-' &&
                               /*
                                 The third byte is either whitespace or is the
                                 end of the line -- which would occur only
@@ -2171,7 +2173,7 @@ static bool add_line(String &buffer,char *line,char *in_string,
                                 itself whitespace and should also match.
                               */
 			      (my_isspace(charset_info,pos[2]) ||
-                               !pos[2]))))
+                               !pos[2])))))
     {
       // Flush previously accepted characters
       if (out != line)
@@ -2302,8 +2304,10 @@ extern "C" char **new_mysql_completion (const char *text, int start, int end);
 */
 
 #if defined(USE_NEW_READLINE_INTERFACE) 
+static int fake_magic_space(int, int);
 extern "C" char *no_completion(const char*,int)
 #elif defined(USE_LIBEDIT_INTERFACE)
+static int fake_magic_space(const char *, int);
 extern "C" int no_completion(const char*,int)
 #else
 extern "C" char *no_completion()
@@ -2380,6 +2384,18 @@ static int not_in_history(const char *line)
   return 1;
 }
 
+
+#if defined(USE_NEW_READLINE_INTERFACE)
+static int fake_magic_space(int, int)
+#else
+static int fake_magic_space(const char *, int)
+#endif
+{
+  rl_insert(1, ' ');
+  return 0;
+}
+
+
 static void initialize_readline (char *name)
 {
   /* Allow conditional parsing of the ~/.inputrc file. */
@@ -2389,12 +2405,15 @@ static void initialize_readline (char *name)
 #if defined(USE_NEW_READLINE_INTERFACE)
   rl_attempted_completion_function= (rl_completion_func_t*)&new_mysql_completion;
   rl_completion_entry_function= (rl_compentry_func_t*)&no_completion;
+
+  rl_add_defun("magic-space", (rl_command_func_t *)&fake_magic_space, -1);
 #elif defined(USE_LIBEDIT_INTERFACE)
 #ifdef HAVE_LOCALE_H
   setlocale(LC_ALL,""); /* so as libedit use isprint */
 #endif
   rl_attempted_completion_function= (CPPFunction*)&new_mysql_completion;
   rl_completion_entry_function= &no_completion;
+  rl_add_defun("magic-space", (Function*)&fake_magic_space, -1);
 #else
   rl_attempted_completion_function= (CPPFunction*)&new_mysql_completion;
   rl_completion_entry_function= &no_completion;
@@ -2732,7 +2751,7 @@ static int com_server_help(String *buffer __attribute__((unused)),
 {
   MYSQL_ROW cur;
   const char *server_cmd= buffer->ptr();
-  char cmd_buf[100];
+  char cmd_buf[100 + 1];
   MYSQL_RES *result;
   int error;
   
@@ -3308,6 +3327,9 @@ print_table_data(MYSQL_RES *result)
       uint visible_length;
       uint extra_padding;
 
+      if (off)
+        (void) tee_fputs(" ", PAGER);
+
       if (cur[off] == NULL)
       {
         buffer= "NULL";
@@ -3342,7 +3364,7 @@ print_table_data(MYSQL_RES *result)
         else 
           tee_print_sized_data(buffer, data_length, field_max_length+extra_padding, FALSE);
       }
-      tee_fputs(" | ", PAGER);
+      tee_fputs(" |", PAGER);
     }
     (void) tee_fputs("\n", PAGER);
   }
@@ -3482,11 +3504,29 @@ print_table_data_vertically(MYSQL_RES *result)
     mysql_field_seek(result,0);
     tee_fprintf(PAGER, 
 		"*************************** %d. row ***************************\n", row_count);
+
+    ulong *lengths= mysql_fetch_lengths(result);
+
     for (uint off=0; off < mysql_num_fields(result); off++)
     {
       field= mysql_fetch_field(result);
       tee_fprintf(PAGER, "%*s: ",(int) max_length,field->name);
-      tee_fprintf(PAGER, "%s\n",cur[off] ? (char*) cur[off] : "NULL");
+      if (cur[off])
+      {
+        unsigned int i;
+        const char *p;
+
+        for (i= 0, p= cur[off]; i < lengths[off]; i+= 1, p+= 1)
+        {
+          if (*p == '\0')
+            tee_putc((int)' ', PAGER);
+          else
+            tee_putc((int)*p, PAGER);
+        }
+        tee_putc('\n', PAGER);
+      }
+      else
+        tee_fprintf(PAGER, "NULL\n");
     }
   }
 }
@@ -3553,7 +3593,7 @@ xmlencode_print(const char *src, uint length)
     tee_fputs("NULL", PAGER);
   else
   {
-    for (const char *p = src; *p && length; *p++, length--)
+    for (const char *p = src; length; *p++, length--)
     {
       const char *t;
       if ((t = array_value(xmlmeta, *p)))
@@ -3573,7 +3613,12 @@ safe_put_field(const char *pos,ulong length)
   else
   {
     if (opt_raw_data)
-      tee_fputs(pos, PAGER);
+    {
+      unsigned long i;
+      /* Can't use tee_fputs(), it stops with NUL characters. */
+      for (i= 0; i < length; i++, pos++)
+        tee_putc(*pos, PAGER);
+    }
     else for (const char *end=pos+length ; pos != end ; pos++)
     {
 #ifdef USE_MB
@@ -4264,41 +4309,36 @@ com_status(String *buffer __attribute__((unused)),
   MYSQL_RES *result;
   LINT_INIT(result);
 
+  if (mysql_real_query_for_lazy(
+        C_STRING_WITH_LEN("select DATABASE(), USER() limit 1")))
+    return 0;
+
   tee_puts("--------------", stdout);
   usage(1);					/* Print version */
-  if (connected)
+  tee_fprintf(stdout, "\nConnection id:\t\t%lu\n",mysql_thread_id(&mysql));
+  /*
+    Don't remove "limit 1",
+    it is protection againts SQL_SELECT_LIMIT=0
+  */
+  if (mysql_store_result_for_lazy(&result))
   {
-    tee_fprintf(stdout, "\nConnection id:\t\t%lu\n",mysql_thread_id(&mysql));
-    /* 
-      Don't remove "limit 1", 
-      it is protection againts SQL_SELECT_LIMIT=0
-    */
-    if (!mysql_query(&mysql,"select DATABASE(), USER() limit 1") &&
-	(result=mysql_use_result(&mysql)))
+    MYSQL_ROW cur=mysql_fetch_row(result);
+    if (cur)
     {
-      MYSQL_ROW cur=mysql_fetch_row(result);
-      if (cur)
-      {
-        tee_fprintf(stdout, "Current database:\t%s\n", cur[0] ? cur[0] : "");
-        tee_fprintf(stdout, "Current user:\t\t%s\n", cur[1]);
-      }
-      mysql_free_result(result);
-    } 
+      tee_fprintf(stdout, "Current database:\t%s\n", cur[0] ? cur[0] : "");
+      tee_fprintf(stdout, "Current user:\t\t%s\n", cur[1]);
+    }
+    mysql_free_result(result);
+  }
+
 #ifdef HAVE_OPENSSL
-    if ((status_str= mysql_get_ssl_cipher(&mysql)))
-      tee_fprintf(stdout, "SSL:\t\t\tCipher in use is %s\n",
-		  status_str);
-    else
-#endif /* HAVE_OPENSSL */
-      tee_puts("SSL:\t\t\tNot in use", stdout);
-  }
+  if ((status_str= mysql_get_ssl_cipher(&mysql)))
+    tee_fprintf(stdout, "SSL:\t\t\tCipher in use is %s\n",
+                status_str);
   else
-  {
-    vidattr(A_BOLD);
-    tee_fprintf(stdout, "\nNo connection\n");
-    vidattr(A_NORMAL);
-    return 0;
-  }
+#endif /* HAVE_OPENSSL */
+    tee_puts("SSL:\t\t\tNot in use", stdout);
+
   if (skip_updates)
   {
     vidattr(A_BOLD);
@@ -4317,8 +4357,14 @@ com_status(String *buffer __attribute__((unused)),
     tee_fprintf(stdout, "Insert id:\t\t%s\n", llstr(id, buff));
 
   /* "limit 1" is protection against SQL_SELECT_LIMIT=0 */
-  if (!mysql_query(&mysql,"select @@character_set_client, @@character_set_connection, @@character_set_server, @@character_set_database limit 1") &&
-      (result=mysql_use_result(&mysql)))
+  if (mysql_real_query_for_lazy(C_STRING_WITH_LEN(
+        "select @@character_set_client, @@character_set_connection, "
+        "@@character_set_server, @@character_set_database limit 1")))
+  {
+    if (mysql_errno(&mysql) == CR_SERVER_GONE_ERROR)
+      return 0;
+  }
+  if (mysql_store_result_for_lazy(&result))
   {
     MYSQL_ROW cur=mysql_fetch_row(result);
     if (cur)

@@ -111,8 +111,8 @@ uint calc_week(MYSQL_TIME *l_time, uint week_behaviour, uint *year)
   if (l_time->month == 1 && l_time->day <= 7-weekday)
   {
     if (!week_year && 
-	(first_weekday && weekday != 0 ||
-	 !first_weekday && weekday >= 4))
+	((first_weekday && weekday != 0) ||
+	 (!first_weekday && weekday >= 4)))
       return 0;
     week_year= 1;
     (*year)--;
@@ -129,8 +129,8 @@ uint calc_week(MYSQL_TIME *l_time, uint week_behaviour, uint *year)
   if (week_year && days >= 52*7)
   {
     weekday= (weekday + calc_days_in_year(*year)) % 7;
-    if (!first_weekday && weekday < 4 ||
-	first_weekday && weekday == 0)
+    if ((!first_weekday && weekday < 4) ||
+	(first_weekday && weekday == 0))
     {
       (*year)++;
       return 1;

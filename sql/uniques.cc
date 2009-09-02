@@ -603,9 +603,9 @@ bool Unique::get(TABLE *table)
   outfile=table->sort.io_cache=(IO_CACHE*) my_malloc(sizeof(IO_CACHE),
                                 MYF(MY_ZEROFILL));
 
-  if (!outfile || ! my_b_inited(outfile) &&
+  if (!outfile || (! my_b_inited(outfile) &&
       open_cached_file(outfile,mysql_tmpdir,TEMP_PREFIX,READ_RECORD_BUFFER,
-		       MYF(MY_WME)))
+		       MYF(MY_WME))))
     return 1;
   reinit_io_cache(outfile,WRITE_CACHE,0L,0,0);
 

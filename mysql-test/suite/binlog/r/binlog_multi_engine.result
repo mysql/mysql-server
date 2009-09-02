@@ -17,16 +17,16 @@ TRUNCATE t1b;
 TRUNCATE t1n;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-mysqld-bin.000001	#	Query	#	#	use `test`; BEGIN
+mysqld-bin.000001	#	Query	#	#	BEGIN
 mysqld-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1b VALUES (1,1), (1,2), (2,1), (2,2)
-mysqld-bin.000001	#	Query	#	#	use `test`; COMMIT
+mysqld-bin.000001	#	Query	#	#	COMMIT
 mysqld-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1m VALUES (1,1), (1,2), (2,1), (2,2)
 mysqld-bin.000001	#	Query	#	#	use `test`; UPDATE t1m, t1b SET m = 2, b = 3 WHERE n = c
-mysqld-bin.000001	#	Query	#	#	use `test`; BEGIN
+mysqld-bin.000001	#	Query	#	#	BEGIN
 mysqld-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1n VALUES (1,1), (1,2), (2,1), (2,2)
 mysqld-bin.000001	#	Query	#	#	use `test`; UPDATE t1m, t1n SET m = 2, e = 3 WHERE n = f
 mysqld-bin.000001	#	Query	#	#	use `test`; UPDATE t1n, t1b SET e = 2, b = 3 WHERE f = c
-mysqld-bin.000001	#	Query	#	#	use `test`; COMMIT
+mysqld-bin.000001	#	Query	#	#	COMMIT
 mysqld-bin.000001	#	Query	#	#	BEGIN
 mysqld-bin.000001	#	Table_map	#	#	table_id: # (test.t1n)
 mysqld-bin.000001	#	Table_map	#	#	table_id: # (mysql.ndb_apply_status)
@@ -48,9 +48,9 @@ TRUNCATE t1b;
 TRUNCATE t1n;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-mysqld-bin.000001	#	Query	#	#	use `test`; BEGIN
+mysqld-bin.000001	#	Query	#	#	BEGIN
 mysqld-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1b VALUES (1,1), (1,2), (2,1), (2,2)
-mysqld-bin.000001	#	Query	#	#	use `test`; COMMIT
+mysqld-bin.000001	#	Query	#	#	COMMIT
 mysqld-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1m VALUES (1,1), (1,2), (2,1), (2,2)
 mysqld-bin.000001	#	Query	#	#	BEGIN
 mysqld-bin.000001	#	Table_map	#	#	table_id: # (test.t1n)
@@ -73,14 +73,14 @@ UPDATE t1n, t1b SET e = 2, b = 3 WHERE f = c;
 ERROR HY000: Binary logging not possible. Message: Statement cannot be written atomically since more than one engine involved and at least one engine is self-logging
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-mysqld-bin.000001	#	Query	#	#	use `test`; BEGIN
+mysqld-bin.000001	#	Query	#	#	BEGIN
 mysqld-bin.000001	#	Table_map	#	#	table_id: # (test.t1m)
 mysqld-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-mysqld-bin.000001	#	Query	#	#	use `test`; COMMIT
-mysqld-bin.000001	#	Query	#	#	use `test`; BEGIN
+mysqld-bin.000001	#	Query	#	#	COMMIT
+mysqld-bin.000001	#	Query	#	#	BEGIN
 mysqld-bin.000001	#	Table_map	#	#	table_id: # (test.t1b)
 mysqld-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-mysqld-bin.000001	#	Query	#	#	use `test`; COMMIT
+mysqld-bin.000001	#	Query	#	#	COMMIT
 mysqld-bin.000001	#	Query	#	#	BEGIN
 mysqld-bin.000001	#	Table_map	#	#	table_id: # (test.t1n)
 mysqld-bin.000001	#	Table_map	#	#	table_id: # (mysql.ndb_apply_status)

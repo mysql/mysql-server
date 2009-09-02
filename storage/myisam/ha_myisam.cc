@@ -95,7 +95,7 @@ static void mi_check_print_msg(MI_CHECK *param,	const char* msg_type,
 
   if (!thd->vio_ok())
   {
-    sql_print_error(msgbuf);
+    sql_print_error("%s", msgbuf);
     return;
   }
 
@@ -1112,6 +1112,9 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize)
   param.out_flag= 0;
   strmov(fixed_name,file->filename);
 
+  // Release latches since this can take a long time
+  ha_release_temporary_latches(thd);
+
   // Don't lock tables if we have used LOCK TABLE
   if (!thd->locked_tables && 
       mi_lock_database(file, table->s->tmp_table ? F_EXTRA_LCK : F_WRLCK))
@@ -1609,10 +1612,8 @@ bool ha_myisam::check_and_repair(THD *thd)
 
   old_query= thd->query;
   old_query_length= thd->query_length;
-  pthread_mutex_lock(&LOCK_thread_count);
-  thd->query=        table->s->table_name.str;
-  thd->query_length= (uint) table->s->table_name.length;
-  pthread_mutex_unlock(&LOCK_thread_count);
+  thd->set_query(table->s->table_name.str,
+                 (uint) table->s->table_name.length);
 
   if ((marked_crashed= mi_is_crashed(file)) || check(thd, &check_opt))
   {
@@ -1625,10 +1626,7 @@ bool ha_myisam::check_and_repair(THD *thd)
     if (repair(thd, &check_opt))
       error=1;
   }
-  pthread_mutex_lock(&LOCK_thread_count);
-  thd->query= old_query;
-  thd->query_length= old_query_length;
-  pthread_mutex_unlock(&LOCK_thread_count);
+  thd->set_query(old_query, old_query_length);
   DBUG_RETURN(error);
 }
 
@@ -1865,6 +1863,12 @@ int ha_myisam::extra_opt(enum ha_extra_function operation, ulong cache_size)
 int ha_myisam::delete_all_rows()
 {
   return mi_delete_all_rows(file);
+}
+
+int ha_myisam::reset_auto_increment(ulonglong value)
+{
+  file->s->state.auto_increment= value;
+  return 0;
 }
 
 int ha_myisam::delete_table(const char *name)

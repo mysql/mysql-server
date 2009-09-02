@@ -1471,5 +1471,59 @@ DROP DATABASE dbbug33464;
 
 SET @@global.log_bin_trust_function_creators= @old_log_bin_trust_function_creators;
 
+#
+# Bug#44658 Create procedure makes server crash when user does not have ALL privilege
+#
+CREATE USER user1;
+CREATE USER user2;
+GRANT CREATE ON db1.* TO 'user1'@'localhost';
+GRANT CREATE ROUTINE ON db1.* TO 'user1'@'localhost';
+GRANT CREATE ON db1.* TO 'user2'@'%';
+GRANT CREATE ROUTINE ON db1.* TO 'user2'@'%';
+FLUSH PRIVILEGES;
+SHOW GRANTS FOR 'user1'@'localhost';
+connect (con1,localhost,user1,,);
+--echo ** Connect as user1 and create a procedure.
+--echo ** The creation will imply implicitly assigned
+--echo ** EXECUTE and ALTER ROUTINE privileges to
+--echo ** the current user user1@localhost. 
+SELECT @@GLOBAL.sql_mode;
+SELECT @@SESSION.sql_mode;
+CREATE DATABASE db1;
+DELIMITER ||;
+CREATE PROCEDURE db1.proc1(p1 INT)
+ BEGIN
+ SET @x = 0;
+ REPEAT SET @x = @x + 1; UNTIL @x > p1 END REPEAT;
+ END ;||
+DELIMITER ;||
+
+connect (con2,localhost,user2,,);
+--echo ** Connect as user2 and create a procedure.
+--echo ** Implicitly assignment of privileges will
+--echo ** fail because the user2@localhost is an
+--echo ** unknown user.
+DELIMITER ||;
+CREATE PROCEDURE db1.proc2(p1 INT)
+ BEGIN
+ SET @x = 0;
+ REPEAT SET @x = @x + 1; UNTIL @x > p1 END REPEAT;
+ END ;||
+DELIMITER ;||
+
+connection default;
+SHOW GRANTS FOR 'user1'@'localhost';
+SHOW GRANTS FOR 'user2';
+disconnect con1;
+disconnect con2;
+DROP PROCEDURE db1.proc1;
+DROP PROCEDURE db1.proc2;
+REVOKE ALL ON db1.* FROM 'user1'@'localhost';
+REVOKE ALL ON db1.* FROM 'user2'@'%';
+DROP USER 'user1';
+DROP USER 'user1'@'localhost';
+DROP USER 'user2';
+DROP DATABASE db1;
+
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc

@@ -1165,7 +1165,7 @@ bool Field_num::get_int(CHARSET_INFO *cs, const char *from, uint len,
   if (unsigned_flag)
   {
 
-    if (((ulonglong) *rnd > unsigned_max) && (*rnd= (longlong) unsigned_max) ||
+    if ((((ulonglong) *rnd > unsigned_max) && (*rnd= (longlong) unsigned_max)) ||
         error == MY_ERRNO_ERANGE)
     {
       goto out_of_range;
@@ -1350,7 +1350,7 @@ void Field::copy_from_tmp(int row_offset)
   if (null_ptr)
   {
     *null_ptr= (uchar) ((null_ptr[0] & (uchar) ~(uint) null_bit) |
-			null_ptr[row_offset] & (uchar) null_bit);
+			(null_ptr[row_offset] & (uchar) null_bit));
   }
 }
 
@@ -4081,8 +4081,8 @@ int Field_float::store(const char *from,uint len,CHARSET_INFO *cs)
   int error;
   char *end;
   double nr= my_strntod(cs,(char*) from,len,&end,&error);
-  if (error || (!len || (uint) (end-from) != len &&
-                table->in_use->count_cuted_fields))
+  if (error || (!len || ((uint) (end-from) != len &&
+                table->in_use->count_cuted_fields)))
   {
     set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
                 (error ? ER_WARN_DATA_OUT_OF_RANGE : WARN_DATA_TRUNCATED), 1);
@@ -4343,8 +4343,8 @@ int Field_double::store(const char *from,uint len,CHARSET_INFO *cs)
   int error;
   char *end;
   double nr= my_strntod(cs,(char*) from, len, &end, &error);
-  if (error || (!len || (uint) (end-from) != len &&
-                table->in_use->count_cuted_fields))
+  if (error || (!len || ((uint) (end-from) != len &&
+                table->in_use->count_cuted_fields)))
   {
     set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
                 (error ? ER_WARN_DATA_OUT_OF_RANGE : WARN_DATA_TRUNCATED), 1);
@@ -4598,7 +4598,6 @@ bool Field_double::send_binary(Protocol *protocol)
 
 int Field_double::cmp(const uchar *a_ptr, const uchar *b_ptr)
 {
-  ASSERT_COLUMN_MARKED_FOR_READ;
   double a,b;
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
@@ -5196,7 +5195,7 @@ int Field_time::store(longlong nr, bool unsigned_val)
                          MYSQL_TIMESTAMP_TIME, 1);
     error= 1;
   }
-  else if (nr > (longlong) TIME_MAX_VALUE || nr < 0 && unsigned_val)
+  else if (nr > (longlong) TIME_MAX_VALUE || (nr < 0 && unsigned_val))
   {
     tmp= TIME_MAX_VALUE;
     set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
@@ -5361,7 +5360,7 @@ int Field_year::store(const char *from, uint len,CHARSET_INFO *cs)
   int error;
   longlong nr= cs->cset->strntoull10rnd(cs, from, len, 0, &end, &error);
 
-  if (nr < 0 || nr >= 100 && nr <= 1900 || nr > 2155 || 
+  if (nr < 0 || (nr >= 100 && nr <= 1900) || nr > 2155 ||
       error == MY_ERRNO_ERANGE)
   {
     *ptr=0;
@@ -5405,7 +5404,7 @@ int Field_year::store(double nr)
 int Field_year::store(longlong nr, bool unsigned_val)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
-  if (nr < 0 || nr >= 100 && nr <= 1900 || nr > 2155)
+  if (nr < 0 || (nr >= 100 && nr <= 1900) || nr > 2155)
   {
     *ptr= 0;
     set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
@@ -6271,48 +6270,15 @@ check_string_copy_error(Field_str *field,
                         const char *end,
                         CHARSET_INFO *cs)
 {
-  const char *pos, *end_orig;
-  char tmp[64], *t;
+  const char *pos;
+  char tmp[32];
   
   if (!(pos= well_formed_error_pos) &&
       !(pos= cannot_convert_error_pos))
     return FALSE;
 
-  end_orig= end;
-  set_if_smaller(end, pos + 6);
+  convert_to_printable(tmp, sizeof(tmp), pos, (end - pos), cs, 6);
 
-  for (t= tmp; pos < end; pos++)
-  {
-    /*
-      If the source string is ASCII compatible (mbminlen==1)
-      and the source character is in ASCII printable range (0x20..0x7F),
-      then display the character as is.
-      
-      Otherwise, if the source string is not ASCII compatible (e.g. UCS2),
-      or the source character is not in the printable range,
-      then print the character using HEX notation.
-    */
-    if (((unsigned char) *pos) >= 0x20 &&
-        ((unsigned char) *pos) <= 0x7F &&
-        cs->mbminlen == 1)
-    {
-      *t++= *pos;
-    }
-    else
-    {
-      *t++= '\\';
-      *t++= 'x';
-      *t++= _dig_vec_upper[((unsigned char) *pos) >> 4];
-      *t++= _dig_vec_upper[((unsigned char) *pos) & 15];
-    }
-  }
-  if (end_orig > end)
-  {
-    *t++= '.';
-    *t++= '.';
-    *t++= '.';
-  }
-  *t= '\0';
   push_warning_printf(field->table->in_use, 
                       field->table->in_use->abort_on_warning ?
                       MYSQL_ERROR::WARN_LEVEL_ERROR :
@@ -6429,16 +6395,16 @@ int Field_str::store(double nr)
   /* Calculate the exponent from the 'e'-format conversion */
   if (anr < 1.0 && anr > 0)
   {
-    for (exp= 0; anr < 1e-100; exp-= 100, anr*= 1e100);
-    for (; anr < 1e-10; exp-= 10, anr*= 1e10);
-    for (i= 1; anr < 1 / log_10[i]; exp--, i++);
+    for (exp= 0; anr < 1e-100; exp-= 100, anr*= 1e100) ;
+    for (; anr < 1e-10; exp-= 10, anr*= 1e10) ;
+    for (i= 1; anr < 1 / log_10[i]; exp--, i++) ;
     exp--;
   }
   else
   {
-    for (exp= 0; anr > 1e100; exp+= 100, anr/= 1e100);
-    for (; anr > 1e10; exp+= 10, anr/= 1e10);
-    for (i= 1; anr > log_10[i]; exp++, i++);
+    for (exp= 0; anr > 1e100; exp+= 100, anr/= 1e100) ;
+    for (; anr > 1e10; exp+= 10, anr/= 1e10) ;
+    for (i= 1; anr > log_10[i]; exp++, i++) ;
   }
 
   max_length= local_char_length - neg;
@@ -8833,7 +8799,7 @@ bool Field_num::eq_def(Field *field)
   Field_num *from_num= (Field_num*) field;
 
   if (unsigned_flag != from_num->unsigned_flag ||
-      zerofill && !from_num->zerofill && !zero_pack() ||
+      (zerofill && !from_num->zerofill && !zero_pack()) ||
       dec != from_num->dec)
     return 0;
   return 1;
@@ -8974,7 +8940,7 @@ int Field_bit::store(const char *from, uint length, CHARSET_INFO *cs)
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   int delta;
 
-  for (; length && !*from; from++, length--);          // skip left 0's
+  for (; length && !*from; from++, length--) ;         // skip left 0's
   delta= bytes_in_rec - length;
 
   if (delta < -1 ||
@@ -9306,7 +9272,7 @@ Field_bit::unpack(uchar *to, const uchar *from, uint param_data,
     and slave have the same sizes, then use the old unpack() method.
   */
   if (param_data == 0 ||
-      (from_bit_len == bit_len) && (from_len == bytes_in_rec))
+      ((from_bit_len == bit_len) && (from_len == bytes_in_rec)))
   {
     if (bit_len > 0)
     {
@@ -9385,7 +9351,7 @@ int Field_bit_as_char::store(const char *from, uint length, CHARSET_INFO *cs)
   int delta;
   uchar bits= (uchar) (field_length & 7);
 
-  for (; length && !*from; from++, length--);          // skip left 0's
+  for (; length && !*from; from++, length--) ;         // skip left 0's
   delta= bytes_in_rec - length;
 
   if (delta < 0 ||

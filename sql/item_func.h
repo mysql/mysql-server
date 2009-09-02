@@ -378,7 +378,8 @@ public:
   Item_decimal_typecast(Item *a, int len, int dec) :Item_func(a)
   {
     decimals= dec;
-    max_length= my_decimal_precision_to_length(len, dec, unsigned_flag);
+    max_length= my_decimal_precision_to_length_no_truncation(len, dec,
+                                                             unsigned_flag);
   }
   String *val_str(String *str);
   double val_real();
@@ -1518,6 +1519,7 @@ public:
       ft_handler->please->close_search(ft_handler);
     ft_handler= 0;
     concat_ws= 0;
+    table= 0;           // required by Item_func_match::eq()
     DBUG_VOID_RETURN;
   }
   enum Functype functype() const { return FT_FUNC; }

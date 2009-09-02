@@ -1463,33 +1463,37 @@ static int run_tool(const char *tool_path, DYNAMIC_STRING *ds_res, ...)
   Test if diff is present.  This is needed on Windows systems
   as the OS returns 1 whether diff is successful or if it is
   not present.
-  Takes name of diff program as argument
-  
+
   We run diff -v and look for output in stdout.
   We don't redirect stderr to stdout to make for a simplified check
   Windows will output '"diff"' is not recognized... to stderr if it is
   not present.
 */
 
-int diff_check (const char *diff_name)
+#ifdef __WIN__
+
+static int diff_check(const char *diff_name)
 {
-    char buf[512]= {0};
-    FILE *res_file;
-    char cmd[128];
-    my_snprintf (cmd, sizeof(cmd), "%s -v", diff_name);
-    int have_diff = 0;
+  FILE *res_file;
+  char buf[128];
+  int have_diff= 0;
 
-    if (!(res_file= popen(cmd, "r")))
-        die("popen(\"%s\", \"r\") failed", cmd);
+  my_snprintf(buf, sizeof(buf), "%s -v", diff_name);
 
-    /* if diff is not present, nothing will be in stdout to increment have_diff */
-    if (fgets(buf, sizeof(buf), res_file))
-        {
-            have_diff += 1;
-        } 
-    pclose(res_file);
-    return have_diff;
+  if (!(res_file= popen(buf, "r")))
+    die("popen(\"%s\", \"r\") failed", buf);
+
+  /* if diff is not present, nothing will be in stdout to increment have_diff */
+  if (fgets(buf, sizeof(buf), res_file))
+    have_diff= 1;
+
+  pclose(res_file);
+
+  return have_diff;
 }
+
+#endif
+
 
 /*
   Show the diff of two files using the systems builtin diff

@@ -1012,8 +1012,7 @@ subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str)
   else
     DBUG_RETURN(TRUE);
 
-  thd->query= pbuf;
-  thd->query_length= qbuf.length();
+  thd->set_query(pbuf, qbuf.length());
 
   DBUG_RETURN(FALSE);
 }
@@ -1249,7 +1248,7 @@ sp_head::execute(THD *thd)
     */
     if (thd->prelocked_mode == NON_PRELOCKED)
       thd->user_var_events_alloc= thd->mem_root;
-    
+
     err_status= i->execute(thd, &ip);
 
     if (i->free_list)
@@ -1779,8 +1778,9 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
     thd->options= binlog_save_options;
     if (thd->binlog_evt_union.unioned_events)
     {
+      int errcode = query_error_code(thd, thd->killed == THD::NOT_KILLED);
       Query_log_event qinfo(thd, binlog_buf.ptr(), binlog_buf.length(),
-                            thd->binlog_evt_union.unioned_events_trans, FALSE);
+                            thd->binlog_evt_union.unioned_events_trans, FALSE, errcode);
       if (mysql_bin_log.write(&qinfo) &&
           thd->binlog_evt_union.unioned_events_trans)
       {
@@ -2857,14 +2857,13 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
     }
     else
       *nextp= m_ip+1;
-    thd->query= query;
-    thd->query_length= query_length;
+    thd->set_query(query, query_length);
     thd->query_name_consts= 0;
 
     if (!thd->is_error())
       thd->main_da.reset_diagnostics_area();
   }
-  DBUG_RETURN(res);
+  DBUG_RETURN(res || thd->is_error());
 }
 
 
