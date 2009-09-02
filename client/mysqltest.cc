@@ -417,6 +417,7 @@ static struct st_expected_errors saved_expected_errors;
 struct st_command
 {
   char *query, *query_buf,*first_argument,*last_argument,*end;
+  DYNAMIC_STRING content;
   int first_word_len, query_len;
   my_bool abort_on_error;
   struct st_expected_errors expected_errors;
@@ -1138,6 +1139,8 @@ void free_used_memory()
   {
     struct st_command **q= dynamic_element(&q_lines, i, struct st_command**);
     my_free((*q)->query_buf,MYF(MY_ALLOW_ZERO_PTR));
+    if ((*q)->content.str)
+      dynstr_free(&(*q)->content);
     my_free((*q),MYF(0));
   }
   for (i= 0; i < 10; i++)
@@ -3283,21 +3286,30 @@ void do_write_file_command(struct st_command *command, my_bool append)
                      sizeof(write_file_args)/sizeof(struct command_arg),
                      ' ');
 
-  /* If no delimiter was provided, use EOF */
-  if (ds_delimiter.length == 0)
-    dynstr_set(&ds_delimiter, "EOF");
-
   if (!append && access(ds_filename.str, F_OK) == 0)
   {
     /* The file should not be overwritten */
     die("File already exist: '%s'", ds_filename.str);
   }
 
-  init_dynamic_string(&ds_content, "", 1024, 1024);
-  read_until_delimiter(&ds_content, &ds_delimiter);
-  DBUG_PRINT("info", ("Writing to file: %s", ds_filename.str));
-  str_to_file2(ds_filename.str, ds_content.str, ds_content.length, append);
-  dynstr_free(&ds_content);
+  ds_content= command->content;
+  /* If it hasn't been done already by a loop iteration, fill it in */
+  if (! ds_content.str)
+  {
+    /* If no delimiter was provided, use EOF */
+    if (ds_delimiter.length == 0)
+      dynstr_set(&ds_delimiter, "EOF");
+
+    init_dynamic_string(&ds_content, "", 1024, 1024);
+    read_until_delimiter(&ds_content, &ds_delimiter);
+    command->content= ds_content;
+  }
+  /* This function could be called even if "false", so check before printing */
+  if (cur_block->ok)
+  {
+    DBUG_PRINT("info", ("Writing to file: %s", ds_filename.str));
+    str_to_file2(ds_filename.str, ds_content.str, ds_content.length, append);
+  }
   dynstr_free(&ds_filename);
   dynstr_free(&ds_delimiter);
   DBUG_VOID_RETURN;
@@ -7684,7 +7696,31 @@ int main(int argc, char **argv)
       command->type= Q_COMMENT;
     }
 
-    if (cur_block->ok)
+    my_bool ok_to_do= cur_block->ok;
+    /*
+      Some commands need to be "done" the first time if they may get
+      re-iterated over in a true context. This can only happen if there's 
+      a while loop at some level above the current block.
+    */
+    if (!ok_to_do)
+    {
+      if (command->type == Q_SOURCE ||
+          command->type == Q_WRITE_FILE ||
+          command->type == Q_APPEND_FILE ||
+	  command->type == Q_PERL)
+      {
+	for (struct st_block *stb= cur_block-1; stb >= block_stack; stb--)
+	{
+	  if (stb->cmd == cmd_while)
+	  {
+	    ok_to_do= 1;
+	    break;
+	  }
+	}
+      }
+    }
+
+    if (ok_to_do)
     {
       command->last_argument= command->first_argument;
       processed = 1;
