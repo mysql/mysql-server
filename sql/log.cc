@@ -1264,6 +1264,25 @@ int LOGGER::set_handlers(uint error_log_printer,
   return 0;
 }
 
+/** 
+    This function checks if a transactional talbe was updated by the
+    current statement.
+
+    @param thd The client thread that executed the current statement.
+    @return
+      @c true if a transactional table was updated, @false otherwise.
+*/
+static bool stmt_has_updated_trans_table(THD *thd)
+{
+  Ha_trx_info *ha_info;
+
+  for (ha_info= thd->transaction.stmt.ha_list; ha_info; ha_info= ha_info->next())
+  {
+    if (ha_info->is_trx_read_write() && ha_info->ht() != binlog_hton)
+      return (TRUE);
+  }
+  return (FALSE);
+}
 
  /*
   Save position of binary log transaction cache.
@@ -4060,7 +4079,8 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
         (binlog_trx_data*) thd_get_ha_data(thd, binlog_hton);
       IO_CACHE *trans_log= &trx_data->trans_log;
       my_off_t trans_log_pos= my_b_tell(trans_log);
-      if (event_info->get_cache_stmt() || trans_log_pos != 0)
+      if (event_info->get_cache_stmt() || trans_log_pos != 0 ||
+          stmt_has_updated_trans_table(thd))
       {
         DBUG_PRINT("info", ("Using trans_log: cache: %d, trans_log_pos: %lu",
                             event_info->get_cache_stmt(),
@@ -4811,7 +4831,8 @@ bool flush_error_log()
    my_rename(log_error_file,err_renamed,MYF(0));
    if (freopen(log_error_file,"a+",stdout))
    {
-     freopen(log_error_file,"a+",stderr);
+     FILE *reopen;
+     reopen= freopen(log_error_file,"a+",stderr);
      setbuf(stderr, NULL);
    }
    else
