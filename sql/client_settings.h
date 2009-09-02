@@ -33,3 +33,11 @@
 
 #define mysql_server_init(a,b,c) 0
 
+#ifdef HAVE_REPLICATION
+C_MODE_START
+void slave_io_thread_detach_vio();
+C_MODE_END
+#else
+#define slave_io_thread_detach_vio()
+#endif
+
