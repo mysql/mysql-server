@@ -117,7 +117,7 @@ static char* add_identifier(char *to_p, const char * end_p,
         *(to_p++)= '`';
         *(to_p++)= *(conv_name++);
       }
-      else if (length < (end_p - to_p))
+      else if (((long) length) < (end_p - to_p))
       {
         to_p= strnmov(to_p, conv_name, length);
         conv_name+= length;
