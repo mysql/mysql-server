@@ -6909,6 +6909,7 @@ int get_part_iter_for_interval_via_walking(partition_info *part_info,
   Field *field;
   uint total_parts;
   partition_iter_func get_next_func;
+  part_iter->ret_null_part= part_iter->ret_null_part_orig= FALSE;
   if (is_subpart)
   {
     field= part_info->subpart_field_array[0];
