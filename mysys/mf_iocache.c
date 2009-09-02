@@ -228,18 +228,20 @@ int init_io_cache(IO_CACHE *info, File file, uint cachesize,
     for (;;)
     {
       uint buffer_block;
+      /*
+        Unset MY_WAIT_IF_FULL bit if it is set, to prevent conflict with
+        MY_ZEROFILL.
+      */
+      myf flags= (myf) (cache_myflags & ~(MY_WME | MY_WAIT_IF_FULL));
+
       if (cachesize < min_cache)
 	cachesize = min_cache;
       buffer_block = cachesize;
       if (type == SEQ_READ_APPEND)
 	buffer_block *= 2;
-      /*
-        Unset MY_WAIT_IF_FULL bit if it is set, to prevent conflict with
-        MY_ZEROFILL.
-      */
-      myf flag = MYF((cache_myflags & ~ (MY_WME | MY_WAIT_IF_FULL)) |
-                (cachesize == min_cache ? MY_WME : 0));
-      if ((info->buffer= (byte*) my_malloc(buffer_block, flag)) != 0)
+      if (cachesize == min_cache)
+        flags|= (myf) MY_WME;
+      if ((info->buffer= (byte*) my_malloc(buffer_block, flags)) != 0)
       {
 	info->write_buffer=info->buffer;
 	if (type == SEQ_READ_APPEND)
