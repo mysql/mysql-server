@@ -853,16 +853,18 @@ while ($outer)
   eval SELECT '$outer = outer loop variable after dec' AS "";
 }
 
+# Test source in an if in a while which is false on 1st iteration
 let $outer= 2; # Number of outer loops
+let $ifval= 0; # false 1st time
 while ($outer)
 {
-  eval SELECT '$outer = outer loop variable after while' AS "";
+  echo outer=$outer ifval=$ifval;
 
-  echo here is the sourced script;
-
-  eval SELECT '$outer = outer loop variable before dec' AS "";
+  if ($ifval) {
+    --source $MYSQLTEST_VARDIR/tmp/sourced.inc
+  }
   dec $outer;
-  eval SELECT '$outer = outer loop variable after dec' AS "";
+  inc $ifval;
 }
 
 
@@ -1662,6 +1664,20 @@ Appended text on nonexisting file
 EOF
 
 remove_file $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
+
+# Test append_file within while
+let $outer= 2; # Number of outer loops
+while ($outer)
+{
+  append_file $MYSQLTEST_VARDIR/tmp/app_while.tmp;
+These lines should be repeated,
+if things work as expected
+EOF
+  dec $outer;
+}
+
+cat_file $MYSQLTEST_VARDIR/tmp/app_while.tmp;
+remove_file $MYSQLTEST_VARDIR/tmp/app_while.tmp;
 
 # ----------------------------------------------------------------------------
 # test for cat_file
