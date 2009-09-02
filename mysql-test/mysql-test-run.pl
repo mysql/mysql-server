@@ -302,6 +302,7 @@ our $debug_compiled_binaries;
 
 our %mysqld_variables;
 
+our $opt_parallel;
 my $source_dist= 0;
 
 our $opt_max_save_core= 5;
@@ -645,6 +646,7 @@ sub command_line_setup () {
              'testcase-timeout=i'       => \$opt_testcase_timeout,
              'suite-timeout=i'          => \$opt_suite_timeout,
              'warnings|log-warnings'    => \$opt_warnings,
+             'parallel=s'               => \$opt_parallel,
 
              # Options which are no longer used
              (map { $_ => \&warn_about_removed_option } @removed_options),
@@ -5278,6 +5280,7 @@ Misc options
                         the specified test case (if any)
   fast                  Don't try to clean up from earlier runs
   reorder               Reorder tests to get fewer server restarts
+  parallel=STR          Compatibility slot. Ignored.
   help                  Get this help text
 
   testcase-timeout=MINUTES Max test case run time (default $default_testcase_timeout)
