@@ -20,7 +20,7 @@ static void do_1381_maybe_lock (int do_table_lock, u_int64_t *raw_count) {
 	DB_ENV *env;
 	DB *db;
 	
-	const int envflags = DB_CREATE|DB_INIT_MPOOL|DB_INIT_TXN|DB_INIT_LOCK|DB_INIT_LOG |DB_THREAD |DB_PRIVATE | DB_RECOVER;
+	const int envflags = DB_CREATE|DB_INIT_MPOOL|DB_INIT_TXN|DB_INIT_LOCK|DB_THREAD|DB_PRIVATE;
 
 	r = db_env_create(&env, 0);                                           CKERR(r);
 	r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);        CKERR(r);
@@ -35,7 +35,7 @@ static void do_1381_maybe_lock (int do_table_lock, u_int64_t *raw_count) {
     {
 	DB_ENV *env;
 	DB *db;
-	const int envflags = DB_CREATE|DB_INIT_MPOOL|DB_INIT_TXN|DB_INIT_LOCK|DB_INIT_LOG |DB_THREAD |DB_PRIVATE;
+	const int envflags = DB_CREATE|DB_INIT_MPOOL|DB_INIT_TXN|DB_INIT_LOCK|DB_THREAD |DB_PRIVATE;
 	
 	r = db_env_create(&env, 0);                                           CKERR(r);
 	r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);        CKERR(r);

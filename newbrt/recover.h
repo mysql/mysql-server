@@ -15,7 +15,7 @@
 #include "x1764.h"
 
 // Run tokudb recovery from the log
-// Returns: 0 if successfull
+// Returns 0 if success
 int tokudb_recover(const char *datadir, const char *logdir, brt_compare_func bt_compare, brt_compare_func dup_compare);
 
 // Effect: Check the tokudb logs to determine whether or not we need to run recovery.
@@ -23,5 +23,9 @@ int tokudb_recover(const char *datadir, const char *logdir, brt_compare_func bt_
 // dont need to run recovery.
 // Returns: TRUE if we need recovery, otherwise FALSE.
 int tokudb_needs_recovery(const char *logdir, BOOL ignore_empty_log);
+
+// Delete the rolltmp files
+// Ruturns 0 if success
+int tokudb_recover_delete_rolltmp_files(const char *datadir, const char *logdir);
 
 #endif // TOKURECOVER_H

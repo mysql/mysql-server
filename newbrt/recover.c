@@ -747,26 +747,56 @@ static int do_recovery(RECOVER_ENV env, const char *data_dir, const char *log_di
     return rr;
 }
 
+static int recover_lock(const char *lock_dir, int *lockfd) {
+    const char fname[] = "/__recoverylock_dont_delete_me";
+    int namelen=strlen(lock_dir);
+    char lockfname[namelen+sizeof(fname)];
+
+    int l = snprintf(lockfname, sizeof(lockfname), "%s%s", lock_dir, fname);
+    assert(l+1 == (signed)(sizeof(lockfname)));
+    *lockfd = toku_os_lock_file(lockfname);
+    if (*lockfd < 0) {
+        int e = errno;
+        printf("Couldn't run recovery because some other process holds the recovery lock %s\n", lockfname);
+        return e;
+    }
+    return 0;
+}
+
+static int recover_unlock(int lockfd) {
+    int r = toku_os_unlock_file(lockfd);
+    if (r != 0)
+        return errno;
+    return 0;
+}
+
+int tokudb_recover_delete_rolltmp_files(const char *UU(data_dir), const char *log_dir) {
+    int lockfd = -1;
+
+    int r = recover_lock(log_dir, &lockfd);
+    if (r != 0)
+        return r;
+
+    r = toku_delete_rolltmp_files(log_dir);
+    
+    int rr = recover_unlock(lockfd);
+    if (r == 0 && rr != 0)
+        r = rr;
+    
+    return r;
+}
+
 int tokudb_recover(const char *data_dir, const char *log_dir, brt_compare_func bt_compare, brt_compare_func dup_compare) {
     int r;
-    int lockfd;
+    int lockfd = -1;
 
-    {
-        const char fname[] = "/__recoverylock_dont_delete_me";
-	int namelen=strlen(data_dir);
-	char lockfname[namelen+sizeof(fname)];
-
-	int l = snprintf(lockfname, sizeof(lockfname), "%s%s", data_dir, fname);
-	assert(l+1 == (signed)(sizeof(lockfname)));
-        lockfd = toku_os_lock_file(lockfname);
-	if (lockfd<0) {
-	    printf("Couldn't run recovery because some other process holds the recovery lock %s\n", lockfname);
-	    return errno;	}
-    }
+    r = recover_lock(log_dir, &lockfd);
+    if (r != 0)
+        return r;
 
     r = toku_delete_rolltmp_files(log_dir);
     if (r != 0) { 
-        toku_os_unlock_file(lockfd);
+        (void) recover_unlock(lockfd);
         return r;
     }
 
@@ -781,8 +811,9 @@ int tokudb_recover(const char *data_dir, const char *log_dir, brt_compare_func b
         recover_env_cleanup(&renv);
     }
 
-    r = toku_os_unlock_file(lockfd);
-    if (r != 0) return errno;
+    r = recover_unlock(lockfd);
+    if (r != 0)
+        return r;
 
     return rr;
 }

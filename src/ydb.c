@@ -293,6 +293,19 @@ static int toku_c_close(DBC * c);
 
 /* misc */
 static char *construct_full_name(const char *dir, const char *fname);
+
+static int delete_rolltmp_files(DB_ENV *env) {
+    const char *datadir=env->i->dir;
+    char *logdir;
+    if (env->i->lg_dir) {
+	logdir = construct_full_name(env->i->dir, env->i->lg_dir);
+    } else {
+	logdir = toku_strdup(env->i->dir);
+    }
+    int r = tokudb_recover_delete_rolltmp_files(datadir, logdir);
+    toku_free(logdir);
+    return r;
+}
     
 static int do_recovery (DB_ENV *env) {
     const char *datadir=env->i->dir;
@@ -385,14 +398,21 @@ static int toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mo
     env->i->open_flags = flags;
     env->i->open_mode = mode;
 
-    unused_flags &= ~DB_INIT_TXN & ~DB_INIT_LOG; 
+    unused_flags &= ~DB_INIT_TXN & ~DB_INIT_LOG;
 
-    if (flags&DB_RECOVER) {
-	r = do_recovery(env);
-	if (r != 0) return r;
-    } else {
-        r = needs_recovery(env);
+    if (flags & DB_INIT_TXN) {
+        r = delete_rolltmp_files(env);
         if (r != 0) return r;
+    }
+ 
+    if (flags & DB_INIT_LOG) {
+        if (flags & DB_RECOVER) {
+            r = do_recovery(env);
+            if (r != 0) return r;
+        } else {
+            r = needs_recovery(env);
+            if (r != 0) return r;
+        }
     }
 
     if (flags & (DB_INIT_TXN | DB_INIT_LOG)) {
