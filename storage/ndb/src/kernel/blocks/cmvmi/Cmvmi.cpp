@@ -39,6 +39,7 @@
 #include <signaldata/DumpStateOrd.hpp>
 #include <signaldata/DisconnectRep.hpp>
 #include <signaldata/EnableCom.hpp>
+#include <signaldata/RouteOrd.hpp>
 
 #include <EventLogger.hpp>
 #include <TimeQueue.hpp>
@@ -106,6 +107,7 @@ Cmvmi::Cmvmi(Block_context& ctx) :
   addRecSignal(GSN_NODE_START_REP, &Cmvmi::execNODE_START_REP, true);
 
   addRecSignal(GSN_CONTINUEB, &Cmvmi::execCONTINUEB);
+  addRecSignal(GSN_ROUTE_ORD, &Cmvmi::execROUTE_ORD);
   
   subscriberPool.setSize(5);
   
@@ -1727,4 +1729,66 @@ Cmvmi::reportDMUsage(Signal* signal, int incDec)
   signal->theData[4] = rl.m_min;
   signal->theData[5] = DBTUP;
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 6, JBB);
+}
+
+
+/**
+ * execROUTE_ORD
+ * Allows other blocks to route signals as if they
+ * came from Cmvmi
+ * Useful in ndbmtd for synchronising signals w.r.t
+ * external signals received from other nodes which
+ * arrive from the same thread that runs CMVMI.
+ */
+void
+Cmvmi::execROUTE_ORD(Signal* signal)
+{
+  jamEntry();
+  if(!assembleFragments(signal)){
+    jam();
+    return;
+  }
+
+  SectionHandle handle(this, signal);
+
+  RouteOrd* ord = (RouteOrd*)signal->getDataPtr();
+  Uint32 dstRef = ord->dstRef;
+  Uint32 srcRef = ord->srcRef;
+  Uint32 gsn = ord->gsn;
+  /* ord->cnt ignored */
+
+  Uint32 nodeId = refToNode(dstRef);
+  
+  if (likely((nodeId == 0) ||
+             getNodeInfo(nodeId).m_connected))
+  {
+    jam();
+    Uint32 secCount = handle.m_cnt;
+    ndbrequire(secCount >= 1 && secCount <= 3);
+
+    jamLine(secCount);
+
+    /**
+     * Put section 0 in signal->theData
+     */
+    Uint32 sigLen = handle.m_ptr[0].sz;
+    ndbrequire(sigLen <= 25);
+    copy(signal->theData, handle.m_ptr[0]);
+
+    SegmentedSectionPtr save = handle.m_ptr[0];
+    for (Uint32 i = 0; i < secCount - 1; i++)
+      handle.m_ptr[i] = handle.m_ptr[i+1];
+    handle.m_cnt--;
+
+    sendSignal(dstRef, gsn, signal, sigLen, JBB, &handle);
+
+    handle.m_cnt = 1;
+    handle.m_ptr[0] = save;
+    releaseSections(handle);
+    return ;
+  }
+
+  releaseSections(handle);
+  warningEvent("Unable to route GSN: %d from %x to %x",
+	       gsn, srcRef, dstRef);
 }
