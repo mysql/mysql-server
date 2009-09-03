@@ -603,6 +603,7 @@ static int setval(const struct my_option *opts, uchar* *value, char *argument,
 		  my_bool set_maximum_value)
 {
   int err= 0;
+  int pos;
 
   if (value && argument)
   {
@@ -647,7 +648,9 @@ static int setval(const struct my_option *opts, uchar* *value, char *argument,
 	return EXIT_OUT_OF_MEMORY;
       break;
     case GET_ENUM:
-      if (((*(ulong *)result_pos)= find_type(argument, opts->typelib, 2) - 1) < 0)
+      pos= find_type(argument, opts->typelib, 2) - 1;
+      (*(ulong *)result_pos)= pos;
+      if (pos < 0)
         return EXIT_ARGUMENT_INVALID;
       break;
     case GET_SET:

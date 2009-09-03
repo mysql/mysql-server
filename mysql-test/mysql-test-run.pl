@@ -1771,6 +1771,20 @@ sub tool_arguments ($$) {
   return mtr_args2str($exe, @$args);
 }
 
+# This is not used to actually start a mysqld server, just to allow test
+# scripts to run the mysqld binary to test invalid server startup options.
+sub mysqld_client_arguments () {
+  my $default_mysqld= default_mysqld();
+  my $exe = find_mysqld($basedir);
+  my $args;
+  mtr_init_args(\$args);
+  mtr_add_arg($args, "--no-defaults");
+  mtr_add_arg($args, "--basedir=%s", $basedir);
+  mtr_add_arg($args, "--character-sets-dir=%s", $default_mysqld->value("character-sets-dir"));
+  mtr_add_arg($args, "--language=%s", $default_mysqld->value("language"));
+  return mtr_args2str($exe, @$args);
+}
+
 
 sub have_maria_support () {
   my $maria_var= $mysqld_variables{'maria'};
@@ -1968,6 +1982,7 @@ sub environment_setup {
   $ENV{'MYSQLADMIN'}=               native_path($exe_mysqladmin);
   $ENV{'MYSQL_CLIENT_TEST'}=        mysql_client_test_arguments();
   $ENV{'MYSQL_FIX_SYSTEM_TABLES'}=  mysql_fix_arguments();
+  $ENV{'MYSQLD'}=                   mysqld_client_arguments();
   $ENV{'EXE_MYSQL'}=                $exe_mysql;
 
   # ----------------------------------------------------
