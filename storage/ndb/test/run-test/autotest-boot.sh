@@ -13,7 +13,12 @@ save_args=$*
 VERSION="autotest-boot.sh version 1.00"
 
 DATE=`date '+%Y-%m-%d'`
-HOST=`hostname -s`
+if [ `uname -s` != "SunOS" ]
+then
+  HOST=`hostname -s`
+else
+  HOST=`hostname`
+fi
 export DATE HOST
 
 set -e
@@ -220,13 +225,16 @@ fi
 ################################
 
 script=$install_dir0/mysql-test/ndb/autotest-run.sh
-sh -x $script $save_args --conf=$conf --run-dir=$install_dir --install-dir0=$install_dir0 --install-dir1=$install_dir1 --suite=$RUN --nolock $extra_args
+for R in $RUN
+do
+    sh -x $script $save_args --conf=$conf --run-dir=$install_dir --install-dir0=$install_dir0 --install-dir1=$install_dir1 --suite=$R --nolock $extra_args
+done
 
 if [ "$build" ]
 then
     rm -rf $dst_place0
 
-    if [ "$clone1" ]
+    if [ "$dst_place1" ]
     then
 	rm -rf $dst_place1
     fi
