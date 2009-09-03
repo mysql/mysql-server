@@ -290,7 +290,7 @@ NdbOut& operator<<(NdbOut& no, const PageHeader& ph) {
 
 Uint32 FileDescriptor::getLogRecordSize() {
   return  FILEDESCRIPTORHEADERSIZE
-    + m_fdHeader.m_noOfDescriptors * FILEDESCRIPTORRECORDSIZE;
+    + m_fdHeader.m_noOfDescriptors * NO_MBYTE_IN_FILE * FILEDESCRIPTORENTRYSIZE;
 }
 
 NdbOut& operator<<(NdbOut& no, const FileDescriptor& fd) {
@@ -310,17 +310,17 @@ void FileDescriptor::printARecord( Uint32 recordIndex ) const {
 	 <<" ---------------------" << endl << endl;
   ndbout_c("%-30s%-12s%-12s\n", "", "Decimal", "Hex"); 
 
-  for(int i = 1; i <= NO_MBYTE_IN_FILE; i++) {
+  for(unsigned i = 1; i <= NO_MBYTE_IN_FILE; i++) {
     ndbout_c("%s%2d%s%-12u%-12x", "Max GCI completed, mbyte ", i, ":  ", 
 	     m_fdRecord[recordIndex].m_maxGciCompleted[i-1],
 	     m_fdRecord[recordIndex].m_maxGciCompleted[i-1]);
   }
-  for(int i = 1; i <= NO_MBYTE_IN_FILE; i++) {
+  for(unsigned i = 1; i <= NO_MBYTE_IN_FILE; i++) {
     ndbout_c("%s%2d%s%-12u%-12x", "Max GCI started,  mbyte ", i, ":   ", 
 	     m_fdRecord[recordIndex].m_maxGciStarted[i-1],
 	     m_fdRecord[recordIndex].m_maxGciStarted[i-1]);
   }
-  for(int i = 1; i <= NO_MBYTE_IN_FILE; i++) {
+  for(unsigned i = 1; i <= NO_MBYTE_IN_FILE; i++) {
     ndbout_c("%s%2d%s%-12u%-12x", "Last prepared ref, mbyte ", i, ":  ", 
 	     m_fdRecord[recordIndex].m_lastPreparedReference[i-1],
 	     m_fdRecord[recordIndex].m_lastPreparedReference[i-1]);
