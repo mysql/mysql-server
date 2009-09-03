@@ -11,5 +11,3 @@
 ##############################################################################
 
 rpl_cross_version      : Bug#42311 2009-03-27 joro rpl_cross_version fails on macosx
-rpl_init_slave         : Bug#44920 2009-07006 pcrews MTR2 is not processing master.opt input properly on Windows.  *Must be done this way due to the nature of the bug*
-
