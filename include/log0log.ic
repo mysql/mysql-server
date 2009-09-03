@@ -305,16 +305,13 @@ UNIV_INLINE
 ib_uint64_t
 log_reserve_and_write_fast(
 /*=======================*/
-	byte*		str,	/*!< in: string */
+	const void*	str,	/*!< in: string */
 	ulint		len,	/*!< in: string length */
-	ib_uint64_t*	start_lsn,/*!< out: start lsn of the log record */
-	ibool*		success)/*!< out: TRUE if success */
+	ib_uint64_t*	start_lsn)/*!< out: start lsn of the log record */
 {
 	log_t*		log	= log_sys;
 	ulint		data_len;
 	ib_uint64_t	lsn;
-
-	*success = TRUE;
 
 	mutex_enter(&(log->mutex));
 
@@ -324,8 +321,6 @@ log_reserve_and_write_fast(
 
 		/* The string does not fit within the current log block
 		or the log block would become full */
-
-		*success = FALSE;
 
 		mutex_exit(&(log->mutex));
 
