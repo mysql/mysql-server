@@ -2415,8 +2415,7 @@ recv_scan_log_recs(
 	scanned_lsn = start_lsn;
 	more_data = FALSE;
 
-	while (log_block < buf + len && !finished) {
-
+	do {
 		no = log_block_get_hdr_no(log_block);
 		/*
 		fprintf(stderr, "Log block header no %lu\n", no);
@@ -2546,10 +2545,11 @@ recv_scan_log_recs(
 			/* Log data for this group ends here */
 
 			finished = TRUE;
+			break;
 		} else {
 			log_block += OS_FILE_LOG_BLOCK_SIZE;
 		}
-	}
+	} while (log_block < buf + len && !finished);
 
 	*group_scanned_lsn = scanned_lsn;
 
