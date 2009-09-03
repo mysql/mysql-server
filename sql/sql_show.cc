@@ -4567,8 +4567,7 @@ static bool store_trigger(THD *thd, TABLE *table, LEX_STRING *db_name,
   table->field[14]->store(STRING_WITH_LEN("OLD"), cs);
   table->field[15]->store(STRING_WITH_LEN("NEW"), cs);
 
-  sys_var_thd_sql_mode::symbolic_mode_representation(thd, sql_mode,
-                                                     &sql_mode_rep);
+  sys_var::make_set(thd, sql_mode, &sql_mode_typelib, &sql_mode_rep);
   table->field[17]->store(sql_mode_rep.str, sql_mode_rep.length, cs);
   table->field[18]->store(definer_buffer->str, definer_buffer->length, cs);
   table->field[19]->store(client_cs_name->str, client_cs_name->length, cs);
@@ -5161,8 +5160,7 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
   /* SQL_MODE */
   {
     LEX_STRING sql_mode;
-    sys_var_thd_sql_mode::symbolic_mode_representation(thd, et.sql_mode,
-                                                       &sql_mode);
+    sys_var::make_set(thd, et.sql_mode, &sql_mode_typelib, &sql_mode);
     sch_table->field[ISE_SQL_MODE]->
                                 store(sql_mode.str, sql_mode.length, scs);
   }
@@ -6867,9 +6865,7 @@ static bool show_create_trigger_impl(THD *thd,
                              &trg_connection_cl_name,
                              &trg_db_cl_name);
 
-  sys_var_thd_sql_mode::symbolic_mode_representation(thd,
-                                                     trg_sql_mode,
-                                                     &trg_sql_mode_str);
+  sys_var::make_set(thd, trg_sql_mode, &sql_mode_typelib, &trg_sql_mode_str);
 
   /* Resolve trigger client character set. */
 

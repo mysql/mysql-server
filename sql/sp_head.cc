@@ -1845,7 +1845,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
   uint params = m_pcont->context_var_count();
   sp_rcontext *save_spcont, *octx;
   sp_rcontext *nctx = NULL;
-  bool save_enable_slow_log= false;
+  bool save_enable_slow_log;
   bool save_log_general= false;
   DBUG_ENTER("sp_head::execute_procedure");
   DBUG_PRINT("info", ("procedure %s", m_name.str));
@@ -1956,10 +1956,10 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
     DBUG_PRINT("info",(" %.*s: eval args done", (int) m_name.length, 
                        m_name.str));
   }
-  if (!(m_flags & LOG_SLOW_STATEMENTS) && thd->enable_slow_log)
+  save_enable_slow_log= thd->enable_slow_log;
+  if (!(m_flags & LOG_SLOW_STATEMENTS) && save_enable_slow_log)
   {
     DBUG_PRINT("info", ("Disabling slow log for the execution"));
-    save_enable_slow_log= true;
     thd->enable_slow_log= FALSE;
   }
   if (!(m_flags & LOG_GENERAL_LOG) && !(thd->options & OPTION_LOG_OFF))
@@ -1982,8 +1982,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 
   if (save_log_general)
     thd->options &= ~OPTION_LOG_OFF;
-  if (save_enable_slow_log)
-    thd->enable_slow_log= true;
+  thd->enable_slow_log= save_enable_slow_log;
   /*
     In the case when we weren't able to employ reuse mechanism for
     OUT/INOUT paranmeters, we should reallocate memory. This
@@ -2396,8 +2395,7 @@ sp_head::show_create_routine(THD *thd, int type)
   if (check_show_routine_access(thd, this, &full_access))
     DBUG_RETURN(TRUE);
 
-  sys_var_thd_sql_mode::symbolic_mode_representation(
-      thd, m_sql_mode, &sql_mode);
+    sys_var::make_set(thd, m_sql_mode, &sql_mode_typelib, &sql_mode);
 
   /* Send header. */
 

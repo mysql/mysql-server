@@ -1,0 +1,60 @@
+select @@log_slow_filter;
+@@log_slow_filter
+
+select @@log_slow_rate_limit;
+@@log_slow_rate_limit
+1
+select @@log_slow_verbosity;
+@@log_slow_verbosity
+
+show variables like "log_slow%";
+Variable_name	Value
+log_slow_filter	
+log_slow_queries	ON
+log_slow_rate_limit	1
+log_slow_time	10.000000
+log_slow_verbosity	
+set @@log_slow_filter= "filesort,filesort_on_disk,full_join,full_scan,query_cache,query_cache_miss,tmp_table,tmp_table_on_disk,admin";
+select @@log_slow_filter;
+@@log_slow_filter
+admin,filesort,filesort_on_disk,full_join,full_scan,query_cache,query_cache_miss,tmp_table,tmp_table_on_disk
+set @@log_slow_filter="admin,admin";
+select @@log_slow_filter;
+@@log_slow_filter
+admin
+set @@log_slow_filter=7;
+select @@log_slow_filter;
+@@log_slow_filter
+admin,filesort,filesort_on_disk
+set @@log_slow_filter= "filesort,impossible,impossible2,admin";
+ERROR 42000: Variable 'log_slow_filter' can't be set to the value of 'impossible'
+set @@log_slow_filter= "filesort, admin";
+ERROR 42000: Variable 'log_slow_filter' can't be set to the value of ' admin'
+set @@log_slow_filter= 1<<31;
+ERROR 42000: Variable 'log_slow_filter' can't be set to the value of '2147483648'
+select @@log_slow_filter;
+@@log_slow_filter
+admin,filesort,filesort_on_disk
+set @@log_slow_verbosity= "query_plan,innodb";
+select @@log_slow_verbosity;
+@@log_slow_verbosity
+innodb,query_plan
+set @@log_slow_verbosity=1;
+select @@log_slow_verbosity;
+@@log_slow_verbosity
+innodb
+show fields from mysql.slow_log;
+Field	Type	Null	Key	Default	Extra
+start_time	timestamp	NO		CURRENT_TIMESTAMP	on update CURRENT_TIMESTAMP
+user_host	mediumtext	NO		NULL	
+query_time	time	NO		NULL	
+lock_time	time	NO		NULL	
+rows_sent	int(11)	NO		NULL	
+rows_examined	int(11)	NO		NULL	
+db	varchar(512)	NO		NULL	
+last_insert_id	int(11)	NO		NULL	
+insert_id	int(11)	NO		NULL	
+server_id	int(10) unsigned	NO		NULL	
+sql_text	mediumtext	NO		NULL	
+set @@log_slow_filter=default;
+set @@log_slow_verbosity=default;

@@ -582,7 +582,7 @@ int _mi_decrement_open_count(MI_INFO *info)
   {
     uint old_lock=info->lock_type;
     share->global_changed=0;
-    lock_error=mi_lock_database(info,F_WRLCK);
+    lock_error= my_disable_locking ? 0 : mi_lock_database(info,F_WRLCK);
     /* Its not fatal even if we couldn't get the lock ! */
     if (share->state.open_count > 0)
     {
@@ -592,7 +592,7 @@ int _mi_decrement_open_count(MI_INFO *info)
 			    sizeof(share->state.header),
 			    MYF(MY_NABP));
     }
-    if (!lock_error)
+    if (!lock_error && !my_disable_locking)
       lock_error=mi_lock_database(info,old_lock);
   }
   return test(lock_error || write_error);

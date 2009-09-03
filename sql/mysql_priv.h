@@ -43,6 +43,7 @@
 #include "sql_array.h"
 #include "sql_plugin.h"
 #include "scheduler.h"
+#include "log_slow.h"
 
 class Parser_state;
 
