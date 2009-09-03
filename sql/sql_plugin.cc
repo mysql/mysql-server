@@ -1565,9 +1565,6 @@ void plugin_shutdown(void)
       }
     }
 
-    if (count > free_slots)
-      sql_print_warning("Forcing shutdown of %d plugins", count - free_slots);
-
     plugins= (struct st_plugin_int **) my_alloca(sizeof(void*) * (count+1));
 
     /*
