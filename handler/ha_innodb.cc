@@ -165,6 +165,7 @@ static handler *innobase_create_handler(handlerton *hton,
                                         MEM_ROOT *mem_root);
 
 static const char innobase_hton_name[]= "InnoDB";
+static const char innobase_idx_reserve_name[]= "GEN_CLUST_INDEX";
 
 /** @brief Initialize the default value of innodb_commit_concurrency.
 
@@ -5114,6 +5115,22 @@ create_index(
 
 	n_fields = key->key_parts;
 
+	/* Do not allow creating index with the name of "GEN_CLUST_INDEX",
+	which is the name reserved for default primary index created by
+	innodb. Innodb does not support indices with duplicated name. */
+	if (innobase_strcasecmp(key->name, innobase_idx_reserve_name) == 0) {
+		push_warning_printf(
+			(THD *)trx->mysql_thd,
+			MYSQL_ERROR::WARN_LEVEL_ERROR,
+			ER_CANT_CREATE_TABLE,
+			"Cannot Create Index with name "
+			"'%s'. The name is reserved "
+			"for the system default primary index.",
+			innobase_idx_reserve_name);
+
+		DBUG_RETURN(DB_RESERVED_NAME);
+	}
+
 	ind_type = 0;
 
 	if (key_num == form->s->primary_key) {
@@ -5227,7 +5244,7 @@ create_clustered_index_when_no_primary(
 	/* We pass 0 as the space id, and determine at a lower level the space
 	id where to store the table */
 
-	index = dict_mem_index_create(table_name, "GEN_CLUST_INDEX",
+	index = dict_mem_index_create(table_name, innobase_idx_reserve_name,
 				      0, DICT_CLUSTERED, 0);
 	error = row_create_index_for_mysql(index, trx, NULL);
 
@@ -5472,6 +5489,12 @@ ha_innobase::create(
 	DBUG_RETURN(0);
 
 cleanup:
+	/* Fail to create index with name conflicting with system
+	reserved names. Drop the (temp) table before return. */
+	if (error == DB_RESERVED_NAME) {
+		row_drop_table_for_mysql(norm_name, trx, 0);
+	}
+
 	innobase_commit_low(trx);
 
 	row_mysql_unlock_data_dictionary(trx);
