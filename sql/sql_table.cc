@@ -2773,6 +2773,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST *src_table,
   int  err;
   bool res= TRUE;
   db_type not_used;
+  myf flags= MY_DONT_OVERWRITE_FILE;
   DBUG_ENTER("mysql_create_like_table");
 
   /*
@@ -2859,10 +2860,14 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST *src_table,
 
   DBUG_EXECUTE_IF("sleep_create_like_before_copy", my_sleep(6000000););
 
+  if (opt_sync_frm && !(create_info->options & HA_LEX_CREATE_TMP_TABLE))
+    flags|= MY_SYNC;
+
   /*
     Create a new table by copying from source table
+    and sync the new table if the flag MY_SYNC is set
   */
-  if (my_copy(src_path, dst_path, MYF(MY_DONT_OVERWRITE_FILE)))
+  if (my_copy(src_path, dst_path, flags))
   {
     if (my_errno == ENOENT)
       my_error(ER_BAD_DB_ERROR,MYF(0),db);
