@@ -115,7 +115,6 @@ mtr_log_reserve_and_write(
 	dyn_array_t*	mlog;
 	dyn_block_t*	block;
 	ulint		data_size;
-	ibool		success;
 	byte*		first_data;
 
 	ut_ad(mtr);
@@ -134,8 +133,8 @@ mtr_log_reserve_and_write(
 	if (mlog->heap == NULL) {
 		mtr->end_lsn = log_reserve_and_write_fast(
 			first_data, dyn_block_get_used(mlog),
-			&(mtr->start_lsn), &success);
-		if (success) {
+			&mtr->start_lsn);
+		if (mtr->end_lsn) {
 
 			return;
 		}
