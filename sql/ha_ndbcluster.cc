@@ -5248,6 +5248,8 @@ int ha_ndbcluster::reset()
   m_ignore_dup_key= FALSE;
   m_use_write= FALSE;
   m_ignore_no_key= FALSE;
+  m_rows_inserted= (ha_rows) 0;
+  m_rows_to_insert= (ha_rows) 1;
   m_delete_cannot_batch= FALSE;
   m_update_cannot_batch= FALSE;
 
@@ -5328,10 +5330,18 @@ void ha_ndbcluster::start_bulk_insert(ha_rows rows)
   if (rows == (ha_rows) 0)
   {
     /* We don't know how many will be inserted, guess */
-    m_rows_to_insert= m_autoincrement_prefetch;
+    m_rows_to_insert=
+      (m_autoincrement_prefetch > NDB_DEFAULT_AUTO_PREFETCH)
+      ? m_autoincrement_prefetch
+      : NDB_DEFAULT_AUTO_PREFETCH;
+    m_autoincrement_prefetch= m_rows_to_insert;
   }
   else
-    m_rows_to_insert= rows; 
+  {
+    m_rows_to_insert= rows;
+    if (m_autoincrement_prefetch < m_rows_to_insert)
+      m_autoincrement_prefetch= m_rows_to_insert;
+  }
 
   DBUG_VOID_RETURN;
 }
@@ -5648,11 +5658,7 @@ int ha_ndbcluster::init_handler_for_statement(THD *thd)
   DBUG_ASSERT(thd_ndb);
 
   // store thread specific data first to set the right context
-  m_autoincrement_prefetch=
-    (thd->variables.ndb_autoincrement_prefetch_sz > 
-     NDB_DEFAULT_AUTO_PREFETCH) ?
-    (ha_rows) thd->variables.ndb_autoincrement_prefetch_sz
-    : (ha_rows) NDB_DEFAULT_AUTO_PREFETCH;
+  m_autoincrement_prefetch= thd->variables.ndb_autoincrement_prefetch_sz;
   // Start of transaction
   m_rows_changed= 0;
   m_blobs_pending= FALSE;
@@ -7887,26 +7893,11 @@ void ha_ndbcluster::get_auto_increment(ulonglong offset, ulonglong increment,
                                        ulonglong *first_value,
                                        ulonglong *nb_reserved_values)
 {
-  Uint32 cache_size;
   Uint64 auto_value;
   THD *thd= current_thd;
   DBUG_ENTER("get_auto_increment");
   DBUG_PRINT("enter", ("m_tabname: %s", m_tabname));
   Ndb *ndb= get_ndb(table->in_use);
-   
-  if (m_rows_inserted > m_rows_to_insert)
-  {
-    /* We guessed too low */
-    m_rows_to_insert+= m_autoincrement_prefetch;
-  }
-  ha_rows remaining= m_rows_to_insert - m_rows_inserted;
-  Uint32 min_prefetch= 
-    (remaining < thd->variables.ndb_autoincrement_prefetch_sz) ?
-    thd->variables.ndb_autoincrement_prefetch_sz
-    : (Uint32)remaining;
-  cache_size= ((remaining < m_autoincrement_prefetch) ?
-	       min_prefetch
-	       : (Uint32)remaining);
   uint retries= NDB_AUTO_INCREMENT_RETRIES;
   int retry_sleep= 30; /* 30 milliseconds, transaction */
   for (;;)
@@ -7914,7 +7905,7 @@ void ha_ndbcluster::get_auto_increment(ulonglong offset, ulonglong increment,
     Ndb_tuple_id_range_guard g(m_share);
     if (m_skip_auto_increment &&
         ndb->readAutoIncrementValue(m_table, g.range, auto_value) ||
-        ndb->getAutoIncrementValue(m_table, g.range, auto_value, cache_size, increment, offset))
+        ndb->getAutoIncrementValue(m_table, g.range, auto_value, m_autoincrement_prefetch, increment, offset))
     {
       if (--retries && !thd->killed &&
           ndb->getNdbError().status == NdbError::TemporaryError)
