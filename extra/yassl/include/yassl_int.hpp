@@ -441,7 +441,7 @@ public:
     const Ciphers&    GetCiphers()  const;
     const DH_Parms&   GetDH_Parms() const;
     const Stats&      GetStats()    const;
-    const VerifyCallback getVerifyCallback() const;
+    VerifyCallback getVerifyCallback() const;
     pem_password_cb   GetPasswordCb() const;
           void*       GetUserData()   const;
           bool        GetSessionCacheOff() const;

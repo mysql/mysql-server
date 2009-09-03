@@ -81,12 +81,13 @@ my_bool my_compress(uchar *packet, size_t *len, size_t *complen)
   This fix is safe, since such memory is only used internally by zlib, so we
   will not hide any bugs in mysql this way.
 */
-void *my_az_allocator(void *dummy, unsigned int items, unsigned int size)
+void *my_az_allocator(void *dummy __attribute__((unused)), unsigned int items,
+                      unsigned int size)
 {
   return my_malloc((size_t)items*(size_t)size, IF_VALGRIND(MY_ZEROFILL, MYF(0)));
 }
 
-void my_az_free(void *dummy, void *address)
+void my_az_free(void *dummy __attribute__((unused)), void *address)
 {
   my_free(address, MYF(MY_ALLOW_ZERO_PTR));
 }

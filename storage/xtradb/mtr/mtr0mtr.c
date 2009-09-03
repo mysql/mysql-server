@@ -32,6 +32,7 @@ Created 11/26/1995 Heikki Tuuri
 #include "page0types.h"
 #include "mtr0log.h"
 #include "log0log.h"
+#include "buf0flu.h"
 
 /*********************************************************************
 Releases the item in the slot given. */

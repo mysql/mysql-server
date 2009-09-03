@@ -148,7 +148,7 @@ static uint parse_name(TYPELIB *lib, const char **strpos, const char *end,
     }
   }
   else
-    for (; pos != end && *pos != '=' && *pos !=',' ; pos++);
+    for (; pos != end && *pos != '=' && *pos !=',' ; pos++) {}
 
   uint var_len= (uint) (pos - start);
   /* Determine which flag it is */
