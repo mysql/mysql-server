@@ -98,6 +98,8 @@ public:
   virtual bool check(THD *thd, set_var *var);
   bool check_enum(THD *thd, set_var *var, const TYPELIB *enum_names);
   bool check_set(THD *thd, set_var *var, TYPELIB *enum_names);
+  static bool make_set(THD *thd, ulonglong sql_mode, TYPELIB *names,
+                       LEX_STRING *rep);
   bool is_written_to_binlog(enum_var_type type)
   {
     return (type == OPT_SESSION || type == OPT_DEFAULT) &&
@@ -532,6 +534,25 @@ public:
 };
 
 
+class sys_var_thd_set :public sys_var_thd_enum
+{
+  ulong visible_value_mask; /* Mask away internal bits */
+public:
+  sys_var_thd_set(sys_var_chain *chain, const char *name_arg, 
+                  ulong SV::*offset_arg, TYPELIB *typelib,
+                  ulong value_mask= ~ (ulong) 0,
+                  sys_after_update_func func= NULL)
+    :sys_var_thd_enum(chain, name_arg, offset_arg, typelib,
+                      func), visible_value_mask(value_mask)
+    {}
+  bool check(THD *thd, set_var *var)
+  {
+    return check_set(thd, var, enum_names);
+  }
+  uchar *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
+};
+
+
 class sys_var_thd_optimizer_switch :public sys_var_thd_enum
 {
 public:
@@ -548,22 +569,14 @@ public:
 
 extern void fix_sql_mode_var(THD *thd, enum_var_type type);
 
-class sys_var_thd_sql_mode :public sys_var_thd_enum
+class sys_var_thd_sql_mode :public sys_var_thd_set
 {
 public:
   sys_var_thd_sql_mode(sys_var_chain *chain, const char *name_arg, 
                        ulong SV::*offset_arg)
-    :sys_var_thd_enum(chain, name_arg, offset_arg, &sql_mode_typelib,
-                      fix_sql_mode_var)
+    :sys_var_thd_set(chain, name_arg, offset_arg, &sql_mode_typelib,
+                     ~(ulong) 0, fix_sql_mode_var)
   {}
-  bool check(THD *thd, set_var *var)
-  {
-    return check_set(thd, var, enum_names);
-  }
-  void set_default(THD *thd, enum_var_type type);
-  uchar *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
-  static bool symbolic_mode_representation(THD *thd, ulonglong sql_mode,
-                                           LEX_STRING *rep);
 };
 
 
@@ -1183,7 +1196,6 @@ public:
   void set_default(THD *thd, enum_var_type type);
   bool update(THD *thd, set_var *var);
 };
-
 
 /**
   Handler for setting the system variable --read-only.

@@ -13,6 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#define DEFINE_VARIABLES_LOG_SLOW          // Declare variables in log_slow.h
 #include "mysql_priv.h"
 #include <m_ctype.h>
 #include <my_dir.h>
@@ -5771,6 +5772,9 @@ enum options_mysqld
   OPT_DEADLOCK_SEARCH_DEPTH_LONG,
   OPT_DEADLOCK_TIMEOUT_SHORT,
   OPT_DEADLOCK_TIMEOUT_LONG,
+  OPT_LOG_SLOW_RATE_LIMIT, 
+  OPT_LOG_SLOW_VERBOSITY, 
+  OPT_LOG_SLOW_FILTER, 
   OPT_GENERAL_LOG_FILE,
   OPT_SLOW_QUERY_LOG_FILE,
   OPT_IGNORE_BUILTIN_INNODB
@@ -6113,7 +6117,7 @@ Disable with --skip-large-pages.",
    (uchar**) &opt_log_slave_updates, (uchar**) &opt_log_slave_updates, 0, GET_BOOL,
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"log-slow-admin-statements", OPT_LOG_SLOW_ADMIN_STATEMENTS,
-   "Log slow OPTIMIZE, ANALYZE, ALTER and other administrative statements to the slow log if it is open.",
+   "Log slow OPTIMIZE, ANALYZE, ALTER and other administrative statements to the slow log if it is open. .  Please note that this option is deprecated; see --log-slow-filter for filtering slow query log output",
    (uchar**) &opt_log_slow_admin_statements,
    (uchar**) &opt_log_slow_admin_statements,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -6122,15 +6126,15 @@ Disable with --skip-large-pages.",
   (uchar**) &opt_log_slow_slave_statements,
   (uchar**) &opt_log_slow_slave_statements,
   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"log_slow_queries", OPT_SLOW_QUERY_LOG,
+  {"log-slow-queries", OPT_SLOW_QUERY_LOG,
     "Log slow queries to a table or log file. Defaults logging to table "
     "mysql.slow_log or hostname-slow.log if --log-output=file is used. "
     "Must be enabled to activate other slow log options. "
     "(deprecated option, use --slow_query_log/--slow_query_log_file instead)",
    (uchar**) &opt_slow_logname, (uchar**) &opt_slow_logname, 0, GET_STR, OPT_ARG,
    0, 0, 0, 0, 0, 0},
-  {"slow_query_log_file", OPT_SLOW_QUERY_LOG_FILE,
-    "Log slow queries to given log file. Defaults logging to hostname-slow.log. Must be enabled to activate other slow log options.",
+  {"slow-query-log-file", OPT_SLOW_QUERY_LOG_FILE,
+    "Log slow queries to given log file. Defaults logging to hostname-slow.log.",
    (uchar**) &opt_slow_logname, (uchar**) &opt_slow_logname, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"log-tc", OPT_LOG_TC,
@@ -6750,7 +6754,27 @@ log and this option does nothing anymore.",
    (uchar**) 0,
    0, (GET_ULONG | GET_ASK_ADDR) , REQUIRED_ARG, 100,
    1, 100, 0, 1, 0},
+  {"log-slow-filter", OPT_LOG_SLOW_FILTER,
+   "Log only the queries that followed certain execution plan. Multiple flags allowed in a comma-separated string. [admin, filesort, filesort_on_disk, full_join, full_scan, query_cache, query_cache_miss, tmp_table, tmp_table_on_disk]. Sets log-slow-admin-command to ON",
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, QPLAN_ALWAYS_SET, 0, 0},
+  {"log-slow-rate_limit", OPT_LOG_SLOW_RATE_LIMIT,
+   "If set, only write to slow log every 'log_slow_rate_limit' query (use this to reduce output on slow query log)",
+   (uchar**) &global_system_variables.log_slow_rate_limit,
+   (uchar**) &max_system_variables.log_slow_rate_limit, 0, GET_ULONG,
+   REQUIRED_ARG, 1, 1, ~0L, 0, 1L, 0},
+  {"log-slow-verbosity", OPT_LOG_SLOW_VERBOSITY,
+   "Choose how verbose the messages to your slow log will be. Multiple flags allowed in a comma-separated string. [query_plan, innodb]",
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  {"log-slow-file", OPT_SLOW_QUERY_LOG_FILE,
+    "Log slow queries to given log file. Defaults logging to hostname-slow.log",
+   (uchar**) &opt_slow_logname, (uchar**) &opt_slow_logname, 0, GET_STR,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"long_query_time", OPT_LONG_QUERY_TIME,
+   "Log all queries that have taken more than long_query_time seconds to execute to file. "
+   "The argument will be treated as a decimal value with microsecond precission.",
+   (uchar**) &long_query_time, (uchar**) &long_query_time, 0, GET_DOUBLE,
+   REQUIRED_ARG, 10, 0, LONG_TIMEOUT, 0, 0, 0},
+  {"log-slow-time", OPT_LONG_QUERY_TIME,
    "Log all queries that have taken more than long_query_time seconds to execute to file. "
    "The argument will be treated as a decimal value with microsecond precission.",
    (uchar**) &long_query_time, (uchar**) &long_query_time, 0, GET_DOUBLE,
@@ -7859,6 +7883,9 @@ static int mysql_init_variables(void)
   global_system_variables.old_passwords= 0;
   global_system_variables.old_alter_table= 0;
   global_system_variables.binlog_format= BINLOG_FORMAT_UNSPEC;
+  global_system_variables.log_slow_verbosity= LOG_SLOW_VERBOSITY_INIT;
+  global_system_variables.log_slow_filter=    QPLAN_ALWAYS_SET;
+  
   /*
     Default behavior for 4.1 and 5.0 is to treat NULL values as unequal
     when collecting index statistics for MyISAM tables.
@@ -8213,7 +8240,7 @@ mysqld_get_one_option(int optid,
   }
 #endif /* HAVE_REPLICATION */
   case (int) OPT_SLOW_QUERY_LOG:
-    WARN_DEPRECATED(NULL, "7.0", "--log_slow_queries", "'--slow_query_log'/'--slow_query_log_file'");
+    WARN_DEPRECATED(NULL, "7.0", "--log_slow_queries", "'--slow_query_log'/'--log-slow-file'");
     opt_slow_log= 1;
     break;
 #ifdef WITH_CSV_STORAGE_ENGINE
@@ -8365,6 +8392,25 @@ mysqld_get_one_option(int optid,
     break;
   case OPT_BOOTSTRAP:
     opt_noacl=opt_bootstrap=1;
+    break;
+  case OPT_LOG_SLOW_FILTER:
+    global_system_variables.log_slow_filter=
+      find_bit_type_or_exit(argument, &log_slow_verbosity_typelib,
+                            opt->name, &error);
+    /*
+      If we are using filters, we set opt_slow_admin_statements to be always
+      true so we can maintain everything with filters
+    */
+    opt_log_slow_admin_statements= 1;
+    if (error)
+      return 1;
+    break;
+  case OPT_LOG_SLOW_VERBOSITY:
+    global_system_variables.log_slow_verbosity=
+      find_bit_type_or_exit(argument, &log_slow_filter_typelib,
+                            opt->name, &error);
+    if (error)
+      return 1;
     break;
   case OPT_SERVER_ID:
     server_id_supplied = 1;
@@ -8674,6 +8720,8 @@ static int get_options(int *argc,char **argv)
   /* Set global slave_exec_mode from its option */
   fix_slave_exec_mode(OPT_GLOBAL);
 
+  global_system_variables.log_slow_filter=
+    fix_log_slow_filter(global_system_variables.log_slow_filter);
 #ifndef EMBEDDED_LIBRARY
   if (mysqld_chroot)
     set_root(mysqld_chroot);

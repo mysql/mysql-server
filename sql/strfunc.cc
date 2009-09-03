@@ -45,6 +45,7 @@ ulonglong find_set(TYPELIB *lib, const char *str, uint length,
   CHARSET_INFO *strip= cs ? cs : &my_charset_latin1;
   const char *end= str + strip->cset->lengthsp(strip, str, length);
   ulonglong found= 0;
+
   *err_pos= 0;                  // No error yet
   if (str != end)
   {
@@ -74,9 +75,13 @@ ulonglong find_set(TYPELIB *lib, const char *str, uint length,
                       find_type(lib, start, var_len, (bool) 0);
       if (!find)
       {
-        *err_pos= (char*) start;
-        *err_len= var_len;
-        *set_warning= 1;
+        /* Report first error */
+        if (!*err_pos)
+        {
+          *err_pos= (char*) start;
+          *err_len= var_len;
+          *set_warning= 1;
+        }
       }
       else
         found|= ((longlong) 1 << (find - 1));
@@ -148,8 +153,10 @@ static uint parse_name(TYPELIB *lib, const char **strpos, const char *end,
     }
   }
   else
-    for (; pos != end && *pos != '=' && *pos !=',' ; pos++);
-
+  {
+    for (; pos != end && *pos != '=' && *pos !=',' ; pos++)
+      ;
+  }
   uint var_len= (uint) (pos - start);
   /* Determine which flag it is */
   uint find= cs ? find_type2(lib, start, var_len, cs) :

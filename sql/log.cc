@@ -964,7 +964,7 @@ bool LOGGER::slow_log_print(THD *thd, const char *query, uint query_length,
     /* fill in user_host value: the format is "%s[%s] @ %s [%s]" */
     user_host_len= (strxnmov(user_host_buff, MAX_USER_HOST_SIZE,
                              sctx->priv_user ? sctx->priv_user : "", "[",
-                             sctx->user ? sctx->user : "", "] @ ",
+                             sctx->user ? sctx->user : (thd->slave_thread ? "SQL_SLAVE" : ""), "] @ ",
                              sctx->host ? sctx->host : "", " [",
                              sctx->ip ? sctx->ip : "", "]", NullS) -
                     user_host_buff);
@@ -985,6 +985,17 @@ bool LOGGER::slow_log_print(THD *thd, const char *query, uint query_length,
       is_command= TRUE;
       query= command_name[thd->command].str;
       query_length= command_name[thd->command].length;
+    }
+
+    if (!query_length) 
+    {
+      /*
+        Not a real query; Reset counts for slow query logging
+        (QQ: Wonder if this is really needed)
+      */
+      thd->sent_row_count= thd->examined_row_count= 0;
+      thd->query_plan_flags= QPLAN_INIT;
+      thd->query_plan_fsort_passes= 0;
     }
 
     for (current_handler= slow_log_handler_list; *current_handler ;)
@@ -2202,19 +2213,39 @@ bool MYSQL_QUERY_LOG::write(THD *thd, time_t current_time,
       if (my_b_write(&log_file, (uchar*) "\n", 1))
         tmp_errno= errno;
     }
+    
     /* For slow query log */
     sprintf(query_time_buff, "%.6f", ulonglong2double(query_utime)/1000000.0);
     sprintf(lock_time_buff,  "%.6f", ulonglong2double(lock_utime)/1000000.0);
     if (my_b_printf(&log_file,
-                    "# Query_time: %s  Lock_time: %s"
-                    " Rows_sent: %lu  Rows_examined: %lu\n",
+                    "# Thread_id: %lu  Schema: %s  QC_hit: %s\n" \
+                    "# Query_time: %s  Lock_time: %s  Rows_sent: %lu  Rows_examined: %lu\n",
+                    (ulong) thd->thread_id, (thd->db ? thd->db : ""),
+                    ((thd->query_plan_flags & QPLAN_QC) ? "Yes" : "No"),
                     query_time_buff, lock_time_buff,
                     (ulong) thd->sent_row_count,
-                    (ulong) thd->examined_row_count) == (uint) -1)
+                    (ulong) thd->examined_row_count) == (size_t) -1)
       tmp_errno= errno;
+     if ((thd->variables.log_slow_verbosity & LOG_SLOW_VERBOSITY_QUERY_PLAN) &&
+         (thd->query_plan_flags &
+          (QPLAN_FULL_SCAN | QPLAN_FULL_JOIN | QPLAN_TMP_TABLE |
+           QPLAN_TMP_DISK | QPLAN_FILESORT | QPLAN_FILESORT_DISK)) &&
+         my_b_printf(&log_file,
+                     "# Full_scan: %s  Full_join: %s  "
+                     "Tmp_table: %s  Tmp_table_on_disk: %s\n"
+                     "# Filesort: %s  Filesort_on_disk: %s  Merge_passes: %lu\n",
+                     ((thd->query_plan_flags & QPLAN_FULL_SCAN) ? "Yes" : "No"),
+                     ((thd->query_plan_flags & QPLAN_FULL_JOIN) ? "Yes" : "No"),
+                     ((thd->query_plan_flags & QPLAN_TMP_TABLE) ? "Yes" : "No"),
+                     ((thd->query_plan_flags & QPLAN_TMP_DISK) ? "Yes" : "No"),
+                     ((thd->query_plan_flags & QPLAN_FILESORT) ? "Yes" : "No"),
+                     ((thd->query_plan_flags & QPLAN_FILESORT_DISK) ?
+                      "Yes" : "No"),
+                     thd->query_plan_fsort_passes) == (size_t) -1)
+       tmp_errno= errno;
     if (thd->db && strcmp(thd->db, db))
     {						// Database changed
-      if (my_b_printf(&log_file,"use %s;\n",thd->db) == (uint) -1)
+      if (my_b_printf(&log_file,"use %s;\n",thd->db) == (size_t) -1)
         tmp_errno= errno;
       strmov(db,thd->db);
     }
