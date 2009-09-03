@@ -28,6 +28,7 @@
 
 
 #include <ndb_global.h>
+#include <my_dir.h>
 
 #include "records.hpp"
 
@@ -82,8 +83,8 @@ NDB_COMMAND(redoLogFileReader,  "redoLogFileReader", "redoLogFileReader", "Read 
   }
 
   {
-    struct stat buf;
-    stat(fileName, &buf);
+    MY_STAT buf;
+    my_stat(fileName, &buf, MYF(0));
     NO_MBYTE_IN_FILE = buf.st_size / (1024 * 1024);
     if (NO_MBYTE_IN_FILE != 16)
     {
