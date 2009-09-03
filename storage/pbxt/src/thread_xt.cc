@@ -625,7 +625,7 @@ static c_char *thr_get_err_string(int xt_err)
 		case XT_ERR_NO_REFERENCED_ROW:		str = "Constraint: `%s`"; break;  // "Foreign key '%s', referenced row does not exist"
 		case XT_ERR_ROW_IS_REFERENCED:		str = "Constraint: `%s`"; break;  // "Foreign key '%s', has a referencing row"
 		case XT_ERR_BAD_DICTIONARY:			str = "Internal dictionary does not match MySQL dictionary"; break;
-		case XT_ERR_LOADING_MYSQL_DIC:		str = "Error %s loading MySQL .frm file"; break;
+		case XT_ERR_LOADING_MYSQL_DIC:		str = "Error loading %s.frm file, MySQL error: %s"; break;
 		case XT_ERR_COLUMN_IS_NOT_NULL:		str = "Column `%s` is NOT NULL"; break;
 		case XT_ERR_INCORRECT_NO_OF_COLS:	str = "Incorrect number of columns near %s"; break;
 		case XT_ERR_FK_ON_TEMP_TABLE:		str = "Cannot create foreign key on temporary table"; break;
@@ -656,6 +656,8 @@ static c_char *thr_get_err_string(int xt_err)
 		case XT_ERR_NEW_TYPE_OF_XLOG:		str = "Transaction log %s, is using a newer format, upgrade required"; break;
 		case XT_ERR_NO_BEFORE_IMAGE:		str = "Internal error: no before image"; break;
 		case XT_ERR_FK_REF_TEMP_TABLE:		str = "Foreign key may not reference temporary table"; break;
+		case XT_ERR_MYSQL_SHUTDOWN:			str = "Cannot open table, MySQL has shutdown"; break;
+		case XT_ERR_MYSQL_NO_THREAD:		str = "Cannot create thread, MySQL has shutdown"; break;
 		default:							str = "Unknown XT error"; break;
 	}
 	return str;
@@ -1026,6 +1028,11 @@ extern "C" void *thr_main(void *data)
 
 	outer_();
 	xt_free_thread(self);
+	
+	/* {MYSQL-THREAD-KILL}
+	 * Clean up any remaining MySQL thread!
+	 */
+	myxt_delete_remaining_thread();
 	return return_data;
 }
 

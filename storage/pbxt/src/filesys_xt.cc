@@ -55,11 +55,16 @@
 //#define DEBUG_TRACE_MAP_IO
 //#define DEBUG_TRACE_FILES
 //#define INJECT_WRITE_REMAP_ERROR
+/* This is required to make testing on the Mac faster: */
 #endif
 
 #ifdef DEBUG_TRACE_FILES
 //#define PRINTF		xt_ftracef
 #define PRINTF		xt_trace
+#endif
+
+#if defined(XT_MAC) && defined(F_FULLFSYNC)
+#undef F_FULLFSYNC
 #endif
 
 #ifdef INJECT_WRITE_REMAP_ERROR

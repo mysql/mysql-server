@@ -1178,7 +1178,10 @@ static void *tabc_fr_run_thread(XTThreadPtr self)
 		}
 	}
 
+   /*
+	* {MYSQL-THREAD-KILL}
 	myxt_destroy_thread(mysql_thread, TRUE);
+	*/
 	return NULL;
 }
 

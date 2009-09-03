@@ -1,6 +1,10 @@
 PBXT Release Notes
 ==================
 
+------- 1.0.08d RC2 - 2009-09-02
+
+RN267: Fixed a bug that caused MySQL to crash on shutdown, after an incorrect command line parameter was given. The crash occurred because the background recovery task was not cleaned up before the PBXT engine was de-initialized.
+
 ------- 1.0.08c RC2 - 2009-08-18
 
 RN266: Updated BLOB streaming glue, used with the PBMS engine. The glue code is now identical to the version of "1.0.08-rc-pbms" version of PBXT available from http://blobstreaming.org/download.

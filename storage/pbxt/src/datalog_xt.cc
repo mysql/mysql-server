@@ -2015,7 +2015,8 @@ static void *dl_run_co_thread(XTThreadPtr self)
 	int				count;
 	void			*mysql_thread;
 
-	mysql_thread = myxt_create_thread();
+	if (!(mysql_thread = myxt_create_thread()))
+		xt_throw(self);
 
 	while (!self->t_quit) {
 		try_(a) {
@@ -2068,7 +2069,10 @@ static void *dl_run_co_thread(XTThreadPtr self)
 		}
 	}
 
+   /*
+	* {MYSQL-THREAD-KILL}
 	myxt_destroy_thread(mysql_thread, TRUE);
+	*/
 	return NULL;
 }
 

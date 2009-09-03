@@ -71,6 +71,7 @@ extern "C" char **session_query(Session *session);
 #include "tabcache_xt.h"
 #include "systab_xt.h"
 #include "xaction_xt.h"
+#include "restart_xt.h"
 
 #ifdef DEBUG
 //#define XT_USE_SYS_PAR_DEBUG_SIZES
@@ -104,8 +105,6 @@ static int		pbxt_rollback(handlerton *hton, THD *thd, bool all);
 static void		ha_aquire_exclusive_use(XTThreadPtr self, XTSharePtr share, ha_pbxt *mine);
 static void		ha_release_exclusive_use(XTThreadPtr self, XTSharePtr share);
 static void		ha_close_open_tables(XTThreadPtr self, XTSharePtr share, ha_pbxt *mine);
-
-extern void		xt_xres_start_database_recovery(XTThreadPtr self);
 
 #ifdef TRACE_STATEMENTS
 
@@ -463,8 +462,14 @@ xtPublic void xt_ha_open_database_of_table(XTThreadPtr self, XTPathStrPtr XT_UNU
 	if (!self->st_database) {
 		if (!pbxt_database) {
 			xt_open_database(self, mysql_real_data_home, TRUE);
-			pbxt_database = self->st_database;
-			xt_heap_reference(self, pbxt_database);
+			/* {GLOBAL-DB}
+			 * This can be done at the same time as the recovery thread,
+			 * strictly speaking I need a lock.
+			 */
+			if (!pbxt_database) {
+				pbxt_database = self->st_database;
+				xt_heap_reference(self, pbxt_database);
+			}
 		}
 		else
 			xt_use_database(self, pbxt_database, XT_FOR_USER);
@@ -963,6 +968,8 @@ static void pbxt_call_exit(XTThreadPtr self)
  */
 static void ha_exit(XTThreadPtr self)
 {
+	xt_xres_wait_for_recovery(self);
+
 	/* Wrap things up... */
 	xt_unuse_database(self, self);	/* Just in case the main thread has a database in use (for testing)? */
 	/* This may cause the streaming engine to cleanup connections and 

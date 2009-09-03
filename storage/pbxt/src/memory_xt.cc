@@ -34,7 +34,7 @@
 #include "trace_xt.h"
 
 #ifdef DEBUG
-#define RECORD_MM
+//#define RECORD_MM
 #endif
 
 #ifdef DEBUG

@@ -2551,7 +2551,8 @@ static void *xres_cp_run_thread(XTThreadPtr self)
 	int				count;
 	void			*mysql_thread;
 
-	mysql_thread = myxt_create_thread();
+	if (!(mysql_thread = myxt_create_thread()))
+		xt_throw(self);
 
 	while (!self->t_quit) {
 		try_(a) {
@@ -2588,7 +2589,10 @@ static void *xres_cp_run_thread(XTThreadPtr self)
 		}
 	}
 
+   /*
+	* {MYSQL-THREAD-KILL}
 	myxt_destroy_thread(mysql_thread, TRUE);
+	*/
 	return NULL;
 }
 
@@ -3179,22 +3183,74 @@ xtPublic void xt_dump_xlogs(XTDatabaseHPtr db, xtLogID start_log)
  * D A T A B A S E   R E C O V E R Y   T H R E A D
  */
 
-extern XTDatabaseHPtr pbxt_database;
+extern XTDatabaseHPtr	pbxt_database;
+static XTThreadPtr		xres_recovery_thread;
 
 static void *xn_xres_run_recovery_thread(XTThreadPtr self)
 {
 	THD *mysql_thread;
 
-	mysql_thread = (THD *)myxt_create_thread();
+	if (!(mysql_thread = (THD *) myxt_create_thread()))
+		xt_throw(self);
 
-	while(!ha_resolve_by_legacy_type(mysql_thread, DB_TYPE_PBXT))
+	while (!xres_recovery_thread->t_quit && !ha_resolve_by_legacy_type(mysql_thread, DB_TYPE_PBXT))
 		xt_sleep_milli_second(1);
 
-	xt_open_database(self, mysql_real_data_home, TRUE);
-	pbxt_database = self->st_database;
-	xt_heap_reference(self, pbxt_database);
-	myxt_destroy_thread(mysql_thread, TRUE);
+	if (!xres_recovery_thread->t_quit) {
+		/* {GLOBAL-DB}
+		 * It can happen that something will just get in before this
+		 * thread and open/recover the database!
+		 */
+		if (!pbxt_database) {
+			try_(a) {
+				xt_open_database(self, mysql_real_data_home, TRUE);
+				/* This can be done at the same time by a foreground thread,
+				 * strictly speaking I need a lock.
+				 */
+				if (!pbxt_database) {
+					pbxt_database = self->st_database;
+					xt_heap_reference(self, pbxt_database);
+				}
+			}
+			catch_(a) {
+				xt_log_and_clear_exception(self);
+			}
+			cont_(a);
+		}
+	}
 
+   /*
+    * {MYSQL-THREAD-KILL}
+	* Here is the problem with destroying the thread at this
+	* point. If we had an error started, then it can lead
+	* to a callback into pbxt: pbxt_panic().
+	*
+	* This will shutdown things, making it impossible quite the
+	* thread and do a cleanup. Solution:
+	*
+	* Move the MySQL thread descruction to a later point!
+	*
+	* sql/mysqld --no-defaults --basedir=~/maria/trunk 
+	* --character-sets-dir=~/maria/trunk/sql/share/charsets 
+	* --language=~/maria/trunk/sql/share/english 
+	* --skip-networking --datadir=/tmp/x --skip-grant-tables --nonexistentoption 
+	*
+	* #0	0x003893f9 in xt_exit_databases at database_xt.cc:304
+	* #1	0x0039dc7e in pbxt_end at ha_pbxt.cc:947
+	* #2	0x0039dd27 in pbxt_panic at ha_pbxt.cc:1289
+	* #3	0x001d619e in ha_finalize_handlerton at handler.cc:391
+	* #4	0x00279d22 in plugin_deinitialize at sql_plugin.cc:816
+	* #5	0x0027bcf5 in reap_plugins at sql_plugin.cc:904
+	* #6	0x0027c38c in plugin_thdvar_cleanup at sql_plugin.cc:2513
+	* #7	0x000c0db2 in THD::~THD at sql_class.cc:934
+	* #8	0x003b025b in myxt_destroy_thread at myxt_xt.cc:2999
+	* #9	0x003b66b5 in xn_xres_run_recovery_thread at restart_xt.cc:3196
+	* #10	0x003cbfbb in thr_main at thread_xt.cc:1020
+	*
+	myxt_destroy_thread(mysql_thread, TRUE);
+	*/
+
+	xres_recovery_thread = NULL;
 	return NULL;
 }
 
@@ -3204,6 +3260,23 @@ xtPublic void xt_xres_start_database_recovery(XTThreadPtr self)
 
 	sprintf(name, "DB-RECOVERY-%s", xt_last_directory_of_path(mysql_real_data_home));
 	xt_remove_dir_char(name);
-	XTThreadPtr thread = xt_create_daemon(self, name);
-	xt_run_thread(self, thread, xn_xres_run_recovery_thread);
+
+	xres_recovery_thread = xt_create_daemon(self, name);
+	xt_run_thread(self, xres_recovery_thread, xn_xres_run_recovery_thread);
+}
+
+xtPublic void xt_xres_wait_for_recovery(XTThreadPtr self)
+{
+	XTThreadPtr thr_rec;
+
+	/* {MYSQL-THREAD-KILL}
+	 * Stack above shows that his is possible!
+	 */
+	if ((thr_rec = xres_recovery_thread) && (self != xres_recovery_thread)) {
+		xtThreadID tid = thr_rec->t_id;
+
+		xt_terminate_thread(self, thr_rec);
+
+		xt_wait_for_thread(tid, TRUE);
+	}
 }
