@@ -88,6 +88,13 @@ int my_copy(const char *from, const char *to, myf MyFlags)
 	goto err;
     }
 
+    /* sync the destination file */
+    if (MyFlags & MY_SYNC)
+    {
+      if (my_sync(to_file, MyFlags))
+        goto err;
+    }
+
     if (my_close(from_file,MyFlags) | my_close(to_file,MyFlags))
       DBUG_RETURN(-1);				/* Error on close */
 
