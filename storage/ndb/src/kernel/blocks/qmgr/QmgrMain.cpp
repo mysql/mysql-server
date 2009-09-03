@@ -38,6 +38,7 @@
 #include <signaldata/ApiBroadcast.hpp>
 #include <signaldata/Upgrade.hpp>
 #include <signaldata/EnableCom.hpp>
+#include <signaldata/RouteOrd.hpp>
 
 #include <ndb_version.h>
 
@@ -2741,25 +2742,55 @@ void Qmgr::checkStartInterface(Signal* signal, Uint64 now)
  * This method is called when a DISCONNECT_REP signal arrived which means that
  * the API node is gone and we want to release resources in TC/DICT blocks.
  *---------------------------------------------------------------------------*/
-void Qmgr::sendApiFailReq(Signal* signal, Uint16 failedNodeNo) 
+void Qmgr::sendApiFailReq(Signal* signal, Uint16 failedNodeNo, bool sumaOnly) 
 {
-  NodeRecPtr failedNodePtr;
-
   jamEntry();
-  failedNodePtr.i = failedNodeNo;
-  signal->theData[0] = failedNodePtr.i;
+  signal->theData[0] = failedNodeNo;
   signal->theData[1] = QMGR_REF; 
 
-  ptrCheckGuard(failedNodePtr, MAX_NODES, nodeRec);
-  
-  failedNodePtr.p->failState = WAITING_FOR_FAILCONF1;
-
-  /* JBB used to ensure delivery *after* any pending
-   * signals
+  /* We route the ApiFailReq signals via CMVMI
+   * This is done to ensure that they are received after
+   * any pending signals from the failed Api node when
+   * running ndbmtd, as these signals would be enqueued from
+   * the thread running CMVMI
    */
-  sendSignal(DBTC_REF, GSN_API_FAILREQ, signal, 2, JBB);
-  sendSignal(DBDICT_REF, GSN_API_FAILREQ, signal, 2, JBB);
-  sendSignal(SUMA_REF, GSN_API_FAILREQ, signal, 2, JBB);
+  Uint32 routedSignalSectionI = RNIL;
+  ndbrequire(appendToSection(routedSignalSectionI,
+                             &signal->theData[0],
+                             2));
+  SectionHandle handle(this, routedSignalSectionI);
+  
+  /* RouteOrd data */
+  RouteOrd* routeOrd = (RouteOrd*) &signal->theData[0];
+  routeOrd->srcRef = reference();
+  routeOrd->gsn = GSN_API_FAILREQ;
+
+  /* Send ROUTE_ORD signals to CMVMI via JBA
+   * CMVMI will then immediately send the API_FAILREQ
+   * signals to the destination block(s) using JBB
+   * These API_FAILREQ signals will be sent *after*
+   * any JBB signals enqueued from the failed API
+   * by the CMVMI thread.
+   */
+  if (!sumaOnly)
+  {
+    routeOrd->dstRef = DBTC_REF;
+    sendSignalNoRelease(CMVMI_REF, GSN_ROUTE_ORD, signal,
+                        RouteOrd::SignalLength,
+                        JBA, &handle);
+
+    routeOrd->dstRef = DBDICT_REF;
+    sendSignalNoRelease(CMVMI_REF, GSN_ROUTE_ORD, signal,
+                        RouteOrd::SignalLength,
+                        JBA, &handle);
+  }
+
+  /* Suma always notified */
+  routeOrd->dstRef = SUMA_REF;
+  sendSignal(CMVMI_REF, GSN_ROUTE_ORD, signal,
+             RouteOrd::SignalLength,
+             JBA, &handle);
+
 }//Qmgr::sendApiFailReq()
 
 void Qmgr::execAPI_FAILREQ(Signal* signal)
@@ -3695,7 +3726,8 @@ void Qmgr::handleApiCloseComConf(Signal* signal)
          * Inform application blocks TC, DICT, SUMA etc.
          */
         jam();
-        sendApiFailReq(signal, nodeId);
+        sendApiFailReq(signal, nodeId, false); // !sumaOnly
+        failedNodePtr.p->failState = WAITING_FOR_FAILCONF1;
         arbitRec.code = ArbitCode::ApiFail;
         handleArbitApiFail(signal, nodeId);
       }
@@ -3703,13 +3735,9 @@ void Qmgr::handleApiCloseComConf(Signal* signal)
       {
         /**
          * Always inform SUMA
-         * JBB used to ensure delivery *after* any pending
-         * signals.
          */
         jam();
-        signal->theData[0] = nodeId;
-        signal->theData[1] = QMGR_REF;
-        sendSignal(SUMA_REF, GSN_API_FAILREQ, signal, 2, JBB);
+        sendApiFailReq(signal, nodeId, true); // sumaOnly
         failedNodePtr.p->failState = WAITING_FOR_FAILCONF3;
       }
       

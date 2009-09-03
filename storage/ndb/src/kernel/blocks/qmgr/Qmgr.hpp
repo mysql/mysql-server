@@ -324,7 +324,7 @@ private:
   void initData(Signal* signal);
   void sendCloseComReq(Signal* signal, BlockReference TBRef, Uint16 TfailNo);
   void sendPrepFailReq(Signal* signal, Uint16 aNode);
-  void sendApiFailReq(Signal* signal, Uint16 aFailedNode);
+  void sendApiFailReq(Signal* signal, Uint16 aFailedNode, bool sumaOnly);
   void sendApiRegRef(Signal*, Uint32 ref, ApiRegRef::ErrorCode);
 
   // Generated statement blocks
