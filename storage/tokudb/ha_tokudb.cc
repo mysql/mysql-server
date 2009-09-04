@@ -3945,10 +3945,41 @@ void ha_tokudb::position(const uchar * record) {
 //
 int ha_tokudb::info(uint flag) {
     TOKUDB_DBUG_ENTER("ha_tokudb::info %p %d %lld", this, flag, share->rows);
+    int error;
+    DB_TXN* txn = NULL;
+    uint curr_num_DBs = table->s->keys + test(hidden_primary_key);
+    DB_BTREE_STAT64 dict_stats;
     if (flag & HA_STATUS_VARIABLE) {
         // Just to get optimizations right
         stats.records = share->rows + share->rows_from_locked_table;
         stats.deleted = 0;
+        if (!(flag & HA_STATUS_NO_LOCK)) {
+            error = db_env->txn_begin(db_env, NULL, &txn, DB_READ_UNCOMMITTED);
+            if (error) { goto cleanup; }
+
+            error = share->file->stat64(
+                share->file, 
+                txn, 
+                &dict_stats
+                );
+            if (error) { goto cleanup; }
+
+            stats.data_file_length = dict_stats.bt_dsize;
+            stats.mean_rec_length = stats.data_file_length/stats.records;
+            stats.index_file_length = 0;
+            for (uint i = 0; i < curr_num_DBs; i++) {
+                if (i == primary_key) {
+                    continue;
+                }
+                error = share->key_file[i]->stat64(
+                    share->key_file[i], 
+                    txn, 
+                    &dict_stats
+                    );
+                if (error) { goto cleanup; }
+                stats.index_file_length += dict_stats.bt_dsize;
+            }
+        }
     }
     if ((flag & HA_STATUS_CONST)) {
         for (uint i = 0; i < table_share->keys; i++) {
@@ -3964,7 +3995,13 @@ int ha_tokudb::info(uint flag) {
         struct system_variables *variables= &thd->variables;
         stats.auto_increment_value = share->last_auto_increment + variables->auto_increment_increment;
     }
-    TOKUDB_DBUG_RETURN(0);
+    error = 0;
+cleanup:
+    if (txn != NULL) {
+        txn->commit(txn, DB_TXN_NOSYNC);
+        txn = NULL;
+    }
+    TOKUDB_DBUG_RETURN(error);
 }
 
 //
