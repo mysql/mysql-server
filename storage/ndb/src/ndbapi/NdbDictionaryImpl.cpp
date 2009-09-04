@@ -339,6 +339,83 @@ NdbColumnImpl::equal(const NdbColumnImpl& col) const
   DBUG_RETURN(true);
 }
 
+void
+NdbColumnImpl::create_pseudo_columns()
+{
+  NdbDictionary::Column::FRAGMENT=
+    NdbColumnImpl::create_pseudo("NDB$FRAGMENT");
+  NdbDictionary::Column::FRAGMENT_FIXED_MEMORY=
+    NdbColumnImpl::create_pseudo("NDB$FRAGMENT_FIXED_MEMORY");
+  NdbDictionary::Column::FRAGMENT_VARSIZED_MEMORY=
+    NdbColumnImpl::create_pseudo("NDB$FRAGMENT_VARSIZED_MEMORY");
+  NdbDictionary::Column::ROW_COUNT=
+    NdbColumnImpl::create_pseudo("NDB$ROW_COUNT");
+  NdbDictionary::Column::COMMIT_COUNT=
+    NdbColumnImpl::create_pseudo("NDB$COMMIT_COUNT");
+  NdbDictionary::Column::ROW_SIZE=
+    NdbColumnImpl::create_pseudo("NDB$ROW_SIZE");
+  NdbDictionary::Column::RANGE_NO=
+    NdbColumnImpl::create_pseudo("NDB$RANGE_NO");
+  NdbDictionary::Column::DISK_REF=
+    NdbColumnImpl::create_pseudo("NDB$DISK_REF");
+  NdbDictionary::Column::RECORDS_IN_RANGE=
+    NdbColumnImpl::create_pseudo("NDB$RECORDS_IN_RANGE");
+  NdbDictionary::Column::ROWID=
+    NdbColumnImpl::create_pseudo("NDB$ROWID");
+  NdbDictionary::Column::ROW_GCI=
+    NdbColumnImpl::create_pseudo("NDB$ROW_GCI");
+  NdbDictionary::Column::ANY_VALUE=
+    NdbColumnImpl::create_pseudo("NDB$ANY_VALUE");
+  NdbDictionary::Column::COPY_ROWID=
+    NdbColumnImpl::create_pseudo("NDB$COPY_ROWID");
+  NdbDictionary::Column::OPTIMIZE=
+    NdbColumnImpl::create_pseudo("NDB$OPTIMIZE");
+  NdbDictionary::Column::FRAGMENT_EXTENT_SPACE =
+    NdbColumnImpl::create_pseudo("NDB$FRAGMENT_EXTENT_SPACE");
+  NdbDictionary::Column::FRAGMENT_FREE_EXTENT_SPACE =
+    NdbColumnImpl::create_pseudo("NDB$FRAGMENT_FREE_EXTENT_SPACE");
+}
+
+void
+NdbColumnImpl::destory_pseudo_columns()
+{
+  delete NdbDictionary::Column::FRAGMENT;
+  delete NdbDictionary::Column::FRAGMENT_FIXED_MEMORY;
+  delete NdbDictionary::Column::FRAGMENT_VARSIZED_MEMORY;
+  delete NdbDictionary::Column::ROW_COUNT;
+  delete NdbDictionary::Column::COMMIT_COUNT;
+  delete NdbDictionary::Column::ROW_SIZE;
+  delete NdbDictionary::Column::RANGE_NO;
+  delete NdbDictionary::Column::DISK_REF;
+  delete NdbDictionary::Column::RECORDS_IN_RANGE;
+  delete NdbDictionary::Column::ROWID;
+  delete NdbDictionary::Column::ROW_GCI;
+  delete NdbDictionary::Column::ANY_VALUE;
+  delete NdbDictionary::Column::OPTIMIZE;
+  NdbDictionary::Column::FRAGMENT= 0;
+  NdbDictionary::Column::FRAGMENT_FIXED_MEMORY= 0;
+  NdbDictionary::Column::FRAGMENT_VARSIZED_MEMORY= 0;
+  NdbDictionary::Column::ROW_COUNT= 0;
+  NdbDictionary::Column::COMMIT_COUNT= 0;
+  NdbDictionary::Column::ROW_SIZE= 0;
+  NdbDictionary::Column::RANGE_NO= 0;
+  NdbDictionary::Column::DISK_REF= 0;
+  NdbDictionary::Column::RECORDS_IN_RANGE= 0;
+  NdbDictionary::Column::ROWID= 0;
+  NdbDictionary::Column::ROW_GCI= 0;
+  NdbDictionary::Column::ANY_VALUE= 0;
+  NdbDictionary::Column::OPTIMIZE= 0;
+
+  delete NdbDictionary::Column::COPY_ROWID;
+  NdbDictionary::Column::COPY_ROWID = 0;
+
+  delete NdbDictionary::Column::FRAGMENT_EXTENT_SPACE;
+  NdbDictionary::Column::FRAGMENT_EXTENT_SPACE = 0;
+
+  delete NdbDictionary::Column::FRAGMENT_FREE_EXTENT_SPACE;
+  NdbDictionary::Column::FRAGMENT_FREE_EXTENT_SPACE = 0;
+}
+
 NdbDictionary::Column *
 NdbColumnImpl::create_pseudo(const char * name){
   NdbDictionary::Column * col = new NdbDictionary::Column();
@@ -414,6 +491,16 @@ NdbColumnImpl::create_pseudo(const char * name){
     col->m_impl.m_attrId = AttributeHeader::OPTIMIZE;
     col->m_impl.m_attrSize = 4;
     col->m_impl.m_arraySize = 1;
+  } else if(!strcmp(name, "NDB$FRAGMENT_EXTENT_SPACE")){
+    col->setType(NdbDictionary::Column::Bigunsigned);
+    col->m_impl.m_attrId = AttributeHeader::FRAGMENT_EXTENT_SPACE;
+    col->m_impl.m_attrSize = 4;
+    col->m_impl.m_arraySize = 2;
+  } else if(!strcmp(name, "NDB$FRAGMENT_FREE_EXTENT_SPACE")){
+    col->setType(NdbDictionary::Column::Bigunsigned);
+    col->m_impl.m_attrId = AttributeHeader::FRAGMENT_FREE_EXTENT_SPACE;
+    col->m_impl.m_attrSize = 4;
+    col->m_impl.m_arraySize = 2;
   } else {
     abort();
   }
@@ -7896,5 +7983,7 @@ const NdbDictionary::Column * NdbDictionary::Column::ROW_GCI = 0;
 const NdbDictionary::Column * NdbDictionary::Column::ANY_VALUE = 0;
 const NdbDictionary::Column * NdbDictionary::Column::COPY_ROWID = 0;
 const NdbDictionary::Column * NdbDictionary::Column::OPTIMIZE = 0;
+const NdbDictionary::Column * NdbDictionary::Column::FRAGMENT_EXTENT_SPACE = 0;
+const NdbDictionary::Column * NdbDictionary::Column::FRAGMENT_FREE_EXTENT_SPACE = 0;
 
 template class Vector<NdbDictInterface::Tx::Op>;

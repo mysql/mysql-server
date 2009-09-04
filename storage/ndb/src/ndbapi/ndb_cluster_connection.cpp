@@ -299,36 +299,9 @@ Ndb_cluster_connection_impl(const char * connect_string,
   DBUG_PRINT("enter",("Ndb_cluster_connection this=0x%lx", (long) this));
 
   NdbMutex_Lock(g_ndb_connection_mutex);
-  if(g_ndb_connection_count++ == 0){
-    NdbDictionary::Column::FRAGMENT= 
-      NdbColumnImpl::create_pseudo("NDB$FRAGMENT");
-    NdbDictionary::Column::FRAGMENT_FIXED_MEMORY= 
-      NdbColumnImpl::create_pseudo("NDB$FRAGMENT_FIXED_MEMORY");
-    NdbDictionary::Column::FRAGMENT_VARSIZED_MEMORY= 
-      NdbColumnImpl::create_pseudo("NDB$FRAGMENT_VARSIZED_MEMORY");
-    NdbDictionary::Column::ROW_COUNT= 
-      NdbColumnImpl::create_pseudo("NDB$ROW_COUNT");
-    NdbDictionary::Column::COMMIT_COUNT= 
-      NdbColumnImpl::create_pseudo("NDB$COMMIT_COUNT");
-    NdbDictionary::Column::ROW_SIZE=
-      NdbColumnImpl::create_pseudo("NDB$ROW_SIZE");
-    NdbDictionary::Column::RANGE_NO= 
-      NdbColumnImpl::create_pseudo("NDB$RANGE_NO");
-    NdbDictionary::Column::DISK_REF= 
-      NdbColumnImpl::create_pseudo("NDB$DISK_REF");
-    NdbDictionary::Column::RECORDS_IN_RANGE= 
-      NdbColumnImpl::create_pseudo("NDB$RECORDS_IN_RANGE");
-    NdbDictionary::Column::ROWID= 
-      NdbColumnImpl::create_pseudo("NDB$ROWID");
-    NdbDictionary::Column::ROW_GCI= 
-      NdbColumnImpl::create_pseudo("NDB$ROW_GCI");
-    NdbDictionary::Column::ANY_VALUE= 
-      NdbColumnImpl::create_pseudo("NDB$ANY_VALUE");
-    NdbDictionary::Column::COPY_ROWID= 
-      NdbColumnImpl::create_pseudo("NDB$COPY_ROWID");
-    NdbDictionary::Column::OPTIMIZE=
-      NdbColumnImpl::create_pseudo("NDB$OPTIMIZE");
-
+  if(g_ndb_connection_count++ == 0)
+  {
+    NdbColumnImpl::create_pseudo_columns();
     g_eventLogger->createConsoleHandler();
     g_eventLogger->setCategory("NdbApi");
     g_eventLogger->enable(Logger::LL_ON, Logger::LL_ERROR);
@@ -424,37 +397,9 @@ Ndb_cluster_connection_impl::~Ndb_cluster_connection_impl()
     free(m_name);
 
   NdbMutex_Lock(g_ndb_connection_mutex);
-  if(--g_ndb_connection_count == 0){
-    delete NdbDictionary::Column::FRAGMENT; 
-    delete NdbDictionary::Column::FRAGMENT_FIXED_MEMORY;
-    delete NdbDictionary::Column::FRAGMENT_VARSIZED_MEMORY;
-    delete NdbDictionary::Column::ROW_COUNT;
-    delete NdbDictionary::Column::COMMIT_COUNT;
-    delete NdbDictionary::Column::ROW_SIZE;
-    delete NdbDictionary::Column::RANGE_NO;
-    delete NdbDictionary::Column::DISK_REF;
-    delete NdbDictionary::Column::RECORDS_IN_RANGE;
-    delete NdbDictionary::Column::ROWID;
-    delete NdbDictionary::Column::ROW_GCI;
-    delete NdbDictionary::Column::ANY_VALUE;
-    delete NdbDictionary::Column::OPTIMIZE;
-    NdbDictionary::Column::FRAGMENT= 0;
-    NdbDictionary::Column::FRAGMENT_FIXED_MEMORY= 0;
-    NdbDictionary::Column::FRAGMENT_VARSIZED_MEMORY= 0;
-    NdbDictionary::Column::ROW_COUNT= 0;
-    NdbDictionary::Column::COMMIT_COUNT= 0;
-    NdbDictionary::Column::ROW_SIZE= 0;
-    NdbDictionary::Column::RANGE_NO= 0;
-    NdbDictionary::Column::DISK_REF= 0;
-    NdbDictionary::Column::RECORDS_IN_RANGE= 0;
-    NdbDictionary::Column::ROWID= 0;
-    NdbDictionary::Column::ROW_GCI= 0;
-    NdbDictionary::Column::ANY_VALUE= 0;
-    NdbDictionary::Column::OPTIMIZE= 0;
-
-    delete NdbDictionary::Column::COPY_ROWID;
-    NdbDictionary::Column::COPY_ROWID = 0;
-    
+  if(--g_ndb_connection_count == 0)
+  {
+    NdbColumnImpl::destory_pseudo_columns();
   }
   NdbMutex_Unlock(g_ndb_connection_mutex);
 
