@@ -12,9 +12,9 @@ extern "C" {
 #define TOKUDB_NATIVE_H 0
 #define DB_VERSION_MAJOR 4
 #define DB_VERSION_MINOR 6
-#define DB_VERSION_PATCH 21
+#define DB_VERSION_PATCH 19
 #ifndef _TOKUDB_WRAP_H
-#define DB_VERSION_STRING "Tokutek: TokuDB 4.6.21"
+#define DB_VERSION_STRING "Tokutek: TokuDB 4.6.19"
 #else
 #define DB_VERSION_STRING_ydb "Tokutek: TokuDB (wrapped bdb)"
 #endif
@@ -363,6 +363,7 @@ int db_env_set_func_pwrite (ssize_t (*)(int, const void *, size_t, toku_off_t)) 
 int db_env_set_func_write (ssize_t (*)(int, const void *, size_t)) __attribute__((__visibility__("default")));
 int db_env_set_func_realloc (void *(*)(void*, size_t)) __attribute__((__visibility__("default")));
 void db_env_set_checkpoint_callback (void (*)(void*), void*) __attribute__((__visibility__("default")));
+void db_env_set_checkpoint_callback2 (void (*)(void*), void*) __attribute__((__visibility__("default")));
 #if defined(__cplusplus)
 }
 #endif

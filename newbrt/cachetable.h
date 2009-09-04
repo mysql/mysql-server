@@ -10,7 +10,7 @@
 #include "workqueue.h"
 
 // TODO: #1398  Get rid of this entire straddle_callback hack
-// Man is this ugly.  
+// Man is this ugly.
 #ifdef  BRT_LEVEL_STRADDLE_CALLBACK_LOGIC_NOT_READY
 extern int STRADDLE_HACK_INSIDE_CALLBACK;
 #endif
@@ -47,7 +47,7 @@ int toku_cachefile_of_filenum (CACHETABLE t, FILENUM filenum, CACHEFILE *cf);
 
 // TODO: #1510  Add comments on how these behave
 int toku_cachetable_begin_checkpoint (CACHETABLE ct, TOKULOGGER);
-int toku_cachetable_end_checkpoint(CACHETABLE ct, TOKULOGGER logger, char **error_string);
+int toku_cachetable_end_checkpoint(CACHETABLE ct, TOKULOGGER logger, char **error_string, void (*testcallback_f)(void*),  void * testextra);
 
 // Does an fsync of a cachefile.
 // Handles the case where cf points to /dev/null

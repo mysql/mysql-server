@@ -29,11 +29,18 @@ static int fetch(CACHEFILE cf, CACHEKEY key, u_int32_t fullhash, void **value, l
 }
 
 static int callback_was_called = 0;
+static int callback2_was_called = 0;
 
 static void checkpoint_callback(void * extra) {
     int * x = (int*) extra;
     (*x)++;
     if (verbose) printf("checkpoint_callback called %d (should be 1-16)\n", *x);
+}
+
+static void checkpoint_callback2(void * extra) {
+    int * x = (int*) extra;
+    (*x)++;
+    if (verbose) printf("checkpoint_callback2 called %d (should be 1-16)\n", *x);
 }
 
 // put n items into the cachetable, maybe mark them dirty, do a checkpoint, and
@@ -77,9 +84,10 @@ static void cachetable_checkpoint_test(int n, enum cachetable_dirty dirty) {
     // all items should be kept in the cachetable
     n_flush = n_write_me = n_keep_me = n_fetch = 0;
     
-    r = toku_checkpoint(ct, NULL, NULL, checkpoint_callback, &callback_was_called);
+    r = toku_checkpoint(ct, NULL, NULL, checkpoint_callback, &callback_was_called, checkpoint_callback2, &callback2_was_called);
     assert(r == 0);
-    assert(callback_was_called != 0);
+    assert(callback_was_called  != 0);
+    assert(callback2_was_called != 0);
     assert(n_flush == n && n_write_me == n && n_keep_me == n);
 
     // after the checkpoint, all of the items should be clean
@@ -108,7 +116,7 @@ static void cachetable_checkpoint_test(int n, enum cachetable_dirty dirty) {
     n_flush = n_write_me = n_keep_me = n_fetch = 0;
 
 
-    r = toku_checkpoint(ct, NULL, NULL, NULL, NULL);
+    r = toku_checkpoint(ct, NULL, NULL, NULL, NULL, NULL, NULL);
     assert(r == 0);
     assert(n_flush == 0 && n_write_me == 0 && n_keep_me == 0);
 

@@ -727,7 +727,7 @@ static int do_recovery(RECOVER_ENV env, const char *data_dir, const char *log_di
     r = toku_cachetable_begin_checkpoint(env->ct, env->logger);
     assert(r == 0);
     // TODO: what about the error_string?
-    r = toku_cachetable_end_checkpoint(env->ct, env->logger, NULL);
+    r = toku_cachetable_end_checkpoint(env->ct, env->logger, NULL, NULL, NULL);
     assert(r == 0);
 
     r = chdir(org_wd); 
