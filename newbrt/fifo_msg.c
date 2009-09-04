@@ -87,9 +87,9 @@ fifo_msg_get_val(FIFO_MSG fifo_msg) {
     return rval;
 }
 
-brt_msg_type
+enum brt_msg_type
 fifo_msg_get_type(FIFO_MSG fifo_msg) {
-    brt_msg_type rval = (brt_msg_type) fifo_msg->type;
+    enum brt_msg_type rval = (enum brt_msg_type) fifo_msg->type;
     return rval;
 }
 

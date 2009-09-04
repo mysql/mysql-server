@@ -14,7 +14,7 @@
 void
 brt_msg_from_dbts(BRT_MSG brt_msg,
                   DBT *key, DBT *val,
-                  XIDS xids, brt_msg_type type) {
+                  XIDS xids, enum brt_msg_type type) {
     brt_msg->u.id.key = key;
     brt_msg->u.id.val = val;
     brt_msg->xids   = xids;
@@ -66,9 +66,9 @@ brt_msg_get_val(BRT_MSG brt_msg) {
     return rval;
 }
 
-brt_msg_type
+enum brt_msg_type
 brt_msg_get_type(BRT_MSG brt_msg) {
-    brt_msg_type rval = brt_msg->type;
+    enum brt_msg_type rval = brt_msg->type;
     return rval;
 }
 

@@ -23,11 +23,11 @@ void * brt_msg_get_key(BRT_MSG brt_msg);
 
 void * brt_msg_get_val(BRT_MSG brt_msg);
 
-brt_msg_type brt_msg_get_type(BRT_MSG brt_msg);
+enum brt_msg_type brt_msg_get_type(BRT_MSG brt_msg);
 
 void brt_msg_from_fifo_msg(BRT_MSG brt_msg, FIFO_MSG fifo_msg);
 
-void brt_msg_from_dbts(BRT_MSG brt_msg, DBT *key, DBT *val, XIDS xids, brt_msg_type type);
+void brt_msg_from_dbts(BRT_MSG brt_msg, DBT *key, DBT *val, XIDS xids, enum brt_msg_type type);
 
 #endif
 

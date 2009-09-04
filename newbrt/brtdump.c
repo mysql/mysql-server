@@ -103,7 +103,7 @@ dump_node (int f, BLOCKNUM blocknum, struct brt_header *h) {
 		FIFO_ITERATE(BNC_BUFFER(n,i), key, keylen, data, datalen, typ, xids,
 			     {
 				 printf("    TYPE=");
-				 switch ((enum brt_cmd_type)typ) {
+				 switch ((enum brt_msg_type)typ) {
 				 case BRT_NONE: printf("NONE"); goto ok;
 				 case BRT_INSERT: printf("INSERT"); goto ok;
 				 case BRT_DELETE_ANY: printf("DELETE_ANY"); goto ok;

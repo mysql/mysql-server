@@ -82,7 +82,7 @@ typedef struct cachetable *CACHETABLE;
 typedef struct cachefile *CACHEFILE;
 
 /* tree command types */
-enum brt_cmd_type {
+enum brt_msg_type {
     BRT_NONE = 0,
     BRT_INSERT = 1,
     BRT_DELETE_ANY = 2,  // Delete any matching key.  This used to be called BRT_DELETE.
@@ -96,8 +96,8 @@ enum brt_cmd_type {
 typedef struct xids_t *XIDS;
 typedef struct fifo_msg_t *FIFO_MSG;
 /* tree commands */
-struct brt_cmd {
-    enum brt_cmd_type type;
+struct brt_msg {
+    enum brt_msg_type type;
     XIDS         xids;
     union {
         /* insert or delete */
@@ -107,13 +107,9 @@ struct brt_cmd {
         } id;
     } u;
 };
-typedef struct brt_cmd BRT_CMD_S, *BRT_CMD;
-
-// TODO: replace brt_cmd_type when ready
-typedef enum brt_cmd_type brt_msg_type;
 // Message sent into brt to implement command (insert, delete, etc.)
-// This structure supports nested transactions, and obsoletes brt_cmd.
-typedef struct brt_cmd BRT_MSG_S, *BRT_MSG;
+// This structure supports nested transactions, and obsoletes brt_msg.
+typedef struct brt_msg BRT_MSG_S, *BRT_MSG;
 
 typedef int (*brt_compare_func)(DB *, const DBT *, const DBT *);
 

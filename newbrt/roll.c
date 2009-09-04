@@ -59,7 +59,7 @@ static int find_brt_from_filenum (OMTVALUE v, void *filenumvp) {
     return 0;
 }
 
-static int do_insertion (enum brt_cmd_type type, FILENUM filenum, BYTESTRING key, BYTESTRING *data,TOKUTXN txn) {
+static int do_insertion (enum brt_msg_type type, FILENUM filenum, BYTESTRING key, BYTESTRING *data,TOKUTXN txn) {
     CACHEFILE cf;
     //printf("%s:%d committing insert %s %s\n", __FILE__, __LINE__, key.data, data.data);
     int r = toku_cachefile_of_filenum(txn->logger->ct, filenum, &cf);
@@ -67,7 +67,7 @@ static int do_insertion (enum brt_cmd_type type, FILENUM filenum, BYTESTRING key
 
     DBT key_dbt,data_dbt;
     XIDS xids = toku_txn_get_xids(txn);
-    BRT_CMD_S brtcmd = { type, xids,
+    BRT_MSG_S brtcmd = { type, xids,
 			 .u.id={toku_fill_dbt(&key_dbt,  key.data,  key.len),
 				data
 				? toku_fill_dbt(&data_dbt, data->data, data->len)
