@@ -1,6 +1,8 @@
 funcs_1.charset_collation_1              # depends on compile-time decisions
-binlog.binlog_tmp_table                  # Bug#45578: Test binlog_tmp_table fails ramdonly on PB2: Unknown table 't2'
-main.ctype_gbk_binlog                    # Bug#46010: main.ctype_gbk_binlog fails sporadically : Table 't2' already exists
-rpl.rpl_row_create_table                 # Bug#45576: rpl_row_create_table fails on PB2
+binlog.binlog_tmp_table*                 # Bug#45578: Test binlog_tmp_table fails ramdonly on PB2: Unknown table 't2'
+main.ctype_gbk_binlog @solaris           # Bug#46010: main.ctype_gbk_binlog fails sporadically : Table 't2' already exists
+rpl.rpl_row_create_table*                # Bug#45576: rpl_row_create_table fails on PB2
 rpl_ndb.rpl_ndb_log                      # Bug#38998
-rpl.rpl_innodb_bug28430                  # Bug#46029
+rpl.rpl_innodb_bug28430* @solaris        # Bug#46029
+main.plugin_load  @solaris               # Bug #42144
+rpl.rpl_get_master_version_and_clock*    # Bug#46931 2009-08-26 alik rpl.rpl_get_master_version_and_clock fails on hpux11.31
