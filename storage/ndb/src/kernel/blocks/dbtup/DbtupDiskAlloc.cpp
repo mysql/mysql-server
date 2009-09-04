@@ -641,7 +641,7 @@ Dbtup::disk_page_prealloc(Signal* signal,
     ext.p->m_free_page_count[pageBits]--;
     ext.p->m_free_page_count[newPageBits]++;
   }
-  update_extent_pos(alloc, ext, -sz);
+  update_extent_pos(alloc, ext, -Int32(sz));
 
   // And put page request in correct free list
   idx= alloc.calc_page_free_bits(new_size);
@@ -715,7 +715,7 @@ Dbtup::disk_page_prealloc_dirty_page(Disk_alloc_info & alloc,
   }
 
   pagePtr.p->uncommitted_used_space = used;
-  update_extent_pos(alloc, extentPtr, -sz);
+  update_extent_pos(alloc, extentPtr, -Int32(sz));
 }
 
 
@@ -744,7 +744,7 @@ Dbtup::disk_page_prealloc_transit_page(Disk_alloc_info& alloc,
   }
 
   req.p->m_uncommitted_used_space = used;
-  update_extent_pos(alloc, extentPtr, -sz);
+  update_extent_pos(alloc, extentPtr, -Int32(sz));
 }
 
 void
