@@ -580,7 +580,9 @@ public:
     static const Column * ANY_VALUE;
     static const Column * COPY_ROWID;
     static const Column * OPTIMIZE;
-    
+    static const Column * FRAGMENT_EXTENT_SPACE;
+    static const Column * FRAGMENT_FREE_EXTENT_SPACE;
+
     int getSizeInBytes() const;
 
     int getBlobVersion() const; // NDB_BLOB_V1 or NDB_BLOB_V2

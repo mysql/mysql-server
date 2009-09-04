@@ -1947,3 +1947,31 @@ Dbtup::disk_restart_page_bits(Uint32 tableId, Uint32 fragId,
   update_extent_pos(alloc, ext, size); // actually only to update free_space
   ndbassert(ext.p->m_free_matrix_pos == RNIL);
 }
+
+void
+Dbtup::disk_page_get_allocated(const Tablerec* tabPtrP,
+                               const Fragrecord * fragPtrP,
+                               Uint64 res[2])
+{
+  res[0] = res[1] = 0;
+  if (tabPtrP->m_no_of_disk_attributes)
+  {
+    jam();
+    const Disk_alloc_info& alloc= fragPtrP->m_disk_alloc_info;
+    Uint64 cnt = 0;
+    Uint64 free = 0;
+
+    {
+      Disk_alloc_info& tmp = const_cast<Disk_alloc_info&>(alloc);
+      Local_fragment_extent_list list(c_extent_pool, tmp.m_extent_list);
+      Ptr<Extent_info> extentPtr;
+      for (list.first(extentPtr); !extentPtr.isNull(); list.next(extentPtr))
+      {
+        cnt++;
+        free += extentPtr.p->m_free_space;
+      }
+    }
+    res[0] = cnt * alloc.m_extent_size * File_formats::NDB_PAGE_SIZE;
+    res[1] = free * 4 * tabPtrP->m_offsets[DD].m_fix_header_size;
+  }
+}

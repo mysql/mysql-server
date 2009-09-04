@@ -142,6 +142,8 @@ public:
   static const NdbColumnImpl & getImpl(const NdbDictionary::Column & t);
   NdbDictionary::Column * m_facade;
 
+  static void create_pseudo_columns();
+  static void destory_pseudo_columns();
   static NdbDictionary::Column * create_pseudo(const char *);
 
   // Get total length in bytes, used by NdbOperation
