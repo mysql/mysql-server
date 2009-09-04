@@ -292,13 +292,13 @@ static int toku_c_count(DBC *cursor, db_recno_t *count, u_int32_t flags);
 static int toku_c_close(DBC * c);
 
 /* misc */
-static char *construct_full_name(const char *dir, const char *fname);
+static char *construct_full_name(int count, ...);
 
 static int delete_rolltmp_files(DB_ENV *env) {
     const char *datadir=env->i->dir;
     char *logdir;
     if (env->i->lg_dir) {
-	logdir = construct_full_name(env->i->dir, env->i->lg_dir);
+	logdir = construct_full_name(2, env->i->dir, env->i->lg_dir);
     } else {
 	logdir = toku_strdup(env->i->dir);
     }
@@ -311,7 +311,7 @@ static int do_recovery (DB_ENV *env) {
     const char *datadir=env->i->dir;
     char *logdir;
     if (env->i->lg_dir) {
-	logdir = construct_full_name(env->i->dir, env->i->lg_dir);
+	logdir = construct_full_name(2, env->i->dir, env->i->lg_dir);
     } else {
 	logdir = toku_strdup(env->i->dir);
     }
@@ -323,7 +323,7 @@ static int do_recovery (DB_ENV *env) {
 static int needs_recovery (DB_ENV *env) {
     char *logdir;
     if (env->i->lg_dir) {
-	logdir = construct_full_name(env->i->dir, env->i->lg_dir);
+	logdir = construct_full_name(2, env->i->dir, env->i->lg_dir);
     } else {
 	logdir = toku_strdup(env->i->dir);
     }
@@ -417,7 +417,7 @@ static int toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mo
 
     if (flags & (DB_INIT_TXN | DB_INIT_LOG)) {
         char* full_dir = NULL;
-        if (env->i->lg_dir) full_dir = construct_full_name(env->i->dir, env->i->lg_dir);
+        if (env->i->lg_dir) full_dir = construct_full_name(2, env->i->dir, env->i->lg_dir);
 	assert(env->i->logger);
         toku_logger_write_log_files(env->i->logger, (flags & DB_INIT_LOG) != 0);
         r = toku_logger_open(full_dir ? full_dir : env->i->dir, env->i->logger);
@@ -3006,47 +3006,28 @@ static int toku_db_key_range(DB * db, DB_TXN * txn, DBT * dbt, DB_KEY_RANGE * kr
 }
 #endif
 
-static int construct_full_name_in_buf(const char *dir, const char *fname, char* full, int length) {
-    int l;
-
-    if (!full) return EINVAL;
-    if (toku_os_is_absolute_name(fname)) {
-        l = 0;
-        full[0] = '\0';
-    }
-    else {
-        l = snprintf(full, length, "%s", dir);
-        if (l >= length) return ENAMETOOLONG;
-        if (l == 0 || full[l - 1] != '/') {
-            if (l + 1 == length) return ENAMETOOLONG;
-                
-            /* Didn't put a slash down. */
-            if (fname[0] != '/') {
-                full[l++] = '/';
-                full[l] = 0;
-            }
+static char *construct_full_name(int count, ...) {
+    va_list ap;
+    char *name = NULL;
+    size_t n = 0;
+    int i;
+    va_start(ap, count);
+    for (i=0; i<count; i++) {
+        char *arg = va_arg(ap, char *);
+        if (arg) {
+            n += 1 + strlen(arg) + 1;
+            char *newname = toku_malloc(n);
+            assert(newname);
+            if (name && !toku_os_is_absolute_name(arg))
+                snprintf(newname, n, "%s/%s", name, arg);
+            else
+                snprintf(newname, n, "%s", arg);
+            toku_free(name);
+            name = newname;
         }
     }
-    l += snprintf(full + l, length - l, "%s", fname);
-    if (l >= length) return ENAMETOOLONG;
-    return 0;
-}
 
-static char *construct_full_name(const char *dir, const char *fname) {
-    if (toku_os_is_absolute_name(fname))
-        dir = "";
-    {
-        int dirlen = strlen(dir);
-        int fnamelen = strlen(fname);
-        int len = dirlen + fnamelen + 2;        // One for the / between (which may not be there).  One for the trailing null.
-        char *result = toku_malloc(len);
-        // printf("%s:%d len(%d)=%d+%d+2\n", __FILE__, __LINE__, len, dirlen, fnamelen);
-        if (construct_full_name_in_buf(dir, fname, result, len) != 0) {
-            toku_free(result);
-            result = NULL;
-        }
-        return result;
-    }
+    return name;
 }
 
 static int find_db_file(DB_ENV* dbenv, const char *fname, char** full_name_out) {
@@ -3059,7 +3040,7 @@ static int find_db_file(DB_ENV* dbenv, const char *fname, char** full_name_out) 
     if (dbenv->i->data_dirs!=NULL) {
         assert(dbenv->i->n_data_dirs > 0);
         for (i = 0; i < dbenv->i->n_data_dirs; i++) {
-            full_name = construct_full_name(dbenv->i->data_dirs[0], fname);
+            full_name = construct_full_name(3, dbenv->i->dir, dbenv->i->data_dirs[i], fname);
             if (!full_name) return ENOMEM;
             r = toku_stat(full_name, &statbuf);
             if (r == 0) goto finish;
@@ -3070,11 +3051,11 @@ static int find_db_file(DB_ENV* dbenv, const char *fname, char** full_name_out) 
             }
         }
         //Did not find it at all.  Return the first data dir.
-        full_name = construct_full_name(dbenv->i->data_dirs[0], fname);
+        full_name = construct_full_name(3, dbenv->i->dir, dbenv->i->data_dirs[0], fname);
         goto finish;
     }
     //Default without data_dirs is the environment directory.
-    full_name = construct_full_name(dbenv->i->dir, fname);
+    full_name = construct_full_name(2, dbenv->i->dir, fname);
     goto finish;
 
 finish:
@@ -3248,7 +3229,6 @@ static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *db
 
     db->i->open_flags = flags;
     db->i->open_mode = mode;
-
 
     r = toku_brt_open(db->i->brt, db->i->full_fname, fname,
 		      is_db_create, is_db_excl,

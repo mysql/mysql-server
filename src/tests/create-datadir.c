@@ -15,34 +15,39 @@ static void run_test (void) {
     toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
 
     DB_ENV *env;
-    r = db_env_create(&env, 0);                                                         CKERR(r);
-    r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                      CKERR(r);
+    r = db_env_create(&env, 0);                                                          CKERR(r);
+    r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                       CKERR(r);
 
-    DB *dba;
-    r = db_create(&dba, env, 0);                                                        CKERR(r);
-    r = dba->open(dba, NULL, "a.db", NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);    CKERR(r);
-    r = dba->close(dba, 0); CKERR(r);
+    DB *db;  
+    r = db_create(&db, env, 0);                                                          CKERR(r);
+    r = db->open(db, NULL, "a.db", NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);      CKERR(r);
+    r = db->close(db, 0);                                                                CKERR(r);
 
-    DB *dbb;
-    r = db_create(&dbb, env, 0);                                                        CKERR(r);
-    r = dbb->open(dbb, NULL, "bdir/b.db", NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666); assert(r != 0);
+    r = db_create(&db, env, 0);                                                          CKERR(r);
+    r = db->open(db, NULL, "bdir/b.db", NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666); assert(r != 0);
     r = toku_os_mkdir(ENVDIR "/bdir", 0777); assert(r == 0);
-    r = dbb->open(dbb, NULL, "bdir/b.db", NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666); CKERR(r);
-    r = dbb->close(dbb, 0); CKERR(r);
+    r = db->open(db, NULL, "bdir/b.db", NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666); CKERR(r);
+    r = db->close(db, 0);                                                                CKERR(r);
 
-    r = env->close(env, 0); CKERR(r);
+    r = env->close(env, 0);                                                              CKERR(r);
 
     r = toku_os_mkdir(ENVDIR "/cdir", 0777); assert(r == 0);
-    r = db_env_create(&env, 0);                                                         CKERR(r);
-    r = env->set_data_dir(env, "cdir"); CKERR(r);
-    r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                      CKERR(r);
+    r = db_env_create(&env, 0);                                                          CKERR(r);
+    r = env->set_data_dir(env, "cdir");                                                  CKERR(r);
+    r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                       CKERR(r);
 
-    DB *dbc;
-    r = db_create(&dbc, env, 0);                                                        CKERR(r);
-    r = dbc->open(dbc, NULL, "c.db", NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);    CKERR(r);
-    r = dbc->close(dbc, 0); CKERR(r);
+    r = db_create(&db, env, 0);                                                          CKERR(r);
+    r = db->open(db, NULL, "c.db", NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);      CKERR(r);
+    r = db->close(db, 0);                                                                CKERR(r);
 
-    r = env->close(env, 0); CKERR(r);
+#if 0
+    // test fname with absolute path
+    r = db_create(&db, env, 0);                                                          CKERR(r);
+    r = db->open(db, NULL, "/tmp/d.db", NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666); CKERR(r);
+    r = db->close(db, 0);                                                                CKERR(r);
+#endif
+
+    r = env->close(env, 0);                                                              CKERR(r);
 }
 
 const char *cmd;
