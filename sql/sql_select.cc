@@ -2176,7 +2176,7 @@ JOIN::destroy()
       }
     }
     tmp_join->tmp_join= 0;
-    tmp_table_param.copy_field=0;
+    tmp_table_param.cleanup();
     DBUG_RETURN(tmp_join->destroy());
   }
   cond_equal= 0;
