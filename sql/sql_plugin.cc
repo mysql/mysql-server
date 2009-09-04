@@ -1520,7 +1520,7 @@ error:
 
 void plugin_shutdown(void)
 {
-  uint i, count= plugin_array.elements, free_slots= 0;
+  uint i, count= plugin_array.elements;
   struct st_plugin_int **plugins, *plugin;
   struct st_plugin_dl **dl;
   DBUG_ENTER("plugin_shutdown");
@@ -1541,18 +1541,13 @@ void plugin_shutdown(void)
     while (reap_needed && (count= plugin_array.elements))
     {
       reap_plugins();
-      for (i= free_slots= 0; i < count; i++)
+      for (i= 0; i < count; i++)
       {
         plugin= *dynamic_element(&plugin_array, i, struct st_plugin_int **);
-        switch (plugin->state) {
-        case PLUGIN_IS_READY:
+        if (plugin->state == PLUGIN_IS_READY)
+        {
           plugin->state= PLUGIN_IS_DELETED;
           reap_needed= true;
-          break;
-        case PLUGIN_IS_FREED:
-        case PLUGIN_IS_UNINITIALIZED:
-          free_slots++;
-          break;
         }
       }
       if (!reap_needed)
@@ -1586,8 +1581,8 @@ void plugin_shutdown(void)
       if (!(plugins[i]->state & (PLUGIN_IS_UNINITIALIZED | PLUGIN_IS_FREED |
                                  PLUGIN_IS_DISABLED)))
       {
-        sql_print_information("Plugin '%s' will be forced to shutdown",
-                              plugins[i]->name.str);
+        sql_print_warning("Plugin '%s' will be forced to shutdown",
+                          plugins[i]->name.str);
         /*
           We are forcing deinit on plugins so we don't want to do a ref_count
           check until we have processed all the plugins.
