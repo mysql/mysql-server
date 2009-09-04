@@ -1194,5 +1194,22 @@ CREATE TABLE IF NOT EXISTS t2 (a INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY)
 
 DROP TABLE t1, t2;
 
+--echo #
+--echo # BUG#46384 - mysqld segfault when trying to create table with same 
+--echo #             name as existing view
+--echo #
+
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT);
+
+INSERT INTO t1 VALUES (1),(2),(3);
+INSERT INTO t2 VALUES (1),(2),(3);
+
+CREATE VIEW v1 AS SELECT t1.a FROM t1, t2;
+--error ER_TABLE_EXISTS_ERROR
+CREATE TABLE v1 AS SELECT * FROM t1;
+
+DROP VIEW v1;
+DROP TABLE t1,t2;
 
 --echo End of 5.0 tests
