@@ -95,11 +95,12 @@ inline void Mode_BASE::Process(byte* out, const byte* in, word32 sz)
 {
     if (mode_ == ECB)
         ECB_Process(out, in, sz);
-    else if (mode_ == CBC)
+    else if (mode_ == CBC) {
         if (dir_ == ENCRYPTION)
             CBC_Encrypt(out, in, sz);
         else
             CBC_Decrypt(out, in, sz);
+    }
 }
 
 

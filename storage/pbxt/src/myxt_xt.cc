@@ -1957,7 +1957,7 @@ static TABLE *my_open_table(XTThreadPtr self, XTDatabaseHPtr XT_UNUSED(db), XTPa
 		xt_free(self, table);
 		lex_end(&new_lex);
 		thd->lex = old_lex;
-		xt_throw_ulxterr(XT_CONTEXT, XT_ERR_LOADING_MYSQL_DIC, (u_long) error);
+		xt_throw_sulxterr(XT_CONTEXT, XT_ERR_LOADING_MYSQL_DIC, tab_path->ps_path, (u_long) error);
 		return NULL;
 	}
 #else
@@ -1975,11 +1975,23 @@ static TABLE *my_open_table(XTThreadPtr self, XTDatabaseHPtr XT_UNUSED(db), XTPa
 #endif
 #endif
 
+	/* If MySQL shutsdown while we are just starting up, they
+	 * they kill the plugin sub-system before calling
+	 * shutdown for the engine!
+	 */
+	if (!ha_resolve_by_legacy_type(thd, DB_TYPE_PBXT)) {
+		xt_free(self, table);
+		lex_end(&new_lex);
+		thd->lex = old_lex;
+		xt_throw_xterr(XT_CONTEXT, XT_ERR_MYSQL_SHUTDOWN);
+		return NULL;
+	}
+
 	if ((error = open_table_def(thd, share, 0))) {
 		xt_free(self, table);
 		lex_end(&new_lex);
 		thd->lex = old_lex;
-		xt_throw_ulxterr(XT_CONTEXT, XT_ERR_LOADING_MYSQL_DIC, (u_long) error);
+		xt_throw_sulxterr(XT_CONTEXT, XT_ERR_LOADING_MYSQL_DIC, tab_path->ps_path, (u_long) error);
 		return NULL;
 	}
 
@@ -1992,7 +2004,7 @@ static TABLE *my_open_table(XTThreadPtr self, XTDatabaseHPtr XT_UNUSED(db), XTPa
 		xt_free(self, table);
 		lex_end(&new_lex);
 		thd->lex = old_lex;
-		xt_throw_ulxterr(XT_CONTEXT, XT_ERR_LOADING_MYSQL_DIC, (u_long) error);
+		xt_throw_sulxterr(XT_CONTEXT, XT_ERR_LOADING_MYSQL_DIC, tab_path->ps_path, (u_long) error);
 		return NULL;
 	}
 #endif
@@ -2959,6 +2971,46 @@ xtPublic void *myxt_create_thread()
 		return NULL;
 	}
 
+	/*
+	 * Unfortunately, if PBXT is the default engine, and we are shutting down
+	 * then global_system_variables.table_plugin may be NULL. Which will cause
+	 * a crash if we try to create a thread!
+	 *
+	 * The following call in plugin_shutdown() sets the global reference
+	 * to NULL:
+	 *
+	 * unlock_variables(NULL, &global_system_variables);
+	 *
+	 * Later plugin_deinitialize() is called.
+	 *
+	 * The following stack is an example crash which occurs when I call
+	 * myxt_create_thread() in ha_exit(), to force the error.
+	 *
+	 *   if (pi->state & (PLUGIN_IS_READY | PLUGIN_IS_UNINITIALIZED))
+	 *   pi is NULL!
+	 * #0	0x002ff684 in intern_plugin_lock at sql_plugin.cc:617
+	 * #1	0x0030296d in plugin_thdvar_init at sql_plugin.cc:2432
+	 * #2	0x000db4a4 in THD::init at sql_class.cc:756
+	 * #3	0x000e02ed in THD::THD at sql_class.cc:638
+	 * #4	0x00e2678d in myxt_create_thread at myxt_xt.cc:2990
+	 * #5	0x00e05d43 in ha_exit at ha_pbxt.cc:1011
+	 * #6	0x00e065c2 in pbxt_end at ha_pbxt.cc:1330
+	 * #7	0x00e065df in pbxt_panic at ha_pbxt.cc:1343
+	 * #8	0x0023e57d in ha_finalize_handlerton at handler.cc:392
+	 * #9	0x002ffc8b in plugin_deinitialize at sql_plugin.cc:816
+	 * #10	0x003037d9 in plugin_shutdown at sql_plugin.cc:1572
+	 * #11	0x000f7b2b in clean_up at mysqld.cc:1266
+	 * #12	0x000f7fca in unireg_end at mysqld.cc:1192
+	 * #13	0x000fa021 in kill_server at mysqld.cc:1134
+	 * #14	0x000fa6df in kill_server_thread at mysqld.cc:1155
+	 * #15	0x91fdb155 in _pthread_start
+	 * #16	0x91fdb012 in thread_start
+	 */
+	if (!global_system_variables.table_plugin) {
+		xt_register_xterr(XT_REG_CONTEXT, XT_ERR_MYSQL_NO_THREAD);
+		return NULL;
+	}
+
 	if (!(new_thd = new THD())) {
 		my_thread_end();
 		xt_register_error(XT_REG_CONTEXT, XT_ERR_MYSQL_ERROR, 0, "Unable to create MySQL thread (THD)");
@@ -2975,6 +3027,10 @@ xtPublic void *myxt_create_thread()
 
 #ifdef DRIZZLED
 xtPublic void myxt_destroy_thread(void *, xtBool)
+{
+}
+
+xtPublic void myxt_delete_remaining_thread()
 {
 }
 #else
@@ -3003,6 +3059,14 @@ xtPublic void myxt_destroy_thread(void *thread, xtBool end_threads)
 
 	if (end_threads)
 		my_thread_end();
+}
+
+xtPublic void myxt_delete_remaining_thread()
+{
+	THD *thd;
+
+	if ((thd = current_thd))
+		myxt_destroy_thread((void *) thd, TRUE);
 }
 #endif
 

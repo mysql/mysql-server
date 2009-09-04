@@ -1815,7 +1815,6 @@ srv_printf_innodb_monitor(
 	ulint	btr_search_sys_subtotal;
 	ulint	lock_sys_subtotal;
 	ulint	recv_sys_subtotal;
-	ulint	io_counter_subtotal;
 
 	ulint	i;
 	trx_t*	trx;

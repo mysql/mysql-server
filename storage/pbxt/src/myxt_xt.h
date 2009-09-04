@@ -81,6 +81,7 @@ struct charset_info_st *myxt_getcharset(bool convert);
 
 void		*myxt_create_thread();
 void		myxt_destroy_thread(void *thread, xtBool end_threads);
+void		myxt_delete_remaining_thread();
 XTThreadPtr	myxt_get_self();
 
 int			myxt_statistics_fill_table(XTThreadPtr self, void *th, void *ta, void *co, MX_CONST void *ch);

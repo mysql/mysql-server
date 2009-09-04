@@ -2529,7 +2529,8 @@ static void *xn_sw_run_thread(XTThreadPtr self)
 	int				count;
 	void			*mysql_thread;
 
-	mysql_thread = myxt_create_thread();
+	if (!(mysql_thread = myxt_create_thread()))
+		xt_throw(self);
 
 	while (!self->t_quit) {
 		try_(a) {
@@ -2586,7 +2587,10 @@ static void *xn_sw_run_thread(XTThreadPtr self)
 		db->db_sw_idle = XT_THREAD_BUSY;
 	}
 
+   /*
+	* {MYSQL-THREAD-KILL}
 	myxt_destroy_thread(mysql_thread, TRUE);
+	*/
 	return NULL;
 }
 

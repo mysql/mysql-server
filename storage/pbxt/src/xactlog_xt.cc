@@ -2610,7 +2610,10 @@ static void *xlog_wr_run_thread(XTThreadPtr self)
 		db->db_wr_idle = XT_THREAD_BUSY;
 	}
 
+   /*
+	* {MYSQL-THREAD-KILL}
 	myxt_destroy_thread(mysql_thread, TRUE);
+	*/
 	return NULL;
 }
 

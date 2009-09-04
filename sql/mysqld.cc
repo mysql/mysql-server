@@ -1016,6 +1016,7 @@ static void close_connections(void)
 }
 
 
+#ifdef HAVE_CLOSE_SERVER_SOCK
 static void close_socket(my_socket sock, const char *info)
 {
   DBUG_ENTER("close_socket");
@@ -1035,6 +1036,7 @@ static void close_socket(my_socket sock, const char *info)
   }
   DBUG_VOID_RETURN;
 }
+#endif
 
 
 static void close_server_sock()
