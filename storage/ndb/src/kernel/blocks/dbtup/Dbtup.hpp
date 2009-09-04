@@ -3182,6 +3182,8 @@ private:
                                  Ptr<Page> pagePtr,
                                  Uint32 old_idx, Uint32 new_idx);
 
+  void disk_page_get_allocated(const Tablerec*, const Fragrecord*,
+                               Uint64 res[2]);
   /**
    * Disk restart code
    */
