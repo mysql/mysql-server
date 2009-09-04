@@ -207,5 +207,10 @@ DROP FUNCTION upgrade_del_func;
 DROP FUNCTION upgrade_alter_func;
 DROP DATABASE bug42217_db;
 DROP USER 'create_rout_db'@'localhost';
- 
+
+call mtr.add_suppression("Slave: Operation DROP USER failed for 'create_rout_db'@'localhost' Error_code: 1396");
+connection slave;
+USE mtr;
+call mtr.add_suppression("Slave: Operation DROP USER failed for 'create_rout_db'@'localhost' Error_code: 1396");
+
 --echo "End of test"
