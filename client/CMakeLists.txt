@@ -33,7 +33,8 @@ ADD_EXECUTABLE(mysql completion_hash.cc mysql.cc readline.cc sql_string.cc ../my
 TARGET_LINK_LIBRARIES(mysql mysqlclient_notls wsock32)
 
 ADD_EXECUTABLE(mysqltest mysqltest.c ../mysys/my_getsystime.c
-               ../mysys/my_copy.c ../mysys/my_mkdir.c)
+               ../mysys/my_copy.c ../mysys/my_mkdir.c
+               ../mysys/my_sync.c)
 TARGET_LINK_LIBRARIES(mysqltest mysqlclient_notls regex wsock32)
 
 ADD_EXECUTABLE(mysqlcheck mysqlcheck.c)
