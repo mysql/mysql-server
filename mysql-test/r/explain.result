@@ -159,3 +159,11 @@ CREATE TABLE t1 (a INT PRIMARY KEY);
 EXPLAIN EXTENDED SELECT COUNT(a) FROM t1 USE KEY(a);
 ERROR HY000: Key 'a' doesn't exist in table 't1'
 DROP TABLE t1;
+CREATE TABLE t1(a LONGTEXT);
+INSERT INTO t1 VALUES (repeat('a',@@global.max_allowed_packet));
+INSERT INTO t1 VALUES (repeat('b',@@global.max_allowed_packet));
+EXPLAIN SELECT DISTINCT 1 FROM t1,
+(SELECT DISTINCTROW a AS away FROM t1 GROUP BY a WITH ROLLUP) as d1
+WHERE t1.a = d1.a;
+ERROR 42S22: Unknown column 'd1.a' in 'where clause'
+DROP TABLE t1;
