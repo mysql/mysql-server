@@ -410,7 +410,7 @@ static void dl_recover_log(XTThreadPtr self, XTDatabaseHPtr db, XTDataLogFilePtr
 	ASSERT_NS(seq_read.sl_log_eof == seq_read.sl_rec_log_offset);
 	data_log->dlf_log_eof = seq_read.sl_rec_log_offset;
 
-	if (data_log->dlf_log_eof < sizeof(XTXactLogHeaderDRec)) {
+	if ((size_t) data_log->dlf_log_eof < sizeof(XTXactLogHeaderDRec)) {
 		data_log->dlf_log_eof = sizeof(XTXactLogHeaderDRec);
 		if (!dl_create_log_header(data_log, seq_read.sl_log_file, self))
 			xt_throw(self);
