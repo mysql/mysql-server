@@ -936,9 +936,11 @@ private:
       auto_increment_lock= FALSE;
     }
   }
-  virtual void set_auto_increment_if_higher(const ulonglong nr)
+  virtual void set_auto_increment_if_higher(Field *field)
   {
     HA_DATA_PARTITION *ha_data= (HA_DATA_PARTITION*) table_share->ha_data;
+    ulonglong nr= (((Field_num*) field)->unsigned_flag ||
+                   field->val_int() > 0) ? field->val_int() : 0;
     lock_auto_increment();
     DBUG_ASSERT(ha_data->auto_inc_initialized == TRUE);
     /* must check when the mutex is taken */

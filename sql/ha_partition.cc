@@ -3024,7 +3024,7 @@ int ha_partition::write_row(uchar * buf)
   tmp_disable_binlog(thd); /* Do not replicate the low-level changes. */
   error= m_file[part_id]->ha_write_row(buf);
   if (have_auto_increment && !table->s->next_number_keypart)
-    set_auto_increment_if_higher(table->next_number_field->val_int());
+    set_auto_increment_if_higher(table->next_number_field);
   reenable_binlog(thd);
 exit:
   table->timestamp_field_type= orig_timestamp_type;
@@ -3128,7 +3128,7 @@ exit:
     HA_DATA_PARTITION *ha_data= (HA_DATA_PARTITION*) table_share->ha_data;
     if (!ha_data->auto_inc_initialized)
       info(HA_STATUS_AUTO);
-    set_auto_increment_if_higher(table->found_next_number_field->val_int());
+    set_auto_increment_if_higher(table->found_next_number_field);
   }
   table->timestamp_field_type= orig_timestamp_type;
   DBUG_RETURN(error);
