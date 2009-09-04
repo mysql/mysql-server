@@ -1351,13 +1351,6 @@ c_get_wrapper_callback(DBT const *key, DBT const *val, void *extra) {
     return r;
 }
 
-static TOKULOGGER
-c_get_logger(DBC *c) {
-    TOKUTXN txn = dbc_struct_i(c)->txn ? db_txn_struct_i(dbc_struct_i(c)->txn)->tokutxn : NULL;
-    TOKULOGGER logger = toku_txn_logger(txn);
-    return logger;
-}
-
 static int toku_c_get_current_unconditional(DBC* c, u_int32_t flags, DBT* key, DBT* val) {
     int r;
     QUERY_CONTEXT_WRAPPED_S context; 
@@ -1793,9 +1786,8 @@ toku_c_getf_first(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) 
 
     QUERY_CONTEXT_S context; //Describes the context of this query.
     query_context_init(&context, c, flag, f, extra); 
-    TOKULOGGER logger = c_get_logger(c);
     //toku_brt_cursor_first will call c_getf_first_callback(..., context) (if query is successful)
-    int r = toku_brt_cursor_first(dbc_struct_i(c)->c, c_getf_first_callback, &context, logger);
+    int r = toku_brt_cursor_first(dbc_struct_i(c)->c, c_getf_first_callback, &context);
     if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
     return r;
 }
@@ -1848,9 +1840,8 @@ toku_c_getf_last(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
 
     QUERY_CONTEXT_S context; //Describes the context of this query.
     query_context_init(&context, c, flag, f, extra); 
-    TOKULOGGER logger = c_get_logger(c);
     //toku_brt_cursor_last will call c_getf_last_callback(..., context) (if query is successful)
-    int r = toku_brt_cursor_last(dbc_struct_i(c)->c, c_getf_last_callback, &context, logger);
+    int r = toku_brt_cursor_last(dbc_struct_i(c)->c, c_getf_last_callback, &context);
     if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
     return r;
 }
@@ -1906,9 +1897,8 @@ toku_c_getf_next(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
     else {
         QUERY_CONTEXT_S context; //Describes the context of this query.
         query_context_init(&context, c, flag, f, extra); 
-        TOKULOGGER logger = c_get_logger(c);
         //toku_brt_cursor_next will call c_getf_next_callback(..., context) (if query is successful)
-        r = toku_brt_cursor_next(dbc_struct_i(c)->c, c_getf_next_callback, &context, logger);
+        r = toku_brt_cursor_next(dbc_struct_i(c)->c, c_getf_next_callback, &context);
         if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
     }
     return r;
@@ -1961,9 +1951,8 @@ toku_c_getf_next_nodup(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *ex
     else {
         QUERY_CONTEXT_S context; //Describes the context of this query.
         query_context_init(&context, c, flag, f, extra); 
-        TOKULOGGER logger = c_get_logger(c);
         //toku_brt_cursor_next will call c_getf_next_callback(..., context) (if query is successful)
-        r = toku_brt_cursor_next_nodup(dbc_struct_i(c)->c, c_getf_next_callback, &context, logger);
+        r = toku_brt_cursor_next_nodup(dbc_struct_i(c)->c, c_getf_next_callback, &context);
         if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
     }
     return r;
@@ -1979,9 +1968,8 @@ toku_c_getf_next_dup(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extr
 
     QUERY_CONTEXT_S context; //Describes the context of this query.
     query_context_init(&context, c, flag, f, extra); 
-    TOKULOGGER logger = c_get_logger(c);
     //toku_brt_cursor_next_dup will call c_getf_next_dup_callback(..., context) (if query is successful)
-    int r = toku_brt_cursor_next_dup(dbc_struct_i(c)->c, c_getf_next_dup_callback, &context, logger);
+    int r = toku_brt_cursor_next_dup(dbc_struct_i(c)->c, c_getf_next_dup_callback, &context);
     if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
     return r;
 }
@@ -2035,9 +2023,8 @@ toku_c_getf_prev(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
     else {
         QUERY_CONTEXT_S context; //Describes the context of this query.
         query_context_init(&context, c, flag, f, extra); 
-        TOKULOGGER logger = c_get_logger(c);
         //toku_brt_cursor_prev will call c_getf_prev_callback(..., context) (if query is successful)
-        r = toku_brt_cursor_prev(dbc_struct_i(c)->c, c_getf_prev_callback, &context, logger);
+        r = toku_brt_cursor_prev(dbc_struct_i(c)->c, c_getf_prev_callback, &context);
         if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
     }
     return r;
@@ -2090,9 +2077,8 @@ toku_c_getf_prev_nodup(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *ex
     else {
         QUERY_CONTEXT_S context; //Describes the context of this query.
         query_context_init(&context, c, flag, f, extra); 
-        TOKULOGGER logger = c_get_logger(c);
         //toku_brt_cursor_prev will call c_getf_prev_callback(..., context) (if query is successful)
-        r = toku_brt_cursor_prev_nodup(dbc_struct_i(c)->c, c_getf_prev_callback, &context, logger);
+        r = toku_brt_cursor_prev_nodup(dbc_struct_i(c)->c, c_getf_prev_callback, &context);
         if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
     }
     return r;
@@ -2108,9 +2094,8 @@ toku_c_getf_prev_dup(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extr
 
     QUERY_CONTEXT_S context; //Describes the context of this query.
     query_context_init(&context, c, flag, f, extra); 
-    TOKULOGGER logger = c_get_logger(c);
     //toku_brt_cursor_prev_dup will call c_getf_prev_dup_callback(..., context) (if query is successful)
-    int r = toku_brt_cursor_prev_dup(dbc_struct_i(c)->c, c_getf_prev_dup_callback, &context, logger);
+    int r = toku_brt_cursor_prev_dup(dbc_struct_i(c)->c, c_getf_prev_dup_callback, &context);
     if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
     return r;
 }
@@ -2161,9 +2146,8 @@ toku_c_getf_current(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra
 
     QUERY_CONTEXT_S context; //Describes the context of this query.
     query_context_init(&context, c, flag, f, extra); 
-    TOKULOGGER logger = c_get_logger(c);
     //toku_brt_cursor_current will call c_getf_current_callback(..., context) (if query is successful)
-    int r = toku_brt_cursor_current(dbc_struct_i(c)->c, DB_CURRENT, c_getf_current_callback, &context, logger);
+    int r = toku_brt_cursor_current(dbc_struct_i(c)->c, DB_CURRENT, c_getf_current_callback, &context);
     if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
     return r;
 }
@@ -2197,9 +2181,8 @@ toku_c_getf_current_binding(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, voi
 
     QUERY_CONTEXT_S context; //Describes the context of this query.
     query_context_init(&context, c, flag, f, extra); 
-    TOKULOGGER logger = c_get_logger(c);
     //toku_brt_cursor_current will call c_getf_current_callback(..., context) (if query is successful)
-    int r = toku_brt_cursor_current(dbc_struct_i(c)->c, DB_CURRENT_BINDING, c_getf_current_callback, &context, logger);
+    int r = toku_brt_cursor_current(dbc_struct_i(c)->c, DB_CURRENT_BINDING, c_getf_current_callback, &context);
     if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
     return r;
 }
@@ -2213,9 +2196,8 @@ toku_c_getf_set(DBC *c, u_int32_t flag, DBT *key, YDB_CALLBACK_FUNCTION f, void 
 
     QUERY_CONTEXT_WITH_INPUT_S context; //Describes the context of this query.
     query_context_with_input_init(&context, c, flag, key, NULL, f, extra); 
-    TOKULOGGER logger = c_get_logger(c);
     //toku_brt_cursor_set will call c_getf_set_callback(..., context) (if query is successful)
-    int r = toku_brt_cursor_set(dbc_struct_i(c)->c, key, NULL, c_getf_set_callback, &context, logger);
+    int r = toku_brt_cursor_set(dbc_struct_i(c)->c, key, NULL, c_getf_set_callback, &context);
     if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
     return r;
 }
@@ -2271,9 +2253,8 @@ toku_c_getf_set_range(DBC *c, u_int32_t flag, DBT *key, YDB_CALLBACK_FUNCTION f,
 
     QUERY_CONTEXT_WITH_INPUT_S context; //Describes the context of this query.
     query_context_with_input_init(&context, c, flag, key, NULL, f, extra); 
-    TOKULOGGER logger = c_get_logger(c);
     //toku_brt_cursor_set_range will call c_getf_set_range_callback(..., context) (if query is successful)
-    int r = toku_brt_cursor_set_range(dbc_struct_i(c)->c, key, c_getf_set_range_callback, &context, logger);
+    int r = toku_brt_cursor_set_range(dbc_struct_i(c)->c, key, c_getf_set_range_callback, &context);
     if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
     return r;
 }
@@ -2330,9 +2311,8 @@ toku_c_getf_set_range_reverse(DBC *c, u_int32_t flag, DBT *key, YDB_CALLBACK_FUN
 
     QUERY_CONTEXT_WITH_INPUT_S context; //Describes the context of this query.
     query_context_with_input_init(&context, c, flag, key, NULL, f, extra); 
-    TOKULOGGER logger = c_get_logger(c);
     //toku_brt_cursor_set_range_reverse will call c_getf_set_range_reverse_callback(..., context) (if query is successful)
-    int r = toku_brt_cursor_set_range_reverse(dbc_struct_i(c)->c, key, c_getf_set_range_reverse_callback, &context, logger);
+    int r = toku_brt_cursor_set_range_reverse(dbc_struct_i(c)->c, key, c_getf_set_range_reverse_callback, &context);
     if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
     return r;
 }
@@ -2389,9 +2369,8 @@ toku_c_getf_get_both(DBC *c, u_int32_t flag, DBT *key, DBT *val, YDB_CALLBACK_FU
 
     QUERY_CONTEXT_WITH_INPUT_S context; //Describes the context of this query.
     query_context_with_input_init(&context, c, flag, key, val, f, extra); 
-    TOKULOGGER logger = c_get_logger(c);
     //toku_brt_cursor_get_both will call c_getf_get_both_callback(..., context) (if query is successful)
-    int r = toku_brt_cursor_set(dbc_struct_i(c)->c, key, val, c_getf_get_both_callback, &context, logger);
+    int r = toku_brt_cursor_set(dbc_struct_i(c)->c, key, val, c_getf_get_both_callback, &context);
     if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
     return r;
 }
@@ -2442,9 +2421,8 @@ toku_c_getf_get_both_range(DBC *c, u_int32_t flag, DBT *key, DBT *val, YDB_CALLB
     else {
         QUERY_CONTEXT_WITH_INPUT_S context; //Describes the context of this query.
         query_context_with_input_init(&context, c, flag, key, val, f, extra); 
-        TOKULOGGER logger = c_get_logger(c);
         //toku_brt_cursor_get_both_range will call c_getf_get_both_range_callback(..., context) (if query is successful)
-        r = toku_brt_cursor_get_both_range(dbc_struct_i(c)->c, key, val, c_getf_get_both_range_callback, &context, logger);
+        r = toku_brt_cursor_get_both_range(dbc_struct_i(c)->c, key, val, c_getf_get_both_range_callback, &context);
         if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
     }
     return r;
@@ -2503,9 +2481,8 @@ toku_c_getf_get_both_range_reverse(DBC *c, u_int32_t flag, DBT *key, DBT *val, Y
     else {
         QUERY_CONTEXT_WITH_INPUT_S context; //Describes the context of this query.
         query_context_with_input_init(&context, c, flag, key, val, f, extra); 
-        TOKULOGGER logger = c_get_logger(c);
         //toku_brt_cursor_get_both_range_reverse will call c_getf_get_both_range_reverse_callback(..., context) (if query is successful)
-        r = toku_brt_cursor_get_both_range_reverse(dbc_struct_i(c)->c, key, val, c_getf_get_both_range_reverse_callback, &context, logger);
+        r = toku_brt_cursor_get_both_range_reverse(dbc_struct_i(c)->c, key, val, c_getf_get_both_range_reverse_callback, &context);
         if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
     }
     return r;
@@ -2596,9 +2573,8 @@ toku_c_getf_heaviside(DBC *c, u_int32_t flag,
     heavi_wrapper_init(&wrapper, h, extra_h, direction);
     QUERY_CONTEXT_HEAVISIDE_S context; //Describes the context of this query.
     query_context_heaviside_init(&context, c, flag, f, extra_f, &wrapper); 
-    TOKULOGGER logger = c_get_logger(c);
     //toku_brt_cursor_heaviside will call c_getf_heaviside_callback(..., context) (if query is successful)
-    r = toku_brt_cursor_heaviside(dbc_struct_i(c)->c, c_getf_heaviside_callback, &context, logger, &wrapper);
+    r = toku_brt_cursor_heaviside(dbc_struct_i(c)->c, c_getf_heaviside_callback, &context, &wrapper);
     if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
     return r;
 }

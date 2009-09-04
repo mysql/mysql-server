@@ -65,8 +65,7 @@ static void test_multiple_brt_cursor_dbts(int n, DB *db) {
 				toku_init_dbt(&vbt),
 				save_data,
 				&ptrs[i],
-				DB_SET,
-				null_txn);
+				DB_SET);
 	assert(r == 0);
     }
 

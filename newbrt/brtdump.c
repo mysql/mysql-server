@@ -112,6 +112,7 @@ dump_node (int f, BLOCKNUM blocknum, struct brt_header *h) {
 				 case BRT_ABORT_BOTH: printf("ABORT_BOTH"); goto ok;
 				 case BRT_COMMIT_ANY: printf("COMMIT_ANY"); goto ok;
 				 case BRT_COMMIT_BOTH: printf("COMMIT_BOTH"); goto ok;
+				 case BRT_COMMIT_BROADCAST_ALL: printf("COMMIT_BROADCAST_ALL"); goto ok;
 				 }
 				 printf("HUH?");
 			     ok:

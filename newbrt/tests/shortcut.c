@@ -34,11 +34,11 @@ test_main (int argc __attribute__((__unused__)), const char *argv[]  __attribute
 
     {
 	struct check_pair pair = {5, "0000", 5, "0000", 0};
-	r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_NEXT, null_txn);    assert(r==0); assert(pair.call_count==1);
+	r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_NEXT);    assert(r==0); assert(pair.call_count==1);
     }
     {
 	struct check_pair pair = {5, "0001", 5, "0001", 0};
-	r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_NEXT, null_txn);    assert(r==0); assert(pair.call_count==1);
+	r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_NEXT);    assert(r==0); assert(pair.call_count==1);
     }
 
     // This will invalidate due to the root counter bumping, but the OMT itself will still be valid.
@@ -49,7 +49,7 @@ test_main (int argc __attribute__((__unused__)), const char *argv[]  __attribute
 
     {
 	struct check_pair pair = {5, "0002", 5, "0002", 0};
-	r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_NEXT, null_txn);    assert(r==0); assert(pair.call_count==1);
+	r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_NEXT);    assert(r==0); assert(pair.call_count==1);
     }
 
     r = toku_brt_cursor_close(cursor);                                                           assert(r==0);

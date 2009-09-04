@@ -23,7 +23,7 @@ static void assert_cursor_notfound(BRT brt, int position) {
     assert(r==0);
 
     struct check_pair pair = {0,0,0,0,0};
-    r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, position, null_txn);
+    r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, position);
     assert(r == DB_NOTFOUND);
     assert(pair.call_count==0);
 
@@ -40,7 +40,7 @@ static void assert_cursor_value(BRT brt, int position, long long value) {
 
     if (test_cursor_debug && verbose) printf("key: ");
     struct check_pair pair = {len_ignore, 0, sizeof(value), &value, 0};
-    r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, position, null_txn);
+    r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, position);
     assert(r == 0);
     assert(pair.call_count==1);
 
@@ -58,7 +58,7 @@ static void assert_cursor_first_last(BRT brt, long long firstv, long long lastv)
     if (test_cursor_debug && verbose) printf("first key: ");
     {
 	struct check_pair pair = {len_ignore, 0, sizeof(firstv), &firstv, 0};
-	r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_FIRST, null_txn);
+	r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_FIRST);
 	assert(r == 0);
 	assert(pair.call_count==1);
     }
@@ -66,7 +66,7 @@ static void assert_cursor_first_last(BRT brt, long long firstv, long long lastv)
     if (test_cursor_debug && verbose) printf("last key:");
     {
 	struct check_pair pair = {len_ignore, 0, sizeof(lastv), &lastv, 0};
-	r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_LAST, null_txn);
+	r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_LAST);
 	assert(r == 0);
 	assert(pair.call_count==1);
     }
@@ -257,7 +257,7 @@ static void assert_cursor_walk(BRT brt, int n) {
     for (i=0; ; i++) {
         long long v = i;
 	struct check_pair pair = {len_ignore, 0, sizeof(v), &v, 0};	
-        r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_NEXT, null_txn);
+        r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_NEXT);
         if (r != 0) {
 	    assert(pair.call_count==0);
             break;
@@ -323,7 +323,7 @@ static void assert_cursor_rwalk(BRT brt, int n) {
     for (i=n-1; ; i--) {
         long long v = i;
 	struct check_pair pair = {len_ignore, 0, sizeof v, &v, 0};
-        r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_PREV, null_txn);
+        r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_PREV);
         if (r != 0) {
 	    assert(pair.call_count==0);
             break;
@@ -407,7 +407,7 @@ static void assert_cursor_walk_inorder(BRT brt, int n) {
 
     if (test_cursor_debug && verbose) printf("key: ");
     for (i=0; ; i++) {
-        r = toku_brt_cursor_get(cursor, NULL, NULL, ascending_key_string_checkf, &prevkey, DB_NEXT, null_txn);
+        r = toku_brt_cursor_get(cursor, NULL, NULL, ascending_key_string_checkf, &prevkey, DB_NEXT);
         if (r != 0) {
             break;
 	}
@@ -510,7 +510,7 @@ static void test_brt_cursor_split(int n, DB *db) {
     if (test_cursor_debug && verbose) printf("key: ");
     for (i=0; i<n/2; i++) {
 	struct check_pair pair = {len_ignore, 0, len_ignore, 0, 0};
-        r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_NEXT, null_txn);
+        r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_NEXT);
         assert(r==0);
 	assert(pair.call_count==1);
     }
@@ -532,7 +532,7 @@ static void test_brt_cursor_split(int n, DB *db) {
     // Just loop through the cursor
     for (;;) {
 	struct check_pair pair = {len_ignore, 0, len_ignore, 0, 0};
-        r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_NEXT, null_txn);
+        r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_NEXT);
         if (r != 0) {
 	    assert(pair.call_count==0);
             break;
@@ -642,7 +642,7 @@ static void test_multiple_brt_cursor_walk(int n, DB *db) {
         if ((i % cursor_gap) == 0) {
             c = i / cursor_gap;
 	    struct check_pair pair = {len_ignore, 0, len_ignore, 0, 0};
-            r = toku_brt_cursor_get(cursors[c], NULL, NULL, lookup_checkf, &pair, DB_LAST, null_txn);
+            r = toku_brt_cursor_get(cursors[c], NULL, NULL, lookup_checkf, &pair, DB_LAST);
             assert(r == 0);
 	    assert(pair.call_count==1);
         }
@@ -653,7 +653,7 @@ static void test_multiple_brt_cursor_walk(int n, DB *db) {
         for (c=0; c<ncursors; c++) {
 	    int vv = c*cursor_gap + i + 1;
 	    struct check_pair pair = {len_ignore, 0, sizeof vv, &vv, 0};
-            r = toku_brt_cursor_get(cursors[c], NULL, NULL, lookup_checkf, &pair, DB_NEXT, null_txn);
+            r = toku_brt_cursor_get(cursors[c], NULL, NULL, lookup_checkf, &pair, DB_NEXT);
             if (r == DB_NOTFOUND) {
                 /* we already consumed 1 previously */
 		assert(pair.call_count==0);
@@ -719,7 +719,7 @@ static void test_brt_cursor_set(int n, int cursor_op, DB *db) {
         toku_fill_dbt(&key, &k, sizeof k);
 	struct check_pair pair = {sizeof k, 0, sizeof vv, &v, 0};
 	if (cursor_op == DB_SET) pair.key = &k; // if it is a set operation, make sure that the result we get is the right one.
-        r = toku_brt_cursor_get(cursor, &key, NULL, lookup_checkf, &pair, cursor_op, null_txn);
+        r = toku_brt_cursor_get(cursor, &key, NULL, lookup_checkf, &pair, cursor_op);
         assert(r == 0);
 	assert(pair.call_count==1);
     }
@@ -732,7 +732,7 @@ static void test_brt_cursor_set(int n, int cursor_op, DB *db) {
         DBT key;
 	toku_fill_dbt(&key, &k, sizeof k);
 	struct check_pair pair = {0, 0, 0, 0, 0};
-        r = toku_brt_cursor_get(cursor, &key, NULL, lookup_checkf, &pair, DB_SET, null_txn);
+        r = toku_brt_cursor_get(cursor, &key, NULL, lookup_checkf, &pair, DB_SET);
         CKERR2(r,DB_NOTFOUND);
 	assert(pair.call_count==0);
         assert(key.data == &k); // make sure that no side effect happened on key
@@ -792,7 +792,7 @@ static void test_brt_cursor_set_range(int n, DB *db) {
 	toku_fill_dbt(&key, &k, sizeof k);
 	int vv = ((v+9)/10)*10;
 	struct check_pair pair = {sizeof k, 0, sizeof vv, &vv, 0};
-        r = toku_brt_cursor_get(cursor, &key, NULL, lookup_checkf, &pair, DB_SET_RANGE, null_txn);
+        r = toku_brt_cursor_get(cursor, &key, NULL, lookup_checkf, &pair, DB_SET_RANGE);
         if (v > max_key) {
             /* there is no smallest key if v > the max key */
             assert(r == DB_NOTFOUND);
@@ -849,7 +849,7 @@ static void test_brt_cursor_delete(int n, DB *db) {
     /* walk the tree and delete under the cursor */
     for (;;) {
 	struct check_pair pair = {len_ignore, 0, len_ignore, 0, 0};
-        error = toku_brt_cursor_get(cursor, &key, &val, lookup_checkf, &pair, DB_NEXT, null_txn);
+        error = toku_brt_cursor_get(cursor, &key, &val, lookup_checkf, &pair, DB_NEXT);
         if (error == DB_NOTFOUND) {
 	    assert(pair.call_count==0);
             break;
@@ -901,7 +901,7 @@ static void test_brt_cursor_get_both(int n, DB *db) {
 	toku_fill_dbt(&key, &k, sizeof k);
 	toku_fill_dbt(&val, &v, sizeof v);
 	struct check_pair pair = {0,0,0,0,0};
-	error = toku_brt_cursor_get(cursor, &key, &val, lookup_checkf, &pair, DB_GET_BOTH, null_txn);
+	error = toku_brt_cursor_get(cursor, &key, &val, lookup_checkf, &pair, DB_GET_BOTH);
 	assert(error == DB_NOTFOUND);
 	assert(pair.call_count==0);
     }
@@ -927,7 +927,7 @@ static void test_brt_cursor_get_both(int n, DB *db) {
 	toku_fill_dbt(&key, &k, sizeof k);
 	toku_fill_dbt(&val, &v, sizeof v);
 	struct check_pair pair = {0,0,0,0,0};
-	error = toku_brt_cursor_get(cursor, &key, &val, lookup_checkf, &pair, DB_GET_BOTH, null_txn);
+	error = toku_brt_cursor_get(cursor, &key, &val, lookup_checkf, &pair, DB_GET_BOTH);
 	assert(error == DB_NOTFOUND);
 	assert(pair.call_count==0);
     }
@@ -940,7 +940,7 @@ static void test_brt_cursor_get_both(int n, DB *db) {
         toku_fill_dbt(&key, &k, sizeof k);
         toku_fill_dbt(&val, &v, sizeof v);
 	struct check_pair pair = {0,0,0,0,0};
-        error = toku_brt_cursor_get(cursor, &key, &val, lookup_checkf, &pair, DB_GET_BOTH, null_txn);
+        error = toku_brt_cursor_get(cursor, &key, &val, lookup_checkf, &pair, DB_GET_BOTH);
         assert(error == DB_NOTFOUND);
 	assert(pair.call_count==0);
     }
@@ -954,7 +954,7 @@ static void test_brt_cursor_get_both(int n, DB *db) {
 	    toku_fill_dbt(&key, &k, sizeof k);
 	    toku_fill_dbt(&val, &v, sizeof v);
 	    struct check_pair pair = {len_ignore,0,len_ignore,0,0};
-	    error = toku_brt_cursor_get(cursor, &key, &val, lookup_checkf, &pair, DB_GET_BOTH, null_txn);
+	    error = toku_brt_cursor_get(cursor, &key, &val, lookup_checkf, &pair, DB_GET_BOTH);
 	    assert(error == 0);
 	    assert(pair.call_count==1);
 	}
@@ -962,7 +962,7 @@ static void test_brt_cursor_get_both(int n, DB *db) {
 	{
 	    int vv = i;
 	    struct check_pair pair = {len_ignore, 0, sizeof vv, &vv, 0};
-	    error = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_CURRENT, 0);
+	    error = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_CURRENT);
 	    assert(error == 0);
 	    assert(pair.call_count==1);
 	}
@@ -976,7 +976,7 @@ static void test_brt_cursor_get_both(int n, DB *db) {
         toku_fill_dbt(&key, &k, sizeof k);
 	toku_fill_dbt(&val, &v, sizeof v);
 	struct check_pair pair = {0,0,0,0,0};
-        error = toku_brt_cursor_get(cursor, &key, &val, lookup_checkf, &pair, DB_GET_BOTH, null_txn);
+        error = toku_brt_cursor_get(cursor, &key, &val, lookup_checkf, &pair, DB_GET_BOTH);
         assert(error == DB_NOTFOUND);
 	assert(pair.call_count==0);
     }

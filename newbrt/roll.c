@@ -77,7 +77,7 @@ static int do_insertion (enum brt_msg_type type, FILENUM filenum, BYTESTRING key
 
     assert(r==0);
     BRT brt = brtv;
-    r = toku_brt_root_put_cmd(brt, &brtcmd, txn->logger);
+    r = toku_brt_root_put_cmd(brt, &brtcmd);
     return r;
 }
 
