@@ -3965,7 +3965,7 @@ int ha_tokudb::info(uint flag) {
             if (error) { goto cleanup; }
 
             stats.data_file_length = dict_stats.bt_dsize;
-            stats.mean_rec_length = stats.data_file_length/stats.records;
+            stats.mean_rec_length = stats.records ? stats.data_file_length/stats.records : 0;
             stats.index_file_length = 0;
             for (uint i = 0; i < curr_num_DBs; i++) {
                 if (i == primary_key) {
