@@ -12695,3 +12695,14 @@ a	b
 1	NULL
 2	NULL
 DROP TABLE t1;
+SET @save_join_buffer_size= @@join_buffer_size;
+SET @@join_buffer_size= 8228;
+CREATE TABLE t1(a CHAR(255)) ENGINE=archive;
+INSERT INTO t1 VALUES('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'),
+('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'),
+('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+SELECT COUNT(t1.a) FROM t1, t1 a, t1 b, t1 c, t1 d, t1 e;
+COUNT(t1.a)
+729
+DROP TABLE t1;
+SET @@join_buffer_size= @save_join_buffer_size;
