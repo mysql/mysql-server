@@ -993,6 +993,7 @@ int ha_archive::rnd_init(bool scan)
   /* We rewind the file so that we can read from the beginning if scan */
   if (scan)
   {
+    scan_rows= stats.records;
     DBUG_PRINT("info", ("archive will retrieve %llu rows", 
                         (unsigned long long) scan_rows));
 
@@ -1461,7 +1462,6 @@ int ha_archive::info(uint flag)
   stats.records= share->rows_recorded;
   pthread_mutex_unlock(&share->mutex);
 
-  scan_rows= stats.records;
   stats.deleted= 0;
 
   DBUG_PRINT("ha_archive", ("Stats rows is %d\n", (int)stats.records));
