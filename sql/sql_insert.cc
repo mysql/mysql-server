@@ -3596,7 +3596,7 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   DBUG_EXECUTE_IF("sleep_create_select_before_check_if_exists", my_sleep(6000000););
 
   if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
-      create_table->table->db_stat)
+      (create_table->table && create_table->table->db_stat))
   {
     /* Table already exists and was open at open_and_lock_tables() stage. */
     if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
