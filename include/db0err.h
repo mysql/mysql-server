@@ -69,9 +69,6 @@ Created 5/24/1996 Heikki Tuuri
 					a feature that it can't recoginize or
 					work with e.g., FT indexes created by
 					a later version of the engine. */
-#define DB_RESERVED_NAME	49	/* Name used is conflicting with an
-					internal System Reserved Name. */
-
 /* The following are partial failure codes */
 #define DB_FAIL			1000
 #define DB_OVERFLOW		1001
