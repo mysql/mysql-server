@@ -7732,7 +7732,9 @@ void ha_ndbcluster::get_auto_increment(ulonglong offset, ulonglong increment,
     Ndb_tuple_id_range_guard g(m_share);
     if (m_skip_auto_increment &&
         ndb->readAutoIncrementValue(m_table, g.range, auto_value) ||
-        ndb->getAutoIncrementValue(m_table, g.range, auto_value, m_autoincrement_prefetch, increment, offset))
+        ndb->getAutoIncrementValue(m_table, g.range, auto_value, 
+                                   Uint32(m_autoincrement_prefetch), 
+                                   increment, offset))
     {
       if (--retries && !thd->killed &&
           ndb->getNdbError().status == NdbError::TemporaryError)
