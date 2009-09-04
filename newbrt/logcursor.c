@@ -81,7 +81,8 @@ static int lc_check_lsn(TOKULOGCURSOR lc, int dir) {
 
 // toku_logcursor_create()
 //   - returns a pointer to a logcursor
-int toku_logcursor_create(TOKULOGCURSOR *lc, const char *log_dir) {
+
+static int lc_create(TOKULOGCURSOR *lc, const char *log_dir) {
     int failresult=0;
     int r=0;
 
@@ -89,7 +90,7 @@ int toku_logcursor_create(TOKULOGCURSOR *lc, const char *log_dir) {
     TOKULOGCURSOR cursor = (TOKULOGCURSOR) toku_malloc(sizeof(struct toku_logcursor));
     if ( cursor == NULL ) {
         failresult = ENOMEM;
-        goto fail;
+        goto lc_create_fail;
     }
     // find logfiles in logdir
     cursor->is_open = FALSE;
@@ -100,52 +101,58 @@ int toku_logcursor_create(TOKULOGCURSOR *lc, const char *log_dir) {
         cursor->logdir = (char *) toku_malloc(strlen(log_dir)+1);
         if ( cursor->logdir == NULL ) {
             failresult = ENOMEM;
-            goto fail;
+            goto lc_create_fail;
         }
         sprintf(cursor->logdir, "%s", log_dir);
     } else {
         char *cwd = getcwd(NULL, 0);
         if ( cwd == NULL ) {
             failresult = -1;
-            goto fail;
+            goto lc_create_fail;
         }
         cursor->logdir = (char *) toku_malloc(strlen(cwd)+strlen(log_dir)+2);
         if ( cursor->logdir == NULL ) {
             toku_free(cwd);
             failresult = ENOMEM;
-            goto fail;
+            goto lc_create_fail;
         }
         sprintf(cursor->logdir, "%s/%s", cwd, log_dir);
         toku_free(cwd);
     }
     cursor->logfiles = NULL;
     cursor->n_logfiles = 0;
-    r = toku_logger_find_logfiles(cursor->logdir, &(cursor->logfiles), &(cursor->n_logfiles));
-    if (r!=0) {
-        failresult=r;
-        goto fail;
-    }
     cursor->cur_lsn.lsn=0;
     cursor->last_direction=LC_FIRST;
     *lc = cursor;
     return r;
- fail:
+
+ lc_create_fail:
     toku_logcursor_destroy(&cursor);
     *lc = NULL;
     return failresult;
 }
 
-int toku_logcursor_create_for_file(TOKULOGCURSOR *lc, const char *log_dir, const char *log_file) {
-    int r=0;
-    int failresult=0;
-
-    TOKULOGCURSOR cursor;
-    r = toku_logcursor_create(&cursor, log_dir);
-    if (r!=0)
+int toku_logcursor_create(TOKULOGCURSOR *lc, const char *log_dir) {
+    int r = lc_create(lc, log_dir);
+    if ( r!=0 ) 
         return r;
 
-    int idx;
-    int found_it=0;
+    TOKULOGCURSOR cursor = *lc;
+    r = toku_logger_find_logfiles(cursor->logdir, &(cursor->logfiles), &(cursor->n_logfiles));
+    if (r!=0) {
+        toku_logcursor_destroy(&cursor);
+        *lc = NULL;
+    }
+    return r;
+}
+
+int toku_logcursor_create_for_file(TOKULOGCURSOR *lc, const char *log_dir, const char *log_file) {
+    int failresult = 0;
+    int r = lc_create(lc, log_dir);
+    if ( r!=0 ) 
+        return r;
+
+    TOKULOGCURSOR cursor = *lc;
     int fullnamelen = strlen(cursor->logdir) + strlen(log_file) + 3;
     char *log_file_fullname = toku_malloc(fullnamelen);
     if ( log_file_fullname == NULL ) {
@@ -153,22 +160,15 @@ int toku_logcursor_create_for_file(TOKULOGCURSOR *lc, const char *log_dir, const
         goto fail;
     }
     sprintf(log_file_fullname, "%s/%s", cursor->logdir, log_file);
-    for(idx=0;idx<cursor->n_logfiles;idx++) {
-        if ( strcmp(log_file_fullname, cursor->logfiles[idx]) == 0 ) {
-            found_it = 1;
-            break;
-        }
-    }
-    if (found_it==0) {
-        failresult = DB_NOTFOUND;
+
+    cursor->n_logfiles=1;
+
+    char **logfiles = toku_malloc(sizeof(char**));
+    if ( logfiles == NULL ) {
+        failresult = ENOMEM;
         goto fail;
     }
-    // replace old logfile structure with single file version
-    int lf;
-    for(lf=0;lf<cursor->n_logfiles;lf++) {
-        toku_free(cursor->logfiles[lf]);
-    }
-    cursor->n_logfiles=1;
+    cursor->logfiles = logfiles;
     cursor->logfiles[0] = log_file_fullname;
     *lc = cursor;
     return r;
