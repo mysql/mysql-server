@@ -16,6 +16,10 @@
 
 source include/master-slave.inc;
 source include/have_debug.inc;
+
+call mtr.add_suppression("Slave I/O: Get master clock failed with error: Lost connection to MySQL server at 'reading initial communication packet'");
+call mtr.add_suppression("Slave I/O: Master command COM_REGISTER_SLAVE failed: failed registering on master, reconnecting to try again");
+
 #Test case 1: Try to get the value of the UNIX_TIMESTAMP from master under network disconnection
 connection slave;
 let $debug_saved= `select @@global.debug`;
