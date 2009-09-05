@@ -13665,7 +13665,10 @@ static int remove_dup_with_compare(THD *thd, TABLE *table, Field **first_field,
     if (error)
     {
       if (error == HA_ERR_RECORD_DELETED)
-	continue;
+      {
+        error= file->rnd_next(record);
+        continue;
+      }
       if (error == HA_ERR_END_OF_FILE)
 	break;
       goto err;
