@@ -1874,10 +1874,20 @@ runTO(NDBT_Context* ctx, NDBT_Step* step)
     CHECK(res.waitClusterNoStart() == 0);
     CHECK(res.startAll() == 0);
     NDB_TICKS now = NdbTick_CurrentMillisecond();
+    /**
+     * running transaction while cluster is down...
+     * causes *lots* of printouts...redirect to /dev/null
+     * so that log files doe't get megabytes
+     */
+    NullOutputStream null;
+    OutputStream * save[1];
+    save[0] = g_err.m_out;
+    g_err.m_out = &null;
     do
     {
       hugoTrans.scanUpdateRecords(pNdb, 0);
     } while (NdbTick_CurrentMillisecond() < (now + 30000));
+    g_err.m_out = save[0];
     CHECK(res.waitClusterStarted() == 0);
     
     hugoTrans.clearTable(pNdb);
