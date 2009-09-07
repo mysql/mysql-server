@@ -705,6 +705,7 @@ int ha_partition::rename_partitions(const char *path)
       if (m_is_sub_partitioned)
       {
         List_iterator<partition_element> sub_it(part_elem->subpartitions);
+        j= 0;
         do
         {
           sub_elem= sub_it++;
