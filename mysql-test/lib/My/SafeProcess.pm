@@ -536,7 +536,37 @@ sub wait_any {
   return $proc;
 }
 
+
 #
+# Wait for all processes to exit
+#
+sub wait_all {
+  while(keys %running)
+  {
+    wait_any();
+  }
+}
+
+
+#
+# Check if any process has exited, but don't wait.
+#
+# Returns a reference to the SafeProcess that
+# exited or undefined
+#
+sub check_any {
+  for my $proc (values %running){
+    if ( $proc->is_child($$) ) {
+      if (not $proc->wait_one(0)) {
+	_verbose ("Found exited $proc");
+	return $proc;
+      }
+    }
+  }
+  return undef;
+}
+
+
 # Overload string operator
 # and fallback to default functions if no
 # overloaded function is found

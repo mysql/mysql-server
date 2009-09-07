@@ -44,7 +44,7 @@ SET @@global.binlog_cache_size = 10000.01;
 ERROR 42000: Incorrect argument type to variable 'binlog_cache_size'
 SET @@global.binlog_cache_size = -1024;
 Warnings:
-Warning	1292	Truncated incorrect binlog_cache_size value: '0'
+Warning	1292	Truncated incorrect binlog_cache_size value: '-1024'
 SELECT @@global.binlog_cache_size;
 @@global.binlog_cache_size
 4096

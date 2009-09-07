@@ -35,9 +35,6 @@ int mi_close(register MI_INFO *info)
   if (info->lock_type == F_EXTRA_LCK)
     info->lock_type=F_UNLCK;			/* HA_EXTRA_NO_USER_CHANGE */
 
-  if (share->reopen == 1 && share->kfile >= 0)
-    _mi_decrement_open_count(info);
-
   if (info->lock_type != F_UNLCK)
   {
     if (mi_lock_database(info,F_UNLCK))
@@ -63,6 +60,8 @@ int mi_close(register MI_INFO *info)
   my_free(mi_get_rec_buff_ptr(info, info->rec_buff), MYF(MY_ALLOW_ZERO_PTR));
   if (flag)
   {
+    DBUG_EXECUTE_IF("crash_before_flush_keys",
+                    if (share->kfile >= 0) abort(););
     if (share->kfile >= 0 &&
 	flush_key_blocks(share->key_cache, share->kfile,
 			 share->temporary ? FLUSH_IGNORE_CHANGED :
@@ -79,6 +78,8 @@ int mi_close(register MI_INFO *info)
       */
       if (share->mode != O_RDONLY && mi_is_crashed(info))
 	mi_state_info_write(share->kfile, &share->state, 1);
+      /* Decrement open count must be last I/O on this file. */
+      _mi_decrement_open_count(info);
       if (my_close(share->kfile,MYF(0)))
         error = my_errno;
     }

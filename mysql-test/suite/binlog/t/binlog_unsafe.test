@@ -46,6 +46,7 @@
 # BUG#34732: mysqlbinlog does not print default values for auto_increment variables
 # BUG#34768: nondeterministic INSERT using LIMIT logged in stmt mode if binlog_format=mixed
 # BUG#41980, SBL, INSERT .. SELECT .. LIMIT = ERROR, even when @@SQL_LOG_BIN is 0
+# BUG#42640: mysqld crashes when unsafe statements are executed (STRICT_TRANS_TABLES mode)
 #
 # ==== Related test cases ====
 #
@@ -288,7 +289,7 @@ CREATE TABLE t1(i INT PRIMARY KEY);
 CREATE TABLE t2(i INT PRIMARY KEY);
 CREATE TABLE t3(i INT, ch CHAR(50));
 
---echo "Should issue message Statement is not safe to log in statement format."
+--echo "Should issue message Statement may not be safe to log in statement format."
 INSERT INTO t1 SELECT * FROM t2 LIMIT 1;
 
 DELIMITER |;
@@ -301,7 +302,7 @@ BEGIN
   RETURN 0;
 END|
 DELIMITER ;|
---echo "Should issue message Statement is not safe to log in statement format only once"
+--echo "Should issue message Statement may not be safe to log in statement format only once"
 INSERT INTO t3 VALUES(func6(), UUID());
 
 --echo "Check whether SET @@SQL_LOG_BIN = 0/1 doesn't work in substatements"
@@ -369,4 +370,22 @@ DROP FUNCTION func7;
 DROP TRIGGER  trig;
 DROP TABLE t1, t2, t3, trigger_table;
 set @@SESSION.SQL_LOG_BIN = @save_log_bin;
+
+#
+# For BUG#42640: mysqld crashes when unsafe statements are executed (STRICT_TRANS_TABLES mode)
+#
+SET @save_sql_mode = @@SESSION.SQL_MODE;
+SET @@SESSION.SQL_MODE = STRICT_ALL_TABLES;
+
+CREATE TABLE t1(i INT PRIMARY KEY);
+CREATE TABLE t2(i INT PRIMARY KEY);
+
+INSERT INTO t1 SELECT * FROM t2 LIMIT 1;
+INSERT INTO t1 VALUES(@@global.sync_binlog);
+
+UPDATE t1 SET i = 999 LIMIT 1;
+DELETE FROM t1 LIMIT 1;
+
+DROP TABLE t1, t2;
+SET @@SESSION.SQL_MODE = @save_sql_mode;
 --echo "End of tests"

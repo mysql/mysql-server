@@ -33,7 +33,7 @@ our $print_testcases;
 our $skip_rpl;
 our $do_test;
 our $skip_test;
-our $opt_skip_combination;
+our $skip_combinations;
 our $binlog_format;
 our $enable_disabled;
 our $default_storage_engine;
@@ -127,11 +127,22 @@ sub collect_test_cases ($$) {
 	if ( $test->{name} =~ /.*\.$tname/ )
 	{
 	  $found= 1;
+	  last;
 	}
       }
       if ( not $found )
       {
-	mtr_error("Could not find '$tname' in '$suites' suite(s)");
+	mtr_error("Could not find '$tname' in '$suites' suite(s)") unless $sname;
+	# If suite was part of name, find it there
+	my ($this_case) = collect_one_suite($sname, [ $tname ]);
+	if ($this_case)
+        {
+	  push (@$cases, $this_case);
+	}
+	else
+	{
+	  mtr_error("Could not find '$tname' in '$sname' suite");
+        }
       }
     }
   }
@@ -383,7 +394,7 @@ sub collect_one_suite($)
   # Read combinations for this suite and build testcases x combinations
   # if any combinations exists
   # ----------------------------------------------------------------------
-  if ( ! $opt_skip_combination )
+  if ( ! $skip_combinations )
   {
     my @combinations;
     my $combination_file= "$suitedir/combinations";
@@ -472,6 +483,67 @@ sub collect_one_suite($)
       #print_testcases(@cases);
     }
   }
+
+  # ----------------------------------------------------------------------
+  # Testing InnoDB plugin.
+  # ----------------------------------------------------------------------
+  my $lib_innodb_plugin=
+    mtr_file_exists(::vs_config_dirs('storage/innodb_plugin', 'ha_innodb_plugin.dll'),
+                    "$::basedir/storage/innodb_plugin/.libs/ha_innodb_plugin.so",
+                    "$::basedir/lib/mysql/plugin/ha_innodb_plugin.so",
+                    "$::basedir/lib/mysql/plugin/ha_innodb_plugin.dll");
+  if ($::mysql_version_id >= 50100 && !(IS_WINDOWS && $::opt_embedded_server) &&
+      $lib_innodb_plugin)
+  {
+    my @new_cases;
+
+    foreach my $test (@cases)
+    {
+      next if ($test->{'skip'} || !$test->{'innodb_test'});
+      # Exceptions
+      next if ($test->{'name'} eq 'main.innodb'); # Failed with wrong errno (fk)
+      next if ($test->{'name'} eq 'main.index_merge_innodb'); # Explain diff
+      # innodb_file_per_table is rw with innodb_plugin
+      next if ($test->{'name'} eq 'sys_vars.innodb_file_per_table_basic');
+      # innodb_lock_wait_timeout is rw with innodb_plugin
+      next if ($test->{'name'} eq 'sys_vars.innodb_lock_wait_timeout_basic');
+      # Diff around innodb_thread_concurrency variable
+      next if ($test->{'name'} eq 'sys_vars.innodb_thread_concurrency_basic');
+      # Copy test options
+      my $new_test= My::Test->new();
+      while (my ($key, $value) = each(%$test))
+      {
+        if (ref $value eq "ARRAY")
+        {
+          push(@{$new_test->{$key}}, @$value);
+        }
+        else
+        {
+          $new_test->{$key}= $value;
+        }
+      }
+      my $plugin_filename= basename($lib_innodb_plugin);
+      push(@{$new_test->{master_opt}}, '--ignore-builtin-innodb');
+      push(@{$new_test->{master_opt}}, '--plugin-dir=' . dirname($lib_innodb_plugin));
+      push(@{$new_test->{master_opt}}, "--plugin_load=innodb=$plugin_filename;innodb_locks=$plugin_filename");
+      push(@{$new_test->{slave_opt}}, '--ignore-builtin-innodb');
+      push(@{$new_test->{slave_opt}}, '--plugin-dir=' . dirname($lib_innodb_plugin));
+      push(@{$new_test->{slave_opt}}, "--plugin_load=innodb=$plugin_filename;innodb_locks=$plugin_filename");
+      if ($new_test->{combination})
+      {
+        $new_test->{combination}.= ' + InnoDB plugin';
+      }
+      else
+      {
+        $new_test->{combination}= 'InnoDB plugin';
+      }
+      push(@new_cases, $new_test);
+    }
+    push(@cases, @new_cases);
+  }
+  # ----------------------------------------------------------------------
+  # End of testing InnoDB plugin.
+  # ----------------------------------------------------------------------
   optimize_cases(\@cases);
   #print_testcases(@cases);
 
@@ -919,7 +991,8 @@ sub collect_one_test_case {
   if ( $tinfo->{'innodb_test'} )
   {
     # This is a test that need innodb
-    if ( $::mysqld_variables{'innodb'} ne "TRUE" )
+    if ( $::mysqld_variables{'innodb'} eq "OFF" ||
+         ! exists $::mysqld_variables{'innodb'} )
     {
       # innodb is not supported, skip it
       $tinfo->{'skip'}= 1;

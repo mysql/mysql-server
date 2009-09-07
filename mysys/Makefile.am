@@ -68,7 +68,7 @@ EXTRA_DIST =		CMakeLists.txt mf_soundex.c \
 # test_charset_DEPENDENCIES=	$(LIBRARIES)
 # charset2html_DEPENDENCIES=	$(LIBRARIES)
 DEFS =			-DDEFAULT_BASEDIR=\"$(prefix)\" \
-			-DDATADIR="\"$(MYSQLDATAdir)\"" \
+			-DMYSQL_DATADIR="\"$(MYSQLDATAdir)\"" \
 			-DDEFAULT_CHARSET_HOME="\"$(MYSQLBASEdir)\"" \
 			-DSHAREDIR="\"$(MYSQLSHAREdir)\"" \
 			-DDEFAULT_HOME_ENV=MYSQL_HOME \

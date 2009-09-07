@@ -1122,6 +1122,65 @@ SELECT a, b, c FROM t1 WHERE b = 1 ORDER BY a DESC LIMIT 5;
 
 DROP TABLE t1;
 
+# 
+# Bug#37284 Crash in Field_string::type() 
+# 
+--disable_warnings 
+DROP TABLE IF EXISTS t1; 
+--enable_warnings 
+CREATE TABLE t1 (a char(50)) ENGINE=InnoDB; 
+CREATE INDEX i1 on t1 (a(3)); 
+SELECT * FROM t1 WHERE a = 'abcde'; 
+DROP TABLE t1;
+
+
+--echo #
+--echo # BUG #26288: savepoint are not deleted on comit, if the transaction 
+--echo # was otherwise empty
+--echo #
+BEGIN;
+SAVEPOINT s1;
+COMMIT;
+--error 1305
+RELEASE SAVEPOINT s1;
+
+BEGIN;
+SAVEPOINT s2;
+COMMIT;
+--error 1305
+ROLLBACK TO SAVEPOINT s2;
+
+BEGIN;
+SAVEPOINT s3;
+ROLLBACK;
+--error 1305
+RELEASE SAVEPOINT s3;
+
+BEGIN;
+SAVEPOINT s4;
+ROLLBACK;
+--error 1305
+ROLLBACK TO SAVEPOINT s4;
+
+#
+# Bug#39793 Foreign keys not constructed when column has a '#' in a comment or default value
+#
+
+#This statement should be written on a single line for proper testing
+CREATE TABLE t1 (f1 INTEGER PRIMARY KEY COMMENT 'My ID#', f2 INTEGER DEFAULT NULL, f3 CHAR(10) DEFAULT 'My ID#', CONSTRAINT f2_ref FOREIGN KEY (f2) REFERENCES t1 (f1)) ENGINE=INNODB;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #36995: valgrind error in remove_const during subquery executions
+--echo #
+
+create table t1 (a bit(1) not null,b int) engine=myisam;
+create table t2 (c int) engine=innodb;
+explain
+select b from t1 where a not in (select b from t1,t2 group by a) group by a;
+DROP TABLE t1,t2;
+
 --echo End of 5.0 tests
 
 # Fix for BUG#19243 "wrong LAST_INSERT_ID() after ON DUPLICATE KEY
@@ -1368,6 +1427,7 @@ SELECT * FROM t1;
 
 --echo # Switch to connection con2
 connection con2;
+--reap
 SELECT * FROM t1;
 
 connection default;
@@ -1438,41 +1498,55 @@ INSERT INTO t1 VALUES
   (4,1,3,'pk',NULL),(5,1,3,'c2',NULL),
   (2,1,4,'c_extra',NULL),(3,1,4,'c_extra',NULL);
 
-EXPLAIN SELECT * FROM t1 WHERE tid = 1 AND vid = 3 ORDER BY idx DESC;
+EXPLAIN SELECT * FROM t1 FORCE INDEX (PRIMARY) WHERE tid = 1 AND vid = 3 ORDER BY idx DESC;
 
-SELECT * FROM t1 WHERE tid = 1 AND vid = 3 ORDER BY idx DESC;
+SELECT * FROM t1 FORCE INDEX (PRIMARY) WHERE tid = 1 AND vid = 3 ORDER BY idx DESC;
 
 DROP TABLE t1;
 
-#
-# Bug#21704: Renaming column does not update FK definition.
-#
+--echo #
+--echo # Bug #44290: explain crashes for subquery with distinct in
+--echo #             SQL_SELECT::test_quick_select
+--echo #             (reproduced only with InnoDB tables)
+--echo #
+eval
+CREATE TABLE t1 (c1 INT, c2 INT, c3 INT, KEY (c3), KEY (c2, c3))
+  ENGINE=$engine_type;
+INSERT INTO t1 VALUES (1,1,1), (1,1,1), (1,1,2), (1,1,1), (1,1,2);
 
-#
-# --disable_warnings
-# DROP TABLE IF EXISTS t1;
-# DROP TABLE IF EXISTS t2;
-# --enable_warnings
-#
-# CREATE TABLE t1(id INT PRIMARY KEY)
-#   ENGINE=innodb;
-#
-# CREATE TABLE t2(
-#   t1_id INT PRIMARY KEY,
-#   CONSTRAINT fk1 FOREIGN KEY (t1_id) REFERENCES t1(id))
-#   ENGINE=innodb;
-#
-# --echo
-#
-# --disable_result_log
-# --error ER_ERROR_ON_RENAME
-# ALTER TABLE t1 CHANGE id id2 INT;
-# --enable_result_log
-#
-# --echo
-#
-# DROP TABLE t2;
-# DROP TABLE t1;
-#
+SELECT 1 FROM (SELECT COUNT(DISTINCT c1) 
+                 FROM t1 WHERE c2 IN (1, 1) AND c3 = 2 GROUP BY c2) x;
+EXPLAIN 
+SELECT 1 FROM (SELECT COUNT(DISTINCT c1) 
+                 FROM t1 WHERE c2 IN (1, 1) AND c3 = 2 GROUP BY c2) x;
+
+DROP TABLE t1;
+
+eval
+CREATE TABLE t1 (c1 REAL, c2 REAL, c3 REAL, KEY (c3), KEY (c2, c3))
+  ENGINE=$engine_type;
+INSERT INTO t1 VALUES (1,1,1), (1,1,1), (1,1,2), (1,1,1), (1,1,2);
+
+SELECT 1 FROM (SELECT COUNT(DISTINCT c1) 
+                 FROM t1 WHERE c2 IN (1, 1) AND c3 = 2 GROUP BY c2) x;
+EXPLAIN 
+SELECT 1 FROM (SELECT COUNT(DISTINCT c1) 
+                 FROM t1 WHERE c2 IN (1, 1) AND c3 = 2 GROUP BY c2) x;
+
+DROP TABLE t1;
+
+eval
+CREATE TABLE t1 (c1 DECIMAL(12,2), c2 DECIMAL(12,2), c3 DECIMAL(12,2), 
+  KEY (c3), KEY (c2, c3))
+  ENGINE=innodb;
+INSERT INTO t1 VALUES (1,1,1), (1,1,1), (1,1,2), (1,1,1), (1,1,2);
+
+SELECT 1 FROM (SELECT COUNT(DISTINCT c1) 
+                 FROM t1 WHERE c2 IN (1, 1) AND c3 = 2 GROUP BY c2) x;
+EXPLAIN 
+SELECT 1 FROM (SELECT COUNT(DISTINCT c1) 
+                 FROM t1 WHERE c2 IN (1, 1) AND c3 = 2 GROUP BY c2) x;
+
+DROP TABLE t1;
 
 --echo End of 5.1 tests

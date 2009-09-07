@@ -46,6 +46,29 @@ DROP TABLE IF EXISTS t1;
 SET timestamp=1000000000;
 
 --echo #
+--echo # We need big packets.
+--echo #
+--echo # Capture initial value to reset at the end of the test
+# use let $<var> = query_get_value as FLUSH statements
+# in the test will set @<var> values to NULL
+let $orig_max_allowed_packet = 
+query_get_value(SELECT @@global.max_allowed_packet, @@global.max_allowed_packet, 1);
+
+--echo # Now adjust max_allowed_packet
+SET @@global.max_allowed_packet= 1024*1024*1024;
+
+--echo max_allowed_packet is a global variable.
+--echo In order for the preceding change in max_allowed_packets' value
+--echo to be seen and used, we must start a new connection.
+--echo The change does not take effect with the current one.
+--echo For simplicity, we just disconnect / reconnect connection default here.
+--echo Disconnecting default connection...
+disconnect default;
+--echo Reconnecting default connection...
+connect (default, localhost,root,,);
+--echo default connection established, continuing with the test
+
+--echo #
 --echo # Delete all existing binary logs.
 --echo #
 RESET MASTER;
@@ -58,34 +81,35 @@ eval CREATE TABLE t1 (
   ) ENGINE=$engine_type DEFAULT CHARSET latin1;
 
 --echo #
---echo # Show how much rows are affected by each statement.
+--echo # Show how many rows are affected by each statement.
 --echo #
 --enable_info
 
 --echo #
---echo # Insert a big row.
+--echo # Insert some big rows.
 --echo #
-#
-# 256MB
-#INSERT INTO t1 VALUES (REPEAT('ManyMegaByteBlck', 16777216));
-#
-# 32MB
+
+--echo 256MB
+INSERT INTO t1 VALUES (REPEAT('ManyMegaByteBlck', 16777216));
+
+--echo 32MB
 INSERT INTO t1 VALUES (REPEAT('ManyMegaByteBlck', 2097152));
-#
-# 4MB
-#INSERT INTO t1 VALUES (REPEAT('ManyMegaByteBlck', 262144));
-#
-# 512KB
-#INSERT INTO t1 VALUES (REPEAT('ManyMegaByteBlck', 32768));
+
+--echo 4MB
+INSERT INTO t1 VALUES (REPEAT('ManyMegaByteBlck', 262144));
+
+--echo 512KB
+INSERT INTO t1 VALUES (REPEAT('ManyMegaByteBlck', 32768));
 
 --echo #
 --echo # Show what we have in the table.
 --echo # Do not display the column value itself, just its length.
 --echo #
+--sorted_result
 query_vertical SELECT LENGTH(c1) FROM t1;
 
 --echo #
---echo # Grow the row by updating.
+--echo # Grow the rows by updating.
 --echo #
 UPDATE t1 SET c1 = CONCAT(c1, c1);
 
@@ -93,15 +117,16 @@ UPDATE t1 SET c1 = CONCAT(c1, c1);
 --echo # Show what we have in the table.
 --echo # Do not display the column value itself, just its length.
 --echo #
+--sorted_result
 query_vertical SELECT LENGTH(c1) FROM t1;
 
 --echo #
---echo # Delete the row.
+--echo # Delete the rows.
 --echo #
 DELETE FROM t1 WHERE c1 >= 'ManyMegaByteBlck';
 
 --echo #
---echo # Hide how much rows are affected by each statement.
+--echo # Hide how many rows are affected by each statement.
 --echo #
 --disable_info
 
@@ -118,13 +143,15 @@ FLUSH LOGS;
 --echo #       at the bottom of the test script.
 --echo #
 let $MYSQLD_DATADIR= `select @@datadir`;
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
 --replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/ /exec_time=[0-9]*/exec_time=#/ /end_log_pos [0-9]*/end_log_pos #/ /# at [0-9]*/# at #/ /Xid = [0-9]*/Xid = #/
 --exec $MYSQL_BINLOG -v -v $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/$mysqlbinlog_output
 
 --echo #
 --echo # Cleanup.
 --echo #
+--echo # reset variable value to pass testcase checks
+eval SET @@global.max_allowed_packet = $orig_max_allowed_packet;
 DROP TABLE t1;
 
 connection con1;

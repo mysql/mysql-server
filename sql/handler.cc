@@ -62,7 +62,9 @@ static const LEX_STRING sys_table_aliases[]=
 };
 
 const char *ha_row_type[] = {
-  "", "FIXED", "DYNAMIC", "COMPRESSED", "REDUNDANT", "COMPACT", "PAGE", "?","?","?"
+  "", "FIXED", "DYNAMIC", "COMPRESSED", "REDUNDANT", "COMPACT",
+  /* Reserved to be "PAGE" in future versions */ "?",
+  "?","?","?"
 };
 
 const char *tx_isolation_names[] =
@@ -342,6 +344,7 @@ int ha_init_errors(void)
   SETMSG(HA_ERR_TABLE_READONLY,         ER(ER_OPEN_AS_READONLY));
   SETMSG(HA_ERR_AUTOINC_READ_FAILED,    ER(ER_AUTOINC_READ_FAILED));
   SETMSG(HA_ERR_AUTOINC_ERANGE,         ER(ER_WARN_DATA_OUT_OF_RANGE));
+  SETMSG(HA_ERR_TOO_MANY_CONCURRENT_TRXS, ER(ER_TOO_MANY_CONCURRENT_TRXS));
 
   /* Register the error messages for use with my_error(). */
   return my_error_register(errmsgs, HA_ERR_FIRST, HA_ERR_LAST);
@@ -1078,6 +1081,13 @@ int ha_commit_trans(THD *thd, bool all)
     user, or an implicit commit issued by a DDL.
   */
   THD_TRANS *trans= all ? &thd->transaction.all : &thd->transaction.stmt;
+  /*
+    "real" is a nick name for a transaction for which a commit will
+    make persistent changes. E.g. a 'stmt' transaction inside a 'all'
+    transation is not 'real': even though it's possible to commit it,
+    the changes are not durable as they might be rolled back if the
+    enclosing 'all' transaction is rolled back.
+  */
   bool is_real_trans= all || thd->transaction.all.ha_list == 0;
   Ha_trx_info *ha_info= trans->ha_list;
   my_xid xid= thd->transaction.xid_state.xid.get_my_xid();
@@ -1189,6 +1199,9 @@ end:
     if (rw_trans)
       start_waiting_global_read_lock(thd);
   }
+  /* Free resources and perform other cleanup even for 'empty' transactions. */
+  else if (is_real_trans)
+    thd->transaction.cleanup();
 #endif /* USING_TRANSACTIONS */
   DBUG_RETURN(error);
 }
@@ -1201,6 +1214,13 @@ int ha_commit_one_phase(THD *thd, bool all)
 {
   int error=0;
   THD_TRANS *trans=all ? &thd->transaction.all : &thd->transaction.stmt;
+  /*
+    "real" is a nick name for a transaction for which a commit will
+    make persistent changes. E.g. a 'stmt' transaction inside a 'all'
+    transation is not 'real': even though it's possible to commit it,
+    the changes are not durable as they might be rolled back if the
+    enclosing 'all' transaction is rolled back.
+  */
   bool is_real_trans=all || thd->transaction.all.ha_list == 0;
   Ha_trx_info *ha_info= trans->ha_list, *ha_info_next;
   DBUG_ENTER("ha_commit_one_phase");
@@ -1222,8 +1242,6 @@ int ha_commit_one_phase(THD *thd, bool all)
     }
     trans->ha_list= 0;
     trans->no_2pc=0;
-    if (is_real_trans)
-      thd->transaction.xid_state.xid.null();
     if (all)
     {
 #ifdef HAVE_QUERY_CACHE
@@ -1231,9 +1249,11 @@ int ha_commit_one_phase(THD *thd, bool all)
         query_cache.invalidate(thd->transaction.changed_tables);
 #endif
       thd->variables.tx_isolation=thd->session_tx_isolation;
-      thd->transaction.cleanup();
     }
   }
+  /* Free resources and perform other cleanup even for 'empty' transactions. */
+  if (is_real_trans)
+    thd->transaction.cleanup();
 #endif /* USING_TRANSACTIONS */
   DBUG_RETURN(error);
 }
@@ -1244,6 +1264,13 @@ int ha_rollback_trans(THD *thd, bool all)
   int error=0;
   THD_TRANS *trans=all ? &thd->transaction.all : &thd->transaction.stmt;
   Ha_trx_info *ha_info= trans->ha_list, *ha_info_next;
+  /*
+    "real" is a nick name for a transaction for which a commit will
+    make persistent changes. E.g. a 'stmt' transaction inside a 'all'
+    transation is not 'real': even though it's possible to commit it,
+    the changes are not durable as they might be rolled back if the
+    enclosing 'all' transaction is rolled back.
+  */
   bool is_real_trans=all || thd->transaction.all.ha_list == 0;
   DBUG_ENTER("ha_rollback_trans");
 
@@ -1289,19 +1316,14 @@ int ha_rollback_trans(THD *thd, bool all)
     }
     trans->ha_list= 0;
     trans->no_2pc=0;
-    if (is_real_trans)
-    {
-      if (thd->transaction_rollback_request)
-        thd->transaction.xid_state.rm_error= thd->main_da.sql_errno();
-      else
-        thd->transaction.xid_state.xid.null();
-    }
+    if (is_real_trans && thd->transaction_rollback_request)
+      thd->transaction.xid_state.rm_error= thd->main_da.sql_errno();
     if (all)
-    {
       thd->variables.tx_isolation=thd->session_tx_isolation;
-      thd->transaction.cleanup();
-    }
   }
+  /* Always cleanup. Even if there nht==0. There may be savepoints. */
+  if (is_real_trans)
+    thd->transaction.cleanup();
 #endif /* USING_TRANSACTIONS */
   if (all)
     thd->transaction_rollback_request= FALSE;
@@ -2736,6 +2758,9 @@ void handler::print_error(int error, myf errflag)
   case HA_ERR_AUTOINC_ERANGE:
     textno= ER_WARN_DATA_OUT_OF_RANGE;
     break;
+  case HA_ERR_TOO_MANY_CONCURRENT_TRXS:
+    textno= ER_TOO_MANY_CONCURRENT_TRXS;
+    break;
   default:
     {
       /* The error was "unknown" to this function.
@@ -2962,6 +2987,7 @@ uint handler::get_dup_key(int error)
 */
 int handler::delete_table(const char *name)
 {
+  int saved_error= 0;
   int error= 0;
   int enoent_or_zero= ENOENT;                   // Error if no file was deleted
   char buff[FN_REFLEN];
@@ -2971,21 +2997,31 @@ int handler::delete_table(const char *name)
     fn_format(buff, name, "", *ext, MY_UNPACK_FILENAME|MY_APPEND_EXT);
     if (my_delete_with_symlink(buff, MYF(0)))
     {
-      if ((error= my_errno) != ENOENT)
-	break;
+      if (my_errno != ENOENT)
+      {
+        /*
+          If error on the first existing file, return the error.
+          Otherwise delete as much as possible.
+        */
+        if (enoent_or_zero)
+          return my_errno;
+	saved_error= my_errno;
+      }
     }
     else
       enoent_or_zero= 0;                        // No error for ENOENT
     error= enoent_or_zero;
   }
-  return error;
+  return saved_error ? saved_error : error;
 }
 
 
 int handler::rename_table(const char * from, const char * to)
 {
   int error= 0;
-  for (const char **ext= bas_ext(); *ext ; ext++)
+  const char **ext, **start_ext;
+  start_ext= bas_ext();
+  for (ext= start_ext; *ext ; ext++)
   {
     if (rename_file_ext(from, to, *ext))
     {
@@ -2993,6 +3029,12 @@ int handler::rename_table(const char * from, const char * to)
 	break;
       error= 0;
     }
+  }
+  if (error)
+  {
+    /* Try to revert the rename. Ignore errors. */
+    for (; ext >= start_ext; ext--)
+      rename_file_ext(to, from, *ext);
   }
   return error;
 }
@@ -3572,7 +3614,7 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
   int error;
   uchar *frmblob;
   size_t frmlen;
-  char path[FN_REFLEN];
+  char path[FN_REFLEN + 1];
   HA_CREATE_INFO create_info;
   TABLE table;
   TABLE_SHARE share;
@@ -3591,7 +3633,7 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
     frmblob and frmlen are set, write the frm to disk
   */
 
-  build_table_filename(path, FN_REFLEN-1, db, name, "", 0);
+  build_table_filename(path, sizeof(path) - 1, db, name, "", 0);
   // Save the frm file
   error= writefrm(path, frmblob, frmlen);
   my_free(frmblob, MYF(0));
@@ -4767,7 +4809,7 @@ fl_log_iterator_buffer_init(struct handler_iterator *iterator)
   if ((ptr= (uchar*)my_malloc(ALIGN_SIZE(sizeof(fl_buff)) +
                              ((ALIGN_SIZE(sizeof(LEX_STRING)) +
                                sizeof(enum log_status) +
-                               + FN_REFLEN) *
+                               + FN_REFLEN + 1) *
                               (uint) dirp->number_off_files),
                              MYF(0))) == 0)
   {
@@ -4795,7 +4837,7 @@ fl_log_iterator_buffer_init(struct handler_iterator *iterator)
     name_ptr= strxnmov(buff->names[buff->entries].str= name_ptr,
                        FN_REFLEN, fl_dir, file->name, NullS);
     buff->names[buff->entries].length= (name_ptr -
-                                        buff->names[buff->entries].str) - 1;
+                                        buff->names[buff->entries].str);
     buff->statuses[buff->entries]= st;
     buff->entries++;
   }

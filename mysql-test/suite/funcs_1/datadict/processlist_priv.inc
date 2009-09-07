@@ -215,7 +215,7 @@ GRANT PROCESS ON *.* TO ''@'localhost';
 --echo     anonymous user with PROCESS privilege
 --echo     SHOW/SELECT shows all processes/threads.
 --echo ####################################################################################
-connect (anonymous1,localhost,'',,information_schema);
+connect (anonymous1,localhost,"''",,information_schema);
 SHOW GRANTS;
 --replace_column 1 ID 3 HOST_NAME 6 TIME
 SHOW processlist;
@@ -256,7 +256,7 @@ REVOKE PROCESS ON *.* FROM ''@'localhost';
 
 --echo ####################################################################################
 --echo 7.1 New connection (anonymous2,localhost,'',,information_schema)
-connect (anonymous2,localhost,'',,information_schema);
+connect (anonymous2,localhost,"''",,information_schema);
 --echo     The anonymous user has no more the PROCESS privilege
 --echo     Again only the processes of the anonymous user are visible.
 --echo ####################################################################################

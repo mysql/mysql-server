@@ -1,4 +1,3 @@
-SET @old_general_log= @@global.general_log;
 drop table if exists t1, t2;
 CREATE TABLE t1 (a INT, FOREIGN KEY (a) REFERENCES t0 (a))
 ENGINE=MyISAM
@@ -1068,7 +1067,13 @@ partition by range (a)
 subpartition by hash(a)
 (partition p0 values less than (0),
 partition p1 values less than (1) (subpartition sp0));
-ERROR 42000: Wrong number of subpartitions defined, mismatch with previous setting near '))' at line 5
+ERROR 42000: Wrong number of subpartitions defined, mismatch with previous setting near 'subpartition sp0))' at line 5
+create table t1 (a int, b int)
+partition by list (a)
+subpartition by hash(a)
+(partition p0 values in (0),
+partition p1 values in (1) (subpartition sp0));
+ERROR 42000: Wrong number of subpartitions defined, mismatch with previous setting near 'subpartition sp0))' at line 5
 create table t1 (a int)
 partition by hash (a)
 (partition p0 (subpartition sp0));
@@ -1621,17 +1626,6 @@ create table t (s1 int) engine=myisam partition by key (s1);
 create trigger t_ad after delete on t for each row insert into t values (old.s1);
 insert into t values (1);
 drop table t;
-USE mysql;
-TRUNCATE TABLE general_log;
-SET @old_general_log_state = @@global.general_log;
-SET GLOBAL general_log = 0;
-ALTER TABLE general_log ENGINE = MyISAM;
-ALTER TABLE general_log PARTITION BY RANGE (TO_DAYS(event_time))
-(PARTITION p0 VALUES LESS THAN (733144), PARTITION p1 VALUES LESS THAN (3000000));
-ERROR HY000: Incorrect usage of PARTITION and log table
-ALTER TABLE general_log ENGINE = CSV;
-SET GLOBAL general_log = @old_general_log_state;
-use test;
 create table t2 (b int);
 create table t1 (b int)
 PARTITION BY RANGE (t2.b) (
@@ -1911,5 +1905,103 @@ select count(*) from t1;
 count(*)
 288
 drop table t1;
+#
+# Bug#42944: partition not pruned correctly
+#
+CREATE TABLE t1 (a int) PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100),
+PARTITION p1 VALUES LESS THAN (200),
+PARTITION p2 VALUES LESS THAN (300),
+PARTITION p3 VALUES LESS THAN MAXVALUE);
+INSERT INTO t1 VALUES (10), (100), (200), (300), (400);
+EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a>=200;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p2,p3	ALL	NULL	NULL	NULL	NULL	3	Using where
+DROP TABLE t1;
+CREATE TABLE t1 ( a INT, b INT, c INT, KEY bc(b, c) )
+PARTITION BY KEY (a, b) PARTITIONS 3
+;
+INSERT INTO t1 VALUES
+(17, 1, -8),
+(3,  1, -7),
+(23, 1, -6),
+(22, 1, -5),
+(11, 1, -4),
+(21, 1, -3),
+(19, 1, -2),
+(30, 1, -1),
+(20, 1, 1),
+(16, 1, 2),
+(18, 1, 3),
+(9,  1, 4),
+(15, 1, 5),
+(28, 1, 6),
+(29, 1, 7),
+(25, 1, 8),
+(10, 1, 9),
+(13, 1, 10),
+(27, 1, 11),
+(24, 1, 12),
+(12, 1, 13),
+(26, 1, 14),
+(14, 1, 15)
+;
+SELECT b, c FROM t1 WHERE b = 1 GROUP BY b, c;
+b	c
+1	-8
+1	-7
+1	-6
+1	-5
+1	-4
+1	-3
+1	-2
+1	-1
+1	1
+1	2
+1	3
+1	4
+1	5
+1	6
+1	7
+1	8
+1	9
+1	10
+1	11
+1	12
+1	13
+1	14
+1	15
+EXPLAIN
+SELECT b, c FROM t1 WHERE b = 1 GROUP BY b, c;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	bc	bc	10	NULL	7	Using where; Using index for group-by
+DROP TABLE t1;
+#
+# Bug #45807: crash accessing partitioned table and sql_mode 
+#   contains ONLY_FULL_GROUP_BY
+#
+SET SESSION SQL_MODE='ONLY_FULL_GROUP_BY';
+CREATE TABLE t1(id INT,KEY(id)) ENGINE=MYISAM 
+PARTITION BY HASH(id) PARTITIONS 2;
+DROP TABLE t1;
+SET SESSION SQL_MODE=DEFAULT;
+#
+# BUG#45816 - assertion failure with index containing double 
+#             column on partitioned table
+#
+CREATE TABLE t1 (
+a INT DEFAULT NULL,
+b DOUBLE DEFAULT NULL,
+c INT DEFAULT NULL,
+KEY idx2(b,a)
+) PARTITION BY HASH(c) PARTITIONS 3;
+INSERT INTO t1 VALUES (6,8,9);
+INSERT INTO t1 VALUES (6,8,10);
+SELECT  1 FROM t1 JOIN t1 AS t2 USING (a) FOR UPDATE;
+1
+1
+1
+1
+1
+DROP TABLE t1;
 End of 5.1 tests
-SET @@global.general_log= @old_general_log;

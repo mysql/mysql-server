@@ -1150,7 +1150,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   {
     const LEX_STRING *const db=
       table_list->schema_table ? &INFORMATION_SCHEMA_NAME : &table->s->db;
-    if (strcmp(db->str, thd->db) != 0)
+    if (!thd->db || strcmp(db->str, thd->db))
     {
       append_identifier(thd, packet, db->str, db->length);
       packet->append(STRING_WITH_LEN("."));
@@ -1769,6 +1769,8 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
 
         thd_info->start_time= tmp->start_time;
         thd_info->query=0;
+        /* Lock THD mutex that protects its data when looking at it. */
+        pthread_mutex_lock(&tmp->LOCK_thd_data);
         if (tmp->query)
         {
 	  /*
@@ -1779,6 +1781,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
           uint length= min(max_query_length, tmp->query_length);
           thd_info->query=(char*) thd->strmake(tmp->query,length);
         }
+        pthread_mutex_unlock(&tmp->LOCK_thd_data);
         thread_infos.append(thd_info);
       }
     }
@@ -2818,8 +2821,8 @@ make_table_name_list(THD *thd, List<LEX_STRING> *table_names, LEX *lex,
                      LOOKUP_FIELD_VALUES *lookup_field_vals,
                      bool with_i_schema, LEX_STRING *db_name)
 {
-  char path[FN_REFLEN];
-  build_table_filename(path, sizeof(path), db_name->str, "", "", 0);
+  char path[FN_REFLEN + 1];
+  build_table_filename(path, sizeof(path) - 1, db_name->str, "", "", 0);
   if (!lookup_field_vals->wild_table_value &&
       lookup_field_vals->table_value.str)
   {
@@ -2981,8 +2984,8 @@ static int fill_schema_table_names(THD *thd, TABLE *table,
   else
   {
     enum legacy_db_type not_used;
-    char path[FN_REFLEN];
-    (void) build_table_filename(path, sizeof(path), db_name->str,
+    char path[FN_REFLEN + 1];
+    (void) build_table_filename(path, sizeof(path) - 1, db_name->str, 
                                 table_name->str, reg_ext, 0);
     switch (mysql_frm_type(thd, path, &not_used)) {
     case FRMTYPE_ERROR:
@@ -3469,7 +3472,7 @@ int fill_schema_schemata(THD *thd, TABLE_LIST *tables, COND *cond)
     MY_STAT stat_info;
     if (!lookup_field_vals.db_value.str[0])
       DBUG_RETURN(0);
-    path_len= build_table_filename(path, sizeof(path),
+    path_len= build_table_filename(path, sizeof(path) - 1,
                                    lookup_field_vals.db_value.str, "", "", 0);
     path[path_len-1]= 0;
     if (!my_stat(path,&stat_info,MYF(0)))
@@ -7063,6 +7066,12 @@ bool show_create_trigger(THD *thd, const sp_name *trg_name)
 
   if (!lst)
     return TRUE;
+
+  if (check_table_access(thd, TRIGGER_ACL, lst, 1, TRUE))
+  {
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "TRIGGER");
+    return TRUE;
+  }
 
   /*
     Open the table by name in order to load Table_triggers_list object.

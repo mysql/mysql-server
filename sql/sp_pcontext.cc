@@ -265,8 +265,8 @@ sp_pcontext::push_variable(LEX_STRING *name, enum enum_field_types type,
   p->mode= mode;
   p->offset= current_var_count();
   p->dflt= NULL;
-  insert_dynamic(&m_vars, (uchar*)&p);
-
+  if (insert_dynamic(&m_vars, (uchar*)&p))
+    return NULL;
   return p;
 }
 
@@ -310,18 +310,17 @@ sp_pcontext::find_label(char *name)
   return NULL;
 }
 
-void
+int
 sp_pcontext::push_cond(LEX_STRING *name, sp_cond_type_t *val)
 {
   sp_cond_t *p= (sp_cond_t *)sql_alloc(sizeof(sp_cond_t));
 
-  if (p)
-  {
-    p->name.str= name->str;
-    p->name.length= name->length;
-    p->val= val;
-    insert_dynamic(&m_conds, (uchar*)&p);
-  }
+  if (p == NULL)
+    return 1;
+  p->name.str= name->str;
+  p->name.length= name->length;
+  p->val= val;
+  return insert_dynamic(&m_conds, (uchar *)&p);
 }
 
 /*
@@ -384,7 +383,7 @@ sp_pcontext::find_handler(sp_cond_type_t *cond)
   return FALSE;
 }
 
-void
+int
 sp_pcontext::push_cursor(LEX_STRING *name)
 {
   LEX_STRING n;
@@ -393,7 +392,7 @@ sp_pcontext::push_cursor(LEX_STRING *name)
     m_max_cursor_index+= 1;
   n.str= name->str;
   n.length= name->length;
-  insert_dynamic(&m_cursors, (uchar*)&n);
+  return insert_dynamic(&m_cursors, (uchar *)&n);
 }
 
 /*

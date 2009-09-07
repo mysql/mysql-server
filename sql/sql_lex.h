@@ -1160,6 +1160,18 @@ public:
     m_echo= echo;
   }
 
+  void save_in_comment_state()
+  {
+    m_echo_saved= m_echo;
+    in_comment_saved= in_comment;
+  }
+
+  void restore_in_comment_state()
+  {
+    m_echo= m_echo_saved;
+    in_comment= in_comment_saved;
+  }
+
   /**
     Skip binary from the input stream.
     @param n number of bytes to accept.
@@ -1178,7 +1190,7 @@ public:
     Get a character, and advance in the stream.
     @return the next character to parse.
   */
-  char yyGet()
+  unsigned char yyGet()
   {
     char c= *m_ptr++;
     if (m_echo)
@@ -1190,7 +1202,7 @@ public:
     Get the last character accepted.
     @return the last character accepted.
   */
-  char yyGetLast()
+  unsigned char yyGetLast()
   {
     return m_ptr[-1];
   }
@@ -1198,7 +1210,7 @@ public:
   /**
     Look at the next character to parse, but do not accept it.
   */
-  char yyPeek()
+  unsigned char yyPeek()
   {
     return m_ptr[0];
   }
@@ -1207,7 +1219,7 @@ public:
     Look ahead at some character to parse.
     @param n offset of the character to look up
   */
-  char yyPeekn(int n)
+  unsigned char yyPeekn(int n)
   {
     return m_ptr[n];
   }
@@ -1417,6 +1429,7 @@ private:
 
   /** Echo the parsed stream to the pre-processed buffer. */
   bool m_echo;
+  bool m_echo_saved;
 
   /** Pre-processed buffer. */
   char *m_cpp_buf;
@@ -1479,6 +1492,7 @@ public:
 
   /** State of the lexical analyser for comments. */
   enum_comment_state in_comment;
+  enum_comment_state in_comment_saved;
 
   /**
     Starting position of the TEXT_STRING or IDENT in the pre-processed
@@ -1745,6 +1759,22 @@ typedef struct st_lex : public Query_tables_list
   bool escape_used;
   bool is_lex_started; /* If lex_start() did run. For debugging. */
 
+  /*
+    Special case for SELECT .. FOR UPDATE and LOCK TABLES .. WRITE.
+
+    Protect from a impending GRL as otherwise the thread might deadlock
+    if it starts waiting for the GRL in mysql_lock_tables.
+
+    The protection is needed because there is a race between setting
+    the global read lock and waiting for all open tables to be closed.
+    The problem is a circular wait where a thread holding "old" open
+    tables will wait for the global read lock to be released while the
+    thread holding the global read lock will wait for all "old" open
+    tables to be closed -- the flush part of flush tables with read
+    lock.
+  */
+  bool protect_against_global_read_lock;
+
   st_lex();
 
   virtual ~st_lex()
@@ -1945,5 +1975,7 @@ extern bool is_lex_native_function(const LEX_STRING *name);
 /**
   @} (End of group Semantic_Analysis)
 */
+
+int my_missing_function_error(const LEX_STRING &token, const char *name);
 
 #endif /* MYSQL_SERVER */

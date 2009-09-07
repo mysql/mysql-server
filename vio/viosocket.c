@@ -480,19 +480,22 @@ size_t vio_read_shared_memory(Vio * vio, uchar* buf, size_t size)
   size_t length;
   size_t remain_local;
   char *current_postion;
+  HANDLE events[2];
+
   DBUG_ENTER("vio_read_shared_memory");
   DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %d", vio->sd, (long) buf,
                        size));
 
   remain_local = size;
   current_postion=buf;
+
+  events[0]= vio->event_server_wrote;
+  events[1]= vio->event_conn_closed;
+
   do
   {
     if (vio->shared_memory_remain == 0)
     {
-      HANDLE events[2];
-      events[0]= vio->event_server_wrote;
-      events[1]= vio->event_conn_closed;
       /*
         WaitForMultipleObjects can return next values:
          WAIT_OBJECT_0+0 - event from vio->event_server_wrote
@@ -500,7 +503,7 @@ size_t vio_read_shared_memory(Vio * vio, uchar* buf, size_t size)
 		           anything
          WAIT_ABANDONED_0 and WAIT_TIMEOUT - fail.  We can't read anything
       */
-      if (WaitForMultipleObjects(2, (HANDLE*)&events,FALSE,
+      if (WaitForMultipleObjects(array_elements(events), events, FALSE,
                                  vio->net->read_timeout*1000) != WAIT_OBJECT_0)
       {
         DBUG_RETURN(-1);
@@ -543,17 +546,22 @@ size_t vio_write_shared_memory(Vio * vio, const uchar* buf, size_t size)
   size_t length, remain, sz;
   HANDLE pos;
   const uchar *current_postion;
+  HANDLE events[2];
+
   DBUG_ENTER("vio_write_shared_memory");
   DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %d", vio->sd, (long) buf,
                        size));
 
   remain = size;
   current_postion = buf;
+
+  events[0]= vio->event_server_read;
+  events[1]= vio->event_conn_closed;
+
   while (remain != 0)
   {
-    if (WaitForSingleObject(vio->event_server_read,
-                            vio->net->write_timeout*1000) !=
-        WAIT_OBJECT_0)
+    if (WaitForMultipleObjects(array_elements(events), events, FALSE,
+                               vio->net->write_timeout*1000) != WAIT_OBJECT_0)
     {
       DBUG_RETURN((size_t) -1);
     }

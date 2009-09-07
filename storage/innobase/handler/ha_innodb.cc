@@ -101,6 +101,7 @@ static long innobase_mirrored_log_groups, innobase_log_files_in_group,
 	innobase_additional_mem_pool_size, innobase_file_io_threads,
 	innobase_lock_wait_timeout, innobase_force_recovery,
 	innobase_open_files, innobase_autoinc_lock_mode;
+static ulong innobase_commit_concurrency = 0;
 
 static long long innobase_buffer_pool_size, innobase_log_file_size;
 
@@ -165,6 +166,52 @@ static handler *innobase_create_handler(handlerton *hton,
 
 static const char innobase_hton_name[]= "InnoDB";
 
+/** @brief Initialize the default value of innodb_commit_concurrency.
+
+Once InnoDB is running, the innodb_commit_concurrency must not change
+from zero to nonzero. (Bug #42101)
+
+The initial default value is 0, and without this extra initialization,
+SET GLOBAL innodb_commit_concurrency=DEFAULT would set the parameter
+to 0, even if it was initially set to nonzero at the command line
+or configuration file. */
+static
+void
+innobase_commit_concurrency_init_default(void);
+/*==========================================*/
+
+/*****************************************************************
+Check for a valid value of innobase_commit_concurrency. */
+static
+int
+innobase_commit_concurrency_validate(
+/*=================================*/
+						/* out: 0 for valid
+						innodb_commit_concurrency */
+	THD*				thd,	/* in: thread handle */
+	struct st_mysql_sys_var*	var,	/* in: pointer to system
+						variable */
+	void*				save,	/* out: immediate result
+						for update function */
+	struct st_mysql_value*		value)	/* in: incoming string */
+{
+	long long	intbuf;
+	ulong		commit_concurrency;
+
+	DBUG_ENTER("innobase_commit_concurrency_validate");
+
+	if (value->val_int(value, &intbuf)) {
+		/* The value is NULL. That is invalid. */
+		DBUG_RETURN(1);
+	}
+
+	*reinterpret_cast<ulong*>(save) = commit_concurrency
+		= static_cast<ulong>(intbuf);
+
+	/* Allow the value to be updated, as long as it remains zero
+	or nonzero. */
+	DBUG_RETURN(!(!commit_concurrency == !innobase_commit_concurrency));
+}
 
 static MYSQL_THDVAR_BOOL(support_xa, PLUGIN_VAR_OPCMDARG,
   "Enable InnoDB support for the XA two-phase commit",
@@ -687,17 +734,7 @@ convert_error_code_to_mysql(
     		return(HA_ERR_LOCK_TABLE_FULL);
 	} else if (error == DB_TOO_MANY_CONCURRENT_TRXS) {
 
-		/* Once MySQL add the appropriate code to errmsg.txt then
-		we can get rid of this #ifdef. NOTE: The code checked by
-		the #ifdef is the suggested name for the error condition
-		and the actual error code name could very well be different.
-		This will require some monitoring, ie. the status
-		of this request on our part.*/
-#ifdef ER_TOO_MANY_CONCURRENT_TRXS
-		return(ER_TOO_MANY_CONCURRENT_TRXS);
-#else
-		return(HA_ERR_RECORD_FILE_FULL);
-#endif
+		return(HA_ERR_TOO_MANY_CONCURRENT_TRXS);
 
 	} else if (error == DB_UNSUPPORTED) {
 
@@ -869,6 +906,100 @@ innobase_get_charset(
 	return(thd_charset((THD*) mysql_thd));
 }
 
+#if defined (__WIN__) && defined (MYSQL_DYNAMIC_PLUGIN)
+extern MYSQL_PLUGIN_IMPORT MY_TMPDIR mysql_tmpdir_list;
+/*******************************************************************//**
+Map an OS error to an errno value. The OS error number is stored in
+_doserrno and the mapped value is stored in errno) */
+extern "C"
+void __cdecl
+_dosmaperr(
+	unsigned long);	/*!< in: OS error value */
+
+/*********************************************************************//**
+Creates a temporary file.
+@return	temporary file descriptor, or < 0 on error */
+extern "C"
+int
+innobase_mysql_tmpfile(void)
+/*========================*/
+{
+	int	fd;				/* handle of opened file */
+	HANDLE	osfh;				/* OS handle of opened file */
+	char*	tmpdir;				/* point to the directory
+						where to create file */
+	TCHAR	path_buf[MAX_PATH - 14];	/* buffer for tmp file path.
+						The length cannot be longer
+						than MAX_PATH - 14, or
+						GetTempFileName will fail. */
+	char	filename[MAX_PATH];		/* name of the tmpfile */
+	DWORD	fileaccess = GENERIC_READ	/* OS file access */
+			     | GENERIC_WRITE
+			     | DELETE;
+	DWORD	fileshare = FILE_SHARE_READ	/* OS file sharing mode */
+			    | FILE_SHARE_WRITE
+			    | FILE_SHARE_DELETE;
+	DWORD	filecreate = CREATE_ALWAYS;	/* OS method of open/create */
+	DWORD	fileattrib =			/* OS file attribute flags */
+			     FILE_ATTRIBUTE_NORMAL
+			     | FILE_FLAG_DELETE_ON_CLOSE
+			     | FILE_ATTRIBUTE_TEMPORARY
+			     | FILE_FLAG_SEQUENTIAL_SCAN;
+
+	DBUG_ENTER("innobase_mysql_tmpfile");
+
+	tmpdir = my_tmpdir(&mysql_tmpdir_list);
+
+	/* The tmpdir parameter can not be NULL for GetTempFileName. */
+	if (!tmpdir) {
+		uint	ret;
+
+		/* Use GetTempPath to determine path for temporary files. */
+		ret = GetTempPath(sizeof(path_buf), path_buf);
+		if (ret > sizeof(path_buf) || (ret == 0)) {
+
+			_dosmaperr(GetLastError());	/* map error */
+			DBUG_RETURN(-1);
+		}
+
+		tmpdir = path_buf;
+	}
+
+	/* Use GetTempFileName to generate a unique filename. */
+	if (!GetTempFileName(tmpdir, "ib", 0, filename)) {
+
+		_dosmaperr(GetLastError());	/* map error */
+		DBUG_RETURN(-1);
+	}
+
+	DBUG_PRINT("info", ("filename: %s", filename));
+
+	/* Open/Create the file. */
+	osfh = CreateFile(filename, fileaccess, fileshare, NULL,
+			  filecreate, fileattrib, NULL);
+	if (osfh == INVALID_HANDLE_VALUE) {
+
+		/* open/create file failed! */
+		_dosmaperr(GetLastError());	/* map error */
+		DBUG_RETURN(-1);
+	}
+
+	do {
+		/* Associates a CRT file descriptor with the OS file handle. */
+		fd = _open_osfhandle((intptr_t) osfh, 0);
+	} while (fd == -1 && errno == EINTR);
+
+	if (fd == -1) {
+		/* Open failed, close the file handle. */
+
+		_dosmaperr(GetLastError());	/* map error */
+		CloseHandle(osfh);		/* no need to check if
+						CloseHandle fails */
+	}
+
+	DBUG_RETURN(fd);
+}
+#else
 /*************************************************************************
 Creates a temporary file. */
 extern "C"
@@ -900,6 +1031,7 @@ innobase_mysql_tmpfile(void)
 	}
 	return(fd2);
 }
+#endif
 
 /*************************************************************************
 Wrapper around MySQL's copy_and_convert function, see it for
@@ -1745,6 +1877,8 @@ innobase_init(
 						(char*)"latin1_swedish_ci"));
 	memcpy(srv_latin1_ordering, my_charset_latin1.sort_order, 256);
 
+	innobase_commit_concurrency_init_default();
+
 	/* Since we in this module access directly the fields of a trx
 	struct, and due to different headers and flags it might happen that
 	mutex_t has a different size in this module and in InnoDB
@@ -1961,11 +2095,11 @@ innobase_commit(
 		Note, the position is current because of
 		prepare_commit_mutex */
 retry:
-		if (srv_commit_concurrency > 0) {
+		if (innobase_commit_concurrency > 0) {
 			pthread_mutex_lock(&commit_cond_m);
 			commit_threads++;
 
-			if (commit_threads > srv_commit_concurrency) {
+			if (commit_threads > innobase_commit_concurrency) {
 				commit_threads--;
 				pthread_cond_wait(&commit_cond,
 					&commit_cond_m);
@@ -1982,7 +2116,7 @@ retry:
 
 		innobase_commit_low(trx);
 
-		if (srv_commit_concurrency > 0) {
+		if (innobase_commit_concurrency > 0) {
 			pthread_mutex_lock(&commit_cond_m);
 			commit_threads--;
 			pthread_cond_signal(&commit_cond);
@@ -6022,7 +6156,7 @@ ha_innobase::info(
 		nor the CHECK TABLE time, nor the UPDATE or INSERT time. */
 
 		if (os_file_get_status(path,&stat_info)) {
-			stats.create_time = stat_info.ctime;
+			stats.create_time = (ulong) stat_info.ctime;
 		}
 	}
 
@@ -8138,6 +8272,97 @@ innobase_set_cursor_view(
 }
 
 
+/***********************************************************************
+Check whether any of the given columns is being renamed in the table. */
+static
+bool
+column_is_being_renamed(
+/*====================*/
+					/* out: true if any of col_names is
+					being renamed in table */
+	TABLE*		table,		/* in: MySQL table */
+	uint		n_cols,		/* in: number of columns */
+	const char**	col_names)	/* in: names of the columns */
+{
+	uint		j;
+	uint		k;
+	Field*		field;
+	const char*	col_name;
+
+	for (j = 0; j < n_cols; j++) {
+		col_name = col_names[j];
+		for (k = 0; k < table->s->fields; k++) {
+			field = table->field[k];
+			if ((field->flags & FIELD_IS_RENAMED)
+			    && innobase_strcasecmp(field->field_name,
+						   col_name) == 0) {
+				return(true);
+			}
+		}
+	}
+
+	return(false);
+}
+
+/***********************************************************************
+Check whether a column in table "table" is being renamed and if this column
+is part of a foreign key, either part of another table, referencing this
+table or part of this table, referencing another table. */
+static
+bool
+foreign_key_column_is_being_renamed(
+/*================================*/
+					/* out: true if a column that
+					participates in a foreign key definition
+					is being renamed */
+	row_prebuilt_t*	prebuilt,	/* in: InnoDB prebuilt struct */
+	TABLE*		table)		/* in: MySQL table */
+{
+	dict_foreign_t*	foreign;
+
+	/* check whether there are foreign keys at all */
+	if (UT_LIST_GET_LEN(prebuilt->table->foreign_list) == 0
+	    && UT_LIST_GET_LEN(prebuilt->table->referenced_list) == 0) {
+		/* no foreign keys involved with prebuilt->table */
+
+		return(false);
+	}
+
+	row_mysql_lock_data_dictionary(prebuilt->trx);
+
+	/* Check whether any column in the foreign key constraints which refer
+	to this table is being renamed. */
+	for (foreign = UT_LIST_GET_FIRST(prebuilt->table->referenced_list);
+	     foreign != NULL;
+	     foreign = UT_LIST_GET_NEXT(referenced_list, foreign)) {
+
+		if (column_is_being_renamed(table, foreign->n_fields,
+					    foreign->referenced_col_names)) {
+
+			row_mysql_unlock_data_dictionary(prebuilt->trx);
+			return(true);
+		}
+	}
+
+	/* Check whether any column in the foreign key constraints in the
+	table is being renamed. */
+	for (foreign = UT_LIST_GET_FIRST(prebuilt->table->foreign_list);
+	     foreign != NULL;
+	     foreign = UT_LIST_GET_NEXT(foreign_list, foreign)) {
+
+		if (column_is_being_renamed(table, foreign->n_fields,
+					    foreign->foreign_col_names)) {
+
+			row_mysql_unlock_data_dictionary(prebuilt->trx);
+			return(true);
+		}
+	}
+
+	row_mysql_unlock_data_dictionary(prebuilt->trx);
+
+	return(false);
+}
+
 bool ha_innobase::check_if_incompatible_data(
 	HA_CREATE_INFO*	info,
 	uint		table_changes)
@@ -8150,6 +8375,13 @@ bool ha_innobase::check_if_incompatible_data(
 	/* Check that auto_increment value was not changed */
 	if ((info->used_fields & HA_CREATE_USED_AUTO) &&
 		info->auto_increment_value != 0) {
+
+		return COMPATIBLE_DATA_NO;
+	}
+
+	/* Check if a column participating in a foreign key is being renamed.
+	There is no mechanism for updating InnoDB foreign key definitions. */
+	if (foreign_key_column_is_being_renamed(prebuilt, table)) {
 
 		return COMPATIBLE_DATA_NO;
 	}
@@ -8270,6 +8502,14 @@ static MYSQL_SYSVAR_BOOL(stats_on_metadata, innobase_stats_on_metadata,
   "Enable statistics gathering for metadata commands such as SHOW TABLE STATUS (on by default)",
   NULL, NULL, TRUE);
 
+static MYSQL_SYSVAR_BOOL(use_legacy_cardinality_algorithm,
+  srv_use_legacy_cardinality_algorithm,
+  PLUGIN_VAR_OPCMDARG,
+  "Use legacy algorithm for picking random pages during index cardinality "
+  "estimation. Disable this to use a better algorithm, but note that your "
+  "query plans may change (enabled by default).",
+  NULL, NULL, TRUE);
+
 static MYSQL_SYSVAR_BOOL(adaptive_hash_index, innobase_adaptive_hash_index,
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
   "Enable InnoDB adaptive hash index (enabled by default).  "
@@ -8291,10 +8531,10 @@ static MYSQL_SYSVAR_LONGLONG(buffer_pool_size, innobase_buffer_pool_size,
   "The size of the memory buffer InnoDB uses to cache data and indexes of its tables.",
   NULL, NULL, 8*1024*1024L, 1024*1024L, LONGLONG_MAX, 1024*1024L);
 
-static MYSQL_SYSVAR_ULONG(commit_concurrency, srv_commit_concurrency,
+static MYSQL_SYSVAR_ULONG(commit_concurrency, innobase_commit_concurrency,
   PLUGIN_VAR_RQCMDARG,
   "Helps in performance tuning in heavily concurrent environments.",
-  NULL, NULL, 0, 0, 1000, 0);
+  innobase_commit_concurrency_validate, NULL, 0, 0, 1000, 0);
 
 static MYSQL_SYSVAR_ULONG(concurrency_tickets, srv_n_free_tickets_to_enter,
   PLUGIN_VAR_RQCMDARG,
@@ -8405,6 +8645,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(open_files),
   MYSQL_SYSVAR(rollback_on_timeout),
   MYSQL_SYSVAR(stats_on_metadata),
+  MYSQL_SYSVAR(use_legacy_cardinality_algorithm),
   MYSQL_SYSVAR(adaptive_hash_index),
   MYSQL_SYSVAR(status_file),
   MYSQL_SYSVAR(support_xa),
@@ -8432,3 +8673,21 @@ mysql_declare_plugin(innobase)
   NULL /* reserved */
 }
 mysql_declare_plugin_end;
+
+/** @brief Initialize the default value of innodb_commit_concurrency.
+
+Once InnoDB is running, the innodb_commit_concurrency must not change
+from zero to nonzero. (Bug #42101)
+
+The initial default value is 0, and without this extra initialization,
+SET GLOBAL innodb_commit_concurrency=DEFAULT would set the parameter
+to 0, even if it was initially set to nonzero at the command line
+or configuration file. */
+static
+void
+innobase_commit_concurrency_init_default(void)
+/*==========================================*/
+{
+	MYSQL_SYSVAR_NAME(commit_concurrency).def_val
+		= innobase_commit_concurrency;
+}

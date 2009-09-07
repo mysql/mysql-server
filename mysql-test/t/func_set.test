@@ -72,3 +72,28 @@ SELECT INTERVAL(0.0, CAST(DATE(NULL) AS DECIMAL), CAST(DATE(NULL) AS DECIMAL),
   CAST(DATE(NULL) AS DECIMAL), CAST(DATE(NULL) AS DECIMAL));
 
 --echo End of 5.0 tests
+
+#
+# Bug#44367 valgrind warnings with find_in_set() functions
+#
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1 (f1 set('test1','test2','test3') character set utf8 default null)
+engine=myisam default charset=latin1;
+insert into t1 values (''),(null),(null),(''),(''),('');
+select find_in_set(f1,f1) as a from t1,(select find_in_set(f1,f1) as b from t1) a;
+drop table t1;
+#
+# Bug#45168: assertion with convert() and empty set value
+#
+CREATE TABLE t1( a SET('a', 'b', 'c') );
+CREATE TABLE t2( a SET('a', 'b', 'c') );
+
+INSERT INTO t1 VALUES ('d');
+INSERT INTO t2 VALUES ('');
+
+SELECT CONVERT( a USING latin1 ) FROM t1;
+SELECT CONVERT( a USING latin1 ) FROM t2;
+
+DROP TABLE t1, t2;

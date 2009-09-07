@@ -61,3 +61,49 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 optimize table t1;
 repair table t1;
 drop table t1;
+
+--echo #
+--echo # BUG#41541 - Valgrind warnings on packed MyISAM table
+--echo #
+CREATE TABLE  t1(f1 VARCHAR(200), f2 TEXT);
+INSERT INTO  t1 VALUES ('foo', 'foo1'), ('bar', 'bar1');
+let $i=9;
+--disable_query_log
+while ($i)
+{
+ INSERT INTO t1 SELECT * FROM t1; 
+ dec $i; 
+}
+--enable_query_log
+FLUSH TABLE t1; 
+--echo # Compress the table using MYISAMPACK tool
+let $MYSQLD_DATADIR= `select @@datadir`;
+--exec $MYISAMPACK $MYSQLD_DATADIR/test/t1
+SELECT COUNT(*) FROM t1;
+DROP TABLE t1; 
+
+--echo #
+--echo # Bug #43973 - backup_myisam.test fails on 6.0-bugteam
+--echo #
+CREATE DATABASE mysql_db1;
+CREATE TABLE mysql_db1.t1 (c1 VARCHAR(5), c2 int);
+CREATE INDEX i1 ON mysql_db1.t1 (c1, c2);
+INSERT INTO mysql_db1.t1 VALUES ('A',1);
+INSERT INTO mysql_db1.t1 SELECT * FROM mysql_db1.t1;
+INSERT INTO mysql_db1.t1 SELECT * FROM mysql_db1.t1;
+INSERT INTO mysql_db1.t1 SELECT * FROM mysql_db1.t1;
+INSERT INTO mysql_db1.t1 SELECT * FROM mysql_db1.t1;
+INSERT INTO mysql_db1.t1 SELECT * FROM mysql_db1.t1;
+INSERT INTO mysql_db1.t1 SELECT * FROM mysql_db1.t1;
+INSERT INTO mysql_db1.t1 SELECT * FROM mysql_db1.t1;
+FLUSH TABLE mysql_db1.t1;
+#
+--echo # Compress the table using MYISAMPACK tool
+let $MYSQLD_DATADIR= `select @@datadir`;
+--exec $MYISAMPACK -s $MYSQLD_DATADIR/mysql_db1/t1
+--echo # Run MYISAMCHK tool on the compressed table
+--exec $MYISAMCHK -srq $MYSQLD_DATADIR/mysql_db1/t1
+SELECT COUNT(*) FROM mysql_db1.t1 WHERE c2 < 5;
+#
+DROP TABLE mysql_db1.t1;
+DROP DATABASE mysql_db1;

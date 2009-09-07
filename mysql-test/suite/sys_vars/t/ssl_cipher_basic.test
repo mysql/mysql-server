@@ -27,7 +27,7 @@
 #   Displaying default value                                       #
 ####################################################################
 SELECT COUNT(@@GLOBAL.ssl_cipher);
---echo 1 Expected
+--echo 0 Expected
 
 
 --echo '#---------------------BS_STVARS_048_02----------------------#'
@@ -40,7 +40,7 @@ SET @@GLOBAL.ssl_cipher=1;
 --echo Expected error 'Read only variable'
 
 SELECT COUNT(@@GLOBAL.ssl_cipher);
---echo 1 Expected
+--echo 0 Expected
 
 
 
@@ -56,7 +56,7 @@ WHERE VARIABLE_NAME='ssl_cipher';
 --echo 1 Expected
 
 SELECT COUNT(@@GLOBAL.ssl_cipher);
---echo 1 Expected
+--echo 0 Expected
 
 SELECT COUNT(VARIABLE_VALUE)
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
@@ -80,7 +80,7 @@ SELECT @@ssl_cipher = @@GLOBAL.ssl_cipher;
 ################################################################################
 
 SELECT COUNT(@@ssl_cipher);
---echo 1 Expected
+--echo 0 Expected
 
 --Error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SELECT COUNT(@@local.ssl_cipher);
@@ -91,7 +91,7 @@ SELECT COUNT(@@SESSION.ssl_cipher);
 --echo Expected error 'Variable is a GLOBAL variable'
 
 SELECT COUNT(@@GLOBAL.ssl_cipher);
---echo 1 Expected
+--echo 0 Expected
 
 --Error ER_BAD_FIELD_ERROR
 SELECT ssl_cipher = @@SESSION.ssl_cipher;

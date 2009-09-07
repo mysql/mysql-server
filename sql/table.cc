@@ -779,7 +779,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   strpos=disk_buff+6;
 
   if (!(rec_per_key= (ulong*) alloc_root(&share->mem_root,
-					 sizeof(ulong*)*key_parts)))
+                                         sizeof(ulong)*key_parts)))
     goto err;
 
   for (i=0 ; i < keys ; i++, keyinfo++)
@@ -2491,8 +2491,11 @@ File create_frm(THD *thd, const char *name, const char *db,
     int4store(fileinfo+34,create_info->avg_row_length);
     fileinfo[38]= (create_info->default_table_charset ?
 		   create_info->default_table_charset->number : 0);
-    fileinfo[39]= (uchar) ((uint) create_info->transactional |
-                           ((uint) create_info->page_checksum << 2));
+    /*
+      In future versions, we will store in fileinfo[39] the values of the
+      TRANSACTIONAL and PAGE_CHECKSUM clauses of CREATE TABLE.
+    */
+    fileinfo[39]= 0;
     fileinfo[40]= (uchar) create_info->row_type;
     /* Next few bytes where for RAID support */
     fileinfo[41]= 0;
@@ -3343,6 +3346,7 @@ void TABLE_LIST::hide_view_error(THD *thd)
 
   if (thd->main_da.sql_errno() == ER_BAD_FIELD_ERROR ||
       thd->main_da.sql_errno() == ER_SP_DOES_NOT_EXIST ||
+      thd->main_da.sql_errno() == ER_FUNC_INEXISTENT_NAME_COLLISION ||
       thd->main_da.sql_errno() == ER_PROCACCESS_DENIED_ERROR ||
       thd->main_da.sql_errno() == ER_COLUMNACCESS_DENIED_ERROR ||
       thd->main_da.sql_errno() == ER_TABLEACCESS_DENIED_ERROR ||

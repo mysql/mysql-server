@@ -45,6 +45,32 @@ static uint calc_hash(const HASH *hash, const uchar *key, size_t length)
   return nr1;
 }
 
+/**
+  @brief Initialize the hash
+  
+  @details
+
+  Initialize the hash, by defining and giving valid values for
+  its elements. The failure to allocate memory for the
+  hash->array element will not result in a fatal failure. The
+  dynamic array that is part of the hash will allocate memory
+  as required during insertion.
+
+  @param[in,out] hash         The hash that is initialized
+  @param[in]     charset      The charater set information
+  @param[in]     size         The hash size
+  @param[in]     key_offest   The key offset for the hash
+  @param[in]     key_length   The length of the key used in
+                              the hash
+  @param[in]     get_key      get the key for the hash
+  @param[in]     free_element pointer to the function that
+                              does cleanup
+  @param[in]     CALLER_INFO_PROTO flag that define the behaviour 
+                                   of the hash
+  @return        inidicates success or failure of initialization
+    @retval 0 success
+    @retval 1 failure
+*/
 my_bool
 _my_hash_init(HASH *hash, uint growth_size, CHARSET_INFO *charset,
               ulong size, size_t key_offset, size_t key_length,
@@ -55,12 +81,6 @@ _my_hash_init(HASH *hash, uint growth_size, CHARSET_INFO *charset,
   DBUG_PRINT("enter",("hash: 0x%lx  size: %u", (long) hash, (uint) size));
 
   hash->records=0;
-  if (my_init_dynamic_array_ci(&hash->array, sizeof(HASH_LINK), size,
-                               growth_size))
-  {
-    hash->free=0;				/* Allow call to my_hash_free */
-    DBUG_RETURN(1);
-  }
   hash->key_offset=key_offset;
   hash->key_length=key_length;
   hash->blength=1;
@@ -68,7 +88,8 @@ _my_hash_init(HASH *hash, uint growth_size, CHARSET_INFO *charset,
   hash->free=free_element;
   hash->flags=flags;
   hash->charset=charset;
-  DBUG_RETURN(0);
+  DBUG_RETURN(my_init_dynamic_array_ci(&hash->array, 
+                                       sizeof(HASH_LINK), size, growth_size));
 }
 
 
@@ -114,6 +135,7 @@ void my_hash_free(HASH *hash)
   my_hash_free_elements(hash);
   hash->free= 0;
   delete_dynamic(&hash->array);
+  hash->blength= 0;
   DBUG_VOID_RETURN;
 }
 

@@ -335,7 +335,23 @@ static int _ftb_no_dupes_cmp(void* not_used __attribute__((unused)),
   return CMP_NUM((*((my_off_t*)a)), (*((my_off_t*)b)));
 }
 
-/* returns 1 if the search was finished (must-word wasn't found) */
+/*
+  When performing prefix search (a word with truncation operator), we
+  must preserve original prefix to ensure that characters which may be
+  expanded/contracted do not break the prefix. This is done by storing
+  newly found key immediatly after the original word in ftbw->word
+  buffer.
+
+  ftbw->word= LENGTH WORD [ LENGTH1 WORD1 ] WEIGHT REFERENCE
+  LENGTH - 1 byte, length of the WORD
+  WORD - LENGTH bytes, the word itself
+  LENGTH1 - 1 byte, length of the WORD1, present in case of prefix search
+  WORD1 - LENGTH bytes, the word itself, present in case of prefix search
+  WEIGHT - 4 bytes (HA_FT_WLEN), either weight or number of subkeys
+  REFERENCE - rec_reflength bytes, pointer to the record
+
+  returns 1 if the search was finished (must-word wasn't found)
+*/
 static int _ft2_search(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
 {
   int r;
@@ -369,7 +385,8 @@ static int _ft2_search(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
     if (ftbw->docid[0] < max_docid)
     {
       sflag|= SEARCH_SAME;
-      _mi_dpointer(info, (uchar *)(ftbw->word + ftbw->len + HA_FT_WLEN),
+      _mi_dpointer(info, (uchar*) (lastkey_buf + HA_FT_WLEN +
+                                   (ftbw->off ? 0 : lastkey_buf[0] + 1)),
                    max_docid);
     }
     r=_mi_search(info, ftbw->keyinfo, (uchar*) lastkey_buf,

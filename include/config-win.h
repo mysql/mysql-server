@@ -17,15 +17,6 @@
 
 #define BIG_TABLES
 
-#ifdef __WIN2000__
-/* We have to do this define before including windows.h to get the AWE API
-functions */
-#define _WIN32_WINNT     0x0500
-#else
-/* Get NT 4.0 functions */
-#define _WIN32_WINNT     0x0400
-#endif
-
 #if defined(_MSC_VER) && _MSC_VER >= 1400
 /* Avoid endless warnings about sprintf() etc. being unsafe. */
 #define _CRT_SECURE_NO_DEPRECATE 1
@@ -354,12 +345,14 @@ inline ulonglong double2ulonglong(double d)
 #ifdef _CUSTOMCONFIG_
 #include <custom_conf.h>
 #else
+#ifndef CMAKE_CONFIGD
 #define DEFAULT_MYSQL_HOME	"c:\\mysql"
-#define DATADIR         	"c:\\mysql\\data"
+#define MYSQL_DATADIR          "c:\\mysql\\data"
 #define PACKAGE			"mysql"
 #define DEFAULT_BASEDIR		"C:\\"
 #define SHAREDIR		"share"
 #define DEFAULT_CHARSET_HOME	"C:/mysql/"
+#endif
 #endif
 #ifndef DEFAULT_HOME_ENV
 #define DEFAULT_HOME_ENV MYSQL_HOME

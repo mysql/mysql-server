@@ -1,0 +1,18 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+stop slave;
+reset slave;
+SET GLOBAL debug= "d,simulate_io_slave_error_on_init,simulate_sql_slave_error_on_init";
+start slave;
+Reporting the following error: Failed during slave thread initialization
+SET GLOBAL debug= "";
+stop slave;
+reset slave;
+SET GLOBAL init_slave= "garbage";
+start slave;
+Reporting the following error: Slave SQL thread aborted. Can't execute init_slave query
+SET GLOBAL init_slave= "";

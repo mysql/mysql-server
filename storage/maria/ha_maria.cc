@@ -224,6 +224,17 @@ static MYSQL_SYSVAR_ENUM(sync_log_dir, sync_log_dir, PLUGIN_VAR_RQCMDARG,
        "\"always\").", NULL, NULL, TRANSLOG_SYNC_DIR_NEWFILE,
        &maria_sync_log_dir_typelib);
 
+#ifdef USE_MARIA_FOR_TMP_TABLES
+static my_bool use_maria_for_temp_tables= 1;
+#else
+static my_bool use_maria_for_temp_tables= 0;
+#endif
+
+static MYSQL_SYSVAR_BOOL(used_for_temp_tables, 
+       use_maria_for_temp_tables, PLUGIN_VAR_READONLY | PLUGIN_VAR_NOCMDOPT,
+       "Whether temporary tables should be MyISAM or Maria", 0, 0,
+       1);
+
 /*****************************************************************************
 ** MARIA tables
 *****************************************************************************/
@@ -3274,6 +3285,7 @@ static struct st_mysql_sys_var* system_variables[]= {
   MYSQL_SYSVAR(sort_buffer_size),
   MYSQL_SYSVAR(stats_method),
   MYSQL_SYSVAR(sync_log_dir),
+  MYSQL_SYSVAR(used_for_temp_tables),
   NULL
 };
 

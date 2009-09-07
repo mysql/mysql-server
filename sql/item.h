@@ -2444,48 +2444,203 @@ public:
 #include "item_xmlfunc.h"
 #endif
 
-class Item_copy_string :public Item
+/**
+  Base class to implement typed value caching Item classes
+
+  Item_copy_ classes are very similar to the corresponding Item_
+  classes (e.g. Item_copy_int is similar to Item_int) but they add
+  the following additional functionality to Item_ :
+    1. Nullability
+    2. Possibility to store the value not only on instantiation time,
+       but also later.
+  Item_copy_ classes are a functionality subset of Item_cache_ 
+  classes, as e.g. they don't support comparisons with the original Item
+  as Item_cache_ classes do.
+  Item_copy_ classes are used in GROUP BY calculation.
+  TODO: Item_copy should be made an abstract interface and Item_copy_
+  classes should inherit both the respective Item_ class and the interface.
+  Ideally we should drop Item_copy_ classes altogether and merge 
+  their functionality to Item_cache_ (and these should be made to inherit
+  from Item_).
+*/
+
+class Item_copy :public Item
 {
+protected:  
+
+  /**
+    Stores the type of the resulting field that would be used to store the data
+    in the cache. This is to avoid calls to the original item.
+  */
   enum enum_field_types cached_field_type;
-public:
+
+  /** The original item that is copied */
   Item *item;
-  Item_copy_string(Item *i) :item(i)
+
+  /**
+    Stores the result type of the original item, so it can be returned
+    without calling the original item's method
+  */
+  Item_result cached_result_type;
+
+  /**
+    Constructor of the Item_copy class
+
+    stores metadata information about the original class as well as a 
+    pointer to it.
+  */
+  Item_copy(Item *i)
   {
+    item= i;
     null_value=maybe_null=item->maybe_null;
     decimals=item->decimals;
     max_length=item->max_length;
     name=item->name;
     cached_field_type= item->field_type();
+    cached_result_type= item->result_type();
+    unsigned_flag= item->unsigned_flag;
   }
+
+public:
+  /** 
+    Factory method to create the appropriate subclass dependent on the type of 
+    the original item.
+
+    @param item      the original item.
+  */  
+  static Item_copy *create (Item *item);
+
+  /** 
+    Update the cache with the value of the original item
+   
+    This is the method that updates the cached value.
+    It must be explicitly called by the user of this class to store the value 
+    of the orginal item in the cache.
+  */  
+  virtual void copy() = 0;
+
+  Item *get_item() { return item; }
+  /** All of the subclasses should have the same type tag */
   enum Type type() const { return COPY_STR_ITEM; }
-  enum Item_result result_type () const { return STRING_RESULT; }
   enum_field_types field_type() const { return cached_field_type; }
-  double val_real()
-  {
-    int err_not_used;
-    char *end_not_used;
-    return (null_value ? 0.0 :
-	    my_strntod(str_value.charset(), (char*) str_value.ptr(),
-		       str_value.length(), &end_not_used, &err_not_used));
-  }
-  longlong val_int()
-  {
-    int err;
-    return null_value ? LL(0) : my_strntoll(str_value.charset(),str_value.ptr(),
-                                            str_value.length(),10, (char**) 0,
-                                            &err); 
-  }
-  String *val_str(String*);
-  my_decimal *val_decimal(my_decimal *);
+  enum Item_result result_type () const { return cached_result_type; }
+
   void make_field(Send_field *field) { item->make_field(field); }
-  void copy();
-  int save_in_field(Field *field, bool no_conversions)
-  {
-    return save_str_value_in_field(field, &str_value);
-  }
   table_map used_tables() const { return (table_map) 1L; }
   bool const_item() const { return 0; }
   bool is_null() { return null_value; }
+
+  /*  
+    Override the methods below as pure virtual to make sure all the 
+    sub-classes implement them.
+  */  
+
+  virtual String *val_str(String*) = 0;
+  virtual my_decimal *val_decimal(my_decimal *) = 0;
+  virtual double val_real() = 0;
+  virtual longlong val_int() = 0;
+  virtual int save_in_field(Field *field, bool no_conversions) = 0;
+};
+
+/**
+ Implementation of a string cache.
+ 
+ Uses Item::str_value for storage
+*/ 
+class Item_copy_string : public Item_copy
+{
+public:
+  Item_copy_string (Item *item) : Item_copy(item) {}
+
+  String *val_str(String*);
+  my_decimal *val_decimal(my_decimal *);
+  double val_real();
+  longlong val_int();
+  void copy();
+  int save_in_field(Field *field, bool no_conversions);
+};
+
+
+class Item_copy_int : public Item_copy
+{
+protected:  
+  longlong cached_value; 
+public:
+  Item_copy_int (Item *i) : Item_copy(i) {}
+  int save_in_field(Field *field, bool no_conversions);
+
+  virtual String *val_str(String*);
+  virtual my_decimal *val_decimal(my_decimal *);
+  virtual double val_real()
+  {
+    return null_value ? 0.0 : (double) cached_value;
+  }
+  virtual longlong val_int()
+  {
+    return null_value ? LL(0) : cached_value;
+  }
+  virtual void copy();
+};
+
+
+class Item_copy_uint : public Item_copy_int
+{
+public:
+  Item_copy_uint (Item *item) : Item_copy_int(item) 
+  {
+    unsigned_flag= 1;
+  }
+
+  String *val_str(String*);
+  double val_real()
+  {
+    return null_value ? 0.0 : (double) (ulonglong) cached_value;
+  }
+};
+
+
+class Item_copy_float : public Item_copy
+{
+protected:  
+  double cached_value; 
+public:
+  Item_copy_float (Item *i) : Item_copy(i) {}
+  int save_in_field(Field *field, bool no_conversions);
+
+  String *val_str(String*);
+  my_decimal *val_decimal(my_decimal *);
+  double val_real()
+  {
+    return null_value ? 0.0 : cached_value;
+  }
+  longlong val_int()
+  {
+    return (longlong) rint(val_real());
+  }
+  void copy()
+  {
+    cached_value= item->val_real();
+    null_value= item->null_value;
+  }
+};
+
+
+class Item_copy_decimal : public Item_copy
+{
+protected:  
+  my_decimal cached_value;
+public:
+  Item_copy_decimal (Item *i) : Item_copy(i) {}
+  int save_in_field(Field *field, bool no_conversions);
+
+  String *val_str(String*);
+  my_decimal *val_decimal(my_decimal *) 
+  { 
+    return null_value ? NULL: &cached_value; 
+  }
+  double val_real();
+  longlong val_int();
+  void copy();
 };
 
 

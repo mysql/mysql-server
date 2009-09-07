@@ -1272,7 +1272,7 @@ select *, f8() from v1|
 
 # Let us test what will happen if function is missing
 drop function f1|
---error 1356
+--error ER_VIEW_INVALID
 select * from v1|
 
 # And what will happen if we have recursion which involves
@@ -1311,9 +1311,9 @@ select f0()|
 select * from v0|
 select *, f0() from v0, (select 123) as d1|
 # But these should not !
---error 1100
+--error ER_TABLE_NOT_LOCKED
 select id, f3() from t1|
---error 1100
+--error ER_TABLE_NOT_LOCKED
 select f4()|
 unlock tables|
 
@@ -1323,9 +1323,9 @@ lock tables v2 read, mysql.proc read|
 select * from v2|
 select * from v1|
 # These should not work as we have too little instances of tables locked
---error 1100
+--error ER_TABLE_NOT_LOCKED
 select * from v1, t1|
---error 1100
+--error ER_TABLE_NOT_LOCKED
 select f4()|
 unlock tables|
 
@@ -1560,61 +1560,6 @@ drop procedure ip|
 --replace_column 4 'root@localhost' 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
 show procedure status where name like '%p%' and db='test'|
 
-
-# Fibonacci, for recursion test. (Yet Another Numerical series :)
-#
---disable_warnings
-drop table if exists t3|
---enable_warnings
-create table t3 ( f bigint unsigned not null )|
-
-# We deliberately do it the awkward way, fetching the last two
-# values from the table, in order to exercise various statements
-# and table accesses at each turn.
---disable_warnings
-drop procedure if exists fib|
---enable_warnings
-create procedure fib(n int unsigned)
-begin
-  if n > 1 then
-    begin
-      declare x, y bigint unsigned;
-      declare c cursor for select f from t3 order by f desc limit 2;
-
-      open c;
-      fetch c into y;
-      fetch c into x;
-      close c;
-      insert into t3 values (x+y);
-      call fib(n-1);
-    end;
-  end if;
-end|
-
-# Enable recursion
-set @@max_sp_recursion_depth= 20|
-
-# Minimum test: recursion of 3 levels
-
-insert into t3 values (0), (1)|
-
-call fib(3)|
-
-select * from t3 order by f asc|
-
-truncate table t3|
-
-# The original test, 20 levels, ran into memory limits on some machines
-# and builds. Try 10 instead...
-
-insert into t3 values (0), (1)|
-
-call fib(10)|
-
-select * from t3 order by f asc|
-drop table t3|
-drop procedure fib|
-set @@max_sp_recursion_depth= 0|
 
 #
 # Comment & suid
@@ -5255,19 +5200,31 @@ drop procedure bug5967|
 #
 # Bug#13012 "SP: REPAIR/BACKUP/RESTORE TABLE crashes the server"
 #
+--let $backupdir = $MYSQLTEST_VARDIR/tmp/
+--error 0,1
+--remove_file $backupdir/t1.frm
+--error 0,1
+--remove_file $backupdir/t1.MYD
+
 --disable_warnings
 drop procedure if exists bug13012|
 # Disable warnings also for BACKUP/RESTORE: they are deprecated.
-create procedure bug13012()
-BEGIN
-  REPAIR TABLE t1;
-  BACKUP TABLE t1 to '../../tmp';
-  DROP TABLE t1;
-  RESTORE TABLE t1 FROM '../../tmp';
-END|
+--replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
+eval create procedure bug13012()
+    BEGIN
+       REPAIR TABLE t1;
+       BACKUP TABLE t1 to '$backupdir';
+       DROP TABLE t1;
+       RESTORE TABLE t1 FROM '$backupdir';
+    END|
 call bug13012()|
+
 --enable_warnings
+--remove_file $backupdir/t1.frm
+--remove_file $backupdir/t1.MYD
+
 drop procedure bug13012|
+
 create view v1 as select * from t1|
 create procedure bug13012()
 BEGIN
@@ -8257,6 +8214,33 @@ select replace(@full_mode, '?', 'NOT_USED') into @full_mode;
 select replace(@full_mode, 'ALLOW_INVALID_DATES', 'INVALID_DATES') into @full_mode;
 select name from mysql.proc where name = 'p' and sql_mode = @full_mode;
 drop procedure p;
+
+#
+# Bug#43962 "Packets out of order" calling a SHOW TABLE STATUS
+#
+DELIMITER //;
+CREATE DEFINER = 'root'@'localhost' PROCEDURE p1()
+NOT DETERMINISTIC
+CONTAINS SQL
+SQL SECURITY DEFINER
+COMMENT ''
+BEGIN
+ SHOW TABLE STATUS like 't1';
+END;//
+DELIMITER ;//
+
+
+CREATE TABLE t1 (f1 INT);
+--disable_result_log
+let $tab_count= 4;
+while ($tab_count)
+{
+ EVAL CALL p1();
+ dec $tab_count ;
+}
+--enable_result_log
+DROP PROCEDURE p1;
+DROP TABLE t1;
 
 --echo # ------------------------------------------------------------------
 --echo # -- End of 5.1 tests

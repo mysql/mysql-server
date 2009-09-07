@@ -346,8 +346,8 @@ _rl_char_value (buf, ind)
 #undef _rl_find_next_mbchar
 int
 _rl_find_next_mbchar (string, seed, count, flags)
-     char *string;
-     int seed, count, flags;
+     char *string __attribute__((unused));
+     int seed, count, flags __attribute__((unused));
 {
 #if defined (HANDLE_MULTIBYTE)
   return _rl_find_next_mbchar_internal (string, seed, count, flags);
@@ -362,8 +362,8 @@ _rl_find_next_mbchar (string, seed, count, flags)
 #undef _rl_find_prev_mbchar
 int
 _rl_find_prev_mbchar (string, seed, flags)
-     char *string;
-     int seed, flags;
+     char *string __attribute__((unused));
+     int seed, flags __attribute__((unused));
 {
 #if defined (HANDLE_MULTIBYTE)
   return _rl_find_prev_mbchar_internal (string, seed, flags);

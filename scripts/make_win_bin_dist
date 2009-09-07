@@ -126,7 +126,7 @@ if [ -e $DESTDIR ] ; then
   usage
 fi
 
-trap 'echo "Clearning up and exiting..." ; rm -fr $DESTDIR; exit 1' ERR
+trap 'echo "Cleaning up and exiting..." ; rm -fr $DESTDIR; exit 1' ERR
 
 # ----------------------------------------------------------------------
 # Adjust target name if needed, release with debug info has another name

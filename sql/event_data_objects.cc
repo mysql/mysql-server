@@ -1429,13 +1429,7 @@ Event_job_data::execute(THD *thd, bool drop)
   thd->variables.sql_mode= sql_mode;
   thd->variables.time_zone= time_zone;
 
-  /*
-    Peculiar initialization order is a crutch to avoid races in SHOW
-    PROCESSLIST which reads thd->{query/query_length} without a mutex.
-  */
-  thd->query_length= 0;
-  thd->query= sp_sql.c_ptr_safe();
-  thd->query_length= sp_sql.length();
+  thd->set_query(sp_sql.c_ptr_safe(), sp_sql.length());
 
   {
     Parser_state parser_state(thd, thd->query, thd->query_length);
@@ -1496,13 +1490,8 @@ end_no_lex_start:
     else
     {
       ulong saved_master_access;
-      /*
-        Peculiar initialization order is a crutch to avoid races in SHOW
-        PROCESSLIST which reads thd->{query/query_length} without a mutex.
-      */
-      thd->query_length= 0;
-      thd->query= sp_sql.c_ptr_safe();
-      thd->query_length= sp_sql.length();
+
+      thd->set_query(sp_sql.c_ptr_safe(), sp_sql.length());
 
       /*
         NOTE: even if we run in read-only mode, we should be able to lock
@@ -1527,8 +1516,7 @@ end_no_lex_start:
   thd->end_statement();
   thd->cleanup_after_query();
   /* Avoid races with SHOW PROCESSLIST */
-  thd->query_length= 0;
-  thd->query= NULL;
+  thd->set_query(NULL, 0);
 
   DBUG_PRINT("info", ("EXECUTED %s.%s  ret: %d", dbname.str, name.str, ret));
 

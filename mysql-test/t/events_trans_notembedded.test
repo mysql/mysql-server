@@ -50,6 +50,7 @@ delete from t1;
 commit work;
 # Cleanup
 disconnect conn1;
+--source include/wait_until_disconnected.inc
 connection default;
 drop user mysqltest_user1@localhost;
 drop database mysqltest_db2;

@@ -4599,7 +4599,6 @@ bool Field_double::send_binary(Protocol *protocol)
 
 int Field_double::cmp(const uchar *a_ptr, const uchar *b_ptr)
 {
-  ASSERT_COLUMN_MARKED_FOR_READ;
   double a,b;
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
@@ -5308,7 +5307,7 @@ bool Field_time::get_time(MYSQL_TIME *ltime)
     ltime->neg= 1;
     tmp=-tmp;
   }
-  ltime->day= 0;
+  ltime->year= ltime->month= ltime->day= 0;
   ltime->hour=   (int) (tmp/10000);
   tmp-=ltime->hour*10000;
   ltime->minute= (int) tmp/100;
@@ -6270,48 +6269,15 @@ check_string_copy_error(Field_str *field,
                         const char *end,
                         CHARSET_INFO *cs)
 {
-  const char *pos, *end_orig;
-  char tmp[64], *t;
+  const char *pos;
+  char tmp[32];
   
   if (!(pos= well_formed_error_pos) &&
       !(pos= cannot_convert_error_pos))
     return FALSE;
 
-  end_orig= end;
-  set_if_smaller(end, pos + 6);
+  convert_to_printable(tmp, sizeof(tmp), pos, (end - pos), cs, 6);
 
-  for (t= tmp; pos < end; pos++)
-  {
-    /*
-      If the source string is ASCII compatible (mbminlen==1)
-      and the source character is in ASCII printable range (0x20..0x7F),
-      then display the character as is.
-      
-      Otherwise, if the source string is not ASCII compatible (e.g. UCS2),
-      or the source character is not in the printable range,
-      then print the character using HEX notation.
-    */
-    if (((unsigned char) *pos) >= 0x20 &&
-        ((unsigned char) *pos) <= 0x7F &&
-        cs->mbminlen == 1)
-    {
-      *t++= *pos;
-    }
-    else
-    {
-      *t++= '\\';
-      *t++= 'x';
-      *t++= _dig_vec_upper[((unsigned char) *pos) >> 4];
-      *t++= _dig_vec_upper[((unsigned char) *pos) & 15];
-    }
-  }
-  if (end_orig > end)
-  {
-    *t++= '.';
-    *t++= '.';
-    *t++= '.';
-  }
-  *t= '\0';
   push_warning_printf(field->table->in_use, 
                       field->table->in_use->abort_on_warning ?
                       MYSQL_ERROR::WARN_LEVEL_ERROR :
@@ -6453,13 +6419,13 @@ int Field_str::store(double nr)
     calculate the maximum number of significant digits if the 'f'-format
     would be used (+1 for decimal point if the number has a fractional part).
   */
-  digits= max(0, (int) max_length - fractional);
+  digits= max(1, (int) max_length - fractional);
   /*
     If the exponent is negative, decrease digits by the number of leading zeros
     after the decimal point that do not count as significant digits.
   */
   if (exp < 0)
-    digits= max(0, (int) digits + exp);
+    digits= max(1, (int) digits + exp);
   /*
     'e'-format is used only if the exponent is less than -4 or greater than or
     equal to the precision. In this case we need to adjust the number of
@@ -6467,7 +6433,7 @@ int Field_str::store(double nr)
     We also have to reserve one additional character if abs(exp) >= 100.
   */
   if (exp >= (int) digits || exp < -4)
-    digits= max(0, (int) (max_length - 5 - (exp >= 100 || exp <= -100)));
+    digits= max(1, (int) (max_length - 5 - (exp >= 100 || exp <= -100)));
 
   /* Limit precision to DBL_DIG to avoid garbage past significant digits */
   set_if_smaller(digits, DBL_DIG);
@@ -9692,16 +9658,16 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
       else if (tmp_length > PRECISION_FOR_FLOAT)
       {
         sql_type= MYSQL_TYPE_DOUBLE;
-        length= DBL_DIG+7; /* -[digits].E+### */
+        length= MAX_DOUBLE_STR_LENGTH; 
       }
       else
-        length= FLT_DIG+6; /* -[digits].E+## */
+        length= MAX_FLOAT_STR_LENGTH; 
       decimals= NOT_FIXED_DEC;
       break;
     }
     if (!fld_length && !fld_decimals)
     {
-      length=  FLT_DIG+6;
+      length=  MAX_FLOAT_STR_LENGTH;
       decimals= NOT_FIXED_DEC;
     }
     if (length < decimals &&

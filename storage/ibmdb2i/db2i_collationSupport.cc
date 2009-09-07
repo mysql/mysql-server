@@ -44,7 +44,7 @@ OF SUCH DAMAGE.
   between corresponding array slots but is incomplete without case-sensitivity
   markers dynamically added to the mySqlSortSequence names.
 */
-#define MAX_COLLATION 89
+#define MAX_COLLATION 87
 static const char* mySQLCollation[MAX_COLLATION] = 
 {
     {"ascii_general"},
@@ -52,7 +52,6 @@ static const char* mySQLCollation[MAX_COLLATION] =
     {"big5_chinese"},
     {"big5"},
     {"cp1250_croatian"},
-    {"cp1250_czech"},
     {"cp1250_general"},
     {"cp1250_polish"},
     {"cp1250"},
@@ -84,7 +83,6 @@ static const char* mySQLCollation[MAX_COLLATION] =
     {"latin1_swedish"},
     {"latin1"},
     {"latin2_croatian"},
-    {"latin2_czech"},
     {"latin2_general"},
     {"latin2_hungarian"},
     {"latin2"},
@@ -111,7 +109,7 @@ static const char* mySQLCollation[MAX_COLLATION] =
     {"ucs2_slovak"},
     {"ucs2_slovenian"},
     {"ucs2_spanish"},
-    {"ucs2_spanish2"},
+    {"ucs2_swedish"},
     {"ucs2_turkish"},
     {"ucs2_unicode"},
     {"ucs2"},
@@ -132,7 +130,7 @@ static const char* mySQLCollation[MAX_COLLATION] =
     {"utf8_slovak"},
     {"utf8_slovenian"},
     {"utf8_spanish"},
-    {"utf8_spanish2"},
+    {"utf8_swedish"},
     {"utf8_turkish"},
     {"utf8_unicode"},
     {"utf8"}
@@ -146,7 +144,6 @@ static const char* mySqlSortSequence[MAX_COLLATION] =
     {"QACHT04B0"},  
     {"QBCHT04B0"},
     {"QALA20481"},  
-    {"QBLA20481"},
     {"QCLA20481"},
     {"QDLA20481"},
     {"QELA20481"},
@@ -178,7 +175,6 @@ static const char* mySqlSortSequence[MAX_COLLATION] =
     {"QELA1047C"},
     {"QFLA1047C"},
     {"QCLA20366"},  
-    {"QDLA20366"},
     {"QELA20366"},
     {"QFLA20366"},
     {"QGLA20366"},
@@ -190,8 +186,8 @@ static const char* mySqlSortSequence[MAX_COLLATION] =
     {"QDJPN04B0"},
     {"QATHA0346"},  
     {"QBTHA0346"},  
-    {"ACS"},        
-    {"ADA"},
+    {"ACS_CZ"},        
+    {"ADA_DK"},
     {"AEO"},
     {"AET"},
     {"QAUCS04B0"},  
@@ -205,14 +201,14 @@ static const char* mySqlSortSequence[MAX_COLLATION] =
     {"ASK"},
     {"ASL"},
     {"AES"},
-    {"AES__TRADIT"},
+    {"ASW"},
     {"ATR"},
     {"AEN"},
     {"*HEX"},
     {"QEJPN04B0"},  
     {"QFJPN04B0"},
-    {"ACS"},        
-    {"ADA"},
+    {"ACS_CZ"},        
+    {"ADA_DK"},
     {"AEO"},
     {"AET"},
     {"QAUCS04B0"},
@@ -226,7 +222,7 @@ static const char* mySqlSortSequence[MAX_COLLATION] =
     {"ASK"},
     {"ASL"},
     {"AES"},
-    {"AES__TRADIT"},
+    {"ASW"},
     {"ATR"},
     {"AEN"},
     {"*HEX"}

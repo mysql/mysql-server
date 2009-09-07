@@ -1910,4 +1910,19 @@ DROP TABLE t1;
 create table `me:i`(id int);
 drop table `me:i`;
 
+# --
+# -- Bug#45829: CREATE TABLE TRANSACTIONAL PAGE_CHECKSUM ROW_FORMAT=PAGE accepted, does nothing
+# --
+
+drop table if exists t1,t2,t3;
+# Fix modified for MariaDB: we support this syntax
+create table t1 (a int) transactional=0;
+Warnings:
+Error	1478	Table storage engine 'MyISAM' does not support the create option 'TRANSACTIONAL=1'
+create table t2 (a int) page_checksum=1;
+create table t3 (a int) row_format=page;
+drop table t1,t2,t3;
+
+# -- End of Bug#45829
+
 End of 5.1 tests

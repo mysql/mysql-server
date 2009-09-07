@@ -110,7 +110,7 @@ connection conn3;
 --send
 DROP DATABASE events_conn3_db;
 connection default;
---send
+# --send
 DROP DATABASE events_conn1_test2;
 DROP DATABASE events_conn1_test3;
 SET GLOBAL event_scheduler=off;
@@ -139,3 +139,4 @@ DROP DATABASE events_test;
 
 # Cleanup
 SET GLOBAL event_scheduler=@old_event_scheduler;
+--source include/check_events_off.inc

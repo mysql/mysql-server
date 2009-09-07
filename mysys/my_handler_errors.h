@@ -63,6 +63,7 @@ static const char *handler_error_messages[]=
   "Got a fatal error during initialization of handler",
   "File too short; Expected more data in file",
   "Read page with wrong checksum",
+  "Too many active concurrent transactions",
   "Row is not visible by the current transaction"
 };
 

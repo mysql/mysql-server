@@ -669,13 +669,9 @@ call p_verify_status_increment(1, 0, 1, 0);
 insert t1 set a=3;
 call p_verify_status_increment(2, 2, 2, 2);
 savepoint a;
-call p_verify_status_increment(0, 0, 0, 0);
+call p_verify_status_increment(1, 0, 1, 0);
 insert t1 set a=4;
---echo # Binlog does not register itself this time for other than the 1st
---echo # statement of the transaction with MIXED/STATEMENT binlog_format.
---echo # It needs registering with the ROW format. Therefore 1,0,2,2 are 
---echo # the correct arguments to this test after bug#40221 fixed.
-call p_verify_status_increment(1, 0, 2, 2);
+call p_verify_status_increment(2, 2, 2, 2);
 release savepoint a;
 rollback;
 call p_verify_status_increment(0, 0, 0, 0);

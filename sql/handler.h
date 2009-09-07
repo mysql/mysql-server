@@ -281,7 +281,9 @@ enum legacy_db_type
 
 enum row_type { ROW_TYPE_NOT_USED=-1, ROW_TYPE_DEFAULT, ROW_TYPE_FIXED,
 		ROW_TYPE_DYNAMIC, ROW_TYPE_COMPRESSED,
-		ROW_TYPE_REDUNDANT, ROW_TYPE_COMPACT, ROW_TYPE_PAGE };
+		ROW_TYPE_REDUNDANT, ROW_TYPE_COMPACT,
+                /** Unused. Reserved for future versions. */
+                ROW_TYPE_PAGE };
 
 enum enum_binlog_func {
   BFN_RESET_LOGS=        1,
@@ -324,6 +326,7 @@ enum enum_binlog_command {
 #define HA_CREATE_USED_PASSWORD         (1L << 17)
 #define HA_CREATE_USED_CONNECTION       (1L << 18)
 #define HA_CREATE_USED_KEY_BLOCK_SIZE   (1L << 19)
+/* The following two are used by Maria engine: */
 #define HA_CREATE_USED_TRANSACTIONAL    (1L << 20)
 #define HA_CREATE_USED_PAGE_CHECKSUM    (1L << 21)
 
@@ -884,9 +887,9 @@ typedef struct {
   ulonglong delete_length;
   ha_rows records;
   ulong mean_rec_length;
-  time_t create_time;
-  time_t check_time;
-  time_t update_time;
+  ulong create_time;
+  ulong check_time;
+  ulong update_time;
   ulonglong check_sum;
 } PARTITION_INFO;
 
@@ -922,7 +925,7 @@ typedef struct st_ha_create_information
   uint options;				/* OR of HA_CREATE_ options */
   uint merge_insert_method;
   uint extra_size;                      /* length of extra data segment */
-  /* 0 not used, 1 if not transactional, 2 if transactional */
+  /** Transactional or not. Unused; reserved for future versions. */
   enum ha_choice transactional;
   bool table_existed;			/* 1 in create if table existed */
   bool frm_only;                        /* 1 if no ha_create_table() */
@@ -1044,9 +1047,9 @@ public:
   ha_rows records;
   ha_rows deleted;			/* Deleted records */
   ulong mean_rec_length;		/* physical reclength */
-  time_t create_time;			/* When table was created */
-  time_t check_time;
-  time_t update_time;
+  ulong create_time;			/* When table was created */
+  ulong check_time;
+  ulong update_time;
   uint block_size;			/* index block size */
 
   ha_statistics():
@@ -1947,8 +1950,8 @@ private:
 	/* Some extern variables used with handlers */
 
 extern const char *ha_row_type[];
-extern const char *tx_isolation_names[];
-extern const char *binlog_format_names[];
+extern MYSQL_PLUGIN_IMPORT const char *tx_isolation_names[];
+extern MYSQL_PLUGIN_IMPORT const char *binlog_format_names[];
 extern TYPELIB tx_isolation_typelib;
 extern TYPELIB myisam_stats_method_typelib;
 extern ulong total_ha, total_ha_2pc;

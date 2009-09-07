@@ -336,4 +336,11 @@ a	b
 NULL	NULL
 NULL	1
 drop table t1;
+#
+# bug#39918 - memory (heap) engine crashing while executing self join with delete
+#
+CREATE TABLE t1(a INT, KEY USING BTREE (a)) ENGINE=MEMORY;
+INSERT INTO t1 VALUES(1),(1);
+DELETE a1 FROM t1 AS a1, t1 AS a2 WHERE a1.a=a2.a;
+DROP TABLE t1;
 End of 5.0 tests

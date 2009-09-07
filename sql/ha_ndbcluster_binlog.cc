@@ -253,8 +253,7 @@ static void run_query(THD *thd, char *buf, char *end,
   const char* found_semicolon= NULL;
 
   bzero((char*) &thd->net, sizeof(NET));
-  thd->query_length= end - buf;
-  thd->query= buf;
+  thd->set_query(buf, (uint) (end - buf));
   thd->variables.pseudo_thread_id= thread_id;
   thd->transaction.stmt.modified_non_trans_table= FALSE;
   if (disable_binlog)
@@ -297,8 +296,7 @@ static void run_query(THD *thd, char *buf, char *end,
   thd->main_da.reset_diagnostics_area();
 
   thd->options= save_thd_options;
-  thd->query_length= save_thd_query_length;
-  thd->query= save_thd_query;
+  thd->set_query(save_thd_query, save_thd_query_length);
   thd->variables.pseudo_thread_id= save_thread_id;
   thd->status_var= save_thd_status_var;
   thd->transaction.all= save_thd_transaction_all;
@@ -788,7 +786,7 @@ static int ndbcluster_create_ndb_apply_status_table(THD *thd)
   if (g_ndb_cluster_connection->get_no_ready() <= 0)
     DBUG_RETURN(0);
 
-  char buf[1024], *end;
+  char buf[1024 + 1], *end;
 
   if (ndb_extra_logging)
     sql_print_information("NDB: Creating " NDB_REP_DB "." NDB_APPLY_TABLE);
@@ -798,7 +796,7 @@ static int ndbcluster_create_ndb_apply_status_table(THD *thd)
     if so, remove it since there is none in Ndb
   */
   {
-    build_table_filename(buf, sizeof(buf),
+    build_table_filename(buf, sizeof(buf) - 1,
                          NDB_REP_DB, NDB_APPLY_TABLE, reg_ext, 0);
     my_delete(buf, MYF(0));
   }
@@ -846,7 +844,7 @@ static int ndbcluster_create_schema_table(THD *thd)
   if (g_ndb_cluster_connection->get_no_ready() <= 0)
     DBUG_RETURN(0);
 
-  char buf[1024], *end;
+  char buf[1024 + 1], *end;
 
   if (ndb_extra_logging)
     sql_print_information("NDB: Creating " NDB_REP_DB "." NDB_SCHEMA_TABLE);
@@ -856,7 +854,7 @@ static int ndbcluster_create_schema_table(THD *thd)
     if so, remove it since there is none in Ndb
   */
   {
-    build_table_filename(buf, sizeof(buf),
+    build_table_filename(buf, sizeof(buf) - 1,
                          NDB_REP_DB, NDB_SCHEMA_TABLE, reg_ext, 0);
     my_delete(buf, MYF(0));
   }
@@ -1321,8 +1319,8 @@ int ndbcluster_log_schema_op(THD *thd, NDB_SHARE *share,
 
   NDB_SCHEMA_OBJECT *ndb_schema_object;
   {
-    char key[FN_REFLEN];
-    build_table_filename(key, sizeof(key), db, table_name, "", 0);
+    char key[FN_REFLEN + 1];
+    build_table_filename(key, sizeof(key) - 1, db, table_name, "", 0);
     ndb_schema_object= ndb_get_schema_object(key, TRUE, FALSE);
   }
 
@@ -1676,7 +1674,7 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
   if (is_remote_change && is_online_alter_table)
   {
     const char *tabname= table_share->table_name.str;
-    char key[FN_REFLEN];
+    char key[FN_REFLEN + 1];
     uchar *data= 0, *pack_data= 0;
     size_t length, pack_length;
     int error;
@@ -1685,7 +1683,7 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
     
     DBUG_PRINT("info", ("Detected frm change of table %s.%s",
                         dbname, tabname));
-    build_table_filename(key, FN_LEN-1, dbname, tabname, NullS, 0);
+    build_table_filename(key, FN_LEN - 1, dbname, tabname, NullS, 0);
     /*
       If the there is no local table shadowing the altered table and 
       it has an frm that is different than the one on disk then 
@@ -1857,9 +1855,11 @@ static void ndb_binlog_query(THD *thd, Cluster_schema *schema)
   else
     thd->server_id= schema->any_value;
   thd->db= schema->db;
+  int errcode = query_error_code(thd, thd->killed == THD::NOT_KILLED);
   thd->binlog_query(THD::STMT_QUERY_TYPE, schema->query,
                     schema->query_length, FALSE,
-                    schema->name[0] == 0 || thd->db[0] == 0);
+                    schema->name[0] == 0 || thd->db[0] == 0,
+                    errcode);
   thd->server_id= thd_server_id_save;
   thd->db= thd_db_save;
 }
@@ -1926,8 +1926,8 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
           break;
 	case SOT_TRUNCATE_TABLE:
         {
-          char key[FN_REFLEN];
-          build_table_filename(key, sizeof(key),
+          char key[FN_REFLEN + 1];
+          build_table_filename(key, sizeof(key) - 1,
                                schema->db, schema->name, "", 0);
           /* ndb_share reference temporary, free below */
           NDB_SHARE *share= get_share(key, 0, FALSE, FALSE);
@@ -2173,8 +2173,8 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
     int log_query= 0;
     {
       enum SCHEMA_OP_TYPE schema_type= (enum SCHEMA_OP_TYPE)schema->type;
-      char key[FN_REFLEN];
-      build_table_filename(key, sizeof(key), schema->db, schema->name, "", 0);
+      char key[FN_REFLEN + 1];
+      build_table_filename(key, sizeof(key) - 1, schema->db, schema->name, "", 0);
       if (schema_type == SOT_CLEAR_SLOCK)
       {
         pthread_mutex_lock(&ndbcluster_mutex);
@@ -2508,8 +2508,8 @@ ndb_rep_event_name(String *event_name,const char *db, const char *tbl)
 bool
 ndbcluster_check_if_local_table(const char *dbname, const char *tabname)
 {
-  char key[FN_REFLEN];
-  char ndb_file[FN_REFLEN];
+  char key[FN_REFLEN + 1];
+  char ndb_file[FN_REFLEN + 1];
 
   DBUG_ENTER("ndbcluster_check_if_local_table");
   build_table_filename(key, FN_LEN-1, dbname, tabname, reg_ext, 0);
@@ -2534,9 +2534,9 @@ ndbcluster_check_if_local_tables_in_db(THD *thd, const char *dbname)
   DBUG_PRINT("info", ("Looking for files in directory %s", dbname));
   LEX_STRING *tabname;
   List<LEX_STRING> files;
-  char path[FN_REFLEN];
+  char path[FN_REFLEN + 1];
 
-  build_table_filename(path, sizeof(path), dbname, "", "", 0);
+  build_table_filename(path, sizeof(path) - 1, dbname, "", "", 0);
   if (find_files(thd, &files, dbname, path, NullS, 0) != FIND_FILES_OK)
   {
     DBUG_PRINT("info", ("Failed to find files"));
@@ -3755,7 +3755,6 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
     if (ndbcluster_terminating)
     {
       pthread_mutex_unlock(&LOCK_server_started);
-      pthread_mutex_lock(&LOCK_ndb_util_thread);
       goto err;
     }
   }

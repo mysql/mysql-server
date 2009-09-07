@@ -127,7 +127,7 @@ int _rl_want_redisplay = 0;
 
 /* The stuff that gets printed out before the actual text of the line.
    This is usually pointing to rl_prompt. */
-char *rl_display_prompt = (char *)NULL;
+const char *rl_display_prompt = (const char *)NULL;
 
 /* Pseudo-global variables declared here. */
 
@@ -227,7 +227,10 @@ expand_prompt (pmt, lp, lip, niflp, vlp)
      int *lp, *lip, *niflp, *vlp;
 {
   char *r, *ret, *p, *igstart;
-  int l, rl, last, ignoring, ninvis, invfl, invflset, ind, pind, physchars;
+  int l, rl, last, ignoring, ninvis, invfl, invflset, physchars;
+#if defined (HANDLE_MULTIBYTE)
+  int ind, pind;
+#endif
 
   /* Short-circuit if we can. */
   if ((MB_CUR_MAX <= 1 || rl_byte_oriented) && strchr (pmt, RL_PROMPT_START_IGNORE) == 0)
@@ -240,7 +243,7 @@ expand_prompt (pmt, lp, lip, niflp, vlp)
       if (niflp)
 	*niflp = 0;
       if (vlp)
-	*vlp = lp ? *lp : strlen (r);
+	*vlp = lp ? *lp : (int)strlen (r);
       return r;
     }
 
@@ -457,9 +460,10 @@ rl_redisplay ()
   register int in, out, c, linenum, cursor_linenum;
   register char *line;
   int inv_botlin, lb_linenum, o_cpos;
-  int newlines, lpos, temp, modmark, n0, num;
+  int newlines, lpos, temp, modmark;
   char *prompt_this_line;
 #if defined (HANDLE_MULTIBYTE)
+  int num, n0;
   wchar_t wc;
   size_t wc_bytes;
   int wc_width;
@@ -624,7 +628,6 @@ rl_redisplay ()
      contents of the command line? */
   while (lpos >= _rl_screenwidth)
     {
-      int z;
       /* fix from Darin Johnson <darin@acuson.com> for prompt string with
          invisible characters that is longer than the screen width.  The
          prompt_invis_chars_first_line variable could be made into an array
@@ -633,6 +636,7 @@ rl_redisplay ()
          prompts that exceed two physical lines?
          Additional logic fix from Edward Catmur <ed@catmur.co.uk> */
 #if defined (HANDLE_MULTIBYTE)
+      int z;
       if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
 	{
 	  n0 = num;
@@ -874,6 +878,7 @@ rl_redisplay ()
   if (_rl_horizontal_scroll_mode == 0 && _rl_term_up && *_rl_term_up)
     {
       int nleft, pos, changed_screen_line, tx;
+      char empty_str[1] = { 0 };
 
       if (!rl_display_fixed || forced_display)
 	{
@@ -898,7 +903,7 @@ rl_redisplay ()
 #define VIS_LLEN(l)	((l) > _rl_vis_botlin ? 0 : (vis_lbreaks[l+1] - vis_lbreaks[l]))
 #define INV_LLEN(l)	(inv_lbreaks[l+1] - inv_lbreaks[l])
 #define VIS_CHARS(line) (visible_line + vis_lbreaks[line])
-#define VIS_LINE(line) ((line) > _rl_vis_botlin) ? "" : VIS_CHARS(line)
+#define VIS_LINE(line) ((line) > _rl_vis_botlin) ? empty_str : VIS_CHARS(line)
 #define INV_LINE(line) (invisible_line + inv_lbreaks[line])
 
 	  /* For each line in the buffer, do the updating display. */
@@ -965,7 +970,7 @@ rl_redisplay ()
 		  _rl_move_vert (linenum);
 		  _rl_move_cursor_relative (0, tt);
 		  _rl_clear_to_eol
-		    ((linenum == _rl_vis_botlin) ? strlen (tt) : _rl_screenwidth);
+		    ((linenum == _rl_vis_botlin) ? (int)strlen (tt) : _rl_screenwidth);
 		}
 	    }
 	  _rl_vis_botlin = inv_botlin;
@@ -2257,7 +2262,7 @@ static void
 redraw_prompt (t)
      char *t;
 {
-  char *oldp;
+  const char *oldp;
 
   oldp = rl_display_prompt;
   rl_save_prompt ();

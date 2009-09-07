@@ -2218,6 +2218,39 @@ select * from t1;
 select * from t2;
 drop table t1;
 drop temporary table t2;
+
+--echo #------------------------------------------------------------------------
+--echo # Bug#39953 Triggers are not working properly with multi table updates
+--echo #------------------------------------------------------------------------
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP TRIGGER IF EXISTS t_insert;
+DROP TABLE IF EXISTS t2;
+--enable_warnings
+
+CREATE TABLE t1 (a int, date_insert timestamp, PRIMARY KEY (a));
+INSERT INTO t1 (a) VALUES (2),(5);
+CREATE TABLE t2 (a int, b int, PRIMARY KEY (a));
+DELIMITER |;
+CREATE TRIGGER t_insert AFTER INSERT ON t2 FOR EACH ROW BEGIN UPDATE t1,t2 SET
+date_insert=NOW() WHERE t1.a=t2.b AND t2.a=NEW.a; END |
+DELIMITER ;|
+INSERT INTO t2 (a,b) VALUES (1,2);
+
+DROP TRIGGER t_insert;
+
+DELIMITER |;
+CREATE TRIGGER t_insert AFTER INSERT ON t2 FOR EACH ROW BEGIN UPDATE t1,t2 SET
+date_insert=NOW(),b=b+1 WHERE t1.a=t2.b AND t2.a=NEW.a; END |
+DELIMITER ;|
+--error ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG
+INSERT INTO t2 (a,b) VALUES (3,5);
+
+DROP TABLE t1;
+DROP TRIGGER t_insert;
+DROP TABLE t2;
+
 --echo End of 5.0 tests
 
 #
@@ -2336,5 +2369,31 @@ select @a, @b;
 drop trigger trg1;
 drop trigger trg2;
 drop table t1, t2;
+
+#
+# Bug#44653: Server crash noticed when executing random queries with partitions.
+#
+CREATE TABLE t1 ( a INT, b INT );
+CREATE TABLE t2 ( a INT AUTO_INCREMENT KEY, b INT );
+
+INSERT INTO t1 (a) VALUES (1);
+
+delimiter //;
+CREATE TRIGGER tr1
+BEFORE INSERT ON t2
+FOR EACH ROW 
+BEGIN 
+  UPDATE a_nonextisting_table SET a = 1;
+END//
+delimiter ;//
+
+--disable_abort_on_error
+CREATE TABLE IF NOT EXISTS t2 ( a INT, b INT ) SELECT a, b FROM t1;
+--enable_abort_on_error
+
+# Caused failed assertion
+SELECT * FROM t2;
+
+DROP TABLE t1, t2;
 
 --echo End of 5.1 tests.

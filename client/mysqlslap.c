@@ -565,8 +565,7 @@ static struct my_option my_long_options[] =
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"csv", OPT_SLAP_CSV,
 	"Generate CSV output to named file or to stdout if no file is named.",
-    (uchar**) &opt_csv_str, (uchar**) &opt_csv_str, 0, GET_STR, 
-    OPT_ARG, 0, 0, 0, 0, 0, 0},
+    NULL, NULL, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef DBUG_OFF
   {"debug", '#', "This is a non-debug version. Catch this and exit.",
    0, 0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
@@ -712,6 +711,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     verbose++;
     break;
   case 'p':
+    if (argument == disabled_my_option)
+      argument= (char*) "";			/* Don't require password */
     if (argument)
     {
       char *start= argument;
@@ -737,6 +738,11 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case '#':
     DBUG_PUSH(argument ? argument : default_dbug_option);
     debug_check_flag= 1;
+    break;
+  case OPT_SLAP_CSV:
+    if (!argument)
+      argument= (char *)"-"; /* use stdout */
+    opt_csv_str= argument;
     break;
 #include <sslopt-case.h>
   case 'V':

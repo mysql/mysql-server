@@ -79,7 +79,7 @@ static int rl_yank_nth_arg_internal PARAMS((int, int, int));
    of kill material. */
 int
 rl_set_retained_kills (num)
-     int num;
+     int num __attribute__((unused));
 {
   return 0;
 }
@@ -296,7 +296,7 @@ rl_backward_kill_line (direction, ignore)
 /* Kill the whole line, no matter where point is. */
 int
 rl_kill_full_line (count, ignore)
-     int count, ignore;
+     int count __attribute__((unused)), ignore __attribute__((unused));
 {
   rl_begin_undo_group ();
   rl_point = 0;
@@ -314,7 +314,7 @@ rl_kill_full_line (count, ignore)
    using behaviour that they expect. */
 int
 rl_unix_word_rubout (count, key)
-     int count, key;
+     int count, key __attribute__((unused));
 {
   int orig_point;
 
@@ -347,7 +347,7 @@ rl_unix_word_rubout (count, key)
    deletes backward to directory separator (`/') or whitespace.  */
 int
 rl_unix_filename_rubout (count, key)
-     int count, key;
+     int count, key __attribute__((unused));
 {
   int orig_point, c;
 
@@ -391,7 +391,7 @@ rl_unix_filename_rubout (count, key)
    doing. */
 int
 rl_unix_line_discard (count, key)
-     int count, key;
+     int count __attribute__((unused)), key __attribute__((unused));
 {
   if (rl_point == 0)
     rl_ding ();
@@ -428,7 +428,7 @@ region_kill_internal (delete)
 /* Copy the text in the region to the kill ring. */
 int
 rl_copy_region_to_kill (count, ignore)
-     int count, ignore;
+     int count __attribute__((unused)), ignore __attribute__((unused));
 {
   return (region_kill_internal (0));
 }
@@ -436,7 +436,7 @@ rl_copy_region_to_kill (count, ignore)
 /* Kill the text between the point and mark. */
 int
 rl_kill_region (count, ignore)
-     int count, ignore;
+     int count __attribute__((unused)), ignore __attribute__((unused));
 {
   int r, npoint;
 
@@ -501,7 +501,7 @@ rl_copy_backward_word (count, key)
 /* Yank back the last killed text.  This ignores arguments. */
 int
 rl_yank (count, ignore)
-     int count, ignore;
+     int count __attribute__((unused)), ignore __attribute__((unused));
 {
   if (rl_kill_ring == 0)
     {
@@ -520,7 +520,7 @@ rl_yank (count, ignore)
    yank back some other text. */
 int
 rl_yank_pop (count, key)
-     int count, key;
+     int count __attribute__((unused)), key __attribute__((unused));
 {
   int l, n;
 

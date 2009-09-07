@@ -192,8 +192,6 @@ trx_create(
 
 	trx->n_autoinc_rows = 0;
 
-	trx_reset_new_rec_lock_info(trx);
-
 	return(trx);
 }
 

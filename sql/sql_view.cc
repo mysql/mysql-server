@@ -661,8 +661,9 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     buff.append(STRING_WITH_LEN(" AS "));
     buff.append(views->source.str, views->source.length);
 
+    int errcode= query_error_code(thd, TRUE);
     thd->binlog_query(THD::STMT_QUERY_TYPE,
-                      buff.ptr(), buff.length(), FALSE, FALSE);
+                      buff.ptr(), buff.length(), FALSE, FALSE, errcode);
   }
 
   VOID(pthread_mutex_unlock(&LOCK_open));
@@ -800,7 +801,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
 
   char md5[MD5_BUFF_LENGTH];
   bool can_be_merged;
-  char dir_buff[FN_REFLEN], path_buff[FN_REFLEN];
+  char dir_buff[FN_REFLEN + 1], path_buff[FN_REFLEN + 1];
   LEX_STRING dir, file, path;
   int error= 0;
   DBUG_ENTER("mysql_register_view");
@@ -877,11 +878,11 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   }
 loop_out:
   /* print file name */
-  dir.length= build_table_filename(dir_buff, sizeof(dir_buff),
+  dir.length= build_table_filename(dir_buff, sizeof(dir_buff) - 1,
                                    view->db, "", "", 0);
   dir.str= dir_buff;
 
-  path.length= build_table_filename(path_buff, sizeof(path_buff),
+  path.length= build_table_filename(path_buff, sizeof(path_buff) - 1,
                                     view->db, view->table_name, reg_ext, 0);
   path.str= path_buff;
 
@@ -1567,7 +1568,7 @@ err:
 
 bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
 {
-  char path[FN_REFLEN];
+  char path[FN_REFLEN + 1];
   TABLE_LIST *view;
   String non_existant_views;
   char *wrong_object_db= NULL, *wrong_object_name= NULL;
@@ -1582,7 +1583,7 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
   {
     TABLE_SHARE *share;
     frm_type_enum type= FRMTYPE_ERROR;
-    build_table_filename(path, sizeof(path),
+    build_table_filename(path, sizeof(path) - 1,
                          view->db, view->table_name, reg_ext, 0);
 
     if (access(path, F_OK) || 
@@ -1911,6 +1912,7 @@ int view_checksum(THD *thd, TABLE_LIST *view)
 
   Parameters:
     thd        thread handler
+    new_db     new name of database
     new_name   new name of view
     view       view
 
@@ -1920,12 +1922,13 @@ int view_checksum(THD *thd, TABLE_LIST *view)
 */
 bool
 mysql_rename_view(THD *thd,
+                  const char *new_db,
                   const char *new_name,
                   TABLE_LIST *view)
 {
   LEX_STRING pathstr;
   File_parser *parser;
-  char path_buff[FN_REFLEN];
+  char path_buff[FN_REFLEN + 1];
   bool error= TRUE;
   DBUG_ENTER("mysql_rename_view");
 
@@ -1938,7 +1941,7 @@ mysql_rename_view(THD *thd,
        is_equal(&view_type, parser->type()))
   {
     TABLE_LIST view_def;
-    char dir_buff[FN_REFLEN];
+    char dir_buff[FN_REFLEN + 1];
     LEX_STRING dir, file;
 
     /*
@@ -1958,16 +1961,16 @@ mysql_rename_view(THD *thd,
       goto err;
 
     /* rename view and it's backups */
-    if (rename_in_schema_file(thd, view->db, view->table_name, new_name))
+    if (rename_in_schema_file(thd, view->db, view->table_name, new_db, new_name))
       goto err;
 
     dir.str= dir_buff;
     dir.length= build_table_filename(dir_buff, sizeof(dir_buff) - 1,
-                                     view->db, "", "", 0);
+                                     new_db, "", "", 0);
 
     pathstr.str= path_buff;
     pathstr.length= build_table_filename(path_buff, sizeof(path_buff) - 1,
-                                      view->db, new_name, reg_ext, 0);
+                                         new_db, new_name, reg_ext, 0);
 
     file.str= pathstr.str + dir.length;
     file.length= pathstr.length - dir.length;
@@ -1976,7 +1979,7 @@ mysql_rename_view(THD *thd,
                                    (uchar*)&view_def, view_parameters))
     {
       /* restore renamed view in case of error */
-      rename_in_schema_file(thd, view->db, new_name, view->table_name);
+      rename_in_schema_file(thd, new_db, new_name, view->db, view->table_name);
       goto err;
     }
   } else

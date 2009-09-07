@@ -92,16 +92,38 @@ bool convertMySQLNameToDB2Name(const char* input,
   return (o <= outlen-1);
 }
 
-bool isUpperOrQuote(const CHARSET_INFO* cs, const char* s)
+bool isOrdinaryIdentifier(const char* s)
 {
   while (*s)
   {
-    if (my_isupper(cs, *s) || (*s == '"'))
+    if (my_isupper(system_charset_info, *s) ||
+        my_isdigit(system_charset_info, *s) ||
+        (*s == '_') ||
+        (*s == '@') ||
+        (*s == '$') ||
+        (*s == '#') ||
+        (*s == '"'))
       ++s;
     else
       return false;
   }
   return true;
 }
+
+/**
+  Fill memory with a 16-bit word.
   
+  @param p  Pointer to space to fill.
+  @param v  Value to fill
+  @param l  Length of space (in 16-bit words)
+*/
+void memset16(void* p, uint16 v, size_t l)
+{
+  uint16* p2=(uint16*)p;
+  while (l--)
+  {
+    *(p2++) = v;
+  }
+}
+
 #endif

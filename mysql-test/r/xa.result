@@ -75,3 +75,17 @@ xa rollback 'a','c';
 xa start 'a','c';
 drop table t1;
 End of 5.0 tests
+xa start 'a';
+xa end 'a';
+xa rollback 'a';
+xa start 'a';
+xa end 'a';
+xa rollback 'a';
+xa start 'a';
+xa end 'a';
+xa prepare 'a';
+xa commit 'a';
+xa start 'a';
+xa end 'a';
+xa prepare 'a';
+xa commit 'a';

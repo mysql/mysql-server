@@ -268,7 +268,7 @@ public:
   String *val_str(String *str);
   void fix_length_and_dec() { max_length= SCRAMBLED_PASSWORD_CHAR_LENGTH; }
   const char *func_name() const { return "password"; }
-  static char *alloc(THD *thd, const char *password);
+  static char *alloc(THD *thd, const char *password, size_t pass_len);
 };
 
 
@@ -287,19 +287,23 @@ public:
   String *val_str(String *str);
   void fix_length_and_dec() { max_length= SCRAMBLED_PASSWORD_CHAR_LENGTH_323; } 
   const char *func_name() const { return "old_password"; }
-  static char *alloc(THD *thd, const char *password);
+  static char *alloc(THD *thd, const char *password, size_t pass_len);
 };
 
 
 class Item_func_des_encrypt :public Item_str_func
 {
-  String tmp_value;
+  String tmp_value,tmp_arg;
 public:
   Item_func_des_encrypt(Item *a) :Item_str_func(a) {}
   Item_func_des_encrypt(Item *a, Item *b): Item_str_func(a,b) {}
   String *val_str(String *);
   void fix_length_and_dec()
-  { maybe_null=1; max_length = args[0]->max_length+8; }
+  {
+    maybe_null=1;
+    /* 9 = MAX ((8- (arg_len % 8)) + 1) */
+    max_length = args[0]->max_length + 9;
+  }
   const char *func_name() const { return "des_encrypt"; }
 };
 
@@ -310,7 +314,12 @@ public:
   Item_func_des_decrypt(Item *a) :Item_str_func(a) {}
   Item_func_des_decrypt(Item *a, Item *b): Item_str_func(a,b) {}
   String *val_str(String *);
-  void fix_length_and_dec() { maybe_null=1; max_length = args[0]->max_length; }
+  void fix_length_and_dec()
+  {
+    maybe_null=1;
+    /* 9 = MAX ((8- (arg_len % 8)) + 1) */
+    max_length = args[0]->max_length - 9;
+  }
   const char *func_name() const { return "des_decrypt"; }
 };
 

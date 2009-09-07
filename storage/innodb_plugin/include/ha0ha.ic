@@ -1,0 +1,220 @@
+/*****************************************************************************
+
+Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
+/********************************************************************//**
+@file include/ha0ha.ic
+The hash table with external chains
+
+Created 8/18/1994 Heikki Tuuri
+*************************************************************************/
+
+#include "ut0rnd.h"
+#include "mem0mem.h"
+
+/***********************************************************//**
+Deletes a hash node. */
+UNIV_INTERN
+void
+ha_delete_hash_node(
+/*================*/
+	hash_table_t*	table,		/*!< in: hash table */
+	ha_node_t*	del_node);	/*!< in: node to be deleted */
+
+/******************************************************************//**
+Gets a hash node data.
+@return	pointer to the data */
+UNIV_INLINE
+void*
+ha_node_get_data(
+/*=============*/
+	ha_node_t*	node)	/*!< in: hash chain node */
+{
+	return(node->data);
+}
+
+/******************************************************************//**
+Sets hash node data. */
+UNIV_INLINE
+void
+ha_node_set_data_func(
+/*==================*/
+	ha_node_t*	node,	/*!< in: hash chain node */
+#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
+	buf_block_t*	block,	/*!< in: buffer block containing the data */
+#endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
+	void*		data)	/*!< in: pointer to the data */
+{
+#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
+	node->block = block;
+#endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
+	node->data = data;
+}
+
+#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
+/** Sets hash node data.
+@param n	in: hash chain node
+@param b	in: buffer block containing the data
+@param d	in: pointer to the data */
+# define ha_node_set_data(n,b,d) ha_node_set_data_func(n,b,d)
+#else /* UNIV_AHI_DEBUG || UNIV_DEBUG */
+/** Sets hash node data.
+@param n	in: hash chain node
+@param b	in: buffer block containing the data
+@param d	in: pointer to the data */
+# define ha_node_set_data(n,b,d) ha_node_set_data_func(n,d)
+#endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
+
+/******************************************************************//**
+Gets the next node in a hash chain.
+@return	next node, NULL if none */
+UNIV_INLINE
+ha_node_t*
+ha_chain_get_next(
+/*==============*/
+	ha_node_t*	node)	/*!< in: hash chain node */
+{
+	return(node->next);
+}
+
+/******************************************************************//**
+Gets the first node in a hash chain.
+@return	first node, NULL if none */
+UNIV_INLINE
+ha_node_t*
+ha_chain_get_first(
+/*===============*/
+	hash_table_t*	table,	/*!< in: hash table */
+	ulint		fold)	/*!< in: fold value determining the chain */
+{
+	return((ha_node_t*)
+	       hash_get_nth_cell(table, hash_calc_hash(fold, table))->node);
+}
+
+/*************************************************************//**
+Looks for an element in a hash table.
+@return pointer to the first hash table node in chain having the fold
+number, NULL if not found */
+UNIV_INLINE
+ha_node_t*
+ha_search(
+/*======*/
+	hash_table_t*	table,	/*!< in: hash table */
+	ulint		fold)	/*!< in: folded value of the searched data */
+{
+	ha_node_t*	node;
+
+	ASSERT_HASH_MUTEX_OWN(table, fold);
+
+	node = ha_chain_get_first(table, fold);
+
+	while (node) {
+		if (node->fold == fold) {
+
+			return(node);
+		}
+
+		node = ha_chain_get_next(node);
+	}
+
+	return(NULL);
+}
+
+/*************************************************************//**
+Looks for an element in a hash table.
+@return pointer to the data of the first hash table node in chain
+having the fold number, NULL if not found */
+UNIV_INLINE
+void*
+ha_search_and_get_data(
+/*===================*/
+	hash_table_t*	table,	/*!< in: hash table */
+	ulint		fold)	/*!< in: folded value of the searched data */
+{
+	ha_node_t*	node;
+
+	ASSERT_HASH_MUTEX_OWN(table, fold);
+
+	node = ha_chain_get_first(table, fold);
+
+	while (node) {
+		if (node->fold == fold) {
+
+			return(node->data);
+		}
+
+		node = ha_chain_get_next(node);
+	}
+
+	return(NULL);
+}
+
+/*********************************************************//**
+Looks for an element when we know the pointer to the data.
+@return	pointer to the hash table node, NULL if not found in the table */
+UNIV_INLINE
+ha_node_t*
+ha_search_with_data(
+/*================*/
+	hash_table_t*	table,	/*!< in: hash table */
+	ulint		fold,	/*!< in: folded value of the searched data */
+	void*		data)	/*!< in: pointer to the data */
+{
+	ha_node_t*	node;
+
+	ASSERT_HASH_MUTEX_OWN(table, fold);
+
+	node = ha_chain_get_first(table, fold);
+
+	while (node) {
+		if (node->data == data) {
+
+			return(node);
+		}
+
+		node = ha_chain_get_next(node);
+	}
+
+	return(NULL);
+}
+
+/*********************************************************//**
+Looks for an element when we know the pointer to the data, and deletes
+it from the hash table, if found.
+@return	TRUE if found */
+UNIV_INLINE
+ibool
+ha_search_and_delete_if_found(
+/*==========================*/
+	hash_table_t*	table,	/*!< in: hash table */
+	ulint		fold,	/*!< in: folded value of the searched data */
+	void*		data)	/*!< in: pointer to the data */
+{
+	ha_node_t*	node;
+
+	ASSERT_HASH_MUTEX_OWN(table, fold);
+
+	node = ha_search_with_data(table, fold, data);
+
+	if (node) {
+		ha_delete_hash_node(table, node);
+
+		return(TRUE);
+	}
+
+	return(FALSE);
+}

@@ -136,6 +136,10 @@ void my_end(int infoflag)
   */
   FILE *info_file= DBUG_FILE;
   my_bool print_info= (info_file != stderr);
+
+  if (!my_init_done)
+    return;
+
   /*
     We do not use DBUG_ENTER here, as after cleanup DBUG is no longer
     operational, so we cannot use DBUG_RETURN.

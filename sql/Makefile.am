@@ -138,7 +138,7 @@ mysql_tzinfo_to_sql_CXXFLAGS= -DTZINFO2SQL
 
 DEFS =			-DMYSQL_SERVER \
 			-DDEFAULT_MYSQL_HOME="\"$(MYSQLBASEdir)\"" \
-			-DDATADIR="\"$(MYSQLDATAdir)\"" \
+			-DMYSQL_DATADIR="\"$(MYSQLDATAdir)\"" \
 			-DSHAREDIR="\"$(MYSQLSHAREdir)\"" \
 			-DPLUGINDIR="\"$(pkgplugindir)\"" \
 			-DHAVE_EVENT_SCHEDULER \

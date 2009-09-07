@@ -785,6 +785,8 @@ eta	tipo	c
 70	1	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 80	22	jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj
 90	11	kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
+** Cleanup
+** connection thread2
 ** connection default
 drop table t1;
 drop user mysqltest@localhost;

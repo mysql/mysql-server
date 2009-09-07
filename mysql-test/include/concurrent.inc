@@ -659,10 +659,14 @@ drop table t1;
   connection thread1;
   select * from t1;
 
+--echo ** Cleanup
+connection thread1;
+disconnect thread1;
+--source include/wait_until_disconnected.inc
+--echo ** connection thread2
+connection thread2;
+disconnect thread2;
 --echo ** connection default
 connection default;
 drop table t1;
 drop user mysqltest@localhost;
-
-disconnect thread1;
-disconnect thread2;

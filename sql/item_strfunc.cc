@@ -504,17 +504,22 @@ String *Item_func_des_encrypt::val_str(String *str)
      string marking change of string length.
   */
 
-  tail=  (8-(res_length) % 8);			// 1..8 marking extra length
+  tail= 8 - (res_length % 8);                   // 1..8 marking extra length
   res_length+=tail;
-  code= ER_OUT_OF_RESOURCES;
-  if ((tail && res->append(append_str, tail)) || tmp_value.alloc(res_length+1))
+  if (tmp_arg.realloc(res_length))
     goto error;
-  (*res)[res_length-1]=tail;			// save extra length
+  tmp_arg.length(0);
+  tmp_arg.append(res->ptr(), res->length());
+  code= ER_OUT_OF_RESOURCES;
+  if (tmp_arg.append(append_str, tail) || tmp_value.alloc(res_length+1))
+    goto error;
+  tmp_arg[res_length-1]=tail;                   // save extra length
+  tmp_value.realloc(res_length+1);
   tmp_value.length(res_length+1);
   tmp_value[0]=(char) (128 | key_number);
   // Real encryption
   bzero((char*) &ivec,sizeof(ivec));
-  DES_ede3_cbc_encrypt((const uchar*) (res->ptr()),
+  DES_ede3_cbc_encrypt((const uchar*) (tmp_arg.ptr()),
 		       (uchar*) (tmp_value.ptr()+1),
 		       res_length,
 		       &keyschedule.ks1,
@@ -1625,16 +1630,17 @@ String *Item_func_password::val_str(String *str)
     return 0;
   if (res->length() == 0)
     return &my_empty_string;
-  make_scrambled_password(tmp_value, res->c_ptr());
+  my_make_scrambled_password(tmp_value, res->ptr(), res->length());
   str->set(tmp_value, SCRAMBLED_PASSWORD_CHAR_LENGTH, res->charset());
   return str;
 }
 
-char *Item_func_password::alloc(THD *thd, const char *password)
+char *Item_func_password::alloc(THD *thd, const char *password,
+                                size_t pass_len)
 {
   char *buff= (char *) thd->alloc(SCRAMBLED_PASSWORD_CHAR_LENGTH+1);
   if (buff)
-    make_scrambled_password(buff, password);
+    my_make_scrambled_password(buff, password, pass_len);
   return buff;
 }
 
@@ -1648,16 +1654,17 @@ String *Item_func_old_password::val_str(String *str)
     return 0;
   if (res->length() == 0)
     return &my_empty_string;
-  make_scrambled_password_323(tmp_value, res->c_ptr());
+  my_make_scrambled_password_323(tmp_value, res->ptr(), res->length());
   str->set(tmp_value, SCRAMBLED_PASSWORD_CHAR_LENGTH_323, res->charset());
   return str;
 }
 
-char *Item_func_old_password::alloc(THD *thd, const char *password)
+char *Item_func_old_password::alloc(THD *thd, const char *password,
+                                    size_t pass_len)
 {
   char *buff= (char *) thd->alloc(SCRAMBLED_PASSWORD_CHAR_LENGTH_323+1);
   if (buff)
-    make_scrambled_password_323(buff, password);
+    my_make_scrambled_password_323(buff, password, pass_len);
   return buff;
 }
 
@@ -1689,10 +1696,10 @@ String *Item_func_encrypt::val_str(String *str)
     String *salt_str=args[1]->val_str(&tmp_value);
     if ((null_value= (args[1]->null_value || salt_str->length() < 2)))
       return 0;
-    salt_ptr= salt_str->c_ptr();
+    salt_ptr= salt_str->c_ptr_safe();
   }
   pthread_mutex_lock(&LOCK_crypt);
-  char *tmp= crypt(res->c_ptr(),salt_ptr);
+  char *tmp= crypt(res->c_ptr_safe(),salt_ptr);
   if (!tmp)
   {
     pthread_mutex_unlock(&LOCK_crypt);
@@ -1738,7 +1745,7 @@ String *Item_func_encode::val_str(String *str)
 
   null_value=0;
   res=copy_if_not_alloced(str,res,res->length());
-  SQL_CRYPT sql_crypt(password->ptr());
+  SQL_CRYPT sql_crypt(password->ptr(), password->length());
   sql_crypt.init();
   sql_crypt.encode((char*) res->ptr(),res->length());
   res->set_charset(&my_charset_bin);
@@ -1767,7 +1774,7 @@ String *Item_func_decode::val_str(String *str)
 
   null_value=0;
   res=copy_if_not_alloced(str,res,res->length());
-  SQL_CRYPT sql_crypt(password->ptr());
+  SQL_CRYPT sql_crypt(password->ptr(), password->length());
   sql_crypt.init();
   sql_crypt.decode((char*) res->ptr(),res->length());
   return res;
@@ -2702,7 +2709,13 @@ String *Item_func_conv_charset::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
   if (use_cached_value)
     return null_value ? 0 : &str_value;
-  String *arg= args[0]->val_str(str);
+  /* 
+    Here we don't pass 'str' as a parameter to args[0]->val_str()
+    as 'str' may point to 'str_value' (e.g. see Item::save_in_field()),
+    which we use below to convert string. 
+    Use argument's 'str_value' instead.
+  */
+  String *arg= args[0]->val_str(&args[0]->str_value);
   uint dummy_errors;
   if (!arg)
   {
@@ -2939,7 +2952,7 @@ String *Item_load_file::val_str(String *str)
       )
     goto err;
 
-  (void) fn_format(path, file_name->c_ptr(), mysql_real_data_home, "",
+  (void) fn_format(path, file_name->c_ptr_safe(), mysql_real_data_home, "",
 		   MY_RELATIVE_PATH | MY_UNPACK_FILENAME);
 
   /* Read only allowed from within dir specified by secure_file_priv */
@@ -2965,7 +2978,7 @@ String *Item_load_file::val_str(String *str)
   }
   if (tmp_value.alloc(stat_info.st_size))
     goto err;
-  if ((file = my_open(file_name->c_ptr(), O_RDONLY, MYF(0))) < 0)
+  if ((file = my_open(file_name->ptr(), O_RDONLY, MYF(0))) < 0)
     goto err;
   if (my_read(file, (uchar*) tmp_value.ptr(), stat_info.st_size, MYF(MY_NABP)))
   {
@@ -3215,7 +3228,21 @@ longlong Item_func_uncompressed_length::val_int()
   if (res->is_empty()) return 0;
 
   /*
-    res->ptr() using is safe because we have tested that string is not empty,
+    If length is <= 4 bytes, data is corrupt. This is the best we can do
+    to detect garbage input without decompressing it.
+  */
+  if (res->length() <= 4)
+  {
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                        ER_ZLIB_Z_DATA_ERROR,
+                        ER(ER_ZLIB_Z_DATA_ERROR));
+    null_value= 1;
+    return 0;
+  }
+
+ /*
+    res->ptr() using is safe because we have tested that string is at least
+    5 bytes long.
     res->c_ptr() is not used because:
       - we do not need \0 terminated string to get first 4 bytes
       - c_ptr() tests simbol after string end (uninitialiozed memory) which

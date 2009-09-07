@@ -4,51 +4,57 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
+*** Prepare tables and data ***
 CREATE TABLE t1 (a INT NOT NULL, KEY(a)) ENGINE=innodb;
-CREATE TABLE t2 (a INT NOT NULL, KEY(a)) ENGINE=innodb;
-CREATE TABLE t3 (a INT  UNIQUE) ENGINE=innodb;
-CREATE TABLE t4 (a INT) ENGINE=innodb;
-show variables like 'slave_transaction_retries';
-Variable_name	Value
-slave_transaction_retries	10
-show create table t1;
+CREATE TABLE t2 (a INT) ENGINE=innodb;
+CREATE TABLE t3 (a INT NOT NULL, KEY(a)) ENGINE=innodb;
+SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   KEY `a` (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
-show create table t2;
+SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
   `a` int(11) NOT NULL,
   KEY `a` (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
-show variables like 'slave_transaction_retries';
+SHOW VARIABLES LIKE 'slave_transaction_retries';
 Variable_name	Value
 slave_transaction_retries	2
-stop slave;
-begin;
-insert into t2 values (0);
-insert into t1 values(1);
-commit;
-begin;
-select * from t1 for update;
+include/stop_slave.inc
+BEGIN;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2), (2), (2), (2), (2), (2), (2), (2), (2), (2);
+INSERT INTO t3 VALUES (3);
+COMMIT;
+
+*** Test deadlock ***
+BEGIN;
+SELECT * FROM t1 FOR UPDATE;
 a
-start slave;
-select * from t2 for update /* dl */;
-a
-commit;
-select * from t1;
+START SLAVE;
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+0
+COMMIT;
+SELECT * FROM t1;
 a
 1
-select * from t2 /* must be 1 */;
+SELECT * FROM t3;
 a
-0
-show slave status;
+3
+SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
 Master_User	root
-Master_Port	MASTER_MYPORT
+Master_Port	MASTER_PORT
 Connect_Retry	1
 Master_Log_File	master-bin.000001
 Read_Master_Log_Pos	#
@@ -83,102 +89,41 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
-stop slave;
-delete from t3;
-change master to master_log_pos=548;
-begin;
-select * from t2 for update;
+
+*** Test lock wait timeout ***
+include/stop_slave.inc
+DELETE FROM t2;
+CHANGE MASTER TO MASTER_LOG_POS=MASTER_POS_BEGIN;
+BEGIN;
+SELECT * FROM t1 FOR UPDATE;
 a
+1
+START SLAVE;
+SELECT COUNT(*) FROM t2;
+COUNT(*)
 0
-start slave;
-select count(*) from t3  /* must be zero */;
-count(*)
-0
-commit;
-select * from t1;
+COMMIT;
+include/start_slave.inc
+SELECT * FROM t1;
 a
 1
 1
-select * from t2;
+SELECT * FROM t3;
 a
-0
-0
-show slave status;
+3
+3
+SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
 Master_User	root
-Master_Port	MASTER_MYPORT
+Master_Port	MASTER_PORT
 Connect_Retry	1
 Master_Log_File	master-bin.000001
 Read_Master_Log_Pos	#
 Relay_Log_File	#
 Relay_Log_Pos	#
 Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	#
-Slave_SQL_Running	Yes
-Replicate_Do_DB	
-Replicate_Ignore_DB	
-Replicate_Do_Table	
-Replicate_Ignore_Table	#
-Replicate_Wild_Do_Table	
-Replicate_Wild_Ignore_Table	
-Last_Errno	0
-Last_Error	
-Skip_Counter	0
-Exec_Master_Log_Pos	#
-Relay_Log_Space	#
-Until_Condition	None
-Until_Log_File	
-Until_Log_Pos	0
-Master_SSL_Allowed	No
-Master_SSL_CA_File	
-Master_SSL_CA_Path	
-Master_SSL_Cert	
-Master_SSL_Cipher	
-Master_SSL_Key	
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	0
-Last_IO_Error	
-Last_SQL_Errno	0
-Last_SQL_Error	
-set @my_max_relay_log_size= @@global.max_relay_log_size;
-set global max_relay_log_size=0;
-stop slave;
-delete from t3;
-change master to master_log_pos=548;
-begin;
-select * from t2 for update;
-a
-0
-0
-start slave;
-select count(*) from t3  /* must be zero */;
-count(*)
-0
-commit;
-select * from t1;
-a
-1
-1
-1
-select * from t2;
-a
-0
-0
-0
-show slave status;
-Slave_IO_State	#
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	MASTER_MYPORT
-Connect_Retry	1
-Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
-Relay_Log_File	#
-Relay_Log_Pos	#
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	#
+Slave_IO_Running	Yes
 Slave_SQL_Running	Yes
 Replicate_Do_DB	
 Replicate_Ignore_DB	
@@ -206,6 +151,75 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
-drop table t1,t2,t3,t4;
-set global max_relay_log_size= @my_max_relay_log_size;
+
+*** Test lock wait timeout and purged relay logs ***
+SET @my_max_relay_log_size= @@global.max_relay_log_size;
+SET global max_relay_log_size=0;
+include/stop_slave.inc
+DELETE FROM t2;
+CHANGE MASTER TO MASTER_LOG_POS=440;
+BEGIN;
+SELECT * FROM t1 FOR UPDATE;
+a
+1
+1
+START SLAVE;
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+0
+COMMIT;
+include/start_slave.inc
+SELECT * FROM t1;
+a
+1
+1
+1
+SELECT * FROM t3;
+a
+3
+3
+3
+SHOW SLAVE STATUS;
+Slave_IO_State	#
+Master_Host	127.0.0.1
+Master_User	root
+Master_Port	MASTER_PORT
+Connect_Retry	1
+Master_Log_File	master-bin.000001
+Read_Master_Log_Pos	#
+Relay_Log_File	#
+Relay_Log_Pos	#
+Relay_Master_Log_File	master-bin.000001
+Slave_IO_Running	Yes
+Slave_SQL_Running	Yes
+Replicate_Do_DB	
+Replicate_Ignore_DB	
+Replicate_Do_Table	
+Replicate_Ignore_Table	#
+Replicate_Wild_Do_Table	
+Replicate_Wild_Ignore_Table	
+Last_Errno	0
+Last_Error	
+Skip_Counter	0
+Exec_Master_Log_Pos	#
+Relay_Log_Space	#
+Until_Condition	None
+Until_Log_File	
+Until_Log_Pos	0
+Master_SSL_Allowed	No
+Master_SSL_CA_File	
+Master_SSL_CA_Path	
+Master_SSL_Cert	
+Master_SSL_Cipher	
+Master_SSL_Key	
+Seconds_Behind_Master	#
+Master_SSL_Verify_Server_Cert	No
+Last_IO_Errno	#
+Last_IO_Error	#
+Last_SQL_Errno	0
+Last_SQL_Error	
+
+*** Clean up ***
+DROP TABLE t1,t2,t3;
+SET global max_relay_log_size= @my_max_relay_log_size;
 End of 5.1 tests

@@ -86,7 +86,7 @@ static int read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
 static bool write_execute_load_query_log_event(THD *thd,
 					       bool duplicates, bool ignore,
 					       bool transactional_table,
-                                               THD::killed_state killed_status);
+                                               int errcode);
 #endif /* EMBEDDED_LIBRARY */
 
 /*
@@ -148,6 +148,17 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 	       MYF(0));
     DBUG_RETURN(TRUE);
   }
+
+  /* Report problems with non-ascii separators */
+  if (!escaped->is_ascii() || !enclosed->is_ascii() ||
+      !field_term->is_ascii() ||
+      !ex->line_term->is_ascii() || !ex->line_start->is_ascii())
+  {
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                 WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED,
+                 ER(WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED));
+  } 
+
   if (open_and_lock_tables(thd, table_list))
     DBUG_RETURN(TRUE);
   if (setup_tables_and_check_access(thd, &thd->lex->select_lex.context,
@@ -483,10 +494,12 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 	/* If the file was not empty, wrote_create_file is true */
 	if (lf_info.wrote_create_file)
 	{
+          int errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
+          
 	  if (thd->transaction.stmt.modified_non_trans_table)
 	    write_execute_load_query_log_event(thd, handle_duplicates,
 					       ignore, transactional_table,
-                                               killed_status);
+                                               errcode);
 	  else
 	  {
 	    Delete_file_log_event d(thd, db, transactional_table);
@@ -528,8 +541,9 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       read_info.end_io_cache();
       if (lf_info.wrote_create_file)
       {
+        int errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
         write_execute_load_query_log_event(thd, handle_duplicates, ignore,
-                                           transactional_table,killed_status);
+                                           transactional_table, errcode);
       }
     }
   }
@@ -553,7 +567,7 @@ err:
 static bool write_execute_load_query_log_event(THD *thd,
 					       bool duplicates, bool ignore,
 					       bool transactional_table,
-                                               THD::killed_state killed_err_arg)
+                                               int errcode)
 {
   Execute_load_query_log_event
     e(thd, thd->query, thd->query_length,
@@ -561,7 +575,7 @@ static bool write_execute_load_query_log_event(THD *thd,
       (uint) ((char*)thd->lex->fname_end - (char*)thd->query),
       (duplicates == DUP_REPLACE) ? LOAD_DUP_REPLACE :
       (ignore ? LOAD_DUP_IGNORE : LOAD_DUP_ERROR),
-      transactional_table, FALSE, killed_err_arg);
+      transactional_table, FALSE, errcode);
   e.flags|= LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F;
   return mysql_bin_log.write(&e);
 }

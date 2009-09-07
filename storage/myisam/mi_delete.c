@@ -251,7 +251,11 @@ static int d_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
       if (info->ft1_to_ft2)
       {
         /* we're in ft1->ft2 conversion mode. Saving key data */
-        insert_dynamic(info->ft1_to_ft2, (lastkey+off));
+        if (insert_dynamic(info->ft1_to_ft2, (lastkey+off)))
+        {
+          DBUG_PRINT("error",("Out of memory"));
+          DBUG_RETURN(-1);
+        }
       }
       else
       {
