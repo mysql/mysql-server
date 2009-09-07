@@ -3052,6 +3052,16 @@ int runBulkPkReads(NDBT_Context* ctx, NDBT_Step* step)
     {
       if (hugoOps.startTransaction(otherNdb) != 0)
       {
+        if (otherNdb->getNdbError().code == 4009) 
+        {
+          /* Api disconnect sometimes manifests as Cluster failure
+           * from API's point of view as it cannot seize() a 
+           * transaction from any Ndbd node
+           * We treat this the same way as the later error cases
+           */
+          break;
+        }
+          
         ndbout << "Failed to start transaction.  Error : "
                << otherNdb->getNdbError().message << endl;
         return NDBT_FAILED;
