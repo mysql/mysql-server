@@ -16,21 +16,28 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
+/*******************************************************************//**
+@file ut/ut0vec.c
+A vector of pointers to data items
+
+Created 4/6/2006 Osku Salerma
+************************************************************************/
+
 #include "ut0vec.h"
 #ifdef UNIV_NONINL
 #include "ut0vec.ic"
 #endif
 #include <string.h>
 
-/********************************************************************
-Create a new vector with the given initial size. */
+/****************************************************************//**
+Create a new vector with the given initial size.
+@return	vector */
 UNIV_INTERN
 ib_vector_t*
 ib_vector_create(
 /*=============*/
-				/* out: vector */
-	mem_heap_t*	heap,	/* in: heap */
-	ulint		size)	/* in: initial size */
+	mem_heap_t*	heap,	/*!< in: heap */
+	ulint		size)	/*!< in: initial size */
 {
 	ib_vector_t*	vec;
 
@@ -46,14 +53,14 @@ ib_vector_create(
 	return(vec);
 }
 
-/********************************************************************
+/****************************************************************//**
 Push a new element to the vector, increasing its size if necessary. */
 UNIV_INTERN
 void
 ib_vector_push(
 /*===========*/
-	ib_vector_t*	vec,	/* in: vector */
-	void*		elem)	/* in: data element */
+	ib_vector_t*	vec,	/*!< in: vector */
+	void*		elem)	/*!< in: data element */
 {
 	if (vec->used >= vec->total) {
 		void**	new_data;

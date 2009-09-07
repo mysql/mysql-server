@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/lock0iter.h
 Lock queue iterator type and function prototypes.
 
 Created July 16, 2007 Vasil Dimov
@@ -36,7 +37,7 @@ typedef struct lock_queue_iterator_struct {
 	ulint		bit_no;
 } lock_queue_iterator_t;
 
-/***********************************************************************
+/*******************************************************************//**
 Initialize lock queue iterator so that it starts to iterate from
 "lock". bit_no specifies the record number within the heap where the
 record is stored. It can be undefined (ULINT_UNDEFINED) in two cases:
@@ -49,20 +50,20 @@ UNIV_INTERN
 void
 lock_queue_iterator_reset(
 /*======================*/
-	lock_queue_iterator_t*	iter,	/* out: iterator */
-	const lock_t*		lock,	/* in: lock to start from */
-	ulint			bit_no);/* in: record number in the
+	lock_queue_iterator_t*	iter,	/*!< out: iterator */
+	const lock_t*		lock,	/*!< in: lock to start from */
+	ulint			bit_no);/*!< in: record number in the
 					heap */
 
-/***********************************************************************
+/*******************************************************************//**
 Gets the previous lock in the lock queue, returns NULL if there are no
 more locks (i.e. the current lock is the first one). The iterator is
-receded (if not-NULL is returned). */
+receded (if not-NULL is returned).
+@return	previous lock or NULL */
 
 const lock_t*
 lock_queue_iterator_get_prev(
 /*=========================*/
-					/* out: previous lock or NULL */
-	lock_queue_iterator_t*	iter);	/* in/out: iterator */
+	lock_queue_iterator_t*	iter);	/*!< in/out: iterator */
 
 #endif /* lock0iter_h */

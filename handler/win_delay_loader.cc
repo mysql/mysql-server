@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/***********************************************************************
+/*******************************************************************//**
+@file handler/win_delay_loader.cc
 This file contains functions that implement the delay loader on Windows.
 
 This is a customized version of delay loader with limited functionalities.
@@ -48,7 +49,7 @@ extern "C" {
 # include "hash0hash.h"
 }
 
-/***********************************************************************
+/*******************************************************************//**
 This following contains a list of externals that can not be resolved by
 delay loading. They have to be resolved indirectly via their addresses
 in the .map file. All of them are external variables. */
@@ -72,14 +73,8 @@ uint*			wdl_lower_case_table_names;
 ulong*			wdl_specialflag;
 int*			wdl_my_umask;
 
-/***********************************************************************
-The following is defined in ha_innodb.cc. It is used for copying the
-system variables from the builtin innodb plugin to the dynamic plugin.
-*/
-extern struct st_mysql_plugin*	builtin_innobase_plugin_ptr;
-
-/***********************************************************************
-The preffered load-address defined in PE (portable executable format).*/
+/*******************************************************************//**
+The preferred load-address defined in PE (portable executable format). */
 #if defined(_M_IA64)
 #pragma section(".base", long, read)
 extern "C"
@@ -90,29 +85,34 @@ extern "C"
 const IMAGE_DOS_HEADER __ImageBase;
 #endif
 
-/***********************************************************************
+/*******************************************************************//**
 A template function for converting a relative address (RVA) to an
 absolute address (VA). This is due to the pointers in the delay
 descriptor (ImgDelayDescr in delayimp.h) have been changed from
-VAs to RVAs to work on both 32- and 64-bit platforms. */
+VAs to RVAs to work on both 32- and 64-bit platforms.
+@return	absolute virtual address */
 template <class X>
-X PFromRva(RVA rva) {
+X PFromRva(
+/*=======*/
+	RVA	rva)	/*!< in: relative virtual address */
+{
 	return X(PBYTE(&__ImageBase) + rva);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Convert to the old format for convenience. The structure as well as its
 element names follow the definition of ImgDelayDescr in delayimp.h. */
-struct InternalImgDelayDescr {
-	DWORD		grAttrs;	/* attributes */
-	LPCSTR		szName;		/* pointer to dll name */
-	HMODULE*	phmod;		/* address of module handle */
-	PImgThunkData	pIAT;		/* address of the IAT */
-	PCImgThunkData	pINT;		/* address of the INT */
-	PCImgThunkData	pBoundIAT;	/* address of the optional bound IAT */
-	PCImgThunkData	pUnloadIAT;	/* address of optional copy of
+struct InternalImgDelayDescr
+{
+	DWORD		grAttrs;	/*!< attributes */
+	LPCSTR		szName;		/*!< pointer to dll name */
+	HMODULE*	phmod;		/*!< address of module handle */
+	PImgThunkData	pIAT;		/*!< address of the IAT */
+	PCImgThunkData	pINT;		/*!< address of the INT */
+	PCImgThunkData	pBoundIAT;	/*!< address of the optional bound IAT */
+	PCImgThunkData	pUnloadIAT;	/*!< address of optional copy of
 					   original IAT */
-	DWORD		dwTimeStamp;	/* 0 if not bound,
+	DWORD		dwTimeStamp;	/*!< 0 if not bound,
 					   otherwise date/time stamp of DLL
 					   bound to (Old BIND) */
 };
@@ -120,11 +120,11 @@ struct InternalImgDelayDescr {
 typedef struct map_hash_chain_struct	map_hash_chain_t;
 
 struct map_hash_chain_struct {
-	char*			symbol;	/* pointer to a symbol */
-	ulint			value;	/* address of the symbol */
-	map_hash_chain_t*	next;	/* pointer to the next cell
+	char*			symbol;	/*!< pointer to a symbol */
+	ulint			value;	/*!< address of the symbol */
+	map_hash_chain_t*	next;	/*!< pointer to the next cell
 					in the same folder. */
-	map_hash_chain_t*	chain;	/* a linear chain used for
+	map_hash_chain_t*	chain;	/*!< a linear chain used for
 					cleanup. */
 };
 
@@ -135,7 +135,7 @@ static ibool				wdl_init = FALSE;
 const ulint				MAP_HASH_CELLS_NUM = 10000;
 
 #ifndef DBUG_OFF
-/***********************************************************************
+/*******************************************************************//**
 In the dynamic plugin, it is required to call the following dbug functions
 in the server:
 	_db_pargs_
@@ -144,8 +144,7 @@ in the server:
 	_db_return_
 	_db_dump_
 
-The plugin will get those function pointers during the initialization.
-*/
+The plugin will get those function pointers during the initialization. */
 typedef void (__cdecl* pfn_db_enter_)(
 	const char*	_func_,
 	const char*	_file_,
@@ -182,19 +181,19 @@ static pfn_db_doprnt_	wdl_db_doprnt_;
 static pfn_db_dump_	wdl_db_dump_;
 #endif /* !DBUG_OFF */
 
-/*****************************************************************
+/*************************************************************//**
 Creates a hash table with >= n array cells. The actual number of cells is
 chosen to be a prime number slightly bigger than n.
 
 This is the same function as hash_create in hash0hash.c, except the
 memory allocation. This function is invoked before the engine is
-initialized, and buffer pools are not ready yet. */
+initialized, and buffer pools are not ready yet.
+@return	own: created hash table */
 static
 hash_table_t*
 wdl_hash_create(
 /*============*/
-			/* out, own: created hash table */
-	ulint	n)	/* in: number of array cells */
+	ulint	n)	/*!< in: number of array cells */
 {
 	hash_cell_t*	array;
 	ulint		prime;
@@ -227,13 +226,13 @@ wdl_hash_create(
 	return(table);
 }
 
-/*****************************************************************
+/*************************************************************//**
 Frees a hash table. */
 static
 void
 wdl_hash_table_free(
 /*================*/
-	hash_table_t*	table)	/* in, own: hash table */
+	hash_table_t*	table)	/*!< in, own: hash table */
 {
 	ut_a(table != NULL);
 	ut_a(table->mutexes == NULL);
@@ -242,14 +241,14 @@ wdl_hash_table_free(
 	free(table);
 }
 
-/***********************************************************************
-Function for calculating the count of imports given the base of the IAT. */
+/*******************************************************************//**
+Function for calculating the count of imports given the base of the IAT.
+@return	number of imports */
 static
 ulint
 wdl_import_count(
 /*=============*/
-					/* out: number of imports */
-	PCImgThunkData	pitd_base)	/* in: base of the IAT */
+	PCImgThunkData	pitd_base)	/*!< in: base of the IAT */
 {
 	ulint		ret = 0;
 	PCImgThunkData	pitd = pitd_base;
@@ -262,15 +261,14 @@ wdl_import_count(
 	return(ret);
 }
 
-/***********************************************************************
-Read Mapfile to a hashtable for faster access */
+/*******************************************************************//**
+Read Mapfile to a hashtable for faster access
+@return	TRUE if the mapfile is loaded successfully. */
 static
 ibool
 wdl_load_mapfile(
 /*=============*/
-					/* out: TRUE if the mapfile is
-					loaded successfully. */
-	const char*	filename)	/* in: name of the mapfile. */
+	const char*	filename)	/*!< in: name of the mapfile. */
 {
 	FILE*		fp;
 	const size_t	nSize = 256;
@@ -358,7 +356,7 @@ wdl_load_mapfile(
 			chain_header = map_cell;
 
 			map_cell->symbol = strdup(func_name);
-			map_cell->value = (ulint) strtoull(tmp_buf, NULL, 0)
+			map_cell->value = (ulint) _strtoui64(tmp_buf, NULL, 0)
 					  - load_addr;
 			map_fold = ut_fold_string(map_cell->symbol);
 
@@ -375,7 +373,7 @@ wdl_load_mapfile(
 	return(TRUE);
 }
 
-/*****************************************************************
+/*************************************************************//**
 Cleanup.during DLL unload */
 static
 void
@@ -397,13 +395,13 @@ wdl_cleanup(void)
 	}
 }
 
-/***********************************************************************
-Load the mapfile mysqld.map. */
+/*******************************************************************//**
+Load the mapfile mysqld.map.
+@return	the module handle */
 static
 HMODULE
 wdl_get_mysqld_mapfile(void)
 /*========================*/
-			/* out: the module handle */
 {
 	char	file_name[MAX_PATH];
 	char*	ext;
@@ -447,17 +445,16 @@ wdl_get_mysqld_mapfile(void)
 	return(my_hmod);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Retrieves the address of an exported function. It follows the convention
-of GetProcAddress(). */
+of GetProcAddress().
+@return	address of exported function. */
 static
 FARPROC
 wdl_get_procaddr_from_map(
 /*======================*/
-					/* out: address of exported
-					function. */
-	HANDLE		m_handle,	/* in: module handle */
-	const char*	import_proc)	/* in: procedure name */
+	HANDLE		m_handle,	/*!< in: module handle */
+	const char*	import_proc)	/*!< in: procedure name */
 {
 	map_hash_chain_t*	hash_chain;
 	ulint			map_fold;
@@ -511,17 +508,16 @@ wdl_get_procaddr_from_map(
 	return((FARPROC) ((ulint) m_handle + hash_chain->value));
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Retrieves the address of an exported variable.
-Note: It does not follow the Windows call convention FARPROC. */
+Note: It does not follow the Windows call convention FARPROC.
+@return	address of exported variable. */
 static
 void*
 wdl_get_varaddr_from_map(
 /*=====================*/
-						/* out: address of exported
-						variable. */
-	HANDLE		m_handle,		/* in: module handle */
-	const char*	import_variable)	/* in: variable name */
+	HANDLE		m_handle,		/*!< in: module handle */
+	const char*	import_variable)	/*!< in: variable name */
 {
 	map_hash_chain_t*	hash_chain;
 	ulint			map_fold;
@@ -575,13 +571,13 @@ wdl_get_varaddr_from_map(
 	return((void*) ((ulint) m_handle + hash_chain->value));
 }
 
-/***********************************************************************
-Bind all unresolved external variables from the MySQL executable. */
+/*******************************************************************//**
+Bind all unresolved external variables from the MySQL executable.
+@return	TRUE if successful */
 static
 bool
 wdl_get_external_variables(void)
 /*============================*/
-			/* out: TRUE if successful */
 {
 	HMODULE	hmod = wdl_get_mysqld_mapfile();
 
@@ -643,12 +639,6 @@ wdl_get_external_variables(void)
 		 "?binlog_format_names@@3PAPBDA",
 		 wdl_binlog_format_names, char*);
 
-	/* It is fine if builtin_innobase_plugin is not available. */
-	builtin_innobase_plugin_ptr = (struct st_mysql_plugin*)
-		wdl_get_varaddr_from_map(
-			hmod,
-			"?builtin_innobase_plugin@@3PAUst_mysql_plugin@@A");
-
 #ifndef DBUG_OFF
 	GET_PROC_ADDR(_db_enter_);
 	GET_PROC_ADDR(_db_return_);
@@ -680,7 +670,7 @@ wdl_get_external_variables(void)
 #undef GET_PROC_ADDR
 }
 
-/***********************************************************************
+/*******************************************************************//**
 The DLL Delayed Loading Helper Function for resolving externals.
 
 The function may fail due to one of the three reasons:
@@ -691,16 +681,15 @@ The function may fail due to one of the three reasons:
 * Failed to find an external name in the map file mysqld.map.
 
 Note: this function is called by run-time as well as __HrLoadAllImportsForDll.
-So, it has to follow Windows call convention. */
+So, it has to follow Windows call convention.
+@return	the address of the imported function */
 extern "C"
 FARPROC WINAPI
 __delayLoadHelper2(
 /*===============*/
-					/* out: the address of the imported
-					function*/
-	PCImgDelayDescr	pidd,		/* in: a const pointer to a
+	PCImgDelayDescr	pidd,		/*!< in: a const pointer to a
 					ImgDelayDescr, see delayimp.h. */
-	FARPROC*	iat_entry)	/* in/out: A pointer to the slot in
+	FARPROC*	iat_entry)	/*!< in/out: A pointer to the slot in
 					the delay load import address table
 					to be updated with the address of the
 					imported function. */
@@ -824,31 +813,30 @@ __delayLoadHelper2(
 	return(fun);
 }
 
-/***********************************************************************
-Unload a DLL that was delay loaded. This function is called by run-time. */
+/*******************************************************************//**
+Unload a DLL that was delay loaded. This function is called by run-time.
+@return TRUE is returned if the DLL is found and the IAT matches the
+original one. */
 extern "C"
 BOOL WINAPI
 __FUnloadDelayLoadedDLL2(
 /*=====================*/
-				/* out: TRUE is returned if the DLL is found
-				and the IAT matches the original one. */
-	LPCSTR	module_name)	/* in: DLL name */
+	LPCSTR	module_name)	/*!< in: DLL name */
 {
 	return(TRUE);
 }
 
-/******************************************************************
+/**************************************************************//**
 Load all imports from a DLL that was specified with the /delayload linker
 option.
 Note: this function is called by run-time. So, it has to follow Windows call
-convention. */
+convention.
+@return	S_OK if the DLL matches, otherwise ERROR_MOD_NOT_FOUND is returned. */
 extern "C"
 HRESULT WINAPI
 __HrLoadAllImportsForDll(
 /*=====================*/
-				/* out: S_OK if the DLL matches, otherwise
-				ERROR_MOD_NOT_FOUND is returned. */
-	LPCSTR	module_name)	/* in: DLL name */
+	LPCSTR	module_name)	/*!< in: DLL name */
 {
 	PIMAGE_NT_HEADERS	img;
 	PCImgDelayDescr		pidd;
@@ -908,18 +896,18 @@ __HrLoadAllImportsForDll(
 	return ret;
 }
 
-/******************************************************************
-The main function of a DLL */
+/**************************************************************//**
+The main function of a DLL
+@return	TRUE if the call succeeds */
 BOOL
 WINAPI
 DllMain(
 /*====*/
-					/* out: TRUE if the call succeeds */
-	HINSTANCE	hinstDLL,	/* in: handle to the DLL module */
-	DWORD		fdwReason,	/* Reason code that indicates why the
+	HINSTANCE	hinstDLL,	/*!< in: handle to the DLL module */
+	DWORD		fdwReason,	/*!< Reason code that indicates why the
 					DLL entry-point function is being
 					called.*/
-	LPVOID		lpvReserved)	/* in: additional parameter based on
+	LPVOID		lpvReserved)	/*!< in: additional parameter based on
 					fdwReason */
 {
 	BOOL	success = TRUE;
@@ -939,19 +927,19 @@ DllMain(
 }
 
 #ifndef DBUG_OFF
-/******************************************************************
+/**************************************************************//**
 Process entry point to user function. It makes the call to _db_enter_
 in mysqld.exe. The DBUG functions are defined in my_dbug.h. */
 extern "C" UNIV_INTERN
 void
 _db_enter_(
-	const char*	_func_,		/* in: current function name */
-	const char*	_file_,		/* in: current file name */
-	uint		_line_,		/* in: current source line number */
-	const char**	_sfunc_,	/* out: previous _func_ */
-	const char**	_sfile_,	/* out: previous _file_ */
-	uint*		_slevel_,	/* out: previous nesting level */
-	char***		_sframep_)	/* out: previous frame pointer */
+	const char*	_func_,		/*!< in: current function name */
+	const char*	_file_,		/*!< in: current file name */
+	uint		_line_,		/*!< in: current source line number */
+	const char**	_sfunc_,	/*!< out: previous _func_ */
+	const char**	_sfile_,	/*!< out: previous _file_ */
+	uint*		_slevel_,	/*!< out: previous nesting level */
+	char***		_sframep_)	/*!< out: previous frame pointer */
 {
 	if (wdl_db_enter_ != NULL) {
 
@@ -960,16 +948,16 @@ _db_enter_(
 	}
 }
 
-/******************************************************************
+/**************************************************************//**
 Process exit from user function. It makes the call to _db_return_()
 in the server. */
 extern "C" UNIV_INTERN
 void
 _db_return_(
-	uint		_line_,		/* in: current source line number */
-	const char**	_sfunc_,	/* out: previous _func_ */
-	const char**	_sfile_,	/* out: previous _file_ */
-	uint*		_slevel_)	/* out: previous level */
+	uint		_line_,		/*!< in: current source line number */
+	const char**	_sfunc_,	/*!< out: previous _func_ */
+	const char**	_sfile_,	/*!< out: previous _file_ */
+	uint*		_slevel_)	/*!< out: previous level */
 {
 	if (wdl_db_return_ != NULL) {
 
@@ -977,14 +965,14 @@ _db_return_(
 	}
 }
 
-/******************************************************************
+/**************************************************************//**
 Log arguments for subsequent use. It makes the call to _db_pargs_()
 in the server. */
 extern "C" UNIV_INTERN
 void
 _db_pargs_(
-	uint		_line_,		/* in: current source line number */
-	const char*	keyword)	/* in: keyword for current macro */
+	uint		_line_,		/*!< in: current source line number */
+	const char*	keyword)	/*!< in: keyword for current macro */
 {
 	if (wdl_db_pargs_ != NULL) {
 
@@ -992,15 +980,15 @@ _db_pargs_(
 	}
 }
 
-/******************************************************************
+/**************************************************************//**
 Handle print of debug lines. It saves the text into a buffer first,
 then makes the call to _db_doprnt_() in the server. The text is
 truncated to the size of buffer. */
 extern "C" UNIV_INTERN
 void
 _db_doprnt_(
-	const char*	format,		/* in: the format string */
-	...)				/* in: list of arguments */
+	const char*	format,		/*!< in: the format string */
+	...)				/*!< in: list of arguments */
 {
 	va_list		argp;
 	char		buffer[512];
@@ -1015,16 +1003,16 @@ _db_doprnt_(
 	}
 }
 
-/******************************************************************
+/**************************************************************//**
 Dump a string in hex. It makes the call to _db_dump_() in the server. */
 extern "C" UNIV_INTERN
 void
 _db_dump_(
-	uint			_line_,		/* in: current source line
+	uint			_line_,		/*!< in: current source line
 						number */
-	const char*		keyword,	/* in: keyword list */
-	const unsigned char*	memory,		/* in: memory to dump */
-	size_t			length)		/* in: bytes to dump */
+	const char*		keyword,	/*!< in: keyword list */
+	const unsigned char*	memory,		/*!< in: memory to dump */
+	size_t			length)		/*!< in: bytes to dump */
 {
 	if (wdl_db_dump_ != NULL) {
 

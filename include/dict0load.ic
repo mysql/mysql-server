@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/dict0load.ic
 Loads to the memory cache database object definitions
 from dictionary tables
 

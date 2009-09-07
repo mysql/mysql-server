@@ -46,6 +46,13 @@ t1	CREATE TABLE `t1` (
   KEY `d2` (`d`),
   KEY `b` (`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
+CREATE TABLE `t1#1`(a INT PRIMARY KEY) ENGINE=InnoDB;
+alter table t1 add unique index (c), add index (d);
+ERROR HY000: Table 'test.t1#1' already exists
+rename table `t1#1` to `t1#2`;
+alter table t1 add unique index (c), add index (d);
+ERROR HY000: Table 'test.t1#2' already exists
+drop table `t1#2`;
 alter table t1 add unique index (c), add index (d);
 show create table t1;
 Table	Create Table
@@ -1124,4 +1131,40 @@ t2	CREATE TABLE `t2` (
   CONSTRAINT `fk_t2_ca` FOREIGN KEY (`c3`, `c2`) REFERENCES `t1` (`c2`, `c1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLE t2;
+DROP TABLE t1;
+CREATE TABLE t1 (a INT, b CHAR(1)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (3,'a'),(3,'b'),(1,'c'),(0,'d'),(1,'e');
+BEGIN;
+SELECT * FROM t1;
+a	b
+3	a
+3	b
+1	c
+0	d
+1	e
+CREATE INDEX t1a ON t1(a);
+SELECT * FROM t1;
+a	b
+3	a
+3	b
+1	c
+0	d
+1	e
+SELECT * FROM t1 FORCE INDEX(t1a) ORDER BY a;
+ERROR HY000: Table definition has changed, please retry transaction
+SELECT * FROM t1;
+a	b
+3	a
+3	b
+1	c
+0	d
+1	e
+COMMIT;
+SELECT * FROM t1 FORCE INDEX(t1a) ORDER BY a;
+a	b
+0	d
+1	c
+1	e
+3	a
+3	b
 DROP TABLE t1;

@@ -18,13 +18,20 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 #include "ut0wqueue.h"
 
-/********************************************************************
-Create a new work queue. */
+/*******************************************************************//**
+@file ut/ut0wqueue.c
+A work queue
+
+Created 4/26/2006 Osku Salerma
+************************************************************************/
+
+/****************************************************************//**
+Create a new work queue.
+@return	work queue */
 UNIV_INTERN
 ib_wqueue_t*
 ib_wqueue_create(void)
 /*===================*/
-			/* out: work queue */
 {
 	ib_wqueue_t*	wq = mem_alloc(sizeof(ib_wqueue_t));
 
@@ -36,13 +43,13 @@ ib_wqueue_create(void)
 	return(wq);
 }
 
-/********************************************************************
+/****************************************************************//**
 Free a work queue. */
 UNIV_INTERN
 void
 ib_wqueue_free(
 /*===========*/
-	ib_wqueue_t*	wq)	/* in: work queue */
+	ib_wqueue_t*	wq)	/*!< in: work queue */
 {
 	ut_a(!ib_list_get_first(wq->items));
 
@@ -53,15 +60,15 @@ ib_wqueue_free(
 	mem_free(wq);
 }
 
-/********************************************************************
+/****************************************************************//**
 Add a work item to the queue. */
 UNIV_INTERN
 void
 ib_wqueue_add(
 /*==========*/
-	ib_wqueue_t*	wq,	/* in: work queue */
-	void*		item,	/* in: work item */
-	mem_heap_t*	heap)	/* in: memory heap to use for allocating the
+	ib_wqueue_t*	wq,	/*!< in: work queue */
+	void*		item,	/*!< in: work item */
+	mem_heap_t*	heap)	/*!< in: memory heap to use for allocating the
 				list node */
 {
 	mutex_enter(&wq->mutex);
@@ -72,13 +79,14 @@ ib_wqueue_add(
 	mutex_exit(&wq->mutex);
 }
 
-/********************************************************************
-Wait for a work item to appear in the queue. */
+/****************************************************************//**
+Wait for a work item to appear in the queue.
+@return	work item */
 UNIV_INTERN
 void*
 ib_wqueue_wait(
-				/* out: work item */
-	ib_wqueue_t*	wq)	/* in: work queue */
+/*===========*/
+	ib_wqueue_t*	wq)	/*!< in: work queue */
 {
 	ib_list_node_t*	node;
 

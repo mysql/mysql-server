@@ -16,18 +16,25 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
+/*******************************************************************//**
+@file ut/ut0list.c
+A double-linked list
+
+Created 4/26/2006 Osku Salerma
+************************************************************************/
+
 #include "ut0list.h"
 #ifdef UNIV_NONINL
 #include "ut0list.ic"
 #endif
 
-/********************************************************************
-Create a new list. */
+/****************************************************************//**
+Create a new list.
+@return	list */
 UNIV_INTERN
 ib_list_t*
 ib_list_create(void)
 /*=================*/
-			/* out: list */
 {
 	ib_list_t*	list = mem_alloc(sizeof(ib_list_t));
 
@@ -38,15 +45,15 @@ ib_list_create(void)
 	return(list);
 }
 
-/********************************************************************
+/****************************************************************//**
 Create a new list using the given heap. ib_list_free MUST NOT BE CALLED for
-lists created with this function. */
+lists created with this function.
+@return	list */
 UNIV_INTERN
 ib_list_t*
 ib_list_create_heap(
 /*================*/
-				/* out: list */
-	mem_heap_t*	heap)	/* in: memory heap to use */
+	mem_heap_t*	heap)	/*!< in: memory heap to use */
 {
 	ib_list_t*	list = mem_heap_alloc(heap, sizeof(ib_list_t));
 
@@ -57,13 +64,13 @@ ib_list_create_heap(
 	return(list);
 }
 
-/********************************************************************
+/****************************************************************//**
 Free a list. */
 UNIV_INTERN
 void
 ib_list_free(
 /*=========*/
-	ib_list_t*	list)	/* in: list */
+	ib_list_t*	list)	/*!< in: list */
 {
 	ut_a(!list->is_heap_list);
 
@@ -74,46 +81,46 @@ ib_list_free(
 	mem_free(list);
 }
 
-/********************************************************************
-Add the data to the start of the list. */
+/****************************************************************//**
+Add the data to the start of the list.
+@return	new list node */
 UNIV_INTERN
 ib_list_node_t*
 ib_list_add_first(
 /*==============*/
-				/* out: new list node*/
-	ib_list_t*	list,	/* in: list */
-	void*		data,	/* in: data */
-	mem_heap_t*	heap)	/* in: memory heap to use */
+	ib_list_t*	list,	/*!< in: list */
+	void*		data,	/*!< in: data */
+	mem_heap_t*	heap)	/*!< in: memory heap to use */
 {
 	return(ib_list_add_after(list, ib_list_get_first(list), data, heap));
 }
 
-/********************************************************************
-Add the data to the end of the list. */
+/****************************************************************//**
+Add the data to the end of the list.
+@return	new list node */
 UNIV_INTERN
 ib_list_node_t*
 ib_list_add_last(
 /*=============*/
-				/* out: new list node*/
-	ib_list_t*	list,	/* in: list */
-	void*		data,	/* in: data */
-	mem_heap_t*	heap)	/* in: memory heap to use */
+	ib_list_t*	list,	/*!< in: list */
+	void*		data,	/*!< in: data */
+	mem_heap_t*	heap)	/*!< in: memory heap to use */
 {
 	return(ib_list_add_after(list, ib_list_get_last(list), data, heap));
 }
 
-/********************************************************************
-Add the data after the indicated node. */
+/****************************************************************//**
+Add the data after the indicated node.
+@return	new list node */
 UNIV_INTERN
 ib_list_node_t*
 ib_list_add_after(
 /*==============*/
-					/* out: new list node*/
-	ib_list_t*	list,		/* in: list */
-	ib_list_node_t*	prev_node,	/* in: node preceding new node (can
+	ib_list_t*	list,		/*!< in: list */
+	ib_list_node_t*	prev_node,	/*!< in: node preceding new node (can
 					be NULL) */
-	void*		data,		/* in: data */
-	mem_heap_t*	heap)		/* in: memory heap to use */
+	void*		data,		/*!< in: data */
+	mem_heap_t*	heap)		/*!< in: memory heap to use */
 {
 	ib_list_node_t*	node = mem_heap_alloc(heap, sizeof(ib_list_node_t));
 
@@ -156,14 +163,14 @@ ib_list_add_after(
 	return(node);
 }
 
-/********************************************************************
+/****************************************************************//**
 Remove the node from the list. */
 UNIV_INTERN
 void
 ib_list_remove(
 /*===========*/
-	ib_list_t*	list,	/* in: list */
-	ib_list_node_t*	node)	/* in: node to remove */
+	ib_list_t*	list,	/*!< in: list */
+	ib_list_node_t*	node)	/*!< in: node to remove */
 {
 	if (node->prev) {
 		node->prev->next = node->next;

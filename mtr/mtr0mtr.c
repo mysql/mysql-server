@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file mtr/mtr0mtr.c
 Mini-transaction buffer
 
 Created 11/26/1995 Heikki Tuuri
@@ -33,14 +34,15 @@ Created 11/26/1995 Heikki Tuuri
 #include "mtr0log.h"
 #include "log0log.h"
 
-/*********************************************************************
+#ifndef UNIV_HOTBACKUP
+/*****************************************************************//**
 Releases the item in the slot given. */
 UNIV_INLINE
 void
 mtr_memo_slot_release(
 /*==================*/
-	mtr_t*			mtr,	/* in: mtr */
-	mtr_memo_slot_t*	slot)	/* in: memo slot */
+	mtr_t*			mtr,	/*!< in: mtr */
+	mtr_memo_slot_t*	slot)	/*!< in: memo slot */
 {
 	void*	object;
 	ulint	type;
@@ -69,7 +71,7 @@ mtr_memo_slot_release(
 	slot->object = NULL;
 }
 
-/**************************************************************
+/**********************************************************//**
 Releases the mlocks and other objects stored in an mtr memo. They are released
 in the order opposite to which they were pushed to the memo. NOTE! It is
 essential that the x-rw-lock on a modified buffer page is not released before
@@ -80,7 +82,7 @@ UNIV_INLINE
 void
 mtr_memo_pop_all(
 /*=============*/
-	mtr_t*	mtr)	/* in: mtr */
+	mtr_t*	mtr)	/*!< in: mtr */
 {
 	mtr_memo_slot_t* slot;
 	dyn_array_t*	memo;
@@ -134,13 +136,13 @@ mtr_memo_note_modification_all(
 	}
 }
 
-/****************************************************************
+/************************************************************//**
 Writes the contents of a mini-transaction log, if any, to the database log. */
 static
 void
 mtr_log_reserve_and_write(
 /*======================*/
-	mtr_t*	mtr)	/* in: mtr */
+	mtr_t*	mtr)	/*!< in: mtr */
 {
 	dyn_array_t*	mlog;
 	dyn_block_t*	block;
@@ -192,22 +194,26 @@ mtr_log_reserve_and_write(
 
 	mtr->end_lsn = log_close();
 }
+#endif /* !UNIV_HOTBACKUP */
 
-/*******************************************************************
+/***************************************************************//**
 Commits a mini-transaction. */
 UNIV_INTERN
 void
 mtr_commit(
 /*=======*/
-	mtr_t*	mtr)	/* in: mini-transaction */
+	mtr_t*	mtr)	/*!< in: mini-transaction */
 {
+#ifndef UNIV_HOTBACKUP
 	ibool		write_log;
+#endif /* !UNIV_HOTBACKUP */
 
 	ut_ad(mtr);
 	ut_ad(mtr->magic_n == MTR_MAGIC_N);
 	ut_ad(mtr->state == MTR_ACTIVE);
 	ut_d(mtr->state = MTR_COMMITTING);
 
+#ifndef UNIV_HOTBACKUP
 	write_log = mtr->modifications && mtr->n_log_recs;
 
 	if (write_log) {
@@ -231,12 +237,15 @@ mtr_commit(
 	/* All unlocking has been moved here, after log_sys mutex release. */
 	mtr_memo_pop_all(mtr);
 
+#endif /* !UNIV_HOTBACKUP */
+
 	ut_d(mtr->state = MTR_COMMITTED);
 	dyn_array_free(&(mtr->memo));
 	dyn_array_free(&(mtr->log));
 }
 
-/**************************************************************
+#ifndef UNIV_HOTBACKUP
+/**********************************************************//**
 Releases the latches stored in an mtr memo down to a savepoint.
 NOTE! The mtr must not have made changes to buffer pages after the
 savepoint, as these can be handled only by mtr_commit. */
@@ -244,8 +253,8 @@ UNIV_INTERN
 void
 mtr_rollback_to_savepoint(
 /*======================*/
-	mtr_t*	mtr,		/* in: mtr */
-	ulint	savepoint)	/* in: savepoint */
+	mtr_t*	mtr,		/*!< in: mtr */
+	ulint	savepoint)	/*!< in: savepoint */
 {
 	mtr_memo_slot_t* slot;
 	dyn_array_t*	memo;
@@ -270,15 +279,15 @@ mtr_rollback_to_savepoint(
 	}
 }
 
-/*******************************************************
+/***************************************************//**
 Releases an object in the memo stack. */
 UNIV_INTERN
 void
 mtr_memo_release(
 /*=============*/
-	mtr_t*	mtr,	/* in: mtr */
-	void*	object,	/* in: object */
-	ulint	type)	/* in: object type: MTR_MEMO_S_LOCK, ... */
+	mtr_t*	mtr,	/*!< in: mtr */
+	void*	object,	/*!< in: object */
+	ulint	type)	/*!< in: object type: MTR_MEMO_S_LOCK, ... */
 {
 	mtr_memo_slot_t* slot;
 	dyn_array_t*	memo;
@@ -311,18 +320,19 @@ mtr_memo_release(
 		}
 	}
 }
+#endif /* !UNIV_HOTBACKUP */
 
-/************************************************************
-Reads 1 - 4 bytes from a file page buffered in the buffer pool. */
+/********************************************************//**
+Reads 1 - 4 bytes from a file page buffered in the buffer pool.
+@return	value read */
 UNIV_INTERN
 ulint
 mtr_read_ulint(
 /*===========*/
-				/* out: value read */
-	const byte*	ptr,	/* in: pointer from where to read */
-	ulint		type,	/* in: MLOG_1BYTE, MLOG_2BYTES, MLOG_4BYTES */
+	const byte*	ptr,	/*!< in: pointer from where to read */
+	ulint		type,	/*!< in: MLOG_1BYTE, MLOG_2BYTES, MLOG_4BYTES */
 	mtr_t*		mtr __attribute__((unused)))
-				/* in: mini-transaction handle */
+				/*!< in: mini-transaction handle */
 {
 	ut_ad(mtr->state == MTR_ACTIVE);
 	ut_ad(mtr_memo_contains_page(mtr, ptr, MTR_MEMO_PAGE_S_FIX)
@@ -337,16 +347,16 @@ mtr_read_ulint(
 	}
 }
 
-/************************************************************
-Reads 8 bytes from a file page buffered in the buffer pool. */
+/********************************************************//**
+Reads 8 bytes from a file page buffered in the buffer pool.
+@return	value read */
 UNIV_INTERN
 dulint
 mtr_read_dulint(
 /*============*/
-				/* out: value read */
-	const byte*	ptr,	/* in: pointer from where to read */
+	const byte*	ptr,	/*!< in: pointer from where to read */
 	mtr_t*		mtr __attribute__((unused)))
-				/* in: mini-transaction handle */
+				/*!< in: mini-transaction handle */
 {
 	ut_ad(mtr->state == MTR_ACTIVE);
 	ut_ad(mtr_memo_contains_page(mtr, ptr, MTR_MEMO_PAGE_S_FIX)
@@ -355,27 +365,28 @@ mtr_read_dulint(
 }
 
 #ifdef UNIV_DEBUG
-/**************************************************************
-Checks if memo contains the given page. */
+# ifndef UNIV_HOTBACKUP
+/**********************************************************//**
+Checks if memo contains the given page.
+@return	TRUE if contains */
 UNIV_INTERN
 ibool
 mtr_memo_contains_page(
 /*===================*/
-				/* out: TRUE if contains */
-	mtr_t*		mtr,	/* in: mtr */
-	const byte*	ptr,	/* in: pointer to buffer frame */
-	ulint		type)	/* in: type of object */
+	mtr_t*		mtr,	/*!< in: mtr */
+	const byte*	ptr,	/*!< in: pointer to buffer frame */
+	ulint		type)	/*!< in: type of object */
 {
 	return(mtr_memo_contains(mtr, buf_block_align(ptr), type));
 }
 
-/*************************************************************
+/*********************************************************//**
 Prints info of an mtr handle. */
 UNIV_INTERN
 void
 mtr_print(
 /*======*/
-	mtr_t*	mtr)	/* in: mtr */
+	mtr_t*	mtr)	/*!< in: mtr */
 {
 	fprintf(stderr,
 		"Mini-transaction handle: memo size %lu bytes"
@@ -383,4 +394,5 @@ mtr_print(
 		(ulong) dyn_array_get_data_size(&(mtr->memo)),
 		(ulong) dyn_array_get_data_size(&(mtr->log)));
 }
+# endif /* !UNIV_HOTBACKUP */
 #endif /* UNIV_DEBUG */
