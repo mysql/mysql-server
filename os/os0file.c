@@ -88,7 +88,9 @@ UNIV_INTERN ibool	os_do_not_call_flush_at_each_write	= FALSE;
 /* We do not call os_file_flush in every os_file_write. */
 #endif /* UNIV_DO_FLUSH */
 
-#ifndef UNIV_HOTBACKUP
+#ifdef UNIV_HOTBACKUP
+# define os_aio_use_native_aio	FALSE
+#else /* UNIV_HOTBACKUP */
 /* We use these mutexes to protect lseek + file i/o operation, if the
 OS does not provide an atomic pread or pwrite, or similar */
 #define OS_FILE_N_SEEK_MUTEXES	16
@@ -198,7 +200,7 @@ static ulint	os_aio_n_segments	= ULINT_UNDEFINED;
 /** If the following is TRUE, read i/o handler threads try to
 wait until a batch of new read requests have been posted */
 static ibool	os_aio_recommend_sleep_for_read_threads	= FALSE;
-#endif /* !UNIV_HOTBACKUP */
+#endif /* UNIV_HOTBACKUP */
 
 UNIV_INTERN ulint	os_n_file_reads		= 0;
 UNIV_INTERN ulint	os_bytes_read_since_printout = 0;
@@ -1245,6 +1247,7 @@ try_again:
 		}
 #endif
 #ifdef UNIV_NON_BUFFERED_IO
+# ifndef UNIV_HOTBACKUP
 		if (type == OS_LOG_FILE && srv_flush_log_at_trx_commit == 2) {
 			/* Do not use unbuffered i/o to log files because
 			value 2 denotes that we do not flush the log at every
@@ -1253,10 +1256,14 @@ try_again:
 			   == SRV_WIN_IO_UNBUFFERED) {
 			attributes = attributes | FILE_FLAG_NO_BUFFERING;
 		}
-#endif
+# else /* !UNIV_HOTBACKUP */
+		attributes = attributes | FILE_FLAG_NO_BUFFERING;
+# endif /* !UNIV_HOTBACKUP */
+#endif /* UNIV_NON_BUFFERED_IO */
 	} else if (purpose == OS_FILE_NORMAL) {
 		attributes = 0;
 #ifdef UNIV_NON_BUFFERED_IO
+# ifndef UNIV_HOTBACKUP
 		if (type == OS_LOG_FILE && srv_flush_log_at_trx_commit == 2) {
 			/* Do not use unbuffered i/o to log files because
 			value 2 denotes that we do not flush the log at every
@@ -1265,7 +1272,10 @@ try_again:
 			   == SRV_WIN_IO_UNBUFFERED) {
 			attributes = attributes | FILE_FLAG_NO_BUFFERING;
 		}
-#endif
+# else /* !UNIV_HOTBACKUP */
+		attributes = attributes | FILE_FLAG_NO_BUFFERING;
+# endif /* !UNIV_HOTBACKUP */
+#endif /* UNIV_NON_BUFFERED_IO */
 	} else {
 		attributes = 0;
 		ut_error;
@@ -2227,7 +2237,9 @@ os_file_read(
 	DWORD		low;
 	DWORD		high;
 	ibool		retry;
+#ifndef UNIV_HOTBACKUP
 	ulint		i;
+#endif /* !UNIV_HOTBACKUP */
 
 	ut_a((offset & 0xFFFFFFFFUL) == offset);
 
@@ -2246,16 +2258,20 @@ try_again:
 	os_n_pending_reads++;
 	os_mutex_exit(os_file_count_mutex);
 
+#ifndef UNIV_HOTBACKUP
 	/* Protect the seek / read operation with a mutex */
 	i = ((ulint) file) % OS_FILE_N_SEEK_MUTEXES;
 
 	os_mutex_enter(os_file_seek_mutexes[i]);
+#endif /* !UNIV_HOTBACKUP */
 
 	ret2 = SetFilePointer(file, low, &high, FILE_BEGIN);
 
 	if (ret2 == 0xFFFFFFFF && GetLastError() != NO_ERROR) {
 
+#ifndef UNIV_HOTBACKUP
 		os_mutex_exit(os_file_seek_mutexes[i]);
+#endif /* !UNIV_HOTBACKUP */
 
 		os_mutex_enter(os_file_count_mutex);
 		os_n_pending_reads--;
@@ -2266,7 +2282,9 @@ try_again:
 
 	ret = ReadFile(file, buf, (DWORD) n, &len, NULL);
 
+#ifndef UNIV_HOTBACKUP
 	os_mutex_exit(os_file_seek_mutexes[i]);
+#endif /* !UNIV_HOTBACKUP */
 
 	os_mutex_enter(os_file_count_mutex);
 	os_n_pending_reads--;
@@ -2275,7 +2293,7 @@ try_again:
 	if (ret && len == n) {
 		return(TRUE);
 	}
-#else
+#else /* __WIN__ */
 	ibool	retry;
 	ssize_t	ret;
 
@@ -2294,7 +2312,7 @@ try_again:
 		"InnoDB: Was only able to read %ld.\n",
 		(ulong)n, (ulong)offset_high,
 		(ulong)offset, (long)ret);
-#endif
+#endif /* __WIN__ */
 #ifdef __WIN__
 error_handling:
 #endif
@@ -2343,7 +2361,9 @@ os_file_read_no_error_handling(
 	DWORD		low;
 	DWORD		high;
 	ibool		retry;
+#ifndef UNIV_HOTBACKUP
 	ulint		i;
+#endif /* !UNIV_HOTBACKUP */
 
 	ut_a((offset & 0xFFFFFFFFUL) == offset);
 
@@ -2362,16 +2382,20 @@ try_again:
 	os_n_pending_reads++;
 	os_mutex_exit(os_file_count_mutex);
 
+#ifndef UNIV_HOTBACKUP
 	/* Protect the seek / read operation with a mutex */
 	i = ((ulint) file) % OS_FILE_N_SEEK_MUTEXES;
 
 	os_mutex_enter(os_file_seek_mutexes[i]);
+#endif /* !UNIV_HOTBACKUP */
 
 	ret2 = SetFilePointer(file, low, &high, FILE_BEGIN);
 
 	if (ret2 == 0xFFFFFFFF && GetLastError() != NO_ERROR) {
 
+#ifndef UNIV_HOTBACKUP
 		os_mutex_exit(os_file_seek_mutexes[i]);
+#endif /* !UNIV_HOTBACKUP */
 
 		os_mutex_enter(os_file_count_mutex);
 		os_n_pending_reads--;
@@ -2382,7 +2406,9 @@ try_again:
 
 	ret = ReadFile(file, buf, (DWORD) n, &len, NULL);
 
+#ifndef UNIV_HOTBACKUP
 	os_mutex_exit(os_file_seek_mutexes[i]);
+#endif /* !UNIV_HOTBACKUP */
 
 	os_mutex_enter(os_file_count_mutex);
 	os_n_pending_reads--;
@@ -2391,7 +2417,7 @@ try_again:
 	if (ret && len == n) {
 		return(TRUE);
 	}
-#else
+#else /* __WIN__ */
 	ibool	retry;
 	ssize_t	ret;
 
@@ -2404,7 +2430,7 @@ try_again:
 
 		return(TRUE);
 	}
-#endif
+#endif /* __WIN__ */
 #ifdef __WIN__
 error_handling:
 #endif
@@ -2463,9 +2489,11 @@ os_file_write(
 	DWORD		ret2;
 	DWORD		low;
 	DWORD		high;
-	ulint		i;
 	ulint		n_retries	= 0;
 	ulint		err;
+#ifndef UNIV_HOTBACKUP
+	ulint		i;
+#endif /* !UNIV_HOTBACKUP */
 
 	ut_a((offset & 0xFFFFFFFF) == offset);
 
@@ -2482,16 +2510,20 @@ retry:
 	os_n_pending_writes++;
 	os_mutex_exit(os_file_count_mutex);
 
+#ifndef UNIV_HOTBACKUP
 	/* Protect the seek / write operation with a mutex */
 	i = ((ulint) file) % OS_FILE_N_SEEK_MUTEXES;
 
 	os_mutex_enter(os_file_seek_mutexes[i]);
+#endif /* !UNIV_HOTBACKUP */
 
 	ret2 = SetFilePointer(file, low, &high, FILE_BEGIN);
 
 	if (ret2 == 0xFFFFFFFF && GetLastError() != NO_ERROR) {
 
+#ifndef UNIV_HOTBACKUP
 		os_mutex_exit(os_file_seek_mutexes[i]);
+#endif /* !UNIV_HOTBACKUP */
 
 		os_mutex_enter(os_file_count_mutex);
 		os_n_pending_writes--;
@@ -2525,7 +2557,9 @@ retry:
 	}
 # endif /* UNIV_DO_FLUSH */
 
+#ifndef UNIV_HOTBACKUP
 	os_mutex_exit(os_file_seek_mutexes[i]);
+#endif /* !UNIV_HOTBACKUP */
 
 	os_mutex_enter(os_file_count_mutex);
 	os_n_pending_writes--;
