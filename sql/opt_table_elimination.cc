@@ -1802,16 +1802,16 @@ void Dep_analysis_context::dbug_print_deps()
     eq_mod->expr->print(&str, QT_ORDINARY);
     if (eq_mod->field)
     {
-      fprintf(DBUG_FILE, "  equality%d: %s -> %s.%s\n", 
-              eq_mod - equality_mods,
+      fprintf(DBUG_FILE, "  equality%ld: %s -> %s.%s\n", 
+              (long)(eq_mod - equality_mods),
               str.c_ptr(),
               eq_mod->field->table->table->alias,
               eq_mod->field->field->field_name);
     }
     else
     {
-      fprintf(DBUG_FILE, "  equality%d: multi-equality", 
-              eq_mod - equality_mods);
+      fprintf(DBUG_FILE, "  equality%ld: multi-equality", 
+              (long)(eq_mod - equality_mods));
     }
   }
   fprintf(DBUG_FILE,"\n");
