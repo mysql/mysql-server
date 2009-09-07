@@ -1120,6 +1120,38 @@ args: -n SR_DD_2b_LCP D2
 
 max-time: 1500
 cmd: testSystemRestart
+args: -n SR_DD_3 D1
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR_DD_3b D1
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR_DD_3 D2
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR_DD_3b D2
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR_DD_3_LCP D1
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR_DD_3b_LCP D1
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR_DD_3_LCP D2
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR_DD_3b_LCP D2
+
+max-time: 1500
+cmd: testSystemRestart
 args: -n Bug41915 D2
 
 max-time: 300
