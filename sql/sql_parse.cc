@@ -975,6 +975,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     the slow log only if opt_log_slow_admin_statements is set.
   */
   thd->enable_slow_log= TRUE;
+  thd->query_plan_flags= QPLAN_INIT;
   thd->lex->sql_command= SQLCOM_END; /* to avoid confusing VIEW detectors */
   thd->set_time();
   VOID(pthread_mutex_lock(&LOCK_thread_count));
