@@ -1031,6 +1031,19 @@ bool ha_ndbcluster::uses_blob_value(const MY_BITMAP *bitmap)
   return FALSE;
 }
 
+void ha_ndbcluster::release_blobs_buffer()
+{
+  DBUG_ENTER("releaseBlobsBuffer");
+  if (m_blob_total_size > 0)
+  {
+    DBUG_PRINT("info", ("Deleting blobs buffer, size %llu", m_blob_total_size));
+    my_free(m_blobs_buffer, MYF(MY_ALLOW_ZERO_PTR));
+    m_blobs_buffer= 0;
+    m_blob_total_size= 0;
+    m_blobs_buffer_size= 0;
+  }
+  DBUG_VOID_RETURN;
+}
 
 /**
   Get metadata for this table from NDB.
@@ -4596,6 +4609,7 @@ int ha_ndbcluster::init_handler_for_statement(THD *thd, Thd_ndb *thd_ndb)
   // Start of transaction
   m_rows_changed= 0;
   m_blobs_pending= FALSE;
+  release_blobs_buffer();
   m_slow_path= thd_ndb->m_slow_path;
 #ifdef HAVE_NDB_BINLOG
   if (unlikely(m_slow_path))
@@ -6624,6 +6638,7 @@ ha_ndbcluster::ha_ndbcluster(handlerton *hton, TABLE_SHARE *table_arg):
   m_update_cannot_batch(FALSE),
   m_skip_auto_increment(TRUE),
   m_blobs_pending(0),
+  m_blob_total_size(0),
   m_blobs_buffer(0),
   m_blobs_buffer_size(0),
   m_dupkey((uint) -1),
@@ -6677,8 +6692,7 @@ ha_ndbcluster::~ha_ndbcluster()
     free_share(&m_share);
   }
   release_metadata(thd, ndb);
-  my_free(m_blobs_buffer, MYF(MY_ALLOW_ZERO_PTR));
-  m_blobs_buffer= 0;
+  release_blobs_buffer();
 
   // Check for open cursor/transaction
   DBUG_ASSERT(m_active_cursor == NULL);
