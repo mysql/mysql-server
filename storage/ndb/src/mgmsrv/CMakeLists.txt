@@ -41,6 +41,5 @@ ADD_EXECUTABLE(ndb_mgmd
                MgmtSrvr.cpp
                main.cpp
                Services.cpp
-               ConfigManager.cpp
-               DirIterator.cpp)
+               ConfigManager.cpp)
 TARGET_LINK_LIBRARIES(ndb_mgmd ndbconf)

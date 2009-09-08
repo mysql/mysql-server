@@ -16,7 +16,7 @@
 
 #include "ConfigManager.hpp"
 #include "MgmtSrvr.hpp"
-#include "DirIterator.hpp"
+#include <NdbDir.hpp>
 
 #include <NdbConfig.h>
 #include <NdbSleep.h>
@@ -130,7 +130,7 @@ NodeId
 ConfigManager::find_nodeid_from_configdir(void)
 {
   BaseString config_name;
-  DirIterator iter;
+  NdbDir::Iterator iter;
 
   if (iter.open(m_configdir) != 0)
     return 0;
@@ -1815,7 +1815,7 @@ delete_file(const char* file_name)
 bool
 ConfigManager::delete_saved_configs(void) const
 {
-  DirIterator iter;
+  NdbDir::Iterator iter;
 
   if (iter.open(m_configdir) != 0)
     return false;
@@ -1857,7 +1857,7 @@ ConfigManager::delete_saved_configs(void) const
 bool
 ConfigManager::saved_config_exists(BaseString& config_name) const
 {
-  DirIterator iter;
+  NdbDir::Iterator iter;
 
   if (iter.open(m_configdir) != 0)
     return false;
@@ -1895,7 +1895,7 @@ ConfigManager::saved_config_exists(BaseString& config_name) const
 bool
 ConfigManager::failed_config_change_exists() const
 {
-  DirIterator iter;
+  NdbDir::Iterator iter;
 
   if (iter.open(m_configdir) != 0)
     return false;
