@@ -1781,6 +1781,14 @@ sub environment_setup {
     $ENV{'HA_EXAMPLE_SO'}="'".$plugin_filename."'";
     $ENV{'EXAMPLE_PLUGIN_LOAD'}="--plugin_load=;EXAMPLE=".$plugin_filename.";";
   }
+  else
+  {
+    # Some ".opt" files use some of these variables, so they must be defined
+    $ENV{'EXAMPLE_PLUGIN'}= "";
+    $ENV{'EXAMPLE_PLUGIN_OPT'}= "";
+    $ENV{'HA_EXAMPLE_SO'}= "";
+    $ENV{'EXAMPLE_PLUGIN_LOAD'}= "";
+  }
 
   # ----------------------------------------------------
   # Add the path where mysqld will find mypluglib.so
