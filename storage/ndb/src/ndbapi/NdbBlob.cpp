@@ -358,6 +358,13 @@ NdbBlob::init()
 void
 NdbBlob::release()
 {
+  theKeyBuf.release();
+  theAccessKeyBuf.release();
+  thePackKeyBuf.release();
+  theHeadInlineBuf.release();
+  theHeadInlineCopyBuf.release();
+  thePartBuf.release();
+  theBlobEventDataBuf.release();
   setState(Idle);
 }
 
@@ -390,6 +397,16 @@ NdbBlob::Buf::alloc(unsigned n)
 #ifdef VM_TRACE
   memset(data, 'X', maxsize);
 #endif
+}
+
+void
+NdbBlob::Buf::release()
+{
+  if (data)
+    delete [] data;
+  data = NULL;
+  size = 0;
+  maxsize = 0;
 }
 
 void
