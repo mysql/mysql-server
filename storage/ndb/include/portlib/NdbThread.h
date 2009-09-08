@@ -93,7 +93,7 @@ void NdbThread_set_shm_sigmask(my_bool block);
  *
  *  * p_thread_func: pointer of the function to run in the thread
  *  * p_thread_arg: pointer to argument to be passed to the thread 
- *  * thread_stack_size: stack size for this thread
+ *  * thread_stack_size: stack size for this thread, 0 => default size
  *  * p_thread_name: pointer to name of this thread
  *  * returnvalue: pointer to the created thread
  */
