@@ -84,7 +84,9 @@ int toku_logfilemgr_init(TOKULOGFILEMGR lfm, const char *log_dir) {
         lf_info->index = index;
         // find last LSN
         r = toku_logcursor_create_for_file(&cursor, log_dir, basename);
-        toku_logcursor_last(cursor, &entry);
+        assert(r == 0);
+        r = toku_logcursor_last(cursor, &entry);
+        assert(r == 0);
         lf_info->maxlsn = toku_log_entry_get_lsn(entry);
         // add to logfilemgr
         toku_logfilemgr_add_logfile_info(lfm, lf_info);
