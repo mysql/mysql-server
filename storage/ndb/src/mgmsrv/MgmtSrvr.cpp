@@ -634,7 +634,7 @@ MgmtSrvr::start(BaseString &error_string, const char * bindaddress)
   // Loglevel thread
   _logLevelThread = NdbThread_Create(logLevelThread_C,
 				     (void**)this,
-				     32768,
+                                     0, // default stack size
 				     "MgmtSrvr_Loglevel",
 				     NDB_THREAD_PRIO_LOW);
 
