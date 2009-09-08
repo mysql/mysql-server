@@ -62,7 +62,7 @@ WatchDog::doStart(){
   theStop = false;
   theThreadPtr = NdbThread_Create(runWatchDog, 
 				  (void**)this, 
-				  32768,
+                                  0, // default stack size
 				  "ndb_watchdog",
                                   NDB_THREAD_PRIO_HIGH);
 }
