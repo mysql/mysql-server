@@ -704,6 +704,7 @@ private:
   int set_blob_values(const NdbOperation *ndb_op, my_ptrdiff_t row_offset,
                       const MY_BITMAP *bitmap, uint *set_count, bool batch);
   friend int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg);
+  void release_blobs_buffer();
   Uint32 setup_get_hidden_fields(NdbOperation::GetValueSpec gets[2]);
   void get_hidden_fields_keyop(NdbOperation::OperationOptions *options,
                                NdbOperation::GetValueSpec gets[2]);
