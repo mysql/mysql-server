@@ -1795,7 +1795,9 @@ operator<<(NdbOut& ndbout, const AttributeS& attr){
   
   NdbRecAttr tmprec(0);
   tmprec.setup(desc.m_column, 0);
-  tmprec.receive_data((Uint32*)data.void_value, data.size);
+  Uint32 length = (desc.size)/8 * (desc.arraySize);
+  tmprec.receive_data((Uint32*)data.void_value, length);
+
   ndbrecattr_print_formatted(ndbout, tmprec, g_ndbrecord_print_format);
 
   return ndbout;

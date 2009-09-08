@@ -369,6 +369,7 @@ private:
     Buf();
     ~Buf();
     void alloc(unsigned n);
+    void release();
     void zerorest();
     void copyfrom(const Buf& src);
   };
