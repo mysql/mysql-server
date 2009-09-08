@@ -1388,7 +1388,7 @@ TransporterRegistry::start_clients()
   ndb_thread_fill_thread_object((void*)thread_object, &len, FALSE);
   m_start_clients_thread= NdbThread_CreateWithFunc(run_start_clients_C,
 					   (void**)this,
-					   32768,
+                                           0, // default stack size
 					   "ndb_start_clients",
 					   NDB_THREAD_PRIO_LOW,
                                            ndb_thread_add_thread_id,

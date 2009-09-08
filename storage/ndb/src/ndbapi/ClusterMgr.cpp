@@ -129,7 +129,7 @@ ClusterMgr::startThread() {
   
   theClusterMgrThread = NdbThread_Create(runClusterMgr_C,
                                          (void**)this,
-                                         32768,
+                                         0, // default stack size
                                          "ndb_clustermgr",
                                          NDB_THREAD_PRIO_LOW);
   NdbMutex_Unlock(clusterMgrThreadMutex);
@@ -653,7 +653,9 @@ ArbitMgr::doStart(const Uint32* theData)
   aSignal.init(GSN_ARBIT_STARTREQ, theData);
   sendSignalToThread(aSignal);
   theThread = NdbThread_Create(
-    runArbitMgr_C, (void**)this, 32768, "ndb_arbitmgr",
+    runArbitMgr_C, (void**)this,
+    0, // default stack size
+    "ndb_arbitmgr",
     NDB_THREAD_PRIO_HIGH);
   NdbMutex_Unlock(theThreadMutex);
 }
