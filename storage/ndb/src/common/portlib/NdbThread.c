@@ -195,9 +195,15 @@ NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
   struct NdbThread* tmpThread;
   int result;
   pthread_attr_t thread_attr;
-  NDB_THREAD_STACKSIZE thread_stack_size= _stack_size * SIZEOF_CHARP/4;
+  NDB_THREAD_STACKSIZE thread_stack_size;
 
   DBUG_ENTER("NdbThread_Create");
+
+  /* Use default stack size if 0 specified */
+  if (_stack_size == 0)
+    thread_stack_size = 64 * 1024 * SIZEOF_CHARP/4;
+  else
+    thread_stack_size = _stack_size * SIZEOF_CHARP/4;
 
   (void)thread_prio; /* remove warning for unused parameter */
 
@@ -217,6 +223,7 @@ NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
   if (thread_stack_size < PTHREAD_STACK_MIN)
     thread_stack_size = PTHREAD_STACK_MIN;
 #endif
+  DBUG_PRINT("info", ("stack_size: %llu", (ulong)thread_stack_size));
   pthread_attr_setstacksize(&thread_attr, thread_stack_size);
 #ifdef USE_PTHREAD_EXTRAS
   /* Guard stack overflow with a 2k databuffer */
