@@ -19,6 +19,8 @@
 #include <ndb_global.h>
 #include <my_sys.h>
 #include <NdbMutex.h>
+#include <OutputStream.hpp>
+#include <util/NdbOut.hpp>
 
 class EventLogger *g_eventLogger = NULL;
 
@@ -71,6 +73,8 @@ ndb_init()
   if (ndb_init_called == 0)
   {
     ndb_init_called = 1;
+    new (&ndbout) NdbOut(*(new FileOutputStream(stdout)));
+    new (&ndberr) NdbOut(*(new FileOutputStream(stderr)));
     if (my_init())
     {
       const char* err = "my_init() failed - exit\n";
