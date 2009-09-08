@@ -44,6 +44,7 @@ extern "C"
 void
 ndb_init_internal()
 {
+  new (&ndbout) NdbOut(*(new FileOutputStream(stdout)));
   if (!g_ndb_connection_mutex)
     g_ndb_connection_mutex = NdbMutex_Create();
   if (!g_eventLogger)
@@ -70,7 +71,6 @@ ndb_init()
   if (ndb_init_called == 0)
   {
     ndb_init_called = 1;
-    new (&ndbout) NdbOut(*(new FileOutputStream(stdout)));
     if (my_init())
     {
       const char* err = "my_init() failed - exit\n";
