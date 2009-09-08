@@ -258,8 +258,7 @@ int toku_cachefile_of_filenum (CACHETABLE ct, FILENUM filenum, CACHEFILE *cf) {
 
 static FILENUM next_filenum_to_use={0};
 
-static void cachefile_init_filenum(CACHEFILE cf, int fd, const char *fname_relative_to_env, struct fileid fileid) \
-{
+static void cachefile_init_filenum(CACHEFILE cf, int fd, const char *fname_relative_to_env, struct fileid fileid) {
     cf->fd = fd;
     cf->fileid = fileid;
     cf->fname_relative_to_env = fname_relative_to_env ? toku_strdup(fname_relative_to_env) : 0;
@@ -275,6 +274,10 @@ cachefile_refup (CACHEFILE cf) {
 
 // If something goes wrong, close the fd.  After this, the caller shouldn't close the fd, but instead should close the cachefile.
 int toku_cachetable_openfd (CACHEFILE *cfptr, CACHETABLE ct, int fd, const char *fname_relative_to_env) {
+    return toku_cachetable_openfd_with_filenum(cfptr, ct, fd, fname_relative_to_env, FALSE, next_filenum_to_use);
+}
+
+int toku_cachetable_openfd_with_filenum (CACHEFILE *cfptr, CACHETABLE ct, int fd, const char *fname_relative_to_env, BOOL with_filenum, FILENUM filenum) {
     int r;
     CACHEFILE extant;
     struct fileid fileid;
@@ -305,19 +308,32 @@ int toku_cachetable_openfd (CACHEFILE *cfptr, CACHETABLE ct, int fd, const char 
 	    goto exit;
 	}
     }
+
     //File is not open.  Make a new cachefile.
- try_again:
-    for (extant = ct->cachefiles; extant; extant=extant->next) {
-	if (next_filenum_to_use.fileid==extant->filenum.fileid) {
-	    next_filenum_to_use.fileid++;
-	    goto try_again;
-	}
+
+    if (with_filenum) {
+        // verify that filenum is not in use
+        for (extant = ct->cachefiles; extant; extant=extant->next) {
+            if (filenum.fileid == extant->filenum.fileid) {
+                r = EEXIST;
+                goto exit;
+            }
+        }
+    } else {
+        // find an unused fileid and use it
+    try_again:
+        for (extant = ct->cachefiles; extant; extant=extant->next) {
+            if (next_filenum_to_use.fileid==extant->filenum.fileid) {
+                next_filenum_to_use.fileid++;
+                goto try_again;
+            }
+        }
     }
     {
 	// create a new cachefile entry in the cachetable
         CACHEFILE XCALLOC(newcf);
         newcf->cachetable = ct;
-        newcf->filenum.fileid = next_filenum_to_use.fileid++;
+        newcf->filenum.fileid = with_filenum ? filenum.fileid : next_filenum_to_use.fileid++;
         cachefile_init_filenum(newcf, fd, fname_relative_to_env, fileid);
 	newcf->refcount = 1;
 	newcf->next = ct->cachefiles;

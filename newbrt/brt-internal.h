@@ -188,8 +188,10 @@ struct brt {
 
     unsigned int nodesize;
     unsigned int flags;
-    unsigned int did_set_flags;
-    unsigned int did_set_descriptor;
+    BOOL did_set_flags;
+    BOOL did_set_descriptor;
+    BOOL did_set_filenum;
+    FILENUM filenum;
     struct descriptor temp_descriptor;
     toku_dbt_upgradef dbt_userformat_upgrade;
     int (*compare_fun)(DB*,const DBT*,const DBT*);
