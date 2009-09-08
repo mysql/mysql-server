@@ -1,0 +1,129 @@
+--- mysql-test/r/information_schema.result.orig	2009-06-25 21:33:28.000000000 +0000
++++ mysql-test/r/information_schema.result	2009-06-25 21:33:49.000000000 +0000
+@@ -71,6 +71,20 @@
+ TRIGGERS
+ USER_PRIVILEGES
+ VIEWS
++INNODB_BUFFER_POOL_PAGES_INDEX
++INNODB_RSEG
++INNODB_LOCKS
++INNODB_BUFFER_POOL_PAGES
++XTRADB_ENHANCEMENTS
++INNODB_TRX
++INNODB_INDEX_STATS
++INNODB_LOCK_WAITS
++INNODB_CMP_RESET
++INNODB_CMP
++INNODB_CMPMEM_RESET
++INNODB_BUFFER_POOL_PAGES_BLOB
++INNODB_CMPMEM
++INNODB_TABLE_STATS
+ columns_priv
+ db
+ event
+@@ -799,6 +813,8 @@
+ TABLES	UPDATE_TIME	datetime
+ TABLES	CHECK_TIME	datetime
+ TRIGGERS	CREATED	datetime
++INNODB_TRX	trx_started	datetime
++INNODB_TRX	trx_wait_started	datetime
+ event	execute_at	datetime
+ event	last_executed	datetime
+ event	starts	datetime
+@@ -847,12 +863,15 @@
+ TABLE_CONSTRAINTS	TABLE_NAME	select
+ TABLE_PRIVILEGES	TABLE_NAME	select
+ VIEWS	TABLE_NAME	select
++INNODB_BUFFER_POOL_PAGES_INDEX	table_name	select
++INNODB_INDEX_STATS	table_name	select
++INNODB_TABLE_STATS	table_name	select
+ delete from mysql.user where user='mysqltest_4';
+ delete from mysql.db where user='mysqltest_4';
+ flush privileges;
+ SELECT table_schema, count(*) FROM information_schema.TABLES WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test', 'mysqltest') AND table_name<>'ndb_binlog_index' AND table_name<>'ndb_apply_status' GROUP BY TABLE_SCHEMA;
+ table_schema	count(*)
+-information_schema	28
++information_schema	42
+ mysql	22
+ create table t1 (i int, j int);
+ create trigger trg1 before insert on t1 for each row
+@@ -1267,6 +1286,20 @@
+ TRIGGERS	TRIGGER_SCHEMA
+ USER_PRIVILEGES	GRANTEE
+ VIEWS	TABLE_SCHEMA
++INNODB_BUFFER_POOL_PAGES_INDEX	schema_name
++INNODB_RSEG	rseg_id
++INNODB_LOCKS	lock_id
++INNODB_BUFFER_POOL_PAGES	page_type
++XTRADB_ENHANCEMENTS	name
++INNODB_TRX	trx_id
++INNODB_INDEX_STATS	table_name
++INNODB_LOCK_WAITS	requesting_trx_id
++INNODB_CMP_RESET	page_size
++INNODB_CMP	page_size
++INNODB_CMPMEM_RESET	page_size
++INNODB_BUFFER_POOL_PAGES_BLOB	space_id
++INNODB_CMPMEM	page_size
++INNODB_TABLE_STATS	table_name
+ SELECT t.table_name, c1.column_name
+ FROM information_schema.tables t
+ INNER JOIN
+@@ -1310,14 +1343,28 @@
+ TRIGGERS	TRIGGER_SCHEMA
+ USER_PRIVILEGES	GRANTEE
+ VIEWS	TABLE_SCHEMA
++INNODB_BUFFER_POOL_PAGES_INDEX	schema_name
++INNODB_RSEG	rseg_id
++INNODB_LOCKS	lock_id
++INNODB_BUFFER_POOL_PAGES	page_type
++XTRADB_ENHANCEMENTS	name
++INNODB_TRX	trx_id
++INNODB_INDEX_STATS	table_name
++INNODB_LOCK_WAITS	requesting_trx_id
++INNODB_CMP_RESET	page_size
++INNODB_CMP	page_size
++INNODB_CMPMEM_RESET	page_size
++INNODB_BUFFER_POOL_PAGES_BLOB	space_id
++INNODB_CMPMEM	page_size
++INNODB_TABLE_STATS	table_name
+ SELECT MAX(table_name) FROM information_schema.tables WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test');
+ MAX(table_name)
+-VIEWS
++XTRADB_ENHANCEMENTS
+ SELECT table_name from information_schema.tables
+ WHERE table_name=(SELECT MAX(table_name)
+ FROM information_schema.tables WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test'));
+ table_name
+-VIEWS
++XTRADB_ENHANCEMENTS
+ DROP TABLE IF EXISTS bug23037;
+ DROP FUNCTION IF EXISTS get_value;
+ SELECT COLUMN_NAME, MD5(COLUMN_DEFAULT), LENGTH(COLUMN_DEFAULT) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='bug23037';
+@@ -1386,6 +1433,19 @@
+ FILES	information_schema.FILES	1
+ GLOBAL_STATUS	information_schema.GLOBAL_STATUS	1
+ GLOBAL_VARIABLES	information_schema.GLOBAL_VARIABLES	1
++INNODB_BUFFER_POOL_PAGES	information_schema.INNODB_BUFFER_POOL_PAGES	1
++INNODB_BUFFER_POOL_PAGES_BLOB	information_schema.INNODB_BUFFER_POOL_PAGES_BLOB	1
++INNODB_BUFFER_POOL_PAGES_INDEX	information_schema.INNODB_BUFFER_POOL_PAGES_INDEX	1
++INNODB_CMP	information_schema.INNODB_CMP	1
++INNODB_CMPMEM	information_schema.INNODB_CMPMEM	1
++INNODB_CMPMEM_RESET	information_schema.INNODB_CMPMEM_RESET	1
++INNODB_CMP_RESET	information_schema.INNODB_CMP_RESET	1
++INNODB_INDEX_STATS	information_schema.INNODB_INDEX_STATS	1
++INNODB_LOCKS	information_schema.INNODB_LOCKS	1
++INNODB_LOCK_WAITS	information_schema.INNODB_LOCK_WAITS	1
++INNODB_RSEG	information_schema.INNODB_RSEG	1
++INNODB_TABLE_STATS	information_schema.INNODB_TABLE_STATS	1
++INNODB_TRX	information_schema.INNODB_TRX	1
+ KEY_COLUMN_USAGE	information_schema.KEY_COLUMN_USAGE	1
+ PARTITIONS	information_schema.PARTITIONS	1
+ PLUGINS	information_schema.PLUGINS	1
+@@ -1404,6 +1464,7 @@
+ TRIGGERS	information_schema.TRIGGERS	1
+ USER_PRIVILEGES	information_schema.USER_PRIVILEGES	1
+ VIEWS	information_schema.VIEWS	1
++XTRADB_ENHANCEMENTS	information_schema.XTRADB_ENHANCEMENTS	1
+ create table t1(f1 int);
+ create view v1 as select f1+1 as a from t1;
+ create table t2 (f1 int, f2 int);
