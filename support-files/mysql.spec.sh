@@ -453,11 +453,9 @@ rm -fr $RBR%{_datadir}/sql-bench
 # will appreciate that, as all services usually offer this.
 ln -s %{_sysconfdir}/init.d/mysql $RPM_BUILD_ROOT%{_sbindir}/rcmysql
 
-# Touch the place where the my.cnf config file and mysqlmanager.passwd
-# (MySQL Instance Manager password file) might be located
+# Touch the place where the my.cnf config file might be located
 # Just to make sure it's in the file list and marked as a config file
 touch $RBR%{_sysconfdir}/my.cnf
-touch $RBR%{_sysconfdir}/mysqlmanager.passwd
 
 %pre server
 # Check if we can safely upgrade.  An upgrade is only safe if it's from one
@@ -655,7 +653,6 @@ fi
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_upgrade.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlhotcopy.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlman.1*
-%doc %attr(644, root, man) %{_mandir}/man8/mysqlmanager.8*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql.server.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqltest.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_tzinfo_to_sql.1*
@@ -665,7 +662,6 @@ fi
 %doc %attr(644, root, man) %{_mandir}/man1/replace.1*
 
 %ghost %config(noreplace,missingok) %{_sysconfdir}/my.cnf
-%ghost %config(noreplace,missingok) %{_sysconfdir}/mysqlmanager.passwd
 
 %attr(755, root, root) %{_bindir}/innochecksum
 %attr(755, root, root) %{_bindir}/my_print_defaults
@@ -695,7 +691,6 @@ fi
 
 %attr(755, root, root) %{_sbindir}/mysqld
 %attr(755, root, root) %{_sbindir}/mysqld-debug
-%attr(755, root, root) %{_sbindir}/mysqlmanager
 %attr(755, root, root) %{_sbindir}/rcmysql
 
 %attr(644, root, root) %config(noreplace,missingok) %{_sysconfdir}/logrotate.d/mysql
@@ -847,6 +842,11 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog
+* Thu Aug 27 2009 Joerg Bruehe <joerg.bruehe@sun.com>
+
+- This version does not contain the "Instance manager", "mysqlmanager":
+  Remove it from the spec file so that packaging succeeds.
+  
 * Fri Nov 07 2008 Joerg Bruehe <joerg@mysql.com>
 
 - Correct yesterday's fix, so that it also works for the last flag,
