@@ -112,7 +112,9 @@ int Ndb_cluster_connection::start_connect_thread(int (*connect_callback)(void))
     DBUG_PRINT("info",("starting thread"));
     m_impl.m_connect_thread= 
       NdbThread_Create(run_ndb_cluster_connection_connect_thread,
-		       (void**)&m_impl, 32768, "ndb_cluster_connection",
+		       (void**)&m_impl,
+                       0, // default stack size
+                       "ndb_cluster_connection",
 		       NDB_THREAD_PRIO_LOW);
   }
   else if (r < 0)

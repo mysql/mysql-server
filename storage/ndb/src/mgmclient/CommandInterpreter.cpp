@@ -979,7 +979,7 @@ CommandInterpreter::connect(bool interactive)
       p.p= &m_print_mutex;
       m_event_thread = NdbThread_Create(event_thread_run,
                                         (void**)&p,
-                                        32768,
+                                        0, // default stack size
                                         "CommandInterpreted_event_thread",
                                         NDB_THREAD_PRIO_LOW);
       if (m_event_thread)
