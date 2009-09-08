@@ -2587,7 +2587,7 @@ toku_brt_broadcast_commit_all (BRT brt)
     XIDS message_xids = xids_get_root_xids();
     static DBT zero; //Want a zeroed DBT for key, val.  Never changes so can be re-used.
 
-    BRT_MSG_S brtcmd = { BRT_INSERT, message_xids, .u.id={&zero,&zero}};
+    BRT_MSG_S brtcmd = { BRT_COMMIT_BROADCAST_ALL, message_xids, .u.id={&zero,&zero}};
     r = toku_brt_root_put_cmd(brt, &brtcmd);
     if (r!=0) return r;
     return r;
@@ -2883,6 +2883,8 @@ int toku_brt_alloc_init_header(BRT t) {
     }
 
     t->h->layout_version = BRT_LAYOUT_VERSION;
+    t->h->layout_version_original = BRT_LAYOUT_VERSION;
+    t->h->layout_version_read_from_disk = BRT_LAYOUT_VERSION;	// fake, prevent unnecessary upgrade logic
 
     memset(&t->h->descriptor, 0, sizeof(t->h->descriptor));
 
@@ -3044,6 +3046,10 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, int is_cre
         t->temp_descriptor.dbt.data = NULL;
         t->did_set_descriptor = 0;
     }
+
+    r = toku_maybe_upgrade_brt(t);	// possibly do some work to complete the version upgrade of brt
+    if (r!=0) goto died_after_read_and_pin;
+
     r = brtheader_note_brt_open(t);
     if (r!=0) goto died_after_read_and_pin;
     if (t->db) t->db->descriptor = &t->h->descriptor.dbt;

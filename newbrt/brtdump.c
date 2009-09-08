@@ -29,8 +29,9 @@ dump_header (int f, struct brt_header **header) {
     int r;
     r = toku_deserialize_brtheader_from (f, &h); assert(r==0);
     printf("brtheader:\n");
-    if (h->layout_version==BRT_LAYOUT_VERSION_6) printf(" layout_version<=6\n");
-    else printf(" layout_version=%d\n", h->layout_version);
+    printf(" layout_version=%d\n", h->layout_version);
+    printf(" layout_version_original=%d\n", h->layout_version_original);
+    printf(" layout_version_read_from_disk=%d\n", h->layout_version_read_from_disk);
     printf(" dirty=%d\n", h->dirty);
     printf(" nodesize=%u\n", h->nodesize);
     printf(" unnamed_root=%" PRId64 "\n", h->root.b);

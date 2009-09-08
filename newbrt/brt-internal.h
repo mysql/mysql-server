@@ -161,6 +161,9 @@ struct brt_header {
     int panic; // If nonzero there was a write error.  Don't write any more, because it probably only gets worse.  This is the error code.
     char *panic_string; // A malloced string that can indicate what went wrong.
     int layout_version;
+    int layout_version_original;	// different (<) from layout_version if upgraded from a previous version (useful for debugging)
+    int layout_version_read_from_disk;  // transient, not serialized to disk
+    BOOL upgrade_brt_performed;         // initially FALSE, set TRUE when brt has been fully updated (even though nodes may not have been)
     unsigned int nodesize;
     BLOCKNUM root;            // roots of the dictionary
     struct remembered_hash root_hash;     // hash of the root offset.
@@ -337,7 +340,7 @@ int toku_brtheader_close (CACHEFILE cachefile, void *header_v, char **error_stri
 int toku_brtheader_begin_checkpoint (CACHEFILE cachefile, LSN checkpoint_lsn, void *header_v);
 int toku_brtheader_checkpoint (CACHEFILE cachefile, void *header_v);
 int toku_brtheader_end_checkpoint (CACHEFILE cachefile, void *header_v);
-
+int toku_maybe_upgrade_brt(BRT t);
 int toku_db_badformat(void);
 
 #endif
