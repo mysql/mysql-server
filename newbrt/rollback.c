@@ -7,15 +7,15 @@
 
 static void note_txn_closing (TOKUTXN txn);
 
-int toku_commit_rollback_item (TOKUTXN txn, struct roll_entry *item, YIELDF yield, void*yieldv) {
+int toku_commit_rollback_item (TOKUTXN txn, struct roll_entry *item, YIELDF yield, void*yieldv, LSN lsn) {
     int r=0;
-    rolltype_dispatch_assign(item, toku_commit_, r, txn, yield, yieldv);
+    rolltype_dispatch_assign(item, toku_commit_, r, txn, yield, yieldv, lsn);
     return r;
 }
 
-int toku_abort_rollback_item (TOKUTXN txn, struct roll_entry *item, YIELDF yield, void*yieldv) {
+int toku_abort_rollback_item (TOKUTXN txn, struct roll_entry *item, YIELDF yield, void*yieldv, LSN lsn) {
     int r=0;
-    rolltype_dispatch_assign(item, toku_rollback_, r, txn, yield, yieldv);
+    rolltype_dispatch_assign(item, toku_rollback_, r, txn, yield, yieldv, lsn);
     if (r!=0) return r;
     return 0;
 }
@@ -104,7 +104,7 @@ static int note_brt_used_in_txns_parent(OMTVALUE brtv, u_int32_t UU(index), void
     return r;
 }
 
-int toku_rollback_commit(TOKUTXN txn, YIELDF yield, void*yieldv) {
+int toku_rollback_commit(TOKUTXN txn, YIELDF yield, void*yieldv, LSN lsn) {
     int r=0;
     if (txn->parent!=0) {
         // First we must put a rollinclude entry into the parent if we have a rollentry file.
@@ -169,7 +169,7 @@ int toku_rollback_commit(TOKUTXN txn, YIELDF yield, void*yieldv) {
             int count=0;
             while ((item=txn->newest_logentry)) {
                 txn->newest_logentry = item->prev;
-                r = toku_commit_rollback_item(txn, item, yield, yieldv);
+                r = toku_commit_rollback_item(txn, item, yield, yieldv, lsn);
                 if (r!=0) return r;
                 count++;
                 if (count%2 == 0) yield(NULL, yieldv);
@@ -178,19 +178,19 @@ int toku_rollback_commit(TOKUTXN txn, YIELDF yield, void*yieldv) {
 
         // Read stuff out of the file and execute it.
         if (txn->rollentry_filename) {
-            r = toku_commit_fileentries(txn->rollentry_fd, txn, yield, yieldv);
+            r = toku_commit_fileentries(txn->rollentry_fd, txn, yield, yieldv, lsn);
         }
     }
     return r;
 }
 
-int toku_rollback_abort(TOKUTXN txn, YIELDF yield, void*yieldv) {
+int toku_rollback_abort(TOKUTXN txn, YIELDF yield, void*yieldv, LSN lsn) {
     struct roll_entry *item;
     int count=0;
     int r=0;
     while ((item=txn->newest_logentry)) {
         txn->newest_logentry = item->prev;
-        r = toku_abort_rollback_item(txn, item, yield, yieldv);
+        r = toku_abort_rollback_item(txn, item, yield, yieldv, lsn);
         if (r!=0) 
             return r;
         count++;
@@ -198,7 +198,7 @@ int toku_rollback_abort(TOKUTXN txn, YIELDF yield, void*yieldv) {
     }
     // Read stuff out of the file and roll it back.
     if (txn->rollentry_filename) {
-        r = toku_rollback_fileentries(txn->rollentry_fd, txn, yield, yieldv);
+        r = toku_rollback_fileentries(txn->rollentry_fd, txn, yield, yieldv, lsn);
         assert(r==0);
     }
     return 0;

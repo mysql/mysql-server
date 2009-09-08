@@ -8,17 +8,11 @@ const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG
 
 char *namea="a.db";
 
-static void checkpoint_callback_2_do_abort(void *UU(extra)) {
-    abort();
-}
-
 static void run_test (void) {
     int r;
 
     system("rm -rf " ENVDIR);
     toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
-
-    db_env_set_checkpoint_callback2(checkpoint_callback_2_do_abort, NULL);
 
     DB_ENV *env;
     r = db_env_create(&env, 0);                                                         CKERR(r);
@@ -84,6 +78,8 @@ static void run_recover (void) {
 
     r = cursor->c_close(cursor);                                                          CKERR(r);
 
+    r = txn->commit(txn, 0); CKERR(r);
+    r = db->close(db, 0); CKERR(r);
     r = env->close(env, 0);                                                             CKERR(r);
     exit(0);
 }

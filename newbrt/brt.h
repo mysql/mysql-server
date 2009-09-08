@@ -51,10 +51,33 @@ int toku_brt_open(BRT, const char *fname, const char *fname_in_env, int is_creat
 int toku_brt_remove_subdb(BRT brt, const char *dbname, u_int32_t flags);
 
 int toku_brt_broadcast_commit_all (BRT brt);
-int toku_brt_insert (BRT, DBT *, DBT *, TOKUTXN);
 int toku_brt_lookup (BRT brt, DBT *k, DBT *v, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v);
-int toku_brt_delete (BRT brt, DBT *k, TOKUTXN);
-int toku_brt_delete_both (BRT brt, DBT *k, DBT *v, TOKUTXN); // Delete a pair only if both k and v are equal according to the comparison function.
+
+// Effect: Insert a key and data pair into a brt
+// Returns 0 if successfull
+int toku_brt_insert (BRT brt, DBT *k, DBT *v, TOKUTXN txn);
+
+// Effect: Insert a key and data pair into a brt if the oplsn is newer than the brt lsn.  This function is called during recovery.
+// Returns 0 if successfull
+int toku_brt_maybe_insert (BRT brt, DBT *k, DBT *v, TOKUTXN txn, LSN oplsn);
+
+// Effect: Delete a key from a brt
+// Returns 0 if successfull
+int toku_brt_delete (BRT brt, DBT *k, TOKUTXN txn);
+
+// Effect: Delete a key from a brt if the oplsn is newer than the brt lsn.  This function is called during recovery.
+// Returns 0 if successfull
+int toku_brt_maybe_delete (BRT brt, DBT *k, TOKUTXN txn, LSN oplsn);
+
+// Effect: Delete a pair only if both k and v are equal according to the comparison function.
+// Returns 0 if successfull
+int toku_brt_delete_both (BRT brt, DBT *k, DBT *v, TOKUTXN txn); 
+
+// Effect: Delete a pair only if both k and v are equal according to the comparison function and the
+// oplsn is newer than the brt lsn.  This function is called by recovery.
+// Returns 0 if successfull
+int toku_brt_maybe_delete_both (BRT brt, DBT *k, DBT *v, TOKUTXN txn, LSN oplsn);
+
 int toku_brt_db_delay_closed (BRT brt, DB* db, int (*close_db)(DB*, u_int32_t), u_int32_t close_flags);
 int toku_close_brt (BRT, TOKULOGGER, char **error_string);
 
@@ -75,6 +98,8 @@ int toku_brt_flush (BRT brt);
 int toku_brt_truncate (BRT brt);
 // effect: remove everything from the tree
 // returns: 0 if success
+
+LSN toku_brt_checkpoint_lsn(BRT brt);
 
 // create and initialize a cache table
 // cachesize is the upper limit on the size of the size of the values in the table
