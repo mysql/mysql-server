@@ -21,8 +21,8 @@
 #include <NdbOut.hpp>
 #include <OutputStream.hpp>
 
-static FileOutputStream ndbouts_fileoutputstream(stdout);
-NdbOut ndbout(ndbouts_fileoutputstream);
+/* Initialized in ndb_init() */
+NdbOut ndbout;
 
 static const char * fms[] = {
   "%d", "0x%02x",      // Int8
@@ -87,6 +87,14 @@ NdbOut& NdbOut::setHexFormat(int _format)
   return *this;
 }
 
+NdbOut::NdbOut()
+  : m_out(NULL), isHex(0)
+{
+   /**
+    * m_out set to NULL!
+    */
+}
+
 NdbOut::NdbOut(OutputStream & out) 
   : m_out(& out)
 {
@@ -95,6 +103,10 @@ NdbOut::NdbOut(OutputStream & out)
 
 NdbOut::~NdbOut()
 {
+   /**
+    *  don't delete m_out, as it's a reference given to us.
+    *  i.e we don't "own" it
+    */
 }
 
 void
