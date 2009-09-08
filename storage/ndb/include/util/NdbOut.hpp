@@ -76,6 +76,7 @@ public:
   NdbOut& flushline(void);
   NdbOut& setHexFormat(int _format);
   
+  NdbOut();
   NdbOut(OutputStream &);
   virtual ~NdbOut();
 
