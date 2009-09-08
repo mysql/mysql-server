@@ -796,13 +796,13 @@ TransporterFacade::init(Uint32 nodeId, const ndb_mgm_configuration* props)
 
   theReceiveThread = NdbThread_Create(runReceiveResponse_C,
                                       (void**)this,
-                                      32768,
+                                      0, // default stack size
                                       "ndb_receive",
                                       NDB_THREAD_PRIO_LOW);
 
   theSendThread = NdbThread_Create(runSendRequest_C,
                                    (void**)this,
-                                   32768,
+                                   0, // default stack size
                                    "ndb_send",
                                    NDB_THREAD_PRIO_LOW);
   theClusterMgr->startThread();
