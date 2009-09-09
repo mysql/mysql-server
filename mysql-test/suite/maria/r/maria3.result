@@ -318,6 +318,7 @@ maria_repair_threads	1
 maria_sort_buffer_size	8388608
 maria_stats_method	nulls_unequal
 maria_sync_log_dir	NEWFILE
+maria_used_for_temp_tables	ON
 show status like 'maria%';
 Variable_name	Value
 Maria_pagecache_blocks_not_flushed	#

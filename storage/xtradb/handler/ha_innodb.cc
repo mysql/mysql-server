@@ -9470,7 +9470,7 @@ ha_innobase::check_if_incompatible_data(
 	There is no mechanism for updating InnoDB foreign key definitions. */
 	if (foreign_key_column_is_being_renamed(prebuilt, table)) {
 
-		return(COMPATIBLE_DATA_NO);
+		DBUG_RETURN(COMPATIBLE_DATA_NO);
 	}
 
 	/* Check that row format didn't change */

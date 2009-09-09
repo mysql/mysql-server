@@ -63,7 +63,7 @@ static const LEX_STRING sys_table_aliases[]=
 
 const char *ha_row_type[] = {
   "", "FIXED", "DYNAMIC", "COMPRESSED", "REDUNDANT", "COMPACT",
-  /* Reserved to be "PAGE" in future versions */ "?",
+  "PAGE",
   "?","?","?"
 };
 
