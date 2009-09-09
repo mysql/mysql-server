@@ -84,7 +84,7 @@ buf_page_peek_if_too_old(
 		return(FALSE);
 	} else {
 		/* FIXME: bpage->freed_page_clock is 31 bits */
-		return((buf_pool->freed_page_clock & ~(1 << 31))
+		return((buf_pool->freed_page_clock & ((1 << 31) - 1))
 		       > bpage->freed_page_clock
 		       + (buf_pool->curr_size
 			  * (BUF_LRU_OLD_RATIO_DIV - buf_LRU_old_ratio)
