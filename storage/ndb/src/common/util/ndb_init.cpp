@@ -19,8 +19,6 @@
 #include <ndb_global.h>
 #include <my_sys.h>
 #include <NdbMutex.h>
-#include <OutputStream.hpp>
-#include <util/NdbOut.hpp>
 
 class EventLogger *g_eventLogger = NULL;
 
@@ -37,6 +35,7 @@ static int ndb_init_called = 0;
 
 extern "C" void NdbCondition_Init(int need_monotonic);
 extern "C" void NdbTick_Init(int need_monotonic);
+extern void NdbOut_Init();
 
 extern "C"
 {
@@ -44,7 +43,7 @@ extern "C"
 void
 ndb_init_internal()
 {
-  new (&ndbout) NdbOut(*(new FileOutputStream(stdout)));
+  NdbOut_Init();
   if (!g_ndb_connection_mutex)
     g_ndb_connection_mutex = NdbMutex_Create();
   if (!g_eventLogger)
