@@ -5647,8 +5647,17 @@ Dbdict::createTab_local(Signal* signal,
 void
 Dbdict::execCREATE_TAB_REF(Signal* signal)
 {
-  // no longer received
-  ndbrequire(false);
+  jamEntry();
+
+  CreateTabRef * const ref = (CreateTabRef*)signal->getDataPtr();
+
+  SchemaOpPtr op_ptr;
+  CreateTableRecPtr createTabPtr;
+  findSchemaOp(op_ptr, createTabPtr, ref->senderData);
+  ndbrequire(!op_ptr.isNull());
+
+  setError(op_ptr, ref->errorCode, __LINE__);
+  execute(signal, createTabPtr.p->m_callback, 0);
 }
 
 void
