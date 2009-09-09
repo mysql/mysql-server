@@ -32,8 +32,8 @@ NULL	ｳｳｳｳｳ	NULL	NULL
 DESC `ｱｱｱ`;
 Field	Type	Null	Key	Default	Extra
 ｶｶ	char(1)	YES	MUL	NULL	
-ｷｷｷ	char(6)		PRI		
-ｸｸｸ	char(1)	YES	MUL	NULL	
+ｷｷｷ	char(6)	NO	PRI		
+ｸｸｸ	char(1)	YES	UNI	NULL	
 ｹｹｹ	char(1)	YES		NULL	
 SHOW CREATE TABLE `ｱｱｱ`;
 Table	Create Table
@@ -59,7 +59,7 @@ SELECT * FROM `ｱｱｱ`;
 ｳｳｳｳｳ
 DESC `ｱｱｱ`;
 Field	Type	Null	Key	Default	Extra
-ｷｷｷ	char(6)				
+ｷｷｷ	char(6)	NO			
 SHOW CREATE TABLE `ｱｱｱ`;
 Table	Create Table
 ｱｱｱ	CREATE TABLE `ｱｱｱ` (
@@ -81,8 +81,8 @@ NULL	ううううう	NULL	NULL
 DESC `あああ`;
 Field	Type	Null	Key	Default	Extra
 かか	char(1)	YES	MUL	NULL	
-ききき	char(6)		PRI		
-くくく	char(1)	YES	MUL	NULL	
+ききき	char(6)	NO	PRI		
+くくく	char(1)	YES	UNI	NULL	
 けけけ	char(1)	YES		NULL	
 SHOW CREATE TABLE `あああ`;
 Table	Create Table
@@ -108,7 +108,7 @@ SELECT * FROM `あああ`;
 ううううう
 DESC `あああ`;
 Field	Type	Null	Key	Default	Extra
-ききき	char(6)				
+ききき	char(6)	NO			
 SHOW CREATE TABLE `あああ`;
 Table	Create Table
 あああ	CREATE TABLE `あああ` (
@@ -130,8 +130,8 @@ NULL	丅丅丅丅丅	NULL	NULL
 DESC `龖龖龖`;
 Field	Type	Null	Key	Default	Extra
 丄丄	char(1)	YES	MUL	NULL	
-丂丂丂	char(6)		PRI		
-丅丅丅	char(1)	YES	MUL	NULL	
+丂丂丂	char(6)	NO	PRI		
+丅丅丅	char(1)	YES	UNI	NULL	
 乚乚乚	char(1)	YES		NULL	
 SHOW CREATE TABLE `龖龖龖`;
 Table	Create Table
@@ -157,7 +157,7 @@ SELECT * FROM `龖龖龖`;
 丅丅丅丅丅
 DESC `龖龖龖`;
 Field	Type	Null	Key	Default	Extra
-丂丂丂	char(6)				
+丂丂丂	char(6)	NO			
 SHOW CREATE TABLE `龖龖龖`;
 Table	Create Table
 龖龖龖	CREATE TABLE `龖龖龖` (
@@ -194,8 +194,8 @@ NULL	ｳｳｳｳｳ	NULL	NULL
 DESC `ｱｱｱ`;
 Field	Type	Null	Key	Default	Extra
 ｶｶ	char(1)	YES	MUL	NULL	
-ｷｷｷ	char(6)		PRI		
-ｸｸｸ	char(1)	YES	MUL	NULL	
+ｷｷｷ	char(6)	NO	PRI		
+ｸｸｸ	char(1)	YES	UNI	NULL	
 ｹｹｹ	char(1)	YES		NULL	
 SHOW CREATE TABLE `ｱｱｱ`;
 Table	Create Table
@@ -221,7 +221,7 @@ SELECT * FROM `ｱｱｱ`;
 ｳｳｳｳｳ
 DESC `ｱｱｱ`;
 Field	Type	Null	Key	Default	Extra
-ｷｷｷ	char(6)				
+ｷｷｷ	char(6)	NO			
 SHOW CREATE TABLE `ｱｱｱ`;
 Table	Create Table
 ｱｱｱ	CREATE TABLE `ｱｱｱ` (
@@ -243,8 +243,8 @@ NULL	ううううう	NULL	NULL
 DESC `あああ`;
 Field	Type	Null	Key	Default	Extra
 かか	char(1)	YES	MUL	NULL	
-ききき	char(6)		PRI		
-くくく	char(1)	YES	MUL	NULL	
+ききき	char(6)	NO	PRI		
+くくく	char(1)	YES	UNI	NULL	
 けけけ	char(1)	YES		NULL	
 SHOW CREATE TABLE `あああ`;
 Table	Create Table
@@ -270,7 +270,7 @@ SELECT * FROM `あああ`;
 ううううう
 DESC `あああ`;
 Field	Type	Null	Key	Default	Extra
-ききき	char(6)				
+ききき	char(6)	NO			
 SHOW CREATE TABLE `あああ`;
 Table	Create Table
 あああ	CREATE TABLE `あああ` (
@@ -292,8 +292,8 @@ NULL	丅丅丅丅丅	NULL	NULL
 DESC `龖龖龖`;
 Field	Type	Null	Key	Default	Extra
 丄丄	char(1)	YES	MUL	NULL	
-丂丂丂	char(6)		PRI		
-丅丅丅	char(1)	YES	MUL	NULL	
+丂丂丂	char(6)	NO	PRI		
+丅丅丅	char(1)	YES	UNI	NULL	
 乚乚乚	char(1)	YES		NULL	
 SHOW CREATE TABLE `龖龖龖`;
 Table	Create Table
@@ -319,7 +319,7 @@ SELECT * FROM `龖龖龖`;
 丅丅丅丅丅
 DESC `龖龖龖`;
 Field	Type	Null	Key	Default	Extra
-丂丂丂	char(6)				
+丂丂丂	char(6)	NO			
 SHOW CREATE TABLE `龖龖龖`;
 Table	Create Table
 龖龖龖	CREATE TABLE `龖龖龖` (
@@ -356,8 +356,8 @@ NULL	ｳｳｳｳｳ	NULL	NULL
 DESC `ｱｱｱ`;
 Field	Type	Null	Key	Default	Extra
 ｶｶ	char(1)	YES	MUL	NULL	
-ｷｷｷ	char(6)		PRI		
-ｸｸｸ	char(1)	YES	MUL	NULL	
+ｷｷｷ	char(6)	NO	PRI		
+ｸｸｸ	char(1)	YES	UNI	NULL	
 ｹｹｹ	char(1)	YES		NULL	
 SHOW CREATE TABLE `ｱｱｱ`;
 Table	Create Table
@@ -369,7 +369,7 @@ Table	Create Table
   PRIMARY KEY  (`ｷｷｷ`),
   UNIQUE KEY `ｸｸｸ` (`ｸｸｸ`),
   KEY `ｶｶｶ` (`ｶｶ`)
-) ENGINE=HEAP DEFAULT CHARSET=ucs2
+) ENGINE=MEMORY DEFAULT CHARSET=ucs2
 ALTER TABLE `ｱｱｱ` DROP INDEX `ｶｶｶ`;
 ALTER TABLE `ｱｱｱ` DROP PRIMARY KEY;
 ALTER TABLE `ｱｱｱ` DROP INDEX `ｸｸｸ`;
@@ -383,12 +383,12 @@ SELECT * FROM `ｱｱｱ`;
 ｳｳｳｳｳ
 DESC `ｱｱｱ`;
 Field	Type	Null	Key	Default	Extra
-ｷｷｷ	char(6)				
+ｷｷｷ	char(6)	NO			
 SHOW CREATE TABLE `ｱｱｱ`;
 Table	Create Table
 ｱｱｱ	CREATE TABLE `ｱｱｱ` (
   `ｷｷｷ` char(6) NOT NULL default ''
-) ENGINE=HEAP DEFAULT CHARSET=ucs2
+) ENGINE=MEMORY DEFAULT CHARSET=ucs2
 ALTER TABLE `あああ` ADD `かかか` char(1) FIRST;
 ALTER TABLE `あああ` ADD `くくく` char(1) AFTER `ききき`;
 ALTER TABLE `あああ` ADD `けけけ` char(1);
@@ -405,8 +405,8 @@ NULL	ううううう	NULL	NULL
 DESC `あああ`;
 Field	Type	Null	Key	Default	Extra
 かか	char(1)	YES	MUL	NULL	
-ききき	char(6)		PRI		
-くくく	char(1)	YES	MUL	NULL	
+ききき	char(6)	NO	PRI		
+くくく	char(1)	YES	UNI	NULL	
 けけけ	char(1)	YES		NULL	
 SHOW CREATE TABLE `あああ`;
 Table	Create Table
@@ -418,7 +418,7 @@ Table	Create Table
   PRIMARY KEY  (`ききき`),
   UNIQUE KEY `くくく` (`くくく`),
   KEY `かかか` (`かか`)
-) ENGINE=HEAP DEFAULT CHARSET=ucs2
+) ENGINE=MEMORY DEFAULT CHARSET=ucs2
 ALTER TABLE `あああ` DROP INDEX `かかか`;
 ALTER TABLE `あああ` DROP PRIMARY KEY;
 ALTER TABLE `あああ` DROP INDEX `くくく`;
@@ -432,12 +432,12 @@ SELECT * FROM `あああ`;
 ううううう
 DESC `あああ`;
 Field	Type	Null	Key	Default	Extra
-ききき	char(6)				
+ききき	char(6)	NO			
 SHOW CREATE TABLE `あああ`;
 Table	Create Table
 あああ	CREATE TABLE `あああ` (
   `ききき` char(6) NOT NULL default ''
-) ENGINE=HEAP DEFAULT CHARSET=ucs2
+) ENGINE=MEMORY DEFAULT CHARSET=ucs2
 ALTER TABLE `龖龖龖` ADD `丄丄丄` char(1) FIRST;
 ALTER TABLE `龖龖龖` ADD `丅丅丅` char(1) AFTER `丂丂丂`;
 ALTER TABLE `龖龖龖` ADD `乚乚乚` char(1);
@@ -454,8 +454,8 @@ NULL	丅丅丅丅丅	NULL	NULL
 DESC `龖龖龖`;
 Field	Type	Null	Key	Default	Extra
 丄丄	char(1)	YES	MUL	NULL	
-丂丂丂	char(6)		PRI		
-丅丅丅	char(1)	YES	MUL	NULL	
+丂丂丂	char(6)	NO	PRI		
+丅丅丅	char(1)	YES	UNI	NULL	
 乚乚乚	char(1)	YES		NULL	
 SHOW CREATE TABLE `龖龖龖`;
 Table	Create Table
@@ -467,7 +467,7 @@ Table	Create Table
   PRIMARY KEY  (`丂丂丂`),
   UNIQUE KEY `丅丅丅` (`丅丅丅`),
   KEY `丄丄丄` (`丄丄`)
-) ENGINE=HEAP DEFAULT CHARSET=ucs2
+) ENGINE=MEMORY DEFAULT CHARSET=ucs2
 ALTER TABLE `龖龖龖` DROP INDEX `丄丄丄`;
 ALTER TABLE `龖龖龖` DROP PRIMARY KEY;
 ALTER TABLE `龖龖龖` DROP INDEX `丅丅丅`;
@@ -481,12 +481,12 @@ SELECT * FROM `龖龖龖`;
 丅丅丅丅丅
 DESC `龖龖龖`;
 Field	Type	Null	Key	Default	Extra
-丂丂丂	char(6)				
+丂丂丂	char(6)	NO			
 SHOW CREATE TABLE `龖龖龖`;
 Table	Create Table
 龖龖龖	CREATE TABLE `龖龖龖` (
   `丂丂丂` char(6) NOT NULL default ''
-) ENGINE=HEAP DEFAULT CHARSET=ucs2
+) ENGINE=MEMORY DEFAULT CHARSET=ucs2
 DROP TABLE `ｱｱｱ`;
 DROP TABLE `ｲｲｲ`;
 DROP TABLE `あああ`;
@@ -517,7 +517,7 @@ NULL	ｳｳｳｳｳ	NULL	NULL
 DESC `ｱｱｱ`;
 Field	Type	Null	Key	Default	Extra
 ｶｶ	char(1)	YES	MUL	NULL	
-ｷｷｷ	char(6)		PRI		
+ｷｷｷ	char(6)	NO	PRI		
 ｸｸｸ	char(1)	YES		NULL	
 ｹｹｹ	char(1)	YES		NULL	
 SHOW CREATE TABLE `ｱｱｱ`;
@@ -542,7 +542,7 @@ SELECT * FROM `ｱｱｱ`;
 ｳｳｳｳｳ
 DESC `ｱｱｱ`;
 Field	Type	Null	Key	Default	Extra
-ｷｷｷ	char(6)				
+ｷｷｷ	char(6)	NO			
 SHOW CREATE TABLE `ｱｱｱ`;
 Table	Create Table
 ｱｱｱ	CREATE TABLE `ｱｱｱ` (
@@ -563,7 +563,7 @@ NULL	ううううう	NULL	NULL
 DESC `あああ`;
 Field	Type	Null	Key	Default	Extra
 かか	char(1)	YES	MUL	NULL	
-ききき	char(6)		PRI		
+ききき	char(6)	NO	PRI		
 くくく	char(1)	YES		NULL	
 けけけ	char(1)	YES		NULL	
 SHOW CREATE TABLE `あああ`;
@@ -588,7 +588,7 @@ SELECT * FROM `あああ`;
 ううううう
 DESC `あああ`;
 Field	Type	Null	Key	Default	Extra
-ききき	char(6)				
+ききき	char(6)	NO			
 SHOW CREATE TABLE `あああ`;
 Table	Create Table
 あああ	CREATE TABLE `あああ` (
@@ -609,7 +609,7 @@ NULL	丅丅丅丅丅	NULL	NULL
 DESC `龖龖龖`;
 Field	Type	Null	Key	Default	Extra
 丄丄	char(1)	YES	MUL	NULL	
-丂丂丂	char(6)		PRI		
+丂丂丂	char(6)	NO	PRI		
 丅丅丅	char(1)	YES		NULL	
 乚乚乚	char(1)	YES		NULL	
 SHOW CREATE TABLE `龖龖龖`;
@@ -634,7 +634,7 @@ SELECT * FROM `龖龖龖`;
 丅丅丅丅丅
 DESC `龖龖龖`;
 Field	Type	Null	Key	Default	Extra
-丂丂丂	char(6)				
+丂丂丂	char(6)	NO			
 SHOW CREATE TABLE `龖龖龖`;
 Table	Create Table
 龖龖龖	CREATE TABLE `龖龖龖` (

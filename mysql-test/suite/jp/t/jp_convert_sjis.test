@@ -1,3 +1,5 @@
+-- source include/have_innodb.inc
+-- source include/have_bdb.inc
 --character_set sjis
 SET NAMES sjis;
 SET character_set_database = sjis;

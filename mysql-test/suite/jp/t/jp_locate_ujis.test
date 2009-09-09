@@ -1,3 +1,5 @@
+-- source include/have_innodb.inc
+-- source include/have_bdb.inc
 --source include/have_ujis.inc
 
 --disable_warnings
