@@ -186,3 +186,15 @@ FilteredNdbOut::getThreshold() const {
   return m_threshold;
 }
 
+static FileOutputStream ndbouts_fileoutputstream(0);
+static FileOutputStream ndberrs_fileoutputstream(0);
+
+void
+NdbOut_Init()
+{
+  new (&ndbouts_fileoutputstream) FileOutputStream(stdout);
+  new (&ndbout) NdbOut(ndbouts_fileoutputstream);
+
+  new (&ndberrs_fileoutputstream) FileOutputStream(stderr);
+  new (&ndberr) NdbOut(ndberrs_fileoutputstream);
+}
