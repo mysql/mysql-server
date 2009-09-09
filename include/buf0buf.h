@@ -807,8 +807,8 @@ buf_page_set_old(
 	buf_page_t*	bpage,	/*!< in/out: control block */
 	ibool		old);	/*!< in: old */
 /*********************************************************************//**
-Determine the time of last access a block in the buffer pool.
-@return	ut_time_ms() at the time of last access, 0 if not accessed */
+Determine the time of first access of a block in the buffer pool.
+@return	ut_time_ms() at the time of first access, 0 if not accessed */
 UNIV_INLINE
 unsigned
 buf_page_is_accessed(
