@@ -138,19 +138,19 @@ Table	Create Table
 £Τ£·	CREATE TABLE `£Τ£·` (
   `£Γ£±` enum('±','²','³') default NULL,
   KEY `£Γ£±` (`£Γ£±`)
-) ENGINE=HEAP DEFAULT CHARSET=ucs2
+) ENGINE=MEMORY DEFAULT CHARSET=ucs2
 SHOW CREATE TABLE `£Τ£Έ`;
 Table	Create Table
 £Τ£Έ	CREATE TABLE `£Τ£Έ` (
   `£Γ£±` enum('¤Ά','¤¤','¤¦') default NULL,
   KEY `£Γ£±` (`£Γ£±`)
-) ENGINE=HEAP DEFAULT CHARSET=ucs2
+) ENGINE=MEMORY DEFAULT CHARSET=ucs2
 SHOW CREATE TABLE `£Τ£Ή`;
 Table	Create Table
 £Τ£Ή	CREATE TABLE `£Τ£Ή` (
   `£Γ£±` enum('νά','νέ','νή') default NULL,
   KEY `£Γ£±` (`£Γ£±`)
-) ENGINE=HEAP DEFAULT CHARSET=ucs2
+) ENGINE=MEMORY DEFAULT CHARSET=ucs2
 SHOW CREATE TABLE `£Τ£±£°`;
 Table	Create Table
 £Τ£±£°	CREATE TABLE `£Τ£±£°` (

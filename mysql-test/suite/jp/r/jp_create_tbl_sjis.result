@@ -22,11 +22,23 @@ CREATE TABLE `いいい`(`ききき` char(1)) DEFAULT CHARSET = sjis engine=INNODB;
 CREATE TABLE `ソソソ`(`噂噂噂` char(1)) DEFAULT CHARSET = sjis engine=INNODB;
 CREATE TABLE `十十十`(`蚕蚕蚕` char(1)) DEFAULT CHARSET = sjis engine=INNODB;
 CREATE TABLE IF NOT EXISTS `ｱｱｱ`(`ｶｶｶ` char(1)) DEFAULT CHARSET = sjis engine=INNODB;
+Warnings:
+Note	1050	Table 'ｱｱｱ' already exists
 CREATE TABLE IF NOT EXISTS `ｲｲｲ`(`ｷｷｷ` char(1)) DEFAULT CHARSET = sjis engine=INNODB;
+Warnings:
+Note	1050	Table 'ｲｲｲ' already exists
 CREATE TABLE IF NOT EXISTS `あああ`(`かかか` char(1)) DEFAULT CHARSET = sjis engine=INNODB;
+Warnings:
+Note	1050	Table 'あああ' already exists
 CREATE TABLE IF NOT EXISTS `いいい`(`ききき` char(1)) DEFAULT CHARSET = sjis engine=INNODB;
+Warnings:
+Note	1050	Table 'いいい' already exists
 CREATE TABLE IF NOT EXISTS `ソソソ`(`噂噂噂` char(1)) DEFAULT CHARSET = sjis engine=INNODB;
+Warnings:
+Note	1050	Table 'ソソソ' already exists
 CREATE TABLE IF NOT EXISTS `十十十`(`蚕蚕蚕` char(1)) DEFAULT CHARSET = sjis engine=INNODB;
+Warnings:
+Note	1050	Table '十十十' already exists
 CREATE TABLE IF NOT EXISTS `ｳｳｳ`(`ｸｸｸ` char(1)) DEFAULT CHARSET = sjis engine=INNODB;
 CREATE TABLE IF NOT EXISTS `ううう`(`くくく` char(1)) DEFAULT CHARSET = sjis engine=INNODB;
 CREATE TABLE IF NOT EXISTS `表表表`(`申申申`char(1)) DEFAULT CHARSET = sjis engine=INNODB;
@@ -178,11 +190,23 @@ CREATE TABLE `いいい`(`ききき` char(1)) DEFAULT CHARSET = sjis engine=MyISAM;
 CREATE TABLE `ソソソ`(`噂噂噂` char(1)) DEFAULT CHARSET = sjis engine=MyISAM;
 CREATE TABLE `十十十`(`蚕蚕蚕` char(1)) DEFAULT CHARSET = sjis engine=MyISAM;
 CREATE TABLE IF NOT EXISTS `ｱｱｱ`(`ｶｶｶ` char(1)) DEFAULT CHARSET = sjis engine=MyISAM;
+Warnings:
+Note	1050	Table 'ｱｱｱ' already exists
 CREATE TABLE IF NOT EXISTS `ｲｲｲ`(`ｷｷｷ` char(1)) DEFAULT CHARSET = sjis engine=MyISAM;
+Warnings:
+Note	1050	Table 'ｲｲｲ' already exists
 CREATE TABLE IF NOT EXISTS `あああ`(`かかか` char(1)) DEFAULT CHARSET = sjis engine=MyISAM;
+Warnings:
+Note	1050	Table 'あああ' already exists
 CREATE TABLE IF NOT EXISTS `いいい`(`ききき` char(1)) DEFAULT CHARSET = sjis engine=MyISAM;
+Warnings:
+Note	1050	Table 'いいい' already exists
 CREATE TABLE IF NOT EXISTS `ソソソ`(`噂噂噂` char(1)) DEFAULT CHARSET = sjis engine=MyISAM;
+Warnings:
+Note	1050	Table 'ソソソ' already exists
 CREATE TABLE IF NOT EXISTS `十十十`(`蚕蚕蚕` char(1)) DEFAULT CHARSET = sjis engine=MyISAM;
+Warnings:
+Note	1050	Table '十十十' already exists
 CREATE TABLE IF NOT EXISTS `ｳｳｳ`(`ｸｸｸ` char(1)) DEFAULT CHARSET = sjis engine=MyISAM;
 CREATE TABLE IF NOT EXISTS `ううう`(`くくく` char(1)) DEFAULT CHARSET = sjis engine=MyISAM;
 CREATE TABLE IF NOT EXISTS `表表表`(`申申申`char(1)) DEFAULT CHARSET = sjis engine=MyISAM;
@@ -334,11 +358,23 @@ CREATE TABLE `いいい`(`ききき` char(1)) DEFAULT CHARSET = sjis engine=HEAP;
 CREATE TABLE `ソソソ`(`噂噂噂` char(1)) DEFAULT CHARSET = sjis engine=HEAP;
 CREATE TABLE `十十十`(`蚕蚕蚕` char(1)) DEFAULT CHARSET = sjis engine=HEAP;
 CREATE TABLE IF NOT EXISTS `ｱｱｱ`(`ｶｶｶ` char(1)) DEFAULT CHARSET = sjis engine=HEAP;
+Warnings:
+Note	1050	Table 'ｱｱｱ' already exists
 CREATE TABLE IF NOT EXISTS `ｲｲｲ`(`ｷｷｷ` char(1)) DEFAULT CHARSET = sjis engine=HEAP;
+Warnings:
+Note	1050	Table 'ｲｲｲ' already exists
 CREATE TABLE IF NOT EXISTS `あああ`(`かかか` char(1)) DEFAULT CHARSET = sjis engine=HEAP;
+Warnings:
+Note	1050	Table 'あああ' already exists
 CREATE TABLE IF NOT EXISTS `いいい`(`ききき` char(1)) DEFAULT CHARSET = sjis engine=HEAP;
+Warnings:
+Note	1050	Table 'いいい' already exists
 CREATE TABLE IF NOT EXISTS `ソソソ`(`噂噂噂` char(1)) DEFAULT CHARSET = sjis engine=HEAP;
+Warnings:
+Note	1050	Table 'ソソソ' already exists
 CREATE TABLE IF NOT EXISTS `十十十`(`蚕蚕蚕` char(1)) DEFAULT CHARSET = sjis engine=HEAP;
+Warnings:
+Note	1050	Table '十十十' already exists
 CREATE TABLE IF NOT EXISTS `ｳｳｳ`(`ｸｸｸ` char(1)) DEFAULT CHARSET = sjis engine=HEAP;
 CREATE TABLE IF NOT EXISTS `ううう`(`くくく` char(1)) DEFAULT CHARSET = sjis engine=HEAP;
 CREATE TABLE IF NOT EXISTS `表表表`(`申申申`char(1)) DEFAULT CHARSET = sjis engine=HEAP;
@@ -397,77 +433,77 @@ SHOW CREATE TABLE `ｱｱｱ`;
 Table	Create Table
 ｱｱｱ	CREATE TABLE `ｱｱｱ` (
   `ｶｶｶ` char(1) default NULL
-) ENGINE=HEAP DEFAULT CHARSET=sjis
+) ENGINE=MEMORY DEFAULT CHARSET=sjis
 SHOW CREATE TABLE `ｲｲｲ`;
 Table	Create Table
 ｲｲｲ	CREATE TABLE `ｲｲｲ` (
   `ｷｷｷ` char(1) default NULL
-) ENGINE=HEAP DEFAULT CHARSET=sjis
+) ENGINE=MEMORY DEFAULT CHARSET=sjis
 SHOW CREATE TABLE `ｳｳｳ`;
 Table	Create Table
 ｳｳｳ	CREATE TABLE `ｳｳｳ` (
   `ｸｸｸ` char(1) default NULL
-) ENGINE=HEAP DEFAULT CHARSET=sjis
+) ENGINE=MEMORY DEFAULT CHARSET=sjis
 SHOW CREATE TABLE `ｴｴｴ`;
 Table	Create Table
 ｴｴｴ	CREATE TEMPORARY TABLE `ｴｴｴ` (
   `ｹｹｹ` char(1) default NULL
-) ENGINE=HEAP DEFAULT CHARSET=sjis
+) ENGINE=MEMORY DEFAULT CHARSET=sjis
 SHOW CREATE TABLE `ｵｵｵ`;
 Table	Create Table
 ｵｵｵ	CREATE TEMPORARY TABLE `ｵｵｵ` (
   `ｺｺｺ` char(1) default NULL
-) ENGINE=HEAP DEFAULT CHARSET=sjis
+) ENGINE=MEMORY DEFAULT CHARSET=sjis
 SHOW CREATE TABLE `あああ`;
 Table	Create Table
 あああ	CREATE TABLE `あああ` (
   `かかか` char(1) default NULL
-) ENGINE=HEAP DEFAULT CHARSET=sjis
+) ENGINE=MEMORY DEFAULT CHARSET=sjis
 SHOW CREATE TABLE `いいい`;
 Table	Create Table
 いいい	CREATE TABLE `いいい` (
   `ききき` char(1) default NULL
-) ENGINE=HEAP DEFAULT CHARSET=sjis
+) ENGINE=MEMORY DEFAULT CHARSET=sjis
 SHOW CREATE TABLE `ううう`;
 Table	Create Table
 ううう	CREATE TABLE `ううう` (
   `くくく` char(1) default NULL
-) ENGINE=HEAP DEFAULT CHARSET=sjis
+) ENGINE=MEMORY DEFAULT CHARSET=sjis
 SHOW CREATE TABLE `えええ`;
 Table	Create Table
 えええ	CREATE TEMPORARY TABLE `えええ` (
   `けけけ` char(1) default NULL
-) ENGINE=HEAP DEFAULT CHARSET=sjis
+) ENGINE=MEMORY DEFAULT CHARSET=sjis
 SHOW CREATE TABLE `おおお`;
 Table	Create Table
 おおお	CREATE TEMPORARY TABLE `おおお` (
   `こここ` char(1) default NULL
-) ENGINE=HEAP DEFAULT CHARSET=sjis
+) ENGINE=MEMORY DEFAULT CHARSET=sjis
 SHOW CREATE TABLE `ソソソ`;
 Table	Create Table
 ソソソ	CREATE TABLE `ソソソ` (
   `噂噂噂` char(1) default NULL
-) ENGINE=HEAP DEFAULT CHARSET=sjis
+) ENGINE=MEMORY DEFAULT CHARSET=sjis
 SHOW CREATE TABLE `十十十`;
 Table	Create Table
 十十十	CREATE TABLE `十十十` (
   `蚕蚕蚕` char(1) default NULL
-) ENGINE=HEAP DEFAULT CHARSET=sjis
+) ENGINE=MEMORY DEFAULT CHARSET=sjis
 SHOW CREATE TABLE `表表表`;
 Table	Create Table
 表表表	CREATE TABLE `表表表` (
   `申申申` char(1) default NULL
-) ENGINE=HEAP DEFAULT CHARSET=sjis
+) ENGINE=MEMORY DEFAULT CHARSET=sjis
 SHOW CREATE TABLE `予予予`;
 Table	Create Table
 予予予	CREATE TEMPORARY TABLE `予予予` (
   `貼貼貼` char(1) default NULL
-) ENGINE=HEAP DEFAULT CHARSET=sjis
+) ENGINE=MEMORY DEFAULT CHARSET=sjis
 SHOW CREATE TABLE `構構構`;
 Table	Create Table
 構構構	CREATE TEMPORARY TABLE `構構構` (
   `能能能` char(1) default NULL
-) ENGINE=HEAP DEFAULT CHARSET=sjis
+) ENGINE=MEMORY DEFAULT CHARSET=sjis
 DROP TABLE `ｱｱｱ`;
 DROP TABLE `ｲｲｲ`;
 DROP TABLE `ｳｳｳ`;
@@ -490,11 +526,23 @@ CREATE TABLE `いいい`(`ききき` char(1)) DEFAULT CHARSET = sjis engine=BDB;
 CREATE TABLE `ソソソ`(`噂噂噂` char(1)) DEFAULT CHARSET = sjis engine=BDB;
 CREATE TABLE `十十十`(`蚕蚕蚕` char(1)) DEFAULT CHARSET = sjis engine=BDB;
 CREATE TABLE IF NOT EXISTS `ｱｱｱ`(`ｶｶｶ` char(1)) DEFAULT CHARSET = sjis engine=BDB;
+Warnings:
+Note	1050	Table 'ｱｱｱ' already exists
 CREATE TABLE IF NOT EXISTS `ｲｲｲ`(`ｷｷｷ` char(1)) DEFAULT CHARSET = sjis engine=BDB;
+Warnings:
+Note	1050	Table 'ｲｲｲ' already exists
 CREATE TABLE IF NOT EXISTS `あああ`(`かかか` char(1)) DEFAULT CHARSET = sjis engine=BDB;
+Warnings:
+Note	1050	Table 'あああ' already exists
 CREATE TABLE IF NOT EXISTS `いいい`(`ききき` char(1)) DEFAULT CHARSET = sjis engine=BDB;
+Warnings:
+Note	1050	Table 'いいい' already exists
 CREATE TABLE IF NOT EXISTS `ソソソ`(`噂噂噂` char(1)) DEFAULT CHARSET = sjis engine=BDB;
+Warnings:
+Note	1050	Table 'ソソソ' already exists
 CREATE TABLE IF NOT EXISTS `十十十`(`蚕蚕蚕` char(1)) DEFAULT CHARSET = sjis engine=BDB;
+Warnings:
+Note	1050	Table '十十十' already exists
 CREATE TABLE IF NOT EXISTS `ｳｳｳ`(`ｸｸｸ` char(1)) DEFAULT CHARSET = sjis engine=BDB;
 CREATE TABLE IF NOT EXISTS `ううう`(`くくく` char(1)) DEFAULT CHARSET = sjis engine=BDB;
 CREATE TABLE IF NOT EXISTS `表表表`(`申申申`char(1)) DEFAULT CHARSET = sjis engine=BDB;

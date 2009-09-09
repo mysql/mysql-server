@@ -1,3 +1,4 @@
+-- source include/have_innodb.inc
 --disable_warnings
 drop table if exists `Ｔ１`;
 drop table if exists `Ｔ２`;

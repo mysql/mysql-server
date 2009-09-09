@@ -137,19 +137,19 @@ Table	Create Table
 Ｔ７	CREATE TABLE `Ｔ７` (
   `Ｃ１` enum('ｱ','ｲ','ｳ') default NULL,
   KEY `Ｃ１` (`Ｃ１`)
-) ENGINE=HEAP DEFAULT CHARSET=utf8
+) ENGINE=MEMORY DEFAULT CHARSET=utf8
 SHOW CREATE TABLE `Ｔ８`;
 Table	Create Table
 Ｔ８	CREATE TABLE `Ｔ８` (
   `Ｃ１` enum('あ','い','う') default NULL,
   KEY `Ｃ１` (`Ｃ１`)
-) ENGINE=HEAP DEFAULT CHARSET=utf8
+) ENGINE=MEMORY DEFAULT CHARSET=utf8
 SHOW CREATE TABLE `Ｔ９`;
 Table	Create Table
 Ｔ９	CREATE TABLE `Ｔ９` (
   `Ｃ１` enum('龔','龖','龗') default NULL,
   KEY `Ｃ１` (`Ｃ１`)
-) ENGINE=HEAP DEFAULT CHARSET=utf8
+) ENGINE=MEMORY DEFAULT CHARSET=utf8
 SHOW CREATE TABLE `Ｔ１０`;
 Table	Create Table
 Ｔ１０	CREATE TABLE `Ｔ１０` (
@@ -219,134 +219,134 @@ ALTER TABLE `Ｔ１２` ADD `Ｃ２` CHAR(1) NOT NULL FIRST;
 SHOW CREATE TABLE `Ｔ１`;
 Table	Create Table
 Ｔ１	CREATE TABLE `Ｔ１` (
-  `Ｃ２` char(1) NOT NULL default '',
+  `Ｃ２` char(1) NOT NULL,
   `Ｃ１` enum('ｱ','ｲ','ｳ') default NULL,
   KEY `Ｃ１` (`Ｃ１`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8
 SHOW CREATE TABLE `Ｔ２`;
 Table	Create Table
 Ｔ２	CREATE TABLE `Ｔ２` (
-  `Ｃ２` char(1) NOT NULL default '',
+  `Ｃ２` char(1) NOT NULL,
   `Ｃ１` enum('あ','い','う') default NULL,
   KEY `Ｃ１` (`Ｃ１`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8
 SHOW CREATE TABLE `Ｔ３`;
 Table	Create Table
 Ｔ３	CREATE TABLE `Ｔ３` (
-  `Ｃ２` char(1) NOT NULL default '',
+  `Ｃ２` char(1) NOT NULL,
   `Ｃ１` enum('龔','龖','龗') default NULL,
   KEY `Ｃ１` (`Ｃ１`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8
 SHOW CREATE TABLE `Ｔ４`;
 Table	Create Table
 Ｔ４	CREATE TABLE `Ｔ４` (
-  `Ｃ２` char(1) NOT NULL default '',
+  `Ｃ２` char(1) NOT NULL,
   `Ｃ１` enum('ｱ','ｲ','ｳ') default NULL,
   KEY `Ｃ１` (`Ｃ１`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8
 SHOW CREATE TABLE `Ｔ５`;
 Table	Create Table
 Ｔ５	CREATE TABLE `Ｔ５` (
-  `Ｃ２` char(1) NOT NULL default '',
+  `Ｃ２` char(1) NOT NULL,
   `Ｃ１` enum('あ','い','う') default NULL,
   KEY `Ｃ１` (`Ｃ１`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8
 SHOW CREATE TABLE `Ｔ６`;
 Table	Create Table
 Ｔ６	CREATE TABLE `Ｔ６` (
-  `Ｃ２` char(1) NOT NULL default '',
+  `Ｃ２` char(1) NOT NULL,
   `Ｃ１` enum('龔','龖','龗') default NULL,
   KEY `Ｃ１` (`Ｃ１`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8
 SHOW CREATE TABLE `Ｔ７`;
 Table	Create Table
 Ｔ７	CREATE TABLE `Ｔ７` (
-  `Ｃ２` char(1) NOT NULL default '',
+  `Ｃ２` char(1) NOT NULL,
   `Ｃ１` enum('ｱ','ｲ','ｳ') default NULL,
   KEY `Ｃ１` (`Ｃ１`)
-) ENGINE=HEAP DEFAULT CHARSET=utf8
+) ENGINE=MEMORY DEFAULT CHARSET=utf8
 SHOW CREATE TABLE `Ｔ８`;
 Table	Create Table
 Ｔ８	CREATE TABLE `Ｔ８` (
-  `Ｃ２` char(1) NOT NULL default '',
+  `Ｃ２` char(1) NOT NULL,
   `Ｃ１` enum('あ','い','う') default NULL,
   KEY `Ｃ１` (`Ｃ１`)
-) ENGINE=HEAP DEFAULT CHARSET=utf8
+) ENGINE=MEMORY DEFAULT CHARSET=utf8
 SHOW CREATE TABLE `Ｔ９`;
 Table	Create Table
 Ｔ９	CREATE TABLE `Ｔ９` (
-  `Ｃ２` char(1) NOT NULL default '',
+  `Ｃ２` char(1) NOT NULL,
   `Ｃ１` enum('龔','龖','龗') default NULL,
   KEY `Ｃ１` (`Ｃ１`)
-) ENGINE=HEAP DEFAULT CHARSET=utf8
+) ENGINE=MEMORY DEFAULT CHARSET=utf8
 SHOW CREATE TABLE `Ｔ１０`;
 Table	Create Table
 Ｔ１０	CREATE TABLE `Ｔ１０` (
-  `Ｃ２` char(1) NOT NULL default '',
+  `Ｃ２` char(1) NOT NULL,
   `Ｃ１` enum('ｱ','ｲ','ｳ') default NULL,
   KEY `Ｃ１` (`Ｃ１`)
 ) ENGINE=BerkeleyDB DEFAULT CHARSET=utf8
 SHOW CREATE TABLE `Ｔ１１`;
 Table	Create Table
 Ｔ１１	CREATE TABLE `Ｔ１１` (
-  `Ｃ２` char(1) NOT NULL default '',
+  `Ｃ２` char(1) NOT NULL,
   `Ｃ１` enum('あ','い','う') default NULL,
   KEY `Ｃ１` (`Ｃ１`)
 ) ENGINE=BerkeleyDB DEFAULT CHARSET=utf8
 SHOW CREATE TABLE `Ｔ１２`;
 Table	Create Table
 Ｔ１２	CREATE TABLE `Ｔ１２` (
-  `Ｃ２` char(1) NOT NULL default '',
+  `Ｃ２` char(1) NOT NULL,
   `Ｃ１` enum('龔','龖','龗') default NULL,
   KEY `Ｃ１` (`Ｃ１`)
 ) ENGINE=BerkeleyDB DEFAULT CHARSET=utf8
 DESC `Ｔ１`;
 Field	Type	Null	Key	Default	Extra
-Ｃ２	char(1)				
+Ｃ２	char(1)	NO		NULL	
 Ｃ１	enum('ｱ','ｲ','ｳ')	YES	MUL	NULL	
 DESC `Ｔ２`;
 Field	Type	Null	Key	Default	Extra
-Ｃ２	char(1)				
+Ｃ２	char(1)	NO		NULL	
 Ｃ１	enum('あ','い','う')	YES	MUL	NULL	
 DESC `Ｔ３`;
 Field	Type	Null	Key	Default	Extra
-Ｃ２	char(1)				
+Ｃ２	char(1)	NO		NULL	
 Ｃ１	enum('龔','龖','龗')	YES	MUL	NULL	
 DESC `Ｔ４`;
 Field	Type	Null	Key	Default	Extra
-Ｃ２	char(1)				
+Ｃ２	char(1)	NO		NULL	
 Ｃ１	enum('ｱ','ｲ','ｳ')	YES	MUL	NULL	
 DESC `Ｔ５`;
 Field	Type	Null	Key	Default	Extra
-Ｃ２	char(1)				
+Ｃ２	char(1)	NO		NULL	
 Ｃ１	enum('あ','い','う')	YES	MUL	NULL	
 DESC `Ｔ６`;
 Field	Type	Null	Key	Default	Extra
-Ｃ２	char(1)				
+Ｃ２	char(1)	NO		NULL	
 Ｃ１	enum('龔','龖','龗')	YES	MUL	NULL	
 DESC `Ｔ７`;
 Field	Type	Null	Key	Default	Extra
-Ｃ２	char(1)				
+Ｃ２	char(1)	NO		NULL	
 Ｃ１	enum('ｱ','ｲ','ｳ')	YES	MUL	NULL	
 DESC `Ｔ８`;
 Field	Type	Null	Key	Default	Extra
-Ｃ２	char(1)				
+Ｃ２	char(1)	NO		NULL	
 Ｃ１	enum('あ','い','う')	YES	MUL	NULL	
 DESC `Ｔ９`;
 Field	Type	Null	Key	Default	Extra
-Ｃ２	char(1)				
+Ｃ２	char(1)	NO		NULL	
 Ｃ１	enum('龔','龖','龗')	YES	MUL	NULL	
 DESC `Ｔ１０`;
 Field	Type	Null	Key	Default	Extra
-Ｃ２	char(1)				
+Ｃ２	char(1)	NO		NULL	
 Ｃ１	enum('ｱ','ｲ','ｳ')	YES	MUL	NULL	
 DESC `Ｔ１１`;
 Field	Type	Null	Key	Default	Extra
-Ｃ２	char(1)				
+Ｃ２	char(1)	NO		NULL	
 Ｃ１	enum('あ','い','う')	YES	MUL	NULL	
 DESC `Ｔ１２`;
 Field	Type	Null	Key	Default	Extra
-Ｃ２	char(1)				
+Ｃ２	char(1)	NO		NULL	
 Ｃ１	enum('龔','龖','龗')	YES	MUL	NULL	
 DROP TABLE `Ｔ１`;
 DROP TABLE `Ｔ２`;

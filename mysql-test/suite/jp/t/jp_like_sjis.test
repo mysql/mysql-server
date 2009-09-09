@@ -1,3 +1,5 @@
+-- source include/have_innodb.inc
+-- source include/have_bdb.inc
 --character_set sjis
 --disable_warnings
 drop table if exists `‚s‚P`;
