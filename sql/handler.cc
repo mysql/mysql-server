@@ -1885,11 +1885,41 @@ bool ha_flush_logs(handlerton *db_type)
   return FALSE;
 }
 
+
+/**
+  @brief make canonical filename
+
+  @param[in]  file     table handler
+  @param[in]  path     original path
+  @param[out] tmp_path buffer for canonized path
+
+  @details Lower case db name and table name path parts for
+           non file based tables when lower_case_table_names
+           is 2 (store as is, compare in lower case).
+           Filesystem path prefix (mysql_data_home or tmpdir)
+           is left intact.
+
+  @note tmp_path may be left intact if no conversion was
+        performed.
+
+  @retval canonized path
+
+  @todo This may be done more efficiently when table path
+        gets built. Convert this function to something like
+        ASSERT_CANONICAL_FILENAME.
+*/
 const char *get_canonical_filename(handler *file, const char *path,
                                    char *tmp_path)
 {
+  uint i;
   if (lower_case_table_names != 2 || (file->ha_table_flags() & HA_FILE_BASED))
     return path;
+
+  for (i= 0; i <= mysql_tmpdir_list.max; i++)
+  {
+    if (is_prefix(path, mysql_tmpdir_list.list[i]))
+      return path;
+  }
 
   /* Ensure that table handler get path in lower case */
   if (tmp_path != path)
