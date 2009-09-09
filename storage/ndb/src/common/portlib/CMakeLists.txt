@@ -28,11 +28,18 @@ ENDIF(WIN32)
 ADD_LIBRARY(ndbportlib STATIC
             NdbCondition.c NdbMutex.c
             NdbEnv.c NdbThread.c NdbHost.c NdbTCP.cpp
-            NdbMem.c NdbConfig.c NdbTick.c
+            NdbMem.c NdbConfig.c NdbTick.c NdbDir.cpp
             my_daemon.cc ${CMAKE_SOURCE_DIR}/sql/nt_servc.cc
             ${EXTRA_SRC}
 )
 TARGET_LINK_LIBRARIES(ndbportlib mysys ${EXTRA_LIB})
+
+ADD_EXECUTABLE(NdbDir-t
+  NdbDir.cpp
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/common/util/basestring_vsnprintf.c)
+SET_TARGET_PROPERTIES(NdbDir-t
+                      PROPERTIES COMPILE_FLAGS "-DTEST_NDBDIR")
+TARGET_LINK_LIBRARIES(NdbDir-t ndbportlib)
 
 #ADD_EXECUTABLE(memtest memtest.c)
 #TARGET_LINK_LIBRARIES(memtest ndbportlib wsock32)
