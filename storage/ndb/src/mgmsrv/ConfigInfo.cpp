@@ -3746,6 +3746,8 @@ transformSystem(InitConfigFileParser::Context & ctx, const char * data){
   }
 
   BaseString::snprintf(ctx.pname, sizeof(ctx.pname), "SYSTEM_%s", name);
+
+  ctx.m_currentSection->put("Type", ctx.fname);
   
   return true;
 }
