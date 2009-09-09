@@ -31,8 +31,7 @@ static int f_fetch (CACHEFILE f,
 		    u_int32_t fullhash __attribute__((__unused__)),
 		    void**value,
 		    long *sizep,
-		    void*extraargs     __attribute__((__unused__)),
-		    LSN *modified_lsn  __attribute__((__unused__))) {
+		    void*extraargs     __attribute__((__unused__))) {
     void *buf = toku_malloc(BLOCKSIZE);
     int r = pread(toku_cachefile_fd(f), buf, BLOCKSIZE, key.b);
     assert(r==BLOCKSIZE);

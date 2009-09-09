@@ -23,15 +23,13 @@ fetch (CACHEFILE f        __attribute__((__unused__)),
        u_int32_t fullhash __attribute__((__unused__)),
        void **value       __attribute__((__unused__)),
        long *sizep        __attribute__((__unused__)),
-       void *extraargs    __attribute__((__unused__)),
-       LSN *written_lsn    __attribute__((__unused__))
+       void *extraargs    __attribute__((__unused__))
        ) {
 
     sleep(10);
 
     *value = 0;
     *sizep = 1;
-    *written_lsn = ZERO_LSN;
 
     return -42;
 }

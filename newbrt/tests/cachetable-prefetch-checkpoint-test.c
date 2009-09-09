@@ -22,8 +22,8 @@ static void flush(CACHEFILE cf, CACHEKEY key, void *value, void *extraargs, long
     if (keep_me) n_keep_me++;
 }
 
-static int fetch(CACHEFILE cf, CACHEKEY key, u_int32_t fullhash, void **value, long *sizep, void *extraargs, LSN *written_lsn) {
-    cf = cf; key = key; fullhash = fullhash; value = value; sizep = sizep; extraargs = extraargs; written_lsn = written_lsn;
+static int fetch(CACHEFILE cf, CACHEKEY key, u_int32_t fullhash, void **value, long *sizep, void *extraargs) {
+    cf = cf; key = key; fullhash = fullhash; value = value; sizep = sizep; extraargs = extraargs;
     n_fetch++;
     sleep(10);
     *value = 0;

@@ -457,15 +457,13 @@ void toku_brtnode_flush_callback (CACHEFILE cachefile, BLOCKNUM nodename, void *
     //printf("%s:%d n_items_malloced=%lld\n", __FILE__, __LINE__, n_items_malloced);
 }
 
-int toku_brtnode_fetch_callback (CACHEFILE cachefile, BLOCKNUM nodename, u_int32_t fullhash, void **brtnode_pv, long *sizep, void*extraargs, LSN *written_lsn) {
+int toku_brtnode_fetch_callback (CACHEFILE cachefile, BLOCKNUM nodename, u_int32_t fullhash, void **brtnode_pv, long *sizep, void*extraargs) {
     assert(extraargs);
     struct brt_header *h = extraargs;
     BRTNODE *result=(BRTNODE*)brtnode_pv;
     int r = toku_deserialize_brtnode_from(toku_cachefile_fd(cachefile), nodename, fullhash, result, h);
-    if (r == 0) {
+    if (r == 0)
         *sizep = brtnode_memory_size(*result);
-        *written_lsn = (*result)->disk_lsn;
-    }
     //(*result)->parent_brtnode = 0; /* Don't know it right now. */
     //printf("%s:%d installed %p (offset=%lld)\n", __FILE__, __LINE__, *result, nodename);
     return r;
@@ -635,10 +633,10 @@ initialize_empty_brtnode (BRT t, BRTNODE n, BLOCKNUM nodename, int height, size_
     n->nodesize = t->h->nodesize;
     n->flags = t->flags;
     n->thisnodename = nodename;
-    n->disk_lsn.lsn = 0; // a new one can always be 0.
-    n->log_lsn = n->disk_lsn;
     assert(t->h->layout_version != 0);
-    n->layout_version = t->h->layout_version;
+    n->layout_version          = t->h->layout_version;
+    n->layout_version_original = t->h->layout_version;
+    n->layout_version_read_from_disk = t->h->layout_version;
     n->height       = height;
     n->rand4fingerprint = random();
     n->local_fingerprint = 0;

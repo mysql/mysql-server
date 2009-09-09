@@ -694,13 +694,12 @@ static int cachetable_fetch_pair(CACHETABLE ct, CACHEFILE cf, PAIR p) {
 
     void *toku_value = 0;
     long size = 0;
-    LSN written_lsn = ZERO_LSN;
 
     WHEN_TRACE_CT(printf("%s:%d CT: fetch_callback(%lld...)\n", __FILE__, __LINE__, key));    
 
     cachetable_unlock(ct);
 
-    int r = fetch_callback(cf, key, fullhash, &toku_value, &size, extraargs, &written_lsn);
+    int r = fetch_callback(cf, key, fullhash, &toku_value, &size, extraargs);
 
     cachetable_lock(ct);
 
@@ -716,7 +715,6 @@ static int cachetable_fetch_pair(CACHETABLE ct, CACHEFILE cf, PAIR p) {
     } else {
         lru_touch(ct, p);
         p->value = toku_value;
-        p->written_lsn = written_lsn;
         p->size = size;
         ct->size_current += size;
         if (p->cq) {

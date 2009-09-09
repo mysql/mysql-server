@@ -486,9 +486,81 @@ deserialize_brtheader_10 (int fd, struct rbuf *rb, struct brt_header **brth) {
     return 0;
 }
 
+enum { uncompressed_magic_len_10 = (8 // tokuleaf or tokunode
+				 +4 // version
+				 +8 // lsn
+				 ) 
+};
+
 static int
 decompress_brtnode_from_raw_block_into_rbuf_10(u_int8_t *raw_block, struct rbuf *rb, BLOCKNUM blocknum) {
-    int r = decompress_brtnode_from_raw_block_into_rbuf(raw_block, rb, blocknum);
+    int r;
+    int i;
+    // get the number of compressed sub blocks
+    int n_sub_blocks;
+    int compression_header_offset;
+    {
+        n_sub_blocks = toku_dtoh32(*(u_int32_t*)(&raw_block[uncompressed_magic_len_10]));
+        compression_header_offset = uncompressed_magic_len_10 + 4;
+    }
+    assert(0 < n_sub_blocks);
+
+    // verify the sizes of the compressed sub blocks
+    if (0 && n_sub_blocks != 1) printf("%s:%d %d\n", __FUNCTION__, __LINE__, n_sub_blocks);
+
+    struct sub_block_sizes sub_block_sizes[n_sub_blocks];
+    for (i=0; i<n_sub_blocks; i++) {
+        u_int32_t compressed_size = toku_dtoh32(*(u_int32_t*)(&raw_block[compression_header_offset+8*i]));
+        if (compressed_size<=0   || compressed_size>(1<<30)) { r = toku_db_badformat(); return r; }
+        u_int32_t uncompressed_size = toku_dtoh32(*(u_int32_t*)(&raw_block[compression_header_offset+8*i+4]));
+        if (0) printf("Block %" PRId64 " Compressed size = %u, uncompressed size=%u\n", blocknum.b, compressed_size, uncompressed_size);
+        if (uncompressed_size<=0 || uncompressed_size>(1<<30)) { r = toku_db_badformat(); return r; }
+
+        sub_block_sizes[i].compressed_size = compressed_size;
+        sub_block_sizes[i].uncompressed_size = uncompressed_size;
+    }
+
+    unsigned char *compressed_data = raw_block + uncompressed_magic_len_10 + get_compression_header_size(BRT_LAYOUT_VERSION, n_sub_blocks);
+
+    size_t uncompressed_size = get_sum_uncompressed_size(n_sub_blocks, sub_block_sizes);
+    rb->size= uncompressed_magic_len_10 + uncompressed_size;
+    assert(rb->size>0);
+
+    rb->buf=toku_xmalloc(rb->size);
+
+    // construct the uncompressed block from the header and compressed sub blocks
+    memcpy(rb->buf, raw_block, uncompressed_magic_len_10);
+
+    // decompress the sub blocks
+    unsigned char *uncompressed_data = rb->buf+uncompressed_magic_len_10;
+    struct decompress_work decompress_work[n_sub_blocks];
+
+    for (i=0; i<n_sub_blocks; i++) {
+        init_decompress_work(&decompress_work[i], compressed_data, sub_block_sizes[i].compressed_size, uncompressed_data, sub_block_sizes[i].uncompressed_size);
+        if (i>0) {
+#if DO_DECOMPRESS_WORKER
+            start_decompress_work(&decompress_work[i]);
+#else
+            do_decompress_work(&decompress_work[i]);
+#endif
+        }
+        uncompressed_data += sub_block_sizes[i].uncompressed_size;
+        compressed_data += sub_block_sizes[i].compressed_size;
+    }
+    do_decompress_work(&decompress_work[0]);
+#if DO_DECOMPRESS_WORKER
+    for (i=1; i<n_sub_blocks; i++)
+        wait_decompress_work(&decompress_work[i]);
+#endif
+    toku_trace("decompress done");
+
+    if (0) printf("First 4 bytes of uncompressed data are %02x%02x%02x%02x\n",
+		  rb->buf[uncompressed_magic_len_10],   rb->buf[uncompressed_magic_len_10+1],
+		  rb->buf[uncompressed_magic_len_10+2], rb->buf[uncompressed_magic_len_10+3]);
+
+    rb->ndone=0;
+
+    r = verify_decompressed_brtnode_checksum(rb);
     return r;
 }
 
@@ -687,7 +759,7 @@ deserialize_brtnode_from_rbuf_10 (BLOCKNUM blocknum, u_int32_t fullhash, BRTNODE
     rbuf_literal_bytes(rb, &magic, 8);
     result->layout_version    = rbuf_int(rb);
     assert(result->layout_version == BRT_LAYOUT_VERSION_10);
-    result->disk_lsn.lsn = rbuf_ulonglong(rb);
+    (void)rbuf_ulonglong(rb); // BRTNODE.disk_lsn.lsn no longer exists
     {
         //Restrict scope for now since we do not support upgrades.
         struct descriptor desc;
@@ -696,7 +768,7 @@ deserialize_brtnode_from_rbuf_10 (BLOCKNUM blocknum, u_int32_t fullhash, BRTNODE
         assert(desc.version == result->desc->version); //We do not yet support upgrading the dbts.
     }
     result->nodesize = rbuf_int(rb);
-    result->log_lsn = result->disk_lsn;
+    //result->log_lsn = result->disk_lsn; //Disabled since neither variable exists anymore
 
     result->thisnodename = blocknum;
     result->flags = rbuf_int(rb);
@@ -929,7 +1001,9 @@ upgrade_brtnode_10_11 (BRTNODE *brtnode_10, BRTNODE *brtnode_11) {
         upgrade_brtnode_leaf_10_11(*brtnode_10);
     *brtnode_11 = *brtnode_10;
     *brtnode_10 = NULL;
-    (*brtnode_11)->layout_version = BRT_LAYOUT_VERSION_11;
+    (*brtnode_11)->layout_version                = BRT_LAYOUT_VERSION_11;
+    (*brtnode_11)->layout_version_original       = BRT_LAYOUT_VERSION_10;
+    (*brtnode_11)->layout_version_read_from_disk = BRT_LAYOUT_VERSION_10;
     (*brtnode_11)->dirty = 1;
     return 0;
 }
