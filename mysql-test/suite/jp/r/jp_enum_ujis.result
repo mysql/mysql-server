@@ -137,19 +137,19 @@ Table	Create Table
 £Τ£·	CREATE TABLE `£Τ£·` (
   `£Γ£±` enum('±','²','³') default NULL,
   KEY `£Γ£±` (`£Γ£±`)
-) ENGINE=HEAP DEFAULT CHARSET=ujis
+) ENGINE=MEMORY DEFAULT CHARSET=ujis
 SHOW CREATE TABLE `£Τ£Έ`;
 Table	Create Table
 £Τ£Έ	CREATE TABLE `£Τ£Έ` (
   `£Γ£±` enum('¤Ά','¤¤','¤¦') default NULL,
   KEY `£Γ£±` (`£Γ£±`)
-) ENGINE=HEAP DEFAULT CHARSET=ujis
+) ENGINE=MEMORY DEFAULT CHARSET=ujis
 SHOW CREATE TABLE `£Τ£Ή`;
 Table	Create Table
 £Τ£Ή	CREATE TABLE `£Τ£Ή` (
   `£Γ£±` enum('νά','νέ','νή') default NULL,
   KEY `£Γ£±` (`£Γ£±`)
-) ENGINE=HEAP DEFAULT CHARSET=ujis
+) ENGINE=MEMORY DEFAULT CHARSET=ujis
 SHOW CREATE TABLE `£Τ£±£°`;
 Table	Create Table
 £Τ£±£°	CREATE TABLE `£Τ£±£°` (
@@ -219,134 +219,134 @@ ALTER TABLE `£Τ£±£²` ADD `£Γ£²` CHAR(1) NOT NULL FIRST;
 SHOW CREATE TABLE `£Τ£±`;
 Table	Create Table
 £Τ£±	CREATE TABLE `£Τ£±` (
-  `£Γ£²` char(1) NOT NULL default '',
+  `£Γ£²` char(1) NOT NULL,
   `£Γ£±` enum('±','²','³') default NULL,
   KEY `£Γ£±` (`£Γ£±`)
 ) ENGINE=InnoDB DEFAULT CHARSET=ujis
 SHOW CREATE TABLE `£Τ£²`;
 Table	Create Table
 £Τ£²	CREATE TABLE `£Τ£²` (
-  `£Γ£²` char(1) NOT NULL default '',
+  `£Γ£²` char(1) NOT NULL,
   `£Γ£±` enum('¤Ά','¤¤','¤¦') default NULL,
   KEY `£Γ£±` (`£Γ£±`)
 ) ENGINE=InnoDB DEFAULT CHARSET=ujis
 SHOW CREATE TABLE `£Τ£³`;
 Table	Create Table
 £Τ£³	CREATE TABLE `£Τ£³` (
-  `£Γ£²` char(1) NOT NULL default '',
+  `£Γ£²` char(1) NOT NULL,
   `£Γ£±` enum('νά','νέ','νή') default NULL,
   KEY `£Γ£±` (`£Γ£±`)
 ) ENGINE=InnoDB DEFAULT CHARSET=ujis
 SHOW CREATE TABLE `£Τ£΄`;
 Table	Create Table
 £Τ£΄	CREATE TABLE `£Τ£΄` (
-  `£Γ£²` char(1) NOT NULL default '',
+  `£Γ£²` char(1) NOT NULL,
   `£Γ£±` enum('±','²','³') default NULL,
   KEY `£Γ£±` (`£Γ£±`)
 ) ENGINE=MyISAM DEFAULT CHARSET=ujis
 SHOW CREATE TABLE `£Τ£µ`;
 Table	Create Table
 £Τ£µ	CREATE TABLE `£Τ£µ` (
-  `£Γ£²` char(1) NOT NULL default '',
+  `£Γ£²` char(1) NOT NULL,
   `£Γ£±` enum('¤Ά','¤¤','¤¦') default NULL,
   KEY `£Γ£±` (`£Γ£±`)
 ) ENGINE=MyISAM DEFAULT CHARSET=ujis
 SHOW CREATE TABLE `£Τ£¶`;
 Table	Create Table
 £Τ£¶	CREATE TABLE `£Τ£¶` (
-  `£Γ£²` char(1) NOT NULL default '',
+  `£Γ£²` char(1) NOT NULL,
   `£Γ£±` enum('νά','νέ','νή') default NULL,
   KEY `£Γ£±` (`£Γ£±`)
 ) ENGINE=MyISAM DEFAULT CHARSET=ujis
 SHOW CREATE TABLE `£Τ£·`;
 Table	Create Table
 £Τ£·	CREATE TABLE `£Τ£·` (
-  `£Γ£²` char(1) NOT NULL default '',
+  `£Γ£²` char(1) NOT NULL,
   `£Γ£±` enum('±','²','³') default NULL,
   KEY `£Γ£±` (`£Γ£±`)
-) ENGINE=HEAP DEFAULT CHARSET=ujis
+) ENGINE=MEMORY DEFAULT CHARSET=ujis
 SHOW CREATE TABLE `£Τ£Έ`;
 Table	Create Table
 £Τ£Έ	CREATE TABLE `£Τ£Έ` (
-  `£Γ£²` char(1) NOT NULL default '',
+  `£Γ£²` char(1) NOT NULL,
   `£Γ£±` enum('¤Ά','¤¤','¤¦') default NULL,
   KEY `£Γ£±` (`£Γ£±`)
-) ENGINE=HEAP DEFAULT CHARSET=ujis
+) ENGINE=MEMORY DEFAULT CHARSET=ujis
 SHOW CREATE TABLE `£Τ£Ή`;
 Table	Create Table
 £Τ£Ή	CREATE TABLE `£Τ£Ή` (
-  `£Γ£²` char(1) NOT NULL default '',
+  `£Γ£²` char(1) NOT NULL,
   `£Γ£±` enum('νά','νέ','νή') default NULL,
   KEY `£Γ£±` (`£Γ£±`)
-) ENGINE=HEAP DEFAULT CHARSET=ujis
+) ENGINE=MEMORY DEFAULT CHARSET=ujis
 SHOW CREATE TABLE `£Τ£±£°`;
 Table	Create Table
 £Τ£±£°	CREATE TABLE `£Τ£±£°` (
-  `£Γ£²` char(1) NOT NULL default '',
+  `£Γ£²` char(1) NOT NULL,
   `£Γ£±` enum('±','²','³') default NULL,
   KEY `£Γ£±` (`£Γ£±`)
 ) ENGINE=BerkeleyDB DEFAULT CHARSET=ujis
 SHOW CREATE TABLE `£Τ£±£±`;
 Table	Create Table
 £Τ£±£±	CREATE TABLE `£Τ£±£±` (
-  `£Γ£²` char(1) NOT NULL default '',
+  `£Γ£²` char(1) NOT NULL,
   `£Γ£±` enum('¤Ά','¤¤','¤¦') default NULL,
   KEY `£Γ£±` (`£Γ£±`)
 ) ENGINE=BerkeleyDB DEFAULT CHARSET=ujis
 SHOW CREATE TABLE `£Τ£±£²`;
 Table	Create Table
 £Τ£±£²	CREATE TABLE `£Τ£±£²` (
-  `£Γ£²` char(1) NOT NULL default '',
+  `£Γ£²` char(1) NOT NULL,
   `£Γ£±` enum('νά','νέ','νή') default NULL,
   KEY `£Γ£±` (`£Γ£±`)
 ) ENGINE=BerkeleyDB DEFAULT CHARSET=ujis
 DESC `£Τ£±`;
 Field	Type	Null	Key	Default	Extra
-£Γ£²	char(1)				
+£Γ£²	char(1)	NO		NULL	
 £Γ£±	enum('±','²','³')	YES	MUL	NULL	
 DESC `£Τ£²`;
 Field	Type	Null	Key	Default	Extra
-£Γ£²	char(1)				
+£Γ£²	char(1)	NO		NULL	
 £Γ£±	enum('¤Ά','¤¤','¤¦')	YES	MUL	NULL	
 DESC `£Τ£³`;
 Field	Type	Null	Key	Default	Extra
-£Γ£²	char(1)				
+£Γ£²	char(1)	NO		NULL	
 £Γ£±	enum('νά','νέ','νή')	YES	MUL	NULL	
 DESC `£Τ£΄`;
 Field	Type	Null	Key	Default	Extra
-£Γ£²	char(1)				
+£Γ£²	char(1)	NO		NULL	
 £Γ£±	enum('±','²','³')	YES	MUL	NULL	
 DESC `£Τ£µ`;
 Field	Type	Null	Key	Default	Extra
-£Γ£²	char(1)				
+£Γ£²	char(1)	NO		NULL	
 £Γ£±	enum('¤Ά','¤¤','¤¦')	YES	MUL	NULL	
 DESC `£Τ£¶`;
 Field	Type	Null	Key	Default	Extra
-£Γ£²	char(1)				
+£Γ£²	char(1)	NO		NULL	
 £Γ£±	enum('νά','νέ','νή')	YES	MUL	NULL	
 DESC `£Τ£·`;
 Field	Type	Null	Key	Default	Extra
-£Γ£²	char(1)				
+£Γ£²	char(1)	NO		NULL	
 £Γ£±	enum('±','²','³')	YES	MUL	NULL	
 DESC `£Τ£Έ`;
 Field	Type	Null	Key	Default	Extra
-£Γ£²	char(1)				
+£Γ£²	char(1)	NO		NULL	
 £Γ£±	enum('¤Ά','¤¤','¤¦')	YES	MUL	NULL	
 DESC `£Τ£Ή`;
 Field	Type	Null	Key	Default	Extra
-£Γ£²	char(1)				
+£Γ£²	char(1)	NO		NULL	
 £Γ£±	enum('νά','νέ','νή')	YES	MUL	NULL	
 DESC `£Τ£±£°`;
 Field	Type	Null	Key	Default	Extra
-£Γ£²	char(1)				
+£Γ£²	char(1)	NO		NULL	
 £Γ£±	enum('±','²','³')	YES	MUL	NULL	
 DESC `£Τ£±£±`;
 Field	Type	Null	Key	Default	Extra
-£Γ£²	char(1)				
+£Γ£²	char(1)	NO		NULL	
 £Γ£±	enum('¤Ά','¤¤','¤¦')	YES	MUL	NULL	
 DESC `£Τ£±£²`;
 Field	Type	Null	Key	Default	Extra
-£Γ£²	char(1)				
+£Γ£²	char(1)	NO		NULL	
 £Γ£±	enum('νά','νέ','νή')	YES	MUL	NULL	
 DROP TABLE `£Τ£±`;
 DROP TABLE `£Τ£²`;
