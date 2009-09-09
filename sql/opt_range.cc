@@ -2243,7 +2243,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
     KEY *key_info;
     PARAM param;
 
-    if (check_stack_overrun(thd, 2*STACK_MIN_SIZE + sizeof(PARAM), buff))
+    if (check_stack_overrun(thd, 2*STACK_MIN_SIZE, buff))
       DBUG_RETURN(0);                           // Fatal error flag is set
 
     /* set up parameter that is passed to all functions */
@@ -3760,8 +3760,9 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
 
   DBUG_PRINT("info", ("index_merge scans cost %g", imerge_cost));
   if (imerge_too_expensive || (imerge_cost > read_time) ||
-      ((non_cpk_scan_records+cpk_scan_records >= param->table->file->stats.records) &&
-      read_time != DBL_MAX))
+      ((non_cpk_scan_records+cpk_scan_records >=
+        param->table->file->stats.records) &&
+       read_time != DBL_MAX))
   {
     /*
       Bail out if it is obvious that both index_merge and ROR-union will be
@@ -4838,11 +4839,11 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
 {
   int idx;
   SEL_ARG **key,**end, **key_to_read= NULL;
-  ha_rows UNINIT_VAR(best_records);              /* protected by key_to_read */
+  ha_rows best_records;
   TRP_RANGE* read_plan= NULL;
   bool pk_is_clustered= param->table->file->primary_key_is_clustered();
   DBUG_ENTER("get_key_scans_params");
-
+  LINT_INIT(best_records); /* protected by key_to_read */
   /*
     Note that there may be trees that have type SEL_TREE::KEY but contain no
     key reads at all, e.g. tree for expression "key1 is not null" where key1
@@ -6439,6 +6440,13 @@ key_and(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2, uint clone_flag)
     return 0;					// Can't optimize this
   }
 
+  if ((key1->min_flag | key2->min_flag) & GEOM_FLAG)
+  {
+    key1->free_tree();
+    key2->free_tree();
+    return 0;					// Can't optimize this
+  }
+
   key1->use_count--;
   key2->use_count--;
   SEL_ARG *e1=key1->first(), *e2=key2->first(), *new_tree=0;
@@ -6789,7 +6797,9 @@ static bool eq_tree(SEL_ARG* a,SEL_ARG *b)
 SEL_ARG *
 SEL_ARG::insert(SEL_ARG *key)
 {
-  SEL_ARG *element,**UNINIT_VAR(par),*UNINIT_VAR(last_element);
+  SEL_ARG *element,**par,*last_element;
+  LINT_INIT(par);
+  LINT_INIT(last_element);
 
   for (element= this; element != &null_element ; )
   {
