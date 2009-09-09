@@ -6163,6 +6163,9 @@ ER_SLAVE_HEARTBEAT_FAILURE
 ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE
   eng "The requested value for the heartbeat period %s %s"
 
+ER_SLAVE_IGNORE_SERVER_IDS
+  eng "The requested server id %d clashes with the slave startup option --replicate-same-server-id"
+
 ER_NDB_REPLICATION_SCHEMA_ERROR
         eng "Bad schema for mysql.ndb_replication table. Message: %-.64s"
 ER_CONFLICT_FN_PARSE_ERROR
