@@ -808,7 +808,7 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
 
     cfg.put(CFG_DIH_REPLICAS, 
 	    NO_OF_FRAG_PER_NODE * noOfMetaTables *
-	    noOfDBNodes * noOfReplicas);
+	    noOfDBNodes * noOfReplicas * lqhInstances);
 
     cfg.put(CFG_DIH_TABLE, 
 	    noOfMetaTables);
