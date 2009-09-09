@@ -48,7 +48,7 @@ void Dbdih::initData()
     Ptr<TakeOverRecord> ptr;
     while (c_activeTakeOverList.seize(ptr))
     {
-      new (ptr.p) TakeOverRecord();
+      new (ptr.p) TakeOverRecord;
     }
     while (c_activeTakeOverList.first(ptr))
     {
