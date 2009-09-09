@@ -1866,7 +1866,9 @@ buf_LRU_old_ratio_update(
 		buf_LRU_old_ratio = ratio;
 	}
 
-	return(ratio * 100 / BUF_LRU_OLD_RATIO_DIV);
+	/* the reverse of 
+	ratio = old_pct * BUF_LRU_OLD_RATIO_DIV / 100 */
+	return((uint) (ratio * 100 / (double) BUF_LRU_OLD_RATIO_DIV + 0.5));
 }
 
 /********************************************************************//**
