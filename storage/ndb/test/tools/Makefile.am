@@ -16,7 +16,7 @@
 
 EXTRA_DIST = CMakeLists.txt
 
-ndbtest_PROGRAMS = hugoLoad hugoFill hugoLockRecords hugoPkDelete hugoPkRead hugoPkReadRecord  hugoPkUpdate hugoScanRead hugoScanUpdate restart verify_index copy_tab create_index  ndb_cpcc listen_event eventlog rep_latency ndb_connect test_spj
+ndbtest_PROGRAMS = hugoLoad hugoFill hugoLockRecords hugoPkDelete hugoPkRead hugoPkReadRecord  hugoPkUpdate hugoScanRead hugoScanUpdate restart verify_index copy_tab create_index  ndb_cpcc listen_event eventlog rep_latency ndb_connect test_spj spj_sanity_test
 
 # transproxy 
 
@@ -40,6 +40,7 @@ eventlog_SOURCES = log_listner.cpp
 rep_latency_SOURCES = rep_latency.cpp
 ndb_connect_SOURCES = connect.cpp
 test_spj_SOURCES = test_spj.cpp
+spj_sanity_test_SOURCES = spj_sanity_test.cpp
 
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/type_ndbapitest.mk.am

@@ -162,10 +162,10 @@ public:
   // Collection of get'ers to navigate in root, parent/child hierarchy
 
   Uint32 getNoOfParentOperations() const;
-  NdbQueryOperation* getParentOperation(Uint32 i) const;
+  NdbQueryOperation* getParentOperation(Uint32 parentNo) const;
 
   Uint32 getNoOfChildOperations() const;
-  NdbQueryOperation* getChildOperation(Uint32 i) const;
+  NdbQueryOperation* getChildOperation(Uint32 childNo) const;
 
   const NdbQueryOperationDef& getQueryOperationDef() const;
 
