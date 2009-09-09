@@ -168,9 +168,9 @@ x2_parse_args (int argc, char *argv[]) {
 	    if (verbose<0) verbose=0;
 	} else if (strcmp(argv[0],"--abort")==0) {
 	    do_abort=1;
-	} else if (strcmp(argv[0],"--commit")==0) {
+	} else if (strcmp(argv[0],"--commit")==0 || strcmp(argv[0], "--test") == 0) {
 	    do_commit=1;
-	} else if (strcmp(argv[0],"--recover-committed")==0) {
+	} else if (strcmp(argv[0],"--recover-committed")==0 || strcmp(argv[0], "--recover") == 0) {
 	    do_recover_committed=1;
 	} else if (strcmp(argv[0],"--recover-aborted")==0) {
 	    do_recover_aborted=1;
