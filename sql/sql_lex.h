@@ -212,11 +212,12 @@ typedef struct st_lex_master_info
     Enum is used for making it possible to detect if the user
     changed variable or if it should be left at old value
    */
-  enum {SSL_UNCHANGED, SSL_DISABLE, SSL_ENABLE}
-    ssl, ssl_verify_server_cert;
+  enum {LEX_MI_UNCHANGED, LEX_MI_DISABLE, LEX_MI_ENABLE}
+    ssl, ssl_verify_server_cert, repl_ignore_server_ids_opt;
   char *ssl_key, *ssl_cert, *ssl_ca, *ssl_capath, *ssl_cipher;
   char *relay_log_name;
   ulong relay_log_pos;
+  DYNAMIC_ARRAY repl_ignore_server_ids;
 } LEX_MASTER_INFO;
 
 

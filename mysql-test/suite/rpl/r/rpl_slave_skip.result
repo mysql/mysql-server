@@ -82,6 +82,8 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
+Replicate_Ignore_Server_Ids	
+Master_Server_Id	1
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
 START SLAVE;
 SELECT * FROM t1;
@@ -146,6 +148,8 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
+Replicate_Ignore_Server_Ids	
+Master_Server_Id	1
 **** On Master ****
 DROP TABLE t1, t2;
 SET SESSION BINLOG_FORMAT=ROW;
