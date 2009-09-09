@@ -1472,11 +1472,12 @@ int ha_archive::info(uint flag)
 
     VOID(my_stat(share->data_file_name, &file_stat, MYF(MY_WME)));
 
-    stats.mean_rec_length= table->s->reclength + buffer.alloced_length();
     stats.data_file_length= file_stat.st_size;
     stats.create_time= (ulong) file_stat.st_ctime;
     stats.update_time= (ulong) file_stat.st_mtime;
-    stats.max_data_file_length= share->rows_recorded * stats.mean_rec_length;
+    stats.mean_rec_length= stats.records ?
+      stats.data_file_length / stats.records : table->s->reclength;
+    stats.max_data_file_length= MAX_FILE_SIZE;
   }
   stats.delete_length= 0;
   stats.index_file_length=0;
