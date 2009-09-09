@@ -789,7 +789,6 @@ NdbQueryOperationImpl::nextResult(NdbQueryImpl& queryImpl,
       // Set application pointer to point into internal buffer.
       *root.m_resultRef = rootBuff;
     }else{
-      assert(root.m_resultBuffer!=NULL);
       // Copy result to buffer supplied by application.
       memcpy(root.m_resultBuffer, rootBuff, 
              root.m_applStreams.top()->m_receiver.m_record.m_ndb_record
@@ -821,7 +820,6 @@ NdbQueryOperationImpl::nextResult(NdbQueryImpl& queryImpl,
             // Set application pointer to point into internal buffer.
             *operation.m_resultRef = buff;
           }else{
-            assert(operation.m_resultBuffer!=NULL);
             // Copy result to buffer supplied by application.
             memcpy(operation.m_resultBuffer, buff, 
                    operation.m_resultStreams[0]
