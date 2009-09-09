@@ -2527,17 +2527,20 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
   if (sm == 0)
     sm = 25;
   
-  Uint32 sb = 0;
+  Uint64 sb = 0;
   if (sm <= 100)
   {
-    sb = (rps * sm) / 100;
+    sb = (Uint64(rps) * Uint64(sm)) / 100;
   }
   else
   {
     sb = sm;
   }
   
-  c_rope_pool.setSize(sb/28 + 100);
+  sb /= (Rope::getSegmentSize() * sizeof(Uint32));
+  sb += 100; // more safty
+  ndbrequire(sb < (Uint64(1) << 32));
+  c_rope_pool.setSize(Uint32(sb));
   
   // Initialize BAT for interface to file system
   NewVARIABLE* bat = allocateBat(2);
