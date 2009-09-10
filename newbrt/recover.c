@@ -319,8 +319,8 @@ static void toku_recover_enq_insert (LSN lsn, FILENUM filenum, TXNID xid, BYTEST
 }
 
 static int toku_recover_tablelock_on_empty_table(LSN UU(lsn), FILENUM filenum, TXNID xid, RECOVER_ENV renv) {
-    struct cf_pair *pair = NULL;
-    int r = find_cachefile(&renv->fmap, filenum, &pair);
+    struct cf_tuple *tuple = NULL;
+    int r = find_cachefile(&renv->fmap, filenum, &tuple);
     if (r!=0) {
 	// if we didn't find a cachefile, then we don't have to do anything.
 	return 0;
@@ -328,8 +328,8 @@ static int toku_recover_tablelock_on_empty_table(LSN UU(lsn), FILENUM filenum, T
 
     TOKUTXN txn;
     r = toku_txnid2txn(renv->logger, xid, &txn);
-    assert(r == 0);
-    r = toku_brt_note_table_lock(pair->brt, txn);
+    assert(r == 0 && txn);
+    r = toku_brt_note_table_lock(tuple->brt, txn);
     assert(r == 0);
     return 0;
 }
