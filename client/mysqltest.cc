@@ -1165,6 +1165,7 @@ void free_used_memory()
     mysql_server_end();
 
   /* Don't use DBUG after mysql_server_end() */
+  DBUG_VIOLATION_HELPER_LEAVE;
   return;
 }
 
@@ -2487,7 +2488,7 @@ void do_source(struct st_command *command)
   }
 
   dynstr_free(&ds_filename);
-  return;
+  DBUG_VOID_RETURN;
 }
 
 
@@ -7507,6 +7508,8 @@ static void init_signal_handling(void)
 #endif
   sigaction(SIGILL, &sa, NULL);
   sigaction(SIGFPE, &sa, NULL);
+
+  DBUG_VOID_RETURN;
 }
 
 #endif /* !__WIN__ */
@@ -8121,6 +8124,8 @@ void do_get_replace_column(struct st_command *command)
   }
   my_free(start, MYF(0));
   command->last_argument= command->end;
+
+  DBUG_VOID_RETURN;
 }
 
 
