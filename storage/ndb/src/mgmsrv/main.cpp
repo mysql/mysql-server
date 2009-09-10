@@ -152,12 +152,6 @@ static void usage()
 
 static char **defaults_argv;
 
-/*
-   mgmd_exit()
-   do_exit=true:
-     if in a windows service, don't want process to exit()
-     until cleanup of other threads is done
-*/
 static void mgmd_exit(int result)
 {
   g_eventLogger->close();
