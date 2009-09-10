@@ -346,7 +346,7 @@ buf_page_release(
 	mtr_t*		mtr);		/*!< in: mtr */
 /********************************************************************//**
 Moves a page to the start of the buffer pool LRU list. This high-level
-function can be used to prevent an important page from from slipping out of
+function can be used to prevent an important page from slipping out of
 the buffer pool. */
 UNIV_INTERN
 void
