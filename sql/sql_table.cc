@@ -4521,6 +4521,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
         /*
           Set up which partitions that should be processed
           if ALTER TABLE t ANALYZE/CHECK/OPTIMIZE/REPAIR PARTITION ..
+          CACHE INDEX/LOAD INDEX for specified partitions
         */
         Alter_info *alter_info= &lex->alter_info;
 
