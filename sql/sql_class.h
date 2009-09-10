@@ -1092,6 +1092,31 @@ public:
 
 
 /**
+  This class is an internal error handler implementation for 
+  DROP TABLE statements. The thing is that there may be warnings during
+  execution of these statements, which should not be exposed to the user.
+  This class is intended to silence such warnings.
+*/
+
+class Drop_table_error_handler : public Internal_error_handler
+{
+public:
+  Drop_table_error_handler(Internal_error_handler *err_handler)
+    :m_err_handler(err_handler)
+  { }
+
+public:
+  bool handle_error(uint sql_errno,
+                    const char *message,
+                    MYSQL_ERROR::enum_warning_level level,
+                    THD *thd);
+
+private:
+  Internal_error_handler *m_err_handler;
+};
+
+
+/**
   Stores status of the currently executed statement.
   Cleared at the beginning of the statement, and then
   can hold either OK, ERROR, or EOF status.
