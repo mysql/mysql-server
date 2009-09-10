@@ -29,7 +29,7 @@ $(notdir $(TLIBTDB)): $(TLIBTDB)
 	cp $< $@
 
 SRCS = $(sort $(wildcard *.c))
-RECOVERY_SRCS = $(wildcard recover-*.c)
+RECOVER_SRCS = $(wildcard recover-*.c)
 
 #Tests that are irrelevant in windows.
 WINDOWS_DONTRUN_TESTS = \
@@ -55,9 +55,11 @@ WINDOWS_BDB_DONTRUN_TESTS += \
 #\ ends prev line
 
 ifeq ($(OS_CHOICE),windows)
-    TDB_TESTS = $(patsubst %.c,%.tdb$(BINSUF),$(filter-out $(patsubst %,%.c,$(WINDOWS_DONTRUN_TESTS)),$(SRCS)))
+    TDB_BINS = $(patsubst %.c,%.tdb$(BINSUF),$(filter-out $(patsubst %,%.c,$(WINDOWS_DONTRUN_TESTS)),$(SRCS)))
+    TDB_TESTS = $(patsubst %.c,%.tdb$(BINSUF),$(filter-out $(patsubst %,%.c,$(WINDOWS_DONTRUN_TESTS)),$(filter-out $(RECOVER_SRCS),$(SRCS))))
 else
-    TDB_TESTS = $(patsubst %.c,%.tdb$(BINSUF),$(filter-out $(RECOVERY_SRCS),$(SRCS)))
+    TDB_BINS = $(patsubst %.c,%.tdb$(BINSUF),$(SRCS))
+    TDB_TESTS = $(patsubst %.c,%.tdb$(BINSUF),$(filter-out $(RECOVER_SRCS),$(SRCS)))
 endif
 
 # For diskfull.bdb: db-4.6 seems OK, but db-4.3 segfaults
@@ -138,6 +140,7 @@ ifeq ($(OS_CHOICE),windows)
     BDB_DONTRUN_TESTS+=$(WINDOWS_BDB_DONTRUN_TESTS)
 endif
 
+BDB_BINS = $(patsubst %.c,%.bdb$(BINSUF),$(filter-out $(patsubst %,%.c,$(BDB_DONTRUN_TESTS)),$(SRCS)))
 BDB_TESTS = $(patsubst %.c,%.bdb$(BINSUF),$(filter-out $(patsubst %,%.c,$(BDB_DONTRUN_TESTS)),$(SRCS)))
 
 TDB_TESTS_THAT_SHOULD_FAIL= \
@@ -190,18 +193,19 @@ EXTRA_TDB_TESTS = \
 #	test_db_assoc3.tdbrun_wasbad \# Obsolete right now.
 #\ ends prev line
 
-RECOVER_TDBS = $(patsubst %.c,%.tdb$(BINSUF),$(RECOVERY_SRCS))
-RECOVERY_TESTS = $(patsubst %.c,%.abortrecover,$(RECOVERY_SRCS))
+RECOVER_TESTS = $(patsubst %.c,%.abortrecover,$(RECOVER_SRCS))
 
-RUN_TDB_TESTS = $(patsubst %.tdb$(BINSUF),%.tdbrun,$(TDB_TESTS))  $(EXTRA_TDB_TESTS) $(RECOVERY_TESTS)
+RUN_TDB_TESTS = $(patsubst %.tdb$(BINSUF),%.tdbrun,$(TDB_TESTS))  $(EXTRA_TDB_TESTS) $(RECOVER_TESTS)
 RUN_BDB_TESTS  = $(patsubst %.bdb$(BINSUF),%.bdbrun,$(BDB_TESTS))
 RUN_ALL_TESTS  = $(RUN_BDB_TESTS) $(RUN_TDB_TESTS)
 
 MORE_BDB_BINS = test1426.bdb$(BINSUF)
 
+ALL_BINS = $(TDB_BINS) $(BDB_BINS) $(MORE_BDB_BINS)
+
 .PHONY: default all check tests check.lin check.tlog check.log tests.lin tests.log tests.tlog
 
-default all build: $(ALL_TESTS) $(MORE_BDB_BINS)
+default all build: $(ALL_BINS)
 
 ifndef TOKUDBONLY
 MAYBE_CHECK_BDB = check.bdb
@@ -211,14 +215,12 @@ endif
 check: check.tdb $(MAYBE_CHECK_BDB) ;
 
 tests: tests.bdb tests.tdb ;
-tests.bdb: $(BDB_TESTS) ;
+tests.bdb: $(BDB_BINS) ;
 check.bdb: $(RUN_BDB_TESTS) ;
-tests.tdb: $(TDB_TESTS) ;
+tests.tdb: $(TDB_BINS) ;
 check.tdb: $(notdir $(LIBTDB)) $(PTHREAD_LOCAL) $(RUN_TDB_TESTS) ;
-
-tests.abortrecover: $(RECOVERY_TDBS) ;
-
-check.abortrecover: $(RECOVERY_TESTS) ;
+check.tdb.extra: $(EXTRA_TDB_TESTS) ;
+check.abortrecover: $(RECOVER_TESTS) ;
 
 foo:
 	echo RUN_TDB_TESTS: $(RUN_TDB_TESTS)
@@ -361,8 +363,8 @@ endif
 	$(CC) $< $(filter-out ../../lib/libtokuportability.a,$(BIN_FROM_C_FLAGS)) $(LINK_MUST_BE_LAST)
 
 clean:
-	rm -f $(ALL_TESTS)
-	rm -rf dir.*.tdb dir.*.bdb dir.*.tdb.recover *.tdb$(BINSUF) *.check.output *.check.valgrind
+	rm -f $(ALL_BINS)
+	rm -rf dir.*.tdb dir.*.bdb dir.*.tdb.recover *.check.output *.check.valgrind
 	rm -f dump.bdb.1426 dump.tdb.1426 test1426.bdb
 
 ifeq ($(VGRIND),)
