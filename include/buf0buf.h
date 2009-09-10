@@ -821,7 +821,8 @@ UNIV_INLINE
 void
 buf_page_set_accessed(
 /*==================*/
-	buf_page_t*	bpage)		/*!< in/out: control block */
+	buf_page_t*	bpage,		/*!< in/out: control block */
+	ulint		time_ms)	/*!< in: ut_time_ms() */
 	__attribute__((nonnull));
 /*********************************************************************//**
 Gets the buf_block_t handle of a buffered file block if an uncompressed
