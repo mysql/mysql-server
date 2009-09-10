@@ -1261,7 +1261,9 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         slave master_def master_defs master_file_def slave_until_opts
         repair restore backup analyze check start checksum
         field_list field_list_item field_spec kill column_def key_def
-        keycache_list assign_to_keycache preload_list preload_keys
+        keycache_list keycache_list_or_parts assign_to_keycache
+        assign_to_keycache_parts
+        preload_list preload_list_or_parts preload_keys preload_keys_parts
         select_item_list select_item values_list no_braces
         opt_limit_clause delete_limit_clause fields opt_values values
         procedure_list procedure_list2 procedure_item
@@ -3747,17 +3749,9 @@ opt_partitioning:
         ;
 
 partitioning:
-          PARTITION_SYM
+          PARTITION_SYM have_partitioning
           {
-#ifdef WITH_PARTITION_STORAGE_ENGINE
             LEX *lex= Lex;
-            LEX_STRING partition_name={C_STRING_WITH_LEN("partition")};
-            if (!plugin_is_ready(&partition_name, MYSQL_STORAGE_ENGINE_PLUGIN))
-            {
-              my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0),
-                       "--skip-partition");
-              MYSQL_YYABORT;
-            }
             lex->part_info= new partition_info();
             if (!lex->part_info)
             {
@@ -3768,14 +3762,27 @@ partitioning:
             {
               lex->alter_info.flags|= ALTER_PARTITION;
             }
-#else
-            my_error(ER_FEATURE_DISABLED, MYF(0),
-                     "partitioning", "--with-partition");
-            MYSQL_YYABORT;
-#endif
-
           }
           partition
+        ;
+
+have_partitioning:
+          /* empty */
+          {
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+            LEX_STRING partition_name={C_STRING_WITH_LEN("partition")};
+            if (!plugin_is_ready(&partition_name, MYSQL_STORAGE_ENGINE_PLUGIN))
+            {
+              my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0),
+                      "--skip-partition");
+              MYSQL_YYABORT;
+            }
+#else
+            my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0),
+                    "--skip-partition");
+            MYSQL_YYABORT;
+#endif
+          }
         ;
 
 partition_entry:
@@ -5437,7 +5444,6 @@ alter:
             if (!lex->select_lex.add_table_to_list(thd, $4, NULL,
                                                    TL_OPTION_UPDATING))
               MYSQL_YYABORT;
-            lex->alter_info.reset();
             lex->col_list.empty();
             lex->select_lex.init_order();
             lex->select_lex.db=
@@ -6296,12 +6302,21 @@ table_to_table:
         ;
 
 keycache:
-          CACHE_SYM INDEX_SYM keycache_list IN_SYM key_cache_name
+          CACHE_SYM INDEX_SYM
+          {
+            Lex->alter_info.reset();
+          }
+          keycache_list_or_parts IN_SYM key_cache_name
           {
             LEX *lex=Lex;
             lex->sql_command= SQLCOM_ASSIGN_TO_KEYCACHE;
-            lex->ident= $5;
+            lex->ident= $6;
           }
+        ;
+
+keycache_list_or_parts:
+          keycache_list
+        | assign_to_keycache_parts
         ;
 
 keycache_list:
@@ -6311,6 +6326,15 @@ keycache_list:
 
 assign_to_keycache:
           table_ident cache_keys_spec
+          {
+            if (!Select->add_table_to_list(YYTHD, $1, NULL, 0, TL_READ, 
+                                           Select->pop_index_hints()))
+              MYSQL_YYABORT;
+          }
+        ;
+
+assign_to_keycache_parts:
+          table_ident adm_partition cache_keys_spec
           {
             if (!Select->add_table_to_list(YYTHD, $1, NULL, 0, TL_READ, 
                                            Select->pop_index_hints()))
@@ -6328,9 +6352,15 @@ preload:
           {
             LEX *lex=Lex;
             lex->sql_command=SQLCOM_PRELOAD_KEYS;
+            lex->alter_info.reset();
           }
-          preload_list
+          preload_list_or_parts
           {}
+        ;
+
+preload_list_or_parts:
+          preload_keys_parts
+        | preload_list
         ;
 
 preload_list:
@@ -6345,6 +6375,23 @@ preload_keys:
                                            Select->pop_index_hints()))
               MYSQL_YYABORT;
           }
+        ;
+
+preload_keys_parts:
+          table_ident adm_partition cache_keys_spec opt_ignore_leaves
+          {
+            if (!Select->add_table_to_list(YYTHD, $1, NULL, $4, TL_READ,
+                                           Select->pop_index_hints()))
+              MYSQL_YYABORT;
+          }
+        ;
+
+adm_partition:
+          PARTITION_SYM have_partitioning
+          {
+            Lex->alter_info.flags|= ALTER_ADMIN_PARTITION;
+          }
+          '(' all_or_alt_part_name_list ')'
         ;
 
 cache_keys_spec:

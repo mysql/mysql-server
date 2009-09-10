@@ -4151,7 +4151,7 @@ uint set_part_state(Alter_info *alter_info, partition_info *tab_part_info,
       /*
         Mark the partition.
         I.e mark the partition as a partition to be "changed" by
-        analyzing/optimizing/rebuilding/checking/repairing
+        analyzing/optimizing/rebuilding/checking/repairing/...
       */
       no_parts_found++;
       part_elem->part_state= part_state;
