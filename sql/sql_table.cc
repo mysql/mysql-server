@@ -4534,7 +4534,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
           uint no_parts_found;
           uint no_parts_opt= alter_info->partition_names.elements;
           no_parts_found= set_part_state(alter_info, table->table->part_info,
-                                         PART_CHANGED);
+                                         PART_ADMIN);
           if (no_parts_found != no_parts_opt &&
               (!(alter_info->flags & ALTER_ALL_PARTITION)))
           {

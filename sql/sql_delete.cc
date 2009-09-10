@@ -1075,6 +1075,7 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
   {
     handlerton *table_type= table->s->db_type();
     TABLE_SHARE *share= table->s;
+    /* Note that a temporary table cannot be partitioned */
     if (!ha_check_storage_engine_flag(table_type, HTON_CAN_RECREATE))
       goto trunc_by_del;
 
@@ -1113,8 +1114,22 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
                table_list->db, table_list->table_name);
       DBUG_RETURN(TRUE);
     }
-    if (!ha_check_storage_engine_flag(ha_resolve_by_legacy_type(thd, table_type),
-                                      HTON_CAN_RECREATE))
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+    /*
+      TODO: Add support for TRUNCATE PARTITION for NDB and other engines
+      supporting native partitioning
+    */
+    if (table_type != DB_TYPE_PARTITION_DB &&
+        thd->lex->alter_info.flags & ALTER_ADMIN_PARTITION)
+    {
+      my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
+      DBUG_RETURN(TRUE);
+    }
+#endif
+    if (!ha_check_storage_engine_flag(ha_resolve_by_legacy_type(thd,
+                                                                table_type),
+                                      HTON_CAN_RECREATE) ||
+        thd->lex->alter_info.flags & ALTER_ADMIN_PARTITION)
       goto trunc_by_del;
 
     if (lock_and_wait_for_table_name(thd, table_list))
