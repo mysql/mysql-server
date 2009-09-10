@@ -16,6 +16,29 @@
 #ifndef _dbug_h
 #define _dbug_h
 
+#if defined(__cplusplus) && !defined(DBUG_OFF)
+class Dbug_violation_helper
+{
+public:
+  inline Dbug_violation_helper() :
+    _entered(TRUE)
+  { }
+
+  inline ~Dbug_violation_helper()
+  {
+    assert(!_entered);
+  }
+
+  inline void leave()
+  {
+    _entered= FALSE;
+  }
+
+private:
+  bool _entered;
+};
+#endif /* C++ */
+
 #ifdef	__cplusplus
 extern "C" {
 #endif
@@ -47,11 +70,31 @@ extern	void _db_lock_file_(void);
 extern	void _db_unlock_file_(void);
 extern FILE *_db_fp_(void);
 
-#define DBUG_ENTER(a) const char *_db_func_, *_db_file_; uint _db_level_; \
-	char **_db_framep_; \
-	_db_enter_ (a,__FILE__,__LINE__,&_db_func_,&_db_file_,&_db_level_, \
-		    &_db_framep_)
+#ifdef __cplusplus
+
+#define DBUG_ENTER(a) \
+        const char *_db_func_, *_db_file_; \
+        uint _db_level_; \
+        char **_db_framep_; \
+        Dbug_violation_helper dbug_violation_helper; \
+        _db_enter_ (a, __FILE__, __LINE__, &_db_func_, &_db_file_, \
+                    &_db_level_, &_db_framep_)
+#define DBUG_VIOLATION_HELPER_LEAVE dbug_violation_helper.leave()
+
+#else /* C */
+
+#define DBUG_ENTER(a) \
+        const char *_db_func_, *_db_file_; \
+        uint _db_level_; \
+        char **_db_framep_; \
+        _db_enter_ (a, __FILE__, __LINE__, &_db_func_, &_db_file_, \
+                    &_db_level_, &_db_framep_)
+#define DBUG_VIOLATION_HELPER_LEAVE do { } while(0)
+
+#endif /* C++ */
+
 #define DBUG_LEAVE \
+        DBUG_VIOLATION_HELPER_LEAVE; \
 	_db_return_ (__LINE__, &_db_func_, &_db_file_, &_db_level_)
 #define DBUG_RETURN(a1) do {DBUG_LEAVE; return(a1);} while(0)
 #define DBUG_VOID_RETURN do {DBUG_LEAVE; return;} while(0)
