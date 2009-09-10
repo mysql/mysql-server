@@ -3118,6 +3118,11 @@ recv_recovery_from_checkpoint_finish(void)
 #ifndef UNIV_LOG_DEBUG
 	recv_sys_free();
 #endif
+	/* Roll back any recovered data dictionary transactions, so
+	that the data dictionary tables will be free of any locks.
+	The data dictionary latch should guarantee that there is at
+	most one data dictionary transaction active at a time. */
+	trx_rollback_or_clean_recovered(FALSE);
 
 	/* Drop partially created indexes. */
 	row_merge_drop_temp_indexes();
