@@ -193,6 +193,11 @@ static int toku_recover_backward_xabort (struct logtype_xabort *UU(l), RECOVER_E
     return 0;
 }
 
+static int toku_recover_backward_tablelock_on_empty_table(struct logtype_tablelock_on_empty_table *UU(l), RECOVER_ENV UU(renv)) {
+    // nothing
+    return 0;
+}
+
 static void create_dir_from_file (const char *fname) {
     char *tmp=toku_strdup(fname);
     char ch;
@@ -311,6 +316,22 @@ static void toku_recover_enq_insert (LSN lsn, FILENUM filenum, TXNID xid, BYTEST
     toku_fill_dbt(&valdbt, val.data, val.len);
     r = toku_brt_maybe_insert(tuple->brt, &keydbt, &valdbt, txn, lsn);
     assert(r == 0);
+}
+
+static int toku_recover_tablelock_on_empty_table(LSN UU(lsn), FILENUM filenum, TXNID xid, RECOVER_ENV renv) {
+    struct cf_pair *pair = NULL;
+    int r = find_cachefile(&renv->fmap, filenum, &pair);
+    if (r!=0) {
+	// if we didn't find a cachefile, then we don't have to do anything.
+	return 0;
+    }    
+
+    TOKUTXN txn;
+    r = toku_txnid2txn(renv->logger, xid, &txn);
+    assert(r == 0);
+    r = toku_brt_note_table_lock(pair->brt, txn);
+    assert(r == 0);
+    return 0;
 }
 
 static int toku_recover_backward_enq_insert (struct logtype_enq_insert *UU(l), RECOVER_ENV UU(renv)) {

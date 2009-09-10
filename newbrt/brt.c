@@ -4905,15 +4905,22 @@ brt_is_empty (BRT brt) {
 int
 toku_brt_note_table_lock (BRT brt, TOKUTXN txn)
 {
+    int r = 0;
     if (brt->h->txnid_that_created_or_locked_when_empty != toku_txn_get_txnid(txn) &&
         brt_is_empty(brt) &&
         brt->h->txnid_that_created_or_locked_when_empty == 0) {
         brt->h->txnid_that_created_or_locked_when_empty = toku_txn_get_txnid(txn);
-        int r = toku_txn_note_brt(txn, brt);
+        r = toku_txn_note_brt(txn, brt);
         assert(r==0);
-        return toku_logger_save_rollback_tablelock_on_empty_table(txn, toku_cachefile_filenum(brt->cf));
+        r = toku_logger_save_rollback_tablelock_on_empty_table(txn, toku_cachefile_filenum(brt->cf));
+        if (r==0) {
+            TOKULOGGER logger = toku_txn_logger(txn);
+            TXNID xid = toku_txn_get_txnid(txn);
+            r = toku_log_tablelock_on_empty_table(logger, (LSN*)NULL,
+                                                  0, toku_cachefile_filenum(brt->cf), xid);
+        }
     }
-    return 0;
+    return r;
 }
 
 LSN toku_brt_checkpoint_lsn(BRT brt) {
