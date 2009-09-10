@@ -847,9 +847,12 @@ int ha_partition::rename_partitions(const char *path)
 #define ANALYZE_PARTS 2
 #define CHECK_PARTS   3
 #define REPAIR_PARTS 4
+#define ASSIGN_KEYCACHE_PARTS 5
+#define PRELOAD_KEYS_PARTS 6
 
 static const char *opt_op_name[]= {NULL,
-                                   "optimize", "analyze", "check", "repair" };
+                                   "optimize", "analyze", "check", "repair",
+                                   "assign_to_keycache", "preload_keys"};
 
 /*
   Optimize table
@@ -934,7 +937,44 @@ int ha_partition::repair(THD *thd, HA_CHECK_OPT *check_opt)
   DBUG_RETURN(handle_opt_partitions(thd, check_opt, REPAIR_PARTS));
 }
 
+/**
+  Assign to keycache
 
+  @param thd          Thread object
+  @param check_opt    Check/analyze/repair/optimize options
+
+  @return
+    @retval >0        Error
+    @retval 0         Success
+*/
+
+int ha_partition::assign_to_keycache(THD *thd, HA_CHECK_OPT *check_opt)
+{
+  DBUG_ENTER("ha_partition::assign_to_keycache");
+
+  DBUG_RETURN(handle_opt_partitions(thd, check_opt, ASSIGN_KEYCACHE_PARTS));
+}
+
+
+/**
+  Preload to keycache
+
+  @param thd          Thread object
+  @param check_opt    Check/analyze/repair/optimize options
+
+  @return
+    @retval >0        Error
+    @retval 0         Success
+*/
+
+int ha_partition::preload_keys(THD *thd, HA_CHECK_OPT *check_opt)
+{
+  DBUG_ENTER("ha_partition::preload_keys");
+
+  DBUG_RETURN(handle_opt_partitions(thd, check_opt, PRELOAD_KEYS_PARTS));
+}
+
+ 
 /*
   Handle optimize/analyze/check/repair of one partition
 
@@ -965,6 +1005,10 @@ static int handle_opt_part(THD *thd, HA_CHECK_OPT *check_opt,
     error= file->ha_check(thd, check_opt);
   else if (flag == REPAIR_PARTS)
     error= file->ha_repair(thd, check_opt);
+  else if (flag == ASSIGN_KEYCACHE_PARTS)
+    error= file->assign_to_keycache(thd, check_opt);
+  else if (flag == PRELOAD_KEYS_PARTS)
+    error= file->preload_keys(thd, check_opt);
   else
   {
     DBUG_ASSERT(FALSE);
@@ -1094,6 +1138,12 @@ int ha_partition::handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
                               "Subpartition %s returned error", 
                               sub_elem->partition_name);
             }
+            /* reset part_state for the remaining partitions */
+            do
+            {
+              if (part_elem->part_state == PART_ADMIN)
+                part_elem->part_state= PART_NORMAL;
+            } while (part_elem= part_it++);
             DBUG_RETURN(error);
           }
         } while (++j < no_subparts);
@@ -1120,6 +1170,12 @@ int ha_partition::handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
                             opt_op_name[flag], "Partition %s returned error", 
                             part_elem->partition_name);
           }
+          /* reset part_state for the remaining partitions */
+          do
+          {
+            if (part_elem->part_state == PART_ADMIN)
+              part_elem->part_state= PART_NORMAL;
+          } while (part_elem= part_it++);
           DBUG_RETURN(error);
         }
       }
