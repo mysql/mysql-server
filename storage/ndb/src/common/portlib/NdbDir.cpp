@@ -288,8 +288,10 @@ loop:
 
       iter.close();
 
-      if (basestring_snprintf(path + end_len, sizeof(path) - end_len,
-                   "%s", DIR_SEPARATOR) < 0)
+      // Append ending slash to the string
+      int pos = len + end_len;
+      if (basestring_snprintf(path + pos, sizeof(path) - pos,
+                              "%s", DIR_SEPARATOR) < 0)
       {
         fprintf(stderr, "Too long path detected: '%s'+'%s'\n",
                 path, DIR_SEPARATOR);
