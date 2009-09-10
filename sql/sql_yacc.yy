@@ -5671,7 +5671,7 @@ alter_commands:
           all_or_alt_part_name_list
           {
             LEX *lex= Lex;
-            lex->sql_command = SQLCOM_OPTIMIZE;
+            lex->sql_command= SQLCOM_OPTIMIZE;
             lex->alter_info.flags|= ALTER_ADMIN_PARTITION;
             lex->no_write_to_binlog= $3;
             lex->check_opt.init();
@@ -5681,7 +5681,7 @@ alter_commands:
           all_or_alt_part_name_list
           {
             LEX *lex= Lex;
-            lex->sql_command = SQLCOM_ANALYZE;
+            lex->sql_command= SQLCOM_ANALYZE;
             lex->alter_info.flags|= ALTER_ADMIN_PARTITION;
             lex->no_write_to_binlog= $3;
             lex->check_opt.init();
@@ -5689,7 +5689,7 @@ alter_commands:
         | CHECK_SYM PARTITION_SYM all_or_alt_part_name_list
           {
             LEX *lex= Lex;
-            lex->sql_command = SQLCOM_CHECK;
+            lex->sql_command= SQLCOM_CHECK;
             lex->alter_info.flags|= ALTER_ADMIN_PARTITION;
             lex->check_opt.init();
           }
@@ -5698,7 +5698,7 @@ alter_commands:
           all_or_alt_part_name_list
           {
             LEX *lex= Lex;
-            lex->sql_command = SQLCOM_REPAIR;
+            lex->sql_command= SQLCOM_REPAIR;
             lex->alter_info.flags|= ALTER_ADMIN_PARTITION;
             lex->no_write_to_binlog= $3;
             lex->check_opt.init();
@@ -5710,6 +5710,13 @@ alter_commands:
             lex->alter_info.flags|= ALTER_COALESCE_PARTITION;
             lex->no_write_to_binlog= $3;
             lex->alter_info.no_parts= $4;
+          }
+        | TRUNCATE_SYM PARTITION_SYM all_or_alt_part_name_list
+          {
+            LEX *lex= Lex;
+            lex->sql_command= SQLCOM_TRUNCATE;
+            lex->alter_info.flags|= ALTER_ADMIN_PARTITION;
+            lex->check_opt.init();
           }
         | reorg_partition_rule
         ;
@@ -9758,6 +9765,7 @@ truncate:
           {
             LEX* lex= Lex;
             lex->sql_command= SQLCOM_TRUNCATE;
+            lex->alter_info.reset();
             lex->select_lex.options= 0;
             lex->select_lex.sql_cache= SELECT_LEX::SQL_CACHE_UNSPECIFIED;
             lex->select_lex.init_order();
