@@ -827,7 +827,7 @@ innobase_get_cset_width(
 			    && (cset != 0)){
 
 				sql_print_warning(
-					"Unknown collation #%d.", cset);
+					"Unknown collation #%lu.", cset);
 			}
 		} else {
 
