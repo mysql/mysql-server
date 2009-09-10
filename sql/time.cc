@@ -748,7 +748,7 @@ void make_truncated_value_warning(THD *thd, MYSQL_ERROR::enum_warning_level leve
     cs->cset->snprintf(cs, warn_buff, sizeof(warn_buff),
                        ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
                        type_str, str.c_ptr(), field_name,
-                       (ulong) thd->row_count);
+                       (ulong) thd->warning_info->current_row_for_warning());
   else
   {
     if (time_type > MYSQL_TIMESTAMP_ERROR)

@@ -305,8 +305,8 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_SHOW_AUTHORS]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_CONTRIBUTORS]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_PRIVILEGES]= CF_STATUS_COMMAND;
-  sql_command_flags[SQLCOM_SHOW_WARNS]= CF_STATUS_COMMAND;
-  sql_command_flags[SQLCOM_SHOW_ERRORS]= CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_WARNS]= CF_STATUS_COMMAND | CF_DIAGNOSTIC_STMT;
+  sql_command_flags[SQLCOM_SHOW_ERRORS]= CF_STATUS_COMMAND | CF_DIAGNOSTIC_STMT;
   sql_command_flags[SQLCOM_SHOW_ENGINE_STATUS]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_ENGINE_MUTEX]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_ENGINE_LOGS]= CF_STATUS_COMMAND;
@@ -790,7 +790,7 @@ bool do_command(THD *thd)
     Consider moving to init_connect() instead.
   */
   thd->clear_error();				// Clear error message
-  thd->main_da.reset_diagnostics_area();
+  thd->stmt_da->reset_diagnostics_area();
 
   net_new_transaction(net);
 
@@ -1053,7 +1053,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     tbl_name= strmake(db.str, packet + 1, db_len)+1;
     strmake(tbl_name, packet + db_len + 2, tbl_len);
     if (mysql_table_dump(thd, &db, tbl_name) == 0)
-      thd->main_da.disable_status();
+      thd->stmt_da->disable_status();
     break;
   }
   case COM_CHANGE_USER:
@@ -1348,7 +1348,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     /* We don't calculate statistics for this command */
     general_log_print(thd, command, NullS);
     net->error=0;				// Don't give 'abort' message
-    thd->main_da.disable_status();              // Don't send anything back
+    thd->stmt_da->disable_status();              // Don't send anything back
     error=TRUE;					// End server
     break;
 
@@ -1516,7 +1516,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #ifndef EMBEDDED_LIBRARY
     VOID(my_net_write(net, (uchar*) buff, length));
     VOID(net_flush(net));
-    thd->main_da.disable_status();
+    thd->stmt_da->disable_status();
 #endif
     break;
   }
@@ -1582,7 +1582,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   /* report error issued during command execution */
   if (thd->killed_errno())
   {
-    if (! thd->main_da.is_set())
+    if (! thd->stmt_da->is_set())
       thd->send_kill_message();
   }
   if (thd->killed == THD::KILL_QUERY || thd->killed == THD::KILL_BAD_DATA)
@@ -1592,9 +1592,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   }
 
   /* If commit fails, we should be able to reset the OK status. */
-  thd->main_da.can_overwrite_status= TRUE;
+  thd->stmt_da->can_overwrite_status= TRUE;
   ha_autocommit_or_rollback(thd, thd->is_error());
-  thd->main_da.can_overwrite_status= FALSE;
+  thd->stmt_da->can_overwrite_status= FALSE;
 
   thd->transaction.stmt.reset();
 
@@ -2035,8 +2035,14 @@ mysql_execute_command(THD *thd)
     variables, but for now this is probably good enough.
     Don't reset warnings when executing a stored routine.
   */
-  if ((all_tables || !lex->is_single_level_stmt()) && !thd->spcont)
-    mysql_reset_errors(thd, 0);
+  if ((sql_command_flags[lex->sql_command] & CF_DIAGNOSTIC_STMT) != 0)
+    thd->warning_info->set_read_only(TRUE);
+  else
+  {
+    thd->warning_info->set_read_only(FALSE);
+    if (all_tables)
+      thd->warning_info->opt_clear_warning_info(thd->query_id);
+  }
 
 #ifdef HAVE_REPLICATION
   if (unlikely(thd->slave_thread))
@@ -4413,12 +4419,6 @@ create_sp_error:
           So just execute the statement.
         */
 	res= sp->execute_procedure(thd, &lex->value_list);
-	/*
-          If warnings have been cleared, we have to clear total_warn_count
-          too, otherwise the clients get confused.
-	 */
-	if (thd->warn_list.is_empty())
-	  thd->total_warn_count= 0;
 
 	thd->variables.select_limit= select_limit;
 
@@ -4449,7 +4449,7 @@ create_sp_error:
       else
         sp= sp_find_routine(thd, TYPE_ENUM_FUNCTION, lex->spname,
                             &thd->sp_func_cache, FALSE);
-      mysql_reset_errors(thd, 0);
+      thd->warning_info->opt_clear_warning_info(thd->query_id);
       if (! sp)
       {
 	if (lex->spname->m_db.str)
@@ -4524,7 +4524,7 @@ create_sp_error:
                  TYPE_ENUM_PROCEDURE : TYPE_ENUM_FUNCTION);
 
       sp_result= sp_routine_exists_in_table(thd, type, lex->spname);
-      mysql_reset_errors(thd, 0);
+      thd->warning_info->opt_clear_warning_info(thd->query_id);
       if (sp_result == SP_OK)
       {
         char *db= lex->spname->m_db.str;
@@ -4975,6 +4975,11 @@ create_sp_error:
     my_ok(thd, 1);
     break;
   }
+  case SQLCOM_SIGNAL:
+  case SQLCOM_RESIGNAL:
+    DBUG_ASSERT(lex->m_stmt != NULL);
+    res= lex->m_stmt->execute(thd);
+    break;
   default:
 #ifndef EMBEDDED_LIBRARY
     DBUG_ASSERT(0);                             /* Impossible */
@@ -5724,8 +5729,8 @@ void mysql_reset_thd_for_next_command(THD *thd)
     thd->user_var_events_alloc= thd->mem_root;
   }
   thd->clear_error();
-  thd->main_da.reset_diagnostics_area();
-  thd->total_warn_count=0;			// Warnings for this query
+  thd->stmt_da->reset_diagnostics_area();
+  thd->warning_info->reset_for_next_command();
   thd->rand_used= 0;
   thd->sent_row_count= thd->examined_row_count= 0;
 

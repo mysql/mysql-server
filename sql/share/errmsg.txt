@@ -4879,13 +4879,7 @@ ER_ZLIB_Z_DATA_ERROR
         por "ZLIB: Dados de entrada está corrupto"
         spa "ZLIB: Dato de entrada fué corrompido para zlib"
 ER_CUT_VALUE_GROUP_CONCAT  
-        eng "%d line(s) were cut by GROUP_CONCAT()"
-        ger "%d Zeile(n) durch GROUP_CONCAT() abgeschnitten"
-        nla "%d regel(s) door GROUP_CONCAT() ingekort"
-        por "%d linha(s) foram cortada(s) por GROUP_CONCAT()"
-        spa "%d línea(s) fue(fueron) cortadas por group_concat()"
-        swe "%d rad(er) kapades av group_concat()"
-        ukr "%d line(s) was(were) cut by group_concat()"
+        eng "Row %u was cut by GROUP_CONCAT()"
 ER_WARN_TOO_FEW_RECORDS 01000 
         eng "Row %ld doesn't contain data for all columns"
         ger "Zeile %ld enthält nicht für alle Felder Daten"
@@ -6206,3 +6200,31 @@ ER_TOO_MANY_CONCURRENT_TRXS
 
 WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED
   eng "Non-ASCII separator arguments are not fully supported"
+
+ER_DUP_SIGNAL_SET 42000
+        eng "Duplicate condition information item '%s'"
+
+# Note that the SQLSTATE is not 01000, it is provided by SIGNAL/RESIGNAL
+ER_SIGNAL_WARN 01000
+        eng "Unhandled user-defined warning condition"
+
+# Note that the SQLSTATE is not 02000, it is provided by SIGNAL/RESIGNAL
+ER_SIGNAL_NOT_FOUND 02000
+        eng "Unhandled user-defined not found condition"
+
+# Note that the SQLSTATE is not HY000, it is provided by SIGNAL/RESIGNAL
+ER_SIGNAL_EXCEPTION HY000
+        eng "Unhandled user-defined exception condition"
+
+ER_RESIGNAL_WITHOUT_ACTIVE_HANDLER 0K000
+        eng "RESIGNAL when handler not active"
+
+ER_SIGNAL_BAD_CONDITION_TYPE
+        eng "SIGNAL/RESIGNAL can only use a CONDITION defined with SQLSTATE"
+
+WARN_COND_ITEM_TRUNCATED
+        eng "Data truncated for condition item '%s'"
+
+ER_COND_ITEM_TOO_LONG
+        eng "Data too long for condition item '%s'"
+

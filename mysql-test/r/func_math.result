@@ -225,27 +225,27 @@ select ln(-1);
 ln(-1)
 NULL
 Warnings:
-Error	1365	Division by 0
+Warning	1365	Division by 0
 select log10(-1);
 log10(-1)
 NULL
 Warnings:
-Error	1365	Division by 0
+Warning	1365	Division by 0
 select log2(-1);
 log2(-1)
 NULL
 Warnings:
-Error	1365	Division by 0
+Warning	1365	Division by 0
 select log(2,-1);
 log(2,-1)
 NULL
 Warnings:
-Error	1365	Division by 0
+Warning	1365	Division by 0
 select log(-2,1);
 log(-2,1)
 NULL
 Warnings:
-Error	1365	Division by 0
+Warning	1365	Division by 0
 set sql_mode='';
 select round(111,-10);
 round(111,-10)

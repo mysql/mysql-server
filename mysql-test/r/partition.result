@@ -1226,7 +1226,6 @@ COMMIT;
 END|
 CALL test.p1(12);
 Warnings:
-Note	1051	Unknown table 't1'
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 CALL test.p1(13);
 Warnings:

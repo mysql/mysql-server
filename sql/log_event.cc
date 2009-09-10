@@ -134,7 +134,7 @@ static void inline slave_rows_error_report(enum loglevel level, int ha_error,
   char buff[MAX_SLAVE_ERRMSG], *slider;
   const char *buff_end= buff + sizeof(buff);
   uint len;
-  List_iterator_fast<MYSQL_ERROR> it(thd->warn_list);
+  List_iterator_fast<MYSQL_ERROR> it(thd->warning_info->warn_list());
   MYSQL_ERROR *err;
   buff[0]= 0;
 
@@ -142,10 +142,11 @@ static void inline slave_rows_error_report(enum loglevel level, int ha_error,
        slider += len, err= it++)
   {
     len= my_snprintf(slider, buff_end - slider,
-                     " %s, Error_code: %d;", err->msg, err->code);
+                     " %s, Error_code: %d;", err->get_message_text(),
+                     err->get_sql_errno());
   }
   
-  rli->report(level, thd->is_error()? thd->main_da.sql_errno() : 0,
+  rli->report(level, thd->is_error()? thd->stmt_da->sql_errno() : 0,
               "Could not execute %s event on table %s.%s;"
               "%s handler error %s; "
               "the event's master log %s, end_log_pos %lu",
@@ -353,13 +354,13 @@ inline int ignored_error_code(int err_code)
 */ 
 int convert_handler_error(int error, THD* thd, TABLE *table)
 {
-  uint actual_error= (thd->is_error() ? thd->main_da.sql_errno() :
+  uint actual_error= (thd->is_error() ? thd->stmt_da->sql_errno() :
                            0);
 
   if (actual_error == 0)
   {
     table->file->print_error(error, MYF(0));
-    actual_error= (thd->is_error() ? thd->main_da.sql_errno() :
+    actual_error= (thd->is_error() ? thd->stmt_da->sql_errno() :
                         ER_UNKNOWN_ERROR);
     if (actual_error == ER_UNKNOWN_ERROR)
       if (global_system_variables.log_warnings)
@@ -3162,7 +3163,7 @@ START SLAVE; . Query: '%s'", expected_error, thd->query);
     }
 
     /* If the query was not ignored, it is printed to the general log */
-    if (!thd->is_error() || thd->main_da.sql_errno() != ER_SLAVE_IGNORED_TABLE)
+    if (!thd->is_error() || thd->stmt_da->sql_errno() != ER_SLAVE_IGNORED_TABLE)
       general_log_write(thd, COM_QUERY, thd->query, thd->query_length);
 
 compare_errors:
@@ -3171,7 +3172,7 @@ compare_errors:
       If we expected a non-zero error code, and we don't get the same error
       code, and it should be ignored or is related to a concurrency issue.
     */
-    actual_error= thd->is_error() ? thd->main_da.sql_errno() : 0;
+    actual_error= thd->is_error() ? thd->stmt_da->sql_errno() : 0;
     DBUG_PRINT("info",("expected_error: %d  sql_errno: %d",
  		       expected_error, actual_error));
     if ((expected_error && expected_error != actual_error &&
@@ -3186,7 +3187,7 @@ Error on master: '%s' (%d), Error on slave: '%s' (%d). \
 Default database: '%s'. Query: '%s'",
                       ER_SAFE(expected_error),
                       expected_error,
-                      actual_error ? thd->main_da.message() : "no error",
+                      actual_error ? thd->stmt_da->message() : "no error",
                       actual_error,
                       print_slave_db_safe(db), query_arg);
       thd->is_slave_error= 1;
@@ -3218,7 +3219,7 @@ Default database: '%s'. Query: '%s'",
     {
       rli->report(ERROR_LEVEL, actual_error,
                       "Error '%s' on query. Default database: '%s'. Query: '%s'",
-                      (actual_error ? thd->main_da.message() :
+                      (actual_error ? thd->stmt_da->message() :
                        "unexpected success or fatal error"),
                       print_slave_db_safe(thd->db), query_arg);
       thd->is_slave_error= 1;
@@ -4525,13 +4526,7 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
     VOID(pthread_mutex_lock(&LOCK_thread_count));
     thd->query_id = next_query_id();
     VOID(pthread_mutex_unlock(&LOCK_thread_count));
-    /*
-      Initing thd->row_count is not necessary in theory as this variable has no
-      influence in the case of the slave SQL thread (it is used to generate a
-      "data truncated" warning but which is absorbed and never gets to the
-      error log); still we init it to avoid a Valgrind message.
-    */
-    mysql_reset_errors(thd, 0);
+    thd->warning_info->opt_clear_warning_info(thd->query_id);
 
     TABLE_LIST tables;
     bzero((char*) &tables,sizeof(tables));
@@ -4692,8 +4687,8 @@ error:
     int sql_errno;
     if (thd->is_error())
     {
-      err= thd->main_da.message();
-      sql_errno= thd->main_da.sql_errno();
+      err= thd->stmt_da->message();
+      sql_errno= thd->stmt_da->sql_errno();
     }
     else
     {
@@ -7256,7 +7251,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 
     if (simple_open_n_lock_tables(thd, rli->tables_to_lock))
     {
-      uint actual_error= thd->main_da.sql_errno();
+      uint actual_error= thd->stmt_da->sql_errno();
       if (thd->is_slave_error || thd->is_fatal_error)
       {
         /*
@@ -7267,7 +7262,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
         */
         rli->report(ERROR_LEVEL, actual_error,
                     "Error '%s' on opening tables",
-                    (actual_error ? thd->main_da.message() :
+                    (actual_error ? thd->stmt_da->message() :
                      "unexpected success or fatal error"));
         thd->is_slave_error= 1;
       }

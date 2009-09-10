@@ -526,8 +526,6 @@ end|
 delete from t1|
 create table t3 ( s char(16), d int)|
 call into_test4()|
-Warnings:
-Warning	1329	No data - zero rows fetched, selected, or processed
 select * from t3|
 s	d
 into4	NULL
@@ -1120,8 +1118,6 @@ end|
 select f9()|
 f9()
 6
-Warnings:
-Note	1051	Unknown table 't3'
 select f9() from t1 limit 1|
 f9()
 6
@@ -1162,8 +1158,6 @@ drop temporary table t3|
 select f12_1()|
 f12_1()
 3
-Warnings:
-Note	1051	Unknown table 't3'
 select f12_1() from t1 limit 1|
 f12_1()
 3
@@ -2069,12 +2063,7 @@ end if;
 insert into t4 values (2, rc, t3);
 end|
 call bug1863(10)|
-Warnings:
-Note	1051	Unknown table 'temp_t1'
-Warning	1329	No data - zero rows fetched, selected, or processed
 call bug1863(10)|
-Warnings:
-Warning	1329	No data - zero rows fetched, selected, or processed
 select * from t4|
 f1	rc	t3
 2	0	NULL
@@ -2339,11 +2328,7 @@ begin
 end|
 call bug4579_1()|
 call bug4579_1()|
-Warnings:
-Warning	1329	No data - zero rows fetched, selected, or processed
 call bug4579_1()|
-Warnings:
-Warning	1329	No data - zero rows fetched, selected, or processed
 drop procedure bug4579_1|
 drop procedure bug4579_2|
 drop table t3|
@@ -3736,9 +3721,6 @@ Table	Create Table
 tm1	CREATE TEMPORARY TABLE `tm1` (
   `spv1` decimal(3,3) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
-Warnings:
-Warning	1264	Out of range value for column 'spv1' at row 1
-Warning	1366	Incorrect decimal value: 'test' for column 'spv1' at row 1
 call bug12589_2()|
 Table	Create Table
 tm1	CREATE TEMPORARY TABLE `tm1` (
@@ -6106,35 +6088,6 @@ bug5274_f2()
 x
 Warnings:
 Warning	1265	Data truncated for column 'bug5274_f1' at row 1
-Warning	1265	Data truncated for column 'bug5274_f1' at row 1
-Warning	1265	Data truncated for column 'bug5274_f1' at row 1
-Warning	1265	Data truncated for column 'bug5274_f1' at row 1
-Warning	1265	Data truncated for column 'bug5274_f1' at row 1
-Warning	1265	Data truncated for column 'bug5274_f1' at row 1
-Warning	1265	Data truncated for column 'bug5274_f1' at row 1
-Warning	1265	Data truncated for column 'bug5274_f1' at row 1
-Warning	1265	Data truncated for column 'bug5274_f1' at row 1
-Warning	1265	Data truncated for column 'bug5274_f1' at row 1
-Warning	1265	Data truncated for column 'bug5274_f1' at row 1
-Warning	1265	Data truncated for column 'bug5274_f1' at row 1
-Warning	1265	Data truncated for column 'bug5274_f1' at row 1
-Warning	1265	Data truncated for column 'bug5274_f1' at row 1
-Warning	1265	Data truncated for column 'bug5274_f1' at row 1
-Warning	1265	Data truncated for column 'bug5274_f1' at row 1
-Warning	1265	Data truncated for column 'bug5274_f1' at row 1
-Warning	1265	Data truncated for column 'bug5274_f1' at row 1
-Warning	1265	Data truncated for column 'bug5274_f1' at row 1
-Warning	1265	Data truncated for column 'bug5274_f1' at row 1
-Warning	1265	Data truncated for column 'bug5274_f1' at row 1
-Warning	1265	Data truncated for column 'bug5274_f1' at row 1
-Warning	1265	Data truncated for column 'bug5274_f1' at row 1
-Warning	1265	Data truncated for column 'bug5274_f1' at row 1
-Warning	1265	Data truncated for column 'bug5274_f1' at row 1
-Warning	1265	Data truncated for column 'bug5274_f1' at row 1
-Warning	1265	Data truncated for column 'bug5274_f1' at row 1
-Warning	1265	Data truncated for column 'bug5274_f1' at row 1
-Warning	1265	Data truncated for column 'bug5274_f1' at row 1
-Warning	1265	Data truncated for column 'bug5274_f1' at row 1
 DROP FUNCTION bug5274_f1|
 DROP FUNCTION bug5274_f2|
 drop procedure if exists proc_21513|
@@ -6229,19 +6182,16 @@ f1(2)
 0
 Warnings:
 Warning	1329	No data - zero rows fetched, selected, or processed
-Warning	1329	No data - zero rows fetched, selected, or processed
 PREPARE s1 FROM 'SELECT f1(2)';
 EXECUTE s1;
 f1(2)
 0
 Warnings:
 Warning	1329	No data - zero rows fetched, selected, or processed
-Warning	1329	No data - zero rows fetched, selected, or processed
 EXECUTE s1;
 f1(2)
 0
 Warnings:
-Warning	1329	No data - zero rows fetched, selected, or processed
 Warning	1329	No data - zero rows fetched, selected, or processed
 DROP PROCEDURE p1;
 DROP PROCEDURE p2;
@@ -6254,6 +6204,7 @@ create procedure mysqltest_db1.sp_bug28551() begin end;
 call mysqltest_db1.sp_bug28551();
 show warnings;
 Level	Code	Message
+Note	1008	Can't drop database 'mysqltest_db1'; database doesn't exist
 drop database mysqltest_db1;
 drop database if exists mysqltest_db1;
 drop table if exists test.t1;
