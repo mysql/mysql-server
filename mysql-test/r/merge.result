@@ -914,7 +914,7 @@ SELECT * FROM tm1;
 ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
 CHECK TABLE tm1;
 Table	Op	Msg_type	Msg_text
-test.tm1	check	Error	Table 'test.t2' is differently defined or of non-MyISAM type or doesn't exist
+test.tm1	check	Warning	Table 'test.t2' is differently defined or of non-MyISAM type or doesn't exist
 test.tm1	check	Error	Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
 test.tm1	check	error	Corrupt
 ALTER TABLE t2 MODIFY a INT;

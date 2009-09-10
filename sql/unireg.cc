@@ -55,10 +55,12 @@ static bool make_empty_rec(THD *thd, int file, enum legacy_db_type table_type,
 
 struct Pack_header_error_handler: public Internal_error_handler
 {
-  virtual bool handle_error(uint sql_errno,
-                            const char *message,
-                            MYSQL_ERROR::enum_warning_level level,
-                            THD *thd);
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char* sqlstate,
+                                MYSQL_ERROR::enum_warning_level level,
+                                const char* msg,
+                                MYSQL_ERROR ** cond_hdl);
   bool is_handled;
   Pack_header_error_handler() :is_handled(FALSE) {}
 };
@@ -66,11 +68,14 @@ struct Pack_header_error_handler: public Internal_error_handler
 
 bool
 Pack_header_error_handler::
-handle_error(uint sql_errno,
-             const char * /* message */,
-             MYSQL_ERROR::enum_warning_level /* level */,
-             THD * /* thd */)
+handle_condition(THD *,
+                 uint sql_errno,
+                 const char*,
+                 MYSQL_ERROR::enum_warning_level,
+                 const char*,
+                 MYSQL_ERROR ** cond_hdl)
 {
+  *cond_hdl= NULL;
   is_handled= (sql_errno == ER_TOO_MANY_FIELDS);
   return is_handled;
 }

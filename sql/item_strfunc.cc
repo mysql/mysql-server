@@ -528,11 +528,11 @@ String *Item_func_des_encrypt::val_str(String *str)
   return &tmp_value;
 
 error:
-  push_warning_printf(current_thd,MYSQL_ERROR::WARN_LEVEL_ERROR,
+  push_warning_printf(current_thd,MYSQL_ERROR::WARN_LEVEL_WARN,
                           code, ER(code),
                           "des_encrypt");
 #else
-  push_warning_printf(current_thd,MYSQL_ERROR::WARN_LEVEL_ERROR,
+  push_warning_printf(current_thd,MYSQL_ERROR::WARN_LEVEL_WARN,
                       ER_FEATURE_DISABLED, ER(ER_FEATURE_DISABLED),
                       "des_encrypt","--with-openssl");
 #endif	/* HAVE_OPENSSL */
@@ -605,12 +605,12 @@ String *Item_func_des_decrypt::val_str(String *str)
   return &tmp_value;
 
 error:
-  push_warning_printf(current_thd,MYSQL_ERROR::WARN_LEVEL_ERROR,
+  push_warning_printf(current_thd,MYSQL_ERROR::WARN_LEVEL_WARN,
                           code, ER(code),
                           "des_decrypt");
 wrong_key:
 #else
-  push_warning_printf(current_thd,MYSQL_ERROR::WARN_LEVEL_ERROR,
+  push_warning_printf(current_thd,MYSQL_ERROR::WARN_LEVEL_WARN,
                       ER_FEATURE_DISABLED, ER(ER_FEATURE_DISABLED),
                       "des_decrypt","--with-openssl");
 #endif	/* HAVE_OPENSSL */
@@ -3232,7 +3232,7 @@ longlong Item_func_uncompressed_length::val_int()
   */
   if (res->length() <= 4)
   {
-    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_ZLIB_Z_DATA_ERROR,
                         ER(ER_ZLIB_Z_DATA_ERROR));
     null_value= 1;
@@ -3309,7 +3309,7 @@ String *Item_func_compress::val_str(String *str)
 		     (const Bytef*)res->ptr(), res->length())) != Z_OK)
   {
     code= err==Z_MEM_ERROR ? ER_ZLIB_Z_MEM_ERROR : ER_ZLIB_Z_BUF_ERROR;
-    push_warning(current_thd,MYSQL_ERROR::WARN_LEVEL_ERROR,code,ER(code));
+    push_warning(current_thd,MYSQL_ERROR::WARN_LEVEL_WARN,code,ER(code));
     null_value= 1;
     return 0;
   }
@@ -3347,7 +3347,7 @@ String *Item_func_uncompress::val_str(String *str)
   /* If length is less than 4 bytes, data is corrupt */
   if (res->length() <= 4)
   {
-    push_warning_printf(current_thd,MYSQL_ERROR::WARN_LEVEL_ERROR,
+    push_warning_printf(current_thd,MYSQL_ERROR::WARN_LEVEL_WARN,
 			ER_ZLIB_Z_DATA_ERROR,
 			ER(ER_ZLIB_Z_DATA_ERROR));
     goto err;
@@ -3357,7 +3357,7 @@ String *Item_func_uncompress::val_str(String *str)
   new_size= uint4korr(res->ptr()) & 0x3FFFFFFF;
   if (new_size > current_thd->variables.max_allowed_packet)
   {
-    push_warning_printf(current_thd,MYSQL_ERROR::WARN_LEVEL_ERROR,
+    push_warning_printf(current_thd,MYSQL_ERROR::WARN_LEVEL_WARN,
 			ER_TOO_BIG_FOR_UNCOMPRESS,
 			ER(ER_TOO_BIG_FOR_UNCOMPRESS),
                         current_thd->variables.max_allowed_packet);
@@ -3375,7 +3375,7 @@ String *Item_func_uncompress::val_str(String *str)
 
   code= ((err == Z_BUF_ERROR) ? ER_ZLIB_Z_BUF_ERROR :
 	 ((err == Z_MEM_ERROR) ? ER_ZLIB_Z_MEM_ERROR : ER_ZLIB_Z_DATA_ERROR));
-  push_warning(current_thd,MYSQL_ERROR::WARN_LEVEL_ERROR,code,ER(code));
+  push_warning(current_thd,MYSQL_ERROR::WARN_LEVEL_WARN,code,ER(code));
 
 err:
   null_value= 1;

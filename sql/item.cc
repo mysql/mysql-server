@@ -4785,7 +4785,6 @@ String *Item::check_well_formed_result(String *str, bool send_error)
   {
     THD *thd= current_thd;
     char hexbuf[7];
-    enum MYSQL_ERROR::enum_warning_level level;
     uint diff= str->length() - wlen;
     set_if_smaller(diff, 3);
     octet2hex(hexbuf, str->ptr() + wlen, diff);
@@ -4798,16 +4797,14 @@ String *Item::check_well_formed_result(String *str, bool send_error)
     if ((thd->variables.sql_mode &
          (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES)))
     {
-      level= MYSQL_ERROR::WARN_LEVEL_ERROR;
       null_value= 1;
       str= 0;
     }
     else
     {
-      level= MYSQL_ERROR::WARN_LEVEL_WARN;
       str->length(wlen);
     }
-    push_warning_printf(thd, level, ER_INVALID_CHARACTER_STRING,
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_INVALID_CHARACTER_STRING,
                         ER(ER_INVALID_CHARACTER_STRING), cs->csname, hexbuf);
   }
   return str;
