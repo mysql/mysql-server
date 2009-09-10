@@ -4789,10 +4789,10 @@ static bool read_init_file(char *file_name)
   DBUG_ENTER("read_init_file");
   DBUG_PRINT("enter",("name: %s",file_name));
   if (!(file=my_fopen(file_name,O_RDONLY,MYF(MY_WME))))
-    return(1);
+    DBUG_RETURN(TRUE);
   bootstrap(file);
   (void) my_fclose(file,MYF(MY_WME));
-  return 0;
+  DBUG_RETURN(FALSE);
 }
 
 
