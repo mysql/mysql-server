@@ -1394,15 +1394,26 @@ exit:
 }
 
 int tokudb_cmp_dbt_key(DB *file, const DBT *keya, const DBT *keyb) {
-    int cmp = tokudb_compare_two_keys(
-        keya->data, 
-        keya->size, 
-        keyb->data,
-        keyb->size,
-        (uchar *)file->descriptor->data + 4,
-        (*(u_int32_t *)file->descriptor->data) - 4,
-        false
-        );
+    int cmp;
+    if (file->descriptor->size == 0) {
+        int num_bytes_cmp = keya->size < keyb->size ? 
+            keya->size : keyb->size;
+        cmp = memcmp(keya->data,keyb->data,num_bytes_cmp);
+        if (cmp == 0 && (keya->size != keyb->size)) {
+            cmp = keya->size < keyb->size ? 1 : -1;
+        }
+    }
+    else {
+        cmp = tokudb_compare_two_keys(
+            keya->data, 
+            keya->size, 
+            keyb->data,
+            keyb->size,
+            (uchar *)file->descriptor->data + 4,
+            (*(u_int32_t *)file->descriptor->data) - 4,
+            false
+            );
+    }
     return cmp;
 }
 

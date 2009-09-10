@@ -10,6 +10,11 @@ extern "C" {
 extern ulong tokudb_debug;
 
 
+//
+// returns maximum length of dictionary name, such as key-NAME
+// NAME_CHAR_LEN is max length of the key name, and have upper bound of 10 for key-
+//
+#define MAX_DICT_NAME_LEN NAME_CHAR_LEN + 10
 
 
 // QQQ how to tune these?
@@ -85,6 +90,47 @@ typedef struct st_tokudb_trx_data {
     uint tokudb_lock_count;
     HA_TOKU_ISO_LEVEL iso_level;
 } tokudb_trx_data;
+
+extern char *tokudb_data_dir;
+extern const char *ha_tokudb_ext;
+
+static int get_name_length(const char *name) {
+    int n = 0;
+    const char *newname = name;
+    if (tokudb_data_dir) {
+        n += strlen(tokudb_data_dir) + 1;
+        if (strncmp("./", name, 2) == 0) 
+            newname = name + 2;
+    }
+    n += strlen(newname);
+    n += strlen(ha_tokudb_ext);
+    return n;
+}
+
+//
+// returns maximum length of path to a dictionary
+//
+static int get_max_dict_name_path_length(const char *tablename) {
+    int n = 0;
+    n += get_name_length(tablename);
+    n += 1; //for the '/'
+    n += MAX_DICT_NAME_LEN;
+    n += strlen(ha_tokudb_ext);
+    return n;
+}
+
+static void make_name(char *newname, const char *tablename, const char *dictname) {
+    const char *newtablename = tablename;
+    char *nn = newname;
+    if (tokudb_data_dir) {
+        nn += sprintf(nn, "%s/", tokudb_data_dir);
+        if (strncmp("./", tablename, 2) == 0)
+            newtablename = tablename + 2;
+    }
+    nn += sprintf(nn, "%s%s", newtablename, ha_tokudb_ext);
+    if (dictname)
+        nn += sprintf(nn, "/%s%s", dictname, ha_tokudb_ext);
+}
 
 
 

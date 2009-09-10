@@ -415,6 +415,7 @@ public:
 
     // delete all rows from the table
     // effect: all dictionaries, including the main and indexes, should be empty
+    int discard_or_import_tablespace(my_bool discard);
     int delete_all_rows();
     void extract_hidden_primary_key(uint keynr, DBT const *row, DBT const *found_key);
     void read_key_only(uchar * buf, uint keynr, DBT const *row, DBT const *found_key);
