@@ -602,7 +602,7 @@ err:
   {
     char buff[128];
     strmake(buff, val_begin, min(length, sizeof(buff)-1));
-    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_WRONG_VALUE_FOR_TYPE, ER(ER_WRONG_VALUE_FOR_TYPE),
                         date_time_type, buff, "str_to_date");
   }

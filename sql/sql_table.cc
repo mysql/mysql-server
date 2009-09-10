@@ -4592,17 +4592,17 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     if (!table->table)
     {
       DBUG_PRINT("admin", ("open table failed"));
-      if (!thd->warn_list.elements)
-        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+      if (thd->warning_info->is_empty())
+        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                      ER_CHECK_NO_SUCH_TABLE, ER(ER_CHECK_NO_SUCH_TABLE));
       /* if it was a view will check md5 sum */
       if (table->view &&
           view_checksum(thd, table) == HA_ADMIN_WRONG_CHECKSUM)
-        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                      ER_VIEW_CHECKSUM, ER(ER_VIEW_CHECKSUM));
-      if (thd->main_da.is_error() && 
-          (thd->main_da.sql_errno() == ER_NO_SUCH_TABLE ||
-           thd->main_da.sql_errno() == ER_FILE_NOT_FOUND))
+      if (thd->stmt_da->is_error() &&
+          (thd->stmt_da->sql_errno() == ER_NO_SUCH_TABLE ||
+           thd->stmt_da->sql_errno() == ER_FILE_NOT_FOUND))
         /* A missing table is just issued as a failed command */
         result_code= HA_ADMIN_FAILED;
       else
@@ -4644,7 +4644,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       table->table=0;				// For query cache
       if (protocol->write())
 	goto err;
-      thd->main_da.reset_diagnostics_area();
+      thd->stmt_da->reset_diagnostics_area();
       continue;
       /* purecov: end */
     }
@@ -4704,8 +4704,8 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
           we will store the error message in a result set row 
           and then clear.
         */
-        if (thd->main_da.is_ok())
-          thd->main_da.reset_diagnostics_area();
+        if (thd->stmt_da->is_ok())
+          thd->stmt_da->reset_diagnostics_area();
         goto send_result;
       }
     }
@@ -4719,21 +4719,21 @@ send_result:
     lex->cleanup_after_one_table_open();
     thd->clear_error();  // these errors shouldn't get client
     {
-      List_iterator_fast<MYSQL_ERROR> it(thd->warn_list);
+      List_iterator_fast<MYSQL_ERROR> it(thd->warning_info->warn_list());
       MYSQL_ERROR *err;
       while ((err= it++))
       {
         protocol->prepare_for_resend();
         protocol->store(table_name, system_charset_info);
         protocol->store((char*) operator_name, system_charset_info);
-        protocol->store(warning_level_names[err->level].str,
-                        warning_level_names[err->level].length,
+        protocol->store(warning_level_names[err->get_level()].str,
+                        warning_level_names[err->get_level()].length,
                         system_charset_info);
-        protocol->store(err->msg, system_charset_info);
+        protocol->store(err->get_message_text(), system_charset_info);
         if (protocol->write())
           goto err;
       }
-      mysql_reset_errors(thd, true);
+      thd->warning_info->clear_warning_info(thd->query_id);
     }
     protocol->prepare_for_resend();
     protocol->store(table_name, system_charset_info);
@@ -4828,8 +4828,8 @@ send_result_message:
         we will store the error message in a result set row 
         and then clear.
       */
-      if (thd->main_da.is_ok())
-        thd->main_da.reset_diagnostics_area();
+      if (thd->stmt_da->is_ok())
+        thd->stmt_da->reset_diagnostics_area();
       ha_autocommit_or_rollback(thd, 0);
       close_thread_tables(thd);
       if (!result_code) // recreation went ok
@@ -4847,7 +4847,7 @@ send_result_message:
         DBUG_ASSERT(thd->is_error());
         if (thd->is_error())
         {
-          const char *err_msg= thd->main_da.message();
+          const char *err_msg= thd->stmt_da->message();
           if (!thd->vio_ok())
           {
             sql_print_error("%s", err_msg);
@@ -7442,7 +7442,8 @@ err:
     the table to be altered isn't empty.
     Report error here.
   */
-  if (alter_info->error_if_not_empty && thd->row_count)
+  if (alter_info->error_if_not_empty &&
+      thd->warning_info->current_row_for_warning())
   {
     const char *f_val= 0;
     enum enum_mysql_timestamp_type t_type= MYSQL_TIMESTAMP_DATE;
@@ -7463,7 +7464,7 @@ err:
     }
     bool save_abort_on_warning= thd->abort_on_warning;
     thd->abort_on_warning= TRUE;
-    make_truncated_value_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+    make_truncated_value_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                                  f_val, strlength(f_val), t_type,
                                  alter_info->datetime_field->field_name);
     thd->abort_on_warning= save_abort_on_warning;
@@ -7610,7 +7611,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   init_read_record(&info, thd, from, (SQL_SELECT *) 0, 1, 1, FALSE);
   if (ignore)
     to->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
-  thd->row_count= 0;
+  thd->warning_info->reset_current_row_for_warning();
   restore_record(to, s->default_values);        // Create empty record
   while (!(error=info.read_record(&info)))
   {
@@ -7620,7 +7621,6 @@ copy_data_between_tables(TABLE *from,TABLE *to,
       error= 1;
       break;
     }
-    thd->row_count++;
     /* Return error if source table isn't empty. */
     if (error_if_not_empty)
     {
@@ -7670,6 +7670,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     }
     else
       found_count++;
+    thd->warning_info->inc_current_row_for_warning();
   }
   end_read_record(&info);
   free_io_cache(from);

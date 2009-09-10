@@ -2,7 +2,7 @@ drop table if exists t1,t2;
 create table t1 (a int) engine=myisam;
 drop table if exists t1;
 Warnings:
-Error	2	Can't find file: 't1' (errno: 2)
+Warning	2	Can't find file: 't1' (errno: 2)
 create table t1 (a int) engine=myisam;
 drop table t1;
 Got one of the listed errors

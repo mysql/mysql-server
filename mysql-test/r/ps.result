@@ -2748,17 +2748,21 @@ Warnings:
 Note	1051	Unknown table 't1'
 call proc_1();
 Level	Code	Message
+Note	1051	Unknown table 't1'
 drop table if exists t2;
 Warnings:
 Note	1051	Unknown table 't2'
 call proc_1();
 Level	Code	Message
+Note	1051	Unknown table 't2'
 drop table if exists t1, t2;
 Warnings:
 Note	1051	Unknown table 't1'
 Note	1051	Unknown table 't2'
 call proc_1();
 Level	Code	Message
+Note	1051	Unknown table 't1'
+Note	1051	Unknown table 't2'
 drop procedure proc_1;
 create function func_1() returns int begin show warnings; return 1; end|
 ERROR 0A000: Not allowed to return a result set from a function

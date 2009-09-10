@@ -112,7 +112,7 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
 
   /* Clear result variables */
   thd->clear_error();
-  thd->main_da.reset_diagnostics_area();
+  thd->stmt_da->reset_diagnostics_area();
   mysql->affected_rows= ~(my_ulonglong) 0;
   mysql->field_count= 0;
   net_clear_error(net);
@@ -217,7 +217,7 @@ static my_bool emb_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
   stmt->stmt_id= thd->client_stmt_id;
   stmt->param_count= thd->client_param_count;
   stmt->field_count= 0;
-  mysql->warning_count= thd->total_warn_count;
+  mysql->warning_count= thd->warning_info->statement_warn_count();
 
   if (thd->first_data)
   {
@@ -402,7 +402,7 @@ static void emb_free_embedded_thd(MYSQL *mysql)
 static const char * emb_read_statistics(MYSQL *mysql)
 {
   THD *thd= (THD*)mysql->thd;
-  return thd->is_error() ? thd->main_da.message() : "";
+  return thd->is_error() ? thd->stmt_da->message() : "";
 }
 
 
@@ -703,9 +703,10 @@ int check_embedded_connection(MYSQL *mysql, const char *db)
 err:
   {
     NET *net= &mysql->net;
-    strmake(net->last_error, thd->main_da.message(), sizeof(net->last_error)-1);
+    strmake(net->last_error, thd->stmt_da->message(),
+            sizeof(net->last_error)-1);
     memcpy(net->sqlstate,
-           mysql_errno_to_sqlstate(thd->main_da.sql_errno()),
+           mysql_errno_to_sqlstate(thd->stmt_da->sql_errno()),
            sizeof(net->sqlstate)-1);
   }
   return result;
@@ -729,8 +730,8 @@ void THD::clear_data_list()
 
 void THD::clear_error()
 {
-  if (main_da.is_error())
-    main_da.reset_diagnostics_area();
+  if (stmt_da->is_error())
+    stmt_da->reset_diagnostics_area();
 }
 
 static char *dup_str_aux(MEM_ROOT *root, const char *from, uint length,
@@ -804,7 +805,7 @@ MYSQL_DATA *THD::alloc_new_dataset()
 
 static
 bool
-write_eof_packet(THD *thd, uint server_status, uint total_warn_count)
+write_eof_packet(THD *thd, uint server_status, uint statement_warn_count)
 {
   if (!thd->mysql)            // bootstrap file handling
     return FALSE;
@@ -821,7 +822,7 @@ write_eof_packet(THD *thd, uint server_status, uint total_warn_count)
     is cleared between substatements, and mysqltest gets confused
   */
   thd->cur_data->embedded_info->warning_count=
-    (thd->spcont ? 0 : min(total_warn_count, 65535));
+    (thd->spcont ? 0 : min(statement_warn_count, 65535));
   return FALSE;
 }
 
@@ -978,7 +979,8 @@ bool Protocol::send_fields(List<Item> *list, uint flags)
   }
 
   if (flags & SEND_EOF)
-    write_eof_packet(thd, thd->server_status, thd->total_warn_count);
+    write_eof_packet(thd, thd->server_status,
+                     thd->warning_info->statement_warn_count());
 
   DBUG_RETURN(prepare_for_send(list));
  err:
@@ -1040,25 +1042,24 @@ bool Protocol_binary::write()
 
 bool
 net_send_ok(THD *thd,
-            uint server_status, uint total_warn_count,
-            ha_rows affected_rows, ulonglong id, const char *message)
+            uint server_status, uint statement_warn_count,
+            ulonglong affected_rows, ulonglong id, const char *message)
 {
   DBUG_ENTER("emb_net_send_ok");
   MYSQL_DATA *data;
-  bool error;
   MYSQL *mysql= thd->mysql;
 
   if (!mysql)            // bootstrap file handling
     DBUG_RETURN(FALSE);
   if (!(data= thd->alloc_new_dataset()))
-    return TRUE;
+    DBUG_RETURN(TRUE);
   data->embedded_info->affected_rows= affected_rows;
   data->embedded_info->insert_id= id;
   if (message)
     strmake(data->embedded_info->info, message,
             sizeof(data->embedded_info->info)-1);
 
-  error= write_eof_packet(thd, server_status, total_warn_count);
+  bool error= write_eof_packet(thd, server_status, statement_warn_count);
   thd->cur_data= 0;
   DBUG_RETURN(error);
 }
@@ -1075,15 +1076,16 @@ net_send_ok(THD *thd,
 */
 
 bool
-net_send_eof(THD *thd, uint server_status, uint total_warn_count)
+net_send_eof(THD *thd, uint server_status, uint statement_warn_count)
 {
-  bool error= write_eof_packet(thd, server_status, total_warn_count);
+  bool error= write_eof_packet(thd, server_status, statement_warn_count);
   thd->cur_data= 0;
   return error;
 }
 
 
-bool net_send_error_packet(THD *thd, uint sql_errno, const char *err)
+bool net_send_error_packet(THD *thd, uint sql_errno, const char *err,
+                           const char *sqlstate)
 {
   MYSQL_DATA *data= thd->cur_data;
   struct embedded_query_result *ei;
@@ -1100,7 +1102,7 @@ bool net_send_error_packet(THD *thd, uint sql_errno, const char *err)
   ei= data->embedded_info;
   ei->last_errno= sql_errno;
   strmake(ei->info, err, sizeof(ei->info)-1);
-  strmov(ei->sqlstate, mysql_errno_to_sqlstate(sql_errno));
+  strmov(ei->sqlstate, sqlstate);
   ei->server_status= thd->server_status;
   thd->cur_data= 0;
   return FALSE;

@@ -78,7 +78,7 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
 
     if (simple_open_n_lock_tables(thd, rli->tables_to_lock))
     {
-      uint actual_error= thd->main_da.sql_errno();
+      uint actual_error= thd->stmt_da->sql_errno();
       if (thd->is_slave_error || thd->is_fatal_error)
       {
         /*
@@ -87,7 +87,7 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
         */
         rli->report(ERROR_LEVEL, actual_error,
                     "Error '%s' on opening tables",
-                    (actual_error ? thd->main_da.message() :
+                    (actual_error ? thd->stmt_da->message() :
                      "unexpected success or fatal error"));
         thd->is_slave_error= 1;
       }
@@ -216,10 +216,10 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
   break;
 
       default:
-  rli->report(ERROR_LEVEL, thd->main_da.sql_errno(),
+  rli->report(ERROR_LEVEL, thd->stmt_da->sql_errno(),
                     "Error in %s event: row application failed. %s",
                     ev->get_type_str(),
-                    thd->is_error() ? thd->main_da.message() : "");
+                    thd->is_error() ? thd->stmt_da->message() : "");
   thd->is_slave_error= 1;
   break;
       }
@@ -245,12 +245,12 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
 
   if (error)
   {                     /* error has occured during the transaction */
-    rli->report(ERROR_LEVEL, thd->main_da.sql_errno(),
+    rli->report(ERROR_LEVEL, thd->stmt_da->sql_errno(),
                 "Error in %s event: error during transaction execution "
                 "on table %s.%s. %s",
                 ev->get_type_str(), table->s->db.str,
                 table->s->table_name.str,
-                thd->is_error() ? thd->main_da.message() : "");
+                thd->is_error() ? thd->stmt_da->message() : "");
 
     /*
       If one day we honour --skip-slave-errors in row-based replication, and

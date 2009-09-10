@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright (C) 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -199,19 +199,6 @@ bool foreign_key_prefix(Key *a, Key *b)
 ** Thread specific functions
 ****************************************************************************/
 
-/** Push an error to the error stack and return TRUE for now. */
-
-bool
-Reprepare_observer::report_error(THD *thd)
-{
-  my_error(ER_NEED_REPREPARE, MYF(ME_NO_WARNING_FOR_ERROR|ME_NO_SP_HANDLER));
-
-  m_invalidated= TRUE;
-
-  return TRUE;
-}
-
-
 Open_tables_state::Open_tables_state(ulong version_arg)
   :version(version_arg), state_flags(0U)
 {
@@ -304,7 +291,7 @@ int thd_tx_isolation(const THD *thd)
 extern "C"
 void thd_inc_row_count(THD *thd)
 {
-  thd->row_count++;
+  thd->warning_info->inc_current_row_for_warning();
 }
 
 
@@ -399,139 +386,6 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
   return buffer;
 }
 
-/**
-  Clear this diagnostics area. 
-
-  Normally called at the end of a statement.
-*/
-
-void
-Diagnostics_area::reset_diagnostics_area()
-{
-#ifdef DBUG_OFF
-  can_overwrite_status= FALSE;
-  /** Don't take chances in production */
-  m_message[0]= '\0';
-  m_sql_errno= 0;
-  m_server_status= 0;
-  m_affected_rows= 0;
-  m_last_insert_id= 0;
-  m_total_warn_count= 0;
-#endif
-  is_sent= FALSE;
-  /** Tiny reset in debug mode to see garbage right away */
-  m_status= DA_EMPTY;
-}
-
-
-/**
-  Set OK status -- ends commands that do not return a
-  result set, e.g. INSERT/UPDATE/DELETE.
-*/
-
-void
-Diagnostics_area::set_ok_status(THD *thd, ha_rows affected_rows_arg,
-                                ulonglong last_insert_id_arg,
-                                const char *message_arg)
-{
-  DBUG_ASSERT(! is_set());
-#ifdef DBUG_OFF
-  /*
-    In production, refuse to overwrite an error or a custom response
-    with an OK packet.
-  */
-  if (is_error() || is_disabled())
-    return;
-#endif
-  /** Only allowed to report success if has not yet reported an error */
-
-  m_server_status= thd->server_status;
-  m_total_warn_count= thd->total_warn_count;
-  m_affected_rows= affected_rows_arg;
-  m_last_insert_id= last_insert_id_arg;
-  if (message_arg)
-    strmake(m_message, message_arg, sizeof(m_message) - 1);
-  else
-    m_message[0]= '\0';
-  m_status= DA_OK;
-}
-
-
-/**
-  Set EOF status.
-*/
-
-void
-Diagnostics_area::set_eof_status(THD *thd)
-{
-  /** Only allowed to report eof if has not yet reported an error */
-
-  DBUG_ASSERT(! is_set());
-#ifdef DBUG_OFF
-  /*
-    In production, refuse to overwrite an error or a custom response
-    with an EOF packet.
-  */
-  if (is_error() || is_disabled())
-    return;
-#endif
-
-  m_server_status= thd->server_status;
-  /*
-    If inside a stored procedure, do not return the total
-    number of warnings, since they are not available to the client
-    anyway.
-  */
-  m_total_warn_count= thd->spcont ? 0 : thd->total_warn_count;
-
-  m_status= DA_EOF;
-}
-
-/**
-  Set ERROR status.
-*/
-
-void
-Diagnostics_area::set_error_status(THD *thd, uint sql_errno_arg,
-                                   const char *message_arg)
-{
-  /*
-    Only allowed to report error if has not yet reported a success
-    The only exception is when we flush the message to the client,
-    an error can happen during the flush.
-  */
-  DBUG_ASSERT(! is_set() || can_overwrite_status);
-#ifdef DBUG_OFF
-  /*
-    In production, refuse to overwrite a custom response with an
-    ERROR packet.
-  */
-  if (is_disabled())
-    return;
-#endif
-
-  m_sql_errno= sql_errno_arg;
-  strmake(m_message, message_arg, sizeof(m_message) - 1);
-
-  m_status= DA_ERROR;
-}
-
-
-/**
-  Mark the diagnostics area as 'DISABLED'.
-
-  This is used in rare cases when the COM_ command at hand sends a response
-  in a custom format. One example is the query cache, another is
-  COM_STMT_PREPARE.
-*/
-
-void
-Diagnostics_area::disable_status()
-{
-  DBUG_ASSERT(! is_set());
-  m_status= DA_DISABLED;
-}
-
 
 THD::THD()
    :Statement(&main_lex, &main_mem_root, CONVENTIONAL_EXECUTION,
@@ -548,6 +402,8 @@ THD::THD()
    first_successful_insert_id_in_cur_stmt(0),
    stmt_depends_on_first_successful_insert_id_in_prev_stmt(FALSE),
    examined_row_count(0),
+   warning_info(&main_warning_info),
+   stmt_da(&main_da),
    global_read_lock(0),
    is_fatal_error(0),
    transaction_rollback_request(0),
@@ -558,7 +414,8 @@ THD::THD()
    bootstrap(0),
    derived_tables_processing(FALSE),
    spcont(NULL),
-   m_parser_state(NULL)
+   m_parser_state(NULL),
+   main_warning_info(0)
 {
   ulong tmp;
 
@@ -582,7 +439,8 @@ THD::THD()
   hash_clear(&handler_tables_hash);
   tmp_table=0;
   used_tables=0;
-  cuted_fields= sent_row_count= row_count= 0L;
+  cuted_fields= 0L;
+  sent_row_count= 0L;
   limit_found_rows= 0;
   row_count_func= -1;
   statement_id_counter= 0UL;
@@ -602,7 +460,6 @@ THD::THD()
   file_id = 0;
   query_id= 0;
   query_name_consts= 0;
-  warn_id= 0;
   db_charset= global_system_variables.collation_database;
   bzero(ha_data, sizeof(ha_data));
   mysys_var=0;
@@ -638,8 +495,6 @@ THD::THD()
   *scramble= '\0';
 
   init();
-  /* Initialize sub structures */
-  init_sql_alloc(&warn_root, WARN_ALLOC_BLOCK_SIZE, WARN_ALLOC_PREALLOC_SIZE);
 #if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
   profiling.set_thd(this);
 #endif
@@ -687,19 +542,27 @@ void THD::push_internal_handler(Internal_error_handler *handler)
   }
 }
 
-
-bool THD::handle_error(uint sql_errno, const char *message,
-                       MYSQL_ERROR::enum_warning_level level)
+bool THD::handle_condition(uint sql_errno,
+                           const char* sqlstate,
+                           MYSQL_ERROR::enum_warning_level level,
+                           const char* msg,
+                           MYSQL_ERROR ** cond_hdl)
 {
   if (!m_internal_handler)
+  {
+    *cond_hdl= NULL;
     return FALSE;
+  }
 
   for (Internal_error_handler *error_handler= m_internal_handler;
        error_handler;
        error_handler= m_internal_handler->m_prev_internal_handler)
   {
-    if (error_handler->handle_error(sql_errno, message, level, this))
-    return TRUE;
+    if (error_handler-> handle_condition(this, sql_errno, sqlstate, level, msg,
+                                         cond_hdl))
+    {
+      return TRUE;
+    }
   }
 
   return FALSE;
@@ -712,6 +575,207 @@ void THD::pop_internal_handler()
   m_internal_handler= m_internal_handler->m_prev_internal_handler;
 }
 
+
+void THD::raise_error(uint sql_errno)
+{
+  const char* msg= ER(sql_errno);
+  (void) raise_condition(sql_errno,
+                         NULL,
+                         MYSQL_ERROR::WARN_LEVEL_ERROR,
+                         msg);
+}
+
+void THD::raise_error_printf(uint sql_errno, ...)
+{
+  va_list args;
+  char ebuff[MYSQL_ERRMSG_SIZE];
+  DBUG_ENTER("THD::raise_error_printf");
+  DBUG_PRINT("my", ("nr: %d  errno: %d", sql_errno, errno));
+  const char* format= ER(sql_errno);
+  va_start(args, sql_errno);
+  my_vsnprintf(ebuff, sizeof(ebuff), format, args);
+  va_end(args);
+  (void) raise_condition(sql_errno,
+                         NULL,
+                         MYSQL_ERROR::WARN_LEVEL_ERROR,
+                         ebuff);
+  DBUG_VOID_RETURN;
+}
+
+void THD::raise_warning(uint sql_errno)
+{
+  const char* msg= ER(sql_errno);
+  (void) raise_condition(sql_errno,
+                         NULL,
+                         MYSQL_ERROR::WARN_LEVEL_WARN,
+                         msg);
+}
+
+void THD::raise_warning_printf(uint sql_errno, ...)
+{
+  va_list args;
+  char    ebuff[MYSQL_ERRMSG_SIZE];
+  DBUG_ENTER("THD::raise_warning_printf");
+  DBUG_PRINT("enter", ("warning: %u", sql_errno));
+  const char* format= ER(sql_errno);
+  va_start(args, sql_errno);
+  my_vsnprintf(ebuff, sizeof(ebuff), format, args);
+  va_end(args);
+  (void) raise_condition(sql_errno,
+                         NULL,
+                         MYSQL_ERROR::WARN_LEVEL_WARN,
+                         ebuff);
+  DBUG_VOID_RETURN;
+}
+
+void THD::raise_note(uint sql_errno)
+{
+  DBUG_ENTER("THD::raise_note");
+  DBUG_PRINT("enter", ("code: %d", sql_errno));
+  if (!(this->options & OPTION_SQL_NOTES))
+    DBUG_VOID_RETURN;
+  const char* msg= ER(sql_errno);
+  (void) raise_condition(sql_errno,
+                         NULL,
+                         MYSQL_ERROR::WARN_LEVEL_NOTE,
+                         msg);
+  DBUG_VOID_RETURN;
+}
+
+void THD::raise_note_printf(uint sql_errno, ...)
+{
+  va_list args;
+  char    ebuff[MYSQL_ERRMSG_SIZE];
+  DBUG_ENTER("THD::raise_note_printf");
+  DBUG_PRINT("enter",("code: %u", sql_errno));
+  if (!(this->options & OPTION_SQL_NOTES))
+    DBUG_VOID_RETURN;
+  const char* format= ER(sql_errno);
+  va_start(args, sql_errno);
+  my_vsnprintf(ebuff, sizeof(ebuff), format, args);
+  va_end(args);
+  (void) raise_condition(sql_errno,
+                         NULL,
+                         MYSQL_ERROR::WARN_LEVEL_NOTE,
+                         ebuff);
+  DBUG_VOID_RETURN;
+}
+
+MYSQL_ERROR* THD::raise_condition(uint sql_errno,
+                                  const char* sqlstate,
+                                  MYSQL_ERROR::enum_warning_level level,
+                                  const char* msg)
+{
+  MYSQL_ERROR *cond= NULL;
+  DBUG_ENTER("THD::raise_condition");
+
+  if (!(this->options & OPTION_SQL_NOTES) &&
+      (level == MYSQL_ERROR::WARN_LEVEL_NOTE))
+    DBUG_RETURN(NULL);
+
+  warning_info->opt_clear_warning_info(query_id);
+
+  /*
+    TODO: replace by DBUG_ASSERT(sql_errno != 0) once all bugs similar to
+    Bug#36768 are fixed: a SQL condition must have a real (!=0) error number
+    so that it can be caught by handlers.
+  */
+  if (sql_errno == 0)
+    sql_errno= ER_UNKNOWN_ERROR;
+  if (msg == NULL)
+    msg= ER(sql_errno);
+  if (sqlstate == NULL)
+   sqlstate= mysql_errno_to_sqlstate(sql_errno);
+
+  if ((level == MYSQL_ERROR::WARN_LEVEL_WARN) &&
+      really_abort_on_warning())
+  {
+    /*
+      FIXME:
+      push_warning and strict SQL_MODE case.
+    */
+    level= MYSQL_ERROR::WARN_LEVEL_ERROR;
+    killed= THD::KILL_BAD_DATA;
+  }
+
+  switch (level)
+  {
+  case MYSQL_ERROR::WARN_LEVEL_NOTE:
+  case MYSQL_ERROR::WARN_LEVEL_WARN:
+    got_warning= 1;
+    break;
+  case MYSQL_ERROR::WARN_LEVEL_ERROR:
+    break;
+  default:
+    DBUG_ASSERT(FALSE);
+  }
+
+  if (handle_condition(sql_errno, sqlstate, level, msg, &cond))
+    DBUG_RETURN(cond);
+
+  if (level == MYSQL_ERROR::WARN_LEVEL_ERROR)
+  {
+    is_slave_error=  1; // needed to catch query errors during replication
+
+    /*
+      thd->lex->current_select == 0 if lex structure is not inited
+      (not query command (COM_QUERY))
+    */
+    if (lex->current_select &&
+        lex->current_select->no_error && !is_fatal_error)
+    {
+      DBUG_PRINT("error",
+                 ("Error converted to warning: current_select: no_error %d  "
+                  "fatal_error: %d",
+                  (lex->current_select ?
+                   lex->current_select->no_error : 0),
+                  (int) is_fatal_error));
+    }
+    else
+    {
+      if (! stmt_da->is_error())
+        stmt_da->set_error_status(this, sql_errno, msg, sqlstate);
+    }
+  }
+
+  /*
+    If a continue handler is found, the error message will be cleared
+    by the stored procedures code.
+  */
+  if (!is_fatal_error && spcont &&
+      spcont->handle_condition(this, sql_errno, sqlstate, level, msg, &cond))
+  {
+    /*
+      Do not push any warnings, a handled error must be completely
+      silenced.
+    */
+    DBUG_RETURN(cond);
+  }
+
+  /* Un-handled conditions */
+
+  cond= raise_condition_no_handler(sql_errno, sqlstate, level, msg);
+  DBUG_RETURN(cond);
+}
+
+MYSQL_ERROR*
+THD::raise_condition_no_handler(uint sql_errno,
+                                const char* sqlstate,
+                                MYSQL_ERROR::enum_warning_level level,
+                                const char* msg)
+{
+  MYSQL_ERROR *cond= NULL;
+  DBUG_ENTER("THD::raise_condition_no_handler");
+
+  query_cache_abort(& net);
+
+  /* FIXME: broken special case */
+  if (no_warnings_for_error && (level == MYSQL_ERROR::WARN_LEVEL_ERROR))
+    DBUG_RETURN(NULL);
+
+  cond= warning_info->push_warning(this, sql_errno, sqlstate, level, msg);
+  DBUG_RETURN(cond);
+}
 extern "C"
 void *thd_alloc(MYSQL_THD thd, unsigned int size)
 {
@@ -800,9 +864,6 @@ void THD::init(void)
 			TL_WRITE_LOW_PRIORITY :
 			TL_WRITE);
   session_tx_isolation= (enum_tx_isolation) variables.tx_isolation;
-  warn_list.empty();
-  bzero((char*) warn_count, sizeof(warn_count));
-  total_warn_count= 0;
   update_charset();
   reset_current_stmt_binlog_row_based();
   bzero((char *) &status_var, sizeof(status_var));
@@ -940,7 +1001,6 @@ THD::~THD()
   DBUG_PRINT("info", ("freeing security context"));
   main_security_ctx.destroy();
   safeFree(db);
-  free_root(&warn_root,MYF(0));
 #ifdef USING_TRANSACTIONS
   free_root(&transaction.mem_root,MYF(0));
 #endif
@@ -1543,21 +1603,19 @@ bool select_send::send_fields(List<Item> &list, uint flags)
 void select_send::abort()
 {
   DBUG_ENTER("select_send::abort");
-  if (is_result_set_started && thd->spcont &&
-      thd->spcont->find_handler(thd, thd->main_da.sql_errno(),
-                                MYSQL_ERROR::WARN_LEVEL_ERROR))
+
+  if (is_result_set_started && thd->spcont)
   {
     /*
       We're executing a stored procedure, have an open result
-      set, an SQL exception condition and a handler for it.
-      In this situation we must abort the current statement,
-      silence the error and start executing the continue/exit
-      handler.
+      set and an SQL exception condition. In this situation we
+      must abort the current statement, silence the error and
+      start executing the continue/exit handler if one is found.
       Before aborting the statement, let's end the open result set, as
       otherwise the client will hang due to the violation of the
       client/server protocol.
     */
-    thd->protocol->end_partial_result_set(thd);
+    thd->spcont->end_partial_result_set= TRUE;
   }
   DBUG_VOID_RETURN;
 }

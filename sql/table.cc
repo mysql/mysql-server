@@ -1262,7 +1262,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
                       "Please do \"ALTER TABLE '%s' FORCE\" to fix it!",
                       share->fieldnames.type_names[i], share->table_name.str,
                       share->table_name.str);
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                           ER_CRASHED_ON_USAGE,
                           "Found incompatible DECIMAL field '%s' in %s; "
                           "Please do \"ALTER TABLE '%s' FORCE\" to fix it!",
@@ -1464,7 +1464,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
                             "Please do \"ALTER TABLE '%s' FORCE \" to fix it!",
                             share->table_name.str,
                             share->table_name.str);
-            push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+            push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                                 ER_CRASHED_ON_USAGE,
                                 "Found wrong key definition in %s; "
                                 "Please do \"ALTER TABLE '%s' FORCE\" to fix "
@@ -3351,20 +3351,20 @@ void TABLE_LIST::hide_view_error(THD *thd)
   /* Hide "Unknown column" or "Unknown function" error */
   DBUG_ASSERT(thd->is_error());
 
-  if (thd->main_da.sql_errno() == ER_BAD_FIELD_ERROR ||
-      thd->main_da.sql_errno() == ER_SP_DOES_NOT_EXIST ||
-      thd->main_da.sql_errno() == ER_FUNC_INEXISTENT_NAME_COLLISION ||
-      thd->main_da.sql_errno() == ER_PROCACCESS_DENIED_ERROR ||
-      thd->main_da.sql_errno() == ER_COLUMNACCESS_DENIED_ERROR ||
-      thd->main_da.sql_errno() == ER_TABLEACCESS_DENIED_ERROR ||
-      thd->main_da.sql_errno() == ER_TABLE_NOT_LOCKED ||
-      thd->main_da.sql_errno() == ER_NO_SUCH_TABLE)
+  if (thd->stmt_da->sql_errno() == ER_BAD_FIELD_ERROR ||
+      thd->stmt_da->sql_errno() == ER_SP_DOES_NOT_EXIST ||
+      thd->stmt_da->sql_errno() == ER_FUNC_INEXISTENT_NAME_COLLISION ||
+      thd->stmt_da->sql_errno() == ER_PROCACCESS_DENIED_ERROR ||
+      thd->stmt_da->sql_errno() == ER_COLUMNACCESS_DENIED_ERROR ||
+      thd->stmt_da->sql_errno() == ER_TABLEACCESS_DENIED_ERROR ||
+      thd->stmt_da->sql_errno() == ER_TABLE_NOT_LOCKED ||
+      thd->stmt_da->sql_errno() == ER_NO_SUCH_TABLE)
   {
     TABLE_LIST *top= top_table();
     thd->clear_error();
     my_error(ER_VIEW_INVALID, MYF(0), top->view_db.str, top->view_name.str);
   }
-  else if (thd->main_da.sql_errno() == ER_NO_DEFAULT_FOR_FIELD)
+  else if (thd->stmt_da->sql_errno() == ER_NO_DEFAULT_FOR_FIELD)
   {
     TABLE_LIST *top= top_table();
     thd->clear_error();
@@ -3442,7 +3442,7 @@ int TABLE_LIST::view_check_option(THD *thd, bool ignore_failure)
     TABLE_LIST *main_view= top_table();
     if (ignore_failure)
     {
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                           ER_VIEW_CHECK_FAILED, ER(ER_VIEW_CHECK_FAILED),
                           main_view->view_db.str, main_view->view_name.str);
       return(VIEW_CHECK_SKIP);

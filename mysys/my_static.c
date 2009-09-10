@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -87,9 +87,9 @@ ulong my_time_to_wait_for_lock=2;	/* In seconds */
 char * NEAR globerrs[GLOBERRS];		/* my_error_messages is here */
 #endif
 void (*my_abort_hook)(int) = (void(*)(int)) exit;
-int (*error_handler_hook)(uint error,const char *str,myf MyFlags)=
+void (*error_handler_hook)(uint error,const char *str,myf MyFlags)=
     my_message_no_curses;
-int (*fatal_error_handler_hook)(uint error,const char *str,myf MyFlags)=
+void (*fatal_error_handler_hook)(uint error,const char *str,myf MyFlags)=
   my_message_no_curses;
 
 #ifdef __WIN__
