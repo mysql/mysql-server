@@ -586,9 +586,9 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
                 curr_num_bytes = (hpk_space > curr_num_bytes) ? 0 : curr_num_bytes - hpk_space;
             }
             else {
-				//
-				// one infinity byte per key needs to be subtracted
-				//
+                //
+                // one infinity byte per key needs to be subtracted
+                //
                 u_int64_t inf_byte_space = dict_stats.bt_ndata;
                 curr_num_bytes = (inf_byte_space > curr_num_bytes) ? 0 : curr_num_bytes - inf_byte_space;
             }
