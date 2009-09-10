@@ -1061,12 +1061,13 @@ public:
 
     virtual int backup(TD* thd, HA_CHECK_OPT *check_opt);
     virtual int restore(THD* thd, HA_CHECK_OPT *check_opt);
-    virtual int assign_to_keycache(THD* thd, HA_CHECK_OPT *check_opt);
-    virtual int preload_keys(THD *thd, HA_CHECK_OPT *check_opt);
     virtual int dump(THD* thd, int fd = -1);
     virtual int net_read_dump(NET* net);
     virtual uint checksum() const;
   */
+  /* Enabled keycache for performance reasons, WL#4571 */
+    virtual int assign_to_keycache(THD* thd, HA_CHECK_OPT *check_opt);
+    virtual int preload_keys(THD* thd, HA_CHECK_OPT* check_opt);
 
   /*
     -------------------------------------------------------------------------
