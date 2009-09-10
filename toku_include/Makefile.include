@@ -359,7 +359,6 @@ clean-default:
 	rm -f *.exe *.obj *.pdb *.ilk
 	rm -f *.exe.manifest *.dll.manifest
 	rm -rf *.bundle
-	rm -rf TAGS
 
 
 #Prevent using the wrong extensions/target types (Otherwise prereqs get confused).
