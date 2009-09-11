@@ -62,8 +62,8 @@ int my_sync(File fd, myf my_flags)
     res= fdatasync(fd);
 #elif defined(HAVE_FSYNC)
     res= fsync(fd);
-#elif defined(__WIN__)
-    res= _commit(fd);
+#elif defined(_WIN32)
+    res= my_win_fsync(fd);
 #else
 #error Cannot find a way to sync a file, durability in danger
     res= 0;					/* No sync (strange OS) */
