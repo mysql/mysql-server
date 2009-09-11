@@ -24,18 +24,6 @@ CREATE TABLE `Ｔ９` (`Ｃ１` char(20), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf
 CREATE TABLE `Ｔ１０` (`Ｃ１` char(20), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = bdb;
 CREATE TABLE `Ｔ１１` (`Ｃ１` char(20), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = bdb;
 CREATE TABLE `Ｔ１２` (`Ｃ１` char(20), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = bdb;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_utf8.dat' INTO TABLE `Ｔ１`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_utf8.dat' INTO TABLE `Ｔ２`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0212_utf8.dat' INTO TABLE `Ｔ３`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_utf8.dat' INTO TABLE `Ｔ４`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_utf8.dat' INTO TABLE `Ｔ５`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0212_utf8.dat' INTO TABLE `Ｔ６`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_utf8.dat' INTO TABLE `Ｔ７`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_utf8.dat' INTO TABLE `Ｔ８`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0212_utf8.dat' INTO TABLE `Ｔ９`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_utf8.dat' INTO TABLE `Ｔ１０`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_utf8.dat' INTO TABLE `Ｔ１１`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0212_utf8.dat' INTO TABLE `Ｔ１２`;
 SELECT * FROM `Ｔ１` WHERE `Ｃ１` = 'ｰｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿ';
 Ｃ１
 ｰｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿ

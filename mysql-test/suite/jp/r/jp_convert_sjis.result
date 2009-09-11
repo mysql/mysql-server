@@ -24,18 +24,6 @@ CREATE TABLE `‚s‚X` (`‚b‚P` char(20), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engi
 CREATE TABLE `‚s‚P‚O` (`‚b‚P` char(20), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = bdb;
 CREATE TABLE `‚s‚P‚P` (`‚b‚P` char(20), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = bdb;
 CREATE TABLE `‚s‚P‚Q` (`‚b‚P` char(20), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = bdb;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_sjis.dat' INTO TABLE `‚s‚P`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis.dat' INTO TABLE `‚s‚Q`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis2.dat' INTO TABLE `‚s‚R`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_sjis.dat' INTO TABLE `‚s‚S`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis.dat' INTO TABLE `‚s‚T`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis2.dat' INTO TABLE `‚s‚U`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_sjis.dat' INTO TABLE `‚s‚V`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis.dat' INTO TABLE `‚s‚W`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis2.dat' INTO TABLE `‚s‚X`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_sjis.dat' INTO TABLE `‚s‚P‚O`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis.dat' INTO TABLE `‚s‚P‚P`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis2.dat' INTO TABLE `‚s‚P‚Q`;
 SELECT `‚b‚P`, CONVERT(`‚b‚P` using utf8) FROM `‚s‚P`;
 ‚b‚P	CONVERT(`‚b‚P` using utf8)
  !"#$%&'()*+,-./	 !"#$%&'()*+,-./
