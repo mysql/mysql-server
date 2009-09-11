@@ -13362,6 +13362,7 @@ void Dblqh::execFSCLOSECONF(Signal* signal)
   jamEntry();
   logFilePtr.i = signal->theData[0];
   ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
+  logFilePtr.p->fileRef = RNIL;
 
   if (DEBUG_REDO)
   {
@@ -13373,14 +13374,24 @@ void Dblqh::execFSCLOSECONF(Signal* signal)
   }
 
   switch (logFilePtr.p->logFileStatus) {
-  case LogFileRecord::CLOSE_SR_INVALIDATE_PAGES:
+  case LogFileRecord::CLOSE_SR_READ_INVALIDATE_PAGES:
     jam();
     logFilePtr.p->logFileStatus = LogFileRecord::CLOSED;
 
     logPartPtr.i = logFilePtr.p->logPartRec;
     ptrCheckGuard(logPartPtr, clogPartFileSize, logPartRecord);
 
-    exitFromInvalidate(signal);
+    readFileInInvalidate(signal, 2);
+    return;
+
+  case LogFileRecord::CLOSE_SR_WRITE_INVALIDATE_PAGES:
+    jam();
+    logFilePtr.p->logFileStatus = LogFileRecord::CLOSED;
+
+    logPartPtr.i = logFilePtr.p->logPartRec;
+    ptrCheckGuard(logPartPtr, clogPartFileSize, logPartRecord);
+
+    writeFileInInvalidate(signal, 1);
     return;
   case LogFileRecord::CLOSING_INIT:
     jam();
@@ -13423,10 +13434,15 @@ void Dblqh::execFSOPENCONF(Signal* signal)
   jamEntry();
   initFsopenconf(signal);
   switch (logFilePtr.p->logFileStatus) {
-  case LogFileRecord::OPEN_SR_INVALIDATE_PAGES:
+  case LogFileRecord::OPEN_SR_READ_INVALIDATE_PAGES:
     jam();
     logFilePtr.p->logFileStatus = LogFileRecord::OPEN;
-    readFileInInvalidate(signal, false);
+    readFileInInvalidate(signal, 0);
+    return;
+  case LogFileRecord::OPEN_SR_WRITE_INVALIDATE_PAGES:
+    jam();
+    logFilePtr.p->logFileStatus = LogFileRecord::OPEN;
+    writeFileInInvalidate(signal, 0);
     return;
   case LogFileRecord::OPENING_INIT:
     jam();
@@ -14871,11 +14887,15 @@ void Dblqh::writeSinglePage(Signal* signal, Uint32 pageNo,
   signal->theData[7] = pageNo;
   sendSignal(NDBFS_REF, GSN_FSWRITEREQ, signal, 8, JBA);
 
+  ndbrequire(logFilePtr.p->fileRef != RNIL);
+
   if (DEBUG_REDO)
+  {
     ndbout_c("writeSingle 1 page at part: %u file: %u pos: %u",
-	     logPartPtr.p->logPartNo,
-	     logFilePtr.p->fileNo,
-	     pageNo);
+             logPartPtr.i,
+             logFilePtr.p->fileNo,
+             pageNo);
+  }
 }//Dblqh::writeSinglePage()
 
 /* ##########################################################################
@@ -14942,11 +14962,13 @@ void Dblqh::readSrLastFileLab(Signal* signal)
 {
   logPartPtr.p->logLap = logPagePtr.p->logPageWord[ZPOS_LOG_LAP];
   if (DEBUG_REDO)
+  {
     ndbout_c("readSrLastFileLab part: %u logExecState: %u logPartState: %u logLap: %u",
-             logPartPtr.p->logPartNo,
- 	     logPartPtr.p->logExecState,
- 	     logPartPtr.p->logPartState,
- 	     logPartPtr.p->logLap);
+             logPartPtr.i,
+             logPartPtr.p->logExecState,
+             logPartPtr.p->logPartState,
+             logPartPtr.p->logLap);
+  }
   if (logPartPtr.p->noLogFiles > cmaxLogFilesInPageZero) {
     jam();
     initGciInLogFileRec(signal, cmaxLogFilesInPageZero);
@@ -16486,11 +16508,13 @@ void Dblqh::execSr(Signal* signal)
       jam();
       logWord = readLogword(signal);
       if (DEBUG_REDO)
-	ndbout_c("found gci: %u part: %u file: %u page: %u",
-		 logWord,
-		 logPartPtr.p->logPartNo,
-		 logFilePtr.p->fileNo,
-		 logFilePtr.p->currentFilepage);
+      {
+        ndbout_c("found gci: %u part: %u file: %u page: %u",
+                 logWord,
+                 logPartPtr.i,
+                 logFilePtr.p->fileNo,
+                 logFilePtr.p->currentFilepage);
+      }
       if (logWord == logPartPtr.p->logLastGci) {
         jam();
 /*---------------------------------------------------------------------------*/
@@ -16508,9 +16532,11 @@ void Dblqh::execSr(Signal* signal)
           logPartPtr.p->headPageIndex = 
                   logPagePtr.p->logPageWord[ZCURR_PAGE_INDEX];
 	  logPartPtr.p->logLap = logPagePtr.p->logPageWord[ZPOS_LOG_LAP];
-	  if (DEBUG_REDO)
-	    ndbout_c("execSr part: %u logLap: %u",
-		     logPartPtr.p->logPartNo, logPartPtr.p->logLap);
+          if (DEBUG_REDO)
+          {
+            ndbout_c("execSr part: %u logLap: %u",
+                     logPartPtr.i, logPartPtr.p->logLap);
+          }
         }//if
 /*---------------------------------------------------------------------------*/
 /* THERE IS NO NEED OF EXECUTING PAST THIS LINE SINCE THERE WILL ONLY BE LOG */
@@ -16661,8 +16687,17 @@ void Dblqh::execLogRecord(Signal* signal)
 // consistent. This function is executed last in start phase 3.
 // RT 450. EDTJAMO.
 //----------------------------------------------------------------------------
-void Dblqh::invalidateLogAfterLastGCI(Signal* signal) {
-  
+Uint32
+Dblqh::nextLogFilePtr(Uint32 logFilePtrI)
+{
+  LogFileRecordPtr tmp;
+  tmp.i = logFilePtrI;
+  ptrCheckGuard(tmp, clogFileFileSize, logFileRecord);
+  return tmp.p->nextLogFile;
+}
+
+void Dblqh::invalidateLogAfterLastGCI(Signal* signal)
+{
   jam();
   if (logPartPtr.p->logExecState != LogPartRecord::LES_EXEC_LOG_INVALIDATE) {
     jam();
@@ -16684,13 +16719,13 @@ void Dblqh::invalidateLogAfterLastGCI(Signal* signal) {
     // restart.
     if (logPagePtr.p->logPageWord[ZPOS_LOG_LAP] == logPartPtr.p->logLap) 
     {
+      jam();
       // This page must be invalidated.
       // We search for end
       // read next
       releaseLfo(signal);
       releaseLogpage(signal); 
-      readFileInInvalidate(signal, true);
-      lfoPtr.p->lfoState = LogFileOperationRecord::READ_SR_INVALIDATE_PAGES;
+      readFileInInvalidate(signal, 1);
       return;
     }
 
@@ -16715,145 +16750,226 @@ void Dblqh::invalidateLogAfterLastGCI(Signal* signal) {
 
       if (logFilePtr.p->fileNo == 0)
       {
-	/**
-	 * We're wrapping in the log...
-	 *   update logLap
-	 */
-	logPartPtr.p->logLap--;
+        jam();
+        /**
+         * We're wrapping in the log...
+         *   update logLap
+         */
+        logPartPtr.p->logLap--;
 	ndbrequire(logPartPtr.p->logLap); // Should always be > 0
-	if (DEBUG_REDO)
-	  ndbout_c("invalidateLogAfterLastGCI part: %u wrap from file 0 -> logLap: %u",
-		   logPartPtr.p->logPartNo, logPartPtr.p->logLap);
+        if (DEBUG_REDO)
+        {
+          ndbout_c("invalidateLogAfterLastGCI part: %u wrap from file 0 -> logLap: %u",
+                   logPartPtr.i, logPartPtr.p->logLap);
+        }
       }
       
-      /**
-       * Move to prev file
-       */
-      logFilePtr.i = logFilePtr.p->prevLogFile;
-      ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
-      logPartPtr.p->invalidateFileNo = logFilePtr.p->fileNo;
-      logPartPtr.p->invalidatePageNo = clogFileSize * ZPAGES_IN_MBYTE - 1;
-    }
-    
-    if (logPartPtr.p->invalidateFileNo == logPartPtr.p->headFileNo &&
-	logPartPtr.p->invalidatePageNo == logPartPtr.p->headPageNo)
-    {
-      /**
-       * Done...
-       */
-      logFilePtr.i = logPartPtr.p->currentLogfile;
-      ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
-      
-      logFilePtr.i = logFilePtr.p->nextLogFile;
-      ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
-
-      // Close files if necessary. Current file and the next file should be 
-      // left open.
-      exitFromInvalidate(signal);
+      if (logFilePtr.p->fileNo != 0 &&
+          logFilePtr.i != logPartPtr.p->currentLogfile &&
+          logFilePtr.i != nextLogFilePtr(logPartPtr.p->currentLogfile))
+      {
+        jam();
+        if (DEBUG_REDO)
+        {
+          ndbout_c("invalidate part: %u close %u(%u) (write) (%u)",
+                   logPartPtr.i,
+                   logFilePtr.p->fileNo,
+                   logFilePtr.i,
+                   logPartPtr.p->currentLogfile);
+        }
+        logFilePtr.p->logFileStatus =
+          LogFileRecord::CLOSE_SR_WRITE_INVALIDATE_PAGES;
+        closeFile(signal, logFilePtr, __LINE__);
+        return;
+      }
+      writeFileInInvalidate(signal, 1); // step prev
       return;
     }
-
-    seizeLogpage(signal);
-
-    /**
-     * Make page really empty
-     */
-    bzero(logPagePtr.p, sizeof(LogPageRecord));
-    writeSinglePage(signal, logPartPtr.p->invalidatePageNo,
-		    ZPAGE_SIZE - 1, __LINE__);
-
-    lfoPtr.p->lfoState = LogFileOperationRecord::WRITE_SR_INVALIDATE_PAGES;
+    writeFileInInvalidate(signal, 0);
     return;
   default:
-    jam();
-    systemError(signal, __LINE__);
-    return;
-    break;
+    jamLine(lfoPtr.p->lfoState);
+    ndbrequire(false);
   }
+}
+
+void
+Dblqh::writeFileInInvalidate(Signal* signal, int stepPrev)
+{
+  /**
+   * Move to prev file
+   */
+  if (stepPrev == 1)
+  {
+    jam();
+    logFilePtr.i = logFilePtr.p->prevLogFile;
+    ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
+    logPartPtr.p->invalidateFileNo = logFilePtr.p->fileNo;
+    logPartPtr.p->invalidatePageNo = clogFileSize * ZPAGES_IN_MBYTE - 1;
+  }
+
+  if (logPartPtr.p->invalidateFileNo == logPartPtr.p->headFileNo &&
+      logPartPtr.p->invalidatePageNo == logPartPtr.p->headPageNo)
+  {
+    jam();
+    /**
+     * Done...
+     */
+    logFilePtr.i = logPartPtr.p->currentLogfile;
+    ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
+
+    logFilePtr.i = logFilePtr.p->nextLogFile;
+    ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
+
+    exitFromInvalidate(signal);
+    return;
+  }
+
+  if (stepPrev == 1 && logFilePtr.p->logFileStatus != LogFileRecord::OPEN)
+  {
+    jam();
+    if (DEBUG_REDO)
+    {
+      ndbout_c("invalidate part: %u open for write %u",
+               logPartPtr.i, logFilePtr.p->fileNo);
+    }
+    logFilePtr.p->logFileStatus =LogFileRecord::OPEN_SR_WRITE_INVALIDATE_PAGES;
+    openFileRw(signal, logFilePtr);
+    return;
+  }
+
+  seizeLogpage(signal);
+
+  /**
+   * Make page really empty
+   */
+  bzero(logPagePtr.p, sizeof(LogPageRecord));
+  writeSinglePage(signal, logPartPtr.p->invalidatePageNo,
+                  ZPAGE_SIZE - 1, __LINE__);
+
+  lfoPtr.p->lfoState = LogFileOperationRecord::WRITE_SR_INVALIDATE_PAGES;
+  return;
 }//Dblqh::invalidateLogAfterLastGCI
 
-void Dblqh::readFileInInvalidate(Signal* signal, bool stepNext) 
+void Dblqh::readFileInInvalidate(Signal* signal, int stepNext)
 {
   jam();
 
-  if (stepNext)
+  if (stepNext == 1)
   {
     logPartPtr.p->invalidatePageNo++;
-    if (logPartPtr.p->invalidatePageNo == (clogFileSize * ZPAGES_IN_MBYTE)) 
+    if (logPartPtr.p->invalidatePageNo == (clogFileSize * ZPAGES_IN_MBYTE))
     {
-      // We continue in the next file.
-      logFilePtr.i = logFilePtr.p->nextLogFile;
-      ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
-      logPartPtr.p->invalidateFileNo = logFilePtr.p->fileNo;
-      // Page 0 is used for file descriptors.
-      logPartPtr.p->invalidatePageNo = 1; 
-
-      if (logFilePtr.p->fileNo == 0)
+      if (logFilePtr.p->fileNo != 0 &&
+          logFilePtr.i != logPartPtr.p->currentLogfile &&
+          logFilePtr.i != nextLogFilePtr(logPartPtr.p->currentLogfile))
       {
-	/**
-	 * We're wrapping in the log...
-	 *   update logLap
-	 */
-	logPartPtr.p->logLap++;
-	if (DEBUG_REDO)
-	  ndbout_c("readFileInInvalidate part: %u wrap to file 0 -> logLap: %u",
-		   logPartPtr.p->logPartNo, logPartPtr.p->logLap);
+        jam();
+        if (DEBUG_REDO)
+        {
+          ndbout_c("invalidate part: %u close %u(%u) (read) (%u)",
+                   logPartPtr.i,
+                   logFilePtr.p->fileNo,
+                   logFilePtr.i,
+                   logPartPtr.p->currentLogfile);
+        }
+        logFilePtr.p->logFileStatus =
+          LogFileRecord::CLOSE_SR_READ_INVALIDATE_PAGES;
+        closeFile(signal, logFilePtr, __LINE__);
+        return;
       }
-      if (logFilePtr.p->logFileStatus != LogFileRecord::OPEN) 
+      else
       {
-	jam();
-	logFilePtr.p->logFileStatus = LogFileRecord::OPEN_SR_INVALIDATE_PAGES;
-	openFileRw(signal, logFilePtr);
-	return;
+        jam();
+        stepNext = 2; // After close
       }
     }
   }
   
+  if (stepNext == 2)
+  {
+    jam();
+    // We continue in the next file.
+    logFilePtr.i = logFilePtr.p->nextLogFile;
+    ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
+    logPartPtr.p->invalidateFileNo = logFilePtr.p->fileNo;
+    // Page 0 is used for file descriptors.
+    logPartPtr.p->invalidatePageNo = 1;
+
+    if (logFilePtr.p->fileNo == 0)
+    {
+      /**
+       * We're wrapping in the log...
+       *   update logLap
+       */
+      logPartPtr.p->logLap++;
+      if (DEBUG_REDO)
+      {
+        ndbout_c("readFileInInvalidate part: %u wrap to file 0 -> logLap: %u",
+                 logPartPtr.i, logPartPtr.p->logLap);
+      }
+    }
+
+    if (logFilePtr.p->logFileStatus != LogFileRecord::OPEN)
+    {
+      jam();
+      if (DEBUG_REDO)
+      {
+        ndbout_c("invalidate part: %u open for read %u",
+                 logPartPtr.i, logFilePtr.p->fileNo);
+      }
+      logFilePtr.p->logFileStatus =LogFileRecord::OPEN_SR_READ_INVALIDATE_PAGES;
+      openFileRw(signal, logFilePtr);
+      return;
+    }
+  }
+
   // Contact NDBFS. Real time break.
   readSinglePage(signal, logPartPtr.p->invalidatePageNo); 
   lfoPtr.p->lfoState = LogFileOperationRecord::READ_SR_INVALIDATE_PAGES;
 }
 
-void Dblqh::exitFromInvalidate(Signal* signal) {
+void Dblqh::exitFromInvalidate(Signal* signal)
+{
   jam();
 
-loop:  
-  logFilePtr.i = logFilePtr.p->nextLogFile;
-  ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
-
-  if (logFilePtr.i == logPartPtr.p->currentLogfile)
-  {
-    jam();
-    goto done;
-  }
-  
-  if (logFilePtr.p->fileNo == 0)
-  {
-    jam();
-    /**
-     * Logfile 0 shoult *not* be closed
-     */
-    goto loop;
-  }
-  
-  if (logFilePtr.p->logFileStatus == LogFileRecord::CLOSED)
-  {
-    jam();
-    goto done;
-  }
-
-  jam();
-  ndbrequire(logFilePtr.p->logFileStatus == LogFileRecord::OPEN);
-  logFilePtr.p->logFileStatus = LogFileRecord::CLOSE_SR_INVALIDATE_PAGES;
-  closeFile(signal, logFilePtr, __LINE__);
-  return;
-
-done:
   if (DEBUG_REDO)
-    ndbout_c("exitFromInvalidate part: %u head file: %u page: %u", 
-	     logPartPtr.p->logPartNo,
-	     logPartPtr.p->headFileNo,
-	     logPartPtr.p->headPageNo);
+  {
+    jam();
+    printf("exitFromInvalidate part: %u head file: %u page: %u open: ",
+           logPartPtr.i,
+           logPartPtr.p->headFileNo,
+           logPartPtr.p->headPageNo);
+
+    LogFileRecordPtr tmp;
+    tmp.i = logPartPtr.p->currentLogfile;
+    do
+    {
+      jam();
+      ptrCheckGuard(tmp, clogFileFileSize, logFileRecord);
+      if (tmp.p->logFileStatus != LogFileRecord::LFS_IDLE &&
+          tmp.p->logFileStatus != LogFileRecord::CLOSED)
+      {
+        jam();
+        printf("%u ", tmp.p->fileNo);
+      }
+      tmp.i = tmp.p->nextLogFile;
+    } while (tmp.i != logPartPtr.p->currentLogfile && tmp.i != RNIL);
+    printf("\n");
+
+    tmp.i = logPartPtr.p->currentLogfile;
+    ptrCheckGuard(tmp, clogFileFileSize, logFileRecord);
+      
+    LogPosition head = { tmp.p->fileNo, tmp.p->currentMbyte };
+    LogPosition tail = { logPartPtr.p->logTailFileNo, 
+                         logPartPtr.p->logTailMbyte};
+    Uint64 mb = free_log(head, tail, logPartPtr.p->noLogFiles, clogFileSize);
+    Uint64 total = logPartPtr.p->noLogFiles * Uint64(clogFileSize);
+    ndbout_c("head: [ %u %u ] tail: [ %u %u ] free: %llu total: %llu",
+             head.m_file_no, head.m_mbyte,
+             tail.m_file_no, tail.m_mbyte,
+             mb, total);
+  }
   
   logFilePtr.i = logPartPtr.p->firstLogfile;
   ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
@@ -17253,8 +17369,7 @@ void Dblqh::readSrFourthZeroLab(Signal* signal)
   logPartPtr.p->invalidatePageNo = logPartPtr.p->headPageNo;
   logPartPtr.p->logExecState = LogPartRecord::LES_EXEC_LOG_INVALIDATE;
    
-  readFileInInvalidate(signal, true);
-  lfoPtr.p->lfoState = LogFileOperationRecord::READ_SR_INVALIDATE_PAGES;
+  readFileInInvalidate(signal, 1);
   return;
 }//Dblqh::readSrFourthZeroLab()
 
@@ -17759,12 +17874,16 @@ void Dblqh::completedLogPage(Signal* signal, Uint32 clpType, Uint32 place)
   signal->theData[5] = twlpNoPages;
   sendSignal(NDBFS_REF, GSN_FSWRITEREQ, signal, 15, JBA);
 
+  ndbrequire(logFilePtr.p->fileRef != RNIL);
+
   if (DEBUG_REDO)
+  {
     ndbout_c("writing %d pages at part: %u file: %u pos: %u",
-	     twlpNoPages,
-	     logPartPtr.p->logPartNo,
-	     logFilePtr.p->fileNo,
-	     logFilePtr.p->filePosition);
+             twlpNoPages,
+             logPartPtr.i,
+             logFilePtr.p->fileNo,
+             logFilePtr.p->filePosition);
+  }
 
   if (twlpType == ZNORMAL) {
     jam();
@@ -18870,12 +18989,13 @@ void Dblqh::readExecLog(Signal* signal)
   sendSignal(NDBFS_REF, GSN_FSREADREQ, signal, 16, JBA);
 
   if (DEBUG_REDO)
+  {
     ndbout_c("readExecLog %u page at part: %u file: %u pos: %u",
-	     lfoPtr.p->noPagesRw,
-	     logPartPtr.p->logPartNo,
-	     logFilePtr.p->fileNo,
-	     logPartPtr.p->execSrStartPageNo);
-
+             lfoPtr.p->noPagesRw,
+             logPartPtr.i,
+             logFilePtr.p->fileNo,
+             logPartPtr.p->execSrStartPageNo);
+  }
 }//Dblqh::readExecLog()
 
 /* ------------------------------------------------------------------------- */
@@ -18940,12 +19060,13 @@ void Dblqh::readExecSr(Signal* signal)
   sendSignal(NDBFS_REF, GSN_FSREADREQ, signal, 15, JBA);
 
   if (DEBUG_REDO)
+  {
     ndbout_c("readExecSr %u page at part: %u file: %u pos: %u",
-	     8,
-	     logPartPtr.p->logPartNo,
-	     logFilePtr.p->fileNo,
-	     tresPageid);
-
+             8,
+             logPartPtr.i,
+             logFilePtr.p->fileNo,
+             tresPageid);
+  }
 }//Dblqh::readExecSr()
 
 /* ------------------------------------------------------------------------- */
@@ -19101,11 +19222,12 @@ void Dblqh::readSinglePage(Signal* signal, Uint32 pageNo)
   sendSignal(NDBFS_REF, GSN_FSREADREQ, signal, 8, JBA);
 
   if (DEBUG_REDO)
+  {
     ndbout_c("readSinglePage 1 page at part: %u file: %u pos: %u",
-	     logPartPtr.p->logPartNo,
-	     logFilePtr.p->fileNo,
-	     pageNo);
-
+             logPartPtr.i,
+             logFilePtr.p->fileNo,
+             pageNo);
+  }
 }//Dblqh::readSinglePage()
 
 /* -------------------------------------------------------------------------- 
@@ -19627,11 +19749,13 @@ void Dblqh::writeCompletedGciLog(Signal* signal)
     logFilePtr.p->remainingWordsInMbyte - ZCOMPLETED_GCI_LOG_SIZE;
 
   if (DEBUG_REDO)
+  {
     ndbout_c("writeCompletedGciLog gci: %u part: %u file: %u page: %u",
-	     cnewestCompletedGci,
-	     logPartPtr.p->logPartNo,
-	     logFilePtr.p->fileNo,
-	     logFilePtr.p->currentFilepage);
+             cnewestCompletedGci,
+             logPartPtr.i,
+             logFilePtr.p->fileNo,
+             logFilePtr.p->currentFilepage);
+  }
 
   writeLogWord(signal, ZCOMPLETED_GCI_TYPE);
   writeLogWord(signal, cnewestCompletedGci);
@@ -19670,12 +19794,15 @@ void Dblqh::writeDirty(Signal* signal, Uint32 place)
   signal->theData[7] = logPartPtr.p->prevFilepage;
   sendSignal(NDBFS_REF, GSN_FSWRITEREQ, signal, 8, JBA);
 
-  if (DEBUG_REDO)
-    ndbout_c("writeDirty 1 page at part: %u file: %u pos: %u",
-	     logPartPtr.p->logPartNo,
-	     logFilePtr.p->fileNo,
-	     logPartPtr.p->prevFilepage);
+  ndbrequire(logFilePtr.p->fileRef != RNIL);
 
+  if (DEBUG_REDO)
+  {
+    ndbout_c("writeDirty 1 page at part: %u file: %u pos: %u",
+             logPartPtr.i,
+             logFilePtr.p->fileNo,
+             logPartPtr.p->prevFilepage);
+  }
 }//Dblqh::writeDirty()
 
 /* --------------------------------------------------------------------------
