@@ -35,8 +35,7 @@
 # if defined(HAVE_NDIR_H)
 #  include <ndir.h>
 # endif
-# if defined(__WIN__)
-# include <dos.h>
+# if defined(_WIN32)
 # ifdef __BORLANDC__
 # include <dir.h>
 # endif
@@ -92,7 +91,7 @@ static int comp_names(struct fileinfo *a, struct fileinfo *b)
 } /* comp_names */
 
 
-#if !defined(__WIN__)
+#if !defined(_WIN32)
 
 MY_DIR	*my_dir(const char *path, myf MyFlags)
 {
@@ -507,19 +506,24 @@ error:
   DBUG_RETURN((MY_DIR *) NULL);
 } /* my_dir */
 
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 /****************************************************************************
 ** File status
 ** Note that MY_STAT is assumed to be same as struct stat
 ****************************************************************************/ 
 
-int my_fstat(int Filedes, MY_STAT *stat_area,
+
+int my_fstat(File Filedes, MY_STAT *stat_area,
              myf MyFlags __attribute__((unused)))
 {
   DBUG_ENTER("my_fstat");
   DBUG_PRINT("my",("fd: %d  MyFlags: %d", Filedes, MyFlags));
+#ifdef _WIN32
+  DBUG_RETURN(my_win_fstat(Filedes, stat_area));
+#else
   DBUG_RETURN(fstat(Filedes, (struct stat *) stat_area));
+#endif
 }
 
 
@@ -531,11 +535,15 @@ MY_STAT *my_stat(const char *path, MY_STAT *stat_area, myf my_flags)
                     (long) stat_area, my_flags));
 
   if ((m_used= (stat_area == NULL)))
-    if (!(stat_area = (MY_STAT *) my_malloc(sizeof(MY_STAT), my_flags)))
+    if (!(stat_area= (MY_STAT *) my_malloc(sizeof(MY_STAT), my_flags)))
       goto error;
-  if (! stat((char *) path, (struct stat *) stat_area) )
-    DBUG_RETURN(stat_area);
-
+#ifndef _WIN32
+    if (! stat((char *) path, (struct stat *) stat_area) )
+      DBUG_RETURN(stat_area);
+#else
+    if (! my_win_stat(path, stat_area) )
+      DBUG_RETURN(stat_area);
+#endif
   DBUG_PRINT("error",("Got errno: %d from stat", errno));
   my_errno= errno;
   if (m_used)					/* Free if new area */
