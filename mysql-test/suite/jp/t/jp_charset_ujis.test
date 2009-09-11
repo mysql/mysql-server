@@ -42,18 +42,20 @@ CREATE TABLE `£Ô£±£²` (`£Ã£±` char(20)) DEFAULT CHARSET = ujis engine = bdb;
 # jisx0208 data
 # jisx0212 supplemental character data
 
- LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_ujis.dat' INTO TABLE `£Ô£±`;
- LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_ujis.dat' INTO TABLE `£Ô£²`;
- LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0212_ujis.dat' INTO TABLE `£Ô£³`; 
- LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_ujis.dat' INTO TABLE `£Ô£´`;
- LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_ujis.dat' INTO TABLE `£Ô£µ`;
- LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0212_ujis.dat' INTO TABLE `£Ô£¶`;
- LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_ujis.dat' INTO TABLE `£Ô£·`;
- LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_ujis.dat' INTO TABLE `£Ô£¸`;
- LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0212_ujis.dat' INTO TABLE `£Ô£¹`;
- LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_ujis.dat' INTO TABLE `£Ô£±£°`;
- LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_ujis.dat' INTO TABLE `£Ô£±£±`;
- LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0212_ujis.dat' INTO TABLE `£Ô£±£²`;
+--disable_query_log
+ --eval LOAD DATA LOCAL INFILE '$MYSQL_TEST_DIR/suite/jp/std_data/jisx0201_ujis.dat' INTO TABLE `£Ô£±`;
+ --eval LOAD DATA LOCAL INFILE '$MYSQL_TEST_DIR/suite/jp/std_data/jisx0208_ujis.dat' INTO TABLE `£Ô£²`;
+ --eval LOAD DATA LOCAL INFILE '$MYSQL_TEST_DIR/suite/jp/std_data/jisx0212_ujis.dat' INTO TABLE `£Ô£³`; 
+ --eval LOAD DATA LOCAL INFILE '$MYSQL_TEST_DIR/suite/jp/std_data/jisx0201_ujis.dat' INTO TABLE `£Ô£´`;
+ --eval LOAD DATA LOCAL INFILE '$MYSQL_TEST_DIR/suite/jp/std_data/jisx0208_ujis.dat' INTO TABLE `£Ô£µ`;
+ --eval LOAD DATA LOCAL INFILE '$MYSQL_TEST_DIR/suite/jp/std_data/jisx0212_ujis.dat' INTO TABLE `£Ô£¶`;
+ --eval LOAD DATA LOCAL INFILE '$MYSQL_TEST_DIR/suite/jp/std_data/jisx0201_ujis.dat' INTO TABLE `£Ô£·`;
+ --eval LOAD DATA LOCAL INFILE '$MYSQL_TEST_DIR/suite/jp/std_data/jisx0208_ujis.dat' INTO TABLE `£Ô£¸`;
+ --eval LOAD DATA LOCAL INFILE '$MYSQL_TEST_DIR/suite/jp/std_data/jisx0212_ujis.dat' INTO TABLE `£Ô£¹`;
+ --eval LOAD DATA LOCAL INFILE '$MYSQL_TEST_DIR/suite/jp/std_data/jisx0201_ujis.dat' INTO TABLE `£Ô£±£°`;
+ --eval LOAD DATA LOCAL INFILE '$MYSQL_TEST_DIR/suite/jp/std_data/jisx0208_ujis.dat' INTO TABLE `£Ô£±£±`;
+ --eval LOAD DATA LOCAL INFILE '$MYSQL_TEST_DIR/suite/jp/std_data/jisx0212_ujis.dat' INTO TABLE `£Ô£±£²`;
+--enable_query_log
 
 #InnoDB
 SELECT DISTINCT CHARSET(`£Ã£±`) FROM `£Ô£±`;
