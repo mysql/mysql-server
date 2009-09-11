@@ -24,18 +24,6 @@ CREATE TABLE `£Ô£¹` (`£Ã£±` char(20), INDEX(`£Ã£±`)) DEFAULT CHARSET = ujis engi
 CREATE TABLE `£Ô£±£°` (`£Ã£±` char(20), INDEX(`£Ã£±`)) DEFAULT CHARSET = ujis engine = bdb;
 CREATE TABLE `£Ô£±£±` (`£Ã£±` char(20), INDEX(`£Ã£±`)) DEFAULT CHARSET = ujis engine = bdb;
 CREATE TABLE `£Ô£±£²` (`£Ã£±` char(20), INDEX(`£Ã£±`)) DEFAULT CHARSET = ujis engine = bdb;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_ujis.dat' INTO TABLE `£Ô£±`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_ujis.dat' INTO TABLE `£Ô£²`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0212_ujis.dat' INTO TABLE `£Ô£³`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_ujis.dat' INTO TABLE `£Ô£´`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_ujis.dat' INTO TABLE `£Ô£µ`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0212_ujis.dat' INTO TABLE `£Ô£¶`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_ujis.dat' INTO TABLE `£Ô£·`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_ujis.dat' INTO TABLE `£Ô£¸`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0212_ujis.dat' INTO TABLE `£Ô£¹`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_ujis.dat' INTO TABLE `£Ô£±£°`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_ujis.dat' INTO TABLE `£Ô£±£±`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0212_ujis.dat' INTO TABLE `£Ô£±£²`;
 SELECT * FROM `£Ô£±` WHERE `£Ã£±` = 'Ž°Ž±Ž²Ž³Ž´ŽµŽ¶Ž·Ž¸Ž¹ŽºŽ»Ž¼Ž½Ž¾Ž¿';
 £Ã£±
 Ž°Ž±Ž²Ž³Ž´ŽµŽ¶Ž·Ž¸Ž¹ŽºŽ»Ž¼Ž½Ž¾Ž¿

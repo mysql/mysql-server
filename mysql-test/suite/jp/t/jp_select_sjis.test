@@ -41,18 +41,20 @@ CREATE TABLE `‚s‚P‚Q` (`‚b‚P` char(20), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis en
 # jisx0208 data
 # jisx0212 supplemental character data
 
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_sjis.dat' INTO TABLE `‚s‚P`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis.dat' INTO TABLE `‚s‚Q`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis2.dat' INTO TABLE `‚s‚R`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_sjis.dat' INTO TABLE `‚s‚S`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis.dat' INTO TABLE `‚s‚T`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis2.dat' INTO TABLE `‚s‚U`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_sjis.dat' INTO TABLE `‚s‚V`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis.dat' INTO TABLE `‚s‚W`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis2.dat' INTO TABLE `‚s‚X`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_sjis.dat' INTO TABLE `‚s‚P‚O`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis.dat' INTO TABLE `‚s‚P‚P`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis2.dat' INTO TABLE `‚s‚P‚Q`;
+--disable_query_log
+--eval LOAD DATA LOCAL INFILE '$MYSQL_TEST_DIR/suite/jp/std_data/jisx0201_sjis.dat' INTO TABLE `‚s‚P`;
+--eval LOAD DATA LOCAL INFILE '$MYSQL_TEST_DIR/suite/jp/std_data/jisx0208_sjis.dat' INTO TABLE `‚s‚Q`;
+--eval LOAD DATA LOCAL INFILE '$MYSQL_TEST_DIR/suite/jp/std_data/jisx0208_sjis2.dat' INTO TABLE `‚s‚R`;
+--eval LOAD DATA LOCAL INFILE '$MYSQL_TEST_DIR/suite/jp/std_data/jisx0201_sjis.dat' INTO TABLE `‚s‚S`;
+--eval LOAD DATA LOCAL INFILE '$MYSQL_TEST_DIR/suite/jp/std_data/jisx0208_sjis.dat' INTO TABLE `‚s‚T`;
+--eval LOAD DATA LOCAL INFILE '$MYSQL_TEST_DIR/suite/jp/std_data/jisx0208_sjis2.dat' INTO TABLE `‚s‚U`;
+--eval LOAD DATA LOCAL INFILE '$MYSQL_TEST_DIR/suite/jp/std_data/jisx0201_sjis.dat' INTO TABLE `‚s‚V`;
+--eval LOAD DATA LOCAL INFILE '$MYSQL_TEST_DIR/suite/jp/std_data/jisx0208_sjis.dat' INTO TABLE `‚s‚W`;
+--eval LOAD DATA LOCAL INFILE '$MYSQL_TEST_DIR/suite/jp/std_data/jisx0208_sjis2.dat' INTO TABLE `‚s‚X`;
+--eval LOAD DATA LOCAL INFILE '$MYSQL_TEST_DIR/suite/jp/std_data/jisx0201_sjis.dat' INTO TABLE `‚s‚P‚O`;
+--eval LOAD DATA LOCAL INFILE '$MYSQL_TEST_DIR/suite/jp/std_data/jisx0208_sjis.dat' INTO TABLE `‚s‚P‚P`;
+--eval LOAD DATA LOCAL INFILE '$MYSQL_TEST_DIR/suite/jp/std_data/jisx0208_sjis2.dat' INTO TABLE `‚s‚P‚Q`;
+--enable_query_log
 
 #InnoDB
 SELECT * FROM `‚s‚P`;
