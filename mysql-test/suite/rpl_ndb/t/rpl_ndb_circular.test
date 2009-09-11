@@ -25,6 +25,8 @@ SHOW TABLES;
 # insert some values on the slave and master
 --connection master
 INSERT INTO t1 VALUES (1,2);
+# Give time to propagate + close epoch, to ensure deterministic Binlog contents
+--sleep 1
 --connection slave
 INSERT INTO t1 VALUES (2,3);
 
