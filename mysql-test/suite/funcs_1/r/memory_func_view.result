@@ -946,8 +946,8 @@ AaBbCcDdEeFfGgHhIiJj√Ñ√§√ú√º√ñ√∂	9999999999999999999999999999999999.999999999999
 	0.000000000000000000000000000000	4
 	-1.000000000000000000000000000000	5
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select left('AaBbCcDdEeFfGgHhIiJj√Ñ√§√ú√º√ñ√∂',`t1_values`.`my_decimal`) AS `LEFT('AaBbCcDdEeFfGgHhIiJj√Ñ√§√ú√º√ñ√∂', my_decimal)`,`t1_values`.`my_decimal` AS `my_decimal`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
@@ -961,8 +961,8 @@ AaBbCcDdEeFfGgHhIiJj√Ñ√§√ú√º√ñ√∂	9999999999999999999999999999999999.999999999999
 	0.000000000000000000000000000000	4
 	-1.000000000000000000000000000000	5
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 DROP VIEW v1;
 
 
@@ -2588,9 +2588,9 @@ NULL	NULL	1
 0	0.000000000000000000000000000000	4
 0	-1.000000000000000000000000000000	5
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_decimal` as unsigned) AS `CAST(my_decimal AS UNSIGNED INTEGER)`,`t1_values`.`my_decimal` AS `my_decimal`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
@@ -2604,9 +2604,9 @@ NULL	NULL	1
 0	0.000000000000000000000000000000	4
 0	-1.000000000000000000000000000000	5
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 DROP VIEW v1;
 
 
@@ -2956,8 +2956,8 @@ NULL	NULL	1
 0	0.000000000000000000000000000000	4
 -1	-1.000000000000000000000000000000	5
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_decimal` as signed) AS `CAST(my_decimal AS SIGNED INTEGER)`,`t1_values`.`my_decimal` AS `my_decimal`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
@@ -2971,8 +2971,8 @@ NULL	NULL	1
 0	0.000000000000000000000000000000	4
 -1	-1.000000000000000000000000000000	5
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 DROP VIEW v1;
 
 
@@ -3283,10 +3283,10 @@ NULL	NULL	1
 -1.00	-1	5
 -3333.33	-3333.3333	30
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1264	Out of range value for column 'CAST(my_double AS DECIMAL(37,2))' at row 1
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1264	Out of range value for column 'CAST(my_double AS DECIMAL(37,2))' at row 1
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1264	Out of range value for column 'CAST(my_double AS DECIMAL(37,2))' at row 1
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1264	Out of range value for column 'CAST(my_double AS DECIMAL(37,2))' at row 1
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_double` as decimal(37,2)) AS `CAST(my_double AS DECIMAL(37,2))`,`t1_values`.`my_double` AS `my_double`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
@@ -3301,10 +3301,10 @@ NULL	NULL	1
 -1.00	-1	5
 -3333.33	-3333.3333	30
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1264	Out of range value for column 'CAST(my_double AS DECIMAL(37,2))' at row 1
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1264	Out of range value for column 'CAST(my_double AS DECIMAL(37,2))' at row 1
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1264	Out of range value for column 'CAST(my_double AS DECIMAL(37,2))' at row 1
+Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1264	Out of range value for column 'CAST(my_double AS DECIMAL(37,2))' at row 1
 DROP VIEW v1;
 
 
@@ -3373,9 +3373,9 @@ NULL	NULL	1
 -1.00	-1	5
 -3333.33	-3333.3333	29
 Warnings:
-Error	1366	Incorrect decimal value: '' for column '' at row -1
-Error	1366	Incorrect decimal value: '' for column '' at row -1
-Error	1366	Incorrect decimal value: '' for column '' at row -1
+Warning	1366	Incorrect decimal value: '' for column '' at row -1
+Warning	1366	Incorrect decimal value: '' for column '' at row -1
+Warning	1366	Incorrect decimal value: '' for column '' at row -1
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_varbinary_1000` as decimal(37,2)) AS `CAST(my_varbinary_1000 AS DECIMAL(37,2))`,`t1_values`.`my_varbinary_1000` AS `my_varbinary_1000`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
@@ -3390,9 +3390,9 @@ NULL	NULL	1
 -1.00	-1	5
 -3333.33	-3333.3333	29
 Warnings:
-Error	1366	Incorrect decimal value: '' for column '' at row -1
-Error	1366	Incorrect decimal value: '' for column '' at row -1
-Error	1366	Incorrect decimal value: '' for column '' at row -1
+Warning	1366	Incorrect decimal value: '' for column '' at row -1
+Warning	1366	Incorrect decimal value: '' for column '' at row -1
+Warning	1366	Incorrect decimal value: '' for column '' at row -1
 DROP VIEW v1;
 
 
@@ -3409,11 +3409,11 @@ NULL	NULL	1
 -1.00	-1	5
 -3333.33	-3333.3333	28
 Warnings:
-Error	1366	Incorrect decimal value: '' for column '' at row -1
+Warning	1366	Incorrect decimal value: '' for column '' at row -1
 Warning	1292	Truncated incorrect DECIMAL value: ''
-Error	1366	Incorrect decimal value: '' for column '' at row -1
+Warning	1366	Incorrect decimal value: '' for column '' at row -1
 Warning	1292	Truncated incorrect DECIMAL value: '<--------30 characters------->'
-Error	1366	Incorrect decimal value: '' for column '' at row -1
+Warning	1366	Incorrect decimal value: '' for column '' at row -1
 Warning	1292	Truncated incorrect DECIMAL value: ' ---‰÷¸ﬂ@µ*$-- '
 Warning	1292	Truncated incorrect DECIMAL value: '-1'
 Warning	1292	Truncated incorrect DECIMAL value: '-3333.3333'
@@ -3431,11 +3431,11 @@ NULL	NULL	1
 -1.00	-1                            	5
 -3333.33	-3333.3333                    	28
 Warnings:
-Error	1366	Incorrect decimal value: '' for column '' at row -1
+Warning	1366	Incorrect decimal value: '' for column '' at row -1
 Warning	1292	Truncated incorrect DECIMAL value: ''
-Error	1366	Incorrect decimal value: '' for column '' at row -1
+Warning	1366	Incorrect decimal value: '' for column '' at row -1
 Warning	1292	Truncated incorrect DECIMAL value: '<--------30 characters------->'
-Error	1366	Incorrect decimal value: '' for column '' at row -1
+Warning	1366	Incorrect decimal value: '' for column '' at row -1
 Warning	1292	Truncated incorrect DECIMAL value: ' ---‰÷¸ﬂ@µ*$-- '
 Warning	1292	Truncated incorrect DECIMAL value: '-1'
 Warning	1292	Truncated incorrect DECIMAL value: '-3333.3333'
@@ -3455,9 +3455,9 @@ NULL	NULL	1
 -1.00	-1	5
 -3333.33	-3333.3333	27
 Warnings:
-Error	1366	Incorrect decimal value: '' for column '' at row -1
-Error	1366	Incorrect decimal value: '' for column '' at row -1
-Error	1366	Incorrect decimal value: '' for column '' at row -1
+Warning	1366	Incorrect decimal value: '' for column '' at row -1
+Warning	1366	Incorrect decimal value: '' for column '' at row -1
+Warning	1366	Incorrect decimal value: '' for column '' at row -1
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_varchar_1000` as decimal(37,2)) AS `CAST(my_varchar_1000 AS DECIMAL(37,2))`,`t1_values`.`my_varchar_1000` AS `my_varchar_1000`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
@@ -3472,9 +3472,9 @@ NULL	NULL	1
 -1.00	-1	5
 -3333.33	-3333.3333	27
 Warnings:
-Error	1366	Incorrect decimal value: '' for column '' at row -1
-Error	1366	Incorrect decimal value: '' for column '' at row -1
-Error	1366	Incorrect decimal value: '' for column '' at row -1
+Warning	1366	Incorrect decimal value: '' for column '' at row -1
+Warning	1366	Incorrect decimal value: '' for column '' at row -1
+Warning	1366	Incorrect decimal value: '' for column '' at row -1
 DROP VIEW v1;
 
 
@@ -3491,11 +3491,11 @@ NULL	NULL	1
 -1.00	-1	5
 -3333.33	-3333.3333	26
 Warnings:
-Error	1366	Incorrect decimal value: '' for column '' at row -1
+Warning	1366	Incorrect decimal value: '' for column '' at row -1
 Warning	1292	Truncated incorrect DECIMAL value: '                              '
-Error	1366	Incorrect decimal value: '' for column '' at row -1
+Warning	1366	Incorrect decimal value: '' for column '' at row -1
 Warning	1292	Truncated incorrect DECIMAL value: '<--------30 characters------->'
-Error	1366	Incorrect decimal value: '' for column '' at row -1
+Warning	1366	Incorrect decimal value: '' for column '' at row -1
 Warning	1292	Truncated incorrect DECIMAL value: ' ---‰÷¸ﬂ@µ*$--           '
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
@@ -3511,11 +3511,11 @@ NULL	NULL	1
 -1.00	-1	5
 -3333.33	-3333.3333	26
 Warnings:
-Error	1366	Incorrect decimal value: '' for column '' at row -1
+Warning	1366	Incorrect decimal value: '' for column '' at row -1
 Warning	1292	Truncated incorrect DECIMAL value: '                              '
-Error	1366	Incorrect decimal value: '' for column '' at row -1
+Warning	1366	Incorrect decimal value: '' for column '' at row -1
 Warning	1292	Truncated incorrect DECIMAL value: '<--------30 characters------->'
-Error	1366	Incorrect decimal value: '' for column '' at row -1
+Warning	1366	Incorrect decimal value: '' for column '' at row -1
 Warning	1292	Truncated incorrect DECIMAL value: ' ---‰÷¸ﬂ@µ*$--           '
 DROP VIEW v1;
 
