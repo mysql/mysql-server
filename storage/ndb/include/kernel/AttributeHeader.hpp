@@ -53,7 +53,13 @@ public:
   STATIC_CONST( COPY_ROWID   = 0xFFF1 );
   STATIC_CONST( READ_ALL     = 0xFFF0 );
   STATIC_CONST( READ_LCP     = 0xFFEF );
+
+  // Extents * sizeof(Extent) allocated to fragment
+  STATIC_CONST( FRAGMENT_EXTENT_SPACE = 0xFFEC );
   
+  // Free but allocated DD extent space
+  STATIC_CONST( FRAGMENT_FREE_EXTENT_SPACE = 0xFFEB );
+
   /**
    * Optimize pseudo column and optimization options
    */

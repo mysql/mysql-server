@@ -90,10 +90,12 @@ public:
   
   enum FailState {
     NORMAL = 0,
-    WAITING_FOR_FAILCONF1 = 1,
-    WAITING_FOR_FAILCONF2 = 2,
-    WAITING_FOR_FAILCONF3 = 3,
-    WAITING_FOR_NDB_FAILCONF = 3
+    WAITING_FOR_CLOSECOMCONF_ACTIVE = 1,     /* Node had phase ZAPI_ACTIVE */
+    WAITING_FOR_CLOSECOMCONF_NOTACTIVE = 2,  /* Node had phase != ZAPI_ACTIVE */
+    WAITING_FOR_FAILCONF1 = 3,
+    WAITING_FOR_FAILCONF2 = 4,
+    WAITING_FOR_FAILCONF3 = 5,
+    WAITING_FOR_NDB_FAILCONF = 6
   };
 
   enum Phase {
@@ -322,7 +324,7 @@ private:
   void initData(Signal* signal);
   void sendCloseComReq(Signal* signal, BlockReference TBRef, Uint16 TfailNo);
   void sendPrepFailReq(Signal* signal, Uint16 aNode);
-  void sendApiFailReq(Signal* signal, Uint16 aFailedNode);
+  void sendApiFailReq(Signal* signal, Uint16 aFailedNode, bool sumaOnly);
   void sendApiRegRef(Signal*, Uint32 ref, ApiRegRef::ErrorCode);
 
   // Generated statement blocks
@@ -409,7 +411,8 @@ private:
 			  Uint32 failNo,
 			  Uint32 noOfNodes,
 			  const NodeId theNodes[]);
-    
+
+  void handleApiCloseComConf(Signal* signal);
 
   
   /* Wait this time until we try to join the       */

@@ -118,6 +118,10 @@ static struct my_option my_long_options[] =
     (uchar**) &opts.bind_address, (uchar**) &opts.bind_address, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "configdir", 256,
+    "Directory for the binary configuration files (alias for --config-dir)",
+    (uchar**) &opts.configdir, (uchar**) &opts.configdir, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "config-dir", 256,
     "Directory for the binary configuration files",
     (uchar**) &opts.configdir, (uchar**) &opts.configdir, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
@@ -148,12 +152,6 @@ static void usage()
 
 static char **defaults_argv;
 
-/*
-   mgmd_exit()
-   do_exit=true:
-     if in a windows service, don't want process to exit()
-     until cleanup of other threads is done
-*/
 static void mgmd_exit(int result)
 {
   g_eventLogger->close();
