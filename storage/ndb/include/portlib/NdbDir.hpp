@@ -33,7 +33,7 @@ public:
   };
 
   class Temp {
-    char* m_path;
+    const char* m_path;
     Temp(const Temp&);  // not impl
     Temp& operator=(const Temp&); // not impl
   public:
