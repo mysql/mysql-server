@@ -511,7 +511,7 @@ static int tokudb_release_savepoint(handlerton * hton, THD * thd, void *savepoin
 #endif
 
 
-static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
+static bool tokudb_show_data_size(THD * thd, stat_print_fn * stat_print) {
     TOKUDB_DBUG_ENTER("tokudb_show_engine_status");
     int error;
     u_int64_t num_bytes_in_db = 0;
@@ -631,6 +631,11 @@ cleanup:
     }
     pthread_mutex_unlock(&tokudb_meta_mutex);
     TOKUDB_DBUG_RETURN(error);
+}
+
+
+static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
+    return tokudb_show_data_size(thd, stat_print);
 }
 
 static bool tokudb_show_logs(THD * thd, stat_print_fn * stat_print) {
