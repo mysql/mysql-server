@@ -1421,8 +1421,10 @@ public:
       CLOSING_EXEC_LOG = 18,
       OPEN_INIT = 19,
       OPEN = 20,                         ///< Log file open
-      OPEN_SR_INVALIDATE_PAGES = 21,
-      CLOSE_SR_INVALIDATE_PAGES = 22
+      OPEN_SR_READ_INVALIDATE_PAGES = 21,
+      CLOSE_SR_READ_INVALIDATE_PAGES = 22,
+      OPEN_SR_WRITE_INVALIDATE_PAGES = 23,
+      CLOSE_SR_WRITE_INVALIDATE_PAGES = 24
     };
     
     /**
@@ -2382,7 +2384,9 @@ private:
   void errorReport(Signal* signal, int place);
   void warningReport(Signal* signal, int place);
   void invalidateLogAfterLastGCI(Signal *signal);
-  void readFileInInvalidate(Signal *signal, bool stepNext);
+  Uint32 nextLogFilePtr(Uint32 logFilePtrI);
+  void readFileInInvalidate(Signal *signal, int stepNext);
+  void writeFileInInvalidate(Signal *signal, int stepPrev);
   void exitFromInvalidate(Signal* signal);
   Uint32 calcPageCheckSum(LogPageRecordPtr logP);
   Uint32 handleLongTupKey(Signal* signal, Uint32* dataPtr, Uint32 len);
