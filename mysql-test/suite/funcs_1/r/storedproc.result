@@ -7128,8 +7128,6 @@ CALL sp1();
 x	y	z
 000	000	000
 Warnings:
-Warning	1264	Out of range value for column 'x' at row 1
-Warning	1264	Out of range value for column 'y' at row 1
 Warning	1264	Out of range value for column 'z' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( )
@@ -7168,8 +7166,6 @@ CALL sp1();
 x	y	z
 00000	00000	00000
 Warnings:
-Warning	1264	Out of range value for column 'x' at row 1
-Warning	1264	Out of range value for column 'y' at row 1
 Warning	1264	Out of range value for column 'z' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( )
@@ -7208,8 +7204,6 @@ CALL sp1();
 x	y	z
 00000000	00000000	00000000
 Warnings:
-Warning	1264	Out of range value for column 'x' at row 1
-Warning	1264	Out of range value for column 'y' at row 1
 Warning	1264	Out of range value for column 'z' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( )
@@ -7248,8 +7242,6 @@ CALL sp1();
 x	y	z
 0000000000	0000000000	0000000000
 Warnings:
-Warning	1264	Out of range value for column 'x' at row 1
-Warning	1264	Out of range value for column 'y' at row 1
 Warning	1264	Out of range value for column 'z' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( )
@@ -7288,8 +7280,6 @@ CALL sp1();
 x	y	z
 00000000000000000000	00000000000000000000	00000000000000000000
 Warnings:
-Warning	1264	Out of range value for column 'x' at row 1
-Warning	1264	Out of range value for column 'y' at row 1
 Warning	1264	Out of range value for column 'z' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( )
@@ -7310,8 +7300,6 @@ CALL sp1();
 x	y	z
 -9999999999	-9999999999	-9999999999
 Warnings:
-Warning	1264	Out of range value for column 'x' at row 1
-Warning	1264	Out of range value for column 'y' at row 1
 Warning	1264	Out of range value for column 'z' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( )
@@ -7323,8 +7311,6 @@ CALL sp1();
 x	y	z
 0	0	0
 Warnings:
-Note	1265	Data truncated for column 'x' at row 1
-Note	1265	Data truncated for column 'y' at row 1
 Note	1265	Data truncated for column 'z' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( )
@@ -7336,8 +7322,6 @@ CALL sp1();
 x	y	z
 0000000000	0000000000	0000000000
 Warnings:
-Warning	1264	Out of range value for column 'x' at row 1
-Warning	1264	Out of range value for column 'y' at row 1
 Warning	1264	Out of range value for column 'z' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( )
@@ -7349,8 +7333,6 @@ CALL sp1();
 x	y	z
 0000000000	0000000000	0000000000
 Warnings:
-Note	1265	Data truncated for column 'x' at row 1
-Note	1265	Data truncated for column 'y' at row 1
 Note	1265	Data truncated for column 'z' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( )
@@ -7362,8 +7344,6 @@ CALL sp1();
 x	y	z
 0	0	0
 Warnings:
-Note	1265	Data truncated for column 'x' at row 1
-Note	1265	Data truncated for column 'y' at row 1
 Note	1265	Data truncated for column 'z' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( )
@@ -7375,8 +7355,6 @@ CALL sp1();
 x	y	z
 0	0	0
 Warnings:
-Note	1265	Data truncated for column 'x' at row 1
-Note	1265	Data truncated for column 'y' at row 1
 Note	1265	Data truncated for column 'z' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( )
@@ -7388,8 +7366,6 @@ CALL sp1();
 x	y	z
 0000000000	0000000000	0000000000
 Warnings:
-Note	1265	Data truncated for column 'x' at row 1
-Note	1265	Data truncated for column 'y' at row 1
 Note	1265	Data truncated for column 'z' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( )
@@ -7401,8 +7377,6 @@ CALL sp1();
 x	y	z
 0000000000	0000000000	0000000000
 Warnings:
-Note	1265	Data truncated for column 'x' at row 1
-Note	1265	Data truncated for column 'y' at row 1
 Note	1265	Data truncated for column 'z' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( )
@@ -13782,9 +13756,6 @@ END//
 CALL sp1();
 x	y	@x
 NULL	a	3
-Warnings:
-Warning	1265	Data truncated for column 'y' at row 3
-Warning	1265	Data truncated for column 'y' at row 1
 SELECT @v1, @v2;
 @v1	@v2
 4	a
@@ -15465,14 +15436,6 @@ count	done
 10	1
 Warnings:
 Warning	1265	Data truncated for column 'name' at row 1
-Warning	1265	Data truncated for column 'name' at row 2
-Warning	1265	Data truncated for column 'name' at row 3
-Warning	1265	Data truncated for column 'name' at row 4
-Warning	1265	Data truncated for column 'name' at row 5
-Warning	1265	Data truncated for column 'name' at row 6
-Warning	1265	Data truncated for column 'name' at row 7
-Warning	1265	Data truncated for column 'name' at row 8
-Warning	1265	Data truncated for column 'name' at row 9
 DROP PROCEDURE sp3;
 drop table res_t3_itisalongname_1381742_itsaverylongname_1381742;
 
@@ -16387,7 +16350,6 @@ fn7(99999999999)
 9999999999
 Warnings:
 Warning	1264	Out of range value for column 'f1' at row 1
-Note	1265	Data truncated for column 'f1' at row 1
 Warning	1264	Out of range value for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn8;
 CREATE FUNCTION fn8( f1 decimal (0) unsigned zerofill) returns decimal (0) unsigned zerofill
@@ -16432,7 +16394,6 @@ fn11(99999999999)
 9999999999
 Warnings:
 Warning	1264	Out of range value for column 'f1' at row 1
-Note	1265	Data truncated for column 'f1' at row 1
 Warning	1264	Out of range value for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn12;
 CREATE FUNCTION fn12( f1 decimal (0, 0) unsigned zerofill) returns decimal (0, 0) unsigned zerofill
@@ -16533,7 +16494,6 @@ SELECT fn21_d_z(1.00e+00);
 fn21_d_z(1.00e+00)
 0000000000000000000000000000000000000000000000000000000000000010
 Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
 Warning	1264	Out of range value for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn22;
 CREATE FUNCTION fn22( f1 decimal unsigned) returns decimal unsigned
@@ -16545,7 +16505,6 @@ SELECT fn22(1.00e+00);
 fn22(1.00e+00)
 10
 Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
 Warning	1264	Out of range value for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn23;
 CREATE FUNCTION fn23( f1 decimal unsigned zerofill) returns decimal unsigned zerofill
@@ -16557,7 +16516,6 @@ SELECT fn23(1.00e+00);
 fn23(1.00e+00)
 0000000010
 Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
 Warning	1264	Out of range value for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn24;
 CREATE FUNCTION fn24( f1 decimal zerofill) returns decimal zerofill
@@ -16903,7 +16861,6 @@ fn56(-8388601)
 Warnings:
 Warning	1264	Out of range value for column 'f1' at row 1
 Warning	1264	Out of range value for column 'f1' at row 1
-Warning	1264	Out of range value for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn57;
 CREATE FUNCTION fn57( f1 numeric) returns numeric
 BEGIN
@@ -16936,7 +16893,6 @@ SELECT fn59(9999999999);
 fn59(9999999999)
 9999999999
 Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
 Warning	1264	Out of range value for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn60;
 CREATE FUNCTION fn60( f1 numeric (0) unsigned zerofill) returns numeric (0) unsigned zerofill
@@ -16982,7 +16938,6 @@ SELECT fn63(9999999999);
 fn63(9999999999)
 9999999999
 Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
 Warning	1264	Out of range value for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn64;
 CREATE FUNCTION fn64( f1 numeric (0, 0) unsigned zerofill) returns numeric (0, 0) unsigned zerofill
@@ -17018,8 +16973,6 @@ fn66(-1e+36)
 -999999999999999999999999999999989.999999999999999999999999999999
 Warnings:
 Warning	1264	Out of range value for column 'f1' at row 1
-Note	1265	Data truncated for column 'f1' at row 1
-Warning	1264	Out of range value for column 'f1' at row 1
 Warning	1264	Out of range value for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn67;
 CREATE FUNCTION fn67( f1 numeric (63, 30) unsigned) returns numeric (63, 30) unsigned
@@ -17032,7 +16985,6 @@ fn67(1e+36)
 999999999999999999999999999999999.999999999999999999999999999999
 Warnings:
 Warning	1264	Out of range value for column 'f1' at row 1
-Note	1265	Data truncated for column 'f1' at row 1
 Warning	1264	Out of range value for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn68;
 CREATE FUNCTION fn68( f1 numeric (63, 30) unsigned zerofill) returns numeric (63, 30) unsigned zerofill
@@ -17045,7 +16997,6 @@ fn68(1e+36)
 999999999999999999999999999999999.999999999999999999999999999999
 Warnings:
 Warning	1264	Out of range value for column 'f1' at row 1
-Note	1265	Data truncated for column 'f1' at row 1
 Warning	1264	Out of range value for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn69;
 CREATE FUNCTION fn69( f1 numeric (63, 30) zerofill) returns numeric (63, 30) zerofill
@@ -17213,7 +17164,6 @@ fn84(-32601)
 Warnings:
 Warning	1264	Out of range value for column 'f1' at row 1
 Warning	1264	Out of range value for column 'f1' at row 1
-Warning	1264	Out of range value for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn85;
 CREATE FUNCTION fn85( f1 tinyint) returns tinyint
 BEGIN
@@ -17251,7 +17201,6 @@ SELECT fn88(-101);
 fn88(-101)
 255
 Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
 Warning	1264	Out of range value for column 'f1' at row 1
 Warning	1264	Out of range value for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn89;
@@ -17511,7 +17460,6 @@ f1
 9999999999
 Warnings:
 Warning	1264	Out of range value for column 'f1' at row 1
-Note	1265	Data truncated for column 'f1' at row 1
 Warning	1264	Out of range value for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp8;
 CREATE PROCEDURE sp8( f1 decimal (0) unsigned zerofill)
@@ -17556,7 +17504,6 @@ f1
 9999999999
 Warnings:
 Warning	1264	Out of range value for column 'f1' at row 1
-Note	1265	Data truncated for column 'f1' at row 1
 Warning	1264	Out of range value for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp12;
 CREATE PROCEDURE sp12( f1 decimal (0, 0) unsigned zerofill)
@@ -17678,7 +17625,6 @@ CALL sp21(1.00e+00);
 f1
 0000000000000000000000000000000000000000000000000000000000000010
 Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
 Warning	1264	Out of range value for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp22;
 CREATE PROCEDURE sp22( f1 decimal unsigned)
@@ -17690,7 +17636,6 @@ CALL sp22(1.00e+00);
 f1
 10
 Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
 Warning	1264	Out of range value for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp23;
 CREATE PROCEDURE sp23( f1 decimal unsigned zerofill)
@@ -17702,7 +17647,6 @@ CALL sp23(1.00e+00);
 f1
 0000000010
 Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
 Warning	1264	Out of range value for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp24;
 CREATE PROCEDURE sp24( f1 decimal zerofill)
@@ -18048,7 +17992,6 @@ f1
 Warnings:
 Warning	1264	Out of range value for column 'f1' at row 1
 Warning	1264	Out of range value for column 'f1' at row 1
-Warning	1264	Out of range value for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp57;
 CREATE PROCEDURE sp57( f1 numeric)
 BEGIN
@@ -18081,7 +18024,6 @@ CALL sp59(9999999999);
 f1
 9999999999
 Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
 Warning	1264	Out of range value for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp60;
 CREATE PROCEDURE sp60( f1 numeric (0) unsigned zerofill)
@@ -18127,7 +18069,6 @@ CALL sp63(9999999999);
 f1
 9999999999
 Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
 Warning	1264	Out of range value for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp64;
 CREATE PROCEDURE sp64( f1 numeric (0, 0) unsigned zerofill)
@@ -18163,15 +18104,11 @@ f1
 -999999999999999999999999999999989.999999999999999999999999999999
 Warnings:
 Warning	1264	Out of range value for column 'f1' at row 1
-Note	1265	Data truncated for column 'f1' at row 1
-Warning	1264	Out of range value for column 'f1' at row 1
 Warning	1264	Out of range value for column 'f1' at row 1
 CALL sp66_n( -1000000000000000000000000000000000000 );
 f1
 -999999999999999999999999999999989.999999999999999999999999999999
 Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-Note	1265	Data truncated for column 'f1' at row 1
 Warning	1264	Out of range value for column 'f1' at row 1
 Warning	1264	Out of range value for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp67_nu;
@@ -18185,14 +18122,12 @@ f1
 999999999999999999999999999999999.999999999999999999999999999999
 Warnings:
 Warning	1264	Out of range value for column 'f1' at row 1
-Note	1265	Data truncated for column 'f1' at row 1
 Warning	1264	Out of range value for column 'f1' at row 1
 CALL sp67_nu( 1000000000000000000000000000000000000 );
 f1
 999999999999999999999999999999999.999999999999999999999999999999
 Warnings:
 Warning	1264	Out of range value for column 'f1' at row 1
-Note	1265	Data truncated for column 'f1' at row 1
 Warning	1264	Out of range value for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp68_nuz;
 CREATE PROCEDURE sp68_nuz( f1 numeric (63, 30) unsigned zerofill)
@@ -18205,14 +18140,12 @@ f1
 999999999999999999999999999999999.999999999999999999999999999999
 Warnings:
 Warning	1264	Out of range value for column 'f1' at row 1
-Note	1265	Data truncated for column 'f1' at row 1
 Warning	1264	Out of range value for column 'f1' at row 1
 CALL sp68_nuz( 1000000000000000000000000000000000000 );
 f1
 999999999999999999999999999999999.999999999999999999999999999999
 Warnings:
 Warning	1264	Out of range value for column 'f1' at row 1
-Note	1265	Data truncated for column 'f1' at row 1
 Warning	1264	Out of range value for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp69_n_z;
 CREATE PROCEDURE sp69_n_z( f1 numeric (63, 30) zerofill)
@@ -18395,7 +18328,6 @@ f1
 Warnings:
 Warning	1264	Out of range value for column 'f1' at row 1
 Warning	1264	Out of range value for column 'f1' at row 1
-Warning	1264	Out of range value for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp85;
 CREATE PROCEDURE sp85( f1 tinyint)
 BEGIN
@@ -18433,7 +18365,6 @@ CALL sp88(-101);
 f1
 255
 Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
 Warning	1264	Out of range value for column 'f1' at row 1
 Warning	1264	Out of range value for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp89;
@@ -22263,9 +22194,9 @@ END	latin1	latin1_swedish_ci	latin1_swedish_ci
 set @@sql_mode='';
 CALL sp4();
 Level	Code	Message
-Error	1365	Division by 0
+Warning	1365	Division by 0
 Warnings:
-Error	1365	Division by 0
+Warning	1365	Division by 0
 DROP PROCEDURE sp4;
 set @@sql_mode='';
 
