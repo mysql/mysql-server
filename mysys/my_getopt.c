@@ -414,11 +414,17 @@ invalid value '%s'",
                    (optp->var_type & GET_TYPE_MASK) == GET_ENUM))
 	{
 	  if (optend == disabled_my_option)
-	    *((my_bool*) value)= (my_bool) 0;
+            if ((optp->var_type & GET_TYPE_MASK) == GET_BOOL)
+              *((my_bool*) value)= (my_bool) 0;
+            else
+              *((ulong*) value)= (ulong) 0;
 	  else
 	  {
 	    if (!optend) /* No argument -> enable option */
-	      *((my_bool*) value)= (my_bool) 1;
+              if ((optp->var_type & GET_TYPE_MASK) == GET_BOOL)
+                *((my_bool*) value)= (my_bool) 1;
+              else
+                *((ulong*) value)= (ulong) 1;
             else
               argument= optend;
 	  }
