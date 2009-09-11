@@ -59,17 +59,20 @@ static void
 test_dup_key (int dup_mode, u_int32_t put_flags, int rexpect, int rexpectdupdup) {
     if (verbose) printf("test_dup_key: %d, %u, %d, %d\n", dup_mode, put_flags, rexpect, rexpectdupdup);
 
-    DB_ENV * const null_env = 0;
-    DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = ENVDIR "/" "test_insert.brt";
+    const char * const fname = "test_insert.brt";
     int r;
  
     r = system("rm -rf " ENVDIR); CKERR(r);
     r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
 
     /* create the dup database file */
-    r = db_create(&db, null_env, 0); assert(r == 0);
+    DB_ENV *env;
+    r = db_env_create(&env, 0); assert(r == 0);
+    r = env->open(env, ENVDIR, DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);
+
+    DB *db;
+    r = db_create(&db, env, 0); assert(r == 0);
     db->set_errfile(db, stderr);
     r = db->set_flags(db, dup_mode);
     if (maybe_do_db_dup_warning(r, dup_mode)) {
@@ -106,23 +109,27 @@ test_dup_key (int dup_mode, u_int32_t put_flags, int rexpect, int rexpectdupdup)
     r = cursor->c_close(cursor); assert(r == 0);
 
     r = db->close(db, 0); assert(r == 0);
+    r = env->close(env, 0); assert(r == 0);
 }
 
 static void
 test_dup_dup (int dup_mode, u_int32_t put_flags, int rexpect, int rexpectdupdup) {
     if (verbose) printf("test_dup_dup: %d, %u, %d, %d\n", dup_mode, put_flags, rexpect, rexpectdupdup);
 
-    DB_ENV * const null_env = 0;
-    DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = ENVDIR "/" "test_insert.brt";
+    const char * const fname = "test_insert.brt";
     int r;
  
     r = system("rm -rf " ENVDIR); CKERR(r);
     r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
 
     /* create the dup database file */
-    r = db_create(&db, null_env, 0); assert(r == 0);
+    DB_ENV *env;
+    r = db_env_create(&env, 0); assert(r == 0);
+    r = env->open(env, ENVDIR, DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);
+
+    DB *db;
+    r = db_create(&db, env, 0); assert(r == 0);
     db->set_errfile(db, stderr);
     r = db->set_flags(db, dup_mode);
     if (maybe_do_db_dup_warning(r, dup_mode)) {
@@ -159,23 +166,27 @@ test_dup_dup (int dup_mode, u_int32_t put_flags, int rexpect, int rexpectdupdup)
     r = cursor->c_close(cursor); assert(r == 0);
 
     r = db->close(db, 0); assert(r == 0);
+    r = env->close(env, 0); assert(r == 0);
 }
 
 static void
 test_put_00_01_01 (int dup_mode, u_int32_t put_flags) {
     if (verbose) printf("test_put_00_01_01: %d, %u\n", dup_mode, put_flags);
 
-    DB_ENV * const null_env = 0;
-    DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = ENVDIR "/" "test_insert.brt";
+    const char * const fname = "test_insert.brt";
     int r, expectr;
  
     r = system("rm -rf " ENVDIR); CKERR(r);
     r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
 
     /* create the dup database file */
-    r = db_create(&db, null_env, 0); assert(r == 0);
+    DB_ENV *env;
+    r = db_env_create(&env, 0); assert(r == 0);
+    r = env->open(env, ENVDIR, DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);
+
+    DB *db;
+    r = db_create(&db, env, 0); assert(r == 0);
     db->set_errfile(db, stderr);
     r = db->set_flags(db, dup_mode);
     if (maybe_do_db_dup_warning(r, dup_mode)) {
@@ -218,6 +229,7 @@ test_put_00_01_01 (int dup_mode, u_int32_t put_flags) {
     r = cursor->c_close(cursor); assert(r == 0);
 
     r = db->close(db, 0); assert(r == 0);
+    r = env->close(env, 0); assert(r == 0);
 }
 
 int

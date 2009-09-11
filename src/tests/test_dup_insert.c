@@ -47,10 +47,8 @@ static void
 test_insert (int n, int dup_mode) {
     if (verbose) printf("test_insert:%d %d\n", n, dup_mode);
 
-    DB_ENV * const null_env = 0;
-    DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = ENVDIR "/" "test_insert.brt";
+    const char * const fname = "test_insert.brt";
     int r;
     int i;
 
@@ -58,7 +56,12 @@ test_insert (int n, int dup_mode) {
     r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
 
     /* create the dup database file */
-    r = db_create(&db, null_env, 0);
+    DB_ENV *env;
+    r = db_env_create(&env, 0); assert(r == 0);
+    r = env->open(env, ENVDIR, DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);
+
+    DB *db;
+    r = db_create(&db, env, 0);
     assert(r == 0);
     r = db->set_flags(db, dup_mode);
     assert(r == 0);
@@ -136,8 +139,8 @@ test_insert (int n, int dup_mode) {
     r = cursor->c_close(cursor);
     assert(r == 0);
 
-    r = db->close(db, 0);
-    assert(r == 0);
+    r = db->close(db, 0); assert(r == 0);
+    r = env->close(env, 0); assert(r == 0);
 }
 
 /* verify dup keys are buffered in order in non-leaf nodes */
@@ -145,10 +148,8 @@ static void
 test_nonleaf_insert (int n, int dup_mode) {
     if (verbose) printf("test_nonleaf_insert:%d %d\n", n, dup_mode);
 
-    DB_ENV * const null_env = 0;
-    DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = ENVDIR "/" "test_nonleaf_insert.brt";
+    const char * const fname = "test_nonleaf_insert.brt";
     int r;
     int i;
 
@@ -156,7 +157,12 @@ test_nonleaf_insert (int n, int dup_mode) {
     r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
 
     /* create the dup database file */
-    r = db_create(&db, null_env, 0);
+    DB_ENV *env;
+    r = db_env_create(&env, 0); assert(r == 0);
+    r = env->open(env, ENVDIR, DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);
+
+    DB *db;
+    r = db_create(&db, env, 0);
     assert(r == 0);
     r = db->set_flags(db, dup_mode);
     assert(r == 0);
@@ -185,7 +191,7 @@ test_nonleaf_insert (int n, int dup_mode) {
     /* reopen the database to force nonleaf buffering */
     r = db->close(db, 0);
     assert(r == 0);
-    r = db_create(&db, null_env, 0);
+    r = db_create(&db, env, 0);
     assert(r == 0);
     r = db->set_flags(db, dup_mode);
     assert(r == 0);
@@ -248,6 +254,7 @@ test_nonleaf_insert (int n, int dup_mode) {
 
     r = db->close(db, 0);
     assert(r == 0);
+    r = env->close(env, 0); assert(r == 0);
 }
 
 int

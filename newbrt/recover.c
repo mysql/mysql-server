@@ -29,6 +29,7 @@ static void backward_scan_state_init(struct backward_scan_state *bs) {
 
 // Map filenum to brt
 // TODO why can't we use the cachetable to find by filenum?
+// TODO O(n) time for linear search.  should we use an OMT?
 struct file_map {
     struct cf_tuple {
         FILENUM   filenum;

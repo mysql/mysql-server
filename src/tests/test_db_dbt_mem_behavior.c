@@ -28,7 +28,8 @@ setup(void) {
 
     system("rm -rf " ENVDIR);
     toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
-    dbenv = 0;
+    r = db_env_create(&dbenv, 0); assert(r == 0);
+    r = dbenv->open(dbenv, ".", DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);
     /* Open/create primary */
     r = db_create(&db, dbenv, 0);                                               CKERR(r);
     r = db->open(db, null_txn, ENVDIR "/primary.db", NULL, DB_BTREE, DB_CREATE, 0600);  CKERR(r);
@@ -54,6 +55,7 @@ close_dbs (void) {
     int r;
 
     r = db->close(db, 0);       CKERR(r);
+    r = dbenv->close(dbenv, 0); CKERR(r);
 }
 
 int

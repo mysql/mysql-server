@@ -66,17 +66,20 @@ static void
 test_icdi_search (int n, int dup_mode) {
     if (verbose) printf("test_icdi_search:%d %d\n", n, dup_mode);
 
-    DB_ENV * const null_env = 0;
-    DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = ENVDIR "/" "test_icdi_search.brt";
+    const char * const fname = "test_icdi_search.brt";
     int r;
 
     r = system("rm -rf " ENVDIR); CKERR(r);
     r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
 
     /* create the dup database file */
-    r = db_create(&db, null_env, 0);
+    DB_ENV *env;
+    r = db_env_create(&env, 0); assert(r == 0);
+    r = env->open(env, ENVDIR, DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);
+
+    DB *db;
+    r = db_create(&db, env, 0);
     assert(r == 0);
     r = db->set_flags(db, dup_mode);
     assert(r == 0);
@@ -98,7 +101,7 @@ test_icdi_search (int n, int dup_mode) {
     /* reopen the database to force nonleaf buffering */
     r = db->close(db, 0);
     assert(r == 0);
-    r = db_create(&db, null_env, 0);
+    r = db_create(&db, env, 0);
     assert(r == 0);
     r = db->set_flags(db, dup_mode);
     assert(r == 0);
@@ -129,8 +132,8 @@ test_icdi_search (int n, int dup_mode) {
     r = cursor->c_close(cursor);
     assert(r == 0);
 
-    r = db->close(db, 0);
-    assert(r == 0);
+    r = db->close(db, 0); assert(r == 0);
+    r = env->close(env, 0); assert(r == 0);
 }
 
 /* insert, close, insert, search */
@@ -138,17 +141,20 @@ static void
 test_ici_search (int n, int dup_mode) {
     if (verbose) printf("test_ici_search:%d %d\n", n, dup_mode);
 
-    DB_ENV * const null_env = 0;
-    DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = ENVDIR "/" "test_ici_search.brt";
+    const char * const fname = "test_ici_search.brt";
     int r;
 
     r = system("rm -rf " ENVDIR); CKERR(r);
     r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
 
     /* create the dup database file */
-    r = db_create(&db, null_env, 0);
+    DB_ENV *env;
+    r = db_env_create(&env, 0); assert(r == 0);
+    r = env->open(env, ENVDIR, DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);
+
+    DB *db;
+    r = db_create(&db, env, 0);
     assert(r == 0);
     r = db->set_flags(db, dup_mode);
     assert(r == 0);
@@ -170,7 +176,7 @@ test_ici_search (int n, int dup_mode) {
     /* reopen the database to force nonleaf buffering */
     r = db->close(db, 0);
     assert(r == 0);
-    r = db_create(&db, null_env, 0);
+    r = db_create(&db, env, 0);
     assert(r == 0);
     r = db->set_flags(db, dup_mode);
     assert(r == 0);
@@ -199,8 +205,8 @@ test_ici_search (int n, int dup_mode) {
     r = cursor->c_close(cursor);
     assert(r == 0);
 
-    r = db->close(db, 0);
-    assert(r == 0);
+    r = db->close(db, 0); assert(r == 0);
+    r = env->close(env, 0); assert(r == 0);
 }
 
 /* insert 0, insert 1, close, insert 0, search 0 */
@@ -208,14 +214,17 @@ static void
 test_i0i1ci0_search (int n, int dup_mode) {
     if (verbose) printf("test_i0i1ci0_search:%d %d\n", n, dup_mode);
 
-    DB_ENV * const null_env = 0;
-    DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = ENVDIR "/" "test_i0i1ci0.brt";
+    const char * const fname = "test_i0i1ci0.brt";
     int r;
 
     /* create the dup database file */
-    r = db_create(&db, null_env, 0);
+    DB_ENV *env;
+    r = db_env_create(&env, 0); assert(r == 0);
+    r = env->open(env, ENVDIR, DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);
+
+    DB *db;
+    r = db_create(&db, env, 0);
     assert(r == 0);
     r = db->set_flags(db, dup_mode);
     assert(r == 0);
@@ -239,7 +248,7 @@ test_i0i1ci0_search (int n, int dup_mode) {
     /* reopen the database to force nonleaf buffering */
     r = db->close(db, 0);
     assert(r == 0);
-    r = db_create(&db, null_env, 0);
+    r = db_create(&db, env, 0);
     assert(r == 0);
     r = db->set_flags(db, dup_mode);
     assert(r == 0);
@@ -254,8 +263,8 @@ test_i0i1ci0_search (int n, int dup_mode) {
     /* verify dup search digs deep into the tree */
     expect_db_get(db, 0, 0);
 
-    r = db->close(db, 0);
-    assert(r == 0);
+    r = db->close(db, 0); assert(r == 0);
+    r = env->close(env, 0); assert(r == 0);
 }
 
 /* insert dup keys with data descending from n to 1 */
@@ -263,17 +272,20 @@ static void
 test_reverse_search (int n, int dup_mode) {
     if (verbose) printf("test_reverse_search:%d %d\n", n, dup_mode);
 
-    DB_ENV * const null_env = 0;
-    DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = ENVDIR "/" "test_reverse_search.brt";
+    const char * const fname = "test_reverse_search.brt";
     int r;
 
     r = system("rm -rf " ENVDIR); CKERR(r);
     r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
 
     /* create the dup database file */
-    r = db_create(&db, null_env, 0);
+    DB_ENV *env;
+    r = db_env_create(&env, 0); assert(r == 0);
+    r = env->open(env, ENVDIR, DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);
+
+    DB *db;
+    r = db_create(&db, env, 0);
     assert(r == 0);
     r = db->set_flags(db, dup_mode);
     assert(r == 0);
@@ -293,7 +305,7 @@ test_reverse_search (int n, int dup_mode) {
     /* reopen the database to force nonleaf buffering */
     r = db->close(db, 0);
     assert(r == 0);
-    r = db_create(&db, null_env, 0);
+    r = db_create(&db, env, 0);
     assert(r == 0);
     r = db->set_flags(db, dup_mode);
     assert(r == 0);
@@ -316,8 +328,8 @@ test_reverse_search (int n, int dup_mode) {
     else
         expect_db_get(db, htonl(n), htonl(1));
 
-    r = db->close(db, 0);
-    assert(r == 0);
+    r = db->close(db, 0); assert(r == 0);
+    r = env->close(env, 0); assert(r == 0);
 }
 
 int

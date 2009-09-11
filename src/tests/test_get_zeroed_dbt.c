@@ -13,15 +13,18 @@
 
 static void
 test_get (int dup_mode) {
-    DB_ENV * const null_env = 0;
     DB_TXN * const null_txn = 0;
-    DB *db;
     DBT key,data;
     int fnamelen = sizeof(ENVDIR) + 30;
     char fname[fnamelen];
     int r;
     snprintf(fname, fnamelen, "%s/test%d.db", ENVDIR, dup_mode);
-    r = db_create (&db, null_env, 0);                                        assert(r == 0);
+    DB_ENV *env;
+    r = db_env_create(&env, 0); assert(r == 0);
+    r = env->open(env, ".", DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);
+
+    DB *db;
+    r = db_create (&db, env, 0);                                        assert(r == 0);
     r = db->set_flags(db, dup_mode);                                         assert(r == 0);
     r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666);    assert(r == 0);
     dbt_init(&key, "a", 2);
@@ -29,7 +32,8 @@ test_get (int dup_mode) {
     memset(&data, 0, sizeof(data));
     r = db->get(db, null_txn, &key, &data, 0);                               assert(r == 0);
     assert(strcmp(data.data, "b")==0);
-    r = db->close(db, 0); 
+    r = db->close(db, 0); assert(r == 0);
+    r = env->close(env, 0); assert(r == 0);
 }
 
 int

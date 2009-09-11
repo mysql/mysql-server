@@ -33,8 +33,6 @@ static char annotated_envdir[]= ENVDIR "           ";
 static void test_get_both(int n, int dup_mode, int op) {
     if (verbose) printf("test_get_both_range:%d %d %d\n", n, dup_mode, op);
 
-    DB_ENV * const null_env = 0;
-    DB *db;
     DB_TXN * const null_txn = 0;
     char fname[sizeof(ENVDIR)+100];
     snprintf(fname, sizeof(fname), "%s/test_icdi_search_brt", annotated_envdir);
@@ -50,7 +48,12 @@ static void test_get_both(int n, int dup_mode, int op) {
     unlink(fname);
 
     /* create the dup database file */
-    r = db_create(&db, null_env, 0); assert(r == 0);
+    DB_ENV *env;
+    r = db_env_create(&env, 0); assert(r == 0);
+    r = env->open(env, ".", DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);
+
+    DB *db;
+    r = db_create(&db, env, 0); assert(r == 0);
     r = db->set_flags(db, dup_mode); assert(r == 0);
     r = db->set_pagesize(db, 4096); assert(r == 0);
     r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666); assert(r == 0);
@@ -105,6 +108,7 @@ static void test_get_both(int n, int dup_mode, int op) {
     r = cursor->c_close(cursor); assert(r == 0);
 
     r = db->close(db, 0); assert(r == 0);
+    r = env->close(env, 0); assert(r == 0);
 }
 
 

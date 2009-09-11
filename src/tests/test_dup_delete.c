@@ -43,24 +43,23 @@ static void
 test_dup_delete (int n, int dup_mode) {
     if (verbose) printf("test_dup_delete:%d %d\n", n, dup_mode);
 
-    DB_ENV * const null_env = 0;
-    DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = ENVDIR "/" "test_dup_delete.brt";
+    const char * const fname = "test_dup_delete.brt";
     int r;
 
     r = system("rm -rf " ENVDIR); CKERR(r);
     r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
 
     /* create the dup database file */
-    r = db_create(&db, null_env, 0);
-    assert(r == 0);
-    r = db->set_flags(db, dup_mode);
-    assert(r == 0);
-    r = db->set_pagesize(db, 4096);
-    assert(r == 0);
-    r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666);
-    assert(r == 0);
+    DB_ENV *env;
+    r = db_env_create(&env, 0); assert(r == 0);
+    r = env->open(env, ENVDIR, DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);
+
+    DB *db;
+    r = db_create(&db, env, 0); assert(r == 0);
+    r = db->set_flags(db, dup_mode); assert(r == 0);
+    r = db->set_pagesize(db, 4096); assert(r == 0);
+    r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666); assert(r == 0);
 
     /* insert n-1 unique keys {0, 1,  n-1} - {n/2} */
     int i;
@@ -75,7 +74,7 @@ test_dup_delete (int n, int dup_mode) {
     /* reopen the database to force nonleaf buffering */
     r = db->close(db, 0);
     assert(r == 0);
-    r = db_create(&db, null_env, 0);
+    r = db_create(&db, env, 0);
     assert(r == 0);
     r = db->set_flags(db, dup_mode);
     assert(r == 0);
@@ -130,8 +129,8 @@ test_dup_delete (int n, int dup_mode) {
     r = cursor->c_close(cursor);
     assert(r == 0);
 
-    r = db->close(db, 0);
-    assert(r == 0);
+    r = db->close(db, 0); assert(r == 0);
+    r = env->close(env, 0), assert(r == 0);
 }
 
 static __attribute__((__unused__))
@@ -139,14 +138,17 @@ void
 test_dup_delete_delete (int n) {
     if (verbose) printf("test_dup_delete_delete:%d\n", n);
 
-    DB_ENV * const null_env = 0;
-    DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = ENVDIR "/" "test_dup_delete_delete.brt";
+    const char * const fname = "test_dup_delete_delete.brt";
     int r;
 
     /* create the dup database file */
-    r = db_create(&db, null_env, 0);
+    DB_ENV *env;
+    r = db_env_create(&env, 0); assert(r == 0);
+    r = env->open(env, ENVDIR, DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);
+
+    DB *db;
+    r = db_create(&db, env, 0);
     assert(r == 0);
     r = db->set_flags(db, DB_DUP);
     assert(r == 0);
@@ -168,7 +170,7 @@ test_dup_delete_delete (int n) {
     /* reopen the database to force nonleaf buffering */
     r = db->close(db, 0);
     assert(r == 0);
-    r = db_create(&db, null_env, 0);
+    r = db_create(&db, env, 0);
     assert(r == 0);
     r = db->set_flags(db, DB_DUP);
     assert(r == 0);
@@ -212,20 +214,24 @@ test_dup_delete_delete (int n) {
 
     r = db->close(db, 0);
     assert(r == 0);
+    r = env->close(env, 0), assert(r == 0);
 }
 
 static void
 test_dup_delete_insert (int n, int dup_mode) {
     if (verbose) printf("test_dup_delete_insert:%d %d\n", n, dup_mode);
 
-    DB_ENV * const null_env = 0;
-    DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = ENVDIR "/" "test_dup_delete_insert.brt";
+    const char * const fname = "test_dup_delete_insert.brt";
     int r;
 
     /* create the dup database file */
-    r = db_create(&db, null_env, 0);
+    DB_ENV *env;
+    r = db_env_create(&env, 0); assert(r == 0);
+    r = env->open(env, ENVDIR, DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);
+
+    DB *db;
+    r = db_create(&db, env, 0);
     assert(r == 0);
     r = db->set_flags(db, dup_mode);
     assert(r == 0);
@@ -247,7 +253,7 @@ test_dup_delete_insert (int n, int dup_mode) {
     /* reopen the database to force nonleaf buffering */
     r = db->close(db, 0);
     assert(r == 0);
-    r = db_create(&db, null_env, 0);
+    r = db_create(&db, env, 0);
     assert(r == 0);
     r = db->set_flags(db, dup_mode);
     assert(r == 0);
@@ -316,6 +322,7 @@ test_dup_delete_insert (int n, int dup_mode) {
 
     r = db->close(db, 0);
     assert(r == 0);
+    r = env->close(env, 0), assert(r == 0);
 }
 
 static __attribute__((__unused__))
@@ -323,14 +330,17 @@ void
 test_all_dup_delete_insert (int n) {
     if (verbose) printf("test_all_dup_delete_insert:%d\n", n);
 
-    DB_ENV * const null_env = 0;
-    DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = ENVDIR "/" "test_all_dup_delete_insert.brt";
+    const char * const fname = "test_all_dup_delete_insert.brt";
     int r;
 
     /* create the dup database file */
-    r = db_create(&db, null_env, 0);
+    DB_ENV *env;
+    r = db_env_create(&env, 0); assert(r == 0);
+    r = env->open(env, ENVDIR, DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);
+
+    DB *db;
+    r = db_create(&db, env, 0);
     assert(r == 0);
     r = db->set_flags(db, DB_DUP);
     assert(r == 0);
@@ -349,7 +359,7 @@ test_all_dup_delete_insert (int n) {
     /* reopen the database to force nonleaf buffering */
     r = db->close(db, 0);
     assert(r == 0);
-    r = db_create(&db, null_env, 0);
+    r = db_create(&db, env, 0);
     assert(r == 0);
     r = db->set_flags(db, DB_DUP);
     assert(r == 0);
@@ -391,20 +401,24 @@ test_all_dup_delete_insert (int n) {
 
     r = db->close(db, 0);
     assert(r == 0);
+    r = env->close(env, 0), assert(r == 0);
 }
 
 static void
 test_walk_empty (int n, int dup_mode) {
     if (verbose) printf("test_walk_empty:%d %d\n", n, dup_mode);
 
-    DB_ENV * const null_env = 0;
-    DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = ENVDIR "/" "test_walk_empty.brt";
+    const char * const fname = "test_walk_empty.brt";
     int r;
 
     /* create the dup database file */
-    r = db_create(&db, null_env, 0);
+    DB_ENV *env;
+    r = db_env_create(&env, 0); assert(r == 0);
+    r = env->open(env, ENVDIR, DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);
+
+    DB *db;
+    r = db_create(&db, env, 0);
     assert(r == 0);
     r = db->set_flags(db, dup_mode);
     assert(r == 0);
@@ -424,7 +438,7 @@ test_walk_empty (int n, int dup_mode) {
     /* reopen the database to force nonleaf buffering */
     r = db->close(db, 0);
     assert(r == 0);
-    r = db_create(&db, null_env, 0);
+    r = db_create(&db, env, 0);
     assert(r == 0);
     r = db->set_flags(db, dup_mode);
     assert(r == 0);
@@ -461,6 +475,7 @@ test_walk_empty (int n, int dup_mode) {
 
     r = db->close(db, 0);
     assert(r == 0);
+    r = env->close(env, 0), assert(r == 0);
 }
 
 /* insert, close, delete, insert, search */
@@ -469,14 +484,17 @@ void
 test_icdi_search (int n, int dup_mode) {
     if (verbose) printf("test_icdi_search:%d %d\n", n, dup_mode);
 
-    DB_ENV * const null_env = 0;
-    DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = ENVDIR "/" "test_icdi_search.brt";
+    const char * const fname = "test_icdi_search.brt";
     int r;
 
     /* create the dup database file */
-    r = db_create(&db, null_env, 0);
+    DB_ENV *env;
+    r = db_env_create(&env, 0); assert(r == 0);
+    r = env->open(env, ENVDIR, DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);
+
+    DB *db;
+    r = db_create(&db, env, 0);
     assert(r == 0);
     r = db->set_flags(db, dup_mode);
     assert(r == 0);
@@ -505,7 +523,7 @@ test_icdi_search (int n, int dup_mode) {
     /* reopen the database to force nonleaf buffering */
     r = db->close(db, 0);
     assert(r == 0);
-    r = db_create(&db, null_env, 0);
+    r = db_create(&db, env, 0);
     assert(r == 0);
     r = db->set_flags(db, dup_mode);
     assert(r == 0);
@@ -550,6 +568,7 @@ test_icdi_search (int n, int dup_mode) {
 
     r = db->close(db, 0);
     assert(r == 0);
+    r = env->close(env, 0), assert(r == 0);
 }
 
 /* insert, close, insert, search */
@@ -558,14 +577,17 @@ void
 test_ici_search (int n, int dup_mode) {
     if (verbose) printf("test_ici_search:%d %d\n", n, dup_mode);
 
-    DB_ENV * const null_env = 0;
-    DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = ENVDIR "/" "test_ici_search.brt";
+    const char * const fname = "test_ici_search.brt";
     int r;
 
     /* create the dup database file */
-    r = db_create(&db, null_env, 0);
+    DB_ENV *env;
+    r = db_env_create(&env, 0); assert(r == 0);
+    r = env->open(env, ENVDIR, DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);
+
+    DB *db;
+    r = db_create(&db, env, 0);
     assert(r == 0);
     r = db->set_flags(db, dup_mode);
     assert(r == 0);
@@ -594,7 +616,7 @@ test_ici_search (int n, int dup_mode) {
     /* reopen the database to force nonleaf buffering */
     r = db->close(db, 0);
     assert(r == 0);
-    r = db_create(&db, null_env, 0);
+    r = db_create(&db, env, 0);
     assert(r == 0);
     r = db->set_flags(db, dup_mode);
     assert(r == 0);
@@ -632,6 +654,7 @@ test_ici_search (int n, int dup_mode) {
 
     r = db->close(db, 0);
     assert(r == 0);
+    r = env->close(env, 0), assert(r == 0);
 }
 
 static void
@@ -653,14 +676,17 @@ void
 test_i0i1ci0_search (int n, int dup_mode) {
     if (verbose) printf("test_i0i1ci0_search:%d %d\n", n, dup_mode);
 
-    DB_ENV * const null_env = 0;
-    DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = ENVDIR "/" "test_i0i1ci0.brt";
+    const char * const fname = "test_i0i1ci0.brt";
     int r;
 
     /* create the dup database file */
-    r = db_create(&db, null_env, 0);
+    DB_ENV *env;
+    r = db_env_create(&env, 0); assert(r == 0);
+    r = env->open(env, ENVDIR, DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);
+
+    DB *db;
+    r = db_create(&db, env, 0);
     assert(r == 0);
     r = db->set_flags(db, dup_mode);
     assert(r == 0);
@@ -684,7 +710,7 @@ test_i0i1ci0_search (int n, int dup_mode) {
     /* reopen the database to force nonleaf buffering */
     r = db->close(db, 0);
     assert(r == 0);
-    r = db_create(&db, null_env, 0);
+    r = db_create(&db, env, 0);
     assert(r == 0);
     r = db->set_flags(db, dup_mode);
     assert(r == 0);
@@ -701,6 +727,7 @@ test_i0i1ci0_search (int n, int dup_mode) {
 
     r = db->close(db, 0);
     assert(r == 0);
+    r = env->close(env, 0), assert(r == 0);
 }
 
 int

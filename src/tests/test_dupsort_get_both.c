@@ -83,17 +83,20 @@ static void
 test_icdi_search (int n, int dup_mode) {
     if (verbose) printf("test_icdi_search:%d %d\n", n, dup_mode);
 
-    DB_ENV * const null_env = 0;
-    DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = ENVDIR "/" "test_icdi_search.brt";
+    const char * const fname = "test_icdi_search.brt";
     int r;
 
     r = system("rm -rf " ENVDIR); CKERR(r);
     r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
 
     /* create the dup database file */
-    r = db_create(&db, null_env, 0); assert(r == 0);
+    DB_ENV *env;
+    r = db_env_create(&env, 0); assert(r == 0);
+    r = env->open(env, ENVDIR, DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);
+
+    DB *db;
+    r = db_create(&db, env, 0); assert(r == 0);
     r = db->set_flags(db, dup_mode); assert(r == 0);
     r = db->set_pagesize(db, 4096); assert(r == 0);
     r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666); assert(r == 0);
@@ -110,7 +113,7 @@ test_icdi_search (int n, int dup_mode) {
 
     /* reopen the database to force nonleaf buffering */
     r = db->close(db, 0); assert(r == 0);
-    r = db_create(&db, null_env, 0); assert(r == 0);
+    r = db_create(&db, env, 0); assert(r == 0);
     r = db->set_flags(db, dup_mode); assert(r == 0);
     r = db->set_pagesize(db, 4096); assert(r == 0);
     r = db->open(db, null_txn, fname, "main", DB_BTREE, 0, 0666); assert(r == 0);
@@ -140,6 +143,7 @@ test_icdi_search (int n, int dup_mode) {
     r = cursor->c_close(cursor); assert(r == 0);
 
     r = db->close(db, 0); assert(r == 0);
+    r = env->close(env, 0); assert(r == 0);
 }
 
 
