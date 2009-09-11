@@ -3154,7 +3154,6 @@ static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *db
     int is_db_rdonly  = flags & DB_RDONLY;  flags&=~DB_RDONLY;
     //We support READ_UNCOMMITTED whether or not the flag is provided.
                                             flags&=~DB_READ_UNCOMMITTED;
-    if (dbtype != DB_UNKNOWN && dbtype != DB_BTREE) return EINVAL;
     if (flags & ~DB_THREAD) return EINVAL; // unknown flags
 
     if (is_db_excl && !is_db_create) return EINVAL;
