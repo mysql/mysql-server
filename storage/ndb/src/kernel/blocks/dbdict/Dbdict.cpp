@@ -2527,17 +2527,20 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
   if (sm == 0)
     sm = 25;
   
-  Uint32 sb = 0;
+  Uint64 sb = 0;
   if (sm <= 100)
   {
-    sb = (rps * sm) / 100;
+    sb = (Uint64(rps) * Uint64(sm)) / 100;
   }
   else
   {
     sb = sm;
   }
   
-  c_rope_pool.setSize(sb/28 + 100);
+  sb /= (Rope::getSegmentSize() * sizeof(Uint32));
+  sb += 100; // more safty
+  ndbrequire(sb < (Uint64(1) << 32));
+  c_rope_pool.setSize(Uint32(sb));
   
   // Initialize BAT for interface to file system
   NewVARIABLE* bat = allocateBat(2);
@@ -5644,8 +5647,17 @@ Dbdict::createTab_local(Signal* signal,
 void
 Dbdict::execCREATE_TAB_REF(Signal* signal)
 {
-  // no longer received
-  ndbrequire(false);
+  jamEntry();
+
+  CreateTabRef * const ref = (CreateTabRef*)signal->getDataPtr();
+
+  SchemaOpPtr op_ptr;
+  CreateTableRecPtr createTabPtr;
+  findSchemaOp(op_ptr, createTabPtr, ref->senderData);
+  ndbrequire(!op_ptr.isNull());
+
+  setError(op_ptr, ref->errorCode, __LINE__);
+  execute(signal, createTabPtr.p->m_callback, 0);
 }
 
 void

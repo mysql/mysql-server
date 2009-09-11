@@ -86,6 +86,7 @@ public:
   
   static Uint32 hash(const char * str, Uint32 len);
 
+  static Uint32 getSegmentSize() { return RopeBase::getSegmentSize();}
 private:
   Uint32 m_hash;
   RopeHandle & src;

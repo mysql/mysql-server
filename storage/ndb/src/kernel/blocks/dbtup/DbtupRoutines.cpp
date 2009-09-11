@@ -2423,6 +2423,22 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
     outBuffer[1] = operPtr.p->m_copy_tuple_location.m_page_no;
     outBuffer[2] = operPtr.p->m_copy_tuple_location.m_page_idx;
     break;
+  case AttributeHeader::FRAGMENT_EXTENT_SPACE:
+  {
+    Uint64 res[2];
+    disk_page_get_allocated(tabptr.p, fragptr.p, res);
+    memcpy(outBuffer + 1, res + 0, 8);
+    sz = 2;
+    break;
+  }
+  case AttributeHeader::FRAGMENT_FREE_EXTENT_SPACE:
+  {
+    Uint64 res[2];
+    disk_page_get_allocated(tabptr.p, fragptr.p, res);
+    memcpy(outBuffer + 1, res + 1, 8);
+    sz = 2;
+    break;
+  }
   default:
     return -ZATTRIBUTE_ID_ERROR;
   }

@@ -376,6 +376,7 @@ ErrorBundle ErrorCodes[] = {
   /**
    * SchemaError
    */
+  { 306,  DMEC, IE, "Out of fragment records in DIH" },
   { 311,  DMEC, AE, "Undefined partition used in setPartitionId" },
   { 703,  DMEC, SE, "Invalid table format" },
   { 704,  DMEC, SE, "Attribute name too long" },

@@ -1506,11 +1506,11 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_DB_STRING_MEMORY,
     "StringMemory",
     DB_TOKEN,
-    "Default size of string memory (0 -> 5% of max 1-100 -> %of max, >100 -> actual bytes)",
+    "Default size of string memory (1-100 -> %of max, >100 -> actual bytes)",
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    "0",
+    "25",
     "0",
     STR_VALUE(MAX_INT_RNIL) },
 
@@ -3746,6 +3746,8 @@ transformSystem(InitConfigFileParser::Context & ctx, const char * data){
   }
 
   BaseString::snprintf(ctx.pname, sizeof(ctx.pname), "SYSTEM_%s", name);
+
+  ctx.m_currentSection->put("Type", ctx.fname);
   
   return true;
 }

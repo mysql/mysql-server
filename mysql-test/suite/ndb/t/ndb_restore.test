@@ -477,3 +477,13 @@ select epoch from mysql.ndb_apply_status where server_id=0;
 # should evaluate to true == 1
 select epoch > (1 << 32) from mysql.ndb_apply_status where server_id=0;
 
+#
+# Bug#40428 core dumped when restore backup log file(redo log)
+#
+--exec $NDB_RESTORE --print --print_meta -b 1 -n 1 $MYSQL_TEST_DIR/std_data/ndb_backup50 >> $NDB_TOOLS_OUTPUT
+
+#
+# Bug #33040 ndb_restore crashes with --print_log
+#
+--exec $NDB_RESTORE --print_log -b 1 -n 1 $MYSQL_TEST_DIR/std_data/ndb_backup50 >> $NDB_TOOLS_OUTPUT
+
