@@ -1317,6 +1317,10 @@ drop table t1;
 
 # Test for testable InnoDB status variables. This test
 # uses previous ones(pages_created, rows_deleted, ...).
+
+# InnoDB aligns the memory for the buffer pool to a page boundary. This may
+# cause actual pool size to be one less than requested depending on exact
+# alignment of obtained memory.
 --replace_result 512 511
 SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_total';
 SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_page_size';
