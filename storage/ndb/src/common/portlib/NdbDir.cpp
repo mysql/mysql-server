@@ -206,7 +206,7 @@ NdbDir::Temp::Temp()
 #ifdef _WIN32
   DWORD len = GetTempPath(0, NULL);
   m_path = new char[len];
-  if (GetTempPath(len, m_path) == 0)
+  if (GetTempPath(len, (char*)m_path) == 0)
     abort();
 #else
   char* tmp = getenv("TMPDIR");
