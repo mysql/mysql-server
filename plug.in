@@ -137,13 +137,13 @@ MYSQL_PLUGIN_ACTIONS(innobase,  [
   )
 
   AC_MSG_CHECKING(whether Solaris libc atomic functions are available)
-  # either define HAVE_SOLARIS_ATOMICS or not
+  # either define HAVE_IB_SOLARIS_ATOMICS or not
   AC_CHECK_FUNCS(atomic_add_long \
 		 atomic_cas_32 \
 		 atomic_cas_64 \
 		 atomic_cas_ulong,
 
-		 AC_DEFINE([HAVE_SOLARIS_ATOMICS], [1],
+		 AC_DEFINE([HAVE_IB_SOLARIS_ATOMICS], [1],
 			   [Define to 1 if Solaris libc atomic functions \
 			    are available])
   )
@@ -208,7 +208,7 @@ MYSQL_PLUGIN_ACTIONS(innobase,  [
       }
     ],
     [
-      AC_DEFINE([IB_HAVE_PAUSE_INSTRUCTION], [1], [Does x86 PAUSE instruction exist])
+      AC_DEFINE([HAVE_IB_PAUSE_INSTRUCTION], [1], [Does x86 PAUSE instruction exist])
       AC_MSG_RESULT(yes)
     ],
     [
