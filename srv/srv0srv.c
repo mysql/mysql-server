@@ -102,6 +102,7 @@ Created 10/8/1995 Heikki Tuuri
 #include "row0mysql.h"
 #include "ha_prototypes.h"
 #include "trx0i_s.h"
+#include "os0sync.h" /* for HAVE_ATOMIC_BUILTINS */
 
 /* This is set to TRUE if the MySQL user has set it in MySQL; currently
 affects only FOREIGN KEY definition parsing */

@@ -103,6 +103,7 @@ Created 2/16/1996 Heikki Tuuri
 # include "row0row.h"
 # include "row0mysql.h"
 # include "btr0pcur.h"
+# include "os0sync.h" /* for INNODB_RW_LOCKS_USE_ATOMICS */
 
 /** Log sequence number immediately after startup */
 UNIV_INTERN ib_uint64_t	srv_start_lsn;
