@@ -1,5 +1,8 @@
 --source include/have_innodb.inc
 -- source suite/innodb/include/have_innodb_plugin.inc
+# XtraDB has lots of "still reachable" memory leak warnings at shutdown when
+# --innodb-use-sys-malloc
+--source include/not_valgrind.inc
 
 #display current value of innodb_use_sys_malloc
 SELECT @@GLOBAL.innodb_use_sys_malloc;

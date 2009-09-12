@@ -1,5 +1,5 @@
 --source include/have_innodb.inc
-# XtraDB has lots of memory leak warnings at shutdown when
+# XtraDB has lots of "still reachable" memory leak warnings at shutdown when
 # --innodb-use-sys-malloc
 --source include/not_valgrind.inc
 
