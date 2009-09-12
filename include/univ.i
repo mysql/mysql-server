@@ -78,16 +78,47 @@ the virtual method table (vtable) in GCC 3. */
 # define ha_innobase ha_innodb
 #endif /* MYSQL_DYNAMIC_PLUGIN */
 
+/* if any of the following macros is defined at this point this means
+that the code from the "right" plug.in was executed and we do not
+need to include ut0auxconf.h which would either define the same macros
+or will be empty */
+#if !defined(HAVE_IB_GCC_ATOMIC_BUILTINS) \
+ && !defined(HAVE_IB_ATOMIC_PTHREAD_T_GCC) \
+ && !defined(HAVE_SOLARIS_ATOMICS) \
+ && !defined(HAVE_IB_ATOMIC_PTHREAD_T_SOLARIS) \
+ && !defined(SIZEOF_PTHREAD_T) \
+ && !defined(IB_HAVE_PAUSE_INSTRUCTION)
+# include "ut0auxconf.h"
+#endif
+
+#ifdef HAVE_WINDOWS_ATOMICS
+/* windows thread objects can always be passed to windows atomic functions */
+# define HAVE_IB_ATOMIC_PTHREAD_T_WINDOWS
+#endif /* HAVE_WINDOWS_ATOMICS */
+
+#if defined(HAVE_IB_GCC_ATOMIC_BUILTINS) \
+ || defined(HAVE_SOLARIS_ATOMICS) \
+ || defined(HAVE_WINDOWS_ATOMICS)
+/* An auxiliary macro to know that some atomics are present and the
+relevant os_*() macros will be defined and can be used */
+# define HAVE_ATOMIC_BUILTINS
+/* If pthread_t can be passed to any of the atomic functions then we know
+that the appropriate macro os_compare_and_swap_thread_id() will be defined
+and can be used */
+# if defined(HAVE_IB_ATOMIC_PTHREAD_T_GCC) \
+  || defined(HAVE_IB_ATOMIC_PTHREAD_T_SOLARIS) \
+  || defined(HAVE_IB_ATOMIC_PTHREAD_T_WINDOWS)
+#  define INNODB_RW_LOCKS_USE_ATOMICS
+# endif
+#endif /* HAVE_IB_GCC_ATOMIC_BUILTINS
+       || HAVE_SOLARIS_ATOMICS
+       || HAVE_WINDOWS_ATOMICS */
+
 #if (defined(WIN32) || defined(_WIN32) || defined(WIN64) || defined(_WIN64)) && !defined(MYSQL_SERVER) && !defined(__WIN__)
 # undef __WIN__
 # define __WIN__
 
 # include <windows.h>
-
-# if defined(HAVE_WINDOWS_ATOMICS)
-/* If atomics are defined we use them in InnoDB mutex implementation */
-#  define HAVE_ATOMIC_BUILTINS
-# endif /* HAVE_WINDOWS_ATOMICS */
 
 # ifdef _NT_
 #  define __NT__
@@ -121,31 +152,6 @@ if we are compiling on Windows. */
 # ifdef HAVE_SCHED_H
 #  include <sched.h>
 # endif
-
-/* if any of the following macros is defined at this point this means
-that the code from the "right" plug.in was executed and we do not
-need to include ut0auxconf.h which would either define the same macros
-or will be empty */
-#if !defined(HAVE_IB_GCC_ATOMIC_BUILTINS) \
- && !defined(HAVE_ATOMIC_PTHREAD_T) \
- && !defined(HAVE_SOLARIS_ATOMICS) \
- && !defined(SIZEOF_PTHREAD_T) \
- && !defined(IB_HAVE_PAUSE_INSTRUCTION)
-# include "ut0auxconf.h"
-#endif
-
-# if defined(HAVE_IB_GCC_ATOMIC_BUILTINS) || defined(HAVE_SOLARIS_ATOMICS) \
-     || defined(HAVE_WINDOWS_ATOMICS)
-/* If atomics are defined we use them in InnoDB mutex implementation */
-#  define HAVE_ATOMIC_BUILTINS
-# endif /* (HAVE_IB_GCC_ATOMIC_BUILTINS) || (HAVE_SOLARIS_ATOMICS)
-	|| (HAVE_WINDOWS_ATOMICS) */
-
-#ifdef HAVE_ATOMIC_BUILTINS
-# ifdef HAVE_ATOMIC_PTHREAD_T
-#  define INNODB_RW_LOCKS_USE_ATOMICS
-# endif /* HAVE_ATOMIC_PTHREAD_T */
-#endif /* HAVE_ATOMIC_BUILTINS */
 
 /* We only try to do explicit inlining of functions with gcc and
 Sun Studio */
