@@ -34,6 +34,7 @@ class NdbApiSignal;
 class Ndb;
 class NdbBlob;
 class NdbInterpretedCode;
+class NdbQueryImpl;
 class NdbQueryDef;
 class NdbQuery;
 
@@ -151,7 +152,6 @@ class NdbTransaction
   friend class NdbBlob;
   friend class ha_ndbcluster;
   friend class NdbQueryImpl;
-  friend class NdbQueryOperationImpl;
 #endif
 
 public:
@@ -831,16 +831,15 @@ public:
    *
    * If the NdbQueryDef contains parameters,
    * (built with NdbQueryBilder::paramValue()) the value of these
-   * parameters are specified in the 'param' array. Parameter values
+   * parameters are specified in the 'paramValue' array. Parameter values
    * Should be supplied in the same order as the related paramValue's
-   * was created.
+   * was defined.
    */
 
   NdbQuery*
   createQuery(const NdbQueryDef* query,
-              const void* const param[],
+              const void* const paramValue[],
               NdbOperation::LockMode lock_mode= NdbOperation::LM_Read);
-
 
 
 private:						
@@ -931,12 +930,13 @@ private:
 
   // Release all cursor operations in connection
   void releaseOps(NdbOperation*);	
+  void releaseQueries(NdbQueryImpl*);
   void releaseScanOperations(NdbIndexScanOperation*);	
   bool releaseScanOperation(NdbIndexScanOperation** listhead,
 			    NdbIndexScanOperation** listtail,
 			    NdbIndexScanOperation* op);
   void releaseExecutedScanOperation(NdbIndexScanOperation*);
-  
+
   // Set the transaction identity of the transaction
   void		setTransactionId(Uint64 aTransactionId);
 
@@ -1072,6 +1072,11 @@ private:
   
   int report_node_failure(Uint32 id);
 
+  // Query operation (aka multicursor)
+  NdbQueryImpl* m_firstQuery;           // First query in defining list.
+  NdbQueryImpl* m_firstExecQuery;       // First executing query in list
+  NdbQueryImpl* m_firstCompletedQuery;  // First completed query in list
+
   // Scan operations
   bool m_waitForReply;     
   NdbIndexScanOperation* m_theFirstScanOperation;
@@ -1086,8 +1091,7 @@ private:
   // optim: any blobs
   bool theBlobFlag;
   Uint8 thePendingBlobOps;
-  /** List of linked queries.*/
-  NdbQueryImpl* m_firstQuery;
+
   inline bool hasBlobOperation() { return theBlobFlag; }
 
   static void sendTC_COMMIT_ACK(class TransporterFacade *, NdbApiSignal *,

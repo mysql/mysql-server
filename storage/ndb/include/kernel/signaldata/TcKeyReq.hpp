@@ -52,8 +52,9 @@ class TcKeyReq {
   /**
    * Sender(s)
    */
-  friend class Ndbcntr;      
-  friend class NdbOperation; 
+  friend class Ndbcntr;
+  friend class NdbQueryImpl;
+  friend class NdbOperation;
   friend class NdbIndexOperation;
   friend class NdbScanOperation;
   friend class NdbBlob;

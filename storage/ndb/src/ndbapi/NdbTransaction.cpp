@@ -76,6 +76,10 @@ NdbTransaction::NdbTransaction( Ndb* aNdb ) :
   theTransactionIsStarted(false),
   theDBnode(0),
   theReleaseOnClose(false),
+  // Composite query operations
+  m_firstQuery(NULL),
+  m_firstExecQuery(NULL),
+  m_firstCompletedQuery(NULL),
   // Scan operations
   m_waitForReply(true),
   m_theFirstScanOperation(NULL),
@@ -85,8 +89,7 @@ NdbTransaction::NdbTransaction( Ndb* aNdb ) :
   theScanningOp(NULL),
   theBuddyConPtr(0xFFFFFFFF),
   theBlobFlag(false),
-  thePendingBlobOps(0),
-  m_firstQuery(NULL)
+  thePendingBlobOps(0)
 {
   theListState = NotInList;
   theError.code = 0;
@@ -149,12 +152,18 @@ NdbTransaction::init()
   theSimpleState          = true;
   theSendStatus           = InitState;
   theMagicNumber          = 0x37412619;
+
+  // Query operations
+  m_firstQuery            = NULL;
+  m_firstExecQuery        = NULL;
+  m_firstCompletedQuery   = NULL;
+
   // Scan operations
-  m_waitForReply            = true;
+  m_waitForReply          = true;
   m_theFirstScanOperation = NULL;
   m_theLastScanOperation  = NULL;
   m_firstExecutedScanOp   = 0;
-  theBuddyConPtr            = 0xFFFFFFFF;
+  theBuddyConPtr          = 0xFFFFFFFF;
   //
   theBlobFlag = false;
   thePendingBlobOps = 0;
@@ -539,7 +548,7 @@ NdbTransaction::executeNoBlobs(NdbTransaction::ExecType aTypeOfExec,
   if (m_waitForReply){
     while (1) {
       int noOfComp = tNdb->sendPollNdb(3 * timeout, 1, forceSend);
-      if (noOfComp == 0) {
+      if (unlikely(noOfComp == 0)) {
         /*
          * Just for fun, this is only one of two places where
          * we could hit this error... It's quite possible we
@@ -635,18 +644,6 @@ NdbTransaction::executeAsynchPrepare(NdbTransaction::ExecType aTypeOfExec,
    */
   if (theError.code != 4012)
     theError.code = 0;
-  NdbQueryImpl* query = m_firstQuery;
-  while(query!=NULL){
-    const int retVal = query->prepareSend();
-    if (retVal != 0) {
-      setErrorCode(retVal);
-      //theSendStatus = sendABORTfail;
-      theReturnStatus = ReturnFailure;
-      DBUG_VOID_RETURN;
-    }
-    query = query->getNext();
-  }
-  m_firstQuery = NULL;
 
   NdbScanOperation* tcOp = m_theFirstScanOperation;
   if (tcOp != 0){
@@ -683,6 +680,11 @@ NdbTransaction::executeAsynchPrepare(NdbTransaction::ExecType aTypeOfExec,
   theTransArrayIndex = tnoOfPreparedTransactions;
   theListState = InPreparedList;
   tNdb->theNoOfPreparedTransactions = tnoOfPreparedTransactions + 1;
+
+  theNoOfOpSent		= 0;
+  theNoOfOpCompleted	= 0;
+  NdbNodeBitmask::clear(m_db_nodes);
+  NdbNodeBitmask::clear(m_failed_db_nodes);
 
   if ((tCommitStatus != Started) ||
       (aTypeOfExec == Rollback)) {
@@ -740,11 +742,14 @@ NdbTransaction::executeAsynchPrepare(NdbTransaction::ExecType aTypeOfExec,
     }//if
   } else if (tTransactionIsStarted == false) {
     NdbOperation* tFirstOp = theFirstOpInList;
-    if (tLastOp != NULL) {
+    if (tFirstOp != NULL) {
       tFirstOp->setStartIndicator();
       if (aTypeOfExec == Commit) {
         tLastOp->theCommitIndicator = 1;
       }//if
+    } else if (m_firstQuery != NULL) {
+      // m_firstQuery->setStartIndicator()>; // TODO_SPJ: fix
+      // TODO_SPJ : Also set theCommitIndicator on last query?
     } else {
       /***********************************************************************
        *    No operations are defined and we have not started yet. 
@@ -762,13 +767,41 @@ NdbTransaction::executeAsynchPrepare(NdbTransaction::ExecType aTypeOfExec,
        * and thus we set the sendStatus to ensure that the send method
        * will put it into the completed array.
        ***********************************************************************/
-      theSendStatus = sendCompleted;
+      theSendStatus = (m_firstExecQuery!=NULL)
+          ? sendOperations   // Queries require ::doSend() to ::sendSignal()
+          : sendCompleted;   // Completed as ::executeCursor also ::sendSignal()
+
       DBUG_VOID_RETURN;
     }//if
   }
 
-  NdbOperation* tOp = theFirstOpInList;
   theCompletionStatus = NotCompleted;
+
+  // Prepare sending of all pending NdbQuery's
+  NdbQueryImpl* query = m_firstQuery;
+  while (query!=NULL) {
+    const int tReturnCode = query->prepareSend();
+
+    if (false && tReturnCode != 0) {
+
+      setErrorCode(tReturnCode);
+      //theSendStatus = sendABORTfail;
+      theReturnStatus = ReturnFailure;
+      DBUG_VOID_RETURN;
+    }
+
+    if (tReturnCode == -1) {
+      theSendStatus = sendABORTfail;
+      DBUG_VOID_RETURN;
+    }//if
+
+    query = query->getNext();
+  }
+  m_firstExecQuery = m_firstQuery;
+  m_firstQuery = NULL;
+
+  // Prepare sending of all pending (non-scan) NdbOperations's
+  NdbOperation* tOp = theFirstOpInList;
   while (tOp) {
     int tReturnCode;
     NdbOperation* tNextOp = tOp->next();
@@ -800,11 +833,7 @@ NdbTransaction::executeAsynchPrepare(NdbTransaction::ExecType aTypeOfExec,
   theLastExecOpInList = tLastOpInList;
 
   theCompletionStatus = CompletedSuccess;
-  theNoOfOpSent		= 0;
-  theNoOfOpCompleted	= 0;
   theSendStatus = sendOperations;
-  NdbNodeBitmask::clear(m_db_nodes);
-  NdbNodeBitmask::clear(m_failed_db_nodes);
   DBUG_VOID_RETURN;
 }//NdbTransaction::executeAsynchPrepare()
 
@@ -878,7 +907,7 @@ int doSend();
 
 Return Value:  Return 0 : send was successful.
                Return -1: In all other case.  
-Remark:        Send all operations belonging to this connection.
+Remark:        Send all operations and queries belonging to this connection.
                The caller of this method has the responsibility to remove the
                object from the prepared transactions array on the Ndb-object.
 *****************************************************************************/
@@ -886,29 +915,49 @@ int
 NdbTransaction::doSend()
 {
   DBUG_ENTER("NdbTransaction::doSend");
-
   /*
-  This method assumes that at least one operation have been defined. This
-  is ensured by the caller of this routine (=execute).
+  This method assumes that at least one operation or query have been defined.
+  This is ensured by the caller of this routine (=execute).
   */
 
   switch(theSendStatus){
   case sendOperations: {
+    assert (m_firstExecQuery!=NULL || theFirstExecOpInList!=NULL);
+
+    bool hasLookupQueries = false;
+    NdbQueryImpl* query = m_firstExecQuery;
+    while (query!=NULL) {
+      hasLookupQueries |= !query->getQueryDef().isScanQuery();
+      NdbQueryImpl* tNext = query->getNext();
+      const bool lastFlag = (tNext == NULL);
+      const int tReturnCode = query->doSend(theDBnode, lastFlag);
+      if (tReturnCode == -1) {
+        theReturnStatus = ReturnFailure;
+        break;
+      }
+      query = tNext;
+    }
+
     NdbOperation * tOp = theFirstExecOpInList;
-    do {
-      NdbOperation* tNextOp = tOp->next();
-      const Uint32 lastFlag = ((tNextOp == NULL) ? 1 : 0);
+    while (tOp != NULL) {
+      NdbOperation* tNext = tOp->next();
+      const Uint32 lastFlag = ((tNext == NULL) ? 1 : 0);
       const int tReturnCode = tOp->doSend(theDBnode, lastFlag);
       if (tReturnCode == -1) {
         theReturnStatus = ReturnFailure;
         break;
-      }//if
-      tOp = tNextOp;
-    } while (tOp != NULL);
-    Ndb* tNdb = theNdb;
-    theSendStatus = sendTC_OP;
-    theTransactionIsStarted = true;
-    tNdb->insert_sent_list(this);
+      }
+      tOp = tNext;
+    }
+
+    if (theFirstExecOpInList || hasLookupQueries) {
+      theSendStatus = sendTC_OP;
+      theTransactionIsStarted = true;
+      theNdb->insert_sent_list(this);      // Lookup: completes with KEYCONF/REF
+    } else {
+      theSendStatus = sendCompleted;
+      theNdb->insert_completed_list(this); // Scans query completes after send
+    }
     DBUG_RETURN(0);
   }//case
   case sendABORT:
@@ -1091,6 +1140,9 @@ NdbTransaction::releaseOperations()
   releaseScanOperations(m_theFirstScanOperation);
   releaseScanOperations(m_firstExecutedScanOp);
   
+  releaseQueries(m_firstQuery);
+  releaseQueries(m_firstExecQuery);
+  releaseQueries(m_firstCompletedQuery);
   releaseOps(theCompletedFirstOp);
   releaseOps(theFirstOpInList);
   releaseOps(theFirstExecOpInList);
@@ -1105,6 +1157,10 @@ NdbTransaction::releaseOperations()
   m_theFirstScanOperation = NULL;
   m_theLastScanOperation = NULL;
   m_firstExecutedScanOp = NULL;
+  m_firstQuery = NULL;
+  m_firstExecQuery = NULL;
+  m_firstCompletedQuery = NULL;
+
 }//NdbTransaction::releaseOperations()
 
 void 
@@ -1114,6 +1170,24 @@ NdbTransaction::releaseCompletedOperations()
   theCompletedFirstOp = NULL;
   theCompletedLastOp = NULL;
 }//NdbTransaction::releaseOperations()
+
+/******************************************************************************
+void releaseQueries();
+
+Remark:         Release all queries 
+******************************************************************************/
+void
+NdbTransaction::releaseQueries(NdbQueryImpl* query)
+{
+  while (query != NULL) {
+    NdbQueryImpl* next = query->getNext();
+
+    // TODO: Decide how the released NdbQueryImpl objects should be handled - 
+    // Maybe recycled on a Ndb owned freeList? - Currently we leak them
+//  delete query;  // Can't delete either as d'tor is private to avoid missuse
+    query = next;
+  }
+}//NdbTransaction::releaseQueries
 
 /******************************************************************************
 void releaseScanOperations();
@@ -1924,21 +1998,21 @@ from other transactions.
       const bool isReceiver = tOp->checkMagicNumber();
       assert(isReceiver || queryImpl->checkMagicNumber());
 	/* TODO: Use a better mechanism than magic numbers to decide if 
-	 this is an NdbReceiver or ab NdbQueryImpl.*/
+	 this is an NdbReceiver or a NdbQueryImpl.*/
       if(mappedObj && (isReceiver || queryImpl->checkMagicNumber())){
 	Uint32 done = isReceiver ? tOp->execTCOPCONF(tAttrInfoLen) :
 	  queryImpl->execTCKEYCONF();
 	if(tAttrInfoLen > TcKeyConf::DirtyReadBit){
 	  Uint32 node = tAttrInfoLen & (~TcKeyConf::DirtyReadBit);
-	  NdbNodeBitmask::set(m_db_nodes, node);
-	  if(NdbNodeBitmask::get(m_failed_db_nodes, node) && !done)
+          NdbNodeBitmask::set(m_db_nodes, node);
+          if(NdbNodeBitmask::get(m_failed_db_nodes, node) && !done)
 	  {
-	    done = 1;
-	    if(isReceiver){
-	      tOp->setErrorCode(4119);
-	    }
-	    theCompletionStatus = CompletedFailure;
-	    theReturnStatus = NdbTransaction::ReturnFailure;
+            done = 1;
+            if (isReceiver) {
+              tOp->setErrorCode(4119);
+            }
+            theCompletionStatus = CompletedFailure;
+            theReturnStatus = NdbTransaction::ReturnFailure;
 	  }	    
 	}
 	tNoComp += done;
@@ -1946,15 +2020,15 @@ from other transactions.
  	return -1;
       }//if
     }//for
-    Uint32 tNoSent = theNoOfOpSent;
     theNoOfOpCompleted = tNoComp;
-    Uint32 tGCI_hi = keyConf->gci_hi;
-    Uint32 tGCI_lo = * tPtr; // After op(s)
+    const Uint32 tNoSent = theNoOfOpSent;
+    const Uint32 tGCI_hi = keyConf->gci_hi;
+    Uint32       tGCI_lo = * tPtr; // After op(s)
     if (unlikely(aDataLength < TcKeyConf::StaticLength+1 + 2*tNoOfOperations))
     {
       tGCI_lo = 0;
     }
-    Uint64 tGCI = Uint64(tGCI_lo) | (Uint64(tGCI_hi) << 32);
+    const Uint64 tGCI = Uint64(tGCI_lo) | (Uint64(tGCI_hi) << 32);
     if (tCommitFlag == 1) 
     {
       theCommitStatus = Committed;
@@ -1964,7 +2038,8 @@ from other transactions.
 	*p_latest_trans_gci = tGCI;
       }
     } 
-    else if (theLastExecOpInList->theCommitIndicator == 1)
+    else if (theLastExecOpInList &&
+             theLastExecOpInList->theCommitIndicator == 1)
     {  
       /**
        * We're waiting for a commit reply...
@@ -2122,14 +2197,14 @@ NdbTransaction::receiveTCINDXCONF(const TcIndxConf * indxConf,
 	return -1;
       }//if
     }//for
-    Uint32 tNoSent = theNoOfOpSent;
-    Uint32 tGCI_hi = indxConf->gci_hi;
-    Uint32 tGCI_lo = * tPtr;
+    const Uint32 tNoSent = theNoOfOpSent;
+    const Uint32 tGCI_hi = indxConf->gci_hi;
+    Uint32       tGCI_lo = * tPtr;
     if (unlikely(aDataLength < TcIndxConf::SignalLength+1+2*tNoOfOperations))
     {
       tGCI_lo = 0;
     }
-    Uint64 tGCI = Uint64(tGCI_lo) | (Uint64(tGCI_hi) << 32);
+    const Uint64 tGCI = Uint64(tGCI_lo) | (Uint64(tGCI_hi) << 32);
 
     theNoOfOpCompleted = tNoComp;
     if (tCommitFlag == 1) 
@@ -2794,26 +2869,12 @@ NdbTransaction::createQuery(const NdbQueryDef* def,
 
   m_firstQuery = query;
 
-  /**
-   * Immediately build the serialize parameter representation in order 
-   * to avoid storing param values elsewhere until query is executed.
-   */
-  for (Uint32 i=0; i<query->getNoOfOperations(); ++i)
-  {
-    if (queryDef.getQueryOperation(i).getNoOfParameters() > 0)
-    {
-      int err = query->getQueryOperation(i).serializeParams(paramValues);
-      if (unlikely(err != 0)) {
-        setErrorCode(err);
-        query->close(false,true);
-        return NULL;
-      }
-    }
+  int error = query->assignParameters(paramValues);
+  if (unlikely(error != 0)) {
+    setErrorCode(error);
+    query->close(false,true);
+    return NULL;
   }
-
-  // Build explicit key/filter/bounds for root operation, possibly refering paramValues
-  Uint32 root = 0;
-  queryDef.getQueryOperation(root).materializeRootOperands(*query->getNdbOperation(), paramValues);
 
   return &query->getInterface();
 }

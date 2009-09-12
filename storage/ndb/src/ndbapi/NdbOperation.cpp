@@ -80,13 +80,11 @@ NdbOperation::NdbOperation(Ndb* aNdb, NdbOperation::Type aType) :
   m_attrInfoGSN(GSN_ATTRINFO),
   theBlobList(NULL),
   m_abortOption(-1),
-  m_noErrorPropagation(false),
-  m_queryImpl(NULL)
+  m_noErrorPropagation(false)
 {
   theReceiver.init(NdbReceiver::NDB_OPERATION, false, this);
   theError.code = 0;
   m_customData = NULL;
-  m_isLinked = false;
 }
 
 /*****************************************************************************
@@ -187,8 +185,6 @@ NdbOperation::init(const NdbTableImpl* tab, NdbTransaction* myConnection,
   m_extraSetValues = NULL;
   m_numExtraSetValues = 0;
   m_use_any_value = 0;
-  m_isLinked = false;
-  m_queryImpl = NULL;
 
   tSignal = theNdb->getSignal();
   if (tSignal == NULL)

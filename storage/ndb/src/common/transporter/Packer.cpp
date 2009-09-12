@@ -410,7 +410,7 @@ importGeneric(Uint32 * & insertPtr, GenericSectionPtr & ptr){
   while (remain > 0)
   {
     Uint32 len= 0;
-    Uint32* next= ptr.sectionIter->getNextWords(len);
+    const Uint32* next= ptr.sectionIter->getNextWords(len);
 
     assert(len <= remain);
     assert(next != NULL);

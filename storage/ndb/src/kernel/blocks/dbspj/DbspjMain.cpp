@@ -455,22 +455,8 @@ Dbspj::execSCAN_FRAGREQ(Signal* signal)
     do_init(requestPtr.p, req, signal->getSendersBlockRef());
 
     Uint32 len_cnt;
-    Uint32 prefix_size=0;
     {
       SectionReader r0(ssPtr, getSectionSegmentPool());
-
-      /**
-       * Calculate size of optional sections prefix in attrinfo.
-       * This part is skipped by SPJ, and later regenerated when 
-       * the SCANREQ is transmitted to LQH.
-       */
-      for (Uint32 i=0; i<AttrInfo::SectionSizeInfoLength; i++)
-      { Uint32 tmp;
-        ndbrequire(r0.getWord(&tmp));
-        prefix_size += tmp;
-      }
-      r0.step(prefix_size);
-
       err = DbspjErr::ZeroLengthQueryTree;
       if (unlikely(!r0.getWord(&len_cnt)))
 	break;
@@ -482,18 +468,6 @@ Dbspj::execSCAN_FRAGREQ(Signal* signal)
     {
       SectionReader treeReader(ssPtr, getSectionSegmentPool());
       SectionReader paramReader(ssPtr, getSectionSegmentPool());
-
-      /**
-       * I just couldnt remove the 'SectionSizeInfoLength++'
-       * (added by scan-code) initial words...
-       *  so I simply step over them here
-       *
-       * TODO: Eliminate append of these words when SPJ API build
-       *       this signal.
-       */
-      treeReader.step(AttrInfo::SectionSizeInfoLength+prefix_size);
-      paramReader.step(AttrInfo::SectionSizeInfoLength+prefix_size);
-
       paramReader.step(len); // skip over tree to parameters
 
       Build_context ctx;
@@ -893,7 +867,6 @@ Dbspj::execSCAN_FRAGREF(Signal* signal)
 
   DEBUG("execSCAN_FRAGREF, errorCode:" << ref->errorCode);
 
-  // FIXME: signal 'SCAN_FRAGREF' to TC
   Ptr<TreeNode> treeNodePtr;
   m_treenode_pool.getPtr(treeNodePtr, ref->senderData);
   Ptr<Request> requestPtr;
@@ -1829,19 +1802,27 @@ Dbspj::scanFrag_start(Signal* signal,
 
 #if TODO
   ndbassert(ScanFragReq::getReorgFlag(requestInfo) == 0);
-  ndbassert(ScanFragReq::getRangeScanFlag(requestInfo) == ScanFragReq::);
   ndbassert(ScanFragReq::getDescendingFlag(requestInfo) == 0);
   ndbassert(ScanFragReq::getTupScanFlag(requestInfo) == 0);
   ndbassert(ScanFragReq::getNoDiskFlag(requestInfo) == 0);
   ndbassert(ScanFragReq::getScanPrio(requestInfo) == 1);
 #endif
 
+  ndbassert(ScanFragReq::getReorgFlag(requestInfo) == 0);
+  Uint32 tupScanFlag = ScanFragReq::getTupScanFlag(requestInfo);
+  Uint32 rangeScanFlag = ScanFragReq::getRangeScanFlag(requestInfo);
+  Uint32 descendingFlag = ScanFragReq::getDescendingFlag(requestInfo);
+  Uint32 noDiskFlag = ScanFragReq::getNoDiskFlag(requestInfo);
+  Uint32 scanPrio = ScanFragReq::getScanPrio(requestInfo);
+
   ScanFragReq * dst =(ScanFragReq*)treeNodePtr.p->m_scanfrag_data.m_scanFragReq;
   Uint32 dst_requestInfo = dst->requestInfo;
 
-  if (ScanFragReq::getRangeScanFlag(requestInfo))
-  { ScanFragReq::setRangeScanFlag(dst_requestInfo,1);
-  }
+  ScanFragReq::setTupScanFlag(dst_requestInfo,tupScanFlag);
+  ScanFragReq::setRangeScanFlag(dst_requestInfo,rangeScanFlag);
+  ScanFragReq::setDescendingFlag(dst_requestInfo,descendingFlag);
+  ScanFragReq::setNoDiskFlag(dst_requestInfo,noDiskFlag);
+  ScanFragReq::setScanPrio(dst_requestInfo,scanPrio);
 
   dst->fragmentNoKeyLen = fragId;
   dst->requestInfo = dst_requestInfo;
@@ -2015,7 +1996,31 @@ Dbspj::scanFrag_execSCAN_FRAGREF(Signal* signal,
   /**
    * TODO
    */
-  ndbrequire(false);
+  const ScanFragRef* const rep = (ScanFragRef*)signal->getDataPtr();
+  Uint32 errCode = rep->errorCode;
+
+  /**
+   * Return back to api...
+   *   NOTE: assume that signal is tampered with
+   */
+  ndbassert (rep->transId1 == requestPtr.p->m_transId[0]);
+  ndbassert (rep->transId2 == requestPtr.p->m_transId[1]);
+
+  DEBUG("scanFrag_execSCAN_FRAGREF, rep->senderData:" << rep->senderData
+         << ", requestPtr.p->m_senderData:" << requestPtr.p->m_senderData);
+
+  ScanFragRef* const ref = (ScanFragRef*)signal->getDataPtrSend();
+  ref->senderData = requestPtr.p->m_senderData;
+  ref->errorCode = errCode;
+  ref->transId1 = requestPtr.p->m_transId[0];
+  ref->transId2 = requestPtr.p->m_transId[1];
+
+  sendSignal(requestPtr.p->m_senderRef, GSN_SCAN_FRAGREF, signal,
+	     ScanFragRef::SignalLength, JBB);
+
+  // TODO: Cleanup operation on SPJ block
+
+//ndbrequire(false);
 }
 
 
@@ -2723,6 +2728,9 @@ Dbspj::parseDA(Build_context& ctx,
       if (unlikely(err != 0))
         break;
     }
+
+    ndbrequire(((treeBits  & DABits::NI_KEY_PARAMS)==0)
+            == ((paramBits & DABits::PI_KEY_PARAMS)==0));
 
     if (treeBits & (DABits::NI_KEY_PARAMS 
 		    | DABits::NI_KEY_LINKED 

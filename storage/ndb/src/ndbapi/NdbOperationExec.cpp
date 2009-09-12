@@ -23,7 +23,6 @@
 #include "NdbApiSignal.hpp"
 #include <Ndb.hpp>
 #include <NdbRecAttr.hpp>
-#include <NdbQueryOperationImpl.hpp>
 #include "NdbUtil.hpp"
 #include "NdbInterpretedCode.hpp"
 
@@ -95,7 +94,7 @@ public :
     currentPos= firstDataPtr;
   }
 
-  Uint32* getNextWords(Uint32& sz)
+  const Uint32* getNextWords(Uint32& sz)
   {
     /* In first TCKEY/INDXREQ, data is at offset depending
      * on whether it's KEYINFO or ATTRINFO
@@ -306,13 +305,8 @@ NdbOperation::prepareSend(Uint32 aTC_ConnectPtr,
   Uint32 tSchemaVersion = m_accessTable->m_version;
   
   tcKeyReq->apiConnectPtr      = aTC_ConnectPtr;
-  /* TODO: Remove reference to NdbQueryImpl. Only needed for SPJ result 
-     prototype.*/
-  if(m_queryImpl==NULL){
-    tcKeyReq->apiOperationPtr    = ptr2int();
-  }else{
-    tcKeyReq->apiOperationPtr = m_queryImpl->ptr2int();
-  }
+  tcKeyReq->apiOperationPtr    = ptr2int();
+
   // Check if too much attrinfo have been defined
   if (tTotalCurrAI_Len > TcKeyReq::MaxTotalAttrInfo){
     setErrorCodeAbort(4257);
@@ -357,7 +351,7 @@ NdbOperation::prepareSend(Uint32 aTC_ConnectPtr,
   tcKeyReq->setDirtyFlag(tReqInfo, tDirtyIndicator);
   tcKeyReq->setOperationType(tReqInfo, tOperationType);
   tcKeyReq->setKeyLength(tReqInfo, 0); // Not needed
-  tcKeyReq->setViaSPJFlag(tReqInfo, m_isLinked);
+  tcKeyReq->setViaSPJFlag(tReqInfo, 0);
 
   // A dirty read is always ignore error
   abortOption = tDirtyState ? (Uint8) AO_IgnoreError : (Uint8) abortOption;

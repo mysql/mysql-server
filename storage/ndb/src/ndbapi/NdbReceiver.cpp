@@ -25,7 +25,6 @@
 #include <NdbTransaction.hpp>
 #include <TransporterFacade.hpp>
 #include <NdbBlob.hpp>
-#include <NdbQueryOperationImpl.hpp>
 #include <signaldata/TcKeyConf.hpp>
 #include <signaldata/DictTabInfo.hpp>
 

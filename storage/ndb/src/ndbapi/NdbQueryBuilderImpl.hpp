@@ -65,48 +65,74 @@ public:
     m_maxSizeExceeded(false){
   }
   
-  /** Get the idx'th element. Make sure there is space for 'count' elements.*/
-  Uint32& get(Uint32 idx, Uint32 count = 1){
-    const Uint32 newMax = idx+count-1;
-    if(newMax >= m_size){
-      if(unlikely(newMax >= maxSize)){
-        //ndbout << "Uint32Buffer::get() Attempt to access " << newMax 
-        //       << "th element.";
-        m_maxSizeExceeded = true;
-        assert(count <= maxSize);
-        return  m_array[0];
-      }
-      m_size = newMax+1;
+  /**
+   * Allocate a buffer extension at end of this buffer.
+   * NOTE: Return memory even if allocation failed ->
+   *       Always check ::isMaxSizeExceeded() before buffer
+   *       content is used
+   */   
+  Uint32* alloc(size_t count) {
+    if(unlikely(m_size+count >= maxSize)) {
+      //ndbout << "Uint32Buffer::get() Attempt to access " << newMax 
+      //       << "th element.";
+      m_maxSizeExceeded = true;
+      assert(count <= maxSize);
+      return &m_array[0];
     }
-    return m_array[idx];
+    Uint32* extend = &m_array[m_size];
+    m_size += count;
+    return extend;
   }
 
-  /** Get the idx'th element. Make sure there is space for 'count' elements.*/
-  const Uint32& get(Uint32 idx, Uint32 count=1) const {
-    assert(idx+count-idx < m_size);
-    assert(!m_maxSizeExceeded);
-    return m_array[idx];
+  /** Put the idx'th element. Make sure there is space for 'count' elements.
+   *  Prefer usage of append() when putting at end of the buffer.
+   */
+  void put(Uint32 idx, Uint32 value) {
+    assert(idx < m_size);
+    m_array[idx] = value;
   }
 
-  /** append 'src' to end of this buffer */
-  size_t append(const Uint32Buffer& src) {
-    memcpy(&get(getSize(), src.getSize()),
-           &src.get(0),
-           src.getSize()*sizeof(Uint32));
-    return src.getSize();
+  /** append 'src' word to end of this buffer
+   */
+  void append(const Uint32 src) {
+    if (likely(m_size < maxSize))
+      m_array[m_size++] = src;
+    else
+      m_maxSizeExceeded = true;
+  }
+
+  /** append 'src' buffer to end of this buffer
+   */
+  void append(const Uint32Buffer& src) {
+    size_t len = src.getSize();
+    if (len > 0) {
+      memcpy(alloc(len), src.addr(), len*sizeof(Uint32));
+    }
   }
 
   /** append 'src' *bytes* to end of this buffer
-   *  Zero pad possibly odd bytes in last Uint32 word */
-  size_t append(const void* src, size_t len) {
-    size_t wordCount = (len + sizeof(Uint32)-1) / sizeof(Uint32);
-    Uint32* dst = &get(getSize(), wordCount);
+   *  Zero pad possibly odd bytes in last Uint32 word
+   */
+  void append(const void* src, size_t len) {
+    if (len > 0) {
+      size_t wordCount = (len + sizeof(Uint32)-1) / sizeof(Uint32);
+      Uint32* dst = alloc(wordCount);
+      // Make sure that any trailing bytes in the last word are zero.
+      dst[wordCount-1] = 0;
+      // Copy src 
+      memcpy(dst, src, len);
+    }
+  }
 
-    // Make sure that any trailing bytes in the last word are zero.
-    dst[wordCount-1] = 0;
-    // Copy src 
-    memcpy(dst, src, len);
-    return wordCount;
+  const Uint32* addr() const {
+    return (m_size>0) ?m_array :NULL;
+  }
+
+  /** Get the idx'th element. Make sure there is space for 'count' elements.*/
+  Uint32 get(Uint32 idx) const {
+    assert(idx < m_size);
+    assert(!m_maxSizeExceeded);
+    return m_array[idx];
   }
 
   /** Check for out-of-bounds access.*/
@@ -114,7 +140,14 @@ public:
     return m_maxSizeExceeded;
   }
 
-  size_t getSize() const {return m_size;}
+  size_t getSize() const {
+    return m_size;
+  }
+
+private:
+  /** Should not be copied, nor assigned.*/
+  Uint32Buffer(Uint32Buffer&);
+  Uint32Buffer& operator=(Uint32Buffer&);
 
 private:
   /* TODO: replace array with something that can grow and allocate from a 
@@ -122,53 +155,6 @@ private:
   Uint32 m_array[maxSize];
   Uint32 m_size;
   bool m_maxSizeExceeded;
-};
-
-/** A reference to a subset of an Uint32Buffer.
-*/
-class Uint32Slice{
-public:
-  /** Constructs a slice at end of underlying buffer */
-  explicit Uint32Slice(Uint32Buffer& buffer):
-    m_buffer(buffer),
-    m_offset(buffer.getSize()){
-  }
-
-  explicit Uint32Slice(Uint32Buffer& buffer, Uint32 offset):
-    m_buffer(buffer),
-    m_offset(offset){
-  }
-
-  explicit Uint32Slice(const Uint32Slice& slice, Uint32 offset):
-    m_buffer(slice.m_buffer),
-    m_offset(offset+slice.m_offset){
-  }
-
-  Uint32& get(int idx, Uint32 count=1){
-    return m_buffer.get(idx+m_offset, count);
-  }
-
-  const Uint32& get(int i, Uint32 count=1)const{
-    return m_buffer.get(i+m_offset, count);
-  }
-
-  /** append 'src' *bytes* to end of this buffer
-   *  Zero pad possibly odd bytes in last Uint32 word */
-  size_t append(const void* src, size_t len) const {
-    return m_buffer.append(src,len);
-  }
-
-  Uint32 getOffset() const {return m_offset;}
-
-  size_t getSize() const {return m_buffer.getSize() - m_offset;}
-
-  /** Check for out-of-bounds access.*/
-  bool isMaxSizeExceeded() const {
-    return m_buffer.isMaxSizeExceeded();
-  }
-private:
-  Uint32Buffer& m_buffer;
-  const Uint32 m_offset;
 };
 
 
@@ -263,15 +249,15 @@ public:
     return m_spjProjection;
   }
 
-  /** Expand keys, bound and filters for the root operation. This is needed
-   * for allowing TCKEYREQ/LQHKEYREQ messages to be hashed to the right data
-   * node
+  /**
+   * Expand keys and bounds for the root operation into the KEYINFO section.
    * @param ndbOperation The operation that the query is piggy backed on.
    * @param actualParam Instance values for NdbParamOperands.
+   * Returns: 0 if OK, or possible an errorcode.
    */
-  virtual void 
-  materializeRootOperands(class NdbOperation& ndbOperation,
-                          const constVoidPtr actualParam[]) const = 0;
+  virtual int
+  prepareKeyInfo(Uint32Buffer& keyInfo,
+                     const constVoidPtr actualParam[]) const = 0;
 
   virtual ~NdbQueryOperationDefImpl() = 0;
 
