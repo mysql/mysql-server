@@ -327,7 +327,7 @@ Returns the old value of *ptr, atomically sets *ptr to new_val */
 # define os_atomic_test_and_set_byte(ptr, new_val) \
 	__sync_lock_test_and_set(ptr, new_val)
 
-#elif defined(HAVE_SOLARIS_ATOMICS)
+#elif defined(HAVE_IB_SOLARIS_ATOMICS)
 
 #define HAVE_ATOMIC_BUILTINS
 
