@@ -91,29 +91,6 @@ or will be empty */
 # include "ut0auxconf.h"
 #endif
 
-#ifdef HAVE_WINDOWS_ATOMICS
-/* windows thread objects can always be passed to windows atomic functions */
-# define HAVE_IB_ATOMIC_PTHREAD_T_WINDOWS
-#endif /* HAVE_WINDOWS_ATOMICS */
-
-#if defined(HAVE_IB_GCC_ATOMIC_BUILTINS) \
- || defined(HAVE_SOLARIS_ATOMICS) \
- || defined(HAVE_WINDOWS_ATOMICS)
-/* An auxiliary macro to know that some atomics are present and the
-relevant os_*() macros will be defined and can be used */
-# define HAVE_ATOMIC_BUILTINS
-/* If pthread_t can be passed to any of the atomic functions then we know
-that the appropriate macro os_compare_and_swap_thread_id() will be defined
-and can be used */
-# if defined(HAVE_IB_ATOMIC_PTHREAD_T_GCC) \
-  || defined(HAVE_IB_ATOMIC_PTHREAD_T_SOLARIS) \
-  || defined(HAVE_IB_ATOMIC_PTHREAD_T_WINDOWS)
-#  define INNODB_RW_LOCKS_USE_ATOMICS
-# endif
-#endif /* HAVE_IB_GCC_ATOMIC_BUILTINS
-       || HAVE_SOLARIS_ATOMICS
-       || HAVE_WINDOWS_ATOMICS */
-
 #if (defined(WIN32) || defined(_WIN32) || defined(WIN64) || defined(_WIN64)) && !defined(MYSQL_SERVER) && !defined(__WIN__)
 # undef __WIN__
 # define __WIN__
