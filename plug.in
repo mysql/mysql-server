@@ -106,7 +106,7 @@ MYSQL_PLUGIN_ACTIONS(innobase,  [
   )
 
   AC_MSG_CHECKING(whether pthread_t can be used by GCC atomic builtins)
-  # either define HAVE_ATOMIC_PTHREAD_T or not
+  # either define HAVE_IB_ATOMIC_PTHREAD_T_GCC or not
   AC_TRY_RUN(
     [
       #include <pthread.h>
@@ -127,7 +127,7 @@ MYSQL_PLUGIN_ACTIONS(innobase,  [
       }
     ],
     [
-      AC_DEFINE([HAVE_ATOMIC_PTHREAD_T], [1],
+      AC_DEFINE([HAVE_IB_ATOMIC_PTHREAD_T_GCC], [1],
                 [pthread_t can be used by GCC atomic builtins])
       AC_MSG_RESULT(yes)
     ],
@@ -149,7 +149,7 @@ MYSQL_PLUGIN_ACTIONS(innobase,  [
   )
 
   AC_MSG_CHECKING(whether pthread_t can be used by Solaris libc atomic functions)
-  # either define HAVE_ATOMIC_PTHREAD_T or not
+  # either define HAVE_IB_ATOMIC_PTHREAD_T_SOLARIS or not
   AC_TRY_RUN(
     [
       #include <pthread.h>
@@ -179,7 +179,7 @@ MYSQL_PLUGIN_ACTIONS(innobase,  [
         
     ],
     [
-      AC_DEFINE([HAVE_ATOMIC_PTHREAD_T], [1],
+      AC_DEFINE([HAVE_IB_ATOMIC_PTHREAD_T_SOLARIS], [1],
                 [pthread_t can be used by solaris atomics])
       AC_MSG_RESULT(yes)
     ],
