@@ -45,6 +45,31 @@ int
 NdbTransaction::receiveSCAN_TABREF(NdbApiSignal* aSignal){
   const ScanTabRef * ref = CAST_CONSTPTR(ScanTabRef, aSignal->getDataPtr());
   
+#if TODO_SPJ_NEED_SCAN_TABREF
+  printf("NdbTransaction::receiveSCAN_TABREF, apiPtr:%x\n", ref->apiConnectPtr);
+
+
+  void * tPtr = theNdb->int2void(ref->apiConnectPtr);
+  printf("  tPtr:%p\n", tPtr);
+
+//assert(tPtr); // For now
+  NdbReceiver* tOp = theNdb->void2rec(tPtr);
+  printf("  NdbReceiver::magic:%d\n", tOp->checkMagicNumber());
+  printf("  NdbQueryOperationImpl::magic:%d\n", ((NdbQueryOperationImpl*)tPtr)->checkMagicNumber());
+
+  if (tOp && tOp->checkMagicNumber())
+  {
+    NdbQueryOperationImpl* const queryOpImpl 
+      = static_cast<NdbQueryOperationImpl*>(tOp->m_owner);
+
+    printf("  query->magic:%d\n", queryOpImpl->checkMagicNumber());
+    if(queryOpImpl->checkMagicNumber())
+    {
+//    queryOpImpl->execSCAN_TABCONF(tcPtrI, opCount, tOp);
+    }
+  }
+#endif //TODO_SPJ_NEED_SCAN_TABREF
+
   if(checkState_TransId(&ref->transId1)){
     theScanningOp->setErrorCode(ref->errorCode);
     theScanningOp->execCLOSE_SCAN_REP();

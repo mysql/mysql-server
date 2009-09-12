@@ -364,7 +364,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
     All signals received by the API requires the first data word to be such
     an id to the receiving object.
   */
-  
+
   switch (tSignalNumber){
   case GSN_TCKEYCONF:
     {
@@ -549,12 +549,15 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
               return;
             }//if
           } else {
+            // TODO SPJ: Has to check rewrite of this logic as 
+            //           NdbOperation linked to NdbQuery has now gone away.
+            // NOTE: Prev NdbOperation arg to ::OpCompleteFailure is
+            //       never used.
             if(queryOpImpl->execTCKEYREF(aSignal) &&
-               tCon->OpCompleteFailure(queryOpImpl->getQuery()
-                                       .getNdbOperation()) != -1){
+               tCon->OpCompleteFailure(NULL) != -1){  // TODO + FIXME?
               completedTransaction(tCon);
               return;
-            }//if 
+            }//if
           }//if
           break;
         }//if

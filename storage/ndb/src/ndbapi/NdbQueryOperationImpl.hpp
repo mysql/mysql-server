@@ -28,6 +28,9 @@
 #include <Vector.hpp>
 #include <NdbOut.hpp>
 
+class NdbApiSignal;
+
+
 class NdbQueryImpl {
 private:
   // Only constructable from factory ::buildQuery();
@@ -45,12 +48,17 @@ public:
                                   const NdbQueryDefImpl& queryDef, 
                                   NdbQueryImpl* next);
 
+
   Uint32 getNoOfOperations() const;
 
-  // Get a specific NdbQueryOperation by ident specified
+  // Get a specific NdbQueryOperation instance by ident specified
   // when the NdbQueryOperationDef was created.
   NdbQueryOperationImpl& getQueryOperation(Uint32 ident) const;
   NdbQueryOperationImpl* getQueryOperation(const char* ident) const;
+
+  // Considder to introduce these as convenient shortcuts
+//NdbQueryOperationDefImpl& getQueryOperationDef(Uint32 ident) const;
+//NdbQueryOperationDefImpl* getQueryOperationDef(const char* ident) const;
 
   Uint32 getNoOfParameters() const;
   const NdbParamOperand* getParameter(const char* name) const;
@@ -79,16 +87,27 @@ public:
    * @return True if batch is complete.*/
   bool incPendingStreams(int increment);
 
+  /** Assign supplied parameter values to the parameter placeholders
+   *  Created when the query was defined.
+   *  Values are *copied* into this NdbQueryImpl object:
+   *  Memory location used as source for parameter values don't have
+   *  to be valid after this assignment.
+   */
+  int assignParameters(const constVoidPtr paramValues[]);
+
   /** Prepare for execution. 
-   *  @return possible error code.*/
+   *  @return possible error code.
+   */
   int prepareSend();
+
+  /** Send prepared signals from this NdbQuery
+   *  @return possible error code.
+   */
+  int doSend(int aNodeId, bool lastFlag);
 
   bool checkMagicNumber() const
   { return m_magic == MAGIC; }
 
-  Uint32 ptr2int() const
-  { return m_id; }
-  
   const NdbQuery& getInterface() const
   { return m_interface; }
 
@@ -99,10 +118,6 @@ public:
   NdbQueryImpl* getNext() const
   { return m_next; }
 
-  /** TODO: Remove. Temporary hack for prototype.*/
-  NdbOperation* getNdbOperation() const
-  { return m_ndbOperation; }
-
   Uint32 getParallelism() const
   { return m_parallelism; } 
 
@@ -111,7 +126,7 @@ public:
 
   NdbQueryOperationImpl& getRoot() const 
   { return getQueryOperation(0U);}
-  
+ 
 private:
   NdbQuery m_interface;
 
@@ -131,17 +146,21 @@ private:
   bool m_tcKeyConfReceived;
   /** Number of streams not yet completed within the current batch.*/
   int m_pendingStreams;
-  /** Serialized representation of parameters. To be sent in TCKEYREQ*/
-  Uint32Buffer m_serializedParams;
   /** Next query in same transaction.*/
   NdbQueryImpl* const m_next;
-  /** TODO: Remove this.*/
-  NdbOperation* m_ndbOperation;
   /** Definition of this query.*/
   const NdbQueryDefImpl& m_queryDef;
   /** Number of fragments to be scanned in parallel. (1 if root operation is 
    * a lookup)*/
   Uint32 m_parallelism;
+
+  /**
+   * Signal building section:
+   */
+  NdbApiSignal* m_signal;
+  Uint32Buffer m_attrInfo;  // ATTRINFO: QueryTree + serialized parameters
+  Uint32Buffer m_keyInfo;   // KEYINFO:  Lookup key or scan bounds
+
 }; // class NdbQueryImpl
 
 
@@ -232,16 +251,9 @@ public:
    *  @return possible error code.*/
   int prepareSend(Uint32Buffer& serializedParams);
 
-  /* TODO: Remove this method. Only needed in spj_test.cpp.*/
-  /** Return I-value for putting in object map.*/
-  Uint32 ptr2int() const {
-    return m_id;
-  }
-  
   /** Verify magic number.*/
-  bool checkMagicNumber() const { 
-    return m_magic == MAGIC;
-  }
+  bool checkMagicNumber() const
+  { return m_magic == MAGIC; }
 
   /** Check if batch is complete for this operation.*/
   bool isBatchComplete() const;
@@ -284,7 +296,7 @@ private:
      * @param style NdbRecord, NdbRecattr or empty projection.
      * @param withCorrelation Include correlation data in projection.
      * @return Possible error code.*/
-    int serialize(Uint32Slice dst, 
+    int serialize(Uint32Buffer& buffer, 
                   ResultStyle resultStyle, 
                   bool withCorrelation) const;
     
@@ -398,11 +410,13 @@ private:
   /** A stack of ResultStream pointers.*/
   class StreamStack{
   public:
-    explicit StreamStack(int size);
+    explicit StreamStack();
 
     ~StreamStack(){
       delete[] m_array;
     }
+
+    void prepare(int size);
 
     ResultStream* top() const { 
       return m_current>=0 ? m_array[m_current] : NULL; 
@@ -420,9 +434,9 @@ private:
     }
 
   private:
-    const int m_size;
+    int m_size;
     int m_current;
-    ResultStream** const m_array;
+    ResultStream** m_array;
     // No copying.
     StreamStack(const StreamStack&);
     StreamStack& operator=(const StreamStack&);
@@ -460,8 +474,6 @@ private:
   Vector<NdbQueryOperationImpl*> m_parents;
   /** Children of this operation.*/
   Vector<NdbQueryOperationImpl*> m_children;
-  /** Possibly (hidden) operation being index (and parent) for this op. */
-//NdbQueryOperationImpl* const m_index;
 
   /** For processing results from this operation.*/
   ResultStream** m_resultStreams;

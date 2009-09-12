@@ -485,7 +485,10 @@ int testQueryBuilder(Ndb &myNdb)
 
   myNdb.closeTransaction(myTransaction);
   myTransaction = 0;
+#endif
 
+
+#if 0
   //////////////////////////////////////////////////
   printf("q4_1\n");
   const NdbQueryDef* q4_1 = 0;
@@ -592,7 +595,7 @@ int testQueryBuilder(Ndb &myNdb)
 
   /////////////////////////////////////////////////
 
-#if 0
+#if 1
   // Example: ::readTuple() using Index for unique key lookup
   printf("q5\n");
 
@@ -807,7 +810,7 @@ int testQueryBuilder(Ndb &myNdb)
     {
 //     qb->constValue(110567),      // emp_no  = 110567
        qb->paramValue(),
-       qb->constValue("d005"),      // dept_no = "d005"
+//     qb->constValue("d005"),      // dept_no = "d005"
        0
     };
     const NdbQueryOperand* high[] =  // Manager PK index is {"emp_no","dept_no", }

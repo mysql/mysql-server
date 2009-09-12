@@ -467,16 +467,13 @@ TransporterFacade::get_batch_size() {
 class LinearSectionIterator: public GenericSectionIterator
 {
 private :
-  Uint32* data;
+  const Uint32* const data;
   Uint32 len;
   bool read;
 public :
-  LinearSectionIterator(Uint32* _data, Uint32 _len)
-  {
-    data= (_len == 0)? NULL:_data;
-    len= _len;
-    read= false;
-  }
+  LinearSectionIterator(const Uint32* _data, Uint32 _len)
+  : data((_len == 0) ?NULL :_data), len(_len), read(false)
+  {}
 
   ~LinearSectionIterator()
   {};
@@ -487,7 +484,7 @@ public :
     read= false;
   }
 
-  Uint32* getNextWords(Uint32& sz)
+  const Uint32* getNextWords(Uint32& sz)
   {
     if (likely(!read))
     {
@@ -531,7 +528,7 @@ public :
     currentSignal= firstSignal;
   }
 
-  Uint32* getNextWords(Uint32& sz);
+  const Uint32* getNextWords(Uint32& sz);
 };
 
 #endif // TransporterFacade_H

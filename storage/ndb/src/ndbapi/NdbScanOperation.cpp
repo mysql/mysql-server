@@ -26,7 +26,6 @@
 #include "NdbDictionaryImpl.hpp"
 #include <NdbBlob.hpp>
 #include <NdbInterpretedCode.hpp>
-#include <NdbQueryOperationImpl.hpp>
 
 #include <NdbRecAttr.hpp>
 #include <NdbReceiver.hpp>
@@ -128,7 +127,6 @@ NdbScanOperation::init(const NdbTableImpl* tab, NdbTransaction* myConnection)
   m_readTuplesCalled= false;
   m_interpretedCodeOldApi= NULL;
   m_pruneState= SPS_UNKNOWN;
-  m_isLinked = false;
 
   m_api_receivers_count = 0;
   m_current_api_receiver = 0;
@@ -2398,13 +2396,6 @@ NdbScanOperation::doSendScan(int aProcessorId)
    * Section 2 : Optional KEYINFO section
    */
   GenericSectionPtr secs[3];
-  if(m_isLinked) {
-    const NdbQueryOperationImpl& queryOp 
-      = m_queryImpl->getQueryOperation(0U);
-    for(Uint32 i = 0; i<theParallelism; i++){
-      m_prepared_receivers[i] = queryOp.getReceiver(i).getId();
-    }
-  }
   LinearSectionIterator receiverIdIterator(m_prepared_receivers,
                                            theParallelism);
   SignalSectionIterator attrInfoIter(theFirstATTRINFO);
@@ -2426,14 +2417,6 @@ NdbScanOperation::doSendScan(int aProcessorId)
   }
 
   TransporterFacade *tp = theNdb->theImpl->m_transporter_facade;
-
-  if (m_isLinked)
-  {
-    ScanTabReq * req = CAST_PTR(ScanTabReq, theSCAN_TABREQ->getDataPtrSend());
-    Uint32 reqInfo = req->requestInfo;
-    ScanTabReq::setViaSPJFlag(reqInfo, 1);
-    req->requestInfo = reqInfo;
-  }
   
   /* Send Fragmented as SCAN_TABREQ can be large */
   if (tp->sendFragmentedSignal(theSCAN_TABREQ, 

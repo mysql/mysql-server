@@ -36,7 +36,6 @@ class NdbBlob;
 class TcKeyReq;
 class NdbRecord;
 class NdbInterpretedCode;
-class NdbQueryImpl;
 
 /**
  * @class NdbOperation
@@ -53,7 +52,6 @@ class NdbOperation
   friend class NdbScanFilterImpl;
   friend class NdbReceiver;
   friend class NdbBlob;
-  friend class NdbQueryImpl;
 #endif
 
 public:
@@ -1066,12 +1064,6 @@ public:
     void * customData;
   };
 
-  /* TODO: Remove reference to NdbQueryImpl. Only needed for SPJ result 
-     prototype.*/
-  void setQueryImpl(NdbQueryImpl* queryImpl){
-    m_queryImpl = queryImpl;
-  }
-
 protected:
 /******************************************************************************
  * These are the methods used to create and delete the NdbOperation objects.
@@ -1491,12 +1483,6 @@ protected:
 
   Uint32 repack_read(Uint32 len);
 
-  bool m_isLinked;
-
-  /* TODO: Remove pointer to NdbQueryImpl. Only needed for SPJ result 
-     prototype.*/
-  NdbQueryImpl* m_queryImpl;
-  
 private:
   NdbOperation(const NdbOperation&); // Not impl.
   NdbOperation&operator=(const NdbOperation&);
