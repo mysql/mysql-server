@@ -61,7 +61,7 @@ int toku_brt_insert (BRT brt, DBT *k, DBT *v, TOKUTXN txn);
 
 // Effect: Insert a key and data pair into a brt if the oplsn is newer than the brt lsn.  This function is called during recovery.
 // Returns 0 if successful
-int toku_brt_maybe_insert (BRT brt, DBT *k, DBT *v, TOKUTXN txn, LSN oplsn);
+int toku_brt_maybe_insert (BRT brt, DBT *k, DBT *v, TOKUTXN txn, BOOL oplsn_valid, LSN oplsn);
 
 // Effect: Delete a key from a brt
 // Returns 0 if successful
@@ -69,7 +69,7 @@ int toku_brt_delete (BRT brt, DBT *k, TOKUTXN txn);
 
 // Effect: Delete a key from a brt if the oplsn is newer than the brt lsn.  This function is called during recovery.
 // Returns 0 if successful
-int toku_brt_maybe_delete (BRT brt, DBT *k, TOKUTXN txn, LSN oplsn);
+int toku_brt_maybe_delete (BRT brt, DBT *k, TOKUTXN txn, BOOL oplsn_valid, LSN oplsn);
 
 // Effect: Delete a pair only if both k and v are equal according to the comparison function.
 // Returns 0 if successful
@@ -78,7 +78,7 @@ int toku_brt_delete_both (BRT brt, DBT *k, DBT *v, TOKUTXN txn);
 // Effect: Delete a pair only if both k and v are equal according to the comparison function and the
 // oplsn is newer than the brt lsn.  This function is called by recovery.
 // Returns 0 if successful
-int toku_brt_maybe_delete_both (BRT brt, DBT *k, DBT *v, TOKUTXN txn, LSN oplsn);
+int toku_brt_maybe_delete_both (BRT brt, DBT *k, DBT *v, TOKUTXN txn, BOOL oplsn_valid, LSN oplsn);
 
 int toku_brt_db_delay_closed (BRT brt, DB* db, int (*close_db)(DB*, u_int32_t), u_int32_t close_flags);
 int toku_close_brt (BRT, TOKULOGGER, char **error_string);

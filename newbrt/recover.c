@@ -5,7 +5,6 @@
 
 #include "includes.h"
 #include "log_header.h"
-#include "varray.h"
 #include "checkpoint.h"
 
 static int toku_recover_trace = 0;
@@ -28,83 +27,101 @@ static void backward_scan_state_init(struct backward_scan_state *bs) {
     bs->bs = BS_INIT; bs->checkpoint_lsn = ZERO_LSN; bs->n_live_txns = 0; bs->min_live_txn = 0;
 }
 
-// Map filenum to brt
+// File map tuple
+struct file_map_tuple {
+    FILENUM filenum;
+    BRT brt;
+    char *fname;
+};
+
+static void file_map_tuple_init(struct file_map_tuple *tuple, FILENUM filenum, BRT brt, char *fname) {
+    tuple->filenum = filenum;
+    tuple->brt = brt;
+    tuple->fname = fname;
+}
+
+static void file_map_tuple_destroy(struct file_map_tuple *tuple) {
+    if (tuple->fname) {
+        toku_free(tuple->fname);
+        tuple->fname = NULL;
+    }
+}
+
+// Map filenum to brt, fname
 // TODO why can't we use the cachetable to find by filenum?
-// TODO O(n) time for linear search.  should we use an OMT?
 struct file_map {
-    struct cf_tuple {
-        FILENUM   filenum;
-        CACHEFILE cf;
-        BRT       brt; // set to zero on an fopen, but filled in when an fheader is seen.
-        char     *fname;
-    } *cf_tuples;
-    int n_cf_tuples, max_cf_tuples;
+    OMT filenums;
 };
 
 static void file_map_init(struct file_map *fmap) {
-    fmap->cf_tuples = NULL;
-    fmap->n_cf_tuples = fmap->max_cf_tuples = 0;
+    int r = toku_omt_create(&fmap->filenums);
+    assert(r == 0);
+}
+
+static void file_map_destroy(struct file_map *fmap) {
+    toku_omt_destroy(&fmap->filenums);
 }
 
 static void file_map_close_dictionaries(struct file_map *fmap) {
     int r;
 
-    for (int i=0; i<fmap->n_cf_tuples; i++) {
-        struct cf_tuple *tuple = &fmap->cf_tuples[i];
-	if (tuple->brt) {
-	    r = toku_close_brt(tuple->brt, 0, 0);
-	    //r = toku_cachefile_close(&cf_tuples[i].cf);
-	    assert(r == 0);
-	}
-        if (tuple->fname) {
-            toku_free(tuple->fname);
-            tuple->fname = NULL;
-        }
-    }
-    fmap->n_cf_tuples = fmap->max_cf_tuples = 0;
-    if (fmap->cf_tuples) {
-        toku_free(fmap->cf_tuples);
-        fmap->cf_tuples = NULL;
+    while (1) {
+        u_int32_t n = toku_omt_size(fmap->filenums);
+        if (n == 0)
+            break;
+        OMTVALUE v;
+        r = toku_omt_fetch(fmap->filenums, n-1, &v, NULL);
+        assert(r == 0);
+        r = toku_omt_delete_at(fmap->filenums, n-1);
+        assert(r == 0);
+        struct file_map_tuple *tuple = v;
+	assert(tuple->brt);
+        r = toku_close_brt(tuple->brt, 0, 0);
+        assert(r == 0);
+        file_map_tuple_destroy(tuple);
+        toku_free(tuple);
     }
 }
 
-static int file_map_add (struct file_map *fmap, FILENUM fnum, CACHEFILE cf, BRT brt, char *fname) {
-    if (fmap->cf_tuples == NULL) {
-	fmap->max_cf_tuples = 1;
-	MALLOC_N(fmap->max_cf_tuples, fmap->cf_tuples);
-	if (fmap->cf_tuples == NULL) {
-            fmap->max_cf_tuples = 0;
-            return errno;
-        }
-	fmap->n_cf_tuples=1;
-    } else {
-	if (fmap->n_cf_tuples >= fmap->max_cf_tuples) {
-            struct cf_tuple *new_cf_tuples = toku_realloc(fmap->cf_tuples, 2*fmap->max_cf_tuples*sizeof(struct cf_tuple));
-            if (new_cf_tuples == NULL) 
-                return errno;
-            fmap->cf_tuples = new_cf_tuples;
-	    fmap->max_cf_tuples *= 2;
-	}
-	fmap->n_cf_tuples++;
-    }
-    struct cf_tuple *tuple = &fmap->cf_tuples[fmap->n_cf_tuples-1];
-    tuple->filenum = fnum;
-    tuple->cf      = cf;
-    tuple->brt     = brt;
-    tuple->fname   = fname;
+static int file_map_h(OMTVALUE omtv, void *v) {
+    struct file_map_tuple *a = omtv;
+    FILENUM *b = v;
+    if (a->filenum.fileid < b->fileid) return -1;
+    if (a->filenum.fileid > b->fileid) return +1;
     return 0;
 }
 
-static int find_cachefile (struct file_map *fmap, FILENUM fnum, struct cf_tuple **cf_tuple) {
-    for (int i=0; i<fmap->n_cf_tuples; i++) {
-	if (fnum.fileid==fmap->cf_tuples[i].filenum.fileid) {
-	    *cf_tuple = &fmap->cf_tuples[i];
-	    return 0;
-	}
-    }
-    return 1;
+static int file_map_insert (struct file_map *fmap, FILENUM fnum, BRT brt, char *fname) {
+    struct file_map_tuple *tuple = toku_malloc(sizeof (struct file_map_tuple));
+    assert(tuple);
+    file_map_tuple_init(tuple, fnum, brt, fname);
+    int r = toku_omt_insert(fmap->filenums, tuple, file_map_h, &fnum, NULL);
+    return r;
 }
 
+static void file_map_remove(struct file_map *fmap, FILENUM fnum) {
+    OMTVALUE v; u_int32_t idx;
+    int r = toku_omt_find_zero(fmap->filenums, file_map_h, &fnum, &v, &idx, NULL);
+    if (r == 0) {
+        struct file_map_tuple *tuple = v;
+        r = toku_omt_delete_at(fmap->filenums, idx);
+        file_map_tuple_destroy(tuple);
+        toku_free(tuple);
+    }
+}
+
+static int file_map_find(struct file_map *fmap, FILENUM fnum, struct file_map_tuple **file_map_tuple) {
+    OMTVALUE v; u_int32_t idx;
+    int r = toku_omt_find_zero(fmap->filenums, file_map_h, &fnum, &v, &idx, NULL);
+    if (r == 0) {
+        struct file_map_tuple *tuple = v;
+        assert(tuple->filenum.fileid == fnum.fileid);
+        *file_map_tuple = tuple;
+    }
+    return r;
+}
+
+// The recovery environment
 struct recover_env {
     CACHETABLE ct;
     TOKULOGGER logger;
@@ -137,6 +154,7 @@ static void recover_env_cleanup (RECOVER_ENV renv) {
     int r;
 
     file_map_close_dictionaries(&renv->fmap);
+    file_map_destroy(&renv->fmap);
 
     r = toku_logger_close(&renv->logger);
     assert(r == 0);
@@ -159,7 +177,9 @@ static void toku_recover_commit (LSN lsn, TXNID xid, RECOVER_ENV renv) {
     // find the transaction by transaction id
     TOKUTXN txn = NULL;
     r = toku_txnid2txn(renv->logger, xid, &txn);
-    assert(r == 0 && txn);
+    assert(r == 0);
+    if (txn == NULL)
+        return;
 
     // commit the transaction
     r = toku_txn_commit_with_lsn(txn, TRUE, recover_yield, NULL, lsn);
@@ -180,7 +200,9 @@ static void toku_recover_xabort (LSN lsn, TXNID xid, RECOVER_ENV renv) {
     // find the transaction by transaction id
     TOKUTXN txn = NULL;
     r = toku_txnid2txn(renv->logger, xid, &txn);
-    assert(r == 0 && txn);
+    assert(r == 0);
+    if (txn == NULL)
+        return;
 
     // abort the transaction
     r = toku_txn_abort_with_lsn(txn, recover_yield, NULL, lsn);
@@ -230,8 +252,8 @@ static void internal_toku_recover_fopen_or_fcreate (RECOVER_ENV renv, int flags,
     int r;
 
     // already open
-    struct cf_tuple *tuple = NULL;
-    r = find_cachefile(&renv->fmap, filenum, &tuple);
+    struct file_map_tuple *tuple = NULL;
+    r = file_map_find(&renv->fmap, filenum, &tuple);
     if (r == 0) {
         assert(strcmp(tuple->fname, fixedfname) == 0);
         toku_free(fixedfname);
@@ -268,7 +290,7 @@ static void internal_toku_recover_fopen_or_fcreate (RECOVER_ENV renv, int flags,
     r = toku_brt_open(brt, fixedfname, fixedfname, (flags & O_CREAT) != 0, FALSE, renv->ct, NULL, NULL);
     assert(r == 0);
 
-    file_map_add(&renv->fmap, filenum, NULL, brt, fixedfname);
+    file_map_insert(&renv->fmap, filenum, brt, fixedfname);
 }
 
 static void toku_recover_fopen (LSN UU(lsn), TXNID UU(xid), BYTESTRING fname, FILENUM filenum, RECOVER_ENV renv) {
@@ -279,12 +301,12 @@ static void toku_recover_fopen (LSN UU(lsn), TXNID UU(xid), BYTESTRING fname, FI
 static int toku_recover_backward_fopen (struct logtype_fopen *l, RECOVER_ENV renv) {
     if (renv->bs.bs == BS_SAW_CKPT_END) {
         // close the tree
-        struct cf_tuple *tuple = NULL;
-        int r = find_cachefile(&renv->fmap, l->filenum, &tuple);
+        struct file_map_tuple *tuple = NULL;
+        int r = file_map_find(&renv->fmap, l->filenum, &tuple);
         if (r == 0) {
             r = toku_close_brt(tuple->brt, 0, 0);
             assert(r == 0);
-            tuple->brt=0;
+            file_map_remove(&renv->fmap, l->filenum);
         }
     }
     return 0;
@@ -303,36 +325,38 @@ static int toku_recover_backward_fcreate (struct logtype_fcreate *UU(l), RECOVER
 }
 
 static void toku_recover_enq_insert (LSN lsn, FILENUM filenum, TXNID xid, BYTESTRING key, BYTESTRING val, RECOVER_ENV renv) {
-    struct cf_tuple *tuple = NULL;
-    int r = find_cachefile(&renv->fmap, filenum, &tuple);
+    struct file_map_tuple *tuple = NULL;
+    int r = file_map_find(&renv->fmap, filenum, &tuple);
     if (r!=0) {
 	// if we didn't find a cachefile, then we don't have to do anything.
 	return;
     }    
-
     TOKUTXN txn = NULL;
     r = toku_txnid2txn(renv->logger, xid, &txn);
-    assert(r == 0 && txn);
+    assert(r == 0);
+    if (txn == NULL)
+        return;
     DBT keydbt, valdbt;
     toku_fill_dbt(&keydbt, key.data, key.len);
     toku_fill_dbt(&valdbt, val.data, val.len);
-    r = toku_brt_maybe_insert(tuple->brt, &keydbt, &valdbt, txn, lsn);
+    r = toku_brt_maybe_insert(tuple->brt, &keydbt, &valdbt, txn, TRUE, lsn);
     assert(r == 0);
 }
 
 static int toku_recover_tablelock_on_empty_table(LSN UU(lsn), FILENUM filenum, TXNID xid, RECOVER_ENV renv) {
-    struct cf_tuple *tuple = NULL;
-    int r = find_cachefile(&renv->fmap, filenum, &tuple);
+    struct file_map_tuple *tuple = NULL;
+    int r = file_map_find(&renv->fmap, filenum, &tuple);
     if (r!=0) {
 	// if we didn't find a cachefile, then we don't have to do anything.
 	return 0;
     }    
-
-    TOKUTXN txn;
+    TOKUTXN txn = NULL;
     r = toku_txnid2txn(renv->logger, xid, &txn);
-    assert(r == 0 && txn);
-    r = toku_brt_note_table_lock(tuple->brt, txn);
     assert(r == 0);
+    if (txn != NULL) {
+        r = toku_brt_note_table_lock(tuple->brt, txn);
+        assert(r == 0);
+    }
     return 0;
 }
 
@@ -342,20 +366,21 @@ static int toku_recover_backward_enq_insert (struct logtype_enq_insert *UU(l), R
 }
 
 static void toku_recover_enq_delete_both (LSN lsn, FILENUM filenum, TXNID xid, BYTESTRING key, BYTESTRING val, RECOVER_ENV renv) {
-    struct cf_tuple *tuple = NULL;
-    int r = find_cachefile(&renv->fmap, filenum, &tuple);
+    struct file_map_tuple *tuple = NULL;
+    int r = file_map_find(&renv->fmap, filenum, &tuple);
     if (r!=0) {
 	// if we didn't find a cachefile, then we don't have to do anything.
 	return;
     }    
-
     TOKUTXN txn = NULL;
     r = toku_txnid2txn(renv->logger, xid, &txn);
-    assert(r == 0 && txn);
+    assert(r == 0);
+    if (txn == NULL)
+        return;
     DBT keydbt, valdbt;
     toku_fill_dbt(&keydbt, key.data, key.len);
     toku_fill_dbt(&valdbt, val.data, val.len);
-    r = toku_brt_maybe_delete_both(tuple->brt, &keydbt, &valdbt, txn, lsn);
+    r = toku_brt_maybe_delete_both(tuple->brt, &keydbt, &valdbt, txn, TRUE, lsn);
     assert(r == 0);
 }
 
@@ -365,19 +390,20 @@ static int toku_recover_backward_enq_delete_both (struct logtype_enq_delete_both
 }
 
 static void toku_recover_enq_delete_any (LSN lsn, FILENUM filenum, TXNID xid, BYTESTRING key, RECOVER_ENV renv) {
-    struct cf_tuple *tuple = NULL;
-    int r = find_cachefile(&renv->fmap, filenum, &tuple);
+    struct file_map_tuple *tuple = NULL;
+    int r = file_map_find(&renv->fmap, filenum, &tuple);
     if (r!=0) {
 	// if we didn't find a cachefile, then we don't have to do anything.
 	return;
-    }    
-
+    }
     TOKUTXN txn = NULL;
     r = toku_txnid2txn(renv->logger, xid, &txn);
-    assert(r == 0 && txn);
+    assert(r == 0);
+    if (txn == NULL)
+        return;
     DBT keydbt;
     toku_fill_dbt(&keydbt, key.data, key.len);
-    r = toku_brt_maybe_delete(tuple->brt, &keydbt, txn, lsn);
+    r = toku_brt_maybe_delete(tuple->brt, &keydbt, txn, TRUE,lsn);
     assert(r == 0);
 }
 
@@ -387,15 +413,15 @@ static int toku_recover_backward_enq_delete_any (struct logtype_enq_delete_any *
 }
 
 static void toku_recover_fclose (LSN UU(lsn), BYTESTRING fname, FILENUM filenum, RECOVER_ENV UU(renv)) {
-    struct cf_tuple *tuple = NULL;
-    int r = find_cachefile(&renv->fmap, filenum, &tuple);
+    struct file_map_tuple *tuple = NULL;
+    int r = file_map_find(&renv->fmap, filenum, &tuple);
     if (r == 0) {
         char *fixedfname = fixup_fname(&fname);
         assert(strcmp(tuple->fname, fixedfname) == 0);
         toku_free(fixedfname);
         r = toku_close_brt(tuple->brt, 0, 0);
         assert(r == 0);
-        tuple->brt=0;
+        file_map_remove(&renv->fmap, filenum);
     }
 }
 
@@ -627,37 +653,26 @@ int tokudb_needs_recovery(const char *log_dir, BOOL ignore_log_empty) {
     return needs_recovery;
 }
 
-// Sort the transactions in reverse order of transaction id
-static int compare_txn(const void *a, const void *b) {
-    TOKUTXN atxn = (TOKUTXN) * (void **) a;
-    TOKUTXN btxn = (TOKUTXN) * (void **) b;
-    // TODO this is wrong.  we want if (older(atxn, btxn)) return -1
-    if (toku_txnid_eq(atxn->txnid64, btxn->txnid64))
-        return 0;
-    if (toku_txnid_older(atxn->txnid64, btxn->txnid64))
-        return +1;
-    else
-        return -1;
-}
+// abort all of the remaining live transactions in descending transaction id order
+static void recover_abort_live_txns(RECOVER_ENV renv) {
+    int r;
+    while (1) {
+        u_int32_t n_live_txns = toku_omt_size(renv->logger->live_txns);
+        if (n_live_txns == 0)
+            break;
+        OMTVALUE v;
+        r = toku_omt_fetch(renv->logger->live_txns, n_live_txns-1, &v, NULL);
+        if (r != 0)
+            break;
+        TOKUTXN txn = (TOKUTXN) v;
 
-// Append a transaction to the set of live transactions
-static int append_live_txn(OMTVALUE v, u_int32_t UU(i), void *extra) {
-    TOKUTXN txn = (TOKUTXN) v;
-    struct varray *live_txns = (struct varray *) extra;
-    varray_append(live_txns, txn);
-    return 0;
-}
+        // abort the transaction
+        r = toku_txn_abort_txn(txn, recover_yield, NULL);
+        assert(r == 0);
 
-// Abort a live transaction
-static void abort_live_txn(void *v, void *UU(extra)) {
-    TOKUTXN txn = (TOKUTXN) v;
-
-    // abort the transaction
-    int r = toku_txn_abort_txn(txn, recover_yield, NULL);
-    assert(r == 0);
-
-    // close the transaction
-    toku_txn_close_txn(txn);
+        // close the transaction
+        toku_txn_close_txn(txn);
+    }
 }
 
 static int do_recovery(RECOVER_ENV renv, const char *data_dir, const char *log_dir) {
@@ -676,6 +691,7 @@ static int do_recovery(RECOVER_ENV renv, const char *data_dir, const char *log_d
     r = toku_logger_open(log_dir, renv->logger);
     assert(r == 0);
 
+    // grab the last LSN so that it can be restored when the log is restarted
     LSN lastlsn = toku_logger_last_lsn(renv->logger);
 
     // there must be at least one log entry
@@ -743,14 +759,8 @@ static int do_recovery(RECOVER_ENV renv, const char *data_dir, const char *log_d
     // restart logging
     toku_logger_restart(renv->logger, lastlsn);
 
-    // abort all of the remaining live transactions in reverse transaction id order
-    struct varray *live_txns = NULL;
-    r = varray_create(&live_txns, 1);
-    assert(r == 0);
-    toku_omt_iterate(renv->logger->live_txns, append_live_txn, live_txns);
-    varray_sort(live_txns, compare_txn);
-    varray_iterate(live_txns, abort_live_txn, NULL);
-    varray_destroy(&live_txns);
+    // abort the live transactions 
+    recover_abort_live_txns(renv);
 
     // close the open dictionaries
     file_map_close_dictionaries(&renv->fmap);

@@ -316,14 +316,14 @@ ifeq ($(VGRIND),)
 else
 	./$< --test >$<.check.output 2>&1; \
         if [ $$? -ne 134 ] ; then \
-		test 0 = 1; \
+		cat $<.check.output; test 0 = 1; \
         else \
 		valgrind --quiet --error-exitcode=1 --leak-check=full --log-file=$<.check.valgrind ./$< --recover >>$<.check.output 2>&1; \
 		if [ $$? -ne 0 ] ; then \
-		    	test 0 = 1; \
+		    	cat $<.check.valgrind; test 0 = 1; \
 	        else \
 			lines=`cat $<.check.valgrind | wc -l`; \
-			if [ $$lines -ne 0 ] ; then test 0 = 1; fi; \
+			if [ $$lines -ne 0 ] ; then cat $<.check.valgrind; test 0 = 1; fi; \
 	        fi \
 	fi \
 	$(MAYBEINVERTER) $(SUMMARIZE_CMD)

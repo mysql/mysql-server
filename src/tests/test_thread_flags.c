@@ -70,7 +70,7 @@ test_db_thread (void) {
 
     DB_ENV *env;
     r = db_env_create(&env, 0); assert(r == 0);
-    r = env->open(env, ".", DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);
+    r = env->open(env, ".", DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL+DB_THREAD, 0); assert(r == 0);
 
     DB *db;
     r = db_create(&db, env, 0); assert(r == 0);
