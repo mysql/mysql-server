@@ -523,7 +523,9 @@ static int toku_recover_xbegin (LSN lsn, TXNID parent_xid, RECOVER_ENV renv) {
     TOKUTXN parent = NULL;
     if (parent_xid != 0) {
         r = toku_txnid2txn(renv->logger, parent_xid, &parent);
-        assert(r == 0 && parent);
+        assert(r == 0);
+        if (parent == NULL)
+            return 0;
     }
 
     // create a transaction and bind it to the transaction id
