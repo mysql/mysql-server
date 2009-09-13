@@ -45,6 +45,7 @@ test_dup_flags (u_int32_t dup_flags) {
 	if (r != 0 && dup_flags == DB_DUP) {
 	    if (verbose) printf("%s:%d: WARNING: tokudb does not support DB_DUP\n", __FILE__, __LINE__);
 	    r = db->close(db, 0); assert(r == 0);
+            r = env->close(env, 0); assert(r == 0);
 	    return;
 	}
     }

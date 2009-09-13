@@ -76,5 +76,8 @@ test_main (int UU(argc), char UU(*argv[])) {
         }
         closedir(direct);
     }
+
+    r = env->close(env, 0); assert(r == 0);
+
     return 0;
 }
