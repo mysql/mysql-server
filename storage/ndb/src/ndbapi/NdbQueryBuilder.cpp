@@ -822,10 +822,14 @@ NdbQueryBuilder::scanIndex(const NdbDictionary::Index* index,
                                           m_pimpl->m_operations.size());
   returnErrIf(op==0, 4000);
 
-  int i;
-  assert (op->m_bound.lowKeys <= (int)index->getNoOfColumns());
-  assert (op->m_bound.highKeys <= (int)index->getNoOfColumns());
+  if (unlikely(op->m_bound.lowKeys  > (int)indexImpl.getNoOfColumns() ||
+               op->m_bound.highKeys > (int)indexImpl.getNoOfColumns()))
+  { m_pimpl->setErrorCode(QRY_TOO_MANY_KEY_VALUES);
+    delete op;
+    return NULL;
+  }
 
+  int i;
   for (i=0; i<op->m_bound.lowKeys; ++i)
   {
     const NdbColumnImpl& col = NdbColumnImpl::getImpl(*indexImpl.getColumn(i));
@@ -1000,7 +1004,7 @@ NdbQueryLookupOperationDefImpl::NdbQueryLookupOperationDefImpl (
    m_interface(*this)
 {
   int i;
-  for (i=0; i<=MAX_ATTRIBUTES_IN_INDEX; ++i)
+  for (i=0; i<MAX_ATTRIBUTES_IN_INDEX; ++i)
   { if (keys[i] == NULL)
       break;
     m_keys[i] = &keys[i]->getImpl();
@@ -1023,28 +1027,25 @@ NdbQueryIndexScanOperationDefImpl::NdbQueryIndexScanOperationDefImpl (
 
     if (bound->m_low!=NULL) {
       int i;
-      for (i=0; i<=MAX_ATTRIBUTES_IN_INDEX; ++i)
-      { if (bound->m_low[i] == NULL)
-          break;
+      for (i=0; bound->m_low[i] != NULL; ++i)
+      { assert (i<MAX_ATTRIBUTES_IN_INDEX);
         m_bound.low[i] = &bound->m_low[i]->getImpl();
       }
-      assert (bound->m_low[i] == NULL);
       m_bound.lowKeys = i;
-    }
-    else
+    } else {
       m_bound.lowKeys = 0;
+    }
 
     if (bound->m_high!=NULL) {
       int i;
-      for (i=0; i<=MAX_ATTRIBUTES_IN_INDEX; ++i)
-      { if (bound->m_high[i] == NULL)
-          break;
+      for (i=0; bound->m_high[i] != NULL; ++i)
+      { assert (i<MAX_ATTRIBUTES_IN_INDEX);
         m_bound.high[i] = &bound->m_high[i]->getImpl();
       }
-      assert (bound->m_high[i] == NULL);
       m_bound.highKeys = i;
-    }
+    } else {
       m_bound.highKeys = 0;
+    }
 
     m_bound.lowIncl = bound->m_lowInclusive;
     m_bound.highIncl = bound->m_highInclusive;

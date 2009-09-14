@@ -91,6 +91,7 @@ public:
   }
 };
 
+#ifdef UNUSED
 class NdbScanFilterImpl
 {
 public:
@@ -110,7 +111,7 @@ public:
     return ha_ndbcluster::getTransPtr(op->theNdbCon);
   }
 };
-
+#endif
 
 class ResultSet{
 public:
@@ -225,7 +226,7 @@ void LookupOp::serializeParam(Vector<Uint32>& vec) const{
 
 
 
-
+#if 0
 /**
  * SQL:
  drop table if exists T;
@@ -498,6 +499,8 @@ int spjTest(int argc, char** argv){
   }
   return NDBT_ProgramExit(NDBT_OK);
 }
+#endif
+
 
 /**
  * Helper debugging macros

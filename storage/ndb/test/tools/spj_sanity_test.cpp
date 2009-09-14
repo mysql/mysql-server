@@ -563,8 +563,8 @@ namespace SPJSanityTest{
       low[i] = lowKey.makeConstOperand(builder, i);
       high[i] = highKey.makeConstOperand(builder, i);
     }
-    low[Key::size+1] = NULL;
-    high[Key::size+1] = NULL;
+    low[Key::size] = NULL;
+    high[Key::size] = NULL;
 
     const NdbQueryIndexBound bound(low, high);
     Operation<Row>::m_operationDef = builder.scanIndex(index, &tab, &bound);
