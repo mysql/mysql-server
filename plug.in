@@ -176,6 +176,8 @@ MYSQL_PLUGIN_ACTIONS(innobase,  [
         
           return(1);
         }
+
+	return(0);
       }
     ],
     [
