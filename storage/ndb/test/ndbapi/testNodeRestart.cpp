@@ -704,7 +704,7 @@ runBug18414(NDBT_Context* ctx, NDBT_Step* step){
     
     if (loop & 1)
     {
-      if (restarter.insertErrorInNode(node1, 8050))
+      if (restarter.insertErrorInNode(node1, 8080))
 	goto err;
     }
     
