@@ -7177,7 +7177,7 @@ void Dbtc::sendAbortedAfterTimeout(Signal* signal, int Tcheck)
       signal->theData[0] = TcContinueB::ZABORT_TIMEOUT_BREAK;
       signal->theData[1] = tcConnectptr.i;
       signal->theData[2] = apiConnectptr.i;      
-      if (ERROR_INSERTED(8050))
+      if (ERROR_INSERTED(8080))
       {
 	ndbout_c("sending ZABORT_TIMEOUT_BREAK delayed (%d %d)", 
 		 Tcheck, apiConnectptr.p->counter);

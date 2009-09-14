@@ -47,9 +47,24 @@ STOP SLAVE;
 source include/wait_for_slave_to_stop.inc;
 --enable_warnings
 
+# Reset state of all Binlogging nodes
 connection master;
 --disable_warnings
-USE test;
+RESET MASTER;
+--enable_warnings
+
+connection srv_master2;
+--disable_warnings
+RESET MASTER;
+--enable_warnings
+
+connection srv_slave1;
+--disable_warnings
+RESET MASTER;
+--enable_warnings
+
+connection srv_slave2;
+--disable_warnings
 RESET MASTER;
 --enable_warnings
 
@@ -83,18 +98,23 @@ source include/wait_for_slave_to_stop.inc;
 # Reset state of all Binlogging nodes
 connection master;
 --disable_warnings
-USE test;
 RESET MASTER;
 --enable_warnings
 
 connection srv_master2;
+--disable_warnings
 RESET MASTER;
+--enable_warnings
 
 connection srv_slave1;
+--disable_warnings
 RESET MASTER;
+--enable_warnings
 
 connection srv_slave2;
+--disable_warnings
 RESET MASTER;
+--enable_warnings
 
 connection srv_slave1;
 --disable_warnings
@@ -123,20 +143,26 @@ STOP SLAVE;
 source include/wait_for_slave_to_stop.inc;
 --enable_warnings
 
+# Reset state of all Binlogging nodes
 connection master;
 --disable_warnings
-USE test;
 RESET MASTER;
 --enable_warnings
 
 connection srv_master2;
+--disable_warnings
 RESET MASTER;
+--enable_warnings
 
 connection srv_slave1;
+--disable_warnings
 RESET MASTER;
+--enable_warnings
 
 connection srv_slave2;
+--disable_warnings
 RESET MASTER;
+--enable_warnings
 
 connection srv_slave2;
 --disable_warnings
