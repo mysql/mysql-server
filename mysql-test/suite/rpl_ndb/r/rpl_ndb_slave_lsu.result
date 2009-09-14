@@ -7,56 +7,56 @@ RESET SLAVE;
 CHANGE MASTER TO MASTER_HOST="127.0.0.1",MASTER_PORT=MASTER_PORT,MASTER_USER="root";;
 START SLAVE;
 *** Generating slave cluster originated binloggable changes ***
-CREATE TABLE BUG_45756_SLAVE_LOGGED_1 (a int) engine = NDB;
-INSERT INTO BUG_45756_SLAVE_LOGGED_1 VALUES (1);
-DROP TABLE BUG_45756_SLAVE_LOGGED_1;
-CREATE TABLE BUG_45756_SLAVE_LOGGED_2 (a int) engine = NDB;
-INSERT INTO BUG_45756_SLAVE_LOGGED_2 VALUES (1);
-DROP TABLE BUG_45756_SLAVE_LOGGED_2;
-CREATE TABLE BUG_45756_SLAVE_LOGGED_3 (a int) engine = NDB;
-INSERT INTO BUG_45756_SLAVE_LOGGED_3 VALUES (1);
-DROP TABLE BUG_45756_SLAVE_LOGGED_3;
+CREATE TABLE bug_45756_slave_logged_1 (a int) engine = NDB;
+INSERT INTO bug_45756_slave_logged_1 VALUES (1);
+DROP TABLE bug_45756_slave_logged_1;
+CREATE TABLE bug_45756_slave_logged_2 (a int) engine = NDB;
+INSERT INTO bug_45756_slave_logged_2 VALUES (1);
+DROP TABLE bug_45756_slave_logged_2;
+CREATE TABLE bug_45756_slave_logged_3 (a int) engine = NDB;
+INSERT INTO bug_45756_slave_logged_3 VALUES (1);
+DROP TABLE bug_45756_slave_logged_3;
 ***Generating slave cluster non-binloggable changes***
 SET SQL_LOG_BIN= 0;
-CREATE TABLE BUG_45756_SLAVE_NOT_LOGGED_1 (a int) engine = NDB;
-INSERT INTO BUG_45756_SLAVE_NOT_LOGGED_1 VALUES (1);
-DROP TABLE BUG_45756_SLAVE_NOT_LOGGED_1;
+CREATE TABLE bug_45756_slave_not_logged_1 (a int) engine = NDB;
+INSERT INTO bug_45756_slave_not_logged_1 VALUES (1);
+DROP TABLE bug_45756_slave_not_logged_1;
 SET SQL_LOG_BIN= 1;
 SET SQL_LOG_BIN= 0;
-CREATE TABLE BUG_45756_SLAVE_NOT_LOGGED_2 (a int) engine = NDB;
-INSERT INTO BUG_45756_SLAVE_NOT_LOGGED_2 VALUES (1);
-DROP TABLE BUG_45756_SLAVE_NOT_LOGGED_2;
+CREATE TABLE bug_45756_slave_not_logged_2 (a int) engine = NDB;
+INSERT INTO bug_45756_slave_not_logged_2 VALUES (1);
+DROP TABLE bug_45756_slave_not_logged_2;
 SET SQL_LOG_BIN= 1;
 SET SQL_LOG_BIN= 0;
-CREATE TABLE BUG_45756_SLAVE_NOT_LOGGED_3 (a int) engine = NDB;
-INSERT INTO BUG_45756_SLAVE_NOT_LOGGED_3 VALUES (1);
-DROP TABLE BUG_45756_SLAVE_NOT_LOGGED_3;
+CREATE TABLE bug_45756_slave_not_logged_3 (a int) engine = NDB;
+INSERT INTO bug_45756_slave_not_logged_3 VALUES (1);
+DROP TABLE bug_45756_slave_not_logged_3;
 SET SQL_LOG_BIN= 1;
 *** Generating data to be replicated ***
-CREATE TABLE BUG_45756_MASTER_LOGGED_1 (a int) engine = NDB;
-INSERT INTO BUG_45756_MASTER_LOGGED_1 VALUES (1);
-DROP TABLE BUG_45756_MASTER_LOGGED_1;
-CREATE TABLE BUG_45756_MASTER_LOGGED_2 (a int) engine = NDB;
-INSERT INTO BUG_45756_MASTER_LOGGED_2 VALUES (1);
-DROP TABLE BUG_45756_MASTER_LOGGED_2;
-CREATE TABLE BUG_45756_MASTER_LOGGED_3 (a int) engine = NDB;
-INSERT INTO BUG_45756_MASTER_LOGGED_3 VALUES (1);
-DROP TABLE BUG_45756_MASTER_LOGGED_3;
+CREATE TABLE bug45756_master_logged_1 (a int) engine = NDB;
+INSERT INTO bug45756_master_logged_1 VALUES (1);
+DROP TABLE bug45756_master_logged_1;
+CREATE TABLE bug45756_master_logged_2 (a int) engine = NDB;
+INSERT INTO bug45756_master_logged_2 VALUES (1);
+DROP TABLE bug45756_master_logged_2;
+CREATE TABLE bug45756_master_logged_3 (a int) engine = NDB;
+INSERT INTO bug45756_master_logged_3 VALUES (1);
+DROP TABLE bug45756_master_logged_3;
 *** Generating changes not to be replicated ***
 SET SQL_LOG_BIN= 0;
-CREATE TABLE BUG_45756_MASTER_NOT_LOGGED_1 (a int) engine = NDB;
-INSERT INTO BUG_45756_MASTER_NOT_LOGGED_1 VALUES (1);
-DROP TABLE BUG_45756_MASTER_NOT_LOGGED_1;
+CREATE TABLE bug45756_master_not_logged_1 (a int) engine = NDB;
+INSERT INTO bug45756_master_not_logged_1 VALUES (1);
+DROP TABLE bug45756_master_not_logged_1;
 SET SQL_LOG_BIN= 1;
 SET SQL_LOG_BIN= 0;
-CREATE TABLE BUG_45756_MASTER_NOT_LOGGED_2 (a int) engine = NDB;
-INSERT INTO BUG_45756_MASTER_NOT_LOGGED_2 VALUES (1);
-DROP TABLE BUG_45756_MASTER_NOT_LOGGED_2;
+CREATE TABLE bug45756_master_not_logged_2 (a int) engine = NDB;
+INSERT INTO bug45756_master_not_logged_2 VALUES (1);
+DROP TABLE bug45756_master_not_logged_2;
 SET SQL_LOG_BIN= 1;
 SET SQL_LOG_BIN= 0;
-CREATE TABLE BUG_45756_MASTER_NOT_LOGGED_3 (a int) engine = NDB;
-INSERT INTO BUG_45756_MASTER_NOT_LOGGED_3 VALUES (1);
-DROP TABLE BUG_45756_MASTER_NOT_LOGGED_3;
+CREATE TABLE bug45756_master_not_logged_3 (a int) engine = NDB;
+INSERT INTO bug45756_master_not_logged_3 VALUES (1);
+DROP TABLE bug45756_master_not_logged_3;
 SET SQL_LOG_BIN= 1;
 *** Checking binlog contents on every server in both clusters ***
 
@@ -74,30 +74,30 @@ Variable_name	Value
 log_slave_updates	OFF
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE BUG_45756_MASTER_LOGGED_1 (a int) engine = NDB
+master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE bug45756_master_logged_1 (a int) engine = NDB
 master-bin.000001	#	Query	1	#	BEGIN
-master-bin.000001	#	Table_map	1	#	table_id: # (test.BUG_45756_MASTER_LOGGED_1)
+master-bin.000001	#	Table_map	1	#	table_id: # (test.bug45756_master_logged_1)
 master-bin.000001	#	Table_map	1	#	table_id: # (mysql.ndb_apply_status)
 master-bin.000001	#	Write_rows	1	#	table_id: #
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	1	#	COMMIT
-master-bin.000001	#	Query	1	#	use `test`; DROP TABLE BUG_45756_MASTER_LOGGED_1
-master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE BUG_45756_MASTER_LOGGED_2 (a int) engine = NDB
+master-bin.000001	#	Query	1	#	use `test`; DROP TABLE bug45756_master_logged_1
+master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE bug45756_master_logged_2 (a int) engine = NDB
 master-bin.000001	#	Query	1	#	BEGIN
-master-bin.000001	#	Table_map	1	#	table_id: # (test.BUG_45756_MASTER_LOGGED_2)
+master-bin.000001	#	Table_map	1	#	table_id: # (test.bug45756_master_logged_2)
 master-bin.000001	#	Table_map	1	#	table_id: # (mysql.ndb_apply_status)
 master-bin.000001	#	Write_rows	1	#	table_id: #
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	1	#	COMMIT
-master-bin.000001	#	Query	1	#	use `test`; drop table `test`.`BUG_45756_MASTER_LOGGED_2`
-master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE BUG_45756_MASTER_LOGGED_3 (a int) engine = NDB
+master-bin.000001	#	Query	1	#	use `test`; drop table `test`.`bug45756_master_logged_2`
+master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE bug45756_master_logged_3 (a int) engine = NDB
 master-bin.000001	#	Query	1	#	BEGIN
-master-bin.000001	#	Table_map	1	#	table_id: # (test.BUG_45756_MASTER_LOGGED_3)
+master-bin.000001	#	Table_map	1	#	table_id: # (test.bug45756_master_logged_3)
 master-bin.000001	#	Table_map	1	#	table_id: # (mysql.ndb_apply_status)
 master-bin.000001	#	Write_rows	1	#	table_id: #
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	1	#	COMMIT
-master-bin.000001	#	Query	1	#	use `test`; drop table `test`.`BUG_45756_MASTER_LOGGED_3`
+master-bin.000001	#	Query	1	#	use `test`; drop table `test`.`bug45756_master_logged_3`
 
 
 
@@ -128,30 +128,30 @@ Variable_name	Value
 log_slave_updates	OFF
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	3	#	use `test`; CREATE TABLE BUG_45756_MASTER_LOGGED_1 (a int) engine = NDB
+master-bin.000001	#	Query	3	#	use `test`; CREATE TABLE bug45756_master_logged_1 (a int) engine = NDB
 master-bin.000001	#	Query	3	#	BEGIN
-master-bin.000001	#	Table_map	3	#	table_id: # (test.BUG_45756_MASTER_LOGGED_1)
+master-bin.000001	#	Table_map	3	#	table_id: # (test.bug45756_master_logged_1)
 master-bin.000001	#	Table_map	3	#	table_id: # (mysql.ndb_apply_status)
 master-bin.000001	#	Write_rows	3	#	table_id: #
 master-bin.000001	#	Write_rows	3	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	3	#	COMMIT
-master-bin.000001	#	Query	3	#	use `test`; drop table `test`.`BUG_45756_MASTER_LOGGED_1`
-master-bin.000001	#	Query	3	#	use `test`; CREATE TABLE BUG_45756_MASTER_LOGGED_2 (a int) engine = NDB
+master-bin.000001	#	Query	3	#	use `test`; drop table `test`.`bug45756_master_logged_1`
+master-bin.000001	#	Query	3	#	use `test`; CREATE TABLE bug45756_master_logged_2 (a int) engine = NDB
 master-bin.000001	#	Query	3	#	BEGIN
-master-bin.000001	#	Table_map	3	#	table_id: # (test.BUG_45756_MASTER_LOGGED_2)
+master-bin.000001	#	Table_map	3	#	table_id: # (test.bug45756_master_logged_2)
 master-bin.000001	#	Table_map	3	#	table_id: # (mysql.ndb_apply_status)
 master-bin.000001	#	Write_rows	3	#	table_id: #
 master-bin.000001	#	Write_rows	3	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	3	#	COMMIT
-master-bin.000001	#	Query	3	#	use `test`; drop table `test`.`BUG_45756_MASTER_LOGGED_2`
-master-bin.000001	#	Query	3	#	use `test`; CREATE TABLE BUG_45756_MASTER_LOGGED_3 (a int) engine = NDB
+master-bin.000001	#	Query	3	#	use `test`; drop table `test`.`bug45756_master_logged_2`
+master-bin.000001	#	Query	3	#	use `test`; CREATE TABLE bug45756_master_logged_3 (a int) engine = NDB
 master-bin.000001	#	Query	3	#	BEGIN
-master-bin.000001	#	Table_map	3	#	table_id: # (test.BUG_45756_MASTER_LOGGED_3)
+master-bin.000001	#	Table_map	3	#	table_id: # (test.bug45756_master_logged_3)
 master-bin.000001	#	Table_map	3	#	table_id: # (mysql.ndb_apply_status)
 master-bin.000001	#	Write_rows	3	#	table_id: #
 master-bin.000001	#	Write_rows	3	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	3	#	COMMIT
-master-bin.000001	#	Query	3	#	use `test`; DROP TABLE BUG_45756_MASTER_LOGGED_3
+master-bin.000001	#	Query	3	#	use `test`; DROP TABLE bug45756_master_logged_3
 
 
 
@@ -182,30 +182,30 @@ Variable_name	Value
 log_slave_updates	OFF
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-slave-master-bin.000001	#	Query	5	#	use `test`; CREATE TABLE BUG_45756_SLAVE_LOGGED_1 (a int) engine = NDB
+slave-master-bin.000001	#	Query	5	#	use `test`; CREATE TABLE bug_45756_slave_logged_1 (a int) engine = NDB
 slave-master-bin.000001	#	Query	5	#	BEGIN
-slave-master-bin.000001	#	Table_map	5	#	table_id: # (test.BUG_45756_SLAVE_LOGGED_1)
+slave-master-bin.000001	#	Table_map	5	#	table_id: # (test.bug_45756_slave_logged_1)
 slave-master-bin.000001	#	Table_map	5	#	table_id: # (mysql.ndb_apply_status)
 slave-master-bin.000001	#	Write_rows	5	#	table_id: #
 slave-master-bin.000001	#	Write_rows	5	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	5	#	COMMIT
-slave-master-bin.000001	#	Query	5	#	use `test`; drop table `test`.`BUG_45756_SLAVE_LOGGED_1`
-slave-master-bin.000001	#	Query	5	#	use `test`; CREATE TABLE BUG_45756_SLAVE_LOGGED_2 (a int) engine = NDB
+slave-master-bin.000001	#	Query	5	#	use `test`; drop table `test`.`bug_45756_slave_logged_1`
+slave-master-bin.000001	#	Query	5	#	use `test`; CREATE TABLE bug_45756_slave_logged_2 (a int) engine = NDB
 slave-master-bin.000001	#	Query	5	#	BEGIN
-slave-master-bin.000001	#	Table_map	5	#	table_id: # (test.BUG_45756_SLAVE_LOGGED_2)
+slave-master-bin.000001	#	Table_map	5	#	table_id: # (test.bug_45756_slave_logged_2)
 slave-master-bin.000001	#	Table_map	5	#	table_id: # (mysql.ndb_apply_status)
 slave-master-bin.000001	#	Write_rows	5	#	table_id: #
 slave-master-bin.000001	#	Write_rows	5	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	5	#	COMMIT
-slave-master-bin.000001	#	Query	5	#	use `test`; DROP TABLE BUG_45756_SLAVE_LOGGED_2
-slave-master-bin.000001	#	Query	5	#	use `test`; CREATE TABLE BUG_45756_SLAVE_LOGGED_3 (a int) engine = NDB
+slave-master-bin.000001	#	Query	5	#	use `test`; DROP TABLE bug_45756_slave_logged_2
+slave-master-bin.000001	#	Query	5	#	use `test`; CREATE TABLE bug_45756_slave_logged_3 (a int) engine = NDB
 slave-master-bin.000001	#	Query	5	#	BEGIN
-slave-master-bin.000001	#	Table_map	5	#	table_id: # (test.BUG_45756_SLAVE_LOGGED_3)
+slave-master-bin.000001	#	Table_map	5	#	table_id: # (test.bug_45756_slave_logged_3)
 slave-master-bin.000001	#	Table_map	5	#	table_id: # (mysql.ndb_apply_status)
 slave-master-bin.000001	#	Write_rows	5	#	table_id: #
 slave-master-bin.000001	#	Write_rows	5	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	5	#	COMMIT
-slave-master-bin.000001	#	Query	5	#	use `test`; drop table `test`.`BUG_45756_SLAVE_LOGGED_3`
+slave-master-bin.000001	#	Query	5	#	use `test`; drop table `test`.`bug_45756_slave_logged_3`
 
 
 
@@ -221,54 +221,54 @@ Variable_name	Value
 log_slave_updates	ON
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-slave-master-bin.000001	#	Query	6	#	use `test`; CREATE TABLE BUG_45756_SLAVE_LOGGED_1 (a int) engine = NDB
+slave-master-bin.000001	#	Query	6	#	use `test`; CREATE TABLE bug_45756_slave_logged_1 (a int) engine = NDB
 slave-master-bin.000001	#	Query	6	#	BEGIN
-slave-master-bin.000001	#	Table_map	6	#	table_id: # (test.BUG_45756_SLAVE_LOGGED_1)
+slave-master-bin.000001	#	Table_map	6	#	table_id: # (test.bug_45756_slave_logged_1)
 slave-master-bin.000001	#	Table_map	6	#	table_id: # (mysql.ndb_apply_status)
 slave-master-bin.000001	#	Write_rows	6	#	table_id: #
 slave-master-bin.000001	#	Write_rows	6	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	6	#	COMMIT
-slave-master-bin.000001	#	Query	6	#	use `test`; drop table `test`.`BUG_45756_SLAVE_LOGGED_1`
-slave-master-bin.000001	#	Query	6	#	use `test`; CREATE TABLE BUG_45756_SLAVE_LOGGED_2 (a int) engine = NDB
+slave-master-bin.000001	#	Query	6	#	use `test`; drop table `test`.`bug_45756_slave_logged_1`
+slave-master-bin.000001	#	Query	6	#	use `test`; CREATE TABLE bug_45756_slave_logged_2 (a int) engine = NDB
 slave-master-bin.000001	#	Query	6	#	BEGIN
-slave-master-bin.000001	#	Table_map	6	#	table_id: # (test.BUG_45756_SLAVE_LOGGED_2)
+slave-master-bin.000001	#	Table_map	6	#	table_id: # (test.bug_45756_slave_logged_2)
 slave-master-bin.000001	#	Table_map	6	#	table_id: # (mysql.ndb_apply_status)
 slave-master-bin.000001	#	Write_rows	6	#	table_id: #
 slave-master-bin.000001	#	Write_rows	6	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	6	#	COMMIT
-slave-master-bin.000001	#	Query	6	#	use `test`; drop table `test`.`BUG_45756_SLAVE_LOGGED_2`
-slave-master-bin.000001	#	Query	6	#	use `test`; CREATE TABLE BUG_45756_SLAVE_LOGGED_3 (a int) engine = NDB
+slave-master-bin.000001	#	Query	6	#	use `test`; drop table `test`.`bug_45756_slave_logged_2`
+slave-master-bin.000001	#	Query	6	#	use `test`; CREATE TABLE bug_45756_slave_logged_3 (a int) engine = NDB
 slave-master-bin.000001	#	Query	6	#	BEGIN
-slave-master-bin.000001	#	Table_map	6	#	table_id: # (test.BUG_45756_SLAVE_LOGGED_3)
+slave-master-bin.000001	#	Table_map	6	#	table_id: # (test.bug_45756_slave_logged_3)
 slave-master-bin.000001	#	Table_map	6	#	table_id: # (mysql.ndb_apply_status)
 slave-master-bin.000001	#	Write_rows	6	#	table_id: #
 slave-master-bin.000001	#	Write_rows	6	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	6	#	COMMIT
-slave-master-bin.000001	#	Query	6	#	use `test`; DROP TABLE BUG_45756_SLAVE_LOGGED_3
-slave-master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE BUG_45756_MASTER_LOGGED_1 (a int) engine = NDB
+slave-master-bin.000001	#	Query	6	#	use `test`; DROP TABLE bug_45756_slave_logged_3
+slave-master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE bug45756_master_logged_1 (a int) engine = NDB
 slave-master-bin.000001	#	Query	6	#	BEGIN
-slave-master-bin.000001	#	Table_map	6	#	table_id: # (test.BUG_45756_MASTER_LOGGED_1)
+slave-master-bin.000001	#	Table_map	6	#	table_id: # (test.bug45756_master_logged_1)
 slave-master-bin.000001	#	Table_map	6	#	table_id: # (mysql.ndb_apply_status)
 slave-master-bin.000001	#	Write_rows	6	#	table_id: #
 slave-master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	6	#	COMMIT
-slave-master-bin.000001	#	Query	1	#	use `test`; drop table `test`.`BUG_45756_MASTER_LOGGED_1`
-slave-master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE BUG_45756_MASTER_LOGGED_2 (a int) engine = NDB
+slave-master-bin.000001	#	Query	1	#	use `test`; drop table `test`.`bug45756_master_logged_1`
+slave-master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE bug45756_master_logged_2 (a int) engine = NDB
 slave-master-bin.000001	#	Query	6	#	BEGIN
-slave-master-bin.000001	#	Table_map	6	#	table_id: # (test.BUG_45756_MASTER_LOGGED_2)
+slave-master-bin.000001	#	Table_map	6	#	table_id: # (test.bug45756_master_logged_2)
 slave-master-bin.000001	#	Table_map	6	#	table_id: # (mysql.ndb_apply_status)
 slave-master-bin.000001	#	Write_rows	6	#	table_id: #
 slave-master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	6	#	COMMIT
-slave-master-bin.000001	#	Query	1	#	use `test`; drop table `test`.`BUG_45756_MASTER_LOGGED_2`
-slave-master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE BUG_45756_MASTER_LOGGED_3 (a int) engine = NDB
+slave-master-bin.000001	#	Query	1	#	use `test`; drop table `test`.`bug45756_master_logged_2`
+slave-master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE bug45756_master_logged_3 (a int) engine = NDB
 slave-master-bin.000001	#	Query	6	#	BEGIN
-slave-master-bin.000001	#	Table_map	6	#	table_id: # (test.BUG_45756_MASTER_LOGGED_3)
+slave-master-bin.000001	#	Table_map	6	#	table_id: # (test.bug45756_master_logged_3)
 slave-master-bin.000001	#	Table_map	6	#	table_id: # (mysql.ndb_apply_status)
 slave-master-bin.000001	#	Write_rows	6	#	table_id: #
 slave-master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	6	#	COMMIT
-slave-master-bin.000001	#	Query	1	#	use `test`; drop table `test`.`BUG_45756_MASTER_LOGGED_3`
+slave-master-bin.000001	#	Query	1	#	use `test`; drop table `test`.`bug45756_master_logged_3`
 *** Configuring replication via Slave1 ***
 STOP SLAVE;
 STOP SLAVE;
@@ -281,56 +281,56 @@ RESET SLAVE;
 CHANGE MASTER TO MASTER_HOST="127.0.0.1",MASTER_PORT=MASTER_PORT,MASTER_USER="root";
 START SLAVE;
 *** Generating slave cluster originated binloggable changes ***
-CREATE TABLE BUG_45756_SLAVE_LOGGED_1 (a int) engine = NDB;
-INSERT INTO BUG_45756_SLAVE_LOGGED_1 VALUES (1);
-DROP TABLE BUG_45756_SLAVE_LOGGED_1;
-CREATE TABLE BUG_45756_SLAVE_LOGGED_2 (a int) engine = NDB;
-INSERT INTO BUG_45756_SLAVE_LOGGED_2 VALUES (1);
-DROP TABLE BUG_45756_SLAVE_LOGGED_2;
-CREATE TABLE BUG_45756_SLAVE_LOGGED_3 (a int) engine = NDB;
-INSERT INTO BUG_45756_SLAVE_LOGGED_3 VALUES (1);
-DROP TABLE BUG_45756_SLAVE_LOGGED_3;
+CREATE TABLE bug_45756_slave_logged_1 (a int) engine = NDB;
+INSERT INTO bug_45756_slave_logged_1 VALUES (1);
+DROP TABLE bug_45756_slave_logged_1;
+CREATE TABLE bug_45756_slave_logged_2 (a int) engine = NDB;
+INSERT INTO bug_45756_slave_logged_2 VALUES (1);
+DROP TABLE bug_45756_slave_logged_2;
+CREATE TABLE bug_45756_slave_logged_3 (a int) engine = NDB;
+INSERT INTO bug_45756_slave_logged_3 VALUES (1);
+DROP TABLE bug_45756_slave_logged_3;
 ***Generating slave cluster non-binloggable changes***
 SET SQL_LOG_BIN= 0;
-CREATE TABLE BUG_45756_SLAVE_NOT_LOGGED_1 (a int) engine = NDB;
-INSERT INTO BUG_45756_SLAVE_NOT_LOGGED_1 VALUES (1);
-DROP TABLE BUG_45756_SLAVE_NOT_LOGGED_1;
+CREATE TABLE bug_45756_slave_not_logged_1 (a int) engine = NDB;
+INSERT INTO bug_45756_slave_not_logged_1 VALUES (1);
+DROP TABLE bug_45756_slave_not_logged_1;
 SET SQL_LOG_BIN= 1;
 SET SQL_LOG_BIN= 0;
-CREATE TABLE BUG_45756_SLAVE_NOT_LOGGED_2 (a int) engine = NDB;
-INSERT INTO BUG_45756_SLAVE_NOT_LOGGED_2 VALUES (1);
-DROP TABLE BUG_45756_SLAVE_NOT_LOGGED_2;
+CREATE TABLE bug_45756_slave_not_logged_2 (a int) engine = NDB;
+INSERT INTO bug_45756_slave_not_logged_2 VALUES (1);
+DROP TABLE bug_45756_slave_not_logged_2;
 SET SQL_LOG_BIN= 1;
 SET SQL_LOG_BIN= 0;
-CREATE TABLE BUG_45756_SLAVE_NOT_LOGGED_3 (a int) engine = NDB;
-INSERT INTO BUG_45756_SLAVE_NOT_LOGGED_3 VALUES (1);
-DROP TABLE BUG_45756_SLAVE_NOT_LOGGED_3;
+CREATE TABLE bug_45756_slave_not_logged_3 (a int) engine = NDB;
+INSERT INTO bug_45756_slave_not_logged_3 VALUES (1);
+DROP TABLE bug_45756_slave_not_logged_3;
 SET SQL_LOG_BIN= 1;
 *** Generating data to be replicated ***
-CREATE TABLE BUG_45756_MASTER_LOGGED_1 (a int) engine = NDB;
-INSERT INTO BUG_45756_MASTER_LOGGED_1 VALUES (1);
-DROP TABLE BUG_45756_MASTER_LOGGED_1;
-CREATE TABLE BUG_45756_MASTER_LOGGED_2 (a int) engine = NDB;
-INSERT INTO BUG_45756_MASTER_LOGGED_2 VALUES (1);
-DROP TABLE BUG_45756_MASTER_LOGGED_2;
-CREATE TABLE BUG_45756_MASTER_LOGGED_3 (a int) engine = NDB;
-INSERT INTO BUG_45756_MASTER_LOGGED_3 VALUES (1);
-DROP TABLE BUG_45756_MASTER_LOGGED_3;
+CREATE TABLE bug45756_master_logged_1 (a int) engine = NDB;
+INSERT INTO bug45756_master_logged_1 VALUES (1);
+DROP TABLE bug45756_master_logged_1;
+CREATE TABLE bug45756_master_logged_2 (a int) engine = NDB;
+INSERT INTO bug45756_master_logged_2 VALUES (1);
+DROP TABLE bug45756_master_logged_2;
+CREATE TABLE bug45756_master_logged_3 (a int) engine = NDB;
+INSERT INTO bug45756_master_logged_3 VALUES (1);
+DROP TABLE bug45756_master_logged_3;
 *** Generating changes not to be replicated ***
 SET SQL_LOG_BIN= 0;
-CREATE TABLE BUG_45756_MASTER_NOT_LOGGED_1 (a int) engine = NDB;
-INSERT INTO BUG_45756_MASTER_NOT_LOGGED_1 VALUES (1);
-DROP TABLE BUG_45756_MASTER_NOT_LOGGED_1;
+CREATE TABLE bug45756_master_not_logged_1 (a int) engine = NDB;
+INSERT INTO bug45756_master_not_logged_1 VALUES (1);
+DROP TABLE bug45756_master_not_logged_1;
 SET SQL_LOG_BIN= 1;
 SET SQL_LOG_BIN= 0;
-CREATE TABLE BUG_45756_MASTER_NOT_LOGGED_2 (a int) engine = NDB;
-INSERT INTO BUG_45756_MASTER_NOT_LOGGED_2 VALUES (1);
-DROP TABLE BUG_45756_MASTER_NOT_LOGGED_2;
+CREATE TABLE bug45756_master_not_logged_2 (a int) engine = NDB;
+INSERT INTO bug45756_master_not_logged_2 VALUES (1);
+DROP TABLE bug45756_master_not_logged_2;
 SET SQL_LOG_BIN= 1;
 SET SQL_LOG_BIN= 0;
-CREATE TABLE BUG_45756_MASTER_NOT_LOGGED_3 (a int) engine = NDB;
-INSERT INTO BUG_45756_MASTER_NOT_LOGGED_3 VALUES (1);
-DROP TABLE BUG_45756_MASTER_NOT_LOGGED_3;
+CREATE TABLE bug45756_master_not_logged_3 (a int) engine = NDB;
+INSERT INTO bug45756_master_not_logged_3 VALUES (1);
+DROP TABLE bug45756_master_not_logged_3;
 SET SQL_LOG_BIN= 1;
 *** Checking binlog contents on every server in both clusters ***
 
@@ -348,30 +348,30 @@ Variable_name	Value
 log_slave_updates	OFF
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE BUG_45756_MASTER_LOGGED_1 (a int) engine = NDB
+master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE bug45756_master_logged_1 (a int) engine = NDB
 master-bin.000001	#	Query	1	#	BEGIN
-master-bin.000001	#	Table_map	1	#	table_id: # (test.BUG_45756_MASTER_LOGGED_1)
+master-bin.000001	#	Table_map	1	#	table_id: # (test.bug45756_master_logged_1)
 master-bin.000001	#	Table_map	1	#	table_id: # (mysql.ndb_apply_status)
 master-bin.000001	#	Write_rows	1	#	table_id: #
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	1	#	COMMIT
-master-bin.000001	#	Query	1	#	use `test`; DROP TABLE BUG_45756_MASTER_LOGGED_1
-master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE BUG_45756_MASTER_LOGGED_2 (a int) engine = NDB
+master-bin.000001	#	Query	1	#	use `test`; DROP TABLE bug45756_master_logged_1
+master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE bug45756_master_logged_2 (a int) engine = NDB
 master-bin.000001	#	Query	1	#	BEGIN
-master-bin.000001	#	Table_map	1	#	table_id: # (test.BUG_45756_MASTER_LOGGED_2)
+master-bin.000001	#	Table_map	1	#	table_id: # (test.bug45756_master_logged_2)
 master-bin.000001	#	Table_map	1	#	table_id: # (mysql.ndb_apply_status)
 master-bin.000001	#	Write_rows	1	#	table_id: #
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	1	#	COMMIT
-master-bin.000001	#	Query	1	#	use `test`; drop table `test`.`BUG_45756_MASTER_LOGGED_2`
-master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE BUG_45756_MASTER_LOGGED_3 (a int) engine = NDB
+master-bin.000001	#	Query	1	#	use `test`; drop table `test`.`bug45756_master_logged_2`
+master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE bug45756_master_logged_3 (a int) engine = NDB
 master-bin.000001	#	Query	1	#	BEGIN
-master-bin.000001	#	Table_map	1	#	table_id: # (test.BUG_45756_MASTER_LOGGED_3)
+master-bin.000001	#	Table_map	1	#	table_id: # (test.bug45756_master_logged_3)
 master-bin.000001	#	Table_map	1	#	table_id: # (mysql.ndb_apply_status)
 master-bin.000001	#	Write_rows	1	#	table_id: #
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	1	#	COMMIT
-master-bin.000001	#	Query	1	#	use `test`; drop table `test`.`BUG_45756_MASTER_LOGGED_3`
+master-bin.000001	#	Query	1	#	use `test`; drop table `test`.`bug45756_master_logged_3`
 
 
 
@@ -402,30 +402,30 @@ Variable_name	Value
 log_slave_updates	OFF
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	3	#	use `test`; CREATE TABLE BUG_45756_MASTER_LOGGED_1 (a int) engine = NDB
+master-bin.000001	#	Query	3	#	use `test`; CREATE TABLE bug45756_master_logged_1 (a int) engine = NDB
 master-bin.000001	#	Query	3	#	BEGIN
-master-bin.000001	#	Table_map	3	#	table_id: # (test.BUG_45756_MASTER_LOGGED_1)
+master-bin.000001	#	Table_map	3	#	table_id: # (test.bug45756_master_logged_1)
 master-bin.000001	#	Table_map	3	#	table_id: # (mysql.ndb_apply_status)
 master-bin.000001	#	Write_rows	3	#	table_id: #
 master-bin.000001	#	Write_rows	3	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	3	#	COMMIT
-master-bin.000001	#	Query	3	#	use `test`; drop table `test`.`BUG_45756_MASTER_LOGGED_1`
-master-bin.000001	#	Query	3	#	use `test`; CREATE TABLE BUG_45756_MASTER_LOGGED_2 (a int) engine = NDB
+master-bin.000001	#	Query	3	#	use `test`; drop table `test`.`bug45756_master_logged_1`
+master-bin.000001	#	Query	3	#	use `test`; CREATE TABLE bug45756_master_logged_2 (a int) engine = NDB
 master-bin.000001	#	Query	3	#	BEGIN
-master-bin.000001	#	Table_map	3	#	table_id: # (test.BUG_45756_MASTER_LOGGED_2)
+master-bin.000001	#	Table_map	3	#	table_id: # (test.bug45756_master_logged_2)
 master-bin.000001	#	Table_map	3	#	table_id: # (mysql.ndb_apply_status)
 master-bin.000001	#	Write_rows	3	#	table_id: #
 master-bin.000001	#	Write_rows	3	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	3	#	COMMIT
-master-bin.000001	#	Query	3	#	use `test`; drop table `test`.`BUG_45756_MASTER_LOGGED_2`
-master-bin.000001	#	Query	3	#	use `test`; CREATE TABLE BUG_45756_MASTER_LOGGED_3 (a int) engine = NDB
+master-bin.000001	#	Query	3	#	use `test`; drop table `test`.`bug45756_master_logged_2`
+master-bin.000001	#	Query	3	#	use `test`; CREATE TABLE bug45756_master_logged_3 (a int) engine = NDB
 master-bin.000001	#	Query	3	#	BEGIN
-master-bin.000001	#	Table_map	3	#	table_id: # (test.BUG_45756_MASTER_LOGGED_3)
+master-bin.000001	#	Table_map	3	#	table_id: # (test.bug45756_master_logged_3)
 master-bin.000001	#	Table_map	3	#	table_id: # (mysql.ndb_apply_status)
 master-bin.000001	#	Write_rows	3	#	table_id: #
 master-bin.000001	#	Write_rows	3	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	3	#	COMMIT
-master-bin.000001	#	Query	3	#	use `test`; DROP TABLE BUG_45756_MASTER_LOGGED_3
+master-bin.000001	#	Query	3	#	use `test`; DROP TABLE bug45756_master_logged_3
 
 
 
@@ -456,30 +456,30 @@ Variable_name	Value
 log_slave_updates	OFF
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-slave-master-bin.000001	#	Query	5	#	use `test`; CREATE TABLE BUG_45756_SLAVE_LOGGED_1 (a int) engine = NDB
+slave-master-bin.000001	#	Query	5	#	use `test`; CREATE TABLE bug_45756_slave_logged_1 (a int) engine = NDB
 slave-master-bin.000001	#	Query	5	#	BEGIN
-slave-master-bin.000001	#	Table_map	5	#	table_id: # (test.BUG_45756_SLAVE_LOGGED_1)
+slave-master-bin.000001	#	Table_map	5	#	table_id: # (test.bug_45756_slave_logged_1)
 slave-master-bin.000001	#	Table_map	5	#	table_id: # (mysql.ndb_apply_status)
 slave-master-bin.000001	#	Write_rows	5	#	table_id: #
 slave-master-bin.000001	#	Write_rows	5	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	5	#	COMMIT
-slave-master-bin.000001	#	Query	5	#	use `test`; drop table `test`.`BUG_45756_SLAVE_LOGGED_1`
-slave-master-bin.000001	#	Query	5	#	use `test`; CREATE TABLE BUG_45756_SLAVE_LOGGED_2 (a int) engine = NDB
+slave-master-bin.000001	#	Query	5	#	use `test`; drop table `test`.`bug_45756_slave_logged_1`
+slave-master-bin.000001	#	Query	5	#	use `test`; CREATE TABLE bug_45756_slave_logged_2 (a int) engine = NDB
 slave-master-bin.000001	#	Query	5	#	BEGIN
-slave-master-bin.000001	#	Table_map	5	#	table_id: # (test.BUG_45756_SLAVE_LOGGED_2)
+slave-master-bin.000001	#	Table_map	5	#	table_id: # (test.bug_45756_slave_logged_2)
 slave-master-bin.000001	#	Table_map	5	#	table_id: # (mysql.ndb_apply_status)
 slave-master-bin.000001	#	Write_rows	5	#	table_id: #
 slave-master-bin.000001	#	Write_rows	5	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	5	#	COMMIT
-slave-master-bin.000001	#	Query	5	#	use `test`; DROP TABLE BUG_45756_SLAVE_LOGGED_2
-slave-master-bin.000001	#	Query	5	#	use `test`; CREATE TABLE BUG_45756_SLAVE_LOGGED_3 (a int) engine = NDB
+slave-master-bin.000001	#	Query	5	#	use `test`; DROP TABLE bug_45756_slave_logged_2
+slave-master-bin.000001	#	Query	5	#	use `test`; CREATE TABLE bug_45756_slave_logged_3 (a int) engine = NDB
 slave-master-bin.000001	#	Query	5	#	BEGIN
-slave-master-bin.000001	#	Table_map	5	#	table_id: # (test.BUG_45756_SLAVE_LOGGED_3)
+slave-master-bin.000001	#	Table_map	5	#	table_id: # (test.bug_45756_slave_logged_3)
 slave-master-bin.000001	#	Table_map	5	#	table_id: # (mysql.ndb_apply_status)
 slave-master-bin.000001	#	Write_rows	5	#	table_id: #
 slave-master-bin.000001	#	Write_rows	5	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	5	#	COMMIT
-slave-master-bin.000001	#	Query	5	#	use `test`; drop table `test`.`BUG_45756_SLAVE_LOGGED_3`
+slave-master-bin.000001	#	Query	5	#	use `test`; drop table `test`.`bug_45756_slave_logged_3`
 
 
 
@@ -495,54 +495,54 @@ Variable_name	Value
 log_slave_updates	ON
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-slave-master-bin.000001	#	Query	6	#	use `test`; CREATE TABLE BUG_45756_SLAVE_LOGGED_1 (a int) engine = NDB
+slave-master-bin.000001	#	Query	6	#	use `test`; CREATE TABLE bug_45756_slave_logged_1 (a int) engine = NDB
 slave-master-bin.000001	#	Query	6	#	BEGIN
-slave-master-bin.000001	#	Table_map	6	#	table_id: # (test.BUG_45756_SLAVE_LOGGED_1)
+slave-master-bin.000001	#	Table_map	6	#	table_id: # (test.bug_45756_slave_logged_1)
 slave-master-bin.000001	#	Table_map	6	#	table_id: # (mysql.ndb_apply_status)
 slave-master-bin.000001	#	Write_rows	6	#	table_id: #
 slave-master-bin.000001	#	Write_rows	6	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	6	#	COMMIT
-slave-master-bin.000001	#	Query	6	#	use `test`; drop table `test`.`BUG_45756_SLAVE_LOGGED_1`
-slave-master-bin.000001	#	Query	6	#	use `test`; CREATE TABLE BUG_45756_SLAVE_LOGGED_2 (a int) engine = NDB
+slave-master-bin.000001	#	Query	6	#	use `test`; drop table `test`.`bug_45756_slave_logged_1`
+slave-master-bin.000001	#	Query	6	#	use `test`; CREATE TABLE bug_45756_slave_logged_2 (a int) engine = NDB
 slave-master-bin.000001	#	Query	6	#	BEGIN
-slave-master-bin.000001	#	Table_map	6	#	table_id: # (test.BUG_45756_SLAVE_LOGGED_2)
+slave-master-bin.000001	#	Table_map	6	#	table_id: # (test.bug_45756_slave_logged_2)
 slave-master-bin.000001	#	Table_map	6	#	table_id: # (mysql.ndb_apply_status)
 slave-master-bin.000001	#	Write_rows	6	#	table_id: #
 slave-master-bin.000001	#	Write_rows	6	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	6	#	COMMIT
-slave-master-bin.000001	#	Query	6	#	use `test`; drop table `test`.`BUG_45756_SLAVE_LOGGED_2`
-slave-master-bin.000001	#	Query	6	#	use `test`; CREATE TABLE BUG_45756_SLAVE_LOGGED_3 (a int) engine = NDB
+slave-master-bin.000001	#	Query	6	#	use `test`; drop table `test`.`bug_45756_slave_logged_2`
+slave-master-bin.000001	#	Query	6	#	use `test`; CREATE TABLE bug_45756_slave_logged_3 (a int) engine = NDB
 slave-master-bin.000001	#	Query	6	#	BEGIN
-slave-master-bin.000001	#	Table_map	6	#	table_id: # (test.BUG_45756_SLAVE_LOGGED_3)
+slave-master-bin.000001	#	Table_map	6	#	table_id: # (test.bug_45756_slave_logged_3)
 slave-master-bin.000001	#	Table_map	6	#	table_id: # (mysql.ndb_apply_status)
 slave-master-bin.000001	#	Write_rows	6	#	table_id: #
 slave-master-bin.000001	#	Write_rows	6	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	6	#	COMMIT
-slave-master-bin.000001	#	Query	6	#	use `test`; DROP TABLE BUG_45756_SLAVE_LOGGED_3
-slave-master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE BUG_45756_MASTER_LOGGED_1 (a int) engine = NDB
+slave-master-bin.000001	#	Query	6	#	use `test`; DROP TABLE bug_45756_slave_logged_3
+slave-master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE bug45756_master_logged_1 (a int) engine = NDB
 slave-master-bin.000001	#	Query	6	#	BEGIN
-slave-master-bin.000001	#	Table_map	6	#	table_id: # (test.BUG_45756_MASTER_LOGGED_1)
+slave-master-bin.000001	#	Table_map	6	#	table_id: # (test.bug45756_master_logged_1)
 slave-master-bin.000001	#	Table_map	6	#	table_id: # (mysql.ndb_apply_status)
 slave-master-bin.000001	#	Write_rows	6	#	table_id: #
 slave-master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	6	#	COMMIT
-slave-master-bin.000001	#	Query	1	#	use `test`; drop table `test`.`BUG_45756_MASTER_LOGGED_1`
-slave-master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE BUG_45756_MASTER_LOGGED_2 (a int) engine = NDB
+slave-master-bin.000001	#	Query	1	#	use `test`; drop table `test`.`bug45756_master_logged_1`
+slave-master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE bug45756_master_logged_2 (a int) engine = NDB
 slave-master-bin.000001	#	Query	6	#	BEGIN
-slave-master-bin.000001	#	Table_map	6	#	table_id: # (test.BUG_45756_MASTER_LOGGED_2)
+slave-master-bin.000001	#	Table_map	6	#	table_id: # (test.bug45756_master_logged_2)
 slave-master-bin.000001	#	Table_map	6	#	table_id: # (mysql.ndb_apply_status)
 slave-master-bin.000001	#	Write_rows	6	#	table_id: #
 slave-master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	6	#	COMMIT
-slave-master-bin.000001	#	Query	1	#	use `test`; drop table `test`.`BUG_45756_MASTER_LOGGED_2`
-slave-master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE BUG_45756_MASTER_LOGGED_3 (a int) engine = NDB
+slave-master-bin.000001	#	Query	1	#	use `test`; drop table `test`.`bug45756_master_logged_2`
+slave-master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE bug45756_master_logged_3 (a int) engine = NDB
 slave-master-bin.000001	#	Query	6	#	BEGIN
-slave-master-bin.000001	#	Table_map	6	#	table_id: # (test.BUG_45756_MASTER_LOGGED_3)
+slave-master-bin.000001	#	Table_map	6	#	table_id: # (test.bug45756_master_logged_3)
 slave-master-bin.000001	#	Table_map	6	#	table_id: # (mysql.ndb_apply_status)
 slave-master-bin.000001	#	Write_rows	6	#	table_id: #
 slave-master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	6	#	COMMIT
-slave-master-bin.000001	#	Query	1	#	use `test`; drop table `test`.`BUG_45756_MASTER_LOGGED_3`
+slave-master-bin.000001	#	Query	1	#	use `test`; drop table `test`.`bug45756_master_logged_3`
 *** Configuring replication via Slave2 ***
 STOP SLAVE;
 STOP SLAVE;
@@ -555,56 +555,56 @@ RESET SLAVE;
 CHANGE MASTER TO MASTER_HOST="127.0.0.1",MASTER_PORT=MASTER_PORT,MASTER_USER="root";;
 START SLAVE;
 *** Generating slave cluster originated binloggable changes ***
-CREATE TABLE BUG_45756_SLAVE_LOGGED_1 (a int) engine = NDB;
-INSERT INTO BUG_45756_SLAVE_LOGGED_1 VALUES (1);
-DROP TABLE BUG_45756_SLAVE_LOGGED_1;
-CREATE TABLE BUG_45756_SLAVE_LOGGED_2 (a int) engine = NDB;
-INSERT INTO BUG_45756_SLAVE_LOGGED_2 VALUES (1);
-DROP TABLE BUG_45756_SLAVE_LOGGED_2;
-CREATE TABLE BUG_45756_SLAVE_LOGGED_3 (a int) engine = NDB;
-INSERT INTO BUG_45756_SLAVE_LOGGED_3 VALUES (1);
-DROP TABLE BUG_45756_SLAVE_LOGGED_3;
+CREATE TABLE bug_45756_slave_logged_1 (a int) engine = NDB;
+INSERT INTO bug_45756_slave_logged_1 VALUES (1);
+DROP TABLE bug_45756_slave_logged_1;
+CREATE TABLE bug_45756_slave_logged_2 (a int) engine = NDB;
+INSERT INTO bug_45756_slave_logged_2 VALUES (1);
+DROP TABLE bug_45756_slave_logged_2;
+CREATE TABLE bug_45756_slave_logged_3 (a int) engine = NDB;
+INSERT INTO bug_45756_slave_logged_3 VALUES (1);
+DROP TABLE bug_45756_slave_logged_3;
 ***Generating slave cluster non-binloggable changes***
 SET SQL_LOG_BIN= 0;
-CREATE TABLE BUG_45756_SLAVE_NOT_LOGGED_1 (a int) engine = NDB;
-INSERT INTO BUG_45756_SLAVE_NOT_LOGGED_1 VALUES (1);
-DROP TABLE BUG_45756_SLAVE_NOT_LOGGED_1;
+CREATE TABLE bug_45756_slave_not_logged_1 (a int) engine = NDB;
+INSERT INTO bug_45756_slave_not_logged_1 VALUES (1);
+DROP TABLE bug_45756_slave_not_logged_1;
 SET SQL_LOG_BIN= 1;
 SET SQL_LOG_BIN= 0;
-CREATE TABLE BUG_45756_SLAVE_NOT_LOGGED_2 (a int) engine = NDB;
-INSERT INTO BUG_45756_SLAVE_NOT_LOGGED_2 VALUES (1);
-DROP TABLE BUG_45756_SLAVE_NOT_LOGGED_2;
+CREATE TABLE bug_45756_slave_not_logged_2 (a int) engine = NDB;
+INSERT INTO bug_45756_slave_not_logged_2 VALUES (1);
+DROP TABLE bug_45756_slave_not_logged_2;
 SET SQL_LOG_BIN= 1;
 SET SQL_LOG_BIN= 0;
-CREATE TABLE BUG_45756_SLAVE_NOT_LOGGED_3 (a int) engine = NDB;
-INSERT INTO BUG_45756_SLAVE_NOT_LOGGED_3 VALUES (1);
-DROP TABLE BUG_45756_SLAVE_NOT_LOGGED_3;
+CREATE TABLE bug_45756_slave_not_logged_3 (a int) engine = NDB;
+INSERT INTO bug_45756_slave_not_logged_3 VALUES (1);
+DROP TABLE bug_45756_slave_not_logged_3;
 SET SQL_LOG_BIN= 1;
 *** Generating data to be replicated ***
-CREATE TABLE BUG_45756_MASTER_LOGGED_1 (a int) engine = NDB;
-INSERT INTO BUG_45756_MASTER_LOGGED_1 VALUES (1);
-DROP TABLE BUG_45756_MASTER_LOGGED_1;
-CREATE TABLE BUG_45756_MASTER_LOGGED_2 (a int) engine = NDB;
-INSERT INTO BUG_45756_MASTER_LOGGED_2 VALUES (1);
-DROP TABLE BUG_45756_MASTER_LOGGED_2;
-CREATE TABLE BUG_45756_MASTER_LOGGED_3 (a int) engine = NDB;
-INSERT INTO BUG_45756_MASTER_LOGGED_3 VALUES (1);
-DROP TABLE BUG_45756_MASTER_LOGGED_3;
+CREATE TABLE bug45756_master_logged_1 (a int) engine = NDB;
+INSERT INTO bug45756_master_logged_1 VALUES (1);
+DROP TABLE bug45756_master_logged_1;
+CREATE TABLE bug45756_master_logged_2 (a int) engine = NDB;
+INSERT INTO bug45756_master_logged_2 VALUES (1);
+DROP TABLE bug45756_master_logged_2;
+CREATE TABLE bug45756_master_logged_3 (a int) engine = NDB;
+INSERT INTO bug45756_master_logged_3 VALUES (1);
+DROP TABLE bug45756_master_logged_3;
 *** Generating changes not to be replicated ***
 SET SQL_LOG_BIN= 0;
-CREATE TABLE BUG_45756_MASTER_NOT_LOGGED_1 (a int) engine = NDB;
-INSERT INTO BUG_45756_MASTER_NOT_LOGGED_1 VALUES (1);
-DROP TABLE BUG_45756_MASTER_NOT_LOGGED_1;
+CREATE TABLE bug45756_master_not_logged_1 (a int) engine = NDB;
+INSERT INTO bug45756_master_not_logged_1 VALUES (1);
+DROP TABLE bug45756_master_not_logged_1;
 SET SQL_LOG_BIN= 1;
 SET SQL_LOG_BIN= 0;
-CREATE TABLE BUG_45756_MASTER_NOT_LOGGED_2 (a int) engine = NDB;
-INSERT INTO BUG_45756_MASTER_NOT_LOGGED_2 VALUES (1);
-DROP TABLE BUG_45756_MASTER_NOT_LOGGED_2;
+CREATE TABLE bug45756_master_not_logged_2 (a int) engine = NDB;
+INSERT INTO bug45756_master_not_logged_2 VALUES (1);
+DROP TABLE bug45756_master_not_logged_2;
 SET SQL_LOG_BIN= 1;
 SET SQL_LOG_BIN= 0;
-CREATE TABLE BUG_45756_MASTER_NOT_LOGGED_3 (a int) engine = NDB;
-INSERT INTO BUG_45756_MASTER_NOT_LOGGED_3 VALUES (1);
-DROP TABLE BUG_45756_MASTER_NOT_LOGGED_3;
+CREATE TABLE bug45756_master_not_logged_3 (a int) engine = NDB;
+INSERT INTO bug45756_master_not_logged_3 VALUES (1);
+DROP TABLE bug45756_master_not_logged_3;
 SET SQL_LOG_BIN= 1;
 *** Checking binlog contents on every server in both clusters ***
 
@@ -622,30 +622,30 @@ Variable_name	Value
 log_slave_updates	OFF
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE BUG_45756_MASTER_LOGGED_1 (a int) engine = NDB
+master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE bug45756_master_logged_1 (a int) engine = NDB
 master-bin.000001	#	Query	1	#	BEGIN
-master-bin.000001	#	Table_map	1	#	table_id: # (test.BUG_45756_MASTER_LOGGED_1)
+master-bin.000001	#	Table_map	1	#	table_id: # (test.bug45756_master_logged_1)
 master-bin.000001	#	Table_map	1	#	table_id: # (mysql.ndb_apply_status)
 master-bin.000001	#	Write_rows	1	#	table_id: #
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	1	#	COMMIT
-master-bin.000001	#	Query	1	#	use `test`; DROP TABLE BUG_45756_MASTER_LOGGED_1
-master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE BUG_45756_MASTER_LOGGED_2 (a int) engine = NDB
+master-bin.000001	#	Query	1	#	use `test`; DROP TABLE bug45756_master_logged_1
+master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE bug45756_master_logged_2 (a int) engine = NDB
 master-bin.000001	#	Query	1	#	BEGIN
-master-bin.000001	#	Table_map	1	#	table_id: # (test.BUG_45756_MASTER_LOGGED_2)
+master-bin.000001	#	Table_map	1	#	table_id: # (test.bug45756_master_logged_2)
 master-bin.000001	#	Table_map	1	#	table_id: # (mysql.ndb_apply_status)
 master-bin.000001	#	Write_rows	1	#	table_id: #
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	1	#	COMMIT
-master-bin.000001	#	Query	1	#	use `test`; drop table `test`.`BUG_45756_MASTER_LOGGED_2`
-master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE BUG_45756_MASTER_LOGGED_3 (a int) engine = NDB
+master-bin.000001	#	Query	1	#	use `test`; drop table `test`.`bug45756_master_logged_2`
+master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE bug45756_master_logged_3 (a int) engine = NDB
 master-bin.000001	#	Query	1	#	BEGIN
-master-bin.000001	#	Table_map	1	#	table_id: # (test.BUG_45756_MASTER_LOGGED_3)
+master-bin.000001	#	Table_map	1	#	table_id: # (test.bug45756_master_logged_3)
 master-bin.000001	#	Table_map	1	#	table_id: # (mysql.ndb_apply_status)
 master-bin.000001	#	Write_rows	1	#	table_id: #
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	1	#	COMMIT
-master-bin.000001	#	Query	1	#	use `test`; drop table `test`.`BUG_45756_MASTER_LOGGED_3`
+master-bin.000001	#	Query	1	#	use `test`; drop table `test`.`bug45756_master_logged_3`
 
 
 
@@ -676,30 +676,30 @@ Variable_name	Value
 log_slave_updates	OFF
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	3	#	use `test`; CREATE TABLE BUG_45756_MASTER_LOGGED_1 (a int) engine = NDB
+master-bin.000001	#	Query	3	#	use `test`; CREATE TABLE bug45756_master_logged_1 (a int) engine = NDB
 master-bin.000001	#	Query	3	#	BEGIN
-master-bin.000001	#	Table_map	3	#	table_id: # (test.BUG_45756_MASTER_LOGGED_1)
+master-bin.000001	#	Table_map	3	#	table_id: # (test.bug45756_master_logged_1)
 master-bin.000001	#	Table_map	3	#	table_id: # (mysql.ndb_apply_status)
 master-bin.000001	#	Write_rows	3	#	table_id: #
 master-bin.000001	#	Write_rows	3	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	3	#	COMMIT
-master-bin.000001	#	Query	3	#	use `test`; drop table `test`.`BUG_45756_MASTER_LOGGED_1`
-master-bin.000001	#	Query	3	#	use `test`; CREATE TABLE BUG_45756_MASTER_LOGGED_2 (a int) engine = NDB
+master-bin.000001	#	Query	3	#	use `test`; drop table `test`.`bug45756_master_logged_1`
+master-bin.000001	#	Query	3	#	use `test`; CREATE TABLE bug45756_master_logged_2 (a int) engine = NDB
 master-bin.000001	#	Query	3	#	BEGIN
-master-bin.000001	#	Table_map	3	#	table_id: # (test.BUG_45756_MASTER_LOGGED_2)
+master-bin.000001	#	Table_map	3	#	table_id: # (test.bug45756_master_logged_2)
 master-bin.000001	#	Table_map	3	#	table_id: # (mysql.ndb_apply_status)
 master-bin.000001	#	Write_rows	3	#	table_id: #
 master-bin.000001	#	Write_rows	3	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	3	#	COMMIT
-master-bin.000001	#	Query	3	#	use `test`; drop table `test`.`BUG_45756_MASTER_LOGGED_2`
-master-bin.000001	#	Query	3	#	use `test`; CREATE TABLE BUG_45756_MASTER_LOGGED_3 (a int) engine = NDB
+master-bin.000001	#	Query	3	#	use `test`; drop table `test`.`bug45756_master_logged_2`
+master-bin.000001	#	Query	3	#	use `test`; CREATE TABLE bug45756_master_logged_3 (a int) engine = NDB
 master-bin.000001	#	Query	3	#	BEGIN
-master-bin.000001	#	Table_map	3	#	table_id: # (test.BUG_45756_MASTER_LOGGED_3)
+master-bin.000001	#	Table_map	3	#	table_id: # (test.bug45756_master_logged_3)
 master-bin.000001	#	Table_map	3	#	table_id: # (mysql.ndb_apply_status)
 master-bin.000001	#	Write_rows	3	#	table_id: #
 master-bin.000001	#	Write_rows	3	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	3	#	COMMIT
-master-bin.000001	#	Query	3	#	use `test`; DROP TABLE BUG_45756_MASTER_LOGGED_3
+master-bin.000001	#	Query	3	#	use `test`; DROP TABLE bug45756_master_logged_3
 
 
 
@@ -730,30 +730,30 @@ Variable_name	Value
 log_slave_updates	OFF
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-slave-master-bin.000001	#	Query	5	#	use `test`; CREATE TABLE BUG_45756_SLAVE_LOGGED_1 (a int) engine = NDB
+slave-master-bin.000001	#	Query	5	#	use `test`; CREATE TABLE bug_45756_slave_logged_1 (a int) engine = NDB
 slave-master-bin.000001	#	Query	5	#	BEGIN
-slave-master-bin.000001	#	Table_map	5	#	table_id: # (test.BUG_45756_SLAVE_LOGGED_1)
+slave-master-bin.000001	#	Table_map	5	#	table_id: # (test.bug_45756_slave_logged_1)
 slave-master-bin.000001	#	Table_map	5	#	table_id: # (mysql.ndb_apply_status)
 slave-master-bin.000001	#	Write_rows	5	#	table_id: #
 slave-master-bin.000001	#	Write_rows	5	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	5	#	COMMIT
-slave-master-bin.000001	#	Query	5	#	use `test`; drop table `test`.`BUG_45756_SLAVE_LOGGED_1`
-slave-master-bin.000001	#	Query	5	#	use `test`; CREATE TABLE BUG_45756_SLAVE_LOGGED_2 (a int) engine = NDB
+slave-master-bin.000001	#	Query	5	#	use `test`; drop table `test`.`bug_45756_slave_logged_1`
+slave-master-bin.000001	#	Query	5	#	use `test`; CREATE TABLE bug_45756_slave_logged_2 (a int) engine = NDB
 slave-master-bin.000001	#	Query	5	#	BEGIN
-slave-master-bin.000001	#	Table_map	5	#	table_id: # (test.BUG_45756_SLAVE_LOGGED_2)
+slave-master-bin.000001	#	Table_map	5	#	table_id: # (test.bug_45756_slave_logged_2)
 slave-master-bin.000001	#	Table_map	5	#	table_id: # (mysql.ndb_apply_status)
 slave-master-bin.000001	#	Write_rows	5	#	table_id: #
 slave-master-bin.000001	#	Write_rows	5	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	5	#	COMMIT
-slave-master-bin.000001	#	Query	5	#	use `test`; DROP TABLE BUG_45756_SLAVE_LOGGED_2
-slave-master-bin.000001	#	Query	5	#	use `test`; CREATE TABLE BUG_45756_SLAVE_LOGGED_3 (a int) engine = NDB
+slave-master-bin.000001	#	Query	5	#	use `test`; DROP TABLE bug_45756_slave_logged_2
+slave-master-bin.000001	#	Query	5	#	use `test`; CREATE TABLE bug_45756_slave_logged_3 (a int) engine = NDB
 slave-master-bin.000001	#	Query	5	#	BEGIN
-slave-master-bin.000001	#	Table_map	5	#	table_id: # (test.BUG_45756_SLAVE_LOGGED_3)
+slave-master-bin.000001	#	Table_map	5	#	table_id: # (test.bug_45756_slave_logged_3)
 slave-master-bin.000001	#	Table_map	5	#	table_id: # (mysql.ndb_apply_status)
 slave-master-bin.000001	#	Write_rows	5	#	table_id: #
 slave-master-bin.000001	#	Write_rows	5	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	5	#	COMMIT
-slave-master-bin.000001	#	Query	5	#	use `test`; drop table `test`.`BUG_45756_SLAVE_LOGGED_3`
+slave-master-bin.000001	#	Query	5	#	use `test`; drop table `test`.`bug_45756_slave_logged_3`
 
 
 
@@ -769,51 +769,51 @@ Variable_name	Value
 log_slave_updates	ON
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-slave-master-bin.000001	#	Query	6	#	use `test`; CREATE TABLE BUG_45756_SLAVE_LOGGED_1 (a int) engine = NDB
+slave-master-bin.000001	#	Query	6	#	use `test`; CREATE TABLE bug_45756_slave_logged_1 (a int) engine = NDB
 slave-master-bin.000001	#	Query	6	#	BEGIN
-slave-master-bin.000001	#	Table_map	6	#	table_id: # (test.BUG_45756_SLAVE_LOGGED_1)
+slave-master-bin.000001	#	Table_map	6	#	table_id: # (test.bug_45756_slave_logged_1)
 slave-master-bin.000001	#	Table_map	6	#	table_id: # (mysql.ndb_apply_status)
 slave-master-bin.000001	#	Write_rows	6	#	table_id: #
 slave-master-bin.000001	#	Write_rows	6	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	6	#	COMMIT
-slave-master-bin.000001	#	Query	6	#	use `test`; drop table `test`.`BUG_45756_SLAVE_LOGGED_1`
-slave-master-bin.000001	#	Query	6	#	use `test`; CREATE TABLE BUG_45756_SLAVE_LOGGED_2 (a int) engine = NDB
+slave-master-bin.000001	#	Query	6	#	use `test`; drop table `test`.`bug_45756_slave_logged_1`
+slave-master-bin.000001	#	Query	6	#	use `test`; CREATE TABLE bug_45756_slave_logged_2 (a int) engine = NDB
 slave-master-bin.000001	#	Query	6	#	BEGIN
-slave-master-bin.000001	#	Table_map	6	#	table_id: # (test.BUG_45756_SLAVE_LOGGED_2)
+slave-master-bin.000001	#	Table_map	6	#	table_id: # (test.bug_45756_slave_logged_2)
 slave-master-bin.000001	#	Table_map	6	#	table_id: # (mysql.ndb_apply_status)
 slave-master-bin.000001	#	Write_rows	6	#	table_id: #
 slave-master-bin.000001	#	Write_rows	6	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	6	#	COMMIT
-slave-master-bin.000001	#	Query	6	#	use `test`; drop table `test`.`BUG_45756_SLAVE_LOGGED_2`
-slave-master-bin.000001	#	Query	6	#	use `test`; CREATE TABLE BUG_45756_SLAVE_LOGGED_3 (a int) engine = NDB
+slave-master-bin.000001	#	Query	6	#	use `test`; drop table `test`.`bug_45756_slave_logged_2`
+slave-master-bin.000001	#	Query	6	#	use `test`; CREATE TABLE bug_45756_slave_logged_3 (a int) engine = NDB
 slave-master-bin.000001	#	Query	6	#	BEGIN
-slave-master-bin.000001	#	Table_map	6	#	table_id: # (test.BUG_45756_SLAVE_LOGGED_3)
+slave-master-bin.000001	#	Table_map	6	#	table_id: # (test.bug_45756_slave_logged_3)
 slave-master-bin.000001	#	Table_map	6	#	table_id: # (mysql.ndb_apply_status)
 slave-master-bin.000001	#	Write_rows	6	#	table_id: #
 slave-master-bin.000001	#	Write_rows	6	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	6	#	COMMIT
-slave-master-bin.000001	#	Query	6	#	use `test`; DROP TABLE BUG_45756_SLAVE_LOGGED_3
-slave-master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE BUG_45756_MASTER_LOGGED_1 (a int) engine = NDB
+slave-master-bin.000001	#	Query	6	#	use `test`; DROP TABLE bug_45756_slave_logged_3
+slave-master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE bug45756_master_logged_1 (a int) engine = NDB
 slave-master-bin.000001	#	Query	6	#	BEGIN
-slave-master-bin.000001	#	Table_map	6	#	table_id: # (test.BUG_45756_MASTER_LOGGED_1)
+slave-master-bin.000001	#	Table_map	6	#	table_id: # (test.bug45756_master_logged_1)
 slave-master-bin.000001	#	Table_map	6	#	table_id: # (mysql.ndb_apply_status)
 slave-master-bin.000001	#	Write_rows	6	#	table_id: #
 slave-master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	6	#	COMMIT
-slave-master-bin.000001	#	Query	1	#	use `test`; DROP TABLE BUG_45756_MASTER_LOGGED_1
-slave-master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE BUG_45756_MASTER_LOGGED_2 (a int) engine = NDB
+slave-master-bin.000001	#	Query	1	#	use `test`; DROP TABLE bug45756_master_logged_1
+slave-master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE bug45756_master_logged_2 (a int) engine = NDB
 slave-master-bin.000001	#	Query	6	#	BEGIN
-slave-master-bin.000001	#	Table_map	6	#	table_id: # (test.BUG_45756_MASTER_LOGGED_2)
+slave-master-bin.000001	#	Table_map	6	#	table_id: # (test.bug45756_master_logged_2)
 slave-master-bin.000001	#	Table_map	6	#	table_id: # (mysql.ndb_apply_status)
 slave-master-bin.000001	#	Write_rows	6	#	table_id: #
 slave-master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	6	#	COMMIT
-slave-master-bin.000001	#	Query	1	#	use `test`; drop table `test`.`BUG_45756_MASTER_LOGGED_2`
-slave-master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE BUG_45756_MASTER_LOGGED_3 (a int) engine = NDB
+slave-master-bin.000001	#	Query	1	#	use `test`; drop table `test`.`bug45756_master_logged_2`
+slave-master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE bug45756_master_logged_3 (a int) engine = NDB
 slave-master-bin.000001	#	Query	6	#	BEGIN
-slave-master-bin.000001	#	Table_map	6	#	table_id: # (test.BUG_45756_MASTER_LOGGED_3)
+slave-master-bin.000001	#	Table_map	6	#	table_id: # (test.bug45756_master_logged_3)
 slave-master-bin.000001	#	Table_map	6	#	table_id: # (mysql.ndb_apply_status)
 slave-master-bin.000001	#	Write_rows	6	#	table_id: #
 slave-master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	6	#	COMMIT
-slave-master-bin.000001	#	Query	1	#	use `test`; drop table `test`.`BUG_45756_MASTER_LOGGED_3`
+slave-master-bin.000001	#	Query	1	#	use `test`; drop table `test`.`bug45756_master_logged_3`
