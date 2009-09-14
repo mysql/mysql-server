@@ -176,7 +176,7 @@ MYSQL_PLUGIN_ACTIONS(innobase,  [
         
           return(1);
         }
-        
+      }
     ],
     [
       AC_DEFINE([HAVE_IB_ATOMIC_PTHREAD_T_SOLARIS], [1],
