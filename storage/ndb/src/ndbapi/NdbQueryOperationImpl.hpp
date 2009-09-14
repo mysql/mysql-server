@@ -21,7 +21,6 @@
 
 #include "NdbQueryOperation.hpp"
 #include "NdbQueryBuilderImpl.hpp"
-#include "NdbImpl.hpp"
 #include "NdbError.hpp"
 #include "NdbTransaction.hpp"
 #include <ObjectMap.hpp>
@@ -41,8 +40,6 @@ private:
 
   ~NdbQueryImpl();
 public:
-  STATIC_CONST (MAGIC = 0xdeadface);
-
   // Factory method which instantiate a query from its definition
   static NdbQueryImpl* buildQuery(NdbTransaction& trans, 
                                   const NdbQueryDefImpl& queryDef, 
@@ -105,9 +102,6 @@ public:
    */
   int doSend(int aNodeId, bool lastFlag);
 
-  bool checkMagicNumber() const
-  { return m_magic == MAGIC; }
-
   const NdbQuery& getInterface() const
   { return m_interface; }
 
@@ -130,10 +124,6 @@ public:
 private:
   NdbQuery m_interface;
 
-  /** For verifying pointers to this class.*/
-  const Uint32 m_magic;
-  /** I-value for object maps.*/
-  const Uint32 m_id;
   /** Possible error status of this query.*/
   NdbError m_error;
   /** Transaction in which this query instance executes.*/
@@ -251,6 +241,14 @@ public:
    *  @return possible error code.*/
   int prepareSend(Uint32Buffer& serializedParams);
 
+  /** Return I-value (for putting in object map) for a receiver pointing back 
+   * to this object. TCKEYCONF is processed by first looking up an 
+   * NdbReceiver instance in the object map, and then following 
+   * NdbReceiver::m_query_operation_impl here.*/
+  Uint32 getIdOfReceiver() const {
+    return m_resultStreams[0]->m_receiver.getId();
+  }
+  
   /** Verify magic number.*/
   bool checkMagicNumber() const
   { return m_magic == MAGIC; }
@@ -333,7 +331,9 @@ private:
 
   private:
     struct Pair{
+      /** Tuple id, unique within this batch and stream.*/
       Uint16 m_id;
+      /** Tuple number, among tuples received in this stream.*/
       Uint16 m_num;
     };
     Vector<Pair> m_vector;
@@ -461,8 +461,6 @@ private:
   NdbQueryOperation m_interface;
   /** For verifying pointers to this class.*/
   const Uint32 m_magic;
-  /** I-value for object maps.*/
-  const Uint32 m_id;
   /** NdbQuery to which this operation belongs. */
   NdbQueryImpl& m_queryImpl;
   /** The (transaction independent ) definition from which this instance

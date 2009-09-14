@@ -1990,33 +1990,31 @@ from other transactions.
     const Uint32* tPtr = (Uint32 *)&keyConf->operations[0];
     Uint32 tNoComp = theNoOfOpCompleted;
     for (Uint32 i = 0; i < tNoOfOperations ; i++) {
-      void* const mappedObj = theNdb->void2rec(theNdb->int2void(*tPtr++));
+      NdbReceiver* const tReceiver = 
+        theNdb->void2rec(theNdb->int2void(*tPtr++));
       const Uint32 tAttrInfoLen = *tPtr++;
-      NdbReceiver* const tOp = reinterpret_cast<NdbReceiver*>(mappedObj);
-      NdbQueryImpl* const queryImpl 
-	  = reinterpret_cast<NdbQueryImpl*>(mappedObj);
-      const bool isReceiver = tOp->checkMagicNumber();
-      assert(isReceiver || queryImpl->checkMagicNumber());
-	/* TODO: Use a better mechanism than magic numbers to decide if 
-	 this is an NdbReceiver or a NdbQueryImpl.*/
-      if(mappedObj && (isReceiver || queryImpl->checkMagicNumber())){
-	Uint32 done = isReceiver ? tOp->execTCOPCONF(tAttrInfoLen) :
-	  queryImpl->execTCKEYCONF();
+      if(tReceiver && tReceiver->checkMagicNumber()){
+        Uint32 done;
+        if(tReceiver->getType()==NdbReceiver::NDB_QUERY_OPERATION){ 
+          /* This signal is part of a linked operation.*/
+          done = tReceiver->m_query_operation_impl->getQuery().execTCKEYCONF();
+        }else{
+          done = tReceiver->execTCOPCONF(tAttrInfoLen);
+        }
 	if(tAttrInfoLen > TcKeyConf::DirtyReadBit){
 	  Uint32 node = tAttrInfoLen & (~TcKeyConf::DirtyReadBit);
           NdbNodeBitmask::set(m_db_nodes, node);
           if(NdbNodeBitmask::get(m_failed_db_nodes, node) && !done)
 	  {
             done = 1;
-            if (isReceiver) {
-              tOp->setErrorCode(4119);
-            }
+            // 4119 = "Simple/dirty read failed due to node failure"
+            tReceiver->setErrorCode(4119);
             theCompletionStatus = CompletedFailure;
             theReturnStatus = NdbTransaction::ReturnFailure;
 	  }	    
 	}
 	tNoComp += done;
-      } else {
+      } else { // if(tReceiver && tReceiver->checkMagicNumber())
  	return -1;
       }//if
     }//for

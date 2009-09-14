@@ -28,13 +28,14 @@
 #include <signaldata/TcKeyConf.hpp>
 #include <signaldata/DictTabInfo.hpp>
 
-NdbReceiver::NdbReceiver(Ndb *aNdb) :
+NdbReceiver::NdbReceiver(Ndb *aNdb, NdbQueryOperationImpl* queryOpImpl) :
   theMagicNumber(0),
   m_ndb(aNdb),
   m_id(NdbObjectIdMap::InvalidId),
   m_type(NDB_UNINITIALIZED),
   m_owner(0),
-  m_using_ndb_record(false)
+  m_using_ndb_record(false),
+  m_query_operation_impl(queryOpImpl)
 {
   theCurrentRecAttr = theFirstRecAttr = 0;
   m_defined_rows = 0;
@@ -54,6 +55,8 @@ NdbReceiver::~NdbReceiver()
 int
 NdbReceiver::init(ReceiverType type, bool useRec, void* owner)
 {
+  assert((type==NDB_QUERY_OPERATION && m_query_operation_impl!=NULL)
+         || (type!=NDB_QUERY_OPERATION && m_query_operation_impl==NULL));
   theMagicNumber = 0x11223344;
   m_type = type;
   m_using_ndb_record= useRec;
@@ -641,7 +644,8 @@ NdbReceiver::execTRANSID_AI(const Uint32* aDataPtr, Uint32 aLength)
   Uint32 save_pos= 0;
 
   bool ndbrecord_part_done= !m_using_ndb_record;
-  bool isScan= (m_type == NDB_SCANRECEIVER);
+  const bool isScan= (m_type == NDB_SCANRECEIVER) || 
+    (m_type == NDB_QUERY_OPERATION);
 
   /* Read words from the incoming signal train.
    * The length passed in is enough for one row, either as an individual
@@ -855,6 +859,11 @@ void
 NdbReceiver::setErrorCode(int code)
 {
   theMagicNumber = 0;
-  NdbOperation* op = (NdbOperation*)getOwner();
-  op->setErrorCode(code);
+  if(getType()==NDB_QUERY_OPERATION){
+    m_query_operation_impl->getQuery().setErrorCode(code);
+  }else{
+    NdbOperation* const op = (NdbOperation*)getOwner();
+    assert(op->checkMagicNumber()==0);
+    op->setErrorCode(code);
+  }
 }
