@@ -263,6 +263,7 @@ void do_tests()
   kill_strategy=X;                              \
   do_one_test();
 #else
+  #define test_kill_strategy(X)                 \
   diag("kill strategy: " #X);                   \
   DBUG_PRINT("info", ("kill strategy: " #X));   \
   kill_strategy=X;                              \

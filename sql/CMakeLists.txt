@@ -25,6 +25,7 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
                     ${CMAKE_SOURCE_DIR}/sql 
                     ${CMAKE_SOURCE_DIR}/regex 
                     ${CMAKE_SOURCE_DIR}/zlib
+                    ${CMAKE_SOURCE_DIR}/extra/libevent
 )
 
 SET_SOURCE_FILES_PROPERTIES(${CMAKE_SOURCE_DIR}/sql/sql_yacc.h 
@@ -93,7 +94,7 @@ ADD_EXECUTABLE(mysqld cmake_dummy.cc)
 SET_TARGET_PROPERTIES(mysqld PROPERTIES OUTPUT_NAME mysqld${MYSQLD_EXE_SUFFIX})
 SET_TARGET_PROPERTIES(mysqld PROPERTIES ENABLE_EXPORTS TRUE)
 
-SET (MYSQLD_CORE_LIBS mysys zlib dbug strings yassl taocrypt vio regex sql)
+SET (MYSQLD_CORE_LIBS mysys zlib dbug strings yassl taocrypt vio regex sql libevent)
 TARGET_LINK_LIBRARIES(mysqld ${MYSQLD_CORE_LIBS} ${MYSQLD_STATIC_ENGINE_LIBS})
 TARGET_LINK_LIBRARIES(mysqld ws2_32.lib)
 

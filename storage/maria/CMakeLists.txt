@@ -12,7 +12,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+INCLUDE("${PROJECT_SOURCE_DIR}/storage/mysql_storage_engine.cmake")
 INCLUDE("${PROJECT_SOURCE_DIR}/win/mysql_manifest.cmake")
+
 
 SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
 SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
@@ -46,9 +48,8 @@ SET(MARIA_SOURCES ma_init.c ma_open.c ma_extra.c ma_info.c ma_rkey.c
             ha_maria.h maria_def.h ma_recovery_util.c
 )
 
+MYSQL_STORAGE_ENGINE(MARIA)
 IF(NOT SOURCE_SUBLIBS)
-
-  ADD_LIBRARY(maria ${MARIA_SOURCES})
 
 ADD_EXECUTABLE(maria_ftdump maria_ftdump.c)
 TARGET_LINK_LIBRARIES(maria_ftdump maria myisam mysys dbug strings zlib wsock32)

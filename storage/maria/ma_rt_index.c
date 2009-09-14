@@ -1134,12 +1134,12 @@ my_bool maria_rtree_real_delete(MARIA_HA *info, MARIA_KEY *key,
     uint nod_flag;
     ulong i;
     MARIA_KEY tmp_key;
+	uchar *page_buf;
+	MARIA_PAGE page;
     tmp_key.keyinfo=     key->keyinfo;
     tmp_key.data_length= key->data_length;
     tmp_key.ref_length=  key->ref_length;
     tmp_key.flag=        0;                     /* Safety */
-    uchar *page_buf;
-    MARIA_PAGE page;
 
     if (ReinsertList.n_pages)
     {
