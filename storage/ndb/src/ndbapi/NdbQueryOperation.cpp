@@ -214,8 +214,6 @@ NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans,
                            const NdbQueryDefImpl& queryDef, 
                            NdbQueryImpl* next):
   m_interface(*this),
-  m_magic(MAGIC),
-  m_id(trans.getNdb()->theImpl->theNdbObjectIdMap.map(this)),
   m_error(),
   m_transaction(trans),
   m_operations(0),
@@ -229,8 +227,6 @@ NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans,
   m_attrInfo(),
   m_keyInfo()
 {
-  assert(m_id != NdbObjectIdMap::InvalidId);
-
   // Allocate memory for all m_operations[] in a single chunk
   m_countOperations = queryDef.getNoOfOperations();
   size_t  size = m_countOperations * sizeof(NdbQueryOperationImpl);
@@ -253,9 +249,6 @@ NdbQueryImpl::~NdbQueryImpl()
 {
   if (m_signal) {
     printf("TODO: Deallocate TC signal\n");
-  }
-  if (m_id != NdbObjectIdMap::InvalidId) {
-    m_transaction.getNdb()->theImpl->theNdbObjectIdMap.unmap(m_id, this);
   }
 
   // NOTE: m_operations[] was allocated as a single memory chunk with
@@ -613,7 +606,7 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
     TcKeyReq * const tcKeyReq = CAST_PTR(TcKeyReq, m_signal->getDataPtrSend());
 
     tcKeyReq->apiConnectPtr   = m_transaction.theTCConPtr;
-    tcKeyReq->apiOperationPtr = m_id; // ptr2int();
+    tcKeyReq->apiOperationPtr = getRoot().getIdOfReceiver();
     tcKeyReq->tableId = tTableId;
     tcKeyReq->tableSchemaVersion = tSchemaVersion;
     tcKeyReq->transId1 = (Uint32) transId;
@@ -713,8 +706,6 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(
            const NdbQueryOperationDefImpl& def):
   m_interface(*this),
   m_magic(MAGIC),
-  m_id(queryImpl.getNdbTransaction()->getNdb()->theImpl
-       ->theNdbObjectIdMap.map(this)),
   m_queryImpl(queryImpl),
   m_operationDef(def),
   m_parents(def.getNoOfParentOperations()),
@@ -734,8 +725,6 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(
   m_firstRecAttr(NULL),
   m_lastRecAttr(NULL)
 { 
-  assert(m_id != NdbObjectIdMap::InvalidId);
-
   // Fill in operations parent refs, and append it as child of its parents
   for (Uint32 p=0; p<def.getNoOfParentOperations(); ++p)
   { 
@@ -749,9 +738,6 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(
 
 NdbQueryOperationImpl::~NdbQueryOperationImpl(){
   Ndb* const ndb = m_queryImpl.getNdbTransaction()->getNdb();
-  if (m_id != NdbObjectIdMap::InvalidId) {
-    ndb->theImpl->theNdbObjectIdMap.unmap(m_id, this);
-  }
   // Check against buffer overun.
 #ifndef NDEBUG // Buffer overrun check activated.
   assert(m_batchBuffer==NULL ||
@@ -1314,7 +1300,7 @@ NdbQueryOperationImpl::ResultStream::~ResultStream() {
 NdbQueryOperationImpl::ResultStream
 ::ResultStream(NdbQueryOperationImpl& operation, Uint32 streamNo):
   m_streamNo(streamNo),
-  m_receiver(operation.getQuery().getNdbTransaction()->getNdb()),
+  m_receiver(operation.getQuery().getNdbTransaction()->getNdb(), &operation),
   m_transidAICount(0),
   m_correlToTupNumMap(),
   m_pendingResults(0),
@@ -1443,26 +1429,27 @@ NdbQueryOperationImpl::prepareSend(Uint32Buffer& serializedParams)
    * serializedParams chunk. Each operations params are 
    * proceeded by 'length' for this operation.
    */
+  QN_LookupParameters* indexLookupParam = NULL;
   if (def.getType() == NdbQueryOperationDefImpl::UniqueIndexAccess)
   {
     size_t startPos = serializedParams.getSize();
-    QN_LookupParameters* param = reinterpret_cast<QN_LookupParameters*>
+    indexLookupParam = reinterpret_cast<QN_LookupParameters*>
       (serializedParams.alloc(QN_LookupParameters::NodeSize));
-    param->len = 0;  // Temp value, fixup later
-    param->requestInfo = 0;
-    param->resultData = m_id;
+    indexLookupParam->len = 0;  // Temp value, fixup later
+    indexLookupParam->requestInfo = 0;
+    indexLookupParam->resultData = RNIL; // Temp value, fixup later
 
     if (m_params.getSize() > 0)   // def.getNoOfParameters() > 0)
     {
       // parameter values has been serialized as part of NdbTransaction::createQuery()
       // Only need to append it to rest of the serialized arguments
-      param->requestInfo |= DABits::PI_KEY_PARAMS;
+      indexLookupParam->requestInfo |= DABits::PI_KEY_PARAMS;
       assert(m_params.getSize() > 0);
       serializedParams.append(m_params);    
     }
 
     size_t length = serializedParams.getSize() - startPos;
-    QueryNodeParameters::setOpLen(param->len,
+    QueryNodeParameters::setOpLen(indexLookupParam->len,
 				def.isScanOperation()
                                   ?QueryNodeParameters::QN_SCAN_FRAG
                                   :QueryNodeParameters::QN_LOOKUP,
@@ -1480,11 +1467,11 @@ NdbQueryOperationImpl::prepareSend(Uint32Buffer& serializedParams)
   } // if (UniqueIndexAccess ...
 
   size_t startPos = serializedParams.getSize();
-  QN_LookupParameters* param = reinterpret_cast<QN_LookupParameters*>
+  QN_LookupParameters* const param = reinterpret_cast<QN_LookupParameters*>
     (serializedParams.alloc(QN_LookupParameters::NodeSize));
   param->len = 0;  // Temp value, fixup later
   param->requestInfo = 0;
-  param->resultData = m_id;
+  param->resultData = RNIL; // Temp value, fixup later
 
   // SPJ block assume PARAMS to be supplied before ATTR_LIST
   if (def.getNoOfParameters() > 0  && 
@@ -1543,7 +1530,7 @@ NdbQueryOperationImpl::prepareSend(Uint32Buffer& serializedParams)
     if (unlikely(m_resultStreams[i] == NULL)) {
       return Err_MemoryAlloc; // Allocation failure
     }
-    m_resultStreams[i]->m_receiver.init(NdbReceiver::NDB_SCANRECEIVER, 
+    m_resultStreams[i]->m_receiver.init(NdbReceiver::NDB_QUERY_OPERATION, 
                                         false, this);
     m_resultStreams[i]->prepare();
     m_resultStreams[i]->m_receiver
@@ -1575,6 +1562,13 @@ NdbQueryOperationImpl::prepareSend(Uint32Buffer& serializedParams)
     // Setup m_applStreams and m_fullStreams
     m_applStreams.prepare(getQuery().getParallelism());
     m_fullStreams.prepare(getQuery().getParallelism());
+  }
+
+  /* m_resultStreams[0]->m_receiver.m_query_operation_impl
+   * points back to this NdbQueryOperationImpl instance.*/
+  param->resultData = getIdOfReceiver();
+  if(def.getType() == NdbQueryOperationDefImpl::UniqueIndexAccess){
+    indexLookupParam->resultData = getIdOfReceiver();
   }
 
   return 0;
@@ -1677,7 +1671,7 @@ NdbQueryOperationImpl::execTRANSID_AI(const Uint32* ptr, Uint32 len){
 bool 
 NdbQueryOperationImpl::execTCKEYREF(NdbApiSignal* aSignal){
   ndbout << "NdbQueryOperationImpl::execTCKEYREF(): *this="
-	 << *this << endl;
+        << *this << endl;
   /* The SPJ block does not forward TCKEYREFs for trees with scan roots.*/
   assert(!getQueryDef().isScanQuery());
   if(isBatchComplete()){
@@ -1805,8 +1799,7 @@ NdbQueryOperationImpl::getReceiver(Uint32 recNo) const {
 /** For debugging.*/
 NdbOut& operator<<(NdbOut& out, const NdbQueryOperationImpl& op){
   out << "[ this: " << &op
-      << "  m_magic: " << op.m_magic 
-      << "  m_id: " << op.m_id;
+      << "  m_magic: " << op.m_magic;
   for(unsigned int i = 0; i<op.getNoOfParentOperations(); i++){
     out << "  m_parents[" << i << "]" << &op.getParentOperation(i); 
   }

@@ -27,6 +27,7 @@
 class Ndb;
 class NdbTransaction;
 class NdbRecord;
+class NdbQueryOperationImpl;
 
 class NdbReceiver
 {
@@ -44,10 +45,11 @@ public:
   enum ReceiverType	{ NDB_UNINITIALIZED,
 			  NDB_OPERATION = 1,
 			  NDB_SCANRECEIVER = 2,
-			  NDB_INDEX_OPERATION = 3
+			  NDB_INDEX_OPERATION = 3,
+                          NDB_QUERY_OPERATION = 4
   };
   
-  NdbReceiver(Ndb *aNdb);
+  NdbReceiver(Ndb *aNdb, NdbQueryOperationImpl* queryOpImpl=NULL);
   int init(ReceiverType type, bool useRec, void* owner);
   void release();
   ~NdbReceiver();
@@ -56,12 +58,12 @@ public:
     return m_id;
   }
 
-  ReceiverType getType(){
+  ReceiverType getType() const {
     return m_type;
   }
   
-  inline NdbTransaction * getTransaction();
-  void* getOwner(){
+  inline NdbTransaction * getTransaction() const;
+  void* getOwner() const {
     return m_owner;
   }
   
@@ -181,6 +183,10 @@ private:
    */
   Uint32 m_expected_result_length;
   Uint32 m_received_result_length;
+  /** If non-NULL, certain signals should be handled by the 
+   * NdbQueryOperationImpl object. The signals are TRANSID_AI, 
+   * SCAN_TABCONF, TCKEYREF and TCKEYCONF.*/
+  NdbQueryOperationImpl* const m_query_operation_impl;
   
   bool nextResult() const { return m_current_row < m_result_rows; }
   NdbRecAttr* copyout(NdbReceiver&);

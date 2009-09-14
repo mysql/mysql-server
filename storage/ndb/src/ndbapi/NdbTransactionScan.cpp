@@ -135,11 +135,10 @@ NdbTransaction::receiveSCAN_TABCONF(NdbApiSignal* aSignal,
       NdbReceiver* tOp = theNdb->void2rec(tPtr);
       if (tOp && tOp->checkMagicNumber())
       {
-        NdbQueryOperationImpl* const queryOpImpl 
-          = static_cast<NdbQueryOperationImpl*>(tOp->m_owner);
-        if(queryOpImpl->checkMagicNumber())
+        // Check if this is a linked operation.
+        if(tOp->getType()==NdbReceiver::NDB_QUERY_OPERATION)
         {
-          queryOpImpl->execSCAN_TABCONF(tcPtrI, opCount, tOp);
+          tOp->m_query_operation_impl->execSCAN_TABCONF(tcPtrI, opCount, tOp);
         }
         else
         {

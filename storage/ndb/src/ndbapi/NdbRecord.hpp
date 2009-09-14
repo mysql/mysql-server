@@ -19,6 +19,8 @@
 #ifndef NdbRecord_H
 #define NdbRecord_H
 
+#include <NdbSqlUtil.hpp>
+
 class NdbRecord {
 public:
   /* Flag bits for the entire NdbRecord. */

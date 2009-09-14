@@ -909,7 +909,7 @@ int main(int argc, char* argv[]){
     ndbout << "Running test case " << testNo << endl;
     switch(testNo){
     case 0:
-      testNestedLookup<RowInt, KeyInt>(mysql, ndb, 5);
+      testNestedLookup<RowInt, KeyInt>(mysql, ndb, 1);
       break;
     case 1:
       testIndexLookup<RowInt, KeyInt>(mysql, ndb, 5);

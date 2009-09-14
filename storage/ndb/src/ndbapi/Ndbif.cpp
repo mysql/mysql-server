@@ -400,25 +400,22 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
     tFirstDataPtr = int2void(tFirstData);
     if (tFirstDataPtr){
       NdbReceiver* const tRec = void2rec(tFirstDataPtr);
-      NdbQueryOperationImpl* const queryOpImpl 
-	= reinterpret_cast<NdbQueryOperationImpl*>(tFirstDataPtr);
-      const bool isReceiver = tRec->checkMagicNumber();
-      if(!isReceiver && !queryOpImpl->checkMagicNumber()){
+      if(!tRec->checkMagicNumber()){
 	return;
       }
-      tCon = isReceiver ? tRec->getTransaction() 
-	: queryOpImpl->getQuery().getNdbTransaction();
+      tCon = tRec->getTransaction();
       if((tCon!=NULL) &&
 	 tCon->checkState_TransId(((const TransIdAI*)tDataPtr)->transId)){
 	Uint32 com;
 	if(aSignal->m_noOfSections > 0){
-	  if(isReceiver){
-	    com = tRec->execTRANSID_AI(ptr[0].p, ptr[0].sz);
+	  if(tRec->getType()==NdbReceiver::NDB_QUERY_OPERATION){
+	    com = tRec->m_query_operation_impl
+              ->execTRANSID_AI(ptr[0].p, ptr[0].sz);
 	  }else{
-	    com = queryOpImpl->execTRANSID_AI(ptr[0].p, ptr[0].sz);
+	    com = tRec->execTRANSID_AI(ptr[0].p, ptr[0].sz);
 	  }
 	} else {
-	  assert(isReceiver);
+	  assert(tRec->getType()!=NdbReceiver::NDB_QUERY_OPERATION);
 	  com = tRec->execTRANSID_AI(tDataPtr + TransIdAI::HeaderLength, 
 				     tLen - TransIdAI::HeaderLength);
 	}
@@ -426,13 +423,6 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
 	if(com == 0)
 	  return;
 
-	if(!isReceiver){
-	  if(tCon->OpCompleteSuccess() != -1){
-	    completedTransaction(tCon);
-	  }
-	  return;
-	}
-	
 	switch(tRec->getType()){
 	case NdbReceiver::NDB_OPERATION:
 	case NdbReceiver::NDB_INDEX_OPERATION:
@@ -445,6 +435,11 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
 	  theImpl->theWaiter.m_state = (((WaitSignalType) tWaitState) == WAIT_SCAN ? 
 					(Uint32) NO_WAIT : tWaitState);
 	  break;
+        case NdbReceiver::NDB_QUERY_OPERATION:
+          if(tCon->OpCompleteSuccess() != -1){
+            completedTransaction(tCon);
+          }
+          return;
 	default:
 	  goto InvalidSignal;
 	}
@@ -524,37 +519,30 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
       tFirstDataPtr = int2void(tFirstData);
       if (tFirstDataPtr == 0) goto InvalidSignal;
 
-      const bool isNdbOperation = 
-        void2rec(tFirstDataPtr)->checkMagicNumber();
-      NdbQueryOperationImpl* const queryOpImpl 
-        = reinterpret_cast<NdbQueryOperationImpl*>(tFirstDataPtr);
-
-      if (isNdbOperation) {
-        tOp = void2rec_op(tFirstDataPtr);
-        /* NB! NdbOperation::checkMagicNumber() returns 0 if it *is* 
-         * an NdbOperation.*/
-        assert(tOp->checkMagicNumber()==0); 
-        tCon = tOp->theNdbCon;
-      } else if(queryOpImpl->checkMagicNumber()) {
-        tCon = queryOpImpl->getQuery().getNdbTransaction();
-      } else{ 
-        goto InvalidSignal;
+      const NdbReceiver* const receiver = void2rec(tFirstDataPtr);
+      if(!receiver->checkMagicNumber()){
+        goto InvalidSignal; 
       }
+      tCon = receiver->getTransaction();
       if (tCon != NULL) {
         if (tCon->theSendStatus == NdbTransaction::sendTC_OP) {
-          if(isNdbOperation){
-            tReturnCode = tOp->receiveTCKEYREF(aSignal);
-            if (tReturnCode != -1) {
-              completedTransaction(tCon);
-              return;
-            }//if
-          } else {
+          if(receiver->getType()==NdbReceiver::NDB_QUERY_OPERATION){
             // TODO SPJ: Has to check rewrite of this logic as 
             //           NdbOperation linked to NdbQuery has now gone away.
             // NOTE: Prev NdbOperation arg to ::OpCompleteFailure is
             //       never used.
-            if(queryOpImpl->execTCKEYREF(aSignal) &&
+            if(receiver->m_query_operation_impl->execTCKEYREF(aSignal) &&
                tCon->OpCompleteFailure(NULL) != -1){  // TODO + FIXME?
+              completedTransaction(tCon);
+              return;
+            }
+          } else {
+            tOp = void2rec_op(tFirstDataPtr);
+            /* NB! NdbOperation::checkMagicNumber() returns 0 if it *is* 
+             * an NdbOperation.*/
+            assert(tOp->checkMagicNumber()==0); 
+            tReturnCode = tOp->receiveTCKEYREF(aSignal);
+            if (tReturnCode != -1) {
               completedTransaction(tCon);
               return;
             }//if
