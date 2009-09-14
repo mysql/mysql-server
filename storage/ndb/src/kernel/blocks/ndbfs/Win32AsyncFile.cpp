@@ -402,7 +402,7 @@ loop:
     {
       int len = strlen(path);
       strcat(path, ffd.cFileName);
-      if(DeleteFile(path)) 
+      if(DeleteFile(path) || RemoveDirectory(path)) 
       {
         path[len] = 0;
 	continue;

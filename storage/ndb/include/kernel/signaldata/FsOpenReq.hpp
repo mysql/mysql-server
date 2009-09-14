@@ -231,7 +231,7 @@ Uint32 FsOpenReq::getVersion(const Uint32 fileNumber[]){
 inline
 void FsOpenReq::setVersion(Uint32 fileNumber[], Uint8 val){
   const Uint32 t = fileNumber[3];
-  fileNumber[3] = t & 0x00FFFFFF | (((Uint32)val) << 24);
+  fileNumber[3] = (t & 0x00FFFFFF) | (((Uint32)val) << 24);
 }
 
 inline 
@@ -242,7 +242,7 @@ Uint32 FsOpenReq::getSuffix(const Uint32 fileNumber[]){
 inline
 void FsOpenReq::setSuffix(Uint32 fileNumber[], Uint8 val){
   const Uint32 t = fileNumber[3];
-  fileNumber[3] = t & 0xFF00FFFF | (((Uint32)val) << 16);
+  fileNumber[3] = (t & 0xFF00FFFF) | (((Uint32)val) << 16);
 }
 
 inline 
@@ -253,7 +253,7 @@ Uint32 FsOpenReq::v1_getDisk(const Uint32 fileNumber[]){
 inline
 void FsOpenReq::v1_setDisk(Uint32 fileNumber[], Uint8 val){
   const Uint32 t = fileNumber[3];
-  fileNumber[3] = t & 0xFFFF00FF | (((Uint32)val) << 8);
+  fileNumber[3] = (t & 0xFFFF00FF) | (((Uint32)val) << 8);
 }
 
 inline 
@@ -294,7 +294,7 @@ Uint32 FsOpenReq::v1_getP(const Uint32 fileNumber[]){
 inline
 void FsOpenReq::v1_setP(Uint32 fileNumber[], Uint8 val){
   const Uint32 t = fileNumber[3];
-  fileNumber[3] = t & 0xFFFFFF00 | val;
+  fileNumber[3] = (t & 0xFFFFFF00) | val;
 }
 
 /****************/
