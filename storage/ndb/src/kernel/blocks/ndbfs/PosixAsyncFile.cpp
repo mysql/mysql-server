@@ -85,7 +85,7 @@ int PosixAsyncFile::check_odirect_write(Uint32 flags, int& new_flags, int mode)
   int ret;
   char * bufptr = (char*)((UintPtr(g_odirect_readbuf)+(GLOBAL_PAGE_SIZE - 1)) & ~(GLOBAL_PAGE_SIZE - 1));
   while (((ret = ::write(theFd, bufptr, GLOBAL_PAGE_SIZE)) == -1) &&
-         (errno == EINTR));
+         (errno == EINTR)) {};
   if (ret == -1)
   {
     new_flags &= ~O_DIRECT;
@@ -111,7 +111,7 @@ int PosixAsyncFile::check_odirect_read(Uint32 flags, int &new_flags, int mode)
   int ret;
   char * bufptr = (char*)((UintPtr(g_odirect_readbuf)+(GLOBAL_PAGE_SIZE - 1)) & ~(GLOBAL_PAGE_SIZE - 1));
   while (((ret = ::read(theFd, bufptr, GLOBAL_PAGE_SIZE)) == -1) &&
-         (errno == EINTR));
+         (errno == EINTR)) {};
   if (ret == -1)
   {
     ndbout_c("%s Failed to read using O_DIRECT, disabling",
@@ -501,7 +501,7 @@ int PosixAsyncFile::readBuffer(Request *req, char *buf,
   if(!use_gz)
   {
     while((seek_val= lseek(theFd, offset, SEEK_SET)) == (off_t)-1
-          && errno == EINTR);
+          && errno == EINTR) {};
     if(seek_val == (off_t)-1)
     {
       return errno;
@@ -511,7 +511,7 @@ int PosixAsyncFile::readBuffer(Request *req, char *buf,
   if(use_gz)
   {
     while((seek_val= azseek(&azf, offset, SEEK_SET)) == (off_t)-1
-          && errno == EINTR);
+          && errno == EINTR) {};
     if(seek_val == (off_t)-1)
     {
       return errno;
@@ -614,7 +614,7 @@ int PosixAsyncFile::writeBuffer(const char *buf, size_t size, off_t offset)
   FileGuard guard(this);
   off_t seek_val;
   while((seek_val= lseek(theFd, offset, SEEK_SET)) == (off_t)-1
-	&& errno == EINTR);
+	&& errno == EINTR) {};
   if(seek_val == (off_t)-1)
   {
     return errno;
