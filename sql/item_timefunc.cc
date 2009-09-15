@@ -941,6 +941,27 @@ longlong Item_func_to_days::val_int()
 }
 
 
+longlong Item_func_to_seconds::val_int_endpoint(bool left_endp,
+                                                bool *incl_endp)
+{
+  longlong res= val_int();
+  return null_value ? LONGLONG_MIN : res;
+}
+
+longlong Item_func_to_seconds::val_int()
+{
+  DBUG_ASSERT(fixed == 1);
+  MYSQL_TIME ltime;
+  longlong seconds;
+  longlong days;
+  if (get_arg0_date(&ltime, TIME_NO_ZERO_DATE))
+    return 0;
+  seconds=ltime.hour*3600L+ltime.minute*60+ltime.second;
+  seconds=ltime.neg ? -seconds : seconds;
+  days= (longlong) calc_daynr(ltime.year,ltime.month,ltime.day);
+  return (seconds + days * (24L * 3600L));
+}
+
 /*
   Get information about this Item tree monotonicity
 
@@ -956,6 +977,18 @@ longlong Item_func_to_days::val_int()
 */
 
 enum_monotonicity_info Item_func_to_days::get_monotonicity_info() const
+{
+  if (args[0]->type() == Item::FIELD_ITEM)
+  {
+    if (args[0]->field_type() == MYSQL_TYPE_DATE)
+      return MONOTONIC_STRICT_INCREASING;
+    if (args[0]->field_type() == MYSQL_TYPE_DATETIME)
+      return MONOTONIC_INCREASING;
+  }
+  return NON_MONOTONIC;
+}
+
+enum_monotonicity_info Item_func_to_seconds::get_monotonicity_info() const
 {
   if (args[0]->type() == Item::FIELD_ITEM)
   {
