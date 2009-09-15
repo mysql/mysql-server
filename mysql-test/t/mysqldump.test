@@ -1982,6 +1982,9 @@ drop table if exists `load`;
 create table `load` (a varchar(255));
 
 --copy_file std_data/words.dat $MYSQLTEST_VARDIR/tmp/load.txt
+# LOAD DATA requires the file to be world-readable. This may not be true
+# automatically, depending on how the build directory was created.
+--chmod 0644 $MYSQLTEST_VARDIR/tmp/load.txt
 
 --exec $MYSQL_IMPORT --ignore test $MYSQLTEST_VARDIR/tmp/load.txt
 
