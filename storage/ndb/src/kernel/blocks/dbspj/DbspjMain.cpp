@@ -1480,10 +1480,13 @@ Dbspj::lookup_start_child(Signal* signal,
      * TODO merge better with lookup_start (refactor)
      */
     {
-      /**
-       * TODO, how should correlation factor really be constructed
-       */
-      treeNodePtr.p->m_send.m_correlation = (corrVal << 16); 
+      /* Increment lower half-word by one. This is done to ensure that each
+      * instance of this operation gets a different correlation value. 
+      * (If the root operation is a scan, there may be many instances of a 
+      * lookup). Otherwise, instances of children of this operation would all 
+      * see the same correlation value.*/
+      treeNodePtr.p->m_send.m_correlation = (corrVal << 16) + 
+        (treeNodePtr.p->m_send.m_correlation & 0xffff) + 1; 
       treeNodePtr.p->m_send.m_ref = tmp.receiverRef;
       LqhKeyReq * dst = (LqhKeyReq*)treeNodePtr.p->m_lookup_data.m_lqhKeyReq;
       dst->hashValue = tmp.hashInfo[0];

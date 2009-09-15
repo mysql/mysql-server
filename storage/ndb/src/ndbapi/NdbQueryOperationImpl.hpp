@@ -383,9 +383,7 @@ private:
       return m_parentTupleCorr[rowNo];
     }
 
-    void setParentTupleCorr(Uint32 rowNo, Uint32 correlationNum) const { 
-      m_parentTupleCorr[rowNo] = correlationNum;
-    }
+    void setParentTupleCorr(Uint32 rowNo, Uint32 correlationNum) const;
     
     /** Check if batch is complete for this stream. */
     bool isBatchComplete() const { 
@@ -398,9 +396,10 @@ private:
     /** One-dimensional array. For each tuple, this array holds the correlation
      * number of the corresponding parent tuple. */
     Uint32* m_parentTupleCorr;
-    /** Two dimenional array of indexes to child tuples ([childNo, ownTupleNo])
-     * This is used for finding the child tuple in the corresponding resultStream of 
-     the child operation. */
+    /** Two dimenional array of indexes to child tuples 
+     * ([childOperationNo, ownTupleNo]) This is used for finding the child 
+     * tuple in the corresponding resultStream of 
+     * the child operation. */
     Uint32* m_childTupleIdx;
     /** No copying.*/
     ResultStream(const ResultStream&);
