@@ -38,7 +38,7 @@ class DirIteratorImpl {
       return (dp->d_type == DT_REG);
 #endif
     /* Using stat to read more info about the file */
-    basestring_snprintf(m_buf, sizeof(m_buf),
+    basestring_snprintf(m_buf, PATH_MAX, 
                         "%s/%s", m_path, dp->d_name);
 
     struct stat buf;
