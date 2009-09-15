@@ -6,6 +6,7 @@ extern "C" {
 #if defined(_WIN32)
 #include "misc.h"
 #endif
+#include <inttypes.h>
 #include "toku_os.h"
 }
 
@@ -514,7 +515,7 @@ static int tokudb_release_savepoint(handlerton * hton, THD * thd, void *savepoin
 static bool tokudb_show_data_size(THD * thd, stat_print_fn * stat_print) {
     TOKUDB_DBUG_ENTER("tokudb_show_engine_status");
     int error;
-    ulonglong num_bytes_in_db = 0;
+    u_int64_t num_bytes_in_db = 0;
     DB* curr_db = NULL;
     DB_TXN* txn = NULL;
     DBC* tmp_cursor = NULL;
@@ -602,7 +603,7 @@ static bool tokudb_show_data_size(THD * thd, stat_print_fn * stat_print) {
         }
     }
 
-    sprintf(data_amount_msg, "Number of bytes in database: %ull", num_bytes_in_db);
+    sprintf(data_amount_msg, "Number of bytes in database: %"PRIu64, num_bytes_in_db);
     stat_print(
         thd, 
         tokudb_hton_name, 
