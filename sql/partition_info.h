@@ -311,5 +311,6 @@ void init_all_partitions_iterator(partition_info *part_info,
 {
   part_iter->part_nums.start= part_iter->part_nums.cur= 0;
   part_iter->part_nums.end= part_info->no_parts;
+  part_iter->ret_null_part= part_iter->ret_null_part_orig= FALSE;
   part_iter->get_next= get_next_partition_id_range;
 }
