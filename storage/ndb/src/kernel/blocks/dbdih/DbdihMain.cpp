@@ -15762,7 +15762,7 @@ void Dbdih::setNodeRestartInfoBits(Signal * signal)
   }//for
 
 #ifdef ERROR_INSERT
-  if (!tmp.isclear())
+  if (ERROR_INSERTED(7220) && !tmp.isclear())
   {
     jam();
 

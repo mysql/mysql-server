@@ -964,11 +964,22 @@ Ndb::closeTransaction(NdbTransaction* aConnection)
     DBUG_VOID_RETURN;
   }
   
-  if (aConnection->theReleaseOnClose == false) {
+  /**
+   * NOTE: It's ok to call getNodeSequence() here wo/ having mutex,
+   */
+  Uint32 nodeId = aConnection->getConnectedNodeId();
+  TransporterFacade* tp = theImpl->m_transporter_facade;   
+  Uint32 seq = tp->getNodeSequence(nodeId);
+  if (aConnection->theNodeSequence != seq)
+  {
+    aConnection->theReleaseOnClose = true;
+  }
+  
+  if (aConnection->theReleaseOnClose == false) 
+  {
     /**
      * Put it back in idle list for that node
      */
-    Uint32 nodeId = aConnection->getConnectedNodeId();
     aConnection->theNext = theConnectionArray[nodeId];
     theConnectionArray[nodeId] = aConnection;
     DBUG_VOID_RETURN;
