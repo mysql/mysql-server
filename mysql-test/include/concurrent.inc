@@ -666,7 +666,9 @@ disconnect thread1;
 --echo ** connection thread2
 connection thread2;
 disconnect thread2;
+--source include/wait_until_disconnected.inc
 --echo ** connection default
 connection default;
 drop table t1;
 drop user mysqltest@localhost;
+
