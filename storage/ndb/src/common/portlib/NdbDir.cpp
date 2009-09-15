@@ -26,6 +26,7 @@
 class DirIteratorImpl {
   DIR* m_dirp;
   const char *m_path;
+  char* m_buf;
 
   bool is_regular_file(struct dirent* dp) const {
 #ifdef _DIRENT_HAVE_D_TYPE
@@ -37,12 +38,11 @@ class DirIteratorImpl {
       return (dp->d_type == DT_REG);
 #endif
     /* Using stat to read more info about the file */
-    char path_buf[PATH_MAX];
-    basestring_snprintf(path_buf, sizeof(path_buf),
+    basestring_snprintf(m_buf, PATH_MAX, 
                         "%s/%s", m_path, dp->d_name);
 
     struct stat buf;
-    if (stat(path_buf, &buf))
+    if (stat(m_buf, &buf))
       return false; // 'stat' failed
 
     return S_ISREG(buf.st_mode);
@@ -51,10 +51,13 @@ class DirIteratorImpl {
 
 public:
   DirIteratorImpl():
-    m_dirp(NULL) {};
+    m_dirp(NULL) {
+     m_buf = new char[PATH_MAX];
+  };
 
   ~DirIteratorImpl() {
     close();
+    delete [] m_buf;
   }
 
   int open(const char* path){
@@ -165,8 +168,11 @@ void NdbDir::Iterator::close(void)
 const char* NdbDir::Iterator::next_file(void)
 {
   bool is_dir;
-  while(m_impl.next_entry(is_dir) != NULL && is_dir)
-    ;
+  const char* name;
+  while((name = m_impl.next_entry(is_dir)) != NULL){
+    if (!is_dir)
+      return name; // Found  some sort of file 
+  } 
   return NULL;
 }
 
@@ -382,8 +388,28 @@ TAPTEST(DirIterator)
 
   printf("Using directory '%s'\n", path);
 
-  // Build dir tree and remove all of it
+  // Remove dir if it exists
+  if (access(path, F_OK) == 0)
+    CHECK(NdbDir::remove_recursive(path));
+
+  // Build dir tree 
   build_tree(path);
+  // Test to iterate over filesa
+  { 
+    NdbDir::Iterator iter;
+    CHECK(iter.open(path) == 0);
+    const char* name;
+    int num_files = 0;  
+    while((name = iter.next_file()) != NULL)
+    {
+      //printf("%s\n", name);
+      num_files++;
+    }
+    printf("Found %d files\n", num_files);
+    CHECK(num_files == 6); 
+  }
+  
+  // Remove all of tree
   CHECK(NdbDir::remove_recursive(path));
   CHECK(gone(path));
 
