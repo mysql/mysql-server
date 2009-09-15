@@ -419,8 +419,6 @@ static int do_write (TOKULOGGER logger, int do_fsync) {
     struct logbytes *list = logger->head;
     logger->head=logger->tail=0;
     logger->n_in_buf=0;
-    r=ml_unlock(&logger->input_lock); if (r!=0) goto panic;
-    logger->n_in_buf=0;
     while (list) {
 	if (logger->n_in_file + list->nbytes <= logger->lg_max) {
 	    if (logger->n_in_buf + list->nbytes <= LOGGER_BUF_SIZE) {
@@ -457,6 +455,7 @@ static int do_write (TOKULOGGER logger, int do_fsync) {
     r=write_it(logger->fd, logger->buf, logger->n_in_buf);
     if (r!=logger->n_in_buf) { r=errno; goto panic; }
     logger->n_in_buf=0;
+    r=ml_unlock(&logger->input_lock); if (r!=0) goto panic2;
     if (do_fsync) {
         if (logger->write_log_files) {
             r = toku_os_fsync_function(logger->fd); assert(r == 0);
@@ -467,6 +466,8 @@ static int do_write (TOKULOGGER logger, int do_fsync) {
         toku_logfilemgr_update_last_lsn(logger->logfilemgr, logger->written_lsn);
     return 0;
  panic:
+    ml_unlock(&logger->input_lock);
+ panic2:
     toku_logger_panic(logger, r);
     return r;
 }
