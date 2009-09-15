@@ -780,6 +780,9 @@ UtilTransactions::readRowFromTableAndIndex(Ndb* pNdb,
     if (pTrans1 == NULL) {
       const NdbError err = pNdb->getNdbError();
       
+      if (err.code == 4006)
+        goto close_all;
+
       if (err.status == NdbError::TemporaryError){
 	ERR(err);
 	NdbSleep_MilliSleep(50);
