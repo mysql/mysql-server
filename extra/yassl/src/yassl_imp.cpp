@@ -1305,7 +1305,6 @@ void ServerHello::Process(input_buffer&, SSL& ssl)
         ssl.useSecurity().use_connection().sessionID_Set_ = false;
 
     if (ssl.getSecurity().get_resuming()) {
-    {
         if (memcmp(session_id_, ssl.getSecurity().get_resume().GetID(),
                    ID_LEN) == 0) {
             ssl.set_masterSecret(ssl.getSecurity().get_resume().GetSecret());

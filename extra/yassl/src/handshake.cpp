@@ -789,7 +789,7 @@ void processReply(SSL& ssl)
 {
     if (ssl.GetError()) return;
 
-    if (DoProcessReply(ssl)) {
+    if (DoProcessReply(ssl))
     {
         // didn't complete process
         if (!ssl.getSocket().IsNonBlocking()) {
@@ -874,7 +874,7 @@ void sendServerKeyExchange(SSL& ssl, BufferOutput buffer)
 // send change cipher
 void sendChangeCipher(SSL& ssl, BufferOutput buffer)
 {
-    if (ssl.getSecurity().get_parms().entity_ == server_end) {
+    if (ssl.getSecurity().get_parms().entity_ == server_end)
     {
         if (ssl.getSecurity().get_resuming())
             ssl.verifyState(clientKeyExchangeComplete);

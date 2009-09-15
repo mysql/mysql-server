@@ -1136,8 +1136,6 @@ my_bool maria_rtree_real_delete(MARIA_HA *info, MARIA_KEY *key,
     uchar *page_buf;
     MARIA_PAGE page;
     MARIA_KEY tmp_key;
-	uchar *page_buf;
-	MARIA_PAGE page;
     tmp_key.keyinfo=     key->keyinfo;
     tmp_key.data_length= key->data_length;
     tmp_key.ref_length=  key->ref_length;
