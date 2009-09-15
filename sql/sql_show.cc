@@ -4869,12 +4869,18 @@ static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
     /* Partition method*/
     switch (part_info->part_type) {
     case RANGE_PARTITION:
-      table->field[7]->store(partition_keywords[PKW_RANGE].str,
-                             partition_keywords[PKW_RANGE].length, cs);
-      break;
     case LIST_PARTITION:
-      table->field[7]->store(partition_keywords[PKW_LIST].str,
-                             partition_keywords[PKW_LIST].length, cs);
+      tmp_res.length(0);
+      if (part_info->part_type == RANGE_PARTITION)
+        tmp_res.append(partition_keywords[PKW_RANGE].str,
+                       partition_keywords[PKW_RANGE].length);
+      else
+        tmp_res.append(partition_keywords[PKW_LIST].str,
+                       partition_keywords[PKW_LIST].length);
+      if (part_info->column_list)
+        tmp_res.append(partition_keywords[PKW_COLUMNS].str,
+                       partition_keywords[PKW_COLUMNS].length);
+      table->field[7]->store(tmp_res.ptr(), tmp_res.length(), cs);
       break;
     case HASH_PARTITION:
       tmp_res.length(0);
@@ -6484,7 +6490,7 @@ ST_FIELD_INFO partitions_fields_info[]=
    (MY_I_S_MAYBE_NULL | MY_I_S_UNSIGNED), 0, OPEN_FULL_TABLE},
   {"SUBPARTITION_ORDINAL_POSITION", 21 , MYSQL_TYPE_LONGLONG, 0,
    (MY_I_S_MAYBE_NULL | MY_I_S_UNSIGNED), 0, OPEN_FULL_TABLE},
-  {"PARTITION_METHOD", 12, MYSQL_TYPE_STRING, 0, 1, 0, OPEN_FULL_TABLE},
+  {"PARTITION_METHOD", 18, MYSQL_TYPE_STRING, 0, 1, 0, OPEN_FULL_TABLE},
   {"SUBPARTITION_METHOD", 12, MYSQL_TYPE_STRING, 0, 1, 0, OPEN_FULL_TABLE},
   {"PARTITION_EXPRESSION", 65535, MYSQL_TYPE_STRING, 0, 1, 0, OPEN_FULL_TABLE},
   {"SUBPARTITION_EXPRESSION", 65535, MYSQL_TYPE_STRING, 0, 1, 0,

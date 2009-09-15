@@ -438,35 +438,55 @@ public:
     return 0;
   }
 
-  /* returns a number of keypart values appended to the key buffer */
-  int store_min_key(KEY_PART *key, uchar **range_key, uint *range_key_flag)
+  /*
+    Returns a number of keypart values appended to the key buffer
+    for min key and max key. This function is used by both Range
+    Analysis and Partition pruning. For partition pruning we have
+    to ensure that we don't store also subpartition fields. Thus
+    we have to stop at the last partition part and not step into
+    the subpartition fields. For Range Analysis we set last_part
+    to MAX_KEY which we should never reach.
+  */
+  int store_min_key(KEY_PART *key,
+                    uchar **range_key,
+                    uint *range_key_flag,
+                    uint last_part)
   {
     SEL_ARG *key_tree= first();
     uint res= key_tree->store_min(key[key_tree->part].store_length,
                                   range_key, *range_key_flag);
     *range_key_flag|= key_tree->min_flag;
     if (key_tree->next_key_part &&
+        key_tree->part != last_part &&
 	key_tree->next_key_part->part == key_tree->part+1 &&
 	!(*range_key_flag & (NO_MIN_RANGE | NEAR_MIN)) &&
 	key_tree->next_key_part->type == SEL_ARG::KEY_RANGE)
-      res+= key_tree->next_key_part->store_min_key(key, range_key,
-                                                   range_key_flag);
+      res+= key_tree->next_key_part->store_min_key(key,
+                                                   range_key,
+                                                   range_key_flag,
+                                                   last_part);
     return res;
   }
 
   /* returns a number of keypart values appended to the key buffer */
-  int store_max_key(KEY_PART *key, uchar **range_key, uint *range_key_flag)
+  int store_max_key(KEY_PART *key,
+                    uchar **range_key,
+                    uint *range_key_flag,
+                    uint last_part)
   {
     SEL_ARG *key_tree= last();
     uint res=key_tree->store_max(key[key_tree->part].store_length,
                                  range_key, *range_key_flag);
     (*range_key_flag)|= key_tree->max_flag;
     if (key_tree->next_key_part &&
+        key_tree->part != last_part &&
 	key_tree->next_key_part->part == key_tree->part+1 &&
 	!(*range_key_flag & (NO_MAX_RANGE | NEAR_MAX)) &&
 	key_tree->next_key_part->type == SEL_ARG::KEY_RANGE)
-      res+= key_tree->next_key_part->store_max_key(key, range_key,
-                                                   range_key_flag);
+      res+= key_tree->next_key_part->store_max_key(key,
+                                                   range_key,
+                                                   range_key_flag,
+                                                   last_part);
     return res;
   }
 
@@ -634,6 +654,12 @@ public:
     using_real_indexes==TRUE
   */
   uint real_keynr[MAX_KEY];
+
+  /* Used to store 'current key tuples', in both range analysis and
+   * partitioning (list) analysis*/
+  uchar min_key[MAX_KEY_LENGTH+MAX_FIELD_WIDTH],
+    max_key[MAX_KEY_LENGTH+MAX_FIELD_WIDTH];
+
   /* Number of SEL_ARG objects allocated by SEL_ARG::clone_tree operations */
   uint alloced_sel_args; 
 };
@@ -645,8 +671,6 @@ public:
   longlong baseflag;
   uint max_key_part, range_count;
 
-  uchar min_key[MAX_KEY_LENGTH+MAX_FIELD_WIDTH],
-    max_key[MAX_KEY_LENGTH+MAX_FIELD_WIDTH];
   bool quick;				// Don't calulate possible keys
 
   uint fields_bitmap_size;
@@ -2599,6 +2623,8 @@ typedef struct st_part_prune_param
   /* Same as above for subpartitioning */
   my_bool *is_subpart_keypart;
 
+  my_bool ignore_part_fields; /* Ignore rest of partioning fields */
+
   /***************************************************************
    Following fields form find_used_partitions() recursion context:
    **************************************************************/
@@ -2614,6 +2640,11 @@ typedef struct st_part_prune_param
 
   /* Initialized bitmap of no_subparts size */
   MY_BITMAP subparts_bitmap;
+
+  uchar *cur_min_key;
+  uchar *cur_max_key;
+
+  uint cur_min_flag, cur_max_flag;
 } PART_PRUNE_PARAM;
 
 static bool create_partition_index_description(PART_PRUNE_PARAM *prune_par);
@@ -2731,6 +2762,11 @@ bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond)
     prune_param.arg_stack_end= prune_param.arg_stack;
     prune_param.cur_part_fields= 0;
     prune_param.cur_subpart_fields= 0;
+    
+    prune_param.cur_min_key= prune_param.range_param.min_key;
+    prune_param.cur_max_key= prune_param.range_param.max_key;
+    prune_param.cur_min_flag= prune_param.cur_max_flag= 0;
+
     init_all_partitions_iterator(part_info, &prune_param.part_iter);
     if (!tree->keys[0] || (-1 == (res= find_used_partitions(&prune_param,
                                                             tree->keys[0]))))
@@ -2967,6 +3003,11 @@ int find_used_partitions_imerge(PART_PRUNE_PARAM *ppar, SEL_IMERGE *imerge)
     ppar->arg_stack_end= ppar->arg_stack;
     ppar->cur_part_fields= 0;
     ppar->cur_subpart_fields= 0;
+    
+    ppar->cur_min_key= ppar->range_param.min_key;
+    ppar->cur_max_key= ppar->range_param.max_key;
+    ppar->cur_min_flag= ppar->cur_max_flag= 0;
+
     init_all_partitions_iterator(ppar->part_info, &ppar->part_iter);
     SEL_ARG *key_tree= (*ptree)->keys[0];
     if (!key_tree || (-1 == (res |= find_used_partitions(ppar, key_tree))))
@@ -3091,8 +3132,12 @@ int find_used_partitions(PART_PRUNE_PARAM *ppar, SEL_ARG *key_tree)
 {
   int res, left_res=0, right_res=0;
   int partno= (int)key_tree->part;
-  bool pushed= FALSE;
   bool set_full_part_if_bad_ret= FALSE;
+  bool ignore_part_fields= ppar->ignore_part_fields;
+  bool did_set_ignore_part_fields= FALSE;
+
+  if (check_stack_overrun(ppar->range_param.thd, 3*STACK_MIN_SIZE, NULL))
+    return -1;
 
   if (key_tree->left != &null_element)
   {
@@ -3100,35 +3145,153 @@ int find_used_partitions(PART_PRUNE_PARAM *ppar, SEL_ARG *key_tree)
       return -1;
   }
 
+  /* Push SEL_ARG's to stack to enable looking backwards as well */
+  ppar->cur_part_fields+= ppar->is_part_keypart[partno];
+  ppar->cur_subpart_fields+= ppar->is_subpart_keypart[partno];
+  *(ppar->arg_stack_end++)= key_tree;
+
   if (key_tree->type == SEL_ARG::KEY_RANGE)
   {
-    if (partno == 0 && (NULL != ppar->part_info->get_part_iter_for_interval))
+    if (ppar->part_info->get_part_iter_for_interval && 
+        key_tree->part <= ppar->last_part_partno)
     {
-      /* 
-        Partitioning is done by RANGE|INTERVAL(monotonic_expr(fieldX)), and
-        we got "const1 CMP fieldX CMP const2" interval <-- psergey-todo: change
+      if (ignore_part_fields)
+      {
+        /*
+          We come here when a condition on the first partitioning
+          fields led to evaluating the partitioning condition
+          (due to finding a condition of the type a < const or
+          b > const). Thus we must ignore the rest of the
+          partitioning fields but we still want to analyse the
+          subpartitioning fields.
+        */
+        if (key_tree->next_key_part)
+          res= find_used_partitions(ppar, key_tree->next_key_part);
+        else
+          res= -1;
+        goto pop_and_go_right;
+      }
+      /* Collect left and right bound, their lengths and flags */
+      uchar *min_key= ppar->cur_min_key;
+      uchar *max_key= ppar->cur_max_key;
+      uchar *tmp_min_key= min_key;
+      uchar *tmp_max_key= max_key;
+      key_tree->store_min(ppar->key[key_tree->part].store_length,
+                          &tmp_min_key, ppar->cur_min_flag);
+      key_tree->store_max(ppar->key[key_tree->part].store_length,
+                          &tmp_max_key, ppar->cur_max_flag);
+      uint flag;
+      if (key_tree->next_key_part &&
+          key_tree->next_key_part->part == key_tree->part+1 &&
+          key_tree->next_key_part->part <= ppar->last_part_partno &&
+          key_tree->next_key_part->type == SEL_ARG::KEY_RANGE)
+      {
+        /*
+          There are more key parts for partition pruning to handle
+          This mainly happens when the condition is an equality
+          condition.
+        */
+        if ((tmp_min_key - min_key) == (tmp_max_key - max_key) && 
+            (memcmp(min_key, max_key, (uint)(tmp_max_key - max_key)) == 0) &&
+            !key_tree->min_flag && !key_tree->max_flag)
+        {
+          /* Set 'parameters' */
+          ppar->cur_min_key= tmp_min_key;
+          ppar->cur_max_key= tmp_max_key;
+          uint save_min_flag= ppar->cur_min_flag;
+          uint save_max_flag= ppar->cur_max_flag;
+
+          ppar->cur_min_flag|= key_tree->min_flag;
+          ppar->cur_max_flag|= key_tree->max_flag;
+          
+          res= find_used_partitions(ppar, key_tree->next_key_part);
+           
+          /* Restore 'parameters' back */
+          ppar->cur_min_key= min_key;
+          ppar->cur_max_key= max_key;
+
+          ppar->cur_min_flag= save_min_flag;
+          ppar->cur_max_flag= save_max_flag;
+          goto pop_and_go_right;
+        }
+        /* We have arrived at the last field in the partition pruning */
+        uint tmp_min_flag= key_tree->min_flag,
+             tmp_max_flag= key_tree->max_flag;
+        if (!tmp_min_flag)
+          key_tree->next_key_part->store_min_key(ppar->key,
+                                                 &tmp_min_key,
+                                                 &tmp_min_flag,
+                                                 ppar->last_part_partno);
+        if (!tmp_max_flag)
+          key_tree->next_key_part->store_max_key(ppar->key,
+                                                 &tmp_max_key,
+                                                 &tmp_max_flag,
+                                                 ppar->last_part_partno);
+        flag= tmp_min_flag | tmp_max_flag;
+      }
+      else
+        flag= key_tree->min_flag | key_tree->max_flag;
+      
+      if (tmp_min_key != ppar->range_param.min_key)
+        flag&= ~NO_MIN_RANGE;
+      else
+        flag|= NO_MIN_RANGE;
+      if (tmp_max_key != ppar->range_param.max_key)
+        flag&= ~NO_MAX_RANGE;
+      else
+        flag|= NO_MAX_RANGE;
+
+      /*
+        We need to call the interval mapper if we have a condition which
+        makes sense to prune on. In the example of a COLUMN_LIST on a and
+        b it makes sense if we have a condition on a, or conditions on
+        both a and b. If we only have conditions on b it might make sense
+        but this is a harder case we will solve later. For the harder case
+        this clause then turns into use of all partitions and thus we
+        simply set res= -1 as if the mapper had returned that.
       */
-      DBUG_EXECUTE("info", dbug_print_segment_range(key_tree,
-                                                    ppar->range_param.
-                                                    key_parts););
-      res= ppar->part_info->
-           get_part_iter_for_interval(ppar->part_info,
-                                      FALSE,
-                                      key_tree->min_value, 
-                                      key_tree->max_value,
-                                      key_tree->min_flag | key_tree->max_flag,
-                                      &ppar->part_iter);
-      if (!res)
-        goto go_right; /* res==0 --> no satisfying partitions */
+      if (ppar->arg_stack[0]->part == 0)
+      {
+        uint32 i;
+        uint32 store_length_array[MAX_KEY];
+        uint32 num_keys= ppar->part_fields;
+
+        for (i= 0; i < num_keys; i++)
+          store_length_array[i]= ppar->key[i].store_length;
+        res= ppar->part_info->
+             get_part_iter_for_interval(ppar->part_info,
+                                        FALSE,
+                                        store_length_array,
+                                        ppar->range_param.min_key,
+                                        ppar->range_param.max_key,
+                                    tmp_min_key - ppar->range_param.min_key,
+                                    tmp_max_key - ppar->range_param.max_key,
+                                        flag,
+                                        &ppar->part_iter);
+        if (!res)
+          goto pop_and_go_right; /* res==0 --> no satisfying partitions */
+      }
+      else
+        res= -1;
+
       if (res == -1)
       {
-        //get a full range iterator
+        /* get a full range iterator */
         init_all_partitions_iterator(ppar->part_info, &ppar->part_iter);
       }
       /* 
         Save our intent to mark full partition as used if we will not be able
         to obtain further limits on subpartitions
       */
+      if (partno < ppar->last_part_partno)
+      {
+        /*
+          We need to ignore the rest of the partitioning fields in all
+          evaluations after this
+        */
+        did_set_ignore_part_fields= TRUE;
+        ppar->ignore_part_fields= TRUE;
+      }
       set_full_part_if_bad_ret= TRUE;
       goto process_next_key_part;
     }
@@ -3143,13 +3306,16 @@ int find_used_partitions(PART_PRUNE_PARAM *ppar, SEL_ARG *key_tree)
       res= ppar->part_info->
            get_subpart_iter_for_interval(ppar->part_info,
                                          TRUE,
+                                         NULL, /* Currently not used here */
                                          key_tree->min_value, 
                                          key_tree->max_value,
-                                         key_tree->min_flag | key_tree->max_flag,
+                                         0, 0, /* Those are ignored here */
+                                         key_tree->min_flag |
+                                           key_tree->max_flag,
                                          &subpart_iter);
       DBUG_ASSERT(res); /* We can't get "no satisfying subpartitions" */
       if (res == -1)
-        return -1; /* all subpartitions satisfy */
+        goto pop_and_go_right; /* all subpartitions satisfy */
         
       uint32 subpart_id;
       bitmap_clear_all(&ppar->subparts_bitmap);
@@ -3167,18 +3333,14 @@ int find_used_partitions(PART_PRUNE_PARAM *ppar, SEL_ARG *key_tree)
             bitmap_set_bit(&ppar->part_info->used_partitions,
                            part_id * ppar->part_info->no_subparts + i);
       }
-      goto go_right;
+      goto pop_and_go_right;
     }
 
     if (key_tree->is_singlepoint())
     {
-      pushed= TRUE;
-      ppar->cur_part_fields+=    ppar->is_part_keypart[partno];
-      ppar->cur_subpart_fields+= ppar->is_subpart_keypart[partno];
-      *(ppar->arg_stack_end++) = key_tree;
-
       if (partno == ppar->last_part_partno &&
-          ppar->cur_part_fields == ppar->part_fields)
+          ppar->cur_part_fields == ppar->part_fields &&
+          ppar->part_info->get_part_iter_for_interval == NULL)
       {
         /* 
           Ok, we've got "fieldN<=>constN"-type SEL_ARGs for all partitioning
@@ -3245,7 +3407,10 @@ int find_used_partitions(PART_PRUNE_PARAM *ppar, SEL_ARG *key_tree)
         able to infer any suitable condition, so bail out.
       */
       if (partno >= ppar->last_part_partno)
-        return -1;
+      {
+        res= -1;
+        goto pop_and_go_right;
+      }
     }
   }
 
@@ -3254,7 +3419,17 @@ process_next_key_part:
     res= find_used_partitions(ppar, key_tree->next_key_part);
   else
     res= -1;
- 
+
+  if (did_set_ignore_part_fields)
+  {
+    /*
+      We have returned from processing all key trees linked to our next
+      key part. We are ready to be moving down (using right pointers) and
+      this tree is a new evaluation requiring its own decision on whether
+      to ignore partitioning fields.
+    */
+    ppar->ignore_part_fields= FALSE;
+  }
   if (set_full_part_if_bad_ret)
   {
     if (res == -1)
@@ -3277,18 +3452,14 @@ process_next_key_part:
     init_all_partitions_iterator(ppar->part_info, &ppar->part_iter);
   }
 
-  if (pushed)
-  {
 pop_and_go_right:
-    /* Pop this key part info off the "stack" */
-    ppar->arg_stack_end--;
-    ppar->cur_part_fields-=    ppar->is_part_keypart[partno];
-    ppar->cur_subpart_fields-= ppar->is_subpart_keypart[partno];
-  }
+  /* Pop this key part info off the "stack" */
+  ppar->arg_stack_end--;
+  ppar->cur_part_fields-=    ppar->is_part_keypart[partno];
+  ppar->cur_subpart_fields-= ppar->is_subpart_keypart[partno];
 
   if (res == -1)
     return -1;
-go_right:
   if (key_tree->right != &null_element)
   {
     if (-1 == (right_res= find_used_partitions(ppar,key_tree->right)))
@@ -3377,6 +3548,7 @@ static bool create_partition_index_description(PART_PRUNE_PARAM *ppar)
   
   uint total_parts= used_part_fields + used_subpart_fields;
 
+  ppar->ignore_part_fields= FALSE;
   ppar->part_fields=      used_part_fields;
   ppar->last_part_partno= (int)used_part_fields - 1;
 
@@ -7477,12 +7649,16 @@ check_quick_keys(PARAM *param, uint idx, SEL_ARG *key_tree,
     tmp_max_flag=key_tree->max_flag;
     if (!tmp_min_flag)
       tmp_min_keypart+=
-      key_tree->next_key_part->store_min_key(param->key[idx], &tmp_min_key,
-					     &tmp_min_flag);
+      key_tree->next_key_part->store_min_key(param->key[idx],
+                                             &tmp_min_key,
+					     &tmp_min_flag,
+                                             MAX_KEY);
     if (!tmp_max_flag)
       tmp_max_keypart+=
-      key_tree->next_key_part->store_max_key(param->key[idx], &tmp_max_key,
-					     &tmp_max_flag);
+      key_tree->next_key_part->store_max_key(param->key[idx],
+                                             &tmp_max_key,
+					     &tmp_max_flag,
+                                             MAX_KEY);
     min_key_length= (uint) (tmp_min_key - param->min_key);
     max_key_length= (uint) (tmp_max_key - param->max_key);
   }
@@ -7752,11 +7928,15 @@ get_quick_keys(PARAM *param,QUICK_RANGE_SELECT *quick,KEY_PART *key,
     {
       uint tmp_min_flag=key_tree->min_flag,tmp_max_flag=key_tree->max_flag;
       if (!tmp_min_flag)
-        min_part+= key_tree->next_key_part->store_min_key(key, &tmp_min_key,
-                                                          &tmp_min_flag);
+        min_part+= key_tree->next_key_part->store_min_key(key,
+                                                          &tmp_min_key,
+                                                          &tmp_min_flag,
+                                                          MAX_KEY);
       if (!tmp_max_flag)
-        max_part+= key_tree->next_key_part->store_max_key(key, &tmp_max_key,
-                                                          &tmp_max_flag);
+        max_part+= key_tree->next_key_part->store_max_key(key,
+                                                          &tmp_max_key,
+                                                          &tmp_max_flag,
+                                                          MAX_KEY);
       flag=tmp_min_flag | tmp_max_flag;
     }
   }

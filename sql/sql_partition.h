@@ -173,9 +173,12 @@ typedef struct st_partition_iter
   SYNOPSIS
     get_partitions_in_range_iter()
       part_info   Partitioning info
-      is_subpart  
+      is_subpart
+      store_length_array Length of fields packed in opt_range_key format
       min_val     Left edge,  field value in opt_range_key format.
-      max_val     Right edge, field value in opt_range_key format. 
+      max_val     Right edge, field value in opt_range_key format.
+      min_len     Length of minimum value
+      max_len     Length of maximum value
       flags       Some combination of NEAR_MIN, NEAR_MAX, NO_MIN_RANGE,
                   NO_MAX_RANGE.
       part_iter   Iterator structure to be initialized
@@ -191,8 +194,9 @@ typedef struct st_partition_iter
     The set of partitions is returned by initializing an iterator in *part_iter
 
   NOTES
-    There are currently two functions of this type:
+    There are currently three functions of this type:
      - get_part_iter_for_interval_via_walking
+     - get_part_iter_for_interval_cols_via_map
      - get_part_iter_for_interval_via_mapping
 
   RETURN 
@@ -203,7 +207,9 @@ typedef struct st_partition_iter
 
 typedef int (*get_partitions_in_range_iter)(partition_info *part_info,
                                             bool is_subpart,
+                                            uint32 *store_length_array,
                                             uchar *min_val, uchar *max_val,
+                                            uint min_len, uint max_len,
                                             uint flags,
                                             PARTITION_ITERATOR *part_iter);
 
