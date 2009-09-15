@@ -344,7 +344,7 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-$PATH}\" \
 		--with-blackhole-storage-engine \
 		--with-federated-storage-engine \
 		--without-plugin-daemon_example \
-		--without-plugin-example \
+		--without-plugin-ftexample \
 		--with-partition \
 		--with-big-tables \
 %if %{WITH_BUNDLED_ZLIB}
@@ -750,7 +750,11 @@ fi
 %attr(755, root, root) %{_bindir}/resolve_stack_dump
 %attr(755, root, root) %{_bindir}/resolveip
 
-%attr(755, root, root) %{_libdir}/plugin/*.so*
+%attr(755, root, root) %{_libdir}/mysql/plugin/ha_example.so*
+%if %{WITHOUT_INNODB_PLUGIN}
+%else
+%attr(755, root, root) %{_libdir}/mysql/plugin/ha_innodb_plugin.so*
+%endif
 
 %attr(755, root, root) %{_sbindir}/mysqld
 %attr(755, root, root) %{_sbindir}/mysqld-debug
@@ -877,8 +881,13 @@ fi
 %{_libdir}/mysql/libvio.a
 %{_libdir}/mysql/libz.a
 %{_libdir}/mysql/libz.la
-%{_libdir}/plugin/*.a
-%{_libdir}/plugin/*.la
+%{_libdir}/mysql/plugin/ha_example.a
+%{_libdir}/mysql/plugin/ha_example.la
+%if %{WITHOUT_INNODB_PLUGIN}
+%else
+%{_libdir}/mysql/plugin/ha_innodb_plugin.a
+%{_libdir}/mysql/plugin/ha_innodb_plugin.la
+%endif
 
 %files shared
 %defattr(-, root, root, 0755)
@@ -915,7 +924,7 @@ fi
 * Fri Aug 21 2009 Jonathan Perkin <jperkin@sun.com>
 
 - Install plugin libraries in appropriate packages.
-- Disable example plugins.
+- Disable libdaemon_example and ftexample plugins.
 
 * Thu Aug 20 2009 Jonathan Perkin <jperkin@stripped>
 
