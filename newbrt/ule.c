@@ -176,10 +176,12 @@ msg_modify_ule(ULE ule, BRT_MSG msg) {
         break;
     case BRT_ABORT_ANY:
     case BRT_ABORT_BOTH:
+    case BRT_ABORT_BROADCAST_TXN:
         ule_apply_abort(ule, xids);
         break;
     case BRT_COMMIT_ANY:
     case BRT_COMMIT_BOTH:
+    case BRT_COMMIT_BROADCAST_TXN:
         ule_apply_commit(ule, xids);
         break;
     default:
@@ -752,6 +754,60 @@ int le_is_provdel(LEAFENTRY le) {
     UXR uxr = ule_get_innermost_uxr(&ule);
     int slow_rval = uxr_is_delete(uxr);
     assert((rval==0) == (slow_rval==0));
+#endif
+    return rval;
+}
+
+int
+le_has_xids(LEAFENTRY le, XIDS xids) {
+    int rval;
+
+    //Read num_uxrs
+    u_int8_t num_uxrs = le->num_xrs;
+    assert(num_uxrs > 0);
+    u_int8_t num_xids = xids_get_num_xids(xids);
+    assert(num_xids > 1); //Disallow checking for having 'root txn'
+
+    if (num_xids > num_uxrs) {
+        //Not enough transaction records in le to have all of xids
+        rval = 0;
+        goto have_answer;
+    }
+    if (le_outermost_uncommitted_xid(le) != xids_get_xid(xids, 1)) {
+        rval = 0;
+        goto have_answer;
+    }
+    if (num_xids == 2) {
+        //Outermost uncommitted xid is the only xid (other than 0).  We're done.
+        rval = 1;
+        goto have_answer;
+    }
+    //Hard case:  shares outermost uncommitted xid, but has more in the stack.
+    //TODO: Optimize hard case by using leafentry_memsize as a template to do part of the 'unpacking'
+
+    ULE_S ule;
+    le_unpack(&ule, le);
+    u_int8_t idx = num_xids -1;
+    rval = xids_get_xid(xids, idx) == ule_get_xid(&ule, idx);
+    goto have_answer;
+have_answer:
+#if ULE_DEBUG
+    {
+        u_int32_t num_xids_slow = xids_get_num_xids(xids);
+        int slow_rval = 0;
+        ULE_S ule_slow;
+        le_unpack(&ule_slow, le);
+        if (num_xids_slow > 1 && ule_slow.num_uxrs >= num_xids_slow) {
+            u_int32_t idx_slow;
+            for (idx_slow = 0; idx_slow < num_xids_slow; idx_slow++) {
+                if (xids_get_xid(xids, idx_slow) != ule_get_xid(&ule_slow, idx_slow))
+                    break;
+            }
+            if (idx_slow == num_xids_slow)
+                slow_rval = 1;
+        }
+        assert(slow_rval == rval);
+    }
 #endif
     return rval;
 }

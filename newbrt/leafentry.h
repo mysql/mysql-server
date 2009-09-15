@@ -91,6 +91,7 @@ void wbuf_LEAFENTRY(struct wbuf *w, LEAFENTRY le);
 int print_leafentry (FILE *outf, LEAFENTRY v); // Print a leafentry out in human-readable form.
 
 int le_is_provdel(LEAFENTRY le); // Return true if it is a provisional delete.
+int le_has_xids(LEAFENTRY le, XIDS xids); // Return true transaction represented by xids is still provisional in this leafentry (le's xid stack is a superset or equal to xids)
 void*     le_latest_key (LEAFENTRY le); // Return the latest key (return NULL for provisional deletes)
 u_int32_t le_latest_keylen (LEAFENTRY le); // Return the latest keylen.
 void* le_latest_key_and_len (LEAFENTRY le, u_int32_t *len);
