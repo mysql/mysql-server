@@ -12609,6 +12609,7 @@ int ha_ndbcluster::alter_frm(THD *thd, const char *file,
     my_free((char*)data, MYF(MY_ALLOW_ZERO_PTR));
     my_free((char*)pack_data, MYF(MY_ALLOW_ZERO_PTR));
     error= 1;
+    my_error(ER_FILE_NOT_FOUND, MYF(0), file); 
   }
   else
   {
@@ -12622,6 +12623,7 @@ int ha_ndbcluster::alter_frm(THD *thd, const char *file,
     {
       DBUG_PRINT("info", ("On-line alter of table %s failed", m_tabname));
       error= ndb_to_mysql_error(&dict->getNdbError());
+      my_error(error, MYF(0));
     }
     my_free((char*)data, MYF(MY_ALLOW_ZERO_PTR));
     my_free((char*)pack_data, MYF(MY_ALLOW_ZERO_PTR));
