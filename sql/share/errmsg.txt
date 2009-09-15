@@ -2044,7 +2044,7 @@ ER_BLOBS_AND_NO_TERMINATED 42000 S1009
         ukr "îÅ ÍÏÖÎÁ ×ÉËÏÒÉÓÔÏ×Õ×ÁÔÉ ÓÔÁÌÕ ÄÏ×ÖÉÎÕ ÓÔÒÏËÉ Ú BLOB. úËÏÒÉÓÔÁÊÔÅÓÑ 'fields terminated by'"
 ER_TEXTFILE_NOT_READABLE  
         cze "Soubor '%-.128s' mus-Bí bıt v adresáøi databáze nebo èitelnı pro v¹echny"
-        dan "Filen '%-.128s' skal være i database-folderen og kunne læses af alle"
+        dan "Filen '%-.128s' skal være i database-folderen, eller kunne læses af alle"
         nla "Het bestand '%-.128s' dient in de database directory voor the komen of leesbaar voor iedereen te zijn."
         eng "The file '%-.128s' must be in the database directory or be readable by all"
         jps "ƒtƒ@ƒCƒ‹ '%-.128s' ‚Í databse ‚Ì directory ‚É‚ ‚é‚©‘S‚Ä‚Ìƒ†[ƒU[‚ª“Ç‚ß‚é‚æ‚¤‚É‹–‰Â‚³‚ê‚Ä‚¢‚È‚¯‚ê‚Î‚È‚è‚Ü‚¹‚ñ.",
