@@ -698,6 +698,9 @@ namespace SPJSanityTest{
     ASSERT_ALWAYS(upper>=lower);
     IndexScanOperation<Row, Key> root(query, "PRIMARY", lower, upper);
     LookupOperation<Row, Key> child(query, &root);
+    // FIXME: Un-commenting the line below causes test to hang.
+    //IndexLookupOperation<Row, Key> child2(query, "UIX", &child);
+    LookupOperation<Row, Key> child3(query, &child);
     NdbQueryBuilder builder(ndb);
     NdbDictionary::Dictionary*  const dict = ndb.getDictionary();
     const NdbDictionary::Table* const tab = dict->getTable("tt");    
@@ -722,8 +725,7 @@ namespace SPJSanityTest{
     TableScanOperation<Row> root(query);
     LookupOperation<Row, Key> child(query, &root);
     LookupOperation<Row, Key> child2(query, &root);
-    // FIXME: The line below causes API to crash.
-    //LookupOperation<Row, Key> child3(query, &child2);
+    LookupOperation<Row, Key> child3(query, &child2);
     NdbQueryBuilder builder(ndb);
     NdbDictionary::Dictionary*  const dict = ndb.getDictionary();
     const NdbDictionary::Table* const tab = dict->getTable("tt");    
