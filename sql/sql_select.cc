@@ -1523,12 +1523,8 @@ JOIN::optimize()
       }
     }
 
-    /* 
-      If this join belongs to an uncacheable subquery save 
-      the original join 
-    */
-    if (select_lex->uncacheable && !is_top_level_join() &&
-        init_save_join_tab())
+    /* If this join belongs to an uncacheable query save the original join */
+    if (select_lex->uncacheable && init_save_join_tab())
       DBUG_RETURN(-1);                         /* purecov: inspected */
   }
 
@@ -2252,7 +2248,7 @@ JOIN::destroy()
 	tab->cleanup();
     }
     tmp_join->tmp_join= 0;
-    tmp_table_param.copy_field=0;
+    tmp_table_param.cleanup();
     DBUG_RETURN(tmp_join->destroy());
   }
   cond_equal= 0;
@@ -13682,7 +13678,10 @@ static int remove_dup_with_compare(THD *thd, TABLE *table, Field **first_field,
     if (error)
     {
       if (error == HA_ERR_RECORD_DELETED)
-	continue;
+      {
+        error= file->rnd_next(record);
+        continue;
+      }
       if (error == HA_ERR_END_OF_FILE)
 	break;
       goto err;
