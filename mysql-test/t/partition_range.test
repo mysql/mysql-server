@@ -9,6 +9,82 @@
 drop table if exists t1, t2;
 --enable_warnings
 
+--error ER_PARSE_ERROR
+create table t1 (a int)
+partition by range (a)
+( partition p0 values less than (NULL),
+  partition p1 values less than (MAXVALUE));
+#
+# Merge fix of bug#27927 for TO_SECONDS function
+#
+create table t1 (a datetime not null)
+partition by range (TO_SECONDS(a))
+( partition p0 VALUES LESS THAN (TO_SECONDS('2007-03-08 00:00:00')),
+  partition p1 VALUES LESS THAN (TO_SECONDS('2007-04-01 00:00:00')));
+INSERT INTO t1 VALUES ('2007-03-01 12:00:00'), ('2007-03-07 12:00:00');
+INSERT INTO t1 VALUES ('2007-03-08 12:00:00'), ('2007-03-15 12:00:00');
+explain partitions select * from t1 where a < '2007-03-08 00:00:00';
+explain partitions select * from t1 where a < '2007-03-08 00:00:01';
+explain partitions select * from t1 where a <= '2007-03-08 00:00:00';
+explain partitions select * from t1 where a <= '2007-03-07 23:59:59';
+explain partitions select * from t1 where a < '2007-03-07 23:59:59';
+drop table t1;
+#
+# New test cases for new function to_seconds
+#
+create table t1 (a date)
+partition by range(to_seconds(a))
+(partition p0 values less than (to_seconds('2004-01-01')),
+ partition p1 values less than (to_seconds('2005-01-01')));
+insert into t1 values ('2003-12-30'),('2004-12-31');
+select * from t1;
+explain partitions select * from t1 where a <= '2003-12-31';
+select * from t1 where a <= '2003-12-31';
+explain partitions select * from t1 where a <= '2005-01-01';
+select * from t1 where a <= '2005-01-01';
+drop table t1;
+
+create table t1 (a datetime)
+partition by range(to_seconds(a))
+(partition p0 values less than (to_seconds('2004-01-01 12:00:00')),
+ partition p1 values less than (to_seconds('2005-01-01 12:00:00')));
+insert into t1 values ('2004-01-01 11:59:29'),('2005-01-01 11:59:59');
+select * from t1;
+explain partitions select * from t1 where a <= '2004-01-01 11:59.59';
+select * from t1 where a <= '2004-01-01 11:59:59';
+explain partitions select * from t1 where a <= '2005-01-01';
+select * from t1 where a <= '2005-01-01';
+drop table t1;
+
+#
+# Adding new test cases for column list variant for partitioning
+#
+--error 1064
+create table t1 (a int, b char(20))
+partition by range column_list(a,b)
+(partition p0 values less than (1));
+
+--error ER_PARTITION_COLUMN_LIST_ERROR
+create table t1 (a int, b char(20))
+partition by range(a)
+(partition p0 values less than (column_list(1,"b")));
+
+--error ER_PARTITION_COLUMN_LIST_ERROR
+create table t1 (a int, b char(20))
+partition by range(a)
+(partition p0 values less than (column_list(1,"b")));
+
+create table t1 (a int, b char(20));
+create global index inx on t1 (a,b)
+partition by range (a)
+(partition p0 values less than (1));
+drop table t1;
+
+create table t1 (a int, b char(20))
+partition by range column_list(b)
+(partition p0 values less than (column_list("b")));
+drop table t1;
+
 #
 # BUG 33429: Succeeds in  adding partition when maxvalue on last partition
 #

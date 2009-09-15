@@ -515,10 +515,10 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %pure_parser                                    /* We have threads */
 /*
-  Currently there are 169 shift/reduce conflicts.
+  Currently there are 168 shift/reduce conflicts.
   We should not introduce new conflicts any more.
 */
-%expect 169
+%expect 168
 
 /*
    Comments for TOKENS.
@@ -603,6 +603,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  COLLATE_SYM                   /* SQL-2003-R */
 %token  COLLATION_SYM                 /* SQL-2003-N */
 %token  COLUMNS
+%token  COLUMN_LIST_SYM
 %token  COLUMN_SYM                    /* SQL-2003-R */
 %token  COMMENT_SYM
 %token  COMMITTED_SYM                 /* SQL-2003-N */
@@ -1156,6 +1157,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         opt_natural_language_mode opt_query_expansion
         opt_ev_status opt_ev_on_completion ev_on_completion opt_ev_comment
         ev_alter_on_schedule_completion opt_ev_rename_to opt_ev_sql_stmt
+        opt_global
 
 %type <ulong_num>
         ulong_num real_ulong_num merge_insert_types
@@ -1298,6 +1300,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         view_check_option trigger_tail sp_tail sf_tail udf_tail event_tail
         install uninstall partition_entry binlog_base64_event
         init_key_options key_options key_opts key_opt key_using_alg
+        part_column_list part_column_expr_list part_column_expr_item
+        part_column_list_value
         server_def server_options_list server_option
         definer_opt no_definer definer
 END_OF_INPUT
@@ -1691,12 +1695,12 @@ create:
                                   $5->table.str);
             }
           }
-        | CREATE opt_unique_or_fulltext INDEX_SYM ident key_alg ON
+        | CREATE opt_global opt_unique_or_fulltext INDEX_SYM ident key_alg ON
           table_ident
           {
             LEX *lex=Lex;
             lex->sql_command= SQLCOM_CREATE_INDEX;
-            if (!lex->current_select->add_table_to_list(lex->thd, $7,
+            if (!lex->current_select->add_table_to_list(lex->thd, $8,
                                                         NULL,
                                                         TL_OPTION_UPDATING))
               MYSQL_YYABORT;
@@ -1704,6 +1708,7 @@ create:
             lex->alter_info.flags= ALTER_ADD_INDEX;
             lex->col_list.empty();
             lex->change=NullS;
+            lex->global_flag= $2;
           }
           '(' key_list ')' key_options
           {
@@ -1714,12 +1719,21 @@ create:
               my_parse_error(ER(ER_SYNTAX_ERROR));
               MYSQL_YYABORT;
             }
-            key= new Key($2, $4.str, &lex->key_create_info, 0,
+            key= new Key($3, $5.str, &lex->key_create_info, 0,
                          lex->col_list);
             if (key == NULL)
               MYSQL_YYABORT;
             lex->alter_info.key_list.push_back(key);
             lex->col_list.empty();
+          }
+          opt_partitioning
+          {
+            LEX *lex= Lex;
+            if (!lex->global_flag && lex->part_info)
+            {
+              my_error(ER_GLOBAL_PARTITION_INDEX_ERROR, MYF(0));
+              YYABORT;
+            }
           }
         | CREATE DATABASE opt_if_not_exists ident
           {
@@ -3802,19 +3816,21 @@ partition:
 part_type_def:
           opt_linear KEY_SYM '(' part_field_list ')'
           {
-            LEX *lex= Lex;
-            lex->part_info->list_of_part_fields= TRUE;
-            lex->part_info->part_type= HASH_PARTITION;
+            partition_info *part_info= Lex->part_info;
+            part_info->list_of_part_fields= TRUE;
+            part_info->part_type= HASH_PARTITION;
           }
         | opt_linear HASH_SYM
           { Lex->part_info->part_type= HASH_PARTITION; }
           part_func {}
-        | RANGE_SYM
+        | RANGE_SYM part_func
           { Lex->part_info->part_type= RANGE_PARTITION; }
-          part_func {}
-        | LIST_SYM
+        | RANGE_SYM part_column_list
+          { Lex->part_info->part_type= RANGE_PARTITION; }
+        | LIST_SYM part_func
           { Lex->part_info->part_type= LIST_PARTITION; }
-          part_func {}
+        | LIST_SYM part_column_list
+          { Lex->part_info->part_type= LIST_PARTITION; }
         ;
 
 opt_linear:
@@ -3836,41 +3852,45 @@ part_field_item_list:
 part_field_item:
           ident
           {
-            if (Lex->part_info->part_field_list.push_back($1.str))
+            partition_info *part_info= Lex->part_info;
+            part_info->num_columns++;
+            if (part_info->part_field_list.push_back($1.str))
             {
               mem_alloc_error(1);
+              MYSQL_YYABORT;
+            }
+            if (part_info->num_columns > MAX_REF_PARTS)
+            {
+              my_error(ER_TOO_MANY_PARTITION_FUNC_FIELDS_ERROR, MYF(0),
+                       "list of partition fields");
               MYSQL_YYABORT;
             }
           }
         ;
 
+part_column_list:
+        COLUMN_LIST_SYM '(' part_field_list ')'
+        {
+          partition_info *part_info= Lex->part_info;
+          part_info->column_list= TRUE;
+          part_info->list_of_part_fields= TRUE;
+        }
+        ;
+
+
 part_func:
           '(' remember_name part_func_expr remember_end ')'
           {
-            LEX *lex= Lex;
-            uint expr_len= (uint)($4 - $2) - 1;
-            lex->part_info->list_of_part_fields= FALSE;
-            lex->part_info->part_expr= $3;
-            char *func_string= (char*) sql_memdup($2+1, expr_len);
-            if (func_string == NULL)
-              MYSQL_YYABORT;
-            lex->part_info->part_func_string= func_string;
-            lex->part_info->part_func_len= expr_len;
+            if (Lex->part_info->set_part_expr($2+1, $3, $4, FALSE))
+            { MYSQL_YYABORT; }
           }
         ;
 
 sub_part_func:
           '(' remember_name part_func_expr remember_end ')'
           {
-            LEX *lex= Lex;
-            uint expr_len= (uint)($4 - $2) - 1;
-            lex->part_info->list_of_subpart_fields= FALSE;
-            lex->part_info->subpart_expr= $3;
-            char *func_string= (char*) sql_memdup($2+1, expr_len);
-            if (func_string == NULL)
-              MYSQL_YYABORT;
-            lex->part_info->subpart_func_string= func_string;        
-            lex->part_info->subpart_func_len= expr_len;
+            if (Lex->part_info->set_part_expr($2+1, $3, $4, TRUE))
+            { MYSQL_YYABORT; }
           }
         ;
 
@@ -3880,15 +3900,15 @@ opt_no_parts:
         | PARTITIONS_SYM real_ulong_num
           { 
             uint no_parts= $2;
-            LEX *lex= Lex;
+            partition_info *part_info= Lex->part_info;
             if (no_parts == 0)
             {
               my_error(ER_NO_PARTS_ERROR, MYF(0), "partitions");
               MYSQL_YYABORT;
             }
 
-            lex->part_info->no_parts= no_parts;
-            lex->part_info->use_default_no_partitions= FALSE;
+            part_info->no_parts= no_parts;
+            part_info->use_default_no_partitions= FALSE;
           }
         ;
 
@@ -3900,9 +3920,9 @@ opt_sub_part:
         | SUBPARTITION_SYM BY opt_linear KEY_SYM
           '(' sub_part_field_list ')'
           {
-            LEX *lex= Lex;
-            lex->part_info->subpart_type= HASH_PARTITION;
-            lex->part_info->list_of_subpart_fields= TRUE;
+            partition_info *part_info= Lex->part_info;
+            part_info->subpart_type= HASH_PARTITION;
+            part_info->list_of_subpart_fields= TRUE;
           }
           opt_no_subparts {}
         ;
@@ -3915,9 +3935,16 @@ sub_part_field_list:
 sub_part_field_item:
           ident
           {
-            if (Lex->part_info->subpart_field_list.push_back($1.str))
+            partition_info *part_info= Lex->part_info;
+            if (part_info->subpart_field_list.push_back($1.str))
             {
               mem_alloc_error(1);
+              MYSQL_YYABORT;
+            }
+            if (part_info->subpart_field_list.elements > MAX_REF_PARTS)
+            {
+              my_error(ER_TOO_MANY_PARTITION_FUNC_FIELDS_ERROR, MYF(0),
+                       "list of subpartition fields");
               MYSQL_YYABORT;
             }
           }
@@ -3960,8 +3987,7 @@ part_defs:
           {}
         | '(' part_def_list ')'
           {
-            LEX *lex= Lex;
-            partition_info *part_info= lex->part_info;
+            partition_info *part_info= Lex->part_info;
             uint count_curr_parts= part_info->partitions.elements;
             if (part_info->no_parts != 0)
             {
@@ -3988,8 +4014,7 @@ part_def_list:
 part_definition:
           PARTITION_SYM
           {
-            LEX *lex= Lex;
-            partition_info *part_info= lex->part_info;
+            partition_info *part_info= Lex->part_info;
             partition_element *p_elem= new partition_element();
 
             if (!p_elem || part_info->partitions.push_back(p_elem))
@@ -4013,8 +4038,7 @@ part_definition:
 part_name:
           ident
           {
-            LEX *lex= Lex;
-            partition_info *part_info= lex->part_info;
+            partition_info *part_info= Lex->part_info;
             partition_element *p_elem= part_info->curr_part_elem;
             p_elem->partition_name= $1.str;
           }
@@ -4024,15 +4048,16 @@ opt_part_values:
           /* empty */
           {
             LEX *lex= Lex;
+            partition_info *part_info= lex->part_info;
             if (! lex->is_partition_management())
             {
-              if (lex->part_info->part_type == RANGE_PARTITION)
+              if (part_info->part_type == RANGE_PARTITION)
               {
                 my_error(ER_PARTITION_REQUIRES_VALUES_ERROR, MYF(0),
                          "RANGE", "LESS THAN");
                 MYSQL_YYABORT;
               }
-              if (lex->part_info->part_type == LIST_PARTITION)
+              if (part_info->part_type == LIST_PARTITION)
               {
                 my_error(ER_PARTITION_REQUIRES_VALUES_ERROR, MYF(0),
                          "LIST", "IN");
@@ -4040,14 +4065,15 @@ opt_part_values:
               }
             }
             else
-              lex->part_info->part_type= HASH_PARTITION;
+              part_info->part_type= HASH_PARTITION;
           }
         | VALUES LESS_SYM THAN_SYM part_func_max
           {
             LEX *lex= Lex;
+            partition_info *part_info= lex->part_info;
             if (! lex->is_partition_management())
             {
-              if (Lex->part_info->part_type != RANGE_PARTITION)
+              if (part_info->part_type != RANGE_PARTITION)
               {
                 my_error(ER_PARTITION_WRONG_VALUES_ERROR, MYF(0),
                          "RANGE", "LESS THAN");
@@ -4055,14 +4081,15 @@ opt_part_values:
               }
             }
             else
-              lex->part_info->part_type= RANGE_PARTITION;
+              part_info->part_type= RANGE_PARTITION;
           }
         | VALUES IN_SYM '(' part_list_func ')'
           {
             LEX *lex= Lex;
+            partition_info *part_info= lex->part_info;
             if (! lex->is_partition_management())
             {
-              if (Lex->part_info->part_type != LIST_PARTITION)
+              if (part_info->part_type != LIST_PARTITION)
               {
                 my_error(ER_PARTITION_WRONG_VALUES_ERROR, MYF(0),
                          "LIST", "IN");
@@ -4070,36 +4097,139 @@ opt_part_values:
               }
             }
             else
-              lex->part_info->part_type= LIST_PARTITION;
+              part_info->part_type= LIST_PARTITION;
+          }
+        ;
+
+part_column_expr_list:
+          part_column_expr_item {}
+        | part_column_expr_list ',' part_column_expr_item {}
+        ;
+
+part_column_expr_item:
+          MAX_VALUE_SYM
+          {
+            partition_info *part_info= Lex->part_info;
+            part_column_list_val *col_val;
+            if (part_info->part_type == LIST_PARTITION)
+            {
+              my_parse_error(ER(ER_MAXVALUE_IN_LIST_PARTITIONING_ERROR));
+              MYSQL_YYABORT;
+            }
+            if (!(col_val= part_info->add_column_value()))
+            {
+              MYSQL_YYABORT;
+            }
+            col_val->max_value= TRUE;
+          }
+        | bit_expr
+          {
+            part_column_list_val *col_val;
+            LEX *lex= Lex;
+            if (!lex->safe_to_cache_query)
+            {
+              my_error(ER_NO_CONST_EXPR_IN_RANGE_OR_LIST_ERROR, MYF(0));
+              MYSQL_YYABORT;
+            }
+            if (!(col_val= lex->part_info->add_column_value()))
+            {
+              MYSQL_YYABORT;
+            }
+            col_val->item_expression= $1;
+            col_val->part_info= NULL;
+          }
+        ;
+
+part_column_list_value:
+          COLUMN_LIST_SYM
+          {
+            LEX *lex= Lex;
+            partition_info *part_info= lex->part_info;
+            uint num_columns;
+            partition_element *p_elem= part_info->curr_part_elem;
+            part_column_list_val *col_val_array;
+            part_elem_value *list_val;
+
+            if (!part_info->column_list &&
+                !lex->is_partition_management())
+            {
+              my_error(ER_PARTITION_COLUMN_LIST_ERROR, MYF(0));
+              MYSQL_YYABORT;
+            }
+            if (!(list_val= 
+                 (part_elem_value*)sql_calloc(sizeof(part_elem_value))) ||
+                p_elem->list_val_list.push_back(list_val))
+            {
+              mem_alloc_error(sizeof(part_elem_value));
+              MYSQL_YYABORT;
+            }
+            if (part_info->num_columns)
+              num_columns= part_info->num_columns;
+            else
+              num_columns= MAX_REF_PARTS;
+            if (!(col_val_array=
+                (part_column_list_val*)sql_calloc(num_columns *
+                                       sizeof(part_column_list_val))))
+            {
+              mem_alloc_error(num_columns * sizeof(part_elem_value));
+              MYSQL_YYABORT;
+            }
+            list_val->col_val_array= col_val_array;
+            part_info->curr_list_val= list_val;
+            part_info->curr_list_object= 0;
+          }
+          '(' part_column_expr_list ')'
+          {
+            partition_info *part_info= Lex->part_info;
+            uint num_columns= part_info->num_columns;
+            if (num_columns && num_columns != part_info->curr_list_object)
+            {
+              my_error(ER_PARTITION_COLUMN_LIST_ERROR, MYF(0));
+              MYSQL_YYABORT;
+            }
+            part_info->num_columns= part_info->curr_list_object;
           }
         ;
 
 part_func_max:
           max_value_sym
           {
-            LEX *lex= Lex;
-            if (lex->part_info->defined_max_value)
+            partition_info *part_info= Lex->part_info;
+            if (part_info->defined_max_value)
             {
               my_parse_error(ER(ER_PARTITION_MAXVALUE_ERROR));
               MYSQL_YYABORT;
             }
-            lex->part_info->defined_max_value= TRUE;
-            lex->part_info->curr_part_elem->max_value= TRUE;
-            lex->part_info->curr_part_elem->range_value= LONGLONG_MAX;
+            if (part_info->column_list)
+            {
+              my_parse_error(ER(ER_PARTITION_COLUMN_LIST_ERROR));
+              MYSQL_YYABORT;
+            }
+            part_info->defined_max_value= TRUE;
+            part_info->curr_part_elem->max_value= TRUE;
+            part_info->curr_part_elem->range_value= LONGLONG_MAX;
           }
         | part_range_func
           {
-            if (Lex->part_info->defined_max_value)
+            partition_info *part_info= Lex->part_info;
+            if (part_info->defined_max_value)
             {
               my_parse_error(ER(ER_PARTITION_MAXVALUE_ERROR));
               MYSQL_YYABORT;
             }
-            if (Lex->part_info->curr_part_elem->has_null_value)
+            if (part_info->curr_part_elem->has_null_value)
             {
               my_parse_error(ER(ER_NULL_IN_VALUES_LESS_THAN));
               MYSQL_YYABORT;
             }
+            if (part_info->column_list)
+            {
+              my_parse_error(ER(ER_PARTITION_COLUMN_LIST_ERROR));
+              MYSQL_YYABORT;
+            }
           }
+        | '(' part_column_list_value ')'
+          {}
         ;
 
 max_value_sym:
@@ -4136,7 +4266,13 @@ part_list_item:
               mem_alloc_error(sizeof(part_elem_value));
               MYSQL_YYABORT;
             }
+            if (part_info->column_list)
+            {
+              my_parse_error(ER(ER_PARTITION_COLUMN_LIST_ERROR));
+              MYSQL_YYABORT;
+            }
           }
+        | part_column_list_value
         ;
 
 part_bit_expr:
@@ -4145,6 +4281,7 @@ part_bit_expr:
             Item *part_expr= $1;
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
+            partition_info *part_info= lex->part_info;
             Name_resolution_context *context= &lex->current_select->context;
             TABLE_LIST *save_list= context->table_list;
             const char *save_where= thd->where;
@@ -4181,12 +4318,12 @@ part_bit_expr:
               value_ptr->unsigned_flag= FALSE;
             if ((value_ptr->null_value= part_expr->null_value))
             {
-              if (Lex->part_info->curr_part_elem->has_null_value)
+              if (part_info->curr_part_elem->has_null_value)
               {
                 my_error(ER_MULTIPLE_DEF_CONST_IN_LIST_PART_ERROR, MYF(0));
                 MYSQL_YYABORT;
               }
-              Lex->part_info->curr_part_elem->has_null_value= TRUE;
+              part_info->curr_part_elem->has_null_value= TRUE;
             }
             else if (part_expr->result_type() != INT_RESULT)
             {
@@ -4200,8 +4337,9 @@ part_bit_expr:
 opt_sub_partition:
           /* empty */
           {
-            if (Lex->part_info->no_subparts != 0 &&
-                !Lex->part_info->use_default_subpartitions)
+            partition_info *part_info= Lex->part_info;
+            if (part_info->no_subparts != 0 &&
+                !part_info->use_default_subpartitions)
             {
               /*
                 We come here when we have defined subpartitions on the first
@@ -4213,8 +4351,7 @@ opt_sub_partition:
           }
         | '(' sub_part_list ')'
           {
-            LEX *lex= Lex;
-            partition_info *part_info= lex->part_info;
+            partition_info *part_info= Lex->part_info;
             if (part_info->no_subparts != 0)
             {
               if (part_info->no_subparts !=
@@ -4245,8 +4382,7 @@ sub_part_list:
 sub_part_definition:
           SUBPARTITION_SYM
           {
-            LEX *lex= Lex;
-            partition_info *part_info= lex->part_info;
+            partition_info *part_info= Lex->part_info;
             partition_element *curr_part= part_info->current_partition;
             partition_element *sub_p_elem= new partition_element(curr_part);
             if (part_info->use_default_subpartitions &&
@@ -4300,9 +4436,9 @@ opt_part_option:
           { Lex->part_info->curr_part_elem->tablespace_name= $3.str; }
         | opt_storage ENGINE_SYM opt_equal storage_engines
           {
-            LEX *lex= Lex;
-            lex->part_info->curr_part_elem->engine_type= $4;
-            lex->part_info->default_engine_type= $4;
+            partition_info *part_info= Lex->part_info;
+            part_info->curr_part_elem->engine_type= $4;
+            part_info->default_engine_type= $4;
           }
         | NODEGROUP_SYM opt_equal real_ulong_num
           { Lex->part_info->curr_part_elem->nodegroup_id= (uint16) $3; }
@@ -4316,6 +4452,11 @@ opt_part_option:
           { Lex->part_info->curr_part_elem->index_file_name= $4.str; }
         | COMMENT_SYM opt_equal TEXT_STRING_sys
           { Lex->part_info->curr_part_elem->part_comment= $3.str; }
+        ;
+
+opt_global:
+        /* empty */ { $$= FALSE;}
+        | GLOBAL_SYM { $$= TRUE; }
         ;
 
 /*
@@ -5786,8 +5927,8 @@ reorg_parts_rule:
           }
           INTO '(' part_def_list ')'
           {
-            LEX *lex= Lex;
-            lex->part_info->no_parts= lex->part_info->partitions.elements;
+            partition_info *part_info= Lex->part_info;
+            part_info->no_parts= part_info->partitions.elements;
           }
         ;
 
@@ -11529,7 +11670,6 @@ keyword_sp:
         | MAX_SIZE_SYM             {}
         | MAX_UPDATES_PER_HOUR     {}
         | MAX_USER_CONNECTIONS_SYM {}
-        | MAX_VALUE_SYM            {}
         | MEDIUM_SYM               {}
         | MEMORY_SYM               {}
         | MERGE_SYM                {}

@@ -1565,6 +1565,9 @@ typedef struct st_lex : public Query_tables_list
   /* Partition info structure filled in by PARTITION BY parse part */
   partition_info *part_info;
 
+  /* Flag to index a global index created */
+  bool global_flag;
+
   /*
     The definer of the object being created (view, trigger, stored routine).
     I.e. the value of DEFINER clause.

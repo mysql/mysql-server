@@ -3664,7 +3664,7 @@ bool mysql_create_table_no_lock(THD *thd,
              ha_resolve_storage_engine_name(part_info->default_engine_type),
              ha_resolve_storage_engine_name(create_info->db_type)));
     if (part_info->check_partition_info(thd, &engine_type, file,
-                                        create_info, TRUE))
+                                        create_info, FALSE))
       goto err;
     part_info->default_engine_type= engine_type;
 

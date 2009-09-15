@@ -1,6 +1,100 @@
 drop table if exists t1, t2;
 create table t1 (a int)
 partition by range (a)
+( partition p0 values less than (NULL),
+partition p1 values less than (MAXVALUE));
+ERROR 42000: Not allowed to use NULL value in VALUES LESS THAN near '),
+partition p1 values less than (MAXVALUE))' at line 3
+create table t1 (a datetime not null)
+partition by range (TO_SECONDS(a))
+( partition p0 VALUES LESS THAN (TO_SECONDS('2007-03-08 00:00:00')),
+partition p1 VALUES LESS THAN (TO_SECONDS('2007-04-01 00:00:00')));
+INSERT INTO t1 VALUES ('2007-03-01 12:00:00'), ('2007-03-07 12:00:00');
+INSERT INTO t1 VALUES ('2007-03-08 12:00:00'), ('2007-03-15 12:00:00');
+explain partitions select * from t1 where a < '2007-03-08 00:00:00';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	2	Using where
+explain partitions select * from t1 where a < '2007-03-08 00:00:01';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p0,p1	ALL	NULL	NULL	NULL	NULL	4	Using where
+explain partitions select * from t1 where a <= '2007-03-08 00:00:00';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p0,p1	ALL	NULL	NULL	NULL	NULL	4	Using where
+explain partitions select * from t1 where a <= '2007-03-07 23:59:59';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	4	Using where
+explain partitions select * from t1 where a < '2007-03-07 23:59:59';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	4	Using where
+drop table t1;
+create table t1 (a date)
+partition by range(to_seconds(a))
+(partition p0 values less than (to_seconds('2004-01-01')),
+partition p1 values less than (to_seconds('2005-01-01')));
+insert into t1 values ('2003-12-30'),('2004-12-31');
+select * from t1;
+a
+2003-12-30
+2004-12-31
+explain partitions select * from t1 where a <= '2003-12-31';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p0	system	NULL	NULL	NULL	NULL	1	
+select * from t1 where a <= '2003-12-31';
+a
+2003-12-30
+explain partitions select * from t1 where a <= '2005-01-01';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p0,p1	ALL	NULL	NULL	NULL	NULL	2	Using where
+select * from t1 where a <= '2005-01-01';
+a
+2003-12-30
+2004-12-31
+drop table t1;
+create table t1 (a datetime)
+partition by range(to_seconds(a))
+(partition p0 values less than (to_seconds('2004-01-01 12:00:00')),
+partition p1 values less than (to_seconds('2005-01-01 12:00:00')));
+insert into t1 values ('2004-01-01 11:59:29'),('2005-01-01 11:59:59');
+select * from t1;
+a
+2004-01-01 11:59:29
+2005-01-01 11:59:59
+explain partitions select * from t1 where a <= '2004-01-01 11:59.59';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p0	system	NULL	NULL	NULL	NULL	1	
+select * from t1 where a <= '2004-01-01 11:59:59';
+a
+2004-01-01 11:59:29
+explain partitions select * from t1 where a <= '2005-01-01';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p0,p1	ALL	NULL	NULL	NULL	NULL	2	Using where
+select * from t1 where a <= '2005-01-01';
+a
+2004-01-01 11:59:29
+drop table t1;
+create table t1 (a int, b char(20))
+partition by range column_list(a,b)
+(partition p0 values less than (1));
+ERROR 42000: Inconsistency in usage of column lists for partitioning near '))' at line 3
+create table t1 (a int, b char(20))
+partition by range(a)
+(partition p0 values less than (column_list(1,"b")));
+ERROR HY000: Inconsistency in usage of column lists for partitioning
+create table t1 (a int, b char(20))
+partition by range(a)
+(partition p0 values less than (column_list(1,"b")));
+ERROR HY000: Inconsistency in usage of column lists for partitioning
+create table t1 (a int, b char(20));
+create global index inx on t1 (a,b)
+partition by range (a)
+(partition p0 values less than (1));
+drop table t1;
+create table t1 (a int, b char(20))
+partition by range column_list(b)
+(partition p0 values less than (column_list("b")));
+drop table t1;
+create table t1 (a int)
+partition by range (a)
 ( partition p0 values less than (maxvalue));
 alter table t1 add partition (partition p1 values less than (100000));
 ERROR HY000: MAXVALUE can only be used in last partition definition

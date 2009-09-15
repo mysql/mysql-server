@@ -19,6 +19,8 @@
 
 #include "partition_element.h"
 
+#define MAX_STR_SIZE_PF 512
+
 class partition_info;
 
 /* Some function typedefs */
@@ -64,10 +66,9 @@ public:
   /*
     When we have various string fields we might need some preparation
     before and clean-up after calling the get_part_id_func's. We need
-    one such method for get_partition_id and one for
-    get_part_partition_id and one for get_subpartition_id.
+    one such method for get_part_partition_id and one for
+    get_subpartition_id.
   */
-  get_part_id_func get_partition_id_charset;
   get_part_id_func get_part_partition_id_charset;
   get_subpart_id_func get_subpartition_id_charset;
 
@@ -81,7 +82,6 @@ public:
     without duplicates, NULL-terminated.
   */
   Field **full_part_field_array;
-  Field **full_part_charset_field_array;
   /*
     Set of all fields used in partition and subpartition expression.
     Required for testing of partition fields in write_set when
@@ -97,10 +97,8 @@ public:
   */
   uchar **part_field_buffers;
   uchar **subpart_field_buffers;
-  uchar **full_part_field_buffers;
   uchar **restore_part_field_ptrs;
   uchar **restore_subpart_field_ptrs;
-  uchar **restore_full_part_field_ptrs;
 
   Item *part_expr;
   Item *subpart_expr;
@@ -124,6 +122,8 @@ public:
   union {
     longlong *range_int_array;
     LIST_PART_ENTRY *list_array;
+    part_column_list_val *range_col_array;
+    part_column_list_val *list_col_array;
   };
   
   /********************************************
@@ -154,6 +154,10 @@ public:
 
   partition_element *curr_part_elem;
   partition_element *current_partition;
+  part_elem_value *curr_list_val;
+  uint curr_list_object;
+  uint num_columns;
+
   /*
     These key_map's are used for Partitioning to enable quick decisions
     on whether we can derive more information about which partition to
@@ -205,7 +209,7 @@ public:
   bool is_auto_partitioned;
   bool from_openfrm;
   bool has_null_value;
-
+  bool column_list;
 
   partition_info()
   : get_partition_id(NULL), get_part_partition_id(NULL),
@@ -214,11 +218,8 @@ public:
     part_charset_field_array(NULL),
     subpart_charset_field_array(NULL),
     full_part_field_array(NULL),
-    full_part_charset_field_array(NULL),
     part_field_buffers(NULL), subpart_field_buffers(NULL),
-    full_part_field_buffers(NULL),
     restore_part_field_ptrs(NULL), restore_subpart_field_ptrs(NULL),
-    restore_full_part_field_ptrs(NULL),
     part_expr(NULL), subpart_expr(NULL), item_free_list(NULL),
     first_log_entry(NULL), exec_log_entry(NULL), frm_log_entry(NULL),
     list_array(NULL), err_value(0),
@@ -226,6 +227,7 @@ public:
     part_func_string(NULL), subpart_func_string(NULL),
     part_state(NULL),
     curr_part_elem(NULL), current_partition(NULL),
+    curr_list_object(0), num_columns(0),
     default_engine_type(NULL),
     part_result_type(INT_RESULT),
     part_type(NOT_A_PARTITION), subpart_type(NOT_A_PARTITION),
@@ -241,7 +243,7 @@ public:
     list_of_part_fields(FALSE), list_of_subpart_fields(FALSE),
     linear_hash_ind(FALSE), fixed(FALSE),
     is_auto_partitioned(FALSE), from_openfrm(FALSE),
-    has_null_value(FALSE)
+    has_null_value(FALSE), column_list(FALSE)
   {
     all_fields_in_PF.clear_all();
     all_fields_in_PPF.clear_all();
@@ -271,16 +273,19 @@ public:
                                         uint start_no);
   char *has_unique_names();
   bool check_engine_mix(handlerton *engine_type, bool default_engine);
-  bool check_range_constants();
-  bool check_list_constants();
+  bool check_range_constants(THD *thd);
+  bool check_list_constants(THD *thd);
   bool check_partition_info(THD *thd, handlerton **eng_type,
                             handler *file, HA_CREATE_INFO *info,
                             bool check_partition_function);
   void print_no_partition_found(TABLE *table);
+  part_column_list_val *add_column_value();
+  bool set_part_expr(char *start_token, Item *item_ptr,
+                     char *end_token, bool is_subpart);
+  static int compare_column_values(const void *a, const void *b);
   bool set_up_charset_field_preps();
 private:
   static int list_part_cmp(const void* a, const void* b);
-  static int list_part_cmp_unsigned(const void* a, const void* b);
   bool set_up_default_partitions(handler *file, HA_CREATE_INFO *info,
                                  uint start_no);
   bool set_up_default_subpartitions(handler *file, HA_CREATE_INFO *info);
@@ -288,6 +293,9 @@ private:
                                        uint start_no);
   char *create_subpartition_name(uint subpart_no, const char *part_name);
   bool has_unique_name(partition_element *element);
+  bool fix_column_value_functions(THD *thd,
+                                  part_column_list_val *col_val,
+                                  uint part_id);
 };
 
 uint32 get_next_partition_id_range(struct st_partition_iter* part_iter);
