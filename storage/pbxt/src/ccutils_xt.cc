@@ -29,7 +29,7 @@
 #include "ccutils_xt.h"
 #include "bsearch_xt.h"
 
-static int ccu_compare_object(XTThreadPtr XT_UNUSED(self), register const void XT_UNUSED(*thunk), register const void *a, register const void *b)
+static int ccu_compare_object(XTThreadPtr XT_UNUSED(self), register const void *XT_UNUSED(thunk), register const void *a, register const void *b)
 {
 	XTObject *obj_ptr = (XTObject *) b;
 

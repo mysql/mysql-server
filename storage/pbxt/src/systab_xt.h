@@ -85,15 +85,15 @@ public:
 	virtual bool use() { return true; }
 	virtual bool unuse() { return true; }
 	virtual bool seqScanInit() { return true; }
-	virtual bool seqScanNext(char *buf __attribute__((unused)), bool *eof) {
+	virtual bool seqScanNext(char *XT_UNUSED(buf), bool *eof) {
 		*eof = true;
 		return false;
 	}
 	virtual int	getRefLen() { return 4; }
-	virtual xtWord4 seqScanPos(xtWord1 *buf __attribute__((unused))) {
+	virtual xtWord4 seqScanPos(xtWord1 *XT_UNUSED(buf)) {
 		return 0;
 	}
-	virtual bool seqScanRead(xtWord4 rec_id __attribute__((unused)), char *buf __attribute__((unused))) {
+	virtual bool seqScanRead(xtWord4 XT_UNUSED(rec_id), char *XT_UNUSED(buf)) {
 		return true;
 	}
 

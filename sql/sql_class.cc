@@ -3084,6 +3084,7 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
   backup->options=         options;
   backup->in_sub_stmt=     in_sub_stmt;
   backup->enable_slow_log= enable_slow_log;
+  backup->query_plan_flags= query_plan_flags;
   backup->limit_found_rows= limit_found_rows;
   backup->examined_row_count= examined_row_count;
   backup->sent_row_count=   sent_row_count;
@@ -3148,6 +3149,7 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
   options=          backup->options;
   in_sub_stmt=      backup->in_sub_stmt;
   enable_slow_log=  backup->enable_slow_log;
+  query_plan_flags= backup->query_plan_flags;
   first_successful_insert_id_in_prev_stmt= 
     backup->first_successful_insert_id_in_prev_stmt;
   first_successful_insert_id_in_cur_stmt= 

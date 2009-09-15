@@ -349,6 +349,10 @@ struct system_variables
   ulong trans_prealloc_size;
   ulong log_warnings;
   ulong group_concat_max_len;
+  /* Flags for slow log filtering */
+  ulong log_slow_rate_limit; 
+  ulong log_slow_filter; 
+  ulong log_slow_verbosity; 
   ulong ndb_autoincrement_prefetch_sz;
   ulong ndb_index_stat_cache_entries;
   ulong ndb_index_stat_update_freq;
@@ -989,6 +993,7 @@ public:
   ulonglong limit_found_rows;
   ha_rows    cuted_fields, sent_row_count, examined_row_count;
   ulong client_capabilities;
+  ulong query_plan_flags; 
   uint in_sub_stmt;
   bool enable_slow_log;
   bool last_insert_id_used;
@@ -1736,6 +1741,8 @@ public:
     create_sort_index(); may differ from examined_row_count.
   */
   ulong      row_count;
+  ulong      query_plan_flags; 
+  ulong      query_plan_fsort_passes; 
   pthread_t  real_id;                           /* For debugging */
   my_thread_id  thread_id;
   uint	     tmp_table, global_read_lock;

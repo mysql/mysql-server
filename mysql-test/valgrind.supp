@@ -704,6 +704,75 @@
    fun:inet_ntoa
 }
 
+
+#
+# Some problem inside glibc on Ubuntu 9.04, x86 (but not amd64):
+# 
+# ==5985== 19 bytes in 1 blocks are still reachable in loss record 1 of 6
+# ==5985==    at 0x7AF3FDE: malloc (vg_replace_malloc.c:207) 
+#               ... 11,12, or 13 functions w/o symbols ...
+# ==5985==    by 0x8717185: nptl_pthread_exit_hack_handler (my_thr_init.c:55)
+#
+# Since valgrind 3.3.0 doesn't support '...' multi-function pattern, using
+# multiple suppressions:
+#
+{
+   Mem loss inside nptl_pthread_exit_hack_handler
+   Memcheck:Leak
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:nptl_pthread_exit_hack_handler 
+}
+
+{
+   Mem loss inside nptl_pthread_exit_hack_handler
+   Memcheck:Leak
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:nptl_pthread_exit_hack_handler 
+}
+
+{
+   Mem loss inside nptl_pthread_exit_hack_handler
+   Memcheck:Leak
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:nptl_pthread_exit_hack_handler 
+}
+
 #
 # BUG#45630
 # Suppress valgrind failures within nptl_pthread_exit_hack_handler on Ubuntu 9.04, x86 (but not amd64)

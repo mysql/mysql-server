@@ -972,6 +972,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     the slow log only if opt_log_slow_admin_statements is set.
   */
   thd->enable_slow_log= TRUE;
+  thd->query_plan_flags= QPLAN_INIT;
   thd->lex->sql_command= SQLCOM_END; /* to avoid confusing VIEW detectors */
   thd->set_time();
   VOID(pthread_mutex_lock(&LOCK_thread_count));
@@ -1046,6 +1047,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
     status_var_increment(thd->status_var.com_other);
     thd->enable_slow_log= opt_log_slow_admin_statements;
+    thd->query_plan_flags|= QPLAN_ADMIN;
     db.str= (char*) thd->alloc(db_len + tbl_len + 2);
     if (!db.str)
     {
@@ -1401,6 +1403,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
       status_var_increment(thd->status_var.com_other);
       thd->enable_slow_log= opt_log_slow_admin_statements;
+      thd->query_plan_flags|= QPLAN_ADMIN;
       if (check_global_access(thd, REPL_SLAVE_ACL))
 	break;
 
@@ -1632,6 +1635,19 @@ void log_slow_statement(THD *thd)
   */
   if (unlikely(thd->in_sub_stmt))
     DBUG_VOID_RETURN;                           // Don't set time for sub stmt
+
+  /* Follow the slow log filter configuration. */ 
+  DBUG_ASSERT(thd->variables.log_slow_filter != 0);
+  if (!(thd->variables.log_slow_filter & thd->query_plan_flags))
+    DBUG_VOID_RETURN; 
+ 
+  /* 
+     If rate limiting of slow log writes is enabled, decide whether to log
+     this query to the log or not.
+  */ 
+  if (thd->variables.log_slow_rate_limit > 1 &&
+      (global_query_id % thd->variables.log_slow_rate_limit) != 0)
+    DBUG_VOID_RETURN;
 
   /*
     Do not log administrative statements unless the appropriate option is
@@ -2355,6 +2371,7 @@ mysql_execute_command(THD *thd)
 	check_global_access(thd, FILE_ACL))
       goto error; /* purecov: inspected */
     thd->enable_slow_log= opt_log_slow_admin_statements;
+    thd->query_plan_flags|= QPLAN_ADMIN;
     res = mysql_backup_table(thd, first_table);
     select_lex->table_list.first= (uchar*) first_table;
     lex->query_tables=all_tables;
@@ -2367,6 +2384,7 @@ mysql_execute_command(THD *thd)
 	check_global_access(thd, FILE_ACL))
       goto error; /* purecov: inspected */
     thd->enable_slow_log= opt_log_slow_admin_statements;
+    thd->query_plan_flags|= QPLAN_ADMIN;
     res = mysql_restore_table(thd, first_table);
     select_lex->table_list.first= (uchar*) first_table;
     lex->query_tables=all_tables;
@@ -2752,6 +2770,7 @@ end_with_restore_list:
       ALTER TABLE.
     */
     thd->enable_slow_log= opt_log_slow_admin_statements;
+    thd->query_plan_flags|= QPLAN_ADMIN;
 
     bzero((char*) &create_info, sizeof(create_info));
     create_info.db_type= 0;
@@ -2871,6 +2890,7 @@ end_with_restore_list:
       }
 
       thd->enable_slow_log= opt_log_slow_admin_statements;
+      thd->query_plan_flags|= QPLAN_ADMIN;
       res= mysql_alter_table(thd, select_lex->db, lex->name.str,
                              &create_info,
                              first_table,
@@ -2958,6 +2978,7 @@ end_with_restore_list:
                            UINT_MAX, FALSE))
       goto error; /* purecov: inspected */
     thd->enable_slow_log= opt_log_slow_admin_statements;
+    thd->query_plan_flags|= QPLAN_ADMIN;
     res= mysql_repair_table(thd, first_table, &lex->check_opt);
     /* ! we write after unlocking the table */
     if (!res && !lex->no_write_to_binlog)
@@ -2978,6 +2999,7 @@ end_with_restore_list:
                            UINT_MAX, FALSE))
       goto error; /* purecov: inspected */
     thd->enable_slow_log= opt_log_slow_admin_statements;
+    thd->query_plan_flags|= QPLAN_ADMIN;
     res = mysql_check_table(thd, first_table, &lex->check_opt);
     select_lex->table_list.first= (uchar*) first_table;
     lex->query_tables=all_tables;
@@ -2990,6 +3012,7 @@ end_with_restore_list:
                            UINT_MAX, FALSE))
       goto error; /* purecov: inspected */
     thd->enable_slow_log= opt_log_slow_admin_statements;
+    thd->query_plan_flags|= QPLAN_ADMIN;
     res= mysql_analyze_table(thd, first_table, &lex->check_opt);
     /* ! we write after unlocking the table */
     if (!res && !lex->no_write_to_binlog)
@@ -3011,6 +3034,7 @@ end_with_restore_list:
                            UINT_MAX, FALSE))
       goto error; /* purecov: inspected */
     thd->enable_slow_log= opt_log_slow_admin_statements;
+    thd->query_plan_flags|= QPLAN_ADMIN;
     res= (specialflag & (SPECIAL_SAFE_MODE | SPECIAL_NO_NEW_FUNC)) ?
       mysql_recreate_table(thd, first_table) :
       mysql_optimize_table(thd, first_table, &lex->check_opt);
@@ -5687,6 +5711,8 @@ void mysql_reset_thd_for_next_command(THD *thd)
   thd->total_warn_count=0;			// Warnings for this query
   thd->rand_used= 0;
   thd->sent_row_count= thd->examined_row_count= 0;
+  thd->query_plan_flags= QPLAN_INIT;
+  thd->query_plan_fsort_passes= 0;
 
   /*
     Because we come here only for start of top-statements, binlog format is

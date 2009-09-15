@@ -1756,6 +1756,7 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
     + MAX_LOG_EVENT_HEADER;  /* note, incr over the global not session var */
   thd->slave_thread = 1;
   thd->enable_slow_log= opt_log_slow_slave_statements;
+  thd->variables.log_slow_filter= global_system_variables.log_slow_filter;
   set_slave_thread_options(thd);
   thd->client_capabilities = CLIENT_LOCAL_FILES;
   pthread_mutex_lock(&LOCK_thread_count);

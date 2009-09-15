@@ -147,6 +147,7 @@ static bool sys_update_general_log_path(THD *thd, set_var * var);
 static void sys_default_general_log_path(THD *thd, enum_var_type type);
 static bool sys_update_slow_log_path(THD *thd, set_var * var);
 static void sys_default_slow_log_path(THD *thd, enum_var_type type);
+static void fix_sys_log_slow_filter(THD *thd, enum_var_type);
 
 /*
   Variable definition list
@@ -359,6 +360,9 @@ static sys_var_bool_ptr
 static sys_var_thd_ulong	sys_log_warnings(&vars, "log_warnings", &SV::log_warnings);
 static sys_var_microseconds	sys_var_long_query_time(&vars, "long_query_time",
                                                         &SV::long_query_time);
+static sys_var_microseconds	sys_var_long_query_time2(&vars,
+                                                         "log_slow_time",
+                                                         &SV::long_query_time);
 static sys_var_thd_bool	sys_low_priority_updates(&vars, "low_priority_updates",
 						 &SV::low_priority_updates,
 						 fix_low_priority_updates);
@@ -851,6 +855,20 @@ sys_var_thd_ulong               sys_group_concat_max_len(&vars, "group_concat_ma
 
 sys_var_thd_time_zone sys_time_zone(&vars, "time_zone",
                                     sys_var::SESSION_VARIABLE_IN_BINLOG);
+
+/* Unique variables for MariaDB */
+static sys_var_thd_ulong  sys_log_slow_rate_limit(&vars,
+                                                  "log_slow_rate_limit",
+                                                  &SV::log_slow_rate_limit);
+static sys_var_thd_set sys_log_slow_filter(&vars, "log_slow_filter",
+                                           &SV::log_slow_filter,
+                                           &log_slow_filter_typelib,
+                                           QPLAN_VISIBLE_MASK,
+                                           fix_sys_log_slow_filter);
+static sys_var_thd_set sys_log_slow_verbosity(&vars,
+                                              "log_slow_verbosity",
+                                              &SV::log_slow_verbosity,
+                                              &log_slow_verbosity_typelib);
 
 /* Global read-only variable containing hostname */
 static sys_var_const_str        sys_hostname(&vars, "hostname", glob_hostname);
@@ -1850,11 +1868,17 @@ err:
   return 1;
 }
 
+/**
+   Check vality of set
+
+   Note that this sets 'save_result.ulong_value' for the update function,
+   which means that we don't need a separate sys_var::update() function
+*/
 
 bool sys_var::check_set(THD *thd, set_var *var, TYPELIB *enum_names)
 {
   bool not_used;
-  char buff[STRING_BUFFER_USUAL_SIZE], *error= 0;
+  char buff[256], *error= 0;
   uint error_len= 0;
   String str(buff, sizeof(buff) - 1, system_charset_info), *res;
 
@@ -1866,8 +1890,7 @@ bool sys_var::check_set(THD *thd, set_var *var, TYPELIB *enum_names)
       goto err;
     }
 
-    if (!m_allow_empty_value &&
-        res->length() == 0)
+    if (!m_allow_empty_value && res->length() == 0)
     {
       buff[0]= 0;
       goto err;
@@ -1889,8 +1912,7 @@ bool sys_var::check_set(THD *thd, set_var *var, TYPELIB *enum_names)
   {
     ulonglong tmp= var->value->val_int();
 
-    if (!m_allow_empty_value &&
-        tmp == 0)
+    if (!m_allow_empty_value && tmp == 0)
     {
       buff[0]= '0';
       buff[1]= 0;
@@ -1914,6 +1936,49 @@ bool sys_var::check_set(THD *thd, set_var *var, TYPELIB *enum_names)
 err:
   my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, buff);
   return 1;
+}
+
+
+/**
+  Make string representation of set
+
+  @param[in]  thd    thread handler
+  @param[in]  val    sql_mode value
+  @param[in]  names  names for the different bits
+  @param[out] rep    Result string
+
+  @return
+    0 ok
+    1 end of memory
+*/
+
+bool sys_var::make_set(THD *thd, ulonglong val, TYPELIB *names,
+                       LEX_STRING *rep)
+{
+  /* Strings for typelib may be big; This is reallocated on demand */
+  char buff[256];
+  String tmp(buff, sizeof(buff) - 1, &my_charset_latin1);
+  bool error= 0;
+
+  tmp.length(0);
+  for (uint i= 0; val; val>>= 1, i++)
+  {
+    if (val & 1)
+    {
+      error|= tmp.append(names->type_names[i],
+                 names->type_lengths[i]);
+      error|= tmp.append(',');
+    }
+  }
+
+  if (tmp.length())
+    tmp.length(tmp.length() - 1); /* trim the trailing comma */
+
+  /* Allocate temporary copy of string */
+  if (!(rep->str= thd->strmake(tmp.ptr(), tmp.length())))
+    error= 1;
+  rep->length= tmp.length();
+  return error;                   /* Error in case of out of memory */
 }
 
 
@@ -1950,6 +2015,16 @@ uchar *sys_var_thd_enum::value_ptr(THD *thd, enum_var_type type,
 	      global_system_variables.*offset :
 	      thd->variables.*offset);
   return (uchar*) enum_names->type_names[tmp];
+}
+
+uchar *sys_var_thd_set::value_ptr(THD *thd, enum_var_type type,
+                                  LEX_STRING *base)
+{
+  LEX_STRING sql_mode;
+  ulong val= ((type == OPT_GLOBAL) ? global_system_variables.*offset :
+              thd->variables.*offset);
+  (void) make_set(thd, val & visible_value_mask, enum_names, &sql_mode);
+  return (uchar *) sql_mode.str;
 }
 
 bool sys_var_thd_bit::check(THD *thd, set_var *var)
@@ -3700,6 +3775,24 @@ int set_var_password::update(THD *thd)
 }
 
 /****************************************************************************
+ Functions to handle log_slow_filter
+****************************************************************************/
+  
+/* Ensure that the proper bits are set for easy test of logging */
+static void fix_sys_log_slow_filter(THD *thd, enum_var_type type)
+{
+  /* Maintain everything with filters */
+  opt_log_slow_admin_statements= 1;
+  if (type == OPT_GLOBAL)
+    global_system_variables.log_slow_filter=
+      fix_log_slow_filter(global_system_variables.log_slow_filter);
+  else
+    thd->variables.log_slow_filter=
+      fix_log_slow_filter(thd->variables.log_slow_filter);
+}
+
+
+/****************************************************************************
  Functions to handle table_type
 ****************************************************************************/
 
@@ -3809,67 +3902,6 @@ bool sys_var_thd_table_type::update(THD *thd, set_var *var)
 /****************************************************************************
  Functions to handle sql_mode
 ****************************************************************************/
-
-/**
-  Make string representation of mode.
-
-  @param[in]  thd    thread handler
-  @param[in]  val    sql_mode value
-  @param[out] len    pointer on length of string
-
-  @return
-    pointer to string with sql_mode representation
-*/
-
-bool
-sys_var_thd_sql_mode::
-symbolic_mode_representation(THD *thd, ulonglong val, LEX_STRING *rep)
-{
-  char buff[STRING_BUFFER_USUAL_SIZE*8];
-  String tmp(buff, sizeof(buff) - 1, &my_charset_latin1);
-
-  tmp.length(0);
-
-  for (uint i= 0; val; val>>= 1, i++)
-  {
-    if (val & 1)
-    {
-      tmp.append(sql_mode_typelib.type_names[i],
-                 sql_mode_typelib.type_lengths[i]);
-      tmp.append(',');
-    }
-  }
-
-  if (tmp.length())
-    tmp.length(tmp.length() - 1); /* trim the trailing comma */
-
-  rep->str= thd->strmake(tmp.ptr(), tmp.length());
-
-  rep->length= rep->str ? tmp.length() : 0;
-
-  return rep->length != tmp.length();
-}
-
-
-uchar *sys_var_thd_sql_mode::value_ptr(THD *thd, enum_var_type type,
-				      LEX_STRING *base)
-{
-  LEX_STRING sql_mode;
-  ulonglong val= ((type == OPT_GLOBAL) ? global_system_variables.*offset :
-                  thd->variables.*offset);
-  (void) symbolic_mode_representation(thd, val, &sql_mode);
-  return (uchar *) sql_mode.str;
-}
-
-
-void sys_var_thd_sql_mode::set_default(THD *thd, enum_var_type type)
-{
-  if (type == OPT_GLOBAL)
-    global_system_variables.*offset= 0;
-  else
-    thd->variables.*offset= global_system_variables.*offset;
-}
-
 
 void fix_sql_mode_var(THD *thd, enum_var_type type)
 {

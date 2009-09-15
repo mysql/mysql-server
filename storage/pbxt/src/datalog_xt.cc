@@ -69,6 +69,7 @@ xtBool XTDataSeqRead::sl_seq_init(struct XTDatabase *db, size_t buffer_size)
 	sl_rec_log_id = 0;
 	sl_rec_log_offset = 0;
 	sl_record_len = 0;
+	sl_extra_garbage = 0;
 
 	return sl_buffer != NULL;
 }
@@ -130,8 +131,25 @@ xtBool XTDataSeqRead::sl_rnd_read(xtLogOffset log_offset, size_t size, xtWord1 *
 /*
  * Unlike the transaction log sequential reader, this function only returns
  * the header of a record.
+ *
+ * {SKIP-GAPS}
+ * This function now skips gaps. This should not be required, because in normal
+ * operation, no gaps should be created.
+ *
+ * However, if his happens there is a danger that a valid record after the
+ * gap will be lost.
+ *
+ * So, if we find an invalid record, we scan through the log to find the next
+ * valid record. Note, that there is still a danger that will will find
+ * data that looks like a valid record, but is not.
+ *
+ * In this case, this "pseudo record" may cause the function to actually skip
+ * valid records.
+ *
+ * Note, any such malfunction will eventually cause the record to be lost forever
+ * after the garbage collector has run.
  */
-xtBool XTDataSeqRead::sl_seq_next(XTXactLogBufferDPtr *ret_entry, xtBool verify, struct XTThread *thread)
+xtBool XTDataSeqRead::sl_seq_next(XTXactLogBufferDPtr *ret_entry, struct XTThread *thread)
 {
 	XTXactLogBufferDPtr	record;
 	size_t				tfer;
@@ -140,10 +158,12 @@ xtBool XTDataSeqRead::sl_seq_next(XTXactLogBufferDPtr *ret_entry, xtBool verify,
 	size_t				max_rec_len;
 	xtBool				reread_from_buffer;
 	xtWord4				size;
+	xtLogOffset			gap_start = 0;
 
 	/* Go to the next record (xseq_record_len must be initialized
 	 * to 0 for this to work.
 	 */
+	retry:
 	sl_rec_log_offset += sl_record_len;
 	sl_record_len = 0;
 
@@ -174,6 +194,8 @@ xtBool XTDataSeqRead::sl_seq_next(XTXactLogBufferDPtr *ret_entry, xtBool verify,
 	record = (XTXactLogBufferDPtr) (sl_buffer + rec_offset);
 	switch (record->xl.xl_status_1) {
 		case XT_LOG_ENT_HEADER:
+			if (sl_rec_log_offset != 0)
+				goto scan_to_next_record;
 			if (offsetof(XTXactLogHeaderDRec, xh_size_4) + 4 > max_rec_len) {
 				reread_from_buffer = TRUE;
 				goto read_more;
@@ -183,33 +205,42 @@ xtBool XTDataSeqRead::sl_seq_next(XTXactLogBufferDPtr *ret_entry, xtBool verify,
 				reread_from_buffer = TRUE;
 				goto read_more;
 			}
-			if (verify) {
-				if (record->xh.xh_checksum_1 != XT_CHECKSUM_1(sl_rec_log_id))
+
+			if (record->xh.xh_checksum_1 != XT_CHECKSUM_1(sl_rec_log_id))
+				goto return_empty;
+			if (XT_LOG_HEAD_MAGIC(record, len) != XT_LOG_FILE_MAGIC)
+				goto return_empty;
+			if (len > offsetof(XTXactLogHeaderDRec, xh_log_id_4) + 4) {
+				if (XT_GET_DISK_4(record->xh.xh_log_id_4) != sl_rec_log_id)
 					goto return_empty;
-				if (XT_LOG_HEAD_MAGIC(record, len) != XT_LOG_FILE_MAGIC)
-					goto return_empty;
-				if (len > offsetof(XTXactLogHeaderDRec, xh_log_id_4) + 4) {
-					if (XT_GET_DISK_4(record->xh.xh_log_id_4) != sl_rec_log_id)
-						goto return_empty;
-				}
 			}
 			break;
 		case XT_LOG_ENT_EXT_REC_OK:
 		case XT_LOG_ENT_EXT_REC_DEL:
+			if (gap_start) {
+				xt_logf(XT_NS_CONTEXT, XT_LOG_WARNING, "Gap in data log %lu, start: %llu, size: %llu\n", (u_long) sl_rec_log_id, (u_llong) gap_start, (u_llong) (sl_rec_log_offset - gap_start));
+				gap_start = 0;
+			}
 			len = offsetof(XTactExtRecEntryDRec, er_data);
 			if (len > max_rec_len) {
 				reread_from_buffer = TRUE;
 				goto read_more;
 			}
 			size = XT_GET_DISK_4(record->er.er_data_size_4);
-			if (verify) {
-				if (sl_rec_log_offset + (xtLogOffset) offsetof(XTactExtRecEntryDRec, er_data) + size > sl_log_eof)
-					goto return_empty;
-			}
+			/* Verify the record as good as we can! */
+			if (!size)
+				goto scan_to_next_record;
+			if (sl_rec_log_offset + (xtLogOffset) offsetof(XTactExtRecEntryDRec, er_data) + size > sl_log_eof)
+				goto scan_to_next_record;
+			if (!XT_GET_DISK_4(record->er.er_tab_id_4))
+				goto scan_to_next_record;
+			if (!XT_GET_DISK_4(record->er.er_rec_id_4))
+				goto scan_to_next_record;
 			break;
 		default:
-			ASSERT_NS(FALSE);
-			goto return_empty;
+			/* Note, we no longer assume EOF.
+			 * Instead, we skip to the next value record. */
+			goto scan_to_next_record;
 	}
 
 	if (len <= max_rec_len) {
@@ -243,7 +274,20 @@ xtBool XTDataSeqRead::sl_seq_next(XTXactLogBufferDPtr *ret_entry, xtBool verify,
 	*ret_entry = (XTXactLogBufferDPtr) sl_buffer;
 	return OK;
 
+	scan_to_next_record:
+	if (!gap_start) {
+		gap_start = sl_rec_log_offset;
+		xt_logf(XT_NS_CONTEXT, XT_LOG_WARNING, "Gap found in data log %lu, starting at offset %llu\n", (u_long) sl_rec_log_id, (u_llong) gap_start);
+	}
+	sl_record_len = 1;
+	sl_extra_garbage++;
+	goto retry;
+
 	return_empty:
+	if (gap_start) {
+		xt_logf(XT_NS_CONTEXT, XT_LOG_WARNING, "Gap in data log %lu, start: %llu, size: %llu\n", (u_long) sl_rec_log_id, (u_llong) gap_start, (u_llong) (sl_rec_log_offset - gap_start));
+		gap_start = 0;
+	}
 	*ret_entry = NULL;
 	return OK;
 }
@@ -285,18 +329,50 @@ static xtBool dl_create_log_header(XTDataLogFilePtr data_log, XTOpenFilePtr of, 
 	return OK;
 }
 
-static xtBool dl_write_log_header(XTDataLogFilePtr data_log, XTOpenFilePtr of, xtBool flush, XTThreadPtr thread)
+static xtBool dl_write_garbage_level(XTDataLogFilePtr data_log, XTOpenFilePtr of, xtBool flush, XTThreadPtr thread)
 {
 	XTXactLogHeaderDRec	header;
 
 	/* The header was not completely written, so write a new one: */
 	XT_SET_DISK_8(header.xh_free_space_8, data_log->dlf_garbage_count);
-	XT_SET_DISK_8(header.xh_file_len_8, data_log->dlf_log_eof);
-	XT_SET_DISK_8(header.xh_comp_pos_8, data_log->dlf_start_offset);
-
-	if (!xt_pwrite_file(of, offsetof(XTXactLogHeaderDRec, xh_free_space_8), 24, (xtWord1 *) &header.xh_free_space_8, &thread->st_statistics.st_data, thread))
+	if (!xt_pwrite_file(of, offsetof(XTXactLogHeaderDRec, xh_free_space_8), 8, (xtWord1 *) &header.xh_free_space_8, &thread->st_statistics.st_data, thread))
 		return FAILED;
 	if (flush && !xt_flush_file(of, &thread->st_statistics.st_data, thread))
+		return FAILED;
+	return OK;
+}
+
+/*
+ * {SKIP-GAPS}
+ * Extra garbage is the amount of space skipped during recovery of the data
+ * log file. We assume this space has not be counted as garbage, 
+ * and add it to the garbage count.
+ *
+ * This may mean that our estimate of garbaged is higher than it should
+ * be, but that is better than the other way around.
+ *
+ * The fact is, there should not be any gaps in the data log files, so
+ * this is actually an exeption which should not occur.
+ */
+static xtBool dl_write_log_header(XTDataLogFilePtr data_log, XTOpenFilePtr of, xtLogOffset extra_garbage, XTThreadPtr thread)
+{
+	XTXactLogHeaderDRec	header;
+
+	XT_SET_DISK_8(header.xh_file_len_8, data_log->dlf_log_eof);
+
+	if (extra_garbage) {
+		data_log->dlf_garbage_count += extra_garbage;
+		if (data_log->dlf_garbage_count > data_log->dlf_log_eof)
+			data_log->dlf_garbage_count = data_log->dlf_log_eof;
+		XT_SET_DISK_8(header.xh_free_space_8, data_log->dlf_garbage_count);
+		if (!xt_pwrite_file(of, offsetof(XTXactLogHeaderDRec, xh_free_space_8), 16, (xtWord1 *) &header.xh_free_space_8, &thread->st_statistics.st_data, thread))
+			return FAILED;
+	}
+	else {
+		if (!xt_pwrite_file(of, offsetof(XTXactLogHeaderDRec, xh_file_len_8), 8, (xtWord1 *) &header.xh_file_len_8, &thread->st_statistics.st_data, thread))
+			return FAILED;
+	}
+	if (!xt_flush_file(of, &thread->st_statistics.st_data, thread))
 		return FAILED;
 	return OK;
 }
@@ -318,7 +394,7 @@ static void dl_recover_log(XTThreadPtr self, XTDatabaseHPtr db, XTDataLogFilePtr
 	seq_read.sl_seq_start(data_log->dlf_log_id, 0, FALSE);
 
 	for (;;) {
-		if (!seq_read.sl_seq_next(&record, TRUE, self))
+		if (!seq_read.sl_seq_next(&record, self))
 			xt_throw(self);
 		if (!record)
 			break;
@@ -331,13 +407,18 @@ static void dl_recover_log(XTThreadPtr self, XTDatabaseHPtr db, XTDataLogFilePtr
 		}
 	}
 
-	if (!(data_log->dlf_log_eof = seq_read.sl_rec_log_offset)) {
+	ASSERT_NS(seq_read.sl_log_eof == seq_read.sl_rec_log_offset);
+	data_log->dlf_log_eof = seq_read.sl_rec_log_offset;
+
+	if ((size_t) data_log->dlf_log_eof < sizeof(XTXactLogHeaderDRec)) {
 		data_log->dlf_log_eof = sizeof(XTXactLogHeaderDRec);
 		if (!dl_create_log_header(data_log, seq_read.sl_log_file, self))
 			xt_throw(self);
 	}
-	if (!dl_write_log_header(data_log, seq_read.sl_log_file, TRUE, self))
-		xt_throw(self);
+	else {
+		if (!dl_write_log_header(data_log, seq_read.sl_log_file, seq_read.sl_extra_garbage, self))
+			xt_throw(self);
+	}
 
 	freer_(); // dl_free_seq_read(&seq_read)
 }
@@ -452,7 +533,7 @@ xtBool XTDataLogCache::dls_set_log_state(XTDataLogFilePtr data_log, int state)
 	return FAILED;
 }
 
-static int dl_cmp_log_id(XTThreadPtr XT_UNUSED(self), register const void XT_UNUSED(*thunk), register const void *a, register const void *b)
+static int dl_cmp_log_id(XTThreadPtr XT_UNUSED(self), register const void *XT_UNUSED(thunk), register const void *a, register const void *b)
 {
 	xtLogID			log_id_a = *((xtLogID *) a);
 	xtLogID			log_id_b = *((xtLogID *) b);
@@ -1110,7 +1191,6 @@ xtBool XTDataLogBuffer::dlb_get_log_offset(xtLogID *log_id, xtLogOffset *out_off
 
 	*log_id = dlb_data_log->dlf_log_id;
 	*out_offset = dlb_data_log->dlf_log_eof;
-	dlb_data_log->dlf_log_eof += req_size;
 	return OK;
 }
 
@@ -1149,7 +1229,7 @@ xtBool XTDataLogBuffer::dlb_flush_log(xtBool commit, XTThreadPtr thread)
 	return OK;
 }
 
-xtBool XTDataLogBuffer::dlb_write_thru_log(xtLogID log_id __attribute__((unused)), xtLogOffset log_offset, size_t size, xtWord1 *data, XTThreadPtr thread)
+xtBool XTDataLogBuffer::dlb_write_thru_log(xtLogID XT_NDEBUG_UNUSED(log_id), xtLogOffset log_offset, size_t size, xtWord1 *data, XTThreadPtr thread)
 {
 	ASSERT_NS(log_id == dlb_data_log->dlf_log_id);
 
@@ -1158,6 +1238,11 @@ xtBool XTDataLogBuffer::dlb_write_thru_log(xtLogID log_id __attribute__((unused)
 
 	if (!xt_pwrite_file(dlb_data_log->dlf_log_file, log_offset, size, data, &thread->st_statistics.st_data, thread))
 		return FAILED;
+	/* Increment of dlb_data_log->dlf_log_eof was moved here from dlb_get_log_offset()
+	 * to ensure it is done after a successful update of the log, otherwise otherwise a 
+	 * gap occurs in the log which cause eof to be detected  in middle of the log
+	 */
+	dlb_data_log->dlf_log_eof += size;
 #ifdef DEBUG
 	if (log_offset + size > dlb_max_write_offset)
 		dlb_max_write_offset = log_offset + size;
@@ -1166,7 +1251,7 @@ xtBool XTDataLogBuffer::dlb_write_thru_log(xtLogID log_id __attribute__((unused)
 	return OK;
 }
 
-xtBool XTDataLogBuffer::dlb_append_log(xtLogID log_id __attribute__((unused)), xtLogOffset log_offset, size_t size, xtWord1 *data, XTThreadPtr thread)
+xtBool XTDataLogBuffer::dlb_append_log(xtLogID XT_NDEBUG_UNUSED(log_id), xtLogOffset log_offset, size_t size, xtWord1 *data, XTThreadPtr thread)
 {
 	ASSERT_NS(log_id == dlb_data_log->dlf_log_id);
 
@@ -1179,10 +1264,12 @@ xtBool XTDataLogBuffer::dlb_append_log(xtLogID log_id __attribute__((unused)), x
 			if (dlb_buffer_size >= dlb_buffer_len + size) {
 				memcpy(dlb_log_buffer + dlb_buffer_len, data, size);
 				dlb_buffer_len += size;
+				dlb_data_log->dlf_log_eof += size;
 				return OK;
 			}
 		}
-		dlb_flush_log(FALSE, thread);
+		if (dlb_flush_log(FALSE, thread) != OK)
+			return FAILED;
 	}
 	
 	ASSERT_NS(dlb_buffer_len == 0);
@@ -1191,6 +1278,7 @@ xtBool XTDataLogBuffer::dlb_append_log(xtLogID log_id __attribute__((unused)), x
 		dlb_buffer_offset = log_offset;
 		dlb_buffer_len = size;
 		memcpy(dlb_log_buffer, data, size);
+		dlb_data_log->dlf_log_eof += size;
 		return OK;
 	}
 
@@ -1202,6 +1290,7 @@ xtBool XTDataLogBuffer::dlb_append_log(xtLogID log_id __attribute__((unused)), x
 		dlb_max_write_offset = log_offset + size;
 #endif
 	dlb_flush_required = TRUE;
+	dlb_data_log->dlf_log_eof += size;
 	return OK;
 }
 
@@ -1306,7 +1395,7 @@ xtBool XTDataLogBuffer::dlb_delete_log(xtLogID log_id, xtLogOffset log_offset, s
 		xt_lock_mutex_ns(&dlb_db->db_datalogs.dlc_head_lock);
 		dlb_data_log->dlf_garbage_count += offsetof(XTactExtRecEntryDRec, er_data) + size;
 		ASSERT_NS(dlb_data_log->dlf_garbage_count < dlb_data_log->dlf_log_eof);
-		if (!dl_write_log_header(dlb_data_log, dlb_data_log->dlf_log_file, FALSE, thread)) {
+		if (!dl_write_garbage_level(dlb_data_log, dlb_data_log->dlf_log_file, FALSE, thread)) {
 			xt_unlock_mutex_ns(&dlb_db->db_datalogs.dlc_head_lock);
 			return FAILED;
 		}
@@ -1329,7 +1418,7 @@ xtBool XTDataLogBuffer::dlb_delete_log(xtLogID log_id, xtLogOffset log_offset, s
 	xt_lock_mutex_ns(&dlb_db->db_datalogs.dlc_head_lock);
 	data_log->dlf_garbage_count += offsetof(XTactExtRecEntryDRec, er_data) + size;
 	ASSERT_NS(data_log->dlf_garbage_count < data_log->dlf_log_eof);
-	if (!dl_write_log_header(data_log, open_log->odl_log_file, FALSE, thread)) {
+	if (!dl_write_garbage_level(data_log, open_log->odl_log_file, FALSE, thread)) {
 		xt_unlock_mutex_ns(&dlb_db->db_datalogs.dlc_head_lock);
 		goto failed;
 	}
@@ -1357,7 +1446,7 @@ xtBool XTDataLogBuffer::dlb_delete_log(xtLogID log_id, xtLogOffset log_offset, s
  * Delete all the extended data belonging to a particular
  * table.
  */
-xtPublic void xt_dl_delete_ext_data(XTThreadPtr self, XTTableHPtr tab, xtBool missing_ok __attribute__((unused)), xtBool have_table_lock)
+xtPublic void xt_dl_delete_ext_data(XTThreadPtr self, XTTableHPtr tab, xtBool XT_UNUSED(missing_ok), xtBool have_table_lock)
 {
 	XTOpenTablePtr	ot;
 	xtRecordID		page_rec_id, offs_rec_id;
@@ -1674,7 +1763,7 @@ static xtBool dl_collect_garbage(XTThreadPtr self, XTDatabaseHPtr db, XTDataLogF
 			xt_lock_mutex_ns(&db->db_datalogs.dlc_head_lock);
 			data_log->dlf_garbage_count += garbage_count;
 			ASSERT(data_log->dlf_garbage_count < data_log->dlf_log_eof);
-			if (!dl_write_log_header(data_log, cs.cs_seqread->sl_seq_open_file(), TRUE, self)) {
+			if (!dl_write_garbage_level(data_log, cs.cs_seqread->sl_seq_open_file(), TRUE, self)) {
 				xt_unlock_mutex_ns(&db->db_datalogs.dlc_head_lock);
 				xt_throw(self);
 			}
@@ -1683,7 +1772,7 @@ static xtBool dl_collect_garbage(XTThreadPtr self, XTDatabaseHPtr db, XTDataLogF
 			freer_(); // dl_free_compactor_state(&cs)
 			return FAILED;
 		}
-		if (!cs.cs_seqread->sl_seq_next(&record, TRUE, self))
+		if (!cs.cs_seqread->sl_seq_next(&record, self))
 			xt_throw(self);
 		cs.cs_seqread->sl_seq_pos(&curr_log_id, &curr_log_offset);
 		if (!record) {
@@ -1809,7 +1898,7 @@ static xtBool dl_collect_garbage(XTThreadPtr self, XTDatabaseHPtr db, XTDataLogF
 	xt_lock_mutex_ns(&db->db_datalogs.dlc_head_lock);
 	data_log->dlf_garbage_count += garbage_count;
 	ASSERT(data_log->dlf_garbage_count < data_log->dlf_log_eof);
-	if (!dl_write_log_header(data_log, cs.cs_seqread->sl_seq_open_file(), TRUE, self)) {
+	if (!dl_write_garbage_level(data_log, cs.cs_seqread->sl_seq_open_file(), TRUE, self)) {
 		xt_unlock_mutex_ns(&db->db_datalogs.dlc_head_lock);
 		xt_throw(self);
 	}
@@ -1926,7 +2015,8 @@ static void *dl_run_co_thread(XTThreadPtr self)
 	int				count;
 	void			*mysql_thread;
 
-	mysql_thread = myxt_create_thread();
+	if (!(mysql_thread = myxt_create_thread()))
+		xt_throw(self);
 
 	while (!self->t_quit) {
 		try_(a) {
@@ -1979,7 +2069,10 @@ static void *dl_run_co_thread(XTThreadPtr self)
 		}
 	}
 
+   /*
+	* {MYSQL-THREAD-KILL}
 	myxt_destroy_thread(mysql_thread, TRUE);
+	*/
 	return NULL;
 }
 

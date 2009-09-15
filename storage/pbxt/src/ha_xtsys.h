@@ -59,7 +59,7 @@ public:
 
 	const char *table_type() const { return "PBXT"; }
 
-	const char *index_type(uint inx __attribute__((unused))) {
+	const char *index_type(uint XT_UNUSED(inx)) {
 		return "NONE";
 	}
 
@@ -69,7 +69,7 @@ public:
 		return HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE;
 	}
 
-	MX_ULONG_T index_flags(uint inx __attribute__((unused)), uint part __attribute__((unused)), bool all_parts __attribute__((unused))) const {
+	MX_ULONG_T index_flags(uint XT_UNUSED(inx), uint XT_UNUSED(part), bool XT_UNUSED(all_parts)) const {
 		return (HA_READ_NEXT | HA_READ_PREV | HA_READ_RANGE | HA_KEYREAD_ONLY);
 	}
 	uint	max_supported_keys()			const { return 512; }

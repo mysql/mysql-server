@@ -30,7 +30,7 @@
   integer that determines the number of significant digits in a
   particular radix R, where R is either 2 or 10. S is a non-negative
   integer. Every value of an exact numeric type of scale S is of the
-  form n*10^{-S}, where n is an integer such that ­-R^P <= n <= R^P.
+  form n*10^{-S}, where n is an integer such that ï¿½-R^P <= n <= R^P.
 
   [...]
 
@@ -306,7 +306,7 @@ int decimal_actual_fraction(decimal_t *from)
   {
     for (i= DIG_PER_DEC1 - ((frac - 1) % DIG_PER_DEC1);
          *buf0 % powers10[i++] == 0;
-         frac--) ;
+         frac--) {}
   }
   return frac;
 }
@@ -500,7 +500,7 @@ static void digits_bounds(decimal_t *from, int *start_result, int *end_result)
     stop= (int) ((buf_end - from->buf + 1) * DIG_PER_DEC1);
     i= 1;
   }
-  for (; *buf_end % powers10[i++] == 0; stop--) ;
+  for (; *buf_end % powers10[i++] == 0; stop--) {}
   *end_result= stop; /* index of position after last decimal digit (from 0) */
 }
 
@@ -1011,7 +1011,7 @@ static int ull2dec(ulonglong from, decimal_t *to)
 
   sanity(to);
 
-  for (intg1=1; from >= DIG_BASE; intg1++, from/=DIG_BASE) ;
+  for (intg1=1; from >= DIG_BASE; intg1++, from/=DIG_BASE) {}
   if (unlikely(intg1 > to->len))
   {
     intg1=to->len;

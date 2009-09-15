@@ -36,27 +36,47 @@ struct XTOpenTable;
 
 #ifdef XT_USE_XACTION_DEBUG_SIZES
 
-#define XT_XN_DATA_ALLOC_COUNT	400
-#define XT_XN_SEGMENT_SHIFTS	1
-#define XT_XN_HASH_TABLE_SIZE	31
 #define XT_TN_NUMBER_INCREMENT	20
 #define XT_TN_MAX_TO_FREE		20
 #define XT_TN_MAX_TO_FREE_WASTE	3
 #define XT_TN_MAX_TO_FREE_CHECK	3
 #define XT_TN_MAX_TO_FREE_INC	3
 
+#define XT_XN_SEGMENT_SHIFTS	1
+
 #else
 
-#define XT_XN_DATA_ALLOC_COUNT	1250	// Number of pre-allocated transaction data structures per segment
-#define XT_XN_SEGMENT_SHIFTS	5		// (32)
-#define XT_XN_HASH_TABLE_SIZE	1279	// This is a prime number!
 #define XT_TN_NUMBER_INCREMENT	100		// The increment of the transaction number on restart
 #define XT_TN_MAX_TO_FREE		800		// The maximum size of the "to free" list
 #define XT_TN_MAX_TO_FREE_WASTE	400
 #define XT_TN_MAX_TO_FREE_CHECK	100		// Once we have exceeded the limit, we only try in intervals
 #define XT_TN_MAX_TO_FREE_INC	100
 
+//#define XT_XN_SEGMENT_SHIFTS	5		// (32)
+//#define XT_XN_SEGMENT_SHIFTS	6		// (64)
+//#define XT_XN_SEGMENT_SHIFTS	7		// (128)
+#define XT_XN_SEGMENT_SHIFTS	8		// (256)
+//#define XT_XN_SEGMENT_SHIFTS	9		// (512)
+
 #endif
+
+/* The hash table size (a prime number) */
+#if XT_XN_SEGMENT_SHIFTS == 1		// (1)
+#define XT_XN_HASH_TABLE_SIZE	1301
+#elif XT_XN_SEGMENT_SHIFTS == 5		// (32)
+#define XT_XN_HASH_TABLE_SIZE	1009
+#elif XT_XN_SEGMENT_SHIFTS == 6		// (64)
+#define XT_XN_HASH_TABLE_SIZE	503
+#elif XT_XN_SEGMENT_SHIFTS == 7		// (128)
+#define XT_XN_HASH_TABLE_SIZE	251
+#elif XT_XN_SEGMENT_SHIFTS == 8		// (256)
+#define XT_XN_HASH_TABLE_SIZE	127
+#elif XT_XN_SEGMENT_SHIFTS == 9		// (512)
+#define XT_XN_HASH_TABLE_SIZE	67
+#endif
+
+/* Number of pre-allocated transaction data structures per segment */
+#define XT_XN_DATA_ALLOC_COUNT	XT_XN_HASH_TABLE_SIZE
 
 #define XT_XN_NO_OF_SEGMENTS	(1 << XT_XN_SEGMENT_SHIFTS)
 #define XT_XN_SEGMENT_MASK		(XT_XN_NO_OF_SEGMENTS - 1)
@@ -94,36 +114,34 @@ typedef struct XTXactData {
 
 } XTXactDataRec, *XTXactDataPtr;
 
-#define XT_XACT_USE_SPINLOCK
+#ifdef XT_NO_ATOMICS
+#define XT_XACT_USE_PTHREAD_RW
+#else
+//#define XT_XACT_USE_SKEWRWLOCK
+#define XT_XACT_USE_SPINXSLOCK
+#endif
 
-#ifdef XT_XACT_USE_FASTWRLOCK
-#define XT_XACT_LOCK_TYPE				XTFastRWLockRec
-#define XT_XACT_INIT_LOCK(s, i)			xt_fastrwlock_init(s, i)
-#define XT_XACT_FREE_LOCK(s, i)			xt_fastrwlock_free(s, i)	
-#define XT_XACT_READ_LOCK(i, s)			xt_fastrwlock_slock(i, s)
-#define XT_XACT_WRITE_LOCK(i, s)		xt_fastrwlock_xlock(i, s)
-#define XT_XACT_UNLOCK(i, s)			xt_fastrwlock_unlock(i, s)
-#elif defined(XT_XACT_USE_PTHREAD_RW)
+#if defined(XT_XACT_USE_PTHREAD_RW)
 #define XT_XACT_LOCK_TYPE				xt_rwlock_type
 #define XT_XACT_INIT_LOCK(s, i)			xt_init_rwlock(s, i)
 #define XT_XACT_FREE_LOCK(s, i)			xt_free_rwlock(i)	
 #define XT_XACT_READ_LOCK(i, s)			xt_slock_rwlock_ns(i)
 #define XT_XACT_WRITE_LOCK(i, s)		xt_xlock_rwlock_ns(i)
-#define XT_XACT_UNLOCK(i, s)			xt_unlock_rwlock_ns(i)
-#elif defined(XT_XACT_USE_RW_MUTEX)
-#define XT_XACT_LOCK_TYPE				XTRWMutexRec
-#define XT_XACT_INIT_LOCK(s, i)			xt_rwmutex_init(s, i)
-#define XT_XACT_FREE_LOCK(s, i)			xt_rwmutex_free(s, i)	
-#define XT_XACT_READ_LOCK(i, s)			xt_rwmutex_slock(i, (s)->t_id)
-#define XT_XACT_WRITE_LOCK(i, s)		xt_rwmutex_xlock(i, (s)->t_id)
-#define XT_XACT_UNLOCK(i, s)			xt_rwmutex_unlock(i, (s)->t_id)
+#define XT_XACT_UNLOCK(i, s, b)			xt_unlock_rwlock_ns(i)
+#elif defined(XT_XACT_USE_SPINXSLOCK)
+#define XT_XACT_LOCK_TYPE				XTSpinXSLockRec
+#define XT_XACT_INIT_LOCK(s, i)			xt_spinxslock_init_with_autoname(s, i)
+#define XT_XACT_FREE_LOCK(s, i)			xt_spinxslock_free(s, i)	
+#define XT_XACT_READ_LOCK(i, s)			xt_spinxslock_slock(i)
+#define XT_XACT_WRITE_LOCK(i, s)		xt_spinxslock_xlock(i, (s)->t_id)
+#define XT_XACT_UNLOCK(i, s, b)			xt_spinxslock_unlock(i, b)
 #else
-#define XT_XACT_LOCK_TYPE				XTSpinLockRec
-#define XT_XACT_INIT_LOCK(s, i)			xt_spinlock_init_with_autoname(s, i)
-#define XT_XACT_FREE_LOCK(s, i)			xt_spinlock_free(s, i)	
-#define XT_XACT_READ_LOCK(i, s)			xt_spinlock_lock(i)
-#define XT_XACT_WRITE_LOCK(i, s)		xt_spinlock_lock(i)
-#define XT_XACT_UNLOCK(i, s)			xt_spinlock_unlock(i)
+#define XT_XACT_LOCK_TYPE				XTSkewRWLockRec
+#define XT_XACT_INIT_LOCK(s, i)			xt_skewrwlock_init_with_autoname(s, i)
+#define XT_XACT_FREE_LOCK(s, i)			xt_skewrwlock_free(s, i)	
+#define XT_XACT_READ_LOCK(i, s)			xt_skewrwlock_slock(i)
+#define XT_XACT_WRITE_LOCK(i, s)		xt_skewrwlock_xlock(i, (s)->t_id)
+#define XT_XACT_UNLOCK(i, s, b)			xt_skewrwlock_unlock(i, b)
 #endif
 
 /* We store the transactions in a number of segments, each

@@ -443,6 +443,43 @@ public:
 
 
 /*
+  Exchange sort algorithm for List<T>.
+*/
+template <class T> 
+inline void exchange_sort(List<T> *list_to_sort,
+                          int (*sort_func)(T *a, T *b, void *arg), void *arg)
+{
+  bool swap;
+  List_iterator<T> it(*list_to_sort);
+  do
+  {
+    T *item1= it++;
+    T **ref1= it.ref();
+    T *item2;
+
+    swap= FALSE;
+    while ((item2= it++))
+    {
+      T **ref2= it.ref();
+      if (sort_func(item1, item2, arg) < 0)
+      {
+        T *item= *ref1;
+        *ref1= *ref2;
+        *ref2= item;
+        swap= TRUE;
+      }
+      else
+      {
+        item1= item2;
+        ref1= ref2;
+      }
+    }
+    it.rewind();
+  } while (swap);
+}
+
+
+/*
   A simple intrusive list which automaticly removes element from list
   on delete (for THD element)
 */

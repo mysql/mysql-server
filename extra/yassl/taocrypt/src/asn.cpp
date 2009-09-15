@@ -1063,7 +1063,7 @@ word32 DecodeDSA_Signature(byte* decoded, const byte* encoded, word32 sz)
         return 0;
     }
     word32 rLen = GetLength(source);
-    if (rLen != 20)
+    if (rLen != 20) {
     {
         if (rLen == 21) {       // zero at front, eat
             source.next();
@@ -1087,7 +1087,7 @@ word32 DecodeDSA_Signature(byte* decoded, const byte* encoded, word32 sz)
         return 0;
     }
     word32 sLen = GetLength(source);
-    if (sLen != 20)
+    if (sLen != 20) {
     {
         if (sLen == 21) {
             source.next();          // zero at front, eat

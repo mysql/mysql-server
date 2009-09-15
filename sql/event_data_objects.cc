@@ -1450,8 +1450,7 @@ Event_job_data::execute(THD *thd, bool drop)
 
     DBUG_ASSERT(sphead);
 
-    if (thd->enable_slow_log)
-      sphead->m_flags|= sp_head::LOG_SLOW_STATEMENTS;
+    sphead->m_flags|= sp_head::LOG_SLOW_STATEMENTS;
     sphead->m_flags|= sp_head::LOG_GENERAL_LOG;
 
     sphead->set_info(0, 0, &thd->lex->sp_chistics, sql_mode);

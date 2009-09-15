@@ -1120,6 +1120,10 @@ retry_lock_1:
 				/* Try to flush also all the neighbors */
 				page_count += buf_flush_try_neighbors(
 					space, offset, flush_type, srv_flush_neighbor_pages);
+                                        mutex_t* block_mutex;
+                                        buf_page_t* bpage_tmp;
+					block_mutex = buf_page_get_mutex(bpage);
+					bpage_tmp = buf_page_hash_get(space, offset);
 				/* fprintf(stderr,
 				"Flush type %lu, page no %lu, neighb %lu\n",
 				flush_type, offset,
@@ -1234,7 +1238,8 @@ buf_flush_LRU_recommendation(void)
 		   + BUF_FLUSH_EXTRA_MARGIN)
 	       && (distance < BUF_LRU_FREE_SEARCH_LEN)) {
 
-		if (!bpage->in_LRU_list) {
+		mutex_t* block_mutex;
+                if (!bpage->in_LRU_list) {
 			/* reatart. but it is very optimistic */
 			bpage = UT_LIST_GET_LAST(buf_pool->LRU);
 			continue;

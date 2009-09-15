@@ -45,8 +45,46 @@ struct XTIdxReadBuffer;
 #define IDX_CAC_BLOCK_CLEAN				1
 #define IDX_CAC_BLOCK_DIRTY				2
 
-typedef enum XTPageLockType { XT_LOCK_READ, XT_LOCK_WRITE, XT_XLOCK_LEAF };
-typedef enum XTPageUnlockType { XT_UNLOCK_NONE, XT_UNLOCK_READ, XT_UNLOCK_WRITE, XT_UNLOCK_R_UPDATE, XT_UNLOCK_W_UPDATE };
+#ifdef XT_NO_ATOMICS
+#define XT_IPAGE_USE_PTHREAD_RW
+#else
+//#define XT_IPAGE_USE_ATOMIC_RW
+#define XT_IPAGE_USE_SPINXSLOCK
+//#define XT_IPAGE_USE_SKEW_RW
+#endif
+
+#ifdef XT_IPAGE_USE_ATOMIC_RW
+#define XT_IPAGE_LOCK_TYPE				XTAtomicRWLockRec
+#define XT_IPAGE_INIT_LOCK(s, i)		xt_atomicrwlock_init_with_autoname(s, i)
+#define XT_IPAGE_FREE_LOCK(s, i)		xt_atomicrwlock_free(s, i)	
+#define XT_IPAGE_READ_LOCK(i)			xt_atomicrwlock_slock(i)
+#define XT_IPAGE_WRITE_LOCK(i, o)		xt_atomicrwlock_xlock(i, o)
+#define XT_IPAGE_UNLOCK(i, x)			xt_atomicrwlock_unlock(i, x)
+#elif defined(XT_IPAGE_USE_PTHREAD_RW)
+#define XT_IPAGE_LOCK_TYPE				xt_rwlock_type
+#define XT_IPAGE_INIT_LOCK(s, i)		xt_init_rwlock(s, i)
+#define XT_IPAGE_FREE_LOCK(s, i)		xt_free_rwlock(i)	
+#define XT_IPAGE_READ_LOCK(i)			xt_slock_rwlock_ns(i)
+#define XT_IPAGE_WRITE_LOCK(i, s)		xt_xlock_rwlock_ns(i)
+#define XT_IPAGE_UNLOCK(i, x)			xt_unlock_rwlock_ns(i)
+#elif defined(XT_IPAGE_USE_SPINXSLOCK)
+#define XT_IPAGE_LOCK_TYPE				XTSpinXSLockRec
+#define XT_IPAGE_INIT_LOCK(s, i)		xt_spinxslock_init_with_autoname(s, i)
+#define XT_IPAGE_FREE_LOCK(s, i)		xt_spinxslock_free(s, i)	
+#define XT_IPAGE_READ_LOCK(i)			xt_spinxslock_slock(i)
+#define XT_IPAGE_WRITE_LOCK(i, o)		xt_spinxslock_xlock(i, o)
+#define XT_IPAGE_UNLOCK(i, x)			xt_spinxslock_unlock(i, x)
+#else // XT_IPAGE_USE_SKEW_RW
+#define XT_IPAGE_LOCK_TYPE				XTSkewRWLockRec
+#define XT_IPAGE_INIT_LOCK(s, i)		xt_skewrwlock_init_with_autoname(s, i)
+#define XT_IPAGE_FREE_LOCK(s, i)		xt_skewrwlock_free(s, i)	
+#define XT_IPAGE_READ_LOCK(i)			xt_skewrwlock_slock(i)
+#define XT_IPAGE_WRITE_LOCK(i, o)		xt_skewrwlock_xlock(i, o)
+#define XT_IPAGE_UNLOCK(i, x)			xt_skewrwlock_unlock(i, x)
+#endif
+
+enum XTPageLockType { XT_LOCK_READ, XT_LOCK_WRITE, XT_XLOCK_LEAF, XT_XLOCK_DEL_LEAF };
+enum XTPageUnlockType { XT_UNLOCK_NONE, XT_UNLOCK_READ, XT_UNLOCK_WRITE, XT_UNLOCK_R_UPDATE, XT_UNLOCK_W_UPDATE };
 
 /* A block is X locked if it is being changed or freed.
  * A block is S locked if it is being read.
@@ -64,10 +102,11 @@ typedef struct XTIndBlock {
 	struct XTIndBlock	*cb_mr_used;					/* More recently used blocks. */
 	struct XTIndBlock	*cb_lr_used;					/* Less recently used blocks. */
 	/* Protected by cb_lock: */
-	XTAtomicRWLockRec	cb_lock;
+	XT_IPAGE_LOCK_TYPE	cb_lock;
 	xtWord1				cb_state;						/* Block status. */
 	xtWord2				cb_handle_count;				/* TRUE if this page is referenced by a handle. */
 	xtWord2				cp_flush_seq;
+	xtWord2				cp_del_count;					/* Number of deleted entries. */
 #ifdef XT_USE_DIRECT_IO_ON_INDEX
 	xtWord1				*cb_data;
 #else
@@ -76,16 +115,18 @@ typedef struct XTIndBlock {
 } XTIndBlockRec, *XTIndBlockPtr;
 
 typedef struct XTIndReference {
-	XTPageUnlockType		ir_ulock;
+	xtBool					ir_xlock;					/* Set to TRUE if the cache block is X locked. */
+	xtBool					ir_updated;					/* Set to TRUE if the cache block is updated. */
 	XTIndBlockPtr			ir_block;
 	XTIdxBranchDPtr			ir_branch;
 } XTIndReferenceRec, *XTIndReferencePtr;
 
 typedef struct XTIndFreeBlock {
+	XTDiskValue1			if_zero1_1;					/* Must be set to zero. */
+	XTDiskValue1			if_zero2_1;					/* Must be set to zero. */
 	XTDiskValue1			if_status_1;
 	XTDiskValue1			if_unused1_1;
-	XTDiskValue2			if_unused2_2;
-	XTDiskValue4			if_unused3_4;
+	XTDiskValue4			if_unused2_4;
 	XTDiskValue8			if_next_block_8;
 } XTIndFreeBlockRec, *XTIndFreeBlockPtr;
 
@@ -116,14 +157,13 @@ xtInt8			xt_ind_get_size();
 xtBool			xt_ind_write(struct XTOpenTable *ot, XTIndexPtr ind, xtIndexNodeID offset, size_t size, xtWord1 *data);
 xtBool			xt_ind_write_cache(struct XTOpenTable *ot, xtIndexNodeID offset, size_t size, xtWord1 *data);
 xtBool			xt_ind_clean(struct XTOpenTable *ot, XTIndexPtr ind, xtIndexNodeID offset);
-xtBool			xt_ind_read_bytes(struct XTOpenTable *ot, xtIndexNodeID offset, size_t size, xtWord1 *data);
+xtBool			xt_ind_read_bytes(struct XTOpenTable *ot, XTIndexPtr ind, xtIndexNodeID offset, size_t size, xtWord1 *data);
 void			xt_ind_check_cache(XTIndexPtr ind);
 xtBool			xt_ind_reserve(struct XTOpenTable *ot, u_int count, XTIdxBranchDPtr not_this);
 void			xt_ind_free_reserved(struct XTOpenTable *ot);
 void			xt_ind_unreserve(struct XTOpenTable *ot);
-void			xt_load_indices(XTThreadPtr self, struct XTOpenTable *ot);
 
-xtBool			xt_ind_fetch(struct XTOpenTable *ot, xtIndexNodeID node, XTPageLockType ltype, XTIndReferencePtr iref);
+xtBool			xt_ind_fetch(struct XTOpenTable *ot, XTIndexPtr ind, xtIndexNodeID node, XTPageLockType ltype, XTIndReferencePtr iref);
 xtBool			xt_ind_release(struct XTOpenTable *ot, XTIndexPtr ind, XTPageUnlockType utype, XTIndReferencePtr iref);
 
 void			xt_ind_lock_handle(XTIndHandlePtr handle);

@@ -865,7 +865,7 @@ select @@query_prealloc_size = @test;
 @@query_prealloc_size = @test
 1
 set global sql_mode=repeat('a',80);
-ERROR 42000: Variable 'sql_mode' can't be set to the value of 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+ERROR 42000: Variable 'sql_mode' can't be set to the value of 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
 End of 4.1 tests
 create table t1 (a int);
 select a into @x from t1;

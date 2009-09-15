@@ -25,7 +25,7 @@
 #define __xt_locklist_h__
 
 #ifdef DEBUG
-//#define XT_THREAD_LOCK_INFO
+#define XT_THREAD_LOCK_INFO
 #ifndef XT_WIN
 /* We need DEBUG_LOCKING in order to enable pthread function wrappers */
 #define DEBUG_LOCKING
@@ -40,9 +40,10 @@ struct XTRWMutex;
 struct xt_mutex_struct;
 struct xt_rwlock_struct;
 struct XTFastLock;
-struct XTFastRWLock;
-struct XTSpinRWLock;
+struct XTXSMutexLock;
+struct XTSpinXSLock;
 struct XTAtomicRWLock;
+struct XTSkewRWLock;
 
 #ifdef XT_THREAD_LOCK_INFO
 
@@ -61,7 +62,7 @@ struct XTAtomicRWLock;
  */
 typedef struct XTThreadLockInfo {
 
-	enum LockType { SPIN_LOCK, RW_MUTEX, MUTEX, RW_LOCK, FAST_LOCK, FAST_RW_LOCK, SPIN_RW_LOCK, ATOMIC_RW_LOCK };
+	enum LockType { SPIN_LOCK, RW_MUTEX, MUTEX, RW_LOCK, FAST_LOCK, FAST_RW_LOCK, SPIN_RW_LOCK, ATOMIC_RW_LOCK, SKEW_RW_LOCK };
 
 	LockType		  li_lock_type;
 
@@ -69,11 +70,12 @@ typedef struct XTThreadLockInfo {
 		XTSpinLock       *li_spin_lock;	  // SPIN_LOCK
 		XTRWMutex        *li_rw_mutex;	  // RW_MUTEX
 		XTFastLock		 *li_fast_lock;   // FAST_LOCK
-		XTFastRWLock	 *li_fast_rwlock; // FAST_RW_LOCK
-		XTSpinRWLock	 *li_spin_rwlock; // SPIN_RW_LOCK
+		XTXSMutexLock	 *li_fast_rwlock; // FAST_RW_LOCK
+		XTSpinXSLock	 *li_spin_rwlock; // SPIN_RW_LOCK
 		XTAtomicRWLock	 *li_atomic_rwlock; // ATOMIC_RW_LOCK
 		xt_mutex_struct  *li_mutex;		  // MUTEX
 		xt_rwlock_struct *li_rwlock;	  // RW_LOCK
+		XTSkewRWLock	 *li_skew_rwlock;	// SKEW_RW_LOCK
 	};
 } 
 XTThreadLockInfoRec, *XTThreadLockInfoPtr;
@@ -81,11 +83,12 @@ XTThreadLockInfoRec, *XTThreadLockInfoPtr;
 void xt_thread_lock_info_init(XTThreadLockInfoPtr ptr, XTSpinLock *lock);
 void xt_thread_lock_info_init(XTThreadLockInfoPtr ptr, XTRWMutex *lock);
 void xt_thread_lock_info_init(XTThreadLockInfoPtr ptr, XTFastLock *lock);
-void xt_thread_lock_info_init(XTThreadLockInfoPtr ptr, XTFastRWLock *lock);
-void xt_thread_lock_info_init(XTThreadLockInfoPtr ptr, XTSpinRWLock *lock);
+void xt_thread_lock_info_init(XTThreadLockInfoPtr ptr, XTXSMutexLock *lock);
+void xt_thread_lock_info_init(XTThreadLockInfoPtr ptr, XTSpinXSLock *lock);
 void xt_thread_lock_info_init(XTThreadLockInfoPtr ptr, XTAtomicRWLock *lock);
 void xt_thread_lock_info_init(XTThreadLockInfoPtr ptr, xt_mutex_struct *lock);
 void xt_thread_lock_info_init(XTThreadLockInfoPtr ptr, xt_rwlock_struct *lock);
+void xt_thread_lock_info_init(XTThreadLockInfoPtr ptr, XTSkewRWLock *lock);
 void xt_thread_lock_info_free(XTThreadLockInfoPtr ptr);
 
 void xt_thread_lock_info_add_owner (XTThreadLockInfoPtr ptr);

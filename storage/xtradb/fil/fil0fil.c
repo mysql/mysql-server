@@ -45,7 +45,9 @@ Created 10/25/1995 Heikki Tuuri
 #include "trx0trx.h"
 #include "trx0sys.h"
 #include "pars0pars.h"
+#include "row0row.h"
 #include "row0mysql.h"
+#include "que0que.h"
 
 
 /*
@@ -3131,13 +3133,13 @@ skip_info:
 			mem_heap_t*	heap = NULL;
 			ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 			ulint*		offsets = offsets_;
-			ib_int64_t     offset;
+			ib_int64_t      offset;
 			size = (ulint) (size_bytes / UNIV_PAGE_SIZE);
 			/* over write space id of all pages */
 
 			rec_offs_init(offsets_);
 
-			fprintf(stderr, "InnoDB: Progress in %:");
+			fprintf(stderr, "%s", "InnoDB: Progress in %:");
 
 			for (offset = 0; offset < size_bytes; offset += UNIV_PAGE_SIZE) {
 				success = os_file_read(file, page,

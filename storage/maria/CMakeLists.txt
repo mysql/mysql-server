@@ -51,6 +51,8 @@ SET(MARIA_SOURCES ma_init.c ma_open.c ma_extra.c ma_info.c ma_rkey.c
 MYSQL_STORAGE_ENGINE(MARIA)
 IF(NOT SOURCE_SUBLIBS)
 
+  ADD_DEPENDENCIES(maria GenError)
+
 ADD_EXECUTABLE(maria_ftdump maria_ftdump.c)
 TARGET_LINK_LIBRARIES(maria_ftdump maria myisam mysys dbug strings zlib wsock32)
 

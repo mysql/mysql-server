@@ -1133,6 +1133,8 @@ my_bool maria_rtree_real_delete(MARIA_HA *info, MARIA_KEY *key,
   {
     uint nod_flag;
     ulong i;
+    uchar *page_buf;
+    MARIA_PAGE page;
     MARIA_KEY tmp_key;
 	uchar *page_buf;
 	MARIA_PAGE page;

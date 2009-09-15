@@ -170,6 +170,7 @@ our $opt_force;
 our $opt_mem= $ENV{'MTR_MEM'};
 
 our $opt_gcov;
+our $opt_gcov_src_dir;
 our $opt_gcov_exe= "gcov";
 our $opt_gcov_err= "mysql-test-gcov.msg";
 our $opt_gcov_msg= "mysql-test-gcov.err";
@@ -272,7 +273,7 @@ sub main {
   command_line_setup();
 
   if ( $opt_gcov ) {
-    gcov_prepare($basedir);
+    gcov_prepare($basedir . "/" . $opt_gcov_src_dir);
   }
 
   if (!$opt_suites) {
@@ -418,7 +419,7 @@ sub main {
   mtr_print_line();
 
   if ( $opt_gcov ) {
-    gcov_collect($basedir, $opt_gcov_exe,
+    gcov_collect($basedir . "/" . $opt_gcov_src_dir, $opt_gcov_exe,
 		 $opt_gcov_msg, $opt_gcov_err);
   }
 
@@ -890,6 +891,7 @@ sub command_line_setup {
 
              # Coverage, profiling etc
              'gcov'                     => \$opt_gcov,
+             'gcov-src-dir=s'           => \$opt_gcov_src_dir,
              'valgrind|valgrind-all'    => \$opt_valgrind,
              'valgrind-mysqltest'       => \$opt_valgrind_mysqltest,
              'valgrind-mysqld'          => \$opt_valgrind_mysqld,
@@ -1799,6 +1801,20 @@ sub tool_arguments ($$) {
   return mtr_args2str($exe, @$args);
 }
 
+# This is not used to actually start a mysqld server, just to allow test
+# scripts to run the mysqld binary to test invalid server startup options.
+sub mysqld_client_arguments () {
+  my $default_mysqld= default_mysqld();
+  my $exe = find_mysqld($basedir);
+  my $args;
+  mtr_init_args(\$args);
+  mtr_add_arg($args, "--no-defaults");
+  mtr_add_arg($args, "--basedir=%s", $basedir);
+  mtr_add_arg($args, "--character-sets-dir=%s", $default_mysqld->value("character-sets-dir"));
+  mtr_add_arg($args, "--language=%s", $default_mysqld->value("language"));
+  return mtr_args2str($exe, @$args);
+}
+
 
 sub have_maria_support () {
   my $maria_var= $mysqld_variables{'maria'};
@@ -2008,6 +2024,7 @@ sub environment_setup {
   $ENV{'MYSQLADMIN'}=               native_path($exe_mysqladmin);
   $ENV{'MYSQL_CLIENT_TEST'}=        mysql_client_test_arguments();
   $ENV{'MYSQL_FIX_SYSTEM_TABLES'}=  mysql_fix_arguments();
+  $ENV{'MYSQLD'}=                   mysqld_client_arguments();
   $ENV{'EXE_MYSQL'}=                $exe_mysql;
 
   # ----------------------------------------------------
@@ -5516,6 +5533,9 @@ Misc options
                         actions. Disable facility with NUM=0.
   gcov                  Collect coverage information after the test.
                         The result is a gcov file per source and header file.
+  gcov-src-dir=subdir   Colllect coverage only within the given subdirectory.
+                        For example, if you're only developing the SQL layer, 
+                        it makes sense to use --gcov-src-dir=sql
   experimental=<file>   Refer to list of tests considered experimental;
                         failures will be marked exp-fail instead of fail.
   report-features       First run a "test" that reports mysql features

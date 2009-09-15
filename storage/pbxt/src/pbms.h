@@ -16,7 +16,8 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
- * Paul McCullagh
+ * Original author: Paul McCullagh
+ * Continued development: Barry Leslie
  * H&G2JCtL
  *
  * 2007-06-01
@@ -37,21 +38,26 @@
 #include <dirent.h>
 #include <signal.h>
 #include <ctype.h>
+#include <errno.h>
+
 
 #ifdef USE_PRAGMA_INTERFACE
 #pragma interface			/* gcc class implementation */
 #endif
 
+/*			2	10		1			10			20			10				10			20				20
+ * Format: "~*"<db_id><'~' || '_'><tab_id>"-"<blob_id>"-"<auth_code>"-"<server_id>"-"<blob_ref_id>"-"<blob_size>
+ */
+//If URL_FMT changes do not forget to update couldBeURL() in this file.
+ 
+#define URL_FMT "~*%lu%c%lu-%llu-%lx-%lu-%llu-%llu"
+
 #define MS_SHARED_MEMORY_MAGIC			0x7E9A120C
 #define MS_ENGINE_VERSION				1
-#define MS_CALLBACK_VERSION				1
-#define MS_SHARED_MEMORY_VERSION		1
-#define MS_ENGINE_LIST_SIZE				80
+#define MS_CALLBACK_VERSION				4
+#define MS_SHARED_MEMORY_VERSION		2
+#define MS_ENGINE_LIST_SIZE				10
 #define MS_TEMP_FILE_PREFIX				"pbms_temp_"
-#define MS_TEMP_FILE_PREFIX				"pbms_temp_"
-
-#define MS_RESULT_MESSAGE_SIZE			300
-#define MS_RESULT_STACK_SIZE			200
 
 #define MS_BLOB_HANDLE_SIZE				300
 
@@ -68,30 +74,24 @@
 #define MS_ERR_UNKNOWN_DB				8
 #define MS_ERR_REMOVING_REPO			9
 #define MS_ERR_DATABASE_DELETED			10
+#define MS_ERR_DUPLICATE				11						/* Attempt to insert a duplicate key into a system table. */
+#define MS_ERR_INVALID_RECORD			12
+#define MS_ERR_RECOVERY_IN_PROGRESS		13
+#define MS_ERR_DUPLICATE_DB				14
+#define MS_ERR_DUPLICATE_DB_ID			15
+#define MS_ERR_INVALID_OPERATION		16
 
 #define MS_LOCK_NONE					0
 #define MS_LOCK_READONLY				1
 #define MS_LOCK_READ_WRITE				2
 
-#define MS_XACT_NONE					0
-#define MS_XACT_BEGIN					1
-#define MS_XACT_COMMIT					2
-#define MS_XACT_ROLLBACK				3
-
-#define PBMS_ENGINE_REF_LEN				8
-#define PBMS_BLOB_URL_SIZE				200
+#define PBMS_BLOB_URL_SIZE				120
 
 #define PBMS_FIELD_COL_SIZE				128
 #define PBMS_FIELD_COND_SIZE			300
 
-
-typedef struct PBMSBlobID {
-	u_int64_t				bi_blob_size;	
-	u_int64_t				bi_blob_id;				// or repo file offset if type = REPO
-	u_int32_t				bi_tab_id;				// or repo ID if type = REPO
-	u_int32_t				bi_auth_code;
-	u_int32_t				bi_blob_type;
-} PBMSBlobIDRec, *PBMSBlobIDPtr;
+#define MS_RESULT_MESSAGE_SIZE			300
+#define MS_RESULT_STACK_SIZE			200
 
 typedef struct PBMSResultRec {
 	int						mr_code;								/* Engine specific error code. */ 
@@ -99,115 +99,56 @@ typedef struct PBMSResultRec {
 	char					mr_stack[MS_RESULT_STACK_SIZE];			/* Trace information about where the error occurred. */
 } PBMSResultRec, *PBMSResultPtr;
 
-typedef struct PBMSEngineRefRec {
-	unsigned char			er_data[PBMS_ENGINE_REF_LEN];
-} PBMSEngineRefRec, *PBMSEngineRefPtr;
+
+
+typedef struct PBMSBlobID {
+	u_int32_t				bi_db_id;	
+	u_int64_t				bi_blob_size;	
+	u_int64_t				bi_blob_id;				// or repo file offset if type = REPO
+	u_int64_t				bi_blob_ref_id;			
+	u_int32_t				bi_tab_id;				// or repo ID if type = REPO
+	u_int32_t				bi_auth_code;
+	u_int32_t				bi_blob_type;
+} PBMSBlobIDRec, *PBMSBlobIDPtr;
 
 typedef struct PBMSBlobURL {
 	char					bu_data[PBMS_BLOB_URL_SIZE];
 } PBMSBlobURLRec, *PBMSBlobURLPtr;
 
-typedef struct PBMSFieldRef {
-	char					fr_column[PBMS_FIELD_COL_SIZE];
-	char					fr_cond[PBMS_FIELD_COND_SIZE];
-} PBMSFieldRefRec, *PBMSFieldRefPtr;
-/*
- * The engine must free its resources for the given thread.
- */
-typedef void (*MSCloseConnFunc)(void *thd);
-
-/* Before access BLOBs of a table, the streaming engine will open the table.
- * Open tables are managed as a pool by the streaming engine.
- * When a request is received, the streaming engine will ask all
- * registered engine to open the table. The engine must return a NULL
- * open_table pointer if it does not handle the table.
- * A callback allows an engine to request all open tables to be
- * closed by the streaming engine.
- */
-typedef int (*MSOpenTableFunc)(void *thd, const char *table_url, void **open_table, PBMSResultPtr result);
-typedef void (*MSCloseTableFunc)(void *thd, void *open_table);
-
-/*
- * When the streaming engine wants to use an open table handle from the
- * pool, it calls the lock table function.
- */ 
-typedef int (*MSLockTableFunc)(void *thd, int *xact, void *open_table, int lock_type, PBMSResultPtr result);
-typedef int (*MSUnlockTableFunc)(void *thd, int xact, void *open_table, PBMSResultPtr result);
-
-/* This function is used to locate and send a BLOB on the given stream.
- */
-typedef int (*MSSendBLOBFunc)(void *thd, void *open_table, const char *blob_column, const char *blob_url, void *stream, PBMSResultPtr result);
-
-/*
- * Lookup and engine reference, and return readable text.
- */
-typedef int (*MSLookupRefFunc)(void *thd, void *open_table, unsigned short col_index, PBMSEngineRefPtr eng_ref, PBMSFieldRefPtr feild_ref, PBMSResultPtr result);
-
 typedef struct PBMSEngineRec {
 	int						ms_version;							/* MS_ENGINE_VERSION */
 	int						ms_index;							/* The index into the engine list. */
 	int						ms_removing;						/* TRUE (1) if the engine is being removed. */
-	const char				*ms_engine_name;
-	void					*ms_engine_info;
-	MSCloseConnFunc			ms_close_conn;
-	MSOpenTableFunc			ms_open_table;
-	MSCloseTableFunc		ms_close_table;
-	MSLockTableFunc			ms_lock_table;
-	MSUnlockTableFunc		ms_unlock_table;
-	MSSendBLOBFunc			ms_send_blob;
-	MSLookupRefFunc			ms_lookup_ref;
+	int						ms_internal;						/* TRUE (1) if the engine is supported directly in the mysq/drizzle handler code . */
+	char					ms_engine_name[32];
 } PBMSEngineRec, *PBMSEnginePtr;
 
 /*
  * This function should never be called directly, it is called
  * by deregisterEngine() below.
  */
+typedef void (*ECRegisterdFunc)(PBMSEnginePtr engine);
+
 typedef void (*ECDeregisterdFunc)(PBMSEnginePtr engine);
 
-typedef void (*ECTableCloseAllFunc)(const char *table_url);
-
-typedef int (*ECSetContentLenFunc)(void *stream, off_t len, PBMSResultPtr result);
-
-typedef int (*ECWriteHeadFunc)(void *stream, PBMSResultPtr result);
-
-typedef int (*ECWriteStreamFunc)(void *stream, void *buffer, size_t len, PBMSResultPtr result);
-
 /*
- * The engine should call this function from
- * its own close connection function!
+ * Call this function to store a BLOB in the repository the BLOB's
+ * URL will be returned. The returned URL buffer is expected to be atleast 
+ * PBMS_BLOB_URL_SIZE long.
+ *
+ * The BLOB URL must still be retained or it will automaticly be deleted after a timeout expires.
  */
-typedef int (*ECCloseConnFunc)(void *thd, PBMSResultPtr result);
-
-/*
- * Call this function before retaining or releasing BLOBs in a row.
- */
-typedef int (*ECOpenTableFunc)(void **open_table, char *table_path, PBMSResultPtr result);
-
-/*
- * Call this function when the operation is complete.
- */
-typedef void (*ECCloseTableFunc)(void *open_table);
+typedef int (*ECCreateBlobsFunc)(bool built_in, const char *db_name, const char *tab_name, char *blob, size_t blob_len, char *blob_url, unsigned short col_index, PBMSResultPtr result);
 
 /*
  * Call this function for each BLOB to be retained. When a BLOB is used, the 
- * URL may be changed. The returned URL is valid as long as the the
- * table is open.
+ * URL may be changed. The returned URL buffer is expected to be atleast 
+ * PBMS_BLOB_URL_SIZE long.
  *
  * The returned URL must be inserted into the row in place of the given
  * URL.
  */
-typedef int (*ECUseBlobFunc)(void *open_table, char **ret_blob_url, char *blob_url, unsigned short col_index, PBMSResultPtr result);
-
-/*
- * Reference Blobs that has been uploaded to the streaming engine.
- *
- * All BLOBs specified by the use blob function are retained by
- * this function.
- *
- * The engine reference is a (unaligned) 8 byte value which
- * identifies the row that the BLOBs are in.
- */
-typedef int (*ECRetainBlobsFunc)(void *open_table, PBMSEngineRefPtr eng_ref, PBMSResultPtr result);
+typedef int (*ECRetainBlobsFunc)(bool built_in, const char *db_name, const char *tab_name, char *ret_blob_url, char *blob_url, unsigned short col_index, PBMSResultPtr result);
 
 /*
  * If a row containing a BLOB is deleted, then the BLOBs in the
@@ -216,27 +157,24 @@ typedef int (*ECRetainBlobsFunc)(void *open_table, PBMSEngineRefPtr eng_ref, PBM
  * Note: if a table is dropped, all the BLOBs referenced by the
  * table are automatically released.
  */
-typedef int (*ECReleaseBlobFunc)(void *open_table, char *blob_url, unsigned short col_index, PBMSEngineRefPtr eng_ref, PBMSResultPtr result);
+typedef int (*ECReleaseBlobFunc)(bool built_in, const char *db_name, const char *tab_name, char *blob_url, PBMSResultPtr result);
 
-typedef int (*ECDropTable)(const char *table_path, PBMSResultPtr result);
+typedef int (*ECDropTable)(bool built_in, const char *db_name, const char *tab_name, PBMSResultPtr result);
 
-typedef int (*ECRenameTable)(const char *from_table, const char *to_table, PBMSResultPtr result);
+typedef int (*ECRenameTable)(bool built_in, const char *db_name, const char *from_table, const char *to_table, PBMSResultPtr result);
+
+typedef void (*ECCallCompleted)(bool built_in, bool ok);
 
 typedef struct PBMSCallbacksRec {
 	int						cb_version;							/* MS_CALLBACK_VERSION */
+	ECRegisterdFunc			cb_register;
 	ECDeregisterdFunc		cb_deregister;
-	ECTableCloseAllFunc		cb_table_close_all;
-	ECSetContentLenFunc		cb_set_cont_len;
-	ECWriteHeadFunc			cb_write_head;
-	ECWriteStreamFunc		cb_write_stream;
-	ECCloseConnFunc			cb_close_conn;
-	ECOpenTableFunc			cb_open_table;
-	ECCloseTableFunc		cb_close_table;
-	ECUseBlobFunc			cb_use_blob;
-	ECRetainBlobsFunc		cb_retain_blobs;
+	ECCreateBlobsFunc		cb_create_blob;
+	ECRetainBlobsFunc		cb_retain_blob;
 	ECReleaseBlobFunc		cb_release_blob;
 	ECDropTable				cb_drop_table;
 	ECRenameTable			cb_rename_table;
+	ECCallCompleted			cb_completed;
 } PBMSCallbacksRec, *PBMSCallbacksPtr;
 
 typedef struct PBMSSharedMemoryRec {
@@ -251,29 +189,60 @@ typedef struct PBMSSharedMemoryRec {
 	PBMSEnginePtr			sm_engine_list[MS_ENGINE_LIST_SIZE];
 } PBMSSharedMemoryRec, *PBMSSharedMemoryPtr;
 
-#ifndef PBMS_API
-#ifndef PBMS_CLIENT_API
-Please define he value of PBMS_API
-#endif
-#else
+#ifdef PBMS_API
 
 class PBMS_API
 {
 private:
 	const char *temp_prefix[3];
+	bool built_in;
 
 public:
 	PBMS_API(): sharedMemory(NULL) { 
 		int i = 0;
 		temp_prefix[i++] = MS_TEMP_FILE_PREFIX;
-#ifdef MS_TEMP_FILE_PREFIX
-		temp_prefix[i++] = MS_TEMP_FILE_PREFIX;
-#endif
 		temp_prefix[i++] = NULL;
 		
 	}
 
 	~PBMS_API() { }
+
+	/*
+	 * This method is called by the PBMS engine during startup.
+	 */
+	int PBMSStartup(PBMSCallbacksPtr callbacks, PBMSResultPtr result) {
+		int err;
+		
+		deleteTempFiles();
+		err = getSharedMemory(true, result);
+		if (!err)
+			sharedMemory->sm_callbacks = callbacks;
+			
+		return err;
+	}
+
+	/*
+	 * This method is called by the PBMS engine during startup.
+	 */
+	void PBMSShutdown() {
+		
+		if (!sharedMemory)
+			return;
+			
+		lock();
+		sharedMemory->sm_callbacks = NULL;
+
+		bool empty = true;
+		for (int i=0; i<sharedMemory->sm_list_len && empty; i++) {
+			if (sharedMemory->sm_engine_list[i]) 
+				empty = false;
+		}
+
+		unlock();
+		
+		if (empty) 
+			removeSharedMemory();
+	}
 
 	/*
 	 * Register the engine with the Stream Engine.
@@ -283,6 +252,7 @@ public:
 
 		deleteTempFiles();
 
+		// The first engine to register creates the shared memory.
 		if ((err = getSharedMemory(true, result)))
 			return err;
 
@@ -292,6 +262,10 @@ public:
 				engine->ms_index = i;
 				if (i >= sharedMemory->sm_list_len)
 					sharedMemory->sm_list_len = i+1;
+				if (sharedMemory->sm_callbacks)
+					sharedMemory->sm_callbacks->cb_register(engine);
+					
+				built_in = (engine->ms_internal == 1);
 				return MS_OK;
 			}
 		}
@@ -322,7 +296,7 @@ public:
 		PBMSResultRec result;
 		int err;
 
-		if ((err = getSharedMemory(true, &result)))
+		if ((err = getSharedMemory(false, &result)))
 			return;
 
 		lock();
@@ -342,207 +316,98 @@ public:
 
 		unlock();
 
-		if (empty) {
-			char	temp_file[100];
-
-			sharedMemory->sm_magic = 0;
-			free(sharedMemory);
-			sharedMemory = NULL;
-			const char **prefix = temp_prefix;
-			while (*prefix) {
-				getTempFileName(temp_file, *prefix, getpid());
-				unlink(temp_file);
-				prefix++;
-			}
-		}
+		if (empty) 
+			removeSharedMemory();
 	}
 
-	void closeAllTables(const char *table_url)
+	void removeSharedMemory() 
 	{
-		PBMSResultRec	result;
-		int					err;
+		const char **prefix = temp_prefix;
+		char	temp_file[100];
 
-		if ((err = getSharedMemory(true, &result)))
-			return;
-
+		// Do not remove the sharfed memory until after
+		// the PBMS engine has shutdown.
 		if (sharedMemory->sm_callbacks)
-			sharedMemory->sm_callbacks->cb_table_close_all(table_url);
-	}
-
-	int setContentLength(void *stream, off_t len, PBMSResultPtr result)
-	{
-		int err;
-
-		if ((err = getSharedMemory(true, result)))
-			return err;
-
-		return sharedMemory->sm_callbacks->cb_set_cont_len(stream, len, result);
-	}
-
-	int writeHead(void *stream, PBMSResultPtr result)
-	{
-		int err;
-
-		if ((err = getSharedMemory(true, result)))
-			return err;
-
-		return sharedMemory->sm_callbacks->cb_write_head(stream, result);
-	}
-
-	int writeStream(void *stream, void *buffer, size_t len, PBMSResultPtr result)
-	{
-		int err;
-
-		if ((err = getSharedMemory(true, result)))
-			return err;
-
-		return sharedMemory->sm_callbacks->cb_write_stream(stream, buffer, len, result);
-	}
-
-	int closeConn(void *thd, PBMSResultPtr result)
-	{
-		int err;
-
-		if ((err = getSharedMemory(true, result)))
-			return err;
-
-		if (!sharedMemory->sm_callbacks)
-			return MS_OK;
-
-		return sharedMemory->sm_callbacks->cb_close_conn(thd, result);
-	}
-
-	int openTable(void **open_table, char *table_path, PBMSResultPtr result)
-	{
-		int err;
-
-		if ((err = getSharedMemory(true, result)))
-			return err;
-
-		if (!sharedMemory->sm_callbacks) {
-			*open_table = NULL;
-			return MS_OK;
+			return;
+			
+		sharedMemory->sm_magic = 0;
+		free(sharedMemory);
+		sharedMemory = NULL;
+		
+		while (*prefix) {
+			getTempFileName(temp_file, *prefix, getpid());
+			unlink(temp_file);
+			prefix++;
 		}
-
-		return sharedMemory->sm_callbacks->cb_open_table(open_table, table_path, result);
 	}
-
-	int closeTable(void *open_table, PBMSResultPtr result)
-	{
-		int err;
-
-		if ((err = getSharedMemory(true, result)))
-			return err;
-
-		if (sharedMemory->sm_callbacks && open_table)
-			sharedMemory->sm_callbacks->cb_close_table(open_table);
-		return MS_OK;
-	}
-
-	int couldBeURL(char *blob_url)
-	/* ~*test/~1-150-2b5e0a7-0[*<blob size>][.ext] */
-	/* ~*test/_1-150-2b5e0a7-0[*<blob size>][.ext] */
-	{
-		char	*ptr;
-		size_t	len;
-		bool have_blob_size = false;
-
-		if (blob_url) {
-			if ((len = strlen(blob_url))) {
-				/* Too short: */
-				if (len <= 10)
-					return 0;
-
-				/* Required prefix: */
-				/* NOTE: ~> is deprecated v0.5.4+, now use ~* */
-				if (*blob_url != '~' || (*(blob_url + 1) != '>' && *(blob_url + 1) != '*'))
-					return 0;
-
-				ptr = blob_url + len - 1;
-
-				/* Allow for an optional extension: */
-				if (!isdigit(*ptr)) {
-					while (ptr > blob_url && *ptr != '/' && *ptr != '.')
-						ptr--;
-					if (ptr == blob_url || *ptr != '.')
-						return 0;
-					if (ptr == blob_url || !isdigit(*ptr))
-						return 0;
-				}
 	
-				// field 1: server id OR blob size
-				do_again:
-				while (ptr > blob_url && isdigit(*ptr))
-					ptr--;
+	int couldBeURL(char *blob_url, int size)
+	{
+		if (blob_url && (size < PBMS_BLOB_URL_SIZE)) {
+			char			buffer[PBMS_BLOB_URL_SIZE+1];
+			u_int32_t		db_id = 0;
+			u_int32_t		tab_id = 0;
+			u_int64_t		blob_id = 0;
+			u_int64_t		blob_ref_id = 0;
+			u_int64_t		blob_size = 0;
+			u_int32_t		auth_code = 0;
+			u_int32_t		server_id = 0;
+			char		type, junk[5];
+			int			scanned;
 
-				if (ptr != blob_url && *ptr == '*' && !have_blob_size) {
-					ptr--;
-					have_blob_size = true;
-					goto do_again;
-				}
-				
-				if (ptr == blob_url || *ptr != '-')
-					return 0;
-					
-					
-				// field 2: Authoration code
-				ptr--;
-				if (!isxdigit(*ptr))
-					return 0;
-
-				while (ptr > blob_url && isxdigit(*ptr))
-					ptr--;
-
-				if (ptr == blob_url || *ptr != '-')
-					return 0;
-					
-				// field 3:offset
-				ptr--;
-				if (!isxdigit(*ptr))
-					return 0;
-					
-				while (ptr > blob_url && isdigit(*ptr))
-					ptr--;
-
-				if (ptr == blob_url || *ptr != '-')
-					return 0;
-					
-					
-				// field 4:Table id
-				ptr--;
-				if (!isdigit(*ptr))
-					return 0;
-
-				while (ptr > blob_url && isdigit(*ptr))
-					ptr--;
-
-				/* NOTE: ^ and : are deprecated v0.5.4+, now use ! and ~ */
-				if (ptr == blob_url || (*ptr != '^' && *ptr != ':' && *ptr != '_' && *ptr != '~'))
-					return 0;
-				ptr--;
-
-				if (ptr == blob_url || *ptr != '/')
-					return 0;
-				ptr--;
-				if (ptr == blob_url)
-					return 0;
-				return 1;
+			junk[0] = 0;
+			if (blob_url[size]) { // There is no guarantee that the URL will be null terminated.
+				memcpy(buffer, blob_url, size);
+				buffer[size] = 0;
+				blob_url = buffer;
 			}
+			
+			scanned = sscanf(blob_url, URL_FMT"%4s", &db_id, &type, &tab_id, &blob_id, &auth_code, &server_id, &blob_ref_id, &blob_size, junk);
+			if (scanned != 8) {// If junk is found at the end this will also result in an invalid URL. 
+		printf("Bad URL \"%s\": scanned = %d, junk: %d, %d, %d, %d\n", blob_url, scanned, junk[0], junk[1], junk[2], junk[3]); 
+				return 0;
+			}
+			
+			if (junk[0] || (type != '~' && type != '_')) {
+		printf("Bad URL \"%s\": scanned = %d, junk: %d, %d, %d, %d\n", blob_url, scanned, junk[0], junk[1], junk[2], junk[3]); 
+				return 0;
+			}
+		
+			return 1;
 		}
+		
 		return 0;
 	}
-
-	int useBlob(void *open_table, char **ret_blob_url, char *blob_url, unsigned short col_index, PBMSResultPtr result)
+	
+	int  retainBlob(const char *db_name, const char *tab_name, char *ret_blob_url, char *blob_url, size_t blob_size, unsigned short col_index, PBMSResultPtr result)
 	{
 		int err;
+		char safe_url[PBMS_BLOB_URL_SIZE+1];
 
-		if ((err = getSharedMemory(true, result)))
+
+		if ((err = getSharedMemory(false, result)))
 			return err;
 
-		if (!couldBeURL(blob_url)) {
-			*ret_blob_url = NULL;
-			return MS_OK;
+		if (!couldBeURL(blob_url, blob_size)) {
+		
+			if (!sharedMemory->sm_callbacks)  {
+				*ret_blob_url = 0;
+				return MS_OK;
+			}
+			err = sharedMemory->sm_callbacks->cb_create_blob(built_in, db_name, tab_name, blob_url, blob_size, ret_blob_url, col_index, result);
+			if (err)
+				return err;
+				
+			blob_url = ret_blob_url;
+		} else {
+			// Make sure the url is a C string:
+			if (blob_url[blob_size]) {
+				memcpy(safe_url, blob_url, blob_size);
+				safe_url[blob_size] = 0;
+				blob_url = safe_url;
+			}
 		}
+		
 
 		if (!sharedMemory->sm_callbacks) {
 			result->mr_code = MS_ERR_INCORRECT_URL;
@@ -551,64 +416,71 @@ public:
 			return MS_ERR_INCORRECT_URL;
 		}
 
-		return sharedMemory->sm_callbacks->cb_use_blob(open_table, ret_blob_url, blob_url, col_index, result);
+		return sharedMemory->sm_callbacks->cb_retain_blob(built_in, db_name, tab_name, ret_blob_url, blob_url, col_index, result);
 	}
 
-	int retainBlobs(void *open_table, PBMSEngineRefPtr eng_ref, PBMSResultPtr result)
+	int releaseBlob(const char *db_name, const char *tab_name, char *blob_url, size_t blob_size, PBMSResultPtr result)
 	{
 		int err;
+		char safe_url[PBMS_BLOB_URL_SIZE+1];
 
-		if ((err = getSharedMemory(true, result)))
+		if ((err = getSharedMemory(false, result)))
 			return err;
 
 		if (!sharedMemory->sm_callbacks)
 			return MS_OK;
 
-		return sharedMemory->sm_callbacks->cb_retain_blobs(open_table, eng_ref, result);
+		if (!couldBeURL(blob_url, blob_size))
+			return MS_OK;
+
+		if (blob_url[blob_size]) {
+			memcpy(safe_url, blob_url, blob_size);
+			safe_url[blob_size] = 0;
+			blob_url = safe_url;
+		}
+		
+		return sharedMemory->sm_callbacks->cb_release_blob(built_in, db_name, tab_name, blob_url, result);
 	}
 
-	int releaseBlob(void *open_table, char *blob_url, unsigned short col_index, PBMSEngineRefPtr eng_ref, PBMSResultPtr result)
+	int dropTable(const char *db_name, const char *tab_name, PBMSResultPtr result)
 	{
 		int err;
 
-		if ((err = getSharedMemory(true, result)))
-			return err;
-
-		if (!sharedMemory->sm_callbacks)
-			return MS_OK;
-
-		if (!couldBeURL(blob_url))
-			return MS_OK;
-
-		return sharedMemory->sm_callbacks->cb_release_blob(open_table, blob_url, col_index, eng_ref, result);
-	}
-
-	int dropTable(const char *table_path, PBMSResultPtr result)
-	{
-		int err;
-
-		if ((err = getSharedMemory(true, result)))
+		if ((err = getSharedMemory(false, result)))
 			return err;
 
 		if (!sharedMemory->sm_callbacks)
 			return MS_OK;
 			
-		return sharedMemory->sm_callbacks->cb_drop_table(table_path, result);
+		return sharedMemory->sm_callbacks->cb_drop_table(built_in, db_name, tab_name, result);
 	}
 
-	int renameTable(const char *from_table, const char *to_table, PBMSResultPtr result)
+	int renameTable(const char *db_name, const char *from_table, const char *to_table, PBMSResultPtr result)
 	{
 		int err;
 
-		if ((err = getSharedMemory(true, result)))
+		if ((err = getSharedMemory(false, result)))
 			return err;
 
 		if (!sharedMemory->sm_callbacks)
 			return MS_OK;
 			
-		return sharedMemory->sm_callbacks->cb_rename_table(from_table, to_table, result);
+		return sharedMemory->sm_callbacks->cb_rename_table(built_in, db_name, from_table, to_table, result);
 	}
 
+	void completed(int ok)
+	{
+		PBMSResultRec result;
+
+		if (getSharedMemory(false, &result))
+			return;
+
+		if (!sharedMemory->sm_callbacks)
+			return;
+			
+		sharedMemory->sm_callbacks->cb_completed(built_in, ok);
+	}
+	
 	volatile PBMSSharedMemoryPtr sharedMemory;
 
 private:
@@ -618,7 +490,6 @@ private:
 		int		r;
 		char	temp_file[100];
 		const char	**prefix = temp_prefix;
-		void		*tmp_p = NULL;
 
 		if (sharedMemory)
 			return MS_OK;
@@ -644,8 +515,7 @@ private:
 			}
 
 			buffer[tfer] = 0;
-			sscanf(buffer, "%p", &tmp_p);
-			sharedMemory = (PBMSSharedMemoryPtr) tmp_p;
+			sscanf(buffer, "%p", &sharedMemory);
 			if (!sharedMemory || sharedMemory->sm_magic != MS_SHARED_MEMORY_MAGIC) {
 				if (!create)
 					return MS_OK;
@@ -661,9 +531,9 @@ private:
 					return setOSResult(errno, "fseek", temp_file, result);
 				}
 
-				sprintf(buffer, "%p", (void *) sharedMemory);
+				sprintf(buffer, "%p", sharedMemory);
 				tfer = write(tmp_f, buffer, strlen(buffer));
-				if (tfer != (ssize_t) strlen(buffer)) {
+				if (tfer != strlen(buffer)) {
 					close(tmp_f);
 					return setOSResult(errno, "write", temp_file, result);
 				}
@@ -782,19 +652,20 @@ private:
 
 	void deleteTempFiles()
 	{
-		struct dirent *entry;
+		struct dirent	*entry;
 		struct dirent	*result;
 		DIR				*odir;
 		int				err;
-		size_t				sz;
+		size_t			sz;
 		char			temp_file[100];
 
-#ifdef XT_SOLARIS
+#ifdef __sun
 		sz = sizeof(struct dirent) + pathconf("/tmp/", _PC_NAME_MAX); // Solaris, see readdir(3C)
 #else
 		sz = sizeof(struct dirent);
 #endif
-		entry = (struct dirent*)malloc(sz);
+		if (!(entry = (struct dirent *) malloc(sz)))
+			return;
 		if (!(odir = opendir("/tmp/")))
 			return;
 		err = readdir_r(odir, entry, &result);
@@ -846,25 +717,25 @@ extern void PBMSDeinitBlobStreamingThread(void *v_bs_thread);
 extern void PBMSGetError(void *v_bs_thread, PBMSResultPtr result);
 
 /* 
-* PBMSCreateBlob():Creates a new blob in the database of the given size. cont_type can be NULL.
+* PBMSCreateBlob():Creates a new blob in the database of the given size.
 */
-extern bool PBMSCreateBlob(PBMSBlobIDPtr blob_id, char *database_name, char *cont_type, u_int64_t size);
+extern bool PBMSCreateBlob(PBMSBlobIDPtr blob_id, char *database_name, u_int64_t size);
 
 /* 
 * PBMSWriteBlob():Write the data to the blob in one or more chunks. The total size of all the chuncks of 
 * data written to the blob must match the size specified when the blob was created.
 */
-extern bool PBMSWriteBlob(PBMSBlobIDPtr blob_id, char *database_name, char *data, size_t size, size_t offset);
+extern bool PBMSWriteBlob(PBMSBlobIDPtr blob_id, char *data, size_t size, size_t offset);
 
 /* 
 * PBMSReadBlob():Read the blob data out of the blob in one or more chunks.
 */
-extern bool PBMSReadBlob(PBMSBlobIDPtr blob_id, char *database_name, char *buffer, size_t *size, size_t offset);
+extern bool PBMSReadBlob(PBMSBlobIDPtr blob_id, char *buffer, size_t *size, size_t offset);
 
 /*
 * PBMSIDToURL():Convert a blob id to a blob URL. The 'url' buffer must be atleast  PBMS_BLOB_URL_SIZE bytes in size.
 */
-extern bool PBMSIDToURL(PBMSBlobIDPtr blob_id, char *database_name, char *url);
+extern bool PBMSIDToURL(PBMSBlobIDPtr blob_id, char *url);
 
 /*
 * PBMSIDToURL():Convert a blob URL to a blob ID.

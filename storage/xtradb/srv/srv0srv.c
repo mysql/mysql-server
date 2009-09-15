@@ -1816,7 +1816,6 @@ srv_printf_innodb_monitor(
 	ulint	btr_search_sys_subtotal;
 	ulint	lock_sys_subtotal;
 	ulint	recv_sys_subtotal;
-	ulint	io_counter_subtotal;
 
 	ulint	i;
 	trx_t*	trx;
@@ -2695,6 +2694,8 @@ loop:
 					ib_uint64_t	lsn = log_sys->lsn;
 					ib_uint64_t level, bpl;
 					buf_page_t* bpage;
+
+                                        mutex_exit(&(log_sys->mutex));
 
 					mutex_exit(&(log_sys->mutex));
 					mutex_enter(&flush_list_mutex);

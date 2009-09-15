@@ -75,7 +75,7 @@ const char **ha_xtsys::bas_ext() const
 	return ha_pbms_exts;
 }
 
-int ha_xtsys::open(const char *table_path, int mode __attribute__((unused)), uint test_if_locked __attribute__((unused)))
+int ha_xtsys::open(const char *table_path, int XT_UNUSED(mode), uint XT_UNUSED(test_if_locked))
 {
 	THD				*thd = current_thd;
 	XTExceptionRec	e;
@@ -141,7 +141,7 @@ int ha_xtsys::close(void)
 	return err;
 }
 
-int ha_xtsys::rnd_init(bool scan __attribute__((unused)))
+int ha_xtsys::rnd_init(bool XT_UNUSED(scan))
 {
 	int err = 0;
 
@@ -185,7 +185,7 @@ int ha_xtsys::rnd_pos(byte * buf, byte *pos)
 	return err;
 }
 
-int ha_xtsys::info(uint flag __attribute__((unused)))
+int ha_xtsys::info(uint XT_UNUSED(flag))
 {
 	return 0;
 }
@@ -211,7 +211,7 @@ int ha_xtsys::external_lock(THD *thd, int lock_type)
 	return err;
 }
 
-THR_LOCK_DATA **ha_xtsys::store_lock(THD *thd __attribute__((unused)), THR_LOCK_DATA **to, enum thr_lock_type lock_type)
+THR_LOCK_DATA **ha_xtsys::store_lock(THD *XT_UNUSED(thd), THR_LOCK_DATA **to, enum thr_lock_type lock_type)
 {
 	if (lock_type != TL_IGNORE && ha_lock.type == TL_UNLOCK)
 		ha_lock.type = lock_type;
@@ -220,13 +220,13 @@ THR_LOCK_DATA **ha_xtsys::store_lock(THD *thd __attribute__((unused)), THR_LOCK_
 }
 
 /* Note: ha_pbxt::delete_system_table is called instead. */
-int ha_xtsys::delete_table(const char *table_path __attribute__((unused)))
+int ha_xtsys::delete_table(const char *XT_UNUSED(table_path))
 {
 	/* Should never be called */
 	return 0;
 }
 
-int ha_xtsys::create(const char *name __attribute__((unused)), TABLE *table_arg __attribute__((unused)), HA_CREATE_INFO *create_info __attribute__((unused)))
+int ha_xtsys::create(const char *XT_UNUSED(name), TABLE *XT_UNUSED(table_arg), HA_CREATE_INFO *XT_UNUSED(create_info))
 {
 	/* Allow the table to be created.
 	 * This is required after a dump is restored.
@@ -234,7 +234,7 @@ int ha_xtsys::create(const char *name __attribute__((unused)), TABLE *table_arg 
 	return 0;
 }
 
-bool ha_xtsys::get_error_message(int error __attribute__((unused)), String *buf)
+bool ha_xtsys::get_error_message(int XT_UNUSED(error), String *buf)
 {
 	THD				*thd = current_thd;
 	XTExceptionRec	e;

@@ -731,7 +731,11 @@ public:
   virtual bool val_bool_result() { return val_bool(); }
   virtual bool is_null_result() { return is_null(); }
 
-  /* bit map of tables used by item */
+  /* 
+    Bitmap of tables used by item
+    (note: if you need to check dependencies on individual columns, check out
+     class Field_enumerator)
+  */
   virtual table_map used_tables() const { return (table_map) 0L; }
   /*
     Return table map of tables that can't be NULL tables (tables that are
@@ -888,6 +892,8 @@ public:
   virtual bool reset_query_id_processor(uchar *query_id_arg) { return 0; }
   virtual bool is_expensive_processor(uchar *arg) { return 0; }
   virtual bool register_field_in_read_map(uchar *arg) { return 0; }
+  virtual bool enumerate_field_refs_processor(uchar *arg) { return 0; }
+  virtual bool mark_as_eliminated_processor(uchar *arg) { return 0; }
   /*
     Check if a partition function is allowed
     SYNOPSIS
@@ -1009,6 +1015,29 @@ public:
     { return Field::GEOM_GEOMETRY; };
   String *check_well_formed_result(String *str, bool send_error= 0);
   bool eq_by_collation(Item *item, bool binary_cmp, CHARSET_INFO *cs); 
+};
+
+
+/*
+  Class to be used to enumerate all field references in an item tree.
+  Suggested usage:
+
+    class My_enumerator : public Field_enumerator 
+    {
+      virtual void visit_field() { ... your actions ...} 
+    }
+
+    My_enumerator enumerator;
+    item->walk(Item::enumerate_field_refs_processor, ...,(uchar*)&enumerator);
+
+  This is similar to Visitor pattern.
+*/
+
+class Field_enumerator
+{
+public:
+  virtual void visit_field(Field *field)= 0;
+  virtual ~Field_enumerator() {}; /* purecov: inspected */
 };
 
 
@@ -1477,6 +1506,7 @@ public:
   bool find_item_in_field_list_processor(uchar *arg);
   bool register_field_in_read_map(uchar *arg);
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool enumerate_field_refs_processor(uchar *arg);
   void cleanup();
   bool result_as_longlong()
   {
@@ -2202,6 +2232,10 @@ public:
   { 
     if (!depended_from) 
       (*ref)->update_used_tables(); 
+  }
+  bool const_item() const 
+  {
+    return (*ref)->const_item();
   }
   table_map not_null_tables() const { return (*ref)->not_null_tables(); }
   void set_result_field(Field *field)	{ result_field= field; }

@@ -926,7 +926,59 @@ LOAD DATA LOCAL INFILE 'suite/pbxt/t/load_unique_error1.inc' REPLACE INTO TABLE 
 SELECT * FROM t1 ORDER BY c1;
 DROP TABLE t1;
 
+create table parent (id int primary key);
+create table child (id int PRIMARY KEY, FOREIGN KEY (id) REFERENCES parent(id));
+insert into parent values (2), (3), (4);
+insert into child values (3), (4);
+
+--error 1451
+delete ignore from parent;
+--sorted_result
+select * from parent;
+
+drop table child, parent;
+
+# bug 378222: Drop sakila causes error: Cannot delete or update a parent row: a foreign key constraint fails
+
+create schema test378222;
+use test378222;
+create table t1 (id int primary key);
+create table t2 (id int primary key);
+alter table t1 add constraint foreign key (id) references t2 (id);
+alter table t2 add constraint foreign key (id) references t1 (id);
+drop schema test378222;
+
+create schema test378222a;
+create schema test378222b;
+create table test378222a.t1 (id int primary key);
+create table test378222b.t2 (id int primary key);
+alter table test378222a.t1 add constraint foreign key (id) references test378222b.t2 (id);
+alter table test378222b.t2 add constraint foreign key (id) references test378222a.t1 (id);
+set foreign_key_checks = 1;
+--error 1217
+drop schema test378222a;
+--error 1217
+drop schema test378222b;
+set foreign_key_checks = 0;
+drop schema test378222a;
+drop schema test378222b;
+set foreign_key_checks = 1;
+use test;
+
+# bug 369086: Incosistent/Incorrect Truncate behavior
+CREATE TABLE t1(c1 TINYINT AUTO_INCREMENT NULL KEY ) AUTO_INCREMENT=10;
+SHOW CREATE TABLE t1;
+INSERT INTO t1 VALUES(null);
+INSERT INTO t1 VALUES(null);
+INSERT INTO t1 VALUES(null);
+SELECT * FROM t1;
+TRUNCATE TABLE t1;
+INSERT INTO t1 VALUES(null);
+SELECT * FROM t1;
+DROP TABLE t1;
+
 --disable_query_log
+
 DROP TABLE t2, t5;
 drop database pbxt;
 --enable_query_log

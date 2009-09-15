@@ -1627,6 +1627,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
 
   thd->limit_found_rows = query->found_rows();
   thd->status_var.last_query_cost= 0.0;
+  thd->query_plan_flags= (thd->query_plan_flags & ~QPLAN_QC_NO) | QPLAN_QC;
   thd->main_da.disable_status();
 
   BLOCK_UNLOCK_RD(query_block);
@@ -1635,6 +1636,10 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
 err_unlock:
   unlock();
 err:
+  /*
+    query_plan_flags doesn't have to be changed here as it contains
+    QPLAN_QC_NO by default
+  */
   DBUG_RETURN(0);				// Query was not cached
 }
 

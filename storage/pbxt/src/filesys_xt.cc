@@ -23,6 +23,10 @@
 
 #include "xt_config.h"
 
+#ifdef DRIZZLED
+#include <bitset>
+#endif
+
 #ifndef XT_WIN
 #include <unistd.h>
 #include <dirent.h>
@@ -50,11 +54,22 @@
 //#define DEBUG_TRACE_IO
 //#define DEBUG_TRACE_MAP_IO
 //#define DEBUG_TRACE_FILES
+//#define INJECT_WRITE_REMAP_ERROR
+/* This is required to make testing on the Mac faster: */
 #endif
 
 #ifdef DEBUG_TRACE_FILES
 //#define PRINTF		xt_ftracef
 #define PRINTF		xt_trace
+#endif
+
+#if defined(XT_MAC) && defined(F_FULLFSYNC)
+#undef F_FULLFSYNC
+#endif
+
+#ifdef INJECT_WRITE_REMAP_ERROR
+#define INJECT_REMAP_FILE_SIZE			1000000
+#define INJECT_REMAP_FILE_TYPE			"xtd"
 #endif
 
 /* ----------------------------------------------------------------------
@@ -127,11 +142,11 @@ static void fs_close_fmap(XTThreadPtr self, XTFileMemMapPtr mm)
 		mm->mm_start = NULL;
 	}
 #endif
-	xt_rwmutex_free(self, &mm->mm_lock);
+	FILE_MAP_FREE_LOCK(self, &mm->mm_lock);
 	xt_free(self, mm);
 }
 
-static void fs_free_file(XTThreadPtr self, void *thunk __attribute__((unused)), void *item)
+static void fs_free_file(XTThreadPtr self, void *XT_UNUSED(thunk), void *item)
 {
 	XTFilePtr	file_ptr = *((XTFilePtr *) item);
 
@@ -148,17 +163,13 @@ static void fs_free_file(XTThreadPtr self, void *thunk __attribute__((unused)), 
 		file_ptr->fil_filedes = XT_NULL_FD;
 	}
 
-	if (file_ptr->fil_memmap) {
-		fs_close_fmap(self, file_ptr->fil_memmap);
-		file_ptr->fil_memmap = NULL;
-	}
-
 #ifdef DEBUG_TRACE_FILES
 	PRINTF("%s: free file: (%d) %s\n", self->t_name, (int) file_ptr->fil_id, 
 		file_ptr->fil_path ? xt_last_2_names_of_path(file_ptr->fil_path) : "?");
 #endif
 
 	if (!file_ptr->fil_ref_count) {
+		ASSERT_NS(!file_ptr->fil_handle_count);
 		/* Flush any cache before this file is invalid: */
 		if (file_ptr->fil_path) {
 			xt_free(self, file_ptr->fil_path);
@@ -169,7 +180,7 @@ static void fs_free_file(XTThreadPtr self, void *thunk __attribute__((unused)), 
 	}
 }
 
-static int fs_comp_file(XTThreadPtr self __attribute__((unused)), register const void *thunk __attribute__((unused)), register const void *a, register const void *b)
+static int fs_comp_file(XTThreadPtr XT_UNUSED(self), register const void *XT_UNUSED(thunk), register const void *a, register const void *b)
 {
 	char		*file_name = (char *) a;
 	XTFilePtr	file_ptr = *((XTFilePtr *) b);
@@ -177,7 +188,7 @@ static int fs_comp_file(XTThreadPtr self __attribute__((unused)), register const
 	return strcmp(file_name, file_ptr->fil_path);
 }
 
-static int fs_comp_file_ci(XTThreadPtr self __attribute__((unused)), register const void *thunk __attribute__((unused)), register const void *a, register const void *b)
+static int fs_comp_file_ci(XTThreadPtr XT_UNUSED(self), register const void *XT_UNUSED(thunk), register const void *a, register const void *b)
 {
 	char		*file_name = (char *) a;
 	XTFilePtr	file_ptr = *((XTFilePtr *) b);
@@ -868,10 +879,21 @@ xtPublic xtBool xt_flush_file(XTOpenFilePtr of, XTIOStatsPtr stat, XTThreadPtr X
 		goto failed;
 	}
 #else
+	/* Mac OS X has problems with fsync. We had several cases of index corruption presumably because
+	 * fsync didn't really flush index pages to disk. fcntl(F_FULLFSYNC) is considered more effective 
+	 * in such case.
+	 */
+#ifdef F_FULLFSYNC
+	if (fcntl(of->of_filedes, F_FULLFSYNC, 0) == -1) {
+		xt_register_ferrno(XT_REG_CONTEXT, errno, xt_file_path(of));
+		goto failed;
+	}
+#else
 	if (fsync(of->of_filedes) == -1) {
 		xt_register_ferrno(XT_REG_CONTEXT, errno, xt_file_path(of));
 		goto failed;
 	}
+#endif
 #endif
 #ifdef DEBUG_TRACE_IO
 	xt_trace("/* %s */ pbxt_file_sync(\"%s\");\n", xt_trace_clock_diff(timef, start), of->fr_file->fil_path);
@@ -938,6 +960,29 @@ xtBool xt_pread_file(XTOpenFilePtr of, off_t offset, size_t size, size_t min_siz
 	return OK;
 }
 
+xtPublic xtBool xt_lock_file_ptr(XTOpenFilePtr of, xtWord1 **data, off_t offset, size_t size, XTIOStatsPtr stat, XTThreadPtr thread)
+{
+	size_t red_size;
+
+	if (!*data) {
+		if (!(*data = (xtWord1 *) xt_malloc_ns(size)))
+			return FAILED;
+	}
+
+	if (!xt_pread_file(of, offset, size, 0, *data, &red_size, stat, thread))
+		return FAILED;
+	
+	//if (red_size < size)
+	//	memset();
+	return OK;
+}
+
+xtPublic void xt_unlock_file_ptr(XTOpenFilePtr XT_UNUSED(of), xtWord1 *data, XTThreadPtr XT_UNUSED(thread))
+{
+	if (data)
+		xt_free_ns(data);
+}
+
 /* ----------------------------------------------------------------------
  * Directory operations
  */
@@ -949,7 +994,13 @@ XTOpenDirPtr xt_dir_open(XTThreadPtr self, c_char *path, c_char *filter)
 {
 	XTOpenDirPtr	od;
 
-	pushsr_(od, xt_dir_close, (XTOpenDirPtr) xt_calloc(self, sizeof(XTOpenDirRec)));
+#ifdef XT_SOLARIS
+	/* see the comment in filesys_xt.h */
+	size_t sz = pathconf(path, _PC_NAME_MAX) + sizeof(XTOpenDirRec) + 1;
+#else
+	size_t sz = sizeof(XTOpenDirRec);
+#endif
+	pushsr_(od, xt_dir_close, (XTOpenDirPtr) xt_calloc(self, sz));
 
 #ifdef XT_WIN
 	size_t			len;
@@ -976,7 +1027,6 @@ XTOpenDirPtr xt_dir_open(XTThreadPtr self, c_char *path, c_char *filter)
 	if (!od->od_dir)
 		xt_throw_ferrno(XT_CONTEXT, errno, path);
 #endif
-
 	popr_(); // Discard xt_dir_close(od)
 	return od;
 }
@@ -1097,7 +1147,7 @@ xtBool xt_dir_next(XTThreadPtr self, XTOpenDirPtr od)
 }
 #endif
 
-char *xt_dir_name(XTThreadPtr self __attribute__((unused)), XTOpenDirPtr od)
+char *xt_dir_name(XTThreadPtr XT_UNUSED(self), XTOpenDirPtr od)
 {
 #ifdef XT_WIN
 	return od->od_data.cFileName;
@@ -1106,8 +1156,9 @@ char *xt_dir_name(XTThreadPtr self __attribute__((unused)), XTOpenDirPtr od)
 #endif
 }
 
-xtBool xt_dir_is_file(XTThreadPtr self __attribute__((unused)), XTOpenDirPtr od)
+xtBool xt_dir_is_file(XTThreadPtr self, XTOpenDirPtr od)
 {
+	(void) self;
 #ifdef XT_WIN
 	if (od->od_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
 		return FALSE;
@@ -1156,6 +1207,15 @@ off_t xt_dir_file_size(XTThreadPtr self, XTOpenDirPtr od)
 
 static xtBool fs_map_file(XTFileMemMapPtr mm, XTFilePtr file, xtBool grow)
 {
+#ifdef INJECT_WRITE_REMAP_ERROR
+	if (xt_is_extension(file->fil_path, INJECT_REMAP_FILE_TYPE)) {
+		if (mm->mm_length > INJECT_REMAP_FILE_SIZE) {
+			xt_register_ferrno(XT_REG_CONTEXT, 30, file->fil_path);
+			return FAILED;
+		}
+	}
+#endif
+
 	ASSERT_NS(!mm->mm_start);
 #ifdef XT_WIN
 	/* This will grow the file to the given size: */
@@ -1228,7 +1288,7 @@ xtPublic XTMapFilePtr xt_open_fmap(XTThreadPtr self, char *file, size_t grow_siz
 			/* NULL is the value returned on error! */
 			mm->mm_mapdes = NULL;
 #endif
-			xt_rwmutex_init_with_autoname(self, &mm->mm_lock);
+			FILE_MAP_INIT_LOCK(self, &mm->mm_lock);
 			mm->mm_length = fs_seek_eof(self, map->fr_file->fil_filedes, map->fr_file);
 			if (sizeof(size_t) == 4 && mm->mm_length >= (off_t) 0xFFFFFFFF)
 				xt_throw_ixterr(XT_CONTEXT, XT_ERR_FILE_TOO_LONG, map->fr_file->fil_path);
@@ -1257,21 +1317,19 @@ xtPublic XTMapFilePtr xt_open_fmap(XTThreadPtr self, char *file, size_t grow_siz
 
 xtPublic void xt_close_fmap(XTThreadPtr self, XTMapFilePtr map)
 {
+	ASSERT_NS(!map->mf_slock_count);
 	if (map->fr_file) {
-		xt_fs_release_file(self, map->fr_file);
-
 		xt_sl_lock(self, fs_globals.fsg_open_files);
-		pushr_(xt_sl_unlock, fs_globals.fsg_open_files);
-		
+		pushr_(xt_sl_unlock, fs_globals.fsg_open_files);		
 		map->fr_file->fil_handle_count--;
-		if (!map->fr_file->fil_handle_count)
-			fs_free_file(self, NULL, &map->fr_file);
-
+		if (!map->fr_file->fil_handle_count) {
+			fs_close_fmap(self, map->fr_file->fil_memmap);
+			map->fr_file->fil_memmap = NULL;
+		}
 		freer_();
-
+		
+		xt_fs_release_file(self, map->fr_file);
 		map->fr_file = NULL;
-
-
 	}
 	map->mf_memmap = NULL;
 	xt_free(self, map);
@@ -1346,14 +1404,23 @@ static xtBool fs_remap_file(XTMapFilePtr map, off_t offset, size_t size, XTIOSta
 		}
 		mm->mm_start = NULL;
 #ifdef XT_WIN
-		if (!CloseHandle(mm->mm_mapdes))
+		/* It is possible that a previous remap attempt has failed: the map was closed
+		 * but the new map was not allocated (e.g. because of insufficient disk space). 
+		 * In this case mm->mm_mapdes will be NULL.
+		 */
+		if (mm->mm_mapdes && !CloseHandle(mm->mm_mapdes))
 			return xt_register_ferrno(XT_REG_CONTEXT, fs_get_win_error(), xt_file_path(map));
 		mm->mm_mapdes = NULL;
 #endif
+		off_t old_size = mm->mm_length;
 		mm->mm_length = new_size;
 
-		if (!fs_map_file(mm, map->fr_file, TRUE))
+		if (!fs_map_file(mm, map->fr_file, TRUE)) {
+			/* Try to restore old mapping */
+			mm->mm_length = old_size;
+			fs_map_file(mm, map->fr_file, FALSE);
 			return FAILED;
+		}
 	}
 	return OK;
 	
@@ -1367,16 +1434,19 @@ static xtBool fs_remap_file(XTMapFilePtr map, off_t offset, size_t size, XTIOSta
 xtPublic xtBool xt_pwrite_fmap(XTMapFilePtr map, off_t offset, size_t size, void *data, XTIOStatsPtr stat, XTThreadPtr thread)
 {
 	XTFileMemMapPtr mm = map->mf_memmap;
+#ifndef FILE_MAP_USE_PTHREAD_RW
 	xtThreadID		thd_id = thread->t_id;
+#endif
 
 #ifdef DEBUG_TRACE_MAP_IO
 	xt_trace("/* %s */ pbxt_fmap_writ(\"%s\", %lu, %lu);\n", xt_trace_clock_diff(NULL), map->fr_file->fil_path, (u_long) offset, (u_long) size);
 #endif
-	xt_rwmutex_slock(&mm->mm_lock, thd_id);
+	ASSERT_NS(!map->mf_slock_count);
+	FILE_MAP_READ_LOCK(&mm->mm_lock, thd_id);
 	if (!mm->mm_start || offset + (off_t) size > mm->mm_length) {
-		xt_rwmutex_unlock(&mm->mm_lock, thd_id);
+		FILE_MAP_UNLOCK(&mm->mm_lock, thd_id);
 
-		xt_rwmutex_xlock(&mm->mm_lock, thd_id);
+		FILE_MAP_WRITE_LOCK(&mm->mm_lock, thd_id);
 		if (!fs_remap_file(map, offset, size, stat))
 			goto failed;
 	}
@@ -1396,29 +1466,32 @@ xtPublic xtBool xt_pwrite_fmap(XTMapFilePtr map, off_t offset, size_t size, void
 	memcpy(mm->mm_start + offset, data, size);
 #endif
 
-	xt_rwmutex_unlock(&mm->mm_lock, thd_id);
+	FILE_MAP_UNLOCK(&mm->mm_lock, thd_id);
 	stat->ts_write += size;
 	return OK;
 
 	failed:
-	xt_rwmutex_unlock(&mm->mm_lock, thd_id);
+	FILE_MAP_UNLOCK(&mm->mm_lock, thd_id);
 	return FAILED;
 }
 
 xtPublic xtBool xt_pread_fmap_4(XTMapFilePtr map, off_t offset, xtWord4 *value, XTIOStatsPtr stat, XTThreadPtr thread)
 {
 	XTFileMemMapPtr	mm = map->mf_memmap;
+#ifndef FILE_MAP_USE_PTHREAD_RW
 	xtThreadID		thd_id = thread->t_id;
+#endif
 
 #ifdef DEBUG_TRACE_MAP_IO
 	xt_trace("/* %s */ pbxt_fmap_read_4(\"%s\", %lu, 4);\n", xt_trace_clock_diff(NULL), map->fr_file->fil_path, (u_long) offset);
 #endif
-	xt_rwmutex_slock(&mm->mm_lock, thd_id);
+	if (!map->mf_slock_count)
+		FILE_MAP_READ_LOCK(&mm->mm_lock, thd_id);
 	if (!mm->mm_start) {
-		xt_rwmutex_unlock(&mm->mm_lock, thd_id);
-		xt_rwmutex_xlock(&mm->mm_lock, thd_id);
+		FILE_MAP_UNLOCK(&mm->mm_lock, thd_id);
+		FILE_MAP_WRITE_LOCK(&mm->mm_lock, thd_id);
 		if (!fs_remap_file(map, 0, 0, stat)) {
-			xt_rwmutex_unlock(&mm->mm_lock, thd_id);
+			FILE_MAP_UNLOCK(&mm->mm_lock, thd_id);
 			return FAILED;
 		}
 	}
@@ -1436,7 +1509,7 @@ xtPublic xtBool xt_pread_fmap_4(XTMapFilePtr map, off_t offset, xtWord4 *value, 
 		}
 		__except(EXCEPTION_EXECUTE_HANDLER)
 		{
-			xt_rwmutex_unlock(&mm->mm_lock, thd_id);
+			FILE_MAP_UNLOCK(&mm->mm_lock, thd_id);
 			return xt_register_ferrno(XT_REG_CONTEXT, GetExceptionCode(), xt_file_path(map));
 		}
 #else
@@ -1444,7 +1517,8 @@ xtPublic xtBool xt_pread_fmap_4(XTMapFilePtr map, off_t offset, xtWord4 *value, 
 #endif
 	}
 
-	xt_rwmutex_unlock(&mm->mm_lock, thd_id);
+	if (!map->mf_slock_count)
+		FILE_MAP_UNLOCK(&mm->mm_lock, thd_id);
 	stat->ts_read += 4;
 	return OK;
 }
@@ -1452,7 +1526,9 @@ xtPublic xtBool xt_pread_fmap_4(XTMapFilePtr map, off_t offset, xtWord4 *value, 
 xtPublic xtBool xt_pread_fmap(XTMapFilePtr map, off_t offset, size_t size, size_t min_size, void *data, size_t *red_size, XTIOStatsPtr stat, XTThreadPtr thread)
 {
 	XTFileMemMapPtr	mm = map->mf_memmap;
+#ifndef FILE_MAP_USE_PTHREAD_RW
 	xtThreadID		thd_id = thread->t_id;
+#endif
 	size_t			tfer;
 
 #ifdef DEBUG_TRACE_MAP_IO
@@ -1460,6 +1536,8 @@ xtPublic xtBool xt_pread_fmap(XTMapFilePtr map, off_t offset, size_t size, size_
 #endif
 	/* NOTE!! The file map may already be locked,
 	 * by a call to xt_lock_fmap_ptr()!
+	 *
+	 * 20.05.2009: This problem should be fixed now with mf_slock_count!
 	 *
 	 * This can occur during a sequential scan:
 	 * xt_pread_fmap()  Line 1330
@@ -1491,13 +1569,16 @@ xtPublic xtBool xt_pread_fmap(XTMapFilePtr map, off_t offset, size_t size, size_
 	 * As a result, the slock must be able to handle
 	 * nested calls to lock/unlock.
 	 */
-	xt_rwmutex_slock(&mm->mm_lock, thd_id);
+	if (!map->mf_slock_count)
+		FILE_MAP_READ_LOCK(&mm->mm_lock, thd_id);
 	tfer = size;
 	if (!mm->mm_start) {
-		xt_rwmutex_unlock(&mm->mm_lock, thd_id);
-		xt_rwmutex_xlock(&mm->mm_lock, thd_id);
+		FILE_MAP_UNLOCK(&mm->mm_lock, thd_id);
+		ASSERT_NS(!map->mf_slock_count);
+		FILE_MAP_WRITE_LOCK(&mm->mm_lock, thd_id);
 		if (!fs_remap_file(map, 0, 0, stat)) {
-			xt_rwmutex_unlock(&mm->mm_lock, thd_id);
+			if (!map->mf_slock_count)
+				FILE_MAP_UNLOCK(&mm->mm_lock, thd_id);
 			return FAILED;
 		}
 	}
@@ -1514,7 +1595,8 @@ xtPublic xtBool xt_pread_fmap(XTMapFilePtr map, off_t offset, size_t size, size_
 		}
 		__except(EXCEPTION_EXECUTE_HANDLER)
 		{
-			xt_rwmutex_unlock(&mm->mm_lock, thd_id);
+			if (!map->mf_slock_count)
+				FILE_MAP_UNLOCK(&mm->mm_lock, thd_id);
 			return xt_register_ferrno(XT_REG_CONTEXT, GetExceptionCode(), xt_file_path(map));
 		}
 #else
@@ -1522,7 +1604,8 @@ xtPublic xtBool xt_pread_fmap(XTMapFilePtr map, off_t offset, size_t size, size_
 #endif
 	}
 
-	xt_rwmutex_unlock(&mm->mm_lock, thd_id);
+	if (!map->mf_slock_count)
+		FILE_MAP_UNLOCK(&mm->mm_lock, thd_id);
 	if (tfer < min_size)
 		return xt_register_ferrno(XT_REG_CONTEXT, ESPIPE, xt_file_path(map));
 
@@ -1535,18 +1618,23 @@ xtPublic xtBool xt_pread_fmap(XTMapFilePtr map, off_t offset, size_t size, size_
 xtPublic xtBool xt_flush_fmap(XTMapFilePtr map, XTIOStatsPtr stat, XTThreadPtr thread)
 {
 	XTFileMemMapPtr	mm = map->mf_memmap;
+#ifndef FILE_MAP_USE_PTHREAD_RW
 	xtThreadID		thd_id = thread->t_id;
+#endif
 	xtWord8			s;
 
 #ifdef DEBUG_TRACE_MAP_IO
 	xt_trace("/* %s */ pbxt_fmap_sync(\"%s\");\n", xt_trace_clock_diff(NULL), map->fr_file->fil_path);
 #endif
-	xt_rwmutex_slock(&mm->mm_lock, thd_id);
+	if (!map->mf_slock_count)
+		FILE_MAP_READ_LOCK(&mm->mm_lock, thd_id);
 	if (!mm->mm_start) {
-		xt_rwmutex_unlock(&mm->mm_lock, thd_id);
-		xt_rwmutex_xlock(&mm->mm_lock, thd_id);
+		FILE_MAP_UNLOCK(&mm->mm_lock, thd_id);
+		ASSERT_NS(!map->mf_slock_count);
+		FILE_MAP_WRITE_LOCK(&mm->mm_lock, thd_id);
 		if (!fs_remap_file(map, 0, 0, stat)) {
-			xt_rwmutex_unlock(&mm->mm_lock, thd_id);
+			if (!map->mf_slock_count)
+				FILE_MAP_UNLOCK(&mm->mm_lock, thd_id);
 			return FAILED;
 		}
 	}
@@ -1562,7 +1650,8 @@ xtPublic xtBool xt_flush_fmap(XTMapFilePtr map, XTIOStatsPtr stat, XTThreadPtr t
 		goto failed;
 	}
 #endif
-	xt_rwmutex_unlock(&mm->mm_lock, thd_id);
+	if (!map->mf_slock_count)
+		FILE_MAP_UNLOCK(&mm->mm_lock, thd_id);
 	s = stat->ts_flush_start;
 	stat->ts_flush_start = 0;
 	stat->ts_flush_time += xt_trace_clock() - s;
@@ -1570,22 +1659,27 @@ xtPublic xtBool xt_flush_fmap(XTMapFilePtr map, XTIOStatsPtr stat, XTThreadPtr t
 	return OK;
 
 	failed:
-	xt_rwmutex_unlock(&mm->mm_lock, thd_id);
+	if (!map->mf_slock_count)
+		FILE_MAP_UNLOCK(&mm->mm_lock, thd_id);
 	s = stat->ts_flush_start;
 	stat->ts_flush_start = 0;
 	stat->ts_flush_time += xt_trace_clock() - s;
 	return FAILED;
 }
 
-xtPublic xtWord1 *xt_lock_fmap_ptr(XTMapFilePtr map, off_t offset, size_t size, XTIOStatsPtr stat, XTThreadPtr XT_UNUSED(thread))
+xtPublic xtWord1 *xt_lock_fmap_ptr(XTMapFilePtr map, off_t offset, size_t size, XTIOStatsPtr stat, XTThreadPtr thread)
 {
 	XTFileMemMapPtr	mm = map->mf_memmap;
+#ifndef FILE_MAP_USE_PTHREAD_RW
 	xtThreadID		thd_id = thread->t_id;
+#endif
 
-	xt_rwmutex_slock(&mm->mm_lock, thd_id);
+	if (!map->mf_slock_count)
+		FILE_MAP_READ_LOCK(&mm->mm_lock, thd_id);
+	map->mf_slock_count++;
 	if (!mm->mm_start) {
-		xt_rwmutex_unlock(&mm->mm_lock, thd_id);
-		xt_rwmutex_xlock(&mm->mm_lock, thd_id);
+		FILE_MAP_UNLOCK(&mm->mm_lock, thd_id);
+		FILE_MAP_WRITE_LOCK(&mm->mm_lock, thd_id);
 		if (!fs_remap_file(map, 0, 0, stat))
 			goto failed;
 	}
@@ -1599,13 +1693,17 @@ xtPublic xtWord1 *xt_lock_fmap_ptr(XTMapFilePtr map, off_t offset, size_t size, 
 	return mm->mm_start + offset;
 
 	failed:
-	xt_rwmutex_unlock(&mm->mm_lock, thd_id);
+	map->mf_slock_count--;
+	if (!map->mf_slock_count)
+		FILE_MAP_UNLOCK(&mm->mm_lock, thd_id);
 	return NULL;
 }
 
 xtPublic void xt_unlock_fmap_ptr(XTMapFilePtr map, XTThreadPtr thread)
 {
-	xt_rwmutex_unlock(&map->mf_memmap->mm_lock, thread->t_id);
+	map->mf_slock_count--;
+	if (!map->mf_slock_count)
+		FILE_MAP_UNLOCK(&map->mf_memmap->mm_lock, thread->t_id);
 }
 
 /* ----------------------------------------------------------------------
