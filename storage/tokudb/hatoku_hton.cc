@@ -682,8 +682,8 @@ static bool tokudb_show_logs(THD * thd, stat_print_fn * stat_print) {
 
 bool tokudb_show_status(handlerton * hton, THD * thd, stat_print_fn * stat_print, enum ha_stat_type stat_type) {
     switch (stat_type) {
-    case HA_ENGINE_STATUS:
-        return tokudb_show_engine_status(thd, stat_print);
+    case HA_ENGINE_DATA_AMOUNT:
+        return tokudb_show_data_size(thd, stat_print);
         break;
     case HA_ENGINE_LOGS:
         return tokudb_show_logs(thd, stat_print);
