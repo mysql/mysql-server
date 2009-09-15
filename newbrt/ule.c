@@ -88,17 +88,6 @@ le_malloc(OMT omt, struct mempool *mp, size_t size, void **maybe_free)
 	return toku_malloc(size);
 }
 
-///////////// end scaffolding/upgrade
-///////////// ENDTEMP ENDTEMP ENDTEMP ENDTEMP
-
-
-
-
-
-
-
-
-
 /////////////////////////////////////////////////////////////////////////////////
 // This is the big enchilada.  (Bring Tums.)  Note that this level of abstraction 
 // has no knowledge of the inner structure of either leafentry or msg.  It makes
@@ -783,13 +772,62 @@ le_has_xids(LEAFENTRY le, XIDS xids) {
         goto have_answer;
     }
     //Hard case:  shares outermost uncommitted xid, but has more in the stack.
-    //TODO: Optimize hard case by using leafentry_memsize as a template to do part of the 'unpacking'
+    //  Need to unpack iteratively till we reach the right xid.
+    //Read the keylen
+    u_int32_t keylen = toku_dtoh32(le->keylen);
 
-    ULE_S ule;
-    le_unpack(&ule, le);
-    u_int8_t idx = num_xids -1;
-    rval = xids_get_xid(xids, idx) == ule_get_xid(&ule, idx);
-    goto have_answer;
+    //Read the vallen of innermost insert
+    u_int32_t vallen_of_innermost_insert = toku_dtoh32(le->innermost_inserted_vallen);
+
+    assert(num_uxrs > 1);
+    //A 'provisional leafentry' (Uncommitted transactions exist)
+    //Read in type.
+    u_int8_t innermost_type = le->u.prov.innermost_type;
+    assert(!uxr_type_is_placeholder(innermost_type));
+    //Set p to immediately after key,val (begginning of transaction records)
+    u_int8_t *p = &le->u.prov.key_val_xrs[keylen + vallen_of_innermost_insert];
+
+    BOOL found_innermost_insert = FALSE;
+    u_int8_t i; //would be index in ULE.uxrs[] were we to unpack
+    //Loop inner to outer
+    UXR_S current_uxr;
+    UXR uxr = &current_uxr;
+    for (i = num_uxrs - 1; i >= num_xids-1; i--) {
+        //Innermost's type is in header.
+        if (i < num_uxrs - 1) {
+            //Not innermost, so load the type.
+            uxr->type = *p;
+            p += 1;
+        }
+        else {
+            //Innermost, load the type previously read from header
+            uxr->type = innermost_type;
+        }
+
+        //Committed txn id is implicit (0).  (i==0)
+        //Outermost uncommitted txnid is stored in header. (i==1)
+        //Not committed nor outermost uncommitted, so load the xid.
+        if (i == num_xids-1) {
+            //Done.  This is the interesting txn.
+            TXNID candidate_txn = toku_dtoh64(*(TXNID*)p);
+            TXNID target_txn    = xids_get_innermost_xid(xids);
+            rval = candidate_txn == target_txn;
+            goto have_answer;
+        }
+        p += 8;
+
+        if (uxr_is_insert(uxr)) {
+            if (found_innermost_insert) {
+                //Not the innermost insert.  Load vallen/valp
+                uxr->vallen = toku_dtoh32(*(u_int32_t*)p);
+                p += 4;
+                p += uxr->vallen;
+            }
+            else
+                found_innermost_insert = TRUE;
+        }
+    }
+    assert(FALSE);
 have_answer:
 #if ULE_DEBUG
     {
