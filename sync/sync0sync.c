@@ -850,7 +850,8 @@ sync_thread_levels_g(
 /*=================*/
 	sync_level_t*	arr,	/*!< in: pointer to level array for an OS
 				thread */
-	ulint		limit)	/*!< in: level limit */
+	ulint		limit,	/*!< in: level limit */
+	ulint		warn)	/*!< in: TRUE=display a diagnostic message */
 {
 	sync_level_t*	slot;
 	rw_lock_t*	lock;
@@ -863,6 +864,11 @@ sync_thread_levels_g(
 
 		if (slot->latch != NULL) {
 			if (slot->level <= limit) {
+
+				if (!warn) {
+
+					return(FALSE);
+				}
 
 				lock = slot->latch;
 				mutex = slot->latch;
@@ -1101,7 +1107,7 @@ sync_thread_add_level(
 	case SYNC_DICT_HEADER:
 	case SYNC_TRX_I_S_RWLOCK:
 	case SYNC_TRX_I_S_LAST_READ:
-		if (!sync_thread_levels_g(array, level)) {
+		if (!sync_thread_levels_g(array, level, TRUE)) {
 			fprintf(stderr,
 				"InnoDB: sync_thread_levels_g(array, %lu)"
 				" does not hold!\n", level);
@@ -1112,36 +1118,44 @@ sync_thread_add_level(
 		/* Either the thread must own the buffer pool mutex
 		(buf_pool_mutex), or it is allowed to latch only ONE
 		buffer block (block->mutex or buf_pool_zip_mutex). */
-		if (!sync_thread_levels_g(array, level)) {
-			ut_a(sync_thread_levels_g(array, level - 1));
+		if (!sync_thread_levels_g(array, level, FALSE)) {
+			ut_a(sync_thread_levels_g(array, level - 1, TRUE));
 			ut_a(sync_thread_levels_contain(array, SYNC_BUF_POOL));
 		}
 		break;
 	case SYNC_REC_LOCK:
-		ut_a((sync_thread_levels_contain(array, SYNC_KERNEL)
-		      && sync_thread_levels_g(array, SYNC_REC_LOCK - 1))
-		     || sync_thread_levels_g(array, SYNC_REC_LOCK));
+		if (sync_thread_levels_contain(array, SYNC_KERNEL)) {
+			ut_a(sync_thread_levels_g(array, SYNC_REC_LOCK - 1,
+						  TRUE));
+		} else {
+			ut_a(sync_thread_levels_g(array, SYNC_REC_LOCK, TRUE));
+		}
 		break;
 	case SYNC_IBUF_BITMAP:
 		/* Either the thread must own the master mutex to all
 		the bitmap pages, or it is allowed to latch only ONE
 		bitmap page. */
-		ut_a((sync_thread_levels_contain(array, SYNC_IBUF_BITMAP_MUTEX)
-		      && sync_thread_levels_g(array, SYNC_IBUF_BITMAP - 1))
-		     || sync_thread_levels_g(array, SYNC_IBUF_BITMAP));
+		if (sync_thread_levels_contain(array,
+					       SYNC_IBUF_BITMAP_MUTEX)) {
+			ut_a(sync_thread_levels_g(array, SYNC_IBUF_BITMAP - 1,
+						  TRUE));
+		} else {
+			ut_a(sync_thread_levels_g(array, SYNC_IBUF_BITMAP,
+						  TRUE));
+		}
 		break;
 	case SYNC_FSP_PAGE:
 		ut_a(sync_thread_levels_contain(array, SYNC_FSP));
 		break;
 	case SYNC_FSP:
 		ut_a(sync_thread_levels_contain(array, SYNC_FSP)
-		     || sync_thread_levels_g(array, SYNC_FSP));
+		     || sync_thread_levels_g(array, SYNC_FSP, TRUE));
 		break;
 	case SYNC_TRX_UNDO_PAGE:
 		ut_a(sync_thread_levels_contain(array, SYNC_TRX_UNDO)
 		     || sync_thread_levels_contain(array, SYNC_RSEG)
 		     || sync_thread_levels_contain(array, SYNC_PURGE_SYS)
-		     || sync_thread_levels_g(array, SYNC_TRX_UNDO_PAGE));
+		     || sync_thread_levels_g(array, SYNC_TRX_UNDO_PAGE, TRUE));
 		break;
 	case SYNC_RSEG_HEADER:
 		ut_a(sync_thread_levels_contain(array, SYNC_RSEG));
@@ -1153,37 +1167,41 @@ sync_thread_add_level(
 	case SYNC_TREE_NODE:
 		ut_a(sync_thread_levels_contain(array, SYNC_INDEX_TREE)
 		     || sync_thread_levels_contain(array, SYNC_DICT_OPERATION)
-		     || sync_thread_levels_g(array, SYNC_TREE_NODE - 1));
+		     || sync_thread_levels_g(array, SYNC_TREE_NODE - 1, TRUE));
 		break;
 	case SYNC_TREE_NODE_NEW:
 		ut_a(sync_thread_levels_contain(array, SYNC_FSP_PAGE)
 		     || sync_thread_levels_contain(array, SYNC_IBUF_MUTEX));
 		break;
 	case SYNC_INDEX_TREE:
-		ut_a((sync_thread_levels_contain(array, SYNC_IBUF_MUTEX)
-		      && sync_thread_levels_contain(array, SYNC_FSP)
-		      && sync_thread_levels_g(array, SYNC_FSP_PAGE - 1))
-		     || sync_thread_levels_g(array, SYNC_TREE_NODE - 1));
+		if (sync_thread_levels_contain(array, SYNC_IBUF_MUTEX)
+		    && sync_thread_levels_contain(array, SYNC_FSP)) {
+			ut_a(sync_thread_levels_g(array, SYNC_FSP_PAGE - 1,
+						  TRUE));
+		} else {
+			ut_a(sync_thread_levels_g(array, SYNC_TREE_NODE - 1,
+						  TRUE));
+		}
 		break;
 	case SYNC_IBUF_MUTEX:
-		ut_a(sync_thread_levels_g(array, SYNC_FSP_PAGE - 1));
+		ut_a(sync_thread_levels_g(array, SYNC_FSP_PAGE - 1, TRUE));
 		break;
 	case SYNC_IBUF_PESS_INSERT_MUTEX:
-		ut_a(sync_thread_levels_g(array, SYNC_FSP - 1)
-		     && !sync_thread_levels_contain(array, SYNC_IBUF_MUTEX));
+		ut_a(sync_thread_levels_g(array, SYNC_FSP - 1, TRUE));
+		ut_a(!sync_thread_levels_contain(array, SYNC_IBUF_MUTEX));
 		break;
 	case SYNC_IBUF_HEADER:
-		ut_a(sync_thread_levels_g(array, SYNC_FSP - 1)
-		     && !sync_thread_levels_contain(array, SYNC_IBUF_MUTEX)
-		     && !sync_thread_levels_contain(
-			     array, SYNC_IBUF_PESS_INSERT_MUTEX));
+		ut_a(sync_thread_levels_g(array, SYNC_FSP - 1, TRUE));
+		ut_a(!sync_thread_levels_contain(array, SYNC_IBUF_MUTEX));
+		ut_a(!sync_thread_levels_contain(array,
+						 SYNC_IBUF_PESS_INSERT_MUTEX));
 		break;
 	case SYNC_DICT:
 #ifdef UNIV_DEBUG
 		ut_a(buf_debug_prints
-		     || sync_thread_levels_g(array, SYNC_DICT));
+		     || sync_thread_levels_g(array, SYNC_DICT, TRUE));
 #else /* UNIV_DEBUG */
-		ut_a(sync_thread_levels_g(array, SYNC_DICT));
+		ut_a(sync_thread_levels_g(array, SYNC_DICT, TRUE));
 #endif /* UNIV_DEBUG */
 		break;
 	default:
