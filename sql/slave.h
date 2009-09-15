@@ -101,7 +101,8 @@ extern MY_BITMAP slave_error_mask;
 extern char slave_skip_error_names[];
 extern bool use_slave_mask;
 extern char *slave_load_tmpdir;
-extern char *master_info_file, *relay_log_info_file;
+extern char *master_info_file;
+extern MYSQL_PLUGIN_IMPORT char *relay_log_info_file;
 extern char *opt_relay_logname, *opt_relaylog_index_name;
 extern my_bool opt_skip_slave_start, opt_reckless_slave;
 extern my_bool opt_log_slave_updates;
@@ -205,7 +206,7 @@ extern int disconnect_slave_event_count, abort_slave_event_count ;
 /* the master variables are defaults read from my.cnf or command line */
 extern uint master_port, master_connect_retry, report_port;
 extern char * master_user, *master_password, *master_host;
-extern char *master_info_file, *relay_log_info_file, *report_user;
+extern char *master_info_file, *report_user;
 extern char *report_host, *report_password;
 
 extern my_bool master_ssl;

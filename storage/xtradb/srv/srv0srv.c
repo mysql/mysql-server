@@ -2693,12 +2693,10 @@ loop:
 
 					/* defence line (max_checkpoint_age * 1/2) */
 					ib_uint64_t	lsn = log_sys->lsn;
-
-					mutex_exit(&(log_sys->mutex));
-
 					ib_uint64_t level, bpl;
 					buf_page_t* bpage;
 
+					mutex_exit(&(log_sys->mutex));
 					mutex_enter(&flush_list_mutex);
 
 					level = 0;

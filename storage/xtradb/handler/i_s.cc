@@ -795,7 +795,7 @@ i_s_innodb_buffer_pool_pages_index_fill(
       	index = dict_index_get_if_in_cache_low(index_id);
       	if(index)
         {
-          if((p = strchr(index->table_name, '/')))
+          if((p = (char*) strchr(index->table_name, '/')))
           {
             strncpy(db_name_raw, index->table_name, p-index->table_name);
             db_name_raw[p-index->table_name] = 0;
@@ -2861,7 +2861,7 @@ i_s_innodb_index_stats_fill(
 					} else {
 						rec_per_key = n_rows;
 					}
-					snprintf(buff, 256, (i == index->n_uniq)?"%llu":"%llu, ",
+					ut_snprintf(buff, 256, (i == index->n_uniq)?"%llu":"%llu, ",
 						 rec_per_key);
 					strncat(row_per_keys, buff, 256 - strlen(row_per_keys));
 				}

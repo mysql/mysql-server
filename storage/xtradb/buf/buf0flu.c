@@ -1216,6 +1216,7 @@ buf_flush_LRU_recommendation(void)
 	ulint		n_replaceable;
 	ulint		distance	= 0;
 	ibool		have_LRU_mutex = FALSE;
+	mutex_t*	block_mutex;
 
 	if(UT_LIST_GET_LEN(buf_pool->unzip_LRU))
 		have_LRU_mutex = TRUE;
@@ -1239,7 +1240,7 @@ buf_flush_LRU_recommendation(void)
 			continue;
 		}
 
-		mutex_t* block_mutex = buf_page_get_mutex(bpage);
+		block_mutex = buf_page_get_mutex(bpage);
 
 retry_lock:
 		mutex_enter(block_mutex);
