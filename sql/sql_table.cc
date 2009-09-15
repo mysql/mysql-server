@@ -1772,6 +1772,7 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
                     my_bool drop_temporary)
 {
   bool error= FALSE, need_start_waiters= FALSE;
+  Drop_table_error_handler err_handler(thd->get_internal_handler());
   DBUG_ENTER("mysql_rm_table");
 
   /* mark for close and remove all cached entries */
@@ -1792,7 +1793,10 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
     LOCK_open during wait_if_global_read_lock(), other threads could not
     close their tables. This would make a pretty deadlock.
   */
+  thd->push_internal_handler(&err_handler);
   error= mysql_rm_table_part2(thd, tables, if_exists, drop_temporary, 0, 0);
+  thd->pop_internal_handler();
+
 
   if (need_start_waiters)
     start_waiting_global_read_lock(thd);
@@ -1893,9 +1897,6 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     pthread_mutex_unlock(&LOCK_open);
     DBUG_RETURN(1);
   }
-
-  /* Don't give warnings for not found errors, as we already generate notes */
-  thd->no_warnings_for_error= 1;
 
   for (table= tables; table; table= table->next_local)
   {
@@ -2145,7 +2146,6 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
 err_with_placeholders:
   unlock_table_names(thd, tables, (TABLE_LIST*) 0);
   pthread_mutex_unlock(&LOCK_open);
-  thd->no_warnings_for_error= 0;
   DBUG_RETURN(error);
 }
 
@@ -5217,6 +5217,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   char tmp_path[FN_REFLEN];
 #endif
   char ts_name[FN_LEN + 1];
+  myf flags= MY_DONT_OVERWRITE_FILE;
   DBUG_ENTER("mysql_create_like_table");
 
 
@@ -5273,8 +5274,12 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
 
   DBUG_EXECUTE_IF("sleep_create_like_before_copy", my_sleep(6000000););
 
+  if (opt_sync_frm && !(create_info->options & HA_LEX_CREATE_TMP_TABLE))
+    flags|= MY_SYNC;
+
   /*
     Create a new table by copying from source table
+    and sync the new table if the flag MY_SYNC is set
 
     Altough exclusive name-lock on target table protects us from concurrent
     DML and DDL operations on it we still want to wrap .FRM creation and call
@@ -5295,7 +5300,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
       goto err;
     }
   }
-  else if (my_copy(src_path, dst_path, MYF(MY_DONT_OVERWRITE_FILE)))
+  else if (my_copy(src_path, dst_path, flags))
   {
     if (my_errno == ENOENT)
       my_error(ER_BAD_DB_ERROR,MYF(0),db);
