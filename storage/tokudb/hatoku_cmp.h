@@ -27,7 +27,7 @@ typedef enum {
 } TOKU_TYPE;
 
 
-inline TOKU_TYPE mysql_to_toku_type (Field* field);
+TOKU_TYPE mysql_to_toku_type (Field* field);
 
 
 uchar* pack_toku_key_field(
