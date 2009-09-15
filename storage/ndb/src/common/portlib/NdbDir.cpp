@@ -26,6 +26,7 @@
 class DirIteratorImpl {
   DIR* m_dirp;
   const char *m_path;
+  char* m_buf;
 
   bool is_regular_file(struct dirent* dp) const {
 #ifdef _DIRENT_HAVE_D_TYPE
@@ -37,12 +38,11 @@ class DirIteratorImpl {
       return (dp->d_type == DT_REG);
 #endif
     /* Using stat to read more info about the file */
-    char path_buf[PATH_MAX];
-    basestring_snprintf(path_buf, sizeof(path_buf),
+    basestring_snprintf(m_buf, sizeof(m_buf),
                         "%s/%s", m_path, dp->d_name);
 
     struct stat buf;
-    if (stat(path_buf, &buf))
+    if (stat(m_buf, &buf))
       return false; // 'stat' failed
 
     return S_ISREG(buf.st_mode);
@@ -51,10 +51,13 @@ class DirIteratorImpl {
 
 public:
   DirIteratorImpl():
-    m_dirp(NULL) {};
+    m_dirp(NULL) {
+     m_buf = new char[PATH_MAX];
+  };
 
   ~DirIteratorImpl() {
     close();
+    delete [] m_buf;
   }
 
   int open(const char* path){
