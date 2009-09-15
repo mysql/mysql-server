@@ -2000,9 +2000,20 @@ loop:
     int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
     res.dumpStateAllNodes(val2, 2);
 
+    Bitmask<256/32> mask;
     for (Uint32 i = 0; i<(nodeCount / 2); i++)
     {
-      res.insertErrorInNode(nodes[(nodeCount / 2) - (i + 1)], 7218);
+      int node = nodes[(nodeCount / 2) - (i + 1)];
+      mask.set(node);
+      res.insertErrorInNode(node, 7218);
+    }
+    
+    for (Uint32 i = 0; i<nodeCount; i++)
+    {
+      int node = nodes[i];
+      if (mask.get(node))
+        continue;
+      res.insertErrorInNode(node, 7220);
     }
 
     int lcp = 7099;
