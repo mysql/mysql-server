@@ -973,8 +973,9 @@ innobase_get_cset_width(
 		*mbminlen = cs->mbminlen;
 		*mbmaxlen = cs->mbmaxlen;
 	} else {
-		if (current_thd
-		    && (thd_sql_command(current_thd) == SQLCOM_DROP_TABLE)) {
+		THD*	thd = current_thd;
+
+		if (thd && thd_sql_command(thd) == SQLCOM_DROP_TABLE) {
 
 			/* Fix bug#46256: allow tables to be dropped if the
 			collation is not found, but issue a warning. */
