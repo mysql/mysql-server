@@ -1,10 +1,7 @@
 *** Configuring connections ***
-*** Configuring replication via Slave ***
 STOP SLAVE;
-RESET MASTER;
-RESET MASTER;
-RESET MASTER;
-RESET MASTER;
+*** Waiting for each cluster to startup ***
+*** Configuring replication via Slave ***
 RESET SLAVE;
 CHANGE MASTER TO MASTER_HOST="127.0.0.1",MASTER_PORT=MASTER_PORT,MASTER_USER="root";;
 START SLAVE;
@@ -274,10 +271,6 @@ slave-master-bin.000001	#	Query	1	#	use `test`; drop table `test`.`bug45756_mast
 *** Configuring replication via Slave1 ***
 STOP SLAVE;
 STOP SLAVE;
-RESET MASTER;
-RESET MASTER;
-RESET MASTER;
-RESET MASTER;
 RESET SLAVE;
 CHANGE MASTER TO MASTER_HOST="127.0.0.1",MASTER_PORT=MASTER_PORT,MASTER_USER="root";
 START SLAVE;
@@ -547,10 +540,6 @@ slave-master-bin.000001	#	Query	1	#	use `test`; drop table `test`.`bug45756_mast
 *** Configuring replication via Slave2 ***
 STOP SLAVE;
 STOP SLAVE;
-RESET MASTER;
-RESET MASTER;
-RESET MASTER;
-RESET MASTER;
 RESET SLAVE;
 CHANGE MASTER TO MASTER_HOST="127.0.0.1",MASTER_PORT=MASTER_PORT,MASTER_USER="root";;
 START SLAVE;
