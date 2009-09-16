@@ -1876,6 +1876,7 @@ private:
 
   Uint32 check_read_obj(Uint32 objId, Uint32 transId = 0);
   Uint32 check_read_obj(SchemaFile::TableEntry*, Uint32 transId = 0);
+  Uint32 check_write_obj(Uint32 objId, Uint32 transId = 0);
   Uint32 check_write_obj(Uint32, Uint32, SchemaFile::EntryState, ErrorInfo&);
 
   ArrayPool<SchemaTrans> c_schemaTransPool;
@@ -2334,9 +2335,6 @@ private:
     RopeHandle m_oldTableName;
     RopeHandle m_oldFrmData;
 
-    // what was actually changed so far
-    Uint32 m_changeMaskDone;
-
     // connect ptr towards TUP, DIH, LQH
     Uint32 m_dihAddFragPtr;
     Uint32 m_lqhFragPtr;
@@ -2362,7 +2360,6 @@ private:
       memset(&m_newAttrData, 0, sizeof(m_newAttrData));
       m_tablePtr.setNull();
       m_newTablePtr.setNull();
-      m_changeMaskDone = 0;
       m_dihAddFragPtr = RNIL;
       m_lqhFragPtr = RNIL;
       m_blockNo[0] = DBLQH;
