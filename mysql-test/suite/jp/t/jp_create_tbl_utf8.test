@@ -1,3 +1,5 @@
+-- source include/have_innodb.inc
+-- source include/have_bdb.inc
 --disable_warnings
 DROP TABLE IF EXISTS `ｱｱｱ`;
 DROP TABLE IF EXISTS `ｲｲｲ`;
