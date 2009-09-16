@@ -223,6 +223,7 @@ NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans,
   m_next(next),
   m_queryDef(queryDef),
   m_parallelism(0),
+  m_maxBatchRows(0),
   m_signal(0),
   m_attrInfo(),
   m_keyInfo()
@@ -410,31 +411,62 @@ NdbQueryImpl::incPendingStreams(int increment){
 int
 NdbQueryImpl::prepareSend()
 {
-
   assert (m_pendingStreams==0);
+
+  // Determine execution parameters 'parallelism' and 'batch size'.
+  // May be user specified (TODO), and/or,  limited/specified by config values
+  //
   if (getQueryDef().isScanQuery())
   {
     m_pendingStreams = getRoot().getQueryOperationDef().getTable().getFragmentCount();
     m_tcKeyConfReceived = true;
+
+    if (m_parallelism == 0)  // -> Use 'max' as default value
+      m_parallelism = m_pendingStreams;
+    else if (m_parallelism > m_pendingStreams)
+      m_parallelism = m_pendingStreams;
+
+    Ndb* const ndb = getNdbTransaction()->getNdb();
+    TransporterFacade *tp = ndb->theImpl->m_transporter_facade;
+
+    Uint32 batchRows = m_maxBatchRows; // >0: User specified prefered value, ==0: Use default CFG values
+
+    // Calculate batchsize for query as minimum batchRows for all m_operations[].
+    // Ignore calculated 'batchByteSize' and 'firstBatchRows' here - Recalculated
+    // when building signal after max-batchRows has been determined.
+    for (Uint32 i = 0; i < m_countOperations; i++) {
+      Uint32 batchByteSize, firstBatchRows;
+      NdbReceiver::calculate_batch_size(tp,
+                                    m_operations[i].m_ndbRecord,
+                                    m_operations[i].m_firstRecAttr,
+                                    0, // Key size.
+                                    m_parallelism,
+                                    batchRows,
+                                    batchByteSize,
+                                    firstBatchRows);
+      assert (batchRows>0);
+      assert (firstBatchRows==batchRows);
+    }
+    m_maxBatchRows = batchRows;
   }
   else
   {
-    m_pendingStreams = 1;
+    m_pendingStreams = m_parallelism = 1;
     /* We will always receive a TCKEYCONF signal, even if the root operation
      * yields no result.*/
     m_tcKeyConfReceived = false;
+    m_maxBatchRows = 1;
   }
 
-  if (m_parallelism == 0)  // -> Use 'max' as default value
-    m_parallelism = m_pendingStreams;
-
-  // Serialize parameters, and prepare each QueryOperation for receiving results.
-  for(Uint32 i = 0; i < m_countOperations; i++){
-    // Calculate number of row per resultStream per batch.
-    m_operations[i].findMaxRows();
-
-    const int error = m_operations[i].prepareSend(m_attrInfo);
-    if (unlikely(error != 0)) {
+  // 1. Build receiver structures for each QueryOperation.
+  // 2. Fill in parameters (into ATTRINFO) for QueryTree.
+  //    (Has to complete *after* ::prepareReceiver() as QueryTree params
+  //     refer receiver id's.)
+  //
+  for (Uint32 i = 0; i < m_countOperations; i++) {
+    int error;
+    if (unlikely((error = m_operations[i].prepareReceiver()) != 0)
+              || (error = m_operations[i].prepareAttrInfo(m_attrInfo)) != 0) {
       setErrorCodeAbort(error);
       return -1;
     }
@@ -474,6 +506,7 @@ int
 NdbQueryImpl::doSend(int nodeId, bool lastFlag)
 {
   Ndb& ndb = *m_transaction.getNdb();
+  TransporterFacade *tp = ndb.theImpl->m_transporter_facade;
 
   // TODO: move signal allocation and building outside mutex protected ::doSend()
   m_signal = ndb.getSignal();
@@ -494,7 +527,6 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
   if (rootDef.isScanOperation())
   {
     Uint32 scan_flags = 0;  // TODO: Specify with ScanOptions::SO_SCANFLAGS
-    Uint32 batch = 64;      // TODO: Specify with ScanOptions::SO_BATCH
     Uint32 parallel = m_parallelism;
 
     bool tupScan = (scan_flags & NdbScanOperation::SF_TupScan);
@@ -509,11 +541,12 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
     }
 
     assert (m_parallelism > 0);
-//  assert (m_maxBatchRows > 0);
+    assert (m_maxBatchRows > 0);
 
     m_signal->setSignal(GSN_SCAN_TABREQ);
 
     ScanTabReq * const scanTabReq = CAST_PTR(ScanTabReq, m_signal->getDataPtrSend());
+    Uint32 reqInfo = 0;
 
     scanTabReq->apiConnectPtr = m_transaction.theTCConPtr;
     scanTabReq->spare = 0;  // Unused in later protocoll versions
@@ -524,13 +557,23 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
     scanTabReq->transId2 = (Uint32) (transId >> 32);
     scanTabReq->buddyConPtr = m_transaction.theBuddyConPtr;
 
-    scanTabReq->batch_byte_size = 32768;  // TODO: calculate it
-    scanTabReq->first_batch_size = batch; // TODO: calculate it
+    Uint32 batchRows = m_maxBatchRows;
+    Uint32 batchByteSize, firstBatchRows;
+    NdbReceiver::calculate_batch_size(tp,
+                                      getRoot().m_ndbRecord,
+                                      getRoot().m_firstRecAttr,
+                                      0, // Key size.
+                                      m_parallelism,
+                                      batchRows,
+                                      batchByteSize,
+                                      firstBatchRows);
+    assert (batchRows==m_maxBatchRows);
+    ScanTabReq::setScanBatch(reqInfo, batchRows);
+    scanTabReq->batch_byte_size = batchByteSize;
+    scanTabReq->first_batch_size = firstBatchRows;
 
-    Uint32 reqInfo = 0;
     ScanTabReq::setViaSPJFlag(reqInfo, 1);
     ScanTabReq::setParallelism(reqInfo, parallel);
-    ScanTabReq::setScanBatch(reqInfo, batch);
     ScanTabReq::setRangeScanFlag(reqInfo, rangeScan);
     ScanTabReq::setTupScanFlag(reqInfo, tupScan);
 
@@ -556,7 +599,6 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
      * Section 1 : ATTRINFO section
      * Section 2 : Optional KEYINFO section
      */
-
 
     GenericSectionPtr secs[3];
     Uint32 prepared_receivers[64];  // TODO: 64 is a temp hack
@@ -585,9 +627,6 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
       secs[2].sz= m_keyInfo.getSize();
       numSections= 3;
     }
-
-    // TODO: May need mutex protection, ref: NdbScanOperation::executeCursor()
-    TransporterFacade *tp = ndb.theImpl->m_transporter_facade;
   
     /* Send Fragmented as SCAN_TABREQ can be large */
     const int res = tp->sendFragmentedSignal(m_signal, nodeId, secs, numSections);
@@ -596,8 +635,6 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
       setErrorCodeAbort(4002);  // Error: 'Send to NDB failed'
       return -1;
     }
-
-//  theStatus = WaitResponse;  
 
   } else {
 
@@ -671,10 +708,6 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
       numSections= 2;
     }
 
-//  theStatus = WaitResponse;
-//  theReceiver.prepareSend();
-
-    TransporterFacade *tp = ndb.theImpl->m_transporter_facade;
     const int res = tp->sendSignal(m_signal, nodeId, secs, numSections);
     if (unlikely(res == -1))
     {
@@ -718,7 +751,6 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(
   m_resultBuffer(NULL),
   m_resultRef(NULL),
   m_isRowNull(false),
-  m_maxBatchRows(0),
   m_ndbRecord(NULL),
   m_applStreams(),
   m_fullStreams(),
@@ -853,58 +885,12 @@ NdbQueryOperationImpl::getValue(
   }
   m_lastRecAttr = recAttr;
   assert(recAttr->next()==NULL);
-  /* For all operations, results are handled as scan results. And for scan
-   * results, an NdbRecord is always needed.*/
-  if(m_ndbRecord==NULL){
-    m_ndbRecord = m_operationDef.getTable().getDefaultRecord();
-  }
   return recAttr;
 }
 
 static bool isSetInMask(const unsigned char* mask, int bitNo){
   return mask[bitNo>>3] & 1<<(bitNo&7);
 }
-
-/* The tail of every record looks like this:
- * {AttributeHeader::READ_ANY_VALUE, receverId, correlationNum }
- *
-*/
-static const Uint32 correlationWordCount = 3;
-
-
-void
-NdbQueryOperationImpl::findMaxRows(){
-  if(m_operationDef.getQueryOperationIx()==0){
-    if(m_operationDef.isScanOperation()){
-      if(false){
-        const NdbReceiver& receiver =  m_resultStreams[0]->m_receiver;
-        // Root operation is a scan.
-        Uint32 firstBatchRows = 0;
-        Uint32 batchByteSize = 0;
-        assert (getQuery().getParallelism()>0);
-        receiver.calculate_batch_size(0, // Key size.
-                                      getQuery().getParallelism(),
-                                      m_maxBatchRows,
-                                      batchByteSize,
-                                      firstBatchRows,
-                                      m_ndbRecord);
-        assert(m_maxBatchRows!=0);
-        assert(firstBatchRows==m_maxBatchRows);
-      }
-      m_maxBatchRows = 64;
-    }else{
-      // Lookup.
-      m_maxBatchRows = 1;
-    }
-  }else{
-    assert(!m_operationDef.isScanOperation());
-    /* Since all non-root operations are lookups, they cannot have more
-     * rows than their parents. */
-    assert(m_parents.size()==1); // Will not work with multiple parents.
-    m_maxBatchRows = m_parents[0]->getMaxBatchRows();
-  }
-}
-
 
 int
 NdbQueryOperationImpl::setResultRowBuf (
@@ -1051,9 +1037,9 @@ NdbQueryOperationImpl::nextResult(NdbQueryImpl& queryImpl,
       NdbQueryOperationImpl& operation = queryImpl.getQueryOperation(i);
       assert(operation.m_resultStreams[0]->m_transidAICount<=1);
 
+      operation.m_isRowNull = (operation.m_resultStreams[0]->m_transidAICount==0);
       // Check if there was a result for this operation.
-      if(operation.m_resultStreams[0]->m_transidAICount==1){
-        operation.m_isRowNull = false;
+      if (operation.m_isRowNull==false) {
         const char* buff = operation.m_resultStreams[0]->m_receiver.get_row();
 
         if(operation.m_resultStyle==Style_NdbRecAttr){
@@ -1077,7 +1063,6 @@ NdbQueryOperationImpl::nextResult(NdbQueryImpl& queryImpl,
           // Set application pointer to NULL.
           *operation.m_resultRef = NULL;
         }
-        operation.m_isRowNull = true;
       }
     }
   }
@@ -1351,11 +1336,11 @@ NdbQueryOperationImpl::ResultStream
 void 
 NdbQueryOperationImpl::ResultStream::prepare(){
   assert(m_parentTupleCorr==NULL); // Do not invoke twice.
-  m_parentTupleCorr = new Uint32[m_operation.getMaxBatchRows()];
-  m_childTupleIdx = new Uint32[m_operation.getNoOfChildOperations()
-                               * m_operation.getMaxBatchRows()];
+  const size_t batchRows = m_operation.getQuery().getMaxBatchRows();
+  m_parentTupleCorr = new Uint32[batchRows];
+  m_childTupleIdx = new Uint32[batchRows * m_operation.getNoOfChildOperations()];
   for(Uint32 i=0; 
-      i<m_operation.getMaxBatchRows() * m_operation.getNoOfChildOperations(); 
+      i<batchRows * m_operation.getNoOfChildOperations(); 
       i++){
     m_childTupleIdx[i] = tupleNotFound;
   }
@@ -1435,45 +1420,87 @@ int NdbQueryOperationImpl::serializeParams(const constVoidPtr paramValues[])
 
 
 int 
-NdbQueryOperationImpl::prepareSend(Uint32Buffer& serializedParams)
+NdbQueryOperationImpl::prepareReceiver()
 {
-  const NdbQueryOperationDefImpl& def = getQueryOperationDef();
+  const Uint32 rowSize = NdbReceiver::ndbrecord_rowsize(m_ndbRecord, m_firstRecAttr,0,false);
+  m_batchByteSize = rowSize * m_queryImpl.getMaxBatchRows();
+//ndbout "m_batchByteSize=" << m_batchByteSize << endl;
 
-  Uint32 rowSize;
-  switch(m_resultStyle){
-  case Style_NdbRecAttr:
-    rowSize = m_ndbRecord->m_row_size + 
-      sizeof(AttributeHeader)* m_userProjection.getColumnCount();
-    break;
-  case Style_NdbRecord:
-    rowSize = m_ndbRecord->m_row_size;
-    break;
-  case Style_None:
-    /* The user projection is empty, but we still need the TRANSID_AI
-     * signals to extract the correlation data and to keep count of pending
-     * operations.*/
-    assert(m_ndbRecord == NULL);
-    m_ndbRecord = m_operationDef.getTable().getDefaultRecord();
-    rowSize = 0;
-    break;
-  default:
-    assert(false);
-  }
-  m_batchByteSize = rowSize * m_maxBatchRows;
-  ndbout << "m_batchByteSize=" << m_batchByteSize << endl;
+  if (m_batchByteSize > 0) { // 0 bytes in batch if no result requested
+    size_t bufLen = m_batchByteSize*m_queryImpl.getParallelism();
 #ifdef NDEBUG
-  m_batchBuffer = new char[m_batchByteSize*getQuery().getParallelism()];
+    m_batchBuffer = new char[bufLen];
 #else
-  /* To be able to check for buffer overrun.*/
-  m_batchBuffer = new char[m_batchByteSize*getQuery().getParallelism()+4];
-#endif
+    /* To be able to check for buffer overrun.*/
+    m_batchBuffer = new char[bufLen+4];
 
-#ifndef NDEBUG // Buffer overrun check activated.
-  m_batchBuffer[m_batchByteSize*getQuery().getParallelism()] = 'a';
-  m_batchBuffer[m_batchByteSize*getQuery().getParallelism()+1] = 'b';
-  m_batchBuffer[m_batchByteSize*getQuery().getParallelism()+2] = 'c';
-  m_batchBuffer[m_batchByteSize*getQuery().getParallelism()+3] = 'd';
+    m_batchBuffer[bufLen+0] = 'a';
+    m_batchBuffer[bufLen+1] = 'b';
+    m_batchBuffer[bufLen+2] = 'c';
+    m_batchBuffer[bufLen+3] = 'd';
 #endif
+  }
+
+  // Construct receiver streams and prepare them for receiving scan result
+  assert(m_resultStreams==NULL);
+  assert(m_queryImpl.getParallelism() > 0);
+  m_resultStreams = new ResultStream*[m_queryImpl.getParallelism()];
+  if (unlikely(m_resultStreams == NULL)) {
+    return Err_MemoryAlloc; // Allocation failure
+  }
+  for(Uint32 i = 0; i<m_queryImpl.getParallelism(); i++) {
+    m_resultStreams[i] = NULL;  // Init to legal contents
+  }
+  for(Uint32 i = 0; i<m_queryImpl.getParallelism(); i++) {
+    m_resultStreams[i] = new ResultStream(*this, i);
+    if (unlikely(m_resultStreams[i] == NULL)) {
+      return Err_MemoryAlloc; // Allocation failure
+    }
+    m_resultStreams[i]->m_receiver.init(NdbReceiver::NDB_QUERY_OPERATION, 
+                                        false, this);
+    m_resultStreams[i]->prepare();
+    m_resultStreams[i]->m_receiver
+      .do_setup_ndbrecord(m_ndbRecord,
+                          m_queryImpl.getMaxBatchRows(), 
+                          0 /*key_size*/, 
+                          0 /*read_range_no*/, 
+                          rowSize,
+                          &m_batchBuffer[m_batchByteSize*i],
+                          m_userProjection.getColumnCount());
+    m_resultStreams[i]->m_receiver.prepareSend();
+  }
+
+
+  if(m_operationDef.getQueryOperationIx()==0)
+  {
+    if (m_operationDef.isScanOperation())
+    {
+      for(Uint32 i = 0; i<m_queryImpl.getParallelism(); i++)
+      {
+         m_resultStreams[i]->m_pendingResults = 0;
+         m_resultStreams[i]->m_pendingScanTabConf = true;
+      }
+    }
+    else 
+    {
+      m_resultStreams[0]->m_pendingResults = 1; 
+    }
+
+    // Setup m_applStreams and m_fullStreams
+    m_applStreams.prepare(m_queryImpl.getParallelism());
+    m_fullStreams.prepare(m_queryImpl.getParallelism());
+  }
+
+  return 0;
+}//NdbQueryOperationImpl::prepareReceiver
+
+int 
+NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& serializedParams)
+{
+  // ::prepareReceiver() need to complete first:
+  assert (m_resultStreams != NULL);
+
+  const NdbQueryOperationDefImpl& def = getQueryOperationDef();
 
   /**
    * Serialize parameters refered by this NdbQueryOperation.
@@ -1481,15 +1508,14 @@ NdbQueryOperationImpl::prepareSend(Uint32Buffer& serializedParams)
    * serializedParams chunk. Each operations params are 
    * proceeded by 'length' for this operation.
    */
-  QN_LookupParameters* indexLookupParam = NULL;
   if (def.getType() == NdbQueryOperationDefImpl::UniqueIndexAccess)
   {
     size_t startPos = serializedParams.getSize();
-    indexLookupParam = reinterpret_cast<QN_LookupParameters*>
+    QN_LookupParameters* indexLookupParam = reinterpret_cast<QN_LookupParameters*>
       (serializedParams.alloc(QN_LookupParameters::NodeSize));
     indexLookupParam->len = 0;  // Temp value, fixup later
     indexLookupParam->requestInfo = 0;
-    indexLookupParam->resultData = RNIL; // Temp value, fixup later
+    indexLookupParam->resultData = getIdOfReceiver();
 
     if (m_params.getSize() > 0)   // def.getNoOfParameters() > 0)
     {
@@ -1523,7 +1549,7 @@ NdbQueryOperationImpl::prepareSend(Uint32Buffer& serializedParams)
     (serializedParams.alloc(QN_LookupParameters::NodeSize));
   param->len = 0;  // Temp value, fixup later
   param->requestInfo = 0;
-  param->resultData = RNIL; // Temp value, fixup later
+  param->resultData = getIdOfReceiver();
 
   // SPJ block assume PARAMS to be supplied before ATTR_LIST
   if (def.getNoOfParameters() > 0  && 
@@ -1567,65 +1593,15 @@ NdbQueryOperationImpl::prepareSend(Uint32Buffer& serializedParams)
   ndbout << endl;
 #endif
 
-  // Construct receiver streams and prepare them for receiving scan result
-  assert(m_resultStreams==NULL);
-  assert(m_queryImpl.getParallelism() > 0);
-  m_resultStreams = new ResultStream*[m_queryImpl.getParallelism()];
-  if (unlikely(m_resultStreams == NULL)) {
-    return Err_MemoryAlloc; // Allocation failure
-  }
-  for(Uint32 i = 0; i<getQuery().getParallelism(); i++){
-    m_resultStreams[i] = NULL;  // Init to legal contents
-  }
-  for(Uint32 i = 0; i<getQuery().getParallelism(); i++){
-    m_resultStreams[i] = new ResultStream(*this, i);
-    if (unlikely(m_resultStreams[i] == NULL)) {
-      return Err_MemoryAlloc; // Allocation failure
-    }
-    m_resultStreams[i]->m_receiver.init(NdbReceiver::NDB_QUERY_OPERATION, 
-                                        false, this);
-    m_resultStreams[i]->prepare();
-    m_resultStreams[i]->m_receiver
-      .do_setup_ndbrecord(m_ndbRecord,
-                          m_maxBatchRows, 
-                          0 /*key_size*/, 
-                          0 /*read_range_no*/, 
-                          rowSize,
-                          &m_batchBuffer[m_batchByteSize*i],
-                          m_userProjection.getColumnCount());
-    m_resultStreams[i]->m_receiver.prepareSend();
-  }
-
-  if(m_operationDef.getQueryOperationIx()==0)
-  {
-    if (def.isScanOperation())
-    {
-      for(Uint32 i = 0; i<getQuery().getParallelism(); i++)
-      {
-         m_resultStreams[i]->m_pendingResults = 0;
-         m_resultStreams[i]->m_pendingScanTabConf = true;
-      }
-    }
-    else 
-    {
-      m_resultStreams[0]->m_pendingResults = 1; 
-    }
-
-    // Setup m_applStreams and m_fullStreams
-    m_applStreams.prepare(getQuery().getParallelism());
-    m_fullStreams.prepare(getQuery().getParallelism());
-  }
-
-  /* m_resultStreams[0]->m_receiver.m_query_operation_impl
-   * points back to this NdbQueryOperationImpl instance.*/
-  param->resultData = getIdOfReceiver();
-  if(def.getType() == NdbQueryOperationDefImpl::UniqueIndexAccess){
-    indexLookupParam->resultData = getIdOfReceiver();
-  }
-
   return 0;
-} // NdbQueryOperationImpl::prepareSend
+} // NdbQueryOperationImpl::prepareAttrInfo
 
+
+/* The tail of every record looks like this:
+ * {AttributeHeader::READ_ANY_VALUE, receverId, correlationNum }
+ *
+*/
+static const Uint32 correlationWordCount = 3;
 
 static void getCorrelationData(const Uint32* ptr, 
                                Uint32 len,

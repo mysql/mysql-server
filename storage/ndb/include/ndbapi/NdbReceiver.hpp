@@ -27,6 +27,7 @@
 class Ndb;
 class NdbTransaction;
 class NdbRecord;
+class TransporterFacade;
 class NdbQueryOperationImpl;
 
 class NdbReceiver
@@ -89,8 +90,20 @@ private:
   class NdbRecAttr * getValue(const class NdbColumnImpl*, char * user_dst_ptr);
   void getValues(const NdbRecord*, char*);
   void prepareSend();
-  void calculate_batch_size(Uint32, Uint32, Uint32&, Uint32&, Uint32&,
-                            const NdbRecord *) const;
+
+  static
+  void calculate_batch_size(const TransporterFacade *tp,
+                            const NdbRecord *,
+                            const NdbRecAttr *first_rec_attr,
+                            Uint32, Uint32, Uint32&, Uint32&, Uint32&);
+
+  void calculate_batch_size(Uint32 key_size,
+                            Uint32 parallelism,
+                            Uint32& batch_size,
+                            Uint32& batch_byte_size,
+                            Uint32& first_batch_size,
+                            const NdbRecord *rec) const;
+
   /*
     Set up buffers for receiving TRANSID_AI and KEYINFO20 signals
     during a scan using NdbRecord.
@@ -98,8 +111,13 @@ private:
   void do_setup_ndbrecord(const NdbRecord *ndb_record, Uint32 batch_size,
                           Uint32 key_size, Uint32 read_range_no,
                           Uint32 rowsize, char *buf, Uint32 column_count);
-  Uint32 ndbrecord_rowsize(const NdbRecord *ndb_record, Uint32 key_size,
-                           Uint32 read_range_no, Uint32 extra_size);
+
+  static
+  Uint32 ndbrecord_rowsize(const NdbRecord *ndb_record,
+                           const NdbRecAttr *first_rec_attr,
+                           Uint32 key_size,
+                           bool   read_range_no);
+
 
   int execKEYINFO20(Uint32 info, const Uint32* ptr, Uint32 len);
   int execTRANSID_AI(const Uint32* ptr, Uint32 len); 

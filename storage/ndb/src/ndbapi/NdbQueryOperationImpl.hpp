@@ -115,6 +115,9 @@ public:
   Uint32 getParallelism() const
   { return m_parallelism; } 
 
+  Uint32 getMaxBatchRows() const
+  { return m_maxBatchRows; }
+
   const NdbQueryDefImpl& getQueryDef() const
   { return m_queryDef; }
 
@@ -135,14 +138,18 @@ private:
   /** True if a TCKEYCONF message has been received for this query.*/
   bool m_tcKeyConfReceived;
   /** Number of streams not yet completed within the current batch.*/
-  int m_pendingStreams;
+  Uint32 m_pendingStreams;
   /** Next query in same transaction.*/
   NdbQueryImpl* const m_next;
   /** Definition of this query.*/
   const NdbQueryDefImpl& m_queryDef;
+
   /** Number of fragments to be scanned in parallel. (1 if root operation is 
-   * a lookup)*/
+   *  a lookup)*/
   Uint32 m_parallelism;
+
+  /** Max rows (per resultStream) in a scan batch.*/
+  Uint32 m_maxBatchRows;
 
   /**
    * Signal building section:
@@ -161,6 +168,8 @@ class NdbQueryOperationImpl {
 
   /** For debugging.*/
   friend NdbOut& operator<<(NdbOut& out, const NdbQueryOperationImpl&);
+
+  friend class NdbQueryImpl;
 
 public:
   STATIC_CONST (MAGIC = 0xfade1234);
@@ -237,9 +246,12 @@ public:
    *  @return possible error code.*/
   int serializeParams(const constVoidPtr paramValues[]);
 
-  /** Prepare for execution. 
+  /** Construct and prepare receiver streams for result processing. */
+  int prepareReceiver();
+
+  /** Prepare ATTRINFO for execution. (Add execution params++)
    *  @return possible error code.*/
-  int prepareSend(Uint32Buffer& serializedParams);
+  int prepareAttrInfo(Uint32Buffer& attrInfo);
 
   /** Return I-value (for putting in object map) for a receiver pointing back 
    * to this object. TCKEYCONF is processed by first looking up an 
@@ -262,12 +274,6 @@ public:
   { return m_interface; }
 
   const NdbReceiver& getReceiver(Uint32 recNo) const;
-
-  /** Find max number of rows per batch per ResultStream.*/
-  void findMaxRows();
-
-  Uint32 getMaxBatchRows() const
-  { return m_maxBatchRows; }
 
 private:
   /** NdbRecord and NdbRecAttr may not be combined. Also, results may not 
@@ -492,8 +498,6 @@ private:
   bool m_isRowNull;
   /** Batch size for scans or lookups with scan parents.*/
   Uint32 m_batchByteSize;
-  /** Max rows (per resultStream) in a scan batch.*/
-  Uint32 m_maxBatchRows;
   /** Result record.*/
   const NdbRecord* m_ndbRecord;
   /** Streams that the application is currently iterating over. Only accessed
@@ -503,12 +507,11 @@ private:
    * application thread and receiving thread. Access should be mutex protected.
    */
   StreamStack m_fullStreams;
-  /** Points to head of list. Used for old-style result retrieval 
-   * (using getValue()).*/
+  /** Head & tail of NdbRecAttr list defined by this operation.
+    * Used for old-style result retrieval (using getValue()).*/
   NdbRecAttr* m_firstRecAttr;
-  /** Points to tail of list. Used for old-style result retrieval 
-   * (using getValue()).*/
   NdbRecAttr* m_lastRecAttr;
+
   /** Fetch result for non-root operation.*/
   void updateChildResult(Uint32 resultStreamNo, Uint32 rowNo);
   /** Get more scan results, ask for the next batch if necessary.*/
