@@ -4,7 +4,7 @@
 	row/row0mysql.c:
 	Fix a regression introduced by the fix for MySQL bug#26316. We check
 	whether a transaction holds any AUTOINC locks before we acquire
-       	the kernel mutex and release those locks.
+	the kernel mutex and release those locks.
 
 2009-08-27	The InnoDB Team
 
