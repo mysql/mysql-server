@@ -72,6 +72,7 @@ int toku_logfilemgr_init(TOKULOGFILEMGR lfm, const char *log_dir) {
     TOKULOGFILEINFO lf_info;
     long long index = -1;
     char *basename;
+    LSN tmp_lsn = {0};
     for(int i=0;i<n_logfiles;i++){
         lf_info = toku_malloc(sizeof(struct toku_logfile_info));
         if ( lf_info == NULL ) {
@@ -89,9 +90,10 @@ int toku_logfilemgr_init(TOKULOGFILEMGR lfm, const char *log_dir) {
         r = toku_logcursor_last(cursor, &entry);
         if ( r == 0 ) {
             lf_info->maxlsn = toku_log_entry_get_lsn(entry);
+            tmp_lsn = lf_info->maxlsn;
         }
         else {
-            lf_info->maxlsn.lsn = 0;
+            lf_info->maxlsn = tmp_lsn; // handle empty logfile (no LSN in file) case
         }
 
         // add to logfilemgr
