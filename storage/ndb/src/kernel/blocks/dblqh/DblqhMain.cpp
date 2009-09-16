@@ -2424,7 +2424,14 @@ Dblqh::execALTER_TAB_REQ(Signal* signal)
   }
   else
   {
-    ndbrequire(false);
+    jam();
+    AlterTabRef* ref = (AlterTabRef*)signal->getDataPtrSend();
+    ref->senderRef = reference();
+    ref->senderData = senderData;
+    ref->connectPtr = connectPtr;
+    ref->errorCode = errCode;
+    sendSignal(senderRef, GSN_ALTER_TAB_REF, signal,
+               AlterTabRef::SignalLength, JBB);
   }
 }
 
