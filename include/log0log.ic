@@ -312,11 +312,20 @@ log_reserve_and_write_fast(
 	ib_uint64_t*	start_lsn)/*!< out: start lsn of the log record */
 {
 	ulint		data_len;
-	ib_uint64_t	lsn;
+#ifdef UNIV_LOG_LSN_DEBUG
+	/* length of the LSN pseudo-record */
+	ulint		lsn_len = 1
+		+ mach_get_compressed_size(log_sys->lsn >> 32)
+		+ mach_get_compressed_size(log_sys->lsn & 0xFFFFFFFFUL);
+#endif /* UNIV_LOG_LSN_DEBUG */
 
 	mutex_enter(&log_sys->mutex);
 
-	data_len = len + log_sys->buf_free % OS_FILE_LOG_BLOCK_SIZE;
+	data_len = len
+#ifdef UNIV_LOG_LSN_DEBUG
+		+ lsn_len
+#endif /* UNIV_LOG_LSN_DEBUG */
+		+ log_sys->buf_free % OS_FILE_LOG_BLOCK_SIZE;
 
 	if (data_len >= OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_TRL_SIZE) {
 
@@ -330,7 +339,23 @@ log_reserve_and_write_fast(
 
 	*start_lsn = log_sys->lsn;
 
-	ut_memcpy(log_sys->buf + log_sys->buf_free, str, len);
+#ifdef UNIV_LOG_LSN_DEBUG
+	{
+		/* Write the LSN pseudo-record. */
+		byte* b = &log_sys->buf[log_sys->buf_free];
+		*b++ = MLOG_LSN | (MLOG_SINGLE_REC_FLAG & *(const byte*) str);
+		/* Write the LSN in two parts,
+		as a pseudo page number and space id. */
+		b += mach_write_compressed(b, log_sys->lsn >> 32);
+		b += mach_write_compressed(b, log_sys->lsn & 0xFFFFFFFFUL);
+		ut_a(b - lsn_len == &log_sys->buf[log_sys->buf_free]);
+
+		memcpy(b, str, len);
+		len += lsn_len;
+	}
+#else /* UNIV_LOG_LSN_DEBUG */
+	memcpy(log_sys->buf + log_sys->buf_free, str, len);
+#endif /* UNIV_LOG_LSN_DEBUG */
 
 	log_block_set_data_len((byte*) ut_align_down(log_sys->buf
 						     + log_sys->buf_free,
@@ -344,14 +369,14 @@ log_reserve_and_write_fast(
 
 	ut_ad(log_sys->buf_free <= log_sys->buf_size);
 
-	lsn = log_sys->lsn += len;
+	log_sys->lsn += len;
 
 #ifdef UNIV_LOG_DEBUG
 	log_check_log_recs(log_sys->buf + log_sys->old_buf_free,
 			   log_sys->buf_free - log_sys->old_buf_free,
 			   log_sys->old_lsn);
 #endif
-	return(lsn);
+	return(log_sys->lsn);
 }
 
 /***********************************************************************//**
