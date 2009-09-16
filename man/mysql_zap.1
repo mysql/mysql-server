@@ -1,93 +1,132 @@
+'\" t
 .\"     Title: \fBmysql_zap\fR
-.\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.70.1 <http://docbook.sf.net/>
-.\"      Date: 03/31/2009
+.\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
+.\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
+.\"      Date: 08/12/2009
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
+.\"  Language: English
 .\"
-.TH "\fBMYSQL_ZAP\fR" "1" "03/31/2009" "MySQL 5.1" "MySQL Database System"
+.TH "\FBMYSQL_ZAP\FR" "1" "08/12/2009" "MySQL 5\&.1" "MySQL Database System"
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
 .\" disable hyphenation
 .nh
 .\" disable justification (adjust text to left margin only)
 .ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.\" mysql_zap
 .SH "NAME"
 mysql_zap \- kill processes that match a pattern
 .SH "SYNOPSIS"
-.HP 36
+.HP \w'\fBmysql_zap\ [\-\fR\fB\fIsignal\fR\fR\fB]\ [\-?Ift]\ \fR\fB\fIpattern\fR\fR\ 'u
 \fBmysql_zap [\-\fR\fB\fIsignal\fR\fR\fB] [\-?Ift] \fR\fB\fIpattern\fR\fR
 .SH "DESCRIPTION"
 .PP
 \fBmysql_zap\fR
-kills processes that match a pattern. It uses the
+kills processes that match a pattern\&. It uses the
 \fBps\fR
-command and Unix signals, so it runs on Unix and Unix\-like systems.
+command and Unix signals, so it runs on Unix and Unix\-like systems\&.
 .PP
 Invoke
 \fBmysql_zap\fR
 like this:
 .sp
-.RS 3n
+.if n \{\
+.RS 4
+.\}
 .nf
 shell> \fBmysql_zap [\-\fR\fB\fIsignal\fR\fR\fB] [\-?Ift] \fR\fB\fIpattern\fR\fR
 .fi
+.if n \{\
 .RE
+.\}
 .PP
 A process matches if its output line from the
 \fBps\fR
-command contains the pattern. By default,
+command contains the pattern\&. By default,
 \fBmysql_zap\fR
-asks for confirmation for each process. Respond
+asks for confirmation for each process\&. Respond
 y
 to kill the process, or
 q
 to exit
-\fBmysql_zap\fR. For any other response,
+\fBmysql_zap\fR\&. For any other response,
 \fBmysql_zap\fR
-does not attempt to kill the process.
+does not attempt to kill the process\&.
 .PP
 If the
 \fB\-\fR\fB\fIsignal\fR\fR
-option is given, it specifies the name or number of the signal to send to each process. Otherwise,
+option is given, it specifies the name or number of the signal to send to each process\&. Otherwise,
 \fBmysql_zap\fR
 tries first with
 TERM
 (signal 15) and then with
 KILL
-(signal 9).
+(signal 9)\&.
 .PP
 \fBmysql_zap\fR
-understands the following additional options:
-.TP 3n
-\(bu
+supports the following additional options:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-help\fR,
 \fB\-?\fR,
 \fB\-I\fR
 .sp
-Display a help message and exit.
-.TP 3n
-\(bu
+Display a help message and exit\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-f\fR
 .sp
-Force mode.
+Force mode\&.
 \fBmysql_zap\fR
-attempts to kill each process without confirmation.
-.TP 3n
-\(bu
+attempts to kill each process without confirmation\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-t\fR
 .sp
-Test mode. Display information about each process but do not kill it.
+Test mode\&. Display information about each process but do not kill it\&.
+.RE
 .SH "COPYRIGHT"
+.br
 .PP
-Copyright 2007\-2008 MySQL AB, 2009 Sun Microsystems, Inc.
+Copyright 2007-2008 MySQL AB, 2009 Sun Microsystems, Inc.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP
 This documentation is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 .PP
-You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110\-1301 USA or see http://www.gnu.org/licenses/.
+You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
+.sp
 .SH "SEE ALSO"
 For more information, please refer to the MySQL Reference Manual,
 which may already be installed locally and which is also available
 online at http://dev.mysql.com/doc/.
 .SH AUTHOR
-MySQL AB (http://www.mysql.com/).
+Sun Microsystems, Inc. (http://www.mysql.com/).

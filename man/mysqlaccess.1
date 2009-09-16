@@ -1,218 +1,435 @@
+'\" t
 .\"     Title: \fBmysqlaccess\fR
-.\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.70.1 <http://docbook.sf.net/>
-.\"      Date: 03/31/2009
+.\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
+.\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
+.\"      Date: 08/12/2009
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
+.\"  Language: English
 .\"
-.TH "\fBMYSQLACCESS\fR" "1" "03/31/2009" "MySQL 5.1" "MySQL Database System"
+.TH "\FBMYSQLACCESS\FR" "1" "08/12/2009" "MySQL 5\&.1" "MySQL Database System"
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
 .\" disable hyphenation
 .nh
 .\" disable justification (adjust text to left margin only)
 .ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.\" mysqlaccess
 .SH "NAME"
 mysqlaccess \- client for checking access privileges
 .SH "SYNOPSIS"
-.HP 56
+.HP \w'\fBmysqlaccess\ [\fR\fB\fIhost_name\fR\fR\fB\ [\fR\fB\fIuser_name\fR\fR\fB\ [\fR\fB\fIdb_name\fR\fR\fB]]]\ [\fR\fB\fIoptions\fR\fR\fB]\fR\ 'u
 \fBmysqlaccess [\fR\fB\fIhost_name\fR\fR\fB [\fR\fB\fIuser_name\fR\fR\fB [\fR\fB\fIdb_name\fR\fR\fB]]] [\fR\fB\fIoptions\fR\fR\fB]\fR
 .SH "DESCRIPTION"
 .PP
 \fBmysqlaccess\fR
-is a diagnostic tool that Yves Carlier has provided for the MySQL distribution. It checks the access privileges for a host name, user name, and database combination. Note that
+is a diagnostic tool that Yves Carlier has provided for the MySQL distribution\&. It checks the access privileges for a host name, user name, and database combination\&. Note that
 \fBmysqlaccess\fR
 checks access using only the
 user,
 db, and
 host
-tables. It does not check table, column, or routine privileges specified in the
+tables\&. It does not check table, column, or routine privileges specified in the
 tables_priv,
 columns_priv, or
 procs_priv
-tables.
+tables\&.
 .PP
 Invoke
 \fBmysqlaccess\fR
 like this:
 .sp
-.RS 3n
+.if n \{\
+.RS 4
+.\}
 .nf
 shell> \fBmysqlaccess [\fR\fB\fIhost_name\fR\fR\fB [\fR\fB\fIuser_name\fR\fR\fB [\fR\fB\fIdb_name\fR\fR\fB]]] [\fR\fB\fIoptions\fR\fR\fB]\fR
 .fi
+.if n \{\
 .RE
+.\}
 .PP
 \fBmysqlaccess\fR
-understands the following options:
-.TP 3n
-\(bu
+supports the following options:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlaccess: help option
+.\" help option: mysqlaccess
 \fB\-\-help\fR,
 \fB\-?\fR
 .sp
-Display a help message and exit.
-.TP 3n
-\(bu
+Display a help message and exit\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlaccess: brief option
+.\" brief option: mysqlaccess
 \fB\-\-brief\fR,
 \fB\-b\fR
 .sp
-Generate reports in single\-line tabular format.
-.TP 3n
-\(bu
+Generate reports in single\-line tabular format\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlaccess: commit option
+.\" commit option: mysqlaccess
 \fB\-\-commit\fR
 .sp
-Copy the new access privileges from the temporary tables to the original grant tables. The grant tables must be flushed for the new privileges to take effect. (For example, execute a
+Copy the new access privileges from the temporary tables to the original grant tables\&. The grant tables must be flushed for the new privileges to take effect\&. (For example, execute a
 \fBmysqladmin reload\fR
-command.)
-.TP 3n
-\(bu
+command\&.)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlaccess: copy option
+.\" copy option: mysqlaccess
 \fB\-\-copy\fR
 .sp
-Reload the temporary grant tables from original ones.
-.TP 3n
-\(bu
+Reload the temporary grant tables from original ones\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlaccess: db option
+.\" db option: mysqlaccess
 \fB\-\-db=\fR\fB\fIdb_name\fR\fR,
 \fB\-d \fR\fB\fIdb_name\fR\fR
 .sp
-Specify the database name.
-.TP 3n
-\(bu
+Specify the database name\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlaccess: debug option
+.\" debug option: mysqlaccess
 \fB\-\-debug=\fR\fB\fIN\fR\fR
 .sp
-Specify the debug level.
+Specify the debug level\&.
 \fIN\fR
-can be an integer from 0 to 3.
-.TP 3n
-\(bu
+can be an integer from 0 to 3\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlaccess: host option
+.\" host option: mysqlaccess
 \fB\-\-host=\fR\fB\fIhost_name\fR\fR,
 \fB\-h \fR\fB\fIhost_name\fR\fR
 .sp
-The host name to use in the access privileges.
-.TP 3n
-\(bu
+The host name to use in the access privileges\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlaccess: howto option
+.\" howto option: mysqlaccess
 \fB\-\-howto\fR
 .sp
 Display some examples that show how to use
-\fBmysqlaccess\fR.
-.TP 3n
-\(bu
+\fBmysqlaccess\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlaccess: old_server option
+.\" old_server option: mysqlaccess
 \fB\-\-old_server\fR
 .sp
-Assume that the server is an old MySQL server (before MySQL 3.21) that does not yet know how to handle full
+Assume that the server is an old MySQL server (before MySQL 3\&.21) that does not yet know how to handle full
 WHERE
-clauses.
-.TP 3n
-\(bu
+clauses\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlaccess: password option
+.\" password option: mysqlaccess
 \fB\-\-password[=\fR\fB\fIpassword\fR\fR\fB]\fR,
 \fB\-p[\fR\fB\fIpassword\fR\fR\fB]\fR
 .sp
-The password to use when connecting to the server. If you omit the
+The password to use when connecting to the server\&. If you omit the
 \fIpassword\fR
 value following the
 \fB\-\-password\fR
 or
 \fB\-p\fR
-option on the command line, you are prompted for one.
+option on the command line, you are prompted for one\&.
 .sp
-Specifying a password on the command line should be considered insecure. See
-Section\ 5.5.6.2, \(lqEnd\-User Guidelines for Password Security\(rq.
-.TP 3n
-\(bu
+Specifying a password on the command line should be considered insecure\&. See
+Section\ \&5.5.6.2, \(lqEnd-User Guidelines for Password Security\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlaccess: plan option
+.\" plan option: mysqlaccess
 \fB\-\-plan\fR
 .sp
-Display suggestions and ideas for future releases.
-.TP 3n
-\(bu
+Display suggestions and ideas for future releases\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlaccess: preview option
+.\" preview option: mysqlaccess
 \fB\-\-preview\fR
 .sp
-Show the privilege differences after making changes to the temporary grant tables.
-.TP 3n
-\(bu
+Show the privilege differences after making changes to the temporary grant tables\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlaccess: relnotes option
+.\" relnotes option: mysqlaccess
 \fB\-\-relnotes\fR
 .sp
-Display the release notes.
-.TP 3n
-\(bu
+Display the release notes\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlaccess: rhost option
+.\" rhost option: mysqlaccess
 \fB\-\-rhost=\fR\fB\fIhost_name\fR\fR,
 \fB\-H \fR\fB\fIhost_name\fR\fR
 .sp
-Connect to the MySQL server on the given host.
-.TP 3n
-\(bu
+Connect to the MySQL server on the given host\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlaccess: rollback option
+.\" rollback option: mysqlaccess
 \fB\-\-rollback\fR
 .sp
-Undo the most recent changes to the temporary grant tables.
-.TP 3n
-\(bu
+Undo the most recent changes to the temporary grant tables\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlaccess: spassword option
+.\" spassword option: mysqlaccess
 \fB\-\-spassword[=\fR\fB\fIpassword\fR\fR\fB]\fR,
 \fB\-P[\fR\fB\fIpassword\fR\fR\fB]\fR
 .sp
-The password to use when connecting to the server as the superuser. If you omit the
+The password to use when connecting to the server as the superuser\&. If you omit the
 \fIpassword\fR
 value following the
 \fB\-\-password\fR
 or
 \fB\-p\fR
-option on the command line, you are prompted for one.
+option on the command line, you are prompted for one\&.
 .sp
-Specifying a password on the command line should be considered insecure. See
-Section\ 5.5.6.2, \(lqEnd\-User Guidelines for Password Security\(rq.
-.TP 3n
-\(bu
+Specifying a password on the command line should be considered insecure\&. See
+Section\ \&5.5.6.2, \(lqEnd-User Guidelines for Password Security\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlaccess: superuser option
+.\" superuser option: mysqlaccess
 \fB\-\-superuser=\fR\fB\fIuser_name\fR\fR,
 \fB\-U \fR\fB\fIuser_name\fR\fR
 .sp
-Specify the user name for connecting as the superuser.
-.TP 3n
-\(bu
+Specify the user name for connecting as the superuser\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlaccess: table option
+.\" table option: mysqlaccess
 \fB\-\-table\fR,
 \fB\-t\fR
 .sp
-Generate reports in table format.
-.TP 3n
-\(bu
+Generate reports in table format\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlaccess: user option
+.\" user option: mysqlaccess
 \fB\-\-user=\fR\fB\fIuser_name\fR\fR,
 \fB\-u \fR\fB\fIuser_name\fR\fR
 .sp
-The user name to use in the access privileges.
-.TP 3n
-\(bu
+The user name to use in the access privileges\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlaccess: version option
+.\" version option: mysqlaccess
 \fB\-\-version\fR,
 \fB\-v\fR
 .sp
-Display version information and exit.
-.sp
+Display version information and exit\&.
 .RE
 .PP
-If your MySQL distribution is installed in some non\-standard location, you must change the location where
+If your MySQL distribution is installed in some nonstandard location, you must change the location where
 \fBmysqlaccess\fR
 expects to find the
 \fBmysql\fR
-client. Edit the
-\fImysqlaccess\fR
-script at approximately line 18. Search for a line that looks like this:
+client\&. Edit the
+mysqlaccess
+script at approximately line 18\&. Search for a line that looks like this:
 .sp
-.RS 3n
+.if n \{\
+.RS 4
+.\}
 .nf
-$MYSQL     = '/usr/local/bin/mysql';    # path to mysql executable
+$MYSQL     = \'/usr/local/bin/mysql\';    # path to mysql executable
 .fi
+.if n \{\
 .RE
+.\}
 .PP
 Change the path to reflect the location where
 \fBmysql\fR
-actually is stored on your system. If you do not do this, a
+actually is stored on your system\&. If you do not do this, a
 Broken pipe
 error will occur when you run
-\fBmysqlaccess\fR.
+\fBmysqlaccess\fR\&.
 .SH "COPYRIGHT"
+.br
 .PP
-Copyright 2007\-2008 MySQL AB, 2009 Sun Microsystems, Inc.
+Copyright 2007-2008 MySQL AB, 2009 Sun Microsystems, Inc.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP
 This documentation is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 .PP
-You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110\-1301 USA or see http://www.gnu.org/licenses/.
+You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
+.sp
 .SH "SEE ALSO"
 For more information, please refer to the MySQL Reference Manual,
 which may already be installed locally and which is also available
 online at http://dev.mysql.com/doc/.
 .SH AUTHOR
-MySQL AB (http://www.mysql.com/).
+Sun Microsystems, Inc. (http://www.mysql.com/).

@@ -1,57 +1,81 @@
+'\" t
 .\"     Title: \fBperror\fR
-.\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.70.1 <http://docbook.sf.net/>
-.\"      Date: 03/31/2009
+.\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
+.\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
+.\"      Date: 08/12/2009
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
+.\"  Language: English
 .\"
-.TH "\fBPERROR\fR" "1" "03/31/2009" "MySQL 5.1" "MySQL Database System"
+.TH "\FBPERROR\FR" "1" "08/12/2009" "MySQL 5\&.1" "MySQL Database System"
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
 .\" disable hyphenation
 .nh
 .\" disable justification (adjust text to left margin only)
 .ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.\" perror
+.\" error messages: displaying
+.\" errno
+.\" Errcode
 .SH "NAME"
 perror \- explain error codes
 .SH "SYNOPSIS"
-.HP 31
-\fBperror [\fR\fB\fIoptions\fR\fR\fB] \fR\fB\fIerrorcode\fR\fR\fB ...\fR
+.HP \w'\fBperror\ [\fR\fB\fIoptions\fR\fR\fB]\ \fR\fB\fIerrorcode\fR\fR\fB\ \&.\&.\&.\fR\ 'u
+\fBperror [\fR\fB\fIoptions\fR\fR\fB] \fR\fB\fIerrorcode\fR\fR\fB \&.\&.\&.\fR
 .SH "DESCRIPTION"
 .PP
 For most system errors, MySQL displays, in addition to an internal text message, the system error code in one of the following styles:
 .sp
-.RS 3n
+.if n \{\
+.RS 4
+.\}
 .nf
-message ... (errno: #)
-message ... (Errcode: #)
+message \&.\&.\&. (errno: #)
+message \&.\&.\&. (Errcode: #)
 .fi
+.if n \{\
 .RE
+.\}
 .PP
 You can find out what the error code means by examining the documentation for your system or by using the
 \fBperror\fR
-utility.
+utility\&.
 .PP
 \fBperror\fR
-prints a description for a system error code or for a storage engine (table handler) error code.
+prints a description for a system error code or for a storage engine (table handler) error code\&.
 .PP
 Invoke
 \fBperror\fR
 like this:
 .sp
-.RS 3n
+.if n \{\
+.RS 4
+.\}
 .nf
-shell> \fBperror [\fR\fB\fIoptions\fR\fR\fB] \fR\fB\fIerrorcode\fR\fR\fB ...\fR
+shell> \fBperror [\fR\fB\fIoptions\fR\fR\fB] \fR\fB\fIerrorcode\fR\fR\fB \&.\&.\&.\fR
 .fi
+.if n \{\
 .RE
+.\}
 .PP
 Example:
 .sp
-.RS 3n
+.if n \{\
+.RS 4
+.\}
 .nf
 shell> \fBperror 13 64\fR
 OS error code  13:  Permission denied
 OS error code  64:  Machine is not on the network
 .fi
+.if n \{\
 .RE
+.\}
 .PP
 To obtain the error message for a MySQL Cluster error code, invoke
 \fBperror\fR
@@ -59,59 +83,115 @@ with the
 \fB\-\-ndb\fR
 option:
 .sp
-.RS 3n
+.if n \{\
+.RS 4
+.\}
 .nf
 shell> \fBperror \-\-ndb \fR\fB\fIerrorcode\fR\fR
 .fi
+.if n \{\
 .RE
+.\}
 .PP
-Note that the meaning of system error messages may be dependent on your operating system. A given error code may mean different things on different operating systems.
+Note that the meaning of system error messages may be dependent on your operating system\&. A given error code may mean different things on different operating systems\&.
 .PP
 \fBperror\fR
 supports the following options:
-.TP 3n
-\(bu
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" perror: help option
+.\" help option: perror
 \fB\-\-help\fR,
 \fB\-\-info\fR,
 \fB\-I\fR,
 \fB\-?\fR
 .sp
-Display a help message and exit.
-.TP 3n
-\(bu
+Display a help message and exit\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" perror: ndb option
+.\" ndb option: perror
 \fB\-\-ndb\fR
 .sp
-Print the error message for a MySQL Cluster error code.
-.TP 3n
-\(bu
+Print the error message for a MySQL Cluster error code\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" perror: silent option
+.\" silent option: perror
 \fB\-\-silent\fR,
 \fB\-s\fR
 .sp
-Silent mode. Print only the error message.
-.TP 3n
-\(bu
+Silent mode\&. Print only the error message\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" perror: verbose option
+.\" verbose option: perror
 \fB\-\-verbose\fR,
 \fB\-v\fR
 .sp
-Verbose mode. Print error code and message. This is the default behavior.
-.TP 3n
-\(bu
+Verbose mode\&. Print error code and message\&. This is the default behavior\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" perror: version option
+.\" version option: perror
 \fB\-\-version\fR,
 \fB\-V\fR
 .sp
-Display version information and exit.
+Display version information and exit\&.
+.RE
 .SH "COPYRIGHT"
+.br
 .PP
-Copyright 2007\-2008 MySQL AB, 2009 Sun Microsystems, Inc.
+Copyright 2007-2008 MySQL AB, 2009 Sun Microsystems, Inc.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP
 This documentation is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 .PP
-You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110\-1301 USA or see http://www.gnu.org/licenses/.
+You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
+.sp
 .SH "SEE ALSO"
 For more information, please refer to the MySQL Reference Manual,
 which may already be installed locally and which is also available
 online at http://dev.mysql.com/doc/.
 .SH AUTHOR
-MySQL AB (http://www.mysql.com/).
+Sun Microsystems, Inc. (http://www.mysql.com/).

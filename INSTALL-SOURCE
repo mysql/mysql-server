@@ -207,9 +207,9 @@ Important
 
      * General file system stability and performance.
 
-     * If your tables are large, performance is affected by the
-       ability of the file system to deal with large files at all and
-       to deal with them efficiently.
+     * Table size. If your tables are large, performance is affected
+       by the ability of the file system to deal with large files at
+       all and to deal with them efficiently.
 
      * Our level of expertise here at Sun Microsystems, Inc. with the
        platform. If we know a platform well, we enable
@@ -240,7 +240,7 @@ Important
    development process, multiple release series co-exist, each at a
    different stage of maturity:
 
-     * MySQL 6.0 is the current development release series.
+     * MySQL 5.4 and 6.0 are the current development release series.
 
      * MySQL 5.1 is the current General Availability (Production)
        release series. New releases are issued for bugfixes only; no
@@ -252,11 +252,12 @@ Important
      * MySQL 4.1, 4.0, and 3.23 are old stable (production-quality)
        release series. MySQL 4.1 is now at the end of the product
        lifecycle. Active development and support for these versions
-       has ended. Extended support for MySQL 4.1 and 4.0 is
-       available. According to the MySQL Lifecycle Policy (see
-       http://www.mysql.com/company/legal/lifecycle/#policy), only
-       Security and Severity Level 1 issues will still be fixed for
-       MySQL 4.0 and 4.1.
+       has ended.
+       Extended support for MySQL 4.1 remains available. According to
+       the MySQL Lifecycle Policy
+       (http://www.mysql.com/company/legal/lifecycle/#policy), only
+       Security and Severity Level 1 issues are still being fixed for
+       MySQL 4.1.
 
    We do not believe in a complete code freeze because this prevents
    us from making bugfixes and other fixes that must be done. By
@@ -267,13 +268,13 @@ Important
 
    Normally, if you are beginning to use MySQL for the first time or
    trying to port it to some system for which there is no binary
-   distribution, we recommend going with the General Availability
-   release series. Currently, this is MySQL 5.1. All MySQL releases,
-   even those from development series, are checked with the MySQL
-   benchmarks and an extensive test suite before being issued.
+   distribution, go with the General Availability release series.
+   Currently, this is MySQL 5.1. All MySQL releases, even those from
+   development series, are checked with the MySQL benchmarks and an
+   extensive test suite before being issued.
 
    If you are running an older system and want to upgrade, but do not
-   want to take the chance of having a non-seamless upgrade, you
+   want to take the chance of having a nonseamless upgrade, you
    should upgrade to the latest version in the same release series
    you are using (where only the last part of the version number is
    newer than yours). We have tried to fix only fatal bugs and make
@@ -473,17 +474,16 @@ Important
        rapid updates. Community Server releases are meant to appear
        2-3 times per year.
 
-     * Releases are issued within each series. Enterprise Server
-       releases are numbered using even numbers (for example,
-       5.1.20). Community Server releases are numbered using odd
-       numbers (for example, 5.1.21).
+     * Releases are issued within each series. For each release, the
+       last number in the version is one more than the previous
+       release within the same series.
 
      * Binary distributions for some platforms are made by us for
        major releases. Other people may make binary distributions for
        other systems, but probably less frequently.
 
      * We make fixes available as soon as we have identified and
-       corrected small or non-critical but annoying bugs. The fixes
+       corrected small or noncritical but annoying bugs. The fixes
        are available in source form immediately from our public
        Bazaar repositories, and are included in the next release.
 
@@ -494,354 +494,18 @@ Important
 
 2.1.2.4. MySQL Binaries Compiled by Sun Microsystems, Inc.
 
-   As a service of Sun Microsystems, Inc., we provide a set of binary
-   distributions of MySQL that are compiled on systems at our site or
-   on systems where supporters of MySQL kindly have given us access
-   to their machines.
+   Sun Microsystems, Inc. provides a set of binary distributions of
+   MySQL. In addition to binaries provided in platform-specific
+   package formats, we offer binary distributions for a number of
+   platforms in the form of compressed tar files (.tar.gz files). See
+   Section 2.2, "Standard MySQL Installation Using a Binary
+   Distribution." For Windows distributions, see Section 2.3,
+   "Installing MySQL on Windows."
 
-   In addition to the binaries provided in platform-specific package
-   formats, we offer binary distributions for a number of platforms
-   in the form of compressed tar files (.tar.gz files). See Section
-   2.2, "Standard MySQL Installation Using a Binary Distribution."
-
-   The RPM distributions for MySQL 5.1 releases that we make
-   available through our Web site are generated by MySQL AB.
-
-   For Windows distributions, see Section 2.3, "Installing MySQL on
-   Windows."
-
-   These distributions are generated using the script
-   Build-tools/Do-compile, which compiles the source code and creates
-   the binary tar.gz archive using scripts/make_binary_distribution.
-
-   These binaries are configured and built with the following
-   compilers and options. This information can also be obtained by
-   looking at the variables COMP_ENV_INFO and CONFIGURE_LINE inside
-   the script bin/mysqlbug of every binary tar file distribution.
-
-   Anyone who has more optimal options for any of the following
-   configure commands can mail them to the MySQL internals mailing
-   list. See Section 1.5.1, "MySQL Mailing Lists."
-
-   If you want to compile a debug version of MySQL, you should add
-   --with-debug or --with-debug=full to the following configure
-   commands and remove any -fomit-frame-pointer options.
-
-   The following binaries are built on our own development systems:
-
-     * Linux 2.4.xx x86 with gcc 2.95.3:
-CFLAGS="-O2 -mcpu=pentiumpro" CXX=gcc CXXFLAGS="-O2 -mcpu=pentiumpro
--felide-constructors" ./configure --prefix=/usr/local/mysql
---with-extra-charsets=complex --enable-thread-safe-client
---enable-local-infile --enable-assembler --disable-shared
---with-client-ldflags=-all-static --with-mysqld-ldflags=-all-static
-
-     * Linux 2.4.x x86 with icc (Intel C++ Compiler 8.1 or later
-       releases):
-CC=icc CXX=icpc CFLAGS="-O3 -unroll2 -ip -mp -no-gcc -restrict"
-CXXFLAGS="-O3 -unroll2 -ip -mp -no-gcc -restrict" ./configure
---prefix=/usr/local/mysql --localstatedir=/usr/local/mysql/data
---libexecdir=/usr/local/mysql/bin --with-extra-charsets=complex
---enable-thread-safe-client --enable-local-infile --enable-assembler
---disable-shared --with-client-ldflags=-all-static
---with-mysqld-ldflags=-all-static --with-embedded-server --with-innod
-b
-       Note that versions 8.1 and newer of the Intel compiler have
-       separate drivers for 'pure' C (icc) and C++ (icpc); if you use
-       icc version 8.0 or older for building MySQL, you will need to
-       set CXX=icc.
-
-     * Linux 2.4.xx Intel Itanium 2 with ecc (Intel C++ Itanium
-       Compiler 7.0):
-CC=ecc CFLAGS="-O2 -tpp2 -ip -nolib_inline" CXX=ecc CXXFLAGS="-O2
--tpp2 -ip -nolib_inline" ./configure --prefix=/usr/local/mysql
---with-extra-charsets=complex --enable-thread-safe-client
---enable-local-infile
-
-     * Linux 2.4.xx Intel Itanium with ecc (Intel C++ Itanium
-       Compiler 7.0):
-CC=ecc CFLAGS=-tpp1 CXX=ecc CXXFLAGS=-tpp1 ./configure
---prefix=/usr/local/mysql --with-extra-charsets=complex
---enable-thread-safe-client --enable-local-infile
-
-     * Linux 2.4.xx alpha with ccc (Compaq C V6.2-505 / Compaq C++
-       V6.3-006):
-CC=ccc CFLAGS="-fast -arch generic" CXX=cxx CXXFLAGS="-fast -arch
-generic -noexceptions -nortti" ./configure --prefix=/usr/local/mysql
---with-extra-charsets=complex --enable-thread-safe-client
---enable-local-infile --with-mysqld-ldflags=-non_shared
---with-client-ldflags=-non_shared --disable-shared
-
-     * Linux 2.x.xx ppc with gcc 2.95.4:
-CC=gcc CFLAGS="-O3 -fno-omit-frame-pointer" CXX=gcc CXXFLAGS="-O3
--fno-omit-frame-pointer -felide-constructors -fno-exceptions
--fno-rtti" ./configure --prefix=/usr/local/mysql
---localstatedir=/usr/local/mysql/data --libexecdir=/usr/local/mysql/b
-in
---with-extra-charsets=complex --enable-thread-safe-client
---enable-local-infile --disable-shared --with-embedded-server
---with-innodb
-
-     * Linux 2.4.xx s390 with gcc 2.95.3:
-CFLAGS="-O2" CXX=gcc CXXFLAGS="-O2 -felide-constructors" ./configure
---prefix=/usr/local/mysql --with-extra-charsets=complex
---enable-thread-safe-client --enable-local-infile --disable-shared
---with-client-ldflags=-all-static --with-mysqld-ldflags=-all-static
-
-     * Linux 2.4.xx x86_64 (AMD64) with gcc 3.2.1:
-CXX=gcc ./configure --prefix=/usr/local/mysql
---with-extra-charsets=complex --enable-thread-safe-client
---enable-local-infile --disable-shared
-
-     * Sun Solaris 8 x86 with gcc 3.2.3:
-CC=gcc CFLAGS="-O3 -fno-omit-frame-pointer" CXX=gcc CXXFLAGS="-O3
--fno-omit-frame-pointer -felide-constructors -fno-exceptions
--fno-rtti" ./configure --prefix=/usr/local/mysql
---localstatedir=/usr/local/mysql/data --libexecdir=/usr/local/mysql/b
-in
---with-extra-charsets=complex --enable-thread-safe-client
---enable-local-infile --disable-shared --with-innodb
-
-     * Sun Solaris 8 SPARC with gcc 3.2:
-CC=gcc CFLAGS="-O3 -fno-omit-frame-pointer" CXX=gcc CXXFLAGS="-O3
--fno-omit-frame-pointer -felide-constructors -fno-exceptions
--fno-rtti" ./configure --prefix=/usr/local/mysql
---with-extra-charsets=complex --enable-thread-safe-client
---enable-local-infile --enable-assembler --with-named-z-libs=no
---with-named-curses-libs=-lcurses --disable-shared
-
-     * Sun Solaris 8 SPARC 64-bit with gcc 3.2:
-CC=gcc CFLAGS="-O3 -m64 -fno-omit-frame-pointer" CXX=gcc CXXFLAGS="-O
-3
--m64 -fno-omit-frame-pointer -felide-constructors -fno-exceptions
--fno-rtti" ./configure --prefix=/usr/local/mysql
---with-extra-charsets=complex --enable-thread-safe-client
---enable-local-infile --with-named-z-libs=no
---with-named-curses-libs=-lcurses --disable-shared
-
-     * Sun Solaris 9 SPARC with gcc 2.95.3:
-CC=gcc CFLAGS="-O3 -fno-omit-frame-pointer" CXX=gcc CXXFLAGS="-O3
--fno-omit-frame-pointer -felide-constructors -fno-exceptions
--fno-rtti" ./configure --prefix=/usr/local/mysql
---with-extra-charsets=complex --enable-thread-safe-client
---enable-local-infile --enable-assembler --with-named-curses-libs=-lc
-urses
---disable-shared
-
-     * Sun Solaris 9 SPARC with cc-5.0 (Sun Forte 5.0):
-CC=cc-5.0 CXX=CC ASFLAGS="-xarch=v9" CFLAGS="-Xa -xstrconst -mt
--D_FORTEC_ -xarch=v9" CXXFLAGS="-noex -mt -D_FORTEC_ -xarch=v9"
-./configure --prefix=/usr/local/mysql --with-extra-charsets=complex
---enable-thread-safe-client --enable-local-infile --enable-assembler
---with-named-z-libs=no --enable-thread-safe-client --disable-shared
-
-     * IBM AIX 4.3.2 ppc with gcc 3.2.3:
-CFLAGS="-O2 -mcpu=powerpc -Wa,-many " CXX=gcc CXXFLAGS="-O2
--mcpu=powerpc -Wa,-many -felide-constructors -fno-exceptions
--fno-rtti" ./configure --prefix=/usr/local/mysql
---with-extra-charsets=complex --enable-thread-safe-client
---enable-local-infile --with-named-z-libs=no --disable-shared
-
-     * IBM AIX 4.3.3 ppc with xlC_r (IBM Visual Age C/C++ 6.0):
-CC=xlc_r CFLAGS="-ma -O2 -qstrict -qoptimize=2 -qmaxmem=8192"
-CXX=xlC_r CXXFLAGS ="-ma -O2 -qstrict -qoptimize=2 -qmaxmem=8192"
-./configure --prefix=/usr/local/mysql --localstatedir=/usr/local/mysq
-l/data
---libexecdir=/usr/local/mysql/bin --with-extra-charsets=complex
---enable-thread-safe-client --enable-local-infile --with-named-z-libs
-=no
---disable-shared --with-innodb
-
-     * IBM AIX 5.1.0 ppc with gcc 3.3:
-CFLAGS="-O2 -mcpu=powerpc -Wa,-many" CXX=gcc CXXFLAGS="-O2 -mcpu=powe
-rpc
--Wa,-many -felide-constructors -fno-exceptions -fno-rtti" ./configure
---prefix=/usr/local/mysql --with-extra-charsets=complex
---enable-thread-safe-client --enable-local-infile --with-named-z-libs
-=no
---disable-shared
-
-     * IBM AIX 5.2.0 ppc with xlC_r (IBM Visual Age C/C++ 6.0):
-CC=xlc_r CFLAGS="-ma -O2 -qstrict -qoptimize=2 -qmaxmem=8192"
-CXX=xlC_r CXXFLAGS="-ma -O2 -qstrict -qoptimize=2 -qmaxmem=8192"
-./configure --prefix=/usr/local/mysql --localstatedir=/usr/local/mysq
-l/data
---libexecdir=/usr/local/mysql/bin --with-extra-charsets=complex
---enable-thread-safe-client --enable-local-infile --with-named-z-libs
-=no
---disable-shared --with-embedded-server --with-innodb
-
-     * HP-UX 10.20 pa-risc1.1 with gcc 3.1:
-CFLAGS="-DHPUX -I/opt/dce/include -O3 -fPIC" CXX=gcc CXXFLAGS="-DHPUX
--I/opt/dce /include -felide-constructors -fno-exceptions -fno-rtti
--O3 -fPIC" ./configure --prefix=/usr/local/mysql
---with-extra-charsets=complex --enable-thread-safe-client
---enable-local-infile --with-pthread --with-named-thread-libs=-ldce
---with-lib-ccflags=-fPIC --disable-shared
-
-     * HP-UX 11.00 pa-risc with aCC (HP ANSI C++ B3910B A.03.50):
-CC=cc CXX=aCC CFLAGS=+DAportable CXXFLAGS=+DAportable ./configure
---prefix=/usr/local/mysql --localstatedir=/usr/local/mysql/data
---libexecdir=/usr/local/mysql/bin --with-extra-charsets=complex
---enable-thread-safe-client --enable-local-infile --disable-shared
---with-embedded-server --with-innodb
-
-     * HP-UX 11.11 pa-risc2.0 64bit with aCC (HP ANSI C++ B3910B
-       A.03.33):
-CC=cc CXX=aCC CFLAGS=+DD64 CXXFLAGS=+DD64 ./configure
---prefix=/usr/local/mysql --with-extra-charsets=complex
---enable-thread-safe-client --enable-local-infile --disable-shared
-
-     * HP-UX 11.11 pa-risc2.0 32bit with aCC (HP ANSI C++ B3910B
-       A.03.33):
-CC=cc CXX=aCC CFLAGS="+DAportable" CXXFLAGS="+DAportable" ./configure
---prefix=/usr/local/mysql --localstatedir=/usr/local/mysql/data
---libexecdir=/usr/local/mysql/bin --with-extra-charsets=complex
---enable-thread-safe-client --enable-local-infile --disable-shared
---with-innodb
-
-     * HP-UX 11.22 ia64 64bit with aCC (HP aC++/ANSI C B3910B
-       A.05.50):
-CC=cc CXX=aCC CFLAGS="+DD64 +DSitanium2" CXXFLAGS="+DD64 +DSitanium2"
-./configure --prefix=/usr/local/mysql --localstatedir=/usr/local/mysq
-l/data
---libexecdir=/usr/local/mysql/bin --with-extra-charsets=complex
---enable-thread-safe-client --enable-local-infile --disable-shared
---with-embedded-server --with-innodb
-
-     * Apple Mac OS X 10.2 powerpc with gcc 3.1:
-CC=gcc CFLAGS="-O3 -fno-omit-frame-pointer" CXX=gcc CXXFLAGS="-O3
--fno-omit-frame-pointer -felide-constructors -fno-exceptions
--fno-rtti" ./configure --prefix=/usr/local/mysql
---with-extra-charsets=complex --enable-thread-safe-client
---enable-local-infile --disable-shared
-
-     * FreeBSD 4.7 i386 with gcc 2.95.4:
-CFLAGS=-DHAVE_BROKEN_REALPATH ./configure --prefix=/usr/local/mysql
---with-extra-charsets=complex --enable-thread-safe-client
---enable-local-infile --enable-assembler --with-named-z-libs=not-used
---disable-shared
-
-     * FreeBSD 4.7 i386 using LinuxThreads with gcc 2.95.4:
-CFLAGS="-DHAVE_BROKEN_REALPATH -D__USE_UNIX98 -D_REENTRANT
--D_THREAD_SAFE -I/usr/local/include/pthread/linuxthreads"
-CXXFLAGS="-DHAVE_BROKEN_REALPATH -D__USE_UNIX98 -D_REENTRANT
--D_THREAD_SAFE -I/usr/local/include/pthread/linuxthreads" ./configure
---prefix=/usr/local/mysql --localstatedir=/usr/local/mysql/data
---libexecdir=/usr/local/mysql/bin --enable-thread-safe-client
---enable-local-infile --enable-assembler
---with-named-thread-libs="-DHAVE_GLIBC2_STYLE_GETHOSTBYNAME_R
--D_THREAD_SAFE -I /usr/local/include/pthread/linuxthreads
--L/usr/local/lib -llthread -llgcc_r" --disable-shared
---with-embedded-server --with-innodb
-
-     * QNX Neutrino 6.2.1 i386 with gcc 2.95.3qnx-nto 20010315:
-CC=gcc CFLAGS="-O3 -fno-omit-frame-pointer" CXX=gcc CXXFLAGS="-O3
--fno-omit-frame-pointer -felide-constructors -fno-exceptions
--fno-rtti" ./configure --prefix=/usr/local/mysql
---with-extra-charsets=complex --enable-thread-safe-client
---enable-local-infile --disable-shared
-
-   The following binaries are built on third-party systems kindly
-   provided to Sun Microsystems, Inc. by other users. These are
-   provided only as a courtesy; we do not have full control over
-   these systems, so we can provide only limited support for the
-   binaries built on them.
-
-     * SCO Unix 3.2v5.0.7 i386 with gcc 2.95.3:
-CFLAGS="-O3 -mpentium" LDFLAGS=-static CXX=gcc CXXFLAGS="-O3 -mpentiu
-m
--felide-constructors" ./configure --prefix=/usr/local/mysql
---with-extra-charsets=complex --enable-thread-safe-client
---enable-local-infile --with-named-z-libs=no --enable-thread-safe-cli
-ent
---disable-shared
-
-     * SCO UnixWare 7.1.4 i386 with CC 3.2:
-CC=cc CFLAGS="-O" CXX=CC ./configure --prefix=/usr/local/mysql
---with-extra-charsets=complex --enable-thread-safe-client
---enable-local-infile --with-named-z-libs=no --enable-thread-safe-cli
-ent
---disable-shared --with-readline
-
-     * SCO OpenServer 6.0.0 i386 with CC 3.2:
-CC=cc CFLAGS="-O" CXX=CC ./configure --prefix=/usr/local/mysql
---with-extra-charsets=complex --enable-thread-safe-client
---enable-local-infile --with-named-z-libs=no --enable-thread-safe-cli
-ent
---disable-shared --with-readline
-
-     * Compaq Tru64 OSF/1 V5.1 732 alpha with cc/cxx (Compaq C
-       V6.3-029i / DIGITAL C++ V6.1-027):
-CC="cc -pthread" CFLAGS="-O4 -ansi_alias -ansi_args -fast -inline
-speed -speculate all" CXX="cxx -pthread" CXXFLAGS="-O4 -ansi_alias
--fast -inline speed -speculate all -noexceptions -nortti" ./configure
---prefix=/usr/local/mysql --with-extra-charsets=complex
---enable-thread-safe-client --enable-local-infile
---with-named-thread-libs="-lpthread -lmach -lexc -lc" --disable-share
-d
---with-mysqld-ldflags=-all-static
-
-     * SGI Irix 6.5 IP32 with gcc 3.0.1:
-CC=gcc CFLAGS="-O3 -fno-omit-frame-pointer" CXXFLAGS="-O3
--fno-omit-frame-pointer -felide-constructors -fno-exceptions
--fno-rtti" ./configure --prefix=/usr/local/mysql
---with-extra-charsets=complex --enable-thread-safe-client
---enable-local-infile --disable-shared
-
-     * FreeBSD/sparc64 5.0 with gcc 3.2.1:
-CFLAGS=-DHAVE_BROKEN_REALPATH ./configure --prefix=/usr/local/mysql
---localstatedir=/usr/local/mysql/data --libexecdir=/usr/local/mysql/b
-in
---with-extra-charsets=complex --enable-thread-safe-client
---enable-local-infile --disable-shared --with-innodb
-
-   The following compile options have been used for binary packages
-   that we have provided in the past. These binaries no longer are
-   being updated, but the compile options are listed here for
-   reference purposes.
-
-     * Linux 2.2.xx SPARC with egcs 1.1.2:
-CC=gcc CFLAGS="-O3 -fno-omit-frame-pointer" CXX=gcc CXXFLAGS="-O3
--fno-omit-frame-pointer -felide-constructors -fno-exceptions
--fno-rtti" ./configure --prefix=/usr/local/mysql
---with-extra-charsets=complex --enable-thread-safe-client
---enable-local-infile --enable-assembler --disable-shared
-
-     * Linux 2.2.x with x686 with gcc 2.95.2:
-CFLAGS="-O3 -mpentiumpro" CXX=gcc CXXFLAGS="-O3 -mpentiumpro
--felide-constructors -fno-exceptions -fno-rtti" ./configure
---prefix=/usr/local/mysql --enable-assembler
---with-mysqld-ldflags=-all-static --disable-shared
---with-extra-charsets=complex
-
-     * SunOS 4.1.4 2 sun4c with gcc 2.7.2.1:
-CC=gcc CXX=gcc CXXFLAGS="-O3 -felide-constructors" ./configure
---prefix=/usr/local/mysql --disable-shared --with-extra-charsets=comp
-lex
---enable-assembler
-
-     * SunOS 5.5.1 (and above) sun4u with egcs 1.0.3a or 2.90.27 or
-       gcc 2.95.2 and newer:
-CC=gcc CFLAGS="-O3" CXX=gcc CXXFLAGS="-O3 -felide-constructors
--fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql
---with-low-memory --with-extra-charsets=complex --enable-assembler
-
-     * SunOS 5.6 i86pc with gcc 2.8.1:
-CC=gcc CXX=gcc CXXFLAGS=-O3 ./configure --prefix=/usr/local/mysql
---with-low-memory --with-extra-charsets=complex
-
-     * BSDI BSD/OS 3.1 i386 with gcc 2.7.2.1:
-CC=gcc CXX=gcc CXXFLAGS=-O ./configure --prefix=/usr/local/mysql
---with-extra-charsets=complex
-
-     * BSDI BSD/OS 2.1 i386 with gcc 2.7.2:
-CC=gcc CXX=gcc CXXFLAGS=-O3 ./configure --prefix=/usr/local/mysql
---with-extra-charsets=complex
-
-     * AIX 4.2 with gcc 2.7.2.2:
-CC=gcc CXX=gcc CXXFLAGS=-O3 ./configure --prefix=/usr/local/mysql
---with-extra-charsets=complex
+   If you want to compile a debug version of MySQL from a source
+   distribution, you should add --with-debug or --with-debug=full to
+   the configure command used to configure the distribution and
+   remove any -fomit-frame-pointer options.
 
 2.1.3. How to Get MySQL
 
@@ -889,8 +553,8 @@ CC=gcc CXX=gcc CXXFLAGS=-O3 ./configure --prefix=/usr/local/mysql
 shell> md5sum package_name
 
    Example:
-shell> md5sum mysql-standard-5.1.35-linux-i686.tar.gz
-aaab65abbec64d5e907dcd41b8699945  mysql-standard-5.1.35-linux-i686.ta
+shell> md5sum mysql-standard-5.1.39-linux-i686.tar.gz
+aaab65abbec64d5e907dcd41b8699945  mysql-standard-5.1.39-linux-i686.ta
 r.gz
 
    You should verify that the resulting checksum (the string of
@@ -1064,8 +728,8 @@ pg-signature.html
    signature, which also is available from the download page. The
    signature file has the same name as the distribution file with an
    .asc extension, as shown by the examples in the following table.
-   Distribution file mysql-standard-5.1.35-linux-i686.tar.gz
-   Signature file    mysql-standard-5.1.35-linux-i686.tar.gz.asc
+   Distribution file mysql-standard-5.1.39-linux-i686.tar.gz
+   Signature file    mysql-standard-5.1.39-linux-i686.tar.gz.asc
 
    Make sure that both files are stored in the same directory and
    then run the following command to verify the signature for the
@@ -1073,7 +737,7 @@ pg-signature.html
 shell> gpg --verify package_name.asc
 
    Example:
-shell> gpg --verify mysql-standard-5.1.35-linux-i686.tar.gz.asc
+shell> gpg --verify mysql-standard-5.1.39-linux-i686.tar.gz.asc
 gpg: Signature made Tue 12 Jul 2005 23:35:41 EST using DSA key ID 507
 2E1F5
 gpg: Good signature from "MySQL Package signing key (www.mysql.com) <
@@ -1093,8 +757,8 @@ build@mysql.com>"
 shell> rpm --checksig package_name.rpm
 
    Example:
-shell> rpm --checksig MySQL-server-5.1.35-0.glibc23.i386.rpm
-MySQL-server-5.1.35-0.glibc23.i386.rpm: md5 gpg OK
+shell> rpm --checksig MySQL-server-5.1.39-0.glibc23.i386.rpm
+MySQL-server-5.1.39-0.glibc23.i386.rpm: md5 gpg OK
 
 Note
 
@@ -1231,6 +895,7 @@ Note
 
      * A Windows operating system such as Windows 2000, Windows XP,
        Windows Vista, Windows Server 2003, or Windows Server 2008.
+       Both 32-bit and 64-bit versions are supported.
        A Windows operating system permits you to run the MySQL server
        as a service. See Section 2.3.11, "Starting MySQL as a Windows
        Service."
@@ -1331,19 +996,19 @@ Caution
    from when installing MySQL on Windows:
 
      * The Essentials Package: This package has a file name similar
-       to mysql-essential-5.1.35-win32.msi and contains the minimum
+       to mysql-essential-5.1.39-win32.msi and contains the minimum
        set of files needed to install MySQL on Windows, including the
        Configuration Wizard. This package does not include optional
        components such as the embedded server and benchmark suite.
 
      * The Complete Package: This package has a file name similar to
-       mysql-5.1.35-win32.zip and contains all files needed for a
+       mysql-5.1.39-win32.zip and contains all files needed for a
        complete Windows installation, including the Configuration
        Wizard. This package includes optional components such as the
        embedded server and benchmark suite.
 
      * The Noinstall Archive: This package has a file name similar to
-       mysql-noinstall-5.1.35-win32.zip and contains all the files
+       mysql-noinstall-5.1.39-win32.zip and contains all the files
        found in the Complete install package, with the exception of
        the Configuration Wizard. This package does not include an
        automated installer, and must be manually installed and
@@ -1535,7 +1200,7 @@ Note
    directory. In a default installation it contains C:\Program
    Files\MySQL\MySQL Server 5.1\. The Version string contains the
    release number. For example, for an installation of MySQL Server
-   5.1.35, the key contains a value of 5.1.35.
+   5.1.39, the key contains a value of 5.1.39.
 
    These registry keys are used to help external tools identify the
    installed location of the MySQL server, preventing a complete scan
@@ -1585,8 +1250,7 @@ Note
    typical MySQL installation on a developer machine might look like
    this:
 C:\Program Files\MySQL\MySQL Server 5.1
-C:\Program Files\MySQL\MySQL Administrator 1.0
-C:\Program Files\MySQL\MySQL Query Browser 1.0
+C:\Program Files\MySQL\MySQL Workbench 5.1 OSS
 
    This approach makes it easier to manage and maintain all MySQL
    applications installed on a particular system.
@@ -1899,7 +1563,7 @@ skip-innodb
    database management systems. If you run applications that rely on
    MySQL's old "forgiving" behavior, make sure to either adapt those
    applications or to disable strict mode. For more information about
-   strict mode, see Section 5.1.7, "Server SQL Modes."
+   strict mode, see Section 5.1.8, "Server SQL Modes."
 
 2.3.4.9. The Character Set Dialog
 
@@ -1962,7 +1626,7 @@ Warning
    Typically, when installing multiple versions you create a service
    name based on the version information. For example, you might
    install MySQL 5.x as mysql5, or specific versions such as MySQL
-   5.1.30 as mysql5130.
+   5.1.30 as mysql50130.
 
    To install the MySQL server as a service but not have it started
    automatically at startup, uncheck the box next to the Launch the
@@ -2101,7 +1765,7 @@ C:\> echo %WINDIR%
    option file you use, it must be a plain text file.
 
    You can also make use of the example option files included with
-   your MySQL distribution; see Section 4.2.3.2.2, "Preconfigured
+   your MySQL distribution; see Section 4.2.3.3.2, "Preconfigured
    Option Files."
 
    An option file can be created and modified with any text editor,
@@ -2261,7 +1925,7 @@ InnoDB: foreign key constraint system tables created
    something like this, which indicates that the server is ready to
    service client connections:
 mysqld: ready for connections
-Version: '5.1.35'  socket: ''  port: 3306
+Version: '5.1.39'  socket: ''  port: 3306
 
    The server continues to write to the console any further
    diagnostic output it produces. You can open a new console window
@@ -2323,7 +1987,7 @@ Note
    (http://forge.mysql.com/wiki/MySQL_Internals_Porting).
 
    Use mysqld --verbose --help to display all the options that mysqld
-   understands.
+   supports.
 
 2.3.11. Starting MySQL as a Windows Service
 
@@ -2761,7 +2425,7 @@ C:\> C:\mysql\bin\mysqld --remove
        The DATA DIRECTORY and INDEX DIRECTORY options for CREATE
        TABLE are ignored on Windows, because Windows doesn't support
        symbolic links. These options also are ignored on systems that
-       have a non-functional realpath() call.
+       have a nonfunctional realpath() call.
 
      * DROP DATABASE
        You cannot drop a database that is in use by some thread.
@@ -2772,6 +2436,16 @@ C:\> C:\mysql\bin\mysqld --remove
        Windows. The only restriction is that database and table names
        must be specified using the same case throughout a given
        statement. See Section 8.2.2, "Identifier Case Sensitivity."
+
+     * Directory and file names
+       On Windows, MySQL Server supports only directory and file
+       names that are compatible with the current ANSI code pages.
+       For example, the following Japanese directory name will not
+       work in the Western locale (code page 1252):
+datadir="C:/维基百科关于中文维基百科"
+       The same limitation applies to directory and file names
+       referred to in SQL statements, such as the data file path name
+       in LOAD DATA INFILE.
 
      * The "\" path name separator character
        Path name components in Windows are separated by the "\"
@@ -2922,11 +2596,12 @@ Important
 
      * MySQL-shared-compat-VERSION.glibc23.i386.rpm
        This package includes the shared libraries for MySQL 3.23,
-       4.0, 4.1, and 5.1. It contains single-threaded and thread-safe
-       libraries. Install this package instead of MySQL-shared if you
-       have applications installed that are dynamically linked
-       against older versions of MySQL but you want to upgrade to the
-       current version without breaking the library dependencies.
+       4.0, and so on, up to the current release. It contains
+       single-threaded and thread-safe libraries. Install this
+       package instead of MySQL-shared if you have applications
+       installed that are dynamically linked against older versions
+       of MySQL but you want to upgrade to the current version
+       without breaking the library dependencies.
 
      * MySQL-embedded-VERSION.glibc23.i386.rpm
        The embedded MySQL server library.
@@ -2942,7 +2617,7 @@ Note
        The MySQL-ndb-tools RPM requires a working installation of
        perl. Prior to MySQL 5.1.18, the DBI and HTML::Template
        packages were also required. See Section 2.15, "Perl
-       Installation Notes," and Section 17.9.15, "ndb_size.pl ---
+       Installation Notes," and Section 17.6.21, "ndb_size.pl ---
        NDBCLUSTER Size Requirement Estimator," for more information.
 
      * MySQL-test-VERSION.glibc23.i386.rpm
@@ -3043,7 +2718,7 @@ Note
    users and groups (as listed in the /etc/passwd and /etc/group
    files) by the RPM installation process being run by root.
 
-   For non-local user management (LDAP, NIS, and so forth), the
+   For nonlocal user management (LDAP, NIS, and so forth), the
    administrative tools may require additional authentication (such
    as a password), and will fail if the installing user does not
    provide this authentication. Even if they fail, the RPM
@@ -3219,6 +2894,9 @@ alias mysqladmin /usr/local/mysql/bin/mysqladmin
 
 2.6. Installing MySQL on Solaris
 
+   To obtain a binary MySQL distribution for Solaris in tarball or
+   PKG format, http://dev.mysql.com/downloads/mysql/5.1.html.
+
    If you install MySQL using a binary tarball distribution on
    Solaris, you may run into trouble even before you get the MySQL
    distribution unpacked, as the Solaris tar cannot handle long file
@@ -3226,8 +2904,7 @@ alias mysqladmin /usr/local/mysql/bin/mysqladmin
    MySQL.
 
    If this occurs, you must use GNU tar (gtar) to unpack the
-   distribution. You can find a precompiled copy for Solaris at
-   http://dev.mysql.com/downloads/os-solaris.html.
+   distribution.
 
    You can install MySQL on Solaris using a binary package in PKG
    format instead of the binary tarball distribution. Before
@@ -3572,7 +3249,7 @@ Note
 
    MySQL tar file binary distributions have names of the form
    mysql-VERSION-OS.tar.gz, where VERSION is a number (for example,
-   5.1.35), and OS indicates the type of operating system for which
+   5.1.39), and OS indicates the type of operating system for which
    the distribution is intended (for example, pc-linux-i686).
 
    In addition to these generic packages, we also offer binaries in
@@ -3717,10 +3394,10 @@ shell> chown -R mysql data
        Permissions in Grant Tables." For Perl module installation
        instructions, see Section 2.15, "Perl Installation Notes."
    11. If you would like to use mysqlaccess and have the MySQL
-       distribution in some non-standard location, you must change
-       the location where mysqlaccess expects to find the mysql
-       client. Edit the bin/mysqlaccess script at approximately line
-       18. Search for a line that looks like this:
+       distribution in some nonstandard location, you must change the
+       location where mysqlaccess expects to find the mysql client.
+       Edit the bin/mysqlaccess script at approximately line 18.
+       Search for a line that looks like this:
 $MYSQL     = '/usr/local/bin/mysql';    # path to mysql executable
        Change the path to reflect the location where mysql actually
        is stored on your system. If you do not do this, a Broken pipe
@@ -3764,7 +3441,7 @@ Note
 
    MySQL source distributions are provided as compressed tar archives
    and have names of the form mysql-VERSION.tar.gz, where VERSION is
-   a number like 5.1.35.
+   a number like 5.1.39.
 
    You need the following tools to build and install MySQL from
    source:
@@ -3792,16 +3469,16 @@ Note
 
      * A good make program. GNU make is always recommended and is
        sometimes required. (BSD make fails, and vendor-provided make
-       implementations may fail as well.) If you have problems, we
-       recommend GNU make 3.75 or newer.
+       implementations may fail as well.) If you have problems, use
+       GNU make 3.75 or newer.
 
      * libtool 1.5.24 or later is also recommended.
 
    If you are using a version of gcc recent enough to understand the
    -fno-exceptions option, it is very important that you use this
    option. Otherwise, you may compile a binary that crashes randomly.
-   We also recommend that you use -felide-constructors and -fno-rtti
-   along with -fno-exceptions. When in doubt, do the following:
+   Also use -felide-constructors and -fno-rtti along with
+   -fno-exceptions. When in doubt, do the following:
 CFLAGS="-O3" CXX=gcc CXXFLAGS="-O3 -felide-constructors \
        -fno-exceptions -fno-rtti" ./configure \
        --prefix=/usr/local/mysql --enable-assembler \
@@ -3910,7 +3587,7 @@ shell> cp support-files/my-medium.cnf /etc/my.cnf
        If you want to configure support for InnoDB tables, you should
        edit the /etc/my.cnf file, remove the # character before the
        option lines that start with innodb_..., and modify the option
-       values to be what you want. See Section 4.2.3.2, "Using Option
+       values to be what you want. See Section 4.2.3.3, "Using Option
        Files," and Section 13.6.2, "InnoDB Configuration."
 
     9. Change location into the installation directory:
@@ -4115,7 +3792,7 @@ shell> ./configure --help
    --with-openssl-includes Find OpenSSL headers in DIR
    --with-openssl-libs Find OpenSSL libraries in DIR
    --with-other-libc=DIR Link against libc and other standard
-   libraries installed in the specified non-standard location
+   libraries installed in the specified nonstandard location
    --with-pic Try to use only PIC/non-PIC objects Use both
    --with-plugin-PLUGIN Forces the named plugin to be linked into
    mysqld statically   5.1.11
@@ -4190,7 +3867,7 @@ shell> ./configure --prefix=/usr/local \
        directory locations at server startup time by using the
        --basedir and --datadir options. These can be given on the
        command line or in an MySQL option file, although it is more
-       common to use an option file. See Section 4.2.3.2, "Using
+       common to use an option file. See Section 4.2.3.3, "Using
        Option Files."
 
      * If you are using Unix and you want the MySQL socket file
@@ -4250,7 +3927,7 @@ CFLAGS="-O3 -mpentiumpro" CXX=gcc CXXFLAGS="-O3 -mpentiumpro \
        2.1.2.4, "MySQL Binaries Compiled by Sun Microsystems, Inc.."
        There are some configuration settings you can tweak to build
        an even faster binary, but these are only for advanced users.
-       See Section 7.5.6, "How Compiling and Linking Affects the
+       See Section 7.5.1, "How Compiling and Linking Affects the
        Speed of MySQL."
        If the build fails and produces errors about your compiler or
        linker not being able to create the shared library
@@ -4280,14 +3957,6 @@ shell> ./configure --with-collation=COLLATION
        must be a legal collation for the character set. (Use the SHOW
        COLLATION statement to determine which collations are
        available for each character set.)
-
-Warning
-       If you change character sets after having created any tables,
-       you must run myisamchk -r -q --set-collation=collation_name on
-       every MyISAM table. Your indexes may be sorted incorrectly
-       otherwise. This can happen if you install MySQL, create some
-       tables, and then reconfigure MySQL to use a different
-       character set and reinstall it.
        With the configure option --with-extra-charsets=LIST, you can
        define which additional character sets should be compiled into
        the server. LIST is one of the following:
@@ -4300,7 +3969,7 @@ Warning
           + all to include all character sets into the binaries
        Clients that want to convert characters between the server and
        the client should use the SET NAMES statement. See Section
-       5.1.4, "Session System Variables," and Section 9.1.4,
+       5.1.5, "Session System Variables," and Section 9.1.4,
        "Connection Character Sets and Collations."
 
      * To configure MySQL with debugging code, use the --with-debug
@@ -4479,16 +4148,19 @@ sql_yacc.yy:#####: fatal error: maximum table size (32767) exceeded
        directory:
 shell> mkdir mysql-server
 shell> bzr init-repo --trees mysql-server
-       Once you have an initialized directory, you can branch from
+
+    2. Once you have an initialized directory, you can branch from
        the public MySQL server repositories. To create a branch of a
        specific version:
 shell> cd mysql-server
 shell> bzr branch lp:mysql-server/5.1 mysql-5.1
-       The initial download will take some time to complete,
+
+    3. The initial download will take some time to complete,
        depending on the speed of your connection. Please be patient.
        Once you have downloaded the first tree, additional trees
        should take significantly less time to download.
-       When building from the Bazaar branch, you may want to create a
+
+    4. When building from the Bazaar branch, you may want to create a
        copy of your active branch so that you can make configuration
        and other changes without affecting the original branch
        contents. You can achieve this by branching from the original
@@ -4548,10 +4220,9 @@ Note
     2. When the build is done, run make install. Be careful with this
        on a production machine; the command may overwrite your live
        release installation. If you have another installation of
-       MySQL, we recommend that you run ./configure with different
-       values for the --prefix, --with-tcp-port, and
-       --with-unix-socket-path options than those used for your
-       production server.
+       MySQL, run ./configure with different values for the --prefix,
+       --with-tcp-port, and --with-unix-socket-path options than
+       those used for your production server.
 
     3. Play hard with your new installation and try to make the new
        features crash. Start by running make test. See Section
@@ -4656,11 +4327,11 @@ shell> CXX="gcc -O3" ./configure
        This works because gcc compiles C++ source files as well as
        g++ does, but does not link in libg++ or libstdc++ by default.
        Another way to fix these problems is to install g++, libg++,
-       and libstdc++. However, we recommend that you not use libg++
-       or libstdc++ with MySQL because this only increases the binary
-       size of mysqld without providing any benefits. Some versions
-       of these libraries have also caused strange problems for MySQL
-       users in the past.
+       and libstdc++. However, do not use libg++ or libstdc++ with
+       MySQL because this only increases the binary size of mysqld
+       without providing any benefits. Some versions of these
+       libraries have also caused strange problems for MySQL users in
+       the past.
 
      * If your compile fails with errors such as any of the
        following, you must upgrade your version of make to GNU make:
@@ -4771,7 +4442,7 @@ export CXX="gcc"
      * On most systems, you can force MIT-pthreads to be used by
        running configure with the --with-mit-threads option:
 shell> ./configure --with-mit-threads
-       Building in a non-source directory is not supported when using
+       Building in a nonsource directory is not supported when using
        MIT-pthreads because we want to minimize our changes to this
        code.
 
@@ -5018,7 +4689,7 @@ C:\workdir>win\configure.js WITH_INNOBASE_STORAGE_ENGINE
        directory, you need to tell the server their path names. You
        can either do this on the command line with the --basedir and
        --datadir options, or by placing appropriate options in an
-       option file. (See Section 4.2.3.2, "Using Option Files.") If
+       option file. (See Section 4.2.3.3, "Using Option Files.") If
        you have an existing data directory elsewhere that you want to
        use, you can specify its path name instead.
        When the server is running in standalone fashion or as a
@@ -5034,7 +4705,7 @@ C:\workdir>win\configure.js WITH_INNOBASE_STORAGE_ENGINE
        option), and invoke mysql-test-run.pl. For example (using
        Cygwin and the bash shell):
 shell> cd mysql-test
-shell> export MTS_VS_CONFIG=debug
+shell> export MTR_VS_CONFIG=debug
 shell> ./mysql-test-run.pl --force --timer
 shell> ./mysql-test-run.pl --force --timer --ps-protocol
 
@@ -5396,10 +5067,10 @@ shell> bin/mysqladmin variables
        on your platform and version of MySQL, but should be similar
        to that shown here:
 shell> bin/mysqladmin version
-mysqladmin  Ver 14.12 Distrib 5.1.35, for pc-linux-gnu on i686
+mysqladmin  Ver 14.12 Distrib 5.1.39, for pc-linux-gnu on i686
 ...
 
-Server version          5.1.35
+Server version          5.1.39
 Protocol version        10
 Connection              Localhost via UNIX socket
 UNIX socket             /var/lib/mysql/mysql.sock
@@ -5626,31 +5297,30 @@ shell> bin/mysql mysql
 
    Generally, you start the mysqld server in one of these ways:
 
-     * By invoking mysqld directly. This works on any platform.
+     * Invoke mysqld directly. This works on any platform.
 
-     * By running the MySQL server as a Windows service. The service
-       can be set to start the server automatically when Windows
-       starts, or as a manual service that you start on request. For
+     * Run the MySQL server as a Windows service. The service can be
+       set to start the server automatically when Windows starts, or
+       as a manual service that you start on request. For
        instructions, see Section 2.3.11, "Starting MySQL as a Windows
        Service."
 
-     * By invoking mysqld_safe, which tries to determine the proper
+     * Invoke mysqld_safe, which tries to determine the proper
        options for mysqld and then runs it with those options. This
        script is used on Unix and Unix-like systems. See Section
        4.3.2, "mysqld_safe --- MySQL Server Startup Script."
 
-     * By invoking mysql.server. This script is used primarily at
-       system startup and shutdown on systems that use System V-style
-       run directories, where it usually is installed under the name
+     * Invoke mysql.server. This script is used primarily at system
+       startup and shutdown on systems that use System V-style run
+       directories, where it usually is installed under the name
        mysql. The mysql.server script starts the server by invoking
        mysqld_safe. See Section 4.3.3, "mysql.server --- MySQL Server
        Startup Script."
 
-     * On Mac OS X, you can install a separate MySQL Startup Item
-       package to enable the automatic startup of MySQL on system
-       startup. The Startup Item starts the server by invoking
-       mysql.server. See Section 2.5, "Installing MySQL on Mac OS X,"
-       for details.
+     * On Mac OS X, install a separate MySQL Startup Item package to
+       enable the automatic startup of MySQL on system startup. The
+       Startup Item starts the server by invoking mysql.server. See
+       Section 2.5, "Installing MySQL on Mac OS X," for details.
 
    The mysqld_safe and mysql.server scripts and the Mac OS X Startup
    Item can be used to start the server manually, or automatically at
@@ -5668,11 +5338,11 @@ shell> mysql.server stop
    user option to the [mysqld] group of the /etc/my.cnf option file,
    as shown later in this section. (It is possible that you will need
    to edit mysql.server if you've installed a binary distribution of
-   MySQL in a non-standard location. Modify it to cd into the proper
-   directory before it runs mysqld_safe. If you do this, your
-   modified version of mysql.server may be overwritten if you upgrade
-   MySQL in the future, so you should make a copy of your edited
-   version that you can reinstall.)
+   MySQL in a nonstandard location. Modify it to change location into
+   the proper directory before it runs mysqld_safe. If you do this,
+   your modified version of mysql.server may be overwritten if you
+   upgrade MySQL in the future, so you should make a copy of your
+   edited version that you can reinstall.)
 
    mysql.server stop stops the server by sending a signal to it. You
    can also stop the server manually by executing mysqladmin
@@ -5750,10 +5420,10 @@ user=mysql
 [mysql.server]
 basedir=/usr/local/mysql
 
-   The mysql.server script understands the following options:
-   basedir, datadir, and pid-file. If specified, they must be placed
-   in an option file, not on the command line. mysql.server
-   understands only start and stop as command-line arguments.
+   The mysql.server script supports the following options: basedir,
+   datadir, and pid-file. If specified, they must be placed in an
+   option file, not on the command line. mysql.server supports only
+   start and stop as command-line arguments.
 
    The following table shows which option groups the server and each
    startup script read from option files.
@@ -5774,7 +5444,7 @@ basedir=/usr/local/mysql
    [mysql.server] and [mysqld_safe] groups instead when using MySQL
    5.1.
 
-   See Section 4.2.3.2, "Using Option Files."
+   See Section 4.2.3.3, "Using Option Files."
 
 2.11.2.3. Starting and Troubleshooting the MySQL Server
 
@@ -5808,16 +5478,16 @@ basedir=/usr/local/mysql
    that you have them configured the way you want before starting the
    server:
 
-   MySQL Enterprise For expert advice on start-up options appropriate
-   to your circumstances, subscribe to The MySQL Enterprise Monitor.
-   For more information, see
-   http://www.mysql.com/products/enterprise/advisors.html.
-
      * If you are using InnoDB tables, see Section 13.6.2, "InnoDB
        Configuration."
 
      * If you are using MySQL Cluster, see Section 17.3, "MySQL
        Cluster Configuration."
+
+   MySQL Enterprise For expert advice on start-up options appropriate
+   to your circumstances, subscribe to The MySQL Enterprise Monitor.
+   For more information, see
+   http://www.mysql.com/products/enterprise/advisors.html.
 
    Storage engines will use default option values if you specify
    none, but it is recommended that you review the available options
@@ -6144,43 +5814,43 @@ Note
 
 2.12.1. Upgrading MySQL
 
-   As a general rule, we recommend that when you upgrade from one
-   release series to another, you should go to the next series rather
-   than skipping a series. If you wish to upgrade from a release
-   series previous to MySQL 5.0, you should upgrade to each
-   successive release series in turn until you have reached MySQL
-   5.0, and then proceed with the upgrade to MySQL 5.1. For example,
-   if you currently are running MySQL 4.0 and wish to upgrade to a
-   newer series, upgrade to MySQL 4.1 first before upgrading to 5.0,
-   and so forth. For information on upgrading to MySQL 5.0, see the
-   MySQL 5.0 Reference Manual; for earlier releases, see the MySQL
-   3.23, 4.0, 4.1 Reference Manual.
+   As a general rule, to upgrade from one release series to another,
+   you should go to the next series rather than skipping a series. To
+   upgrade from a release series previous to MySQL 5.0, upgrade to
+   each successive release series in turn until you have reached
+   MySQL 5.0, and then proceed with the upgrade to MySQL 5.1. For
+   example, if you currently are running MySQL 4.0 and wish to
+   upgrade to a newer series, upgrade to MySQL 4.1 first before
+   upgrading to 5.0, and so forth. For information on upgrading to
+   MySQL 5.0, see the MySQL 5.0 Reference Manual; for earlier
+   releases, see the MySQL 3.23, 4.0, 4.1 Reference Manual.
 
-   The following items form a checklist of things that you should do
-   whenever you perform an upgrade from MySQL 5.0 to 5.1:
+   To upgrade from MySQL 5.0 to 5.1, use the items in the following
+   checklist as a guide:
 
      * Before any upgrade, back up your databases, including the
-       mysql database that contains the grant tables.
+       mysql database that contains the grant tables. See Section
+       6.1, "Database Backups."
 
      * Read all the notes in Section 2.12.1.1, "Upgrading from MySQL
-       5.0 to 5.1." These notes will enable you to identify upgrade
-       issues that apply to your current MySQL installation. Read
-       Appendix C, "MySQL Change History" as well, which provides
-       information about features that are new in MySQL 5.1 or differ
-       from those found in MySQL 5.0.
+       5.0 to 5.1." These notes enable you to identify upgrade issues
+       that apply to your current MySQL installation. Some
+       incompatibilities discussed in that section require your
+       attention before upgrading. Others should be dealt with after
+       upgrading.
 
-     * For any incompatibilities that require your attention before
-       upgrading, deal with them as described in Section 2.12.1.1,
-       "Upgrading from MySQL 5.0 to 5.1."
+     * Read Appendix C, "MySQL Change History" as well, which
+       provides information about features that are new in MySQL 5.1
+       or differ from those found in MySQL 5.0.
 
-     * After you upgrade to a new version of MySQL, you should run
-       mysql_upgrade (see Section 4.4.8, "mysql_upgrade --- Check
-       Tables for MySQL Upgrade"). This program will check your
-       tables, and repair them if necessary. It will also update your
-       grant tables to make sure that they have the current structure
-       so that you can take advantage of any new capabilities. (Some
-       releases of MySQL introduce changes to the structure of the
-       grant tables to add new privileges or features.)
+     * After you upgrade to a new version of MySQL, run mysql_upgrade
+       (see Section 4.4.8, "mysql_upgrade --- Check Tables for MySQL
+       Upgrade"). This program checks your tables, and attempts to
+       repair them if necessary. It also updates your grant tables to
+       make sure that they have the current structure so that you can
+       take advantage of any new capabilities. (Some releases of
+       MySQL introduce changes to the structure of the grant tables
+       to add new privileges or features.)
 
      * If you are running MySQL Server on Windows, see Section
        2.3.14, "Upgrading MySQL on Windows."
@@ -6197,15 +5867,16 @@ Note
 
      * As of MySQL 5.1.9, the mysqld-max server is included in binary
        distributions. There is no separate MySQL-Max distribution. As
-       of MySQL 5.1.12, binary distributions contain a server that
-       includes the features previously included in mysqld-max.
+       of MySQL 5.1.12, there is no mysqld-max server at all in
+       binary distributions. They contain a server that includes the
+       features previously included in mysqld-max.
 
      * If you have created a user-defined function (UDF) with a given
        name and upgrade MySQL to a version that implements a new
        built-in function with the same name, the UDF becomes
        inaccessible. To correct this, use DROP FUNCTION to drop the
        UDF, and then use CREATE FUNCTION to re-create the UDF with a
-       different non-conflicting name. The same is true if the new
+       different nonconflicting name. The same is true if the new
        version of MySQL implements a built-in function with the same
        name as an existing stored function. See Section 8.2.4,
        "Function Name Parsing and Resolution," for the rules
@@ -6213,8 +5884,8 @@ Note
        kinds of functions.
 
    You can always move the MySQL format files and data files between
-   different versions on the same architecture as long as you stay
-   within versions for the same release series of MySQL.
+   different versions on systems with the same architecture as long
+   as you stay within versions for the same release series of MySQL.
 
    If you are cautious about using new versions, you can always
    rename your old mysqld before installing a newer one. For example,
@@ -6239,26 +5910,39 @@ Note
    anything other than the program name, you have an active my.cnf
    file that affects server or client operation.
 
+   If your MySQL installation contains a large amount of data that
+   might take a long time to convert after an in-place upgrade, you
+   might find it useful to create a "dummy" database instance for
+   assessing what conversions might be needed and the work involved
+   to perform them. Make a copy of your MySQL instance that contains
+   a full copy of the mysql database, plus all other databases
+   without data. Run your upgrade procedure on this dummy instance to
+   see what actions might be needed so that you can better evaluate
+   the work involved when performing actual data conversion on your
+   original database instance.
+
    It is a good idea to rebuild and reinstall the Perl DBD::mysql
    module whenever you install a new release of MySQL. The same
-   applies to other MySQL interfaces as well, such as the PHP mysql
-   extension and the Python MySQLdb module.
+   applies to other MySQL interfaces as well, such as PHP mysql
+   extensions and the Python MySQLdb module.
 
 2.12.1.1. Upgrading from MySQL 5.0 to 5.1
 
    After upgrading a 5.0 installation to 5.0.10 or above, it is
    necessary to upgrade your grant tables. Otherwise, creating stored
-   procedures and functions might not work. The procedure for doing
-   this is described in Section 4.4.8, "mysql_upgrade --- Check
-   Tables for MySQL Upgrade."
+   procedures and functions might not work. To perform this upgrade,
+   run mysql_upgrade.
 
 Note
 
    It is good practice to back up your data before installing any new
    version of software. Although MySQL works very hard to ensure a
    high level of quality, you should protect your data by making a
-   backup. MySQL recommends that you dump and reload your tables from
-   any previous version to upgrade to 5.1.
+   backup.
+
+   To upgrade to 5.1 from any previous version, MySQL recommends that
+   you dump your tables with mysqldump before upgrading and reload
+   the dump file after upgrading.
 
    In general, you should do the following when upgrading from MySQL
    5.0 to 5.1:
@@ -6276,7 +5960,7 @@ Note
           + The MySQL 5.1 change history describes significant new
             features you can use in 5.1 or that differ from those
             found in MySQL 5.0. Some of these changes may result in
-            incompatibilities. See Section C.1, "Changes in release
+            incompatibilities. See Section C.1, "Changes in Release
             5.1.x (Production)."
 
      * Note particularly any changes that are marked Known issue or
@@ -6292,17 +5976,17 @@ Note
        dump and reload, or use of a statement such as CHECK TABLE or
        REPAIR TABLE.
        For dump and reload instructions, see Section 2.12.4,
-       "Rebuilding Tables or Table Indexes." Any procedure that
-       involves REPAIR TABLE with the USE_FRM option must be done
-       before upgrading. Use of this statement with a version of
+       "Rebuilding or Repairing Tables or Indexes." Any procedure
+       that involves REPAIR TABLE with the USE_FRM option must be
+       done before upgrading. Use of this statement with a version of
        MySQL different from the one used to create the table (that
        is, using it after upgrading) may damage the table. See
        Section 12.5.2.6, "REPAIR TABLE Syntax."
 
      * After you upgrade to a new version of MySQL, run mysql_upgrade
        (see Section 4.4.8, "mysql_upgrade --- Check Tables for MySQL
-       Upgrade"). This program will check your tables, and repair
-       them if necessary. It will also update your grant tables to
+       Upgrade"). This program checks your tables, and attempts to
+       repair them if necessary. It also updates your grant tables to
        make sure that they have the current structure so that you can
        take advantage of any new capabilities. (Some releases of
        MySQL introduce changes to the structure of the grant tables
@@ -6312,8 +5996,8 @@ Note
        Rebuilt," to see whether changes to character sets or
        collations were made that affect your table indexes. If so,
        you will need to rebuild the affected indexes using the
-       instructions in Section 2.12.4, "Rebuilding Tables or Table
-       Indexes."
+       instructions in Section 2.12.4, "Rebuilding or Repairing
+       Tables or Indexes."
 
      * If you are running MySQL Server on Windows, see Section
        2.3.14, "Upgrading MySQL on Windows."
@@ -6321,6 +6005,26 @@ Note
      * If you are using replication, see Section 16.3.3, "Upgrading a
        Replication Setup," for information on upgrading your
        replication setup.
+
+   If your MySQL installation contains a large amount of data that
+   might take a long time to convert after an in-place upgrade, you
+   might find it useful to create a "dummy" database instance for
+   assessing what conversions might be needed and the work involved
+   to perform them. Make a copy of your MySQL instance that contains
+   a full copy of the mysql database, plus all other databases
+   without data. Run your upgrade procedure on this dummy instance to
+   see what actions might be needed so that you can better evaluate
+   the work involved when performing actual data conversion on your
+   original database instance.
+
+   MySQL Enterprise MySQL Enterprise subscribers will find more
+   information about upgrading in the Knowledge Base articles found
+   at Upgrading
+   (https://kb.mysql.com/search.php?cat=search&category=41). Access
+   to the MySQL Knowledge Base collection of articles is one of the
+   advantages of subscribing to MySQL Enterprise. For more
+   information, see
+   http://www.mysql.com/products/enterprise/advisors.html.
 
    The following lists describe changes that may affect applications
    and that you should watch out for when upgrading to MySQL 5.1.
@@ -6337,96 +6041,6 @@ Note
        header files and libraries are located.
 
    Server Changes:
-
-     * Known issue: Before MySQL 5.1.30, the CHECK TABLE ... FOR
-       UPGRADE statement did not check for incompatible collation
-       changes made in MySQL 5.1.24. (This also affects mysqlcheck
-       and mysql_upgrade, which cause that statement to be executed.)
-       Prior to the fix made in 5.1.30, a binary upgrade (performed
-       without dumping tables with mysqldump before the upgrade and
-       reloading the dump file after the upgrade) would corrupt
-       tables. After the fix, CHECK TABLE ... FOR UPGRADE properly
-       detects the problem and warns about tables that need repair.
-       However, the fix is not backward compatible and can result in
-       a downgrading problem under these circumstances:
-
-         1. Perform a binary upgrade to a version of MySQL that
-            includes the fix.
-
-         2. Run CHECK TABLE ... FOR UPGRADE (or mysqlcheck or
-            mysql_upgrade) to upgrade tables.
-
-         3. Perform a binary downgrade to a version of MySQL that
-            does not include the fix.
-       The solution is to dump tables with mysqldump before the
-       downgrade and reload the dump file after the downgrade.
-       Alternatively, drop and recreate affected indexes.
-
-     * Known issue: MySQL introduces encoding for table names that
-       have non-ASCII characters (see Section 8.2.3, "Mapping of
-       Identifiers to File Names"). After a live upgrade from MySQL
-       5.0 to 5.1 or higher, the server recognizes names that have
-       non-ASCII characters and adds a #mysql50# prefix to them.
-       Running mysqlcheck --all-databases --check-upgrade
-       --fix-db-names --fix-table-names later upgrades these names by
-       encoding them with the new format and removes the #mysql50#
-       prefix.
-       However, although this is done for tables, it is not done for
-       views prior to MySQL 5.1.23. To work around this problem, drop
-       each affected view and recreate it. This problem is fixed as
-       of MySQL 5.1.23.
-       To check and repair tables and to upgrade the system tables,
-       mysql_upgrade executes the following commands:
-mysqlcheck --check-upgrade --all-databases --auto-repair
-mysql_fix_privilege_tables
-mysqlcheck --all-databases --check-upgrade --fix-db-names --fix-table
--names
-       However, prior to MySQL 5.1.31, mysql_upgrade does not run the
-       third command, which is necessary to re-encode database or
-       table names that contain non-alphanumeric characters. (They
-       still appear after the upgrade with the #mysql50# prefix.) If
-       you have such database or table names, execute the third
-       command manually after executing mysql_upgrade. This problem
-       is fixed as of MySQL 5.1.31.
-
-     * Known issue: When upgrading from MySQL 5.0 to 5.1, running
-       mysqlcheck (or mysql_upgrade, which runs mysqlcheck) to
-       upgrade tables fails for names that must be written as quoted
-       identifiers. To work around this problem, rename each affected
-       table to a name that does not require quoting:
-RENAME TABLE `tab``le_a` TO table_a;
-RENAME TABLE `table b` TO table_b;
-       After renaming the tables, run the mysql_upgrade program. Then
-       rename the tables back to their original names:
-RENAME TABLE table_a TO `tab``le_a`;
-RENAME TABLE table_b TO `table b`;
-       This problem is fixed as of MySQL 5.1.23.
-
-     * Known issue: In connection with view creation, the server
-       created arc directories inside database directories and
-       maintained useless copies of .frm files there. Creation and
-       renaming procedures of those copies as well as creation of arc
-       directories has been discontinued in MySQL 5.1.29.
-       This change does cause a problem when downgrading to older
-       server versions which manifests itself under these
-       circumstances:
-
-         1. Create a view v_orig in MySQL 5.1.29 or higher.
-
-         2. Rename the view to v_new and then back to v_orig.
-
-         3. Downgrade to an older 5.1.x server and run mysql_upgrade.
-
-         4. Try to rename v_orig to v_new again. This operation
-            fails.
-       As a workaround to avoid this problem, use either of these
-       approaches:
-
-          + Dump your data using mysqldump before downgrading and
-            reload the dump file after downgrading.
-
-          + Instead of renaming a view after the downgrade, drop it
-            and recreate it.
 
      * Known issue: Dumps performed by using mysqldump to generate a
        dump file before the upgrade and reloading the file after
@@ -6458,14 +6072,114 @@ shell> mysqldump --no-data other_args > definitions.sql
 shell> mysqldump --no-create-info other_args > data.sql
        Then edit definitions.sql before reloading definitions.sql and
        data.sql, in that order.
+       If you upgrade to a version of MySQL 5.0 higher than 5.0.40
+       before upgrading to MySQL 5.1, this problem does not occur.
+
+     * Known issue: Before MySQL 5.1.30, the CHECK TABLE ... FOR
+       UPGRADE statement did not check for incompatible collation
+       changes made in MySQL 5.1.24. (This also affects mysqlcheck
+       and mysql_upgrade, which cause that statement to be executed.)
+       Prior to the fix made in 5.1.30, a binary upgrade (performed
+       without dumping tables with mysqldump before the upgrade and
+       reloading the dump file after the upgrade) would corrupt
+       tables. After the fix, CHECK TABLE ... FOR UPGRADE properly
+       detects the problem and warns about tables that need repair.
+       However, the fix is not backward compatible and can result in
+       a downgrading problem under these circumstances:
+
+         1. Perform a binary upgrade to a version of MySQL that
+            includes the fix.
+
+         2. Run CHECK TABLE ... FOR UPGRADE (or mysqlcheck or
+            mysql_upgrade) to upgrade tables.
+
+         3. Perform a binary downgrade to a version of MySQL that
+            does not include the fix.
+       The solution is to dump tables with mysqldump before the
+       downgrade and reload the dump file after the downgrade.
+       Alternatively, drop and recreate affected indexes.
+
+     * Known issue: MySQL introduces encoding for table names that
+       have non-ASCII characters (see Section 8.2.3, "Mapping of
+       Identifiers to File Names"). After a binary upgrade from MySQL
+       5.0 to 5.1 or higher, the server recognizes names that have
+       non-ASCII characters and adds a #mysql50# prefix to them.
+       As of MySQL 5.1.31, mysql_upgrade encodes these names by
+       executing the following command:
+mysqlcheck --all-databases --check-upgrade --fix-db-names --fix-table
+-names
+       Prior to MySQL 5.1.31, mysql_upgrade does not execute this
+       command, so you should execute it manually if you have
+       database or table names that contain nonalphanumeric
+       characters.
+       Prior to MySQL 5.1.23, the mysqlcheck command does not perform
+       the name encoding for views. To work around this problem, drop
+       each affected view and recreate it.
+       mysqlcheck cannot fix names that contain literal instances of
+       the @ character that is used for encoding special characters.
+       If you have databases or tables that contain this character,
+       use mysqldump to dump them before upgrading to MySQL 5.1, and
+       then reload the dump file after upgrading.
+
+     * Known issue: When upgrading from MySQL 5.0 to versions of 5.1
+       prior to 5.1.23, running mysqlcheck (or mysql_upgrade, which
+       runs mysqlcheck) to upgrade tables fails for names that must
+       be written as quoted identifiers. To work around this problem,
+       rename each affected table to a name that does not require
+       quoting:
+RENAME TABLE `tab``le_a` TO table_a;
+RENAME TABLE `table b` TO table_b;
+       After renaming the tables, run the mysql_upgrade program. Then
+       rename the tables back to their original names:
+RENAME TABLE table_a TO `tab``le_a`;
+RENAME TABLE table_b TO `table b`;
+
+     * Known issue: In connection with view creation, the server
+       created arc directories inside database directories and
+       maintained useless copies of .frm files there. Creation and
+       renaming procedures of those copies as well as creation of arc
+       directories has been discontinued in MySQL 5.1.29.
+       This change does cause a problem when downgrading to older
+       server versions which manifests itself under these
+       circumstances:
+
+         1. Create a view v_orig in MySQL 5.1.29 or higher.
+
+         2. Rename the view to v_new and then back to v_orig.
+
+         3. Downgrade to an older 5.1.x server and run mysql_upgrade.
+
+         4. Try to rename v_orig to v_new again. This operation
+            fails.
+       As a workaround to avoid this problem, use either of these
+       approaches:
+
+          + Dump your data using mysqldump before downgrading and
+            reload the dump file after downgrading.
+
+          + Instead of renaming a view after the downgrade, drop it
+            and recreate it.
+
+     * Incompatible change: Character set or collation changes were
+       made in MySQL 5.1.21, 5.1.23, and 5.1.24 that may require
+       table indexes to be rebuilt. For details, see Section 2.12.3,
+       "Checking Whether Table Indexes Must Be Rebuilt."
+
+     * Incompatible change: In MySQL 5.1.36, options for loading
+       plugins such as pluggable storage engines were changed from
+       boolean to tristate format. The implementations overlap, but
+       if you previously used options of the form --plugin_name=0 or
+       --plugin_name=1, you should instead use --plugin_name=OFF or
+       --plugin_name=ON, respectively. For details, see Section
+       5.1.3, "Server Options for Loading Plugins."
 
      * Incompatible change: From MySQL 5.1.24 to 5.1.31, the UPDATE
        statement was changed such that assigning NULL to a NOT NULL
        column caused an error even when strict SQL mode was not
        enabled. The original behavior before MySQL 5.1.24 was that
        such assignments caused an error only in strict SQL mode, and
-       otherwise set the column to the the implicit default value for
-       the column data type and generated a warning. (For information
+       otherwise set the column to the implicit default value for the
+       column data type and generated a warning. (For information
        about implicit default values, see Section 10.1.4, "Data Type
        Default Values.")
        The change caused compatibility problems for applications that
@@ -6477,11 +6191,6 @@ shell> mysqldump --no-create-info other_args > data.sql
        UPDATE again had the original behavior. Problems can still
        occur if you replicate between servers that have the modified
        UPDATE behavior and those that do not.
-
-     * Incompatible change: Character set or collation changes were
-       made in MySQL 5.1.21, 5.1.23, and 5.1.24 that may require
-       table indexes to be rebuilt. For details, see Section 2.12.3,
-       "Checking Whether Table Indexes Must Be Rebuilt."
 
      * Incompatible change: As of MySQL 5.1.29, the default binary
        logging mode has been changed from MIXED to STATEMENT for
@@ -6537,8 +6246,21 @@ shell> mysqldump --no-create-info other_args > data.sql
        SHOW or DESCRIBE statement. This happened to work in some
        instances, but is no longer supported. In many cases, a
        workaround for this change is to use the cursor with a SELECT
-       query to read from an INFORMATION_SCHEMA table that provides
+       query to read from an INFORMATION_SCHEMA table that produces
        the same information as the SHOW statement.
+
+     * Incompatible change: SHOW CREATE VIEW displays view
+       definitions using an AS alias_name clause for each column. If
+       a column is created from an expression, the default alias is
+       the expression text, which can be quite long. As of MySQL
+       5.1.23, aliases for column names in CREATE VIEW statements are
+       checked against the maximum column length of 64 characters
+       (not the maximum alias length of 256 characters). As a result,
+       views created from the output of SHOW CREATE VIEW fail if any
+       column alias exceeds 64 characters. This can cause problems
+       for replication or loading dump files. For additional
+       information and workarounds, see Section D.4, "Restrictions on
+       Views."
 
      * Incompatible change: MySQL 5.1 implements support for a plugin
        API that allows the loading and unloading of components at
@@ -6558,7 +6280,7 @@ shell> mysqldump --no-create-info other_args > data.sql
 
      * Incompatible change: The table_cache system variable has been
        renamed to table_open_cache. Any scripts that refer to
-       table_cache should be updated to use the new name.
+       table_cache must be updated to use the new name.
 
      * Incompatible change: Several issues were identified for stored
        programs (stored procedures and functions, triggers, and
@@ -6590,10 +6312,7 @@ shell> mysqldump --no-create-info other_args > data.sql
        In 5.1.20 only, the following conditions apply: 1) The default
        is to use syslog, which is not compatible with releases prior
        to 5.1.20. 2) Logging to syslog may fail to operate correctly
-       in some cases, so we recommend that you use --skip-syslog or
-       --log-error. To maintain the older behavior if you were using
-       no error-logging option, use --skip-syslog. If you were using
-       --log-error, continue to use it.
+       in some cases. For these reasons, avoid using MySQL 5.1.20.
 
      * Incompatible change: As of MySQL 5.1.15, InnoDB rolls back
        only the last statement on a transaction timeout. A new
@@ -6649,11 +6368,11 @@ shell> mysqldump --no-create-info other_args > data.sql
             schema_name.PI ().
 
           + Alternatively, rename the stored function to use a
-            non-conflicting name and change invocations of the
+            nonconflicting name and change invocations of the
             function to use the new name.
 
      * Incompatible change: For utf8 columns, the full-text parser
-       incorrectly considered several non-word punctuation and
+       incorrectly considered several nonword punctuation and
        whitespace characters as word characters, causing some
        searches to return incorrect results. The fix involves a
        change to the full-text parser in MySQL 5.1.12, so as of
@@ -6665,24 +6384,24 @@ REPAIR TABLE tbl_name QUICK;
        runtime, so the distinction between disabled and invalid
        storage engines no longer applies. As of MySQL 5.1.12, this
        affects the NO_ENGINE_SUBSTITUTION SQL mode, as described in
-       Section 5.1.7, "Server SQL Modes."
+       Section 5.1.8, "Server SQL Modes."
 
      * Incompatible change: The structure of FULLTEXT indexes has
        been changed in MySQL 5.1.6. After upgrading to MySQL 5.1.6 or
-       greater, use the REPAIR TABLE ... QUICK statement for each
-       table that contains any FULLTEXT indexes.
+       greater, any tables that have FULLTEXT indexes must be
+       repaired with REPAIR TABLE:
+REPAIR TABLE tbl_name QUICK;
 
      * Incompatible change: In MySQL 5.1.6, when log tables were
        implemented, the default log destination for the general query
        and slow query log was TABLE. As of MySQL 5.1.21, this default
        has been changed to FILE, which is compatible with MySQL 5.0,
-       but incompatible with earlier releases of MySQL 5.1 from 5.1.6
-       to 5.1.20. If you are upgrading from MySQL 5.0 to this
-       release, no logging option changes should be necessary.
-       However, if you are upgrading from 5.1.6 through 5.1.20 to
-       this release and were using TABLE logging, use the
-       --log-output=TABLE option explicitly to preserve your server's
-       table-logging behavior.
+       but incompatible with earlier releases of MySQL 5.1. If you
+       are upgrading from MySQL 5.0 to 5.1.21 or higher, no logging
+       option changes should be necessary. However, if you are
+       upgrading from 5.1.6 through 5.1.20 to 5.1.21 or higher and
+       were using TABLE logging, use the --log-output=TABLE option
+       explicitly to preserve your server's table-logging behavior.
 
      * Incompatible change: For ENUM columns that had enumeration
        values containing commas, the commas were mapped to 0xff
@@ -6701,43 +6420,18 @@ REPAIR TABLE tbl_name QUICK;
        MONTHNAME() functions. See Section 9.8, "MySQL Server Locale
        Support."
 
-     * As of MySQL 5.1.6, special characters in database and table
-       identifiers are encoded when creating the corresponding
-       directory names and file names. This relaxes the restrictions
-       on the characters that can appear in identifiers. See Section
-       8.2.3, "Mapping of Identifiers to File Names." To cause
-       database and table names to be updated to the new format
-       should they contain special characters, re-encode them with
-       mysqlcheck. The following command updates all names to the new
-       encoding:
-shell> mysqlcheck --check-upgrade --fix-db-names --fix-table-names --
-all-databases
-       mysqlcheck cannot fix names that contain literal instances of
-       the @ character that is used for encoding special characters.
-       If you have databases or tables that contain this character,
-       use mysqldump to dump them before upgrading to MySQL 5.1.6 or
-       later, and then reload the dump file after upgrading.
-
      * As of MySQL 5.1.9, mysqld_safe no longer implicitly invokes
        mysqld-max if it exists. Instead, it invokes mysqld unless a
        --mysqld or --mysqld-version option is given to specify
        another server explicitly. If you previously relied on the
        implicit invocation of mysqld-max, you should use an
-       appropriate option now.
+       appropriate option now. As of MySQL 5.1.12, there is no longer
+       any separate mysqld-max server, so no change should be
+       necessary.
 
    SQL Changes:
 
-     * Incompatible change: Multiple-table DELETE statements
-       containing ambiguous aliases could have unintended side
-       effects such as deleting rows from the wrong table. Example:
-DELETE FROM t1 AS a2 USING t1 AS a1 INNER JOIN t2 AS a2;
-       As of MySQL 5.1.23, alias declarations can be declared only in
-       the table_references part. Elsewhere in the statement, alias
-       references are allowed but not alias declarations. Statements
-       containing aliases that are no longer allowed must be
-       rewritten.
-
-     * Important note: Prior to MySQL 5.1.17, the parser accepted
+     * Known issue: Prior to MySQL 5.1.17, the parser accepted
        invalid code in SQL condition handlers, leading to server
        crashes or unexpected execution behavior in stored programs.
        Specifically, the parser allowed a condition handler to refer
@@ -6745,10 +6439,10 @@ DELETE FROM t1 AS a2 USING t1 AS a1 INNER JOIN t2 AS a2;
        This was incorrect because block label scope does not include
        the code for handlers declared within the labeled block.
        As of 5.1.17, the parser rejects this invalid construct, but
-       if you upgrade in place (without dumping and reloading your
-       databases), existing handlers that contain the construct still
-       are invalid even if they appear to function as you expect and
-       should be rewritten.
+       if you perform a binary upgrade (without dumping and reloading
+       your databases), existing handlers that contain the construct
+       still are invalid and should be rewritten even if they appear
+       to function as you expect.
        To find affected handlers, use mysqldump to dump all stored
        procedures and functions, triggers, and events. Then attempt
        to reload them into an upgraded server. Handlers that contain
@@ -6771,27 +6465,37 @@ DELETE FROM t1 AS a2 USING t1 AS a1 INNER JOIN t2 AS a2;
        be dropped and re-created so that their definitions do not
        contain truncated comments.
 
+     * Incompatible change: Multiple-table DELETE statements
+       containing ambiguous aliases could have unintended side
+       effects such as deleting rows from the wrong table. Example:
+DELETE FROM t1 AS a2 USING t1 AS a1 INNER JOIN t2 AS a2;
+       As of MySQL 5.1.23, alias declarations can be declared only in
+       the table_references part. Elsewhere in the statement, alias
+       references are allowed but not alias declarations. Statements
+       containing aliases that are no longer allowed must be
+       rewritten.
+
      * Incompatible change: As of MySQL 5.1.8, TYPE = engine_name is
        still accepted as a synonym for the ENGINE = engine_name table
        option but generates a warning. You should note that this
        option is not available in MySQL 5.1.7, and is removed
-       altogether as of MySQL 5.2.5 and produces a syntax error.
+       altogether as of MySQL 6.0 and produces a syntax error.
        TYPE has been deprecated since MySQL 4.0.
 
-     * Incompatible change: The namespace for triggers has changed in
+     * Incompatible change: The namespace for triggers changed in
        MySQL 5.0.10. Previously, trigger names had to be unique per
        table. Now they must be unique within the schema (database).
        An implication of this change is that DROP TRIGGER syntax now
        uses a schema name instead of a table name (schema name is
        optional and, if omitted, the current schema will be used).
-       When upgrading from a previous version of MySQL 5 to MySQL
-       5.0.10 or newer, you must drop all triggers and re-create them
-       or DROP TRIGGER will not work after the upgrade. Here is a
-       suggested procedure for doing this:
+       When upgrading from a version of MySQL 5 older than 5.0.10 to
+       MySQL 5.0.10 or newer, you must drop all triggers and
+       re-create them or DROP TRIGGER will not work after the
+       upgrade. Here is a suggested procedure for doing this:
 
          1. Upgrade to MySQL 5.0.10 or later to be able to access
             trigger information in the INFORMATION_SCHEMA.TRIGGERS
-            table. (It should work even for pre-5.0.10 triggers.)
+            table. (This should work even for pre-5.0.10 triggers.)
 
          2. Dump all trigger definitions using the following SELECT
             statement:
@@ -6805,7 +6509,7 @@ INTO OUTFILE '/tmp/triggers.sql'
 FROM INFORMATION_SCHEMA.TRIGGERS AS t;
             The statement uses INTO OUTFILE, so you must have the
             FILE privilege. The file will be created on the server
-            host; use a different file name if you like. To be 100%
+            host. Use a different file name if you like. To be 100%
             safe, inspect the trigger definitions in the triggers.sql
             file, and perhaps make a backup of the file.
 
@@ -6815,7 +6519,7 @@ FROM INFORMATION_SCHEMA.TRIGGERS AS t;
 shell> rm */*.TRG
 
          4. Start the server and re-create all triggers using the
-            triggers.sql file: For example in my case it was:
+            triggers.sql file:
 mysql> delimiter // ;
 mysql> source /tmp/triggers.sql //
 
@@ -6832,13 +6536,12 @@ mysql> source /tmp/triggers.sql //
        SUPER privilege has changed to a requirement for the TRIGGER
        privilege. When upgrading from a previous version of MySQL 5.0
        or 5.1 to MySQL 5.1.6 or newer, be sure to update your grant
-       tables as described in Section 4.4.8, "mysql_upgrade --- Check
-       Tables for MySQL Upgrade." This process assigns the TRIGGER
+       tables by running mysql_upgrade. This will assign the TRIGGER
        privilege to all accounts that had the SUPER privilege. If you
        fail to update the grant tables, triggers may fail when
-       activated. (After updating the grant tables, you can revoke
-       the SUPER privilege from those accounts that no longer
-       otherwise require it.)
+       activated. After updating the grant tables, you can revoke the
+       SUPER privilege from those accounts that no longer otherwise
+       require it.
 
      * Some keywords are reserved in MySQL 5.1 that were not reserved
        in MySQL 5.0. See Section 8.3, "Reserved Words."
@@ -6893,7 +6596,7 @@ mysql> source /tmp/triggers.sql //
        the version to which you are downgrading. If so and these
        changes affect your table indexes, you will need to rebuild
        the affected indexes using the instructions in Section 2.12.4,
-       "Rebuilding Tables or Table Indexes."
+       "Rebuilding or Repairing Tables or Indexes."
 
    In most cases, you can move the MySQL format files and data files
    between different versions on the same architecture as long as you
@@ -7016,7 +6719,7 @@ mysql> source /tmp/triggers.sql //
    an affected character set or collation, either by dropping and
    re-creating the indexes, or by dumping and reloading the entire
    table. For information about rebuilding indexes, see Section
-   2.12.4, "Rebuilding Tables or Table Indexes."
+   2.12.4, "Rebuilding or Repairing Tables or Indexes."
 
    To check whether a table has indexes that must be rebuilt, consult
    the following list. It indicates which versions of MySQL
@@ -7030,28 +6733,28 @@ mysql> source /tmp/triggers.sql //
    example, Bug#29461: http://bugs.mysql.com/29461 was fixed in MySQL
    5.0.48, so it applies to upgrades from versions older than 5.0.48
    to 5.0.48 or newer, and also to downgrades from 5.0.48 or newer to
-   versions older than 5.0.58.
+   versions older than 5.0.48.
 
    If you have tables with indexes that are affected, rebuild the
    indexes using the instructions given in Section 2.12.4,
-   "Rebuilding Tables or Table Indexes."
+   "Rebuilding or Repairing Tables or Indexes."
 
-   In many cases, you can use CHECK TABLE ... FOR UPDATE to identify
+   In many cases, you can use CHECK TABLE ... FOR UPGRADE to identify
    tables for which index rebuilding is required. (It will report:
-   Table upgrade required. Please do "REPAIR TABLE `tbl_name`" to fix
-   it!) In these cases, you can also use mysqlcheck --check-upgrade
-   or mysql_upgrade, which execute CHECK TABLE. However, the use of
-   CHECK TABLE applies only after upgrades, not downgrades. Also,
-   CHECK TABLE is not applicable to all storage engines. For details
-   about which storage engines CHECK TABLE supports, see Section
-   12.5.2.3, "CHECK TABLE Syntax."
+   Table upgrade required. Please do "REPAIR TABLE `tbl_name`" or
+   dump/reload to fix it!) In these cases, you can also use
+   mysqlcheck --check-upgrade or mysql_upgrade, which execute CHECK
+   TABLE. However, the use of CHECK TABLE applies only after
+   upgrades, not downgrades. Also, CHECK TABLE is not applicable to
+   all storage engines. For details about which storage engines CHECK
+   TABLE supports, see Section 12.5.2.3, "CHECK TABLE Syntax."
 
    Changes that cause index rebuilding to be necessary:
 
      * MySQL 5.0.48 (Bug#29461: http://bugs.mysql.com/29461)
        Affects indexes for columns that use any of these character
        sets: eucjpms, euc_kr, gb2312, latin7, macce, ujis
-       Affected tables can be detected by CHECK TABLE ... FOR UPDATE
+       Affected tables can be detected by CHECK TABLE ... FOR UPGRADE
        as of MySQL 5.1.29, 6.0.8 (see
        Bug#39585: http://bugs.mysql.com/39585).
 
@@ -7060,14 +6763,14 @@ mysql> source /tmp/triggers.sql //
        columns that contain any of these characters: '`' GRAVE
        ACCENT, '[' LEFT SQUARE BRACKET, '\' REVERSE SOLIDUS, ']'
        RIGHT SQUARE BRACKET, '~' TILDE
-       Affected tables can be detected by CHECK TABLE ... FOR UPDATE
+       Affected tables can be detected by CHECK TABLE ... FOR UPGRADE
        as of MySQL 5.1.29, 6.0.8 (see
        Bug#39585: http://bugs.mysql.com/39585).
 
      * MySQL 5.1.21 (Bug#29461: http://bugs.mysql.com/29461)
        Affects indexes for columns that use any of these character
        sets: eucjpms, euc_kr, gb2312, latin7, macce, ujis
-       Affected tables can be detected by CHECK TABLE ... FOR UPDATE
+       Affected tables can be detected by CHECK TABLE ... FOR UPGRADE
        as of MySQL 5.1.29, 6.0.8 (see
        Bug#39585: http://bugs.mysql.com/39585).
 
@@ -7076,7 +6779,7 @@ mysql> source /tmp/triggers.sql //
        columns that contain any of these characters: '`' GRAVE
        ACCENT, '[' LEFT SQUARE BRACKET, '\' REVERSE SOLIDUS, ']'
        RIGHT SQUARE BRACKET, '~' TILDE
-       Affected tables can be detected by CHECK TABLE ... FOR UPDATE
+       Affected tables can be detected by CHECK TABLE ... FOR UPGRADE
        as of MySQL 5.1.29, 6.0.8 (see
        Bug#39585: http://bugs.mysql.com/39585).
 
@@ -7084,26 +6787,26 @@ mysql> source /tmp/triggers.sql //
        Affects indexes that use the utf8_general_ci or
        ucs2_general_ci collation for columns that contain 'ß' LATIN
        SMALL LETTER SHARP S (German).
-       Affected tables can be detected by CHECK TABLE ... FOR UPDATE
+       Affected tables can be detected by CHECK TABLE ... FOR UPGRADE
        as of MySQL 5.1.30, 6.0.8 (see
        Bug#40053: http://bugs.mysql.com/40053).
 
      * * MySQL 6.0.1 (WL#3664)
        Affects indexes that use the latin2_czech_cs collation.
-       Affected tables can be detected by CHECK TABLE ... FOR UPDATE
-       as of MySQL 6.0.9 (see
+       Affected tables can be detected by CHECK TABLE ... FOR UPGRADE
+       as of MySQL 5.4.4, 6.0.9 (see
        Bug#40054: http://bugs.mysql.com/40054).
        MySQL 6.0.5 (Bug#33452: http://bugs.mysql.com/33452)
        Affects indexes that use the latin2_czech_cs collation.
-       Affected tables can be detected by CHECK TABLE ... FOR UPDATE
-       as of MySQL 6.0.9 (see
+       Affected tables can be detected by CHECK TABLE ... FOR UPGRADE
+       as of MySQL 5.4.4, 6.0.9 (see
        Bug#40054: http://bugs.mysql.com/40054).
 
      * MySQL 6.0.5 (Bug#27877: http://bugs.mysql.com/27877)
        Affects indexes that use the utf8_general_ci or
        ucs2_general_ci collation for columns that contain 'ß' LATIN
        SMALL LETTER SHARP S (German).
-       Affected tables can be detected by CHECK TABLE ... FOR UPDATE
+       Affected tables can be detected by CHECK TABLE ... FOR UPGRADE
        as of MySQL 6.0.8 (see
        Bug#40053: http://bugs.mysql.com/40053).
 
@@ -7113,19 +6816,23 @@ mysql> source /tmp/triggers.sql //
        big5_chinese_ci: '~' TILDE or '`' GRAVE ACCENT;
        cp866_general_ci: j LATIN SMALL LETTER J; gb2312_chinese_ci:
        '~' TILDE; gbk_chinese_ci: '~' TILDE
-       Affected tables can be detected by CHECK TABLE ... FOR UPDATE
-       as of MySQL 6.0.9 (see
+       Affected tables can be detected by CHECK TABLE ... FOR UPGRADE
+       as of MySQL 5.4.4, 6.0.9 (see
        Bug#40054: http://bugs.mysql.com/40054).
 
-2.12.4. Rebuilding Tables or Table Indexes
+2.12.4. Rebuilding or Repairing Tables or Indexes
 
    This section describes how to rebuild a table. This can be
    necessitated by changes to MySQL such as how data types are
    handled or changes to character set handling. For example, an
    error in a collation might have been corrected, necessitating a
    table rebuild to rebuild the indexes for character columns that
-   use the collation. Methods for rebuilding a table include dumping
-   and reloading it, or using ALTER TABLE.
+   use the collation. It might also be that a table repair or upgrade
+   should be done as indicated by a table check operation such as
+   that performed by CHECK TABLE, mysqlcheck, or mysql_upgrade.
+
+   Methods for rebuilding a table include dumping and reloading it,
+   or using ALTER TABLE or REPAIR TABLE.
 
 Note
 
@@ -7140,16 +6847,6 @@ Note
    for the purpose of rebuilding indexes, you can perform the dump
    either before or after upgrading or downgrading. Reloading still
    must be done afterward.
-
-   For the examples in this section, suppose that a table t1 is
-   defined like this:
-CREATE TABLE t1 (
-  c1 VARCHAR(10) CHARACTER SET macce,
-  c2 TEXT CHARACTER SET ujis,
-  c3 VARCHAR(20) CHARACTER SET latin1,
-  PRIMARY KEY (c1),
-  INDEX (c2(20))
-);
 
    To re-create a table by dumping and reloading it, use mysqldump to
    create a dump file and mysql to reload the file:
@@ -7171,8 +6868,22 @@ shell> mysql < dump.sql
    For example, if t1 is a MyISAM table, use this statement:
 mysql> ALTER TABLE t1 ENGINE = MyISAM;
 
-   If you are not sure which storage engine is used for the table,
-   use SHOW CREATE TABLE to display the table definition.
+   If you are not sure which storage engine to specify in the ALTER
+   TABLE statement, use SHOW CREATE TABLE to display the table
+   definition.
+
+   If you must rebuild a table because a table checking operation
+   indicates that the table is corrupt or needs an upgrade, you can
+   use REPAIR TABLE if that statement supports the table's storage
+   engine. For example, to repair a MyISAM table, use this statement:
+mysql> REPAIR TABLE t1;
+
+   For storage engines such as InnoDB that REPAIR TABLE does not
+   support, use mysqldump to create a dump file and mysql to reload
+   the file, as described earlier.
+
+   For specifics about which storage engines REPAIR TABLE supports,
+   see Section 12.5.2.6, "REPAIR TABLE Syntax."
 
 2.12.5. Copying MySQL Databases to Another Machine
 
@@ -7290,7 +7001,7 @@ Warning
 
    A known issue with binary distributions is that on older Linux
    systems that use libc (such as Red Hat 4.x or Slackware), you get
-   some (non-fatal) issues with host name resolution. If your system
+   some (nonfatal) issues with host name resolution. If your system
    uses libc rather than glibc2, you probably will encounter some
    difficulties with host name resolution and getpwnam(). This
    happens because glibc (unfortunately) depends on some external
@@ -7362,8 +7073,8 @@ getpwnam: No such file or directory
 
    Note that glibc versions before and including version 2.1.1 have a
    fatal bug in pthread_mutex_timedwait() handling, which is used
-   when INSERT DELAYED statements are issued. We recommend that you
-   not use INSERT DELAYED before upgrading glibc.
+   when INSERT DELAYED statements are issued. Do not use INSERT
+   DELAYED before upgrading glibc.
 
    Note that Linux kernel and the LinuxThread library can by default
    handle a maximum of 1,024 threads. If you plan to have more than
@@ -7409,14 +7120,14 @@ getpwnam: No such file or directory
    future, so that the commands needed to produce your own build can
    be reduced to ./configure; make; make install.
 
-   We recommend that you use these patches to build a special static
-   version of libpthread.a and use it only for statically linking
-   against MySQL. We know that these patches are safe for MySQL and
-   significantly improve its performance, but we cannot say anything
-   about their effects on other applications. If you link other
-   applications that require LinuxThreads against the patched static
-   version of the library, or build a patched shared version and
-   install it on your system, you do so at your own risk.
+   If you use these patches to build a special static version of
+   libpthread.a, use it only for statically linking against MySQL. We
+   know that these patches are safe for MySQL and significantly
+   improve its performance, but we cannot say anything about their
+   effects on other applications. If you link other applications that
+   require LinuxThreads against the patched static version of the
+   library, or build a patched shared version and install it on your
+   system, you do so at your own risk.
 
    If you experience any strange problems during the installation of
    MySQL, or with some common utilities hanging, it is very likely
@@ -7523,7 +7234,7 @@ open-files-limit=8192
    binary or RPM version, you can safely set max_connections at 1500,
    assuming no large key buffer or heap tables with lots of data. The
    more you reduce STACK_SIZE in LinuxThreads the more threads you
-   can safely create. We recommend values between 128KB and 256KB.
+   can safely create. Values between 128KB and 256KB are recommended.
 
    If you use a lot of concurrent connections, you may suffer from a
    "feature" in the 2.2 kernel that attempts to prevent fork bomb
@@ -7540,8 +7251,8 @@ open-files-limit=8192
    http://dev.mysql.com/Downloads/Patches/linux-fork.patch. We have
    done rather extensive testing of this patch on both development
    and production systems. It has significantly improved MySQL
-   performance without causing any problems and we recommend it to
-   our users who still run high-load servers on 2.2 kernels.
+   performance without causing any problems and is recommended for
+   users who still run high-load servers on 2.2 kernels.
 
    This issue has been fixed in the 2.4 kernel, so if you are not
    satisfied with the current performance of your system, rather than
@@ -7557,8 +7268,8 @@ open-files-limit=8192
    results on a four-CPU system: Virtually no slowdown as the number
    of clients was increased up to 1,000, and a 300% scaling factor.
    Based on these results, for a high-load SMP server using a 2.2
-   kernel, we definitely recommend upgrading to the 2.4 kernel at
-   this point.
+   kernel, it is definitely recommended to upgrade to the 2.4 kernel
+   at this point.
 
    We have discovered that it is essential to run the mysqld process
    with the highest possible priority on the 2.4 kernel to achieve
@@ -7720,12 +7431,12 @@ CXXFLAGS="-O3 -fno-omit-frame-pointer -felide-constructors \
    for processes. If SELinux is enabled (SELINUX in
    /etc/selinux/config is set to enforcing, SELINUXTYPE is set to
    either targeted or strict), you might encounter problems
-   installing MySQL AB RPM packages.
+   installing Sun Microsystems, Inc. RPM packages.
 
    Red Hat has an update that solves this. It involves an update of
    the "security policy" specification to handle the install
-   structure of the RPMs provided by MySQL AB. For further
-   information, see
+   structure of the RPMs provided by Sun Microsystems, Inc. For
+   further information, see
    https://bugzilla.redhat.com/bugzilla/show_bug.cgi?id=167551 and
    http://rhn.redhat.com/errata/RHBA-2006-0049.html.
 
@@ -7791,8 +7502,7 @@ CXXFLAGS="-O3 -fno-omit-frame-pointer -felide-constructors \
    MySQL.
 
    If this occurs, you must use GNU tar (gtar) to unpack the
-   distribution. You can find a precompiled copy for Solaris at
-   http://dev.mysql.com/downloads/os-solaris.html.
+   distribution.
 
    Sun native threads work only on Solaris 2.5 and higher. For
    Solaris 2.4 and earlier, MySQL automatically uses MIT-pthreads.
@@ -7981,13 +7691,13 @@ In file included from mysql.cc:50:
 
    The solution to this problem is to do one of the following:
 
-     * Configure with CFLAGS=-DHAVE_CURSES_H CXXFLAGS=-DHAVE_CURSES_H
+    1. Configure with CFLAGS=-DHAVE_CURSES_H CXXFLAGS=-DHAVE_CURSES_H
        ./configure.
 
-     * Edit /usr/include/widec.h as indicated in the preceding
+    2. Edit /usr/include/widec.h as indicated in the preceding
        discussion and re-run configure.
 
-     * Remove the #define HAVE_TERM line from the config.h file and
+    3. Remove the #define HAVE_TERM line from the config.h file and
        run make again.
 
    If your linker cannot find -lz when linking client programs, the
@@ -8251,11 +7961,11 @@ env CC=gcc CXX=gcc CXXFLAGS=-O3 \
    distribution.
 
    There are a couple of small problems when compiling MySQL on
-   HP-UX. We recommend that you use gcc instead of the HP-UX native
-   compiler, because gcc produces better code.
+   HP-UX. Use gcc instead of the HP-UX native compiler, because gcc
+   produces better code.
 
-   We recommend using gcc 2.95 on HP-UX. Don't use high optimization
-   flags (such as -O6) because they may not be safe on HP-UX.
+   Use gcc 2.95 on HP-UX. Don't use high optimization flags (such as
+   -O6) because they may not be safe on HP-UX.
 
    The following configure line should work with gcc 2.95:
 CFLAGS="-I/opt/dce/include -fpic" \
@@ -8387,7 +8097,7 @@ export CXXFLAGS=$CFLAGS
    assembler that may cause it to generate bad code when used with
    gcc.
 
-   We recommend the following configure line with gcc 2.95 on AIX:
+   Use the following configure line with gcc 2.95 on AIX:
 CC="gcc -pipe -mcpu=power -Wa,-many" \
 CXX="gcc -pipe -mcpu=power -Wa,-many" \
 CXXFLAGS="-felide-constructors -fno-exceptions -fno-rtti" \
@@ -8397,8 +8107,8 @@ CXXFLAGS="-felide-constructors -fno-exceptions -fno-rtti" \
    successful. IBM is aware of this problem but is in no hurry to fix
    it because of the workaround that is available. We don't know if
    the -fno-exceptions is required with gcc 2.95, but because MySQL
-   doesn't use exceptions and the option generates faster code, we
-   recommend that you should always use it with gcc.
+   doesn't use exceptions and the option generates faster code, you
+   should always use it with gcc.
 
    If you get a problem with assembler code, try changing the
    -mcpu=xxx option to match your CPU. Typically power2, power, or
@@ -8465,8 +8175,7 @@ export LDR_CNTRL='MAXDATA=0x80000000'
    included with AIX.
 
    As of AIX 4.1, the C compiler has been unbundled from AIX as a
-   separate product. We recommend using gcc 3.3.2, which can be
-   obtained here:
+   separate product. gcc 3.3.2 can be obtained here:
    ftp://ftp.software.ibm.com/aix/freeSoftware/aixtoolbox/RPMS/ppc/gc
    c/
 
@@ -8753,7 +8462,7 @@ CXX=gcc CXXFLAGS="-D_FILE_OFFSET_BITS=64 -O3" \
    are in the opensrc directory. They are available at
    ftp://ftp.sco.com/pub/openserver5/opensrc/.
 
-   We recommend using the latest production release of MySQL.
+   Use the latest production release of MySQL.
 
    SCO provides operating system patches at
    ftp://ftp.sco.com/pub/openserver5 for OpenServer 5.0.[0-6] and
@@ -8850,7 +8559,7 @@ NMOUNT          0               4               256
 NPROC           0               50              16000
 NREGION         0               500             160000
 
-   We recommend setting these values as follows:
+   Set these values as follows:
 
      * NOFILES should be 4096 or 2048.
 
@@ -8864,10 +8573,10 @@ NREGION         0               500             160000
    Then rebuild and reboot the kernel by issuing this command:
 # /etc/conf/bin/idbuild -B && init 6
 
-   We recommend tuning the system, but the proper parameter values to
-   use depend on the number of users accessing the application or
-   database and size the of the database (that is, the used buffer
-   pool). The following kernel parameters can be set with idtune:
+   To tune the system, the proper parameter values to use depend on
+   the number of users accessing the application or database and size
+   the of the database (that is, the used buffer pool). The following
+   kernel parameters can be set with idtune:
 
      * SHMMAX (recommended setting: 128MB) and SHMSEG (recommended
        setting: 15). These parameters have an influence on the MySQL
@@ -8878,8 +8587,8 @@ NREGION         0               500             160000
      * MAXPROC should be set to at least 3000/4000 (depends on number
        of users) or more.
 
-     * We also recommend using the following formulas to calculate
-       values for SEMMSL, SEMMNS, and SEMMNU:
+     * The following formulas are recommended to calculate values for
+       SEMMSL, SEMMNS, and SEMMNU:
 SEMMSL = 13
        13 is what has been found to be the best for both Progress and
        MySQL.
@@ -9028,16 +8737,16 @@ CFLAGS="-D_XOPEN_XPG4" CXX=gcc CXXFLAGS="-D_XOPEN_XPG4" \
    /u95/bin:/bin. If the user wants UnixWare 7 support first, the
    path would be /udk/bin:/u95/bin:/bin:.
 
-   We recommend using the latest production release of MySQL. Should
-   you choose to use an older release of MySQL on OpenServer 6.0.x,
-   you must use a version of MySQL at least as recent as 3.22.13 to
-   get fixes for some portability and OS problems.
+   Use the latest production release of MySQL. Should you choose to
+   use an older release of MySQL on OpenServer 6.0.x, you must use a
+   version of MySQL at least as recent as 3.22.13 to get fixes for
+   some portability and OS problems.
 
    MySQL distribution files with names of the following form are tar
    archives of media are tar archives of media images suitable for
    installation with the SCO Software Manager (/etc/custom) on SCO
    OpenServer 6:
-mysql-PRODUCT-5.1.35-sco-osr6-i686.VOLS.tar
+mysql-PRODUCT-5.1.39-sco-osr6-i686.VOLS.tar
 
    A distribution where PRODUCT is pro-cert is the Commercially
    licensed MySQL Pro Certified server. A distribution where PRODUCT
@@ -9049,7 +8758,7 @@ mysql-PRODUCT-5.1.35-sco-osr6-i686.VOLS.tar
    example:
 shell> mkdir /tmp/mysql-pro
 shell> cd /tmp/mysql-pro
-shell> tar xf /tmp/mysql-pro-cert-5.1.35-sco-osr6-i686.VOLS.tar
+shell> tar xf /tmp/mysql-pro-cert-5.1.39-sco-osr6-i686.VOLS.tar
 
    Prior to installation, back up your data in accordance with the
    procedures outlined in Section 2.12.1, "Upgrading MySQL."
@@ -9115,9 +8824,8 @@ SVMMLIM         0x9000000       0x1000000       0x7FFFFFFF
 HVMMLIM         0x9000000       0x1000000       0x7FFFFFFF
 
    To make changes to the kernel, use the idtune name parameter
-   command. idtune modifies the /etc/conf/cf.d/stune file for you. We
-   recommend setting the kernel values by executing the following
-   commands as root:
+   command. idtune modifies the /etc/conf/cf.d/stune file for you. To
+   set the kernel values, execute the following commands as root:
 # /etc/conf/bin/idtune SDATLIM 0x7FFFFFFF
 # /etc/conf/bin/idtune HDATLIM 0x7FFFFFFF
 # /etc/conf/bin/idtune SVMMLIM 0x7FFFFFFF
@@ -9128,10 +8836,10 @@ HVMMLIM         0x9000000       0x1000000       0x7FFFFFFF
    Then rebuild and reboot the kernel by issuing this command:
 # /etc/conf/bin/idbuild -B && init 6
 
-   We recommend tuning the system, but the proper parameter values to
-   use depend on the number of users accessing the application or
-   database and size the of the database (that is, the used buffer
-   pool). The following kernel parameters can be set with idtune:
+   To tune the system, the proper parameter values to use depend on
+   the number of users accessing the application or database and size
+   the of the database (that is, the used buffer pool). The following
+   kernel parameters can be set with idtune:
 
      * SHMMAX (recommended setting: 128MB) and SHMSEG (recommended
        setting: 15). These parameters have an influence on the MySQL
@@ -9142,8 +8850,8 @@ HVMMLIM         0x9000000       0x1000000       0x7FFFFFFF
      * NPROC should be set to at least 3000/4000 (depends on number
        of users).
 
-     * We also recommend using the following formulas to calculate
-       values for SEMMSL, SEMMNS, and SEMMNU:
+     * The following formulas are recommended to calculate values for
+       SEMMSL, SEMMNS, and SEMMNU:
 SEMMSL = 13
        13 is what has been found to be the best for both Progress and
        MySQL.
@@ -9158,10 +8866,10 @@ SEMMNU = SEMMNS
 
 2.13.5.10. SCO UnixWare 7.1.x and OpenUNIX 8.0.0 Notes
 
-   We recommend using the latest production release of MySQL. Should
-   you choose to use an older release of MySQL on UnixWare 7.1.x, you
-   must use a version of MySQL at least as recent as 3.22.13 to get
-   fixes for some portability and OS problems.
+   Use the latest production release of MySQL. Should you choose to
+   use an older release of MySQL on UnixWare 7.1.x, you must use a
+   version of MySQL at least as recent as 3.22.13 to get fixes for
+   some portability and OS problems.
 
    We have been able to compile MySQL with the following configure
    command on UnixWare 7.1.x:
@@ -9210,9 +8918,8 @@ SVMMLIM         0x9000000       0x1000000       0x7FFFFFFF
 HVMMLIM         0x9000000       0x1000000       0x7FFFFFFF
 
    To make changes to the kernel, use the idtune name parameter
-   command. idtune modifies the /etc/conf/cf.d/stune file for you. We
-   recommend setting the kernel values by executing the following
-   commands as root:
+   command. idtune modifies the /etc/conf/cf.d/stune file for you. To
+   set the kernel values, execute the following commands as root:
 # /etc/conf/bin/idtune SDATLIM 0x7FFFFFFF
 # /etc/conf/bin/idtune HDATLIM 0x7FFFFFFF
 # /etc/conf/bin/idtune SVMMLIM 0x7FFFFFFF
@@ -9223,10 +8930,10 @@ HVMMLIM         0x9000000       0x1000000       0x7FFFFFFF
    Then rebuild and reboot the kernel by issuing this command:
 # /etc/conf/bin/idbuild -B && init 6
 
-   We recommend tuning the system, but the proper parameter values to
-   use depend on the number of users accessing the application or
-   database and size the of the database (that is, the used buffer
-   pool). The following kernel parameters can be set with idtune:
+   To tune the system, the proper parameter values to use depend on
+   the number of users accessing the application or database and size
+   the of the database (that is, the used buffer pool). The following
+   kernel parameters can be set with idtune:
 
      * SHMMAX (recommended setting: 128MB) and SHMSEG (recommended
        setting: 15). These parameters have an influence on the MySQL
@@ -9237,8 +8944,8 @@ HVMMLIM         0x9000000       0x1000000       0x7FFFFFFF
      * NPROC should be set to at least 3000/4000 (depends on number
        of users).
 
-     * We also recommend using the following formulas to calculate
-       values for SEMMSL, SEMMNS, and SEMMNU:
+     * The following formulas are recommended to calculate values for
+       SEMMSL, SEMMNS, and SEMMNU:
 SEMMSL = 13
        13 is what has been found to be the best for both Progress and
        MySQL.
@@ -9264,7 +8971,7 @@ SEMMNU = SEMMNS
 
    In many cases, it is preferable to use an option file instead of
    environment variables to modify the behavior of MySQL. See Section
-   4.2.3.2, "Using Option Files."
+   4.2.3.3, "Using Option Files."
    Variable Description
    CXX The name of your C++ compiler (for running configure).
    CC The name of your C compiler (for running configure).
@@ -9342,7 +9049,7 @@ SEMMNU = SEMMNS
    Perl support for MySQL must be installed if you want to run the
    MySQL benchmark scripts; see Section 7.1.4, "The MySQL Benchmark
    Suite." It is also required for the MySQL Cluster ndb_size.pl
-   utility; see Section 17.9.15, "ndb_size.pl --- NDBCLUSTER Size
+   utility; see Section 17.6.21, "ndb_size.pl --- NDBCLUSTER Size
    Requirement Estimator."
 
 2.15.1. Installing Perl on Unix
