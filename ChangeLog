@@ -1,3 +1,22 @@
+2009-09-16	The InnoDB Team
+
+	* handler/ha_innodb.cc:
+	Fix Bug#46256 drop table with unknown collation crashes innodb
+
+2009-09-16	The InnoDB Team
+
+	* dict/dict0dict.c, handler/ha_innodb.cc,
+	mysql-test/innodb_bug44369.result, mysql-test/innodb_bug44369.test,
+	row/row0mysql.c:
+	Fix Bug#44369 InnoDB: Does not uniformly disallow disallowed column
+	names
+
+2009-09-16	The InnoDB Team
+
+	* handler/ha_innodb.cc, include/db0err.h,
+	mysql-test/innodb_bug46000.result, mysql-test/innodb_bug46000.test:
+	Fix Bug#46000 using index called GEN_CLUST_INDEX crashes server
+
 2009-09-02	The InnoDB Team
 
 	* include/lock0lock.h, include/row0mysql.h, lock/lock0lock.c,
