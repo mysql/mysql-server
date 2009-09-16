@@ -155,13 +155,11 @@ bool Item_subselect::fix_fields(THD *thd_param, Item **ref)
   if (check_stack_overrun(thd, STACK_MIN_SIZE, (uchar*)&res))
     return TRUE;
 
-  res= engine->prepare();
-
-  // all transformation is done (used by prepared statements)
-  changed= 1;
-
-  if (!res)
+  if (!(res= engine->prepare()))
   {
+    // all transformation is done (used by prepared statements)
+    changed= 1;
+
     if (substitution)
     {
       int ret= 0;
