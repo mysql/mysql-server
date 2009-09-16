@@ -9,6 +9,7 @@ CREATE DATABASE `日本語`;
 CREATE DATABASE `龔龖龗`;
 SHOW DATABASES;
 Database
+information_schema
 mysql
 test
 日本語

@@ -1,3 +1,5 @@
+-- source include/have_innodb.inc
+-- source include/have_bdb.inc
 --source include/have_ucs2.inc
 
 # half-with kana is not handled correctly in 4.1
