@@ -3747,11 +3747,19 @@ bool mysql_create_table_no_lock(THD *thd,
 
   /* Give warnings for not supported table options */
   if (create_info->transactional && !file->ht->commit)
+  {
     push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
                         ER_ILLEGAL_HA_CREATE_OPTION,
                         ER(ER_ILLEGAL_HA_CREATE_OPTION),
                         file->engine_name()->str,
                         "TRANSACTIONAL=1");
+    /* 
+      MariaDB: need to do the same for row_format and page_checksum
+      options. See  MBUG#425916
+    */
+    create_info->transactional= HA_CHOICE_UNDEF;
+    create_info->used_fields &= ~HA_CREATE_USED_TRANSACTIONAL;
+  }
 
   VOID(pthread_mutex_lock(&LOCK_open));
   if (!internal_tmp_table && !(create_info->options & HA_LEX_CREATE_TMP_TABLE))
