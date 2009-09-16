@@ -98,78 +98,78 @@ insert into t2 select id, id, date_add('2009-06-22', interval id day) from t0;
 insert into t2 select id, id+1, date_add('2008-06-22', interval id day) from t0;
 create view v1 as
 select 
-F.id, A1.attr1, A2.attr2
+f.id, a1.attr1, a2.attr2
 from 
-t0 F 
-left join t1 A1 on A1.id=F.id
-left join t2 A2 on A2.id=F.id and 
-A2.fromdate=(select MAX(fromdate) from
-t2 where id=A2.id);
+t0 f 
+left join t1 a1 on a1.id=f.id
+left join t2 a2 on a2.id=f.id and 
+a2.fromdate=(select MAX(fromdate) from
+t2 where id=a2.id);
 create view v2 as
 select 
-F.id, A1.attr1, A2.attr2
+f.id, a1.attr1, a2.attr2
 from 
-t0 F 
-left join t1 A1 on A1.id=F.id
-left join t2 A2 on A2.id=F.id and 
-A2.fromdate=(select MAX(fromdate) from
-t2 where id=F.id);
+t0 f 
+left join t1 a1 on a1.id=f.id
+left join t2 a2 on a2.id=f.id and 
+a2.fromdate=(select MAX(fromdate) from
+t2 where id=f.id);
 This should use one table:
 explain select id from v1 where id=2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	F	const	PRIMARY	PRIMARY	4	const	1	Using index
+1	PRIMARY	f	const	PRIMARY	PRIMARY	4	const	1	Using index
 This should use one table:
 explain extended select id from v1 where id in (1,2,3,4);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	F	range	PRIMARY	PRIMARY	4	NULL	4	100.00	Using where; Using index
+1	PRIMARY	f	range	PRIMARY	PRIMARY	4	NULL	4	100.00	Using where; Using index
 Warnings:
-Note	1276	Field or reference 'test.A2.id' of SELECT #3 was resolved in SELECT #1
-Note	1003	select `F`.`id` AS `id` from `test`.`t0` `F` where (`F`.`id` in (1,2,3,4))
-This should use facts and A1 tables:
+Note	1276	Field or reference 'test.a2.id' of SELECT #3 was resolved in SELECT #1
+Note	1003	select `f`.`id` AS `id` from `test`.`t0` `f` where (`f`.`id` in (1,2,3,4))
+This should use facts and a1 tables:
 explain extended select id from v1 where attr1 between 12 and 14;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	A1	range	PRIMARY,attr1	attr1	5	NULL	2	100.00	Using where
-1	PRIMARY	F	eq_ref	PRIMARY	PRIMARY	4	test.A1.id	1	100.00	Using index
+1	PRIMARY	a1	range	PRIMARY,attr1	attr1	5	NULL	2	100.00	Using where
+1	PRIMARY	f	eq_ref	PRIMARY	PRIMARY	4	test.a1.id	1	100.00	Using index
 Warnings:
-Note	1276	Field or reference 'test.A2.id' of SELECT #3 was resolved in SELECT #1
-Note	1003	select `F`.`id` AS `id` from `test`.`t0` `F` join `test`.`t1` `A1` where ((`F`.`id` = `A1`.`id`) and (`A1`.`attr1` between 12 and 14))
-This should use facts, A2 and its subquery:
+Note	1276	Field or reference 'test.a2.id' of SELECT #3 was resolved in SELECT #1
+Note	1003	select `f`.`id` AS `id` from `test`.`t0` `f` join `test`.`t1` `a1` where ((`f`.`id` = `a1`.`id`) and (`a1`.`attr1` between 12 and 14))
+This should use facts, a2 and its subquery:
 explain extended select id from v1 where attr2 between 12 and 14;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	A2	range	PRIMARY,attr2	attr2	5	NULL	5	100.00	Using where
-1	PRIMARY	F	eq_ref	PRIMARY	PRIMARY	4	test.A2.id	1	100.00	Using index
-3	DEPENDENT SUBQUERY	t2	ref	PRIMARY	PRIMARY	4	test.A2.id	2	100.00	Using index
+1	PRIMARY	a2	range	PRIMARY,attr2	attr2	5	NULL	5	100.00	Using where
+1	PRIMARY	f	eq_ref	PRIMARY	PRIMARY	4	test.a2.id	1	100.00	Using index
+3	DEPENDENT SUBQUERY	t2	ref	PRIMARY	PRIMARY	4	test.a2.id	2	100.00	Using index
 Warnings:
-Note	1276	Field or reference 'test.A2.id' of SELECT #3 was resolved in SELECT #1
-Note	1003	select `F`.`id` AS `id` from `test`.`t0` `F` join `test`.`t2` `A2` where ((`F`.`id` = `A2`.`id`) and (`A2`.`attr2` between 12 and 14) and (`A2`.`fromdate` = (select max(`test`.`t2`.`fromdate`) AS `MAX(fromdate)` from `test`.`t2` where (`test`.`t2`.`id` = `A2`.`id`))))
+Note	1276	Field or reference 'test.a2.id' of SELECT #3 was resolved in SELECT #1
+Note	1003	select `f`.`id` AS `id` from `test`.`t0` `f` join `test`.`t2` `a2` where ((`f`.`id` = `a2`.`id`) and (`a2`.`attr2` between 12 and 14) and (`a2`.`fromdate` = (select max(`test`.`t2`.`fromdate`) AS `MAX(fromdate)` from `test`.`t2` where (`test`.`t2`.`id` = `a2`.`id`))))
 This should use one table:
 explain select id from v2 where id=2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	F	const	PRIMARY	PRIMARY	4	const	1	Using index
+1	PRIMARY	f	const	PRIMARY	PRIMARY	4	const	1	Using index
 This should use one table:
 explain extended select id from v2 where id in (1,2,3,4);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	F	range	PRIMARY	PRIMARY	4	NULL	4	100.00	Using where; Using index
+1	PRIMARY	f	range	PRIMARY	PRIMARY	4	NULL	4	100.00	Using where; Using index
 Warnings:
-Note	1276	Field or reference 'test.F.id' of SELECT #3 was resolved in SELECT #1
-Note	1003	select `F`.`id` AS `id` from `test`.`t0` `F` where (`F`.`id` in (1,2,3,4))
-This should use facts and A1 tables:
+Note	1276	Field or reference 'test.f.id' of SELECT #3 was resolved in SELECT #1
+Note	1003	select `f`.`id` AS `id` from `test`.`t0` `f` where (`f`.`id` in (1,2,3,4))
+This should use facts and a1 tables:
 explain extended select id from v2 where attr1 between 12 and 14;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	A1	range	PRIMARY,attr1	attr1	5	NULL	2	100.00	Using where
-1	PRIMARY	F	eq_ref	PRIMARY	PRIMARY	4	test.A1.id	1	100.00	Using index
+1	PRIMARY	a1	range	PRIMARY,attr1	attr1	5	NULL	2	100.00	Using where
+1	PRIMARY	f	eq_ref	PRIMARY	PRIMARY	4	test.a1.id	1	100.00	Using index
 Warnings:
-Note	1276	Field or reference 'test.F.id' of SELECT #3 was resolved in SELECT #1
-Note	1003	select `F`.`id` AS `id` from `test`.`t0` `F` join `test`.`t1` `A1` where ((`F`.`id` = `A1`.`id`) and (`A1`.`attr1` between 12 and 14))
-This should use facts, A2 and its subquery:
+Note	1276	Field or reference 'test.f.id' of SELECT #3 was resolved in SELECT #1
+Note	1003	select `f`.`id` AS `id` from `test`.`t0` `f` join `test`.`t1` `a1` where ((`f`.`id` = `a1`.`id`) and (`a1`.`attr1` between 12 and 14))
+This should use facts, a2 and its subquery:
 explain extended select id from v2 where attr2 between 12 and 14;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	A2	range	PRIMARY,attr2	attr2	5	NULL	5	100.00	Using where
-1	PRIMARY	F	eq_ref	PRIMARY	PRIMARY	4	test.A2.id	1	100.00	Using where; Using index
-3	DEPENDENT SUBQUERY	t2	ref	PRIMARY	PRIMARY	4	test.F.id	2	100.00	Using index
+1	PRIMARY	a2	range	PRIMARY,attr2	attr2	5	NULL	5	100.00	Using where
+1	PRIMARY	f	eq_ref	PRIMARY	PRIMARY	4	test.a2.id	1	100.00	Using where; Using index
+3	DEPENDENT SUBQUERY	t2	ref	PRIMARY	PRIMARY	4	test.f.id	2	100.00	Using index
 Warnings:
-Note	1276	Field or reference 'test.F.id' of SELECT #3 was resolved in SELECT #1
-Note	1003	select `F`.`id` AS `id` from `test`.`t0` `F` join `test`.`t2` `A2` where ((`F`.`id` = `A2`.`id`) and (`A2`.`attr2` between 12 and 14) and (`A2`.`fromdate` = (select max(`test`.`t2`.`fromdate`) AS `MAX(fromdate)` from `test`.`t2` where (`test`.`t2`.`id` = `F`.`id`))))
+Note	1276	Field or reference 'test.f.id' of SELECT #3 was resolved in SELECT #1
+Note	1003	select `f`.`id` AS `id` from `test`.`t0` `f` join `test`.`t2` `a2` where ((`f`.`id` = `a2`.`id`) and (`a2`.`attr2` between 12 and 14) and (`a2`.`fromdate` = (select max(`test`.`t2`.`fromdate`) AS `MAX(fromdate)` from `test`.`t2` where (`test`.`t2`.`id` = `f`.`id`))))
 drop view v1, v2;
 drop table t0, t1, t2;
 create table t1 (a int);

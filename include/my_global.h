@@ -925,6 +925,7 @@ typedef long long	my_ptrdiff_t;
 
 #define MY_ALIGN(A,L)	(((A) + (L) - 1) & ~((L) - 1))
 #define ALIGN_SIZE(A)	MY_ALIGN((A),sizeof(double))
+#define ALIGN_MAX_UNIT  (sizeof(double))
 /* Size to make adressable obj. */
 #define ALIGN_PTR(A, t) ((t*) MY_ALIGN((A), sizeof(double)))
 #define OFFSET(t, f)	((size_t)(char *)&((t *)0)->f)
