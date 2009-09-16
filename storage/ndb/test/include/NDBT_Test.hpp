@@ -348,6 +348,7 @@ public:
   void setCreateTable(bool);     // Create table before test func is called
   void setCreateAllTables(bool); // Create all tables before testsuite is executed 
   void setRunAllTables(bool); // Run once with all tables
+  void setConnectCluster(bool); // Connect to cluster before testsuite is executed
 
   // Prints the testsuite, testcases and teststeps
   void printExecutionTree();
@@ -408,6 +409,7 @@ private:
   NdbTimer testSuiteTimer;
   bool m_createTable;
   bool m_createAll;
+  bool m_connect_cluster;
   bool diskbased;
   bool runonce;
   const char* tsname;
