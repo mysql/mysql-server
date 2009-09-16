@@ -3680,38 +3680,6 @@ SELECT * FROM v1 IGNORE INDEX (c2) WHERE c2=2;
 DROP VIEW v1;
 DROP TABLE t1;
 
---echo # 
---echo # Bug #45806 crash when replacing into a view with a join!
---echo # 
-CREATE TABLE t1(a INT UNIQUE);
-CREATE VIEW v1 AS SELECT t1.a FROM t1, t1 AS a;
-INSERT INTO t1 VALUES (1), (2);
-
-REPLACE INTO v1(a) SELECT 1 FROM t1,t1 AS c;
-SELECT * FROM v1;
-REPLACE INTO v1(a) SELECT 3 FROM t1,t1 AS c;
-SELECT * FROM v1;
-DELETE FROM t1 WHERE a=3;
-INSERT INTO v1(a) SELECT 1 FROM t1,t1 AS c
-ON DUPLICATE KEY UPDATE `v1`.`a`= 1;
-SELECT * FROM v1;
-
-CREATE VIEW v2 AS SELECT t1.a FROM t1, v1 AS a;
-
-REPLACE INTO v2(a) SELECT 1 FROM t1,t1 AS c;
-SELECT * FROM v2;
-REPLACE INTO v2(a) SELECT 3 FROM t1,t1 AS c;
-SELECT * FROM v2;
-INSERT INTO v2(a) SELECT 1 FROM t1,t1 AS c
-ON DUPLICATE KEY UPDATE `v2`.`a`= 1;
-SELECT * FROM v2;
-
-DROP VIEW v1;
-DROP VIEW v2;
-DROP TABLE t1;
-
---echo # -- End of test case for Bug#45806
-
 --echo # -----------------------------------------------------------------
 --echo # -- Bug#40825: Error 1356 while selecting from a view 
 --echo # --            with a "HAVING" clause though query works
